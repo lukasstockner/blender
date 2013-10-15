@@ -16,20 +16,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_ALEMBIC_H
-#define PTC_ALEMBIC_H
-
-#include <Alembic/Abc/OArchive.h>
-#include <Alembic/AbcCoreHDF5/ReadWrite.h>
+#ifndef PTC_TYPES_H
+#define PTC_TYPES_H
 
 #include <Alembic/AbcGeom/Foundation.h>
 #include <Alembic/AbcGeom/IGeomParam.h>
 #include <Alembic/AbcGeom/OGeomParam.h>
 
-using namespace Alembic::Abc;
-using namespace Alembic::AbcGeom;
+//using namespace Alembic::Abc;
+//using namespace Alembic::AbcGeom;
 
-namespace Util = Alembic::Util;
+//namespace Util = Alembic::Util;
 
 #if 0
 using Abc::V2s;
@@ -140,4 +137,4 @@ IN3fGeomParam;
 IN3dGeomParam;
 #endif
 
-#endif  /* PTC_ALEMBIC_H */
+#endif  /* PTC_TYPES_H */

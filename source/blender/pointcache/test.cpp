@@ -26,6 +26,7 @@
 
 void PTC_test_archive(void)
 {
+#if 0
 	std::string archiveName("myFirstArchive.abc");
 	OArchive archive(Alembic::AbcCoreHDF5::WriteArchive(),
 	                 archiveName,
@@ -45,6 +46,7 @@ void PTC_test_archive(void)
 //		size.set(i*i - 0.43*i);
 		schema.set(sample);
 //	}
+#endif
 
 #if 0
 	std::string archiveName("myFirstArchive.abc");

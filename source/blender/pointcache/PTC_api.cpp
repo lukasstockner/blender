@@ -20,51 +20,45 @@
 
 #ifdef WITH_ALEMBIC
 
-#include "archive.h"
+#include "writer.h"
 #include "particles.h"
 
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 
-typedef struct PTCArchive PTCArchive;
-typedef struct PTCObject PTCObject;
-
-PTCArchive *PTC_archive_create(const char *filename)
+void PTC_writer_free(PTCWriter *_writer)
 {
-	OArchive *archive = new OArchive(Alembic::AbcCoreHDF5::WriteArchive(),
-	                                 std::string(filename),
-	                                 ErrorHandler::kThrowPolicy);
-	
-	return (PTCArchive *)archive;
+	PTC::Writer *writer = (PTC::Writer *)_writer;
+	delete writer;
 }
 
-void PTC_archive_free(PTCArchive *_archive)
+void PTC_write(struct PTCWriter *_writer)
 {
-	OArchive *archive = (OArchive *)_archive;
-	delete archive;
+	PTC::Writer *writer = (PTC::Writer *)_writer;
+	writer->write();
 }
 
 
-void PTC_write_particles(PTCArchive *_archive, Object *ob, ParticleSystem *psys)
+/* Particles */
+PTCWriter *PTC_writer_create_particles(const char *filename, Scene *scene, Object *ob, ParticleSystem *psys)
 {
-	OArchive *archive = (OArchive *)_archive;
-	
-	OObject root = archive->getTop();
-	
-//	OParticles particles(root.getChild(psys->name).getPtr(), kWrapExisting);
-//	if (!particles.getPtr())
-//		particles = OParticles(root, psys->name);
+	PTC::ParticlesWriter *writer = new PTC::ParticlesWriter(filename, ob, psys);
+	return (PTCWriter *)writer;
 }
 
 #else
 
-PTCArchive *PTC_archive_create(const char *filename)
+void PTC_writer_free(PTCWriter *_writer)
 {
-	return NULL;
 }
 
-void PTC_archive_free(PTCArchive *_archive)
+void PTC_write(struct PTCWriter *_writer)
 {
+}
+
+PTCWriter *PTC_writer_create_particles(const char *filename, struct Object *ob, struct ParticleSystem *psys)
+{
+	return NULL;
 }
 
 #endif

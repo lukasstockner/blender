@@ -16,33 +16,21 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_API_H
-#define PTC_API_H
+#include <Alembic/AbcCoreHDF5/ReadWrite.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "writer.h"
 
-struct Scene;
-struct Object;
-struct ParticleSystem;
+namespace PTC {
 
-void PTC_test_archive(void);
+using namespace Abc;
 
+Writer::Writer(const std::string &filename)
+{
+	m_archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, ErrorHandler::kThrowPolicy);
+}
 
-struct PTCWriter;
-struct PTCReader;
+Writer::~Writer()
+{
+}
 
-void PTC_writer_free(struct PTCWriter *writer);
-
-void PTC_write(struct PTCWriter *writer);
-
-
-/* Particles */
-struct PTCWriter *PTC_writer_create_particles(const char *filename, struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
-
-#ifdef __cplusplus
-} /* extern C */
-#endif
-
-#endif  /* PTC_API_H */
+} /* namespace PTC */

@@ -16,33 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_API_H
-#define PTC_API_H
+#ifndef PTC_READER_H
+#define PTC_READER_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct Scene;
-struct Object;
-struct ParticleSystem;
-
-void PTC_test_archive(void);
-
-
-struct PTCWriter;
-struct PTCReader;
-
-void PTC_writer_free(struct PTCWriter *writer);
-
-void PTC_write(struct PTCWriter *writer);
-
-
-/* Particles */
-struct PTCWriter *PTC_writer_create_particles(const char *filename, struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
-
-#ifdef __cplusplus
-} /* extern C */
-#endif
-
-#endif  /* PTC_API_H */
+#endif  /* PTC_READER_H */

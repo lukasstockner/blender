@@ -19,11 +19,19 @@
 #ifndef PTC_PARTICLES_H
 #define PTC_PARTICLES_H
 
-//namespace PTC {
+#include <Alembic/AbcGeom/IPoints.h>
+#include <Alembic/AbcGeom/OPoints.h>
 
 #include "schema.h"
 #include "types.h"
+#include "writer.h"
 
+struct Object;
+struct ParticleSystem;
+
+namespace PTC {
+
+#if 0
 PTC_SCHEMA_INFO("Particles", "Particles", ".particles", ParticlesSchemaInfo);
 
 class IParticlesSchema : public IGeomBaseSchema<ParticlesSchemaInfo>
@@ -464,7 +472,23 @@ protected:
 typedef OSchemaObject<OParticlesSchema> OParticles;
 
 typedef Util::shared_ptr< OParticles > OParticlesPtr;
+#endif
 
-//} /* namespace PTC */
+
+class ParticlesWriter : public Writer {
+public:
+	ParticlesWriter(const std::string &filename, Object *ob, ParticleSystem *psys);
+	~ParticlesWriter();
+	
+	void write();
+	
+private:
+	Object *m_ob;
+	ParticleSystem *m_psys;
+	
+	AbcGeom::OPoints m_points;
+};
+
+} /* namespace PTC */
 
 #endif  /* PTC_PARTICLES_H */

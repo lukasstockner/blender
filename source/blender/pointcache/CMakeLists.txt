@@ -42,12 +42,14 @@ if(WITH_ALEMBIC)
 	list(APPEND INC_SYS ${ALEMBIC_INCLUDE_DIRS} ${OPENEXR_INCLUDE_DIR}/OpenEXR)
 
 	list(APPEND SRC
-	intern/archive.h
-	intern/archive.cpp
 	intern/particles.h
 	intern/particles.cpp
+	intern/reader.h
+	intern/reader.cpp
 	intern/schema.h
 	intern/types.h
+	intern/writer.h
+	intern/writer.cpp
 	)
 
 	add_definitions(-DWITH_ALEMBIC)

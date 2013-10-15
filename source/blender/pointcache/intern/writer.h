@@ -16,7 +16,29 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_ARCHIVE_H
-#define PTC_ARCHIVE_H
+#ifndef PTC_WRITER_H
+#define PTC_WRITER_H
 
-#endif  /* PTC_ARCHIVE_H */
+#include <string>
+
+#include <Alembic/Abc/OArchive.h>
+
+namespace PTC {
+
+using namespace Alembic;
+
+class Writer {
+public:
+	Writer(const std::string &filename);
+	virtual ~Writer();
+	
+	virtual void write() = 0;
+	
+protected:
+	Abc::OArchive m_archive;
+};
+
+
+} /* namespace PTC */
+
+#endif  /* PTC_WRITER_H */

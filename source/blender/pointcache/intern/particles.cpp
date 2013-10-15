@@ -18,8 +18,17 @@
 
 #include "particles.h"
 
-//namespace PTC {
+extern "C" {
+#include "DNA_object_types.h"
+#include "DNA_particle_types.h"
+}
 
+namespace PTC {
+
+using namespace Abc;
+using namespace AbcGeom;
+
+#if 0
 void IParticlesSchema::init(const Abc::Argument &iArg0,
                             const Abc::Argument &iArg1)
 {
@@ -218,5 +227,46 @@ void OParticlesSchema::init(uint32_t iTsIdx)
 
 	ALEMBIC_ABC_SAFE_CALL_END_RESET();
 }
+#endif
 
-//} /* namespace PTC */
+
+ParticlesWriter::ParticlesWriter(const std::string &filename, Object *ob, ParticleSystem *psys) :
+    Writer(filename),
+    m_ob(ob),
+    m_psys(psys)
+{
+	OObject root = m_archive.getTop();
+	m_points = OPoints(root, m_psys->name);
+}
+
+ParticlesWriter::~ParticlesWriter()
+{
+}
+
+void ParticlesWriter::write()
+{
+	OPointsSchema &schema = m_points.getSchema();
+	
+	int totpart = m_psys->totpart;
+	ParticleData *pa;
+	int i;
+	
+	/* XXX TODO only needed for the first frame/sample */
+	std::vector<Util::uint64_t> ids;
+	ids.reserve(totpart);
+	for (i = 0, pa = m_psys->particles; i < totpart; ++i, ++pa)
+		ids.push_back(i);
+	
+	std::vector<V3f> positions;
+	positions.reserve(totpart);
+	for (i = 0, pa = m_psys->particles; i < totpart; ++i, ++pa) {
+		float *co = pa->state.co;
+		positions.push_back(V3f(co[0], co[1], co[2]));
+	}
+	
+	OPointsSchema::Sample sample = OPointsSchema::Sample(V3fArraySample(positions), UInt64ArraySample(ids));
+
+	schema.set(sample);
+}
+
+} /* namespace PTC */

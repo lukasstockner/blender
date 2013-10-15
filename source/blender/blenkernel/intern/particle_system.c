@@ -96,6 +96,8 @@
 #include "BKE_scene.h"
 #include "BKE_bvhutils.h"
 
+#include "PTC_api.h"
+
 #include "PIL_time.h"
 
 #include "RE_shader_ext.h"
@@ -4782,6 +4784,8 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		BKE_ptcache_validate(cache, (int)cache_cfra);
 		if ((int)cache_cfra != startframe)
 			BKE_ptcache_write(pid, (int)cache_cfra);
+		if (psys->pointcache->flag & PTCACHE_DISK_CACHE && psys->pointcache->writer)
+			PTC_write(psys->pointcache->writer);
 	}
 
 	update_children(sim);

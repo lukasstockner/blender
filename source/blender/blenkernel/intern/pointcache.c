@@ -476,6 +476,16 @@ static void ptcache_particle_extra_read(void *psys_v, PTCacheMem *pm, float UNUS
 	}
 }
 
+static int ptcache_archive_filename(PointCache *cache, Object *ob, char *filename, bool do_path, bool do_ext);
+
+static struct PTCWriter *ptcache_particle_writer_create(Scene *scene, Object *ob, void *psys_v)
+{
+	ParticleSystem *psys = psys_v;
+	char filename[FILE_MAX * 2];
+	ptcache_archive_filename(psys->pointcache, ob, filename, true, true);
+	return PTC_writer_create_particles(filename, scene, ob, psys);
+}
+
 /* Cloth functions */
 static int  ptcache_cloth_write(int index, void *cloth_v, void **data, int UNUSED(cfra))
 {
@@ -1186,6 +1196,8 @@ void BKE_ptcache_id_from_particles(PTCacheID *pid, Object *ob, ParticleSystem *p
 
 	pid->default_step = 10;
 	pid->max_step = 20;
+
+	pid->writer_create = ptcache_particle_writer_create;
 }
 void BKE_ptcache_id_from_cloth(PTCacheID *pid, Object *ob, ClothModifierData *clmd)
 {
@@ -2566,6 +2578,11 @@ int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra)
 		error += ptcache_write(pid, cfra, overwrite);
 	}
 
+	if (!cache->writer && pid->writer_create)
+		cache->writer = pid->writer_create(pid->scene, pid->ob, pid->calldata);
+	if (cache->writer)
+		PTC_write(cache->writer);
+
 	/* Mark frames skipped if more than 1 frame forwards since last non-skipped frame. */
 	if (cfra - cache->last_exact == 1 || cfra == cache->startframe) {
 		cache->last_exact = cfra;
@@ -3058,7 +3075,7 @@ PointCache *BKE_ptcache_add(ListBase *ptcaches)
 	cache->step= 10;
 	cache->index = -1;
 
-	cache->archive = NULL;
+	cache->writer = NULL;
 
 	BLI_addtail(ptcaches, cache);
 
@@ -3086,8 +3103,8 @@ void BKE_ptcache_free(PointCache *cache)
 	if (cache->cached_frames)
 		MEM_freeN(cache->cached_frames);
 
-	if (cache->archive)
-		PTC_archive_free(cache->archive);
+	if (cache->writer)
+		PTC_writer_free(cache->writer);
 
 	MEM_freeN(cache);
 }
@@ -3142,7 +3159,7 @@ static PointCache *ptcache_copy(PointCache *cache, int copy_data)
 	/* hmm, should these be copied over instead? */
 	ncache->edit = NULL;
 
-	ncache->archive = NULL;
+	ncache->writer = NULL;
 
 	return ncache;
 }
@@ -3531,23 +3548,10 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
 		cache->cached_frames=NULL;
 	}
 
-	if (cache->flag & PTCACHE_DISK_CACHE) {
+	if (cache->flag & PTCACHE_DISK_CACHE)
 		BKE_ptcache_mem_to_disk(pid);
-		
-		if (!cache->archive) {
-			char filename[FILE_MAX * 2];
-			ptcache_archive_filename(cache, pid->ob, filename, true, true);
-			cache->archive = PTC_archive_create(filename);
-		}
-	}
-	else {
+	else
 		BKE_ptcache_disk_to_mem(pid);
-		
-		if (cache->archive) {
-			PTC_archive_free(cache->archive);
-			cache->archive = NULL;
-		}
-	}
 
 	cache->flag ^= PTCACHE_DISK_CACHE;
 	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);

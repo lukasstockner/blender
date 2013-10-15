@@ -27,11 +27,14 @@
 
 namespace PTC {
 
+#if 0
 #define PTC_SCHEMA_INFO ALEMBIC_ABCGEOM_DECLARE_SCHEMA_INFO
 
 using namespace Alembic::AbcGeom;
+#endif
 
 
+#if 0
 /* XXX We define an extended schema class to implement the wrapper constructor.
  * This was removed in Alembic 1.1 for some reason ...
  */
@@ -65,6 +68,41 @@ public:
 	              const Argument &iArg1 = Argument(),
 	              const Argument &iArg2 = Argument() );
 };
+
+//-*****************************************************************************		
+template<class SCHEMA>
+template<class OBJECT_PTR>
+inline OSchemaObject<SCHEMA>::OSchemaObject(
+        OBJECT_PTR iObject,
+        WrapExistingFlag iFlag,
+        const Argument &iArg0,
+        const Argument &iArg1,
+        const Argument &iArg2 )
+    : OObject(iObject,
+              iFlag,
+              GetErrorHandlerPolicy(iObject,
+                                    iArg0, iArg1, iArg2))
+{
+	ALEMBIC_ABC_SAFE_CALL_BEGIN("OSchemaObject::OSchemaObject( wrap )");
+	
+	const AbcA::ObjectHeader &oheader = this->getHeader();
+	
+	Abc::OSchemaObject<SCHEMA>::m_schema = SCHEMA(
+	               this->getProperties().getProperty(SCHEMA::getDefaultSchemaName()).getPtr()->asCompoundPtr(),
+	               iFlag,
+	               this->getErrorHandlerPolicy(),
+	               GetSchemaInterpMatching(iArg0, iArg1, iArg2));
+	
+	/* XXX TODO gives compiler error atm */
+//	ABCA_ASSERT(matches(oheader, GetSchemaInterpMatching(iArg0, iArg1, iArg2)),
+//	             "Incorrect match of schema: "
+//	             << oheader.getMetaData().get( "schemaObjTitle" )
+//	             << " to expected: "
+//	             << getSchemaObjTitle());
+	
+	ALEMBIC_ABC_SAFE_CALL_END_RESET();
+}
+#endif
 
 } /* namespace PTC */
 
