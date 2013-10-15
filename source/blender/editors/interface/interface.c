@@ -662,6 +662,7 @@ static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut
 				/* drawing */
 				oldbut->icon = but->icon;
 				oldbut->iconadd = but->iconadd;
+				oldbut->alignnr = but->alignnr;
 				
 				/* typically the same pointers, but not on undo/redo */
 				/* XXX some menu buttons store button itself in but->poin. Ugly */
@@ -2874,7 +2875,7 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	}
 
 	/* keep track of UI_interface.h */
-	if      (ELEM8(but->type, BLOCK, BUT, LABEL, PULLDOWN, ROUNDBOX, BUTM, SCROLL, SEPR)) {}
+	if      (ELEM9(but->type, BLOCK, BUT, LABEL, PULLDOWN, ROUNDBOX, LISTBOX, BUTM, SCROLL, SEPR)) {}
 	else if (but->type >= SEARCH_MENU) {}
 	else but->flag |= UI_BUT_UNDO;
 

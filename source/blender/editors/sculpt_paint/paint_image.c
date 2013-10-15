@@ -1208,7 +1208,8 @@ static void sample_color_update_header(SampleColorData *data, bContext *C)
 
 static int sample_color_exec(bContext *C, wmOperator *op)
 {
-	Brush *brush = image_paint_brush(C);
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *brush = BKE_paint_brush(paint);
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	ARegion *ar = CTX_wm_region(C);
 	int location[2];
@@ -1224,7 +1225,7 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 
 static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	Paint *paint = &(CTX_data_tool_settings(C)->imapaint.paint);
+	Paint *paint = BKE_paint_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
 	SampleColorData *data = MEM_mallocN(sizeof(SampleColorData), "sample color custom data");
 	data->event_type = event->type;
@@ -1250,7 +1251,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	SampleColorData *data = op->customdata;
 
 	if ((event->type == data->event_type) && (event->val == KM_RELEASE)) {
-		Paint *paint = &(CTX_data_tool_settings(C)->imapaint.paint);
+		Paint *paint = BKE_paint_get_active_from_context(C);
 		ScrArea *sa = CTX_wm_area(C);
 
 		if(data->show_cursor) {

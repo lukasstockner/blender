@@ -82,7 +82,7 @@ static void rna_generate_static_parameter_prototypes(FILE *f, StructRNA *srna, F
 		fprintf(f, param); \
 	} (void)0
 
-static int replace_if_different(char *tmpfile, const char *dep_files[])
+static int replace_if_different(const char *tmpfile, const char *dep_files[])
 {
 	/* return 0;  *//* use for testing had edited rna */
 
@@ -1555,7 +1555,7 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 			}
 			else if (prop->arraydimension && prop->totarraylength) {
 				fprintf(f, "void %sget(PointerRNA *ptr, int values[%u]);\n", func, prop->totarraylength);
-				fprintf(f, "void %sset(PointerRNA *ptr, const int values[%d]);\n", func, prop->totarraylength);
+				fprintf(f, "void %sset(PointerRNA *ptr, const int values[%u]);\n", func, prop->totarraylength);
 			}
 			else {
 				fprintf(f, "void %sget(PointerRNA *ptr, int values[]);\n", func);
@@ -1571,7 +1571,7 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 			}
 			else if (prop->arraydimension && prop->totarraylength) {
 				fprintf(f, "void %sget(PointerRNA *ptr, float values[%u]);\n", func, prop->totarraylength);
-				fprintf(f, "void %sset(PointerRNA *ptr, const float values[%d]);\n", func, prop->totarraylength);
+				fprintf(f, "void %sset(PointerRNA *ptr, const float values[%u]);\n", func, prop->totarraylength);
 			}
 			else {
 				fprintf(f, "void %sget(PointerRNA *ptr, float values[]);\n", func);
