@@ -51,6 +51,7 @@ struct BLaplacianSystem {
 	int total_verts;
 	int total_edges;
 	int total_anchors;
+	int repeat;
 	char defgrp_name[64];		/* Vertex Group name*/
 	float (*co)[3];				/* Original vertex coordinates*/
 	float (*no)[3];				/* Original vertex normal*/
@@ -75,6 +76,7 @@ static LaplacianSystem * newLaplacianSystem()
 	sys->total_verts = 0;
 	sys->total_edges = 0;
 	sys->total_anchors = 0;
+	sys->repeat = 1;
 	sys->defgrp_name[0] = '\0';
 	sys->co = NULL;
 	sys->no = NULL;
@@ -87,7 +89,7 @@ static LaplacianSystem * newLaplacianSystem()
 	return sys;
 }
 
-static LaplacianSystem * initLaplacianSystem(int totalVerts, int totalEdges, int totalFaces, int totalAnchors, char defgrpName[64])
+static LaplacianSystem * initLaplacianSystem(int totalVerts, int totalEdges, int totalFaces, int totalAnchors, char defgrpName[64], int iterations)
 {
 	LaplacianSystem *sys = newLaplacianSystem();
 	if (!sys) {
@@ -98,6 +100,7 @@ static LaplacianSystem * initLaplacianSystem(int totalVerts, int totalEdges, int
 	sys->total_verts = totalVerts;
 	sys->total_edges = totalEdges;
 	sys->total_anchors = totalAnchors;
+	sys->repeat = iterations;
 	BLI_strncpy(sys->defgrp_name, defgrpName, sizeof(sys->defgrp_name));
 	sys->co = (float (*)[3])MEM_callocN(sizeof(float)*(totalVerts*3), "DeformCoordinates");
 	sys->no = (float (*)[3])MEM_callocN(sizeof(float)*(totalVerts*3), "DeformNormals");
@@ -366,7 +369,7 @@ static void rotateDifferentialCoordinates(LaplacianSystem * sys)
 static void laplacianDeformPreview(LaplacianSystem * sys, float (*vertexCos)[3])
 {
 	struct BMesh *bm;
-	int vid, i, n, na;
+	int vid, i, j, n, na;
 	bm = sys->bm;
 	n = sys->total_verts;
 	na = sys->total_anchors;
@@ -420,21 +423,26 @@ static void laplacianDeformPreview(LaplacianSystem * sys, float (*vertexCos)[3])
 		if (nlSolveAdvanced(NULL, NL_TRUE) ) {
 			sys->has_solution = true;
 			
-			nlBegin(NL_SYSTEM);
-			nlBegin(NL_MATRIX);
-			rotateDifferentialCoordinates(sys);
+			for (j=1; j<= sys->repeat; j++) {
+				nlBegin(NL_SYSTEM);
+				nlBegin(NL_MATRIX);
+				rotateDifferentialCoordinates(sys);
 
-			for (i=0; i<na; i++) {
-				vid = sys->index_anchors[i];
-				nlRightHandSideSet(0, n + i , sys->co[vid][0]);
-				nlRightHandSideSet(1, n + i , sys->co[vid][1]);
-				nlRightHandSideSet(2, n + i , sys->co[vid][2]);
+				for (i=0; i<na; i++) {
+					vid = sys->index_anchors[i];
+					nlRightHandSideSet(0, n + i , sys->co[vid][0]);
+					nlRightHandSideSet(1, n + i , sys->co[vid][1]);
+					nlRightHandSideSet(2, n + i , sys->co[vid][2]);
+				}
+
+				nlEnd(NL_MATRIX);
+				nlEnd(NL_SYSTEM);
+				if (!nlSolveAdvanced(NULL, NL_FALSE) ) {
+					sys->has_solution = false;
+					break;
+				}
 			}
-
-			nlEnd(NL_MATRIX);
-			nlEnd(NL_SYSTEM);
-			if (nlSolveAdvanced(NULL, NL_FALSE) ) {
-				sys->has_solution = true;
+			if (sys->has_solution) {
 				for (vid=0; vid<sys->total_verts; vid++) {
 					vertexCos[vid][0] = nlGetVariable(0, vid);
 					vertexCos[vid][1] = nlGetVariable(1, vid);
@@ -443,6 +451,7 @@ static void laplacianDeformPreview(LaplacianSystem * sys, float (*vertexCos)[3])
 			} else {
 				sys->has_solution = false;
 			}
+			
 		} else {
 			sys->has_solution = false;
 		}
@@ -471,22 +480,26 @@ static void laplacianDeformPreview(LaplacianSystem * sys, float (*vertexCos)[3])
 
 		if (nlSolveAdvanced(NULL, NL_FALSE) ) {
 			sys->has_solution = true;
-			
-			nlBegin(NL_SYSTEM);
-			nlBegin(NL_MATRIX);
-			rotateDifferentialCoordinates(sys);
+			for (j=1; j<= sys->repeat; j++) {
+				nlBegin(NL_SYSTEM);
+				nlBegin(NL_MATRIX);
+				rotateDifferentialCoordinates(sys);
 
-			for (i=0; i<na; i++)
-			{
-				vid = sys->index_anchors[i];
-				nlRightHandSideSet(0, n + i	, vertexCos[vid][0]);
-				nlRightHandSideSet(1, n + i	, vertexCos[vid][1]);
-				nlRightHandSideSet(2, n + i	, vertexCos[vid][2]);
+				for (i=0; i<na; i++)
+				{
+					vid = sys->index_anchors[i];
+					nlRightHandSideSet(0, n + i	, vertexCos[vid][0]);
+					nlRightHandSideSet(1, n + i	, vertexCos[vid][1]);
+					nlRightHandSideSet(2, n + i	, vertexCos[vid][2]);
+				}
+				nlEnd(NL_MATRIX);
+				nlEnd(NL_SYSTEM);
+				if (!nlSolveAdvanced(NULL, NL_FALSE) ) {
+					sys->has_solution = false;
+					break;
+				}
 			}
-			nlEnd(NL_MATRIX);
-			nlEnd(NL_SYSTEM);
-			if (nlSolveAdvanced(NULL, NL_FALSE) ) {
-				sys->has_solution = true;
+			if (sys->has_solution) {
 				for (vid=0; vid<sys->total_verts; vid++) {
 					vertexCos[vid][0] = nlGetVariable(0, vid);
 					vertexCos[vid][1] = nlGetVariable(1, vid);
@@ -544,7 +557,7 @@ static void initSystem(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh
 			}
 		}
 		total_anchors = BLI_array_count(index_anchors);
-		smd->cacheSystem = initLaplacianSystem(numVerts, bm->totedge, bm->totface, total_anchors, smd->defgrp_name);
+		smd->cacheSystem = initLaplacianSystem(numVerts, bm->totedge, bm->totface, total_anchors, smd->defgrp_name, smd->repeat);
 		sys = (LaplacianSystem *)smd->cacheSystem;
 		sys->bm = bm;
 		for (i=0; i<total_anchors; i++) {
@@ -672,6 +685,7 @@ static void LaplacianDeformModifier_do(
 				laplacianDeformPreview((LaplacianSystem *)smd->cacheSystem, vertexCos);
 			}
 		} else {
+			((LaplacianSystem *)smd->cacheSystem)->repeat = smd->repeat;
 			laplacianDeformPreview((LaplacianSystem *)smd->cacheSystem, vertexCos);
 		}
 	}else {
@@ -701,6 +715,7 @@ static void initData(ModifierData *md)
 	LaplacianDeformModifierData *smd = (LaplacianDeformModifierData *) md;
 	smd->defgrp_name[0] = '\0';
 	smd->total_verts = 0;
+	smd->repeat = 1;
 	smd->vertexco = NULL;
 	smd->cacheSystem = NULL;
 }
@@ -710,6 +725,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	LaplacianDeformModifierData *smd = (LaplacianDeformModifierData *) md;
 	LaplacianDeformModifierData *tsmd = (LaplacianDeformModifierData *) target;
 	tsmd->total_verts = smd->total_verts;
+	tsmd->repeat = smd->repeat;
 	BLI_strncpy(tsmd->defgrp_name, smd->defgrp_name, sizeof(tsmd->defgrp_name));
 	tsmd->vertexco = MEM_dupallocN(smd->vertexco);
 	tsmd->cacheSystem = MEM_dupallocN(smd->cacheSystem);
