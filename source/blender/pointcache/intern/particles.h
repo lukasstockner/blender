@@ -22,6 +22,7 @@
 #include <Alembic/AbcGeom/IPoints.h>
 #include <Alembic/AbcGeom/OPoints.h>
 
+#include "reader.h"
 #include "schema.h"
 #include "types.h"
 #include "writer.h"
@@ -480,13 +481,27 @@ public:
 	ParticlesWriter(const std::string &filename, Object *ob, ParticleSystem *psys);
 	~ParticlesWriter();
 	
-	void write();
+	void write_sample();
 	
 private:
 	Object *m_ob;
 	ParticleSystem *m_psys;
 	
 	AbcGeom::OPoints m_points;
+};
+
+class ParticlesReader : public Reader {
+public:
+	ParticlesReader(const std::string &filename, Object *ob, ParticleSystem *psys);
+	~ParticlesReader();
+	
+	void read_sample();
+	
+private:
+	Object *m_ob;
+	ParticleSystem *m_psys;
+	
+	AbcGeom::IPoints m_points;
 };
 
 } /* namespace PTC */

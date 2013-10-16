@@ -34,12 +34,15 @@ struct PTCWriter;
 struct PTCReader;
 
 void PTC_writer_free(struct PTCWriter *writer);
+void PTC_write_sample(struct PTCWriter *writer);
 
-void PTC_write(struct PTCWriter *writer);
+void PTC_reader_free(struct PTCReader *reader);
+void PTC_read_sample(struct PTCReader *reader);
 
 
 /* Particles */
-struct PTCWriter *PTC_writer_create_particles(const char *filename, struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particles(const char *filename, struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particles(const char *filename, struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
 
 #ifdef __cplusplus
 } /* extern C */

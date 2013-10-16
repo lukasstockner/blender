@@ -16,3 +16,21 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include <Alembic/AbcCoreHDF5/ReadWrite.h>
+
+#include "reader.h"
+
+namespace PTC {
+
+using namespace Abc;
+
+Reader::Reader(const std::string &filename)
+{
+	m_archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, ErrorHandler::kThrowPolicy);
+}
+
+Reader::~Reader()
+{
+}
+
+} /* namespace PTC */

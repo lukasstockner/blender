@@ -19,4 +19,25 @@
 #ifndef PTC_READER_H
 #define PTC_READER_H
 
+#include <string>
+
+#include <Alembic/Abc/IArchive.h>
+
+namespace PTC {
+
+using namespace Alembic;
+
+class Reader {
+public:
+	Reader(const std::string &filename);
+	virtual ~Reader();
+	
+	virtual void read_sample() = 0;
+	
+protected:
+	Abc::IArchive m_archive;
+};
+
+} /* namespace PTC */
+
 #endif  /* PTC_READER_H */

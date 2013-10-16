@@ -32,12 +32,11 @@ public:
 	Writer(const std::string &filename);
 	virtual ~Writer();
 	
-	virtual void write() = 0;
+	virtual void write_sample() = 0;
 	
 protected:
 	Abc::OArchive m_archive;
 };
-
 
 } /* namespace PTC */
 

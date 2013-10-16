@@ -483,7 +483,7 @@ static struct PTCWriter *ptcache_particle_writer_create(Scene *scene, Object *ob
 	ParticleSystem *psys = psys_v;
 	char filename[FILE_MAX * 2];
 	ptcache_archive_filename(psys->pointcache, ob, filename, true, true);
-	return PTC_writer_create_particles(filename, scene, ob, psys);
+	return PTC_writer_particles(filename, scene, ob, psys);
 }
 
 /* Cloth functions */
@@ -2581,7 +2581,7 @@ int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra)
 	if (!cache->writer && pid->writer_create)
 		cache->writer = pid->writer_create(pid->scene, pid->ob, pid->calldata);
 	if (cache->writer)
-		PTC_write(cache->writer);
+		PTC_write_sample(cache->writer);
 
 	/* Mark frames skipped if more than 1 frame forwards since last non-skipped frame. */
 	if (cfra - cache->last_exact == 1 || cfra == cache->startframe) {

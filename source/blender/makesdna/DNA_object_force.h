@@ -208,6 +208,7 @@ typedef struct PointCache {
 	void (*free_edit)(struct PTCacheEdit *edit);	/* free callback */
 
 	struct PTCWriter *writer;
+	struct PTCReader *reader;
 } PointCache;
 
 typedef struct SBVertex {

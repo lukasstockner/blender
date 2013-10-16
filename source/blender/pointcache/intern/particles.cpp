@@ -243,7 +243,7 @@ ParticlesWriter::~ParticlesWriter()
 {
 }
 
-void ParticlesWriter::write()
+void ParticlesWriter::write_sample()
 {
 	OPointsSchema &schema = m_points.getSchema();
 	
@@ -267,6 +267,48 @@ void ParticlesWriter::write()
 	OPointsSchema::Sample sample = OPointsSchema::Sample(V3fArraySample(positions), UInt64ArraySample(ids));
 
 	schema.set(sample);
+}
+
+
+ParticlesReader::ParticlesReader(const std::string &filename, Object *ob, ParticleSystem *psys) :
+    Reader(filename),
+    m_ob(ob),
+    m_psys(psys)
+{
+	IObject root = m_archive.getTop();
+	m_points = IPoints(root, m_psys->name);
+}
+
+ParticlesReader::~ParticlesReader()
+{
+}
+
+void ParticlesReader::read_sample()
+{
+	IPointsSchema &schema = m_points.getSchema();
+	
+#if 0
+	int totpart = m_psys->totpart;
+	ParticleData *pa;
+	int i;
+	
+	/* XXX TODO only needed for the first frame/sample */
+	std::vector<Util::uint64_t> ids;
+	ids.reserve(totpart);
+	for (i = 0, pa = m_psys->particles; i < totpart; ++i, ++pa)
+		ids.push_back(i);
+	
+	std::vector<V3f> positions;
+	positions.reserve(totpart);
+	for (i = 0, pa = m_psys->particles; i < totpart; ++i, ++pa) {
+		float *co = pa->state.co;
+		positions.push_back(V3f(co[0], co[1], co[2]));
+	}
+	
+	OPointsSchema::Sample sample = OPointsSchema::Sample(V3fArraySample(positions), UInt64ArraySample(ids));
+
+	schema.set(sample);
+#endif
 }
 
 } /* namespace PTC */
