@@ -486,6 +486,14 @@ static struct PTCWriter *ptcache_particle_writer_create(Scene *scene, Object *ob
 	return PTC_writer_particles(filename, scene, ob, psys);
 }
 
+static struct PTCReader *ptcache_particle_reader_create(Scene *scene, Object *ob, void *psys_v)
+{
+	ParticleSystem *psys = psys_v;
+	char filename[FILE_MAX * 2];
+	ptcache_archive_filename(psys->pointcache, ob, filename, true, true);
+	return PTC_reader_particles(filename, scene, ob, psys);
+}
+
 /* Cloth functions */
 static int  ptcache_cloth_write(int index, void *cloth_v, void **data, int UNUSED(cfra))
 {
@@ -1198,6 +1206,7 @@ void BKE_ptcache_id_from_particles(PTCacheID *pid, Object *ob, ParticleSystem *p
 	pid->max_step = 20;
 
 	pid->writer_create = ptcache_particle_writer_create;
+	pid->reader_create = ptcache_particle_reader_create;
 }
 void BKE_ptcache_id_from_cloth(PTCacheID *pid, Object *ob, ClothModifierData *clmd)
 {
@@ -2333,6 +2342,7 @@ static int ptcache_interpolate(PTCacheID *pid, float cfra, int cfra1, int cfra2)
 /* possible to get old or interpolated result */
 int BKE_ptcache_read(PTCacheID *pid, float cfra)
 {
+	PointCache *cache = pid->cache;
 	int cfrai = (int)floor(cfra), cfra1=0, cfra2=0;
 	int ret = 0;
 
@@ -2340,8 +2350,8 @@ int BKE_ptcache_read(PTCacheID *pid, float cfra)
 	if (pid->totpoint(pid->calldata, cfrai) == 0)
 		return 0;
 
-	if (pid->cache->flag & PTCACHE_READ_INFO) {
-		pid->cache->flag &= ~PTCACHE_READ_INFO;
+	if (cache->flag & PTCACHE_READ_INFO) {
+		cache->flag &= ~PTCACHE_READ_INFO;
 		ptcache_read(pid, 0);
 	}
 
@@ -2357,7 +2367,7 @@ int BKE_ptcache_read(PTCacheID *pid, float cfra)
 		return 0;
 
 	/* don't read old cache if already simulated past cached frame */
-	if (cfra1 == 0 && cfra2 && cfra2 <= pid->cache->simframe)
+	if (cfra1 == 0 && cfra2 && cfra2 <= cache->simframe)
 		return 0;
 	if (cfra1 && cfra1 == cfra2)
 		return 0;
@@ -2390,20 +2400,25 @@ int BKE_ptcache_read(PTCacheID *pid, float cfra)
 		ret = (cfra2 ? PTCACHE_READ_INTERPOLATED : PTCACHE_READ_EXACT);
 	else if (cfra2) {
 		ret = PTCACHE_READ_OLD;
-		pid->cache->simframe = cfra2;
+		cache->simframe = cfra2;
 	}
 
 	cfrai = (int)cfra;
 	/* clear invalid cache frames so that better stuff can be simulated */
-	if (pid->cache->flag & PTCACHE_OUTDATED) {
+	if (cache->flag & PTCACHE_OUTDATED) {
 		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, cfrai);
 	}
-	else if (pid->cache->flag & PTCACHE_FRAMES_SKIPPED) {
-		if (cfra <= pid->cache->last_exact)
-			pid->cache->flag &= ~PTCACHE_FRAMES_SKIPPED;
+	else if (cache->flag & PTCACHE_FRAMES_SKIPPED) {
+		if (cfra <= cache->last_exact)
+			cache->flag &= ~PTCACHE_FRAMES_SKIPPED;
 
-		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, MAX2(cfrai, pid->cache->last_exact));
+		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, MAX2(cfrai, cache->last_exact));
 	}
+
+//	if (!cache->reader && pid->reader_create)
+//		cache->reader = pid->reader_create(pid->scene, pid->ob, pid->calldata);
+//	if (cache->reader)
+//		PTC_read_sample(cache->reader);
 
 	return ret;
 }
@@ -2578,10 +2593,10 @@ int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra)
 		error += ptcache_write(pid, cfra, overwrite);
 	}
 
-	if (!cache->writer && pid->writer_create)
-		cache->writer = pid->writer_create(pid->scene, pid->ob, pid->calldata);
-	if (cache->writer)
-		PTC_write_sample(cache->writer);
+//	if (!cache->writer && pid->writer_create)
+//		cache->writer = pid->writer_create(pid->scene, pid->ob, pid->calldata);
+//	if (cache->writer)
+//		PTC_write_sample(cache->writer);
 
 	/* Mark frames skipped if more than 1 frame forwards since last non-skipped frame. */
 	if (cfra - cache->last_exact == 1 || cfra == cache->startframe) {
@@ -3075,7 +3090,7 @@ PointCache *BKE_ptcache_add(ListBase *ptcaches)
 	cache->step= 10;
 	cache->index = -1;
 
-	cache->writer = NULL;
+//	cache->writer = NULL;
 
 	BLI_addtail(ptcaches, cache);
 
@@ -3103,8 +3118,8 @@ void BKE_ptcache_free(PointCache *cache)
 	if (cache->cached_frames)
 		MEM_freeN(cache->cached_frames);
 
-	if (cache->writer)
-		PTC_writer_free(cache->writer);
+//	if (cache->writer)
+//		PTC_writer_free(cache->writer);
 
 	MEM_freeN(cache);
 }
@@ -3159,7 +3174,7 @@ static PointCache *ptcache_copy(PointCache *cache, int copy_data)
 	/* hmm, should these be copied over instead? */
 	ncache->edit = NULL;
 
-	ncache->writer = NULL;
+//	ncache->writer = NULL;
 
 	return ncache;
 }

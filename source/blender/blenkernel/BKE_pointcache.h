@@ -94,6 +94,7 @@ struct Scene;
 struct SmokeModifierData;
 struct SoftBody;
 struct RigidBodyWorld;
+struct PTCReader;
 struct PTCWriter;
 
 /* temp structure for read/write */
@@ -168,6 +169,7 @@ typedef struct PTCacheID {
 
 	/* XXX just a workaround to get going with existing pointcache, eventually PTCacheID should be redundant */
 	struct PTCWriter *(*writer_create)(struct Scene *scene, struct Object *ob, void *calldata);
+	struct PTCReader *(*reader_create)(struct Scene *scene, struct Object *ob, void *calldata);
 
 	struct PointCache *cache;
 	/* used for setting the current cache from ptcaches list */
