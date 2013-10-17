@@ -24,6 +24,8 @@
 set(INC
 	.
 	intern
+	../blenkernel
+	../blenlib
 	../makesdna
 	../../../intern/guardedalloc
 )
@@ -33,6 +35,9 @@ set(INC_SYS
 
 set(SRC
 	test.cpp
+
+	util/util_path.h
+	util/util_path.cpp
 
 	PTC_api.h
 	PTC_api.cpp
