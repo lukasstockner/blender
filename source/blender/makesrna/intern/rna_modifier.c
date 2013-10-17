@@ -777,7 +777,7 @@ static void rna_UVWarpModifier_uvlayer_set(PointerRNA *ptr, const char *value)
 static void rna_LaplacianDeformModifier_vgroup_set(PointerRNA *ptr, const char *value)
 {
 	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)ptr->data;
-	rna_object_vgroup_name_set(ptr, value, lmd->defgrp_name, sizeof(lmd->defgrp_name));
+	rna_object_vgroup_name_set(ptr, value, lmd->anchor_grp_name, sizeof(lmd->anchor_grp_name));
 }
 
 #else
@@ -3679,7 +3679,7 @@ static void rna_def_modifier_laplaciandeform(BlenderRNA *brna)
 	RNA_def_struct_ui_icon(srna, ICON_MOD_MESHDEFORM);
 	
 	prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "defgrp_name");
+	RNA_def_property_string_sdna(prop, NULL, "anchor_grp_name");
 	RNA_def_property_ui_text(prop, "Vertex Group for Anchors",
 	                         "Name of Vertex Group which determines Anchors");
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_LaplacianDeformModifier_vgroup_set");

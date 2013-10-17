@@ -1280,7 +1280,7 @@ enum {
 
 typedef struct LaplacianDeformModifierData {
 	ModifierData modifier;
-	char defgrp_name[64]; /* MAX_VGROUP_NAME */
+	char anchor_grp_name[64]; /* MAX_VGROUP_NAME */
 	int total_verts, repeat;
 	float *vertexco;
 	void *cacheSystem;
