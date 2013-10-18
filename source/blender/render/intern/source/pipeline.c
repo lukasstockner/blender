@@ -373,6 +373,7 @@ Render *RE_NewRender(const char *name)
 		BLI_addtail(&RenderGlobal.renderlist, re);
 		BLI_strncpy(re->name, name, RE_MAXNAME);
 		BLI_rw_mutex_init(&re->resultmutex);
+		re->evaluation_context = MEM_callocN(sizeof(EvaluationContext), "re->evaluation_context");
 	}
 	
 	RE_InitRenderCB(re);
@@ -420,6 +421,7 @@ void RE_FreeRender(Render *re)
 	render_result_free(re->pushedresult);
 	
 	BLI_remlink(&RenderGlobal.renderlist, re);
+	MEM_freeN(re->evaluation_context);
 	MEM_freeN(re);
 }
 
@@ -1311,10 +1313,7 @@ static void do_render_blur_3d(Render *re)
 	
 	/* make sure motion blur changes get reset to current frame */
 	if ((re->r.scemode & (R_NO_FRAME_UPDATE|R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))==0) {
-		/* TODO(sergey): Move it to re->evaluation_context. */
-		EvaluationContext evaluation_context;
-		evaluation_context.for_render = true;
-		BKE_scene_update_for_newframe(&evaluation_context, re->main, re->scene, re->lay);
+		BKE_scene_update_for_newframe(re->evaluation_context, re->main, re->scene, re->lay);
 	}
 	
 	/* weak... the display callback wants an active renderlayer pointer... */
