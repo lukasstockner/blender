@@ -24,8 +24,15 @@
 #include "writer.h"
 #include "particles.h"
 
+#include "util_path.h"
+
+extern "C" {
+#include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
+}
+
+using namespace PTC;
 
 void PTC_writer_free(PTCWriter *_writer)
 {
@@ -37,6 +44,11 @@ void PTC_write_sample(struct PTCWriter *_writer)
 {
 	PTC::Writer *writer = (PTC::Writer *)_writer;
 	writer->write_sample();
+}
+
+void PTC_bake(struct PTCWriter *writer, int start_frame, int end_frame)
+{
+	
 }
 
 
@@ -54,14 +66,30 @@ void PTC_read_sample(struct PTCReader *_reader)
 
 
 /* Particles */
-PTCWriter *PTC_writer_particles(const char *filename, Scene *scene, Object *ob, ParticleSystem *psys)
+PTCWriter *PTC_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 {
+	PointCache *cache = psys->pointcache;
+	if (!cache)
+		return NULL;
+	std::string filename = ptc_archive_path(cache->name, cache->index, cache->path, &ob->id,
+	                                        true, true,
+	                                        cache->flag & PTCACHE_EXTERNAL,
+	                                        cache->flag & PTCACHE_IGNORE_LIBPATH);
+	
 	PTC::ParticlesWriter *writer = new PTC::ParticlesWriter(filename, ob, psys);
 	return (PTCWriter *)writer;
 }
 
-PTCReader *PTC_reader_particles(const char *filename, Scene *scene, Object *ob, ParticleSystem *psys)
+PTCReader *PTC_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 {
+	PointCache *cache = psys->pointcache;
+	if (!cache)
+		return NULL;
+	std::string filename = ptc_archive_path(cache->name, cache->index, cache->path, &ob->id,
+	                                        true, true,
+	                                        cache->flag & PTCACHE_EXTERNAL,
+	                                        cache->flag & PTCACHE_IGNORE_LIBPATH);
+
 	PTC::ParticlesReader *reader = new PTC::ParticlesReader(filename, ob, psys);
 	return (PTCReader *)reader;
 }

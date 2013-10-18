@@ -24,16 +24,14 @@
 struct ID;
 
 namespace PTC {
-namespace Util {
 
 /* XXX make these configurable, just copied from BKE_pointcache for now */
 #define PTC_EXTENSION ".abc"
 #define PTC_DIRECTORY "blendcache_"
 
-std::string archive_path(const std::string &name, int index, const std::string &path, ID *id,
-                         bool do_path, bool do_ext, bool is_external, bool ignore_libpath);
+std::string ptc_archive_path(const std::string &name, int index, const std::string &path, ID *id,
+                             bool do_path, bool do_ext, bool is_external, bool ignore_libpath);
 
-} /* namespace Util */
 } /* namespace PTC */
 
 #endif  /* PTC_UTIL_PATH_H */

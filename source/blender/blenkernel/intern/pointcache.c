@@ -476,22 +476,16 @@ static void ptcache_particle_extra_read(void *psys_v, PTCacheMem *pm, float UNUS
 	}
 }
 
-static int ptcache_archive_filename(PointCache *cache, Object *ob, char *filename, bool do_path, bool do_ext);
-
 static struct PTCWriter *ptcache_particle_writer_create(Scene *scene, Object *ob, void *psys_v)
 {
 	ParticleSystem *psys = psys_v;
-	char filename[FILE_MAX * 2];
-	ptcache_archive_filename(psys->pointcache, ob, filename, true, true);
-	return PTC_writer_particles(filename, scene, ob, psys);
+	return PTC_writer_particles(scene, ob, psys);
 }
 
 static struct PTCReader *ptcache_particle_reader_create(Scene *scene, Object *ob, void *psys_v)
 {
 	ParticleSystem *psys = psys_v;
-	char filename[FILE_MAX * 2];
-	ptcache_archive_filename(psys->pointcache, ob, filename, true, true);
-	return PTC_reader_particles(filename, scene, ob, psys);
+	return PTC_reader_particles(scene, ob, psys);
 }
 
 /* Cloth functions */
@@ -1546,54 +1540,6 @@ static int ptcache_filename(PTCacheID *pid, char *filename, int cfra, short do_p
 		}
 		else {
 			BLI_snprintf(newname, MAX_PTCACHE_FILE, "_%06d_%02u"PTCACHE_EXT, cfra, pid->stack_index); /* always 6 chars */
-		}
-		len += 16;
-	}
-	
-	return len; /* make sure the above string is always 16 chars */
-}
-
-static int ptcache_archive_filename(PointCache *cache, Object *ob, char *filename, bool do_path, bool do_ext)
-{
-	bool is_external = (cache->flag & PTCACHE_EXTERNAL);
-	int len=0;
-	char *idname;
-	char *newname;
-	filename[0] = '\0';
-	newname = filename;
-	
-	if (!G.relbase_valid && !is_external) return 0; /* save blend file before using disk pointcache */
-	
-	/* start with temp dir */
-	if (do_path) {
-		len = ptcache_path(cache, ob, filename);
-		newname += len;
-	}
-	if (cache->name[0] == '\0' && !is_external) {
-		idname = (ob->id.name + 2);
-		/* convert chars to hex so they are always a valid filename */
-		while ('\0' != *idname) {
-			BLI_snprintf(newname, MAX_PTCACHE_FILE, "%02X", (char)(*idname++));
-			newname+=2;
-			len += 2;
-		}
-	}
-	else {
-		int temp = (int)strlen(cache->name); 
-		strcpy(newname, cache->name); 
-		newname+=temp;
-		len += temp;
-	}
-	
-	if (do_ext) {
-		if (cache->index < 0)
-			cache->index =  BKE_object_insert_ptcache(ob);
-
-		if (cache->index < 0 || !is_external) {
-			BLI_snprintf(newname, MAX_PTCACHE_FILE, PTCACHE_ARCHIVE_EXT); /* always 6 chars */
-		}
-		else {
-			BLI_snprintf(newname, MAX_PTCACHE_FILE, "_%02u"PTCACHE_ARCHIVE_EXT, cache->index); /* always 6 chars */
 		}
 		len += 16;
 	}

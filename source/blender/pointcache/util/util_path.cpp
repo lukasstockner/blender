@@ -18,6 +18,8 @@
 
 #include <string.h> /* XXX needed for missing type declarations in BLI ... */
 
+#include "util_path.h"
+
 extern "C" {
 #include "BLI_path_util.h"
 #include "BLI_string.h"
@@ -30,10 +32,7 @@ extern "C" {
 #include "BKE_main.h"
 }
 
-#include "util_path.h"
-
 namespace PTC {
-namespace Util {
 
 /* XXX do we want to use BLI C string functions here? just copied from BKE_pointcache for now */
 
@@ -110,13 +109,12 @@ static int ptc_filename(char *filename, const char *name, int index, const char 
 	return len;
 }
 
-std::string archive_path(const std::string &name, int index, const std::string &path, ID *id,
-                         bool do_path, bool do_ext, bool is_external, bool ignore_libpath)
+std::string ptc_archive_path(const std::string &name, int index, const std::string &path, ID *id,
+                             bool do_path, bool do_ext, bool is_external, bool ignore_libpath)
 {
 	char filename[FILE_MAX];
 	ptc_filename(filename, name.c_str(), index, path.c_str(), id, do_path, do_ext, is_external, ignore_libpath);
 	return std::string(filename);
 }
 
-} /* namespace Util */
 } /* namespace PTC */
