@@ -876,10 +876,12 @@ void setviewmatrixview3d(Scene *scene, View3D *v3d, RegionView3D *rv3d)
 	}
 }
 
-/* IGLuint-> GLuint */
-/* Warning: be sure to account for a negative return value
- *   This is an error, "Too many objects in select buffer"
- *   and no action should be taken (can crash blender) if this happens
+/**
+ * \warning be sure to account for a negative return value
+ * This is an error, "Too many objects in select buffer"
+ * and no action should be taken (can crash blender) if this happens
+ *
+ * \note (vc->obedit == NULL) can be set to explicitly skip edit-object selection.
  */
 short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int bufsize, rcti *input)
 {
@@ -890,6 +892,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	short code, hits;
 	char dt;
 	short dtx;
+	const bool use_obedit_skip = (scene->obedit != NULL) && (vc->obedit == NULL);
 	
 	G.f |= G_PICKSEL;
 	
@@ -937,8 +940,11 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 		for (base = scene->base.first; base; base = base->next) {
 			if (base->lay & v3d->lay) {
 				
-				if (base->object->restrictflag & OB_RESTRICT_SELECT)
+				if ((base->object->restrictflag & OB_RESTRICT_SELECT) ||
+				    (use_obedit_skip && (scene->obedit->data == base->object->data)))
+				{
 					base->selcol = 0;
+				}
 				else {
 					base->selcol = code;
 					glLoadName(code);
@@ -1180,7 +1186,7 @@ static bool view3d_localview_init(Main *bmain, Scene *scene, ScrArea *sa, Report
 	return ok;
 }
 
-static void restore_localviewdata(ScrArea *sa, int free)
+static void restore_localviewdata(Main *bmain, ScrArea *sa, int free)
 {
 	ARegion *ar;
 	View3D *v3d = sa->spacedata.first;
@@ -1217,12 +1223,7 @@ static void restore_localviewdata(ScrArea *sa, int free)
 				}
 			}
 
-			if (v3d->drawtype != OB_RENDER) {
-				if (rv3d->render_engine) {
-					RE_engine_free(rv3d->render_engine);
-					rv3d->render_engine = NULL;
-				}
-			}
+			ED_view3d_shade_update(bmain, v3d, sa);
 		}
 	}
 }
@@ -1237,7 +1238,7 @@ static bool view3d_localview_exit(Main *bmain, Scene *scene, ScrArea *sa)
 		
 		locallay = v3d->lay & 0xFF000000;
 		
-		restore_localviewdata(sa, 1); /* 1 = free */
+		restore_localviewdata(bmain, sa, 1); /* 1 = free */
 
 		/* for when in other window the layers have changed */
 		if (v3d->scenelock) v3d->lay = scene->lay;

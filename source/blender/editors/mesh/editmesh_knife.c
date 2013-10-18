@@ -230,10 +230,10 @@ static void knife_update_header(bContext *C, KnifeTool_OpData *kcd)
 	BLI_snprintf(header, HEADER_LENGTH, IFACE_("LMB: define cut lines, Return/Spacebar: confirm, Esc or RMB: cancel, "
 	                                           "E: new cut, Ctrl: midpoint snap (%s), Shift: ignore snap (%s), "
 	                                           "C: angle constrain (%s), Z: cut through (%s)"),
-	             kcd->snap_midpoints ? IFACE_("On") : IFACE_("Off"),
-	             kcd->ignore_edge_snapping ?  IFACE_("On") : IFACE_("Off"),
-	             kcd->angle_snapping ? IFACE_("On") : IFACE_("Off"),
-	             kcd->cut_through ? IFACE_("On") : IFACE_("Off"));
+	             WM_bool_as_string(kcd->snap_midpoints),
+	             WM_bool_as_string(kcd->ignore_edge_snapping),
+	             WM_bool_as_string(kcd->angle_snapping),
+	             WM_bool_as_string(kcd->cut_through));
 
 	ED_area_headerprint(CTX_wm_area(C), header);
 }
@@ -1546,8 +1546,16 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 	knife_project_v2(kcd, v1, s1);
 	knife_project_v2(kcd, v2, s2);
 
-	if (len_squared_v2v2(s1, s2) < 1)
-		return;
+	if (kcd->is_interactive) {
+		if (len_squared_v2v2(s1, s2) < 1.0f) {
+			return;
+		}
+	}
+	else {
+		if (len_squared_v2v2(s1, s2) < KNIFE_FLT_EPS_SQUARED) {
+			return;
+		}
+	}
 
 	/* unproject screen line */
 	ED_view3d_win_to_segment(kcd->ar, kcd->vc.v3d, s1, v1, v3, true);
@@ -2123,7 +2131,7 @@ static void knifenet_fill_faces(KnifeTool_OpData *kcd)
 	facenet_entry *entry;
 	ListBase *face_nets = MEM_callocN(sizeof(ListBase) * bm->totface, "face_nets");
 	BMFace **faces = MEM_callocN(sizeof(BMFace *) * bm->totface, "faces knife");
-	MemArena *arena = BLI_memarena_new(1 << 16, "knifenet_fill_faces");
+	MemArena *arena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "knifenet_fill_faces");
 	SmallHash shash;
 	RNG *rng;
 	int i, j, k = 0, totface = bm->totface;
@@ -3151,7 +3159,7 @@ static void knifetool_init(bContext *C, KnifeTool_OpData *kcd,
 	                          (only_select ? BMBVH_RESPECT_SELECT : BMBVH_RESPECT_HIDDEN),
 	                          kcd->cagecos, false);
 
-	kcd->arena = BLI_memarena_new(1 << 15, "knife");
+	kcd->arena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 15), "knife");
 	kcd->vthresh = KMAXDIST - 1;
 	kcd->ethresh = KMAXDIST;
 
@@ -3517,7 +3525,7 @@ static bool edbm_mesh_knife_face_isect(ARegion *ar, LinkNode *polys, BMFace *f, 
 		while (p) {
 			const float (*mval_fl)[2] = p->link;
 			const int mval_tot = MEM_allocN_len(mval_fl) / sizeof(*mval_fl);
-			isect += (int)isect_point_poly_v2(cent_ss, mval_fl, mval_tot - 1);
+			isect += (int)isect_point_poly_v2(cent_ss, mval_fl, mval_tot - 1, false);
 			p = p->next;
 		}
 

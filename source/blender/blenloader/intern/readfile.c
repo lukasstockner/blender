@@ -3699,7 +3699,7 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 					/* if we have indexes, let's use them */
 					for (dw = part->dupliweights.first; dw; dw = dw->next) {
 						GroupObject *go = (GroupObject *)BLI_findlink(&part->dup_group->gobject, dw->index);
-						dw->ob = go ? newlibadr(fd, part->id.lib, dw->ob) : NULL;
+						dw->ob = go ? go->ob : NULL;
 					}
 				}
 				else {
@@ -3805,7 +3805,7 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 			for (; pt; pt=pt->next)
 				pt->ob=newlibadr(fd, id->lib, pt->ob);
 			
-			psys->parent = newlibadr_us(fd, id->lib, psys->parent);
+			psys->parent = newlibadr(fd, id->lib, psys->parent);
 			psys->target_ob = newlibadr(fd, id->lib, psys->target_ob);
 			
 			if (psys->clmd) {
@@ -4163,12 +4163,6 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	direct_link_customdata(fd, &mesh->fdata, mesh->totface);
 	direct_link_customdata(fd, &mesh->ldata, mesh->totloop);
 	direct_link_customdata(fd, &mesh->pdata, mesh->totpoly);
-	
-	if (mesh->mloopuv || mesh->mtpoly) {
-		/* for now we have to ensure texpoly and mloopuv layers are aligned
-		 * in the future we may allow non-aligned layers */
-		BKE_mesh_cd_validate(mesh);
-	}
 
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
@@ -4176,6 +4170,12 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	/* happens with old files */
 	if (mesh->mselect == NULL) {
 		mesh->totselect = 0;
+	}
+
+	if (mesh->mloopuv || mesh->mtpoly) {
+		/* for now we have to ensure texpoly and mloopuv layers are aligned
+		 * in the future we may allow non-aligned layers */
+		BKE_mesh_cd_validate(mesh);
 	}
 
 	/* Multires data */
@@ -9090,17 +9090,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
-
-		/* fallbck resection method settings */
-		{
-			MovieClip *clip;
-
-			for (clip = main->movieclip.first; clip; clip = clip->id.next) {
-				if (clip->tracking.settings.reconstruction_success_threshold == 0.0f) {
-					clip->tracking.settings.reconstruction_success_threshold = 1e-3f;
-				}
-			}
-		}
 	}
 
 	if (main->versionfile < 264 || (main->versionfile == 264 && main->subversionfile < 7)) {
@@ -9708,11 +9697,51 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
+	
+	if (!MAIN_VERSION_ATLEAST(main, 269, 1)) {
+		/* Removal of Cycles SSS Compatible falloff */
+		FOREACH_NODETREE(main, ntree, id) {
+			if (ntree->type == NTREE_SHADER) {
+				bNode *node;
+				for (node = ntree->nodes.first; node; node = node->next) {
+					if (node->type == SH_NODE_SUBSURFACE_SCATTERING) {
+						if (node->custom1 == SHD_SUBSURFACE_COMPATIBLE) {
+							node->custom1 = SHD_SUBSURFACE_CUBIC;
+						}
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
+	}
+
+	{
+		bScreen *sc;
+		ScrArea *sa;
+		SpaceLink *sl;
+
+		/* Update files using invalid (outdated) outlinevis Outliner values. */
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_OUTLINER) {
+						SpaceOops *so = (SpaceOops *)sl;
+
+						if (!ELEM11(so->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_SELECTED, SO_ACTIVE,
+						                            SO_SAME_TYPE, SO_GROUPS, SO_LIBRARIES, SO_SEQUENCE, SO_DATABLOCKS,
+						                            SO_USERDEF))
+						{
+							so->outlinevis = SO_ALL_SCENES;
+						}
+					}
+				}
+			}
+		}
+	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */
 
-	/* don't forget to set version number in blender.c! */
+	/* don't forget to set version number in BKE_blender.h! */
 }
 
 #if 0 // XXX: disabled for now... we still don't have this in the right place in the loading code for it to work

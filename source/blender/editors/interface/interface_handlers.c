@@ -242,6 +242,11 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void *userd
 static void ui_handle_button_activate(bContext *C, ARegion *ar, uiBut *but, uiButtonActivateType type);
 static void button_timers_tooltip_remove(bContext *C, uiBut *but);
 
+/* buttons clipboard */
+static ColorBand but_copypaste_coba = {0};
+static CurveMapping but_copypaste_curve = {0};
+static bool but_copypaste_curve_alive = false;
+
 /* ******************** menu navigation helpers ************** */
 
 /* assumes event type is MOUSEPAN */
@@ -1324,7 +1329,6 @@ static void ui_but_drop(bContext *C, const wmEvent *event, uiBut *but, uiHandleB
 /* c = copy, v = paste */
 static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data, char mode)
 {
-	static ColorBand but_copypaste_coba = {0};
 	char buf[UI_MAX_DRAW_STR + 1] = {0};
 
 	if (mode == 'v' && but->lock  == TRUE) {
@@ -1371,6 +1375,32 @@ static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data,
 			}
 		}
 	}
+
+	/* NORMAL button */
+	else if (but->type == BUT_NORMAL) {
+		float xyz[3];
+
+		if (but->poin == NULL && but->rnapoin.data == NULL) {
+			/* pass */
+		}
+		else if (mode == 'c') {
+			ui_get_but_vectorf(but, xyz);
+			BLI_snprintf(buf, sizeof(buf), "[%f, %f, %f]", xyz[0], xyz[1], xyz[2]);
+			WM_clipboard_text_set(buf, 0);
+		}
+		else {
+			if (sscanf(buf, "[%f, %f, %f]", &xyz[0], &xyz[1], &xyz[2]) == 3) {
+				if (normalize_v3(xyz) == 0.0f) {
+					/* better set Z up then have a zero vector */
+					xyz[2] = 1.0;
+				}
+				button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
+				ui_set_but_vectorf(but, xyz);
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+			}
+		}
+	}
+
 
 	/* RGB triple */
 	else if (but->type == COLOR) {
@@ -1455,6 +1485,28 @@ static void ui_but_copy_paste(bContext *C, uiBut *but, uiHandleButtonData *data,
 
 			button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
 			memcpy(data->coba, &but_copypaste_coba, sizeof(ColorBand));
+			button_activate_state(C, but, BUTTON_STATE_EXIT);
+		}
+	}
+	else if (but->type == BUT_CURVE) {
+		if (mode == 'c') {
+			if (but->poin == NULL)
+				return;
+
+			but_copypaste_curve_alive = true;
+			curvemapping_free_data(&but_copypaste_curve);
+			curvemapping_copy_data(&but_copypaste_curve, (CurveMapping *) but->poin);
+		}
+		else {
+			if (!but_copypaste_curve_alive)
+				return;
+
+			if (!but->poin)
+				but->poin = MEM_callocN(sizeof(CurveMapping), "curvemapping");
+
+			button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
+			curvemapping_free_data((CurveMapping *) but->poin);
+			curvemapping_copy_data((CurveMapping *) but->poin, &but_copypaste_curve);
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
 		}
 	}
@@ -2227,8 +2279,16 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 				break;
 				
 			case AKEY:
+
 				/* Ctrl + A: Select all */
-				if (event->ctrl && !(event->alt || event->shift || event->oskey)) {
+#if defined(__APPLE__)
+				/* OSX uses cmd-a systemwide, so add it */
+				if ((event->oskey && !(event->alt || event->shift || event->ctrl)) ||
+				    (event->ctrl  && !(event->alt || event->shift || event->oskey)))
+#else
+				if (event->ctrl && !(event->alt || event->shift || event->oskey))
+#endif
+				{
 					ui_textedit_move(but, data, STRCUR_DIR_PREV,
 					                 false, STRCUR_JUMP_ALL);
 					ui_textedit_move(but, data, STRCUR_DIR_NEXT,
@@ -2613,7 +2673,10 @@ static int ui_do_but_TEX(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 {
 	if (data->state == BUTTON_STATE_HIGHLIGHT) {
 		if (ELEM4(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY) && event->val == KM_PRESS) {
-			if (but->dt == UI_EMBOSSN && !event->ctrl) {
+			if (ELEM(event->type, PADENTER, RETKEY) && (!ui_is_but_utf8(but))) {
+				/* pass - allow filesel, enter to execute */
+			}
+			else if (but->dt == UI_EMBOSSN && !event->ctrl) {
 				/* pass */
 			}
 			else {
@@ -2637,7 +2700,9 @@ static int ui_do_but_TEX(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 static int ui_do_but_SEARCH_UNLINK(bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
 	/* unlink icon is on right */
-	if (ELEM4(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY) && event->val == KM_PRESS) {
+	if (ELEM4(event->type, LEFTMOUSE, EVT_BUT_OPEN, PADENTER, RETKEY) && event->val == KM_PRESS &&
+	    ui_is_but_search_unlink_visible(but))
+	{
 		ARegion *ar = data->region;
 		rcti rect;
 		int x = event->x, y = event->y;
@@ -2647,13 +2712,8 @@ static int ui_do_but_SEARCH_UNLINK(bContext *C, uiBlock *block, uiBut *but, uiHa
 		BLI_rcti_rctf_copy(&rect, &but->rect);
 		
 		rect.xmin = rect.xmax - (BLI_rcti_size_y(&rect));
-		if ( BLI_rcti_isect_pt(&rect, x, y) ) {
-			/* most likely NULL, but let's check, and give it temp zero string */
-			if (data->str == NULL)
-				data->str = MEM_callocN(16, "temp str");
-			data->str[0] = 0;
-			
-			ui_apply_but_TEX(C, but, data);
+		if (BLI_rcti_isect_pt(&rect, x, y)) {
+			ui_set_but_string(C, but, "");
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
 			
 			return WM_UI_HANDLER_BREAK;
@@ -3579,31 +3639,6 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 				return WM_UI_HANDLER_BREAK;
 			}
 		}
-		else if (but->type == COLOR) {
-			if (ELEM3(event->type, MOUSEPAN, WHEELDOWNMOUSE, WHEELUPMOUSE) && event->alt) {
-				float *hsv = ui_block_hsv_get(but->block);
-				float col[3];
-				
-				ui_get_but_vectorf(but, col);
-				rgb_to_hsv_compat_v(col, hsv);
-
-				if (event->type == WHEELDOWNMOUSE)
-					hsv[2] = CLAMPIS(hsv[2] - 0.05f, 0.0f, 1.0f);
-				else if (event->type == WHEELUPMOUSE)
-					hsv[2] = CLAMPIS(hsv[2] + 0.05f, 0.0f, 1.0f);
-				else {
-					float fac = 0.005 * (event->y - event->prevy);
-					hsv[2] = CLAMPIS(hsv[2] + fac, 0.0f, 1.0f);
-				}
-				
-				hsv_to_rgb_v(hsv, data->vec);
-				ui_set_but_vectorf(but, data->vec);
-				
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-				ui_apply_button(C, but->block, but, data, true);
-				return WM_UI_HANDLER_BREAK;
-			}
-		}
 	}
 	else if (data->state == BUTTON_STATE_WAIT_DRAG) {
 		
@@ -3689,6 +3724,41 @@ static bool ui_numedit_but_NORMAL(uiBut *but, uiHandleButtonData *data, int mx, 
 	data->draglasty = my;
 
 	return changed;
+}
+
+static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
+{
+	if (data->state == BUTTON_STATE_HIGHLIGHT) {
+		if (ELEM3(event->type, LEFTMOUSE, PADENTER, RETKEY) && event->val == KM_PRESS) {
+			button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
+			return WM_UI_HANDLER_BREAK;
+		}
+		else if (ELEM3(event->type, MOUSEPAN, WHEELDOWNMOUSE, WHEELUPMOUSE) && event->alt) {
+			float *hsv = ui_block_hsv_get(but->block);
+			float col[3];
+
+			ui_get_but_vectorf(but, col);
+			rgb_to_hsv_compat_v(col, hsv);
+
+			if (event->type == WHEELDOWNMOUSE)
+				hsv[2] = CLAMPIS(hsv[2] - 0.05f, 0.0f, 1.0f);
+			else if (event->type == WHEELUPMOUSE)
+				hsv[2] = CLAMPIS(hsv[2] + 0.05f, 0.0f, 1.0f);
+			else {
+				float fac = 0.005 * (event->y - event->prevy);
+				hsv[2] = CLAMPIS(hsv[2] + fac, 0.0f, 1.0f);
+			}
+
+			hsv_to_rgb_v(hsv, data->vec);
+			ui_set_but_vectorf(but, data->vec);
+
+			button_activate_state(C, but, BUTTON_STATE_EXIT);
+			ui_apply_button(C, but->block, but, data, true);
+			return WM_UI_HANDLER_BREAK;
+		}
+	}
+
+	return WM_UI_HANDLER_CONTINUE;
 }
 
 static int ui_do_but_NORMAL(bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
@@ -5389,6 +5459,28 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 		else if (event->type == EVT_DROP) {
 			ui_but_drop(C, event, but, data);
 		}
+		/* handle eyedropper */
+		else if ((event->type == EKEY) && (event->val == KM_PRESS)) {
+			if (event->alt || event->shift || event->ctrl || event->oskey) {
+				/* pass */
+			}
+			else {
+				if (but->type == COLOR) {
+					WM_operator_name_call(C, "UI_OT_eyedropper_color", WM_OP_INVOKE_DEFAULT, NULL);
+					return WM_UI_HANDLER_BREAK;
+				}
+				else if (but->type == SEARCH_MENU_UNLINK) {
+					if (but->rnaprop && RNA_property_type(but->rnaprop) == PROP_POINTER) {
+						StructRNA *type = RNA_property_pointer_type(&but->rnapoin, but->rnaprop);
+						const short idcode = RNA_type_to_ID_code(type);
+						if ((idcode == ID_OB) || OB_DATA_SUPPORT_ID(idcode)) {
+							WM_operator_name_call(C, "UI_OT_eyedropper_id", WM_OP_INVOKE_DEFAULT, NULL);
+							return WM_UI_HANDLER_BREAK;
+						}
+					}
+				}
+			}
+		}
 		/* handle keyframing */
 		else if ((event->type == IKEY) &&
 		         !ELEM(KM_MOD_FIRST, event->ctrl, event->oskey) &&
@@ -5534,7 +5626,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 			if (but->a1 == UI_GRAD_V_ALT)  /* signal to prevent calling up color picker */
 				retval = ui_do_but_EXIT(C, but, data, event);
 			else
-				retval = ui_do_but_BLOCK(C, but, data, event);
+				retval = ui_do_but_COLOR(C, but, data, event);
 			break;
 		case BUT_NORMAL:
 			retval = ui_do_but_NORMAL(C, block, but, data, event);
@@ -5721,6 +5813,13 @@ bool ui_is_but_interactive(uiBut *but)
 		return false;
 
 	return true;
+}
+
+bool ui_is_but_search_unlink_visible(uiBut *but)
+{
+	BLI_assert(but->type == SEARCH_MENU_UNLINK);
+	return ((but->editstr == NULL) &&
+	        (but->drawstr[0] != '\0'));
 }
 
 uiBut *ui_but_find_mouse_over(ARegion *ar, int x, int y)
@@ -7804,3 +7903,7 @@ bool UI_textbutton_activate_event(const bContext *C, ARegion *ar,
 	}
 }
 
+void ui_button_clipboard_free(void)
+{
+	curvemapping_free_data(&but_copypaste_curve);
+}

@@ -173,6 +173,10 @@ extern "C" {
 
 #define MEM_SAFE_FREE(v) if (v) { MEM_freeN(v); v = NULL; } (void)0
 
+/* overhead for lockfree allocator (use to avoid slop-space) */
+#define MEM_SIZE_OVERHEAD sizeof(size_t)
+#define MEM_SIZE_OPTIMAL(size) ((size) - MEM_SIZE_OVERHEAD)
+
 #ifndef NDEBUG
 extern const char *(*MEM_name_ptr)(void *vmemh);
 #endif
@@ -199,6 +203,18 @@ public:                                                                       \
 			MEM_freeN(mem);                                                   \
 	}                                                                         \
 
+#if defined __GNUC__ || defined __sun
+#  define OBJECT_GUARDED_NEW(type, args ...) \
+	new(MEM_mallocN(sizeof(type), __func__)) type(args)
+#else
+#  define OBJECT_GUARDED_NEW(type, ...) \
+	new(MEM_mallocN(sizeof(type), __FUNCTION__)) type(__VA_ARGS__)
+#endif
+#define OBJECT_GUARDED_DELETE(what, type) \
+	{ if(what) { \
+			((type*)(what))->~type(); \
+			MEM_freeN(what); \
+	} } (void)0
 #endif  /* __cplusplus */
 
 #ifdef __cplusplus

@@ -589,97 +589,31 @@ void BLI_ticket_mutex_unlock(TicketMutex *ticket)
 
 /* ************************************************ */
 
-typedef struct ThreadedWorker {
-	ListBase threadbase;
-	void *(*work_fnct)(void *);
-	char busy[RE_MAX_THREAD];
-	int total;
-	int sleep_time;
-} ThreadedWorker;
+/* Condition */
 
-typedef struct WorkParam {
-	ThreadedWorker *worker;
-	void *param;
-	int index;
-} WorkParam;
-
-static void *exec_work_fnct(void *v_param)
+void BLI_condition_init(ThreadCondition *cond)
 {
-	WorkParam *p = (WorkParam *)v_param;
-	void *value;
-	
-	value = p->worker->work_fnct(p->param);
-	
-	p->worker->busy[p->index] = 0;
-	MEM_freeN(p);
-	
-	return value;
+	pthread_cond_init(cond, NULL);
 }
 
-ThreadedWorker *BLI_create_worker(void *(*do_thread)(void *), int tot, int sleep_time)
+void BLI_condition_wait(ThreadCondition *cond, ThreadMutex *mutex)
 {
-	ThreadedWorker *worker;
-	
-	(void)sleep_time; /* unused */
-	
-	worker = MEM_callocN(sizeof(ThreadedWorker), "threadedworker");
-	
-	if (tot > RE_MAX_THREAD) {
-		tot = RE_MAX_THREAD;
-	}
-	else if (tot < 1) {
-		tot = 1;
-	}
-	
-	worker->total = tot;
-	worker->work_fnct = do_thread;
-	
-	BLI_init_threads(&worker->threadbase, exec_work_fnct, tot);
-	
-	return worker;
+	pthread_cond_wait(cond, mutex);
 }
 
-void BLI_end_worker(ThreadedWorker *worker)
+void BLI_condition_notify_one(ThreadCondition *cond)
 {
-	BLI_remove_threads(&worker->threadbase);
+	pthread_cond_signal(cond);
 }
 
-void BLI_destroy_worker(ThreadedWorker *worker)
+void BLI_condition_notify_all(ThreadCondition *cond)
 {
-	BLI_end_worker(worker);
-	BLI_freelistN(&worker->threadbase);
-	MEM_freeN(worker);
+	pthread_cond_broadcast(cond);
 }
 
-void BLI_insert_work(ThreadedWorker *worker, void *param)
+void BLI_condition_end(ThreadCondition *cond)
 {
-	WorkParam *p = MEM_callocN(sizeof(WorkParam), "workparam");
-	int index;
-	
-	if (BLI_available_threads(&worker->threadbase) == 0) {
-		index = worker->total;
-		while (index == worker->total) {
-			PIL_sleep_ms(worker->sleep_time);
-			
-			for (index = 0; index < worker->total; index++) {
-				if (worker->busy[index] == 0) {
-					BLI_remove_thread_index(&worker->threadbase, index);
-					break;
-				}
-			}
-		}
-	}
-	else {
-		index = BLI_available_thread_index(&worker->threadbase);
-	}
-	
-	worker->busy[index] = 1;
-	
-	p->param = param;
-	p->index = index;
-	p->worker = worker;
-	
-	BLI_insert_thread(&worker->threadbase, p);
+	pthread_cond_destroy(cond);
 }
 
 /* ************************************************ */
@@ -851,32 +785,6 @@ void BLI_thread_queue_wait_finish(ThreadQueue *queue)
 	pthread_mutex_unlock(&queue->mutex);
 }
 
-/* Condition */
-void BLI_condition_init(ThreadCondition *cond)
-{
-	pthread_cond_init(cond, NULL);
-}
-
-void BLI_condition_wait(ThreadCondition *cond, ThreadMutex *mutex)
-{
-	pthread_cond_wait(cond, mutex);
-}
-
-void BLI_condition_notify_one(ThreadCondition *cond)
-{
-	pthread_cond_signal(cond);
-}
-
-void BLI_condition_notify_all(ThreadCondition *cond)
-{
-	pthread_cond_broadcast(cond);
-}
-
-void BLI_condition_end(ThreadCondition *cond)
-{
-	pthread_cond_destroy(cond);
-}
-
 /* ************************************************ */
 
 void BLI_begin_threaded_malloc(void)
@@ -899,3 +807,4 @@ void BLI_end_threaded_malloc(void)
 	if (thread_levels == 0)
 		MEM_set_lock_callback(NULL, NULL);
 }
+

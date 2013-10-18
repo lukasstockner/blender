@@ -166,6 +166,10 @@ if(WITH_IMAGE_OPENEXR)
 	add_definitions(-DWITH_OPENEXR)
 endif()
 
+if(WITH_OPENIMAGEIO)
+	add_definitions(-DWITH_OPENIMAGEIO)
+endif()
+
 if(WITH_IMAGE_TIFF)
 	add_definitions(-DWITH_TIFF)
 endif()

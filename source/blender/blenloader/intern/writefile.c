@@ -1808,7 +1808,7 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 	CustomData_free(&data_tmp, count);
 }
 
-static void write_meshs(WriteData *wd, ListBase *idbase)
+static void write_meshes(WriteData *wd, ListBase *idbase)
 {
 	Mesh *mesh;
 	int save_for_old_blender= 0;
@@ -2903,9 +2903,6 @@ static void write_brushes(WriteData *wd, ListBase *idbase)
 			writestruct(wd, ID_BR, "Brush", 1, brush);
 			if (brush->id.properties) IDP_WriteProperty(brush->id.properties, wd);
 			
-			writestruct(wd, DATA, "MTex", 1, &brush->mtex);
-			writestruct(wd, DATA, "MTex", 1, &brush->mask_mtex);
-			
 			if (brush->curve)
 				write_curvemapping(wd, brush->curve);
 		}
@@ -3366,7 +3363,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	write_objects  (wd, &mainvar->object);
 	write_materials(wd, &mainvar->mat);
 	write_textures (wd, &mainvar->tex);
-	write_meshs    (wd, &mainvar->mesh);
+	write_meshes   (wd, &mainvar->mesh);
 	write_particlesettings(wd, &mainvar->particle);
 	write_nodetrees(wd, &mainvar->nodetree);
 	write_brushes  (wd, &mainvar->brush);

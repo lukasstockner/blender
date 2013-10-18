@@ -148,27 +148,15 @@ void BLI_ticket_mutex_free(TicketMutex *ticket);
 void BLI_ticket_mutex_lock(TicketMutex *ticket);
 void BLI_ticket_mutex_unlock(TicketMutex *ticket);
 
-/* ThreadedWorker
- *
- * A simple tool for dispatching work to a limited number of threads
- * in a transparent fashion from the caller's perspective. */
+/* Condition */
+ 
+typedef pthread_cond_t ThreadCondition;
 
-struct ThreadedWorker;
-
-/* Create a new worker supporting tot parallel threads.
- * When new work in inserted and all threads are busy, sleep(sleep_time) before checking again
- */
-struct ThreadedWorker *BLI_create_worker(void *(*do_thread)(void *), int tot, int sleep_time);
-
-/* join all working threads */
-void BLI_end_worker(struct ThreadedWorker *worker);
-
-/* also ends all working threads */
-void BLI_destroy_worker(struct ThreadedWorker *worker);
-
-/* Spawns a new work thread if possible, sleeps until one is available otherwise
- * NOTE: inserting work is NOT thread safe, so make sure it is only done from one thread */
-void BLI_insert_work(struct ThreadedWorker *worker, void *param);
+void BLI_condition_init(ThreadCondition *cond);
+void BLI_condition_wait(ThreadCondition *cond, ThreadMutex *mutex);
+void BLI_condition_notify_one(ThreadCondition *cond);
+void BLI_condition_notify_all(ThreadCondition *cond);
+void BLI_condition_end(ThreadCondition *cond);
 
 /* ThreadWorkQueue
  *
@@ -186,16 +174,6 @@ int BLI_thread_queue_size(ThreadQueue *queue);
 
 void BLI_thread_queue_wait_finish(ThreadQueue *queue);
 void BLI_thread_queue_nowait(ThreadQueue *queue);
-
-/* Condition */
-
-typedef pthread_cond_t ThreadCondition;
-
-void BLI_condition_init(ThreadCondition *cond);
-void BLI_condition_wait(ThreadCondition *cond, ThreadMutex *mutex);
-void BLI_condition_notify_one(ThreadCondition *cond);
-void BLI_condition_notify_all(ThreadCondition *cond);
-void BLI_condition_end(ThreadCondition *cond);
 
 #ifdef __cplusplus
 }

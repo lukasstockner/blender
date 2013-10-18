@@ -31,6 +31,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_bitmap.h"
 #include "BLI_listbase.h"
 #include "BLI_linklist.h"
 #include "BLI_linklist_stack.h"
@@ -184,54 +185,12 @@ void EDBM_automerge(Scene *scene, Object *obedit, bool update, const char hflag)
 unsigned int bm_solidoffs = 0, bm_wireoffs = 0, bm_vertoffs = 0;    /* set in drawobject.c ... for colorindices */
 
 /* facilities for border select and circle select */
-static char *selbuf = NULL;
+static BLI_bitmap *selbuf = NULL;
 
-/* opengl doesn't support concave... */
-static void draw_triangulated(const int mcords[][2], const short tot)
+static BLI_bitmap *edbm_backbuf_alloc(const int size)
 {
-	ListBase lb = {NULL, NULL};
-	DispList *dl;
-	float *fp;
-	int a;
-	const float z_up[3] = {0.0f, 0.0f, 1.0f};
-	
-	/* make displist */
-	dl = MEM_callocN(sizeof(DispList), "poly disp");
-	dl->type = DL_POLY;
-	dl->parts = 1;
-	dl->nr = tot;
-	dl->verts = fp = MEM_callocN(tot * 3 * sizeof(float), "poly verts");
-	BLI_addtail(&lb, dl);
-	
-	for (a = 0; a < tot; a++, fp += 3) {
-		fp[0] = (float)mcords[a][0];
-		fp[1] = (float)mcords[a][1];
-	}
-	
-	/* do the fill */
-	BKE_displist_fill(&lb, &lb, z_up, false);
-
-	/* do the draw */
-	dl = lb.first;  /* filldisplist adds in head of list */
-	if (dl->type == DL_INDEX3) {
-		int *index;
-		
-		a = dl->parts;
-		fp = dl->verts;
-		index = dl->index;
-		glBegin(GL_TRIANGLES);
-		while (a--) {
-			glVertex3fv(fp + 3 * index[0]);
-			glVertex3fv(fp + 3 * index[1]);
-			glVertex3fv(fp + 3 * index[2]);
-			index += 3;
-		}
-		glEnd();
-	}
-	
-	BKE_displist_free(&lb);
+	return BLI_BITMAP_NEW(size, "selbuf");
 }
-
 
 /* reads rect, and builds selection array for quick lookup */
 /* returns if all is OK */
@@ -252,25 +211,31 @@ bool EDBM_backbuf_border_init(ViewContext *vc, short xmin, short ymin, short xma
 	dr = buf->rect;
 	
 	/* build selection lookup */
-	selbuf = MEM_callocN(bm_vertoffs + 1, "selbuf");
+	selbuf = edbm_backbuf_alloc(bm_vertoffs + 1);
 	
 	a = (xmax - xmin + 1) * (ymax - ymin + 1);
 	while (a--) {
-		if (*dr > 0 && *dr <= bm_vertoffs)
-			selbuf[*dr] = 1;
+		if (*dr > 0 && *dr <= bm_vertoffs) {
+			BLI_BITMAP_SET(selbuf, *dr);
+		}
 		dr++;
 	}
 	IMB_freeImBuf(buf);
 	return true;
 }
 
-int EDBM_backbuf_check(unsigned int index)
+bool EDBM_backbuf_check(unsigned int index)
 {
-	BLI_assert(selbuf != NULL);
-	if (selbuf == NULL) return 1;
+	/* odd logic, if selbuf is NULL we assume no zbuf-selection is enabled
+	 * and just ignore the depth buffer, this is error prone since its possible
+	 * code doesn't set the depth buffer by accident, but leave for now. - Campbell */
+	if (selbuf == NULL)
+		return true;
+
 	if (index > 0 && index <= bm_vertoffs)
-		return selbuf[index];
-	return 0;
+		return BLI_BITMAP_GET_BOOL(selbuf, index);
+
+	return false;
 }
 
 void EDBM_backbuf_free(void)
@@ -278,6 +243,18 @@ void EDBM_backbuf_free(void)
 	if (selbuf) MEM_freeN(selbuf);
 	selbuf = NULL;
 }
+
+struct LassoMaskData {
+	unsigned int *px;
+	int width;
+};
+
+static void edbm_mask_lasso_px_cb(int x, int y, void *user_data)
+{
+	struct LassoMaskData *data = user_data;
+	data->px[(y * data->width) + x] = true;
+}
+
 
 /* mcords is a polygon mask
  * - grab backbuffer,
@@ -287,9 +264,10 @@ void EDBM_backbuf_free(void)
  */
 bool EDBM_backbuf_border_mask_init(ViewContext *vc, const int mcords[][2], short tot, short xmin, short ymin, short xmax, short ymax)
 {
-	unsigned int *dr, *drm;
-	struct ImBuf *buf, *bufmask;
+	unsigned int *dr, *dr_mask, *dr_mask_arr;
+	struct ImBuf *buf;
 	int a;
+	struct LassoMaskData lasso_mask_data;
 	
 	/* method in use for face selecting too */
 	if (vc->obedit == NULL) {
@@ -307,49 +285,27 @@ bool EDBM_backbuf_border_mask_init(ViewContext *vc, const int mcords[][2], short
 
 	dr = buf->rect;
 
-	if (vc->rv3d->gpuoffscreen)
-		GPU_offscreen_bind(vc->rv3d->gpuoffscreen);
-	
-	/* draw the mask */
-	glDisable(GL_DEPTH_TEST);
-	
-	glColor3ub(0, 0, 0);
-	
-	/* yah, opengl doesn't do concave... tsk! */
-	ED_region_pixelspace(vc->ar);
-	draw_triangulated(mcords, tot);
-	
-	glBegin(GL_LINE_LOOP);  /* for zero sized masks, lines */
-	for (a = 0; a < tot; a++) {
-		glVertex2iv(mcords[a]);
-	}
-	glEnd();
-	
-	glFinish(); /* to be sure readpixels sees mask */
-	
-	if (vc->rv3d->gpuoffscreen)
-		GPU_offscreen_unbind(vc->rv3d->gpuoffscreen);
-	
-	/* grab mask */
-	bufmask = view3d_read_backbuf(vc, xmin, ymin, xmax, ymax);
+	dr_mask = dr_mask_arr = MEM_callocN(sizeof(*dr_mask) * buf->x * buf->y, __func__);
+	lasso_mask_data.px = dr_mask;
+	lasso_mask_data.width = (xmax - xmin) + 1;
 
-	if (bufmask == NULL) {
-		return false;  /* only when mem alloc fails, go crash somewhere else! */
-	}
-	else {
-		drm = bufmask->rect;
-	}
+	fill_poly_v2i_n(
+	       xmin, ymin, xmax + 1, ymax + 1,
+	       mcords, tot,
+	       edbm_mask_lasso_px_cb, &lasso_mask_data);
 
 	/* build selection lookup */
-	selbuf = MEM_callocN(bm_vertoffs + 1, "selbuf");
+	selbuf = edbm_backbuf_alloc(bm_vertoffs + 1);
 	
 	a = (xmax - xmin + 1) * (ymax - ymin + 1);
 	while (a--) {
-		if (*dr > 0 && *dr <= bm_vertoffs && *drm == 0) selbuf[*dr] = 1;
-		dr++; drm++;
+		if (*dr > 0 && *dr <= bm_vertoffs && *dr_mask == true) {
+			BLI_BITMAP_SET(selbuf, *dr);
+		}
+		dr++; dr_mask++;
 	}
 	IMB_freeImBuf(buf);
-	IMB_freeImBuf(bufmask);
+	MEM_freeN(dr_mask_arr);
 
 	return true;
 }
@@ -381,12 +337,14 @@ bool EDBM_backbuf_circle_init(ViewContext *vc, short xs, short ys, short rads)
 	dr = buf->rect;
 	
 	/* build selection lookup */
-	selbuf = MEM_callocN(bm_vertoffs + 1, "selbuf");
+	selbuf = edbm_backbuf_alloc(bm_vertoffs + 1);
 	radsq = rads * rads;
 	for (yc = -rads; yc <= rads; yc++) {
 		for (xc = -rads; xc <= rads; xc++, dr++) {
 			if (xc * xc + yc * yc < radsq) {
-				if (*dr > 0 && *dr <= bm_vertoffs) selbuf[*dr] = 1;
+				if (*dr > 0 && *dr <= bm_vertoffs) {
+					BLI_BITMAP_SET(selbuf, *dr);
+				}
 			}
 		}
 	}
@@ -1898,7 +1856,6 @@ static int edbm_select_linked_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
 	BMIter iter;
-	BMVert *v;
 	BMEdge *e;
 	BMWalker walker;
 
@@ -1912,8 +1869,7 @@ static int edbm_select_linked_exec(bContext *C, wmOperator *op)
 		BMFace *efa;
 
 		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-			BM_elem_flag_set(efa, BM_ELEM_TAG, (BM_elem_flag_test(efa, BM_ELEM_SELECT) &&
-			                                    !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)));
+			BM_elem_flag_set(efa, BM_ELEM_TAG, BM_elem_flag_test(efa, BM_ELEM_SELECT));
 		}
 
 		if (limit) {
@@ -1933,6 +1889,7 @@ static int edbm_select_linked_exec(bContext *C, wmOperator *op)
 			if (BM_elem_flag_test(efa, BM_ELEM_TAG)) {
 				for (efa = BMW_begin(&walker, efa); efa; efa = BMW_step(&walker)) {
 					BM_face_select_set(bm, efa, true);
+					BM_elem_flag_disable(efa, BM_ELEM_TAG);
 				}
 			}
 		}
@@ -1943,13 +1900,10 @@ static int edbm_select_linked_exec(bContext *C, wmOperator *op)
 		}
 	}
 	else {
+		BMVert *v;
+
 		BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
-			if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-				BM_elem_flag_enable(v, BM_ELEM_TAG);
-			}
-			else {
-				BM_elem_flag_disable(v, BM_ELEM_TAG);
-			}
+			BM_elem_flag_set(v, BM_ELEM_TAG, BM_elem_flag_test(v, BM_ELEM_SELECT));
 		}
 
 		BMW_init(&walker, em->bm, BMW_SHELL,
@@ -1961,6 +1915,7 @@ static int edbm_select_linked_exec(bContext *C, wmOperator *op)
 			if (BM_elem_flag_test(v, BM_ELEM_TAG)) {
 				for (e = BMW_begin(&walker, v); e; e = BMW_step(&walker)) {
 					BM_edge_select_set(em->bm, e, true);
+					BM_elem_flag_disable(e, BM_ELEM_TAG);
 				}
 			}
 		}
