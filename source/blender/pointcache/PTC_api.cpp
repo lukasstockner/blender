@@ -66,7 +66,7 @@ void PTC_read_sample(struct PTCReader *_reader)
 
 
 /* Particles */
-PTCWriter *PTC_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys)
+PTCWriter *PTC_writer_particles(Object *ob, ParticleSystem *psys)
 {
 	PointCache *cache = psys->pointcache;
 	if (!cache)
@@ -80,7 +80,7 @@ PTCWriter *PTC_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 	return (PTCWriter *)writer;
 }
 
-PTCReader *PTC_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys)
+PTCReader *PTC_reader_particles(Object *ob, ParticleSystem *psys)
 {
 	PointCache *cache = psys->pointcache;
 	if (!cache)

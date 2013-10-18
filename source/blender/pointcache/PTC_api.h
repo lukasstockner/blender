@@ -42,8 +42,8 @@ void PTC_read_sample(struct PTCReader *reader);
 
 
 /* Particles */
-struct PTCWriter *PTC_writer_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particles(struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particles(struct Object *ob, struct ParticleSystem *psys);
 
 #ifdef __cplusplus
 } /* extern C */
