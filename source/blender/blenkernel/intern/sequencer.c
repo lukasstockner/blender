@@ -497,7 +497,9 @@ void BKE_sequencer_pixel_from_sequencer_space_v4(struct Scene *scene, float pixe
 
 /*********************** sequencer pipeline functions *************************/
 
-SeqRenderData BKE_sequencer_new_render_data(Main *bmain, Scene *scene, int rectx, int recty, int preview_render_size)
+SeqRenderData BKE_sequencer_new_render_data(EvaluationContext *evaluation_context,
+                                            Main *bmain, Scene *scene, int rectx, int recty,
+                                            int preview_render_size)
 {
 	SeqRenderData rval;
 
@@ -508,6 +510,7 @@ SeqRenderData BKE_sequencer_new_render_data(Main *bmain, Scene *scene, int rectx
 	rval.preview_render_size = preview_render_size;
 	rval.motion_blur_samples = 0;
 	rval.motion_blur_shutter = 0;
+	rval.evaluation_context = evaluation_context;
 
 	return rval;
 }
@@ -1526,7 +1529,7 @@ void BKE_sequencer_proxy_rebuild(SeqIndexBuildContext *context, short *stop, sho
 
 	/* fail safe code */
 
-	render_context = BKE_sequencer_new_render_data(context->bmain, context->scene,
+	render_context = BKE_sequencer_new_render_data(G.main->evaluation_context, context->bmain, context->scene,
 	                                    (scene->r.size * (float) scene->r.xsch) / 100.0f + 0.5f,
 	                                    (scene->r.size * (float) scene->r.ysch) / 100.0f + 0.5f, 100);
 
@@ -2504,12 +2507,7 @@ static ImBuf *seq_render_scene_strip(SeqRenderData context, Sequence *seq, float
 			context.scene->r.seq_prev_type = 3 /* == OB_SOLID */;
 
 		/* opengl offscreen render */
-		if (is_rendering) {
-			BKE_scene_update_for_newframe_render(context.bmain, scene, scene->lay);
-		}
-		else {
-			BKE_scene_update_for_newframe_viewport(context.bmain, scene, scene->lay);
-		}
+		BKE_scene_update_for_newframe(context.evaluation_context, context.bmain, scene, scene->lay);
 		ibuf = sequencer_view3d_cb(scene, camera, context.rectx, context.recty, IB_rect,
 		                           context.scene->r.seq_prev_type, context.scene->r.seq_flag & R_SEQ_SOLID_TEX,
 		                           TRUE, scene->r.alphamode, err_out);
@@ -2533,12 +2531,7 @@ static ImBuf *seq_render_scene_strip(SeqRenderData context, Sequence *seq, float
 			if (re == NULL)
 				re = RE_NewRender(scene->id.name);
 
-			if (is_rendering) {
-				BKE_scene_update_for_newframe_render(context.bmain, scene, scene->lay);
-			}
-			else {
-				BKE_scene_update_for_newframe_viewport(context.bmain, scene, scene->lay);
-			}
+			BKE_scene_update_for_newframe(context.evaluation_context, context.bmain, scene, scene->lay);
 			RE_BlenderFrame(re, context.bmain, scene, NULL, camera, scene->lay, frame, FALSE);
 
 			/* restore previous state after it was toggled on & off by RE_BlenderFrame */
@@ -2574,12 +2567,7 @@ static ImBuf *seq_render_scene_strip(SeqRenderData context, Sequence *seq, float
 	scene->r.cfra = oldcfra;
 
 	if (frame != oldcfra) {
-		if (is_rendering) {
-			BKE_scene_update_for_newframe_render(context.bmain, scene, scene->lay);
-		}
-		else {
-			BKE_scene_update_for_newframe_viewport(context.bmain, scene, scene->lay);
-		}
+		BKE_scene_update_for_newframe(context.evaluation_context, context.bmain, scene, scene->lay);
 	}
 	
 #ifdef DURIAN_CAMERA_SWITCH

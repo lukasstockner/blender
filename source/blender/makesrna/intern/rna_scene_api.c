@@ -57,6 +57,7 @@
 static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 {
 	double cfra = (double)frame + (double)subframe;
+	/* TODO(sergey): Use context from G.main? */
 	EvaluationContext evaluation_context;
 
 	evaluation_context.for_render = false;

@@ -138,7 +138,7 @@ void initglobals(void)
 	
 	U.savetime = 1;
 
-	G.main = MEM_callocN(sizeof(Main), "initglobals");
+	G.main = BKE_main_allocate();
 
 	strcpy(G.ima, "//");
 

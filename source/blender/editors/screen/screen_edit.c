@@ -1925,7 +1925,7 @@ void ED_update_for_newframe(Main *bmain, Scene *scene, int UNUSED(mute))
 		layers |= BKE_screen_visible_layers(window->screen, scene);
 
 	/* this function applies the changes too */
-	BKE_scene_update_for_newframe_viewport(bmain, scene, layers); /* BKE_scene.h */
+	BKE_scene_update_for_newframe(bmain->evaluation_context, bmain, scene, layers); /* BKE_scene.h */
 	
 	//if ( (CFRA>1) && (!mute) && (scene->r.audio.flag & AUDIO_SCRUB)) 
 	//	audiostream_scrub( CFRA );

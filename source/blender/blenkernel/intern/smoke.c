@@ -77,7 +77,9 @@
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_global.h"
 #include "BKE_effect.h"
+#include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -986,12 +988,10 @@ static int subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int 
 	ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
 	BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, frame, ADT_RECALC_ANIM);
 	if (update_mesh) {
-		EvaluationContext evaluation_context;
-		evaluation_context.for_render = for_render;
 		/* ignore cache clear during subframe updates
 		 *  to not mess up cache validity */
 		object_cacheIgnoreClear(ob, 1);
-		BKE_object_handle_update(&evaluation_context, scene, ob);
+		BKE_object_handle_update(G.main->evaluation_context, scene, ob);
 		object_cacheIgnoreClear(ob, 0);
 	}
 	else

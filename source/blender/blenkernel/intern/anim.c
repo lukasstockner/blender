@@ -368,7 +368,7 @@ static void motionpaths_calc_update_scene(Scene *scene)
 	   *    that doesn't force complete update, but for now, this is the
 	   *    most accurate way!
 	   */
-	BKE_scene_update_for_newframe_viewport(G.main, scene, scene->lay); /* XXX this is the best way we can get anything moving */
+	BKE_scene_update_for_newframe(G.main->evaluation_context, G.main, scene, scene->lay); /* XXX this is the best way we can get anything moving */
 #endif
 }
 
@@ -1746,16 +1746,6 @@ ListBase *object_duplilist_ex(EvaluationContext *evaluation_context, Scene *sce,
 ListBase *object_duplilist(EvaluationContext *evaluation_context, Scene *sce, Object *ob)
 {
 	return object_duplilist_ex(evaluation_context, sce, ob, true);
-}
-
-/* Utility function to get duplilist for viewport,
- * only used for stuff out of DAG update and render pipeline.
- */
-ListBase *object_duplilist_viewport(Scene *scene, Object *object)
-{
-	EvaluationContext evaluation_context;
-	evaluation_context.for_render = false;
-	return object_duplilist(&evaluation_context, scene, object);
 }
 
 void free_object_duplilist(ListBase *lb)

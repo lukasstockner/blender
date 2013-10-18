@@ -2008,7 +2008,7 @@ static void do_render_composite_fields_blur_3d(Render *re)
 				R.stats_draw = re->stats_draw;
 				
 				if (update_newframe)
-					BKE_scene_update_for_newframe_render(re->main, re->scene, re->lay);
+					BKE_scene_update_for_newframe(re->evaluation_context, re->main, re->scene, re->lay);
 				
 				if (re->r.scemode & R_FULL_SAMPLE)
 					do_merge_fullsample(re, ntree);
@@ -2083,14 +2083,12 @@ static void do_render_seq(Render *re)
 	if ((re->r.mode & R_BORDER) && (re->r.mode & R_CROP) == 0) {
 		/* if border rendering is used and cropping is disabled, final buffer should
 		 * be as large as the whole frame */
-		context = BKE_sequencer_new_render_data(re->main, re->scene,
-		                              re->winx, re->winy,
-		                              100);
+		context = BKE_sequencer_new_render_data(re->evaluation_context, re->main, re->scene,
+		                                        re->winx, re->winy, 100);
 	}
 	else {
-		context = BKE_sequencer_new_render_data(re->main, re->scene,
-		                              re->result->rectx, re->result->recty,
-		                              100);
+		context = BKE_sequencer_new_render_data(re->evaluation_context, re->main, re->scene,
+		                                        re->result->rectx, re->result->recty, 100);
 	}
 
 	out = BKE_sequencer_give_ibuf(context, cfra, 0);
@@ -2699,7 +2697,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 				else
 					updatelay = re->lay;
 
-				BKE_scene_update_for_newframe_render(bmain, scene, updatelay);
+				BKE_scene_update_for_newframe(re->evaluation_context, bmain, scene, updatelay);
 				continue;
 			}
 			else

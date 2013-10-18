@@ -35,9 +35,10 @@
 #include "BLI_math.h"
 
 #include "BKE_context.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
-#include "BKE_scene.h"  /* for evaluation_context */
 #include "BKE_editmesh.h"
 
 #include "RNA_define.h"
@@ -375,9 +376,7 @@ static int edbm_extrude_mesh(Scene *scene, Object *obedit, BMEditMesh *em, wmOpe
 		 * automatically building this data if invalid. Or something.
 		 */
 //		DAG_object_flush_update(scene, obedit, OB_RECALC_DATA);
-		EvaluationContext evaluation_context;
-		evaluation_context.for_render = false;
-		BKE_object_handle_update(&evaluation_context, scene, obedit);
+		BKE_object_handle_update(G.main->evaluation_context, scene, obedit);
 
 		/* individual faces? */
 //		BIF_TransformSetUndo("Extrude");

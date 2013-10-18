@@ -54,12 +54,13 @@
 #include "BIF_gl.h"
 
 #include "BKE_DerivedMesh.h"
+#include "BKE_global.h"
 #include "BKE_object.h"
 #include "BKE_anim.h"  /* for duplis */
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
+#include "BKE_main.h"
 #include "BKE_mesh.h"
-#include "BKE_scene.h"  /* for EvaluationContext */
 #include "BKE_tracking.h"
 
 #include "RNA_access.h"
@@ -322,10 +323,8 @@ void applyProject(TransInfo *t)
 			}
 			else if (t->flag & T_OBJECT) {
 				/* TODO(sergey): Ideally force update is not needed here. */
-				EvaluationContext evaluation_context;
-				evaluation_context.for_render = false;
 				td->ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
-				BKE_object_handle_update(&evaluation_context, t->scene, td->ob);
+				BKE_object_handle_update(G.main->evaluation_context, t->scene, td->ob);
 				copy_v3_v3(iloc, td->ob->obmat[3]);
 			}
 			
@@ -1731,7 +1730,7 @@ static bool snapObjectsRay(Scene *scene, short snap_mode, Base *base_act, View3D
 			
 			if (ob->transflag & OB_DUPLI) {
 				DupliObject *dupli_ob;
-				ListBase *lb = object_duplilist_viewport(scene, ob);
+				ListBase *lb = object_duplilist(G.main->evaluation_context, scene, ob);
 				
 				for (dupli_ob = lb->first; dupli_ob; dupli_ob = dupli_ob->next) {
 					retval |= snapObject(scene, snap_mode, ar, dupli_ob->ob, dupli_ob->mat, false,
@@ -1983,7 +1982,7 @@ static bool peelObjects(Scene *scene, View3D *v3d, ARegion *ar, Object *obedit,
 
 			if (ob->transflag & OB_DUPLI) {
 				DupliObject *dupli_ob;
-				ListBase *lb = object_duplilist_viewport(scene, ob);
+				ListBase *lb = object_duplilist(G.main->evaluation_context, scene, ob);
 				
 				for (dupli_ob = lb->first; dupli_ob; dupli_ob = dupli_ob->next) {
 					Object *dob = dupli_ob->ob;

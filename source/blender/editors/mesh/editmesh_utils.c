@@ -39,8 +39,10 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
+#include "BKE_global.h"
 #include "BKE_depsgraph.h"
 #include "BKE_key.h"
+#include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
@@ -110,10 +112,8 @@ void EDBM_mesh_ensure_valid_dm_hack(Scene *scene, BMEditMesh *em)
 	if ((((ID *)em->ob->data)->flag & LIB_ID_RECALC) ||
 	    (em->ob->recalc & OB_RECALC_DATA))
 	{
-		EvaluationContext evaluation_context;
-		evaluation_context.for_render = false;
 		em->ob->recalc |= OB_RECALC_DATA;  /* since we may not have done selection flushing */
-		BKE_object_handle_update(&evaluation_context, scene, em->ob);
+		BKE_object_handle_update(G.main->evaluation_context, scene, em->ob);
 	}
 }
 

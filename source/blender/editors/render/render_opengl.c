@@ -149,7 +149,8 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 		SeqRenderData context;
 		int chanshown = oglrender->sseq ? oglrender->sseq->chanshown : 0;
 
-		context = BKE_sequencer_new_render_data(oglrender->bmain, scene, oglrender->sizex, oglrender->sizey, 100.0f);
+		context = BKE_sequencer_new_render_data(oglrender->bmain->evaluation_context, oglrender->bmain,
+		                                        scene, oglrender->sizex, oglrender->sizey, 100.0f);
 
 		ibuf = BKE_sequencer_give_ibuf(context, CFRA, chanshown);
 
@@ -464,7 +465,7 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 
 	if (oglrender->timer) { /* exec will not have a timer */
 		scene->r.cfra = oglrender->cfrao;
-		BKE_scene_update_for_newframe_viewport(bmain, scene, screen_opengl_layers(oglrender));
+		BKE_scene_update_for_newframe(bmain->evaluation_context, bmain, scene, screen_opengl_layers(oglrender));
 
 		WM_event_remove_timer(oglrender->wm, oglrender->win, oglrender->timer);
 	}
@@ -539,7 +540,7 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 		if (lay & 0xFF000000)
 			lay &= 0xFF000000;
 
-		BKE_scene_update_for_newframe_viewport(bmain, scene, lay);
+		BKE_scene_update_for_newframe(bmain->evaluation_context, bmain, scene, lay);
 		CFRA++;
 	}
 
@@ -557,7 +558,7 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 
 	WM_cursor_time(oglrender->win, scene->r.cfra);
 
-	BKE_scene_update_for_newframe_viewport(bmain, scene, screen_opengl_layers(oglrender));
+	BKE_scene_update_for_newframe(bmain->evaluation_context, bmain, scene, screen_opengl_layers(oglrender));
 
 	if (view_context) {
 		if (oglrender->rv3d->persp == RV3D_CAMOB && oglrender->v3d->camera && oglrender->v3d->scenelock) {

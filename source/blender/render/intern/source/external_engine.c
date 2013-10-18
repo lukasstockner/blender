@@ -457,7 +457,7 @@ int RE_engine_render(Render *re, int do_all)
 			lay &= non_excluded_lay;
 		}
 
-		BKE_scene_update_for_newframe_render(re->main, re->scene, lay);
+		BKE_scene_update_for_newframe(re->evaluation_context, re->main, re->scene, lay);
 	}
 
 	/* create render result */

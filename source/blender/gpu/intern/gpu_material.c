@@ -846,7 +846,7 @@ static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 
 		if (ob->transflag & OB_DUPLI) {
 			DupliObject *dob;
-			ListBase *lb = object_duplilist_viewport(shi->gpumat->scene, ob);
+			ListBase *lb = object_duplilist(G.main->evaluation_context, shi->gpumat->scene, ob);
 			
 			for (dob=lb->first; dob; dob=dob->next) {
 				Object *ob_iter = dob->ob;

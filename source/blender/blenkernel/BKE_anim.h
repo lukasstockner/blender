@@ -68,7 +68,6 @@ int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], fl
 
 struct ListBase *object_duplilist_ex(struct EvaluationContext *evaluation_context, struct Scene *sce, struct Object *ob, bool update);
 struct ListBase *object_duplilist(struct EvaluationContext *evaluation_context, struct Scene *sce, struct Object *ob);
-struct ListBase *object_duplilist_viewport(struct Scene *scene, struct Object *object);
 void free_object_duplilist(struct ListBase *lb);
 int count_duplilist(struct Object *ob);
 

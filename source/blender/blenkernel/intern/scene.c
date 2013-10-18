@@ -802,9 +802,7 @@ int BKE_scene_base_iter_next(SceneBaseIter *iter, Scene **scene, int val, Base *
 						 * this enters eternal loop because of 
 						 * makeDispListMBall getting called inside of group_duplilist */
 						if ((*base)->object->dup_group == NULL) {
-							EvaluationContext evaluation_context;
-							evaluation_context.for_render = false;
-							iter->duplilist = object_duplilist_ex(&evaluation_context, (*scene), (*base)->object, false);
+							iter->duplilist = object_duplilist_ex(G.main->evaluation_context, (*scene), (*base)->object, false);
 							
 							iter->dupob = iter->duplilist->first;
 
@@ -1529,20 +1527,6 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *evaluation_context, Mai
 void BKE_scene_update_for_newframe(EvaluationContext *evaluation_context, Main *bmain, Scene *sce, unsigned int lay)
 {
 	BKE_scene_update_for_newframe_ex(evaluation_context, bmain, sce, lay, true);
-}
-
-void BKE_scene_update_for_newframe_viewport(Main *bmain, Scene *sce, unsigned int lay)
-{
-	EvaluationContext evaluation_context;
-	evaluation_context.for_render = false;
-	BKE_scene_update_for_newframe_ex(&evaluation_context, bmain, sce, lay, true);
-}
-
-void BKE_scene_update_for_newframe_render(Main *bmain, Scene *sce, unsigned int lay)
-{
-	EvaluationContext evaluation_context;
-	evaluation_context.for_render = true;
-	BKE_scene_update_for_newframe_ex(&evaluation_context, bmain, sce, lay, true);
 }
 
 /* return default layer, also used to patch old files */

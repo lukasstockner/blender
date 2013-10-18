@@ -4899,9 +4899,7 @@ static void set_trans_object_base_flags(TransInfo *t)
 	for (base = scene->base.first; base; base = base->next) {
 		if (base->object->recalc) {
 			/* TODO(sergey): Ideally, it's not needed. */
-			EvaluationContext evaluation_context;
-			evaluation_context.for_render = false;
-			BKE_object_handle_update(&evaluation_context, t->scene, base->object);
+			BKE_object_handle_update(G.main->evaluation_context, t->scene, base->object);
 		}
 	}
 
