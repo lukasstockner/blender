@@ -249,7 +249,7 @@ void RE_MergeFullSample(struct Render *re, struct Main *bmain, struct Scene *sce
 
 /* ancient stars function... go away! */
 void RE_make_stars(struct Render *re, struct Scene *scenev3d, void (*initfunc)(void),
-                   void (*vertexfunc)(float *),  void (*termfunc)(void));
+                   void (*vertexfunc)(const float *),  void (*termfunc)(void));
 
 /* display and event callbacks */
 void RE_display_init_cb	(struct Render *re, void *handle, void (*f)(void *handle, RenderResult *rr));
@@ -281,7 +281,8 @@ int RE_seq_render_active(struct Scene *scene, struct RenderData *rd);
 #define RE_BAKE_MIRROR_INTENSITY	10
 #define RE_BAKE_ALPHA				11
 #define RE_BAKE_EMIT				12
-#define RE_BAKE_DERIVATIVE		13
+#define RE_BAKE_DERIVATIVE			13
+#define RE_BAKE_VERTEX_COLORS		14
 
 void RE_Database_Baking(struct Render *re, struct Main *bmain, struct Scene *scene, unsigned int lay, const int type, struct Object *actob);
 

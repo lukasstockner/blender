@@ -219,14 +219,6 @@ EnumPropertyItem snap_uv_element_items[] = {
 #  define R_IMF_ENUM_TIFF
 #endif
 
-#ifdef WITH_PSD
-#  define R_IMF_ENUM_PSD     {R_IMF_IMTYPE_PSD, "PSD", ICON_FILE_IMAGE, "Photosp PSD", \
-                                                "Output image in Photoshop PSD format"},
-#else
-#  define R_IMF_ENUM_PSD
-#endif
-
-
 #define IMAGE_TYPE_ITEMS_IMAGE_ONLY                                           \
 	R_IMF_ENUM_BMP                                                            \
 	/* DDS save not supported yet R_IMF_ENUM_DDS */                           \
@@ -243,7 +235,6 @@ EnumPropertyItem snap_uv_element_items[] = {
 	R_IMF_ENUM_EXR                                                            \
 	R_IMF_ENUM_HDR                                                            \
 	R_IMF_ENUM_TIFF                                                           \
-	R_IMF_ENUM_PSD                                                            \
 
 
 EnumPropertyItem image_only_type_items[] = {
@@ -940,7 +931,7 @@ static void rna_RenderSettings_qtcodecsettings_codecType_set(PointerRNA *ptr, in
 	settings->codecType = quicktime_videocodecType_from_rnatmpvalue(value);
 }
 
-static EnumPropertyItem *rna_RenderSettings_qtcodecsettings_codecType_itemf(bContext *C, PointerRNA *ptr,
+static EnumPropertyItem *rna_RenderSettings_qtcodecsettings_codecType_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr),
                                                                             PropertyRNA *UNUSED(prop), int *free)
 {
 	EnumPropertyItem *item = NULL;
@@ -979,7 +970,7 @@ static void rna_RenderSettings_qtcodecsettings_audiocodecType_set(PointerRNA *pt
 	settings->audiocodecType = quicktime_audiocodecType_from_rnatmpvalue(value);
 }
 
-static EnumPropertyItem *rna_RenderSettings_qtcodecsettings_audiocodecType_itemf(bContext *C, PointerRNA *ptr,
+static EnumPropertyItem *rna_RenderSettings_qtcodecsettings_audiocodecType_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr),
                                                                                  PropertyRNA *UNUSED(prop), int *free)
 {
 	EnumPropertyItem *item = NULL;
@@ -1589,14 +1580,12 @@ static void rna_def_transform_orientation(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-
-	const int matrix_dimsize[] = {3, 3};
 	
 	srna = RNA_def_struct(brna, "TransformOrientation", NULL);
 	
 	prop = RNA_def_property(srna, "matrix", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_float_sdna(prop, NULL, "mat");
-	RNA_def_property_multi_array(prop, 2, matrix_dimsize);
+	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_3x3);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
@@ -4089,6 +4078,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 		{RE_BAKE_TEXTURE, "TEXTURE", 0, "Textures", "Bake textures"},
 		{RE_BAKE_DISPLACEMENT, "DISPLACEMENT", 0, "Displacement", "Bake displacement"},
 		{RE_BAKE_DERIVATIVE, "DERIVATIVE", 0, "Derivative", "Bake derivative map"},
+		{RE_BAKE_VERTEX_COLORS, "VERTEX_COLORS", 0, "Vertex Colors", "Bake vertex colors"},
 		{RE_BAKE_EMIT, "EMIT", 0, "Emission", "Bake Emit values (glow)"},
 		{RE_BAKE_ALPHA, "ALPHA", 0, "Alpha", "Bake Alpha values (transparency)"},
 		{RE_BAKE_MIRROR_INTENSITY, "MIRROR_INTENSITY", 0, "Mirror Intensity", "Bake Mirror values"},
@@ -4684,7 +4674,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0, 1000.0);
 	RNA_def_property_ui_text(prop, "Scale",
 	                         "Instead of automatically normalizing to 0..1, "
-	                         "apply a user scale to the derivative map.");
+	                         "apply a user scale to the derivative map");
 
 	/* stamp */
 	
@@ -5220,6 +5210,14 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_float_funcs(prop, "rna_Scene_frame_current_final_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Current Frame Final",
 	                         "Current frame with subframe and time remapping applied");
+
+	prop = RNA_def_property(srna, "lock_frame_selection_to_range", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_boolean_sdna(prop, NULL, "r.flag", SCER_LOCK_FRAME_SELECTION);
+	RNA_def_property_ui_text(prop, "Lock Frame Selection",
+	                         "Don't allow frame to be selected with mouse outside of frame range");
+	RNA_def_property_update(prop, NC_SCENE | ND_FRAME, NULL);
+	RNA_def_property_ui_icon(prop, ICON_LOCKED, 0);
 
 	/* Preview Range (frame-range for UI playback) */
 	prop = RNA_def_property(srna, "use_preview_range", PROP_BOOLEAN, PROP_NONE);

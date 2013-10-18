@@ -3700,7 +3700,7 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 					/* if we have indexes, let's use them */
 					for (dw = part->dupliweights.first; dw; dw = dw->next) {
 						GroupObject *go = (GroupObject *)BLI_findlink(&part->dup_group->gobject, dw->index);
-						dw->ob = go ? newlibadr(fd, part->id.lib, dw->ob) : NULL;
+						dw->ob = go ? go->ob : NULL;
 					}
 				}
 				else {
@@ -3806,7 +3806,7 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 			for (; pt; pt=pt->next)
 				pt->ob=newlibadr(fd, id->lib, pt->ob);
 			
-			psys->parent = newlibadr_us(fd, id->lib, psys->parent);
+			psys->parent = newlibadr(fd, id->lib, psys->parent);
 			psys->target_ob = newlibadr(fd, id->lib, psys->target_ob);
 			
 			if (psys->clmd) {
@@ -9089,17 +9089,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
-
-		/* fallbck resection method settings */
-		{
-			MovieClip *clip;
-
-			for (clip = main->movieclip.first; clip; clip = clip->id.next) {
-				if (clip->tracking.settings.reconstruction_success_threshold == 0.0f) {
-					clip->tracking.settings.reconstruction_success_threshold = 1e-3f;
-				}
-			}
-		}
 	}
 
 	if (main->versionfile < 264 || (main->versionfile == 264 && main->subversionfile < 7)) {
@@ -9722,6 +9711,30 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		} FOREACH_NODETREE_END
+	}
+
+	{
+		bScreen *sc;
+		ScrArea *sa;
+		SpaceLink *sl;
+
+		/* Update files using invalid (outdated) outlinevis Outliner values. */
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_OUTLINER) {
+						SpaceOops *so = (SpaceOops *)sl;
+
+						if (!ELEM11(so->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_SELECTED, SO_ACTIVE,
+						                            SO_SAME_TYPE, SO_GROUPS, SO_LIBRARIES, SO_SEQUENCE, SO_DATABLOCKS,
+						                            SO_USERDEF))
+						{
+							so->outlinevis = SO_ALL_SCENES;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
