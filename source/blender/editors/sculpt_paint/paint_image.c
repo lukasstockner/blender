@@ -1212,11 +1212,23 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 	Brush *brush = BKE_paint_brush(paint);
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	ARegion *ar = CTX_wm_region(C);
+	wmWindow *win = CTX_wm_window(C);
+	bool show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
 	int location[2];
 	bool use_palette;
+	paint->flags &= ~PAINT_SHOW_BRUSH;
+
+	/* force redraw without cursor */
+	WM_paint_cursor_tag_redraw(win, ar);
+	WM_redraw_windows(C);
+
 	RNA_int_get_array(op->ptr, "location", location);
 	use_palette = RNA_boolean_get(op->ptr, "palette");
 	paint_sample_color(C, ar, location[0], location[1], mode == PAINT_TEXTURE_PROJECTIVE, use_palette);
+
+	if (show_cursor) {
+		paint->flags |= PAINT_SHOW_BRUSH;
+	}
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 
@@ -1226,8 +1238,12 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
 	SampleColorData *data = MEM_mallocN(sizeof(SampleColorData), "sample color custom data");
+	ARegion *ar = CTX_wm_region(C);
+	wmWindow *win = CTX_wm_window(C);
+
 	data->event_type = event->type;
 	data->show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
 	copy_v3_v3(data->initcolor, brush->rgb);
@@ -1239,9 +1255,11 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 	WM_event_add_modal_handler(C, op);
 
-	RNA_int_set_array(op->ptr, "location", event->mval);
+	/* force redraw without cursor */
+	WM_paint_cursor_tag_redraw(win, ar);
+	WM_redraw_windows(C);
 
-	sample_color_exec(C, op);
+	paint_sample_color(C, ar, event->mval[0], event->mval[1], mode == PAINT_TEXTURE_PROJECTIVE, false);
 
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -1249,12 +1267,15 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	SampleColorData *data = op->customdata;
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *brush = BKE_paint_brush(paint);
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 
 	if ((event->type == data->event_type) && (event->val == KM_RELEASE)) {
 		Paint *paint = BKE_paint_get_active_from_context(C);
 		ScrArea *sa = CTX_wm_area(C);
 
-		if(data->show_cursor) {
+		if (data->show_cursor) {
 			paint->flags |= PAINT_SHOW_BRUSH;
 		}
 
@@ -1271,9 +1292,13 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	switch (event->type) {
 		case MOUSEMOVE:
+		{
+			ARegion *ar = CTX_wm_region(C);
 			RNA_int_set_array(op->ptr, "location", event->mval);
-			sample_color_exec(C, op);
+			paint_sample_color(C, ar, event->mval[0], event->mval[1], mode == PAINT_TEXTURE_PROJECTIVE, data->sample_palette);
+			WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 			break;
+		}
 
 		case LEFTMOUSE:
 			if (event->val == KM_PRESS) {
