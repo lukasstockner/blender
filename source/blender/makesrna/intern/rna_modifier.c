@@ -3684,7 +3684,7 @@ static void rna_def_modifier_laplaciandeform(BlenderRNA *brna)
 	                         "Name of Vertex Group which determines Anchors");
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_LaplacianDeformModifier_vgroup_set");
 
-	prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "repetitions", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "repeat");
 	RNA_def_property_ui_range(prop, 1, 50, 1, -1);
 	RNA_def_property_ui_text(prop, "Repeat", "");

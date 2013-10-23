@@ -53,18 +53,18 @@ typedef struct LaplacianSystem {
 	int total_edges;
 	int total_anchors;
 	int repeat;
-	char anchor_grp_name[64];		/* Vertex Group name*/
+	char anchor_grp_name[64];	/* Vertex Group name*/
 	float (*co)[3];				/* Original vertex coordinates*/
 	float (*no)[3];				/* Original vertex normal*/
 	float (*delta)[3];			/* Differential Coordinates*/
 	int *index_anchors;			/* Static vertex index list*/
-	int *unit_verts;			/* Unit vectors of projected edges onto the plane orthogonal to  n*/
+	int *unit_verts;			/* Unit vectors of projected edges onto the plane orthogonal to n*/
 	BMVert **verts;			    /* Vertex order by index*/
 	BMesh *bm;					/* Bmesh structure pointer*/
 	NLContext *context;			/* System for solve general implicit rotations*/
 } LaplacianSystem;
 
-static LaplacianSystem *newLaplacianSystem()
+static LaplacianSystem *newLaplacianSystem(void)
 {
 	LaplacianSystem *sys;
 	sys = MEM_callocN(sizeof(LaplacianSystem), "DeformCache");
@@ -89,7 +89,7 @@ static LaplacianSystem *newLaplacianSystem()
 	return sys;
 }
 
-static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int totalFaces, int totalAnchors, 
+static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int totalAnchors, 
 											char defgrpName[64], int iterations)
 {
 	LaplacianSystem *sys = newLaplacianSystem();
@@ -103,14 +103,14 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 	sys->total_anchors = totalAnchors;
 	sys->repeat = iterations;
 	BLI_strncpy(sys->anchor_grp_name, defgrpName, sizeof(sys->anchor_grp_name));
-	sys->co = (float (*)[3])MEM_callocN(sizeof(float)*(totalVerts * 3), "DeformCoordinates");
-	sys->no = (float (*)[3])MEM_callocN(sizeof(float)*(totalVerts * 3), "DeformNormals");
-	sys->delta = (float (*)[3])MEM_callocN(sizeof(float)*totalVerts * 3, "DeformDeltas");
-	sys->index_anchors = (int *)MEM_callocN(sizeof(int)*(totalAnchors), "DeformAnchors");
-	sys->unit_verts = (int *)MEM_callocN(sizeof(int)*totalVerts, "DeformUnitVerts");
-	sys->verts = (BMVert**)MEM_callocN(sizeof(BMVert*)*(totalVerts), "DeformVerts");
-	memset(sys->no, 0.0, sizeof(float)*totalVerts * 3);
-	memset(sys->delta, 0.0, sizeof(float)*totalVerts * 3);
+	sys->co = (float (*)[3]) MEM_callocN(sizeof(float) * (totalVerts * 3), "DeformCoordinates");
+	sys->no = (float (*)[3]) MEM_callocN(sizeof(float) * (totalVerts * 3), "DeformNormals");
+	sys->delta = (float (*)[3]) MEM_callocN(sizeof(float) * totalVerts * 3, "DeformDeltas");
+	sys->index_anchors = (int *) MEM_callocN(sizeof(int) * (totalAnchors), "DeformAnchors");
+	sys->unit_verts = (int *) MEM_callocN(sizeof(int) * totalVerts, "DeformUnitVerts");
+	sys->verts = (BMVert**) MEM_callocN(sizeof(BMVert*) * (totalVerts), "DeformVerts");
+	memset(sys->no, 0.0, sizeof(float) * totalVerts * 3);
+	memset(sys->delta, 0.0, sizeof(float) * totalVerts * 3);
 	return sys;
 }
 
@@ -150,13 +150,41 @@ static float cotan_weight(float *v1, float *v2, float *v3)
 	cross_v3_v3v3(c, a, b);
 
 	clen = len_v3(c);
-	if (clen < FLT_EPSILON){
+	if (clen < FLT_EPSILON) {
 		return 0.0f;
 	}
 
 	return dot_v3v3(a, b) / clen;
 }
 
+/**
+* This method computes the Laplacian Matrix and Differential Coordinates for all vertex in the mesh.
+* The Linear system is LV = d
+* Where L is Laplacian Matrix, V as the vertexes in Mesh, d is the differential coordinates
+* The Laplacian Matrix is computes as a
+* Lij = sum(Wij) (if i == j)
+* Lij = Wij (if i != j)
+* Wij is weight between vertex Vi and vertex Vj, we use cotangent weight 
+* 
+* The Differential Coordinate is computes as a 
+* di = Vi * sum(Wij) - sum(Wij * Vj)
+* Where :
+* di is the Differential Coordinate i
+* sum (Wij) is the sum of all weights between vertex Vi and its vertexes neighbors (Vj)
+* sum (Wij * Vj) is the sum of the product between vertex neighbor Vj and weight Wij for all neighborhood.
+* 
+* This Laplacian Matrix is described in the paper:
+* Desbrun M. et.al, Implicit fairing of irregular meshes using diffusion and curvature flow, SIGGRAPH '99, pag 317-324, 
+* New York, USA
+* 
+* The computation of Laplace Beltrami operator on Hybrid Triangle/Quad Meshes is described in the paper:
+* Pinzon A., Romero E., Shape Inflation With an Adapted Laplacian Operator For Hybrid Quad/Triangle Meshes,
+* Conference on Graphics Patterns and Images, SIBGRAPI, 2013
+* 
+* The computation of Differential Coordinates is described in the paper:
+* Sorkine, O. Laplacian Surface Editing. Proceedings of the EUROGRAPHICS/ACM SIGGRAPH Symposium on Geometry Processing, 
+* 2004. p. 179-188.
+*/
 static void initLaplacianMatrix( LaplacianSystem *sys)
 {
 	float v1[3], v2[3], v3[3], v4[3], no[3];
@@ -265,8 +293,8 @@ static void computeImplictRotations(LaplacianSystem *sys)
 
 	BM_ITER_MESH (v, &viter, sys->bm, BM_VERTS_OF_MESH) {
 		i = BM_elem_index_get(v);
-		normalize_v3( sys->no[i]);
-		BM_ITER_ELEM(e, &eiter, v, BM_EDGES_OF_VERT) {
+		normalize_v3(sys->no[i]);
+		BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
 			vid = BM_elem_index_get(e->v1);
 			if (vid == i) {
 				vid = BM_elem_index_get(e->v2);
@@ -322,16 +350,16 @@ static void rotateDifferentialCoordinates(LaplacianSystem *sys)
 		cross_v3_v3v3(e2, ni, uij);
 		copy_v3_v3(di, sys->delta[i]);
 		alpha = dot_v3v3(ni, di);
-        beta = dot_v3v3(uij, di);
-        gamma = dot_v3v3(e2, di);
+		beta = dot_v3v3(uij, di);
+		gamma = dot_v3v3(e2, di);
 
 		pi[0] = nlGetVariable(0, i);
 		pi[1] = nlGetVariable(1, i);
 		pi[2] = nlGetVariable(2, i);
 		ni[0] = 0.0f;	ni[1] = 0.0f;	ni[2] = 0.0f;
 		num_fni = 0;
-		BM_ITER_ELEM_INDEX(f, &fiter, v, BM_FACES_OF_VERT, num_fni) {
-			BM_ITER_ELEM_INDEX(v2, &viter2, f, BM_VERTS_OF_FACE, j) {
+		BM_ITER_ELEM_INDEX (f, &fiter, v, BM_FACES_OF_VERT, num_fni) {
+			BM_ITER_ELEM_INDEX (v2, &viter2, f, BM_VERTS_OF_FACE, j) {
 				vin[j] = BM_elem_index_get(v2);
 			}
 			lvin = j;
@@ -359,9 +387,9 @@ static void rotateDifferentialCoordinates(LaplacianSystem *sys)
 		sub_v3_v3(uij, dun);
 		normalize_v3(uij);
 		cross_v3_v3v3(e2, ni, uij);
-		fni[0] = alpha*ni[0] + beta * uij[0] + gamma * e2[0];
-		fni[1] = alpha*ni[1] + beta * uij[1] + gamma * e2[1];
-		fni[2] = alpha*ni[2] + beta * uij[2] + gamma * e2[2];
+		fni[0] = alpha * ni[0] + beta * uij[0] + gamma * e2[0];
+		fni[1] = alpha * ni[1] + beta * uij[1] + gamma * e2[1];
+		fni[2] = alpha * ni[2] + beta * uij[2] + gamma * e2[2];
 
 		if (len_v3(fni) > FLT_EPSILON) {
 			nlRightHandSideSet(0, i, fni[0]);
@@ -378,9 +406,7 @@ static void rotateDifferentialCoordinates(LaplacianSystem *sys)
 
 static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 {
-	struct BMesh *bm;
 	int vid, i, j, n, na;
-	bm = sys->bm;
 	n = sys->total_verts;
 	na = sys->total_anchors;
 
@@ -534,7 +560,6 @@ static bool isValidVertexGroup(LaplacianDeformModifierData *smd, Object *ob, Der
 {
 	int defgrp_index;
 	MDeformVert *dvert = NULL;
-	MDeformVert *dv = NULL;
 	modifier_get_vgroup(ob, dm, smd->anchor_grp_name, &dvert, &defgrp_index);
 	if (!dvert) return false;
 	dvert = NULL;
@@ -575,7 +600,7 @@ static void initSystem(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh
 			}
 		}
 		total_anchors = BLI_array_count(index_anchors);
-		smd->cacheSystem = initLaplacianSystem(numVerts, bm->totedge, bm->totface, total_anchors, smd->anchor_grp_name, smd->repeat);
+		smd->cacheSystem = initLaplacianSystem(numVerts, bm->totedge, total_anchors, smd->anchor_grp_name, smd->repeat);
 		sys = (LaplacianSystem *)smd->cacheSystem;
 		sys->bm = bm;
 		for (i = 0; i < total_anchors; i++) {
@@ -590,8 +615,8 @@ static void initSystem(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh
 			sys->verts[vertID] = v;
 		}
 		BLI_array_free(index_anchors);
-		smd->vertexco = (float *)MEM_callocN(sizeof(float)*(numVerts*3), "ModDeformCoordinates");
-		memcpy(smd->vertexco, vertexCos, sizeof(float) * numVerts*3);
+		smd->vertexco = (float *) MEM_callocN(sizeof(float) * (numVerts * 3), "ModDeformCoordinates");
+		memcpy(smd->vertexco, vertexCos, sizeof(float) * numVerts * 3);
 		smd->total_verts = numVerts;
 	}
 }
@@ -640,7 +665,7 @@ static bool isSystemDifferent(LaplacianDeformModifierData *smd, Object *ob, Deri
 	return false;
 }
 
-static bool onlyChangueAnchors(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh *dm, int numVerts)
+static bool onlyChangeAnchors(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh *dm, int numVerts)
 {
 	int i;
 	int defgrp_index;
@@ -684,7 +709,7 @@ static bool onlyChangueAnchors(LaplacianDeformModifierData *smd, Object *ob, Der
 	return false;
 }
 
-static bool onlyChangueGroup(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh *dm, int numVerts)
+static bool onlyChangeGroup(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh *dm, int numVerts)
 {
 	LaplacianSystem *sys = (LaplacianSystem *)smd->cacheSystem;
 	if (sys->total_verts != numVerts) {
@@ -728,7 +753,7 @@ static void LaplacianDeformModifier_do(
 	
 	if (smd->cacheSystem) {
 		if (isSystemDifferent(smd, ob, dm,numVerts)) {
-			if (onlyChangueAnchors(smd, ob, dm,numVerts) || onlyChangueGroup(smd, ob, dm,numVerts)) {
+			if (onlyChangeAnchors(smd, ob, dm,numVerts) || onlyChangeGroup(smd, ob, dm,numVerts)) {
 				filevertexCos = (float (*)[3]) MEM_callocN(sizeof(float) * (numVerts * 3), "TempModDeformCoordinates");
 				memcpy(filevertexCos, smd->vertexco, sizeof(float)*numVerts*3);
 				deleteVoidPointer(smd->vertexco);
@@ -756,7 +781,7 @@ static void LaplacianDeformModifier_do(
 	else {
 		if (smd->total_verts > 0 && smd->total_verts == numVerts) {
 			if (isValidVertexGroup(smd, ob, dm)) {
-				filevertexCos = (float (*)[3]) MEM_callocN(sizeof(float) * (numVerts * 3), "TempModDeformCoordinates");
+				filevertexCos = (float (*)[3]) MEM_callocN(sizeof(float) * (numVerts * 3), "TempDeformCoordinates");
 				memcpy(filevertexCos, smd->vertexco, sizeof(float) * numVerts * 3);
 				deleteVoidPointer(smd->vertexco);
 				smd->total_verts = 0;
@@ -799,15 +824,16 @@ static void copyData(ModifierData *md, ModifierData *target)
 
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 {
-	LaplacianDeformModifierData *smd = (LaplacianDeformModifierData *) md;
-	//if (!smd->cacheSystem) return 1;
-	return 0;
+	LaplacianDeformModifierData *smd = (LaplacianDeformModifierData *)md;
+	if (smd->anchor_grp_name[0]) return 0;
+	return 1;
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 {
-	LaplacianDeformModifierData *smd = (LaplacianDeformModifierData *) md;
+	LaplacianDeformModifierData *smd = (LaplacianDeformModifierData *)md;
 	CustomDataMask dataMask = 0;
+	if (smd->anchor_grp_name[0]) dataMask |= CD_MASK_MDEFORMVERT;
 	return dataMask;
 }
 
