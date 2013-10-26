@@ -218,7 +218,7 @@ void *image_undo_find_tile(Image *ima, ImBuf *ibuf, int x_tile, int y_tile, unsi
 	return NULL;
 }
 
-void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile, int y_tile, unsigned short **mask)
+void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile, int y_tile, unsigned short **mask, bool **valid)
 {
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
 	UndoImageTile *tile;
@@ -255,6 +255,9 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 	tile->use_float = use_float;
 	tile->valid = true;
 	tile->ima = ima;
+
+	if (valid)
+		*valid = &tile->valid;
 
 	undo_copy_tile(tile, *tmpibuf, ibuf, COPY);
 	undo_paint_push_count_alloc(UNDO_PAINT_IMAGE, allocsize);
@@ -461,7 +464,7 @@ void imapaint_dirty_region(Image *ima, ImBuf *ibuf, int x, int y, int w, int h)
 
 	for (ty = tiley; ty <= tileh; ty++)
 		for (tx = tilex; tx <= tilew; tx++)
-			image_undo_push_tile(ima, ibuf, &tmpibuf, tx, ty, NULL);
+			image_undo_push_tile(ima, ibuf, &tmpibuf, tx, ty, NULL, NULL);
 
 	ibuf->userflags |= IB_BITMAPDIRTY;
 	

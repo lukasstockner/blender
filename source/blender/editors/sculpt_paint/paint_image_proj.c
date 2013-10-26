@@ -185,6 +185,7 @@ typedef struct ProjPaintImage {
 	void **undoRect; /* only used to build undo tiles after painting */
 	void **maskRect; /* the mask accumulation must happen on canvas, not on space screen bucket.
 	                  * Here we store the mask rectangle */
+	bool **valid; /* store flag to enforce validation of undo rectangle */
 	int touch;
 } ProjPaintImage;
 
@@ -316,6 +317,8 @@ typedef struct ProjPixel {
 	unsigned short mask;
 
 	short x_px, y_px;
+	/* horrible hack, store tile valid flag pointer here to re-validate tiles used for anchored and drag-dot strokes */
+	bool *valid;
 
 	PixelPointer origColor;
 	PixelStore newColor;
@@ -1390,7 +1393,7 @@ static int project_paint_pixel_sizeof(const short tool)
 	}
 }
 
-static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
+static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty, bool **valid)
 {
 	unsigned short *maskrect;
 	ProjPaintImage *pjIma = tinf->pjima;
@@ -1402,13 +1405,17 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 
 	if (UNLIKELY(!pjIma->undoRect[tileindex])) {
 		if (tinf->masked) {
-			pjIma->undoRect[tileindex] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, &maskrect);
+			pjIma->undoRect[tileindex] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, &maskrect, &pjIma->valid[tileindex]);
 			pjIma->maskRect[tileindex] = maskrect;
 		}
 		else
-			pjIma->undoRect[tileindex] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, NULL);
+			pjIma->undoRect[tileindex] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, NULL, &pjIma->valid[tileindex]);
 
+		*valid = pjIma->valid[tileindex];
 		pjIma->ibuf->userflags |= IB_BITMAPDIRTY;
+	}
+	else {
+		*valid = pjIma->valid[tileindex];
 	}
 
 	if (tinf->threaded)
@@ -1443,6 +1450,9 @@ static ProjPixel *project_paint_uvpixel_init(
 	x_px = mod_i(x_px, ibuf->x);
 	y_px = mod_i(y_px, ibuf->y);
 
+	BLI_assert(ps->pixel_sizeof == project_paint_pixel_sizeof(ps->tool));
+	projPixel = (ProjPixel *)BLI_memarena_alloc(arena, ps->pixel_sizeof);
+
 	/* calculate the undo tile offset of the pixel, used to store the original
 	 * pixel colour and acculmuated mask if any */
 	x_tile =  x_px >> IMAPAINT_TILE_BITS;
@@ -1450,16 +1460,13 @@ static ProjPixel *project_paint_uvpixel_init(
 
 	x_round = x_tile * IMAPAINT_TILE_SIZE;
 	y_round = y_tile * IMAPAINT_TILE_SIZE;
+	//memset(projPixel, 0, size);
 
 	tile_offset = (x_px - x_round) + (y_px - y_round) * IMAPAINT_TILE_SIZE;
-	tile_index = project_paint_undo_subtiles(tinf, x_tile, y_tile);
+	tile_index = project_paint_undo_subtiles(tinf, x_tile, y_tile, &projPixel->valid);
 
 	BLI_assert(tile_index < (IMAPAINT_TILE_NUMBER(ibuf->x) * IMAPAINT_TILE_NUMBER(ibuf->y)));
 	BLI_assert(tile_offset < (IMAPAINT_TILE_SIZE * IMAPAINT_TILE_SIZE));
-
-	BLI_assert(ps->pixel_sizeof == project_paint_pixel_sizeof(ps->tool));
-	projPixel = (ProjPixel *)BLI_memarena_alloc(arena, ps->pixel_sizeof);
-	//memset(projPixel, 0, size);
 
 	if (ibuf->rect_float) {
 		projPixel->pixel.f_pt = ibuf->rect_float + ((x_px + y_px * ibuf->x) * 4);
@@ -3417,6 +3424,8 @@ static void project_paint_begin(ProjPaintState *ps)
 		memset(projIma->undoRect, 0, size);
 		projIma->maskRect = (void **) BLI_memarena_alloc(arena, size);
 		memset(projIma->maskRect, 0, size);
+		projIma->valid = (bool **) BLI_memarena_alloc(arena, size);
+		memset(projIma->valid, 0, size);
 	}
 
 	/* we have built the array, discard the linked list */
@@ -4153,6 +4162,9 @@ static void *do_projectpaint_thread(void *ph_v)
 								is_floatbuf = (last_projIma->ibuf->rect_float != NULL);
 							}
 							/* end copy */
+
+							/* validate undo tile, since we will modify t*/
+							*projPixel->valid = true;
 
 							last_partial_redraw_cell = last_projIma->partRedrawRect + projPixel->bb_cell_index;
 							last_partial_redraw_cell->x1 = min_ii(last_partial_redraw_cell->x1, (int)projPixel->x_px);
