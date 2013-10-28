@@ -103,23 +103,13 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 	sys->total_anchors = totalAnchors;
 	sys->repeat = iterations;
 	BLI_strncpy(sys->anchor_grp_name, defgrpName, sizeof(sys->anchor_grp_name));
-	sys->co = (float (*)[3]) MEM_callocN(sizeof(float) * (totalVerts * 3), "DeformCoordinates");
-	sys->no = (float (*)[3]) MEM_callocN(sizeof(float) * (totalVerts * 3), "DeformNormals");
-	sys->delta = (float (*)[3]) MEM_callocN(sizeof(float) * totalVerts * 3, "DeformDeltas");
+	sys->co = (float (*)[3]) MEM_callocN(sizeof(float[3]) * totalVerts, "DeformCoordinates");
+	sys->no = (float (*)[3]) MEM_callocN(sizeof(float[3]) * totalVerts, "DeformNormals");
+	sys->delta = (float (*)[3]) MEM_callocN(sizeof(float[3]) * totalVerts, "DeformDeltas");
 	sys->index_anchors = (int *) MEM_callocN(sizeof(int) * (totalAnchors), "DeformAnchors");
 	sys->unit_verts = (int *) MEM_callocN(sizeof(int) * totalVerts, "DeformUnitVerts");
 	sys->verts = (BMVert**) MEM_callocN(sizeof(BMVert*) * (totalVerts), "DeformVerts");
-	memset(sys->no, 0.0, sizeof(float) * totalVerts * 3);
-	memset(sys->delta, 0.0, sizeof(float) * totalVerts * 3);
 	return sys;
-}
-
-static void deleteVoidPointer(void *data)
-{
-	if (data) {
-		MEM_freeN(data);
-		data = NULL;
-	}
 }
 
 static void deleteLaplacianSystem(LaplacianSystem *sys)
@@ -127,19 +117,19 @@ static void deleteLaplacianSystem(LaplacianSystem *sys)
 	if (!sys) {
 		return;
 	}
-	deleteVoidPointer(sys->co);
-	deleteVoidPointer(sys->no);
-	deleteVoidPointer(sys->delta);
-	deleteVoidPointer(sys->index_anchors);
-	deleteVoidPointer(sys->unit_verts);
-	deleteVoidPointer(sys->verts);
+	MEM_SAFE_FREE(sys->co);
+	MEM_SAFE_FREE(sys->no);
+	MEM_SAFE_FREE(sys->delta);
+	MEM_SAFE_FREE(sys->index_anchors);
+	MEM_SAFE_FREE(sys->unit_verts);
+	MEM_SAFE_FREE(sys->verts);
 	if (sys->bm) {
 		BM_mesh_free(sys->bm);
 	}
 	if (sys->context) {
 		nlDeleteContext(sys->context);
 	}
-	deleteVoidPointer(sys);
+	MEM_SAFE_FREE(sys);
 }
 static float cotan_weight(float *v1, float *v2, float *v3)
 {
@@ -318,11 +308,9 @@ static void computeImplictRotations(LaplacianSystem *sys)
 				sys->unit_verts[i] = vidn[j];
 			}
 		}
-		
-		BLI_array_free(vidn);
 		BLI_array_empty(vidn);
-		vidn = NULL;
 	}
+	BLI_array_free(vidn);
 }
 
 static void rotateDifferentialCoordinates(LaplacianSystem *sys)
@@ -337,8 +325,7 @@ static void rotateDifferentialCoordinates(LaplacianSystem *sys)
 	int i, j, vin[4], lvin, num_fni, k;
 
 
-	BM_ITER_MESH (v, &viter, sys->bm, BM_VERTS_OF_MESH) {
-		i = BM_elem_index_get(v);
+	BM_ITER_MESH_INDEX (v, &viter, sys->bm, BM_VERTS_OF_MESH, i) {
 		copy_v3_v3(pi, sys->co[i]); 
 		copy_v3_v3(ni, sys->no[i]); 
 		k = sys->unit_verts[i];
@@ -591,32 +578,26 @@ static void initSystem(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh
 		dv = dvert;
 		bm = DM_to_bmesh(dm, false);
 		for (i = 0; i < numVerts; i++) {
-			if (dv) {
-				wpaint = defvert_find_weight(dv, defgrp_index);
-				dv++;
-				if (wpaint > 0.0f) {
-					BLI_array_append(index_anchors, i);
-				}
+			wpaint = defvert_find_weight(dv, defgrp_index);
+			dv++;
+			if (wpaint > 0.0f) {
+				BLI_array_append(index_anchors, i);
 			}
 		}
 		total_anchors = BLI_array_count(index_anchors);
 		smd->cacheSystem = initLaplacianSystem(numVerts, bm->totedge, total_anchors, smd->anchor_grp_name, smd->repeat);
 		sys = (LaplacianSystem *)smd->cacheSystem;
 		sys->bm = bm;
-		for (i = 0; i < total_anchors; i++) {
-			sys->index_anchors[i] = index_anchors[i];
-		}
-		for (i=0; i<numVerts; i++) {
-			copy_v3_v3(sys->co[i], vertexCos[i]);
-		}
+		memcpy(sys->index_anchors, index_anchors, sizeof(int) * total_anchors);
+		memcpy(sys->co, vertexCos, sizeof(float[3]) * numVerts);
 
 		BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
 			vertID = BM_elem_index_get(v);
 			sys->verts[vertID] = v;
 		}
 		BLI_array_free(index_anchors);
-		smd->vertexco = (float *) MEM_callocN(sizeof(float) * (numVerts * 3), "ModDeformCoordinates");
-		memcpy(smd->vertexco, vertexCos, sizeof(float) * numVerts * 3);
+		smd->vertexco = (float *) MEM_mallocN(sizeof(float[3]) * numVerts, "ModDeformCoordinates");
+		memcpy(smd->vertexco, vertexCos, sizeof(float[3]) * numVerts);
 		smd->total_verts = numVerts;
 	}
 }
@@ -625,13 +606,11 @@ static bool isSystemDifferent(LaplacianDeformModifierData *smd, Object *ob, Deri
 {
 	int i;
 	int defgrp_index;
-	int total_anchors;
-	int *index_anchors = NULL;
+	int total_anchors = 0;
 	float wpaint;
 	MDeformVert *dvert = NULL;
 	MDeformVert *dv = NULL;
 	LaplacianSystem * sys = (LaplacianSystem *)smd->cacheSystem;
-	BLI_array_declare(index_anchors);
 
 	if (sys->total_verts != numVerts) {
 		return true;
@@ -639,7 +618,7 @@ static bool isSystemDifferent(LaplacianDeformModifierData *smd, Object *ob, Deri
 	if (sys->total_edges != dm->getNumEdges(dm)) {
 		return true;
 	}
-	if(BLI_strcasecmp(smd->anchor_grp_name, sys->anchor_grp_name) != 0) {
+	if(strcmp(smd->anchor_grp_name, sys->anchor_grp_name) != 0) {
 		return true; 
 	}
 	modifier_get_vgroup(ob, dm, smd->anchor_grp_name, &dvert, &defgrp_index);
@@ -648,16 +627,13 @@ static bool isSystemDifferent(LaplacianDeformModifierData *smd, Object *ob, Deri
 	}
 	dv = dvert;
 	for (i = 0; i < numVerts; i++) {
-		if (dv) {
-			wpaint = defvert_find_weight(dv, defgrp_index);
-			dv++;
-			if (wpaint > 0.0f) {
-				BLI_array_append(index_anchors, i);
-			}
+		wpaint = defvert_find_weight(dv, defgrp_index);
+		dv++;
+		if (wpaint > 0.0f) {
+			total_anchors++;
 		}
 	}
-	total_anchors = BLI_array_count(index_anchors);
-	BLI_array_free(index_anchors);
+	
 	if(sys->total_anchors != total_anchors) {
 		return true;
 	}
@@ -669,13 +645,11 @@ static bool onlyChangeAnchors(LaplacianDeformModifierData *smd, Object *ob, Deri
 {
 	int i;
 	int defgrp_index;
-	int total_anchors;
-	int *index_anchors = NULL;
+	int total_anchors = 0;
 	float wpaint;
 	MDeformVert *dvert = NULL;
 	MDeformVert *dv = NULL;
 	LaplacianSystem * sys = (LaplacianSystem *)smd->cacheSystem;
-	BLI_array_declare(index_anchors);
 
 	if (sys->total_verts != numVerts) {
 		return false;
@@ -683,7 +657,7 @@ static bool onlyChangeAnchors(LaplacianDeformModifierData *smd, Object *ob, Deri
 	if (sys->total_edges != dm->getNumEdges(dm)) {
 		return false;
 	}
-	if(BLI_strcasecmp(smd->anchor_grp_name, sys->anchor_grp_name) != 0) {
+	if(strcmp(smd->anchor_grp_name, sys->anchor_grp_name) != 0) {
 		return false; 
 	}
 	modifier_get_vgroup(ob, dm, smd->anchor_grp_name, &dvert, &defgrp_index);
@@ -692,16 +666,12 @@ static bool onlyChangeAnchors(LaplacianDeformModifierData *smd, Object *ob, Deri
 	}
 	dv = dvert;
 	for (i = 0; i < numVerts; i++) {
-		if (dv) {
-			wpaint = defvert_find_weight(dv, defgrp_index);
-			dv++;
-			if (wpaint > 0.0f) {
-				BLI_array_append(index_anchors, i);
-			}
+		wpaint = defvert_find_weight(dv, defgrp_index);
+		dv++;
+		if (wpaint > 0.0f) {
+			total_anchors++;
 		}
 	}
-	total_anchors = BLI_array_count(index_anchors);
-	BLI_array_free(index_anchors);
 	if(sys->total_anchors != total_anchors) {
 		return true;
 	}
@@ -709,7 +679,7 @@ static bool onlyChangeAnchors(LaplacianDeformModifierData *smd, Object *ob, Deri
 	return false;
 }
 
-static bool onlyChangeGroup(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh *dm, int numVerts)
+static bool onlyChangeGroup(LaplacianDeformModifierData *smd, DerivedMesh *dm, int numVerts)
 {
 	LaplacianSystem *sys = (LaplacianSystem *)smd->cacheSystem;
 	if (sys->total_verts != numVerts) {
@@ -718,7 +688,7 @@ static bool onlyChangeGroup(LaplacianDeformModifierData *smd, Object *ob, Derive
 	if (sys->total_edges != dm->getNumEdges(dm)) {
 		return false;
 	}
-	if(BLI_strcasecmp(smd->anchor_grp_name, sys->anchor_grp_name) != 0) {
+	if(strcmp(smd->anchor_grp_name, sys->anchor_grp_name) != 0) {
 		return true; 
 	}	
 	return false;
@@ -753,14 +723,14 @@ static void LaplacianDeformModifier_do(
 	
 	if (smd->cacheSystem) {
 		if (isSystemDifferent(smd, ob, dm,numVerts)) {
-			if (onlyChangeAnchors(smd, ob, dm,numVerts) || onlyChangeGroup(smd, ob, dm,numVerts)) {
-				filevertexCos = (float (*)[3]) MEM_callocN(sizeof(float) * (numVerts * 3), "TempModDeformCoordinates");
-				memcpy(filevertexCos, smd->vertexco, sizeof(float)*numVerts*3);
-				deleteVoidPointer(smd->vertexco);
+			if (onlyChangeAnchors(smd, ob, dm,numVerts) || onlyChangeGroup(smd, dm,numVerts)) {
+				filevertexCos = (float (*)[3]) MEM_mallocN(sizeof(float[3]) * numVerts, "TempModDeformCoordinates");
+				memcpy(filevertexCos, smd->vertexco, sizeof(float[3]) * numVerts);
+				MEM_SAFE_FREE(smd->vertexco);
 				smd->total_verts = 0;
 				deleteLaplacianSystem((LaplacianSystem *) smd->cacheSystem);
 				initSystem(smd, ob, dm, filevertexCos, numVerts);
-				deleteVoidPointer(filevertexCos);
+				MEM_SAFE_FREE(filevertexCos);
 				laplacianDeformPreview((LaplacianSystem *) smd->cacheSystem, vertexCos);
 			}
 			else {
@@ -781,12 +751,12 @@ static void LaplacianDeformModifier_do(
 	else {
 		if (smd->total_verts > 0 && smd->total_verts == numVerts) {
 			if (isValidVertexGroup(smd, ob, dm)) {
-				filevertexCos = (float (*)[3]) MEM_callocN(sizeof(float) * (numVerts * 3), "TempDeformCoordinates");
-				memcpy(filevertexCos, smd->vertexco, sizeof(float) * numVerts * 3);
-				deleteVoidPointer(smd->vertexco);
+				filevertexCos = (float (*)[3]) MEM_mallocN(sizeof(float[3]) * numVerts, "TempDeformCoordinates");
+				memcpy(filevertexCos, smd->vertexco, sizeof(float[3]) * numVerts );
+				MEM_SAFE_FREE(smd->vertexco);
 				smd->total_verts = 0;
 				initSystem(smd, ob, dm, filevertexCos, numVerts);
-				deleteVoidPointer(filevertexCos);
+				MEM_SAFE_FREE(filevertexCos);
 				laplacianDeformPreview((LaplacianSystem *) smd->cacheSystem, vertexCos);
 				
 			}
@@ -873,7 +843,7 @@ static void freeData(ModifierData *md)
 		deleteLaplacianSystem(sys);
 	}
 	if (smd->vertexco) {
-		deleteVoidPointer(smd->vertexco);
+		MEM_SAFE_FREE(smd->vertexco);
 	}
 	smd->total_verts = 0;
 }
