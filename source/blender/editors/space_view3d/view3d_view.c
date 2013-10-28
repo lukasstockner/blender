@@ -104,7 +104,7 @@ void view3d_region_operator_needs_opengl(wmWindow *win, ARegion *ar)
 	}
 }
 
-float *give_cursor(Scene *scene, View3D *v3d)
+float *ED_view3d_cursor3d_get(Scene *scene, View3D *v3d)
 {
 	if (v3d && v3d->localvd) return v3d->cursor;
 	else return scene->cursor;
@@ -774,33 +774,31 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
 	mat3_to_quat(rv3d->viewquat, tmat);
 }
 
-#define QUATSET(a, b, c, d, e) { a[0] = b; a[1] = c; a[2] = d; a[3] = e; } (void)0
-
 bool ED_view3d_lock(RegionView3D *rv3d)
 {
 	switch (rv3d->view) {
 		case RV3D_VIEW_BOTTOM:
-			QUATSET(rv3d->viewquat, 0.0, -1.0, 0.0, 0.0);
+			copy_v4_fl4(rv3d->viewquat, 0.0, -1.0, 0.0, 0.0);
 			break;
 
 		case RV3D_VIEW_BACK:
-			QUATSET(rv3d->viewquat, 0.0, 0.0, -M_SQRT1_2, -M_SQRT1_2);
+			copy_v4_fl4(rv3d->viewquat, 0.0, 0.0, -M_SQRT1_2, -M_SQRT1_2);
 			break;
 
 		case RV3D_VIEW_LEFT:
-			QUATSET(rv3d->viewquat, 0.5, -0.5, 0.5, 0.5);
+			copy_v4_fl4(rv3d->viewquat, 0.5, -0.5, 0.5, 0.5);
 			break;
 
 		case RV3D_VIEW_TOP:
-			QUATSET(rv3d->viewquat, 1.0, 0.0, 0.0, 0.0);
+			copy_v4_fl4(rv3d->viewquat, 1.0, 0.0, 0.0, 0.0);
 			break;
 
 		case RV3D_VIEW_FRONT:
-			QUATSET(rv3d->viewquat, M_SQRT1_2, -M_SQRT1_2, 0.0, 0.0);
+			copy_v4_fl4(rv3d->viewquat, M_SQRT1_2, -M_SQRT1_2, 0.0, 0.0);
 			break;
 
 		case RV3D_VIEW_RIGHT:
-			QUATSET(rv3d->viewquat, 0.5, -0.5, -0.5, -0.5);
+			copy_v4_fl4(rv3d->viewquat, 0.5, -0.5, -0.5, -0.5);
 			break;
 		default:
 			return false;
@@ -849,7 +847,7 @@ void setviewmatrixview3d(Scene *scene, View3D *v3d, RegionView3D *rv3d)
 		}
 		else if (v3d->ob_centre_cursor) {
 			float vec[3];
-			copy_v3_v3(vec, give_cursor(scene, v3d));
+			copy_v3_v3(vec, ED_view3d_cursor3d_get(scene, v3d));
 			translate_m4(rv3d->viewmat, -vec[0], -vec[1], -vec[2]);
 			use_lock_ofs = true;
 		}
