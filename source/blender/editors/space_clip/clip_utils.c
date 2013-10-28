@@ -37,7 +37,9 @@
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
+#include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
@@ -76,7 +78,8 @@ void clip_graph_tracking_values_iterate_track(
 	BKE_movieclip_get_size(clip, &sc->user, &width, &height);
 
 	for (coord = 0; coord < 2; coord++) {
-		int i, open = FALSE, prevfra = 0;
+		int i, prevfra = 0;
+		bool open = false;
 		float prevval = 0.0f;
 
 		for (i = 0; i < track->markersnr; i++) {
@@ -88,7 +91,7 @@ void clip_graph_tracking_values_iterate_track(
 					if (segment_end)
 						segment_end(userdata);
 
-					open = FALSE;
+					open = false;
 				}
 
 				continue;
@@ -98,7 +101,7 @@ void clip_graph_tracking_values_iterate_track(
 				if (segment_start)
 					segment_start(userdata, track, coord);
 
-				open = TRUE;
+				open = true;
 				prevval = marker->pos[coord];
 			}
 
@@ -124,7 +127,7 @@ void clip_graph_tracking_values_iterate_track(
 }
 
 void clip_graph_tracking_values_iterate(
-        SpaceClip *sc, int selected_only, int include_hidden, void *userdata,
+        SpaceClip *sc, bool selected_only, bool include_hidden, void *userdata,
         void (*func)(void *userdata, MovieTrackingTrack *track, MovieTrackingMarker *marker,
                      int coord, int scene_framenr, float val),
         void (*segment_start)(void *userdata, MovieTrackingTrack *track, int coord),
@@ -146,7 +149,7 @@ void clip_graph_tracking_values_iterate(
 	}
 }
 
-void clip_graph_tracking_iterate(SpaceClip *sc, int selected_only, int include_hidden, void *userdata,
+void clip_graph_tracking_iterate(SpaceClip *sc, bool selected_only, bool include_hidden, void *userdata,
                                  void (*func)(void *userdata, MovieTrackingMarker *marker))
 {
 	MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -183,8 +186,8 @@ void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track)
 	MovieTrackingPlaneTrack *plane_track, *next_plane_track;
 	ListBase *tracksbase = BKE_tracking_get_active_tracks(tracking);
 	ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(tracking);
-
-	int has_bundle = FALSE, update_stab = FALSE;
+	bool has_bundle = false, update_stab = false;
+	char track_name_escaped[MAX_NAME], prefix[MAX_NAME * 2];
 
 	if (track == act_track)
 		tracking->act_track = NULL;
@@ -192,19 +195,19 @@ void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track)
 	if (track == stab->rot_track) {
 		stab->rot_track = NULL;
 
-		update_stab = TRUE;
+		update_stab = true;
 	}
 
 	/* handle reconstruction display in 3d viewport */
 	if (track->flag & TRACK_HAS_BUNDLE)
-		has_bundle = TRUE;
+		has_bundle = true;
 
 	/* Make sure no plane will use freed track */
 	for (plane_track = plane_tracks_base->first;
 	     plane_track;
 	     plane_track = next_plane_track)
 	{
-		bool found  = false;
+		bool found = false;
 		int i;
 
 		next_plane_track = plane_track->next;
@@ -243,6 +246,11 @@ void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track)
 			BLI_freelinkN(plane_tracks_base, plane_track);
 		}
 	}
+
+	/* Delete f-curves associated with the track (such as weight, i.e.) */
+	BLI_strescape(track_name_escaped, track->name, sizeof(track_name_escaped));
+	BLI_snprintf(prefix, sizeof(prefix), "tracks[\"%s\"]", track_name_escaped);
+	BKE_animdata_fix_paths_remove(&clip->id, prefix);
 
 	BKE_tracking_track_free(track);
 	BLI_freelinkN(tracksbase, track);

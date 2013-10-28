@@ -34,6 +34,7 @@
 #include "DNA_meshdata_types.h"
 
 #include "BLI_math.h"
+#include "BLI_sort_utils.h"
 
 #include "BKE_customdata.h"
 
@@ -181,10 +182,6 @@ static bool bm_edge_faces_cmp(BMesh *bm, BMEdge *e, const bool do_uv, const bool
 	return true;
 }
 
-typedef struct JoinEdge {
-	float weight;
-	BMEdge *e;
-} JoinEdge;
 
 #define EDGE_MARK	1
 #define EDGE_CHOSEN	2
@@ -192,14 +189,7 @@ typedef struct JoinEdge {
 #define FACE_MARK	1
 #define FACE_INPUT	2
 
-static int fplcmp(const void *v1, const void *v2)
-{
-	const JoinEdge *e1 = (JoinEdge *)v1, *e2 = (JoinEdge *)v2;
 
-	if      (e1->weight > e2->weight) return  1;
-	else if (e1->weight < e2->weight) return -1;
-	else                              return  0;
-}
 
 void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
 {
@@ -213,8 +203,9 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
 	BMIter iter;
 	BMOIter siter;
 	BMFace *f;
-	BMEdge *e;
-	JoinEdge *jedges = NULL;
+	BMEdge *e, *e_next;
+	/* data: edge-to-join, sort_value: error weight */
+	struct SortPointerByFloat *jedges;
 	unsigned i, totedge;
 	unsigned int totedge_tag = 0;
 
@@ -271,19 +262,19 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
 
 		measure = measure_facepair(v1->co, v2->co, v3->co, v4->co, limit);
 		if (measure < limit) {
-			jedges[i].e = e;
-			jedges[i].weight = measure;
+			jedges[i].data = e;
+			jedges[i].sort_value = measure;
 			i++;
 		}
 	}
 
 	totedge = i;
-	qsort(jedges, totedge, sizeof(JoinEdge), fplcmp);
+	qsort(jedges, totedge, sizeof(*jedges), BLI_sortutil_cmp_float);
 
 	for (i = 0; i < totedge; i++) {
 		BMFace *f_a, *f_b;
 
-		e = jedges[i].e;
+		e = jedges[i].data;
 		f_a = e->l->f;
 		f_b = e->l->radial_next->f;
 
@@ -300,7 +291,7 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
 	MEM_freeN(jedges);
 
 	/* join best weighted */
-	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+	BM_ITER_MESH_MUTABLE (e, e_next, &iter, bm, BM_EDGES_OF_MESH) {
 		BMFace *f_new;
 		BMFace *f_a, *f_b;
 
@@ -317,7 +308,7 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
 	}
 
 	/* join 2-tri islands */
-	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+	BM_ITER_MESH_MUTABLE (e, e_next, &iter, bm, BM_EDGES_OF_MESH) {
 		if (BMO_elem_flag_test(bm, e, EDGE_MARK)) {
 			BMLoop *l_a, *l_b;
 			BMFace *f_a, *f_b;
@@ -335,7 +326,11 @@ void bmo_join_triangles_exec(BMesh *bm, BMOperator *op)
 			    (BMO_elem_flag_test(bm, l_a->next->e, EDGE_MARK) == false) &&
 			    (BMO_elem_flag_test(bm, l_a->prev->e, EDGE_MARK) == false) &&
 			    (BMO_elem_flag_test(bm, l_b->next->e, EDGE_MARK) == false) &&
-			    (BMO_elem_flag_test(bm, l_b->prev->e, EDGE_MARK) == false))
+			    (BMO_elem_flag_test(bm, l_b->prev->e, EDGE_MARK) == false) &&
+			    /* check for faces that use same verts, this is supported but raises an error
+			     * and cancels the operation when performed from editmode, since this is only
+			     * two triangles we only need to compare a single vertex */
+			    (LIKELY(l_a->prev->v != l_b->prev->v)))
 			{
 				BMFace *f_new;
 				f_new = BM_faces_join_pair(bm, f_a, f_b, e, true);

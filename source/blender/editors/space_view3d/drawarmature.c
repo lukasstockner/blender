@@ -34,7 +34,6 @@
 #include <string.h>
 #include <math.h>
 
-
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
@@ -305,7 +304,7 @@ static void set_ebone_glColor(const unsigned int boneflag)
 /* *************** Armature drawing, helper calls for parts ******************* */
 
 /* half the cube, in Y */
-static float cube[8][3] = {
+static const float cube[8][3] = {
 	{-1.0,  0.0, -1.0},
 	{-1.0,  0.0,  1.0},
 	{-1.0,  1.0,  1.0},
@@ -441,7 +440,7 @@ static void draw_bonevert_solid(void)
 	glCallList(displist);
 }
 
-static float bone_octahedral_verts[6][3] = {
+static const float bone_octahedral_verts[6][3] = {
 	{ 0.0f, 0.0f,  0.0f},
 	{ 0.1f, 0.1f,  0.1f},
 	{ 0.1f, 0.1f, -0.1f},
@@ -450,10 +449,10 @@ static float bone_octahedral_verts[6][3] = {
 	{ 0.0f, 1.0f,  0.0f}
 };
 
-static unsigned int bone_octahedral_wire_sides[8] = {0, 1, 5, 3, 0, 4, 5, 2};
-static unsigned int bone_octahedral_wire_square[8] = {1, 2, 3, 4, 1};
+static const unsigned int bone_octahedral_wire_sides[8] = {0, 1, 5, 3, 0, 4, 5, 2};
+static const unsigned int bone_octahedral_wire_square[8] = {1, 2, 3, 4, 1};
 
-static unsigned int bone_octahedral_solid_tris[8][3] = {
+static const unsigned int bone_octahedral_solid_tris[8][3] = {
 	{2, 1, 0}, /* bottom */
 	{3, 2, 0},
 	{4, 3, 0},
@@ -466,7 +465,7 @@ static unsigned int bone_octahedral_solid_tris[8][3] = {
 };
 
 /* aligned with bone_octahedral_solid_tris */
-static float bone_octahedral_solid_normals[8][3] = {
+static const float bone_octahedral_solid_normals[8][3] = {
 	{ 0.70710683f, -0.70710683f,  0.00000000f},
 	{-0.00000000f, -0.70710683f, -0.70710683f},
 	{-0.70710683f, -0.70710683f,  0.00000000f},
@@ -600,7 +599,7 @@ static void draw_bone_points(const short dt, int armflag, unsigned int boneflag,
 }
 
 /* 16 values of sin function (still same result!) */
-static float si[16] = {
+static const float si[16] = {
 	0.00000000f,
 	0.20129852f, 0.39435585f,
 	0.57126821f, 0.72479278f,
@@ -612,7 +611,7 @@ static float si[16] = {
 	0.10116832f
 };
 /* 16 values of cos function (still same result!) */
-static float co[16] = {
+static const float co[16] = {
 	1.00000000f,
 	0.97952994f, 0.91895781f,
 	0.82076344f, 0.68896691f,
@@ -1099,12 +1098,14 @@ static void draw_b_bone_boxes(const short dt, bPoseChannel *pchan, float xwidth,
 	
 	if ((segments > 1) && (pchan)) {
 		float dlen = length / (float)segments;
-		Mat4 *bbone = b_bone_spline_setup(pchan, 0);
+		Mat4 bbone[MAX_BBONE_SUBDIV];
 		int a;
-		
-		for (a = 0; a < segments; a++, bbone++) {
+
+		b_bone_spline_setup(pchan, 0, bbone);
+
+		for (a = 0; a < segments; a++) {
 			glPushMatrix();
-			glMultMatrixf(bbone->mat);
+			glMultMatrixf(bbone[a].mat);
 			if (dt == OB_SOLID) drawsolidcube_size(xwidth, dlen, zwidth);
 			else drawcube_size(xwidth, dlen, zwidth);
 			glPopMatrix();
@@ -1235,6 +1236,7 @@ static void draw_wire_bone_segments(bPoseChannel *pchan, Mat4 *bbones, float len
 static void draw_wire_bone(const short dt, int armflag, int boneflag, short constflag, unsigned int id,
                            bPoseChannel *pchan, EditBone *ebone)
 {
+	Mat4 bbones_array[MAX_BBONE_SUBDIV];
 	Mat4 *bbones = NULL;
 	int segments = 0;
 	float length;
@@ -1243,8 +1245,10 @@ static void draw_wire_bone(const short dt, int armflag, int boneflag, short cons
 		segments = pchan->bone->segments;
 		length = pchan->bone->length;
 		
-		if (segments > 1)
-			bbones = b_bone_spline_setup(pchan, 0);
+		if (segments > 1) {
+			b_bone_spline_setup(pchan, 0, bbones_array);
+			bbones = bbones_array;
+		}
 	}
 	else 
 		length = ebone->length;
@@ -1534,7 +1538,7 @@ static void draw_pose_dofs(Object *ob)
 			if (bone->flag & BONE_SELECTED) {
 				if (bone->layer & arm->layer) {
 					if (pchan->ikflag & (BONE_IK_XLIMIT | BONE_IK_ZLIMIT)) {
-						if (ED_pose_channel_in_IK_chain(ob, pchan)) {
+						if (BKE_pose_channel_in_IK_chain(ob, pchan)) {
 							float corner[4][3], posetrans[3], mat[4][4];
 							float phi = 0.0f, theta = 0.0f, scale;
 							int a, i;

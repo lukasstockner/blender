@@ -106,8 +106,8 @@ bGPdata **gpencil_data_get_pointers(const bContext *C, PointerRNA *ptr)
 				
 				/* TODO: we can include other data-types such as bones later if need be... */
 
-				/* just in case no active object */
-				if (ob) {
+				/* just in case no active/selected object */
+				if (ob && (ob->flag & SELECT)) {
 					/* for now, as long as there's an object, default to using that in 3D-View */
 					if (ptr) RNA_id_pointer_create(&ob->id, ptr);
 					return &ob->gpd;
@@ -192,7 +192,14 @@ bGPdata *gpencil_data_get_active(const bContext *C)
 /* needed for offscreen rendering */
 bGPdata *gpencil_data_get_active_v3d(Scene *scene)
 {
-	bGPdata *gpd = scene->basact ? scene->basact->object->gpd : NULL;
+	Base *base = scene->basact;
+	bGPdata *gpd = NULL;
+	/* We have to make sure active object is actually visible and selected, else we must use default scene gpd,
+	 * to be consistent with gpencil_data_get_active's behavior.
+	 */
+	if (base && (scene->lay & base->lay) && (base->object->flag & SELECT)) {
+		gpd = base->object->gpd;
+	}
 	return gpd ? gpd : scene->gpd;
 }
 
@@ -447,7 +454,7 @@ static void gp_strokepoint_convertcoords(bContext *C, bGPDstroke *gps, bGPDspoin
 		copy_v3_v3(p3d, &pt->x);
 	}
 	else {
-		const float *fp = give_cursor(scene, v3d);
+		const float *fp = ED_view3d_cursor3d_get(scene, v3d);
 		float mvalf[2];
 		
 		/* get screen coordinate */

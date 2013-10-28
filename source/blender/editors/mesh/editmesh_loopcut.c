@@ -219,7 +219,7 @@ static void edgering_sel(RingSelOpData *lcd, int previewlines, bool select)
 	}
 
 	if (dm) {
-		EDBM_index_arrays_ensure(lcd->em, BM_VERT);
+		BM_mesh_elem_table_ensure(lcd->em->bm, BM_VERT);
 	}
 
 	BMW_init(&walker, em->bm, BMW_EDGERING,
@@ -478,8 +478,8 @@ static int loopcut_init(bContext *C, wmOperator *op, const wmEvent *event)
 	else {
 		const int e_index = RNA_int_get(op->ptr, "edge_index");
 		BMEdge *e;
-		EDBM_index_arrays_ensure(lcd->em, BM_EDGE);
-		e = EDBM_edge_at_index(lcd->em, e_index);
+		BM_mesh_elem_table_ensure(lcd->em->bm, BM_EDGE);
+		e = BM_edge_at_index(lcd->em->bm, e_index);
 		loopcut_update_edge(lcd, e, 0);
 	}
 
@@ -537,7 +537,8 @@ static int loopcut_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (event->val == KM_PRESS) {
 				/* finish */
 				ED_region_tag_redraw(lcd->ar);
-				
+				ED_area_headerprint(CTX_wm_area(C), NULL);
+
 				if (lcd->eed) {
 					/* set for redo */
 					BM_mesh_elem_index_ensure(lcd->em->bm, BM_EDGE);
@@ -550,9 +551,7 @@ static int loopcut_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				else {
 					return ringcut_cancel(C, op);
 				}
-				
-				ED_area_headerprint(CTX_wm_area(C), NULL);
-				
+
 				return OPERATOR_FINISHED;
 			}
 			

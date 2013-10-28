@@ -257,18 +257,16 @@ class RENDER_PT_performance(RenderButtonsPanel, Panel):
 
         split = layout.split()
 
-        col = split.column()
+        col = split.column(align=True)
+        col.label(text="Threads:")
+        col.row(align=True).prop(rd, "threads_mode", expand=True)
         sub = col.column(align=True)
-        sub.label(text="Threads:")
-        sub.row().prop(rd, "threads_mode", expand=True)
-        subsub = sub.column()
-        subsub.enabled = rd.threads_mode == 'FIXED'
-        subsub.prop(rd, "threads")
+        sub.enabled = rd.threads_mode == 'FIXED'
+        sub.prop(rd, "threads")
 
-        sub = col.column(align=True)
-        sub.label(text="Tile Size:")
-        sub.prop(rd, "tile_x", text="X")
-        sub.prop(rd, "tile_y", text="Y")
+        col.label(text="Tile Size:")
+        col.prop(rd, "tile_x", text="X")
+        col.prop(rd, "tile_y", text="Y")
 
         col = split.column()
         col.label(text="Memory:")
@@ -503,7 +501,7 @@ class RENDER_PT_bake(RenderButtonsPanel, Panel):
         layout.prop(rd, "bake_type")
 
         multires_bake = False
-        if rd.bake_type in ['NORMALS', 'DISPLACEMENT', 'AO']:
+        if rd.bake_type in ['NORMALS', 'DISPLACEMENT', 'DERIVATIVE', 'AO']:
             layout.prop(rd, "use_bake_multires")
             multires_bake = rd.use_bake_multires
 
@@ -544,10 +542,19 @@ class RENDER_PT_bake(RenderButtonsPanel, Panel):
             if rd.bake_type == 'DISPLACEMENT':
                 col = split.column()
                 col.prop(rd, "use_bake_lores_mesh")
+
             if rd.bake_type == 'AO':
                 col = split.column()
                 col.prop(rd, "bake_bias")
                 col.prop(rd, "bake_samples")
+
+        if rd.bake_type == 'DERIVATIVE':
+            row = layout.row()
+            row.prop(rd, "use_bake_user_scale", text="")
+
+            sub = row.column()
+            sub.active = rd.use_bake_user_scale
+            sub.prop(rd, "bake_user_scale", text="User Scale")
 
 
 if __name__ == "__main__":  # only for live edit.

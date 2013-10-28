@@ -65,7 +65,7 @@ static char *glsl_material_library = NULL;
 
 /* structs and defines */
 
-static const char* GPU_DATATYPE_STR[17] = {"", "float", "vec2", "vec3", "vec4",
+static const char *GPU_DATATYPE_STR[17] = {"", "float", "vec2", "vec3", "vec4",
 	NULL, NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4"};
 
 #define LINK_IMAGE_BLENDER	1
@@ -1039,9 +1039,7 @@ static void GPU_nodes_free(ListBase *nodes)
 {
 	GPUNode *node;
 
-	while (nodes->first) {
-		node = nodes->first;
-		BLI_remlink(nodes, node);
+	while ((node = BLI_pophead(nodes))) {
 		GPU_node_free(node);
 	}
 }

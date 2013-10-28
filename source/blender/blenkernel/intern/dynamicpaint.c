@@ -20,6 +20,9 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenkernel/intern/dynamicpaint.c
+ *  \ingroup bke
+ */
 
 #include "MEM_guardedalloc.h"
 
@@ -95,12 +98,13 @@
 #endif
 
 /* precalculated gaussian factors for 5x super sampling	*/
-static float gaussianFactors[5] = {0.996849f,
-                                   0.596145f,
-                                   0.596145f,
-                                   0.596145f,
-                                   0.524141f};
-static float gaussianTotal = 3.309425f;
+static const float gaussianFactors[5] = {
+    0.996849f,
+    0.596145f,
+    0.596145f,
+    0.596145f,
+    0.524141f};
+static const float gaussianTotal = 3.309425f;
 
 /* UV Image neighboring pixel table x and y list */
 static int neighX[8] = {1, 1, 0, -1, -1, -1, 0, 1};
@@ -3802,14 +3806,15 @@ static int dynamicPaint_paintParticles(DynamicPaintSurface *surface,
 					 */
 					KDTreeNearest *nearest;
 
-					int n, particles = 0;
+					int n, particles;
 					float smooth_range = smooth * (1.0f - strength), dist;
 					/* calculate max range that can have particles with higher influence than the nearest one */
 					float max_range = smooth - strength * smooth + solidradius;
 					/* Make gcc happy! */
 					dist = max_range;
 
-					particles = BLI_kdtree_range_search(tree, max_range, bData->realCoord[bData->s_pos[index]].v, NULL, &nearest);
+					particles = BLI_kdtree_range_search(tree, bData->realCoord[bData->s_pos[index]].v, NULL,
+					                                    &nearest, max_range);
 
 					/* Find particle that produces highest influence */
 					for (n = 0; n < particles; n++) {

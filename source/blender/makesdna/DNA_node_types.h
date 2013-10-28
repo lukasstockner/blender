@@ -149,23 +149,16 @@ typedef enum eNodeSocketInOut {
 } eNodeSocketInOut;
 
 /* sock->flag, first bit is select */
-	/* hidden is user defined, to hide unused */
-#define SOCK_HIDDEN				2
-	/* for quick check if socket is linked */
-#define SOCK_IN_USE				4
-	/* unavailable is for dynamic sockets */
-#define SOCK_UNAVAIL			8
-	/* DEPRECATED  dynamic socket (can be modified by user) */
-#define __SOCK_DYNAMIC			16
-	/* DEPRECATED  group socket should not be exposed */
-#define __SOCK_INTERNAL			32
-	/* socket collapsed in UI */
-#define SOCK_COLLAPSED			64
-	/* hide socket value, if it gets auto default */
-#define SOCK_HIDE_VALUE			128
-	/* socket hidden automatically, to distinguish from manually hidden */
-	/* DEPRECATED, only kept here to avoid reusing the flag */
-#define SOCK_AUTO_HIDDEN__DEPRECATED	256
+typedef enum eNodeSocketFlag {
+	SOCK_HIDDEN = 2,					/* hidden is user defined, to hide unused */
+	SOCK_IN_USE = 4,					/* for quick check if socket is linked */
+	SOCK_UNAVAIL = 8,					/* unavailable is for dynamic sockets */
+	__SOCK_DYNAMIC = 16,				/* DEPRECATED  dynamic socket (can be modified by user) */
+	__SOCK_INTERNAL = 32,				/* DEPRECATED  group socket should not be exposed */
+	SOCK_COLLAPSED = 64,				/* socket collapsed in UI */
+	SOCK_HIDE_VALUE = 128,				/* hide socket value, if it gets auto default */
+	SOCK_AUTO_HIDDEN__DEPRECATED = 256	/* socket hidden automatically, to distinguish from manually hidden */
+} eNodeSocketFlag;
 
 /* limit data in bNode to what we want to see saved? */
 typedef struct bNode {
@@ -409,6 +402,7 @@ typedef struct bNodeTree {
 #define NTREE_TWO_PASS				4	/* two pass */
 #define NTREE_COM_GROUPNODE_BUFFER	8	/* use groupnode buffers */
 #define NTREE_VIEWER_BORDER			16	/* use a border for viewer nodes */
+#define NTREE_IS_LOCALIZED			32	/* tree is localized copy, free when deleting node groups */
 
 /* XXX not nice, but needed as a temporary flags
  * for group updates after library linking.
@@ -720,8 +714,10 @@ typedef struct NodeTexBase {
 
 typedef struct NodeTexSky {
 	NodeTexBase base;
+	int sky_model;
 	float sun_direction[3];
 	float turbidity;
+	float ground_albedo;
 } NodeTexSky;
 
 typedef struct NodeTexImage {
@@ -892,6 +888,10 @@ typedef struct NodeShaderNormalMap {
 #define SHD_TOON_DIFFUSE	0
 #define SHD_TOON_GLOSSY		1
 
+/* hair components */
+#define SHD_HAIR_REFLECTION		0
+#define SHD_HAIR_TRANSMISSION		1
+
 /* blend texture */
 #define SHD_BLEND_LINEAR			0
 #define SHD_BLEND_QUADRATIC			1
@@ -937,9 +937,9 @@ typedef struct NodeShaderNormalMap {
 #define SHD_WAVE_BANDS		0
 #define SHD_WAVE_RINGS		1
 
-#define SHD_WAVE_SINE	0
-#define SHD_WAVE_SAW	1
-#define SHD_WAVE_TRI	2
+/* sky texture */
+#define SHD_SKY_OLD		0
+#define SHD_SKY_NEW		1
 
 /* image/environment texture */
 #define SHD_COLORSPACE_NONE		0
@@ -968,6 +968,11 @@ typedef struct NodeShaderNormalMap {
 #define SHD_NORMAL_MAP_WORLD			2
 #define SHD_NORMAL_MAP_BLENDER_OBJECT	3
 #define SHD_NORMAL_MAP_BLENDER_WORLD	4
+
+/* subsurface */
+#define SHD_SUBSURFACE_COMPATIBLE		0 // Deprecated
+#define SHD_SUBSURFACE_CUBIC			1
+#define SHD_SUBSURFACE_GAUSSIAN			2
 
 /* blur node */
 #define CMP_NODE_BLUR_ASPECT_NONE		0

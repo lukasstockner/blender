@@ -465,7 +465,7 @@ static EnumPropertyItem *rna_Object_parent_type_itemf(bContext *UNUSED(C), Point
 			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARBONE);
 		}
 
-		if (ELEM4(par->type, OB_MESH, OB_CURVE, OB_SURF, OB_LATTICE)) {
+		if (OB_TYPE_SUPPORT_PARVERT(par->type)) {
 			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARVERT1);
 			RNA_enum_items_add_value(&item, &totitem, parent_type_items, PARVERT3);
 		}
@@ -556,7 +556,8 @@ static void rna_Object_active_vertex_group_index_set(PointerRNA *ptr, int value)
 	ob->actdef = value + 1;
 }
 
-static void rna_Object_active_vertex_group_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_Object_active_vertex_group_index_range(PointerRNA *ptr, int *min, int *max,
+                                                       int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	Object *ob = (Object *)ptr->id.data;
 
@@ -667,7 +668,8 @@ static void rna_Object_active_material_index_set(PointerRNA *ptr, int value)
 	}
 }
 
-static void rna_Object_active_material_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_Object_active_material_index_range(PointerRNA *ptr, int *min, int *max,
+                                                   int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	Object *ob = (Object *)ptr->id.data;
 	*min = 0;
@@ -693,7 +695,7 @@ static void rna_Object_active_material_set(PointerRNA *ptr, PointerRNA value)
 }
 
 static void rna_Object_active_particle_system_index_range(PointerRNA *ptr, int *min, int *max,
-                                                          int *softmin, int *softmax)
+                                                          int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	Object *ob = (Object *)ptr->id.data;
 	*min = 0;
@@ -903,6 +905,16 @@ static void rna_MaterialSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	rna_Object_internal_update(bmain, scene, ptr);
 	WM_main_add_notifier(NC_OBJECT | ND_OB_SHADING, ptr->id.data);
+	WM_main_add_notifier(NC_MATERIAL | ND_SHADING_LINKS, NULL);
+}
+
+static char *rna_MaterialSlot_path(PointerRNA *ptr)
+{
+	Object *ob = (Object *)ptr->id.data;
+	int index = (Material **)ptr->data - ob->mat;
+
+	/* from armature... */
+	return BLI_sprintfN("material_slots[%d]", index);
 }
 
 /* why does this have to be so complicated?, can't all this crap be
@@ -1183,7 +1195,8 @@ static void rna_GameObjectSettings_col_mask_set(PointerRNA *ptr, const int *valu
 }
 
 
-static void rna_Object_active_shape_key_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_Object_active_shape_key_index_range(PointerRNA *ptr, int *min, int *max,
+                                                    int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	Object *ob = (Object *)ptr->id.data;
 	Key *key = BKE_key_from_object(ob);
@@ -1447,8 +1460,6 @@ int rna_Object_use_dynamic_topology_sculpting_get(PointerRNA *ptr)
 
 #else
 
-static int rna_matrix_dimsize_4x4[] = {4, 4};
-
 static void rna_def_vertex_group(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1549,6 +1560,8 @@ static void rna_def_material_slot(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Name", "Material slot name");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_struct_name_property(srna, prop);
+
+	RNA_def_struct_path_func(srna, "rna_MaterialSlot_path");
 }
 
 static void rna_def_object_game_settings(BlenderRNA *brna)
@@ -2349,7 +2362,7 @@ static void rna_def_object(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "constraints", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Constraint");
 	RNA_def_property_ui_text(prop, "Constraints", "Constraints affecting the transformation of the object");
-/*	RNA_def_property_collection_funcs(prop, 0, 0, 0, 0, 0, 0, 0, "constraints__add", "constraints__remove"); */
+/*	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, NULL, NULL, NULL, NULL, "constraints__add", "constraints__remove"); */
 	rna_def_object_constraints(brna, prop);
 
 	/* game engine */
@@ -2762,11 +2775,14 @@ static void rna_def_object_base(BlenderRNA *brna)
 void RNA_def_object(BlenderRNA *brna)
 {
 	rna_def_object(brna);
+
+	RNA_define_animate_sdna(false);
 	rna_def_object_game_settings(brna);
 	rna_def_object_base(brna);
 	rna_def_vertex_group(brna);
 	rna_def_material_slot(brna);
 	rna_def_dupli_object(brna);
+	RNA_define_animate_sdna(true);
 }
 
 #endif

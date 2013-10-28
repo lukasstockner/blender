@@ -363,6 +363,9 @@ void restrictbutton_gr_restrict_flag(void *poin, void *poin2, int flag)
 
 	if (group_restrict_flag(gr, flag)) {
 		for (gob = gr->gobject.first; gob; gob = gob->next) {
+			if (gob->ob->id.lib)
+				continue;
+
 			gob->ob->restrictflag &= ~flag;
 			
 			if (flag == OB_RESTRICT_VIEW)
@@ -372,6 +375,9 @@ void restrictbutton_gr_restrict_flag(void *poin, void *poin2, int flag)
 	}
 	else {
 		for (gob = gr->gobject.first; gob; gob = gob->next) {
+			if (gob->ob->id.lib)
+				continue;
+
 			/* not in editmode */
 			if (scene->obedit != gob->ob) {
 				gob->ob->restrictflag |= flag;
@@ -565,7 +571,11 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 			}
 			if (tselem->type == 0 && te->idcode == ID_GR) {
 				int restrict_bool;
+				int but_flag = UI_BUT_DRAG_LOCK;
 				gr = (Group *)tselem->id;
+
+				if (gr->id.lib)
+					but_flag |= UI_BUT_DISABLED;
 				
 				uiBlockSetEmboss(block, UI_EMBOSSN);
 
@@ -574,21 +584,21 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 				                  (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_VIEWX), te->ys, UI_UNIT_X, UI_UNIT_Y,
 				                  NULL, 0, 0, 0, 0, TIP_("Restrict/Allow visibility in the 3D View"));
 				uiButSetFunc(bt, restrictbutton_gr_restrict_view, scene, gr);
-				uiButSetFlag(bt, UI_BUT_DRAG_LOCK);
+				uiButSetFlag(bt, but_flag);
 
 				restrict_bool = group_restrict_flag(gr, OB_RESTRICT_SELECT);
 				bt = uiDefIconBut(block, ICONTOG, 0, restrict_bool ? ICON_RESTRICT_SELECT_ON : ICON_RESTRICT_SELECT_OFF,
 				                  (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_SELECTX), te->ys, UI_UNIT_X, UI_UNIT_Y,
 				                  NULL, 0, 0, 0, 0, TIP_("Restrict/Allow selection in the 3D View"));
 				uiButSetFunc(bt, restrictbutton_gr_restrict_select, scene, gr);
-				uiButSetFlag(bt, UI_BUT_DRAG_LOCK);
+				uiButSetFlag(bt, but_flag);
 
 				restrict_bool = group_restrict_flag(gr, OB_RESTRICT_RENDER);
 				bt = uiDefIconBut(block, ICONTOG, 0, restrict_bool ? ICON_RESTRICT_RENDER_ON : ICON_RESTRICT_RENDER_OFF,
 				                  (int)(ar->v2d.cur.xmax - OL_TOG_RESTRICT_RENDERX), te->ys, UI_UNIT_X, UI_UNIT_Y,
 				                  NULL, 0, 0, 0, 0, TIP_("Restrict/Allow renderability"));
 				uiButSetFunc(bt, restrictbutton_gr_restrict_render, scene, gr);
-				uiButSetFlag(bt, UI_BUT_DRAG_LOCK);
+				uiButSetFlag(bt, but_flag);
 
 				uiBlockSetEmboss(block, UI_EMBOSS);
 			}
@@ -755,328 +765,37 @@ static void outliner_draw_rnabuts(uiBlock *block, Scene *scene, ARegion *ar, Spa
 	uiBlockSetEmboss(block, UI_EMBOSS);
 }
 
-static void operator_call_cb(struct bContext *UNUSED(C), void *arg_kmi, void *arg2)
-{
-	wmOperatorType *ot = arg2;
-	wmKeyMapItem *kmi = arg_kmi;
-	
-	if (ot)
-		BLI_strncpy(kmi->idname, ot->idname, OP_MAX_TYPENAME);
-}
-
-static void operator_search_cb(const struct bContext *UNUSED(C), void *UNUSED(arg_kmi),
-                               const char *str, uiSearchItems *items)
-{
-	GHashIterator *iter = WM_operatortype_iter();
-
-	for (; !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter)) {
-		wmOperatorType *ot = BLI_ghashIterator_getValue(iter);
-		
-		if (BLI_strcasestr(ot->idname, str)) {
-			char name[OP_MAX_TYPENAME];
-			
-			/* display name for menu */
-			WM_operator_py_idname(name, ot->idname);
-			
-			if (false == uiSearchItemAdd(items, name, ot, 0))
-				break;
-		}
-	}
-	BLI_ghashIterator_free(iter);
-}
-
-/* operator Search browse menu, open */
-static uiBlock *operator_search_menu(bContext *C, ARegion *ar, void *arg_kmi)
-{
-	static char search[OP_MAX_TYPENAME];
-	wmEvent event;
-	wmWindow *win = CTX_wm_window(C);
-	wmKeyMapItem *kmi = arg_kmi;
-	wmOperatorType *ot = WM_operatortype_find(kmi->idname, 0);
-	uiBlock *block;
-	uiBut *but;
-	
-	/* clear initial search string, then all items show */
-	search[0] = 0;
-	
-	block = uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
-	uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_SEARCH_MENU);
-	
-	/* fake button, it holds space for search items */
-	uiDefBut(block, LABEL, 0, "", 10, 15, uiSearchBoxWidth(), uiSearchBoxHeight(), NULL, 0, 0, 0, 0, NULL);
-	
-	but = uiDefSearchBut(block, search, 0, ICON_VIEWZOOM, sizeof(search), 10, 0, 150, UI_UNIT_Y, 0, 0, "");
-	uiButSetSearchFunc(but, operator_search_cb, arg_kmi, operator_call_cb, ot);
-	
-	uiBoundsBlock(block, 6);
-	uiBlockSetDirection(block, UI_DOWN);
-	uiEndBlock(C, block);
-	
-	wm_event_init_from_window(win, &event);
-	event.type = EVT_BUT_OPEN;
-	event.val = KM_PRESS;
-	event.customdata = but;
-	event.customdatafree = FALSE;
-	wm_event_add(win, &event);
-	
-	return block;
-}
-
-#define OL_KM_KEYBOARD      0
-#define OL_KM_MOUSE         1
-#define OL_KM_TWEAK         2
-#define OL_KM_SPECIALS      3
-
-static short keymap_menu_type(short type)
-{
-	if (ISKEYBOARD(type)) return OL_KM_KEYBOARD;
-	if (ISTWEAK(type)) return OL_KM_TWEAK;
-	if (ISMOUSE(type)) return OL_KM_MOUSE;
-//	return OL_KM_SPECIALS;
-	return 0;
-}
-
-static const char *keymap_type_menu(void)
-{
-	static const char string[] =
-	    "Event Type%t"
-	    "|Keyboard%x" STRINGIFY(OL_KM_KEYBOARD)
-	    "|Mouse%x" STRINGIFY(OL_KM_MOUSE)
-	    "|Tweak%x" STRINGIFY(OL_KM_TWEAK)
-//	"|Specials%x" STRINGIFY(OL_KM_SPECIALS)
-	;
-
-	return string;
-}
-
-static const char *keymap_mouse_menu(void)
-{
-	static const char string[] =
-	    "Mouse Event%t"
-	    "|Left Mouse%x" STRINGIFY(LEFTMOUSE)
-	    "|Middle Mouse%x" STRINGIFY(MIDDLEMOUSE)
-	    "|Right Mouse%x" STRINGIFY(RIGHTMOUSE)
-	    "|Middle Mouse%x" STRINGIFY(MIDDLEMOUSE)
-	    "|Right Mouse%x" STRINGIFY(RIGHTMOUSE)
-	    "|Button4 Mouse%x" STRINGIFY(BUTTON4MOUSE)
-	    "|Button5 Mouse%x" STRINGIFY(BUTTON5MOUSE)
-	    "|Action Mouse%x" STRINGIFY(ACTIONMOUSE)
-	    "|Select Mouse%x" STRINGIFY(SELECTMOUSE)
-	    "|Mouse Move%x" STRINGIFY(MOUSEMOVE)
-	    "|Wheel Up%x" STRINGIFY(WHEELUPMOUSE)
-	    "|Wheel Down%x" STRINGIFY(WHEELDOWNMOUSE)
-	    "|Wheel In%x" STRINGIFY(WHEELINMOUSE)
-	    "|Wheel Out%x" STRINGIFY(WHEELOUTMOUSE)
-	    "|Mouse/Trackpad Pan%x" STRINGIFY(MOUSEPAN)
-	    "|Mouse/Trackpad Zoom%x" STRINGIFY(MOUSEZOOM)
-	    "|Mouse/Trackpad Rotate%x" STRINGIFY(MOUSEROTATE)
-	;
-
-	return string;
-}
-
-static const char *keymap_tweak_menu(void)
-{
-	static const char string[] =
-	    "Tweak Event%t"
-	    "|Left Mouse%x" STRINGIFY(EVT_TWEAK_L)
-	    "|Middle Mouse%x" STRINGIFY(EVT_TWEAK_M)
-	    "|Right Mouse%x" STRINGIFY(EVT_TWEAK_R)
-	    "|Action Mouse%x" STRINGIFY(EVT_TWEAK_A)
-	    "|Select Mouse%x" STRINGIFY(EVT_TWEAK_S)
-	;
-
-	return string;
-}
-
-static const char *keymap_tweak_dir_menu(void)
-{
-	static const char string[] =
-	    "Tweak Direction%t"
-	    "|Any%x" STRINGIFY(KM_ANY)
-	    "|North%x" STRINGIFY(EVT_GESTURE_N)
-	    "|North-East%x" STRINGIFY(EVT_GESTURE_NE)
-	    "|East%x" STRINGIFY(EVT_GESTURE_E)
-	    "|Sout-East%x" STRINGIFY(EVT_GESTURE_SE)
-	    "|South%x" STRINGIFY(EVT_GESTURE_S)
-	    "|South-West%x" STRINGIFY(EVT_GESTURE_SW)
-	    "|West%x" STRINGIFY(EVT_GESTURE_W)
-	    "|North-West%x" STRINGIFY(EVT_GESTURE_NW)
-	;
-
-	return string;
-}
-
-
-static void keymap_type_cb(bContext *C, void *kmi_v, void *UNUSED(arg_v))
-{
-	wmKeyMapItem *kmi = kmi_v;
-	short maptype = keymap_menu_type(kmi->type);
-	
-	if (maptype != kmi->maptype) {
-		switch (kmi->maptype) {
-			case OL_KM_KEYBOARD:
-				kmi->type = AKEY;
-				kmi->val = KM_PRESS;
-				break;
-			case OL_KM_MOUSE:
-				kmi->type = LEFTMOUSE;
-				kmi->val = KM_PRESS;
-				break;
-			case OL_KM_TWEAK:
-				kmi->type = EVT_TWEAK_L;
-				kmi->val = KM_ANY;
-				break;
-			case OL_KM_SPECIALS:
-				kmi->type = AKEY;
-				kmi->val = KM_PRESS;
-				break;
-		}
-		ED_region_tag_redraw(CTX_wm_region(C));
-	}
-}
-
-static void outliner_draw_keymapbuts(uiBlock *block, ARegion *ar, SpaceOops *soops, ListBase *lb)
-{
-	TreeElement *te;
-	TreeStoreElem *tselem;
-	
-	uiBlockSetEmboss(block, UI_EMBOSST);
-	
-	for (te = lb->first; te; te = te->next) {
-		tselem = TREESTORE(te);
-		if (te->ys + 2 * UI_UNIT_Y >= ar->v2d.cur.ymin && te->ys <= ar->v2d.cur.ymax) {
-			uiBut *but;
-			const char *str;
-			int xstart = 240;
-			int butw1 = UI_UNIT_X; /* operator */
-			int butw2 = 90; /* event type, menus */
-			int butw3 = 43; /* modifiers */
-
-			if (tselem->type == TSE_KEYMAP_ITEM) {
-				wmKeyMapItem *kmi = te->directdata;
-				
-				/* modal map? */
-				if (kmi->propvalue) {
-					/* pass */
-				}
-				else {
-					uiDefBlockBut(block, operator_search_menu, kmi, "", xstart, te->ys + 1, butw1, UI_UNIT_Y - 1,
-					              TIP_("Assign new Operator"));
-				}
-				xstart += butw1 + 10;
-				
-				/* map type button */
-				kmi->maptype = keymap_menu_type(kmi->type);
-				
-				str = keymap_type_menu();
-				but = uiDefButS(block, MENU, 0, str,    xstart, te->ys + 1, butw2, UI_UNIT_Y - 1, &kmi->maptype,
-				                0, 0, 0, 0, TIP_("Event type"));
-				uiButSetFunc(but, keymap_type_cb, kmi, NULL);
-				xstart += butw2 + 5;
-				
-				/* edit actual event */
-				switch (kmi->maptype) {
-					case OL_KM_KEYBOARD:
-						uiDefKeyevtButS(block, 0, "", xstart, te->ys + 1, butw2, UI_UNIT_Y - 1, &kmi->type,
-						                TIP_("Key code"));
-						xstart += butw2 + 5;
-						break;
-					case OL_KM_MOUSE:
-						str = keymap_mouse_menu();
-						uiDefButS(block, MENU, 0, str, xstart, te->ys + 1, butw2, UI_UNIT_Y - 1, &kmi->type,
-						          0, 0, 0, 0, TIP_("Mouse button"));
-						xstart += butw2 + 5;
-						break;
-					case OL_KM_TWEAK:
-						str = keymap_tweak_menu();
-						uiDefButS(block, MENU, 0, str, xstart, te->ys + 1, butw2, UI_UNIT_Y - 1, &kmi->type,
-						          0, 0, 0, 0, TIP_("Tweak gesture"));
-						xstart += butw2 + 5;
-						str = keymap_tweak_dir_menu();
-						uiDefButS(block, MENU, 0, str, xstart, te->ys + 1, butw2, UI_UNIT_Y - 1, &kmi->val,
-						          0, 0, 0, 0, TIP_("Tweak gesture direction"));
-						xstart += butw2 + 5;
-						break;
-				}
-				
-				/* modifiers */
-				uiDefButS(block, OPTION, 0, IFACE_("Shift"), xstart, te->ys + 1, butw3 + 5, UI_UNIT_Y - 1,
-				          &kmi->shift, 0, 0, 0, 0, TIP_("Modifier"));
-				xstart += butw3 + 5;
-				uiDefButS(block, OPTION, 0, IFACE_("Ctrl"), xstart, te->ys + 1, butw3, UI_UNIT_Y - 1, &kmi->ctrl,
-				          0, 0, 0, 0, TIP_("Modifier"));
-				xstart += butw3;
-				uiDefButS(block, OPTION, 0, IFACE_("Alt"), xstart, te->ys + 1, butw3, UI_UNIT_Y - 1, &kmi->alt,
-				          0, 0, 0, 0, TIP_("Modifier"));
-				xstart += butw3;
-				uiDefButS(block, OPTION, 0, IFACE_("OS"), xstart, te->ys + 1, butw3, UI_UNIT_Y - 1, &kmi->oskey,
-				          0, 0, 0, 0, TIP_("Modifier"));
-				xstart += butw3 + 5;
-				uiDefKeyevtButS(block, 0, "", xstart, te->ys + 1, butw3, UI_UNIT_Y - 1, &kmi->keymodifier,
-				                TIP_("Key Modifier code"));
-				xstart += butw3 + 5;
-				
-				/* rna property */
-				if (kmi->ptr && kmi->ptr->data) {
-					uiDefBut(block, LABEL, 0, IFACE_("(RNA property)"), xstart, te->ys + 1, butw2, UI_UNIT_Y - 1,
-					         NULL, 0, 0, 0, 0, "");
-					xstart += butw2;
-				}
-
-				(void)xstart;
-			}
-		}
-		
-		if (TSELEM_OPEN(tselem, soops)) outliner_draw_keymapbuts(block, ar, soops, &te->subtree);
-	}
-
-	uiBlockSetEmboss(block, UI_EMBOSS);
-}
-
-
-static void outliner_buttons(const bContext *C, uiBlock *block, ARegion *ar, SpaceOops *soops, ListBase *lb)
+static void outliner_buttons(const bContext *C, uiBlock *block, ARegion *ar, TreeElement *te)
 {
 	uiBut *bt;
-	TreeElement *te;
 	TreeStoreElem *tselem;
 	int spx, dx, len;
-	
-	for (te = lb->first; te; te = te->next) {
-		tselem = TREESTORE(te);
-		if (te->ys + 2 * UI_UNIT_Y >= ar->v2d.cur.ymin && te->ys <= ar->v2d.cur.ymax) {
-			
-			if (tselem->flag & TSE_TEXTBUT) {
-				
-				/* If we add support to rename Sequence.
-				 * need change this.
-				 */
-				// prevent crash when trying to rename 'pose' entry of armature
-				if (tselem->type == TSE_POSE_BASE) continue;  
-				
-				if (tselem->type == TSE_EBONE) len = sizeof(((EditBone *) 0)->name);
-				else if (tselem->type == TSE_MODIFIER) len = sizeof(((ModifierData *) 0)->name);
-				else if (tselem->id && GS(tselem->id->name) == ID_LI) len = sizeof(((Library *) 0)->name);
-				else len = MAX_ID_NAME - 2;
-				
 
-				dx = (int)UI_GetStringWidth(te->name);
-				if (dx < 5 * UI_UNIT_X) dx = 5 * UI_UNIT_X;
-				spx = te->xs + 1.8f * UI_UNIT_X;
-				if (spx + dx + 0.5f * UI_UNIT_X > ar->v2d.cur.xmax) dx = ar->v2d.cur.xmax - spx - 0.5f * UI_UNIT_X;
+	tselem = TREESTORE(te);
 
-				bt = uiDefBut(block, TEX, OL_NAMEBUTTON, "", spx, te->ys, dx + UI_UNIT_X, UI_UNIT_Y - 1, (void *)te->name,
-				              1.0, (float)len, 0, 0, "");
-				uiButSetRenameFunc(bt, namebutton_cb, tselem);
-				
-				/* returns false if button got removed */
-				if (false == uiButActiveOnly(C, ar, block, bt)) {
-					tselem->flag &= ~TSE_TEXTBUT;
-				}
-			}
-		}
-		
-		if (TSELEM_OPEN(tselem, soops)) outliner_buttons(C, block, ar, soops, &te->subtree);
+	BLI_assert(tselem->flag & TSE_TEXTBUT);
+	/* If we add support to rename Sequence.
+	 * need change this.
+	 */
+
+	if (tselem->type == TSE_EBONE) len = sizeof(((EditBone *) 0)->name);
+	else if (tselem->type == TSE_MODIFIER) len = sizeof(((ModifierData *) 0)->name);
+	else if (tselem->id && GS(tselem->id->name) == ID_LI) len = sizeof(((Library *) 0)->name);
+	else len = MAX_ID_NAME - 2;
+
+	spx = te->xs + 1.8f * UI_UNIT_X;
+	dx = ar->v2d.cur.xmax - (spx + 3.2f * UI_UNIT_X);
+
+	bt = uiDefBut(block, TEX, OL_NAMEBUTTON, "", spx, te->ys, dx, UI_UNIT_Y - 1, (void *)te->name,
+	              1.0, (float)len, 0, 0, "");
+	uiButSetRenameFunc(bt, namebutton_cb, tselem);
+
+	/* returns false if button got removed */
+	if (false == uiButActiveOnly(C, ar, block, bt)) {
+		tselem->flag &= ~TSE_TEXTBUT;
+
+		/* bad! (notifier within draw) without this, we don't get a refesh */
+		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 	}
 }
 
@@ -1389,6 +1108,8 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 				tselem_draw_icon_uibut(&arg, ICON_GROUP); break;
 			case ID_LI:
 				tselem_draw_icon_uibut(&arg, ICON_LIBRARY_DATA_DIRECT); break;
+			case ID_LS:
+				tselem_draw_icon_uibut(&arg, ICON_BRUSH_DATA); break; /* FIXME proper icon */
 		}
 	}
 }
@@ -1472,7 +1193,7 @@ static void outliner_set_coord_tree_element(SpaceOops *soops, TreeElement *te, i
 
 
 static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene, ARegion *ar, SpaceOops *soops,
-                                       TreeElement *te, int startx, int *starty)
+                                       TreeElement *te, int startx, int *starty, TreeElement **te_edit)
 {
 	TreeElement *ten;
 	TreeStoreElem *tselem;
@@ -1485,6 +1206,10 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 		int xmax = ar->v2d.cur.xmax;
 		unsigned char alpha = 128;
 		
+		if ((tselem->flag & TSE_TEXTBUT) && (*te_edit == NULL)) {
+			*te_edit = te;
+		}
+
 		/* icons can be ui buts, we don't want it to overlap with restrict */
 		if ((soops->flag & SO_HIDE_RESTRICTCOLS) == 0)
 			xmax -= OL_TOGW + UI_UNIT_X;
@@ -1665,7 +1390,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 		*starty -= UI_UNIT_Y;
 		
 		for (ten = te->subtree.first; ten; ten = ten->next)
-			outliner_draw_tree_element(C, block, scene, ar, soops, ten, startx + UI_UNIT_X, starty);
+			outliner_draw_tree_element(C, block, scene, ar, soops, ten, startx + UI_UNIT_X, starty, te_edit);
 	}
 	else {
 		for (ten = te->subtree.first; ten; ten = ten->next)
@@ -1749,7 +1474,8 @@ static void outliner_draw_selection(ARegion *ar, SpaceOops *soops, ListBase *lb,
 }
 
 
-static void outliner_draw_tree(bContext *C, uiBlock *block, Scene *scene, ARegion *ar, SpaceOops *soops)
+static void outliner_draw_tree(bContext *C, uiBlock *block, Scene *scene, ARegion *ar,
+                               SpaceOops *soops, TreeElement **te_edit)
 {
 	TreeElement *te;
 	int starty, startx;
@@ -1781,7 +1507,7 @@ static void outliner_draw_tree(bContext *C, uiBlock *block, Scene *scene, ARegio
 	starty = (int)ar->v2d.tot.ymax - UI_UNIT_Y - OL_Y_OFFSET;
 	startx = 0;
 	for (te = soops->tree.first; te; te = te->next) {
-		outliner_draw_tree_element(C, block, scene, ar, soops, te, startx, &starty);
+		outliner_draw_tree_element(C, block, scene, ar, soops, te, startx, &starty, te_edit);
 	}
 }
 
@@ -1851,13 +1577,14 @@ void draw_outliner(const bContext *C)
 	SpaceOops *soops = CTX_wm_space_outliner(C);
 	uiBlock *block;
 	int sizey = 0, sizex = 0, sizex_rna = 0;
+	TreeElement *te_edit = NULL;
 
 	outliner_build_tree(mainvar, scene, soops); // always
 	
 	/* get extents of data */
 	outliner_height(soops, &soops->tree, &sizey);
 
-	if (ELEM3(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF, SO_KEYMAP)) {
+	if (ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {
 		/* RNA has two columns:
 		 *  - column 1 is (max_width + OL_RNA_COL_SPACEX) or
 		 *				 (OL_RNA_COL_X), whichever is wider...
@@ -1871,11 +1598,7 @@ void draw_outliner(const bContext *C)
 		sizex_rna = max_ii(OL_RNA_COLX, sizex_rna + OL_RNA_COL_SPACEX);
 		
 		/* get width of data (for setting 'tot' rect, this is column 1 + column 2 + a bit extra) */
-		if (soops->outlinevis == SO_KEYMAP)
-			// XXX this is only really a quick hack to make this wide enough...
-			sizex = sizex_rna + OL_RNA_COL_SIZEX * 3 + 50;
-		else
-			sizex = sizex_rna + OL_RNA_COL_SIZEX + 50;
+		sizex = sizex_rna + OL_RNA_COL_SIZEX + 50;
 	}
 	else {
 		/* width must take into account restriction columns (if visible) so that entries will still be visible */
@@ -1904,15 +1627,12 @@ void draw_outliner(const bContext *C)
 	/* draw outliner stuff (background, hierachy lines and names) */
 	outliner_back(ar);
 	block = uiBeginBlock(C, ar, __func__, UI_EMBOSS);
-	outliner_draw_tree((bContext *)C, block, scene, ar, soops);
+	outliner_draw_tree((bContext *)C, block, scene, ar, soops, &te_edit);
 	
 	if (ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {
 		/* draw rna buttons */
 		outliner_draw_rnacols(ar, sizex_rna);
 		outliner_draw_rnabuts(block, scene, ar, soops, sizex_rna, &soops->tree);
-	}
-	else if (soops->outlinevis == SO_KEYMAP) {
-		outliner_draw_keymapbuts(block, ar, soops, &soops->tree);
 	}
 	else if (!(soops->flag & SO_HIDE_RESTRICTCOLS)) {
 		/* draw restriction columns */
@@ -1921,7 +1641,9 @@ void draw_outliner(const bContext *C)
 	}
 
 	/* draw edit buttons if nessecery */
-	outliner_buttons(C, block, ar, soops, &soops->tree);
+	if (te_edit) {
+		outliner_buttons(C, block, ar, te_edit);
+	}
 
 	uiEndBlock(C, block);
 	uiDrawBlock(C, block);

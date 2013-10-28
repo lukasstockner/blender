@@ -961,7 +961,7 @@ static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 
 	if (but->flag & UI_HAS_ICON)
 		okwidth -= UI_DPI_ICON_SIZE;
-	if (but->type == SEARCH_MENU_UNLINK && !but->editstr)
+	if ((but->type == SEARCH_MENU_UNLINK) && ui_is_but_search_unlink_visible(but))
 		okwidth -= BLI_rcti_size_y(rect);
 
 	okwidth = max_ii(okwidth, 0);
@@ -1215,7 +1215,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	/* cut string in 2 parts - only for menu entries */
 	if ((but->block->flag & UI_BLOCK_LOOP)) {
 		if (ELEM3(but->type, NUM, TEX, NUMSLI) == 0) {
-			cpoin = strchr(but->drawstr, '|');
+			cpoin = strchr(but->drawstr, UI_SEP_CHAR);
 			if (cpoin) *cpoin = 0;
 		}
 	}
@@ -1261,7 +1261,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		fstyle->align = UI_STYLE_TEXT_RIGHT;
 		rect->xmax -= ui_but_draw_menu_icon(but) ? UI_DPI_ICON_SIZE : 0.25f * U.widget_unit;
 		uiStyleFontDraw(fstyle, rect, cpoin + 1);
-		*cpoin = '|';
+		*cpoin = UI_SEP_CHAR;
 	}
 }
 
@@ -1325,7 +1325,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	}
 	
 	/* unlink icon for this button type */
-	if (but->type == SEARCH_MENU_UNLINK && !but->editstr && but->drawstr[0]) {
+	if ((but->type == SEARCH_MENU_UNLINK) && ui_is_but_search_unlink_visible(but)) {
 		rcti temp = *rect;
 
 		temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
@@ -2004,10 +2004,11 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 /* ************ custom buttons, old stuff ************** */
 
-/* draws in resolution of 20x4 colors */
+/* draws in resolution of 48x4 colors */
 void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, const float alpha)
 {
-	const float color_step = (type == UI_GRAD_H) ? 0.02f : 0.05f;
+	/* allows for 4 steps (red->yellow) */
+	const float color_step = (1.0 / 48.0);
 	int a;
 	float h = hsv[0], s = hsv[1], v = hsv[2];
 	float dx, dy, sx1, sx2, sy;
@@ -2066,6 +2067,8 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 	/* old below */
 	
 	for (dx = 0.0f; dx < 0.999f; dx += color_step) { /* 0.999 = prevent float inaccuracy for steps */
+		const float dx_next = dx + color_step;
+
 		/* previous color */
 		copy_v3_v3(col0[0], col1[0]);
 		copy_v3_v3(col0[1], col1[1]);
@@ -2081,22 +2084,22 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 				hsv_to_rgb(h, 1.0, dx,   &col1[3][0], &col1[3][1], &col1[3][2]);
 				break;
 			case UI_GRAD_HV:
-				hsv_to_rgb(dx, s, 0.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
-				hsv_to_rgb(dx, s, 0.333, &col1[1][0], &col1[1][1], &col1[1][2]);
-				hsv_to_rgb(dx, s, 0.666, &col1[2][0], &col1[2][1], &col1[2][2]);
-				hsv_to_rgb(dx, s, 1.0,   &col1[3][0], &col1[3][1], &col1[3][2]);
+				hsv_to_rgb(dx_next, s, 0.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
+				hsv_to_rgb(dx_next, s, 0.333, &col1[1][0], &col1[1][1], &col1[1][2]);
+				hsv_to_rgb(dx_next, s, 0.666, &col1[2][0], &col1[2][1], &col1[2][2]);
+				hsv_to_rgb(dx_next, s, 1.0,   &col1[3][0], &col1[3][1], &col1[3][2]);
 				break;
 			case UI_GRAD_HS:
-				hsv_to_rgb(dx, 0.0, v,   &col1[0][0], &col1[0][1], &col1[0][2]);
-				hsv_to_rgb(dx, 0.333, v, &col1[1][0], &col1[1][1], &col1[1][2]);
-				hsv_to_rgb(dx, 0.666, v, &col1[2][0], &col1[2][1], &col1[2][2]);
-				hsv_to_rgb(dx, 1.0, v,   &col1[3][0], &col1[3][1], &col1[3][2]);
+				hsv_to_rgb(dx_next, 0.0, v,   &col1[0][0], &col1[0][1], &col1[0][2]);
+				hsv_to_rgb(dx_next, 0.333, v, &col1[1][0], &col1[1][1], &col1[1][2]);
+				hsv_to_rgb(dx_next, 0.666, v, &col1[2][0], &col1[2][1], &col1[2][2]);
+				hsv_to_rgb(dx_next, 1.0, v,   &col1[3][0], &col1[3][1], &col1[3][2]);
 				break;
 			case UI_GRAD_H:
 			{
 				/* annoying but without this the color shifts - could be solved some other way
 				 * - campbell */
-				hsv_to_rgb(dx + color_step, 1.0, 1.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
+				hsv_to_rgb(dx_next, 1.0, 1.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
 				copy_v3_v3(col1[1], col1[0]);
 				copy_v3_v3(col1[2], col1[0]);
 				copy_v3_v3(col1[3], col1[0]);
@@ -2117,8 +2120,8 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		}
 		
 		/* rect */
-		sx1 = rect->xmin +  dx               * BLI_rcti_size_x(rect);
-		sx2 = rect->xmin + (dx + color_step) * BLI_rcti_size_x(rect);
+		sx1 = rect->xmin + dx      * BLI_rcti_size_x(rect);
+		sx2 = rect->xmin + dx_next * BLI_rcti_size_x(rect);
 		sy = rect->ymin;
 		dy = (float)BLI_rcti_size_y(rect) / 3.0f;
 		
@@ -2850,6 +2853,16 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 	rect->xmin += BLI_rcti_size_y(rect) * 0.7 + delta;
 }
 
+/* labels use Editor theme colors for text */
+static void widget_state_label(uiWidgetType *wt, int state)
+{
+	/* call this for option button */
+	widget_state(wt, state);
+	if (state & UI_SELECT)
+		UI_GetThemeColor3ubv(TH_TEXT_HI, (unsigned char *)wt->wcol.text);
+	else
+		UI_GetThemeColor3ubv(TH_TEXT, (unsigned char *)wt->wcol.text);
+}
 
 static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
@@ -2970,9 +2983,12 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
 		case UI_WTYPE_LISTLABEL:
 			wt.wcol_theme = &btheme->tui.wcol_list_item;
-			/* fall-through */  /* we use usual label code too. */
+			wt.draw = NULL;
+			/* Can't use usual label code. */
+			break;
 		case UI_WTYPE_LABEL:
 			wt.draw = NULL;
+			wt.state = widget_state_label;
 			break;
 			
 		case UI_WTYPE_TOGGLE:
@@ -3482,7 +3498,7 @@ void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 
 /* helper call to draw a menu item without button */
 /* state: UI_ACTIVE or 0 */
-void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state)
+void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state, bool use_sep)
 {
 	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
 	rcti _rect = *rect;
@@ -3499,21 +3515,25 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 	if (iconid) rect->xmin += UI_DPI_ICON_SIZE;
 
 	/* cut string in 2 parts? */
-	cpoin = strchr(name, '|');
-	if (cpoin) {
-		*cpoin = 0;
-		rect->xmax -= BLF_width(fstyle->uifont_id, cpoin + 1) + 10;
+	if (use_sep) {
+		cpoin = strchr(name, UI_SEP_CHAR);
+		if (cpoin) {
+			*cpoin = 0;
+			rect->xmax -= BLF_width(fstyle->uifont_id, cpoin + 1) + 10;
+		}
 	}
 	
 	glColor4ubv((unsigned char *)wt->wcol.text);
 	uiStyleFontDraw(fstyle, rect, name);
 	
 	/* part text right aligned */
-	if (cpoin) {
-		fstyle->align = UI_STYLE_TEXT_RIGHT;
-		rect->xmax = _rect.xmax - 5;
-		uiStyleFontDraw(fstyle, rect, cpoin + 1);
-		*cpoin = '|';
+	if (use_sep) {
+		if (cpoin) {
+			fstyle->align = UI_STYLE_TEXT_RIGHT;
+			rect->xmax = _rect.xmax - 5;
+			uiStyleFontDraw(fstyle, rect, cpoin + 1);
+			*cpoin = UI_SEP_CHAR;
+		}
 	}
 	
 	/* restore rect, was messed with */

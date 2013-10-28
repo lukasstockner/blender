@@ -34,14 +34,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_memarena.h"
 #include "BLI_heap.h"
-
-#ifdef __GNUC__
-#  pragma GCC diagnostic error "-Wsign-conversion"
-#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 406  /* gcc4.6+ only */
-#    pragma GCC diagnostic error "-Wsign-compare"
-#    pragma GCC diagnostic error "-Wconversion"
-#  endif
-#endif
+#include "BLI_strict_flags.h"
 
 /***/
 
@@ -134,7 +127,7 @@ Heap *BLI_heap_new_ex(unsigned int tot_reserve)
 	/* ensure we have at least one so we can keep doubling it */
 	heap->bufsize = MAX2(1, tot_reserve);
 	heap->tree = (HeapNode **)MEM_mallocN(heap->bufsize * sizeof(HeapNode *), "BLIHeapTree");
-	heap->arena = BLI_memarena_new(1 << 16, "heap arena");
+	heap->arena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "heap arena");
 
 	return heap;
 }

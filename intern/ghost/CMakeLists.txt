@@ -44,7 +44,6 @@ set(SRC
 	intern/GHOST_ISystemPaths.cpp
 	intern/GHOST_ModifierKeys.cpp
 	intern/GHOST_Path-api.cpp
-	intern/GHOST_Path-api.cpp
 	intern/GHOST_Rect.cpp
 	intern/GHOST_System.cpp
 	intern/GHOST_TimerManager.cpp
@@ -191,6 +190,10 @@ elseif(APPLE)
 				intern/GHOST_NDOFManagerCocoa.mm
 				intern/GHOST_NDOFManagerCocoa.h
 			)
+			list(APPEND SRC_NDOF3DCONNEXION
+				intern/GHOST_NDOFManager3Dconnexion.c
+				intern/GHOST_NDOFManager3Dconnexion.h
+			)
 		endif()
 
 	else()
@@ -319,3 +322,7 @@ add_definitions(-DGLEW_STATIC)
 
 blender_add_lib(bf_intern_ghost "${SRC}" "${INC}" "${INC_SYS}")
 
+# workaround for apple clang mangling extern "C" symbols
+if(WITH_INPUT_NDOF AND WITH_COCOA)
+	blender_add_lib(bf_intern_ghostndof3dconnexion "${SRC_NDOF3DCONNEXION}" "${INC}" "${INC_SYS}")
+endif()

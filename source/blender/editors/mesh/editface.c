@@ -691,6 +691,7 @@ void ED_mesh_mirrtopo_init(Mesh *me, const int ob_mode, MirrTopoStore_t *mesh_to
 	int a, last;
 	int totvert, totedge;
 	int tot_unique = -1, tot_unique_prev = -1;
+	int tot_unique_edges = 0, tot_unique_edges_prev;
 
 	MirrTopoHash_t *topo_hash = NULL;
 	MirrTopoHash_t *topo_hash_prev = NULL;
@@ -720,36 +721,45 @@ void ED_mesh_mirrtopo_init(Mesh *me, const int ob_mode, MirrTopoStore_t *mesh_to
 		totedge = me->edit_btmesh->bm->totedge;
 
 		BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-			topo_hash[BM_elem_index_get(eed->v1)]++;
-			topo_hash[BM_elem_index_get(eed->v2)]++;
+			const int i1 = BM_elem_index_get(eed->v1), i2 = BM_elem_index_get(eed->v2);
+			topo_hash[i1]++;
+			topo_hash[i2]++;
 		}
 	}
 	else {
 		totedge = me->totedge;
 
 		for (a = 0, medge = me->medge; a < me->totedge; a++, medge++) {
-			topo_hash[medge->v1]++;
-			topo_hash[medge->v2]++;
+			const unsigned int i1 = medge->v1, i2 = medge->v2;
+			topo_hash[i1]++;
+			topo_hash[i2]++;
 		}
 	}
 
 	topo_hash_prev = MEM_dupallocN(topo_hash);
 
 	tot_unique_prev = -1;
+	tot_unique_edges_prev = -1;
 	while (1) {
 		/* use the number of edges per vert to give verts unique topology IDs */
 
+		tot_unique_edges = 0;
+
+		/* This can make really big numbers, wrapping around here is fine */
 		if (em) {
 			BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-				topo_hash[BM_elem_index_get(eed->v1)] += topo_hash_prev[BM_elem_index_get(eed->v2)] * topo_pass;
-				topo_hash[BM_elem_index_get(eed->v2)] += topo_hash_prev[BM_elem_index_get(eed->v1)] * topo_pass;
+				const int i1 = BM_elem_index_get(eed->v1), i2 = BM_elem_index_get(eed->v2);
+				topo_hash[i1] += topo_hash_prev[i2] * topo_pass;
+				topo_hash[i2] += topo_hash_prev[i1] * topo_pass;
+				tot_unique_edges += (topo_hash[i1] != topo_hash[i2]);
 			}
 		}
 		else {
 			for (a = 0, medge = me->medge; a < me->totedge; a++, medge++) {
-				/* This can make really big numbers, wrapping around here is fine */
-				topo_hash[medge->v1] += topo_hash_prev[medge->v2] * topo_pass;
-				topo_hash[medge->v2] += topo_hash_prev[medge->v1] * topo_pass;
+				const unsigned int i1 = medge->v1, i2 = medge->v2;
+				topo_hash[i1] += topo_hash_prev[i2] * topo_pass;
+				topo_hash[i2] += topo_hash_prev[i1] * topo_pass;
+				tot_unique_edges += (topo_hash[i1] != topo_hash[i2]);
 			}
 		}
 		memcpy(topo_hash_prev, topo_hash, sizeof(MirrTopoHash_t) * totvert);
@@ -764,13 +774,14 @@ void ED_mesh_mirrtopo_init(Mesh *me, const int ob_mode, MirrTopoStore_t *mesh_to
 			}
 		}
 
-		if (tot_unique <= tot_unique_prev) {
+		if ((tot_unique <= tot_unique_prev) && (tot_unique_edges <= tot_unique_edges_prev)) {
 			/* Finish searching for unique values when 1 loop dosnt give a
 			 * higher number of unique values compared to the previous loop */
 			break;
 		}
 		else {
 			tot_unique_prev = tot_unique;
+			tot_unique_edges_prev = tot_unique_edges;
 		}
 		/* Copy the hash calculated this iter, so we can use them next time */
 		memcpy(topo_hash_prev, topo_hash, sizeof(MirrTopoHash_t) * totvert);
@@ -786,7 +797,7 @@ void ED_mesh_mirrtopo_init(Mesh *me, const int ob_mode, MirrTopoStore_t *mesh_to
 
 	if (em) {
 		if (skip_em_vert_array_init == false) {
-			EDBM_index_arrays_ensure(em, BM_VERT);
+			BM_mesh_elem_table_ensure(em->bm, BM_VERT);
 		}
 	}
 
@@ -811,8 +822,8 @@ void ED_mesh_mirrtopo_init(Mesh *me, const int ob_mode, MirrTopoStore_t *mesh_to
 		if ((a == totvert) || (topo_pairs[a - 1].hash != topo_pairs[a].hash)) {
 			if (a - last == 2) {
 				if (em) {
-					index_lookup[topo_pairs[a - 1].v_index] = (intptr_t)EDBM_vert_at_index(em, topo_pairs[a - 2].v_index);
-					index_lookup[topo_pairs[a - 2].v_index] = (intptr_t)EDBM_vert_at_index(em, topo_pairs[a - 1].v_index);
+					index_lookup[topo_pairs[a - 1].v_index] = (intptr_t)BM_vert_at_index(em->bm, topo_pairs[a - 2].v_index);
+					index_lookup[topo_pairs[a - 2].v_index] = (intptr_t)BM_vert_at_index(em->bm, topo_pairs[a - 1].v_index);
 				}
 				else {
 					index_lookup[topo_pairs[a - 1].v_index] = topo_pairs[a - 2].v_index;

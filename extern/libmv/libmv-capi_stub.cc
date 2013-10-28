@@ -85,7 +85,7 @@ struct libmv_Tracks *libmv_tracksNew(void)
 }
 
 void libmv_tracksInsert(struct libmv_Tracks * /*libmv_tracks*/, int /*image*/,
-                        int /*track*/, double /*x*/, double /*y*/)
+                        int /*track*/, double /*x*/, double /*y*/, double /*weight*/)
 {
 }
 
@@ -277,6 +277,15 @@ void libmv_cameraIntrinsicsInvert(const libmv_CameraIntrinsicsOptions *libmv_cam
 	*y1 = (y - principal_y) / focal_length;
 }
 
+void libmv_homography2DFromCorrespondencesEuc(double (* /* x1 */)[2], double (* /* x2 */)[2], int /* num_points */,
+                                              double H[3][3])
+{
+	memset(H, 0, sizeof(double[3][3]));
+	H[0][0] = 1.0f;
+	H[1][1] = 1.0f;
+	H[2][2] = 1.0f;
+}
+
 void libmv_applyInverseCanonicalHomography(double x, double y,
                                            const double *xs, const double *ys,
                                            int num_samples_x, int num_samples_y,
@@ -285,15 +294,6 @@ void libmv_applyInverseCanonicalHomography(double x, double y,
 {
 	*warped_position_x = (double) num_samples_x * 0.5;
 	*warped_position_y = (double) num_samples_y * 0.5;
-}
-
-void libmv_homography2DFromCorrespondencesLinear(double (* /* x1 */)[2], double (* /* x2 */)[2], int /* num_points */,
-                                                 double H[3][3], double /* expected_precision */)
-{
-	memset(H, 0, sizeof(H));
-	N[0][0] = 1.0f;
-	N[1][1] = 1.0f;
-	N[02[2] = 1.0f;
 }
 
 #endif  // ifndef WITH_LIBMV

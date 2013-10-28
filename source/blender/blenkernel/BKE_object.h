@@ -48,6 +48,7 @@ struct rctf;
 struct MovieClip;
 struct Main;
 struct RigidBodyWorld;
+struct HookModifierData;
 
 void BKE_object_workob_clear(struct Object *workob);
 void BKE_object_workob_calc_parent(struct Scene *scene, struct Object *ob, struct Object *workob);
@@ -60,10 +61,13 @@ void BKE_object_copy_softbody(struct Object *obn, struct Object *ob);
 void BKE_object_free_particlesystems(struct Object *ob);
 void BKE_object_free_softbody(struct Object *ob);
 void BKE_object_free_bulletsoftbody(struct Object *ob);
+void BKE_object_free_curve_cache(struct Object *ob);
 void BKE_object_update_base_layer(struct Scene *scene, struct Object *ob);
 
 void BKE_object_free(struct Object *ob);
 void BKE_object_free_derived_caches(struct Object *ob);
+
+void BKE_object_modifier_hook_reset(struct Object *ob, struct HookModifierData *hmd);
 
 bool BKE_object_support_modifier_type_check(struct Object *ob, int modifier_type);
 
@@ -169,7 +173,7 @@ int BKE_object_is_deform_modified(struct Scene *scene, struct Object *ob);
 
 void BKE_object_relink(struct Object *ob);
 
-struct MovieClip *BKE_object_movieclip_get(struct Scene *scene, struct Object *ob, int use_default);
+struct MovieClip *BKE_object_movieclip_get(struct Scene *scene, struct Object *ob, bool use_default);
 
 /* this function returns a superset of the scenes selection based on relationships */
 
@@ -192,6 +196,8 @@ typedef enum eObjectSet {
 struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter);
 struct LinkNode *BKE_object_groups(struct Object *ob);
 void             BKE_object_groups_clear(struct Scene *scene, struct Base *base, struct Object *object);
+
+struct KDTree *BKE_object_as_kdtree(struct Object *ob, int *r_tot);
 
 #ifdef __cplusplus
 }

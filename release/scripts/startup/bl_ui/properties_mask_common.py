@@ -31,10 +31,8 @@ class MASK_UL_layers(UIList):
         # assert(isinstance(item, bpy.types.MaskLayer)
         mask = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            split = layout.split()
-            split.label(text=mask.name, translate=False, icon_value=icon)
-            row = split.row(align=True)
-            row.prop(mask, "alpha", text="", emboss=False)
+            layout.label(text=mask.name, translate=False, icon_value=icon)
+            row = layout.row(align=True)
             row.prop(mask, "hide", text="", emboss=False)
             row.prop(mask, "hide_select", text="", emboss=False)
             row.prop(mask, "hide_render", text="", emboss=False)
@@ -84,7 +82,7 @@ class MASK_PT_layers:
         mask = sc.mask
         active_layer = mask.layers.active
 
-        rows = 5 if active_layer else 2
+        rows = 4 if active_layer else 1
 
         row = layout.row()
         row.template_list("MASK_UL_layers", "", mask, "layers",
@@ -98,11 +96,8 @@ class MASK_PT_layers:
         if active_layer:
             sub.separator()
 
-            props = sub.operator("mask.layer_move", icon='TRIA_UP', text="")
-            props.direction = 'UP'
-
-            props = sub.operator("mask.layer_move", icon='TRIA_DOWN', text="")
-            props.direction = 'DOWN'
+            sub.operator("mask.layer_move", icon='TRIA_UP', text="").direction = 'UP'
+            sub.operator("mask.layer_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
             layout.prop(active_layer, "name")
 
@@ -227,6 +222,11 @@ class MASK_PT_display():
         layout.prop(space_data, "mask_draw_type", text="")
         layout.prop(space_data, "show_mask_smooth")
 
+        layout.prop(space_data, "show_mask_overlay")
+        row = layout.row()
+        row.active = space_data.show_mask_overlay
+        row.prop(space_data, "mask_overlay_mode", text="")
+
 
 class MASK_PT_tools():
     # subclasses must define...
@@ -247,8 +247,7 @@ class MASK_PT_tools():
         col.operator("transform.translate")
         col.operator("transform.rotate")
         col.operator("transform.resize", text="Scale")
-        props = col.operator("transform.transform", text="Scale Feather")
-        props.mode = 'MASK_SHRINKFATTEN'
+        col.operator("transform.transform", text="Scale Feather").mode = 'MASK_SHRINKFATTEN'
 
         col = layout.column(align=True)
         col.label(text="Spline:")
@@ -303,9 +302,7 @@ class MASK_MT_visibility(Menu):
 
         layout.operator("mask.hide_view_clear", text="Show Hidden")
         layout.operator("mask.hide_view_set", text="Hide Selected")
-
-        props = layout.operator("mask.hide_view_set", text="Hide Unselected")
-        props.unselected = True
+        layout.operator("mask.hide_view_set", text="Hide Unselected").unselected = True
 
 
 class MASK_MT_transform(Menu):
@@ -317,8 +314,7 @@ class MASK_MT_transform(Menu):
         layout.operator("transform.translate")
         layout.operator("transform.rotate")
         layout.operator("transform.resize")
-        props = layout.operator("transform.transform", text="Scale Feather")
-        props.mode = 'MASK_SHRINKFATTEN'
+        layout.operator("transform.transform", text="Scale Feather").mode = 'MASK_SHRINKFATTEN'
 
 
 class MASK_MT_animation(Menu):

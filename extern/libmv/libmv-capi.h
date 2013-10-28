@@ -73,7 +73,7 @@ void libmv_samplePlanarPatch(const float *image, int width, int height,
 /* Tracks */
 struct libmv_Tracks *libmv_tracksNew(void);
 void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks);
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y);
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y, double weight);
 
 /* Reconstruction */
 #define LIBMV_REFINE_FOCAL_LENGTH          (1 << 0)
@@ -94,9 +94,6 @@ typedef struct libmv_ReconstructionOptions {
 	int keyframe1, keyframe2;
 
 	int refine_intrinsics;
-
-	double success_threshold;
-	int use_fallback_reconstruction;
 } libmv_ReconstructionOptions;
 
 typedef void (*reconstruct_progress_update_cb) (void *customdata, double progress, const char *message);
@@ -159,14 +156,13 @@ void libmv_cameraIntrinsicsApply(const libmv_CameraIntrinsicsOptions *libmv_came
 void libmv_cameraIntrinsicsInvert(const libmv_CameraIntrinsicsOptions *libmv_camera_intrinsics_options,
                                   double x, double y, double *x1, double *y1);
 
+void libmv_homography2DFromCorrespondencesEuc(double (*x1)[2], double (*x2)[2], int num_points, double H[3][3]);
+
 void libmv_applyInverseCanonicalHomography(double x, double y,
                                            const double *xs, const double *ys,
                                            int num_samples_x, int num_samples_y,
                                            double *warped_position_x,
                                            double *warped_position_y);
-
-void libmv_homography2DFromCorrespondencesLinear(double (*x1)[2], double (*x2)[2], int num_points,
-                                                 double H[3][3], double expected_precision);
 
 #ifdef __cplusplus
 }

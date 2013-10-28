@@ -118,6 +118,7 @@ EnumPropertyItem modifier_type_items[] = {
 #include "BKE_depsgraph.h"
 #include "BKE_library.h"
 #include "BKE_modifier.h"
+#include "BKE_object.h"
 #include "BKE_particle.h"
 
 static void rna_UVProject_projectors_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -492,7 +493,8 @@ static void rna_MultiresModifier_type_set(PointerRNA *ptr, int value)
 	mmd->simple = value;
 }
 
-static void rna_MultiresModifier_level_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_MultiresModifier_level_range(PointerRNA *ptr, int *min, int *max,
+                                             int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	MultiresModifierData *mmd = (MultiresModifierData *)ptr->data;
 
@@ -533,6 +535,14 @@ static int rna_MultiresModifier_filepath_length(PointerRNA *ptr)
 	CustomDataExternal *external = ((Mesh *)ob->data)->ldata.external;
 
 	return strlen((external) ? external->filename : "");
+}
+
+static void rna_HookModifier_object_set(PointerRNA *ptr, PointerRNA value)
+{
+	HookModifierData *hmd = ptr->data;
+
+	hmd->object = (Object *)value.data;
+	BKE_object_modifier_hook_reset((Object *)ptr->id.data, hmd);
 }
 
 static void modifier_object_set(Object *self, Object **ob_p, int type, PointerRNA value)
@@ -667,8 +677,8 @@ static void rna_UVProjectModifier_num_projectors_set(PointerRNA *ptr, int value)
 	UVProjectModifierData *md = (UVProjectModifierData *)ptr->data;
 	int a;
 
-	md->num_projectors = CLAMPIS(value, 1, MOD_UVPROJECT_MAX);
-	for (a = md->num_projectors; a < MOD_UVPROJECT_MAX; a++)
+	md->num_projectors = CLAMPIS(value, 1, MOD_UVPROJECT_MAXPROJECTORS);
+	for (a = md->num_projectors; a < MOD_UVPROJECT_MAXPROJECTORS; a++)
 		md->projectors[a] = NULL;
 }
 
@@ -1433,6 +1443,7 @@ static void rna_def_modifier_hook(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Object", "Parent Object for hook, also recalculates and clears offset");
 	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_HookModifier_object_set", NULL, NULL);
 	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 	
 	prop = RNA_def_property(srna, "subtarget", PROP_STRING, PROP_NONE);
@@ -1720,7 +1731,7 @@ static void rna_def_modifier_uvproject(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "num_projectors");
 	RNA_def_property_ui_text(prop, "Number of Projectors", "Number of projectors to use");
 	RNA_def_property_int_funcs(prop, NULL, "rna_UVProjectModifier_num_projectors_set", NULL);
-	RNA_def_property_range(prop, 1, MOD_UVPROJECT_MAX);
+	RNA_def_property_range(prop, 1, MOD_UVPROJECT_MAXPROJECTORS);
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "projectors", PROP_COLLECTION, PROP_NONE);
@@ -2781,7 +2792,7 @@ static void rna_def_modifier_screw(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "angle", PROP_FLOAT, PROP_ANGLE);
-	RNA_def_property_ui_range(prop, 0, -M_PI * 2, M_PI * 2, 2);
+	RNA_def_property_ui_range(prop, -M_PI * 2, M_PI * 2, 2, -1);
 	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
 	RNA_def_property_ui_text(prop, "Angle", "Angle of revolution");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");

@@ -32,8 +32,8 @@
  *  \ingroup bke
  */
 
-#include "BLI_ghash.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #include "DNA_listBase.h"
 
@@ -131,8 +131,6 @@ typedef struct bNodeSocketType {
 	int type, subtype;
 } bNodeSocketType;
 
-typedef void (*NodeSocketDrawFunction)(struct bContext *C, struct uiLayout *layout, struct PointerRNA *ptr, struct PointerRNA *node_ptr);
-
 typedef void *(*NodeInitExecFunction)(struct bNodeExecContext *context, struct bNode *node, bNodeInstanceKey key);
 typedef void (*NodeFreeExecFunction)(struct bNode *node, void *nodedata);
 typedef void (*NodeExecFunction)(void *data, int thread, struct bNode *, struct bNodeExecData *execdata, struct bNodeStack **in, struct bNodeStack **out);
@@ -162,24 +160,19 @@ typedef struct bNodeType {
 	
 	char storagename[64];			/* struct name for DNA */
 	
-	/// Main draw function for the node.
-	void (*drawfunc)(const struct bContext *C, struct ARegion *ar, struct SpaceNode *snode,
+	/* Main draw function for the node */
+	void (*draw_nodetype)(const struct bContext *C, struct ARegion *ar, struct SpaceNode *snode,
 	                 struct bNodeTree *ntree, struct bNode *node, bNodeInstanceKey key);
-	/// Updates the node geometry attributes according to internal state before actual drawing.
-	void (*drawupdatefunc)(const struct bContext *C, struct bNodeTree *ntree, struct bNode *node);
-	/// Draw the option buttons on the node.
-	void (*uifunc)(struct uiLayout *, struct bContext *C, struct PointerRNA *ptr);
-	/// Additional parameters in the side panel.
-	void (*uifuncbut)(struct uiLayout *, struct bContext *C, struct PointerRNA *ptr);
-	/// Additional drawing on backdrop.
-	void (*uibackdropfunc)(struct SpaceNode *snode, struct ImBuf *backdrop, struct bNode *node, int x, int y);
+	/* Updates the node geometry attributes according to internal state before actual drawing */
+	void (*draw_nodetype_prepare)(const struct bContext *C, struct bNodeTree *ntree, struct bNode *node);
 
-	/// Draw a node socket. Default draws the input value button.
-	/* XXX deprecated, only used for the OutputFile node,
-	 * should be removed at some point.
-	 */
-	NodeSocketDrawFunction drawinputfunc;
-	NodeSocketDrawFunction drawoutputfunc;
+	/* Draw the option buttons on the node */
+	void (*draw_buttons)(struct uiLayout *, struct bContext *C, struct PointerRNA *ptr);
+	/* Additional parameters in the side panel */
+	void (*draw_buttons_ex)(struct uiLayout *, struct bContext *C, struct PointerRNA *ptr);
+
+	/* Additional drawing on backdrop */
+	void (*draw_backdrop)(struct SpaceNode *snode, struct ImBuf *backdrop, struct bNode *node, int x, int y);
 
 	/// Optional custom label function for the node header.
 	const char *(*labelfunc)(struct bNode *);
@@ -337,7 +330,7 @@ struct GHashIterator *ntreeTypeGetIterator(void);
 #define NODE_TREE_TYPES_END \
 	} \
 	BLI_ghashIterator_free(__node_tree_type_iter__); \
-}
+} (void)0
 
 void ntreeSetTypes(const struct bContext *C, struct bNodeTree *ntree);
 
@@ -746,6 +739,7 @@ struct ShadeResult;
 #define SH_NODE_VECT_TRANSFORM			182
 #define SH_NODE_SEPHSV					183
 #define SH_NODE_COMBHSV					184
+#define SH_NODE_BSDF_HAIR				185
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

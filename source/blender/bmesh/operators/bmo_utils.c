@@ -32,7 +32,6 @@
 #include "DNA_meshdata_types.h"
 
 #include "BLI_math.h"
-#include "BLI_heap.h"
 #include "BLI_alloca.h"
 
 #include "BKE_customdata.h"
@@ -41,14 +40,16 @@
 
 #include "intern/bmesh_operators_private.h" /* own include */
 
+#define ELE_NEW 1
+
 void bmo_create_vert_exec(BMesh *bm, BMOperator *op)
 {
 	float vec[3];
 
 	BMO_slot_vec_get(op->slots_in, "co", vec);
 
-	BMO_elem_flag_enable(bm, BM_vert_create(bm, vec, NULL, 0), 1);
-	BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "vert.out", BM_VERT, 1);
+	BMO_elem_flag_enable(bm, BM_vert_create(bm, vec, NULL, BM_CREATE_NOP), ELE_NEW);
+	BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "vert.out", BM_VERT, ELE_NEW);
 }
 
 void bmo_transform_exec(BMesh *UNUSED(bm), BMOperator *op)
@@ -144,19 +145,23 @@ void bmo_rotate_edges_exec(BMesh *bm, BMOperator *op)
 				    BMO_elem_flag_test(bm, fb, FACE_TAINT) == false)
 				{
 
+					/* don't touch again (faces will be freed so run before rotating the edge) */
+					BMO_elem_flag_enable(bm, fa, FACE_TAINT);
+					BMO_elem_flag_enable(bm, fb, FACE_TAINT);
+
 					if (!(e2 = BM_edge_rotate(bm, e, use_ccw, check_flag))) {
+
+						BMO_elem_flag_disable(bm, fa, FACE_TAINT);
+						BMO_elem_flag_disable(bm, fb, FACE_TAINT);
 #if 0
 						BMO_error_raise(bm, op, BMERR_INVALID_SELECTION, "Could not rotate edge");
 						return;
 #endif
+
 						continue;
 					}
 
 					BMO_elem_flag_enable(bm, e2, EDGE_OUT);
-
-					/* don't touch again */
-					BMO_elem_flag_enable(bm, fa, FACE_TAINT);
-					BMO_elem_flag_enable(bm, fb, FACE_TAINT);
 				}
 			}
 		}

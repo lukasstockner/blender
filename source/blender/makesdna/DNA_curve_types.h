@@ -184,11 +184,8 @@ typedef struct Curve {
 	
 	struct Object *bevobj, *taperobj, *textoncurve;
 	struct Ipo *ipo    DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
-	Path *path;
 	struct Key *key;
 	struct Material **mat;
-	
-	ListBase bev;
 	
 	/* texture space, copied as one block in editobject.c */
 	float loc[3];
@@ -367,6 +364,8 @@ typedef enum eBezTriple_KeyframeType {
 /* mixed with KEY_LINEAR but define here since only curve supports */
 #define KEY_CU_EASE			3
 
+/* indicates point has been seen during surface duplication */
+#define SURF_SEEN			4
 
 #endif
 

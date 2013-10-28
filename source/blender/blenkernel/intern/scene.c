@@ -44,6 +44,7 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
+#include "DNA_linestyle_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
@@ -156,6 +157,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		lb = scen->r.layers;
 		scen->r = sce->r;
 		scen->r.layers = lb;
+		scen->r.actlay = 0;
 		scen->unit = sce->unit;
 		scen->physics_settings = sce->physics_settings;
 		scen->gm = sce->gm;
@@ -429,7 +431,7 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.filtertype = R_FILTER_MITCH;
 	sce->r.size = 50;
 
-	sce->r.im_format.planes = R_IMF_PLANES_RGB;
+	sce->r.im_format.planes = R_IMF_PLANES_RGBA;
 	sce->r.im_format.imtype = R_IMF_IMTYPE_PNG;
 	sce->r.im_format.depth = R_IMF_CHAN_DEPTH_8;
 	sce->r.im_format.quality = 90;
@@ -492,23 +494,10 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.border.ymax = 1.0f;
 	
 	sce->toolsettings = MEM_callocN(sizeof(struct ToolSettings), "Tool Settings Struct");
-	sce->toolsettings->cornertype = 1;
-	sce->toolsettings->degr = 90; 
-	sce->toolsettings->step = 9;
-	sce->toolsettings->turn = 1;
-	sce->toolsettings->extr_offs = 1; 
 	sce->toolsettings->doublimit = 0.001;
-	sce->toolsettings->segments = 32;
-	sce->toolsettings->rings = 32;
-	sce->toolsettings->vertices = 32;
-	sce->toolsettings->uvcalc_radius = 1.0f;
-	sce->toolsettings->uvcalc_cubesize = 1.0f;
-	sce->toolsettings->uvcalc_mapdir = 1;
-	sce->toolsettings->uvcalc_mapalign = 1;
 	sce->toolsettings->uvcalc_margin = 0.001f;
 	sce->toolsettings->unwrapper = 1;
 	sce->toolsettings->select_thresh = 0.01f;
-	sce->toolsettings->jointrilimit = 0.8f;
 
 	sce->toolsettings->selectmode = SCE_SELECT_VERTEX;
 	sce->toolsettings->uv_selectmode = UV_SELECT_VERTEX;
@@ -886,18 +875,35 @@ Object *BKE_scene_camera_switch_find(Scene *scene)
 	TimeMarker *m;
 	int cfra = scene->r.cfra;
 	int frame = -(MAXFRAME + 1);
+	int min_frame = MAXFRAME + 1;
 	Object *camera = NULL;
+	Object *first_camera = NULL;
 
 	for (m = scene->markers.first; m; m = m->next) {
-		if (m->camera && (m->camera->restrictflag & OB_RESTRICT_RENDER) == 0 && (m->frame <= cfra) && (m->frame > frame)) {
-			camera = m->camera;
-			frame = m->frame;
+		if (m->camera && (m->camera->restrictflag & OB_RESTRICT_RENDER) == 0) {
+			if ((m->frame <= cfra) && (m->frame > frame)) {
+				camera = m->camera;
+				frame = m->frame;
 
-			if (frame == cfra)
-				break;
+				if (frame == cfra)
+					break;
+			}
 
+			if (m->frame < min_frame) {
+				first_camera = m->camera;
+				min_frame = m->frame;
+			}
 		}
 	}
+
+	if (camera == NULL) {
+		/* If there's no marker to the left of current frame,
+		 * use camera from left-most marker to solve all sort
+		 * of Schrodinger uncertainties.
+		 */
+		return first_camera;
+	}
+
 	return camera;
 }
 #endif
@@ -1064,6 +1070,7 @@ void BKE_scene_frame_set(struct Scene *scene, double cfra)
  */
 static void scene_update_drivers(Main *UNUSED(bmain), Scene *scene)
 {
+	SceneRenderLayer *srl;
 	float ctime = BKE_scene_frame_get(scene);
 	
 	/* scene itself */
@@ -1097,6 +1104,22 @@ static void scene_update_drivers(Main *UNUSED(bmain), Scene *scene)
 		
 		if (adt && adt->drivers.first)
 			BKE_animsys_evaluate_animdata(scene, nid, adt, ctime, ADT_RECALC_DRIVERS);
+	}
+
+	/* freestyle */
+	for (srl = scene->r.layers.first; srl; srl = srl->next) {
+		FreestyleConfig *config = &srl->freestyleConfig;
+		FreestyleLineSet *lineset;
+
+		for (lineset = config->linesets.first; lineset; lineset = lineset->next) {
+			if (lineset->linestyle) {
+				ID *lid = &lineset->linestyle->id;
+				AnimData *adt = BKE_animdata_from_id(lid);
+
+				if (adt && adt->drivers.first)
+					BKE_animsys_evaluate_animdata(scene, lid, adt, ctime, ADT_RECALC_DRIVERS);
+			}
+		}
 	}
 }
 
@@ -1479,16 +1502,6 @@ void BKE_scene_disable_color_management(Scene *scene)
 
 int BKE_scene_check_color_management_enabled(const Scene *scene)
 {
-	/* TODO(sergey): shouldn't be needed. but we're currently far to close to the release,
-	 *               so better be extra-safe than sorry.
-	 *
-	 *               Will remove the check after the release.
-	 */
-	if (!scene) {
-		BLI_assert(!"Shouldn't happen!");
-		return TRUE;
-	}
-
 	return strcmp(scene->display_settings.display_device, "None") != 0;
 }
 

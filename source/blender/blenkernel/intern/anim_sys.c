@@ -42,6 +42,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_alloca.h"
 #include "BLI_dynstr.h"
+#include "BLI_listbase.h"
 
 #include "BLF_translation.h"
 
@@ -710,6 +711,49 @@ static void nlastrips_path_rename_fix(ID *owner_id, const char *prefix, const ch
 	}
 }
 
+/* Fix all RNA_Paths in the given Action, relative to the given ID block 
+ *
+ * This is just an external wrapper for the F-Curve fixing function,
+ * with input validity checks on top of the basic method.
+ *
+ * NOTE: it is assumed that the structure we're replacing is <prefix><["><name><"]>
+ *       i.e. pose.bones["Bone"]
+ */
+void BKE_action_fix_paths_rename(ID *owner_id, bAction *act, const char *prefix, const char *oldName,
+                                 const char *newName, int oldSubscript, int newSubscript, int verify_paths)
+{
+	char *oldN, *newN;
+	
+	/* if no action, no need to proceed */
+	if (ELEM(NULL, owner_id, act))
+		return;
+	
+	/* Name sanitation logic - copied from BKE_animdata_fix_paths_rename() */
+	if ((oldName != NULL) && (newName != NULL)) {
+		/* pad the names with [" "] so that only exact matches are made */
+		const size_t name_old_len = strlen(oldName);
+		const size_t name_new_len = strlen(newName);
+		char *name_old_esc = BLI_array_alloca(name_old_esc, (name_old_len * 2) + 1);
+		char *name_new_esc = BLI_array_alloca(name_new_esc, (name_new_len * 2) + 1);
+
+		BLI_strescape(name_old_esc, oldName, (name_old_len * 2) + 1);
+		BLI_strescape(name_new_esc, newName, (name_new_len * 2) + 1);
+		oldN = BLI_sprintfN("[\"%s\"]", name_old_esc);
+		newN = BLI_sprintfN("[\"%s\"]", name_new_esc);
+	}
+	else {
+		oldN = BLI_sprintfN("[%d]", oldSubscript);
+		newN = BLI_sprintfN("[%d]", newSubscript);
+	}
+	
+	/* fix paths in action */
+	fcurves_path_rename_fix(owner_id, prefix, oldName, newName, oldN, newN, &act->curves, verify_paths);
+	
+	/* free the temp names */
+	MEM_freeN(oldN);
+	MEM_freeN(newN);
+}
+
 /* Fix all RNA-Paths in the AnimData block used by the given ID block
  * NOTE: it is assumed that the structure we're replacing is <prefix><["><name><"]>
  *       i.e. pose.bones["Bone"]
@@ -724,6 +768,7 @@ void BKE_animdata_fix_paths_rename(ID *owner_id, AnimData *adt, ID *ref_id, cons
 	if (ELEM(NULL, owner_id, adt))
 		return;
 	
+	/* Name sanitation logic - shared with BKE_action_fix_paths_rename() */
 	if ((oldName != NULL) && (newName != NULL)) {
 		/* pad the names with [" "] so that only exact matches are made */
 		const size_t name_old_len = strlen(oldName);
@@ -757,6 +802,76 @@ void BKE_animdata_fix_paths_rename(ID *owner_id, AnimData *adt, ID *ref_id, cons
 	/* free the temp names */
 	MEM_freeN(oldN);
 	MEM_freeN(newN);
+}
+
+/* *************************** */
+/* remove of individual paths */
+
+/* Check RNA-Paths for a list of F-Curves */
+static void fcurves_path_remove_fix(const char *prefix, ListBase *curves)
+{
+	FCurve *fcu, *fcn;
+	if (!prefix) return;
+
+	/* we need to check every curve... */
+	for (fcu = curves->first; fcu; fcu = fcn) {
+		fcn = fcu->next;
+
+		if (fcu->rna_path) {
+			if (STRPREFIX(fcu->rna_path, prefix)) {
+				BLI_remlink(curves, fcu);
+				free_fcurve(fcu);
+			}
+		}
+	}
+}
+
+/* Check RNA-Paths for a list of F-Curves */
+static void nlastrips_path_remove_fix(const char *prefix, ListBase *strips)
+{
+	NlaStrip *strip;
+
+	/* recursively check strips, fixing only actions... */
+	for (strip = strips->first; strip; strip = strip->next) {
+
+		/* fix strip's action */
+		if (strip->act)
+			fcurves_path_remove_fix(prefix, &strip->act->curves);
+
+		/* check sub-strips (if metas) */
+		nlastrips_path_remove_fix(prefix, &strip->strips);
+	}
+}
+
+void BKE_animdata_fix_paths_remove(ID *id, const char *prefix)
+{
+	/* Only some ID-blocks have this info for now, so we cast the
+	 * types that do to be of type IdAdtTemplate
+	 */
+	NlaTrack *nlt;
+
+	if (id_type_can_have_animdata(id)) {
+		IdAdtTemplate *iat = (IdAdtTemplate *)id;
+		AnimData *adt = iat->adt;
+
+		/* check if there's any AnimData to start with */
+		if (adt) {
+
+			/* free fcurves */
+			if (adt->action)
+				fcurves_path_remove_fix(prefix, &adt->action->curves);
+
+			if (adt->tmpact)
+				fcurves_path_remove_fix(prefix, &adt->tmpact->curves);
+
+			/* free drivers - stored as a list of F-Curves */
+			fcurves_path_remove_fix(prefix, &adt->drivers);
+
+			/* NLA Data - Animation Data for Strips */
+			for (nlt = adt->nla_tracks.first; nlt; nlt = nlt->next)
+				nlastrips_path_remove_fix(prefix, &nlt->strips);
+		}
+	}
 }
 
 /* Whole Database Ops -------------------------------------------- */
@@ -1652,19 +1767,19 @@ static void nlaevalchan_value_init(NlaEvalChannel *nec)
 	 */
 	switch (RNA_property_type(prop)) {
 		case PROP_BOOLEAN:
-			if (RNA_property_array_length(ptr, prop))
+			if (RNA_property_array_check(prop))
 				nec->value = (float)RNA_property_boolean_get_default_index(ptr, prop, index);
 			else
 				nec->value = (float)RNA_property_boolean_get_default(ptr, prop);
 			break;
 		case PROP_INT:
-			if (RNA_property_array_length(ptr, prop))
+			if (RNA_property_array_check(prop))
 				nec->value = (float)RNA_property_int_get_default_index(ptr, prop, index);
 			else
 				nec->value = (float)RNA_property_int_get_default(ptr, prop);
 			break;
 		case PROP_FLOAT:
-			if (RNA_property_array_length(ptr, prop))
+			if (RNA_property_array_check(prop))
 				nec->value = RNA_property_float_get_default_index(ptr, prop, index);
 			else
 				nec->value = RNA_property_float_get_default(ptr, prop);
@@ -2071,19 +2186,19 @@ void nladata_flush_channels(ListBase *channels)
 		/* write values - see animsys_write_rna_setting() to sync the code */
 		switch (RNA_property_type(prop)) {
 			case PROP_BOOLEAN:
-				if (RNA_property_array_length(ptr, prop))
+				if (RNA_property_array_check(prop))
 					RNA_property_boolean_set_index(ptr, prop, array_index, ANIMSYS_FLOAT_AS_BOOL(value));
 				else
 					RNA_property_boolean_set(ptr, prop, ANIMSYS_FLOAT_AS_BOOL(value));
 				break;
 			case PROP_INT:
-				if (RNA_property_array_length(ptr, prop))
+				if (RNA_property_array_check(prop))
 					RNA_property_int_set_index(ptr, prop, array_index, (int)value);
 				else
 					RNA_property_int_set(ptr, prop, (int)value);
 				break;
 			case PROP_FLOAT:
-				if (RNA_property_array_length(ptr, prop))
+				if (RNA_property_array_check(prop))
 					RNA_property_float_set_index(ptr, prop, array_index, value);
 				else
 					RNA_property_float_set(ptr, prop, value);

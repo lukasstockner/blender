@@ -114,8 +114,8 @@ void wm_get_screensize(int *width_r, int *height_r)
 	*height_r = uiheight;
 }
 
-/* size of all screens, useful since the mouse is bound by this */
-void wm_get_screensize_all(int *width_r, int *height_r)
+/* size of all screens (desktop), useful since the mouse is bound by this */
+void wm_get_desktopsize(int *width_r, int *height_r)
 {
 	unsigned int uiwidth;
 	unsigned int uiheight;
@@ -375,15 +375,15 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 		/* needed so we can detect the graphics card below */
 		GPU_extensions_init();
 		
-		/* set the state*/
-		GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
-
 		win->ghostwin = ghostwin;
 		GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
 		
 		if (win->eventstate == NULL)
 			win->eventstate = MEM_callocN(sizeof(wmEvent), "window event state");
 		
+		/* set the state */
+		GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
+
 		/* until screens get drawn, make it nice gray */
 		glClearColor(0.55, 0.55, 0.55, 0.0);
 		/* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
@@ -856,7 +856,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 					
 					GHOST_DisposeRectangle(client_rect);
 					
-					wm_get_screensize_all(&scr_w, &scr_h);
+					wm_get_desktopsize(&scr_w, &scr_h);
 					sizex = r - l;
 					sizey = b - t;
 					posx = l;

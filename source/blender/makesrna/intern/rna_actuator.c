@@ -45,7 +45,7 @@
 #include "WM_types.h"
 
 /* Always keep in alphabetical order */
-EnumPropertyItem actuator_type_items[] = {
+static EnumPropertyItem actuator_type_items[] = {
 	{ACT_ACTION, "ACTION", 0, "Action", ""},
 	{ACT_ARMATURE, "ARMATURE", 0, "Armature", ""},
 	{ACT_CAMERA, "CAMERA", 0, "Camera", ""},
@@ -700,7 +700,7 @@ static void rna_def_action_actuator(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "blend_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "blend_mode");
 	RNA_def_property_enum_items(prop, prop_blend_items);
-	RNA_def_property_ui_text(prop, "Blend Mode", "Determines how this layer is blended with previous layers");
+	RNA_def_property_ui_text(prop, "Blend Mode", "How this layer is blended with previous layers");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 #ifdef __NLA_ACTION_BY_MOTION_ACTUATOR

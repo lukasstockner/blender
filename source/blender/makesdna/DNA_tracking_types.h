@@ -142,6 +142,17 @@ typedef struct MovieTrackingTrack {
 	float minimum_correlation;          /* minimal correlation which is still treated as successful tracking */
 
 	struct bGPdata *gpd;        /* grease-pencil data */
+
+	/* Weight of this track.
+	 *
+	 * Weight defines how much the track affects on the final reconstruction,
+	 * usually gets animated in a way so when track has just appeared it's
+	 * weight is zero and then it gets faded up.
+	 *
+	 * Used to prevent jumps of the camera when tracks are appearing or
+	 * disappearing.
+	 */
+	float weight, pad;
 } MovieTrackingTrack;
 
 typedef struct MovieTrackingPlaneMarker {
@@ -170,7 +181,7 @@ typedef struct MovieTrackingPlaneTrack {
 	char name[64];  /* MAX_NAME */
 
 	MovieTrackingTrack **point_tracks;  /* Array of point tracks used to define this plane.
-	                                       Each element is a pointer to MovieTrackingTrack. */
+	                                     * Each element is a pointer to MovieTrackingTrack. */
 	int point_tracksnr, pad;  /* Number of tracks in point_tracks array. */
 
 	MovieTrackingPlaneMarker *markers;   /* Markers in the plane track */
@@ -207,8 +218,7 @@ typedef struct MovieTrackingSettings {
 		                             * were moved to per-tracking object settings
 		                             */
 
-	float reconstruction_success_threshold;
-	int reconstruction_flag;
+	int reconstruction_flag, pad;
 
 	/* which camera intrinsics to refine. uses on the REFINE_* flags */
 	short refine_camera_intrinsics, pad2;
@@ -409,7 +419,7 @@ enum {
 
 /* MovieTrackingSettings->reconstruction_flag */
 enum {
-	TRACKING_USE_FALLBACK_RECONSTRUCTION = (1 << 0),
+	/* TRACKING_USE_FALLBACK_RECONSTRUCTION = (1 << 0), */  /* DEPRECATED */
 	TRACKING_USE_KEYFRAME_SELECTION      = (1 << 1)
 };
 
@@ -481,8 +491,9 @@ enum {
 
 /* MovieTrackingPlaneTrack->flag */
 enum {
-	PLANE_TRACK_HIDDEN = (1 << 1),
-	PLANE_TRACK_LOCKED = (1 << 2),
+	PLANE_TRACK_HIDDEN  = (1 << 1),
+	PLANE_TRACK_LOCKED  = (1 << 2),
+	PLANE_TRACK_AUTOKEY = (1 << 3),
 };
 
 #endif  /* __DNA_TRACKING_TYPES_H__ */

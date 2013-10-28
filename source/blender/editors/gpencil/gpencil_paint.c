@@ -211,7 +211,7 @@ static int gpencil_project_check(tGPsdata *p)
 static void gp_get_3d_reference(tGPsdata *p, float vec[3])
 {
 	View3D *v3d = p->sa->spacedata.first;
-	const float *fp = give_cursor(p->scene, v3d);
+	const float *fp = ED_view3d_cursor3d_get(p->scene, v3d);
 	
 	/* the reference point used depends on the owner... */
 #if 0 /* XXX: disabled for now, since we can't draw relative to the owner yet */
@@ -1431,7 +1431,7 @@ static void gpencil_draw_exit(bContext *C, wmOperator *op)
 	gpencil_undo_finish();
 	
 	/* restore cursor to indicate end of drawing */
-	WM_cursor_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(CTX_wm_window(C));
 	
 	/* don't assume that operator data exists at all */
 	if (p) {
@@ -1679,7 +1679,7 @@ static int gpencil_draw_exec(bContext *C, wmOperator *op)
 	/* loop over the stroke RNA elements recorded (i.e. progress of mouse movement),
 	 * setting the relevant values in context at each step, then applying
 	 */
-	RNA_BEGIN(op->ptr, itemptr, "stroke")
+	RNA_BEGIN (op->ptr, itemptr, "stroke")
 	{
 		float mousef[2];
 		
@@ -1764,9 +1764,9 @@ static int gpencil_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	
 	/* set cursor */
 	if (p->paintmode == GP_PAINTMODE_ERASER)
-		WM_cursor_modal(win, BC_CROSSCURSOR);  /* XXX need a better cursor */
+		WM_cursor_modal_set(win, BC_CROSSCURSOR);  /* XXX need a better cursor */
 	else
-		WM_cursor_modal(win, BC_PAINTBRUSHCURSOR);
+		WM_cursor_modal_set(win, BC_PAINTBRUSHCURSOR);
 	
 	/* special hack: if there was an initial event, then we were invoked via a hotkey, and 
 	 * painting should start immediately. Otherwise, this was called from a toolbar, in which

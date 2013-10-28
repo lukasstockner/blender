@@ -659,9 +659,7 @@ static void recalcData_spaceclip(TransInfo *t)
 	if (ED_space_clip_check_show_trackedit(sc)) {
 		MovieClip *clip = ED_space_clip_get_clip(sc);
 		ListBase *tracksbase = BKE_tracking_get_active_tracks(&clip->tracking);
-		ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(&clip->tracking);
 		MovieTrackingTrack *track;
-		MovieTrackingPlaneTrack *plane_track;
 		int framenr = ED_space_clip_get_clip_frame_number(sc);
 
 		flushTransTracking(t);
@@ -690,15 +688,6 @@ static void recalcData_spaceclip(TransInfo *t)
 			}
 
 			track = track->next;
-		}
-
-		for (plane_track = plane_tracks_base->first;
-		     plane_track;
-		     plane_track = plane_track->next)
-		{
-			if (plane_track->flag & SELECT) {
-				BKE_tracking_track_plane_from_existing_motion(plane_track, framenr);
-			}
 		}
 
 		DAG_id_tag_update(&clip->id, 0);
@@ -1063,6 +1052,7 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 	t->ar = ar;
 	t->obedit = obedit;
 	t->settings = ts;
+	t->reports = op ? op->reports : NULL;
 
 	if (obedit) {
 		copy_m3_m4(t->obedit_mat, obedit->obmat);
@@ -1076,7 +1066,7 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 	
 	t->flag = 0;
 	
-	t->redraw = 1; /* redraw first time */
+	t->redraw = TREDRAW_HARD;  /* redraw first time */
 	
 	if (event) {
 		copy_v2_v2_int(t->imval, event->mval);
@@ -1115,6 +1105,13 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 		t->options |= CTX_EDGE;
 	}
 
+	t->remove_on_cancel = false;
+
+	if (op && (prop = RNA_struct_find_property(op->ptr, "remove_on_cancel")) && RNA_property_is_set(op->ptr, prop)) {
+		if (RNA_property_boolean_get(op->ptr, prop)) {
+			t->remove_on_cancel = true;
+		}
+	}
 
 	/* Assign the space type, some exceptions for running in different mode */
 	if (sa == NULL) {
@@ -1148,6 +1145,11 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 		if (v3d->flag & V3D_ALIGN) t->flag |= T_V3D_ALIGN;
 		t->around = v3d->around;
 		
+		/* warp always uses the cursor */
+		if (t->mode == TFM_WARP) {
+			t->around = V3D_CURSOR;
+		}
+
 		if (op && ((prop = RNA_struct_find_property(op->ptr, "constraint_orientation")) &&
 		           RNA_property_is_set(op->ptr, prop)))
 		{
@@ -1487,10 +1489,10 @@ void calculateCenter2D(TransInfo *t)
 		
 		copy_v3_v3(vec, t->center);
 		mul_m4_v3(ob->obmat, vec);
-		projectIntView(t, vec, t->center2d);
+		projectFloatView(t, vec, t->center2d);
 	}
 	else {
-		projectIntView(t, t->center, t->center2d);
+		projectFloatView(t, t->center, t->center2d);
 	}
 }
 
@@ -1498,7 +1500,7 @@ void calculateCenterCursor(TransInfo *t)
 {
 	const float *cursor;
 	
-	cursor = give_cursor(t->scene, t->view);
+	cursor = ED_view3d_cursor3d_get(t->scene, t->view);
 	copy_v3_v3(t->center, cursor);
 	
 	/* If edit or pose mode, move cursor in local space */
@@ -1522,7 +1524,6 @@ void calculateCenterCursor2D(TransInfo *t)
 	
 	if (t->spacetype == SPACE_IMAGE) {
 		SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
-		/* only space supported right now but may change */
 		if (t->options & CTX_MASK) {
 			ED_space_image_get_aspect(sima, &aspx, &aspy);
 		}
@@ -1531,17 +1532,37 @@ void calculateCenterCursor2D(TransInfo *t)
 		}
 		cursor = sima->cursor;
 	}
+	else if (t->spacetype == SPACE_CLIP) {
+		SpaceClip *space_clip = (SpaceClip *) t->sa->spacedata.first;
+		if (t->options & CTX_MOVIECLIP) {
+			ED_space_clip_get_aspect_dimension_aware(space_clip, &aspx, &aspy);
+		}
+		else {
+			ED_space_clip_get_aspect(space_clip, &aspx, &aspy);
+		}
+		cursor = space_clip->cursor;
+	}
 	
 	if (cursor) {
 		if (t->options & CTX_MASK) {
 			float co[2];
 			float frame_size[2];
-			SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
-			ED_space_image_get_size_fl(sima, frame_size);
 
-			BKE_mask_coord_from_frame(co, cursor, frame_size);
-
-			ED_space_image_get_aspect(sima, &aspx, &aspy);
+			if (t->spacetype == SPACE_IMAGE) {
+				SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
+				ED_space_image_get_size_fl(sima, frame_size);
+				BKE_mask_coord_from_frame(co, cursor, frame_size);
+				ED_space_image_get_aspect(sima, &aspx, &aspy);
+			}
+			else if (t->spacetype == SPACE_CLIP) {
+				SpaceClip *space_clip = (SpaceClip *) t->sa->spacedata.first;
+				ED_space_clip_get_size_fl(space_clip, frame_size);
+				BKE_mask_coord_from_frame(co, cursor, frame_size);
+				ED_space_clip_get_aspect(space_clip, &aspx, &aspy);
+			}
+			else {
+				BLI_assert(!"Shall not happen");
+			}
 
 			t->center[0] = co[0] * aspx;
 			t->center[1] = co[1] * aspy;
@@ -1620,7 +1641,7 @@ void calculateCenter(TransInfo *t)
 			calculateCenterMedian(t);
 			break;
 		case V3D_CURSOR:
-			if (t->spacetype == SPACE_IMAGE)
+			if (ELEM(t->spacetype, SPACE_IMAGE, SPACE_CLIP))
 				calculateCenterCursor2D(t);
 			else if (t->spacetype == SPACE_IPO)
 				calculateCenterCursorGraph2D(t);
@@ -1675,7 +1696,7 @@ void calculateCenter(TransInfo *t)
 				Object *ob = OBACT;
 				if (ob) {
 					copy_v3_v3(t->center, ob->obmat[3]);
-					projectIntView(t, t->center, t->center2d);
+					projectFloatView(t, t->center, t->center2d);
 				}
 			}
 			break;
@@ -1707,7 +1728,7 @@ void calculateCenter(TransInfo *t)
 				axis[1] = t->center[1] - 6.0f * axis[1];
 				axis[2] = t->center[2] - 6.0f * axis[2];
 				
-				projectIntView(t, axis, t->center2d);
+				projectFloatView(t, axis, t->center2d);
 				
 				/* rotate only needs correct 2d center, grab needs ED_view3d_calc_zfac() value */
 				if (t->mode == TFM_TRANSLATION) {

@@ -26,6 +26,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/mesh/mesh_navmesh.c
+ *  \ingroup edmesh
+ */
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
@@ -350,7 +354,7 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 		co[1] = bmin[1] + v[1] * ch;
 		co[2] = bmin[2] + v[2] * cs;
 		SWAP(float, co[1], co[2]);
-		BM_vert_create(em->bm, co, NULL, 0);
+		BM_vert_create(em->bm, co, NULL, BM_CREATE_NOP);
 	}
 
 	/* create custom data layer to save polygon idx */
@@ -381,11 +385,11 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 		for (j = nv; j < ndv; j++) {
 			copy_v3_v3(co, &dverts[3 * (vbase + j)]);
 			SWAP(float, co[1], co[2]);
-			BM_vert_create(em->bm, co, NULL, 0);
+			BM_vert_create(em->bm, co, NULL, BM_CREATE_NOP);
 		}
 
 		/* need to rebuild entirely because array size changes */
-		EDBM_index_arrays_init(em, BM_VERT);
+		BM_mesh_elem_table_init(em, BM_VERT);
 
 		/* create faces */
 		for (j = 0; j < trinum; j++) {
@@ -400,9 +404,9 @@ static Object *createRepresentation(bContext *C, struct recast_polyMesh *pmesh, 
 					face[k] = uniquevbase + tri[k] - nv;  /* unique vertex */
 			}
 			newFace = BM_face_create_quad_tri(em->bm,
-			                                  EDBM_vert_at_index(em, face[0]),
-			                                  EDBM_vert_at_index(em, face[2]),
-			                                  EDBM_vert_at_index(em, face[1]), NULL,
+			                                  BM_vert_at_index(em, face[0]),
+			                                  BM_vert_at_index(em, face[2]),
+			                                  BM_vert_at_index(em, face[1]), NULL,
 			                                  NULL, false);
 
 			/* set navigation polygon idx to the custom layer */

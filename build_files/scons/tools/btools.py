@@ -141,6 +141,8 @@ def validate_arguments(args, bc):
             'WITH_GHOST_COCOA',
             'WITH_GHOST_SDL',
             'WITH_GHOST_XDND',
+            'WITH_X11_XINPUT',
+            'WITH_X11_XF86VMODE',
             'BF_GHOST_DEBUG',
             'USE_QTKIT',
             'BF_FANCY', 'BF_QUIET', 'BF_LINE_OVERWRITE',
@@ -424,6 +426,8 @@ def read_opts(env, cfg, args):
         ('BF_OPENMP_LIBPATH', 'Path to OpenMP libraries (used when cross-compiling with older versions of WinGW)', ''),
         (BoolVariable('WITH_GHOST_COCOA', 'Use Cocoa-framework if true', False)),
         (BoolVariable('WITH_GHOST_SDL', 'Enable building blender against SDL for windowing rather then the native APIs', False)),
+        (BoolVariable('WITH_X11_XINPUT', 'Enable X11 Xinput (tablet support and unicode input)', True)),
+        (BoolVariable('WITH_X11_XF86VMODE', 'Enable X11 video mode switching', True)),
         (BoolVariable('USE_QTKIT', 'Use QTKIT if true', False)),
         ('BF_OPENMP_LIB_STATIC', 'OpenMP static library', ''),
 
@@ -572,7 +576,7 @@ def read_opts(env, cfg, args):
         ('BF_CYCLES_CUDA_BINARIES_ARCH', 'CUDA architectures to compile binaries for', []),
 
         (BoolVariable('WITH_BF_OIIO', 'Build with OpenImageIO', False)),
-        (BoolVariable('WITH_BF_STATICOIIO', 'Staticly link to OpenImageIO', False)),
+        (BoolVariable('WITH_BF_STATICOIIO', 'Statically link to OpenImageIO', False)),
         ('BF_OIIO', 'OIIO root path', ''),
         ('BF_OIIO_INC', 'OIIO include path', ''),
         ('BF_OIIO_LIB', 'OIIO library', ''),

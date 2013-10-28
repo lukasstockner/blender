@@ -45,6 +45,7 @@
 
 #include "BKE_brush.h"
 #include "BKE_paint.h"
+#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_main.h"
 #include "BKE_depsgraph.h"
@@ -479,7 +480,7 @@ static void uv_sculpt_stroke_exit(bContext *C, wmOperator *op)
 		WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), data->timer);
 	}
 	if (data->elementMap) {
-		EDBM_uv_element_map_free(data->elementMap);
+		BM_uv_element_map_free(data->elementMap);
 	}
 	if (data->uv) {
 		MEM_freeN(data->uv);
@@ -500,7 +501,7 @@ static void uv_sculpt_stroke_exit(bContext *C, wmOperator *op)
 
 static int uv_element_offset_from_face_get(UvElementMap *map, BMFace *efa, BMLoop *l, int island_index, int doIslands)
 {
-	UvElement *element = ED_uv_element_get(map, efa, l);
+	UvElement *element = BM_uv_element_get(map, efa, l);
 	if (!element || (doIslands && element->island != island_index)) {
 		return -1;
 	}
@@ -538,6 +539,8 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 
 	op->customdata = data;
 
+	curvemapping_initialize(ts->uvsculpt->paint.brush->curve);
+
 	if (data) {
 		int counter = 0, i;
 		ARegion *ar = CTX_wm_region(C);
@@ -563,18 +566,18 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 		if (do_island_optimization) {
 			/* We will need island information */
 			if (ts->uv_flag & UV_SYNC_SELECTION) {
-				data->elementMap = EDBM_uv_element_map_create(em, 0, 1);
+				data->elementMap = BM_uv_element_map_create(bm, false, true);
 			}
 			else {
-				data->elementMap = EDBM_uv_element_map_create(em, 1, 1);
+				data->elementMap = BM_uv_element_map_create(bm, true, true);
 			}
 		}
 		else {
 			if (ts->uv_flag & UV_SYNC_SELECTION) {
-				data->elementMap = EDBM_uv_element_map_create(em, 0, 0);
+				data->elementMap = BM_uv_element_map_create(bm, false, false);
 			}
 			else {
-				data->elementMap = EDBM_uv_element_map_create(em, 1, 0);
+				data->elementMap = BM_uv_element_map_create(bm, true, false);
 			}
 		}
 
@@ -593,7 +596,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 			Image *ima = CTX_data_edit_image(C);
 			uv_find_nearest_vert(scene, ima, em, co, NULL, &hit);
 
-			element = ED_uv_element_get(data->elementMap, hit.efa, hit.l);
+			element = BM_uv_element_get(data->elementMap, hit.efa, hit.l);
 			island_index = element->island;
 		}
 
@@ -662,6 +665,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 			BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 				int offset1, itmp1 = uv_element_offset_from_face_get(data->elementMap, efa, l, island_index, do_island_optimization);
 				int offset2, itmp2 = uv_element_offset_from_face_get(data->elementMap, efa, l->next, island_index, do_island_optimization);
+				char *flag;
 
 				/* Skip edge if not found(unlikely) or not on valid island */
 				if (itmp1 == -1 || itmp2 == -1)
@@ -682,8 +686,8 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 					edges[counter].uv2 = offset1;
 				}
 				/* Hack! Set the value of the key to its flag. Now we can set the flag when an edge exists twice :) */
-				if (BLI_ghash_haskey(edgeHash, &edges[counter])) {
-					char *flag = BLI_ghash_lookup(edgeHash, &edges[counter]);
+				flag = BLI_ghash_lookup(edgeHash, &edges[counter]);
+				if (flag) {
 					*flag = 1;
 				}
 				else {

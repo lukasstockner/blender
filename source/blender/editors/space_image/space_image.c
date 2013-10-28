@@ -277,6 +277,10 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "Image", SPACE_IMAGE, 0);
 	
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
+
+	kmi = WM_keymap_add_item(keymap, "IMAGE_OT_view_all", FKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "fit_view", TRUE);
+
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_selected", PADPERIOD, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_pan", MIDDLEMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_pan", MIDDLEMOUSE, KM_PRESS, KM_SHIFT, 0);
@@ -670,7 +674,6 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	}
 	else if (sima->mode == SI_MODE_MASK) {
 		mask = ED_space_image_get_mask(sima);
-		draw_image_cursor(sima, ar);
 	}
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
@@ -711,7 +714,9 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 			BLI_unlock_thread(LOCK_DRAW_IMAGE);
 
 		ED_mask_draw_region(mask, ar,
-		                    sima->mask_info.draw_flag, sima->mask_info.draw_type,
+		                    sima->mask_info.draw_flag,
+		                    sima->mask_info.draw_type,
+		                    sima->mask_info.overlay_mode,
 		                    width, height,
 		                    aspx, aspy,
 		                    TRUE, FALSE,
@@ -719,7 +724,9 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 
 		ED_mask_draw_frames(mask, ar, CFRA, mask->sfra, mask->efra);
 
-		draw_image_cursor(sima, ar);
+		UI_view2d_view_ortho(v2d);
+		draw_image_cursor(ar, sima->cursor);
+		UI_view2d_view_restore(C);
 	}
 
 	/* scrollers? */

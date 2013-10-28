@@ -94,15 +94,15 @@ typedef struct EditBone {
 
 /* useful macros */
 #define EBONE_VISIBLE(arm, ebone) ( \
-	CHECK_TYPE_INLINE(arm, bArmature), \
-	CHECK_TYPE_INLINE(ebone, EditBone), \
+	CHECK_TYPE_INLINE(arm, bArmature *), \
+	CHECK_TYPE_INLINE(ebone, EditBone *), \
 	(((arm)->layer & (ebone)->layer) && !((ebone)->flag & BONE_HIDDEN_A)) \
 	)
 
 #define EBONE_SELECTABLE(arm, ebone) (EBONE_VISIBLE(arm, ebone) && !(ebone->flag & BONE_UNSELECTABLE))
 
 #define EBONE_EDITABLE(ebone) ( \
-	CHECK_TYPE_INLINE(ebone, EditBone), \
+	CHECK_TYPE_INLINE(ebone, EditBone *), \
 	(((ebone)->flag & BONE_SELECTED) && !((ebone)->flag & BONE_EDITMODE_LOCKED)) \
 	)
 
@@ -167,8 +167,8 @@ void ED_armature_ebone_selectflag_disable(EditBone *ebone, int flag);
 /* poseobject.c */
 void ED_armature_exit_posemode(struct bContext *C, struct Base *base);
 void ED_armature_enter_posemode(struct bContext *C, struct Base *base);
-int ED_pose_channel_in_IK_chain(struct Object *ob, struct bPoseChannel *pchan);
 void ED_pose_deselectall(struct Object *ob, int test);
+void ED_pose_bone_select(struct Object *ob, struct bPoseChannel *pchan, bool select);
 void ED_pose_recalculate_paths(struct Scene *scene, struct Object *ob);
 struct Object *ED_pose_object_from_context(struct bContext *C);
 

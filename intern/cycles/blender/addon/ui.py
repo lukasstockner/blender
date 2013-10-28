@@ -1,19 +1,17 @@
 #
-# Copyright 2011, Blender Foundation.
+# Copyright 2011-2013 Blender Foundation
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License
 #
 
 # <pep8 compliant>
@@ -50,6 +48,49 @@ class CyclesButtonsPanel():
         return rd.engine == 'CYCLES'
 
 
+def draw_samples_info(layout, cscene):
+    integrator = cscene.progressive
+
+    # Calculate sample values
+    if integrator == 'PATH':
+        aa = cscene.samples
+        if cscene.use_square_samples:
+            aa = aa * aa
+    else:
+        aa = cscene.aa_samples
+        d = cscene.diffuse_samples
+        g = cscene.glossy_samples
+        t = cscene.transmission_samples
+        ao = cscene.ao_samples
+        ml = cscene.mesh_light_samples
+        sss = cscene.subsurface_samples
+
+        if cscene.use_square_samples:
+            aa = aa * aa
+            d = d * d
+            g = g * g
+            t = t * t
+            ao = ao * ao
+            ml = ml * ml
+            sss = sss * sss
+
+    # Draw interface
+    # Do not draw for progressive, when Square Samples are disabled
+    if (integrator == 'BRANCHED_PATH') or (cscene.use_square_samples and integrator == 'PATH'):
+        col = layout.column(align=True)
+        col.scale_y = 0.6
+        col.label("Total Samples:")
+        col.separator()
+        if integrator == 'PATH':
+            col.label("%s AA" % aa)
+        else:
+            col.label("%s AA, %s Diffuse, %s Glossy, %s Transmission" %
+                      (aa, d * aa, g * aa, t * aa))
+            col.separator()
+            col.label("%s AO, %s Mesh Light, %s Subsurface" %
+                      (ao * aa, ml * aa, sss * aa))
+
+
 class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
     bl_label = "Sampling"
     bl_options = {'DEFAULT_CLOSED'}
@@ -60,27 +101,25 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         device_type = context.user_preferences.system.compute_device_type
-        
+
         row = layout.row(align=True)
         row.menu("CYCLES_MT_sampling_presets", text=bpy.types.CYCLES_MT_sampling_presets.bl_label)
         row.operator("render.cycles_sampling_preset_add", text="", icon="ZOOMIN")
         row.operator("render.cycles_sampling_preset_add", text="", icon="ZOOMOUT").remove_active = True
 
         row = layout.row()
-        row.prop(cscene, "progressive")
-        
-        if not cscene.progressive:
-            row.prop(cscene, "squared_samples")
-        
+        row.prop(cscene, "progressive", text="")
+        row.prop(cscene, "use_square_samples")
+
         split = layout.split()
-        
+
         col = split.column()
         sub = col.column(align=True)
         sub.label("Settings:")
         sub.prop(cscene, "seed")
         sub.prop(cscene, "sample_clamp")
 
-        if cscene.progressive:
+        if cscene.progressive == 'PATH':
             col = split.column()
             sub = col.column(align=True)
             sub.label(text="Samples:")
@@ -109,6 +148,8 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
                 layout.separator()
                 layout.row().prop(cscene, "use_layer_samples")
                 break
+
+        draw_samples_info(layout, cscene)
 
 
 class CyclesRender_PT_light_paths(CyclesButtonsPanel, Panel):
@@ -211,8 +252,8 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
         col = split.column(align=True)
 
         col.label(text="Threads:")
-        col.row().prop(rd, "threads_mode", expand=True)
-        sub = col.column()
+        col.row(align=True).prop(rd, "threads_mode", expand=True)
+        sub = col.column(align=True)
         sub.enabled = rd.threads_mode == 'FIXED'
         sub.prop(rd, "threads")
 
@@ -225,7 +266,7 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
 
         sub.prop(cscene, "use_progressive_refine")
 
-        subsub = sub.column()
+        subsub = sub.column(align=True)
         subsub.enabled = not rd.use_border
         subsub.prop(rd, "use_save_buffers")
 
@@ -244,7 +285,7 @@ class CyclesRender_PT_performance(CyclesButtonsPanel, Panel):
 
         col.separator()
 
-        col.label(text="Acceleration structure:")   
+        col.label(text="Acceleration structure:")
         col.prop(cscene, "debug_use_spatial_splits")
 
 
@@ -283,7 +324,7 @@ class CyclesRender_PT_layers(CyclesButtonsPanel, Panel):
         rl = rd.layers.active
 
         row = layout.row()
-        row.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=2)
+        row.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=1)
 
         col = row.column(align=True)
         col.operator("scene.render_layer_add", icon='ZOOMIN', text="")
@@ -378,7 +419,7 @@ class CyclesRender_PT_layer_passes(CyclesButtonsPanel, Panel):
         row.prop(rl, "use_pass_subsurface_direct", text="Direct", toggle=True)
         row.prop(rl, "use_pass_subsurface_indirect", text="Indirect", toggle=True)
         row.prop(rl, "use_pass_subsurface_color", text="Color", toggle=True)
-        
+
         col.separator()
         col.prop(rl, "use_pass_emit", text="Emission")
         col.prop(rl, "use_pass_environment")
@@ -462,7 +503,7 @@ class Cycles_PT_context_material(CyclesButtonsPanel, Panel):
         if ob:
             row = layout.row()
 
-            row.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
+            row.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=1)
 
             col = row.column(align=True)
             col.operator("object.material_slot_add", icon='ZOOMIN', text="")
@@ -553,7 +594,8 @@ class CyclesObject_PT_ray_visibility(CyclesButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         ob = context.object
-        return CyclesButtonsPanel.poll(context) and ob and ob.type in {'MESH', 'CURVE', 'CURVE', 'SURFACE', 'FONT', 'META', 'LAMP'}
+        return (CyclesButtonsPanel.poll(context) and
+                ob and ob.type in {'MESH', 'CURVE', 'CURVE', 'SURFACE', 'FONT', 'META', 'LAMP'})
 
     def draw(self, context):
         layout = self.layout
@@ -673,7 +715,7 @@ class CyclesLamp_PT_lamp(CyclesButtonsPanel, Panel):
                 sub.prop(lamp, "size", text="Size X")
                 sub.prop(lamp, "size_y", text="Size Y")
 
-        if not cscene.progressive:
+        if cscene.progressive == 'BRANCHED_PATH':
             col.prop(clamp, "samples")
 
         col = split.column()
@@ -769,7 +811,6 @@ class CyclesWorld_PT_volume(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = False
 
         world = context.world
         panel_node_draw(layout, world, 'OUTPUT_WORLD', 'Volume')
@@ -789,12 +830,13 @@ class CyclesWorld_PT_ambient_occlusion(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+
         light = context.world.light_settings
 
-        layout.active = light.use_ambient_occlusion
-
         row = layout.row()
-        row.prop(light, "ao_factor", text="Factor")
+        sub = row.row()
+        sub.active = light.use_ambient_occlusion
+        sub.prop(light, "ao_factor", text="Factor")
         row.prop(light, "distance", text="Distance")
 
 
@@ -869,7 +911,7 @@ class CyclesWorld_PT_settings(CyclesButtonsPanel, Panel):
         sub = col.row(align=True)
         sub.active = cworld.sample_as_light
         sub.prop(cworld, "sample_map_resolution")
-        if not cscene.progressive:
+        if cscene.progressive == 'BRANCHED_PATH':
             sub.prop(cworld, "samples")
 
 
@@ -915,7 +957,6 @@ class CyclesMaterial_PT_volume(CyclesButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.active = False
 
         mat = context.material
         cmat = mat.cycles
@@ -1044,6 +1085,8 @@ class CyclesTexture_PT_mapping(CyclesButtonsPanel, Panel):
 
         mapping = node.texture_mapping
 
+        layout.prop(mapping, "vector_type", expand=True)
+
         row = layout.row()
 
         row.column().prop(mapping, "translation")
@@ -1137,8 +1180,7 @@ class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         psys = context.particle_system
-        experimental = (cscene.feature_set == 'EXPERIMENTAL')
-        return CyclesButtonsPanel.poll(context) and experimental and psys
+        return CyclesButtonsPanel.poll(context) and psys and psys.settings.type == 'HAIR'
 
     def draw_header(self, context):
         ccscene = context.scene.cycles_curves
@@ -1152,44 +1194,17 @@ class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
 
         layout.active = ccscene.use_curves
 
-        layout.prop(ccscene, "preset", text="Mode")
+        layout.prop(ccscene, "primitive", text="Primitive")
+        layout.prop(ccscene, "shape", text="Shape")
 
-        if ccscene.preset == 'CUSTOM':
-            layout.prop(ccscene, "primitive", text="Primitive")
-
-            if ccscene.primitive == 'TRIANGLES':
-                layout.prop(ccscene, "triangle_method", text="Method")
-                if ccscene.triangle_method == 'TESSELLATED_TRIANGLES':
-                    layout.prop(ccscene, "resolution", text="Resolution")
-                layout.prop(ccscene, "use_smooth", text="Smooth")
-            elif ccscene.primitive == 'LINE_SEGMENTS':
-                layout.prop(ccscene, "use_backfacing", text="Check back-faces")
-
-                row = layout.row()
-                row.prop(ccscene, "use_encasing", text="Exclude encasing")
-                sub = row.row()
-                sub.active = ccscene.use_encasing
-                sub.prop(ccscene, "encasing_ratio", text="Ratio for encasing")
-
-                layout.prop(ccscene, "line_method", text="Method")
-                layout.prop(ccscene, "use_tangent_normal", text="Use tangent normal as default")
-                layout.prop(ccscene, "use_tangent_normal_geometry", text="Use tangent normal geometry")
-                layout.prop(ccscene, "use_tangent_normal_correction", text="Correct tangent normal for slope")
-                layout.prop(ccscene, "interpolation", text="Interpolation")
-
-                row = layout.row()
-                row.prop(ccscene, "segments", text="Segments")
-                row.prop(ccscene, "normalmix", text="Ray Mix")
-            elif ccscene.primitive in {'CURVE_SEGMENTS', 'CURVE_RIBBONS'}:
-                layout.prop(ccscene, "subdivisions", text="Curve subdivisions")
-                layout.prop(ccscene, "use_backfacing", text="Check back-faces")
-
-                layout.prop(ccscene, "interpolation", text="Interpolation")
-                row = layout.row()
-                row.prop(ccscene, "segments", text="Segments")
-
-            row = layout.row()
-            row.prop(ccscene, "use_parents", text="Include parents")
+        if ccscene.primitive == 'TRIANGLES':
+            if ccscene.shape == 'THICK':
+                layout.prop(ccscene, "resolution", text="Resolution")
+        elif ccscene.primitive == 'LINE_SEGMENTS':
+            layout.prop(ccscene, "cull_backfacing", text="Cull back-faces")
+        elif ccscene.primitive in {'CURVE_SEGMENTS', 'CURVE_RIBBONS'}:
+            layout.prop(ccscene, "cull_backfacing", text="Cull back-faces")
+            layout.prop(ccscene, "subdivisions", text="Curve subdivisions")
 
         row = layout.row()
         row.prop(ccscene, "minimum_width", text="Min Pixels")
@@ -1205,9 +1220,9 @@ class CyclesParticle_PT_CurveSettings(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         ccscene = scene.cycles_curves
-        use_curves = ccscene.use_curves and context.particle_system
-        experimental = cscene.feature_set == 'EXPERIMENTAL'
-        return CyclesButtonsPanel.poll(context) and experimental and use_curves
+        psys = context.particle_system
+        use_curves = ccscene.use_curves and psys
+        return CyclesButtonsPanel.poll(context) and use_curves and psys.settings.type == 'HAIR'
 
     def draw(self, context):
         layout = self.layout

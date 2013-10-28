@@ -269,7 +269,8 @@ bool id_make_local(ID *id, bool test)
 			if (!test) BKE_action_make_local((bAction *)id);
 			return true;
 		case ID_NT:
-			return false; /* not implemented */
+			if (!test) ntreeMakeLocal((bNodeTree *)id);
+			return true;
 		case ID_BR:
 			if (!test) BKE_brush_make_local((Brush *)id);
 			return true;
@@ -1410,7 +1411,7 @@ bool new_id(ListBase *lb, ID *id, const char *tname)
 
 	/* This was in 2.43 and previous releases
 	 * however all data in blender should be sorted, not just duplicate names
-	 * sorting should not hurt, but noting just incause it alters the way other
+	 * sorting should not hurt, but noting just incase it alters the way other
 	 * functions work, so sort every time */
 #if 0
 	if (result)

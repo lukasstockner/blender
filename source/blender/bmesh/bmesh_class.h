@@ -65,7 +65,7 @@ typedef struct BMHeader {
 	void *data; /* customdata layers */
 	int index; /* notes:
 	            * - Use BM_elem_index_get/set macros for index
-	            * - Unitialized to -1 so we can easily tell its not set.
+	            * - Uninitialized to -1 so we can easily tell its not set.
 	            * - Used for edge/vert/face, check BMesh.elem_index_dirty for valid index values,
 	            *   this is abused by various tools which set it dirty.
 	            * - For loops this is used for sorting during tessellation. */
@@ -183,8 +183,27 @@ typedef struct BMesh {
 	 * BM_LOOP isn't handled so far. */
 	char elem_index_dirty;
 
+	/* flag array table as being dirty so we know when its safe to use it,
+	 * or when it needs to be re-created */
+	char elem_table_dirty;
+
+
 	/* element pools */
 	struct BLI_mempool *vpool, *epool, *lpool, *fpool;
+
+	/* mempool lookup tables (optional)
+	 * index tables, to map indices to elements via
+	 * BM_mesh_elem_table_ensure and associated functions.  don't
+	 * touch this or read it directly.\
+	 * Use BM_mesh_elem_table_ensure(), BM_vert/edge/face_at_index() */
+	BMVert **vtable;
+	BMEdge **etable;
+	BMFace **ftable;
+
+	/* size of allocated tables */
+	int vtable_tot;
+	int etable_tot;
+	int ftable_tot;
 
 	/* operator api stuff (must be all NULL or all alloc'd) */
 	struct BLI_mempool *vtoolflagpool, *etoolflagpool, *ftoolflagpool;
@@ -254,6 +273,8 @@ enum {
 struct BPy_BMGeneric;
 extern void bpy_bm_generic_invalidate(struct BPy_BMGeneric *self);
 
+typedef bool (*BMElemFilterFunc)(BMElem *, void *user_data);
+
 /* defines */
 #define BM_ELEM_CD_GET_VOID_P(ele, offset) \
 	(assert(offset != -1), (void *)((char *)(ele)->head.data + (offset)))
@@ -290,6 +311,12 @@ extern void bpy_bm_generic_invalidate(struct BPy_BMGeneric *self);
  * but should not error on valid cases */
 #define BM_LOOP_RADIAL_MAX 10000
 #define BM_NGON_MAX 100000
-#define BM_OMP_LIMIT 10000 /* 10000 */  /* setting zero so we can catch bugs in OpenMP/BMesh */
+
+/* setting zero so we can catch bugs in OpenMP/BMesh */
+#ifdef DEBUG
+#  define BM_OMP_LIMIT 0
+#else
+#  define BM_OMP_LIMIT 10000
+#endif
 
 #endif /* __BMESH_CLASS_H__ */

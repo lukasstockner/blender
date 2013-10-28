@@ -231,49 +231,24 @@ bool BM_disk_dissolve(BMesh *bm, BMVert *v)
  * to be reconsidered.
  *
  * If the windings do not match the winding of the new face will follow
- * \a f1's winding (i.e. \a f2 will be reversed before the join).
+ * \a f_a's winding (i.e. \a f_b will be reversed before the join).
  *
  * \return pointer to the combined face
  */
-BMFace *BM_faces_join_pair(BMesh *bm, BMFace *f1, BMFace *f2, BMEdge *e, const bool do_del)
+BMFace *BM_faces_join_pair(BMesh *bm, BMFace *f_a, BMFace *f_b, BMEdge *e, const bool do_del)
 {
-	BMLoop *l1, *l2;
-	BMEdge *jed = NULL;
-	BMFace *faces[2] = {f1, f2};
-	
-	jed = e;
-	if (!jed) {
-		BMLoop *l_first;
-		/* search for an edge that has both these faces in its radial cycle */
-		l1 = l_first = BM_FACE_FIRST_LOOP(f1);
-		do {
-			if (l1->radial_next->f == f2) {
-				jed = l1->e;
-				break;
-			}
-		} while ((l1 = l1->next) != l_first);
-	}
+	BMFace *faces[2] = {f_a, f_b};
 
-	if (UNLIKELY(!jed)) {
-		BMESH_ASSERT(0);
-		return NULL;
-	}
-	
-	l1 = jed->l;
-	
-	if (UNLIKELY(!l1)) {
-		BMESH_ASSERT(0);
-		return NULL;
-	}
-	
-	l2 = l1->radial_next;
-	if (l1->v == l2->v) {
-		bmesh_loop_reverse(bm, f2);
-	}
+	BMLoop *l_a = BM_face_edge_share_loop(f_a, e);
+	BMLoop *l_b = BM_face_edge_share_loop(f_b, e);
 
-	f1 = BM_faces_join(bm, faces, 2, do_del);
+	BLI_assert(l_a && l_b);
+
+	if (l_a->v == l_b->v) {
+		bmesh_loop_reverse(bm, f_b);
+	}
 	
-	return f1;
+	return BM_faces_join(bm, faces, 2, do_del);
 }
 
 /**
@@ -356,10 +331,9 @@ BMFace *BM_face_split(BMesh *bm, BMFace *f, BMVert *v1, BMVert *v2, BMLoop **r_l
 	
 	if (f_new) {
 		BM_elem_attrs_copy(bm, bm, f, f_new);
-		copy_v3_v3(f_new->no, f->no);
 
 		/* handle multires update */
-		if (has_mdisp && (f_new != f)) {
+		if (has_mdisp) {
 			BMLoop *l_iter;
 			BMLoop *l_first;
 
@@ -373,14 +347,16 @@ BMFace *BM_face_split(BMesh *bm, BMFace *f, BMVert *v1, BMVert *v2, BMLoop **r_l
 				BM_loop_interp_multires(bm, l_iter, f_tmp);
 			} while ((l_iter = l_iter->next) != l_first);
 
-			BM_face_kill(bm, f_tmp);
-
 #if 0
 			/* BM_face_multires_bounds_smooth doesn't flip displacement correct */
 			BM_face_multires_bounds_smooth(bm, f);
 			BM_face_multires_bounds_smooth(bm, f_new);
 #endif
 		}
+	}
+
+	if (has_mdisp) {
+		BM_face_kill(bm, f_tmp);
 	}
 
 	return f_new;
@@ -848,7 +824,7 @@ void BM_edge_calc_rotate(BMEdge *e, const bool ccw,
 	/* we could swap the verts _or_ the faces, swapping faces
 	 * gives more predictable results since that way the next vert
 	 * just stitches from face fa / fb */
-	if (ccw) {
+	if (!ccw) {
 		SWAP(BMFace *, fa, fb);
 	}
 
@@ -1067,13 +1043,13 @@ BMEdge *BM_edge_rotate(BMesh *bm, BMEdge *e, const bool ccw, const short check_f
 
 	/* first create the new edge, this is so we can copy the customdata from the old one
 	 * if splice if disabled, always add in a new edge even if theres one there. */
-	e_new = BM_edge_create(bm, v1, v2, e, (check_flag & BM_EDGEROT_CHECK_SPLICE) != 0);
+	e_new = BM_edge_create(bm, v1, v2, e, (check_flag & BM_EDGEROT_CHECK_SPLICE) ? BM_CREATE_NO_DOUBLE : BM_CREATE_NOP);
 
 	f_hflag_prev_1 = l1->f->head.hflag;
 	f_hflag_prev_2 = l2->f->head.hflag;
 
 	/* don't delete the edge, manually remove the edge after so we can copy its attributes */
-	f = BM_faces_join_pair(bm, l1->f, l2->f, NULL, true);
+	f = BM_faces_join_pair(bm, l1->f, l2->f, e, true);
 
 	if (f == NULL) {
 		return NULL;

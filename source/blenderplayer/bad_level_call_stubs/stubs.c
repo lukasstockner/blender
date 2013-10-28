@@ -85,6 +85,7 @@ struct MetaBall;
 struct ModifierData;
 struct MovieClip;
 struct MultiresModifierData;
+struct HookModifierData;
 struct NodeBlurData;
 struct Nurb;
 struct Object;
@@ -191,7 +192,7 @@ void RE_BlenderFrame(struct Render *re, struct Scene *scene, int frame) {STUB_AS
 int RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct EnvMap *env, const char *relpath, const char imtype, float layout[12]) {STUB_ASSERT(0); return 0; }
 
 /* rna */
-float *give_cursor(struct Scene *scene, struct View3D *v3d) {STUB_ASSERT(0); return (float *) NULL;}
+float *ED_view3d_cursor3d_get(struct Scene *scene, struct View3D *v3d) {STUB_ASSERT(0); return (float *) NULL;}
 void WM_menutype_free(void) {STUB_ASSERT(0);}
 void WM_menutype_freelink(struct MenuType *mt) {STUB_ASSERT(0);}
 int WM_menutype_add(struct MenuType *mt) {STUB_ASSERT(0); return 0;}
@@ -207,8 +208,11 @@ void WM_jobs_kill_all_except(struct wmWindowManager *wm) {STUB_ASSERT(0);}
 char *WM_clipboard_text_get(int selection) {STUB_ASSERT(0); return (char *)0;}
 void WM_clipboard_text_set(char *buf, int selection) {STUB_ASSERT(0);}
 
-void	WM_cursor_restore(struct wmWindow *win) {STUB_ASSERT(0);}
-void	WM_cursor_time(struct wmWindow *win, int nr) {STUB_ASSERT(0);}
+void WM_cursor_set(struct wmWindow *win, int curor) {STUB_ASSERT(0);}
+void WM_cursor_modal_set(struct wmWindow *win, int curor) {STUB_ASSERT(0);}
+void WM_cursor_modal_restore(struct wmWindow *win) {STUB_ASSERT(0);}
+void WM_cursor_time(struct wmWindow *win, int nr) {STUB_ASSERT(0);}
+void WM_cursor_warp(struct wmWindow *win, int x, int y) {STUB_ASSERT(0);}
 
 void                WM_uilisttype_init(void) {STUB_ASSERT(0);}
 struct uiListType  *WM_uilisttype_find(const char *idname, int quiet) {STUB_ASSERT(0); return (struct uiListType *)NULL;}
@@ -273,6 +277,7 @@ struct wmKeyMap *WM_keymap_list_find(struct ListBase *lb, char *idname, int spac
 struct wmKeyConfig *WM_keyconfig_new(struct wmWindowManager *wm, char *idname) {STUB_ASSERT(0); return (struct wmKeyConfig *) NULL;}
 struct wmKeyConfig *WM_keyconfig_new_user(struct wmWindowManager *wm, char *idname) {STUB_ASSERT(0); return (struct wmKeyConfig *) NULL;}
 void WM_keyconfig_remove(struct wmWindowManager *wm, char *idname) {STUB_ASSERT(0);}
+void WM_keymap_remove(struct wmKeyConfig *keyconf, char *idname) {STUB_ASSERT(0);}
 void WM_keyconfig_set_active(struct wmWindowManager *wm, const char *idname) {STUB_ASSERT(0);}
 void WM_keymap_remove_item(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi) {STUB_ASSERT(0);}
 void WM_keymap_restore_to_default(struct wmKeyMap *keymap) {STUB_ASSERT(0);}
@@ -280,6 +285,7 @@ void WM_keymap_restore_item_to_default(struct bContext *C, struct wmKeyMap *keym
 void WM_keymap_properties_reset(struct wmKeyMapItem *kmi) {STUB_ASSERT(0);}
 void WM_keyconfig_update_tag(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi) {STUB_ASSERT(0);}
 int WM_keymap_item_compare(struct wmKeyMapItem *k1, struct wmKeyMapItem *k2) {STUB_ASSERT(0); return 0;}
+int	WM_keymap_map_type_get(struct wmKeyMapItem *kmi) {STUB_ASSERT(0); return 0;}
 
 
 /* rna editors */
@@ -331,6 +337,7 @@ void ED_view3D_background_image_remove(struct View3D *v3d, struct BGpic *bgpic) 
 void ED_view3D_background_image_clear(struct View3D *v3d) {STUB_ASSERT(0);}
 void ED_view3d_update_viewmat(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, float viewmat[4][4], float winmat[4][4]) {STUB_ASSERT(0);}
 float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char **grid_unit) {STUB_ASSERT(0); return 0.0f;}
+void ED_view3d_shade_update(struct Main *bmain, struct View3D *v3d, struct ScrArea *sa) {STUB_ASSERT(0);}
 void view3d_apply_mat4(float mat[4][4], float *ofs, float *quat, float *dist) {STUB_ASSERT(0);}
 int text_file_modified(struct Text *text) {STUB_ASSERT(0); return 0;}
 void ED_node_shader_default(struct bContext *C, struct ID *id) {STUB_ASSERT(0);}
@@ -458,7 +465,7 @@ void uiTemplateLayers(struct uiLayout *layout, struct PointerRNA *ptr, char *pro
 void uiTemplateImageLayers(struct uiLayout *layout, struct bContext *C, struct Image *ima, struct ImageUser *iuser) {STUB_ASSERT(0);}
 void uiTemplateList(struct uiLayout *layout, struct bContext *C, const char *listtype_name, const char *list_id,
                     PointerRNA *dataptr, const char *propname, PointerRNA *active_dataptr,
-                    const char *active_propname, int rows, int maxrows, int layout_type) {STUB_ASSERT(0);}
+                    const char *active_propname, int rows, int maxrows, int layout_type, int columns) {STUB_ASSERT(0);}
 void uiTemplateRunningJobs(struct uiLayout *layout, struct bContext *C) {STUB_ASSERT(0);}
 void uiTemplateOperatorSearch(struct uiLayout *layout) {STUB_ASSERT(0);}
 void uiTemplateHeader3D(struct uiLayout *layout, struct bContext *C) {STUB_ASSERT(0);}

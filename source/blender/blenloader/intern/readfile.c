@@ -151,6 +151,7 @@
 #include "BKE_text.h" // for txt_extended_ascii_as_utf8
 #include "BKE_texture.h"
 #include "BKE_tracking.h"
+#include "BKE_treehash.h"
 #include "BKE_sound.h"
 
 #include "IMB_imbuf.h"  // for proxy / timecode versioning stuff
@@ -249,11 +250,7 @@ static void convert_tface_mt(FileData *fd, Main *main);
  * we could alternatively have a versions of a report function which forces printing - campbell
  */
 
-static void BKE_reportf_wrap(ReportList *reports, ReportType type, const char *format, ...)
-#ifdef __GNUC__
-__attribute__ ((format(printf, 3, 4)))
-#endif
-;
+static void BKE_reportf_wrap(ReportList *reports, ReportType type, const char *format, ...) ATTR_PRINTF_FORMAT(3, 4);
 static void BKE_reportf_wrap(ReportList *reports, ReportType type, const char *format, ...)
 {
 	char fixed_buf[1024]; /* should be long enough */
@@ -1779,6 +1776,27 @@ static void IDP_DirectLinkProperty(IDProperty *prop, int switch_endian, FileData
 	}
 }
 
+#define IDP_DirectLinkGroup_OrFree(prop, switch_endian, fd) \
+       _IDP_DirectLinkGroup_OrFree(prop, switch_endian, fd, __func__)
+
+static void _IDP_DirectLinkGroup_OrFree(IDProperty **prop, int switch_endian, FileData *fd,
+                                        const char *caller_func_id)
+{
+	if (*prop) {
+		if ((*prop)->type == IDP_GROUP) {
+			IDP_DirectLinkGroup(*prop, switch_endian, fd);
+		}
+		else {
+			/* corrupt file! */
+			printf("%s: found non group data, freeing type %d!\n",
+			       caller_func_id, (*prop)->type);
+			/* don't risk id, data's likely corrupt. */
+			// IDP_FreeProperty(*prop);
+			*prop = NULL;
+		}
+	}
+}
+
 /* stub function */
 static void IDP_LibLinkProperty(IDProperty *UNUSED(prop), int UNUSED(switch_endian), FileData *UNUSED(fd))
 {
@@ -1791,9 +1809,8 @@ static void direct_link_id(FileData *fd, ID *id)
 	/*link direct data of ID properties*/
 	if (id->properties) {
 		id->properties = newdataadr(fd, id->properties);
-		if (id->properties) { /* this case means the data was written incorrectly, it should not happen */
-			IDP_DirectLinkProperty(id->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-		}
+		/* this case means the data was written incorrectly, it should not happen */
+		IDP_DirectLinkGroup_OrFree(&id->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 	}
 }
 
@@ -2044,7 +2061,7 @@ static void direct_link_fmodifiers(FileData *fd, ListBase *list)
 				FMod_Python *data = (FMod_Python *)fcm->data;
 				
 				data->prop = newdataadr(fd, data->prop);
-				IDP_DirectLinkProperty(data->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+				IDP_DirectLinkGroup_OrFree(&data->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 			}
 				break;
 		}
@@ -2599,8 +2616,7 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 static void direct_link_node_socket(FileData *fd, bNodeSocket *sock)
 {
 	sock->prop = newdataadr(fd, sock->prop);
-	if (sock->prop)
-		IDP_DirectLinkProperty(sock->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+	IDP_DirectLinkGroup_OrFree(&sock->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 	
 	sock->link = newdataadr(fd, sock->link);
 	sock->typeinfo = NULL;
@@ -2638,8 +2654,7 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 		link_list(fd, &node->outputs);
 		
 		node->prop = newdataadr(fd, node->prop);
-		if (node->prop)
-			IDP_DirectLinkProperty(node->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+		IDP_DirectLinkGroup_OrFree(&node->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 		
 		link_list(fd, &node->internal_links);
 		for (link = node->internal_links.first; link; link = link->next) {
@@ -2797,8 +2812,7 @@ static void direct_link_constraints(FileData *fd, ListBase *lb)
 				link_list(fd, &data->targets);
 				
 				data->prop = newdataadr(fd, data->prop);
-				if (data->prop)
-					IDP_DirectLinkProperty(data->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+				IDP_DirectLinkGroup_OrFree(&data->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 				break;
 			}
 			case CONSTRAINT_TYPE_SPLINEIK:
@@ -2897,8 +2911,7 @@ static void direct_link_bones(FileData *fd, Bone *bone)
 	
 	bone->parent = newdataadr(fd, bone->parent);
 	bone->prop = newdataadr(fd, bone->prop);
-	if (bone->prop)
-		IDP_DirectLinkProperty(bone->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+	IDP_DirectLinkGroup_OrFree(&bone->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 		
 	bone->flag &= ~BONE_DRAW_ACTIVE;
 	
@@ -3123,7 +3136,6 @@ static void direct_link_mball(FileData *fd, MetaBall *mb)
 	
 	mb->disp.first = mb->disp.last = NULL;
 	mb->editelems = NULL;
-	mb->bb = NULL;
 /*	mb->edit_elems.first= mb->edit_elems.last= NULL;*/
 	mb->lastelem = NULL;
 }
@@ -3399,11 +3411,9 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 		if (cu->wordspace == 0.0f) cu->wordspace = 1.0f;
 	}
 
-	cu->bev.first = cu->bev.last = NULL;
 	cu->disp.first = cu->disp.last = NULL;
 	cu->editnurb = NULL;
 	cu->lastsel = NULL;
-	cu->path = NULL;
 	cu->editfont = NULL;
 	
 	for (nu = cu->nurb.first; nu; nu = nu->next) {
@@ -3690,7 +3700,7 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 					/* if we have indexes, let's use them */
 					for (dw = part->dupliweights.first; dw; dw = dw->next) {
 						GroupObject *go = (GroupObject *)BLI_findlink(&part->dup_group->gobject, dw->index);
-						dw->ob = go ? newlibadr(fd, part->id.lib, dw->ob) : NULL;
+						dw->ob = go ? go->ob : NULL;
 					}
 				}
 				else {
@@ -3796,7 +3806,7 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 			for (; pt; pt=pt->next)
 				pt->ob=newlibadr(fd, id->lib, pt->ob);
 			
-			psys->parent = newlibadr_us(fd, id->lib, psys->parent);
+			psys->parent = newlibadr(fd, id->lib, psys->parent);
 			psys->target_ob = newlibadr(fd, id->lib, psys->target_ob);
 			
 			if (psys->clmd) {
@@ -4106,6 +4116,8 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 		
 		if (layer->flag & CD_FLAG_EXTERNAL)
 			layer->flag &= ~CD_FLAG_IN_MEMORY;
+
+		layer->flag &= ~CD_FLAG_NOFREE;
 		
 		if (CustomData_verify_versions(data, i)) {
 			layer->data = newdataadr(fd, layer->data);
@@ -4152,13 +4164,19 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	direct_link_customdata(fd, &mesh->fdata, mesh->totface);
 	direct_link_customdata(fd, &mesh->ldata, mesh->totloop);
 	direct_link_customdata(fd, &mesh->pdata, mesh->totpoly);
-	
+
 	mesh->bb = NULL;
 	mesh->edit_btmesh = NULL;
 	
 	/* happens with old files */
 	if (mesh->mselect == NULL) {
 		mesh->totselect = 0;
+	}
+
+	if (mesh->mloopuv || mesh->mtpoly) {
+		/* for now we have to ensure texpoly and mloopuv layers are aligned
+		 * in the future we may allow non-aligned layers */
+		BKE_mesh_cd_validate(mesh);
 	}
 
 	/* Multires data */
@@ -4373,12 +4391,8 @@ static void lib_link_object(FileData *fd, Main *main)
 			for (sens = ob->sensors.first; sens; sens = sens->next) {
 				for (a = 0; a < sens->totlinks; a++)
 					sens->links[a] = newglobadr(fd, sens->links[a]);
-				
-				if (sens->type == SENS_TOUCH) {
-					bTouchSensor *ts = sens->data;
-					ts->ma = newlibadr(fd, ob->id.lib, ts->ma);
-				}
-				else if (sens->type == SENS_MESSAGE) {
+
+				if (sens->type == SENS_MESSAGE) {
 					bMessageSensor *ms = sens->data;
 					ms->fromObject =
 						newlibadr(fd, ob->id.lib, ms->fromObject);
@@ -4536,8 +4550,7 @@ static void direct_link_pose(FileData *fd, bPose *pose)
 		direct_link_constraints(fd, &pchan->constraints);
 		
 		pchan->prop = newdataadr(fd, pchan->prop);
-		if (pchan->prop)
-			IDP_DirectLinkProperty(pchan->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+		IDP_DirectLinkGroup_OrFree(&pchan->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 		
 		pchan->mpath = newdataadr(fd, pchan->mpath);
 		if (pchan->mpath)
@@ -4829,8 +4842,6 @@ static void direct_link_object(FileData *fd, Object *ob)
 		ob->mode &= ~(OB_MODE_EDIT | OB_MODE_PARTICLE_EDIT);
 	}
 	
-	ob->disp.first = ob->disp.last = NULL;
-	
 	ob->adt = newdataadr(fd, ob->adt);
 	direct_link_animdata(fd, ob->adt);
 	
@@ -5024,6 +5035,9 @@ static void direct_link_object(FileData *fd, Object *ob)
 	ob->derivedFinal = NULL;
 	ob->gpulamp.first= ob->gpulamp.last = NULL;
 	link_list(fd, &ob->pc_ids);
+
+	/* Runtime curve data  */
+	ob->curve_cache = NULL;
 
 	/* in case this value changes in future, clamp else we get undefined behavior */
 	CLAMP(ob->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
@@ -5433,20 +5447,17 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	}
 	if (sce->r.ffcodecdata.properties) {
 		sce->r.ffcodecdata.properties = newdataadr(fd, sce->r.ffcodecdata.properties);
-		if (sce->r.ffcodecdata.properties) {
-			IDP_DirectLinkProperty(sce->r.ffcodecdata.properties, 
-				(fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-		}
+		IDP_DirectLinkGroup_OrFree(&sce->r.ffcodecdata.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 	}
 	
 	link_list(fd, &(sce->markers));
 	link_list(fd, &(sce->transform_spaces));
 	link_list(fd, &(sce->r.layers));
 
-	for(srl = sce->r.layers.first; srl; srl = srl->next) {
+	for (srl = sce->r.layers.first; srl; srl = srl->next) {
 		link_list(fd, &(srl->freestyleConfig.modules));
 	}
-	for(srl = sce->r.layers.first; srl; srl = srl->next) {
+	for (srl = sce->r.layers.first; srl; srl = srl->next) {
 		link_list(fd, &(srl->freestyleConfig.linesets));
 	}
 	
@@ -5703,12 +5714,8 @@ static void lib_link_screen(FileData *fd, Main *main)
 								tselem->id = newlibadr(fd, NULL, tselem->id);
 							}
 							if (so->treehash) {
-								/* update hash table, because it depends on ids too */
-								BLI_ghash_clear(so->treehash, NULL, NULL);
-								BLI_mempool_iternew(so->treestore, &iter);
-								while ((tselem = BLI_mempool_iterstep(&iter))) {
-									BLI_ghash_insert(so->treehash, tselem, tselem);
-								}
+								/* rebuild hash table, because it depends on ids too */
+								BKE_treehash_rebuild_from_treestore(so->treehash, so->treestore);
 							}
 						}
 					}
@@ -6044,12 +6051,8 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 							tselem->id = restore_pointer_by_name(newmain, tselem->id, 0);
 						}
 						if (so->treehash) {
-							/* update hash table, because it depends on ids too */
-							BLI_ghash_clear(so->treehash, NULL, NULL);
-							BLI_mempool_iternew(so->treestore, &iter);
-							while ((tselem = BLI_mempool_iterstep(&iter))) {
-								BLI_ghash_insert(so->treehash, tselem, tselem);
-							}
+							/* rebuild hash table, because it depends on ids too */
+							BKE_treehash_rebuild_from_treestore(so->treehash, so->treestore);
 						}
 					}
 				}
@@ -6136,6 +6139,9 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 
 	for (ui_list = ar->ui_lists.first; ui_list; ui_list = ui_list->next) {
 		ui_list->type = NULL;
+		ui_list->dyn_data = NULL;
+		ui_list->properties = newdataadr(fd, ui_list->properties);
+		IDP_DirectLinkGroup_OrFree(&ui_list->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 	}
 
 	if (spacetype == SPACE_EMPTY) {
@@ -6324,7 +6330,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 			else if (sl->spacetype == SPACE_OUTLINER) {
 				SpaceOops *soops = (SpaceOops *) sl;
 				
-				/* use newdataadr_no_us and do not free old memory avoidign double
+				/* use newdataadr_no_us and do not free old memory avoiding double
 				 * frees and use of freed memory. this could happen because of a
 				 * bug fixed in revision 58959 where the treestore memory address
 				 * was not unique */
@@ -7033,16 +7039,16 @@ static void direct_link_linestyle(FileData *fd, FreestyleLineStyle *linestyle)
 	linestyle->adt= newdataadr(fd, linestyle->adt);
 	direct_link_animdata(fd, linestyle->adt);
 	link_list(fd, &linestyle->color_modifiers);
-	for(modifier = linestyle->color_modifiers.first; modifier; modifier = modifier->next)
+	for (modifier = linestyle->color_modifiers.first; modifier; modifier = modifier->next)
 		direct_link_linestyle_color_modifier(fd, modifier);
 	link_list(fd, &linestyle->alpha_modifiers);
-	for(modifier = linestyle->alpha_modifiers.first; modifier; modifier = modifier->next)
+	for (modifier = linestyle->alpha_modifiers.first; modifier; modifier = modifier->next)
 		direct_link_linestyle_alpha_modifier(fd, modifier);
 	link_list(fd, &linestyle->thickness_modifiers);
-	for(modifier = linestyle->thickness_modifiers.first; modifier; modifier = modifier->next)
+	for (modifier = linestyle->thickness_modifiers.first; modifier; modifier = modifier->next)
 		direct_link_linestyle_thickness_modifier(fd, modifier);
 	link_list(fd, &linestyle->geometry_modifiers);
-	for(modifier = linestyle->geometry_modifiers.first; modifier; modifier = modifier->next)
+	for (modifier = linestyle->geometry_modifiers.first; modifier; modifier = modifier->next)
 		direct_link_linestyle_geometry_modifier(fd, modifier);
 }
 
@@ -7079,7 +7085,9 @@ static const char *dataname(short id_code)
 		case ID_BR: return "Data from BR";
 		case ID_PA: return "Data from PA";
 		case ID_GD: return "Data from GD";
+		case ID_WM: return "Data from WM";
 		case ID_MC: return "Data from MC";
+		case ID_MSK: return "Data from MSK";
 		case ID_LS: return "Data from LS";
 	}
 	return "Data from Lib Block";
@@ -7148,7 +7156,7 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 	if (id->flag & LIB_FAKEUSER) id->us= 1;
 	else id->us = 0;
 	id->icon_id = 0;
-	id->flag &= ~(LIB_ID_RECALC|LIB_ID_RECALC_DATA);
+	id->flag &= ~(LIB_ID_RECALC|LIB_ID_RECALC_DATA|LIB_DOIT);
 	
 	/* this case cannot be direct_linked: it's just the ID part */
 	if (bhead->code == ID_ID) {
@@ -9081,17 +9089,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
-
-		/* fallbck resection method settings */
-		{
-			MovieClip *clip;
-
-			for (clip = main->movieclip.first; clip; clip = clip->id.next) {
-				if (clip->tracking.settings.reconstruction_success_threshold == 0.0f) {
-					clip->tracking.settings.reconstruction_success_threshold = 1e-3f;
-				}
-			}
-		}
 	}
 
 	if (main->versionfile < 264 || (main->versionfile == 264 && main->subversionfile < 7)) {
@@ -9455,12 +9452,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		SceneRenderLayer *srl;
 		FreestyleLineStyle *linestyle;
 
-		for(sce = main->scene.first; sce; sce = sce->id.next) {
+		for (sce = main->scene.first; sce; sce = sce->id.next) {
 			if (sce->r.line_thickness_mode == 0) {
 				sce->r.line_thickness_mode = R_LINE_THICKNESS_ABSOLUTE;
 				sce->r.unit_line_thickness = 1.0f;
 			}
-			for(srl = sce->r.layers.first; srl; srl = srl->next) {
+			for (srl = sce->r.layers.first; srl; srl = srl->next) {
 				if (srl->freestyleConfig.mode == 0)
 					srl->freestyleConfig.mode = FREESTYLE_CONTROL_EDITOR_MODE;
 				if (srl->freestyleConfig.raycasting_algorithm == FREESTYLE_ALGO_CULLED_ADAPTIVE_CUMULATIVE ||
@@ -9490,7 +9487,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 
 		}
-		for(linestyle = main->linestyle.first; linestyle; linestyle = linestyle->id.next) {
+		for (linestyle = main->linestyle.first; linestyle; linestyle = linestyle->id.next) {
 #if 1
 			/* disable the Misc panel for now */
 			if (linestyle->panel == LS_PANEL_MISC) {
@@ -9543,8 +9540,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	if (MAIN_VERSION_OLDER(main, 267, 1))
-	{
+	if (MAIN_VERSION_OLDER(main, 267, 1)) {
 		Object *ob;
 
 		for (ob = main->object.first; ob; ob = ob->id.next) {
@@ -9578,19 +9574,33 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		for (brush = main->brush.first; brush; brush = brush->id.next) {
 			brush->flag &= ~BRUSH_FIXED;
 
-			if(brush->cursor_overlay_alpha < 2)
+			if (brush->cursor_overlay_alpha < 2)
 				brush->cursor_overlay_alpha = 33;
-			if(brush->texture_overlay_alpha < 2)
+			if (brush->texture_overlay_alpha < 2)
 				brush->texture_overlay_alpha = 33;
-			if(brush->mask_overlay_alpha <2)
+			if (brush->mask_overlay_alpha <2)
 				brush->mask_overlay_alpha = 33;
 		}
 		#undef BRUSH_FIXED
 	}
 	
-	{
+
+	if (!MAIN_VERSION_ATLEAST(main, 268, 4)) {
 		bScreen *sc;
 		Object *ob;
+
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			bConstraint *con;
+			for (con = ob->constraints.first; con; con = con->next) {
+				if (con->type == CONSTRAINT_TYPE_SHRINKWRAP) {
+					bShrinkwrapConstraint *data = (bShrinkwrapConstraint *)con->data;
+					if      (data->projAxis & MOD_SHRINKWRAP_PROJECT_OVER_X_AXIS) data->projAxis = OB_POSX;
+					else if (data->projAxis & MOD_SHRINKWRAP_PROJECT_OVER_Y_AXIS) data->projAxis = OB_POSY;
+					else                                                          data->projAxis = OB_POSZ;
+					data->projAxisSpace = CONSTRAINT_SPACE_LOCAL;
+				}
+			}
+		}
 
 		for (ob = main->object.first; ob; ob = ob->id.next) {
 			ModifierData *md;
@@ -9625,12 +9635,133 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
+
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			bSensor *sens;
+			bTouchSensor *ts;
+			bCollisionSensor *cs;
+			Material *ma;
+
+			for (sens = ob->sensors.first; sens; sens = sens->next) {
+				if (sens->type == SENS_TOUCH) {
+					ts = sens->data;
+					cs = MEM_callocN(sizeof(bCollisionSensor), "touch -> collision sensor do_version");
+
+					if (ts->ma) {
+						ma = blo_do_versions_newlibadr(fd, ob->id.lib, ts->ma);
+						BLI_strncpy(cs->materialName, ma->id.name+2, sizeof(cs->materialName));
+					}
+
+					cs->mode = SENS_COLLISION_MATERIAL;
+
+					MEM_freeN(ts);
+
+					sens->data = cs;
+					sens->type = sens->otype = SENS_COLLISION;
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 268, 5)) {
+		bScreen *sc;
+		ScrArea *sa;
+
+		/* add missing (+) expander in node editor */
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				ARegion *ar, *arnew;
+
+				if (sa->spacetype == SPACE_NODE) {
+					ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
+
+					if (ar)
+						continue;
+
+					/* add subdiv level; after header */
+					ar = BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
+					
+					/* is error! */
+					if (ar == NULL)
+						continue;
+
+					arnew = MEM_callocN(sizeof(ARegion), "node tools");
+					
+					BLI_insertlinkafter(&sa->regionbase, ar, arnew);
+					arnew->regiontype = RGN_TYPE_TOOLS;
+					arnew->alignment = RGN_ALIGN_LEFT;
+					
+					arnew->flag = RGN_FLAG_HIDDEN;
+				}
+			}
+		}
+	}
+	
+	if (!MAIN_VERSION_ATLEAST(main, 269, 1)) {
+		/* Removal of Cycles SSS Compatible falloff */
+		FOREACH_NODETREE(main, ntree, id) {
+			if (ntree->type == NTREE_SHADER) {
+				bNode *node;
+				for (node = ntree->nodes.first; node; node = node->next) {
+					if (node->type == SH_NODE_SUBSURFACE_SCATTERING) {
+						if (node->custom1 == SHD_SUBSURFACE_COMPATIBLE) {
+							node->custom1 = SHD_SUBSURFACE_CUBIC;
+						}
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
+	}
+
+	{
+		bScreen *sc;
+		ScrArea *sa;
+		SpaceLink *sl;
+
+		/* Update files using invalid (outdated) outlinevis Outliner values. */
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_OUTLINER) {
+						SpaceOops *so = (SpaceOops *)sl;
+
+						if (!ELEM11(so->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_SELECTED, SO_ACTIVE,
+						                            SO_SAME_TYPE, SO_GROUPS, SO_LIBRARIES, SO_SEQUENCE, SO_DATABLOCKS,
+						                            SO_USERDEF))
+						{
+							so->outlinevis = SO_ALL_SCENES;
+						}
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "MovieTrackingTrack", "float", "weight")) {
+			MovieClip *clip;
+			for (clip = main->movieclip.first; clip; clip = clip->id.next) {
+				MovieTracking *tracking = &clip->tracking;
+				MovieTrackingObject *tracking_object;
+				for (tracking_object = tracking->objects.first;
+				     tracking_object;
+				     tracking_object = tracking_object->next)
+				{
+					ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, tracking_object);
+					MovieTrackingTrack *track;
+					for (track = tracksbase->first;
+					     track;
+					     track = track->next)
+					{
+						track->weight = 1.0f;
+					}
+				}
+			}
+		}
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */
 
-	/* don't forget to set version number in blender.c! */
+	/* don't forget to set version number in BKE_blender.h! */
 }
 
 #if 0 // XXX: disabled for now... we still don't have this in the right place in the loading code for it to work
@@ -9686,8 +9817,7 @@ static void lib_link_all(FileData *fd, Main *main)
 static void direct_link_keymapitem(FileData *fd, wmKeyMapItem *kmi)
 {
 	kmi->properties = newdataadr(fd, kmi->properties);
-	if (kmi->properties)
-		IDP_DirectLinkProperty(kmi->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
+	IDP_DirectLinkGroup_OrFree(&kmi->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 	kmi->ptr = NULL;
 	kmi->flag &= ~KMI_UPDATE;
 }
@@ -9744,9 +9874,7 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 
 	for (addon = user->addons.first; addon; addon = addon->next) {
 		addon->prop = newdataadr(fd, addon->prop);
-		if (addon->prop) {
-			IDP_DirectLinkProperty(addon->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
-		}
+		IDP_DirectLinkGroup_OrFree(&addon->prop, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 	}
 
 	// XXX
@@ -10526,11 +10654,7 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 		expand_doit(fd, mainvar, psys->part);
 	
 	for (sens = ob->sensors.first; sens; sens = sens->next) {
-		if (sens->type == SENS_TOUCH) {
-			bTouchSensor *ts = sens->data;
-			expand_doit(fd, mainvar, ts->ma);
-		}
-		else if (sens->type == SENS_MESSAGE) {
+		if (sens->type == SENS_MESSAGE) {
 			bMessageSensor *ms = sens->data;
 			expand_doit(fd, mainvar, ms->fromObject);
 		}
@@ -10954,13 +11078,17 @@ static void give_base_to_groups(Main *mainvar, Scene *scene)
 {
 	Group *group;
 	
-	/* give all objects which are LIB_INDIRECT a base, or for a group when *lib has been set */
+	/* give all objects which are tagged a base */
 	for (group = mainvar->group.first; group; group = group->id.next) {
-		if (((group->id.flag & LIB_INDIRECT)==0 && (group->id.flag & LIB_PRE_EXISTING)==0)) {
+		if (group->id.flag & LIB_DOIT) {
 			Base *base;
+			Object *ob;
+
+			/* any indirect group should not have been tagged */
+			BLI_assert((group->id.flag & LIB_INDIRECT)==0);
 			
 			/* BKE_object_add(...) messes with the selection */
-			Object *ob = BKE_object_add_only_object(mainvar, OB_EMPTY, group->id.name + 2);
+			ob = BKE_object_add_only_object(mainvar, OB_EMPTY, group->id.name + 2);
 			ob->type = OB_EMPTY;
 			ob->lay = scene->lay;
 			
@@ -11085,6 +11213,11 @@ static ID *append_named_part_ex(const bContext *C, Main *mainl, FileData *fd, co
 			}
 		}
 	}
+	else if (id && (GS(id->name) == ID_GR)) {
+		/* tag as needing to be instanced */
+		if (flag & FILE_GROUP_INSTANCE)
+			id->flag |= LIB_DOIT;
+	}
 	
 	return id;
 }
@@ -11130,6 +11263,9 @@ static Main *library_append_begin(Main *mainvar, FileData **fd, const char *file
 
 	(*fd)->mainlist = MEM_callocN(sizeof(ListBase), "FileData.mainlist");
 	
+	/* clear for group instancing tag */
+	tag_main_lb(&(mainvar->group), 0);
+
 	/* make mains */
 	blo_split_main((*fd)->mainlist, mainvar);
 	
@@ -11206,6 +11342,10 @@ static void library_append_end(const bContext *C, Main *mainl, FileData **fd, in
 			printf("library_append_end, scene is NULL (objects wont get bases)\n");
 		}
 	}
+
+	/* clear group instancing tag */
+	tag_main_lb(&(mainvar->group), 0);
+	
 	/* has been removed... erm, why? s..ton) */
 	/* 20040907: looks like they are give base already in append_named_part(); -Nathan L */
 	/* 20041208: put back. It only linked direct, not indirect objects (ton) */

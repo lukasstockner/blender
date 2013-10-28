@@ -393,7 +393,7 @@ extern bool ui_set_but_string(struct bContext *C, uiBut *but, const char *str);
 extern bool ui_set_but_string_eval_num(struct bContext *C, uiBut *but, const char *str, double *value);
 extern int  ui_get_but_string_max_length(uiBut *but);
 
-extern void ui_set_but_default(struct bContext *C, short all);
+extern void ui_set_but_default(struct bContext *C, const bool all);
 
 extern void ui_check_but(uiBut *but);
 extern bool ui_is_but_float(uiBut *but);
@@ -402,6 +402,7 @@ extern bool ui_is_but_unit(uiBut *but);
 extern bool ui_is_but_rna_valid(uiBut *but);
 extern bool ui_is_but_utf8(uiBut *but);
 extern bool ui_is_but_interactive(uiBut *but);
+extern bool ui_is_but_search_unlink_visible(uiBut *but);
 
 extern int  ui_is_but_push_ex(uiBut *but, double *value);
 extern int  ui_is_but_push(uiBut *but);
@@ -522,6 +523,7 @@ extern void ui_button_active_free(const struct bContext *C, uiBut *but);
 extern bool ui_button_is_active(struct ARegion *ar);
 extern int ui_button_open_menu_direction(uiBut *but);
 extern void ui_button_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, int restore);
+void ui_button_clipboard_free(void);
 
 /* interface_widgets.c */
 void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3);
@@ -538,7 +540,7 @@ extern void ui_draw_but(const struct bContext *C, ARegion *ar, struct uiStyle *s
 struct ThemeUI;
 void ui_widget_color_init(struct ThemeUI *tui);
 
-void ui_draw_menu_item(struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state);
+void ui_draw_menu_item(struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state, bool use_sep);
 void ui_draw_preview_item(struct uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state);
 
 extern const unsigned char checker_stipple_sml[32 * 32 / 8];
@@ -584,4 +586,8 @@ int ui_but_anim_expression_set(uiBut *but, const char *str);
 int ui_but_anim_expression_create(uiBut *but, const char *str);
 void ui_but_anim_autokey(struct bContext *C, uiBut *but, struct Scene *scene, float cfra);
 
-#endif
+/* interface_eyedropper.c */
+void UI_OT_eyedropper_color(struct wmOperatorType *ot);
+void UI_OT_eyedropper_id(struct wmOperatorType *ot);
+
+#endif  /* __INTERFACE_INTERN_H__ */

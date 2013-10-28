@@ -36,6 +36,7 @@ incs = [
     '.',
     './intern',
     '#/intern/guardedalloc',
+    '#/intern/atomic',
     '#/intern/memutil',
     '#/extern/glew/include',
     '#/intern/audaspace/intern',
@@ -64,6 +65,9 @@ if env['WITH_BF_SMOKE']:
 if env['WITH_BF_BULLET']:
     defs.append('WITH_BULLET')
     incs += ' #/intern/rigidbody'
+
+if env['WITH_BF_OIIO']:
+    defs.append('WITH_OPENIMAGEIO')
 
 if env['WITH_BF_OPENEXR']:
     defs.append('WITH_OPENEXR')

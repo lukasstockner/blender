@@ -257,6 +257,16 @@ PYGETTEXT_KEYWORDS = (() +
           for it in ("BLF_I18N_MSGID_MULTI_CTXT",))
 )
 
+# Check printf mismatches between msgid and msgstr.
+CHECK_PRINTF_FORMAT = (
+    r"(?!<%)(?:%%)*%"          # Begining, with handling for crazy things like '%%%%%s'
+    r"[-+#0]?"                 # Flags (note: do not add the ' ' (space) flag here, generates too much false positives!)
+    r"(?:\*|[0-9]+)?"          # Width
+    r"(?:\.(?:\*|[0-9]+))?"    # Precision
+    r"(?:[hljztL]|hh|ll)?"     # Length
+    r"[tldiuoxXfFeEgGaAcspn]"  # Specifiers (note we have Blender-specific %t and %l ones too)
+)
+
 # Should po parser warn when finding a first letter not capitalized?
 WARN_MSGID_NOT_CAPITALIZED = True
 
@@ -467,9 +477,12 @@ def _do_set(ref, path):
     path = os.path.normpath(path)
     # If given path is absolute, make it relative to current ref one (else we consider it is already the case!)
     if os.path.isabs(path):
-        return os.path.relpath(path, ref)
-    else:
-        return path
+        # can't always find the relative path (between drive letters on windows)
+        try:
+            return os.path.relpath(path, ref)
+        except ValueError:
+            pass
+    return path
 
 def _gen_get_set_path(ref, name):
     def _get(self):

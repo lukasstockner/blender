@@ -421,11 +421,11 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *ob, B
 	faceMap = MEM_mallocN(numOfFaces * sizeof(BMFace *), "unwrap_edit_face_map");
 
 	BM_mesh_elem_index_ensure(em->bm, BM_VERT);
-	EDBM_index_arrays_ensure(em, BM_EDGE | BM_FACE);
+	BM_mesh_elem_table_ensure(em->bm, BM_EDGE | BM_FACE);
 
 	/* map subsurfed faces to original editFaces */
 	for (i = 0; i < numOfFaces; i++)
-		faceMap[i] = EDBM_face_at_index(em, DM_origindex_mface_mpoly(origFaceIndices, origPolyIndices, i));
+		faceMap[i] = BM_face_at_index(em->bm, DM_origindex_mface_mpoly(origFaceIndices, origPolyIndices, i));
 
 	edgeMap = MEM_mallocN(numOfEdges * sizeof(BMEdge *), "unwrap_edit_edge_map");
 
@@ -433,7 +433,7 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *ob, B
 	for (i = 0; i < numOfEdges; i++) {
 		/* not all edges correspond to an old edge */
 		edgeMap[i] = (origEdgeIndices[i] != ORIGINDEX_NONE) ?
-		             EDBM_edge_at_index(em, origEdgeIndices[i]) : NULL;
+		             BM_edge_at_index(em->bm, origEdgeIndices[i]) : NULL;
 	}
 
 	/* Prepare and feed faces to the solver */
@@ -718,6 +718,7 @@ static int pack_islands_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	ParamHandle *handle;
 	bool implicit = true;
+	bool do_rotate = RNA_boolean_get(op->ptr, "rotate");
 
 	if (!uvedit_have_selection(scene, em, implicit)) {
 		return OPERATOR_CANCELLED;
@@ -729,7 +730,7 @@ static int pack_islands_exec(bContext *C, wmOperator *op)
 		RNA_float_set(op->ptr, "margin", scene->toolsettings->uvcalc_margin);
 
 	handle = construct_param_handle(scene, obedit, em, implicit, 0, 1, 1);
-	param_pack(handle, scene->toolsettings->uvcalc_margin);
+	param_pack(handle, scene->toolsettings->uvcalc_margin, do_rotate);
 	param_flush(handle);
 	param_delete(handle);
 	
@@ -753,6 +754,7 @@ void UV_OT_pack_islands(wmOperatorType *ot)
 	ot->poll = ED_operator_uvedit;
 
 	/* properties */
+	RNA_def_boolean(ot->srna, "rotate", true, "Rotate", "Rotate islands for best fit");
 	RNA_def_float_factor(ot->srna, "margin", 0.001f, 0.0f, 1.0f, "Margin", "Space between islands", 0.0f, 1.0f);
 }
 
@@ -888,7 +890,7 @@ static void uv_map_transform_center(Scene *scene, View3D *v3d, float *result,
 		}
 		case V3D_CURSOR:  /* cursor center */
 		{
-			const float *curs = give_cursor(scene, v3d);
+			const float *curs = ED_view3d_cursor3d_get(scene, v3d);
 			/* shift to objects world */
 			sub_v3_v3v3(result, curs, ob->obmat[3]);
 			break;
@@ -1151,7 +1153,7 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 	param_lscm_end(handle);
 
 	param_average(handle);
-	param_pack(handle, scene->toolsettings->uvcalc_margin);
+	param_pack(handle, scene->toolsettings->uvcalc_margin, false);
 
 	param_flush(handle);
 
