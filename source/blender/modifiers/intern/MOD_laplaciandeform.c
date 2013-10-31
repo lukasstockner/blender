@@ -52,6 +52,7 @@
 #define LAPDEFORM_SYSTEM_IS_DIFFERENT 1
 #define LAPDEFORM_SYSTEM_ONLY_CHANGE_ANCHORS 2
 #define LAPDEFORM_SYSTEM_ONLY_CHANGE_GROUP 3
+#define LAPDEFORM_SYSTEM_ONLY_CHANGE_MESH 4
 
 typedef struct LaplacianSystem {
 	bool is_matrix_computed;
@@ -700,7 +701,11 @@ static int isSystemDifferent(LaplacianDeformModifierData *smd, Object *ob, Deriv
 		return LAPDEFORM_SYSTEM_ONLY_CHANGE_ANCHORS;
 	}
 
-	return false;
+	if (!sys->me->mface) {	
+		return LAPDEFORM_SYSTEM_ONLY_CHANGE_MESH;
+	}
+
+	return LAPDEFORM_SYSTEM_NOT_CHANGE;
 }
 
 static void LaplacianDeformModifier_do(
@@ -709,12 +714,19 @@ static void LaplacianDeformModifier_do(
 {
 	float (*filevertexCos)[3];
 	int sysdif;
+	LaplacianSystem * sys = NULL;
 	filevertexCos = NULL;
 	
 	if (smd->cacheSystem) {
 		sysdif = isSystemDifferent(smd, ob, dm,numVerts);
+		sys = smd->cacheSystem;
 		if (sysdif) {
-			if (sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_ANCHORS || sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_GROUP) {
+			if (sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_MESH ) {
+				sys->me = ob->data;
+				BKE_mesh_tessface_ensure(sys->me);
+				laplacianDeformPreview(sys, vertexCos);
+			}
+			else if (sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_ANCHORS || sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_GROUP) {
 				filevertexCos = (float (*)[3]) MEM_mallocN(sizeof(float[3]) * numVerts, "TempModDeformCoordinates");
 				memcpy(filevertexCos, smd->vertexco, sizeof(float[3]) * numVerts);
 				MEM_SAFE_FREE(smd->vertexco);
@@ -722,21 +734,21 @@ static void LaplacianDeformModifier_do(
 				deleteLaplacianSystem((LaplacianSystem *) smd->cacheSystem);
 				initSystem(smd, ob, dm, filevertexCos, numVerts);
 				MEM_SAFE_FREE(filevertexCos);
-				laplacianDeformPreview((LaplacianSystem *) smd->cacheSystem, vertexCos);
+				laplacianDeformPreview(sys, vertexCos);
 			}
 			else {
-				deleteLaplacianSystem((LaplacianSystem *) smd->cacheSystem);
+				deleteLaplacianSystem(sys);
 				if (smd->vertexco) {
 					MEM_freeN(smd->vertexco);
 				}
 				smd->total_verts = 0;
 				initSystem(smd, ob, dm, vertexCos, numVerts);
-				laplacianDeformPreview((LaplacianSystem *) smd->cacheSystem, vertexCos);
+				laplacianDeformPreview(sys, vertexCos);
 			}
 		} 
 		else {
-			((LaplacianSystem *)smd->cacheSystem)->repeat = smd->repeat;
-			laplacianDeformPreview((LaplacianSystem *) smd->cacheSystem, vertexCos);
+			sys->repeat = smd->repeat;
+			laplacianDeformPreview(sys, vertexCos);
 		}
 	}
 	else {
@@ -802,7 +814,7 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
                         float (*vertexCos)[3], int numVerts, ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
- 
+
 	LaplacianDeformModifier_do((LaplacianDeformModifierData *) md, ob, dm,
 	                  vertexCos, numVerts);
  
