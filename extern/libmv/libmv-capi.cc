@@ -306,6 +306,9 @@ int libmv_trackRegion(const libmv_TrackRegionOptions *options,
 	track_region_options.num_extra_points = 1;
 	track_region_options.image1_mask = NULL;
 	track_region_options.use_brute_initialization = options->use_brute;
+	/* TODO(keir): This will make some cases better, but may be a regression until
+	 * the motion model is in. Since this is on trunk, enable it for now. */
+	track_region_options.attempt_refine_before_brute = true;
 	track_region_options.use_normalized_intensities = options->use_normalization;
 
 	if (options->image1_mask) {
@@ -393,9 +396,9 @@ void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks)
 	LIBMV_OBJECT_DELETE(libmv_tracks, Tracks);
 }
 
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y)
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y, double weight)
 {
-	((libmv::Tracks*) libmv_tracks)->Insert(image, track, x, y);
+	((libmv::Tracks*) libmv_tracks)->Insert(image, track, x, y, weight);
 }
 
 /* ************ Reconstruction ************ */

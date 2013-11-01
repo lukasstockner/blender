@@ -379,7 +379,8 @@ void BKE_mesh_normals_loop_split(MVert *mverts, const int UNUSED(numVerts), MEdg
 			if ((e2l[0] | e2l[1]) == 0) {
 				/* 'Empty' edge until now, set e2l[0] (and e2l[1] to INDEX_UNSET to tag it as unset). */
 				e2l[0] = ml_curr_index;
-				e2l[1] = INDEX_UNSET;
+				/* We have to check this here too, else we might miss some flat faces!!! */
+				e2l[1] = (mp->flag & ME_SMOOTH) ? INDEX_UNSET : INDEX_INVALID;
 			}
 			else if (e2l[1] == INDEX_UNSET) {
 				/* Second loop using this edge, time to test its sharpness.
@@ -945,7 +946,7 @@ bool BKE_mesh_center_centroid(Mesh *me, float cent[3])
  * \{ */
 
 
-/* ngon version wip, based on EDBM_uv_vert_map_create */
+/* ngon version wip, based on BM_uv_vert_map_create */
 /* this replaces the non bmesh function (in trunk) which takes MTFace's, if we ever need it back we could
  * but for now this replaces it because its unused. */
 

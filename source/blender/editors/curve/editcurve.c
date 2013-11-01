@@ -2032,7 +2032,8 @@ static void adduplicateflagNurb(Object *obedit, ListBase *newnurb,
 				MEM_freeN(usel);
 
 				if ((newu == 0 || newv == 0) ||
-					(split && !isNurbselU(nu, &newv, SELECT) && !isNurbselV(nu, &newu, SELECT))) {
+				    (split && !isNurbselU(nu, &newv, SELECT) && !isNurbselV(nu, &newu, SELECT)))
+				{
 					if (G.debug & G_DEBUG)
 						printf("Can't duplicate Nurb\n");
 				}
@@ -4484,7 +4485,7 @@ static int spin_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event)
 	if (rv3d)
 		copy_v3_v3(axis, rv3d->viewinv[2]);
 	
-	RNA_float_set_array(op->ptr, "center", give_cursor(scene, v3d));
+	RNA_float_set_array(op->ptr, "center", ED_view3d_cursor3d_get(scene, v3d));
 	RNA_float_set_array(op->ptr, "axis", axis);
 	
 	return spin_exec(C, op);
@@ -4820,7 +4821,7 @@ static int add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 			mul_v3_m4v3(location, vc.obedit->obmat, bp->vec);
 		}
 		else {
-			copy_v3_v3(location, give_cursor(vc.scene, vc.v3d));
+			copy_v3_v3(location, ED_view3d_cursor3d_get(vc.scene, vc.v3d));
 		}
 
 		ED_view3d_win_to_3d_int(vc.ar, location, event->mval, location);
@@ -6076,7 +6077,8 @@ static int curve_delete_segments(Object *obedit, const bool split)
 				bezt2 = &nu->bezt[1];
 
 				if (BEZSELECTED_HIDDENHANDLES(cu, bezt1) &&
-					BEZSELECTED_HIDDENHANDLES(cu, bezt2)) {
+				    BEZSELECTED_HIDDENHANDLES(cu, bezt2))
+				{
 					nu1 = BKE_nurb_copy(nu, 1, 1);
 					ED_curve_beztcpy(editnurb, nu1->bezt, bezt1, 1);
 					BLI_addtail(&newnurb, nu1);
@@ -6086,7 +6088,8 @@ static int curve_delete_segments(Object *obedit, const bool split)
 				bezt2 = &nu->bezt[nu->pntsu - 2];
 
 				if (BEZSELECTED_HIDDENHANDLES(cu, bezt1) &&
-					BEZSELECTED_HIDDENHANDLES(cu, bezt2)) {
+				    BEZSELECTED_HIDDENHANDLES(cu, bezt2))
+				{
 					nu1 = BKE_nurb_copy(nu, 1, 1);
 					ED_curve_beztcpy(editnurb, nu1->bezt, bezt1, 1);
 					BLI_addtail(&newnurb, nu1);

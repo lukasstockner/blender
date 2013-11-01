@@ -370,7 +370,7 @@ static void rna_View3D_CursorLocation_get(PointerRNA *ptr, float *values)
 	View3D *v3d = (View3D *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
 	Scene *scene = (Scene *)sc->scene;
-	const float *loc = give_cursor(scene, v3d);
+	const float *loc = ED_view3d_cursor3d_get(scene, v3d);
 	
 	copy_v3_v3(values, loc);
 }
@@ -380,7 +380,7 @@ static void rna_View3D_CursorLocation_set(PointerRNA *ptr, const float *values)
 	View3D *v3d = (View3D *)(ptr->data);
 	bScreen *sc = (bScreen *)ptr->id.data;
 	Scene *scene = (Scene *)sc->scene;
-	float *cursor = give_cursor(scene, v3d);
+	float *cursor = ED_view3d_cursor3d_get(scene, v3d);
 	
 	copy_v3_v3(cursor, values);
 }
@@ -2879,6 +2879,18 @@ static void rna_def_space_graph(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", 0);
 	RNA_def_property_boolean_funcs(prop, "rna_SpaceGraphEditor_has_ghost_curves_get", NULL);
 	RNA_def_property_ui_text(prop, "Has Ghost Curves", "Graph Editor instance has some ghost curves stored");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, NULL);
+
+	/* nromalize curves */
+	prop = RNA_def_property(srna, "use_normalization", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SIPO_NORMALIZE);
+	RNA_def_property_ui_text(prop, "use Normalization", "Display curves in normalized to -1..1 range, "
+	                        "for easier editing of multiple curves with different ranges");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, NULL);
+
+	prop = RNA_def_property(srna, "use_auto_normalization", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SIPO_NORMALIZE_FREEZE);
+	RNA_def_property_ui_text(prop, "Auto Normalization", "Automatically recalculate curve normalization on every curve edit");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, NULL);
 }
 

@@ -517,7 +517,7 @@ int cocoa_request_qtcodec_settings(bContext *C, wmOperator *op)
 
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender
 {
-	//TODO: implement graceful termination through Cocoa mechanism to avoid session log off to be cancelled
+	//TODO: implement graceful termination through Cocoa mechanism to avoid session log off to be canceled
 	//Note that Cmd+Q is already handled by keyhandler
     if (systemCocoa->handleQuitRequest() == GHOST_kExitNow)
 		return NSTerminateCancel;//NSTerminateNow;
@@ -525,7 +525,7 @@ int cocoa_request_qtcodec_settings(bContext *C, wmOperator *op)
 		return NSTerminateCancel;
 }
 
-// To avoid cancelling a log off process, we must use Cocoa termination process
+// To avoid canceling a log off process, we must use Cocoa termination process
 // And this function is the only chance to perform clean up
 // So WM_exit needs to be called directly, as the event loop will never run before termination
 - (void)applicationWillTerminate:(NSNotification *)aNotification

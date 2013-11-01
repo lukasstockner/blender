@@ -157,6 +157,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		lb = scen->r.layers;
 		scen->r = sce->r;
 		scen->r.layers = lb;
+		scen->r.actlay = 0;
 		scen->unit = sce->unit;
 		scen->physics_settings = sce->physics_settings;
 		scen->gm = sce->gm;
@@ -1302,7 +1303,7 @@ void BKE_scene_update_for_newframe(Main *bmain, Scene *sce, unsigned int lay)
 	 * so don't call within 'scene_update_tagged_recursive' */
 	DAG_scene_update_flags(bmain, sce, lay, TRUE);   // only stuff that moves or needs display still
 
-	BKE_mask_evaluate_all_masks(bmain, ctime, TRUE);
+	BKE_mask_evaluate_all_masks(bmain, ctime, true);
 
 	/* All 'standard' (i.e. without any dependencies) animation is handled here,
 	 * with an 'local' to 'macro' order of evaluation. This should ensure that
@@ -1501,16 +1502,6 @@ void BKE_scene_disable_color_management(Scene *scene)
 
 int BKE_scene_check_color_management_enabled(const Scene *scene)
 {
-	/* TODO(sergey): shouldn't be needed. but we're currently far to close to the release,
-	 *               so better be extra-safe than sorry.
-	 *
-	 *               Will remove the check after the release.
-	 */
-	if (!scene) {
-		BLI_assert(!"Shouldn't happen!");
-		return TRUE;
-	}
-
 	return strcmp(scene->display_settings.display_device, "None") != 0;
 }
 

@@ -1089,6 +1089,12 @@ static void rna_def_trackingMarker(BlenderRNA *brna)
 	                         "Right-bottom corner of search area in normalized coordinates relative "
 	                         "to marker position");
 	RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_tracking_markerSearch_update");
+
+	/* is marker keyframed */
+	prop = RNA_def_property(srna, "is_keyframed", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", MARKER_TRACKED);
+	RNA_def_property_ui_text(prop, "Keyframed", "Indicates whether position of marker is keyframed, not tracked");
 }
 
 static void rna_def_trackingMarkers(BlenderRNA *brna, PropertyRNA *cprop)
@@ -1339,6 +1345,12 @@ static void rna_def_trackingTrack(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "GreasePencil");
 	RNA_def_property_ui_text(prop, "Grease Pencil", "Grease pencil data for this track");
 	RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, NULL);
+
+	/* weight */
+	prop = RNA_def_property(srna, "weight", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "weight");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Weight", "How much this track affects on a final solution");
 }
 
 static void rna_def_trackingPlaneMarker(BlenderRNA *brna)

@@ -716,6 +716,10 @@ class VIEW3D_MT_select_edit_metaball(Menu):
 
         layout.operator("mball.select_random_metaelems")
 
+        layout.separator()
+
+        layout.operator_menu_enum("mball.select_similar", "type", text="Similar")
+
 
 class VIEW3D_MT_select_edit_lattice(Menu):
     bl_label = "Select"
@@ -1441,6 +1445,9 @@ class VIEW3D_MT_hide_mask(Menu):
         props = layout.operator("paint.mask_flood_fill", text="Clear Mask")
         props.mode = 'VALUE'
         props.value = 0
+        
+        props = layout.operator("view3d.select_border", text="Box Mask")
+        props = layout.operator("paint.mask_lasso_gesture", text="Lasso Mask")
 
 
 # ********** Particle menu **********
@@ -2385,6 +2392,7 @@ class VIEW3D_MT_edit_armature(Menu):
         layout.operator("armature.merge")
         layout.operator("armature.fill")
         layout.operator("armature.delete")
+        layout.operator("armature.split")
         layout.operator("armature.separate")
 
         layout.separator()
