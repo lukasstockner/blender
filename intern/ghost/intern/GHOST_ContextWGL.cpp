@@ -72,6 +72,8 @@ bool win32_chk(bool result, const char* file = NULL, int line = 0, const char* t
 
 		const char* msg;
 
+		DWORD count = 0;
+
 		switch (error) {
 			case ERROR_INVALID_VERSION_ARB:
 				msg = "The specified OpenGL version and feature set are either invalid or not supported.\n";
@@ -103,7 +105,6 @@ bool win32_chk(bool result, const char* file = NULL, int line = 0, const char* t
 
 			default:
 			{
-				DWORD count;
 				count =
 					FormatMessage(
 						(FORMAT_MESSAGE_ALLOCATE_BUFFER |
@@ -140,7 +141,8 @@ bool win32_chk(bool result, const char* file = NULL, int line = 0, const char* t
 
 		SetLastError(NO_ERROR);
 
-		LocalFree(formattedMsg);
+		if (count != 0)
+			LocalFree(formattedMsg);
 	}
 
 	return result;
