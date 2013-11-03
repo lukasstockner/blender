@@ -117,8 +117,6 @@ enum {
 	LAP_MODAL_NOTHING 
 };
 
-wmKeyMap * laplacian_deform_modal_keymap(wmKeyConfig *keyconf);
-void MESH_OT_vertices_laplacian_deform(wmOperatorType *ot);
 static StaticAnchors * init_static_anchors(int numv, int nums);
 static HandlerAnchors * init_handler_anchors(int numh);
 static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh);
@@ -136,7 +134,6 @@ static void init_laplacian_matrix( SystemCustomData * data);
 static void laplacian_deform_mark_static(bContext *C, wmOperator *op);
 static void laplacian_deform_mark_handlers(bContext *C, wmOperator *op);
 static void laplacian_deform_preview(bContext *C, wmOperator *op);
-static void laplacian_deform_init(struct bContext *C, LaplacianSystem * sys);
 static void rotate_differential_coordinates(SystemCustomData * data);
 static void update_system_state(SystemCustomData * data, int state);
 
@@ -266,7 +263,7 @@ static void update_system_state(SystemCustomData * data, int state)
 
 }
 
-static int laplacian_deform_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *evt)
+static int laplacian_deform_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	SystemCustomData * sys;
 	Object *obedit = CTX_data_edit_object(C);
@@ -329,12 +326,14 @@ static void laplacian_deform_mark_static(bContext *C, wmOperator *op)
 	laplacian_deform_mark_handlers(C, op);
 }
 
-static copy_m4_v16(float mout[4][4], double vin[16])
+static void copy_m4_v16(float mout[4][4], double vin[16])
 {
 	int i, j;
-	for (i=0; i<4; i++)
-		for (j=0; j<4; j++)
-			mout[i][j] = (float)vin[i*4 + j];
+	for (i = 0; i < 4; i++) {
+		for (j = 0; j < 4; j++) {
+			mout[i][j] = (float)vin[i * 4 + j];
+		}
+	}
 }
 
 static void laplacian_deform_mark_handlers(bContext *C, wmOperator *op)
@@ -712,11 +711,9 @@ static int laplacian_deform_modal(bContext *C, wmOperator *op, const wmEvent *ev
 
 }
 
-static int laplacian_deform_cancel(bContext *C, wmOperator *op)
+static int laplacian_deform_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	SystemCustomData * data;
-	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	data = op->customdata;
 	if (data) {
 		delete_laplacian_system(data->sys);

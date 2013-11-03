@@ -35,7 +35,7 @@
 #include "BLI_string.h"
 #include "BLI_array.h"
 #include "MEM_guardedalloc.h"
-#include "BKE_Mesh.h"
+#include "BKE_mesh.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_particle.h"
 #include "BKE_deform.h"
