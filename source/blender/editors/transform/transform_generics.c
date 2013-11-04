@@ -381,9 +381,6 @@ static void recalcData_graphedit(TransInfo *t)
 	bAnimListElem *ale;
 	int dosort = 0;
 
-	const bool use_local_center = checkUseLocalCenter_GraphEdit(t);
-	
-	
 	/* initialize relevant anim-context 'context' data from TransInfo data */
 	/* NOTE: sync this with the code in ANIM_animdata_get_context() */
 	scene = ac.scene = t->scene;
@@ -411,11 +408,6 @@ static void recalcData_graphedit(TransInfo *t)
 		if (!fcu_test_selected(fcu))
 			continue;
 
-		ANIM_unit_mapping_apply_fcurve(ac.scene, ale->id, ale->key_data,
-		                               ANIM_UNITCONV_ONLYSEL | ANIM_UNITCONV_SELVERTS | ANIM_UNITCONV_RESTORE |
-		                               (use_local_center ? ANIM_UNITCONV_SKIPKNOTS : 0));
-		
-		
 		/* watch it: if the time is wrong: do not correct handles yet */
 		if (test_time_fcurve(fcu))
 			dosort++;
@@ -1066,7 +1058,7 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 	
 	t->flag = 0;
 	
-	t->redraw = 1; /* redraw first time */
+	t->redraw = TREDRAW_HARD;  /* redraw first time */
 	
 	if (event) {
 		copy_v2_v2_int(t->imval, event->mval);
@@ -1105,6 +1097,13 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 		t->options |= CTX_EDGE;
 	}
 
+	t->remove_on_cancel = false;
+
+	if (op && (prop = RNA_struct_find_property(op->ptr, "remove_on_cancel")) && RNA_property_is_set(op->ptr, prop)) {
+		if (RNA_property_boolean_get(op->ptr, prop)) {
+			t->remove_on_cancel = true;
+		}
+	}
 
 	/* Assign the space type, some exceptions for running in different mode */
 	if (sa == NULL) {
@@ -1138,6 +1137,11 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 		if (v3d->flag & V3D_ALIGN) t->flag |= T_V3D_ALIGN;
 		t->around = v3d->around;
 		
+		/* warp always uses the cursor */
+		if (t->mode == TFM_WARP) {
+			t->around = V3D_CURSOR;
+		}
+
 		if (op && ((prop = RNA_struct_find_property(op->ptr, "constraint_orientation")) &&
 		           RNA_property_is_set(op->ptr, prop)))
 		{
@@ -1477,10 +1481,10 @@ void calculateCenter2D(TransInfo *t)
 		
 		copy_v3_v3(vec, t->center);
 		mul_m4_v3(ob->obmat, vec);
-		projectIntView(t, vec, t->center2d);
+		projectFloatView(t, vec, t->center2d);
 	}
 	else {
-		projectIntView(t, t->center, t->center2d);
+		projectFloatView(t, t->center, t->center2d);
 	}
 }
 
@@ -1488,7 +1492,7 @@ void calculateCenterCursor(TransInfo *t)
 {
 	const float *cursor;
 	
-	cursor = give_cursor(t->scene, t->view);
+	cursor = ED_view3d_cursor3d_get(t->scene, t->view);
 	copy_v3_v3(t->center, cursor);
 	
 	/* If edit or pose mode, move cursor in local space */
@@ -1684,7 +1688,7 @@ void calculateCenter(TransInfo *t)
 				Object *ob = OBACT;
 				if (ob) {
 					copy_v3_v3(t->center, ob->obmat[3]);
-					projectIntView(t, t->center, t->center2d);
+					projectFloatView(t, t->center, t->center2d);
 				}
 			}
 			break;
@@ -1716,7 +1720,7 @@ void calculateCenter(TransInfo *t)
 				axis[1] = t->center[1] - 6.0f * axis[1];
 				axis[2] = t->center[2] - 6.0f * axis[2];
 				
-				projectIntView(t, axis, t->center2d);
+				projectFloatView(t, axis, t->center2d);
 				
 				/* rotate only needs correct 2d center, grab needs ED_view3d_calc_zfac() value */
 				if (t->mode == TFM_TRANSLATION) {

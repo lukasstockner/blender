@@ -104,7 +104,7 @@ void view3d_region_operator_needs_opengl(wmWindow *win, ARegion *ar)
 	}
 }
 
-float *give_cursor(Scene *scene, View3D *v3d)
+float *ED_view3d_cursor3d_get(Scene *scene, View3D *v3d)
 {
 	if (v3d && v3d->localvd) return v3d->cursor;
 	else return scene->cursor;
@@ -378,12 +378,15 @@ void VIEW3D_OT_smoothview(wmOperatorType *ot)
 	
 	/* identifiers */
 	ot->name = "Smooth View";
+	ot->description = "";
 	ot->idname = "VIEW3D_OT_smoothview";
-	ot->description = "The time to animate the change of view (in milliseconds)";
 	
 	/* api callbacks */
 	ot->invoke = view3d_smoothview_invoke;
 	
+	/* flags */
+	ot->flag = OPTYPE_INTERNAL;
+
 	ot->poll = ED_operator_view3d_active;
 }
 
@@ -771,33 +774,31 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
 	mat3_to_quat(rv3d->viewquat, tmat);
 }
 
-#define QUATSET(a, b, c, d, e) { a[0] = b; a[1] = c; a[2] = d; a[3] = e; } (void)0
-
 bool ED_view3d_lock(RegionView3D *rv3d)
 {
 	switch (rv3d->view) {
 		case RV3D_VIEW_BOTTOM:
-			QUATSET(rv3d->viewquat, 0.0, -1.0, 0.0, 0.0);
+			copy_v4_fl4(rv3d->viewquat, 0.0, -1.0, 0.0, 0.0);
 			break;
 
 		case RV3D_VIEW_BACK:
-			QUATSET(rv3d->viewquat, 0.0, 0.0, -M_SQRT1_2, -M_SQRT1_2);
+			copy_v4_fl4(rv3d->viewquat, 0.0, 0.0, -M_SQRT1_2, -M_SQRT1_2);
 			break;
 
 		case RV3D_VIEW_LEFT:
-			QUATSET(rv3d->viewquat, 0.5, -0.5, 0.5, 0.5);
+			copy_v4_fl4(rv3d->viewquat, 0.5, -0.5, 0.5, 0.5);
 			break;
 
 		case RV3D_VIEW_TOP:
-			QUATSET(rv3d->viewquat, 1.0, 0.0, 0.0, 0.0);
+			copy_v4_fl4(rv3d->viewquat, 1.0, 0.0, 0.0, 0.0);
 			break;
 
 		case RV3D_VIEW_FRONT:
-			QUATSET(rv3d->viewquat, M_SQRT1_2, -M_SQRT1_2, 0.0, 0.0);
+			copy_v4_fl4(rv3d->viewquat, M_SQRT1_2, -M_SQRT1_2, 0.0, 0.0);
 			break;
 
 		case RV3D_VIEW_RIGHT:
-			QUATSET(rv3d->viewquat, 0.5, -0.5, -0.5, -0.5);
+			copy_v4_fl4(rv3d->viewquat, 0.5, -0.5, -0.5, -0.5);
 			break;
 		default:
 			return false;
@@ -846,7 +847,7 @@ void setviewmatrixview3d(Scene *scene, View3D *v3d, RegionView3D *rv3d)
 		}
 		else if (v3d->ob_centre_cursor) {
 			float vec[3];
-			copy_v3_v3(vec, give_cursor(scene, v3d));
+			copy_v3_v3(vec, ED_view3d_cursor3d_get(scene, v3d));
 			translate_m4(rv3d->viewmat, -vec[0], -vec[1], -vec[2]);
 			use_lock_ofs = true;
 		}
@@ -873,10 +874,12 @@ void setviewmatrixview3d(Scene *scene, View3D *v3d, RegionView3D *rv3d)
 	}
 }
 
-/* IGLuint-> GLuint */
-/* Warning: be sure to account for a negative return value
- *   This is an error, "Too many objects in select buffer"
- *   and no action should be taken (can crash blender) if this happens
+/**
+ * \warning be sure to account for a negative return value
+ * This is an error, "Too many objects in select buffer"
+ * and no action should be taken (can crash blender) if this happens
+ *
+ * \note (vc->obedit == NULL) can be set to explicitly skip edit-object selection.
  */
 short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int bufsize, rcti *input)
 {
@@ -887,6 +890,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	short code, hits;
 	char dt;
 	short dtx;
+	const bool use_obedit_skip = (scene->obedit != NULL) && (vc->obedit == NULL);
 	
 	G.f |= G_PICKSEL;
 	
@@ -934,8 +938,11 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 		for (base = scene->base.first; base; base = base->next) {
 			if (base->lay & v3d->lay) {
 				
-				if (base->object->restrictflag & OB_RESTRICT_SELECT)
+				if ((base->object->restrictflag & OB_RESTRICT_SELECT) ||
+				    (use_obedit_skip && (scene->obedit->data == base->object->data)))
+				{
 					base->selcol = 0;
+				}
 				else {
 					base->selcol = code;
 					glLoadName(code);
@@ -1177,7 +1184,7 @@ static bool view3d_localview_init(Main *bmain, Scene *scene, ScrArea *sa, Report
 	return ok;
 }
 
-static void restore_localviewdata(ScrArea *sa, int free)
+static void restore_localviewdata(Main *bmain, ScrArea *sa, int free)
 {
 	ARegion *ar;
 	View3D *v3d = sa->spacedata.first;
@@ -1214,12 +1221,7 @@ static void restore_localviewdata(ScrArea *sa, int free)
 				}
 			}
 
-			if (v3d->drawtype != OB_RENDER) {
-				if (rv3d->render_engine) {
-					RE_engine_free(rv3d->render_engine);
-					rv3d->render_engine = NULL;
-				}
-			}
+			ED_view3d_shade_update(bmain, v3d, sa);
 		}
 	}
 }
@@ -1234,7 +1236,7 @@ static bool view3d_localview_exit(Main *bmain, Scene *scene, ScrArea *sa)
 		
 		locallay = v3d->lay & 0xFF000000;
 		
-		restore_localviewdata(sa, 1); /* 1 = free */
+		restore_localviewdata(bmain, sa, 1); /* 1 = free */
 
 		/* for when in other window the layers have changed */
 		if (v3d->scenelock) v3d->lay = scene->lay;

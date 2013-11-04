@@ -47,6 +47,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_particle_types.h"
 
+#include "BLI_alloca.h"
 #include "BLI_array.h"
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -347,7 +348,7 @@ void ED_vgroup_parray_mirror_sync(Object *ob,
 		return;
 	}
 	if (em) {
-		EDBM_index_arrays_ensure(em, BM_VERT);
+		BM_mesh_elem_table_ensure(em->bm, BM_VERT);
 	}
 
 	for (i = 0; i < dvert_tot; i++) {
@@ -389,7 +390,7 @@ void ED_vgroup_parray_mirror_assign(Object *ob,
 	}
 	BLI_assert(dvert_tot == dvert_tot_all);
 	if (em) {
-		EDBM_index_arrays_ensure(em, BM_VERT);
+		BM_mesh_elem_table_ensure(em->bm, BM_VERT);
 	}
 
 	for (i = 0; i < dvert_tot; i++) {
@@ -1282,8 +1283,8 @@ static float get_vert_def_nr(Object *ob, const int def_nr, const int vertnum)
 
 			if (cd_dvert_offset != -1) {
 				BMVert *eve;
-				EDBM_index_arrays_ensure(em, BM_VERT);
-				eve = EDBM_vert_at_index(em, vertnum);
+				BM_mesh_elem_table_ensure(em->bm, BM_VERT);
+				eve = BM_vert_at_index(em->bm, vertnum);
 				dv = BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset);
 			}
 			else {
@@ -1480,7 +1481,7 @@ bool *ED_vgroup_subset_from_select_type(Object *ob, eVGroupSelect subset_type, i
 			const int def_nr_active = ob->actdef - 1;
 			vgroup_validmap = MEM_mallocN(*r_vgroup_tot * sizeof(*vgroup_validmap), __func__);
 			memset(vgroup_validmap, false, *r_vgroup_tot * sizeof(*vgroup_validmap));
-			if (def_nr_active < *r_vgroup_tot) {
+			if ((def_nr_active >= 0) && (def_nr_active < *r_vgroup_tot)) {
 				*r_subset_count = 1;
 				vgroup_validmap[def_nr_active] = true;
 			}
@@ -2000,7 +2001,11 @@ static void vgroup_levels_subset(Object *ob, const bool *vgroup_validmap, const 
 	}
 }
 
-static void vgroup_normalize_all(Object *ob, const bool lock_active)
+static void vgroup_normalize_all(Object *ob,
+                                 const bool *vgroup_validmap,
+                                 const int vgroup_tot,
+                                 const int subset_count,
+                                 const bool lock_active)
 {
 	MDeformVert *dv, **dvert_array = NULL;
 	int i, dvert_tot = 0;
@@ -2008,7 +2013,7 @@ static void vgroup_normalize_all(Object *ob, const bool lock_active)
 
 	const int use_vert_sel = vertex_group_use_vert_sel(ob);
 
-	if (lock_active && !BLI_findlink(&ob->defbase, def_nr)) {
+	if ((lock_active && !BLI_findlink(&ob->defbase, def_nr)) || subset_count == 0) {
 		return;
 	}
 
@@ -2029,13 +2034,15 @@ static void vgroup_normalize_all(Object *ob, const bool lock_active)
 			/* in case its not selected */
 			if ((dv = dvert_array[i])) {
 				if (lock_flags) {
-					defvert_normalize_lock_map(dv, lock_flags, defbase_tot);
+					defvert_normalize_lock_map(dv, vgroup_validmap, vgroup_tot,
+					                           lock_flags, defbase_tot);
 				}
 				else if (lock_active) {
-					defvert_normalize_lock_single(dv, def_nr);
+					defvert_normalize_lock_single(dv, vgroup_validmap, vgroup_tot,
+					                              def_nr);
 				}
 				else {
-					defvert_normalize(dv);
+					defvert_normalize_subset(dv, vgroup_validmap, vgroup_tot);
 				}
 			}
 		}
@@ -2172,7 +2179,7 @@ static void vgroup_blend_subset(Object *ob, const bool *vgroup_validmap, const i
 	memset(vgroup_subset_weights, 0, sizeof(*vgroup_subset_weights) * subset_count);
 
 	if (bm) {
-		EDBM_index_arrays_ensure(em, BM_VERT);
+		BM_mesh_elem_table_ensure(bm, BM_VERT);
 
 		emap = NULL;
 		emap_mem = NULL;
@@ -2190,7 +2197,7 @@ static void vgroup_blend_subset(Object *ob, const bool *vgroup_validmap, const i
 		/* in case its not selected */
 
 		if (bm) {
-			BMVert *v = EDBM_vert_at_index(em, i);
+			BMVert *v = BM_vert_at_index(bm, i);
 			if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
 				BMIter eiter;
 				BMEdge *e;
@@ -2262,7 +2269,8 @@ static void vgroup_blend_subset(Object *ob, const bool *vgroup_validmap, const i
 		MEM_freeN(emap_mem);
 	}
 
-	MEM_freeN(dvert_array);
+	if (dvert_array)
+		MEM_freeN(dvert_array);
 	BLI_SMALLSTACK_FREE(dv_stack);
 
 	/* not so efficient to get 'dvert_array' again just so unselected verts are NULL'd */
@@ -2270,7 +2278,8 @@ static void vgroup_blend_subset(Object *ob, const bool *vgroup_validmap, const i
 		ED_vgroup_parray_alloc(ob->data, &dvert_array, &dvert_tot, true);
 		ED_vgroup_parray_mirror_sync(ob, dvert_array, dvert_tot,
 		                             vgroup_validmap, vgroup_tot);
-		MEM_freeN(dvert_array);
+		if (dvert_array)
+			MEM_freeN(dvert_array);
 	}
 }
 
@@ -3471,8 +3480,13 @@ static int vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 	bool lock_active = RNA_boolean_get(op->ptr, "lock_active");
+	eVGroupSelect subset_type  = RNA_enum_get(op->ptr, "group_select_mode");
 
-	vgroup_normalize_all(ob, lock_active);
+	int subset_count, vgroup_tot;
+
+	const bool *vgroup_validmap = ED_vgroup_subset_from_select_type(ob, subset_type, &vgroup_tot, &subset_count);
+	vgroup_normalize_all(ob, vgroup_validmap, vgroup_tot, subset_count, lock_active);
+	MEM_freeN((void *)vgroup_validmap);
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -3496,6 +3510,7 @@ void OBJECT_OT_vertex_group_normalize_all(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
+	vgroup_operator_subset_select_props(ot, false);
 	RNA_def_boolean(ot->srna, "lock_active", true, "Lock Active",
 	                "Keep the values of the active group while normalizing others");
 }
@@ -3762,7 +3777,7 @@ static int vertex_group_limit_total_exec(bContext *C, wmOperator *op)
 		return OPERATOR_FINISHED;
 	}
 	else {
-		/* note, would normally return cancelled, except we want the redo
+		/* note, would normally return canceled, except we want the redo
 		 * UI to show up for users to change */
 		return OPERATOR_FINISHED;
 	}

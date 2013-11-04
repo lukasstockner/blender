@@ -194,6 +194,28 @@ void BKE_object_free_modifiers(Object *ob)
 	BKE_object_free_softbody(ob);
 }
 
+void BKE_object_modifier_hook_reset(Object *ob, HookModifierData *hmd)
+{
+	/* reset functionality */
+	if (hmd->object) {
+		bPoseChannel *pchan = BKE_pose_channel_find_name(hmd->object->pose, hmd->subtarget);
+
+		if (hmd->subtarget[0] && pchan) {
+			float imat[4][4], mat[4][4];
+
+			/* calculate the world-space matrix for the pose-channel target first, then carry on as usual */
+			mul_m4_m4m4(mat, hmd->object->obmat, pchan->pose_mat);
+
+			invert_m4_m4(imat, mat);
+			mul_m4_m4m4(hmd->parentinv, imat, ob->obmat);
+		}
+		else {
+			invert_m4_m4(hmd->object->imat, hmd->object->obmat);
+			mul_m4_m4m4(hmd->parentinv, hmd->object->imat, ob->obmat);
+		}
+	}
+}
+
 bool BKE_object_support_modifier_type_check(Object *ob, int modifier_type)
 {
 	ModifierTypeInfo *mti;
@@ -568,6 +590,9 @@ void BKE_object_unlink(Object *ob)
 						}
 					}
 				}
+				
+				if (tpsys->parent == ob)
+					tpsys->parent = NULL;
 			}
 			if (ob->pd)
 				DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
@@ -643,7 +668,9 @@ void BKE_object_unlink(Object *ob)
 				for (lineset = (FreestyleLineSet *)srl->freestyleConfig.linesets.first;
 				     lineset; lineset = lineset->next)
 				{
-					BKE_unlink_linestyle_target_object(lineset->linestyle, ob);
+					if (lineset->linestyle) {
+						BKE_unlink_linestyle_target_object(lineset->linestyle, ob);
+					}
 				}
 			}
 		}
@@ -1274,6 +1301,11 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, int copy_caches)
 
 	obn->mode = 0;
 	obn->sculpt = NULL;
+
+	/* Proxies are not to be copied. */
+	obn->proxy_from = NULL;
+	obn->proxy_group = NULL;
+	obn->proxy = NULL;
 
 	/* increase user numbers */
 	id_us_plus((ID *)obn->data);
@@ -2835,21 +2867,20 @@ void BKE_object_handle_update_ex(Scene *scene, Object *ob,
 			/* quick cache removed */
 		}
 
-		/* the no-group proxy case, we call update */
-		if (ob->proxy && ob->proxy_group == NULL) {
-			/* set pointer in library proxy target, for copying, but restore it */
-			ob->proxy->proxy_from = ob;
-			// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
-			BKE_object_handle_update(scene, ob->proxy);
-		}
-	
 		ob->recalc &= ~OB_RECALC_ALL;
 	}
 
 	/* the case when this is a group proxy, object_update is called in group.c */
 	if (ob->proxy) {
+		/* set pointer in library proxy target, for copying, but restore it */
 		ob->proxy->proxy_from = ob;
 		// printf("set proxy pointer for later group stuff %s\n", ob->id.name);
+
+		/* the no-group proxy case, we call update */
+		if (ob->proxy_group == NULL) {
+			// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
+			BKE_object_handle_update(scene, ob->proxy);
+		}
 	}
 }
 /* WARNING: "scene" here may not be the scene object actually resides in. 

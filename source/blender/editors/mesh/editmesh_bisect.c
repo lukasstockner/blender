@@ -203,7 +203,7 @@ static int mesh_bisect_exec(bContext *C, wmOperator *op)
 		RNA_property_float_get_array(op->ptr, prop_plane_co, plane_co);
 	}
 	else {
-		copy_v3_v3(plane_co, give_cursor(scene, v3d));
+		copy_v3_v3(plane_co, ED_view3d_cursor3d_get(scene, v3d));
 		RNA_property_float_set_array(op->ptr, prop_plane_co, plane_co);
 	}
 
@@ -300,7 +300,7 @@ void MESH_OT_bisect(struct wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name = "Bisect";
-	ot->description = "Enforce symmetry (both form and topological) across an axis";
+	ot->description = "Cut geometry along a plane (click-drag to define plane)";
 	ot->idname = "MESH_OT_bisect";
 
 	/* api callbacks */

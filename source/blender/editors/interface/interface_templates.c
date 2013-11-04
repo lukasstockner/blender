@@ -1921,7 +1921,7 @@ static void curvemap_tools_dofunc(bContext *C, void *cumap_v, int event)
 		case UICURVE_FUNC_RESET_NEG:
 		case UICURVE_FUNC_RESET_POS: /* reset */
 			curvemap_reset(cuma, &cumap->clipr, cumap->preset,
-			               (event == -1) ? CURVEMAP_SLOPE_NEGATIVE : CURVEMAP_SLOPE_POSITIVE);
+			               (event == UICURVE_FUNC_RESET_NEG) ? CURVEMAP_SLOPE_NEGATIVE : CURVEMAP_SLOPE_POSITIVE);
 			curvemapping_changed(cumap, FALSE);
 			break;
 		case UICURVE_FUNC_RESET_VIEW:
@@ -3065,11 +3065,11 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 
 		if (ui_list->filter_flag & UILST_FLT_SHOW) {
 			but = uiDefIconButBitI(subblock, TOG, UILST_FLT_SHOW, 0, ICON_DISCLOSURE_TRI_DOWN, 0, 0,
-			                       UI_UNIT_X, UI_UNIT_Y * 0.6f, &(ui_list->filter_flag), 0, 0, 0, 0,
+			                       UI_UNIT_X, UI_UNIT_Y * 0.8f, &(ui_list->filter_flag), 0, 0, 0, 0,
 			                       TIP_("Hide filtering options"));
 			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
 
-			but = uiDefIconBut(subblock, BUT, 0, ICON_GRIP, 0, 0, UI_UNIT_X * 10.0f, UI_UNIT_Y * 0.6f, ui_list,
+			but = uiDefIconBut(subblock, BUT, 0, ICON_GRIP, 0, 0, UI_UNIT_X * 10.0f, UI_UNIT_Y * 0.8f, ui_list,
 			                   0.0, 0.0, 0, -1, "");
 			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
 
@@ -3083,11 +3083,11 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 		}
 		else {
 			but = uiDefIconButBitI(subblock, TOG, UILST_FLT_SHOW, 0, ICON_DISCLOSURE_TRI_RIGHT, 0, 0,
-			                       UI_UNIT_X, UI_UNIT_Y * 0.6f, &(ui_list->filter_flag), 0, 0, 0, 0,
+			                       UI_UNIT_X, UI_UNIT_Y * 0.8f, &(ui_list->filter_flag), 0, 0, 0, 0,
 			                       TIP_("Show filtering options"));
 			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
 
-			but = uiDefIconBut(subblock, BUT, 0, ICON_GRIP, 0, 0, UI_UNIT_X * 10.0f, UI_UNIT_Y * 0.6f, ui_list,
+			but = uiDefIconBut(subblock, BUT, 0, ICON_GRIP, 0, 0, UI_UNIT_X * 10.0f, UI_UNIT_Y * 0.8f, ui_list,
 			                   0.0, 0.0, 0, -1, "");
 			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
 
@@ -3344,7 +3344,7 @@ static void keymap_item_modified(bContext *UNUSED(C), void *kmi_p, void *UNUSED(
 
 static void template_keymap_item_properties(uiLayout *layout, const char *title, PointerRNA *ptr)
 {
-	uiLayout *flow;
+	uiLayout *flow, *box, *row;
 
 	uiItemS(layout);
 
@@ -3356,6 +3356,8 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
 	RNA_STRUCT_BEGIN (ptr, prop)
 	{
 		int flag = RNA_property_flag(prop);
+		bool is_set = RNA_property_is_set(ptr, prop);
+		uiBut *but;
 
 		if (flag & PROP_HIDDEN)
 			continue;
@@ -3371,8 +3373,22 @@ static void template_keymap_item_properties(uiLayout *layout, const char *title,
 			}
 		}
 
-		/* add property */
-		uiItemFullR(flow, ptr, prop, -1, 0, 0, NULL, ICON_NONE);
+		box = uiLayoutBox(flow);
+		uiLayoutSetActive(box, is_set);
+		row = uiLayoutRow(box, false);
+
+		/* property value */
+		uiItemFullR(row, ptr, prop, -1, 0, 0, NULL, ICON_NONE);
+
+		if (is_set) {
+			/* unset operator */
+			uiBlock *block = uiLayoutGetBlock(row);
+			uiBlockSetEmboss(block, UI_EMBOSSN);
+			but = uiDefIconButO(block, BUT, "UI_OT_unset_property_button", WM_OP_EXEC_DEFAULT, ICON_X, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
+			but->rnapoin = *ptr;
+			but->rnaprop = prop;
+			uiBlockSetEmboss(block, UI_EMBOSS);
+		}
 	}
 	RNA_STRUCT_END;
 }

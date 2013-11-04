@@ -324,7 +324,7 @@ class CyclesRender_PT_layers(CyclesButtonsPanel, Panel):
         rl = rd.layers.active
 
         row = layout.row()
-        row.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=2)
+        row.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=1)
 
         col = row.column(align=True)
         col.operator("scene.render_layer_add", icon='ZOOMIN', text="")
@@ -503,7 +503,7 @@ class Cycles_PT_context_material(CyclesButtonsPanel, Panel):
         if ob:
             row = layout.row()
 
-            row.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
+            row.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=1)
 
             col = row.column(align=True)
             col.operator("object.material_slot_add", icon='ZOOMIN', text="")
@@ -1085,6 +1085,8 @@ class CyclesTexture_PT_mapping(CyclesButtonsPanel, Panel):
 
         mapping = node.texture_mapping
 
+        layout.prop(mapping, "vector_type", expand=True)
+
         row = layout.row()
 
         row.column().prop(mapping, "translation")
@@ -1178,7 +1180,7 @@ class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         psys = context.particle_system
-        return CyclesButtonsPanel.poll(context) and psys
+        return CyclesButtonsPanel.poll(context) and psys and psys.settings.type == 'HAIR'
 
     def draw_header(self, context):
         ccscene = context.scene.cycles_curves
@@ -1218,8 +1220,9 @@ class CyclesParticle_PT_CurveSettings(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
         ccscene = scene.cycles_curves
-        use_curves = ccscene.use_curves and context.particle_system
-        return CyclesButtonsPanel.poll(context) and use_curves
+        psys = context.particle_system
+        use_curves = ccscene.use_curves and psys
+        return CyclesButtonsPanel.poll(context) and use_curves and psys.settings.type == 'HAIR'
 
     def draw(self, context):
         layout = self.layout

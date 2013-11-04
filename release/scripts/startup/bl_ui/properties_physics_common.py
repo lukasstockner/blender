@@ -107,7 +107,7 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
     if not cachetype == 'RIGID_BODY':
         row = layout.row()
         row.template_list("UI_UL_list", "point_caches", cache, "point_caches",
-                          cache.point_caches, "active_index", rows=2)
+                          cache.point_caches, "active_index", rows=1)
         col = row.column(align=True)
         col.operator("ptcache.add", icon='ZOOMIN', text="")
         col.operator("ptcache.remove", icon='ZOOMOUT', text="")
@@ -180,7 +180,7 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
 
             layout.separator()
 
-            if cache.id_data.library:
+            if cache.id_data.library and not cache.use_disk_cache:
                 can_bake = False
 
                 col = layout.column(align=True)

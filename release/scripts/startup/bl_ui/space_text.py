@@ -49,7 +49,7 @@ class TEXT_HT_header(Header):
             sub.alert = True
             sub.operator("text.resolve_conflict", text="", icon='HELP')
 
-        row.template_ID(st, "text", new="text.new", unlink="text.unlink")
+        row.template_ID(st, "text", new="text.new", unlink="text.unlink", open="text.open")
 
         row = layout.row(align=True)
         row.prop(st, "show_line_numbers", text="")
@@ -301,7 +301,7 @@ class TEXT_MT_edit(Menu):
         layout.separator()
 
         layout.operator("text.jump")
-        layout.operator("text.properties", text="Find...")
+        layout.operator("text.start_find", text="Find...")
         layout.operator("text.autocomplete")
 
         layout.separator()

@@ -564,6 +564,17 @@ static int screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event
 	return OPERATOR_PASS_THROUGH;
 }
 
+static int screen_render_cancel(bContext *C, wmOperator *op)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	Scene *scene = (Scene *) op->customdata;
+
+	/* kill on cancel, because job is using op->reports */
+	WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_RENDER);
+
+	return OPERATOR_CANCELLED;
+}
+
 /* using context, starts job */
 static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -732,6 +743,7 @@ void RENDER_OT_render(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = screen_render_invoke;
 	ot->modal = screen_render_modal;
+	ot->cancel = screen_render_cancel;
 	ot->exec = screen_render_exec;
 
 	/*ot->poll = ED_operator_screenactive;*/ /* this isn't needed, causes failer in background mode */
@@ -1140,7 +1152,7 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 
 		/* Try using GLSL display transform. */
 		if (force_fallback == false) {
-			if (IMB_colormanagement_setup_glsl_draw(NULL, &scene->display_settings, true, false)) {
+			if (IMB_colormanagement_setup_glsl_draw(&scene->view_settings, &scene->display_settings, true)) {
 				glEnable(GL_BLEND);
 				glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 				glaDrawPixelsTex(rres.xof, rres.yof, rres.rectx, rres.recty, GL_RGBA, GL_FLOAT,
@@ -1158,7 +1170,7 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 			                                            "render_view3d_draw");
 
 			IMB_colormanagement_buffer_make_display_space(rres.rectf, display_buffer, rres.rectx, rres.recty,
-			                                              4, dither, NULL, &scene->display_settings);
+			                                              4, dither, &scene->view_settings, &scene->display_settings);
 
 			glEnable(GL_BLEND);
 			glColor4f(1.0f, 1.0f, 1.0f, 1.0f);

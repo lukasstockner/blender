@@ -67,7 +67,7 @@ class NodeAddOperator():
         # convert mouse position to the View2D for later node placement
         if context.region.type == 'WINDOW':
             # convert mouse position to the View2D for later node placement
-            space.cursor_location_from_region(event.mouse_region_x, event.mouse_region_y) 
+            space.cursor_location_from_region(event.mouse_region_x, event.mouse_region_y)
         else:
             space.cursor_location = tree.view_center
 
@@ -113,8 +113,11 @@ class NodeAddOperator():
 
     # Default execute simply adds a node
     def execute(self, context):
-        self.create_node(context)
-        return {'FINISHED'}
+        if self.properties.is_property_set("type"):
+            self.create_node(context)
+            return {'FINISHED'}
+        else:
+            return {'CANCELLED'}
 
     # Default invoke stores the mouse position to place the node correctly
     # and optionally invokes the transform operator
@@ -123,7 +126,8 @@ class NodeAddOperator():
         result = self.execute(context)
 
         if self.use_transform and ('FINISHED' in result):
-            bpy.ops.transform.translate('INVOKE_DEFAULT')
+            # removes the node again if transform is cancelled
+            bpy.ops.transform.translate('INVOKE_DEFAULT', remove_on_cancel=True)
 
         return result
 

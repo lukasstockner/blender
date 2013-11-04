@@ -1082,6 +1082,7 @@ static void calc_area_normal(Sculpt *sd, Object *ob, float an[3], PBVHNode **nod
 	float out_flip[3] = {0.0f, 0.0f, 0.0f};
 
 	SculptSession *ss = ob->sculpt;
+	const Brush *brush = BKE_paint_brush(&sd->paint);
 	int n, original;
 
 	/* Grab brush requires to test on original data (see r33888 and
@@ -1090,8 +1091,14 @@ static void calc_area_normal(Sculpt *sd, Object *ob, float an[3], PBVHNode **nod
 	            TRUE : ss->cache->original);
 
 	/* In general the original coords are not available with dynamic
-	 * topology */
-	if (ss->bm)
+	 * topology
+	 *
+	 * Mask tool could not use undo nodes to get coordinates from
+	 * since the coordinates are not stored in those odes.
+	 * And mask tool is not gonna to modify vertex coordinates,
+	 * so we don't actually need to use modified coords.
+	 */
+	if (ss->bm || brush->sculpt_tool == SCULPT_TOOL_MASK)
 		original = FALSE;
 
 	(void)sd; /* unused w/o openmp */
@@ -2481,7 +2488,7 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, Object *ob,
 
 			/* for flatten center */
 			add_v3_v3(fc, private_fc);
-			add_v3_v3(fc_flip, private_fc);
+			add_v3_v3(fc_flip, private_fc_flip);
 			count += private_count;
 			count_flipped += private_count_flip;
 		}
@@ -2496,7 +2503,7 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, Object *ob,
 	/* for flatten center */
 	if (count != 0)
 		mul_v3_fl(fc, 1.0f / count);
-	else if (count_flipped !=0 )
+	else if (count_flipped != 0)
 		mul_v3_v3fl(fc, fc_flip, 1.0f / count_flipped);
 	else
 		zero_v3(fc);
@@ -3795,15 +3802,26 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	Object *ob = CTX_data_active_object(C);
 	float mat[3][3];
 	float viewDir[3] = {0.0f, 0.0f, 1.0f};
+	float max_scale;
 	int i;
 	int mode;
 
 	ss->cache = cache;
 
 	/* Set scaling adjustment */
-	cache->scale[0] = 1.0f / ob->size[0];
-	cache->scale[1] = 1.0f / ob->size[1];
-	cache->scale[2] = 1.0f / ob->size[2];
+	if (brush->sculpt_tool == SCULPT_TOOL_LAYER) {
+		max_scale = 1.0f;
+	}
+	else {
+		max_scale = 0.0f;
+		for (i = 0; i < 3; i ++) {
+			max_scale = max_ff(max_scale, fabsf(ob->size[i]));
+		}
+	}
+	cache->scale[0] = max_scale / ob->size[0];
+	cache->scale[1] = max_scale / ob->size[1];
+	cache->scale[2] = max_scale / ob->size[2];
+
 
 	cache->plane_trim_squared = brush->plane_trim * brush->plane_trim;
 
@@ -4642,7 +4660,7 @@ static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
 static void sculpt_dynamic_topology_triangulate(BMesh *bm)
 {
 	if (bm->totloop != bm->totface * 3) {
-		BM_mesh_triangulate(bm, false, false, NULL, NULL);
+		BM_mesh_triangulate(bm, MOD_TRIANGULATE_QUAD_FIXED, MOD_TRIANGULATE_NGON_SCANFILL, false, NULL, NULL);
 	}
 }
 
@@ -4677,10 +4695,7 @@ void sculpt_dynamic_topology_enable(bContext *C)
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
 	Mesh *me = ob->data;
-	const BMAllocTemplate allocsize = {me->totvert,
-	                                   me->totedge,
-	                                   me->totloop,
-	                                   me->totpoly};
+	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(me);
 
 	sculpt_pbvh_clear(ob);
 
@@ -4931,7 +4946,7 @@ int ED_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)
 	if (mmd && !CustomData_has_layer(&me->ldata, CD_GRID_PAINT_MASK)) {
 		GridPaintMask *gmask;
 		int level = max_ii(1, mmd->sculptlvl);
-		int gridsize = ccg_gridsize(level);
+		int gridsize = BKE_ccg_gridsize(level);
 		int gridarea = gridsize * gridsize;
 		int i, j;
 
@@ -5031,6 +5046,8 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 		ob->mode &= ~mode_flag;
 
 		free_sculptsession(ob);
+
+		paint_cursor_delete_textures();
 	}
 	else {
 		/* Enter sculptmode */

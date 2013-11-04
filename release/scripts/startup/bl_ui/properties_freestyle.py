@@ -193,7 +193,7 @@ class RENDERLAYER_PT_freestyle_lineset(RenderLayerFreestyleEditorButtonsPanel, P
         layout.active = rl.use_freestyle
 
         row = layout.row()
-        rows = 5 if lineset else 2
+        rows = 4 if lineset else 1
         row.template_list("RENDERLAYER_UL_linesets", "", freestyle, "linesets", freestyle.linesets, "active_index", rows=rows)
 
         sub = row.column(align=True)
@@ -530,6 +530,8 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
         linestyle = lineset.linestyle
 
         layout.template_ID(lineset, "linestyle", new="scene.freestyle_linestyle_new")
+        if linestyle is None:
+            return
         row = layout.row(align=True)
         row.prop(linestyle, "panel", expand=True)
         if linestyle.panel == 'STROKES':

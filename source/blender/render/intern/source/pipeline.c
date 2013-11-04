@@ -1309,6 +1309,10 @@ static void do_render_blur_3d(Render *re)
 	re->mblur_offs = 0.0f;
 	re->i.curblur = 0;   /* stats */
 	
+	/* make sure motion blur changes get reset to current frame */
+	if ((re->r.scemode & (R_NO_FRAME_UPDATE|R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))==0)
+		BKE_scene_update_for_newframe(re->main, re->scene, re->lay);
+	
 	/* weak... the display callback wants an active renderlayer pointer... */
 	re->result->renlay = render_get_active_layer(re, re->result);
 	re->display_draw(re->ddh, re->result, NULL);
@@ -1596,6 +1600,7 @@ static void tag_scenes_for_render(Render *re)
 	
 	/* check for render-layers nodes using other scenes, we tag them LIB_DOIT */
 	for (node = re->scene->nodetree->nodes.first; node; node = node->next) {
+		node->flag &= ~NODE_TEST;
 		if (node->type == CMP_NODE_R_LAYERS) {
 			if (node->id) {
 				if (!MAIN_VERSION_ATLEAST(re->main, 265, 5)) {
@@ -1613,8 +1618,12 @@ static void tag_scenes_for_render(Render *re)
 					}
 				}
 
-				if (node->id != (ID *)re->scene)
-					node->id->flag |= LIB_DOIT;
+				if (node->id != (ID *)re->scene) {
+					if ((node->id->flag & LIB_DOIT) == 0) {
+						node->flag |= NODE_TEST;
+						node->id->flag |= LIB_DOIT;
+					}
+				}
 			}
 		}
 	}
@@ -1636,12 +1645,12 @@ static void ntree_render_scenes(Render *re)
 	for (node = re->scene->nodetree->nodes.first; node; node = node->next) {
 		if (node->type == CMP_NODE_R_LAYERS) {
 			if (node->id && node->id != (ID *)re->scene) {
-				if (node->id->flag & LIB_DOIT) {
+				if (node->flag & NODE_TEST) {
 					Scene *scene = (Scene *)node->id;
 
 					render_scene(re, scene, cfra);
 					restore_scene = (scene != re->scene);
-					node->id->flag &= ~LIB_DOIT;
+					node->flag &= ~NODE_TEST;
 					
 					nodeUpdate(re->scene->nodetree, node);
 				}

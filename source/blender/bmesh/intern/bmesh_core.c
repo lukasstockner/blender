@@ -70,7 +70,9 @@ BMVert *BM_vert_create(BMesh *bm, const float co[3],
 	/* disallow this flag for verts - its meaningless */
 	BLI_assert((create_flag & BM_CREATE_NO_DOUBLE) == 0);
 
-	bm->elem_index_dirty |= BM_VERT; /* may add to middle of the pool */
+	/* may add to middle of the pool */
+	bm->elem_index_dirty |= BM_VERT;
+	bm->elem_table_dirty |= BM_VERT;
 
 	bm->totvert++;
 
@@ -130,7 +132,9 @@ BMEdge *BM_edge_create(BMesh *bm, BMVert *v1, BMVert *v2,
 	BM_elem_index_set(e, -1); /* set_ok_invalid */
 #endif
 
-	bm->elem_index_dirty |= BM_EDGE; /* may add to middle of the pool */
+	/* may add to middle of the pool */
+	bm->elem_index_dirty |= BM_EDGE;
+	bm->elem_table_dirty |= BM_EDGE;
 
 	bm->totedge++;
 
@@ -292,7 +296,9 @@ BLI_INLINE BMFace *bm_face_create__internal(BMesh *bm, const eBMCreateFlag creat
 	BM_elem_index_set(f, -1); /* set_ok_invalid */
 #endif
 
-	bm->elem_index_dirty |= BM_FACE; /* may add to middle of the pool */
+	/* may add to middle of the pool */
+	bm->elem_index_dirty |= BM_FACE;
+	bm->elem_table_dirty |= BM_FACE;
 
 	bm->totface++;
 
@@ -562,6 +568,7 @@ static void bm_kill_only_vert(BMesh *bm, BMVert *v)
 {
 	bm->totvert--;
 	bm->elem_index_dirty |= BM_VERT;
+	bm->elem_table_dirty |= BM_VERT;
 
 	BM_select_history_remove(bm, v);
 
@@ -582,6 +589,7 @@ static void bm_kill_only_edge(BMesh *bm, BMEdge *e)
 {
 	bm->totedge--;
 	bm->elem_index_dirty |= BM_EDGE;
+	bm->elem_table_dirty |= BM_EDGE;
 
 	BM_select_history_remove(bm, (BMElem *)e);
 
@@ -605,6 +613,7 @@ static void bm_kill_only_face(BMesh *bm, BMFace *f)
 
 	bm->totface--;
 	bm->elem_index_dirty |= BM_FACE;
+	bm->elem_table_dirty |= BM_FACE;
 
 	BM_select_history_remove(bm, (BMElem *)f);
 
@@ -1278,6 +1287,7 @@ BMFace *bmesh_sfme(BMesh *bm, BMFace *f, BMVert *v1, BMVert *v2,
 	}
 
 	if (!l_v1 || !l_v2) {
+		BLI_assert(0);
 		return NULL;
 	}
 
@@ -2277,4 +2287,29 @@ BMVert *bmesh_urmv(BMesh *bm, BMFace *f_sep, BMVert *v_sep)
 {
 	BMLoop *l = BM_face_vert_share_loop(f_sep, v_sep);
 	return bmesh_urmv_loop(bm, l);
+}
+
+/**
+ * Avoid calling this where possible,
+ * low level function so both face pointers remain intact but point to swapped data.
+ * \note must be from the same bmesh.
+ */
+void bmesh_face_swap_data(BMesh *bm, BMFace *f_a, BMFace *f_b)
+{
+	BMLoop *l_iter, *l_first;
+
+	BLI_assert(f_a != f_b);
+
+	l_iter = l_first = BM_FACE_FIRST_LOOP(f_a);
+	do {
+		l_iter->f = f_b;
+	} while ((l_iter = l_iter->next) != l_first);
+
+	l_iter = l_first = BM_FACE_FIRST_LOOP(f_b);
+	do {
+		l_iter->f = f_a;
+	} while ((l_iter = l_iter->next) != l_first);
+
+	SWAP(BMFace, (*f_a), (*f_b));
+	bm->elem_index_dirty |= BM_FACE;
 }

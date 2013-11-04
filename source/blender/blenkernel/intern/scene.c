@@ -157,6 +157,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		lb = scen->r.layers;
 		scen->r = sce->r;
 		scen->r.layers = lb;
+		scen->r.actlay = 0;
 		scen->unit = sce->unit;
 		scen->physics_settings = sce->physics_settings;
 		scen->gm = sce->gm;
@@ -493,23 +494,10 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.border.ymax = 1.0f;
 	
 	sce->toolsettings = MEM_callocN(sizeof(struct ToolSettings), "Tool Settings Struct");
-	sce->toolsettings->cornertype = 1;
-	sce->toolsettings->degr = 90; 
-	sce->toolsettings->step = 9;
-	sce->toolsettings->turn = 1;
-	sce->toolsettings->extr_offs = 1; 
 	sce->toolsettings->doublimit = 0.001;
-	sce->toolsettings->segments = 32;
-	sce->toolsettings->rings = 32;
-	sce->toolsettings->vertices = 32;
-	sce->toolsettings->uvcalc_radius = 1.0f;
-	sce->toolsettings->uvcalc_cubesize = 1.0f;
-	sce->toolsettings->uvcalc_mapdir = 1;
-	sce->toolsettings->uvcalc_mapalign = 1;
 	sce->toolsettings->uvcalc_margin = 0.001f;
 	sce->toolsettings->unwrapper = 1;
 	sce->toolsettings->select_thresh = 0.01f;
-	sce->toolsettings->jointrilimit = 0.8f;
 
 	sce->toolsettings->selectmode = SCE_SELECT_VERTEX;
 	sce->toolsettings->uv_selectmode = UV_SELECT_VERTEX;
@@ -887,18 +875,35 @@ Object *BKE_scene_camera_switch_find(Scene *scene)
 	TimeMarker *m;
 	int cfra = scene->r.cfra;
 	int frame = -(MAXFRAME + 1);
+	int min_frame = MAXFRAME + 1;
 	Object *camera = NULL;
+	Object *first_camera = NULL;
 
 	for (m = scene->markers.first; m; m = m->next) {
-		if (m->camera && (m->camera->restrictflag & OB_RESTRICT_RENDER) == 0 && (m->frame <= cfra) && (m->frame > frame)) {
-			camera = m->camera;
-			frame = m->frame;
+		if (m->camera && (m->camera->restrictflag & OB_RESTRICT_RENDER) == 0) {
+			if ((m->frame <= cfra) && (m->frame > frame)) {
+				camera = m->camera;
+				frame = m->frame;
 
-			if (frame == cfra)
-				break;
+				if (frame == cfra)
+					break;
+			}
 
+			if (m->frame < min_frame) {
+				first_camera = m->camera;
+				min_frame = m->frame;
+			}
 		}
 	}
+
+	if (camera == NULL) {
+		/* If there's no marker to the left of current frame,
+		 * use camera from left-most marker to solve all sort
+		 * of Schrodinger uncertainties.
+		 */
+		return first_camera;
+	}
+
 	return camera;
 }
 #endif
@@ -1298,7 +1303,7 @@ void BKE_scene_update_for_newframe(Main *bmain, Scene *sce, unsigned int lay)
 	 * so don't call within 'scene_update_tagged_recursive' */
 	DAG_scene_update_flags(bmain, sce, lay, TRUE);   // only stuff that moves or needs display still
 
-	BKE_mask_evaluate_all_masks(bmain, ctime, TRUE);
+	BKE_mask_evaluate_all_masks(bmain, ctime, true);
 
 	/* All 'standard' (i.e. without any dependencies) animation is handled here,
 	 * with an 'local' to 'macro' order of evaluation. This should ensure that
@@ -1497,16 +1502,6 @@ void BKE_scene_disable_color_management(Scene *scene)
 
 int BKE_scene_check_color_management_enabled(const Scene *scene)
 {
-	/* TODO(sergey): shouldn't be needed. but we're currently far to close to the release,
-	 *               so better be extra-safe than sorry.
-	 *
-	 *               Will remove the check after the release.
-	 */
-	if (!scene) {
-		BLI_assert(!"Shouldn't happen!");
-		return TRUE;
-	}
-
 	return strcmp(scene->display_settings.display_device, "None") != 0;
 }
 

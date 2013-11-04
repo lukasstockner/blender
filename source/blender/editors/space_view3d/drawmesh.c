@@ -345,7 +345,10 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	else {
 		/* draw with lights in the scene otherwise */
 		solidtex = false;
-		Gtexdraw.is_lit = GPU_scene_object_lights(scene, ob, v3d->lay, rv3d->viewmat, !rv3d->is_persp);
+		if (v3d->flag2 & V3D_SHADELESS_TEX)
+			Gtexdraw.is_lit = 0;
+		else
+			Gtexdraw.is_lit = GPU_scene_object_lights(scene, ob, v3d->lay, rv3d->viewmat, !rv3d->is_persp);
 	}
 	
 	rgba_float_to_uchar(obcol, ob->col);
@@ -571,7 +574,7 @@ static DMDrawOption draw_em_tf_mapped__set_draw(void *userData, int index)
 	if (UNLIKELY(index >= em->bm->totface))
 		return DM_DRAW_OPTION_NORMAL;
 
-	efa = EDBM_face_at_index(em, index);
+	efa = BM_face_at_index(em->bm, index);
 
 	if (BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		return DM_DRAW_OPTION_SKIP;
@@ -933,7 +936,7 @@ static bool tex_mat_set_face_editmesh_cb(void *userData, int index)
 	if (UNLIKELY(index >= em->bm->totface))
 		return DM_DRAW_OPTION_NORMAL;
 
-	efa = EDBM_face_at_index(em, index);
+	efa = BM_face_at_index(em->bm, index);
 
 	return !BM_elem_flag_test(efa, BM_ELEM_HIDDEN);
 }
@@ -955,7 +958,10 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 	if (ob->transflag & OB_NEG_SCALE) glFrontFace(GL_CW);
 	else glFrontFace(GL_CCW);
 
-	glEnable(GL_LIGHTING);
+	if ((v3d->drawtype == OB_TEXTURE) && (v3d->flag2 & V3D_SHADELESS_TEX))
+		glColor3f(1.0f, 1.0f, 1.0f);
+	else
+		glEnable(GL_LIGHTING);
 
 	{
 		Mesh *me = ob->data;
@@ -977,7 +983,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
 		GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
 
 		if (glsl || picking) {
-			/* draw glsl */
+			/* draw glsl or solid */
 			dm->drawMappedFacesMat(dm,
 			                       tex_mat_set_material_cb,
 			                       set_face_cb, &data);

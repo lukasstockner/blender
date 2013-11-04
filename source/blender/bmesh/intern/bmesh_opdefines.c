@@ -1028,7 +1028,8 @@ static BMOpDefine bmo_triangulate_def = {
 	"triangulate",
 	/* slots_in */
 	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},
-	 {"use_beauty", BMO_OP_SLOT_BOOL},
+	 {"quad_method", BMO_OP_SLOT_INT},
+	 {"ngon_method", BMO_OP_SLOT_INT},
 	 {{'\0'}},
 	},
 	/* slots_out */
@@ -1580,6 +1581,7 @@ static BMOpDefine bmo_beautify_fill_def = {
 	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}}, /* input faces */
 	 {"edges", BMO_OP_SLOT_ELEMENT_BUF, {BM_EDGE}}, /* edges that can be flipped */
 	 {"use_restrict_tag", BMO_OP_SLOT_BOOL}, /* restrict edge rotation to mixed tagged vertices */
+	 {"method", BMO_OP_SLOT_INT}, /* method to define what is beautiful */
 	 {{'\0'}},
 	},
 	/* slots_out */

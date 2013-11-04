@@ -983,12 +983,6 @@ void MESH_OT_flip_normals(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static const EnumPropertyItem direction_items[] = {
-	{false, "CW", 0, "Clockwise", ""},
-	{true, "CCW", 0, "Counter Clockwise", ""},
-	{0, NULL, 0, NULL, NULL}
-};
-
 /* only accepts 1 selected edge, or 2 selected faces */
 static int edbm_edge_rotate_selected_exec(bContext *C, wmOperator *op)
 {
@@ -1621,7 +1615,7 @@ static bool merge_target(BMEditMesh *em, Scene *scene, View3D *v3d, Object *ob,
 	const float *vco = NULL;
 
 	if (use_cursor) {
-		vco = give_cursor(scene, v3d);
+		vco = ED_view3d_cursor3d_get(scene, v3d);
 		copy_v3_v3(co, vco);
 		mul_m4_v3(ob->imat, co);
 	}
@@ -3008,7 +3002,7 @@ static int edbm_fill_grid_exec(bContext *C, wmOperator *op)
 		}
 
 		offset = RNA_property_int_get(op->ptr, prop_offset);
-		offset = mod_i(offset, clamp);
+		offset = clamp ? mod_i(offset, clamp) : 0;
 
 		/* in simple cases, move selection for tags, but also support more advanced cases */
 		edbm_fill_grid_prepare(em->bm, offset, &span, calc_span);
@@ -3106,7 +3100,7 @@ void MESH_OT_fill_holes(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_int(ot->srna, "sides", 4, 0, INT_MAX, "Sides", "Number of sides (zero disables)", 0, 100);
+	RNA_def_int(ot->srna, "sides", 4, 0, INT_MAX, "Sides", "Number of sides in hole required to fill (zero fills all holes)", 0, 100);
 }
 
 static int edbm_beautify_fill_exec(bContext *C, wmOperator *op)
@@ -3130,7 +3124,7 @@ static int edbm_beautify_fill_exec(bContext *C, wmOperator *op)
 void MESH_OT_beautify_fill(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Beautify Fill";
+	ot->name = "Beautify Faces";
 	ot->idname = "MESH_OT_beautify_fill";
 	ot->description = "Rearrange some faces to try to get less degenerated geometry";
 
@@ -3210,20 +3204,11 @@ static int edbm_quads_convert_to_tris_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMOperator bmop;
-	const bool use_beauty = RNA_boolean_get(op->ptr, "use_beauty");
+	const int quad_method = RNA_enum_get(op->ptr, "quad_method");
+	const int ngon_method = RNA_enum_get(op->ptr, "ngon_method");
 
-	EDBM_op_init(em, &bmop, op, "triangulate faces=%hf use_beauty=%b", BM_ELEM_SELECT, use_beauty);
+	EDBM_op_init(em, &bmop, op, "triangulate faces=%hf quad_method=%i ngon_method=%i", BM_ELEM_SELECT, quad_method, ngon_method);
 	BMO_op_exec(em->bm, &bmop);
-
-	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
-
-	/* now call beauty fill */
-	if (use_beauty) {
-		EDBM_op_call_and_selectf(
-		            em, op, "geom.out", true,
-		            "beautify_fill faces=%S edges=%S",
-		            &bmop, "faces.out", &bmop, "edges.out");
-	}
 
 	if (!EDBM_op_finish(em, &bmop, op, true)) {
 		return OPERATOR_CANCELLED;
@@ -3249,7 +3234,8 @@ void MESH_OT_quads_convert_to_tris(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_boolean(ot->srna, "use_beauty", 1, "Beauty", "Use best triangulation division");
+	RNA_def_enum(ot->srna, "quad_method", modifier_triangulate_quad_method_items, MOD_TRIANGULATE_QUAD_BEAUTY, "Quad Method", "Method for splitting the quads into triangles");
+	RNA_def_enum(ot->srna, "ngon_method", modifier_triangulate_ngon_method_items, MOD_TRIANGULATE_NGON_BEAUTY, "Ngon Method", "Method for splitting the ngons into triangles");
 }
 
 static int edbm_tris_convert_to_quads_exec(bContext *C, wmOperator *op)
@@ -3342,7 +3328,7 @@ void MESH_OT_dissolve_verts(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Dissolve Vertices";
-	ot->description = "Dissolve geometry";
+	ot->description = "Dissolve verts, merge edges and faces";
 	ot->idname = "MESH_OT_dissolve_verts";
 
 	/* api callbacks */
@@ -3379,7 +3365,7 @@ void MESH_OT_dissolve_edges(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Dissolve Edges";
-	ot->description = "Dissolve geometry";
+	ot->description = "Dissolve edges, merging faces";
 	ot->idname = "MESH_OT_dissolve_edges";
 
 	/* api callbacks */
@@ -3418,7 +3404,7 @@ void MESH_OT_dissolve_faces(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Dissolve Faces";
-	ot->description = "Dissolve geometry";
+	ot->description = "Dissolve faces";
 	ot->idname = "MESH_OT_dissolve_faces";
 
 	/* api callbacks */
@@ -4519,7 +4505,7 @@ void MESH_OT_wireframe(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Wire Frame";
 	ot->idname = "MESH_OT_wireframe";
-	ot->description = "Inset new faces into selected faces";
+	ot->description = "Create a solid wire-frame from faces";
 
 	/* api callbacks */
 	ot->exec = edbm_wireframe_exec;
@@ -4561,7 +4547,8 @@ static int edbm_convex_hull_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	
+	BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_out, "geom.out", BM_FACE, BM_ELEM_SELECT, true);
+
 	/* Delete unused vertices, edges, and faces */
 	if (RNA_boolean_get(op->ptr, "delete_unused")) {
 		if (!EDBM_op_callf(em, op, "delete geom=%S context=%i",
@@ -4584,9 +4571,11 @@ static int edbm_convex_hull_exec(bContext *C, wmOperator *op)
 
 	/* Merge adjacent triangles */
 	if (RNA_boolean_get(op->ptr, "join_triangles")) {
-		if (!EDBM_op_callf(em, op, "join_triangles faces=%S limit=%f",
-		                   &bmop, "geom.out",
-		                   RNA_float_get(op->ptr, "limit")))
+		if (!EDBM_op_call_and_selectf(em, op,
+		                              "faces.out", true,
+		                              "join_triangles faces=%S limit=%f",
+		                              &bmop, "geom.out",
+		                              RNA_float_get(op->ptr, "limit")))
 		{
 			EDBM_op_finish(em, &bmop, op, true);
 			return OPERATOR_CANCELLED;
@@ -4715,7 +4704,7 @@ static int mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
 
 	EDBM_verts_mirror_cache_begin_ex(em, axis, true, true, use_topology, thresh, index);
 
-	EDBM_index_arrays_ensure(em, BM_VERT);
+	BM_mesh_elem_table_ensure(bm, BM_VERT);
 
 	BM_mesh_elem_hflag_disable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
@@ -4727,7 +4716,7 @@ static int mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
 			int i_mirr = index[i];
 			if (i_mirr != -1) {
 
-				BMVert *v_mirr = EDBM_vert_at_index(em, index[i]);
+				BMVert *v_mirr = BM_vert_at_index(bm, index[i]);
 
 				if (v != v_mirr) {
 					float co[3], co_mirr[3];

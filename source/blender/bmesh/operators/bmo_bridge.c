@@ -26,8 +26,6 @@
  * Connect verts across faces (splits faces) and bridge tool.
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
@@ -421,8 +419,8 @@ static void bridge_loop_pair(BMesh *bm,
 
 
 		BMO_op_initf(bm, &op_sub, 0,
-		             "beautify_fill faces=%hf edges=ae use_restrict_tag=%b",
-		             BM_ELEM_TAG, true);
+		             "beautify_fill faces=%hf edges=ae use_restrict_tag=%b method=%i",
+		             BM_ELEM_TAG, true, 1);
 
 		if (use_edgeout) {
 			BMOIter siter;

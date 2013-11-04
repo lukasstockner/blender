@@ -134,7 +134,8 @@ bool validSnap(TransInfo *t)
 
 bool activeSnap(TransInfo *t)
 {
-	return (t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT)) == MOD_SNAP || (t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT)) == MOD_SNAP_INVERT;
+	return ((t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT)) == MOD_SNAP) ||
+	       ((t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT)) == MOD_SNAP_INVERT);
 }
 
 void drawSnapping(const struct bContext *C, TransInfo *t)
@@ -266,16 +267,16 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 	}
 }
 
-bool handleSnapping(TransInfo *t, const wmEvent *event)
+eRedrawFlag handleSnapping(TransInfo *t, const wmEvent *event)
 {
-	bool status = false;
+	eRedrawFlag status = TREDRAW_NOTHING;
 
 #if 0 // XXX need a proper selector for all snap mode
 	if (BIF_snappingSupported(t->obedit) && event->type == TABKEY && event->shift) {
 		/* toggle snap and reinit */
 		t->settings->snap_flag ^= SCE_SNAP;
 		initSnapping(t, NULL);
-		status = 1;
+		status = TREDRAW_HARD;
 	}
 #endif
 	if (event->type == MOUSEMOVE) {
@@ -605,9 +606,10 @@ void addSnapPoint(TransInfo *t)
 	}
 }
 
-bool updateSelectedSnapPoint(TransInfo *t)
+eRedrawFlag updateSelectedSnapPoint(TransInfo *t)
 {
-	bool status = false;
+	eRedrawFlag status = TREDRAW_NOTHING;
+
 	if (t->tsnap.status & MULTI_POINTS) {
 		TransSnapPoint *p, *closest_p = NULL;
 		float closest_dist = TRANSFORM_SNAP_MAX_PX;
@@ -630,7 +632,10 @@ bool updateSelectedSnapPoint(TransInfo *t)
 		}
 
 		if (closest_p) {
-			status = (t->tsnap.selectedPoint != closest_p);
+			if (t->tsnap.selectedPoint != closest_p) {
+				status = TREDRAW_HARD;
+			}
+
 			t->tsnap.selectedPoint = closest_p;
 		}
 	}
@@ -1424,7 +1429,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 					
 					if (em != NULL) {
 						index_array = dm->getVertDataArray(dm, CD_ORIGINDEX);
-						EDBM_index_arrays_ensure(em, BM_VERT);
+						BM_mesh_elem_table_ensure(em->bm, BM_VERT);
 					}
 					
 					for (i = 0; i < totvert; i++) {
@@ -1445,7 +1450,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 								test = 0;
 							}
 							else {
-								eve = EDBM_vert_at_index(em, index);
+								eve = BM_vert_at_index(em->bm, index);
 								
 								if ((BM_elem_flag_test(eve, BM_ELEM_HIDDEN) ||
 								     BM_elem_flag_test(eve, BM_ELEM_SELECT)))
@@ -1474,7 +1479,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 					
 					if (em != NULL) {
 						index_array = dm->getEdgeDataArray(dm, CD_ORIGINDEX);
-						EDBM_index_arrays_ensure(em, BM_EDGE);
+						BM_mesh_elem_table_ensure(em->bm, BM_EDGE);
 					}
 					
 					for (i = 0; i < totedge; i++) {
@@ -1494,7 +1499,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 								test = 0;
 							}
 							else {
-								BMEdge *eed = EDBM_edge_at_index(em, index);
+								BMEdge *eed = BM_edge_at_index(em->bm, index);
 
 								if ((BM_elem_flag_test(eed, BM_ELEM_HIDDEN) ||
 								     BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) ||

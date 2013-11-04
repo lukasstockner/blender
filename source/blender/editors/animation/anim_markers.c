@@ -197,58 +197,23 @@ void ED_markers_get_minmax(ListBase *markers, short sel, float *first, float *la
 {
 	TimeMarker *marker;
 	float min, max;
-	int selcount = 0;
 	
 	/* sanity check */
 	//printf("markers = %p -  %p, %p\n", markers, markers->first, markers->last);
-	if (markers == NULL) {
+	if (ELEM3(NULL, markers, markers->first, markers->last)) {
 		*first = 0.0f;
 		*last = 0.0f;
 		return;
 	}
-	
-	if (markers->first && markers->last) {
-		TimeMarker *fm = markers->first;
-		TimeMarker *lm = markers->last;
-		
-		min = (float)fm->frame;
-		max = (float)lm->frame;
-	}
-	else {
-		*first = 0.0f;
-		*last = 0.0f;
-		return;
-	}
-	
-	/* count how many markers are usable - see later */
-	if (sel) {
-		for (marker = markers->first; marker; marker = marker->next) {
-			if (marker->flag & SELECT)
-				selcount++;
-		}
-	}
-	else
-		selcount = BLI_countlist(markers);
-	
-	/* if only selected are to be considered, only consider the selected ones
-	 * (optimization for not searching list)
-	 */
-	if (selcount > 1) {
-		for (marker = markers->first; marker; marker = marker->next) {
-			if (sel) {
-				if (marker->flag & SELECT) {
-					if (marker->frame < min)
-						min = (float)marker->frame;
-					if (marker->frame > max)
-						max = (float)marker->frame;
-				}
-			}
-			else {
-				if (marker->frame < min)
-					min = (float)marker->frame;
-				if (marker->frame > max)
-					max = (float)marker->frame;
-			}
+
+	min = FLT_MAX;
+	max = -FLT_MAX;
+	for (marker = markers->first; marker; marker = marker->next) {
+		if (!sel || (marker->flag & SELECT)) {
+			if (marker->frame < min)
+				min = (float)marker->frame;
+			if (marker->frame > max)
+				max = (float)marker->frame;
 		}
 	}
 	
@@ -1380,7 +1345,7 @@ static int ed_marker_rename_invoke_wrapper(bContext *C, wmOperator *op, const wm
 		RNA_string_set(op->ptr, "name", marker->name);
 	
 	/* now see if the operator is usable */
-	return ed_markers_opwrap_invoke_custom(C, op, event, WM_operator_props_popup);
+	return ed_markers_opwrap_invoke_custom(C, op, event, WM_operator_props_popup_confirm);
 }
 
 static void MARKER_OT_rename(wmOperatorType *ot)

@@ -309,7 +309,7 @@ ScatterSettings *scatter_settings_new(float refl, float radius, float ior, float
 	ss->Fdr= -1.440f/ior*ior + 0.710f/ior + 0.668f + 0.0636f*ior;
 	ss->A= (1.0f + ss->Fdr)/(1.0f - ss->Fdr);
 	ss->ld= radius;
-	ss->ro= min_ff(refl, 0.999f);
+	ss->ro= min_ff(refl, 0.99f);
 	ss->color= ss->ro*reflfac + (1.0f-reflfac);
 
 	ss->alpha_= compute_reduced_albedo(ss);
@@ -878,7 +878,7 @@ static void sss_create_tree_mat(Render *re, Material *mat)
 	re->r.mode &= ~R_OSA;
 	re->sss_points= &points;
 	re->sss_mat= mat;
-	re->i.partsdone = FALSE;
+	re->i.partsdone = 0;
 
 	if (!(re->r.scemode & (R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW)))
 		re->result= NULL;

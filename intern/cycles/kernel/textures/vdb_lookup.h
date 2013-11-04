@@ -173,7 +173,9 @@ typename GridType::ValueType* VDBAccessor::vdb_lookup_multiple_points(float x[],
     
     for (int pos = 0; pos < num; pos++) {
         
-        xyz = openvdb::math::Coord(x[pos], y[pos], z[pos]);
+        xyz = openvdb::math::Coord((openvdb::Int32) x[pos],
+                                   (openvdb::Int32) y[pos],
+                                   (openvdb::Int32) z[pos]);
         result[pos] = accessor.getValue(xyz);
     }
     

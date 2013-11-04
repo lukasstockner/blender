@@ -193,7 +193,6 @@ BOOST_SOURCE="http://sourceforge.net/projects/boost/files/boost/$BOOST_VERSION/b
 BOOST_VERSION_MIN="1.49"
 BOOST_FORCE_REBUILD=false
 BOOST_SKIP=false
-_need_boost_ldconfig=false
 
 OCIO_VERSION="1.0.7"
 OCIO_SOURCE="https://github.com/imageworks/OpenColorIO/tarball/v$OCIO_VERSION"
@@ -201,22 +200,20 @@ OCIO_VERSION_MIN="1.0"
 OCIO_FORCE_REBUILD=false
 OCIO_SKIP=false
 
-OPENEXR_VERSION="2.0.0"
+OPENEXR_VERSION="2.0.1"
 OPENEXR_SOURCE="http://download.savannah.nongnu.org/releases/openexr/openexr-$OPENEXR_VERSION.tar.gz"
 OPENEXR_VERSION_MIN="2.0"
-ILMBASE_VERSION="2.0.0"
+ILMBASE_VERSION="2.0.1"
 ILMBASE_SOURCE="http://download.savannah.nongnu.org/releases/openexr/ilmbase-$ILMBASE_VERSION.tar.gz"
 OPENEXR_FORCE_REBUILD=false
 OPENEXR_SKIP=false
 _with_built_openexr=false
-_need_openexr_ldconfig=false
 
 OIIO_VERSION="1.1.10"
 OIIO_SOURCE="https://github.com/OpenImageIO/oiio/archive/Release-$OIIO_VERSION.tar.gz"
 OIIO_VERSION_MIN="1.1"
 OIIO_FORCE_REBUILD=false
 OIIO_SKIP=false
-_need_oiio_ldconfig=false
 
 LLVM_VERSION="3.1"
 LLVM_VERSION_MIN="3.0"
@@ -250,6 +247,8 @@ _ffmpeg_list_sep=";"
 # FFMPEG optional libs.
 VORBIS_USE=false
 VORBIS_DEV=""
+OGG_USE=false
+OGG_DEV=""
 THEORA_USE=false
 THEORA_DEV=""
 XVID_USE=false
@@ -550,6 +549,17 @@ _create_inst_shortcut() {
   ln -s $_inst $_inst_shortcut
 }
 
+# ldconfig
+run_ldconfig() {
+  _lib_path="$INST/$1/lib"
+  _ldconf_path="/etc/ld.so.conf.d/$1.conf"
+  INFO ""
+  INFO "Running ldconfig for $1..."
+  sudo sh -c "echo \"$_lib_path\" > $_ldconf_path"
+  sudo /sbin/ldconfig  # XXX OpenSuse does not include sbin in command path with sudo!!!
+  INFO ""
+}
+
 #### Build Python ####
 _init_python() {
   _src=$SRC/Python-$PYTHON_VERSION
@@ -739,7 +749,7 @@ compile_Boost() {
   fi
 
   # Just always run it, much simpler this way!
-  _need_boost_ldconfig=true
+  run_ldconfig "boost"
 }
 
 #### Build OCIO ####
@@ -845,7 +855,7 @@ clean_ILMBASE() {
 
 compile_ILMBASE() {
   # To be changed each time we make edits that would modify the compiled result!
-  ilmbase_magic=5
+  ilmbase_magic=6
   _init_ilmbase
 
   # Clean install if needed!
@@ -948,7 +958,7 @@ clean_OPENEXR() {
 
 compile_OPENEXR() {
   # To be changed each time we make edits that would modify the compiled result!
-  openexr_magic=10
+  openexr_magic=11
 
   # Clean install if needed!
   magic_compile_check openexr-$OPENEXR_VERSION $openexr_magic
@@ -1023,12 +1033,13 @@ compile_OPENEXR() {
  TARGET_LINK_LIBRARIES ( IlmImfFuzzTest IlmImf Iex Imath Half IlmThread ${PTHREAD_LIB} ${Z_LIB})
 --- a/IlmImfTest/CMakeLists.txt
 +++ b/IlmImfTest/CMakeLists.txt
-@@ -19,22 +19,26 @@
+@@ -19,22 +19,28 @@
    testCustomAttributes.cpp
    testDeepScanLineBasic.cpp
    testDeepScanLineHuge.cpp
 +  testDeepScanLineMultipleRead.cpp
    testDeepTiledBasic.cpp
++  testBadTypeAttributes.cpp
    testExistingStreams.cpp
 +  testFutureProofing.cpp
    testHuf.cpp
@@ -1046,6 +1057,7 @@ compile_OPENEXR() {
    testMultiView.cpp
    testNativeFormat.cpp
 +  testOptimized.cpp
++  testOptimizedInterleavePatterns.cpp
 +  testPartHelper.cpp
    testPreviewImage.cpp
    testRgba.cpp
@@ -1142,7 +1154,7 @@ EOF
   _with_built_openexr=true
 
   # Just always run it, much simpler this way!
-  _need_openexr_ldconfig=true
+  run_ldconfig "openexr"
 }
 
 #### Build OIIO ####
@@ -1405,7 +1417,7 @@ EOF
   fi
 
   # Just always run it, much simpler this way!
-  _need_oiio_ldconfig=true
+  run_ldconfig "oiio"
 }
 
 #### Build LLVM ####
@@ -1882,16 +1894,18 @@ install_DEB() {
   # These libs should always be available in debian/ubuntu official repository...
   OPENJPEG_DEV="libopenjpeg-dev"
   VORBIS_DEV="libvorbis-dev"
+  OGG_DEV="libogg-dev"
   THEORA_DEV="libtheora-dev"
 
   _packages="gawk cmake cmake-curses-gui scons build-essential libjpeg-dev libpng-dev \
              libfreetype6-dev libx11-dev libxi-dev wget libsqlite3-dev libbz2-dev \
              libncurses5-dev libssl-dev liblzma-dev libreadline-dev $OPENJPEG_DEV \
-             libopenal-dev libglew-dev yasm $THEORA_DEV $VORBIS_DEV \
+             libopenal-dev libglew-dev yasm $THEORA_DEV $VORBIS_DEV $OGG_DEV \
              libsdl1.2-dev libfftw3-dev patch bzip2"
 
   OPENJPEG_USE=true
   VORBIS_USE=true
+  OGG_USE=true
   THEORA_USE=true
 
   # Install newest libtiff-dev in debian/ubuntu.
@@ -2299,15 +2313,17 @@ install_RPM() {
   # These libs should always be available in fedora/suse official repository...
   OPENJPEG_DEV="openjpeg-devel"
   VORBIS_DEV="libvorbis-devel"
+  OGG_DEV="libogg-devel"
   THEORA_DEV="libtheora-devel"
 
   _packages="gcc gcc-c++ make scons libtiff-devel freetype-devel libjpeg-devel\
              libpng-devel libX11-devel libXi-devel wget ncurses-devel \
              readline-devel $OPENJPEG_DEV openal-soft-devel \
-             glew-devel yasm $THEORA_DEV $VORBIS_DEV patch"
+             glew-devel yasm $THEORA_DEV $VORBIS_DEV $OGG_DEV patch"
 
   OPENJPEG_USE=true
   VORBIS_USE=true
+  OGG_USE=true
   THEORA_USE=true
 
   if [ $RPM = "FEDORA" -o $RPM = "RHEL" ]; then
@@ -2635,13 +2651,15 @@ install_ARCH() {
   # These libs should always be available in arch official repository...
   OPENJPEG_DEV="openjpeg"
   VORBIS_DEV="libvorbis"
+  OGG_DEV="libogg"
   THEORA_DEV="libtheora"
 
   _packages="base-devel scons cmake libxi glew libpng libtiff wget openal \
-             $OPENJPEG_DEV $VORBIS_DEV $THEORA_DEV yasm sdl fftw"
+             $OPENJPEG_DEV $VORBIS_DEV $OGG_DEV $THEORA_DEV yasm sdl fftw"
 
   OPENJPEG_USE=true
   VORBIS_USE=true
+  OGG_USE=true
   THEORA_USE=true
 
   if $WITH_ALL; then
@@ -2904,6 +2922,10 @@ print_info_ffmpeglink() {
     _packages="$_packages $VORBIS_DEV"
   fi
 
+  if $OGG_USE; then
+    _packages="$_packages $OGG_DEV"
+  fi
+
   if $XVID_USE; then
     _packages="$_packages $XVID_DEV"
   fi
@@ -3125,7 +3147,7 @@ print_info() {
   fi
 
   if $ALL_STATIC; then
-    INFO "LLIB = ["xml2", "expat"] + LLIB"
+    INFO "LLIBS = [\""xml2"\", \""expat"\"] + LLIBS"
   fi
 
   INFO ""
@@ -3149,20 +3171,6 @@ else
   ERROR "Failed to detect distribution type"
   exit 1
 fi
-
-INFO ""
-INFO "Running ldconfig..."
-if [ $_need_boost_ldconfig == true ]; then
-  sudo sh -c "echo \"$INST/boost/lib\" > /etc/ld.so.conf.d/boost.conf"
-fi
-if [ $_need_oiio_ldconfig == true ]; then
-  sudo sh -c "echo \"$INST/oiio/lib\" > /etc/ld.so.conf.d/oiio.conf"
-fi
-if [ $_need_openexr_ldconfig == true ]; then
-  sudo sh -c "echo \"$INST/openexr/lib\" > /etc/ld.so.conf.d/openexr.conf"
-fi
-sudo /sbin/ldconfig  # XXX OpenSuse does not include sbin in command path with sudo!!!
-INFO ""
 
 print_info | tee BUILD_NOTES.txt
 INFO ""

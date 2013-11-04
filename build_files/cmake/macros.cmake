@@ -48,6 +48,24 @@ macro(list_insert_before
 	unset(_index)
 endmacro()
 
+function (list_assert_duplicates
+	list_id
+	)
+	
+	# message(STATUS "list data: ${list_id}")
+
+	list(LENGTH list_id _len_before)
+	list(REMOVE_DUPLICATES list_id)
+	list(LENGTH list_id _len_after)
+	# message(STATUS "list size ${_len_before} -> ${_len_after}")
+	if(NOT _len_before EQUAL _len_after)
+		message(FATAL_ERROR "duplicate found in list which should not contain duplicates: ${list_id}")
+	endif()
+	unset(_len_before)
+	unset(_len_after)
+endfunction()
+
+
 # foo_bar.spam --> foo_barMySuffix.spam
 macro(file_suffix
 	file_name_new file_name file_suffix
@@ -177,6 +195,11 @@ macro(blender_add_lib_nolist
 	# listed is helpful for IDE's (QtCreator/MSVC)
 	blender_source_group("${sources}")
 
+	list_assert_duplicates("${sources}")
+	list_assert_duplicates("${includes}")
+	# Not for system includes because they can resolve to the same path
+	# list_assert_duplicates("${includes_sys}")
+
 endmacro()
 
 
@@ -243,7 +266,7 @@ macro(SETUP_LIBDIRS)
 		link_directories(${EXPAT_LIBPATH})
 	endif()
 	if(WITH_LLVM)
-		link_directories(${LLVM_LIB_DIR})
+		link_directories(${LLVM_LIBPATH})
 	endif()
 	if(WITH_MEM_JEMALLOC)
 		link_directories(${JEMALLOC_LIBPATH})
@@ -590,7 +613,8 @@ endmacro()
 
 macro(get_blender_version)
 	# So cmake depends on BKE_blender.h, beware of inf-loops!
-	CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/source/blender/blenkernel/BKE_blender.h ${CMAKE_BINARY_DIR}/source/blender/blenkernel/BKE_blender.h.done)
+	CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/source/blender/blenkernel/BKE_blender.h
+	               ${CMAKE_BINARY_DIR}/source/blender/blenkernel/BKE_blender.h.done)
 
 	file(STRINGS ${CMAKE_SOURCE_DIR}/source/blender/blenkernel/BKE_blender.h _contents REGEX "^#define[ \t]+BLENDER_.*$")
 
@@ -779,6 +803,9 @@ macro(data_to_c
 		COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
 		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/datatoc ${file_from} ${file_to}
 		DEPENDS ${file_from} datatoc)
+
+	set_source_files_properties(${file_to} PROPERTIES GENERATED TRUE)
+
 	unset(_file_to_path)
 endmacro()
 
@@ -802,10 +829,11 @@ macro(data_to_c_simple
 		COMMAND ${CMAKE_BINARY_DIR}/bin/${CMAKE_CFG_INTDIR}/datatoc ${_file_from} ${_file_to}
 		DEPENDS ${_file_from} datatoc)
 
+	set_source_files_properties(${_file_to} PROPERTIES GENERATED TRUE)
+
 	unset(_file_from)
 	unset(_file_to)
 	unset(_file_to_path)
-
 endmacro()
 
 # XXX Not used for now...

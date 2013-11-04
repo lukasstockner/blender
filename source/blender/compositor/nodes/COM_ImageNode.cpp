@@ -38,19 +38,19 @@ ImageNode::ImageNode(bNode *editorNode) : Node(editorNode)
 	/* pass */
 
 }
-NodeOperation *ImageNode::doMultilayerCheck(ExecutionSystem *system, RenderLayer *rl, Image *image, ImageUser *user, int framenumber, int outputsocketIndex, int pass, DataType datatype)
+NodeOperation *ImageNode::doMultilayerCheck(ExecutionSystem *system, RenderLayer *rl, Image *image, ImageUser *user, int framenumber, int outputsocketIndex, int passindex, DataType datatype)
 {
 	OutputSocket *outputSocket = this->getOutputSocket(outputsocketIndex);
 	MultilayerBaseOperation *operation = NULL;
 	switch (datatype) {
 		case COM_DT_VALUE:
-			operation = new MultilayerValueOperation(pass);
+			operation = new MultilayerValueOperation(passindex);
 			break;
 		case COM_DT_VECTOR:
-			operation = new MultilayerVectorOperation(pass);
+			operation = new MultilayerVectorOperation(passindex);
 			break;
 		case COM_DT_COLOR:
-			operation = new MultilayerColorOperation(pass);
+			operation = new MultilayerColorOperation(passindex);
 			break;
 		default:
 			break;
@@ -93,10 +93,19 @@ void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext *c
 					socket = this->getOutputSocket(index);
 					if (socket->isConnected() || index == 0) {
 						bNodeSocket *bnodeSocket = socket->getbNodeSocket();
-						NodeImageLayer *storage = (NodeImageLayer *)bnodeSocket->storage;
-						int passindex = storage->pass_index;
-						
+						/* Passes in the file can differ from passes stored in sockets (#36755).
+						 * Look up the correct file pass using the socket identifier instead.
+						 */
+						#if 0
+						NodeImageLayer *storage = (NodeImageLayer *)bnodeSocket->storage;*/
+						int passindex = storage->pass_index;*/
 						RenderPass *rpass = (RenderPass *)BLI_findlink(&rl->passes, passindex);
+						#endif
+						int passindex;
+						RenderPass *rpass;
+						for (rpass = (RenderPass *)rl->passes.first, passindex = 0; rpass; rpass = rpass->next, ++passindex)
+							if (STREQ(rpass->name, bnodeSocket->identifier))
+								break;
 						if (rpass) {
 							imageuser->pass = passindex;
 							switch (rpass->channels) {
@@ -133,7 +142,17 @@ void ImageNode::convertToOperations(ExecutionSystem *graph, CompositorContext *c
 
 		/* without this, multilayer that fail to load will crash blender [#32490] */
 		if (is_multilayer_ok == false) {
-			convertToOperations_invalid(graph, context);
+			int index;
+			vector<OutputSocket *> &outputsockets = this->getOutputSockets();
+			for (index = 0; index < outputsockets.size(); index++) {
+				const float warning_color[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+				SetColorOperation *operation = new SetColorOperation();
+				operation->setChannels(warning_color);
+
+				/* link the operation */
+				this->getOutputSocket(index)->relinkConnections(operation->getOutputSocket());
+				graph->addOperation(operation);
+			}
 		}
 	}
 	else {

@@ -1503,8 +1503,7 @@ static size_t animdata_filter_mask(ListBase *anim_data, void *UNUSED(data), int 
 }
 
 /* NOTE: owner_id is scene, material, or texture block, which is the direct owner of the node tree in question */
-// TODO: how to handle group nodes is still unclear...
-static size_t animdata_filter_ds_nodetree(bAnimContext *ac, ListBase *anim_data, bDopeSheet *ads, ID *owner_id, bNodeTree *ntree, int filter_mode)
+static size_t animdata_filter_ds_nodetree_group(bAnimContext *ac, ListBase *anim_data, bDopeSheet *ads, ID *owner_id, bNodeTree *ntree, int filter_mode)
 {
 	ListBase tmp_data = {NULL, NULL};
 	size_t tmp_items = 0;
@@ -1538,6 +1537,32 @@ static size_t animdata_filter_ds_nodetree(bAnimContext *ac, ListBase *anim_data,
 	return items;
 }
 
+static size_t animdata_filter_ds_nodetree(bAnimContext *ac, ListBase *anim_data, bDopeSheet *ads, ID *owner_id, bNodeTree *ntree, int filter_mode)
+{
+	bNode *node;
+	size_t items = 0;
+	int group_filter_mode = filter_mode & ~ADS_FILTER_ONLYSEL;
+
+	items += animdata_filter_ds_nodetree_group(ac, anim_data, ads, owner_id, ntree, filter_mode);
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->type == NODE_GROUP) {
+			if (node->id) {
+				int filterflag = ads->filterflag;
+				if ((filter_mode & ADS_FILTER_ONLYSEL) && (node->flag & NODE_SELECT) == 0) {
+					continue;
+				}
+				/* TODO(sergey): A bit creepy, but this flag is not used from threads anyway. */
+				ads->filterflag &= ~ADS_FILTER_ONLYSEL;
+				items += animdata_filter_ds_nodetree_group(ac, anim_data, ads, owner_id, (bNodeTree *) node->id, group_filter_mode);
+				ads->filterflag = filterflag;
+			}
+		}
+	}
+
+	return items;
+}
+
 static size_t animdata_filter_ds_linestyle(bAnimContext *ac, ListBase *anim_data, bDopeSheet *ads, Scene *sce, int filter_mode)
 {
 	SceneRenderLayer *srl;
@@ -1546,7 +1571,9 @@ static size_t animdata_filter_ds_linestyle(bAnimContext *ac, ListBase *anim_data
 	
 	for (srl = sce->r.layers.first; srl; srl = srl->next) {
 		for (lineset = srl->freestyleConfig.linesets.first; lineset; lineset = lineset->next) {
-			lineset->linestyle->id.flag |= LIB_DOIT;
+			if (lineset->linestyle) {
+				lineset->linestyle->id.flag |= LIB_DOIT;
+			}
 		}
 	}
 
@@ -1562,8 +1589,11 @@ static size_t animdata_filter_ds_linestyle(bAnimContext *ac, ListBase *anim_data
 			ListBase tmp_data = {NULL, NULL};
 			size_t tmp_items = 0;
 
-			if (!(linestyle->id.flag & LIB_DOIT))
+			if ((linestyle == NULL) ||
+			    !(linestyle->id.flag & LIB_DOIT))
+			{
 				continue;
+			}
 			linestyle->id.flag &= ~LIB_DOIT;
 			
 			/* add scene-level animation channels */

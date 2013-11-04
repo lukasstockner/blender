@@ -119,6 +119,7 @@ void BKE_nurbList_flag_set(ListBase *editnurb, short flag);
 
 void BKE_nurb_free(struct Nurb *nu);
 struct Nurb *BKE_nurb_duplicate(struct Nurb *nu);
+struct Nurb *BKE_nurb_copy(struct Nurb *src, int pntsu, int pntsv);
 
 void BKE_nurb_test2D(struct Nurb *nu);
 void BKE_nurb_minmax(struct Nurb *nu, float min[3], float max[3]);
@@ -155,6 +156,7 @@ void BKE_nurb_handle_calc_simple(struct Nurb *nu, struct BezTriple *bezt);
 
 void BKE_nurb_handles_calc(struct Nurb *nu);
 void BKE_nurb_handles_autocalc(struct Nurb *nu, int flag);
-void BKE_nurb_handles_test(struct Nurb *nu);
+void BKE_nurb_bezt_handle_test(struct BezTriple *bezt, const bool use_handle);
+void BKE_nurb_handles_test(struct Nurb *nu, const bool use_handles);
 
 #endif  /* __BKE_CURVE_H__ */

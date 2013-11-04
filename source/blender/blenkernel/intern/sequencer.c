@@ -632,7 +632,7 @@ static void seq_update_sound_bounds_recursive_rec(Scene *scene, Sequence *metase
 					endofs = seq->start + seq->len - end;
 
 				sound_move_scene_sound(scene, seq->scene_sound, seq->start + startofs,
-				                       seq->start + seq->len - endofs, startofs);
+				                       seq->start + seq->len - endofs, startofs + seq->anim_startofs);
 			}
 		}
 	}
@@ -664,8 +664,9 @@ void BKE_sequence_calc_disp(Scene *scene, Sequence *seq)
 	if (ELEM(seq->type, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SCENE)) {
 		BKE_sequencer_update_sound_bounds(scene, seq);
 	}
-	else if (seq->type == SEQ_TYPE_META)
+	else if (seq->type == SEQ_TYPE_META) {
 		seq_update_sound_bounds_recursive(scene, seq);
+	}
 }
 
 void BKE_sequence_calc(Scene *scene, Sequence *seq)
@@ -1853,7 +1854,6 @@ void BKE_sequencer_color_balance_apply(StripColorBalance *cb, ImBuf *ibuf, float
 	init_data.cb = cb;
 	init_data.ibuf = ibuf;
 	init_data.mul = mul;
-	init_data.mask = NULL;
 	init_data.make_float = make_float;
 	init_data.mask = mask_input;
 
@@ -2341,7 +2341,7 @@ static ImBuf *seq_render_mask(SeqRenderData context, Mask *mask, float nr, short
 
 		mask_temp = BKE_mask_copy_nolib(mask);
 
-		BKE_mask_evaluate(mask_temp, mask->sfra + nr, TRUE);
+		BKE_mask_evaluate(mask_temp, mask->sfra + nr, true);
 
 		maskbuf = MEM_mallocN(sizeof(float) * context.rectx * context.recty, __func__);
 

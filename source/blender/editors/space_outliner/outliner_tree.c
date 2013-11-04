@@ -384,17 +384,21 @@ static void outliner_add_line_styles(SpaceOops *soops, ListBase *lb, Scene *sce,
 
 	for (srl = sce->r.layers.first; srl; srl = srl->next) {
 		for (lineset = srl->freestyleConfig.linesets.first; lineset; lineset = lineset->next) {
-			lineset->linestyle->id.flag |= LIB_DOIT;
+			FreestyleLineStyle *linestyle = lineset->linestyle;
+			if (linestyle) {
+				linestyle->id.flag |= LIB_DOIT;
+			}
 		}
 	}
 	for (srl = sce->r.layers.first; srl; srl = srl->next) {
 		for (lineset = srl->freestyleConfig.linesets.first; lineset; lineset = lineset->next) {
 			FreestyleLineStyle *linestyle = lineset->linestyle;
-
-			if (!(linestyle->id.flag & LIB_DOIT))
-				continue;
-			linestyle->id.flag &= ~LIB_DOIT;
-			outliner_add_element(soops, lb, linestyle, te, 0, 0);
+			if (linestyle) {
+				if (!(linestyle->id.flag & LIB_DOIT))
+					continue;
+				linestyle->id.flag &= ~LIB_DOIT;
+				outliner_add_element(soops, lb, linestyle, te, 0, 0);
+			}
 		}
 	}
 }
@@ -424,8 +428,9 @@ static void outliner_add_scene_contents(SpaceOops *soops, ListBase *lb, Scene *s
 		outliner_add_element(soops, lb, sce, te, TSE_ANIM_DATA, 0);
 	
 	outliner_add_element(soops,  lb, sce->world, te, 0, 0);
-	
-	outliner_add_line_styles(soops, lb, sce, te);
+
+	if (STREQ(sce->r.engine, "BLENDER_RENDER") && (sce->r.mode & R_EDGE_FRS))
+		outliner_add_line_styles(soops, lb, sce, te);
 }
 
 // can be inlined if necessary
@@ -1669,14 +1674,6 @@ void outliner_build_tree(Main *mainvar, Scene *scene, SpaceOops *soops)
 		if (show_opened) {
 			tselem = TREESTORE(ten);
 			tselem->flag &= ~TSE_CLOSED;
-		}
-	}
-	else if (soops->outlinevis == SO_KEYMAP) {
-		wmWindowManager *wm = mainvar->wm.first;
-		wmKeyMap *km;
-		
-		for (km = wm->defaultconf->keymaps.first; km; km = km->next) {
-			/* ten = */ outliner_add_element(soops, &soops->tree, (void *)km, NULL, TSE_KEYMAP, 0);
 		}
 	}
 	else {

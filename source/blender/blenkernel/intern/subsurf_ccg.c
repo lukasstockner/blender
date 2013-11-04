@@ -170,7 +170,7 @@ static CCGSubSurf *_getSubSurf(CCGSubSurf *prevSS, int subdivLevels,
 
 	if (useArena) {
 		CCGAllocatorIFC allocatorIFC;
-		CCGAllocatorHDL allocator = BLI_memarena_new((1 << 16), "subsurf arena");
+		CCGAllocatorHDL allocator = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "subsurf arena");
 
 		allocatorIFC.alloc = arena_alloc;
 		allocatorIFC.realloc = arena_realloc;
@@ -1064,8 +1064,8 @@ void subsurf_copy_grid_hidden(DerivedMesh *dm, const MPoly *mpoly,
 
 		for (j = 0; j < mpoly[i].totloop; j++) {
 			const MDisps *md = &mdisps[mpoly[i].loopstart + j];
-			int hidden_gridsize = ccg_gridsize(md->level);
-			int factor = ccg_factor(level, md->level);
+			int hidden_gridsize = BKE_ccg_gridsize(md->level);
+			int factor = BKE_ccg_factor(level, md->level);
 			
 			if (!md->hidden)
 				continue;
@@ -1107,8 +1107,8 @@ void subsurf_copy_grid_paint_mask(DerivedMesh *dm, const MPoly *mpoly,
 			if (!gpm->data)
 				continue;
 
-			factor = ccg_factor(level, gpm->level);
-			gpm_gridsize = ccg_gridsize(gpm->level);
+			factor = BKE_ccg_factor(level, gpm->level);
+			gpm_gridsize = BKE_ccg_gridsize(gpm->level);
 			
 			for (y = 0; y < gridSize; y++) {
 				for (x = 0; x < gridSize; x++) {
@@ -1817,6 +1817,64 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 	}
 }
 
+static void ccgdm_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert)
+{
+	const float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+	int b;
+
+	/* orco texture coordinates */
+	if (attribs->totorco) {
+		/*const*/ float (*array)[3] = attribs->orco.array;
+		const float *orco = (array) ? array[index] : zero;
+
+		if (attribs->orco.gl_texco)
+			glTexCoord3fv(orco);
+		else
+			glVertexAttrib3fvARB(attribs->orco.gl_index, orco);
+	}
+
+	/* uv texture coordinates */
+	for (b = 0; b < attribs->tottface; b++) {
+		const float *uv;
+
+		if (attribs->tface[b].array) {
+			MTFace *tf = &attribs->tface[b].array[a];
+			uv = tf->uv[vert];
+		}
+		else {
+			uv = zero;
+		}
+
+		if (attribs->tface[b].gl_texco)
+			glTexCoord2fv(uv);
+		else
+			glVertexAttrib2fvARB(attribs->tface[b].gl_index, uv);
+	}
+
+	/* vertex colors */
+	for (b = 0; b < attribs->totmcol; b++) {
+		GLubyte col[4];
+
+		if (attribs->mcol[b].array) {
+			MCol *cp = &attribs->mcol[b].array[a * 4 + vert];
+			col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+		}
+		else {
+			col[0] = 0; col[1] = 0; col[2] = 0; col[3] = 0;
+		}
+
+		glVertexAttrib4ubvARB(attribs->mcol[b].gl_index, col);
+	}
+
+	/* tangent for normal mapping */
+	if (attribs->tottang) {
+		/*const*/ float (*array)[4] = attribs->tang.array;
+		const float *tang = (array) ? array[a * 4 + vert] : zero;
+
+		glVertexAttrib4fvARB(attribs->tang.gl_index, tang);
+	}
+}
+
 /* Only used by non-editmesh types */
 static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
                                       DMSetMaterial setMaterial,
@@ -1833,7 +1891,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	int gridFaces = gridSize - 1;
 	int edgeSize = ccgSubSurf_getEdgeSize(ss);
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
-	int a, b, i, do_draw, numVerts, matnr, new_matnr, totface;
+	int a, i, do_draw, numVerts, matnr, new_matnr, totface;
 
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
@@ -1842,25 +1900,11 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	matnr = -1;
 
 #define PASSATTRIB(dx, dy, vert) {                                            \
-	if (attribs.totorco) {                                                    \
+	if (attribs.totorco)                                                      \
 		index = getFaceIndex(ss, f, S, x + dx, y + dy, edgeSize, gridSize);   \
-		glVertexAttrib3fvARB(attribs.orco.gl_index,                           \
-		                     attribs.orco.array[index]);                      \
-	}                                                                         \
-	for (b = 0; b < attribs.tottface; b++) {                                  \
-		MTFace *tf = &attribs.tface[b].array[a];                              \
-		glVertexAttrib2fvARB(attribs.tface[b].gl_index, tf->uv[vert]);        \
-	}                                                                         \
-	for (b = 0; b < attribs.totmcol; b++) {                                   \
-		MCol *cp = &attribs.mcol[b].array[a * 4 + vert];                      \
-		GLubyte col[4];                                                       \
-		col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;       \
-		glVertexAttrib4ubvARB(attribs.mcol[b].gl_index, col);                 \
-	}                                                                         \
-	if (attribs.tottang) {                                                    \
-		float *tang = attribs.tang.array[a * 4 + vert];                       \
-		glVertexAttrib4fvARB(attribs.tang.gl_index, tang);                    \
-	}                                                                         \
+	else                                                                      \
+		index = 0;                                                            \
+	ccgdm_draw_attrib_vertex(&attribs, a, index, vert);                       \
 } (void)0
 
 	totface = ccgSubSurf_getNumFaces(ss);
@@ -1984,7 +2028,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 	int gridFaces = gridSize - 1;
 	int edgeSize = ccgSubSurf_getEdgeSize(ss);
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
-	int a, b, i, numVerts, matnr, new_matnr, totface;
+	int a, i, numVerts, matnr, new_matnr, totface;
 
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
@@ -1992,31 +2036,11 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 	matnr = -1;
 
 #define PASSATTRIB(dx, dy, vert) {                                            \
-	if (attribs.totorco) {                                                    \
+	if (attribs.totorco)                                                      \
 		index = getFaceIndex(ss, f, S, x + dx, y + dy, edgeSize, gridSize);   \
-		if (attribs.orco.gl_texco)                                            \
-			glTexCoord3fv(attribs.orco.array[index]);                         \
-		else                                                                  \
-			glVertexAttrib3fvARB(attribs.orco.gl_index,                       \
-			                     attribs.orco.array[index]);                  \
-	}                                                                         \
-	for (b = 0; b < attribs.tottface; b++) {                                  \
-		MTFace *tf = &attribs.tface[b].array[a];                              \
-		if (attribs.tface[b].gl_texco)                                        \
-			glTexCoord2fv(tf->uv[vert]);                                      \
-		else                                                                  \
-			glVertexAttrib2fvARB(attribs.tface[b].gl_index, tf->uv[vert]);    \
-	}                                                                         \
-	for (b = 0; b < attribs.totmcol; b++) {                                   \
-		MCol *cp = &attribs.mcol[b].array[a * 4 + vert];                      \
-		GLubyte col[4];                                                       \
-		col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;       \
-		glVertexAttrib4ubvARB(attribs.mcol[b].gl_index, col);                 \
-	}                                                                         \
-	if (attribs.tottang) {                                                    \
-		float *tang = attribs.tang.array[a * 4 + vert];                       \
-		glVertexAttrib4fvARB(attribs.tang.gl_index, tang);                    \
-	}                                                                         \
+	else                                                                      \
+		index = 0;                                                            \
+	ccgdm_draw_attrib_vertex(&attribs, a, index, vert);                       \
 } (void)0
 
 	totface = ccgSubSurf_getNumFaces(ss);
@@ -3182,9 +3206,6 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	ccgdm->dm.getNumLoops = ccgDM_getNumLoops;
 	/* reuse of ccgDM_getNumTessFaces is intentional here: subsurf polys are just created from tessfaces */
 	ccgdm->dm.getNumPolys = ccgDM_getNumTessFaces;
-
-	ccgdm->dm.getNumGrids = ccgDM_getNumGrids;
-	ccgdm->dm.getPBVH = ccgDM_getPBVH;
 
 	ccgdm->dm.getVert = ccgDM_getFinalVert;
 	ccgdm->dm.getEdge = ccgDM_getFinalEdge;

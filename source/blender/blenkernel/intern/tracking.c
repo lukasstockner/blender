@@ -36,6 +36,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_anim_types.h"
 #include "DNA_gpencil_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_movieclip_types.h"
@@ -53,6 +54,7 @@
 
 #include "BLF_translation.h"
 
+#include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_tracking.h"
 #include "BKE_movieclip.h"
@@ -61,6 +63,8 @@
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
+
+#include "RNA_access.h"
 
 #include "raskter.h"
 
@@ -212,7 +216,6 @@ void BKE_tracking_settings_init(MovieTracking *tracking)
 	tracking->settings.default_algorithm_flag |= TRACK_ALGORITHM_FLAG_USE_BRUTE;
 	tracking->settings.dist = 1;
 	tracking->settings.object_distance = 1;
-	tracking->settings.reconstruction_success_threshold = 1e-3f;
 
 	tracking->stabilization.scaleinf = 1.0f;
 	tracking->stabilization.locinf = 1.0f;
@@ -591,6 +594,7 @@ MovieTrackingTrack *BKE_tracking_track_add(MovieTracking *tracking, ListBase *tr
 	track->frames_limit = settings->default_frames_limit;
 	track->flag = settings->default_flag;
 	track->algorithm_flag = settings->default_algorithm_flag;
+	track->weight = 1.0f;
 
 	memset(&marker, 0, sizeof(marker));
 	marker.pos[0] = x;
@@ -3264,23 +3268,6 @@ static int point_markers_correspondences_on_both_image(MovieTrackingPlaneTrack *
 	return correspondence_index;
 }
 
-/* TODO(sergey): Make it generic function available for everyone. */
-BLI_INLINE void mat3f_from_mat3d(float mat_float[3][3], double mat_double[3][3])
-{
-	/* Keep it stupid simple for better data flow in CPU. */
-	mat_float[0][0] = mat_double[0][0];
-	mat_float[0][1] = mat_double[0][1];
-	mat_float[0][2] = mat_double[0][2];
-
-	mat_float[1][0] = mat_double[1][0];
-	mat_float[1][1] = mat_double[1][1];
-	mat_float[1][2] = mat_double[1][2];
-
-	mat_float[2][0] = mat_double[2][0];
-	mat_float[2][1] = mat_double[2][1];
-	mat_float[2][2] = mat_double[2][2];
-}
-
 /* NOTE: frame number should be in clip space, not scene space */
 static void track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_track, int start_frame,
                                              int direction, bool retrack)
@@ -3340,9 +3327,9 @@ static void track_plane_from_existing_motion(MovieTrackingPlaneTrack *plane_trac
 			break;
 		}
 
-		libmv_homography2DFromCorrespondencesLinear(x1, x2, num_correspondences, H_double, 1e-8);
+		libmv_homography2DFromCorrespondencesEuc(x1, x2, num_correspondences, H_double);
 
-		mat3f_from_mat3d(H, H_double);
+		copy_m3_m3d(H, H_double);
 
 		for (i = 0; i < 4; i++) {
 			float vec[3] = {0.0f, 0.0f, 1.0f}, vec2[3];
@@ -3444,9 +3431,9 @@ void BKE_tracking_homography_between_two_quads(/*const*/ float reference_corners
 	float_corners_to_double(reference_corners, x1);
 	float_corners_to_double(corners, x2);
 
-	libmv_homography2DFromCorrespondencesLinear(x1, x2, 4, H_double, 1e-8);
+	libmv_homography2DFromCorrespondencesEuc(x1, x2, 4, H_double);
 
-	mat3f_from_mat3d(H, H_double);
+	copy_m3_m3d(H, H_double);
 }
 
 /*********************** Camera solving *************************/
@@ -3473,9 +3460,6 @@ typedef struct MovieReconstructContext {
 
 	TracksMap *tracks_map;
 
-	float success_threshold;
-	bool use_fallback_reconstruction;
-
 	int sfra, efra;
 } MovieReconstructContext;
 
@@ -3488,7 +3472,7 @@ typedef struct ReconstructProgressData {
 } ReconstructProgressData;
 
 /* Create new libmv Tracks structure from blender's tracks list. */
-static struct libmv_Tracks *libmv_tracks_new(ListBase *tracksbase, int width, int height)
+static struct libmv_Tracks *libmv_tracks_new(MovieClip *clip, ListBase *tracksbase, int width, int height)
 {
 	int tracknr = 0;
 	MovieTrackingTrack *track;
@@ -3496,15 +3480,28 @@ static struct libmv_Tracks *libmv_tracks_new(ListBase *tracksbase, int width, in
 
 	track = tracksbase->first;
 	while (track) {
+		FCurve *weight_fcurve;
 		int a = 0;
+
+		weight_fcurve = id_data_find_fcurve(&clip->id, track, &RNA_MovieTrackingTrack,
+		                                    "weight", 0, NULL);
 
 		for (a = 0; a < track->markersnr; a++) {
 			MovieTrackingMarker *marker = &track->markers[a];
 
 			if ((marker->flag & MARKER_DISABLED) == 0) {
+				float weight = track->weight;
+
+				if (weight_fcurve) {
+					int scene_framenr =
+						BKE_movieclip_remap_clip_to_scene_frame(clip, marker->framenr);
+					weight = evaluate_fcurve(weight_fcurve, scene_framenr);
+				}
+
 				libmv_tracksInsert(tracks, marker->framenr, tracknr,
 				                   (marker->pos[0] + track->offset[0]) * width,
-				                   (marker->pos[1] + track->offset[1]) * height);
+				                   (marker->pos[1] + track->offset[1]) * height,
+				                   weight);
 			}
 		}
 
@@ -3751,9 +3748,10 @@ bool BKE_tracking_reconstruction_check(MovieTracking *tracking, MovieTrackingObj
  * clip datablock, so editing this clip is safe during
  * reconstruction job is in progress.
  */
-MovieReconstructContext *BKE_tracking_reconstruction_context_new(MovieTracking *tracking, MovieTrackingObject *object,
+MovieReconstructContext *BKE_tracking_reconstruction_context_new(MovieClip *clip, MovieTrackingObject *object,
                                                                  int keyframe1, int keyframe2, int width, int height)
 {
+	MovieTracking *tracking = &clip->tracking;
 	MovieReconstructContext *context = MEM_callocN(sizeof(MovieReconstructContext), "MovieReconstructContext data");
 	MovieTrackingCamera *camera = &tracking->camera;
 	ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, object);
@@ -3779,9 +3777,6 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(MovieTracking *
 	context->k1 = camera->k1;
 	context->k2 = camera->k2;
 	context->k3 = camera->k3;
-
-	context->success_threshold = tracking->settings.reconstruction_success_threshold;
-	context->use_fallback_reconstruction = tracking->settings.reconstruction_flag & TRACKING_USE_FALLBACK_RECONSTRUCTION;
 
 	context->tracks_map = tracks_map_new(context->object_name, context->is_camera, num_tracks, 0);
 
@@ -3817,7 +3812,7 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(MovieTracking *
 	context->sfra = sfra;
 	context->efra = efra;
 
-	context->tracks = libmv_tracks_new(tracksbase, width, height * aspy);
+	context->tracks = libmv_tracks_new(clip, tracksbase, width, height * aspy);
 	context->keyframe1 = keyframe1;
 	context->keyframe2 = keyframe2;
 	context->refine_flags = reconstruct_refine_intrinsics_get_flags(tracking, object);
@@ -3877,9 +3872,6 @@ static void reconstructionOptionsFromContext(libmv_ReconstructionOptions *recons
 	reconstruction_options->keyframe2 = context->keyframe2;
 
 	reconstruction_options->refine_intrinsics = context->refine_flags;
-
-	reconstruction_options->success_threshold = context->success_threshold;
-	reconstruction_options->use_fallback_reconstruction = context->use_fallback_reconstruction;
 }
 
 /* Solve camera/object motion and reconstruct 3D markers position

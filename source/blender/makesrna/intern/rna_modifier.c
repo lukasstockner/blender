@@ -109,6 +109,20 @@ EnumPropertyItem modifier_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+EnumPropertyItem modifier_triangulate_quad_method_items[] = {
+	{MOD_TRIANGULATE_QUAD_BEAUTY, "BEAUTY", 0, "Beauty ", "Split the quads in nice triangles, slower method"},
+	{MOD_TRIANGULATE_QUAD_FIXED, "FIXED", 0, "Fixed", "Split the quads on the first and third vertices"},
+	{MOD_TRIANGULATE_QUAD_ALTERNATE, "FIXED_ALTERNATE", 0, "Fixed Alternate", "Split the quads on the 2nd and 4th vertices"},
+	{MOD_TRIANGULATE_QUAD_SHORTEDGE, "SHORTEST_DIAGONAL", 0, "Shortest Diagonal", "Split the quads based on the distance between the vertices"},
+	{0, NULL, 0, NULL, NULL}
+};
+
+EnumPropertyItem modifier_triangulate_ngon_method_items[] = {
+	{MOD_TRIANGULATE_NGON_SCANFILL, "SCANFILL", 0, "Scanfill", "Split the ngons using a scanfill algorithm "},
+	{MOD_TRIANGULATE_NGON_BEAUTY, "BEAUTY", 0, "Beauty", "Arrange the new triangles nicely, slower method"},
+	{0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 
 #include "DNA_particle_types.h"
@@ -118,6 +132,7 @@ EnumPropertyItem modifier_type_items[] = {
 #include "BKE_depsgraph.h"
 #include "BKE_library.h"
 #include "BKE_modifier.h"
+#include "BKE_object.h"
 #include "BKE_particle.h"
 
 static void rna_UVProject_projectors_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -492,7 +507,8 @@ static void rna_MultiresModifier_type_set(PointerRNA *ptr, int value)
 	mmd->simple = value;
 }
 
-static void rna_MultiresModifier_level_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_MultiresModifier_level_range(PointerRNA *ptr, int *min, int *max,
+                                             int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	MultiresModifierData *mmd = (MultiresModifierData *)ptr->data;
 
@@ -533,6 +549,14 @@ static int rna_MultiresModifier_filepath_length(PointerRNA *ptr)
 	CustomDataExternal *external = ((Mesh *)ob->data)->ldata.external;
 
 	return strlen((external) ? external->filename : "");
+}
+
+static void rna_HookModifier_object_set(PointerRNA *ptr, PointerRNA value)
+{
+	HookModifierData *hmd = ptr->data;
+
+	hmd->object = (Object *)value.data;
+	BKE_object_modifier_hook_reset((Object *)ptr->id.data, hmd);
 }
 
 static void modifier_object_set(Object *self, Object **ob_p, int type, PointerRNA value)
@@ -1433,6 +1457,7 @@ static void rna_def_modifier_hook(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Object", "Parent Object for hook, also recalculates and clears offset");
 	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_HookModifier_object_set", NULL, NULL);
 	RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
 	
 	prop = RNA_def_property(srna, "subtarget", PROP_STRING, PROP_NONE);
@@ -3489,9 +3514,16 @@ static void rna_def_modifier_triangulate(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "TriangulateModifierData");
 	RNA_def_struct_ui_icon(srna, ICON_MOD_TRIANGULATE);
 
-	prop = RNA_def_property(srna, "use_beauty", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_TRIANGULATE_BEAUTY);
-	RNA_def_property_ui_text(prop, "Beauty Subdivide", "Subdivide across shortest diagonal");
+	prop = RNA_def_property(srna, "quad_method", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "quad_method");
+	RNA_def_property_enum_items(prop, modifier_triangulate_quad_method_items);
+	RNA_def_property_ui_text(prop, "Quad Method", "Method for splitting the quads into triangles");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "ngon_method", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "ngon_method");
+	RNA_def_property_enum_items(prop, modifier_triangulate_ngon_method_items);
+	RNA_def_property_ui_text(prop, "Ngon Method", "Method for splitting the ngons into triangles");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 

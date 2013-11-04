@@ -82,8 +82,8 @@ typedef struct ViewDepths {
 	bool damaged;
 } ViewDepths;
 
-float *give_cursor(struct Scene *scene, struct View3D *v3d);
-void ED_view3d_cursor3d_position(struct bContext *C, float fp[3], const int mval[2]);
+float *ED_view3d_cursor3d_get(struct Scene *scene, struct View3D *v3d);
+void   ED_view3d_cursor3d_position(struct bContext *C, float fp[3], const int mval[2]);
 
 void ED_view3d_to_m4(float mat[4][4], const float ofs[3], const float quat[4], const float dist);
 void ED_view3d_from_m4(float mat[4][4], float ofs[3], float quat[4], float *dist);
@@ -328,6 +328,8 @@ float ED_view3d_offset_distance(float mat[4][4], const float ofs[3], const float
 float ED_scene_grid_scale(struct Scene *scene, const char **grid_unit);
 float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char **grid_unit);
 
+void ED_scene_draw_fps(struct Scene *scene, struct rcti *rect);
+
 /* view matrix properties utilities */
 /* unused */
 #if 0
@@ -335,5 +337,8 @@ void ED_view3d_operator_properties_viewmat(struct wmOperatorType *ot);
 void ED_view3d_operator_properties_viewmat_set(struct bContext *C, struct wmOperator *op);
 void ED_view3d_operator_properties_viewmat_get(struct wmOperator *op, int *winx, int *winy, float persmat[4][4]);
 #endif
+
+/* render */
+void ED_view3d_shade_update(struct Main *bmain, struct View3D *v3d, struct ScrArea *sa);
 
 #endif /* __ED_VIEW3D_H__ */

@@ -505,6 +505,7 @@ static EnumPropertyItem *rna_userdef_audio_device_itemf(bContext *UNUSED(C), Poi
 		return item;
 	}
 #else
+	(void)free;
 	return audio_device_items;
 #endif
 }
@@ -2908,7 +2909,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "show_tooltips_python", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", USER_TOOLTIPS_PYTHON);
-	RNA_def_property_ui_text(prop, "Show Python Tooltips", "Show Python references in tooltips");
+	RNA_def_property_ui_text(prop, "Python Tooltips", "Show Python references in tooltips");
 
 	prop = RNA_def_property(srna, "show_object_info", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_DRAWVIEWINFO);

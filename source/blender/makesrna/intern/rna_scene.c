@@ -219,7 +219,6 @@ EnumPropertyItem snap_uv_element_items[] = {
 #  define R_IMF_ENUM_TIFF
 #endif
 
-
 #define IMAGE_TYPE_ITEMS_IMAGE_ONLY                                           \
 	R_IMF_ENUM_BMP                                                            \
 	/* DDS save not supported yet R_IMF_ENUM_DDS */                           \
@@ -781,7 +780,7 @@ static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
 	}
 }
 
-static EnumPropertyItem *rna_ImageFormatSettings_file_format_itemf(bContext *C, PointerRNA *ptr,
+static EnumPropertyItem *rna_ImageFormatSettings_file_format_itemf(bContext *UNUSED(C), PointerRNA *ptr,
                                                                    PropertyRNA *UNUSED(prop), int *UNUSED(free))
 {
 	ID *id = ptr->id.data;
@@ -793,7 +792,7 @@ static EnumPropertyItem *rna_ImageFormatSettings_file_format_itemf(bContext *C, 
 	}
 }
 
-static EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext *C, PointerRNA *ptr,
+static EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext *UNUSED(C), PointerRNA *ptr,
                                                                   PropertyRNA *UNUSED(prop), int *free)
 {
 	ImageFormatData *imf = (ImageFormatData *)ptr->data;
@@ -838,7 +837,7 @@ static EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext *C, P
 	}
 }
 
-static EnumPropertyItem *rna_ImageFormatSettings_color_depth_itemf(bContext *C, PointerRNA *ptr,
+static EnumPropertyItem *rna_ImageFormatSettings_color_depth_itemf(bContext *UNUSED(C), PointerRNA *ptr,
                                                                    PropertyRNA *UNUSED(prop), int *free)
 {
 	ImageFormatData *imf = (ImageFormatData *)ptr->data;
@@ -932,7 +931,7 @@ static void rna_RenderSettings_qtcodecsettings_codecType_set(PointerRNA *ptr, in
 	settings->codecType = quicktime_videocodecType_from_rnatmpvalue(value);
 }
 
-static EnumPropertyItem *rna_RenderSettings_qtcodecsettings_codecType_itemf(bContext *C, PointerRNA *ptr,
+static EnumPropertyItem *rna_RenderSettings_qtcodecsettings_codecType_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr),
                                                                             PropertyRNA *UNUSED(prop), int *free)
 {
 	EnumPropertyItem *item = NULL;
@@ -971,7 +970,7 @@ static void rna_RenderSettings_qtcodecsettings_audiocodecType_set(PointerRNA *pt
 	settings->audiocodecType = quicktime_audiocodecType_from_rnatmpvalue(value);
 }
 
-static EnumPropertyItem *rna_RenderSettings_qtcodecsettings_audiocodecType_itemf(bContext *C, PointerRNA *ptr,
+static EnumPropertyItem *rna_RenderSettings_qtcodecsettings_audiocodecType_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr),
                                                                                  PropertyRNA *UNUSED(prop), int *free)
 {
 	EnumPropertyItem *item = NULL;
@@ -1032,7 +1031,8 @@ static void rna_RenderSettings_active_layer_index_set(PointerRNA *ptr, int value
 	rd->actlay = value;
 }
 
-static void rna_RenderSettings_active_layer_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+static void rna_RenderSettings_active_layer_index_range(PointerRNA *ptr, int *min, int *max,
+                                                        int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	RenderData *rd = (RenderData *)ptr->data;
 
@@ -1313,7 +1313,7 @@ static void rna_Scene_simplify_update(Main *bmain, Scene *UNUSED(scene), Pointer
 		rna_Scene_use_simplify_update(bmain, sce, ptr);
 }
 
-static void rna_Scene_use_persistent_data_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_Scene_use_persistent_data_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Scene *sce = ptr->id.data;
 
@@ -1443,6 +1443,12 @@ static KeyingSet *rna_Scene_keying_set_new(Scene *sce, ReportList *reports, cons
 	}
 }
 
+static void rna_UnifiedPaintSettings_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
+{
+	Brush *br = BKE_paint_brush(BKE_paint_get_active(scene));
+	WM_main_add_notifier(NC_BRUSH | NA_EDITED, br);
+}
+
 static void rna_UnifiedPaintSettings_size_set(PointerRNA *ptr, int value)
 {
 	UnifiedPaintSettings *ups = ptr->data;
@@ -1464,11 +1470,12 @@ static void rna_UnifiedPaintSettings_unprojected_radius_set(PointerRNA *ptr, flo
 
 static void rna_UnifiedPaintSettings_radius_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-	/* changing the unified size should invalidate */
+	/* changing the unified size should invalidate the overlay but also update the brush */
 	BKE_paint_invalidate_overlay_all();
+	rna_UnifiedPaintSettings_update(bmain, scene, ptr);
 }
 
-static char *rna_UnifiedPaintSettings_path(PointerRNA *ptr)
+static char *rna_UnifiedPaintSettings_path(PointerRNA *UNUSED(ptr))
 {
 	return BLI_strdup("tool_settings.unified_paint_settings");
 }
@@ -1490,7 +1497,7 @@ static void rna_EditMesh_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *U
 	}
 }
 
-static char *rna_MeshStatVis_path(PointerRNA *ptr)
+static char *rna_MeshStatVis_path(PointerRNA *UNUSED(ptr))
 {
 	return BLI_strdup("tool_settings.statvis");
 }
@@ -1524,7 +1531,7 @@ static void rna_SceneSequencer_update(Main *UNUSED(bmain), Scene *UNUSED(scene),
 	BKE_sequencer_preprocessed_cache_cleanup();
 }
 
-static char *rna_ToolSettings_path(PointerRNA *ptr)
+static char *rna_ToolSettings_path(PointerRNA *UNUSED(ptr))
 {
 	return BLI_strdup("tool_settings");
 }
@@ -1540,7 +1547,8 @@ static void rna_FreestyleLineSet_linestyle_set(PointerRNA *ptr, PointerRNA value
 {
 	FreestyleLineSet *lineset = (FreestyleLineSet *)ptr->data;
 
-	lineset->linestyle->id.us--;
+	if (lineset->linestyle)
+		lineset->linestyle->id.us--;
 	lineset->linestyle = (FreestyleLineStyle *)value.data;
 	lineset->linestyle->id.us++;
 }
@@ -1553,7 +1561,7 @@ static PointerRNA rna_FreestyleSettings_active_lineset_get(PointerRNA *ptr)
 }
 
 static void rna_FreestyleSettings_active_lineset_index_range(PointerRNA *ptr, int *min, int *max,
-                                                             int *softmin, int *softmax)
+                                                             int *UNUSED(softmin), int *UNUSED(softmax))
 {
 	FreestyleConfig *config = (FreestyleConfig *)ptr->data;
 
@@ -1579,14 +1587,12 @@ static void rna_def_transform_orientation(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-
-	const int matrix_dimsize[] = {3, 3};
 	
 	srna = RNA_def_struct(brna, "TransformOrientation", NULL);
 	
 	prop = RNA_def_property(srna, "matrix", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_float_sdna(prop, NULL, "mat");
-	RNA_def_property_multi_array(prop, 2, matrix_dimsize);
+	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_3x3);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
@@ -2037,6 +2043,7 @@ static void rna_def_unified_paint_settings(BlenderRNA  *brna)
 	RNA_def_property_range(prop, 0.0f, 10.0f);
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 3);
 	RNA_def_property_ui_text(prop, "Strength", "How powerful the effect of the brush is when applied");
+	RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_update");
 
 	prop = RNA_def_property(srna, "weight", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "weight");
@@ -2044,6 +2051,7 @@ static void rna_def_unified_paint_settings(BlenderRNA  *brna)
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 3);
 	RNA_def_property_ui_text(prop, "Weight", "Weight to assign in vertex groups");
+	RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_update");
 
 	prop = RNA_def_property(srna, "use_pressure_size", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", UNIFIED_PAINT_BRUSH_SIZE_PRESSURE);
@@ -2071,8 +2079,8 @@ static void rna_def_statvis(BlenderRNA  *brna)
 		{SCE_STATVIS_OVERHANG,  "OVERHANG",  0, "Overhang",  ""},
 		{SCE_STATVIS_THICKNESS, "THICKNESS", 0, "Thickness", ""},
 		{SCE_STATVIS_INTERSECT, "INTERSECT", 0, "Intersect", ""},
-		{SCE_STATVIS_DISTORT,   "DISTORT",   0, "Distort", ""},
-	    {SCE_STATVIS_SHARP, "SHARP", 0, "Sharp", ""},
+		{SCE_STATVIS_DISTORT,   "DISTORT",   0, "Distortion", ""},
+		{SCE_STATVIS_SHARP, "SHARP", 0, "Sharp", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	srna = RNA_def_struct(brna, "MeshStatVis", NULL);
@@ -4078,6 +4086,8 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 		{RE_BAKE_NORMALS, "NORMALS", 0, "Normals", "Bake normals"},
 		{RE_BAKE_TEXTURE, "TEXTURE", 0, "Textures", "Bake textures"},
 		{RE_BAKE_DISPLACEMENT, "DISPLACEMENT", 0, "Displacement", "Bake displacement"},
+		{RE_BAKE_DERIVATIVE, "DERIVATIVE", 0, "Derivative", "Bake derivative map"},
+		{RE_BAKE_VERTEX_COLORS, "VERTEX_COLORS", 0, "Vertex Colors", "Bake vertex colors"},
 		{RE_BAKE_EMIT, "EMIT", 0, "Emission", "Bake Emit values (glow)"},
 		{RE_BAKE_ALPHA, "ALPHA", 0, "Alpha", "Bake Alpha values (transparency)"},
 		{RE_BAKE_MIRROR_INTENSITY, "MIRROR_INTENSITY", 0, "Mirror Intensity", "Bake Mirror values"},
@@ -4664,6 +4674,17 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	                         "Bake to vertex colors instead of to a UV-mapped image");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
+	prop = RNA_def_property(srna, "use_bake_user_scale", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "bake_flag", R_BAKE_USERSCALE);
+	RNA_def_property_ui_text(prop, "User scale", "Use a user scale for the derivative map");
+
+	prop = RNA_def_property(srna, "bake_user_scale", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "bake_user_scale");
+	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_ui_text(prop, "Scale",
+	                         "Instead of automatically normalizing to 0..1, "
+	                         "apply a user scale to the derivative map");
+
 	/* stamp */
 	
 	prop = RNA_def_property(srna, "use_stamp_time", PROP_BOOLEAN, PROP_NONE);
@@ -5198,6 +5219,14 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_float_funcs(prop, "rna_Scene_frame_current_final_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Current Frame Final",
 	                         "Current frame with subframe and time remapping applied");
+
+	prop = RNA_def_property(srna, "lock_frame_selection_to_range", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_boolean_sdna(prop, NULL, "r.flag", SCER_LOCK_FRAME_SELECTION);
+	RNA_def_property_ui_text(prop, "Lock Frame Selection",
+	                         "Don't allow frame to be selected with mouse outside of frame range");
+	RNA_def_property_update(prop, NC_SCENE | ND_FRAME, NULL);
+	RNA_def_property_ui_icon(prop, ICON_LOCKED, 0);
 
 	/* Preview Range (frame-range for UI playback) */
 	prop = RNA_def_property(srna, "use_preview_range", PROP_BOOLEAN, PROP_NONE);

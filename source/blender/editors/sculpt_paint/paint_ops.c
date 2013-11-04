@@ -728,9 +728,16 @@ static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *eve
 
 static int stencil_control_poll(bContext *C)
 {
-	Paint *paint = BKE_paint_get_active_from_context(C);
-	Brush *br = BKE_paint_brush(paint);
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 
+	Paint *paint;
+	Brush *br;
+
+	if (!paint_supports_texture(mode))
+		return false;
+
+	paint = BKE_paint_get_active_from_context(C);
+	br = BKE_paint_brush(paint);
 	return (br &&
 	        (br->mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL ||
 	         br->mask_mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL));
@@ -980,6 +987,7 @@ void ED_operatortypes_paint(void)
 
 	/* paint masking */
 	WM_operatortype_append(PAINT_OT_mask_flood_fill);
+	WM_operatortype_append(PAINT_OT_mask_lasso_gesture);
 }
 
 
@@ -1141,6 +1149,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/* Invert mask */
 	kmi = WM_keymap_add_item(keymap, "PAINT_OT_mask_flood_fill", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "mode", PAINT_MASK_INVERT);
+
+	kmi = WM_keymap_add_item(keymap, "PAINT_OT_mask_lasso_gesture", LEFTMOUSE, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
 
 	/* Toggle dynamic topology */
 	WM_keymap_add_item(keymap, "SCULPT_OT_dynamic_topology_toggle", DKEY, KM_PRESS, KM_CTRL, 0);
