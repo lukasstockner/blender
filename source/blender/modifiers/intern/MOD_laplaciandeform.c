@@ -80,9 +80,7 @@ static LaplacianSystem *newLaplacianSystem(void)
 {
 	LaplacianSystem *sys;
 	sys = MEM_callocN(sizeof(LaplacianSystem), "DeformCache");
-	if (!sys) {
-		return NULL;
-	}
+
 	sys->is_matrix_computed = false;
 	sys->has_solution = false;
 	sys->total_verts = 0;
@@ -104,12 +102,10 @@ static LaplacianSystem *newLaplacianSystem(void)
 }
 
 static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int totalAnchors, 
-                                            char defgrpName[64], int iterations)
+                                            const char defgrpName[64], int iterations)
 {
 	LaplacianSystem *sys = newLaplacianSystem();
-	if (!sys) {
-		return NULL;
-	}
+
 	sys->is_matrix_computed = false;
 	sys->has_solution = false;
 	sys->total_verts = totalVerts;
@@ -127,9 +123,6 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 
 static void deleteLaplacianSystem(LaplacianSystem *sys)
 {
-	if (!sys) {
-		return;
-	}
 	MEM_SAFE_FREE(sys->co);
 	MEM_SAFE_FREE(sys->no);
 	MEM_SAFE_FREE(sys->delta);
@@ -144,6 +137,7 @@ static void deleteLaplacianSystem(LaplacianSystem *sys)
 	}
 	MEM_SAFE_FREE(sys);
 }
+
 static float cotan_weight(const float v1[3], const float v2[3], const float v3[3])
 {
 	float a[3], b[3], c[3], clen;
@@ -210,6 +204,7 @@ static void createVertexRingMap(MeshElemMap **r_map, int **r_indices, Mesh *me)
 	int i, vid[2], totalr = 0;
 	int *indices, *index_iter;
 	MEdge *e;
+
 	for (i = 0; i < me->totedge; i++) {
 		e = &me->medge[i];
 		vid[0] = e->v1;
@@ -366,6 +361,7 @@ static void computeImplictRotations(LaplacianSystem *sys)
 	int vid, * vidn = NULL;
 	float minj, mjt, qj[3], vj[3];
 	int i, j, ln;
+
 	for (i = 0; i < sys->total_verts; i++) {
 		normalize_v3(sys->no[i]);
 		vidn = sys->ringv_map[i].indices;
@@ -376,7 +372,7 @@ static void computeImplictRotations(LaplacianSystem *sys)
 			copy_v3_v3(qj, sys->co[vid]);
 			sub_v3_v3v3(vj, qj, sys->co[i]);
 			normalize_v3(vj);
-			mjt = fabs(dot_v3v3(vj, sys->no[i]));
+			mjt = fabsf(dot_v3v3(vj, sys->no[i]));
 			if (mjt < minj) {
 				minj = mjt;
 				sys->unit_verts[i] = vidn[j];
@@ -387,9 +383,9 @@ static void computeImplictRotations(LaplacianSystem *sys)
 
 static void rotateDifferentialCoordinates(LaplacianSystem *sys)
 {
-	float alpha, beta, gamma,
-		pj[3], ni[3], di[3],
-		uij[3], dun[3], e2[3], pi[3], fni[3], vn[4][3];
+	float alpha, beta, gamma;
+	float pj[3], ni[3], di[3];
+	float uij[3], dun[3], e2[3], pi[3], fni[3], vn[4][3];
 	int i, j, vin[4], lvin, num_fni, k, fi;
 	int *fidn;
 
@@ -614,7 +610,9 @@ static bool isValidVertexGroup(LaplacianDeformModifierData *smd, Object *ob, Der
 {
 	int defgrp_index;
 	MDeformVert *dvert = NULL;
+
 	modifier_get_vgroup(ob, dm, smd->anchor_grp_name, &dvert, &defgrp_index);
+
 	return  (dvert != NULL);
 }
 
@@ -726,7 +724,7 @@ static void LaplacianDeformModifier_do(
 				memcpy(filevertexCos, smd->vertexco, sizeof(float[3]) * numVerts);
 				MEM_SAFE_FREE(smd->vertexco);
 				smd->total_verts = 0;
-				deleteLaplacianSystem((LaplacianSystem *) smd->cacheSystem);
+				deleteLaplacianSystem(sys);
 				initSystem(smd, ob, dm, filevertexCos, numVerts);
 				MEM_SAFE_FREE(filevertexCos);
 				laplacianDeformPreview(sys, vertexCos);
