@@ -374,7 +374,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             row.operator("object.hook_assign", text="Assign")
 
     def LAPLACIANDEFORM(self, layout, ob, md):
-        layout.prop(md, "repetitions")
+        layout.prop(md, "iterations")
         layout.label(text="Anchors Vertex Group:")
         layout.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
 
