@@ -33,7 +33,6 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
-#include "BLI_array.h"
 #include "MEM_guardedalloc.h"
 #include "BKE_mesh.h"
 #include "BKE_cdderivedmesh.h"
@@ -622,15 +621,16 @@ static void initSystem(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh
 	int i;
 	int defgrp_index;
 	int total_anchors;
-	int *index_anchors = NULL;
 	float wpaint;
 	Mesh *me;
 	MDeformVert *dvert = NULL;
 	MDeformVert *dv = NULL;
 	LaplacianSystem *sys;
-	BLI_array_declare(index_anchors);
 	
 	if (isValidVertexGroup(smd, ob, dm)) {
+		int *index_anchors = MEM_mallocN(sizeof(int) * numVerts, __func__);  /* over-alloc */
+		STACK_DECLARE(index_anchors);
+
 		modifier_get_vgroup(ob, dm, smd->anchor_grp_name, &dvert, &defgrp_index);
 		BLI_assert(dvert != NULL);
 		dv = dvert;
@@ -640,16 +640,17 @@ static void initSystem(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh
 			wpaint = defvert_find_weight(dv, defgrp_index);
 			dv++;
 			if (wpaint > 0.0f) {
-				BLI_array_append(index_anchors, i);
+				STACK_PUSH(index_anchors, i);
 			}
 		}
-		total_anchors = BLI_array_count(index_anchors);
+		total_anchors = STACK_SIZE(index_anchors);
 		smd->cacheSystem = initLaplacianSystem(numVerts, me->totedge, total_anchors, smd->anchor_grp_name, smd->repeat);
 		sys = (LaplacianSystem *)smd->cacheSystem;
 		sys->me = me;
 		memcpy(sys->index_anchors, index_anchors, sizeof(int) * total_anchors);
 		memcpy(sys->co, vertexCos, sizeof(float[3]) * numVerts);
-		BLI_array_free(index_anchors);
+		MEM_freeN(index_anchors);
+		STACK_FREE(index_anchors);
 		smd->vertexco = MEM_mallocN(sizeof(float[3]) * numVerts, "ModDeformCoordinates");
 		memcpy(smd->vertexco, vertexCos, sizeof(float[3]) * numVerts);
 		smd->total_verts = numVerts;
