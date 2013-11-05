@@ -104,7 +104,7 @@ static LaplacianSystem *newLaplacianSystem(void)
 }
 
 static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int totalAnchors, 
-											char defgrpName[64], int iterations)
+                                            char defgrpName[64], int iterations)
 {
 	LaplacianSystem *sys = newLaplacianSystem();
 	if (!sys) {
@@ -433,7 +433,7 @@ static void rotateDifferentialCoordinates(LaplacianSystem *sys)
 			if (lvin == 3) {
 				normal_tri_v3(fni, vn[0], vn[1], vn[2]);
 			} 
-			else if(lvin == 4) {
+			else if (lvin == 4) {
 				normal_quad_v3(fni, vn[0], vn[1], vn[2], vn[3]);
 			} 
 			add_v3_v3(ni, fni);
@@ -503,9 +503,9 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 		}
 		for (i = 0; i < na; i++) {
 			vid = sys->index_anchors[i];
-			nlRightHandSideSet(0, n + i , sys->co[vid][0]);
-			nlRightHandSideSet(1, n + i , sys->co[vid][1]);
-			nlRightHandSideSet(2, n + i , sys->co[vid][2]);
+			nlRightHandSideSet(0, n + i, sys->co[vid][0]);
+			nlRightHandSideSet(1, n + i, sys->co[vid][1]);
+			nlRightHandSideSet(2, n + i, sys->co[vid][2]);
 			nlMatrixAdd(n + i, vid, 1.0f);
 		}
 
@@ -521,9 +521,9 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 
 				for (i = 0; i < na; i++) {
 					vid = sys->index_anchors[i];
-					nlRightHandSideSet(0, n + i , sys->co[vid][0]);
-					nlRightHandSideSet(1, n + i , sys->co[vid][1]);
-					nlRightHandSideSet(2, n + i , sys->co[vid][2]);
+					nlRightHandSideSet(0, n + i, sys->co[vid][0]);
+					nlRightHandSideSet(1, n + i, sys->co[vid][1]);
+					nlRightHandSideSet(2, n + i, sys->co[vid][2]);
 				}
 
 				nlEnd(NL_MATRIX);
@@ -559,15 +559,15 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 		nlBegin(NL_MATRIX);
 
 		for (i = 0; i < n; i++) {
-			nlRightHandSideSet(0, i  , sys->delta[i][0]);
-			nlRightHandSideSet(1, i  , sys->delta[i][1]);
-			nlRightHandSideSet(2, i  , sys->delta[i][2]);
+			nlRightHandSideSet(0, i, sys->delta[i][0]);
+			nlRightHandSideSet(1, i, sys->delta[i][1]);
+			nlRightHandSideSet(2, i, sys->delta[i][2]);
 		}
 		for (i = 0; i < na; i++) {
 			vid = sys->index_anchors[i];
-			nlRightHandSideSet(0, n + i , sys->co[vid][0]);
-			nlRightHandSideSet(1, n + i , sys->co[vid][1]);
-			nlRightHandSideSet(2, n + i , sys->co[vid][2]);
+			nlRightHandSideSet(0, n + i, sys->co[vid][0]);
+			nlRightHandSideSet(1, n + i, sys->co[vid][1]);
+			nlRightHandSideSet(2, n + i, sys->co[vid][2]);
 			nlMatrixAdd(n + i, vid, 1.0f);
 		}
 
@@ -580,12 +580,11 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 				nlBegin(NL_MATRIX);
 				rotateDifferentialCoordinates(sys);
 
-				for (i = 0; i < na; i++)
-				{
+				for (i = 0; i < na; i++) {
 					vid = sys->index_anchors[i];
-					nlRightHandSideSet(0, n + i	, vertexCos[vid][0]);
-					nlRightHandSideSet(1, n + i	, vertexCos[vid][1]);
-					nlRightHandSideSet(2, n + i	, vertexCos[vid][2]);
+					nlRightHandSideSet(0, n + i, vertexCos[vid][0]);
+					nlRightHandSideSet(1, n + i, vertexCos[vid][1]);
+					nlRightHandSideSet(2, n + i, vertexCos[vid][2]);
 				}
 				nlEnd(NL_MATRIX);
 				nlEnd(NL_SYSTEM);
@@ -622,7 +621,7 @@ static bool isValidVertexGroup(LaplacianDeformModifierData *smd, Object *ob, Der
 }
 
 static void initSystem(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh *dm,
-				float (*vertexCos)[3], int numVerts)
+                       float (*vertexCos)[3], int numVerts)
 {
 	int i;
 	int defgrp_index;
@@ -681,7 +680,7 @@ static int isSystemDifferent(LaplacianDeformModifierData *smd, Object *ob, Deriv
 	if (sys->total_edges != dm->getNumEdges(dm)) {
 		return LAPDEFORM_SYSTEM_IS_DIFFERENT;
 	}
-	if(strcmp(smd->anchor_grp_name, sys->anchor_grp_name) != 0) {
+	if (!STREQ(smd->anchor_grp_name, sys->anchor_grp_name)) {
 		return LAPDEFORM_SYSTEM_ONLY_CHANGE_GROUP; 
 	}
 	modifier_get_vgroup(ob, dm, smd->anchor_grp_name, &dvert, &defgrp_index);
@@ -697,7 +696,7 @@ static int isSystemDifferent(LaplacianDeformModifierData *smd, Object *ob, Deriv
 		}
 	}
 	
-	if(sys->total_anchors != total_anchors) {
+	if (sys->total_anchors != total_anchors) {
 		return LAPDEFORM_SYSTEM_ONLY_CHANGE_ANCHORS;
 	}
 
@@ -718,7 +717,7 @@ static void LaplacianDeformModifier_do(
 	filevertexCos = NULL;
 	
 	if (smd->cacheSystem) {
-		sysdif = isSystemDifferent(smd, ob, dm,numVerts);
+		sysdif = isSystemDifferent(smd, ob, dm, numVerts);
 		sys = smd->cacheSystem;
 		if (sysdif) {
 			if (sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_MESH ) {
@@ -816,9 +815,9 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
 	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
 
 	LaplacianDeformModifier_do((LaplacianDeformModifierData *) md, ob, dm,
-	                  vertexCos, numVerts);
- 
-	if (dm != derivedData){
+	                           vertexCos, numVerts);
+
+	if (dm != derivedData) {
 		dm->release(dm);
 	}
 }
