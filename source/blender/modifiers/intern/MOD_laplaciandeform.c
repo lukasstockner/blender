@@ -58,21 +58,21 @@ typedef struct LaplacianSystem {
 	bool has_solution;
 	int total_verts;
 	int total_edges;
+	int total_faces;
 	int total_anchors;
 	int repeat;
 	char anchor_grp_name[64];	/* Vertex Group name*/
 	float (*co)[3];				/* Original vertex coordinates*/
 	float (*no)[3];				/* Original vertex normal*/
 	float (*delta)[3];			/* Differential Coordinates*/
-	int *index_anchors;		/* Static vertex index list*/
+	unsigned int (*faces)[4];	/* Copy of MFace (tessface) v1-v4 */
+	int *index_anchors;			/* Static vertex index list*/
 	int *unit_verts;			/* Unit vectors of projected edges onto the plane orthogonal to n*/
-	int *ringf_indices;		/* Indices of faces per vertex*/
-	int *ringv_indices;		/* Indices of neighbors(vertex) per vertex*/
-	DerivedMesh *dm;			/* Mesh structure pointer*/
+	int *ringf_indices;			/* Indices of faces per vertex*/
+	int *ringv_indices;			/* Indices of neighbors(vertex) per vertex*/
 	NLContext *context;			/* System for solve general implicit rotations*/
-	MeshElemMap *ringf_map;	/* Map of faces per vertex*/
-	MeshElemMap *ringv_map;	/* Map of vertex per vertex*/
-	
+	MeshElemMap *ringf_map;		/* Map of faces per vertex*/
+	MeshElemMap *ringv_map;		/* Map of vertex per vertex*/
 } LaplacianSystem;
 
 static LaplacianSystem *newLaplacianSystem(void)
@@ -85,23 +85,14 @@ static LaplacianSystem *newLaplacianSystem(void)
 	sys->total_verts = 0;
 	sys->total_edges = 0;
 	sys->total_anchors = 0;
+	sys->total_faces = 0;
 	sys->repeat = 1;
 	sys->anchor_grp_name[0] = '\0';
-	sys->co = NULL;
-	sys->no = NULL;
-	sys->delta = NULL;
-	sys->index_anchors = NULL;
-	sys->unit_verts = NULL;
-	sys->ringf_indices = NULL;
-	sys->ringv_indices = NULL;
-	sys->dm = NULL;
-	sys->context = NULL;
-	sys->ringf_map = NULL;
-	sys->ringv_map = NULL;
+
 	return sys;
 }
 
-static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int totalAnchors, 
+static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int totalFaces, int totalAnchors,
                                             const char defgrpName[64], int iterations)
 {
 	LaplacianSystem *sys = newLaplacianSystem();
@@ -110,12 +101,14 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 	sys->has_solution = false;
 	sys->total_verts = totalVerts;
 	sys->total_edges = totalEdges;
+	sys->total_faces = totalFaces;
 	sys->total_anchors = totalAnchors;
 	sys->repeat = iterations;
 	BLI_strncpy(sys->anchor_grp_name, defgrpName, sizeof(sys->anchor_grp_name));
 	sys->co = MEM_mallocN(sizeof(float[3]) * totalVerts, "DeformCoordinates");
 	sys->no = MEM_callocN(sizeof(float[3]) * totalVerts, "DeformNormals");
 	sys->delta = MEM_callocN(sizeof(float[3]) * totalVerts, "DeformDeltas");
+	sys->faces = MEM_mallocN(sizeof(int[4]) * totalFaces, "DeformFaces");
 	sys->index_anchors = MEM_mallocN(sizeof(int) * (totalAnchors), "DeformAnchors");
 	sys->unit_verts = MEM_callocN(sizeof(int) * totalVerts, "DeformUnitVerts");
 	return sys;
@@ -126,6 +119,7 @@ static void deleteLaplacianSystem(LaplacianSystem *sys)
 	MEM_SAFE_FREE(sys->co);
 	MEM_SAFE_FREE(sys->no);
 	MEM_SAFE_FREE(sys->delta);
+	MEM_SAFE_FREE(sys->faces);
 	MEM_SAFE_FREE(sys->index_anchors);
 	MEM_SAFE_FREE(sys->unit_verts);
 	MEM_SAFE_FREE(sys->ringf_indices);
@@ -154,73 +148,74 @@ static float cotan_weight(const float v1[3], const float v2[3], const float v3[3
 	return dot_v3v3(a, b) / clen;
 }
 
-static void createFaceRingMap(MeshElemMap **r_map, int **r_indices, DerivedMesh *dm)
+static void createFaceRingMap(
+        const int mvert_tot, const MFace *mface, const int mface_tot,
+        MeshElemMap **r_map, int **r_indices)
 {
-	int i, j, vid[4], has_4_vert, totalr = 0;
+	int i, j, totalr = 0;
 	int *indices, *index_iter;
-	int totface = dm->getNumTessFaces(dm);
-	MeshElemMap *map = MEM_callocN(sizeof(MeshElemMap) * (size_t)dm->getNumVerts(dm), "DeformRingMap");
-	MFace *f, *faces = dm->getTessFaceArray(dm);
-	for (i = 0; i < totface; i++) {
-		f = &faces[i];
-		has_4_vert = f->v4 ? 1 : 0;
-		vid[0] = f->v1;
-		vid[1] = f->v2;
-		vid[2] = f->v3;
-		vid[3] = has_4_vert ? f->v4 : 0;
+	MeshElemMap *map = MEM_callocN(sizeof(MeshElemMap) * mvert_tot, "DeformRingMap");
+	const MFace *mf;
+
+	for (i = 0, mf = mface; i < mface_tot; i++, mf++) {
+		bool has_4_vert;
+
+		has_4_vert = mf->v4 ? 1 : 0;
+
 		for (j = 0; j < (has_4_vert ? 4 : 3); j++) {
-			map[vid[j]].count++;
+			const unsigned int v_index = (*(&mf->v1 + j));
+			map[v_index].count++;
 			totalr++;
 		}
 	}
 	indices = MEM_callocN(sizeof(int) * totalr, "DeformRingIndex");
 	index_iter = indices;
-	for (i = 0; i < dm->getNumVerts(dm); i++) {
+	for (i = 0; i < mvert_tot; i++) {
 		map[i].indices = index_iter;
 		index_iter += map[i].count;
 		map[i].count = 0;
 	}
-	for (i = 0; i < totface; i++) {
-		f = &faces[i];
-		has_4_vert = f->v4 ? 1 : 0;
-		vid[0] = f->v1;
-		vid[1] = f->v2;
-		vid[2] = f->v3;
-		vid[3] = has_4_vert ? f->v4 : 0;
+	for (i = 0, mf = mface; i < mface_tot; i++, mf++) {
+		bool has_4_vert;
+
+		has_4_vert = mf->v4 ? 1 : 0;
+
 		for (j = 0; j < (has_4_vert ? 4 : 3); j++) {
-			map[vid[j]].indices[map[vid[j]].count] = i;
-			map[vid[j]].count++;
+			const unsigned int v_index = (*(&mf->v1 + j));
+			map[v_index].indices[map[v_index].count] = i;
+			map[v_index].count++;
 		}
 	}
 	*r_map = map;
 	*r_indices = indices;
 }
 
-static void createVertexRingMap(MeshElemMap **r_map, int **r_indices, DerivedMesh *dm)
+static void createVertRingMap(
+        const int mvert_tot, const MEdge *medge, const int medge_tot,
+        MeshElemMap **r_map, int **r_indices)
 {
-	MeshElemMap *map = MEM_callocN(sizeof(MeshElemMap) * (size_t)dm->getNumVerts(dm), "DeformNeighborsMap");
+	MeshElemMap *map = MEM_callocN(sizeof(MeshElemMap) * mvert_tot, "DeformNeighborsMap");
 	int i, vid[2], totalr = 0;
 	int *indices, *index_iter;
-	MEdge *e, *edges = dm->getEdgeArray(dm);
-	for (i = 0; i < dm->getNumEdges(dm); i++) {
-		e = &edges[i];
-		vid[0] = e->v1;
-		vid[1] = e->v2;
+	const MEdge *me;
+
+	for (i = 0, me = medge; i < medge_tot; i++, me++) {
+		vid[0] = me->v1;
+		vid[1] = me->v2;
 		map[vid[0]].count++;
 		map[vid[1]].count++;
 		totalr += 2;
 	}
 	indices = MEM_callocN(sizeof(int) * totalr, "DeformNeighborsIndex");
 	index_iter = indices;
-	for (i = 0; i < dm->getNumVerts(dm); i++) {
+	for (i = 0; i < mvert_tot; i++) {
 		map[i].indices = index_iter;
 		index_iter += map[i].count;
 		map[i].count = 0;
 	}
-	for (i = 0; i < dm->getNumEdges(dm); i++) {
-		e = &edges[i];
-		vid[0] = e->v1;
-		vid[1] = e->v2;
+	for (i = 0, me = medge; i < medge_tot; i++, me++) {
+		vid[0] = me->v1;
+		vid[1] = me->v2;
 		map[vid[0]].indices[map[vid[0]].count] = vid[1];
 		map[vid[0]].count++;
 		map[vid[1]].indices[map[vid[1]].count] = vid[0];
@@ -262,23 +257,19 @@ static void initLaplacianMatrix(LaplacianSystem *sys)
 {
 	float v1[3], v2[3], v3[3], v4[3], no[3];
 	float w2, w3, w4;
-	int i, j, vidf[4], fi;
+	int i, j, fi;
 	bool has_4_vert;
-	unsigned int idv1, idv2, idv3, idv4, idv[4];
-	MFace *f, *faces = sys->dm->getTessFaceArray(sys->dm);
+	unsigned int idv1, idv2, idv3, idv4;
 
-	for (fi = 0; fi < sys->dm->getNumTessFaces(sys->dm); fi++) {
-		f = &faces[fi];
-		vidf[0] = f->v1;
-		vidf[1] = f->v2;
-		vidf[2] = f->v3;
-		vidf[3] = f->v4 ? f->v4 : 0;
-		
-		has_4_vert = f->v4 ? 1 : 0;
+	for (fi = 0; fi < sys->total_faces; fi++) {
+		const unsigned int *vidf = sys->faces[fi];
+
 		idv1 = vidf[0];
 		idv2 = vidf[1];
 		idv3 = vidf[2];
-		idv4 = has_4_vert ? vidf[3] : 0;
+		idv4 = vidf[3];
+
+		has_4_vert = vidf[3] ? 1 : 0;
 		if (has_4_vert) {
 			normal_quad_v3(no, sys->co[idv1], sys->co[idv2], sys->co[idv3], sys->co[idv4]); 
 			add_v3_v3(sys->no[idv4], no);
@@ -292,17 +283,11 @@ static void initLaplacianMatrix(LaplacianSystem *sys)
 		add_v3_v3(sys->no[idv2], no);
 		add_v3_v3(sys->no[idv3], no);
 
-
-		idv[0] = idv1;
-		idv[1] = idv2;
-		idv[2] = idv3;
-		idv[3] = idv4;
-
 		for (j = 0; j < i; j++) {
-			idv1 = idv[j];
-			idv2 = idv[(j + 1) % i];
-			idv3 = idv[(j + 2) % i];
-			idv4 = has_4_vert ? idv[(j + 3) % i] : 0;
+			idv1 = vidf[j];
+			idv2 = vidf[(j + 1) % i];
+			idv3 = vidf[(j + 2) % i];
+			idv4 = has_4_vert ? vidf[(j + 3) % i] : 0;
 
 			copy_v3_v3(v1, sys->co[idv1]);
 			copy_v3_v3(v2, sys->co[idv2]);
@@ -383,9 +368,8 @@ static void rotateDifferentialCoordinates(LaplacianSystem *sys)
 	float alpha, beta, gamma;
 	float pj[3], ni[3], di[3];
 	float uij[3], dun[3], e2[3], pi[3], fni[3], vn[4][3];
-	int i, j, vin[4], lvin, num_fni, k, fi;
+	int i, j, lvin, num_fni, k, fi;
 	int *fidn;
-	MFace *faces = sys->dm->getTessFaceArray(sys->dm);
 
 	for (i = 0; i < sys->total_verts; i++) {
 		copy_v3_v3(pi, sys->co[i]); 
@@ -409,12 +393,10 @@ static void rotateDifferentialCoordinates(LaplacianSystem *sys)
 		num_fni = 0;
 		num_fni = sys->ringf_map[i].count;
 		for (fi = 0; fi < num_fni; fi++) {
+			const unsigned int *vin;
 			fidn = sys->ringf_map[i].indices;
-			vin[0] = faces[fidn[fi]].v1;
-			vin[1] = faces[fidn[fi]].v2;
-			vin[2] = faces[fidn[fi]].v3;
-			vin[3] = faces[fidn[fi]].v4 ? faces[fidn[fi]].v4 : 0;
-			lvin = faces[fidn[fi]].v4 ? 4 : 3;
+			vin = sys->faces[fidn[fi]];
+			lvin = vin[3] ? 4 : 3;
 			for (j = 0; j < lvin; j++) {
 				vn[j][0] = nlGetVariable(0, vin[j]);
 				vn[j][1] = nlGetVariable(1, vin[j]);
@@ -459,17 +441,8 @@ static void rotateDifferentialCoordinates(LaplacianSystem *sys)
 static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 {
 	int vid, i, j, n, na;
-	MVert *verts = sys->dm->getVertArray(sys->dm);
 	n = sys->total_verts;
 	na = sys->total_anchors;
-
-	if (sys->dm) {
-		if (sys->dm->getNumTessFaces) {
-			if (sys->dm->getNumTessFaces(sys->dm) <= 0) {
-				return;
-			}
-		}
-	}
 
 	if (!sys->is_matrix_computed) {
 		nlNewContext();
@@ -488,9 +461,9 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 		}
 		for (i = 0; i < na; i++) {
 			vid = sys->index_anchors[i];
-			nlSetVariable(0, vid, verts[vid].co[0]);
-			nlSetVariable(1, vid, verts[vid].co[1]);
-			nlSetVariable(2, vid, verts[vid].co[2]);
+			nlSetVariable(0, vid, vertexCos[vid][0]);
+			nlSetVariable(1, vid, vertexCos[vid][1]);
+			nlSetVariable(2, vid, vertexCos[vid][2]);
 		}
 		nlBegin(NL_MATRIX);
 
@@ -632,13 +605,13 @@ static void initSystem(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh
 	LaplacianSystem *sys;
 	if (isValidVertexGroup(smd, ob, dm)) {
 		int *index_anchors = MEM_mallocN(sizeof(int) * numVerts, __func__);  /* over-alloc */
+		MFace *tessface;
 		STACK_DECLARE(index_anchors);
 		STACK_INIT(index_anchors);
 
 		modifier_get_vgroup(ob, dm, smd->anchor_grp_name, &dvert, &defgrp_index);
 		BLI_assert(dvert != NULL);
 		dv = dvert;
-		DM_ensure_tessface(dm);
 		for (i = 0; i < numVerts; i++) {
 			wpaint = defvert_find_weight(dv, defgrp_index);
 			dv++;
@@ -646,10 +619,11 @@ static void initSystem(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh
 				STACK_PUSH(index_anchors, i);
 			}
 		}
+		DM_ensure_tessface(dm);
 		total_anchors = STACK_SIZE(index_anchors);
-		smd->cacheSystem = initLaplacianSystem(numVerts, dm->getNumEdges(dm), total_anchors, smd->anchor_grp_name, smd->repeat);
+		smd->cacheSystem = initLaplacianSystem(numVerts, dm->getNumEdges(dm), dm->getNumTessFaces(dm),
+		                                       total_anchors, smd->anchor_grp_name, smd->repeat);
 		sys = (LaplacianSystem *)smd->cacheSystem;
-		sys->dm = dm;
 		memcpy(sys->index_anchors, index_anchors, sizeof(int) * total_anchors);
 		memcpy(sys->co, vertexCos, sizeof(float[3]) * numVerts);
 		MEM_freeN(index_anchors);
@@ -657,8 +631,20 @@ static void initSystem(LaplacianDeformModifierData *smd, Object *ob, DerivedMesh
 		smd->vertexco = MEM_mallocN(sizeof(float[3]) * numVerts, "ModDeformCoordinates");
 		memcpy(smd->vertexco, vertexCos, sizeof(float[3]) * numVerts);
 		smd->total_verts = numVerts;
-		createFaceRingMap(&sys->ringf_map, &sys->ringf_indices, sys->dm);
-		createVertexRingMap(&sys->ringv_map, &sys->ringv_indices, sys->dm);
+
+		createFaceRingMap(
+		            dm->getNumVerts(dm), dm->getTessFaceArray(dm), dm->getNumTessFaces(dm),
+		            &sys->ringf_map, &sys->ringf_indices);
+		createVertRingMap(
+		            dm->getNumVerts(dm), dm->getEdgeArray(dm), dm->getNumEdges(dm),
+		            &sys->ringv_map, &sys->ringv_indices);
+
+
+		tessface = dm->getTessFaceArray(dm);
+
+		for (i = 0; i < sys->total_faces; i++) {
+			memcpy(&sys->faces[i], &tessface[i].v1, sizeof(*sys->faces));
+		}
 	}
 }
 
@@ -697,15 +683,6 @@ static int isSystemDifferent(LaplacianDeformModifierData *smd, Object *ob, Deriv
 		return LAPDEFORM_SYSTEM_ONLY_CHANGE_ANCHORS;
 	}
 
-	if (!sys->dm) {
-		return LAPDEFORM_SYSTEM_ONLY_CHANGE_MESH;
-	}
-	else if (!sys->dm->getNumTessFaces) {
-		return LAPDEFORM_SYSTEM_ONLY_CHANGE_MESH;
-	}
-	else if (!sys->dm->getTessFaceArray(sys->dm)) {	
-		return LAPDEFORM_SYSTEM_ONLY_CHANGE_MESH;
-	} 
 	return LAPDEFORM_SYSTEM_NOT_CHANGE;
 }
 
@@ -721,19 +698,14 @@ static void LaplacianDeformModifier_do(
 		sysdif = isSystemDifferent(smd, ob, dm, numVerts);
 		sys = smd->cacheSystem;
 		if (sysdif) {
-			if (sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_MESH) {
-				sys->dm = dm;
-				DM_ensure_tessface(sys->dm);
-				sys->repeat = smd->repeat;
-				laplacianDeformPreview(sys, vertexCos);
-			}
-			else if (sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_ANCHORS || sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_GROUP) {
+			if (sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_ANCHORS || sysdif == LAPDEFORM_SYSTEM_ONLY_CHANGE_GROUP) {
 				filevertexCos = MEM_mallocN(sizeof(float[3]) * numVerts, "TempModDeformCoordinates");
 				memcpy(filevertexCos, smd->vertexco, sizeof(float[3]) * numVerts);
 				MEM_SAFE_FREE(smd->vertexco);
 				smd->total_verts = 0;
 				deleteLaplacianSystem(sys);
 				initSystem(smd, ob, dm, filevertexCos, numVerts);
+				sys = smd->cacheSystem; /* may have been reallocated */
 				MEM_SAFE_FREE(filevertexCos);
 				laplacianDeformPreview(sys, vertexCos);
 			}
@@ -742,6 +714,7 @@ static void LaplacianDeformModifier_do(
 				MEM_SAFE_FREE(smd->vertexco);
 				smd->total_verts = 0;
 				initSystem(smd, ob, dm, vertexCos, numVerts);
+				sys = smd->cacheSystem; /* may have been reallocated */
 				laplacianDeformPreview(sys, vertexCos);
 			}
 		} 
@@ -758,14 +731,16 @@ static void LaplacianDeformModifier_do(
 				MEM_SAFE_FREE(smd->vertexco);
 				smd->total_verts = 0;
 				initSystem(smd, ob, dm, filevertexCos, numVerts);
+				sys = smd->cacheSystem;
 				MEM_SAFE_FREE(filevertexCos);
-				laplacianDeformPreview((LaplacianSystem *) smd->cacheSystem, vertexCos);
+				laplacianDeformPreview(sys, vertexCos);
 			}
 		} 
 		else {
 			if (isValidVertexGroup(smd, ob, dm)) {
 				initSystem(smd, ob, dm, vertexCos, numVerts);
-				laplacianDeformPreview((LaplacianSystem *) smd->cacheSystem, vertexCos);
+				sys = smd->cacheSystem;
+				laplacianDeformPreview(sys, vertexCos);
 			}
 		}
 	}
