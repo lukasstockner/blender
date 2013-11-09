@@ -711,6 +711,49 @@ static void nlastrips_path_rename_fix(ID *owner_id, const char *prefix, const ch
 	}
 }
 
+/* Fix all RNA_Paths in the given Action, relative to the given ID block 
+ *
+ * This is just an external wrapper for the F-Curve fixing function,
+ * with input validity checks on top of the basic method.
+ *
+ * NOTE: it is assumed that the structure we're replacing is <prefix><["><name><"]>
+ *       i.e. pose.bones["Bone"]
+ */
+void BKE_action_fix_paths_rename(ID *owner_id, bAction *act, const char *prefix, const char *oldName,
+                                 const char *newName, int oldSubscript, int newSubscript, int verify_paths)
+{
+	char *oldN, *newN;
+	
+	/* if no action, no need to proceed */
+	if (ELEM(NULL, owner_id, act))
+		return;
+	
+	/* Name sanitation logic - copied from BKE_animdata_fix_paths_rename() */
+	if ((oldName != NULL) && (newName != NULL)) {
+		/* pad the names with [" "] so that only exact matches are made */
+		const size_t name_old_len = strlen(oldName);
+		const size_t name_new_len = strlen(newName);
+		char *name_old_esc = BLI_array_alloca(name_old_esc, (name_old_len * 2) + 1);
+		char *name_new_esc = BLI_array_alloca(name_new_esc, (name_new_len * 2) + 1);
+
+		BLI_strescape(name_old_esc, oldName, (name_old_len * 2) + 1);
+		BLI_strescape(name_new_esc, newName, (name_new_len * 2) + 1);
+		oldN = BLI_sprintfN("[\"%s\"]", name_old_esc);
+		newN = BLI_sprintfN("[\"%s\"]", name_new_esc);
+	}
+	else {
+		oldN = BLI_sprintfN("[%d]", oldSubscript);
+		newN = BLI_sprintfN("[%d]", newSubscript);
+	}
+	
+	/* fix paths in action */
+	fcurves_path_rename_fix(owner_id, prefix, oldName, newName, oldN, newN, &act->curves, verify_paths);
+	
+	/* free the temp names */
+	MEM_freeN(oldN);
+	MEM_freeN(newN);
+}
+
 /* Fix all RNA-Paths in the AnimData block used by the given ID block
  * NOTE: it is assumed that the structure we're replacing is <prefix><["><name><"]>
  *       i.e. pose.bones["Bone"]
@@ -725,6 +768,7 @@ void BKE_animdata_fix_paths_rename(ID *owner_id, AnimData *adt, ID *ref_id, cons
 	if (ELEM(NULL, owner_id, adt))
 		return;
 	
+	/* Name sanitation logic - shared with BKE_action_fix_paths_rename() */
 	if ((oldName != NULL) && (newName != NULL)) {
 		/* pad the names with [" "] so that only exact matches are made */
 		const size_t name_old_len = strlen(oldName);
@@ -2030,7 +2074,7 @@ static void nlastrip_evaluate_transition(PointerRNA *ptr, ListBase *channels, Li
 	tmp_nes = *nes;
 	
 	/* evaluate these strips into a temp-buffer (tmp_channels) */
-	/* FIXME: modifier evalation here needs some work... */
+	/* FIXME: modifier evaluation here needs some work... */
 	/* first strip */
 	tmp_nes.strip_mode = NES_TIME_TRANSITION_START;
 	tmp_nes.strip = s1;
@@ -2042,7 +2086,7 @@ static void nlastrip_evaluate_transition(PointerRNA *ptr, ListBase *channels, Li
 	nlastrip_evaluate(ptr, &tmp_channels, &tmp_modifiers, &tmp_nes);
 	
 	
-	/* assumulate temp-buffer and full-buffer, using the 'real' strip */
+	/* accumulate temp-buffer and full-buffer, using the 'real' strip */
 	nlaevalchan_buffers_accumulate(channels, &tmp_channels, nes);
 	
 	/* unlink this strip's modifiers from the parent's modifiers again */
@@ -2080,7 +2124,7 @@ static void nlastrip_evaluate_meta(PointerRNA *ptr, ListBase *channels, ListBase
 	 */
 	nlastrip_evaluate(ptr, &tmp_channels, &tmp_modifiers, tmp_nes);
 	
-	/* assumulate temp-buffer and full-buffer, using the 'real' strip */
+	/* accumulate temp-buffer and full-buffer, using the 'real' strip */
 	nlaevalchan_buffers_accumulate(channels, &tmp_channels, nes);
 	
 	/* free temp eval-strip */
@@ -2290,7 +2334,7 @@ static void animsys_calculate_nla(PointerRNA *ptr, AnimData *adt, float ctime)
 /* ***************************************** */ 
 /* Overrides System - Public API */
 
-/* Clear all overides */
+/* Clear all overrides */
 
 /* Add or get existing Override for given setting */
 #if 0

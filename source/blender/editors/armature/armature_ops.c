@@ -58,7 +58,7 @@ void ED_operatortypes_armature(void)
 	WM_operatortype_append(ARMATURE_OT_parent_clear);
 	
 	WM_operatortype_append(ARMATURE_OT_select_all);
-	WM_operatortype_append(ARMATURE_OT_select_inverse);
+	WM_operatortype_append(ARMATURE_OT_select_mirror);
 	WM_operatortype_append(ARMATURE_OT_select_more);
 	WM_operatortype_append(ARMATURE_OT_select_less);
 	WM_operatortype_append(ARMATURE_OT_select_hierarchy);
@@ -74,6 +74,7 @@ void ED_operatortypes_armature(void)
 	WM_operatortype_append(ARMATURE_OT_fill);
 	WM_operatortype_append(ARMATURE_OT_merge);
 	WM_operatortype_append(ARMATURE_OT_separate);
+	WM_operatortype_append(ARMATURE_OT_split);
 	
 	WM_operatortype_append(ARMATURE_OT_autoside_names);
 	WM_operatortype_append(ARMATURE_OT_flip_names);
@@ -165,37 +166,31 @@ void ED_operatormacros_armature(void)
 {
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
-	
+
 	ot = WM_operatortype_append_macro("ARMATURE_OT_duplicate_move", "Duplicate",
 	                                  "Make copies of the selected bones within the same armature and move them",
 	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
-	if (ot) {
-		WM_operatortype_macro_define(ot, "ARMATURE_OT_duplicate");
-		otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-		RNA_enum_set(otmacro->ptr, "proportional", 0);
-	}
+	WM_operatortype_macro_define(ot, "ARMATURE_OT_duplicate");
+	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	RNA_enum_set(otmacro->ptr, "proportional", 0);
 
 	ot = WM_operatortype_append_macro("ARMATURE_OT_extrude_move", "Extrude",
 	                                  "Create new bones from the selected joints and move them",
 	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
-	if (ot) {
-		otmacro = WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
-		RNA_boolean_set(otmacro->ptr, "forked", FALSE);
-		otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-		RNA_enum_set(otmacro->ptr, "proportional", 0);
-	}
-	
+	otmacro = WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
+	RNA_boolean_set(otmacro->ptr, "forked", FALSE);
+	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	RNA_enum_set(otmacro->ptr, "proportional", 0);
+
 	/* XXX would it be nicer to just be able to have standard extrude_move, but set the forked property separate?
 	 * that would require fixing a properties bug 19733 */
 	ot = WM_operatortype_append_macro("ARMATURE_OT_extrude_forked", "Extrude Forked",
 	                                  "Create new bones from the selected joints and move them",
 	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
-	if (ot) {
-		otmacro = WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
-		RNA_boolean_set(otmacro->ptr, "forked", TRUE);
-		otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-		RNA_enum_set(otmacro->ptr, "proportional", 0);
-	}
+	otmacro = WM_operatortype_macro_define(ot, "ARMATURE_OT_extrude");
+	RNA_boolean_set(otmacro->ptr, "forked", TRUE);
+	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	RNA_enum_set(otmacro->ptr, "proportional", 0);
 }
 
 void ED_keymap_armature(wmKeyConfig *keyconf)
@@ -245,6 +240,9 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 	RNA_enum_set(kmi->ptr, "action", SEL_TOGGLE);
 	kmi = WM_keymap_add_item(keymap, "ARMATURE_OT_select_all", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
+
+	kmi = WM_keymap_add_item(keymap, "ARMATURE_OT_select_mirror", MKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", FALSE);
 	
 	kmi = WM_keymap_add_item(keymap, "ARMATURE_OT_select_hierarchy", LEFTBRACKETKEY, KM_PRESS, 0, 0);
 	RNA_enum_set(kmi->ptr, "direction", BONE_SELECT_PARENT);
@@ -275,6 +273,7 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "ARMATURE_OT_click_extrude", ACTIONMOUSE, KM_CLICK, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "ARMATURE_OT_fill", FKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "ARMATURE_OT_merge", MKEY, KM_PRESS, KM_ALT, 0);
+	WM_keymap_add_item(keymap, "ARMATURE_OT_split", YKEY, KM_PRESS, 0, 0);
 	
 	WM_keymap_add_item(keymap, "ARMATURE_OT_separate", PKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
 	

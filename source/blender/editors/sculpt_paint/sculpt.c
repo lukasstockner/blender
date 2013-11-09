@@ -2447,7 +2447,7 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, Object *ob,
 
 			/* for flatten center */
 			add_v3_v3(fc, private_fc);
-			add_v3_v3(fc_flip, private_fc);
+			add_v3_v3(fc_flip, private_fc_flip);
 			count += private_count;
 			count_flipped += private_count_flip;
 		}
@@ -4579,7 +4579,7 @@ static int sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
+static void sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
@@ -4597,8 +4597,6 @@ static int sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
 	}
 
 	sculpt_brush_exit_tex(sd);
-
-	return OPERATOR_CANCELLED;
 }
 
 static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
@@ -4672,7 +4670,7 @@ static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
 static void sculpt_dynamic_topology_triangulate(BMesh *bm)
 {
 	if (bm->totloop != bm->totface * 3) {
-		BM_mesh_triangulate(bm, false, false, NULL, NULL);
+		BM_mesh_triangulate(bm, MOD_TRIANGULATE_QUAD_FIXED, MOD_TRIANGULATE_NGON_SCANFILL, false, NULL, NULL);
 	}
 }
 

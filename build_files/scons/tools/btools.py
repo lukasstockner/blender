@@ -138,13 +138,11 @@ def validate_arguments(args, bc):
             'WITHOUT_BF_PYTHON_INSTALL', 'WITHOUT_BF_PYTHON_UNPACK', 'WITH_BF_PYTHON_INSTALL_NUMPY',
             'WITHOUT_BF_OVERWRITE_INSTALL',
             'WITH_BF_OPENMP', 'BF_OPENMP', 'BF_OPENMP_LIBPATH', 'WITH_BF_STATICOPENMP', 'BF_OPENMP_STATIC_STATIC',
-            'WITH_GHOST_COCOA',
             'WITH_GHOST_SDL',
             'WITH_GHOST_XDND',
             'WITH_X11_XINPUT',
             'WITH_X11_XF86VMODE',
             'BF_GHOST_DEBUG',
-            'USE_QTKIT',
             'BF_FANCY', 'BF_QUIET', 'BF_LINE_OVERWRITE',
             'BF_X264_CONFIG',
             'BF_XVIDCORE_CONFIG',
@@ -181,7 +179,7 @@ def validate_arguments(args, bc):
             'BF_PROFILE_CFLAGS', 'BF_PROFILE_CCFLAGS', 'BF_PROFILE_CXXFLAGS', 'BF_PROFILE_LINKFLAGS',
             'BF_DEBUG_CFLAGS', 'BF_DEBUG_CCFLAGS', 'BF_DEBUG_CXXFLAGS',
             'C_WARN', 'CC_WARN', 'CXX_WARN',
-            'LLIBS', 'PLATFORM_LINKFLAGS','MACOSX_ARCHITECTURE', 'MACOSX_SDK_CHECK', 'XCODE_CUR_VER',
+            'LLIBS', 'PLATFORM_LINKFLAGS', 'MACOSX_ARCHITECTURE', 'MACOSX_SDK', 'XCODE_CUR_VER',
             'BF_CYCLES_CUDA_BINARIES_ARCH', 'BF_PROGRAM_LINKFLAGS', 'MACOSX_DEPLOYMENT_TARGET'
     ]
 
@@ -424,11 +422,9 @@ def read_opts(env, cfg, args):
         ('BF_OPENMP', 'Base path to OpenMP (used when cross-compiling with older versions of WinGW)', ''),
         ('BF_OPENMP_INC', 'Path to OpenMP includes (used when cross-compiling with older versions of WinGW)', ''),
         ('BF_OPENMP_LIBPATH', 'Path to OpenMP libraries (used when cross-compiling with older versions of WinGW)', ''),
-        (BoolVariable('WITH_GHOST_COCOA', 'Use Cocoa-framework if true', False)),
         (BoolVariable('WITH_GHOST_SDL', 'Enable building blender against SDL for windowing rather then the native APIs', False)),
         (BoolVariable('WITH_X11_XINPUT', 'Enable X11 Xinput (tablet support and unicode input)', True)),
         (BoolVariable('WITH_X11_XF86VMODE', 'Enable X11 video mode switching', True)),
-        (BoolVariable('USE_QTKIT', 'Use QTKIT if true', False)),
         ('BF_OPENMP_LIB_STATIC', 'OpenMP static library', ''),
 
         (BoolVariable('WITH_BF_QUICKTIME', 'Use QuickTime if true', False)),
@@ -505,7 +501,7 @@ def read_opts(env, cfg, args):
         ('LLIBS', 'Platform libs', []),
         ('PLATFORM_LINKFLAGS', 'Platform linkflags', []),
         ('MACOSX_ARCHITECTURE', 'python_arch.zip select', ''),
-        ('MACOSX_SDK_CHECK', 'Detect available OS X SDK`s', ''),
+        ('MACOSX_SDK', 'Set OS X SDK', ''),
         ('XCODE_CUR_VER', 'Detect XCode version', ''),
         ('MACOSX_DEPLOYMENT_TARGET', 'Detect OS X target version', ''),
 

@@ -117,7 +117,7 @@ int BIF_snappingSupported(Object *obedit)
 {
 	int status = 0;
 	
-	if (obedit == NULL || ELEM4(obedit->type, OB_MESH, OB_ARMATURE, OB_CURVE, OB_LATTICE)) /* only support object mesh, armature, curves */
+	if (obedit == NULL || ELEM5(obedit->type, OB_MESH, OB_ARMATURE, OB_CURVE, OB_LATTICE, OB_MBALL)) /* only support object mesh, armature, curves */
 	{
 		status = 1;
 	}
@@ -267,16 +267,16 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 	}
 }
 
-bool handleSnapping(TransInfo *t, const wmEvent *event)
+eRedrawFlag handleSnapping(TransInfo *t, const wmEvent *event)
 {
-	bool status = false;
+	eRedrawFlag status = TREDRAW_NOTHING;
 
 #if 0 // XXX need a proper selector for all snap mode
 	if (BIF_snappingSupported(t->obedit) && event->type == TABKEY && event->shift) {
 		/* toggle snap and reinit */
 		t->settings->snap_flag ^= SCE_SNAP;
 		initSnapping(t, NULL);
-		status = 1;
+		status = TREDRAW_HARD;
 	}
 #endif
 	if (event->type == MOUSEMOVE) {
@@ -341,6 +341,70 @@ void applyProject(TransInfo *t)
 			
 			//XXX constraintTransLim(t, td);
 		}
+	}
+}
+
+void applyGridAbsolute(TransInfo *t)
+{
+	float grid_size = 0.0f;
+	GearsType grid_action;
+	TransData *td;
+	float imat[4][4];
+	int i;
+	
+	if (!(activeSnap(t) && (t->tsnap.mode == SCE_SNAP_MODE_GRID)))
+		return;
+	
+	grid_action = BIG_GEARS;
+	if (t->modifiers & MOD_PRECISION)
+		grid_action = SMALL_GEARS;
+	
+	switch (grid_action) {
+		case NO_GEARS: grid_size = t->snap[0]; break;
+		case BIG_GEARS: grid_size = t->snap[1]; break;
+		case SMALL_GEARS: grid_size = t->snap[2]; break;
+	}
+	/* early exit on unusable grid size */
+	if (grid_size == 0.0f)
+		return;
+	
+	if (t->flag & (T_EDIT | T_POSE)) {
+		Object *ob = t->obedit ? t->obedit : t->poseobj;
+		invert_m4_m4(imat, ob->obmat);
+	}
+	
+	for (i = 0, td = t->data; i < t->total; i++, td++) {
+		float iloc[3], loc[3], tvec[3];
+		
+		if (td->flag & TD_NOACTION)
+			break;
+		
+		if (td->flag & TD_SKIP)
+			continue;
+		
+		if ((t->flag & T_PROP_EDIT) && (td->factor == 0.0f))
+			continue;
+		
+		copy_v3_v3(iloc, td->loc);
+		if (t->flag & (T_EDIT | T_POSE)) {
+			Object *ob = t->obedit ? t->obedit : t->poseobj;
+			mul_m4_v3(ob->obmat, iloc);
+		}
+		else if (t->flag & T_OBJECT) {
+			td->ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
+			BKE_object_handle_update(t->scene, td->ob);
+			copy_v3_v3(iloc, td->ob->obmat[3]);
+		}
+		
+		mul_v3_v3fl(loc, iloc, 1.0f/grid_size);
+		loc[0] = floorf(loc[0]);
+		loc[1] = floorf(loc[1]);
+		loc[2] = floorf(loc[2]);
+		mul_v3_fl(loc, grid_size);
+		
+		sub_v3_v3v3(tvec, loc, iloc);
+		mul_m3_v3(td->smtx, tvec);
+		add_v3_v3(td->loc, tvec);
 	}
 }
 
@@ -440,7 +504,7 @@ static void initSnappingMode(TransInfo *t)
 
 		/* Edit mode */
 		if (t->tsnap.applySnap != NULL && // A snapping function actually exist
-		    (obedit != NULL && ELEM4(obedit->type, OB_MESH, OB_ARMATURE, OB_CURVE, OB_LATTICE)) ) // Temporary limited to edit mode meshes, armature, curves
+		    (obedit != NULL && ELEM5(obedit->type, OB_MESH, OB_ARMATURE, OB_CURVE, OB_LATTICE, OB_MBALL)) ) // Temporary limited to edit mode meshes, armature, curves, mballs
 		{
 			/* Exclude editmesh if using proportional edit */
 			if ((obedit->type == OB_MESH) && (t->flag & T_PROP_EDIT)) {
@@ -606,9 +670,10 @@ void addSnapPoint(TransInfo *t)
 	}
 }
 
-bool updateSelectedSnapPoint(TransInfo *t)
+eRedrawFlag updateSelectedSnapPoint(TransInfo *t)
 {
-	bool status = false;
+	eRedrawFlag status = TREDRAW_NOTHING;
+
 	if (t->tsnap.status & MULTI_POINTS) {
 		TransSnapPoint *p, *closest_p = NULL;
 		float closest_dist = TRANSFORM_SNAP_MAX_PX;
@@ -631,7 +696,10 @@ bool updateSelectedSnapPoint(TransInfo *t)
 		}
 
 		if (closest_p) {
-			status = (t->tsnap.selectedPoint != closest_p);
+			if (t->tsnap.selectedPoint != closest_p) {
+				status = TREDRAW_HARD;
+			}
+
 			t->tsnap.selectedPoint = closest_p;
 		}
 	}
@@ -814,7 +882,7 @@ static float ResizeBetween(TransInfo *t, float p1[3], float p2[3])
 
 static void UNUSED_FUNCTION(CalcSnapGrid) (TransInfo *t, float *UNUSED(vec))
 {
-	snapGridAction(t, t->tsnap.snapPoint, BIG_GEARS);
+	snapGridIncrementAction(t, t->tsnap.snapPoint, BIG_GEARS);
 }
 
 static void CalcSnapGeometry(TransInfo *t, float *UNUSED(vec))
@@ -1425,7 +1493,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 					
 					if (em != NULL) {
 						index_array = dm->getVertDataArray(dm, CD_ORIGINDEX);
-						EDBM_index_arrays_ensure(em, BM_VERT);
+						BM_mesh_elem_table_ensure(em->bm, BM_VERT);
 					}
 					
 					for (i = 0; i < totvert; i++) {
@@ -1446,7 +1514,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 								test = 0;
 							}
 							else {
-								eve = EDBM_vert_at_index(em, index);
+								eve = BM_vert_at_index(em->bm, index);
 								
 								if ((BM_elem_flag_test(eve, BM_ELEM_HIDDEN) ||
 								     BM_elem_flag_test(eve, BM_ELEM_SELECT)))
@@ -1475,7 +1543,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 					
 					if (em != NULL) {
 						index_array = dm->getEdgeDataArray(dm, CD_ORIGINDEX);
-						EDBM_index_arrays_ensure(em, BM_EDGE);
+						BM_mesh_elem_table_ensure(em->bm, BM_EDGE);
 					}
 					
 					for (i = 0; i < totedge; i++) {
@@ -1495,7 +1563,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 								test = 0;
 							}
 							else {
-								BMEdge *eed = EDBM_edge_at_index(em, index);
+								BMEdge *eed = BM_edge_at_index(em->bm, index);
 
 								if ((BM_elem_flag_test(eed, BM_ELEM_HIDDEN) ||
 								     BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) ||
@@ -2165,10 +2233,10 @@ bool snapNodesContext(bContext *C, const int mval[2], float *r_dist_px, float r_
 
 /*================================================================*/
 
-static void applyGrid(TransInfo *t, float *val, int max_index, float fac[3], GearsType action);
+static void applyGridIncrement(TransInfo *t, float *val, int max_index, float fac[3], GearsType action);
 
 
-void snapGridAction(TransInfo *t, float *val, GearsType action)
+void snapGridIncrementAction(TransInfo *t, float *val, GearsType action)
 {
 	float fac[3];
 
@@ -2176,11 +2244,11 @@ void snapGridAction(TransInfo *t, float *val, GearsType action)
 	fac[BIG_GEARS]   = t->snap[1];
 	fac[SMALL_GEARS] = t->snap[2];
 	
-	applyGrid(t, val, t->idx_max, fac, action);
+	applyGridIncrement(t, val, t->idx_max, fac, action);
 }
 
 
-void snapGrid(TransInfo *t, float *val)
+void snapGridIncrement(TransInfo *t, float *val)
 {
 	GearsType action;
 
@@ -2194,17 +2262,17 @@ void snapGrid(TransInfo *t, float *val)
 		action = SMALL_GEARS;
 	}
 
-	snapGridAction(t, val, action);
+	snapGridIncrementAction(t, val, action);
 }
 
 
-static void applyGrid(TransInfo *t, float *val, int max_index, float fac[3], GearsType action)
+static void applyGridIncrement(TransInfo *t, float *val, int max_index, float fac[3], GearsType action)
 {
 	int i;
 	float asp[3] = {1.0f, 1.0f, 1.0f}; // TODO: Remove hard coded limit here (3)
 
 	if (max_index > 2) {
-		printf("applyGrid: invalid index %d, clamping\n", max_index);
+		printf("applyGridIncrement: invalid index %d, clamping\n", max_index);
 		max_index = 2;
 	}
 

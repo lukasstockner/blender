@@ -366,6 +366,9 @@ typedef enum eGraphEdit_Flag {
 	SIPO_BEAUTYDRAW_OFF       = (1 << 12),
 	/* draw grouped channels with colors set in group */
 	SIPO_NODRAWGCOLORS        = (1 << 13),
+	/* normalize curves on display */
+	SIPO_NORMALIZE            = (1 << 14),
+	SIPO_NORMALIZE_FREEZE     = (1 << 15),
 } eGraphEdit_Flag;
 
 /* SpaceIpo->mode (Graph Editor Mode) */
@@ -690,6 +693,7 @@ typedef enum eFileSel_File_Types {
 	BTXFILE             = (1 << 12),
 	COLLADAFILE         = (1 << 13),
 	OPERATORFILE        = (1 << 14), /* from filter_glob operator property */
+	APPLICATIONBUNDLE   = (1 << 15),
 } eFileSel_File_Types;
 
 /* Selection Flags in filesel: struct direntry, unsigned char selflag */

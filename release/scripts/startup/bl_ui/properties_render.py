@@ -67,9 +67,11 @@ class RENDER_PT_render(RenderButtonsPanel, Panel):
         row = layout.row(align=True)
         row.operator("render.render", text="Render", icon='RENDER_STILL')
         row.operator("render.render", text="Animation", icon='RENDER_ANIMATION').animation = True
-        row.operator("render.play_rendered_anim", text="Play", icon='PLAY')
+        row.operator("sound.mixdown", text="Audio", icon='PLAY_AUDIO')
 
-        layout.prop(rd, "display_mode", text="Display")
+        split = layout.split(1 / 3)
+        split.operator("render.play_rendered_anim", text="Play", icon='PLAY')
+        split.prop(rd, "display_mode", text="Display")
 
 
 class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
@@ -395,10 +397,7 @@ class RENDER_PT_output(RenderButtonsPanel, Panel):
 
         layout.template_image_settings(image_settings, color_management=False)
 
-        if file_format == 'QUICKTIME_CARBON':
-            layout.operator("scene.render_data_set_quicktime_codec")
-
-        elif file_format == 'QUICKTIME_QTKIT':
+        if file_format == 'QUICKTIME':
             quicktime = rd.quicktime
 
             split = layout.split()

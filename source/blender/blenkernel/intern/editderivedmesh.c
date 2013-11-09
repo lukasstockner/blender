@@ -34,7 +34,7 @@
  * to three loops per triangle.  the derivedmesh stores a cache of tessellations
  * for each face.  this cache will smartly update as needed (though at first
  * it'll simply be more brute force).  keeping track of face/edge counts may
- * be a small problbm.
+ * be a small problem.
  *
  * this won't be the most efficient thing, considering that internal edges and
  * faces of tessellations are exposed.  looking up an edge by index in particular
@@ -902,7 +902,7 @@ static void emdm_pass_attrib_vertex_glsl(DMVertexAttribs *attribs, BMLoop *loop,
 	for (i = 0; i < attribs->tottface; i++) {
 		const float *uv;
 
-		if(attribs->tface[i].em_offset != -1) {
+		if (attribs->tface[i].em_offset != -1) {
 			const MLoopUV *luv = BM_ELEM_CD_GET_VOID_P(loop, attribs->tface[i].em_offset);
 			uv = luv->uv;
 		}
@@ -917,7 +917,7 @@ static void emdm_pass_attrib_vertex_glsl(DMVertexAttribs *attribs, BMLoop *loop,
 	}
 	for (i = 0; i < attribs->totmcol; i++) {
 		GLubyte col[4];
-		if(attribs->mcol[i].em_offset != -1) {
+		if (attribs->mcol[i].em_offset != -1) {
 			const MLoopCol *cp = BM_ELEM_CD_GET_VOID_P(loop, attribs->mcol[i].em_offset);
 			col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
 		}
@@ -1233,7 +1233,8 @@ static void emDM_getVert(DerivedMesh *dm, int index, MVert *r_vert)
 		return;
 	}
 
-	ev = bmdm->em->vert_index[index];  /* should be EDBM_vert_at_index() */
+	BLI_assert((bm->elem_table_dirty & BM_VERT) == 0);
+	ev = bm->vtable[index];  /* should be BM_vert_at_index() */
 	// ev = BM_vert_at_index(bm, index); /* warning, does list loop, _not_ ideal */
 
 	bmvert_to_mvert(bm, ev, r_vert);
@@ -1255,7 +1256,10 @@ static void emDM_getVertCo(DerivedMesh *dm, int index, float r_co[3])
 		copy_v3_v3(r_co, bmdm->vertexCos[index]);
 	}
 	else {
-		BMVert *ev = bmdm->em->vert_index[index];  /* should be EDBM_vert_at_index() */
+		BMVert *ev;
+
+		BLI_assert((bm->elem_table_dirty & BM_VERT) == 0);
+		ev = bm->vtable[index];  /* should be BM_vert_at_index() */
 		// ev = BM_vert_at_index(bm, index); /* warning, does list loop, _not_ ideal */
 		copy_v3_v3(r_co, ev->co);
 	}
@@ -1277,7 +1281,10 @@ static void emDM_getVertNo(DerivedMesh *dm, int index, float r_no[3])
 		copy_v3_v3(r_no, bmdm->vertexNos[index]);
 	}
 	else {
-		BMVert *ev = bmdm->em->vert_index[index];  /* should be EDBM_vert_at_index() */
+		BMVert *ev;
+
+		BLI_assert((bm->elem_table_dirty & BM_VERT) == 0);
+		ev = bm->vtable[index];  /* should be BM_vert_at_index() */
 		// ev = BM_vert_at_index(bm, index); /* warning, does list loop, _not_ ideal */
 		copy_v3_v3(r_no, ev->no);
 	}
@@ -1298,7 +1305,10 @@ static void emDM_getPolyNo(DerivedMesh *dm, int index, float r_no[3])
 		copy_v3_v3(r_no, bmdm->polyNos[index]);
 	}
 	else {
-		BMFace *efa = bmdm->em->face_index[index];  /* should be EDBM_vert_at_index() */
+		BMFace *efa;
+
+		BLI_assert((bm->elem_table_dirty & BM_FACE) == 0);
+		efa = bm->ftable[index];  /* should be BM_vert_at_index() */
 		// efa = BM_face_at_index(bm, index); /* warning, does list loop, _not_ ideal */
 		copy_v3_v3(r_no, efa->no);
 	}
@@ -1316,7 +1326,8 @@ static void emDM_getEdge(DerivedMesh *dm, int index, MEdge *r_edge)
 		return;
 	}
 
-	e = bmdm->em->edge_index[index];  /* should be EDBM_edge_at_index() */
+	BLI_assert((bm->elem_table_dirty & BM_EDGE) == 0);
+	e = bm->etable[index];  /* should be BM_edge_at_index() */
 	// e = BM_edge_at_index(bm, index); /* warning, does list loop, _not_ ideal */
 
 	r_edge->flag = BM_edge_flag_to_mflag(e);

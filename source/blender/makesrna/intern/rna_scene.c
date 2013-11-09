@@ -145,7 +145,7 @@ EnumPropertyItem snap_element_items[] = {
 };
 
 EnumPropertyItem snap_node_element_items[] = {
-	{SCE_SNAP_MODE_INCREMENT, "INCREMENT", ICON_SNAP_INCREMENT, "Increment", "Snap to increments of grid"},
+	{SCE_SNAP_MODE_GRID, "GRID", ICON_SNAP_INCREMENT, "Grid", "Snap to grid"},
 	{SCE_SNAP_MODE_NODE_X, "NODE_X", ICON_SNAP_EDGE, "Node X", "Snap to left/right node border"},
 	{SCE_SNAP_MODE_NODE_Y, "NODE_Y", ICON_SNAP_EDGE, "Node Y", "Snap to top/bottom node border"},
 	{SCE_SNAP_MODE_NODE_XY, "NODE_XY", ICON_SNAP_EDGE, "Node X / Y", "Snap to any node border"},
@@ -159,7 +159,7 @@ EnumPropertyItem snap_uv_element_items[] = {
 };
 
 /* workaround for duplicate enums,
- * have each enum line as a defne then conditionally set it or not
+ * have each enum line as a define then conditionally set it or not
  */
 
 #define R_IMF_ENUM_BMP      {R_IMF_IMTYPE_BMP, "BMP", ICON_FILE_IMAGE, "BMP", "Output image in bitmap format"},
@@ -261,11 +261,7 @@ EnumPropertyItem image_type_items[] = {
 	{R_IMF_IMTYPE_THEORA, "THEORA", ICON_FILE_MOVIE, "Ogg Theora", "Output video in Ogg format"},
 #endif
 #ifdef WITH_QUICKTIME
-#	ifdef USE_QTKIT
-	{R_IMF_IMTYPE_QUICKTIME, "QUICKTIME_QTKIT", ICON_FILE_MOVIE, "QuickTime", "Output video in Quicktime format"},
-#	else
-	{R_IMF_IMTYPE_QUICKTIME, "QUICKTIME_CARBON", ICON_FILE_MOVIE, "QuickTime", "Output video in Quicktime format"},
-#	endif
+	{R_IMF_IMTYPE_QUICKTIME, "QUICKTIME", ICON_FILE_MOVIE, "QuickTime", "Output video in Quicktime format"},
 #endif
 #ifdef WITH_FFMPEG
 	{R_IMF_IMTYPE_XVID, "XVID", ICON_FILE_MOVIE, "Xvid", "Output video in Xvid format"},
@@ -955,7 +951,6 @@ static EnumPropertyItem *rna_RenderSettings_qtcodecsettings_codecType_itemf(bCon
 	return item;
 }
 
-#ifdef USE_QTKIT
 static int rna_RenderSettings_qtcodecsettings_audiocodecType_get(PointerRNA *ptr)
 {
 	QuicktimeCodecSettings *settings = (QuicktimeCodecSettings *)ptr->data;
@@ -993,7 +988,6 @@ static EnumPropertyItem *rna_RenderSettings_qtcodecsettings_audiocodecType_itemf
 	
 	return item;
 }
-#endif
 #endif
 
 #ifdef WITH_FFMPEG
@@ -3143,7 +3137,6 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	};
 
 	static EnumPropertyItem material_items[] = {
-		{GAME_MAT_TEXFACE, "SINGLETEXTURE", 0, "Singletexture", "Singletexture face materials"},
 		{GAME_MAT_MULTITEX, "MULTITEXTURE", 0, "Multitexture", "Multitexture materials"},
 		{GAME_MAT_GLSL, "GLSL", 0, "GLSL", "OpenGL shading language shaders"},
 		{0, NULL, 0, NULL, NULL}
@@ -3783,8 +3776,6 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 		{FFMPEG_OGG, "OGG", 0, "Ogg", ""},
 		{FFMPEG_MKV, "MKV", 0, "Matroska", ""},
 		{FFMPEG_FLV, "FLASH", 0, "Flash", ""},
-		{FFMPEG_WAV, "WAV", 0, "Wav", ""},
-		{FFMPEG_MP3, "MP3", 0, "Mp3", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -3955,7 +3946,6 @@ static void rna_def_scene_quicktime_settings(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-#ifdef USE_QTKIT
 	static EnumPropertyItem quicktime_audio_samplerate_items[] = {
 		{22050, "22050", 0, "22kHz", ""},
 		{44100, "44100", 0, "44.1kHz", ""},
@@ -3985,7 +3975,6 @@ static void rna_def_scene_quicktime_settings(BlenderRNA *brna)
 		{320000, "320000", 0, "320kbps", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
-#endif
 
 	/* QuickTime */
 	srna = RNA_def_struct(brna, "QuickTimeSettings", NULL);
@@ -4007,7 +3996,6 @@ static void rna_def_scene_quicktime_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Spatial quality", "Intra-frame spatial quality level");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-#ifdef USE_QTKIT
 	prop = RNA_def_property(srna, "audiocodec_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "audiocodecType");
 	RNA_def_property_enum_items(prop, quicktime_codec_type_items);
@@ -4044,7 +4032,6 @@ static void rna_def_scene_quicktime_settings(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, quicktime_audio_bitrate_items);
 	RNA_def_property_ui_text(prop, "Bitrate", "Compressed audio bitrate");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-#endif
 }
 #endif
 

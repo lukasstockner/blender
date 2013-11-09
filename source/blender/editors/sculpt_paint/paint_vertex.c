@@ -2059,7 +2059,7 @@ static int wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 			BKE_mesh_flush_select_from_polys(me);
 		}
 
-		/* weight paint spesific */
+		/* weight paint specific */
 		mesh_octree_table(NULL, NULL, NULL, 'e');
 		mesh_mirrtopo_table(NULL, 'e');
 
@@ -2075,7 +2075,7 @@ static int wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 
 		BKE_paint_init(&wp->paint, PAINT_CURSOR_WEIGHT_PAINT);
 
-		/* weight paint spesific */
+		/* weight paint specific */
 		mesh_octree_table(ob, NULL, NULL, 's');
 		ED_vgroup_sync_from_pose(ob);
 	}
@@ -2584,11 +2584,9 @@ static int wpaint_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int wpaint_cancel(bContext *C, wmOperator *op)
+static void wpaint_cancel(bContext *C, wmOperator *op)
 {
 	paint_stroke_cancel(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 void PAINT_OT_weight_paint(wmOperatorType *ot)
@@ -3125,11 +3123,9 @@ static int vpaint_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int vpaint_cancel(bContext *C, wmOperator *op)
+static void vpaint_cancel(bContext *C, wmOperator *op)
 {
 	paint_stroke_cancel(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 void PAINT_OT_vertex_paint(wmOperatorType *ot)

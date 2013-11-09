@@ -191,17 +191,21 @@ void BKE_image_de_interlace(Image *ima, int odd)
 
 /* ***************** ALLOC & FREE, DATA MANAGING *************** */
 
-static void image_free_buffers(Image *ima)
+static void image_free_cahced_frames(Image *image)
 {
 	ImBuf *ibuf;
-
-	while ((ibuf = BLI_pophead(&ima->ibufs))) {
+	while ((ibuf = BLI_pophead(&image->ibufs))) {
 		if (ibuf->userdata) {
 			MEM_freeN(ibuf->userdata);
 			ibuf->userdata = NULL;
 		}
 		IMB_freeImBuf(ibuf);
 	}
+}
+
+static void image_free_buffers(Image *ima)
+{
+	image_free_cahced_frames(ima);
 
 	if (ima->anim) IMB_free_anim(ima->anim);
 	ima->anim = NULL;
@@ -2237,7 +2241,7 @@ void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
 #else
 			/* image buffers for non-sequence multilayer will share buffers with RenderResult,
 			 * however sequence multilayer will own buffers. Such logic makes switching from
-			 * single multilayer file to sequence completely instable
+			 * single multilayer file to sequence completely unstable
 			 * since changes in nodes seems this workaround isn't needed anymore, all sockets
 			 * are nicely detecting anyway, but freeing buffers always here makes multilayer
 			 * sequences behave stable
@@ -2505,26 +2509,22 @@ static ImBuf *image_load_sequence_multilayer(Image *ima, ImageUser *iuser, int f
 
 	/* check for new RenderResult */
 	if (ima->rr == NULL || frame != ima->rr->framenr) {
-		/* copy to survive not found multilayer image */
-		RenderResult *oldrr = ima->rr;
+		if (ima->rr) {
+			/* Cached image buffers shares pointers with render result,
+			 * need to ensure there's no image buffers are hanging around
+			 * with dead links after freeing the render result.
+			 */
+			image_free_cahced_frames(ima);
+			RE_FreeRenderResult(ima->rr);
+			ima->rr = NULL;
+		}
 
-		ima->rr = NULL;
 		ibuf = image_load_sequence_file(ima, iuser, frame);
 
 		if (ibuf) { /* actually an error */
 			ima->type = IMA_TYPE_IMAGE;
 			printf("error, multi is normal image\n");
 		}
-		// printf("loaded new result %p\n", ima->rr);
-		/* free result if new one found */
-		if (ima->rr) {
-			// if (oldrr) printf("freed previous result %p\n", oldrr);
-			if (oldrr) RE_FreeRenderResult(oldrr);
-		}
-		else {
-			ima->rr = oldrr;
-		}
-
 	}
 	if (ima->rr) {
 		RenderPass *rpass = BKE_image_multilayer_index(ima->rr, iuser);

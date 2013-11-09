@@ -421,11 +421,11 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *ob, B
 	faceMap = MEM_mallocN(numOfFaces * sizeof(BMFace *), "unwrap_edit_face_map");
 
 	BM_mesh_elem_index_ensure(em->bm, BM_VERT);
-	EDBM_index_arrays_ensure(em, BM_EDGE | BM_FACE);
+	BM_mesh_elem_table_ensure(em->bm, BM_EDGE | BM_FACE);
 
 	/* map subsurfed faces to original editFaces */
 	for (i = 0; i < numOfFaces; i++)
-		faceMap[i] = EDBM_face_at_index(em, DM_origindex_mface_mpoly(origFaceIndices, origPolyIndices, i));
+		faceMap[i] = BM_face_at_index(em->bm, DM_origindex_mface_mpoly(origFaceIndices, origPolyIndices, i));
 
 	edgeMap = MEM_mallocN(numOfEdges * sizeof(BMEdge *), "unwrap_edit_edge_map");
 
@@ -433,7 +433,7 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *ob, B
 	for (i = 0; i < numOfEdges; i++) {
 		/* not all edges correspond to an old edge */
 		edgeMap[i] = (origEdgeIndices[i] != ORIGINDEX_NONE) ?
-		             EDBM_edge_at_index(em, origEdgeIndices[i]) : NULL;
+		             BM_edge_at_index(em->bm, origEdgeIndices[i]) : NULL;
 	}
 
 	/* Prepare and feed faces to the solver */
@@ -542,7 +542,7 @@ static bool minimize_stretch_init(bContext *C, wmOperator *op)
 	return true;
 }
 
-static void minimize_stretch_iteration(bContext *C, wmOperator *op, int interactive)
+static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interactive)
 {
 	MinStretch *ms = op->customdata;
 	ScrArea *sa = CTX_wm_area(C);
@@ -570,7 +570,7 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, int interact
 	}
 }
 
-static void minimize_stretch_exit(bContext *C, wmOperator *op, int cancel)
+static void minimize_stretch_exit(bContext *C, wmOperator *op, bool cancel)
 {
 	MinStretch *ms = op->customdata;
 	ScrArea *sa = CTX_wm_area(C);
@@ -604,8 +604,8 @@ static int minimize_stretch_exec(bContext *C, wmOperator *op)
 
 	iterations = RNA_int_get(op->ptr, "iterations");
 	for (i = 0; i < iterations; i++)
-		minimize_stretch_iteration(C, op, 0);
-	minimize_stretch_exit(C, op, 0);
+		minimize_stretch_iteration(C, op, false);
+	minimize_stretch_exit(C, op, false);
 
 	return OPERATOR_FINISHED;
 }
@@ -617,7 +617,7 @@ static int minimize_stretch_invoke(bContext *C, wmOperator *op, const wmEvent *U
 	if (!minimize_stretch_init(C, op))
 		return OPERATOR_CANCELLED;
 
-	minimize_stretch_iteration(C, op, 1);
+	minimize_stretch_iteration(C, op, true);
 
 	ms = op->customdata;
 	WM_event_add_modal_handler(C, op);
@@ -633,12 +633,12 @@ static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *ev
 	switch (event->type) {
 		case ESCKEY:
 		case RIGHTMOUSE:
-			minimize_stretch_exit(C, op, 1);
+			minimize_stretch_exit(C, op, true);
 			return OPERATOR_CANCELLED;
 		case RETKEY:
 		case PADENTER:
 		case LEFTMOUSE:
-			minimize_stretch_exit(C, op, 0);
+			minimize_stretch_exit(C, op, false);
 			return OPERATOR_FINISHED;
 		case PADPLUSKEY:
 		case WHEELUPMOUSE:
@@ -647,7 +647,7 @@ static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *ev
 					ms->blend += 0.1f;
 					ms->lasttime = 0.0f;
 					RNA_float_set(op->ptr, "blend", ms->blend);
-					minimize_stretch_iteration(C, op, 1);
+					minimize_stretch_iteration(C, op, true);
 				}
 			}
 			break;
@@ -658,7 +658,7 @@ static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *ev
 					ms->blend -= 0.1f;
 					ms->lasttime = 0.0f;
 					RNA_float_set(op->ptr, "blend", ms->blend);
-					minimize_stretch_iteration(C, op, 1);
+					minimize_stretch_iteration(C, op, true);
 				}
 			}
 			break;
@@ -667,25 +667,23 @@ static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *ev
 				double start = PIL_check_seconds_timer();
 
 				do {
-					minimize_stretch_iteration(C, op, 1);
+					minimize_stretch_iteration(C, op, true);
 				} while (PIL_check_seconds_timer() - start < 0.01);
 			}
 			break;
 	}
 
 	if (ms->iterations && ms->i >= ms->iterations) {
-		minimize_stretch_exit(C, op, 0);
+		minimize_stretch_exit(C, op, false);
 		return OPERATOR_FINISHED;
 	}
 
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int minimize_stretch_cancel(bContext *C, wmOperator *op)
+static void minimize_stretch_cancel(bContext *C, wmOperator *op)
 {
-	minimize_stretch_exit(C, op, 1);
-
-	return OPERATOR_CANCELLED;
+	minimize_stretch_exit(C, op, true);
 }
 
 void UV_OT_minimize_stretch(wmOperatorType *ot)
@@ -890,7 +888,7 @@ static void uv_map_transform_center(Scene *scene, View3D *v3d, float *result,
 		}
 		case V3D_CURSOR:  /* cursor center */
 		{
-			const float *curs = give_cursor(scene, v3d);
+			const float *curs = ED_view3d_cursor3d_get(scene, v3d);
 			/* shift to objects world */
 			sub_v3_v3v3(result, curs, ob->obmat[3]);
 			break;

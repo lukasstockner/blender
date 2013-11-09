@@ -381,9 +381,6 @@ static void recalcData_graphedit(TransInfo *t)
 	bAnimListElem *ale;
 	int dosort = 0;
 
-	const bool use_local_center = checkUseLocalCenter_GraphEdit(t);
-	
-	
 	/* initialize relevant anim-context 'context' data from TransInfo data */
 	/* NOTE: sync this with the code in ANIM_animdata_get_context() */
 	scene = ac.scene = t->scene;
@@ -411,11 +408,6 @@ static void recalcData_graphedit(TransInfo *t)
 		if (!fcu_test_selected(fcu))
 			continue;
 
-		ANIM_unit_mapping_apply_fcurve(ac.scene, ale->id, ale->key_data,
-		                               ANIM_UNITCONV_ONLYSEL | ANIM_UNITCONV_SELVERTS | ANIM_UNITCONV_RESTORE |
-		                               (use_local_center ? ANIM_UNITCONV_SKIPKNOTS : 0));
-		
-		
 		/* watch it: if the time is wrong: do not correct handles yet */
 		if (test_time_fcurve(fcu))
 			dosort++;
@@ -1066,7 +1058,7 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 	
 	t->flag = 0;
 	
-	t->redraw = 1; /* redraw first time */
+	t->redraw = TREDRAW_HARD;  /* redraw first time */
 	
 	if (event) {
 		copy_v2_v2_int(t->imval, event->mval);
@@ -1500,7 +1492,7 @@ void calculateCenterCursor(TransInfo *t)
 {
 	const float *cursor;
 	
-	cursor = give_cursor(t->scene, t->view);
+	cursor = ED_view3d_cursor3d_get(t->scene, t->view);
 	copy_v3_v3(t->center, cursor);
 	
 	/* If edit or pose mode, move cursor in local space */

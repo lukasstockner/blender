@@ -426,15 +426,13 @@ static int transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return exit_code;
 }
 
-static int transform_cancel(bContext *C, wmOperator *op)
+static void transform_cancel(bContext *C, wmOperator *op)
 {
 	TransInfo *t = op->customdata;
 
 	t->state = TRANS_CANCEL;
 	transformEnd(C, t);
 	transformops_exit(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 static int transform_exec(bContext *C, wmOperator *op)
@@ -708,7 +706,7 @@ static void TRANSFORM_OT_warp(struct wmOperatorType *ot)
 	ot->exec   = transform_exec;
 	ot->modal  = transform_modal;
 	ot->cancel = transform_cancel;
-	ot->poll   = ED_operator_screenactive;
+	ot->poll   = ED_operator_region_view3d_active;
 
 	RNA_def_float_rotation(ot->srna, "value", 1, NULL, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
 
