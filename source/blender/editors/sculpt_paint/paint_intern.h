@@ -64,7 +64,7 @@ typedef void (*StrokeUpdateStep)(struct bContext *C, struct PaintStroke *stroke,
 typedef void (*StrokeRedraw)(const struct bContext *C, struct PaintStroke *stroke, bool final);
 typedef void (*StrokeDone)(const struct bContext *C, struct PaintStroke *stroke);
 
-struct PaintStroke *paint_stroke_new(struct bContext *C,
+struct PaintStroke *paint_stroke_new(struct bContext *C, struct wmOperator *op,
                                      StrokeGetLocation get_location, StrokeTestStart test_start,
                                      StrokeUpdateStep update_step, StrokeRedraw redraw,
                                      StrokeDone done, int event_type);

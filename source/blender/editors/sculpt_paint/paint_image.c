@@ -685,7 +685,7 @@ static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customda
 }
 
 
-static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mouse[2])
+static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const float mouse[2])
 {
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *toolsettings = scene->toolsettings;
@@ -856,32 +856,31 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 	MEM_freeN(pop);
 }
 
-static int paint_stroke_test_start(bContext *UNUSED(C), wmOperator *UNUSED(op), const float UNUSED(mouse[2]))
+static int paint_stroke_test_start(bContext *C, wmOperator *op, const float mouse[2])
 {
+	PaintOperation *pop;
+
+	/* TODO Should avoid putting this here. Instead, last position should be requested
+	 * from stroke system. */
+
+	if (!(pop = texture_paint_init(C, op, mouse))) {
+		return false;
+	}
+
+	paint_stroke_set_mode_data(op->customdata, pop);
+
 	return true;
 }
 
 
 static int paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	PaintOperation *pop;
-	float mouse[2];
 	int retval;
 
-	/* TODO Should avoid putting this here. Instead, last position should be requested
-	 * from stroke system. */
-	mouse[0] = event->mval[0];
-	mouse[1] = event->mval[1];
-
-	if (!(pop = texture_paint_init(C, op, mouse))) {
-		return OPERATOR_CANCELLED;
-	}
-
-	op->customdata = paint_stroke_new(C, NULL, paint_stroke_test_start,
+	op->customdata = paint_stroke_new(C, op, NULL, paint_stroke_test_start,
 	                                  paint_stroke_update_step,
 	                                  paint_stroke_redraw,
 	                                  paint_stroke_done, event->type);
-	paint_stroke_set_mode_data(op->customdata, pop);
 	/* add modal handler */
 	WM_event_add_modal_handler(C, op);
 
@@ -910,12 +909,10 @@ static int paint_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	op->customdata = paint_stroke_new(C, NULL, paint_stroke_test_start,
+	op->customdata = paint_stroke_new(C, op, NULL, paint_stroke_test_start,
 	                                  paint_stroke_update_step,
 	                                  paint_stroke_redraw,
 	                                  paint_stroke_done, 0);
-	paint_stroke_set_mode_data(op->customdata, pop);
-
 	/* frees op->customdata */
 	paint_stroke_exec(C, op);
 

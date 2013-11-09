@@ -735,6 +735,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, const float final_mou
 /**** Public API ****/
 
 PaintStroke *paint_stroke_new(bContext *C,
+							  wmOperator *op,
                               StrokeGetLocation get_location,
                               StrokeTestStart test_start,
                               StrokeUpdateStep update_step,
@@ -761,6 +762,10 @@ PaintStroke *paint_stroke_new(bContext *C,
 	get_imapaint_zoom(C, &zoomx, &zoomy);
 	stroke->zoom_2d = max_ff(zoomx, zoomy);
 
+	if ((br->flag & (BRUSH_POLYLINE | BRUSH_CURVE))
+		&& RNA_struct_property_is_set(op->ptr, "mode")) {
+		RNA_enum_set(op->ptr, "mode", BRUSH_STROKE_NORMAL);
+	}
 	/* initialize here */
 	ups->overlap_factor = 1.0;
 	ups->stroke_active = true;

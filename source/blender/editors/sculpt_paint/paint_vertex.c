@@ -2558,7 +2558,7 @@ static int wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	int retval;
 
-	op->customdata = paint_stroke_new(C, NULL, wpaint_stroke_test_start,
+	op->customdata = paint_stroke_new(C, op, NULL, wpaint_stroke_test_start,
 	                                  wpaint_stroke_update_step, NULL,
 	                                  wpaint_stroke_done, event->type);
 	
@@ -2574,7 +2574,7 @@ static int wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 static int wpaint_exec(bContext *C, wmOperator *op)
 {
-	op->customdata = paint_stroke_new(C, NULL, wpaint_stroke_test_start,
+	op->customdata = paint_stroke_new(C, op, NULL, wpaint_stroke_test_start,
 	                                  wpaint_stroke_update_step, NULL,
 	                                  wpaint_stroke_done, 0);
 
@@ -3097,7 +3097,7 @@ static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	int retval;
 
-	op->customdata = paint_stroke_new(C, NULL, vpaint_stroke_test_start,
+	op->customdata = paint_stroke_new(C, op, NULL, vpaint_stroke_test_start,
 	                                  vpaint_stroke_update_step, NULL,
 	                                  vpaint_stroke_done, event->type);
 	
@@ -3113,7 +3113,7 @@ static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 static int vpaint_exec(bContext *C, wmOperator *op)
 {
-	op->customdata = paint_stroke_new(C, NULL, vpaint_stroke_test_start,
+	op->customdata = paint_stroke_new(C, op, NULL, vpaint_stroke_test_start,
 	                                  vpaint_stroke_update_step, NULL,
 	                                  vpaint_stroke_done, 0);
 
