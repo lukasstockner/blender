@@ -1356,6 +1356,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 	}
 	
 	/* and back to viewspace */
+	glPushMatrix();
 	glLoadMatrixf(rv3d->viewmat);
 	copy_v3_v3(vec, ob->obmat[3]);
 
@@ -1391,6 +1392,8 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		/* restore for drawing extra stuff */
 		glColor3ubv(ob_wire_col);
 	}
+	/* and finally back to org object space! */
+	glPopMatrix();
 }
 
 static void draw_limit_line(float sta, float end, const short dflag, unsigned int col)
@@ -2309,7 +2312,7 @@ static DMDrawOption draw_dm_edges_seams__setDrawOptions(void *userData, int inde
 
 static void draw_dm_edges_seams(BMEditMesh *em, DerivedMesh *dm)
 {
-	dm->drawMappedEdges(dm, draw_dm_edges_seams__setDrawOptions, em);
+	dm->drawMappedEdges(dm, draw_dm_edges_seams__setDrawOptions, em->bm);
 }
 
 /* Draw only sharp edges */
@@ -2325,7 +2328,7 @@ static DMDrawOption draw_dm_edges_sharp__setDrawOptions(void *userData, int inde
 
 static void draw_dm_edges_sharp(BMEditMesh *em, DerivedMesh *dm)
 {
-	dm->drawMappedEdges(dm, draw_dm_edges_sharp__setDrawOptions, em);
+	dm->drawMappedEdges(dm, draw_dm_edges_sharp__setDrawOptions, em->bm);
 }
 
 #ifdef WITH_FREESTYLE
@@ -2692,7 +2695,10 @@ static void draw_em_fancy_edges(BMEditMesh *em, Scene *scene, View3D *v3d,
 
 static void draw_em_measure_stats(ARegion *ar, View3D *v3d, Object *ob, BMEditMesh *em, UnitSettings *unit)
 {
-	const short txt_flag = V3D_CACHE_TEXT_ASCII | V3D_CACHE_TEXT_LOCALCLIP;
+	/* Do not use ascii when using non-default unit system, some unit chars are utf8 (micro, square, etc.).
+	 * See bug #36090.
+	 */
+	const short txt_flag = V3D_CACHE_TEXT_LOCALCLIP | (unit->system ? 0 : V3D_CACHE_TEXT_ASCII);
 	Mesh *me = ob->data;
 	float v1[3], v2[3], v3[3], vmid[3], fvec[3];
 	char numstr[32]; /* Stores the measurement display text here */
@@ -2865,14 +2871,11 @@ static void draw_em_measure_stats(ARegion *ar, View3D *v3d, Object *ob, BMEditMe
 			bUnit_AsString(numstr, sizeof(numstr),                                       \
 			               (double)(area * unit->scale_length * unit->scale_length),     \
 			               3, unit->system, B_UNIT_AREA, do_split, false);               \
-			view3d_cached_text_draw_add(vmid, numstr, 0,                                 \
-			                            /* Metric system uses unicode "squared" sign! */ \
-			                            txt_flag ^ V3D_CACHE_TEXT_ASCII, col);           \
 		}                                                                                \
 		else {                                                                           \
 			BLI_snprintf(numstr, sizeof(numstr), conv_float, area);                      \
-			view3d_cached_text_draw_add(vmid, numstr, 0, txt_flag, col);                 \
 		}                                                                                \
+		view3d_cached_text_draw_add(vmid, numstr, 0, txt_flag, col);                     \
 	} (void)0
 
 		UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEAREA, col);
@@ -6876,7 +6879,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			case OB_LAMP:
 				if (!render_override) {
 					drawlamp(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
-					if (dtx || (base->flag & SELECT)) glMultMatrixf(ob->obmat);
 				}
 				break;
 			case OB_CAMERA:

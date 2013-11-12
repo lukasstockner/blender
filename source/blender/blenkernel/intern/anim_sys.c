@@ -1567,11 +1567,11 @@ static float nlastrip_get_influence(NlaStrip *strip, float cframe)
 	strip->blendout = fabsf(strip->blendout);
 	
 	/* result depends on where frame is in respect to blendin/out values */
-	if (IS_EQ(strip->blendin, 0) == 0 && (cframe <= (strip->start + strip->blendin))) {
+	if (IS_EQF(strip->blendin, 0.0f) == false && (cframe <= (strip->start + strip->blendin))) {
 		/* there is some blend-in */
 		return fabsf(cframe - strip->start) / (strip->blendin);
 	}
-	else if (IS_EQ(strip->blendout, 0) == 0 && (cframe >= (strip->end - strip->blendout))) {
+	else if (IS_EQF(strip->blendout, 0.0f) == false && (cframe >= (strip->end - strip->blendout))) {
 		/* there is some blend-out */
 		return fabsf(strip->end - cframe) / (strip->blendout);
 	}
@@ -1856,7 +1856,7 @@ static void nlaevalchan_accumulate(NlaEvalChannel *nec, NlaEvalStrip *nes, float
 		inf *= nes->strip_time;
 	
 	/* optimisation: no need to try applying if there is no influence */
-	if (IS_EQ(inf, 0)) return;
+	if (IS_EQF(inf, 0.0f)) return;
 	
 	/* perform blending */
 	switch (blendmode) {
@@ -2074,7 +2074,7 @@ static void nlastrip_evaluate_transition(PointerRNA *ptr, ListBase *channels, Li
 	tmp_nes = *nes;
 	
 	/* evaluate these strips into a temp-buffer (tmp_channels) */
-	/* FIXME: modifier evalation here needs some work... */
+	/* FIXME: modifier evaluation here needs some work... */
 	/* first strip */
 	tmp_nes.strip_mode = NES_TIME_TRANSITION_START;
 	tmp_nes.strip = s1;
@@ -2086,7 +2086,7 @@ static void nlastrip_evaluate_transition(PointerRNA *ptr, ListBase *channels, Li
 	nlastrip_evaluate(ptr, &tmp_channels, &tmp_modifiers, &tmp_nes);
 	
 	
-	/* assumulate temp-buffer and full-buffer, using the 'real' strip */
+	/* accumulate temp-buffer and full-buffer, using the 'real' strip */
 	nlaevalchan_buffers_accumulate(channels, &tmp_channels, nes);
 	
 	/* unlink this strip's modifiers from the parent's modifiers again */
@@ -2124,7 +2124,7 @@ static void nlastrip_evaluate_meta(PointerRNA *ptr, ListBase *channels, ListBase
 	 */
 	nlastrip_evaluate(ptr, &tmp_channels, &tmp_modifiers, tmp_nes);
 	
-	/* assumulate temp-buffer and full-buffer, using the 'real' strip */
+	/* accumulate temp-buffer and full-buffer, using the 'real' strip */
 	nlaevalchan_buffers_accumulate(channels, &tmp_channels, nes);
 	
 	/* free temp eval-strip */
@@ -2334,7 +2334,7 @@ static void animsys_calculate_nla(PointerRNA *ptr, AnimData *adt, float ctime)
 /* ***************************************** */ 
 /* Overrides System - Public API */
 
-/* Clear all overides */
+/* Clear all overrides */
 
 /* Add or get existing Override for given setting */
 #if 0

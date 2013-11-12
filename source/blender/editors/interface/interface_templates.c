@@ -967,11 +967,11 @@ static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob,
 			if (md->type == eModifierType_ParticleSystem) {
 				ParticleSystem *psys = ((ParticleSystemModifierData *)md)->psys;
 				
-				if (!(ob->mode & OB_MODE_PARTICLE_EDIT) && psys->pathcache) {
+				if (!(ob->mode & OB_MODE_PARTICLE_EDIT)) {
 					if (ELEM(psys->part->ren_as, PART_DRAW_GR, PART_DRAW_OB))
 						uiItemO(row, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Convert"), ICON_NONE,
 						        "OBJECT_OT_duplicates_make_real");
-					else if (psys->part->ren_as == PART_DRAW_PATH)
+					else if (psys->part->ren_as == PART_DRAW_PATH && psys->pathcache)
 						uiItemO(row, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Convert"), ICON_NONE,
 						        "OBJECT_OT_modifier_convert");
 				}
@@ -2855,6 +2855,7 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 
 		items_shown = dyn_data->items_shown;
 		if (items_shown >= 0) {
+			bool activei_mapping_pending = true;
 			items_ptr = MEM_mallocN(sizeof(_uilist_item) * items_shown, AT);
 			//printf("%s: items shown: %d.\n", __func__, items_shown);
 			RNA_PROP_BEGIN (dataptr, itemptr, prop)
@@ -2875,8 +2876,10 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 					items_ptr[ii].org_idx = i;
 					items_ptr[ii].flt_flag = dyn_data->items_filter_flags ? dyn_data->items_filter_flags[i] : 0;
 
-					if (activei == i) {
+					if (activei_mapping_pending && activei == i) {
 						activei = ii;
+						/* So that we do not map again activei! */
+						activei_mapping_pending = false;
 					}
 # if 0 /* For now, do not alter active element, even if it will be hidden... */
 					else if (activei < i) {

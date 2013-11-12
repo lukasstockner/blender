@@ -58,7 +58,7 @@ void ED_operatortypes_armature(void)
 	WM_operatortype_append(ARMATURE_OT_parent_clear);
 	
 	WM_operatortype_append(ARMATURE_OT_select_all);
-	WM_operatortype_append(ARMATURE_OT_select_inverse);
+	WM_operatortype_append(ARMATURE_OT_select_mirror);
 	WM_operatortype_append(ARMATURE_OT_select_more);
 	WM_operatortype_append(ARMATURE_OT_select_less);
 	WM_operatortype_append(ARMATURE_OT_select_hierarchy);
@@ -74,6 +74,7 @@ void ED_operatortypes_armature(void)
 	WM_operatortype_append(ARMATURE_OT_fill);
 	WM_operatortype_append(ARMATURE_OT_merge);
 	WM_operatortype_append(ARMATURE_OT_separate);
+	WM_operatortype_append(ARMATURE_OT_split);
 	
 	WM_operatortype_append(ARMATURE_OT_autoside_names);
 	WM_operatortype_append(ARMATURE_OT_flip_names);
@@ -239,6 +240,9 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 	RNA_enum_set(kmi->ptr, "action", SEL_TOGGLE);
 	kmi = WM_keymap_add_item(keymap, "ARMATURE_OT_select_all", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
+
+	kmi = WM_keymap_add_item(keymap, "ARMATURE_OT_select_mirror", MKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", FALSE);
 	
 	kmi = WM_keymap_add_item(keymap, "ARMATURE_OT_select_hierarchy", LEFTBRACKETKEY, KM_PRESS, 0, 0);
 	RNA_enum_set(kmi->ptr, "direction", BONE_SELECT_PARENT);
@@ -269,6 +273,7 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "ARMATURE_OT_click_extrude", ACTIONMOUSE, KM_CLICK, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "ARMATURE_OT_fill", FKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "ARMATURE_OT_merge", MKEY, KM_PRESS, KM_ALT, 0);
+	WM_keymap_add_item(keymap, "ARMATURE_OT_split", YKEY, KM_PRESS, 0, 0);
 	
 	WM_keymap_add_item(keymap, "ARMATURE_OT_separate", PKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
 	

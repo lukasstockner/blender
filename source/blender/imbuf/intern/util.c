@@ -120,6 +120,17 @@ const char *imb_ext_image_qt[] = {
 	NULL
 };
 
+const char *imb_ext_movie_qt[] = {
+	".avi",   
+	".flc",   
+	".dv",    
+	".r3d",   
+	".mov",   
+	".movie", 
+	".mv",
+	NULL
+};
+
 const char *imb_ext_movie[] = {
 	".avi",
 	".flc",
@@ -131,10 +142,13 @@ const char *imb_ext_movie[] = {
 	".m2t",
 	".m2ts",
 	".mts",
+	".ts",
 	".mv",
 	".avs",
 	".wmv",
 	".ogv",
+	".ogg",
+	".r3d",
 	".dv",
 	".mpeg",
 	".mpg",
@@ -145,6 +159,7 @@ const char *imb_ext_movie[] = {
 	".divx",
 	".xvid",
 	".mxf",
+	".webm",
 	NULL
 };
 
@@ -448,14 +463,7 @@ int IMB_isanim(const char *filename)
 	
 	if (U.uiflag & USER_FILTERFILEEXTS) {
 		if (G.have_quicktime) {
-			if (BLI_testextensie(filename, ".avi")   ||
-			    BLI_testextensie(filename, ".flc")   ||
-			    BLI_testextensie(filename, ".dv")    ||
-			    BLI_testextensie(filename, ".r3d")   ||
-			    BLI_testextensie(filename, ".mov")   ||
-			    BLI_testextensie(filename, ".movie") ||
-			    BLI_testextensie(filename, ".mv"))
-			{
+			if (BLI_testextensie_array(filename, imb_ext_movie_qt)) {	
 				type = imb_get_anim_type(filename);
 			}
 			else {
@@ -463,11 +471,7 @@ int IMB_isanim(const char *filename)
 			}
 		}
 		else { /* no quicktime */
-			if (BLI_testextensie(filename, ".avi") ||
-			    BLI_testextensie(filename, ".dv")  ||
-			    BLI_testextensie(filename, ".r3d") ||
-			    BLI_testextensie(filename, ".mv"))
-			{
+			if (BLI_testextensie_array(filename, imb_ext_movie)) {
 				type = imb_get_anim_type(filename);
 			}
 			else {
