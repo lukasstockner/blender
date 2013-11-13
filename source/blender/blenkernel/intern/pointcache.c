@@ -476,18 +476,6 @@ static void ptcache_particle_extra_read(void *psys_v, PTCacheMem *pm, float UNUS
 	}
 }
 
-static struct PTCWriter *ptcache_particle_writer_create(Scene *scene, Object *ob, void *psys_v)
-{
-	ParticleSystem *psys = psys_v;
-	return PTC_writer_particles(scene, ob, psys);
-}
-
-static struct PTCReader *ptcache_particle_reader_create(Scene *scene, Object *ob, void *psys_v)
-{
-	ParticleSystem *psys = psys_v;
-	return PTC_reader_particles(scene, ob, psys);
-}
-
 /* Cloth functions */
 static int  ptcache_cloth_write(int index, void *cloth_v, void **data, int UNUSED(cfra))
 {
@@ -1198,9 +1186,6 @@ void BKE_ptcache_id_from_particles(PTCacheID *pid, Object *ob, ParticleSystem *p
 
 	pid->default_step = 10;
 	pid->max_step = 20;
-
-	pid->writer_create = ptcache_particle_writer_create;
-	pid->reader_create = ptcache_particle_reader_create;
 }
 void BKE_ptcache_id_from_cloth(PTCacheID *pid, Object *ob, ClothModifierData *clmd)
 {
@@ -2361,11 +2346,6 @@ int BKE_ptcache_read(PTCacheID *pid, float cfra)
 		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, MAX2(cfrai, cache->last_exact));
 	}
 
-//	if (!cache->reader && pid->reader_create)
-//		cache->reader = pid->reader_create(pid->scene, pid->ob, pid->calldata);
-//	if (cache->reader)
-//		PTC_read_sample(cache->reader);
-
 	return ret;
 }
 static int ptcache_write_stream(PTCacheID *pid, int cfra, int totpoint)
@@ -2538,11 +2518,6 @@ int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra)
 	else if (pid->write_point) {
 		error += ptcache_write(pid, cfra, overwrite);
 	}
-
-//	if (!cache->writer && pid->writer_create)
-//		cache->writer = pid->writer_create(pid->scene, pid->ob, pid->calldata);
-//	if (cache->writer)
-//		PTC_write_sample(cache->writer);
 
 	/* Mark frames skipped if more than 1 frame forwards since last non-skipped frame. */
 	if (cfra - cache->last_exact == 1 || cfra == cache->startframe) {
