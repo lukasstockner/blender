@@ -39,7 +39,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-__device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
+ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
 {
 	int label;
 
@@ -136,7 +136,7 @@ __device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderCl
 	return label;
 }
 
-__device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, const float3 omega_in, float *pdf)
 {
 	float3 eval;
 
@@ -285,7 +285,7 @@ __device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderC
 	return eval;
 }
 
-__device void bsdf_blur(KernelGlobals *kg, ShaderClosure *sc, float roughness)
+ccl_device void bsdf_blur(KernelGlobals *kg, ShaderClosure *sc, float roughness)
 {
 #ifdef __OSL__
 	if(kg->osl && sc->prim) {

@@ -62,7 +62,7 @@ void ARMATURE_OT_parent_set(struct wmOperatorType *ot);
 void ARMATURE_OT_parent_clear(struct wmOperatorType *ot);
 
 void ARMATURE_OT_select_all(struct wmOperatorType *ot);
-void ARMATURE_OT_select_inverse(struct wmOperatorType *ot);
+void ARMATURE_OT_select_mirror(struct wmOperatorType *ot);
 void ARMATURE_OT_select_more(struct wmOperatorType *ot);
 void ARMATURE_OT_select_less(struct wmOperatorType *ot);
 void ARMATURE_OT_select_hierarchy(struct wmOperatorType *ot);
@@ -110,7 +110,7 @@ void POSE_OT_select_hierarchy(struct wmOperatorType *ot);
 void POSE_OT_select_linked(struct wmOperatorType *ot);
 void POSE_OT_select_constraint_target(struct wmOperatorType *ot);
 void POSE_OT_select_grouped(struct wmOperatorType *ot);
-void POSE_OT_select_flip_active(struct wmOperatorType *ot);
+void POSE_OT_select_mirror(struct wmOperatorType *ot);
 
 void POSE_OT_group_add(struct wmOperatorType *ot);
 void POSE_OT_group_remove(struct wmOperatorType *ot);
@@ -228,9 +228,6 @@ struct EditBone *duplicateEditBoneObjects(struct EditBone *curBone, const char *
 
 /* editbones is the source list */
 void updateDuplicateSubtargetObjects(struct EditBone *dupBone, struct ListBase *editbones, struct Object *src_ob, struct Object *dst_ob);
-
-
-EditBone *editbone_name_exists(struct ListBase *edbo, const char *name);
 
 EditBone *add_points_bone(struct Object *obedit, float head[3], float tail[3]);
 void bone_free(struct bArmature *arm, struct EditBone *bone);

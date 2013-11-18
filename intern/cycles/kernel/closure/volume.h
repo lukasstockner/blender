@@ -24,14 +24,14 @@ CCL_NAMESPACE_BEGIN
 /* Given cosine between rays, return probability density that photon bounce to that direction
  * g parameter controls how far it difference from uniform sphere. g=0 uniform diffusion-like, g=1 - very close to sharp single ray. */
 
-__device float single_peaked_henyey_greenstein(float cos_theta, float m_g)
+ccl_device float single_peaked_henyey_greenstein(float cos_theta, float m_g)
 {
 	float p = (1.0f - m_g * m_g) / pow(1.0f + m_g * m_g - 2.0f * m_g * cos_theta, 1.5f) / 4.0f / M_PI_F;
 
 	return p;
 };
 
-__device int volume_henyey_greenstein_setup(ShaderClosure *sc)
+ccl_device int volume_henyey_greenstein_setup(ShaderClosure *sc)
 {
 	sc->type = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
 
@@ -39,7 +39,7 @@ __device int volume_henyey_greenstein_setup(ShaderClosure *sc)
 }
 
 // just return bsdf at input vector
-__device float3 volume_henyey_greenstein_eval_phase(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
+ccl_device float3 volume_henyey_greenstein_eval_phase(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
 {
 	float m_g = sc->data1;
 	const float magic_eps = 0.001f;
@@ -56,7 +56,7 @@ __device float3 volume_henyey_greenstein_eval_phase(const ShaderClosure *sc, con
 	return make_float3(*pdf, *pdf, *pdf);
 }
 
-__device int volume_henyey_greenstein_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv,
+ccl_device int volume_henyey_greenstein_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv,
 	float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float m_g = sc->data1;
@@ -104,19 +104,19 @@ __device int volume_henyey_greenstein_sample(const ShaderClosure *sc, float3 Ng,
 
 /* TRANSPARENT VOLUME CLOSURE */
 
-__device int volume_transparent_setup(ShaderClosure *sc)
+ccl_device int volume_transparent_setup(ShaderClosure *sc)
 {
 	sc->type = CLOSURE_VOLUME_TRANSPARENT_ID;
 
 	return SD_VOLUME;
 }
 
-__device float3 volume_transparent_eval_phase(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
+ccl_device float3 volume_transparent_eval_phase(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
 {
 	return make_float3(1.0f, 1.0f, 1.0f);
 }
 
-__device int volume_transparent_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv,
+ccl_device int volume_transparent_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv,
 	float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	/* XXX Implement */
@@ -125,7 +125,7 @@ __device int volume_transparent_sample(const ShaderClosure *sc, float3 Ng, float
 
 /* VOLUME CLOSURE */
 
-__device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
+ccl_device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
 {
 	float3 eval;
 
@@ -144,7 +144,7 @@ __device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, co
 	return eval;
 }
 
-__device int volume_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu,
+ccl_device int volume_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu,
 	float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
 {
 	int label;

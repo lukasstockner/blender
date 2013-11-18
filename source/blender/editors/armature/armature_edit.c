@@ -484,7 +484,7 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
 	
 	/* the number of joints determines how we fill:
 	 *  1) between joint and cursor (joint=head, cursor=tail)
-	 *  2) between the two joints (order is dependent on active-bone/hierachy)
+	 *  2) between the two joints (order is dependent on active-bone/hierarchy)
 	 *  3+) error (a smarter method involving finding chains needs to be worked out
 	 */
 	count = BLI_countlist(&points);
@@ -1127,7 +1127,7 @@ static int armature_delete_selected_exec(bContext *C, wmOperator *UNUSED(op))
 		bPoseChannel *pchan, *pchan_next;
 		for (pchan = obedit->pose->chanbase.first; pchan; pchan = pchan_next) {
 			pchan_next = pchan->next;
-			curBone = editbone_name_exists(arm->edbo, pchan->name);
+			curBone = ED_armature_bone_find_name(arm->edbo, pchan->name);
 			
 			if (curBone && (curBone->flag & BONE_SELECTED) && (arm->layer & curBone->layer)) {
 				BKE_pose_channel_free(pchan);
@@ -1146,7 +1146,7 @@ static int armature_delete_selected_exec(bContext *C, wmOperator *UNUSED(op))
 						for (ct = targets.first; ct; ct = ct->next) {
 							if (ct->tar == obedit) {
 								if (ct->subtarget[0]) {
-									curBone = editbone_name_exists(arm->edbo, ct->subtarget);
+									curBone = ED_armature_bone_find_name(arm->edbo, ct->subtarget);
 									if (curBone && (curBone->flag & BONE_SELECTED) && (arm->layer & curBone->layer)) {
 										con->flag |= CONSTRAINT_DISABLE;
 										ct->subtarget[0] = 0;

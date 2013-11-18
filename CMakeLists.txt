@@ -216,10 +216,13 @@ option(WITH_IMAGE_FRAMESERVER   "Enable image FrameServer Support for rendering"
 # Audio/Video format support
 option(WITH_CODEC_AVI           "Enable Blenders own AVI file support (raw/jpeg)" ON)
 option(WITH_CODEC_FFMPEG        "Enable FFMPeg Support (http://ffmpeg.org)" OFF)
-
 option(WITH_CODEC_SNDFILE       "Enable libsndfile Support (http://www.mega-nerd.com/libsndfile)" OFF)
-if(APPLE OR (WIN32 AND NOT UNIX))
-	option(WITH_CODEC_QUICKTIME     "Enable Quicktime Support" OFF)
+
+if(APPLE)
+	option(WITH_CODEC_FFMPEG        "Enable FFMPeg Support (http://ffmpeg.org)" ON)
+	option(WITH_CODEC_QUICKTIME     "Enable Quicktime Support" ON)
+else()
+	option(WITH_CODEC_FFMPEG        "Enable FFMPeg Support (http://ffmpeg.org)" OFF)
 endif()
 
 # 3D format support
@@ -367,10 +370,13 @@ if(APPLE)
 		message(STATUS "OSX_SYSROOT_PREFIX: " ${OSX_SYSROOT_PREFIX})
 		set(OSX_DEVELOPER_PREFIX /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk) # use guaranteed existing sdk
 		set(CMAKE_OSX_SYSROOT ${OSX_SYSROOT_PREFIX}/${OSX_DEVELOPER_PREFIX} CACHE PATH "" FORCE)
+        if(${CMAKE_GENERATOR} MATCHES "Xcode")
+            set(CMAKE_XCODE_ATTRIBUTE_SDKROOT macosx${OSX_SYSTEM}) # to silence sdk not found warning, just overrides CMAKE_OSX_SYSROOT
+        endif()
 	endif()
 	
 	if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
-		set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5" CACHE STRING "" FORCE) # 10.5 is our min. target, if you use higher sdk, weak linking happens
+		set(CMAKE_OSX_DEPLOYMENT_TARGET "10.6" CACHE STRING "" FORCE) # 10.6 is our min. target, if you use higher sdk, weak linking happens
 	endif()
 	
 	if(NOT ${CMAKE_GENERATOR} MATCHES "Xcode")
@@ -380,12 +386,7 @@ if(APPLE)
 		add_definitions("-DMACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
 	endif()
 
-	option(WITH_COCOA	  "Use Cocoa framework instead of deprecated Carbon" ON)
-	option(USE_QTKIT	  "Use QtKit instead of Carbon quicktime (needed for having partial quicktime for 64bit)" OFF)
 	option(WITH_LIBS10.5  "Use 10.5 libs (needed for 64bit builds)" OFF)
-	if(CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
-		set(USE_QTKIT ON CACHE BOOL "ON" FORCE) # no Quicktime in 64bit
-	endif()
 endif()
 
 
@@ -490,14 +491,6 @@ if(WITH_GHOST_SDL OR WITH_HEADLESS)
 	set(WITH_GHOST_XDND OFF)
 	set(WITH_X11_XF86VMODE OFF)
 	set(WITH_X11_XINPUT OFF)
-endif()
-
-if(MINGW)
-	if(WITH_CODEC_QUICKTIME)
-		message(FATAL_ERROR "MINGW requires WITH_CODEC_QUICKTIME to be OFF "
-		                    "because it is currently unsupported, remove this "
-		                    "line if youre a developer who wants to add support.")
-	endif()
 endif()
 
 TEST_SSE_SUPPORT(COMPILER_SSE_FLAG COMPILER_SSE2_FLAG)
@@ -1030,13 +1023,6 @@ elseif(WIN32)
 		set(SDL_LIBPATH ${SDL}/lib)
 	endif()
 
-	if(WITH_CODEC_QUICKTIME)
-		set(QUICKTIME ${LIBDIR}/QTDevWin)
-		set(QUICKTIME_INCLUDE_DIRS ${QUICKTIME}/CIncludes)
-		set(QUICKTIME_LIBRARIES qtmlClient)
-		set(QUICKTIME_LIBPATH ${QUICKTIME}/Libraries)
-	endif()
-
 	if(WITH_RAYOPTIMIZATION AND SUPPORT_SSE_BUILD)
 		add_definitions(-D__SSE__ -D__MMX__)
 	endif()
@@ -1500,7 +1486,7 @@ elseif(WIN32)
 elseif(APPLE)
 
 	if(${CMAKE_OSX_DEPLOYMENT_TARGET} STREQUAL "10.5" OR ${CMAKE_OSX_DEPLOYMENT_TARGET} STRGREATER "10.5")
-		set(WITH_LIBS10.5 ON CACHE BOOL "Use 10.5 libs" FORCE) # valid also for 10.6/10.7
+		set(WITH_LIBS10.5 ON CACHE BOOL "Use 10.5 libs" FORCE) # valid also for 10.6/7/8/9
 	endif()
 
 	if(WITH_LIBS10.5)
@@ -1612,46 +1598,36 @@ elseif(APPLE)
 		set(PLATFORM_LINKLIBS stdc++)
 	endif()
 
-	if(WITH_COCOA)
-		set(PLATFORM_CFLAGS "-pipe -funsigned-char -DGHOST_COCOA")
-		set(PLATFORM_LINKFLAGS "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa -framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio")
-		if(USE_QTKIT)
-			set(PLATFORM_CFLAGS "${PLATFORM_CFLAGS} -DUSE_QTKIT")
-			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -framework QTKit")
-			if(CMAKE_OSX_ARCHITECTURES MATCHES i386)
-				set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -framework QuickTime")
-				# libSDL still needs 32bit carbon quicktime
-			endif()
-		elseif(WITH_CODEC_QUICKTIME)
+	set(PLATFORM_CFLAGS "-pipe -funsigned-char")
+	set(PLATFORM_LINKFLAGS "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa -framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio")
+	if(WITH_CODEC_QUICKTIME)
+		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -framework QTKit")
+		if(CMAKE_OSX_ARCHITECTURES MATCHES i386)
 			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -framework QuickTime")
+			# libSDL still needs 32bit carbon quicktime
+		endif()
+	endif()
+
+	# XXX - SOME MAC DEV PLEASE TEST WITH THE SDK INSTALLED!
+	# ALSO SHOULD BE MOVED INTO OWN MODULE WHEN FUNCTIONAL
+	if(WITH_INPUT_NDOF)
+		# This thread it *should* work and check the framework - campbell
+		# http://www.cmake.org/pipermail/cmake/2005-December/007740.html
+		find_library(3DCONNEXION_CLIENT_FRAMEWORK
+			NAMES 3DconnexionClient
+		)
+		if(NOT 3DCONNEXION_CLIENT_FRAMEWORK)
+			set(WITH_INPUT_NDOF OFF)
 		endif()
 
-		# XXX - SOME MAC DEV PLEASE TEST WITH THE SDK INSTALLED!
-		# ALSO SHOULD BE MOVED INTO OWN MODULE WHEN FUNCTIONAL
 		if(WITH_INPUT_NDOF)
-			# This thread it *should* work and check the framework - campbell
-			# http://www.cmake.org/pipermail/cmake/2005-December/007740.html
-			find_library(3DCONNEXION_CLIENT_FRAMEWORK
-				NAMES 3DconnexionClient
-			)
-			if(NOT 3DCONNEXION_CLIENT_FRAMEWORK)
-				set(WITH_INPUT_NDOF OFF)
-			endif()
-
-			if(WITH_INPUT_NDOF)
-				set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -F/Library/Frameworks -weak_framework 3DconnexionClient")
-				set(NDOF_INCLUDE_DIRS /Library/Frameworks/3DconnexionClient.framework/Headers )
-			endif()
+			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -F/Library/Frameworks -weak_framework 3DconnexionClient")
+			set(NDOF_INCLUDE_DIRS /Library/Frameworks/3DconnexionClient.framework/Headers )
 		endif()
+	endif()
 
 	if(WITH_JACK)
 		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -F/Library/Frameworks -weak_framework jackmp")
-	endif()
-
-	else()
-		set(PLATFORM_CFLAGS "-pipe -funsigned-char")
-		set(PLATFORM_LINKFLAGS "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Carbon -framework AGL -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework QuickTime")
-		set(WITH_INPUT_NDOF OFF)  # unsupported
 	endif()
 	
 	if(WITH_PYTHON_MODULE OR WITH_PYTHON_FRAMEWORK)

@@ -153,6 +153,7 @@
 #include "BKE_tracking.h"
 #include "BKE_treehash.h"
 #include "BKE_sound.h"
+#include "BKE_writeffmpeg.h"
 
 #include "IMB_imbuf.h"  // for proxy / timecode versioning stuff
 
@@ -7292,7 +7293,8 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	bfd->main->subversionfile = fg->subversion;
 	bfd->main->minversionfile = fg->minversion;
 	bfd->main->minsubversionfile = fg->minsubversion;
-	bfd->main->revision = fg->revision;
+	bfd->main->build_commit_timestamp = fg->build_commit_timestamp;
+	BLI_strncpy(bfd->main->build_hash, fg->build_hash, sizeof(bfd->main->build_hash));
 	
 	bfd->winpos = fg->winpos;
 	bfd->fileflags = fg->fileflags;
@@ -7926,8 +7928,21 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 {
 	/* WATCH IT!!!: pointers from libdata have not been converted */
 	
-	if (G.debug & G_DEBUG)
-		printf("read file %s\n  Version %d sub %d svn r%d\n", fd->relabase, main->versionfile, main->subversionfile, main->revision);
+	if (G.debug & G_DEBUG) {
+		char build_commit_datetime[32];
+		time_t temp_time = main->build_commit_timestamp;
+		struct tm *tm = gmtime(&temp_time);
+		if (LIKELY(tm)) {
+			strftime(build_commit_datetime, sizeof(build_commit_datetime), "%Y-%m-%d %H:%M", tm);
+		}
+		else {
+			BLI_strncpy(build_commit_datetime, "date-unknown", sizeof(build_commit_datetime));
+		}
+
+		printf("read file %s\n  Version %d sub %d date %s hash %s\n",
+		       fd->relabase, main->versionfile, main->subversionfile,
+		       build_commit_datetime, main->build_hash);
+	}
 	
 	blo_do_versions_pre250(fd, lib, main);
 	blo_do_versions_250(fd, lib, main);
@@ -9697,7 +9712,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
-	
+
 	if (!MAIN_VERSION_ATLEAST(main, 269, 1)) {
 		/* Removal of Cycles SSS Compatible falloff */
 		FOREACH_NODETREE(main, ntree, id) {
@@ -9714,10 +9729,38 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		} FOREACH_NODETREE_END
 	}
 
+	if (!MAIN_VERSION_ATLEAST(main, 269, 2)) {
+		/* Initialize CDL settings for Color Balance nodes */
+		FOREACH_NODETREE(main, ntree, id) {
+			if (ntree->type == NTREE_COMPOSIT) {
+				bNode *node;
+				for (node = ntree->nodes.first; node; node = node->next) {
+					if (node->type == CMP_NODE_COLORBALANCE) {
+						NodeColorBalance *n = node->storage;
+						if (node->custom1 == 0) {
+							/* LGG mode stays the same, just init CDL settings */
+							ntreeCompositColorBalanceSyncFromLGG(ntree, node);
+						}
+						else if (node->custom1 == 1) {
+							/* CDL previously used same variables as LGG, copy them over
+							 * and then sync LGG for comparable results in both modes.
+							 */
+							copy_v3_v3(n->offset, n->lift);
+							copy_v3_v3(n->power, n->gamma);
+							copy_v3_v3(n->slope, n->gain);
+							ntreeCompositColorBalanceSyncFromCDL(ntree, node);
+						}
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
+	}
+
 	{
 		bScreen *sc;
 		ScrArea *sa;
 		SpaceLink *sl;
+		Scene *scene;
 
 		/* Update files using invalid (outdated) outlinevis Outliner values. */
 		for (sc = main->screen.first; sc; sc = sc->id.next) {
@@ -9757,26 +9800,47 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
-	}
 
-	if (!DNA_struct_elem_find(fd->filesdna, "TriangulateModifierData", "int", "quad_method")) {
-		Object *ob;
-		for (ob = main->object.first; ob; ob = ob->id.next) {
-			ModifierData *md;
-			for (md = ob->modifiers.first; md; md = md->next) {
-				if (md->type == eModifierType_Triangulate) {
-					TriangulateModifierData *tmd = (TriangulateModifierData *)md;
-					if ((tmd->flag & MOD_TRIANGULATE_BEAUTY)) {
-						tmd->quad_method = MOD_TRIANGULATE_QUAD_BEAUTY;
-						tmd->ngon_method = MOD_TRIANGULATE_NGON_BEAUTY;
-					}
-					else {
-						tmd->quad_method = MOD_TRIANGULATE_QUAD_FIXED;
-						tmd->ngon_method = MOD_TRIANGULATE_NGON_SCANFILL;
+		if (!DNA_struct_elem_find(fd->filesdna, "TriangulateModifierData", "int", "quad_method")) {
+			Object *ob;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				ModifierData *md;
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Triangulate) {
+						TriangulateModifierData *tmd = (TriangulateModifierData *)md;
+						if ((tmd->flag & MOD_TRIANGULATE_BEAUTY)) {
+							tmd->quad_method = MOD_TRIANGULATE_QUAD_BEAUTY;
+							tmd->ngon_method = MOD_TRIANGULATE_NGON_BEAUTY;
+						}
+						else {
+							tmd->quad_method = MOD_TRIANGULATE_QUAD_FIXED;
+							tmd->ngon_method = MOD_TRIANGULATE_NGON_SCANFILL;
+						}
 					}
 				}
 			}
 		}
+
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			if (scene->gm.matmode == GAME_MAT_TEXFACE) {
+				scene->gm.matmode = GAME_MAT_MULTITEX;
+			}
+		}
+
+		/* 'Increment' mode disabled for nodes, use true grid snapping instead */
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			if (scene->toolsettings->snap_node_mode == SCE_SNAP_MODE_INCREMENT)
+				scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_GRID;
+		}
+
+		/* Update for removed "sound-only" option in FFMPEG export settings. */
+#ifdef WITH_FFMPEG
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			if (scene->r.ffcodecdata.type >= FFMPEG_INVALID) {
+				scene->r.ffcodecdata.type = FFMPEG_AVI;
+			}
+		}
+#endif
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
