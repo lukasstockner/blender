@@ -53,6 +53,7 @@
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
 #include "BKE_constraint.h"
+#include "BKE_deform.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
@@ -440,6 +441,10 @@ void action_groups_clear_tempflags(bAction *act)
 
 /* *************** Pose channels *************** */
 
+/**
+ * Return a pointer to the pose channel of the given name
+ * from this pose.
+ */
 bPoseChannel *BKE_pose_channel_find_name(const bPose *pose, const char *name)
 {
 	if (ELEM(NULL, pose, name) || (name[0] == '\0'))
@@ -451,8 +456,14 @@ bPoseChannel *BKE_pose_channel_find_name(const bPose *pose, const char *name)
 	return BLI_findstring(&((bPose *)pose)->chanbase, name, offsetof(bPoseChannel, name));
 }
 
-/* Use with care, not on Armature poses but for temporal ones */
-/* (currently used for action constraints and in rebuild_pose) */
+/**
+ * Looks to see if the channel with the given name
+ * already exists in this pose - if not a new one is
+ * allocated and initialized.
+ *
+ * \note Use with care, not on Armature poses but for temporal ones.
+ * \note (currently used for action constraints and in rebuild_pose).
+ */
 bPoseChannel *BKE_pose_channel_verify(bPose *pose, const char *name)
 {
 	bPoseChannel *chan;
@@ -505,7 +516,12 @@ bool BKE_pose_channels_is_valid(const bPose *pose)
 }
 
 #endif
-/* Find the active posechannel for an object (we can't just use pose, as layer info is in armature) */
+
+/**
+ * Find the active posechannel for an object (we can't just use pose, as layer info is in armature)
+ *
+ * \note: Object, not bPose is used here, as we need layer info from Armature)
+ */
 bPoseChannel *BKE_pose_channel_active(Object *ob)
 {
 	bArmature *arm = (ob) ? ob->data : NULL;
@@ -524,6 +540,22 @@ bPoseChannel *BKE_pose_channel_active(Object *ob)
 	return NULL;
 }
 
+/**
+ * \see #ED_armature_bone_get_mirrored (edit-mode, matching function)
+ */
+bPoseChannel *BKE_pose_channel_get_mirrored(const bPose *pose, const char *name)
+{
+	char name_flip[MAXBONENAME];
+
+	BKE_deform_flip_side_name(name_flip, name, false);
+
+	if (!STREQ(name_flip, name)) {
+		return BKE_pose_channel_find_name(pose, name_flip);
+	}
+
+	return NULL;
+}
+
 const char *BKE_pose_ikparam_get_name(bPose *pose)
 {
 	if (pose) {
@@ -536,8 +568,14 @@ const char *BKE_pose_ikparam_get_name(bPose *pose)
 	}
 	return NULL;
 }
-/* dst should be freed already, makes entire duplicate */
-void BKE_pose_copy_data(bPose **dst, bPose *src, int copycon)
+
+/**
+ * Allocate a new pose on the heap, and copy the src pose and it's channels
+ * into the new pose. *dst is set to the newly allocated structure, and assumed to be NULL.
+ *
+ * \param dst  Should be freed already, makes entire duplicate.
+ */
+void BKE_pose_copy_data(bPose **dst, bPose *src, const bool copy_constraints)
 {
 	bPose *outPose;
 	bPoseChannel *pchan;
@@ -551,15 +589,22 @@ void BKE_pose_copy_data(bPose **dst, bPose *src, int copycon)
 	outPose = MEM_callocN(sizeof(bPose), "pose");
 	
 	BLI_duplicatelist(&outPose->chanbase, &src->chanbase);
-	
+	if (outPose->chanbase.first) {
+		bPoseChannel *pchan;
+		for (pchan = outPose->chanbase.first; pchan; pchan = pchan->next) {
+			if (pchan->custom) {
+				id_us_plus(&pchan->custom->id);
+			}
+		}
+	}
+
 	outPose->iksolver = src->iksolver;
 	outPose->ikdata = NULL;
 	outPose->ikparam = MEM_dupallocN(src->ikparam);
 	outPose->avs = src->avs;
 	
 	for (pchan = outPose->chanbase.first; pchan; pchan = pchan->next) {
-		/* TODO: rename this argument... */
-		if (copycon) {
+		if (copy_constraints) {
 			BKE_copy_constraints(&listb, &pchan->constraints, TRUE);  // BKE_copy_constraints NULLs listb
 			pchan->constraints = listb;
 			pchan->mpath = NULL; /* motion paths should not get copied yet... */
@@ -571,8 +616,9 @@ void BKE_pose_copy_data(bPose **dst, bPose *src, int copycon)
 	}
 
 	/* for now, duplicate Bone Groups too when doing this */
-	if (copycon)
+	if (copy_constraints) {
 		BLI_duplicatelist(&outPose->agroups, &src->agroups);
+	}
 	
 	*dst = outPose;
 }
@@ -641,7 +687,10 @@ bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan)
 	return pose_channel_in_IK_chain(ob, pchan, 0);
 }
 
-
+/**
+ * Removes the hash for quick lookup of channels, must
+ * be done when adding/removing channels.
+ */
 void BKE_pose_channels_hash_make(bPose *pose) 
 {
 	if (!pose->chanhash) {
@@ -661,6 +710,10 @@ void BKE_pose_channels_hash_free(bPose *pose)
 	}
 }
 
+/**
+ * Deallocates a pose channel.
+ * Does not free the pose channel itself.
+ */
 void BKE_pose_channel_free(bPoseChannel *pchan)
 {
 	if (pchan->custom) {
@@ -681,6 +734,10 @@ void BKE_pose_channel_free(bPoseChannel *pchan)
 	}
 }
 
+/**
+ * Removes and deallocates all channels from a pose.
+ * Does not free the pose itself.
+ */
 void BKE_pose_channels_free(bPose *pose) 
 {
 	bPoseChannel *pchan;
@@ -695,6 +752,9 @@ void BKE_pose_channels_free(bPose *pose)
 	BKE_pose_channels_hash_free(pose);
 }
 
+/**
+ * Removes and deallocates all data from a pose, and also frees the pose.
+ */
 void BKE_pose_free(bPose *pose)
 {
 	if (pose) {
@@ -739,9 +799,13 @@ static void copy_pose_channel_data(bPoseChannel *pchan, const bPoseChannel *chan
 	}
 }
 
-/* makes copies of internal data, unlike copy_pose_channel_data which only
- * copies the pose state.
- * hint: use when copying bones in editmode (on returned value from BKE_pose_channel_verify) */
+/**
+ * Copy the internal members of each pose channel including constraints
+ * and ID-Props, used when duplicating bones in editmode.
+ * (unlike copy_pose_channel_data which only).
+ *
+ * \note use when copying bones in editmode (on returned value from #BKE_pose_channel_verify)
+ */
 void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_from)
 {
 	/* copy transform locks */

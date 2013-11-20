@@ -341,14 +341,14 @@ static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return wm_macro_end(op, retval);
 }
 
-static int wm_macro_cancel(bContext *C, wmOperator *op)
+static void wm_macro_cancel(bContext *C, wmOperator *op)
 {
 	/* call cancel on the current modal operator, if any */
 	if (op->opm && op->opm->type->cancel) {
 		op->opm->type->cancel(C, op->opm);
 	}
 
-	return wm_macro_end(op, OPERATOR_CANCELLED);
+	wm_macro_end(op, OPERATOR_CANCELLED);
 }
 
 /* Names have to be static for now */
@@ -521,13 +521,14 @@ void WM_operator_bl_idname(char *to, const char *from)
 		to[0] = 0;
 }
 
-/* print a string representation of the operator, with the args that it runs 
- * so python can run it again,
+/* Print a string representation of the operator, with the args that it runs so python can run it again.
  *
- * When calling from an existing wmOperator do.
- * WM_operator_pystring(op->type, op->ptr);
+ * When calling from an existing wmOperator, better to use simple version:
+ *     WM_operator_pystring(C, op);
+ *
+ * Note: both op and opptr may be NULL (op is only used for macro operators).
  */
-char *WM_operator_pystring(bContext *C, wmOperatorType *ot, PointerRNA *opptr, int all_args)
+char *WM_operator_pystring_ex(bContext *C, wmOperator *op, const bool all_args, wmOperatorType *ot, PointerRNA *opptr)
 {
 	char idname_py[OP_MAX_TYPENAME];
 
@@ -539,30 +540,64 @@ char *WM_operator_pystring(bContext *C, wmOperatorType *ot, PointerRNA *opptr, i
 	/* arbitrary, but can get huge string with stroke painting otherwise */
 	int max_prop_length = 10;
 
-	/* only to get the orginal props for comparisons */
-	PointerRNA opptr_default;
-
-	if (opptr == NULL) {
-		WM_operator_properties_create_ptr(&opptr_default, ot);
-		opptr = &opptr_default;
-	}
-
 	WM_operator_py_idname(idname_py, ot->idname);
 	BLI_dynstr_appendf(dynstr, "bpy.ops.%s(", idname_py);
 
-	cstring_args = RNA_pointer_as_string_keywords(C, opptr, false,
-	                                              all_args, max_prop_length);
-	BLI_dynstr_append(dynstr, cstring_args);
-	MEM_freeN(cstring_args);
+	if (op && op->macro.first) {
+		/* Special handling for macros, else we only get default values in this case... */
+		wmOperator *opm;
+		bool first_op = true;
+		for (opm = op->macro.first; opm; opm = opm->next) {
+			PointerRNA *opmptr = opm->ptr;
+			PointerRNA opmptr_default;
+			if (opmptr == NULL) {
+				WM_operator_properties_create_ptr(&opmptr_default, opm->type);
+				opmptr = &opmptr_default;
+			}
 
-	if (opptr == &opptr_default)
-		WM_operator_properties_free(&opptr_default);
+			cstring_args = RNA_pointer_as_string_id(C, opmptr);
+			if (first_op) {
+				BLI_dynstr_appendf(dynstr, "%s=%s", opm->type->idname, cstring_args);
+				first_op = false;
+			}
+			else {
+				BLI_dynstr_appendf(dynstr, ", %s=%s", opm->type->idname, cstring_args);
+			}
+			MEM_freeN(cstring_args);
+
+			if (opmptr == &opmptr_default) {
+				WM_operator_properties_free(&opmptr_default);
+			}
+		}
+	}
+	else {
+		/* only to get the orginal props for comparisons */
+		PointerRNA opptr_default;
+
+		if (opptr == NULL) {
+			WM_operator_properties_create_ptr(&opptr_default, ot);
+			opptr = &opptr_default;
+		}
+
+		cstring_args = RNA_pointer_as_string_keywords(C, opptr, false, all_args, max_prop_length);
+		BLI_dynstr_append(dynstr, cstring_args);
+		MEM_freeN(cstring_args);
+
+		if (opptr == &opptr_default) {
+			WM_operator_properties_free(&opptr_default);
+		}
+	}
 
 	BLI_dynstr_append(dynstr, ")");
 
 	cstring = BLI_dynstr_get_cstring(dynstr);
 	BLI_dynstr_free(dynstr);
 	return cstring;
+}
+
+char *WM_operator_pystring(bContext *C, wmOperator *op, const bool all_args)
+{
+	return WM_operator_pystring_ex(C, op, all_args, op->type, op->ptr);
 }
 
 /* return NULL if no match is found */
@@ -1396,12 +1431,19 @@ static uiBlock *wm_operator_ui_create(bContext *C, ARegion *ar, void *userData)
 	return block;
 }
 
-static void wm_operator_ui_popup_cancel(struct bContext *UNUSED(C), void *userData)
+static void wm_operator_ui_popup_cancel(struct bContext *C, void *userData)
 {
 	wmOpPopUp *data = userData;
-	if (data->free_op && data->op) {
-		wmOperator *op = data->op;
-		WM_operator_free(op);
+	wmOperator *op = data->op;
+
+	if (op) {
+		if (op->type->cancel) {
+			op->type->cancel(C, op);
+		}
+
+		if (data->free_op) {
+			WM_operator_free(op);
+		}
 	}
 
 	MEM_freeN(data);
@@ -1634,18 +1676,20 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 
 
 #ifdef WITH_BUILDINFO
-	int ver_width, rev_width;
-	char version_buf[128];
-	char revision_buf[128];
-	extern char build_rev[];
-	
-	BLI_snprintf(version_buf, sizeof(version_buf),
-	             "%d.%02d.%d", BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION);
-	BLI_snprintf(revision_buf, sizeof(revision_buf), "r%s", build_rev);
+	int label_delta = 0;
+	int hash_width, date_width;
+	char date_buf[128] = "\0";
+	char hash_buf[128] = "\0";
+	extern unsigned long build_commit_timestamp;
+	extern char build_hash[], build_commit_date[], build_commit_time[], build_branch[];
+
+	/* Builds made from tag only shows tag sha */
+	BLI_snprintf(hash_buf, sizeof(hash_buf), "Hash: %s", build_hash);
+	BLI_snprintf(date_buf, sizeof(date_buf), "Date: %s %s", build_commit_date, build_commit_time);
 	
 	BLF_size(style->widgetlabel.uifont_id, style->widgetlabel.points, U.pixelsize * U.dpi);
-	ver_width = (int)BLF_width(style->widgetlabel.uifont_id, version_buf) + 0.5f * U.widget_unit;
-	rev_width = (int)BLF_width(style->widgetlabel.uifont_id, revision_buf) + 0.5f * U.widget_unit;
+	hash_width = (int)BLF_width(style->widgetlabel.uifont_id, hash_buf) + 0.5f * U.widget_unit;
+	date_width = (int)BLF_width(style->widgetlabel.uifont_id, date_buf) + 0.5f * U.widget_unit;
 #endif  /* WITH_BUILDINFO */
 
 	block = uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
@@ -1660,9 +1704,20 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiButSetFunc(but, wm_block_splash_close, block, NULL);
 	uiBlockSetFunc(block, wm_block_splash_refreshmenu, block, NULL);
 	
-#ifdef WITH_BUILDINFO	
-	uiDefBut(block, LABEL, 0, version_buf, U.pixelsize * 494 - ver_width, U.pixelsize * 258, ver_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
-	uiDefBut(block, LABEL, 0, revision_buf, U.pixelsize * 494 - rev_width, U.pixelsize * 246, rev_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+#ifdef WITH_BUILDINFO
+	if (build_commit_timestamp != 0) {
+		uiDefBut(block, LABEL, 0, date_buf, U.pixelsize * 494 - date_width, U.pixelsize * 270, date_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+		label_delta = 12;
+	}
+	uiDefBut(block, LABEL, 0, hash_buf, U.pixelsize * 494 - hash_width, U.pixelsize * (270 - label_delta), hash_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+
+	if (!STREQ(build_branch, "master")) {
+		char branch_buf[128] = "\0";
+		int branch_width;
+		BLI_snprintf(branch_buf, sizeof(branch_buf), "Branch: %s", build_branch);
+		branch_width = (int)BLF_width(style->widgetlabel.uifont_id, branch_buf) + 0.5f * U.widget_unit;
+		uiDefBut(block, LABEL, 0, branch_buf, U.pixelsize * 494 - branch_width, U.pixelsize * (258 - label_delta), branch_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+	}
 #endif  /* WITH_BUILDINFO */
 	
 	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 10, 2, U.pixelsize * 480, U.pixelsize * 110, style);
@@ -1686,11 +1741,11 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	col = uiLayoutColumn(split, FALSE);
 	uiItemL(col, IFACE_("Links"), ICON_NONE);
 	uiItemStringO(col, IFACE_("Donations"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://www.blender.org/blenderorg/blender-foundation/donation-payment");
+	              "http://www.blender.org/foundation/donation-payment/");
 	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://www.blender.org/development/credits");
+	              "http://www.blender.org/about/credits/");
 	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://www.blender.org/development/release-logs/blender-269");
+	              "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/2.70");
 	uiItemStringO(col, IFACE_("Manual"), ICON_URL, "WM_OT_url_open", "url",
 	              "http://wiki.blender.org/index.php/Doc:2.6/Manual");
 	uiItemStringO(col, IFACE_("Blender Website"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org");
@@ -1745,7 +1800,7 @@ static void WM_OT_splash(wmOperatorType *ot)
 {
 	ot->name = "Splash Screen";
 	ot->idname = "WM_OT_splash";
-	ot->description = "Opens a blocking popup region with release info";
+	ot->description = "Opens the splash screen with release info";
 	
 	ot->invoke = wm_splash_invoke;
 	ot->poll = WM_operator_winactive;
@@ -2844,11 +2899,9 @@ int WM_border_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-int WM_border_select_cancel(bContext *C, wmOperator *op)
+void WM_border_select_cancel(bContext *C, wmOperator *op)
 {
 	wm_gesture_end(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 /* **************** circle gesture *************** */
@@ -2961,11 +3014,9 @@ int WM_gesture_circle_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-int WM_gesture_circle_cancel(bContext *C, wmOperator *op)
+void WM_gesture_circle_cancel(bContext *C, wmOperator *op)
 {
 	wm_gesture_end(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 #if 0
@@ -3188,18 +3239,14 @@ int WM_gesture_lines_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return WM_gesture_lasso_modal(C, op, event);
 }
 
-int WM_gesture_lasso_cancel(bContext *C, wmOperator *op)
+void WM_gesture_lasso_cancel(bContext *C, wmOperator *op)
 {
 	wm_gesture_end(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
-int WM_gesture_lines_cancel(bContext *C, wmOperator *op)
+void WM_gesture_lines_cancel(bContext *C, wmOperator *op)
 {
 	wm_gesture_end(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 /**
@@ -3365,11 +3412,9 @@ int WM_gesture_straightline_modal(bContext *C, wmOperator *op, const wmEvent *ev
 	return OPERATOR_RUNNING_MODAL;
 }
 
-int WM_gesture_straightline_cancel(bContext *C, wmOperator *op)
+void WM_gesture_straightline_cancel(bContext *C, wmOperator *op)
 {
 	wm_gesture_end(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 #if 0
@@ -3803,7 +3848,7 @@ static void radial_control_set_value(RadialControl *rc, float val)
 	}
 }
 
-static int radial_control_cancel(bContext *C, wmOperator *op)
+static void radial_control_cancel(bContext *C, wmOperator *op)
 {
 	RadialControl *rc = op->customdata;
 	wmWindowManager *wm = CTX_wm_manager(C);
@@ -3821,8 +3866,6 @@ static int radial_control_cancel(bContext *C, wmOperator *op)
 	glDeleteTextures(1, &rc->gltex);
 
 	MEM_freeN(rc);
-
-	return OPERATOR_CANCELLED;
 }
 
 static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -4255,6 +4298,7 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_assign(keymap, "UV_OT_circle_select");
 	WM_modalkeymap_assign(keymap, "CLIP_OT_select_circle");
 	WM_modalkeymap_assign(keymap, "MASK_OT_select_circle");
+	WM_modalkeymap_assign(keymap, "NODE_OT_select_circle");
 
 }
 

@@ -197,59 +197,23 @@ void ED_markers_get_minmax(ListBase *markers, short sel, float *first, float *la
 {
 	TimeMarker *marker;
 	float min, max;
-	int selcount = 0;
 	
 	/* sanity check */
 	//printf("markers = %p -  %p, %p\n", markers, markers->first, markers->last);
-	if (markers == NULL) {
+	if (ELEM3(NULL, markers, markers->first, markers->last)) {
 		*first = 0.0f;
 		*last = 0.0f;
 		return;
 	}
-	
-	if (markers->first && markers->last) {
-		TimeMarker *fm = markers->first;
-		TimeMarker *lm = markers->last;
-		
-		/* Store last marker in min, and first marker in max, so that later real value calc actually works! [#37146]. */
-		min = (float)lm->frame;
-		max = (float)fm->frame;
-	}
-	else {
-		*first = 0.0f;
-		*last = 0.0f;
-		return;
-	}
-	
-	/* count how many markers are usable - see later */
-	if (sel) {
-		for (marker = markers->first; marker; marker = marker->next) {
-			if (marker->flag & SELECT)
-				selcount++;
-		}
-	}
-	else
-		selcount = BLI_countlist(markers);
-	
-	/* if only selected are to be considered, only consider the selected ones
-	 * (optimization for not searching list)
-	 */
-	if (selcount > 1) {
-		for (marker = markers->first; marker; marker = marker->next) {
-			if (sel) {
-				if (marker->flag & SELECT) {
-					if (marker->frame < min)
-						min = (float)marker->frame;
-					if (marker->frame > max)
-						max = (float)marker->frame;
-				}
-			}
-			else {
-				if (marker->frame < min)
-					min = (float)marker->frame;
-				if (marker->frame > max)
-					max = (float)marker->frame;
-			}
+
+	min = FLT_MAX;
+	max = -FLT_MAX;
+	for (marker = markers->first; marker; marker = marker->next) {
+		if (!sel || (marker->flag & SELECT)) {
+			if (marker->frame < min)
+				min = (float)marker->frame;
+			if (marker->frame > max)
+				max = (float)marker->frame;
 		}
 	}
 	
@@ -747,13 +711,11 @@ static void ed_marker_move_apply(bContext *C, wmOperator *op)
 }
 
 /* only for modal */
-static int ed_marker_move_cancel(bContext *C, wmOperator *op)
+static void ed_marker_move_cancel(bContext *C, wmOperator *op)
 {
 	RNA_int_set(op->ptr, "frames", 0);
 	ed_marker_move_apply(C, op);
 	ed_marker_move_exit(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 
@@ -770,7 +732,6 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 		case ESCKEY:
 			ed_marker_move_cancel(C, op);
 			return OPERATOR_CANCELLED;
-		
 		case RIGHTMOUSE:
 			/* press = user manually demands transform to be canceled */
 			if (event->val == KM_PRESS) {

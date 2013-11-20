@@ -87,7 +87,6 @@
 
 #include "object_intern.h"
 
-static void modifier_skin_customdata_ensure(struct Object *ob);
 static void modifier_skin_customdata_delete(struct Object *ob);
 
 /******************************** API ****************************/
@@ -299,9 +298,6 @@ static int object_modifier_remove(Main *bmain, Object *ob, ModifierData *md,
 		*sort_depsgraph = 1;
 	}
 	else if (md->type == eModifierType_Surface) {
-		if (ob->pd && ob->pd->shape == PFIELD_SHAPE_SURFACE)
-			ob->pd->shape = PFIELD_SHAPE_PLANE;
-
 		*sort_depsgraph = 1;
 	}
 	else if (md->type == eModifierType_Multires) {
@@ -1434,7 +1430,7 @@ void OBJECT_OT_multires_base_apply(wmOperatorType *ot)
 
 /************************** skin modifier ***********************/
 
-static void modifier_skin_customdata_ensure(Object *ob)
+void modifier_skin_customdata_ensure(Object *ob)
 {
 	Mesh *me = ob->data;
 	BMesh *bm = me->edit_btmesh ? me->edit_btmesh->bm : NULL;
@@ -1857,7 +1853,7 @@ void OBJECT_OT_skin_armature_create(wmOperatorType *ot)
 
 static int meshdeform_poll(bContext *C)
 {
-	return edit_modifier_poll_generic(C, &RNA_MeshDeformModifier, (1 << OB_MESH));
+	return edit_modifier_poll_generic(C, &RNA_MeshDeformModifier, 0);
 }
 
 static int meshdeform_bind_exec(bContext *C, wmOperator *op)

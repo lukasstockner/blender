@@ -122,10 +122,9 @@ static void eyedropper_exit(bContext *C, wmOperator *op)
 	}
 }
 
-static int eyedropper_cancel(bContext *C, wmOperator *op)
+static void eyedropper_cancel(bContext *C, wmOperator *op)
 {
 	eyedropper_exit(C, op);
-	return OPERATOR_CANCELLED;
 }
 
 /* *** eyedropper_color_ helper functions *** */
@@ -243,7 +242,8 @@ static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	switch (event->type) {
 		case ESCKEY:
 		case RIGHTMOUSE:
-			return eyedropper_cancel(C, op);
+			eyedropper_cancel(C, op);
+			return OPERATOR_CANCELLED;
 		case LEFTMOUSE:
 			if (event->val == KM_RELEASE) {
 				if (eye->accum_tot == 0) {
@@ -439,7 +439,9 @@ static void datadropper_exit(bContext *C, wmOperator *op)
 	if (op->customdata) {
 		DataDropper *ddr = (DataDropper *)op->customdata;
 
-		ED_region_draw_cb_exit(ddr->art, ddr->draw_handle_pixel);
+		if (ddr->art) {
+			ED_region_draw_cb_exit(ddr->art, ddr->draw_handle_pixel);
+		}
 
 		MEM_freeN(op->customdata);
 
@@ -447,10 +449,9 @@ static void datadropper_exit(bContext *C, wmOperator *op)
 	}
 }
 
-static int datadropper_cancel(bContext *C, wmOperator *op)
+static void datadropper_cancel(bContext *C, wmOperator *op)
 {
 	datadropper_exit(C, op);
-	return OPERATOR_CANCELLED;
 }
 
 /* *** datadropper id helper functions *** */
@@ -552,7 +553,8 @@ static int datadropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	switch (event->type) {
 		case ESCKEY:
 		case RIGHTMOUSE:
-			return datadropper_cancel(C, op);
+			datadropper_cancel(C, op);
+			return OPERATOR_CANCELLED;
 		case LEFTMOUSE:
 			if (event->val == KM_RELEASE) {
 				bool success;

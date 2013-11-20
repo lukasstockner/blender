@@ -252,7 +252,7 @@ static int armature_calc_roll_exec(bContext *C, wmOperator *op)
 		Scene *scene = CTX_data_scene(C);
 		View3D *v3d = CTX_wm_view3d(C); /* can be NULL */
 		float cursor_local[3];
-		const float   *cursor = give_cursor(scene, v3d);
+		const float   *cursor = ED_view3d_cursor3d_get(scene, v3d);
 		
 		
 		copy_v3_v3(cursor_local, cursor);
@@ -484,7 +484,7 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
 	
 	/* the number of joints determines how we fill:
 	 *  1) between joint and cursor (joint=head, cursor=tail)
-	 *  2) between the two joints (order is dependent on active-bone/hierachy)
+	 *  2) between the two joints (order is dependent on active-bone/hierarchy)
 	 *  3+) error (a smarter method involving finding chains needs to be worked out
 	 */
 	count = BLI_countlist(&points);
@@ -502,7 +502,7 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
 		
 		/* Get points - cursor (tail) */
 		invert_m4_m4(obedit->imat, obedit->obmat);
-		mul_v3_m4v3(curs, obedit->imat, give_cursor(scene, v3d));
+		mul_v3_m4v3(curs, obedit->imat, ED_view3d_cursor3d_get(scene, v3d));
 		
 		/* Create a bone */
 		/* newbone = */ add_points_bone(obedit, ebp->vec, curs);
@@ -536,7 +536,7 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
 			
 			/* get cursor location */
 			invert_m4_m4(obedit->imat, obedit->obmat);
-			mul_v3_m4v3(curs, obedit->imat, give_cursor(scene, v3d));
+			mul_v3_m4v3(curs, obedit->imat, ED_view3d_cursor3d_get(scene, v3d));
 			
 			/* get distances */
 			sub_v3_v3v3(vecA, ebp->vec, curs);
@@ -583,8 +583,11 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
 				else
 					newbone->parent = ebp2->head_owner;
 			}
-			
-			newbone->flag |= BONE_CONNECTED;
+
+			/* don't set for bone connecting two head points of bones */
+			if (ebp->tail_owner || ebp2->tail_owner) {
+				newbone->flag |= BONE_CONNECTED;
+			}
 		}
 	}
 	else {
@@ -840,7 +843,7 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 	armature_tag_select_mirrored(arm);
 	
 	/* clear BONE_TRANSFORM flags 
-	 * - used to prevent duplicate/cancelling operations from occurring [#34123] 
+	 * - used to prevent duplicate/canceling operations from occurring [#34123]
 	 * - BONE_DONE cannot be used here as that's already used for mirroring
 	 */
 	armature_clear_swap_done_flags(arm);
@@ -1063,6 +1066,44 @@ void ARMATURE_OT_align(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/* ********************************* Split ******************************* */
+
+static int armature_split_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = CTX_data_edit_object(C);
+	bArmature *arm = (bArmature *)ob->data;
+	EditBone *bone;
+
+	for (bone = arm->edbo->first; bone; bone = bone->next) {
+		if (bone->parent && (bone->flag & BONE_SELECTED) != (bone->parent->flag & BONE_SELECTED)) {
+			bone->parent = NULL;
+			bone->flag &= ~BONE_CONNECTED;
+		}
+	}
+	for (bone = arm->edbo->first; bone; bone = bone->next) {
+		ED_armature_ebone_select_set(bone, (bone->flag & BONE_SELECTED) != 0);
+	}
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+
+	return OPERATOR_FINISHED;
+}
+
+void ARMATURE_OT_split(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Split";
+	ot->idname = "ARMATURE_OT_split";
+	ot->description = "Split off selected bones from connected unselected bones";
+
+	/* api callbacks */
+	ot->exec = armature_split_exec;
+	ot->poll = ED_operator_editarmature;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* ********************************* Delete ******************************* */
 
 /* previously delete_armature */
@@ -1086,7 +1127,7 @@ static int armature_delete_selected_exec(bContext *C, wmOperator *UNUSED(op))
 		bPoseChannel *pchan, *pchan_next;
 		for (pchan = obedit->pose->chanbase.first; pchan; pchan = pchan_next) {
 			pchan_next = pchan->next;
-			curBone = editbone_name_exists(arm->edbo, pchan->name);
+			curBone = ED_armature_bone_find_name(arm->edbo, pchan->name);
 			
 			if (curBone && (curBone->flag & BONE_SELECTED) && (arm->layer & curBone->layer)) {
 				BKE_pose_channel_free(pchan);
@@ -1105,7 +1146,7 @@ static int armature_delete_selected_exec(bContext *C, wmOperator *UNUSED(op))
 						for (ct = targets.first; ct; ct = ct->next) {
 							if (ct->tar == obedit) {
 								if (ct->subtarget[0]) {
-									curBone = editbone_name_exists(arm->edbo, ct->subtarget);
+									curBone = ED_armature_bone_find_name(arm->edbo, ct->subtarget);
 									if (curBone && (curBone->flag & BONE_SELECTED) && (arm->layer & curBone->layer)) {
 										con->flag |= CONSTRAINT_DISABLE;
 										ct->subtarget[0] = 0;

@@ -140,7 +140,7 @@ static void shrinkwrap_calc_nearest_vertex(ShrinkwrapCalcData *calc)
 	nearest.index = -1;
 	nearest.dist = FLT_MAX;
 #ifndef __APPLE__
-#pragma omp parallel for default(none) private(i) firstprivate(nearest) shared(treeData,calc) schedule(static)
+#pragma omp parallel for default(none) private(i) firstprivate(nearest) shared(treeData, calc) schedule(static)
 #endif
 	for (i = 0; i < calc->numVerts; ++i) {
 		float *co = calc->vertexCos[i];
@@ -335,7 +335,7 @@ static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc, bool for
 	{
 
 #ifndef __APPLE__
-#pragma omp parallel for private(i,hit) schedule(static)
+#pragma omp parallel for private(i, hit) schedule(static)
 #endif
 		for (i = 0; i < calc->numVerts; ++i) {
 			float *co = calc->vertexCos[i];
@@ -445,7 +445,7 @@ static void shrinkwrap_calc_nearest_surface_point(ShrinkwrapCalcData *calc)
 
 	/* Find the nearest vertex */
 #ifndef __APPLE__
-#pragma omp parallel for default(none) private(i) firstprivate(nearest) shared(calc,treeData) schedule(static)
+#pragma omp parallel for default(none) private(i) firstprivate(nearest) shared(calc, treeData) schedule(static)
 #endif
 	for (i = 0; i < calc->numVerts; ++i) {
 		float *co = calc->vertexCos[i];

@@ -568,7 +568,7 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 	int co[2];
 
 	/* we don't want the clipping for cursor */
-	if (ED_view3d_project_int_global(ar, give_cursor(scene, v3d), co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
+	if (ED_view3d_project_int_global(ar, ED_view3d_cursor3d_get(scene, v3d), co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 		const float f5 = 0.25f * U.widget_unit;
 		const float f10 = 0.5f * U.widget_unit;
 		const float f20 = U.widget_unit;
@@ -2038,8 +2038,11 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 
 		/* negative scale flag has to propagate */
 		transflag = tbase.object->transflag;
-		if (base->object->transflag & OB_NEG_SCALE)
-			tbase.object->transflag ^= OB_NEG_SCALE;
+
+		if (is_negative_m4(dob->mat))
+			tbase.object->transflag |= OB_NEG_SCALE;
+		else
+			tbase.object->transflag &= ~OB_NEG_SCALE;
 
 		UI_ThemeColorBlend(color, TH_BACK, 0.5);
 

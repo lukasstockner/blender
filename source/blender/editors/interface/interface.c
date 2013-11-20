@@ -78,8 +78,8 @@
 
 #include "interface_intern.h"
 
-#define PRECISION_FLOAT_MAX 6
-#define PRECISION_FLOAT_MAX_POW 1000000 /* pow(10, PRECISION_FLOAT_MAX)  */
+#define PRECISION_FLOAT_MAX 7
+#define PRECISION_FLOAT_MAX_POW 10000000 /* pow(10, PRECISION_FLOAT_MAX)  */
 
 /* avoid unneeded calls to ui_get_but_val */
 #define UI_BUT_VALUE_UNSET DBL_MAX
@@ -443,7 +443,7 @@ void uiExplicitBoundsBlock(uiBlock *block, int minx, int miny, int maxx, int max
 static int ui_but_float_precision(uiBut *but, double value)
 {
 	int prec;
-	const double pow10_neg[PRECISION_FLOAT_MAX + 1] = {1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001};
+	const double pow10_neg[PRECISION_FLOAT_MAX + 1] = {1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001, 0.0000001};
 
 	/* first check if prec is 0 and fallback to a simple default */
 	if ((prec = (int)but->a2) == -1) {
@@ -3158,9 +3158,14 @@ uiBut *uiDefBut(uiBlock *block, int type, int retval, const char *str, int x, in
 	return but;
 }
 
-/* if _x_ is a power of two (only one bit) return the power,
+/**
+ * if \a _x_ is a power of two (only one bit) return the power,
  * otherwise return -1.
- * (1<<findBitIndex(x))==x for powers of two.
+ *
+ * for powers of two:
+ * \code{.c}
+ *     ((1 << findBitIndex(x)) == x);
+ * \endcode
  */
 static int findBitIndex(unsigned int x)
 {
@@ -3183,6 +3188,7 @@ static int findBitIndex(unsigned int x)
 /* autocomplete helper functions */
 struct AutoComplete {
 	size_t maxlen;
+	int matches;
 	char *truncate;
 	const char *startname;
 };
@@ -3193,6 +3199,7 @@ AutoComplete *autocomplete_begin(const char *startname, size_t maxlen)
 	
 	autocpl = MEM_callocN(sizeof(AutoComplete), "AutoComplete");
 	autocpl->maxlen = maxlen;
+	autocpl->matches = 0;
 	autocpl->truncate = MEM_callocN(sizeof(char) * maxlen, "AutoCompleteTruncate");
 	autocpl->startname = startname;
 
@@ -3211,6 +3218,7 @@ void autocomplete_do_name(AutoComplete *autocpl, const char *name)
 	}
 	/* found a match */
 	if (startname[a] == 0) {
+		autocpl->matches++;
 		/* first match */
 		if (truncate[0] == 0)
 			BLI_strncpy(truncate, name, autocpl->maxlen);
@@ -3228,21 +3236,27 @@ void autocomplete_do_name(AutoComplete *autocpl, const char *name)
 	}
 }
 
-bool autocomplete_end(AutoComplete *autocpl, char *autoname)
+int autocomplete_end(AutoComplete *autocpl, char *autoname)
 {	
-	bool change = false;
+	int match = AUTOCOMPLETE_NO_MATCH;
 	if (autocpl->truncate[0]) {
+		if (autocpl->matches == 1) {
+			match = AUTOCOMPLETE_FULL_MATCH;
+		}
+		else {
+			match = AUTOCOMPLETE_PARTIAL_MATCH;
+		}
 		BLI_strncpy(autoname, autocpl->truncate, autocpl->maxlen);
-		change = true;
 	}
 	else {
 		if (autoname != autocpl->startname) {  /* don't copy a string over its self */
 			BLI_strncpy(autoname, autocpl->startname, autocpl->maxlen);
 		}
 	}
+
 	MEM_freeN(autocpl->truncate);
 	MEM_freeN(autocpl);
-	return change;
+	return match;
 }
 
 static void ui_check_but_and_iconize(uiBut *but, int icon)

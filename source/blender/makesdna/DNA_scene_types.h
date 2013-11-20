@@ -196,7 +196,7 @@ typedef struct SceneRenderLayer {
 #define SCE_LAY_SOLID	1
 #define SCE_LAY_ZTRA	2
 #define SCE_LAY_HALO	4
-#define SCE_LAY_EDGE	8
+#define SCE_LAY_EDGE	8 /* deprecated */
 #define SCE_LAY_SKY		16
 #define SCE_LAY_STRAND	32
 #define SCE_LAY_FRS		64
@@ -378,7 +378,7 @@ typedef struct RenderData {
 	float framelen, blurfac;
 
 	/** For UR edge rendering: give the edges this color */
-	float edgeR, edgeG, edgeB;
+	float edgeR DNA_DEPRECATED, edgeG DNA_DEPRECATED, edgeB DNA_DEPRECATED;
 
 
 	/* standalone player */  //  XXX deprecated since 2.5
@@ -726,7 +726,7 @@ typedef struct GameData {
 #define GAME_PLAYER_DESKTOP_RESOLUTION		(1 << 1)
 
 /* GameData.matmode */
-#define GAME_MAT_TEXFACE	0
+#define GAME_MAT_TEXFACE	0 /* deprecated */
 #define GAME_MAT_MULTITEX	1
 #define GAME_MAT_GLSL		2
 
@@ -1221,7 +1221,7 @@ typedef struct Scene {
 #define R_GAMMA			0x0004
 #define R_ORTHO			0x0008
 #define R_ENVMAP		0x0010
-#define R_EDGE			0x0020
+#define R_EDGE			0x0020 /* deprecated */
 #define R_FIELDS		0x0040
 #define R_FIELDSTILL	0x0080
 /*#define R_RADIO			0x0100 */ /* deprecated */
@@ -1458,6 +1458,7 @@ typedef struct Scene {
 #define SCE_SNAP_MODE_NODE_X	5
 #define SCE_SNAP_MODE_NODE_Y	6
 #define SCE_SNAP_MODE_NODE_XY	7
+#define SCE_SNAP_MODE_GRID		8
 
 /* toolsettings->selectmode */
 #define SCE_SELECT_VERTEX	1 /* for mesh */

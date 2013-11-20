@@ -29,6 +29,11 @@ class VIEW3D_OT_edit_mesh_extrude_individual_move(Operator):
     bl_label = "Extrude Individual and Move"
     bl_idname = "view3d.edit_mesh_extrude_individual_move"
 
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj.mode == 'EDIT'
+
     def execute(self, context):
         mesh = context.object.data
         select_mode = context.tool_settings.mesh_select_mode
@@ -61,6 +66,11 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
     "Extrude and move along normals"
     bl_label = "Extrude and Move on Normals"
     bl_idname = "view3d.edit_mesh_extrude_move_normal"
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj.mode == 'EDIT'
 
     @staticmethod
     def extrude_region(context, use_vert_normals):
@@ -101,11 +111,15 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
         return self.execute(context)
 
 
-
 class VIEW3D_OT_edit_mesh_extrude_shrink_fatten(Operator):
     "Extrude and move along individual normals"
     bl_label = "Extrude and Move on Individual Normals"
     bl_idname = "view3d.edit_mesh_extrude_move_shrink_fatten"
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return obj.mode == 'EDIT'
 
     def execute(self, context):
         return VIEW3D_OT_edit_mesh_extrude_move.extrude_region(context, True)

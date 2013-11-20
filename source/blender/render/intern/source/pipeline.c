@@ -1687,7 +1687,7 @@ static void add_freestyle(Render *re, int render)
 	 * real bmain uses. This is needed because freestyle's
 	 * bmain could be used to tag scenes for update, which
 	 * implies call of ED_render_scene_update in some cases
-	 * and that function requires proper windoew manager
+	 * and that function requires proper window manager
 	 * to present (sergey)
 	 */
 	re->freestyle_bmain.wm = re->main->wm;
@@ -2294,13 +2294,6 @@ int RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *r
 			BKE_report(reports, RPT_ERROR, "Cannot save render buffers, check the temp default path");
 			return 0;
 		}
-		
-		/* no fullsample and edge */
-		if ((scemode & R_FULL_SAMPLE) && (scene->r.mode & R_EDGE)) {
-			BKE_report(reports, RPT_ERROR, "Full sample does not support edge enhance");
-			return 0;
-		}
-		
 	}
 	
 	if (scemode & R_DOCOMP) {

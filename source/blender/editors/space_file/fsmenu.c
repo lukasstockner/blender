@@ -55,9 +55,7 @@
 #endif
 
 #ifdef __APPLE__
-/* XXX BIG WARNING: carbon.h can not be included in blender code, it conflicts with struct ID */
-#  define ID ID_
-#  include <CoreServices/CoreServices.h>
+#include <Carbon/Carbon.h>
 #endif /* __APPLE__ */
 
 #ifdef __linux__
@@ -415,9 +413,9 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 			if (result != kCFURLEnumeratorSuccess)
 				continue;
 			
-			CFURLGetFileSystemRepresentation(cfURL, false, (UInt8*)defPath, FILE_MAX);
+			CFURLGetFileSystemRepresentation(cfURL, false, (UInt8 *)defPath, FILE_MAX);
 			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, (char *)defPath, FS_INSERT_SORTED);
-			}
+		}
 		
 		CFRelease(volEnum);
 		

@@ -62,6 +62,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 	
 	BLI_strncpy(tmmd->vgroup, mmd->vgroup, sizeof(tmmd->vgroup));
 	tmmd->flag = mmd->flag;
+	tmmd->mode = mmd->mode;
+	tmmd->ob_arm = mmd->ob_arm;
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(md))
@@ -170,7 +172,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		}
 		
 		/* if no dverts (i.e. no data for vertex groups exists), we've got an
-		 * inconsistent situation, so free hashes and return oirginal mesh
+		 * inconsistent situation, so free hashes and return original mesh
 		 */
 		dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
 		if (dvert == NULL) {

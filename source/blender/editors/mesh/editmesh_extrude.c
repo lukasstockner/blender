@@ -379,7 +379,6 @@ static int edbm_extrude_mesh(Scene *scene, Object *obedit, BMEditMesh *em, wmOpe
 		BKE_object_handle_update(G.main->evaluation_context, scene, obedit);
 
 		/* individual faces? */
-//		BIF_TransformSetUndo("Extrude");
 		if (nr == 2) {
 //			initTransform(TFM_SHRINKFATTEN, CTX_NO_PET|CTX_NO_MIRROR);
 //			Transform();
@@ -656,7 +655,7 @@ static int edbm_dupli_extrude_cursor_invoke(bContext *C, wmOperator *op, const w
 		              BM_ELEM_SELECT, min);
 	}
 	else {
-		const float *curs = give_cursor(vc.scene, vc.v3d);
+		const float *curs = ED_view3d_cursor3d_get(vc.scene, vc.v3d);
 		BMOperator bmop;
 		BMOIter oiter;
 		
@@ -754,7 +753,7 @@ static int edbm_spin_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(e
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = ED_view3d_context_rv3d(C);
 
-	RNA_float_set_array(op->ptr, "center", give_cursor(scene, v3d));
+	RNA_float_set_array(op->ptr, "center", ED_view3d_cursor3d_get(scene, v3d));
 	RNA_float_set_array(op->ptr, "axis", rv3d->viewinv[2]);
 
 	return edbm_spin_exec(C, op);
@@ -874,7 +873,7 @@ static int edbm_screw_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = ED_view3d_context_rv3d(C);
 
-	RNA_float_set_array(op->ptr, "center", give_cursor(scene, v3d));
+	RNA_float_set_array(op->ptr, "center", ED_view3d_cursor3d_get(scene, v3d));
 	RNA_float_set_array(op->ptr, "axis", rv3d->viewinv[1]);
 
 	return edbm_screw_exec(C, op);

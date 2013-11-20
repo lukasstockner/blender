@@ -539,7 +539,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		/* so the context is passed to itemf functions (some py itemf functions use it) */
 		WM_operator_properties_sanitize(opptr, false);
 
-		str = WM_operator_pystring(C, but->optype, opptr, 0);
+		str = WM_operator_pystring_ex(C, NULL, false, but->optype, opptr);
 
 		/* operator info */
 		if ((U.flag & USER_TOOLTIPS_PYTHON) == 0) {
@@ -1054,17 +1054,17 @@ void ui_searchbox_update(bContext *C, ARegion *ar, uiBut *but, const bool reset)
 bool ui_searchbox_autocomplete(bContext *C, ARegion *ar, uiBut *but, char *str)
 {
 	uiSearchboxData *data = ar->regiondata;
-	bool changed = false;
+	int match = AUTOCOMPLETE_NO_MATCH;
 
 	if (str[0]) {
 		data->items.autocpl = autocomplete_begin(str, ui_get_but_string_max_length(but));
 
 		but->search_func(C, but->search_arg, but->editstr, &data->items);
 
-		changed = autocomplete_end(data->items.autocpl, str);
+		match = autocomplete_end(data->items.autocpl, str);
 		data->items.autocpl = NULL;
 	}
-	return changed;
+	return match != AUTOCOMPLETE_NO_MATCH;
 }
 
 static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)

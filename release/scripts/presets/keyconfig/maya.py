@@ -315,7 +315,8 @@ kmi.properties.direction = 'CHILD'
 kmi.properties.extend = True
 kmi = km.keymap_items.new('pose.select_linked', 'L', 'PRESS')
 kmi = km.keymap_items.new('pose.select_grouped', 'G', 'PRESS', shift=True)
-kmi = km.keymap_items.new('pose.select_flip_active', 'F', 'PRESS', shift=True)
+kmi = km.keymap_items.new('pose.select_mirror', 'F', 'PRESS', shift=True)
+kmi.properties.only_active = True
 kmi = km.keymap_items.new('pose.constraint_add_with_targets', 'C', 'PRESS', shift=True, ctrl=True)
 kmi = km.keymap_items.new('pose.constraints_clear', 'C', 'PRESS', ctrl=True, alt=True)
 kmi = km.keymap_items.new('pose.ik_add', 'I', 'PRESS', shift=True)
@@ -697,8 +698,10 @@ km = kc.keymaps.new('Knife Tool Modal Map', space_type='EMPTY', region_type='WIN
 
 kmi = km.keymap_items.new_modal('CANCEL', 'ESC', 'ANY', any=True)
 kmi = km.keymap_items.new_modal('PANNING', 'LEFTMOUSE', 'ANY', alt=True)
+kmi = km.keymap_items.new_modal('PANNING', 'MIDDLEMOUSE', 'ANY', alt=True)
+kmi = km.keymap_items.new_modal('PANNING', 'RIGHTMOUSE', 'ANY', alt=True)
 kmi = km.keymap_items.new_modal('ADD_CUT', 'LEFTMOUSE', 'PRESS', any=True)
-kmi = km.keymap_items.new_modal('CANCEL', 'RIGHTMOUSE', 'ANY', any=True)
+kmi = km.keymap_items.new_modal('CANCEL', 'RIGHTMOUSE', 'ANY')
 kmi = km.keymap_items.new_modal('CONFIRM', 'RET', 'PRESS', any=True)
 kmi = km.keymap_items.new_modal('CONFIRM', 'NUMPAD_ENTER', 'PRESS', any=True)
 kmi = km.keymap_items.new_modal('CONFIRM', 'SPACE', 'PRESS', any=True)
@@ -1474,7 +1477,6 @@ kmi = km.keymap_items.new('node.hide_toggle', 'H', 'PRESS', ctrl=True)
 kmi = km.keymap_items.new('node.mute_toggle', 'M', 'PRESS')
 kmi = km.keymap_items.new('node.preview_toggle', 'H', 'PRESS', shift=True)
 kmi = km.keymap_items.new('node.hide_socket_toggle', 'H', 'PRESS', shift=True, ctrl=True)
-kmi = km.keymap_items.new('node.show_cyclic_dependencies', 'C', 'PRESS')
 kmi = km.keymap_items.new('node.view_all', 'A', 'PRESS')
 kmi = km.keymap_items.new('node.delete', 'BACK_SPACE', 'PRESS')
 kmi = km.keymap_items.new('node.delete', 'DEL', 'PRESS')
@@ -1587,8 +1589,11 @@ kmi = km.keymap_items.new('action.view_all', 'A', 'PRESS')
 kmi = km.keymap_items.new('action.view_selected', 'F', 'PRESS')
 kmi = km.keymap_items.new('anim.channels_editable_toggle', 'TAB', 'PRESS')
 kmi = km.keymap_items.new('transform.transform', 'W', 'PRESS')
+kmi.properties.mode = 'TIME_TRANSLATE'
 kmi = km.keymap_items.new('transform.transform', 'EVT_TWEAK_M', 'ANY')
+kmi.properties.mode = 'TIME_TRANSLATE'
 kmi = km.keymap_items.new('transform.transform', 'S', 'PRESS')
+kmi.properties.mode = 'TIME_SCALE'
 kmi = km.keymap_items.new('transform.transform', 'T', 'PRESS', shift=True)
 kmi = km.keymap_items.new('marker.add', 'M', 'PRESS')
 kmi = km.keymap_items.new('marker.rename', 'M', 'PRESS', ctrl=True)
@@ -1662,6 +1667,7 @@ kmi = km.keymap_items.new('nla.fmodifier_add', 'M', 'PRESS', shift=True, ctrl=Tr
 kmi = km.keymap_items.new('transform.transform', 'W', 'PRESS')
 kmi = km.keymap_items.new('transform.transform', 'EVT_TWEAK_M', 'ANY')
 kmi = km.keymap_items.new('transform.transform', 'R', 'PRESS')
+kmi.properties.mode = 'TIME_SCALE'
 kmi = km.keymap_items.new('marker.add', 'M', 'PRESS')
 kmi = km.keymap_items.new('marker.rename', 'M', 'PRESS', ctrl=True)
 kmi = km.keymap_items.new('nla.select_all_toggle', 'LEFTMOUSE', 'DOUBLE_CLICK')

@@ -447,7 +447,6 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.blurfac = 0.5;
 	sce->r.frs_sec = 24;
 	sce->r.frs_sec_base = 1;
-	sce->r.edgeint = 10;
 	sce->r.ocres = 128;
 
 	/* OCIO_TODO: for forwards compatibility only, so if no tonecurve are used,
@@ -506,6 +505,8 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->toolsettings->uv_selectmode = UV_SELECT_VERTEX;
 	sce->toolsettings->normalsize = 0.1;
 	sce->toolsettings->autokey_mode = U.autokey_mode;
+
+	sce->toolsettings->snap_node_mode = SCE_SNAP_MODE_GRID;
 
 	sce->toolsettings->skgen_resolution = 100;
 	sce->toolsettings->skgen_threshold_internal     = 0.01f;
@@ -1484,7 +1485,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *evaluation_context, Mai
 	 * so don't call within 'scene_update_tagged_recursive' */
 	DAG_scene_update_flags(bmain, sce, lay, TRUE);   // only stuff that moves or needs display still
 
-	BKE_mask_evaluate_all_masks(bmain, ctime, TRUE);
+	BKE_mask_evaluate_all_masks(bmain, ctime, true);
 
 	/* All 'standard' (i.e. without any dependencies) animation is handled here,
 	 * with an 'local' to 'macro' order of evaluation. This should ensure that

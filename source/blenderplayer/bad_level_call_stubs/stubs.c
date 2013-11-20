@@ -167,6 +167,9 @@ void RE_free_sample_material(struct Material *mat) {STUB_ASSERT(0);}
 void RE_sample_material_color(struct Material *mat, float color[3], float *alpha, const float volume_co[3], const float surface_co[3],
                               int face_index, short hit_quad, struct DerivedMesh *orcoDm, struct Object *ob) {STUB_ASSERT(0);}
 
+/* skin modifier*/
+void modifier_skin_customdata_ensure(struct Object *ob) {STUB_ASSERT(0);}
+
 /* nodes */
 struct RenderResult *RE_GetResult(struct Render *re) {STUB_ASSERT(0); return (struct RenderResult *) NULL;}
 struct Render *RE_GetRender(const char *name) {STUB_ASSERT(0); return (struct Render *) NULL;}
@@ -192,7 +195,7 @@ void RE_BlenderFrame(struct Render *re, struct Scene *scene, int frame) {STUB_AS
 int RE_WriteEnvmapResult(struct ReportList *reports, struct Scene *scene, struct EnvMap *env, const char *relpath, const char imtype, float layout[12]) {STUB_ASSERT(0); return 0; }
 
 /* rna */
-float *give_cursor(struct Scene *scene, struct View3D *v3d) {STUB_ASSERT(0); return (float *) NULL;}
+float *ED_view3d_cursor3d_get(struct Scene *scene, struct View3D *v3d) {STUB_ASSERT(0); return (float *) NULL;}
 void WM_menutype_free(void) {STUB_ASSERT(0);}
 void WM_menutype_freelink(struct MenuType *mt) {STUB_ASSERT(0);}
 int WM_menutype_add(struct MenuType *mt) {STUB_ASSERT(0); return 0;}
@@ -350,6 +353,7 @@ void ED_object_modifier_clear(struct Main *bmain, struct Object *ob) {STUB_ASSER
 void ED_object_editmode_enter(struct bContext *C, int flag) {STUB_ASSERT(0);}
 void ED_object_editmode_exit(struct bContext *C, int flag) {STUB_ASSERT(0);}
 bool ED_object_editmode_load(struct Object *obedit) {STUB_ASSERT(0); return false; }
+void ED_object_check_force_modifiers(struct Main *bmain, struct Scene *scene, struct Object *object) {STUB_ASSERT(0);}
 int uiLayoutGetActive(struct uiLayout *layout) {STUB_ASSERT(0); return 0;}
 int uiLayoutGetOperatorContext(struct uiLayout *layout) {STUB_ASSERT(0); return 0;}
 int uiLayoutGetAlignment(struct uiLayout *layout) {STUB_ASSERT(0); return 0;}
@@ -538,7 +542,8 @@ void WM_operator_py_idname(char *to, const char *from) {STUB_ASSERT(0);}
 void WM_operator_ui_popup(struct bContext *C, struct wmOperator *op, int width, int height) {STUB_ASSERT(0);}
 short insert_keyframe(struct ID *id, struct bAction *act, const char group[], const char rna_path[], int array_index, float cfra, short flag) {STUB_ASSERT(0); return 0;}
 short delete_keyframe(struct ID *id, struct bAction *act, const char group[], const char rna_path[], int array_index, float cfra, short flag) {STUB_ASSERT(0); return 0;}
-char *WM_operator_pystring(struct bContext *C, struct wmOperatorType *ot, struct PointerRNA *opptr, int all_args) {STUB_ASSERT(0); return (char *)NULL;}
+char *WM_operator_pystring_ex(struct bContext *C, struct wmOperator *op, const bool all_args, struct wmOperatorType *ot, struct PointerRNA *opptr) {STUB_ASSERT(0); return (char *)NULL;}
+char *WM_operator_pystring(struct bContext *C, struct wmOperator *op, const bool all_args) {STUB_ASSERT(0); return (char *)NULL;}
 struct wmKeyMapItem *WM_modalkeymap_add_item(struct wmKeyMap *km, int type, int val, int modifier, int keymodifier, int value) {STUB_ASSERT(0); return (struct wmKeyMapItem *)NULL;}
 struct wmKeyMapItem *WM_modalkeymap_add_item_str(struct wmKeyMap *km, int type, int val, int modifier, int keymodifier, const char *value) {STUB_ASSERT(0); return (struct wmKeyMapItem *)NULL;}
 struct wmKeyMap *WM_modalkeymap_add(struct wmKeyConfig *keyconf, char *idname, EnumPropertyItem *items) {STUB_ASSERT(0); return (struct wmKeyMap *) NULL;}

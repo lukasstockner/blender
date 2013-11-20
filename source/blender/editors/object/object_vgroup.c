@@ -348,7 +348,7 @@ void ED_vgroup_parray_mirror_sync(Object *ob,
 		return;
 	}
 	if (em) {
-		EDBM_index_arrays_ensure(em, BM_VERT);
+		BM_mesh_elem_table_ensure(em->bm, BM_VERT);
 	}
 
 	for (i = 0; i < dvert_tot; i++) {
@@ -390,7 +390,7 @@ void ED_vgroup_parray_mirror_assign(Object *ob,
 	}
 	BLI_assert(dvert_tot == dvert_tot_all);
 	if (em) {
-		EDBM_index_arrays_ensure(em, BM_VERT);
+		BM_mesh_elem_table_ensure(em->bm, BM_VERT);
 	}
 
 	for (i = 0; i < dvert_tot; i++) {
@@ -1283,8 +1283,8 @@ static float get_vert_def_nr(Object *ob, const int def_nr, const int vertnum)
 
 			if (cd_dvert_offset != -1) {
 				BMVert *eve;
-				EDBM_index_arrays_ensure(em, BM_VERT);
-				eve = EDBM_vert_at_index(em, vertnum);
+				BM_mesh_elem_table_ensure(em->bm, BM_VERT);
+				eve = BM_vert_at_index(em->bm, vertnum);
 				dv = BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset);
 			}
 			else {
@@ -2179,7 +2179,7 @@ static void vgroup_blend_subset(Object *ob, const bool *vgroup_validmap, const i
 	memset(vgroup_subset_weights, 0, sizeof(*vgroup_subset_weights) * subset_count);
 
 	if (bm) {
-		EDBM_index_arrays_ensure(em, BM_VERT);
+		BM_mesh_elem_table_ensure(bm, BM_VERT);
 
 		emap = NULL;
 		emap_mem = NULL;
@@ -2197,7 +2197,7 @@ static void vgroup_blend_subset(Object *ob, const bool *vgroup_validmap, const i
 		/* in case its not selected */
 
 		if (bm) {
-			BMVert *v = EDBM_vert_at_index(em, i);
+			BMVert *v = BM_vert_at_index(bm, i);
 			if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
 				BMIter eiter;
 				BMEdge *e;
@@ -2398,6 +2398,44 @@ static void vgroup_clean_subset(Object *ob, const bool *vgroup_validmap, const i
 	}
 }
 
+static void vgroup_quantize_subset(Object *ob, const bool *vgroup_validmap, const int vgroup_tot, const int UNUSED(subset_count),
+                                   const int steps)
+{
+	MDeformVert **dvert_array = NULL;
+	int dvert_tot = 0;
+	const bool use_vert_sel = vertex_group_use_vert_sel(ob);
+	const bool use_mirror = (ob->type == OB_MESH) ? (((Mesh *)ob->data)->editflag & ME_EDIT_MIRROR_X) != 0 : false;
+	ED_vgroup_parray_alloc(ob->data, &dvert_array, &dvert_tot, use_vert_sel);
+
+	if (dvert_array) {
+		const float steps_fl = steps;
+		MDeformVert *dv;
+		int i;
+
+		if (use_mirror && use_vert_sel) {
+			ED_vgroup_parray_mirror_assign(ob, dvert_array, dvert_tot);
+		}
+
+		for (i = 0; i < dvert_tot; i++) {
+			MDeformWeight *dw;
+			int j;
+
+			/* in case its not selected */
+			if (!(dv = dvert_array[i])) {
+				continue;
+			}
+
+			for (j = 0, dw = dv->dw; j < dv->totweight; j++, dw++) {
+				if ((dw->def_nr < vgroup_tot) && vgroup_validmap[dw->def_nr]) {
+					dw->weight = floorf((dw->weight * steps_fl) + 0.5f) / steps_fl;
+					CLAMP(dw->weight, 0.0f, 1.0f);
+				}
+			}
+		}
+
+		MEM_freeN(dvert_array);
+	}
+}
 
 static void dvert_mirror_op(MDeformVert *dvert, MDeformVert *dvert_mirr,
                             const char sel, const char sel_mirr,
@@ -3754,6 +3792,44 @@ void OBJECT_OT_vertex_group_clean(wmOperatorType *ot)
 	                "Keep verts assigned to at least one group when cleaning");
 }
 
+static int vertex_group_quantize_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = ED_object_context(C);
+
+	const int steps = RNA_int_get(op->ptr, "steps");
+	eVGroupSelect subset_type  = RNA_enum_get(op->ptr, "group_select_mode");
+
+	int subset_count, vgroup_tot;
+
+	const bool *vgroup_validmap = ED_vgroup_subset_from_select_type(ob, subset_type, &vgroup_tot, &subset_count);
+	vgroup_quantize_subset(ob, vgroup_validmap, vgroup_tot, subset_count, steps);
+	MEM_freeN((void *)vgroup_validmap);
+
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_vertex_group_quantize(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Quantize Vertex Weights";
+	ot->idname = "OBJECT_OT_vertex_group_quantize";
+	ot->description = "Set weights to a fixed number of steps";
+
+	/* api callbacks */
+	ot->poll = vertex_group_poll;
+	ot->exec = vertex_group_quantize_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	vgroup_operator_subset_select_props(ot, true);
+	RNA_def_int(ot->srna, "steps", 4, 1, 1000, "Steps", "Number of steps between 0 and 1", 1, 100);
+}
+
 static int vertex_group_limit_total_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
@@ -3777,7 +3853,7 @@ static int vertex_group_limit_total_exec(bContext *C, wmOperator *op)
 		return OPERATOR_FINISHED;
 	}
 	else {
-		/* note, would normally return cancelled, except we want the redo
+		/* note, would normally return canceled, except we want the redo
 		 * UI to show up for users to change */
 		return OPERATOR_FINISHED;
 	}
