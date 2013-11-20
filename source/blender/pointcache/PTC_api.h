@@ -23,6 +23,7 @@
 extern "C" {
 #endif
 
+struct Main;
 struct Scene;
 struct Object;
 struct ParticleSystem;
