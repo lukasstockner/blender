@@ -375,6 +375,7 @@ Render *RE_NewRender(const char *name)
 		BLI_strncpy(re->name, name, RE_MAXNAME);
 		BLI_rw_mutex_init(&re->resultmutex);
 		re->evaluation_context = MEM_callocN(sizeof(EvaluationContext), "re->evaluation_context");
+		re->evaluation_context->for_render = true;
 	}
 	
 	RE_InitRenderCB(re);

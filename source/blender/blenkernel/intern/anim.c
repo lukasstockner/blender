@@ -327,13 +327,10 @@ static void motionpaths_calc_optimise_depsgraph(Scene *scene, ListBase *targets)
 static void motionpaths_calc_update_scene(Scene *scene)
 {
 #if 1 // 'production' optimizations always on
-	EvaluationContext evaluation_context;
-	evaluation_context.for_render = false;
-
 	/* rigid body simulation needs complete update to work correctly for now */
 	/* RB_TODO investigate if we could avoid updating everything */
 	if (BKE_scene_check_rigidbody_active(scene)) {
-		BKE_scene_update_for_newframe(&evaluation_context, G.main, scene, scene->lay);
+		BKE_scene_update_for_newframe(G.main->evaluation_context, G.main, scene, scene->lay);
 	}
 	else { /* otherwise we can optimize by restricting updates */
 		Base *base, *last = NULL;
@@ -355,7 +352,7 @@ static void motionpaths_calc_update_scene(Scene *scene)
 		 * is animated but not attached to/updatable from objects */
 		for (base = scene->base.first; base; base = base->next) {
 			/* update this object */
-			BKE_object_handle_update(&evaluation_context, scene, base->object);
+			BKE_object_handle_update(G.main->evaluation_context, scene, base->object);
 			
 			/* if this is the last one we need to update, let's stop to save some time */
 			if (base == last)
