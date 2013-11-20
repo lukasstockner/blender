@@ -396,7 +396,7 @@ void applyGridAbsolute(TransInfo *t)
 		}
 		else if (t->flag & T_OBJECT) {
 			td->ob->recalc |= OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME;
-			BKE_object_handle_update(t->scene, td->ob);
+			BKE_object_handle_update(G.main->evaluation_context, t->scene, td->ob);
 			copy_v3_v3(iloc, td->ob->obmat[3]);
 		}
 		
