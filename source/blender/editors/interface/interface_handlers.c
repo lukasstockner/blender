@@ -859,6 +859,13 @@ static int ui_handler_region_drag_toggle(bContext *C, const wmEvent *event, void
 	}
 }
 
+static bool ui_is_but_drag_toggle(uiBut *but)
+{
+	return ((ui_is_but_bool(but) == true) &&
+	        /* menu check is importnt so the button dragged over isn't removed instantly */
+	        (ui_block_is_menu(but->block) == false));
+}
+
 #endif  /* USE_DRAG_TOGGLE */
 
 
@@ -2748,7 +2755,7 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, cons
 {
 #ifdef USE_DRAG_TOGGLE
 	if (data->state == BUTTON_STATE_HIGHLIGHT) {
-		if (event->type == LEFTMOUSE && event->val == KM_PRESS && ui_is_but_bool(but)) {
+		if (event->type == LEFTMOUSE && event->val == KM_PRESS && ui_is_but_drag_toggle(but)) {
 #if 0		/* UNUSED */
 			data->togdual = event->ctrl;
 			data->togonly = !event->shift;
@@ -2797,7 +2804,7 @@ static int ui_do_but_EXIT(bContext *C, uiBut *but, uiHandleButtonData *data, con
 			}
 		}
 #ifdef USE_DRAG_TOGGLE
-		if (event->type == LEFTMOUSE && ui_is_but_bool(but)) {
+		if (event->type == LEFTMOUSE && ui_is_but_drag_toggle(but)) {
 			button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
 			data->dragstartx = event->x;
 			data->dragstarty = event->y;
@@ -3623,7 +3630,7 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			}
 		}
 #ifdef USE_DRAG_TOGGLE
-		if (event->type == LEFTMOUSE && ui_is_but_bool(but)) {
+		if (event->type == LEFTMOUSE && ui_is_but_drag_toggle(but)) {
 			button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
 			data->dragstartx = event->x;
 			data->dragstarty = event->y;
@@ -3872,8 +3879,8 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 	float x, y;
 	float mx_fl, my_fl;
 	bool changed = true;
-	int color_profile = but->block->color_profile;
-	
+	bool use_display_colorspace = ui_hsvcube_use_display_colorspace(but);
+
 	ui_mouse_scale_warp(data, mx, my, &mx_fl, &my_fl, shift);
 
 #ifdef USE_CONT_MOUSE_CORRECT
@@ -3885,14 +3892,9 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 	}
 #endif
 
-	if (but->rnaprop) {
-		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
-			color_profile = FALSE;
-	}
-
 	ui_get_but_vectorf(but, rgb);
 
-	if (color_profile && (int)but->a1 != UI_GRAD_SV)
+	if (use_display_colorspace)
 		ui_block_to_display_space_v3(but->block, rgb);
 
 	rgb_to_hsv_compat_v(rgb, hsv);
@@ -3906,7 +3908,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 		
 		/* calculate original hsv again */
 		copy_v3_v3(rgb, data->origvec);
-		if (color_profile && (int)but->a1 != UI_GRAD_SV)
+		if (use_display_colorspace)
 			ui_block_to_display_space_v3(but->block, rgb);
 		
 		copy_v3_v3(hsvo, ui_block_hsv_get(but->block));
@@ -3967,7 +3969,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 
 	hsv_to_rgb_v(hsv, rgb);
 
-	if (color_profile && ((int)but->a1 != UI_GRAD_SV))
+	if (use_display_colorspace)
 		ui_block_to_scene_linear_v3(but->block, rgb);
 
 	/* clamp because with color conversion we can exceed range [#34295] */
@@ -3990,17 +3992,11 @@ static void ui_ndofedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 	float *hsv = ui_block_hsv_get(but->block);
 	float rgb[3];
 	float sensitivity = (shift ? 0.15f : 0.3f) * ndof->dt;
-	
-	int color_profile = but->block->color_profile;
-	
-	if (but->rnaprop) {
-		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
-			color_profile = FALSE;
-	}
+	bool use_display_colorspace = ui_hsvcube_use_display_colorspace(but);
 
 	ui_get_but_vectorf(but, rgb);
 
-	if (color_profile && (int)but->a1 != UI_GRAD_SV)
+	if (use_display_colorspace)
 		ui_block_to_display_space_v3(but->block, rgb);
 
 	rgb_to_hsv_compat_v(rgb, hsv);
@@ -4048,7 +4044,7 @@ static void ui_ndofedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 
 	hsv_to_rgb_v(hsv, rgb);
 
-	if (color_profile && (int)but->a1 != UI_GRAD_SV)
+	if (use_display_colorspace)
 		ui_block_to_scene_linear_v3(but->block, rgb);
 
 	copy_v3_v3(data->vec, rgb);
@@ -6722,6 +6718,8 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 		// retval = WM_UI_HANDLER_BREAK; XXX why ?
 	}
 
+	/* may have been re-allocated above (eyedropper for eg) */
+	data = but->active;
 	if (data->state == BUTTON_STATE_EXIT) {
 		uiBut *post_but = data->postbut;
 		uiButtonActivateType post_type = data->posttype;
@@ -6785,7 +6783,7 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar)
 		is_over_dragbut = true;
 	}
 
-	if (is_over_dragbut && type == LEFTMOUSE && val == KM_PRESS) {
+	if (is_over_dragbut && type == LEFTMOUSE && val == KM_PRESS && !(but->flag & UI_BUT_DISABLED)) {
 		uiHandleButtonData *data;
 		int *size = (int *)but->poin;
 
