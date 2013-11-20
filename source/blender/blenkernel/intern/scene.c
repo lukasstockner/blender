@@ -1394,6 +1394,18 @@ static void scene_update_objects(EvaluationContext *evaluation_context, Scene *s
 }
 
 /* this is called in main loop, doing tagged updates before redraw */
+/* NOTE: We don't use threads when scene update was called from python
+ * via scene.update() call.
+ *
+ * This is so because this call will set python's GIL and if any of
+ * the objects is using drivers we'll end up being in a dead-lock
+ * because driver evaluation will also try to set GIL.
+ *
+ * We might try using Py_BEGIN_ALLOW_THREADS in RNA callback, but
+ * not sure how it's gonna to fit into design and what would be the
+ * rules there and whether it'll help even.
+ *                                               - sergey -
+ */
 void BKE_scene_update_tagged_ex(EvaluationContext *evaluation_context, Main *bmain, Scene *scene, bool use_threads)
 {
 	Scene *sce_iter;

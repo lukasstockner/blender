@@ -50,6 +50,16 @@ struct Object;
 struct Scene;
 struct ListBase;
 
+/* Dependency graph evaluation context
+ *
+ * This structure stores all the local dependency graph data,
+ * which is needed for it's evaluation,
+ */
+typedef struct EvaluationContext {
+	bool for_render;  /* Set to true if evaluation shall be performed for render purposes,
+	                     keep at false if update shall happen for the viewport. */
+} EvaluationContext;
+
 /* Build and Update
  *
  * DAG_scene_relations_update will rebuild the dependency graph for a given
@@ -119,8 +129,8 @@ void DAG_editors_update_cb(void (*id_func)(struct Main *bmain, struct ID *id),
 /* ** Threaded update ** */
 
 /* Global initialization/deinitialization */
-void DAG_threaded_init(void);
-void DAG_threaded_exit(void);
+void DAG_init(void);
+void DAG_exit(void);
 
 /* Initialize the DAG for threaded update. */
 void DAG_threaded_update_begin(struct Scene *scene,

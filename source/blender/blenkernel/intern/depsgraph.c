@@ -2711,12 +2711,12 @@ void DAG_pose_sort(Object *ob)
 
 static SpinLock threaded_update_lock;
 
-void DAG_threaded_init(void)
+void DAG_init(void)
 {
 	BLI_spin_init(&threaded_update_lock);
 }
 
-void DAG_threaded_exit(void)
+void DAG_exit(void)
 {
 	BLI_spin_end(&threaded_update_lock);
 }
@@ -2726,7 +2726,7 @@ void DAG_threaded_exit(void)
  * the root node to the queue.
  *
  * This will mark DAG nodes as object/non-object and will calculate
- * "valency" of nodes (which is how many non-updated parents node
+ * num_pending_parents of nodes (which is how many non-updated parents node
  * have, which helps a lot checking whether node could be scheduled
  * already or not).
  */
@@ -2736,21 +2736,21 @@ void DAG_threaded_update_begin(Scene *scene,
 {
 	DagNode *node, *root_node;
 
-	/* We reset valency to zero first... */
+	/* We reset num_pending_parents to zero first and tag node as not scheduled yet... */
 	for (node = scene->theDag->DagNode.first; node; node = node->next) {
-		node->valency = 0;
+		node->num_pending_parents = 0;
 		node->scheduled = false;
 	}
 
 	/* ... and then iterate over all the nodes and
-	 * increase valency for node childs.
+	 * increase num_pending_parents for node childs.
 	 */
 	for (node = scene->theDag->DagNode.first; node; node = node->next) {
 		DagAdjList *itA;
 
 		for (itA = node->child; itA; itA = itA->next) {
 			if (itA->node != node) {
-				itA->node->valency++;
+				itA->node->num_pending_parents++;
 			}
 		}
 	}
@@ -2763,7 +2763,7 @@ void DAG_threaded_update_begin(Scene *scene,
 
 /* This function is called when handling node is done.
  *
- * This function updates valency for all childs and
+ * This function updates num_pending_parents for all childs and
  * schedules them if they're ready.
  */
 void DAG_threaded_update_handle_node_updated(void *node_v,
@@ -2776,9 +2776,9 @@ void DAG_threaded_update_handle_node_updated(void *node_v,
 	for (itA = node->child; itA; itA = itA->next) {
 		DagNode *child_node = itA->node;
 		if (child_node != node) {
-			atomic_sub_uint32(&child_node->valency, 1);
+			atomic_sub_uint32(&child_node->num_pending_parents, 1);
 
-			if (child_node->valency == 0) {
+			if (child_node->num_pending_parents == 0) {
 				bool need_schedule;
 
 				BLI_spin_lock(&threaded_update_lock);

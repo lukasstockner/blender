@@ -1580,7 +1580,7 @@ int main(int argc, const char **argv)
 	IMB_init();
 	BKE_images_init();
 	BKE_modifier_init();
-	DAG_threaded_init();
+	DAG_init();
 
 	BKE_brush_system_init();
 

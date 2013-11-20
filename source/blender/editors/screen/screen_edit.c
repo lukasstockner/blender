@@ -1428,15 +1428,18 @@ void ED_screen_set(bContext *C, bScreen *sc)
 		/* makes button hilites work */
 		WM_event_add_mousemove(C);
 
-		/* TODO(sergey): Needed to make sure all the derivedMeshes are
-		 *               up-to-date before viewport starts acquiring this.
+		/* Needed to make sure all the derivedMeshes are
+		 * up-to-date before viewport starts acquiring this.
 		 *
-		 *               This is needed in cases when, for example, boolean
-		 *               modifier uses operant from invisible layer.
-		 *               Without this trick boolean wouldn't apply correct.
+		 * This is needed in cases when, for example, boolean
+		 * modifier uses operant from invisible layer.
+		 * Without this trick boolean wouldn't apply correct.
 		 *
-		 *               Quite the same happens when setting screen's scene,
-		 *               so perhaps this is in fact correct thing to do.
+		 * Quite the same happens when setting screen's scene,
+		 * so perhaps this is in fact correct thing to do.
+		 */
+		/* TODO(sergey): Check whether DAG is actually need to
+		 *               be rebuilt.
 		 */
 		BKE_scene_set_background(bmain, sc->scene);
 		DAG_on_visible_update(bmain, FALSE);

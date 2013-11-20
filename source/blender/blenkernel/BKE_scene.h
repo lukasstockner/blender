@@ -114,12 +114,6 @@ void  BKE_scene_frame_set(struct Scene *scene, double cfra);
 
 /* **  Scene evaluation ** */
 
-/* TODO(sergey): Find a better place for this. */
-typedef struct EvaluationContext {
-	bool for_render;  /* Set to true if evaluation shall be performed for render purposes,
-	                     keep at false if update shall happen for the viewport. */
-} EvaluationContext;
-
 void BKE_scene_update_tagged_ex(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *scene, bool use_threads);
 void BKE_scene_update_tagged(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *sce);
 

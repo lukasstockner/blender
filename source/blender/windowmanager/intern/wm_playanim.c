@@ -1199,7 +1199,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	
 	IMB_exit();
 	BKE_images_exit();
-	DAG_threaded_exit();
+	DAG_exit();
 
 	totblock = MEM_get_memory_blocks_in_use();
 	if (totblock != 0) {
