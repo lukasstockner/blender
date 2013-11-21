@@ -374,20 +374,23 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             row.operator("object.hook_assign", text="Assign")
 
     def LAPLACIANDEFORM(self, layout, ob, md):
+        is_bind = md.is_bind
+
         layout.prop(md, "iterations")
+
         row = layout.row()
+        row.active = not is_bind
         row.label(text="Anchors Vertex Group:")
-        row.active = not md.is_bind
+
         row = layout.row()
+        row.enabled = not is_bind
         row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
-        row.enabled = not md.is_bind
+
         layout.separator()
+
         row = layout.row()
-        if md.is_bind:
-            row.operator("object.laplaciandeform_bind", text="Unbind")
-        else:
-            row.operator("object.laplaciandeform_bind", text="Bind")
         row.enabled = bool(md.vertex_group)
+        row.operator("object.laplaciandeform_bind", text="Unbind" if is_bind else "Bind")
 
     def LAPLACIANSMOOTH(self, layout, ob, md):
         layout.prop(md, "iterations")
