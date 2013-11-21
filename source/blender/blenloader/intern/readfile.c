@@ -40,6 +40,7 @@
 #include <string.h> // for strrchr strncmp strstr
 #include <math.h> // for fabs
 #include <stdarg.h> /* for va_start/end */
+#include <time.h> /* for gmtime */
 
 #include "BLI_utildefines.h"
 #ifndef WIN32
@@ -3360,6 +3361,8 @@ static void lib_link_curve(FileData *fd, Main *main)
 			
 			cu->ipo = newlibadr_us(fd, cu->id.lib, cu->ipo); // XXX deprecated - old animation system
 			cu->key = newlibadr_us(fd, cu->id.lib, cu->key);
+
+			cu->selboxes = NULL;  /* runtime, clear */
 			
 			cu->id.flag -= LIB_NEED_LINK;
 		}

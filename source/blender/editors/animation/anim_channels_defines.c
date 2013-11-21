@@ -63,6 +63,7 @@
 
 #include "BKE_curve.h"
 #include "BKE_key.h"
+#include "BKE_nla.h"
 #include "BKE_context.h"
 
 #include "UI_interface.h"
@@ -815,6 +816,11 @@ static short acf_group_setting_valid(bAnimContext *ac, bAnimListElem *UNUSED(ale
 {
 	/* for now, all settings are supported, though some are only conditionally */
 	switch (setting) {
+		/* unsupported */
+		case ACHANNEL_SETTING_SOLO:    /* Only available in NLA Editor for tracks */
+			return 0;
+		
+		/* conditionally supported */
 		case ACHANNEL_SETTING_VISIBLE: /* Only available in Graph Editor */
 			return (ac->spacetype == SPACE_IPO);
 			
@@ -924,6 +930,7 @@ static short acf_fcurve_setting_valid(bAnimContext *ac, bAnimListElem *ale, int 
 	
 	switch (setting) {
 		/* unsupported */
+		case ACHANNEL_SETTING_SOLO:   /* Solo Flag is only for NLA */
 		case ACHANNEL_SETTING_EXPAND: /* F-Curves are not containers */
 			return 0;
 		
@@ -2541,6 +2548,7 @@ static short acf_gpl_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *UNUS
 		/* unsupported */
 		case ACHANNEL_SETTING_EXPAND: /* gpencil layers are more like F-Curves than groups */
 		case ACHANNEL_SETTING_VISIBLE: /* graph editor only */
+		case ACHANNEL_SETTING_SOLO: /* nla editor only */
 			return 0;
 		
 		/* always available */
@@ -2706,6 +2714,7 @@ static short acf_masklay_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *
 		/* unsupported */
 		case ACHANNEL_SETTING_EXPAND: /* mask layers are more like F-Curves than groups */
 		case ACHANNEL_SETTING_VISIBLE: /* graph editor only */
+		case ACHANNEL_SETTING_SOLO: /* nla editor only */
 			return 0;
 		
 		/* always available */
@@ -2763,6 +2772,146 @@ static bAnimChannelType ACF_MASKLAYER =
 	acf_masklay_setting_flag,       /* flag for setting */
 	acf_masklay_setting_ptr         /* pointer for setting */
 };
+
+/* NLA Track ----------------------------------------------- */
+
+/* get backdrop color for nla track channels */
+static void acf_nlatrack_color(bAnimContext *UNUSED(ac), bAnimListElem *ale, float r_color[3])
+{
+	NlaTrack *nlt = (NlaTrack *)ale->data;
+	AnimData *adt = ale->adt;
+	bool nonSolo = false;
+	
+	/* is track enabled for solo drawing? */
+	if ((adt) && (adt->flag & ADT_NLA_SOLO_TRACK)) {
+		if ((nlt->flag & NLATRACK_SOLO) == 0) {
+			/* tag for special non-solo handling */
+			nonSolo = true;
+		}
+	}
+	
+	/* set color for nla track */
+	UI_GetThemeColorShade3fv(TH_HEADER, ((nonSolo == false) ? 20 : -20), r_color);
+}
+
+/* name for nla track entries */
+static void acf_nlatrack_name(bAnimListElem *ale, char *name)
+{
+	NlaTrack *nlt = (NlaTrack *)ale->data;
+	
+	if (nlt && name)
+		BLI_strncpy(name, nlt->name, ANIM_CHAN_NAME_SIZE);
+}
+
+/* name property for nla track entries */
+static short acf_nlatrack_name_prop(bAnimListElem *ale, PointerRNA *ptr, PropertyRNA **prop)
+{
+	if (ale->data) {
+		RNA_pointer_create(ale->id, &RNA_NlaTrack, ale->data, ptr);
+		*prop = RNA_struct_name_property(ptr->type);
+		
+		return (*prop != NULL);
+	}
+	
+	return 0;
+}
+
+/* check if some setting exists for this channel */
+static short acf_nlatrack_setting_valid(bAnimContext *UNUSED(ac), bAnimListElem *ale, int setting)
+{
+	NlaTrack *nlt = (NlaTrack *)ale->data;
+	AnimData *adt = ale->adt;
+	
+	/* visibility of settings depends on various states... */
+	switch (setting) {
+		/* always supported */
+		case ACHANNEL_SETTING_SELECT:
+		case ACHANNEL_SETTING_SOLO:
+			return 1;
+		
+		/* conditionally supported... */
+		case ACHANNEL_SETTING_PROTECT:
+		case ACHANNEL_SETTING_MUTE:
+			/* if this track is active and we're tweaking it, don't draw these toggles */
+			if (((nlt->flag & NLATRACK_ACTIVE) && (nlt->flag & NLATRACK_DISABLED)) == 0) {
+				/* is track enabled for solo drawing? */
+				if ((adt) && (adt->flag & ADT_NLA_SOLO_TRACK)) {
+					if (nlt->flag & NLATRACK_SOLO) {
+						/* ok - we've got a solo track, and this is it */
+						return 1;
+					}
+					else {
+						/* not ok - we've got a solo track, but this isn't it, so make it more obvious */
+						return 0;
+					}
+				}
+				
+				
+				/* ok - no tracks are solo'd, and this isn't being tweaked */
+				return 1;
+			}
+			else {
+				/* unsupported - this track is being tweaked */
+				return 0;
+			}
+		
+		/* unsupported */
+		default:
+			return 0;
+	}
+}
+
+/* get the appropriate flag(s) for the setting when it is valid  */
+static int acf_nlatrack_setting_flag(bAnimContext *UNUSED(ac), int setting, short *neg)
+{
+	/* clear extra return data first */
+	*neg = 0;
+	
+	switch (setting) {
+		case ACHANNEL_SETTING_SELECT: /* selected */
+			return NLATRACK_SELECTED;
+			
+		case ACHANNEL_SETTING_MUTE: /* muted */
+			return NLATRACK_MUTED;
+			
+		case ACHANNEL_SETTING_PROTECT: /* protected */
+			return NLATRACK_PROTECTED;
+			
+		case ACHANNEL_SETTING_SOLO: /* solo */
+			return NLATRACK_SOLO;
+			
+		default: /* unsupported */
+			return 0;
+	}
+}
+
+/* get pointer to the setting */
+static void *acf_nlatrack_setting_ptr(bAnimListElem *ale, int UNUSED(setting), short *type)
+{
+	NlaTrack *nlt = (NlaTrack *)ale->data;
+	return GET_ACF_FLAG_PTR(nlt->flag, type);
+}
+
+/* nla track type define */
+static bAnimChannelType ACF_NLATRACK = 
+{
+	"NLA Track",                    /* type name */
+	
+	acf_nlatrack_color,             /* backdrop color */
+	acf_generic_channel_backdrop,   /* backdrop */
+	acf_generic_indention_flexible, /* indent level */
+	acf_generic_group_offset,       /* offset */           // XXX?
+	
+	acf_nlatrack_name,              /* name */
+	acf_nlatrack_name_prop,         /* name prop */
+	NULL,                           /* icon */
+	
+	acf_nlatrack_setting_valid,     /* has setting */
+	acf_nlatrack_setting_flag,      /* flag for setting */
+	acf_nlatrack_setting_ptr        /* pointer for setting */
+};
+
+
 
 
 /* *********************************************** */
@@ -2822,9 +2971,9 @@ static void ANIM_init_channel_typeinfo_data(void)
 		animchannelTypeInfo[type++] = &ACF_MASKDATA;     /* Mask Datablock */
 		animchannelTypeInfo[type++] = &ACF_MASKLAYER;    /* Mask Layer */
 		
-		// TODO: these types still need to be implemented!!!
-		// probably need a few extra flags for these special cases...
-		animchannelTypeInfo[type++] = NULL;              /* NLA Track */
+		animchannelTypeInfo[type++] = &ACF_NLATRACK;     /* NLA Track */
+		
+		// TODO: this channel type still hasn't been ported over yet, since it requires special attention
 		animchannelTypeInfo[type++] = NULL;              /* NLA Action */
 	}
 } 
@@ -3225,6 +3374,26 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
 	BLI_freelistN(&anim_data);
 }
 
+/* callback for wrapping NLA Track "solo" toggle logic */
+static void achannel_nlatrack_solo_widget_cb(bContext *C, void *adt_poin, void *nlt_poin)
+{
+	AnimData *adt = adt_poin;
+	NlaTrack *nlt = nlt_poin;
+	
+	/* Toggle 'solo' mode. There are several complications here which need explaining:
+	 * - The method call is needed to perform a few additional validation operations
+	 *   to ensure that the mode is applied properly
+	 * - BUT, since the button already toggles the value, we need to un-toggle it
+	 *   before the API call gets to it, otherwise it will end up clearing the result
+	 *   again!
+	 */
+	nlt->flag ^= NLATRACK_SOLO;
+	BKE_nlatrack_solo_toggle(adt, nlt);
+	
+	/* send notifiers */
+	WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, NULL);
+}
+
 /* callback for rename widgets - clear rename-in-progress */
 static void achannel_setting_rename_done_cb(bContext *C, void *ads_poin, void *UNUSED(arg2))
 {
@@ -3343,7 +3512,7 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, bAnimChann
 			icon = ICON_VISIBLE_IPO_OFF;
 			
 			if (ale->type == ANIMTYPE_FCURVE)
-				tooltip = TIP_("Channel is visible in Graph Editor for editing");
+				tooltip = TIP_("F-Curve is visible in Graph Editor for editing");
 			else
 				tooltip = TIP_("Channels are visible in Graph Editor for editing");
 			break;
@@ -3355,9 +3524,9 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, bAnimChann
 			break;
 			
 		case ACHANNEL_SETTING_SOLO: /* NLA Tracks only */
-			//icon = ((enabled) ? ICON_LAYER_ACTIVE : ICON_LAYER_USED);
-			icon = ICON_LAYER_USED;
-			tooltip = TIP_("NLA Track is the only one evaluated for the AnimData block it belongs to");
+			//icon = ((enabled) ? ICON_SOLO_OFF : ICON_SOLO_ON);
+			icon = ICON_SOLO_OFF;
+			tooltip = TIP_("NLA Track is the only one evaluated in this Animation Data block, with all others muted");
 			break;
 		
 		/* --- */
@@ -3366,14 +3535,18 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, bAnimChann
 			// TODO: what about when there's no protect needed?
 			//icon = ((enabled) ? ICON_LOCKED : ICON_UNLOCKED);
 			icon = ICON_UNLOCKED;
-			tooltip = TIP_("Editability of keyframes for this channel");
+			
+			if (ale->datatype != ALE_NLASTRIP)
+				tooltip = TIP_("Editability of keyframes for this channel");
+			else
+				tooltip = TIP_("Editability of NLA Strips in this track");
 			break;
 			
 		case ACHANNEL_SETTING_MUTE: /* muted speaker */
 			//icon = ((enabled) ? ICON_MUTE_IPO_ON : ICON_MUTE_IPO_OFF);
 			icon = ICON_MUTE_IPO_OFF;
 			
-			if (ale->type == ALE_FCURVE) 
+			if (ale->type == ANIMTYPE_FCURVE)
 				tooltip = TIP_("Does F-Curve contribute to result");
 			else
 				tooltip = TIP_("Do channels contribute to result");
@@ -3418,6 +3591,11 @@ static void draw_setting_widget(bAnimContext *ac, bAnimListElem *ale, bAnimChann
 				case ACHANNEL_SETTING_PROTECT: /* General - protection flags */
 				case ACHANNEL_SETTING_MUTE: /* General - muting flags */
 					uiButSetNFunc(but, achannel_setting_flush_widget_cb, MEM_dupallocN(ale), SET_INT_IN_POINTER(setting));
+					break;
+					
+				/* settings needing special attention */
+				case ACHANNEL_SETTING_SOLO: /* NLA Tracks - Solo toggle */
+					uiButSetFunc(but, achannel_nlatrack_solo_widget_cb, ale->adt, ale->data);
 					break;
 					
 				/* no flushing */

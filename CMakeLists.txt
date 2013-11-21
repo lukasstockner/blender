@@ -226,8 +226,12 @@ else()
 endif()
 
 # 3D format support
-# disable opencollada on non-apple unix because opencollada has no package for debian
-option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org)"	OFF)
+# Disable opencollada when we don't have precompiled libs
+if(APPLE OR WIN32)
+	option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org)" ON)
+else()
+	option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org)" OFF)
+endif()
 
 # Sound output
 option(WITH_SDL           "Enable SDL for sound and joystick support" ON)
@@ -374,7 +378,11 @@ if(APPLE)
             set(CMAKE_XCODE_ATTRIBUTE_SDKROOT macosx${OSX_SYSTEM}) # to silence sdk not found warning, just overrides CMAKE_OSX_SYSROOT
         endif()
 	endif()
-	
+
+    if(OSX_SYSTEM MATCHES 10.9)
+        set(CMAKE_FIND_ROOT_PATH ${CMAKE_OSX_SYSROOT}) # make sure syslibs and headers are looked up in sdk ( expecially for 10.9 openGL atm. )
+    endif()
+
 	if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
 		set(CMAKE_OSX_DEPLOYMENT_TARGET "10.6" CACHE STRING "" FORCE) # 10.6 is our min. target, if you use higher sdk, weak linking happens
 	endif()

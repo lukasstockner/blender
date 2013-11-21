@@ -38,6 +38,7 @@ protected:
 	SocketReader *m_pixelReader;
 	int m_osa;
 	float m_jitter[32][2];
+	float m_perspectiveMatrix[3][3];
 
 public:
 	PlaneTrackWarpImageOperation();
@@ -45,7 +46,7 @@ public:
 	void initExecution();
 	void deinitExecution();
 
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 };
