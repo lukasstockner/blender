@@ -424,7 +424,7 @@ static void rotateDifferentialCoordinates(LaplacianSystem *sys)
 		fni[1] = alpha * ni[1] + beta * uij[1] + gamma * e2[1];
 		fni[2] = alpha * ni[2] + beta * uij[2] + gamma * e2[2];
 
-		if (len_v3(fni) > FLT_EPSILON) {
+		if (len_squared_v3(fni) > FLT_EPSILON) {
 			nlRightHandSideSet(0, i, fni[0]);
 			nlRightHandSideSet(1, i, fni[1]);
 			nlRightHandSideSet(2, i, fni[2]);
@@ -537,9 +537,9 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 		}
 		for (i = 0; i < na; i++) {
 			vid = sys->index_anchors[i];
-			nlRightHandSideSet(0, n + i	, vertexCos[vid][0]);
-			nlRightHandSideSet(1, n + i	, vertexCos[vid][1]);
-			nlRightHandSideSet(2, n + i	, vertexCos[vid][2]);
+			nlRightHandSideSet(0, n + i, vertexCos[vid][0]);
+			nlRightHandSideSet(1, n + i, vertexCos[vid][1]);
+			nlRightHandSideSet(2, n + i, vertexCos[vid][2]);
 			nlMatrixAdd(n + i, vid, 1.0f);
 		}
 
@@ -761,7 +761,7 @@ static void LaplacianDeformModifier_do(
 
 static void initData(ModifierData *md)
 {
-	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *) md;
+	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 	lmd->anchor_grp_name[0] = '\0';
 	lmd->total_verts = 0;
 	lmd->repeat = 1;
@@ -772,8 +772,8 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
-	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *) md;
-	LaplacianDeformModifierData *tlmd = (LaplacianDeformModifierData *) target;
+	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
+	LaplacianDeformModifierData *tlmd = (LaplacianDeformModifierData *)target;
 	tlmd->total_verts = lmd->total_verts;
 	tlmd->repeat = lmd->repeat;
 	BLI_strncpy(tlmd->anchor_grp_name, lmd->anchor_grp_name, sizeof(tlmd->anchor_grp_name));
@@ -802,9 +802,8 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
 {
 	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
 
-	LaplacianDeformModifier_do((LaplacianDeformModifierData *) md, ob, dm,
-	                  vertexCos, numVerts);
-	if (dm != derivedData){
+	LaplacianDeformModifier_do((LaplacianDeformModifierData *)md, ob, dm, vertexCos, numVerts);
+	if (dm != derivedData) {
 		dm->release(dm);
 	}
 }
@@ -814,7 +813,7 @@ static void deformVertsEM(
         DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
 	DerivedMesh *dm = get_dm(ob, editData, derivedData, NULL, false, false);
-	LaplacianDeformModifier_do((LaplacianDeformModifierData *) md, ob, dm,
+	LaplacianDeformModifier_do((LaplacianDeformModifierData *)md, ob, dm,
 	                  vertexCos, numVerts);
 	if (dm != derivedData) {
 		dm->release(dm);
@@ -823,7 +822,7 @@ static void deformVertsEM(
 
 static void freeData(ModifierData *md)
 {
-	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *) md;
+	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 	LaplacianSystem *sys = (LaplacianSystem *)(lmd->cacheSystem);
 
 	if (sys) {
