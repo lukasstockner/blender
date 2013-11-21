@@ -32,6 +32,7 @@ set(INC
 )
 
 set(INC_SYS
+	${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
@@ -45,7 +46,10 @@ set(SRC
 )
 
 if(WITH_ALEMBIC)
-	list(APPEND INC_SYS ${ALEMBIC_INCLUDE_DIRS} ${OPENEXR_INCLUDE_DIR}/OpenEXR)
+	list(APPEND INC_SYS
+	${ALEMBIC_INCLUDE_DIRS}
+	${OPENEXR_INCLUDE_DIR}/OpenEXR
+	)
 
 	list(APPEND SRC
 	intern/particles.h
@@ -53,6 +57,7 @@ if(WITH_ALEMBIC)
 	intern/reader.h
 	intern/reader.cpp
 	intern/schema.h
+	intern/thread.h
 	intern/types.h
 	intern/writer.h
 	intern/writer.cpp
