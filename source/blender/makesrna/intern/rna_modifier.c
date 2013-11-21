@@ -797,7 +797,8 @@ static void rna_LaplacianDeformModifier_vgroup_set(PointerRNA *ptr, const char *
 
 static int rna_LaplacianDeformModifier_is_bind_get(PointerRNA *ptr)
 {
-	return (((LaplacianDeformModifierData *)ptr->data)->bind == 1);
+	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)ptr->data;
+	return ((lmd->flag & MOD_LAPLACIANDEFORM_BIND) && (lmd->cacheSystem != NULL));
 }
 
 #else

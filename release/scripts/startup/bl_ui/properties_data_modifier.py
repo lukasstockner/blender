@@ -380,7 +380,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row.active = not md.is_bind
         row = layout.row()
         row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
-        row.active = not md.is_bind
         row.enabled = not md.is_bind
         layout.separator()
         row = layout.row()
@@ -388,7 +387,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             row.operator("object.laplaciandeform_bind", text="Unbind")
         else:
             row.operator("object.laplaciandeform_bind", text="Bind")
-        row.active = bool(md.vertex_group)
         row.enabled = bool(md.vertex_group)
 
     def LAPLACIANSMOOTH(self, layout, ob, md):

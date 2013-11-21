@@ -1300,7 +1300,7 @@ typedef struct LaplacianDeformModifierData {
 	int total_verts, repeat;
 	float *vertexco;
 	void *cacheSystem;
-	short bind, pad[3];
+	short flag, pad[3];
 	
 } LaplacianDeformModifierData;
 

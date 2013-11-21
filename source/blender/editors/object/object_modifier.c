@@ -2220,15 +2220,15 @@ static int laplaciandeform_bind_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_active_context(C);
-	LaplacianDeformModifierData *mmd = (LaplacianDeformModifierData *)edit_modifier_property_get(op, ob, eModifierType_LaplacianDeform);
+	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)edit_modifier_property_get(op, ob, eModifierType_LaplacianDeform);
 	
-	if (!mmd)
+	if (!lmd)
 		return OPERATOR_CANCELLED;
-	if (mmd->bind) {
-		mmd->bind = 0;
+	if (lmd->flag & MOD_LAPLACIANDEFORM_BIND) {
+		lmd->flag &= ~MOD_LAPLACIANDEFORM_BIND;
 	}
 	else {
-		mmd->bind = 1;
+		lmd->flag |= MOD_LAPLACIANDEFORM_BIND;
 	}
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
