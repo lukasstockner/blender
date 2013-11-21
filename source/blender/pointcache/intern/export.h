@@ -16,39 +16,37 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_API_H
-#define PTC_API_H
+#ifndef PTC_EXPORT_H
+#define PTC_EXPORT_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "thread.h"
 
 struct Main;
 struct Scene;
-struct Object;
-struct ParticleSystem;
 
-void PTC_test_archive(void);
+namespace PTC {
 
+class Writer;
 
-struct PTCWriter;
-struct PTCReader;
+class Exporter
+{
+public:
+	Exporter(Main *bmain, Scene *scene);
+	
+	void bake(Writer *writer, int start_frame, int end_frame);
 
-void PTC_writer_free(struct PTCWriter *writer);
-void PTC_write_sample(struct PTCWriter *writer);
+	bool cancel() const;
+	void cancel(bool value);
 
-void PTC_reader_free(struct PTCReader *reader);
-void PTC_read_sample(struct PTCReader *reader);
+private:
+	thread_mutex m_mutex;
+	
+	Main *m_bmain;
+	Scene *m_scene;
+	
+	bool m_cancel;
+};
 
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct PTCWriter *writer, int start_frame, int end_frame);
+} /* namespace PTC */
 
-
-/* Particles */
-struct PTCWriter *PTC_writer_particles(struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles(struct Object *ob, struct ParticleSystem *psys);
-
-#ifdef __cplusplus
-} /* extern C */
-#endif
-
-#endif  /* PTC_API_H */
+#endif  /* PTC_EXPORT_H */

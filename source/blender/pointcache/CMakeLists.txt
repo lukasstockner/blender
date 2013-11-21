@@ -52,6 +52,8 @@ if(WITH_ALEMBIC)
 	)
 
 	list(APPEND SRC
+	intern/export.h
+	intern/export.cpp
 	intern/particles.h
 	intern/particles.cpp
 	intern/reader.h

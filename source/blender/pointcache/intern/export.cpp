@@ -16,39 +16,49 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_API_H
-#define PTC_API_H
+#include "export.h"
+#include "writer.h"
 
-#ifdef __cplusplus
 extern "C" {
-#endif
+#include "DNA_scene_types.h"
 
-struct Main;
-struct Scene;
-struct Object;
-struct ParticleSystem;
+#include "BKE_main.h"
+#include "BKE_scene.h"
+}
 
-void PTC_test_archive(void);
+namespace PTC {
 
+Exporter::Exporter(Main *bmain, Scene *scene) :
+    m_bmain(bmain),
+    m_scene(scene),
+    m_cancel(false)
+{
+}
 
-struct PTCWriter;
-struct PTCReader;
+void Exporter::bake(Writer *writer, int start_frame, int end_frame)
+{
+	thread_scoped_lock(m_mutex);
 
-void PTC_writer_free(struct PTCWriter *writer);
-void PTC_write_sample(struct PTCWriter *writer);
+	for (int cfra = start_frame; cfra <= end_frame; ++cfra) {
+		BKE_scene_update_for_newframe(m_bmain, m_scene, m_scene->lay);
 
-void PTC_reader_free(struct PTCReader *reader);
-void PTC_read_sample(struct PTCReader *reader);
+		writer->write_sample();
 
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct PTCWriter *writer, int start_frame, int end_frame);
+		if (m_cancel)
+			break;
+	}
+}
 
+bool Exporter::cancel() const
+{
+	thread_scoped_lock(m_mutex);
+	return m_cancel;
+}
 
-/* Particles */
-struct PTCWriter *PTC_writer_particles(struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles(struct Object *ob, struct ParticleSystem *psys);
+void Exporter::cancel(bool value)
+{
+	thread_scoped_lock(m_mutex);
+	m_cancel = value;
+}
 
-#ifdef __cplusplus
-} /* extern C */
-#endif
-
-#endif  /* PTC_API_H */
+} /* namespace PTC */
