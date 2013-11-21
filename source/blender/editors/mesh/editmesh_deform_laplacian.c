@@ -123,7 +123,7 @@ static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh);
 static float cotan_weight(float *v1, float *v2, float *v3);
 static int laplacian_deform_invoke(struct bContext *C, struct wmOperator *op, const struct wmEvent *evt);
 static int laplacian_deform_modal(bContext *C, wmOperator *op, const wmEvent *event);
-static int laplacian_deform_cancel(bContext *C, wmOperator *op);
+static void laplacian_deform_cancel(bContext *C, wmOperator *op);
 static void laplacian_deform_update_header(bContext *C);
 static void compute_implict_rotations(SystemCustomData * data);
 static void delete_void_pointer(void *data);
@@ -182,8 +182,7 @@ static LaplacianSystem * init_laplacian_system(int numv, int nums, int numh)
 	rows = (sys->numVerts + sys->numStatics + sys->numHandlers) * 3;
 	cols = sys->numVerts * 3;
 	sys->list_uverts = (int *)MEM_callocN(sizeof(BMVert *) * sys->numVerts, "LapUverts");
-	sys->delta = (float (*)[3])MEM_callocN(sizeof(float) * sys->numVerts * 3, "LapDelta");
-	memset(sys->delta, 0.0, sizeof(float) * sys->numVerts * 3);
+	sys->delta = (float (*)[3])MEM_callocN(sizeof(float) * cols, "LapDelta");
 	return sys;
 }
 
@@ -711,7 +710,7 @@ static int laplacian_deform_modal(bContext *C, wmOperator *op, const wmEvent *ev
 
 }
 
-static int laplacian_deform_cancel(bContext *UNUSED(C), wmOperator *op)
+static void laplacian_deform_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	SystemCustomData * data;
 	data = op->customdata;
@@ -722,8 +721,6 @@ static int laplacian_deform_cancel(bContext *UNUSED(C), wmOperator *op)
 		data->ob = NULL;
 		delete_void_pointer(data);
 	}
-
-	return OPERATOR_CANCELLED;
 }
 
 wmKeyMap * laplacian_deform_modal_keymap(wmKeyConfig *keyconf)

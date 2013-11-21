@@ -2218,7 +2218,6 @@ static int laplaciandeform_poll(bContext *C)
 
 static int laplaciandeform_bind_exec(bContext *C, wmOperator *op)
 {
-	Scene *scene = CTX_data_scene(C);
 	Object *ob = ED_object_active_context(C);
 	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)edit_modifier_property_get(op, ob, eModifierType_LaplacianDeform);
 	

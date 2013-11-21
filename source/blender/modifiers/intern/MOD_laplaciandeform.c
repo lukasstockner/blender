@@ -27,24 +27,20 @@
 /** \file blender/modifiers/intern/MOD_laplaciandeform.c
  *  \ingroup modifiers
  */
- 
-#include "DNA_meshdata_types.h"
-#include "DNA_mesh_types.h"
+
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
+
 #include "MEM_guardedalloc.h"
+
 #include "BKE_mesh.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_particle.h"
 #include "BKE_deform.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_context.h"
-#include "BKE_editmesh.h"
-#include "BKE_editmesh_bvh.h"
-#include "BKE_report.h"
-#include "MOD_modifiertypes.h"
+
 #include "MOD_util.h"
+
 #include "ONL_opennl.h"
 
 #define LAPDEFORM_SYSTEM_NOT_CHANGE 0
@@ -724,14 +720,14 @@ static void LaplacianDeformModifier_do(
 			}
 			else {
 				if (sysdif == LAPDEFORM_SYSTEM_CHANGE_VERTEXES) {
-					modifier_setError(lmd, "Verts changed from %d to %d", lmd->total_verts, numVerts);
+					modifier_setError(&lmd->modifier, "Verts changed from %d to %d", lmd->total_verts, numVerts);
 				} 
 				else if (sysdif == LAPDEFORM_SYSTEM_CHANGE_EDGES) {
-					modifier_setError(lmd, "Edges changed from %d to %d", sys->total_edges, dm->getNumEdges(dm));
+					modifier_setError(&lmd->modifier, "Edges changed from %d to %d", sys->total_edges, dm->getNumEdges(dm));
 				} 
 				else if (sysdif == LAPDEFORM_SYSTEM_CHANGE_NOT_VALID_GROUP) {
-					modifier_setError(lmd, "Vertex group  %s is not valid", sys->anchor_grp_name);
-				}				
+					modifier_setError(&lmd->modifier, "Vertex group  %s is not valid", sys->anchor_grp_name);
+				}
 			}
 		} 
 		else {
