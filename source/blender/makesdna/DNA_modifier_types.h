@@ -1300,8 +1300,14 @@ typedef struct LaplacianDeformModifierData {
 	int total_verts, repeat;
 	float *vertexco;
 	void *cacheSystem;
+	short bind, pad[3];
 	
 } LaplacianDeformModifierData;
+
+/* Smooth modifier flags */
+enum {
+	MOD_LAPLACIANDEFORM_BIND = 1,
+};
 
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

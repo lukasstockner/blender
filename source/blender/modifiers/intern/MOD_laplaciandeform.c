@@ -694,6 +694,16 @@ static void LaplacianDeformModifier_do(
 	int sysdif;
 	LaplacianSystem *sys = NULL;
 	filevertexCos = NULL;
+	if (!smd->bind) {
+		if (smd->cacheSystem) {
+			sys = smd->cacheSystem;
+			deleteLaplacianSystem(sys);
+			smd->cacheSystem = NULL;
+			smd->total_verts = 0;
+			MEM_SAFE_FREE(smd->vertexco);
+		}
+		return;
+	}
 	if (smd->cacheSystem) {
 		sysdif = isSystemDifferent(smd, ob, dm, numVerts);
 		sys = smd->cacheSystem;

@@ -795,6 +795,11 @@ static void rna_LaplacianDeformModifier_vgroup_set(PointerRNA *ptr, const char *
 	rna_object_vgroup_name_set(ptr, value, lmd->anchor_grp_name, sizeof(lmd->anchor_grp_name));
 }
 
+static int rna_LaplacianDeformModifier_is_bind_get(PointerRNA *ptr)
+{
+	return (((LaplacianDeformModifierData *)ptr->data)->bind == 1);
+}
+
 #else
 
 static PropertyRNA *rna_def_property_subdivision_common(StructRNA *srna, const char type[])
@@ -3711,6 +3716,11 @@ static void rna_def_modifier_laplaciandeform(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 1, 50, 1, -1);
 	RNA_def_property_ui_text(prop, "Repeat", "");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "is_bind", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_LaplacianDeformModifier_is_bind_get", NULL);
+	RNA_def_property_ui_text(prop, "Bind", "Whether geometry has been bind to anchors");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
