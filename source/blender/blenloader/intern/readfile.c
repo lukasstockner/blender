@@ -4823,13 +4823,13 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				direct_link_curvemapping(fd, wmd->cmap_curve);
 		}
 		else if (md->type == eModifierType_LaplacianDeform) {
-			LaplacianDeformModifierData *wmd = (LaplacianDeformModifierData *)md;
+			LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 			
-			wmd->vertexco = newdataadr(fd, wmd->vertexco);
+			lmd->vertexco = newdataadr(fd, lmd->vertexco);
 			if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
-				BLI_endian_switch_float_array(wmd->vertexco, wmd->total_verts*3);
+				BLI_endian_switch_float_array(lmd->vertexco, lmd->total_verts*3);
 			}
-			wmd->cacheSystem = NULL;
+			lmd->cacheSystem = NULL;
 		}
 	}
 }

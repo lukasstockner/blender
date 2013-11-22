@@ -476,9 +476,9 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 		}
 		for (i = 0; i < na; i++) {
 			vid = sys->index_anchors[i];
-			nlRightHandSideSet(0, n + i, sys->co[vid][0]);
-			nlRightHandSideSet(1, n + i, sys->co[vid][1]);
-			nlRightHandSideSet(2, n + i, sys->co[vid][2]);
+			nlRightHandSideSet(0, n + i, vertexCos[vid][0]);
+			nlRightHandSideSet(1, n + i, vertexCos[vid][1]);
+			nlRightHandSideSet(2, n + i, vertexCos[vid][2]);
 			nlMatrixAdd(n + i, vid, 1.0f);
 		}
 		nlEnd(NL_MATRIX);
@@ -493,9 +493,9 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 
 				for (i = 0; i < na; i++) {
 					vid = sys->index_anchors[i];
-					nlRightHandSideSet(0, n + i, sys->co[vid][0]);
-					nlRightHandSideSet(1, n + i, sys->co[vid][1]);
-					nlRightHandSideSet(2, n + i, sys->co[vid][2]);
+					nlRightHandSideSet(0, n + i, vertexCos[vid][0]);
+					nlRightHandSideSet(1, n + i, vertexCos[vid][1]);
+					nlRightHandSideSet(2, n + i, vertexCos[vid][2]);
 				}
 
 				nlEnd(NL_MATRIX);
@@ -698,9 +698,9 @@ static void LaplacianDeformModifier_do(
 			sys = lmd->cacheSystem;
 			deleteLaplacianSystem(sys);
 			lmd->cacheSystem = NULL;
-			lmd->total_verts = 0;
-			MEM_SAFE_FREE(lmd->vertexco);
 		}
+		lmd->total_verts = 0;
+		MEM_SAFE_FREE(lmd->vertexco);
 		return;
 	}
 	if (lmd->cacheSystem) {
@@ -755,6 +755,9 @@ static void LaplacianDeformModifier_do(
 				laplacianDeformPreview(sys, vertexCos);
 			}
 		}
+	}
+	if (sys->is_matrix_computed && !sys->has_solution) {
+		modifier_setError(&lmd->modifier, "The system not found a solution.");
 	}
 }
 
