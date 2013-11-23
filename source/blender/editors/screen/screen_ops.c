@@ -750,11 +750,9 @@ static int actionzone_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int actionzone_cancel(bContext *UNUSED(C), wmOperator *op)
+static void actionzone_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	actionzone_exit(op);
-
-	return OPERATOR_CANCELLED;
 }
 
 static void SCREEN_OT_actionzone(wmOperatorType *ot)
@@ -825,10 +823,9 @@ static void area_swap_exit(bContext *C, wmOperator *op)
 	op->customdata = NULL;
 }
 
-static int area_swap_cancel(bContext *C, wmOperator *op)
+static void area_swap_cancel(bContext *C, wmOperator *op)
 {
 	area_swap_exit(C, op);
-	return OPERATOR_CANCELLED;
 }
 
 static int area_swap_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -857,8 +854,8 @@ static int area_swap_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		case LEFTMOUSE: /* release LMB */
 			if (event->val == KM_RELEASE) {
 				if (!sad->sa2 || sad->sa1 == sad->sa2) {
-					
-					return area_swap_cancel(C, op);
+					area_swap_cancel(C, op);
+					return OPERATOR_CANCELLED;
 				}
 
 				ED_area_tag_redraw(sad->sa1);
@@ -875,7 +872,8 @@ static int area_swap_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			break;
 			
 		case ESCKEY:
-			return area_swap_cancel(C, op);
+			area_swap_cancel(C, op);
+			return OPERATOR_CANCELLED;
 	}
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -917,14 +915,7 @@ static int area_dupli_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		
 		sa = sad->sa1;
 	}
-	
-	/*  poll() checks area context, but we don't accept full-area windows */
-	if (sc->full != SCREENNORMAL) {
-		if (event->type == EVT_ACTIONZONE_AREA)
-			actionzone_exit(op);
-		return OPERATOR_CANCELLED;
-	}
-	
+
 	/* adds window to WM */
 	rect = sa->totrct;
 	BLI_rcti_translate(&rect, win->posx, win->posy);
@@ -1148,14 +1139,12 @@ static int area_move_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int area_move_cancel(bContext *C, wmOperator *op)
+static void area_move_cancel(bContext *C, wmOperator *op)
 {
 	
 	RNA_int_set(op->ptr, "delta", 0);
 	area_move_apply(C, op);
 	area_move_exit(C, op);
-	
-	return OPERATOR_CANCELLED;
 }
 
 /* modal callback for while moving edges */
@@ -1186,7 +1175,8 @@ static int area_move_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					return OPERATOR_FINISHED;
 					
 				case KM_MODAL_CANCEL:
-					return area_move_cancel(C, op);
+					area_move_cancel(C, op);
+					return OPERATOR_CANCELLED;
 					
 				case KM_MODAL_STEP10:
 					md->step = 10;
@@ -1530,7 +1520,7 @@ static int area_split_exec(bContext *C, wmOperator *op)
 }
 
 
-static int area_split_cancel(bContext *C, wmOperator *op)
+static void area_split_cancel(bContext *C, wmOperator *op)
 {
 	sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
 	
@@ -1546,8 +1536,6 @@ static int area_split_cancel(bContext *C, wmOperator *op)
 		}
 	}
 	area_split_exit(C, op);
-	
-	return OPERATOR_CANCELLED;
 }
 
 static int area_split_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -1640,7 +1628,8 @@ static int area_split_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			
 		case RIGHTMOUSE: /* cancel operation */
 		case ESCKEY:
-			return area_split_cancel(C, op);
+			area_split_cancel(C, op);
+			return OPERATOR_CANCELLED;
 	}
 	
 	return OPERATOR_RUNNING_MODAL;
@@ -1915,12 +1904,10 @@ static int region_scale_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int region_scale_cancel(bContext *UNUSED(C), wmOperator *op)
+static void region_scale_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	MEM_freeN(op->customdata);
 	op->customdata = NULL;
-
-	return OPERATOR_CANCELLED;
 }
 
 static void SCREEN_OT_region_scale(wmOperatorType *ot)
@@ -2121,6 +2108,66 @@ static void SCREEN_OT_keyframe_jump(wmOperatorType *ot)
 	
 	/* properties */
 	RNA_def_boolean(ot->srna, "next", TRUE, "Next Keyframe", "");
+}
+
+/* ************** jump to marker operator ***************************** */
+
+/* function to be called outside UI context, or for redo */
+static int marker_jump_exec(bContext *C, wmOperator *op)
+{
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	TimeMarker *marker;
+	int closest;
+	short next = RNA_boolean_get(op->ptr, "next");
+	bool found = false;
+
+	/* find matching marker in the right direction */
+	for (marker = scene->markers.first; marker; marker = marker->next) {
+		if (next) {
+			if (marker->frame > CFRA && (!found || closest > marker->frame)) {
+				closest = marker->frame;
+				found = true;
+			}
+		}
+		else {
+			if (marker->frame < CFRA && (!found || closest < marker->frame)) {
+				closest = marker->frame;
+				found = true;
+			}
+		}
+	}
+
+	/* any success? */
+	if (!found) {
+		BKE_report(op->reports, RPT_INFO, "No more markers to jump to in this direction");
+
+		return OPERATOR_CANCELLED;
+	}
+	else {
+		CFRA = closest;
+
+		sound_seek_scene(bmain, scene);
+
+		WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+
+		return OPERATOR_FINISHED;
+	}
+}
+
+static void SCREEN_OT_marker_jump(wmOperatorType *ot)
+{
+	ot->name = "Jump to Marker";
+	ot->description = "Jump to previous/next marker";
+	ot->idname = "SCREEN_OT_marker_jump";
+
+	ot->exec = marker_jump_exec;
+
+	ot->poll = ED_operator_screenactive_norender;
+	ot->flag = OPTYPE_UNDO;
+
+	/* properties */
+	RNA_def_boolean(ot->srna, "next", TRUE, "Next Marker", "");
 }
 
 /* ************** switch screen operator ***************************** */
@@ -2389,7 +2436,7 @@ static int area_join_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int area_join_cancel(bContext *C, wmOperator *op)
+static void area_join_cancel(bContext *C, wmOperator *op)
 {
 	sAreaJoinData *jd = (sAreaJoinData *)op->customdata;
 	
@@ -2405,8 +2452,6 @@ static int area_join_cancel(bContext *C, wmOperator *op)
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 	
 	area_join_exit(C, op);
-	
-	return OPERATOR_CANCELLED;
 }
 
 /* modal callback while selecting area (space) that will be removed */
@@ -2494,7 +2539,8 @@ static int area_join_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			
 		case RIGHTMOUSE:
 		case ESCKEY:
-			return area_join_cancel(C, op);
+			area_join_cancel(C, op);
+			return OPERATOR_CANCELLED;
 	}
 	
 	return OPERATOR_RUNNING_MODAL;
@@ -3807,6 +3853,7 @@ void ED_operatortypes_screen(void)
 	WM_operatortype_append(SCREEN_OT_frame_offset);
 	WM_operatortype_append(SCREEN_OT_frame_jump);
 	WM_operatortype_append(SCREEN_OT_keyframe_jump);
+	WM_operatortype_append(SCREEN_OT_marker_jump);
 	
 	WM_operatortype_append(SCREEN_OT_animation_step);
 	WM_operatortype_append(SCREEN_OT_animation_play);
@@ -3984,6 +4031,13 @@ void ED_keymap_screen(wmKeyConfig *keyconf)
 
 	kmi = WM_keymap_add_item(keymap, "SCREEN_OT_keyframe_jump", MEDIAFIRST, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "next", FALSE);
+
+	kmi = WM_keymap_add_item(keymap, "SCREEN_OT_marker_jump", RIGHTARROWKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "next", TRUE);
+
+	kmi = WM_keymap_add_item(keymap, "SCREEN_OT_marker_jump", LEFTARROWKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "next", FALSE);
+
 	
 	/* play (forward and backwards) */
 	WM_keymap_add_item(keymap, "SCREEN_OT_animation_play", AKEY, KM_PRESS, KM_ALT, 0);

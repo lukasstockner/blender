@@ -290,9 +290,7 @@ static void rna_idproperty_free(PointerRNA *ptr, const char *name)
 	if (group) {
 		IDProperty *idprop = IDP_GetPropertyFromGroup(group, name);
 		if (idprop) {
-			IDP_RemFromGroup(group, idprop);
-			IDP_FreeProperty(idprop);
-			MEM_freeN(idprop);
+			IDP_FreeFromGroup(group, idprop);
 		}
 	}
 }
@@ -423,9 +421,7 @@ IDProperty *rna_idproperty_check(PropertyRNA **prop, PointerRNA *ptr)
 			if (idprop && !rna_idproperty_verify_valid(ptr, *prop, idprop)) {
 				IDProperty *group = RNA_struct_idprops(ptr, 0);
 
-				IDP_RemFromGroup(group, idprop);
-				IDP_FreeProperty(idprop);
-				MEM_freeN(idprop);
+				IDP_FreeFromGroup(group, idprop);
 				return NULL;
 			}
 
@@ -596,9 +592,7 @@ bool RNA_struct_idprops_unset(PointerRNA *ptr, const char *identifier)
 	if (group) {
 		IDProperty *idp = IDP_GetPropertyFromGroup(group, identifier);
 		if (idp) {
-			IDP_RemFromGroup(group, idp);
-			IDP_FreeProperty(idp);
-			MEM_freeN(idp);
+			IDP_FreeFromGroup(group, idp);
 
 			return true;
 		}
@@ -2771,9 +2765,7 @@ void RNA_property_pointer_remove(PointerRNA *ptr, PropertyRNA *prop)
 		group = RNA_struct_idprops(ptr, 0);
 		
 		if (group) {
-			IDP_RemFromGroup(group, idprop);
-			IDP_FreeProperty(idprop);
-			MEM_freeN(idprop);
+			IDP_FreeFromGroup(group, idprop);
 		}
 	}
 	else
@@ -4901,6 +4893,7 @@ int RNA_collection_length(PointerRNA *ptr, const char *name)
 
 bool RNA_property_is_set_ex(PointerRNA *ptr, PropertyRNA *prop, bool use_ghost)
 {
+	prop = rna_ensure_property(prop);
 	if (prop->flag & PROP_IDPROPERTY) {
 		IDProperty *idprop = rna_idproperty_find(ptr, prop->identifier);
 		return ((idprop != NULL) && (use_ghost == false || !(idprop->flag & IDP_FLAG_GHOST)));
@@ -4912,6 +4905,7 @@ bool RNA_property_is_set_ex(PointerRNA *ptr, PropertyRNA *prop, bool use_ghost)
 
 bool RNA_property_is_set(PointerRNA *ptr, PropertyRNA *prop)
 {
+	prop = rna_ensure_property(prop);
 	if (prop->flag & PROP_IDPROPERTY) {
 		IDProperty *idprop = rna_idproperty_find(ptr, prop->identifier);
 		return ((idprop != NULL) && !(idprop->flag & IDP_FLAG_GHOST));
@@ -4923,6 +4917,7 @@ bool RNA_property_is_set(PointerRNA *ptr, PropertyRNA *prop)
 
 void RNA_property_unset(PointerRNA *ptr, PropertyRNA *prop)
 {
+	prop = rna_ensure_property(prop);
 	if (prop->flag & PROP_IDPROPERTY) {
 		rna_idproperty_free(ptr, prop->identifier);
 	}
@@ -4985,7 +4980,7 @@ bool RNA_property_is_unlink(PropertyRNA *prop)
 /* string representation of a property, python
  * compatible but can be used for display too,
  * context may be NULL */
-static char *rna_pointer_as_string__idprop(bContext *C, PointerRNA *ptr)
+char *RNA_pointer_as_string_id(bContext *C, PointerRNA *ptr)
 {
 	DynStr *dynstr = BLI_dynstr_new();
 	char *cstring;
@@ -5036,7 +5031,7 @@ static char *rna_pointer_as_string__bldata(PointerRNA *ptr)
 char *RNA_pointer_as_string(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *prop_ptr, PointerRNA *ptr_prop)
 {
 	if (RNA_property_flag(prop_ptr) & PROP_IDPROPERTY) {
-		return rna_pointer_as_string__idprop(C, ptr_prop);
+		return RNA_pointer_as_string_id(C, ptr_prop);
 	}
 	else {
 		return rna_pointer_as_string__bldata(ptr_prop);

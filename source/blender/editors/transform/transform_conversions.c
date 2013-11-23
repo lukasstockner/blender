@@ -2008,8 +2008,8 @@ static struct TransIslandData *editmesh_islands_info_calc(BMEditMesh *em, int *r
 	 * its possible we have a selected vertex thats not in a face, for now best not crash in that case. */
 	fill_vn_i(vert_map, bm->totvert, -1);
 
-	EDBM_index_arrays_ensure(em, htype);
-	ele_array = (htype == BM_FACE) ? (void **)em->face_index : (void **)em->edge_index;
+	BM_mesh_elem_table_ensure(bm, htype);
+	ele_array = (htype == BM_FACE) ? (void **)bm->ftable : (void **)bm->etable;
 
 	BM_mesh_elem_index_ensure(bm, BM_VERT);
 
@@ -2098,9 +2098,7 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 	}
 	else if (t->around == V3D_LOCAL) {
 		copy_v3_v3(td->center, td->loc);
-
-		axis_dominant_v3_to_m3(td->axismtx, eve->no);
-		invert_m3(td->axismtx);
+		createSpaceNormal(td->axismtx, eve->no);
 	}
 	else {
 		copy_v3_v3(td->center, td->loc);
@@ -2383,16 +2381,16 @@ void flushTransNodes(TransInfo *t)
 	int a;
 	TransData *td;
 	TransData2D *td2d;
-
+	
+	applyGridAbsolute(t);
+	
 	/* flush to 2d vector from internally used 3d vector */
 	for (a = 0, td = t->data, td2d = t->data2d; a < t->total; a++, td++, td2d++) {
 		bNode *node = td->extra;
-		float vec[2];
 		
 		/* weirdo - but the node system is a mix of free 2d elements and dpi sensitive UI */
-		add_v2_v2v2(vec, td2d->loc, td2d->ih1);
-		node->locx = vec[0] / UI_DPI_FAC;
-		node->locy = vec[1] / UI_DPI_FAC;
+		node->locx = td2d->loc[0] / UI_DPI_FAC;
+		node->locy = td2d->loc[1] / UI_DPI_FAC;
 	}
 	
 	/* handle intersection with noodles */
@@ -2578,10 +2576,10 @@ static void createTransUVs(bContext *C, TransInfo *t)
 	if (propconnected) {
 		/* create element map with island information */
 		if (ts->uv_flag & UV_SYNC_SELECTION) {
-			elementmap = EDBM_uv_element_map_create(em, false, true);
+			elementmap = BM_uv_element_map_create(em->bm, false, true);
 		}
 		else {
-			elementmap = EDBM_uv_element_map_create(em, true, true);
+			elementmap = BM_uv_element_map_create(em->bm, true, true);
 		}
 		island_enabled = MEM_callocN(sizeof(*island_enabled) * elementmap->totalIslands, "TransIslandData(UV Editing)");
 	}
@@ -2600,7 +2598,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
 				countsel++;
 
 				if (propconnected) {
-					UvElement *element = ED_uv_element_get(elementmap, efa, l);
+					UvElement *element = BM_uv_element_get(elementmap, efa, l);
 					island_enabled[element->island] = TRUE;
 				}
 
@@ -2636,7 +2634,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
 				continue;
 
 			if (propconnected) {
-				UvElement *element = ED_uv_element_get(elementmap, efa, l);
+				UvElement *element = BM_uv_element_get(elementmap, efa, l);
 				if (!island_enabled[element->island]) {
 					count_rejected++;
 					continue;
@@ -2650,7 +2648,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
 
 	if (propconnected) {
 		t->total -= count_rejected;
-		EDBM_uv_element_map_free(elementmap);
+		BM_uv_element_map_free(elementmap);
 		MEM_freeN(island_enabled);
 	}
 
@@ -3716,12 +3714,14 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	float mtx[3][3], smtx[3][3];
 	const bool use_handle = !(sipo->flag & SIPO_NOHANDLES);
 	const bool use_local_center = checkUseLocalCenter_GraphEdit(t);
-	const short anim_map_flag = ANIM_UNITCONV_ONLYSEL | ANIM_UNITCONV_SELVERTS;
+	short anim_map_flag = ANIM_UNITCONV_ONLYSEL | ANIM_UNITCONV_SELVERTS;
 	
 	/* determine what type of data we are operating on */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return;
-	
+
+	anim_map_flag |= ANIM_get_normalization_flags(&ac);
+
 	/* filter data */
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_CURVE_VISIBLE);
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
@@ -3837,7 +3837,9 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 		AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
 		FCurve *fcu = (FCurve *)ale->key_data;
 		short intvals = (fcu->flag & FCURVE_INT_VALUES);
-		
+		float unit_scale;
+		float scaled_mtx[3][3], scaled_smtx[3][3];
+
 		/* convert current-frame to action-time (slightly less accurate, especially under
 		 * higher scaling ratios, but is faster than converting all points)
 		 */
@@ -3850,8 +3852,13 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 		if (fcu->bezt == NULL)
 			continue;
 		
-		ANIM_unit_mapping_apply_fcurve(ac.scene, ale->id, ale->key_data, anim_map_flag);
-		
+		unit_scale = ANIM_unit_mapping_get_factor(ac.scene, ale->id, ale->key_data, anim_map_flag);
+
+		copy_m3_m3(scaled_mtx, mtx);
+		copy_m3_m3(scaled_smtx, smtx);
+		mul_v3_fl(scaled_mtx[1], unit_scale);
+		mul_v3_fl(scaled_smtx[1],  1.0f / unit_scale);
+
 		/* only include BezTriples whose 'keyframe' occurs on the same side of the current frame as mouse (if applicable) */
 		for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
 			if (FrameOnMouseSide(t->frame_side, bezt->vec[1][0], cfra)) {
@@ -3868,7 +3875,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 				if (!ELEM3(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE) || !(sel2)) {
 					if (sel1) {
 						hdata = initTransDataCurveHandles(td, bezt);
-						bezt_to_transdata(td++, td2d++, adt, bezt, 0, 1, 1, intvals, mtx, smtx);
+						bezt_to_transdata(td++, td2d++, adt, bezt, 0, 1, 1, intvals, scaled_mtx, scaled_smtx);
 					}
 					else {
 						/* h1 = 0; */ /* UNUSED */
@@ -3877,7 +3884,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 					if (sel3) {
 						if (hdata == NULL)
 							hdata = initTransDataCurveHandles(td, bezt);
-						bezt_to_transdata(td++, td2d++, adt, bezt, 2, 1, 1, intvals, mtx, smtx);
+						bezt_to_transdata(td++, td2d++, adt, bezt, 2, 1, 1, intvals, scaled_mtx, scaled_smtx);
 					}
 					else {
 						/* h2 = 0; */ /* UNUSED */
@@ -3899,7 +3906,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 							hdata = initTransDataCurveHandles(td, bezt);
 					}
 				
-					bezt_to_transdata(td++, td2d++, adt, bezt, 1, 1, 0, intvals, mtx, smtx);
+					bezt_to_transdata(td++, td2d++, adt, bezt, 1, 1, 0, intvals, scaled_mtx, scaled_smtx);
 					
 				}
 				/* special hack (must be done after initTransDataCurveHandles(), as that stores handle settings to restore...):
@@ -3921,13 +3928,6 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 		
 		/* Sets handles based on the selection */
 		testhandles_fcurve(fcu, use_handle);
-
-		/* even though transform values are written back right after during transform,
-		 * using individual center's with rotation means the center point wont
-		 * be touched again see: [#34303] */
-		if (use_local_center) {
-			ANIM_unit_mapping_apply_fcurve(ac.scene, ale->id, ale->key_data, anim_map_flag | ANIM_UNITCONV_RESTORE);
-		}
 	}
 	
 	/* cleanup temp list */
@@ -4591,7 +4591,7 @@ static void freeSeqData(TransInfo *t)
 			BKE_sequencer_sort(t->scene);
 		}
 		else {
-			/* Cancelled, need to update the strips display */
+			/* Canceled, need to update the strips display */
 			for (a = 0; a < t->total; a++, td++) {
 				seq = ((TransDataSeq *)td->extra)->seq;
 				if ((seq != seq_prev) && (seq->depth == 0)) {
@@ -4715,13 +4715,12 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 			if ((con->flag & CONSTRAINT_DISABLE) == 0 && (con->enforce != 0.0f)) {
 				/* (affirmative) returns for specific constraints here... */
 				/* constraints that require this regardless  */
-				if (ELEM6(con->type,
+				if (ELEM5(con->type,
 				          CONSTRAINT_TYPE_CHILDOF,
 				          CONSTRAINT_TYPE_FOLLOWPATH,
 				          CONSTRAINT_TYPE_CLAMPTO,
 				          CONSTRAINT_TYPE_OBJECTSOLVER,
-				          CONSTRAINT_TYPE_FOLLOWTRACK,
-				          CONSTRAINT_TYPE_TRANSFORM))
+				          CONSTRAINT_TYPE_FOLLOWTRACK))
 				{
 					return true;
 				}
@@ -4733,6 +4732,15 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 					
 					if ((data->flag & ROTLIKE_OFFSET) && (t->mode == TFM_ROTATION))
 						return true;
+				}
+				else if (con->type == CONSTRAINT_TYPE_TRANSFORM) {
+					/* Transform constraint needs it for rotation at least (r.57309),
+					 * but doing so when translating may also mess things up [#36203]
+					 */
+					
+					if (t->mode == TFM_ROTATION)
+						return true;
+					/* ??? (t->mode == TFM_SCALE) ? */
 				}
 			}
 		}
@@ -5863,6 +5871,9 @@ int special_transform_moving(TransInfo *t)
 	if (t->spacetype == SPACE_SEQ) {
 		return G_TRANSFORM_SEQ;
 	}
+	else if (t->spacetype == SPACE_IPO) {
+		return G_TRANSFORM_FCURVES;
+	}
 	else if (t->obedit || ((t->flag & T_POSE) && (t->poseobj))) {
 		return G_TRANSFORM_EDIT;
 	}
@@ -5951,12 +5962,10 @@ static void createTransObject(bContext *C, TransInfo *t)
 /* transcribe given node into TransData2D for Transforming */
 static void NodeToTransData(TransData *td, TransData2D *td2d, bNode *node)
 {
-	/* hold original location */
-	float locxy[2] = {BLI_rctf_cent_x(&node->totr),
-	                  BLI_rctf_cent_y(&node->totr)};
-	float nodeloc[2];
-	
-	copy_v2_v2(td2d->loc, locxy);
+	/* use top-left corner as the transform origin for nodes */
+	/* weirdo - but the node system is a mix of free 2d elements and dpi sensitive UI */
+	td2d->loc[0] = UI_DPI_FAC * node->locx;
+	td2d->loc[1] = UI_DPI_FAC * node->locy;
 	td2d->loc[2] = 0.0f;
 	td2d->loc2d = td2d->loc; /* current location */
 
@@ -5965,8 +5974,8 @@ static void NodeToTransData(TransData *td, TransData2D *td2d, bNode *node)
 	td->loc = td2d->loc;
 	copy_v3_v3(td->iloc, td->loc);
 	/* use node center instead of origin (top-left corner) */
-	td->center[0] = locxy[0];
-	td->center[1] = locxy[1];
+	td->center[0] = td2d->loc[0] + BLI_rctf_size_x(&node->totr);
+	td->center[1] = td2d->loc[1] + BLI_rctf_size_y(&node->totr);
 	td->center[2] = 0.0f;
 
 	memset(td->axismtx, 0, sizeof(td->axismtx));
@@ -5979,11 +5988,6 @@ static void NodeToTransData(TransData *td, TransData2D *td2d, bNode *node)
 
 	unit_m3(td->mtx);
 	unit_m3(td->smtx);
-
-	/* weirdo - but the node system is a mix of free 2d elements and dpi sensitive UI */
-	nodeloc[0] = UI_DPI_FAC * node->locx;
-	nodeloc[1] = UI_DPI_FAC * node->locy;
-	sub_v2_v2v2(td2d->ih1, nodeloc, locxy);
 
 	td->extra = node;
 }
@@ -6821,8 +6825,11 @@ void flushTransMasking(TransInfo *t)
 		td->loc2d[1] = td->loc[1] * inv[1];
 		mul_m3_v2(tdm->parent_inverse_matrix, td->loc2d);
 
-		if (tdm->is_handle)
-			BKE_mask_point_set_handle(tdm->point, td->loc2d, t->flag & T_ALT_TRANSFORM, tdm->orig_handle, tdm->vec);
+		if (tdm->is_handle) {
+			BKE_mask_point_set_handle(tdm->point, td->loc2d,
+			                          (t->flag & T_ALT_TRANSFORM) != 0,
+			                          tdm->orig_handle, tdm->vec);
+		}
 	}
 }
 

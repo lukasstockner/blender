@@ -822,12 +822,13 @@ typedef struct ScrewModifierData {
 	ModifierData modifier;
 
 	struct Object *ob_axis;
-	int steps;
-	int render_steps;
-	int iter;
+	unsigned int steps;
+	unsigned int render_steps;
+	unsigned int iter;
 	float screw_ofs;
 	float angle;
-	short axis;
+	char axis;
+	char pad;
 	short flag;
 } ScrewModifierData;
 
@@ -1177,11 +1178,27 @@ typedef struct TriangulateModifierData {
 	ModifierData modifier;
 
 	int flag;
+	int quad_method;
+	int ngon_method;
 	int pad;
 } TriangulateModifierData;
 
 enum {
-	MOD_TRIANGULATE_BEAUTY = (1 << 0),
+	MOD_TRIANGULATE_BEAUTY = (1 << 0), /* deprecated */
+};
+
+/* Triangulate methods - NGons */
+enum {
+	MOD_TRIANGULATE_NGON_BEAUTY = 0,
+	MOD_TRIANGULATE_NGON_SCANFILL,
+};
+
+/* Triangulate methods - Quads */
+enum {
+	MOD_TRIANGULATE_QUAD_BEAUTY = 0,
+	MOD_TRIANGULATE_QUAD_FIXED,
+	MOD_TRIANGULATE_QUAD_ALTERNATE,
+	MOD_TRIANGULATE_QUAD_SHORTEDGE
 };
 
 typedef struct LaplacianSmoothModifierData {

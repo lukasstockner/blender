@@ -84,6 +84,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 #include "BKE_smoke.h"
+#include "BKE_texture.h"
 
 #include "RE_shader_ext.h"
 
@@ -275,21 +276,21 @@ static void smoke_set_domain_from_derivedmesh(SmokeDomainSettings *sds, Object *
 	/* define grid resolutions from longest domain side */
 	if (size[0] >= MAX2(size[1], size[2])) {
 		scale = res / size[0];
-		sds->scale = size[0] / fabs(ob->size[0]);
+		sds->scale = size[0] / fabsf(ob->size[0]);
 		sds->base_res[0] = res;
 		sds->base_res[1] = (int)(size[1] * scale + 0.5f);
 		sds->base_res[2] = (int)(size[2] * scale + 0.5f);
 	}
 	else if (size[1] >= MAX2(size[0], size[2])) {
 		scale = res / size[1];
-		sds->scale = size[1] / fabs(ob->size[1]);
+		sds->scale = size[1] / fabsf(ob->size[1]);
 		sds->base_res[0] = (int)(size[0] * scale + 0.5f);
 		sds->base_res[1] = res;
 		sds->base_res[2] = (int)(size[2] * scale + 0.5f);
 	}
 	else {
 		scale = res / size[2];
-		sds->scale = size[2] / fabs(ob->size[2]);
+		sds->scale = size[2] / fabsf(ob->size[2]);
 		sds->base_res[0] = (int)(size[0] * scale + 0.5f);
 		sds->base_res[1] = (int)(size[1] * scale + 0.5f);
 		sds->base_res[2] = res;
@@ -1108,7 +1109,7 @@ static void em_freeData(EmissionMap *em)
 
 static void em_combineMaps(EmissionMap *output, EmissionMap *em2, int hires_multiplier, int additive, float sample_size)
 {
-	int i, x,y,z;
+	int i, x, y, z;
 
 	/* copyfill input 1 struct and clear output for new allocation */
 	EmissionMap em1;
@@ -1226,7 +1227,7 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 		float solid = sfs->particle_size * 0.5f;
 		float smooth = 0.5f; /* add 0.5 cells of linear falloff to reduce aliasing */
 		int hires_multiplier = 1;
-		int i,z;
+		int i, z;
 		KDTree *tree;
 
 		sim.scene = scene;
@@ -1337,7 +1338,7 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 			float hr = 1.0f / ((float)hires_multiplier);
 			/* slightly adjust high res antialias smoothness based on number of divisions
 			 * to allow smaller details but yet not differing too much from the low res size */
-			float hr_smooth = smooth * pow(hr, 1.0f/3.0f);
+			const float hr_smooth = smooth * powf(hr, 1.0f / 3.0f);
 
 			/* setup loop bounds */
 			for (i = 0; i < 3; i++) {
@@ -1415,27 +1416,6 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 			MEM_freeN(particle_pos);
 		if (particle_vel)
 			MEM_freeN(particle_vel);
-	}
-}
-
-/* TODO(sergey): de-duplicate with get_texture_value from modifier utils */
-/* NOTE: Skips color management, because result is only used for value now, not for color. */
-static void get_texture_value(Tex *texture, float tex_co[3], TexResult *texres)
-{
-	int result_type;
-
-	/* no node textures for now */
-	result_type = multitex_ext_safe(texture, tex_co, texres, NULL, false);
-
-	/* if the texture gave an RGB value, we assume it didn't give a valid
-	 * intensity, since this is in the context of modifiers don't use perceptual color conversion.
-	 * if the texture didn't give an RGB value, copy the intensity across
-	 */
-	if (result_type & TEX_RGB) {
-		texres->tin = (1.0f / 3.0f) * (texres->tr + texres->tg + texres->tb);
-	}
-	else {
-		copy_v3_fl(&texres->tr, texres->tin);
 	}
 }
 
@@ -1550,7 +1530,7 @@ static void sample_derivedmesh(SmokeFlowSettings *sfs, MVert *mvert, MTFace *tfa
 				tex_co[2] = sfs->texture_offset;
 			}
 			texres.nor = NULL;
-			get_texture_value(sfs->noise_texture, tex_co, &texres);
+			BKE_texture_get_value(NULL, sfs->noise_texture, tex_co, &texres, false);
 			sample_str *= texres.tin;
 		}
 	}

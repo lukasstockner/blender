@@ -295,17 +295,7 @@ static const char **get_file_extensions(int format)
 		}
 		case FFMPEG_OGG:
 		{
-			static const char *rv[] = { ".ogg", ".ogv", NULL };
-			return rv;
-		}
-		case FFMPEG_MP3:
-		{
-			static const char *rv[] = { ".mp3", NULL };
-			return rv;
-		}
-		case FFMPEG_WAV:
-		{
-			static const char *rv[] = { ".wav", NULL };
+			static const char *rv[] = { ".ogv", ".ogg", NULL };
 			return rv;
 		}
 		default:
@@ -875,12 +865,6 @@ static int start_ffmpeg_impl(struct RenderData *rd, int rectx, int recty, Report
 		case FFMPEG_FLV:
 			fmt->video_codec = CODEC_ID_FLV1;
 			break;
-		case FFMPEG_MP3:
-			fmt->audio_codec = CODEC_ID_MP3;
-			/* fall-through */
-		case FFMPEG_WAV:
-			fmt->video_codec = CODEC_ID_NONE;
-			break;
 		case FFMPEG_MPEG4:
 		default:
 			fmt->video_codec = CODEC_ID_MPEG4;
@@ -1254,9 +1238,7 @@ void BKE_ffmpeg_property_del(RenderData *rd, void *type, void *prop_)
 
 	group = IDP_GetPropertyFromGroup(rd->ffcodecdata.properties, type);
 	if (group && prop) {
-		IDP_RemFromGroup(group, prop);
-		IDP_FreeProperty(prop);
-		MEM_freeN(prop);
+		IDP_FreeFromGroup(group, prop);
 	}
 }
 

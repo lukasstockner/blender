@@ -40,6 +40,7 @@
 #include <string.h> // for strrchr strncmp strstr
 #include <math.h> // for fabs
 #include <stdarg.h> /* for va_start/end */
+#include <time.h> /* for gmtime */
 
 #include "BLI_utildefines.h"
 #ifndef WIN32
@@ -153,6 +154,7 @@
 #include "BKE_tracking.h"
 #include "BKE_treehash.h"
 #include "BKE_sound.h"
+#include "BKE_writeffmpeg.h"
 
 #include "IMB_imbuf.h"  // for proxy / timecode versioning stuff
 
@@ -3359,6 +3361,8 @@ static void lib_link_curve(FileData *fd, Main *main)
 			
 			cu->ipo = newlibadr_us(fd, cu->id.lib, cu->ipo); // XXX deprecated - old animation system
 			cu->key = newlibadr_us(fd, cu->id.lib, cu->key);
+
+			cu->selboxes = NULL;  /* runtime, clear */
 			
 			cu->id.flag -= LIB_NEED_LINK;
 		}
@@ -3700,7 +3704,7 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 					/* if we have indexes, let's use them */
 					for (dw = part->dupliweights.first; dw; dw = dw->next) {
 						GroupObject *go = (GroupObject *)BLI_findlink(&part->dup_group->gobject, dw->index);
-						dw->ob = go ? newlibadr(fd, part->id.lib, dw->ob) : NULL;
+						dw->ob = go ? go->ob : NULL;
 					}
 				}
 				else {
@@ -3806,7 +3810,7 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 			for (; pt; pt=pt->next)
 				pt->ob=newlibadr(fd, id->lib, pt->ob);
 			
-			psys->parent = newlibadr_us(fd, id->lib, psys->parent);
+			psys->parent = newlibadr(fd, id->lib, psys->parent);
 			psys->target_ob = newlibadr(fd, id->lib, psys->target_ob);
 			
 			if (psys->clmd) {
@@ -3815,6 +3819,7 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 				psys->clmd->point_cache = psys->pointcache;
 				psys->clmd->ptcaches.first = psys->clmd->ptcaches.last= NULL;
 				psys->clmd->coll_parms->group = newlibadr(fd, id->lib, psys->clmd->coll_parms->group);
+				psys->clmd->modifier.error = NULL;
 			}
 		}
 		else {
@@ -5937,6 +5942,14 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					/* not very nice, but could help */
 					if ((v3d->layact & v3d->lay) == 0) v3d->layact = v3d->lay;
 					
+					/* its possible the current transform orientation has been removed */
+					if (v3d->twmode >= V3D_MANIP_CUSTOM) {
+						const int selected_index = (v3d->twmode - V3D_MANIP_CUSTOM);
+						if (!BLI_findlink(&sc->scene->transform_spaces, selected_index)) {
+							v3d->twmode = V3D_MANIP_GLOBAL;
+						}
+					}
+
 					/* free render engines for now */
 					for (ar = sa->regionbase.first; ar; ar = ar->next) {
 						RegionView3D *rv3d= ar->regiondata;
@@ -7297,7 +7310,8 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	bfd->main->subversionfile = fg->subversion;
 	bfd->main->minversionfile = fg->minversion;
 	bfd->main->minsubversionfile = fg->minsubversion;
-	bfd->main->revision = fg->revision;
+	bfd->main->build_commit_timestamp = fg->build_commit_timestamp;
+	BLI_strncpy(bfd->main->build_hash, fg->build_hash, sizeof(bfd->main->build_hash));
 	
 	bfd->winpos = fg->winpos;
 	bfd->fileflags = fg->fileflags;
@@ -7931,8 +7945,21 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 {
 	/* WATCH IT!!!: pointers from libdata have not been converted */
 	
-	if (G.debug & G_DEBUG)
-		printf("read file %s\n  Version %d sub %d svn r%d\n", fd->relabase, main->versionfile, main->subversionfile, main->revision);
+	if (G.debug & G_DEBUG) {
+		char build_commit_datetime[32];
+		time_t temp_time = main->build_commit_timestamp;
+		struct tm *tm = gmtime(&temp_time);
+		if (LIKELY(tm)) {
+			strftime(build_commit_datetime, sizeof(build_commit_datetime), "%Y-%m-%d %H:%M", tm);
+		}
+		else {
+			BLI_strncpy(build_commit_datetime, "date-unknown", sizeof(build_commit_datetime));
+		}
+
+		printf("read file %s\n  Version %d sub %d date %s hash %s\n",
+		       fd->relabase, main->versionfile, main->subversionfile,
+		       build_commit_datetime, main->build_hash);
+	}
 	
 	blo_do_versions_pre250(fd, lib, main);
 	blo_do_versions_250(fd, lib, main);
@@ -9095,17 +9122,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
-
-		/* fallbck resection method settings */
-		{
-			MovieClip *clip;
-
-			for (clip = main->movieclip.first; clip; clip = clip->id.next) {
-				if (clip->tracking.settings.reconstruction_success_threshold == 0.0f) {
-					clip->tracking.settings.reconstruction_success_threshold = 1e-3f;
-				}
-			}
-		}
 	}
 
 	if (main->versionfile < 264 || (main->versionfile == 264 && main->subversionfile < 7)) {
@@ -9713,7 +9729,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
-	
+
 	if (!MAIN_VERSION_ATLEAST(main, 269, 1)) {
 		/* Removal of Cycles SSS Compatible falloff */
 		FOREACH_NODETREE(main, ntree, id) {
@@ -9728,6 +9744,120 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		} FOREACH_NODETREE_END
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 269, 2)) {
+		/* Initialize CDL settings for Color Balance nodes */
+		FOREACH_NODETREE(main, ntree, id) {
+			if (ntree->type == NTREE_COMPOSIT) {
+				bNode *node;
+				for (node = ntree->nodes.first; node; node = node->next) {
+					if (node->type == CMP_NODE_COLORBALANCE) {
+						NodeColorBalance *n = node->storage;
+						if (node->custom1 == 0) {
+							/* LGG mode stays the same, just init CDL settings */
+							ntreeCompositColorBalanceSyncFromLGG(ntree, node);
+						}
+						else if (node->custom1 == 1) {
+							/* CDL previously used same variables as LGG, copy them over
+							 * and then sync LGG for comparable results in both modes.
+							 */
+							copy_v3_v3(n->offset, n->lift);
+							copy_v3_v3(n->power, n->gamma);
+							copy_v3_v3(n->slope, n->gain);
+							ntreeCompositColorBalanceSyncFromCDL(ntree, node);
+						}
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
+	}
+
+	{
+		bScreen *sc;
+		ScrArea *sa;
+		SpaceLink *sl;
+		Scene *scene;
+
+		/* Update files using invalid (outdated) outlinevis Outliner values. */
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_OUTLINER) {
+						SpaceOops *so = (SpaceOops *)sl;
+
+						if (!ELEM11(so->outlinevis, SO_ALL_SCENES, SO_CUR_SCENE, SO_VISIBLE, SO_SELECTED, SO_ACTIVE,
+						                            SO_SAME_TYPE, SO_GROUPS, SO_LIBRARIES, SO_SEQUENCE, SO_DATABLOCKS,
+						                            SO_USERDEF))
+						{
+							so->outlinevis = SO_ALL_SCENES;
+						}
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "MovieTrackingTrack", "float", "weight")) {
+			MovieClip *clip;
+			for (clip = main->movieclip.first; clip; clip = clip->id.next) {
+				MovieTracking *tracking = &clip->tracking;
+				MovieTrackingObject *tracking_object;
+				for (tracking_object = tracking->objects.first;
+				     tracking_object;
+				     tracking_object = tracking_object->next)
+				{
+					ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, tracking_object);
+					MovieTrackingTrack *track;
+					for (track = tracksbase->first;
+					     track;
+					     track = track->next)
+					{
+						track->weight = 1.0f;
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "TriangulateModifierData", "int", "quad_method")) {
+			Object *ob;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				ModifierData *md;
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Triangulate) {
+						TriangulateModifierData *tmd = (TriangulateModifierData *)md;
+						if ((tmd->flag & MOD_TRIANGULATE_BEAUTY)) {
+							tmd->quad_method = MOD_TRIANGULATE_QUAD_BEAUTY;
+							tmd->ngon_method = MOD_TRIANGULATE_NGON_BEAUTY;
+						}
+						else {
+							tmd->quad_method = MOD_TRIANGULATE_QUAD_FIXED;
+							tmd->ngon_method = MOD_TRIANGULATE_NGON_SCANFILL;
+						}
+					}
+				}
+			}
+		}
+
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			if (scene->gm.matmode == GAME_MAT_TEXFACE) {
+				scene->gm.matmode = GAME_MAT_MULTITEX;
+			}
+		}
+
+		/* 'Increment' mode disabled for nodes, use true grid snapping instead */
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			if (scene->toolsettings->snap_node_mode == SCE_SNAP_MODE_INCREMENT)
+				scene->toolsettings->snap_node_mode = SCE_SNAP_MODE_GRID;
+		}
+
+		/* Update for removed "sound-only" option in FFMPEG export settings. */
+#ifdef WITH_FFMPEG
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			if (scene->r.ffcodecdata.type >= FFMPEG_INVALID) {
+				scene->r.ffcodecdata.type = FFMPEG_AVI;
+			}
+		}
+#endif
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */

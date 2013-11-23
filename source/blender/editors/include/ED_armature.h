@@ -106,7 +106,7 @@ typedef struct EditBone {
 	(((ebone)->flag & BONE_SELECTED) && !((ebone)->flag & BONE_EDITMODE_LOCKED)) \
 	)
 
-/* used in bone_select_hierachy() */
+/* used in armature_select_hierarchy_exec() */
 #define BONE_SELECT_PARENT  0
 #define BONE_SELECT_CHILD   1
 
@@ -128,7 +128,8 @@ bool mouse_armature(struct bContext *C, const int mval[2], bool extend, bool des
 int join_armature_exec(struct bContext *C, struct wmOperator *op);
 struct Bone *get_indexed_bone(struct Object *ob, int index);
 float ED_rollBoneToVector(EditBone *bone, const float new_up_axis[3], const short axis_only);
-EditBone *ED_armature_bone_get_mirrored(struct ListBase *edbo, EditBone *ebo); // XXX this is needed for populating the context iterators
+EditBone *ED_armature_bone_find_name(const ListBase *edbo, const char *name);
+EditBone *ED_armature_bone_get_mirrored(const struct ListBase *edbo, EditBone *ebo);
 void ED_armature_sync_selection(struct ListBase *edbo);
 void ED_armature_validate_active(struct bArmature *arm);
 
@@ -137,6 +138,7 @@ struct EditBone *ED_armature_edit_bone_add(struct bArmature *arm, const char *na
 void ED_armature_edit_bone_remove(struct bArmature *arm, EditBone *exBone);
 
 bool ED_armature_ebone_is_child_recursive(EditBone *ebone_parent, EditBone *ebone_child);
+EditBone *ED_armature_bone_find_shared_parent(EditBone *ebone_child[], const unsigned int ebone_child_tot);
 
 void ED_armature_ebone_to_mat3(EditBone *ebone, float mat[3][3]);
 void ED_armature_ebone_to_mat4(EditBone *ebone, float mat[4][4]);
@@ -168,6 +170,7 @@ void ED_armature_ebone_selectflag_disable(EditBone *ebone, int flag);
 void ED_armature_exit_posemode(struct bContext *C, struct Base *base);
 void ED_armature_enter_posemode(struct bContext *C, struct Base *base);
 void ED_pose_deselectall(struct Object *ob, int test);
+void ED_pose_bone_select(struct Object *ob, struct bPoseChannel *pchan, bool select);
 void ED_pose_recalculate_paths(struct Scene *scene, struct Object *ob);
 struct Object *ED_pose_object_from_context(struct bContext *C);
 

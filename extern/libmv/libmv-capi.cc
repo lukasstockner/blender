@@ -306,6 +306,9 @@ int libmv_trackRegion(const libmv_TrackRegionOptions *options,
 	track_region_options.num_extra_points = 1;
 	track_region_options.image1_mask = NULL;
 	track_region_options.use_brute_initialization = options->use_brute;
+	/* TODO(keir): This will make some cases better, but may be a regression until
+	 * the motion model is in. Since this is on trunk, enable it for now. */
+	track_region_options.attempt_refine_before_brute = true;
 	track_region_options.use_normalized_intensities = options->use_normalization;
 
 	if (options->image1_mask) {
@@ -393,9 +396,9 @@ void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks)
 	LIBMV_OBJECT_DELETE(libmv_tracks, Tracks);
 }
 
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y)
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y, double weight)
 {
-	((libmv::Tracks*) libmv_tracks)->Insert(image, track, x, y);
+	((libmv::Tracks*) libmv_tracks)->Insert(image, track, x, y, weight);
 }
 
 /* ************ Reconstruction ************ */
@@ -498,7 +501,6 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
                           libmv::Tracks &tracks,
                           libmv::Tracks &normalized_tracks,
                           libmv::CameraIntrinsics &camera_intrinsics,
-                          libmv::ReconstructionOptions &reconstruction_options,
                           int &keyframe1,
                           int &keyframe2)
 {
@@ -542,8 +544,7 @@ static bool selectTwoKeyframesBasedOnGRICAndVariance(
 		/* get a solution from two keyframes only */
 		libmv::EuclideanReconstructTwoFrames(keyframe_markers, &reconstruction);
 		libmv::EuclideanBundle(keyframe_tracks, &reconstruction);
-		libmv::EuclideanCompleteReconstruction(reconstruction_options,
-		                                       keyframe_tracks,
+		libmv::EuclideanCompleteReconstruction(keyframe_tracks,
 		                                       &reconstruction, NULL);
 
 		double current_error =
@@ -585,10 +586,6 @@ struct libmv_Reconstruction *libmv_solveReconstruction(const struct libmv_Tracks
 	/* Retrieve reconstruction options from C-API to libmv API */
 	cameraIntrinsicsFromOptions(libmv_camera_intrinsics_options, &camera_intrinsics);
 
-	libmv::ReconstructionOptions reconstruction_options;
-	reconstruction_options.success_threshold = libmv_reconstruction_options->success_threshold;
-	reconstruction_options.use_fallback_reconstruction = libmv_reconstruction_options->use_fallback_reconstruction;
-
 	/* Invert the camera intrinsics */
 	libmv::Tracks normalized_tracks = getNormalizedTracks(tracks, camera_intrinsics);
 
@@ -604,7 +601,6 @@ struct libmv_Reconstruction *libmv_solveReconstruction(const struct libmv_Tracks
 		selectTwoKeyframesBasedOnGRICAndVariance(tracks,
 		                                         normalized_tracks,
 		                                         camera_intrinsics,
-		                                         reconstruction_options,
 		                                         keyframe1,
 		                                         keyframe2);
 
@@ -625,7 +621,7 @@ struct libmv_Reconstruction *libmv_solveReconstruction(const struct libmv_Tracks
 
 	libmv::EuclideanReconstructTwoFrames(keyframe_markers, &reconstruction);
 	libmv::EuclideanBundle(normalized_tracks, &reconstruction);
-	libmv::EuclideanCompleteReconstruction(reconstruction_options, normalized_tracks,
+	libmv::EuclideanCompleteReconstruction(normalized_tracks,
 	                                       &reconstruction, &update_callback);
 
 	/* refinement */
@@ -1093,8 +1089,8 @@ void libmv_homography2DFromCorrespondencesEuc(double (*x1)[2], double (*x2)[2], 
 	LG << "x1: " << x1_mat;
 	LG << "x2: " << x2_mat;
 
-	libmv::HomographyEstimationOptions options;
-	libmv::Homography2DFromCorrespondencesEuc(x1_mat, x2_mat, options, &H_mat);
+	libmv::EstimateHomographyOptions options;
+	libmv::EstimateHomography2DFromCorrespondences(x1_mat, x2_mat, options, &H_mat);
 
 	LG << "H: " << H_mat;
 

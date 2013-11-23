@@ -443,7 +443,8 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 			but->icon = RNA_struct_ui_icon(type);
 			/* default dragging of icon for id browse buttons */
 			uiButSetDragID(but, id);
-			uiButSetFlag(but, UI_HAS_ICON | UI_ICON_LEFT);
+			uiButSetFlag(but, UI_HAS_ICON);
+			uiButSetDrawFlag(but, UI_BUT_ICON_LEFT);
 		}
 
 		if ((idfrom && idfrom->lib) || !editable)
@@ -967,11 +968,11 @@ static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob,
 			if (md->type == eModifierType_ParticleSystem) {
 				ParticleSystem *psys = ((ParticleSystemModifierData *)md)->psys;
 				
-				if (!(ob->mode & OB_MODE_PARTICLE_EDIT) && psys->pathcache) {
+				if (!(ob->mode & OB_MODE_PARTICLE_EDIT)) {
 					if (ELEM(psys->part->ren_as, PART_DRAW_GR, PART_DRAW_OB))
 						uiItemO(row, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Convert"), ICON_NONE,
 						        "OBJECT_OT_duplicates_make_real");
-					else if (psys->part->ren_as == PART_DRAW_PATH)
+					else if (psys->part->ren_as == PART_DRAW_PATH && psys->pathcache)
 						uiItemO(row, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Convert"), ICON_NONE,
 						        "OBJECT_OT_modifier_convert");
 				}
@@ -1921,7 +1922,7 @@ static void curvemap_tools_dofunc(bContext *C, void *cumap_v, int event)
 		case UICURVE_FUNC_RESET_NEG:
 		case UICURVE_FUNC_RESET_POS: /* reset */
 			curvemap_reset(cuma, &cumap->clipr, cumap->preset,
-			               (event == -1) ? CURVEMAP_SLOPE_NEGATIVE : CURVEMAP_SLOPE_POSITIVE);
+			               (event == UICURVE_FUNC_RESET_NEG) ? CURVEMAP_SLOPE_NEGATIVE : CURVEMAP_SLOPE_POSITIVE);
 			curvemapping_changed(cumap, FALSE);
 			break;
 		case UICURVE_FUNC_RESET_VIEW:
@@ -2855,6 +2856,7 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 
 		items_shown = dyn_data->items_shown;
 		if (items_shown >= 0) {
+			bool activei_mapping_pending = true;
 			items_ptr = MEM_mallocN(sizeof(_uilist_item) * items_shown, AT);
 			//printf("%s: items shown: %d.\n", __func__, items_shown);
 			RNA_PROP_BEGIN (dataptr, itemptr, prop)
@@ -2875,8 +2877,10 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 					items_ptr[ii].org_idx = i;
 					items_ptr[ii].flt_flag = dyn_data->items_filter_flags ? dyn_data->items_filter_flags[i] : 0;
 
-					if (activei == i) {
+					if (activei_mapping_pending && activei == i) {
 						activei = ii;
+						/* So that we do not map again activei! */
+						activei_mapping_pending = false;
 					}
 # if 0 /* For now, do not alter active element, even if it will be hidden... */
 					else if (activei < i) {
@@ -2936,7 +2940,7 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 
 					but = uiDefButR_prop(subblock, LISTROW, 0, "", 0, 0, UI_UNIT_X * 10, UI_UNIT_Y,
 					                     active_dataptr, activeprop, 0, 0, org_i, 0, 0, NULL);
-					uiButSetFlag(but, UI_BUT_NO_TOOLTIP);
+					uiButSetDrawFlag(but, UI_BUT_NO_TOOLTIP);
 
 					sub = uiLayoutRow(overlap, FALSE);
 
@@ -3023,7 +3027,7 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 
 					but = uiDefButR_prop(subblock, LISTROW, 0, "", 0, 0, UI_UNIT_X * 10, UI_UNIT_Y,
 					                     active_dataptr, activeprop, 0, 0, org_i, 0, 0, NULL);
-					uiButSetFlag(but, UI_BUT_NO_TOOLTIP);
+					uiButSetDrawFlag(but, UI_BUT_NO_TOOLTIP);
 
 					sub = uiLayoutRow(overlap, FALSE);
 
@@ -3065,11 +3069,11 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 
 		if (ui_list->filter_flag & UILST_FLT_SHOW) {
 			but = uiDefIconButBitI(subblock, TOG, UILST_FLT_SHOW, 0, ICON_DISCLOSURE_TRI_DOWN, 0, 0,
-			                       UI_UNIT_X, UI_UNIT_Y * 0.6f, &(ui_list->filter_flag), 0, 0, 0, 0,
+			                       UI_UNIT_X, UI_UNIT_Y * 0.8f, &(ui_list->filter_flag), 0, 0, 0, 0,
 			                       TIP_("Hide filtering options"));
 			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
 
-			but = uiDefIconBut(subblock, BUT, 0, ICON_GRIP, 0, 0, UI_UNIT_X * 10.0f, UI_UNIT_Y * 0.6f, ui_list,
+			but = uiDefIconBut(subblock, BUT, 0, ICON_GRIP, 0, 0, UI_UNIT_X * 10.0f, UI_UNIT_Y * 0.8f, ui_list,
 			                   0.0, 0.0, 0, -1, "");
 			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
 
@@ -3083,11 +3087,11 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 		}
 		else {
 			but = uiDefIconButBitI(subblock, TOG, UILST_FLT_SHOW, 0, ICON_DISCLOSURE_TRI_RIGHT, 0, 0,
-			                       UI_UNIT_X, UI_UNIT_Y * 0.6f, &(ui_list->filter_flag), 0, 0, 0, 0,
+			                       UI_UNIT_X, UI_UNIT_Y * 0.8f, &(ui_list->filter_flag), 0, 0, 0, 0,
 			                       TIP_("Show filtering options"));
 			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
 
-			but = uiDefIconBut(subblock, BUT, 0, ICON_GRIP, 0, 0, UI_UNIT_X * 10.0f, UI_UNIT_Y * 0.6f, ui_list,
+			but = uiDefIconBut(subblock, BUT, 0, ICON_GRIP, 0, 0, UI_UNIT_X * 10.0f, UI_UNIT_Y * 0.8f, ui_list,
 			                   0.0, 0.0, 0, -1, "");
 			uiButClearFlag(but, UI_BUT_UNDO); /* skip undo on screen buttons */
 
@@ -3235,6 +3239,16 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 			else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE)) {
 				handle_event = B_STOPCOMPO;
 				break;
+			}
+			else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE)) {
+				/* Skip bake jobs in compositor to avoid compo header displaying
+				 * progress bar which is not being updated (bake jobs only need
+				 * to update NC_IMAGE context.
+				 */
+				if (sa->spacetype != SPACE_NODE) {
+					handle_event = B_STOPOTHER;
+					break;
+				}
 			}
 			else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY)) {
 				handle_event = B_STOPOTHER;

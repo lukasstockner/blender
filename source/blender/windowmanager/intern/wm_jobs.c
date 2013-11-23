@@ -166,22 +166,27 @@ static void wm_job_main_thread_yield(wmJob *wm_job, bool ending)
 }
 
 /* finds:
- * if type, compare for it, otherwise any matching job 
+ * if type or owner, compare for it, otherwise any matching job
  */
 static wmJob *wm_job_find(wmWindowManager *wm, void *owner, const int job_type)
 {
 	wmJob *wm_job;
 	
-	for (wm_job = wm->jobs.first; wm_job; wm_job = wm_job->next)
-		if (wm_job->owner == owner) {
-			
-			if (job_type) {
-				if ( wm_job->job_type == job_type)
-					return wm_job;
-			}
-			else
+	if (owner && job_type) {
+		for (wm_job = wm->jobs.first; wm_job; wm_job = wm_job->next)
+			if (wm_job->owner == owner && wm_job->job_type == job_type)
 				return wm_job;
-		}
+	}
+	else if (owner) {
+		for (wm_job = wm->jobs.first; wm_job; wm_job = wm_job->next)
+			if (wm_job->owner == owner)
+				return wm_job;
+	}
+	else if (job_type) {
+		for (wm_job = wm->jobs.first; wm_job; wm_job = wm_job->next)
+			if (wm_job->job_type == job_type)
+				return wm_job;
+	}
 	
 	return NULL;
 }
@@ -263,7 +268,16 @@ void *WM_jobs_customdata(wmWindowManager *wm, void *owner)
 		return WM_jobs_customdata_get(wm_job);
 	
 	return NULL;
+}
 
+void *WM_jobs_customdata_from_type(wmWindowManager *wm, int job_type)
+{
+	wmJob *wm_job = wm_job_find(wm, NULL, job_type);
+	
+	if (wm_job)
+		return WM_jobs_customdata_get(wm_job);
+	
+	return NULL;
 }
 
 int WM_jobs_is_running(wmJob *wm_job)
@@ -509,9 +523,9 @@ void WM_jobs_kill(wmWindowManager *wm, void *owner, void (*startjob)(void *, sho
 	wm_job = wm->jobs.first;
 	while (wm_job) {
 		if (wm_job->owner == owner || wm_job->startjob == startjob) {
-			wmJob *bill = wm_job;
+			wmJob *wm_job_kill = wm_job;
 			wm_job = wm_job->next;
-			wm_jobs_kill_job(wm, bill);
+			wm_jobs_kill_job(wm, wm_job_kill);
 		}
 		else {
 			wm_job = wm_job->next;

@@ -139,6 +139,30 @@ void WM_keymap_properties_reset(wmKeyMapItem *kmi, struct IDProperty *properties
 	wm_keymap_item_properties_set(kmi);
 }
 
+int WM_keymap_map_type_get(wmKeyMapItem *kmi)
+{
+	if (ISTIMER(kmi->type)) {
+		return KMI_TYPE_TIMER;
+	}
+	if (ISKEYBOARD(kmi->type)) {
+		return KMI_TYPE_KEYBOARD;
+	}
+	if (ISTWEAK(kmi->type)) {
+		return KMI_TYPE_TWEAK;
+	}
+	if (ISMOUSE(kmi->type)) {
+		return KMI_TYPE_MOUSE;
+	}
+	if (ISNDOF(kmi->type)) {
+		return KMI_TYPE_NDOF;
+	}
+	if (kmi->type == KM_TEXTINPUT) {
+		return KMI_TYPE_TEXTINPUT;
+	}
+	return KMI_TYPE_KEYBOARD;
+}
+
+
 /**************************** Keymap Diff Item *********************************
  * Item in a diff keymap, used for saving diff of keymaps in user preferences */
 
@@ -686,11 +710,13 @@ wmKeyMap *WM_modalkeymap_add(wmKeyConfig *keyconf, const char *idname, EnumPrope
 	if (!items) {
 		/* init modal items from default config */
 		wmWindowManager *wm = G.main->wm.first;
-		wmKeyMap *defaultkm = WM_keymap_list_find(&wm->defaultconf->keymaps, km->idname, 0, 0);
+		if (wm->defaultconf) {
+			wmKeyMap *defaultkm = WM_keymap_list_find(&wm->defaultconf->keymaps, km->idname, 0, 0);
 
-		if (defaultkm) {
-			km->modal_items = defaultkm->modal_items;
-			km->poll = defaultkm->poll;
+			if (defaultkm) {
+				km->modal_items = defaultkm->modal_items;
+				km->poll = defaultkm->poll;
+			}
 		}
 	}
 	
@@ -779,6 +805,10 @@ static void wm_user_modal_keymap_set_items(wmWindowManager *wm, wmKeyMap *km)
 	int propvalue;
 
 	if (km && (km->flag & KEYMAP_MODAL) && !km->modal_items) {
+		if (wm->defaultconf == NULL) {
+			return;
+		}
+
 		defaultkm = WM_keymap_list_find(&wm->defaultconf->keymaps, km->idname, 0, 0);
 
 		if (!defaultkm)
@@ -1091,7 +1121,7 @@ static wmKeyMap *wm_keymap_preset(wmWindowManager *wm, wmKeyMap *km)
 	wmKeyMap *keymap;
 
 	keymap = WM_keymap_list_find(&keyconf->keymaps, km->idname, km->spaceid, km->regionid);
-	if (!keymap)
+	if (!keymap && wm->defaultconf)
 		keymap = WM_keymap_list_find(&wm->defaultconf->keymaps, km->idname, km->spaceid, km->regionid);
 
 	return keymap;

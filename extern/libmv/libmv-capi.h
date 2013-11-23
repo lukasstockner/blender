@@ -73,7 +73,7 @@ void libmv_samplePlanarPatch(const float *image, int width, int height,
 /* Tracks */
 struct libmv_Tracks *libmv_tracksNew(void);
 void libmv_tracksDestroy(struct libmv_Tracks *libmv_tracks);
-void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y);
+void libmv_tracksInsert(struct libmv_Tracks *libmv_tracks, int image, int track, double x, double y, double weight);
 
 /* Reconstruction */
 #define LIBMV_REFINE_FOCAL_LENGTH          (1 << 0)
@@ -94,9 +94,6 @@ typedef struct libmv_ReconstructionOptions {
 	int keyframe1, keyframe2;
 
 	int refine_intrinsics;
-
-	double success_threshold;
-	int use_fallback_reconstruction;
 } libmv_ReconstructionOptions;
 
 typedef void (*reconstruct_progress_update_cb) (void *customdata, double progress, const char *message);

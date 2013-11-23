@@ -62,6 +62,7 @@
 #include "WM_types.h"
 
 #include "RE_engine.h"
+#include "RE_pipeline.h"
 
 #include "RNA_access.h"
 
@@ -271,6 +272,8 @@ void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *sa)
 
 			if (rv3d && rv3d->render_engine) {
 				WM_jobs_kill_type(wm, ar, WM_JOB_TYPE_RENDER_PREVIEW);
+				if (rv3d->render_engine->re)
+					RE_Database_Free(rv3d->render_engine->re);
 				RE_engine_free(rv3d->render_engine);
 				rv3d->render_engine = NULL;
 			}
@@ -840,14 +843,6 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 				case ND_WORLD_DRAW:
 					/* handled by space_view3d_listener() for v3d access */
 					break;
-				case ND_WORLD_STARS:
-				{
-					RegionView3D *rv3d = ar->regiondata;
-					if (rv3d->persp == RV3D_CAMOB) {
-						ED_region_tag_redraw(ar);
-					}
-					break;
-				}
 			}
 			break;
 		case NC_LAMP:

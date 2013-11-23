@@ -54,6 +54,17 @@ class VIEW3D_HT_header(Header):
             elif mode_string not in {'EDIT_TEXT', 'SCULPT'}:
                 sub.menu("VIEW3D_MT_select_%s" % mode_string.lower())
 
+            if mode_string == 'OBJECT':
+                sub.menu("INFO_MT_add", text="Add")
+            elif mode_string == 'EDIT_MESH':
+                sub.menu("INFO_MT_mesh_add", text="Add")
+            elif mode_string == 'EDIT_CURVE':
+                sub.menu("INFO_MT_curve_add", text="Add")
+            elif mode_string == 'EDIT_SURFACE':
+                sub.menu("INFO_MT_surface_add", text="Add")
+            elif mode_string == 'EDIT_METABALL':
+                sub.menu("INFO_MT_metaball_add", text="Add")
+
             if edit_object:
                 sub.menu("VIEW3D_MT_edit_%s" % edit_object.type.lower())
             elif obj:
@@ -132,6 +143,7 @@ class VIEW3D_HT_header(Header):
 
 # ********** Menu **********
 
+
 # ********** Utilities **********
 
 
@@ -167,8 +179,9 @@ class VIEW3D_MT_transform_base(Menu):
 
         layout.operator("transform.tosphere", text="To Sphere")
         layout.operator("transform.shear", text="Shear")
-        layout.operator("transform.warp", text="Warp")
+        layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
+        layout.operator("object.vertex_warp", text="Warp")
 
 
 # Generic transform menu - geometry types
@@ -528,7 +541,7 @@ class VIEW3D_MT_select_pose(Menu):
 
         layout.operator("pose.select_all").action = 'TOGGLE'
         layout.operator("pose.select_all", text="Inverse").action = 'INVERT'
-        layout.operator("pose.select_flip_active", text="Flip Active")
+        layout.operator("pose.select_mirror", text="Flip Active")
         layout.operator("pose.select_constraint_target", text="Constraint Target")
         layout.operator("pose.select_linked", text="Linked")
 
@@ -716,6 +729,10 @@ class VIEW3D_MT_select_edit_metaball(Menu):
 
         layout.operator("mball.select_random_metaelems")
 
+        layout.separator()
+
+        layout.operator_menu_enum("mball.select_similar", "type", text="Similar")
+
 
 class VIEW3D_MT_select_edit_lattice(Menu):
     bl_label = "Select"
@@ -750,6 +767,7 @@ class VIEW3D_MT_select_edit_armature(Menu):
 
         layout.operator("armature.select_all").action = 'TOGGLE'
         layout.operator("armature.select_all", text="Inverse").action = 'INVERT'
+        layout.operator("armature.select_mirror", text="Mirror").extend = False
 
         layout.separator()
 
@@ -811,6 +829,145 @@ class VIEW3D_MT_select_paint_mask_vertex(Menu):
         layout.separator()
 
         layout.operator("paint.vert_select_ungrouped", text="Ungrouped Verts")
+
+# ********** Add menu **********
+
+# XXX: INFO_MT_ names used to keep backwards compatibility (Addons etc that hook into the menu)
+
+
+class INFO_MT_mesh_add(Menu):
+    bl_idname = "INFO_MT_mesh_add"
+    bl_label = "Mesh"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("mesh.primitive_plane_add", icon='MESH_PLANE', text="Plane")
+        layout.operator("mesh.primitive_cube_add", icon='MESH_CUBE', text="Cube")
+        layout.operator("mesh.primitive_circle_add", icon='MESH_CIRCLE', text="Circle")
+        layout.operator("mesh.primitive_uv_sphere_add", icon='MESH_UVSPHERE', text="UV Sphere")
+        layout.operator("mesh.primitive_ico_sphere_add", icon='MESH_ICOSPHERE', text="Icosphere")
+        layout.operator("mesh.primitive_cylinder_add", icon='MESH_CYLINDER', text="Cylinder")
+        layout.operator("mesh.primitive_cone_add", icon='MESH_CONE', text="Cone")
+        layout.separator()
+        layout.operator("mesh.primitive_grid_add", icon='MESH_GRID', text="Grid")
+        layout.operator("mesh.primitive_monkey_add", icon='MESH_MONKEY', text="Monkey")
+        layout.operator("mesh.primitive_torus_add", icon='MESH_TORUS', text="Torus")
+
+
+class INFO_MT_curve_add(Menu):
+    bl_idname = "INFO_MT_curve_add"
+    bl_label = "Curve"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("curve.primitive_bezier_curve_add", icon='CURVE_BEZCURVE', text="Bezier")
+        layout.operator("curve.primitive_bezier_circle_add", icon='CURVE_BEZCIRCLE', text="Circle")
+        layout.operator("curve.primitive_nurbs_curve_add", icon='CURVE_NCURVE', text="Nurbs Curve")
+        layout.operator("curve.primitive_nurbs_circle_add", icon='CURVE_NCIRCLE', text="Nurbs Circle")
+        layout.operator("curve.primitive_nurbs_path_add", icon='CURVE_PATH', text="Path")
+
+
+class INFO_MT_surface_add(Menu):
+    bl_idname = "INFO_MT_surface_add"
+    bl_label = "Surface"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("surface.primitive_nurbs_surface_curve_add", icon='SURFACE_NCURVE', text="NURBS Curve")
+        layout.operator("surface.primitive_nurbs_surface_circle_add", icon='SURFACE_NCIRCLE', text="NURBS Circle")
+        layout.operator("surface.primitive_nurbs_surface_surface_add", icon='SURFACE_NSURFACE', text="NURBS Surface")
+        layout.operator("surface.primitive_nurbs_surface_cylinder_add", icon='SURFACE_NCYLINDER', text="NURBS Cylinder")
+        layout.operator("surface.primitive_nurbs_surface_sphere_add", icon='SURFACE_NSPHERE', text="NURBS Sphere")
+        layout.operator("surface.primitive_nurbs_surface_torus_add", icon='SURFACE_NTORUS', text="NURBS Torus")
+
+
+class INFO_MT_metaball_add(Menu):
+    bl_idname = "INFO_MT_metaball_add"
+    bl_label = "Metaball"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator_enum("object.metaball_add", "type")
+
+
+class INFO_MT_edit_curve_add(Menu):
+    bl_idname = "INFO_MT_edit_curve_add"
+    bl_label = "Add"
+
+    def draw(self, context):
+        is_surf = context.active_object.type == 'SURFACE'
+
+        layout = self.layout
+        layout.operator_context = 'EXEC_REGION_WIN'
+
+        if is_surf:
+            INFO_MT_surface_add.draw(self, context)
+        else:
+            INFO_MT_curve_add.draw(self, context)
+
+
+class INFO_MT_armature_add(Menu):
+    bl_idname = "INFO_MT_armature_add"
+    bl_label = "Armature"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'EXEC_REGION_WIN'
+        layout.operator("object.armature_add", text="Single Bone", icon='BONE_DATA')
+
+
+class INFO_MT_add(Menu):
+    bl_label = "Add"
+
+    def draw(self, context):
+        layout = self.layout
+
+        # note, don't use 'EXEC_SCREEN' or operators wont get the 'v3d' context.
+
+        # Note: was EXEC_AREA, but this context does not have the 'rv3d', which prevents
+        #       "align_view" to work on first call (see [#32719]).
+        layout.operator_context = 'EXEC_REGION_WIN'
+
+        #layout.operator_menu_enum("object.mesh_add", "type", text="Mesh", icon='OUTLINER_OB_MESH')
+        layout.menu("INFO_MT_mesh_add", icon='OUTLINER_OB_MESH')
+
+        #layout.operator_menu_enum("object.curve_add", "type", text="Curve", icon='OUTLINER_OB_CURVE')
+        layout.menu("INFO_MT_curve_add", icon='OUTLINER_OB_CURVE')
+        #layout.operator_menu_enum("object.surface_add", "type", text="Surface", icon='OUTLINER_OB_SURFACE')
+        layout.menu("INFO_MT_surface_add", icon='OUTLINER_OB_SURFACE')
+        layout.menu("INFO_MT_metaball_add", text="Metaball", icon='OUTLINER_OB_META')
+        layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
+        layout.separator()
+
+        layout.menu("INFO_MT_armature_add", icon='OUTLINER_OB_ARMATURE')
+        layout.operator("object.add", text="Lattice", icon='OUTLINER_OB_LATTICE').type = 'LATTICE'
+        layout.operator_menu_enum("object.empty_add", "type", text="Empty", icon='OUTLINER_OB_EMPTY')
+        layout.separator()
+
+        layout.operator("object.speaker_add", text="Speaker", icon='OUTLINER_OB_SPEAKER')
+        layout.separator()
+
+        layout.operator("object.camera_add", text="Camera", icon='OUTLINER_OB_CAMERA')
+        layout.operator_menu_enum("object.lamp_add", "type", text="Lamp", icon='OUTLINER_OB_LAMP')
+        layout.separator()
+
+        layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_EMPTY')
+        layout.separator()
+
+        if len(bpy.data.groups) > 10:
+            layout.operator_context = 'INVOKE_REGION_WIN'
+            layout.operator("object.group_instance_add", text="Group Instance...", icon='OUTLINER_OB_EMPTY')
+        else:
+            layout.operator_menu_enum("object.group_instance_add", "group", text="Group Instance", icon='OUTLINER_OB_EMPTY')
 
 
 # ********** Object menu **********
@@ -1364,6 +1521,7 @@ class VIEW3D_MT_paint_weight(Menu):
         layout.operator("object.vertex_group_mirror", text="Mirror")
         layout.operator("object.vertex_group_invert", text="Invert")
         layout.operator("object.vertex_group_clean", text="Clean")
+        layout.operator("object.vertex_group_quantize", text="Quantize")
         layout.operator("object.vertex_group_levels", text="Levels")
         layout.operator("object.vertex_group_blend", text="Blend")
         layout.operator("object.vertex_group_transfer_weight", text="Transfer Weights")
@@ -1441,6 +1599,9 @@ class VIEW3D_MT_hide_mask(Menu):
         props = layout.operator("paint.mask_flood_fill", text="Clear Mask")
         props.mode = 'VALUE'
         props.value = 0
+
+        props = layout.operator("view3d.select_border", text="Box Mask")
+        props = layout.operator("paint.mask_lasso_gesture", text="Lasso Mask")
 
 
 # ********** Particle menu **********
@@ -1909,10 +2070,16 @@ class VIEW3D_MT_edit_mesh_extrude(Menu):
     bl_label = "Extrude"
 
     _extrude_funcs = {
-        'VERT': lambda layout: layout.operator("mesh.extrude_vertices_move", text="Vertices Only"),
-        'EDGE': lambda layout: layout.operator("mesh.extrude_edges_move", text="Edges Only"),
-        'FACE': lambda layout: layout.operator("mesh.extrude_faces_move", text="Individual Faces"),
-        'REGION': lambda layout: layout.operator("view3d.edit_mesh_extrude_move_normal", text="Region"),
+        'VERT': lambda layout:
+            layout.operator("mesh.extrude_vertices_move", text="Vertices Only"),
+        'EDGE': lambda layout:
+            layout.operator("mesh.extrude_edges_move", text="Edges Only"),
+        'FACE': lambda layout:
+            layout.operator("mesh.extrude_faces_move", text="Individual Faces"),
+        'REGION': lambda layout:
+            layout.operator("view3d.edit_mesh_extrude_move_normal", text="Region"),
+        'REGION_VERT_NORMAL': lambda layout:
+            layout.operator("view3d.edit_mesh_extrude_move_shrink_fatten", text="Region (Vertex Normals)"),
     }
 
     @staticmethod
@@ -1922,7 +2089,7 @@ class VIEW3D_MT_edit_mesh_extrude(Menu):
 
         menu = []
         if mesh.total_face_sel:
-            menu += ['REGION', 'FACE']
+            menu += ['REGION', 'REGION_VERT_NORMAL', 'FACE']
         if mesh.total_edge_sel and (select_mode[0] or select_mode[1]):
             menu += ['EDGE']
         if mesh.total_vert_sel and select_mode[0]:
@@ -2379,6 +2546,7 @@ class VIEW3D_MT_edit_armature(Menu):
         layout.operator("armature.merge")
         layout.operator("armature.fill")
         layout.operator("armature.delete")
+        layout.operator("armature.split")
         layout.operator("armature.separate")
 
         layout.separator()
@@ -2634,10 +2802,14 @@ class VIEW3D_PT_view3d_shading(Panel):
         if not scene.render.use_shading_nodes:
             col.prop(gs, "material_mode", text="")
             col.prop(view, "show_textured_solid")
+
         if view.viewport_shade == 'SOLID':
             col.prop(view, "use_matcap")
             if view.use_matcap:
                 col.template_icon_view(view, "matcap_icon")
+        elif view.viewport_shade == 'TEXTURED':
+            col.prop(view, "show_textured_shadeless")
+
         col.prop(view, "show_backface_culling")
         if obj and obj.mode == 'EDIT' and view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
             col.prop(view, "show_occlude_wire")

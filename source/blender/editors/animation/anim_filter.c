@@ -1503,8 +1503,7 @@ static size_t animdata_filter_mask(ListBase *anim_data, void *UNUSED(data), int 
 }
 
 /* NOTE: owner_id is scene, material, or texture block, which is the direct owner of the node tree in question */
-// TODO: how to handle group nodes is still unclear...
-static size_t animdata_filter_ds_nodetree(bAnimContext *ac, ListBase *anim_data, bDopeSheet *ads, ID *owner_id, bNodeTree *ntree, int filter_mode)
+static size_t animdata_filter_ds_nodetree_group(bAnimContext *ac, ListBase *anim_data, bDopeSheet *ads, ID *owner_id, bNodeTree *ntree, int filter_mode)
 {
 	ListBase tmp_data = {NULL, NULL};
 	size_t tmp_items = 0;
@@ -1535,6 +1534,32 @@ static size_t animdata_filter_ds_nodetree(bAnimContext *ac, ListBase *anim_data,
 	}
 	
 	/* return the number of items added to the list */
+	return items;
+}
+
+static size_t animdata_filter_ds_nodetree(bAnimContext *ac, ListBase *anim_data, bDopeSheet *ads, ID *owner_id, bNodeTree *ntree, int filter_mode)
+{
+	bNode *node;
+	size_t items = 0;
+	int group_filter_mode = filter_mode & ~ADS_FILTER_ONLYSEL;
+
+	items += animdata_filter_ds_nodetree_group(ac, anim_data, ads, owner_id, ntree, filter_mode);
+
+	for (node = ntree->nodes.first; node; node = node->next) {
+		if (node->type == NODE_GROUP) {
+			if (node->id) {
+				int filterflag = ads->filterflag;
+				if ((filter_mode & ADS_FILTER_ONLYSEL) && (node->flag & NODE_SELECT) == 0) {
+					continue;
+				}
+				/* TODO(sergey): A bit creepy, but this flag is not used from threads anyway. */
+				ads->filterflag &= ~ADS_FILTER_ONLYSEL;
+				items += animdata_filter_ds_nodetree_group(ac, anim_data, ads, owner_id, (bNodeTree *) node->id, group_filter_mode);
+				ads->filterflag = filterflag;
+			}
+		}
+	}
+
 	return items;
 }
 
@@ -2599,24 +2624,50 @@ size_t ANIM_animdata_filter(bAnimContext *ac, ListBase *anim_data, int filter_mo
 		
 		/* firstly filter the data */
 		switch (datatype) {
+			/* Action-Editing Modes */
 			case ANIMCONT_ACTION:   /* 'Action Editor' */
 			{
 				Object *obact = ac->obact;
 				SpaceAction *saction = (SpaceAction *)ac->sl;
 				bDopeSheet *ads = (saction) ? &saction->ads : NULL;
 				
-				/* the check for the DopeSheet summary is included here since the summary works here too */
-				if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items))
-					items += animfilter_action(ac, anim_data, ads, data, filter_mode, (ID *)obact);
+				/* specially check for AnimData filter... [#36687] */
+				if (UNLIKELY(filter_mode & ANIMFILTER_ANIMDATA)) {
+					/* all channels here are within the same AnimData block, hence this special case */
+					if (LIKELY(obact->adt)) {
+						ANIMCHANNEL_NEW_CHANNEL(obact->adt, ANIMTYPE_ANIMDATA, (ID *)obact);
+					}
+				}
+				else {
+					/* the check for the DopeSheet summary is included here since the summary works here too */
+					if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items))
+						items += animfilter_action(ac, anim_data, ads, data, filter_mode, (ID *)obact);
+				}
+				
 				break;
 			}
 			case ANIMCONT_SHAPEKEY: /* 'ShapeKey Editor' */
 			{
-				/* the check for the DopeSheet summary is included here since the summary works here too */
-				if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items))
-					items = animdata_filter_shapekey(ac, anim_data, data, filter_mode);
+				Key *key = (Key *)data;
+				
+				/* specially check for AnimData filter... [#36687] */
+				if (UNLIKELY(filter_mode & ANIMFILTER_ANIMDATA)) {
+					/* all channels here are within the same AnimData block, hence this special case */
+					if (LIKELY(key->adt)) {
+						ANIMCHANNEL_NEW_CHANNEL(key->adt, ANIMTYPE_ANIMDATA, (ID *)key);
+					}
+				}
+				else {
+					/* the check for the DopeSheet summary is included here since the summary works here too */
+					if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items))
+						items = animdata_filter_shapekey(ac, anim_data, key, filter_mode);
+				}
+				
 				break;
 			}
+			
+			
+			/* Modes for Specialty Data Types (i.e. not keyframes) */
 			case ANIMCONT_GPENCIL:
 			{
 				if (animdata_filter_dopesheet_summary(ac, anim_data, filter_mode, &items))
@@ -2629,6 +2680,9 @@ size_t ANIM_animdata_filter(bAnimContext *ac, ListBase *anim_data, int filter_mo
 					items = animdata_filter_mask(anim_data, data, filter_mode);
 				break;
 			}
+			
+			
+			/* DopeSheet Based Modes */
 			case ANIMCONT_DOPESHEET: /* 'DopeSheet Editor' */
 			{
 				/* the DopeSheet editor is the primary place where the DopeSheet summaries are useful */
@@ -2644,6 +2698,9 @@ size_t ANIM_animdata_filter(bAnimContext *ac, ListBase *anim_data, int filter_mo
 				items = animdata_filter_dopesheet(ac, anim_data, data, filter_mode);
 				break;
 			}
+			
+			
+			/* Special/Internal Use */
 			case ANIMCONT_CHANNEL: /* animation channel */
 			{
 				bDopeSheet *ads = ac->ads;

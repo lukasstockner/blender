@@ -95,7 +95,6 @@ typedef enum {
 	UI_WTYPE_SCROLL,
 	UI_WTYPE_LISTITEM,
 	UI_WTYPE_PROGRESSBAR,
-	UI_WTYPE_LISTLABEL,
 } uiWidgetTypeEnum;
 
 /* menu scrolling */
@@ -108,13 +107,15 @@ typedef enum {
 #define UI_PANEL_MINY   70
 
 /* uiBut->flag */
-#define UI_SELECT       1   /* use when the button is pressed */
-#define UI_SCROLLED     2   /* temp hidden, scrolled away */
-#define UI_ACTIVE       4
-#define UI_HAS_ICON     8
-#define UI_TEXTINPUT    16
-#define UI_HIDDEN       32
-/* warn: rest of uiBut->flag in UI_interface.h */
+enum {
+	UI_SELECT       = (1 << 0),  /* use when the button is pressed */
+	UI_SCROLLED     = (1 << 1),  /* temp hidden, scrolled away */
+	UI_ACTIVE       = (1 << 2),
+	UI_HAS_ICON     = (1 << 3),
+	UI_TEXTINPUT    = (1 << 4),
+	UI_HIDDEN       = (1 << 5),
+	/* warn: rest of uiBut->flag in UI_interface.h */
+};
 
 /* internal panel drawing defines */
 #define PNL_GRID    (UI_UNIT_Y / 5) /* 4 default */
@@ -385,6 +386,7 @@ extern void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rc
                                        const float mx, const float my);
 extern void ui_hsvcircle_pos_from_vals(struct uiBut *but, const rcti *rect, float *hsv, float *xpos, float *ypos);
 extern void ui_hsvcube_pos_from_vals(struct uiBut *but, const rcti *rect, float *hsv, float *xp, float *yp);
+bool ui_hsvcube_use_display_colorspace(struct uiBut *but);
 
 extern void ui_get_but_string_ex(uiBut *but, char *str, const size_t maxlen, const int float_precision);
 extern void ui_get_but_string(uiBut *but, char *str, const size_t maxlen);
@@ -402,6 +404,7 @@ extern bool ui_is_but_unit(uiBut *but);
 extern bool ui_is_but_rna_valid(uiBut *but);
 extern bool ui_is_but_utf8(uiBut *but);
 extern bool ui_is_but_interactive(uiBut *but);
+extern bool ui_is_but_search_unlink_visible(uiBut *but);
 
 extern int  ui_is_but_push_ex(uiBut *but, double *value);
 extern int  ui_is_but_push(uiBut *but);
@@ -522,6 +525,7 @@ extern void ui_button_active_free(const struct bContext *C, uiBut *but);
 extern bool ui_button_is_active(struct ARegion *ar);
 extern int ui_button_open_menu_direction(uiBut *but);
 extern void ui_button_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, int restore);
+void ui_button_clipboard_free(void);
 
 /* interface_widgets.c */
 void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3);

@@ -218,7 +218,7 @@ typedef struct FlyInfo {
 	short persp_backup; /* remember if were ortho or not, only used for restoring the view if it was a ortho view */
 
 	/* are we flying an ortho camera in perspective view,
-	 * which was originall in ortho view?
+	 * which was originally in ortho view?
 	 * could probably figure it out but better be explicit */
 	bool is_ortho_cam;
 	void *obtfm; /* backup the objects transform */
@@ -1254,15 +1254,13 @@ static int fly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int fly_cancel(bContext *C, wmOperator *op)
+static void fly_cancel(bContext *C, wmOperator *op)
 {
 	FlyInfo *fly = op->customdata;
 
 	fly->state = FLY_CANCEL;
 	flyEnd(C, fly);
 	op->customdata = NULL;
-
-	return OPERATOR_CANCELLED;
 }
 
 static int fly_modal(bContext *C, wmOperator *op, const wmEvent *event)

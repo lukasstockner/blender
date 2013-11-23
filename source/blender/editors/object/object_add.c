@@ -152,7 +152,7 @@ void ED_object_location_from_view(bContext *C, float loc[3])
 	Scene *scene = CTX_data_scene(C);
 	const float *cursor;
 
-	cursor = give_cursor(scene, v3d);
+	cursor = ED_view3d_cursor3d_get(scene, v3d);
 
 	copy_v3_v3(loc, cursor);
 }
@@ -1220,9 +1220,11 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
                                        const short use_base_parent,
                                        const short use_hierarchy)
 {
+	Main *bmain = CTX_data_main(C);
 	ListBase *lb;
 	DupliObject *dob;
 	GHash *dupli_gh = NULL, *parent_gh = NULL;
+	Object *object;
 
 	if (!(base->object->transflag & OB_DUPLI))
 		return;
@@ -1237,6 +1239,7 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 	for (dob = lb->first; dob; dob = dob->next) {
 		Base *basen;
 		Object *ob = BKE_object_copy(dob->ob);
+
 		/* font duplis can have a totcol without material, we get them from parent
 		 * should be implemented better...
 		 */
@@ -1327,6 +1330,17 @@ static void make_object_duplilist_real(bContext *C, Scene *scene, Base *base,
 			invert_m4_m4(ob_dst->parentinv, dob->mat);
 			BKE_object_apply_mat4(ob_dst, dob->mat, FALSE, TRUE);
 			DAG_id_tag_update(&ob_dst->id, OB_RECALC_OB);
+		}
+	}
+
+	/* The same how BKE_object_unlink detects which object proxies to clear. */
+	if (base->object->transflag & OB_DUPLIGROUP && base->object->dup_group) {
+		for (object = bmain->object.first; object; object = object->id.next) {
+			if (object->proxy_group == base->object) {
+				object->proxy = NULL;
+				object->proxy_from = NULL;
+				DAG_id_tag_update(&object->id, OB_RECALC_OB);
+			}
 		}
 	}
 
@@ -1602,6 +1616,9 @@ static int convert_exec(bContext *C, wmOperator *op)
 
 			for (nu = cu->nurb.first; nu; nu = nu->next)
 				nu->charidx = 0;
+
+			cu->flag &= ~CU_3D;
+			BKE_curve_curve_dimension_update(cu);
 
 			if (target == OB_MESH) {
 				curvetomesh(scene, newob);

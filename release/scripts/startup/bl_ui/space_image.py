@@ -106,7 +106,6 @@ class IMAGE_MT_select(Menu):
 
         layout.operator("uv.select_all").action = 'TOGGLE'
         layout.operator("uv.select_all", text="Inverse").action = 'INVERT'
-        layout.operator("uv.select_split")
 
         layout.separator()
 
@@ -728,7 +727,7 @@ class IMAGE_PT_tools_brush_overlay(BrushButtonsPanel, Panel):
         tex_slot_mask = brush.mask_texture_slot
 
         col = layout.column()
-        
+
         col.label(text="Curve:")
 
         row = col.row(align=True)

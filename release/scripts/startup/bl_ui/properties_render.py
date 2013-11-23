@@ -67,9 +67,11 @@ class RENDER_PT_render(RenderButtonsPanel, Panel):
         row = layout.row(align=True)
         row.operator("render.render", text="Render", icon='RENDER_STILL')
         row.operator("render.render", text="Animation", icon='RENDER_ANIMATION').animation = True
-        row.operator("render.play_rendered_anim", text="Play", icon='PLAY')
+        row.operator("sound.mixdown", text="Audio", icon='PLAY_AUDIO')
 
-        layout.prop(rd, "display_mode", text="Display")
+        split = layout.split(1 / 3)
+        split.operator("render.play_rendered_anim", text="Play", icon='PLAY')
+        split.prop(rd, "display_mode", text="Display")
 
 
 class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
@@ -317,13 +319,6 @@ class RENDER_PT_post_processing(RenderButtonsPanel, Panel):
         sub.row().prop(rd, "field_order", expand=True)
         sub.prop(rd, "use_fields_still", text="Still")
 
-        col = split.column()
-        col.prop(rd, "use_edge_enhance")
-        sub = col.column()
-        sub.active = rd.use_edge_enhance
-        sub.prop(rd, "edge_threshold", text="Threshold", slider=True)
-        sub.prop(rd, "edge_color", text="")
-
 
 class RENDER_PT_stamp(RenderButtonsPanel, Panel):
     bl_label = "Stamp"
@@ -395,10 +390,7 @@ class RENDER_PT_output(RenderButtonsPanel, Panel):
 
         layout.template_image_settings(image_settings, color_management=False)
 
-        if file_format == 'QUICKTIME_CARBON':
-            layout.operator("scene.render_data_set_quicktime_codec")
-
-        elif file_format == 'QUICKTIME_QTKIT':
+        if file_format == 'QUICKTIME':
             quicktime = rd.quicktime
 
             split = layout.split()

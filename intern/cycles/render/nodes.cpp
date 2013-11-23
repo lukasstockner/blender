@@ -3166,12 +3166,17 @@ FresnelNode::FresnelNode()
 
 void FresnelNode::compile(SVMCompiler& compiler)
 {
+	ShaderInput *normal_in = input("Normal");
 	ShaderInput *ior_in = input("IOR");
 	ShaderOutput *fac_out = output("Fac");
 
 	compiler.stack_assign(ior_in);
 	compiler.stack_assign(fac_out);
-	compiler.add_node(NODE_FRESNEL, ior_in->stack_offset, __float_as_int(ior_in->value.x), fac_out->stack_offset);
+	
+	if(normal_in->link)
+		compiler.stack_assign(normal_in);
+	
+	compiler.add_node(NODE_FRESNEL, ior_in->stack_offset, __float_as_int(ior_in->value.x), compiler.encode_uchar4(normal_in->stack_offset, fac_out->stack_offset));
 }
 
 void FresnelNode::compile(OSLCompiler& compiler)
@@ -3193,7 +3198,11 @@ LayerWeightNode::LayerWeightNode()
 
 void LayerWeightNode::compile(SVMCompiler& compiler)
 {
+	ShaderInput *normal_in = input("Normal");
 	ShaderInput *blend_in = input("Blend");
+
+	if(normal_in->link)
+		compiler.stack_assign(normal_in);
 
 	if(blend_in->link)
 		compiler.stack_assign(blend_in);
@@ -3202,14 +3211,14 @@ void LayerWeightNode::compile(SVMCompiler& compiler)
 	if(!fresnel_out->links.empty()) {
 		compiler.stack_assign(fresnel_out);
 		compiler.add_node(NODE_LAYER_WEIGHT, blend_in->stack_offset, __float_as_int(blend_in->value.x),
-			compiler.encode_uchar4(NODE_LAYER_WEIGHT_FRESNEL, fresnel_out->stack_offset));
+			compiler.encode_uchar4(NODE_LAYER_WEIGHT_FRESNEL, normal_in->stack_offset, fresnel_out->stack_offset));
 	}
 
 	ShaderOutput *facing_out = output("Facing");
 	if(!facing_out->links.empty()) {
 		compiler.stack_assign(facing_out);
 		compiler.add_node(NODE_LAYER_WEIGHT, blend_in->stack_offset, __float_as_int(blend_in->value.x),
-			compiler.encode_uchar4(NODE_LAYER_WEIGHT_FACING, facing_out->stack_offset));
+			compiler.encode_uchar4(NODE_LAYER_WEIGHT_FACING, normal_in->stack_offset, facing_out->stack_offset));
 	}
 }
 
@@ -3719,6 +3728,7 @@ void SetNormalNode::compile(OSLCompiler& compiler)
 OSLScriptNode::OSLScriptNode()
 : ShaderNode("osl_script")
 {
+	special_type = SHADER_SPECIAL_TYPE_SCRIPT;
 }
 
 void OSLScriptNode::compile(SVMCompiler& compiler)

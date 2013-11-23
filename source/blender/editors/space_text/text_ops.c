@@ -174,12 +174,6 @@ static int text_new_exec(bContext *C, wmOperator *UNUSED(op))
 	uiIDContextProperty(C, &ptr, &prop);
 
 	if (prop) {
-		/* when creating new ID blocks, use is already 1, but RNA
-		 * pointer se also increases user, so this compensates it */
-		/* doesnt always seem to happen... (ton) */
-		if (text->id.us > 1)
-			text->id.us--;
-
 		RNA_id_pointer_create(&text->id, &idptr);
 		RNA_property_pointer_set(&ptr, prop, idptr);
 		RNA_property_update(C, &ptr, prop);
@@ -220,10 +214,9 @@ static void text_open_init(bContext *C, wmOperator *op)
 	uiIDContextProperty(C, &pprop->ptr, &pprop->prop);
 }
 
-static int text_open_cancel(bContext *UNUSED(C), wmOperator *op)
+static void text_open_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	MEM_freeN(op->customdata);
-	return OPERATOR_CANCELLED;
 }
 
 static int text_open_exec(bContext *C, wmOperator *op)
@@ -252,10 +245,6 @@ static int text_open_exec(bContext *C, wmOperator *op)
 	pprop = op->customdata;
 
 	if (pprop->prop) {
-		/* when creating new ID blocks, use is already 1, but RNA
-		 * pointer se also increases user, so this compensates it */
-		text->id.us--;
-
 		RNA_id_pointer_create(&text->id, &idptr);
 		RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr);
 		RNA_property_update(C, &pprop->ptr, pprop->prop);
@@ -2241,11 +2230,9 @@ static int text_scroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int text_scroll_cancel(bContext *C, wmOperator *op)
+static void text_scroll_cancel(bContext *C, wmOperator *op)
 {
 	scroll_exit(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 static int text_scroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2716,10 +2703,9 @@ static int text_set_selection_modal(bContext *C, wmOperator *op, const wmEvent *
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int text_set_selection_cancel(bContext *C, wmOperator *op)
+static void text_set_selection_cancel(bContext *C, wmOperator *op)
 {
 	text_cursor_set_exit(C, op);
-	return OPERATOR_FINISHED;
 }
 
 void TEXT_OT_selection_set(wmOperatorType *ot)

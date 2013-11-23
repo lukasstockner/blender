@@ -57,7 +57,8 @@ class RENDERLAYER_PT_layers(RenderLayerButtonsPanel, Panel):
         rd = scene.render
 
         row = layout.row()
-        row.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=2)
+        col = row.column()
+        col.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=1)
 
         col = row.column(align=True)
         col.operator("scene.render_layer_add", icon='ZOOMIN', text="")
@@ -112,7 +113,6 @@ class RENDERLAYER_PT_layer_options(RenderLayerButtonsPanel, Panel):
 
         col = split.column()
         col.prop(rl, "use_sky")
-        col.prop(rl, "use_edge_enhance")
         col.prop(rl, "use_strand")
         if bpy.app.build_options.freestyle:
             row = col.row()

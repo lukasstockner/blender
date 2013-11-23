@@ -882,7 +882,7 @@ static void widget_draw_icon(uiBut *but, BIFIconID icon, float alpha, const rcti
 	}
 	
 	/* extra feature allows more alpha blending */
-	if (ELEM(but->type, LABEL, LISTLABEL) && but->a1 == 1.0f)
+	if ((but->type == LABEL) && but->a1 == 1.0f)
 		alpha *= but->a2;
 	
 	glEnable(GL_BLEND);
@@ -890,7 +890,7 @@ static void widget_draw_icon(uiBut *but, BIFIconID icon, float alpha, const rcti
 	if (icon && icon != ICON_BLANK1) {
 		float ofs = 1.0f / aspect;
 		
-		if (but->flag & UI_ICON_LEFT) {
+		if (but->drawflag & UI_BUT_ICON_LEFT) {
 			if (but->block->flag & UI_BLOCK_LOOP) {
 				if (ELEM(but->type, SEARCH_MENU, SEARCH_MENU_UNLINK))
 					xs = rect->xmin + 4.0f * ofs;
@@ -956,12 +956,12 @@ static void ui_text_clip_give_next_off(uiBut *but)
  */
 static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
-	int border = (but->flag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
+	int border = (but->drawflag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
 	int okwidth = BLI_rcti_size_x(rect) - border;
 
 	if (but->flag & UI_HAS_ICON)
 		okwidth -= UI_DPI_ICON_SIZE;
-	if (but->type == SEARCH_MENU_UNLINK && !but->editstr)
+	if ((but->type == SEARCH_MENU_UNLINK) && ui_is_but_search_unlink_visible(but))
 		okwidth -= BLI_rcti_size_y(rect);
 
 	okwidth = max_ii(okwidth, 0);
@@ -991,7 +991,7 @@ static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
  */
 static void ui_text_clip_cursor(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
-	int border = (but->flag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
+	int border = (but->drawflag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
 	int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
 	if (but->flag & UI_HAS_ICON) okwidth -= UI_DPI_ICON_SIZE;
 
@@ -1055,7 +1055,7 @@ static void ui_text_clip_cursor(uiFontStyle *fstyle, uiBut *but, const rcti *rec
  */
 static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
-	int border = (but->flag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
+	int border = (but->drawflag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
 	int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
 	char *cpoin = NULL;
 	int drawstr_len = strlen(but->drawstr);
@@ -1140,9 +1140,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 	uiStyleFontSet(fstyle);
 	
-	if (but->editstr || (but->flag & UI_TEXT_LEFT))
+	if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT))
 		fstyle->align = UI_STYLE_TEXT_LEFT;
-	else if (but->flag & UI_TEXT_RIGHT)
+	else if (but->drawflag & UI_BUT_TEXT_RIGHT)
 		fstyle->align = UI_STYLE_TEXT_RIGHT;
 	else
 		fstyle->align = UI_STYLE_TEXT_CENTER;
@@ -1310,22 +1310,22 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		/* icons default draw 0.8f x height */
 		rect->xmin += (int)(0.8f * BLI_rcti_size_y(rect));
 
-		if (but->editstr || (but->flag & UI_TEXT_LEFT)) {
+		if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT)) {
 			rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
 		}
-		else if ((but->flag & UI_TEXT_RIGHT)) {
+		else if ((but->drawflag & UI_BUT_TEXT_RIGHT)) {
 			rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
 		}
 	}
-	else if ((but->flag & UI_TEXT_LEFT)) {
+	else if ((but->drawflag & UI_BUT_TEXT_LEFT)) {
 		rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
 	}
-	else if ((but->flag & UI_TEXT_RIGHT)) {
+	else if ((but->drawflag & UI_BUT_TEXT_RIGHT)) {
 		rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
 	}
 	
 	/* unlink icon for this button type */
-	if (but->type == SEARCH_MENU_UNLINK && !but->editstr && but->drawstr[0]) {
+	if ((but->type == SEARCH_MENU_UNLINK) && ui_is_but_search_unlink_visible(but)) {
 		rcti temp = *rect;
 
 		temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
@@ -2004,10 +2004,11 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 /* ************ custom buttons, old stuff ************** */
 
-/* draws in resolution of 20x4 colors */
+/* draws in resolution of 48x4 colors */
 void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, const float alpha)
 {
-	const float color_step = (type == UI_GRAD_H) ? 0.02f : 0.05f;
+	/* allows for 4 steps (red->yellow) */
+	const float color_step = (1.0 / 48.0);
 	int a;
 	float h = hsv[0], s = hsv[1], v = hsv[2];
 	float dx, dy, sx1, sx2, sy;
@@ -2066,6 +2067,8 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 	/* old below */
 	
 	for (dx = 0.0f; dx < 0.999f; dx += color_step) { /* 0.999 = prevent float inaccuracy for steps */
+		const float dx_next = dx + color_step;
+
 		/* previous color */
 		copy_v3_v3(col0[0], col1[0]);
 		copy_v3_v3(col0[1], col1[1]);
@@ -2081,22 +2084,22 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 				hsv_to_rgb(h, 1.0, dx,   &col1[3][0], &col1[3][1], &col1[3][2]);
 				break;
 			case UI_GRAD_HV:
-				hsv_to_rgb(dx, s, 0.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
-				hsv_to_rgb(dx, s, 0.333, &col1[1][0], &col1[1][1], &col1[1][2]);
-				hsv_to_rgb(dx, s, 0.666, &col1[2][0], &col1[2][1], &col1[2][2]);
-				hsv_to_rgb(dx, s, 1.0,   &col1[3][0], &col1[3][1], &col1[3][2]);
+				hsv_to_rgb(dx_next, s, 0.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
+				hsv_to_rgb(dx_next, s, 0.333, &col1[1][0], &col1[1][1], &col1[1][2]);
+				hsv_to_rgb(dx_next, s, 0.666, &col1[2][0], &col1[2][1], &col1[2][2]);
+				hsv_to_rgb(dx_next, s, 1.0,   &col1[3][0], &col1[3][1], &col1[3][2]);
 				break;
 			case UI_GRAD_HS:
-				hsv_to_rgb(dx, 0.0, v,   &col1[0][0], &col1[0][1], &col1[0][2]);
-				hsv_to_rgb(dx, 0.333, v, &col1[1][0], &col1[1][1], &col1[1][2]);
-				hsv_to_rgb(dx, 0.666, v, &col1[2][0], &col1[2][1], &col1[2][2]);
-				hsv_to_rgb(dx, 1.0, v,   &col1[3][0], &col1[3][1], &col1[3][2]);
+				hsv_to_rgb(dx_next, 0.0, v,   &col1[0][0], &col1[0][1], &col1[0][2]);
+				hsv_to_rgb(dx_next, 0.333, v, &col1[1][0], &col1[1][1], &col1[1][2]);
+				hsv_to_rgb(dx_next, 0.666, v, &col1[2][0], &col1[2][1], &col1[2][2]);
+				hsv_to_rgb(dx_next, 1.0, v,   &col1[3][0], &col1[3][1], &col1[3][2]);
 				break;
 			case UI_GRAD_H:
 			{
 				/* annoying but without this the color shifts - could be solved some other way
 				 * - campbell */
-				hsv_to_rgb(dx + color_step, 1.0, 1.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
+				hsv_to_rgb(dx_next, 1.0, 1.0,   &col1[0][0], &col1[0][1], &col1[0][2]);
 				copy_v3_v3(col1[1], col1[0]);
 				copy_v3_v3(col1[2], col1[0]);
 				copy_v3_v3(col1[3], col1[0]);
@@ -2117,8 +2120,8 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		}
 		
 		/* rect */
-		sx1 = rect->xmin +  dx               * BLI_rcti_size_x(rect);
-		sx2 = rect->xmin + (dx + color_step) * BLI_rcti_size_x(rect);
+		sx1 = rect->xmin + dx      * BLI_rcti_size_x(rect);
+		sx2 = rect->xmin + dx_next * BLI_rcti_size_x(rect);
 		sy = rect->ymin;
 		dy = (float)BLI_rcti_size_y(rect) / 3.0f;
 		
@@ -2141,6 +2144,19 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 	
 	glShadeModel(GL_FLAT);
 	
+}
+
+bool ui_hsvcube_use_display_colorspace(uiBut *but)
+{
+	bool color_profile = but->block->color_profile;
+
+	if (but->rnaprop) {
+		if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
+			color_profile = FALSE;
+	}
+
+	/* SV+H gradient does not use display colorspace */
+	return color_profile && !ELEM((int)but->a1, UI_GRAD_SV, UI_GRAD_H);
 }
 
 void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *xp, float *yp)
@@ -2179,16 +2195,13 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 	float x = 0.0f, y = 0.0f;
 	float *hsv = ui_block_hsv_get(but->block);
 	float hsv_n[3];
-	int color_profile = but->block->color_profile;
-	
-	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
-		color_profile = FALSE;
+	bool use_display_colorspace = ui_hsvcube_use_display_colorspace(but);
 	
 	copy_v3_v3(hsv_n, hsv);
 	
 	ui_get_but_vectorf(but, rgb);
 	
-	if (color_profile && (int)but->a1 != UI_GRAD_SV)
+	if (use_display_colorspace)
 		ui_block_to_display_space_v3(but->block, rgb);
 	
 	rgb_to_hsv_compat_v(rgb, hsv_n);
@@ -2853,12 +2866,21 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 /* labels use Editor theme colors for text */
 static void widget_state_label(uiWidgetType *wt, int state)
 {
-	/* call this for option button */
-	widget_state(wt, state);
-	if (state & UI_SELECT)
-		UI_GetThemeColor3ubv(TH_TEXT_HI, (unsigned char *)wt->wcol.text);
-	else
-		UI_GetThemeColor3ubv(TH_TEXT, (unsigned char *)wt->wcol.text);
+	if (state & UI_BUT_LIST_ITEM) {
+		/* Override default label theme's colors. */
+		bTheme *btheme = UI_GetTheme();
+		wt->wcol_theme = &btheme->tui.wcol_list_item;
+		/* call this for option button */
+		widget_state(wt, state);
+	}
+	else {
+		/* call this for option button */
+		widget_state(wt, state);
+		if (state & UI_SELECT)
+			UI_GetThemeColor3ubv(TH_TEXT_HI, (unsigned char *)wt->wcol.text);
+		else
+			UI_GetThemeColor3ubv(TH_TEXT, (unsigned char *)wt->wcol.text);
+	}
 }
 
 static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
@@ -2978,11 +3000,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 		case UI_WTYPE_REGULAR:
 			break;
 
-		case UI_WTYPE_LISTLABEL:
-			wt.wcol_theme = &btheme->tui.wcol_list_item;
-			wt.draw = NULL;
-			/* Can't use usual label code. */
-			break;
 		case UI_WTYPE_LABEL:
 			wt.draw = NULL;
 			wt.state = widget_state_label;
@@ -3126,15 +3143,15 @@ static int widget_roundbox_set(uiBut *but, rcti *rect)
 	int roundbox = UI_CNR_ALL;
 
 	/* alignment */
-	if ((but->flag & UI_BUT_ALIGN) && but->type != PULLDOWN) {
+	if ((but->drawflag & UI_BUT_ALIGN) && but->type != PULLDOWN) {
 		
 		/* ui_block_position has this correction too, keep in sync */
-		if (but->flag & UI_BUT_ALIGN_TOP)
+		if (but->drawflag & UI_BUT_ALIGN_TOP)
 			rect->ymax += U.pixelsize;
-		if (but->flag & UI_BUT_ALIGN_LEFT)
+		if (but->drawflag & UI_BUT_ALIGN_LEFT)
 			rect->xmin -= U.pixelsize;
 		
-		switch (but->flag & UI_BUT_ALIGN) {
+		switch (but->drawflag & UI_BUT_ALIGN) {
 			case UI_BUT_ALIGN_TOP:
 				roundbox = UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT;
 				break;
@@ -3232,11 +3249,6 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 					fstyle = &style->widgetlabel;
 				}
 				break;
-				
-			case LISTLABEL:
-				wt = widget_type(UI_WTYPE_LISTLABEL);
-				fstyle = &style->widgetlabel;
-				break;
 
 			case SEPR:
 				break;
@@ -3282,7 +3294,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			case OPTIONN:
 				if (!(but->flag & UI_HAS_ICON)) {
 					wt = widget_type(UI_WTYPE_OPTION);
-					but->flag |= UI_TEXT_LEFT;
+					but->drawflag |= UI_BUT_TEXT_LEFT;
 				}
 				else
 					wt = widget_type(UI_WTYPE_TOGGLE);

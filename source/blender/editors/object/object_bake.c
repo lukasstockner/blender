@@ -156,12 +156,6 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
 			break;
 		}
 
-		if (mmd->lvl == 0) {
-			BKE_report(op->reports, RPT_ERROR, "Multires data baking is not supported for preview subdivision level 0");
-			ok = false;
-			break;
-		}
-
 		if (!me->mtpoly) {
 			BKE_report(op->reports, RPT_ERROR, "Mesh should be unwrapped before multires data baking");
 
@@ -214,28 +208,23 @@ static DerivedMesh *multiresbake_create_loresdm(Scene *scene, Object *ob, int *l
 	DerivedMesh *dm;
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
 	Mesh *me = (Mesh *)ob->data;
+	MultiresModifierData tmp_mmd = *mmd;
+	DerivedMesh *cddm = CDDM_from_mesh(me, ob);
 
-	*lvl = mmd->lvl;
-
-	if (*lvl == 0) {
-		DerivedMesh *tmp_dm = CDDM_from_mesh(me, ob);
-
-		DM_set_only_copy(tmp_dm, CD_MASK_BAREMESH | CD_MASK_MTFACE);
-
-		dm = CDDM_copy(tmp_dm);
-		tmp_dm->release(tmp_dm);
+	if (mmd->lvl > 0) {
+		*lvl = mmd->lvl;
 	}
 	else {
-		MultiresModifierData tmp_mmd = *mmd;
-		DerivedMesh *cddm = CDDM_from_mesh(me, ob);
-
-		DM_set_only_copy(cddm, CD_MASK_BAREMESH | CD_MASK_MTFACE);
-
-		tmp_mmd.lvl = *lvl;
-		tmp_mmd.sculptlvl = *lvl;
-		dm = multires_make_derived_from_derived(cddm, &tmp_mmd, ob, 0);
-		cddm->release(cddm);
+		*lvl = 1;
+		tmp_mmd.simple = true;
 	}
+
+	DM_set_only_copy(cddm, CD_MASK_BAREMESH | CD_MASK_MTFACE);
+
+	tmp_mmd.lvl = *lvl;
+	tmp_mmd.sculptlvl = *lvl;
+	dm = multires_make_derived_from_derived(cddm, &tmp_mmd, ob, 0);
+	cddm->release(cddm);
 
 	return dm;
 }
@@ -556,7 +545,7 @@ static int multiresbake_image_exec(bContext *C, wmOperator *op)
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Multires Bake",
 	                     WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE);
 	WM_jobs_customdata_set(wm_job, bkr, multiresbake_freejob);
-	WM_jobs_timer(wm_job, 0.2, NC_IMAGE, 0); /* TODO - only draw bake image, can we enforce this */
+	WM_jobs_timer(wm_job, 0.5, NC_IMAGE, 0); /* TODO - only draw bake image, can we enforce this */
 	WM_jobs_callbacks(wm_job, multiresbake_startjob, NULL, NULL, NULL);
 
 	G.is_break = FALSE;
@@ -816,7 +805,7 @@ static int objects_bake_render_invoke(bContext *C, wmOperator *op, const wmEvent
 			wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Texture Bake",
 			                     WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE);
 			WM_jobs_customdata_set(wm_job, bkr, bake_freejob);
-			WM_jobs_timer(wm_job, 0.2, NC_IMAGE, 0); /* TODO - only draw bake image, can we enforce this */
+			WM_jobs_timer(wm_job, 0.5, NC_IMAGE, 0); /* TODO - only draw bake image, can we enforce this */
 			WM_jobs_callbacks(wm_job, bake_startjob, NULL, bake_update, NULL);
 
 			G.is_break = FALSE;

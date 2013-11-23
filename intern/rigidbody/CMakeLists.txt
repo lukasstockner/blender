@@ -24,12 +24,11 @@
 set(INC
 	.
 	../../source/blender/gpu
-	../../extern/bullet2/src
 	../../extern/HACD
 )
 
 set(INC_SYS
-
+	${BULLET_INCLUDE_DIRS}
 )
 
 set(SRC

@@ -142,6 +142,17 @@ typedef struct MovieTrackingTrack {
 	float minimum_correlation;          /* minimal correlation which is still treated as successful tracking */
 
 	struct bGPdata *gpd;        /* grease-pencil data */
+
+	/* Weight of this track.
+	 *
+	 * Weight defines how much the track affects on the final reconstruction,
+	 * usually gets animated in a way so when track has just appeared it's
+	 * weight is zero and then it gets faded up.
+	 *
+	 * Used to prevent jumps of the camera when tracks are appearing or
+	 * disappearing.
+	 */
+	float weight, pad;
 } MovieTrackingTrack;
 
 typedef struct MovieTrackingPlaneMarker {
@@ -207,8 +218,7 @@ typedef struct MovieTrackingSettings {
 		                             * were moved to per-tracking object settings
 		                             */
 
-	float reconstruction_success_threshold;
-	int reconstruction_flag;
+	int reconstruction_flag, pad;
 
 	/* which camera intrinsics to refine. uses on the REFINE_* flags */
 	short refine_camera_intrinsics, pad2;
@@ -409,7 +419,7 @@ enum {
 
 /* MovieTrackingSettings->reconstruction_flag */
 enum {
-	TRACKING_USE_FALLBACK_RECONSTRUCTION = (1 << 0),
+	/* TRACKING_USE_FALLBACK_RECONSTRUCTION = (1 << 0), */  /* DEPRECATED */
 	TRACKING_USE_KEYFRAME_SELECTION      = (1 << 1)
 };
 

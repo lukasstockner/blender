@@ -64,7 +64,6 @@
 #include "BKE_movieclip.h"
 
 #include "RE_engine.h"
-#include "RE_pipeline.h"  /* make_stars */
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -106,21 +105,6 @@ extern void bl_debug_draw_quad_clear(void);
 extern void bl_debug_draw_quad_add(const float v0[3], const float v1[3], const float v2[3], const float v3[3]);
 extern void bl_debug_draw_edge_add(const float v0[3], const float v1[3]);
 #endif
-
-static void star_stuff_init_func(void)
-{
-	cpack(0xFFFFFF);
-	glPointSize(1.0);
-	glBegin(GL_POINTS);
-}
-static void star_stuff_vertex_func(const float vec[3])
-{
-	glVertex3fv(vec);
-}
-static void star_stuff_term_func(void)
-{
-	glEnd();
-}
 
 void circf(float x, float y, float rad)
 {
@@ -567,7 +551,7 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 	int co[2];
 
 	/* we don't want the clipping for cursor */
-	if (ED_view3d_project_int_global(ar, give_cursor(scene, v3d), co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
+	if (ED_view3d_project_int_global(ar, ED_view3d_cursor3d_get(scene, v3d), co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 		const float f5 = 0.25f * U.widget_unit;
 		const float f10 = 0.5f * U.widget_unit;
 		const float f20 = U.widget_unit;
@@ -2037,8 +2021,11 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 
 		/* negative scale flag has to propagate */
 		transflag = tbase.object->transflag;
-		if (base->object->transflag & OB_NEG_SCALE)
-			tbase.object->transflag ^= OB_NEG_SCALE;
+
+		if (is_negative_m4(dob->mat))
+			tbase.object->transflag |= OB_NEG_SCALE;
+		else
+			tbase.object->transflag &= ~OB_NEG_SCALE;
 
 		UI_ThemeColorBlend(color, TH_BACK, 0.5);
 
@@ -2857,7 +2844,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, Object *camera, int w
 /* NOTE: the info that this uses is updated in ED_refresh_viewport_fps(), 
  * which currently gets called during SCREEN_OT_animation_step.
  */
-static void draw_viewport_fps(Scene *scene, rcti *rect)
+void ED_scene_draw_fps(Scene *scene, rcti *rect)
 {
 	ScreenFrameRateInfo *fpsi = scene->fps_info;
 	float fps;
@@ -3276,14 +3263,6 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 		if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 			drawfloor(scene, v3d, grid_unit);
 		}
-		if (rv3d->persp == RV3D_CAMOB) {
-			if (scene->world) {
-				if (scene->world->mode & WO_STARS) {
-					RE_make_stars(NULL, scene, star_stuff_init_func, star_stuff_vertex_func,
-					              star_stuff_term_func);
-				}
-			}
-		}
 	}
 	else {
 		if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
@@ -3457,7 +3436,7 @@ static void view3d_main_area_draw_info(const bContext *C, ARegion *ar, const cha
 
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 		if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_playing(wm)) {
-			draw_viewport_fps(scene, &rect);
+			ED_scene_draw_fps(scene, &rect);
 		}
 		else if (U.uiflag & USER_SHOW_VIEWPORTNAME) {
 			draw_viewport_name(ar, v3d, &rect);

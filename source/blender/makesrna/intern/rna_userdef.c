@@ -367,7 +367,7 @@ static void rna_userdef_pathcompare_remove(ReportList *reports, PointerRNA *path
 {
 	bPathCompare *path_cmp = path_cmp_ptr->data;
 	if (BLI_findindex(&U.autoexec_paths, path_cmp) == -1) {
-		BKE_report(reports, RPT_ERROR, "Addon is no longer valid");
+		BKE_report(reports, RPT_ERROR, "Excluded path is no longer valid");
 		return;
 	}
 
@@ -2909,7 +2909,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "show_tooltips_python", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", USER_TOOLTIPS_PYTHON);
-	RNA_def_property_ui_text(prop, "Show Python Tooltips", "Show Python references in tooltips");
+	RNA_def_property_ui_text(prop, "Python Tooltips", "Show Python references in tooltips");
 
 	prop = RNA_def_property(srna, "show_object_info", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_DRAWVIEWINFO);
@@ -3266,7 +3266,13 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "gp_eraser");
 	RNA_def_property_range(prop, 0, 100);
 	RNA_def_property_ui_text(prop, "Grease Pencil Eraser Radius", "Radius of eraser 'brush'");
-
+	
+	
+	prop = RNA_def_property(srna, "grease_pencil_default_color", PROP_FLOAT, PROP_COLOR);
+	RNA_def_property_float_sdna(prop, NULL, "gpencil_new_layer_col");
+	RNA_def_property_array(prop, 4);
+	RNA_def_property_ui_text(prop, "Grease Pencil Default Color", "Color of new Grease Pencil layers");
+	
 	/* sculpt and paint */
 
 	prop = RNA_def_property(srna, "sculpt_paint_overlay_color", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -4091,7 +4097,7 @@ static void rna_def_userdef_autoexec_path_collection(BlenderRNA *brna, PropertyR
 
 	func = RNA_def_function(srna, "new", "rna_userdef_pathcompare_new");
 	RNA_def_function_flag(func, FUNC_NO_SELF);
-	RNA_def_function_ui_description(func, "Add a new addon");
+	RNA_def_function_ui_description(func, "Add a new path");
 	/* return type */
 	parm = RNA_def_pointer(func, "pathcmp", "PathCompare", "", "");
 	RNA_def_function_return(func, parm);

@@ -311,7 +311,6 @@ typedef struct wmNotifier {
 
 	/* NC_WORLD World */
 #define	ND_WORLD_DRAW		(45<<16)
-#define	ND_WORLD_STARS		(46<<16)
 
 	/* NC_TEXT Text */
 #define ND_CURSOR			(50<<16)
@@ -535,7 +534,7 @@ typedef struct wmOperatorType {
 	 * canceled due to some external reason, cancel is called
 	 * - see defines below for return values */
 	int (*invoke)(struct bContext *, struct wmOperator *, const struct wmEvent *) ATTR_WARN_UNUSED_RESULT;
-	int (*cancel)(struct bContext *, struct wmOperator *);
+	void (*cancel)(struct bContext *, struct wmOperator *);
 	int (*modal)(struct bContext *, struct wmOperator *, const struct wmEvent *) ATTR_WARN_UNUSED_RESULT;
 
 	/* verify if the operator can be executed in the current context, note

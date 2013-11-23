@@ -63,6 +63,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 
 /* This little block needed for linking to Blender... */
 
@@ -153,7 +154,14 @@
 #ifdef BUILD_DATE
 extern char build_date[];
 extern char build_time[];
-extern char build_rev[];
+extern char build_hash[];
+extern unsigned long build_commit_timestamp;
+
+/* TODO(sergey): ideally size need to be in sync with buildinfo.c */
+extern char build_commit_date[16];
+extern char build_commit_time[16];
+
+extern char build_branch[];
 extern char build_platform[];
 extern char build_type[];
 extern char build_cflags[];
@@ -219,7 +227,9 @@ static int print_version(int UNUSED(argc), const char **UNUSED(argv), void *UNUS
 #ifdef BUILD_DATE
 	printf("\tbuild date: %s\n", build_date);
 	printf("\tbuild time: %s\n", build_time);
-	printf("\tbuild revision: %s\n", build_rev);
+	printf("\tbuild commit date: %s\n", build_commit_date);
+	printf("\tbuild commit time: %s\n", build_commit_time);
+	printf("\tbuild hash: %s\n", build_hash);
 	printf("\tbuild platform: %s\n", build_platform);
 	printf("\tbuild type: %s\n", build_type);
 	printf("\tbuild c flags: %s\n", build_cflags);
@@ -590,13 +600,12 @@ static void blender_crash_handler(int signum)
 	printf("Writing: %s\n", fname);
 	fflush(stdout);
 
-	BLI_snprintf(header, sizeof(header), "# " BLEND_VERSION_FMT ", Revision: %s\n", BLEND_VERSION_ARG,
-#ifdef BUILD_DATE
-	             build_rev
+#ifndef BUILD_DATE
+	BLI_snprintf(header, sizeof(header), "# " BLEND_VERSION_FMT ", Unknown revision\n", BLEND_VERSION_ARG);
 #else
-	             "Unknown"
+	BLI_snprintf(header, sizeof(header), "# " BLEND_VERSION_FMT ", Commit date: %s %s, Hash %s\n",
+	             BLEND_VERSION_ARG, build_commit_date, build_commit_time, build_hash);
 #endif
-	             );
 
 	/* open the crash log */
 	errno = 0;
@@ -1470,7 +1479,7 @@ int main(int argc, const char **argv)
 #endif
 
 #ifdef WIN32 /* Win32 Unicode Args */
-	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialised 
+	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialized
 	 *       (it depends on the args passed in, which is what we're getting here!)
 	 */
 	wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
@@ -1503,6 +1512,22 @@ int main(int argc, const char **argv)
 			}
 		}
 	}
+
+#ifdef BUILD_DATE
+	{
+		time_t temp_time = build_commit_timestamp;
+		struct tm *tm = gmtime(&temp_time);
+		if (LIKELY(tm)) {
+			strftime(build_commit_date, sizeof(build_commit_date), "%Y-%m-%d", tm);
+			strftime(build_commit_time, sizeof(build_commit_time), "%H:%M", tm);
+		}
+		else {
+			const char *unknown = "date-unknown";
+			BLI_strncpy(build_commit_date, unknown, sizeof(build_commit_date));
+			BLI_strncpy(build_commit_time, unknown, sizeof(build_commit_time));
+		}
+	}
+#endif
 
 	C = CTX_create();
 

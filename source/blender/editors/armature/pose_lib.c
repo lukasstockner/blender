@@ -567,7 +567,7 @@ static int poselib_remove_exec(bContext *C, wmOperator *op)
 		if (fcu->bezt) {
 			for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
 				/* check if remove */
-				if (IS_EQ(bezt->vec[1][0], marker->frame)) {
+				if (IS_EQF(bezt->vec[1][0], (float)marker->frame)) {
 					delete_fcurve_key(fcu, i, 1);
 					break;
 				}
@@ -1532,10 +1532,9 @@ static int poselib_preview_exit(bContext *C, wmOperator *op)
 }
 
 /* Cancel previewing operation (called when exiting Blender) */
-static int poselib_preview_cancel(bContext *C, wmOperator *op)
+static void poselib_preview_cancel(bContext *C, wmOperator *op)
 {
 	poselib_preview_exit(C, op);
-	return OPERATOR_CANCELLED;
 }
 
 /* main modal status check */

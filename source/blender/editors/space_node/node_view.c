@@ -220,6 +220,7 @@ static int snode_bg_viewmove_modal(bContext *C, wmOperator *op, const wmEvent *e
 			CLAMP(snode->yof, nvm->ymin, nvm->ymax);
 
 			ED_region_tag_redraw(ar);
+			WM_main_add_notifier(NC_NODE | ND_DISPLAY, NULL);
 
 			break;
 
@@ -273,12 +274,10 @@ static int snode_bg_viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int snode_bg_viewmove_cancel(bContext *UNUSED(C), wmOperator *op)
+static void snode_bg_viewmove_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	MEM_freeN(op->customdata);
 	op->customdata = NULL;
-
-	return OPERATOR_CANCELLED;
 }
 
 void NODE_OT_backimage_move(wmOperatorType *ot)
@@ -306,6 +305,7 @@ static int backimage_zoom_exec(bContext *C, wmOperator *op)
 
 	snode->zoom *= fac;
 	ED_region_tag_redraw(ar);
+	WM_main_add_notifier(NC_NODE | ND_DISPLAY, NULL);
 
 	return OPERATOR_FINISHED;
 }
@@ -363,6 +363,7 @@ static int backimage_fit_exec(bContext *C, wmOperator *UNUSED(op))
 	snode->yof = 0;
 
 	ED_region_tag_redraw(ar);
+	WM_main_add_notifier(NC_NODE | ND_DISPLAY, NULL);
 
 	return OPERATOR_FINISHED;
 }
@@ -612,10 +613,9 @@ static int sample_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int sample_cancel(bContext *C, wmOperator *op)
+static void sample_cancel(bContext *C, wmOperator *op)
 {
 	sample_exit(C, op);
-	return OPERATOR_CANCELLED;
 }
 
 void NODE_OT_backimage_sample(wmOperatorType *ot)

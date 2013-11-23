@@ -1724,7 +1724,7 @@ static int compatible_bump_compute(CompatibleBump *compat_bump, ShadeInput *shi,
 	const float bf = -0.04f*Tnor*mtex->norfac;
 	int rgbnor;
 	/* disable internal bump eval */
-	float* nvec = texres->nor;
+	float *nvec = texres->nor;
 	texres->nor = NULL;
 	/* du & dv estimates, constant value defaults */
 	du = dv = 0.01f;
@@ -3558,12 +3558,15 @@ Material *RE_init_sample_material(Material *orig_mat, Scene *scene)
 
 	/* strip material copy from unsupported flags */
 	for (tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
-		if (mat->septex & (1<<tex_nr)) continue;
 	
 		if (mat->mtex[tex_nr]) {
 			MTex *mtex = mat->mtex[tex_nr];
 
-			if (!mtex->tex) continue;
+			/* just in case make all non-used mtexes empty*/
+			Tex *cur_tex = mtex->tex;
+			mtex->tex = NULL;
+
+			if (mat->septex & (1<<tex_nr) || !cur_tex) continue;
 
 			/* only keep compatible texflags */
 			mtex->texflag = mtex->texflag & (MTEX_RGBTOINT | MTEX_STENCIL | MTEX_NEGATIVE | MTEX_ALPHAMIX);
@@ -3598,7 +3601,7 @@ Material *RE_init_sample_material(Material *orig_mat, Scene *scene)
 			}
 
 			/* copy texture */
-			tex= mtex->tex = localize_texture(mtex->tex);
+			tex= mtex->tex = localize_texture(cur_tex);
 
 			/* update texture anims */
 			BKE_animsys_evaluate_animdata(scene, &tex->id, tex->adt, BKE_scene_frame_get(scene), ADT_RECALC_ANIM);
@@ -3646,7 +3649,8 @@ void RE_free_sample_material(Material *mat)
 		}
 	}
 
-	BKE_material_free(mat);
+	/* don't update user counts as we are freeing a duplicate */
+	BKE_material_free_ex(mat, false);
 	MEM_freeN(mat);
 }
 

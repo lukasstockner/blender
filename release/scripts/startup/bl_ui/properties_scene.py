@@ -94,7 +94,7 @@ class SCENE_PT_keying_sets(SceneButtonsPanel, Panel):
         row = layout.row()
 
         col = row.column()
-        col.template_list("UI_UL_list", "keying_sets", scene, "keying_sets", scene.keying_sets, "active_index", rows=2)
+        col.template_list("UI_UL_list", "keying_sets", scene, "keying_sets", scene.keying_sets, "active_index", rows=1)
 
         col = row.column(align=True)
         col.operator("anim.keying_set_add", icon='ZOOMIN', text="")
@@ -138,7 +138,7 @@ class SCENE_PT_keying_set_paths(SceneButtonsPanel, Panel):
         row = layout.row()
 
         col = row.column()
-        col.template_list("SCENE_UL_keying_set_paths", "", ks, "paths", ks.paths, "active_index", rows=2)
+        col.template_list("SCENE_UL_keying_set_paths", "", ks, "paths", ks.paths, "active_index", rows=1)
 
         col = row.column(align=True)
         col.operator("anim.keying_set_path_add", icon='ZOOMIN', text="")
@@ -226,8 +226,6 @@ class SCENE_PT_audio(SceneButtonsPanel, Panel):
         col.label("Format:")
         col.prop(ffmpeg, "audio_channels", text="")
         col.prop(ffmpeg, "audio_mixrate", text="Rate")
-
-        layout.operator("sound.mixdown")
 
 
 class SCENE_PT_physics(SceneButtonsPanel, Panel):

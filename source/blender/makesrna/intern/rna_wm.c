@@ -442,13 +442,6 @@ EnumPropertyItem wm_report_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-#define KMI_TYPE_KEYBOARD   0
-#define KMI_TYPE_MOUSE      1
-#define KMI_TYPE_TWEAK      2
-#define KMI_TYPE_TEXTINPUT  3
-#define KMI_TYPE_TIMER      4
-#define KMI_TYPE_NDOF       5
-
 #ifdef RNA_RUNTIME
 
 #include <assert.h>
@@ -625,13 +618,7 @@ static int rna_wmKeyMapItem_map_type_get(PointerRNA *ptr)
 {
 	wmKeyMapItem *kmi = ptr->data;
 
-	if (ISTIMER(kmi->type)) return KMI_TYPE_TIMER;
-	if (ISKEYBOARD(kmi->type)) return KMI_TYPE_KEYBOARD;
-	if (ISTWEAK(kmi->type)) return KMI_TYPE_TWEAK;
-	if (ISMOUSE(kmi->type)) return KMI_TYPE_MOUSE;
-	if (ISNDOF(kmi->type)) return KMI_TYPE_NDOF;
-	if (kmi->type == KM_TEXTINPUT) return KMI_TYPE_TEXTINPUT;
-	return KMI_TYPE_KEYBOARD;
+	return WM_keymap_map_type_get(kmi);
 }
 
 static void rna_wmKeyMapItem_map_type_set(PointerRNA *ptr, int value)
@@ -1055,15 +1042,13 @@ static void operator_draw(bContext *C, wmOperator *op)
 }
 
 /* same as exec(), but call cancel */
-static int operator_cancel(bContext *C, wmOperator *op)
+static void operator_cancel(bContext *C, wmOperator *op)
 {
 	extern FunctionRNA rna_Operator_cancel_func;
 
 	PointerRNA opr;
 	ParameterList list;
 	FunctionRNA *func;
-	void *ret;
-	int result;
 
 	RNA_pointer_create(NULL, op->type->ext.srna, op, &opr);
 	func = &rna_Operator_cancel_func; /* RNA_struct_find_function(&opr, "cancel"); */
@@ -1072,12 +1057,7 @@ static int operator_cancel(bContext *C, wmOperator *op)
 	RNA_parameter_set_lookup(&list, "context", &C);
 	op->type->ext.call(C, &opr, func, &list);
 
-	RNA_parameter_get_lookup(&list, "result", &ret);
-	result = *(int *)ret;
-
 	RNA_parameter_list_free(&list);
-
-	return result;
 }
 
 void operator_wrapper(wmOperatorType *ot, void *userdata);

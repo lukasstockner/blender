@@ -463,6 +463,7 @@ void BKE_sequencer_imbuf_to_sequencer_space(Scene *scene, ImBuf *ibuf, int make_
 		if (!STREQ(float_colorspace, to_colorspace)) {
 			IMB_colormanagement_transform_threaded(ibuf->rect_float, ibuf->x, ibuf->y, ibuf->channels,
 			                                       from_colorspace, to_colorspace, true);
+			sequencer_imbuf_assign_spaces(scene, ibuf);
 		}
 	}
 }
@@ -1854,7 +1855,6 @@ void BKE_sequencer_color_balance_apply(StripColorBalance *cb, ImBuf *ibuf, float
 	init_data.cb = cb;
 	init_data.ibuf = ibuf;
 	init_data.mul = mul;
-	init_data.mask = NULL;
 	init_data.make_float = make_float;
 	init_data.mask = mask_input;
 
@@ -2342,7 +2342,7 @@ static ImBuf *seq_render_mask(SeqRenderData context, Mask *mask, float nr, short
 
 		mask_temp = BKE_mask_copy_nolib(mask);
 
-		BKE_mask_evaluate(mask_temp, mask->sfra + nr, TRUE);
+		BKE_mask_evaluate(mask_temp, mask->sfra + nr, true);
 
 		maskbuf = MEM_mallocN(sizeof(float) * context.rectx * context.recty, __func__);
 

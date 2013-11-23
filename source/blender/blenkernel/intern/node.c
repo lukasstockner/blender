@@ -959,9 +959,6 @@ void nodeInternalRelink(bNodeTree *ntree, bNode *node)
 {
 	bNodeLink *link, *link_next;
 	
-	if (node->internal_links.first == NULL)
-		return;
-	
 	/* store link pointers in output sockets, for efficient lookup */
 	for (link = node->internal_links.first; link; link = link->next)
 		link->tosock->link = link;
@@ -1675,8 +1672,8 @@ static void free_localized_node_groups(bNodeTree *ntree)
 	for (node = ntree->nodes.first; node; node = node->next) {
 		if (node->type == NODE_GROUP && node->id) {
 			bNodeTree *ngroup = (bNodeTree *)node->id;
-			if (BLI_findindex(&G.main->nodetree, ngroup) == -1) {
-				/* ntree is not in library, i.e. localized node group: free it */
+			if (ngroup->flag & NTREE_IS_LOCALIZED) {
+				/* ntree is a localized copy: free it */
 				ntreeFreeTree_ex(ngroup, false);
 				MEM_freeN(ngroup);
 			}
@@ -1963,6 +1960,7 @@ bNodeTree *ntreeLocalize(bNodeTree *ntree)
 		 * Note: previews are not copied here.
 		 */
 		ltree = ntreeCopyTree_internal(ntree, NULL, FALSE, FALSE, FALSE);
+		ltree->flag |= NTREE_IS_LOCALIZED;
 		
 		for (node = ltree->nodes.first; node; node = node->next) {
 			if (node->type == NODE_GROUP && node->id) {
@@ -3091,14 +3089,14 @@ void nodeSynchronizeID(bNode *node, bool copy_to_id)
 
 /* ************* node type access ********** */
 
-const char *nodeLabel(bNode *node)
+void nodeLabel(bNodeTree *ntree, bNode *node, char *label, int maxlen)
 {
 	if (node->label[0] != '\0')
-		return node->label;
+		BLI_strncpy(label, node->label, maxlen);
 	else if (node->typeinfo->labelfunc)
-		return node->typeinfo->labelfunc(node);
+		node->typeinfo->labelfunc(ntree, node, label, maxlen);
 	else
-		return IFACE_(node->typeinfo->ui_name);
+		BLI_strncpy(label, IFACE_(node->typeinfo->ui_name), maxlen);
 }
 
 static void node_type_base_defaults(bNodeType *ntype)
@@ -3269,7 +3267,7 @@ void node_type_storage(bNodeType *ntype,
 	ntype->freefunc = freefunc;
 }
 
-void node_type_label(struct bNodeType *ntype, const char *(*labelfunc)(struct bNode *))
+void node_type_label(struct bNodeType *ntype, void (*labelfunc)(struct bNodeTree *ntree, struct bNode *node, char *label, int maxlen))
 {
 	ntype->labelfunc = labelfunc;
 }

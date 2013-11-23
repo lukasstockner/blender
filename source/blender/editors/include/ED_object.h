@@ -51,6 +51,7 @@ struct Main;
 struct Mesh;
 struct MetaElem;
 struct ModifierData;
+struct HookModifierData;
 struct Nurb;
 struct Object;
 struct ReportList;
@@ -217,6 +218,8 @@ struct EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
         struct PropertyRNA *prop,
         int *free,
         const unsigned int selection_mask);
+
+void ED_object_check_force_modifiers(struct Main *bmain, struct Scene *scene, struct Object *object);
 
 #ifdef __cplusplus
 }

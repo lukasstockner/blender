@@ -62,7 +62,7 @@ enum TfmMode {
 	TFM_SKIN_RESIZE,
 	TFM_TOSPHERE,
 	TFM_SHEAR,
-	TFM_WARP,
+	TFM_BEND,
 	TFM_SHRINKFATTEN,
 	TFM_TILT,
 	TFM_TRACKBALL,
@@ -129,8 +129,6 @@ void BIF_selectTransformOrientationValue(struct bContext *C, int orientation);
 void ED_getTransformOrientationMatrix(const struct bContext *C, float orientation_mat[3][3], const bool activeOnly);
 
 int BIF_countTransformOrientation(const struct bContext *C);
-
-void BIF_TransformSetUndo(const char *str);
 
 /* to be able to add operator properties to other operators */
 

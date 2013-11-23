@@ -1280,6 +1280,29 @@ static void rna_Node_draw_buttons_ext(struct uiLayout *layout, bContext *C, Poin
 	RNA_parameter_list_free(&list);
 }
 
+static void rna_Node_draw_label(bNodeTree *ntree, bNode *node, char *label, int maxlen)
+{
+	extern FunctionRNA rna_Node_draw_label_func;
+
+	PointerRNA ptr;
+	ParameterList list;
+	FunctionRNA *func;
+	void *ret;
+	char *rlabel;
+
+	func = &rna_Node_draw_label_func; /* RNA_struct_find_function(&ptr, "draw_label"); */
+
+	RNA_pointer_create(&ntree->id, &RNA_Node, node, &ptr);
+	RNA_parameter_list_create(&list, &ptr, func);
+	node->typeinfo->ext.call(NULL, &ptr, func, &list);
+
+	RNA_parameter_get_lookup(&list, "label", &ret);
+	rlabel = *(char **)ret;
+	BLI_strncpy(label, rlabel != NULL ? rlabel : "", maxlen);
+
+	RNA_parameter_list_free(&list);
+}
+
 static int rna_Node_is_registered_node_type(StructRNA *type)
 {
 	return (RNA_struct_blender_type_get(type) != NULL);
@@ -1321,7 +1344,7 @@ static bNodeType *rna_Node_register_base(Main *bmain, ReportList *reports, Struc
 	PointerRNA dummyptr;
 	FunctionRNA *func;
 	PropertyRNA *parm;
-	int have_function[8];
+	int have_function[9];
 
 	/* setup dummy node & node type to store static properties in */
 	memset(&dummynt, 0, sizeof(bNodeType));
@@ -1379,6 +1402,7 @@ static bNodeType *rna_Node_register_base(Main *bmain, ReportList *reports, Struc
 	nt->freefunc_api = (have_function[5]) ? rna_Node_free : NULL;
 	nt->draw_buttons = (have_function[6]) ? rna_Node_draw_buttons : NULL;
 	nt->draw_buttons_ex = (have_function[7]) ? rna_Node_draw_buttons_ext : NULL;
+	nt->labelfunc = (have_function[8]) ? rna_Node_draw_label : NULL;
 	
 	/* sanitize size values in case not all have been registered */
 	if (nt->maxwidth < nt->minwidth)
@@ -2693,6 +2717,18 @@ static PointerRNA rna_NodeOutputFile_slot_file_get(CollectionPropertyIterator *i
 	return ptr;
 }
 
+static void rna_NodeColorBalance_update_lgg(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	ntreeCompositColorBalanceSyncFromLGG(ptr->id.data, ptr->data);
+	rna_Node_update(bmain, scene, ptr);
+}
+
+static void rna_NodeColorBalance_update_cdl(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	ntreeCompositColorBalanceSyncFromCDL(ptr->id.data, ptr->data);
+	rna_Node_update(bmain, scene, ptr);
+}
+
 /* ******** Node Socket Types ******** */
 
 static PointerRNA rna_NodeOutputFile_slot_layer_get(CollectionPropertyIterator *iter)
@@ -3256,6 +3292,7 @@ static void def_sh_tex_sky(StructRNA *srna)
 		{SHD_SKY_NEW, "HOSEK_WILKIE", 0, "Hosek / Wilkie", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
+	static float default_dir[3] = {0.0f, 0.0f, 1.0f};
 	
 	PropertyRNA *prop;
 	
@@ -3270,6 +3307,8 @@ static void def_sh_tex_sky(StructRNA *srna)
 	
 	prop = RNA_def_property(srna, "sun_direction", PROP_FLOAT, PROP_DIRECTION);
 	RNA_def_property_ui_text(prop, "Sun Direction", "Direction from where the sun is shining");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_float_array_default(prop, default_dir);
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "turbidity", PROP_FLOAT, PROP_NONE);
@@ -4343,7 +4382,7 @@ static void def_cmp_despeckle(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Threshold", "Threshold for detecting pixels to despeckle");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-	prop = RNA_def_property(srna, "threshold_neighbour", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "threshold_neighbor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "custom4");
 	RNA_def_property_range(prop, 0.0, 1.0f);
 	RNA_def_property_ui_text(prop, "Neighbor", "Threshold for the number of neighbor pixels that must match");
@@ -5233,7 +5272,7 @@ static void def_cmp_colorbalance(StructRNA *srna)
 	RNA_def_property_float_array_default(prop, default_1);
 	RNA_def_property_ui_range(prop, 0, 2, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Lift", "Correction for Shadows");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeColorBalance_update_lgg");
 	
 	prop = RNA_def_property(srna, "gamma", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "gamma");
@@ -5241,7 +5280,7 @@ static void def_cmp_colorbalance(StructRNA *srna)
 	RNA_def_property_float_array_default(prop, default_1);
 	RNA_def_property_ui_range(prop, 0, 2, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Gamma", "Correction for Midtones");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeColorBalance_update_lgg");
 	
 	prop = RNA_def_property(srna, "gain", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "gain");
@@ -5249,33 +5288,33 @@ static void def_cmp_colorbalance(StructRNA *srna)
 	RNA_def_property_float_array_default(prop, default_1);
 	RNA_def_property_ui_range(prop, 0, 2, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Gain", "Correction for Highlights");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeColorBalance_update_lgg");
 	
 	
 	prop = RNA_def_property(srna, "offset", PROP_FLOAT, PROP_COLOR_GAMMA);
-	RNA_def_property_float_sdna(prop, NULL, "lift");
+	RNA_def_property_float_sdna(prop, NULL, "offset");
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_range(prop, 0, 1, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Offset", "Correction for Shadows");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeColorBalance_update_cdl");
 	
 	prop = RNA_def_property(srna, "power", PROP_FLOAT, PROP_COLOR_GAMMA);
-	RNA_def_property_float_sdna(prop, NULL, "gamma");
+	RNA_def_property_float_sdna(prop, NULL, "power");
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_float_array_default(prop, default_1);
 	RNA_def_property_range(prop, 0.f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0, 2, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Power", "Correction for Midtones");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeColorBalance_update_cdl");
 	
 	prop = RNA_def_property(srna, "slope", PROP_FLOAT, PROP_COLOR_GAMMA);
-	RNA_def_property_float_sdna(prop, NULL, "gain");
+	RNA_def_property_float_sdna(prop, NULL, "slope");
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_float_array_default(prop, default_1);
 	RNA_def_property_range(prop, 0.f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0, 2, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Slope", "Correction for Highlights");
-	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeColorBalance_update_cdl");
 }
 
 static void def_cmp_huecorrect(StructRNA *srna)
@@ -7134,6 +7173,14 @@ static void rna_def_node(BlenderRNA *brna)
 	RNA_def_property_struct_type(parm, "UILayout");
 	RNA_def_property_ui_text(parm, "Layout", "Layout in the UI");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+
+	/* dynamic label */
+	func = RNA_def_function(srna, "draw_label", NULL);
+	RNA_def_function_ui_description(func, "Returns a dynamic label string");
+	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL);
+	parm = RNA_def_string(func, "label", "", MAX_NAME, "Label", "");
+	RNA_def_property_flag(parm, PROP_THICK_WRAP); /* needed for string return value */
+	RNA_def_function_output(func, parm);
 }
 
 static void rna_def_node_link(BlenderRNA *brna)

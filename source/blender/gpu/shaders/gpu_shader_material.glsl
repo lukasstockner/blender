@@ -393,9 +393,19 @@ void set_rgb_zero(out vec3 outval)
 	outval = vec3(0.0);
 }
 
+void set_rgb_one(out vec3 outval)
+{
+	outval = vec3(1.0);
+}
+
 void set_rgba_zero(out vec4 outval)
 {
 	outval = vec4(0.0);
+}
+
+void set_rgba_one(out vec4 outval)
+{
+	outval = vec4(1.0);
 }
 
 void brightness_contrast(vec4 col, float brightness, float contrast, out vec4 outcol)
@@ -723,6 +733,21 @@ void separate_rgb(vec4 col, out float r, out float g, out float b)
 void combine_rgb(float r, float g, float b, out vec4 col)
 {
 	col = vec4(r, g, b, 1.0);
+}
+
+void separate_hsv(vec4 col, out float h, out float s, out float v)
+{
+	vec4 hsv;
+
+	rgb_to_hsv(col, hsv);
+	h = hsv[0];
+	s = hsv[1];
+	v = hsv[2];
+}
+
+void combine_hsv(float h, float s, float v, out vec4 col)
+{
+	hsv_to_rgb(vec4(h, s, v, 1.0), col);
 }
 
 void output_node(vec4 rgb, float alpha, out vec4 outrgb)
@@ -2131,7 +2156,25 @@ void node_add_shader(vec4 shader1, vec4 shader2, out vec4 shader)
 void node_fresnel(float ior, vec3 N, vec3 I, out float result)
 {
 	float eta = max(ior, 0.00001);
-	result = fresnel_dielectric(I, N, (gl_FrontFacing)? eta: 1.0/eta);
+	result = fresnel_dielectric(normalize(I), N, (gl_FrontFacing)? eta: 1.0/eta);
+}
+
+/* layer_weight */
+
+void node_layer_weight(float blend, vec3 N, vec3 I, out float fresnel, out float facing)
+{
+	/* fresnel */
+	float eta = max(1.0 - blend, 0.00001);
+	fresnel = fresnel_dielectric(normalize(I), N, (gl_FrontFacing)? 1.0/eta : eta );
+
+	/* facing */
+	facing = abs(dot(normalize(I), N));
+	if(blend != 0.5) {
+		blend = clamp(blend, 0.0, 0.99999);
+		blend = (blend < 0.5)? 2.0*blend: 0.5/(1.0 - blend);
+		facing = pow(facing, blend);
+	}
+	facing = 1.0 - facing;
 }
 
 /* gamma */
