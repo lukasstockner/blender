@@ -31,6 +31,8 @@ extern "C" {
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
+
+#include "RNA_access.h"
 }
 
 using namespace PTC;
@@ -67,6 +69,26 @@ void PTC_read_sample(struct PTCReader *_reader)
 	reader->read_sample();
 }
 
+/* get writer/reader from RNA type */
+PTCWriter *PTC_writer_from_rna(PointerRNA *ptr)
+{
+	if (RNA_struct_is_a(ptr->type, &RNA_ParticleSystem)) {
+		Object *ob = (Object *)ptr->id.data;
+		ParticleSystem *psys = (ParticleSystem *)ptr->data;
+		return PTC_writer_particles(ob, psys);
+	}
+	return NULL;
+}
+
+PTCReader *PTC_reader_from_rna(PointerRNA *ptr)
+{
+	if (RNA_struct_is_a(ptr->type, &RNA_ParticleSystem)) {
+		Object *ob = (Object *)ptr->id.data;
+		ParticleSystem *psys = (ParticleSystem *)ptr->data;
+		return PTC_reader_particles(ob, psys);
+	}
+	return NULL;
+}
 
 /* Particles */
 PTCWriter *PTC_writer_particles(Object *ob, ParticleSystem *psys)

@@ -25,6 +25,7 @@ set(INC
 	../../blenlib
 	../../makesdna
 	../../makesrna
+	../../pointcache
 	../../windowmanager
 	../../../../intern/elbeem/extern
 	../../../../intern/guardedalloc

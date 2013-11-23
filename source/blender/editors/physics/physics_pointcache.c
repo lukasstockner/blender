@@ -47,7 +47,10 @@
 #include "BKE_pointcache.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
- 
+
+/**** NEW POINT CACHE ****/
+#include "PTC_api.h"
+/*************************/
 
 #include "ED_particle.h"
 
@@ -404,3 +407,95 @@ void PTCACHE_OT_remove(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
+
+/**** NEW POINT CACHE ****/
+
+typedef struct PTCacheExportJob {
+	short *stop, *do_update;
+	float *progress;
+	
+	struct Main *bmain;
+	struct Scene *scene;
+	struct PointCache *cache;
+	struct PTCWriter *writer;
+} PTCacheExportJob;
+
+static void ptcache_export_freejob(void *customdata)
+{
+	PTCacheExportJob *data= (PTCacheExportJob *)customdata;
+	MEM_freeN(data);
+}
+
+static void ptcache_export_startjob(void *customdata, short *stop, short *do_update, float *progress)
+{
+	PTCacheExportJob *data= (PTCacheExportJob *)customdata;
+	int start_frame, end_frame;
+	
+	data->stop = stop;
+	data->do_update = do_update;
+	data->progress = progress;
+	
+	/* XXX where to get this from? */
+	start_frame = data->scene->r.sfra;
+	end_frame = data->scene->r.efra;
+	PTC_bake(data->bmain, data->scene, data->writer, start_frame, end_frame);
+	
+	*do_update = TRUE;
+	*stop = 0;
+}
+
+static void ptcache_export_endjob(void *customdata)
+{
+	/*PTCacheExportJob *data = (PTCacheExportJob *)customdata;*/
+}
+
+static int ptcache_export_exec(bContext *C, wmOperator *op)
+{
+	PointerRNA ptcache_ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+	PointerRNA user_ptr = CTX_data_pointer_get(C, "point_cache_user");
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	PointCache *cache = ptcache_ptr.data;
+	struct PTCWriter *writer;
+	PTCacheExportJob *data;
+	wmJob *wm_job;
+	
+	writer = PTC_writer_from_rna(&user_ptr);
+	if (!writer) {
+		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "%s is not a valid point cache user type", RNA_struct_identifier(user_ptr.type));
+		return OPERATOR_CANCELLED;
+	}
+	
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Point Cache Export",
+	                     WM_JOB_PROGRESS, WM_JOB_TYPE_PTCACHE_EXPORT);
+	
+	/* setup job */
+	data = MEM_callocN(sizeof(PTCacheExportJob), "Point Cache Export Job");
+	data->bmain = bmain;
+	data->scene = scene;
+	data->cache = cache;
+	data->writer = writer;
+	
+	WM_jobs_customdata_set(wm_job, data, ptcache_export_freejob);
+	WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
+	WM_jobs_callbacks(wm_job, ptcache_export_startjob, NULL, NULL, ptcache_export_endjob);
+	
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
+	
+	return OPERATOR_FINISHED;
+}
+
+void PTCACHE_OT_export(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Export";
+	ot->description = "Export point data";
+	ot->idname = "PTCACHE_OT_export";
+
+	/* api callbacks */
+	ot->exec = ptcache_export_exec;
+	ot->poll = ptcache_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+}

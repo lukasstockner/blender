@@ -27,6 +27,7 @@ struct Main;
 struct Scene;
 struct Object;
 struct ParticleSystem;
+struct PointerRNA;
 
 void PTC_test_archive(void);
 
@@ -42,6 +43,10 @@ void PTC_read_sample(struct PTCReader *reader);
 
 void PTC_bake(struct Main *bmain, struct Scene *scene, struct PTCWriter *writer, int start_frame, int end_frame);
 
+
+/* get writer/reader from RNA type */
+struct PTCWriter *PTC_writer_from_rna(struct PointerRNA *ptr);
+struct PTCReader *PTC_reader_from_rna(struct PointerRNA *ptr);
 
 /* Particles */
 struct PTCWriter *PTC_writer_particles(struct Object *ob, struct ParticleSystem *psys);

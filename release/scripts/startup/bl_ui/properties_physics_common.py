@@ -119,6 +119,8 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
         if cachetype == 'SMOKE':
             row.prop(cache, "use_library_path", "Use Lib Path")
 
+        layout.context_pointer_set("point_cache_user", context.particle_system)
+
     if cache.use_external:
         split = layout.split(percentage=0.35)
         col = split.column()
@@ -210,6 +212,8 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
         col.operator("ptcache.bake_all", text="Bake All Dynamics").bake = True
         col.operator("ptcache.free_bake_all", text="Free All Bakes")
         col.operator("ptcache.bake_all", text="Update All To Frame").bake = False
+
+        col.operator("ptcache.export", text="Export")
 
 
 def effector_weights_ui(self, context, weights, weight_type):
