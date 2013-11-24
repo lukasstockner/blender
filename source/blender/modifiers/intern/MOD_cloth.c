@@ -35,7 +35,9 @@
 
 #include "DNA_cloth_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_object_force.h"
 #include "DNA_object_types.h"
+#include "DNA_pointcache_types.h"
 
 #include "MEM_guardedalloc.h"
 

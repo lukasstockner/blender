@@ -28,9 +28,9 @@
 #include "util_path.h"
 
 extern "C" {
-#include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_pointcache_types.h"
 
 #include "RNA_access.h"
 }

@@ -29,6 +29,7 @@
 #define POINTCACHE_OLD
 
 #include "DNA_object_force.h"
+#include "DNA_pointcache_types.h"
 #include "DNA_scene_types.h"
 
 #include "RNA_define.h"

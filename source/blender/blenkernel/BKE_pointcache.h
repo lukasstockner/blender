@@ -34,7 +34,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_dynamicpaint_types.h"
-#include "DNA_object_force.h"
+#include "DNA_pointcache_types.h"
 #include "DNA_boid_types.h"
 #include <stdio.h> /* for FILE */
 
