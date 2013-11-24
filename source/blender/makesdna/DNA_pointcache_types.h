@@ -141,5 +141,13 @@ typedef struct PointCache {
 #define PTCACHE_COMPRESS_LZO		1
 #define PTCACHE_COMPRESS_LZMA		2
 
+
+/**** NEW POINTCACHE ****/
+
+/* settings for point caches */
+typedef struct PointCacheSettings {
+	char cachedir[768];	/* FILE_MAXDIR length */
+} PointCacheSettings;
+
 #endif
 
