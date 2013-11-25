@@ -20,12 +20,26 @@
 
 #include "writer.h"
 
+extern "C" {
+#include "BLI_fileops.h"
+#include "BLI_path_util.h"
+}
+
 namespace PTC {
 
 using namespace Abc;
 
+/* make sure the file's directory exists */
+static void ensure_directory(const char *filename)
+{
+	char dir[FILE_MAXDIR];
+	BLI_split_dir_part(filename, dir, sizeof(dir));
+	BLI_dir_create_recursive(dir);
+}
+
 Writer::Writer(const std::string &filename)
 {
+	ensure_directory(filename.c_str());
 	m_archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, ErrorHandler::kThrowPolicy);
 }
 

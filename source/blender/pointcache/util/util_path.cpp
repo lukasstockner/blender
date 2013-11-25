@@ -68,8 +68,8 @@ static int ptc_path(char *filename, const char *path, ID *id, bool is_external, 
 static int ptc_filename(char *filename, const char *name, int index, const char *path, ID *id,
                         bool do_path, bool do_ext, bool is_external, bool ignore_libpath)
 {
-	char *newname = filename;
-	int len=0;
+	char *newname;
+	int len = 0;
 	filename[0] = '\0';
 	newname = filename;
 	
