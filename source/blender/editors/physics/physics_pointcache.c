@@ -527,5 +527,6 @@ void PTCACHE_OT_export(wmOperatorType *ot)
 	ot->poll = ptcache_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	/* no undo for this operator, cannot restore old cache files anyway */
+	ot->flag = OPTYPE_REGISTER;
 }
