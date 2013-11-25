@@ -31,12 +31,13 @@ class Writer;
 class Exporter
 {
 public:
-	Exporter(Main *bmain, Scene *scene);
+	Exporter(Main *bmain, Scene *scene, short *stop, short *do_update, float *progress);
 	
 	void bake(Writer *writer, int start_frame, int end_frame);
 
-	bool cancel() const;
-	void cancel(bool value);
+	bool stop() const;
+
+	void set_progress(float progress);
 
 private:
 	thread_mutex m_mutex;
@@ -44,7 +45,9 @@ private:
 	Main *m_bmain;
 	Scene *m_scene;
 	
-	bool m_cancel;
+	short *m_stop;
+	short *m_do_update;
+	float *m_progress;
 };
 
 } /* namespace PTC */

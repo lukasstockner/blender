@@ -418,6 +418,9 @@ typedef struct PTCacheExportJob {
 	struct Scene *scene;
 	struct PointCache *cache;
 	struct PTCWriter *writer;
+	
+	int origfra;				/* original frame to reset scene after export */
+	float origframelen;			/* original frame length to reset scene after export */
 } PTCacheExportJob;
 
 static void ptcache_export_freejob(void *customdata)
@@ -429,16 +432,21 @@ static void ptcache_export_freejob(void *customdata)
 static void ptcache_export_startjob(void *customdata, short *stop, short *do_update, float *progress)
 {
 	PTCacheExportJob *data= (PTCacheExportJob *)customdata;
+	Scene *scene = data->scene;
 	int start_frame, end_frame;
 	
 	data->stop = stop;
 	data->do_update = do_update;
 	data->progress = progress;
 	
+	data->origfra = scene->r.cfra;
+	data->origframelen = scene->r.framelen;
+	scene->r.framelen = 1.0f;
+	
 	/* XXX where to get this from? */
-	start_frame = data->scene->r.sfra;
-	end_frame = data->scene->r.efra;
-	PTC_bake(data->bmain, data->scene, data->writer, start_frame, end_frame);
+	start_frame = scene->r.sfra;
+	end_frame = scene->r.efra;
+	PTC_bake(data->bmain, scene, data->writer, start_frame, end_frame, stop, do_update, progress);
 	
 	*do_update = TRUE;
 	*stop = 0;
@@ -446,7 +454,16 @@ static void ptcache_export_startjob(void *customdata, short *stop, short *do_upd
 
 static void ptcache_export_endjob(void *customdata)
 {
-	/*PTCacheExportJob *data = (PTCacheExportJob *)customdata;*/
+	PTCacheExportJob *data = (PTCacheExportJob *)customdata;
+	Scene *scene = data->scene;
+	
+	/* free the cache writer (closes output file) */
+	PTC_writer_free(data->writer);
+	
+	/* reset scene frame */
+	scene->r.cfra = data->origfra;
+	scene->r.framelen = data->origframelen;
+	BKE_scene_update_for_newframe(data->bmain, scene, scene->lay);
 }
 
 static int ptcache_export_exec(bContext *C, wmOperator *op)
@@ -481,7 +498,7 @@ static int ptcache_export_exec(bContext *C, wmOperator *op)
 	WM_jobs_callbacks(wm_job, ptcache_export_startjob, NULL, NULL, ptcache_export_endjob);
 	
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
-	
+
 	return OPERATOR_FINISHED;
 }
 

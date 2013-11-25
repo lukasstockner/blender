@@ -28,37 +28,43 @@ extern "C" {
 
 namespace PTC {
 
-Exporter::Exporter(Main *bmain, Scene *scene) :
+Exporter::Exporter(Main *bmain, Scene *scene, short *stop, short *do_update, float *progress) :
     m_bmain(bmain),
     m_scene(scene),
-    m_cancel(false)
+    m_stop(stop),
+    m_do_update(do_update),
+    m_progress(progress)
 {
 }
 
 void Exporter::bake(Writer *writer, int start_frame, int end_frame)
 {
-	thread_scoped_lock(m_mutex);
+//	thread_scoped_lock(m_mutex);
+
+	set_progress(0.0f);
 
 	for (int cfra = start_frame; cfra <= end_frame; ++cfra) {
+		m_scene->r.cfra = cfra;
 		BKE_scene_update_for_newframe(m_bmain, m_scene, m_scene->lay);
 
 		writer->write_sample();
 
-		if (m_cancel)
+		set_progress((float)(cfra - start_frame + 1) / (float)(end_frame - start_frame + 1));
+
+		if (stop())
 			break;
 	}
 }
 
-bool Exporter::cancel() const
+bool Exporter::stop() const
 {
-	thread_scoped_lock(m_mutex);
-	return m_cancel;
+	return (bool)(*m_stop);
 }
 
-void Exporter::cancel(bool value)
+void Exporter::set_progress(float progress)
 {
-	thread_scoped_lock(m_mutex);
-	m_cancel = value;
+	*m_do_update = 1;
+	*m_progress = progress;
 }
 
 } /* namespace PTC */

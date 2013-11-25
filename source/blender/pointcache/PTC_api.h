@@ -41,7 +41,8 @@ void PTC_write_sample(struct PTCWriter *writer);
 void PTC_reader_free(struct PTCReader *reader);
 void PTC_read_sample(struct PTCReader *reader);
 
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct PTCWriter *writer, int start_frame, int end_frame);
+void PTC_bake(struct Main *bmain, struct Scene *scene, struct PTCWriter *writer, int start_frame, int end_frame,
+              short *stop, short *do_update, float *progress);
 
 
 /* get writer/reader from RNA type */
