@@ -47,6 +47,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
+#include "BKE_screen.h"
 
 /**** NEW POINT CACHE ****/
 #include "PTC_api.h"
@@ -457,6 +458,9 @@ static void ptcache_export_endjob(void *customdata)
 	PTCacheExportJob *data = (PTCacheExportJob *)customdata;
 	Scene *scene = data->scene;
 	
+	G.is_rendering = FALSE;
+	BKE_spacedata_draw_locks(false);
+	
 	/* free the cache writer (closes output file) */
 	PTC_writer_free(data->writer);
 	
@@ -483,8 +487,17 @@ static int ptcache_export_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
+	/* XXX annoying hack: needed to prevent data corruption when changing
+	 * scene frame in separate threads
+	 */
+	G.is_rendering = TRUE;
+	BKE_spacedata_draw_locks(true);
+	
+	/* XXX set WM_JOB_EXCL_RENDER to prevent conflicts with render jobs,
+	 * since we need to set G.is_rendering
+	 */
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Point Cache Export",
-	                     WM_JOB_PROGRESS, WM_JOB_TYPE_PTCACHE_EXPORT);
+	                     WM_JOB_PROGRESS | WM_JOB_EXCL_RENDER, WM_JOB_TYPE_PTCACHE_EXPORT);
 	
 	/* setup job */
 	data = MEM_callocN(sizeof(PTCacheExportJob), "Point Cache Export Job");
