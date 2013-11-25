@@ -22,6 +22,7 @@
 extern "C" {
 #include "DNA_scene_types.h"
 
+#include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_scene.h"
 }
@@ -58,7 +59,10 @@ void Exporter::bake(Writer *writer, int start_frame, int end_frame)
 
 bool Exporter::stop() const
 {
-	return (bool)(*m_stop);
+	if (*m_stop)
+		return true;
+	
+	return (G.is_break);
 }
 
 void Exporter::set_progress(float progress)

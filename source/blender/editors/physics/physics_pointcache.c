@@ -444,6 +444,8 @@ static void ptcache_export_startjob(void *customdata, short *stop, short *do_upd
 	data->origframelen = scene->r.framelen;
 	scene->r.framelen = 1.0f;
 	
+	G.is_break = FALSE;
+	
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;
 	end_frame = scene->r.efra;
