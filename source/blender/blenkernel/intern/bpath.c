@@ -476,7 +476,6 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 					SmokeModifierData *smd = (SmokeModifierData *)md;
 					if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
 						BPATH_TRAVERSE_POINTCACHE(smd->domain->point_cache[0]);
-						BPATH_TRAVERSE_POINTCACHE(smd->domain->point_cache[1]);
 					}
 				}
 				else if (md->type == eModifierType_Cloth) {
