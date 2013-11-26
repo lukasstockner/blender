@@ -28,6 +28,7 @@
 #ifndef __DNA_DYNAMICPAINT_TYPES_H__
 #define __DNA_DYNAMICPAINT_TYPES_H__
 
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 struct CurveMapping;
 struct PaintSurfaceData;
@@ -94,7 +95,7 @@ typedef struct DynamicPaintSurface {
 
 	/* cache */
 	struct PointCache *pointcache;
-	struct ListBase ptcaches;
+	struct ListBase ptcaches DNA_DEPRECATED;
 	int current_frame;
 
 	/* surface */

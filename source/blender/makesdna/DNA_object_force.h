@@ -36,6 +36,7 @@
 extern "C" {
 #endif
 
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 
 /* pd->forcefield:  Effector Fields types */
@@ -256,7 +257,7 @@ typedef struct SoftBody {
 	float inpush;
 
 	struct PointCache *pointcache;
-	struct ListBase ptcaches;
+	struct ListBase ptcaches DNA_DEPRECATED;
 
 	struct EffectorWeights *effector_weights;
 	/* reverse esimated obmatrix .. no need to store in blend file .. how ever who cares */ 

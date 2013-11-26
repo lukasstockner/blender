@@ -33,6 +33,7 @@
 #ifndef __DNA_RIGIDBODY_TYPES_H__
 #define __DNA_RIGIDBODY_TYPES_H__
 
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 
 struct Group;
@@ -60,7 +61,7 @@ typedef struct RigidBodyWorld {
 	
 	/* cache */
 	struct PointCache *pointcache;
-	struct ListBase ptcaches;
+	struct ListBase ptcaches DNA_DEPRECATED;
 	int numbodies;              /* number of objects in rigid body group */
 	
 	short steps_per_second;		/* number of simulation steps thaken per second */

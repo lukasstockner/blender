@@ -32,6 +32,8 @@
 #ifndef __DNA_POINTCACHE_TYPES_H__
 #define __DNA_POINTCACHE_TYPES_H__
 
+#include "DNA_defs.h"
+
 /* Point cache file data types:
  * - used as (1<<flag) so poke jahka if you reach the limit of 15
  * - to add new data types update:
@@ -73,7 +75,7 @@ typedef struct PTCacheMem {
 } PTCacheMem;
 
 typedef struct PointCache {
-	struct PointCache *next, *prev;
+	struct PointCache *next DNA_DEPRECATED, *prev DNA_DEPRECATED;
 	int flag;		/* generic flag */
 	
 	int step;		/* The number of frames between cached frames.
