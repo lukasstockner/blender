@@ -130,6 +130,7 @@ typedef struct SmokeDomainSettings {
 	int cache_comp;
 	int cache_high_comp;
 
+	/* Smoke uses only one cache from now on (index [0]), but keeping the array for now for reading old files. */
 	struct PointCache *point_cache[2];	/* definition is in DNA_object_force.h */
 	struct ListBase ptcaches[2] DNA_DEPRECATED;
 	struct EffectorWeights *effector_weights;
