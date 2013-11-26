@@ -447,17 +447,14 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 			ModifierData *md;
 			ParticleSystem *psys;
 
-#define BPATH_TRAVERSE_POINTCACHE(ptcaches)                                    \
-	{                                                                          \
-		PointCache *cache;                                                     \
-		for (cache = (ptcaches).first; cache; cache = cache->next) {           \
-			if (cache->flag & PTCACHE_DISK_CACHE) {                            \
-				rewrite_path_fixed(cache->path,                                \
-				                   visit_cb,                                   \
-				                   absbase,                                    \
-				                   bpath_user_data);                           \
-			}                                                                  \
-		}                                                                      \
+#define BPATH_TRAVERSE_POINTCACHE(cache)                                   \
+	{                                                                      \
+		if (cache && cache->flag & PTCACHE_DISK_CACHE) {                            \
+			rewrite_path_fixed(cache->path,                                \
+			                   visit_cb,                                   \
+			                   absbase,                                    \
+			                   bpath_user_data);                           \
+		}                                                                  \
 	} (void)0
 
 			/* do via modifiers instead */
@@ -473,16 +470,18 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 					if (fluidmd->fss) {
 						rewrite_path_fixed(fluidmd->fss->surfdataPath, visit_cb, absbase, bpath_user_data);
 					}
+					BPATH_TRAVERSE_POINTCACHE(fluidmd->point_cache);
 				}
 				else if (md->type == eModifierType_Smoke) {
 					SmokeModifierData *smd = (SmokeModifierData *)md;
 					if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
-						BPATH_TRAVERSE_POINTCACHE(smd->domain->ptcaches[0]);
+						BPATH_TRAVERSE_POINTCACHE(smd->domain->point_cache[0]);
+						BPATH_TRAVERSE_POINTCACHE(smd->domain->point_cache[1]);
 					}
 				}
 				else if (md->type == eModifierType_Cloth) {
 					ClothModifierData *clmd = (ClothModifierData *) md;
-					BPATH_TRAVERSE_POINTCACHE(clmd->ptcaches);
+					BPATH_TRAVERSE_POINTCACHE(clmd->point_cache);
 				}
 				else if (md->type == eModifierType_Ocean) {
 					OceanModifierData *omd = (OceanModifierData *) md;
@@ -495,11 +494,11 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 			}
 
 			if (ob->soft) {
-				BPATH_TRAVERSE_POINTCACHE(ob->soft->ptcaches);
+				BPATH_TRAVERSE_POINTCACHE(ob->soft->pointcache);
 			}
 
 			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-				BPATH_TRAVERSE_POINTCACHE(psys->ptcaches);
+				BPATH_TRAVERSE_POINTCACHE(psys->pointcache);
 			}
 
 #undef BPATH_TRAVERSE_POINTCACHE
