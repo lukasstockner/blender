@@ -112,8 +112,8 @@ typedef struct PointCache {
 	struct PTCacheEdit *edit;
 	void (*free_edit)(struct PTCacheEdit *edit);	/* free callback */
 
-//	struct PTCWriter *writer;
-//	struct PTCReader *reader;
+	/**** NEW POINTCACHE ****/
+	char cachedir[768];	/* FILE_MAXDIR length */
 } PointCache;
 
 /* pointcache->flag */
@@ -140,14 +140,6 @@ typedef struct PointCache {
 #define PTCACHE_COMPRESS_NO			0
 #define PTCACHE_COMPRESS_LZO		1
 #define PTCACHE_COMPRESS_LZMA		2
-
-
-/**** NEW POINTCACHE ****/
-
-/* settings for point caches */
-typedef struct PointCacheSettings {
-	char cachedir[768];	/* FILE_MAXDIR length */
-} PointCacheSettings;
 
 #endif
 
