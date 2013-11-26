@@ -390,7 +390,7 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 			MEM_freeN(smd->domain->effector_weights);
 		smd->domain->effector_weights = NULL;
 
-		BKE_ptcache_free_list(&(smd->domain->ptcaches[0]));
+		BKE_ptcache_free(smd->domain->point_cache[0]);
 		smd->domain->point_cache[0] = NULL;
 
 		MEM_freeN(smd->domain);
@@ -517,13 +517,12 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 
 			smd->domain->smd = smd;
 
-			smd->domain->point_cache[0] = BKE_ptcache_add(&(smd->domain->ptcaches[0]));
+			smd->domain->point_cache[0] = BKE_ptcache_new();
 			smd->domain->point_cache[0]->flag |= PTCACHE_DISK_CACHE;
 			smd->domain->point_cache[0]->step = 1;
 
 			/* Deprecated */
 			smd->domain->point_cache[1] = NULL;
-			smd->domain->ptcaches[1].first = smd->domain->ptcaches[1].last = NULL;
 			/* set some standard values */
 			smd->domain->fluid = NULL;
 			smd->domain->fluid_mutex = BLI_rw_mutex_alloc();

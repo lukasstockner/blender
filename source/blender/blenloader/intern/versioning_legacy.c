@@ -2767,7 +2767,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 		/* add point caches */
 		for (ob = main->object.first; ob; ob = ob->id.next) {
 			if (ob->soft && !ob->soft->pointcache)
-				ob->soft->pointcache = BKE_ptcache_add(&ob->soft->ptcaches);
+				ob->soft->pointcache = BKE_ptcache_new();
 
 			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
 				if (psys->pointcache) {
@@ -2777,14 +2777,14 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 					}
 				}
 				else
-					psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
+					psys->pointcache = BKE_ptcache_new();
 			}
 
 			for (md = ob->modifiers.first; md; md = md->next) {
 				if (md->type == eModifierType_Cloth) {
 					ClothModifierData *clmd = (ClothModifierData*) md;
 					if (!clmd->point_cache)
-						clmd->point_cache = BKE_ptcache_add(&clmd->ptcaches);
+						clmd->point_cache = BKE_ptcache_new();
 				}
 			}
 		}
@@ -3069,7 +3069,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 
 				/* create new particle system */
 				psys = MEM_callocN(sizeof(ParticleSystem), "particle_system");
-				psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
+				psys->pointcache = BKE_ptcache_new();
 
 				part = psys->part = psys_new_settings("ParticleSettings", main);
 

@@ -1386,7 +1386,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 					write_pointcache(wd, smd->domain->point_cache[0]);
 
 					/* create fake pointcache so that old blender versions can read it */
-					smd->domain->point_cache[1] = BKE_ptcache_add(&smd->domain->ptcaches[1]);
+					smd->domain->point_cache[1] = BKE_ptcache_new();
 					smd->domain->point_cache[1]->flag |= PTCACHE_DISK_CACHE|PTCACHE_FAKE_SMOKE;
 					smd->domain->point_cache[1]->step = 1;
 
@@ -1397,7 +1397,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 				if (smd->domain) {
 					/* cleanup the fake pointcache */
-					BKE_ptcache_free_list(&smd->domain->ptcaches[1]);
+					BKE_ptcache_free(smd->domain->point_cache[1]);
 					smd->domain->point_cache[1] = NULL;
 					
 					writestruct(wd, DATA, "EffectorWeights", 1, smd->domain->effector_weights);

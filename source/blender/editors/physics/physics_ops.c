@@ -187,8 +187,6 @@ static void operatortypes_pointcache(void)
 	WM_operatortype_append(PTCACHE_OT_bake);
 	WM_operatortype_append(PTCACHE_OT_free_bake);
 	WM_operatortype_append(PTCACHE_OT_bake_from_cache);
-	WM_operatortype_append(PTCACHE_OT_add);
-	WM_operatortype_append(PTCACHE_OT_remove);
 
 	WM_operatortype_append(PTCACHE_OT_export);
 }

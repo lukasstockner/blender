@@ -113,7 +113,7 @@ void BKE_rigidbody_free_world(RigidBodyWorld *rbw)
 		free(rbw->objects);
 
 	/* free cache */
-	BKE_ptcache_free_list(&(rbw->ptcaches));
+	BKE_ptcache_free(rbw->pointcache);
 	rbw->pointcache = NULL;
 
 	/* free effector weights */
@@ -718,7 +718,7 @@ RigidBodyWorld *BKE_rigidbody_create_world(Scene *scene)
 	rbw->steps_per_second = 60; /* Bullet default (60 Hz) */
 	rbw->num_solver_iterations = 10; /* 10 is bullet default */
 
-	rbw->pointcache = BKE_ptcache_add(&(rbw->ptcaches));
+	rbw->pointcache = BKE_ptcache_new();
 	rbw->pointcache->step = 1;
 
 	/* return this sim world */
@@ -736,7 +736,7 @@ RigidBodyWorld *BKE_rigidbody_world_copy(RigidBodyWorld *rbw)
 	if (rbwn->constraints)
 		id_us_plus(&rbwn->constraints->id);
 
-	rbwn->pointcache = BKE_ptcache_copy_list(&rbwn->ptcaches, &rbw->ptcaches, FALSE);
+	rbwn->pointcache = BKE_ptcache_copy(rbw->pointcache, FALSE);
 
 	rbwn->objects = NULL;
 	rbwn->physics_world = NULL;

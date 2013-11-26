@@ -102,8 +102,6 @@ void PTCACHE_OT_free_bake_all(struct wmOperatorType *ot);
 void PTCACHE_OT_bake(struct wmOperatorType *ot);
 void PTCACHE_OT_free_bake(struct wmOperatorType *ot);
 void PTCACHE_OT_bake_from_cache(struct wmOperatorType *ot);
-void PTCACHE_OT_add(struct wmOperatorType *ot);
-void PTCACHE_OT_remove(struct wmOperatorType *ot);
 
 void PTCACHE_OT_export(struct wmOperatorType *ot);
 

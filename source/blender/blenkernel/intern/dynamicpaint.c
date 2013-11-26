@@ -974,7 +974,7 @@ void dynamicPaint_freeSurfaceData(DynamicPaintSurface *surface)
 void dynamicPaint_freeSurface(DynamicPaintSurface *surface)
 {
 	/* point cache */
-	BKE_ptcache_free_list(&(surface->ptcaches));
+	BKE_ptcache_free(surface->pointcache);
 	surface->pointcache = NULL;
 
 	if (surface->effector_weights)
@@ -1038,7 +1038,7 @@ DynamicPaintSurface *dynamicPaint_createNewSurface(DynamicPaintCanvasSettings *c
 	surface->type = MOD_DPAINT_SURFACE_T_PAINT;
 
 	/* cache */
-	surface->pointcache = BKE_ptcache_add(&(surface->ptcaches));
+	surface->pointcache = BKE_ptcache_new();
 	surface->pointcache->flag |= PTCACHE_DISK_CACHE;
 	surface->pointcache->step = 1;
 

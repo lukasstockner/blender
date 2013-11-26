@@ -197,7 +197,7 @@ class PARTICLE_PT_emission(ParticleButtonsPanel, Panel):
         psys = context.particle_system
         part = particle_get_settings(context)
 
-        layout.enabled = particle_panel_enabled(context, psys) and (psys is None or not psys.has_multiple_caches)
+        layout.enabled = particle_panel_enabled(context, psys)
 
         row = layout.row()
         row.active = part.distribution != 'GRID'

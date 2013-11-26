@@ -1011,7 +1011,7 @@ Object *BKE_object_add(Main *bmain, Scene *scene, int type)
 	return ob;
 }
 
-SoftBody *copy_softbody(SoftBody *sb, int copy_caches)
+SoftBody *copy_softbody(SoftBody *sb, int copy_cache)
 {
 	SoftBody *sbn;
 	
@@ -1019,7 +1019,7 @@ SoftBody *copy_softbody(SoftBody *sb, int copy_caches)
 	
 	sbn = MEM_dupallocN(sb);
 
-	if (copy_caches == FALSE) {
+	if (copy_cache == FALSE) {
 		sbn->totspring = sbn->totpoint = 0;
 		sbn->bpoint = NULL;
 		sbn->bspring = NULL;
@@ -1048,7 +1048,7 @@ SoftBody *copy_softbody(SoftBody *sb, int copy_caches)
 	
 	sbn->scratch = NULL;
 
-	sbn->pointcache = BKE_ptcache_copy_list(&sbn->ptcaches, &sb->ptcaches, copy_caches);
+	sbn->pointcache = BKE_ptcache_copy(sb->pointcache, copy_cache);
 
 	if (sb->effector_weights)
 		sbn->effector_weights = MEM_dupallocN(sb->effector_weights);
@@ -1121,7 +1121,7 @@ static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 	psysn->childcachebufs.first = psysn->childcachebufs.last = NULL;
 	psysn->renderdata = NULL;
 	
-	psysn->pointcache = BKE_ptcache_copy_list(&psysn->ptcaches, &psys->ptcaches, FALSE);
+	psysn->pointcache = BKE_ptcache_copy(psys->pointcache, FALSE);
 
 	/* XXX - from reading existing code this seems correct but intended usage of
 	 * pointcache should /w cloth should be added in 'ParticleSystem' - campbell */

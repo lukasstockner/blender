@@ -1052,12 +1052,6 @@ static char *rna_SPHFluidSettings_path(PointerRNA *ptr)
 	return NULL;
 }
 
-static int rna_ParticleSystem_multiple_caches_get(PointerRNA *ptr)
-{
-	ParticleSystem *psys = (ParticleSystem *)ptr->data;
-
-	return (psys->ptcaches.first != psys->ptcaches.last);
-}
 static int rna_ParticleSystem_editable_get(PointerRNA *ptr)
 {
 	ParticleSystem *psys = (ParticleSystem *)ptr->data;
@@ -3422,11 +3416,6 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "pointcache");
 	RNA_def_property_struct_type(prop, "PointCache");
 	RNA_def_property_ui_text(prop, "Point Cache", "");
-
-	prop = RNA_def_property(srna, "has_multiple_caches", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_ParticleSystem_multiple_caches_get", NULL);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Multiple Caches", "Particle system has multiple point caches");
 
 	/* offset ob */
 	prop = RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);

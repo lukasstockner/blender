@@ -172,9 +172,6 @@ typedef struct PTCacheID {
 	struct PTCReader *(*reader_create)(struct Scene *scene, struct Object *ob, void *calldata);
 
 	struct PointCache *cache;
-	/* used for setting the current cache from ptcaches list */
-	struct PointCache **cache_ptr;
-	struct ListBase *ptcaches;
 } PTCacheID;
 
 typedef struct PTCacheBaker {
@@ -307,11 +304,10 @@ int     BKE_ptcache_read(PTCacheID *pid, float cfra);
 int     BKE_ptcache_write(PTCacheID *pid, unsigned int cfra);
 
 /******************* Allocate & free ***************/
-struct PointCache *BKE_ptcache_add(struct ListBase *ptcaches);
+struct PointCache *BKE_ptcache_new(void);
 void BKE_ptcache_free_mem(struct ListBase *mem_cache);
 void BKE_ptcache_free(struct PointCache *cache);
-void BKE_ptcache_free_list(struct ListBase *ptcaches);
-struct PointCache *BKE_ptcache_copy_list(struct ListBase *ptcaches_new, struct ListBase *ptcaches_old, int copy_data);
+struct PointCache *BKE_ptcache_copy(struct PointCache *cache, int copy_data);
 
 /********************** Baking *********************/
 

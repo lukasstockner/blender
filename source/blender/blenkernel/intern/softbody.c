@@ -3723,7 +3723,7 @@ SoftBody *sbNew(Scene *scene)
 	sb->shearstiff = 1.0f;
 	sb->solverflags |= SBSO_OLDERR;
 
-	sb->pointcache = BKE_ptcache_add(&sb->ptcaches);
+	sb->pointcache = BKE_ptcache_new();
 
 	if (!sb->effector_weights)
 		sb->effector_weights = BKE_add_effector_weights(NULL);
@@ -3737,7 +3737,7 @@ SoftBody *sbNew(Scene *scene)
 void sbFree(SoftBody *sb)
 {
 	free_softbody_intern(sb);
-	BKE_ptcache_free_list(&sb->ptcaches);
+	BKE_ptcache_free(sb->pointcache);
 	sb->pointcache = NULL;
 	if (sb->effector_weights)
 		MEM_freeN(sb->effector_weights);

@@ -167,83 +167,6 @@ static void rna_Cache_idname_change(Main *UNUSED(bmain), Scene *UNUSED(scene), P
 	BLI_freelistN(&pidlist);
 }
 
-static void rna_Cache_list_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-	PointCache *cache = ptr->data;
-	ListBase lb;
-
-	while (cache->prev)
-		cache = cache->prev;
-
-	lb.first = cache;
-	lb.last = NULL; /* not used by listbase_begin */
-
-	rna_iterator_listbase_begin(iter, &lb, NULL);
-}
-static void rna_Cache_active_point_cache_index_range(PointerRNA *ptr, int *min, int *max,
-                                                     int *UNUSED(softmin), int *UNUSED(softmax))
-{
-	Object *ob = ptr->id.data;
-	PointCache *cache = ptr->data;
-	PTCacheID *pid;
-	ListBase pidlist;
-
-	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
-	
-	*min = 0;
-	*max = 0;
-
-	for (pid = pidlist.first; pid; pid = pid->next) {
-		if (pid->cache == cache) {
-			*max = max_ii(0, BLI_countlist(pid->ptcaches) - 1);
-			break;
-		}
-	}
-
-	BLI_freelistN(&pidlist);
-}
-
-static int rna_Cache_active_point_cache_index_get(PointerRNA *ptr)
-{
-	Object *ob = ptr->id.data;
-	PointCache *cache = ptr->data;
-	PTCacheID *pid;
-	ListBase pidlist;
-	int num = 0;
-
-	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
-	
-	for (pid = pidlist.first; pid; pid = pid->next) {
-		if (pid->cache == cache) {
-			num = BLI_findindex(pid->ptcaches, cache);
-			break;
-		}
-	}
-
-	BLI_freelistN(&pidlist);
-
-	return num;
-}
-
-static void rna_Cache_active_point_cache_index_set(struct PointerRNA *ptr, int value)
-{
-	Object *ob = ptr->id.data;
-	PointCache *cache = ptr->data;
-	PTCacheID *pid;
-	ListBase pidlist;
-
-	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
-	
-	for (pid = pidlist.first; pid; pid = pid->next) {
-		if (pid->cache == cache) {
-			*(pid->cache_ptr) = BLI_findlink(pid->ptcaches, value);
-			break;
-		}
-	}
-
-	BLI_freelistN(&pidlist);
-}
-
 static void rna_PointCache_frame_step_range(PointerRNA *ptr, int *min, int *max,
                                             int *UNUSED(softmin), int *UNUSED(softmax))
 {
@@ -269,30 +192,6 @@ static void rna_PointCache_frame_step_range(PointerRNA *ptr, int *min, int *max,
 #endif /*POINTCACHE_OLD*/
 
 #else
-
-#ifdef POINTCACHE_OLD
-/* ptcache.point_caches */
-static void rna_def_ptcache_point_caches(BlenderRNA *brna, PropertyRNA *cprop)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-
-	/* FunctionRNA *func; */
-	/* PropertyRNA *parm; */
-
-	RNA_def_property_srna(cprop, "PointCaches");
-	srna = RNA_def_struct(brna, "PointCaches", NULL);
-	RNA_def_struct_sdna(srna, "PointCache");
-	RNA_def_struct_ui_text(srna, "Point Caches", "Collection of point caches");
-
-	prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_funcs(prop, "rna_Cache_active_point_cache_index_get",
-	                           "rna_Cache_active_point_cache_index_set",
-	                           "rna_Cache_active_point_cache_index_range");
-	RNA_def_property_ui_text(prop, "Active Point Cache Index", "");
-	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_change");
-}
-#endif /*POINTCACHE_OLD*/
 
 static void rna_def_pointcache(BlenderRNA *brna)
 {
@@ -401,14 +300,6 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	                         "(for local bakes per scene file, disable this option)");
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
 #endif /*POINTCACHE_OLD*/
-
-	prop = RNA_def_property(srna, "point_caches", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_funcs(prop, "rna_Cache_list_begin", "rna_iterator_listbase_next",
-	                                  "rna_iterator_listbase_end", "rna_iterator_listbase_get",
-	                                  NULL, NULL, NULL, NULL);
-	RNA_def_property_struct_type(prop, "PointCache");
-	RNA_def_property_ui_text(prop, "Point Cache List", "Point cache list");
-	rna_def_ptcache_point_caches(brna, prop);
 
 	func = RNA_def_function(srna, "test", "PTC_test_archive");
 	RNA_def_function_flag(func, FUNC_NO_SELF);

@@ -411,14 +411,12 @@ void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)
 
 	if (psys->clmd) {
 		if (dynamics) {
-			BKE_ptcache_free_list(&psys->ptcaches);
-			psys->clmd->point_cache = psys->pointcache = NULL;
-			psys->clmd->ptcaches.first = psys->clmd->ptcaches.last = NULL;
+			BKE_ptcache_free(psys->pointcache);
 
 			modifier_free((ModifierData *)psys->clmd);
 			
 			psys->clmd = NULL;
-			psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
+			psys->pointcache = BKE_ptcache_new();
 		}
 		else {
 			cloth_free_modifier(psys->clmd);
@@ -568,7 +566,7 @@ void psys_free(Object *ob, ParticleSystem *psys)
 			psys->part = NULL;
 		}
 
-		BKE_ptcache_free_list(&psys->ptcaches);
+		BKE_ptcache_free(psys->pointcache);
 		psys->pointcache = NULL;
 		
 		BLI_freelistN(&psys->targets);
@@ -3504,7 +3502,7 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 		psys->flag &= ~PSYS_CURRENT;
 
 	psys = MEM_callocN(sizeof(ParticleSystem), "particle_system");
-	psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
+	psys->pointcache = BKE_ptcache_new();
 	BLI_addtail(&ob->particlesystem, psys);
 
 	psys->part = psys_new_settings(DATA_("ParticleSettings"), NULL);

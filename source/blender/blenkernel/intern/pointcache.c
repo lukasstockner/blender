@@ -1102,8 +1102,6 @@ void BKE_ptcache_id_from_softbody(PTCacheID *pid, Object *ob, SoftBody *sb)
 	pid->calldata= sb;
 	pid->type= PTCACHE_TYPE_SOFTBODY;
 	pid->cache= sb->pointcache;
-	pid->cache_ptr= &sb->pointcache;
-	pid->ptcaches= &sb->ptcaches;
 	pid->totpoint= pid->totwrite= ptcache_softbody_totpoint;
 	pid->error					= ptcache_softbody_error;
 
@@ -1138,8 +1136,6 @@ void BKE_ptcache_id_from_particles(PTCacheID *pid, Object *ob, ParticleSystem *p
 	pid->type= PTCACHE_TYPE_PARTICLES;
 	pid->stack_index= psys->pointcache->index;
 	pid->cache= psys->pointcache;
-	pid->cache_ptr= &psys->pointcache;
-	pid->ptcaches= &psys->ptcaches;
 
 	if (psys->part->type != PART_HAIR)
 		pid->flag |= PTCACHE_VEL_PER_SEC;
@@ -1196,8 +1192,6 @@ void BKE_ptcache_id_from_cloth(PTCacheID *pid, Object *ob, ClothModifierData *cl
 	pid->type= PTCACHE_TYPE_CLOTH;
 	pid->stack_index= clmd->point_cache->index;
 	pid->cache= clmd->point_cache;
-	pid->cache_ptr= &clmd->point_cache;
-	pid->ptcaches= &clmd->ptcaches;
 	pid->totpoint= pid->totwrite= ptcache_cloth_totpoint;
 	pid->error					= ptcache_cloth_error;
 
@@ -1234,8 +1228,6 @@ void BKE_ptcache_id_from_smoke(PTCacheID *pid, struct Object *ob, struct SmokeMo
 	pid->stack_index= sds->point_cache[0]->index;
 
 	pid->cache= sds->point_cache[0];
-	pid->cache_ptr= &(sds->point_cache[0]);
-	pid->ptcaches= &(sds->ptcaches[0]);
 
 	pid->totpoint= pid->totwrite= ptcache_smoke_totpoint;
 	pid->error					= ptcache_smoke_error;
@@ -1275,8 +1267,6 @@ void BKE_ptcache_id_from_dynamicpaint(PTCacheID *pid, Object *ob, DynamicPaintSu
 	pid->calldata= surface;
 	pid->type= PTCACHE_TYPE_DYNAMICPAINT;
 	pid->cache= surface->pointcache;
-	pid->cache_ptr= &surface->pointcache;
-	pid->ptcaches= &surface->ptcaches;
 	pid->totpoint= pid->totwrite= ptcache_dynamicpaint_totpoint;
 	pid->error					= ptcache_dynamicpaint_error;
 
@@ -1312,8 +1302,6 @@ void BKE_ptcache_id_from_rigidbody(PTCacheID *pid, Object *ob, RigidBodyWorld *r
 	pid->calldata= rbw;
 	pid->type= PTCACHE_TYPE_RIGIDBODY;
 	pid->cache= rbw->pointcache;
-	pid->cache_ptr= &rbw->pointcache;
-	pid->ptcaches= &rbw->ptcaches;
 	pid->totpoint= pid->totwrite= ptcache_rigidbody_totpoint;
 	pid->error					= ptcache_rigidbody_error;
 	
@@ -3001,7 +2989,7 @@ void BKE_ptcache_remove(void)
 
 /* Point Cache handling */
 
-PointCache *BKE_ptcache_add(ListBase *ptcaches)
+PointCache *BKE_ptcache_new(void)
 {
 	PointCache *cache;
 
@@ -3010,10 +2998,6 @@ PointCache *BKE_ptcache_add(ListBase *ptcaches)
 	cache->endframe= 250;
 	cache->step= 10;
 	cache->index = -1;
-
-//	cache->writer = NULL;
-
-	BLI_addtail(ptcaches, cache);
 
 	return cache;
 }
@@ -3044,16 +3028,8 @@ void BKE_ptcache_free(PointCache *cache)
 
 	MEM_freeN(cache);
 }
-void BKE_ptcache_free_list(ListBase *ptcaches)
-{
-	PointCache *cache;
 
-	while ((cache = BLI_pophead(ptcaches))) {
-		BKE_ptcache_free(cache);
-	}
-}
-
-static PointCache *ptcache_copy(PointCache *cache, int copy_data)
+PointCache *BKE_ptcache_copy(PointCache *cache, int copy_data)
 {
 	PointCache *ncache;
 
@@ -3098,19 +3074,6 @@ static PointCache *ptcache_copy(PointCache *cache, int copy_data)
 //	ncache->writer = NULL;
 
 	return ncache;
-}
-
-/* returns first point cache */
-PointCache *BKE_ptcache_copy_list(ListBase *ptcaches_new, ListBase *ptcaches_old, int copy_data)
-{
-	PointCache *cache = ptcaches_old->first;
-
-	ptcaches_new->first = ptcaches_new->last = NULL;
-
-	for (; cache; cache=cache->next)
-		BLI_addtail(ptcaches_new, ptcache_copy(cache, copy_data));
-
-	return ptcaches_new->first;
 }
 
 /* Disabled this code; this is being called on scene_update_tagged, and that in turn gets called on 
