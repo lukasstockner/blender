@@ -230,13 +230,15 @@ void OParticlesSchema::init(uint32_t iTsIdx)
 #endif
 
 
-ParticlesWriter::ParticlesWriter(const std::string &filename, Object *ob, ParticleSystem *psys) :
+ParticlesWriter::ParticlesWriter(const std::string &filename, Scene *scene, Object *ob, ParticleSystem *psys) :
     Writer(filename),
     m_ob(ob),
     m_psys(psys)
 {
+	uint32_t fs = add_frame_sampling(scene);
+	
 	OObject root = m_archive.getTop();
-	m_points = OPoints(root, m_psys->name);
+	m_points = OPoints(root, m_psys->name, fs);
 }
 
 ParticlesWriter::~ParticlesWriter()
@@ -270,7 +272,7 @@ void ParticlesWriter::write_sample()
 }
 
 
-ParticlesReader::ParticlesReader(const std::string &filename, Object *ob, ParticleSystem *psys) :
+ParticlesReader::ParticlesReader(const std::string &filename, Scene *scene, Object *ob, ParticleSystem *psys) :
     Reader(filename),
     m_ob(ob),
     m_psys(psys)

@@ -71,28 +71,28 @@ void PTC_read_sample(struct PTCReader *_reader)
 }
 
 /* get writer/reader from RNA type */
-PTCWriter *PTC_writer_from_rna(PointerRNA *ptr)
+PTCWriter *PTC_writer_from_rna(Scene *scene, PointerRNA *ptr)
 {
 	if (RNA_struct_is_a(ptr->type, &RNA_ParticleSystem)) {
 		Object *ob = (Object *)ptr->id.data;
 		ParticleSystem *psys = (ParticleSystem *)ptr->data;
-		return PTC_writer_particles(ob, psys);
+		return PTC_writer_particles(scene, ob, psys);
 	}
 	return NULL;
 }
 
-PTCReader *PTC_reader_from_rna(PointerRNA *ptr)
+PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 {
 	if (RNA_struct_is_a(ptr->type, &RNA_ParticleSystem)) {
 		Object *ob = (Object *)ptr->id.data;
 		ParticleSystem *psys = (ParticleSystem *)ptr->data;
-		return PTC_reader_particles(ob, psys);
+		return PTC_reader_particles(scene, ob, psys);
 	}
 	return NULL;
 }
 
 /* Particles */
-PTCWriter *PTC_writer_particles(Object *ob, ParticleSystem *psys)
+PTCWriter *PTC_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 {
 	PointCache *cache = psys->pointcache;
 	if (!cache)
@@ -102,11 +102,11 @@ PTCWriter *PTC_writer_particles(Object *ob, ParticleSystem *psys)
 	                                        cache->flag & PTCACHE_EXTERNAL,
 	                                        cache->flag & PTCACHE_IGNORE_LIBPATH);
 	
-	PTC::ParticlesWriter *writer = new PTC::ParticlesWriter(filename, ob, psys);
+	PTC::ParticlesWriter *writer = new PTC::ParticlesWriter(filename, scene, ob, psys);
 	return (PTCWriter *)writer;
 }
 
-PTCReader *PTC_reader_particles(Object *ob, ParticleSystem *psys)
+PTCReader *PTC_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 {
 	PointCache *cache = psys->pointcache;
 	if (!cache)
@@ -116,7 +116,7 @@ PTCReader *PTC_reader_particles(Object *ob, ParticleSystem *psys)
 	                                        cache->flag & PTCACHE_EXTERNAL,
 	                                        cache->flag & PTCACHE_IGNORE_LIBPATH);
 
-	PTC::ParticlesReader *reader = new PTC::ParticlesReader(filename, ob, psys);
+	PTC::ParticlesReader *reader = new PTC::ParticlesReader(filename, scene, ob, psys);
 	return (PTCReader *)reader;
 }
 

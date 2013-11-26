@@ -478,7 +478,7 @@ typedef Util::shared_ptr< OParticles > OParticlesPtr;
 
 class ParticlesWriter : public Writer {
 public:
-	ParticlesWriter(const std::string &filename, Object *ob, ParticleSystem *psys);
+	ParticlesWriter(const std::string &filename, Scene *scene, Object *ob, ParticleSystem *psys);
 	~ParticlesWriter();
 	
 	void write_sample();
@@ -492,7 +492,7 @@ private:
 
 class ParticlesReader : public Reader {
 public:
-	ParticlesReader(const std::string &filename, Object *ob, ParticleSystem *psys);
+	ParticlesReader(const std::string &filename, Scene *scene, Object *ob, ParticleSystem *psys);
 	~ParticlesReader();
 	
 	void read_sample();

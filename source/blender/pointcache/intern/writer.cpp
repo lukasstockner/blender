@@ -23,6 +23,8 @@
 extern "C" {
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
+
+#include "DNA_scene_types.h"
 }
 
 namespace PTC {
@@ -45,6 +47,20 @@ Writer::Writer(const std::string &filename)
 
 Writer::~Writer()
 {
+}
+
+uint32_t Writer::add_frame_sampling(Scene *scene)
+{
+	if (scene->r.frs_sec == 0.0f) {
+		/* Should never happen, just to be safe
+		 * Index 0 is the default time sampling with a step of 1.0
+		 */
+		return 0;
+	}
+	
+	chrono_t cycle_time = (double)scene->r.frs_sec_base / (double)scene->r.frs_sec;
+	chrono_t start_time = 0.0f;
+	return m_archive.addTimeSampling(TimeSampling(cycle_time, start_time));
 }
 
 } /* namespace PTC */

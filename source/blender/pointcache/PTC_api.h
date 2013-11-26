@@ -46,12 +46,12 @@ void PTC_bake(struct Main *bmain, struct Scene *scene, struct PTCWriter *writer,
 
 
 /* get writer/reader from RNA type */
-struct PTCWriter *PTC_writer_from_rna(struct PointerRNA *ptr);
-struct PTCReader *PTC_reader_from_rna(struct PointerRNA *ptr);
+struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);
+struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *ptr);
 
 /* Particles */
-struct PTCWriter *PTC_writer_particles(struct Object *ob, struct ParticleSystem *psys);
-struct PTCReader *PTC_reader_particles(struct Object *ob, struct ParticleSystem *psys);
+struct PTCWriter *PTC_writer_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
 
 #ifdef __cplusplus
 } /* extern C */

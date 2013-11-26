@@ -23,6 +23,8 @@
 
 #include <Alembic/Abc/OArchive.h>
 
+struct Scene;
+
 namespace PTC {
 
 using namespace Alembic;
@@ -31,6 +33,8 @@ class Writer {
 public:
 	Writer(const std::string &filename);
 	virtual ~Writer();
+	
+	uint32_t add_frame_sampling(Scene *scene);
 	
 	virtual void write_sample() = 0;
 	
