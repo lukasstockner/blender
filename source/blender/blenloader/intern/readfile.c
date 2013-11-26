@@ -3798,7 +3798,6 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 				/* XXX - from reading existing code this seems correct but intended usage of
 				 * pointcache should /w cloth should be added in 'ParticleSystem' - campbell */
 				psys->clmd->point_cache = psys->pointcache;
-				psys->clmd->ptcaches.first = psys->clmd->ptcaches.last= NULL;
 				psys->clmd->coll_parms->group = newlibadr(fd, id->lib, psys->clmd->coll_parms->group);
 				psys->clmd->modifier.error = NULL;
 			}
@@ -3867,7 +3866,6 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		
 		psys->pointcache = newdataadr(fd, psys->pointcache);
 		direct_link_pointcache(fd, psys->pointcache, false);
-		psys->ptcaches.first = psys->ptcaches.last = psys->pointcache;
 		
 		if (psys->clmd) {
 			psys->clmd = newdataadr(fd, psys->clmd);
@@ -4590,7 +4588,6 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			
 			clmd->point_cache = newdataadr(fd, clmd->point_cache);
 			direct_link_pointcache(fd, clmd->point_cache, false);
-			clmd->ptcaches.first = clmd->ptcaches.last = clmd->point_cache;
 			
 			if (clmd->sim_parms) {
 				if (clmd->sim_parms->presets > 10)
@@ -4703,7 +4700,6 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 						
 						surface->pointcache = newdataadr(fd, surface->pointcache);
 						direct_link_pointcache(fd, surface->pointcache, true);
-						surface->ptcaches.first = surface->ptcaches.last = surface->pointcache;
 						
 						if (!(surface->effector_weights = newdataadr(fd, surface->effector_weights)))
 							surface->effector_weights = BKE_add_effector_weights(NULL);
@@ -4946,7 +4942,6 @@ static void direct_link_object(FileData *fd, Object *ob)
 		
 		sb->pointcache = newdataadr(fd, sb->pointcache);
 		direct_link_pointcache(fd, sb->pointcache, false);
-		sb->ptcaches.first = sb->ptcaches.last = sb->pointcache;
 	}
 	ob->bsoft = newdataadr(fd, ob->bsoft);
 	ob->fluidsimSettings= newdataadr(fd, ob->fluidsimSettings); /* NT */
@@ -5493,7 +5488,6 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		/* link cache */
 		rbw->pointcache = newdataadr(fd, rbw->pointcache);
 		direct_link_pointcache(fd, rbw->pointcache, false);
-		rbw->ptcaches.first = rbw->ptcaches.last = rbw->pointcache;
 		/* make sure simulation starts from the beginning after loading file */
 		if (rbw->pointcache) {
 			rbw->ltime = (float)rbw->pointcache->startframe;
