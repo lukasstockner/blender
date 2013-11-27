@@ -1888,54 +1888,27 @@ static int ptcache_old_elemsize(PTCacheID *pid)
 
 static void ptcache_find_frames_around(PTCacheID *pid, unsigned int frame, int *fra1, int *fra2)
 {
-	if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-		int cfra1=frame, cfra2=frame+1;
-
-		while (cfra1 >= pid->cache->startframe && !BKE_ptcache_id_exist(pid, cfra1))
-			cfra1--;
-
-		if (cfra1 < pid->cache->startframe)
-			cfra1 = 0;
-
-		while (cfra2 <= pid->cache->endframe && !BKE_ptcache_id_exist(pid, cfra2))
-			cfra2++;
-
-		if (cfra2 > pid->cache->endframe)
-			cfra2 = 0;
-
-		if (cfra1 && !cfra2) {
-			*fra1 = 0;
-			*fra2 = cfra1;
-		}
-		else {
-			*fra1 = cfra1;
-			*fra2 = cfra2;
-		}
+	int cfra1=frame, cfra2=frame+1;
+	
+	while (cfra1 >= pid->cache->startframe && !BKE_ptcache_id_exist(pid, cfra1))
+		cfra1--;
+	
+	if (cfra1 < pid->cache->startframe)
+		cfra1 = 0;
+	
+	while (cfra2 <= pid->cache->endframe && !BKE_ptcache_id_exist(pid, cfra2))
+		cfra2++;
+	
+	if (cfra2 > pid->cache->endframe)
+		cfra2 = 0;
+	
+	if (cfra1 && !cfra2) {
+		*fra1 = 0;
+		*fra2 = cfra1;
 	}
-	else if (pid->cache->mem_cache.first) {
-		PTCacheMem *pm = pid->cache->mem_cache.first;
-		PTCacheMem *pm2 = pid->cache->mem_cache.last;
-
-		while (pm->next && pm->next->frame <= frame)
-			pm= pm->next;
-
-		if (pm2->frame < frame) {
-			pm2 = NULL;
-		}
-		else {
-			while (pm2->prev && pm2->prev->frame > frame) {
-				pm2= pm2->prev;
-			}
-		}
-
-		if (!pm2) {
-			*fra1 = 0;
-			*fra2 = pm->frame;
-		}
-		else {
-			*fra1 = pm->frame;
-			*fra2 = pm2->frame;
-		}
+	else {
+		*fra1 = cfra1;
+		*fra2 = cfra2;
 	}
 }
 
@@ -2157,15 +2130,7 @@ static int ptcache_read(PTCacheID *pid, int cfra)
 	int *index = &i;
 
 	/* get a memory cache to read from */
-	if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-		pm = ptcache_disk_frame_to_mem(pid, cfra);
-	}
-	else {
-		pm = pid->cache->mem_cache.first;
-		
-		while (pm && pm->frame != cfra)
-			pm = pm->next;
-	}
+	pm = ptcache_disk_frame_to_mem(pid, cfra);
 
 	/* read the cache */
 	if (pm) {
@@ -2211,15 +2176,7 @@ static int ptcache_interpolate(PTCacheID *pid, float cfra, int cfra1, int cfra2)
 	int *index = &i;
 
 	/* get a memory cache to read from */
-	if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-		pm = ptcache_disk_frame_to_mem(pid, cfra2);
-	}
-	else {
-		pm = pid->cache->mem_cache.first;
-		
-		while (pm && pm->frame != cfra2)
-			pm = pm->next;
-	}
+	pm = ptcache_disk_frame_to_mem(pid, cfra2);
 
 	/* read the cache */
 	if (pm) {
@@ -2385,16 +2342,12 @@ static int ptcache_write(PTCacheID *pid, int cfra, int overwrite)
 	BKE_ptcache_mem_pointers_init(pm);
 
 	if (overwrite) {
-		if (cache->flag & PTCACHE_DISK_CACHE) {
-			int fra = cfra-1;
-
-			while (fra >= cache->startframe && !BKE_ptcache_id_exist(pid, fra))
-				fra--;
-			
-			pm2 = ptcache_disk_frame_to_mem(pid, fra);
-		}
-		else
-			pm2 = cache->mem_cache.last;
+		int fra = cfra-1;
+		
+		while (fra >= cache->startframe && !BKE_ptcache_id_exist(pid, fra))
+			fra--;
+		
+		pm2 = ptcache_disk_frame_to_mem(pid, fra);
 	}
 
 	if (pid->write_point) {
@@ -2415,25 +2368,20 @@ static int ptcache_write(PTCacheID *pid, int cfra, int overwrite)
 
 	pm->frame = cfra;
 
-	if (cache->flag & PTCACHE_DISK_CACHE) {
-		error += !ptcache_mem_frame_to_disk(pid, pm);
-
-		// if (pm) /* pm is always set */
-		{
-			ptcache_data_free(pm);
-			ptcache_extra_free(pm);
-			MEM_freeN(pm);
-		}
-
-		if (pm2) {
-			error += !ptcache_mem_frame_to_disk(pid, pm2);
-			ptcache_data_free(pm2);
-			ptcache_extra_free(pm2);
-			MEM_freeN(pm2);
-		}
+	error += !ptcache_mem_frame_to_disk(pid, pm);
+	
+	// if (pm) /* pm is always set */
+	{
+		ptcache_data_free(pm);
+		ptcache_extra_free(pm);
+		MEM_freeN(pm);
 	}
-	else {
-		BLI_addtail(&cache->mem_cache, pm);
+	
+	if (pm2) {
+		error += !ptcache_mem_frame_to_disk(pid, pm2);
+		ptcache_data_free(pm2);
+		ptcache_extra_free(pm2);
+		MEM_freeN(pm2);
 	}
 
 	return error;
@@ -2450,31 +2398,17 @@ static int ptcache_write_needed(PTCacheID *pid, int cfra, int *overwrite)
 		return 1;
 	}
 
-	if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-		if (cfra==0 && cache->startframe > 0)
-			return 1;
-
-				/* find last cached frame */
-		while (efra > cache->startframe && !BKE_ptcache_id_exist(pid, efra))
-			efra--;
-
-		/* find second last cached frame */
-		ofra = efra-1;
-		while (ofra > cache->startframe && !BKE_ptcache_id_exist(pid, ofra))
-			ofra--;
-	}
-	else {
-		PTCacheMem *pm = cache->mem_cache.last;
-		/* don't write info file in memory */
-		if (cfra == 0)
-			return 0;
-
-		if (pm == NULL)
-			return 1;
-
-		efra = pm->frame;
-		ofra = (pm->prev ? pm->prev->frame : efra - cache->step);
-	}
+	if (cfra==0 && cache->startframe > 0)
+		return 1;
+	
+	/* find last cached frame */
+	while (efra > cache->startframe && !BKE_ptcache_id_exist(pid, efra))
+		efra--;
+	
+	/* find second last cached frame */
+	ofra = efra-1;
+	while (ofra > cache->startframe && !BKE_ptcache_id_exist(pid, ofra))
+		ofra--;
 
 	if (efra >= cache->startframe && cfra > efra) {
 		if (ofra >= cache->startframe && efra - ofra < cache->step) {
@@ -2564,107 +2498,57 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 	case PTCACHE_CLEAR_ALL:
 	case PTCACHE_CLEAR_BEFORE:
 	case PTCACHE_CLEAR_AFTER:
-		if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-			ptcache_path(pid->cache, pid->ob, path);
-			
-			len = ptcache_filename(pid, filename, cfra, 0, 0); /* no path */
-			
-			dir = opendir(path);
-			if (dir==NULL)
-				return;
-
-			BLI_snprintf(ext, sizeof(ext), "_%02u"PTCACHE_EXT, pid->stack_index);
-			
-			while ((de = readdir(dir)) != NULL) {
-				if (strstr(de->d_name, ext)) { /* do we have the right extension?*/
-					if (strncmp(filename, de->d_name, len ) == 0) { /* do we have the right prefix */
-						if (mode == PTCACHE_CLEAR_ALL) {
-							pid->cache->last_exact = MIN2(pid->cache->startframe, 0);
-							BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
-							BLI_delete(path_full, false, false);
-						}
-						else {
-							/* read the number of the file */
-							unsigned int frame, len2 = (int)strlen(de->d_name);
-							char num[7];
-
-							if (len2 > 15) { /* could crash if trying to copy a string out of this range*/
-								BLI_strncpy(num, de->d_name + (strlen(de->d_name) - 15), sizeof(num));
-								frame = atoi(num);
+		ptcache_path(pid->cache, pid->ob, path);
+		
+		len = ptcache_filename(pid, filename, cfra, 0, 0); /* no path */
+		
+		dir = opendir(path);
+		if (dir==NULL)
+			return;
+		
+		BLI_snprintf(ext, sizeof(ext), "_%02u"PTCACHE_EXT, pid->stack_index);
+		
+		while ((de = readdir(dir)) != NULL) {
+			if (strstr(de->d_name, ext)) { /* do we have the right extension?*/
+				if (strncmp(filename, de->d_name, len ) == 0) { /* do we have the right prefix */
+					if (mode == PTCACHE_CLEAR_ALL) {
+						pid->cache->last_exact = MIN2(pid->cache->startframe, 0);
+						BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
+						BLI_delete(path_full, false, false);
+					}
+					else {
+						/* read the number of the file */
+						unsigned int frame, len2 = (int)strlen(de->d_name);
+						char num[7];
+						
+						if (len2 > 15) { /* could crash if trying to copy a string out of this range*/
+							BLI_strncpy(num, de->d_name + (strlen(de->d_name) - 15), sizeof(num));
+							frame = atoi(num);
+							
+							if ((mode == PTCACHE_CLEAR_BEFORE && frame < cfra) ||
+							    (mode == PTCACHE_CLEAR_AFTER && frame > cfra))
+							{
 								
-								if ((mode == PTCACHE_CLEAR_BEFORE && frame < cfra) ||
-								    (mode == PTCACHE_CLEAR_AFTER && frame > cfra))
-								{
-									
-									BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
-									BLI_delete(path_full, false, false);
-									if (pid->cache->cached_frames && frame >=sta && frame <= end)
-										pid->cache->cached_frames[frame-sta] = 0;
-								}
+								BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
+								BLI_delete(path_full, false, false);
+								if (pid->cache->cached_frames && frame >=sta && frame <= end)
+									pid->cache->cached_frames[frame-sta] = 0;
 							}
 						}
 					}
 				}
 			}
-			closedir(dir);
-
-			if (mode == PTCACHE_CLEAR_ALL && pid->cache->cached_frames)
-				memset(pid->cache->cached_frames, 0, MEM_allocN_len(pid->cache->cached_frames));
 		}
-		else {
-			PTCacheMem *pm= pid->cache->mem_cache.first;
-			PTCacheMem *link= NULL;
-
-			if (mode == PTCACHE_CLEAR_ALL) {
-				/*we want startframe if the cache starts before zero*/
-				pid->cache->last_exact = MIN2(pid->cache->startframe, 0);
-				for (; pm; pm=pm->next) {
-					ptcache_data_free(pm);
-					ptcache_extra_free(pm);
-				}
-				BLI_freelistN(&pid->cache->mem_cache);
-
-				if (pid->cache->cached_frames) 
-					memset(pid->cache->cached_frames, 0, MEM_allocN_len(pid->cache->cached_frames));
-			}
-			else {
-				while (pm) {
-					if ((mode == PTCACHE_CLEAR_BEFORE && pm->frame < cfra) ||
-					    (mode == PTCACHE_CLEAR_AFTER && pm->frame > cfra))
-					{
-						link = pm;
-						if (pid->cache->cached_frames && pm->frame >=sta && pm->frame <= end)
-							pid->cache->cached_frames[pm->frame-sta] = 0;
-						ptcache_data_free(pm);
-						ptcache_extra_free(pm);
-						pm = pm->next;
-						BLI_freelinkN(&pid->cache->mem_cache, link);
-					}
-					else
-						pm = pm->next;
-				}
-			}
-		}
+		closedir(dir);
+		
+		if (mode == PTCACHE_CLEAR_ALL && pid->cache->cached_frames)
+			memset(pid->cache->cached_frames, 0, MEM_allocN_len(pid->cache->cached_frames));
 		break;
 		
 	case PTCACHE_CLEAR_FRAME:
-		if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-			if (BKE_ptcache_id_exist(pid, cfra)) {
-				ptcache_filename(pid, filename, cfra, 1, 1); /* no path */
-				BLI_delete(filename, false, false);
-			}
-		}
-		else {
-			PTCacheMem *pm = pid->cache->mem_cache.first;
-
-			for (; pm; pm=pm->next) {
-				if (pm->frame == cfra) {
-					ptcache_data_free(pm);
-					ptcache_extra_free(pm);
-					BLI_freelinkN(&pid->cache->mem_cache, pm);
-					break;
-				}
-			}
+		if (BKE_ptcache_id_exist(pid, cfra)) {
+			ptcache_filename(pid, filename, cfra, 1, 1); /* no path */
+			BLI_delete(filename, false, false);
 		}
 		if (pid->cache->cached_frames && cfra >= sta && cfra <= end)
 			pid->cache->cached_frames[cfra-sta] = 0;
@@ -2684,22 +2568,11 @@ int  BKE_ptcache_id_exist(PTCacheID *pid, int cfra)
 	if (pid->cache->cached_frames &&	pid->cache->cached_frames[cfra-pid->cache->startframe]==0)
 		return 0;
 	
-	if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-		char filename[MAX_PTCACHE_FILE];
-		
-		ptcache_filename(pid, filename, cfra, 1, 1);
-
-		return BLI_exists(filename);
-	}
-	else {
-		PTCacheMem *pm = pid->cache->mem_cache.first;
-
-		for (; pm; pm=pm->next) {
-			if (pm->frame==cfra)
-				return 1;
-		}
-		return 0;
-	}
+	char filename[MAX_PTCACHE_FILE];
+	
+	ptcache_filename(pid, filename, cfra, 1, 1);
+	
+	return BLI_exists(filename);
 }
 void BKE_ptcache_id_time(PTCacheID *pid, Scene *scene, float cfra, int *startframe, int *endframe, float *timescale)
 {
@@ -2762,53 +2635,42 @@ void BKE_ptcache_id_time(PTCacheID *pid, Scene *scene, float cfra, int *startfra
 
 		cache->cached_frames = MEM_callocN(sizeof(char) * (cache->endframe-cache->startframe+1), "cached frames array");
 
-		if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-			/* mode is same as fopen's modes */
-			DIR *dir; 
-			struct dirent *de;
-			char path[MAX_PTCACHE_PATH];
-			char filename[MAX_PTCACHE_FILE];
-			char ext[MAX_PTCACHE_PATH];
-			unsigned int len; /* store the length of the string */
-
-			ptcache_path(pid->cache, pid->ob, path);
-			
-			len = ptcache_filename(pid, filename, (int)cfra, 0, 0); /* no path */
-			
-			dir = opendir(path);
-			if (dir==NULL)
-				return;
-
-			BLI_snprintf(ext, sizeof(ext), "_%02u"PTCACHE_EXT, pid->stack_index);
-			
-			while ((de = readdir(dir)) != NULL) {
-				if (strstr(de->d_name, ext)) { /* do we have the right extension?*/
-					if (strncmp(filename, de->d_name, len ) == 0) { /* do we have the right prefix */
-						/* read the number of the file */
-						unsigned int frame, len2 = (int)strlen(de->d_name);
-						char num[7];
-
-						if (len2 > 15) { /* could crash if trying to copy a string out of this range*/
-							BLI_strncpy(num, de->d_name + (strlen(de->d_name) - 15), sizeof(num));
-							frame = atoi(num);
-							
-							if (frame >= sta && frame <= end)
-								cache->cached_frames[frame-sta] = 1;
-						}
+		/* mode is same as fopen's modes */
+		DIR *dir; 
+		struct dirent *de;
+		char path[MAX_PTCACHE_PATH];
+		char filename[MAX_PTCACHE_FILE];
+		char ext[MAX_PTCACHE_PATH];
+		unsigned int len; /* store the length of the string */
+		
+		ptcache_path(pid->cache, pid->ob, path);
+		
+		len = ptcache_filename(pid, filename, (int)cfra, 0, 0); /* no path */
+		
+		dir = opendir(path);
+		if (dir==NULL)
+			return;
+		
+		BLI_snprintf(ext, sizeof(ext), "_%02u"PTCACHE_EXT, pid->stack_index);
+		
+		while ((de = readdir(dir)) != NULL) {
+			if (strstr(de->d_name, ext)) { /* do we have the right extension?*/
+				if (strncmp(filename, de->d_name, len ) == 0) { /* do we have the right prefix */
+					/* read the number of the file */
+					unsigned int frame, len2 = (int)strlen(de->d_name);
+					char num[7];
+					
+					if (len2 > 15) { /* could crash if trying to copy a string out of this range*/
+						BLI_strncpy(num, de->d_name + (strlen(de->d_name) - 15), sizeof(num));
+						frame = atoi(num);
+						
+						if (frame >= sta && frame <= end)
+							cache->cached_frames[frame-sta] = 1;
 					}
 				}
 			}
-			closedir(dir);
 		}
-		else {
-			PTCacheMem *pm= pid->cache->mem_cache.first;
-
-			while (pm) {
-				if (pm->frame >= sta && pm->frame <= end)
-					cache->cached_frames[pm->frame-sta] = 1;
-				pm = pm->next;
-			}
-		}
+		closedir(dir);
 	}
 }
 int  BKE_ptcache_id_reset(Scene *scene, PTCacheID *pid, int mode)
@@ -3017,14 +2879,10 @@ void BKE_ptcache_free_mem(ListBase *mem_cache)
 }
 void BKE_ptcache_free(PointCache *cache)
 {
-	BKE_ptcache_free_mem(&cache->mem_cache);
 	if (cache->edit && cache->free_edit)
 		cache->free_edit(cache->edit);
 	if (cache->cached_frames)
 		MEM_freeN(cache->cached_frames);
-
-//	if (cache->writer)
-//		PTC_writer_free(cache->writer);
 
 	MEM_freeN(cache);
 }
@@ -3035,12 +2893,7 @@ PointCache *BKE_ptcache_copy(PointCache *cache, int copy_data)
 
 	ncache= MEM_dupallocN(cache);
 
-	ncache->mem_cache.first = NULL;
-	ncache->mem_cache.last = NULL;
-
 	if (copy_data == FALSE) {
-		ncache->mem_cache.first = NULL;
-		ncache->mem_cache.last = NULL;
 		ncache->cached_frames = NULL;
 
 		/* flag is a mix of user settings and simulator/baking state */
@@ -3048,30 +2901,12 @@ PointCache *BKE_ptcache_copy(PointCache *cache, int copy_data)
 		ncache->simframe= 0;
 	}
 	else {
-		PTCacheMem *pm;
-
-		for (pm = cache->mem_cache.first; pm; pm = pm->next) {
-			PTCacheMem *pmn = MEM_dupallocN(pm);
-			int i;
-
-			for (i = 0; i < BPHYS_TOT_DATA; i++) {
-				if (pmn->data[i])
-					pmn->data[i] = MEM_dupallocN(pm->data[i]);
-			}
-
-			BKE_ptcache_mem_pointers_init(pm);
-
-			BLI_addtail(&ncache->mem_cache, pmn);
-		}
-
 		if (ncache->cached_frames)
 			ncache->cached_frames = MEM_dupallocN(cache->cached_frames);
 	}
 
 	/* hmm, should these be copied over instead? */
 	ncache->edit = NULL;
-
-//	ncache->writer = NULL;
 
 	return ncache;
 }
@@ -3651,51 +3486,23 @@ void BKE_ptcache_update_info(PTCacheID *pid)
 		return;
 	}
 
-	if (cache->flag & PTCACHE_DISK_CACHE) {
-		if (pid->type == PTCACHE_TYPE_SMOKE_DOMAIN) {
-			int totpoint = pid->totpoint(pid->calldata, 0);
-
-			if (cache->totpoint > totpoint)
-				BLI_snprintf(mem_info, sizeof(mem_info), IFACE_("%i cells + High Resolution cached"), totpoint);
-			else
-				BLI_snprintf(mem_info, sizeof(mem_info), IFACE_("%i cells cached"), totpoint);
-		}
-		else {
-			int cfra = cache->startframe;
-
-			for (; cfra <= cache->endframe; cfra++) {
-				if (BKE_ptcache_id_exist(pid, cfra))
-					totframes++;
-			}
-
-			BLI_snprintf(mem_info, sizeof(mem_info), IFACE_("%i frames on disk"), totframes);
-		}
+	if (pid->type == PTCACHE_TYPE_SMOKE_DOMAIN) {
+		int totpoint = pid->totpoint(pid->calldata, 0);
+		
+		if (cache->totpoint > totpoint)
+			BLI_snprintf(mem_info, sizeof(mem_info), IFACE_("%i cells + High Resolution cached"), totpoint);
+		else
+			BLI_snprintf(mem_info, sizeof(mem_info), IFACE_("%i cells cached"), totpoint);
 	}
 	else {
-		PTCacheMem *pm = cache->mem_cache.first;
-		float bytes = 0.0f;
-		int i, mb;
+		int cfra = cache->startframe;
 		
-		for (; pm; pm=pm->next) {
-			for (i=0; i<BPHYS_TOT_DATA; i++)
-				bytes += MEM_allocN_len(pm->data[i]);
-
-			for (extra=pm->extradata.first; extra; extra=extra->next) {
-				bytes += MEM_allocN_len(extra->data);
-				bytes += sizeof(PTCacheExtra);
-			}
-
-			bytes += sizeof(PTCacheMem);
-			
-			totframes++;
+		for (; cfra <= cache->endframe; cfra++) {
+			if (BKE_ptcache_id_exist(pid, cfra))
+				totframes++;
 		}
-
-		mb = (bytes > 1024.0f * 1024.0f);
-
-		BLI_snprintf(mem_info, sizeof(mem_info), IFACE_("%i frames in memory (%.1f %s)"),
-		             totframes,
-		             bytes / (mb ? 1024.0f * 1024.0f : 1024.0f),
-		             mb ? IFACE_("Mb") : IFACE_("kb"));
+		
+		BLI_snprintf(mem_info, sizeof(mem_info), IFACE_("%i frames on disk"), totframes);
 	}
 
 	if (cache->flag & PTCACHE_OUTDATED) {
