@@ -29,9 +29,6 @@ struct Object;
 struct ParticleSystem;
 struct PointerRNA;
 
-void PTC_test_archive(void);
-
-
 struct PTCWriter;
 struct PTCReader;
 

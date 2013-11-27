@@ -196,7 +196,6 @@ static void rna_PointCache_frame_step_range(PointerRNA *ptr, int *min, int *max,
 static void rna_def_pointcache(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	FunctionRNA *func;
 	PropertyRNA *prop;
 
 #ifdef POINTCACHE_OLD
@@ -300,9 +299,6 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	                         "(for local bakes per scene file, disable this option)");
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
 #endif /*POINTCACHE_OLD*/
-
-	func = RNA_def_function(srna, "test", "PTC_test_archive");
-	RNA_def_function_flag(func, FUNC_NO_SELF);
 }
 
 void RNA_def_pointcache(BlenderRNA *brna)

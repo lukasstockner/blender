@@ -37,8 +37,6 @@ set(INC_SYS
 )
 
 set(SRC
-	test.cpp
-
 	util/util_path.h
 	util/util_path.cpp
 
