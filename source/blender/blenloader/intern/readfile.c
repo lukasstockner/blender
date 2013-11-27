@@ -3586,52 +3586,18 @@ static const char *ptcache_data_struct[] = {
 	"", // BPHYS_DATA_TIMES:
 	"BoidData" // case BPHYS_DATA_BOIDS:
 };
-static void direct_link_pointcache(FileData *fd, PointCache *cache, bool force_disk)
+static void direct_link_pointcache(FileData *UNUSED(fd), PointCache *cache)
 {
 	if (!cache)
 		return;
-
-	if (!(cache->flag & PTCACHE_DISK_CACHE)) {
-		PTCacheMem *pm;
-		PTCacheExtra *extra;
-		int i;
-		
-		link_list(fd, &cache->mem_cache);
-		
-		pm = cache->mem_cache.first;
-		
-		for (; pm; pm=pm->next) {
-			for (i=0; i<BPHYS_TOT_DATA; i++) {
-				pm->data[i] = newdataadr(fd, pm->data[i]);
-				
-				/* the cache saves non-struct data without DNA */
-				if (pm->data[i] && ptcache_data_struct[i][0]=='\0' && (fd->flags & FD_FLAGS_SWITCH_ENDIAN)) {
-					int tot = (BKE_ptcache_data_size (i) * pm->totpoint) / sizeof(int); /* data_size returns bytes */
-					int *poin = pm->data[i];
-					
-					BLI_endian_switch_int32_array(poin, tot);
-				}
-			}
-			
-			link_list(fd, &pm->extradata);
-			
-			for (extra=pm->extradata.first; extra; extra=extra->next)
-				extra->data = newdataadr(fd, extra->data);
-		}
-	}
-	else
-		cache->mem_cache.first = cache->mem_cache.last = NULL;
 	
 	cache->flag &= ~PTCACHE_SIMULATION_VALID;
 	cache->simframe = 0;
 	cache->edit = NULL;
 	cache->free_edit = NULL;
 	cache->cached_frames = NULL;
-
-	if (force_disk) {
-		cache->flag |= PTCACHE_DISK_CACHE;
-		cache->step = 1;
-	}
+	/* XXX previously could have memory cache with step != 1, remove */
+	cache->step = 1;
 }
 
 static void lib_link_partdeflect(FileData *fd, ID *id, PartDeflect *pd)
@@ -3865,7 +3831,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		psys->renderdata = NULL;
 		
 		psys->pointcache = newdataadr(fd, psys->pointcache);
-		direct_link_pointcache(fd, psys->pointcache, false);
+		direct_link_pointcache(fd, psys->pointcache);
 		
 		if (psys->clmd) {
 			psys->clmd = newdataadr(fd, psys->clmd);
@@ -4587,7 +4553,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			clmd->coll_parms= newdataadr(fd, clmd->coll_parms);
 			
 			clmd->point_cache = newdataadr(fd, clmd->point_cache);
-			direct_link_pointcache(fd, clmd->point_cache, false);
+			direct_link_pointcache(fd, clmd->point_cache);
 			
 			if (clmd->sim_parms) {
 				if (clmd->sim_parms->presets > 10)
@@ -4633,7 +4599,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					smd->domain->effector_weights = BKE_add_effector_weights(NULL);
 				
 				smd->domain->point_cache[0] = newdataadr(fd, smd->domain->point_cache[0]);
-				direct_link_pointcache(fd, smd->domain->point_cache[0], true);
+				direct_link_pointcache(fd, smd->domain->point_cache[0]);
 				smd->domain->ptcaches[0].first = smd->domain->ptcaches[0].last = smd->domain->point_cache[0];
 				
 				/* Smoke uses only one cache from now on, so store pointer convert */
@@ -4699,7 +4665,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 						surface->data = NULL;
 						
 						surface->pointcache = newdataadr(fd, surface->pointcache);
-						direct_link_pointcache(fd, surface->pointcache, true);
+						direct_link_pointcache(fd, surface->pointcache);
 						
 						if (!(surface->effector_weights = newdataadr(fd, surface->effector_weights)))
 							surface->effector_weights = BKE_add_effector_weights(NULL);
@@ -4941,7 +4907,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 			sb->effector_weights = BKE_add_effector_weights(NULL);
 		
 		sb->pointcache = newdataadr(fd, sb->pointcache);
-		direct_link_pointcache(fd, sb->pointcache, false);
+		direct_link_pointcache(fd, sb->pointcache);
 	}
 	ob->bsoft = newdataadr(fd, ob->bsoft);
 	ob->fluidsimSettings= newdataadr(fd, ob->fluidsimSettings); /* NT */
@@ -5487,7 +5453,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 
 		/* link cache */
 		rbw->pointcache = newdataadr(fd, rbw->pointcache);
-		direct_link_pointcache(fd, rbw->pointcache, false);
+		direct_link_pointcache(fd, rbw->pointcache);
 		/* make sure simulation starts from the beginning after loading file */
 		if (rbw->pointcache) {
 			rbw->ltime = (float)rbw->pointcache->startframe;

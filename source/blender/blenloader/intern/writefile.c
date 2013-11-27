@@ -951,35 +951,7 @@ static const char *ptcache_extra_struct[] = {
 };
 static void write_pointcache(WriteData *wd, PointCache *cache)
 {
-	int i;
-	
 	writestruct(wd, DATA, "PointCache", 1, cache);
-	
-	if (!(cache->flag & PTCACHE_DISK_CACHE)) {
-		PTCacheMem *pm = cache->mem_cache.first;
-		
-		for (; pm; pm=pm->next) {
-			PTCacheExtra *extra = pm->extradata.first;
-			
-			writestruct(wd, DATA, "PTCacheMem", 1, pm);
-			
-			for (i=0; i<BPHYS_TOT_DATA; i++) {
-				if (pm->data[i] && pm->data_types & (1<<i)) {
-					if (ptcache_data_struct[i][0]=='\0')
-						writedata(wd, DATA, MEM_allocN_len(pm->data[i]), pm->data[i]);
-					else
-						writestruct(wd, DATA, ptcache_data_struct[i], pm->totpoint, pm->data[i]);
-				}
-			}
-			
-			for (; extra; extra=extra->next) {
-				if (ptcache_extra_struct[extra->type][0]=='\0')
-					continue;
-				writestruct(wd, DATA, "PTCacheExtra", 1, extra);
-				writestruct(wd, DATA, ptcache_extra_struct[extra->type], extra->totdata, extra->data);
-			}
-		}
-	}
 }
 static void write_particlesettings(WriteData *wd, ListBase *idbase)
 {
