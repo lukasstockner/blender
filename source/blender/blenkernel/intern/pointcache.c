@@ -3216,7 +3216,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	/* TODO: call redraw all windows somehow */
 }
 /* Helpers */
-void BKE_ptcache_disk_to_mem(PTCacheID *pid)
+void BKE_ptcache_to_mem(PTCacheID *pid, ListBase *mem_cache)
 {
 	PointCache *cache = pid->cache;
 	PTCacheMem *pm = NULL;
@@ -3236,13 +3236,13 @@ void BKE_ptcache_disk_to_mem(PTCacheID *pid)
 		pm = ptcache_disk_frame_to_mem(pid, cfra);
 
 		if (pm)
-			BLI_addtail(&pid->cache->mem_cache, pm);
+			BLI_addtail(mem_cache, pm);
 	}
 }
-void BKE_ptcache_mem_to_disk(PTCacheID *pid)
+void BKE_ptcache_from_mem(PTCacheID *pid, ListBase *mem_cache)
 {
 	PointCache *cache = pid->cache;
-	PTCacheMem *pm = cache->mem_cache.first;
+	PTCacheMem *pm = mem_cache->first;
 	int baked = cache->flag & PTCACHE_BAKED;
 
 	/* Remove possible bake flag to allow clear */

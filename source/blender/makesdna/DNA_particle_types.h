@@ -298,6 +298,7 @@ typedef struct ParticleSystem {
 	/* point cache */
 	struct PointCache *pointcache;
 	struct ListBase ptcaches DNA_DEPRECATED;
+	struct ListBase mem_pointcache;
 
 	struct ListBase *effectors;
 

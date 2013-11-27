@@ -318,11 +318,10 @@ void BKE_ptcache_quick_cache_all(struct Main *bmain, struct Scene *scene);
 void BKE_ptcache_bake(struct PTCacheBaker *baker);
 
 /* Convert disk cache to memory cache. */
-void BKE_ptcache_disk_to_mem(struct PTCacheID *pid);
+void BKE_ptcache_to_mem(struct PTCacheID *pid, struct ListBase *mem_cache);
 
 /* Convert memory cache to disk cache. */
-void BKE_ptcache_mem_to_disk(struct PTCacheID *pid);
-
+void BKE_ptcache_from_mem(struct PTCacheID *pid, struct ListBase *mem_cache);
 
 /* Rename all disk cache files with a new name. Doesn't touch the actual content of the files. */
 void BKE_ptcache_disk_cache_rename(struct PTCacheID *pid, const char *name_src, const char *name_dst);
