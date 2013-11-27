@@ -7426,6 +7426,54 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	blo_do_versions_250(fd, lib, main);
 	blo_do_versions_260(fd, lib, main);
 
+	/* memcache has been removed, clear BAKED flags to enforce rebaking */
+	if (!PTCACHE_VERSION_REMOVE_MEMCACHE(main)) {
+		Object *ob;
+		Scene *sce;
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			ModifierData *md;
+			ParticleSystem *psys;
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_Fluidsim) {
+					FluidsimModifierData *fluidmd = (FluidsimModifierData *)md;
+					fluidmd->point_cache->flag &= ~PTCACHE_BAKED;
+				}
+				else if (md->type == eModifierType_Smoke) {
+					SmokeModifierData *smd = (SmokeModifierData *)md;
+					if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
+						smd->domain->point_cache[0]->flag &= ~PTCACHE_BAKED;
+					}
+				}
+				else if (md->type == eModifierType_Cloth) {
+					ClothModifierData *clmd = (ClothModifierData *) md;
+					clmd->point_cache->flag &= ~PTCACHE_BAKED;
+				}
+				else if (md->type == eModifierType_DynamicPaint) {
+					DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
+					
+					if (pmd->canvas) {
+						DynamicPaintSurface *surface;
+						for (surface=pmd->canvas->surfaces.first; surface; surface=surface->next)
+							surface->pointcache->flag &= ~PTCACHE_BAKED;
+					}
+				}
+			}
+			
+			if (ob->soft) {
+				ob->soft->pointcache->flag &= ~PTCACHE_BAKED;
+			}
+			
+			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+				psys->pointcache->flag &= ~PTCACHE_BAKED;
+			}
+		}
+		for (sce = main->scene.first; sce; sce = sce->id.next) {
+			RigidBodyWorld *rbw = sce->rigidbody_world;
+			if (rbw)
+				rbw->pointcache->flag &= ~PTCACHE_BAKED;
+		}
+	}
+
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init see do_versions_userdef() above! */
 

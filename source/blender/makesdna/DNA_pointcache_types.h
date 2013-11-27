@@ -34,6 +34,11 @@
 
 #include "DNA_defs.h"
 
+/* XXX TODO point cache do_versions
+ * This needs to be updated until officially included in master
+ */
+#define PTCACHE_VERSION_REMOVE_MEMCACHE(main) MAIN_VERSION_ATLEAST(main, 269, 6)
+
 /* Point cache file data types:
  * - used as (1<<flag) so poke jahka if you reach the limit of 15
  * - to add new data types update:

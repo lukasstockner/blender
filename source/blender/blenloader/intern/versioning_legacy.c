@@ -2770,13 +2770,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 				ob->soft->pointcache = BKE_ptcache_new();
 
 			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-				if (psys->pointcache) {
-					if (psys->pointcache->flag & PTCACHE_BAKED && (psys->pointcache->flag & PTCACHE_DISK_CACHE) == 0) {
-						printf("Old memory cache isn't supported for particles, so re-bake the simulation!\n");
-						psys->pointcache->flag &= ~PTCACHE_BAKED;
-					}
-				}
-				else
+				if (!psys->pointcache)
 					psys->pointcache = BKE_ptcache_new();
 			}
 
