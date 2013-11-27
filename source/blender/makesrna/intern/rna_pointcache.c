@@ -83,32 +83,6 @@ static void rna_Cache_change(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerR
 	BLI_freelistN(&pidlist);
 }
 
-static void rna_Cache_toggle_disk_cache(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
-{
-	Object *ob = (Object *)ptr->id.data;
-	PointCache *cache = (PointCache *)ptr->data;
-	PTCacheID *pid = NULL;
-	ListBase pidlist;
-
-	if (!ob)
-		return;
-
-	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
-
-	for (pid = pidlist.first; pid; pid = pid->next) {
-		if (pid->cache == cache)
-			break;
-	}
-
-	/* smoke can only use disk cache */
-	if (pid && pid->type != PTCACHE_TYPE_SMOKE_DOMAIN)
-		BKE_ptcache_toggle_disk_cache(pid);
-	else
-		cache->flag ^= PTCACHE_DISK_CACHE;
-
-	BLI_freelistN(&pidlist);
-}
-
 static void rna_Cache_idname_change(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Object *ob = (Object *)ptr->id.data;
@@ -248,11 +222,6 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "is_baking", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_BAKING);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-
-	prop = RNA_def_property(srna, "use_disk_cache", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_DISK_CACHE);
-	RNA_def_property_ui_text(prop, "Disk Cache", "Save cache files to disk (.blend file must be saved first)");
-	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_toggle_disk_cache");
 
 	prop = RNA_def_property(srna, "is_outdated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_OUTDATED);

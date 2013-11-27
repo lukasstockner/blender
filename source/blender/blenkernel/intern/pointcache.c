@@ -3265,38 +3265,6 @@ void BKE_ptcache_mem_to_disk(PTCacheID *pid)
 	if (cache->flag & PTCACHE_BAKED)
 		BKE_ptcache_write(pid, 0);
 }
-void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
-{
-	PointCache *cache = pid->cache;
-	int last_exact = cache->last_exact;
-
-	if (!G.relbase_valid) {
-		cache->flag &= ~PTCACHE_DISK_CACHE;
-		if (G.debug & G_DEBUG)
-			printf("File must be saved before using disk cache!\n");
-		return;
-	}
-
-	if (cache->cached_frames) {
-		MEM_freeN(cache->cached_frames);
-		cache->cached_frames=NULL;
-	}
-
-	if (cache->flag & PTCACHE_DISK_CACHE)
-		BKE_ptcache_mem_to_disk(pid);
-	else
-		BKE_ptcache_disk_to_mem(pid);
-
-	cache->flag ^= PTCACHE_DISK_CACHE;
-	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
-	cache->flag ^= PTCACHE_DISK_CACHE;
-	
-	cache->last_exact = last_exact;
-
-	BKE_ptcache_id_time(pid, NULL, 0.0f, NULL, NULL, NULL);
-
-	BKE_ptcache_update_info(pid);
-}
 
 void BKE_ptcache_disk_cache_rename(PTCacheID *pid, const char *name_src, const char *name_dst)
 {

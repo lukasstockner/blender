@@ -135,10 +135,7 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
                 layout.label(text="Cache is disabled until the file is saved")
                 layout.enabled = False
 
-        if cache.use_disk_cache:
-            layout.prop(cache, "name", text="File Name")
-        else:
-            layout.prop(cache, "name", text="Cache Name")
+        layout.prop(cache, "name", text="File Name")
 
     if not cache.use_external or cachetype == 'SMOKE':
         row = layout.row(align=True)
@@ -156,29 +153,14 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
         can_bake = True
 
         if cachetype not in {'SMOKE', 'DYNAMIC_PAINT', 'RIGID_BODY'}:
-            split = layout.split()
-            split.enabled = enabled and bpy.data.is_saved
-
-            col = split.column()
-            col.prop(cache, "use_disk_cache")
-
-            col = split.column()
-            col.active = cache.use_disk_cache
+            col = layout.column()
+            col.enabled = enabled and bpy.data.is_saved
             col.prop(cache, "use_library_path", "Use Lib Path")
 
             row = layout.row()
             row.enabled = enabled and bpy.data.is_saved
-            row.active = cache.use_disk_cache
             row.label(text="Compression:")
             row.prop(cache, "compression", expand=True)
-
-            layout.separator()
-
-            if cache.id_data.library and not cache.use_disk_cache:
-                can_bake = False
-
-                col = layout.column(align=True)
-                col.label(text="Linked object baking requires Disk Cache to be enabled", icon='INFO')
         else:
             layout.separator()
 

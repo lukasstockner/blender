@@ -323,8 +323,6 @@ void BKE_ptcache_disk_to_mem(struct PTCacheID *pid);
 /* Convert memory cache to disk cache. */
 void BKE_ptcache_mem_to_disk(struct PTCacheID *pid);
 
-/* Convert disk cache to memory cache and vice versa. Clears the cache that was converted. */
-void BKE_ptcache_toggle_disk_cache(struct PTCacheID *pid);
 
 /* Rename all disk cache files with a new name. Doesn't touch the actual content of the files. */
 void BKE_ptcache_disk_cache_rename(struct PTCacheID *pid, const char *name_src, const char *name_dst);
