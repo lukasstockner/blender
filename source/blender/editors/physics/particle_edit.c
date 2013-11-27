@@ -85,7 +85,8 @@
 
 #include "physics_intern.h"
 
-static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache, ParticleSystem *psys);
+static void PE_create_particle_edit_from_psys(Scene *scene, Object *ob, ParticleSystem *psys);
+static void PE_create_particle_edit_from_cache(Scene *scene, Object *ob, PointCache *cache, ListBase *mem_cache);
 static void PTCacheUndo_clear(PTCacheEdit *edit);
 static void recalc_emitter_field(Object *ob, ParticleSystem *psys);
 
@@ -250,18 +251,18 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 				if (psys->part && psys->part->type == PART_HAIR) {
 					if (psys->flag & PSYS_HAIR_DYNAMICS && psys->pointcache->flag & PTCACHE_BAKED) {
 						if (create && !psys->pointcache->edit)
-							PE_create_particle_edit(scene, ob, pid->cache, NULL);
+							PE_create_particle_edit_from_cache(scene, ob, pid->cache, &psys->mem_pointcache);
 						edit = pid->cache->edit;
 					}
 					else {
 						if (create && !psys->edit && psys->flag & PSYS_HAIR_DONE)
-							PE_create_particle_edit(scene, ob, NULL, psys);
+							PE_create_particle_edit_from_psys(scene, ob, psys);
 						edit = psys->edit;
 					}
 				}
 				else {
 					if (create && pid->cache->flag & PTCACHE_BAKED && !pid->cache->edit)
-						PE_create_particle_edit(scene, ob, pid->cache, psys);
+						PE_create_particle_edit_from_cache(scene, ob, pid->cache, &psys->mem_pointcache);
 					edit = pid->cache->edit;
 				}
 
@@ -272,7 +273,10 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 			if (create && pid->cache->flag & PTCACHE_BAKED && !pid->cache->edit) {
 				pset->flag |= PE_FADE_TIME;
 				// NICE TO HAVE but doesn't work: pset->brushtype = PE_BRUSH_COMB;
-				PE_create_particle_edit(scene, ob, pid->cache, NULL);
+				/* XXX passing NULL for mem_cache will always fail, leaving it here
+				 * until point cache edit is reworked
+				 */
+				PE_create_particle_edit_from_cache(scene, ob, pid->cache, NULL);
 			}
 			edit = pid->cache->edit;
 			break;
@@ -281,7 +285,10 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 			if (create && pid->cache->flag & PTCACHE_BAKED && !pid->cache->edit) {
 				pset->flag |= PE_FADE_TIME;
 				// NICE TO HAVE but doesn't work: pset->brushtype = PE_BRUSH_COMB;
-				PE_create_particle_edit(scene, ob, pid->cache, NULL);
+				/* XXX passing NULL for mem_cache will always fail, leaving it here
+				 * until point cache edit is reworked
+				 */
+				PE_create_particle_edit_from_cache(scene, ob, pid->cache, NULL);
 			}
 			edit = pid->cache->edit;
 			break;
@@ -3948,7 +3955,7 @@ static void make_PTCacheUndo(PTCacheEdit *edit, PTCacheUndo *undo)
 	else {
 		PTCacheMem *pm;
 
-		BLI_duplicatelist(&undo->mem_cache, &edit->pid.cache->mem_cache);
+		BLI_duplicatelist(&undo->mem_cache, &edit->mem_cache);
 		pm = undo->mem_cache.first;
 
 		for (; pm; pm=pm->next) {
@@ -4018,11 +4025,11 @@ static void get_PTCacheUndo(PTCacheEdit *edit, PTCacheUndo *undo)
 		PTCacheMem *pm;
 		int i;
 
-		BKE_ptcache_free_mem(&edit->pid.cache->mem_cache);
+		BKE_ptcache_free_mem(&edit->mem_cache);
 
-		BLI_duplicatelist(&edit->pid.cache->mem_cache, &undo->mem_cache);
+		BLI_duplicatelist(&edit->mem_cache, &undo->mem_cache);
 
-		pm = edit->pid.cache->mem_cache.first;
+		pm = edit->mem_cache.first;
 
 		for (; pm; pm=pm->next) {
 			for (i=0; i<BPHYS_TOT_DATA; i++)
@@ -4233,8 +4240,20 @@ int PE_minmax(Scene *scene, float min[3], float max[3])
 
 /************************ particle edit toggle operator ************************/
 
+static void PE_create_particle_edit_common(PTCacheEdit *edit, Scene *scene, Object *ob)
+{
+	UI_GetThemeColor3ubv(TH_EDGE_SELECT, edit->sel_col);
+	UI_GetThemeColor3ubv(TH_WIRE, edit->nosel_col);
+	
+	recalc_lengths(edit);
+	PE_update_object(scene, ob, 1);
+	
+	PTCacheUndo_clear(edit);
+	PE_undo_push(scene, "Original");
+}
+
 /* initialize needed data for bake edit */
-static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache, ParticleSystem *psys)
+static void PE_create_particle_edit_from_psys(Scene *scene, Object *ob, ParticleSystem *psys)
 {
 	PTCacheEdit *edit;
 	ParticleSystemModifierData *psmd = (psys) ? psys_get_modifier(ob, psys) : NULL;
@@ -4244,101 +4263,109 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 	int totpoint;
 
 	/* no psmd->dm happens in case particle system modifier is not enabled */
-	if (!(psys && psmd && psmd->dm) && !cache)
+	if (!(psys && psmd && psmd->dm))
 		return;
 
-	if (cache && cache->flag & PTCACHE_DISK_CACHE)
-		return;
-
-	if (psys == NULL && (cache && cache->mem_cache.first == NULL))
-		return;
-
-	edit = (psys) ? psys->edit : cache->edit;
+	edit = psys->edit;
 
 	if (!edit) {
-		totpoint = psys ? psys->totpart : (int)((PTCacheMem *)cache->mem_cache.first)->totpoint;
+		totpoint = psys->totpart;
 
 		edit= MEM_callocN(sizeof(PTCacheEdit), "PE_create_particle_edit");
 		edit->points=MEM_callocN(totpoint*sizeof(PTCacheEditPoint), "PTCacheEditPoints");
 		edit->totpoint = totpoint;
 
-		if (psys && !cache) {
-			psys->edit= edit;
-			edit->psys = psys;
+		psys->edit= edit;
+		edit->psys = psys;
+		
+		psys->free_edit= PE_free_ptcache_edit;
+		
+		edit->pathcache = NULL;
+		edit->pathcachebufs.first = edit->pathcachebufs.last = NULL;
+		
+		pa = psys->particles;
+		LOOP_POINTS {
+			point->totkey = pa->totkey;
+			point->keys= MEM_callocN(point->totkey*sizeof(PTCacheEditKey), "ParticleEditKeys");
+			point->flag |= PEP_EDIT_RECALC;
+			
+			hkey = pa->hair;
+			LOOP_KEYS {
+				key->co= hkey->co;
+				key->time= &hkey->time;
+				key->flag= hkey->editflag;
+				if (!(psys->flag & PSYS_GLOBAL_HAIR)) {
+					key->flag |= PEK_USE_WCO;
+					hkey->editflag |= PEK_USE_WCO;
+				}
+				
+				hkey++;
+			}
+			pa++;
+		}
+		update_world_cos(ob, edit);
+		
+		recalc_emitter_field(ob, psys);
+		
+		PE_create_particle_edit_common(edit, scene, ob);
+	}
+}
 
-			psys->free_edit= PE_free_ptcache_edit;
 
-			edit->pathcache = NULL;
-			edit->pathcachebufs.first = edit->pathcachebufs.last = NULL;
+/* initialize needed data for bake edit */
+static void PE_create_particle_edit_from_cache(Scene *scene, Object *ob, PointCache *cache, ListBase *mem_cache)
+{
+	PTCacheEdit *edit;
+	POINT_P; PTCacheEditKey *key;
+	int totpoint;
 
-			pa = psys->particles;
+	if (!(cache && mem_cache && mem_cache->first))
+		return;
+
+	edit = cache->edit;
+
+	if (!edit) {
+		PTCacheMem *pm;
+		int totframe=0;
+
+		totpoint = (int)((PTCacheMem *)mem_cache->first)->totpoint;
+
+		edit= MEM_callocN(sizeof(PTCacheEdit), "PE_create_particle_edit");
+		edit->points=MEM_callocN(totpoint*sizeof(PTCacheEditPoint), "PTCacheEditPoints");
+		edit->totpoint = totpoint;
+
+		cache->edit= edit;
+		cache->free_edit= PE_free_ptcache_edit;
+		edit->mem_cache = *mem_cache;
+		edit->psys = NULL;
+		
+		for (pm=mem_cache->first; pm; pm=pm->next)
+			totframe++;
+		
+		for (pm=mem_cache->first; pm; pm=pm->next) {
 			LOOP_POINTS {
-				point->totkey = pa->totkey;
-				point->keys= MEM_callocN(point->totkey*sizeof(PTCacheEditKey), "ParticleEditKeys");
-				point->flag |= PEP_EDIT_RECALC;
-
-				hkey = pa->hair;
-				LOOP_KEYS {
-					key->co= hkey->co;
-					key->time= &hkey->time;
-					key->flag= hkey->editflag;
-					if (!(psys->flag & PSYS_GLOBAL_HAIR)) {
-						key->flag |= PEK_USE_WCO;
-						hkey->editflag |= PEK_USE_WCO;
-					}
-
-					hkey++;
+				if (BKE_ptcache_mem_pointers_seek(p, pm) == 0)
+					continue;
+				
+				if (!point->totkey) {
+					key = point->keys = MEM_callocN(totframe*sizeof(PTCacheEditKey), "ParticleEditKeys");
+					point->flag |= PEP_EDIT_RECALC;
 				}
-				pa++;
+				else
+					key = point->keys + point->totkey;
+				
+				key->co = pm->cur[BPHYS_DATA_LOCATION];
+				key->vel = pm->cur[BPHYS_DATA_VELOCITY];
+				key->rot = pm->cur[BPHYS_DATA_ROTATION];
+				key->ftime = (float)pm->frame;
+				key->time = &key->ftime;
+				BKE_ptcache_mem_pointers_incr(pm);
+				
+				point->totkey++;
 			}
-			update_world_cos(ob, edit);
-		}
-		else {
-			PTCacheMem *pm;
-			int totframe=0;
-
-			cache->edit= edit;
-			cache->free_edit= PE_free_ptcache_edit;
-			edit->psys = NULL;
-
-			for (pm=cache->mem_cache.first; pm; pm=pm->next)
-				totframe++;
-
-			for (pm=cache->mem_cache.first; pm; pm=pm->next) {
-				LOOP_POINTS {
-					if (BKE_ptcache_mem_pointers_seek(p, pm) == 0)
-						continue;
-
-					if (!point->totkey) {
-						key = point->keys = MEM_callocN(totframe*sizeof(PTCacheEditKey), "ParticleEditKeys");
-						point->flag |= PEP_EDIT_RECALC;
-					}
-					else
-						key = point->keys + point->totkey;
-
-					key->co = pm->cur[BPHYS_DATA_LOCATION];
-					key->vel = pm->cur[BPHYS_DATA_VELOCITY];
-					key->rot = pm->cur[BPHYS_DATA_ROTATION];
-					key->ftime = (float)pm->frame;
-					key->time = &key->ftime;
-					BKE_ptcache_mem_pointers_incr(pm);
-
-					point->totkey++;
-				}
-			}
-			psys = NULL;
 		}
 
-		UI_GetThemeColor3ubv(TH_EDGE_SELECT, edit->sel_col);
-		UI_GetThemeColor3ubv(TH_WIRE, edit->nosel_col);
-
-		recalc_lengths(edit);
-		if (psys && !cache)
-			recalc_emitter_field(ob, psys);
-		PE_update_object(scene, ob, 1);
-
-		PTCacheUndo_clear(edit);
-		PE_undo_push(scene, "Original");
+		PE_create_particle_edit_common(edit, scene, ob);
 	}
 }
 

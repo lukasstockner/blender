@@ -242,6 +242,7 @@ typedef struct PTCacheEdit {
 	PTCacheEditPoint *points;
 
 	struct PTCacheID pid;
+	struct ListBase mem_cache;
 
 	/* particles stuff */
 	struct ParticleSystem *psys;
