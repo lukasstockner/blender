@@ -130,7 +130,7 @@ typedef struct PointCache {
 #define PTCACHE_BAKING				8
 //#define PTCACHE_BAKE_EDIT			16
 //#define PTCACHE_BAKE_EDIT_ACTIVE	32
-#define PTCACHE_DISK_CACHE			64
+//#define PTCACHE_DISK_CACHE		64 /* DEPRECATED all caches are disk-based now (with optional packing in blend files) */
 //#define PTCACHE_QUICK_CACHE		128  /* removed since 2.64 - [#30974], could be added back in a more useful way */
 #define PTCACHE_FRAMES_SKIPPED		256
 #define PTCACHE_EXTERNAL			512

@@ -449,7 +449,7 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 
 #define BPATH_TRAVERSE_POINTCACHE(cache)                                   \
 	{                                                                      \
-		if (cache && cache->flag & PTCACHE_DISK_CACHE) {                            \
+		if (cache) {                            \
 			rewrite_path_fixed(cache->path,                                \
 			                   visit_cb,                                   \
 			                   absbase,                                    \

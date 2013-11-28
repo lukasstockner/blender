@@ -1039,7 +1039,6 @@ DynamicPaintSurface *dynamicPaint_createNewSurface(DynamicPaintCanvasSettings *c
 
 	/* cache */
 	surface->pointcache = BKE_ptcache_new();
-	surface->pointcache->flag |= PTCACHE_DISK_CACHE;
 	surface->pointcache->step = 1;
 
 	/* Set initial values */

@@ -518,7 +518,6 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->smd = smd;
 
 			smd->domain->point_cache[0] = BKE_ptcache_new();
-			smd->domain->point_cache[0]->flag |= PTCACHE_DISK_CACHE;
 			smd->domain->point_cache[0]->step = 1;
 
 			/* Deprecated */

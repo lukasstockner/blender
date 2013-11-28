@@ -2160,11 +2160,9 @@ static int ptcache_read(PTCacheID *pid, int cfra)
 			pid->read_extra_data(pid->calldata, pm, (float)pm->frame);
 
 		/* clean up temporary memory cache */
-		if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-			ptcache_data_free(pm);
-			ptcache_extra_free(pm);
-			MEM_freeN(pm);
-		}
+		ptcache_data_free(pm);
+		ptcache_extra_free(pm);
+		MEM_freeN(pm);
 	}
 
 	return 1;
@@ -2205,11 +2203,9 @@ static int ptcache_interpolate(PTCacheID *pid, float cfra, int cfra1, int cfra2)
 			pid->interpolate_extra_data(pid->calldata, pm, cfra, (float)cfra1, (float)cfra2);
 
 		/* clean up temporary memory cache */
-		if (pid->cache->flag & PTCACHE_DISK_CACHE) {
-			ptcache_data_free(pm);
-			ptcache_extra_free(pm);
-			MEM_freeN(pm);
-		}
+		ptcache_data_free(pm);
+		ptcache_extra_free(pm);
+		MEM_freeN(pm);
 	}
 
 	return 1;
@@ -2897,7 +2893,7 @@ PointCache *BKE_ptcache_copy(PointCache *cache, int copy_data)
 		ncache->cached_frames = NULL;
 
 		/* flag is a mix of user settings and simulator/baking state */
-		ncache->flag= ncache->flag & (PTCACHE_DISK_CACHE|PTCACHE_EXTERNAL|PTCACHE_IGNORE_LIBPATH);
+		ncache->flag= ncache->flag & (PTCACHE_EXTERNAL|PTCACHE_IGNORE_LIBPATH);
 		ncache->simframe= 0;
 	}
 	else {
@@ -3168,8 +3164,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 		if (bake) {
 			cache->flag |= PTCACHE_BAKED;
 			/* write info file */
-			if (cache->flag & PTCACHE_DISK_CACHE)
-				BKE_ptcache_write(pid, 0);
+			BKE_ptcache_write(pid, 0);
 		}
 	}
 	else {
@@ -3192,8 +3187,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 
 				if (bake) {
 					cache->flag |= PTCACHE_BAKED;
-					if (cache->flag & PTCACHE_DISK_CACHE)
-						BKE_ptcache_write(pid, 0);
+					BKE_ptcache_write(pid, 0);
 				}
 			}
 			BLI_freelistN(&pidlist);
@@ -3255,10 +3249,8 @@ void BKE_ptcache_from_mem(PTCacheID *pid, ListBase *mem_cache)
 	cache->flag |= baked;
 
 	for (; pm; pm=pm->next) {
-		if (ptcache_mem_frame_to_disk(pid, pm)==0) {
-			cache->flag &= ~PTCACHE_DISK_CACHE;
+		if (ptcache_mem_frame_to_disk(pid, pm)==0)
 			break;
-		}
 	}
 
 	/* write info file */
@@ -3417,7 +3409,7 @@ void BKE_ptcache_load_external(PTCacheID *pid)
 				ptcache_file_close(pf);
 			}
 		}
-		cache->flag |= (PTCACHE_BAKED|PTCACHE_DISK_CACHE|PTCACHE_SIMULATION_VALID);
+		cache->flag |= (PTCACHE_BAKED|PTCACHE_SIMULATION_VALID);
 		cache->flag &= ~(PTCACHE_OUTDATED|PTCACHE_FRAMES_SKIPPED);
 	}
 

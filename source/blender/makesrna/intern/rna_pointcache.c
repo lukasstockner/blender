@@ -124,7 +124,7 @@ static void rna_Cache_idname_change(Main *UNUSED(bmain), Scene *UNUSED(scene), P
 		}
 
 		if (new_name) {
-			if (pid2 && cache->flag & PTCACHE_DISK_CACHE) {
+			if (pid2) {
 				char old_name[80];
 				char new_name[80];
 

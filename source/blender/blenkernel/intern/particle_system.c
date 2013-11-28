@@ -2170,20 +2170,15 @@ static void set_keyed_keys(ParticleSimulationData *sim)
 /************************************************/
 void psys_make_temp_pointcache(Object *ob, ParticleSystem *psys)
 {
-	PointCache *cache = psys->pointcache;
-
-	if (cache->flag & PTCACHE_DISK_CACHE && psys->mem_pointcache.first == NULL) {
+	if (psys->mem_pointcache.first == NULL) {
 		PTCacheID pid;
 		BKE_ptcache_id_from_particles(&pid, ob, psys);
-		cache->flag &= ~PTCACHE_DISK_CACHE;
 		BKE_ptcache_to_mem(&pid, &psys->mem_pointcache);
-		cache->flag |= PTCACHE_DISK_CACHE;
 	}
 }
 static void psys_clear_temp_pointcache(ParticleSystem *psys)
 {
-	if (psys->pointcache->flag & PTCACHE_DISK_CACHE)
-		BKE_ptcache_free_mem(&psys->mem_pointcache);
+	BKE_ptcache_free_mem(&psys->mem_pointcache);
 }
 void psys_get_pointcache_start_end(Scene *scene, ParticleSystem *psys, int *sfra, int *efra)
 {
