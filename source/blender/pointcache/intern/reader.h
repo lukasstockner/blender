@@ -23,6 +23,8 @@
 
 #include <Alembic/Abc/IArchive.h>
 
+struct Scene;
+
 namespace PTC {
 
 using namespace Alembic;
@@ -31,6 +33,8 @@ class Reader {
 public:
 	Reader(const std::string &filename);
 	virtual ~Reader();
+	
+	void get_frame_range(Scene *scene, int &start_frame, int &end_frame);
 	
 	virtual void read_sample() = 0;
 	

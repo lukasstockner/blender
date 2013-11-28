@@ -17,8 +17,13 @@
  */
 
 #include <Alembic/AbcCoreHDF5/ReadWrite.h>
+#include <Alembic/Abc/ArchiveInfo.h>
 
 #include "reader.h"
+
+extern "C" {
+#include "DNA_scene_types.h"
+}
 
 namespace PTC {
 
@@ -32,5 +37,23 @@ Reader::Reader(const std::string &filename)
 Reader::~Reader()
 {
 }
+
+void Reader::get_frame_range(Scene *scene, int &start_frame, int &end_frame)
+{
+	if (scene->r.frs_sec_base == 0.0f) {
+		/* Should never happen, just to be safe */
+		start_frame = end_frame = 1;
+		return;
+	}
+	
+	double start_time, end_time;
+	GetArchiveStartAndEndTime(m_archive, start_time, end_time);
+	
+	double fps = (double)scene->r.frs_sec / (double)scene->r.frs_sec_base;
+	start_frame = start_time * fps;
+	end_frame = end_time * fps;
+}
+
+//AbcA::TimeSamplingPtr ts = iArchive.getTimeSampling( i )
 
 } /* namespace PTC */
