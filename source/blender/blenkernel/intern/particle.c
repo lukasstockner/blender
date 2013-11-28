@@ -1099,15 +1099,15 @@ typedef struct ParticleInterpolationData {
 	float birthtime, dietime;
 	int bspline;
 } ParticleInterpolationData;
-/* Assumes pointcache->mem_cache exists, so for disk cached particles call psys_make_temp_pointcache() before use */
+/* Assumes mem_cache exists, so call psys_make_temp_pointcache() before use */
 /* It uses ParticleInterpolationData->pm to store the current memory cache frame so it's thread safe. */
-static void get_pointcache_keys_for_time(Object *UNUSED(ob), PointCache *cache, PTCacheMem **cur, int index, float t, ParticleKey *key1, ParticleKey *key2)
+static void get_pointcache_keys_for_time(Object *UNUSED(ob), ListBase *mem_cache, PTCacheMem **cur, int index, float t, ParticleKey *key1, ParticleKey *key2)
 {
 	static PTCacheMem *pm = NULL;
 	int index1, index2;
 
 	if (index < 0) { /* initialize */
-		*cur = cache->mem_cache.first;
+		*cur = mem_cache->first;
 
 		if (*cur)
 			*cur = (*cur)->next;
@@ -1128,20 +1128,20 @@ static void get_pointcache_keys_for_time(Object *UNUSED(ob), PointCache *cache, 
 			else
 				BKE_ptcache_make_particle_key(key1, index1, pm->prev->data, (float)pm->prev->frame);
 		}
-		else if (cache->mem_cache.first) {
-			pm = cache->mem_cache.first;
+		else if (mem_cache->first) {
+			pm = mem_cache->first;
 			index2 = BKE_ptcache_mem_index_find(pm, index);
 			BKE_ptcache_make_particle_key(key2, index2, pm->data, (float)pm->frame);
 			copy_particle_key(key1, key2, 1);
 		}
 	}
 }
-static int get_pointcache_times_for_particle(PointCache *cache, int index, float *start, float *end)
+static int get_pointcache_times_for_particle(ListBase *mem_cache, int index, float *start, float *end)
 {
 	PTCacheMem *pm;
 	int ret = 0;
 
-	for (pm = cache->mem_cache.first; pm; pm = pm->next) {
+	for (pm = mem_cache->first; pm; pm = pm->next) {
 		if (BKE_ptcache_mem_index_find(pm, index) >= 0) {
 			*start = pm->frame;
 			ret++;
@@ -1149,7 +1149,7 @@ static int get_pointcache_times_for_particle(PointCache *cache, int index, float
 		}
 	}
 
-	for (pm = cache->mem_cache.last; pm; pm = pm->prev) {
+	for (pm = mem_cache->last; pm; pm = pm->prev) {
 		if (BKE_ptcache_mem_index_find(pm, index) >= 0) {
 			*end = pm->frame;
 			ret++;
@@ -1160,12 +1160,12 @@ static int get_pointcache_times_for_particle(PointCache *cache, int index, float
 	return ret == 2;
 }
 
-float psys_get_dietime_from_cache(PointCache *cache, int index)
+float psys_get_dietime_from_cache(ListBase *mem_cache, int index)
 {
 	PTCacheMem *pm;
 	int dietime = 10000000; /* some max value so that we can default to pa->time+lifetime */
 
-	for (pm = cache->mem_cache.last; pm; pm = pm->prev) {
+	for (pm = mem_cache->last; pm; pm = pm->prev) {
 		if (BKE_ptcache_mem_index_find(pm, index) >= 0)
 			return (float)pm->frame;
 	}
@@ -1195,11 +1195,11 @@ static void init_particle_interpolation(Object *ob, ParticleSystem *psys, Partic
 	}
 	else if (pind->cache) {
 		float start = 0.0f, end = 0.0f;
-		get_pointcache_keys_for_time(ob, pind->cache, &pind->pm, -1, 0.0f, NULL, NULL);
+		get_pointcache_keys_for_time(ob, &psys->mem_pointcache, &pind->pm, -1, 0.0f, NULL, NULL);
 		pind->birthtime = pa ? pa->time : pind->cache->startframe;
 		pind->dietime = pa ? pa->dietime : pind->cache->endframe;
 
-		if (get_pointcache_times_for_particle(pind->cache, pa - psys->particles, &start, &end)) {
+		if (get_pointcache_times_for_particle(&psys->mem_pointcache, pa - psys->particles, &start, &end)) {
 			pind->birthtime = MAX2(pind->birthtime, start);
 			pind->dietime = MIN2(pind->dietime, end);
 		}
@@ -1332,7 +1332,7 @@ static void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData 
 		memcpy(keys + 2, pind->kkey[1], sizeof(ParticleKey));
 	}
 	else if (pind->cache) {
-		get_pointcache_keys_for_time(NULL, pind->cache, &pind->pm, p, real_t, keys + 1, keys + 2);
+		get_pointcache_keys_for_time(NULL, &psys->mem_pointcache, &pind->pm, p, real_t, keys + 1, keys + 2);
 	}
 	else {
 		hair_to_particle(keys + 1, pind->hkey[0]);
@@ -2968,7 +2968,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 			return;
 
 	keyed = psys->flag & PSYS_KEYED;
-	baked = psys->pointcache->mem_cache.first && psys->part->type != PART_HAIR;
+	baked = psys->mem_pointcache.first && psys->part->type != PART_HAIR;
 
 	/* clear out old and create new empty path cache */
 	psys_free_path_cache(psys, psys->edit);

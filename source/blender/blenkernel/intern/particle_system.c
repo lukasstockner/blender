@@ -2026,8 +2026,8 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 	pa->dietime = pa->time + pa->lifetime;
 
 	if (sim->psys->pointcache && sim->psys->pointcache->flag & PTCACHE_BAKED &&
-		sim->psys->pointcache->mem_cache.first) {
-		float dietime = psys_get_dietime_from_cache(sim->psys->pointcache, p);
+		sim->psys->mem_pointcache.first) {
+		float dietime = psys_get_dietime_from_cache(&sim->psys->mem_pointcache, p);
 		pa->dietime = MIN2(pa->dietime, dietime);
 	}
 
