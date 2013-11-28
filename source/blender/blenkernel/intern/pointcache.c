@@ -3432,7 +3432,6 @@ void BKE_ptcache_load_external(PTCacheID *pid)
 void BKE_ptcache_update_info(PTCacheID *pid)
 {
 	PointCache *cache = pid->cache;
-	PTCacheExtra *extra = NULL;
 	int totframes = 0;
 	char mem_info[64];
 

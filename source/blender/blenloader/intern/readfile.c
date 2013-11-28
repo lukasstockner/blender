@@ -3575,17 +3575,6 @@ static void direct_link_material(FileData *fd, Material *ma)
 }
 
 /* ************ READ PARTICLE SETTINGS ***************** */
-/* update this also to writefile.c */
-static const char *ptcache_data_struct[] = {
-	"", // BPHYS_DATA_INDEX
-	"", // BPHYS_DATA_LOCATION
-	"", // BPHYS_DATA_VELOCITY
-	"", // BPHYS_DATA_ROTATION
-	"", // BPHYS_DATA_AVELOCITY / BPHYS_DATA_XCONST */
-	"", // BPHYS_DATA_SIZE:
-	"", // BPHYS_DATA_TIMES:
-	"BoidData" // case BPHYS_DATA_BOIDS:
-};
 static void direct_link_pointcache(FileData *UNUSED(fd), PointCache *cache)
 {
 	if (!cache)

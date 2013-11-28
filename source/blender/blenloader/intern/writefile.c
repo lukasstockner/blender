@@ -934,21 +934,6 @@ static void write_boid_state(WriteData *wd, BoidState *state)
 	//	writestruct(wd, DATA, "BoidCondition", 1, cond);
 }
 
-/* update this also to readfile.c */
-static const char *ptcache_data_struct[] = {
-	"", // BPHYS_DATA_INDEX
-	"", // BPHYS_DATA_LOCATION
-	"", // BPHYS_DATA_VELOCITY
-	"", // BPHYS_DATA_ROTATION
-	"", // BPHYS_DATA_AVELOCITY / BPHYS_DATA_XCONST */
-	"", // BPHYS_DATA_SIZE:
-	"", // BPHYS_DATA_TIMES:
-	"BoidData" // case BPHYS_DATA_BOIDS:
-};
-static const char *ptcache_extra_struct[] = {
-	"",
-	"ParticleSpring"
-};
 static void write_pointcache(WriteData *wd, PointCache *cache)
 {
 	writestruct(wd, DATA, "PointCache", 1, cache);
