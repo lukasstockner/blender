@@ -393,4 +393,8 @@ float psys_get_current_display_percentage(struct ParticleSystem *psys);
 #define DMCACHE_NOTFOUND    -1
 #define DMCACHE_ISCHILD     -2
 
+/* Point Cache memory storage */
+
+
+
 #endif
