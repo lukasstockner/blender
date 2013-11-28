@@ -31,15 +31,17 @@ using namespace Alembic;
 
 class Reader {
 public:
-	Reader(const std::string &filename);
+	Reader(const std::string &filename, Scene *scene);
 	virtual ~Reader();
 	
-	void get_frame_range(Scene *scene, int &start_frame, int &end_frame);
+	void get_frame_range(int &start_frame, int &end_frame);
 	
 	virtual void read_sample() = 0;
 	
 protected:
 	Abc::IArchive m_archive;
+	
+	Scene *m_scene;
 };
 
 } /* namespace PTC */

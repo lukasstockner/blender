@@ -31,15 +31,17 @@ using namespace Alembic;
 
 class Writer {
 public:
-	Writer(const std::string &filename);
+	Writer(const std::string &filename, Scene *scene);
 	virtual ~Writer();
 	
-	uint32_t add_frame_sampling(Scene *scene);
+	uint32_t add_frame_sampling();
 	
 	virtual void write_sample() = 0;
 	
 protected:
 	Abc::OArchive m_archive;
+	
+	Scene *m_scene;
 };
 
 } /* namespace PTC */

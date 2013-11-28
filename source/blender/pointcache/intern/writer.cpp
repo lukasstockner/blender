@@ -39,7 +39,8 @@ static void ensure_directory(const char *filename)
 	BLI_dir_create_recursive(dir);
 }
 
-Writer::Writer(const std::string &filename)
+Writer::Writer(const std::string &filename, Scene *scene) :
+    m_scene(scene)
 {
 	ensure_directory(filename.c_str());
 	m_archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, ErrorHandler::kThrowPolicy);
@@ -49,16 +50,16 @@ Writer::~Writer()
 {
 }
 
-uint32_t Writer::add_frame_sampling(Scene *scene)
+uint32_t Writer::add_frame_sampling()
 {
-	if (scene->r.frs_sec == 0.0f) {
+	if (m_scene->r.frs_sec == 0.0f) {
 		/* Should never happen, just to be safe
 		 * Index 0 is the default time sampling with a step of 1.0
 		 */
 		return 0;
 	}
 	
-	chrono_t cycle_time = (double)scene->r.frs_sec_base / (double)scene->r.frs_sec;
+	chrono_t cycle_time = (double)m_scene->r.frs_sec_base / (double)m_scene->r.frs_sec;
 	chrono_t start_time = 0.0f;
 	return m_archive.addTimeSampling(TimeSampling(cycle_time, start_time));
 }
