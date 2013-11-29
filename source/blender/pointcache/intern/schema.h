@@ -23,8 +23,6 @@
 #include <Alembic/AbcGeom/IGeomBase.h>
 #include <Alembic/AbcGeom/OGeomBase.h>
 
-#include "types.h"
-
 namespace PTC {
 
 #if 0

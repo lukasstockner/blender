@@ -61,7 +61,6 @@ if(WITH_ALEMBIC)
 	intern/reader.cpp
 	intern/schema.h
 	intern/thread.h
-	intern/types.h
 	intern/writer.h
 	intern/writer.cpp
 	)

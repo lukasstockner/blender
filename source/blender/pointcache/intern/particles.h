@@ -24,7 +24,6 @@
 
 #include "reader.h"
 #include "schema.h"
-#include "types.h"
 #include "writer.h"
 
 struct Object;
