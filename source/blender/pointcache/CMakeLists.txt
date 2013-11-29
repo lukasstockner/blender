@@ -37,6 +37,8 @@ set(INC_SYS
 )
 
 set(SRC
+	util/util_frame_mapper.h
+	util/util_frame_mapper.cpp
 	util/util_path.h
 	util/util_path.cpp
 

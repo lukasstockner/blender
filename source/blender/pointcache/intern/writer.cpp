@@ -40,6 +40,7 @@ static void ensure_directory(const char *filename)
 }
 
 Writer::Writer(const std::string &filename, Scene *scene) :
+    FrameMapper(scene),
     m_scene(scene)
 {
 	ensure_directory(filename.c_str());
@@ -52,14 +53,7 @@ Writer::~Writer()
 
 uint32_t Writer::add_frame_sampling()
 {
-	if (m_scene->r.frs_sec == 0.0f) {
-		/* Should never happen, just to be safe
-		 * Index 0 is the default time sampling with a step of 1.0
-		 */
-		return 0;
-	}
-	
-	chrono_t cycle_time = (double)m_scene->r.frs_sec_base / (double)m_scene->r.frs_sec;
+	chrono_t cycle_time = seconds_per_frame();
 	chrono_t start_time = 0.0f;
 	return m_archive.addTimeSampling(TimeSampling(cycle_time, start_time));
 }

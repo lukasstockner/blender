@@ -16,36 +16,32 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_WRITER_H
-#define PTC_WRITER_H
+#ifndef PTC_UTIL_FRAME_MAPPER_H
+#define PTC_UTIL_FRAME_MAPPER_H
 
-#include <string>
-
-#include <Alembic/Abc/OArchive.h>
-
-#include "util/util_frame_mapper.h"
+#include <Alembic/AbcCoreAbstract/Foundation.h>
 
 struct Scene;
 
 namespace PTC {
 
-using namespace Alembic;
+using Alembic::AbcCoreAbstract::chrono_t;
 
-class Writer : public FrameMapper {
+class FrameMapper {
 public:
-	Writer(const std::string &filename, Scene *scene);
-	virtual ~Writer();
+	FrameMapper(double fps);
+	FrameMapper(Scene *scene);
 	
-	uint32_t add_frame_sampling();
+	double frames_per_second() const { return m_frames_per_sec; }
+	double seconds_per_frame() const { return m_sec_per_frame; }
 	
-	virtual void write_sample() = 0;
+	chrono_t frame_to_time(float frame) const;
+	float time_to_frame(chrono_t time) const;
 	
-protected:
-	Abc::OArchive m_archive;
-	
-	Scene *m_scene;
+private:
+	double m_frames_per_sec, m_sec_per_frame;
 };
 
 } /* namespace PTC */
 
-#endif  /* PTC_WRITER_H */
+#endif  /* PTC_UTIL_FRAME_MAPPER_H */

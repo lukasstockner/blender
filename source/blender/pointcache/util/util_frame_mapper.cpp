@@ -16,36 +16,36 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_WRITER_H
-#define PTC_WRITER_H
+#include "util_frame_mapper.h"
 
-#include <string>
-
-#include <Alembic/Abc/OArchive.h>
-
-#include "util/util_frame_mapper.h"
-
-struct Scene;
+extern "C" {
+#include "DNA_scene_types.h"
+}
 
 namespace PTC {
 
-using namespace Alembic;
+using Alembic::AbcCoreAbstract::chrono_t;
 
-class Writer : public FrameMapper {
-public:
-	Writer(const std::string &filename, Scene *scene);
-	virtual ~Writer();
-	
-	uint32_t add_frame_sampling();
-	
-	virtual void write_sample() = 0;
-	
-protected:
-	Abc::OArchive m_archive;
-	
-	Scene *m_scene;
-};
+FrameMapper::FrameMapper(double fps)
+{
+	m_frames_per_sec = fps;
+	m_sec_per_frame = (fps == 0.0 ? 0.0 : 1.0/fps);
+}
+
+FrameMapper::FrameMapper(Scene *scene)
+{
+	m_frames_per_sec = (scene->r.frs_sec_base == 0.0f ? 0.0 : (double)scene->r.frs_sec / (double)scene->r.frs_sec_base);
+	m_sec_per_frame = (scene->r.frs_sec == 0.0f ? 0.0 : (double)scene->r.frs_sec_base / (double)scene->r.frs_sec);
+}
+
+chrono_t FrameMapper::frame_to_time(float frame) const
+{
+	return (double)(frame - 1.0f) * m_sec_per_frame;
+}
+
+float FrameMapper::time_to_frame(chrono_t time) const
+{
+	return (float)(time * m_frames_per_sec) + 1.0f;
+}
 
 } /* namespace PTC */
-
-#endif  /* PTC_WRITER_H */

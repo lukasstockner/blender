@@ -30,6 +30,7 @@ namespace PTC {
 using namespace Abc;
 
 Reader::Reader(const std::string &filename, Scene *scene) :
+    FrameMapper(scene),
     m_scene(scene)
 {
 	m_archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, ErrorHandler::kThrowPolicy);
@@ -41,14 +42,11 @@ Reader::~Reader()
 
 void Reader::get_frame_range(int &start_frame, int &end_frame)
 {
-	if (m_scene->r.frs_sec_base == 0.0f) {
-		/* Should never happen, just to be safe */
-		start_frame = end_frame = 1;
-		return;
-	}
-	
 	double start_time, end_time;
 	GetArchiveStartAndEndTime(m_archive, start_time, end_time);
+	start_frame = time_to_frame(start_time);
+	end_frame = time_to_frame(end_time);
+}
 	
 	double fps = (double)m_scene->r.frs_sec / (double)m_scene->r.frs_sec_base;
 	start_frame = start_time * fps;

@@ -23,13 +23,15 @@
 
 #include <Alembic/Abc/IArchive.h>
 
+#include "util/util_frame_mapper.h"
+
 struct Scene;
 
 namespace PTC {
 
 using namespace Alembic;
 
-class Reader {
+class Reader : public FrameMapper {
 public:
 	Reader(const std::string &filename, Scene *scene);
 	virtual ~Reader();
