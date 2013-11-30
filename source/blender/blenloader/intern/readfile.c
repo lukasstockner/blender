@@ -7357,7 +7357,7 @@ static void do_versions_userdef(FileData *fd, BlendFileData *bfd)
 
 }
 
-static void do_versions_pointcache(ID *id, PointCache *cache)
+static void do_versions_pointcache(ID *UNUSED(id), PointCache *cache)
 {
 	int oldflag = cache->flag;
 	int cache_flag = 0, cache_state_flag = 0;
