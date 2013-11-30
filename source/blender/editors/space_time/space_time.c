@@ -213,10 +213,10 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		glRectf((float)sta, 0.0, (float)end, 1.0);
 		
 		col[3] = 0.4f;
-		if (pid->cache->flag & PTCACHE_BAKED) {
+		if (pid->cache->state.flag & PTC_STATE_BAKED) {
 			col[0] -= 0.4f; col[1] -= 0.4f; col[2] -= 0.4f;
 		}
-		else if (pid->cache->flag & PTCACHE_OUTDATED) {
+		else if (pid->cache->state.flag & PTC_STATE_OUTDATED) {
 			col[0] += 0.4f; col[1] += 0.4f; col[2] += 0.4f;
 		}
 		glColor4fv(col);

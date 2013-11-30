@@ -62,7 +62,7 @@ static void rna_Cache_change(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerR
 	if (!ob)
 		return;
 
-	cache->flag |= PTCACHE_OUTDATED;
+	cache->state.flag |= PTC_STATE_OUTDATED;
 
 	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 
@@ -98,7 +98,7 @@ static void rna_Cache_idname_change(Main *UNUSED(bmain), Scene *UNUSED(scene), P
 
 	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 
-	if (cache->flag & PTCACHE_EXTERNAL) {
+	if (cache->flag & PTC_EXTERNAL) {
 		for (pid = pidlist.first; pid; pid = pid->next) {
 			if (pid->cache == cache)
 				break;
@@ -216,20 +216,20 @@ static void rna_def_pointcache(BlenderRNA *brna)
 
 	/* flags */
 	prop = RNA_def_property(srna, "is_baked", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_BAKED);
+	RNA_def_property_boolean_sdna(prop, NULL, "state.flag", PTC_STATE_BAKED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	prop = RNA_def_property(srna, "is_baking", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_BAKING);
+	RNA_def_property_boolean_sdna(prop, NULL, "state.flag", PTC_STATE_BAKING);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	prop = RNA_def_property(srna, "is_outdated", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_OUTDATED);
+	RNA_def_property_boolean_sdna(prop, NULL, "state.flag", PTC_STATE_OUTDATED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Cache is outdated", "");
 
 	prop = RNA_def_property(srna, "frames_skipped", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_FRAMES_SKIPPED);
+	RNA_def_property_boolean_sdna(prop, NULL, "state.flag", PTC_STATE_FRAMES_SKIPPED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
@@ -257,12 +257,12 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Cache Info", "Info on current cache status");
 
 	prop = RNA_def_property(srna, "use_external", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_EXTERNAL);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTC_EXTERNAL);
 	RNA_def_property_ui_text(prop, "External", "Read cache from an external location");
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
 
 	prop = RNA_def_property(srna, "use_library_path", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", PTCACHE_IGNORE_LIBPATH);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", PTC_IGNORE_LIBPATH);
 	RNA_def_property_ui_text(prop, "Library Path",
 	                         "Use this file's path for the disk cache when library linked into another file "
 	                         "(for local bakes per scene file, disable this option)");

@@ -934,9 +934,9 @@ static void object_cacheIgnoreClear(Object *ob, int state)
 	for (pid = pidlist.first; pid; pid = pid->next) {
 		if (pid->cache) {
 			if (state)
-				pid->cache->flag |= PTCACHE_IGNORE_CLEAR;
+				pid->cache->flag |= PTC_IGNORE_CLEAR;
 			else
-				pid->cache->flag &= ~PTCACHE_IGNORE_CLEAR;
+				pid->cache->flag &= ~PTC_IGNORE_CLEAR;
 		}
 	}
 
@@ -2656,10 +2656,10 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 			smokeModifier_reset_ex(smd, false);
 			BKE_ptcache_validate(cache, framenr);
-			cache->flag &= ~PTCACHE_REDO_NEEDED;
+			cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 		}
 
-		if (!smd->domain->fluid && (framenr != startframe) && (smd->domain->flags & MOD_SMOKE_FILE_LOAD) == 0 && (cache->flag & PTCACHE_BAKED) == 0)
+		if (!smd->domain->fluid && (framenr != startframe) && (smd->domain->flags & MOD_SMOKE_FILE_LOAD) == 0 && (cache->state.flag & PTC_STATE_BAKED) == 0)
 			return;
 
 		smd->domain->flags &= ~MOD_SMOKE_FILE_LOAD;
@@ -2693,7 +2693,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 		tstart();
 
 		/* if on second frame, write cache for first frame */
-		if ((int)smd->time == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
+		if ((int)smd->time == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->last_exact == 0)) {
 			BKE_ptcache_write(&pid, startframe);
 		}
 

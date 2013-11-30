@@ -100,11 +100,11 @@ static void ptcache_free_bake(PointCache *cache)
 		if (!cache->edit->edited || 1) {// XXX okee("Lose changes done in particle mode?")) {
 			PE_free_ptcache_edit(cache->edit);
 			cache->edit = NULL;
-			cache->flag &= ~PTCACHE_BAKED;
+			cache->state.flag &= ~PTC_STATE_BAKED;
 		}
 	}
 	else {
-		cache->flag &= ~PTCACHE_BAKED;
+		cache->state.flag &= ~PTC_STATE_BAKED;
 	}
 }
 
@@ -271,7 +271,7 @@ static int ptcache_bake_from_cache_exec(bContext *C, wmOperator *UNUSED(op))
 	PointCache *cache= ptr.data;
 	Object *ob= ptr.id.data;
 	
-	cache->flag |= PTCACHE_BAKED;
+	cache->state.flag |= PTC_STATE_BAKED;
 	
 	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
 

@@ -5807,7 +5807,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			BKE_ptcache_ids_from_object(&pidlist, ob, t->scene, MAX_DUPLI_RECUR);
 			for (pid = pidlist.first; pid; pid = pid->next) {
 				if (pid->type != PTCACHE_TYPE_PARTICLES) /* particles don't need reset on geometry change */
-					pid->cache->flag |= PTCACHE_OUTDATED;
+					pid->cache->state.flag |= PTC_STATE_OUTDATED;
 			}
 			BLI_freelistN(&pidlist);
 

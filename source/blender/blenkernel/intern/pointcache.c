@@ -1430,8 +1430,8 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 
 static int ptcache_path(PointCache *cache, Object *ob, char *filename)
 {
-	bool is_external = cache && (cache->flag & PTCACHE_EXTERNAL);
-	bool ignore_libpath = cache && (cache->flag & PTCACHE_IGNORE_LIBPATH);
+	bool is_external = cache && (cache->flag & PTC_EXTERNAL);
+	bool ignore_libpath = cache && (cache->flag & PTC_IGNORE_LIBPATH);
 	Library *lib = ob ? ob->id.lib : NULL;
 	const char *blendfilename= (lib && !ignore_libpath) ? lib->filepath: G.main->name;
 	size_t i;
@@ -1470,7 +1470,7 @@ static int ptcache_path(PointCache *cache, Object *ob, char *filename)
 static int ptcache_filename(PTCacheID *pid, char *filename, int cfra, short do_path, short do_ext)
 {
 	PointCache *cache = pid->cache;
-	bool is_external = (cache->flag & PTCACHE_EXTERNAL);
+	bool is_external = (cache->flag & PTC_EXTERNAL);
 	int len=0;
 	char *idname;
 	char *newname;
@@ -1532,7 +1532,7 @@ static PTCacheFile *ptcache_file_open(PTCacheID *pid, int mode, int cfra)
 	if (pid->ob->id.lib && mode == PTCACHE_FILE_WRITE)
 		return NULL;
 #endif
-	if (!G.relbase_valid && (pid->cache->flag & PTCACHE_EXTERNAL)==0) return NULL; /* save blend file before using disk pointcache */
+	if (!G.relbase_valid && (pid->cache->flag & PTC_EXTERNAL)==0) return NULL; /* save blend file before using disk pointcache */
 	
 	ptcache_filename(pid, filename, cfra, 1, 1);
 
@@ -2222,8 +2222,8 @@ int BKE_ptcache_read(PTCacheID *pid, float cfra)
 	if (pid->totpoint(pid->calldata, cfrai) == 0)
 		return 0;
 
-	if (cache->flag & PTCACHE_READ_INFO) {
-		cache->flag &= ~PTCACHE_READ_INFO;
+	if (cache->state.flag & PTC_STATE_READ_INFO) {
+		cache->state.flag &= ~PTC_STATE_READ_INFO;
 		ptcache_read(pid, 0);
 	}
 
@@ -2277,12 +2277,12 @@ int BKE_ptcache_read(PTCacheID *pid, float cfra)
 
 	cfrai = (int)cfra;
 	/* clear invalid cache frames so that better stuff can be simulated */
-	if (cache->flag & PTCACHE_OUTDATED) {
+	if (cache->state.flag & PTC_STATE_OUTDATED) {
 		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, cfrai);
 	}
-	else if (cache->flag & PTCACHE_FRAMES_SKIPPED) {
+	else if (cache->state.flag & PTC_STATE_FRAMES_SKIPPED) {
 		if (cfra <= cache->last_exact)
-			cache->flag &= ~PTCACHE_FRAMES_SKIPPED;
+			cache->state.flag &= ~PTC_STATE_FRAMES_SKIPPED;
 
 		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, MAX2(cfrai, cache->last_exact));
 	}
@@ -2390,7 +2390,7 @@ static int ptcache_write_needed(PTCacheID *pid, int cfra, int *overwrite)
 	/* allways start from scratch on the first frame */
 	if (cfra && cfra == cache->startframe) {
 		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, cfra);
-		cache->flag &= ~PTCACHE_REDO_NEEDED;
+		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 		return 1;
 	}
 
@@ -2440,11 +2440,11 @@ int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra)
 	/* Mark frames skipped if more than 1 frame forwards since last non-skipped frame. */
 	if (cfra - cache->last_exact == 1 || cfra == cache->startframe) {
 		cache->last_exact = cfra;
-		cache->flag &= ~PTCACHE_FRAMES_SKIPPED;
+		cache->state.flag &= ~PTC_STATE_FRAMES_SKIPPED;
 	}
 	/* Don't mark skipped when writing info file (frame 0) */
 	else if (cfra)
-		cache->flag |= PTCACHE_FRAMES_SKIPPED;
+		cache->state.flag |= PTC_STATE_FRAMES_SKIPPED;
 
 	/* Update timeline cache display */
 	if (cfra && cache->cached_frames)
@@ -2472,10 +2472,10 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 	char path_full[MAX_PTCACHE_FILE];
 	char ext[MAX_PTCACHE_PATH];
 
-	if (!pid || !pid->cache || pid->cache->flag & PTCACHE_BAKED)
+	if (!pid || !pid->cache || pid->cache->state.flag & PTC_STATE_BAKED)
 		return;
 
-	if (pid->cache->flag & PTCACHE_IGNORE_CLEAR)
+	if (pid->cache->flag & PTC_IGNORE_CLEAR)
 		return;
 
 	sta = pid->cache->startframe;
@@ -2683,28 +2683,28 @@ int  BKE_ptcache_id_reset(Scene *scene, PTCacheID *pid, int mode)
 	after= 0;
 
 	if (mode == PTCACHE_RESET_DEPSGRAPH) {
-		if (!(cache->flag & PTCACHE_BAKED)) {
+		if (!(cache->state.flag & PTC_STATE_BAKED)) {
 
 			after= 1;
 		}
 
-		cache->flag |= PTCACHE_OUTDATED;
+		cache->state.flag |= PTC_STATE_OUTDATED;
 	}
 	else if (mode == PTCACHE_RESET_BAKED) {
-		cache->flag |= PTCACHE_OUTDATED;
+		cache->state.flag |= PTC_STATE_OUTDATED;
 	}
 	else if (mode == PTCACHE_RESET_OUTDATED) {
 		reset = 1;
 
-		if (cache->flag & PTCACHE_OUTDATED && !(cache->flag & PTCACHE_BAKED)) {
+		if (cache->state.flag & PTC_STATE_OUTDATED && !(cache->state.flag & PTC_STATE_BAKED)) {
 			clear= 1;
-			cache->flag &= ~PTCACHE_OUTDATED;
+			cache->state.flag &= ~PTC_STATE_OUTDATED;
 		}
 	}
 
 	if (reset) {
 		BKE_ptcache_invalidate(cache);
-		cache->flag &= ~PTCACHE_REDO_NEEDED;
+		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 
 		if (pid->type == PTCACHE_TYPE_CLOTH)
 			cloth_free_modifier(pid->calldata);
@@ -2751,7 +2751,7 @@ int  BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 		/* particles or cloth in that case -jahka */
 		else if (psys->clmd) {
 			BKE_ptcache_id_from_cloth(&pid, ob, psys->clmd);
-			if (mode == PSYS_RESET_ALL || !(psys->part->type == PART_HAIR && (pid.cache->flag & PTCACHE_BAKED))) 
+			if (mode == PSYS_RESET_ALL || !(psys->part->type == PART_HAIR && (pid.cache->state.flag & PTC_STATE_BAKED))) 
 				reset |= BKE_ptcache_id_reset(scene, &pid, mode);
 			else
 				skip = 1;
@@ -2793,7 +2793,7 @@ int  BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 			ob->rigidbody_object->flag |= RBO_FLAG_NEEDS_RESHAPE;
 		BKE_ptcache_id_from_rigidbody(&pid, ob, scene->rigidbody_world);
 		/* only flag as outdated, resetting should happen on start frame */
-		pid.cache->flag |= PTCACHE_OUTDATED;
+		pid.cache->state.flag |= PTC_STATE_OUTDATED;
 	}
 
 	if (ob->type == OB_ARMATURE)
@@ -2893,7 +2893,7 @@ PointCache *BKE_ptcache_copy(PointCache *cache, int copy_data)
 		ncache->cached_frames = NULL;
 
 		/* flag is a mix of user settings and simulator/baking state */
-		ncache->flag= ncache->flag & (PTCACHE_EXTERNAL|PTCACHE_IGNORE_LIBPATH);
+		ncache->flag= ncache->flag & (PTC_EXTERNAL|PTC_IGNORE_LIBPATH);
 		ncache->simframe= 0;
 	}
 	else {
@@ -3031,7 +3031,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	if (pid) {
 		/* cache/bake a single object */
 		cache = pid->cache;
-		if ((cache->flag & PTCACHE_BAKED)==0) {
+		if ((cache->state.flag & PTC_STATE_BAKED)==0) {
 			if (pid->type==PTCACHE_TYPE_PARTICLES) {
 				ParticleSystem *psys= pid->calldata;
 
@@ -3046,12 +3046,12 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 				BKE_ptcache_ids_from_object(&pidlist2, pid->ob, scene, MAX_DUPLI_RECUR);
 				for (pid2=pidlist2.first; pid2; pid2=pid2->next) {
 					if (pid2->type == PTCACHE_TYPE_SMOKE_DOMAIN) {
-						if (pid2->cache && !(pid2->cache->flag & PTCACHE_BAKED)) {
-							if (bake || pid2->cache->flag & PTCACHE_REDO_NEEDED)
+						if (pid2->cache && !(pid2->cache->state.flag & PTC_STATE_BAKED)) {
+							if (bake || pid2->cache->state.flag & PTC_STATE_REDO_NEEDED)
 								BKE_ptcache_id_clear(pid2, PTCACHE_CLEAR_ALL, 0);
 							if (bake) {
-								pid2->cache->flag |= PTCACHE_BAKING;
-								pid2->cache->flag &= ~PTCACHE_BAKED;
+								pid2->cache->state.flag |= PTC_STATE_BAKING;
+								pid2->cache->state.flag &= ~PTC_STATE_BAKED;
 							}
 						}
 					}
@@ -3059,20 +3059,20 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 				BLI_freelistN(&pidlist2);
 			}
 
-			if (bake || cache->flag & PTCACHE_REDO_NEEDED)
+			if (bake || cache->state.flag & PTC_STATE_REDO_NEEDED)
 				BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
 
 			startframe = MAX2(cache->last_exact, cache->startframe);
 
 			if (bake) {
 				thread_data.endframe = cache->endframe;
-				cache->flag |= PTCACHE_BAKING;
+				cache->state.flag |= PTC_STATE_BAKING;
 			}
 			else {
 				thread_data.endframe = MIN2(thread_data.endframe, cache->endframe);
 			}
 
-			cache->flag &= ~PTCACHE_BAKED;
+			cache->state.flag &= ~PTC_STATE_BAKED;
 		}
 	}
 	else {
@@ -3082,7 +3082,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 
 			for (pid=pidlist.first; pid; pid=pid->next) {
 				cache = pid->cache;
-				if ((cache->flag & PTCACHE_BAKED)==0) {
+				if ((cache->state.flag & PTC_STATE_BAKED)==0) {
 					if (pid->type==PTCACHE_TYPE_PARTICLES) {
 						ParticleSystem *psys = (ParticleSystem*)pid->calldata;
 						/* skip hair & keyed particles */
@@ -3092,7 +3092,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 						psys_get_pointcache_start_end(scene, pid->calldata, &cache->startframe, &cache->endframe);
 					}
 
-					if ((cache->flag & PTCACHE_REDO_NEEDED || (cache->flag & PTCACHE_SIMULATION_VALID)==0) &&
+					if ((cache->state.flag & PTC_STATE_REDO_NEEDED || (cache->state.flag & PTC_STATE_SIMULATION_VALID)==0) &&
 					    (render || bake))
 					{
 						BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
@@ -3101,13 +3101,13 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 					startframe = MIN2(startframe, cache->startframe);
 
 					if (bake || render) {
-						cache->flag |= PTCACHE_BAKING;
+						cache->state.flag |= PTC_STATE_BAKING;
 
 						if (bake)
 							thread_data.endframe = MAX2(thread_data.endframe, cache->endframe);
 					}
 
-					cache->flag &= ~PTCACHE_BAKED;
+					cache->state.flag &= ~PTC_STATE_BAKED;
 
 				}
 			}
@@ -3159,10 +3159,10 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	}
 	/* clear baking flag */
 	if (pid) {
-		cache->flag &= ~(PTCACHE_BAKING|PTCACHE_REDO_NEEDED);
-		cache->flag |= PTCACHE_SIMULATION_VALID;
+		cache->state.flag &= ~(PTC_STATE_BAKING|PTC_STATE_REDO_NEEDED);
+		cache->state.flag |= PTC_STATE_SIMULATION_VALID;
 		if (bake) {
-			cache->flag |= PTCACHE_BAKED;
+			cache->state.flag |= PTC_STATE_BAKED;
 			/* write info file */
 			BKE_ptcache_write(pid, 0);
 		}
@@ -3179,14 +3179,14 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 				cache = pid->cache;
 
 				if (thread_data.step > 1)
-					cache->flag &= ~(PTCACHE_BAKING|PTCACHE_OUTDATED);
+					cache->state.flag &= ~(PTC_STATE_BAKING|PTC_STATE_OUTDATED);
 				else
-					cache->flag &= ~(PTCACHE_BAKING|PTCACHE_REDO_NEEDED);
+					cache->state.flag &= ~(PTC_STATE_BAKING|PTC_STATE_REDO_NEEDED);
 
-				cache->flag |= PTCACHE_SIMULATION_VALID;
+				cache->state.flag |= PTC_STATE_SIMULATION_VALID;
 
 				if (bake) {
-					cache->flag |= PTCACHE_BAKED;
+					cache->state.flag |= PTC_STATE_BAKED;
 					BKE_ptcache_write(pid, 0);
 				}
 			}
@@ -3214,17 +3214,17 @@ void BKE_ptcache_to_mem(PTCacheID *pid, ListBase *mem_cache)
 {
 	PointCache *cache = pid->cache;
 	PTCacheMem *pm = NULL;
-	int baked = cache->flag & PTCACHE_BAKED;
+	int baked = cache->state.flag & PTC_STATE_BAKED;
 	int cfra, sfra = cache->startframe, efra = cache->endframe;
 
 	/* Remove possible bake flag to allow clear */
-	cache->flag &= ~PTCACHE_BAKED;
+	cache->state.flag &= ~PTC_STATE_BAKED;
 
 	/* PTCACHE_DISK_CACHE flag was cleared already */
 	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
 
 	/* restore possible bake flag */
-	cache->flag |= baked;
+	cache->state.flag |= baked;
 
 	for (cfra=sfra; cfra <= efra; cfra++) {
 		pm = ptcache_disk_frame_to_mem(pid, cfra);
@@ -3237,16 +3237,16 @@ void BKE_ptcache_from_mem(PTCacheID *pid, ListBase *mem_cache)
 {
 	PointCache *cache = pid->cache;
 	PTCacheMem *pm = mem_cache->first;
-	int baked = cache->flag & PTCACHE_BAKED;
+	int baked = cache->state.flag & PTC_STATE_BAKED;
 
 	/* Remove possible bake flag to allow clear */
-	cache->flag &= ~PTCACHE_BAKED;
+	cache->state.flag &= ~PTC_STATE_BAKED;
 
 	/* PTCACHE_DISK_CACHE flag was set already */
 	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
 
 	/* restore possible bake flag */
-	cache->flag |= baked;
+	cache->state.flag |= baked;
 
 	for (; pm; pm=pm->next) {
 		if (ptcache_mem_frame_to_disk(pid, pm)==0)
@@ -3254,7 +3254,7 @@ void BKE_ptcache_from_mem(PTCacheID *pid, ListBase *mem_cache)
 	}
 
 	/* write info file */
-	if (cache->flag & PTCACHE_BAKED)
+	if (cache->state.flag & PTC_STATE_BAKED)
 		BKE_ptcache_write(pid, 0);
 }
 
@@ -3387,7 +3387,7 @@ void BKE_ptcache_load_external(PTCacheID *pid)
 				if (ptcache_file_header_begin_read(pf)) {
 					if (pf->type == pid->type && pid->read_header(pf)) {
 						cache->totpoint = pf->totpoint;
-						cache->flag |= PTCACHE_READ_INFO;
+						cache->state.flag |= PTC_STATE_READ_INFO;
 					}
 					else {
 						cache->totpoint = 0;
@@ -3409,8 +3409,8 @@ void BKE_ptcache_load_external(PTCacheID *pid)
 				ptcache_file_close(pf);
 			}
 		}
-		cache->flag |= (PTCACHE_BAKED|PTCACHE_SIMULATION_VALID);
-		cache->flag &= ~(PTCACHE_OUTDATED|PTCACHE_FRAMES_SKIPPED);
+		cache->state.flag |= (PTC_STATE_BAKED|PTC_STATE_SIMULATION_VALID);
+		cache->state.flag &= ~(PTC_STATE_OUTDATED|PTC_STATE_FRAMES_SKIPPED);
 	}
 
 	/* make sure all new frames are loaded */
@@ -3427,7 +3427,7 @@ void BKE_ptcache_update_info(PTCacheID *pid)
 	int totframes = 0;
 	char mem_info[64];
 
-	if (cache->flag & PTCACHE_EXTERNAL) {
+	if (cache->flag & PTC_EXTERNAL) {
 		int cfra = cache->startframe;
 
 		for (; cfra <= cache->endframe; cfra++) {
@@ -3464,10 +3464,10 @@ void BKE_ptcache_update_info(PTCacheID *pid)
 		BLI_snprintf(mem_info, sizeof(mem_info), IFACE_("%i frames on disk"), totframes);
 	}
 
-	if (cache->flag & PTCACHE_OUTDATED) {
+	if (cache->state.flag & PTC_STATE_OUTDATED) {
 		BLI_snprintf(cache->info, sizeof(cache->info), IFACE_("%s, cache is outdated!"), mem_info);
 	}
-	else if (cache->flag & PTCACHE_FRAMES_SKIPPED) {
+	else if (cache->state.flag & PTC_STATE_FRAMES_SKIPPED) {
 		BLI_snprintf(cache->info, sizeof(cache->info), IFACE_("%s, not exact since frame %i"),
 		             mem_info, cache->last_exact);
 	}
@@ -3479,14 +3479,14 @@ void BKE_ptcache_update_info(PTCacheID *pid)
 void BKE_ptcache_validate(PointCache *cache, int framenr)
 {
 	if (cache) {
-		cache->flag |= PTCACHE_SIMULATION_VALID;
+		cache->state.flag |= PTC_STATE_SIMULATION_VALID;
 		cache->simframe = framenr;
 	}
 }
 void BKE_ptcache_invalidate(PointCache *cache)
 {
 	if (cache) {
-		cache->flag &= ~PTCACHE_SIMULATION_VALID;
+		cache->state.flag &= ~PTC_STATE_SIMULATION_VALID;
 		cache->simframe = 0;
 		cache->last_exact = MIN2(cache->startframe, 0);
 	}

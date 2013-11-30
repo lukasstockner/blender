@@ -37,7 +37,7 @@
 /* XXX TODO point cache do_versions
  * This needs to be updated until officially included in master
  */
-#define PTCACHE_VERSION_REMOVE_MEMCACHE(main) MAIN_VERSION_ATLEAST(main, 269, 6)
+#define PTCACHE_DO_VERSIONS(main) MAIN_VERSION_ATLEAST(main, 269, 6)
 
 /* Point cache file data types:
  * - used as (1<<flag) so poke jahka if you reach the limit of 15
@@ -79,6 +79,25 @@ typedef struct PTCacheMem {
 	struct ListBase extradata;
 } PTCacheMem;
 
+typedef struct PointCacheState {
+	int flag;
+	int pad;
+} PointCacheState;
+
+typedef enum ePointCacheStateFlag {
+	PTC_STATE_BAKED				= 1,
+	PTC_STATE_OUTDATED			= 2,
+	PTC_STATE_SIMULATION_VALID	= 4,
+	PTC_STATE_BAKING			= 8,
+	PTC_STATE_FRAMES_SKIPPED	= 16,
+	PTC_STATE_READ_INFO			= 32,
+	PTC_STATE_REDO_NEEDED		= PTC_STATE_OUTDATED | PTC_STATE_FRAMES_SKIPPED,
+
+	/* high resolution cache is saved for smoke for backwards compatibility, so set this flag to know it's a "fake" cache */
+	/* XXX compatibility flag, remove later */
+	PTC_STATE_FAKE_SMOKE		= (1<<16)
+} ePointCacheStateFlag;
+
 typedef struct PointCache {
 	int flag;		/* generic flag */
 	
@@ -114,12 +133,21 @@ typedef struct PointCache {
 	char *cached_frames;	/* array of length endframe-startframe+1 with flags to indicate cached frames */
 							/* can be later used for other per frame flags too if needed */
 
+	PointCacheState state;
+
 	struct PTCacheEdit *edit;
 	void (*free_edit)(struct PTCacheEdit *edit);	/* free callback */
 
 	/**** NEW POINTCACHE ****/
 	char cachedir[768];	/* FILE_MAXDIR length */
 } PointCache;
+
+typedef enum ePointCacheFlag {
+	PTC_EXTERNAL				= 1,
+	/* don't use the filename of the blendfile the data is linked from (write a local cache) */
+	PTC_IGNORE_LIBPATH		= 2,
+	PTC_IGNORE_CLEAR		= 4
+} ePointCacheFlag;
 
 typedef enum ePointCacheCompression {
 	PTC_COMPRESS_NO			= 0,
@@ -128,25 +156,25 @@ typedef enum ePointCacheCompression {
 } ePointCacheCompression;
 
 /* pointcache->flag */
-#define PTCACHE_BAKED				1
-#define PTCACHE_OUTDATED			2
-#define PTCACHE_SIMULATION_VALID	4
-#define PTCACHE_BAKING				8
-//#define PTCACHE_BAKE_EDIT			16
-//#define PTCACHE_BAKE_EDIT_ACTIVE	32
-//#define PTCACHE_DISK_CACHE		64 /* DEPRECATED all caches are disk-based now (with optional packing in blend files) */
-//#define PTCACHE_QUICK_CACHE		128  /* removed since 2.64 - [#30974], could be added back in a more useful way */
-#define PTCACHE_FRAMES_SKIPPED		256
-#define PTCACHE_EXTERNAL			512
-#define PTCACHE_READ_INFO			1024
+#define _PTCACHE_BAKED_DEPRECATED				1
+#define _PTCACHE_OUTDATED_DEPRECATED			2
+#define _PTCACHE_SIMULATION_VALID_DEPRECATED	4
+#define _PTCACHE_BAKING_DEPRECATED				8
+//#define PTCACHE_BAKE_EDIT						16
+//#define PTCACHE_BAKE_EDIT_ACTIVE				32
+//#define PTCACHE_DISK_CACHE					64 /* DEPRECATED all caches are disk-based now (with optional packing in blend files) */
+//#define PTCACHE_QUICK_CACHE					128  /* removed since 2.64 - [#30974], could be added back in a more useful way */
+#define _PTCACHE_FRAMES_SKIPPED_DEPRECATED		256
+#define _PTCACHE_EXTERNAL_DEPRECATED			512
+#define _PTCACHE_READ_INFO_DEPRECATED			1024
 /* don't use the filename of the blendfile the data is linked from (write a local cache) */
-#define PTCACHE_IGNORE_LIBPATH		2048
+#define _PTCACHE_IGNORE_LIBPATH_DEPRECATED		2048
 /* high resolution cache is saved for smoke for backwards compatibility, so set this flag to know it's a "fake" cache */
-#define PTCACHE_FAKE_SMOKE			(1<<12)
-#define PTCACHE_IGNORE_CLEAR		(1<<13)
+#define _PTCACHE_FAKE_SMOKE_DEPRECATED			(1<<12)
+#define _PTCACHE_IGNORE_CLEAR_DEPRECATED		(1<<13)
 
 /* PTCACHE_OUTDATED + PTCACHE_FRAMES_SKIPPED */
-#define PTCACHE_REDO_NEEDED			258
+#define _PTCACHE_REDO_NEEDED_DEPRECATED			258
 
 #endif
 

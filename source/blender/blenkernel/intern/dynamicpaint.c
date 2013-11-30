@@ -506,9 +506,9 @@ static void object_cacheIgnoreClear(Object *ob, int state)
 	for (pid = pidlist.first; pid; pid = pid->next) {
 		if (pid->cache) {
 			if (state)
-				pid->cache->flag |= PTCACHE_IGNORE_CLEAR;
+				pid->cache->flag |= PTC_IGNORE_CLEAR;
 			else
-				pid->cache->flag &= ~PTCACHE_IGNORE_CLEAR;
+				pid->cache->flag &= ~PTC_IGNORE_CLEAR;
 		}
 	}
 
@@ -940,7 +940,7 @@ static void surface_freeUnusedData(DynamicPaintSurface *surface)
 
 	/* free bakedata if not active or surface is baked */
 	if (!(surface->flags & MOD_DPAINT_ACTIVE) ||
-	    (surface->pointcache && surface->pointcache->flag & PTCACHE_BAKED))
+	    (surface->pointcache && surface->pointcache->state.flag & PTC_STATE_BAKED))
 	{
 		free_bakeData(surface->data);
 	}
@@ -1978,10 +1978,10 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 				BKE_ptcache_id_time(&pid, scene, (float)scene->r.cfra, NULL, NULL, NULL);
 
 				/* reset non-baked cache at first frame */
-				if ((int)scene->r.cfra == surface->start_frame && !(cache->flag & PTCACHE_BAKED)) {
-					cache->flag |= PTCACHE_REDO_NEEDED;
+				if ((int)scene->r.cfra == surface->start_frame && !(cache->state.flag & PTC_STATE_BAKED)) {
+					cache->state.flag |= PTC_STATE_REDO_NEEDED;
 					BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-					cache->flag &= ~PTCACHE_REDO_NEEDED;
+					cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 				}
 
 				/* try to read from cache */
@@ -1989,7 +1989,7 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 					BKE_ptcache_validate(cache, (int)scene->r.cfra);
 				}
 				/* if read failed and we're on surface range do recalculate */
-				else if ((int)scene->r.cfra == current_frame && !(cache->flag & PTCACHE_BAKED)) {
+				else if ((int)scene->r.cfra == current_frame && !(cache->state.flag & PTC_STATE_BAKED)) {
 					/* calculate surface frame */
 					canvas->flags |= MOD_DPAINT_BAKING;
 					dynamicPaint_calculateFrame(surface, scene, ob, current_frame);

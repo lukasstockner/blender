@@ -108,8 +108,8 @@ PTCWriter *PTC_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 		return NULL;
 	std::string filename = ptc_archive_path(cache->name, cache->index, cache->path, &ob->id,
 	                                        true, true,
-	                                        cache->flag & PTCACHE_EXTERNAL,
-	                                        cache->flag & PTCACHE_IGNORE_LIBPATH);
+	                                        cache->flag & PTC_EXTERNAL,
+	                                        cache->flag & PTC_IGNORE_LIBPATH);
 	
 	PTC::ParticlesWriter *writer = new PTC::ParticlesWriter(filename, scene, ob, psys);
 	return (PTCWriter *)writer;
@@ -122,8 +122,8 @@ PTCReader *PTC_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 		return NULL;
 	std::string filename = ptc_archive_path(cache->name, cache->index, cache->path, &ob->id,
 	                                        true, true,
-	                                        cache->flag & PTCACHE_EXTERNAL,
-	                                        cache->flag & PTCACHE_IGNORE_LIBPATH);
+	                                        cache->flag & PTC_EXTERNAL,
+	                                        cache->flag & PTC_IGNORE_LIBPATH);
 
 	PTC::ParticlesReader *reader = new PTC::ParticlesReader(filename, scene, ob, psys);
 	return (PTCReader *)reader;

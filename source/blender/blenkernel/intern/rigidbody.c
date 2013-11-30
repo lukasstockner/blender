@@ -1245,7 +1245,7 @@ void BKE_rigidbody_aftertrans_update(Object *ob, float loc[3], float rot[3], flo
 void BKE_rigidbody_cache_reset(RigidBodyWorld *rbw)
 {
 	if (rbw)
-		rbw->pointcache->flag |= PTCACHE_OUTDATED;
+		rbw->pointcache->state.flag |= PTC_STATE_OUTDATED;
 }
 
 /* ------------------ */
@@ -1265,16 +1265,16 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 
 	/* flag cache as outdated if we don't have a world or number of objects in the simulation has changed */
 	if (rbw->physics_world == NULL || rbw->numbodies != BLI_countlist(&rbw->group->gobject)) {
-		cache->flag |= PTCACHE_OUTDATED;
+		cache->state.flag |= PTC_STATE_OUTDATED;
 	}
 
 	if (ctime <= startframe + 1 && rbw->ltime == startframe) {
-		if (cache->flag & PTCACHE_OUTDATED) {
+		if (cache->state.flag & PTC_STATE_OUTDATED) {
 			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 			rigidbody_update_simulation(scene, rbw, true);
 			BKE_ptcache_validate(cache, (int)ctime);
 			cache->last_exact = 0;
-			cache->flag &= ~PTCACHE_REDO_NEEDED;
+			cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 		}
 	}
 }
@@ -1302,7 +1302,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	}
 
 	/* don't try to run the simulation if we don't have a world yet but allow reading baked cache */
-	if (rbw->physics_world == NULL && !(cache->flag & PTCACHE_BAKED))
+	if (rbw->physics_world == NULL && !(cache->state.flag & PTC_STATE_BAKED))
 		return;
 	else if (rbw->objects == NULL)
 		rigidbody_update_ob_array(rbw);
@@ -1316,9 +1316,9 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	}
 
 	/* advance simulation, we can only step one frame forward */
-	if (ctime == rbw->ltime + 1 && !(cache->flag & PTCACHE_BAKED)) {
+	if (ctime == rbw->ltime + 1 && !(cache->state.flag & PTC_STATE_BAKED)) {
 		/* write cache for first frame when on second frame */
-		if (rbw->ltime == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
+		if (rbw->ltime == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->last_exact == 0)) {
 			BKE_ptcache_write(&pid, startframe);
 		}
 

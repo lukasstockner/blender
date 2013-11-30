@@ -1344,7 +1344,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 					/* create fake pointcache so that old blender versions can read it */
 					smd->domain->point_cache[1] = BKE_ptcache_new();
-					smd->domain->point_cache[1]->flag |= PTCACHE_FAKE_SMOKE;
+					smd->domain->point_cache[1]->state.flag |= PTC_STATE_FAKE_SMOKE;
 					smd->domain->point_cache[1]->step = 1;
 
 					write_pointcache(wd, smd->domain->point_cache[1]);

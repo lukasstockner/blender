@@ -4111,7 +4111,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 		softbody_update_positions(ob, sb, vertexCos, numVerts);
 
 		BKE_ptcache_validate(cache, framenr);
-		cache->flag &= ~PTCACHE_REDO_NEEDED;
+		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 
 		sb->last_frame = framenr;
 
@@ -4126,7 +4126,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 
 		BKE_ptcache_validate(cache, framenr);
 
-		if (cache_result == PTCACHE_READ_INTERPOLATED && cache->flag & PTCACHE_REDO_NEEDED)
+		if (cache_result == PTCACHE_READ_INTERPOLATED && cache->state.flag & PTC_STATE_REDO_NEEDED)
 			BKE_ptcache_write(&pid, framenr);
 
 		sb->last_frame = framenr;
@@ -4136,7 +4136,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 	else if (cache_result==PTCACHE_READ_OLD) {
 		; /* do nothing */
 	}
-	else if (/*ob->id.lib || */(cache->flag & PTCACHE_BAKED)) { /* "library linking & pointcaches" has to be solved properly at some point */
+	else if (/*ob->id.lib || */(cache->state.flag & PTC_STATE_BAKED)) { /* "library linking & pointcaches" has to be solved properly at some point */
 		/* if baked and nothing in cache, do nothing */
 		BKE_ptcache_invalidate(cache);
 		return;
@@ -4146,7 +4146,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 		return;
 
 	/* if on second frame, write cache for first frame */
-	if (cache->simframe == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
+	if (cache->simframe == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->last_exact==0))
 		BKE_ptcache_write(&pid, startframe);
 
 	softbody_update_positions(ob, sb, vertexCos, numVerts);

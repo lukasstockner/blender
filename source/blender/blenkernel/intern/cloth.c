@@ -473,11 +473,11 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 	    (clmd->clothObject && dm->getNumVerts(dm) != clmd->clothObject->numverts))
 	{
 		clmd->sim_parms->reset = 0;
-		cache->flag |= PTCACHE_OUTDATED;
+		cache->state.flag |= PTC_STATE_OUTDATED;
 		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 		BKE_ptcache_validate(cache, 0);
 		cache->last_exact= 0;
-		cache->flag &= ~PTCACHE_REDO_NEEDED;
+		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 	}
 	
 	// unused in the moment, calculated separately in implicit.c
@@ -516,7 +516,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 		do_init_cloth(ob, clmd, dm, framenr);
 		BKE_ptcache_validate(cache, framenr);
-		cache->flag &= ~PTCACHE_REDO_NEEDED;
+		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 		clmd->clothObject->last_frame= framenr;
 		return;
 	}
@@ -530,7 +530,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 
 		BKE_ptcache_validate(cache, framenr);
 
-		if (cache_result == PTCACHE_READ_INTERPOLATED && cache->flag & PTCACHE_REDO_NEEDED)
+		if (cache_result == PTCACHE_READ_INTERPOLATED && cache->state.flag & PTC_STATE_REDO_NEEDED)
 			BKE_ptcache_write(&pid, framenr);
 
 		clmd->clothObject->last_frame= framenr;
@@ -540,7 +540,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 	else if (cache_result==PTCACHE_READ_OLD) {
 		implicit_set_positions(clmd);
 	}
-	else if ( /*ob->id.lib ||*/ (cache->flag & PTCACHE_BAKED)) { /* 2.4x disabled lib, but this can be used in some cases, testing further - campbell */
+	else if ( /*ob->id.lib ||*/ (cache->state.flag & PTC_STATE_BAKED)) { /* 2.4x disabled lib, but this can be used in some cases, testing further - campbell */
 		/* if baked and nothing in cache, do nothing */
 		BKE_ptcache_invalidate(cache);
 		return;
@@ -550,7 +550,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		return;
 
 	/* if on second frame, write cache for first frame */
-	if (cache->simframe == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
+	if (cache->simframe == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->last_exact==0))
 		BKE_ptcache_write(&pid, startframe);
 
 	clmd->sim_parms->timescale *= framenr - cache->simframe;

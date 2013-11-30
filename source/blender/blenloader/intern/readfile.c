@@ -3580,7 +3580,7 @@ static void direct_link_pointcache(FileData *UNUSED(fd), PointCache *cache)
 	if (!cache)
 		return;
 	
-	cache->flag &= ~PTCACHE_SIMULATION_VALID;
+	cache->state.flag &= ~PTC_STATE_SIMULATION_VALID;
 	cache->simframe = 0;
 	cache->edit = NULL;
 	cache->free_edit = NULL;
@@ -4595,7 +4595,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				if (smd->domain->ptcaches[1].first || smd->domain->point_cache[1]) {
 					if (smd->domain->point_cache[1]) {
 						PointCache *cache = newdataadr(fd, smd->domain->point_cache[1]);
-						if (cache->flag & PTCACHE_FAKE_SMOKE) {
+						if (cache->state.flag & PTC_STATE_FAKE_SMOKE) {
 							/* Smoke was already saved in "new format" and this cache is a fake one. */
 						}
 						else {
@@ -7357,6 +7357,28 @@ static void do_versions_userdef(FileData *fd, BlendFileData *bfd)
 
 }
 
+static void do_versions_pointcache(ID *id, PointCache *cache)
+{
+	int oldflag = cache->flag;
+	int cache_flag = 0, cache_state_flag = 0;
+	
+	if (oldflag & _PTCACHE_EXTERNAL_DEPRECATED) cache_flag |= PTC_EXTERNAL;
+	if (oldflag & _PTCACHE_IGNORE_LIBPATH_DEPRECATED) cache_flag |= PTC_IGNORE_LIBPATH;
+	if (oldflag & _PTCACHE_IGNORE_CLEAR_DEPRECATED) cache_flag |= PTC_IGNORE_CLEAR;
+	
+	/* BAKED is not copied, force a rebake */
+	/* REDO_NEEDED is combination of OUTDATED and FRAMES_SKIPPED, no need to copy */
+	if (oldflag & _PTCACHE_OUTDATED_DEPRECATED) cache_state_flag |= PTC_STATE_OUTDATED;
+	if (oldflag & _PTCACHE_SIMULATION_VALID_DEPRECATED) cache_state_flag |= PTC_STATE_SIMULATION_VALID;
+	if (oldflag & _PTCACHE_BAKING_DEPRECATED) cache_state_flag |= PTC_STATE_BAKING;
+	if (oldflag & _PTCACHE_FRAMES_SKIPPED_DEPRECATED) cache_state_flag |= PTC_STATE_FRAMES_SKIPPED;
+	if (oldflag & _PTCACHE_READ_INFO_DEPRECATED) cache_state_flag |= PTC_STATE_READ_INFO;
+	if (oldflag & _PTCACHE_FAKE_SMOKE_DEPRECATED) cache_state_flag |= PTC_STATE_FAKE_SMOKE;
+	
+	cache->flag = cache_flag;
+	cache->state.flag = cache_state_flag;
+}
+
 static void do_versions(FileData *fd, Library *lib, Main *main)
 {
 	/* WATCH IT!!!: pointers from libdata have not been converted */
@@ -7382,7 +7404,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	blo_do_versions_260(fd, lib, main);
 
 	/* memcache has been removed, clear BAKED flags to enforce rebaking */
-	if (!PTCACHE_VERSION_REMOVE_MEMCACHE(main)) {
+	if (!PTCACHE_DO_VERSIONS(main)) {
 		Object *ob;
 		Scene *sce;
 		for (ob = main->object.first; ob; ob = ob->id.next) {
@@ -7391,41 +7413,40 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			for (md = ob->modifiers.first; md; md = md->next) {
 				if (md->type == eModifierType_Fluidsim) {
 					FluidsimModifierData *fluidmd = (FluidsimModifierData *)md;
-					fluidmd->point_cache->flag &= ~PTCACHE_BAKED;
+					do_versions_pointcache(&ob->id, fluidmd->point_cache);
 				}
 				else if (md->type == eModifierType_Smoke) {
 					SmokeModifierData *smd = (SmokeModifierData *)md;
 					if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
-						smd->domain->point_cache[0]->flag &= ~PTCACHE_BAKED;
+						do_versions_pointcache(&ob->id, smd->domain->point_cache[0]);
 					}
 				}
 				else if (md->type == eModifierType_Cloth) {
 					ClothModifierData *clmd = (ClothModifierData *) md;
-					clmd->point_cache->flag &= ~PTCACHE_BAKED;
+					do_versions_pointcache(&ob->id, clmd->point_cache);
 				}
 				else if (md->type == eModifierType_DynamicPaint) {
 					DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
-					
 					if (pmd->canvas) {
 						DynamicPaintSurface *surface;
 						for (surface=pmd->canvas->surfaces.first; surface; surface=surface->next)
-							surface->pointcache->flag &= ~PTCACHE_BAKED;
+							do_versions_pointcache(&ob->id, surface->pointcache);
 					}
 				}
 			}
 			
 			if (ob->soft) {
-				ob->soft->pointcache->flag &= ~PTCACHE_BAKED;
+				do_versions_pointcache(&ob->id, ob->soft->pointcache);
 			}
 			
 			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-				psys->pointcache->flag &= ~PTCACHE_BAKED;
+				do_versions_pointcache(&ob->id, psys->pointcache);
 			}
 		}
 		for (sce = main->scene.first; sce; sce = sce->id.next) {
 			RigidBodyWorld *rbw = sce->rigidbody_world;
 			if (rbw)
-				rbw->pointcache->flag &= ~PTCACHE_BAKED;
+				do_versions_pointcache(&sce->id, rbw->pointcache);
 		}
 	}
 
