@@ -4713,7 +4713,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 			psys_reset(psys, PSYS_RESET_CACHE_MISS);
 			return;
 		}
-		else if (cache_result == PTCACHE_READ_OLD) {
+		else if (cache_result == PTC_READ_SAMPLE_EARLY) {
 			psys->cfra = (float)cache->simframe;
 			cached_step(sim, psys->cfra);
 		}
