@@ -4714,7 +4714,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 			return;
 		}
 		else if (cache_result == PTC_READ_SAMPLE_EARLY) {
-			psys->cfra = (float)cache->simframe;
+			psys->cfra = (float)cache->state.simframe;
 			cached_step(sim, psys->cfra);
 		}
 

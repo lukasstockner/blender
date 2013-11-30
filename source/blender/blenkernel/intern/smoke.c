@@ -2693,7 +2693,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 		tstart();
 
 		/* if on second frame, write cache for first frame */
-		if ((int)smd->time == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->last_exact == 0)) {
+		if ((int)smd->time == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->state.last_exact == 0)) {
 			BKE_ptcache_write(&pid, startframe);
 		}
 

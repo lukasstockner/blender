@@ -3581,10 +3581,10 @@ static void direct_link_pointcache(FileData *UNUSED(fd), PointCache *cache)
 		return;
 	
 	cache->state.flag &= ~PTC_STATE_SIMULATION_VALID;
-	cache->simframe = 0;
+	cache->state.simframe = 0;
 	cache->edit = NULL;
 	cache->free_edit = NULL;
-	cache->cached_frames = NULL;
+	cache->state.cached_frames = NULL;
 	/* XXX previously could have memory cache with step != 1, remove */
 	cache->step = 1;
 }

@@ -126,7 +126,7 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
         sub.prop(cache, "index", text="")
         col.prop(cache, "filepath", text="")
 
-        cache_info = cache.info
+        cache_info = cache.state.info
         if cache_info:
             layout.label(text=cache_info)
     else:
@@ -148,7 +148,7 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
             row.prop(cache, "frame_step")
 
         if cachetype != 'SMOKE':
-            layout.label(text=cache.info)
+            layout.label(text=cache.state.info)
 
         can_bake = True
 
@@ -169,13 +169,13 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
 
         col = split.column()
 
-        if cache.is_baked is True:
+        if cache.state.is_baked is True:
             col.operator("ptcache.free_bake", text="Free Bake")
         else:
             col.operator("ptcache.bake", text="Bake").bake = True
 
         sub = col.row()
-        sub.enabled = (cache.frames_skipped or cache.is_outdated) and enabled
+        sub.enabled = (cache.state.frames_skipped or cache.state.is_outdated) and enabled
         sub.operator("ptcache.bake", text="Calculate To Frame").bake = False
 
         sub = col.column()

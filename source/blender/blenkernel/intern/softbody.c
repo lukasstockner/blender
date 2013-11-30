@@ -4054,7 +4054,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 	cache= sb->pointcache;
 
 	framenr= (int)cfra;
-	framedelta= framenr - cache->simframe;
+	framedelta= framenr - cache->state.simframe;
 
 	BKE_ptcache_id_from_softbody(&pid, ob, sb);
 	BKE_ptcache_id_time(&pid, scene, framenr, &startframe, &endframe, &timescale);
@@ -4146,7 +4146,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 		return;
 
 	/* if on second frame, write cache for first frame */
-	if (cache->simframe == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->last_exact==0))
+	if (cache->state.simframe == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->state.last_exact==0))
 		BKE_ptcache_write(&pid, startframe);
 
 	softbody_update_positions(ob, sb, vertexCos, numVerts);

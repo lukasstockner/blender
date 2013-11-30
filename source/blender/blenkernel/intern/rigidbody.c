@@ -1273,7 +1273,7 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 			rigidbody_update_simulation(scene, rbw, true);
 			BKE_ptcache_validate(cache, (int)ctime);
-			cache->last_exact = 0;
+			cache->state.last_exact = 0;
 			cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 		}
 	}
@@ -1318,7 +1318,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	/* advance simulation, we can only step one frame forward */
 	if (ctime == rbw->ltime + 1 && !(cache->state.flag & PTC_STATE_BAKED)) {
 		/* write cache for first frame when on second frame */
-		if (rbw->ltime == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->last_exact == 0)) {
+		if (rbw->ltime == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->state.last_exact == 0)) {
 			BKE_ptcache_write(&pid, startframe);
 		}
 

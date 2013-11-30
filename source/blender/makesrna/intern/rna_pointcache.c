@@ -167,6 +167,38 @@ static void rna_PointCache_frame_step_range(PointerRNA *ptr, int *min, int *max,
 
 #else
 
+static void rna_def_pointcache_state(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "PointCacheState", NULL);
+	RNA_def_struct_ui_text(srna, "Point Cache State", "State information about point cache data");
+	RNA_def_struct_ui_icon(srna, ICON_PHYSICS);
+
+	prop = RNA_def_property(srna, "is_baked", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTC_STATE_BAKED);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_property(srna, "is_baking", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTC_STATE_BAKING);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_property(srna, "is_outdated", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTC_STATE_OUTDATED);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Cache is outdated", "");
+
+	prop = RNA_def_property(srna, "frames_skipped", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTC_STATE_FRAMES_SKIPPED);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_property(srna, "info", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "info");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Cache Info", "Info on current cache status");
+}
+
 static void rna_def_pointcache(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -215,23 +247,6 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Cache Compression", "Compression method to be used");
 
 	/* flags */
-	prop = RNA_def_property(srna, "is_baked", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "state.flag", PTC_STATE_BAKED);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-
-	prop = RNA_def_property(srna, "is_baking", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "state.flag", PTC_STATE_BAKING);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-
-	prop = RNA_def_property(srna, "is_outdated", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "state.flag", PTC_STATE_OUTDATED);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Cache is outdated", "");
-
-	prop = RNA_def_property(srna, "frames_skipped", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "state.flag", PTC_STATE_FRAMES_SKIPPED);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "name");
 	RNA_def_property_ui_text(prop, "Name", "Cache name");
@@ -251,11 +266,6 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_change");
 #endif
 
-	prop = RNA_def_property(srna, "info", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "info");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Cache Info", "Info on current cache status");
-
 	prop = RNA_def_property(srna, "use_external", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTC_EXTERNAL);
 	RNA_def_property_ui_text(prop, "External", "Read cache from an external location");
@@ -268,10 +278,16 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	                         "(for local bakes per scene file, disable this option)");
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
 #endif /*POINTCACHE_OLD*/
+
+	prop = RNA_def_property(srna, "state", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "PointCacheState");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "State", "State information about the point cache data");
 }
 
 void RNA_def_pointcache(BlenderRNA *brna)
 {
+	rna_def_pointcache_state(brna);
 	rna_def_pointcache(brna);
 }
 

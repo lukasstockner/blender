@@ -25,7 +25,7 @@ from bl_ui.properties_physics_common import (point_cache_ui,
 
 
 def softbody_panel_enabled(md):
-    return (md.point_cache.is_baked is False)
+    return (md.point_cache.state.is_baked is False)
 
 
 class PhysicButtonsPanel():

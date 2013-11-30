@@ -476,7 +476,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		cache->state.flag |= PTC_STATE_OUTDATED;
 		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 		BKE_ptcache_validate(cache, 0);
-		cache->last_exact= 0;
+		cache->state.last_exact= 0;
 		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 	}
 	
@@ -550,10 +550,10 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		return;
 
 	/* if on second frame, write cache for first frame */
-	if (cache->simframe == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->last_exact==0))
+	if (cache->state.simframe == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->state.last_exact==0))
 		BKE_ptcache_write(&pid, startframe);
 
-	clmd->sim_parms->timescale *= framenr - cache->simframe;
+	clmd->sim_parms->timescale *= framenr - cache->state.simframe;
 
 	/* do simulation */
 	BKE_ptcache_validate(cache, framenr);

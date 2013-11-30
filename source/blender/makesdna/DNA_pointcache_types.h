@@ -81,7 +81,18 @@ typedef struct PTCacheMem {
 
 typedef struct PointCacheState {
 	int flag;
+
+	int simframe;	/* current frame of simulation (only if SIMULATION_VALID) */
+	int last_exact; /* last exact frame that's cached */
+	int last_valid; /* used for editing cache - what is the last baked frame */
+
+	/* for external cache files */
+	int totpoint;   /* number of cached points */
 	int pad;
+
+	char info[64];
+	char *cached_frames;	/* array of length endframe-startframe+1 with flags to indicate cached frames */
+							/* can be later used for other per frame flags too if needed */
 } PointCacheState;
 
 typedef enum ePointCacheStateFlag {
@@ -113,25 +124,18 @@ typedef struct PointCache {
 					 * now cache step should be set to 1 for accurate reproduction of collisions.
 					 */
 
-	int simframe;	/* current frame of simulation (only if SIMULATION_VALID) */
 	int startframe;	/* simulation start frame */
 	int endframe;	/* simulation end frame */
 	int editframe;	/* frame being edited (runtime only) */
-	int last_exact; /* last exact frame that's cached */
-	int last_valid; /* used for editing cache - what is the last baked frame */
-	int pad;
 
 	/* for external cache files */
-	int totpoint;   /* number of cached points */
 	int index;	/* modifier stack index */
 	short compression, rt;
+	int pad;
 	
 	char name[64];
 	char prev_name[64];
-	char info[64];
 	char path[1024]; /* file path, 1024 = FILE_MAX */
-	char *cached_frames;	/* array of length endframe-startframe+1 with flags to indicate cached frames */
-							/* can be later used for other per frame flags too if needed */
 
 	PointCacheState state;
 
