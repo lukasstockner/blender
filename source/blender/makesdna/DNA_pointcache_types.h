@@ -121,6 +121,12 @@ typedef struct PointCache {
 	char cachedir[768];	/* FILE_MAXDIR length */
 } PointCache;
 
+typedef enum ePointCacheCompression {
+	PTC_COMPRESS_NO			= 0,
+	PTC_COMPRESS_LZO		= 1,
+	PTC_COMPRESS_LZMA		= 2
+} ePointCacheCompression;
+
 /* pointcache->flag */
 #define PTCACHE_BAKED				1
 #define PTCACHE_OUTDATED			2
@@ -141,10 +147,6 @@ typedef struct PointCache {
 
 /* PTCACHE_OUTDATED + PTCACHE_FRAMES_SKIPPED */
 #define PTCACHE_REDO_NEEDED			258
-
-#define PTCACHE_COMPRESS_NO			0
-#define PTCACHE_COMPRESS_LZO		1
-#define PTCACHE_COMPRESS_LZMA		2
 
 #endif
 

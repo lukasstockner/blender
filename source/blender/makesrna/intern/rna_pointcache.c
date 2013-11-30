@@ -174,9 +174,9 @@ static void rna_def_pointcache(BlenderRNA *brna)
 
 #ifdef POINTCACHE_OLD
 	static EnumPropertyItem point_cache_compress_items[] = {
-		{PTCACHE_COMPRESS_NO, "NO", 0, "No", "No compression"},
-		{PTCACHE_COMPRESS_LZO, "LIGHT", 0, "Light", "Fast but not so effective compression"},
-		{PTCACHE_COMPRESS_LZMA, "HEAVY", 0, "Heavy", "Effective but slow compression"},
+		{PTC_COMPRESS_NO, "NO", 0, "No", "No compression"},
+		{PTC_COMPRESS_LZO, "LIGHT", 0, "Light", "Fast but not so effective compression"},
+		{PTC_COMPRESS_LZMA, "HEAVY", 0, "Heavy", "Effective but slow compression"},
 		{0, NULL, 0, NULL, NULL}
 	};
 #endif /*POINTCACHE_OLD*/
