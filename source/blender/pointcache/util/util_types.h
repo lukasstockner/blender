@@ -16,34 +16,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_UTIL_FRAME_MAPPER_H
-#define PTC_UTIL_FRAME_MAPPER_H
+#ifndef PTC_UTIL_TYPES_H
+#define PTC_UTIL_TYPES_H
 
-#include <Alembic/AbcCoreAbstract/Foundation.h>
-#include <Alembic/Abc/ISampleSelector.h>
+typedef enum PTCReadSampleResult {
+	PTC_READ_SAMPLE_INVALID = 0,	/* no valid result can be retrieved */
+	PTC_READ_SAMPLE_EARLY,			/* request time before first sample */
+	PTC_READ_SAMPLE_LATE,			/* request time after last sample */
+	PTC_READ_SAMPLE_EXACT,			/* found sample for requested frame */
+	PTC_READ_SAMPLE_INTERPOLATED	/* no exact sample, but found enclosing samples for interpolation */
+} PTCReadSampleResult;
 
-struct Scene;
-
-namespace PTC {
-
-using namespace Alembic;
-using Alembic::AbcCoreAbstract::chrono_t;
-
-class FrameMapper {
-public:
-	FrameMapper(double fps);
-	FrameMapper(Scene *scene);
-	
-	double frames_per_second() const { return m_frames_per_sec; }
-	double seconds_per_frame() const { return m_sec_per_frame; }
-	
-	chrono_t frame_to_time(float frame) const;
-	float time_to_frame(chrono_t time) const;
-	
-private:
-	double m_frames_per_sec, m_sec_per_frame;
-};
-
-} /* namespace PTC */
-
-#endif  /* PTC_UTIL_FRAME_MAPPER_H */
+#endif  /* PTC_UTIL_TYPES_H */

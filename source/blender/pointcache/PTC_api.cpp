@@ -64,10 +64,19 @@ void PTC_reader_free(PTCReader *_reader)
 	delete reader;
 }
 
-void PTC_read_sample(struct PTCReader *_reader)
+PTCReadSampleResult PTC_read_sample(struct PTCReader *_reader, float frame)
 {
 	PTC::Reader *reader = (PTC::Reader *)_reader;
-	reader->read_sample();
+	return reader->read_sample(frame);
+}
+
+void PTC_reader_get_frame_range(PTCReader *_reader, int *start_frame, int *end_frame)
+{
+	PTC::Reader *reader = (PTC::Reader *)_reader;
+	int sfra, efra;
+	reader->get_frame_range(sfra, efra);
+	if (start_frame) *start_frame = sfra;
+	if (end_frame) *end_frame = efra;
 }
 
 /* get writer/reader from RNA type */
@@ -118,6 +127,12 @@ PTCReader *PTC_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 
 	PTC::ParticlesReader *reader = new PTC::ParticlesReader(filename, scene, ob, psys);
 	return (PTCReader *)reader;
+}
+
+int PTC_reader_particles_totpoint(PTCReader *_reader)
+{
+	PTC::ParticlesReader *reader = (PTC::ParticlesReader *)_reader;
+	return reader->totpoint();
 }
 
 #else

@@ -24,7 +24,8 @@ extern "C" {
 
 namespace PTC {
 
-using Alembic::AbcCoreAbstract::chrono_t;
+using namespace Abc;
+using namespace AbcCoreAbstract;
 
 FrameMapper::FrameMapper(double fps)
 {

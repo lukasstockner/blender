@@ -140,11 +140,9 @@ float psys_get_current_display_percentage(ParticleSystem *psys)
 	return psys->part->disp/100.0f;
 }
 
-static int tot_particles(ParticleSystem *psys, PTCacheID *pid)
+static int tot_particles(ParticleSystem *psys)
 {
-	if (pid && psys->pointcache->flag & PTCACHE_EXTERNAL)
-		return pid->cache->totpoint;
-	else if (psys->part->distr == PART_DISTR_GRID && psys->part->from != PART_FROM_VERT)
+	if (psys->part->distr == PART_DISTR_GRID && psys->part->from != PART_FROM_VERT)
 		return psys->part->grid_res * psys->part->grid_res * psys->part->grid_res - psys->totunexist;
 	else
 		return psys->part->totpart - psys->totunexist;
@@ -157,7 +155,7 @@ void psys_reset(ParticleSystem *psys, int mode)
 	if (ELEM(mode, PSYS_RESET_ALL, PSYS_RESET_DEPSGRAPH)) {
 		if (mode == PSYS_RESET_ALL || !(psys->flag & PSYS_EDITED)) {
 			/* don't free if not absolutely necessary */
-			if (psys->totpart != tot_particles(psys, NULL)) {
+			if (psys->totpart != tot_particles(psys)) {
 				psys_free_particles(psys);
 				psys->totpart= 0;
 			}
@@ -4620,11 +4618,11 @@ static void particles_fluid_step(ParticleSimulationData *sim, int UNUSED(cfra))
 	#endif // WITH_MOD_FLUID
 }
 
-static int emit_particles(ParticleSimulationData *sim, PTCacheID *pid, float UNUSED(cfra))
+static int emit_particles(ParticleSimulationData *sim, struct PTCReader *cache_reader, float UNUSED(cfra))
 {
 	ParticleSystem *psys = sim->psys;
 	int oldtotpart = psys->totpart;
-	int totpart = tot_particles(psys, pid);
+	int totpart = (cache_reader && psys->pointcache->flag & PTCACHE_EXTERNAL) ? PTC_reader_particles_totpoint(cache_reader) : tot_particles(psys);
 
 	if (totpart != oldtotpart)
 		realloc_particles(sim, totpart);
@@ -4643,7 +4641,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	PointCache *cache = psys->pointcache;
-	PTCacheID ptcacheid, *pid = NULL;
+	struct PTCReader *cache_reader = NULL;
 	PARTICLE_P;
 	float disp, cache_cfra = cfra; /*, *vg_vel= 0, *vg_tan= 0, *vg_rot= 0, *vg_size= 0; */
 	int startframe = 0, endframe = 100, oldtotpart = 0;
@@ -4656,15 +4654,15 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		if ((cache->flag & (PTCACHE_BAKING|PTCACHE_BAKED))==0)
 			psys_get_pointcache_start_end(sim->scene, psys, &cache->startframe, &cache->endframe);
 
-		pid = &ptcacheid;
-		BKE_ptcache_id_from_particles(pid, sim->ob, psys);
+		cache_reader = PTC_reader_particles(sim->scene, sim->ob, psys);
 		
-		BKE_ptcache_id_time(pid, sim->scene, 0.0f, &startframe, &endframe, NULL);
+		PTC_reader_get_frame_range(cache_reader, &startframe, &endframe);
 
-		/* clear everythin on start frame */
+		/* clear everything on start frame */
 		if (cfra == startframe) {
-			BKE_ptcache_id_reset(sim->scene, pid, PTCACHE_RESET_OUTDATED);
-			BKE_ptcache_validate(cache, startframe);
+			/* XXX anything to do here? */
+//			BKE_ptcache_id_reset(sim->scene, pid, PTCACHE_RESET_OUTDATED);
+//			BKE_ptcache_validate(cache, startframe);
 			cache->flag &= ~PTCACHE_REDO_NEEDED;
 		}
 		
@@ -4673,7 +4671,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 
 /* 1. emit particles and redo particles if needed */
 	oldtotpart = psys->totpart;
-	if (emit_particles(sim, pid, cfra) || psys->recalc & PSYS_RECALC_RESET) {
+	if (emit_particles(sim, cache_reader, cfra) || psys->recalc & PSYS_RECALC_RESET) {
 		distribute_particles(sim, part->from);
 		initialize_all_particles(sim);
 		/* reset only just created particles (on startframe all particles are recreated) */
@@ -4689,22 +4687,24 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		/* flag for possible explode modifiers after this system */
 		sim->psmd->flag |= eParticleSystemFlag_Pars;
 
-		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, cfra);
+		/* XXX needs stitcher implementation to copy over previous samples */
+//		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, cfra);
 	}
 
 /* 2. try to read from the cache */
-	if (pid) {
-		int cache_result = BKE_ptcache_read(pid, cache_cfra);
+	if (cache_reader) {
+		PTCReadSampleResult cache_result = PTC_read_sample(cache_reader, cache_cfra);
 
-		if (ELEM(cache_result, PTCACHE_READ_EXACT, PTCACHE_READ_INTERPOLATED)) {
+		if (ELEM(cache_result, PTC_READ_SAMPLE_EXACT, PTC_READ_SAMPLE_INTERPOLATED)) {
 			cached_step(sim, cfra);
 			update_children(sim);
 			psys_update_path_cache(sim, cfra);
 
 			BKE_ptcache_validate(cache, (int)cache_cfra);
 
-			if (cache_result == PTCACHE_READ_INTERPOLATED && cache->flag & PTCACHE_REDO_NEEDED)
-				BKE_ptcache_write(pid, (int)cache_cfra);
+			/* XXX TODO */
+//			if (cache_result == PTC_READ_SAMPLE_INTERPOLATED && cache->flag & PTCACHE_REDO_NEEDED)
+//				BKE_ptcache_write(pid, (int)cache_cfra);
 
 			return;
 		}
@@ -4719,8 +4719,9 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		}
 
 		/* if on second frame, write cache for first frame */
-		if (psys->cfra == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
-			BKE_ptcache_write(pid, startframe);
+		/* XXX TODO */
+//		if (psys->cfra == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
+//			BKE_ptcache_write(pid, startframe);
 	}
 	else
 		BKE_ptcache_invalidate(cache);
@@ -4775,11 +4776,11 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 	}
 	
 /* 4. only write cache starting from second frame */
-	if (pid) {
-		BKE_ptcache_validate(cache, (int)cache_cfra);
-		if ((int)cache_cfra != startframe)
-			BKE_ptcache_write(pid, (int)cache_cfra);
-	}
+//	if (pid) {
+//		BKE_ptcache_validate(cache, (int)cache_cfra);
+//		if ((int)cache_cfra != startframe)
+//			BKE_ptcache_write(pid, (int)cache_cfra);
+//	}
 
 	update_children(sim);
 
@@ -4794,9 +4795,9 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 static void psys_changed_type(ParticleSimulationData *sim)
 {
 	ParticleSettings *part = sim->psys->part;
-	PTCacheID pid;
+//	PTCacheID pid;
 
-	BKE_ptcache_id_from_particles(&pid, sim->ob, sim->psys);
+//	BKE_ptcache_id_from_particles(&pid, sim->ob, sim->psys);
 
 	if (part->phystype != PART_PHYS_KEYED)
 		sim->psys->flag &= ~PSYS_KEYED;
@@ -4814,7 +4815,8 @@ static void psys_changed_type(ParticleSimulationData *sim)
 		CLAMP(part->path_start, 0.0f, 100.0f);
 		CLAMP(part->path_end, 0.0f, 100.0f);
 
-		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
+		/* XXX TODO */
+//		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
 	}
 	else {
 		free_hair(sim->ob, sim->psys, 1);
@@ -4873,9 +4875,10 @@ static void psys_prepare_physics(ParticleSimulationData *sim)
 	ParticleSettings *part = sim->psys->part;
 
 	if (ELEM(part->phystype, PART_PHYS_NO, PART_PHYS_KEYED)) {
-		PTCacheID pid;
-		BKE_ptcache_id_from_particles(&pid, sim->ob, sim->psys);
-		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
+		/* XXX TODO */
+//		PTCacheID pid;
+//		BKE_ptcache_id_from_particles(&pid, sim->ob, sim->psys);
+//		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
 	}
 	else {
 		free_keyed_keys(sim->psys);

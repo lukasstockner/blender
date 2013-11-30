@@ -22,6 +22,8 @@
 #include "reader.h"
 
 extern "C" {
+#include "BLI_fileops.h"
+
 #include "DNA_scene_types.h"
 }
 
@@ -33,7 +35,7 @@ Reader::Reader(const std::string &filename, Scene *scene) :
     FrameMapper(scene),
     m_scene(scene)
 {
-	m_archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, ErrorHandler::kThrowPolicy);
+	m_archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, ErrorHandler::kNoisyNoopPolicy);
 }
 
 Reader::~Reader()
@@ -42,17 +44,20 @@ Reader::~Reader()
 
 void Reader::get_frame_range(int &start_frame, int &end_frame)
 {
-	double start_time, end_time;
-	GetArchiveStartAndEndTime(m_archive, start_time, end_time);
-	start_frame = time_to_frame(start_time);
-	end_frame = time_to_frame(end_time);
-}
-	
-	double fps = (double)m_scene->r.frs_sec / (double)m_scene->r.frs_sec_base;
-	start_frame = start_time * fps;
-	end_frame = end_time * fps;
+	if (m_archive.valid()) {
+		double start_time, end_time;
+		GetArchiveStartAndEndTime(m_archive, start_time, end_time);
+		start_frame = (int)time_to_frame(start_time);
+		end_frame = (int)time_to_frame(end_time);
+	}
+	else {
+		start_frame = end_frame = 1;
+	}
 }
 
-//AbcA::TimeSamplingPtr ts = iArchive.getTimeSampling( i )
+ISampleSelector Reader::get_frame_sample_selector(float frame)
+{
+	return ISampleSelector(frame_to_time(frame), ISampleSelector::kFloorIndex);
+}
 
 } /* namespace PTC */

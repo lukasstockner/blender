@@ -275,42 +275,50 @@ void ParticlesWriter::write_sample()
 ParticlesReader::ParticlesReader(const std::string &filename, Scene *scene, Object *ob, ParticleSystem *psys) :
     Reader(filename, scene),
     m_ob(ob),
-    m_psys(psys)
+    m_psys(psys),
+    m_totpoint(0)
 {
-	IObject root = m_archive.getTop();
-	m_points = IPoints(root, m_psys->name);
+	if (m_archive.valid()) {
+		IObject root = m_archive.getTop();
+		m_points = IPoints(root, m_psys->name);
+	}
+	
+	/* XXX TODO read first sample for info on particle count and times */
+	m_totpoint = 0;
 }
 
 ParticlesReader::~ParticlesReader()
 {
 }
 
-void ParticlesReader::read_sample()
+PTCReadSampleResult ParticlesReader::read_sample(float frame)
 {
+	if (!m_points.valid())
+		return PTC_READ_SAMPLE_INVALID;
+	
 	IPointsSchema &schema = m_points.getSchema();
+	TimeSamplingPtr ts = schema.getTimeSampling();
 	
-#if 0
-	int totpart = m_psys->totpart;
+	ISampleSelector ss = get_frame_sample_selector(frame);
+	chrono_t time = ss.getRequestedTime();
+	
+	std::pair<index_t, chrono_t> sres = ts->getFloorIndex(time, schema.getNumSamples());
+	chrono_t stime = sres.second;
+	float sframe = time_to_frame(stime);
+	
+	IPointsSchema::Sample sample;
+	schema.get(sample, ss);
+	
+	const V3f *positions = sample.getPositions()->get();
+	int totpart = m_psys->totpart, i;
 	ParticleData *pa;
-	int i;
-	
-	/* XXX TODO only needed for the first frame/sample */
-	std::vector<Util::uint64_t> ids;
-	ids.reserve(totpart);
-	for (i = 0, pa = m_psys->particles; i < totpart; ++i, ++pa)
-		ids.push_back(i);
-	
-	std::vector<V3f> positions;
-	positions.reserve(totpart);
-	for (i = 0, pa = m_psys->particles; i < totpart; ++i, ++pa) {
-		float *co = pa->state.co;
-		positions.push_back(V3f(co[0], co[1], co[2]));
+	for (i = 0, pa = m_psys->particles; i < sample.getPositions()->size(); ++i, ++pa) {
+		pa->state.co[0] = positions[i].x;
+		pa->state.co[1] = positions[i].y;
+		pa->state.co[2] = positions[i].z;
 	}
 	
-	OPointsSchema::Sample sample = OPointsSchema::Sample(V3fArraySample(positions), UInt64ArraySample(ids));
-
-	schema.set(sample);
-#endif
+	return PTC_READ_SAMPLE_EXACT;
 }
 
 } /* namespace PTC */

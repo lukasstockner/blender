@@ -494,12 +494,15 @@ public:
 	ParticlesReader(const std::string &filename, Scene *scene, Object *ob, ParticleSystem *psys);
 	~ParticlesReader();
 	
-	void read_sample();
+	int totpoint() const { return m_totpoint; }
+	
+	PTCReadSampleResult read_sample(float frame);
 	
 private:
 	Object *m_ob;
 	ParticleSystem *m_psys;
 	
+	int m_totpoint;
 	AbcGeom::IPoints m_points;
 };
 

@@ -19,6 +19,8 @@
 #ifndef PTC_API_H
 #define PTC_API_H
 
+#include "util/util_types.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,7 +38,9 @@ void PTC_writer_free(struct PTCWriter *writer);
 void PTC_write_sample(struct PTCWriter *writer);
 
 void PTC_reader_free(struct PTCReader *reader);
-void PTC_read_sample(struct PTCReader *reader);
+PTCReadSampleResult PTC_read_sample(struct PTCReader *reader, float frame);
+
+void PTC_reader_get_frame_range(struct PTCReader *reader, int *start_frame, int *end_frame);
 
 void PTC_bake(struct Main *bmain, struct Scene *scene, struct PTCWriter *writer, int start_frame, int end_frame,
               short *stop, short *do_update, float *progress);
@@ -49,6 +53,7 @@ struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *pt
 /* Particles */
 struct PTCWriter *PTC_writer_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
 struct PTCReader *PTC_reader_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+int PTC_reader_particles_totpoint(struct PTCReader *reader);
 
 #ifdef __cplusplus
 } /* extern C */
