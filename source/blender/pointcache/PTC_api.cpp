@@ -28,6 +28,8 @@
 #include "util_path.h"
 
 extern "C" {
+#include "BLI_math.h"
+
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_pointcache_types.h"
@@ -36,6 +38,24 @@ extern "C" {
 }
 
 using namespace PTC;
+
+void PTC_validate(PointCache *cache, int framenr)
+{
+	if (cache) {
+		cache->state.flag |= PTC_STATE_SIMULATION_VALID;
+		cache->state.simframe = framenr;
+	}
+}
+
+void PTC_invalidate(PointCache *cache)
+{
+	if (cache) {
+		cache->state.flag &= ~PTC_STATE_SIMULATION_VALID;
+		cache->state.simframe = 0;
+		cache->state.last_exact = min_ii(cache->startframe, 0);
+	}
+}
+
 
 void PTC_writer_free(PTCWriter *_writer)
 {

@@ -52,6 +52,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_pointcache_types.h"
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_material_types.h"
@@ -90,7 +91,6 @@
 #include "BKE_cloth.h"
 #include "BKE_depsgraph.h"
 #include "BKE_lattice.h"
-#include "BKE_pointcache.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_scene.h"
@@ -188,7 +188,7 @@ void psys_reset(ParticleSystem *psys, int mode)
 	psys_free_path_cache(psys, psys->edit);
 
 	/* reset point cache */
-	BKE_ptcache_invalidate(psys->pointcache);
+	PTC_invalidate(psys->pointcache);
 
 	if (psys->fluid_springs) {
 		MEM_freeN(psys->fluid_springs);
@@ -2169,14 +2169,16 @@ static void set_keyed_keys(ParticleSimulationData *sim)
 void psys_make_temp_pointcache(Object *ob, ParticleSystem *psys)
 {
 	if (psys->mem_pointcache.first == NULL) {
-		PTCacheID pid;
-		BKE_ptcache_id_from_particles(&pid, ob, psys);
-		BKE_ptcache_to_mem(&pid, &psys->mem_pointcache);
+		/* XXX TODO */
+//		PTCacheID pid;
+//		BKE_ptcache_id_from_particles(&pid, ob, psys);
+//		BKE_ptcache_to_mem(&pid, &psys->mem_pointcache);
 	}
 }
 static void psys_clear_temp_pointcache(ParticleSystem *psys)
 {
-	BKE_ptcache_free_mem(&psys->mem_pointcache);
+	/* XXX TODO */
+//	BKE_ptcache_free_mem(&psys->mem_pointcache);
 }
 void psys_get_pointcache_start_end(Scene *scene, ParticleSystem *psys, int *sfra, int *efra)
 {
@@ -4662,7 +4664,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		if (cfra == startframe) {
 			/* XXX anything to do here? */
 //			BKE_ptcache_id_reset(sim->scene, pid, PTCACHE_RESET_OUTDATED);
-//			BKE_ptcache_validate(cache, startframe);
+			PTC_validate(cache, startframe);
 			cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 		}
 		
@@ -4700,7 +4702,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 			update_children(sim);
 			psys_update_path_cache(sim, cfra);
 
-			BKE_ptcache_validate(cache, (int)cache_cfra);
+			PTC_validate(cache, (int)cache_cfra);
 
 			/* XXX TODO */
 //			if (cache_result == PTC_READ_SAMPLE_INTERPOLATED && cache->state.flag & PTC_STATE_REDO_NEEDED)
@@ -4724,7 +4726,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 //			BKE_ptcache_write(pid, startframe);
 	}
 	else
-		BKE_ptcache_invalidate(cache);
+		PTC_invalidate(cache);
 
 /* 3. do dynamics */
 	/* set particles to be not calculated TODO: can't work with pointcache */
@@ -4909,7 +4911,9 @@ static void psys_prepare_physics(ParticleSimulationData *sim)
 }
 static int hair_needs_recalc(ParticleSystem *psys)
 {
-	if (!(psys->flag & PSYS_EDITED) && (!psys->edit || !psys->edit->edited) &&
+	/* XXX TODO */
+//	if (!(psys->flag & PSYS_EDITED) && (!psys->edit || !psys->edit->edited) &&
+	if (!(psys->flag & PSYS_EDITED) && (!psys->edit || true) &&
 	    ((psys->flag & PSYS_HAIR_DONE)==0 || psys->recalc & PSYS_RECALC_RESET || (psys->part->flag & PART_HAIR_REGROW && !psys->edit)))
 	{
 		return 1;
