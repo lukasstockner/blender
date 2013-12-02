@@ -793,12 +793,15 @@ ccl_device_inline bool shadow_blocked_volume(KernelGlobals *kg, PathState *state
 				v_ray.t = isect.t;
 				float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng, rng_offset, rng_congruential, sample, &v_ray, media_volume_shader, &tmp_volume_pdf);
 				*volume_pdf *= tmp_volume_pdf;
+				throughput *= attenuation;
 
 				ShaderData sd;
 				shader_setup_from_ray(kg, &sd, &isect, ray, state->bounce);
-				shader_eval_surface(kg, &sd, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_MAIN);
 
-				throughput *= shader_bsdf_transparency(kg, &sd) * attenuation;
+				if(!(sd.flag & SD_HAS_ONLY_VOLUME)) {
+					shader_eval_surface(kg, &sd, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_MAIN);
+					throughput *= shader_bsdf_transparency(kg, &sd);
+				}
 
 				ray->P = ray_offset(sd.P, -sd.Ng);
 				if(ray->t != FLT_MAX)

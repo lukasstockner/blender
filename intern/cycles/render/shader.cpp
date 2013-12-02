@@ -230,6 +230,15 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 		if(shader->has_volume) {
 			flag |= SD_HAS_VOLUME;
 			has_volumetrics = true;
+
+			/* in this case we can assume transparent surface */
+			if(!shader->has_surface)
+				flag |= SD_HAS_ONLY_VOLUME;
+
+			/* todo: this could check more fine grained, to skip useless volumes
+			 * enclosed inside an opaque bsdf, although we still need to handle
+			 * the case with camera inside volumes too */
+			flag |= SD_HAS_TRANSPARENT_SHADOW;
 		}
 		if(shader->homogeneous_volume)
 			flag |= SD_HOMOGENEOUS_VOLUME;

@@ -521,13 +521,14 @@ enum ShaderDataFlag {
 	SD_USE_MIS = 512,					/* direct light sample */
 	SD_HAS_TRANSPARENT_SHADOW = 1024,	/* has transparent shadow */
 	SD_HAS_VOLUME = 2048,				/* has volume shader */
-	SD_HOMOGENEOUS_VOLUME = 4096,		/* has homogeneous volume */
-	SD_HAS_BSSRDF_BUMP = 8192,			/* bssrdf normal uses bump */
+	SD_HAS_ONLY_VOLUME = 4096,			/* has only volume shader, no surface */
+	SD_HOMOGENEOUS_VOLUME = 8192,		/* has homogeneous volume */
+	SD_HAS_BSSRDF_BUMP = 16384,			/* bssrdf normal uses bump */
 
 	/* object flags */
-	SD_HOLDOUT_MASK = 16384,			/* holdout for camera rays */
-	SD_OBJECT_MOTION = 32768,			/* has object motion blur */
-	SD_TRANSFORM_APPLIED = 65536 		/* vertices have transform applied */
+	SD_HOLDOUT_MASK = 32768,			/* holdout for camera rays */
+	SD_OBJECT_MOTION = 65536,			/* has object motion blur */
+	SD_TRANSFORM_APPLIED = 131072 		/* vertices have transform applied */
 };
 
 struct KernelGlobals;

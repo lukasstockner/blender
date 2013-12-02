@@ -774,60 +774,76 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 		}
 #endif
 
-		/* no BSDF? we can stop here */
-		if(!(sd.flag & SD_BSDF))
-			break;
+		if(sd.flag & SD_BSDF) {
+			/* sample BSDF */
+			float bsdf_pdf;
+			BsdfEval bsdf_eval;
+			float3 bsdf_omega_in;
+			differential3 bsdf_domega_in;
+			float bsdf_u, bsdf_v;
+			path_rng_2D(kg, rng, sample, num_samples, rng_offset + PRNG_BSDF_U, &bsdf_u, &bsdf_v);
+			int label;
 
-		/* sample BSDF */
-		float bsdf_pdf;
-		BsdfEval bsdf_eval;
-		float3 bsdf_omega_in;
-		differential3 bsdf_domega_in;
-		float bsdf_u, bsdf_v;
-		path_rng_2D(kg, rng, sample, num_samples, rng_offset + PRNG_BSDF_U, &bsdf_u, &bsdf_v);
-		int label;
+			label = shader_bsdf_sample(kg, &sd, bsdf_u, bsdf_v, &bsdf_eval,
+				&bsdf_omega_in, &bsdf_domega_in, &bsdf_pdf);
 
-		label = shader_bsdf_sample(kg, &sd, bsdf_u, bsdf_v, &bsdf_eval,
-			&bsdf_omega_in, &bsdf_domega_in, &bsdf_pdf);
+			if(bsdf_pdf == 0.0f || bsdf_eval_is_zero(&bsdf_eval))
+				break;
 
-		if(bsdf_pdf == 0.0f || bsdf_eval_is_zero(&bsdf_eval))
-			break;
-
-		/* modify throughput */
+			/* modify throughput */
 #ifdef __VOLUME__
-		bsdf_eval_mul(&bsdf_eval, volume_eval/volume_pdf);
+			bsdf_eval_mul(&bsdf_eval, volume_eval/volume_pdf);
 #endif
-		path_radiance_bsdf_bounce(&L, &throughput, &bsdf_eval, bsdf_pdf, state.bounce, label);
+			path_radiance_bsdf_bounce(&L, &throughput, &bsdf_eval, bsdf_pdf, state.bounce, label);
 
-		/* set labels */
-		if(!(label & LABEL_TRANSPARENT)) {
-			ray_pdf = bsdf_pdf;
+			/* set labels */
+			if(!(label & LABEL_TRANSPARENT)) {
+				ray_pdf = bsdf_pdf;
 #ifdef __LAMP_MIS__
-			ray_t = 0.0f;
+				ray_t = 0.0f;
 #endif
-			min_ray_pdf = fminf(bsdf_pdf, min_ray_pdf);
+				min_ray_pdf = fminf(bsdf_pdf, min_ray_pdf);
+			}
+
+			/* update path state */
+			path_state_next(kg, &state, label);
+
+			/* setup ray */
+			ray.P = ray_offset(sd.P, (label & LABEL_TRANSMIT)? -sd.Ng: sd.Ng);
+			ray.D = bsdf_omega_in;
+
+#ifdef __RAY_DIFFERENTIALS__
+			ray.dP = sd.dP;
+			ray.dD = bsdf_domega_in;
+#endif
+		}
+		else if(sd.flag & SD_HAS_ONLY_VOLUME) {
+			/* no surface shader but have a volume shader? act transparent */
+
+			/* update path state, count as transparent */
+			path_state_next(kg, &state, LABEL_TRANSPARENT);
+
+			/* setup ray position, direction stays unchanged */
+			ray.P = ray_offset(sd.P, -sd.Ng);
+#ifdef __RAY_DIFFERENTIALS__
+			ray.dP = sd.dP;
+#endif
+		}
+		else {
+			/* no bsdf or volume? we're done */
+			break;
 		}
 
 #ifdef __VOLUME__
 		ray_pdf *= volume_pdf;
 #endif
 
-		/* update path state */
-		path_state_next(kg, &state, label);
-
-		/* setup ray */
-		ray.P = ray_offset(sd.P, (label & LABEL_TRANSMIT)? -sd.Ng: sd.Ng);
-		ray.D = bsdf_omega_in;
-
+		/* adjust ray distance for clipping */
 		if(state.bounce == 0)
 			ray.t -= sd.ray_length; /* clipping works through transparent */
 		else
 			ray.t = FLT_MAX;
 
-#ifdef __RAY_DIFFERENTIALS__
-		ray.dP = sd.dP;
-		ray.dD = bsdf_domega_in;
-#endif
 #ifdef __VOLUME__
 		if (sd.flag & SD_BACKFACING)
 			media_volume_shader = kernel_data.background.shader;
