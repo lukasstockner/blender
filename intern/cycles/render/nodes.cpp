@@ -2012,23 +2012,23 @@ void TransparentVolumeNode::compile(OSLCompiler& compiler)
 	compiler.add(this, "node_transparent_volume");
 }
 
-/* Isotropic Volume Closure */
+/* Scatter Volume Closure */
 
-IsotropicVolumeNode::IsotropicVolumeNode()
+ScatterVolumeNode::ScatterVolumeNode()
 {
 	closure = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
 	
-	add_input("g", SHADER_SOCKET_FLOAT, 0.0f);
+	add_input("Anisotropy", SHADER_SOCKET_FLOAT, 0.0f);
 }
 
-void IsotropicVolumeNode::compile(SVMCompiler& compiler)
+void ScatterVolumeNode::compile(SVMCompiler& compiler)
 {
-	VolumeNode::compile(compiler, input("Density"), input("g"));
+	VolumeNode::compile(compiler, input("Density"), input("Anisotropy"));
 }
 
-void IsotropicVolumeNode::compile(OSLCompiler& compiler)
+void ScatterVolumeNode::compile(OSLCompiler& compiler)
 {
-	compiler.add(this, "node_henyey_greenstein_volume");
+	compiler.add(this, "node_scatter_volume");
 }
 
 /* Hair BSDF Closure */

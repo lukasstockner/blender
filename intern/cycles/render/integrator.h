@@ -33,7 +33,7 @@ public:
 	int max_diffuse_bounce;
 	int max_glossy_bounce;
 	int max_transmission_bounce;
-	int max_scattering_bounce;
+	int max_volume_bounce;
 	bool probalistic_termination;
 
 	int transparent_min_bounce;

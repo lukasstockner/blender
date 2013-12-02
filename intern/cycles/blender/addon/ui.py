@@ -193,7 +193,7 @@ class CyclesRender_PT_light_paths(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "diffuse_bounces", text="Diffuse")
         sub.prop(cscene, "glossy_bounces", text="Glossy")
         sub.prop(cscene, "transmission_bounces", text="Transmission")
-        sub.prop(cscene, "scattering_bounces", text="Scattering")
+        sub.prop(cscene, "volume_bounces", text="Volume")
         
 class CyclesRender_PT_volumetrics(CyclesButtonsPanel, Panel):
     bl_label = "Volumetrics"

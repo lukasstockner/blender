@@ -8,6 +8,6 @@ cycles.use_volumetric = True
 cycles.diffuse_bounces = 0
 cycles.glossy_bounces = 1
 cycles.transmission_bounces = 2
-cycles.scattering_bounces = 0
+cycles.volume_bounces = 0
 cycles.transparent_min_bounces = 8
 cycles.transparent_max_bounces = 8

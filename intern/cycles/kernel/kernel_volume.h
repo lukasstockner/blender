@@ -454,7 +454,7 @@ ccl_device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, float ra
 	}
 
 #if 1
-	if (*omega_cache != NULL) {
+	if (omega_cache) {
 		if(*omega_cache == 0.0f) {
 			*omega_cache =  get_sigma_sample(kg, sd, randp, path_flag, ray.P);
 		}
@@ -528,7 +528,7 @@ ccl_device int kernel_volumetric_equiangular_sampler(KernelGlobals *kg, RNG *rng
 	if(ls.pdf == 0.0f)
 		return 0;
 
-	if (*omega_cache != NULL) {
+	if (omega_cache) {
 		if(*omega_cache == 0.0f) {
 			*omega_cache =  get_sigma_sample(kg, sd, randp, path_flag, ray.P);
 		}

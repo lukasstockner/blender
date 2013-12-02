@@ -33,7 +33,7 @@ Integrator::Integrator()
 	max_diffuse_bounce = max_bounce;
 	max_glossy_bounce = max_bounce;
 	max_transmission_bounce = max_bounce;
-	max_scattering_bounce = max_bounce;
+	max_volume_bounce = max_bounce;
 	probalistic_termination = true;
 
 	transparent_min_bounce = min_bounce;
@@ -94,7 +94,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 	kintegrator->max_diffuse_bounce = max_diffuse_bounce + 1;
 	kintegrator->max_glossy_bounce = max_glossy_bounce + 1;
 	kintegrator->max_transmission_bounce = max_transmission_bounce + 1;
-	kintegrator->max_scattering_bounce = max_scattering_bounce + 1;
+	kintegrator->max_volume_bounce = max_volume_bounce + 1;
 
 	kintegrator->transparent_max_bounce = transparent_max_bounce + 1;
 	if(transparent_probalistic)
@@ -172,7 +172,7 @@ bool Integrator::modified(const Integrator& integrator)
 		max_diffuse_bounce == integrator.max_diffuse_bounce &&
 		max_glossy_bounce == integrator.max_glossy_bounce &&
 		max_transmission_bounce == integrator.max_transmission_bounce &&
-		max_scattering_bounce == integrator.max_scattering_bounce &&
+		max_volume_bounce == integrator.max_volume_bounce &&
 		probalistic_termination == integrator.probalistic_termination &&
 		transparent_min_bounce == integrator.transparent_min_bounce &&
 		transparent_max_bounce == integrator.transparent_max_bounce &&

@@ -303,10 +303,10 @@ void ShaderManager::add_default(Scene *scene)
 	{
 		graph = new ShaderGraph();
 
-		closure = graph->add(new IsotropicVolumeNode());
+		closure = graph->add(new ScatterVolumeNode());
 		closure->input("Color")->value = make_float3(0.8f, 0.8f, 0.8f);
 		closure->input("Density")->value.x = 1.0f;
-		closure->input("g")->value.x = 0.0f;
+		closure->input("Anisotropy")->value.x = 0.0f;
 		out = graph->output();
 
 		graph->connect(closure->output("Volume"), out->input("Volume"));

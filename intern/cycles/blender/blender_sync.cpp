@@ -166,7 +166,7 @@ void BlenderSync::sync_integrator()
 	integrator->max_diffuse_bounce = get_int(cscene, "diffuse_bounces");
 	integrator->max_glossy_bounce = get_int(cscene, "glossy_bounces");
 	integrator->max_transmission_bounce = get_int(cscene, "transmission_bounces");
-	integrator->max_scattering_bounce = get_int(cscene, "scattering_bounces");
+	integrator->max_volume_bounce = get_int(cscene, "volume_bounces");
 
 	integrator->transparent_max_bounce = get_int(cscene, "transparent_max_bounces");
 	integrator->transparent_min_bounce = get_int(cscene, "transparent_min_bounces");

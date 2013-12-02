@@ -321,9 +321,9 @@ public:
 	SHADER_NODE_CLASS(TransparentVolumeNode)
 };
 
-class IsotropicVolumeNode : public VolumeNode {
+class ScatterVolumeNode : public VolumeNode {
 public:
-	SHADER_NODE_CLASS(IsotropicVolumeNode)
+	SHADER_NODE_CLASS(ScatterVolumeNode)
 };
 
 class HairBsdfNode : public BsdfNode {
