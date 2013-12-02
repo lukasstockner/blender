@@ -218,6 +218,7 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 	uint *shader_flag = dscene->shader_flag.resize(shader_flag_size);
 	uint i = 0;
 	bool has_converter_blackbody = false;
+	bool has_volumetrics = false;
 
 	foreach(Shader *shader, scene->shaders) {
 		uint flag = 0;
@@ -226,8 +227,10 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 			flag |= SD_USE_MIS;
 		if(shader->has_surface_transparent && shader->use_transparent_shadow)
 			flag |= SD_HAS_TRANSPARENT_SHADOW;
-		if(shader->has_volume)
+		if(shader->has_volume) {
 			flag |= SD_HAS_VOLUME;
+			has_volumetrics = true;
+		}
 		if(shader->homogeneous_volume)
 			flag |= SD_HOMOGENEOUS_VOLUME;
 		if(shader->has_bssrdf_bump)
@@ -263,6 +266,9 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 		blackbody_table_offset = TABLE_OFFSET_INVALID;
 	}
 
+	/* volumetrics */
+	KernelIntegrator *kintegrator = &dscene->data.integrator;
+	kintegrator->use_volumetrics = has_volumetrics; 
 }
 
 void ShaderManager::device_free_common(Device *device, DeviceScene *dscene, Scene *scene)

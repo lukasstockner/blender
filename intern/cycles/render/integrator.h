@@ -42,8 +42,6 @@ public:
 	bool transparent_shadows;
 
 	bool no_caustics;
-	bool use_volumetric;
-	float volume_density_factor;
 
 	int volume_sampling_algorithm; // when homogeneous = false, 0 = cell marching, 1 = woodcock delta tracking
 	int volume_homogeneous_sampling;

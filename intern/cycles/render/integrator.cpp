@@ -42,8 +42,6 @@ Integrator::Integrator()
 	transparent_shadows = false;
 
 	no_caustics = false;
-	use_volumetric = false;
-	volume_density_factor = M_E/10;
 	volume_sampling_algorithm = 0;
 	volume_homogeneous_sampling = 0;
 	
@@ -105,8 +103,6 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 	kintegrator->transparent_shadows = transparent_shadows;
 
 	kintegrator->no_caustics = no_caustics;
-	kintegrator->use_volumetric = use_volumetric;
-	kintegrator->volume_density_factor = volume_density_factor;
 	kintegrator->volume_sampling_algorithm = volume_sampling_algorithm;
 	kintegrator->volume_homogeneous_sampling = volume_homogeneous_sampling;
 	kintegrator->volume_max_iterations = volume_max_iterations;
@@ -181,8 +177,6 @@ bool Integrator::modified(const Integrator& integrator)
 		no_caustics == integrator.no_caustics &&
 		filter_glossy == integrator.filter_glossy &&
 		layer_flag == integrator.layer_flag &&
-		volume_density_factor == integrator.volume_density_factor &&
-		use_volumetric == integrator.use_volumetric &&
 		volume_sampling_algorithm == integrator.volume_sampling_algorithm &&
 		volume_homogeneous_sampling == integrator.volume_homogeneous_sampling &&
 		volume_max_iterations == integrator.volume_max_iterations &&

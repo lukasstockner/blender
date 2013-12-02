@@ -173,8 +173,6 @@ void BlenderSync::sync_integrator()
 	integrator->transparent_shadows = get_boolean(cscene, "use_transparent_shadows");
 
 	integrator->no_caustics = get_boolean(cscene, "no_caustics");
-	integrator->use_volumetric = get_boolean(cscene, "use_volumetric");
-	integrator->volume_density_factor = get_float(cscene, "volume_density_factor");
 	integrator->volume_sampling_algorithm = get_enum(cscene, "volume_sampling_algorithm");
 	integrator->volume_homogeneous_sampling = get_enum(cscene, "volume_homogeneous_sampling");
 	integrator->volume_max_iterations = get_int(cscene, "volume_max_iterations");

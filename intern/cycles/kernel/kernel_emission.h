@@ -105,7 +105,7 @@ ccl_device float get_sigma_sample_(KernelGlobals *kg, ShaderData *sd, float rand
 	float v = sd->closure.data0;
 #endif
 
-	return sigma_from_value_(v, kernel_data.integrator.volume_density_factor);
+	return sigma_from_value_(v, 1.0f);
 }
 #endif
 
@@ -155,7 +155,7 @@ ccl_device_noinline bool direct_emission(KernelGlobals *kg, ShaderData *sd, int 
 		// W = post_hit_bsdf_pdf   * 1.0f/ (4.0f * M_PI_F * t*t) *   pre_hit_bsdf_pdf
 
 		float volume_pdf = 1.0f;
-		if(( kernel_data.integrator.use_volumetric ) && (sd->flag & SD_HAS_VOLUME) && (sd->flag & SD_HOMOGENEOUS_VOLUME))
+		if(( kernel_data.integrator.use_volumetrics ) && (sd->flag & SD_HAS_VOLUME) && (sd->flag & SD_HOMOGENEOUS_VOLUME))
 		{
 			float sigma = get_sigma_sample_(kg, sd, 0, 0, make_float3(0.0f, 0.0f, 0.0f));
 			volume_pdf = sigma * exp(-ls.t * sigma); 	

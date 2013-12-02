@@ -34,7 +34,6 @@ class AddPresetIntegrator(AddPresetBase, Operator):
         "cycles.max_bounces",
         "cycles.min_bounces",
         "cycles.no_caustics",
-        "cycles.use_volumetric",
         "cycles.diffuse_bounces",
         "cycles.glossy_bounces",
         "cycles.transmission_bounces",

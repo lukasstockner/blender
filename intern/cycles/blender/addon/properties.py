@@ -426,19 +426,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                             "but time can be saved by manually stopping the render when the noise is low enough)",
                 default=False,
                 )
-        cls.use_volumetric = BoolProperty(
-                name="Use Volumetric",
-                description="Turn on volumetric rendering",
-                default=False
-                )
 
-        cls.volume_density_factor = FloatProperty(
-                name="Density Factor",
-                description="global attenuation coefficient (material volume density) multiplyer",
-                default=1.0,
-                min=0.0, max=100000.0
-                )
-        
         cls.volume_sampling_algorithm = EnumProperty(
                 name="Sampling algorithm",
                 description="Choose volumetric sampling algorithm for inhomogeneous volumes",

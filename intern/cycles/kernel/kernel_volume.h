@@ -68,7 +68,7 @@ ccl_device float get_sigma_sample(KernelGlobals *kg, ShaderData *sd, float randv
        shader_eval_volume(kg, sd, randv, path_flag, SHADER_CONTEXT_MAIN);
        float v = sd->closure.data0;
 #endif
-       return sigma_from_value(v, kernel_data.integrator.volume_density_factor);
+       return sigma_from_value(v, 1.0f);
 }
 
 ccl_device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlobals *kg, ShaderData *sd, float trandp, Ray ray, int path_flag)
@@ -190,7 +190,7 @@ ccl_device int get_media_volume_shader(KernelGlobals *kg, float3 P, int bounce)
 {
 	/* check all objects that intersect random ray from given point, assume we have perfect geometry (all meshes closed, correct faces direct
 	 we can calculate current volume material, assuming background as start, and reassign when we cross face */
-	if(!kernel_data.integrator.use_volumetric)
+	if(!kernel_data.integrator.use_volumetrics)
 		return kernel_data.background.shader;
 
 	Ray ray;
@@ -242,7 +242,7 @@ ccl_device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng_co
 
 	int max_iter = kernel_data.integrator.volume_max_iterations;
 	//float max_prob = kernel_data.integrator.volume_woodcock_max_density;
-	//float max_sigma_t = sigma_from_value(max_prob, kernel_data.integrator.volume_density_factor);
+	//float max_sigma_t = sigma_from_value(max_prob, 1.0f);
 	float max_sigma_t = 0.0f;
 	
 	float step = end / 10.0f; // uses 10 segments for maximum - needs parameter
@@ -305,7 +305,7 @@ ccl_device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_c
 
 	int max_iter = kernel_data.integrator.volume_max_iterations;
 	float max_prob = kernel_data.integrator.volume_woodcock_max_density;
-	float max_sigma_t = sigma_from_value(max_prob, kernel_data.integrator.volume_density_factor);
+	float max_sigma_t = sigma_from_value(max_prob, 1.0f);
 	
 	int i = 0;
 	float t = 0;
@@ -620,7 +620,7 @@ ccl_device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *r
 	float3 attenuation = make_float3(1.0f, 1.0f, 1.0f);
 	*volume_pdf = 1.0f;
 
-	if(!kernel_data.integrator.use_volumetric)
+	if(!kernel_data.integrator.use_volumetrics)
 		return attenuation;
 
 	ShaderData tsd;
@@ -833,7 +833,7 @@ ccl_device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_off
 	*volume_pdf = 1.0f;
 	*volume_eval = make_float3( *volume_pdf, *volume_pdf, *volume_pdf);
 
-	if(!kernel_data.integrator.use_volumetric)
+	if(!kernel_data.integrator.use_volumetrics)
 		return VOLUME_PATH_PARTICLE_MISS;
 
 	ShaderData vsd;

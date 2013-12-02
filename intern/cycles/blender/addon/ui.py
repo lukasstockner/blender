@@ -195,32 +195,23 @@ class CyclesRender_PT_light_paths(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "transmission_bounces", text="Transmission")
         sub.prop(cscene, "volume_bounces", text="Volume")
         
-class CyclesRender_PT_volumetrics(CyclesButtonsPanel, Panel):
-    bl_label = "Volumetrics"
+class CyclesRender_PT_volume_sampling(CyclesButtonsPanel, Panel):
+    bl_label = "Volume Sampling"
     bl_options = {'DEFAULT_CLOSED'}
     
-    def draw_header(self, context):
-        rd = context.scene.cycles
-
-        self.layout.prop(rd, "use_volumetric", text="")
-
     def draw(self, context):
         layout = self.layout
 
         scene = context.scene
         cscene = scene.cycles
         
-        layout.active = cscene.use_volumetric
-        
         col = layout.column()
-        col.label(text="Sampling:")
         col.prop(cscene, "volume_sampling_algorithm", text="Inhomogeneous")
         col.prop(cscene, "volume_homogeneous_sampling", text="Homogeneous")
         
         layout.separator()
         
         col = layout.column()
-        col.prop(cscene, "volume_density_factor")
         row = col.row()
         row.prop(cscene, "volume_max_iterations")
         row.prop(cscene, "volume_cell_step")

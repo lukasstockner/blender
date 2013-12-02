@@ -761,8 +761,7 @@ typedef struct KernelIntegrator {
 	float filter_glossy;
 
 	/* volumetric */
-	int use_volumetric;
-	float volume_density_factor;
+	int use_volumetrics;
 	int volume_sampling_algorithm; // when homogeneous = false, 0 = cell marching, 1 = woodcock delta tracking
 	int volume_homogeneous_sampling;
 	int volume_max_iterations;
