@@ -100,15 +100,28 @@ class PHYSICS_PT_add(PhysicButtonsPanel, Panel):
 # cache-type can be 'PSYS' 'HAIR' 'SMOKE' etc
 
 def point_cache_ui(self, context, cache, enabled, cachetype):
-    layout = self.layout
+    ### special cases (don't ask, it's mysterious) ###
+    # cache types that support external cache data
+    supports_external       = (cachetype in {'PSYS', 'HAIR', 'SMOKE'})
+    # only smoke supports library paths
+    supports_library_path   = (cachetype in {'SMOKE'})
+    # needs a saved blend file for paths
+    needs_saved_file        = (cachetype in {'SMOKE', 'DYNAMIC_PAINT'})
+    # make exception for smoke cache
+    show_settings           = (not cache.use_external or cachetype in {'SMOKE'})
+    # start/end frames
+    supports_frame_range    = not (cachetype in {'PSYS', 'DYNAMIC_PAINT'})
+    # frame step
+    supports_frame_step     = not (cachetype in {'SMOKE', 'CLOTH', 'DYNAMIC_PAINT', 'RIGID_BODY'})
 
+    layout = self.layout
     layout.context_pointer_set("point_cache", cache)
 
     row = layout.row()
-    if cachetype in {'PSYS', 'HAIR', 'SMOKE'}:
+    if supports_external:
         row.prop(cache, "use_external")
 
-        if cachetype == 'SMOKE':
+        if supports_library_path:
             row.prop(cache, "use_library_path", "Use Lib Path")
 
         layout.context_pointer_set("point_cache_user", context.particle_system)
@@ -130,21 +143,20 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
         if cache_info:
             layout.label(text=cache_info)
     else:
-        if cachetype in {'SMOKE', 'DYNAMIC_PAINT'}:
-            if not bpy.data.is_saved:
-                layout.label(text="Cache is disabled until the file is saved")
-                layout.enabled = False
+        if needs_saved_file and not bpy.data.is_saved:
+            layout.label(text="Cache is disabled until the file is saved")
+            layout.enabled = False
 
         layout.prop(cache, "name", text="File Name")
 
-    if not cache.use_external or cachetype == 'SMOKE':
+    if show_settings:
         row = layout.row(align=True)
 
-        if cachetype not in {'PSYS', 'DYNAMIC_PAINT'}:
+        if supports_frame_range:
             row.enabled = enabled
             row.prop(cache, "frame_start")
             row.prop(cache, "frame_end")
-        if cachetype not in {'SMOKE', 'CLOTH', 'DYNAMIC_PAINT', 'RIGID_BODY'}:
+        if supports_frame_step:
             row.prop(cache, "frame_step")
 
         if cachetype != 'SMOKE':
