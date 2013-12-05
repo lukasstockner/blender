@@ -25,8 +25,7 @@ extern "C" {
 #include "BLI_string.h"
 
 #include "DNA_ID.h"
-#include "DNA_object_types.h"
-#include "DNA_particle_types.h"
+#include "DNA_pointcache_types.h"
 
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -109,11 +108,10 @@ static int ptc_filename(char *filename, const char *name, int index, const char 
 	return len;
 }
 
-std::string ptc_archive_path(const std::string &name, int index, const std::string &path, ID *id,
-                             bool do_path, bool do_ext, bool is_external, bool ignore_libpath)
+std::string ptc_archive_path(PointCache *cache, ID *id)
 {
 	char filename[FILE_MAX];
-	ptc_filename(filename, name.c_str(), index, path.c_str(), id, do_path, do_ext, is_external, ignore_libpath);
+	ptc_filename(filename, cache->name, cache->index, cache->path, id, true, true, cache->flag & PTC_EXTERNAL, cache->flag & PTC_IGNORE_LIBPATH);
 	return std::string(filename);
 }
 

@@ -22,6 +22,7 @@
 #include <string>
 
 struct ID;
+struct PointCache;
 
 namespace PTC {
 
@@ -29,8 +30,7 @@ namespace PTC {
 #define PTC_EXTENSION ".abc"
 #define PTC_DIRECTORY "blendcache_"
 
-std::string ptc_archive_path(const std::string &name, int index, const std::string &path, ID *id,
-                             bool do_path, bool do_ext, bool is_external, bool ignore_libpath);
+std::string ptc_archive_path(PointCache *cache, ID *id);
 
 } /* namespace PTC */
 

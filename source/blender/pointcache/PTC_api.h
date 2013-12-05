@@ -42,6 +42,8 @@ void PTC_bake(struct Main *bmain, struct Scene *scene, struct PTCWriter *writer,
               short *stop, short *do_update, float *progress);
 
 
+/*** Reader/Writer Interface ***/
+
 void PTC_writer_free(struct PTCWriter *writer);
 void PTC_write_sample(struct PTCWriter *writer);
 
