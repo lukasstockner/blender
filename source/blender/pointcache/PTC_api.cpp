@@ -25,8 +25,6 @@
 #include "export.h"
 #include "particles.h"
 
-#include "util_path.h"
-
 extern "C" {
 #include "BLI_math.h"
 
@@ -126,9 +124,8 @@ PTCWriter *PTC_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 	PointCache *cache = psys->pointcache;
 	if (!cache)
 		return NULL;
-	std::string filename = ptc_archive_path(cache, &ob->id);
 	
-	PTC::ParticlesWriter *writer = new PTC::ParticlesWriter(filename, scene, ob, psys);
+	PTC::ParticlesWriter *writer = new PTC::ParticlesWriter(scene, ob, psys);
 	return (PTCWriter *)writer;
 }
 
@@ -137,9 +134,8 @@ PTCReader *PTC_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 	PointCache *cache = psys->pointcache;
 	if (!cache)
 		return NULL;
-	std::string filename = ptc_archive_path(cache, &ob->id);
 
-	PTC::ParticlesReader *reader = new PTC::ParticlesReader(filename, scene, ob, psys);
+	PTC::ParticlesReader *reader = new PTC::ParticlesReader(scene, ob, psys);
 	return (PTCReader *)reader;
 }
 

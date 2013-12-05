@@ -25,6 +25,8 @@
 
 #include "util/util_frame_mapper.h"
 
+struct ID;
+struct PointCache;
 struct Scene;
 
 namespace PTC {
@@ -33,7 +35,7 @@ using namespace Alembic;
 
 class Writer : public FrameMapper {
 public:
-	Writer(const std::string &filename, Scene *scene);
+	Writer(Scene *scene, ID *id, PointCache *cache);
 	virtual ~Writer();
 	
 	uint32_t add_frame_sampling();

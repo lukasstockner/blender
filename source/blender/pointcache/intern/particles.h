@@ -477,7 +477,7 @@ typedef Util::shared_ptr< OParticles > OParticlesPtr;
 
 class ParticlesWriter : public Writer {
 public:
-	ParticlesWriter(const std::string &filename, Scene *scene, Object *ob, ParticleSystem *psys);
+	ParticlesWriter(Scene *scene, Object *ob, ParticleSystem *psys);
 	~ParticlesWriter();
 	
 	void write_sample();
@@ -491,7 +491,7 @@ private:
 
 class ParticlesReader : public Reader {
 public:
-	ParticlesReader(const std::string &filename, Scene *scene, Object *ob, ParticleSystem *psys);
+	ParticlesReader(Scene *scene, Object *ob, ParticleSystem *psys);
 	~ParticlesReader();
 	
 	int totpoint() const { return m_totpoint; }

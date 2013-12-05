@@ -19,6 +19,7 @@
 #include <Alembic/AbcCoreHDF5/ReadWrite.h>
 
 #include "writer.h"
+#include "util_path.h"
 
 extern "C" {
 #include "BLI_fileops.h"
@@ -39,10 +40,11 @@ static void ensure_directory(const char *filename)
 	BLI_dir_create_recursive(dir);
 }
 
-Writer::Writer(const std::string &filename, Scene *scene) :
+Writer::Writer(Scene *scene, ID *id, PointCache *cache) :
     FrameMapper(scene),
     m_scene(scene)
 {
+	std::string filename = ptc_archive_path(cache, id);
 	ensure_directory(filename.c_str());
 	m_archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, ErrorHandler::kThrowPolicy);
 }

@@ -20,6 +20,7 @@
 #include <Alembic/Abc/ArchiveInfo.h>
 
 #include "reader.h"
+#include "util_path.h"
 
 extern "C" {
 #include "BLI_fileops.h"
@@ -31,10 +32,11 @@ namespace PTC {
 
 using namespace Abc;
 
-Reader::Reader(const std::string &filename, Scene *scene) :
+Reader::Reader(Scene *scene, ID *id, PointCache *cache) :
     FrameMapper(scene),
     m_scene(scene)
 {
+	std::string filename = ptc_archive_path(cache, id);
 	m_archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, ErrorHandler::kNoisyNoopPolicy);
 }
 

@@ -27,6 +27,8 @@
 #include "util/util_frame_mapper.h"
 #include "util/util_types.h"
 
+struct ID;
+struct PointCache;
 struct Scene;
 
 namespace PTC {
@@ -35,7 +37,7 @@ using namespace Alembic;
 
 class Reader : public FrameMapper {
 public:
-	Reader(const std::string &filename, Scene *scene);
+	Reader(Scene *scene, ID *id, PointCache *cache);
 	virtual ~Reader();
 	
 	void get_frame_range(int &start_frame, int &end_frame);
