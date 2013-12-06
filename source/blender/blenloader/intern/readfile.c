@@ -3580,7 +3580,7 @@ static void direct_link_pointcache(FileData *UNUSED(fd), PointCache *cache)
 	if (!cache)
 		return;
 	
-	cache->state.flag &= ~PTC_STATE_SIMULATION_VALID;
+	cache->state.flag &= ~PTC_STATE_SIMULATION_VALID_DEPRECATED;
 	cache->state.simframe = 0;
 	cache->edit = NULL;
 	cache->free_edit = NULL;
@@ -7369,7 +7369,7 @@ static void do_versions_pointcache(ID *UNUSED(id), PointCache *cache)
 	/* BAKED is not copied, force a rebake */
 	/* REDO_NEEDED is combination of OUTDATED and FRAMES_SKIPPED, no need to copy */
 	if (oldflag & _PTCACHE_OUTDATED_DEPRECATED) cache_state_flag |= PTC_STATE_OUTDATED;
-	if (oldflag & _PTCACHE_SIMULATION_VALID_DEPRECATED) cache_state_flag |= PTC_STATE_SIMULATION_VALID;
+	if (oldflag & _PTCACHE_SIMULATION_VALID_DEPRECATED) cache_state_flag |= PTC_STATE_SIMULATION_VALID_DEPRECATED;
 	if (oldflag & _PTCACHE_BAKING_DEPRECATED) cache_state_flag |= PTC_STATE_BAKING;
 	if (oldflag & _PTCACHE_FRAMES_SKIPPED_DEPRECATED) cache_state_flag |= PTC_STATE_FRAMES_SKIPPED;
 	if (oldflag & _PTCACHE_READ_INFO_DEPRECATED) cache_state_flag |= PTC_STATE_READ_INFO;

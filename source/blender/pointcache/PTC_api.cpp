@@ -40,7 +40,6 @@ using namespace PTC;
 void PTC_validate(PointCache *cache, int framenr)
 {
 	if (cache) {
-		cache->state.flag |= PTC_STATE_SIMULATION_VALID;
 		cache->state.simframe = framenr;
 	}
 }
@@ -48,7 +47,6 @@ void PTC_validate(PointCache *cache, int framenr)
 void PTC_invalidate(PointCache *cache)
 {
 	if (cache) {
-		cache->state.flag &= ~PTC_STATE_SIMULATION_VALID;
 		cache->state.simframe = 0;
 		cache->state.last_exact = min_ii(cache->startframe, 0);
 	}

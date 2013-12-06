@@ -3091,7 +3091,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 						psys_get_pointcache_start_end(scene, pid->calldata, &cache->startframe, &cache->endframe);
 					}
 
-					if ((cache->state.flag & PTC_STATE_REDO_NEEDED || (cache->state.flag & PTC_STATE_SIMULATION_VALID)==0) &&
+					if ((cache->state.flag & PTC_STATE_REDO_NEEDED || (cache->state.flag & PTC_STATE_SIMULATION_VALID_DEPRECATED)==0) &&
 					    (render || bake))
 					{
 						BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
@@ -3159,7 +3159,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	/* clear baking flag */
 	if (pid) {
 		cache->state.flag &= ~(PTC_STATE_BAKING|PTC_STATE_REDO_NEEDED);
-		cache->state.flag |= PTC_STATE_SIMULATION_VALID;
+		cache->state.flag |= PTC_STATE_SIMULATION_VALID_DEPRECATED;
 		if (bake) {
 			cache->state.flag |= PTC_STATE_BAKED;
 			/* write info file */
@@ -3182,7 +3182,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 				else
 					cache->state.flag &= ~(PTC_STATE_BAKING|PTC_STATE_REDO_NEEDED);
 
-				cache->state.flag |= PTC_STATE_SIMULATION_VALID;
+				cache->state.flag |= PTC_STATE_SIMULATION_VALID_DEPRECATED;
 
 				if (bake) {
 					cache->state.flag |= PTC_STATE_BAKED;
@@ -3408,7 +3408,7 @@ void BKE_ptcache_load_external(PTCacheID *pid)
 				ptcache_file_close(pf);
 			}
 		}
-		cache->state.flag |= (PTC_STATE_BAKED|PTC_STATE_SIMULATION_VALID);
+		cache->state.flag |= (PTC_STATE_BAKED|PTC_STATE_SIMULATION_VALID_DEPRECATED);
 		cache->state.flag &= ~(PTC_STATE_OUTDATED|PTC_STATE_FRAMES_SKIPPED);
 	}
 
@@ -3478,14 +3478,14 @@ void BKE_ptcache_update_info(PTCacheID *pid)
 void BKE_ptcache_validate(PointCache *cache, int framenr)
 {
 	if (cache) {
-		cache->state.flag |= PTC_STATE_SIMULATION_VALID;
+		cache->state.flag |= PTC_STATE_SIMULATION_VALID_DEPRECATED;
 		cache->state.simframe = framenr;
 	}
 }
 void BKE_ptcache_invalidate(PointCache *cache)
 {
 	if (cache) {
-		cache->state.flag &= ~PTC_STATE_SIMULATION_VALID;
+		cache->state.flag &= ~PTC_STATE_SIMULATION_VALID_DEPRECATED;
 		cache->state.simframe = 0;
 		cache->state.last_exact = MIN2(cache->startframe, 0);
 	}
