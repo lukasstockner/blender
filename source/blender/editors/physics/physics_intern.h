@@ -97,12 +97,6 @@ void DPAINT_OT_type_toggle(struct wmOperatorType *ot);
 void DPAINT_OT_output_toggle(struct wmOperatorType *ot);
 
 /* physics_pointcache.c */
-void PTCACHE_OT_bake_all(struct wmOperatorType *ot);
-void PTCACHE_OT_free_bake_all(struct wmOperatorType *ot);
-void PTCACHE_OT_bake(struct wmOperatorType *ot);
-void PTCACHE_OT_free_bake(struct wmOperatorType *ot);
-void PTCACHE_OT_bake_from_cache(struct wmOperatorType *ot);
-
 void PTCACHE_OT_export(struct wmOperatorType *ot);
 
 /* rigidbody_object.c */

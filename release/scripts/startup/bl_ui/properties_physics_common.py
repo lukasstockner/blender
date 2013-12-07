@@ -181,24 +181,6 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
 
         col = split.column()
 
-        if cache.state.is_baked is True:
-            col.operator("ptcache.free_bake", text="Free Bake")
-        else:
-            col.operator("ptcache.bake", text="Bake").bake = True
-
-        sub = col.row()
-        sub.enabled = (cache.state.frames_skipped or cache.state.is_outdated) and enabled
-        sub.operator("ptcache.bake", text="Calculate To Frame").bake = False
-
-        sub = col.column()
-        sub.enabled = enabled
-        sub.operator("ptcache.bake_from_cache", text="Current Cache to Bake")
-
-        col = split.column()
-        col.operator("ptcache.bake_all", text="Bake All Dynamics").bake = True
-        col.operator("ptcache.free_bake_all", text="Free All Bakes")
-        col.operator("ptcache.bake_all", text="Update All To Frame").bake = False
-
         col.operator("ptcache.export", text="Export")
 
 

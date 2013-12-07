@@ -167,21 +167,6 @@ typedef struct PTCacheID {
 	struct PointCache *cache;
 } PTCacheID;
 
-typedef struct PTCacheBaker {
-	struct Main *main;
-	struct Scene *scene;
-	int bake;
-	int render;
-	int anim_init;
-	int quick_step;
-	struct PTCacheID *pid;
-	int (*break_test)(void *data);
-	void *break_data;
-	void (*progressbar)(void *data, int num);
-	void (*progressend)(void *data);
-	void *progresscontext;
-} PTCacheBaker;
-
 /* PTCacheEditKey->flag */
 #define PEK_SELECT      1
 #define PEK_TAG         2
@@ -304,12 +289,6 @@ void BKE_ptcache_free(struct PointCache *cache);
 struct PointCache *BKE_ptcache_copy(struct PointCache *cache, int copy_data);
 
 /********************** Baking *********************/
-
-/* Bakes cache with cache_step sized jumps in time, not accurate but very fast. */
-void BKE_ptcache_quick_cache_all(struct Main *bmain, struct Scene *scene);
-
-/* Bake cache or simulate to current frame with settings defined in the baker. */
-void BKE_ptcache_bake(struct PTCacheBaker *baker);
 
 /* Convert disk cache to memory cache. */
 void BKE_ptcache_to_mem(struct PTCacheID *pid, struct ListBase *mem_cache);
