@@ -97,6 +97,10 @@ typedef struct PointCacheState {
 
 typedef enum ePointCacheStateFlag {
 	PTC_STATE_OUTDATED			= 1,
+	/* XXX remove BAKING flag! only used for overriding display percentage in particles
+	 * to cache data with full particle amount. This should be based on some contextual info,
+	 * not a flag in the cache state
+	 */
 	PTC_STATE_BAKING			= 2,
 	PTC_STATE_FRAMES_SKIPPED	= 4,
 	PTC_STATE_READ_INFO			= 8,
