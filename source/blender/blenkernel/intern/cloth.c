@@ -540,11 +540,6 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 	else if (cache_result==PTCACHE_READ_OLD) {
 		implicit_set_positions(clmd);
 	}
-	else if ( /*ob->id.lib ||*/ (cache->state.flag & PTC_STATE_BAKED)) { /* 2.4x disabled lib, but this can be used in some cases, testing further - campbell */
-		/* if baked and nothing in cache, do nothing */
-		BKE_ptcache_invalidate(cache);
-		return;
-	}
 
 	if (framenr!=clmd->clothObject->last_frame+1)
 		return;

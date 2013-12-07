@@ -36,7 +36,7 @@ def particle_panel_enabled(context, psys):
     if psys.settings.type in {'EMITTER', 'REACTOR'} and phystype in {'NO', 'KEYED'}:
         return True
     else:
-        return (psys.point_cache.state.is_baked is False) and (not psys.is_edited) and (not context.particle_system_editable)
+        return not psys.point_cache.lock_settings and (not psys.is_edited) and (not context.particle_system_editable)
 
 
 def particle_panel_poll(cls, context):
@@ -278,7 +278,7 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
 
         cloth = psys.cloth.settings
 
-        layout.enabled = psys.use_hair_dynamics and psys.point_cache.state.is_baked is False
+        layout.enabled = psys.use_hair_dynamics and not psys.point_cache.lock_settings
 
         split = layout.split()
 
@@ -319,7 +319,7 @@ class PARTICLE_PT_cache(ParticleButtonsPanel, Panel):
         phystype = psys.settings.physics_type
         if phystype == 'NO' or phystype == 'KEYED':
             return False
-        return (psys.settings.type in {'EMITTER', 'REACTOR'} or (psys.settings.type == 'HAIR' and (psys.use_hair_dynamics or psys.point_cache.state.is_baked))) and engine in cls.COMPAT_ENGINES
+        return (psys.settings.type in {'EMITTER', 'REACTOR'} or (psys.settings.type == 'HAIR' and psys.use_hair_dynamics)) and engine in cls.COMPAT_ENGINES
 
     def draw(self, context):
         psys = context.particle_system
@@ -840,7 +840,8 @@ class PARTICLE_PT_render(ParticleButtonsPanel, Panel):
             col.label(text="Timing:")
             col.prop(part, "use_absolute_path_time")
 
-            if part.type == 'HAIR' or psys.point_cache.state.is_baked:
+            # XXX first case included baked caches before, this feature has been removed, not sure how it should work
+            if part.type == 'HAIR':
                 col.prop(part, "path_start", text="Start", slider=not part.use_absolute_path_time)
             else:
                 col.prop(part, "trail_count")
@@ -1009,11 +1010,11 @@ class PARTICLE_PT_draw(ParticleButtonsPanel, Panel):
 
         if part.draw_percentage != 100 and psys is not None:
             if part.type == 'HAIR':
-                if psys.use_hair_dynamics and psys.point_cache.state.is_baked is False:
+                if psys.use_hair_dynamics:
                     layout.row().label(text="Display percentage makes dynamics inaccurate without baking!")
             else:
                 phystype = part.physics_type
-                if phystype != 'NO' and phystype != 'KEYED' and psys.point_cache.state.is_baked is False:
+                if phystype != 'NO' and phystype != 'KEYED':
                     layout.row().label(text="Display percentage makes dynamics inaccurate without baking!")
 
         row = layout.row()

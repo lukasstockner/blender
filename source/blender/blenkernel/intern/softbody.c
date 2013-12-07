@@ -4136,11 +4136,6 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 	else if (cache_result==PTCACHE_READ_OLD) {
 		; /* do nothing */
 	}
-	else if (/*ob->id.lib || */(cache->state.flag & PTC_STATE_BAKED)) { /* "library linking & pointcaches" has to be solved properly at some point */
-		/* if baked and nothing in cache, do nothing */
-		BKE_ptcache_invalidate(cache);
-		return;
-	}
 
 	if (framenr!=sb->last_frame+1)
 		return;

@@ -1302,7 +1302,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	}
 
 	/* don't try to run the simulation if we don't have a world yet but allow reading baked cache */
-	if (rbw->physics_world == NULL && !(cache->state.flag & PTC_STATE_BAKED))
+	if (rbw->physics_world == NULL)
 		return;
 	else if (rbw->objects == NULL)
 		rigidbody_update_ob_array(rbw);
@@ -1316,7 +1316,7 @@ void BKE_rigidbody_do_simulation(Scene *scene, float ctime)
 	}
 
 	/* advance simulation, we can only step one frame forward */
-	if (ctime == rbw->ltime + 1 && !(cache->state.flag & PTC_STATE_BAKED)) {
+	if (ctime == rbw->ltime + 1) {
 		/* write cache for first frame when on second frame */
 		if (rbw->ltime == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->state.last_exact == 0)) {
 			BKE_ptcache_write(&pid, startframe);

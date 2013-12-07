@@ -7364,8 +7364,9 @@ static void do_versions_pointcache(ID *UNUSED(id), PointCache *cache)
 	if (oldflag & _PTCACHE_EXTERNAL_DEPRECATED) cache_flag |= PTC_EXTERNAL;
 	if (oldflag & _PTCACHE_IGNORE_LIBPATH_DEPRECATED) cache_flag |= PTC_IGNORE_LIBPATH;
 	if (oldflag & _PTCACHE_IGNORE_CLEAR_DEPRECATED) cache_flag |= PTC_IGNORE_CLEAR;
+	/* BAKED used to set locking instead */
+	if (oldflag & _PTCACHE_BAKED_DEPRECATED) cache_flag |= PTC_LOCK_SETTINGS;
 	
-	/* BAKED is not copied, force a rebake */
 	/* REDO_NEEDED is combination of OUTDATED and FRAMES_SKIPPED, no need to copy */
 	if (oldflag & _PTCACHE_OUTDATED_DEPRECATED) cache_state_flag |= PTC_STATE_OUTDATED;
 	if (oldflag & _PTCACHE_BAKING_DEPRECATED) cache_state_flag |= PTC_STATE_BAKING;

@@ -96,11 +96,10 @@ typedef struct PointCacheState {
 } PointCacheState;
 
 typedef enum ePointCacheStateFlag {
-	PTC_STATE_BAKED				= 1,
-	PTC_STATE_OUTDATED			= 2,
-	PTC_STATE_BAKING			= 4,
-	PTC_STATE_FRAMES_SKIPPED	= 8,
-	PTC_STATE_READ_INFO			= 16,
+	PTC_STATE_OUTDATED			= 1,
+	PTC_STATE_BAKING			= 2,
+	PTC_STATE_FRAMES_SKIPPED	= 4,
+	PTC_STATE_READ_INFO			= 8,
 	PTC_STATE_REDO_NEEDED		= PTC_STATE_OUTDATED | PTC_STATE_FRAMES_SKIPPED,
 
 	/* high resolution cache is saved for smoke for backwards compatibility, so set this flag to know it's a "fake" cache */
@@ -149,7 +148,12 @@ typedef enum ePointCacheFlag {
 	PTC_EXTERNAL				= 1,
 	/* don't use the filename of the blendfile the data is linked from (write a local cache) */
 	PTC_IGNORE_LIBPATH		= 2,
-	PTC_IGNORE_CLEAR		= 4
+	PTC_IGNORE_CLEAR		= 4,
+	/* lock the simulation settings and use the cache read-only
+	 * XXX this should perhaps be moved out of the cache entirely,
+	 * but for now provides a flag for keeping UI functionality
+	 */
+	PTC_LOCK_SETTINGS		= 8
 } ePointCacheFlag;
 
 typedef enum ePointCacheCompression {

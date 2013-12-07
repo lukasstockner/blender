@@ -249,7 +249,7 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 
 			if (psys->flag & PSYS_CURRENT) {
 				if (psys->part && psys->part->type == PART_HAIR) {
-					if (psys->flag & PSYS_HAIR_DYNAMICS && psys->pointcache->state.flag & PTC_STATE_BAKED) {
+					if (psys->flag & PSYS_HAIR_DYNAMICS) {
 						if (create && !psys->pointcache->edit)
 							PE_create_particle_edit_from_cache(scene, ob, pid->cache, &psys->mem_pointcache);
 						edit = pid->cache->edit;
@@ -261,7 +261,7 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 					}
 				}
 				else {
-					if (create && pid->cache->state.flag & PTC_STATE_BAKED && !pid->cache->edit)
+					if (create && !pid->cache->edit)
 						PE_create_particle_edit_from_cache(scene, ob, pid->cache, &psys->mem_pointcache);
 					edit = pid->cache->edit;
 				}
@@ -270,7 +270,7 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 			}
 		}
 		else if (pset->edittype == PE_TYPE_SOFTBODY && pid->type == PTCACHE_TYPE_SOFTBODY) {
-			if (create && pid->cache->state.flag & PTC_STATE_BAKED && !pid->cache->edit) {
+			if (create && !pid->cache->edit) {
 				pset->flag |= PE_FADE_TIME;
 				// NICE TO HAVE but doesn't work: pset->brushtype = PE_BRUSH_COMB;
 				/* XXX passing NULL for mem_cache will always fail, leaving it here
@@ -282,7 +282,7 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 			break;
 		}
 		else if (pset->edittype == PE_TYPE_CLOTH && pid->type == PTCACHE_TYPE_CLOTH) {
-			if (create && pid->cache->state.flag & PTC_STATE_BAKED && !pid->cache->edit) {
+			if (create && !pid->cache->edit) {
 				pset->flag |= PE_FADE_TIME;
 				// NICE TO HAVE but doesn't work: pset->brushtype = PE_BRUSH_COMB;
 				/* XXX passing NULL for mem_cache will always fail, leaving it here

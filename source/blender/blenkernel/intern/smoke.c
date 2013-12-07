@@ -2659,7 +2659,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 			cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 		}
 
-		if (!smd->domain->fluid && (framenr != startframe) && (smd->domain->flags & MOD_SMOKE_FILE_LOAD) == 0 && (cache->state.flag & PTC_STATE_BAKED) == 0)
+		if (!smd->domain->fluid && (framenr != startframe) && (smd->domain->flags & MOD_SMOKE_FILE_LOAD) == 0)
 			return;
 
 		smd->domain->flags &= ~MOD_SMOKE_FILE_LOAD;

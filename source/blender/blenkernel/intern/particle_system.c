@@ -117,9 +117,6 @@
 
 static int particles_are_dynamic(ParticleSystem *psys)
 {
-	if (psys->pointcache->state.flag & PTC_STATE_BAKED)
-		return 0;
-
 	if (psys->part->type == PART_HAIR)
 		return psys->flag & PSYS_HAIR_DYNAMICS;
 	else
@@ -2023,12 +2020,6 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 
 	pa->dietime = pa->time + pa->lifetime;
 
-	if (sim->psys->pointcache && sim->psys->pointcache->state.flag & PTC_STATE_BAKED &&
-		sim->psys->mem_pointcache.first) {
-		float dietime = psys_get_dietime_from_cache(&sim->psys->mem_pointcache, p);
-		pa->dietime = MIN2(pa->dietime, dietime);
-	}
-
 	if (pa->time > cfra)
 		pa->alive = PARS_UNBORN;
 	else if (pa->dietime <= cfra)
@@ -3902,8 +3893,8 @@ static void psys_update_path_cache(ParticleSimulationData *sim, float cfra)
 			psys_free_children(psys);
 	}
 
-	if ((part->type==PART_HAIR || psys->flag&PSYS_KEYED || psys->pointcache->state.flag & PTC_STATE_BAKED)==0)
-		skip = 1; /* only hair, keyed and baked stuff can have paths */
+	if ((part->type==PART_HAIR || psys->flag&PSYS_KEYED)==0)
+		skip = 1; /* only hair and keyed can have paths */
 	else if (part->ren_as != PART_DRAW_PATH && !(part->type==PART_HAIR && ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR)))
 		skip = 1; /* particle visualization must be set as path */
 	else if (!psys->renderdata) {
@@ -3914,7 +3905,7 @@ static void psys_update_path_cache(ParticleSimulationData *sim, float cfra)
 		else if (psys_in_edit_mode(sim->scene, psys)) {
 			if ((pset->flag & PE_DRAW_PART)==0)
 				skip = 1;
-			else if (part->childtype==0 && (psys->flag & PSYS_HAIR_DYNAMICS && psys->pointcache->state.flag & PTC_STATE_BAKED)==0)
+			else if (part->childtype==0 && !(psys->flag & PSYS_HAIR_DYNAMICS))
 				skip = 1; /* in edit mode paths are needed for child particles and dynamic hair */
 		}
 	}
@@ -4653,7 +4644,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		psys_clear_temp_pointcache(psys);
 
 		/* set suitable cache range automatically */
-		if ((cache->state.flag & (PTC_STATE_BAKING|PTC_STATE_BAKED))==0)
+		if ((cache->state.flag & PTC_STATE_BAKING)==0)
 			psys_get_pointcache_start_end(sim->scene, psys, &cache->startframe, &cache->endframe);
 
 		cache_reader = PTC_reader_particles(sim->scene, sim->ob, psys);
@@ -4708,11 +4699,6 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 //			if (cache_result == PTC_READ_SAMPLE_INTERPOLATED && cache->state.flag & PTC_STATE_REDO_NEEDED)
 //				BKE_ptcache_write(pid, (int)cache_cfra);
 
-			return;
-		}
-		/* Cache is supposed to be baked, but no data was found so bail out */
-		else if (cache->state.flag & PTC_STATE_BAKED) {
-			psys_reset(psys, PSYS_RESET_CACHE_MISS);
 			return;
 		}
 		else if (cache_result == PTC_READ_SAMPLE_EARLY) {

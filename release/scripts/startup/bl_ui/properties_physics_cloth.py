@@ -25,7 +25,7 @@ from bl_ui.properties_physics_common import (point_cache_ui,
 
 
 def cloth_panel_enabled(md):
-    return md.point_cache.state.is_baked is False
+    return not md.point_cache.lock_settings
 
 
 class CLOTH_MT_presets(Menu):

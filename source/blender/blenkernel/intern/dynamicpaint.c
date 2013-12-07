@@ -939,8 +939,7 @@ static void surface_freeUnusedData(DynamicPaintSurface *surface)
 	if (!surface->data) return;
 
 	/* free bakedata if not active or surface is baked */
-	if (!(surface->flags & MOD_DPAINT_ACTIVE) ||
-	    (surface->pointcache && surface->pointcache->state.flag & PTC_STATE_BAKED))
+	if (!(surface->flags & MOD_DPAINT_ACTIVE))
 	{
 		free_bakeData(surface->data);
 	}
@@ -1978,7 +1977,7 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 				BKE_ptcache_id_time(&pid, scene, (float)scene->r.cfra, NULL, NULL, NULL);
 
 				/* reset non-baked cache at first frame */
-				if ((int)scene->r.cfra == surface->start_frame && !(cache->state.flag & PTC_STATE_BAKED)) {
+				if ((int)scene->r.cfra == surface->start_frame) {
 					cache->state.flag |= PTC_STATE_REDO_NEEDED;
 					BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 					cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
@@ -1989,7 +1988,7 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 					BKE_ptcache_validate(cache, (int)scene->r.cfra);
 				}
 				/* if read failed and we're on surface range do recalculate */
-				else if ((int)scene->r.cfra == current_frame && !(cache->state.flag & PTC_STATE_BAKED)) {
+				else if ((int)scene->r.cfra == current_frame) {
 					/* calculate surface frame */
 					canvas->flags |= MOD_DPAINT_BAKING;
 					dynamicPaint_calculateFrame(surface, scene, ob, current_frame);

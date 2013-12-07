@@ -176,10 +176,6 @@ static void rna_def_pointcache_state(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Point Cache State", "State information about point cache data");
 	RNA_def_struct_ui_icon(srna, ICON_PHYSICS);
 
-	prop = RNA_def_property(srna, "is_baked", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTC_STATE_BAKED);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-
 	prop = RNA_def_property(srna, "is_baking", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTC_STATE_BAKING);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -278,6 +274,10 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	                         "(for local bakes per scene file, disable this option)");
 	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
 #endif /*POINTCACHE_OLD*/
+
+	prop = RNA_def_property(srna, "lock_settings", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTC_LOCK_SETTINGS);
+	RNA_def_property_ui_text(prop, "Lock", "Lock simulation settings to prevent overwriting the cache");
 
 	prop = RNA_def_property(srna, "state", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "PointCacheState");
