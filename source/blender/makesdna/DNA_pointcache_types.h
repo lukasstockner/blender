@@ -98,10 +98,9 @@ typedef struct PointCacheState {
 typedef enum ePointCacheStateFlag {
 	PTC_STATE_BAKED				= 1,
 	PTC_STATE_OUTDATED			= 2,
-	PTC_STATE_SIMULATION_VALID_DEPRECATED	= 4,
-	PTC_STATE_BAKING			= 8,
-	PTC_STATE_FRAMES_SKIPPED	= 16,
-	PTC_STATE_READ_INFO			= 32,
+	PTC_STATE_BAKING			= 4,
+	PTC_STATE_FRAMES_SKIPPED	= 8,
+	PTC_STATE_READ_INFO			= 16,
 	PTC_STATE_REDO_NEEDED		= PTC_STATE_OUTDATED | PTC_STATE_FRAMES_SKIPPED,
 
 	/* high resolution cache is saved for smoke for backwards compatibility, so set this flag to know it's a "fake" cache */

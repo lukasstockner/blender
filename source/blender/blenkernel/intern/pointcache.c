@@ -3106,7 +3106,7 @@ void BKE_ptcache_load_external(PTCacheID *pid)
 				ptcache_file_close(pf);
 			}
 		}
-		cache->state.flag |= (PTC_STATE_BAKED|PTC_STATE_SIMULATION_VALID_DEPRECATED);
+		cache->state.flag |= PTC_STATE_BAKED;
 		cache->state.flag &= ~(PTC_STATE_OUTDATED|PTC_STATE_FRAMES_SKIPPED);
 	}
 
@@ -3176,14 +3176,12 @@ void BKE_ptcache_update_info(PTCacheID *pid)
 void BKE_ptcache_validate(PointCache *cache, int framenr)
 {
 	if (cache) {
-		cache->state.flag |= PTC_STATE_SIMULATION_VALID_DEPRECATED;
 		cache->state.simframe = framenr;
 	}
 }
 void BKE_ptcache_invalidate(PointCache *cache)
 {
 	if (cache) {
-		cache->state.flag &= ~PTC_STATE_SIMULATION_VALID_DEPRECATED;
 		cache->state.simframe = 0;
 		cache->state.last_exact = MIN2(cache->startframe, 0);
 	}
