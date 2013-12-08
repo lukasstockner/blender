@@ -23,13 +23,17 @@
 #include "reader.h"
 #include "writer.h"
 #include "export.h"
+
 #include "particles.h"
+#include "cloth.h"
+#include "softbody.h"
+#include "rigidbody.h"
+#include "smoke.h"
+#include "dynamicpaint.h"
 
 extern "C" {
 #include "BLI_math.h"
 
-#include "DNA_object_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_pointcache_types.h"
 
 #include "RNA_access.h"
@@ -119,28 +123,73 @@ PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 /* Particles */
 PTCWriter *PTC_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 {
-	PointCache *cache = psys->pointcache;
-	if (!cache)
-		return NULL;
-	
-	PTC::ParticlesWriter *writer = new PTC::ParticlesWriter(scene, ob, psys);
-	return (PTCWriter *)writer;
+	return (PTCWriter *)(new PTC::ParticlesWriter(scene, ob, psys));
 }
 
 PTCReader *PTC_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 {
-	PointCache *cache = psys->pointcache;
-	if (!cache)
-		return NULL;
-
-	PTC::ParticlesReader *reader = new PTC::ParticlesReader(scene, ob, psys);
-	return (PTCReader *)reader;
+	return (PTCReader *)(new PTC::ParticlesReader(scene, ob, psys));
 }
 
 int PTC_reader_particles_totpoint(PTCReader *_reader)
 {
 	PTC::ParticlesReader *reader = (PTC::ParticlesReader *)_reader;
 	return reader->totpoint();
+}
+
+/* Cloth */
+PTCWriter *PTC_writer_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
+{
+	return (PTCWriter *)(new PTC::ClothWriter(scene, ob, clmd));
+}
+
+PTCReader *PTC_reader_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
+{
+	return (PTCReader *)(new PTC::ClothReader(scene, ob, clmd));
+}
+
+/* SoftBody */
+PTCWriter *PTC_writer_softbody(Scene *scene, Object *ob, SoftBody *softbody)
+{
+	return (PTCWriter *)(new PTC::SoftBodyWriter(scene, ob, softbody));
+}
+
+PTCReader *PTC_reader_softbody(Scene *scene, Object *ob, SoftBody *softbody)
+{
+	return (PTCReader *)(new PTC::SoftBodyReader(scene, ob, softbody));
+}
+
+/* Rigid Bodies */
+PTCWriter *PTC_writer_rigidbody(Scene *scene, RigidBodyWorld *rbw)
+{
+	return (PTCWriter *)(new PTC::RigidBodyWriter(scene, rbw));
+}
+
+PTCReader *PTC_reader_rigidbody(Scene *scene, RigidBodyWorld *rbw)
+{
+	return (PTCReader *)(new PTC::RigidBodyReader(scene, rbw));
+}
+
+/* Smoke */
+PTCWriter *PTC_writer_smoke(Scene *scene, Object *ob, SmokeModifierData *smd)
+{
+	return (PTCWriter *)(new PTC::SmokeWriter(scene, ob, smd));
+}
+
+PTCReader *PTC_reader_smoke(Scene *scene, Object *ob, SmokeModifierData *smd)
+{
+	return (PTCReader *)(new PTC::SmokeReader(scene, ob, smd));
+}
+
+/* Dynamic Paint */
+PTCWriter *PTC_writer_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface *surface)
+{
+	return (PTCWriter *)(new PTC::DynamicPaintWriter(scene, ob, surface));
+}
+
+PTCReader *PTC_reader_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface *surface)
+{
+	return (PTCReader *)(new PTC::DynamicPaintReader(scene, ob, surface));
 }
 
 #else

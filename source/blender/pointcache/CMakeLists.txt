@@ -56,14 +56,25 @@ if(WITH_ALEMBIC)
 	list(APPEND SRC
 	intern/export.h
 	intern/export.cpp
-	intern/particles.h
-	intern/particles.cpp
 	intern/reader.h
 	intern/reader.cpp
 	intern/schema.h
 	intern/thread.h
 	intern/writer.h
 	intern/writer.cpp
+
+	intern/particles.h
+	intern/particles.cpp
+	intern/cloth.h
+	intern/cloth.cpp
+	intern/softbody.h
+	intern/softbody.cpp
+	intern/rigidbody.h
+	intern/rigidbody.cpp
+	intern/smoke.h
+	intern/smoke.cpp
+	intern/dynamicpaint.h
+	intern/dynamicpaint.cpp
 	)
 
 	add_definitions(-DWITH_ALEMBIC)

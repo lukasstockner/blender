@@ -33,6 +33,7 @@
 #define __DNA_POINTCACHE_TYPES_H__
 
 #include "DNA_defs.h"
+#include "DNA_listBase.h" /* XXX only needed for deprecated PTCacheMem, remove once that is replaced */
 
 /* XXX TODO point cache do_versions
  * This needs to be updated until officially included in master

@@ -27,10 +27,16 @@ extern "C" {
 
 struct Main;
 struct Scene;
-struct Object;
-struct ParticleSystem;
 struct PointCache;
 struct PointerRNA;
+
+struct ClothModifierData;
+struct DynamicPaintSurface;
+struct Object;
+struct ParticleSystem;
+struct RigidBodyWorld;
+struct SmokeModifierData;
+struct SoftBody;
 
 struct PTCWriter;
 struct PTCReader;
@@ -59,6 +65,26 @@ struct PTCReader *PTC_reader_from_rna(struct Scene *scene, struct PointerRNA *pt
 struct PTCWriter *PTC_writer_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
 struct PTCReader *PTC_reader_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
 int PTC_reader_particles_totpoint(struct PTCReader *reader);
+
+/* Cloth */
+struct PTCWriter *PTC_writer_cloth(struct Scene *scene, struct Object *ob, struct ClothModifierData *clmd);
+struct PTCReader *PTC_reader_cloth(struct Scene *scene, struct Object *ob, struct ClothModifierData *clmd);
+
+/* SoftBody */
+struct PTCWriter *PTC_writer_softbody(struct Scene *scene, struct Object *ob, struct SoftBody *softbody);
+struct PTCReader *PTC_reader_softbody(struct Scene *scene, struct Object *ob, struct SoftBody *softbody);
+
+/* Rigid Bodies */
+struct PTCWriter *PTC_writer_rigidbody(struct Scene *scene, struct RigidBodyWorld *rbw);
+struct PTCReader *PTC_reader_rigidbody(struct Scene *scene, struct RigidBodyWorld *rbw);
+
+/* Smoke */
+struct PTCWriter *PTC_writer_smoke(struct Scene *scene, struct Object *ob, struct SmokeModifierData *smd);
+struct PTCReader *PTC_reader_smoke(struct Scene *scene, struct Object *ob, struct SmokeModifierData *smd);
+
+/* Dynamic Paint */
+struct PTCWriter *PTC_writer_dynamicpaint(struct Scene *scene, struct Object *ob, struct DynamicPaintSurface *surface);
+struct PTCReader *PTC_reader_dynamicpaint(struct Scene *scene, struct Object *ob, struct DynamicPaintSurface *surface);
 
 #ifdef __cplusplus
 } /* extern C */
