@@ -2702,22 +2702,8 @@ int  BKE_ptcache_id_reset(Scene *scene, PTCacheID *pid, int mode)
 	if (reset) {
 		BKE_ptcache_invalidate(cache);
 		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
-
-		if (pid->type == PTCACHE_TYPE_CLOTH)
-			cloth_free_modifier(pid->calldata);
-		else if (pid->type == PTCACHE_TYPE_SOFTBODY)
-			sbFreeSimulation(pid->calldata);
-		else if (pid->type == PTCACHE_TYPE_PARTICLES)
-			psys_reset(pid->calldata, PSYS_RESET_DEPSGRAPH);
-#if 0
-		else if (pid->type == PTCACHE_TYPE_SMOKE_DOMAIN)
-			smokeModifier_reset(pid->calldata);
-		else if (pid->type == PTCACHE_TYPE_SMOKE_HIGHRES)
-			smokeModifier_reset_turbulence(pid->calldata);
-#endif
-		else if (pid->type == PTCACHE_TYPE_DYNAMICPAINT)
-			dynamicPaint_clearSurface(scene, (DynamicPaintSurface*)pid->calldata);
 	}
+
 	if (clear)
 		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
 	else if (after)
@@ -2736,6 +2722,9 @@ int  BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 	skip= 0;
 
 	if (ob->soft) {
+		if (mode & PTCACHE_RESET_OUTDATED)
+			sbFreeSimulation(ob->soft);
+
 		BKE_ptcache_id_from_softbody(&pid, ob, ob->soft);
 		reset |= BKE_ptcache_id_reset(scene, &pid, mode);
 	}
@@ -2747,14 +2736,21 @@ int  BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 		/* Baked cloth hair has to be checked too, because we don't want to reset */
 		/* particles or cloth in that case -jahka */
 		else if (psys->clmd) {
-			BKE_ptcache_id_from_cloth(&pid, ob, psys->clmd);
-			if (mode == PSYS_RESET_ALL || psys->part->type != PART_HAIR)
+			if (mode == PSYS_RESET_ALL || psys->part->type != PART_HAIR) {
+				if (mode & PTCACHE_RESET_OUTDATED)
+					cloth_free_modifier(psys->clmd);
+				
+				BKE_ptcache_id_from_cloth(&pid, ob, psys->clmd);
 				reset |= BKE_ptcache_id_reset(scene, &pid, mode);
+			}
 			else
 				skip = 1;
 		}
 
 		if (skip == 0 && psys->part) {
+			if (mode & PTCACHE_RESET_OUTDATED)
+				psys_reset(psys, PSYS_RESET_DEPSGRAPH);
+
 			BKE_ptcache_id_from_particles(&pid, ob, psys);
 			reset |= BKE_ptcache_id_reset(scene, &pid, mode);
 		}
@@ -2762,7 +2758,11 @@ int  BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 
 	for (md=ob->modifiers.first; md; md=md->next) {
 		if (md->type == eModifierType_Cloth) {
-			BKE_ptcache_id_from_cloth(&pid, ob, (ClothModifierData*)md);
+			ClothModifierData *clmd = (ClothModifierData*)md;
+			if (mode & PTCACHE_RESET_OUTDATED)
+				cloth_free_modifier(clmd);
+
+			BKE_ptcache_id_from_cloth(&pid, ob, clmd);
 			reset |= BKE_ptcache_id_reset(scene, &pid, mode);
 		}
 		if (md->type == eModifierType_Smoke) {
@@ -2776,8 +2776,10 @@ int  BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 			DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
 			if (pmd->canvas) {
 				DynamicPaintSurface *surface = pmd->canvas->surfaces.first;
-
 				for (; surface; surface=surface->next) {
+					if (mode & PTCACHE_RESET_OUTDATED)
+						dynamicPaint_clearSurface(scene, surface);
+
 					BKE_ptcache_id_from_dynamicpaint(&pid, ob, surface);
 					reset |= BKE_ptcache_id_reset(scene, &pid, mode);
 				}
@@ -2788,6 +2790,7 @@ int  BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 	if (scene->rigidbody_world && (ob->rigidbody_object || ob->rigidbody_constraint)) {
 		if (ob->rigidbody_object)
 			ob->rigidbody_object->flag |= RBO_FLAG_NEEDS_RESHAPE;
+
 		BKE_ptcache_id_from_rigidbody(&pid, ob, scene->rigidbody_world);
 		/* only flag as outdated, resetting should happen on start frame */
 		pid.cache->state.flag |= PTC_STATE_OUTDATED;

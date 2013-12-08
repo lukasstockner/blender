@@ -2653,8 +2653,9 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 
 		if (!smd->domain->fluid || framenr == startframe)
 		{
-			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 			smokeModifier_reset_ex(smd, false);
+
+			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 			BKE_ptcache_validate(cache, framenr);
 			cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 		}

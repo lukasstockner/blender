@@ -4105,14 +4105,14 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 		return;
 	}
 	if (framenr == startframe) {
+		sbFreeSimulation(sb);
+
 		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-
-		/* first frame, no simulation to do, just set the positions */
-		softbody_update_positions(ob, sb, vertexCos, numVerts);
-
 		BKE_ptcache_validate(cache, framenr);
 		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 
+		/* first frame, no simulation to do, just set the positions */
+		softbody_update_positions(ob, sb, vertexCos, numVerts);
 		sb->last_frame = framenr;
 
 		return;

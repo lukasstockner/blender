@@ -4654,6 +4654,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		/* clear everything on start frame */
 		if (cfra == startframe) {
 			/* XXX anything to do here? */
+			psys_reset(psys, PSYS_RESET_DEPSGRAPH);
 //			BKE_ptcache_id_reset(sim->scene, pid, PTCACHE_RESET_OUTDATED);
 			PTC_validate(cache, startframe);
 			cache->state.flag &= ~PTC_STATE_REDO_NEEDED;

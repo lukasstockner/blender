@@ -473,6 +473,8 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 	    (clmd->clothObject && dm->getNumVerts(dm) != clmd->clothObject->numverts))
 	{
 		clmd->sim_parms->reset = 0;
+		cloth_free_modifier(clmd);
+		
 		cache->state.flag |= PTC_STATE_OUTDATED;
 		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 		BKE_ptcache_validate(cache, 0);
@@ -513,10 +515,13 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		return;
 
 	if ((framenr == startframe) && (clmd->sim_parms->preroll == 0)) {
+		cloth_free_modifier(clmd);
+
 		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-		do_init_cloth(ob, clmd, dm, framenr);
 		BKE_ptcache_validate(cache, framenr);
 		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
+
+		do_init_cloth(ob, clmd, dm, framenr);
 		clmd->clothObject->last_frame= framenr;
 		return;
 	}

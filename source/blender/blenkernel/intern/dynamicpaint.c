@@ -1978,6 +1978,8 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 
 				/* reset non-baked cache at first frame */
 				if ((int)scene->r.cfra == surface->start_frame) {
+					dynamicPaint_clearSurface(scene, surface);
+
 					cache->state.flag |= PTC_STATE_REDO_NEEDED;
 					BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 					cache->state.flag &= ~PTC_STATE_REDO_NEEDED;

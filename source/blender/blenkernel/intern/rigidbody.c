@@ -1270,8 +1270,9 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 
 	if (ctime <= startframe + 1 && rbw->ltime == startframe) {
 		if (cache->state.flag & PTC_STATE_OUTDATED) {
-			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 			rigidbody_update_simulation(scene, rbw, true);
+
+			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 			BKE_ptcache_validate(cache, (int)ctime);
 			cache->state.last_exact = 0;
 			cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
