@@ -50,6 +50,7 @@
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_bvh.h"
+#include "BKE_report.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
@@ -1075,7 +1076,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
  * In such a case we should have gotten hits on edges or verts of the face. */
 static bool knife_ray_intersect_face(KnifeTool_OpData *kcd,
                                      const float s[2],
-                                     const float v1[2], const float v2[2],
+                                     const float v1[3], const float v2[3],
                                      BMFace *f,
                                      const float face_tol,
                                      float intersectp[3])
@@ -2646,6 +2647,15 @@ static int knifetool_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 	KnifeTool_OpData *kcd;
 
+	if (only_select) {
+		Object *obedit = CTX_data_edit_object(C);
+		BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		if (em->bm->totfacesel == 0) {
+			BKE_report(op->reports, RPT_ERROR, "Selected faces required");
+			return OPERATOR_CANCELLED;
+		}
+	}
+
 	view3d_operator_needs_opengl(C);
 
 	/* alloc new customdata */
@@ -2903,17 +2913,16 @@ void MESH_OT_knife_tool(wmOperatorType *ot)
  */
 static void edvm_mesh_knife_face_point(BMFace *f, float r_cent[3])
 {
-	int tottri = f->len - 2;
-	BMLoop **loops     = BLI_array_alloca(loops, f->len);
-	int    (*index)[3] = BLI_array_alloca(index, tottri);
+	const int tottri = f->len - 2;
+	BMLoop **loops = BLI_array_alloca(loops, f->len);
+	unsigned int  (*index)[3] = BLI_array_alloca(index, tottri);
 	int j;
 
 	float const *best_co[3] = {NULL};
 	float best_area  = -1.0f;
 	bool ok = false;
 
-	tottri = BM_face_calc_tessellation(f, loops, index);
-	BLI_assert(tottri <= f->len - 2);
+	BM_face_calc_tessellation(f, loops, index);
 
 	for (j = 0; j < tottri; j++) {
 		const float *p1 = loops[index[j][0]]->v->co;

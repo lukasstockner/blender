@@ -296,6 +296,11 @@ static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		retval = opm->type->modal(C, opm, event);
 		OPERATOR_RETVAL_CHECK(retval);
 
+		/* if we're halfway through using a tool and cancel it, clear the options [#37149] */
+		if (retval & OPERATOR_CANCELLED) {
+			WM_operator_properties_clear(opm->ptr);
+		}
+
 		/* if this one is done but it's not the last operator in the macro */
 		if ((retval & OPERATOR_FINISHED) && opm->next) {
 			MacroData *md = op->customdata;
@@ -528,7 +533,8 @@ void WM_operator_bl_idname(char *to, const char *from)
  *
  * Note: both op and opptr may be NULL (op is only used for macro operators).
  */
-char *WM_operator_pystring_ex(bContext *C, wmOperator *op, const bool all_args, wmOperatorType *ot, PointerRNA *opptr)
+char *WM_operator_pystring_ex(bContext *C, wmOperator *op, const bool all_args, const bool macro_args,
+                              wmOperatorType *ot, PointerRNA *opptr)
 {
 	char idname_py[OP_MAX_TYPENAME];
 
@@ -547,7 +553,10 @@ char *WM_operator_pystring_ex(bContext *C, wmOperator *op, const bool all_args, 
 		/* Special handling for macros, else we only get default values in this case... */
 		wmOperator *opm;
 		bool first_op = true;
-		for (opm = op->macro.first; opm; opm = opm->next) {
+
+		opm = macro_args ? op->macro.first : NULL;
+
+		for (; opm; opm = opm->next) {
 			PointerRNA *opmptr = opm->ptr;
 			PointerRNA opmptr_default;
 			if (opmptr == NULL) {
@@ -573,13 +582,14 @@ char *WM_operator_pystring_ex(bContext *C, wmOperator *op, const bool all_args, 
 	else {
 		/* only to get the orginal props for comparisons */
 		PointerRNA opptr_default;
+		const bool macro_args_test = ot->macro.first ? macro_args : true;
 
 		if (opptr == NULL) {
 			WM_operator_properties_create_ptr(&opptr_default, ot);
 			opptr = &opptr_default;
 		}
 
-		cstring_args = RNA_pointer_as_string_keywords(C, opptr, false, all_args, max_prop_length);
+		cstring_args = RNA_pointer_as_string_keywords(C, opptr, false, all_args, macro_args_test, max_prop_length);
 		BLI_dynstr_append(dynstr, cstring_args);
 		MEM_freeN(cstring_args);
 
@@ -595,9 +605,10 @@ char *WM_operator_pystring_ex(bContext *C, wmOperator *op, const bool all_args, 
 	return cstring;
 }
 
-char *WM_operator_pystring(bContext *C, wmOperator *op, const bool all_args)
+char *WM_operator_pystring(bContext *C, wmOperator *op,
+                           const bool all_args, const bool macro_args)
 {
-	return WM_operator_pystring_ex(C, op, all_args, op->type, op->ptr);
+	return WM_operator_pystring_ex(C, op, all_args, macro_args, op->type, op->ptr);
 }
 
 /* return NULL if no match is found */
@@ -863,9 +874,9 @@ void WM_operator_properties_sanitize(PointerRNA *ptr, const bool no_context)
  * \note, theres nothing specific to operators here.
  * this could be made a general function.
  */
-int WM_operator_properties_default(PointerRNA *ptr, const bool do_update)
+bool WM_operator_properties_default(PointerRNA *ptr, const bool do_update)
 {
-	int is_change = FALSE;
+	bool changed = false;
 	RNA_STRUCT_BEGIN (ptr, prop)
 	{
 		switch (RNA_property_type(prop)) {
@@ -874,14 +885,14 @@ int WM_operator_properties_default(PointerRNA *ptr, const bool do_update)
 				StructRNA *ptype = RNA_property_pointer_type(ptr, prop);
 				if (ptype != &RNA_Struct) {
 					PointerRNA opptr = RNA_property_pointer_get(ptr, prop);
-					is_change |= WM_operator_properties_default(&opptr, do_update);
+					changed |= WM_operator_properties_default(&opptr, do_update);
 				}
 				break;
 			}
 			default:
 				if ((do_update == false) || (RNA_property_is_set(ptr, prop) == FALSE)) {
 					if (RNA_property_reset(ptr, prop, -1)) {
-						is_change = 1;
+						changed = true;
 					}
 				}
 				break;
@@ -889,7 +900,7 @@ int WM_operator_properties_default(PointerRNA *ptr, const bool do_update)
 	}
 	RNA_STRUCT_END;
 
-	return is_change;
+	return changed;
 }
 
 /* remove all props without PROP_SKIP_SAVE */
@@ -909,6 +920,15 @@ void WM_operator_properties_reset(wmOperator *op)
 			}
 		}
 		RNA_PROP_END;
+	}
+}
+
+void WM_operator_properties_clear(PointerRNA *ptr)
+{
+	IDProperty *properties = ptr->data;
+
+	if (properties) {
+		IDP_ClearProperty(properties);
 	}
 }
 
@@ -1688,8 +1708,8 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	BLI_snprintf(date_buf, sizeof(date_buf), "Date: %s %s", build_commit_date, build_commit_time);
 	
 	BLF_size(style->widgetlabel.uifont_id, style->widgetlabel.points, U.pixelsize * U.dpi);
-	hash_width = (int)BLF_width(style->widgetlabel.uifont_id, hash_buf) + 0.5f * U.widget_unit;
-	date_width = (int)BLF_width(style->widgetlabel.uifont_id, date_buf) + 0.5f * U.widget_unit;
+	hash_width = (int)BLF_width(style->widgetlabel.uifont_id, hash_buf, sizeof(hash_buf)) + 0.5f * U.widget_unit;
+	date_width = (int)BLF_width(style->widgetlabel.uifont_id, date_buf, sizeof(date_buf)) + 0.5f * U.widget_unit;
 #endif  /* WITH_BUILDINFO */
 
 	block = uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
@@ -1715,7 +1735,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 		char branch_buf[128] = "\0";
 		int branch_width;
 		BLI_snprintf(branch_buf, sizeof(branch_buf), "Branch: %s", build_branch);
-		branch_width = (int)BLF_width(style->widgetlabel.uifont_id, branch_buf) + 0.5f * U.widget_unit;
+		branch_width = (int)BLF_width(style->widgetlabel.uifont_id, branch_buf, sizeof(branch_buf)) + 0.5f * U.widget_unit;
 		uiDefBut(block, LABEL, 0, branch_buf, U.pixelsize * 494 - branch_width, U.pixelsize * (258 - label_delta), branch_width, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
 	}
 #endif  /* WITH_BUILDINFO */
@@ -1800,7 +1820,7 @@ static void WM_OT_splash(wmOperatorType *ot)
 {
 	ot->name = "Splash Screen";
 	ot->idname = "WM_OT_splash";
-	ot->description = "Opens the splash screen with release info";
+	ot->description = "Open the splash screen with release info";
 	
 	ot->invoke = wm_splash_invoke;
 	ot->poll = WM_operator_winactive;
@@ -1937,7 +1957,6 @@ static void WM_OT_save_homefile(wmOperatorType *ot)
 		
 	ot->invoke = WM_operator_confirm;
 	ot->exec = wm_homefile_write_exec;
-	ot->poll = WM_operator_winactive;
 }
 
 static int wm_userpref_autoexec_add_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
@@ -1954,7 +1973,6 @@ static void WM_OT_userpref_autoexec_path_add(wmOperatorType *ot)
 	ot->description = "Add path to exclude from autoexecution";
 
 	ot->exec = wm_userpref_autoexec_add_exec;
-	ot->poll = WM_operator_winactive;
 
 	ot->flag = OPTYPE_INTERNAL;
 }
@@ -1976,7 +1994,6 @@ static void WM_OT_userpref_autoexec_path_remove(wmOperatorType *ot)
 	ot->description = "Remove path to exclude from autoexecution";
 
 	ot->exec = wm_userpref_autoexec_remove_exec;
-	ot->poll = WM_operator_winactive;
 
 	ot->flag = OPTYPE_INTERNAL;
 
@@ -1991,7 +2008,6 @@ static void WM_OT_save_userpref(wmOperatorType *ot)
 	
 	ot->invoke = WM_operator_confirm;
 	ot->exec = wm_userpref_write_exec;
-	ot->poll = WM_operator_winactive;
 }
 
 static void WM_OT_read_history(wmOperatorType *ot)
@@ -2009,12 +2025,19 @@ static void WM_OT_read_history(wmOperatorType *ot)
 
 static void WM_OT_read_homefile(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
 	ot->name = "Reload Start-Up File";
 	ot->idname = "WM_OT_read_homefile";
 	ot->description = "Open the default file (doesn't save the current file)";
 	
 	ot->invoke = WM_operator_confirm;
 	ot->exec = wm_homefile_read_exec;
+
+	prop = RNA_def_string_file_path(ot->srna, "filepath", "", 
+	                                FILE_MAX, "File Path", 
+	                                "Path to an alternative start-up file");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
 	/* ommit poll to run in background mode */
 }
 
@@ -2443,7 +2466,6 @@ static void WM_OT_recover_last_session(wmOperatorType *ot)
 	ot->description = "Open the last closed file (\"" BLENDER_QUIT_FILE "\")";
 	
 	ot->exec = wm_recover_last_session_exec;
-	ot->poll = WM_operator_winactive;
 }
 
 /* *************** recover auto save **************** */
@@ -2488,7 +2510,6 @@ static void WM_OT_recover_auto_save(wmOperatorType *ot)
 	
 	ot->exec = wm_recover_auto_save_exec;
 	ot->invoke = wm_recover_auto_save_invoke;
-	ot->poll = WM_operator_winactive;
 
 	WM_operator_properties_filesel(ot, BLENDERFILE, FILE_BLENDER, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH, FILE_LONGDISPLAY);
@@ -2646,6 +2667,15 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 	
 	RNA_string_set(op->ptr, "filepath", name);
 
+	/* if we're saving for the first time and prefer relative paths - any existign paths will be absolute,
+	 * enable the option to remap paths to avoid confusion [#37240] */
+	if ((G.relbase_valid == false) && (U.flag & USER_RELPATHS)) {
+		PropertyRNA *prop = RNA_struct_find_property(op->ptr, "relative_remap");
+		if (!RNA_property_is_set(op->ptr, prop)) {
+			RNA_property_boolean_set(op->ptr, prop, true);
+		}
+	}
+
 	if (G.save_over) {
 		if (BLI_exists(name)) {
 			uiPupMenuSaveOver(C, op, name);
@@ -2707,7 +2737,6 @@ static void WM_OT_quit_blender(wmOperatorType *ot)
 
 	ot->invoke = WM_operator_confirm;
 	ot->exec = wm_exit_blender_exec;
-	ot->poll = WM_operator_winactive;
 }
 
 /* *********************** */
@@ -3942,6 +3971,8 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 
 static void WM_OT_radial_control(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	ot->name = "Radial Control";
 	ot->idname = "WM_OT_radial_control";
 	ot->description = "Set some size property (like e.g. brush size) with mouse wheel";
@@ -3953,15 +3984,32 @@ static void WM_OT_radial_control(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
 	/* all paths relative to the context */
-	RNA_def_string(ot->srna, "data_path_primary", "", 0, "Primary Data Path", "Primary path of property to be set by the radial control");
-	RNA_def_string(ot->srna, "data_path_secondary", "", 0, "Secondary Data Path", "Secondary path of property to be set by the radial control");
-	RNA_def_string(ot->srna, "use_secondary", "", 0, "Use Secondary", "Path of property to select between the primary and secondary data paths");
-	RNA_def_string(ot->srna, "rotation_path", "", 0, "Rotation Path", "Path of property used to rotate the texture display");
-	RNA_def_string(ot->srna, "color_path", "", 0, "Color Path", "Path of property used to set the color of the control");
-	RNA_def_string(ot->srna, "fill_color_path", "", 0, "Fill Color Path", "Path of property used to set the fill color of the control");
-	RNA_def_string(ot->srna, "zoom_path", "", 0, "Zoom Path", "Path of property used to set the zoom level for the control");
-	RNA_def_string(ot->srna, "image_id", "", 0, "Image ID", "Path of ID that is used to generate an image for the control");
-	RNA_def_boolean(ot->srna, "secondary_tex", 0, "Secondary Texture", "Tweak brush secondary/mask texture");
+	prop = RNA_def_string(ot->srna, "data_path_primary", "", 0, "Primary Data Path", "Primary path of property to be set by the radial control");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	prop = RNA_def_string(ot->srna, "data_path_secondary", "", 0, "Secondary Data Path", "Secondary path of property to be set by the radial control");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	prop = RNA_def_string(ot->srna, "use_secondary", "", 0, "Use Secondary", "Path of property to select between the primary and secondary data paths");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	prop = RNA_def_string(ot->srna, "rotation_path", "", 0, "Rotation Path", "Path of property used to rotate the texture display");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	prop = RNA_def_string(ot->srna, "color_path", "", 0, "Color Path", "Path of property used to set the color of the control");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	prop = RNA_def_string(ot->srna, "fill_color_path", "", 0, "Fill Color Path", "Path of property used to set the fill color of the control");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	prop = RNA_def_string(ot->srna, "zoom_path", "", 0, "Zoom Path", "Path of property used to set the zoom level for the control");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	prop = RNA_def_string(ot->srna, "image_id", "", 0, "Image ID", "Path of ID that is used to generate an image for the control");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+
+	prop = RNA_def_boolean(ot->srna, "secondary_tex", 0, "Secondary Texture", "Tweak brush secondary/mask texture");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /* ************************** timer for testing ***************** */

@@ -58,6 +58,20 @@ bool BLI_rctf_is_empty(const rctf *rect)
 	return ((rect->xmax <= rect->xmin) || (rect->ymax <= rect->ymin));
 }
 
+bool BLI_rcti_isect_x(const rcti *rect, const int x)
+{
+	if (x < rect->xmin) return false;
+	if (x > rect->xmax) return false;
+	return true;
+}
+
+bool BLI_rcti_isect_y(const rcti *rect, const int y)
+{
+	if (y < rect->ymin) return false;
+	if (y > rect->ymax) return false;
+	return true;
+}
+
 bool BLI_rcti_isect_pt(const rcti *rect, const int x, const int y)
 {
 	if (x < rect->xmin) return false;
@@ -67,19 +81,26 @@ bool BLI_rcti_isect_pt(const rcti *rect, const int x, const int y)
 	return true;
 }
 
-/**
- * Determine if a rect is empty. An empty
- * rect is one with a zero (or negative)
- * width or height.
- *
- * \return True if \a rect is empty.
- */
 bool BLI_rcti_isect_pt_v(const rcti *rect, const int xy[2])
 {
 	if (xy[0] < rect->xmin) return false;
 	if (xy[0] > rect->xmax) return false;
 	if (xy[1] < rect->ymin) return false;
 	if (xy[1] > rect->ymax) return false;
+	return true;
+}
+
+bool BLI_rctf_isect_x(const rctf *rect, const float x)
+{
+	if (x < rect->xmin) return false;
+	if (x > rect->xmax) return false;
+	return true;
+}
+
+bool BLI_rctf_isect_y(const rctf *rect, const float y)
+{
+	if (y < rect->ymin) return false;
+	if (y > rect->ymax) return false;
 	return true;
 }
 
@@ -413,22 +434,22 @@ void BLI_rctf_interp(rctf *rect, const rctf *rect_a, const rctf *rect_b, const f
 
 bool BLI_rctf_clamp_pt_v(const struct rctf *rect, float xy[2])
 {
-	bool change = false;
-	if (xy[0] < rect->xmin) { xy[0] = rect->xmin; change = true; }
-	if (xy[0] > rect->xmax) { xy[0] = rect->xmax; change = true; }
-	if (xy[1] < rect->ymin) { xy[1] = rect->ymin; change = true; }
-	if (xy[1] > rect->ymax) { xy[1] = rect->ymax; change = true; }
-	return change;
+	bool changed = false;
+	if (xy[0] < rect->xmin) { xy[0] = rect->xmin; changed = true; }
+	if (xy[0] > rect->xmax) { xy[0] = rect->xmax; changed = true; }
+	if (xy[1] < rect->ymin) { xy[1] = rect->ymin; changed = true; }
+	if (xy[1] > rect->ymax) { xy[1] = rect->ymax; changed = true; }
+	return changed;
 }
 
 bool BLI_rcti_clamp_pt_v(const struct rcti *rect, int xy[2])
 {
-	bool change = false;
-	if (xy[0] < rect->xmin) { xy[0] = rect->xmin; change = true; }
-	if (xy[0] > rect->xmax) { xy[0] = rect->xmax; change = true; }
-	if (xy[1] < rect->ymin) { xy[1] = rect->ymin; change = true; }
-	if (xy[1] > rect->ymax) { xy[1] = rect->ymax; change = true; }
-	return change;
+	bool changed = false;
+	if (xy[0] < rect->xmin) { xy[0] = rect->xmin; changed = true; }
+	if (xy[0] > rect->xmax) { xy[0] = rect->xmax; changed = true; }
+	if (xy[1] < rect->ymin) { xy[1] = rect->ymin; changed = true; }
+	if (xy[1] > rect->ymax) { xy[1] = rect->ymax; changed = true; }
+	return changed;
 }
 
 bool BLI_rctf_compare(const struct rctf *rect_a, const struct rctf *rect_b, const float limit)

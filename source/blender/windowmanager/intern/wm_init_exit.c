@@ -159,7 +159,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BLF_lang_init();
 
 	/* get the default database, plus a wm */
-	wm_homefile_read(C, NULL, G.factory_startup);
+	wm_homefile_read(C, NULL, G.factory_startup, NULL);
 	
 	BLF_lang_set(NULL);
 
@@ -382,7 +382,7 @@ static void wait_for_console_key(void)
 
 /* called in creator.c even... tsk, split this! */
 /* note, doesnt run exit() call WM_exit() for that */
-void WM_exit_ext(bContext *C, const short do_python)
+void WM_exit_ext(bContext *C, const bool do_python)
 {
 	wmWindowManager *wm = C ? CTX_wm_manager(C) : NULL;
 

@@ -75,7 +75,7 @@ void		WM_init_state_normal_set(void);
 void		WM_init_native_pixels(bool do_it);
 
 void		WM_init				(struct bContext *C, int argc, const char **argv);
-void		WM_exit_ext			(struct bContext *C, const short do_python);
+void		WM_exit_ext			(struct bContext *C, const bool do_python);
 
 void		WM_exit				(struct bContext *C) ATTR_NORETURN;
 
@@ -164,7 +164,7 @@ struct wmEventHandler *WM_event_add_dropbox_handler(ListBase *handlers, ListBase
 
 			/* mouse */
 void		WM_event_add_mousemove(struct bContext *C);
-int			WM_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
+bool        WM_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
 
 			/* notifiers */
 void		WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference);
@@ -182,7 +182,7 @@ void		wm_event_init_from_window(struct wmWindow *win, struct wmEvent *event);
 			/* at maximum, every timestep seconds it triggers event_type events */
 struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *win, int event_type, double timestep);
 void		WM_event_remove_timer(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer);
-void		WM_event_timer_sleep(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer, int dosleep);
+void        WM_event_timer_sleep(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer, bool do_sleep);
 
 		/* operator api, default callbacks */
 			/* invoke callback, uses enum property named "type" */
@@ -235,10 +235,11 @@ int			WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, short c
 
 void		WM_operator_properties_alloc(struct PointerRNA **ptr, struct IDProperty **properties, const char *opstring); /* used for keymap and macro items */
 void		WM_operator_properties_sanitize(struct PointerRNA *ptr, const bool no_context); /* make props context sensitive or not */
-int         WM_operator_properties_default(struct PointerRNA *ptr, const bool do_update);
+bool        WM_operator_properties_default(struct PointerRNA *ptr, const bool do_update);
 void        WM_operator_properties_reset(struct wmOperator *op);
 void		WM_operator_properties_create(struct PointerRNA *ptr, const char *opstring);
 void		WM_operator_properties_create_ptr(struct PointerRNA *ptr, struct wmOperatorType *ot);
+void        WM_operator_properties_clear(struct PointerRNA *ptr);
 void		WM_operator_properties_free(struct PointerRNA *ptr);
 void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter, short type, short action, short flag, short display);
 void        WM_operator_properties_border(struct wmOperatorType *ot);
@@ -272,9 +273,11 @@ bool        WM_operator_last_properties_store(struct wmOperator *op);
 
 
 		/* operator as a python command (resultuing string must be freed) */
-char		*WM_operator_pystring_ex(struct bContext *C, struct wmOperator *op, const bool all_args,
+char		*WM_operator_pystring_ex(struct bContext *C, struct wmOperator *op,
+                                     const bool all_args, const bool macro_args,
                                      struct wmOperatorType *ot, struct PointerRNA *opptr);
-char		*WM_operator_pystring(struct bContext *C, struct wmOperator *op, const bool all_args);
+char		*WM_operator_pystring(struct bContext *C, struct wmOperator *op,
+                                  const bool all_args, const bool macro_args);
 char		*WM_prop_pystring_assign(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int index);
 void		WM_operator_bl_idname(char *to, const char *from);
 void		WM_operator_py_idname(char *to, const char *from);
@@ -376,13 +379,13 @@ enum {
 
 struct wmJob *WM_jobs_get(struct wmWindowManager *wm, struct wmWindow *win, void *owner, const char *name, int flag, int job_type);
 
-int			WM_jobs_test(struct wmWindowManager *wm, void *owner, int job_type);
+bool        WM_jobs_test(struct wmWindowManager *wm, void *owner, int job_type);
 float		WM_jobs_progress(struct wmWindowManager *wm, void *owner);
 char       *WM_jobs_name(struct wmWindowManager *wm, void *owner);
 void       *WM_jobs_customdata(struct wmWindowManager *wm, void *owner);
 void       *WM_jobs_customdata_from_type(struct wmWindowManager *wm, int job_type);
 
-int         WM_jobs_is_running(struct wmJob *);
+bool        WM_jobs_is_running(struct wmJob *);
 void       *WM_jobs_customdata_get(struct wmJob *);
 void        WM_jobs_customdata_set(struct wmJob *, void *customdata, void (*free)(void *));
 void        WM_jobs_timer(struct wmJob *, double timestep, unsigned int note, unsigned int endnote);
@@ -399,14 +402,14 @@ void		WM_jobs_kill_all(struct wmWindowManager *wm);
 void		WM_jobs_kill_all_except(struct wmWindowManager *wm, void *owner);
 void		WM_jobs_kill_type(struct wmWindowManager *wm, void *owner, int job_type);
 
-int			WM_jobs_has_running(struct wmWindowManager *wm);
+bool        WM_jobs_has_running(struct wmWindowManager *wm);
 
 void		WM_job_main_thread_lock_acquire(struct wmJob *job);
 void		WM_job_main_thread_lock_release(struct wmJob *job);
 
 			/* clipboard */
-char       *WM_clipboard_text_get(int selection);
-void        WM_clipboard_text_set(char *buf, int selection);
+char       *WM_clipboard_text_get(bool selection);
+void        WM_clipboard_text_set(const char *buf, bool selection);
 
 			/* progress */
 void		WM_progress_set(struct wmWindow *win, float progress);
@@ -418,7 +421,7 @@ void		WM_redraw_windows(struct bContext *C);
 void        WM_main_playanim(int argc, const char **argv);
 
 /* debugging only, convenience function to write on crash */
-int write_crash_blend(void);
+bool write_crash_blend(void);
 
 #ifdef __cplusplus
 }

@@ -285,6 +285,9 @@ if 'cudakernels' in B.targets:
     env['WITH_BF_CYCLES_CUDA_BINARIES'] = True
     env['WITH_BF_PYTHON'] = False
 
+# Configure paths for automated configuration test programs
+env['CONFIGUREDIR'] = os.path.abspath(os.path.normpath(os.path.join(env['BF_BUILDDIR'], "sconf_temp")))
+env['CONFIGURELOG'] = os.path.abspath(os.path.normpath(os.path.join(env['BF_BUILDDIR'], "config.log")))
 
 #############################################################################
 ###################    Automatic configuration for OSX     ##################
@@ -293,6 +296,19 @@ if 'cudakernels' in B.targets:
 if env['OURPLATFORM']=='darwin':
 
     import commands
+    import subprocess
+
+    command = ["%s"%env['CC'], "--version"]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=None, shell=False)
+    line = process.communicate()[0]
+    ver = re.search(r'[0-9]+(\.[0-9]+)+', line)
+    if ver:
+        env['CCVERSION'] = ver.group(0)
+    frontend = re.search(r'gcc', line) or re.search(r'clang', line) or re.search(r'llvm-gcc', line)  or re.search(r'icc', line)
+    if frontend:
+        env['MACOSX_COMPILER'] = frontend.group(0)
+
+    print B.bc.OKGREEN + "Using Compiler: " + B.bc.ENDC + env['MACOSX_COMPILER'] + '-' + env['CCVERSION']
 
     cmd = 'sw_vers -productVersion'
     MAC_CUR_VER=cmd_res=commands.getoutput(cmd)
@@ -370,7 +386,9 @@ if env['OURPLATFORM']=='darwin':
 
     #Intel Macs are CoreDuo and Up
     if env['MACOSX_ARCHITECTURE'] == 'i386' or env['MACOSX_ARCHITECTURE'] == 'x86_64':
-        env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-ftree-vectorize','-msse','-msse2','-msse3']
+        env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-msse','-msse2','-msse3']
+        if env['MACOSX_COMPILER'] != 'clang' or (env['MACOSX_COMPILER'] == 'clang' and env['CCVERSION'] >= '5.0'):
+            env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-ftree-vectorize'] # clang xcode 4 does not accept flag
     else:
         env['CCFLAGS'] =  env['CCFLAGS']+['-fno-strict-aliasing']
 
@@ -378,7 +396,7 @@ if env['OURPLATFORM']=='darwin':
     if env['MACOSX_ARCHITECTURE'] == 'x86_64':
         env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-mssse3']
 
-    if env['XCODE_CUR_VER'] >= '5' and not env['CC'].split('/')[len(env['CC'].split('/'))-1][4:] >= '4.6.1':
+    if env['MACOSX_COMPILER'] == 'clang' and env['CCVERSION'] >= '5.0':
         env['CCFLAGS'].append('-ftemplate-depth=1024') # only valid for clang bundled with xcode 5
 
     # 3DconnexionClient.framework, optionally install
@@ -406,7 +424,7 @@ if env['OURPLATFORM']=='darwin':
     #Defaults openMP to true if compiler handles it ( only gcc 4.6.1 and newer )
     # if your compiler does not have accurate suffix you may have to enable it by hand !
     if env['WITH_BF_OPENMP'] == 1:
-        if env['CC'].split('/')[len(env['CC'].split('/'))-1][4:] >= '4.6.1':
+        if env['MACOSX_COMPILER'] == 'gcc' and env['CCVERSION'] >= '4.6.1': # strip down to version string if any
             env['WITH_BF_OPENMP'] = 1  # multithreading for fluids, cloth, sculpt and smoke
             print B.bc.OKGREEN + "Using OpenMP"
         else:
@@ -416,7 +434,7 @@ if env['OURPLATFORM']=='darwin':
     if env['WITH_BF_CYCLES_OSL'] == 1:
         OSX_OSL_LIBPATH = Dir(env.subst(env['BF_OSL_LIBPATH'])).abspath
         # we need 2 variants of passing the oslexec with the force_load option, string and list type atm
-        if env['CC'].split('/')[len(env['CC'].split('/'))-1][4:] >= '4.8':
+        if env['MACOSX_COMPILER'] == 'gcc' and env['CCVERSION'] >= '4.8': # strip down to version string if any
             env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-loslexec','-loslquery'])
         else:
             env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-force_load '+ OSX_OSL_LIBPATH +'/liboslexec.a','-loslquery'])
@@ -487,6 +505,7 @@ else:
 # TODO, make optional (as with CMake)
 env['CPPFLAGS'].append('-DWITH_AUDASPACE')
 env['CPPFLAGS'].append('-DWITH_AVI')
+env['CPPFLAGS'].append('-DWITH_OPENNL')
 env['CPPFLAGS'].append('-DWITH_BOOL_COMPAT')
 if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '11.0':
     env['CPPFLAGS'].append('-D_ALLOW_KEYWORD_MACROS')

@@ -254,6 +254,7 @@ option(WITH_FREESTYLE     "Enable Freestyle (advanced edges rendering)" ON)
 # Misc
 option(WITH_INPUT_NDOF "Enable NDOF input devices (SpaceNavigator and friends)" ON)
 option(WITH_RAYOPTIMIZATION	"Enable use of SIMD (SSE) optimizations for the raytracer" ON)
+option(WITH_OPENNL        "Enable use of Open Numerical Library" ON)
 if(UNIX AND NOT APPLE)
 	option(WITH_INSTALL_PORTABLE "Install redistributeable runtime, otherwise install into CMAKE_INSTALL_PREFIX" ON)
 	option(WITH_STATIC_LIBS "Try to link with static libraries, as much as possible, to make blender more portable across distributions" OFF)
@@ -297,7 +298,7 @@ mark_as_advanced(WITH_CXX_GUARDEDALLOC)
 option(WITH_ASSERT_ABORT "Call abort() when raising an assertion through BLI_assert()" OFF)
 mark_as_advanced(WITH_ASSERT_ABORT)
 
-option(WITH_BOOST					"Enable features depending no boost" ON)
+option(WITH_BOOST					"Enable features depending on boost" ON)
 
 if(CMAKE_COMPILER_IS_GNUCC)
 	option(WITH_GCC_MUDFLAP			"Enable mudflap" OFF)
@@ -736,6 +737,9 @@ if(UNIX AND NOT APPLE)
 			if(WITH_INTERNATIONAL)
 				list(APPEND __boost_packages locale)
 			endif()
+			if(WITH_CYCLES_NETWORK)
+				list(APPEND __boost_packages serialization)
+			endif()
 			find_package(Boost 1.48 COMPONENTS ${__boost_packages})
 			unset(__boost_packages)
 			if(Boost_USE_STATIC_LIBS AND WITH_BOOST_ICU)
@@ -875,7 +879,7 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
-	set(PLATFORM_LINKLIBS "-lutil -lc -lm -lpthread -lstdc++")
+	set(PLATFORM_LINKLIBS "-lutil -lc -lm -lpthread")
 
 	if((NOT WITH_HEADLESS) AND (NOT WITH_GHOST_SDL))
 		find_package(X11 REQUIRED)
@@ -921,10 +925,10 @@ if(UNIX AND NOT APPLE)
 	if(CMAKE_COMPILER_IS_GNUCC)
 		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
 	# CLang is the same as GCC for now.
-	elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
 		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
 	# Solaris CC
-	elseif(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+	elseif(CMAKE_C_COMPILER_ID MATCHES "SunPro")
 		set(PLATFORM_CFLAGS "-pipe -features=extensions -fPIC -D__FUNCTION__=__func__")
 		
 	# Intel C++ Compiler
@@ -1699,6 +1703,9 @@ elseif(APPLE)
 			list(APPEND BOOST_LIBRARIES boost_locale-mt)
 			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -liconv") # boost_locale needs it !
 		endif()
+		if(WITH_CYCLES_NETWORK)
+			list(APPEND BOOST_LIBRARIES boost_serialization-mt)
+		endif()
 		set(BOOST_LIBPATH ${BOOST}/lib)
 		set(BOOST_DEFINITIONS)
 	endif()
@@ -1780,7 +1787,7 @@ elseif(APPLE)
 	if(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64" OR CMAKE_OSX_ARCHITECTURES MATCHES "i386")
 		set(CMAKE_CXX_FLAGS_RELEASE "-O2 -mdynamic-no-pic -msse -msse2 -msse3 -mssse3")
 		set(CMAKE_C_FLAGS_RELEASE "-O2 -mdynamic-no-pic  -msse -msse2 -msse3 -mssse3")
-		if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
 			set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ftree-vectorize  -fvariable-expansion-in-unroller")
 			set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ftree-vectorize  -fvariable-expansion-in-unroller")
 		endif()
@@ -2027,7 +2034,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
 		ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE -Wno-error=unused-but-set-variable)
 	endif()
 
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
 
 	# strange, clang complains these are not supported, but then yses them.
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ALL -Wall)
@@ -2058,6 +2065,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_UNUSED_MACROS    -Wno-unused-macros)
 
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_MISSING_VARIABLE_DECLARATIONS -Wno-missing-variable-declarations)
+	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_INCOMPAT_PTR_DISCARD_QUAL -Wno-incompatible-pointer-types-discards-qualifiers)
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_UNUSED_FUNCTION -Wno-unused-function)
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_INT_TO_VOID_POINTER_CAST -Wno-int-to-void-pointer-cast)
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_MISSING_PROTOTYPES -Wno-missing-prototypes)
@@ -2239,6 +2247,9 @@ if(FIRST_RUN)
 
 	endmacro()
 
+	message(STATUS "C Compiler:   \"${CMAKE_C_COMPILER_ID}\"")
+	message(STATUS "C++ Compiler: \"${CMAKE_CXX_COMPILER_ID}\"")
+
 	info_cfg_text("Build Options:")
 	info_cfg_option(WITH_GAMEENGINE)
 	info_cfg_option(WITH_PLAYER)
@@ -2304,6 +2315,9 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_MOD_REMESH)
 	info_cfg_option(WITH_MOD_FLUID)
 	info_cfg_option(WITH_MOD_OCEANSIM)
+
+	info_cfg_text("Other:")
+	info_cfg_option(WITH_OPENNL)
 
 	# debug
 	message(STATUS "HAVE_STDBOOL_H = ${HAVE_STDBOOL_H}")

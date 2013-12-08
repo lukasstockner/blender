@@ -217,6 +217,21 @@ ShaderNode *ImageTextureNode::clone() const
 	return node;
 }
 
+void ImageTextureNode::attributes(AttributeRequestSet *attributes)
+{
+#ifdef WITH_PTEX
+	/* todo: avoid loading other texture coordinates when using ptex,
+	 * and hide texture coordinate socket in the UI */
+	if (string_endswith(filename, ".ptx")) {
+		/* ptex */
+		attributes->add(ATTR_STD_PTEX_FACE_ID);
+		attributes->add(ATTR_STD_PTEX_UV);
+	}
+#endif
+
+	ShaderNode::attributes(attributes);
+}
+
 void ImageTextureNode::compile(SVMCompiler& compiler)
 {
 	ShaderInput *vector_in = input("Vector");
@@ -350,6 +365,19 @@ ShaderNode *EnvironmentTextureNode::clone() const
 	node->is_float = -1;
 	node->is_linear = false;
 	return node;
+}
+
+void EnvironmentTextureNode::attributes(AttributeRequestSet *attributes)
+{
+#ifdef WITH_PTEX
+	if (string_endswith(filename, ".ptx")) {
+		/* ptex */
+		attributes->add(ATTR_STD_PTEX_FACE_ID);
+		attributes->add(ATTR_STD_PTEX_UV);
+	}
+#endif
+
+	ShaderNode::attributes(attributes);
 }
 
 void EnvironmentTextureNode::compile(SVMCompiler& compiler)
@@ -3200,7 +3228,11 @@ LayerWeightNode::LayerWeightNode()
 
 void LayerWeightNode::compile(SVMCompiler& compiler)
 {
+	ShaderInput *normal_in = input("Normal");
 	ShaderInput *blend_in = input("Blend");
+
+	if(normal_in->link)
+		compiler.stack_assign(normal_in);
 
 	if(blend_in->link)
 		compiler.stack_assign(blend_in);
@@ -3209,14 +3241,14 @@ void LayerWeightNode::compile(SVMCompiler& compiler)
 	if(!fresnel_out->links.empty()) {
 		compiler.stack_assign(fresnel_out);
 		compiler.add_node(NODE_LAYER_WEIGHT, blend_in->stack_offset, __float_as_int(blend_in->value.x),
-			compiler.encode_uchar4(NODE_LAYER_WEIGHT_FRESNEL, fresnel_out->stack_offset));
+			compiler.encode_uchar4(NODE_LAYER_WEIGHT_FRESNEL, normal_in->stack_offset, fresnel_out->stack_offset));
 	}
 
 	ShaderOutput *facing_out = output("Facing");
 	if(!facing_out->links.empty()) {
 		compiler.stack_assign(facing_out);
 		compiler.add_node(NODE_LAYER_WEIGHT, blend_in->stack_offset, __float_as_int(blend_in->value.x),
-			compiler.encode_uchar4(NODE_LAYER_WEIGHT_FACING, facing_out->stack_offset));
+			compiler.encode_uchar4(NODE_LAYER_WEIGHT_FACING, normal_in->stack_offset, facing_out->stack_offset));
 	}
 }
 

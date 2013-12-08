@@ -87,6 +87,7 @@ EnumPropertyItem modifier_type_items[] = {
 	{eModifierType_Displace, "DISPLACE", ICON_MOD_DISPLACE, "Displace", ""},
 	{eModifierType_Hook, "HOOK", ICON_HOOK, "Hook", ""},
 	{eModifierType_LaplacianSmooth, "LAPLACIANSMOOTH", ICON_MOD_SMOOTH, "Laplacian Smooth", ""},
+	{eModifierType_LaplacianDeform, "LAPLACIANDEFORM", ICON_MOD_MESHDEFORM, "Laplacian Deform", ""},
 	{eModifierType_Lattice, "LATTICE", ICON_MOD_LATTICE, "Lattice", ""},
 	{eModifierType_MeshDeform, "MESH_DEFORM", ICON_MOD_MESHDEFORM, "Mesh Deform", ""},
 	{eModifierType_Shrinkwrap, "SHRINKWRAP", ICON_MOD_SHRINKWRAP, "Shrinkwrap", ""},
@@ -238,6 +239,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
 			return &RNA_UVWarpModifier;
 		case eModifierType_MeshCache:
 			return &RNA_MeshCacheModifier;
+		case eModifierType_LaplacianDeform:
+			return &RNA_LaplacianDeformModifier;
 		/* Default */
 		case eModifierType_None:
 		case eModifierType_ShapeKey:
@@ -740,34 +743,6 @@ static void rna_OceanModifier_ocean_chop_set(PointerRNA *ptr, float value)
 	}
 }
 
-static float rna_EdgeSplitModifier_split_angle_get(PointerRNA *ptr)
-{
-	EdgeSplitModifierData *md = (EdgeSplitModifierData *)ptr->data;
-	return DEG2RADF(md->split_angle);
-}
-
-static void rna_EdgeSplitModifier_split_angle_set(PointerRNA *ptr, float value)
-{
-	EdgeSplitModifierData *md = (EdgeSplitModifierData *)ptr->data;
-	value = RAD2DEGF(value);
-	CLAMP(value, 0.0f, 180.0f);
-	md->split_angle = (int)value;
-}
-
-static float rna_BevelModifier_angle_limit_get(PointerRNA *ptr)
-{
-	BevelModifierData *md = (BevelModifierData *)ptr->data;
-	return DEG2RADF(md->bevel_angle);
-}
-
-static void rna_BevelModifier_angle_limit_set(PointerRNA *ptr, float value)
-{
-	BevelModifierData *md = (BevelModifierData *)ptr->data;
-	value = RAD2DEGF(value);
-	CLAMP(value, 0.0f, 180.0f);
-	md->bevel_angle = (int)value;
-}
-
 static void rna_BevelModifier_defgrp_name_set(PointerRNA *ptr, const char *value)
 {
 	BevelModifierData *md = (BevelModifierData *)ptr->data;
@@ -784,6 +759,18 @@ static void rna_UVWarpModifier_uvlayer_set(PointerRNA *ptr, const char *value)
 {
 	UVWarpModifierData *umd = (UVWarpModifierData *)ptr->data;
 	rna_object_uvlayer_name_set(ptr, value, umd->uvlayer_name, sizeof(umd->uvlayer_name));
+}
+
+static void rna_LaplacianDeformModifier_vgroup_set(PointerRNA *ptr, const char *value)
+{
+	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)ptr->data;
+	rna_object_vgroup_name_set(ptr, value, lmd->anchor_grp_name, sizeof(lmd->anchor_grp_name));
+}
+
+static int rna_LaplacianDeformModifier_is_bind_get(PointerRNA *ptr)
+{
+	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)ptr->data;
+	return ((lmd->flag & MOD_LAPLACIANDEFORM_BIND) && (lmd->cache_system != NULL));
 }
 
 #else
@@ -1653,17 +1640,9 @@ static void rna_def_modifier_edgesplit(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "EdgeSplitModifierData");
 	RNA_def_struct_ui_icon(srna, ICON_MOD_EDGESPLIT);
 
-#if 1 /* expose as radians */
 	prop = RNA_def_property(srna, "split_angle", PROP_FLOAT, PROP_ANGLE);
-	RNA_def_property_float_funcs(prop, "rna_EdgeSplitModifier_split_angle_get",
-	                             "rna_EdgeSplitModifier_split_angle_set", NULL);
-	RNA_def_property_range(prop, 0, DEG2RAD(180));
-	RNA_def_property_ui_range(prop, 0, DEG2RAD(180), 100, 2);
-#else
-	prop = RNA_def_property(srna, "split_angle", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_range(prop, 0, 180);
-	RNA_def_property_ui_range(prop, 0, 180, 100, 2);
-#endif
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
+	RNA_def_property_ui_range(prop, 0.0f, DEG2RADF(180.0f), 100, 2);
 	RNA_def_property_ui_text(prop, "Split Angle", "Angle above which to split edges");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
@@ -2379,10 +2358,9 @@ static void rna_def_modifier_bevel(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "angle_limit", PROP_FLOAT, PROP_ANGLE);
-	RNA_def_property_float_funcs(prop, "rna_BevelModifier_angle_limit_get",
-	                             "rna_BevelModifier_angle_limit_set", NULL);
-	RNA_def_property_range(prop, 0, DEG2RAD(180));
-	RNA_def_property_ui_range(prop, 0, DEG2RAD(180), 100, 2);
+	RNA_def_property_float_sdna(prop, NULL, "bevel_angle");
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
+	RNA_def_property_ui_range(prop, 0.0f, DEG2RADF(180.0f), 100, 2);
 	RNA_def_property_ui_text(prop, "Angle", "Angle above which to bevel edges");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
@@ -2836,6 +2814,16 @@ static void rna_def_modifier_screw(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_smooth_shade", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_SCREW_SMOOTH_SHADING);
 	RNA_def_property_ui_text(prop, "Smooth Shading", "Output faces with smooth shading rather than flat shaded");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "use_stretch_u", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_SCREW_UV_STRETCH_U);
+	RNA_def_property_ui_text(prop, "Stretch U", "Stretch the U coordinates between 0-1 when UV's are present");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "use_stretch_v", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_SCREW_UV_STRETCH_V);
+	RNA_def_property_ui_text(prop, "Stretch V", "Stretch the V coordinates between 0-1 when UV's are present");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 #if 0
@@ -3681,6 +3669,36 @@ static void rna_def_modifier_meshcache(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_modifier_laplaciandeform(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "LaplacianDeformModifier", "Modifier");
+	RNA_def_struct_ui_text(srna, "Laplacian Deform Modifier", "Mesh deform modifier");
+	RNA_def_struct_sdna(srna, "LaplacianDeformModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_MOD_MESHDEFORM);
+
+	prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "anchor_grp_name");
+	RNA_def_property_ui_text(prop, "Vertex Group for Anchors",
+	                         "Name of Vertex Group which determines Anchors");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_LaplacianDeformModifier_vgroup_set");
+
+	prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "repeat");
+	RNA_def_property_ui_range(prop, 1, 50, 1, -1);
+	RNA_def_property_ui_text(prop, "Repeat", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "is_bind", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_LaplacianDeformModifier_is_bind_get", NULL);
+	RNA_def_property_ui_text(prop, "Bound", "Whether geometry has been bound to anchors");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+}
+
 void RNA_def_modifier(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3791,6 +3809,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	rna_def_modifier_laplaciansmooth(brna);
 	rna_def_modifier_triangulate(brna);
 	rna_def_modifier_meshcache(brna);
+	rna_def_modifier_laplaciandeform(brna);
 }
 
 #endif

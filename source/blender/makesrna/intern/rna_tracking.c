@@ -962,7 +962,8 @@ static void rna_def_trackingCamera(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "focal_length", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "focal");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_range(prop, 0.0001f, 5000.0f);
+	RNA_def_property_range(prop, 0.0001f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0001f, 5000.0f, 1, 2);
 	RNA_def_property_float_funcs(prop, "rna_trackingCamera_focal_mm_get", "rna_trackingCamera_focal_mm_set", NULL);
 	RNA_def_property_ui_text(prop, "Focal Length", "Camera's focal length");
 	RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, NULL);
@@ -971,7 +972,8 @@ static void rna_def_trackingCamera(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "focal_length_pixels", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "focal");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_range(prop, 0.0f, 5000.0f);
+	RNA_def_property_range(prop, 0.0f, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0f, 5000.f, 1, 2);
 	RNA_def_property_ui_text(prop, "Focal Length", "Camera's focal length");
 	RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, NULL);
 
@@ -1017,7 +1019,7 @@ static void rna_def_trackingCamera(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "pixel_aspect", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "pixel_aspect");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_range(prop, 0.1f, 5000.0f);
+	RNA_def_property_range(prop, 0.1f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.1f, 5000.0f, 1, 2);
 	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_ui_text(prop, "Pixel Aspect Ratio", "Pixel aspect ratio");
@@ -1472,6 +1474,20 @@ static void rna_def_trackingPlaneTrack(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PLANE_TRACK_AUTOKEY);
 	RNA_def_property_ui_text(prop, "Auto Keyframe", "Automatic keyframe insertion when moving plane corners");
 	RNA_def_property_ui_icon(prop, ICON_REC, 0);
+
+	/* image */
+	prop = RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Image");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Image", "Image displayed in the track during editing in clip editor");
+	RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, NULL);
+
+	/* image opacity */
+	prop = RNA_def_property(srna, "image_opacity", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_ui_text(prop, "Image Opacity", "Opacity of the image");
+	RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, NULL);
 }
 
 static void rna_def_trackingStabilization(BlenderRNA *brna)

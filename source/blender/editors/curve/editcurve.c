@@ -2307,11 +2307,12 @@ static int smooth_exec(bContext *C, wmOperator *UNUSED(op))
 	BezTriple *bezt, *beztOrig;
 	BPoint *bp, *bpOrig;
 	float val, newval, offset;
-	int a, i, change = 0;
+	int a, i;
+	bool changed = false;
 	
 	for (nu = editnurb->first; nu; nu = nu->next) {
 		if (nu->bezt) {
-			change = 0;
+			changed = false;
 			beztOrig = MEM_dupallocN(nu->bezt);
 			for (bezt = &nu->bezt[1], a = 1; a < nu->pntsu - 1; a++, bezt++) {
 				if (bezt->f2 & SELECT) {
@@ -2324,12 +2325,13 @@ static int smooth_exec(bContext *C, wmOperator *UNUSED(op))
 						bezt->vec[0][i] += offset;
 						bezt->vec[2][i] += offset;
 					}
-					change = 1;
+					changed = true;
 				}
 			}
 			MEM_freeN(beztOrig);
-			if (change)
+			if (changed) {
 				BKE_nurb_handles_calc(nu);
+			}
 		}
 		else if (nu->bp) {
 			bpOrig = MEM_dupallocN(nu->bp);
@@ -3568,7 +3570,7 @@ static int set_spline_type_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	ListBase *editnurb = object_editcurve_get(obedit);
 	Nurb *nu;
-	bool change = false;
+	bool changed = false;
 	const bool use_handles = RNA_boolean_get(op->ptr, "use_handles");
 	const int type = RNA_enum_get(op->ptr, "type");
 
@@ -3582,11 +3584,11 @@ static int set_spline_type_exec(bContext *C, wmOperator *op)
 			if (BKE_nurb_type_convert(nu, type, use_handles) == false)
 				BKE_report(op->reports, RPT_ERROR, "No conversion possible");
 			else
-				change = true;
+				changed = true;
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		if (ED_curve_updateAnimPaths(obedit->data))
 			WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
 
@@ -4364,7 +4366,7 @@ bool ed_editnurb_spin(float viewmat[4][4], Object *obedit, const float axis[3], 
 	Curve *cu = (Curve *)obedit->data;
 	ListBase *editnurb = object_editcurve_get(obedit);
 	Nurb *nu;
-	float si, phi, n[3], q[4], cmat[3][3], tmat[3][3], imat[3][3];
+	float cmat[3][3], tmat[3][3], imat[3][3];
 	float bmat[3][3], rotmat[3][3], scalemat1[3][3], scalemat2[3][3];
 	float persmat[3][3], persinv[3][3];
 	bool ok, changed = false;
@@ -4377,15 +4379,7 @@ bool ed_editnurb_spin(float viewmat[4][4], Object *obedit, const float axis[3], 
 	copy_m3_m4(bmat, obedit->obmat);
 	invert_m3_m3(imat, bmat);
 	
-	normalize_v3_v3(n, axis);
-	/* TODO - use math func */
-	phi = M_PI / 8.0;
-	q[0] = cos(phi);
-	si = sin(phi);
-	q[1] = n[0] * si;
-	q[2] = n[1] * si;
-	q[3] = n[2] * si;
-	quat_to_mat3(cmat, q);
+	axis_angle_to_mat3(cmat, axis, M_PI / 4.0);
 	mul_m3_m3m3(tmat, cmat, bmat);
 	mul_m3_m3m3(rotmat, imat, tmat);
 
@@ -6367,7 +6361,7 @@ static int curve_delete_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	Curve *cu = (Curve *)obedit->data;
 	eCurveElem_Types type = RNA_enum_get(op->ptr, "type");
-	int retval;
+	int retval = OPERATOR_CANCELLED;
 
 	if (type == CURVE_VERTEX) retval = curve_delete_vertices(obedit);
 	else if (type == CURVE_SEGMENT) retval = curve_delete_segments(obedit, false);
