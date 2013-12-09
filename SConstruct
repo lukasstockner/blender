@@ -285,6 +285,9 @@ if 'cudakernels' in B.targets:
     env['WITH_BF_CYCLES_CUDA_BINARIES'] = True
     env['WITH_BF_PYTHON'] = False
 
+# Configure paths for automated configuration test programs
+env['CONFIGUREDIR'] = os.path.abspath(os.path.normpath(os.path.join(env['BF_BUILDDIR'], "sconf_temp")))
+env['CONFIGURELOG'] = os.path.abspath(os.path.normpath(os.path.join(env['BF_BUILDDIR'], "config.log")))
 
 #############################################################################
 ###################    Automatic configuration for OSX     ##################
@@ -293,6 +296,19 @@ if 'cudakernels' in B.targets:
 if env['OURPLATFORM']=='darwin':
 
     import commands
+    import subprocess
+
+    command = ["%s"%env['CC'], "--version"]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=None, shell=False)
+    line = process.communicate()[0]
+    ver = re.search(r'[0-9]+(\.[0-9]+)+', line)
+    if ver:
+        env['CCVERSION'] = ver.group(0)
+    frontend = re.search(r'gcc', line) or re.search(r'clang', line) or re.search(r'llvm-gcc', line)  or re.search(r'icc', line)
+    if frontend:
+        env['C_COMPILER_ID'] = frontend.group(0)
+
+    print B.bc.OKGREEN + "Using Compiler: " + B.bc.ENDC + env['C_COMPILER_ID'] + '-' + env['CCVERSION']
 
     cmd = 'sw_vers -productVersion'
     MAC_CUR_VER=cmd_res=commands.getoutput(cmd)
@@ -370,7 +386,9 @@ if env['OURPLATFORM']=='darwin':
 
     #Intel Macs are CoreDuo and Up
     if env['MACOSX_ARCHITECTURE'] == 'i386' or env['MACOSX_ARCHITECTURE'] == 'x86_64':
-        env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-ftree-vectorize','-msse','-msse2','-msse3']
+        env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-msse','-msse2','-msse3']
+        if env['C_COMPILER_ID'] != 'clang' or (env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '5.0'):
+            env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-ftree-vectorize'] # clang xcode 4 does not accept flag
     else:
         env['CCFLAGS'] =  env['CCFLAGS']+['-fno-strict-aliasing']
 
@@ -378,7 +396,7 @@ if env['OURPLATFORM']=='darwin':
     if env['MACOSX_ARCHITECTURE'] == 'x86_64':
         env['REL_CCFLAGS'] = env['REL_CCFLAGS']+['-mssse3']
 
-    if env['XCODE_CUR_VER'] >= '5' and not env['CC'].split('/')[len(env['CC'].split('/'))-1][4:] >= '4.6.1':
+    if env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '5.0':
         env['CCFLAGS'].append('-ftemplate-depth=1024') # only valid for clang bundled with xcode 5
 
     # 3DconnexionClient.framework, optionally install
@@ -406,7 +424,7 @@ if env['OURPLATFORM']=='darwin':
     #Defaults openMP to true if compiler handles it ( only gcc 4.6.1 and newer )
     # if your compiler does not have accurate suffix you may have to enable it by hand !
     if env['WITH_BF_OPENMP'] == 1:
-        if env['CC'].split('/')[len(env['CC'].split('/'))-1][4:] >= '4.6.1':
+        if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.6.1': # strip down to version string if any
             env['WITH_BF_OPENMP'] = 1  # multithreading for fluids, cloth, sculpt and smoke
             print B.bc.OKGREEN + "Using OpenMP"
         else:
@@ -416,7 +434,7 @@ if env['OURPLATFORM']=='darwin':
     if env['WITH_BF_CYCLES_OSL'] == 1:
         OSX_OSL_LIBPATH = Dir(env.subst(env['BF_OSL_LIBPATH'])).abspath
         # we need 2 variants of passing the oslexec with the force_load option, string and list type atm
-        if env['CC'][:-2].endswith('4.8'):
+        if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.8': # strip down to version string if any
             env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-loslexec','-loslquery'])
         else:
             env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-force_load '+ OSX_OSL_LIBPATH +'/liboslexec.a','-loslquery'])
@@ -487,6 +505,7 @@ else:
 # TODO, make optional (as with CMake)
 env['CPPFLAGS'].append('-DWITH_AUDASPACE')
 env['CPPFLAGS'].append('-DWITH_AVI')
+env['CPPFLAGS'].append('-DWITH_OPENNL')
 env['CPPFLAGS'].append('-DWITH_BOOL_COMPAT')
 if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '11.0':
     env['CPPFLAGS'].append('-D_ALLOW_KEYWORD_MACROS')
@@ -784,6 +803,8 @@ if  env['OURPLATFORM']=='darwin':
                 dn.remove('.svn')
             if '_svn' in dn:
                 dn.remove('_svn')
+            if '.git' in df:
+                df.remove('.git')
             dir=env['BF_INSTALLDIR']+dp[len(bundledir):]
             source=[dp+os.sep+f for f in df]
             blenderinstall.append(env.Install(dir=dir,source=source))
@@ -813,10 +834,8 @@ if env['OURPLATFORM']!='darwin':
         scriptpaths=['release/scripts']
         for scriptpath in scriptpaths:
             for dp, dn, df in os.walk(scriptpath):
-                if '.svn' in dn:
-                    dn.remove('.svn')
-                if '_svn' in dn:
-                    dn.remove('_svn')
+                if '.git' in df:
+                    df.remove('.git')
                 if '__pycache__' in dn:  # py3.2 cache dir
                     dn.remove('__pycache__')
 
@@ -840,8 +859,6 @@ if env['OURPLATFORM']!='darwin':
             # cycles python code
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles')
             source=os.listdir('intern/cycles/blender/addon')
-            if '.svn' in source: source.remove('.svn')
-            if '_svn' in source: source.remove('_svn')
             if '__pycache__' in source: source.remove('__pycache__')
             source=['intern/cycles/blender/addon/'+s for s in source]
             scriptinstall.append(env.Install(dir=dir,source=source))
@@ -849,8 +866,6 @@ if env['OURPLATFORM']!='darwin':
             # cycles kernel code
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel')
             source=os.listdir('intern/cycles/kernel')
-            if '.svn' in source: source.remove('.svn')
-            if '_svn' in source: source.remove('_svn')
             if '__pycache__' in source: source.remove('__pycache__')
             source.remove('kernel.cpp')
             source.remove('CMakeLists.txt')
@@ -867,16 +882,12 @@ if env['OURPLATFORM']!='darwin':
             # svm
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel', 'svm')
             source=os.listdir('intern/cycles/kernel/svm')
-            if '.svn' in source: source.remove('.svn')
-            if '_svn' in source: source.remove('_svn')
             if '__pycache__' in source: source.remove('__pycache__')
             source=['intern/cycles/kernel/svm/'+s for s in source]
             scriptinstall.append(env.Install(dir=dir,source=source))
             # closure
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel', 'closure')
             source=os.listdir('intern/cycles/kernel/closure')
-            if '.svn' in source: source.remove('.svn')
-            if '_svn' in source: source.remove('_svn')
             if '__pycache__' in source: source.remove('__pycache__')
             source=['intern/cycles/kernel/closure/'+s for s in source]
             scriptinstall.append(env.Install(dir=dir,source=source))
@@ -884,8 +895,6 @@ if env['OURPLATFORM']!='darwin':
             # licenses
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'license')
             source=os.listdir('intern/cycles/doc/license')
-            if '.svn' in source: source.remove('.svn')
-            if '_svn' in source: source.remove('_svn')
             if '__pycache__' in source: source.remove('__pycache__')
             source.remove('CMakeLists.txt')
             source=['intern/cycles/doc/license/'+s for s in source]
@@ -920,11 +929,6 @@ if env['OURPLATFORM']!='darwin':
         colormanagement = os.path.join('release', 'datafiles', 'colormanagement')
 
         for dp, dn, df in os.walk(colormanagement):
-            if '.svn' in dn:
-                dn.remove('.svn')
-            if '_svn' in dn:
-                dn.remove('_svn')
-
             dir = os.path.join(env['BF_INSTALLDIR'], VERSION, 'datafiles')
             dir += os.sep + os.path.basename(colormanagement) + dp[len(colormanagement):]
 
@@ -943,20 +947,14 @@ if env['OURPLATFORM']!='darwin':
             return (member in path.split(os.sep))
 
         po_dir = os.path.join("release", "datafiles", "locale", "po")
-        need_compile_mo = os.path.exists(po_dir)
 
         for intpath in internationalpaths:
             for dp, dn, df in os.walk(intpath):
-                if '.svn' in dn:
-                    dn.remove('.svn')
-                if '_svn' in dn:
-                    dn.remove('_svn')
+                if '.git' in df:
+                    df.remove('.git')
 
                 # we only care about release/datafiles/fonts, release/datafiles/locales
-                if check_path(dp, "locale"):
-                    if need_compile_mo and check_path(dp, "po"):
-                        continue
-                elif check_path(dp, "fonts"):
+                if check_path(dp, "fonts"):
                     pass
                 else:
                     continue
@@ -970,18 +968,17 @@ if env['OURPLATFORM']!='darwin':
                     env.Execute(Mkdir(dir))
                 scriptinstall.append(env.Install(dir=dir,source=source))
 
-        if need_compile_mo:
-            for f in os.listdir(po_dir):
-                if not f.endswith(".po"):
-                    continue
+        for f in os.listdir(po_dir):
+            if not f.endswith(".po"):
+                continue
 
-                locale_name = os.path.splitext(f)[0]
+            locale_name = os.path.splitext(f)[0]
 
-                mo_file = os.path.join(B.root_build_dir, "locale", locale_name + ".mo")
+            mo_file = os.path.join(B.root_build_dir, "locale", locale_name + ".mo")
 
-                dir = os.path.join(env['BF_INSTALLDIR'], VERSION)
-                dir = os.path.join(dir, "datafiles", "locale", locale_name, "LC_MESSAGES")
-                scriptinstall.append(env.InstallAs(os.path.join(dir, "blender.mo"), mo_file))
+            dir = os.path.join(env['BF_INSTALLDIR'], VERSION)
+            dir = os.path.join(dir, "datafiles", "locale", locale_name, "LC_MESSAGES")
+            scriptinstall.append(env.InstallAs(os.path.join(dir, "blender.mo"), mo_file))
 
 #-- icons
 if env['OURPLATFORM']=='linux':
@@ -989,10 +986,6 @@ if env['OURPLATFORM']=='linux':
     icontargetlist = []
 
     for tp, tn, tf in os.walk('release/freedesktop/icons'):
-        if '.svn' in tn:
-            tn.remove('.svn')
-        if '_svn' in tn:
-            tn.remove('_svn')
         for f in tf:
             iconlist.append(os.path.join(tp, f))
             icontargetlist.append( os.path.join(*([env['BF_INSTALLDIR']] + tp.split(os.sep)[2:] + [f])) )
@@ -1018,10 +1011,6 @@ if env['OURPLATFORM']=='linuxcross':
 textlist = []
 texttargetlist = []
 for tp, tn, tf in os.walk('release/text'):
-    if '.svn' in tn:
-        tn.remove('.svn')
-    if '_svn' in tn:
-        tn.remove('_svn')
     for f in tf:
         textlist.append(tp+os.sep+f)
 

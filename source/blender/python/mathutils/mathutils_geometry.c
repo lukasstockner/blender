@@ -970,9 +970,9 @@ PyDoc_STRVAR(M_Geometry_distance_point_to_plane_doc,
 "\n"
 "   :arg pt: Point\n"
 "   :type pt: :class:`mathutils.Vector`\n"
-"   :arg plane_co: First point of the quad\n"
+"   :arg plane_co: A point on the plane\n"
 "   :type plane_co: :class:`mathutils.Vector`\n"
-"   :arg plane_no: Second point of the quad\n"
+"   :arg plane_no: The direction the plane is facing\n"
 "   :type plane_no: :class:`mathutils.Vector`\n"
 "   :rtype: float\n"
 );
@@ -1563,7 +1563,7 @@ static PyObject *M_Geometry_convex_hull_2d(PyObject *UNUSED(self), PyObject *poi
 		int *index_map;
 		Py_ssize_t len_ret, i;
 
-		index_map  = MEM_mallocN(sizeof(*index_map) * len, __func__);
+		index_map  = MEM_mallocN(sizeof(*index_map) * len * 2, __func__);
 
 		/* Non Python function */
 		len_ret = BLI_convexhull_2d((const float (*)[2])points, len, index_map);

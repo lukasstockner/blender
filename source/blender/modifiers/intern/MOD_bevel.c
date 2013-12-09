@@ -61,7 +61,7 @@ static void initData(ModifierData *md)
 	bmd->val_flags = 0;
 	bmd->lim_flags = 0;
 	bmd->e_flags = 0;
-	bmd->bevel_angle = 30;
+	bmd->bevel_angle = DEG2RADF(30.0f);
 	bmd->defgrp_name[0] = '\0';
 }
 
@@ -107,7 +107,7 @@ static DerivedMesh *applyModifier(ModifierData *md, struct Object *ob,
 	int vgroup = -1;
 	MDeformVert *dvert = NULL;
 	BevelModifierData *bmd = (BevelModifierData *) md;
-	const float threshold = cosf((bmd->bevel_angle + 0.00001f) * (float)M_PI / 180.0f);
+	const float threshold = cosf(bmd->bevel_angle + 0.000000175f);
 	const bool vertex_only = (bmd->flags & MOD_BEVEL_VERT) != 0;
 	const bool do_clamp = !(bmd->flags & MOD_BEVEL_OVERLAP_OK);
 
@@ -158,7 +158,8 @@ static DerivedMesh *applyModifier(ModifierData *md, struct Object *ob,
 		}
 	}
 
-	BM_mesh_bevel(bm, bmd->value, bmd->res,
+	/* TODO: add offset_kind to modifier properties to, and pass in as 3rd arg here */
+	BM_mesh_bevel(bm, bmd->value, 0, bmd->res,
 	              vertex_only, bmd->lim_flags & MOD_BEVEL_WEIGHT, do_clamp,
 	              dvert, vgroup);
 

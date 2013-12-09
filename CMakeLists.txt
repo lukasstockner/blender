@@ -216,15 +216,22 @@ option(WITH_IMAGE_FRAMESERVER   "Enable image FrameServer Support for rendering"
 # Audio/Video format support
 option(WITH_CODEC_AVI           "Enable Blenders own AVI file support (raw/jpeg)" ON)
 option(WITH_CODEC_FFMPEG        "Enable FFMPeg Support (http://ffmpeg.org)" OFF)
-
 option(WITH_CODEC_SNDFILE       "Enable libsndfile Support (http://www.mega-nerd.com/libsndfile)" OFF)
+
 if(APPLE)
-	option(WITH_CODEC_QUICKTIME     "Enable Quicktime Support" OFF)
+	option(WITH_CODEC_FFMPEG        "Enable FFMPeg Support (http://ffmpeg.org)" ON)
+	option(WITH_CODEC_QUICKTIME     "Enable Quicktime Support" ON)
+else()
+	option(WITH_CODEC_FFMPEG        "Enable FFMPeg Support (http://ffmpeg.org)" OFF)
 endif()
 
 # 3D format support
-# disable opencollada on non-apple unix because opencollada has no package for debian
-option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org)"	OFF)
+# Disable opencollada when we don't have precompiled libs
+if(APPLE OR WIN32)
+	option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org)" ON)
+else()
+	option(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org)" OFF)
+endif()
 
 # Sound output
 option(WITH_SDL           "Enable SDL for sound and joystick support" ON)
@@ -247,6 +254,7 @@ option(WITH_FREESTYLE     "Enable Freestyle (advanced edges rendering)" ON)
 # Misc
 option(WITH_INPUT_NDOF "Enable NDOF input devices (SpaceNavigator and friends)" ON)
 option(WITH_RAYOPTIMIZATION	"Enable use of SIMD (SSE) optimizations for the raytracer" ON)
+option(WITH_OPENNL        "Enable use of Open Numerical Library" ON)
 if(UNIX AND NOT APPLE)
 	option(WITH_INSTALL_PORTABLE "Install redistributeable runtime, otherwise install into CMAKE_INSTALL_PREFIX" ON)
 	option(WITH_STATIC_LIBS "Try to link with static libraries, as much as possible, to make blender more portable across distributions" OFF)
@@ -290,7 +298,7 @@ mark_as_advanced(WITH_CXX_GUARDEDALLOC)
 option(WITH_ASSERT_ABORT "Call abort() when raising an assertion through BLI_assert()" OFF)
 mark_as_advanced(WITH_ASSERT_ABORT)
 
-option(WITH_BOOST					"Enable features depending no boost" ON)
+option(WITH_BOOST					"Enable features depending on boost" ON)
 
 if(CMAKE_COMPILER_IS_GNUCC)
 	option(WITH_GCC_MUDFLAP			"Enable mudflap" OFF)
@@ -367,10 +375,17 @@ if(APPLE)
 		message(STATUS "OSX_SYSROOT_PREFIX: " ${OSX_SYSROOT_PREFIX})
 		set(OSX_DEVELOPER_PREFIX /Developer/SDKs/MacOSX${OSX_SYSTEM}.sdk) # use guaranteed existing sdk
 		set(CMAKE_OSX_SYSROOT ${OSX_SYSROOT_PREFIX}/${OSX_DEVELOPER_PREFIX} CACHE PATH "" FORCE)
+        if(${CMAKE_GENERATOR} MATCHES "Xcode")
+            set(CMAKE_XCODE_ATTRIBUTE_SDKROOT macosx${OSX_SYSTEM}) # to silence sdk not found warning, just overrides CMAKE_OSX_SYSROOT
+        endif()
 	endif()
-	
+
+    if(OSX_SYSTEM MATCHES 10.9)
+        set(CMAKE_FIND_ROOT_PATH ${CMAKE_OSX_SYSROOT}) # make sure syslibs and headers are looked up in sdk ( expecially for 10.9 openGL atm. )
+    endif()
+
 	if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
-		set(CMAKE_OSX_DEPLOYMENT_TARGET "10.5" CACHE STRING "" FORCE) # 10.5 is our min. target, if you use higher sdk, weak linking happens
+		set(CMAKE_OSX_DEPLOYMENT_TARGET "10.6" CACHE STRING "" FORCE) # 10.6 is our min. target, if you use higher sdk, weak linking happens
 	endif()
 	
 	if(NOT ${CMAKE_GENERATOR} MATCHES "Xcode")
@@ -722,6 +737,9 @@ if(UNIX AND NOT APPLE)
 			if(WITH_INTERNATIONAL)
 				list(APPEND __boost_packages locale)
 			endif()
+			if(WITH_CYCLES_NETWORK)
+				list(APPEND __boost_packages serialization)
+			endif()
 			find_package(Boost 1.48 COMPONENTS ${__boost_packages})
 			unset(__boost_packages)
 			if(Boost_USE_STATIC_LIBS AND WITH_BOOST_ICU)
@@ -861,7 +879,7 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
-	set(PLATFORM_LINKLIBS "-lutil -lc -lm -lpthread -lstdc++")
+	set(PLATFORM_LINKLIBS "-lutil -lc -lm -lpthread")
 
 	if((NOT WITH_HEADLESS) AND (NOT WITH_GHOST_SDL))
 		find_package(X11 REQUIRED)
@@ -907,10 +925,10 @@ if(UNIX AND NOT APPLE)
 	if(CMAKE_COMPILER_IS_GNUCC)
 		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
 	# CLang is the same as GCC for now.
-	elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
 		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
 	# Solaris CC
-	elseif(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+	elseif(CMAKE_C_COMPILER_ID MATCHES "SunPro")
 		set(PLATFORM_CFLAGS "-pipe -features=extensions -fPIC -D__FUNCTION__=__func__")
 		
 	# Intel C++ Compiler
@@ -1480,7 +1498,7 @@ elseif(WIN32)
 elseif(APPLE)
 
 	if(${CMAKE_OSX_DEPLOYMENT_TARGET} STREQUAL "10.5" OR ${CMAKE_OSX_DEPLOYMENT_TARGET} STRGREATER "10.5")
-		set(WITH_LIBS10.5 ON CACHE BOOL "Use 10.5 libs" FORCE) # valid also for 10.6/10.7
+		set(WITH_LIBS10.5 ON CACHE BOOL "Use 10.5 libs" FORCE) # valid also for 10.6/7/8/9
 	endif()
 
 	if(WITH_LIBS10.5)
@@ -1685,6 +1703,9 @@ elseif(APPLE)
 			list(APPEND BOOST_LIBRARIES boost_locale-mt)
 			set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -liconv") # boost_locale needs it !
 		endif()
+		if(WITH_CYCLES_NETWORK)
+			list(APPEND BOOST_LIBRARIES boost_serialization-mt)
+		endif()
 		set(BOOST_LIBPATH ${BOOST}/lib)
 		set(BOOST_DEFINITIONS)
 	endif()
@@ -1766,7 +1787,7 @@ elseif(APPLE)
 	if(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64" OR CMAKE_OSX_ARCHITECTURES MATCHES "i386")
 		set(CMAKE_CXX_FLAGS_RELEASE "-O2 -mdynamic-no-pic -msse -msse2 -msse3 -mssse3")
 		set(CMAKE_C_FLAGS_RELEASE "-O2 -mdynamic-no-pic  -msse -msse2 -msse3 -mssse3")
-		if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+		if(NOT CMAKE_C_COMPILER_ID MATCHES "Clang")
 			set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ftree-vectorize  -fvariable-expansion-in-unroller")
 			set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ftree-vectorize  -fvariable-expansion-in-unroller")
 		endif()
@@ -2013,7 +2034,7 @@ if(CMAKE_COMPILER_IS_GNUCC)
 		ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE -Wno-error=unused-but-set-variable)
 	endif()
 
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
 
 	# strange, clang complains these are not supported, but then yses them.
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ALL -Wall)
@@ -2044,6 +2065,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_UNUSED_MACROS    -Wno-unused-macros)
 
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_MISSING_VARIABLE_DECLARATIONS -Wno-missing-variable-declarations)
+	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_INCOMPAT_PTR_DISCARD_QUAL -Wno-incompatible-pointer-types-discards-qualifiers)
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_UNUSED_FUNCTION -Wno-unused-function)
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_INT_TO_VOID_POINTER_CAST -Wno-int-to-void-pointer-cast)
 	ADD_CHECK_C_COMPILER_FLAG(CC_REMOVE_STRICT_FLAGS C_WARN_NO_MISSING_PROTOTYPES -Wno-missing-prototypes)
@@ -2225,6 +2247,9 @@ if(FIRST_RUN)
 
 	endmacro()
 
+	message(STATUS "C Compiler:   \"${CMAKE_C_COMPILER_ID}\"")
+	message(STATUS "C++ Compiler: \"${CMAKE_CXX_COMPILER_ID}\"")
+
 	info_cfg_text("Build Options:")
 	info_cfg_option(WITH_GAMEENGINE)
 	info_cfg_option(WITH_PLAYER)
@@ -2290,6 +2315,9 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_MOD_REMESH)
 	info_cfg_option(WITH_MOD_FLUID)
 	info_cfg_option(WITH_MOD_OCEANSIM)
+
+	info_cfg_text("Other:")
+	info_cfg_option(WITH_OPENNL)
 
 	# debug
 	message(STATUS "HAVE_STDBOOL_H = ${HAVE_STDBOOL_H}")

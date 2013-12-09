@@ -624,7 +624,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 					BLI_strncpy(newbone->name, ebone->name, sizeof(newbone->name));
 					
 					if (flipbone && forked) {   // only set if mirror edit
-						if (strlen(newbone->name) < 30) {
+						if (strlen(newbone->name) < (MAXBONENAME - 2)) {
 							if (a == 0) strcat(newbone->name, "_L");
 							else strcat(newbone->name, "_R");
 						}
@@ -789,11 +789,13 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
 			copy_v3_v3(newbone->tail, ebone->tail);
 			copy_v3_v3(ebone->tail, newbone->head);
 			
-			newbone->rad_head = 0.5f * (ebone->rad_head + ebone->rad_tail);
+			newbone->rad_head = ((ebone->rad_head * cutratio) + (ebone->rad_tail * cutratioI));
 			ebone->rad_tail = newbone->rad_head;
 			
 			newbone->flag |= BONE_CONNECTED;
-			
+
+			newbone->prop = NULL;
+
 			unique_editbone_name(arm->edbo, newbone->name, NULL);
 			
 			/* correct parent bones */

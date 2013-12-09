@@ -3510,7 +3510,7 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 	if (BLI_countlist(&ob->particlesystem) > 1)
 		BLI_snprintf(psys->name, sizeof(psys->name), DATA_("ParticleSystem %i"), BLI_countlist(&ob->particlesystem));
 	else
-		strcpy(psys->name, DATA_("ParticleSystem"));
+		BLI_strncpy(psys->name, DATA_("ParticleSystem"), sizeof(psys->name));
 
 	md = modifier_new(eModifierType_ParticleSystem);
 
@@ -3652,6 +3652,7 @@ static void default_particle_settings(ParticleSettings *part)
 	if (!part->effector_weights)
 		part->effector_weights = BKE_add_effector_weights(NULL);
 
+	part->omat = 1;
 	part->use_modifier_stack = false;
 }
 

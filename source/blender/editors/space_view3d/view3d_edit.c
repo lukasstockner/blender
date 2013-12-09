@@ -992,14 +992,13 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* switch from camera view when: */
 	if (vod->rv3d->persp != RV3D_PERSP) {
-
-		if (U.uiflag & USER_AUTOPERSP) {
+		if (vod->rv3d->persp == RV3D_CAMOB) {
+			view3d_persp_switch_from_camera(vod->v3d, vod->rv3d, vod->rv3d->lpersp);
+		}
+		else if ((U.uiflag & USER_AUTOPERSP) && RV3D_VIEW_IS_AXIS(vod->rv3d->view)) {
 			if (!ED_view3d_camera_lock_check(vod->v3d, vod->rv3d)) {
 				vod->rv3d->persp = RV3D_PERSP;
 			}
-		}
-		else if (vod->rv3d->persp == RV3D_CAMOB) {
-			view3d_persp_switch_from_camera(vod->v3d, vod->rv3d, vod->rv3d->lpersp);
 		}
 		ED_region_tag_redraw(vod->ar);
 	}
@@ -2464,7 +2463,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op) /* was view3d_home() in 
 	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
 	float min[3], max[3];
-	bool change = false;
+	bool changed = false;
 
 	if (center) {
 		/* in 2.4x this also move the cursor to (0, 0, 0) (with shift+c). */
@@ -2479,7 +2478,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op) /* was view3d_home() in 
 
 	for (base = scene->base.first; base; base = base->next) {
 		if (BASE_VISIBLE(v3d, base)) {
-			change = true;
+			changed = true;
 
 			if (skip_camera && base->object == v3d->camera) {
 				continue;
@@ -2488,7 +2487,7 @@ static int view3d_all_exec(bContext *C, wmOperator *op) /* was view3d_home() in 
 			BKE_object_minmax(base->object, min, max, false);
 		}
 	}
-	if (!change) {
+	if (!changed) {
 		ED_region_tag_redraw(ar);
 		/* TODO - should this be cancel?
 		 * I think no, because we always move the cursor, with or without
@@ -3344,20 +3343,19 @@ static void axis_set_view(bContext *C, View3D *v3d, ARegion *ar,
 		return;
 	}
 
+	if (U.uiflag & USER_AUTOPERSP) {
+		rv3d->persp = RV3D_VIEW_IS_AXIS(view) ? RV3D_ORTHO : perspo;
+	}
+	else if (rv3d->persp == RV3D_CAMOB) {
+		rv3d->persp = perspo;
+	}
+
 	if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
-
-		if (U.uiflag & USER_AUTOPERSP) rv3d->persp = view ? RV3D_ORTHO : RV3D_PERSP;
-		else if (rv3d->persp == RV3D_CAMOB) rv3d->persp = perspo;
-
 		ED_view3d_smooth_view(C, v3d, ar, v3d->camera, NULL,
 		                      rv3d->ofs, new_quat, NULL, NULL,
 		                      smooth_viewtx);
 	}
 	else {
-
-		if (U.uiflag & USER_AUTOPERSP) rv3d->persp = view ? RV3D_ORTHO : RV3D_PERSP;
-		else if (rv3d->persp == RV3D_CAMOB) rv3d->persp = perspo;
-
 		ED_view3d_smooth_view(C, v3d, ar, NULL, NULL,
 		                      NULL, new_quat, NULL, NULL,
 		                      smooth_viewtx);
@@ -3891,6 +3889,35 @@ void VIEW3D_OT_view_persportho(wmOperatorType *ot)
 	ot->flag = 0;
 }
 
+static int view3d_navigate_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *UNUSED(event))
+{
+	eViewNavigation_Method mode = U.navigation_mode;
+
+	switch (mode) {
+		case VIEW_NAVIGATION_FLY:
+			WM_operator_name_call(C, "VIEW3D_OT_fly", WM_OP_INVOKE_DEFAULT, NULL);
+			break;
+		case VIEW_NAVIGATION_WALK:
+		default:
+			WM_operator_name_call(C, "VIEW3D_OT_walk", WM_OP_INVOKE_DEFAULT, NULL);
+			break;
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void VIEW3D_OT_navigate(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "View Navigation";
+	ot->description = "Interactively navigate around the scene (uses the mode (walk/fly) preference)";
+	ot->idname = "VIEW3D_OT_navigate";
+
+	/* api callbacks */
+	ot->invoke = view3d_navigate_invoke;
+	ot->poll = ED_operator_view3d_active;
+}
+
 
 /* ******************** add background image operator **************** */
 
@@ -4144,16 +4171,17 @@ void ED_view3d_cursor3d_position(bContext *C, float fp[3], const int mval[2])
 		}
 	}
 	else {
-		const float dx = ((float)(mval[0] - (ar->winx / 2))) * zfac / (ar->winx / 2);
-		const float dy = ((float)(mval[1] - (ar->winy / 2))) * zfac / (ar->winy / 2);
-		const float fz = (rv3d->persmat[0][3] * fp[0] +
-		                  rv3d->persmat[1][3] * fp[1] +
-		                  rv3d->persmat[2][3] * fp[2] +
-		                  rv3d->persmat[3][3]) / zfac;
+		float tvec[3];
 
-		fp[0] = (rv3d->persinv[0][0] * dx + rv3d->persinv[1][0] * dy + rv3d->persinv[2][0] * fz) - rv3d->ofs[0];
-		fp[1] = (rv3d->persinv[0][1] * dx + rv3d->persinv[1][1] * dy + rv3d->persinv[2][1] * fz) - rv3d->ofs[1];
-		fp[2] = (rv3d->persinv[0][2] * dx + rv3d->persinv[1][2] * dy + rv3d->persinv[2][2] * fz) - rv3d->ofs[2];
+		tvec[0] = ((float)(mval[0] - (ar->winx / 2))) * zfac / (ar->winx / 2);
+		tvec[1] = ((float)(mval[1] - (ar->winy / 2))) * zfac / (ar->winy / 2);
+		tvec[2] = (rv3d->persmat[0][3] * fp[0] +
+		           rv3d->persmat[1][3] * fp[1] +
+		           rv3d->persmat[2][3] * fp[2] +
+		           rv3d->persmat[3][3]) / zfac;
+
+		mul_mat3_m4_v3(rv3d->persinv, tvec);
+		sub_v3_v3v3(fp, tvec, rv3d->ofs);
 	}
 
 }

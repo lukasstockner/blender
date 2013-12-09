@@ -3090,8 +3090,11 @@ static void sculpt_topology_update(Sculpt *sd, Object *ob, Brush *brush)
 
 	/* Only act if some verts are inside the brush area */
 	if (totnode) {
-		PBVHTopologyUpdateMode mode = PBVH_Subdivide;
+		PBVHTopologyUpdateMode mode = 0;
 		float location[3];
+
+		if (sd->flags & SCULPT_DYNTOPO_SUBDIVIDE)
+			mode |= PBVH_Subdivide;
 
 		if ((sd->flags & SCULPT_DYNTOPO_COLLAPSE) ||
 			(brush->sculpt_tool == SCULPT_TOOL_SIMPLIFY))
@@ -5077,7 +5080,11 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 			ts->sculpt = MEM_callocN(sizeof(Sculpt), "sculpt mode data");
 
 			/* Turn on X plane mirror symmetry by default */
+
 			ts->sculpt->paint.symmetry_flags |= PAINT_SYMM_X;
+
+			/* Make sure at least dyntopo subdivision is enabled */
+			ts->sculpt->paint.symmetry_flags |= SCULPT_DYNTOPO_SUBDIVIDE;
 		}
 
 		if (!ts->sculpt->detail_size)

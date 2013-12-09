@@ -3853,8 +3853,9 @@ static void do_projectpaint_draw(ProjPaintState *ps, ProjPixel *projPixel, const
 	copy_v3_v3(rgb, ps->paint_color);
 
 	if (ps->is_texbrush) {
-		/* XXX actually should convert texrgb from linear to srgb here */
 		mul_v3_v3(rgb, texrgb);
+		/* TODO(sergey): Support texture paint color space. */
+		linearrgb_to_srgb_v3_v3(rgb, rgb);
 	}
 
 	rgb_float_to_uchar(rgba_ub, rgb);
@@ -4607,8 +4608,8 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 
 	scene->toolsettings->imapaint.flag |= IMAGEPAINT_DRAWING;
 
-	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
-	                      image_undo_restore, image_undo_free);
+	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
+	                      ED_image_undo_restore, ED_image_undo_free);
 
 	/* allocate and initialize spatial data structures */
 	project_paint_begin(&ps);

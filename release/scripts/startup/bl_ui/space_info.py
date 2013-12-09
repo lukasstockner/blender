@@ -83,6 +83,7 @@ class INFO_MT_file(Menu):
     bl_label = "File"
 
     def draw(self, context):
+        import sys
         layout = self.layout
 
         layout.operator_context = 'INVOKE_AREA'
@@ -131,6 +132,8 @@ class INFO_MT_file(Menu):
         layout.separator()
 
         layout.operator_context = 'EXEC_AREA'
+        if sys.platform == "darwin":
+            layout.operator_context = 'INVOKE_SCREEN' # quit dialog
         layout.operator("wm.quit_blender", text="Quit", icon='QUIT')
 
 
@@ -167,7 +170,6 @@ class INFO_MT_file_external_data(Menu):
         layout.operator("file.make_paths_absolute")
         layout.operator("file.report_missing_files")
         layout.operator("file.find_missing_files")
-
 
 
 class INFO_MT_game(Menu):
@@ -239,15 +241,15 @@ class INFO_MT_help(Menu):
         layout = self.layout
 
         layout.operator("wm.url_open", text="Manual", icon='HELP').url = "http://wiki.blender.org/index.php/Doc:2.6/Manual"
-        layout.operator("wm.url_open", text="Release Log", icon='URL').url = "http://www.blender.org/development/release-logs/blender-269"
+        layout.operator("wm.url_open", text="Release Log", icon='URL').url = "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/2.70"
         layout.separator()
 
         layout.operator("wm.url_open", text="Blender Website", icon='URL').url = "http://www.blender.org"
         layout.operator("wm.url_open", text="Blender e-Shop", icon='URL').url = "http://www.blender.org/e-shop"
-        layout.operator("wm.url_open", text="Developer Community", icon='URL').url = "http://www.blender.org/community/get-involved"
+        layout.operator("wm.url_open", text="Developer Community", icon='URL').url = "http://www.blender.org/get-involved/"
         layout.operator("wm.url_open", text="User Community", icon='URL').url = "http://www.blender.org/community/user-community"
         layout.separator()
-        layout.operator("wm.url_open", text="Report a Bug", icon='URL').url = "http://projects.blender.org/tracker/?atid=498&group_id=9&func=browse"
+        layout.operator("wm.url_open", text="Report a Bug", icon='URL').url = "http://developer.blender.org/maniphest/task/create/?project=2&type=Bug"
         layout.separator()
 
         layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = bpy.types.WM_OT_doc_view._prefix

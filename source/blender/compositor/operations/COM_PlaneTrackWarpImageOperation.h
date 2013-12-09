@@ -36,8 +36,7 @@
 class PlaneTrackWarpImageOperation : public PlaneTrackCommonOperation {
 protected:
 	SocketReader *m_pixelReader;
-	int m_osa;
-	float m_jitter[32][2];
+	float m_perspectiveMatrix[3][3];
 
 public:
 	PlaneTrackWarpImageOperation();
@@ -45,7 +44,8 @@ public:
 	void initExecution();
 	void deinitExecution();
 
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+	void pixelTransform(const float xy[2], float r_uv[2], float r_deriv[2][2]);
 
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 };

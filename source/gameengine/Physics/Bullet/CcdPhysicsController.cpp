@@ -145,6 +145,8 @@ CcdPhysicsController::CcdPhysicsController (const CcdConstructionInfo& ci)
 	m_bulletMotionState = 0;
 	m_characterController = 0;
 	m_savedCollisionFlags = 0;
+	m_savedCollisionFilterGroup = 0;
+	m_savedCollisionFilterMask = 0;
 	m_savedMass = 0.0;
 	m_suspended = false;
 	
@@ -947,9 +949,9 @@ void		CcdPhysicsController::RelativeRotate(const MT_Matrix3x3& rotval,bool local
 			return;
 		}
 
-		btMatrix3x3 drotmat(rotval[0].x(), rotval[1].x(), rotval[2].x(),
-		        rotval[0].y(), rotval[1].y(), rotval[2].y(),
-		        rotval[0].z(), rotval[1].z(), rotval[2].z());
+		btMatrix3x3 drotmat(rotval[0].x(), rotval[0].y(), rotval[0].z(),
+		        rotval[1].x(), rotval[1].y(), rotval[1].z(),
+		        rotval[2].x(), rotval[2].y(), rotval[2].z());
 
 
 		btMatrix3x3 currentOrn;
@@ -1057,8 +1059,12 @@ void	CcdPhysicsController::SuspendDynamics(bool ghost)
 	btRigidBody *body = GetRigidBody();
 	if (body && !m_suspended && !GetConstructionInfo().m_bSensor)
 	{
+		btBroadphaseProxy* handle = body->getBroadphaseHandle();
+
 		m_savedCollisionFlags = body->getCollisionFlags();
 		m_savedMass = GetMass();
+		m_savedCollisionFilterGroup = handle->m_collisionFilterGroup;
+		m_savedCollisionFilterMask = handle->m_collisionFilterMask;
 		m_suspended = true;
 		GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
 			0.0,
@@ -1078,8 +1084,8 @@ void	CcdPhysicsController::RestoreDynamics()
 		GetPhysicsEnvironment()->UpdateCcdPhysicsController(this,
 			m_savedMass,
 			m_savedCollisionFlags,
-			GetConstructionInfo().m_collisionFilterGroup,
-			GetConstructionInfo().m_collisionFilterMask);
+			m_savedCollisionFilterGroup,
+			m_savedCollisionFilterMask);
 		body->activate();
 		m_suspended = false;
 	}

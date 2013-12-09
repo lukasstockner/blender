@@ -163,6 +163,9 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 		scen->gm = sce->gm;
 		scen->audio = sce->audio;
 
+		if (sce->id.properties)
+			scen->id.properties = IDP_CopyProperty(sce->id.properties);
+
 		MEM_freeN(scen->toolsettings);
 	}
 	else {
@@ -435,7 +438,7 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.im_format.imtype = R_IMF_IMTYPE_PNG;
 	sce->r.im_format.depth = R_IMF_CHAN_DEPTH_8;
 	sce->r.im_format.quality = 90;
-	sce->r.im_format.compress = 90;
+	sce->r.im_format.compress = 15;
 
 	sce->r.displaymode = R_OUTPUT_AREA;
 	sce->r.framapto = 100;
@@ -444,7 +447,6 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.blurfac = 0.5;
 	sce->r.frs_sec = 24;
 	sce->r.frs_sec_base = 1;
-	sce->r.edgeint = 10;
 	sce->r.ocres = 128;
 
 	/* OCIO_TODO: for forwards compatibility only, so if no tonecurve are used,

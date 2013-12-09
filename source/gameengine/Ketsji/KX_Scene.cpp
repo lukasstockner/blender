@@ -1613,15 +1613,28 @@ void KX_Scene::UpdateAnimations(double curtime)
 			CListValue *children = gameobj->GetChildren();
 			KX_GameObject *child;
 
+			bool has_mesh = false, has_non_mesh = false;
+
 			// Check for meshes that haven't been culled
 			for (int j=0; j<children->GetCount(); ++j) {
 				child = (KX_GameObject*)children->GetValue(j);
 
-				if (child->GetMeshCount() > 0 && !child->GetCulled()) {
+				if (!child->GetCulled()) {
 					needs_update = true;
 					break;
 				}
+
+				if (child->GetMeshCount() == 0)
+					has_non_mesh = true;
+				else
+					has_mesh = true;
 			}
+
+			// If we didn't find a non-culled mesh, check to see
+			// if we even have any meshes, and update if this
+			// armature has only non-mesh children.
+			if (!needs_update && !has_mesh && has_non_mesh)
+				needs_update = true;
 
 			children->Release();
 		}
@@ -2385,7 +2398,6 @@ PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("objectsInactive",	KX_Scene, pyattr_get_objects_inactive),
 	KX_PYATTRIBUTE_RO_FUNCTION("lights",			KX_Scene, pyattr_get_lights),
 	KX_PYATTRIBUTE_RO_FUNCTION("cameras",			KX_Scene, pyattr_get_cameras),
-	KX_PYATTRIBUTE_RO_FUNCTION("lights",			KX_Scene, pyattr_get_lights),
 	KX_PYATTRIBUTE_RW_FUNCTION("active_camera",		KX_Scene, pyattr_get_active_camera, pyattr_set_active_camera),
 	KX_PYATTRIBUTE_RW_FUNCTION("pre_draw",			KX_Scene, pyattr_get_drawing_callback_pre, pyattr_set_drawing_callback_pre),
 	KX_PYATTRIBUTE_RW_FUNCTION("post_draw",			KX_Scene, pyattr_get_drawing_callback_post, pyattr_set_drawing_callback_post),

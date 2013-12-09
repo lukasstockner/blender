@@ -173,6 +173,7 @@ void modifier_skin_customdata_ensure(struct Object *ob) {STUB_ASSERT(0);}
 /* nodes */
 struct RenderResult *RE_GetResult(struct Render *re) {STUB_ASSERT(0); return (struct RenderResult *) NULL;}
 struct Render *RE_GetRender(const char *name) {STUB_ASSERT(0); return (struct Render *) NULL;}
+float RE_lamp_get_data(struct ShadeInput *shi, struct Object *lamp_obj, float col[3], float lv[3], float *dist) {STUB_ASSERT(0); return 0.0f;}
 
 /* blenkernel */
 void RE_FreeRenderResult(struct RenderResult *res) {STUB_ASSERT(0);}
@@ -353,6 +354,7 @@ void ED_object_modifier_clear(struct Main *bmain, struct Object *ob) {STUB_ASSER
 void ED_object_editmode_enter(struct bContext *C, int flag) {STUB_ASSERT(0);}
 void ED_object_editmode_exit(struct bContext *C, int flag) {STUB_ASSERT(0);}
 bool ED_object_editmode_load(struct Object *obedit) {STUB_ASSERT(0); return false; }
+void ED_object_check_force_modifiers(struct Main *bmain, struct Scene *scene, struct Object *object) {STUB_ASSERT(0);}
 int uiLayoutGetActive(struct uiLayout *layout) {STUB_ASSERT(0); return 0;}
 int uiLayoutGetOperatorContext(struct uiLayout *layout) {STUB_ASSERT(0); return 0;}
 int uiLayoutGetAlignment(struct uiLayout *layout) {STUB_ASSERT(0); return 0;}
@@ -467,8 +469,8 @@ void uiTemplateColorRamp(struct uiLayout *layout, struct ColorBand *coba, int ex
 void uiTemplateLayers(struct uiLayout *layout, struct PointerRNA *ptr, char *propname) {STUB_ASSERT(0);}
 void uiTemplateImageLayers(struct uiLayout *layout, struct bContext *C, struct Image *ima, struct ImageUser *iuser) {STUB_ASSERT(0);}
 void uiTemplateList(struct uiLayout *layout, struct bContext *C, const char *listtype_name, const char *list_id,
-                    PointerRNA *dataptr, const char *propname, PointerRNA *active_dataptr,
-                    const char *active_propname, int rows, int maxrows, int layout_type, int columns) {STUB_ASSERT(0);}
+                    PointerRNA *dataptr, const char *propname, PointerRNA *active_dataptr, const char *active_propname,
+                    int rows, int maxrows, int layout_type, int columns) {STUB_ASSERT(0);}
 void uiTemplateRunningJobs(struct uiLayout *layout, struct bContext *C) {STUB_ASSERT(0);}
 void uiTemplateOperatorSearch(struct uiLayout *layout) {STUB_ASSERT(0);}
 void uiTemplateHeader3D(struct uiLayout *layout, struct bContext *C) {STUB_ASSERT(0);}

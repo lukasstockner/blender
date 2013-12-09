@@ -43,6 +43,7 @@
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 #include "BKE_depsgraph.h"
+#include "BKE_report.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -319,7 +320,7 @@ void CLIP_OT_graph_select(wmOperatorType *ot)
 typedef struct BorderSelectuserData {
 	rctf rect;
 	int mode;
-	bool change, extend;
+	bool changed, extend;
 } BorderSelectuserData;
 
 static void border_select_cb(void *userdata, MovieTrackingTrack *UNUSED(track),
@@ -340,7 +341,7 @@ static void border_select_cb(void *userdata, MovieTrackingTrack *UNUSED(track),
 		else
 			marker->flag &= ~flag;
 
-		data->change = TRUE;
+		data->changed = true;
 	}
 	else if (!data->extend) {
 		marker->flag &= ~MARKER_GRAPH_SEL;
@@ -368,13 +369,13 @@ static int border_select_graph_exec(bContext *C, wmOperator *op)
 	UI_view2d_region_to_view(&ar->v2d, rect.xmin, rect.ymin, &userdata.rect.xmin, &userdata.rect.ymin);
 	UI_view2d_region_to_view(&ar->v2d, rect.xmax, rect.ymax, &userdata.rect.xmax, &userdata.rect.ymax);
 
-	userdata.change = false;
+	userdata.changed = false;
 	userdata.mode = RNA_int_get(op->ptr, "gesture_mode");
 	userdata.extend = RNA_boolean_get(op->ptr, "extend");
 
 	clip_graph_tracking_values_iterate_track(sc, act_track, &userdata, border_select_cb, NULL, NULL);
 
-	if (userdata.change) {
+	if (userdata.changed) {
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, NULL);
 
 		return OPERATOR_FINISHED;
@@ -471,15 +472,18 @@ void CLIP_OT_graph_select_all_markers(wmOperatorType *ot)
 
 /******************** delete curve operator ********************/
 
-static int delete_curve_exec(bContext *C, wmOperator *UNUSED(op))
+static int delete_curve_exec(bContext *C, wmOperator *op)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
 	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(tracking);
 
-	if (act_track)
+	if (act_track) {
 		clip_delete_track(C, clip, act_track);
+
+		BKE_report(op->reports, RPT_INFO, "Deleted track");
+	}
 
 	return OPERATOR_FINISHED;
 }
@@ -488,11 +492,10 @@ void CLIP_OT_graph_delete_curve(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Delete Curve";
-	ot->description = "Delete selected curves";
+	ot->description = "Delete track corresponding to the selected curve";
 	ot->idname = "CLIP_OT_graph_delete_curve";
 
 	/* api callbacks */
-	ot->invoke = WM_operator_confirm;
 	ot->exec = delete_curve_exec;
 	ot->poll = ED_space_clip_tracking_poll;
 

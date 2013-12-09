@@ -128,7 +128,8 @@ bool mouse_armature(struct bContext *C, const int mval[2], bool extend, bool des
 int join_armature_exec(struct bContext *C, struct wmOperator *op);
 struct Bone *get_indexed_bone(struct Object *ob, int index);
 float ED_rollBoneToVector(EditBone *bone, const float new_up_axis[3], const short axis_only);
-EditBone *ED_armature_bone_get_mirrored(struct ListBase *edbo, EditBone *ebo); // XXX this is needed for populating the context iterators
+EditBone *ED_armature_bone_find_name(const ListBase *edbo, const char *name);
+EditBone *ED_armature_bone_get_mirrored(const struct ListBase *edbo, EditBone *ebo);
 void ED_armature_sync_selection(struct ListBase *edbo);
 void ED_armature_validate_active(struct bArmature *arm);
 
@@ -137,6 +138,7 @@ struct EditBone *ED_armature_edit_bone_add(struct bArmature *arm, const char *na
 void ED_armature_edit_bone_remove(struct bArmature *arm, EditBone *exBone);
 
 bool ED_armature_ebone_is_child_recursive(EditBone *ebone_parent, EditBone *ebone_child);
+EditBone *ED_armature_bone_find_shared_parent(EditBone *ebone_child[], const unsigned int ebone_child_tot);
 
 void ED_armature_ebone_to_mat3(EditBone *ebone, float mat[3][3]);
 void ED_armature_ebone_to_mat4(EditBone *ebone, float mat[4][4]);

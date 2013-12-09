@@ -21,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 
 /* ISOTROPIC VOLUME CLOSURE */
 
-__device int volume_isotropic_setup(ShaderClosure *sc, float density)
+ccl_device int volume_isotropic_setup(ShaderClosure *sc, float density)
 {
 	sc->type = CLOSURE_VOLUME_ISOTROPIC_ID;
 	sc->data0 = density;
@@ -29,14 +29,14 @@ __device int volume_isotropic_setup(ShaderClosure *sc, float density)
 	return SD_VOLUME;
 }
 
-__device float3 volume_isotropic_eval_phase(const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
+ccl_device float3 volume_isotropic_eval_phase(const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
 {
 	return make_float3(1.0f, 1.0f, 1.0f);
 }
 
 /* TRANSPARENT VOLUME CLOSURE */
 
-__device int volume_transparent_setup(ShaderClosure *sc, float density)
+ccl_device int volume_transparent_setup(ShaderClosure *sc, float density)
 {
 	sc->type = CLOSURE_VOLUME_TRANSPARENT_ID;
 	sc->data0 = density;
@@ -44,20 +44,15 @@ __device int volume_transparent_setup(ShaderClosure *sc, float density)
 	return SD_VOLUME;
 }
 
-__device float3 volume_transparent_eval_phase(const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
+ccl_device float3 volume_transparent_eval_phase(const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
 {
 	return make_float3(1.0f, 1.0f, 1.0f);
 }
 
 /* VOLUME CLOSURE */
 
-__device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
+ccl_device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, const float3 omega_in, const float3 omega_out)
 {
-#ifdef __OSL__
-	if(kg->osl && sc->prim)
-		return OSLShader::volume_eval_phase(sc, omega_in, omega_out);
-#endif
-
 	float3 eval;
 
 	switch(sc->type) {

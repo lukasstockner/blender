@@ -123,6 +123,10 @@ PyDoc_STRVAR(Interface0DIterator_object_doc,
 
 static PyObject *Interface0DIterator_object_get(BPy_Interface0DIterator *self, void *UNUSED(closure))
 {
+	if (self->if0D_it->isEnd()) {
+		PyErr_SetString(PyExc_RuntimeError, "iteration has stopped");
+		return NULL;
+	}
 	return Any_BPy_Interface0D_from_Interface0D(self->if0D_it->operator*());
 }
 

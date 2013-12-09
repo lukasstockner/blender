@@ -306,7 +306,7 @@ static void image_undo_restore_runtime(ListBase *lb)
 	IMB_freeImBuf(tmpibuf);
 }
 
-void image_undo_restore(bContext *C, ListBase *lb)
+void ED_image_undo_restore(bContext *C, ListBase *lb)
 {
 	Main *bmain = CTX_data_main(C);
 	Image *ima = NULL;
@@ -372,7 +372,7 @@ void image_undo_restore(bContext *C, ListBase *lb)
 	IMB_freeImBuf(tmpibuf);
 }
 
-void image_undo_free(ListBase *lb)
+void ED_image_undo_free(ListBase *lb)
 {
 	UndoImageTile *tile;
 
@@ -404,10 +404,10 @@ static void image_undo_end(void)
 	/* don't forget to remove the size of deallocated tiles */
 	undo_paint_push_count_alloc(UNDO_PAINT_IMAGE, -deallocsize);
 
-	undo_paint_push_end(UNDO_PAINT_IMAGE);
+	ED_undo_paint_push_end(UNDO_PAINT_IMAGE);
 }
 
-void image_undo_invalidate(void)
+static void image_undo_invalidate(void)
 {
 	UndoImageTile *tile;
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
@@ -418,7 +418,7 @@ void image_undo_invalidate(void)
 
 /* Imagepaint Partial Redraw & Dirty Region */
 
-void imapaint_clear_partial_redraw(void)
+void ED_imapaint_clear_partial_redraw(void)
 {
 	memset(&imapaintpartial, 0, sizeof(imapaintpartial));
 }
@@ -435,7 +435,7 @@ void imapaint_region_tiles(ImBuf *ibuf, int x, int y, int w, int h, int *tx, int
 	*ty = (y >> IMAPAINT_TILE_BITS);
 }
 
-void imapaint_dirty_region(Image *ima, ImBuf *ibuf, int x, int y, int w, int h)
+void ED_imapaint_dirty_region(Image *ima, ImBuf *ibuf, int x, int y, int w, int h)
 {
 	ImBuf *tmpibuf = NULL;
 	int tilex, tiley, tilew, tileh, tx, ty;
@@ -688,9 +688,9 @@ static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customda
 static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const float mouse[2])
 {
 	Scene *scene = CTX_data_scene(C);
-	ToolSettings *toolsettings = scene->toolsettings;
+	ToolSettings *settings = scene->toolsettings;
 	PaintOperation *pop = MEM_callocN(sizeof(PaintOperation), "PaintOperation"); /* caller frees */
-	Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
+	Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
 	int mode = RNA_enum_get(op->ptr, "mode");
 	view3d_set_viewcontext(C, &pop->vc);
 
@@ -716,9 +716,9 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
 		return NULL;
 	}
 
-	toolsettings->imapaint.flag |= IMAGEPAINT_DRAWING;
-	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
-	                      image_undo_restore, image_undo_free);
+	settings->imapaint.flag |= IMAGEPAINT_DRAWING;
+	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
+	                      ED_image_undo_restore, ED_image_undo_free);
 
 	return pop;
 }
@@ -1467,12 +1467,12 @@ void PAINT_OT_brush_colors_flip(wmOperatorType *ot)
 
 void paint_bucket_fill(struct bContext *C, float color[3], wmOperator *op)
 {
-	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
-	                      image_undo_restore, image_undo_free);
+	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
+	                      ED_image_undo_restore, ED_image_undo_free);
 
 	paint_2d_bucket_fill(C, color, NULL, NULL, NULL);
 
-	undo_paint_push_end(UNDO_PAINT_IMAGE);
+	ED_undo_paint_push_end(UNDO_PAINT_IMAGE);
 }
 
 

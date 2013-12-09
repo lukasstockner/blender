@@ -19,9 +19,11 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Menu, Panel, UIList
-from bl_ui.properties_paint_common import UnifiedPaintPanel
-from bl_ui.properties_paint_common import brush_texture_settings
-from bl_ui.properties_paint_common import brush_mask_texture_settings
+from bl_ui.properties_paint_common import (
+        UnifiedPaintPanel,
+        brush_texture_settings,
+        brush_mask_texture_settings,
+        )
 
 
 class View3DPanel():
@@ -88,7 +90,7 @@ class VIEW3D_PT_tools_objectmode(View3DPanel, Panel):
 
         col = layout.column(align=True)
         col.label(text="Object:")
-        col.operator("object.duplicate_move")
+        col.operator("object.duplicate_move", text="Duplicate")
         col.operator("object.delete")
         col.operator("object.join")
 
@@ -849,6 +851,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             col.prop(brush, "vertex_tool", text="Blend")
 
+
 class VIEW3D_PT_tools_brush_overlay(Panel, View3DPaintPanel):
     bl_label = "Overlay"
     bl_options = {'DEFAULT_CLOSED'}
@@ -862,8 +865,7 @@ class VIEW3D_PT_tools_brush_overlay(Panel, View3DPaintPanel):
                  context.vertex_paint_object or
                  context.weight_paint_object or
                  context.image_paint_object))
-				 
-				 
+
     def draw(self, context):
         layout = self.layout
 
@@ -873,7 +875,7 @@ class VIEW3D_PT_tools_brush_overlay(Panel, View3DPaintPanel):
         tex_slot_mask = brush.mask_texture_slot
 
         col = layout.column()
-        
+
         col.label(text="Curve:")
 
         row = col.row(align=True)
@@ -887,7 +889,7 @@ class VIEW3D_PT_tools_brush_overlay(Panel, View3DPaintPanel):
         sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
         col.active = brush.brush_capabilities.has_overlay
-        
+
         if context.image_paint_object or context.sculpt_object or context.vertex_paint_object:
             col.label(text="Texture:")
             row = col.row(align=True)
@@ -1101,6 +1103,8 @@ class VIEW3D_PT_sculpt_topology(Panel, View3DPaintPanel):
 
         toolsettings = context.tool_settings
         sculpt = toolsettings.sculpt
+        settings = self.paint_settings(context)
+        brush = settings.brush
 
         if context.sculpt_object.use_dynamic_topology_sculpting:
             layout.operator("sculpt.dynamic_topology_toggle", icon='X', text="Disable Dynamic")
@@ -1109,9 +1113,12 @@ class VIEW3D_PT_sculpt_topology(Panel, View3DPaintPanel):
 
         col = layout.column()
         col.active = context.sculpt_object.use_dynamic_topology_sculpting
-        col.prop(sculpt, "detail_size")
+        sub = col.column(align=True)
+        sub.active = brush and brush.sculpt_tool not in ('MASK')
+        sub.prop(sculpt, "detail_size")
+        sub.prop(sculpt, "detail_refine_method", text="")
+        col.separator()
         col.prop(sculpt, "use_smooth_shading")
-        col.prop(sculpt, "use_edge_collapse")
         col.operator("sculpt.optimize")
         col.separator()
         col.prop(sculpt, "symmetrize_direction")
@@ -1230,6 +1237,7 @@ class VIEW3D_PT_tools_weightpaint(View3DPanel, Panel):
         col.operator("object.vertex_group_mirror", text="Mirror")
         col.operator("object.vertex_group_invert", text="Invert")
         col.operator("object.vertex_group_clean", text="Clean")
+        col.operator("object.vertex_group_quantize", text="Quantize")
         col.operator("object.vertex_group_levels", text="Levels")
         col.operator("object.vertex_group_blend", text="Blend")
         col.operator("object.vertex_group_transfer_weight", text="Transfer Weights")

@@ -53,6 +53,7 @@
 #include "BKE_texture.h"
 
 #include "ED_screen.h"
+#include "ED_sculpt.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -337,6 +338,10 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 			if (is_texbrush) {
 				brush_imbuf_tex_co(&tex_mapping, x, y, texco);
 				BKE_brush_sample_tex_3D(scene, brush, texco, rgba, thread, pool);
+				/* TODO(sergey): Support texture paint color space. */
+				if (!use_float) {
+					linearrgb_to_srgb_v3_v3(rgba, rgba);
+				}
 				mul_v3_v3(rgba, brush_rgb);
 			}
 			else {
@@ -424,6 +429,10 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 				if (is_texbrush) {
 					brush_imbuf_tex_co(&tex_mapping, x, y, texco);
 					BKE_brush_sample_tex_3D(scene, brush, texco, rgba, thread, pool);
+					/* TODO(sergey): Support texture paint color space. */
+					if (!use_float) {
+						linearrgb_to_srgb_v3_v3(rgba, rgba);
+					}
 					mul_v3_v3(rgba, brush_rgb);
 				}
 				else {
@@ -1022,7 +1031,7 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *maskb, unsigne
 	
 	/* blend into canvas */
 	for (a = 0; a < tot; a++) {
-		imapaint_dirty_region(s->image, s->canvas,
+		ED_imapaint_dirty_region(s->image, s->canvas,
 		                      region[a].destx, region[a].desty,
 		                      region[a].width, region[a].height);
 	
@@ -1237,7 +1246,7 @@ void paint_2d_redraw(const bContext *C, void *ps, bool final)
 		ImBuf *ibuf = BKE_image_acquire_ibuf(s->image, s->sima ? &s->sima->iuser : NULL, NULL);
 
 		imapaint_image_update(s->sima, s->image, ibuf, false);
-		imapaint_clear_partial_redraw();
+		ED_imapaint_clear_partial_redraw();
 
 		BKE_image_release_ibuf(s->image, ibuf, NULL);
 
@@ -1354,7 +1363,7 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 
 	if (!mouse_init || !br) {
 		/* first case, no image UV, fill the whole image */
-		imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
+		ED_imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
 
 		if (do_float) {
 			for (; i < ibuf->x; i++) {
@@ -1395,7 +1404,7 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 		}
 
 		/* change image invalidation method later */
-		imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
+		ED_imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
 
 		stack = BLI_gsqueue_new(sizeof(int));
 		touched = BLI_BITMAP_NEW(ibuf->x * ibuf->y, "bucket_fill_bitmap");
@@ -1479,7 +1488,7 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 	}
 
 	imapaint_image_update(sima, ima, ibuf, false);
-	imapaint_clear_partial_redraw();
+	ED_imapaint_clear_partial_redraw();
 
 	BKE_image_release_ibuf(ima, ibuf, NULL);
 
@@ -1528,7 +1537,7 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 	do_float = (ibuf->rect_float != NULL);
 
 	/* this will be substituted by something else when selection is available */
-	imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
+	ED_imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
 
 	if (do_float) {
 		for (; i < ibuf->x; i++) {
@@ -1588,7 +1597,7 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 	}
 
 	imapaint_image_update(sima, ima, ibuf, false);
-	imapaint_clear_partial_redraw();
+	ED_imapaint_clear_partial_redraw();
 
 	BKE_image_release_ibuf(ima, ibuf, NULL);
 

@@ -34,6 +34,8 @@
 #include "bpy_app.h"
 
 #include "bpy_app_ffmpeg.h"
+#include "bpy_app_ocio.h"
+#include "bpy_app_oiio.h"
 #include "bpy_app_build_options.h"
 
 #include "bpy_app_translations.h"
@@ -53,7 +55,9 @@
 #ifdef BUILD_DATE
 extern char build_date[];
 extern char build_time[];
-extern char build_change[];
+extern unsigned long build_commit_timestamp;
+extern char build_commit_date[];
+extern char build_commit_time[];
 extern char build_hash[];
 extern char build_branch[];
 extern char build_platform[];
@@ -77,7 +81,9 @@ static PyStructSequence_Field app_info_fields[] = {
 	/* buildinfo */
 	{(char *)"build_date", (char *)"The date this blender instance was built"},
 	{(char *)"build_time", (char *)"The time this blender instance was built"},
-	{(char *)"build_change", (char *)"The change number this blender instance was built with"},
+	{(char *)"build_commit_timestamp", (char *)"The unix timestamp of commit this blender instance was built"},
+	{(char *)"build_commit_date", (char *)"The date of commit this blender instance was built"},
+	{(char *)"build_commit_time", (char *)"The time of commit this blender instance was built"},
 	{(char *)"build_hash", (char *)"The commit hash this blender instance was built with"},
 	{(char *)"build_branch", (char *)"The branch this blender instance was built from"},
 	{(char *)"build_platform", (char *)"The platform this blender instance was built for"},
@@ -89,6 +95,8 @@ static PyStructSequence_Field app_info_fields[] = {
 
 	/* submodules */
 	{(char *)"ffmpeg", (char *)"FFmpeg library information backend"},
+	{(char *)"ocio", (char *)"OpenColorIO library information backend"},
+	{(char *)"oiio", (char *)"OpenImageIO library information backend"},
 	{(char *)"build_options", (char *)"A set containing most important enabled optional build features"},
 	{(char *)"handlers", (char *)"Application handler callbacks"},
 	{(char *)"translations", (char *)"Application and addons internationalization API"},
@@ -111,10 +119,8 @@ static PyObject *make_app_info(void)
 	if (app_info == NULL) {
 		return NULL;
 	}
-#if 0
 #define SetIntItem(flag) \
 	PyStructSequence_SET_ITEM(app_info, pos++, PyLong_FromLong(flag))
-#endif
 #define SetStrItem(str) \
 	PyStructSequence_SET_ITEM(app_info, pos++, PyUnicode_FromString(str))
 #define SetBytesItem(str) \
@@ -137,7 +143,9 @@ static PyObject *make_app_info(void)
 #ifdef BUILD_DATE
 	SetBytesItem(build_date);
 	SetBytesItem(build_time);
-	SetBytesItem(build_change);
+	SetIntItem(build_commit_timestamp);
+	SetBytesItem(build_commit_date);
+	SetBytesItem(build_commit_time);
 	SetBytesItem(build_hash);
 	SetBytesItem(build_branch);
 	SetBytesItem(build_platform);
@@ -148,6 +156,8 @@ static PyObject *make_app_info(void)
 	SetBytesItem(build_system);
 #else
 	SetBytesItem("Unknown");
+	SetBytesItem("Unknown");
+	SetIntItem(0);
 	SetBytesItem("Unknown");
 	SetBytesItem("Unknown");
 	SetBytesItem("Unknown");
@@ -161,6 +171,8 @@ static PyObject *make_app_info(void)
 #endif
 
 	SetObjItem(BPY_app_ffmpeg_struct());
+	SetObjItem(BPY_app_ocio_struct());
+	SetObjItem(BPY_app_oiio_struct());
 	SetObjItem(BPY_app_build_options_struct());
 	SetObjItem(BPY_app_handlers_struct());
 	SetObjItem(BPY_app_translations_struct());

@@ -2398,6 +2398,44 @@ static void vgroup_clean_subset(Object *ob, const bool *vgroup_validmap, const i
 	}
 }
 
+static void vgroup_quantize_subset(Object *ob, const bool *vgroup_validmap, const int vgroup_tot, const int UNUSED(subset_count),
+                                   const int steps)
+{
+	MDeformVert **dvert_array = NULL;
+	int dvert_tot = 0;
+	const bool use_vert_sel = vertex_group_use_vert_sel(ob);
+	const bool use_mirror = (ob->type == OB_MESH) ? (((Mesh *)ob->data)->editflag & ME_EDIT_MIRROR_X) != 0 : false;
+	ED_vgroup_parray_alloc(ob->data, &dvert_array, &dvert_tot, use_vert_sel);
+
+	if (dvert_array) {
+		const float steps_fl = steps;
+		MDeformVert *dv;
+		int i;
+
+		if (use_mirror && use_vert_sel) {
+			ED_vgroup_parray_mirror_assign(ob, dvert_array, dvert_tot);
+		}
+
+		for (i = 0; i < dvert_tot; i++) {
+			MDeformWeight *dw;
+			int j;
+
+			/* in case its not selected */
+			if (!(dv = dvert_array[i])) {
+				continue;
+			}
+
+			for (j = 0, dw = dv->dw; j < dv->totweight; j++, dw++) {
+				if ((dw->def_nr < vgroup_tot) && vgroup_validmap[dw->def_nr]) {
+					dw->weight = floorf((dw->weight * steps_fl) + 0.5f) / steps_fl;
+					CLAMP(dw->weight, 0.0f, 1.0f);
+				}
+			}
+		}
+
+		MEM_freeN(dvert_array);
+	}
+}
 
 static void dvert_mirror_op(MDeformVert *dvert, MDeformVert *dvert_mirr,
                             const char sel, const char sel_mirr,
@@ -2773,7 +2811,7 @@ static bool vgroup_active_remove_verts(Object *ob, const bool allverts, bDeformG
 {
 	MDeformVert *dv;
 	const int def_nr = BLI_findindex(&ob->defbase, dg);
-	bool change = false;
+	bool changed = false;
 
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
@@ -2792,7 +2830,7 @@ static bool vgroup_active_remove_verts(Object *ob, const bool allverts, bDeformG
 					if (dv && dv->dw && (allverts || BM_elem_flag_test(eve, BM_ELEM_SELECT))) {
 						MDeformWeight *dw = defvert_find_index(dv, def_nr);
 						defvert_remove_group(dv, dw); /* dw can be NULL */
-						change = true;
+						changed = true;
 					}
 				}
 			}
@@ -2810,7 +2848,7 @@ static bool vgroup_active_remove_verts(Object *ob, const bool allverts, bDeformG
 						if (dv->dw && (allverts || (mv->flag & SELECT))) {
 							MDeformWeight *dw = defvert_find_index(dv, def_nr);
 							defvert_remove_group(dv, dw); /* dw can be NULL */
-							change = true;
+							changed = true;
 						}
 					}
 				}
@@ -2832,13 +2870,13 @@ static bool vgroup_active_remove_verts(Object *ob, const bool allverts, bDeformG
 
 					dw = defvert_find_index(dv, def_nr);
 					defvert_remove_group(dv, dw); /* dw can be NULL */
-					change = true;
+					changed = true;
 				}
 			}
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 static void vgroup_delete_edit_mode(Object *ob, bDeformGroup *dg)
@@ -3039,16 +3077,16 @@ static void vgroup_assign_verts(Object *ob, const float weight)
 /* removes from all defgroup, if allverts==0 only selected vertices */
 static bool vgroup_remove_verts(Object *ob, int allverts)
 {
-	bool change = false;
+	bool changed = false;
 	/* To prevent code redundancy, we just use vgroup_active_remove_verts, but that
 	 * only operates on the active vgroup. So we iterate through all groups, by changing
 	 * active group index
 	 */
 	bDeformGroup *dg;
 	for (dg = ob->defbase.first; dg; dg = dg->next) {
-		change |= vgroup_active_remove_verts(ob, allverts, dg);
+		changed |= vgroup_active_remove_verts(ob, allverts, dg);
 	}
-	return change;
+	return changed;
 }
 
 /********************** vertex group operators *********************/
@@ -3754,6 +3792,44 @@ void OBJECT_OT_vertex_group_clean(wmOperatorType *ot)
 	                "Keep verts assigned to at least one group when cleaning");
 }
 
+static int vertex_group_quantize_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = ED_object_context(C);
+
+	const int steps = RNA_int_get(op->ptr, "steps");
+	eVGroupSelect subset_type  = RNA_enum_get(op->ptr, "group_select_mode");
+
+	int subset_count, vgroup_tot;
+
+	const bool *vgroup_validmap = ED_vgroup_subset_from_select_type(ob, subset_type, &vgroup_tot, &subset_count);
+	vgroup_quantize_subset(ob, vgroup_validmap, vgroup_tot, subset_count, steps);
+	MEM_freeN((void *)vgroup_validmap);
+
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_vertex_group_quantize(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Quantize Vertex Weights";
+	ot->idname = "OBJECT_OT_vertex_group_quantize";
+	ot->description = "Set weights to a fixed number of steps";
+
+	/* api callbacks */
+	ot->poll = vertex_group_poll;
+	ot->exec = vertex_group_quantize_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	vgroup_operator_subset_select_props(ot, true);
+	RNA_def_int(ot->srna, "steps", 4, 1, 1000, "Steps", "Number of steps between 0 and 1", 1, 100);
+}
+
 static int vertex_group_limit_total_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
@@ -3889,22 +3965,22 @@ void OBJECT_OT_vertex_group_copy_to_linked(wmOperatorType *ot)
 static int vertex_group_copy_to_selected_exec(bContext *C, wmOperator *op)
 {
 	Object *obact = ED_object_context(C);
-	int change = 0;
+	int changed_tot = 0;
 	int fail = 0;
 
 	CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects)
 	{
 		if (obact != ob) {
-			if (ED_vgroup_array_copy(ob, obact)) change++;
+			if (ED_vgroup_array_copy(ob, obact)) changed_tot++;
 			else fail++;
 		}
 	}
 	CTX_DATA_END;
 
-	if ((change == 0 && fail == 0) || fail) {
+	if ((changed_tot == 0 && fail == 0) || fail) {
 		BKE_reportf(op->reports, RPT_ERROR,
 		            "Copy vertex groups to selected: %d done, %d failed (object data must have matching indices)",
-		            change, fail);
+		            changed_tot, fail);
 	}
 
 	return OPERATOR_FINISHED;
@@ -3934,7 +4010,7 @@ static int vertex_group_transfer_weight_exec(bContext *C, wmOperator *op)
 	char dg_act_name[MAX_VGROUP_NAME];  /* may be freed so copy */
 
 	int fail = 0;
-	bool change = false;
+	bool changed = false;
 
 	WT_VertexGroupMode vertex_group_mode = RNA_enum_get(op->ptr, "group_select_mode");
 	WT_Method method = RNA_enum_get(op->ptr, "method");
@@ -3984,7 +4060,7 @@ static int vertex_group_transfer_weight_exec(bContext *C, wmOperator *op)
 					}
 
 					if (ed_vgroup_transfer_weight(ob_act, ob_src, dg_src, scene, method, replace_mode, op)) {
-						change = true;
+						changed = true;
 					}
 					else {
 						fail++;
@@ -3996,7 +4072,7 @@ static int vertex_group_transfer_weight_exec(bContext *C, wmOperator *op)
 					bDeformGroup *dg_src;
 					for (dg_src = ob_src->defbase.first; dg_src; dg_src = dg_src->next) {
 						if (ed_vgroup_transfer_weight(ob_act, ob_src, dg_src, scene, method, replace_mode, op)) {
-							change = true;
+							changed = true;
 						}
 						else {
 							fail++;
@@ -4012,7 +4088,7 @@ static int vertex_group_transfer_weight_exec(bContext *C, wmOperator *op)
 	}
 	CTX_DATA_END;
 
-	if (change) {
+	if (changed) {
 
 		/* possible the active vertex group changed because of adding/removing */
 		/* note!, dg_act may be realloc'd, only check its not NULL */

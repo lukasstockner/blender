@@ -256,6 +256,7 @@ else:
         "bmesh.ops",
         "bmesh.types",
         "bmesh.utils",
+        "bmesh.geometry",
         "bpy.app",
         "bpy.app.handlers",
         "bpy.app.translations",
@@ -384,12 +385,12 @@ MODULE_GROUPING = {
 blender_version_strings = [str(v) for v in bpy.app.version]
 
 # converting bytes to strings, due to #30154
-BLENDER_REVISION = str(bpy.app.build_revision, 'utf_8')
+BLENDER_REVISION = str(bpy.app.build_hash, 'utf_8')
 BLENDER_DATE = str(bpy.app.build_date, 'utf_8')
 
 BLENDER_VERSION_DOTS = ".".join(blender_version_strings)    # '2.62.1'
 if BLENDER_REVISION != "Unknown":
-    BLENDER_VERSION_DOTS += " r" + BLENDER_REVISION         # '2.62.1 r44584'
+    BLENDER_VERSION_DOTS += " " + BLENDER_REVISION          # '2.62.1 SHA1'
 
 BLENDER_VERSION_PATH = "_".join(blender_version_strings)    # '2_62_1'
 if bpy.app.version_cycle == "release":
@@ -1768,6 +1769,7 @@ def write_rst_importable_modules(basepath):
         "bmesh"                : "BMesh Module",
         "bmesh.types"          : "BMesh Types",
         "bmesh.utils"          : "BMesh Utilities",
+        "bmesh.geometry"       : "BMesh Geometry Utilities",
         "bpy.app"              : "Application Data",
         "bpy.app.handlers"     : "Application Handlers",
         "bpy.app.translations" : "Application Translations",

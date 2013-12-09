@@ -191,6 +191,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_group_levels);
 	WM_operatortype_append(OBJECT_OT_vertex_group_blend);
 	WM_operatortype_append(OBJECT_OT_vertex_group_clean);
+	WM_operatortype_append(OBJECT_OT_vertex_group_quantize);
 	WM_operatortype_append(OBJECT_OT_vertex_group_limit_total);
 	WM_operatortype_append(OBJECT_OT_vertex_group_mirror);
 	WM_operatortype_append(OBJECT_OT_vertex_group_set_active);
@@ -201,6 +202,8 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_vertex_weight_set_active);
 	WM_operatortype_append(OBJECT_OT_vertex_weight_normalize_active_vertex);
 	WM_operatortype_append(OBJECT_OT_vertex_weight_copy);
+
+	WM_operatortype_append(OBJECT_OT_vertex_warp);
 
 	WM_operatortype_append(OBJECT_OT_game_property_new);
 	WM_operatortype_append(OBJECT_OT_game_property_remove);
@@ -221,6 +224,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(LATTICE_OT_select_less);
 	WM_operatortype_append(LATTICE_OT_select_ungrouped);
 	WM_operatortype_append(LATTICE_OT_select_random);
+	WM_operatortype_append(LATTICE_OT_select_mirror);
 	WM_operatortype_append(LATTICE_OT_make_regular);
 	WM_operatortype_append(LATTICE_OT_flip);
 
@@ -238,6 +242,7 @@ void ED_operatortypes_object(void)
 
 	WM_operatortype_append(OBJECT_OT_bake_image);
 	WM_operatortype_append(OBJECT_OT_drop_named_material);
+	WM_operatortype_append(OBJECT_OT_laplaciandeform_bind);
 }
 
 void ED_operatormacros_object(void)

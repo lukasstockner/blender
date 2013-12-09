@@ -726,7 +726,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 						if (m_attrib[unit] == RAS_TEXCO_UV)
 							glattrib = unit;
 
-				GPU_render_text(polymat->GetMTFace(), polymat->GetDrawingMode(), mytext, mytext.Length(), polymat->GetMCol(), v[1], v[2], v[3], v[4], glattrib);
+				GPU_render_text(polymat->GetMTFace(), polymat->GetDrawingMode(), mytext, mytext.Length(), polymat->GetMCol(), v[0], v[1], v[2], v[3], glattrib);
 
 				ClearCachingInfo();
 			}
@@ -1229,7 +1229,7 @@ void RAS_OpenGLRasterizer::RemoveLight(struct RAS_LightObject* lightobject)
 		m_lights.erase(lit);
 }
 
-bool RAS_OpenGLRasterizer::RayHit(class KX_ClientObjectInfo *client, KX_RayCast *result, void * const data)
+bool RAS_OpenGLRasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast *result, void * const data)
 {
 	double* const oglmatrix = (double* const) data;
 

@@ -780,6 +780,9 @@ static int paste_selection(Object *obedit, ReportList *reports)
 
 	/* Verify that the copy buffer => [copy buffer len] + cu->len < MAXTEXT */
 	if (cu->len + len <= MAXTEXT) {
+
+		kill_selection(obedit, 0);
+
 		if (len) {
 			int size = (cu->len * sizeof(wchar_t)) - (cu->pos * sizeof(wchar_t)) + sizeof(wchar_t);
 			memmove(ef->textbuf + cu->pos + len, ef->textbuf + cu->pos, size);
@@ -1442,18 +1445,14 @@ void make_editText(Object *obedit)
 		ef->textbufinfo = MEM_callocN((MAXTEXT + 4) * sizeof(CharInfo), "texteditbufinfo");
 		ef->copybuf = MEM_callocN((MAXTEXT + 4) * sizeof(wchar_t), "texteditcopybuf");
 		ef->copybufinfo = MEM_callocN((MAXTEXT + 4) * sizeof(CharInfo), "texteditcopybufinfo");
-		ef->oldstr = MEM_callocN((MAXTEXT + 4) * sizeof(wchar_t), "oldstrbuf");
-		ef->oldstrinfo = MEM_callocN((MAXTEXT + 4) * sizeof(CharInfo), "oldstrbuf");
 	}
 	
 	/* Convert the original text to wchar_t */
 	BLI_strncpy_wchar_from_utf8(ef->textbuf, cu->str, MAXTEXT + 4); /* length is bogus */
-	wcscpy(ef->oldstr, ef->textbuf);
 
 	cu->len = wcslen(ef->textbuf);
 
 	memcpy(ef->textbufinfo, cu->strinfo, (cu->len) * sizeof(CharInfo));
-	memcpy(ef->oldstrinfo, cu->strinfo, (cu->len) * sizeof(CharInfo));
 
 	if (cu->pos > cu->len) cu->pos = cu->len;
 
@@ -1471,11 +1470,6 @@ void load_editText(Object *obedit)
 	Curve *cu = obedit->data;
 	EditFont *ef = cu->editfont;
 	
-	MEM_freeN(ef->oldstr);
-	ef->oldstr = NULL;
-	MEM_freeN(ef->oldstrinfo);
-	ef->oldstrinfo = NULL;
-	
 	update_string(cu);
 	
 	if (cu->strinfo)
@@ -1484,13 +1478,6 @@ void load_editText(Object *obedit)
 	memcpy(cu->strinfo, ef->textbufinfo, (cu->len) * sizeof(CharInfo));
 
 	cu->len = strlen(cu->str);
-	
-	/* this memory system is weak... */
-	
-	if (cu->selboxes) {
-		MEM_freeN(cu->selboxes);
-		cu->selboxes = NULL;
-	}
 }
 
 void free_editText(Object *obedit)

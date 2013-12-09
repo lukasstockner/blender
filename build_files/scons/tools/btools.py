@@ -55,12 +55,12 @@ def get_version():
 
     raise Exception("%s: missing version string" % fname)
 
-def get_revision():
-    build_rev = os.popen('svnversion').read()[:-1] # remove \n
-    if build_rev == '' or build_rev==None:
-        build_rev = 'UNKNOWN'
+def get_hash():
+    build_hash = os.popen('git rev-parse --short HEAD').read().strip()
+    if build_hash == '' or build_hash == None:
+        build_hash = 'UNKNOWN'
 
-    return 'r' + build_rev
+    return build_hash
 
 
 # copied from: http://www.scons.org/wiki/AutoconfRecipes
@@ -80,7 +80,7 @@ def checkEndian():
 
 # This is used in creating the local config directories
 VERSION, VERSION_DISPLAY, VERSION_RELEASE_CYCLE = get_version()
-REVISION = get_revision()
+HASH = get_hash()
 ENDIAN = checkEndian()
 
 
@@ -179,7 +179,7 @@ def validate_arguments(args, bc):
             'BF_PROFILE_CFLAGS', 'BF_PROFILE_CCFLAGS', 'BF_PROFILE_CXXFLAGS', 'BF_PROFILE_LINKFLAGS',
             'BF_DEBUG_CFLAGS', 'BF_DEBUG_CCFLAGS', 'BF_DEBUG_CXXFLAGS',
             'C_WARN', 'CC_WARN', 'CXX_WARN',
-            'LLIBS', 'PLATFORM_LINKFLAGS', 'MACOSX_ARCHITECTURE', 'MACOSX_SDK', 'XCODE_CUR_VER',
+            'LLIBS', 'PLATFORM_LINKFLAGS', 'MACOSX_ARCHITECTURE', 'MACOSX_SDK', 'XCODE_CUR_VER', 'C_COMPILER_ID',
             'BF_CYCLES_CUDA_BINARIES_ARCH', 'BF_PROGRAM_LINKFLAGS', 'MACOSX_DEPLOYMENT_TARGET'
     ]
 
@@ -504,6 +504,7 @@ def read_opts(env, cfg, args):
         ('MACOSX_SDK', 'Set OS X SDK', ''),
         ('XCODE_CUR_VER', 'Detect XCode version', ''),
         ('MACOSX_DEPLOYMENT_TARGET', 'Detect OS X target version', ''),
+        ('C_COMPILER_ID', 'Detect the resolved compiler', ''),
 
         (BoolVariable('BF_PROFILE', 'Add profiling information if true', False)),
         ('BF_PROFILE_CFLAGS', 'C only profiling flags', []),
@@ -693,7 +694,7 @@ def buildslave(target=None, source=None, env=None):
     branch = env['BUILDBOT_BRANCH']
 
     outdir = os.path.abspath(env['BF_INSTALLDIR'])
-    package_name = 'blender-' + VERSION+'-'+REVISION + '-' + platform
+    package_name = 'blender-' + VERSION+'-'+HASH + '-' + platform
     if branch != '':
         package_name = branch + '-' + package_name
     package_dir = os.path.normpath(outdir + os.sep + '..' + os.sep + package_name)

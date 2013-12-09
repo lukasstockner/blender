@@ -251,7 +251,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 				for (k = 0; k < dv1->totweight; k++, dw1++, dw2++) {
 					if (dw1->def_nr != dw2->def_nr)
 						return MESHCMP_DVERT_GROUPMISMATCH;
-					if (ABS(dw1->weight - dw2->weight) > thresh)
+					if (fabsf(dw1->weight - dw2->weight) > thresh)
 						return MESHCMP_DVERT_WEIGHTMISMATCH;
 				}
 			}
@@ -708,25 +708,31 @@ bool BKE_mesh_uv_cdlayer_rename(Mesh *me, const char *old_name, const char *new_
 					return false;
 				}
 				else {
-					lidx = lidx_start + (fidx - fidx_start);
+					lidx = fidx;
 				}
 			}
-			pidx = pidx_start + (lidx - lidx_start);
+			pidx = lidx;
 		}
 		else {
 			if (lidx == -1) {
-				lidx = lidx_start + (pidx - pidx_start);
+				lidx = pidx;
 			}
 			if (fidx == -1 && do_tessface) {
-				fidx = fidx_start + (pidx - pidx_start);
+				fidx = pidx;
 			}
 		}
 #if 0
 		/* For now, we do not consider mismatch in indices (i.e. same name leading to (relative) different indices). */
-		else if ((pidx - pidx_start) != (lidx - lidx_start)) {
-			lidx = lidx_start + (pidx - pidx_start);
+		else if (pidx != lidx) {
+			lidx = pidx;
 		}
 #endif
+
+		/* Go back to absolute indices! */
+		pidx += pidx_start;
+		lidx += lidx_start;
+		if (fidx != -1)
+			fidx += fidx_start;
 
 		return BKE_mesh_uv_cdlayer_rename_index(me, pidx, lidx, fidx, new_name, do_tessface);
 	}
@@ -1336,6 +1342,9 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 							if (dl->flag & DL_CYCL_V)
 								orco_sizev++;
 						}
+						else if (dl->flag & DL_CYCL_V) {
+							orco_sizev++;
+						}
 
 						for (i = 0; i < 4; i++, mloopuv++) {
 							/* find uv based on vertex index into grid array */
@@ -1345,6 +1354,8 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 							mloopuv->uv[1] = (v % dl->nr) / (float)orco_sizeu;
 
 							/* cyclic correction */
+							if ((i == 1 || i == 2) && mloopuv->uv[0] == 0.0f)
+								mloopuv->uv[0] = 1.0f;
 							if ((i == 0 || i == 1) && mloopuv->uv[1] == 0.0f)
 								mloopuv->uv[1] = 1.0f;
 						}

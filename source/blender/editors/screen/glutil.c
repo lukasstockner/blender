@@ -143,7 +143,7 @@ void fdrawbezier(float vec[4][3])
 	float dist;
 	float curve_res = 24, spline_step = 0.0f;
 	
-	dist = 0.5f * ABS(vec[0][0] - vec[3][0]);
+	dist = 0.5f * fabsf(vec[0][0] - vec[3][0]);
 	
 	/* check direction later, for top sockets */
 	vec[1][0] = vec[0][0] + dist;
@@ -981,7 +981,9 @@ void bgl_get_mats(bglMats *mats)
 
 /* *************** glPolygonOffset hack ************* */
 
-/* dist is only for ortho now... */
+/**
+ * \note \a viewdist is only for ortho at the moment.
+ */
 void bglPolygonOffset(float viewdist, float dist) 
 {
 	static float winmat[16], offset = 0.0;
@@ -1156,4 +1158,11 @@ void glaDrawImBuf_glsl_ctx(const bContext *C, ImBuf *ibuf, float x, float y, int
 	IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
 
 	glaDrawImBuf_glsl(ibuf, x, y, zoomfilter, view_settings, display_settings);
+}
+
+void cpack(unsigned int x)
+{
+	glColor3ub( ( (x)        & 0xFF),
+	            (((x) >>  8) & 0xFF),
+	            (((x) >> 16) & 0xFF) );
 }

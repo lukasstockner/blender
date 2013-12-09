@@ -218,7 +218,7 @@ static void ui_text_bounds_block(uiBlock *block, float offset)
 	
 	for (bt = block->buttons.first; bt; bt = bt->next) {
 		if (bt->type != SEPR) {
-			j = BLF_width(style->widget.uifont_id, bt->drawstr);
+			j = BLF_width(style->widget.uifont_id, bt->drawstr, sizeof(bt->drawstr));
 
 			if (j > i) i = j;
 		}
@@ -613,6 +613,7 @@ static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut
 {
 	/* flags from the buttons we want to refresh, may want to add more here... */
 	const int flag_copy = UI_BUT_REDALERT;
+	const int drawflag_copy = 0;  /* None currently. */
 
 	uiBlock *oldblock;
 	uiBut *oldbut, *but = *butpp;
@@ -670,8 +671,9 @@ static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut
 					SWAP(char *, oldbut->poin, but->poin);
 					SWAP(void *, oldbut->func_argN, but->func_argN);
 				}
-				
+
 				oldbut->flag = (oldbut->flag & ~flag_copy) | (but->flag & flag_copy);
+				oldbut->drawflag = (oldbut->drawflag & ~drawflag_copy) | (but->drawflag & drawflag_copy);
 
 				/* copy hardmin for list rows to prevent 'sticking' highlight to mouse position
 				 * when scrolling without moving mouse (see [#28432]) */
@@ -2604,7 +2606,7 @@ static void ui_block_do_align_but(uiBut *first, short nr)
 			next = NULL;
 
 		/* clear old flag */
-		but->flag &= ~UI_BUT_ALIGN;
+		but->drawflag &= ~UI_BUT_ALIGN;
 			
 		if (flag == 0) {  /* first case */
 			if (next) {
@@ -2683,7 +2685,7 @@ static void ui_block_do_align_but(uiBut *first, short nr)
 			}
 		}
 		
-		but->flag |= flag;
+		but->drawflag |= flag;
 		
 		/* merge coordinates */
 		if (prev) {
@@ -2863,10 +2865,10 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	if ((block->flag & UI_BLOCK_LOOP) ||
 	    ELEM8(but->type, MENU, TEX, LABEL, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR, SEARCH_MENU_UNLINK))
 	{
-		but->flag |= (UI_TEXT_LEFT | UI_ICON_LEFT);
+		but->drawflag |= (UI_BUT_TEXT_LEFT | UI_BUT_ICON_LEFT);
 	}
 
-	but->flag |= (block->flag & UI_BUT_ALIGN);
+	but->drawflag |= (block->flag & UI_BUT_ALIGN);
 
 	if (but->lock == TRUE) {
 		if (but->lockstr) {
@@ -3041,7 +3043,7 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 	if (icon) {
 		but->icon = (BIFIconID)icon;
 		but->flag |= UI_HAS_ICON;
-		but->flag |= UI_ICON_LEFT;
+		but->drawflag |= UI_BUT_ICON_LEFT;
 	}
 	
 	if (!RNA_property_editable(&but->rnapoin, prop)) {
@@ -3110,45 +3112,6 @@ static uiBut *ui_def_but_operator_ptr(uiBlock *block, int type, wmOperatorType *
 	return but;
 }
 
-#if 0 /* UNUSED */
-static uiBut *UNUSED_FUNCTION(ui_def_but_operator) (uiBlock *block, int type, const char *opname, int opcontext, const char *str, int x, int y, short width, short height, const char *tip)
-{
-	wmOperatorType *ot = WM_operatortype_find(opname, 0);
-	if (str == NULL && ot == NULL) str = opname;
-	return ui_def_but_operator_ptr(block, type, ot, opcontext, str, x, y, width, height, tip);
-}
-#endif
-
-static uiBut *ui_def_but_operator_text(uiBlock *block, int type, const char *opname, int opcontext, const char *str, int x, int y, short width, short height, void *poin, float min, float max, float a1, float a2, const char *tip)
-{
-	uiBut *but;
-	wmOperatorType *ot;
-	
-	ot = WM_operatortype_find(opname, 0);
-
-	if (!str) {
-		if (ot) str = ot->name;
-		else str = opname;
-	}
-	
-	if ((!tip || tip[0] == '\0') && ot && ot->description) {
-		tip = ot->description;
-	}
-
-	but = ui_def_but(block, type, -1, str, x, y, width, height, poin, min, max, a1, a2, tip);
-	but->optype = ot;
-	but->opcontext = opcontext;
-	but->flag &= ~UI_BUT_UNDO; /* no need for ui_is_but_rna_undo(), we never need undo here */
-
-	if (!ot) {
-		but->flag |= UI_BUT_DISABLED;
-		but->lock = TRUE;
-		but->lockstr = "";
-	}
-
-	return but;
-}
-
 uiBut *uiDefBut(uiBlock *block, int type, int retval, const char *str, int x, int y, short width, short height, void *poin, float min, float max, float a1, float a2, const char *tip)
 {
 	uiBut *but = ui_def_but(block, type, retval, str, x, y, width, height, poin, min, max, a1, a2, tip);
@@ -3188,6 +3151,7 @@ static int findBitIndex(unsigned int x)
 /* autocomplete helper functions */
 struct AutoComplete {
 	size_t maxlen;
+	int matches;
 	char *truncate;
 	const char *startname;
 };
@@ -3198,6 +3162,7 @@ AutoComplete *autocomplete_begin(const char *startname, size_t maxlen)
 	
 	autocpl = MEM_callocN(sizeof(AutoComplete), "AutoComplete");
 	autocpl->maxlen = maxlen;
+	autocpl->matches = 0;
 	autocpl->truncate = MEM_callocN(sizeof(char) * maxlen, "AutoCompleteTruncate");
 	autocpl->startname = startname;
 
@@ -3216,6 +3181,7 @@ void autocomplete_do_name(AutoComplete *autocpl, const char *name)
 	}
 	/* found a match */
 	if (startname[a] == 0) {
+		autocpl->matches++;
 		/* first match */
 		if (truncate[0] == 0)
 			BLI_strncpy(truncate, name, autocpl->maxlen);
@@ -3233,21 +3199,27 @@ void autocomplete_do_name(AutoComplete *autocpl, const char *name)
 	}
 }
 
-bool autocomplete_end(AutoComplete *autocpl, char *autoname)
+int autocomplete_end(AutoComplete *autocpl, char *autoname)
 {	
-	bool change = false;
+	int match = AUTOCOMPLETE_NO_MATCH;
 	if (autocpl->truncate[0]) {
+		if (autocpl->matches == 1) {
+			match = AUTOCOMPLETE_FULL_MATCH;
+		}
+		else {
+			match = AUTOCOMPLETE_PARTIAL_MATCH;
+		}
 		BLI_strncpy(autoname, autocpl->truncate, autocpl->maxlen);
-		change = true;
 	}
 	else {
 		if (autoname != autocpl->startname) {  /* don't copy a string over its self */
 			BLI_strncpy(autoname, autocpl->startname, autocpl->maxlen);
 		}
 	}
+
 	MEM_freeN(autocpl->truncate);
 	MEM_freeN(autocpl);
-	return change;
+	return match;
 }
 
 static void ui_check_but_and_iconize(uiBut *but, int icon)
@@ -3329,13 +3301,6 @@ uiBut *uiDefButO(uiBlock *block, int type, const char *opname, int opcontext, co
 	wmOperatorType *ot = WM_operatortype_find(opname, 0);
 	if (str == NULL && ot == NULL) str = opname;
 	return uiDefButO_ptr(block, type, ot, opcontext, str, x, y, width, height, tip);
-}
-
-uiBut *uiDefButTextO(uiBlock *block, int type, const char *opname, int opcontext, const char *str, int x, int y, short width, short height, void *poin, float min, float max, float a1, float a2,  const char *tip)
-{
-	uiBut *but = ui_def_but_operator_text(block, type, opname, opcontext, str, x, y, width, height, poin, min, max, a1, a2, tip);
-	ui_check_but(but);
-	return but;
 }
 
 /* if a1==1.0 then a2 is an extra icon blending factor (alpha 0.0 - 1.0) */
@@ -3421,7 +3386,7 @@ uiBut *uiDefIconTextBut(uiBlock *block, int type, int retval, int icon, const ch
 {
 	uiBut *but = ui_def_but(block, type, retval, str, x, y, width, height, poin, min, max, a1, a2, tip);
 	ui_check_but_and_iconize(but, icon);
-	but->flag |= UI_ICON_LEFT;
+	but->drawflag |= UI_BUT_ICON_LEFT;
 	return but;
 }
 static uiBut *uiDefIconTextButBit(uiBlock *block, int type, int bit, int retval, int icon, const char *str, int x, int y, short width, short height, void *poin, float min, float max, float a1, float a2,  const char *tip)
@@ -3472,7 +3437,7 @@ uiBut *uiDefIconTextButR(uiBlock *block, int type, int retval, int icon, const c
 	uiBut *but;
 	but = ui_def_but_rna_propname(block, type, retval, str, x, y, width, height, ptr, propname, index, min, max, a1, a2, tip);
 	ui_check_but_and_iconize(but, icon);
-	but->flag |= UI_ICON_LEFT;
+	but->drawflag |= UI_BUT_ICON_LEFT;
 	return but;
 }
 uiBut *uiDefIconTextButR_prop(uiBlock *block, int type, int retval, int icon, const char *str, int x, int y, short width, short height, PointerRNA *ptr, PropertyRNA *prop, int index, float min, float max, float a1, float a2,  const char *tip)
@@ -3480,7 +3445,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block, int type, int retval, int icon, co
 	uiBut *but;
 	but = ui_def_but_rna(block, type, retval, str, x, y, width, height, ptr, prop, index, min, max, a1, a2, tip);
 	ui_check_but_and_iconize(but, icon);
-	but->flag |= UI_ICON_LEFT;
+	but->drawflag |= UI_BUT_ICON_LEFT;
 	return but;
 }
 uiBut *uiDefIconTextButO_ptr(uiBlock *block, int type, wmOperatorType *ot, int opcontext, int icon, const char *str, int x, int y, short width, short height, const char *tip)
@@ -3488,7 +3453,7 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block, int type, wmOperatorType *ot, int o
 	uiBut *but;
 	but = ui_def_but_operator_ptr(block, type, ot, opcontext, str, x, y, width, height, tip);
 	ui_check_but_and_iconize(but, icon);
-	but->flag |= UI_ICON_LEFT;
+	but->drawflag |= UI_BUT_ICON_LEFT;
 	return but;
 }
 uiBut *uiDefIconTextButO(uiBlock *block, int type, const char *opname, int opcontext, int icon, const char *str, int x, int y, short width, short height, const char *tip)
@@ -3544,7 +3509,7 @@ void uiBlockFlipOrder(uiBlock *block)
 		return;
 	
 	for (but = block->buttons.first; but; but = but->next) {
-		if (but->flag & UI_BUT_ALIGN) return;
+		if (but->drawflag & UI_BUT_ALIGN) return;
 		if (but->rect.ymin < miny) miny = but->rect.ymin;
 		if (but->rect.ymax > maxy) maxy = but->rect.ymax;
 	}
@@ -3785,7 +3750,7 @@ uiBut *uiDefIconTextMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, in
 	but->icon = (BIFIconID) icon;
 	but->flag |= UI_HAS_ICON;
 
-	but->flag |= UI_ICON_LEFT;
+	but->drawflag |= UI_BUT_ICON_LEFT;
 	but->flag |= UI_ICON_SUBMENU;
 
 	but->menu_create_func = func;
@@ -3800,7 +3765,7 @@ uiBut *uiDefIconMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, int ic
 
 	but->icon = (BIFIconID) icon;
 	but->flag |= UI_HAS_ICON;
-	but->flag &= ~UI_ICON_LEFT;
+	but->drawflag &= ~UI_BUT_ICON_LEFT;
 
 	but->menu_create_func = func;
 	ui_check_but(but);
@@ -3816,7 +3781,7 @@ uiBut *uiDefIconTextBlockBut(uiBlock *block, uiBlockCreateFunc func, void *arg, 
 	/* XXX temp, old menu calls pass on icon arrow, which is now UI_ICON_SUBMENU flag */
 	if (icon != ICON_RIGHTARROW_THIN) {
 		but->icon = (BIFIconID) icon;
-		but->flag |= UI_ICON_LEFT;
+		but->drawflag |= UI_BUT_ICON_LEFT;
 	}
 	but->flag |= UI_HAS_ICON;
 	but->flag |= UI_ICON_SUBMENU;
@@ -3835,7 +3800,7 @@ uiBut *uiDefIconBlockBut(uiBlock *block, uiBlockCreateFunc func, void *arg, int 
 	but->icon = (BIFIconID) icon;
 	but->flag |= UI_HAS_ICON;
 	
-	but->flag |= UI_ICON_LEFT;
+	but->drawflag |= UI_BUT_ICON_LEFT;
 	
 	but->block_create_func = func;
 	ui_check_but(but);
@@ -3870,7 +3835,7 @@ uiBut *uiDefSearchBut(uiBlock *block, void *arg, int retval, int icon, int maxle
 	but->icon = (BIFIconID) icon;
 	but->flag |= UI_HAS_ICON;
 	
-	but->flag |= UI_ICON_LEFT | UI_TEXT_LEFT;
+	but->drawflag |= UI_BUT_ICON_LEFT | UI_BUT_TEXT_LEFT;
 	
 	ui_check_but(but);
 	
@@ -4007,7 +3972,7 @@ void uiButGetStrInfo(bContext *C, uiBut *but, ...)
 				const char *tc1, *tc2;
 
 				tc1 = strstr(but->str, "%t");
-				tc2 = strstr(but->str, "|"); /* XXX For some reason strchr seems to not work here? */
+				tc2 = strstr(but->str, UI_SEP_CHAR_S);
 
 				if (tc2 && (!tc1 || tc1 > tc2))
 					tc1 = tc2;
@@ -4181,6 +4146,11 @@ void UI_init_userdef(void)
 	/* fix saved themes */
 	init_userdef_do_versions();
 	uiStyleInit();
+}
+
+void UI_init_userdef_factory(void)
+{
+	init_userdef_factory();
 }
 
 void UI_reinit_font(void)

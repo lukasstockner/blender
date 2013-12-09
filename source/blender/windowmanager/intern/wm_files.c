@@ -282,7 +282,7 @@ static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
 }
 
 /* in case UserDef was read, we re-initialize all, and do versioning */
-static void wm_init_userdef(bContext *C)
+static void wm_init_userdef(bContext *C, const bool from_memory)
 {
 	/* versioning is here */
 	UI_init_userdef();
@@ -299,6 +299,11 @@ static void wm_init_userdef(bContext *C)
 	if ((G.f & G_SCRIPT_OVERRIDE_PREF) == 0) {
 		if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) G.f |=  G_SCRIPT_AUTOEXEC;
 		else G.f &= ~G_SCRIPT_AUTOEXEC;
+	}
+
+	/* avoid re-saving for every small change to our prefs, allow overrides */
+	if (from_memory) {
+		UI_init_userdef_factory();
 	}
 
 	/* update tempdir from user preferences */
@@ -433,7 +438,7 @@ void WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 
 		if (retval == BKE_READ_FILE_OK_USERPREFS) {
 			/* in case a userdef is read from regular .blend */
-			wm_init_userdef(C);
+			wm_init_userdef(C, false);
 		}
 		
 		if (retval != BKE_READ_FILE_FAIL) {
@@ -512,19 +517,45 @@ void WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 /* called on startup,  (context entirely filled with NULLs) */
 /* or called for 'New File' */
 /* both startup.blend and userpref.blend are checked */
-int wm_homefile_read(bContext *C, ReportList *UNUSED(reports), short from_memory)
+/* the optional paramater custom_file points to an alterntive startup page */
+/* custom_file can be NULL */
+int wm_homefile_read(bContext *C, ReportList *reports, bool from_memory, const char *custom_file)
 {
 	ListBase wmbase;
 	char startstr[FILE_MAX];
 	char prefstr[FILE_MAX];
 	int success = 0;
 
+	/* Indicates whether user prefereneces were really load from memory.
+	 *
+	 * This is used for versioning code, and for this we can not rely on from_memory
+	 * passed via argument. This is because there might be configuration folder
+	 * exists but it might not have userpref.blend and in this case we fallback to
+	 * reading home file from memory.
+	 *
+	 * And in this case versioning code is to be run.
+	 */
+	bool read_userdef_from_memory = true;
+
+	/* options exclude eachother */
+	BLI_assert((from_memory && custom_file) == 0);
+
 	BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_PRE);
 
 	G.relbase_valid = 0;
 	if (!from_memory) {
 		const char * const cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
-		if (cfgdir) {
+		if (custom_file) {
+			BLI_strncpy(startstr, custom_file, FILE_MAX);
+
+			if (cfgdir) {
+				BLI_make_file_string(G.main->name, prefstr, cfgdir, BLENDER_USERPREF_FILE);
+			}
+			else {
+				prefstr[0] = '\0';
+			}
+		}
+		else if (cfgdir) {
 			BLI_make_file_string(G.main->name, startstr, cfgdir, BLENDER_STARTUP_FILE);
 			BLI_make_file_string(G.main->name, prefstr, cfgdir, BLENDER_USERPREF_FILE);
 		}
@@ -539,18 +570,22 @@ int wm_homefile_read(bContext *C, ReportList *UNUSED(reports), short from_memory
 	G.fileflags &= ~G_FILE_NO_UI;
 	
 	/* put aside screens to match with persistent windows later */
-	wm_window_match_init(C, &wmbase); 
+	wm_window_match_init(C, &wmbase);
 	
 	if (!from_memory) {
-		if (BLI_exists(startstr)) {
+		if (BLI_access(startstr, R_OK) == 0) {
 			success = (BKE_read_file(C, startstr, NULL) != BKE_READ_FILE_FAIL);
 		}
-
 		if (U.themes.first == NULL) {
 			if (G.debug & G_DEBUG)
 				printf("\nNote: No (valid) '%s' found, fall back to built-in default.\n\n", startstr);
 			success = 0;
 		}
+	}
+
+	if (success == 0 && custom_file && reports) {
+		BKE_reportf(reports, RPT_ERROR, "Could not read '%s'", custom_file);
+		/*We can not return from here because wm is already reset*/
 	}
 
 	if (success == 0) {
@@ -568,7 +603,10 @@ int wm_homefile_read(bContext *C, ReportList *UNUSED(reports), short from_memory
 	/* check new prefs only after startup.blend was finished */
 	if (!from_memory && BLI_exists(prefstr)) {
 		int done = BKE_read_file_userdef(prefstr, NULL);
-		if (done) printf("Read new prefs: %s\n", prefstr);
+		if (done) {
+			read_userdef_from_memory = false;
+			printf("Read new prefs: %s\n", prefstr);
+		}
 	}
 	
 	/* prevent buggy files that had G_FILE_RELATIVE_REMAP written out by mistake. Screws up autosaves otherwise
@@ -576,7 +614,7 @@ int wm_homefile_read(bContext *C, ReportList *UNUSED(reports), short from_memory
 	G.fileflags &= ~G_FILE_RELATIVE_REMAP;
 	
 	/* check userdef before open window, keymaps etc */
-	wm_init_userdef(C);
+	wm_init_userdef(C, read_userdef_from_memory);
 	
 	/* match the read WM with current WM */
 	wm_window_match_do(C, &wmbase); 
@@ -631,8 +669,23 @@ int wm_history_read_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 
 int wm_homefile_read_exec(bContext *C, wmOperator *op)
 {
-	int from_memory = strcmp(op->type->idname, "WM_OT_read_factory_settings") == 0;
-	return wm_homefile_read(C, op->reports, from_memory) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+	const bool from_memory = (STREQ(op->type->idname, "WM_OT_read_factory_settings"));
+	char filepath_buf[FILE_MAX];
+	const char *filepath = NULL;
+
+	if (!from_memory) {
+		PropertyRNA *prop = RNA_struct_find_property(op->ptr, "filepath");
+		if (RNA_property_is_set(op->ptr, prop)) {
+			RNA_property_string_get(op->ptr, prop, filepath_buf);
+			filepath = filepath_buf;
+			if (BLI_access(filepath, R_OK)) {
+				BKE_reportf(op->reports, RPT_ERROR, "Can't read alternative start-up file: '%s'", filepath);
+				return OPERATOR_CANCELLED;
+			}
+		}
+	}
+
+	return wm_homefile_read(C, op->reports, from_memory, filepath) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void wm_read_history(void)
@@ -793,7 +846,7 @@ static ImBuf *blend_file_thumb(Scene *scene, bScreen *screen, int **thumb_pt)
 }
 
 /* easy access from gdb */
-int write_crash_blend(void)
+bool write_crash_blend(void)
 {
 	char path[FILE_MAX];
 	int fileflags = G.fileflags & ~(G_FILE_HISTORY); /* don't do file history on crash file */
@@ -924,7 +977,7 @@ int wm_homefile_write_exec(bContext *C, wmOperator *op)
 	int fileflags;
 
 	/* check current window and close it if temp */
-	if (win->screen->temp)
+	if (win && win->screen->temp)
 		wm_window_close(C, wm, win);
 	
 	/* update keymaps in user preferences */

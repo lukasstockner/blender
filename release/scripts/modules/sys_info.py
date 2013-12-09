@@ -68,10 +68,11 @@ def write_sysinfo(op):
     output.write("\nBlender:\n")
     output.write(lilies)
     if bpy.app.build_branch and bpy.app.build_branch != "Unknown":
-        output.write("version %s, branch %r, chage %r, hash %r, %r\n" %
+        output.write("version %s, branch %r, commit date %r %r, hash %r, %r\n" %
             (bpy.app.version_string,
              bpy.app.build_branch,
-             bpy.app.build_change,
+             bpy.app.build_commit_date,
+             bpy.app.build_commit_time,
              bpy.app.build_hash,
              bpy.app.build_type))
     else:
@@ -116,6 +117,36 @@ def write_sysinfo(op):
                          getattr(ffmpeg, lib + "_version_string")))
     else:
         output.write("Blender was built without FFmpeg support\n")
+
+    output.write("\nOther Libraries:\n")
+    output.write(lilies)
+    ocio = bpy.app.ocio
+    output.write("OpenColorIO: ")
+    if ocio.supported:
+        if ocio.version_string == "fallback":
+            output.write("Blender was built with OpenColorIO, " +
+                         "but it currently uses fallback color management.\n")
+        else:
+            output.write("%s\n" % (ocio.version_string))
+    else:
+        output.write("Blender was built without OpenColorIO support\n")
+
+    oiio = bpy.app.oiio
+    output.write("OpenImageIO: ")
+    if ocio.supported :
+        output.write("%s\n" % (oiio.version_string))
+    else:
+        output.write("Blender was built without OpenImageIO support\n")
+
+    output.write("OpenShadingLanguage: ")
+    if bpy.app.build_options.cycles:
+        if bpy.app.build_options.cycles_osl:
+            from _cycles import osl_version_string
+            output.write("%s\n" % (osl_version_string))
+        else:
+            output.write("Blender was built without OpenShadingLanguage support in Cycles\n")
+    else:
+        output.write("Blender was built without Cycles support\n")
 
     if bpy.app.background:
         output.write("\nOpenGL: missing, background mode\n")

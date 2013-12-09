@@ -599,7 +599,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 
 	bUnitDef *unit;
 	char str_tmp[TEMP_STR_SIZE];
-	int change = 0;
+	int changed = 0;
 
 	if (usys == NULL || usys->units[0].name == NULL) {
 		return 0;
@@ -609,15 +609,16 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 		int i;
 		char *ch = str;
 
-		for (i = 0; (i >= len_max || *ch == '\0'); i++, ch++)
+		for (i = 0; (i < len_max) && (*ch != '\0'); i++, ch++) {
 			if ((*ch >= 'A') && (*ch <= 'Z'))
 				*ch += ('a' - 'A');
+		}
 	}
 
 	for (unit = usys->units; unit->name; unit++) {
 		/* in case there are multiple instances */
 		while (unit_replace(str, len_max, str_tmp, scale_pref, unit))
-			change = 1;
+			changed = true;
 	}
 	unit = NULL;
 
@@ -634,7 +635,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 						int ofs = 0;
 						/* in case there are multiple instances */
 						while ((ofs = unit_replace(str + ofs, len_max - ofs, str_tmp, scale_pref, unit)))
-							change = 1;
+							changed = true;
 					}
 				}
 			}
@@ -642,7 +643,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 	}
 	unit = NULL;
 
-	if (change == 0) {
+	if (changed == 0) {
 		/* no units given so infer a unit from the previous string or default */
 		if (str_prev) {
 			/* see which units the original value had */
@@ -700,7 +701,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 /* 45µm --> 45um */
