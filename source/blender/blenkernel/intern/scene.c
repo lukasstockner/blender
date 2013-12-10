@@ -1181,6 +1181,16 @@ static void scene_do_rb_simulation_recursive(Scene *scene, float ctime)
  */
 #undef DETAILED_ANALYSIS_OUTPUT
 
+/* Mballs evaluation uses BKE_scene_base_iter_next which calls
+ * duplilist for all objects in the scene. This leads to conflict
+ * accessing and writing same data from multiple threads.
+ *
+ * Ideally Mballs shouldn't do such an iteration and use DAG
+ * queries instead. For the time being we've got new DAG
+ * let's keep it simple and update mballs in a ingle thread.
+ */
+#define MBALL_SINGLETHREAD_HACK
+
 typedef struct StatisicsEntry {
 	struct StatisicsEntry *next, *prev;
 	Object *object;
@@ -1198,6 +1208,10 @@ typedef struct ThreadedObjectUpdateState {
 	/* Execution statistics */
 	ListBase statistics[BLENDER_MAX_THREADS];
 	bool has_updated_objects;
+
+#ifdef MBALL_SINGLETHREAD_HACK
+	bool has_mballs;
+#endif
 } ThreadedObjectUpdateState;
 
 static void scene_update_object_add_task(void *node, void *user_data);
@@ -1233,6 +1247,12 @@ static void scene_update_object_func(TaskPool *pool, void *taskdata, int threadi
 	Scene *scene = state->scene;
 	Scene *scene_parent = state->scene_parent;
 
+#ifdef MBALL_SINGLETHREAD_HACK
+	if (object && object->type == OB_MBALL) {
+		state->has_mballs = true;
+	}
+	else
+#endif
 	if (object) {
 		double start_time = 0.0;
 		bool add_to_stats = false;
@@ -1361,6 +1381,9 @@ static void scene_update_objects(EvaluationContext *evaluation_context, Scene *s
 	memset(state.statistics, 0, sizeof(state.statistics));
 	state.has_updated_objects = false;
 	state.base_time = PIL_check_seconds_timer();
+#ifdef MBALL_SINGLETHREAD_HACK
+	state.has_mballs = false;
+#endif
 
 	task_pool = BLI_task_pool_create(task_scheduler, &state);
 
@@ -1371,6 +1394,12 @@ static void scene_update_objects(EvaluationContext *evaluation_context, Scene *s
 	if (G.debug & G_DEBUG) {
 		print_threads_statistics(&state);
 	}
+
+#ifdef MBALL_SINGLETHREAD_HACK
+	if (state.has_mballs) {
+		scene_update_all_bases(evaluation_context, scene, scene_parent);
+	}
+#endif
 }
 
  static void scene_update_tagged_recursive(EvaluationContext *evaluation_context, Main *bmain, Scene *scene, Scene *scene_parent, bool use_threads)
