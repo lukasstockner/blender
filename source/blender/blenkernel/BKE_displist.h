@@ -28,8 +28,6 @@
 #ifndef __BKE_DISPLIST_H__
 #define __BKE_DISPLIST_H__
 
-struct ListBase;
-
 /** \file BKE_displist.h
  *  \ingroup bke
  *  \brief display list (or rather multi purpose list) stuff.

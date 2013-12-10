@@ -60,6 +60,10 @@ typedef struct EvaluationContext {
 	                     keep at false if update shall happen for the viewport. */
 } EvaluationContext;
 
+/* Global initialization/deinitialization */
+void DAG_init(void);
+void DAG_exit(void);
+
 /* Build and Update
  *
  * DAG_scene_relations_update will rebuild the dependency graph for a given
@@ -127,10 +131,6 @@ void DAG_editors_update_cb(void (*id_func)(struct Main *bmain, struct ID *id),
                            void (*scene_func)(struct Main *bmain, struct Scene *scene, int updated));
 
 /* ** Threaded update ** */
-
-/* Global initialization/deinitialization */
-void DAG_init(void);
-void DAG_exit(void);
 
 /* Initialize the DAG for threaded update. */
 void DAG_threaded_update_begin(struct Scene *scene,

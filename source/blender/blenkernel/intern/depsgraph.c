@@ -82,7 +82,19 @@
 #include "atomic_ops.h"
 
 #include "depsgraph_private.h"
- 
+
+static SpinLock threaded_update_lock;
+
+void DAG_init(void)
+{
+	BLI_spin_init(&threaded_update_lock);
+}
+
+void DAG_exit(void)
+{
+	BLI_spin_end(&threaded_update_lock);
+}
+
 /* Queue and stack operations for dag traversal 
  *
  * the queue store a list of freenodes to avoid successive alloc/dealloc
@@ -2709,18 +2721,6 @@ void DAG_pose_sort(Object *ob)
 }
 
 /* ************************  DAG FOR THREADED UPDATE  ********************* */
-
-static SpinLock threaded_update_lock;
-
-void DAG_init(void)
-{
-	BLI_spin_init(&threaded_update_lock);
-}
-
-void DAG_exit(void)
-{
-	BLI_spin_end(&threaded_update_lock);
-}
 
 /* Initialize run-time data in the graph needed for traversing it
  * from multiple threads and start threaded tree traversal by adding
