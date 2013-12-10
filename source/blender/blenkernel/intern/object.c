@@ -2797,7 +2797,7 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 					break;
 
 				case OB_MBALL:
-					BKE_displist_make_mball(scene, ob);
+					BKE_displist_make_mball(evaluation_context, scene, ob);
 					break;
 
 				case OB_CURVE:

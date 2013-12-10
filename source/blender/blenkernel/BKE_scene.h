@@ -86,7 +86,8 @@ typedef struct SceneBaseIter {
 	int fase;
 } SceneBaseIter;
 
-int          BKE_scene_base_iter_next(struct SceneBaseIter *iter, struct Scene **scene, int val, struct Base **base, struct Object **ob);
+int BKE_scene_base_iter_next(struct EvaluationContext *evaluation_context, struct SceneBaseIter *iter,
+                             struct Scene **scene, int val, struct Base **base, struct Object **ob);
 
 void BKE_scene_base_flag_to_objects(struct Scene *scene);
 void BKE_scene_base_flag_from_objects(struct Scene *scene);

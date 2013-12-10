@@ -2222,7 +2222,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 		need_orco= 1;
 	}
 
-	BKE_displist_make_mball_forRender(re->scene, ob, &dispbase);
+	BKE_displist_make_mball_forRender(re->evaluation_context, re->scene, ob, &dispbase);
 	dl= dispbase.first;
 	if (dl == NULL) return;
 

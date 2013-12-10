@@ -1669,7 +1669,7 @@ static int convert_exec(bContext *C, wmOperator *op)
 			}
 
 			if (!baseob->curve_cache || !baseob->curve_cache->disp.first) {
-				BKE_displist_make_mball(scene, baseob);
+				BKE_displist_make_mball(bmain->evaluation_context, scene, baseob);
 			}
 
 			if (!(baseob->flag & OB_DONE)) {

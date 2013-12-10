@@ -1906,7 +1906,7 @@ static int meshdeform_bind_exec(bContext *C, wmOperator *op)
 			BKE_lattice_modifiers_calc(scene, ob);
 		}
 		else if (ob->type == OB_MBALL) {
-			BKE_displist_make_mball(scene, ob);
+			BKE_displist_make_mball(CTX_data_main(C)->evaluation_context, scene, ob);
 		}
 		else if (ELEM3(ob->type, OB_CURVE, OB_SURF, OB_FONT)) {
 			BKE_displist_make_curveTypes(scene, ob, 0);

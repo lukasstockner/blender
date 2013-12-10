@@ -739,7 +739,8 @@ void BKE_scene_unlink(Main *bmain, Scene *sce, Scene *newsce)
 /* used by metaballs
  * doesn't return the original duplicated object, only dupli's
  */
-int BKE_scene_base_iter_next(SceneBaseIter *iter, Scene **scene, int val, Base **base, Object **ob)
+int BKE_scene_base_iter_next(EvaluationContext *evaluation_context, SceneBaseIter *iter,
+                             Scene **scene, int val, Base **base, Object **ob)
 {
 	int run_again = 1;
 	
@@ -806,7 +807,7 @@ int BKE_scene_base_iter_next(SceneBaseIter *iter, Scene **scene, int val, Base *
 						 * this enters eternal loop because of 
 						 * makeDispListMBall getting called inside of group_duplilist */
 						if ((*base)->object->dup_group == NULL) {
-							iter->duplilist = object_duplilist_ex(G.main->evaluation_context, (*scene), (*base)->object, false);
+							iter->duplilist = object_duplilist_ex(evaluation_context, (*scene), (*base)->object, false);
 							
 							iter->dupob = iter->duplilist->first;
 

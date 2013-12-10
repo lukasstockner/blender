@@ -57,15 +57,11 @@
 static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 {
 	double cfra = (double)frame + (double)subframe;
-	/* TODO(sergey): Use context from G.main? */
-	EvaluationContext evaluation_context;
-
-	evaluation_context.for_render = false;
 
 	CLAMP(cfra, MINAFRAME, MAXFRAME);
 	BKE_scene_frame_set(scene, cfra);
 
-	BKE_scene_update_for_newframe_ex(&evaluation_context, G.main, scene, (1 << 20) - 1, false);
+	BKE_scene_update_for_newframe_ex(G.main->evaluation_context, G.main, scene, (1 << 20) - 1, false);
 	BKE_scene_camera_switch_update(scene);
 
 	/* don't do notifier when we're rendering, avoid some viewport crashes
@@ -82,9 +78,7 @@ static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 
 static void rna_Scene_update_tagged(Scene *scene)
 {
-	EvaluationContext evaluation_context;
-	evaluation_context.for_render = false;
-	BKE_scene_update_tagged_ex(&evaluation_context, G.main, scene, false);
+	BKE_scene_update_tagged_ex(G.main->evaluation_context, G.main, scene, false);
 }
 
 static void rna_SceneRender_get_frame_path(RenderData *rd, int frame, char *name)

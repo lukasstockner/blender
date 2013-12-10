@@ -357,7 +357,7 @@ Mesh *rna_Main_meshes_new_from_object(
 
 			if (render) {
 				ListBase disp = {NULL, NULL};
-				BKE_displist_make_mball_forRender(sce, ob, &disp);
+				BKE_displist_make_mball_forRender(bmain->evaluation_context, sce, ob, &disp);
 				BKE_mesh_from_metaball(&disp, tmpmesh);
 				BKE_displist_free(&disp);
 			}
