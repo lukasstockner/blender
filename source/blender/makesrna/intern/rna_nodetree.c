@@ -3258,6 +3258,19 @@ static void def_sh_geometry(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_sh_lamp(StructRNA *srna)
+{
+	PropertyRNA *prop;
+	
+	prop = RNA_def_property(srna, "lamp_object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "id");
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Lamp_object_poll");
+	RNA_def_property_ui_text(prop, "Lamp Object", "");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_sh_attribute(StructRNA *srna)
 {
 	PropertyRNA *prop;
@@ -4833,7 +4846,6 @@ static void def_cmp_defocus(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Bokeh Type", "");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-	/* TODO: angle in degrees */
 	prop = RNA_def_property(srna, "angle", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "rotation");
 	RNA_def_property_range(prop, 0.0f, DEG2RADF(90.0f));
@@ -5439,7 +5451,7 @@ static void def_cmp_mask(StructRNA *srna)
 
 	prop = RNA_def_property(srna, "use_motion_blur", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "custom1", CMP_NODEFLAG_MASK_MOTION_BLUR);
-	RNA_def_property_ui_text(prop, "Motion Blur", "Use feather information from the mask");
+	RNA_def_property_ui_text(prop, "Motion Blur", "Use multi-sampled motion blur of the mask");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
 	prop = RNA_def_property(srna, "motion_blur_samples", PROP_INT, PROP_NONE);
@@ -5536,10 +5548,10 @@ static void def_cmp_boxmask(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Height", "Height of the box");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-	prop = RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "rotation");
 	RNA_def_property_float_default(prop, 0.0f);
-	RNA_def_property_range(prop, -1000.0f, 1000.0f);
+	RNA_def_property_range(prop, DEG2RADF(-1800.0f), DEG2RADF(1800.0f));
 	RNA_def_property_ui_text(prop, "Rotation", "Rotation angle of the box");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
@@ -5559,35 +5571,35 @@ static void def_cmp_ellipsemask(StructRNA *srna)
 	RNA_def_property_float_sdna(prop, NULL, "x");
 	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_range(prop, -1.0f, 2.0f);
-	RNA_def_property_ui_text(prop, "X", "X position of the middle of the box");
+	RNA_def_property_ui_text(prop, "X", "X position of the middle of the ellipse");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
 	prop = RNA_def_property(srna, "y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "y");
 	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_range(prop, -1.0f, 2.0f);
-	RNA_def_property_ui_text(prop, "Y", "Y position of the middle of the box");
+	RNA_def_property_ui_text(prop, "Y", "Y position of the middle of the ellipse");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
 	prop = RNA_def_property(srna, "width", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "width");
 	RNA_def_property_float_default(prop, 0.3f);
 	RNA_def_property_range(prop, 0.0f, 2.0f);
-	RNA_def_property_ui_text(prop, "Width", "Width of the box");
+	RNA_def_property_ui_text(prop, "Width", "Width of the ellipse");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
 	prop = RNA_def_property(srna, "height", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "height");
 	RNA_def_property_float_default(prop, 0.2f);
 	RNA_def_property_range(prop, 0.0f, 2.0f);
-	RNA_def_property_ui_text(prop, "Height", "Height of the box");
+	RNA_def_property_ui_text(prop, "Height", "Height of the ellipse");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-	prop = RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "rotation");
 	RNA_def_property_float_default(prop, 0.0f);
-	RNA_def_property_range(prop, -1000.0f, 1000.0f);
-	RNA_def_property_ui_text(prop, "Rotation", "Rotation angle of the box");
+	RNA_def_property_range(prop, DEG2RADF(-1800.0f), DEG2RADF(1800.0f));
+	RNA_def_property_ui_text(prop, "Rotation", "Rotation angle of the ellipse");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
@@ -5626,10 +5638,10 @@ static void def_cmp_bokehimage(StructRNA *srna)
 
 	RNA_def_struct_sdna_from(srna, "NodeBokehImage", "storage");
 
-	prop = RNA_def_property(srna, "angle", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "angle", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "angle");
 	RNA_def_property_float_default(prop, 0.0f);
-	RNA_def_property_range(prop, -720.0f, 720.0f);
+	RNA_def_property_range(prop, DEG2RADF(-720.0f), DEG2RADF(720.0f));
 	RNA_def_property_ui_text(prop, "Angle", "Angle of the bokeh");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 

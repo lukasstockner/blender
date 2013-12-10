@@ -1494,7 +1494,8 @@ static void flush_update_node(Main *bmain, DagNode *node, unsigned int layer, in
 {
 	DagAdjList *itA;
 	Object *ob, *obc;
-	int oldflag, changed = 0;
+	int oldflag;
+	bool changed = false;
 	unsigned int all_layer;
 	
 	node->lasttime = curtime;

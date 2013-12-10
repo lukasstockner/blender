@@ -989,6 +989,7 @@ static int armature_align_bones_exec(bContext *C, wmOperator *op)
 	bArmature *arm = (bArmature *)ob->data;
 	EditBone *actbone = CTX_data_active_bone(C);
 	EditBone *actmirb = NULL;
+	int num_selected_bones;
 	
 	/* there must be an active bone */
 	if (actbone == NULL) {
@@ -1011,7 +1012,8 @@ static int armature_align_bones_exec(bContext *C, wmOperator *op)
 	/* if there is only 1 selected bone, we assume that that is the active bone, 
 	 * since a user will need to have clicked on a bone (thus selecting it) to make it active
 	 */
-	if (CTX_DATA_COUNT(C, selected_editable_bones) <= 1) {
+	num_selected_bones = CTX_DATA_COUNT(C, selected_editable_bones);
+	if (num_selected_bones <= 1) {
 		/* When only the active bone is selected, and it has a parent,
 		 * align it to the parent, as that is the only possible outcome. 
 		 */
@@ -1020,6 +1022,8 @@ static int armature_align_bones_exec(bContext *C, wmOperator *op)
 			
 			if ((arm->flag & ARM_MIRROR_EDIT) && (actmirb->parent))
 				bone_align_to_bone(arm->edbo, actmirb, actmirb->parent);
+
+			BKE_reportf(op->reports, RPT_INFO, "Aligned bone '%s' to parent", actbone->name);
 		}
 	}
 	else {
@@ -1042,8 +1046,10 @@ static int armature_align_bones_exec(bContext *C, wmOperator *op)
 			}
 		}
 		CTX_DATA_END;
+
+		BKE_reportf(op->reports, RPT_INFO, "%d bones aligned to bone '%s'", num_selected_bones, actbone->name);
 	}
-	
+
 	/* note, notifier might evolve */
 	WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
 	
@@ -1058,7 +1064,6 @@ void ARMATURE_OT_align(wmOperatorType *ot)
 	ot->description = "Align selected bones to the active bone (or to their parent)";
 	
 	/* api callbacks */
-	ot->invoke = WM_operator_confirm;
 	ot->exec = armature_align_bones_exec;
 	ot->poll = ED_operator_editarmature;
 	
@@ -1108,12 +1113,13 @@ void ARMATURE_OT_split(wmOperatorType *ot)
 
 /* previously delete_armature */
 /* only editmode! */
-static int armature_delete_selected_exec(bContext *C, wmOperator *UNUSED(op))
+static int armature_delete_selected_exec(bContext *C, wmOperator *op)
 {
 	bArmature *arm;
 	EditBone *curBone, *ebone_next;
 	bConstraint *con;
 	Object *obedit = CTX_data_edit_object(C); // XXX get from context
+	int num_deleted = 0;
 	arm = obedit->data;
 
 	/* cancel if nothing selected */
@@ -1170,10 +1176,12 @@ static int armature_delete_selected_exec(bContext *C, wmOperator *UNUSED(op))
 			if (curBone->flag & BONE_SELECTED) {
 				if (curBone == arm->act_edbone) arm->act_edbone = NULL;
 				ED_armature_edit_bone_remove(arm, curBone);
+				num_deleted++;
 			}
 		}
 	}
 	
+	BKE_reportf(op->reports, RPT_INFO, "Deleted %d bones", num_deleted);
 	
 	ED_armature_sync_selection(arm->edbo);
 
@@ -1190,7 +1198,6 @@ void ARMATURE_OT_delete(wmOperatorType *ot)
 	ot->description = "Remove selected bones from the armature";
 	
 	/* api callbacks */
-	ot->invoke = WM_operator_confirm;
 	ot->exec = armature_delete_selected_exec;
 	ot->poll = ED_operator_editarmature;
 	

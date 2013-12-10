@@ -83,6 +83,7 @@ MINLINE void copy_v2db_v2fl(double r[2], const float a[2]);
 MINLINE void copy_v3db_v3fl(double r[3], const float a[3]);
 MINLINE void copy_v4db_v4fl(double r[4], const float a[4]);
 /* float args -> vec */
+MINLINE void copy_v2_fl2(float v[2], float x, float y);
 MINLINE void copy_v3_fl3(float v[3], float x, float y, float z);
 MINLINE void copy_v4_fl4(float v[4], float x, float y, float z, float w);
 
@@ -124,6 +125,7 @@ MINLINE float dot_m4_v3_row_x(float M[4][4], const float a[3]) ATTR_WARN_UNUSED_
 MINLINE float dot_m4_v3_row_y(float M[4][4], const float a[3]) ATTR_WARN_UNUSED_RESULT;
 MINLINE float dot_m4_v3_row_z(float M[4][4], const float a[3]) ATTR_WARN_UNUSED_RESULT;
 
+MINLINE void madd_v2_v2fl(float r[2], const float a[2], float f);
 MINLINE void madd_v3_v3fl(float r[3], const float a[3], float f);
 MINLINE void madd_v3_v3v3(float r[3], const float a[3], const float b[3]);
 MINLINE void madd_v2_v2v2fl(float r[2], const float a[2], const float b[2], float f);
@@ -143,6 +145,7 @@ MINLINE void negate_v3_short(short r[3]);
 
 MINLINE float dot_v2v2(const float a[2], const float b[2]) ATTR_WARN_UNUSED_RESULT;
 MINLINE float dot_v3v3(const float a[3], const float b[3]) ATTR_WARN_UNUSED_RESULT;
+MINLINE float dot_v4v4(const float a[4], const float b[4]) ATTR_WARN_UNUSED_RESULT;
 
 MINLINE float cross_v2v2(const float a[2], const float b[2]) ATTR_WARN_UNUSED_RESULT;
 MINLINE void cross_v3_v3v3(float r[3], const float a[3], const float b[3]);
@@ -172,6 +175,7 @@ MINLINE float normalize_v2(float r[2]);
 MINLINE float normalize_v2_v2(float r[2], const float a[2]);
 MINLINE float normalize_v3(float r[3]);
 MINLINE float normalize_v3_v3(float r[3], const float a[3]);
+MINLINE double normalize_v3_d(double n[3]);
 
 /******************************* Interpolation *******************************/
 

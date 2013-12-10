@@ -251,7 +251,7 @@ static int customdata_compare(CustomData *c1, CustomData *c2, Mesh *m1, Mesh *m2
 				for (k = 0; k < dv1->totweight; k++, dw1++, dw2++) {
 					if (dw1->def_nr != dw2->def_nr)
 						return MESHCMP_DVERT_GROUPMISMATCH;
-					if (ABS(dw1->weight - dw2->weight) > thresh)
+					if (fabsf(dw1->weight - dw2->weight) > thresh)
 						return MESHCMP_DVERT_WEIGHTMISMATCH;
 				}
 			}
@@ -1342,6 +1342,9 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 							if (dl->flag & DL_CYCL_V)
 								orco_sizev++;
 						}
+						else if (dl->flag & DL_CYCL_V) {
+							orco_sizev++;
+						}
 
 						for (i = 0; i < 4; i++, mloopuv++) {
 							/* find uv based on vertex index into grid array */
@@ -1351,6 +1354,8 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 							mloopuv->uv[1] = (v % dl->nr) / (float)orco_sizeu;
 
 							/* cyclic correction */
+							if ((i == 1 || i == 2) && mloopuv->uv[0] == 0.0f)
+								mloopuv->uv[0] = 1.0f;
 							if ((i == 0 || i == 1) && mloopuv->uv[1] == 0.0f)
 								mloopuv->uv[1] = 1.0f;
 						}

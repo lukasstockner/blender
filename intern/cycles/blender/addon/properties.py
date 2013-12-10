@@ -25,9 +25,15 @@ from bpy.props import (BoolProperty,
 
 # enums
 
+import _cycles
+
 enum_devices = (
-    ('CPU', "CPU", "Use CPU for rendering"),
-    ('GPU', "GPU Compute", "Use GPU compute device for rendering, configured in user preferences"))
+  ('CPU', "CPU", "Use CPU for rendering"),
+  ('GPU', "GPU Compute", "Use GPU compute device for rendering, configured in user preferences"),
+  )
+
+if _cycles.with_network:
+  enum_devices += (('NETWORK', "Networked Device", "Use networked device for rendering"),)
 
 enum_feature_set = (
     ('SUPPORTED', "Supported", "Only use finished and supported features"),
@@ -621,6 +627,7 @@ class CyclesVisibilitySettings(bpy.types.PropertyGroup):
     @classmethod
     def unregister(cls):
         del bpy.types.Object.cycles_visibility
+        del bpy.types.World.cycles_visibility
 
 
 class CyclesMeshSettings(bpy.types.PropertyGroup):

@@ -88,7 +88,7 @@ protected:
 	 * @param dy
 	 * @param inputBuffers chunks that can be read by their ReadBufferOperation.
 	 */
-	virtual void executePixelFiltered(float output[4], float x, float y, float dx, float dy, PixelSampler sampler) {}
+	virtual void executePixelFiltered(float output[4], float x, float y, float dx[2], float dy[2], PixelSampler sampler) {}
 
 public:
 	inline void readSampled(float result[4], float x, float y, PixelSampler sampler) {
@@ -97,16 +97,16 @@ public:
 	inline void read(float result[4], int x, int y, void *chunkData) {
 		executePixel(result, x, y, chunkData);
 	}
-	inline void readFiltered(float result[4], float x, float y, float dx, float dy, PixelSampler sampler) {
+	inline void readFiltered(float result[4], float x, float y, float dx[2], float dy[2], PixelSampler sampler) {
 		executePixelFiltered(result, x, y, dx, dy, sampler);
 	}
 
 	virtual void *initializeTileData(rcti *rect) { return 0; }
-	virtual void deinitializeTileData(rcti *rect, void *data) {
-	}
-	
-	virtual MemoryBuffer *getInputMemoryBuffer(MemoryBuffer **memoryBuffers) { return 0; }
+	virtual void deinitializeTileData(rcti *rect, void *data) {}
 
+	virtual ~SocketReader() {}
+
+	virtual MemoryBuffer *getInputMemoryBuffer(MemoryBuffer **memoryBuffers) { return 0; }
 
 	inline const unsigned int getWidth() const { return this->m_width; }
 	inline const unsigned int getHeight() const { return this->m_height; }

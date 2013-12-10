@@ -104,10 +104,6 @@ void BKE_curve_editfont_free(Curve *cu)
 	if (cu->editfont) {
 		EditFont *ef = cu->editfont;
 
-		if (ef->oldstr)
-			MEM_freeN(ef->oldstr);
-		if (ef->oldstrinfo)
-			MEM_freeN(ef->oldstrinfo);
 		if (ef->textbuf)
 			MEM_freeN(ef->textbuf);
 		if (ef->textbufinfo)
@@ -120,6 +116,8 @@ void BKE_curve_editfont_free(Curve *cu)
 		MEM_freeN(ef);
 		cu->editfont = NULL;
 	}
+
+	MEM_SAFE_FREE(cu->selboxes);
 }
 
 void BKE_curve_editNurb_keyIndex_free(EditNurb *editnurb)
@@ -1550,6 +1548,9 @@ float *BKE_curve_make_orco(Scene *scene, Object *ob, int *r_numVerts)
 				else
 					numVerts += dl->parts * (dl->nr + 1);
 			}
+			else if (dl->flag & DL_CYCL_V) {
+				numVerts += (dl->parts + 1) * dl->nr;
+			}
 			else
 				numVerts += dl->parts * dl->nr;
 		}
@@ -1584,6 +1585,9 @@ float *BKE_curve_make_orco(Scene *scene, Object *ob, int *r_numVerts)
 				sizeu++;
 				if (dl->flag & DL_CYCL_V)
 					sizev++;
+			}
+			else  if (dl->flag & DL_CYCL_V) {
+				sizev++;
 			}
 
 			for (u = 0; u < sizev; u++) {
@@ -3690,30 +3694,30 @@ bool BKE_nurb_check_valid_v(struct Nurb *nu)
 
 bool BKE_nurb_order_clamp_u(struct Nurb *nu)
 {
-	bool change = false;
+	bool changed = false;
 	if (nu->pntsu < nu->orderu) {
 		nu->orderu = nu->pntsu;
-		change = true;
+		changed = true;
 	}
 	if (((nu->flagu & CU_NURB_CYCLIC) == 0) && (nu->flagu & CU_NURB_BEZIER)) {
 		CLAMP(nu->orderu, 3, 4);
-		change = true;
+		changed = true;
 	}
-	return change;
+	return changed;
 }
 
 bool BKE_nurb_order_clamp_v(struct Nurb *nu)
 {
-	bool change = false;
+	bool changed = false;
 	if (nu->pntsv < nu->orderv) {
 		nu->orderv = nu->pntsv;
-		change = true;
+		changed = true;
 	}
 	if (((nu->flagv & CU_NURB_CYCLIC) == 0) && (nu->flagv & CU_NURB_BEZIER)) {
 		CLAMP(nu->orderv, 3, 4);
-		change = true;
+		changed = true;
 	}
-	return change;
+	return changed;
 }
 
 bool BKE_nurb_type_convert(Nurb *nu, const short type, const bool use_handles)

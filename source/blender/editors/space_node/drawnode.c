@@ -406,7 +406,7 @@ static void node_draw_frame_label(bNodeTree *ntree, bNode *node, const float asp
 	/* title color */
 	UI_ThemeColorBlendShade(TH_TEXT, color_id, 0.8f, 10);
 
-	width = BLF_width(fontid, label);
+	width = BLF_width(fontid, label, sizeof(label));
 	ascender = BLF_ascender(fontid);
 	
 	/* 'x' doesn't need aspect correction */
@@ -753,6 +753,11 @@ static void node_shader_buts_geometry(uiLayout *layout, bContext *C, PointerRNA 
 	}
 }
 
+static void node_shader_buts_lamp(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "lamp_object", 0, IFACE_("Lamp Object"), ICON_NONE);
+}
+
 static void node_shader_buts_attribute(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "attribute_name", 0, IFACE_("Name"), ICON_NONE);
@@ -1001,6 +1006,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			break; 
 		case SH_NODE_GEOMETRY:
 			ntype->draw_buttons = node_shader_buts_geometry;
+			break;
+		case SH_NODE_LAMP:
+			ntype->draw_buttons = node_shader_buts_lamp;
 			break;
 		case SH_NODE_ATTRIBUTE:
 			ntype->draw_buttons = node_shader_buts_attribute;
@@ -1635,7 +1643,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 		else {
 			col = uiLayoutColumn(layout, TRUE);
 			
-			uiItemL(col, IFACE_("File Path:"), ICON_NONE);
+			uiItemL(col, IFACE_("File Subpath:"), ICON_NONE);
 			row = uiLayoutRow(col, FALSE);
 			uiItemR(row, &active_input_ptr, "path", 0, "", ICON_NONE);
 			uiItemFullO(row, "NODE_OT_output_file_remove_active_socket", "",
@@ -2002,7 +2010,7 @@ static void node_composit_backdrop_boxmask(SpaceNode *snode, ImBuf *backdrop, bN
 	const float backdropWidth = backdrop->x;
 	const float backdropHeight = backdrop->y;
 	const float aspect = backdropWidth / backdropHeight;
-	const float rad = DEG2RADF(-boxmask->rotation);
+	const float rad = -boxmask->rotation;
 	const float cosine = cosf(rad);
 	const float sine = sinf(rad);
 	const float halveBoxWidth = backdropWidth * (boxmask->width / 2.0f);
@@ -2040,7 +2048,7 @@ static void node_composit_backdrop_ellipsemask(SpaceNode *snode, ImBuf *backdrop
 	const float backdropWidth = backdrop->x;
 	const float backdropHeight = backdrop->y;
 	const float aspect = backdropWidth / backdropHeight;
-	const float rad = DEG2RADF(-ellipsemask->rotation);
+	const float rad = -ellipsemask->rotation;
 	const float cosine = cosf(rad);
 	const float sine = sinf(rad);
 	const float halveBoxWidth = backdropWidth * (ellipsemask->width / 2.0f);
@@ -3115,7 +3123,7 @@ int node_link_bezier_points(View2D *v2d, SpaceNode *snode, bNodeLink *link, floa
 		toreroute = 0;
 	}
 
-	dist = UI_GetThemeValue(TH_NODE_CURVING) * 0.10f * ABS(vec[0][0] - vec[3][0]);
+	dist = UI_GetThemeValue(TH_NODE_CURVING) * 0.10f * fabsf(vec[0][0] - vec[3][0]);
 	deltax = vec[3][0] - vec[0][0];
 	deltay = vec[3][1] - vec[0][1];
 	/* check direction later, for top sockets */
