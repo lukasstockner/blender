@@ -3225,7 +3225,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	if (re->r.scemode & R_VIEWPORT_PREVIEW)
 		dm= mesh_create_derived_view(re->scene, ob, mask);
 	else
-		dm= mesh_get_derived_render(re->scene, ob, mask);
+		dm= mesh_create_derived_render(re->scene, ob, mask);
 	if (dm==NULL) return;	/* in case duplicated object fails? */
 
 	if (mask & CD_MASK_ORCO) {
@@ -4866,7 +4866,7 @@ static void dupli_render_particle_set(Render *re, Object *ob, int timeoffset, in
 			/* this is to make sure we get render level duplis in groups:
 			 * the derivedmesh must be created before init_render_mesh,
 			 * since object_duplilist does dupliparticles before that */
-			dm = mesh_get_derived_render(re->scene, ob, CD_MASK_BAREMESH|CD_MASK_MTFACE|CD_MASK_MCOL);
+			dm = mesh_create_derived_render(re->scene, ob, CD_MASK_BAREMESH|CD_MASK_MTFACE|CD_MASK_MCOL);
 			dm->release(dm);
 
 			for (psys=ob->particlesystem.first; psys; psys=psys->next)
@@ -4920,81 +4920,6 @@ static void add_group_render_dupli_obs(Render *re, Group *group, int nolamps, in
 	}
 }
 
-static void create_derivedRender_add_task(void *node, void *user_data);
-
-static void create_derivedRender_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
-{
-	Scene *scene = (Scene *) BLI_task_pool_userdata(pool);
-	void *node = taskdata;
-
-	if (DAG_get_node_tag(node)) {
-		Object *object = DAG_get_node_object(node);
-
-		if (object) {
-			switch (object->type) {
-				case OB_MESH:
-					makeDerivedMeshRender(scene, object, CD_MASK_BAREMESH | CD_MASK_MTFACE | CD_MASK_MCOL);
-					break;
-
-				case OB_CURVE:
-				case OB_SURF:
-				case OB_FONT:
-					/* TODO(sergey: Pass for now. */
-					break;
-
-				default:
-					/* pass */
-					break;
-			}
-		}
-	}
-
-	DAG_threaded_update_handle_node_updated(node,create_derivedRender_add_task, pool);
-}
-
-static void create_derivedRender_add_task(void *node, void *user_data)
-{
-	TaskPool *pool = user_data;
-
-	BLI_task_pool_push(pool, create_derivedRender_func, node, false, TASK_PRIORITY_LOW);
-}
-
-static void create_derivedRender_for_dependencies(Render *re, int renderlay, int nolamps, int onlyselected, Object *actob, int timeoffset)
-{
-	Scene *scene = re->scene;
-	int vectorlay = get_vector_renderlayers(scene);
-	int lay = timeoffset ? renderlay & vectorlay : renderlay;
-
-	/* TODO(sergey): Check on cases when DAG is not here (like, preview render) */
-	if (scene->theDag) {
-		TaskScheduler *task_scheduler = BLI_task_scheduler_get();
-		TaskPool *pool;
-		Scene *sce_iter;
-		Base *base;
-
-		DAG_tag_clear_nodes(scene);
-
-		/* Tag all nodes which corresponds to object which are needed for renderer. */
-		for (SETLOOPER(scene, sce_iter, base)) {
-			Object *object = base->object;
-			if ((base->lay & lay) || (object->type == OB_LAMP && (base->lay & re->lay)) ) {
-				if (allow_render_object(re, object, nolamps, onlyselected, actob)) {
-					DAG_tag_node_for_object(scene, object);
-				}
-			}
-		}
-
-		/* Flush tag to all arent nodes of which were tagged above.  */
-		DAG_tag_flush_nodes(scene);
-
-		/* Create derived render stuff in threads. */
-		pool = BLI_task_pool_create(task_scheduler, scene);
-		DAG_threaded_update_begin(scene, create_derivedRender_add_task, pool);
-		BLI_task_pool_work_and_wait(pool);
-		BLI_task_pool_free(pool);
-	}
-}
-
 static void database_init_objects(Render *re, unsigned int renderlay, int nolamps, int onlyselected, Object *actob, int timeoffset)
 {
 	Base *base;
@@ -5025,12 +4950,6 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 		ob->flag &= ~OB_DONE;
 		ob->transflag &= ~OB_RENDER_DUPLI;
 	}
-
-	/* Here we detect all objects which are not being rendering
-	 * but which are in dependencies of objects which are being
-	 * rendering.
-	 */
-	create_derivedRender_for_dependencies(re, renderlay, nolamps, onlyselected, actob, timeoffset);
 
 	for (SETLOOPER(re->scene, sce_iter, base)) {
 		ob= base->object;
@@ -5171,13 +5090,6 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 	 * since they may not be part of the scene */
 	for (group= re->main->group.first; group; group=group->id.next)
 		add_group_render_dupli_obs(re, group, nolamps, onlyselected, actob, timeoffset, 0);
-
-	/* once all objects are added to the database we might drop out
-	 * derived render caches to save some memory.
-	 */
-	for (SETLOOPER(re->scene, sce_iter, base)) {
-		BKE_object_free_derivedRender_caches(base->object);
-	}
 
 	if (!re->test_break(re->tbh))
 		RE_makeRenderInstances(re);

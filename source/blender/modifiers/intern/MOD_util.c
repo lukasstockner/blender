@@ -215,7 +215,8 @@ DerivedMesh *get_dm(Object *ob, struct BMEditMesh *em, DerivedMesh *dm,
 DerivedMesh *get_operand_dm(Object *ob, ModifierApplyFlag flag)
 {
 	if (flag & MOD_APPLY_RENDER) {
-		return ob->derivedRender;
+		/* TODO(sergey): Use proper derivedRender when known. */
+		return ob->derivedFinal;
 	}
 	else {
 		return ob->derivedFinal;

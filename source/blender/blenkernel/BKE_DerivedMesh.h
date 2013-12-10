@@ -642,8 +642,6 @@ DerivedMesh *mesh_get_derived_deform(struct Scene *scene, struct Object *ob,
 DerivedMesh *mesh_create_derived_for_modifier(struct Scene *scene, struct Object *ob,
                                               struct ModifierData *md, int build_shapekey_layers);
 
-DerivedMesh *mesh_get_derived_render(struct Scene *scene, struct Object *ob,
-                                     CustomDataMask dataMask);
 DerivedMesh *mesh_create_derived_render(struct Scene *scene, struct Object *ob,
                                         CustomDataMask dataMask);
 

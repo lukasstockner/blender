@@ -2324,21 +2324,6 @@ void makeDerivedMesh(Scene *scene, Object *ob, BMEditMesh *em,
 	}
 }
 
-void makeDerivedMeshRender(Scene *scene, Object *ob, CustomDataMask dataMask)
-{
-	if (ob->derivedRender) {
-		ob->derivedRender->needsFree = 1;
-		ob->derivedRender->release(ob->derivedRender);
-	}
-
-	mesh_calc_modifiers(scene, ob, NULL, NULL, &ob->derivedRender, 1, 1, 0, dataMask, -1, 0, 0);
-
-	ob->derivedRender->needsFree = 0;
-	ob->lastRenderDataMask = dataMask;
-
-	BLI_assert(!(ob->derivedRender->dirty & DM_DIRTY_NORMALS));
-}
-
 /***/
 
 DerivedMesh *mesh_get_derived_final(Scene *scene, Object *ob, CustomDataMask dataMask)
@@ -2368,22 +2353,13 @@ DerivedMesh *mesh_get_derived_deform(Scene *scene, Object *ob, CustomDataMask da
 	return ob->derivedDeform;
 }
 
-DerivedMesh *mesh_get_derived_render(Scene *scene, Object *ob, CustomDataMask dataMask)
-{
-	if (!ob->derivedRender || (dataMask & ob->lastRenderDataMask) != dataMask) {
-		makeDerivedMeshRender(scene, ob, dataMask);
-	}
-
-	return ob->derivedRender;
-}
-
 DerivedMesh *mesh_create_derived_render(Scene *scene, Object *ob, CustomDataMask dataMask)
 {
-	if (!ob->derivedRender || (dataMask & ob->lastRenderDataMask) != dataMask) {
-		makeDerivedMeshRender(scene, ob, dataMask);
-	}
+	DerivedMesh *final;
+    
+	mesh_calc_modifiers(scene, ob, NULL, NULL, &final, 1, 1, 0, dataMask, -1, 0, 0);
 
-	return ob->derivedRender;
+	return final;
 }
 
 DerivedMesh *mesh_create_derived_index_render(Scene *scene, Object *ob, CustomDataMask dataMask, int index)

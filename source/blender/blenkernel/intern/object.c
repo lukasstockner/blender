@@ -320,22 +320,12 @@ void BKE_object_free_derived_caches(Object *ob)
 	}
 }
 
-void BKE_object_free_derivedRender_caches(Object *ob)
-{
-	if (ob->derivedRender) {
-		ob->derivedRender->needsFree = 1;
-		ob->derivedRender->release(ob->derivedRender);
-		ob->derivedRender = NULL;
-	}
-}
-
 /* do not free object itself */
 void BKE_object_free(Object *ob)
 {
 	int a;
 	
 	BKE_object_free_derived_caches(ob);
-	BKE_object_free_derivedRender_caches(ob);
 	
 	/* disconnect specific data, but not for lib data (might be indirect data, can get relinked) */
 	if (ob->data) {
@@ -1350,7 +1340,6 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, int copy_caches)
 	
 	obn->derivedDeform = NULL;
 	obn->derivedFinal = NULL;
-	obn->derivedRender = NULL;
 
 	obn->gpulamp.first = obn->gpulamp.last = NULL;
 	obn->pc_ids.first = obn->pc_ids.last = NULL;
@@ -2785,15 +2774,13 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 			switch (ob->type) {
 				case OB_MESH:
 				{
-					if (evaluation_context->for_render == false) {
-						BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
-						uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
-						if (em) {
-							makeDerivedMesh(scene, ob, em,  data_mask, 0); /* was CD_MASK_BAREMESH */
-						}
-						else {
-							makeDerivedMesh(scene, ob, NULL, data_mask, 0);
-						}
+					BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
+					uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
+					if (em) {
+						makeDerivedMesh(scene, ob, em,  data_mask, 0); /* was CD_MASK_BAREMESH */
+					}
+					else {
+						makeDerivedMesh(scene, ob, NULL, data_mask, 0);
 					}
 					break;
 				}
@@ -2810,9 +2797,7 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 					break;
 
 				case OB_MBALL:
-					if (evaluation_context->for_render == false) {
-						BKE_displist_make_mball(scene, ob);
-					}
+					BKE_displist_make_mball(scene, ob);
 					break;
 
 				case OB_CURVE:
@@ -2824,9 +2809,7 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 					break;
 				
 				case OB_LATTICE:
-					if (evaluation_context->for_render == false) {
-						BKE_lattice_modifiers_calc(scene, ob);
-					}
+					BKE_lattice_modifiers_calc(scene, ob);
 					break;
 			}
 			

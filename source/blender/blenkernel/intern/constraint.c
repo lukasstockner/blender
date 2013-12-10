@@ -367,7 +367,8 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
 
 	/* get DerivedMesh */
 	if (for_render) {
-		dm = ob->derivedRender;
+		/* TODO(sergey); Use proper derivedRender when known. */
+		dm = ob->derivedFinal;
 	}
 	else if (em) {
 		/* target is in editmode, so get a special derived mesh */

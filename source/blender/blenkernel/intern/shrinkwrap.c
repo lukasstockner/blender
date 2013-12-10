@@ -74,7 +74,8 @@ DerivedMesh *object_get_derived_final(Object *ob, bool forRender)
 	BMEditMesh *em = me->edit_btmesh;
 
 	if (forRender) {
-		return ob->derivedRender;
+		/* TODO(sergey): Use proper derivedRender when known. */
+		return ob->derivedFinal;
 	}
 
 	if (em) {
