@@ -395,7 +395,6 @@ class NODE_PT_quality(bpy.types.Panel):
         col.prop(tree, "use_two_pass")
         col.prop(tree, "use_viewer_border")
         col.prop(snode, "show_highlight")
-        col.prop(snode, "use_hidden_preview")
 
 
 class NODE_UL_interface_sockets(bpy.types.UIList):
@@ -410,7 +409,7 @@ class NODE_UL_interface_sockets(bpy.types.UIList):
             if not socket.is_output:
                 row.template_node_socket(color)
 
-            row.label(text=socket.name, icon_value=icon)
+            row.prop(socket, "name", text="", emboss=False, icon_value=icon)
 
             # outputs get icon on the right
             if socket.is_output:

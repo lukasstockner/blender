@@ -13,6 +13,10 @@ set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
+if(WITH_CYCLES_OPTIMIZED_KERNEL_SSE41)
+	 add_definitions(-DWITH_CYCLES_OPTIMIZED_KERNEL_SSE41=1)
+endif()	
+
 set(SRC
 	device.cpp
 	device_cpu.cpp
@@ -22,7 +26,7 @@ set(SRC
 	device_task.cpp
 )
 
-if(WITH_NETWORK)
+if(WITH_CYCLES_NETWORK)
 	list(APPEND SRC
 		device_network.cpp
 	)

@@ -443,7 +443,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	uiStringInfo rna_struct = {BUT_GET_RNASTRUCT_IDENTIFIER, NULL};
 	uiStringInfo rna_prop = {BUT_GET_RNAPROP_IDENTIFIER, NULL};
 
-	if (but->flag & UI_BUT_NO_TOOLTIP)
+	if (but->drawflag & UI_BUT_NO_TOOLTIP)
 		return NULL;
 
 	/* create tooltip data */
@@ -539,7 +539,10 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		/* so the context is passed to itemf functions (some py itemf functions use it) */
 		WM_operator_properties_sanitize(opptr, false);
 
-		str = WM_operator_pystring_ex(C, NULL, false, but->optype, opptr);
+		str = WM_operator_pystring_ex(C, NULL, false, false, but->optype, opptr);
+
+		/* avoid overly verbose tips (eg, arrays of 20 layers), exact limit is arbitrary */
+		WM_operator_pystring_abbreviate(str, 32);
 
 		/* operator info */
 		if ((U.flag & USER_TOOLTIPS_PYTHON) == 0) {
@@ -660,7 +663,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	h = BLF_height_max(data->fstyle.uifont_id);
 
 	for (a = 0, fontw = 0, fonth = 0; a < data->totline; a++) {
-		w = BLF_width(data->fstyle.uifont_id, data->lines[a]);
+		w = BLF_width(data->fstyle.uifont_id, data->lines[a], sizeof(data->lines[a]));
 		fontw = max_ff(fontw, (float)w);
 		fonth += (a == 0) ? h : h + TIP_MARGIN_Y;
 	}
@@ -873,7 +876,7 @@ static void ui_searchbox_select(bContext *C, ARegion *ar, uiBut *but, int step)
 	ED_region_tag_redraw(ar);
 }
 
-static void ui_searchbox_butrect(rcti *rect, uiSearchboxData *data, int itemnr)
+static void ui_searchbox_butrect(rcti *r_rect, uiSearchboxData *data, int itemnr)
 {
 	/* thumbnail preview */
 	if (data->preview) {
@@ -881,27 +884,27 @@ static void ui_searchbox_butrect(rcti *rect, uiSearchboxData *data, int itemnr)
 		int buth = (BLI_rcti_size_y(&data->bbox) - 2 * MENU_TOP) / data->prv_rows;
 		int row, col;
 		
-		*rect = data->bbox;
+		*r_rect = data->bbox;
 		
 		col = itemnr % data->prv_cols;
 		row = itemnr / data->prv_cols;
 		
-		rect->xmin += col * butw;
-		rect->xmax = rect->xmin + butw;
+		r_rect->xmin += col * butw;
+		r_rect->xmax = r_rect->xmin + butw;
 		
-		rect->ymax = data->bbox.ymax - MENU_TOP - (row * buth);
-		rect->ymin = rect->ymax - buth;
+		r_rect->ymax = data->bbox.ymax - MENU_TOP - (row * buth);
+		r_rect->ymin = r_rect->ymax - buth;
 	}
 	/* list view */
 	else {
 		int buth = (BLI_rcti_size_y(&data->bbox) - 2 * MENU_TOP) / SEARCH_ITEMS;
 		
-		*rect = data->bbox;
-		rect->xmin = data->bbox.xmin + 3.0f;
-		rect->xmax = data->bbox.xmax - 3.0f;
+		*r_rect = data->bbox;
+		r_rect->xmin = data->bbox.xmin + 3.0f;
+		r_rect->xmax = data->bbox.xmax - 3.0f;
 		
-		rect->ymax = data->bbox.ymax - MENU_TOP - itemnr * buth;
-		rect->ymin = rect->ymax - buth;
+		r_rect->ymax = data->bbox.ymax - MENU_TOP - itemnr * buth;
+		r_rect->ymin = r_rect->ymax - buth;
 	}
 	
 }
@@ -1051,7 +1054,7 @@ void ui_searchbox_update(bContext *C, ARegion *ar, uiBut *but, const bool reset)
 	ED_region_tag_redraw(ar);
 }
 
-bool ui_searchbox_autocomplete(bContext *C, ARegion *ar, uiBut *but, char *str)
+int ui_searchbox_autocomplete(bContext *C, ARegion *ar, uiBut *but, char *str)
 {
 	uiSearchboxData *data = ar->regiondata;
 	int match = AUTOCOMPLETE_NO_MATCH;
@@ -1064,7 +1067,8 @@ bool ui_searchbox_autocomplete(bContext *C, ARegion *ar, uiBut *but, char *str)
 		match = autocomplete_end(data->items.autocpl, str);
 		data->items.autocpl = NULL;
 	}
-	return match != AUTOCOMPLETE_NO_MATCH;
+
+	return match;
 }
 
 static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
@@ -1389,9 +1393,9 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 
 	/* widget_roundbox_set has this correction too, keep in sync */
 	if (but->type != PULLDOWN) {
-		if (but->flag & UI_BUT_ALIGN_TOP)
+		if (but->drawflag & UI_BUT_ALIGN_TOP)
 			butrct.ymax += U.pixelsize;
-		if (but->flag & UI_BUT_ALIGN_LEFT)
+		if (but->drawflag & UI_BUT_ALIGN_LEFT)
 			butrct.xmin -= U.pixelsize;
 	}
 	
@@ -1791,7 +1795,6 @@ static void ui_block_func_MENUSTR(bContext *UNUSED(C), uiLayout *layout, void *a
 	uiBlock *block = uiLayoutGetBlock(layout);
 	uiPopupBlockHandle *handle = block->handle;
 	uiLayout *split, *column = NULL;
-	uiBut *bt;
 	MenuData *md;
 	MenuEntry *entry;
 	const char *instr = arg_str;
@@ -1800,7 +1803,7 @@ static void ui_block_func_MENUSTR(bContext *UNUSED(C), uiLayout *layout, void *a
 	int nbr_entries_nosepr = 0;
 
 	uiBlockSetFlag(block, UI_BLOCK_MOVEMOUSE_QUIT);
-	
+
 	/* compute menu data */
 	md = decompose_menu_string(instr);
 
@@ -1838,9 +1841,8 @@ static void ui_block_func_MENUSTR(bContext *UNUSED(C), uiLayout *layout, void *a
 			uiItemL(layout, md->title, md->titleicon);
 		}
 		else {
-			uiItemL(layout, md->title, ICON_NONE);
-			bt = block->buttons.last;
-			bt->flag = UI_TEXT_LEFT;
+			/* Do not use uiItemL here, as our root layout is a menu one, it will add a fake blank icon! */
+			uiDefBut(block, LABEL, 0, md->title, 0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
 		}
 	}
 
@@ -1874,9 +1876,13 @@ static void ui_block_func_MENUSTR(bContext *UNUSED(C), uiLayout *layout, void *a
 
 		if (entry->sepr) {
 			if (entry->str[0]) {
-				uiItemL(column, entry->str, entry->icon);
-				bt = block->buttons.last;
-				bt->flag = UI_TEXT_LEFT;
+				if (entry->icon) {
+					uiItemL(column, entry->str, entry->icon);
+				}
+				else {
+					/* Do not use uiItemL here, as our root layout is a menu one, it will add a fake blank icon! */
+					uiDefBut(block, LABEL, 0, entry->str, 0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+				}
 			}
 			else {
 				uiItemS(column);
@@ -1891,7 +1897,7 @@ static void ui_block_func_MENUSTR(bContext *UNUSED(C), uiLayout *layout, void *a
 			          UI_UNIT_X * 5, UI_UNIT_X, &handle->retvalue, (float) entry->retval, 0.0, 0, -1, "");
 		}
 	}
-	
+
 	menudata_free(md);
 }
 
@@ -2191,11 +2197,11 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	
 	/* RGB values */
 	uiBlockBeginAlign(block);
-	bt = uiDefButR_prop(block, NUMSLI, 0, IFACE_("R "),  0, yco, butwidth, UI_UNIT_Y, ptr, prop, 0, 0.0, 0.0, 0, 3, TIP_("Red"));
+	bt = uiDefButR_prop(block, NUMSLI, 0, IFACE_("R:"),  0, yco, butwidth, UI_UNIT_Y, ptr, prop, 0, 0.0, 0.0, 0, 3, TIP_("Red"));
 	uiButSetFunc(bt, do_picker_rna_cb, bt, NULL);
-	bt = uiDefButR_prop(block, NUMSLI, 0, IFACE_("G "),  0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, ptr, prop, 1, 0.0, 0.0, 0, 3, TIP_("Green"));
+	bt = uiDefButR_prop(block, NUMSLI, 0, IFACE_("G:"),  0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, ptr, prop, 1, 0.0, 0.0, 0, 3, TIP_("Green"));
 	uiButSetFunc(bt, do_picker_rna_cb, bt, NULL);
-	bt = uiDefButR_prop(block, NUMSLI, 0, IFACE_("B "),  0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, ptr, prop, 2, 0.0, 0.0, 0, 3, TIP_("Blue"));
+	bt = uiDefButR_prop(block, NUMSLI, 0, IFACE_("B:"),  0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, ptr, prop, 2, 0.0, 0.0, 0, 3, TIP_("Blue"));
 	uiButSetFunc(bt, do_picker_rna_cb, bt, NULL);
 
 	/* could use uiItemFullR(col, ptr, prop, -1, 0, UI_ITEM_R_EXPAND|UI_ITEM_R_SLIDER, "", ICON_NONE);
@@ -2204,11 +2210,11 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	/* HSV values */
 	yco = -3.0f * UI_UNIT_Y;
 	uiBlockBeginAlign(block);
-	bt = uiDefButF(block, NUMSLI, 0, IFACE_("H "),   0, yco, butwidth, UI_UNIT_Y, hsv, 0.0, 1.0, 10, 3, TIP_("Hue"));
+	bt = uiDefButF(block, NUMSLI, 0, IFACE_("H:"),   0, yco, butwidth, UI_UNIT_Y, hsv, 0.0, 1.0, 10, 3, TIP_("Hue"));
 	uiButSetFunc(bt, do_hsv_rna_cb, bt, hsv);
-	bt = uiDefButF(block, NUMSLI, 0, IFACE_("S "),   0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, hsv + 1, 0.0, 1.0, 10, 3, TIP_("Saturation"));
+	bt = uiDefButF(block, NUMSLI, 0, IFACE_("S:"),   0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, hsv + 1, 0.0, 1.0, 10, 3, TIP_("Saturation"));
 	uiButSetFunc(bt, do_hsv_rna_cb, bt, hsv);
-	bt = uiDefButF(block, NUMSLI, 0, IFACE_("V "),   0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, hsv + 2, 0.0, softmax, 10, 3, TIP_("Value"));
+	bt = uiDefButF(block, NUMSLI, 0, IFACE_("V:"),   0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, hsv + 2, 0.0, softmax, 10, 3, TIP_("Value"));
 	bt->hardmax = hardmax;  /* not common but rgb  may be over 1.0 */
 	uiButSetFunc(bt, do_hsv_rna_cb, bt, hsv);
 	uiBlockEndAlign(block);
@@ -2560,7 +2566,7 @@ uiPopupMenu *uiPupMenuBegin(bContext *C, const char *title, int icon)
 		}
 		else {
 			but = uiDefBut(pup->block, LABEL, 0, title, 0, 0, 200, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
-			but->flag = UI_TEXT_LEFT;
+			but->drawflag = UI_BUT_TEXT_LEFT;
 		}
 	}
 

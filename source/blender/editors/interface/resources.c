@@ -389,10 +389,26 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 
 				case TH_NODE:
 					cp = ts->syntaxl; break;
-				case TH_NODE_IN_OUT:
+				case TH_NODE_INPUT:
 					cp = ts->syntaxn; break;
-				case TH_NODE_OPERATOR:
+				case TH_NODE_OUTPUT:
+					cp = ts->nodeclass_output; break;
+				case TH_NODE_COLOR:
 					cp = ts->syntaxb; break;
+				case TH_NODE_FILTER:
+					cp = ts->nodeclass_filter; break;
+				case TH_NODE_VECTOR:
+					cp = ts->nodeclass_vector; break;
+				case TH_NODE_TEXTURE:
+					cp = ts->nodeclass_texture; break;
+				case TH_NODE_PATTERN:
+					cp = ts->nodeclass_pattern; break;
+				case TH_NODE_SCRIPT:
+					cp = ts->nodeclass_script; break;
+				case TH_NODE_LAYOUT:
+					cp = ts->nodeclass_layout; break;
+				case TH_NODE_SHADER:
+					cp = ts->nodeclass_shader; break;
 				case TH_NODE_CONVERTOR:
 					cp = ts->syntaxv; break;
 				case TH_NODE_GROUP:
@@ -913,6 +929,8 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tima.back,   53, 53, 53, 255);
 	rgba_char_args_set(btheme->tima.vertex, 0, 0, 0, 255);
 	rgba_char_args_set(btheme->tima.vertex_select, 255, 133, 0, 255);
+	rgba_char_args_set(btheme->tima.wire_edit, 192, 192, 192, 255);
+	rgba_char_args_set(btheme->tima.edge_select, 255, 133, 0, 255);
 	btheme->tima.vertex_size = 3;
 	btheme->tima.facedot_size = 3;
 	rgba_char_args_set(btheme->tima.face,   255, 255, 255, 10);
@@ -981,10 +999,18 @@ void ui_theme_init_default(void)
 	btheme->tnode = btheme->tv3d;
 	rgba_char_args_set(btheme->tnode.edge_select, 255, 255, 255, 255);	/* wire selected */
 	rgba_char_args_set(btheme->tnode.syntaxl, 155, 155, 155, 160);  /* TH_NODE, backdrop */
-	rgba_char_args_set(btheme->tnode.syntaxn, 100, 100, 100, 255);  /* in/output */
+	rgba_char_args_set(btheme->tnode.syntaxn, 100, 100, 100, 255);  /* in */
+	rgba_char_args_set(btheme->tnode.nodeclass_output, 100, 100, 100, 255);  /* output */
 	rgba_char_args_set(btheme->tnode.syntaxb, 108, 105, 111, 255);  /* operator */
 	rgba_char_args_set(btheme->tnode.syntaxv, 104, 106, 117, 255);  /* generator */
 	rgba_char_args_set(btheme->tnode.syntaxc, 105, 117, 110, 255);  /* group */
+	rgba_char_args_set(btheme->tnode.nodeclass_texture, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_shader, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_filter, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_script, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_pattern, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_vector, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_layout, 108, 105, 111, 255);  /* operator */
 	rgba_char_args_set(btheme->tnode.movie, 155, 155, 155, 160);  /* frame */
 	rgba_char_args_set(btheme->tnode.syntaxs, 151, 116, 116, 255);  /* matte nodes */
 	rgba_char_args_set(btheme->tnode.syntaxd, 116, 151, 151, 255);  /* distort nodes */
@@ -2218,12 +2244,42 @@ void init_userdef_do_versions(void)
 
 	/* NOTE!! from now on use U.versionfile and U.subversionfile */
 
-	if (U.versionfile < 269 || (U.versionfile == 268 && U.subversionfile < 3)) {
+	if (U.versionfile < 268 || (U.versionfile == 268 && U.subversionfile < 3)) {
 		bTheme *btheme;
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_test_set(btheme->tima.uv_others, 96, 96, 96, 255);
 			rgba_char_args_test_set(btheme->tima.uv_shadow, 112, 112, 112, 255);
 		}
+	}
+
+	if (U.versionfile < 269 || (U.versionfile == 269 && U.subversionfile < 5)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set(btheme->tima.wire_edit, 192, 192, 192, 255);
+			rgba_char_args_set(btheme->tima.edge_select, 255, 133, 0, 255);
+		}
+	}
+
+	if (U.versionfile < 269 || (U.versionfile == 269 && U.subversionfile < 6)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			char r, g, b;
+			r = btheme->tnode.syntaxn[0];
+			g = btheme->tnode.syntaxn[1];
+			b = btheme->tnode.syntaxn[2];
+			rgba_char_args_test_set(btheme->tnode.nodeclass_output, r, g, b, 255);
+			r = btheme->tnode.syntaxb[0];
+			g = btheme->tnode.syntaxb[1];
+			b = btheme->tnode.syntaxb[2];
+			rgba_char_args_test_set(btheme->tnode.nodeclass_filter, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_vector, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_texture, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_shader, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_script, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_pattern, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_layout, r, g, b, 255);
+		}
+		
 	}
 	
 	if (U.versionfile < 270) {
@@ -2245,4 +2301,24 @@ void init_userdef_do_versions(void)
 	/* this timer uses U */
 // XXX	reset_autosave();
 
+}
+
+/**
+ * Override values in in-memory startup.blend, avoids resaving for small changes.
+ */
+void init_userdef_factory(void)
+{
+	/* defaults from T37518 */
+	U.uiflag2 |= USER_REGION_OVERLAP;
+
+	U.uiflag |= USER_AUTOPERSP;
+	U.uiflag |= USER_ORBIT_SELECTION;
+	U.uiflag |= USER_ZBUF_CURSOR;
+	U.uiflag |= USER_QUIT_PROMPT;
+	U.uiflag |= USER_CONTINUOUS_MOUSE;
+
+	U.ogl_multisamples = USER_MULTISAMPLE_4;
+
+	U.versions = 1;
+	U.savetime = 2;
 }

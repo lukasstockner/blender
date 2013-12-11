@@ -542,6 +542,8 @@ enum {
 	OB_NAVMESH               = 1 << 20,
 	OB_HASOBSTACLE           = 1 << 21,
 	OB_CHARACTER             = 1 << 22,
+
+	OB_RECORD_ANIMATION      = 1 << 23,
 };
 
 /* ob->gameflag2 */
@@ -607,7 +609,7 @@ enum {
 /* ob->shapeflag */
 enum {
 	OB_SHAPE_LOCK       = 1 << 0,
-	OB_SHAPE_TEMPLOCK   = 1 << 1,  /* deprecated */
+	// OB_SHAPE_TEMPLOCK   = 1 << 1,  /* deprecated */
 	OB_SHAPE_EDIT_MODE  = 1 << 2,
 };
 

@@ -435,6 +435,7 @@ class VIEW3D_MT_view_navigation(Menu):
         layout.separator()
 
         layout.operator("view3d.fly")
+        layout.operator("view3d.walk")
 
 
 class VIEW3D_MT_view_align(Menu):
@@ -745,6 +746,7 @@ class VIEW3D_MT_select_edit_lattice(Menu):
 
         layout.separator()
 
+        layout.operator("lattice.select_mirror")
         layout.operator("lattice.select_random")
         layout.operator("lattice.select_all").action = 'TOGGLE'
         layout.operator("lattice.select_all", text="Inverse").action = 'INVERT'

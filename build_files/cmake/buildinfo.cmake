@@ -8,14 +8,26 @@ set(MY_WC_BRANCH "unknown")
 set(MY_WC_COMMIT_TIMESTAMP 0)
 
 # Guess if this is a SVN working copy and then look up the revision
-if(EXISTS ${SOURCE_DIR}/.git/)
-	# The FindSubversion.cmake module is part of the standard distribution
+if(EXISTS ${SOURCE_DIR}/.git)
+	# The FindGit.cmake module is part of the standard distribution
 	include(FindGit)
 	if(GIT_FOUND)
-		execute_process(COMMAND git rev-parse --short HEAD
+		message(STATUS "-- Found Git: ${GIT_EXECUTABLE}")
+
+		execute_process(COMMAND git rev-parse --short @{u}
 		                WORKING_DIRECTORY ${SOURCE_DIR}
 		                OUTPUT_VARIABLE MY_WC_HASH
-		                OUTPUT_STRIP_TRAILING_WHITESPACE)
+		                OUTPUT_STRIP_TRAILING_WHITESPACE
+		                ERROR_QUIET)
+
+		if (MY_WC_HASH STREQUAL "")
+			# Local branch, not set to upstream.
+			# Well, let's use HEAD for now
+			execute_process(COMMAND git rev-parse --short HEAD
+			                WORKING_DIRECTORY ${SOURCE_DIR}
+			                OUTPUT_VARIABLE MY_WC_HASH
+			                OUTPUT_STRIP_TRAILING_WHITESPACE)
+		endif()
 
 		execute_process(COMMAND git rev-parse --abbrev-ref HEAD
 		                WORKING_DIRECTORY ${SOURCE_DIR}
@@ -44,7 +56,8 @@ if(EXISTS ${SOURCE_DIR}/.git/)
 			execute_process(COMMAND git log @{u}..
 			                WORKING_DIRECTORY ${SOURCE_DIR}
 			                OUTPUT_VARIABLE _git_unpushed_log
-			                OUTPUT_STRIP_TRAILING_WHITESPACE)
+			                OUTPUT_STRIP_TRAILING_WHITESPACE
+			                ERROR_QUIET)
 			if(NOT _git_unpushed_log STREQUAL "")
 				set(MY_WC_BRANCH "${MY_WC_BRANCH} (modified)")
 			endif()

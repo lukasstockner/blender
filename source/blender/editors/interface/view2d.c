@@ -174,7 +174,7 @@ static void view2d_masks(View2D *v2d, int check_scrollers)
  */
 void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 {
-	short tot_changed = 0, do_init;
+	bool tot_changed = false, do_init;
 	uiStyle *style = UI_GetStyle();
 
 	do_init = (v2d->flag & V2D_IS_INITIALISED) == 0;
@@ -937,11 +937,11 @@ void UI_view2d_totRect_set(View2D *v2d, int width, int height)
 	
 }
 
-int UI_view2d_tab_set(View2D *v2d, int tab)
+bool UI_view2d_tab_set(View2D *v2d, int tab)
 {
 	float default_offset[2] = {0.0f, 0.0f};
 	float *offset, *new_offset;
-	int changed = 0;
+	bool changed = false;
 
 	/* if tab changed, change offset */
 	if (tab != v2d->tab_cur && v2d->tab_offset) {
@@ -958,7 +958,7 @@ int UI_view2d_tab_set(View2D *v2d, int tab)
 
 		/* validation should happen in subsequent totRect_set */
 
-		changed = 1;
+		changed = true;
 	}
 
 	/* resize array if needed */
@@ -2172,7 +2172,7 @@ void UI_view2d_text_cache_add(View2D *v2d, float x, float y, const char *str, co
 }
 
 /* no clip (yet) */
-void UI_view2d_text_cache_rectf(View2D *v2d, rctf *rect, const char *str, const char col[4])
+void UI_view2d_text_cache_rectf(View2D *v2d, const rctf *rect, const char *str, const char col[4])
 {
 	int len = strlen(str) + 1;
 	View2DString *v2s = MEM_callocN(sizeof(View2DString) + len, "View2DString");
@@ -2196,7 +2196,7 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 	int col_pack_prev = 0;
 
 	/* investigate using BLF_ascender() */
-	const float default_height = strings.first ? BLF_height_default("28") : 0.0f;
+	const float default_height = strings.first ? BLF_height_default("28", 3) : 0.0f;
 	
 	// glMatrixMode(GL_PROJECTION);
 	// glPushMatrix();

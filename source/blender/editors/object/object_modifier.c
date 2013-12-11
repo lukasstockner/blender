@@ -2220,7 +2220,7 @@ static int laplaciandeform_bind_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_active_context(C);
 	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)edit_modifier_property_get(op, ob, eModifierType_LaplacianDeform);
-	
+
 	if (!lmd)
 		return OPERATOR_CANCELLED;
 	if (lmd->flag & MOD_LAPLACIANDEFORM_BIND) {

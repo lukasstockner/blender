@@ -819,16 +819,21 @@ enum {
 	MOD_SOLIDIFY_FLIP           = (1 << 5),
 };
 
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison MOD_SOLIDIFY_RIM_MATERIAL
+#endif
+
 typedef struct ScrewModifierData {
 	ModifierData modifier;
 
 	struct Object *ob_axis;
-	int steps;
-	int render_steps;
-	int iter;
+	unsigned int steps;
+	unsigned int render_steps;
+	unsigned int iter;
 	float screw_ofs;
 	float angle;
-	short axis;
+	char axis;
+	char pad;
 	short flag;
 } ScrewModifierData;
 
@@ -838,6 +843,8 @@ enum {
 	MOD_SCREW_OBJECT_OFFSET  = (1 << 2),
 /*	MOD_SCREW_OBJECT_ANGLE   = (1 << 4), */
 	MOD_SCREW_SMOOTH_SHADING = (1 << 5),
+	MOD_SCREW_UV_STRETCH_U   = (1 << 6),
+	MOD_SCREW_UV_STRETCH_V   = (1 << 7),
 };
 
 typedef struct OceanModifierData {
@@ -1187,6 +1194,10 @@ enum {
 	MOD_TRIANGULATE_BEAUTY = (1 << 0), /* deprecated */
 };
 
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison MOD_TRIANGULATE_BEAUTY
+#endif
+
 /* Triangulate methods - NGons */
 enum {
 	MOD_TRIANGULATE_NGON_BEAUTY = 0,
@@ -1302,6 +1313,22 @@ typedef struct LaplacianDeformModifierData {
 	void *cacheSystem;
 	short flag, pad[3];
 	
+} LaplacianDeformModifierData;
+
+/* Smooth modifier flags */
+enum {
+	MOD_LAPLACIANDEFORM_BIND = 1,
+};
+
+
+typedef struct LaplacianDeformModifierData {
+	ModifierData modifier;
+	char anchor_grp_name[64];  /* MAX_VGROUP_NAME */
+	int total_verts, repeat;
+	float *vertexco;
+	void *cache_system;  /* runtime only */
+	short flag, pad[3];
+
 } LaplacianDeformModifierData;
 
 /* Smooth modifier flags */

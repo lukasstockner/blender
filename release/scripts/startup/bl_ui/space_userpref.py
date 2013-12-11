@@ -210,10 +210,14 @@ class USERPREF_PT_interface(Panel):
 
         col.label(text="Menus:")
         col.prop(view, "use_mouse_over_open")
-        col.label(text="Menu Open Delay:")
-        col.prop(view, "open_toplevel_delay", text="Top Level")
-        col.prop(view, "open_sublevel_delay", text="Sub Level")
+        sub = col.column()
+        sub.active = view.use_mouse_over_open
 
+        sub.prop(view, "open_toplevel_delay", text="Top Level")
+        sub.prop(view, "open_sublevel_delay", text="Sub Level")
+
+        col.separator()
+        col.separator()
         col.separator()
 
         col.prop(view, "show_splash")
@@ -1046,6 +1050,28 @@ class USERPREF_PT_input(Panel):
             sub = col.column()
             sub.label(text="Trackpad:")
             sub.prop(inputs, "use_trackpad_natural")
+
+        col.separator()
+        sub = col.column()
+        sub.label(text="View Navigation:")
+        sub.row().prop(inputs, "navigation_mode", expand=True)
+        if inputs.navigation_mode == 'WALK':
+            walk = inputs.walk_navigation
+
+            sub.prop(walk, "use_mouse_reverse")
+            sub.prop(walk, "mouse_speed")
+            sub.prop(walk, "teleport_time")
+
+            sub = col.column(align=True)
+            sub.prop(walk, "walk_speed")
+            sub.prop(walk, "walk_speed_factor")
+
+            sub.separator()
+            sub.prop(walk, "use_gravity")
+            sub = col.column(align=True)
+            sub.active = walk.use_gravity
+            sub.prop(walk, "view_height")
+            sub.prop(walk, "jump_height")
 
         col.separator()
         sub = col.column()

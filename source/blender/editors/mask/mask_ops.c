@@ -38,6 +38,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_main.h"
 #include "BKE_mask.h"
+#include "BKE_report.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_mask_types.h"
@@ -942,11 +943,12 @@ static void delete_feather_points(MaskSplinePoint *point)
 	}
 }
 
-static int delete_exec(bContext *C, wmOperator *UNUSED(op))
+static int delete_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
+	int num_deleted = 0;
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 		MaskSpline *spline;
@@ -972,7 +974,6 @@ static int delete_exec(bContext *C, wmOperator *UNUSED(op))
 			}
 
 			if (count == 0) {
-
 				/* delete the whole spline */
 				BLI_remlink(&masklay->splines, spline);
 				BKE_mask_spline_free(spline);
@@ -983,6 +984,8 @@ static int delete_exec(bContext *C, wmOperator *UNUSED(op))
 				}
 
 				BKE_mask_layer_shape_changed_remove(masklay, mask_layer_shape_ofs, tot_point_orig);
+
+				num_deleted++;
 			}
 			else {
 				MaskSplinePoint *new_points;
@@ -1010,6 +1013,8 @@ static int delete_exec(bContext *C, wmOperator *UNUSED(op))
 						spline->tot_point--;
 
 						BKE_mask_layer_shape_changed_remove(masklay, mask_layer_shape_ofs + j, 1);
+
+						num_deleted++;
 					}
 				}
 
@@ -1031,10 +1036,15 @@ static int delete_exec(bContext *C, wmOperator *UNUSED(op))
 		}
 	}
 
+	if (num_deleted == 0)
+		return OPERATOR_CANCELLED;
+
 	/* TODO: only update edited splines */
 	BKE_mask_update_display(mask, CFRA);
 
 	WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+
+	BKE_reportf(op->reports, RPT_INFO, "Deleted %d control points from mask '%s'", num_deleted, mask->id.name);
 
 	return OPERATOR_FINISHED;
 }
@@ -1047,7 +1057,6 @@ void MASK_OT_delete(wmOperatorType *ot)
 	ot->idname = "MASK_OT_delete";
 
 	/* api callbacks */
-	ot->invoke = WM_operator_confirm;
 	ot->exec = delete_exec;
 	ot->poll = ED_maskedit_mask_poll;
 
@@ -1062,12 +1071,12 @@ static int mask_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
 
-	int change = FALSE;
+	bool changed = false;
 
 	/* do actual selection */
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 		MaskSpline *spline;
-		int change_layer = FALSE;
+		bool changed_layer = false;
 
 		if (masklay->restrictflag & (MASK_RESTRICT_VIEW | MASK_RESTRICT_SELECT)) {
 			continue;
@@ -1076,19 +1085,19 @@ static int mask_switch_direction_exec(bContext *C, wmOperator *UNUSED(op))
 		for (spline = masklay->splines.first; spline; spline = spline->next) {
 			if (ED_mask_spline_select_check(spline)) {
 				BKE_mask_spline_direction_switch(masklay, spline);
-				change = TRUE;
-				change_layer = TRUE;
+				changed = true;
+				changed_layer = true;
 			}
 		}
 
-		if (change_layer) {
+		if (changed_layer) {
 			if (IS_AUTOKEY_ON(scene)) {
 				ED_mask_layer_shape_auto_key(masklay, CFRA);
 			}
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		/* TODO: only update this spline */
 		BKE_mask_update_display(mask, CFRA);
 
@@ -1125,12 +1134,12 @@ static int mask_normals_make_consistent_exec(bContext *C, wmOperator *UNUSED(op)
 	MaskLayer *masklay;
 	int i;
 
-	int change = FALSE;
+	bool changed = false;
 
 	/* do actual selection */
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 		MaskSpline *spline;
-		int change_layer = FALSE;
+		bool changed_layer = false;
 
 		if (masklay->restrictflag & (MASK_RESTRICT_VIEW | MASK_RESTRICT_SELECT)) {
 			continue;
@@ -1142,20 +1151,20 @@ static int mask_normals_make_consistent_exec(bContext *C, wmOperator *UNUSED(op)
 
 				if (MASKPOINT_ISSEL_ANY(point)) {
 					BKE_mask_calc_handle_point_auto(spline, point, FALSE);
-					change = TRUE;
-					change_layer = TRUE;
+					changed = true;
+					changed_layer = true;
 				}
 			}
 		}
 
-		if (change_layer) {
+		if (changed_layer) {
 			if (IS_AUTOKEY_ON(scene)) {
 				ED_mask_layer_shape_auto_key(masklay, CFRA);
 			}
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		/* TODO: only update this spline */
 		BKE_mask_update_display(mask, CFRA);
 
@@ -1193,7 +1202,7 @@ static int set_handle_type_exec(bContext *C, wmOperator *op)
 	MaskLayer *masklay;
 	int handle_type = RNA_enum_get(op->ptr, "type");
 
-	bool change = false;
+	bool changed = false;
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 		MaskSpline *spline;
@@ -1211,13 +1220,13 @@ static int set_handle_type_exec(bContext *C, wmOperator *op)
 					BezTriple *bezt = &point->bezt;
 
 					bezt->h1 = bezt->h2 = handle_type;
-					change = true;
+					changed = true;
 				}
 			}
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
 		DAG_id_tag_update(&mask->id, 0);
 
@@ -1258,14 +1267,14 @@ static int mask_hide_view_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
-	int changed = FALSE;
+	bool changed = false;
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 
 		if (masklay->restrictflag & OB_RESTRICT_VIEW) {
 			ED_mask_layer_select_set(masklay, TRUE);
 			masklay->restrictflag &= ~OB_RESTRICT_VIEW;
-			changed = 1;
+			changed = true;
 		}
 	}
 
@@ -1301,7 +1310,7 @@ static int mask_hide_view_set_exec(bContext *C, wmOperator *op)
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
 	const int unselected = RNA_boolean_get(op->ptr, "unselected");
-	int changed = FALSE;
+	bool changed = false;
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
 
@@ -1314,7 +1323,7 @@ static int mask_hide_view_set_exec(bContext *C, wmOperator *op)
 				ED_mask_layer_select_set(masklay, FALSE);
 
 				masklay->restrictflag |= OB_RESTRICT_VIEW;
-				changed = 1;
+				changed = true;
 				if (masklay == BKE_mask_layer_active(mask)) {
 					BKE_mask_layer_active_set(mask, NULL);
 				}
@@ -1323,7 +1332,7 @@ static int mask_hide_view_set_exec(bContext *C, wmOperator *op)
 		else {
 			if (!ED_mask_layer_select_check(masklay)) {
 				masklay->restrictflag |= OB_RESTRICT_VIEW;
-				changed = 1;
+				changed = true;
 				if (masklay == BKE_mask_layer_active(mask)) {
 					BKE_mask_layer_active_set(mask, NULL);
 				}
@@ -1365,7 +1374,7 @@ static int mask_feather_weight_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	Scene *scene = CTX_data_scene(C);
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
-	int changed = FALSE;
+	bool changed = false;
 	int i;
 
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
@@ -1382,7 +1391,7 @@ static int mask_feather_weight_clear_exec(bContext *C, wmOperator *UNUSED(op))
 				if (MASKPOINT_ISSEL_ANY(point)) {
 					BezTriple *bezt = &point->bezt;
 					bezt->weight = 0.0f;
-					changed = TRUE;
+					changed = true;
 				}
 			}
 		}

@@ -209,21 +209,24 @@ void ED_gplayer_frames_select_border(bGPDlayer *gpl, float min, float max, short
 /* Frame Editing Tools */
 
 /* Delete selected frames */
-void ED_gplayer_frames_delete(bGPDlayer *gpl)
+bool ED_gplayer_frames_delete(bGPDlayer *gpl)
 {
 	bGPDframe *gpf, *gpfn;
+	bool changed = false;
 	
 	/* error checking */
 	if (gpl == NULL)
-		return;
+		return false;
 		
 	/* check for frames to delete */
 	for (gpf = gpl->frames.first; gpf; gpf = gpfn) {
 		gpfn = gpf->next;
 		
 		if (gpf->flag & GP_FRAME_SELECT)
-			gpencil_layer_delframe(gpl, gpf);
+			changed |= gpencil_layer_delframe(gpl, gpf);
 	}
+
+	return changed;
 }
 
 /* Duplicate selected frames from given gp-layer */

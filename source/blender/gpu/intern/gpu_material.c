@@ -355,6 +355,11 @@ int GPU_material_bound(GPUMaterial *material)
 	return material->bound;
 }
 
+Scene *GPU_material_scene(GPUMaterial *material)
+{
+	return material->scene;
+}
+
 void GPU_material_vertex_attributes(GPUMaterial *material, GPUVertexAttribs *attribs)
 {
 	*attribs = material->attribs;
@@ -1664,8 +1669,8 @@ void GPU_lamp_update_distance(GPULamp *lamp, float distance, float att1, float a
 
 void GPU_lamp_update_spot(GPULamp *lamp, float spotsize, float spotblend)
 {
-	lamp->spotsi= cosf((float)M_PI * spotsize / 360.0f);
-	lamp->spotbl= (1.0f - lamp->spotsi) * spotblend;
+	lamp->spotsi = cosf(spotsize * 0.5f);
+	lamp->spotbl = (1.0f - lamp->spotsi) * spotblend;
 }
 
 static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *la, GPULamp *lamp)
@@ -1690,11 +1695,11 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 
 	GPU_lamp_update(lamp, ob->lay, (ob->restrictflag & OB_RESTRICT_RENDER), ob->obmat);
 
-	lamp->spotsi= la->spotsize;
+	lamp->spotsi = la->spotsize;
 	if (lamp->mode & LA_HALO)
-		if (lamp->spotsi > 170.0f)
-			lamp->spotsi = 170.0f;
-	lamp->spotsi= cosf((float)M_PI*lamp->spotsi/360.0f);
+		if (lamp->spotsi > DEG2RADF(170.0f))
+			lamp->spotsi = DEG2RADF(170.0f);
+	lamp->spotsi = cosf(lamp->spotsi * 0.5f);
 	lamp->spotbl= (1.0f - lamp->spotsi)*la->spotblend;
 	lamp->k= la->k;
 
@@ -1951,6 +1956,48 @@ int GPU_lamp_shadow_layer(GPULamp *lamp)
 		return lamp->lay;
 	else
 		return -1;
+}
+
+GPUNodeLink *GPU_lamp_get_data(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **col, GPUNodeLink **lv, GPUNodeLink **dist, GPUNodeLink **shadow)
+{
+	GPUNodeLink *visifac;
+
+	*col = GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob);
+	visifac = lamp_get_visibility(mat, lamp, lv, dist);
+	shade_light_textures(mat, lamp, col);
+
+	if (GPU_lamp_has_shadow_buffer(lamp)) {
+		GPUNodeLink *vn, *inp;
+
+		GPU_link(mat, "shade_norm", GPU_builtin(GPU_VIEW_NORMAL), &vn);
+		GPU_link(mat, "shade_inp", vn, *lv, &inp);
+		mat->dynproperty |= DYN_LAMP_PERSMAT;
+
+		if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
+			GPU_link(mat, "shadows_only_vsm",
+				 GPU_builtin(GPU_VIEW_POSITION),
+				 GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+				 GPU_dynamic_uniform((float*)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
+				 GPU_uniform(&lamp->bias), GPU_uniform(&lamp->la->bleedbias),
+				 GPU_uniform(lamp->shadow_color), inp, shadow);
+		}
+		else {
+			GPU_link(mat, "shadows_only",
+				 GPU_builtin(GPU_VIEW_POSITION),
+				 GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+				 GPU_dynamic_uniform((float*)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
+				 GPU_uniform(&lamp->bias), GPU_uniform(lamp->shadow_color), inp, shadow);
+		}
+	}
+	else {
+		GPU_link(mat, "set_rgb_one", shadow);
+	}
+
+	/* ensure shadow buffer and lamp textures will be updated */
+	add_user_list(&mat->lamps, lamp);
+	add_user_list(&lamp->materials, mat->ma);
+
+	return visifac;
 }
 
 /* export the GLSL shader */

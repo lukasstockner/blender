@@ -54,13 +54,16 @@ void cent_quad_v3(float r[3], const float a[3], const float b[3], const float c[
 float normal_tri_v3(float r[3], const float a[3], const float b[3], const float c[3]);
 float normal_quad_v3(float r[3], const float a[3], const float b[3], const float c[3], const float d[3]);
 
-float area_tri_v2(const float a[2], const float b[2], const float c[2]);
-float area_tri_signed_v2(const float v1[2], const float v2[2], const float v3[2]);
+MINLINE float area_tri_v2(const float a[2], const float b[2], const float c[2]);
+MINLINE float area_tri_signed_v2(const float v1[2], const float v2[2], const float v3[2]);
 float area_tri_v3(const float a[3], const float b[3], const float c[3]);
 float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3], const float normal[3]);
 float area_quad_v3(const float a[3], const float b[3], const float c[3], const float d[3]);
 float area_poly_v3(int nr, float verts[][3], const float normal[3]);
 float area_poly_v2(int nr, float verts[][2]);
+
+MINLINE float cross_tri_v2(const float v1[2], const float v2[2], const float v3[2]);
+float cross_poly_v2(int nr, float verts[][2]);
 
 /********************************* Planes **********************************/
 
@@ -219,6 +222,8 @@ int barycentric_inside_triangle_v2(const float w[3]);
 
 void resolve_tri_uv(float r_uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2]);
 void resolve_quad_uv(float uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2], const float st3[2]);
+void resolve_quad_uv_deriv(float r_uv[2], float r_deriv[2][2],
+                           const float st[2], const float st0[2], const float st1[2], const float st2[2], const float st3[2]);
 
 /* use to find the point of a UV on a face */
 void interp_bilinear_quad_v3(float data[4][3], float u, float v, float res[3]);
@@ -279,6 +284,7 @@ MINLINE void zero_sh(float r[9]);
 MINLINE void copy_sh_sh(float r[9], const float a[9]);
 MINLINE void mul_sh_fl(float r[9], const float f);
 MINLINE void add_sh_shsh(float r[9], const float a[9], const float b[9]);
+MINLINE float dot_shsh(const float a[9], const float b[9]);
 
 MINLINE float eval_shv3(float r[9], const float v[3]);
 MINLINE float diffuse_shv3(float r[9], const float v[3]);

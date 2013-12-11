@@ -475,19 +475,55 @@ void *CCL_python_module_init()
 	PyObject *mod = PyModule_Create(&ccl::module);
 
 #ifdef WITH_OSL
+	/* TODO(sergey): This gives us library we've been linking against.
+	 *               In theory with dynamic OSL library it might not be
+	 *               accurate, but there's nothing in OSL API which we
+	 *               might use th get version in runtime.
+	 */
+	int curversion = OSL_LIBRARY_VERSION_CODE;
 	PyModule_AddObject(mod, "with_osl", Py_True);
 	Py_INCREF(Py_True);
+	PyModule_AddObject(mod, "osl_version",
+	                   Py_BuildValue("(iii)",
+	                                  curversion / 10000, (curversion / 100) % 100, curversion % 100));
+	PyModule_AddObject(mod, "osl_version_string",
+	                   PyUnicode_FromFormat("%2d, %2d, %2d",
+	                                        curversion / 10000, (curversion / 100) % 100, curversion % 100));
 #else
 	PyModule_AddObject(mod, "with_osl", Py_False);
 	Py_INCREF(Py_False);
+	PyModule_AddStringConstant(mod, "osl_version", "unknown");
+	PyModule_AddStringConstant(mod, "osl_version_string", "unknown");
 #endif
+
+#ifdef WITH_NETWORK
+	PyModule_AddObject(mod, "with_network", Py_True);
+	Py_INCREF(Py_True);
+#else /* WITH_NETWORK */
+	PyModule_AddObject(mod, "with_network", Py_False);
+	Py_INCREF(Py_False);
+#endif /* WITH_NETWORK */
 
 	return (void*)mod;
 }
 
-CCLDeviceInfo *CCL_compute_device_list(int opencl)
+CCLDeviceInfo *CCL_compute_device_list(int device_type)
 {
-	ccl::DeviceType type = (opencl)? ccl::DEVICE_OPENCL: ccl::DEVICE_CUDA;
+	ccl::DeviceType type;
+	switch(device_type) {
+		case 0:
+			type = ccl::DEVICE_CUDA;
+			break;
+		case 1:
+			type = ccl::DEVICE_OPENCL;
+			break;
+		case 2:
+			type = ccl::DEVICE_NETWORK;
+			break;
+		default:
+			type = ccl::DEVICE_NONE;
+			break;
+	}
 	return ccl::compute_device_list(type);
 }
 

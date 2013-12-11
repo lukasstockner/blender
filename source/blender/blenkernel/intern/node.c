@@ -122,7 +122,6 @@ static void node_init(const struct bContext *C, bNodeTree *ntree, bNode *node)
 	node->miniwidth = 42.0f;
 	node->height = ntype->height;
 	node->color[0] = node->color[1] = node->color[2] = 0.608;   /* default theme color */
-	
 	/* initialize the node name with the node label.
 	 * note: do this after the initfunc so nodes get their data set which may be used in naming
 	 * (node groups for example) */
@@ -134,10 +133,13 @@ static void node_init(const struct bContext *C, bNodeTree *ntree, bNode *node)
 	nodeUniqueName(ntree, node);
 	
 	node_add_sockets_from_type(ntree, node, ntype);
-	
+
 	if (ntype->initfunc != NULL)
 		ntype->initfunc(ntree, node);
-	
+
+	if (ntree->typeinfo->node_add_init != NULL)
+		ntree->typeinfo->node_add_init(ntree, node);
+
 	/* extra init callback */
 	if (ntype->initfunc_api) {
 		PointerRNA ptr;
@@ -1588,14 +1590,14 @@ static void node_unlink_attached(bNodeTree *ntree, bNode *parent)
 }
 
 /** \note caller needs to manage node->id user */
-void nodeFreeNode(bNodeTree *ntree, bNode *node)
+static void node_free_node_ex(bNodeTree *ntree, bNode *node, bool use_api_free_cb)
 {
 	bNodeSocket *sock, *nextsock;
 	char propname_esc[MAX_IDPROP_NAME * 2];
 	char prefix[MAX_IDPROP_NAME * 2];
 	
 	/* extra free callback */
-	if (node->typeinfo && node->typeinfo->freefunc_api) {
+	if (use_api_free_cb && node->typeinfo->freefunc_api) {
 		PointerRNA ptr;
 		RNA_pointer_create((ID *)ntree, &RNA_Node, node, &ptr);
 		
@@ -1617,7 +1619,7 @@ void nodeFreeNode(bNodeTree *ntree, bNode *node)
 
 		BKE_animdata_fix_paths_remove((ID *)ntree, prefix);
 
-		if (ntree->typeinfo && ntree->typeinfo->free_node_cache)
+		if (ntree->typeinfo->free_node_cache)
 			ntree->typeinfo->free_node_cache(ntree, node);
 		
 		/* texture node has bad habit of keeping exec data around */
@@ -1626,7 +1628,7 @@ void nodeFreeNode(bNodeTree *ntree, bNode *node)
 			ntree->execdata = NULL;
 		}
 		
-		if (node->typeinfo && node->typeinfo->freefunc)
+		if (node->typeinfo->freefunc)
 			node->typeinfo->freefunc(node);
 	}
 	
@@ -1652,6 +1654,11 @@ void nodeFreeNode(bNodeTree *ntree, bNode *node)
 	
 	if (ntree)
 		ntree->update |= NTREE_UPDATE_NODES;
+}
+
+void nodeFreeNode(bNodeTree *ntree, bNode *node)
+{
+	node_free_node_ex(ntree, node, true);
 }
 
 static void node_socket_interface_free(bNodeTree *UNUSED(ntree), bNodeSocket *sock)
@@ -1736,7 +1743,7 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const short do_id_user)
 		(void)do_id_user;
 #endif
 
-		nodeFreeNode(ntree, node);
+		node_free_node_ex(ntree, node, false);
 	}
 
 	/* free interface sockets */
@@ -2507,7 +2514,7 @@ void BKE_node_clipboard_clear(void)
 	
 	for (node = node_clipboard.nodes.first; node; node = node_next) {
 		node_next = node->next;
-		nodeFreeNode(NULL, node);
+		node_free_node_ex(NULL, node, false);
 	}
 	node_clipboard.nodes.first = node_clipboard.nodes.last = NULL;
 
@@ -2979,22 +2986,22 @@ void nodeUpdate(bNodeTree *ntree, bNode *node)
 	ntree->is_updating = FALSE;
 }
 
-int nodeUpdateID(bNodeTree *ntree, ID *id)
+bool nodeUpdateID(bNodeTree *ntree, ID *id)
 {
 	bNode *node;
-	int change = FALSE;
+	bool changed = false;
 	
 	if (ELEM(NULL, id, ntree))
-		return change;
+		return changed;
 	
 	/* avoid reentrant updates, can be caused by RNA update callbacks */
 	if (ntree->is_updating)
-		return change;
-	ntree->is_updating = TRUE;
+		return changed;
+	ntree->is_updating = true;
 	
 	for (node = ntree->nodes.first; node; node = node->next) {
 		if (node->id == id) {
-			change = TRUE;
+			changed = true;
 			node->update |= NODE_UPDATE_ID;
 			if (node->typeinfo->updatefunc)
 				node->typeinfo->updatefunc(ntree, node);
@@ -3008,7 +3015,7 @@ int nodeUpdateID(bNodeTree *ntree, ID *id)
 	}
 	
 	ntree->is_updating = FALSE;
-	return change;
+	return changed;
 }
 
 void nodeUpdateInternalLinks(bNodeTree *ntree, bNode *node)
@@ -3435,6 +3442,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_output();
 	register_node_type_sh_material();
 	register_node_type_sh_camera();
+	register_node_type_sh_lamp();
 	register_node_type_sh_gamma();
 	register_node_type_sh_brightcontrast();
 	register_node_type_sh_value();

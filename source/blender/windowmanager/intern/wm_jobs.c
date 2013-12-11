@@ -222,7 +222,7 @@ wmJob *WM_jobs_get(wmWindowManager *wm, wmWindow *win, void *owner, const char *
 }
 
 /* returns true if job runs, for UI (progress) indicators */
-int WM_jobs_test(wmWindowManager *wm, void *owner, int job_type)
+bool WM_jobs_test(wmWindowManager *wm, void *owner, int job_type)
 {
 	wmJob *wm_job;
 	
@@ -280,7 +280,7 @@ void *WM_jobs_customdata_from_type(wmWindowManager *wm, int job_type)
 	return NULL;
 }
 
-int WM_jobs_is_running(wmJob *wm_job)
+bool WM_jobs_is_running(wmJob *wm_job)
 {
 	return wm_job->running;
 }
@@ -523,9 +523,9 @@ void WM_jobs_kill(wmWindowManager *wm, void *owner, void (*startjob)(void *, sho
 	wm_job = wm->jobs.first;
 	while (wm_job) {
 		if (wm_job->owner == owner || wm_job->startjob == startjob) {
-			wmJob *bill = wm_job;
+			wmJob *wm_job_kill = wm_job;
 			wm_job = wm_job->next;
-			wm_jobs_kill_job(wm, bill);
+			wm_jobs_kill_job(wm, wm_job_kill);
 		}
 		else {
 			wm_job = wm_job->next;
@@ -649,7 +649,7 @@ void wm_jobs_timer(const bContext *C, wmWindowManager *wm, wmTimer *wt)
 	}
 }
 
-int WM_jobs_has_running(wmWindowManager *wm)
+bool WM_jobs_has_running(wmWindowManager *wm)
 {
 	wmJob *wm_job;
 

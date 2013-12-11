@@ -234,7 +234,7 @@ void CLIP_OT_add_marker_at_click(wmOperatorType *ot)
 
 /********************** delete track operator *********************/
 
-static int delete_track_exec(bContext *C, wmOperator *UNUSED(op))
+static int delete_track_exec(bContext *C, wmOperator *op)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -243,7 +243,7 @@ static int delete_track_exec(bContext *C, wmOperator *UNUSED(op))
 	ListBase *plane_tracks_base = BKE_tracking_get_active_plane_tracks(tracking);
 	MovieTrackingTrack *track = tracksbase->first, *next;
 	MovieTrackingPlaneTrack *plane_track, *next_plane_track;
-	bool modified = false;
+	bool changed = false;
 
 	/* Delete selected plane tracks. */
 	for (plane_track = plane_tracks_base->first;
@@ -255,7 +255,7 @@ static int delete_track_exec(bContext *C, wmOperator *UNUSED(op))
 		if (plane_track->flag & SELECT) {
 			BKE_tracking_plane_track_free(plane_track);
 			BLI_freelinkN(plane_tracks_base, plane_track);
-			modified = true;
+			changed = true;
 		}
 	}
 
@@ -263,8 +263,10 @@ static int delete_track_exec(bContext *C, wmOperator *UNUSED(op))
 	while (track) {
 		next = track->next;
 
-		if (TRACK_VIEW_SELECTED(sc, track))
+		if (TRACK_VIEW_SELECTED(sc, track)) {
 			clip_delete_track(C, clip, track);
+			changed = true;
+		}
 
 		track = next;
 	}
@@ -272,7 +274,8 @@ static int delete_track_exec(bContext *C, wmOperator *UNUSED(op))
 	/* nothing selected now, unlock view so it can be scrolled nice again */
 	sc->flag &= ~SC_LOCK_SELECTION;
 
-	if (modified) {
+	if (changed) {
+		BKE_report(op->reports, RPT_INFO, "Deleted selected tracks");
 		WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 	}
 
@@ -287,7 +290,6 @@ void CLIP_OT_delete_track(wmOperatorType *ot)
 	ot->description = "Delete selected tracks";
 
 	/* api callbacks */
-	ot->invoke = WM_operator_confirm;
 	ot->exec = delete_track_exec;
 	ot->poll = ED_space_clip_tracking_poll;
 
@@ -297,7 +299,7 @@ void CLIP_OT_delete_track(wmOperatorType *ot)
 
 /********************** delete marker operator *********************/
 
-static int delete_marker_exec(bContext *C, wmOperator *UNUSED(op))
+static int delete_marker_exec(bContext *C, wmOperator *op)
 {
 	SpaceClip *sc = CTX_wm_space_clip(C);
 	MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -307,6 +309,7 @@ static int delete_marker_exec(bContext *C, wmOperator *UNUSED(op))
 	MovieTrackingPlaneTrack *plane_track, *plane_track_next;
 	int framenr = ED_space_clip_get_clip_frame_number(sc);
 	int has_selection = 0;
+	bool changed = false;
 
 	while (track) {
 		next = track->next;
@@ -318,6 +321,7 @@ static int delete_marker_exec(bContext *C, wmOperator *UNUSED(op))
 				has_selection |= track->markersnr > 1;
 
 				clip_delete_marker(C, clip, track, marker);
+				changed = true;
 			}
 		}
 
@@ -341,6 +345,8 @@ static int delete_marker_exec(bContext *C, wmOperator *UNUSED(op))
 				else {
 					BKE_tracking_plane_marker_delete(plane_track, framenr);
 				}
+
+				changed = true;
 			}
 		}
 	}
@@ -349,6 +355,11 @@ static int delete_marker_exec(bContext *C, wmOperator *UNUSED(op))
 		/* nothing selected now, unlock view so it can be scrolled nice again */
 		sc->flag &= ~SC_LOCK_SELECTION;
 	}
+
+	if (!changed)
+		return OPERATOR_CANCELLED;
+
+	BKE_report(op->reports, RPT_INFO, "Deleted markers for current frame from selected tracks");
 
 	return OPERATOR_FINISHED;
 }
@@ -361,7 +372,6 @@ void CLIP_OT_delete_marker(wmOperatorType *ot)
 	ot->description = "Delete marker for current frame from selected tracks";
 
 	/* api callbacks */
-	ot->invoke = WM_operator_confirm;
 	ot->exec = delete_marker_exec;
 	ot->poll = ED_space_clip_tracking_poll;
 

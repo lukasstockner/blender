@@ -30,6 +30,10 @@ set(LIBRARIES
 	${TIFF_LIBRARY}
 )
 
+if(UNIX)
+       list(APPEND LIBRARIES dl)
+endif()
+
 if(WIN32)
 	list(APPEND LIBRARIES ${PTHREADS_LIBRARIES})
 endif()
@@ -41,7 +45,7 @@ if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
 endif()
 
 if(WITH_CYCLES_OSL)
-	list(APPEND LIBRARIES cycles_kernel_osl ${OSL_LIBRARIES})
+	list(APPEND LIBRARIES cycles_kernel_osl ${OSL_LIBRARIES} ${LLVM_LIBRARY})
 endif()
 
 include_directories(${INC})

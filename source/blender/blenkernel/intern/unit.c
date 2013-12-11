@@ -392,7 +392,7 @@ static int unit_as_string(char *str, int len_max, double value, int prec, bUnitC
 		while (unit->name_short[j] && (i < len_max)) {
 			str[i++] = unit->name_short[j++];
 		}
-
+#if 0
 		if (pad) {
 			/* this loop only runs if so many zeros were removed that
 			 * the unit name only used padded chars,
@@ -402,6 +402,7 @@ static int unit_as_string(char *str, int len_max, double value, int prec, bUnitC
 				str[i++] = pad;
 			}
 		}
+#endif
 	}
 
 	/* terminate no matter whats done with padding above */
@@ -599,7 +600,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 
 	bUnitDef *unit;
 	char str_tmp[TEMP_STR_SIZE];
-	int change = 0;
+	int changed = 0;
 
 	if (usys == NULL || usys->units[0].name == NULL) {
 		return 0;
@@ -618,7 +619,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 	for (unit = usys->units; unit->name; unit++) {
 		/* in case there are multiple instances */
 		while (unit_replace(str, len_max, str_tmp, scale_pref, unit))
-			change = 1;
+			changed = true;
 	}
 	unit = NULL;
 
@@ -635,7 +636,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 						int ofs = 0;
 						/* in case there are multiple instances */
 						while ((ofs = unit_replace(str + ofs, len_max - ofs, str_tmp, scale_pref, unit)))
-							change = 1;
+							changed = true;
 					}
 				}
 			}
@@ -643,7 +644,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 	}
 	unit = NULL;
 
-	if (change == 0) {
+	if (changed == 0) {
 		/* no units given so infer a unit from the previous string or default */
 		if (str_prev) {
 			/* see which units the original value had */
@@ -701,7 +702,7 @@ int bUnit_ReplaceString(char *str, int len_max, const char *str_prev, double sca
 		}
 	}
 
-	return change;
+	return changed;
 }
 
 /* 45µm --> 45um */

@@ -257,10 +257,15 @@ typedef struct ThemeSpace {
 	char noodle_curving;
 
 	/* syntax for textwindow and nodes */
-	char syntaxl[4], syntaxs[4];
-	char syntaxb[4], syntaxn[4];
-	char syntaxv[4], syntaxc[4];
-	char syntaxd[4], syntaxr[4];
+	char syntaxl[4], syntaxs[4]; // in nodespace used for backdrop matte 
+	char syntaxb[4], syntaxn[4]; // in nodespace used for color input
+	char syntaxv[4], syntaxc[4]; // in nodespace used for converter group
+	char syntaxd[4], syntaxr[4]; // in nodespace used for distort 
+
+	char nodeclass_output[4], nodeclass_filter[4];
+	char nodeclass_vector[4], nodeclass_texture[4];
+	char nodeclass_shader[4], nodeclass_script[4];
+	char nodeclass_pattern[4], nodeclass_layout[4];
 	
 	char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];		/* for sequence editor */
 	char effect[4], transition[4], meta[4];
@@ -286,8 +291,8 @@ typedef struct ThemeSpace {
 	char preview_stitch_unstitchable[4];
 	char preview_stitch_active[4];
 	
-	char uv_shadow[4];
-	char uv_others[4];
+	char uv_shadow[4]; /* two uses, for uvs with modifier applied on mesh and uvs during painting */
+	char uv_others[4]; /* uvs of other objects */
 
 	char match[4];				/* outliner - filter match */
 	char selected_highlight[4];	/* outliner - selected item */
@@ -373,6 +378,17 @@ typedef struct SolidLight {
 	int flag, pad;
 	float col[4], spec[4], vec[4];
 } SolidLight;
+
+typedef struct WalkNavigation {
+	float mouse_speed;  /* speed factor for look around */
+	float walk_speed;
+	float walk_speed_factor;
+	float view_height;
+	float jump_height;
+	float teleport_time;  /* duration to use for teleporting */
+	short flag;
+	short pad[3];
+} WalkNavigation;
 
 typedef struct UserDef {
 	/* UserDef has separate do-version handling, and can be read from other files */
@@ -477,7 +493,7 @@ typedef struct UserDef {
 	float gpencil_new_layer_col[4]; /* default color for newly created Grease Pencil layers */
 
 	short tweak_threshold;
-	short pad3;
+	char navigation_mode, pad;
 
 	char author[80];	/* author name for file formats supporting it */
 
@@ -486,6 +502,8 @@ typedef struct UserDef {
 	
 	float fcu_inactive_alpha;	/* opacity of inactive F-Curves in F-Curve Editor */
 	float pixelsize;			/* private, set by GHOST, to multiply DPI with */
+
+	struct WalkNavigation walk_navigation;
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */
@@ -551,6 +569,18 @@ typedef enum eViewZoom_Style {
 	USER_ZOOM_SCALE			= 1,
 	USER_ZOOM_DOLLY			= 2
 } eViewZoom_Style;
+
+/* navigation_mode */
+typedef enum eViewNavigation_Method {
+	VIEW_NAVIGATION_WALK = 0,
+	VIEW_NAVIGATION_FLY  = 1,
+} eViewNavigation_Method;
+
+/* flag */
+typedef enum eWalkNavigation_Flag {
+	USER_WALK_GRAVITY			= (1 << 0),
+	USER_WALK_MOUSE_REVERSE		= (1 << 1),
+} eWalkNavigation_Flag;
 
 /* uiflag */
 typedef enum eUserpref_UI_Flag {

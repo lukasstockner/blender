@@ -45,6 +45,7 @@
 #include "BKE_texture.h"
 #include "BKE_icons.h"
 
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
@@ -306,7 +307,7 @@ void BKE_brush_debug_print_state(Brush *br)
 	BR_TEST_FLAG(BRUSH_ADAPTIVE_SPACE);
 	BR_TEST_FLAG(BRUSH_LOCK_SIZE);
 	BR_TEST_FLAG(BRUSH_EDGE_TO_EDGE);
-	BR_TEST_FLAG(BRUSH_RESTORE_MESH);
+	BR_TEST_FLAG(BRUSH_DRAG_DOT);
 	BR_TEST_FLAG(BRUSH_INVERSE_SMOOTH_PRESSURE);
 	BR_TEST_FLAG(BRUSH_RANDOM_ROTATION);
 	BR_TEST_FLAG(BRUSH_PLANE_TRIM);
@@ -639,6 +640,16 @@ float BKE_brush_sample_tex_3D(const Scene *scene, Brush *br,
 		rgba[2] = intensity;
 		rgba[3] = 1.0f;
 	}
+	else {
+		if (br->mtex.tex->type == TEX_IMAGE && br->mtex.tex->ima) {
+			ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(br->mtex.tex->ima, &br->mtex.tex->iuser, pool);
+			/* For consistency, sampling always returns color in linear space */
+			if (tex_ibuf->rect_float == NULL) {
+				IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, tex_ibuf->rect_colorspace);
+			}
+			BKE_image_pool_release_ibuf(br->mtex.tex->ima, tex_ibuf, pool);
+		}
+	}
 
 	return intensity;
 }
@@ -899,7 +910,7 @@ void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], 
 
 	/* jitter-ed brush gives weird and unpredictable result for this
 	 * kinds of stroke, so manually disable jitter usage (sergey) */
-	use_jitter &= (brush->flag & (BRUSH_RESTORE_MESH | BRUSH_ANCHORED)) == 0;
+	use_jitter &= (brush->flag & (BRUSH_DRAG_DOT | BRUSH_ANCHORED)) == 0;
 
 	if (use_jitter) {
 		float rand_pos[2];

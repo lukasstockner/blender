@@ -267,10 +267,35 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 	/* mesh sync */
 	object->mesh = sync_mesh(b_ob, object_updated, hide_tris);
 
-	/* sspecial case not tracked by object update flags */
+	/* special case not tracked by object update flags */
+
+	/* holdout */
 	if(use_holdout != object->use_holdout) {
 		object->use_holdout = use_holdout;
 		scene->object_manager->tag_update(scene);
+		object_updated = true;
+	}
+
+	/* visibility flags for both parent and child */
+	uint visibility = object_ray_visibility(b_ob) & PATH_RAY_ALL_VISIBILITY;
+	if(b_parent.ptr.data != b_ob.ptr.data) {
+		visibility &= object_ray_visibility(b_parent);
+		object->random_id ^= hash_int(hash_string(b_parent.name().c_str()));
+	}
+
+	/* make holdout objects on excluded layer invisible for non-camera rays */
+	if(use_holdout && (layer_flag & render_layer.exclude_layer))
+		visibility &= ~(PATH_RAY_ALL_VISIBILITY - PATH_RAY_CAMERA);
+
+	/* camera flag is not actually used, instead is tested against render layer
+	 * flags */
+	if(visibility & PATH_RAY_CAMERA) {
+		visibility |= layer_flag << PATH_RAY_LAYER_SHIFT;
+		visibility &= ~PATH_RAY_CAMERA;
+	}
+
+	if(visibility != object->visibility) {
+		object->visibility = visibility;
 		object_updated = true;
 	}
 
@@ -295,24 +320,10 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 		else
 			object->random_id = hash_int_2d(object->random_id, 0);
 
-		/* visibility flags for both parent */
-		object->visibility = object_ray_visibility(b_ob) & PATH_RAY_ALL_VISIBILITY;
-		if(b_parent.ptr.data != b_ob.ptr.data) {
-			object->visibility &= object_ray_visibility(b_parent);
+		if(b_parent.ptr.data != b_ob.ptr.data)
 			object->random_id ^= hash_int(hash_string(b_parent.name().c_str()));
-		}
 
-		/* make holdout objects on excluded layer invisible for non-camera rays */
-		if(use_holdout && (layer_flag & render_layer.exclude_layer))
-			object->visibility &= ~(PATH_RAY_ALL_VISIBILITY - PATH_RAY_CAMERA);
-
-		/* camera flag is not actually used, instead is tested
-		 * against render layer flags */
-		if(object->visibility & PATH_RAY_CAMERA) {
-			object->visibility |= layer_flag << PATH_RAY_LAYER_SHIFT;
-			object->visibility &= ~PATH_RAY_CAMERA;
-		}
-
+		/* dupli texture coordinates */
 		if (b_dupli_ob) {
 			object->dupli_generated = 0.5f*get_float3(b_dupli_ob.orco()) - make_float3(0.5f, 0.5f, 0.5f);
 			object->dupli_uv = get_float2(b_dupli_ob.uv());
@@ -346,6 +357,7 @@ static bool object_render_hide(BL::Object b_ob, bool top_level, bool parent_hide
 
 	bool hair_present = false;
 	bool show_emitter = false;
+	bool hide_emitter = false;
 	bool hide_as_dupli_parent = false;
 	bool hide_as_dupli_child_original = false;
 
@@ -356,7 +368,12 @@ static bool object_render_hide(BL::Object b_ob, bool top_level, bool parent_hide
 
 		if(b_psys->settings().use_render_emitter())
 			show_emitter = true;
+		else
+			hide_emitter = true;
 	}
+
+	if(show_emitter)
+		hide_emitter = false;
 
 	/* duplicators hidden by default, except dupliframes which duplicate self */
 	if(b_ob.is_duplicator())
@@ -369,16 +386,15 @@ static bool object_render_hide(BL::Object b_ob, bool top_level, bool parent_hide
 		if(parent_hide)
 			hide_as_dupli_child_original = true;
 	
+	hide_triangles = hide_emitter;
+
 	if(show_emitter) {
-		hide_triangles = false;
 		return false;
 	}
 	else if(hair_present) {
-		hide_triangles = true;
 		return hide_as_dupli_child_original;
 	}
 	else {
-		hide_triangles = false;
 		return (hide_as_dupli_parent || hide_as_dupli_child_original);
 	}
 }

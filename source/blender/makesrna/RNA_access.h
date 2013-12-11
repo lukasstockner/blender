@@ -296,6 +296,7 @@ extern StructRNA RNA_KinematicConstraint;
 extern StructRNA RNA_Lamp;
 extern StructRNA RNA_LampSkySettings;
 extern StructRNA RNA_LampTextureSlot;
+extern StructRNA RNA_LaplacianDeformModifier;
 extern StructRNA RNA_LaplacianSmoothModifier;
 extern StructRNA RNA_LaplacianDeformModifier;
 extern StructRNA RNA_Lattice;
@@ -493,6 +494,7 @@ extern StructRNA RNA_ShaderNodeExtendedMaterial;
 extern StructRNA RNA_ShaderNodeGeometry;
 extern StructRNA RNA_ShaderNodeHueSaturation;
 extern StructRNA RNA_ShaderNodeInvert;
+extern StructRNA RNA_ShaderNodeLampData;
 extern StructRNA RNA_ShaderNodeMapping;
 extern StructRNA RNA_ShaderNodeMaterial;
 extern StructRNA RNA_ShaderNodeMath;
@@ -640,6 +642,7 @@ extern StructRNA RNA_UserPreferencesFilePaths;
 extern StructRNA RNA_UserPreferencesInput;
 extern StructRNA RNA_UserPreferencesSystem;
 extern StructRNA RNA_UserPreferencesView;
+extern StructRNA RNA_UserPreferencesWalkNavigation;
 extern StructRNA RNA_UserSolidLight;
 extern StructRNA RNA_VectorFont;
 extern StructRNA RNA_VertexGroup;
@@ -1037,11 +1040,11 @@ char *RNA_property_as_string(struct bContext *C, PointerRNA *ptr, PropertyRNA *p
 char *RNA_pointer_as_string_id(struct bContext *C, PointerRNA *ptr);
 char *RNA_pointer_as_string(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop_ptr, PointerRNA *ptr_prop);
 char *RNA_pointer_as_string_keywords_ex(struct bContext *C, PointerRNA *ptr,
-                                        const bool skip_optional_value, const bool all_args,
+                                        const bool skip_optional_value, const bool all_args, const bool nested_args,
                                         const int max_prop_length,
                                         PropertyRNA *iterprop);
 char *RNA_pointer_as_string_keywords(struct bContext *C, PointerRNA *ptr,
-                                     const bool skip_optional_value, const bool all_args,
+                                     const bool skip_optional_value, const bool all_args, const bool nested_args,
                                      const int max_prop_length);
 char *RNA_function_as_string_keywords(struct bContext *C, FunctionRNA *func,
                                       const bool as_function, const bool all_args,

@@ -3510,7 +3510,7 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 	if (BLI_countlist(&ob->particlesystem) > 1)
 		BLI_snprintf(psys->name, sizeof(psys->name), DATA_("ParticleSystem %i"), BLI_countlist(&ob->particlesystem));
 	else
-		strcpy(psys->name, DATA_("ParticleSystem"));
+		BLI_strncpy(psys->name, DATA_("ParticleSystem"), sizeof(psys->name));
 
 	md = modifier_new(eModifierType_ParticleSystem);
 
@@ -3525,7 +3525,7 @@ ModifierData *object_add_particle_system(Scene *scene, Object *ob, const char *n
 	BLI_addtail(&ob->modifiers, md);
 
 	psys->totpart = 0;
-	psys->flag = PSYS_ENABLED | PSYS_CURRENT;
+	psys->flag = PSYS_CURRENT;
 	psys->cfra = BKE_scene_frame_get_from_ctime(scene, CFRA + 1);
 
 	DAG_relations_tag_update(G.main);
@@ -3652,6 +3652,7 @@ static void default_particle_settings(ParticleSettings *part)
 	if (!part->effector_weights)
 		part->effector_weights = BKE_add_effector_weights(NULL);
 
+	part->omat = 1;
 	part->use_modifier_stack = false;
 }
 

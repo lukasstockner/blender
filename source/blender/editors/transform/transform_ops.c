@@ -533,7 +533,7 @@ void Transform_Properties(struct wmOperatorType *ot, int flags)
 		}
 	}
 
-	if (flags & P_OPTIONS) {
+	if ((flags & P_OPTIONS) && !(flags & P_NO_TEXSPACE)) {
 		RNA_def_boolean(ot->srna, "texture_space", 0, "Edit Texture Space", "Edit Object data texture space");
 		prop = RNA_def_boolean(ot->srna, "remove_on_cancel", 0, "Remove on Cancel", "Remove elements on cancel");
 		RNA_def_property_flag(prop, PROP_HIDDEN);
@@ -617,7 +617,7 @@ static void TRANSFORM_OT_skin_resize(struct wmOperatorType *ot)
 
 	RNA_def_float_vector(ot->srna, "value", 3, VecOne, -FLT_MAX, FLT_MAX, "Vector", "", -FLT_MAX, FLT_MAX);
 
-	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP | P_OPTIONS);
+	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_GEO_SNAP | P_OPTIONS | P_NO_TEXSPACE);
 }
 
 static void TRANSFORM_OT_trackball(struct wmOperatorType *ot)
@@ -703,7 +703,7 @@ static void TRANSFORM_OT_bend(struct wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
-	ot->exec   = transform_exec;
+	// ot->exec   = transform_exec;  // unsupported
 	ot->modal  = transform_modal;
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_region_view3d_active;

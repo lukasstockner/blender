@@ -507,16 +507,15 @@ static void layerCopy_mdisps(const void *source, void *dest, int count)
 		if (s[i].disps) {
 			d[i].disps = MEM_dupallocN(s[i].disps);
 			d[i].hidden = MEM_dupallocN(s[i].hidden);
-			d[i].totdisp = s[i].totdisp;
-			d[i].level = s[i].level;
 		}
 		else {
 			d[i].disps = NULL;
 			d[i].hidden = NULL;
-			d[i].totdisp = 0;
-			d[i].level = 0;
 		}
-		
+
+		/* still copy even if not in memory, displacement can be external */
+		d[i].totdisp = s[i].totdisp;
+		d[i].level = s[i].level;
 	}
 }
 
@@ -1296,7 +1295,7 @@ bool CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 	CustomDataLayer *layer, *newlayer;
 	void *data;
 	int i, type, number = 0, lasttype = -1, lastactive = 0, lastrender = 0, lastclone = 0, lastmask = 0, lastflag = 0;
-	bool change = false;
+	bool changed = false;
 
 	for (i = 0; i < source->totlayer; ++i) {
 		layer = &source->layers[i];
@@ -1346,12 +1345,12 @@ bool CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 			newlayer->active_clone = lastclone;
 			newlayer->active_mask = lastmask;
 			newlayer->flag |= lastflag & (CD_FLAG_EXTERNAL | CD_FLAG_IN_MEMORY);
-			change = true;
+			changed = true;
 		}
 	}
 
 	CustomData_update_typemap(dest);
-	return change;
+	return changed;
 }
 
 void CustomData_copy(const struct CustomData *source, struct CustomData *dest,
@@ -1752,6 +1751,7 @@ void *CustomData_add_layer_named(CustomData *data, int type, int alloctype,
 
 bool CustomData_free_layer(CustomData *data, int type, int totelem, int index)
 {
+	const int n = index - CustomData_get_layer_index(data, type);
 	int i;
 	
 	if (index < 0) return 0;
@@ -1768,7 +1768,7 @@ bool CustomData_free_layer(CustomData *data, int type, int totelem, int index)
 
 	if (i != -1) {
 		/* don't decrement zero index */
-		const int index_nonzero = index ? index : 1;
+		const int index_nonzero = n ? n : 1;
 		CustomDataLayer *layer;
 
 		for (layer = &data->layers[i]; i < data->totlayer && layer->type == type; i++, layer++) {

@@ -1088,7 +1088,7 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 {
 	ViewContext vc;
 	Mesh *me;
-	short change = FALSE;
+	bool changed = false;
 
 	view3d_set_viewcontext(C, &vc);
 	me = BKE_mesh_from_object(vc.obact);
@@ -1122,11 +1122,11 @@ static int weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *even
 			const int vgroup_active = vc.obact->actdef - 1;
 			float vgroup_weight = defvert_find_weight(&me->dvert[v_idx_best], vgroup_active);
 			BKE_brush_weight_set(vc.scene, brush, vgroup_weight);
-			change = TRUE;
+			changed = true;
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		/* not really correct since the brush didnt change, but redraws the toolbar */
 		WM_main_add_notifier(NC_BRUSH | NA_EDITED, NULL); /* ts->wpaint->paint.brush */
 
@@ -1468,14 +1468,14 @@ static float redistribute_change(MDeformVert *ndv, const int defbase_tot,
                                  float totchange, float total_valid,
                                  char do_auto_normalize)
 {
-	float was_change;
+	bool changed;
 	float change;
 	float oldval;
 	MDeformWeight *ndw;
 	int i;
 	do {
 		/* assume there is no change until you see one */
-		was_change = FALSE;
+		changed = false;
 		/* change each group by the same amount each time */
 		change = totchange / total_valid;
 		for (i = 0; i < ndv->totweight && total_valid && totchange; i++) {
@@ -1507,14 +1507,14 @@ static float redistribute_change(MDeformVert *ndv, const int defbase_tot,
 					}
 					/* see if there was a change */
 					if (oldval != ndw->weight) {
-						was_change = TRUE;
+						changed = true;
 					}
 				}
 			}
 		}
 		/* don't go again if there was no change, if there is no valid group,
 		 * or there is no change left */
-	} while (was_change && total_valid && totchange);
+	} while (changed && total_valid && totchange);
 	/* left overs */
 	return totchange;
 }
@@ -2255,11 +2255,6 @@ static int wpaint_stroke_test_start(bContext *C, wmOperator *op, const float UNU
 	if (me->editflag & ME_EDIT_MIRROR_X) {
 		wpd->vgroup_mirror = wpaint_mirror_vgroup_ensure(ob, wpd->vgroup_active);
 	}
-
-	{
-		UnifiedPaintSettings *ups = &ts->unified_paint_settings;
-		ups->draw_pressure = true;
-	}
 	
 	return TRUE;
 }
@@ -2366,12 +2361,13 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 			else totindex = 0;
 		}
 
-		if (use_face_sel && me->mpoly) {
+		if (use_face_sel && me->totpoly) {
+			MPoly *mpoly = me->mpoly;
 			for (index = 0; index < totindex; index++) {
 				if (indexar[index] && indexar[index] <= me->totpoly) {
-					MPoly *mpoly = ((MPoly *)me->mpoly) + (indexar[index] - 1);
+					MPoly *mp = &mpoly[indexar[index] - 1];
 
-					if ((mpoly->flag & ME_FACE_SEL) == 0) {
+					if ((mp->flag & ME_FACE_SEL) == 0) {
 						indexar[index] = 0;
 					}
 				}
@@ -2550,11 +2546,6 @@ static void wpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 				}
 			}
 		}
-	}
-
-	{
-		UnifiedPaintSettings *ups = &ts->unified_paint_settings;
-		ups->draw_pressure = false;
 	}
 
 	DAG_id_tag_update(ob->data, 0);
@@ -2874,11 +2865,6 @@ static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const fl
 	invert_m4_m4(imat, mat);
 	copy_m3_m4(vpd->vpimat, imat);
 
-	{
-		UnifiedPaintSettings *ups = &ts->unified_paint_settings;
-		ups->draw_pressure = true;
-	}
-
 	return 1;
 }
 
@@ -3101,11 +3087,6 @@ static void vpaint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 
 	if (vpd->mfacetag)
 		MEM_freeN(vpd->mfacetag);
-
-	{
-		UnifiedPaintSettings *ups = &ts->unified_paint_settings;
-		ups->draw_pressure = false;
-	}
 
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 

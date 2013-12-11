@@ -100,12 +100,12 @@ static EnumPropertyItem draw_channels_items[] = {
 static EnumPropertyItem transform_orientation_items[] = {
 	{V3D_MANIP_GLOBAL, "GLOBAL", 0, "Global", "Align the transformation axes to world space"},
 	{V3D_MANIP_LOCAL, "LOCAL", 0, "Local", "Align the transformation axes to the selected objects' local space"},
-	{V3D_MANIP_GIMBAL, "GIMBAL", 0, "Gimbal", "Align each axis to the Euler rotation axis as used for input"},
 	{V3D_MANIP_NORMAL, "NORMAL", 0, "Normal",
 	                   "Align the transformation axes to average normal of selected elements "
 	                   "(bone Y axis for pose mode)"},
+	{V3D_MANIP_GIMBAL, "GIMBAL", 0, "Gimbal", "Align each axis to the Euler rotation axis as used for input"},
 	{V3D_MANIP_VIEW, "VIEW", 0, "View", "Align the transformation axes to the window"},
-	{V3D_MANIP_CUSTOM, "CUSTOM", 0, "Custom", "Use a custom transform orientation"},
+	// {V3D_MANIP_CUSTOM, "CUSTOM", 0, "Custom", "Use a custom transform orientation"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -291,7 +291,7 @@ static PointerRNA rna_CurrentOrientation_get(PointerRNA *ptr)
 {
 	Scene *scene = ((bScreen *)ptr->id.data)->scene;
 	View3D *v3d = (View3D *)ptr->data;
-	
+
 	if (v3d->twmode < V3D_MANIP_CUSTOM)
 		return rna_pointer_inherit_refine(ptr, &RNA_TransformOrientation, NULL);
 	else
@@ -308,11 +308,7 @@ EnumPropertyItem *rna_TransformOrientation_itemf(bContext *C, PointerRNA *ptr, P
 	EnumPropertyItem *item = NULL;
 	int i = V3D_MANIP_CUSTOM, totitem = 0;
 
-	RNA_enum_items_add_value(&item, &totitem, transform_orientation_items, V3D_MANIP_GLOBAL);
-	RNA_enum_items_add_value(&item, &totitem, transform_orientation_items, V3D_MANIP_LOCAL);
-	RNA_enum_items_add_value(&item, &totitem, transform_orientation_items, V3D_MANIP_NORMAL);
-	RNA_enum_items_add_value(&item, &totitem, transform_orientation_items, V3D_MANIP_GIMBAL);
-	RNA_enum_items_add_value(&item, &totitem, transform_orientation_items, V3D_MANIP_VIEW);
+	RNA_enum_items_add(&item, &totitem, transform_orientation_items);
 
 	if (ptr->type == &RNA_SpaceView3D)
 		scene = ((bScreen *)ptr->id.data)->scene;
@@ -1851,9 +1847,9 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, -10000.0, 10000.0, 10, 4);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	
-	prop = RNA_def_property(srna, "lens", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "lens", PROP_FLOAT, PROP_UNIT_CAMERA);
 	RNA_def_property_float_sdna(prop, NULL, "lens");
-	RNA_def_property_ui_text(prop, "Lens", "Viewport lens angle (mm)");
+	RNA_def_property_ui_text(prop, "Lens", "Viewport lens angle");
 	RNA_def_property_range(prop, 1.0f, 250.0f);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 	
@@ -3483,11 +3479,6 @@ static void rna_def_space_node(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_highlight", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SNODE_SHOW_HIGHLIGHT);
 	RNA_def_property_ui_text(prop, "Highlight", "Highlight nodes that are being calculated");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
-
-	prop = RNA_def_property(srna, "use_hidden_preview", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SNODE_USE_HIDDEN_PREVIEW);
-	RNA_def_property_ui_text(prop, "Hide Preview", "Hide preview for newly creating nodes");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
 
 	/* the mx/my "cursor" in the node editor is used only by operators to store the mouse position */

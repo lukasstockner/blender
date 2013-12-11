@@ -257,7 +257,7 @@ BLI_mempool *BLI_mempool_create(unsigned int esize, unsigned int totelem,
 	}
 
 	if (flag & BLI_MEMPOOL_ALLOW_ITER) {
-		pool->esize = MAX2(esize, (int)sizeof(BLI_freenode));
+		pool->esize = MAX2(esize, (unsigned int)sizeof(BLI_freenode));
 	}
 	else {
 		pool->esize = esize;
@@ -295,7 +295,7 @@ void *BLI_mempool_alloc(BLI_mempool *pool)
 
 	pool->totused++;
 
-	if (!(pool->free)) {
+	if (UNLIKELY(pool->free == NULL)) {
 		/* need to allocate a new chunk */
 		BLI_mempool_chunk *mpchunk = mempool_chunk_alloc(pool);
 		mempool_chunk_add(pool, mpchunk, NULL);
