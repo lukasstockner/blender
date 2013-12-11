@@ -1510,6 +1510,7 @@ void BKE_sequencer_proxy_rebuild(SeqIndexBuildContext *context, short *stop, sho
 	SeqRenderData render_context;
 	Sequence *seq = context->seq;
 	Scene *scene = context->scene;
+	Main *bmain = context->bmain;
 	int cfra;
 
 	if (seq->type == SEQ_TYPE_MOVIE) {
@@ -1531,7 +1532,7 @@ void BKE_sequencer_proxy_rebuild(SeqIndexBuildContext *context, short *stop, sho
 
 	/* fail safe code */
 
-	render_context = BKE_sequencer_new_render_data(G.main->evaluation_context, context->bmain, context->scene,
+	render_context = BKE_sequencer_new_render_data(bmain->evaluation_context, bmain, context->scene,
 	                                    (scene->r.size * (float) scene->r.xsch) / 100.0f + 0.5f,
 	                                    (scene->r.size * (float) scene->r.ysch) / 100.0f + 0.5f, 100);
 
