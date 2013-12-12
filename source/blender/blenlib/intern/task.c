@@ -289,7 +289,7 @@ TaskPool *BLI_task_pool_create(TaskScheduler *scheduler, void *userdata)
 	pool->userdata = userdata;
 	BLI_mutex_init(&pool->user_mutex);
 
-	/* Ensure malloc will go go fine from threads,
+	/* Ensure malloc will go fine from threads,
 	 *
 	 * This is needed because we could be in main thread here
 	 * and malloc could be non-threda safe at this point because
