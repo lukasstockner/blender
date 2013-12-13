@@ -1505,6 +1505,7 @@ void ED_screen_set(bContext *C, bScreen *sc)
 	if (oldscreen != sc) {
 		wmTimer *wt = oldscreen->animtimer;
 		ScrArea *sa;
+		Scene *oldscene = oldscreen->scene;
 
 		/* remove handlers referencing areas in old screen */
 		for (sa = oldscreen->areabase.first; sa; sa = sa->next) {
@@ -1542,11 +1543,10 @@ void ED_screen_set(bContext *C, bScreen *sc)
 		 * Quite the same happens when setting screen's scene,
 		 * so perhaps this is in fact correct thing to do.
 		 */
-		/* TODO(sergey): Check whether DAG is actually need to
-		 *               be rebuilt.
-		 */
-		BKE_scene_set_background(bmain, sc->scene);
-		DAG_on_visible_update(bmain, FALSE);
+		if (oldscene != sc->scene) {
+			BKE_scene_set_background(bmain, sc->scene);
+			DAG_on_visible_update(bmain, FALSE);
+		}
 	}
 }
 

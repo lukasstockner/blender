@@ -1586,19 +1586,6 @@ static bool rlayer_node_uses_alpha(bNodeTree *ntree, bNode *node)
 	return false;
 }
 
-static bool allow_render_mesh_object(Object *ob)
-{
-	/* override not showing object when duplis are used with particles */
-	if (ob->transflag & OB_DUPLIPARTS) {
-		/* pass */  /* let particle system(s) handle showing vs. not showing */
-	}
-	else if ((ob->transflag & OB_DUPLI) && !(ob->transflag & OB_DUPLIFRAMES)) {
-		return false;
-	}
-
-	return true;
-}
-
 /* Issue here is that it's possible that object which is used by boolean,
  * array or shrinkwrap modifiers weren't displayed in the viewport before
  * rendering. This leads to situations when apply() of this modifiers
@@ -1613,15 +1600,33 @@ static bool allow_render_mesh_object(Object *ob)
  * properly without hacks from their side.
  *                                                  - sergey -
  */
-#define DEOSGRAPH_WORKAROUND_HACK
+#define DEPSGRAPH_WORKAROUND_HACK
 
-#ifdef DEOSGRAPH_WORKAROUND_HACK
-static void tag_dependend_objects_for_render(Scene *scene)
+static bool allow_render_mesh_object(Object *ob)
+{
+	/* override not showing object when duplis are used with particles */
+	if (ob->transflag & OB_DUPLIPARTS) {
+		/* pass */  /* let particle system(s) handle showing vs. not showing */
+	}
+	else if ((ob->transflag & OB_DUPLI) && !(ob->transflag & OB_DUPLIFRAMES)) {
+		return false;
+	}
+
+	return true;
+}
+
+#ifdef DEPSGRAPH_WORKAROUND_HACK
+static void tag_dependend_objects_for_render(Scene *scene, int renderlay)
 {
 	Scene *sce_iter;
 	Base *base;
 	for (SETLOOPER(scene, sce_iter, base)) {
 		Object *object = base->object;
+
+		if ((base->lay & renderlay) == 0) {
+			continue;
+		}
+
 		if (object->type == OB_MESH) {
 			if (allow_render_mesh_object(object)) {
 				ModifierData *md;
@@ -1667,27 +1672,30 @@ static void tag_scenes_for_render(Render *re)
 {
 	bNode *node;
 	Scene *sce;
+#ifdef DEPSGRAPH_WORKAROUND_HACK
+	int renderlay = re->lay;
+#endif
 	
 	for (sce = re->main->scene.first; sce; sce = sce->id.next) {
 		sce->id.flag &= ~LIB_DOIT;
-#ifdef DEOSGRAPH_WORKAROUND_HACK
-		tag_dependend_objects_for_render(sce);
+#ifdef DEPSGRAPH_WORKAROUND_HACK
+		tag_dependend_objects_for_render(sce, renderlay);
 #endif
 	}
 	
 #ifdef WITH_FREESTYLE
 	for (sce = re->freestyle_bmain.scene.first; sce; sce = sce->id.next) {
 		sce->id.flag &= ~LIB_DOIT;
-#ifdef DEOSGRAPH_WORKAROUND_HACK
-		tag_dependend_objects_for_render(sce);
+#ifdef DEPSGRAPH_WORKAROUND_HACK
+		tag_dependend_objects_for_render(sce, renderlay);
 #endif
 	}
 #endif
 
 	if (RE_GetCamera(re) && composite_needs_render(re->scene, 1)) {
 		re->scene->id.flag |= LIB_DOIT;
-#ifdef DEOSGRAPH_WORKAROUND_HACK
-		tag_dependend_objects_for_render(re->scene);
+#ifdef DEPSGRAPH_WORKAROUND_HACK
+		tag_dependend_objects_for_render(re->scene, renderlay);
 #endif
 	}
 	
@@ -1717,8 +1725,8 @@ static void tag_scenes_for_render(Render *re)
 					if ((node->id->flag & LIB_DOIT) == 0) {
 						node->flag |= NODE_TEST;
 						node->id->flag |= LIB_DOIT;
-#ifdef DEOSGRAPH_WORKAROUND_HACK
-						tag_dependend_objects_for_render((Scene *) node->id);
+#ifdef DEPSGRAPH_WORKAROUND_HACK
+						tag_dependend_objects_for_render((Scene *) node->id, renderlay);
 #endif
 					}
 				}
