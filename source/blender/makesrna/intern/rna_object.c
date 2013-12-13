@@ -165,6 +165,14 @@ EnumPropertyItem object_axis_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+/* for general use (not just object) */
+EnumPropertyItem object_axis_unsigned_items[] = {
+	{0, "X", 0, "X", ""},
+	{1, "Y", 0, "Y", ""},
+	{2, "Z", 0, "Z", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 
 #include "BLI_math.h"
@@ -1637,6 +1645,10 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	                            "rna_GameObjectSettings_physics_type_set", NULL);
 	RNA_def_property_ui_text(prop, "Physics Type", "Select the type of physical representation");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "use_record_animation", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_RECORD_ANIMATION);
+	RNA_def_property_ui_text(prop, "Record Animation", "Record animation objects without physics");
 
 	prop = RNA_def_property(srna, "use_actor", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_ACTOR);

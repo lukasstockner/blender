@@ -5119,6 +5119,11 @@ static void lib_link_scene(FileData *fd, Main *main)
 			link_paint(fd, sce, &sce->toolsettings->wpaint->paint);
 			link_paint(fd, sce, &sce->toolsettings->imapaint.paint);
 			link_paint(fd, sce, &sce->toolsettings->uvsculpt->paint);
+
+			if (sce->toolsettings->sculpt)
+				sce->toolsettings->sculpt->gravity_object =
+						newlibadr_us(fd, sce->id.lib, sce->toolsettings->sculpt->gravity_object);
+
 			sce->toolsettings->skgen_template = newlibadr(fd, sce->id.lib, sce->toolsettings->skgen_template);
 			
 			for (base = sce->base.first; base; base = next) {
@@ -6410,7 +6415,9 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 			else if (sl->spacetype == SPACE_TEXT) {
 				SpaceText *st= (SpaceText *)sl;
 				
-				st->drawcache= NULL;
+				st->drawcache = NULL;
+				st->scroll_accum[0] = 0.0f;
+				st->scroll_accum[1] = 0.0f;
 			}
 			else if (sl->spacetype == SPACE_TIME) {
 				SpaceTime *stime = (SpaceTime *)sl;

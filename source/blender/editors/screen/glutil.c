@@ -981,7 +981,9 @@ void bgl_get_mats(bglMats *mats)
 
 /* *************** glPolygonOffset hack ************* */
 
-/* dist is only for ortho now... */
+/**
+ * \note \a viewdist is only for ortho at the moment.
+ */
 void bglPolygonOffset(float viewdist, float dist) 
 {
 	static float winmat[16], offset = 0.0;
@@ -1042,9 +1044,6 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 	if (ibuf->rect == NULL && ibuf->rect_float == NULL)
 		return;
 
-	/* Dithering is not supported on GLSL yet */
-	force_fallback |= ibuf->dither != 0.0f;
-
 	/* Single channel images could not be transformed using GLSL yet */
 	force_fallback |= ibuf->channels == 1;
 
@@ -1091,15 +1090,18 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 		if (ibuf->rect_float) {
 			if (ibuf->float_colorspace) {
 				ok = IMB_colormanagement_setup_glsl_draw_from_space(view_settings, display_settings,
-				                                                    ibuf->float_colorspace, true);
+				                                                    ibuf->float_colorspace,
+				                                                    ibuf->dither, true);
 			}
 			else {
-				ok = IMB_colormanagement_setup_glsl_draw(view_settings, display_settings, true);
+				ok = IMB_colormanagement_setup_glsl_draw(view_settings, display_settings,
+				                                         ibuf->dither, true);
 			}
 		}
 		else {
 			ok = IMB_colormanagement_setup_glsl_draw_from_space(view_settings, display_settings,
-			                                                    ibuf->rect_colorspace, false);
+			                                                    ibuf->rect_colorspace,
+			                                                    ibuf->dither, false);
 		}
 
 		if (ok) {

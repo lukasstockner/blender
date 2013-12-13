@@ -1122,8 +1122,9 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 
 static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
 {
-	//int transopts;  // UNUSED
-	char *cpoin = NULL;
+	int drawstr_left_len = UI_MAX_DRAW_STR;
+	char *drawstr_right = NULL;
+	bool use_right_only = false;
 	
 	/* for underline drawing */
 	float font_xofs, font_yofs;
@@ -1190,21 +1191,45 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	/* cut string in 2 parts - only for menu entries */
 	if ((but->block->flag & UI_BLOCK_LOOP)) {
 		if (ELEM3(but->type, NUM, TEX, NUMSLI) == 0) {
-			cpoin = strchr(but->drawstr, UI_SEP_CHAR);
-			if (cpoin) *cpoin = 0;
+			drawstr_right = strchr(but->drawstr, UI_SEP_CHAR);
+			if (drawstr_right) {
+				drawstr_left_len = (drawstr_right - but->drawstr);
+				drawstr_right++;
+			}
 		}
 	}
 	
+#ifdef USE_NUMBUTS_LR_ALIGN
+	if (!drawstr_right && ELEM(but->type, NUM, NUMSLI) && (but->editstr == NULL)) {
+		drawstr_right = strchr(but->drawstr + but->ofs, ':');
+		if (drawstr_right) {
+			drawstr_right++;
+			drawstr_left_len = (drawstr_right - but->drawstr);
+
+			while (*drawstr_right == ' ') {
+				drawstr_right++;
+			}
+		}
+		else {
+			/* no prefix, even so use only cpoin */
+			drawstr_right = but->drawstr + but->ofs;
+			use_right_only = true;
+		}
+	}
+#endif
+
 	glColor4ubv((unsigned char *)wcol->text);
 
-	uiStyleFontDrawExt(fstyle, rect, but->drawstr + but->ofs,
-	                   sizeof(but->drawstr) - but->ofs, &font_xofs, &font_yofs);
+	if (!use_right_only) {
+		uiStyleFontDrawExt(fstyle, rect, but->drawstr + but->ofs,
+		                   drawstr_left_len - but->ofs, &font_xofs, &font_yofs);
+	}
 
 	if (but->menu_key != '\0') {
 		char fixedbuf[128];
 		char *str;
 
-		BLI_strncpy(fixedbuf, but->drawstr + but->ofs, sizeof(fixedbuf));
+		BLI_strncpy(fixedbuf, but->drawstr + but->ofs, min_ii(sizeof(fixedbuf), drawstr_left_len));
 
 		str = strchr(fixedbuf, but->menu_key - 32); /* upper case */
 		if (str == NULL)
@@ -1233,11 +1258,10 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	}
 
 	/* part text right aligned */
-	if (cpoin) {
+	if (drawstr_right) {
 		fstyle->align = UI_STYLE_TEXT_RIGHT;
 		rect->xmax -= ui_but_draw_menu_icon(but) ? UI_DPI_ICON_SIZE : 0.25f * U.widget_unit;
-		uiStyleFontDraw(fstyle, rect, cpoin + 1);
-		*cpoin = UI_SEP_CHAR;
+		uiStyleFontDraw(fstyle, rect, drawstr_right);
 	}
 }
 
@@ -1287,14 +1311,18 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		rect->xmin += (int)(0.8f * BLI_rcti_size_y(rect));
 
 		if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT)) {
-			rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+			if (but->editstr || but->ofs == 0) {
+				rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+			}
 		}
 		else if ((but->drawflag & UI_BUT_TEXT_RIGHT)) {
 			rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
 		}
 	}
 	else if ((but->drawflag & UI_BUT_TEXT_LEFT)) {
-		rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+		if (but->ofs == 0) {
+			rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+		}
 	}
 	else if ((but->drawflag & UI_BUT_TEXT_RIGHT)) {
 		rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
@@ -2271,7 +2299,7 @@ static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int 
 {
 	uiWidgetBase wtb;
 	const float rad = 0.5f * BLI_rcti_size_y(rect);
-	float textofs = rad * 0.75f;
+	float textofs = rad * 0.85f;
 
 	if (state & UI_SELECT)
 		SWAP(short, wcol->shadetop, wcol->shadedown);
@@ -2603,8 +2631,10 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	widgetbase_draw(&wtb, wcol);
 	
 	/* text space */
-	rect->xmin += toffs;
-	rect->xmax -= toffs;
+	if ((roundboxalign & UI_CNR_TOP_LEFT) && (roundboxalign & UI_CNR_BOTTOM_LEFT))
+		rect->xmin += toffs;
+	if ((roundboxalign & UI_CNR_TOP_RIGHT) && (roundboxalign & UI_CNR_BOTTOM_RIGHT))
+		rect->xmax -= toffs;
 }
 
 /* I think 3 is sufficient border to indicate keyed status */

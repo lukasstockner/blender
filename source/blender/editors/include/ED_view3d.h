@@ -85,6 +85,8 @@ typedef struct ViewDepths {
 float *ED_view3d_cursor3d_get(struct Scene *scene, struct View3D *v3d);
 void   ED_view3d_cursor3d_position(struct bContext *C, float fp[3], const int mval[2]);
 
+struct Camera *ED_view3d_camera_data_get(struct View3D *v3d, struct RegionView3D *rv3d);
+
 void ED_view3d_to_m4(float mat[4][4], const float ofs[3], const float quat[4], const float dist);
 void ED_view3d_from_m4(float mat[4][4], float ofs[3], float quat[4], float *dist);
 
@@ -216,6 +218,9 @@ bool ED_view3d_clip_range_get(struct View3D *v3d, struct RegionView3D *rv3d,
                               float *r_clipsta, float *r_clipend, const bool use_ortho_factor);
 bool ED_view3d_viewplane_get(struct View3D *v3d, struct RegionView3D *rv3d, int winxi, int winyi,
                              struct rctf *r_viewplane, float *r_clipsta, float *r_clipend, float *r_pixsize);
+
+void ED_view3d_polygon_offset(const struct RegionView3D *rv3d, const float dist);
+
 void ED_view3d_calc_camera_border(struct Scene *scene, struct ARegion *ar,
                                   struct View3D *v3d, struct RegionView3D *rv3d,
                                   struct rctf *r_viewborder, const bool no_shift);

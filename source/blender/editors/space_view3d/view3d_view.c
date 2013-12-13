@@ -110,6 +110,16 @@ float *ED_view3d_cursor3d_get(Scene *scene, View3D *v3d)
 	else return scene->cursor;
 }
 
+Camera *ED_view3d_camera_data_get(View3D *v3d, RegionView3D *rv3d)
+{
+	/* establish the camera object, so we can default to view mapping if anything is wrong with it */
+	if ((rv3d->persp == RV3D_CAMOB) && v3d->camera && (v3d->camera->type == OB_CAMERA)) {
+		return v3d->camera->data;
+	}
+	else {
+		return NULL;
+	}
+}
 
 /* ****************** smooth view operator ****************** */
 /* This operator is one of the 'timer refresh' ones like animation playback */
@@ -709,6 +719,25 @@ bool ED_view3d_viewplane_get(View3D *v3d, RegionView3D *rv3d, int winx, int winy
 	if (r_pixsize) *r_pixsize = params.viewdx;
 	
 	return params.is_ortho;
+}
+
+/**
+ * Use instead of: ``bglPolygonOffset(rv3d->dist, ...)`` see bug [#37727]
+ */
+void ED_view3d_polygon_offset(const RegionView3D *rv3d, float dist)
+{
+	float viewdist = rv3d->dist;
+
+	/* special exception for ortho camera (viewdist isnt used for perspective cameras) */
+	if (dist != 0.0f) {
+		if (rv3d->persp == RV3D_CAMOB) {
+			if (rv3d->is_persp == false) {
+				viewdist = 1.0f / max_ff(fabsf(rv3d->winmat[0][0]), fabsf(rv3d->winmat[1][1]));
+			}
+		}
+	}
+
+	bglPolygonOffset(viewdist, dist);
 }
 
 /*!

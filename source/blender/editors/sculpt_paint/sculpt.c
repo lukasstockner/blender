@@ -62,6 +62,7 @@
 #include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_paint.h"
@@ -316,6 +317,7 @@ typedef struct StrokeCache {
 	int alt_smooth;
 
 	float plane_trim_squared;
+	float gravity_direction[3];
 
 	rcti previous_r; /* previous redraw rectangle */
 } StrokeCache;
@@ -418,7 +420,7 @@ static int sculpt_stroke_dynamic_topology(const SculptSession *ss,
 	        /* Requires mesh restore, which doesn't work with
 	         * dynamic-topology */
 	        !(brush->flag & BRUSH_ANCHORED) &&
-	        !(brush->flag & BRUSH_RESTORE_MESH) &&
+	        !(brush->flag & BRUSH_DRAG_DOT) &&
         
 	        (!ELEM6(brush->sculpt_tool,
 	                /* These brushes, as currently coded, cannot
@@ -762,15 +764,15 @@ static float integrate_overlap(Brush *br)
 /* Uses symm to selectively flip any axis of a coordinate. */
 static void flip_v3_v3(float out[3], const float in[3], const char symm)
 {
-	if (symm & SCULPT_SYMM_X)
+	if (symm & PAINT_SYMM_X)
 		out[0] = -in[0];
 	else
 		out[0] = in[0];
-	if (symm & SCULPT_SYMM_Y)
+	if (symm & PAINT_SYMM_Y)
 		out[1] = -in[1];
 	else
 		out[1] = in[1];
-	if (symm & SCULPT_SYMM_Z)
+	if (symm & PAINT_SYMM_Z)
 		out[2] = -in[2];
 	else
 		out[2] = in[2];
@@ -820,7 +822,7 @@ static float calc_radial_symmetry_feather(Sculpt *sd, StrokeCache *cache, const 
 
 static float calc_symmetry_feather(Sculpt *sd, StrokeCache *cache)
 {
-	if (sd->flags & SCULPT_SYMMETRY_FEATHER) {
+	if (sd->paint.symmetry_flags & PAINT_SYMMETRY_FEATHER) {
 		float overlap;
 		int symm = cache->symmetry;
 		int i;
@@ -2996,6 +2998,49 @@ static void do_scrape_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	}
 }
 
+static void do_gravity(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode, float bstrength)
+{
+	SculptSession *ss = ob->sculpt;
+	Brush *brush = BKE_paint_brush(&sd->paint);
+
+	float offset[3]/*, an[3]*/;
+	int n;
+	float gravity_vector[3];
+
+	mul_v3_v3fl(gravity_vector, ss->cache->gravity_direction, -ss->cache->radius_squared);
+
+	/* offset with as much as possible factored in already */
+	mul_v3_v3v3(offset, gravity_vector, ss->cache->scale);
+	mul_v3_fl(offset, bstrength);
+
+	/* threaded loop over nodes */
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+	for(n = 0; n < totnode; n++) {
+		PBVHVertexIter vd;
+		SculptBrushTest test;
+		float (*proxy)[3];
+
+		proxy = BKE_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
+
+		sculpt_brush_test_init(ss, &test);
+
+		BKE_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			if (sculpt_brush_test_sq(&test, vd.co)) {
+				const float fade = tex_strength(ss, brush, vd.co, sqrt(test.dist),
+	                                            ss->cache->sculpt_normal_symm, vd.no,
+	                                            vd.fno, vd.mask ? *vd.mask : 0.0f);
+
+				mul_v3_v3fl(proxy[vd.i], offset, fade);
+
+				if(vd.mvert)
+					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+			}
+		}
+		BKE_pbvh_vertex_iter_end;
+	}
+}
+
+
 void sculpt_vertcos_to_key(Object *ob, KeyBlock *kb, float (*vertCos)[3])
 {
 	Mesh *me = (Mesh *)ob->data;
@@ -3221,6 +3266,9 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush)
 				smooth(sd, ob, nodes, totnode, brush->autosmooth_factor, FALSE);
 			}
 		}
+
+		if (brush->sculpt_tool != SCULPT_TOOL_MASK && sd->gravity_factor > 0.0f)
+			do_gravity(sd, ob, nodes, totnode, sd->gravity_factor);
 
 		MEM_freeN(nodes);
 
@@ -3467,7 +3515,7 @@ static void do_symmetrical_brush_actions(Sculpt *sd, Object *ob,
 	Brush *brush = BKE_paint_brush(&sd->paint);
 	SculptSession *ss = ob->sculpt;
 	StrokeCache *cache = ss->cache;
-	const char symm = sd->flags & 7;
+	const char symm = sd->paint.symmetry_flags & PAINT_SYMM_AXIS_ALL;
 	int i;
 
 	float feather = calc_symmetry_feather(sd, ss->cache);
@@ -3825,7 +3873,6 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	cache->scale[1] = max_scale / ob->size[1];
 	cache->scale[2] = max_scale / ob->size[2];
 
-
 	cache->plane_trim_squared = brush->plane_trim * brush->plane_trim;
 
 	cache->flag = 0;
@@ -3890,6 +3937,21 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	copy_m3_m4(mat, ob->imat);
 	mul_m3_v3(mat, viewDir);
 	normalize_v3_v3(cache->true_view_normal, viewDir);
+
+	/* get gravity vector in world space */
+	if (sd->gravity_object) {
+		Object *gravity_object = sd->gravity_object;
+
+		copy_v3_v3(cache->gravity_direction, gravity_object->obmat[2]);
+	}
+	else {
+		cache->gravity_direction[0] = cache->gravity_direction[1] = 0.0;
+		cache->gravity_direction[2] = 1.0;
+	}
+
+	/* transform to sculpted object space */
+	mul_m3_v3(mat, cache->gravity_direction);
+	normalize_v3(cache->gravity_direction);
 
 	/* Initialize layer brush displacements and persistent coords */
 	if (brush->sculpt_tool == SCULPT_TOOL_LAYER) {
@@ -4015,7 +4077,7 @@ static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Bru
 			/* location stays the same for finding vertices in brush radius */
 			copy_v3_v3(cache->true_location, cache->orig_grab_location);
 
-			ups->draw_anchored = 1;
+			ups->draw_anchored = true;
 			copy_v2_v2(ups->anchored_initial_mouse, cache->initial_mouse);
 			ups->anchored_size = ups->pixel_radius;
 		}
@@ -4142,7 +4204,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 		#undef PIXEL_INPUT_THRESHHOLD
 		}
 
-		ups->draw_anchored = 1;
+		ups->draw_anchored = true;
 		copy_v2_v2(ups->anchored_initial_mouse, cache->initial_mouse);
 		copy_v3_v3(cache->anchored_location, cache->true_location);
 		ups->anchored_size = ups->pixel_radius;
@@ -4314,7 +4376,7 @@ static void sculpt_restore_mesh(Sculpt *sd, Object *ob)
 	if ((brush->flag & BRUSH_ANCHORED) ||
 	    (brush->sculpt_tool == SCULPT_TOOL_GRAB &&
 	     BKE_brush_use_size_pressure(ss->cache->vc->scene, brush)) ||
-	    (brush->flag & BRUSH_RESTORE_MESH))
+	    (brush->flag & BRUSH_DRAG_DOT))
 	{
 		paint_mesh_restore_co(sd, ob);
 	}
@@ -4456,17 +4518,12 @@ static void sculpt_brush_exit_tex(Sculpt *sd)
 
 static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(stroke))
 {
-	UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
 	Object *ob = CTX_data_active_object(C);
 	Scene *scene = CTX_data_scene(C);
 	SculptSession *ss = ob->sculpt;
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 
 	sculpt_omp_done(ss);
-
-	/* reset values used to draw brush after completing the stroke */
-	ups->draw_anchored = 0;
-	ups->draw_pressure = 0;
 
 	/* Finished */
 	if (ss->cache) {
@@ -5068,7 +5125,7 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 			ts->sculpt = MEM_callocN(sizeof(Sculpt), "sculpt mode data");
 
 			/* Turn on X plane mirror symmetry by default */
-			ts->sculpt->flags |= SCULPT_SYMM_X;
+			ts->sculpt->paint.symmetry_flags |= PAINT_SYMM_X;
 
 			/* Make sure at least dyntopo subdivision is enabled */
 			ts->sculpt->flags |= SCULPT_DYNTOPO_SUBDIVIDE;

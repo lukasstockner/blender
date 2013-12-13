@@ -2017,7 +2017,7 @@ static void rna_def_unified_paint_settings(BlenderRNA  *brna)
 
 	/* unified paint settings that override the equivalent settings
 	 * from the active brush */
-	prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "size", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_funcs(prop, NULL, "rna_UnifiedPaintSettings_size_set", NULL);
 	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS * 10);
 	RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 1, -1);
@@ -2655,27 +2655,6 @@ static void rna_def_freestyle_settings(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem freestyle_raycasting_algorithm_items[] = {
-		{FREESTYLE_ALGO_REGULAR, "REGULAR", 0, "Normal Ray Casting", "Consider all FEdges in each ViewEdge"},
-		{FREESTYLE_ALGO_FAST, "FAST", 0, "Fast Ray Casting", "Sample some FEdges in each ViewEdge"},
-		{FREESTYLE_ALGO_VERYFAST, "VERYFAST", 0, "Very Fast Ray Casting",
-		                          "Sample one FEdge in each ViewEdge; do not save list of occluders"},
-		{FREESTYLE_ALGO_CULLED_ADAPTIVE_TRADITIONAL, "CULLEDADAPTIVETRADITIONAL", 0,
-		                                             "Culled Traditional Visibility Detection",
-		                                             "Culled adaptive grid with heuristic density and "
-		                                             "traditional QI calculation"},
-		{FREESTYLE_ALGO_ADAPTIVE_TRADITIONAL, "ADAPTIVETRADITIONAL", 0, "Unculled Traditional Visibility Detection",
-		                                      "Adaptive grid with heuristic density and traditional QI calculation"},
-		{FREESTYLE_ALGO_CULLED_ADAPTIVE_CUMULATIVE, "CULLEDADAPTIVECUMULATIVE", 0,
-		                                            "Culled Cumulative Visibility Detection",
-		                                            "Culled adaptive grid with heuristic density and "
-		                                            "cumulative QI calculation"},
-		{FREESTYLE_ALGO_ADAPTIVE_CUMULATIVE, "ADAPTIVECUMULATIVE", 0, "Unculled Cumulative Visibility Detection",
-		                                     "Adaptive grid with heuristic density and cumulative QI calculation"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
-
 	/* FreestyleLineSet */
 
 	srna = RNA_def_struct(brna, "FreestyleLineSet", NULL);
@@ -2922,12 +2901,6 @@ static void rna_def_freestyle_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Control Mode", "Select the Freestyle control mode");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
 
-	prop = RNA_def_property(srna, "raycasting_algorithm", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "raycasting_algorithm");
-	RNA_def_property_enum_items(prop, freestyle_raycasting_algorithm_items);
-	RNA_def_property_ui_text(prop, "Raycasting Algorithm", "Select the Freestyle raycasting algorithm");
-	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, NULL);
-
 	prop = RNA_def_property(srna, "use_culling", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", FREESTYLE_CULLING);
 	RNA_def_property_ui_text(prop, "Culling", "If enabled, out-of-view edges are ignored");
@@ -3165,13 +3138,13 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 	RNA_def_struct_nested(brna, srna, "Scene");
 	RNA_def_struct_ui_text(srna, "Game Data", "Game data for a Scene datablock");
 	
-	prop = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "xplay");
 	RNA_def_property_range(prop, 4, 10000);
 	RNA_def_property_ui_text(prop, "Resolution X", "Number of horizontal pixels in the screen");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 	
-	prop = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "yplay");
 	RNA_def_property_range(prop, 4, 10000);
 	RNA_def_property_ui_text(prop, "Resolution Y", "Number of vertical pixels in the screen");
@@ -4164,14 +4137,14 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "ImageFormatSettings");
 	RNA_def_property_ui_text(prop, "Image Format", "");
 
-	prop = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "xsch");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_range(prop, 4, 65536);
 	RNA_def_property_ui_text(prop, "Resolution X", "Number of horizontal pixels in the rendered image");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_SceneCamera_update");
 	
-	prop = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "ysch");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_range(prop, 4, 65536);
