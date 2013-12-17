@@ -651,9 +651,9 @@ static void rna_def_userdef_theme_ui_font_style(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Kerning Style", "Which style to use for font kerning");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-	prop = RNA_def_property(srna, "shadow", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "shadow", PROP_INT, PROP_PIXEL);
 	RNA_def_property_range(prop, 0, 5);
-	RNA_def_property_ui_text(prop, "Shadow Size", "Shadow size in pixels (0, 3 and 5 supported)");
+	RNA_def_property_ui_text(prop, "Shadow Size", "Shadow size (0, 3 and 5 supported)");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 	
 	prop = RNA_def_property(srna, "shadow_offset_x", PROP_INT, PROP_PIXEL);
@@ -980,8 +980,8 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.01f, 1.0f);
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 	
-	prop = RNA_def_property(srna, "menu_shadow_width", PROP_INT, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Menu Shadow Width", "Width of menu shadows in standard pixels, set to zero to disable it");
+	prop = RNA_def_property(srna, "menu_shadow_width", PROP_INT, PROP_PIXEL);
+	RNA_def_property_ui_text(prop, "Menu Shadow Width", "Width of menu shadows, set to zero to disable");
 	RNA_def_property_range(prop, 0.0f, 24.0f);
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 	
@@ -3183,11 +3183,11 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Manipulator Handle Size", "Size of widget handles as percentage of widget radius");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-	prop = RNA_def_property(srna, "manipulator_hotspot", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "manipulator_hotspot", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "tw_hotspot");
 	RNA_def_property_range(prop, 4, 40);
 	RNA_def_property_int_default(prop, 14);
-	RNA_def_property_ui_text(prop, "Manipulator Hotspot", "Pixel distance around the handles to accept mouse clicks");
+	RNA_def_property_ui_text(prop, "Manipulator Hotspot", "Distance around the handles to accept mouse clicks");
 
 	prop = RNA_def_property(srna, "object_origin_size", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "obcenter_dia");
@@ -3196,7 +3196,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 	
 	/* View2D Grid Displays */
-	prop = RNA_def_property(srna, "view2d_grid_spacing_min", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "view2d_grid_spacing_min", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "v2d_min_gridsize");
 	RNA_def_property_range(prop, 1, 500); /* XXX: perhaps the lower range should only go down to 5? */
 	RNA_def_property_ui_text(prop, "2D View Minimum Grid Spacing",
@@ -3351,17 +3351,17 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, NULL);
 	
 	/* grease pencil */
-	prop = RNA_def_property(srna, "grease_pencil_manhattan_distance", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "grease_pencil_manhattan_distance", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "gp_manhattendist");
 	RNA_def_property_range(prop, 0, 100);
 	RNA_def_property_ui_text(prop, "Grease Pencil Manhattan Distance",
 	                         "Pixels moved by mouse per axis when drawing stroke");
 
-	prop = RNA_def_property(srna, "grease_pencil_euclidean_distance", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "grease_pencil_euclidean_distance", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "gp_euclideandist");
 	RNA_def_property_range(prop, 0, 100);
 	RNA_def_property_ui_text(prop, "Grease Pencil Euclidean Distance",
-	                         "Distance moved by mouse when drawing stroke (in pixels) to include");
+	                         "Distance moved by mouse when drawing stroke to include");
 
 	prop = RNA_def_property(srna, "use_grease_pencil_smooth_stroke", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gp_settings", GP_PAINT_DOSMOOTH);
@@ -3371,7 +3371,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "gp_settings", GP_PAINT_DOSIMPLIFY);
 	RNA_def_property_ui_text(prop, "Grease Pencil Simplify Stroke", "Simplify the final stroke");
 
-	prop = RNA_def_property(srna, "grease_pencil_eraser_radius", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "grease_pencil_eraser_radius", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "gp_eraser");
 	RNA_def_property_range(prop, 0, 100);
 	RNA_def_property_ui_text(prop, "Grease Pencil Eraser Radius", "Radius of eraser 'brush'");
@@ -3916,13 +3916,13 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Walk Navigation", "Settings for walk navigation mode");
 
 	/* tweak tablet & mouse preset */
-	prop = RNA_def_property(srna, "drag_threshold", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "drag_threshold", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "dragthreshold");
 	RNA_def_property_range(prop, 3, 40);
 	RNA_def_property_ui_text(prop, "Drag Threshold",
 	                         "Amount of pixels you have to drag before dragging UI items happens");
 
-	prop = RNA_def_property(srna, "tweak_threshold", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "tweak_threshold", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "tweak_threshold");
 	RNA_def_property_range(prop, 3, 1024);
 	RNA_def_property_ui_text(prop, "Tweak Threshold",
@@ -4045,7 +4045,6 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 	
 	static EnumPropertyItem anim_player_presets[] = {
 		{0, "INTERNAL", 0, "Internal", "Built-in animation player"},
-		{1, "BLENDER24", 0, "Blender 2.4", "Blender command line animation playback - path to Blender 2.4"},
 		{2, "DJV", 0, "Djv", "Open source frame player: http://djv.sourceforge.net"},
 		{3, "FRAMECYCLER", 0, "FrameCycler", "Frame player from IRIDAS"},
 		{4, "RV", 0, "rv", "Frame player from Tweak Software"},
@@ -4141,7 +4140,6 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "anim_player_preset");
 	RNA_def_property_enum_items(prop, anim_player_presets);
 	RNA_def_property_ui_text(prop, "Animation Player Preset", "Preset configs for external animation players");
-	RNA_def_property_enum_default(prop, 1);     /* set default to blender 2.4 player until an internal one is back */
 	
 	/* Autosave  */
 

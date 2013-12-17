@@ -1370,6 +1370,37 @@ void CU_select_swap(Object *obedit)
 	}
 }
 
+/******************** transform operator **********************/
+
+void ED_curve_transform(Curve *cu, float mat[4][4])
+{
+	Nurb *nu;
+	BPoint *bp;
+	BezTriple *bezt;
+	int a;
+
+	float scale = mat4_to_scale(mat);
+
+	for (nu = cu->nurb.first; nu; nu = nu->next) {
+		if (nu->type == CU_BEZIER) {
+			a = nu->pntsu;
+			for (bezt = nu->bezt; a--; bezt++) {
+				mul_m4_v3(mat, bezt->vec[0]);
+				mul_m4_v3(mat, bezt->vec[1]);
+				mul_m4_v3(mat, bezt->vec[2]);
+				bezt->radius *= scale;
+			}
+			BKE_nurb_handles_calc(nu);
+		}
+		else {
+			a = nu->pntsu * nu->pntsv;
+			for (bp = nu->bp; a--; bp++)
+				mul_m4_v3(mat, bp->vec);
+		}
+	}
+	DAG_id_tag_update(&cu->id, 0);
+}
+
 /******************** separate operator ***********************/
 
 static int separate_exec(bContext *C, wmOperator *op)
@@ -3674,6 +3705,40 @@ void CURVE_OT_handle_type_set(wmOperatorType *ot)
 
 	/* properties */
 	ot->prop = RNA_def_enum(ot->srna, "type", editcurve_handle_type_items, 1, "Type", "Spline type");
+}
+
+/***************** recalculate handles operator **********************/
+
+static int curve_normals_make_consistent_exec(bContext *C, wmOperator *op)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	ListBase *editnurb = object_editcurve_get(obedit);
+	const bool calc_length = RNA_boolean_get(op->ptr, "calc_length");
+
+	BKE_nurbList_handles_recalculate(editnurb, calc_length, SELECT);
+
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+	DAG_id_tag_update(obedit->data, 0);
+
+	return OPERATOR_FINISHED;
+}
+
+void CURVE_OT_normals_make_consistent(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Recalc Normals";
+	ot->description = "Recalculate the direction of selected handles";
+	ot->idname = "CURVE_OT_normals_make_consistent";
+
+	/* api callbacks */
+	ot->exec = curve_normals_make_consistent_exec;
+	ot->poll = ED_operator_editcurve;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* props */
+	RNA_def_boolean(ot->srna, "calc_length", false, "Length", "Recalculate handle length");
 }
 
 /***************** make segment operator **********************/

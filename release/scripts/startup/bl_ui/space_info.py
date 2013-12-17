@@ -210,7 +210,7 @@ class INFO_MT_render(Menu):
         layout.separator()
 
         layout.operator("render.view_show")
-        layout.operator("render.play_rendered_anim")
+        layout.operator("render.play_rendered_anim", icon='PLAY')
 
 
 class INFO_MT_window(Menu):
@@ -255,8 +255,6 @@ class INFO_MT_help(Menu):
         layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = bpy.types.WM_OT_doc_view._prefix
         layout.operator("wm.operator_cheat_sheet", icon='TEXT')
         layout.operator("wm.sysinfo", icon='TEXT')
-        layout.separator()
-        layout.operator("logic.texface_convert", text="TexFace to Material Convert", icon='GAME')
         layout.separator()
 
         layout.operator("wm.splash", icon='BLENDER')

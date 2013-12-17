@@ -969,10 +969,11 @@ static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 	but->ofs = 0;
 	but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr, sizeof(but->drawstr));
 
-	while (but->strwidth > okwidth) {
-		ui_text_clip_give_next_off(but);
-		but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs, sizeof(but->drawstr) - but->ofs);
-		if (but->strwidth < 10) break;
+	if (but->strwidth > okwidth) {
+		float strwidth;
+		but->ofs = BLF_width_to_rstrlen(fstyle->uifont_id, but->drawstr,
+		                                sizeof(but->drawstr), okwidth, &strwidth);
+		but->strwidth = strwidth;
 	}
 
 	if (fstyle->kerning == 1) {
@@ -1102,17 +1103,12 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 
 	/* Now just remove trailing chars */
 	/* once the label's gone, chop off the least significant digits */
-	while (but->strwidth > okwidth) {
-		int bytes = BLI_str_utf8_size(BLI_str_find_prev_char_utf8(but->drawstr, but->drawstr + drawstr_len));
-		if (bytes < 0)
-			bytes = 1;
-
-		drawstr_len -= bytes;
+	if (but->strwidth > okwidth) {
+		float strwidth;
+		drawstr_len = BLF_width_to_strlen(fstyle->uifont_id, but->drawstr + but->ofs,
+		                                  drawstr_len - but->ofs, okwidth, &strwidth) + but->ofs;
+		but->strwidth = strwidth;
 		but->drawstr[drawstr_len] = 0;
-		// BLI_assert(strlen(but->drawstr) == drawstr_len);
-		
-		but->strwidth = BLF_width(fstyle->uifont_id, but->drawstr + but->ofs, sizeof(but->drawstr) - but->ofs);
-		if (but->strwidth < 10) break;
 	}
 	
 	if (fstyle->kerning == 1)
@@ -1125,9 +1121,6 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	int drawstr_left_len = UI_MAX_DRAW_STR;
 	char *drawstr_right = NULL;
 	bool use_right_only = false;
-	
-	/* for underline drawing */
-	float font_xofs, font_yofs;
 
 	uiStyleFontSet(fstyle);
 	
@@ -1221,38 +1214,41 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	glColor4ubv((unsigned char *)wcol->text);
 
 	if (!use_right_only) {
+		/* for underline drawing */
+		float font_xofs, font_yofs;
+
 		uiStyleFontDrawExt(fstyle, rect, but->drawstr + but->ofs,
 		                   drawstr_left_len - but->ofs, &font_xofs, &font_yofs);
-	}
 
-	if (but->menu_key != '\0') {
-		char fixedbuf[128];
-		char *str;
+		if (but->menu_key != '\0') {
+			char fixedbuf[128];
+			char *str;
 
-		BLI_strncpy(fixedbuf, but->drawstr + but->ofs, min_ii(sizeof(fixedbuf), drawstr_left_len));
+			BLI_strncpy(fixedbuf, but->drawstr + but->ofs, min_ii(sizeof(fixedbuf), drawstr_left_len));
 
-		str = strchr(fixedbuf, but->menu_key - 32); /* upper case */
-		if (str == NULL)
-			str = strchr(fixedbuf, but->menu_key);
+			str = strchr(fixedbuf, but->menu_key - 32); /* upper case */
+			if (str == NULL)
+				str = strchr(fixedbuf, but->menu_key);
 
-		if (str) {
-			int ul_index = -1;
-			float ul_advance;
+			if (str) {
+				int ul_index = -1;
+				float ul_advance;
 
-			ul_index = (int)(str - fixedbuf);
+				ul_index = (int)(str - fixedbuf);
 
-			if (fstyle->kerning == 1) {
-				BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
-			}
+				if (fstyle->kerning == 1) {
+					BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+				}
 
-			fixedbuf[ul_index] = '\0';
-			ul_advance = BLF_width(fstyle->uifont_id, fixedbuf, ul_index);
+				fixedbuf[ul_index] = '\0';
+				ul_advance = BLF_width(fstyle->uifont_id, fixedbuf, ul_index);
 
-			BLF_position(fstyle->uifont_id, rect->xmin + font_xofs + ul_advance, rect->ymin + font_yofs, 0.0f);
-			BLF_draw(fstyle->uifont_id, "_", 2);
+				BLF_position(fstyle->uifont_id, rect->xmin + font_xofs + ul_advance, rect->ymin + font_yofs, 0.0f);
+				BLF_draw(fstyle->uifont_id, "_", 2);
 
-			if (fstyle->kerning == 1) {
-				BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+				if (fstyle->kerning == 1) {
+					BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+				}
 			}
 		}
 	}
