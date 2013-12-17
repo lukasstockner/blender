@@ -77,7 +77,7 @@ void BKE_libblock_free(struct ListBase *lb, void *idv);
 void BKE_libblock_free_us(struct ListBase *lb, void *idv);
 void BKE_libblock_free_data(struct ID *id);
 
-struct Main *BKE_main_allocate(void);
+struct Main *BKE_main_new(void);
 void free_main(struct Main *mainvar);
 
 void tag_main_idcode(struct Main *mainvar, const short type, const short tag);

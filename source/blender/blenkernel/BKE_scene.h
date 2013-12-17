@@ -114,11 +114,7 @@ float BKE_scene_frame_get_from_ctime(struct Scene *scene, const float frame);
 void  BKE_scene_frame_set(struct Scene *scene, double cfra);
 
 /* **  Scene evaluation ** */
-
-void BKE_scene_update_tagged_ex(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *scene, bool use_threads);
 void BKE_scene_update_tagged(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *sce);
-
-void BKE_scene_update_for_newframe_ex(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *sce, unsigned int lay, bool use_threads);
 void BKE_scene_update_for_newframe(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *sce, unsigned int lay);
 
 struct SceneRenderLayer *BKE_scene_add_render_layer(struct Scene *sce, const char *name);

@@ -1365,16 +1365,11 @@ static void print_threads_statistics(ThreadedObjectUpdateState *state)
 #endif
 }
 
-static void scene_update_objects(EvaluationContext *evaluation_context, Scene *scene, Scene *scene_parent, bool use_threads)
+static void scene_update_objects(EvaluationContext *evaluation_context, Scene *scene, Scene *scene_parent)
 {
 	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
 	TaskPool *task_pool;
 	ThreadedObjectUpdateState state;
-
-	if (use_threads == false) {
-		scene_update_all_bases(evaluation_context, scene, scene_parent);
-		return;
-	}
 
 	state.evaluation_context = evaluation_context;
 	state.scene = scene;
@@ -1403,17 +1398,17 @@ static void scene_update_objects(EvaluationContext *evaluation_context, Scene *s
 #endif
 }
 
- static void scene_update_tagged_recursive(EvaluationContext *evaluation_context, Main *bmain, Scene *scene, Scene *scene_parent, bool use_threads)
+static void scene_update_tagged_recursive(EvaluationContext *evaluation_context, Main *bmain, Scene *scene, Scene *scene_parent)
 {
 	scene->customdata_mask = scene_parent->customdata_mask;
 
 	/* sets first, we allow per definition current scene to have
 	 * dependencies on sets, but not the other way around. */
 	if (scene->set)
-		scene_update_tagged_recursive(evaluation_context, bmain, scene->set, scene_parent, use_threads);
+		scene_update_tagged_recursive(evaluation_context, bmain, scene->set, scene_parent);
 
 	/* scene objects */
-	scene_update_objects(evaluation_context, scene, scene_parent, use_threads);
+	scene_update_objects(evaluation_context, scene, scene_parent);
 
 	/* scene drivers... */
 	scene_update_drivers(bmain, scene);
@@ -1426,20 +1421,7 @@ static void scene_update_objects(EvaluationContext *evaluation_context, Scene *s
 	
 }
 
-/* this is called in main loop, doing tagged updates before redraw */
-/* NOTE: We don't use threads when scene update was called from python
- * via scene.update() call.
- *
- * This is so because this call will set python's GIL and if any of
- * the objects is using drivers we'll end up being in a dead-lock
- * because driver evaluation will also try to set GIL.
- *
- * We might try using Py_BEGIN_ALLOW_THREADS in RNA callback, but
- * not sure how it's gonna to fit into design and what would be the
- * rules there and whether it'll help even.
- *                                               - sergey -
- */
-void BKE_scene_update_tagged_ex(EvaluationContext *evaluation_context, Main *bmain, Scene *scene, bool use_threads)
+void BKE_scene_update_tagged(EvaluationContext *evaluation_context, Main *bmain, Scene *scene)
 {
 	Scene *sce_iter;
 	
@@ -1466,7 +1448,7 @@ void BKE_scene_update_tagged_ex(EvaluationContext *evaluation_context, Main *bma
 	 *
 	 * in the future this should handle updates for all datablocks, not
 	 * only objects and scenes. - brecht */
-	scene_update_tagged_recursive(evaluation_context, bmain, scene, scene, use_threads);
+	scene_update_tagged_recursive(evaluation_context, bmain, scene, scene);
 
 	/* extra call here to recalc scene animation (for sequencer) */
 	{
@@ -1485,13 +1467,8 @@ void BKE_scene_update_tagged_ex(EvaluationContext *evaluation_context, Main *bma
 	DAG_ids_clear_recalc(bmain);
 }
 
-void BKE_scene_update_tagged(EvaluationContext *evaluation_context, Main *bmain, Scene *scene)
-{
-	BKE_scene_update_tagged_ex(evaluation_context, bmain, scene, true);
-}
-
 /* applies changes right away, does all sets too */
-void BKE_scene_update_for_newframe_ex(EvaluationContext *evaluation_context, Main *bmain, Scene *sce, unsigned int lay, bool use_threads)
+void BKE_scene_update_for_newframe(EvaluationContext *evaluation_context, Main *bmain, Scene *sce, unsigned int lay)
 {
 	float ctime = BKE_scene_frame_get(sce);
 	Scene *sce_iter;
@@ -1552,7 +1529,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *evaluation_context, Mai
 	scene_do_rb_simulation_recursive(sce, ctime);
 
 	/* BKE_object_handle_update() on all objects, groups and sets */
-	scene_update_tagged_recursive(evaluation_context, bmain, sce, sce, use_threads);
+	scene_update_tagged_recursive(evaluation_context, bmain, sce, sce);
 
 	scene_depsgraph_hack(evaluation_context, sce, sce);
 
@@ -1568,11 +1545,6 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *evaluation_context, Mai
 #ifdef DETAILED_ANALYSIS_OUTPUT
 	fprintf(stderr, "frame update start_time %f duration %f\n", start_time, PIL_check_seconds_timer() - start_time);
 #endif
-}
-
-void BKE_scene_update_for_newframe(EvaluationContext *evaluation_context, Main *bmain, Scene *sce, unsigned int lay)
-{
-	BKE_scene_update_for_newframe_ex(evaluation_context, bmain, sce, lay, true);
 }
 
 /* return default layer, also used to patch old files */

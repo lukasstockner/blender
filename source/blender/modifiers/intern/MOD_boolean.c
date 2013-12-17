@@ -128,7 +128,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	if (!bmd->object)
 		return derivedData;
 
-	dm = get_operand_dm(bmd->object, flag);
+	dm = get_dm_for_modifier(bmd->object, flag);
 
 	if (dm) {
 		DerivedMesh *result;

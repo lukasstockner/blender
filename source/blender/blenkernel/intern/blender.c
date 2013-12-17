@@ -138,7 +138,7 @@ void initglobals(void)
 	
 	U.savetime = 1;
 
-	G.main = BKE_main_allocate();
+	G.main = BKE_main_new();
 
 	strcpy(G.ima, "//");
 

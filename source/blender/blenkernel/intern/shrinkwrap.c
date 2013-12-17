@@ -68,12 +68,12 @@
 
 /* get derived mesh */
 /* TODO is anyfunction that does this? returning the derivedFinal without we caring if its in edit mode or not? */
-DerivedMesh *object_get_derived_final(Object *ob, bool forRender)
+DerivedMesh *object_get_derived_final(Object *ob, bool for_render)
 {
 	Mesh *me = ob->data;
 	BMEditMesh *em = me->edit_btmesh;
 
-	if (forRender) {
+	if (for_render) {
 		/* TODO(sergey): Use proper derivedRender when known. */
 		return ob->derivedFinal;
 	}

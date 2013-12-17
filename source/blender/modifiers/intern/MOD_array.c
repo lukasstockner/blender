@@ -352,9 +352,9 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 
 	/* need to avoid infinite recursion here */
 	if (amd->start_cap && amd->start_cap != ob && amd->start_cap->type == OB_MESH)
-		start_cap = get_operand_dm(amd->start_cap, flag);
+		start_cap = get_dm_for_modifier(amd->start_cap, flag);
 	if (amd->end_cap && amd->end_cap != ob && amd->end_cap->type == OB_MESH)
-		end_cap = get_operand_dm(amd->end_cap, flag);
+		end_cap = get_dm_for_modifier(amd->end_cap, flag);
 
 	unit_m4(offset);
 

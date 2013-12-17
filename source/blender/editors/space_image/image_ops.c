@@ -778,9 +778,6 @@ void IMAGE_OT_view_selected(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = image_view_selected_exec;
 	ot->poll = image_view_selected_poll;
-
-	/* flags */
-	ot->flag = OPTYPE_GRAB_POINTER;
 }
 
 /********************** view zoom in/out operator *********************/

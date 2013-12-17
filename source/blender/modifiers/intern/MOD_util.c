@@ -209,10 +209,8 @@ DerivedMesh *get_dm(Object *ob, struct BMEditMesh *em, DerivedMesh *dm,
 
 /* Get derived mesh for other object, which is used as an operand for the modifier,
  * i.e. second operand for boolean modifier.
- *
- * TODO(sergey): Think of better naming here.
  */
-DerivedMesh *get_operand_dm(Object *ob, ModifierApplyFlag flag)
+DerivedMesh *get_dm_for_modifier(Object *ob, ModifierApplyFlag flag)
 {
 	if (flag & MOD_APPLY_RENDER) {
 		/* TODO(sergey): Use proper derivedRender when known. */

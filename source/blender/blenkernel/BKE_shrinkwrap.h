@@ -37,7 +37,7 @@
 #include "BKE_customdata.h"
 struct DerivedMesh;
 struct Object;
-struct DerivedMesh *object_get_derived_final(struct Object *ob, bool forRender);
+struct DerivedMesh *object_get_derived_final(struct Object *ob, bool for_render);
 
 
 /* SpaceTransform stuff */

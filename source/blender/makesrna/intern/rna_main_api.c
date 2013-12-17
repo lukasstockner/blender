@@ -361,7 +361,7 @@ Mesh *rna_Main_meshes_new_from_object(
 				 *               only contains for_render flag. As soon as CoW is
 				 *               implemented, this is to be rethinked.
 				 */
-				EvaluationContext evaluation_context;
+				EvaluationContext evaluation_context = {0};
 				evaluation_context.for_render = render;
 				BKE_displist_make_mball_forRender(&evaluation_context, sce, ob, &disp);
 				BKE_mesh_from_metaball(&disp, tmpmesh);

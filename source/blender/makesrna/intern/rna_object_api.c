@@ -168,7 +168,7 @@ static void dupli_render_particle_set(Scene *scene, Object *ob, int level, int e
 static void rna_Object_create_duplilist(Object *ob, ReportList *reports, Scene *sce, int settings)
 {
 	int for_render = settings == eModifierMode_Render;
-	EvaluationContext evaluation_context;
+	EvaluationContext evaluation_context = {0};
 	evaluation_context.for_render = for_render;
 
 	if (!(ob->transflag & OB_DUPLI)) {
