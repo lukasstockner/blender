@@ -237,7 +237,7 @@ typedef struct uiAfterFunc {
 
 
 
-static bool ui_is_but_interactive(uiBut *but, const bool labeledit);
+static bool ui_is_but_interactive(const uiBut *but, const bool labeledit);
 static bool ui_but_contains_pt(uiBut *but, int mx, int my);
 static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y);
 static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, int x, int y, bool ctrl);
@@ -383,7 +383,7 @@ static void ui_mouse_scale_warp(uiHandleButtonData *data,
 }
 
 /* file selectors are exempt from utf-8 checks */
-bool ui_is_but_utf8(uiBut *but)
+bool ui_is_but_utf8(const uiBut *but)
 {
 	if (but->rnaprop) {
 		const int subtype = RNA_property_subtype(but->rnaprop);
@@ -398,6 +398,40 @@ bool ui_is_but_utf8(uiBut *but)
 
 static ListBase UIAfterFuncs = {NULL, NULL};
 
+static uiAfterFunc *ui_afterfunc_new(void)
+{
+	uiAfterFunc *after;
+
+	after = MEM_callocN(sizeof(uiAfterFunc), "uiAfterFunc");
+
+	BLI_addtail(&UIAfterFuncs, after);
+
+	return after;
+}
+
+/**
+ * For executing operators after the button is pressed.
+ * (some non operator buttons need to trigger operators), see: [#37795]
+ *
+ * \note Can only call while handling buttons.
+ */
+PointerRNA *ui_handle_afterfunc_add_operator(wmOperatorType *ot, int opcontext, bool create_props)
+{
+	PointerRNA *ptr = NULL;
+	uiAfterFunc *after = ui_afterfunc_new();
+
+	after->optype = ot;
+	after->opcontext = opcontext;
+
+	if (create_props) {
+		ptr = MEM_callocN(sizeof(PointerRNA), __func__);
+		WM_operator_properties_create_ptr(ptr, ot);
+		after->opptr = ptr;
+	}
+
+	return ptr;
+}
+
 static void ui_apply_but_func(bContext *C, uiBut *but)
 {
 	uiAfterFunc *after;
@@ -410,7 +444,7 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
 	if (but->func || but->funcN || block->handle_func || but->rename_func ||
 	    (but->type == BUTM && block->butm_func) || but->optype || but->rnaprop)
 	{
-		after = MEM_callocN(sizeof(uiAfterFunc), "uiAfterFunc");
+		after = ui_afterfunc_new();
 
 		if (but->func && ELEM(but, but->func_arg1, but->func_arg2)) {
 			/* exception, this will crash due to removed button otherwise */
@@ -452,8 +486,6 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
 		but->optype = NULL;
 		but->opcontext = 0;
 		but->opptr = NULL;
-
-		BLI_addtail(&UIAfterFuncs, after);
 	}
 }
 
@@ -477,9 +509,8 @@ static void ui_apply_undo(uiBut *but)
 		}
 
 		/* delayed, after all other funcs run, popups are closed, etc */
-		after = MEM_callocN(sizeof(uiAfterFunc), "uiAfterFunc");
+		after = ui_afterfunc_new();
 		BLI_strncpy(after->undostr, str, sizeof(after->undostr));
-		BLI_addtail(&UIAfterFuncs, after);
 	}
 }
 
@@ -869,7 +900,7 @@ static int ui_handler_region_drag_toggle(bContext *C, const wmEvent *event, void
 	}
 }
 
-static bool ui_is_but_drag_toggle(uiBut *but)
+static bool ui_is_but_drag_toggle(const uiBut *but)
 {
 	return ((ui_is_but_bool(but) == true) &&
 	        /* menu check is importnt so the button dragged over isn't removed instantly */
@@ -1655,8 +1686,13 @@ static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, con
 {
 	uiStyle *style = UI_GetStyle();  // XXX pass on as arg
 	uiFontStyle *fstyle = &style->widget;
+	const float aspect = but->block->aspect;
+	const short fstyle_points_prev = fstyle->points;
+
 	float startx = but->rect.xmin;
 	char *origstr, password_str[UI_MAX_DRAW_STR];
+
+	ui_fontscale(&fstyle->points, aspect);
 
 	uiStyleFontSet(fstyle);
 
@@ -1671,7 +1707,7 @@ static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, con
 
 	/* XXX solve generic, see: #widget_draw_text_icon */
 	if (but->type == NUM || but->type == NUMSLI) {
-		startx += (int)(0.5f * (BLI_rctf_size_y(&but->rect)));
+		startx += (int)(UI_TEXT_MARGIN_X * U.widget_unit);
 	}
 	else if (ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		if (but->flag & UI_HAS_ICON) {
@@ -1690,7 +1726,7 @@ static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, con
 		while (i > 0) {
 			if (BLI_str_cursor_step_prev_utf8(origstr, but->ofs, &i)) {
 				/* 0.25 == scale factor for less sensitivity */
-				if (BLF_width(fstyle->uifont_id, origstr + i, BLF_DRAW_STR_DUMMY_MAX) > (startx - x) * 0.25f) {
+				if (BLF_width(fstyle->uifont_id, origstr + i, BLF_DRAW_STR_DUMMY_MAX) * aspect > (startx - x) * 0.25f) {
 					break;
 				}
 			}
@@ -1712,7 +1748,7 @@ static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, con
 		but->pos = pos_prev = strlen(origstr) - but->ofs;
 
 		while (true) {
-			cdist = startx + BLF_width(fstyle->uifont_id, origstr + but->ofs, BLF_DRAW_STR_DUMMY_MAX);
+			cdist = startx + BLF_width(fstyle->uifont_id, origstr + but->ofs, BLF_DRAW_STR_DUMMY_MAX) * aspect;
 
 			/* check if position is found */
 			if (cdist < x) {
@@ -1746,6 +1782,8 @@ static void ui_textedit_set_cursor_pos(uiBut *but, uiHandleButtonData *data, con
 	ui_button_text_password_hide(password_str, but, TRUE);
 
 	MEM_freeN(origstr);
+
+	fstyle->points = fstyle_points_prev;
 }
 
 static void ui_textedit_set_cursor_select(uiBut *but, uiHandleButtonData *data, const float x)
@@ -5556,7 +5594,7 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			RNA_string_set(&ptr_props, "doc_new", RNA_property_description(but->rnaprop));
 
 			uiItemFullO(layout, "WM_OT_doc_edit", "Submit Description", ICON_NONE, ptr_props.data, WM_OP_INVOKE_DEFAULT, 0);
- #endif
+#endif
 		}
 		else if (but->optype) {
 			WM_operator_py_idname(buf, but->optype->idname);
@@ -5833,7 +5871,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 		    (event->type == BACKSPACEKEY && event->val == KM_PRESS))
 		{
 			/* ctrl+backspace = reset active button; backspace = reset a whole array*/
-			ui_set_but_default(C, !event->ctrl);
+			ui_set_but_default(C, !event->ctrl, true);
 			ED_region_tag_redraw(data->region);
 			retval = WM_UI_HANDLER_BREAK;
 		}
@@ -5969,7 +6007,7 @@ static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y)
  * Can we mouse over the button or is it hidden/disabled/layout.
  * Note: ctrl is kind of a hack currently, so that non-embossed TEX button behaves as a label when ctrl is not pressed.
  */
-static bool ui_is_but_interactive(uiBut *but, const bool labeledit)
+static bool ui_is_but_interactive(const uiBut *but, const bool labeledit)
 {
 	/* note, LABEL is included for highlights, this allows drags */
 	if ((but->type == LABEL) && but->dragpoin == NULL)
@@ -5988,7 +6026,7 @@ static bool ui_is_but_interactive(uiBut *but, const bool labeledit)
 	return true;
 }
 
-bool ui_is_but_search_unlink_visible(uiBut *but)
+bool ui_is_but_search_unlink_visible(const uiBut *but)
 {
 	BLI_assert(but->type == SEARCH_MENU_UNLINK);
 	return ((but->editstr == NULL) &&
@@ -6927,7 +6965,7 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar)
 
 				if (dyn_data->items_filter_neworder || dyn_data->items_filter_flags) {
 					/* If we have a display order different from collection order, we have some work! */
-					int *org_order = MEM_mallocN(dyn_data->items_shown * sizeof(int), AT);
+					int *org_order = MEM_mallocN(dyn_data->items_shown * sizeof(int), __func__);
 					int *new_order = dyn_data->items_filter_neworder;
 					int i, org_idx = -1, len = dyn_data->items_len;
 					int current_idx = -1;

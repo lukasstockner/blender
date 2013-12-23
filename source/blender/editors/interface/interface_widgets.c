@@ -60,6 +60,9 @@
 
 #include "interface_intern.h"
 
+/* icons are 80% of height of button (16 pixels inside 20 height) */
+#define ICON_SIZE_FROM_BUTRECT(rect) (0.8f * BLI_rcti_size_y(rect))
+
 /* ************** widget base functions ************** */
 /*
  * - in: roundbox codes for corner types and radius
@@ -822,6 +825,8 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 /* *********************** text/icon ************************************** */
 
+#define UI_TEXT_CLIP_MARGIN (0.25f * U.widget_unit / but->block->aspect)
+
 #define PREVIEW_PAD 4
 
 static void widget_draw_preview(BIFIconID icon, float UNUSED(alpha), const rcti *rect)
@@ -845,14 +850,14 @@ static void widget_draw_preview(BIFIconID icon, float UNUSED(alpha), const rcti 
 }
 
 
-static int ui_but_draw_menu_icon(uiBut *but)
+static int ui_but_draw_menu_icon(const uiBut *but)
 {
 	return (but->flag & UI_ICON_SUBMENU) && (but->dt == UI_EMBOSSP);
 }
 
 /* icons have been standardized... and this call draws in untransformed coordinates */
 
-static void widget_draw_icon(uiBut *but, BIFIconID icon, float alpha, const rcti *rect)
+static void widget_draw_icon(const uiBut *but, BIFIconID icon, float alpha, const rcti *rect)
 {
 	float xs = 0.0f, ys = 0.0f;
 	float aspect, height;
@@ -950,15 +955,8 @@ static void ui_text_clip_give_next_off(uiBut *but)
  */
 static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
-	int border = (but->drawflag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
-	int okwidth = BLI_rcti_size_x(rect) - border;
-
-	if (but->flag & UI_HAS_ICON)
-		okwidth -= UI_DPI_ICON_SIZE;
-	if ((but->type == SEARCH_MENU_UNLINK) && ui_is_but_search_unlink_visible(but))
-		okwidth -= BLI_rcti_size_y(rect);
-
-	okwidth = max_ii(okwidth, 0);
+	const int border = UI_TEXT_CLIP_MARGIN + 1;
+	const int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
 
 	/* need to set this first */
 	uiStyleFontSet(fstyle);
@@ -986,9 +984,8 @@ static void ui_text_clip_left(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
  */
 static void ui_text_clip_cursor(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
-	int border = (but->drawflag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
-	int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
-	if (but->flag & UI_HAS_ICON) okwidth -= UI_DPI_ICON_SIZE;
+	const int border = UI_TEXT_CLIP_MARGIN + 1;
+	const int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
 
 	BLI_assert(but->editstr && but->pos >= 0);
 
@@ -1046,8 +1043,8 @@ static void ui_text_clip_cursor(uiFontStyle *fstyle, uiBut *but, const rcti *rec
  */
 static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
-	int border = (but->drawflag & UI_BUT_ALIGN_RIGHT) ? 8 : 10;
-	int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
+	const int border = UI_TEXT_CLIP_MARGIN + 1;
+	const int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
 	char *cpoin = NULL;
 	int drawstr_len = strlen(but->drawstr);
 	char *cpend = but->drawstr + drawstr_len;
@@ -1256,7 +1253,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	/* part text right aligned */
 	if (drawstr_right) {
 		fstyle->align = UI_STYLE_TEXT_RIGHT;
-		rect->xmax -= ui_but_draw_menu_icon(but) ? UI_DPI_ICON_SIZE : 0.25f * U.widget_unit;
+		rect->xmax -= UI_TEXT_CLIP_MARGIN;
 		uiStyleFontDraw(fstyle, rect, drawstr_right);
 	}
 }
@@ -1272,12 +1269,47 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 
 	ui_button_text_password_hide(password_str, but, FALSE);
 
+	/* check for button text label */
+	if (but->type == MENU && (but->flag & UI_BUT_NODE_LINK)) {
+		rcti temp = *rect;
+		temp.xmin = rect->xmax - BLI_rcti_size_y(rect) - 1;
+		widget_draw_icon(but, ICON_LAYER_USED, alpha, &temp);
+	}
+
+	/* If there's an icon too (made with uiDefIconTextBut) then draw the icon
+	 * and offset the text label to accommodate it */
+
+	if (but->flag & UI_HAS_ICON) {
+		widget_draw_icon(but, but->icon + but->iconadd, alpha, rect);
+		rect->xmin += ICON_SIZE_FROM_BUTRECT(rect);
+	}
+
+	if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT)) {
+		rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+	}
+	else if ((but->drawflag & UI_BUT_TEXT_RIGHT)) {
+		rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+	}
+
+	/* unlink icon for this button type */
+	if ((but->type == SEARCH_MENU_UNLINK) && ui_is_but_search_unlink_visible(but)) {
+		rcti temp = *rect;
+
+		temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
+		widget_draw_icon(but, ICON_X, alpha, &temp);
+		rect->xmax -= ICON_SIZE_FROM_BUTRECT(rect);
+	}
+
 	/* clip but->drawstr to fit in available space */
 	if (but->editstr && but->pos >= 0) {
 		ui_text_clip_cursor(fstyle, but, rect);
 	}
 	else if (ELEM(but->type, NUM, NUMSLI)) {
 		ui_text_clip_right_label(fstyle, but, rect);
+	}
+	/* Special hack for non-embossed TEX buttons in uiList (we want them to behave as much as possible as labels). */
+	else if ((but->type == TEX) && (but->flag & UI_BUT_LIST_ITEM) && (but->dt & UI_EMBOSSN)) {
+		but->ofs = 0;
 	}
 	else if (ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
 		ui_text_clip_left(fstyle, but, rect);
@@ -1289,55 +1321,13 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		but->ofs = 0;
 	}
 
-	/* check for button text label */
-	if (but->type == MENU && (but->flag & UI_BUT_NODE_LINK)) {
-		int tmp = rect->xmin;
-		rect->xmin = rect->xmax - BLI_rcti_size_y(rect) - 1;
-		widget_draw_icon(but, ICON_LAYER_USED, alpha, rect);
-		rect->xmin = tmp;
-	}
-
-	/* If there's an icon too (made with uiDefIconTextBut) then draw the icon
-	 * and offset the text label to accommodate it */
-
-	if (but->flag & UI_HAS_ICON) {
-		widget_draw_icon(but, but->icon + but->iconadd, alpha, rect);
-		
-		/* icons default draw 0.8f x height */
-		rect->xmin += (int)(0.8f * BLI_rcti_size_y(rect));
-
-		if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT)) {
-			if (but->editstr || but->ofs == 0) {
-				rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
-			}
-		}
-		else if ((but->drawflag & UI_BUT_TEXT_RIGHT)) {
-			rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
-		}
-	}
-	else if ((but->drawflag & UI_BUT_TEXT_LEFT)) {
-		if (but->ofs == 0) {
-			rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
-		}
-	}
-	else if ((but->drawflag & UI_BUT_TEXT_RIGHT)) {
-		rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
-	}
-	
-	/* unlink icon for this button type */
-	if ((but->type == SEARCH_MENU_UNLINK) && ui_is_but_search_unlink_visible(but)) {
-		rcti temp = *rect;
-
-		temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
-		widget_draw_icon(but, ICON_X, alpha, &temp);
-	}
-
 	/* always draw text for textbutton cursor */
 	widget_draw_text(fstyle, wcol, but, rect);
 
 	ui_button_text_password_hide(password_str, but, TRUE);
 }
 
+#undef UI_TEXT_CLIP_MARGIN
 
 
 /* *********************** widget types ************************************* */
@@ -3560,9 +3550,8 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 		float height, aspect;
 		int xs = rect->xmin + 0.2f * UI_UNIT_X;
 		int ys = rect->ymin + 0.1f * BLI_rcti_size_y(rect);
-		
-		/* icons are 80% of height of button (16 pixels inside 20 height) */
-		height = 0.8f * BLI_rcti_size_y(rect);
+
+		height = ICON_SIZE_FROM_BUTRECT(rect);
 		aspect = ICON_DEFAULT_HEIGHT / height;
 		
 		glEnable(GL_BLEND);

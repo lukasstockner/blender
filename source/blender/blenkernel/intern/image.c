@@ -146,7 +146,7 @@ static void imagecache_put(Image *image, int index, ImBuf *ibuf)
 	IMB_moviecache_put(image->cache, &key, ibuf);
 }
 
-static struct ImBuf* imagecache_get(Image *image, int index)
+static struct ImBuf *imagecache_get(Image *image, int index)
 {
 	if (image->cache) {
 		ImageCacheKey key;
@@ -1497,6 +1497,12 @@ void BKE_imbuf_to_image_format(struct ImageFormatData *im_format, const ImBuf *i
 	}
 
 	/* planes */
+	/* TODO(sergey): Channels doesn't correspond actual planes used for image buffer
+	 *               For example byte buffer will have 4 channels but it might easily
+	 *               be BW or RGB image.
+	 *
+	 *               Need to use im_format->planes = imbuf->planes instead?
+	 */
 	switch (imbuf->channels) {
 		case 0:
 		case 4: im_format->planes = R_IMF_PLANES_RGBA;
@@ -2862,13 +2868,8 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 	ibuf->x = rres.rectx;
 	ibuf->y = rres.recty;
 
-	/* free rect buffer if float buffer changes, so it can be recreated with
-	 * the updated result, and also in case we got byte buffer from sequencer,
-	 * so we don't keep reference to freed buffer */
-	if (ibuf->rect_float != rectf || rect)
-		imb_freerectImBuf(ibuf);
-
 	if (rect) {
+		imb_freerectImBuf(ibuf);
 		ibuf->rect = rect;
 	}
 	else {

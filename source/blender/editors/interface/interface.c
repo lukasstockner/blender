@@ -230,13 +230,7 @@ static void ui_text_bounds_block(uiBlock *block, float offset)
 	/* cope with multi collumns */
 	bt = block->buttons.first;
 	while (bt) {
-		if (bt->next && bt->rect.xmin < bt->next->rect.xmin) {
-			nextcol = 1;
-			col++;
-		}
-		else {
-			nextcol = 0;
-		}
+		nextcol = (bt->next && bt->rect.xmin < bt->next->rect.xmin);
 		
 		bt->rect.xmin = x1addval;
 		bt->rect.xmax = bt->rect.xmin + i + block->bounds;
@@ -247,8 +241,10 @@ static void ui_text_bounds_block(uiBlock *block, float offset)
 
 		ui_check_but(bt);  /* clips text again */
 		
-		if (nextcol)
+		if (nextcol) {
 			x1addval += i + block->bounds;
+			col++;
+		}
 		
 		bt = bt->next;
 	}
@@ -746,7 +742,7 @@ void uiButExecute(const bContext *C, uiBut *but)
 
 /* use to check if we need to disable undo, but don't make any changes
  * returns FALSE if undo needs to be disabled. */
-static int ui_is_but_rna_undo(uiBut *but)
+static int ui_is_but_rna_undo(const uiBut *but)
 {
 	if (but->rnapoin.id.data) {
 		/* avoid undo push for buttons who's ID are screen or wm level
@@ -1527,7 +1523,7 @@ void ui_set_but_vectorf(uiBut *but, const float vec[3])
 	}
 }
 
-bool ui_is_but_float(uiBut *but)
+bool ui_is_but_float(const uiBut *but)
 {
 	if (but->pointype == UI_BUT_POIN_FLOAT && but->poin)
 		return true;
@@ -1538,7 +1534,7 @@ bool ui_is_but_float(uiBut *but)
 	return false;
 }
 
-bool ui_is_but_bool(uiBut *but)
+bool ui_is_but_bool(const uiBut *but)
 {
 	if (ELEM4(but->type, TOG, TOGN, ICONTOG, ICONTOGN))
 		return true;
@@ -1550,7 +1546,7 @@ bool ui_is_but_bool(uiBut *but)
 }
 
 
-bool ui_is_but_unit(uiBut *but)
+bool ui_is_but_unit(const uiBut *but)
 {
 	UnitSettings *unit = but->block->unit;
 	const int unit_type = uiButGetUnitType(but);
@@ -2059,15 +2055,23 @@ bool ui_set_but_string(bContext *C, uiBut *but, const char *str)
 	return false;
 }
 
-void ui_set_but_default(bContext *C, const bool all)
+void ui_set_but_default(bContext *C, const bool all, const bool use_afterfunc)
 {
 	const char *opstring = "UI_OT_reset_default_button";
-	PointerRNA ptr;
 
-	WM_operator_properties_create(&ptr, opstring);
-	RNA_boolean_set(&ptr, "all", all);
-	WM_operator_name_call(C, opstring, WM_OP_EXEC_DEFAULT, &ptr);
-	WM_operator_properties_free(&ptr);
+	if (use_afterfunc) {
+		PointerRNA *ptr;
+		wmOperatorType *ot = WM_operatortype_find(opstring, 0);
+		ptr = ui_handle_afterfunc_add_operator(ot, WM_OP_EXEC_DEFAULT, true);
+		RNA_boolean_set(ptr, "all", all);
+	}
+	else {
+		PointerRNA ptr;
+		WM_operator_properties_create(&ptr, opstring);
+		RNA_boolean_set(&ptr, "all", all);
+		WM_operator_name_call(C, opstring, WM_OP_EXEC_DEFAULT, &ptr);
+		WM_operator_properties_free(&ptr);
+	}
 }
 
 static double soft_range_round_up(double value, double max)
@@ -3642,7 +3646,7 @@ void uiButSetUnitType(uiBut *but, const int unit_type)
 	but->unit_type = (unsigned char)(RNA_SUBTYPE_UNIT_VALUE(unit_type));
 }
 
-int uiButGetUnitType(uiBut *but)
+int uiButGetUnitType(const uiBut *but)
 {
 	int ownUnit = (int)but->unit_type;
 	

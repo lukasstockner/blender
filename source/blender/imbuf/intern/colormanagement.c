@@ -1887,6 +1887,13 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf, bool save_as_render, boo
 	bool requires_linear_float = BKE_imtype_requires_linear_float(image_format_data->imtype);
 	bool do_alpha_under = image_format_data->planes != R_IMF_PLANES_RGBA;
 
+	if (ibuf->rect_float && ibuf->rect &&
+	    (ibuf->userflags & (IB_DISPLAY_BUFFER_INVALID | IB_RECT_INVALID)) != 0)
+	{
+		IMB_rect_from_float(ibuf);
+		ibuf->userflags &= ~(IB_RECT_INVALID | IB_DISPLAY_BUFFER_INVALID);
+	}
+
 	do_colormanagement = save_as_render && (is_movie || !requires_linear_float);
 
 	if (do_colormanagement || do_alpha_under) {
@@ -2048,8 +2055,7 @@ unsigned char *IMB_display_buffer_acquire(ImBuf *ibuf, const ColorManagedViewSet
 			IMB_partial_display_buffer_update(ibuf, ibuf->rect_float, (unsigned char *) ibuf->rect,
 			                                  ibuf->x, 0, 0, applied_view_settings, display_settings,
 			                                  ibuf->invalid_rect.xmin, ibuf->invalid_rect.ymin,
-			                                  ibuf->invalid_rect.xmax, ibuf->invalid_rect.ymax,
-			                                  false);
+			                                  ibuf->invalid_rect.xmax, ibuf->invalid_rect.ymax);
 		}
 
 		BLI_rcti_init(&ibuf->invalid_rect, 0, 0, 0, 0);
@@ -2658,12 +2664,24 @@ static void partial_buffer_update_rect(ImBuf *ibuf, unsigned char *display_buffe
 	if (cm_processor) {
 		for (y = ymin; y < ymax; y++) {
 			for (x = xmin; x < xmax; x++) {
-				int display_index = (y * display_stride + x) * channels;
+				int display_index = (y * display_stride + x) * 4;
 				int linear_index = ((y - linear_offset_y) * linear_stride + (x - linear_offset_x)) * channels;
 				float pixel[4];
 
 				if (linear_buffer) {
-					copy_v4_v4(pixel, (float *) linear_buffer + linear_index);
+					if (channels == 4) {
+						copy_v4_v4(pixel, (float *) linear_buffer + linear_index);
+					}
+					else if (channels == 3) {
+						copy_v3_v3(pixel, (float *) linear_buffer + linear_index);
+						pixel[3] = 1.0f;
+					}
+					else if (channels == 1) {
+						pixel[0] = linear_buffer[linear_index];
+					}
+					else {
+						BLI_assert(!"Unsupported number of channels in partial buffer update");
+					}
 				}
 				else if (byte_buffer) {
 					rgba_uchar_to_float(pixel, byte_buffer + linear_index);
@@ -2672,18 +2690,38 @@ static void partial_buffer_update_rect(ImBuf *ibuf, unsigned char *display_buffe
 				}
 
 				if (!is_data) {
-					IMB_colormanagement_processor_apply_v4_predivide(cm_processor, pixel);
+					IMB_colormanagement_processor_apply_pixel(cm_processor, pixel, channels);
 				}
 
 				if (display_buffer_float) {
 					int index = ((y - ymin) * width + (x - xmin)) * channels;
 
-					copy_v4_v4(display_buffer_float + index, pixel);
+					if (channels == 4) {
+						copy_v4_v4(display_buffer_float + index, pixel);
+					}
+					else if (channels == 3) {
+						copy_v3_v3(display_buffer_float + index, pixel);
+					}
+					else /* if (channels == 1) */ {
+						display_buffer_float[index] = pixel[0];
+					}
 				}
 				else {
-					float pixel_straight[4];
-					premul_to_straight_v4_v4(pixel_straight, pixel);
-					rgba_float_to_uchar(display_buffer + display_index, pixel_straight);
+					if (channels == 4) {
+						float pixel_straight[4];
+						premul_to_straight_v4_v4(pixel_straight, pixel);
+						rgba_float_to_uchar(display_buffer + display_index, pixel_straight);
+					}
+					else if (channels == 3) {
+						rgb_float_to_uchar(display_buffer + display_index, pixel);
+						display_buffer[display_index + 3] = 255;
+					}
+					else /* if (channels == 1) */ {
+						display_buffer[display_index] =
+							display_buffer[display_index + 1] =
+							display_buffer[display_index + 2] =
+							display_buffer[display_index + 3] = FTOCHAR(pixel[0]);
+					}
 				}
 			}
 		}
@@ -2720,22 +2758,8 @@ static void partial_buffer_update_rect(ImBuf *ibuf, unsigned char *display_buffe
 void IMB_partial_display_buffer_update(ImBuf *ibuf, const float *linear_buffer, const unsigned char *byte_buffer,
                                        int stride, int offset_x, int offset_y, const ColorManagedViewSettings *view_settings,
                                        const ColorManagedDisplaySettings *display_settings,
-                                       int xmin, int ymin, int xmax, int ymax, bool update_orig_byte_buffer)
+                                       int xmin, int ymin, int xmax, int ymax)
 {
-	if ((ibuf->rect && ibuf->rect_float) || update_orig_byte_buffer) {
-		/* update byte buffer created by legacy color management */
-
-		unsigned char *rect = (unsigned char *) ibuf->rect;
-		int channels = ibuf->channels;
-		int width = xmax - xmin;
-		int height = ymax - ymin;
-		int rect_index = (ymin * ibuf->x + xmin) * channels;
-		int linear_index = ((ymin - offset_y) * stride + (xmin - offset_x)) * channels;
-
-		IMB_buffer_byte_from_float(rect + rect_index, linear_buffer + linear_index, channels, ibuf->dither,
-		                           IB_PROFILE_SRGB, IB_PROFILE_LINEAR_RGB, TRUE, width, height, ibuf->x, stride);
-	}
-
 	if (ibuf->display_buffer_flags) {
 		ColormanageCacheViewSettings cache_view_settings;
 		ColormanageCacheDisplaySettings cache_display_settings;
@@ -2881,6 +2905,24 @@ void IMB_colormanagement_processor_apply_v3(ColormanageProcessor *cm_processor, 
 
 	if (cm_processor->processor)
 		OCIO_processorApplyRGB(cm_processor->processor, pixel);
+}
+
+void IMB_colormanagement_processor_apply_pixel(struct ColormanageProcessor *cm_processor, float *pixel, int channels)
+{
+	if (channels == 4) {
+		IMB_colormanagement_processor_apply_v4_predivide(cm_processor, pixel);
+	}
+	else if (channels == 3) {
+		IMB_colormanagement_processor_apply_v3(cm_processor, pixel);
+	}
+	else if (channels == 1) {
+		if (cm_processor->curve_mapping) {
+			curve_mapping_apply_pixel(cm_processor->curve_mapping, pixel, 1);
+		}
+	}
+	else {
+		BLI_assert(!"Incorrect number of channels passed to IMB_colormanagement_processor_apply_pixel");
+	}
 }
 
 void IMB_colormanagement_processor_apply(ColormanageProcessor *cm_processor, float *buffer, int width, int height,

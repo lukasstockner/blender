@@ -81,6 +81,7 @@ typedef enum ModifierType {
 	eModifierType_UVWarp            = 45,
 	eModifierType_MeshCache         = 46,
 	eModifierType_LaplacianDeform   = 47,
+	eModifierType_Wireframe         = 48,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -603,7 +604,7 @@ typedef struct MeshDeformModifierData {
 	struct Object *object;          /* mesh object */
 	char defgrp_name[64];           /* optional vertexgroup name, MAX_VGROUP_NAME */
 
-	short gridsize, flag, mode, pad;
+	short gridsize, flag, pad[2];
 
 	/* result of static binding */
 	MDefInfluence *bindinfluences;  /* influences */
@@ -614,7 +615,7 @@ typedef struct MeshDeformModifierData {
 	/* result of dynamic binding */
 	MDefCell *dyngrid;              /* grid with dynamic binding cell points */
 	MDefInfluence *dyninfluences;   /* dynamic binding vertex influences */
-	int *dynverts, *pad2;           /* is this vertex bound or not? */
+	int *dynverts;                  /* is this vertex bound or not? */
 	int dyngridsize;                /* size of the dynamic bind grid */
 	int totinfluence;               /* total number of vertex influences */
 	float dyncellmin[3];            /* offset of the dynamic bind grid */
@@ -646,7 +647,7 @@ typedef struct ParticleSystemModifierData {
 	struct ParticleSystem *psys;
 	struct DerivedMesh *dm;
 	int totdmvert, totdmedge, totdmface;
-	short flag, rt;
+	short flag, pad;
 } ParticleSystemModifierData;
 
 typedef enum {
@@ -670,7 +671,7 @@ typedef struct ParticleInstanceModifierData {
 	ModifierData modifier;
 
 	struct Object *ob;
-	short psys, flag, axis, rt;
+	short psys, flag, axis, pad;
 	float position, random_position;
 } ParticleInstanceModifierData;
 
@@ -1320,6 +1321,27 @@ typedef struct LaplacianDeformModifierData {
 enum {
 	MOD_LAPLACIANDEFORM_BIND = 1,
 };
+
+/* many of these options match 'solidify' */
+typedef struct WireframeModifierData {
+	ModifierData modifier;
+	char defgrp_name[64];  /* MAX_VGROUP_NAME */
+	float offset;
+	float offset_fac;
+	float offset_fac_vg;
+	float crease_weight;
+	short flag, mat_ofs;
+} WireframeModifierData;
+
+enum {
+	MOD_WIREFRAME_INVERT_VGROUP = (1 << 0),
+	MOD_WIREFRAME_REPLACE       = (1 << 1),
+	MOD_WIREFRAME_BOUNDARY      = (1 << 2),
+	MOD_WIREFRAME_OFS_EVEN      = (1 << 3),
+	MOD_WIREFRAME_OFS_RELATIVE  = (1 << 4),
+	MOD_WIREFRAME_CREASE        = (1 << 5),
+};
+
 
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

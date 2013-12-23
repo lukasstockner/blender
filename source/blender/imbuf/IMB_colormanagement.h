@@ -155,8 +155,7 @@ void IMB_colormanagement_colorspace_items_add(struct EnumPropertyItem **items, i
 void IMB_partial_display_buffer_update(struct ImBuf *ibuf, const float *linear_buffer, const unsigned char *buffer_byte,
                                        int stride, int offset_x, int offset_y, const struct ColorManagedViewSettings *view_settings,
                                        const struct ColorManagedDisplaySettings *display_settings,
-                                       int xmin, int ymin, int xmax, int ymax,
-                                       bool update_orig_byte_buffer);
+                                       int xmin, int ymin, int xmax, int ymax);
 
 void IMB_partial_display_buffer_update_delayed(struct ImBuf *ibuf, int xmin, int ymin, int xmax, int ymax);
 
@@ -167,6 +166,7 @@ struct ColormanageProcessor *IMB_colormanagement_colorspace_processor_new(const 
 void IMB_colormanagement_processor_apply_v4(struct ColormanageProcessor *cm_processor, float pixel[4]);
 void IMB_colormanagement_processor_apply_v4_predivide(struct ColormanageProcessor *cm_processor, float pixel[4]);
 void IMB_colormanagement_processor_apply_v3(struct ColormanageProcessor *cm_processor, float pixel[3]);
+void IMB_colormanagement_processor_apply_pixel(struct ColormanageProcessor *cm_processor, float *pixel, int channels);
 void IMB_colormanagement_processor_apply(struct ColormanageProcessor *cm_processor, float *buffer, int width, int height,
                                          int channels, bool predivide);
 void IMB_colormanagement_processor_free(struct ColormanageProcessor *cm_processor);

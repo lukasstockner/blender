@@ -69,6 +69,8 @@ class MEM_CacheLimiter;
 extern "C" {
 	void MEM_CacheLimiter_set_maximum(size_t m);
 	size_t MEM_CacheLimiter_get_maximum();
+	void MEM_CacheLimiter_set_disabled(bool disabled);
+	bool MEM_CacheLimiter_is_disabled(void);
 };
 #endif
 
@@ -137,6 +139,7 @@ class MEM_CacheLimiter {
 public:
 	typedef size_t (*MEM_CacheLimiter_DataSize_Func) (void *data);
 	typedef int    (*MEM_CacheLimiter_ItemPriority_Func) (void *item, int default_priority);
+	typedef bool   (*MEM_CacheLimiter_ItemDestroyable_Func) (void *item);
 
 	MEM_CacheLimiter(MEM_CacheLimiter_DataSize_Func data_size_func)
 		: data_size_func(data_size_func) {
@@ -176,7 +179,12 @@ public:
 
 	void enforce_limits() {
 		size_t max = MEM_CacheLimiter_get_maximum();
+		bool is_disabled = MEM_CacheLimiter_is_disabled();
 		size_t mem_in_use, cur_size;
+
+		if (is_disabled) {
+			return;
+		}
 
 		if (max == 0) {
 			return;
@@ -230,10 +238,27 @@ public:
 		this->item_priority_func = item_priority_func;
 	}
 
+	void set_item_destroyable_func(MEM_CacheLimiter_ItemDestroyable_Func item_destroyable_func) {
+		this->item_destroyable_func = item_destroyable_func;
+	}
+
 private:
 	typedef MEM_CacheLimiterHandle<T> *MEM_CacheElementPtr;
 	typedef std::list<MEM_CacheElementPtr, MEM_Allocator<MEM_CacheElementPtr> > MEM_CacheQueue;
 	typedef typename MEM_CacheQueue::iterator iterator;
+
+	/* Check whether element can be destroyed when enforcing cache limits */
+	bool can_destroy_element(MEM_CacheElementPtr &elem) {
+		if (!elem->can_destroy()) {
+			/* Element is referenced */
+			return false;
+		}
+		if (item_destroyable_func) {
+			if (!item_destroyable_func(elem->get()->get_data()))
+				return false;
+		}
+		return true;
+	}
 
 	MEM_CacheElementPtr get_least_priority_destroyable_element(void) {
 		if (queue.empty())
@@ -244,7 +269,7 @@ private:
 		if (!item_priority_func) {
 			for (iterator it = queue.begin(); it != queue.end(); it++) {
 				MEM_CacheElementPtr elem = *it;
-				if (!elem->can_destroy())
+				if (!can_destroy_element(elem))
 					continue;
 				best_match_elem = elem;
 				break;
@@ -258,7 +283,7 @@ private:
 			for (it = queue.begin(), i = 0; it != queue.end(); it++, i++) {
 				MEM_CacheElementPtr elem = *it;
 
-				if (!elem->can_destroy())
+				if (!can_destroy_element(elem))
 					continue;
 
 				/* by default 0 means highest priority element */
@@ -280,6 +305,7 @@ private:
 	MEM_CacheQueue queue;
 	MEM_CacheLimiter_DataSize_Func data_size_func;
 	MEM_CacheLimiter_ItemPriority_Func item_priority_func;
+	MEM_CacheLimiter_ItemDestroyable_Func item_destroyable_func;
 };
 
 #endif  // __MEM_CACHELIMITER_H__
