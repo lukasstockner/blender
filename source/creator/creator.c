@@ -1275,7 +1275,7 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 			if (CTX_wm_manager(C) == NULL) CTX_wm_manager_set(C, wm);  /* reset wm */
 
 			DAG_on_visible_update(bmain, TRUE);
-			BKE_scene_update_tagged(bmain->evaluation_context, bmain, CTX_data_scene(C));
+			BKE_scene_update_tagged(bmain->eval_ctx, bmain, CTX_data_scene(C));
 		}
 		else {
 			/* failed to load file, stop processing arguments */

@@ -271,7 +271,7 @@ struct Render
 	struct ReportList *reports;
 
 	struct ImagePool *pool;
-	struct EvaluationContext *evaluation_context;
+	struct EvaluationContext *eval_ctx;
 };
 
 /* ------------------------------------------------------------------------- */

@@ -95,7 +95,7 @@ typedef struct Main {
 	char id_tag_update[256];
 
 	/* Evaluation context used by viewport */
-	struct EvaluationContext *evaluation_context;
+	struct EvaluationContext *eval_ctx;
 } Main;
 
 #define MAIN_VERSION_ATLEAST(main, ver, subver) \

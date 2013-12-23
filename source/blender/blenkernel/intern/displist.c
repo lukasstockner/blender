@@ -711,7 +711,7 @@ float BKE_displist_calc_taper(Scene *scene, Object *taperobj, int cur, int tot)
 	return displist_calc_taper(scene, taperobj, fac);
 }
 
-void BKE_displist_make_mball(EvaluationContext *evaluation_context, Scene *scene, Object *ob)
+void BKE_displist_make_mball(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
 {
 	if (!ob || ob->type != OB_MBALL)
 		return;
@@ -725,7 +725,7 @@ void BKE_displist_make_mball(EvaluationContext *evaluation_context, Scene *scene
 
 	if (ob->type == OB_MBALL) {
 		if (ob == BKE_mball_basis_find(scene, ob)) {
-			BKE_mball_polygonize(evaluation_context, scene, ob, &ob->curve_cache->disp);
+			BKE_mball_polygonize(eval_ctx, scene, ob, &ob->curve_cache->disp);
 			BKE_mball_texspace_calc(ob);
 
 			object_deform_mball(ob, &ob->curve_cache->disp);
@@ -735,9 +735,9 @@ void BKE_displist_make_mball(EvaluationContext *evaluation_context, Scene *scene
 	}
 }
 
-void BKE_displist_make_mball_forRender(EvaluationContext *evaluation_context, Scene *scene, Object *ob, ListBase *dispbase)
+void BKE_displist_make_mball_forRender(EvaluationContext *eval_ctx, Scene *scene, Object *ob, ListBase *dispbase)
 {
-	BKE_mball_polygonize(evaluation_context, scene, ob, dispbase);
+	BKE_mball_polygonize(eval_ctx, scene, ob, dispbase);
 	BKE_mball_texspace_calc(ob);
 
 	object_deform_mball(ob, dispbase);

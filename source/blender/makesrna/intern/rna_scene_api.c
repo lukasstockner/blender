@@ -69,7 +69,7 @@ static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 	BPy_BEGIN_ALLOW_THREADS;
 #endif
 
-	BKE_scene_update_for_newframe(G.main->evaluation_context, G.main, scene, (1 << 20) - 1);
+	BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, scene, (1 << 20) - 1);
 
 #ifdef WITH_PYTHON
 	BPy_END_ALLOW_THREADS;
@@ -95,7 +95,7 @@ static void rna_Scene_update_tagged(Scene *scene)
 	BPy_BEGIN_ALLOW_THREADS;
 #endif
 
-	BKE_scene_update_tagged(G.main->evaluation_context, G.main, scene);
+	BKE_scene_update_tagged(G.main->eval_ctx, G.main, scene);
 
 #ifdef WITH_PYTHON
 	BPy_END_ALLOW_THREADS;

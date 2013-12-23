@@ -375,8 +375,8 @@ Render *RE_NewRender(const char *name)
 		BLI_addtail(&RenderGlobal.renderlist, re);
 		BLI_strncpy(re->name, name, RE_MAXNAME);
 		BLI_rw_mutex_init(&re->resultmutex);
-		re->evaluation_context = MEM_callocN(sizeof(EvaluationContext), "re->evaluation_context");
-		re->evaluation_context->for_render = true;
+		re->eval_ctx = MEM_callocN(sizeof(EvaluationContext), "re->eval_ctx");
+		re->eval_ctx->for_render = true;
 	}
 	
 	RE_InitRenderCB(re);
@@ -424,7 +424,7 @@ void RE_FreeRender(Render *re)
 	render_result_free(re->pushedresult);
 	
 	BLI_remlink(&RenderGlobal.renderlist, re);
-	MEM_freeN(re->evaluation_context);
+	MEM_freeN(re->eval_ctx);
 	MEM_freeN(re);
 }
 
@@ -1326,7 +1326,7 @@ static void do_render_blur_3d(Render *re)
 	
 	/* make sure motion blur changes get reset to current frame */
 	if ((re->r.scemode & (R_NO_FRAME_UPDATE|R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))==0) {
-		BKE_scene_update_for_newframe(re->evaluation_context, re->main, re->scene, re->lay);
+		BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene, re->lay);
 	}
 	
 	/* weak... the display callback wants an active renderlayer pointer... */
@@ -2126,7 +2126,7 @@ static void do_render_composite_fields_blur_3d(Render *re)
 				R.stats_draw = re->stats_draw;
 				
 				if (update_newframe)
-					BKE_scene_update_for_newframe(re->evaluation_context, re->main, re->scene, re->lay);
+					BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene, re->lay);
 				
 				if (re->r.scemode & R_FULL_SAMPLE)
 					do_merge_fullsample(re, ntree);
@@ -2201,11 +2201,11 @@ static void do_render_seq(Render *re)
 	if ((re->r.mode & R_BORDER) && (re->r.mode & R_CROP) == 0) {
 		/* if border rendering is used and cropping is disabled, final buffer should
 		 * be as large as the whole frame */
-		context = BKE_sequencer_new_render_data(re->evaluation_context, re->main, re->scene,
+		context = BKE_sequencer_new_render_data(re->eval_ctx, re->main, re->scene,
 		                                        re->winx, re->winy, 100);
 	}
 	else {
-		context = BKE_sequencer_new_render_data(re->evaluation_context, re->main, re->scene,
+		context = BKE_sequencer_new_render_data(re->eval_ctx, re->main, re->scene,
 		                                        re->result->rectx, re->result->recty, 100);
 	}
 
@@ -2808,7 +2808,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 				else
 					updatelay = re->lay;
 
-				BKE_scene_update_for_newframe(re->evaluation_context, bmain, scene, updatelay);
+				BKE_scene_update_for_newframe(re->eval_ctx, bmain, scene, updatelay);
 				continue;
 			}
 			else

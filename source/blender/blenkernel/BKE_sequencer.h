@@ -90,7 +90,7 @@ void BKE_sequence_iterator_end(SeqIterator *iter);
 	}
 
 typedef struct SeqRenderData {
-	struct EvaluationContext *evaluation_context;
+	struct EvaluationContext *eval_ctx;
 	struct Main *bmain;
 	struct Scene *scene;
 	int rectx;
@@ -100,7 +100,7 @@ typedef struct SeqRenderData {
 	float motion_blur_shutter;
 } SeqRenderData;
 
-SeqRenderData BKE_sequencer_new_render_data(struct EvaluationContext *evaluation_context, struct Main *bmain,
+SeqRenderData BKE_sequencer_new_render_data(struct EvaluationContext *eval_ctx, struct Main *bmain,
                                             struct Scene *scene, int rectx, int recty, int preview_render_size);
 
 /* Wipe effect */

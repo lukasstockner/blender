@@ -86,7 +86,7 @@ typedef struct SceneBaseIter {
 	int fase;
 } SceneBaseIter;
 
-int BKE_scene_base_iter_next(struct EvaluationContext *evaluation_context, struct SceneBaseIter *iter,
+int BKE_scene_base_iter_next(struct EvaluationContext *eval_ctx, struct SceneBaseIter *iter,
                              struct Scene **scene, int val, struct Base **base, struct Object **ob);
 
 void BKE_scene_base_flag_to_objects(struct Scene *scene);
@@ -114,8 +114,8 @@ float BKE_scene_frame_get_from_ctime(struct Scene *scene, const float frame);
 void  BKE_scene_frame_set(struct Scene *scene, double cfra);
 
 /* **  Scene evaluation ** */
-void BKE_scene_update_tagged(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *sce);
-void BKE_scene_update_for_newframe(struct EvaluationContext *evaluation_context, struct Main *bmain, struct Scene *sce, unsigned int lay);
+void BKE_scene_update_tagged(struct EvaluationContext *eval_ctx, struct Main *bmain, struct Scene *sce);
+void BKE_scene_update_for_newframe(struct EvaluationContext *eval_ctx, struct Main *bmain, struct Scene *sce, unsigned int lay);
 
 struct SceneRenderLayer *BKE_scene_add_render_layer(struct Scene *sce, const char *name);
 int BKE_scene_remove_render_layer(struct Main *main, struct Scene *scene, struct SceneRenderLayer *srl);

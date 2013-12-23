@@ -739,7 +739,7 @@ void BKE_scene_unlink(Main *bmain, Scene *sce, Scene *newsce)
 /* used by metaballs
  * doesn't return the original duplicated object, only dupli's
  */
-int BKE_scene_base_iter_next(EvaluationContext *evaluation_context, SceneBaseIter *iter,
+int BKE_scene_base_iter_next(EvaluationContext *eval_ctx, SceneBaseIter *iter,
                              Scene **scene, int val, Base **base, Object **ob)
 {
 	int run_again = 1;
@@ -807,7 +807,7 @@ int BKE_scene_base_iter_next(EvaluationContext *evaluation_context, SceneBaseIte
 						 * this enters eternal loop because of 
 						 * makeDispListMBall getting called inside of group_duplilist */
 						if ((*base)->object->dup_group == NULL) {
-							iter->duplilist = object_duplilist_ex(evaluation_context, (*scene), (*base)->object, false);
+							iter->duplilist = object_duplilist_ex(eval_ctx, (*scene), (*base)->object, false);
 							
 							iter->dupob = iter->duplilist->first;
 
@@ -1118,7 +1118,7 @@ static void scene_update_drivers(Main *UNUSED(bmain), Scene *scene)
 }
 
 /* deps hack - do extra recalcs at end */
-static void scene_depsgraph_hack(EvaluationContext *evaluation_context, Scene *scene, Scene *scene_parent)
+static void scene_depsgraph_hack(EvaluationContext *eval_ctx, Scene *scene, Scene *scene_parent)
 {
 	Base *base;
 		
@@ -1127,7 +1127,7 @@ static void scene_depsgraph_hack(EvaluationContext *evaluation_context, Scene *s
 	/* sets first, we allow per definition current scene to have
 	 * dependencies on sets, but not the other way around. */
 	if (scene->set)
-		scene_depsgraph_hack(evaluation_context, scene->set, scene_parent);
+		scene_depsgraph_hack(eval_ctx, scene->set, scene_parent);
 	
 	for (base = scene->base.first; base; base = base->next) {
 		Object *ob = base->object;
@@ -1142,7 +1142,7 @@ static void scene_depsgraph_hack(EvaluationContext *evaluation_context, Scene *s
 				recalc |= OB_RECALC_DATA;
 			
 			ob->recalc |= recalc;
-			BKE_object_handle_update(evaluation_context, scene_parent, ob);
+			BKE_object_handle_update(eval_ctx, scene_parent, ob);
 			
 			if (ob->dup_group && (ob->transflag & OB_DUPLIGROUP)) {
 				GroupObject *go;
@@ -1151,7 +1151,7 @@ static void scene_depsgraph_hack(EvaluationContext *evaluation_context, Scene *s
 					if (go->ob)
 						go->ob->recalc |= recalc;
 				}
-				BKE_group_handle_recalc_and_update(evaluation_context, scene_parent, ob, ob->dup_group);
+				BKE_group_handle_recalc_and_update(eval_ctx, scene_parent, ob, ob->dup_group);
 			}
 		}
 	}
@@ -1201,7 +1201,7 @@ typedef struct StatisicsEntry {
 
 typedef struct ThreadedObjectUpdateState {
 	/* TODO(sergey): We might want this to be per-thread object. */
-	EvaluationContext *evaluation_context;
+	EvaluationContext *eval_ctx;
 	Scene *scene;
 	Scene *scene_parent;
 	double base_time;
@@ -1217,17 +1217,17 @@ typedef struct ThreadedObjectUpdateState {
 
 static void scene_update_object_add_task(void *node, void *user_data);
 
-static void scene_update_all_bases(EvaluationContext *evaluation_context, Scene *scene, Scene *scene_parent)
+static void scene_update_all_bases(EvaluationContext *eval_ctx, Scene *scene, Scene *scene_parent)
 {
 	Base *base;
 
 	for (base = scene->base.first; base; base = base->next) {
 		Object *object = base->object;
 
-		BKE_object_handle_update_ex(evaluation_context, scene_parent, object, scene->rigidbody_world);
+		BKE_object_handle_update_ex(eval_ctx, scene_parent, object, scene->rigidbody_world);
 
 		if (object->dup_group && (object->transflag & OB_DUPLIGROUP))
-			BKE_group_handle_recalc_and_update(evaluation_context, scene_parent, object, object->dup_group);
+			BKE_group_handle_recalc_and_update(eval_ctx, scene_parent, object, object->dup_group);
 
 		/* always update layer, so that animating layers works (joshua july 2010) */
 		/* XXX commented out, this has depsgraph issues anyway - and this breaks setting scenes
@@ -1244,7 +1244,7 @@ static void scene_update_object_func(TaskPool *pool, void *taskdata, int threadi
 	ThreadedObjectUpdateState *state = (ThreadedObjectUpdateState *) BLI_task_pool_userdata(pool);
 	void *node = taskdata;
 	Object *object = DAG_get_node_object(node);
-	EvaluationContext *evaluation_context = state->evaluation_context;
+	EvaluationContext *eval_ctx = state->eval_ctx;
 	Scene *scene = state->scene;
 	Scene *scene_parent = state->scene_parent;
 
@@ -1273,7 +1273,7 @@ static void scene_update_object_func(TaskPool *pool, void *taskdata, int threadi
 		 * separately from main thread because of we've got no idea about
 		 * dependnecies inside the group.
 		 */
-		BKE_object_handle_update_ex(evaluation_context, scene_parent, object, scene->rigidbody_world);
+		BKE_object_handle_update_ex(eval_ctx, scene_parent, object, scene->rigidbody_world);
 
 		/* Calculate statistics. */
 		if (add_to_stats) {
@@ -1365,13 +1365,13 @@ static void print_threads_statistics(ThreadedObjectUpdateState *state)
 #endif
 }
 
-static void scene_update_objects(EvaluationContext *evaluation_context, Scene *scene, Scene *scene_parent)
+static void scene_update_objects(EvaluationContext *eval_ctx, Scene *scene, Scene *scene_parent)
 {
 	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
 	TaskPool *task_pool;
 	ThreadedObjectUpdateState state;
 
-	state.evaluation_context = evaluation_context;
+	state.eval_ctx = eval_ctx;
 	state.scene = scene;
 	state.scene_parent = scene_parent;
 	memset(state.statistics, 0, sizeof(state.statistics));
@@ -1393,22 +1393,22 @@ static void scene_update_objects(EvaluationContext *evaluation_context, Scene *s
 
 #ifdef MBALL_SINGLETHREAD_HACK
 	if (state.has_mballs) {
-		scene_update_all_bases(evaluation_context, scene, scene_parent);
+		scene_update_all_bases(eval_ctx, scene, scene_parent);
 	}
 #endif
 }
 
-static void scene_update_tagged_recursive(EvaluationContext *evaluation_context, Main *bmain, Scene *scene, Scene *scene_parent)
+static void scene_update_tagged_recursive(EvaluationContext *eval_ctx, Main *bmain, Scene *scene, Scene *scene_parent)
 {
 	scene->customdata_mask = scene_parent->customdata_mask;
 
 	/* sets first, we allow per definition current scene to have
 	 * dependencies on sets, but not the other way around. */
 	if (scene->set)
-		scene_update_tagged_recursive(evaluation_context, bmain, scene->set, scene_parent);
+		scene_update_tagged_recursive(eval_ctx, bmain, scene->set, scene_parent);
 
 	/* scene objects */
-	scene_update_objects(evaluation_context, scene, scene_parent);
+	scene_update_objects(eval_ctx, scene, scene_parent);
 
 	/* scene drivers... */
 	scene_update_drivers(bmain, scene);
@@ -1421,7 +1421,7 @@ static void scene_update_tagged_recursive(EvaluationContext *evaluation_context,
 	
 }
 
-void BKE_scene_update_tagged(EvaluationContext *evaluation_context, Main *bmain, Scene *scene)
+void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *scene)
 {
 	Scene *sce_iter;
 	
@@ -1448,7 +1448,7 @@ void BKE_scene_update_tagged(EvaluationContext *evaluation_context, Main *bmain,
 	 *
 	 * in the future this should handle updates for all datablocks, not
 	 * only objects and scenes. - brecht */
-	scene_update_tagged_recursive(evaluation_context, bmain, scene, scene);
+	scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
 
 	/* extra call here to recalc scene animation (for sequencer) */
 	{
@@ -1468,7 +1468,7 @@ void BKE_scene_update_tagged(EvaluationContext *evaluation_context, Main *bmain,
 }
 
 /* applies changes right away, does all sets too */
-void BKE_scene_update_for_newframe(EvaluationContext *evaluation_context, Main *bmain, Scene *sce, unsigned int lay)
+void BKE_scene_update_for_newframe(EvaluationContext *eval_ctx, Main *bmain, Scene *sce, unsigned int lay)
 {
 	float ctime = BKE_scene_frame_get(sce);
 	Scene *sce_iter;
@@ -1529,9 +1529,9 @@ void BKE_scene_update_for_newframe(EvaluationContext *evaluation_context, Main *
 	scene_do_rb_simulation_recursive(sce, ctime);
 
 	/* BKE_object_handle_update() on all objects, groups and sets */
-	scene_update_tagged_recursive(evaluation_context, bmain, sce, sce);
+	scene_update_tagged_recursive(eval_ctx, bmain, sce, sce);
 
-	scene_depsgraph_hack(evaluation_context, sce, sce);
+	scene_depsgraph_hack(eval_ctx, sce, sce);
 
 	/* notify editors and python about recalc */
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_POST);

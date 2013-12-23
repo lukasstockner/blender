@@ -335,7 +335,7 @@ static void group_replaces_nla(Object *parent, Object *target, char mode)
  * you can draw everything, leaves tags in objects to signal it needs further updating */
 
 /* note: does not work for derivedmesh and render... it recreates all again in convertblender.c */
-void BKE_group_handle_recalc_and_update(EvaluationContext *evaluation_context, Scene *scene, Object *UNUSED(parent), Group *group)
+void BKE_group_handle_recalc_and_update(EvaluationContext *eval_ctx, Scene *scene, Object *UNUSED(parent), Group *group)
 {
 	GroupObject *go;
 	
@@ -357,7 +357,7 @@ void BKE_group_handle_recalc_and_update(EvaluationContext *evaluation_context, S
 				go->ob->recalc = go->recalc;
 				
 				group_replaces_nla(parent, go->ob, 's');
-				BKE_object_handle_update(evaluation_context, scene, go->ob);
+				BKE_object_handle_update(eval_ctx, scene, go->ob);
 				group_replaces_nla(parent, go->ob, 'e');
 				
 				/* leave recalc tags in case group members are in normal scene */
@@ -375,7 +375,7 @@ void BKE_group_handle_recalc_and_update(EvaluationContext *evaluation_context, S
 		for (go = group->gobject.first; go; go = go->next) {
 			if (go->ob) {
 				if (go->ob->recalc) {
-					BKE_object_handle_update(evaluation_context, scene, go->ob);
+					BKE_object_handle_update(eval_ctx, scene, go->ob);
 				}
 			}
 		}

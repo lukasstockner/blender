@@ -168,8 +168,8 @@ static void dupli_render_particle_set(Scene *scene, Object *ob, int level, int e
 static void rna_Object_create_duplilist(Object *ob, ReportList *reports, Scene *sce, int settings)
 {
 	int for_render = settings == eModifierMode_Render;
-	EvaluationContext evaluation_context = {0};
-	evaluation_context.for_render = for_render;
+	EvaluationContext eval_ctx = {0};
+	eval_ctx.for_render = for_render;
 
 	if (!(ob->transflag & OB_DUPLI)) {
 		BKE_report(reports, RPT_ERROR, "Object does not have duplis");
@@ -185,7 +185,7 @@ static void rna_Object_create_duplilist(Object *ob, ReportList *reports, Scene *
 	}
 	if (for_render)
 		dupli_render_particle_set(sce, ob, 0, 1);
-	ob->duplilist = object_duplilist(&evaluation_context, sce, ob);
+	ob->duplilist = object_duplilist(&eval_ctx, sce, ob);
 	if (for_render)
 		dupli_render_particle_set(sce, ob, 0, 0);
 	/* ob->duplilist should now be freed with Object.free_duplilist */

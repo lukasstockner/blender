@@ -2692,7 +2692,7 @@ bool BKE_object_minmax_dupli(Scene *scene, Object *ob, float r_min[3], float r_m
 	else {
 		ListBase *lb;
 		DupliObject *dob;
-		lb = object_duplilist(G.main->evaluation_context, scene, ob);
+		lb = object_duplilist(G.main->eval_ctx, scene, ob);
 		for (dob = lb->first; dob; dob = dob->next) {
 			if ((use_hidden == false) && (dob->no_draw != 0)) {
 				/* pass */
@@ -2769,7 +2769,7 @@ void BKE_scene_foreach_display_point(
 				ListBase *lb;
 				DupliObject *dob;
 
-				lb = object_duplilist(G.main->evaluation_context, scene, ob);
+				lb = object_duplilist(G.main->eval_ctx, scene, ob);
 				for (dob = lb->first; dob; dob = dob->next) {
 					if (dob->no_draw == 0) {
 						BKE_object_foreach_display_point(dob->ob, dob->mat, func_cb, user_data);
@@ -2857,7 +2857,7 @@ bool BKE_object_parent_loop_check(const Object *par, const Object *ob)
 /* the main object update call, for object matrix, constraints, keys and displist (modifiers) */
 /* requires flags to be set! */
 /* Ideally we shouldn't have to pass the rigid body world, but need bigger restructuring to avoid id */
-void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
+void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
                                  Scene *scene, Object *ob,
                                  RigidBodyWorld *rbw)
 {
@@ -2900,7 +2900,7 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 					copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
 			}
 			else
-				BKE_object_where_is_calc_ex(scene, rbw, ob, evaluation_context->for_render, NULL);
+				BKE_object_where_is_calc_ex(scene, rbw, ob, eval_ctx->for_render, NULL);
 		}
 		
 		if (ob->recalc & OB_RECALC_DATA) {
@@ -2951,13 +2951,13 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 					break;
 
 				case OB_MBALL:
-					BKE_displist_make_mball(evaluation_context, scene, ob);
+					BKE_displist_make_mball(eval_ctx, scene, ob);
 					break;
 
 				case OB_CURVE:
 				case OB_SURF:
 				case OB_FONT:
-					if (evaluation_context->for_render == false) {
+					if (eval_ctx->for_render == false) {
 						BKE_displist_make_curveTypes(scene, ob, 0);
 					}
 					break;
@@ -2997,7 +2997,7 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 				while (psys) {
 					if (psys_check_enabled(ob, psys)) {
 						/* check use of dupli objects here */
-						if (psys->part && (psys->part->draw_as == PART_DRAW_REND || evaluation_context->for_render) &&
+						if (psys->part && (psys->part->draw_as == PART_DRAW_REND || eval_ctx->for_render) &&
 						    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
 						     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
 						{
@@ -3017,7 +3017,7 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 						psys = psys->next;
 				}
 
-				if (evaluation_context->for_render && ob->transflag & OB_DUPLIPARTS) {
+				if (eval_ctx->for_render && ob->transflag & OB_DUPLIPARTS) {
 					/* this is to make sure we get render level duplis in groups:
 					 * the derivedmesh must be created before init_render_mesh,
 					 * since object_duplilist does dupliparticles before that */
@@ -3044,7 +3044,7 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
 		/* the no-group proxy case, we call update */
 		if (ob->proxy_group == NULL) {
 			// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
-			BKE_object_handle_update(evaluation_context, scene, ob->proxy);
+			BKE_object_handle_update(eval_ctx, scene, ob->proxy);
 		}
 	}
 }
@@ -3053,9 +3053,9 @@ void BKE_object_handle_update_ex(EvaluationContext *evaluation_context,
  * e.g. "scene" <-- set 1 <-- set 2 ("ob" lives here) <-- set 3 <-- ... <-- set n
  * rigid bodies depend on their world so use BKE_object_handle_update_ex() to also pass along the corrent rigid body world
  */
-void BKE_object_handle_update(EvaluationContext *evaluation_context, Scene *scene, Object *ob)
+void BKE_object_handle_update(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
 {
-	BKE_object_handle_update_ex(evaluation_context, scene, ob, NULL);
+	BKE_object_handle_update_ex(eval_ctx, scene, ob, NULL);
 }
 
 void BKE_object_sculpt_modifiers_changed(Object *ob)

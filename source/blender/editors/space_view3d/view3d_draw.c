@@ -1969,7 +1969,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 	if (base->object->restrictflag & OB_RESTRICT_VIEW) return;
 	
 	tbase.flag = OB_FROMDUPLI | base->flag;
-	lb = object_duplilist(G.main->evaluation_context, scene, base->object);
+	lb = object_duplilist(G.main->eval_ctx, scene, base->object);
 	// BLI_sortlist(lb, dupli_ob_sort); /* might be nice to have if we have a dupli list with mixed objects. */
 
 	dob = dupli_step(lb->first);
@@ -2403,7 +2403,7 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 		
 		if (ob->transflag & OB_DUPLI) {
 			DupliObject *dob;
-			ListBase *lb = object_duplilist(G.main->evaluation_context, scene, ob);
+			ListBase *lb = object_duplilist(G.main->eval_ctx, scene, ob);
 			
 			for (dob = lb->first; dob; dob = dob->next)
 				if (dob->ob->type == OB_LAMP)
