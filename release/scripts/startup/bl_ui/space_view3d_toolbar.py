@@ -90,7 +90,7 @@ class VIEW3D_PT_tools_objectmode(View3DPanel, Panel):
 
         col = layout.column(align=True)
         col.label(text="Object:")
-        col.operator("object.duplicate_move")
+        col.operator("object.duplicate_move", text="Duplicate")
         col.operator("object.delete")
         col.operator("object.join")
 
@@ -290,6 +290,9 @@ class VIEW3D_PT_tools_curveedit(View3DPanel, Panel):
         row = col.row(align=True)
         row.operator("curve.handle_type_set", text="Align").type = 'ALIGNED'
         row.operator("curve.handle_type_set", text="Free").type = 'FREE_ALIGN'
+
+        col = layout.column(align=True)
+        col.operator("curve.normals_make_consistent")
 
         col = layout.column(align=True)
         col.label(text="Modeling:")
@@ -1023,8 +1026,16 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
 
         toolsettings = context.tool_settings
         sculpt = toolsettings.sculpt
+        capabilities = sculpt.brush.sculpt_capabilities
+
+        col = layout.column(align=True)
+        col.active = capabilities.has_gravity
+        col.label(text="Gravity:")
+        col.prop(sculpt, "gravity", slider=True, text="Factor")
+        col.prop(sculpt, "gravity_object")
 
         layout.label(text="Lock:")
+        
         row = layout.row(align=True)
         row.prop(sculpt, "lock_x", text="X", toggle=True)
         row.prop(sculpt, "lock_y", text="Y", toggle=True)
@@ -1144,7 +1155,6 @@ class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
         col = layout.column()
         row = col.row()
 
-        row.prop(wpaint, "use_all_faces")
         row.prop(wpaint, "use_normal")
         col = layout.column()
         row = col.row()
@@ -1182,7 +1192,6 @@ class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
         col = layout.column()
         row = col.row()
         #col.prop(vpaint, "mode", text="")
-        row.prop(vpaint, "use_all_faces")
         row.prop(vpaint, "use_normal")
         col.prop(vpaint, "use_spray")
 

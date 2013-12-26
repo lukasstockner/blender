@@ -97,6 +97,7 @@
 #include "IMB_thumbs.h"
 
 #include "ED_datafiles.h"
+#include "ED_fileselect.h"
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
@@ -662,7 +663,7 @@ int wm_homefile_read(bContext *C, ReportList *reports, bool from_memory, const c
 
 int wm_history_read_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
 {
-	/* TODO, read bookmarks */
+	ED_file_read_bookmarks();
 	wm_read_history();
 	return OPERATOR_FINISHED;
 }
@@ -879,6 +880,12 @@ int wm_file_write(bContext *C, const char *filepath, int fileflags, ReportList *
 
 	if (len >= FILE_MAX) {
 		BKE_report(reports, RPT_ERROR, "Path too long, cannot save");
+		return -1;
+	}
+	
+	/* Check if file write permission is ok */
+	if (BLI_exists(filepath) && !BLI_file_is_writable(filepath)) {
+		BKE_reportf(reports, RPT_ERROR, "Cannot save blend file, path '%s' is not writable", filepath);
 		return -1;
 	}
  

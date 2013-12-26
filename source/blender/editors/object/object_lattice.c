@@ -49,6 +49,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -173,6 +174,21 @@ void load_editLatt(Object *obedit)
 	}
 }
 
+/*************************** Transform Operator ************************/
+
+void ED_lattice_transform(Lattice *lt, float mat[4][4])
+{
+	BPoint *bp = lt->def;
+	int a = lt->pntsu * lt->pntsv * lt->pntsw;
+
+	while (a--) {
+		mul_m4_v3(mat, bp->vec);
+		bp++;
+	}
+
+	DAG_id_tag_update(&lt->id, 0);
+}
+
 /************************** Select Random Operator **********************/
 
 static int lattice_select_random_exec(bContext *C, wmOperator *op)
@@ -226,6 +242,78 @@ void LATTICE_OT_select_random(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
 }
 
+
+/* -------------------------------------------------------------------- */
+/* Select Mirror Operator */
+
+static int lattice_select_mirror_exec(bContext *C, wmOperator *op)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
+	const int axis = RNA_enum_get(op->ptr, "axis");
+	bool flip_uvw[3] = {false};
+	int tot, i;
+	BPoint *bp;
+	BLI_bitmap *selpoints;
+
+	tot = lt->pntsu * lt->pntsv * lt->pntsw;
+
+	flip_uvw[axis] = true;
+
+	if (!extend) {
+		lt->actbp = LT_ACTBP_NONE;
+	}
+
+	/* store "original" selection */
+	selpoints = BLI_BITMAP_NEW(tot, __func__);
+	BKE_lattice_bitmap_from_flag(lt, selpoints, SELECT, false, false);
+
+	/* actual (de)selection */
+	for (i = 0; i < tot; i++) {
+		const int i_flip = BKE_lattice_index_flip(lt, i, flip_uvw[0], flip_uvw[1], flip_uvw[2]);
+		bp = &lt->def[i];
+		if (!bp->hide) {
+			if (BLI_BITMAP_GET(selpoints, i_flip)) {
+				bp->f1 |= SELECT;
+			}
+			else {
+				if (!extend) {
+					bp->f1 &= ~SELECT;
+				}
+			}
+		}
+	}
+
+
+	MEM_freeN(selpoints);
+
+	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+
+	return OPERATOR_FINISHED;
+}
+
+void LATTICE_OT_select_mirror(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Mirror";
+	ot->description = "Select mirrored lattice points";
+	ot->idname = "LATTICE_OT_select_mirror";
+
+	/* api callbacks */
+	ot->exec = lattice_select_mirror_exec;
+	ot->poll = ED_operator_editlattice;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* props */
+	RNA_def_enum(ot->srna, "axis", object_axis_unsigned_items, 0, "Axis", "");
+
+	RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
+}
+
+
 /************************** Select More/Less Operator *************************/
 
 static bool lattice_test_bitmap_uvw(Lattice *lt, BLI_bitmap *selpoints, int u, int v, int w, const bool selected)
@@ -251,18 +339,13 @@ static int lattice_select_more_less(bContext *C, const bool select)
 	Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
 	BPoint *bp;
 	const int tot = lt->pntsu * lt->pntsv * lt->pntsw;
-	int i, w, u, v;
+	int u, v, w;
 	BLI_bitmap *selpoints;
 
 	lt->actbp = LT_ACTBP_NONE;
 
-	bp = lt->def;
 	selpoints = BLI_BITMAP_NEW(tot, __func__);
-	for (i = 0; i < tot; i++, bp++) {
-		if (bp->f1 & SELECT) {
-			BLI_BITMAP_SET(selpoints, i);
-		}
-	}
+	BKE_lattice_bitmap_from_flag(lt, selpoints, SELECT, false, false);
 
 	bp = lt->def;
 	for (w = 0; w < lt->pntsw; w++) {

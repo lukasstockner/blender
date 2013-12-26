@@ -1317,9 +1317,8 @@ void blo_make_image_pointer_map(FileData *fd, Main *oldmain)
 	fd->imamap = oldnewmap_new();
 	
 	for (; ima; ima = ima->id.next) {
-		Link *ibuf = ima->ibufs.first;
-		for (; ibuf; ibuf = ibuf->next)
-			oldnewmap_insert(fd->imamap, ibuf, ibuf, 0);
+		if (ima->cache)
+			oldnewmap_insert(fd->imamap, ima->cache, ima->cache, 0);
 		if (ima->gputexture)
 			oldnewmap_insert(fd->imamap, ima->gputexture, ima->gputexture, 0);
 		if (ima->rr)
@@ -1355,19 +1354,7 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
 	}
 	
 	for (; ima; ima = ima->id.next) {
-		Link *ibuf, *next;
-		
-		/* this mirrors direct_link_image */
-		for (ibuf = ima->ibufs.first; ibuf; ibuf = next) {
-			next = ibuf->next;
-			if (NULL == newimaadr(fd, ibuf)) {	/* so was restored */
-				BLI_remlink(&ima->ibufs, ibuf);
-				ima->bindcode = 0;
-				ima->tpageflag &= ~IMA_GLBIND_IS_DATA;
-				ima->gputexture = NULL;
-				ima->rr = NULL;
-			}
-		}
+		ima->cache = newmclipadr(fd, ima->cache);
 		for (i = 0; i < IMA_MAX_RENDER_SLOT; i++)
 			ima->renders[i] = newimaadr(fd, ima->renders[i]);
 		
@@ -3281,34 +3268,16 @@ static void lib_link_image(FileData *fd, Main *main)
 	}
 }
 
-static void link_ibuf_list(FileData *fd, ListBase *lb)
-{
-	Link *ln, *prev;
-	
-	if (lb->first == NULL) return;
-	
-	lb->first = newimaadr(fd, lb->first);
-	ln = lb->first;
-	prev = NULL;
-	while (ln) {
-		ln->next = newimaadr(fd, ln->next);
-		ln->prev = prev;
-		prev = ln;
-		ln = ln->next;
-	}
-	lb->last = prev;
-}
-
 static void direct_link_image(FileData *fd, Image *ima)
 {
 	/* for undo system, pointers could be restored */
 	if (fd->imamap)
-		link_ibuf_list(fd, &ima->ibufs);
+		ima->cache = newmclipadr(fd, ima->cache);
 	else
-		ima->ibufs.first = ima->ibufs.last = NULL;
+		ima->cache = NULL;
 
 	/* if not restored, we keep the binded opengl index */
-	if (ima->ibufs.first == NULL) {
+	if (!fd->imamap) {
 		ima->bindcode = 0;
 		ima->tpageflag &= ~IMA_GLBIND_IS_DATA;
 		ima->gputexture = NULL;
@@ -3414,7 +3383,6 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 		if (cu->wordspace == 0.0f) cu->wordspace = 1.0f;
 	}
 
-	cu->disp.first = cu->disp.last = NULL;
 	cu->editnurb = NULL;
 	cu->lastsel = NULL;
 	cu->editfont = NULL;
@@ -4524,6 +4492,16 @@ static void lib_link_object(FileData *fd, Main *main)
 				ob->rigidbody_constraint->ob1 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob1);
 				ob->rigidbody_constraint->ob2 = newlibadr(fd, ob->id.lib, ob->rigidbody_constraint->ob2);
 			}
+
+			{
+				LodLevel *level;
+				for (level = ob->lodlevels.first; level; level = level->next) {
+					level->source = newlibadr(fd, ob->id.lib, level->source);
+
+					if (!level->source && level == ob->lodlevels.first)
+						level->source = ob;
+				}
+			}
 		}
 	}
 	
@@ -5058,6 +5036,9 @@ static void direct_link_object(FileData *fd, Object *ob)
 	if (ob->sculpt) {
 		ob->sculpt = MEM_callocN(sizeof(SculptSession), "reload sculpt session");
 	}
+
+	link_list(fd, &ob->lodlevels);
+	ob->currentlod = ob->lodlevels.first;
 }
 
 /* ************ READ SCENE ***************** */
@@ -5120,6 +5101,11 @@ static void lib_link_scene(FileData *fd, Main *main)
 			link_paint(fd, sce, &sce->toolsettings->wpaint->paint);
 			link_paint(fd, sce, &sce->toolsettings->imapaint.paint);
 			link_paint(fd, sce, &sce->toolsettings->uvsculpt->paint);
+
+			if (sce->toolsettings->sculpt)
+				sce->toolsettings->sculpt->gravity_object =
+						newlibadr_us(fd, sce->id.lib, sce->toolsettings->sculpt->gravity_object);
+
 			sce->toolsettings->skgen_template = newlibadr(fd, sce->id.lib, sce->toolsettings->skgen_template);
 			
 			for (base = sce->base.first; base; base = next) {
@@ -6152,6 +6138,8 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 		pa->type = NULL;
 	}
 
+	link_list(fd, &ar->panels_category_active);
+
 	link_list(fd, &ar->ui_lists);
 
 	for (ui_list = ar->ui_lists.first; ui_list; ui_list = ui_list->next) {
@@ -6188,13 +6176,14 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 	ar->v2d.tab_num = 0;
 	ar->v2d.tab_cur = 0;
 	ar->v2d.sms = NULL;
+	ar->panels_category.first = ar->panels_category.last = NULL;
 	ar->handlers.first = ar->handlers.last = NULL;
 	ar->uiblocks.first = ar->uiblocks.last = NULL;
 	ar->headerstr = NULL;
 	ar->swinid = 0;
 	ar->type = NULL;
 	ar->swap = 0;
-	ar->do_draw = FALSE;
+	ar->do_draw = 0;
 	ar->regiontimer = NULL;
 	memset(&ar->drawrct, 0, sizeof(ar->drawrct));
 }
@@ -6410,7 +6399,9 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 			else if (sl->spacetype == SPACE_TEXT) {
 				SpaceText *st= (SpaceText *)sl;
 				
-				st->drawcache= NULL;
+				st->drawcache = NULL;
+				st->scroll_accum[0] = 0.0f;
+				st->scroll_accum[1] = 0.0f;
 			}
 			else if (sl->spacetype == SPACE_TIME) {
 				SpaceTime *stime = (SpaceTime *)sl;
@@ -7374,7 +7365,7 @@ static void convert_tface_mt(FileData *fd, Main *main)
 		gmain = G.main;
 		G.main = main;
 		
-		if (!(do_version_tface(main, 1))) {
+		if (!(do_version_tface(main))) {
 			BKE_report(fd->reports, RPT_WARNING, "Texface conversion problem (see error in console)");
 		}
 		
@@ -8418,6 +8409,12 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 		expand_doit(fd, mainvar, ob->rigidbody_constraint->ob2);
 	}
 
+	if (ob->currentlod) {
+		LodLevel *level;
+		for (level = ob->lodlevels.first; level; level = level->next) {
+			expand_doit(fd, mainvar, level->source);
+		}
+	}
 }
 
 static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)

@@ -2443,6 +2443,7 @@ static const char *rna_property_subtypename(PropertySubType type)
 		case PROP_FILEPATH: return "PROP_FILEPATH";
 		case PROP_FILENAME: return "PROP_FILENAME";
 		case PROP_DIRPATH: return "PROP_DIRPATH";
+		case PROP_PIXEL: return "PROP_PIXEL";
 		case PROP_BYTESTRING: return "PROP_BYTESTRING";
 		case PROP_UNSIGNED: return "PROP_UNSIGNED";
 		case PROP_PERCENTAGE: return "PROP_PERCENTAGE";
@@ -3243,7 +3244,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_constraint.c", NULL, RNA_def_constraint},
 	{"rna_context.c", NULL, RNA_def_context},
 	{"rna_controller.c", "rna_controller_api.c", RNA_def_controller},
-	{"rna_curve.c", NULL, RNA_def_curve},
+	{"rna_curve.c", "rna_curve_api.c", RNA_def_curve},
 	{"rna_dynamicpaint.c", NULL, RNA_def_dynamic_paint},
 	{"rna_fcurve.c", "rna_fcurve_api.c", RNA_def_fcurve},
 	{"rna_fluidsim.c", NULL, RNA_def_fluidsim},
@@ -3252,7 +3253,7 @@ static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_image.c", "rna_image_api.c", RNA_def_image},
 	{"rna_key.c", NULL, RNA_def_key},
 	{"rna_lamp.c", NULL, RNA_def_lamp},
-	{"rna_lattice.c", NULL, RNA_def_lattice},
+	{"rna_lattice.c", "rna_lattice_api.c", RNA_def_lattice},
 	{"rna_linestyle.c", NULL, RNA_def_linestyle},
 	{"rna_main.c", "rna_main_api.c", RNA_def_main},
 	{"rna_material.c", "rna_material_api.c", RNA_def_material},

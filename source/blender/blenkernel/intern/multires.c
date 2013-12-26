@@ -49,6 +49,7 @@
 #include "BKE_ccg.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_paint.h"
@@ -768,7 +769,7 @@ void multiresModifier_base_apply(MultiresModifierData *mmd, Object *ob)
 	/* XXX - probably not necessary to regenerate the cddm so much? */
 
 	/* generate highest level with displacements */
-	cddm = CDDM_from_mesh(me, NULL);
+	cddm = CDDM_from_mesh(me);
 	DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 	dispdm = multires_dm_create_local(ob, cddm, totlvl, totlvl, 0, 0);
 	cddm->release(cddm);
@@ -781,7 +782,7 @@ void multiresModifier_base_apply(MultiresModifierData *mmd, Object *ob)
 
 	/* heuristic to produce a better-fitting base mesh */
 
-	cddm = CDDM_from_mesh(me, NULL);
+	cddm = CDDM_from_mesh(me);
 	pmap = cddm->getPolyMap(ob, cddm);
 	origco = MEM_callocN(sizeof(float) * 3 * me->totvert, "multires apply base origco");
 	for (i = 0; i < me->totvert; ++i)
@@ -864,7 +865,7 @@ void multiresModifier_base_apply(MultiresModifierData *mmd, Object *ob)
 	BKE_mesh_calc_normals(me);
 
 	/* subdivide the mesh to highest level without displacements */
-	cddm = CDDM_from_mesh(me, NULL);
+	cddm = CDDM_from_mesh(me);
 	DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 	origdm = subsurf_dm_create_local(ob, cddm, totlvl, 0, 0, mmd->flags & eMultiresModifierFlag_PlainUv, 0);
 	cddm->release(cddm);
@@ -901,7 +902,7 @@ static void multires_subdivide(MultiresModifierData *mmd, Object *ob, int totlvl
 		int has_mask = CustomData_has_layer(&me->ldata, CD_GRID_PAINT_MASK);
 
 		/* create subsurf DM from original mesh at high level */
-		cddm = CDDM_from_mesh(me, NULL);
+		cddm = CDDM_from_mesh(me);
 		DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 		highdm = subsurf_dm_create_local(ob, cddm, totlvl, simple, 0, mmd->flags & eMultiresModifierFlag_PlainUv, has_mask);
 		ss = ((CCGDerivedMesh *)highdm)->ss;
@@ -1048,7 +1049,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DerivedMesh *dm
 
 	k = 0; /*current loop/mdisp index within the mloop array*/
 
-	#pragma omp parallel for private(i) if (totloop * gridSize * gridSize >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(i) if (totloop * gridSize * gridSize >= CCG_OMP_LIMIT)
 
 	for (i = 0; i < totpoly; ++i) {
 		const int numVerts = mpoly[i].totloop;
@@ -1063,7 +1064,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DerivedMesh *dm
 
 			/* when adding new faces in edit mode, need to allocate disps */
 			if (!mdisp->disps)
-			#pragma omp critical
+#pragma omp critical
 			{
 				multires_reallocate_mdisps(totloop, mdisps, totlvl);
 			}
@@ -1073,7 +1074,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DerivedMesh *dm
 			/* if needed, reallocate multires paint mask */
 			if (gpm && gpm->level < key.level) {
 				gpm->level = key.level;
-				#pragma omp critical
+#pragma omp critical
 				{
 					if (gpm->data)
 						MEM_freeN(gpm->data);
@@ -1173,7 +1174,7 @@ void multires_modifier_update_mdisps(struct DerivedMesh *dm)
 
 			/* create subsurf DM from original mesh at high level */
 			if (ob->derivedDeform) cddm = CDDM_copy(ob->derivedDeform);
-			else cddm = CDDM_from_mesh(me, NULL);
+			else cddm = CDDM_from_mesh(me);
 			DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 
 			highdm = subsurf_dm_create_local(ob, cddm, totlvl, mmd->simple, 0, mmd->flags & eMultiresModifierFlag_PlainUv, has_mask);
@@ -1235,7 +1236,7 @@ void multires_modifier_update_mdisps(struct DerivedMesh *dm)
 			int has_mask = CustomData_has_layer(&me->ldata, CD_GRID_PAINT_MASK);
 
 			if (ob->derivedDeform) cddm = CDDM_copy(ob->derivedDeform);
-			else cddm = CDDM_from_mesh(me, NULL);
+			else cddm = CDDM_from_mesh(me);
 			DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 
 			subdm = subsurf_dm_create_local(ob, cddm, mmd->totlvl, mmd->simple, 0, mmd->flags & eMultiresModifierFlag_PlainUv, has_mask);
@@ -2113,7 +2114,7 @@ void multires_load_old(Object *ob, Mesh *me)
 		multiresModifier_subdivide(mmd, ob, 1, 0);
 
 	mmd->lvl = mmd->totlvl;
-	orig = CDDM_from_mesh(me, NULL);
+	orig = CDDM_from_mesh(me);
 	/* XXX We *must* alloc paint mask here, else we have some kind of mismatch in
 	 *     multires_modifier_update_mdisps() (called by dm->release(dm)), which always creates the
 	 *     reference subsurfed dm with this option, before calling multiresModifier_disp_run(),
@@ -2208,7 +2209,7 @@ static void multires_apply_smat(Scene *scene, Object *ob, float smat[3][3])
 	dGridSize = multires_side_tot[high_mmd.totlvl];
 	dSkip = (dGridSize - 1) / (gridSize - 1);
 
-	#pragma omp parallel for private(i) if (me->totface * gridSize * gridSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(i) if (me->totface * gridSize * gridSize * 4 >= CCG_OMP_LIMIT)
 	for (i = 0; i < me->totpoly; ++i) {
 		const int numVerts = mpoly[i].totloop;
 		MDisps *mdisp = &mdisps[mpoly[i].loopstart];

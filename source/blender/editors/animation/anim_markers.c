@@ -45,6 +45,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
+#include "BKE_unit.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -603,6 +604,7 @@ typedef struct MarkerMove {
 /* return 0 if not OK */
 static int ed_marker_move_init(bContext *C, wmOperator *op)
 {
+	Scene *scene = CTX_data_scene(C);
 	ListBase *markers = ED_context_get_markers(C);
 	MarkerMove *mm;
 	TimeMarker *marker;
@@ -623,8 +625,10 @@ static int ed_marker_move_init(bContext *C, wmOperator *op)
 
 	initNumInput(&mm->num);
 	mm->num.idx_max = 0; /* one axis */
-	mm->num.flag |= NUM_NO_FRACTION;
-	mm->num.increment = 1.0f;
+	mm->num.val_flag[0] |= NUM_NO_FRACTION;
+	mm->num.unit_sys = scene->unit.system;
+	/* No time unit supporting frames currently... */
+	mm->num.unit_type[0] = B_UNIT_NONE;
 	
 	for (a = 0, marker = markers->first; marker; marker = marker->next) {
 		if (marker->flag & SELECT) {
@@ -832,7 +836,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 	}
 
 	if (event->val == KM_PRESS) {
-		if (handleNumInput(&mm->num, event)) {
+		if (handleNumInput(C, &mm->num, event)) {
 			char str_tx[NUM_STR_REP_LEN];
 			float value = RNA_int_get(op->ptr, "frames");
 			applyNumInput(&mm->num, &value);
@@ -1516,8 +1520,8 @@ void ED_marker_keymap(wmKeyConfig *keyconf)
 	
 	WM_keymap_verify_item(keymap, "MARKER_OT_select_border", BKEY, KM_PRESS, 0, 0);
 	WM_keymap_verify_item(keymap, "MARKER_OT_select_all", AKEY, KM_PRESS, 0, 0);
-	WM_keymap_verify_item(keymap, "MARKER_OT_delete", XKEY, KM_PRESS, 0, 0);
-	WM_keymap_verify_item(keymap, "MARKER_OT_delete", DELKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "MARKER_OT_delete", XKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "MARKER_OT_delete", DELKEY, KM_PRESS, 0, 0);
 	WM_keymap_verify_item(keymap, "MARKER_OT_rename", MKEY, KM_PRESS, KM_CTRL, 0);
 	
 	WM_keymap_add_item(keymap, "MARKER_OT_move", GKEY, KM_PRESS, 0, 0);

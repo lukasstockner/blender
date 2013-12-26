@@ -485,7 +485,7 @@ static void do_versions_affine_tracker_track(MovieTrackingTrack *track)
 static const char *node_get_static_idname(int type, int treetype)
 {
 	/* use static type info header to map static int type to identifier string */
-	#define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
+#define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
 		case ID: return #Category #StructName;
 
 	/* XXX hack, group types share a single static integer identifier, but are registered as separate types */
@@ -498,7 +498,7 @@ static const char *node_get_static_idname(int type, int treetype)
 	}
 	else {
 		switch (type) {
-		#include "NOD_static_types.h"
+#include "NOD_static_types.h"
 		}
 	}
 	return "";
@@ -2108,14 +2108,14 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 
 	if (!MAIN_VERSION_ATLEAST(main, 266, 6)) {
 		Brush *brush;
-		#define BRUSH_TEXTURE_OVERLAY (1 << 21)
+#define BRUSH_TEXTURE_OVERLAY (1 << 21)
 
 		for (brush = main->brush.first; brush; brush = brush->id.next) {
 			brush->overlay_flags = 0;
 			if (brush->flag & BRUSH_TEXTURE_OVERLAY)
 				brush->overlay_flags |= (BRUSH_OVERLAY_PRIMARY | BRUSH_OVERLAY_CURSOR);
 		}
-		#undef BRUSH_TEXTURE_OVERLAY
+#undef BRUSH_TEXTURE_OVERLAY
 	}
 
 	if (main->versionfile < 267) {
@@ -2271,7 +2271,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 
 	if (!MAIN_VERSION_ATLEAST(main, 268, 2)) {
 		Brush *brush;
-		#define BRUSH_FIXED (1 << 6)
+#define BRUSH_FIXED (1 << 6)
 		for (brush = main->brush.first; brush; brush = brush->id.next) {
 			brush->flag &= ~BRUSH_FIXED;
 
@@ -2282,7 +2282,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 			if (brush->mask_overlay_alpha < 2)
 				brush->mask_overlay_alpha = 33;
 		}
-		#undef BRUSH_FIXED
+#undef BRUSH_FIXED
 	}
 
 
@@ -2622,6 +2622,26 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 				{
 					plane_track->image_opacity = 1.0f;
 				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 269, 7)) {
+		Scene *scene;
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			Sculpt *sd = scene->toolsettings->sculpt;
+
+			if (sd) {
+				int symmetry_flags = sd->flags & 7;
+
+				if (symmetry_flags & SCULPT_SYMM_X)
+					sd->paint.symmetry_flags |= PAINT_SYMM_X;
+				if (symmetry_flags & SCULPT_SYMM_Y)
+					sd->paint.symmetry_flags |= PAINT_SYMM_Y;
+				if (symmetry_flags & SCULPT_SYMM_Z)
+					sd->paint.symmetry_flags |= PAINT_SYMM_Z;
+				if (symmetry_flags & SCULPT_SYMMETRY_FEATHER)
+					sd->paint.symmetry_flags |= PAINT_SYMMETRY_FEATHER;
 			}
 		}
 	}

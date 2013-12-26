@@ -39,14 +39,15 @@
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 
-#include "BKE_mesh.h"
-#include "ED_mesh.h"
-
 #include "rna_internal.h"  /* own include */
 
 #ifdef RNA_RUNTIME
 
 #include "DNA_mesh_types.h"
+
+#include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
+#include "ED_mesh.h"
 
 static const char *rna_Mesh_unit_test_compare(struct Mesh *mesh, struct Mesh *mesh2)
 {
@@ -110,6 +111,11 @@ static void rna_Mesh_calc_smooth_groups(Mesh *mesh, int use_bitflags, int *r_pol
 	                    r_group_total, use_bitflags);
 }
 
+static void rna_Mesh_transform(Mesh *mesh, float *mat)
+{
+	ED_mesh_transform(mesh, (float (*)[4])mat);
+}
+
 #else
 
 void RNA_api_mesh(StructRNA *srna)
@@ -117,7 +123,7 @@ void RNA_api_mesh(StructRNA *srna)
 	FunctionRNA *func;
 	PropertyRNA *parm;
 
-	func = RNA_def_function(srna, "transform", "ED_mesh_transform");
+	func = RNA_def_function(srna, "transform", "rna_Mesh_transform");
 	RNA_def_function_ui_description(func, "Transform mesh vertices by a matrix");
 	parm = RNA_def_float_matrix(func, "matrix", 4, 4, NULL, 0.0f, 0.0f, "", "Matrix", 0.0f, 0.0f);
 	RNA_def_property_flag(parm, PROP_REQUIRED);

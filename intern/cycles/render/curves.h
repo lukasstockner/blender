@@ -49,15 +49,8 @@ typedef enum curve_triangles {
 typedef enum curve_lines {
 	CURVE_ACCURATE,
 	CURVE_CORRECTED,
-	CURVE_POSTCORRECTED,
 	CURVE_UNCORRECTED
 } curve_lines;
-
-typedef enum curve_interpolation {
-	CURVE_LINEAR,
-	CURVE_CARDINAL,
-	CURVE_BSPLINE
-} curve_interpolation;
 
 class ParticleCurveData {
 

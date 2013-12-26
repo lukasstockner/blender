@@ -62,7 +62,7 @@
 #include "node_composite_util.h"
 
 #ifdef WITH_COMPOSITOR
-	#include "COM_compositor.h"
+#  include "COM_compositor.h"
 #endif
 
 static void composite_get_from_context(const bContext *C, bNodeTreeType *UNUSED(treetype), bNodeTree **r_ntree, ID **r_id, ID **r_from)
@@ -218,6 +218,16 @@ static void update(bNodeTree *ntree)
 	}
 }
 
+static void composite_node_add_init(bNodeTree *UNUSED(bnodetree), bNode *bnode)
+{
+	/* Composite node will only show previews for input classes 
+	 * by default, other will be hidden 
+	 * but can be made visible with the show_preview option */
+	if (bnode->typeinfo->nclass != NODE_CLASS_INPUT) {
+		bnode->flag &= ~NODE_PREVIEW;
+	}	
+}
+
 bNodeTreeType *ntreeType_Composite;
 
 void register_node_tree_type_cmp(void)
@@ -238,6 +248,7 @@ void register_node_tree_type_cmp(void)
 	tt->local_merge = local_merge;
 	tt->update = update;
 	tt->get_from_context = composite_get_from_context;
+	tt->node_add_init = composite_node_add_init;
 	
 	tt->ext.srna = &RNA_CompositorNodeTree;
 	
@@ -276,11 +287,11 @@ void ntreeCompositForceHidden(bNodeTree *ntree)
 		/* XXX this stuff is called all the time, don't want that.
 		 * Updates should only happen when actually necessary.
 		 */
-		#if 0
+#if 0
 		else if (node->type == CMP_NODE_IMAGE) {
 			nodeUpdate(ntree, node);
 		}
-		#endif
+#endif
 	}
 
 }

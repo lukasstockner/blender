@@ -34,14 +34,6 @@ IF(NOT OPENEXR_ROOT_DIR AND NOT $ENV{OPENEXR_ROOT_DIR} STREQUAL "")
   SET(OPENEXR_ROOT_DIR $ENV{OPENEXR_ROOT_DIR})
 ENDIF()
 
-SET(_openexr_FIND_COMPONENTS
-  Half
-  Iex
-  IlmImf
-  IlmThread
-  Imath
-)
-
 SET(_openexr_SEARCH_DIRS
   ${OPENEXR_ROOT_DIR}
   /usr/local
@@ -58,6 +50,44 @@ FIND_PATH(OPENEXR_INCLUDE_DIR
   PATH_SUFFIXES
     include
 )
+
+# If the headers were found, get the version from config file, if not already set.
+if (OPENEXR_INCLUDE_DIR)
+  if (NOT OPENEXR_VERSION)
+    FILE(STRINGS "${OPENEXR_INCLUDE_DIR}/OpenEXR/OpenEXRConfig.h" OPENEXR_BUILD_SPECIFICATION
+         REGEX "^[ \t]*#define[ \t]+OPENEXR_VERSION_STRING[ \t]+\"[.0-9]+\".*$")
+
+    if(OPENEXR_BUILD_SPECIFICATION)
+      message(STATUS "${OPENEXR_BUILD_SPECIFICATION}")
+      string(REGEX REPLACE ".*#define[ \t]+OPENEXR_VERSION_STRING[ \t]+\"([.0-9]+)\".*"
+             "\\1" XYZ ${OPENEXR_BUILD_SPECIFICATION})
+      set("OPENEXR_VERSION" ${XYZ} CACHE STRING "Version of OpenEXR lib")
+    else()
+      # Old versions (before 2.0?) do not have any version string, just assuming 2.0 should be fine though. 
+      message(WARNING "Could not determine ILMBase library version, assuming 2.0.")
+      set("OPENEXR_VERSION" "2.0" CACHE STRING "Version of OpenEXR lib")
+    endif()
+  endif()
+endif ()
+
+if (${OPENEXR_VERSION} VERSION_LESS "2.1")
+  SET(_openexr_FIND_COMPONENTS
+    Half
+    Iex
+    IlmImf
+    IlmThread
+    Imath
+  )
+else ()
+  string(REGEX REPLACE "([0-9]+)[.]([0-9]+).*" "\\1_\\2" _openexr_libs_ver ${OPENEXR_VERSION})
+  SET(_openexr_FIND_COMPONENTS
+    Half
+    Iex-${_openexr_libs_ver}
+    IlmImf-${_openexr_libs_ver}
+    IlmThread-${_openexr_libs_ver}
+    Imath-${_openexr_libs_ver}
+  )
+endif ()
 
 SET(_openexr_LIBRARIES)
 FOREACH(COMPONENT ${_openexr_FIND_COMPONENTS})

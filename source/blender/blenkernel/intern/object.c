@@ -312,11 +312,16 @@ void BKE_object_free_derived_caches(Object *ob)
 	
 	if (ob->curve_cache) {
 		BKE_displist_free(&ob->curve_cache->disp);
+		BLI_freelistN(&ob->curve_cache->bev);
+		if (ob->curve_cache->path) {
+			free_path(ob->curve_cache->path);
+			ob->curve_cache->path = NULL;
+		}
 	}
 }
 
 /* do not free object itself */
-void BKE_object_free(Object *ob)
+void BKE_object_free_ex(Object *ob, bool do_id_user)
 {
 	int a;
 	
@@ -359,7 +364,7 @@ void BKE_object_free(Object *ob)
 	if (ob->defbase.first)
 		BLI_freelistN(&ob->defbase);
 	if (ob->pose)
-		BKE_pose_free(ob->pose);
+		BKE_pose_free_ex(ob->pose, do_id_user);
 	if (ob->mpath)
 		animviz_free_motionpath(ob->mpath);
 	BKE_bproperty_free_list(&ob->prop);
@@ -383,6 +388,8 @@ void BKE_object_free(Object *ob)
 
 	if (ob->pc_ids.first) BLI_freelistN(&ob->pc_ids);
 
+	BLI_freelistN(&ob->lodlevels);
+
 	/* Free runtime curves data. */
 	if (ob->curve_cache) {
 		BLI_freelistN(&ob->curve_cache->bev);
@@ -390,6 +397,11 @@ void BKE_object_free(Object *ob)
 			free_path(ob->curve_cache->path);
 		MEM_freeN(ob->curve_cache);
 	}
+}
+
+void BKE_object_free(Object *ob)
+{
+	BKE_object_free_ex(ob, true);
 }
 
 static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Object **obpoin)
@@ -422,6 +434,7 @@ void BKE_object_unlink(Object *ob)
 	ModifierData *md;
 	ARegion *ar;
 	RegionView3D *rv3d;
+	LodLevel *lod;
 	int a, found;
 	
 	unlink_controllers(&ob->controllers);
@@ -601,6 +614,12 @@ void BKE_object_unlink(Object *ob)
 			}
 			if (ob->pd)
 				DAG_id_tag_update(&obt->id, OB_RECALC_DATA);
+		}
+
+		/* levels of detail */
+		for (lod = obt->lodlevels.first; lod; lod = lod->next) {
+			if (lod->source == ob)
+				lod->source = NULL;
 		}
 
 		obt = obt->id.next;
@@ -942,7 +961,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	ob->empty_drawtype = OB_PLAINAXES;
 	ob->empty_drawsize = 1.0;
 
-	if (type == OB_CAMERA || type == OB_LAMP || type == OB_SPEAKER) {
+	if (ELEM3(type, OB_LAMP, OB_CAMERA, OB_SPEAKER)) {
 		ob->trackflag = OB_NEGZ;
 		ob->upflag = OB_POSY;
 	}
@@ -1008,6 +1027,138 @@ Object *BKE_object_add(Main *bmain, Scene *scene, int type)
 	DAG_id_tag_update_ex(bmain, &ob->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
 
 	return ob;
+}
+
+void BKE_object_lod_add(Object *ob)
+{
+	LodLevel *lod = MEM_callocN(sizeof(LodLevel), "LoD Level");
+	LodLevel *last = ob->lodlevels.last;
+
+	/* If the lod list is empty, initialize it with the base lod level */
+	if (!last) {
+		LodLevel *base = MEM_callocN(sizeof(LodLevel), "Base LoD Level");
+		BLI_addtail(&ob->lodlevels, base);
+		base->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
+		base->source = ob;
+		last = ob->currentlod = base;
+	}
+	
+	lod->distance = last->distance + 25.0f;
+	lod->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
+
+	BLI_addtail(&ob->lodlevels, lod);
+}
+
+static int lod_cmp(void *a, void *b)
+{
+	LodLevel *loda = (LodLevel *)a;
+	LodLevel *lodb = (LodLevel *)b;
+
+	if (loda->distance < lodb->distance) return -1;
+	return loda->distance > lodb->distance;
+}
+
+void BKE_object_lod_sort(Object *ob)
+{
+	BLI_sortlist(&ob->lodlevels, lod_cmp);
+}
+
+bool BKE_object_lod_remove(Object *ob, int level)
+{
+	LodLevel *rem;
+
+	if (level < 1 || level > BLI_countlist(&ob->lodlevels) - 1)
+		return false;
+
+	rem = BLI_findlink(&ob->lodlevels, level);
+
+	if (rem == ob->currentlod) {
+		ob->currentlod = rem->prev;
+	}
+
+	BLI_remlink(&ob->lodlevels, rem);
+	MEM_freeN(rem);
+
+	/* If there are no user defined lods, remove the base lod as well */
+	if (BLI_countlist(&ob->lodlevels) == 1) {
+		LodLevel *base = ob->lodlevels.first;
+		BLI_remlink(&ob->lodlevels, base);
+		MEM_freeN(base);
+		ob->currentlod = NULL;
+	}
+
+	return true;
+}
+
+static LodLevel *lod_level_select(Object *ob, const float cam_loc[3])
+{
+	LodLevel *current = ob->currentlod;
+	float ob_loc[3], delta[3];
+	float distance2;
+
+	if (!current) return NULL;
+
+	copy_v3_v3(ob_loc, ob->obmat[3]);
+	sub_v3_v3v3(delta, ob_loc, cam_loc);
+	distance2 = len_squared_v3(delta);
+
+	if (distance2 < current->distance * current->distance) {
+		/* check for higher LoD */
+		while (current->prev && distance2 < (current->distance * current->distance)) {
+			current = current->prev;
+		}
+	}
+	else {
+		/* check for lower LoD */
+		while (current->next && distance2 > (current->next->distance * current->next->distance)) {
+			current = current->next;
+		}
+	}
+
+	return current;
+}
+
+bool BKE_object_lod_is_usable(Object *ob, Scene *scene)
+{
+	bool active = (scene) ? ob == OBACT : 0;
+	return (ob->mode == OB_MODE_OBJECT || !active);
+}
+
+bool BKE_object_lod_update(Object *ob, float camera_position[3])
+{
+	LodLevel *cur_level = ob->currentlod;
+	LodLevel *new_level = lod_level_select(ob, camera_position);
+
+	if (new_level != cur_level) {
+		ob->currentlod = new_level;
+		return true;
+	}
+
+	return false;
+}
+
+static Object *lod_ob_get(Object *ob, Scene *scene, int flag)
+{
+	LodLevel *current = ob->currentlod;
+
+	if (!current || !BKE_object_lod_is_usable(ob, scene))
+		return ob;
+
+	while (current->prev && (!(current->flags & flag) || !current->source || current->source->type != OB_MESH)) {
+		current = current->prev;
+	}
+
+	return current->source;
+}
+
+struct Object *BKE_object_lod_meshob_get(Object *ob, Scene *scene)
+{
+	return lod_ob_get(ob, scene, OB_LOD_USE_MESH);
+}
+
+struct Object *BKE_object_lod_matob_get(Object *ob, Scene *scene)
+{
+	return lod_ob_get(ob, scene, OB_LOD_USE_MAT);
 }
 
 SoftBody *copy_softbody(SoftBody *sb, int copy_caches)
@@ -1221,6 +1372,16 @@ static void copy_object_pose(Object *obn, Object *ob)
 	}
 }
 
+static void copy_object_lod(Object *obn, Object *ob)
+{
+	BLI_duplicatelist(&obn->lodlevels, &ob->lodlevels);
+
+	if (obn->lodlevels.first)
+		((LodLevel *)obn->lodlevels.first)->source = obn;
+
+	obn->currentlod = (LodLevel *)obn->lodlevels.first;
+}
+
 bool BKE_object_pose_context_check(Object *ob)
 {
 	if ((ob) &&
@@ -1340,6 +1501,9 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, int copy_caches)
 	obn->pc_ids.first = obn->pc_ids.last = NULL;
 
 	obn->mpath = NULL;
+
+	copy_object_lod(obn, ob);
+	
 
 	/* Copy runtime surve data. */
 	obn->curve_cache = NULL;

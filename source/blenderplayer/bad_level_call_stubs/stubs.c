@@ -229,6 +229,7 @@ int WM_enum_search_invoke(struct bContext *C, struct wmOperator *op, struct wmEv
 void WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference) {STUB_ASSERT(0);}
 void WM_main_add_notifier(unsigned int type, void *reference) {STUB_ASSERT(0);}
 void ED_armature_bone_rename(struct bArmature *arm, char *oldnamep, char *newnamep) {STUB_ASSERT(0);}
+void ED_armature_transform(struct bArmature *arm, float mat[4][4]) {STUB_ASSERT(0);}
 struct wmEventHandler *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op) {STUB_ASSERT(0); return (struct wmEventHandler *)NULL;}
 struct wmTimer *WM_event_add_timer(struct wmWindowManager *wm, struct wmWindow *win, int event_type, double timestep) {STUB_ASSERT(0); return (struct wmTimer *)NULL;}
 void WM_event_remove_timer(struct wmWindowManager *wm, struct wmWindow *win, struct wmTimer *timer) {STUB_ASSERT(0);}
@@ -268,6 +269,8 @@ void ED_space_image_set_mask(struct bContext *C, struct SpaceImage *sima, struct
 
 void ED_area_tag_redraw_regiontype(struct ScrArea *sa, int regiontype) {STUB_ASSERT(0);}
 void ED_render_engine_changed(struct Main *bmain) {STUB_ASSERT(0);}
+
+void ED_file_read_bookmarks(void) {STUB_ASSERT(0);}
 
 struct PTCacheEdit *PE_get_current(struct Scene *scene, struct Object *ob) {STUB_ASSERT(0); return (struct PTCacheEdit *) NULL;}
 void PE_current_changed(struct Scene *scene, struct Object *ob) {STUB_ASSERT(0);}
@@ -315,6 +318,7 @@ void ED_area_tag_redraw(struct ScrArea *sa) {STUB_ASSERT(0);}
 void ED_area_tag_refresh(struct ScrArea *sa) {STUB_ASSERT(0);}
 void ED_area_newspace(struct bContext *C, struct ScrArea *sa, int type) {STUB_ASSERT(0);}
 void ED_region_tag_redraw(struct ARegion *ar) {STUB_ASSERT(0);}
+void ED_curve_transform(struct Curve *cv, float mat[4][4]) {STUB_ASSERT(0);}
 void WM_event_add_fileselect(struct bContext *C, struct wmOperator *op) {STUB_ASSERT(0);}
 void WM_cursor_wait(int val) {STUB_ASSERT(0);}
 void ED_node_texture_default(struct bContext *C, struct Tex *tx) {STUB_ASSERT(0);}
@@ -371,7 +375,7 @@ void uiTemplateIconView(struct uiLayout *layout, struct PointerRNA *ptr, const c
 void ED_base_object_free_and_unlink(struct Scene *scene, struct Base *base) {STUB_ASSERT(0);}
 void ED_mesh_geometry_add(struct Mesh *mesh, struct ReportList *reports, int verts, int edges, int faces) {STUB_ASSERT(0);}
 void ED_mesh_material_add(struct Mesh *me, struct Material *ma) {STUB_ASSERT(0);}
-void ED_mesh_transform(struct Mesh *me, float *mat) {STUB_ASSERT(0);}
+void ED_mesh_transform(struct Mesh *me, float mat[4][4]) {STUB_ASSERT(0);}
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C) {STUB_ASSERT(0);}
 void ED_mesh_vertices_add(struct Mesh *mesh, struct ReportList *reports, int count) {STUB_ASSERT(0);}
 void ED_mesh_edges_add(struct Mesh *mesh, struct ReportList *reports, int count) {STUB_ASSERT(0);}
@@ -411,12 +415,13 @@ bool ED_texture_context_check_others(struct bContext *C) {STUB_ASSERT(0); return
 
 void ED_nurb_set_spline_type(struct Nurb *nu, int type) {STUB_ASSERT(0);}
 
-void ED_mball_transform(struct MetaBall *mb, float *mat) {STUB_ASSERT(0);}
+void ED_mball_transform(struct MetaBall *mb, float mat[4][4]) {STUB_ASSERT(0);}
 
 bool snapObjectsRayEx(struct Scene *scene, struct Base *base_act) {STUB_ASSERT(0); return 0;}
 
 void make_editLatt(struct Object *obedit) {STUB_ASSERT(0);}
 void load_editLatt(struct Object *obedit) {STUB_ASSERT(0);}
+void ED_lattice_transform(struct Lattice *lt, float mat[4][4]) {STUB_ASSERT(0);}
 
 void load_editNurb(struct Object *obedit) {STUB_ASSERT(0);}
 void make_editNurb(struct Object *obedit) {STUB_ASSERT(0);}
@@ -541,6 +546,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(struct wmOperatorType *, vo
 void WM_operator_bl_idname(char *to, const char *from) {STUB_ASSERT(0);}
 void WM_operator_py_idname(char *to, const char *from) {STUB_ASSERT(0);}
 void WM_operator_ui_popup(struct bContext *C, struct wmOperator *op, int width, int height) {STUB_ASSERT(0);}
+void update_autoflags_fcurve(struct FCurve *fcu, struct bContext *C, struct ReportList *reports, struct PointerRNA *ptr) {STUB_ASSERT(0);}
 short insert_keyframe(struct ID *id, struct bAction *act, const char group[], const char rna_path[], int array_index, float cfra, short flag) {STUB_ASSERT(0); return 0;}
 short delete_keyframe(struct ID *id, struct bAction *act, const char group[], const char rna_path[], int array_index, float cfra, short flag) {STUB_ASSERT(0); return 0;}
 char *WM_operator_pystring_ex(struct bContext *C, struct wmOperator *op, const bool all_args, struct wmOperatorType *ot, struct PointerRNA *opptr) {STUB_ASSERT(0); return (char *)NULL;}

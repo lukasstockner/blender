@@ -88,6 +88,7 @@ void CURVE_OT_spline_type_set(struct wmOperatorType *ot);
 void CURVE_OT_radius_set(struct wmOperatorType *ot);
 void CURVE_OT_spline_weight_set(struct wmOperatorType *ot);
 void CURVE_OT_handle_type_set(struct wmOperatorType *ot);
+void CURVE_OT_normals_make_consistent(struct wmOperatorType *ot);
 void CURVE_OT_shade_smooth(struct wmOperatorType *ot);
 void CURVE_OT_shade_flat(struct wmOperatorType *ot);
 void CURVE_OT_tilt_clear(struct wmOperatorType *ot);
@@ -117,6 +118,8 @@ void CURVE_OT_spin(struct wmOperatorType *ot);
 void CURVE_OT_vertex_add(struct wmOperatorType *ot);
 void CURVE_OT_extrude(struct wmOperatorType *ot);
 void CURVE_OT_cyclic_toggle(struct wmOperatorType *ot);
+
+void CURVE_OT_match_texture_space(struct wmOperatorType *ot);
 
 /* helper functions */
 void ed_editnurb_translate_flag(struct ListBase *editnurb, short flag, const float vec[3]);

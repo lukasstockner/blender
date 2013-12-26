@@ -425,7 +425,7 @@ static void draw_spline_curve(const bContext *C, MaskLayer *masklay, MaskSpline 
 	unsigned int tot_feather_point;
 	float (*feather_points)[2];
 
-	diff_points = BKE_mask_spline_differentiate_with_resolution_ex(spline, &tot_diff_point, resol);
+	diff_points = BKE_mask_spline_differentiate_with_resolution(spline, &tot_diff_point, resol);
 
 	if (!diff_points)
 		return;
@@ -436,7 +436,7 @@ static void draw_spline_curve(const bContext *C, MaskLayer *masklay, MaskSpline 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
-	feather_points = BKE_mask_spline_feather_differentiated_points_with_resolution_ex(spline, &tot_feather_point, resol, (is_fill != FALSE));
+	feather_points = BKE_mask_spline_feather_differentiated_points_with_resolution(spline, &tot_feather_point, resol, (is_fill != FALSE));
 
 	/* draw feather */
 	mask_spline_feather_color_get(masklay, spline, is_spline_sel, rgb_tmp);
@@ -590,8 +590,6 @@ static float *threaded_mask_rasterize(Mask *mask, const int width, const int hei
 
 	task_pool = BLI_task_pool_create(task_scheduler, &state);
 
-	BLI_begin_threaded_malloc();
-
 	scanlines_per_thread = height / num_threads;
 	for (i = 0; i < num_threads; i++) {
 		ThreadedMaskRasterizeData *data = MEM_mallocN(sizeof(ThreadedMaskRasterizeData),
@@ -614,7 +612,6 @@ static float *threaded_mask_rasterize(Mask *mask, const int width, const int hei
 
 	/* Free memory. */
 	BLI_task_pool_free(task_pool);
-	BLI_end_threaded_malloc();
 	BKE_maskrasterize_handle_free(handle);
 
 	return buffer;

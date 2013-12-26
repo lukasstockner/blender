@@ -40,6 +40,7 @@
 #include "DNA_meta_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
@@ -162,6 +163,14 @@ EnumPropertyItem object_axis_items[] = {
 	{OB_NEGX, "NEG_X", 0, "-X", ""},
 	{OB_NEGY, "NEG_Y", 0, "-Y", ""},
 	{OB_NEGZ, "NEG_Z", 0, "-Z", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
+/* for general use (not just object) */
+EnumPropertyItem object_axis_unsigned_items[] = {
+	{0, "X", 0, "X", ""},
+	{1, "Y", 0, "Y", ""},
+	{2, "Z", 0, "Z", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -1463,6 +1472,11 @@ int rna_Object_use_dynamic_topology_sculpting_get(PointerRNA *ptr)
 	return (ss && ss->bm);
 }
 
+static void rna_Object_lod_distance_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	Object *ob = (Object *)ptr->id.data;
+	BKE_object_lod_sort(ob);
+}
 #else
 
 static void rna_def_vertex_group(BlenderRNA *brna)
@@ -1637,6 +1651,10 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	                            "rna_GameObjectSettings_physics_type_set", NULL);
 	RNA_def_property_ui_text(prop, "Physics Type", "Select the type of physical representation");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "use_record_animation", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_RECORD_ANIMATION);
+	RNA_def_property_ui_text(prop, "Record Animation", "Record animation objects without physics");
 
 	prop = RNA_def_property(srna, "use_actor", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "gameflag", OB_ACTOR);
@@ -2015,6 +2033,41 @@ static void rna_def_object_vertex_groups(BlenderRNA *brna, PropertyRNA *cprop)
 
 	func = RNA_def_function(srna, "clear", "rna_Object_vgroup_clear");
 	RNA_def_function_ui_description(func, "Delete all vertex groups from object");
+}
+
+
+static void rna_def_object_lodlevel(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "LodLevel", NULL);
+	RNA_def_struct_sdna(srna, "LodLevel");
+
+	prop = RNA_def_property(srna, "distance", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "distance");
+	RNA_def_property_range(prop, 0.0, FLT_MAX);
+	RNA_def_property_ui_text(prop, "Distance", "Distance to begin using this level of detail");
+	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, "rna_Object_lod_distance_update");
+
+	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "source");
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Object", "Object to use for this level of detail");
+	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
+
+	prop = RNA_def_property(srna, "use_mesh", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_LOD_USE_MESH);
+	RNA_def_property_ui_text(prop, "Use Mesh", "Use the mesh from this object at this level of detail");
+	RNA_def_property_ui_icon(prop, ICON_MESH_DATA, 0);
+	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
+
+	prop = RNA_def_property(srna, "use_material", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_LOD_USE_MAT);
+	RNA_def_property_ui_text(prop, "Use Material", "Use the material from this object at this level of detail");
+	RNA_def_property_ui_icon(prop, ICON_MATERIAL, 0);
+	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
 }
 
 
@@ -2678,6 +2731,13 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Dynamic Topology Sculpting", NULL);
 
+	/* Levels of Detail */
+	prop = RNA_def_property(srna, "lod_levels", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "lodlevels", NULL);
+	RNA_def_property_struct_type(prop, "LodLevel");
+	RNA_def_property_ui_text(prop, "Level of Detail Levels", "A collection of detail levels to automatically switch between");
+	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
+
 	RNA_api_object(srna);
 }
 
@@ -2788,6 +2848,7 @@ void RNA_def_object(BlenderRNA *brna)
 	rna_def_material_slot(brna);
 	rna_def_dupli_object(brna);
 	RNA_define_animate_sdna(true);
+	rna_def_object_lodlevel(brna);
 }
 
 #endif

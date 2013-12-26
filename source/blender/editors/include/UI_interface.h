@@ -45,6 +45,7 @@ struct ListBase;
 struct ARegion;
 struct ARegionType;
 struct ScrArea;
+struct wmEvent;
 struct wmWindow;
 struct wmWindowManager;
 struct wmOperator;
@@ -175,6 +176,8 @@ enum {
 
 #define UI_PANEL_WIDTH          340
 #define UI_COMPACT_PANEL_WIDTH  160
+
+#define UI_PANEL_CATEGORY_MARGIN_WIDTH (U.widget_unit * 0.9f)
 
 /* but->drawflag - these flags should only affect how the button is drawn. */
 /* Note: currently, these flags _are not passed_ to the widget's state() or draw() functions
@@ -519,7 +522,7 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block, int type, struct wmOperatorType *ot
 struct PointerRNA *uiButGetOperatorPtrRNA(uiBut *but);
 
 void uiButSetUnitType(uiBut *but, const int unit_type);
-int uiButGetUnitType(uiBut *but);
+int uiButGetUnitType(const uiBut *but);
 
 enum {
 	BUT_GET_RNAPROP_IDENTIFIER = 1,
@@ -665,9 +668,22 @@ void uiBeginPanels(const struct bContext *C, struct ARegion *ar);
 void uiEndPanels(const struct bContext *C, struct ARegion *ar, int *x, int *y);
 void uiDrawPanels(const struct bContext *C, struct ARegion *ar);
 
-struct Panel *uiBeginPanel(struct ScrArea *sa, struct ARegion *ar, uiBlock *block, struct PanelType *pt, int *open);
+struct Panel *uiPanelFindByType(struct ARegion *ar, struct PanelType *pt);
+struct Panel *uiBeginPanel(struct ScrArea *sa, struct ARegion *ar, uiBlock *block,
+                           struct PanelType *pt, struct Panel *pa, bool *r_open);
 void uiEndPanel(uiBlock *block, int width, int height);
 void uiScalePanels(struct ARegion *ar, float new_width);
+
+bool                       UI_panel_category_is_visible(struct ARegion *ar);
+void                       UI_panel_category_add(struct ARegion *ar, const char *name);
+struct PanelCategoryDyn   *UI_panel_category_find(struct ARegion *ar, const char *idname);
+struct PanelCategoryStack *UI_panel_category_active_find(struct ARegion *ar, const char *idname);
+const char                *UI_panel_category_active_get(struct ARegion *ar, bool set_fallback);
+void                       UI_panel_category_active_set(struct ARegion *ar, const char *idname);
+struct PanelCategoryDyn   *UI_panel_category_find_mouse_over_ex(struct ARegion *ar, const int x, const int y);
+struct PanelCategoryDyn   *UI_panel_category_find_mouse_over(struct ARegion *ar, const struct wmEvent *event);
+void                       UI_panel_category_clear_all(struct ARegion *ar);
+void                       UI_panel_category_draw_all(struct ARegion *ar, const char *category_id_active);
 
 /* Handlers
  *
@@ -710,8 +726,8 @@ void UI_exit(void);
 #define UI_LAYOUT_MENU          2
 #define UI_LAYOUT_TOOLBAR       3
 
-#define UI_UNIT_X               U.widget_unit
-#define UI_UNIT_Y               U.widget_unit
+#define UI_UNIT_X               ((void)0, U.widget_unit)
+#define UI_UNIT_Y               ((void)0, U.widget_unit)
 
 #define UI_LAYOUT_ALIGN_EXPAND  0
 #define UI_LAYOUT_ALIGN_LEFT    1
@@ -731,6 +747,10 @@ void UI_exit(void);
 /* uiLayoutOperatorButs flags */
 #define UI_LAYOUT_OP_SHOW_TITLE 1
 #define UI_LAYOUT_OP_SHOW_EMPTY 2
+
+/* used for transp checkers */
+#define UI_ALPHA_CHECKER_DARK 100
+#define UI_ALPHA_CHECKER_LIGHT 160
 
 /* flags to set which corners will become rounded:
  *

@@ -47,6 +47,7 @@
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
+#include "BKE_displist.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_key.h"
@@ -1367,6 +1368,37 @@ void CU_select_swap(Object *obedit)
 			}
 		}
 	}
+}
+
+/******************** transform operator **********************/
+
+void ED_curve_transform(Curve *cu, float mat[4][4])
+{
+	Nurb *nu;
+	BPoint *bp;
+	BezTriple *bezt;
+	int a;
+
+	float scale = mat4_to_scale(mat);
+
+	for (nu = cu->nurb.first; nu; nu = nu->next) {
+		if (nu->type == CU_BEZIER) {
+			a = nu->pntsu;
+			for (bezt = nu->bezt; a--; bezt++) {
+				mul_m4_v3(mat, bezt->vec[0]);
+				mul_m4_v3(mat, bezt->vec[1]);
+				mul_m4_v3(mat, bezt->vec[2]);
+				bezt->radius *= scale;
+			}
+			BKE_nurb_handles_calc(nu);
+		}
+		else {
+			a = nu->pntsu * nu->pntsv;
+			for (bp = nu->bp; a--; bp++)
+				mul_m4_v3(mat, bp->vec);
+		}
+	}
+	DAG_id_tag_update(&cu->id, 0);
 }
 
 /******************** separate operator ***********************/
@@ -3673,6 +3705,40 @@ void CURVE_OT_handle_type_set(wmOperatorType *ot)
 
 	/* properties */
 	ot->prop = RNA_def_enum(ot->srna, "type", editcurve_handle_type_items, 1, "Type", "Spline type");
+}
+
+/***************** recalculate handles operator **********************/
+
+static int curve_normals_make_consistent_exec(bContext *C, wmOperator *op)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	ListBase *editnurb = object_editcurve_get(obedit);
+	const bool calc_length = RNA_boolean_get(op->ptr, "calc_length");
+
+	BKE_nurbList_handles_recalculate(editnurb, calc_length, SELECT);
+
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+	DAG_id_tag_update(obedit->data, 0);
+
+	return OPERATOR_FINISHED;
+}
+
+void CURVE_OT_normals_make_consistent(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Recalc Normals";
+	ot->description = "Recalculate the direction of selected handles";
+	ot->idname = "CURVE_OT_normals_make_consistent";
+
+	/* api callbacks */
+	ot->exec = curve_normals_make_consistent_exec;
+	ot->poll = ED_operator_editcurve;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* props */
+	RNA_def_boolean(ot->srna, "calc_length", false, "Length", "Recalculate handle length");
 }
 
 /***************** make segment operator **********************/
@@ -6806,4 +6872,66 @@ int ED_curve_actSelection(Curve *cu, float center[3])
 	}
 
 	return 1;
+}
+
+/******************** Match texture space operator ***********************/
+
+static int match_texture_space_poll(bContext *C)
+{
+	Object *object = CTX_data_active_object(C);
+
+	return object && ELEM3(object->type, OB_CURVE, OB_SURF, OB_FONT);
+}
+
+static int match_texture_space_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *object = CTX_data_active_object(C);
+	Curve *curve = (Curve *) object->data;
+	float min[3], max[3], size[3], loc[3];
+	int a;
+
+	if (ELEM(NULL, object->curve_cache, object->curve_cache->disp.first)) {
+		BKE_displist_make_curveTypes(scene, object, FALSE);
+	}
+
+	INIT_MINMAX(min, max);
+	BKE_displist_minmax(&object->curve_cache->disp, min, max);
+
+	mid_v3_v3v3(loc, min, max);
+
+	size[0] = (max[0] - min[0]) / 2.0f;
+	size[1] = (max[1] - min[1]) / 2.0f;
+	size[2] = (max[2] - min[2]) / 2.0f;
+
+	for (a = 0; a < 3; a++) {
+		if (size[a] == 0.0f) size[a] = 1.0f;
+		else if (size[a] > 0.0f && size[a] < 0.00001f) size[a] = 0.00001f;
+		else if (size[a] < 0.0f && size[a] > -0.00001f) size[a] = -0.00001f;
+	}
+
+	copy_v3_v3(curve->loc, loc);
+	copy_v3_v3(curve->size, size);
+	zero_v3(curve->rot);
+
+	curve->texflag &= ~CU_AUTOSPACE;
+
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, curve);
+
+	return OPERATOR_FINISHED;
+}
+
+void CURVE_OT_match_texture_space(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Match Texture Space";
+	ot->idname = "CURVE_OT_match_texture_space";
+	ot->description = "Match texture space to object's bounding box";
+
+	/* api callbacks */
+	ot->exec = match_texture_space_exec;
+	ot->poll = match_texture_space_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

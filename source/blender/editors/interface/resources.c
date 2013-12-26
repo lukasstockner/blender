@@ -389,10 +389,26 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 
 				case TH_NODE:
 					cp = ts->syntaxl; break;
-				case TH_NODE_IN_OUT:
+				case TH_NODE_INPUT:
 					cp = ts->syntaxn; break;
-				case TH_NODE_OPERATOR:
+				case TH_NODE_OUTPUT:
+					cp = ts->nodeclass_output; break;
+				case TH_NODE_COLOR:
 					cp = ts->syntaxb; break;
+				case TH_NODE_FILTER:
+					cp = ts->nodeclass_filter; break;
+				case TH_NODE_VECTOR:
+					cp = ts->nodeclass_vector; break;
+				case TH_NODE_TEXTURE:
+					cp = ts->nodeclass_texture; break;
+				case TH_NODE_PATTERN:
+					cp = ts->nodeclass_pattern; break;
+				case TH_NODE_SCRIPT:
+					cp = ts->nodeclass_script; break;
+				case TH_NODE_LAYOUT:
+					cp = ts->nodeclass_layout; break;
+				case TH_NODE_SHADER:
+					cp = ts->nodeclass_shader; break;
 				case TH_NODE_CONVERTOR:
 					cp = ts->syntaxv; break;
 				case TH_NODE_GROUP:
@@ -564,6 +580,37 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = btheme->tui.yaxis; break;
 				case TH_AXIS_Z:
 					cp = btheme->tui.zaxis; break;
+
+				case TH_INFO_SELECTED:
+					cp = ts->info_selected;
+					break;
+				case TH_INFO_SELECTED_TEXT:
+					cp = ts->info_selected_text;
+					break;
+				case TH_INFO_ERROR:
+					cp = ts->info_error;
+					break;
+				case TH_INFO_ERROR_TEXT:
+					cp = ts->info_error_text;
+					break;
+				case TH_INFO_WARNING:
+					cp = ts->info_warning;
+					break;
+				case TH_INFO_WARNING_TEXT:
+					cp = ts->info_warning_text;
+					break;
+				case TH_INFO_INFO:
+					cp = ts->info_info;
+					break;
+				case TH_INFO_INFO_TEXT:
+					cp = ts->info_info_text;
+					break;
+				case TH_INFO_DEBUG:
+					cp = ts->info_debug;
+					break;
+				case TH_INFO_DEBUG_TEXT:
+					cp = ts->info_debug_text;
+					break;
 			}
 		}
 	}
@@ -958,6 +1005,16 @@ void ui_theme_init_default(void)
 	/* space info */
 	btheme->tinfo = btheme->tv3d;
 	rgba_char_args_set_fl(btheme->tinfo.back,   0.45, 0.45, 0.45, 1.0);
+	rgba_char_args_set(btheme->tinfo.info_selected, 96, 128, 255, 255);
+	rgba_char_args_set(btheme->tinfo.info_selected_text, 255, 255, 255, 255);
+	rgba_char_args_set(btheme->tinfo.info_error, 220, 0, 0, 255);
+	rgba_char_args_set(btheme->tinfo.info_error_text, 0, 0, 0, 255);
+	rgba_char_args_set(btheme->tinfo.info_warning, 220, 128, 96, 255);
+	rgba_char_args_set(btheme->tinfo.info_warning_text, 0, 0, 0, 255);
+	rgba_char_args_set(btheme->tinfo.info_info, 0, 170, 0, 255);
+	rgba_char_args_set(btheme->tinfo.info_info_text, 0, 0, 0, 255);
+	rgba_char_args_set(btheme->tinfo.info_debug, 196, 196, 196, 255);
+	rgba_char_args_set(btheme->tinfo.info_debug_text, 0, 0, 0, 255);
 
 	/* space user preferences */
 	btheme->tuserpref = btheme->tv3d;
@@ -983,10 +1040,18 @@ void ui_theme_init_default(void)
 	btheme->tnode = btheme->tv3d;
 	rgba_char_args_set(btheme->tnode.edge_select, 255, 255, 255, 255);	/* wire selected */
 	rgba_char_args_set(btheme->tnode.syntaxl, 155, 155, 155, 160);  /* TH_NODE, backdrop */
-	rgba_char_args_set(btheme->tnode.syntaxn, 100, 100, 100, 255);  /* in/output */
+	rgba_char_args_set(btheme->tnode.syntaxn, 100, 100, 100, 255);  /* in */
+	rgba_char_args_set(btheme->tnode.nodeclass_output, 100, 100, 100, 255);  /* output */
 	rgba_char_args_set(btheme->tnode.syntaxb, 108, 105, 111, 255);  /* operator */
 	rgba_char_args_set(btheme->tnode.syntaxv, 104, 106, 117, 255);  /* generator */
 	rgba_char_args_set(btheme->tnode.syntaxc, 105, 117, 110, 255);  /* group */
+	rgba_char_args_set(btheme->tnode.nodeclass_texture, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_shader, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_filter, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_script, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_pattern, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_vector, 108, 105, 111, 255);  /* operator */
+	rgba_char_args_set(btheme->tnode.nodeclass_layout, 108, 105, 111, 255);  /* operator */
 	rgba_char_args_set(btheme->tnode.movie, 155, 155, 155, 160);  /* frame */
 	rgba_char_args_set(btheme->tnode.syntaxs, 151, 116, 116, 255);  /* matte nodes */
 	rgba_char_args_set(btheme->tnode.syntaxd, 116, 151, 151, 255);  /* distort nodes */
@@ -2236,6 +2301,43 @@ void init_userdef_do_versions(void)
 		}
 	}
 
+	if (U.versionfile < 269 || (U.versionfile == 269 && U.subversionfile < 6)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			char r, g, b;
+			r = btheme->tnode.syntaxn[0];
+			g = btheme->tnode.syntaxn[1];
+			b = btheme->tnode.syntaxn[2];
+			rgba_char_args_test_set(btheme->tnode.nodeclass_output, r, g, b, 255);
+			r = btheme->tnode.syntaxb[0];
+			g = btheme->tnode.syntaxb[1];
+			b = btheme->tnode.syntaxb[2];
+			rgba_char_args_test_set(btheme->tnode.nodeclass_filter, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_vector, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_texture, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_shader, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_script, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_pattern, r, g, b, 255);
+			rgba_char_args_test_set(btheme->tnode.nodeclass_layout, r, g, b, 255);
+		}
+	}
+
+	if (U.versionfile < 269 || (U.versionfile == 269 && U.subversionfile < 8)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_test_set(btheme->tinfo.info_selected, 96, 128, 255, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_selected_text, 255, 255, 255, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_error, 220, 0, 0, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_error_text, 0, 0, 0, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_warning, 220, 128, 96, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_warning_text, 0, 0, 0, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_info, 0, 170, 0, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_info_text, 0, 0, 0, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_debug, 196, 196, 196, 255);
+			rgba_char_args_test_set(btheme->tinfo.info_debug_text, 0, 0, 0, 255);
+		}
+	}
+	
 	if (U.versionfile < 270) {
 		/* grease pencil - new layer color */
 		if (U.gpencil_new_layer_col[3] < 0.1f) {
@@ -2263,10 +2365,8 @@ void init_userdef_do_versions(void)
 void init_userdef_factory(void)
 {
 	/* defaults from T37518 */
-	U.uiflag2 |= USER_REGION_OVERLAP;
 
 	U.uiflag |= USER_AUTOPERSP;
-	U.uiflag |= USER_ORBIT_SELECTION;
 	U.uiflag |= USER_ZBUF_CURSOR;
 	U.uiflag |= USER_QUIT_PROMPT;
 	U.uiflag |= USER_CONTINUOUS_MOUSE;

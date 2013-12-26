@@ -73,6 +73,7 @@ static void engine_bind_display_space_shader(RenderEngine *UNUSED(engine), Scene
 {
 	IMB_colormanagement_setup_glsl_draw(&scene->view_settings,
 	                                    &scene->display_settings,
+	                                    scene->r.dither_intensity,
 	                                    false);
 }
 
@@ -392,7 +393,8 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	RNA_def_function_ui_description(func, "All pixels in the render result have been set and are final");
 	prop = RNA_def_pointer(func, "result", "RenderResult", "Result", "");
 	RNA_def_property_flag(prop, PROP_REQUIRED);
-	RNA_def_boolean(func, "cancel", 0, "Cancel", "Don't merge back results");
+	RNA_def_boolean(func, "cancel", 0, "Cancel", "Don't mark tile as done, don't merge results unless forced");
+	RNA_def_boolean(func, "do_merge_results", 0, "Merge Results", "Merge results even if cancel=true");
 
 	func = RNA_def_function(srna, "test_break", "RE_engine_test_break");
 	RNA_def_function_ui_description(func, "Test if the render operation should been canceled, this is a fast call that should be used regularly for responsiveness");
@@ -456,11 +458,11 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "tile_y", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "tile_y");
 
-	prop = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "resolution_x");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
-	prop = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "resolution_y");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
@@ -525,11 +527,11 @@ static void rna_def_render_result(BlenderRNA *brna)
 
 	RNA_define_verify_sdna(0);
 
-	parm = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_NONE);
+	parm = RNA_def_property(srna, "resolution_x", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(parm, NULL, "rectx");
 	RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 
-	parm = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_NONE);
+	parm = RNA_def_property(srna, "resolution_y", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(parm, NULL, "recty");
 	RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 

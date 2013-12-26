@@ -93,6 +93,7 @@
 #include "KX_SoftBodyDeformer.h"
 //#include "BL_ArmatureController.h"
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BlenderWorldInfo.h"
 
 #include "KX_KetsjiEngine.h"
@@ -938,10 +939,18 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
 
-	if ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL)
-		return meshobj;
+	// Without checking names, we get some reuse we don't want that can cause
+	// problems with material LoDs.
+	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL)) {
+		const char *bge_name = meshobj->GetName().ReadPtr();
+		const char *blender_name = ((ID *)blenderobj->data)->name + 2;
+		if (STREQ(bge_name, blender_name)) {
+			return meshobj;
+		}
+	}
+
 	// Get DerivedMesh data
-	DerivedMesh *dm = CDDM_from_mesh(mesh, blenderobj);
+	DerivedMesh *dm = CDDM_from_mesh(mesh);
 	DM_ensure_tessface(dm);
 
 	MVert *mvert = dm->getVertArray(dm);
@@ -1513,6 +1522,7 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	objprop.m_softbody = (blenderobject->gameflag & OB_SOFT_BODY) != 0;
 	objprop.m_angular_rigidbody = (blenderobject->gameflag & OB_RIGID_BODY) != 0;
 	objprop.m_character = (blenderobject->gameflag & OB_CHARACTER) != 0;
+	objprop.m_record_animation = (blenderobject->gameflag & OB_RECORD_ANIMATION) != 0;
 	
 	///contact processing threshold is only for rigid bodies and static geometry, not 'dynamic'
 	if (objprop.m_angular_rigidbody || !objprop.m_dyna )
@@ -1851,6 +1861,24 @@ static KX_GameObject *gameobject_from_blenderobject(
 	
 		// set transformation
 		gameobj->AddMesh(meshobj);
+
+		// gather levels of detail
+		if (BLI_countlist(&ob->lodlevels) > 1) {
+			LodLevel *lod = ((LodLevel*)ob->lodlevels.first)->next;
+			Mesh* lodmesh = mesh;
+			Object* lodmatob = ob;
+			gameobj->AddLodMesh(meshobj);
+			for (; lod; lod = lod->next) {
+				if (!lod->source || lod->source->type != OB_MESH) continue;
+				if (lod->flags & OB_LOD_USE_MESH) {
+					lodmesh = static_cast<Mesh*>(lod->source->data);
+				}
+				if (lod->flags & OB_LOD_USE_MAT) {
+					lodmatob = lod->source;
+				}
+				gameobj->AddLodMesh(BL_ConvertMesh(lodmesh, lodmatob, kxscene, converter, libloading));
+			}
+		}
 	
 		// for all objects: check whether they want to
 		// respond to updates

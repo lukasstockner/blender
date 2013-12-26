@@ -675,7 +675,7 @@ Material *give_current_material(Object *ob, short act)
 {
 	Material ***matarar, *ma;
 	short *totcolp;
-	
+
 	if (ob == NULL) return NULL;
 	
 	/* if object cannot have material, (totcolp == NULL) */
@@ -837,7 +837,6 @@ void assign_material_id(ID *id, Material *ma, short act)
 void assign_material(Object *ob, Material *ma, short act, int assign_type)
 {
 	Material *mao, **matar, ***matarar;
-	char *matbits;
 	short *totcolp;
 	char bit = 0;
 
@@ -889,16 +888,8 @@ void assign_material(Object *ob, Material *ma, short act, int assign_type)
 
 	if (act > ob->totcol) {
 		/* Need more space in the material arrays */
-		matar = MEM_callocN(sizeof(void *) * act, "matarray2");
-		matbits = MEM_callocN(sizeof(char) * act, "matbits1");
-		if (ob->totcol) {
-			memcpy(matar, ob->mat, sizeof(void *) * ob->totcol);
-			memcpy(matbits, ob->matbits, sizeof(char) * (*totcolp));
-			MEM_freeN(ob->mat);
-			MEM_freeN(ob->matbits);
-		}
-		ob->mat = matar;
-		ob->matbits = matbits;
+		ob->mat = MEM_recallocN_id(ob->mat, sizeof(void *) * act, "matarray2");
+		ob->matbits = MEM_recallocN_id(ob->matbits, sizeof(char) * act, "matbits1");
 		ob->totcol = act;
 	}
 	
@@ -1919,7 +1910,7 @@ static void convert_tfacematerial(Main *main, Material *ma)
 
 #define MAT_BGE_DISPUTED -99999
 
-int do_version_tface(Main *main, int fileload)
+int do_version_tface(Main *main)
 {
 	Mesh *me;
 	Material *ma;
@@ -1929,6 +1920,9 @@ int do_version_tface(Main *main, int fileload)
 	int a;
 	int flag;
 	int index;
+	
+	/* Operator in help menu has been removed for 2.7x */
+	int fileload = 1;
 
 	/* sometimes mesh has no materials but will need a new one. In those
 	 * cases we need to ignore the mf->mat_nr and only look at the face
@@ -2072,7 +2066,7 @@ int do_version_tface(Main *main, int fileload)
 		if (ma->game.flag == MAT_BGE_DISPUTED) {
 			ma->game.flag = 0;
 			if (fileload) {
-				printf("Warning: material \"%s\" skipped - to convert old game texface to material go to the Help menu.\n", ma->id.name + 2);
+				printf("Warning: material \"%s\" skipped.\n", ma->id.name + 2);
 				nowarning = 0;
 			}
 			else {

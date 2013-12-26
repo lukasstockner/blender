@@ -76,6 +76,7 @@
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_modifier.h"
 
 #include "bmesh.h"
@@ -1834,10 +1835,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	SkinModifierData *smd = (SkinModifierData *) md;
 	SkinModifierData *tsmd = (SkinModifierData *) target;
-
-	*tsmd = *smd;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static DerivedMesh *applyModifier(ModifierData *md,

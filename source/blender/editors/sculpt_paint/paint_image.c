@@ -250,6 +250,7 @@ void ED_image_undo_restore(bContext *C, ListBase *lb)
 
 	for (tile = lb->first; tile; tile = tile->next) {
 		short use_float;
+		bool need_release = true;
 
 		/* find image based on name, pointer becomes invalid with global undo */
 		if (ima && strcmp(tile->idname, ima->id.name) == 0) {
@@ -268,8 +269,9 @@ void ED_image_undo_restore(bContext *C, ListBase *lb)
 			 * matched file name in list of already loaded images */
 
 			BKE_image_release_ibuf(ima, ibuf, NULL);
+			need_release = false;
 
-			ibuf = BLI_findstring(&ima->ibufs, tile->ibufname, offsetof(ImBuf, name));
+			ibuf = BKE_image_get_ibuf_with_name(ima, tile->ibufname);
 		}
 
 		if (!ima || !ibuf || !(ibuf->rect || ibuf->rect_float)) {
@@ -298,7 +300,12 @@ void ED_image_undo_restore(bContext *C, ListBase *lb)
 			ibuf->userflags |= IB_MIPMAP_INVALID;  /* force mipmap recreatiom */
 		ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
 
-		BKE_image_release_ibuf(ima, ibuf, NULL);
+		if (need_release) {
+			BKE_image_release_ibuf(ima, ibuf, NULL);
+		}
+		else {
+			IMB_freeImBuf(ibuf);
+		}
 	}
 
 	IMB_freeImBuf(tmpibuf);
@@ -511,7 +518,7 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mou
 
 	{
 		UnifiedPaintSettings *ups = &settings->unified_paint_settings;
-		ups->draw_pressure = true;
+		ups->stroke_active = true;
 	}
 
 	return pop;
@@ -595,7 +602,7 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 
 	{
 		UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
-		ups->draw_pressure = false;
+		ups->stroke_active = false;
 	}
 }
 
@@ -766,7 +773,7 @@ void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(
 		{
 			UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 			/* hrmf, duplicate paint_draw_cursor logic here */
-			if (ups->draw_pressure && BKE_brush_use_size_pressure(scene, brush)) {
+			if (ups->stroke_active && BKE_brush_use_size_pressure(scene, brush)) {
 				/* inner at full alpha */
 				glutil_draw_lined_arc(0, (float)(M_PI * 2.0), size * ups->pressure_value, 40);
 				/* outer at half alpha */

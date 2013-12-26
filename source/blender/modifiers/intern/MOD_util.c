@@ -183,7 +183,7 @@ DerivedMesh *get_dm(Object *ob, struct BMEditMesh *em, DerivedMesh *dm,
 	}
 	else if (ob->type == OB_MESH) {
 		if (em) dm = CDDM_from_editbmesh(em, FALSE, FALSE);
-		else dm = CDDM_from_mesh((struct Mesh *)(ob->data), ob);
+		else dm = CDDM_from_mesh((struct Mesh *)(ob->data));
 
 		if (vertexCos) {
 			CDDM_apply_vert_coords(dm, vertexCos);
@@ -272,5 +272,6 @@ void modifier_type_init(ModifierTypeInfo *types[])
 	INIT_TYPE(UVWarp);
 	INIT_TYPE(MeshCache);
 	INIT_TYPE(LaplacianDeform);
+	INIT_TYPE(Wireframe);
 #undef INIT_TYPE
 }

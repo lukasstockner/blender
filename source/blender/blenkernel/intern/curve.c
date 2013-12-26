@@ -143,7 +143,6 @@ void BKE_curve_editNurb_free(Curve *cu)
 void BKE_curve_free(Curve *cu)
 {
 	BKE_nurbList_free(&cu->nurb);
-	BKE_displist_free(&cu->disp);
 	BKE_curve_editfont_free(cu);
 
 	BKE_curve_editNurb_free(cu);
@@ -222,8 +221,6 @@ Curve *BKE_curve_copy(Curve *cu)
 
 	cun->key = BKE_key_copy(cu->key);
 	if (cun->key) cun->key->from = (ID *)cun;
-
-	cun->disp.first = cun->disp.last = NULL;
 
 	cun->editnurb = NULL;
 	cun->editfont = NULL;
@@ -379,7 +376,11 @@ void BKE_curve_boundbox_calc(Curve *cu, float r_loc[3], float r_size[3])
 	if (!r_size) r_size = msize;
 
 	INIT_MINMAX(min, max);
-	BKE_displist_minmax(&cu->disp, min, max);
+	if (!BKE_curve_minmax(cu, true, min, max)) {
+		min[0] = min[1] = min[2] = -1.0f;
+		max[0] = max[1] = max[2] = 1.0f;
+	}
+
 	mid_v3_v3v3(r_loc, min, max);
 
 	r_size[0] = (max[0] - min[0]) / 2.0f;
@@ -642,18 +643,34 @@ void BKE_nurb_test2D(Nurb *nu)
 	}
 }
 
-void BKE_nurb_minmax(Nurb *nu, float min[3], float max[3])
+/* if use_radius is truth, minmax will take points' radius into account,
+ * which will make boundbox closer to bevelled curve.
+ */
+void BKE_nurb_minmax(Nurb *nu, bool use_radius, float min[3], float max[3])
 {
 	BezTriple *bezt;
 	BPoint *bp;
 	int a;
+	float point[3];
 
 	if (nu->type == CU_BEZIER) {
 		a = nu->pntsu;
 		bezt = nu->bezt;
 		while (a--) {
+			if (use_radius) {
+				float radius_vector[3];
+				radius_vector[0] = radius_vector[1] = radius_vector[2] = bezt->radius;
+
+				add_v3_v3v3(point, bezt->vec[1], radius_vector);
+				minmax_v3v3_v3(min, max, point);
+
+				sub_v3_v3v3(point, bezt->vec[1], radius_vector);
+				minmax_v3v3_v3(min, max, point);
+			}
+			else {
+				minmax_v3v3_v3(min, max, bezt->vec[1]);
+			}
 			minmax_v3v3_v3(min, max, bezt->vec[0]);
-			minmax_v3v3_v3(min, max, bezt->vec[1]);
 			minmax_v3v3_v3(min, max, bezt->vec[2]);
 			bezt++;
 		}
@@ -662,7 +679,20 @@ void BKE_nurb_minmax(Nurb *nu, float min[3], float max[3])
 		a = nu->pntsu * nu->pntsv;
 		bp = nu->bp;
 		while (a--) {
-			minmax_v3v3_v3(min, max, bp->vec);
+			if (nu->pntsv == 1 && use_radius) {
+				float radius_vector[3];
+				radius_vector[0] = radius_vector[1] = radius_vector[2] = bp->radius;
+
+				add_v3_v3v3(point, bp->vec, radius_vector);
+				minmax_v3v3_v3(min, max, point);
+
+				sub_v3_v3v3(point, bp->vec, radius_vector);
+				minmax_v3v3_v3(min, max, point);
+			}
+			else {
+				/* Surfaces doesn't use bevel, so no need to take radius into account. */
+				minmax_v3v3_v3(min, max, bp->vec);
+			}
 			bp++;
 		}
 	}
@@ -3363,6 +3393,72 @@ void BKE_nurbList_handles_set(ListBase *editnurb, short code)
 	}
 }
 
+void BKE_nurbList_handles_recalculate(ListBase *editnurb, const bool calc_length, const char flag)
+{
+	Nurb *nu;
+	BezTriple *bezt;
+	int a;
+
+	for (nu = editnurb->first; nu; nu = nu->next) {
+		if (nu->type == CU_BEZIER) {
+			bool changed = false;
+
+			for (a = nu->pntsu, bezt = nu->bezt; a--; bezt++) {
+
+				const bool h1_select = (bezt->f1 & flag) == flag;
+				const bool h2_select = (bezt->f3 & flag) == flag;
+
+				if (h1_select || h2_select) {
+
+					/* Override handle types to HD_AUTO and recalculate */
+
+					char h1_back, h2_back;
+					float co1_back[3], co2_back[3];
+
+					h1_back = bezt->h1;
+					h2_back = bezt->h2;
+
+					bezt->h1 = HD_AUTO;
+					bezt->h2 = HD_AUTO;
+
+					copy_v3_v3(co1_back, bezt->vec[0]);
+					copy_v3_v3(co2_back, bezt->vec[2]);
+
+					BKE_nurb_handle_calc_simple(nu, bezt);
+
+					bezt->h1 = h1_back;
+					bezt->h2 = h2_back;
+
+					if (h1_select) {
+						if (!calc_length) {
+							dist_ensure_v3_v3fl(bezt->vec[0], bezt->vec[1], len_v3v3(co1_back, bezt->vec[1]));
+						}
+					}
+					else {
+						copy_v3_v3(bezt->vec[0], co1_back);
+					}
+
+					if (h2_select) {
+						if (!calc_length) {
+							dist_ensure_v3_v3fl(bezt->vec[2], bezt->vec[1], len_v3v3(co2_back, bezt->vec[1]));
+						}
+					}
+					else {
+						copy_v3_v3(bezt->vec[2], co2_back);
+					}
+
+					changed = true;
+				}
+			}
+
+			if (changed) {
+				/* Recalculate the whole curve */
+				BKE_nurb_handles_calc(nu);
+			}
+		}
+	}
+}
+
 void BKE_nurbList_flag_set(ListBase *editnurb, short flag)
 {
 	Nurb *nu;
@@ -3840,13 +3936,13 @@ ListBase *BKE_curve_nurbs_get(Curve *cu)
 
 
 /* basic vertex data functions */
-bool BKE_curve_minmax(Curve *cu, float min[3], float max[3])
+bool BKE_curve_minmax(Curve *cu, bool use_radius, float min[3], float max[3])
 {
 	ListBase *nurb_lb = BKE_curve_nurbs_get(cu);
 	Nurb *nu;
 
 	for (nu = nurb_lb->first; nu; nu = nu->next)
-		BKE_nurb_minmax(nu, min, max);
+		BKE_nurb_minmax(nu, use_radius, min, max);
 
 	return (nurb_lb->first != NULL);
 }
@@ -3893,7 +3989,7 @@ bool BKE_curve_center_bounds(Curve *cu, float cent[3])
 {
 	float min[3], max[3];
 	INIT_MINMAX(min, max);
-	if (BKE_curve_minmax(cu, min, max)) {
+	if (BKE_curve_minmax(cu, false, min, max)) {
 		mid_v3_v3v3(cent, min, max);
 		return true;
 	}

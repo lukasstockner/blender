@@ -230,13 +230,7 @@ static void ui_text_bounds_block(uiBlock *block, float offset)
 	/* cope with multi collumns */
 	bt = block->buttons.first;
 	while (bt) {
-		if (bt->next && bt->rect.xmin < bt->next->rect.xmin) {
-			nextcol = 1;
-			col++;
-		}
-		else {
-			nextcol = 0;
-		}
+		nextcol = (bt->next && bt->rect.xmin < bt->next->rect.xmin);
 		
 		bt->rect.xmin = x1addval;
 		bt->rect.xmax = bt->rect.xmin + i + block->bounds;
@@ -247,8 +241,10 @@ static void ui_text_bounds_block(uiBlock *block, float offset)
 
 		ui_check_but(bt);  /* clips text again */
 		
-		if (nextcol)
+		if (nextcol) {
 			x1addval += i + block->bounds;
+			col++;
+		}
 		
 		bt = bt->next;
 	}
@@ -746,7 +742,7 @@ void uiButExecute(const bContext *C, uiBut *but)
 
 /* use to check if we need to disable undo, but don't make any changes
  * returns FALSE if undo needs to be disabled. */
-static int ui_is_but_rna_undo(uiBut *but)
+static int ui_is_but_rna_undo(const uiBut *but)
 {
 	if (but->rnapoin.id.data) {
 		/* avoid undo push for buttons who's ID are screen or wm level
@@ -1209,7 +1205,7 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	if (block->flag & UI_BLOCK_LOOP)
 		ui_draw_menu_back(&style, block, &rect);
 	else if (block->panel)
-		ui_draw_aligned_panel(&style, block, &rect);
+		ui_draw_aligned_panel(&style, block, &rect, UI_panel_category_is_visible(ar));
 
 	/* widgets */
 	for (but = block->buttons.first; but; but = but->next) {
@@ -1527,7 +1523,7 @@ void ui_set_but_vectorf(uiBut *but, const float vec[3])
 	}
 }
 
-bool ui_is_but_float(uiBut *but)
+bool ui_is_but_float(const uiBut *but)
 {
 	if (but->pointype == UI_BUT_POIN_FLOAT && but->poin)
 		return true;
@@ -1538,7 +1534,7 @@ bool ui_is_but_float(uiBut *but)
 	return false;
 }
 
-bool ui_is_but_bool(uiBut *but)
+bool ui_is_but_bool(const uiBut *but)
 {
 	if (ELEM4(but->type, TOG, TOGN, ICONTOG, ICONTOGN))
 		return true;
@@ -1550,7 +1546,7 @@ bool ui_is_but_bool(uiBut *but)
 }
 
 
-bool ui_is_but_unit(uiBut *but)
+bool ui_is_but_unit(const uiBut *but)
 {
 	UnitSettings *unit = but->block->unit;
 	const int unit_type = uiButGetUnitType(but);
@@ -2059,15 +2055,23 @@ bool ui_set_but_string(bContext *C, uiBut *but, const char *str)
 	return false;
 }
 
-void ui_set_but_default(bContext *C, const bool all)
+void ui_set_but_default(bContext *C, const bool all, const bool use_afterfunc)
 {
 	const char *opstring = "UI_OT_reset_default_button";
-	PointerRNA ptr;
 
-	WM_operator_properties_create(&ptr, opstring);
-	RNA_boolean_set(&ptr, "all", all);
-	WM_operator_name_call(C, opstring, WM_OP_EXEC_DEFAULT, &ptr);
-	WM_operator_properties_free(&ptr);
+	if (use_afterfunc) {
+		PointerRNA *ptr;
+		wmOperatorType *ot = WM_operatortype_find(opstring, 0);
+		ptr = ui_handle_afterfunc_add_operator(ot, WM_OP_EXEC_DEFAULT, true);
+		RNA_boolean_set(ptr, "all", all);
+	}
+	else {
+		PointerRNA ptr;
+		WM_operator_properties_create(&ptr, opstring);
+		RNA_boolean_set(&ptr, "all", all);
+		WM_operator_name_call(C, opstring, WM_OP_EXEC_DEFAULT, &ptr);
+		WM_operator_properties_free(&ptr);
+	}
 }
 
 static double soft_range_round_up(double value, double max)
@@ -2438,36 +2442,50 @@ void ui_check_but(uiBut *but)
 		case NUMSLI:
 
 			if (!but->editstr) {
+				const char *drawstr_suffix = NULL;
+				size_t slen;
+
 				UI_GET_BUT_VALUE_INIT(but, value);
+
+				slen = BLI_strncpy_rlen(but->drawstr, but->str, sizeof(but->drawstr));
 
 				if (ui_is_but_float(but)) {
 					if (value == (double) FLT_MAX) {
-						BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%sinf", but->str);
+						slen += BLI_strncpy_rlen(but->drawstr + slen, "inf", sizeof(but->drawstr) - slen);
 					}
 					else if (value == (double) -FLT_MAX) {
-						BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s-inf", but->str);
+						slen += BLI_strncpy_rlen(but->drawstr + slen, "-inf", sizeof(but->drawstr) - slen);
 					}
 					/* support length type buttons */
 					else if (ui_is_but_unit(but)) {
 						char new_str[sizeof(but->drawstr)];
 						ui_get_but_string_unit(but, new_str, sizeof(new_str), value, TRUE, -1);
-						BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%s", but->str, new_str);
+						slen += BLI_strncpy_rlen(but->drawstr + slen, new_str, sizeof(but->drawstr) - slen);
 					}
 					else {
 						const int prec = ui_but_float_precision(but, value);
-						BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%.*f", but->str, prec, value);
+						slen += BLI_snprintf(but->drawstr + slen, sizeof(but->drawstr) - slen, "%.*f", prec, value);
 					}
 				}
 				else {
-					BLI_snprintf(but->drawstr, sizeof(but->drawstr), "%s%d", but->str, (int)value);
+					slen += BLI_snprintf(but->drawstr + slen, sizeof(but->drawstr) - slen, "%d", (int)value);
 				}
 
 				if (but->rnaprop) {
 					PropertySubType pstype = RNA_property_subtype(but->rnaprop);
 
-					if (pstype == PROP_PERCENTAGE)
-						strcat(but->drawstr, "%");
+					if (pstype == PROP_PERCENTAGE) {
+						drawstr_suffix = "%";
+					}
+					else if (pstype == PROP_PIXEL) {
+						drawstr_suffix = " px";
+					}
 				}
+
+				if (drawstr_suffix) {
+					BLI_strncpy(but->drawstr + slen, drawstr_suffix, sizeof(but->drawstr) - slen);
+				}
+
 			}
 			break;
 
@@ -2867,6 +2885,11 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	{
 		but->drawflag |= (UI_BUT_TEXT_LEFT | UI_BUT_ICON_LEFT);
 	}
+#ifdef USE_NUMBUTS_LR_ALIGN
+	else if (ELEM(but->type, NUM, NUMSLI)) {
+		but->drawflag |= UI_BUT_TEXT_LEFT;
+	}
+#endif
 
 	but->drawflag |= (block->flag & UI_BUT_ALIGN);
 
@@ -3623,7 +3646,7 @@ void uiButSetUnitType(uiBut *but, const int unit_type)
 	but->unit_type = (unsigned char)(RNA_SUBTYPE_UNIT_VALUE(unit_type));
 }
 
-int uiButGetUnitType(uiBut *but)
+int uiButGetUnitType(const uiBut *but)
 {
 	int ownUnit = (int)but->unit_type;
 	

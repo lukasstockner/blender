@@ -254,11 +254,26 @@ static int get_item_priority(void *item_v, int default_priority)
 	return priority;
 }
 
+static bool get_item_destroyable(void *item_v)
+{
+	MovieCacheItem *item = (MovieCacheItem *) item_v;
+	/* IB_BITMAPDIRTY means image was modified from inside blender and
+	 * changes are not saved to disk.
+	 *
+	 * Such buffers are never to be freed.
+	 */
+	if (item->ibuf->userflags & IB_BITMAPDIRTY) {
+		return false;
+	}
+	return true;
+}
+
 void IMB_moviecache_init(void)
 {
 	limitor = new_MEM_CacheLimiter(IMB_moviecache_destructor, get_item_size);
 
 	MEM_CacheLimiter_ItemPriority_Func_set(limitor, get_item_priority);
+	MEM_CacheLimiter_ItemDestroyable_Func_set(limitor, get_item_destroyable);
 }
 
 void IMB_moviecache_destruct(void)
@@ -443,23 +458,20 @@ void IMB_moviecache_free(MovieCache *cache)
 	MEM_freeN(cache);
 }
 
-void IMB_moviecache_cleanup(MovieCache *cache, int (cleanup_check_cb) (void *userkey, void *userdata), void *userdata)
+void IMB_moviecache_cleanup(MovieCache *cache, bool (cleanup_check_cb) (ImBuf *ibuf, void *userkey, void *userdata), void *userdata)
 {
 	GHashIterator *iter;
+
+	check_unused_keys(cache);
 
 	iter = BLI_ghashIterator_new(cache->hash);
 	while (!BLI_ghashIterator_done(iter)) {
 		MovieCacheKey *key = BLI_ghashIterator_getKey(iter);
-		int remove;
+		MovieCacheItem *item = BLI_ghashIterator_getValue(iter);
 
 		BLI_ghashIterator_step(iter);
 
-		remove = cleanup_check_cb(key->userkey, userdata);
-
-		if (remove) {
-			MovieCacheItem *item = BLI_ghashIterator_getValue(iter);
-			(void) item;  /* silence unused variable when not using debug */
-
+		if (cleanup_check_cb(item->ibuf, key->userkey, userdata)) {
 			PRINT("%s: cache '%s' remove item %p\n", __func__, cache->name, item);
 
 			BLI_ghash_remove(cache->hash, key, moviecache_keyfree, moviecache_valfree);
@@ -555,4 +567,41 @@ void IMB_moviecache_get_cache_segments(MovieCache *cache, int proxy, int render_
 
 		MEM_freeN(frames);
 	}
+}
+
+struct MovieCacheIter *IMB_moviecacheIter_new(MovieCache *cache)
+{
+	GHashIterator *iter;
+
+	check_unused_keys(cache);
+	iter = BLI_ghashIterator_new(cache->hash);
+
+	return (struct MovieCacheIter *) iter;
+}
+
+void IMB_moviecacheIter_free(struct MovieCacheIter *iter)
+{
+	BLI_ghashIterator_free((GHashIterator *) iter);
+}
+
+bool IMB_moviecacheIter_done(struct MovieCacheIter *iter)
+{
+	return BLI_ghashIterator_done((GHashIterator *) iter);
+}
+
+void IMB_moviecacheIter_step(struct MovieCacheIter *iter)
+{
+	BLI_ghashIterator_step((GHashIterator *) iter);
+}
+
+ImBuf *IMB_moviecacheIter_getImBuf(struct MovieCacheIter *iter)
+{
+	MovieCacheItem *item = BLI_ghashIterator_getValue((GHashIterator *) iter);
+	return item->ibuf;
+}
+
+void *IMB_moviecacheIter_getUserKey(struct MovieCacheIter *iter)
+{
+	MovieCacheKey *key = BLI_ghashIterator_getKey((GHashIterator *) iter);
+	return key->userkey;
 }

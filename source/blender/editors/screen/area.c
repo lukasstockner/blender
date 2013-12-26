@@ -419,6 +419,8 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 		BLI_rcti_isect(&ar->winrct, &ar->drawrct, &ar->drawrct);
 		scissor_pad = false;
 	}
+
+	ar->do_draw |= RGN_DRAWING;
 	
 	/* note; this sets state, so we can use wmOrtho and friends */
 	wmSubWindowScissorSet(win, ar->swinid, &ar->drawrct, scissor_pad);
@@ -453,7 +455,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	glDisable(GL_BLEND);
 #endif
 
-	ar->do_draw = FALSE;
+	ar->do_draw = 0;
 	memset(&ar->drawrct, 0, sizeof(ar->drawrct));
 	
 	uiFreeInactiveBlocks(C, &ar->uiblocks);
@@ -469,7 +471,9 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 
 void ED_region_tag_redraw(ARegion *ar)
 {
-	if (ar) {
+	/* don't tag redraw while drawing, it shouldn't happen normally
+	 * but python scripts can cause this to happen indirectly */
+	if (ar && !(ar->do_draw & RGN_DRAWING)) {
 		/* zero region means full region redraw */
 		ar->do_draw = RGN_DRAW;
 		memset(&ar->drawrct, 0, sizeof(ar->drawrct));
@@ -484,7 +488,7 @@ void ED_region_tag_redraw_overlay(ARegion *ar)
 
 void ED_region_tag_redraw_partial(ARegion *ar, rcti *rct)
 {
-	if (ar) {
+	if (ar && !(ar->do_draw & RGN_DRAWING)) {
 		if (!ar->do_draw) {
 			/* no redraw set yet, set partial region */
 			ar->do_draw = RGN_DRAW_PARTIAL;
@@ -917,7 +921,7 @@ static int region_is_overlap(wmWindow *win, ScrArea *sa, ARegion *ar)
 				if (ELEM3(ar->regiontype, RGN_TYPE_TOOLS, RGN_TYPE_UI, RGN_TYPE_TOOL_PROPS))
 					return 1;
 			}
-			else if (ELEM(sa->spacetype, SPACE_IMAGE, SPACE_CLIP)) {
+			else if (sa->spacetype == SPACE_IMAGE) {
 				if (ELEM4(ar->regiontype, RGN_TYPE_TOOLS, RGN_TYPE_UI, RGN_TYPE_TOOL_PROPS, RGN_TYPE_PREVIEW))
 					return 1;
 			}
@@ -1568,10 +1572,16 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 	Panel *panel;
 	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
-	int x, y, xco, yco, w, em, triangle, open;
+	int x, y, xco, yco, w, em, triangle;
 	bool is_context_new = 0;
 	int redo;
 	int scroll;
+
+	bool use_category_tabs = (ar->regiontype == RGN_TYPE_TOOLS);  /* XXX, should use some better check? */
+	/* offset panels for small vertical tab area */
+	const char *category = NULL;
+	const int category_tabs_width = UI_PANEL_CATEGORY_MARGIN_WIDTH;
+	int margin_x = 0;
 
 	BLI_SMALLSTACK_DECLARE(pt_stack, PanelType *);
 
@@ -1612,6 +1622,31 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 	}
 
 
+	/* collect categories */
+	if (use_category_tabs) {
+		UI_panel_category_clear_all(ar);
+
+		/* gather unique categories */
+		BLI_SMALLSTACK_ITER_BEGIN(pt_stack, pt)
+		{
+			if (pt->category[0]) {
+				if (!UI_panel_category_find(ar, pt->category)) {
+					UI_panel_category_add(ar, pt->category);
+				}
+			}
+		}
+		BLI_SMALLSTACK_ITER_END;
+
+		if (!UI_panel_category_is_visible(ar)) {
+			use_category_tabs = false;
+		}
+		else {
+			category = UI_panel_category_active_get(ar, true);
+			margin_x = category_tabs_width;
+		}
+	}
+
+
 	/* sortof hack - but we cannot predict the height of panels, until it's being generated */
 	/* the layout engine works with fixed width (from v2d->cur), which is being set at end of the loop */
 	/* in case scroller settings (hide flags) differ from previous, the whole loop gets done again */
@@ -1619,12 +1654,14 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 		
 		if (vertical) {
 			w = BLI_rctf_size_x(&v2d->cur);
-			em = (ar->type->prefsizex) ? UI_UNIT_Y / 2 : UI_UNIT_Y;
+			em = (ar->type->prefsizex) ? 10 : 20; /* works out to 10*UI_UNIT_X or 20*UI_UNIT_X */
 		}
 		else {
 			w = UI_PANEL_WIDTH;
-			em = (ar->type->prefsizex) ? UI_UNIT_Y / 2 : UI_UNIT_Y;
+			em = (ar->type->prefsizex) ? 10 : 20;
 		}
+
+		w -= margin_x;
 		
 		/* create panels */
 		uiBeginPanels(C, ar);
@@ -1634,8 +1671,19 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 
 		BLI_SMALLSTACK_ITER_BEGIN(pt_stack, pt)
 		{
+			bool open;
+
+			panel = uiPanelFindByType(ar, pt);
+
+			if (use_category_tabs && pt->category[0] && !STREQ(category, pt->category)) {
+				if ((panel == NULL) || ((panel->flag & PNL_PIN) == 0)) {
+					continue;
+				}
+			}
+
+			/* draw panel */
 			block = uiBeginBlock(C, ar, pt->idname, UI_EMBOSS);
-			panel = uiBeginPanel(sa, ar, block, pt, &open);
+			panel = uiBeginPanel(sa, ar, block, pt, panel, &open);
 
 			/* bad fixed values */
 			triangle = (int)(UI_UNIT_Y * 1.1f);
@@ -1745,6 +1793,10 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 	/* restore view matrix */
 	UI_view2d_view_restore(C);
 	
+	if (use_category_tabs) {
+		UI_panel_category_draw_all(ar, category);
+	}
+
 	/* scrollers */
 	scrollers = UI_view2d_scrollers_calc(C, v2d, V2D_ARG_DUMMY, V2D_ARG_DUMMY, V2D_ARG_DUMMY, V2D_ARG_DUMMY);
 	UI_view2d_scrollers_draw(C, v2d, scrollers);

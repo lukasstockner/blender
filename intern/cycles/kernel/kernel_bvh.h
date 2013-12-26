@@ -1071,9 +1071,10 @@ ccl_device_inline float3 curvepoint(float t, float3 p0, float3 p1, float3 p2, fl
 	return data[0] * p0 + data[1] * p1 + data[2] * p2 + data[3] * p3;
 }
 
-ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, const Intersection *isect, const Ray *ray, float t)
+ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, const Intersection *isect, const Ray *ray)
 {
 	int flag = kernel_data.curve.curveflags;
+	float t = isect->t;
 	float3 P = ray->P;
 	float3 D = ray->D;
 
@@ -1098,7 +1099,7 @@ ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, con
 	float4 P1 = kernel_tex_fetch(__curve_keys, k0);
 	float4 P2 = kernel_tex_fetch(__curve_keys, k1);
 	float l = 1.0f;
-	float3 tg = normalize_len(float4_to_float3(P2 - P1),&l);
+	float3 tg = normalize_len(float4_to_float3(P2 - P1), &l);
 	float r1 = P1.w;
 	float r2 = P2.w;
 	float gd = ((r2 - r1)/l);
@@ -1118,17 +1119,17 @@ ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, con
 		p[2] = float4_to_float3(P2);
 		p[3] = float4_to_float3(P3);
 
-		tg = normalize(curvetangent(isect->u,p[0],p[1],p[2],p[3]));
-		float3 p_curr = curvepoint(isect->u,p[0],p[1],p[2],p[3]);
-
 #ifdef __UV__
 		sd->u = isect->u;
 		sd->v = 0.0f;
 #endif
+	
+		tg = normalize(curvetangent(isect->u, p[0], p[1], p[2], p[3]));
 
 		if(kernel_data.curve.curveflags & CURVE_KN_RIBBONS)
-			sd->Ng = normalize(-(D - tg * (dot(tg,D))));
+			sd->Ng = normalize(-(D - tg * (dot(tg, D))));
 		else {
+			float3 p_curr = curvepoint(isect->u, p[0], p[1], p[2], p[3]);	
 			sd->Ng = normalize(P - p_curr);
 			sd->Ng = sd->Ng - gd * tg;
 			sd->Ng = normalize(sd->Ng);
@@ -1144,7 +1145,7 @@ ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, con
 #endif
 
 		if (flag & CURVE_KN_TRUETANGENTGNORMAL) {
-			sd->Ng = -(D - tg * dot(tg,D));
+			sd->Ng = -(D - tg * dot(tg, D));
 			sd->Ng = normalize(sd->Ng);
 		}
 		else {
@@ -1158,7 +1159,7 @@ ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, con
 		sd->N = sd->Ng;
 
 		if (flag & CURVE_KN_TANGENTGNORMAL && !(flag & CURVE_KN_TRUETANGENTGNORMAL)) {
-			sd->N = -(D - tg * dot(tg,D));
+			sd->N = -(D - tg * dot(tg, D));
 			sd->N = normalize(sd->N);
 		}
 		if (!(flag & CURVE_KN_TANGENTGNORMAL) && flag & CURVE_KN_TRUETANGENTGNORMAL) {
@@ -1173,7 +1174,7 @@ ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, con
 #ifdef __DPDU__
 	/* dPdu/dPdv */
 	sd->dPdu = tg;
-	sd->dPdv = cross(tg,sd->Ng);
+	sd->dPdv = cross(tg, sd->Ng);
 #endif
 
 	/*add fading parameter for minimum pixel width with transparency bsdf*/

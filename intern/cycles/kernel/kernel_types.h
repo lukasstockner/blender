@@ -61,11 +61,9 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __KERNEL_CUDA__
 #define __KERNEL_SHADING__
-#if __CUDA_ARCH__ >= 200
 #define __KERNEL_ADV_SHADING__
 #define __BRANCHED_PATH__
 //#define __VOLUME__
-#endif
 #endif
 
 #ifdef __KERNEL_OPENCL__
@@ -816,10 +814,9 @@ typedef enum CurveFlag {
 	CURVE_KN_INTERPOLATE = 4,				/* render as a curve? */
 	CURVE_KN_ACCURATE = 8,					/* use accurate intersections test? */
 	CURVE_KN_INTERSECTCORRECTION = 16,		/* correct for width after determing closest midpoint? */
-	CURVE_KN_POSTINTERSECTCORRECTION = 32,	/* correct for width after intersect? */
-	CURVE_KN_TRUETANGENTGNORMAL = 64,		/* use tangent normal for geometry? */
-	CURVE_KN_TANGENTGNORMAL = 128,			/* use tangent normal for shader? */
-	CURVE_KN_RIBBONS = 256,					/* use flat curve ribbons */
+	CURVE_KN_TRUETANGENTGNORMAL = 32,		/* use tangent normal for geometry? */
+	CURVE_KN_TANGENTGNORMAL = 64,			/* use tangent normal for shader? */
+	CURVE_KN_RIBBONS = 128,					/* use flat curve ribbons */
 } CurveFlag;
 
 typedef struct KernelCurves {
@@ -831,8 +828,7 @@ typedef struct KernelCurves {
 
 	float minimum_width;
 	float maximum_width;
-	float curve_epsilon;
-	int pad2;
+	int pad2, pad3;
 } KernelCurves;
 
 typedef struct KernelBlackbody {

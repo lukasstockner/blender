@@ -35,6 +35,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_particle.h"
 #include "BKE_deform.h"
@@ -796,12 +797,11 @@ static void copyData(ModifierData *md, ModifierData *target)
 {
 	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 	LaplacianDeformModifierData *tlmd = (LaplacianDeformModifierData *)target;
-	tlmd->total_verts = lmd->total_verts;
-	tlmd->repeat = lmd->repeat;
-	BLI_strncpy(tlmd->anchor_grp_name, lmd->anchor_grp_name, sizeof(tlmd->anchor_grp_name));
+
+	modifier_copyData_generic(md, target);
+
 	tlmd->vertexco = MEM_dupallocN(lmd->vertexco);
 	tlmd->cache_system = MEM_dupallocN(lmd->cache_system);
-	tlmd->flag = lmd->flag;
 }
 
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))

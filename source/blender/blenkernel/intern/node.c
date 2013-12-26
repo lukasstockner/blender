@@ -122,7 +122,6 @@ static void node_init(const struct bContext *C, bNodeTree *ntree, bNode *node)
 	node->miniwidth = 42.0f;
 	node->height = ntype->height;
 	node->color[0] = node->color[1] = node->color[2] = 0.608;   /* default theme color */
-	
 	/* initialize the node name with the node label.
 	 * note: do this after the initfunc so nodes get their data set which may be used in naming
 	 * (node groups for example) */
@@ -134,10 +133,13 @@ static void node_init(const struct bContext *C, bNodeTree *ntree, bNode *node)
 	nodeUniqueName(ntree, node);
 	
 	node_add_sockets_from_type(ntree, node, ntype);
-	
+
 	if (ntype->initfunc != NULL)
 		ntype->initfunc(ntree, node);
-	
+
+	if (ntree->typeinfo->node_add_init != NULL)
+		ntree->typeinfo->node_add_init(ntree, node);
+
 	/* extra init callback */
 	if (ntype->initfunc_api) {
 		PointerRNA ptr;
@@ -3134,7 +3136,7 @@ void node_type_base(bNodeType *ntype, int type, const char *name, short nclass, 
 	 * created in makesrna, which can not be associated to a bNodeType immediately,
 	 * since bNodeTypes are registered afterward ...
 	 */
-	#define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
+#define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
 		case ID: \
 			BLI_strncpy(ntype->idname, #Category #StructName, sizeof(ntype->idname)); \
 			ntype->ext.srna = RNA_struct_find(#Category #StructName); \
@@ -3143,7 +3145,7 @@ void node_type_base(bNodeType *ntype, int type, const char *name, short nclass, 
 			break;
 	
 	switch (type) {
-	#include "NOD_static_types.h"
+#include "NOD_static_types.h"
 	}
 	
 	/* make sure we have a valid type (everything registered) */

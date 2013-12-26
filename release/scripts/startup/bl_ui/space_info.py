@@ -161,8 +161,18 @@ class INFO_MT_file_external_data(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("file.pack_all", text="Pack into .blend file")
-        layout.operator("file.unpack_all", text="Unpack into Files")
+        icon = 'CHECKBOX_HLT' if bpy.data.use_autopack else 'CHECKBOX_DEHLT'
+        layout.operator("file.autopack_toggle", icon=icon)
+
+        layout.separator()
+
+        pack_all = layout.row()
+        pack_all.operator("file.pack_all")
+        pack_all.active = not bpy.data.use_autopack
+
+        unpack_all = layout.row()
+        unpack_all.operator("file.unpack_all")
+        unpack_all.active = not bpy.data.use_autopack
 
         layout.separator()
 
@@ -210,7 +220,7 @@ class INFO_MT_render(Menu):
         layout.separator()
 
         layout.operator("render.view_show")
-        layout.operator("render.play_rendered_anim")
+        layout.operator("render.play_rendered_anim", icon='PLAY')
 
 
 class INFO_MT_window(Menu):
@@ -255,8 +265,6 @@ class INFO_MT_help(Menu):
         layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = bpy.types.WM_OT_doc_view._prefix
         layout.operator("wm.operator_cheat_sheet", icon='TEXT')
         layout.operator("wm.sysinfo", icon='TEXT')
-        layout.separator()
-        layout.operator("logic.texface_convert", text="TexFace to Material Convert", icon='GAME')
         layout.separator()
 
         layout.operator("wm.splash", icon='BLENDER')

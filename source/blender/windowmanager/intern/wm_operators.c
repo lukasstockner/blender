@@ -611,6 +611,47 @@ char *WM_operator_pystring(bContext *C, wmOperator *op,
 	return WM_operator_pystring_ex(C, op, all_args, macro_args, op->type, op->ptr);
 }
 
+
+/**
+ * \return true if the string was shortened
+ */
+bool WM_operator_pystring_abbreviate(char *str, int str_len_max)
+{
+	const int str_len = strlen(str);
+	const char *parens_start = strchr(str, '(');
+
+	if (parens_start) {
+		const int parens_start_pos = parens_start - str;
+		const char *parens_end = strrchr(parens_start + 1, ')');
+
+		if (parens_end) {
+			const int parens_len = parens_end - parens_start;
+
+			if (parens_len > str_len_max) {
+				const char *comma_first = strchr(parens_start, ',');
+
+				/* truncate after the first comma */
+				if (comma_first) {
+					const char end_str[] = " ... )";
+					const int end_str_len = sizeof(end_str) - 1;
+
+					/* leave a place for the first argument*/
+					const int new_str_len = (comma_first - parens_start) + 1;
+
+					if (str_len >= new_str_len + parens_start_pos + end_str_len + 1) {
+						/* append " ... )" to the string after the comma */
+						memcpy(str + new_str_len + parens_start_pos, end_str, end_str_len + 1);
+
+						return true;
+					}
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 /* return NULL if no match is found */
 #if 0
 static char *wm_prop_pystring_from_context(bContext *C, PointerRNA *ptr, PropertyRNA *prop, int index)
@@ -3495,6 +3536,7 @@ static void radial_control_set_initial_mouse(RadialControl *rc, const wmEvent *e
 	switch (rc->subtype) {
 		case PROP_NONE:
 		case PROP_DISTANCE:
+		case PROP_PIXEL:
 			d[0] = rc->initial_value;
 			break;
 		case PROP_FACTOR:
@@ -3595,6 +3637,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	switch (rc->subtype) {
 		case PROP_NONE:
 		case PROP_DISTANCE:
+		case PROP_PIXEL:
 			r1 = rc->current_value;
 			r2 = rc->initial_value;
 			tex_radius = r1;
@@ -3839,7 +3882,7 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 
 	/* get subtype of property */
 	rc->subtype = RNA_property_subtype(rc->prop);
-	if (!ELEM4(rc->subtype, PROP_NONE, PROP_DISTANCE, PROP_FACTOR, PROP_ANGLE)) {
+	if (!ELEM5(rc->subtype, PROP_NONE, PROP_DISTANCE, PROP_FACTOR, PROP_ANGLE, PROP_PIXEL)) {
 		BKE_report(op->reports, RPT_ERROR, "Property must be a none, distance, a factor, or an angle");
 		MEM_freeN(rc);
 		return OPERATOR_CANCELLED;
@@ -3924,6 +3967,7 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 			switch (rc->subtype) {
 				case PROP_NONE:
 				case PROP_DISTANCE:
+				case PROP_PIXEL:
 					new_value = dist;
 					if (snap) new_value = ((int)new_value + 5) / 10 * 10;
 					break;
@@ -4485,14 +4529,14 @@ void wm_window_keymap(wmKeyConfig *keyconf)
 	
 	/* note, this doesn't replace existing keymap items */
 	WM_keymap_verify_item(keymap, "WM_OT_window_duplicate", WKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
-	#ifdef __APPLE__
+#ifdef __APPLE__
 	WM_keymap_add_item(keymap, "WM_OT_read_homefile", NKEY, KM_PRESS, KM_OSKEY, 0);
 	WM_keymap_add_menu(keymap, "INFO_MT_file_open_recent", OKEY, KM_PRESS, KM_SHIFT | KM_OSKEY, 0);
 	WM_keymap_add_item(keymap, "WM_OT_open_mainfile", OKEY, KM_PRESS, KM_OSKEY, 0);
 	WM_keymap_add_item(keymap, "WM_OT_save_mainfile", SKEY, KM_PRESS, KM_OSKEY, 0);
 	WM_keymap_add_item(keymap, "WM_OT_save_as_mainfile", SKEY, KM_PRESS, KM_SHIFT | KM_OSKEY, 0);
 	WM_keymap_add_item(keymap, "WM_OT_quit_blender", QKEY, KM_PRESS, KM_OSKEY, 0);
-	#endif
+#endif
 	WM_keymap_add_item(keymap, "WM_OT_read_homefile", NKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "WM_OT_save_homefile", UKEY, KM_PRESS, KM_CTRL, 0); 
 	WM_keymap_add_menu(keymap, "INFO_MT_file_open_recent", OKEY, KM_PRESS, KM_SHIFT | KM_CTRL, 0);
