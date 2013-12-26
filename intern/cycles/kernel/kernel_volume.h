@@ -51,24 +51,21 @@ ccl_device float sigma_from_value(float value, float geom_factor)
 #endif
 }
 
-ccl_device float get_sigma_sample(KernelGlobals *kg, ShaderData *sd, float randv, int path_flag, float3 p)
+ccl_device float get_sigma_sample(KernelGlobals *kg, ShaderData *sd, int path_flag, float3 P)
 {
-       sd->P = p;
+	sd->P = P;
 
-#ifdef __MULTI_CLOSURE__
-       int sampled = 0;
+	/* todo: the SHADER_CONTEXT here an in other places is wrong, it should be
+	 * defined such that the same context can't be active at the same time more
+	 * than once, this does not seem to be the case now */
+	shader_eval_volume(kg, sd, 0.0f, path_flag, SHADER_CONTEXT_MAIN);
 
-       // if(sd->num_closure > 1)
+	/* todo: this assumes global density and is broken, density is per closure! */
+	int sampled = 0;
+	const ShaderClosure *sc = &sd->closure[sampled];
+	float v = sc->data0;
 
-       const ShaderClosure *sc = &sd->closure[sampled];
-
-       shader_eval_volume(kg, sd, randv, path_flag, SHADER_CONTEXT_MAIN);
-       float v = sc->data0;
-#else
-       shader_eval_volume(kg, sd, randv, path_flag, SHADER_CONTEXT_MAIN);
-       float v = sd->closure.data0;
-#endif
-       return sigma_from_value(v, 1.0f);
+	return sigma_from_value(v, 1.0f);
 }
 
 ccl_device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlobals *kg, ShaderData *sd, float trandp, Ray ray, int path_flag)
@@ -82,7 +79,7 @@ ccl_device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlob
 	float3 res_sigma = make_float3(1.0f, 1.0f, 1.0f);
 	if((sd->flag & SD_HAS_VOLUME) != 0) { // check for empty volume shader
 		// base sigma
-		float base_sigma = get_sigma_sample(kg, sd, trandp, path_flag, ray.P);
+		float base_sigma = get_sigma_sample(kg, sd, path_flag, ray.P);
 
 		// get transition probability
 		// or flux that pass forward even if catched by particle.
@@ -95,20 +92,13 @@ ccl_device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlob
 #if 0
 		transition_pdf = single_peaked_henyey_greenstein(1.0f, 0.6);
 #endif
-		// colors
-#ifdef __MULTI_CLOSURE__
-		int sampled = 0;        
 
-		// if(sd->num_closure > 1)
+		shader_eval_volume(kg, sd, 0.0f, path_flag, SHADER_CONTEXT_MAIN);
 
+		/* todo: this assumes global density and is broken, color is per closure! */
+		int sampled = 0;
 		const ShaderClosure *sc = &sd->closure[sampled];
-
-		shader_eval_volume(kg, sd, trandp, path_flag, SHADER_CONTEXT_MAIN);
 		float3 color = sc->weight;
-#else
-		shader_eval_volume(kg, sd, trandp, path_flag, SHADER_CONTEXT_MAIN);
-		float3 color = sd->closure.weight;
-#endif
 
 #if 1
 //		res_sigma = make_float3(base_sigma, base_sigma, base_sigma) / ( make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
@@ -137,7 +127,7 @@ ccl_device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlob
 /* unused */
 ccl_device float kernel_volume_homogeneous_pdf( KernelGlobals *kg, ShaderData *sd, float distance)
 {
-	float sigma = get_sigma_sample(kg, sd, 0, 0, make_float3(0.0f, 0.0f, 0.0f));
+	float sigma = get_sigma_sample(kg, sd, 0, make_float3(0.0f, 0.0f, 0.0f));
 #ifdef __VOLUME_USE_GUARANTEE_HIT_PROB
 	return sigma * exp(-distance * sigma) * VOLUME_GUARANTEE_HIT_PROB;
 #else
@@ -158,7 +148,7 @@ ccl_device float3 kernel_volume_get_final_homogeneous_extinction(KernelGlobals *
 	float3 res_sigma = make_float3(1.0f, 1.0f, 1.0f);
 	if((tsd.flag & SD_HAS_VOLUME) != 0) { // check for empty volume shader
 		// base sigma
-		float base_sigma = get_sigma_sample(kg, &tsd, trandp, path_flag, ray.P);
+		float base_sigma = get_sigma_sample(kg, &tsd, path_flag, ray.P);
 
 		// get transition probability
 		BsdfEval eval;
@@ -167,19 +157,13 @@ ccl_device float3 kernel_volume_get_final_homogeneous_extinction(KernelGlobals *
 		shader_bsdf_eval(kg, &tsd, omega_in, &eval, &transition_pdf);
 
 		// colors
-#ifdef __MULTI_CLOSURE__
-		int sampled = 0;        
+		shader_eval_volume(kg, &tsd, 0.0f, path_flag, SHADER_CONTEXT_MAIN);
 
-		// if(tsd.num_closure > 1)
-
+		/* todo: this assumes global density and is broken, color is per closure! */
+		int sampled = 0;
 		const ShaderClosure *sc = &tsd.closure[sampled];
-
-		shader_eval_volume(kg, &tsd, trandp, path_flag, SHADER_CONTEXT_MAIN);
 		float3 color = sc->weight;
-#else
-		shader_eval_volume(kg, &tsd, trandp, path_flag, SHADER_CONTEXT_MAIN);
-		float3 color = tsd.closure.weight;
-#endif
+
 		res_sigma = make_float3(base_sigma, base_sigma, base_sigma) / (make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
 	}
 
@@ -210,8 +194,8 @@ ccl_device int get_media_volume_shader(KernelGlobals *kg, float3 P, int bounce)
 #endif
 	{
 		ShaderData sd;
-        shader_setup_from_ray(kg, &sd, &isect, &ray, bounce);
-        shader_eval_surface(kg, &sd, 0.0f, 0, SHADER_CONTEXT_MAIN); // not needed ?
+		shader_setup_from_ray(kg, &sd, &isect, &ray, bounce);
+		shader_eval_surface(kg, &sd, 0.0f, 0, SHADER_CONTEXT_MAIN); // not needed ?
 
 		if(sd.flag & SD_BACKFACING) {
 			stack--;
@@ -247,7 +231,7 @@ ccl_device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng_co
 	
 	float step = end / 10.0f; // uses 10 segments for maximum - needs parameter
 	for(float s = 0.0f ; s < end ; s+= step)
-		max_sigma_t = max(max_sigma_t , get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * s));
+		max_sigma_t = max(max_sigma_t , get_sigma_sample(kg, sd, path_flag, ray.P + ray.D * s));
 	
 	int i = 0;
 	float t = 0;
@@ -263,20 +247,20 @@ ccl_device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng_co
 		// *pdf *= sigma_factor; // pdf that previous position was transparent pseudo-particle, obviously 1.0 for first loop step
 		// *pdf *= max_sigma_t * r; // pdf of particle collision, based on conventional freefly homogeneous distance equation
 	}
-	while((sigma_factor = (get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t) / max_sigma_t)) < rand_congruential() && 
+	while((sigma_factor = (get_sigma_sample(kg, sd, path_flag, ray.P + ray.D * t) / max_sigma_t)) < rand_congruential() && 
 		t < (end - magic_eps) &&
 		i++ < max_iter);
 
 	if(t < (end - magic_eps) && i <= max_iter) {
 		*new_t = t;
-	    sd->P = ray.P + ray.D * t;
+		sd->P = ray.P + ray.D * t;
 		// *pdf *= sigma_factor; // fixme: is it necessary ?
 		return 1;
 	}
 
 	// Assume rest of media up to end is homogeneous, it helps when using woodcock in outdoor scenes that tend to have continuous density.
 	if((i > max_iter) && (t < (end - magic_eps))) {
-		float sigma = get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t);
+		float sigma = get_sigma_sample(kg, sd, path_flag, ray.P + ray.D * t);
 		if(sigma < magic_eps)
 			return 0;
 
@@ -285,7 +269,7 @@ ccl_device int kernel_volumetric_woodcock_sampler(KernelGlobals *kg, RNG *rng_co
 		*pdf *= sigma * r;
 		if(t < (end - magic_eps)) {
 			// double check current sigma, just to be sure we do not register event for null media.
-			if(get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t) > magic_eps) {
+			if(get_sigma_sample(kg, sd, path_flag, ray.P + ray.D * t) > magic_eps) {
 				*new_t = t;
 				sd->P = ray.P + ray.D * t;
 				return 1;
@@ -324,7 +308,7 @@ ccl_device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_c
 		// *pdf *= sigma_factor; // pdf that previous position was transparent pseudo-particle, obviously 1.0 for first loop step
 		// *pdf *= max_sigma_t * r; // pdf of particle collision, based on conventional freefly homogeneous distance equation
 	}
-	while((sigma_factor = (get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t) / max_sigma_t)) < rand_congruential() && 
+	while((sigma_factor = (get_sigma_sample(kg, sd, path_flag, ray.P + ray.D * t) / max_sigma_t)) < rand_congruential() && 
 		(t < (end - magic_eps)) &&
 		i++ < max_iter);
 
@@ -341,7 +325,7 @@ ccl_device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_c
 	// assume rest of media up to end is homogeneous, it help to use woodcock even in outdoor scenes that tend to have continuous density
 	// even if vary a bit in close distance. of course it make sampling biased (not respect actual density).
 	if((i > max_iter) && (t < (end - magic_eps))) {
-		float sigma = get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t);
+		float sigma = get_sigma_sample(kg, sd, path_flag, ray.P + ray.D * t);
 		if(sigma < magic_eps) 
 			return 0;
 		// t += -logf( rand_congruential()) / sigma;
@@ -350,7 +334,7 @@ ccl_device int kernel_volumetric_woodcock_sampler2(KernelGlobals *kg, RNG *rng_c
 		*pdf *= sigma * r;
 		if(t < (end - magic_eps)) {
 			// double check current sigma, just to be sure we do not register event for null media.
-			if(get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t) > magic_eps) {
+			if(get_sigma_sample(kg, sd, path_flag, ray.P + ray.D * t) > magic_eps) {
 				*new_t = t;
 				sd->P = ray.P + ray.D * t;
 				return 1;
@@ -386,7 +370,7 @@ ccl_device int kernel_volumetric_marching_sampler(KernelGlobals *kg, RNG *rng_co
 		current_cell_near_boundary_distance += step;
 		t = current_cell_near_boundary_distance + random_jitter_offset;
 		previous_cell_average_sigma = current_cell_average_sigma;
-		current_cell_average_sigma = get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * t);
+		current_cell_average_sigma = get_sigma_sample(kg, sd, path_flag, ray.P + ray.D * t);
 		intstep = (previous_cell_average_sigma + current_cell_average_sigma) * step * 0.5f;
 		integral += intstep;
 		cell_count++;
@@ -417,7 +401,7 @@ ccl_device int kernel_volumetric_marching_sampler2(KernelGlobals *kg, RNG *rng_c
 	float t = 0.0f;
 	do {
 		current_cell_near_boundary_distance = step * (float)cell_count;
-		float current_cell_average_sigma = get_sigma_sample(kg, sd, rand_congruential(), path_flag, ray.P + ray.D * (current_cell_near_boundary_distance + random_jitter_offset));
+		float current_cell_average_sigma = get_sigma_sample(kg, sd, path_flag, ray.P + ray.D * (current_cell_near_boundary_distance + random_jitter_offset));
 		if(current_cell_average_sigma < SIGMA_MAGIC_EPS)
 			t = end + step;
 		else
@@ -456,12 +440,12 @@ ccl_device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, float ra
 #if 1
 	if (omega_cache) {
 		if(*omega_cache == 0.0f) {
-			*omega_cache =  get_sigma_sample(kg, sd, randp, path_flag, ray.P);
+			*omega_cache =  get_sigma_sample(kg, sd, path_flag, ray.P);
 		}
 		sigma = *omega_cache;
 	}
 	else
-		sigma = get_sigma_sample(kg, sd, randp, path_flag, ray.P);
+		sigma = get_sigma_sample(kg, sd, path_flag, ray.P);
 #else
 	float3 sigma3 = kernel_volume_get_final_homogeneous_extinction_tsd(kg, sd, randp, ray, path_flag);
 	sigma = min( sigma3.x, sigma3.y);
@@ -530,12 +514,12 @@ ccl_device int kernel_volumetric_equiangular_sampler(KernelGlobals *kg, RNG *rng
 
 	if (omega_cache) {
 		if(*omega_cache == 0.0f) {
-			*omega_cache =  get_sigma_sample(kg, sd, randp, path_flag, ray.P);
+			*omega_cache =  get_sigma_sample(kg, sd, path_flag, ray.P);
 		}
 		sigma = *omega_cache;
 	}
 	else
-		sigma = get_sigma_sample(kg, sd, randp, path_flag, ray.P);
+		sigma = get_sigma_sample(kg, sd, path_flag, ray.P);
 
 	if(sigma < SIGMA_MAGIC_EPS) {
 		/*  Very transparent volume - Protect div by 0, *new_t = end; */ 
@@ -560,7 +544,7 @@ ccl_device int kernel_volumetric_equiangular_sampler(KernelGlobals *kg, RNG *rng
 		return 1;
 }
 
-ccl_device int kernel_volumetric_sample(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int pass, float randv, float randp,
+ccl_device int kernel_volumetric_sample(KernelGlobals *kg, RNG *rng_congruential, int pass, float randv, float randp,
 	ShaderData *sd, Ray ray, float distance, float *particle_isect_t, int path_flag, float *pdf, float *eval, float3 *throughput, float *omega_cache = NULL)
 {
 	/* sample point on volumetric ray (return false - no hit, true - hit : fill new hit t value on path [start, end] */
@@ -612,7 +596,7 @@ ccl_device int kernel_volumetric_sample(KernelGlobals *kg, RNG *rng, int rng_off
 }
 
 /* Volumetric shadows */
-ccl_device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng, int rng_offset, RNG *rng_congruential, int sample,
+ccl_device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *rng_congruential, int sample,
 	Ray *light_ray, int media_volume_shader, float *volume_pdf)
 {
 	// helper for shadow probes, optimised for homogeneous volume, variable density other return 0 or 1.
@@ -626,16 +610,14 @@ ccl_device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *r
 	ShaderData tsd;
 	shader_setup_from_volume(kg, &tsd, light_ray, media_volume_shader);
 	if((tsd.flag & SD_HAS_VOLUME) != 0) { // check for empty volume shader
-		float trandv = path_rng(kg, rng, sample, rng_offset + PRNG_VOLUME_SHADOW_DISTANCE);
-		float trandp = path_rng(kg, rng, sample, rng_offset + PRNG_VOLUME_SHADOW_DENSITY);
 		float tparticle_isect_t;
 		float tpdf;
 		float teval;
 		float3 tthroughput = make_float3(1.0f, 1.0f, 1.0f);
-		attenuation = make_float3(1.0f, 1.0f, 1.0f);
+
 		if(tsd.flag & SD_HOMOGENEOUS_VOLUME) {
 			// special case
-			float sigma = get_sigma_sample(kg, &tsd, trandp, PATH_RAY_SHADOW, light_ray->P);
+			float sigma = get_sigma_sample(kg, &tsd, PATH_RAY_SHADOW, light_ray->P);
 			if (sigma < 0.0f) sigma = 0.0f;
 //			sigma = 1.0f;
 #if 0
@@ -697,7 +679,12 @@ ccl_device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *r
 
 		}
 		else {
-			if(!kernel_volumetric_sample(kg, rng, rng_offset, rng_congruential, sample, trandv, trandp, &tsd, *light_ray, light_ray->t, &tparticle_isect_t, PATH_RAY_SHADOW, &tpdf, &teval, &tthroughput))
+			/* todo: these are actually unused in heterogeneous volumes, we can
+			 * reorganize this code so it's more clear which numbers are used */
+			float trandv = 0.0f;
+			float trandp = 0.0f;
+
+			if(!kernel_volumetric_sample(kg, rng_congruential, sample, trandv, trandp, &tsd, *light_ray, light_ray->t, &tparticle_isect_t, PATH_RAY_SHADOW, &tpdf, &teval, &tthroughput))
 				attenuation = make_float3(1.0f, 1.0f, 1.0f);
 			else {
 				*volume_pdf = 0.0f;
@@ -713,7 +700,7 @@ ccl_device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *r
 }
 
 ccl_device_inline bool shadow_blocked_volume(KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow,
-	RNG *rng, RNG *rng_congruential, int rng_offset, int sample, int media_volume_shader, float *volume_pdf)
+	RNG *rng_congruential, int sample, int media_volume_shader, float *volume_pdf)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 	*volume_pdf = 1.0f;
@@ -774,7 +761,7 @@ ccl_device_inline bool shadow_blocked_volume(KernelGlobals *kg, PathState *state
 //				if(!scene_intersect(kg, ray, PATH_RAY_SHADOW_TRANSPARENT, &isect)) {
 				if(!scene_intersect(kg, ray, visibility, &isect)) {
 #endif
-					float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng, rng_offset, rng_congruential, sample, ray, media_volume_shader, &tmp_volume_pdf);
+					float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng_congruential, sample, ray, media_volume_shader, &tmp_volume_pdf);
 					throughput *= attenuation;
 
 					*shadow *= throughput;
@@ -791,7 +778,7 @@ ccl_device_inline bool shadow_blocked_volume(KernelGlobals *kg, PathState *state
 
 				Ray v_ray = *ray;
 				v_ray.t = isect.t;
-				float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng, rng_offset, rng_congruential, sample, &v_ray, media_volume_shader, &tmp_volume_pdf);
+				float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng_congruential, sample, &v_ray, media_volume_shader, &tmp_volume_pdf);
 				*volume_pdf *= tmp_volume_pdf;
 				throughput *= attenuation;
 
@@ -819,7 +806,7 @@ ccl_device_inline bool shadow_blocked_volume(KernelGlobals *kg, PathState *state
 #endif
 
 	if(!result) {
-		float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng, rng_offset, rng_congruential, sample, ray, media_volume_shader, &tmp_volume_pdf);
+		float3 attenuation = kernel_volume_get_shadow_attenuation(kg, rng_congruential, sample, ray, media_volume_shader, &tmp_volume_pdf);
 		*shadow *= attenuation;
 		*volume_pdf *= tmp_volume_pdf;
 	}
@@ -849,7 +836,7 @@ ccl_device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_off
 	float particle_isect_t;
 	float pdf;
 	float eval;
-	if(kernel_volumetric_sample(kg, rng, rng_offset, rng_congruential, sample, randv, randp, &vsd,
+	if(kernel_volumetric_sample(kg, rng_congruential, sample, randv, randp, &vsd,
 		*ray, isect_t, &particle_isect_t, state->flag, &pdf, &eval, throughput, omega_cache)) {
 		
 		*volume_pdf = pdf;
@@ -896,7 +883,7 @@ ccl_device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_off
 				bool is_lamp;
 
 #ifdef __OBJECT_MOTION__
-                                light_ray.time = vsd.time;
+				light_ray.time = vsd.time;
 #endif
 
 #ifdef __MULTI_LIGHT__ /* ToDo: Fix, Branched Path trace feature */
@@ -913,7 +900,7 @@ ccl_device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_off
 						float3 shadow;
 						float tmp_volume_pdf;
 
-						if(!shadow_blocked_volume(kg, state, &light_ray, &shadow, rng, rng_congruential, rng_offset, sample, media_volume_shader, &tmp_volume_pdf)) {
+						if(!shadow_blocked_volume(kg, state, &light_ray, &shadow, rng_congruential, sample, media_volume_shader, &tmp_volume_pdf)) {
 							/* accumulate */
 //							bool is_lamp = (lamp != ~0);
 							path_radiance_accum_light(L, *throughput, &L_light, shadow, 1.0f, state->bounce, is_lamp);
