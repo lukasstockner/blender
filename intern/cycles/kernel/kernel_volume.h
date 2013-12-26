@@ -65,110 +65,6 @@ ccl_device float get_sigma_sample(KernelGlobals *kg, ShaderData *sd, int path_fl
 	return sigma_from_value(v, 1.0f);
 }
 
-ccl_device  float3 kernel_volume_get_final_homogeneous_extinction_tsd(KernelGlobals *kg, ShaderData *sd, Ray ray, int path_flag, ShaderContext ctx)
-{
-	// return 3 transition extinction coefficients based on particle BRDF, base density and color
-	// make sense only for homogeneous volume for now
-	// the idea is to measure integral flux, not only individual free fly particles
-	// it help to get color gradients even with number of min/max bounces far from infinity
-	// NOTE: color must be constant as well, because we use it to modify extinction.
-
-	float3 res_sigma = make_float3(1.0f, 1.0f, 1.0f);
-	if((sd->flag & SD_HAS_VOLUME) != 0) { // check for empty volume shader
-		// base sigma
-		float base_sigma = get_sigma_sample(kg, sd, path_flag, ctx, ray.P);
-
-		// get transition probability
-		// or flux that pass forward even if catched by particle.
-		BsdfEval eval;
-		float3 omega_in = -sd->I;
-		float transition_pdf;
-		// FIXME: true only for g=0, need some weird integral for g != 0 cases. Sure not pdf directly,
-		// maybe lim(CPDF) when area -> omega_in ? Damn rocket science ...
-		shader_bsdf_eval(kg, sd, omega_in, &eval, &transition_pdf);
-#if 0
-		transition_pdf = single_peaked_henyey_greenstein(1.0f, 0.6);
-#endif
-
-		shader_eval_volume(kg, sd, 0.0f, path_flag, ctx);
-
-		/* todo: this assumes global density and is broken, color is per closure! */
-		int sampled = 0;
-		const ShaderClosure *sc = &sd->closure[sampled];
-		float3 color = sc->weight;
-
-#if 1
-//		res_sigma = make_float3(base_sigma, base_sigma, base_sigma) / ( make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
-//		res_sigma = make_float3(base_sigma, base_sigma, base_sigma) * ( make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
-//		float3 k = make_float3(1.0f, 1.0f, 1.0f) - (make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
-//		res_sigma = make_float3(base_sigma, base_sigma, base_sigma) * k;
-//		float3 k = make_float3(1.0f, 1.0f, 1.0f) - (make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
-//		float3 k = (make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
-//		res_sigma = make_float3(base_sigma, base_sigma, base_sigma) - k;
-//		res_sigma.x = base_sigma * (1.0f + logf(1.0f - transition_pdf * color.x));
-//		res_sigma.y = base_sigma * (1.0f + logf(1.0f - transition_pdf * color.y));
-//		res_sigma.z = base_sigma * (1.0f + logf(1.0f - transition_pdf * color.z));
-		res_sigma.x = base_sigma * (1.0f + logf(1.0f + (1.0f / M_E - 1.0f) * transition_pdf * color.x));
-		res_sigma.y = base_sigma * (1.0f + logf(1.0f + (1.0f / M_E - 1.0f) * transition_pdf * color.y));
-		res_sigma.z = base_sigma * (1.0f + logf(1.0f + (1.0f / M_E - 1.0f) * transition_pdf * color.z));
-//		printf("pdf=%g\n", transition_pdf);
-#else
-		res_sigma = (make_float3(transition_pdf, transition_pdf, transition_pdf) * color);		
-		res_sigma = min(res_sigma, 1.0f);
-#endif
-	}
-
-	return res_sigma;
-}
-
-/* unused */
-ccl_device float kernel_volume_homogeneous_pdf( KernelGlobals *kg, ShaderData *sd, ShaderContext ctx, float distance)
-{
-	/* todo: do we need path_flag? */
-	float sigma = get_sigma_sample(kg, sd, 0, ctx, make_float3(0.0f, 0.0f, 0.0f));
-
-#ifdef __VOLUME_USE_GUARANTEE_HIT_PROB
-	return sigma * exp(-distance * sigma) * VOLUME_GUARANTEE_HIT_PROB;
-#else
-	return sigma * exp(-distance * sigma);
-#endif
-}
-
-ccl_device float3 kernel_volume_get_final_homogeneous_extinction(KernelGlobals *kg, ShaderContext ctx, int media_volume_shader)
-{
-	ShaderData tsd;
-	Ray ray;
-	ray.P = make_float3(0.0f, 0.0f, 0.0f);
-	ray.D = make_float3(0.0f, 0.0f, 1.0f);
-	ray.t = 0.0f;
-	shader_setup_from_volume(kg, &tsd, &ray, media_volume_shader);
-	int path_flag = PATH_RAY_SHADOW; // why ?
-
-	float3 res_sigma = make_float3(1.0f, 1.0f, 1.0f);
-	if((tsd.flag & SD_HAS_VOLUME) != 0) { // check for empty volume shader
-		// base sigma
-		float base_sigma = get_sigma_sample(kg, &tsd, path_flag, ctx, ray.P);
-
-		// get transition probability
-		BsdfEval eval;
-		float3 omega_in = -tsd.I;
-		float transition_pdf;
-		shader_bsdf_eval(kg, &tsd, omega_in, &eval, &transition_pdf);
-
-		// colors
-		shader_eval_volume(kg, &tsd, 0.0f, path_flag, SHADER_CONTEXT_MAIN);
-
-		/* todo: this assumes global density and is broken, color is per closure! */
-		int sampled = 0;
-		const ShaderClosure *sc = &tsd.closure[sampled];
-		float3 color = sc->weight;
-
-		res_sigma = make_float3(base_sigma, base_sigma, base_sigma) / (make_float3(transition_pdf, transition_pdf, transition_pdf) * color);
-	}
-
-	return res_sigma;
-}
-
 ccl_device int get_media_volume_shader(KernelGlobals *kg, float3 P, int bounce)
 {
 	/* check all objects that intersect random ray from given point, assume we have perfect geometry (all meshes closed, correct faces direct
@@ -436,7 +332,6 @@ ccl_device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, float ra
 		 return 0;
 	}
 
-#if 1
 	if (omega_cache) {
 		if(*omega_cache == 0.0f) {
 			*omega_cache =  get_sigma_sample(kg, sd, path_flag, ctx, ray.P);
@@ -445,11 +340,6 @@ ccl_device int kernel_volumetric_homogeneous_sampler(KernelGlobals *kg, float ra
 	}
 	else
 		sigma = get_sigma_sample(kg, sd, path_flag, ctx, ray.P);
-#else
-	float3 sigma3 = kernel_volume_get_final_homogeneous_extinction_tsd(kg, sd, ray, path_flag, ctx);
-	sigma = min( sigma3.x, sigma3.y);
-	sigma = min( sigma, sigma3.z);
-#endif
 
 	if(sigma < SIGMA_MAGIC_EPS) {
 		/* Very transparent volume - Protect div by 0, *new_t = end; */
@@ -635,46 +525,12 @@ ccl_device float3 kernel_volume_get_shadow_attenuation(KernelGlobals *kg, RNG *r
 				attenuation = make_float3(1.0f, 1.0f, 1.0f);
 			else {
 				*volume_pdf =  sigma * exp(-light_ray->t * sigma);
-#if 0
-				float a = exp(-light_ray->t * sigma);
-				attenuation = make_float3(a, a, a);
-#else
-				// maybe it incorrect, but in homogeneous and constant color media we can analytically
-				// calculate transition color as well, based on knowledge of phase function probability
-				// in front direction, and integral of contributions of all possible combinations
-				// of direct light along straight line.
-				// (actually it only my guess, need to search correct integral, i assume it exp(-distance*sigma),
-				// remember we need complete unbiased multiscattering solution, not fake with 3 different color densities)
-				// In other words, try to calculate integral assuming Max Bounce = infinity along line.
-				// warning, require Color = constant as well as Homogeneous
-				// TODO: ensure that shader have color input unplugged.
-//				float3 color = make_float3(0.2f, 0.8f, 0.8f);
-//				float3 color = make_float3(0.5f, 0.99f, 0.99f);
-//				float3 tr_color = make_float3(1.0f, 1.0f, 1.0f) - color;
-//				float3 tr_color = color;
-#if 0
-				attenuation.x = exp(-light_ray->t * sigma / (transition_pdf * tr_color.x) );
-				attenuation.y = exp(-light_ray->t * sigma / (transition_pdf * tr_color.y) );
-				attenuation.z = exp(-light_ray->t * sigma / (transition_pdf * tr_color.z) );
-#else
-//				float3 sigma3 = kernel_volume_get_final_homogeneous_extinction_tsd(kg, &tsd, *light_ray, PATH_RAY_SHADOW, SHADER_CONTEXT_SHADOW);
-#if 1
-//				attenuation.x = exp(-light_ray->t * sigma3.x);
-//				attenuation.y = exp(-light_ray->t * sigma3.y);
-//				attenuation.z = exp(-light_ray->t * sigma3.z);
+
+				/* todo: sigma should become a float3 with per color channel
+				 * density returned by get_sigma_sample */
 				attenuation.x = exp(-light_ray->t * sigma);
 				attenuation.y = exp(-light_ray->t * sigma);
 				attenuation.z = exp(-light_ray->t * sigma);
-#else
-//				attenuation.x = exp(-light_ray->t * sigma3.x) + exp(-light_ray->t * sigma);
-//				attenuation.y = exp(-light_ray->t * sigma3.y) + exp(-light_ray->t * sigma);
-//				attenuation.z = exp(-light_ray->t * sigma3.z) + exp(-light_ray->t * sigma);
-				attenuation.x = exp(-light_ray->t * sigma) + (1.0f - exp(-light_ray->t * sigma)) * sigma3.x;
-				attenuation.y = exp(-light_ray->t * sigma) + (1.0f - exp(-light_ray->t * sigma)) * sigma3.y;
-				attenuation.z = exp(-light_ray->t * sigma) + (1.0f - exp(-light_ray->t * sigma)) * sigma3.z;
-#endif
-#endif
-#endif
 			}
 
 		}
@@ -956,32 +812,6 @@ ccl_device int kernel_path_trace_volume(KernelGlobals *kg, RNG *rng, int rng_off
 	//*volume_eval = make_float3(1.0f, 1.0f, 1.0f);
 	*volume_eval = make_float3( eval, eval, eval);
 	//*volume_eval = make_float3( *volume_pdf, *volume_pdf, *volume_pdf);  // perfect importance sampling for homogeneous
-
-	// even if we missed any volume particle and hit face after it, we still modify color
-	// by transition attenuation, to respect "leaked" light because of scattering in strong forward direction
-	if (vsd.flag & SD_HOMOGENEOUS_VOLUME)
-	{
-		//int path_flag = 0;
-	
-		//float sigma = get_sigma_sample(kg, &vsd, randp, PATH_RAY_SHADOW, SHADER_CONTEXT_VOLUME, ray->P/* + ray.D * start*/);
-		//if (sigma < 0.0f) sigma = 0.0f;
-		//float3 sigma3 = kernel_volume_get_final_homogeneous_extinction_tsd(kg, &vsd, randp, *ray, path_flag, SHADER_CONTEXT_VOLUME);
-		//float3 attenuation;
-//		attenuation.x = exp(-isect_t* sigma3.x);
-//		attenuation.y = exp(-isect_t* sigma3.y);
-//		attenuation.z = exp(-isect_t* sigma3.z);
-//		bsdf_eval_mul(&bsdf_eval, attenuation);
-//		*throughput *= attenuation;
-//		*throughput += attenuation;
-//		attenuation.x = (1.0f - exp(-isect_t* sigma)) * sigma3.x;
-//		attenuation.y = (1.0f - exp(-isect_t* sigma)) * sigma3.y;
-//		attenuation.z = (1.0f - exp(-isect_t* sigma)) * sigma3.z;
-		//attenuation.x = exp(-isect_t* sigma3.x) - exp(-isect_t* sigma);
-		//attenuation.y = exp(-isect_t* sigma3.y) - exp(-isect_t* sigma);
-		//attenuation.z = exp(-isect_t* sigma3.z) - exp(-isect_t* sigma);
-//		*throughput *= (make_float3(1.0f, 1.0f, 1.0f) + attenuation);
-		//*volume_eval = make_float3( *volume_pdf, *volume_pdf, *volume_pdf);  // perfect importance sampling for homogeneous
-	}
 
 	return VOLUME_PATH_PARTICLE_MISS;
 }
