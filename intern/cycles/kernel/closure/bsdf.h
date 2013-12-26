@@ -146,9 +146,10 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const Shade
 #endif
 
 #ifdef __VOLUME__
-	// need this to keep logic in kernel_emission.h direct light in case of volume particle
+	/* need this to keep logic in kernel_emission.h direct light in case of volume particle */
+	/* todo: restructure code so this is handled better */
 	if (CLOSURE_IS_VOLUME(sc->type))
-		return volume_eval_phase(kg, sc, sd->I, omega_in, pdf);
+		return volume_eval_phase(sc, sd->I, omega_in, pdf);
 #endif
 
 	if(dot(sd->Ng, omega_in) >= 0.0f) {

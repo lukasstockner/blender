@@ -191,36 +191,35 @@ CCLOSURE_PREPARE_STATIC(bsdf_##lower##_prepare, Upper##Closure)
 
 /* Volume */
 
-class CVolumeClosure : public OSL::ClosurePrimitive {
+class CVolumeClosure : public CClosurePrimitive {
 public:
 	ShaderClosure sc;
 
-	CVolumeClosure() : OSL::ClosurePrimitive(Volume),
-	    m_shaderdata_flag(0)
+	CVolumeClosure(int scattering) : CClosurePrimitive(Volume),
+	  m_scattering_label(scattering), m_shaderdata_flag(0)
 	{ memset(&sc, 0, sizeof(sc)); }
 	~CVolumeClosure() { }
 
+	int scattering() const { return m_scattering_label; }
 	int shaderdata_flag() const { return m_shaderdata_flag; }
 
 	virtual float3 eval_phase(const float3 &omega_out, const float3 &omega_in, float& pdf) const = 0;
 
-	virtual int sample(const float3 &Ng,
-	                   const float3 &omega_out, const float3 &domega_out_dx, const float3 &domega_out_dy,
+	virtual int sample(const float3 &omega_out, const float3 &domega_out_dx, const float3 &domega_out_dy,
 	                   float randu, float randv,
 	                   float3 &omega_in, float3 &domega_in_dx, float3 &domega_in_dy,
 	                   float &pdf, float3 &eval) const = 0;
 
 protected:
+	int m_scattering_label;
 	int m_shaderdata_flag;
 };
 
-#define VOLUME_CLOSURE_CLASS_BEGIN(Upper, lower, svmlower) \
+#define VOLUME_CLOSURE_CLASS_BEGIN(Upper, lower, TYPE) \
 \
 class Upper##Closure : public CVolumeClosure { \
 public: \
-	Upper##Closure() : CVolumeClosure() {} \
-	size_t memsize() const { return sizeof(*this); } \
-	const char *name() const { return #lower; } \
+	Upper##Closure() : CVolumeClosure(TYPE) {} \
 \
 	void setup() \
 	{ \
@@ -228,28 +227,17 @@ public: \
 		m_shaderdata_flag = volume_##lower##_setup(&sc); \
 	} \
 \
-	bool mergeable(const ClosurePrimitive *other) const \
-	{ \
-		return false; \
-	} \
-	\
-	void print_on(std::ostream &out) const \
-	{ \
-		out << name() << " ((" << sc.N[0] << ", " << sc.N[1] << ", " << sc.N[2] << "))"; \
-	} \
-\
 	float3 eval_phase(const float3 &omega_out, const float3 &omega_in, float& pdf) const \
 	{ \
-		return volume_##svmlower##_eval_phase(&sc, omega_out, omega_in, &pdf); \
+		return volume_##lower##_eval_phase(&sc, omega_out, omega_in, &pdf); \
 	} \
 \
-	int sample(const float3 &Ng, \
-	           const float3 &omega_out, const float3 &domega_out_dx, const float3 &domega_out_dy, \
+	int sample(const float3 &omega_out, const float3 &domega_out_dx, const float3 &domega_out_dy, \
 	           float randu, float randv, \
 	           float3 &omega_in, float3 &domega_in_dx, float3 &domega_in_dy, \
 	           float &pdf, float3 &eval) const \
 	{ \
-		return volume_##svmlower##_sample(&sc, Ng, omega_out, domega_out_dx, domega_out_dy, \
+		return volume_##lower##_sample(&sc, omega_out, domega_out_dx, domega_out_dy, \
 			randu, randv, &eval, &omega_in, &domega_in_dx, &domega_in_dy, &pdf); \
 	} \
 \

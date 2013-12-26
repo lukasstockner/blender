@@ -16,12 +16,11 @@
 
 #include "stdosl.h"
 
-shader node_scatter_volume(
+shader node_absorption_volume(
 	color Color = color(0.8, 0.8, 0.8),
 	float Density = 1.0,
-	float Anisotropy = 0.0,
 	output closure color Volume = 0)
 {
-	Volume = Color * henyey_greenstein(Density, Anisotropy);
+	Volume = Color * absorption_volume(Density);
 }
 

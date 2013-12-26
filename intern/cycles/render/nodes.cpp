@@ -1995,21 +1995,21 @@ void VolumeNode::compile(OSLCompiler& compiler)
 	assert(0);
 }
 
-/* Transparent Volume Closure */
+/* Absorption Volume Closure */
 
-TransparentVolumeNode::TransparentVolumeNode()
+AbsorptionVolumeNode::AbsorptionVolumeNode()
 {
-	closure = CLOSURE_VOLUME_TRANSPARENT_ID;
+	closure = CLOSURE_VOLUME_ABSORPTION_ID;
 }
 
-void TransparentVolumeNode::compile(SVMCompiler& compiler)
+void AbsorptionVolumeNode::compile(SVMCompiler& compiler)
 {
 	VolumeNode::compile(compiler, input("Density"), NULL);
 }
 
-void TransparentVolumeNode::compile(OSLCompiler& compiler)
+void AbsorptionVolumeNode::compile(OSLCompiler& compiler)
 {
-	compiler.add(this, "node_transparent_volume");
+	compiler.add(this, "node_absorption_volume");
 }
 
 /* Scatter Volume Closure */

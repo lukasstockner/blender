@@ -476,18 +476,16 @@ ccl_device void svm_node_closure_volume(KernelGlobals *kg, ShaderData *sd, float
 	float param2 = (stack_valid(param2_offset))? stack_load_float(stack, param2_offset): __uint_as_float(node.w);
 
 	switch(type) {
-#if 0 /* XXX unused */
-		case CLOSURE_VOLUME_TRANSPARENT_ID: {
+		case CLOSURE_VOLUME_ABSORPTION_ID: {
 			ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				float density = param1;
 				sc->data0 = density;
-				sd->flag |= volume_transparent_setup(sc);
+				sd->flag |= volume_absorption_setup(sc);
 			}
 			break;
 		}
-#endif
 		case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID: {
 			ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 

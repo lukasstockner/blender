@@ -21,111 +21,116 @@ CCL_NAMESPACE_BEGIN
 
 /* HENYEY-GREENSTEIN CLOSURE */
 
-/* Given cosine between rays, return probability density that photon bounce to that direction
- * g parameter controls how far it difference from uniform sphere. g=0 uniform diffusion-like, g=1 - very close to sharp single ray. */
-
-ccl_device float single_peaked_henyey_greenstein(float cos_theta, float m_g)
+/* Given cosine between rays, return probability density that a photon bounces
+ * to that direction. The g parameter controls how different it is from the
+ * uniform sphere. g=0 uniform diffuse-like, g=1 close to sharp single ray. */
+ccl_device float single_peaked_henyey_greenstein(float cos_theta, float g)
 {
-	float p = (1.0f - m_g * m_g) / pow(1.0f + m_g * m_g - 2.0f * m_g * cos_theta, 1.5f) / 4.0f / M_PI_F;
-
-	return p;
+	if(fabsf(g) < 1e-3f)
+		return M_1_PI_F * 0.25f;
+	
+	return ((1.0f - g * g) / safe_powf(1.0f + g * g - 2.0f * g * cos_theta, 1.5f)) * (M_1_PI_F * 0.25f);
 };
 
 ccl_device int volume_henyey_greenstein_setup(ShaderClosure *sc)
 {
 	sc->type = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
+	
+	/* positive density */
+	sc->data0 = max(sc->data0, 0.0f); 
+	/* clamp anisotropy to avoid delta function */
+	sc->data1 = signf(sc->data1) * min(fabsf(sc->data1), 1.0f - 1e-3f);
 
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
 }
 
-// just return bsdf at input vector
 ccl_device float3 volume_henyey_greenstein_eval_phase(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
 {
-	float m_g = sc->data1;
-	const float magic_eps = 0.001f;
+	float g = sc->data1;
 
-//	WARNING! I point in backward direction!
-//	float cos_theta = dot(I, omega_in);
+	/* note that I points towards the viewer */
 	float cos_theta = dot(-I, omega_in);
 
-	if(fabsf(m_g) <  magic_eps)
-		*pdf = M_1_PI_F * 0.25f; // ?? double check it
-	else
-		*pdf = single_peaked_henyey_greenstein(cos_theta, m_g);
+	*pdf = single_peaked_henyey_greenstein(cos_theta, g);
 
 	return make_float3(*pdf, *pdf, *pdf);
 }
 
-ccl_device int volume_henyey_greenstein_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv,
+ccl_device int volume_henyey_greenstein_sample(const ShaderClosure *sc, float3 I, float3 dIdx, float3 dIdy, float randu, float randv,
 	float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
-	float m_g = sc->data1;
-	const float magic_eps = 0.001f;
+	float g = sc->data1;
+	float cos_phi, sin_phi, cos_theta;
 
-	// WARNING! I point in backward direction!
-
-	if(fabsf(m_g) <  magic_eps) {
-		*omega_in = sample_uniform_sphere(randu, randv);
-		*pdf = M_1_PI_F * 0.25f; // ?? double check it
+	/* match pdf for small g */
+	if(fabsf(g) < 1e-3f) {
+		cos_theta = (1.0f - 2.0f * randu);
 	}
 	else {
-		float cos_phi, sin_phi, cos_theta;
-
-		if(fabsf(m_g) <  magic_eps)
-			cos_theta = (1.0f - 2.0f * randu);
-		else {
-			float k = (1.0f - m_g * m_g) / (1.0f - m_g + 2.0f * m_g * randu);
-			cos_theta = (1.0f + m_g * m_g - k * k) / (2.0f * m_g);
-		//	float cos_theta = 1.0f / (2.0f * m_g) * (1.0f + m_g * m_g - k*k);
-		//	float cos_theta = (1.0f - 2.0f * randu);
-		//	float cos_theta = randu;
-		}
-		float sin_theta = sqrt(1 - cos_theta * cos_theta);
-		
-		float3 T, B;
-		make_orthonormals(-I, &T, &B);
-		float phi = M_2PI_F * randv;
-		cos_phi = cosf(phi);
-		sin_phi = sinf(phi);
-		*omega_in = sin_theta * cos_phi * T + sin_theta * sin_phi * B + cos_theta * (-I);
-		*pdf = single_peaked_henyey_greenstein(cos_theta, m_g);
+		float k = (1.0f - g * g) / (1.0f - g + 2.0f * g * randu);
+		cos_theta = (1.0f + g * g - k * k) / (2.0f * g);
 	}
 
-	*eval = make_float3(*pdf, *pdf, *pdf); // perfect importance sampling
+	float sin_theta = safe_sqrtf(1.0f - cos_theta * cos_theta);
+
+	float phi = M_2PI_F * randv;
+	cos_phi = cosf(phi);
+	sin_phi = sinf(phi);
+
+	/* note that I points towards the viewer and so is used negated */
+	float3 T, B;
+	make_orthonormals(-I, &T, &B);
+	*omega_in = sin_theta * cos_phi * T + sin_theta * sin_phi * B + cos_theta * (-I);
+
+	*pdf = single_peaked_henyey_greenstein(cos_theta, g);
+	*eval = make_float3(*pdf, *pdf, *pdf); /* perfect importance sampling */
+
 #ifdef __RAY_DIFFERENTIALS__
-		// TODO: find a better approximation for the diffuse bounce
-		*domega_in_dx = (2 * dot(Ng, dIdx)) * Ng - dIdx;
-		*domega_in_dy = (2 * dot(Ng, dIdy)) * Ng - dIdy;
-		*domega_in_dx *= 125.0f;
-		*domega_in_dy *= 125.0f;
+	/* todo: implement ray differential estimation */
+	*domega_in_dx = make_float3(0.0f, 0.0f, 0.0f);
+	*domega_in_dy = make_float3(0.0f, 0.0f, 0.0f);
 #endif
-	return LABEL_REFLECT|LABEL_DIFFUSE;
+
+	/* todo: do we need a separate light path state for volume scatter? */
+	return LABEL_DIFFUSE;
 }
 
-/* TRANSPARENT VOLUME CLOSURE */
+/* ABSORPTION VOLUME CLOSURE */
 
-ccl_device int volume_transparent_setup(ShaderClosure *sc)
+ccl_device int volume_absorption_setup(ShaderClosure *sc)
 {
-	sc->type = CLOSURE_VOLUME_TRANSPARENT_ID;
+	sc->type = CLOSURE_VOLUME_ABSORPTION_ID;
+
+	/* positive density */
+	sc->data0 = max(sc->data0, 0.0f);
 
 	return SD_VOLUME;
 }
 
-ccl_device float3 volume_transparent_eval_phase(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
+ccl_device float3 volume_absorption_eval_phase(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
 {
-	return make_float3(1.0f, 1.0f, 1.0f);
+	/* eval to zero for delta functions */
+	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device int volume_transparent_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv,
+ccl_device int volume_absorption_sample(const ShaderClosure *sc, float3 I, float3 dIdx, float3 dIdy, float randu, float randv,
 	float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
-	/* XXX Implement */
-	return LABEL_REFLECT|LABEL_DIFFUSE;
+	*omega_in = -I;
+#ifdef __RAY_DIFFERENTIALS__
+	*domega_in_dx = -dIdx;
+	*domega_in_dy = -dIdy;
+#endif
+
+	*pdf = 1.0f;
+	*eval = make_float3(1.0f, 1.0f, 1.0f);
+
+	return LABEL_TRANSMIT|LABEL_TRANSPARENT;
 }
 
 /* VOLUME CLOSURE */
 
-ccl_device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
+ccl_device float3 volume_eval_phase(const ShaderClosure *sc, const float3 I, float3 omega_in, float *pdf)
 {
 	float3 eval;
 
@@ -133,8 +138,8 @@ ccl_device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, 
 		case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID:
 			eval = volume_henyey_greenstein_eval_phase(sc, I, omega_in, pdf);
 			break;
-		case CLOSURE_VOLUME_TRANSPARENT_ID:
-			eval = volume_transparent_eval_phase(sc, I, omega_in, pdf);
+		case CLOSURE_VOLUME_ABSORPTION_ID:
+			eval = volume_absorption_eval_phase(sc, I, omega_in, pdf);
 			break;
 		default:
 			eval = make_float3(0.0f, 0.0f, 0.0f);
@@ -144,25 +149,23 @@ ccl_device float3 volume_eval_phase(KernelGlobals *kg, const ShaderClosure *sc, 
 	return eval;
 }
 
-ccl_device int volume_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu,
+ccl_device int volume_sample(const ShaderData *sd, const ShaderClosure *sc, float randu,
 	float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
 {
 	int label;
 
 	switch(sc->type) {
 		case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID:
-			label = volume_henyey_greenstein_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+			label = volume_henyey_greenstein_sample(sc, sd->I, sd->dI.dx, sd->dI.dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
-		case CLOSURE_VOLUME_TRANSPARENT_ID:
-			label = volume_transparent_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+		case CLOSURE_VOLUME_ABSORPTION_ID:
+			label = volume_absorption_sample(sc, sd->I, sd->dI.dx, sd->dI.dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		default:
 			*eval = make_float3(0.0f, 0.0f, 0.0f);
 			label = LABEL_NONE;
 			break;
 	}
-
-//	*eval *= sd->svm_closure_weight;
 
 	return label;
 }

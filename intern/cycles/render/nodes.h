@@ -316,9 +316,9 @@ public:
 	ClosureType closure;
 };
 
-class TransparentVolumeNode : public VolumeNode {
+class AbsorptionVolumeNode : public VolumeNode {
 public:
-	SHADER_NODE_CLASS(TransparentVolumeNode)
+	SHADER_NODE_CLASS(AbsorptionVolumeNode)
 };
 
 class ScatterVolumeNode : public VolumeNode {

@@ -170,11 +170,14 @@ BSDF_CLOSURE_CLASS_BEGIN(HairTransmission, hair_transmission, hair_transmission,
 #endif
 BSDF_CLOSURE_CLASS_END(HairTransmission, hair_transmission)
 
-VOLUME_CLOSURE_CLASS_BEGIN(VolumeHenyeyGreenstein, henyey_greenstein, henyey_greenstein)
-	CLOSURE_FLOAT3_PARAM(VolumeHenyeyGreensteinClosure, sc.N),
+VOLUME_CLOSURE_CLASS_BEGIN(VolumeHenyeyGreenstein, henyey_greenstein, LABEL_DIFFUSE)
 	CLOSURE_FLOAT_PARAM(VolumeHenyeyGreensteinClosure, sc.data0),
 	CLOSURE_FLOAT_PARAM(VolumeHenyeyGreensteinClosure, sc.data1),
 VOLUME_CLOSURE_CLASS_END(VolumeHenyeyGreenstein, henyey_greenstein)
+
+VOLUME_CLOSURE_CLASS_BEGIN(VolumeAbsorption, absorption, LABEL_SINGULAR)
+	CLOSURE_FLOAT_PARAM(VolumeAbsorptionClosure, sc.data0),
+VOLUME_CLOSURE_CLASS_END(VolumeAbsorption, absorption)
 
 /* Registration */
 
@@ -258,6 +261,8 @@ void OSLShader::register_closures(OSLShadingSystem *ss_)
 
 	register_closure(ss, "henyey_greenstein", id++,
 		volume_henyey_greenstein_params(), volume_henyey_greenstein_prepare);
+	register_closure(ss, "absorption_volume", id++,
+		volume_absorption_params(), volume_absorption_prepare);
 }
 
 CCL_NAMESPACE_END
