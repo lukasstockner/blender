@@ -6201,7 +6201,7 @@ static void get_local_bounds(Object *ob, float center[3], float size[3])
 }
 #endif
 
-static void draw_bb_quadric(BoundBox *bb, char type)
+static void draw_bb_quadric(BoundBox *bb, char type, bool around_origin)
 {
 	float size[3], cent[3];
 	GLUquadricObj *qobj = gluNewQuadric();
@@ -6212,9 +6212,14 @@ static void draw_bb_quadric(BoundBox *bb, char type)
 	size[1] = 0.5f * fabsf(bb->vec[0][1] - bb->vec[2][1]);
 	size[2] = 0.5f * fabsf(bb->vec[0][2] - bb->vec[1][2]);
 
-	cent[0] = 0.5f * (bb->vec[0][0] + bb->vec[4][0]);
-	cent[1] = 0.5f * (bb->vec[0][1] + bb->vec[2][1]);
-	cent[2] = 0.5f * (bb->vec[0][2] + bb->vec[1][2]);
+	if (around_origin) {
+		zero_v3(cent);
+	}
+	else {
+		cent[0] = 0.5f * (bb->vec[0][0] + bb->vec[4][0]);
+		cent[1] = 0.5f * (bb->vec[0][1] + bb->vec[2][1]);
+		cent[2] = 0.5f * (bb->vec[0][2] + bb->vec[1][2]);
+	}
 	
 	glPushMatrix();
 	if (type == OB_BOUND_SPHERE) {
@@ -6278,11 +6283,37 @@ static void draw_bounding_volume(Scene *scene, Object *ob, char type)
 		BKE_boundbox_init_from_minmax(bb, min, max);
 	}
 	
-	if (bb == NULL) return;
+	if (bb == NULL)
+		return;
 	
-	if (type == OB_BOUND_BOX) draw_box(bb->vec);
-	else draw_bb_quadric(bb, type);
-	
+	if (ob->gameflag & OB_BOUNDS) { /* bounds need to be drawn around origin for game engine */
+
+		if (type == OB_BOUND_BOX) {
+			float vec[8][3], size[3];
+			
+			size[0] = 0.5f * fabsf(bb->vec[0][0] - bb->vec[4][0]);
+			size[1] = 0.5f * fabsf(bb->vec[0][1] - bb->vec[2][1]);
+			size[2] = 0.5f * fabsf(bb->vec[0][2] - bb->vec[1][2]);
+			
+			vec[0][0] = vec[1][0] = vec[2][0] = vec[3][0] = -size[0];
+			vec[4][0] = vec[5][0] = vec[6][0] = vec[7][0] = +size[0];
+			vec[0][1] = vec[1][1] = vec[4][1] = vec[5][1] = -size[1];
+			vec[2][1] = vec[3][1] = vec[6][1] = vec[7][1] = +size[1];
+			vec[0][2] = vec[3][2] = vec[4][2] = vec[7][2] = -size[2];
+			vec[1][2] = vec[2][2] = vec[5][2] = vec[6][2] = +size[2];
+			
+			draw_box(vec);
+		}
+		else {
+			draw_bb_quadric(bb, type, true);
+		}
+	}
+	else {
+		if (type == OB_BOUND_BOX)
+			draw_box(bb->vec);
+		else
+			draw_bb_quadric(bb, type, false);
+	}
 }
 
 static void drawtexspace(Object *ob)
@@ -6563,6 +6594,48 @@ static void draw_object_matcap_check(Scene *scene, View3D *v3d, Object *ob)
 		v3d->flag2 |= V3D_SHOW_SOLID_MATCAP;
 	}
 
+}
+
+static void draw_rigidbody_shape(Object *ob)
+{
+	BoundBox *bb = NULL;
+	float size[3], vec[8][3];
+
+	if (ob->type == OB_MESH) {
+		bb = BKE_mesh_boundbox_get(ob);
+	}
+
+	if (bb == NULL)
+		return;
+
+	switch (ob->rigidbody_object->shape) {
+		case RB_SHAPE_BOX:
+			size[0] = 0.5f * fabsf(bb->vec[0][0] - bb->vec[4][0]);
+			size[1] = 0.5f * fabsf(bb->vec[0][1] - bb->vec[2][1]);
+			size[2] = 0.5f * fabsf(bb->vec[0][2] - bb->vec[1][2]);
+			
+			vec[0][0] = vec[1][0] = vec[2][0] = vec[3][0] = -size[0];
+			vec[4][0] = vec[5][0] = vec[6][0] = vec[7][0] = +size[0];
+			vec[0][1] = vec[1][1] = vec[4][1] = vec[5][1] = -size[1];
+			vec[2][1] = vec[3][1] = vec[6][1] = vec[7][1] = +size[1];
+			vec[0][2] = vec[3][2] = vec[4][2] = vec[7][2] = -size[2];
+			vec[1][2] = vec[2][2] = vec[5][2] = vec[6][2] = +size[2];
+			
+			draw_box(vec);
+			break;
+		case RB_SHAPE_SPHERE:
+			draw_bb_quadric(bb, OB_BOUND_SPHERE, true);
+			break;
+		case RB_SHAPE_CONE:
+			draw_bb_quadric(bb, OB_BOUND_CONE, true);
+			break;
+		case RB_SHAPE_CYLINDER:
+			draw_bb_quadric(bb, OB_BOUND_CYLINDER, true);
+			break;
+		case RB_SHAPE_CAPSULE:
+			draw_bb_quadric(bb, OB_BOUND_CAPSULE, true);
+			break;
+	}
 }
 
 /**
@@ -7128,6 +7201,9 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				draw_bounding_volume(scene, ob, ob->collision_boundtype);
 				setlinestyle(0);
 			}
+		}
+		if (ob->rigidbody_object) {
+			draw_rigidbody_shape(ob);
 		}
 
 		/* draw extra: after normal draw because of makeDispList */

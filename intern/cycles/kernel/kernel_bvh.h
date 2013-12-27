@@ -406,17 +406,12 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersect
 						coverage = (min(d1 / mw_extension, 1.0f) + min(-d0 / mw_extension, 1.0f)) * 0.5f;
 				}
 				
-				if (p_curr.x * p_curr.x + p_curr.y * p_curr.y >= r_ext * r_ext || p_curr.z <= epsilon) {
+				if (p_curr.x * p_curr.x + p_curr.y * p_curr.y >= r_ext * r_ext || p_curr.z <= epsilon || isect->t < p_curr.z) {
 					tree++;
 					level = tree & -tree;
 					continue;
 				}
-				/* compare z distances */
-				if (isect->t < p_curr.z) {
-					tree++;
-					level = tree & -tree;
-					continue;
-				}
+
 				t = p_curr.z;
 			}
 			else {
@@ -453,7 +448,6 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersect
 				float rootd = sqrtf(td);
 				float correction = ((-tb - rootd)/(2*cyla));
 				t = tcentre + correction;
-				float w = (zcentre + (tg.z * correction))/l;
 
 				float3 dp_st = (3 * curve_coef[3] * i_st + 2 * curve_coef[2]) * i_st + curve_coef[1];
 				if (dot(tg, dp_st)< 0)
@@ -462,11 +456,9 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersect
 				if (dot(tg, dp_en) < 0)
 					dp_en *= -1;
 
-
 				if(flags & CURVE_KN_BACKFACING && (dot(dp_st, -p_st) + t * dp_st.z < 0 || dot(dp_en, p_en) - t * dp_en.z < 0 || isect->t < t || t <= 0.0f)) {
 					correction = ((-tb + rootd)/(2*cyla));
 					t = tcentre + correction;
-					w = (zcentre + (tg.z * correction))/l;
 				}			
 
 				if (dot(dp_st, -p_st) + t * dp_st.z < 0 || dot(dp_en, p_en) - t * dp_en.z < 0 || isect->t < t || t <= 0.0f) {
@@ -475,6 +467,7 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(KernelGlobals *kg, Intersect
 					continue;
 				}
 
+				float w = (zcentre + (tg.z * correction))/l;
 				w = clamp((float)w, 0.0f, 1.0f);
 				/* compute u on the curve segment */
 				u = i_st * (1 - w) + i_en * w;
@@ -1099,7 +1092,7 @@ ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, con
 	float4 P1 = kernel_tex_fetch(__curve_keys, k0);
 	float4 P2 = kernel_tex_fetch(__curve_keys, k1);
 	float l = 1.0f;
-	float3 tg = normalize_len(float4_to_float3(P2 - P1),&l);
+	float3 tg = normalize_len(float4_to_float3(P2 - P1), &l);
 	float r1 = P1.w;
 	float r2 = P2.w;
 	float gd = ((r2 - r1)/l);
@@ -1119,17 +1112,17 @@ ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, con
 		p[2] = float4_to_float3(P2);
 		p[3] = float4_to_float3(P3);
 
-		tg = normalize(curvetangent(isect->u,p[0],p[1],p[2],p[3]));
-		float3 p_curr = curvepoint(isect->u,p[0],p[1],p[2],p[3]);
-
 #ifdef __UV__
 		sd->u = isect->u;
 		sd->v = 0.0f;
 #endif
+	
+		tg = normalize(curvetangent(isect->u, p[0], p[1], p[2], p[3]));
 
 		if(kernel_data.curve.curveflags & CURVE_KN_RIBBONS)
-			sd->Ng = normalize(-(D - tg * (dot(tg,D))));
+			sd->Ng = normalize(-(D - tg * (dot(tg, D))));
 		else {
+			float3 p_curr = curvepoint(isect->u, p[0], p[1], p[2], p[3]);	
 			sd->Ng = normalize(P - p_curr);
 			sd->Ng = sd->Ng - gd * tg;
 			sd->Ng = normalize(sd->Ng);
@@ -1145,7 +1138,7 @@ ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, con
 #endif
 
 		if (flag & CURVE_KN_TRUETANGENTGNORMAL) {
-			sd->Ng = -(D - tg * dot(tg,D));
+			sd->Ng = -(D - tg * dot(tg, D));
 			sd->Ng = normalize(sd->Ng);
 		}
 		else {
@@ -1157,24 +1150,12 @@ ccl_device_inline float3 bvh_curve_refine(KernelGlobals *kg, ShaderData *sd, con
 		}
 
 		sd->N = sd->Ng;
-
-		if (flag & CURVE_KN_TANGENTGNORMAL && !(flag & CURVE_KN_TRUETANGENTGNORMAL)) {
-			sd->N = -(D - tg * dot(tg,D));
-			sd->N = normalize(sd->N);
-		}
-		if (!(flag & CURVE_KN_TANGENTGNORMAL) && flag & CURVE_KN_TRUETANGENTGNORMAL) {
-			sd->N = (dif - tg * sd->u * l) / (P1.w + sd->u * l * gd);
-			if (gd != 0.0f) {
-				sd->N = sd->N - gd * tg ;
-				sd->N = normalize(sd->N);
-			}
-		}
 	}
 
 #ifdef __DPDU__
 	/* dPdu/dPdv */
 	sd->dPdu = tg;
-	sd->dPdv = cross(tg,sd->Ng);
+	sd->dPdv = cross(tg, sd->Ng);
 #endif
 
 	/*add fading parameter for minimum pixel width with transparency bsdf*/

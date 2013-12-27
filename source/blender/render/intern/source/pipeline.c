@@ -1612,6 +1612,7 @@ static bool rlayer_node_uses_alpha(bNodeTree *ntree, bNode *node)
  */
 #define DEPSGRAPH_WORKAROUND_HACK
 
+#ifdef DEPSGRAPH_WORKAROUND_HACK
 static bool allow_render_mesh_object(Object *ob)
 {
 	/* override not showing object when duplis are used with particles */
@@ -1625,7 +1626,6 @@ static bool allow_render_mesh_object(Object *ob)
 	return true;
 }
 
-#ifdef DEPSGRAPH_WORKAROUND_HACK
 static void tag_dependend_objects_for_render(Scene *scene, int renderlay)
 {
 	Scene *sce_iter;
