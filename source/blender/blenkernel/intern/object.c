@@ -99,6 +99,7 @@
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
+#include "BKE_nparticle.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
@@ -2893,6 +2894,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 			AnimData *adt = BKE_animdata_from_id(data_id);
 			Key *key;
 			float ctime = BKE_scene_frame_get(scene);
+			ModifierData *md;
 			
 			if (G.debug & G_DEBUG_DEPSGRAPH)
 				printf("recalcdata %s\n", ob->id.name + 2);
@@ -3022,7 +3024,15 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 						psys_get_modifier(ob, psys)->flag &= ~eParticleSystemFlag_psys_updated;
 				}
 			}
-			
+
+			/* nparticles */
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_NParticleSystem) {
+					NParticleSystemModifierData *pmd = (NParticleSystemModifierData*)md;
+					BKE_nparticle_update_object_dupli_flags(ob, pmd->psys);
+				}
+			}
+
 			/* quick cache removed */
 		}
 
