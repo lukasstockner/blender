@@ -4258,9 +4258,15 @@ static void direct_link_pagedbuffer(FileData *fd, bPagedBuffer *pbuf)
 
 /* ************ READ NPARTICLE BUFFER ***************** */
 
+static void direct_link_nparticle_display(FileData *UNUSED(fd), NParticleDisplay *UNUSED(display))
+{
+	/* nothing to do here yet */
+}
+
 static void direct_link_nparticle_system(FileData *fd, NParticleSystem *psys)
 {
 	NParticleAttributeState *attrstate;
+	NParticleDisplay *display;
 	
 	link_list(fd, &psys->attributes);
 	
@@ -4270,11 +4276,10 @@ static void direct_link_nparticle_system(FileData *fd, NParticleSystem *psys)
 		for (attrstate = psys->state->attributes.first; attrstate; attrstate = attrstate->next)
 			direct_link_pagedbuffer(fd, &attrstate->data);
 	}
-}
-
-static void direct_link_nparticle_display(FileData *UNUSED(fd), NParticleDisplay *UNUSED(display))
-{
-	/* nothing to do here yet */
+	
+	link_list(fd, &psys->display);
+	for (display = psys->display.first; display; display = display->next)
+		direct_link_nparticle_display(fd, display);
 }
 
 
@@ -4844,13 +4849,9 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 		}
 		else if (md->type == eModifierType_NParticleSystem) {
 			NParticleSystemModifierData *pmd = (NParticleSystemModifierData *)md;
-			NParticleDisplay *display;
 			
 			pmd->psys = newdataadr(fd, pmd->psys);
 			direct_link_nparticle_system(fd, pmd->psys);
-			link_list(fd, &pmd->display);
-			for (display = pmd->display.first; display; display = display->next)
-				direct_link_nparticle_display(fd, display);
 		}
 		else if (md->type == eModifierType_LaplacianDeform) {
 			LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
