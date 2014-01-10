@@ -107,6 +107,31 @@ PTCWriter *PTC_writer_from_rna(Scene *scene, PointerRNA *ptr)
 		ParticleSystem *psys = (ParticleSystem *)ptr->data;
 		return PTC_writer_particles(scene, ob, psys);
 	}
+	if (RNA_struct_is_a(ptr->type, &RNA_ClothModifier)) {
+		Object *ob = (Object *)ptr->id.data;
+		ClothModifierData *clmd = (ClothModifierData *)ptr->data;
+		return PTC_writer_cloth(scene, ob, clmd);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_SoftBodySettings)) {
+		Object *ob = (Object *)ptr->id.data;
+		SoftBody *softbody = (SoftBody *)ptr->data;
+		return PTC_writer_softbody(scene, ob, softbody);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_RigidBodyWorld)) {
+		BLI_assert((Scene *)ptr->id.data == scene);
+		RigidBodyWorld *rbw = (RigidBodyWorld *)ptr->data;
+		return PTC_writer_rigidbody(scene, rbw);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_SmokeDomainSettings)) {
+		Object *ob = (Object *)ptr->id.data;
+		SmokeDomainSettings *domain = (SmokeDomainSettings *)ptr->data;
+		return PTC_writer_smoke(scene, ob, domain);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_DynamicPaintSurface)) {
+		Object *ob = (Object *)ptr->id.data;
+		DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
+		return PTC_writer_dynamicpaint(scene, ob, surface);
+	}
 	return NULL;
 }
 
@@ -116,6 +141,31 @@ PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 		Object *ob = (Object *)ptr->id.data;
 		ParticleSystem *psys = (ParticleSystem *)ptr->data;
 		return PTC_reader_particles(scene, ob, psys);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_ClothModifier)) {
+		Object *ob = (Object *)ptr->id.data;
+		ClothModifierData *clmd = (ClothModifierData *)ptr->data;
+		return PTC_reader_cloth(scene, ob, clmd);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_SoftBodySettings)) {
+		Object *ob = (Object *)ptr->id.data;
+		SoftBody *softbody = (SoftBody *)ptr->data;
+		return PTC_reader_softbody(scene, ob, softbody);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_RigidBodyWorld)) {
+		BLI_assert((Scene *)ptr->id.data == scene);
+		RigidBodyWorld *rbw = (RigidBodyWorld *)ptr->data;
+		return PTC_reader_rigidbody(scene, rbw);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_SmokeDomainSettings)) {
+		Object *ob = (Object *)ptr->id.data;
+		SmokeDomainSettings *domain = (SmokeDomainSettings *)ptr->data;
+		return PTC_reader_smoke(scene, ob, domain);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_DynamicPaintSurface)) {
+		Object *ob = (Object *)ptr->id.data;
+		DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
+		return PTC_reader_dynamicpaint(scene, ob, surface);
 	}
 	return NULL;
 }
