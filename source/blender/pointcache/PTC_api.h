@@ -35,7 +35,7 @@ struct DynamicPaintSurface;
 struct Object;
 struct ParticleSystem;
 struct RigidBodyWorld;
-struct SmokeModifierData;
+struct SmokeDomainSettings;
 struct SoftBody;
 
 struct PTCWriter;
@@ -79,8 +79,8 @@ struct PTCWriter *PTC_writer_rigidbody(struct Scene *scene, struct RigidBodyWorl
 struct PTCReader *PTC_reader_rigidbody(struct Scene *scene, struct RigidBodyWorld *rbw);
 
 /* Smoke */
-struct PTCWriter *PTC_writer_smoke(struct Scene *scene, struct Object *ob, struct SmokeModifierData *smd);
-struct PTCReader *PTC_reader_smoke(struct Scene *scene, struct Object *ob, struct SmokeModifierData *smd);
+struct PTCWriter *PTC_writer_smoke(struct Scene *scene, struct Object *ob, struct SmokeDomainSettings *domain);
+struct PTCReader *PTC_reader_smoke(struct Scene *scene, struct Object *ob, struct SmokeDomainSettings *domain);
 
 /* Dynamic Paint */
 struct PTCWriter *PTC_writer_dynamicpaint(struct Scene *scene, struct Object *ob, struct DynamicPaintSurface *surface);

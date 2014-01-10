@@ -221,14 +221,14 @@ PTCReader *PTC_reader_rigidbody(Scene *scene, RigidBodyWorld *rbw)
 }
 
 /* Smoke */
-PTCWriter *PTC_writer_smoke(Scene *scene, Object *ob, SmokeModifierData *smd)
+PTCWriter *PTC_writer_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
 {
-	return (PTCWriter *)(new PTC::SmokeWriter(scene, ob, smd));
+	return (PTCWriter *)(new PTC::SmokeWriter(scene, ob, domain));
 }
 
-PTCReader *PTC_reader_smoke(Scene *scene, Object *ob, SmokeModifierData *smd)
+PTCReader *PTC_reader_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
 {
-	return (PTCReader *)(new PTC::SmokeReader(scene, ob, smd));
+	return (PTCReader *)(new PTC::SmokeReader(scene, ob, domain));
 }
 
 /* Dynamic Paint */

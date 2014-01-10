@@ -27,34 +27,34 @@
 #include "writer.h"
 
 struct Object;
-struct SmokeModifierData;
+struct SmokeDomainSettings;
 
 namespace PTC {
 
 class SmokeWriter : public Writer {
 public:
-	SmokeWriter(Scene *scene, Object *ob, SmokeModifierData *smd);
+	SmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain);
 	~SmokeWriter();
 	
 	void write_sample();
 	
 private:
 	Object *m_ob;
-	SmokeModifierData *m_smd;
+	SmokeDomainSettings *m_domain;
 	
 //	AbcGeom::OPoints m_points;
 };
 
 class SmokeReader : public Reader {
 public:
-	SmokeReader(Scene *scene, Object *ob, SmokeModifierData *smd);
+	SmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain);
 	~SmokeReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
 	Object *m_ob;
-	SmokeModifierData *m_smd;
+	SmokeDomainSettings *m_domain;
 	
 //	AbcGeom::IPoints m_points;
 };

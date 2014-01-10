@@ -20,7 +20,6 @@
 
 extern "C" {
 #include "DNA_object_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_smoke_types.h"
 }
 
@@ -29,10 +28,10 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-SmokeWriter::SmokeWriter(Scene *scene, Object *ob, SmokeModifierData *smd) :
-    Writer(scene, &ob->id, smd->domain->point_cache[0]),
+SmokeWriter::SmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
+    Writer(scene, &ob->id, domain->point_cache[0]),
     m_ob(ob),
-    m_smd(smd)
+    m_domain(domain)
 {
 	uint32_t fs = add_frame_sampling();
 	
@@ -49,10 +48,10 @@ void SmokeWriter::write_sample()
 }
 
 
-SmokeReader::SmokeReader(Scene *scene, Object *ob, SmokeModifierData *smd) :
-    Reader(scene, &ob->id, smd->domain->point_cache[0]),
+SmokeReader::SmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
+    Reader(scene, &ob->id, domain->point_cache[0]),
     m_ob(ob),
-    m_smd(smd)
+    m_domain(domain)
 {
 	if (m_archive.valid()) {
 		IObject root = m_archive.getTop();
