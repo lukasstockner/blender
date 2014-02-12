@@ -750,7 +750,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 }
 
 /* keep these functions in sync */
-static void paint_2d_ibuf_rgb_get(ImBuf *ibuf, int x, int y, const short is_torus, float r_rgb[4])
+static void paint_2d_ibuf_rgb_get(ImBuf *ibuf, int x, int y, const bool is_torus, float r_rgb[4])
 {
 	if (is_torus) {
 		x %= ibuf->x;
@@ -768,7 +768,7 @@ static void paint_2d_ibuf_rgb_get(ImBuf *ibuf, int x, int y, const short is_toru
 		straight_uchar_to_premul_float(r_rgb, rrgb);
 	}
 }
-static void paint_2d_ibuf_rgb_set(ImBuf *ibuf, int x, int y, const short is_torus, const float rgb[4])
+static void paint_2d_ibuf_rgb_set(ImBuf *ibuf, int x, int y, const bool is_torus, const float rgb[4])
 {
 	if (is_torus) {
 		x %= ibuf->x;
@@ -779,7 +779,7 @@ static void paint_2d_ibuf_rgb_set(ImBuf *ibuf, int x, int y, const short is_toru
 
 	if (ibuf->rect_float) {
 		float *rrgbf = ibuf->rect_float + (ibuf->x * y + x) * 4;
-		float map_alpha = (rgb[3] == 0.0f)? rrgbf[3] : rrgbf[3] / rgb[3];
+		float map_alpha = (rgb[3] == 0.0f) ? rrgbf[3] : rrgbf[3] / rgb[3];
 
 		mul_v3_v3fl(rrgbf, rgb, map_alpha);
 	}

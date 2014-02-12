@@ -69,7 +69,6 @@ EnumPropertyItem brush_sculpt_tool_items[] = {
 	{SCULPT_TOOL_SMOOTH, "SMOOTH", ICON_BRUSH_SMOOTH, "Smooth", ""},
 	{SCULPT_TOOL_SNAKE_HOOK, "SNAKE_HOOK", ICON_BRUSH_SNAKE_HOOK, "Snake Hook", ""},
 	{SCULPT_TOOL_THUMB, "THUMB", ICON_BRUSH_THUMB, "Thumb", ""},
-	{SCULPT_TOOL_GRAVITY, "GRAVITY", ICON_BRUSH_SCULPT_DRAW, "Gravity", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -260,12 +259,6 @@ static int rna_SculptToolCapabilities_has_strength_get(PointerRNA *ptr)
 	return !ELEM(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK);
 }
 
-static int rna_SculptToolCapabilities_has_gravity_get(PointerRNA *ptr)
-{
-	Brush *br = (Brush *)ptr->data;
-	return !ELEM(br->sculpt_tool, SCULPT_TOOL_MASK, SCULPT_TOOL_GRAVITY);
-}
-
 static int rna_BrushCapabilities_has_texture_angle_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
@@ -275,6 +268,12 @@ static int rna_BrushCapabilities_has_texture_angle_get(PointerRNA *ptr)
 	             MTEX_MAP_MODE_TILED,
 	             MTEX_MAP_MODE_STENCIL,
 	             MTEX_MAP_MODE_RANDOM);
+}
+
+static int rna_SculptToolCapabilities_has_gravity_get(PointerRNA *ptr)
+{
+	Brush *br = (Brush *)ptr->data;
+	return !ELEM(br->sculpt_tool, SCULPT_TOOL_MASK, SCULPT_TOOL_SMOOTH);
 }
 
 static int rna_BrushCapabilities_has_texture_angle_source_get(PointerRNA *ptr)
@@ -448,7 +447,7 @@ static void rna_Brush_set_unprojected_radius(PointerRNA *ptr, float value)
 }
 
 static EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA *ptr,
-                                                   PropertyRNA *UNUSED(prop), int *UNUSED(free))
+                                                   PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 
@@ -892,7 +891,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	/* number values */
-	prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "size", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_funcs(prop, NULL, "rna_Brush_set_size", NULL);
 	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS * 10);
 	RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 1, -1);
@@ -913,7 +912,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Jitter", "Jitter the position of the brush while painting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop = RNA_def_property(srna, "jitter_absolute", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "jitter_absolute", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "jitter_absolute");
 	RNA_def_property_range(prop, 0, 1000000);
 	RNA_def_property_ui_text(prop, "Jitter", "Jitter the position of the brush in pixels while painting");
@@ -1095,6 +1094,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_original_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ORIGINAL_NORMAL);
+	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
 	RNA_def_property_ui_text(prop, "Original Normal",
 	                         "When locked keep using normal of surface where stroke was initiated");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
@@ -1159,6 +1159,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "use_relative_jitter", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", BRUSH_ABSOLUTE_JITTER);
+	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
 	RNA_def_property_ui_text(prop, "Absolute Jitter", "Jittering happens in screen space, not relative to brush size");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
@@ -1219,6 +1220,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_space_attenuation", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_SPACE_ATTEN);
+	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
 	RNA_def_property_ui_text(prop, "Use Automatic Strength Adjustment",
 	                         "Automatically adjust strength to give consistent results for different spacings");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");

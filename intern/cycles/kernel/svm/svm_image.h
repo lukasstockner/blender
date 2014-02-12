@@ -112,11 +112,17 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 
 ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
 {
-	float4 r;
-
 #ifdef __KERNEL_CPU__
+#ifdef __KERNEL_SSE2__
+	__m128 r_m128;
+	float4 &r = (float4 &)r_m128;
 	r = kernel_tex_image_interp(id, x, y);
 #else
+	float4 r = kernel_tex_image_interp(id, x, y);
+#endif
+#else
+	float4 r;
+
 	/* not particularly proud of this massive switch, what are the
 	 * alternatives?
 	 * - use a single big 1D texture, and do our own lookup/filtering
@@ -233,6 +239,21 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 	}
 #endif
 
+#ifdef __KERNEL_SSE2__
+	float alpha = r.w;
+
+	if(use_alpha && alpha != 1.0f && alpha != 0.0f) {
+		r_m128 = _mm_div_ps(r_m128, _mm_set1_ps(alpha));
+		if(id >= TEX_NUM_FLOAT_IMAGES)
+			r_m128 = _mm_min_ps(r_m128, _mm_set1_ps(1.0f));
+		r.w = alpha;
+	}
+
+	if(srgb) {
+		r_m128 = color_srgb_to_scene_linear(r_m128);
+		r.w = alpha;
+	}
+#else
 	if(use_alpha && r.w != 1.0f && r.w != 0.0f) {
 		float invw = 1.0f/r.w;
 		r.x *= invw;
@@ -251,6 +272,7 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 		r.y = color_srgb_to_scene_linear(r.y);
 		r.z = color_srgb_to_scene_linear(r.z);
 	}
+#endif
 
 	return r;
 }

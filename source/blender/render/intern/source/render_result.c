@@ -71,6 +71,7 @@ void render_result_free(RenderResult *res)
 		/* acolrect and scolrect are optionally allocated in shade_tile, only free here since it can be used for drawing */
 		if (rl->acolrect) MEM_freeN(rl->acolrect);
 		if (rl->scolrect) MEM_freeN(rl->scolrect);
+		if (rl->display_buffer) MEM_freeN(rl->display_buffer);
 		
 		while (rl->passes.first) {
 			RenderPass *rpass = rl->passes.first;
@@ -501,6 +502,8 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 		rl->recty = recty;
 		
 		if (rr->do_exr_tile) {
+			rl->display_buffer = MEM_mapallocN(rectx * recty * sizeof(unsigned int), "Combined display space rgba");
+
 			rl->exrhandle = IMB_exr_get_handle();
 
 			IMB_exr_add_channel(rl->exrhandle, rl->name, "Combined.R", 0, 0, NULL);
@@ -573,7 +576,7 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_SUBSURFACE_COLOR);
 	}
 	/* sss, previewrender and envmap don't do layers, so we make a default one */
-	if (rr->layers.first == NULL && !(layername && layername[0])) {
+	if (BLI_listbase_is_empty(&rr->layers) && !(layername && layername[0])) {
 		rl = MEM_callocN(sizeof(RenderLayer), "new render layer");
 		BLI_addtail(&rr->layers, rl);
 		

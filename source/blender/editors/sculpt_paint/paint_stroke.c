@@ -122,7 +122,7 @@ typedef struct PaintStroke {
 	/* Set whether any stroke step has yet occurred
 	 * e.g. in sculpt mode, stroke doesn't start until cursor
 	 * passes over the mesh */
-	int stroke_started;
+	bool stroke_started;
 	/* event that started stroke, for modal() return */
 	int event_type;
 	/* check if stroke variables have been initialized */
@@ -472,7 +472,7 @@ static void paint_brush_update(bContext *C,
 			stroke->stroke_distance = ups->pixel_radius;
 		}
 		ups->pixel_radius /= stroke->zoom_2d;
-		ups->draw_anchored = 1;
+		ups->draw_anchored = true;
 	}
 	else if (brush->flag & BRUSH_RAKE) {
 		/* here we are using the initial mouse coordinate because we do not want the rake
@@ -759,6 +759,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 	stroke->done = done;
 	stroke->event_type = event_type; /* for modal, return event */
 	stroke->ups = ups;
+
 	get_imapaint_zoom(C, &zoomx, &zoomy);
 	stroke->zoom_2d = max_ff(zoomx, zoomy);
 

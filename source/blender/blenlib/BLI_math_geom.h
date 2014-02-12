@@ -80,7 +80,8 @@ int is_quad_convex_v2(const float v1[2], const float v2[2], const float v3[2], c
 
 /********************************* Distance **********************************/
 
-float dist_to_line_v2(const float p[2], const float l1[2], const float l2[2]);
+float dist_squared_to_line_v2(const float p[2], const float l1[2], const float l2[2]);
+float         dist_to_line_v2(const float p[2], const float l1[2], const float l2[2]);
 float dist_squared_to_line_segment_v2(const float p[2], const float l1[2], const float l2[2]);
 float         dist_to_line_segment_v2(const float p[2], const float l1[2], const float l2[2]);
 void closest_to_line_segment_v2(float closest[2], const float p[2], const float l1[2], const float l2[2]);
@@ -89,7 +90,8 @@ float dist_squared_to_plane_v3(const float p[3], const float plane[4]);
 float dist_to_plane_v3(const float p[3], const float plane[4]);
 float dist_squared_to_line_segment_v3(const float p[3], const float l1[3], const float l2[3]);
 float         dist_to_line_segment_v3(const float p[3], const float l1[3], const float l2[3]);
-float dist_to_line_v3(const float p[3], const float l1[3], const float l2[3]);
+float dist_squared_to_line_v3(const float p[3], const float l1[3], const float l2[3]);
+float         dist_to_line_v3(const float p[3], const float l1[3], const float l2[3]);
 float closest_to_line_v3(float r[3], const float p[3], const float l1[3], const float l2[3]);
 float closest_to_line_v2(float r[2], const float p[2], const float l1[2], const float l2[2]);
 void closest_to_line_segment_v3(float r[3], const float p[3], const float l1[3], const float l2[3]);
@@ -138,11 +140,11 @@ bool isect_ray_plane_v3(const float p1[3], const float d[3],
 
 bool isect_point_planes_v3(float (*planes)[4], int totplane, const float p[3]);
 bool isect_line_plane_v3(float out[3], const float l1[3], const float l2[3],
-                         const float plane_co[3], const float plane_no[3]);
+                         const float plane_co[3], const float plane_no[3]) ATTR_WARN_UNUSED_RESULT;
 
-void isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
+bool isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
                           const float plane_a_co[3], const float plane_a_no[3],
-                          const float plane_b_co[3], const float plane_b_no[3]);
+                          const float plane_b_co[3], const float plane_b_no[3]) ATTR_WARN_UNUSED_RESULT;
 
 /* line/ray triangle */
 bool isect_line_tri_v3(const float p1[3], const float p2[3],

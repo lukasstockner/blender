@@ -376,7 +376,7 @@ int IMB_ispic(const char *name);
  *
  * \attention Defined in util.c
  */
-int IMB_isanim(const char *name);
+bool IMB_isanim(const char *name);
 
 /**
  *

@@ -107,7 +107,7 @@ class PHYSICS_PT_dynamic_paint(PhysicButtonsPanel, Panel):
 
         elif md.ui_type == 'BRUSH':
             brush = md.brush_settings
-            engine = context.scene.render.engine
+            use_shading_nodes = context.scene.render.use_shading_nodes
 
             if brush is None:
                 layout.operator("dpaint.type_toggle", text="Add Brush").type = 'BRUSH'
@@ -122,11 +122,11 @@ class PHYSICS_PT_dynamic_paint(PhysicButtonsPanel, Panel):
                 col.prop(brush, "paint_wetness", text="Wetness")
 
                 col = split.column()
-                if engine == 'BLENDER_RENDER':
+                if not use_shading_nodes:
                     sub = col.column()
                     sub.active = (brush.paint_source != 'PARTICLE_SYSTEM')
                     sub.prop(brush, "use_material")
-                if brush.use_material and brush.paint_source != 'PARTICLE_SYSTEM' and engine == 'BLENDER_RENDER':
+                if brush.use_material and brush.paint_source != 'PARTICLE_SYSTEM' and not use_shading_nodes:
                     col.prop(brush, "material", text="")
                     col.prop(brush, "paint_alpha", text="Alpha Factor")
                 else:
@@ -323,7 +323,8 @@ class PHYSICS_PT_dp_canvas_initial_color(PhysicButtonsPanel, Panel):
         ob = context.object
 
         layout.prop(surface, "init_color_type", expand=False)
-        layout.separator()
+        if surface.init_color_type != 'NONE':
+            layout.separator()
 
         # dissolve
         if surface.init_color_type == 'COLOR':

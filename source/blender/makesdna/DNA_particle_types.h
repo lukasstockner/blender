@@ -509,7 +509,7 @@ typedef struct ParticleSystem {
 #define PSYS_GLOBAL_HAIR	2
 #define PSYS_HAIR_DYNAMICS	4
 #define	PSYS_KEYED_TIMING	8
-#define PSYS_ENABLED		16	/* deprecated */
+//#define PSYS_ENABLED		16	/* deprecated */
 #define PSYS_HAIR_UPDATED	32  /* signal for updating hair particle mode */
 #define PSYS_DRAWING		64
 #define PSYS_USE_IMAT		128
@@ -564,7 +564,7 @@ typedef struct ParticleSystem {
 
 /* mapto */
 /* init */
-#define PAMAP_INIT		15
+#define PAMAP_INIT		(PAMAP_TIME | PAMAP_LIFE | PAMAP_DENS | PAMAP_SIZE)
 #define PAMAP_TIME		(1<<0)	/* emission time */
 #define PAMAP_LIFE		(1<<1)	/* life time */
 #define PAMAP_DENS		(1<<2)	/* density */
@@ -572,12 +572,12 @@ typedef struct ParticleSystem {
 /* reset */
 #define PAMAP_IVEL		(1<<5)	/* initial velocity */
 /* physics */
-#define PAMAP_PHYSICS	3136
+#define PAMAP_PHYSICS	(PAMAP_FIELD | PAMAP_GRAVITY | PAMAP_DAMP)
 #define PAMAP_FIELD		(1<<6)	/* force fields */
 #define PAMAP_GRAVITY	(1<<10)
 #define PAMAP_DAMP		(1<<11)
 /* children */
-#define PAMAP_CHILD		912
+#define PAMAP_CHILD		(PAMAP_CLUMP | PAMAP_KINK | PAMAP_ROUGH | PAMAP_LENGTH)
 #define PAMAP_CLUMP		(1<<7)
 #define PAMAP_KINK		(1<<8)
 #define PAMAP_ROUGH		(1<<9)

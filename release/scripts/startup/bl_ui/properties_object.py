@@ -172,7 +172,7 @@ class OBJECT_PT_groups(ObjectButtonsPanel, Panel):
         obj_name = obj.name
         for group in bpy.data.groups:
             # XXX this is slow and stupid!, we need 2 checks, one thats fast
-            # and another that we can be sure its not a name collission
+            # and another that we can be sure its not a name collision
             # from linked library data
             group_objects = group.objects
             if obj_name in group.objects and obj in group_objects[:]:
@@ -275,7 +275,9 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
         elif ob.dupli_type == 'FACES':
             row = layout.row()
             row.prop(ob, "use_dupli_faces_scale", text="Scale")
-            row.prop(ob, "dupli_faces_scale", text="Inherit Scale")
+            sub = row.row()
+            sub.active = ob.use_dupli_faces_scale
+            sub.prop(ob, "dupli_faces_scale", text="Inherit Scale")
 
         elif ob.dupli_type == 'GROUP':
             layout.prop(ob, "dupli_group", text="Group")

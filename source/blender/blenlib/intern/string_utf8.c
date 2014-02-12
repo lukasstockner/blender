@@ -115,7 +115,7 @@ int BLI_utf8_invalid_byte(const char *str, int length)
 			 * and then for 1111 1100, xx00 00xx */
 		case 5:
 			if (c == 0xfe || c == 0xff ||
-				(c == 0xfc && (*p & 0x3c) == 0)) goto utf8_error;
+			    (c == 0xfc && (*p & 0x3c) == 0)) goto utf8_error;
 			break;
 		}
 
@@ -136,6 +136,8 @@ utf8_error:
 int BLI_utf8_invalid_strip(char *str, int length)
 {
 	int bad_char, tot = 0;
+
+	BLI_assert(str[length] == '\0');
 
 	while ((bad_char = BLI_utf8_invalid_byte(str, length)) != -1) {
 		str += bad_char;

@@ -525,13 +525,19 @@ static void rna_FieldSettings_shape_update(Main *bmain, Scene *scene, PointerRNA
 
 static void rna_FieldSettings_type_set(PointerRNA *ptr, int value)
 {
-	Object *ob = (Object *)ptr->id.data;
-	ob->pd->forcefield = value;
-	if (ELEM(value, PFIELD_WIND, PFIELD_VORTEX)) {
-		ob->empty_drawtype = OB_SINGLE_ARROW;
-	}
-	else {
-		ob->empty_drawtype = OB_PLAINAXES;
+	PartDeflect *part_deflect = (PartDeflect *) ptr->data;
+
+	part_deflect->forcefield = value;
+
+	if (!particle_id_check(ptr)) {
+		Object *ob = (Object *)ptr->id.data;
+		ob->pd->forcefield = value;
+		if (ELEM(value, PFIELD_WIND, PFIELD_VORTEX)) {
+			ob->empty_drawtype = OB_SINGLE_ARROW;
+		}
+		else {
+			ob->empty_drawtype = OB_PLAINAXES;
+		}
 	}
 }
 
@@ -712,7 +718,7 @@ static void rna_softbody_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Point
 
 
 static EnumPropertyItem *rna_Effector_shape_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                  PropertyRNA *UNUSED(prop), int *UNUSED(free))
+                                                  PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	Object *ob = NULL;
 

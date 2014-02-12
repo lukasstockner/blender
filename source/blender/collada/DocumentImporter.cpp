@@ -266,7 +266,7 @@ void DocumentImporter::finish()
 			Base *base = BKE_scene_base_find(sce, ob);
 			if (base) {
 				BLI_remlink(&sce->base, base);
-				BKE_libblock_free_us(&G.main->object, base->object);
+				BKE_libblock_free_us(G.main, base->object);
 				if (sce->basact == base)
 					sce->basact = NULL;
 				MEM_freeN(base);
@@ -326,12 +326,43 @@ void DocumentImporter::translate_anim_recursive(COLLADAFW::Node *node, COLLADAFW
 	}
 }
 
+/**
+ * If the imported file was made with Blender, return the Blender version used,
+ * otherwise return an empty std::string
+ */
+std::string DocumentImporter::get_import_version(const COLLADAFW::FileInfo *asset)
+{
+	const char AUTORING_TOOL[] = "authoring_tool";
+	const std::string BLENDER("Blender ");
+	const COLLADAFW::FileInfo::ValuePairPointerArray &valuePairs = asset->getValuePairArray();
+	for ( size_t i = 0, count = valuePairs.getCount(); i < count; ++i)
+	{
+		const COLLADAFW::FileInfo::ValuePair* valuePair = valuePairs[i];
+		const COLLADAFW::String& key = valuePair->first;
+		const COLLADAFW::String& value = valuePair->second;
+		if ( key == AUTORING_TOOL )
+		{
+			if (value.compare(0, BLENDER.length(), BLENDER) == 0)
+			{
+				// Was made with Blender, now get version string
+				std::string v            = value.substr(BLENDER.length());
+				std::string::size_type n = v.find(" ");
+				if (n > 0) {
+					return v.substr(0,n);
+				}
+			}
+		}
+	}
+	return "";
+}
+
 /** When this method is called, the writer must write the global document asset.
  * \return The writer should return true, if writing succeeded, false otherwise.*/
 bool DocumentImporter::writeGlobalAsset(const COLLADAFW::FileInfo *asset)
 {
 	unit_converter.read_asset(asset);
-
+	import_from_version = get_import_version(asset);
+	anim_importer.set_import_from_version(import_from_version);
 	return true;
 }
 
@@ -356,7 +387,7 @@ Object *DocumentImporter::create_camera_object(COLLADAFW::InstanceCamera *camera
 	ob->data = cam;
 	old_cam->id.us--;
 	if (old_cam->id.us == 0)
-		BKE_libblock_free(&G.main->camera, old_cam);
+		BKE_libblock_free(G.main, old_cam);
 	return ob;
 }
 
@@ -374,7 +405,7 @@ Object *DocumentImporter::create_lamp_object(COLLADAFW::InstanceLight *lamp, Sce
 	ob->data = la;
 	old_lamp->id.us--;
 	if (old_lamp->id.us == 0)
-		BKE_libblock_free(&G.main->lamp, old_lamp);
+		BKE_libblock_free(G.main, old_lamp);
 	return ob;
 }
 

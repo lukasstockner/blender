@@ -79,6 +79,11 @@ void BLF_draw(int fontid, const char *str, size_t len);
 void BLF_draw_ascii(int fontid, const char *str, size_t len);
 int BLF_draw_mono(int fontid, const char *str, size_t len, int cwidth);
 
+/* Get the string byte offset that fits within a given width */
+size_t BLF_width_to_strlen(int fontid, const char *str, size_t len, float width, float *r_width);
+/* Same as BLF_width_to_strlen but search from the string end */
+size_t BLF_width_to_rstrlen(int fontid, const char *str, size_t len, float width, float *r_width);
+
 /* This function return the bounding box of the string
  * and are not multiplied by the aspect.
  */
@@ -176,6 +181,10 @@ char **BLF_dir_get(int *ndir);
 
 /* Free the data return by BLF_dir_get. */
 void BLF_dir_free(char **dirs, int count);
+
+#ifdef DEBUG
+void BLF_state_print(int fontid);
+#endif
 
 /* font->flags. */
 #define BLF_ROTATION         (1 << 0)

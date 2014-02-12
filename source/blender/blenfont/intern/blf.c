@@ -26,6 +26,10 @@
 
 /** \file blender/blenfont/intern/blf.c
  *  \ingroup blf
+ *
+ * Main BlenFont (BLF) API, public functions for font handling.
+ *
+ * Wraps OpenGL and FreeType.
  */
 
 #include <stdio.h>
@@ -592,6 +596,46 @@ int BLF_draw_mono(int fontid, const char *str, size_t len, int cwidth)
 	return columns;
 }
 
+size_t BLF_width_to_strlen(int fontid, const char *str, size_t len, float width, float *r_width)
+{
+	FontBLF *font = blf_get(fontid);
+
+	if (font) {
+		const float xa = (font->flags & BLF_ASPECT) ? font->aspect[0] : 1.0f;
+		size_t ret;
+		ret = blf_font_width_to_strlen(font, str, len, width / xa, r_width);
+		if (r_width) {
+			*r_width *= xa;
+		}
+		return ret;
+	}
+
+	if (r_width) {
+		*r_width = 0.0f;
+	}
+	return 0;
+}
+
+size_t BLF_width_to_rstrlen(int fontid, const char *str, size_t len, float width, float *r_width)
+{
+	FontBLF *font = blf_get(fontid);
+
+	if (font) {
+		const float xa = (font->flags & BLF_ASPECT) ? font->aspect[0] : 1.0f;
+		size_t ret;
+		ret = blf_font_width_to_rstrlen(font, str, len, width / xa, r_width);
+		if (r_width) {
+			*r_width *= xa;
+		}
+		return ret;
+	}
+
+	if (r_width) {
+		*r_width = 0.0f;
+	}
+	return 0;
+}
+
 void BLF_boundbox(int fontid, const char *str, size_t len, rctf *box)
 {
 	FontBLF *font = blf_get(fontid);
@@ -810,3 +854,24 @@ void BLF_draw_buffer(int fontid, const char *str)
 		blf_font_buffer(font, str);
 	}
 }
+
+#ifdef DEBUG
+void BLF_state_print(int fontid)
+{
+	FontBLF *font = blf_get(fontid);
+	if (font) {
+		printf("fontid %d %p\n", fontid, (void *)font);
+		printf("  name:    '%s'\n", font->name);
+		printf("  size:     %u\n", font->size);
+		printf("  dpi:      %u\n", font->dpi);
+		printf("  pos:      %.6f %.6f %.6f\n", UNPACK3(font->pos));
+		printf("  aspect:   (%d) %.6f %.6f %.6f\n", (font->flags & BLF_ROTATION) != 0, UNPACK3(font->aspect));
+		printf("  angle:    (%d) %.6f\n", (font->flags & BLF_ASPECT) != 0, font->angle);
+		printf("  flag:     %d\n", font->flags);
+	}
+	else {
+		printf("fontid %d (NULL)\n", fontid);
+	}
+	fflush(stdout);
+}
+#endif

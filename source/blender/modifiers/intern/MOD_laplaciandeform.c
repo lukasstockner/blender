@@ -35,6 +35,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_particle.h"
 #include "BKE_deform.h"
@@ -451,6 +452,10 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 	n = sys->total_verts;
 	na = sys->total_anchors;
 
+#ifdef OPENNL_THREADING_HACK
+	modifier_opennl_lock();
+#endif
+
 	if (!sys->is_matrix_computed) {
 		nlNewContext();
 		sys->context = nlGetCurrent();
@@ -529,12 +534,9 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 			sys->has_solution = false;
 		}
 		sys->is_matrix_computed = true;
-	}
-	else {
-		if (!sys->has_solution) {
-			return;
-		}
 
+	}
+	else if (sys->has_solution) {
 		nlBegin(NL_SYSTEM);
 		nlBegin(NL_MATRIX);
 
@@ -588,6 +590,10 @@ static void laplacianDeformPreview(LaplacianSystem *sys, float (*vertexCos)[3])
 			sys->has_solution = false;
 		}
 	}
+
+#ifdef OPENNL_THREADING_HACK
+	modifier_opennl_unlock();
+#endif
 }
 
 static bool isValidVertexGroup(LaplacianDeformModifierData *lmd, Object *ob, DerivedMesh *dm)
@@ -796,12 +802,11 @@ static void copyData(ModifierData *md, ModifierData *target)
 {
 	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)md;
 	LaplacianDeformModifierData *tlmd = (LaplacianDeformModifierData *)target;
-	tlmd->total_verts = lmd->total_verts;
-	tlmd->repeat = lmd->repeat;
-	BLI_strncpy(tlmd->anchor_grp_name, lmd->anchor_grp_name, sizeof(tlmd->anchor_grp_name));
+
+	modifier_copyData_generic(md, target);
+
 	tlmd->vertexco = MEM_dupallocN(lmd->vertexco);
 	tlmd->cache_system = MEM_dupallocN(lmd->cache_system);
-	tlmd->flag = lmd->flag;
 }
 
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))

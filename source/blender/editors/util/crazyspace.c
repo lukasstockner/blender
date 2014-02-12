@@ -323,7 +323,7 @@ int sculpt_get_first_deform_matrices(Scene *scene, Object *ob, float (**deformma
 	int a, numVerts = 0;
 	float (*defmats)[3][3] = NULL, (*deformedVerts)[3] = NULL;
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
-	int has_multires = mmd != NULL && mmd->sculptlvl > 0;
+	const bool has_multires = mmd != NULL && mmd->sculptlvl > 0;
 	int numleft = 0;
 	VirtualModifierData virtualModifierData;
 
@@ -344,7 +344,7 @@ int sculpt_get_first_deform_matrices(Scene *scene, Object *ob, float (**deformma
 		if (mti->type == eModifierTypeType_OnlyDeform) {
 			if (!defmats) {
 				Mesh *me = (Mesh *)ob->data;
-				dm = mesh_create_derived(me, ob, NULL);
+				dm = mesh_create_derived(me, NULL);
 				deformedVerts = BKE_mesh_vertexCos_get(me, &numVerts);
 				defmats = MEM_callocN(sizeof(*defmats) * numVerts, "defmats");
 

@@ -135,11 +135,11 @@ void ED_space_image_release_buffer(SpaceImage *sima, ImBuf *ibuf, void *lock)
 		BKE_image_release_ibuf(sima->image, ibuf, lock);
 }
 
-int ED_space_image_has_buffer(SpaceImage *sima)
+bool ED_space_image_has_buffer(SpaceImage *sima)
 {
 	ImBuf *ibuf;
 	void *lock;
-	int has_buffer;
+	bool has_buffer;
 
 	ibuf = ED_space_image_acquire_buffer(sima, &lock);
 	has_buffer = (ibuf != NULL);
@@ -291,63 +291,63 @@ void ED_image_point_pos__reverse(SpaceImage *sima, ARegion *ar, const float co[2
 	r_co[1] = (co[1] * height * zoomy) + (float)sy;
 }
 
-int ED_space_image_show_render(SpaceImage *sima)
+bool ED_space_image_show_render(SpaceImage *sima)
 {
 	return (sima->image && ELEM(sima->image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE));
 }
 
-int ED_space_image_show_paint(SpaceImage *sima)
+bool ED_space_image_show_paint(SpaceImage *sima)
 {
 	if (ED_space_image_show_render(sima))
-		return 0;
+		return false;
 
 	return (sima->mode == SI_MODE_PAINT);
 }
 
-int ED_space_image_show_texpaint(SpaceImage *sima, Object *ob)
+bool ED_space_image_show_texpaint(SpaceImage *sima, Object *ob)
 {
 	return (ob && ob->type == OB_MESH &&
 	        ob->mode == OB_MODE_TEXTURE_PAINT &&
 	        !(sima->flag & SI_NO_DRAW_TEXPAINT));
 }
 
-int ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
+bool ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 {
 	if (sima && (ED_space_image_show_render(sima) || ED_space_image_show_paint(sima)))
-		return 0;
+		return false;
 
 	if (obedit && obedit->type == OB_MESH) {
 		struct BMEditMesh *em = BKE_editmesh_from_object(obedit);
-		int ret;
+		bool ret;
 
 		ret = EDBM_mtexpoly_check(em);
 
 		return ret;
 	}
 
-	return 0;
+	return false;
 }
 
-int ED_space_image_show_uvshadow(SpaceImage *sima, Object *obedit)
+bool ED_space_image_show_uvshadow(SpaceImage *sima, Object *obedit)
 {
 	if (ED_space_image_show_render(sima))
-		return 0;
+		return false;
 
 	if (ED_space_image_show_paint(sima))
 		if (obedit && obedit->type == OB_MESH) {
 			struct BMEditMesh *em = BKE_editmesh_from_object(obedit);
-			int ret;
+			bool ret;
 
 			ret = EDBM_mtexpoly_check(em);
 
 			return ret && !(sima->flag & SI_NO_DRAW_TEXPAINT);
 		}
 
-	return 0;
+	return false;
 }
 
 /* matches clip function */
-int ED_space_image_check_show_maskedit(Scene *scene, SpaceImage *sima)
+bool ED_space_image_check_show_maskedit(Scene *scene, SpaceImage *sima)
 {
 	/* check editmode - this is reserved for UV editing */
 	Object *ob = OBACT;

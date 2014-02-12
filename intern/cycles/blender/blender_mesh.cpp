@@ -249,8 +249,8 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 		bool smooth = f->use_smooth();
 
 		if(n == 4) {
-			if(len_squared(cross(mesh->verts[vi[1]] - mesh->verts[vi[0]], mesh->verts[vi[2]] - mesh->verts[vi[0]])) == 0.0f ||
-				len_squared(cross(mesh->verts[vi[2]] - mesh->verts[vi[0]], mesh->verts[vi[3]] - mesh->verts[vi[0]])) == 0.0f) {
+			if(is_zero(cross(mesh->verts[vi[1]] - mesh->verts[vi[0]], mesh->verts[vi[2]] - mesh->verts[vi[0]])) ||
+				is_zero(cross(mesh->verts[vi[2]] - mesh->verts[vi[0]], mesh->verts[vi[3]] - mesh->verts[vi[0]]))) {
 				mesh->set_triangle(ti++, vi[0], vi[1], vi[3], shader, smooth);
 				mesh->set_triangle(ti++, vi[2], vi[3], vi[1], shader, smooth);
 			}
@@ -348,9 +348,7 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 		}
 	}
 
-	/* create generated coordinates. todo: we should actually get the orco
-	 * coordinates from modifiers, for now we use texspace loc/size which
-	 * is available in the api. */
+	/* create generated coordinates from undeformed coordinates */
 	if(mesh->need_attribute(scene, ATTR_STD_GENERATED)) {
 		Attribute *attr = mesh->attributes.add(ATTR_STD_GENERATED);
 
@@ -362,6 +360,19 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 
 		for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v)
 			generated[i++] = get_float3(v->undeformed_co())*size - loc;
+	}
+
+	/* for volume objects, create a matrix to transform from object space to
+	 * mesh texture space. this does not work with deformations but that can
+	 * probably only be done well with a volume grid mapping of coordinates */
+	if(mesh->need_attribute(scene, ATTR_STD_GENERATED_TRANSFORM)) {
+		Attribute *attr = mesh->attributes.add(ATTR_STD_GENERATED_TRANSFORM);
+		Transform *tfm = attr->data_transform();
+
+		float3 loc, size;
+		mesh_texture_space(b_mesh, loc, size);
+
+		*tfm = transform_translate(-loc)*transform_scale(size);
 	}
 }
 

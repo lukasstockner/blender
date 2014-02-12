@@ -239,8 +239,7 @@ typedef enum BrushSculptTool {
 	SCULPT_TOOL_CREASE = 16,
 	SCULPT_TOOL_BLOB = 17,
 	SCULPT_TOOL_CLAY_STRIPS = 18,
-	SCULPT_TOOL_MASK = 19,
-	SCULPT_TOOL_GRAVITY = 20
+	SCULPT_TOOL_MASK = 19
 } BrushSculptTool;
 
 /* ImagePaintSettings.tool */

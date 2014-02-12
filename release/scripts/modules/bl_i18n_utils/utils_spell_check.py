@@ -51,6 +51,7 @@ class SpellChecker():
         "latin",
         "merchantability",
         "mplayer",
+        "teleport", "teleporting",
         "vertices",
 
         # Merged words
@@ -62,6 +63,7 @@ class SpellChecker():
         "autoexec",
         "autoexecution",
         "autoname",
+        "autopack",
         "autosave",
         "autoscale",
         "autosmooth",
@@ -180,7 +182,7 @@ class SpellChecker():
         "unprojected",
         "unreacted",
         "unregister",
-        "unselected",
+        "unselected", "unselectable",
         "unsubdivided", "unsubdivide",
         "unshadowed",
         "unspill",
@@ -277,6 +279,7 @@ class SpellChecker():
         "xy", "xz", "yx", "yz", "zx", "zy",
 
         # General computer/science terms
+        "bitangent",
         "boid", "boids",
         "equisolid",
         "euler", "eulers",
@@ -354,6 +357,7 @@ class SpellChecker():
         "raycasting",
         "raytrace", "raytracing", "raytraced",
         "renderfarm",
+        "scanfill",
         "shader", "shaders",
         "specular", "specularity",
         "spillmap",
@@ -436,6 +440,7 @@ class SpellChecker():
         "hosek",
         "kutta",
         "lennard",
+        "mikktspace",
         "minkowski",
         "minnaert",
         "musgrave",

@@ -337,7 +337,7 @@ void ED_image_undo_restore(bContext *C, ListBase *lb)
 
 			BKE_image_release_ibuf(ima, ibuf, NULL);
 
-			ibuf = BLI_findstring(&ima->ibufs, tile->ibufname, offsetof(ImBuf, name));
+			ibuf = BKE_image_get_ibuf_with_name(ima, tile->ibufname);
 		}
 
 		if (!ima || !ibuf || !(ibuf->rect || ibuf->rect_float)) {
@@ -856,7 +856,7 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 	MEM_freeN(pop);
 }
 
-static int paint_stroke_test_start(bContext *C, wmOperator *op, const float mouse[2])
+static bool paint_stroke_test_start(bContext *C, wmOperator *op, const float mouse[2])
 {
 	PaintOperation *pop;
 

@@ -227,7 +227,7 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 
 	/* in the case of only one editable thing, set pset->edittype accordingly */
-	if (pidlist.first && pidlist.first == pidlist.last) {
+	if (BLI_listbase_is_single(&pidlist)) {
 		pid = pidlist.first;
 		switch (pid->type) {
 			case PTCACHE_TYPE_PARTICLES:
@@ -415,7 +415,7 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 
 /*************************** selection utilities *******************************/
 
-static int key_test_depth(PEData *data, const float co[3], const int screen_co[2])
+static bool key_test_depth(PEData *data, const float co[3], const int screen_co[2])
 {
 	View3D *v3d= data->vc.v3d;
 	ViewDepths *vd = data->vc.rv3d->depths;
@@ -453,7 +453,7 @@ static int key_test_depth(PEData *data, const float co[3], const int screen_co[2
 		return 1;
 }
 
-static int key_inside_circle(PEData *data, float rad, const float co[3], float *distance)
+static bool key_inside_circle(PEData *data, float rad, const float co[3], float *distance)
 {
 	float dx, dy, dist;
 	int screen_co[2];
@@ -480,7 +480,7 @@ static int key_inside_circle(PEData *data, float rad, const float co[3], float *
 	return 0;
 }
 
-static int key_inside_rect(PEData *data, const float co[3])
+static bool key_inside_rect(PEData *data, const float co[3])
 {
 	int screen_co[2];
 
@@ -497,7 +497,7 @@ static int key_inside_rect(PEData *data, const float co[3])
 	return 0;
 }
 
-static int key_inside_test(PEData *data, const float co[3])
+static bool key_inside_test(PEData *data, const float co[3])
 {
 	if (data->mval)
 		return key_inside_circle(data, data->rad, co, NULL);
@@ -505,7 +505,7 @@ static int key_inside_test(PEData *data, const float co[3])
 		return key_inside_rect(data, co);
 }
 
-static int point_is_selected(PTCacheEditPoint *point)
+static bool point_is_selected(PTCacheEditPoint *point)
 {
 	KEY_K;
 
@@ -542,17 +542,19 @@ static void for_mouse_hit_keys(PEData *data, ForKeyFunc func, int nearest)
 
 	LOOP_VISIBLE_POINTS {
 		if (pset->selectmode == SCE_SELECT_END) {
-			/* only do end keys */
-			key= point->keys + point->totkey-1;
+			if (point->totkey) {
+				/* only do end keys */
+				key= point->keys + point->totkey-1;
 
-			if (nearest) {
-				if (key_inside_circle(data, dist, KEY_WCO, &dist)) {
-					nearest_point= p;
-					nearest_key= point->totkey-1;
+				if (nearest) {
+					if (key_inside_circle(data, dist, KEY_WCO, &dist)) {
+						nearest_point= p;
+						nearest_key= point->totkey-1;
+					}
 				}
+				else if (key_inside_test(data, KEY_WCO))
+					func(data, p, point->totkey-1);
 			}
-			else if (key_inside_test(data, KEY_WCO))
-				func(data, p, point->totkey-1);
 		}
 		else {
 			/* do all keys */
@@ -586,12 +588,14 @@ static void foreach_mouse_hit_point(PEData *data, ForPointFunc func, int selecte
 
 	LOOP_VISIBLE_POINTS {
 		if (pset->selectmode==SCE_SELECT_END) {
-			/* only do end keys */
-			key= point->keys + point->totkey - 1;
+			if (point->totkey) {
+				/* only do end keys */
+				key= point->keys + point->totkey - 1;
 
-			if (selected==0 || key->flag & PEK_SELECT)
-				if (key_inside_circle(data, data->rad, KEY_WCO, &data->dist))
-					func(data, p);
+				if (selected==0 || key->flag & PEK_SELECT)
+					if (key_inside_circle(data, data->rad, KEY_WCO, &data->dist))
+						func(data, p);
+			}
 		}
 		else {
 			/* do all keys */
@@ -625,17 +629,19 @@ static void foreach_mouse_hit_key(PEData *data, ForKeyMatFunc func, int selected
 
 	LOOP_VISIBLE_POINTS {
 		if (pset->selectmode==SCE_SELECT_END) {
-			/* only do end keys */
-			key= point->keys + point->totkey-1;
+			if (point->totkey) {
+				/* only do end keys */
+				key= point->keys + point->totkey-1;
 
-			if (selected==0 || key->flag & PEK_SELECT) {
-				if (key_inside_circle(data, data->rad, KEY_WCO, &data->dist)) {
-					if (edit->psys && !(edit->psys->flag & PSYS_GLOBAL_HAIR)) {
-						psys_mat_hair_to_global(data->ob, psmd->dm, psys->part->from, psys->particles + p, mat);
-						invert_m4_m4(imat, mat);
+				if (selected==0 || key->flag & PEK_SELECT) {
+					if (key_inside_circle(data, data->rad, KEY_WCO, &data->dist)) {
+						if (edit->psys && !(edit->psys->flag & PSYS_GLOBAL_HAIR)) {
+							psys_mat_hair_to_global(data->ob, psmd->dm, psys->part->from, psys->particles + p, mat);
+							invert_m4_m4(imat, mat);
+						}
+
+						func(data, mat, imat, p, point->totkey-1, key);
 					}
-
-					func(data, mat, imat, p, point->totkey-1, key);
 				}
 			}
 		}
@@ -702,9 +708,11 @@ static int count_selected_keys(Scene *scene, PTCacheEdit *edit)
 			}
 		}
 		else if (pset->selectmode==SCE_SELECT_END) {
-			key = point->keys + point->totkey - 1;
-			if (key->flag & PEK_SELECT)
-				sel++;
+			if (point->totkey) {
+				key = point->keys + point->totkey - 1;
+				if (key->flag & PEK_SELECT)
+					sel++;
+			}
 		}
 	}
 
@@ -1518,7 +1526,13 @@ void PARTICLE_OT_select_roots(wmOperatorType *ot)
 static void select_tip(PEData *data, int point_index)
 {
 	PTCacheEditPoint *point = data->edit->points + point_index;
-	PTCacheEditKey *key = &point->keys[point->totkey - 1];
+	PTCacheEditKey *key;
+
+	if (point->totkey == 0) {
+		return;
+	}
+
+	key = &point->keys[point->totkey - 1];
 	
 	if (point->flag & PEP_HIDE)
 		return;
@@ -1739,24 +1753,26 @@ int PE_lasso_select(bContext *C, const int mcords[][2], const short moves, bool 
 			}
 		}
 		else if (pset->selectmode==SCE_SELECT_END) {
-			key= point->keys + point->totkey - 1;
+			if (point->totkey) {
+				key= point->keys + point->totkey - 1;
 
-			copy_v3_v3(co, key->co);
-			mul_m4_v3(mat, co);
-			if ((ED_view3d_project_int_global(ar, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_OK) &&
-			    BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], IS_CLIPPED) &&
-			    key_test_depth(&data, co, screen_co))
-			{
-				if (select) {
-					if (!(key->flag & PEK_SELECT)) {
-						key->flag |= PEK_SELECT;
-						point->flag |= PEP_EDIT_RECALC;
+				copy_v3_v3(co, key->co);
+				mul_m4_v3(mat, co);
+				if ((ED_view3d_project_int_global(ar, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_OK) &&
+				    BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], IS_CLIPPED) &&
+				    key_test_depth(&data, co, screen_co))
+				{
+					if (select) {
+						if (!(key->flag & PEK_SELECT)) {
+							key->flag |= PEK_SELECT;
+							point->flag |= PEP_EDIT_RECALC;
+						}
 					}
-				}
-				else {
-					if (key->flag & PEK_SELECT) {
-						key->flag &= ~PEK_SELECT;
-						point->flag |= PEP_EDIT_RECALC;
+					else {
+						if (key->flag & PEK_SELECT) {
+							key->flag &= ~PEK_SELECT;
+							point->flag |= PEP_EDIT_RECALC;
+						}
 					}
 				}
 			}
@@ -3442,7 +3458,7 @@ static int brush_add(PEData *data, short number)
 			}
 			
 			pa->size= 1.0f;
-			initialize_particle(&sim, pa, i);
+			initialize_particle(pa);
 			reset_particle(&sim, pa, 0.0, 1.0);
 			point->flag |= PEP_EDIT_RECALC;
 			if (pe_x_mirror(ob))
@@ -4250,7 +4266,7 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 	if (cache && cache->flag & PTCACHE_DISK_CACHE)
 		return;
 
-	if (psys == NULL && (cache && cache->mem_cache.first == NULL))
+	if (psys == NULL && (cache && BLI_listbase_is_empty(&cache->mem_cache)))
 		return;
 
 	edit = (psys) ? psys->edit : cache->edit;
@@ -4269,7 +4285,7 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 			psys->free_edit= PE_free_ptcache_edit;
 
 			edit->pathcache = NULL;
-			edit->pathcachebufs.first = edit->pathcachebufs.last = NULL;
+			BLI_listbase_clear(&edit->pathcachebufs);
 
 			pa = psys->particles;
 			LOOP_POINTS {

@@ -110,7 +110,7 @@ ARegion *image_has_buttons_region(ScrArea *sa)
 	
 	BLI_insertlinkafter(&sa->regionbase, ar, arnew);
 	arnew->regiontype = RGN_TYPE_UI;
-	arnew->alignment = RGN_ALIGN_LEFT;
+	arnew->alignment = RGN_ALIGN_RIGHT;
 	
 	arnew->flag = RGN_FLAG_HIDDEN;
 	
@@ -134,7 +134,7 @@ ARegion *image_has_scope_region(ScrArea *sa)
 	
 	BLI_insertlinkafter(&sa->regionbase, ar, arnew);
 	arnew->regiontype = RGN_TYPE_PREVIEW;
-	arnew->alignment = RGN_ALIGN_RIGHT;
+	arnew->alignment = RGN_ALIGN_LEFT;
 	
 	arnew->flag = RGN_FLAG_HIDDEN;
 
@@ -175,7 +175,7 @@ static SpaceLink *image_new(const bContext *UNUSED(C))
 	
 	BLI_addtail(&simage->regionbase, ar);
 	ar->regiontype = RGN_TYPE_UI;
-	ar->alignment = RGN_ALIGN_LEFT;
+	ar->alignment = RGN_ALIGN_RIGHT;
 	ar->flag = RGN_FLAG_HIDDEN;
 	
 	/* scopes */
@@ -183,7 +183,7 @@ static SpaceLink *image_new(const bContext *UNUSED(C))
 	
 	BLI_addtail(&simage->regionbase, ar);
 	ar->regiontype = RGN_TYPE_PREVIEW;
-	ar->alignment = RGN_ALIGN_RIGHT;
+	ar->alignment = RGN_ALIGN_LEFT;
 	ar->flag = RGN_FLAG_HIDDEN;
 
 	/* main area */
@@ -420,8 +420,9 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 	}
 }
 
-static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
+static void image_listener(bScreen *sc, ScrArea *sa, wmNotifier *wmn)
 {
+	Scene *scene = sc->scene;
 	SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 	
 	/* context changes */
@@ -510,13 +511,15 @@ static void image_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 		}
 		case NC_OBJECT:
 		{
-			Object *ob = (Object *)wmn->reference;
+			Object *ob = OBACT;
 			switch (wmn->data) {
 				case ND_TRANSFORM:
 				case ND_MODIFIER:
-					if (ob && (ob->mode & OB_MODE_EDIT) && sima->lock && (sima->flag & SI_DRAWSHADOW)) {
-						ED_area_tag_refresh(sa);
-						ED_area_tag_redraw(sa);
+					if (ob == (Object *)wmn->reference && (ob->mode & OB_MODE_EDIT)) {
+						if (sima->lock && (sima->flag & SI_DRAWSHADOW)) {
+							ED_area_tag_refresh(sa);
+							ED_area_tag_redraw(sa);
+						}
 					}
 					break;
 			}

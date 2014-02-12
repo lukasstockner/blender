@@ -219,17 +219,41 @@ float volume_tetrahedron_v3(const float v1[3], const float v2[3], const float v3
 
 /* distance p to line v1-v2
  * using Hesse formula, NO LINE PIECE! */
+float dist_squared_to_line_v2(const float p[2], const float l1[2], const float l2[2])
+{
+	float a[2], deler;
+
+	a[0] = l1[1] - l2[1];
+	a[1] = l2[0] - l1[0];
+
+	deler = len_squared_v2(a);
+
+	if (deler != 0.0f) {
+		float f = ((p[0] - l1[0]) * a[0] +
+		           (p[1] - l1[1]) * a[1]);
+		return (f * f) / deler;
+	}
+	else {
+		return 0.0f;
+	}
+}
 float dist_to_line_v2(const float p[2], const float l1[2], const float l2[2])
 {
 	float a[2], deler;
 
 	a[0] = l1[1] - l2[1];
 	a[1] = l2[0] - l1[0];
-	deler = (float)sqrt(a[0] * a[0] + a[1] * a[1]);
-	if (deler == 0.0f) return 0;
 
-	return fabsf((p[0] - l1[0]) * a[0] + (p[1] - l1[1]) * a[1]) / deler;
+	deler = len_squared_v2(a);
 
+	if (deler != 0.0f) {
+		float f = ((p[0] - l1[0]) * a[0] +
+		           (p[1] - l1[1]) * a[1]);
+		return fabsf(f) / sqrtf(deler);
+	}
+	else {
+		return 0.0f;
+	}
 }
 
 /* distance p to line-piece v1-v2 */
@@ -311,17 +335,17 @@ void closest_to_line_segment_v3(float close_r[3], const float v1[3], const float
  */
 void closest_to_plane_v3(float close_r[3], const float plane[4], const float pt[3])
 {
-	const float length = len_squared_v3(plane);
+	const float len_sq = len_squared_v3(plane);
 	const float side = plane_point_side_v3(plane, pt);
-	madd_v3_v3v3fl(close_r, pt, plane, -side / length);
+	madd_v3_v3v3fl(close_r, pt, plane, -side / len_sq);
 }
 
 float dist_squared_to_plane_v3(const float pt[3], const float plane[4])
 {
-	const float length = len_squared_v3(plane);
+	const float len_sq = len_squared_v3(plane);
 	const float side = plane_point_side_v3(plane, pt);
-	const float fac = side / length;
-	return copysignf(length * (fac * fac), side);
+	const float fac = side / len_sq;
+	return copysignf(len_sq * (fac * fac), side);
 }
 
 /**
@@ -329,10 +353,10 @@ float dist_squared_to_plane_v3(const float pt[3], const float plane[4])
  */
 float dist_to_plane_v3(const float pt[3], const float plane[4])
 {
-	const float length = len_squared_v3(plane);
+	const float len_sq = len_squared_v3(plane);
 	const float side = plane_point_side_v3(plane, pt);
-	const float fac = side / length;
-	return sqrtf(length) * fac;
+	const float fac = side / len_sq;
+	return sqrtf(len_sq) * fac;
 }
 
 /* distance v1 to line-piece l1-l2 in 3D */
@@ -350,13 +374,17 @@ float dist_to_line_segment_v3(const float p[3], const float l1[3], const float l
 	return sqrtf(dist_squared_to_line_segment_v3(p, l1, l2));
 }
 
-float dist_to_line_v3(const float v1[3], const float l1[3], const float l2[3])
+float dist_squared_to_line_v3(const float v1[3], const float l1[3], const float l2[3])
 {
 	float closest[3];
 
 	closest_to_line_v3(closest, v1, l1, l2);
 
-	return len_v3v3(closest, v1);
+	return len_squared_v3v3(closest, v1);
+}
+float dist_to_line_v3(const float v1[3], const float l1[3], const float l2[3])
+{
+	return sqrtf(dist_squared_to_line_v3(v1, l1, l2));
 }
 
 /* Adapted from "Real-Time Collision Detection" by Christer Ericson,
@@ -707,6 +735,7 @@ int isect_line_sphere_v2(const float l1[2], const float l2[2],
 }
 
 /* point in polygon (keep float and int versions in sync) */
+#if 0
 bool isect_point_poly_v2(const float pt[2], const float verts[][2], const unsigned int nr,
                          const bool use_holes)
 {
@@ -721,24 +750,16 @@ bool isect_point_poly_v2(const float pt[2], const float verts[][2], const unsign
 	/* first vector */
 	fp1[0] = (float)(p1[0] - pt[0]);
 	fp1[1] = (float)(p1[1] - pt[1]);
-	normalize_v2(fp1);
 
 	for (i = 0; i < nr; i++) {
-		float dot, ang, cross;
 		p2 = verts[i];
 
 		/* second vector */
 		fp2[0] = (float)(p2[0] - pt[0]);
 		fp2[1] = (float)(p2[1] - pt[1]);
-		normalize_v2(fp2);
 
 		/* dot and angle and cross */
-		dot = dot_v2v2(fp1, fp2);
-		ang = fabsf(saacos(dot));
-		cross = (float)((p1[1] - p2[1]) * (p1[0] - pt[0]) + (p2[0] - p1[0]) * (p1[1] - pt[1]));
-
-		if (cross < 0.0f) angletot -= ang;
-		else              angletot += ang;
+		angletot += angle_signed_v2v2(fp1, fp2);
 
 		/* circulate */
 		copy_v2_v2(fp1, fp2);
@@ -769,24 +790,16 @@ bool isect_point_poly_v2_int(const int pt[2], const int verts[][2], const unsign
 	/* first vector */
 	fp1[0] = (float)(p1[0] - pt[0]);
 	fp1[1] = (float)(p1[1] - pt[1]);
-	normalize_v2(fp1);
 
 	for (i = 0; i < nr; i++) {
-		float dot, ang, cross;
 		p2 = verts[i];
 
 		/* second vector */
 		fp2[0] = (float)(p2[0] - pt[0]);
 		fp2[1] = (float)(p2[1] - pt[1]);
-		normalize_v2(fp2);
 
 		/* dot and angle and cross */
-		dot = dot_v2v2(fp1, fp2);
-		ang = fabsf(saacos(dot));
-		cross = (float)((p1[1] - p2[1]) * (p1[0] - pt[0]) + (p2[0] - p1[0]) * (p1[1] - pt[1]));
-
-		if (cross < 0.0f) angletot -= ang;
-		else              angletot += ang;
+		angletot += angle_signed_v2v2(fp1, fp2);
 
 		/* circulate */
 		copy_v2_v2(fp1, fp2);
@@ -803,6 +816,39 @@ bool isect_point_poly_v2_int(const int pt[2], const int verts[][2], const unsign
 		return (angletot > 4.0f);
 	}
 }
+
+#else
+
+bool isect_point_poly_v2(const float pt[2], const float verts[][2], const unsigned int nr,
+                         const bool UNUSED(use_holes))
+{
+	unsigned int i, j;
+	bool isect = false;
+	for (i = 0, j = nr - 1; i < nr; j = i++) {
+		if (((verts[i][1] > pt[1]) != (verts[j][1] > pt[1])) &&
+		    (pt[0] < (verts[j][0] - verts[i][0]) * (pt[1] - verts[i][1]) / (verts[j][1] - verts[i][1]) + verts[i][0]))
+		{
+			isect = !isect;
+		}
+	}
+	return isect;
+}
+bool isect_point_poly_v2_int(const int pt[2], const int verts[][2], const unsigned int nr,
+                             const bool UNUSED(use_holes))
+{
+	unsigned int i, j;
+	bool isect = false;
+	for (i = 0, j = nr - 1; i < nr; j = i++) {
+		if (((verts[i][1] > pt[1]) != (verts[j][1] > pt[1])) &&
+		    (pt[0] < (verts[j][0] - verts[i][0]) * (pt[1] - verts[i][1]) / (verts[j][1] - verts[i][1]) + verts[i][0]))
+		{
+			isect = !isect;
+		}
+	}
+	return isect;
+}
+
+#endif
 
 /* point in tri */
 
@@ -1173,7 +1219,7 @@ bool isect_line_plane_v3(float out[3],
  *
  * \note return normal isn't unit length
  */
-void isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
+bool isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
                           const float plane_a_co[3], const float plane_a_no[3],
                           const float plane_b_co[3], const float plane_b_no[3])
 {
@@ -1181,7 +1227,7 @@ void isect_plane_plane_v3(float r_isect_co[3], float r_isect_no[3],
 	cross_v3_v3v3(r_isect_no, plane_a_no, plane_b_no); /* direction is simply the cross product */
 	cross_v3_v3v3(plane_a_co_other, plane_a_no, r_isect_no);
 	add_v3_v3(plane_a_co_other, plane_a_co);
-	isect_line_plane_v3(r_isect_co, plane_a_co, plane_a_co_other, plane_b_co, plane_b_no);
+	return isect_line_plane_v3(r_isect_co, plane_a_co, plane_a_co_other, plane_b_co, plane_b_no);
 }
 
 

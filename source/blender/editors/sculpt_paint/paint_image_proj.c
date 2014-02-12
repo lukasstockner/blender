@@ -248,14 +248,14 @@ typedef struct ProjPaintState {
 	int winx, winy;             /* from the carea or from the projection render */
 
 	/* options for projection painting */
-	int do_layer_clone;
-	int do_layer_stencil;
-	int do_layer_stencil_inv;
+	bool  do_layer_clone;
+	bool  do_layer_stencil;
+	bool  do_layer_stencil_inv;
 
-	short do_occlude;               /* Use raytraced occlusion? - ortherwise will paint right through to the back*/
-	short do_backfacecull;          /* ignore faces with normals pointing away, skips a lot of raycasts if your normals are correctly flipped */
-	short do_mask_normal;           /* mask out pixels based on their normals */
-	short do_new_shading_nodes;     /* cache BKE_scene_use_new_shading_nodes value */
+	bool  do_occlude;               /* Use raytraced occlusion? - ortherwise will paint right through to the back*/
+	bool  do_backfacecull;          /* ignore faces with normals pointing away, skips a lot of raycasts if your normals are correctly flipped */
+	bool  do_mask_normal;           /* mask out pixels based on their normals */
+	bool  do_new_shading_nodes;     /* cache BKE_scene_use_new_shading_nodes value */
 	float normal_angle;             /* what angle to mask at*/
 	float normal_angle_inner;
 	float normal_angle_range;       /* difference between normal_angle and normal_angle_inner, for easy access */
@@ -575,7 +575,7 @@ static bool project_paint_PickColor(const ProjPaintState *ps, const float pt[2],
 	}
 
 	ima = project_paint_face_image(ps, face_index);
-	ibuf = ima->ibufs.first; /* we must have got the imbuf before getting here */
+	ibuf = BKE_image_get_first_ibuf(ima); /* we must have got the imbuf before getting here */
 	if (!ibuf) return 0;
 
 	if (interp) {
@@ -632,6 +632,7 @@ static bool project_paint_PickColor(const ProjPaintState *ps, const float pt[2],
 			}
 		}
 	}
+	BKE_image_release_ibuf(ima, ibuf, NULL);
 	return 1;
 }
 
@@ -1953,7 +1954,7 @@ static int float_z_sort(const void *p1, const void *p2)
 }
 
 static void project_bucket_clip_face(
-        const int is_ortho,
+        const bool is_ortho,
         rctf *bucket_bounds,
         float *v1coSS, float *v2coSS, float *v3coSS,
         float *uv1co, float *uv2co, float *uv3co,
@@ -2325,10 +2326,10 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 
 	float uv_clip[8][2];
 	int uv_clip_tot;
-	const short is_ortho = ps->is_ortho;
-	const short is_clone_other = ((ps->brush->imagepaint_tool == PAINT_TOOL_CLONE) && ps->dm_mtface_clone);
-	const short do_backfacecull = ps->do_backfacecull;
-	const short do_clip = ps->rv3d ? ps->rv3d->rflag & RV3D_CLIPPING : 0;
+	const bool is_ortho = ps->is_ortho;
+	const bool is_clone_other = ((ps->brush->imagepaint_tool == PAINT_TOOL_CLONE) && ps->dm_mtface_clone);
+	const bool do_backfacecull = ps->do_backfacecull;
+	const bool do_clip = ps->rv3d ? ps->rv3d->rflag & RV3D_CLIPPING : 0;
 
 	vCo[0] = ps->dm_mvert[mf->v1].co;
 	vCo[1] = ps->dm_mvert[mf->v2].co;
@@ -3909,7 +3910,7 @@ static void *do_projectpaint_thread(void *ph_v)
 	ProjPaintImage *last_projIma = NULL;
 	ImagePaintPartialRedraw *last_partial_redraw_cell;
 
-	float dist_nosqrt, dist;
+	float dist_sq, dist;
 
 	float falloff;
 	int bucket_index;
@@ -4079,11 +4080,11 @@ static void *do_projectpaint_thread(void *ph_v)
 
 				projPixel = (ProjPixel *)node->link;
 
-				dist_nosqrt = len_squared_v2v2(projPixel->projCoSS, pos);
+				dist_sq = len_squared_v2v2(projPixel->projCoSS, pos);
 
 				/*if (dist < radius) {*/ /* correct but uses a sqrtf */
-				if (dist_nosqrt <= brush_radius_sq) {
-					dist = sqrtf(dist_nosqrt);
+				if (dist_sq <= brush_radius_sq) {
+					dist = sqrtf(dist_sq);
 
 					falloff = BKE_brush_curve_strength_clamp(ps->brush, dist, brush_radius);
 
@@ -4435,7 +4436,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	ps->do_new_shading_nodes = BKE_scene_use_new_shading_nodes(scene); /* only cache the value */
 
 	if (ps->tool == PAINT_TOOL_CLONE)
-		ps->do_layer_clone = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_CLONE);
+		ps->do_layer_clone = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_CLONE) ? 1 : 0;
 
 	ps->do_layer_stencil = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) ? 1 : 0;
 	ps->do_layer_stencil_inv = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV) ? 1 : 0;
@@ -4739,7 +4740,7 @@ void PAINT_OT_image_from_view(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER;
 
-	RNA_def_string_file_name(ot->srna, "filepath", "", FILE_MAX, "File Path", "Name of the file");
+	RNA_def_string_file_name(ot->srna, "filepath", NULL, FILE_MAX, "File Path", "Name of the file");
 }
 
 /* Add layer operator */

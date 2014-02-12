@@ -1474,7 +1474,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			if (wmd->cmap_curve)
 				write_curvemapping(wd, wmd->cmap_curve);
 		}
-		else if(md->type==eModifierType_LaplacianDeform) {
+		else if (md->type==eModifierType_LaplacianDeform) {
 			LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData*) md;
 
 			writedata(wd, DATA, sizeof(float)*lmd->total_verts * 3, lmd->vertexco);
@@ -1535,8 +1535,15 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 				writestruct(wd, DATA, "RigidBodyCon", 1, ob->rigidbody_constraint);
 			}
 
+			if (ob->type == OB_EMPTY && ob->empty_drawtype == OB_EMPTY_IMAGE) {
+				writestruct(wd, DATA, "ImageUser", 1, ob->iuser);
+			}
+
 			write_particlesystems(wd, &ob->particlesystem);
 			write_modifiers(wd, &ob->modifiers);
+
+			writelist(wd, DATA, "LinkData", &ob->pc_ids);
+			writelist(wd, DATA, "LodLevel", &ob->lodlevels);
 		}
 		ob= ob->id.next;
 	}
@@ -1662,12 +1669,8 @@ static void write_curves(WriteData *wd, ListBase *idbase)
 			if (cu->adt) write_animdata(wd, cu->adt);
 			
 			if (cu->vfont) {
-				/* TODO, sort out 'cu->len', in editmode its character, object mode its bytes */
-				size_t len_bytes;
-				size_t len_chars = BLI_strlen_utf8_ex(cu->str, &len_bytes);
-
-				writedata(wd, DATA, len_bytes + 1, cu->str);
-				writestruct(wd, DATA, "CharInfo", len_chars + 1, cu->strinfo);
+				writedata(wd, DATA, cu->len + 1, cu->str);
+				writestruct(wd, DATA, "CharInfo", cu->len_wchar + 1, cu->strinfo);
 				writestruct(wd, DATA, "TextBox", cu->totbox, cu->tb);
 			}
 			else {
@@ -2488,6 +2491,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 			SpaceLink *sl;
 			Panel *pa;
 			uiList *ui_list;
+			PanelCategoryStack *pc_act;
 			ARegion *ar;
 			
 			writestruct(wd, DATA, "ScrArea", 1, sa);
@@ -2498,6 +2502,9 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 				for (pa= ar->panels.first; pa; pa= pa->next)
 					writestruct(wd, DATA, "Panel", 1, pa);
 				
+				for (pc_act = ar->panels_category_active.first; pc_act; pc_act = pc_act->next)
+					writestruct(wd, DATA, "PanelCategoryStack", 1, pc_act);
+
 				for (ui_list = ar->ui_lists.first; ui_list; ui_list = ui_list->next)
 					write_uilist(wd, ui_list);
 			}
@@ -3286,6 +3293,7 @@ static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 	/* prevent mem checkers from complaining */
 	fg.pads= 0;
 	memset(fg.filename, 0, sizeof(fg.filename));
+	memset(fg.build_hash, 0, sizeof(fg.build_hash));
 
 	current_screen_compat(mainvar, &screen);
 
@@ -3430,7 +3438,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 
 /* do reverse file history: .blend1 -> .blend2, .blend -> .blend1 */
 /* return: success(0), failure(1) */
-static int do_history(const char *name, ReportList *reports)
+static bool do_history(const char *name, ReportList *reports)
 {
 	char tempname1[FILE_MAX], tempname2[FILE_MAX];
 	int hisnr= U.versions;
@@ -3536,7 +3544,7 @@ int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportL
 	/* file save to temporary file was successful */
 	/* now do reverse file history (move .blend1 -> .blend2, .blend -> .blend1) */
 	if (write_flags & G_FILE_HISTORY) {
-		int err_hist = do_history(filepath, reports);
+		const bool err_hist = do_history(filepath, reports);
 		if (err_hist) {
 			BKE_report(reports, RPT_ERROR, "Version backup failed (file saved with @)");
 			return 0;

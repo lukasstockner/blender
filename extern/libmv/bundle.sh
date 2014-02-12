@@ -7,22 +7,14 @@ else
   exit 1
 fi
 
-#BRANCH="keir"
-#BRANCH="Matthias-Fauconneau"
-BRANCH="Nazg-Gul"
+BRANCH="devel"
 
-repo="git://github.com/${BRANCH}/libmv.git"
+repo="git://git.blender.org/libmv.git"
 tmp=`mktemp -d`
 
-git clone $repo $tmp/libmv
+git clone -b $BRANCH $repo $tmp/libmv
 
-#git --git-dir $tmp/libmv/.git --work-tree $tmp/libmv log --since="1 month ago" > ChangeLog
 git --git-dir $tmp/libmv/.git --work-tree $tmp/libmv log -n 50 > ChangeLog
-
-for p in `cat ./patches/series`; do
-  echo "Applying patch $p..."
-  cat ./patches/$p | patch -d $tmp/libmv -p1
-done
 
 find libmv -type f -not -iwholename '*.svn*' -exec rm -rf {} \;
 find third_party -type f -not -iwholename '*.svn*' -not -iwholename '*third_party/ceres*' \
@@ -136,6 +128,7 @@ if(WITH_LIBMV)
 		-DWITH_LIBMV
 		-DWITH_LIBMV_GUARDED_ALLOC
 		-DGOOGLE_GLOG_DLL_DECL=
+		-DLIBMV_NO_FAST_DETECTOR=
 	)
 
 	list(APPEND INC
@@ -239,6 +232,7 @@ if env['WITH_BF_LIBMV']:
     defs.append('GOOGLE_GLOG_DLL_DECL=')
     defs.append('WITH_LIBMV')
     defs.append('WITH_LIBMV_GUARDED_ALLOC')
+    defs.append('LIBMV_NO_FAST_DETECTOR')
 
     src = env.Glob("libmv-capi.cc")
 $src

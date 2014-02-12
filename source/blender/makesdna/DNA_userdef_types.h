@@ -154,6 +154,7 @@ typedef struct uiGradientColors {
 	char high_gradient[4];
 	int show_grad;
 	int pad2;
+
 } uiGradientColors;
 
 typedef struct ThemeUI {
@@ -196,6 +197,12 @@ typedef struct ThemeSpace {
 	char header_title[4];	/* unused */
 	char header_text[4];
 	char header_text_hi[4];
+
+	/* region tabs */
+	char tab_active[4];
+	char tab_inactive[4];
+	char tab_back[4];
+	char tab_outline[4];
 
 	/* button/tool regions */
 	char button[4];			/* region background */
@@ -249,6 +256,9 @@ typedef struct ThemeSpace {
 	char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4], handle_sel_auto_clamped[4];
 	
 	char ds_channel[4], ds_subchannel[4]; /* dopesheet */
+	char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4]; /* keytypes */
+	char keytype_keyframe_select[4], keytype_extreme_select[4], keytype_breakdown_select[4], keytype_jitter_select[4]; /* keytypes */
+	char keyborder[4], keyborder_select[4];
 	
 	char console_output[4], console_input[4], console_info[4], console_error[4];
 	char console_cursor[4], console_select[4], pad1[4];
@@ -257,10 +267,15 @@ typedef struct ThemeSpace {
 	char noodle_curving;
 
 	/* syntax for textwindow and nodes */
-	char syntaxl[4], syntaxs[4];
-	char syntaxb[4], syntaxn[4];
-	char syntaxv[4], syntaxc[4];
-	char syntaxd[4], syntaxr[4];
+	char syntaxl[4], syntaxs[4]; // in nodespace used for backdrop matte 
+	char syntaxb[4], syntaxn[4]; // in nodespace used for color input
+	char syntaxv[4], syntaxc[4]; // in nodespace used for converter group
+	char syntaxd[4], syntaxr[4]; // in nodespace used for distort 
+
+	char nodeclass_output[4], nodeclass_filter[4];
+	char nodeclass_vector[4], nodeclass_texture[4];
+	char nodeclass_shader[4], nodeclass_script[4];
+	char nodeclass_pattern[4], nodeclass_layout[4];
 	
 	char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];		/* for sequence editor */
 	char effect[4], transition[4], meta[4];
@@ -304,6 +319,13 @@ typedef struct ThemeSpace {
 	char nla_transition[4], nla_transition_sel[4]; /* NLA "Transition" strips */
 	char nla_meta[4], nla_meta_sel[4];             /* NLA "Meta" strips */
 	char nla_sound[4], nla_sound_sel[4];           /* NLA "Sound" strips */
+
+	/* info */
+	char info_selected[4], info_selected_text[4];
+	char info_error[4], info_error_text[4];
+	char info_warning[4], info_warning_text[4];
+	char info_info[4], info_info_text[4];
+	char info_debug[4], info_debug_text[4];
 } ThemeSpace;
 
 
@@ -331,6 +353,7 @@ typedef struct bTheme {
 	ThemeUI tui;
 	
 	/* Individual Spacetypes */
+	/* note: ensure UI_THEMESPACE_END is updated when adding */
 	ThemeSpace tbuts;
 	ThemeSpace tv3d;
 	ThemeSpace tfile;
@@ -355,6 +378,9 @@ typedef struct bTheme {
 	
 	int active_theme_area, pad;
 } bTheme;
+
+#define UI_THEMESPACE_START(btheme)  (CHECK_TYPE_INLINE(btheme, bTheme *),  &((btheme)->tbuts))
+#define UI_THEMESPACE_END(btheme)    (CHECK_TYPE_INLINE(btheme, bTheme *), (&((btheme)->tclip) + 1))
 
 /* for the moment only the name. may want to store options with this later */
 typedef struct bAddon {

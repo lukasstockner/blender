@@ -681,7 +681,7 @@ static int sort_curvepoints(const void *a1, const void *a2)
 /* ************************ more CurveMapping calls *************** */
 
 /* note; only does current curvemap! */
-void curvemapping_changed(CurveMapping *cumap, int rem_doubles)
+void curvemapping_changed(CurveMapping *cumap, const bool rem_doubles)
 {
 	CurveMap *cuma = cumap->cm + cumap->cur;
 	CurveMapPoint *cmp = cuma->curve;
@@ -1020,7 +1020,7 @@ void scopes_update(Scopes *scopes, ImBuf *ibuf, const ColorManagedViewSettings *
 	int savedlines, saveline;
 	float rgba[4], ycc[3], luma;
 	int ycc_mode = -1;
-	const short is_float = (ibuf->rect_float != NULL);
+	const bool is_float = (ibuf->rect_float != NULL);
 	void *cache_handle = NULL;
 	struct ColormanageProcessor *cm_processor = NULL;
 

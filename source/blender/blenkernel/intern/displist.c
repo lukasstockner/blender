@@ -41,6 +41,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_material_types.h"
+#include "DNA_vfont_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_memarena.h"
@@ -49,9 +50,11 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_global.h"
+#include "BKE_depsgraph.h"
 #include "BKE_displist.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_object.h"
+#include "BKE_main.h"
 #include "BKE_mball.h"
 #include "BKE_material.h"
 #include "BKE_curve.h"
@@ -455,11 +458,11 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 	DispList *dlnew = NULL, *dl;
 	float *f1;
 	int colnr = 0, charidx = 0, cont = 1, tot, a, *index, nextcol = 0;
-	intptr_t totvert;
+	int totvert;
 
 	if (dispbase == NULL)
 		return;
-	if (dispbase->first == NULL)
+	if (BLI_listbase_is_empty(dispbase))
 		return;
 
 	sf_arena = BLI_memarena_new(BLI_SCANFILL_ARENA_SIZE, __func__);
@@ -478,6 +481,9 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 					cont = 1;
 				else if (charidx == dl->charidx) { /* character with needed index */
 					if (colnr == dl->col) {
+
+						sf_ctx.poly_nr++;
+
 						/* make editverts and edges */
 						f1 = dl->verts;
 						a = dl->nr;
@@ -535,23 +541,22 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 					f1 += 3;
 
 					/* index number */
-					sf_vert->tmp.l = totvert;
+					sf_vert->tmp.i = totvert;
 					totvert++;
 				}
 
 				/* index data */
-				sf_tri = sf_ctx.fillfacebase.first;
+
 				index = dlnew->index;
-				while (sf_tri) {
-					index[0] = (intptr_t)sf_tri->v1->tmp.l;
-					index[1] = (intptr_t)sf_tri->v2->tmp.l;
-					index[2] = (intptr_t)sf_tri->v3->tmp.l;
+				for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
+					index[0] = sf_tri->v1->tmp.i;
+					index[1] = sf_tri->v2->tmp.i;
+					index[2] = sf_tri->v3->tmp.i;
 
 					if (flipnormal)
 						SWAP(int, index[0], index[2]);
 
 					index += 3;
-					sf_tri = sf_tri->next;
 				}
 			}
 
@@ -583,7 +588,8 @@ static void bevels_to_filledpoly(Curve *cu, ListBase *dispbase)
 	float *fp, *fp1;
 	int a, dpoly;
 
-	front.first = front.last = back.first = back.last = NULL;
+	BLI_listbase_clear(&front);
+	BLI_listbase_clear(&back);
 
 	dl = dispbase->first;
 	while (dl) {
@@ -645,7 +651,7 @@ static void bevels_to_filledpoly(Curve *cu, ListBase *dispbase)
 
 static void curve_to_filledpoly(Curve *cu, ListBase *UNUSED(nurb), ListBase *dispbase)
 {
-	if (cu->flag & CU_3D)
+	if (!CU_DO_2DFILL(cu))
 		return;
 
 	if (dispbase->first && ((DispList *) dispbase->first)->type == DL_SURF) {
@@ -709,7 +715,7 @@ float BKE_displist_calc_taper(Scene *scene, Object *taperobj, int cur, int tot)
 	return displist_calc_taper(scene, taperobj, fac);
 }
 
-void BKE_displist_make_mball(Scene *scene, Object *ob)
+void BKE_displist_make_mball(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
 {
 	if (!ob || ob->type != OB_MBALL)
 		return;
@@ -723,7 +729,7 @@ void BKE_displist_make_mball(Scene *scene, Object *ob)
 
 	if (ob->type == OB_MBALL) {
 		if (ob == BKE_mball_basis_find(scene, ob)) {
-			BKE_mball_polygonize(scene, ob, &ob->curve_cache->disp, false);
+			BKE_mball_polygonize(eval_ctx, scene, ob, &ob->curve_cache->disp);
 			BKE_mball_texspace_calc(ob);
 
 			object_deform_mball(ob, &ob->curve_cache->disp);
@@ -733,9 +739,9 @@ void BKE_displist_make_mball(Scene *scene, Object *ob)
 	}
 }
 
-void BKE_displist_make_mball_forRender(Scene *scene, Object *ob, ListBase *dispbase)
+void BKE_displist_make_mball_forRender(EvaluationContext *eval_ctx, Scene *scene, Object *ob, ListBase *dispbase)
 {
-	BKE_mball_polygonize(scene, ob, dispbase, true);
+	BKE_mball_polygonize(eval_ctx, scene, ob, dispbase);
 	BKE_mball_texspace_calc(ob);
 
 	object_deform_mball(ob, dispbase);
@@ -1265,11 +1271,6 @@ void BKE_displist_make_surf(Scene *scene, Object *ob, ListBase *dispbase,
 		}
 	}
 
-	/* make copy of 'undeformed" displist for texture space calculation
-	 * actually, it's not totally undeformed -- pre-tessellation modifiers are
-	 * already applied, thats how it worked for years, so keep for compatibility (sergey) */
-	BKE_displist_copy(&cu->disp, dispbase);
-
 	if (!forOrco) {
 		curve_calc_modifiers_post(scene, ob, &nubase, dispbase, derivedFinal,
 		                          forRender, renderResolution);
@@ -1376,10 +1377,12 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 		if (ob->curve_cache->path) free_path(ob->curve_cache->path);
 		ob->curve_cache->path = NULL;
 
-		if (ob->type == OB_FONT)
-			BKE_vfont_to_curve(G.main, scene, ob, 0);
-
-		BKE_nurbList_duplicate(&nubase, BKE_curve_nurbs_get(cu));
+		if (ob->type == OB_FONT) {
+			BKE_vfont_to_curve_nubase(G.main, ob, FO_EDIT, &nubase);
+		}
+		else {
+			BKE_nurbList_duplicate(&nubase, BKE_curve_nurbs_get(cu));
+		}
 
 		if (!forOrco)
 			curve_calc_modifiers_pre(scene, ob, &nubase, forRender, renderResolution);
@@ -1407,7 +1410,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 				if (bl->nr) { /* blank bevel lists can happen */
 
 					/* exception handling; curve without bevel or extrude, with width correction */
-					if (dlbev.first == NULL) {
+					if (BLI_listbase_is_empty(&dlbev)) {
 						dl = MEM_callocN(sizeof(DispList), "makeDispListbev");
 						dl->verts = MEM_callocN(3 * sizeof(float) * bl->nr, "dlverts");
 						BLI_addtail(dispbase, dl);
@@ -1566,13 +1569,13 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 			curve_to_filledpoly(cu, &nubase, dispbase);
 		}
 
-		if ((cu->flag & CU_PATH) && !forOrco)
-			calc_curvepath(ob, &nubase);
-
-		/* make copy of 'undeformed" displist for texture space calculation
-		 * actually, it's not totally undeformed -- pre-tessellation modifiers are
-		 * already applied, thats how it worked for years, so keep for compatibility (sergey) */
-		BKE_displist_copy(&cu->disp, dispbase);
+		if (!forOrco) {
+			if ((cu->flag & CU_PATH) ||
+			    DAG_get_eval_flags_for_object(scene, ob) & DAG_EVAL_NEED_CURVE_PATH)
+			{
+				calc_curvepath(ob, &nubase);
+			}
+		}
 
 		if (!forOrco)
 			curve_calc_modifiers_post(scene, ob, &nubase, dispbase, derivedFinal, forRender, renderResolution);
@@ -1587,7 +1590,6 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 
 void BKE_displist_make_curveTypes(Scene *scene, Object *ob, int forOrco)
 {
-	Curve *cu = ob->data;
 	ListBase *dispbase;
 
 	/* The same check for duplis as in do_makeDispListCurveTypes.
@@ -1596,7 +1598,6 @@ void BKE_displist_make_curveTypes(Scene *scene, Object *ob, int forOrco)
 	if (!ELEM3(ob->type, OB_SURF, OB_CURVE, OB_FONT))
 		return;
 
-	BKE_displist_free(&cu->disp);
 	BKE_object_free_derived_caches(ob);
 
 	if (!ob->curve_cache) {

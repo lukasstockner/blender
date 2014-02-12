@@ -52,7 +52,6 @@ KM_HIERARCHY = [
         ('Image Paint', 'EMPTY', 'WINDOW', []),  # image and view3d
         ('Sculpt', 'EMPTY', 'WINDOW', []),
 
-        ('Armature Sketch', 'EMPTY', 'WINDOW', []),
         ('Particle', 'EMPTY', 'WINDOW', []),
 
         ('Knife Tool Modal Map', 'EMPTY', 'WINDOW', []),
@@ -209,6 +208,9 @@ def _kmistr(kmi, is_modal):
 
     if props is not None:
         _export_properties("kmi.properties", props, kmi_id, s)
+
+    if not kmi.active:
+        s.append("kmi.active = False\n")
 
     return "".join(s)
 

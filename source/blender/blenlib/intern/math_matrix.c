@@ -398,6 +398,11 @@ void mul_v2_m2v2(float r[2], float mat[2][2], const float vec[2])
 	r[1] = mat[0][1] * x + mat[1][1] * vec[1];
 }
 
+void mul_m2v2(float mat[2][2], float vec[2])
+{
+	mul_v2_m2v2(vec, mat, vec);
+}
+
 /* same as mul_m4_v3() but doesnt apply translation component */
 void mul_mat3_m4_v3(float mat[4][4], float vec[3])
 {
@@ -1231,11 +1236,22 @@ void size_to_mat3(float mat[3][3], const float size[3])
 
 void size_to_mat4(float mat[4][4], const float size[3])
 {
-	float tmat[3][3];
-
-	size_to_mat3(tmat, size);
-	unit_m4(mat);
-	copy_m4_m3(mat, tmat);
+	mat[0][0] = size[0];
+	mat[0][1] = 0.0f;
+	mat[0][2] = 0.0f;
+	mat[0][3] = 0.0f;
+	mat[1][0] = 0.0f;
+	mat[1][1] = size[1];
+	mat[1][2] = 0.0f;
+	mat[1][3] = 0.0f;
+	mat[2][0] = 0.0f;
+	mat[2][1] = 0.0f;
+	mat[2][2] = size[2];
+	mat[2][3] = 0.0f;
+	mat[3][0] = 0.0f;
+	mat[3][1] = 0.0f;
+	mat[3][2] = 0.0f;
+	mat[3][3] = 1.0f;
 }
 
 void mat3_to_size(float size[3], float mat[3][3])

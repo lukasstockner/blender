@@ -660,6 +660,7 @@ extern StructRNA RNA_VertexWeightProximityModifier;
 extern StructRNA RNA_Window;
 extern StructRNA RNA_WindowManager;
 extern StructRNA RNA_WipeSequence;
+extern StructRNA RNA_WireframeModifier;
 extern StructRNA RNA_WoodTexture;
 extern StructRNA RNA_World;
 extern StructRNA RNA_WorldAmbientOcclusion;
@@ -784,9 +785,13 @@ bool RNA_enum_identifier(EnumPropertyItem *item, const int value, const char **i
 int  RNA_enum_bitflag_identifiers(EnumPropertyItem *item, const int value, const char **identifier);
 bool RNA_enum_name(EnumPropertyItem *item, const int value, const char **r_name);
 bool RNA_enum_description(EnumPropertyItem *item, const int value, const char **description);
+int  RNA_enum_from_value(EnumPropertyItem *item, const int value);
+int  RNA_enum_from_identifier(EnumPropertyItem *item, const char *identifier);
 
-void RNA_property_enum_items(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item, int *totitem, int *free);
-void RNA_property_enum_items_gettexted(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item, int *totitem, int *free);
+void RNA_property_enum_items(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item,
+                             int *r_totitem, bool *r_free);
+void RNA_property_enum_items_gettexted(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item,
+                                       int *r_totitem, bool *r_free);
 bool RNA_property_enum_value(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const char *identifier, int *r_value);
 bool RNA_property_enum_identifier(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **identifier);
 bool RNA_property_enum_name(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **name);

@@ -43,6 +43,7 @@
 #include "BLI_math.h"
 #include "BLI_math_color.h"
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BLI_rect.h"
 
 #include "BLF_translation.h"
@@ -351,6 +352,7 @@ int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *index, 
 	return 1;
 }
 
+
 static Image *imapaint_face_image(DerivedMesh *dm, Scene *scene, Object *ob, int face_index)
 {
 	Image *ima;
@@ -368,6 +370,23 @@ static Image *imapaint_face_image(DerivedMesh *dm, Scene *scene, Object *ob, int
 	}
 
 	return ima;
+}
+
+/* Uses symm to selectively flip any axis of a coordinate. */
+void flip_v3_v3(float out[3], const float in[3], const char symm)
+{
+	if (symm & PAINT_SYMM_X)
+		out[0] = -in[0];
+	else
+		out[0] = in[0];
+	if (symm & PAINT_SYMM_Y)
+		out[1] = -in[1];
+	else
+		out[1] = in[1];
+	if (symm & PAINT_SYMM_Z)
+		out[2] = -in[2];
+	else
+		out[2] = in[2];
 }
 
 /* used for both 3d view and image window */
@@ -619,7 +638,7 @@ static int vert_select_ungrouped_exec(bContext *C, wmOperator *op)
 	Object *ob = CTX_data_active_object(C);
 	Mesh *me = ob->data;
 
-	if ((ob->defbase.first == NULL) || (me->dvert == NULL)) {
+	if (BLI_listbase_is_empty(&ob->defbase) || (me->dvert == NULL)) {
 		BKE_report(op->reports, RPT_ERROR, "No weights/vertex groups on object");
 		return OPERATOR_CANCELLED;
 	}

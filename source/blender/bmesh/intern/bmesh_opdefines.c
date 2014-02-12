@@ -1559,6 +1559,7 @@ static BMOpDefine bmo_bevel_def = {
 	 {"offset", BMO_OP_SLOT_FLT},           /* amount to offset beveled edge */
 	 {"offset_type", BMO_OP_SLOT_INT},      /* how to measure offset (enum) */
 	 {"segments", BMO_OP_SLOT_INT},         /* number of segments in bevel */
+	 {"profile", BMO_OP_SLOT_FLT},          /* profile shape, 0->1 (.5=>round) */
 	 {"vertex_only", BMO_OP_SLOT_BOOL},	/* only bevel vertices, not edges */
 	 {{'\0'}},
 	},
@@ -1694,12 +1695,16 @@ static BMOpDefine bmo_wireframe_def = {
 	"wireframe",
 	/* slots_in */
 	{{"faces", BMO_OP_SLOT_ELEMENT_BUF, {BM_FACE}},   /* input faces */
+	 {"thickness", BMO_OP_SLOT_FLT},
+	 {"offset", BMO_OP_SLOT_FLT},
+	 {"use_replace", BMO_OP_SLOT_BOOL},
 	 {"use_boundary", BMO_OP_SLOT_BOOL},
 	 {"use_even_offset", BMO_OP_SLOT_BOOL},
 	 {"use_crease", BMO_OP_SLOT_BOOL},
+	 {"crease_weight", BMO_OP_SLOT_FLT},
 	 {"thickness", BMO_OP_SLOT_FLT},
 	 {"use_relative_offset", BMO_OP_SLOT_BOOL},
-	 {"depth", BMO_OP_SLOT_FLT},
+	 {"material_offset", BMO_OP_SLOT_INT},
 	 {{'\0'}},
 	},
 	/* slots_out */

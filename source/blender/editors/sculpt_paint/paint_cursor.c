@@ -197,7 +197,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
 		pool = BKE_image_pool_new();
 
-		#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
 		for (j = 0; j < size; j++) {
 			int i;
 			float y;
@@ -371,7 +371,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 
 		curvemapping_initialize(br->curve);
 
-		#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
 		for (j = 0; j < size; j++) {
 			int i;
 			float y;
@@ -545,7 +545,7 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 
 	if (!(mtex->tex) || !((mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) ||
 	    (valid &&
-		ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED))))
+	    ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_TILED))))
 	{
 		return;
 	}
@@ -729,7 +729,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
                                      ViewContext *vc, int x, int y, float zoom, PaintMode mode)
 {
 	/* color means that primary brush texture is colured and secondary is used for alpha/mask control */
-	bool col = ELEM3(mode, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D, PAINT_VERTEX) ? true: false;
+	bool col = ELEM3(mode, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D, PAINT_VERTEX) ? true : false;
 	OverlayControlFlags flags = BKE_paint_get_overlay_flags();
 	/* save lots of GL state
 	 * TODO: check on whether all of these are needed? */

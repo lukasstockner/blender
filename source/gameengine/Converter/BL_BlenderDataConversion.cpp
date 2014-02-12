@@ -34,6 +34,19 @@
 #  pragma warning (disable:4786)
 #endif
 
+/* Since threaded object update we've disabled in-place
+ * curve evaluation (in cases when applying curve modifier
+ * with target curve non-evaluated yet).
+ *
+ * This requires game engine to take care of DAG and object
+ * evaluation (currently it's designed to export only objects
+ * it able to render).
+ *
+ * This workaround will make sure that curve_cache for curves
+ * is up-to-date.
+ */
+#define THREADED_DAG_WORKAROUND
+
 #include <math.h>
 #include <vector>
 #include <algorithm>
@@ -93,6 +106,7 @@
 #include "KX_SoftBodyDeformer.h"
 //#include "BL_ArmatureController.h"
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BlenderWorldInfo.h"
 
 #include "KX_KetsjiEngine.h"
@@ -142,6 +156,7 @@ extern "C" {
 #include "BKE_material.h" /* give_current_material */
 #include "BKE_image.h"
 #include "IMB_imbuf_types.h"
+#include "BKE_displist.h"
 
 extern Material defmaterial;	/* material.c */
 }
@@ -938,10 +953,18 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
 
-	if ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL)
-		return meshobj;
+	// Without checking names, we get some reuse we don't want that can cause
+	// problems with material LoDs.
+	if (blenderobj && ((meshobj = converter->FindGameMesh(mesh/*, ob->lay*/)) != NULL)) {
+		const char *bge_name = meshobj->GetName().ReadPtr();
+		const char *blender_name = ((ID *)blenderobj->data)->name + 2;
+		if (STREQ(bge_name, blender_name)) {
+			return meshobj;
+		}
+	}
+
 	// Get DerivedMesh data
-	DerivedMesh *dm = CDDM_from_mesh(mesh, blenderobj);
+	DerivedMesh *dm = CDDM_from_mesh(mesh);
 	DM_ensure_tessface(dm);
 
 	MVert *mvert = dm->getVertArray(dm);
@@ -1229,7 +1252,7 @@ static float my_boundbox_mesh(Mesh *me, float *loc, float *size)
 	BoundBox *bb;
 	float min[3], max[3];
 	float mloc[3], msize[3];
-	float radius=0.0f, vert_radius, *co;
+	float radius_sq=0.0f, vert_radius_sq, *co;
 	int a;
 	
 	if (me->bb==0) {
@@ -1251,9 +1274,9 @@ static float my_boundbox_mesh(Mesh *me, float *loc, float *size)
 		
 		/* radius */
 
-		vert_radius = len_squared_v3(co);
-		if (vert_radius > radius)
-			radius = vert_radius;
+		vert_radius_sq = len_squared_v3(co);
+		if (vert_radius_sq > radius_sq)
+			radius_sq = vert_radius_sq;
 	}
 		
 	if (me->totvert) {
@@ -1279,7 +1302,7 @@ static float my_boundbox_mesh(Mesh *me, float *loc, float *size)
 	bb->vec[0][2] = bb->vec[3][2] = bb->vec[4][2] = bb->vec[7][2] = loc[2]-size[2];
 	bb->vec[1][2] = bb->vec[2][2] = bb->vec[5][2] = bb->vec[6][2] = loc[2]+size[2];
 
-	return sqrt(radius);
+	return sqrtf_signed(radius_sq);
 }
 
 
@@ -1852,6 +1875,24 @@ static KX_GameObject *gameobject_from_blenderobject(
 	
 		// set transformation
 		gameobj->AddMesh(meshobj);
+
+		// gather levels of detail
+		if (BLI_countlist(&ob->lodlevels) > 1) {
+			LodLevel *lod = ((LodLevel*)ob->lodlevels.first)->next;
+			Mesh* lodmesh = mesh;
+			Object* lodmatob = ob;
+			gameobj->AddLodMesh(meshobj);
+			for (; lod; lod = lod->next) {
+				if (!lod->source || lod->source->type != OB_MESH) continue;
+				if (lod->flags & OB_LOD_USE_MESH) {
+					lodmesh = static_cast<Mesh*>(lod->source->data);
+				}
+				if (lod->flags & OB_LOD_USE_MAT) {
+					lodmatob = lod->source;
+				}
+				gameobj->AddLodMesh(BL_ConvertMesh(lodmesh, lodmatob, kxscene, converter, libloading));
+			}
+		}
 	
 		// for all objects: check whether they want to
 		// respond to updates
@@ -1957,6 +1998,15 @@ static KX_GameObject *gameobject_from_blenderobject(
 			kxscene->AddFont(static_cast<KX_FontObject*>(gameobj));
 		break;
 	}
+
+#ifdef THREADED_DAG_WORKAROUND
+	case OB_CURVE:
+	{
+		if (ob->curve_cache == NULL) {
+			BKE_displist_make_curveTypes(blenderscene, ob, FALSE);
+		}
+	}
+#endif
 
 	}
 	if (gameobj) 

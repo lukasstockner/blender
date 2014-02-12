@@ -213,6 +213,7 @@ static struct _inittab bpy_internal_modules[] = {
 	{(char *)"mathutils", PyInit_mathutils},
 //	{(char *)"mathutils.geometry", PyInit_mathutils_geometry},
 //	{(char *)"mathutils.noise", PyInit_mathutils_noise},
+//	{(char *)"mathutils.kdtree", PyInit_mathutils_kdtree},
 	{(char *)"_bpy_path", BPyInit__bpy_path},
 	{(char *)"bgl", BPyInit_bgl},
 	{(char *)"blf", BPyInit_blf},
@@ -580,7 +581,7 @@ void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr)
 
 
 /* return -1 on error, else 0 */
-int BPY_button_exec(bContext *C, const char *expr, double *value, const short verbose)
+int BPY_button_exec(bContext *C, const char *expr, double *value, const bool verbose)
 {
 	PyGILState_STATE gilstate;
 	PyObject *py_dict, *mod, *retval;

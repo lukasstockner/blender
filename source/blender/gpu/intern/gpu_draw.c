@@ -27,8 +27,14 @@
 
 /** \file blender/gpu/intern/gpu_draw.c
  *  \ingroup gpu
+ *
+ * Utility functions for dealing with OpenGL texture & material context,
+ * mipmap generation and light objects.
+ *
+ * These are some obscure rendering functions shared between the
+ * game engine and the blender, in this module to avoid duplication
+ * and abstract them away from the rest a bit.
  */
-
 
 #include <string.h>
 
@@ -74,10 +80,6 @@
 
 extern Material defmaterial; /* from material.c */
 
-/* These are some obscure rendering functions shared between the
- * game engine and the blender, in this module to avoid duplicaten
- * and abstract them away from the rest a bit */
-
 /* Text Rendering */
 
 static void gpu_mcol(unsigned int ucol)
@@ -93,7 +95,9 @@ void GPU_render_text(MTFace *tface, int mode,
 {
 	if ((mode & GEMAT_TEXT) && (textlen>0) && tface->tpage) {
 		Image* ima = (Image *)tface->tpage;
-		int index, character;
+		ImBuf *first_ibuf;
+		const size_t textlen_st = textlen;
+		size_t index;
 		float centerx, centery, sizex, sizey, transx, transy, movex, movey, advance;
 		float advance_tab;
 		
@@ -117,17 +121,19 @@ void GPU_render_text(MTFace *tface, int mode,
 		glPushMatrix();
 		
 		/* get the tab width */
-		matrixGlyph((ImBuf *)ima->ibufs.first, ' ', & centerx, &centery,
+		first_ibuf = BKE_image_get_first_ibuf(ima);
+		matrixGlyph(first_ibuf, ' ', &centerx, &centery,
 			&sizex, &sizey, &transx, &transy, &movex, &movey, &advance);
 		
 		advance_tab= advance * 4; /* tab width could also be an option */
 		
 		
-		for (index = 0; index < textlen; index++) {
+		for (index = 0; index < textlen_st; ) {
+			unsigned int character;
 			float uv[4][2];
 
 			// lets calculate offset stuff
-			character = textstr[index];
+			character = BLI_str_utf8_as_unicode_and_size_safe(textstr + index, &index);
 			
 			if (character=='\n') {
 				glTranslatef(line_start, -line_height, 0.0);
@@ -140,10 +146,14 @@ void GPU_render_text(MTFace *tface, int mode,
 				continue;
 				
 			}
+			else if (character > USHRT_MAX) {
+				/* not much we can do here bmfonts take ushort */
+				character = '?';
+			}
 			
 			// space starts at offset 1
 			// character = character - ' ' + 1;
-			matrixGlyph((ImBuf *)ima->ibufs.first, character, & centerx, &centery,
+			matrixGlyph(first_ibuf, character, & centerx, &centery,
 				&sizex, &sizey, &transx, &transy, &movex, &movey, &advance);
 
 			uv[0][0] = (tface->uv[0][0] - centerx) * sizex + transx;
@@ -184,6 +194,8 @@ void GPU_render_text(MTFace *tface, int mode,
 			line_start -= advance; /* so we can go back to the start of the line */
 		}
 		glPopMatrix();
+
+		BKE_image_release_ibuf(ima, first_ibuf, NULL);
 	}
 }
 
@@ -1294,7 +1306,7 @@ void GPU_free_images_anim(void)
 
 	if (G.main)
 		for (ima=G.main->image.first; ima; ima=ima->id.next)
-			if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE))
+			if (BKE_image_is_animated(ima))
 				GPU_free_image(ima);
 }
 
@@ -1324,11 +1336,11 @@ static struct GPUMaterialState {
 	float (*gviewmat)[4];
 	float (*gviewinv)[4];
 
-	int backface_culling;
+	bool backface_culling;
 
 	GPUBlendMode *alphablend;
 	GPUBlendMode alphablend_fixed[FIXEDMAT];
-	int use_alpha_pass, is_alpha_pass;
+	bool use_alpha_pass, is_alpha_pass;
 
 	int lastmatnr, lastretval;
 	GPUBlendMode lastalphablend;
@@ -1385,9 +1397,11 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	GPUMaterial *gpumat;
 	GPUBlendMode alphablend;
 	int a;
-	int gamma = BKE_scene_check_color_management_enabled(scene);
-	int new_shading_nodes = BKE_scene_use_new_shading_nodes(scene);
-	int use_matcap = (v3d->flag2 & V3D_SHOW_SOLID_MATCAP); /* assumes v3d->defmaterial->preview is set */
+	const bool gamma = BKE_scene_check_color_management_enabled(scene);
+	const bool new_shading_nodes = BKE_scene_use_new_shading_nodes(scene);
+	const bool use_matcap = (v3d->flag2 & V3D_SHOW_SOLID_MATCAP) != 0;  /* assumes v3d->defmaterial->preview is set */
+
+	ob = BKE_object_lod_matob_get(ob, scene);
 	
 	/* initialize state */
 	memset(&GMS, 0, sizeof(GMS));
@@ -1395,7 +1409,7 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	GMS.lastretval = -1;
 	GMS.lastalphablend = GPU_BLEND_SOLID;
 
-	GMS.backface_culling = (v3d->flag2 & V3D_BACKFACE_CULLING);
+	GMS.backface_culling = (v3d->flag2 & V3D_BACKFACE_CULLING) != 0;
 
 	GMS.gob = ob;
 	GMS.gscene = scene;
@@ -1760,8 +1774,6 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 		/* setup lamp transform */
 		glPushMatrix();
 		glLoadMatrixf((float *)viewmat);
-		
-		BKE_object_where_is_calc_simul(scene, base->object);
 		
 		if (la->type==LA_SUN) {
 			/* sun lamp */

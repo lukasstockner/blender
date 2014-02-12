@@ -42,7 +42,7 @@ extern "C" {
  * and keep comment above the defines.
  * Use STRINGIFY() rather than defining with quotes */
 #define BLENDER_VERSION         269
-#define BLENDER_SUBVERSION      5
+#define BLENDER_SUBVERSION      10
 /* 262 was the last editmesh release but it has compatibility code for bmesh data */
 #define BLENDER_MINVERSION      262
 #define BLENDER_MINSUBVERSION   0
@@ -103,7 +103,7 @@ extern int BKE_undo_save_file(const char *filename);
 extern struct Main *BKE_undo_get_main(struct Scene **scene);
 
 /* copybuffer */
-void BKE_copybuffer_begin(void);
+void BKE_copybuffer_begin(struct Main *bmain);
 void BKE_copybuffer_tag_ID(struct ID *id);
 int BKE_copybuffer_save(const char *filename, struct ReportList *reports);
 int BKE_copybuffer_paste(struct bContext *C, const char *libname, struct ReportList *reports);

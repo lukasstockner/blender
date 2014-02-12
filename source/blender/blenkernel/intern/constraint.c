@@ -166,7 +166,7 @@ bConstraintOb *BKE_constraints_make_evalob(Scene *scene, Object *ob, void *subda
 			unit_m4(cob->startmat);
 			break;
 	}
-	
+
 	return cob;
 }
 
@@ -366,7 +366,7 @@ static void contarget_get_mesh_mat(Object *ob, const char *substring, float mat[
 	/* get DerivedMesh */
 	if (em) {
 		/* target is in editmode, so get a special derived mesh */
-		dm = CDDM_from_editbmesh(em, FALSE, FALSE);
+		dm = CDDM_from_editbmesh(em, false, false);
 		freeDM = 1;
 	}
 	else {
@@ -1147,7 +1147,7 @@ static void followpath_flush_tars(bConstraint *con, ListBase *list, short nocopy
 	}
 }
 
-static void followpath_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
+static void followpath_get_tarmat(bConstraint *con, bConstraintOb *UNUSED(cob), bConstraintTarget *ct, float UNUSED(ctime))
 {
 	bFollowPathConstraint *data = con->data;
 	
@@ -1162,11 +1162,7 @@ static void followpath_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 		/* note: when creating constraints that follow path, the curve gets the CU_PATH set now,
 		 *		currently for paths to work it needs to go through the bevlist/displist system (ton) 
 		 */
-		
-		/* only happens on reload file, but violates depsgraph still... fix! */
-		if (ct->tar->curve_cache == NULL || ct->tar->curve_cache->path == NULL || ct->tar->curve_cache->path->data == NULL)
-			BKE_displist_make_curveTypes(cob->scene, ct->tar, 0);
-		
+
 		if (ct->tar->curve_cache->path && ct->tar->curve_cache->path->data) {
 			float quat[4];
 			if ((data->followflag & FOLLOWPATH_STATIC) == 0) {
@@ -1925,20 +1921,13 @@ static void pycon_id_looper(bConstraint *con, ConstraintIDFunc func, void *userd
 }
 
 /* Whether this approach is maintained remains to be seen (aligorith) */
-static void pycon_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
+static void pycon_get_tarmat(bConstraint *con, bConstraintOb *UNUSED(cob), bConstraintTarget *ct, float UNUSED(ctime))
 {
 #ifdef WITH_PYTHON
 	bPythonConstraint *data = con->data;
 #endif
 
 	if (VALID_CONS_TARGET(ct)) {
-		/* special exception for curves - depsgraph issues */
-		if (ct->tar->type == OB_CURVE) {
-			/* this check is to make sure curve objects get updated on file load correctly.*/
-			if (ct->tar->curve_cache == NULL || ct->tar->curve_cache->path == NULL || ct->tar->curve_cache->path->data == NULL) /* only happens on reload file, but violates depsgraph still... fix! */
-				BKE_displist_make_curveTypes(cob->scene, ct->tar, 0);
-		}
-		
 		/* firstly calculate the matrix the normal way, then let the py-function override
 		 * this matrix if it needs to do so
 		 */
@@ -3005,18 +2994,8 @@ static void clampto_flush_tars(bConstraint *con, ListBase *list, short nocopy)
 	}
 }
 
-static void clampto_get_tarmat(bConstraint *UNUSED(con), bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
+static void clampto_get_tarmat(bConstraint *UNUSED(con), bConstraintOb *UNUSED(cob), bConstraintTarget *ct, float UNUSED(ctime))
 {
-	if (VALID_CONS_TARGET(ct)) {
-		/* note: when creating constraints that follow path, the curve gets the CU_PATH set now,
-		 *		currently for paths to work it needs to go through the bevlist/displist system (ton) 
-		 */
-		
-		/* only happens on reload file, but violates depsgraph still... fix! */
-		if (ct->tar->curve_cache == NULL || ct->tar->curve_cache->path == NULL || ct->tar->curve_cache->path->data == NULL)
-			BKE_displist_make_curveTypes(cob->scene, ct->tar, 0);
-	}
-	
 	/* technically, this isn't really needed for evaluation, but we don't know what else
 	 * might end up calling this...
 	 */
@@ -3351,7 +3330,8 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 		float co[3] = {0.0f, 0.0f, 0.0f};
 		
 		SpaceTransform transform;
-		DerivedMesh *target = object_get_derived_final(ct->tar);
+		/* TODO(sergey): use proper for_render flag here when known. */
+		DerivedMesh *target = object_get_derived_final(ct->tar, false);
 		
 		BVHTreeFromMesh treeData = {NULL};
 		
@@ -3368,7 +3348,7 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 					float dist;
 
 					nearest.index = -1;
-					nearest.dist = FLT_MAX;
+					nearest.dist_sq = FLT_MAX;
 
 					if (scon->shrinkType == MOD_SHRINKWRAP_NEAREST_VERTEX)
 						bvhtree_from_mesh_verts(&treeData, target, 0.0, 2, 6);
@@ -3669,18 +3649,8 @@ static void splineik_flush_tars(bConstraint *con, ListBase *list, short nocopy)
 	}
 }
 
-static void splineik_get_tarmat(bConstraint *UNUSED(con), bConstraintOb *cob, bConstraintTarget *ct, float UNUSED(ctime))
+static void splineik_get_tarmat(bConstraint *UNUSED(con), bConstraintOb *UNUSED(cob), bConstraintTarget *ct, float UNUSED(ctime))
 {
-	if (VALID_CONS_TARGET(ct)) {
-		/* note: when creating constraints that follow path, the curve gets the CU_PATH set now,
-		 *		currently for paths to work it needs to go through the bevlist/displist system (ton) 
-		 */
-		
-		/* only happens on reload file, but violates depsgraph still... fix! */
-		if (ct->tar->curve_cache == NULL || ct->tar->curve_cache->path == NULL || ct->tar->curve_cache->path->data == NULL)
-			BKE_displist_make_curveTypes(cob->scene, ct->tar, 0);
-	}
-	
 	/* technically, this isn't really needed for evaluation, but we don't know what else
 	 * might end up calling this...
 	 */
@@ -4014,7 +3984,8 @@ static void followtrack_evaluate(bConstraint *con, bConstraintOb *cob, ListBase 
 
 			if (data->depth_ob) {
 				Object *depth_ob = data->depth_ob;
-				DerivedMesh *target = object_get_derived_final(depth_ob);
+				/* TODO(sergey): use proper for_render flag here when known. */
+				DerivedMesh *target = object_get_derived_final(depth_ob, false);
 				if (target) {
 					BVHTreeFromMesh treeData = NULL_BVHTreeFromMesh;
 					BVHTreeRayHit hit;
@@ -4519,7 +4490,7 @@ void BKE_copy_constraints(ListBase *dst, const ListBase *src, int do_extern)
 {
 	bConstraint *con, *srccon;
 	
-	dst->first = dst->last = NULL;
+	BLI_listbase_clear(dst);
 	BLI_duplicatelist(dst, src);
 	
 	for (con = dst->first, srccon = src->first; con && srccon; srccon = srccon->next, con = con->next) {

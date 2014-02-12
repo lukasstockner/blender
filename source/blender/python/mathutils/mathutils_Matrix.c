@@ -1368,7 +1368,7 @@ static PyObject *Matrix_rotate(MatrixObject *self, PyObject *value)
 PyDoc_STRVAR(Matrix_decompose_doc,
 ".. method:: decompose()\n"
 "\n"
-"   Return the location, rotaion and scale components of this matrix.\n"
+"   Return the location, rotation and scale components of this matrix.\n"
 "\n"
 "   :return: loc, rot, scale triple.\n"
 "   :rtype: (:class:`Vector`, :class:`Quaternion`, :class:`Vector`)"
@@ -1413,7 +1413,7 @@ PyDoc_STRVAR(Matrix_lerp_doc,
 "   :type other: :class:`Matrix`\n"
 "   :arg factor: The interpolation value in [0.0, 1.0].\n"
 "   :type factor: float\n"
-"   :return: The interpolated rotation.\n"
+"   :return: The interpolated matrix.\n"
 "   :rtype: :class:`Matrix`\n"
 );
 static PyObject *Matrix_lerp(MatrixObject *self, PyObject *args)

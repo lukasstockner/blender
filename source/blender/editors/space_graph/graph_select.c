@@ -259,7 +259,7 @@ static void borderselect_graphkeys(bAnimContext *ac, rcti rect, short mode, shor
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ANIM_nla_mapping_get(ac, ale);
 		FCurve *fcu = (FCurve *)ale->key_data;
-		float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, 0);
+		float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag);
 
 		/* apply NLA mapping to all the keyframes, since it's easier than trying to
 		 * guess when a callback might use something different
@@ -929,7 +929,7 @@ typedef enum eGraphVertIndex {
 
 /* check if its ok to select a handle */
 // XXX also need to check for int-values only?
-static int fcurve_handle_sel_check(SpaceIpo *sipo, BezTriple *bezt)
+static bool fcurve_handle_sel_check(SpaceIpo *sipo, BezTriple *bezt)
 {
 	if (sipo->flag & SIPO_NOHANDLES) return 0;
 	if ((sipo->flag & SIPO_SELVHANDLESONLY) && BEZSELECTED(bezt) == 0) return 0;
@@ -1062,11 +1062,11 @@ static tNearestVertInfo *get_best_nearest_fcurve_vert(ListBase *matches)
 	short found = 0;
 	
 	/* abort if list is empty */
-	if (matches->first == NULL) 
+	if (BLI_listbase_is_empty(matches))
 		return NULL;
 		
 	/* if list only has 1 item, remove it from the list and return */
-	if (matches->first == matches->last) {
+	if (BLI_listbase_is_single(matches)) {
 		/* need to remove from the list, otherwise it gets freed and then we can't return it */
 		return BLI_pophead(matches);
 	}

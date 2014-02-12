@@ -56,6 +56,7 @@ EnumPropertyItem region_type_items[] = {
 #ifdef RNA_RUNTIME
 
 #include "BKE_global.h"
+#include "BKE_depsgraph.h"
 
 #include "UI_view2d.h"
 
@@ -108,10 +109,9 @@ static int rna_Screen_fullscreen_get(PointerRNA *ptr)
 /* UI compatible list: should not be needed, but for now we need to keep EMPTY
  * at least in the static version of this enum for python scripts. */
 static EnumPropertyItem *rna_Area_type_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr),
-                                             PropertyRNA *UNUSED(prop), int *free)
+                                             PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	/* +1 to skip SPACE_EMPTY */
-	*free = 0;
 	return space_type_items + 1;
 }
 
@@ -141,6 +141,11 @@ static void rna_Area_type_update(bContext *C, PointerRNA *ptr)
 
 			ED_area_newspace(C, sa, sa->butspacetype);
 			ED_area_tag_redraw(sa);
+
+			/* It is possible that new layers becomes visible. */
+			if (sa->spacetype == SPACE_VIEW3D) {
+				DAG_on_visible_update(CTX_data_main(C), FALSE);
+			}
 
 			CTX_wm_window_set(C, prevwin);
 			CTX_wm_area_set(C, prevsa);

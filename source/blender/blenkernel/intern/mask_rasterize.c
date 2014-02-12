@@ -192,7 +192,7 @@ typedef struct MaskRasterSplineInfo {
 	unsigned int vertex_total_cap_head;
 	unsigned int vertex_total_cap_tail;
 
-	unsigned int is_cyclic;
+	bool is_cyclic;
 } MaskRasterSplineInfo;
 
 /**
@@ -256,7 +256,7 @@ void BKE_maskrasterize_handle_free(MaskRasterHandle *mr_handle)
 
 static void maskrasterize_spline_differentiate_point_outset(float (*diff_feather_points)[2], float (*diff_points)[2],
                                                             const unsigned int tot_diff_point, const float ofs,
-                                                            const short do_test)
+                                                            const bool do_test)
 {
 	unsigned int k_prev = tot_diff_point - 2;
 	unsigned int k_curr = tot_diff_point - 1;
@@ -324,10 +324,11 @@ static void maskrasterize_spline_differentiate_point_outset(float (*diff_feather
  * - if not get the max radius to a corner of the bucket and see how close we
  *   are to any of the triangle edges.
  */
-static int layer_bucket_isect_test(MaskRasterLayer *layer, unsigned int face_index,
-                                   const unsigned int bucket_x, const unsigned int bucket_y,
-                                   const float bucket_size_x, const float bucket_size_y,
-                                   const float bucket_max_rad_squared)
+static bool layer_bucket_isect_test(
+        MaskRasterLayer *layer, unsigned int face_index,
+        const unsigned int bucket_x, const unsigned int bucket_y,
+        const float bucket_size_x, const float bucket_size_y,
+        const float bucket_max_rad_squared)
 {
 	unsigned int *face = layer->face_array[face_index];
 	float (*cos)[3] = layer->face_coords;
@@ -350,8 +351,8 @@ static int layer_bucket_isect_test(MaskRasterLayer *layer, unsigned int face_ind
 		}
 		else {
 			if ((dist_squared_to_line_segment_v2(cent, v1, v2) < bucket_max_rad_squared) ||
-				(dist_squared_to_line_segment_v2(cent, v2, v3) < bucket_max_rad_squared) ||
-				(dist_squared_to_line_segment_v2(cent, v3, v1) < bucket_max_rad_squared))
+			    (dist_squared_to_line_segment_v2(cent, v2, v3) < bucket_max_rad_squared) ||
+			    (dist_squared_to_line_segment_v2(cent, v3, v1) < bucket_max_rad_squared))
 			{
 				return TRUE;
 			}
@@ -557,8 +558,8 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
 
 void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle, struct Mask *mask,
                                    const int width, const int height,
-                                   const short do_aspect_correct, const short do_mask_aa,
-                                   const short do_feather)
+                                   const bool do_aspect_correct, const bool do_mask_aa,
+                                   const bool do_feather)
 {
 	const rctf default_bounds = {0.0f, 1.0f, 0.0f, 1.0f};
 	const float pixel_size = 1.0f / (float)min_ii(width, height);
@@ -612,8 +613,8 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle, struct Mask *mas
 		BLI_scanfill_begin_arena(&sf_ctx, sf_arena);
 
 		for (spline = masklay->splines.first; spline; spline = spline->next) {
-			const unsigned int is_cyclic = (spline->flag & MASK_SPLINE_CYCLIC) != 0;
-			const unsigned int is_fill = (spline->flag & MASK_SPLINE_NOFILL) == 0;
+			const bool is_cyclic = (spline->flag & MASK_SPLINE_CYCLIC) != 0;
+			const bool is_fill = (spline->flag & MASK_SPLINE_NOFILL) == 0;
 
 			float (*diff_points)[2];
 			unsigned int tot_diff_point;
@@ -626,11 +627,11 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle, struct Mask *mas
 			const unsigned int resol_b = BKE_mask_spline_feather_resolution(spline, width, height) / 4;
 			const unsigned int resol = CLAMPIS(MAX2(resol_a, resol_b), 4, 512);
 
-			diff_points = BKE_mask_spline_differentiate_with_resolution_ex(
+			diff_points = BKE_mask_spline_differentiate_with_resolution(
 			                  spline, &tot_diff_point, resol);
 
 			if (do_feather) {
-				diff_feather_points = BKE_mask_spline_feather_differentiated_points_with_resolution_ex(
+				diff_feather_points = BKE_mask_spline_feather_differentiated_points_with_resolution(
 				                          spline, &tot_diff_feather_points, resol, FALSE);
 				BLI_assert(diff_feather_points);
 			}
@@ -645,6 +646,8 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle, struct Mask *mas
 
 				float co[3];
 				co[2] = 0.0f;
+
+				sf_ctx.poly_nr++;
 
 				if (do_aspect_correct) {
 					if (width != height) {
@@ -746,10 +749,10 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle, struct Mask *mas
 							sf_vert = BLI_scanfill_vert_add(&sf_ctx, co_feather);
 
 							/* no need for these attrs */
-	#if 0
+#if 0
 							sf_vert->tmp.u = sf_vert_tot;
 							sf_vert->keyindex = sf_vert_tot + tot_diff_point; /* absolute index of feather vert */
-	#endif
+#endif
 							sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
 							sf_vert_tot++;
 						}

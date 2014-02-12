@@ -1106,7 +1106,7 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 		/* Grid distribution */
 		if (part->distr==PART_DISTR_GRID && from != PART_FROM_VERT) {
 			BLI_srandom(31415926 + psys->seed);
-			dm= CDDM_from_mesh((Mesh*)ob->data, ob);
+			dm= CDDM_from_mesh((Mesh*)ob->data);
 			DM_ensure_tessface(dm);
 			distribute_grid(dm,psys);
 			dm->release(dm);
@@ -1145,7 +1145,7 @@ static int distribute_threads_init_data(ParticleThread *threads, Scene *scene, D
 		if (psys->part->use_modifier_stack)
 			dm = finaldm;
 		else
-			dm= CDDM_from_mesh((Mesh*)ob->data, ob);
+			dm= CDDM_from_mesh((Mesh*)ob->data);
 
 		/* BMESH ONLY, for verts we don't care about tessfaces */
 		if (from != PART_FROM_VERT) {
@@ -1540,23 +1540,26 @@ void psys_threads_free(ParticleThread *threads)
 	MEM_freeN(threads);
 }
 
-/* set particle parameters that don't change during particle's life */
-void initialize_particle(ParticleSimulationData *sim, ParticleData *pa, int p)
+static void initialize_particle_texture(ParticleSimulationData *sim, ParticleData *pa, int p)
 {
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	ParticleTexture ptex;
 
-	pa->flag &= ~PARS_UNEXIST;
-
 	if (part->type != PART_FLUID) {
 		psys_get_texture(sim, pa, &ptex, PAMAP_INIT, 0.f);
-		
+
 		if (ptex.exist < PSYS_FRAND(p+125))
 			pa->flag |= PARS_UNEXIST;
 
 		pa->time = (part->type == PART_HAIR) ? 0.f : part->sta + (part->end - part->sta)*ptex.time;
 	}
+}
+
+/* set particle parameters that don't change during particle's life */
+void initialize_particle(ParticleData *pa)
+{
+	pa->flag &= ~PARS_UNEXIST;
 
 	pa->hair_index = 0;
 	/* we can't reset to -1 anymore since we've figured out correct index in distribute_particles */
@@ -1572,7 +1575,7 @@ static void initialize_all_particles(ParticleSimulationData *sim)
 
 	LOOP_PARTICLES {
 		if ((pa->flag & PARS_UNEXIST)==0)
-			initialize_particle(sim, pa, p);
+			initialize_particle(pa);
 
 		if (pa->flag & PARS_UNEXIST)
 			psys->totunexist++;
@@ -1974,15 +1977,22 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 		/* we have to force RECALC_ANIM here since where_is_objec_time only does drivers */
 		while (ob) {
 			BKE_animsys_evaluate_animdata(sim->scene, &ob->id, ob->adt, pa->time, ADT_RECALC_ANIM);
+			BKE_object_where_is_calc_time(sim->scene, ob, pa->time);
 			ob = ob->parent;
 		}
 		ob = sim->ob;
-		BKE_object_where_is_calc_time(sim->scene, ob, pa->time);
 
 		psys->flag |= PSYS_OB_ANIM_RESTORE;
 	}
 
 	psys_get_birth_coordinates(sim, pa, &pa->state, dtime, cfra);
+
+	/* Initialize particle settings which depends on texture.
+	 *
+	 * We could only do it now because we'll need to know coordinate
+	 * before sampling the texture.
+	 */
+	initialize_particle_texture(sim, pa, p);
 
 	if (part->phystype==PART_PHYS_BOIDS && pa->boid) {
 		BoidParticle *bpa = pa->boid;
@@ -2170,7 +2180,7 @@ void psys_make_temp_pointcache(Object *ob, ParticleSystem *psys)
 {
 	PointCache *cache = psys->pointcache;
 
-	if (cache->flag & PTCACHE_DISK_CACHE && cache->mem_cache.first == NULL) {
+	if (cache->flag & PTCACHE_DISK_CACHE && BLI_listbase_is_empty(&cache->mem_cache)) {
 		PTCacheID pid;
 		BKE_ptcache_id_from_particles(&pid, ob, psys);
 		cache->flag &= ~PTCACHE_DISK_CACHE;
@@ -2704,7 +2714,7 @@ static void sph_force_cb(void *sphdata_v, ParticleKey *state, float *force, floa
 					temp_spring.delete_flag = 0;
 
 					/* sph_spring_add is not thread-safe. - z0r */
-					#pragma omp critical
+#pragma omp critical
 					sph_spring_add(psys[0], &temp_spring);
 				}
 			}
@@ -3587,7 +3597,7 @@ static int collision_detect(ParticleData *pa, ParticleCollision *col, BVHTreeRay
 	ColliderCache *coll;
 	float ray_dir[3];
 
-	if (colliders->first == NULL)
+	if (BLI_listbase_is_empty(colliders))
 		return 0;
 
 	sub_v3_v3v3(ray_dir, col->co2, col->co1);
@@ -4378,7 +4388,7 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
 			if (part->fluid->solver == SPH_SOLVER_DDR) {
 				/* Apply SPH forces using double-density relaxation algorithm
 				 * (Clavat et. al.) */
-				#pragma omp parallel for firstprivate (sphdata) private (pa) schedule(dynamic,5)
+#pragma omp parallel for firstprivate (sphdata) private (pa) schedule(dynamic,5)
 				LOOP_DYNAMIC_PARTICLES {
 					/* do global forces & effectors */
 					basic_integrate(sim, p, pa->state.time, cfra);
@@ -4393,7 +4403,7 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
 					 * particles,  thus rotation has not a direct sense for them */
 					basic_rotate(part, pa, pa->state.time, timestep);
 
-					#pragma omp critical
+#pragma omp critical
 					if (part->time_flag & PART_TIME_AUTOSF)
 						update_courant_num(sim, pa, dtime, &sphdata);
 				}
@@ -4407,19 +4417,19 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
 				 * and Monaghan). Note that, unlike double-density relaxation,
 				 * this algorithm is separated into distinct loops. */
 
-				#pragma omp parallel for firstprivate (sphdata) private (pa) schedule(dynamic,5)
+#pragma omp parallel for firstprivate (sphdata) private (pa) schedule(dynamic,5)
 				LOOP_DYNAMIC_PARTICLES {
 					basic_integrate(sim, p, pa->state.time, cfra);
 				}
 
 				/* calculate summation density */
-				#pragma omp parallel for firstprivate (sphdata) private (pa) schedule(dynamic,5)
+#pragma omp parallel for firstprivate (sphdata) private (pa) schedule(dynamic,5)
 				LOOP_DYNAMIC_PARTICLES {
 					sphclassical_calc_dens(pa, pa->state.time, &sphdata);
 				}
 
 				/* do global forces & effectors */
-				#pragma omp parallel for firstprivate (sphdata) private (pa) schedule(dynamic,5)
+#pragma omp parallel for firstprivate (sphdata) private (pa) schedule(dynamic,5)
 				LOOP_DYNAMIC_PARTICLES {
 					/* actual fluids calculations */
 					sph_integrate(sim, pa, pa->state.time, &sphdata);
@@ -4431,7 +4441,7 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
 					 * particles,  thus rotation has not a direct sense for them */
 					basic_rotate(part, pa, pa->state.time, timestep);
 
-					#pragma omp critical
+#pragma omp critical
 					if (part->time_flag & PART_TIME_AUTOSF)
 						update_courant_num(sim, pa, dtime, &sphdata);
 				}
@@ -4526,7 +4536,7 @@ static void particles_fluid_step(ParticleSimulationData *sim, int UNUSED(cfra))
 	}
 
 	/* fluid sim particle import handling, actual loading of particles from file */
-	#ifdef WITH_MOD_FLUID
+#ifdef WITH_MOD_FLUID
 	{
 		FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(sim->ob, eModifierType_Fluidsim);
 		
@@ -4620,7 +4630,7 @@ static void particles_fluid_step(ParticleSimulationData *sim, int UNUSED(cfra))
 			
 		} // fluid sim particles done
 	}
-	#endif // WITH_MOD_FLUID
+#endif // WITH_MOD_FLUID
 }
 
 static int emit_particles(ParticleSimulationData *sim, PTCacheID *pid, float UNUSED(cfra))
@@ -4794,15 +4804,15 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 }
 
 /* system type has changed so set sensible defaults and clear non applicable flags */
-static void psys_changed_type(ParticleSimulationData *sim)
+void psys_changed_type(Object *ob, ParticleSystem *psys)
 {
-	ParticleSettings *part = sim->psys->part;
+	ParticleSettings *part = psys->part;
 	PTCacheID pid;
 
-	BKE_ptcache_id_from_particles(&pid, sim->ob, sim->psys);
+	BKE_ptcache_id_from_particles(&pid, ob, psys);
 
 	if (part->phystype != PART_PHYS_KEYED)
-		sim->psys->flag &= ~PSYS_KEYED;
+		psys->flag &= ~PSYS_KEYED;
 
 	if (part->type == PART_HAIR) {
 		if (ELEM4(part->ren_as, PART_DRAW_NOT, PART_DRAW_PATH, PART_DRAW_OB, PART_DRAW_GR)==0)
@@ -4820,13 +4830,13 @@ static void psys_changed_type(ParticleSimulationData *sim)
 		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
 	}
 	else {
-		free_hair(sim->ob, sim->psys, 1);
+		free_hair(ob, psys, 1);
 
 		CLAMP(part->path_start, 0.0f, MAX2(100.0f, part->end + part->lifetime));
 		CLAMP(part->path_end, 0.0f, MAX2(100.0f, part->end + part->lifetime));
 	}
 
-	psys_reset(sim->psys, PSYS_RESET_ALL);
+	psys_reset(psys, PSYS_RESET_ALL);
 }
 void psys_check_boid_data(ParticleSystem *psys)
 {
@@ -4961,7 +4971,7 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 	psys->flag &= ~PSYS_OB_ANIM_RESTORE;
 
 	if (psys->recalc & PSYS_RECALC_TYPE)
-		psys_changed_type(&sim);
+		psys_changed_type(sim.ob, sim.psys);
 
 	if (psys->recalc & PSYS_RECALC_RESET)
 		psys->totunexist = 0;
@@ -5076,10 +5086,10 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 	if (psys->flag & PSYS_OB_ANIM_RESTORE) {
 		while (ob) {
 			BKE_animsys_evaluate_animdata(scene, &ob->id, ob->adt, cfra, ADT_RECALC_ANIM);
+			BKE_object_where_is_calc_time(scene, ob, cfra);
 			ob = ob->parent;
 		}
 		ob = sim.ob;
-		BKE_object_where_is_calc_time(scene, ob, cfra);
 
 		psys->flag &= ~PSYS_OB_ANIM_RESTORE;
 	}

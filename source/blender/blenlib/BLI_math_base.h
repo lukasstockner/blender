@@ -146,14 +146,14 @@ static const int NAN_INT = 0x7FC00000;
 #endif  /* C99 or POSIX.1-2001 */
 
 #ifdef WIN32
-#  ifndef FREE_WINDOWS
-#    ifndef isnan
-#		define isnan(n) _isnan(n)
-#	 endif
-#    define finite _finite
-#    ifndef hypot
-#		define hypot(a, b) _hypot(a, b)
-#	endif
+#  if defined(_MSC_VER)
+#    if (_MSC_VER < 1800) && !defined(isnan)
+#      define isnan(n) _isnan(n)
+#    endif
+#    define finite(n) _finite(n)
+#    if (_MSC_VER < 1800) && !defined(hypot)
+#      define hypot(a, b) _hypot(a, b)
+#    endif
 #  endif
 #endif
 
@@ -231,6 +231,7 @@ MINLINE int is_power_of_2_i(int n);
 MINLINE int power_of_2_max_i(int n);
 MINLINE int power_of_2_min_i(int n);
 
+MINLINE int iroundf(float a);
 MINLINE int divide_round_i(int a, int b);
 MINLINE int mod_i(int i, int n);
 

@@ -80,6 +80,16 @@ static int ED_operator_rigidbody_active_poll(bContext *C)
 		return 0;
 }
 
+static int ED_operator_rigidbody_add_poll(bContext *C)
+{
+	if (ED_operator_object_active_editable(C)) {
+		Object *ob = ED_object_active_context(C);
+		return (ob && ob->type == OB_MESH);
+	}
+	else
+		return 0;
+}
+
 /* ----------------- */
 
 bool ED_rigidbody_object_add(Scene *scene, Object *ob, int type, ReportList *reports)
@@ -172,7 +182,7 @@ void RIGIDBODY_OT_object_add(wmOperatorType *ot)
 
 	/* callbacks */
 	ot->exec = rigidbody_object_add_exec;
-	ot->poll = ED_operator_object_active_editable_mesh;
+	ot->poll = ED_operator_rigidbody_add_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -263,7 +273,7 @@ void RIGIDBODY_OT_objects_add(wmOperatorType *ot)
 
 	/* callbacks */
 	ot->exec = rigidbody_objects_add_exec;
-	ot->poll = ED_operator_object_active_editable_mesh;
+	ot->poll = ED_operator_rigidbody_add_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -446,7 +456,7 @@ static const int NUM_RB_MATERIAL_PRESETS = sizeof(RB_MATERIAL_DENSITY_TABLE) / s
  * - Although there is a runtime cost, this has a lower maintenance cost
  *   in the long run than other two-list solutions...
  */
-static EnumPropertyItem *rigidbody_materials_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *rigidbody_materials_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem item_tmp = {0};
 	EnumPropertyItem *item = NULL;
@@ -472,7 +482,7 @@ static EnumPropertyItem *rigidbody_materials_itemf(bContext *UNUSED(C), PointerR
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }

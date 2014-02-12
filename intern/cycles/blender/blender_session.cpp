@@ -261,9 +261,9 @@ static BL::RenderResult begin_render_result(BL::RenderEngine b_engine, int x, in
 	return b_engine.begin_result(x, y, w, h, layername);
 }
 
-static void end_render_result(BL::RenderEngine b_engine, BL::RenderResult b_rr, bool cancel = false)
+static void end_render_result(BL::RenderEngine b_engine, BL::RenderResult b_rr, bool cancel, bool do_merge_results)
 {
-	b_engine.end_result(b_rr, (int)cancel);
+	b_engine.end_result(b_rr, (int)cancel, (int)do_merge_results);
 }
 
 void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only)
@@ -302,12 +302,12 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 			update_render_result(b_rr, b_rlay, rtile);
 		}
 
-		end_render_result(b_engine, b_rr, true);
+		end_render_result(b_engine, b_rr, true, true);
 	}
 	else {
 		/* write result */
 		write_render_result(b_rr, b_rlay, rtile);
-		end_render_result(b_engine, b_rr);
+		end_render_result(b_engine, b_rr, false, true);
 	}
 }
 
@@ -352,7 +352,7 @@ void BlenderSession::render()
 
 		/* layer will be missing if it was disabled in the UI */
 		if(b_single_rlay == b_rr.layers.end()) {
-			end_render_result(b_engine, b_rr, true);
+			end_render_result(b_engine, b_rr, true, false);
 			continue;
 		}
 
@@ -379,9 +379,10 @@ void BlenderSession::render()
 		}
 
 		/* free result without merging */
-		end_render_result(b_engine, b_rr, true);
+		end_render_result(b_engine, b_rr, true, false);
 
 		buffer_params.passes = passes;
+		scene->film->pass_alpha_threshold = b_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);
 		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
@@ -668,12 +669,12 @@ void BlenderSession::update_status_progress()
 		status += " | " + substatus;
 
 	if(status != last_status) {
+		b_engine.update_stats("", (timestatus + scene + status).c_str());
 		b_engine.update_memory_stats(mem_used, mem_peak);
 		last_status = status;
 	}
 	if(progress != last_progress) {
 		b_engine.update_progress(progress);
-		b_engine.update_stats("", (timestatus + scene + status).c_str());
 		last_progress = progress;
 	}
 }

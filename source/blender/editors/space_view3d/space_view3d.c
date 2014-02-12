@@ -70,6 +70,10 @@
 #include "UI_resources.h"
 #include "UI_interface.h"
 
+#ifdef WITH_PYTHON
+#  include "BPY_extern.h"
+#endif
+
 #include "view3d_intern.h"  /* own include */
 
 /* ******************** manage regions ********************* */
@@ -175,7 +179,7 @@ bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_ar)
 
 		if (ar) {
 			RegionView3D *rv3d = ar->regiondata;
-			if (rv3d && rv3d->viewlock == 0) {
+			if (rv3d && (rv3d->viewlock & RV3D_LOCKED) == 0) {
 				*r_v3d = v3d;
 				*r_ar = ar;
 				return true;
@@ -187,7 +191,7 @@ bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_ar)
 					/* find the first unlocked rv3d */
 					if (ar->regiondata && ar->regiontype == RGN_TYPE_WINDOW) {
 						rv3d = ar->regiondata;
-						if (rv3d->viewlock == 0) {
+						if ((rv3d->viewlock & RV3D_LOCKED) == 0) {
 							ar_unlock = ar;
 							if (rv3d->persp == RV3D_PERSP || rv3d->persp == RV3D_CAMOB) {
 								ar_unlock_user = ar;
@@ -267,7 +271,16 @@ static void view3d_stop_render_preview(wmWindowManager *wm, ARegion *ar)
 	RegionView3D *rv3d = ar->regiondata;
 
 	if (rv3d->render_engine) {
+#ifdef WITH_PYTHON
+		BPy_BEGIN_ALLOW_THREADS;
+#endif
+
 		WM_jobs_kill_type(wm, ar, WM_JOB_TYPE_RENDER_PREVIEW);
+
+#ifdef WITH_PYTHON
+		BPy_END_ALLOW_THREADS;
+#endif
+
 		if (rv3d->render_engine->re)
 			RE_Database_Free(rv3d->render_engine->re);
 		RE_engine_free(rv3d->render_engine);
@@ -482,10 +495,6 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 	
 	keymap = WM_keymap_find(wm->defaultconf, "Lattice", 0, 0);
-	WM_event_add_keymap_handler(&ar->handlers, keymap);
-
-	/* armature sketching needs to take over mouse */
-	keymap = WM_keymap_find(wm->defaultconf, "Armature Sketch", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
 	keymap = WM_keymap_find(wm->defaultconf, "Particle", 0, 0);
@@ -797,6 +806,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 				case ND_CONSTRAINT:
 				case ND_KEYS:
 				case ND_PARTICLE:
+				case ND_LOD:
 					ED_region_tag_redraw(ar);
 					break;
 			}

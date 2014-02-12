@@ -248,7 +248,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
 			/* ugly, need to remove the old inputs list to avoid bad pointer checks when adding new sockets.
 			 * sock->storage is expected to contain path info in ntreeCompositOutputFileAddSocket.
 			 */
-			node->inputs.first = node->inputs.last = NULL;
+			BLI_listbase_clear(&node->inputs);
 
 			node->storage = nimf;
 
@@ -485,7 +485,7 @@ static void do_versions_affine_tracker_track(MovieTrackingTrack *track)
 static const char *node_get_static_idname(int type, int treetype)
 {
 	/* use static type info header to map static int type to identifier string */
-	#define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
+#define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
 		case ID: return #Category #StructName;
 
 	/* XXX hack, group types share a single static integer identifier, but are registered as separate types */
@@ -498,7 +498,7 @@ static const char *node_get_static_idname(int type, int treetype)
 	}
 	else {
 		switch (type) {
-		#include "NOD_static_types.h"
+#include "NOD_static_types.h"
 		}
 	}
 	return "";
@@ -921,7 +921,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 				if (!tracking->settings.object_distance)
 					tracking->settings.object_distance = 1.0f;
 
-				if (tracking->objects.first == NULL)
+				if (BLI_listbase_is_empty(&tracking->objects))
 					BKE_tracking_object_add(tracking, "Camera");
 
 				while (tracking_object) {
@@ -2108,14 +2108,14 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 
 	if (!MAIN_VERSION_ATLEAST(main, 266, 6)) {
 		Brush *brush;
-		#define BRUSH_TEXTURE_OVERLAY (1 << 21)
+#define BRUSH_TEXTURE_OVERLAY (1 << 21)
 
 		for (brush = main->brush.first; brush; brush = brush->id.next) {
 			brush->overlay_flags = 0;
 			if (brush->flag & BRUSH_TEXTURE_OVERLAY)
 				brush->overlay_flags |= (BRUSH_OVERLAY_PRIMARY | BRUSH_OVERLAY_CURSOR);
 		}
-		#undef BRUSH_TEXTURE_OVERLAY
+#undef BRUSH_TEXTURE_OVERLAY
 	}
 
 	if (main->versionfile < 267) {
@@ -2271,7 +2271,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 
 	if (!MAIN_VERSION_ATLEAST(main, 268, 2)) {
 		Brush *brush;
-		#define BRUSH_FIXED (1 << 6)
+#define BRUSH_FIXED (1 << 6)
 		for (brush = main->brush.first; brush; brush = brush->id.next) {
 			brush->flag &= ~BRUSH_FIXED;
 
@@ -2282,7 +2282,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 			if (brush->mask_overlay_alpha < 2)
 				brush->mask_overlay_alpha = 33;
 		}
-		#undef BRUSH_FIXED
+#undef BRUSH_FIXED
 	}
 
 
@@ -2621,6 +2621,100 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 				     plane_track = plane_track->next)
 				{
 					plane_track->image_opacity = 1.0f;
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 269, 7)) {
+		Scene *scene;
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			Sculpt *sd = scene->toolsettings->sculpt;
+
+			if (sd) {
+				int symmetry_flags = sd->flags & 7;
+
+				if (symmetry_flags & SCULPT_SYMM_X)
+					sd->paint.symmetry_flags |= PAINT_SYMM_X;
+				if (symmetry_flags & SCULPT_SYMM_Y)
+					sd->paint.symmetry_flags |= PAINT_SYMM_Y;
+				if (symmetry_flags & SCULPT_SYMM_Z)
+					sd->paint.symmetry_flags |= PAINT_SYMM_Z;
+				if (symmetry_flags & SCULPT_SYMMETRY_FEATHER)
+					sd->paint.symmetry_flags |= PAINT_SYMMETRY_FEATHER;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 269, 8)) {
+		Curve *cu;
+
+		for (cu = main->curve.first; cu; cu = cu->id.next) {
+			if (cu->str) {
+				cu->len_wchar = BLI_strlen_utf8(cu->str);
+			}
+		}
+	}
+	
+	if (!MAIN_VERSION_ATLEAST(main, 269, 9)) {
+		Object *ob;
+		
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			ModifierData *md;
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_Build) {
+					BuildModifierData *bmd = (BuildModifierData *)md;
+					if (bmd->randomize) {
+						bmd->flag |= MOD_BUILD_FLAG_RANDOMIZE;
+					}
+				}
+			}
+		}
+	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "BevelModifierData", "float", "profile")) {
+		Object *ob;
+
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			ModifierData *md;
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_Bevel) {
+					BevelModifierData *bmd = (BevelModifierData *)md;
+					bmd->profile = 0.5f;
+					bmd->val_flags = MOD_BEVEL_AMT_OFFSET;
+				}
+			}
+		}
+	}
+
+	{
+		/* nodes don't use fixed node->id any more, clean up */
+		FOREACH_NODETREE(main, ntree, id) {
+			if (ntree->type == NTREE_COMPOSIT) {
+				bNode *node;
+				for (node = ntree->nodes.first; node; node = node->next) {
+					if (ELEM(node->type, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
+						node->id = NULL;
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
+
+		{
+			bScreen *screen;
+
+			for (screen = main->screen.first; screen; screen = screen->id.next) {
+				ScrArea *area;
+				for (area = screen->areabase.first; area; area = area->next) {
+					SpaceLink *space_link;
+					for (space_link = area->spacedata.first; space_link; space_link = space_link->next) {
+						if (space_link->spacetype == SPACE_CLIP) {
+							SpaceClip *space_clip = (SpaceClip *) space_link;
+							if (space_clip->mode != SC_MODE_MASKEDIT) {
+								space_clip->mode = SC_MODE_TRACKING;
+							}
+						}
+					}
 				}
 			}
 		}

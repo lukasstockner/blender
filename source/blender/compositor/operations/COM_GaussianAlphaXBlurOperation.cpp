@@ -26,7 +26,7 @@
 #include "MEM_guardedalloc.h"
 
 extern "C" {
-	#include "RE_pipeline.h"
+#  include "RE_pipeline.h"
 }
 
 GaussianAlphaXBlurOperation::GaussianAlphaXBlurOperation() : BlurBaseOperation(COM_DT_VALUE)
@@ -103,7 +103,7 @@ void GaussianAlphaXBlurOperation::executePixel(float output[4], int x, int y, vo
 	int maxx = x + this->m_rad;  // UNUSED
 	miny = max(miny, inputBuffer->getRect()->ymin);
 	minx = max(minx, inputBuffer->getRect()->xmin);
-    maxx = min(maxx, inputBuffer->getRect()->xmax -1);
+	maxx = min(maxx, inputBuffer->getRect()->xmax -1);
 
 
 	/* *** this is the main part which is different to 'GaussianXBlurOperation'  *** */

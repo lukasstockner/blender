@@ -26,6 +26,8 @@
 
 /** \file blender/windowmanager/intern/wm_window.c
  *  \ingroup wm
+ *
+ * Window management, wrap GHOST.
  */
 
 #include <math.h>
@@ -265,7 +267,7 @@ wmWindow *wm_window_copy(bContext *C, wmWindow *winorig)
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 {
 	wmWindow *tmpwin;
-	int do_exit = 0;
+	bool do_exit = false;
 	
 	/* first check if we have to quit (there are non-temp remaining windows) */
 	for (tmpwin = wm->windows.first; tmpwin; tmpwin = tmpwin->next) {
@@ -306,7 +308,7 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 		/* if temp screen, delete it after window free (it stops jobs that can access it) */
 		if (screen->temp) {
 			Main *bmain = CTX_data_main(C);
-			BKE_libblock_free(&bmain->screen, screen);
+			BKE_libblock_free(bmain, screen);
 		}
 	}		
 }
@@ -482,7 +484,7 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 /* new window, no screen yet, but we open ghostwindow for it */
 /* also gets the window level handlers */
 /* area-rip calls this */
-wmWindow *WM_window_open(bContext *C, rcti *rect)
+wmWindow *WM_window_open(bContext *C, const rcti *rect)
 {
 	wmWindow *win = wm_window_new(C);
 	
@@ -1199,29 +1201,69 @@ void WM_event_remove_timer(wmWindowManager *wm, wmWindow *UNUSED(win), wmTimer *
 
 /* ******************* clipboard **************** */
 
-char *WM_clipboard_text_get(bool selection)
+static char *wm_clipboard_text_get_ex(bool selection, int *r_len,
+                                      bool firstline)
 {
 	char *p, *p2, *buf, *newbuf;
 
-	if (G.background)
+	if (G.background) {
+		*r_len = 0;
 		return NULL;
+	}
 
 	buf = (char *)GHOST_getClipboard(selection);
-	if (!buf)
+	if (!buf) {
+		*r_len = 0;
 		return NULL;
+	}
 	
 	/* always convert from \r\n to \n */
-	newbuf = MEM_callocN(strlen(buf) + 1, __func__);
+	p2 = newbuf = MEM_mallocN(strlen(buf) + 1, __func__);
 
-	for (p = buf, p2 = newbuf; *p; p++) {
-		if (*p != '\r')
-			*(p2++) = *p;
+	if (firstline) {
+		/* will return an over-alloc'ed value in the case there are newlines */
+		for (p = buf; *p; p++) {
+			if ((*p != '\n') && (*p != '\r')) {
+				*(p2++) = *p;
+			}
+			else {
+				break;
+			}
+		}
 	}
+	else {
+		for (p = buf; *p; p++) {
+			if (*p != '\r') {
+				*(p2++) = *p;
+			}
+		}
+	}
+
 	*p2 = '\0';
 
 	free(buf); /* ghost uses regular malloc */
 	
+	*r_len = (p2 - newbuf);
+
 	return newbuf;
+}
+
+/**
+ * Return text from the clipboard.
+ *
+ * \note Caller needs to check for valid utf8 if this is a requirement.
+ */
+char *WM_clipboard_text_get(bool selection, int *r_len)
+{
+	return wm_clipboard_text_get_ex(selection, r_len, false);
+}
+
+/**
+ * Convenience function for pasting to areas of Blender which don't support newlines.
+ */
+char *WM_clipboard_text_get_firstline(bool selection, int *r_len)
+{
+	return wm_clipboard_text_get_ex(selection, r_len, true);
 }
 
 void WM_clipboard_text_set(const char *buf, bool selection)
@@ -1229,7 +1271,8 @@ void WM_clipboard_text_set(const char *buf, bool selection)
 	if (!G.background) {
 #ifdef _WIN32
 		/* do conversion from \n to \r\n on Windows */
-		char *p, *p2, *newbuf;
+		const char *p;
+		char *p2, *newbuf;
 		int newlen = 0;
 		
 		for (p = buf; *p; p++) {

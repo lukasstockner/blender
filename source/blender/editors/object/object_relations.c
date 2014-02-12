@@ -379,7 +379,7 @@ static int make_proxy_exec(bContext *C, wmOperator *op)
 }
 
 /* Generic itemf's for operators that take library args */
-static EnumPropertyItem *proxy_group_object_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *proxy_group_object_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem item_tmp = {0}, *item = NULL;
 	int totitem = 0;
@@ -398,7 +398,7 @@ static EnumPropertyItem *proxy_group_object_itemf(bContext *C, PointerRNA *UNUSE
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -683,7 +683,7 @@ int ED_object_parent_set(ReportList *reports, Main *bmain, Scene *scene, Object 
 					
 					switch (partype) {
 						case PAR_CURVE: /* curve deform */
-							if ( modifiers_isDeformedByCurve(ob) != par) {
+							if (modifiers_isDeformedByCurve(ob) != par) {
 								md = ED_object_modifier_add(reports, bmain, scene, ob, NULL, eModifierType_Curve);
 								if (md) {
 									((CurveModifierData *)md)->object = par;
@@ -747,7 +747,7 @@ int ED_object_parent_set(ReportList *reports, Main *bmain, Scene *scene, Object 
 				
 				copy_v3_v3(ob->loc, vec);
 			}
-			else if (pararm && ob->type == OB_MESH && par->type == OB_ARMATURE) {
+			else if (pararm && (ob->type == OB_MESH) && (par->type == OB_ARMATURE)) {
 				if (partype == PAR_ARMATURE_NAME)
 					create_vgroups_from_armature(reports, scene, ob, par, ARM_GROUPS_NAME, FALSE);
 				else if (partype == PAR_ARMATURE_ENVELOPE)
@@ -1319,7 +1319,7 @@ static int move_to_layer_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	unsigned int lay, local;
-	/* int is_lamp = FALSE; */ /* UNUSED */
+	/* bool is_lamp = FALSE; */ /* UNUSED */
 	
 	lay = move_to_layer_init(C, op);
 	lay &= 0xFFFFFF;
@@ -2050,7 +2050,7 @@ void ED_object_single_users(Main *bmain, Scene *scene, bool full, bool copy_grou
 		single_tex_users_expand(bmain);
 	}
 
-	clear_id_newpoins();
+	BKE_main_id_clear_newpoins(bmain);
 }
 
 /******************************* Make Local ***********************************/
@@ -2096,7 +2096,7 @@ static int make_local_exec(bContext *C, wmOperator *op)
 		return OPERATOR_FINISHED;
 	}
 
-	clear_id_newpoins();
+	BKE_main_id_clear_newpoins(bmain);
 	
 	CTX_DATA_BEGIN (C, Object *, ob, selected_objects)
 	{
@@ -2212,7 +2212,7 @@ static int make_single_user_exec(bContext *C, wmOperator *op)
 	int flag = RNA_enum_get(op->ptr, "type"); /* 0==ALL, SELECTED==selected objecs */
 	bool copy_groups = false;
 
-	clear_id_newpoins();
+	BKE_main_id_clear_newpoins(bmain);
 
 	if (RNA_boolean_get(op->ptr, "object"))
 		single_object_users(bmain, scene, v3d, flag, copy_groups);
@@ -2235,7 +2235,7 @@ static int make_single_user_exec(bContext *C, wmOperator *op)
 	 *               Need to make sure all the guys are learing newid before they're
 	 *               using it, not after.
 	 */
-	clear_id_newpoins();
+	BKE_main_id_clear_newpoins(bmain);
 
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 	return OPERATOR_FINISHED;

@@ -15,8 +15,8 @@ to kill any code duplication
 """
 
 import os
-import os.path
 import string
+import ctypes as ct
 import glob
 import time
 import sys
@@ -51,10 +51,8 @@ program_list = [] # A list holding Nodes to final binaries, used to create insta
 arguments = None
 targets = None
 resources = []
-bitness = 0
-
-#some internals
-blenderdeps = [] # don't manipulate this one outside this module!
+allowed_bitnesses = {4 : 32, 8 : 64} # only expecting 32-bit or 64-bit
+bitness = allowed_bitnesses[ct.sizeof(ct.c_void_p)]
 
 ##### LIB STUFF ##########
 
@@ -268,6 +266,8 @@ def setup_syslibs(lenv):
     if lenv['WITH_BF_OPENMP'] and lenv['CC'] != 'icc' and not lenv['WITH_BF_STATICOPENMP']:
         if lenv['CC'] == 'cl.exe':
             syslibs += ['vcomp']
+        elif lenv['OURPLATFORM']=='darwin' and lenv['C_COMPILER_ID'] == 'clang' and lenv['CCVERSION'] >= '3.4': # clang-omp-3.4 !
+            syslibs += ['iomp5']
         else:
             syslibs += ['gomp']
     if lenv['WITH_BF_ICONV']:
@@ -703,7 +703,7 @@ def AppIt(target=None, source=None, env=None):
             commands.getoutput(cmd)
             cmd = 'cp -R %s/kernel/*.h %s/kernel/*.cl %s/kernel/*.cu %s/kernel/' % (croot, croot, croot, cinstalldir)
             commands.getoutput(cmd)
-            cmd = 'cp -R %s/kernel/svm %s/kernel/closure %s/util/util_color.h %s/util/util_math.h %s/util/util_transform.h %s/util/util_types.h %s/kernel/' % (croot, croot, croot, croot, croot, croot, cinstalldir)
+            cmd = 'cp -R %s/kernel/svm %s/kernel/closure %s/util/util_color.h %s/util/util_half.h %s/util/util_math.h %s/util/util_transform.h %s/util/util_types.h %s/kernel/' % (croot, croot, croot, croot, croot, croot, croot, cinstalldir)
             commands.getoutput(cmd)
             cmd = 'cp -R %s/../intern/cycles/kernel/*.cubin %s/lib/' % (builddir, cinstalldir)
             commands.getoutput(cmd)
@@ -746,6 +746,15 @@ def AppIt(target=None, source=None, env=None):
         cmd = 'install_name_tool -change %s/lib/libgcc_s.1.dylib  @executable_path/lib/libgcc_s.1.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary) # change ref to libgcc ( blender )
         commands.getoutput(cmd)
         cmd = 'install_name_tool -change %s/lib/libgomp.1.dylib  @executable_path/lib/libgomp.1.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary) # change ref to libgomp ( blender )
+        commands.getoutput(cmd)
+    if env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.4':
+        print "Bundling libiomp5"
+        instname = env['BF_CXX']
+        cmd = 'ditto --arch %s %s/lib/libiomp5.dylib %s/%s.app/Contents/MacOS/lib/'%(osxarch, instname, installdir, binary) # copy libiomp5
+        commands.getoutput(cmd)
+        cmd = 'install_name_tool -id @executable_path/lib/libiomp5.dylib %s/%s.app/Contents/MacOS/lib/libiomp5.dylib'%(installdir, binary) # change id of libiomp5
+        commands.getoutput(cmd)
+        cmd = 'install_name_tool -change %s/lib/libiomp5.dylib  @executable_path/lib/libiomp5.dylib %s/%s.app/Contents/MacOS/%s'%(instname, installdir, binary, binary) # change ref to libiomp5 ( blender )
         commands.getoutput(cmd)
 
 # extract copy system python, be sure to update other build systems

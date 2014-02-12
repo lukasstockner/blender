@@ -174,7 +174,7 @@ static void bm_face_calc_poly_center_mean_vertex_cos(BMFace *f, float r_cent[3],
  * For tools that insist on using triangles, ideally we would cache this data.
  *
  * \param r_loops  Store face loop pointers, (f->len)
- * \param r_index  Store triangle triples, indicies into \a r_loops,  ((f->len - 2) * 3)
+ * \param r_index  Store triangle triples, indices into \a r_loops,  ((f->len - 2) * 3)
  */
 void BM_face_calc_tessellation(const BMFace *f, BMLoop **r_loops, unsigned int (*r_index)[3])
 {
@@ -800,67 +800,67 @@ void BM_face_triangulate(BMesh *bm, BMFace *f,
 	BLI_assert((r_faces_new == NULL) == (r_faces_new_tot == NULL));
 
 	if (f->len == 4) {
-		BMVert *v1, *v2;
+		BMLoop *l_v1, *l_v2;
 		l_first = BM_FACE_FIRST_LOOP(f);
 
 		switch (quad_method) {
 			case MOD_TRIANGULATE_QUAD_FIXED:
 			{
-				v1 = l_first->v;
-				v2 = l_first->next->next->v;
+				l_v1 = l_first;
+				l_v2 = l_first->next->next;
 				break;
 			}
 			case MOD_TRIANGULATE_QUAD_ALTERNATE:
 			{
-				v1 = l_first->next->v;
-				v2 = l_first->prev->v;
+				l_v1 = l_first->next;
+				l_v2 = l_first->prev;
 				break;
 			}
 			case MOD_TRIANGULATE_QUAD_SHORTEDGE:
 			{
-				BMVert *v3, *v4;
+				BMLoop *l_v3, *l_v4;
 				float d1, d2;
 
-				v1 = l_first->v;
-				v2 = l_first->next->next->v;
-				v3 = l_first->next->v;
-				v4 = l_first->prev->v;
+				l_v1 = l_first;
+				l_v2 = l_first->next->next;
+				l_v3 = l_first->next;
+				l_v4 = l_first->prev;
 
-				d1 = len_squared_v3v3(v1->co, v2->co);
-				d2 = len_squared_v3v3(v3->co, v4->co);
+				d1 = len_squared_v3v3(l_v1->v->co, l_v2->v->co);
+				d2 = len_squared_v3v3(l_v3->v->co, l_v4->v->co);
 
 				if (d2 < d1) {
-					v1 = v3;
-					v2 = v4;
+					l_v1 = l_v3;
+					l_v2 = l_v4;
 				}
 				break;
 			}
 			case MOD_TRIANGULATE_QUAD_BEAUTY:
 			default:
 			{
-				BMVert *v3, *v4;
+				BMLoop *l_v3, *l_v4;
 				float cost;
 
-				v1 = l_first->next->v;
-				v2 = l_first->next->next->v;
-				v3 = l_first->prev->v;
-				v4 = l_first->v;
+				l_v1 = l_first->next;
+				l_v2 = l_first->next->next;
+				l_v3 = l_first->prev;
+				l_v4 = l_first;
 
-				cost = BM_verts_calc_rotate_beauty(v1, v2, v3, v4, 0, 0);
+				cost = BM_verts_calc_rotate_beauty(l_v1->v, l_v2->v, l_v3->v, l_v4->v, 0, 0);
 
 				if (cost < 0.0f) {
-					v1 = v4;
-					//v2 = v2;
+					l_v1 = l_v4;
+					//l_v2 = l_v2;
 				}
 				else {
-					//v1 = v1;
-					v2 = v3;
+					//l_v1 = l_v1;
+					l_v2 = l_v3;
 				}
 				break;
 			}
 		}
 
-		f_new = BM_face_split(bm, f, v1, v2, &l_new, NULL, false);
+		f_new = BM_face_split(bm, f, l_v1, l_v2, &l_new, NULL, false);
 		copy_v3_v3(f_new->no, f->no);
 
 		if (use_tag) {
@@ -983,9 +983,12 @@ void BM_face_triangulate(BMesh *bm, BMFace *f,
 				for (i = 0; i < edge_array_len; i++) {
 					BMFace *f_a, *f_b;
 					BMEdge *e = edge_array[i];
+#ifndef NDEBUG
 					const bool ok = BM_edge_face_pair(e, &f_a, &f_b);
-
 					BLI_assert(ok);
+#else
+					BM_edge_face_pair(e, &f_a, &f_b);
+#endif
 
 					if (FACE_USED_TEST(f_a) == false) {
 						FACE_USED_SET(f_a);
@@ -1233,7 +1236,9 @@ void BM_bmesh_calc_tessellation(BMesh *bm, BMLoop *(*looptris)[3], int *r_looptr
 
 	/* this assumes all faces can be scan-filled, which isn't always true,
 	 * worst case we over alloc a little which is acceptable */
+#ifndef NDEBUG
 	const int looptris_tot = poly_to_tri_count(bm->totface, bm->totloop);
+#endif
 
 	BMIter iter;
 	BMFace *efa;

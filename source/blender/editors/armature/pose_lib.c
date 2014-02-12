@@ -499,7 +499,7 @@ void POSELIB_OT_pose_add(wmOperatorType *ot)
 /* ----- */
 
 /* can be called with C == NULL */
-static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Object *ob = get_poselib_object(C);
 	bAction *act = (ob) ? ob->poselib : NULL;
@@ -524,7 +524,7 @@ static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUS
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -920,7 +920,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, tPoseLib_PreviewData 
 		pchan = BKE_pose_channel_find_name(pose, agrp->name);
 		
 		if (pchan) {
-			if ( (pld->selcount == 0) || ((pchan->bone) && (pchan->bone->flag & BONE_SELECTED)) ) {
+			if ((pld->selcount == 0) || ((pchan->bone) && (pchan->bone->flag & BONE_SELECTED))) {
 				if (autokey) {
 					/* add datasource override for the PoseChannel, to be used later */
 					ANIM_relative_keyingset_add_source(&dsources, &pld->ob->id, &RNA_PoseBone, pchan); 
@@ -1069,7 +1069,7 @@ static void poselib_preview_get_next(tPoseLib_PreviewData *pld, int step)
 		}
 		
 		/* check if any matches */
-		if (pld->searchp.first == NULL) {
+		if (BLI_listbase_is_empty(&pld->searchp)) {
 			pld->marker = NULL;
 			return;
 		}

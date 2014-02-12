@@ -133,19 +133,13 @@ void Scene::device_update(Device *device_, Progress& progress)
 	/* The order of updates is important, because there's dependencies between
 	 * the different managers, using data computed by previous managers.
 	 *
-	 * - Background generates shader graph compiled by shader manager.
 	 * - Image manager uploads images used by shaders.
 	 * - Camera may be used for adapative subdivison.
 	 * - Displacement shader must have all shader data available.
-	 * - Light manager needs final mesh data to compute emission CDF.
+	 * - Light manager needs lookup tables and final mesh data to compute emission CDF.
 	 */
 	
 	image_manager->set_pack_images(device->info.pack_images);
-
-	progress.set_status("Updating Background");
-	background->device_update(device, &dscene, this);
-
-	if(progress.get_cancel()) return;
 
 	progress.set_status("Updating Shaders");
 	shader_manager->device_update(device, &dscene, this, progress);
@@ -154,6 +148,11 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	progress.set_status("Updating Images");
 	image_manager->device_update(device, &dscene, progress);
+
+	if(progress.get_cancel()) return;
+
+	progress.set_status("Updating Background");
+	background->device_update(device, &dscene, this);
 
 	if(progress.get_cancel()) return;
 
@@ -172,6 +171,16 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel()) return;
 
+	progress.set_status("Updating Film");
+	film->device_update(device, &dscene, this);
+
+	if(progress.get_cancel()) return;
+
+	progress.set_status("Updating Lookup Tables");
+	lookup_tables->device_update(device, &dscene);
+
+	if(progress.get_cancel()) return;
+
 	progress.set_status("Updating Meshes");
 	mesh_manager->device_update(device, &dscene, this, progress);
 
@@ -187,18 +196,8 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel()) return;
 
-	progress.set_status("Updating Film");
-	film->device_update(device, &dscene, this);
-
-	if(progress.get_cancel()) return;
-
 	progress.set_status("Updating Integrator");
 	integrator->device_update(device, &dscene, this);
-
-	if(progress.get_cancel()) return;
-
-	progress.set_status("Updating Lookup Tables");
-	lookup_tables->device_update(device, &dscene);
 
 	if(progress.get_cancel()) return;
 

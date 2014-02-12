@@ -58,8 +58,8 @@ struct DMCoNo;
 enum PaintMode;
 
 /* paint_stroke.c */
-typedef int (*StrokeGetLocation)(struct bContext *C, float location[3], const float mouse[2]);
-typedef int (*StrokeTestStart)(struct bContext *C, struct wmOperator *op, const float mouse[2]);
+typedef bool (*StrokeGetLocation)(struct bContext *C, float location[3], const float mouse[2]);
+typedef bool (*StrokeTestStart)(struct bContext *C, struct wmOperator *op, const float mouse[2]);
 typedef void (*StrokeUpdateStep)(struct bContext *C, struct PaintStroke *stroke, struct PointerRNA *itemptr);
 typedef void (*StrokeRedraw)(const struct bContext *C, struct PaintStroke *stroke, bool final);
 typedef void (*StrokeDone)(const struct bContext *C, struct PaintStroke *stroke);
@@ -225,6 +225,7 @@ int vert_paint_poll(struct bContext *C);
 int mask_paint_poll(struct bContext *C);
 
 int facemask_paint_poll(struct bContext *C);
+void flip_v3_v3(float out[3], const float in[3], const char symm);
 
 /* stroke operator */
 typedef enum BrushStrokeMode {
@@ -261,7 +262,6 @@ typedef enum {
 } PaintMaskFloodMode;
 
 void PAINT_OT_mask_flood_fill(struct wmOperatorType *ot);
-void PAINT_OT_mask_box_fill(struct wmOperatorType *ot);
 void PAINT_OT_mask_lasso_gesture(struct wmOperatorType *ot);
 
 /* image painting blur kernel */

@@ -512,7 +512,7 @@ static int apply_objects_internal(bContext *C, ReportList *reports, int apply_lo
 		}
 		else if (ob->type == OB_MBALL) {
 			MetaBall *mb = ob->data;
-			ED_mball_transform(mb, (float *)mat);
+			ED_mball_transform(mb, mat);
 		}
 		else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
 			Curve *cu = ob->data;
@@ -794,7 +794,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 		Object *ob = ctx_ob->ptr.data;
 
 		if ((ob->flag & OB_DONE) == 0) {
-			int do_inverse_offset = FALSE;
+			bool do_inverse_offset = false;
 			ob->flag |= OB_DONE;
 
 			if (centermode == ORIGIN_TO_CURSOR) {

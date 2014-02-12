@@ -37,45 +37,9 @@ class VIEW3D_HT_header(Header):
 
         row = layout.row(align=True)
         row.template_header()
+        sub = row.row(align=True)
 
-        # Menus
-        if context.area.show_menus:
-            sub = row.row(align=True)
-
-            sub.menu("VIEW3D_MT_view")
-
-            # Select Menu
-            if mode_string in {'PAINT_WEIGHT', 'PAINT_VERTEX', 'PAINT_TEXTURE'}:
-                mesh = obj.data
-                if mesh.use_paint_mask:
-                    sub.menu("VIEW3D_MT_select_paint_mask")
-                elif mesh.use_paint_mask_vertex and mode_string == 'PAINT_WEIGHT':
-                    sub.menu("VIEW3D_MT_select_paint_mask_vertex")
-            elif mode_string not in {'EDIT_TEXT', 'SCULPT'}:
-                sub.menu("VIEW3D_MT_select_%s" % mode_string.lower())
-
-            if mode_string == 'OBJECT':
-                sub.menu("INFO_MT_add", text="Add")
-            elif mode_string == 'EDIT_MESH':
-                sub.menu("INFO_MT_mesh_add", text="Add")
-            elif mode_string == 'EDIT_CURVE':
-                sub.menu("INFO_MT_curve_add", text="Add")
-            elif mode_string == 'EDIT_SURFACE':
-                sub.menu("INFO_MT_surface_add", text="Add")
-            elif mode_string == 'EDIT_METABALL':
-                sub.menu("INFO_MT_metaball_add", text="Add")
-
-            if edit_object:
-                sub.menu("VIEW3D_MT_edit_%s" % edit_object.type.lower())
-            elif obj:
-                if mode_string not in {'PAINT_TEXTURE'}:
-                    sub.menu("VIEW3D_MT_%s" % mode_string.lower())
-                if mode_string in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'PAINT_TEXTURE'}:
-                    sub.menu("VIEW3D_MT_brush")
-                if mode_string == 'SCULPT':
-                    sub.menu("VIEW3D_MT_hide_mask")
-            else:
-                sub.menu("VIEW3D_MT_object")
+        VIEW3D_MT_editor_menus.draw_collapsible(context, layout)
 
         # Contains buttons like Mode, Pivot, Manipulator, Layer, Mesh Select Mode...
         row = layout
@@ -95,21 +59,21 @@ class VIEW3D_HT_header(Header):
             # Proportional editing
             if mode in {'EDIT', 'PARTICLE_EDIT'}:
                 row = layout.row(align=True)
-                row.prop(toolsettings, "proportional_edit", text="", icon_only=True)
+                row.prop(toolsettings, "proportional_edit", icon_only=True)
                 if toolsettings.proportional_edit != 'DISABLED':
-                    row.prop(toolsettings, "proportional_edit_falloff", text="", icon_only=True)
+                    row.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
             elif mode == 'OBJECT':
                 row = layout.row(align=True)
-                row.prop(toolsettings, "use_proportional_edit_objects", text="", icon_only=True)
+                row.prop(toolsettings, "use_proportional_edit_objects", icon_only=True)
                 if toolsettings.use_proportional_edit_objects:
-                    row.prop(toolsettings, "proportional_edit_falloff", text="", icon_only=True)
+                    row.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
 
         # Snap
         if not obj or mode not in {'SCULPT', 'VERTEX_PAINT', 'WEIGHT_PAINT', 'TEXTURE_PAINT'}:
             snap_element = toolsettings.snap_element
             row = layout.row(align=True)
             row.prop(toolsettings, "use_snap", text="")
-            row.prop(toolsettings, "snap_element", text="", icon_only=True)
+            row.prop(toolsettings, "snap_element", icon_only=True)
             if snap_element != 'INCREMENT':
                 row.prop(toolsettings, "snap_target", text="")
                 if obj:
@@ -139,6 +103,57 @@ class VIEW3D_HT_header(Header):
             row.operator("pose.copy", text="", icon='COPYDOWN')
             row.operator("pose.paste", text="", icon='PASTEDOWN')
             row.operator("pose.paste", text="", icon='PASTEFLIPDOWN').flipped = 1
+
+
+class VIEW3D_MT_editor_menus(Menu):
+    bl_space_type = 'VIEW3D_MT_editor_menus'
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        obj = context.active_object
+        mode_string = context.mode
+        edit_object = context.edit_object
+
+        layout.menu("VIEW3D_MT_view")
+
+        # Select Menu
+        if mode_string in {'PAINT_WEIGHT', 'PAINT_VERTEX', 'PAINT_TEXTURE'}:
+            mesh = obj.data
+            if mesh.use_paint_mask:
+                layout.menu("VIEW3D_MT_select_paint_mask")
+            elif mesh.use_paint_mask_vertex and mode_string == 'PAINT_WEIGHT':
+                layout.menu("VIEW3D_MT_select_paint_mask_vertex")
+        elif mode_string not in {'EDIT_TEXT', 'SCULPT'}:
+            layout.menu("VIEW3D_MT_select_%s" % mode_string.lower())
+
+        if mode_string == 'OBJECT':
+            layout.menu("INFO_MT_add", text="Add")
+        elif mode_string == 'EDIT_MESH':
+            layout.menu("INFO_MT_mesh_add", text="Add")
+        elif mode_string == 'EDIT_CURVE':
+            layout.menu("INFO_MT_curve_add", text="Add")
+        elif mode_string == 'EDIT_SURFACE':
+            layout.menu("INFO_MT_surface_add", text="Add")
+        elif mode_string == 'EDIT_METABALL':
+            layout.menu("INFO_MT_metaball_add", text="Add")
+        elif mode_string == 'EDIT_ARMATURE':
+            layout.menu("INFO_MT_edit_armature_add", text="Add")
+
+        if edit_object:
+            layout.menu("VIEW3D_MT_edit_%s" % edit_object.type.lower())
+        elif obj:
+            if mode_string not in {'PAINT_TEXTURE'}:
+                layout.menu("VIEW3D_MT_%s" % mode_string.lower())
+            if mode_string in {'SCULPT', 'PAINT_VERTEX', 'PAINT_WEIGHT', 'PAINT_TEXTURE'}:
+                layout.menu("VIEW3D_MT_brush")
+            if mode_string == 'SCULPT':
+                layout.menu("VIEW3D_MT_hide_mask")
+        else:
+            layout.menu("VIEW3D_MT_object")
 
 
 # ********** Menu **********
@@ -249,11 +264,12 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base):
         layout.separator()
 
         obj = context.object
-        if (obj.type == 'ARMATURE' and obj.mode in {'EDIT', 'POSE'} and
-            obj.data.draw_type in {'BBONE', 'ENVELOPE'}
-            ):
-
-            layout.operator("transform.transform", text="Scale Envelope/BBone").mode = 'BONE_SIZE'
+        if obj.type == 'ARMATURE' and obj.mode in {'EDIT', 'POSE'}:
+            if obj.data.draw_type == 'BBONE':
+                layout.operator("transform.transform", text="Scale BBone").mode = 'BONE_SIZE'
+            elif obj.data.draw_type == 'ENVELOPE':
+                layout.operator("transform.transform", text="Scale Envelope Distance").mode = 'BONE_SIZE'
+                layout.operator("transform.transform", text="Scale Radius").mode = 'BONE_ENVELOPE'
 
         if context.edit_object and context.edit_object.type == 'ARMATURE':
             layout.operator("armature.align")
@@ -712,6 +728,28 @@ class VIEW3D_MT_select_edit_surface(Menu):
         layout.operator("curve.select_less")
 
 
+class VIEW3D_MT_select_edit_text(Menu):
+    # intentional name mis-match
+    # select menu for 3d-text doesn't make sense
+    bl_label = "Edit"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("font.text_copy", text="Copy")
+        layout.operator("font.text_cut", text="Cut")
+        layout.operator("font.text_paste", text="Paste")
+
+        layout.separator()
+
+        layout.operator("font.text_paste_from_file")
+        layout.operator("font.text_paste_from_clipboard")
+
+        layout.separator()
+
+        layout.operator("font.select_all")
+
+
 class VIEW3D_MT_select_edit_metaball(Menu):
     bl_label = "Select"
 
@@ -914,6 +952,17 @@ class INFO_MT_edit_curve_add(Menu):
             INFO_MT_surface_add.draw(self, context)
         else:
             INFO_MT_curve_add.draw(self, context)
+
+
+class INFO_MT_edit_armature_add(Menu):
+    bl_idname = "INFO_MT_edit_armature_add"
+    bl_label = "Armature"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_context = 'EXEC_REGION_WIN'
+        layout.operator("armature.bone_primitive_add", text="Single Bone", icon='BONE_DATA')
 
 
 class INFO_MT_armature_add(Menu):
@@ -2265,6 +2314,10 @@ class VIEW3D_MT_edit_mesh_clean(Menu):
     def draw(self, context):
         layout = self.layout
 
+        layout.operator("mesh.delete_loose")
+
+        layout.separator()
+
         layout.operator("mesh.fill_holes")
         layout.operator("mesh.vert_connect_nonplanar")
 
@@ -2356,6 +2409,7 @@ class VIEW3D_MT_edit_curve_ctrlpoints(Menu):
             layout.separator()
 
             layout.operator_menu_enum("curve.handle_type_set", "type")
+            layout.operator("curve.normals_make_consistent")
 
             layout.separator()
 
@@ -2403,10 +2457,6 @@ class VIEW3D_MT_edit_font(Menu):
 
     def draw(self, context):
         layout = self.layout
-
-        layout.operator("font.file_paste")
-
-        layout.separator()
 
         layout.menu("VIEW3D_MT_edit_text_chars")
 
@@ -2802,14 +2852,15 @@ class VIEW3D_PT_view3d_shading(Panel):
 
         if not scene.render.use_shading_nodes:
             col.prop(gs, "material_mode", text="")
-            col.prop(view, "show_textured_solid")
 
         if view.viewport_shade == 'SOLID':
+            col.prop(view, "show_textured_solid")
             col.prop(view, "use_matcap")
             if view.use_matcap:
                 col.template_icon_view(view, "matcap_icon")
         elif view.viewport_shade == 'TEXTURED':
-            col.prop(view, "show_textured_shadeless")
+            if scene.render.use_shading_nodes or gs.material_mode != 'GLSL':
+                col.prop(view, "show_textured_shadeless")
 
         col.prop(view, "show_backface_culling")
         if obj and obj.mode == 'EDIT' and view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:

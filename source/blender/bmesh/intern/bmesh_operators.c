@@ -1466,7 +1466,7 @@ int BMO_iter_map_value_int(BMOIter *iter)
 bool BMO_iter_map_value_bool(BMOIter *iter)
 {
 	BLI_assert(iter->slot->slot_subtype.map == BMO_OP_SLOT_SUBTYPE_MAP_BOOL);
-	return **((int **)iter->val);
+	return **((bool **)iter->val);
 }
 
 /* error system */
@@ -1498,7 +1498,7 @@ void BMO_error_raise(BMesh *bm, BMOperator *owner, int errcode, const char *msg)
 
 bool BMO_error_occurred(BMesh *bm)
 {
-	return bm->errorstack.first != NULL;
+	return (BLI_listbase_is_empty(&bm->errorstack) == false);
 }
 
 /* returns error code or 0 if no error */

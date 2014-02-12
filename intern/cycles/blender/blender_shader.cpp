@@ -172,6 +172,13 @@ static void get_tex_mapping(TextureMapping *mapping, BL::ShaderNodeMapping b_map
 		mapping->max = get_float3(b_mapping.max());
 }
 
+static bool is_output_node(BL::Node b_node)
+{
+	return (b_node.is_a(&RNA_ShaderNodeOutputMaterial)
+		    || b_node.is_a(&RNA_ShaderNodeOutputWorld)
+		    || b_node.is_a(&RNA_ShaderNodeOutputLamp));
+}
+
 static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scene, ShaderGraph *graph, BL::ShaderNodeTree b_ntree, BL::ShaderNode b_node)
 {
 	ShaderNode *node = NULL;
@@ -279,12 +286,6 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 		get_tex_mapping(&mapping->tex_mapping, b_mapping_node);
 		
 		node = mapping;
-	}
-	/* new nodes */
-	else if (b_node.is_a(&RNA_ShaderNodeOutputMaterial)
-	      || b_node.is_a(&RNA_ShaderNodeOutputWorld)
-	      || b_node.is_a(&RNA_ShaderNodeOutputLamp)) {
-		node = graph->output();
 	}
 	else if (b_node.is_a(&RNA_ShaderNodeFresnel)) {
 		node = new FresnelNode();
@@ -422,11 +423,11 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 	else if (b_node.is_a(&RNA_ShaderNodeAmbientOcclusion)) {
 		node = new AmbientOcclusionNode();
 	}
-	else if (b_node.is_a(&RNA_ShaderNodeVolumeIsotropic)) {
-		node = new IsotropicVolumeNode();
+	else if (b_node.is_a(&RNA_ShaderNodeVolumeScatter)) {
+		node = new ScatterVolumeNode();
 	}
-	else if (b_node.is_a(&RNA_ShaderNodeVolumeTransparent)) {
-		node = new TransparentVolumeNode();
+	else if (b_node.is_a(&RNA_ShaderNodeVolumeAbsorption)) {
+		node = new AbsorptionVolumeNode();
 	}
 	else if (b_node.is_a(&RNA_ShaderNodeNewGeometry)) {
 		node = new GeometryNode();
@@ -645,7 +646,7 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 		BL::ShaderNodeTexSky b_sky_node(b_node);
 		SkyTextureNode *sky = new SkyTextureNode();
 		sky->type = SkyTextureNode::type_enum[(int)b_sky_node.sky_type()];
-		sky->sun_direction = get_float3(b_sky_node.sun_direction());
+		sky->sun_direction = normalize(get_float3(b_sky_node.sun_direction()));
 		sky->turbidity = b_sky_node.turbidity();
 		sky->ground_albedo = b_sky_node.ground_albedo();
 		get_tex_mapping(&sky->tex_mapping, b_sky_node.texture_mapping());
@@ -667,7 +668,7 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 		node = tangent;
 	}
 
-	if(node && node != graph->output())
+	if(node)
 		graph->add(node);
 
 	return node;
@@ -754,6 +755,26 @@ static void add_nodes(Scene *scene, BL::BlendData b_data, BL::Scene b_scene, Sha
 	BL::Node::inputs_iterator b_input;
 	BL::Node::outputs_iterator b_output;
 
+	/* find the node to use for output if there are multiple */
+	bool found_active_output = false;
+	BL::ShaderNode output_node(PointerRNA_NULL);
+
+	for(b_ntree.nodes.begin(b_node); b_node != b_ntree.nodes.end(); ++b_node) {
+		if (is_output_node(*b_node)) {
+			BL::ShaderNodeOutputMaterial b_output_node(*b_node);
+
+			if(b_output_node.is_active_output()) {
+				output_node = b_output_node;
+				found_active_output = true;
+				break;
+			}
+			else if(!output_node.ptr.data && !found_active_output) {
+				output_node = b_output_node;
+			}
+		}
+	}
+
+	/* add nodes */
 	for(b_ntree.nodes.begin(b_node); b_node != b_ntree.nodes.end(); ++b_node) {
 		if (b_node->mute() || b_node->is_a(&RNA_NodeReroute)) {
 			/* replace muted node with internal links */
@@ -833,7 +854,16 @@ static void add_nodes(Scene *scene, BL::BlendData b_data, BL::Scene b_scene, Sha
 			}
 		}
 		else {
-			ShaderNode *node = add_node(scene, b_data, b_scene, graph, b_ntree, BL::ShaderNode(*b_node));
+			ShaderNode *node = NULL;
+
+			if (is_output_node(*b_node)) {
+				if (b_node->ptr.data == output_node.ptr.data) {
+					node = graph->output();
+				}
+			}
+			else {
+				node = add_node(scene, b_data, b_scene, graph, b_ntree, BL::ShaderNode(*b_node));
+			}
 			
 			if(node) {
 				/* map node sockets for linking */
@@ -921,7 +951,7 @@ void BlenderSync::sync_materials(bool update_all)
 			PointerRNA cmat = RNA_pointer_get(&b_mat->ptr, "cycles");
 			shader->use_mis = get_boolean(cmat, "sample_as_light");
 			shader->use_transparent_shadow = get_boolean(cmat, "use_transparent_shadow");
-			shader->homogeneous_volume = get_boolean(cmat, "homogeneous_volume");
+			shader->heterogeneous_volume = !get_boolean(cmat, "homogeneous_volume");
 
 			shader->set_graph(graph);
 			shader->tag_update(scene);
@@ -947,6 +977,10 @@ void BlenderSync::sync_world(bool update_all)
 			BL::ShaderNodeTree b_ntree(b_world.node_tree());
 
 			add_nodes(scene, b_data, b_scene, graph, b_ntree);
+			
+			/* volume */
+			PointerRNA cworld = RNA_pointer_get(&b_world.ptr, "cycles");
+			shader->heterogeneous_volume = !get_boolean(cworld, "homogeneous_volume");
 		}
 		else if(b_world) {
 			ShaderNode *closure, *out;
@@ -983,6 +1017,7 @@ void BlenderSync::sync_world(bool update_all)
 
 		shader->set_graph(graph);
 		shader->tag_update(scene);
+		background->tag_update(scene);
 	}
 
 	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");

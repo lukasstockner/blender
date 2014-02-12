@@ -358,7 +358,7 @@ static bool bm_decim_triangulate_begin(BMesh *bm)
 				 * - if there is a quad that has a free standing edge joining it along
 				 * where we want to split the face, there isnt a good way we can handle this.
 				 * currently that edge will get removed when joining the tris back into a quad. */
-				f_new = BM_face_split(bm, f, l_a->v, l_b->v, &l_new, NULL, false);
+				f_new = BM_face_split(bm, f, l_a, l_b, &l_new, NULL, false);
 
 				if (f_new) {
 					/* the value of this doesn't matter, only that the 2 loops match and have unique values */
@@ -578,7 +578,7 @@ static void bm_edge_tag_disable(BMEdge *e)
 	}
 }
 
-static int bm_edge_tag_test(BMEdge *e)
+static bool bm_edge_tag_test(BMEdge *e)
 {
 	/* is the edge or one of its faces tagged? */
 	return (BM_elem_flag_test(e->v1, BM_ELEM_TAG) ||

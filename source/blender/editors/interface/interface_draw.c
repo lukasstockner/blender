@@ -469,7 +469,7 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 }
 
 static void histogram_draw_one(float r, float g, float b, float alpha,
-                               float x, float y, float w, float h, float *data, int res, const short is_line)
+                               float x, float y, float w, float h, float *data, int res, const bool is_line)
 {
 	int i;
 	
@@ -533,7 +533,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	rctf rect;
 	int i;
 	float w, h;
-	const short is_line = (hist->flag & HISTO_FLAG_LINE) != 0;
+	const bool is_line = (hist->flag & HISTO_FLAG_LINE) != 0;
 	//float alpha;
 	GLint scissor[4];
 	
@@ -935,11 +935,11 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti 
 
 	/* first background, to show tranparency */
 
-	glColor4ub(UI_TRANSP_DARK, UI_TRANSP_DARK, UI_TRANSP_DARK, 255);
+	glColor4ub(UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, 255);
 	glRectf(x1, y1, x1 + sizex, y1 + sizey);
 	glEnable(GL_POLYGON_STIPPLE);
-	glColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
-	glPolygonStipple(checker_stipple_sml);
+	glColor4ub(UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, 255);
+	glPolygonStipple(stipple_checker_8px);
 	glRectf(x1, y1, x1 + sizex, y1 + sizey);
 	glDisable(GL_POLYGON_STIPPLE);
 
@@ -1308,7 +1308,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 	glBegin(GL_LINE_STRIP);
 	
 	if (cuma->table == NULL)
-		curvemapping_changed(cumap, FALSE);
+		curvemapping_changed(cumap, false);
 	cmp = cuma->table;
 	
 	/* first point */
@@ -1405,7 +1405,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 
 		tmpibuf = BKE_tracking_sample_pattern(scopes->frame_width, scopes->frame_height,
 		                                            scopes->track_search, scopes->track,
-		                                            &scopes->undist_marker, TRUE, scopes->use_track_mask,
+		                                            &scopes->undist_marker, true, scopes->use_track_mask,
 		                                            width, height, scopes->track_pos);
 
 		if (tmpibuf) {

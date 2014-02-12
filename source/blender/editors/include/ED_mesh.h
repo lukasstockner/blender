@@ -174,11 +174,6 @@ void EDBM_select_swap(struct BMEditMesh *em); /* exported for UV */
 bool EDBM_select_interior_faces(struct BMEditMesh *em);
 void em_setup_viewcontext(struct bContext *C, struct ViewContext *vc);  /* rename? */
 
-/* editmesh_statvis.c */
-void EDBM_statvis_calc(struct BMEditMesh *em, struct MeshStatVis *statvis,
-                       unsigned char (*r_face_colors)[4]);
-
-
 extern unsigned int bm_vertoffs, bm_solidoffs, bm_wireoffs;
 
 /* mesh_ops.c */
@@ -269,7 +264,7 @@ void ED_mesh_faces_remove(struct Mesh *mesh, struct ReportList *reports, int cou
 void ED_mesh_edges_remove(struct Mesh *mesh, struct ReportList *reports, int count);
 void ED_mesh_vertices_remove(struct Mesh *mesh, struct ReportList *reports, int count);
 
-void ED_mesh_transform(struct Mesh *me, float *mat);
+void ED_mesh_transform(struct Mesh *me, float mat[4][4]);
 void ED_mesh_calc_tessface(struct Mesh *mesh);
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, int calc_edges, int calc_tessface);
 

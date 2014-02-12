@@ -40,7 +40,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_edgehash.h"
 #include "BLI_math.h"
-#include "BLI_smallhash.h"
 #include "BLI_utildefines.h"
 #include "BLI_scanfill.h"
 
@@ -48,6 +47,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_global.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
 #include "BKE_curve.h"
@@ -428,7 +428,7 @@ static void cdDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdges
 	int i;
 
 	if (cddm->pbvh && cddm->pbvh_draw &&
-		BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH)
+	    BKE_pbvh_type(cddm->pbvh) == PBVH_BMESH)
 	{
 		BKE_pbvh_draw(cddm->pbvh, NULL, NULL, NULL, TRUE);
 
@@ -1664,7 +1664,7 @@ static void cdDM_foreachMappedFaceCenter(
 
 }
 
-void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const int do_face_nor_cpy)
+void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const bool do_face_nor_cpy)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
 
@@ -1682,7 +1682,7 @@ void CDDM_recalc_tessellation_ex(DerivedMesh *dm, const int do_face_nor_cpy)
 
 void CDDM_recalc_tessellation(DerivedMesh *dm)
 {
-	CDDM_recalc_tessellation_ex(dm, TRUE);
+	CDDM_recalc_tessellation_ex(dm, true);
 }
 
 static void cdDM_free_internal(CDDerivedMesh *cddm)
@@ -1699,11 +1699,6 @@ static void cdDM_release(DerivedMesh *dm)
 		cdDM_free_internal(cddm);
 		MEM_freeN(cddm);
 	}
-}
-
-int CDDM_Check(DerivedMesh *dm)
-{
-	return dm && dm->getMinMax == cdDM_getMinMax;
 }
 
 /**************** CDDM interface functions ****************/
@@ -1801,9 +1796,9 @@ DerivedMesh *CDDM_new(int numVerts, int numEdges, int numTessFaces, int numLoops
 	return dm;
 }
 
-DerivedMesh *CDDM_from_mesh(Mesh *mesh, Object *UNUSED(ob))
+DerivedMesh *CDDM_from_mesh(Mesh *mesh)
 {
-	CDDerivedMesh *cddm = cdDM_create("CDDM_from_mesh dm");
+	CDDerivedMesh *cddm = cdDM_create(__func__);
 	DerivedMesh *dm = &cddm->dm;
 	CustomDataMask mask = CD_MASK_MESH & (~CD_MASK_MDISPS);
 	int alloctype;
@@ -1949,9 +1944,9 @@ static void loops_to_customdata_corners(BMesh *bm, CustomData *facedata,
 }
 
 /* used for both editbmesh and bmesh */
-static DerivedMesh *cddm_from_bmesh_ex(struct BMesh *bm, int use_mdisps,
+static DerivedMesh *cddm_from_bmesh_ex(struct BMesh *bm, const bool use_mdisps,
                                        /* EditBMesh vars for use_tessface */
-                                       int use_tessface,
+                                       const bool use_tessface,
                                        const int em_tottri, const BMLoop *(*em_looptris)[3]
                                        )
 {
@@ -2114,14 +2109,14 @@ static DerivedMesh *cddm_from_bmesh_ex(struct BMesh *bm, int use_mdisps,
 	return dm;
 }
 
-struct DerivedMesh *CDDM_from_bmesh(struct BMesh *bm, int use_mdisps)
+struct DerivedMesh *CDDM_from_bmesh(struct BMesh *bm, const bool use_mdisps)
 {
-	return cddm_from_bmesh_ex(bm, use_mdisps, FALSE,
+	return cddm_from_bmesh_ex(bm, use_mdisps, false,
 	                          /* these vars are for editmesh only */
 	                          0, NULL);
 }
 
-DerivedMesh *CDDM_from_editbmesh(BMEditMesh *em, int use_mdisps, int use_tessface)
+DerivedMesh *CDDM_from_editbmesh(BMEditMesh *em, const bool use_mdisps, const bool use_tessface)
 {
 	return cddm_from_bmesh_ex(em->bm, use_mdisps,
 	                          /* editmesh */
@@ -2258,7 +2253,7 @@ void CDDM_apply_vert_normals(DerivedMesh *dm, short (*vertNormals)[3])
 	cddm->dm.dirty &= ~DM_DIRTY_NORMALS;
 }
 
-void CDDM_calc_normals_mapping_ex(DerivedMesh *dm, const short only_face_normals)
+void CDDM_calc_normals_mapping_ex(DerivedMesh *dm, const bool only_face_normals)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
 	float (*face_nors)[3] = NULL;
@@ -2272,10 +2267,10 @@ void CDDM_calc_normals_mapping_ex(DerivedMesh *dm, const short only_face_normals
 	 * no need to duplicate verts.
 	 * WATCH THIS, bmesh only change!,
 	 * need to take care of the side effects here - campbell */
-	#if 0
+#if 0
 	/* we don't want to overwrite any referenced layers */
 	cddm->mvert = CustomData_duplicate_referenced_layer(&dm->vertData, CD_MVERT, dm->numVertData);
-	#endif
+#endif
 
 
 	if (dm->numTessFaceData == 0) {
@@ -2284,7 +2279,7 @@ void CDDM_calc_normals_mapping_ex(DerivedMesh *dm, const short only_face_normals
 		 * Important not to update face normals from polys since it
 		 * interferes with assigning the new normal layer in the following code.
 		 */
-		CDDM_recalc_tessellation_ex(dm, FALSE);
+		CDDM_recalc_tessellation_ex(dm, false);
 	}
 	else {
 		/* A tessellation already exists, it should always have a CD_ORIGINDEX */
@@ -2310,7 +2305,7 @@ void CDDM_calc_normals_mapping_ex(DerivedMesh *dm, const short only_face_normals
 void CDDM_calc_normals_mapping(DerivedMesh *dm)
 {
 	/* use this to skip calculating normals on original vert's, this may need to be changed */
-	const short only_face_normals = CustomData_is_referenced_layer(&dm->vertData, CD_MVERT);
+	const bool only_face_normals = CustomData_is_referenced_layer(&dm->vertData, CD_MVERT);
 
 	CDDM_calc_normals_mapping_ex(dm, only_face_normals);
 }

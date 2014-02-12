@@ -124,7 +124,7 @@ static int copy_data_path_button_exec(bContext *C, wmOperator *UNUSED(op))
 		path = RNA_path_from_ID_to_property(&ptr, prop);
 		
 		if (path) {
-			WM_clipboard_text_set(path, FALSE);
+			WM_clipboard_text_set(path, false);
 			MEM_freeN(path);
 			return OPERATOR_FINISHED;
 		}
@@ -187,7 +187,8 @@ static int reset_default_button_exec(bContext *C, wmOperator *op)
 {
 	PointerRNA ptr;
 	PropertyRNA *prop;
-	int index, all = RNA_boolean_get(op->ptr, "all");
+	int index;
+	const bool all = RNA_boolean_get(op->ptr, "all");
 
 	/* try to reset the nominated setting to its default value */
 	uiContextActiveProperty(C, &ptr, &prop, &index);
@@ -258,9 +259,9 @@ static void UI_OT_unset_property_button(wmOperatorType *ot)
 
 /* Copy To Selected Operator ------------------------ */
 
-static int copy_to_selected_list(bContext *C, PointerRNA *ptr, ListBase *lb, int *use_path)
+static bool copy_to_selected_list(bContext *C, PointerRNA *ptr, ListBase *lb, bool *use_path)
 {
-	*use_path = FALSE;
+	*use_path = false;
 
 	if (RNA_struct_is_a(ptr->type, &RNA_EditBone))
 		*lb = CTX_data_collection_get(C, "selected_editable_bones");
@@ -273,13 +274,14 @@ static int copy_to_selected_list(bContext *C, PointerRNA *ptr, ListBase *lb, int
 
 		if (id && GS(id->name) == ID_OB) {
 			*lb = CTX_data_collection_get(C, "selected_editable_objects");
-			*use_path = TRUE;
+			*use_path = true;
 		}
-		else
-			return 0;
+		else {
+			return false;
+		}
 	}
 	
-	return 1;
+	return true;
 }
 
 static int copy_to_selected_button_poll(bContext *C)
@@ -292,7 +294,7 @@ static int copy_to_selected_button_poll(bContext *C)
 
 	if (ptr.data && prop) {
 		char *path = NULL;
-		int use_path;
+		bool use_path;
 		CollectionPointerLink *link;
 		ListBase lb;
 
@@ -334,7 +336,8 @@ static int copy_to_selected_button_exec(bContext *C, wmOperator *op)
 	PointerRNA ptr, lptr, idptr;
 	PropertyRNA *prop, *lprop;
 	int success = 0;
-	int index, all = RNA_boolean_get(op->ptr, "all");
+	int index;
+	const bool all = RNA_boolean_get(op->ptr, "all");
 
 	/* try to reset the nominated setting to its default value */
 	uiContextActiveProperty(C, &ptr, &prop, &index);
@@ -342,7 +345,7 @@ static int copy_to_selected_button_exec(bContext *C, wmOperator *op)
 	/* if there is a valid property that is editable... */
 	if (ptr.data && prop) {
 		char *path = NULL;
-		int use_path;
+		bool use_path;
 		CollectionPointerLink *link;
 		ListBase lb;
 
@@ -492,7 +495,7 @@ static void ui_editsource_active_but_clear(void)
 	ui_editsource_info = NULL;
 }
 
-static int ui_editsource_uibut_match(uiBut *but_a, uiBut *but_b)
+static bool ui_editsource_uibut_match(uiBut *but_a, uiBut *but_b)
 {
 #if 0
 	printf("matching buttons: '%s' == '%s'\n",
@@ -509,10 +512,10 @@ static int ui_editsource_uibut_match(uiBut *but_a, uiBut *but_b)
 	    (but_a->unit_type == but_b->unit_type) &&
 	    (strncmp(but_a->drawstr, but_b->drawstr, UI_MAX_DRAW_STR) == 0))
 	{
-		return TRUE;
+		return true;
 	}
 	else {
-		return FALSE;
+		return false;
 	}
 }
 
@@ -577,7 +580,7 @@ static int editsource_text_edit(bContext *C, wmOperator *op,
 			BKE_reportf(op->reports, RPT_INFO, "See '%s' in the text editor", text->id.name + 2);
 		}
 
-		txt_move_toline(text, line - 1, FALSE);
+		txt_move_toline(text, line - 1, false);
 		WM_event_add_notifier(C, NC_TEXT | ND_CURSOR, text);
 	}
 

@@ -189,8 +189,8 @@ static int graphkeys_previewrange_exec(bContext *C, wmOperator *UNUSED(op))
 	/* set the range directly */
 	get_graph_keyframe_extents(&ac, &min, &max, NULL, NULL, FALSE, FALSE);
 	scene->r.flag |= SCER_PRV_RANGE;
-	scene->r.psfra = (int)floor(min + 0.5f);
-	scene->r.pefra = (int)floor(max + 0.5f);
+	scene->r.psfra = iroundf(min);
+	scene->r.pefra = iroundf(max);
 	
 	/* set notifier that things have changed */
 	// XXX err... there's nothing for frame ranges yet, but this should do fine too
@@ -430,7 +430,7 @@ static int graphkeys_clear_ghostcurves_exec(bContext *C, wmOperator *UNUSED(op))
 	sipo = (SpaceIpo *)ac.sl;
 		
 	/* if no ghost curves, don't do anything */
-	if (sipo->ghostCurves.first == NULL)
+	if (BLI_listbase_is_empty(&sipo->ghostCurves))
 		return OPERATOR_CANCELLED;
 	
 	/* free ghost curves */
@@ -908,17 +908,17 @@ static bool delete_graph_keys(bAnimContext *ac)
 
 /* ------------------- */
 
-static int graphkeys_delete_exec(bContext *C, wmOperator *op)
+static int graphkeys_delete_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	bAnimContext ac;
-	bool changed;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
 		
 	/* delete keyframes */
-	changed = delete_graph_keys(&ac);
+	if (!delete_graph_keys(&ac))
+		return OPERATOR_CANCELLED;
 	
 	/* validate keyframes after editing */
 	ANIM_editkeyframes_refresh(&ac);
@@ -926,9 +926,6 @@ static int graphkeys_delete_exec(bContext *C, wmOperator *op)
 	/* set notifier that keyframes have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 	
-	if (changed)
-		BKE_report(op->reports, RPT_INFO, "Deleted selected keyframes");
-
 	return OPERATOR_FINISHED;
 }
  
@@ -940,6 +937,7 @@ void GRAPH_OT_delete(wmOperatorType *ot)
 	ot->description = "Remove all selected keyframes";
 	
 	/* api callbacks */
+	ot->invoke = WM_operator_confirm;
 	ot->exec = graphkeys_delete_exec;
 	ot->poll = graphop_editable_keyframes_poll;
 	
@@ -1827,7 +1825,7 @@ static int graphkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
 		Scene *scene = ac.scene;
 		
 		/* take the average values, rounding to the nearest int for the current frame */
-		CFRA = (int)floor((ked.f1 / ked.i1) + 0.5f);
+		CFRA = iroundf(ked.f1 / ked.i1);
 		SUBFRA = 0.f;
 		sipo->cursorVal = ked.f2 / (float)ked.i1;
 	}

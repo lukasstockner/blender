@@ -217,19 +217,19 @@ ShaderNode *ImageTextureNode::clone() const
 	return node;
 }
 
-void ImageTextureNode::attributes(AttributeRequestSet *attributes)
+void ImageTextureNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
 #ifdef WITH_PTEX
 	/* todo: avoid loading other texture coordinates when using ptex,
 	 * and hide texture coordinate socket in the UI */
-	if (string_endswith(filename, ".ptx")) {
+	if (shader->has_surface && string_endswith(filename, ".ptx")) {
 		/* ptex */
 		attributes->add(ATTR_STD_PTEX_FACE_ID);
 		attributes->add(ATTR_STD_PTEX_UV);
 	}
 #endif
 
-	ShaderNode::attributes(attributes);
+	ShaderNode::attributes(shader, attributes);
 }
 
 void ImageTextureNode::compile(SVMCompiler& compiler)
@@ -367,17 +367,17 @@ ShaderNode *EnvironmentTextureNode::clone() const
 	return node;
 }
 
-void EnvironmentTextureNode::attributes(AttributeRequestSet *attributes)
+void EnvironmentTextureNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
 #ifdef WITH_PTEX
-	if (string_endswith(filename, ".ptx")) {
+	if (shader->has_surface && string_endswith(filename, ".ptx")) {
 		/* ptex */
 		attributes->add(ATTR_STD_PTEX_FACE_ID);
 		attributes->add(ATTR_STD_PTEX_UV);
 	}
 #endif
 
-	ShaderNode::attributes(attributes);
+	ShaderNode::attributes(shader, attributes);
 }
 
 void EnvironmentTextureNode::compile(SVMCompiler& compiler)
@@ -1533,14 +1533,16 @@ WardBsdfNode::WardBsdfNode()
 	add_input("Rotation", SHADER_SOCKET_FLOAT, 0.0f);
 }
 
-void WardBsdfNode::attributes(AttributeRequestSet *attributes)
+void WardBsdfNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
-	ShaderInput *tangent_in = input("Tangent");
+	if(shader->has_surface) {
+		ShaderInput *tangent_in = input("Tangent");
 
-	if(!tangent_in->link)
-		attributes->add(ATTR_STD_GENERATED);
+		if(!tangent_in->link)
+			attributes->add(ATTR_STD_GENERATED);
+	}
 
-	ShaderNode::attributes(attributes);
+	ShaderNode::attributes(shader, attributes);
 }
 
 void WardBsdfNode::compile(SVMCompiler& compiler)
@@ -1951,7 +1953,7 @@ void AmbientOcclusionNode::compile(OSLCompiler& compiler)
 VolumeNode::VolumeNode()
 : ShaderNode("volume")
 {
-	closure = CLOSURE_VOLUME_ISOTROPIC_ID;
+	closure = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
 
 	add_input("Color", SHADER_SOCKET_COLOR, make_float3(0.8f, 0.8f, 0.8f));
 	add_input("Density", SHADER_SOCKET_FLOAT, 1.0f);
@@ -1995,38 +1997,40 @@ void VolumeNode::compile(OSLCompiler& compiler)
 	assert(0);
 }
 
-/* Transparent Volume Closure */
+/* Absorption Volume Closure */
 
-TransparentVolumeNode::TransparentVolumeNode()
+AbsorptionVolumeNode::AbsorptionVolumeNode()
 {
-	closure = CLOSURE_VOLUME_TRANSPARENT_ID;
+	closure = CLOSURE_VOLUME_ABSORPTION_ID;
 }
 
-void TransparentVolumeNode::compile(SVMCompiler& compiler)
+void AbsorptionVolumeNode::compile(SVMCompiler& compiler)
 {
 	VolumeNode::compile(compiler, input("Density"), NULL);
 }
 
-void TransparentVolumeNode::compile(OSLCompiler& compiler)
+void AbsorptionVolumeNode::compile(OSLCompiler& compiler)
 {
-	compiler.add(this, "node_transparent_volume");
+	compiler.add(this, "node_absorption_volume");
 }
 
-/* Isotropic Volume Closure */
+/* Scatter Volume Closure */
 
-IsotropicVolumeNode::IsotropicVolumeNode()
+ScatterVolumeNode::ScatterVolumeNode()
 {
-	closure = CLOSURE_VOLUME_ISOTROPIC_ID;
+	closure = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
+	
+	add_input("Anisotropy", SHADER_SOCKET_FLOAT, 0.0f);
 }
 
-void IsotropicVolumeNode::compile(SVMCompiler& compiler)
+void ScatterVolumeNode::compile(SVMCompiler& compiler)
 {
-	VolumeNode::compile(compiler, input("Density"), NULL);
+	VolumeNode::compile(compiler, input("Density"), input("Anisotropy"));
 }
 
-void IsotropicVolumeNode::compile(OSLCompiler& compiler)
+void ScatterVolumeNode::compile(OSLCompiler& compiler)
 {
-	compiler.add(this, "node_isotropic_volume");
+	compiler.add(this, "node_scatter_volume");
 }
 
 /* Hair BSDF Closure */
@@ -2086,12 +2090,14 @@ GeometryNode::GeometryNode()
 	add_output("Backfacing", SHADER_SOCKET_FLOAT);
 }
 
-void GeometryNode::attributes(AttributeRequestSet *attributes)
+void GeometryNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
-	if(!output("Tangent")->links.empty())
-		attributes->add(ATTR_STD_GENERATED);
+	if(shader->has_surface) {
+		if(!output("Tangent")->links.empty())
+			attributes->add(ATTR_STD_GENERATED);
+	}
 
-	ShaderNode::attributes(attributes);
+	ShaderNode::attributes(shader, attributes);
 }
 
 void GeometryNode::compile(SVMCompiler& compiler)
@@ -2176,16 +2182,25 @@ TextureCoordinateNode::TextureCoordinateNode()
 	from_dupli = false;
 }
 
-void TextureCoordinateNode::attributes(AttributeRequestSet *attributes)
+void TextureCoordinateNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
-	if(!from_dupli) {
-		if(!output("Generated")->links.empty())
-			attributes->add(ATTR_STD_GENERATED);
-		if(!output("UV")->links.empty())
-			attributes->add(ATTR_STD_UV);
+	if(shader->has_surface) {
+		if(!from_dupli) {
+			if(!output("Generated")->links.empty())
+				attributes->add(ATTR_STD_GENERATED);
+			if(!output("UV")->links.empty())
+				attributes->add(ATTR_STD_UV);
+		}
 	}
 
-	ShaderNode::attributes(attributes);
+	if(shader->has_volume) {
+		if(!from_dupli) {
+			if(!output("Generated")->links.empty())
+				attributes->add(ATTR_STD_GENERATED_TRANSFORM);
+		}
+	}
+
+	ShaderNode::attributes(shader, attributes);
 }
 
 void TextureCoordinateNode::compile(SVMCompiler& compiler)
@@ -2216,6 +2231,10 @@ void TextureCoordinateNode::compile(SVMCompiler& compiler)
 			if(from_dupli) {
 				compiler.stack_assign(out);
 				compiler.add_node(texco_node, NODE_TEXCO_DUPLI_GENERATED, out->stack_offset);
+			}
+			else if(compiler.output_type() == SHADER_TYPE_VOLUME) {
+				compiler.stack_assign(out);
+				compiler.add_node(texco_node, NODE_TEXCO_VOLUME_GENERATED, out->stack_offset);
 			}
 			else {
 				int attr = compiler.attribute(ATTR_STD_GENERATED);
@@ -2286,6 +2305,8 @@ void TextureCoordinateNode::compile(OSLCompiler& compiler)
 	
 	if(compiler.background)
 		compiler.parameter("is_background", true);
+	if(compiler.output_type() == SHADER_TYPE_VOLUME)
+		compiler.parameter("is_volume", true);
 	
 	compiler.parameter("from_dupli", from_dupli);
 
@@ -2304,6 +2325,7 @@ LightPathNode::LightPathNode()
 	add_output("Is Singular Ray", SHADER_SOCKET_FLOAT);
 	add_output("Is Reflection Ray", SHADER_SOCKET_FLOAT);
 	add_output("Is Transmission Ray", SHADER_SOCKET_FLOAT);
+	add_output("Is Volume Scatter Ray", SHADER_SOCKET_FLOAT);
 	add_output("Ray Length", SHADER_SOCKET_FLOAT);
 	add_output("Ray Depth", SHADER_SOCKET_FLOAT);
 }
@@ -2355,6 +2377,12 @@ void LightPathNode::compile(SVMCompiler& compiler)
 		compiler.add_node(NODE_LIGHT_PATH, NODE_LP_transmission, out->stack_offset);
 	}
 	
+	out = output("Is Volume Scatter Ray");
+	if(!out->links.empty()) {
+		compiler.stack_assign(out);
+		compiler.add_node(NODE_LIGHT_PATH, NODE_LP_volume_scatter, out->stack_offset);
+	}
+
 	out = output("Ray Length");
 	if(!out->links.empty()) {
 		compiler.stack_assign(out);
@@ -2473,15 +2501,15 @@ ParticleInfoNode::ParticleInfoNode()
 	add_output("Age", SHADER_SOCKET_FLOAT);
 	add_output("Lifetime", SHADER_SOCKET_FLOAT);
 	add_output("Location", SHADER_SOCKET_POINT);
-	#if 0	/* not yet supported */
+#if 0	/* not yet supported */
 	add_output("Rotation", SHADER_SOCKET_QUATERNION);
-	#endif
+#endif
 	add_output("Size", SHADER_SOCKET_FLOAT);
 	add_output("Velocity", SHADER_SOCKET_VECTOR);
 	add_output("Angular Velocity", SHADER_SOCKET_VECTOR);
 }
 
-void ParticleInfoNode::attributes(AttributeRequestSet *attributes)
+void ParticleInfoNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
 	if(!output("Index")->links.empty())
 		attributes->add(ATTR_STD_PARTICLE);
@@ -2491,10 +2519,10 @@ void ParticleInfoNode::attributes(AttributeRequestSet *attributes)
 		attributes->add(ATTR_STD_PARTICLE);
 	if(!output("Location")->links.empty())
 		attributes->add(ATTR_STD_PARTICLE);
-	#if 0	/* not yet supported */
+#if 0	/* not yet supported */
 	if(!output("Rotation")->links.empty())
 		attributes->add(ATTR_STD_PARTICLE);
-	#endif
+#endif
 	if(!output("Size")->links.empty())
 		attributes->add(ATTR_STD_PARTICLE);
 	if(!output("Velocity")->links.empty())
@@ -2502,7 +2530,7 @@ void ParticleInfoNode::attributes(AttributeRequestSet *attributes)
 	if(!output("Angular Velocity")->links.empty())
 		attributes->add(ATTR_STD_PARTICLE);
 
-	ShaderNode::attributes(attributes);
+	ShaderNode::attributes(shader, attributes);
 }
 
 void ParticleInfoNode::compile(SVMCompiler& compiler)
@@ -2579,14 +2607,16 @@ HairInfoNode::HairInfoNode()
 	/*add_output("Fade", SHADER_SOCKET_FLOAT);*/
 }
 
-void HairInfoNode::attributes(AttributeRequestSet *attributes)
+void HairInfoNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
-	ShaderOutput *intercept_out = output("Intercept");
+	if(shader->has_surface) {
+		ShaderOutput *intercept_out = output("Intercept");
 
-	if(!intercept_out->links.empty())
-		attributes->add(ATTR_STD_CURVE_INTERCEPT);
+		if(!intercept_out->links.empty())
+			attributes->add(ATTR_STD_CURVE_INTERCEPT);
+	}
 	
-	ShaderNode::attributes(attributes);
+	ShaderNode::attributes(shader, attributes);
 }
 
 void HairInfoNode::compile(SVMCompiler& compiler)
@@ -3097,16 +3127,18 @@ AttributeNode::AttributeNode()
 	add_output("Fac",  SHADER_SOCKET_FLOAT);
 }
 
-void AttributeNode::attributes(AttributeRequestSet *attributes)
+void AttributeNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
-	ShaderOutput *color_out = output("Color");
-	ShaderOutput *vector_out = output("Vector");
-	ShaderOutput *fac_out = output("Fac");
+	if(shader->has_surface) {
+		ShaderOutput *color_out = output("Color");
+		ShaderOutput *vector_out = output("Vector");
+		ShaderOutput *fac_out = output("Fac");
 
-	if(!color_out->links.empty() || !vector_out->links.empty() || !fac_out->links.empty())
-		attributes->add(attribute);
+		if(!color_out->links.empty() || !vector_out->links.empty() || !fac_out->links.empty())
+			attributes->add(attribute);
+	}
 	
-	ShaderNode::attributes(attributes);
+	ShaderNode::attributes(shader, attributes);
 }
 
 void AttributeNode::compile(SVMCompiler& compiler)
@@ -3822,9 +3854,9 @@ NormalMapNode::NormalMapNode()
 	add_output("Normal", SHADER_SOCKET_NORMAL);
 }
 
-void NormalMapNode::attributes(AttributeRequestSet *attributes)
+void NormalMapNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
-	if(space == ustring("Tangent")) {
+	if(shader->has_surface && space == ustring("Tangent")) {
 		if(attribute == ustring("")) {
 			attributes->add(ATTR_STD_UV_TANGENT);
 			attributes->add(ATTR_STD_UV_TANGENT_SIGN);
@@ -3837,7 +3869,7 @@ void NormalMapNode::attributes(AttributeRequestSet *attributes)
 		attributes->add(ATTR_STD_VERTEX_NORMAL);
 	}
 	
-	ShaderNode::attributes(attributes);
+	ShaderNode::attributes(shader, attributes);
 }
 
 void NormalMapNode::compile(SVMCompiler& compiler)
@@ -3926,18 +3958,20 @@ TangentNode::TangentNode()
 	add_output("Tangent", SHADER_SOCKET_NORMAL);
 }
 
-void TangentNode::attributes(AttributeRequestSet *attributes)
+void TangentNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
-	if(direction_type == ustring("UV Map")) {
-		if(attribute == ustring(""))
-			attributes->add(ATTR_STD_UV_TANGENT);
+	if(shader->has_surface) {
+		if(direction_type == ustring("UV Map")) {
+			if(attribute == ustring(""))
+				attributes->add(ATTR_STD_UV_TANGENT);
+			else
+				attributes->add(ustring((string(attribute.c_str()) + ".tangent").c_str()));
+		}
 		else
-			attributes->add(ustring((string(attribute.c_str()) + ".tangent").c_str()));
+			attributes->add(ATTR_STD_GENERATED);
 	}
-	else
-		attributes->add(ATTR_STD_GENERATED);
 	
-	ShaderNode::attributes(attributes);
+	ShaderNode::attributes(shader, attributes);
 }
 
 void TangentNode::compile(SVMCompiler& compiler)

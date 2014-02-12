@@ -62,28 +62,28 @@
 EnumPropertyItem space_type_items[] = {
 	/* empty must be here for python, is skipped for UI */
 	{SPACE_EMPTY, "EMPTY", ICON_NONE, "Empty", ""},
-	{SPACE_VIEW3D, "VIEW_3D", ICON_VIEW3D, "3D View", ""},
+	{SPACE_VIEW3D, "VIEW_3D", ICON_VIEW3D, "3D View", "3D viewport"},
 	{0, "", ICON_NONE, NULL, NULL},
-	{SPACE_TIME, "TIMELINE", ICON_TIME, "Timeline", ""},
-	{SPACE_IPO, "GRAPH_EDITOR", ICON_IPO, "Graph Editor", ""},
-	{SPACE_ACTION, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", ""},
-	{SPACE_NLA, "NLA_EDITOR", ICON_NLA, "NLA Editor", ""},
+	{SPACE_TIME, "TIMELINE", ICON_TIME, "Timeline", "Timeline and playback controls"},
+	{SPACE_IPO, "GRAPH_EDITOR", ICON_IPO, "Graph Editor", "Edit drivers and keyframe interpolation"},
+	{SPACE_ACTION, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet", "Adjust timing of keyframes"},
+	{SPACE_NLA, "NLA_EDITOR", ICON_NLA, "NLA Editor", "Combine and layer Actions"},
 	{0, "", ICON_NONE, NULL, NULL},
-	{SPACE_IMAGE, "IMAGE_EDITOR", ICON_IMAGE_COL, "UV/Image Editor", ""},
-	{SPACE_SEQ, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequence Editor", ""},
-	{SPACE_CLIP, "CLIP_EDITOR", ICON_CLIP, "Movie Clip Editor", ""},
-	{SPACE_TEXT, "TEXT_EDITOR", ICON_TEXT, "Text Editor", ""},
-	{SPACE_NODE, "NODE_EDITOR", ICON_NODETREE, "Node Editor", ""},
-	{SPACE_LOGIC, "LOGIC_EDITOR", ICON_LOGIC, "Logic Editor", ""},
+	{SPACE_IMAGE, "IMAGE_EDITOR", ICON_IMAGE_COL, "UV/Image Editor", "View and edit images and UV Maps"},
+	{SPACE_SEQ, "SEQUENCE_EDITOR", ICON_SEQUENCE, "Video Sequence Editor", "Video editing tools"},
+	{SPACE_CLIP, "CLIP_EDITOR", ICON_CLIP, "Movie Clip Editor", "Motion tracking tools"},
+	{SPACE_TEXT, "TEXT_EDITOR", ICON_TEXT, "Text Editor", "Edit scripts and in-file documentation"},
+	{SPACE_NODE, "NODE_EDITOR", ICON_NODETREE, "Node Editor", "Editor for node-based shading and compositing tools"},
+	{SPACE_LOGIC, "LOGIC_EDITOR", ICON_LOGIC, "Logic Editor", "Game logic editing"},
 	{0, "", ICON_NONE, NULL, NULL},
-	{SPACE_BUTS, "PROPERTIES", ICON_BUTS, "Properties", ""},
-	{SPACE_OUTLINER, "OUTLINER", ICON_OOPS, "Outliner", ""},
-	{SPACE_USERPREF, "USER_PREFERENCES", ICON_PREFERENCES, "User Preferences", ""},
-	{SPACE_INFO, "INFO", ICON_INFO, "Info", ""},
+	{SPACE_BUTS, "PROPERTIES", ICON_BUTS, "Properties", "Edit properties of active object and related datablocks"},
+	{SPACE_OUTLINER, "OUTLINER", ICON_OOPS, "Outliner", "Overview of scene graph and all available datablocks"},
+	{SPACE_USERPREF, "USER_PREFERENCES", ICON_PREFERENCES, "User Preferences", "Edit persistent configuration settings"},
+	{SPACE_INFO, "INFO", ICON_INFO, "Info", "Main menu bar and list of error messages (drag down to expand and display)"},
 	{0, "", ICON_NONE, NULL, NULL},
-	{SPACE_FILE, "FILE_BROWSER", ICON_FILESEL, "File Browser", ""},
+	{SPACE_FILE, "FILE_BROWSER", ICON_FILESEL, "File Browser", "Browse for files and assets"},
 	{0, "", ICON_NONE, NULL, NULL},
-	{SPACE_CONSOLE, "CONSOLE", ICON_CONSOLE, "Python Console", ""},
+	{SPACE_CONSOLE, "CONSOLE", ICON_CONSOLE, "Python Console", "Interactive programmatic console for advanced editing and script development"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -132,9 +132,6 @@ EnumPropertyItem viewport_shade_items[] = {
 
 EnumPropertyItem clip_editor_mode_items[] = {
 	{SC_MODE_TRACKING, "TRACKING", ICON_ANIM_DATA, "Tracking", "Show tracking and solving tools"},
-	{SC_MODE_RECONSTRUCTION, "RECONSTRUCTION", ICON_SNAP_FACE, "Reconstruction",
-	                         "Show tracking/reconstruction tools"},
-	{SC_MODE_DISTORTION, "DISTORTION", ICON_GRID, "Distortion", "Show distortion tools"},
 	{SC_MODE_MASKEDIT, "MASK", ICON_MOD_MASK, "Mask", "Show mask editing tools"},
 	{0, NULL, 0, NULL, NULL}
 };
@@ -299,7 +296,7 @@ static PointerRNA rna_CurrentOrientation_get(PointerRNA *ptr)
 		                                  BLI_findlink(&scene->transform_spaces, v3d->twmode - V3D_MANIP_CUSTOM));
 }
 
-EnumPropertyItem *rna_TransformOrientation_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *free)
+EnumPropertyItem *rna_TransformOrientation_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Scene *scene = NULL;
 	ListBase *transform_spaces;
@@ -332,7 +329,7 @@ EnumPropertyItem *rna_TransformOrientation_itemf(bContext *C, PointerRNA *ptr, P
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -546,25 +543,6 @@ static void rna_RegionView3D_view_matrix_set(PointerRNA *ptr, const float *value
 	ED_view3d_from_m4(mat, rv3d->ofs, rv3d->viewquat, &rv3d->dist);
 }
 
-/* api call */
-static void rna_RegionView3D_update(ID *id, RegionView3D *rv3d)
-{
-	bScreen *sc = (bScreen *)id;
-
-	ScrArea *sa;
-	ARegion *ar;
-
-	area_region_from_regiondata(sc, rv3d, &sa, &ar);
-
-	if (sa && ar && sa->spacetype == SPACE_VIEW3D) {
-		View3D *v3d;
-
-		v3d = (View3D *)sa->spacedata.first;
-
-		ED_view3d_update_viewmat(sc->scene, v3d, ar, NULL, NULL);
-	}
-}
-
 static int rna_SpaceView3D_viewport_shade_get(PointerRNA *ptr)
 {
 	Scene *scene = ((bScreen *)ptr->id.data)->scene;
@@ -579,7 +557,7 @@ static int rna_SpaceView3D_viewport_shade_get(PointerRNA *ptr)
 }
 
 static EnumPropertyItem *rna_SpaceView3D_viewport_shade_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                              PropertyRNA *UNUSED(prop), int *free)
+                                                              PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Scene *scene = ((bScreen *)ptr->id.data)->scene;
 	RenderEngineType *type = RE_engines_find(scene->r.engine);
@@ -597,7 +575,7 @@ static EnumPropertyItem *rna_SpaceView3D_viewport_shade_itemf(bContext *UNUSED(C
 		RNA_enum_items_add_value(&item, &totitem, viewport_shade_items, OB_RENDER);
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -656,7 +634,7 @@ static void rna_SpaceImageEditor_mask_set(PointerRNA *ptr, PointerRNA value)
 }
 
 static EnumPropertyItem *rna_SpaceImageEditor_draw_channels_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                                  PropertyRNA *UNUSED(prop), int *free)
+                                                                  PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	SpaceImage *sima = (SpaceImage *)ptr->data;
 	EnumPropertyItem *item = NULL;
@@ -688,7 +666,7 @@ static EnumPropertyItem *rna_SpaceImageEditor_draw_channels_itemf(bContext *UNUS
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -838,7 +816,7 @@ static void rna_SpaceProperties_context_set(PointerRNA *ptr, int value)
 }
 
 static EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                           PropertyRNA *UNUSED(prop), int *free)
+                                                           PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	SpaceButs *sbuts = (SpaceButs *)(ptr->data);
 	EnumPropertyItem *item = NULL;
@@ -902,7 +880,7 @@ static EnumPropertyItem *rna_SpaceProperties_context_itemf(bContext *UNUSED(C), 
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -916,7 +894,7 @@ static void rna_SpaceProperties_align_set(PointerRNA *ptr, int value)
 }
 
 static EnumPropertyItem *rna_SpaceProperties_texture_context_itemf(bContext *C, PointerRNA *UNUSED(ptr),
-                                                                   PropertyRNA *UNUSED(prop), int *free)
+                                                                   PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
@@ -941,7 +919,7 @@ static EnumPropertyItem *rna_SpaceProperties_texture_context_itemf(bContext *C, 
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -1115,7 +1093,7 @@ static void rna_SpaceGraphEditor_display_mode_update(Main *UNUSED(bmain), Scene 
 static int rna_SpaceGraphEditor_has_ghost_curves_get(PointerRNA *ptr)
 {
 	SpaceIpo *sipo = (SpaceIpo *)(ptr->data);
-	return (sipo->ghostCurves.first != NULL);
+	return (BLI_listbase_is_empty(&sipo->ghostCurves) == false);
 }
 
 static void rna_Sequencer_view_type_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -1205,9 +1183,9 @@ static int rna_SpaceNodeEditor_tree_type_poll(void *Cv, bNodeTreeType *type)
 		return TRUE;
 }
 static EnumPropertyItem *rna_SpaceNodeEditor_tree_type_itemf(bContext *C, PointerRNA *UNUSED(ptr),
-                                                             PropertyRNA *UNUSED(prop), int *free)
+                                                             PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_node_tree_type_itemf(C, rna_SpaceNodeEditor_tree_type_poll, free);
+	return rna_node_tree_type_itemf(C, rna_SpaceNodeEditor_tree_type_poll, r_free);
 }
 
 static void rna_SpaceNodeEditor_path_get(PointerRNA *ptr, char *value)
@@ -2186,14 +2164,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Camera Offset", "View shift in camera view");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	/* until we have real api call */
-	{
-		FunctionRNA *func;
-
-		func = RNA_def_function(srna, "update", "rna_RegionView3D_update");
-		RNA_def_function_flag(func, FUNC_USE_SELF_ID);
-		RNA_def_function_ui_description(func, "Recalculate the view matrices");
-	}
+	RNA_api_region_view3d(srna);
 }
 
 static void rna_def_space_buttons(BlenderRNA *brna)
@@ -3349,8 +3320,7 @@ static void rna_def_space_node_path_api(BlenderRNA *brna, PropertyRNA *cprop)
 static void rna_def_space_node(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	PropertyRNA *prop, *parm;
-	FunctionRNA *func;
+	PropertyRNA *prop;
 
 	static EnumPropertyItem texture_type_items[] = {
 		{SNODE_TEX_OBJECT, "OBJECT", ICON_OBJECT_DATA, "Object", "Edit texture nodes from Object"},
@@ -3482,11 +3452,6 @@ static void rna_def_space_node(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Highlight", "Highlight nodes that are being calculated");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
 
-	prop = RNA_def_property(srna, "use_hidden_preview", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SNODE_USE_HIDDEN_PREVIEW);
-	RNA_def_property_ui_text(prop, "Hide Preview", "Hide preview for newly creating nodes");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
-
 	/* the mx/my "cursor" in the node editor is used only by operators to store the mouse position */
 	prop = RNA_def_property(srna, "cursor_location", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_array(prop, 2);
@@ -3494,13 +3459,7 @@ static void rna_def_space_node(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Cursor Location", "Location for adding new nodes");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE_VIEW, NULL);
 
-	func = RNA_def_function(srna, "cursor_location_from_region", "rna_SpaceNodeEditor_cursor_location_from_region");
-	RNA_def_function_ui_description(func, "Set the cursor location using region coordinates");
-	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
-	parm = RNA_def_int(func, "x", 0, INT_MIN, INT_MAX, "x", "Region x coordinate", -10000, 10000);
-	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm = RNA_def_int(func, "y", 0, INT_MIN, INT_MAX, "y", "Region y coordinate", -10000, 10000);
-	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_api_space_node(srna);
 }
 
 static void rna_def_space_logic(BlenderRNA *brna)
@@ -3751,12 +3710,19 @@ static void rna_def_space_clip(BlenderRNA *brna)
 	                         "Show curve for per-frame average error (camera motion should be solved first)");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, NULL);
 
-	/* show graph_tracks */
-	prop = RNA_def_property(srna, "show_graph_tracks", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SC_SHOW_GRAPH_TRACKS);
-	RNA_def_property_ui_text(prop, "Show Tracks",
+	/* show graph tracks motion */
+	prop = RNA_def_property(srna, "show_graph_tracks_motion", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SC_SHOW_GRAPH_TRACKS_MOTION);
+	RNA_def_property_ui_text(prop, "Show Tracks Motion",
 	                         "Display the speed curves (in \"x\" direction red, in \"y\" direction green) "
 	                         "for the selected tracks");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, NULL);
+
+	/* show graph tracks motion */
+	prop = RNA_def_property(srna, "show_graph_tracks_error", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SC_SHOW_GRAPH_TRACKS_ERROR);
+	RNA_def_property_ui_text(prop, "Show Tracks Error",
+	                         "Display the reprojection error curve for selected tracks");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, NULL);
 
 	/* show_only_selected */

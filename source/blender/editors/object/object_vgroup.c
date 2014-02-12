@@ -62,6 +62,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_editmesh.h"
 #include "BKE_report.h"
 #include "BKE_DerivedMesh.h"
@@ -321,6 +322,31 @@ bool ED_vgroup_parray_alloc(ID *id, MDeformVert ***dvert_arr, int *dvert_tot, co
 				}
 				return false;
 			}
+		}
+	}
+
+	return false;
+}
+
+static bool ed_vgroup_dm_parray_alloc(DerivedMesh *dm, MDeformVert ***dvert_arr, int *dvert_tot)
+{
+	*dvert_tot = 0;
+	*dvert_arr = NULL;
+
+	if (dm) {
+		MDeformVert *dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
+
+		if (dvert) {
+			int i, totvert = dm->getNumVerts(dm);
+
+			*dvert_tot = totvert;
+			*dvert_arr = MEM_mallocN(sizeof(void *) * totvert, "vgroup parray from me");
+
+			for (i = 0; i < totvert; i++) {
+				(*dvert_arr)[i] = dvert + i;
+			}
+
+			return true;
 		}
 	}
 
@@ -775,7 +801,7 @@ static EnumPropertyItem WT_vertex_group_select_item[] = {
 
 EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
         const bContext *C, PointerRNA *UNUSED(ptr),
-        PropertyRNA *UNUSED(prop), int *free, const unsigned int selection_mask)
+        PropertyRNA *UNUSED(prop), bool *r_free, const unsigned int selection_mask)
 {
 	Object *ob;
 	EnumPropertyItem *item = NULL;
@@ -800,21 +826,21 @@ EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
 		RNA_enum_items_add_value(&item, &totitem, WT_vertex_group_select_item, WT_VGROUP_ALL);
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = true;
+	*r_free = true;
 
 	return item;
 }
 
 static EnumPropertyItem *rna_vertex_group_with_single_itemf(bContext *C, PointerRNA *ptr,
-                                                            PropertyRNA *prop, int *free)
+                                                            PropertyRNA *prop, bool *r_free)
 {
-	return ED_object_vgroup_selection_itemf_helper(C, ptr, prop, free, WT_VGROUP_MASK_ALL);
+	return ED_object_vgroup_selection_itemf_helper(C, ptr, prop, r_free, WT_VGROUP_MASK_ALL);
 }
 
 static EnumPropertyItem *rna_vertex_group_select_itemf(bContext *C, PointerRNA *ptr,
-                                                       PropertyRNA *prop, int *free)
+                                                       PropertyRNA *prop, bool *r_free)
 {
-	return ED_object_vgroup_selection_itemf_helper(C, ptr, prop, free, WT_VGROUP_MASK_ALL & ~(1 << WT_VGROUP_ACTIVE));
+	return ED_object_vgroup_selection_itemf_helper(C, ptr, prop, r_free, WT_VGROUP_MASK_ALL & ~(1 << WT_VGROUP_ACTIVE));
 }
 
 static void vgroup_operator_subset_select_props(wmOperatorType *ot, bool use_active)
@@ -862,7 +888,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
                                       WT_Method method, WT_ReplaceMode replace_mode, wmOperator *op)
 {
 	bDeformGroup *dg_dst;
-	Mesh *me_dst, *me_src;
+	Mesh *me_dst;
 	DerivedMesh *dmesh_src;
 	BVHTreeFromMesh tree_mesh_vertices_src, tree_mesh_faces_src = {NULL};
 	MDeformVert **dv_array_src, **dv_array_dst, **dv_src, **dv_dst;
@@ -883,22 +909,20 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 	}
 
 	/* Get meshes.*/
-	dmesh_src = mesh_get_derived_deform(scene, ob_src, CD_MASK_BAREMESH);
+	dmesh_src = mesh_get_derived_final(scene, ob_src, CD_MASK_BAREMESH | CD_MASK_MDEFORMVERT);
 	me_dst = ob_dst->data;
-	me_src = ob_src->data;
 
-	/* Sanity check.*/
-	if (!me_src->dvert) {
+	/* Get vertex group array from source mesh */
+	if (!ed_vgroup_dm_parray_alloc(dmesh_src, &dv_array_src, &dv_tot_src)) {
 		BKE_report(op->reports, RPT_ERROR, "Transfer failed (source mesh does not have any vertex groups)");
 		return false;
 	}
 
 	/* Create data in memory when nothing there.*/
-	if (!me_dst->dvert) ED_vgroup_data_create(ob_dst->data);
+	if (!me_dst->dvert) ED_vgroup_data_create(&me_dst->id);
 
-	/* Get vertex group arrays.*/
-	ED_vgroup_parray_alloc(ob_src->data, &dv_array_src, &dv_tot_src, false);
-	ED_vgroup_parray_alloc(ob_dst->data, &dv_array_dst, &dv_tot_dst, use_vert_sel);
+	/* Get vertex group for destination mesh */
+	ED_vgroup_parray_alloc(&me_dst->id, &dv_array_dst, &dv_tot_dst, use_vert_sel);
 
 	/* Get indexes of vertex groups.*/
 	index_src = BLI_findindex(&ob_src->defbase, dg_src);
@@ -973,7 +997,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 				}
 
 				/* Reset nearest.*/
-				nearest.dist = FLT_MAX;
+				nearest.dist_sq = FLT_MAX;
 				/* It is faster to start searching at the top of the tree instead of previous search result.*/
 				nearest.index = -1;
 
@@ -1013,7 +1037,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 				}
 
 				/* Reset nearest.*/
-				nearest.dist = FLT_MAX;
+				nearest.dist_sq = FLT_MAX;
 				/* It is faster to start searching at the top of the tree instead of previous search result.*/
 				nearest.index = -1;
 
@@ -1074,7 +1098,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 				}
 
 				/* Reset nearest.*/
-				nearest.dist = FLT_MAX;
+				nearest.dist_sq = FLT_MAX;
 				/* It is faster to start searching at the top of the tree instead of previous search result.*/
 				nearest.index = -1;
 
@@ -1227,16 +1251,17 @@ void ED_vgroup_vert_add(Object *ob, bDeformGroup *dg, int vertnum, float weight,
 	/* get the deform group number, exit if
 	 * it can't be found
 	 */
-	if (def_nr < 0) return;
+	if (def_nr != -1) {
 
-	/* if there's no deform verts then create some,
-	 */
-	if (ED_vgroup_array_get(ob->data, &dv, &tot) && dv == NULL)
-		ED_vgroup_data_create(ob->data);
+		/* if there's no deform verts then create some,
+		 */
+		if (ED_vgroup_array_get(ob->data, &dv, &tot) && dv == NULL)
+			ED_vgroup_data_create(ob->data);
 
-	/* call another function to do the work
-	 */
-	ED_vgroup_nr_vert_add(ob, def_nr, vertnum, weight, assignmode);
+		/* call another function to do the work
+		 */
+		ED_vgroup_nr_vert_add(ob, def_nr, vertnum, weight, assignmode);
+	}
 }
 
 /* mesh object mode, lattice can be in editmode */
@@ -2754,7 +2779,7 @@ static void vgroup_delete_object_mode(Object *ob, bDeformGroup *dg)
 	int dvert_tot = 0;
 	const int def_nr = BLI_findindex(&ob->defbase, dg);
 
-	assert(def_nr > -1);
+	BLI_assert(def_nr != -1);
 
 	ED_vgroup_array_get(ob->data, &dvert_array, &dvert_tot);
 
@@ -2789,7 +2814,7 @@ static void vgroup_delete_object_mode(Object *ob, bDeformGroup *dg)
 		ob->actdef = 1;
 
 	/* remove all dverts */
-	if (ob->defbase.first == NULL) {
+	if (BLI_listbase_is_empty(&ob->defbase)) {
 		if (ob->type == OB_MESH) {
 			Mesh *me = ob->data;
 			CustomData_free_layer_active(&me->vdata, CD_MDEFORMVERT, me->totvert);
@@ -2884,7 +2909,7 @@ static void vgroup_delete_edit_mode(Object *ob, bDeformGroup *dg)
 	int i;
 	const int dg_index = BLI_findindex(&ob->defbase, dg);
 
-	assert(dg_index > -1);
+	BLI_assert(dg_index != -1);
 
 	/* Make sure that no verts are using this group */
 	if (vgroup_active_remove_verts(ob, true, dg) == false) {
@@ -2938,7 +2963,7 @@ static void vgroup_delete_edit_mode(Object *ob, bDeformGroup *dg)
 		ob->actdef = 1;
 
 	/* remove all dverts */
-	if (ob->defbase.first == NULL) {
+	if (BLI_listbase_is_empty(&ob->defbase)) {
 		if (ob->type == OB_MESH) {
 			Mesh *me = ob->data;
 			CustomData_free_layer_active(&me->vdata, CD_MDEFORMVERT, me->totvert);
@@ -4032,7 +4057,7 @@ static int vertex_group_transfer_weight_exec(bContext *C, wmOperator *op)
 	{
 		if (ob_act != ob_src) {
 
-			if (ob_src->defbase.first == NULL) {
+			if (BLI_listbase_is_empty(&ob_src->defbase)) {
 				BKE_reportf(op->reports, RPT_WARNING,
 				            "Skipping object '%s' it has no vertex groups", ob_src->id.name + 2);
 				continue;
@@ -4108,7 +4133,7 @@ static int vertex_group_transfer_weight_exec(bContext *C, wmOperator *op)
 		return OPERATOR_FINISHED;
 	}
 	else {
-		if (op->reports->list.first == NULL) {
+		if (BLI_listbase_is_empty(&op->reports->list)) {
 			BKE_report(op->reports, RPT_WARNING, "Failed, no other selected objects with vertex groups found");
 		}
 
@@ -4152,7 +4177,7 @@ static int set_active_group_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static EnumPropertyItem *vgroup_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *vgroup_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {	
 	Object *ob = ED_object_context(C);
 	EnumPropertyItem tmp = {0, "", 0, "", ""};
@@ -4172,7 +4197,7 @@ static EnumPropertyItem *vgroup_itemf(bContext *C, PointerRNA *UNUSED(ptr), Prop
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
