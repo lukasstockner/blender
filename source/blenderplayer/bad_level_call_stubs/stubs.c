@@ -532,34 +532,6 @@ void uiTemplateLayers(uiLayout *layout, struct PointerRNA *ptr, const char *prop
 void uiTemplateImageLayers(struct uiLayout *layout, struct bContext *C, struct Image *ima, struct ImageUser *iuser) RET_NONE
 void uiTemplateList(struct uiLayout *layout, struct bContext *C, const char *listtype_name, const char *list_id,
                     PointerRNA *dataptr, const char *propname, PointerRNA *active_dataptr, const char *active_propname,
-<<<<<<< HEAD
-                    int rows, int maxrows, int layout_type, int columns) {STUB_ASSERT(0);}
-void uiTemplateRunningJobs(struct uiLayout *layout, struct bContext *C) {STUB_ASSERT(0);}
-void uiTemplateOperatorSearch(struct uiLayout *layout) {STUB_ASSERT(0);}
-void uiTemplateHeader3D(struct uiLayout *layout, struct bContext *C) {STUB_ASSERT(0);}
-void uiTemplateEditModeSelection(struct uiLayout *layout, struct bContext *C) {STUB_ASSERT(0);}
-void uiTemplateImage(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, struct PointerRNA *userptr, int compact) {STUB_ASSERT(0);}
-void uiTemplateColorPicker(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int value_slider) {STUB_ASSERT(0);}
-void uiTemplateHistogram(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand) {STUB_ASSERT(0);}
-void uiTemplateReportsBanner(struct uiLayout *layout, struct bContext *C, struct wmOperator *op) {STUB_ASSERT(0);}
-void uiTemplateWaveform(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand) {STUB_ASSERT(0);}
-void uiTemplateVectorscope(struct uiLayout *_self, struct PointerRNA *data, char *property, int expand) {STUB_ASSERT(0);}
-void uiTemplateNodeLink(struct uiLayout *layout, struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *input) {STUB_ASSERT(0);}
-void uiTemplateNodeView(struct uiLayout *layout, struct bContext *C, struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *input) {STUB_ASSERT(0);}
-void uiTemplateTextureUser(struct uiLayout *layout, struct bContext *C) {STUB_ASSERT(0);}
-void uiTemplateTextureShow(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop) {STUB_ASSERT(0);}
-void uiTemplateKeymapItemProperties(struct uiLayout *layout, struct PointerRNA *ptr) {STUB_ASSERT(0);}
-void uiTemplateMovieClip(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, int compact) {STUB_ASSERT(0);}
-void uiTemplateMovieclipInformation(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, struct PointerRNA *userptr) {STUB_ASSERT(0);}
-void uiTemplateTrack(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname) {STUB_ASSERT(0);}
-void uiTemplateMarker(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, PointerRNA *userptr, PointerRNA *trackptr, int compact) {STUB_ASSERT(0);}
-void uiTemplateImageSettings(struct uiLayout *layout, struct PointerRNA *imfptr) {STUB_ASSERT(0);}
-void uiTemplateColorspaceSettings(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname) {STUB_ASSERT(0);}
-void uiTemplateColormanagedViewSettings(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname, int show_global_settings) {STUB_ASSERT(0);}
-void uiTemplateComponentMenu(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name){}
-void uiTemplateNodeSocket(struct uiLayout *layout, struct bContext *C, float *color) {STUB_ASSERT(0);}
-void uiTemplatePalette(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int color) {STUB_ASSERT(0);}
-=======
                     int rows, int maxrows, int layout_type, int columns) RET_NONE
 void uiTemplateRunningJobs(struct uiLayout *layout, struct bContext *C) RET_NONE
 void uiTemplateOperatorSearch(struct uiLayout *layout) RET_NONE
@@ -585,8 +557,8 @@ void uiTemplateColorspaceSettings(struct uiLayout *layout, struct PointerRNA *pt
 void uiTemplateColormanagedViewSettings(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, const char *propname) RET_NONE
 void uiTemplateComponentMenu(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name) RET_NONE
 void uiTemplateNodeSocket(struct uiLayout *layout, struct bContext *C, float *color) RET_NONE
+void uiTemplatePalette(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int color) RET_NONE
 
->>>>>>> master
 /* rna render */
 struct RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername) RET_NULL
 struct RenderResult *RE_AcquireResultRead(struct Render *re) RET_NULL
