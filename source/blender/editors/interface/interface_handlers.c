@@ -4493,6 +4493,7 @@ static void ui_ndofedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
                                     const enum eSnapType snap, const bool shift)
 {
 	float *hsv = ui_block_hsv_get(but->block);
+	const float hsv_v_max = max_ff(hsv[2], but->softmax);
 	float rgb[3];
 	float sensitivity = (shift ? 0.15f : 0.3f) * ndof->dt;
 	bool use_display_colorspace = ui_hsvcube_use_display_colorspace(but);
@@ -4544,6 +4545,9 @@ static void ui_ndofedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 			ui_color_snap_hue(snap, &hsv[0]);
 		}
 	}
+
+	/* ndof specific: the changes above aren't clamping */
+	hsv_clamp_v(hsv, hsv_v_max);
 
 	hsv_to_rgb_v(hsv, rgb);
 
@@ -4735,7 +4739,7 @@ static void ui_ndofedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 	float *hsv = ui_block_hsv_get(but->block);
 	float rgb[3];
 	float phi, r /*, sqr */ /* UNUSED */, v[2];
-	float sensitivity = (shift ? 0.15f : 0.3f) * ndof->dt;
+	float sensitivity = (shift ? 0.06f : 0.3f) * ndof->dt;
 	
 	ui_get_but_vectorf(but, rgb);
 	rgb_to_hsv_compat_v(rgb, hsv);
@@ -4750,20 +4754,18 @@ static void ui_ndofedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 	v[1] = r * sinf(phi);
 	
 	/* Use ndof device y and x rotation to move the vector in 2d space */
-	v[0] += ndof->ry * sensitivity;
+	v[0] += ndof->rz * sensitivity;
 	v[1] += ndof->rx * sensitivity;
 
 	/* convert back to polar coords on circle */
 	phi = atan2f(v[0], v[1]) / (2.0f * (float)M_PI) + 0.5f;
 	
 	/* use ndof z rotation to additionally rotate hue */
-	phi -= ndof->rz * sensitivity * 0.5f;
-	
+	phi += ndof->ry * sensitivity * 0.5f;
 	r = len_v2(v);
-	CLAMP(r, 0.0f, 1.0f);
-	
+
 	/* convert back to hsv values, in range [0,1] */
-	hsv[0] = fmodf(phi, 1.0f);
+	hsv[0] = phi;
 	hsv[1] = r;
 
 	/* exception, when using color wheel in 'locked' value state:
@@ -4775,6 +4777,8 @@ static void ui_ndofedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 	if (snap != SNAP_OFF) {
 		ui_color_snap_hue(snap, &hsv[0]);
 	}
+
+	hsv_clamp_v(hsv, FLT_MAX);
 
 	hsv_to_rgb_v(hsv, data->vec);
 	

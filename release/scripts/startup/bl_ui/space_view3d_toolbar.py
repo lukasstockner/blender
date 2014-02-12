@@ -52,8 +52,6 @@ def draw_keyframing_tools(context, layout):
 def draw_gpencil_tools(context, layout):
     col = layout.column(align=True)
 
-    col.label(text="Grease Pencil:")
-
     row = col.row(align=True)
     row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
     row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
@@ -1367,13 +1365,6 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         col.prop(sculpt, "gravity", slider=True, text="Factor")
         col.prop(sculpt, "gravity_object")
 
-        layout.label(text="Lock:")
-        
-        row = layout.row(align=True)
-        row.prop(sculpt, "lock_x", text="X", toggle=True)
-        row.prop(sculpt, "lock_y", text="Y", toggle=True)
-        row.prop(sculpt, "lock_z", text="Z", toggle=True)
-
         layout.prop(sculpt, "use_threaded", text="Threaded Sculpt")
         layout.prop(sculpt, "show_low_resolution")
         layout.prop(sculpt, "use_deform_only")
@@ -1384,7 +1375,7 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
 
 class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
     bl_category = "Tools"
-    bl_label = "Symmetry"
+    bl_label = "Symmetry \ Lock"
     bl_options = {'DEFAULT_CLOSED'}
 
     @classmethod
@@ -1406,6 +1397,12 @@ class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
         layout.column().prop(sculpt, "radial_symmetry", text="Radial")
         layout.prop(sculpt, "use_symmetry_feather", text="Feather")
 
+        layout.label(text="Lock:")
+        
+        row = layout.row(align=True)
+        row.prop(sculpt, "lock_x", text="X", toggle=True)
+        row.prop(sculpt, "lock_y", text="Y", toggle=True)
+        row.prop(sculpt, "lock_z", text="Z", toggle=True)
 
 class VIEW3D_PT_tools_brush_appearance(Panel, View3DPaintPanel):
     bl_category = "Options"
