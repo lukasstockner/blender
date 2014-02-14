@@ -517,7 +517,7 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	GHOST_TDrawingContextType type,
 	const bool stereoVisual, const GHOST_TUns16 numOfAASamples
 ) :
-	GHOST_Window(width, height, state, GHOST_kDrawingContextTypeNone, stereoVisual, false, numOfAASamples),
+	GHOST_Window(width, height, state, stereoVisual, false, numOfAASamples),
 	m_customCursor(0)
 {
 	NSOpenGLPixelFormatAttribute pixelFormatAttrsWindow[40];
@@ -565,9 +565,9 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	pixelFormatAttrsWindow[i++] = NSOpenGLPFABackingStore; 
 	
 	// Force software OpenGL, for debugging
-	if (getenv("BLENDER_SOFTWAREGL")) {
+	if (getenv("BLENDER_SOFTWAREGL")) { // XXX jwilkins: fixed this to work on Intel macs? useful feature for Windows and Linux too?  Maybe a command line flag is better...
 		pixelFormatAttrsWindow[i++] = NSOpenGLPFARendererID;
-		pixelFormatAttrsWindow[i++] = kCGLRendererGenericID;
+		pixelFormatAttrsWindow[i++] = kCGLRendererGenericFloatID;
 	}
 	else
 		pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccelerated;
@@ -598,7 +598,8 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	pixelFormatAttrsWindow[i] = (NSOpenGLPixelFormatAttribute) 0;
 	
 	pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:pixelFormatAttrsWindow];
-	
+
+	// XXX jwilkins: this code seems to have a lot of duplication from above?
 	
 	//Fall back to no multisampling if Antialiasing init failed
 	if (pixelFormat == nil) {
@@ -610,9 +611,9 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 		pixelFormatAttrsWindow[i++] = NSOpenGLPFABackingStore;
 		
 		// Force software OpenGL, for debugging
-		if (getenv("BLENDER_SOFTWAREGL")) {
+		if (getenv("BLENDER_SOFTWAREGL")) {// XXX jwilkins: fixed this to work on Intel macs? useful feature for Windows and Linux too?  Maybe a command line flag is better...
 			pixelFormatAttrsWindow[i++] = NSOpenGLPFARendererID;
-			pixelFormatAttrsWindow[i++] = kCGLRendererGenericID;
+			pixelFormatAttrsWindow[i++] = kCGLRendererGenericFloatID;
 		}
 		else
 			pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccelerated;

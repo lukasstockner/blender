@@ -29,6 +29,10 @@
  *  \ingroup gpu
  */
 
+#if WITH_GL_PROFILE_COMPAT
+#define GPU_MANGLE_DEPRECATED 0 /* Allow use of deprecated OpenGL functions in this file */
+#endif
+
 /* my interface */
 #include "intern/gpu_select_intern.h"
 
@@ -38,6 +42,9 @@
 /* internal */
 #include "intern/gpu_matrix_intern.h"
 #include "intern/gpu_aspect_intern.h"
+
+/* external */
+#include "BLI_utildefines.h"
 
 
 

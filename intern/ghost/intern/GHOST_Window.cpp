@@ -52,12 +52,12 @@ GHOST_Window::GHOST_Window(
     const GHOST_TUns16 numOfAASamples
 )
 	: m_drawingContextType(GHOST_kDrawingContextTypeNone)
-	, m_context(new GHOST_ContextNone())
 	, m_cursorVisible(true)
 	, m_cursorGrab(GHOST_kGrabDisable)
 	, m_cursorShape(GHOST_kStandardCursorDefault)
 	, m_stereoVisual(stereoVisual)
 	, m_numOfAASamples(numOfAASamples)
+	, m_context(new GHOST_ContextNone())
 {
 	m_isUnsavedChanges = false;
 	m_canAcceptDragOperation = false;

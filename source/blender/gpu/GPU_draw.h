@@ -36,9 +36,25 @@
 
 #include "GPU_glew.h"
 
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
+
+struct MTFace;
+struct Image;
+struct ImageUser;
+struct ImBuf;
+struct SmokeModifierData;
+struct RegionView3D;
+struct Object;
+struct Scene;
+struct View3D;
+
+
 
 /* OpenGL drawing functions related to shading. These are also
  * shared with the game engine, where there were previously

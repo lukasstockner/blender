@@ -40,6 +40,7 @@
 
 /* internal */
 #include "intern/gpu_matrix_intern.h"
+#include "intern/gpu_profile.h"
 
 
 static float point_size = 1;
@@ -116,10 +117,10 @@ void gpu_sprite_bind(void)
 	if (SPRITE_SIZE != point_size)
 		glPointSize(SPRITE_SIZE);
 
-	if (point_options & GPU_SPRITE_CIRCULAR)
+	if (SPRITE_OPTIONS & GPU_SPRITE_CIRCULAR)
 		glEnable(GL_POINT_SMOOTH);
 
-	if (point_options & GPU_SPRITE_TEXTURE_2D)
+	if (SPRITE_OPTIONS & GPU_SPRITE_TEXTURE_2D)
 		glEnable(GL_POINT_SPRITE);
 
 	GPU_CHECK_NO_ERROR();

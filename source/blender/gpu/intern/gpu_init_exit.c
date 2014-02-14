@@ -59,8 +59,8 @@ although the order of initialization and shutdown should not matter
 
 */
 
-static GPUimmediate* immediate;
-static GPUindex*     index;
+static GPUimmediate* gpu_immediate;
+static GPUindex*     gpu_index;
 
 static bool initialized = false;
 
@@ -89,12 +89,12 @@ void GPU_init(void)
 	gpu_sprite_init();
 	gpu_state_latch_init();
 
-	immediate = gpuNewImmediate();
-	gpuImmediateMakeCurrent(immediate);
+	gpu_immediate = gpuNewImmediate();
+	gpuImmediateMakeCurrent(gpu_immediate);
 	gpuImmediateMaxVertexCount(500000); // XXX jwilkins: temporary!
 
-	index = gpuNewIndex();
-	gpuImmediateIndex(index);
+	gpu_index = gpuNewIndex();
+	gpuImmediateIndex(gpu_index);
 	gpuImmediateMaxIndexCount(50000, GL_UNSIGNED_SHORT); // XXX jwilkins: temporary!
 
 	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
@@ -108,11 +108,11 @@ void GPU_exit(void)
 
 	GPU_aspect_end();
 
-	gpuDeleteIndex(index);
+	gpuDeleteIndex(gpu_index);
 	gpuImmediateIndex(NULL);
 
 	gpuImmediateMakeCurrent(NULL);
-	gpuDeleteImmediate(immediate);
+	gpuDeleteImmediate(gpu_immediate);
 
 	gpu_state_latch_exit();
 	gpu_sprite_exit();

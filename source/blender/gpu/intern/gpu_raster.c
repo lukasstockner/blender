@@ -343,7 +343,7 @@ void gpu_raster_bind(void)
 		glLineWidth(RASTER.line_width);
 		glLineStipple(RASTER.line_stipple_factor, RASTER.line_stipple_pattern);
 
-		glPolygonMode(RASTER.polygon_mode);
+		glPolygonMode(GL_FRONT_AND_BACK, RASTER.polygon_mode);
 		glPolygonStipple(RASTER.polygon_stipple);
 		
 		GPU_CHECK_NO_ERROR();
@@ -376,7 +376,7 @@ void gpu_raster_unbind(void)
 
 		glLineWidth(1);
 
-		glPolygonMode(GL_FILL);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		
 		GPU_CHECK_NO_ERROR();
 	}

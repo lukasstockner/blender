@@ -29,6 +29,10 @@
  *  \ingroup gpu
  */
 
+#if WITH_GL_PROFILE_COMPAT
+#define GPU_MANGLE_DEPRECATED 0 /* Allow use of deprecated OpenGL functions in this file */
+#endif
+
 /* my interface */
 #include "intern/gpu_matrix_intern.h"
 
@@ -69,18 +73,6 @@ static GPU_matrix_stack ms_texture;
 
 static GPU_matrix_stack* ms_current;
 static GLenum ms_current_mode;
-
-static GLint glstackpos[3];
-static GLint glstackmode;
-
-
-
-void GPU_matrix_forced_update(void)
-{
-	glslneedupdate = GL_TRUE;
-	gpu_commit_matrix();
-	glslneedupdate = GL_TRUE;
-}
 
 
 

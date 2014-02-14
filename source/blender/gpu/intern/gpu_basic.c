@@ -42,6 +42,10 @@
  * - Optimize for case where no texture matrix is used.
  */
 
+#if WITH_GL_PROFILE_COMPAT
+#define GPU_MANGLE_DEPRECATED 0 /* Allow use of deprecated OpenGL functions in this file */
+#endif
+
 /* my interface */
 #include "intern/gpu_basic_intern.h"
 

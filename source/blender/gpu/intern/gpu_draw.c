@@ -48,6 +48,9 @@
 #include "GPU_state_latch.h"
 #include "GPU_blender_aspect.h"
 
+/* internal */
+#include "intern/gpu_profile.h"
+
 /* external */
 
 #include "BLI_math.h"

@@ -55,6 +55,11 @@ extern "C" {
 
 
 
+struct GPUimmediate;
+struct GPUindex;
+
+
+
 void gpu_lock_buffer_gl(void);
 void gpu_unlock_buffer_gl(void);
 void gpu_begin_buffer_gl(void);

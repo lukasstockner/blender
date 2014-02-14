@@ -29,6 +29,10 @@
  *  \ingroup gpu
  */
 
+#if WITH_GL_PROFILE_COMPAT
+#define GPU_MANGLE_DEPRECATED 0 /* Allow use of deprecated OpenGL functions in this file */
+#endif
+
 /* my interface */
 #include "intern/gpu_common_intern.h"
 
@@ -39,6 +43,10 @@
 /* internal */
 #include "intern/gpu_extensions_intern.h"
 #include "intern/gpu_profile.h"
+
+#if WITH_GL_PROFILE_COMPAT
+#include "intern/gpu_immediate_intern.h"
+#endif
 
 /* external */
 #include "BLI_dynstr.h"
@@ -202,7 +210,7 @@ void GPU_common_enable_vertex_array   (void)
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHEC(glEnableClientState(GL_VERTEX_ARRAY));
+	GPU_CHECK(glEnableClientState(GL_VERTEX_ARRAY));
 #endif
 }
 
@@ -347,7 +355,7 @@ void GPU_common_normal_pointer(GLenum type, GLsizei stride, GLboolean normalized
 {
 	if (current_common != NULL) {
 		if (current_common->normal != -1)
-			GPU_CHECK(gpu_glVertexAttribPointer(current_common->normal, 3, type, GL_FALSE, stride, pointer));
+			GPU_CHECK(gpu_glVertexAttribPointer(current_common->normal, 3, type, normalized, stride, pointer));
 
 		return;
 	}
@@ -432,7 +440,7 @@ void GPU_common_normal_3fv(GLfloat n[3])
 	}
 	
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK(glNormal3fv(GPU_IMMEDIATE->normal));
+	GPU_CHECK(glNormal3fv(GPU_IMMEDIATE->normal)); // deprecated
 #endif
 }
 
@@ -455,7 +463,7 @@ void GPU_common_color_4ubv(GLubyte c[4])
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK(glColor4ubv(c));
+	GPU_CHECK(glColor4ubv(c)); // deprecated
 #endif
 }
 
@@ -471,6 +479,6 @@ void GPU_common_color_4fv(GLfloat c[4])
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK(glColor4fv(c));
+	GPU_CHECK(glColor4fv(c)); // deprecated
 #endif
 }

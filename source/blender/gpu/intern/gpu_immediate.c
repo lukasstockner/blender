@@ -103,9 +103,10 @@
     GPU_CHECK_NO_BEGIN(noBeginOK)   \
     }
 
+// XXX jwilkins: make this assert prettier
 #define GPU_SAFE_STMT(var, test, stmt) \
     var = (GLboolean)(test);           \
-    GPU_ASSERT((#test, var));          \
+    GPU_ASSERT(((void)#test, var));    \
     if (var) {                         \
         stmt;                          \
     }
@@ -599,7 +600,7 @@ void gpuImmediateFormat_V2(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_V2\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_V2\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -618,7 +619,7 @@ void gpuImmediateFormat_C4_V2(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_C4_V2\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_C4_V2\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -637,7 +638,7 @@ void gpuImmediateFormat_T2_V2(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_T2_V2\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_T2_V2\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -665,7 +666,7 @@ void gpuImmediateFormat_T2_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_T2_V3\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_T2_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -693,7 +694,7 @@ void gpuImmediateFormat_T2_C4_V2(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_T2_C4_V2\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_T2_C4_V2\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -721,7 +722,7 @@ void gpuImmediateFormat_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_V3\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -740,7 +741,7 @@ void gpuImmediateFormat_N3_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_N3_V3\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_N3_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -759,7 +760,7 @@ void gpuImmediateFormat_C4_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_C4_V3\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_C4_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -778,7 +779,7 @@ void gpuImmediateFormat_C4_N3_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_C4_N3_V3\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_C4_N3_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -797,7 +798,7 @@ void gpuImmediateFormat_T2_C4_N3_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_T2_C4_N3_V3\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_T2_C4_N3_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -825,7 +826,7 @@ void gpuImmediateFormat_T3_C4_V3(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateFormat_T3_C4_V3\n", file, line);
+	printf("%s(%d): gpuImmediateFormat_T3_C4_V3\n", file, line);
 #endif
 
 	if (gpuImmediateLockCount() == 0) {
@@ -853,7 +854,7 @@ void gpuImmediateUnformat(void)
 #endif
 {
 #if GPU_SAFETY
-	//printf("%s(%d): gpuImmediateUnformat\n", file, line);
+	printf("%s(%d): gpuImmediateUnformat\n", file, line);
 #endif
 
 	gpuImmediateUnlock();
@@ -899,7 +900,8 @@ static void gpu_append_client_arrays(
 	GLsizei i;
 	size_t size;
 	size_t offset;
-	char *restrict mappedBuffer;
+    
+	GLubyte *restrict mappedBuffer;
 
 	char *restrict colorPointer;
 	char *restrict normalPointer;
@@ -916,8 +918,9 @@ static void gpu_append_client_arrays(
 	normalPointer = (char *restrict)(arrays->normalPointer) + (first * arrays->normalStride);
 	colorPointer  = (char *restrict)(arrays->colorPointer ) + (first * arrays->colorStride );
 
-	mappedBuffer   = GPU_IMMEDIATE->mappedBuffer;
-	offset   = GPU_IMMEDIATE->offset;
+	mappedBuffer = GPU_IMMEDIATE->mappedBuffer;
+    
+	offset = GPU_IMMEDIATE->offset;
 
 	for (i = 0; i < count; i++) {
 		size = arrays->vertexSize * sizeof(GLfloat);
@@ -934,7 +937,6 @@ static void gpu_append_client_arrays(
 		if (colorPointer) {
 			if (arrays->colorType == GL_FLOAT) {
 				GLubyte color[4];
-				GLfloat *floatPointer = (float*)colorPointer;
 
 				color[0] = (GLubyte)(colorPointer[0] * 255.0f);
 				color[1] = (GLubyte)(colorPointer[1] * 255.0f);

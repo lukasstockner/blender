@@ -59,6 +59,7 @@ struct bPoseChannel;
 struct bScreen;
 struct bglMats;
 struct rcti;
+struct rctf;
 struct wmOperator;
 struct wmOperatorType;
 struct wmWindow;

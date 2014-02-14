@@ -29,6 +29,10 @@
  *  \ingroup gpu
  */
 
+#if WITH_GL_PROFILE_COMPAT
+#define GPU_MANGLE_DEPRECATED 0 /* Allow use of deprecated OpenGL functions in this file */
+#endif
+
 /* my interface */
 #include "intern/gpu_lighting_intern.h"
 
@@ -126,17 +130,17 @@ void gpu_commit_lighting(void)
 		if (i < 8) {
 			glEnable (GL_LIGHT0+i);
 
-			glLightfv(GL_LIGHT0+i, GL_POSITION,              light->position);
-			glLightfv(GL_LIGHT0+i, GL_DIFFUSE,               light->diffuse);
-			glLightfv(GL_LIGHT0+i, GL_SPECULAR,              light->specular);
+			glLightfv(GL_LIGHT0+i, GL_POSITION,              light->position);              // deprecated
+			glLightfv(GL_LIGHT0+i, GL_DIFFUSE,               light->diffuse);           // deprecated
+			glLightfv(GL_LIGHT0+i, GL_SPECULAR,              light->specular);           // deprecated
 
-			glLightf (GL_LIGHT0+i, GL_CONSTANT_ATTENUATION,  light->constant_attenuation);
-			glLightf (GL_LIGHT0+i, GL_LINEAR_ATTENUATION,    light->linear_attenuation);
-			glLightf (GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, light->quadratic_attenuation);
+			glLightf (GL_LIGHT0+i, GL_CONSTANT_ATTENUATION,  light->constant_attenuation);           // deprecated
+			glLightf (GL_LIGHT0+i, GL_LINEAR_ATTENUATION,    light->linear_attenuation);           // deprecated
+			glLightf (GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, light->quadratic_attenuation);           // deprecated
 
-			glLightfv(GL_LIGHT0+i, GL_SPOT_DIRECTION,        light->spot_direction);
-			glLightf (GL_LIGHT0+i, GL_SPOT_CUTOFF,           light->spot_cutoff);
-			glLightf (GL_LIGHT0+i, GL_SPOT_EXPONENT,         light->spot_exponent);
+			glLightfv(GL_LIGHT0+i, GL_SPOT_DIRECTION,        light->spot_direction);           // deprecated
+			glLightf (GL_LIGHT0+i, GL_SPOT_CUTOFF,           light->spot_cutoff);           // deprecated
+			glLightf (GL_LIGHT0+i, GL_SPOT_EXPONENT,         light->spot_exponent);           // deprecated
 		}
 #endif
 
@@ -145,7 +149,7 @@ void gpu_commit_lighting(void)
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	for (; i < 8; i++) {
-		glDisable(GL_LIGHT0+i);
+		glDisable(GL_LIGHT0+i); // deprecated
 	}
 #endif
 
@@ -169,8 +173,8 @@ GPU_CHECK_NO_ERROR();
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  material->specular);
-	glMateriali (GL_FRONT_AND_BACK, GL_SHININESS, material->shininess);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  material->specular); // deprecated
+	glMateriali (GL_FRONT_AND_BACK, GL_SHININESS, material->shininess); // deprecated
 #endif
 GPU_CHECK_NO_ERROR();
 }

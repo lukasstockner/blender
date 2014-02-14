@@ -35,6 +35,7 @@
 
 /* internal */
 #include "intern/gpu_codegen.h"
+#include "intern/gpu_profile.h"
 
 /* my library */
 #include "GPU_basic.h"
@@ -42,7 +43,6 @@
 #include "GPU_font.h"
 #include "GPU_pixels.h"
 #include "GPU_raster.h"
-#include "GPU_profile.h"
 #include "GPU_safety.h"
 #include "GPU_state_latch.h"
 #include "GPU_matrix.h"
@@ -189,7 +189,6 @@ void gpu_extensions_init(void)
 {
 	GLint r, g, b;
 	const char *vendor, *renderer;
-	int bdepth = -1;
 
 	GPU_CHECK_NO_ERROR();
 	
@@ -1356,7 +1355,7 @@ static void shader_print_errors(GLuint object, GLboolean is_program, const char*
 	shader_print_log(object, is_program, nickname, kind);
 }
 
-bool print_status(GLuint object, GLboolean is_program, const char* nickname, const char* kind, const char** code, int code_count)
+static bool print_status(GLuint object, GLboolean is_program, const char* nickname, const char* kind, const char** code, int code_count)
 {
 	GLint status;
 
@@ -1398,7 +1397,6 @@ static const char *gpu_shader_standard_defines(void)
 GPUShader *GPU_shader_create(const char* nickname, const char *vertexcode, const char *fragcode, const char *libcode, const char *defines)
 {
 	GLint status;
-	GLsizei length = 0;
 	GPUShader *shader;
 	int i;
 

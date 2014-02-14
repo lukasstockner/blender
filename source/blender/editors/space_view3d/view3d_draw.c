@@ -2202,10 +2202,10 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 		if (use_displist) {
-			gpuMultMatrix(dob->mat);
+			gpuMultMatrix(dob->mat[0]);
 			if (ED_view3d_boundbox_clip(rv3d, dob->mat, &bb))
 				glCallList(displist);
-			gpuLoadMatrix(rv3d->viewmat);
+			gpuLoadMatrix(rv3d->viewmat[0]);
 		}
 		else
 #endif

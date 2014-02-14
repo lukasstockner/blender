@@ -38,6 +38,9 @@
 #include "GPU_profile.h"
 #include "GPU_safety.h"
 
+/* internal */
+#include "intern/gpu_profile.h"
+
 /* external */
 #include "BLI_sys_types.h"
 #include "BLI_utildefines.h"
@@ -66,13 +69,17 @@ static GLboolean depth_writemask;
 void gpu_state_latch_init(void)
 {
 #if defined(WITH_GL_PROFILE_COMPAT)
+	GLint value;
+
 	glGetDoublev(GL_DEPTH_RANGE, depth_range);
-	depth_range_valid        = true;
+	depth_range_valid = true;
 
 	glGetIntegerv(GL_VIEWPORT, viewport);
-	viewport_valid           = true;
+	viewport_valid = true;
 
-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &texture_binding_2D);
+	value = 0;
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &value);
+	texture_binding_2D       = (GLuint)value;
 	texture_binding_2D_valid = true;
 
 	glGetBooleanv(GL_DEPTH_WRITEMASK, &depth_writemask);

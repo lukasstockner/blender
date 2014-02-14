@@ -423,4 +423,8 @@
 	#endif
 #endif
 
+#ifndef _WIN32
+#define O_BINARY 0
+#endif
+
 #endif  /* __BLI_UTILDEFINES_H__ */

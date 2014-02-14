@@ -42,7 +42,12 @@ extern "C" {
 
 
 
-/* 
+struct DynStr;
+struct GPUShader;
+
+
+
+/*
 
 The 'common' module defines a set of
 well-known or "common" GLSL variable names.

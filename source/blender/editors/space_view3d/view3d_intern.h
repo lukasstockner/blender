@@ -51,6 +51,7 @@ struct Mesh;
 struct wmNDOFMotionData;
 struct wmOperatorType;
 struct wmWindowManager;
+struct ListBase;
 
 /* drawing flags: */
 enum {

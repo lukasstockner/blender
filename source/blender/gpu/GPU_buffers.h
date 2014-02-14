@@ -38,7 +38,8 @@
 extern "C" {
 #endif
 
-
+struct BMesh;
+struct GHash;
 
 #ifdef _DEBUG
 /*#define DEBUG_VBO(X) printf(X)*/

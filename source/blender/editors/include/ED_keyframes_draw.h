@@ -32,6 +32,8 @@
 #ifndef __ED_KEYFRAMES_DRAW_H__
 #define __ED_KEYFRAMES_DRAW_H__
 
+#include "BLI_utildefines.h"
+
 struct bAnimContext;
 struct AnimData;
 struct BezTriple;

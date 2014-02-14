@@ -47,6 +47,8 @@ struct SpaceImage;
 struct bContext;
 struct bNode;
 struct wmKeyConfig;
+struct SpaceImage;
+struct ARegion;
 
 /* uvedit_ops.c */
 void ED_operatortypes_uvedit(void);

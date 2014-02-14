@@ -31,7 +31,11 @@
 
 #ifdef DEBUG
 
-#include "GPU_glew.h"
+#if WITH_GL_PROFILE_COMPAT
+#define GPU_MANGLE_DEPRECATED 0 /* Allow use of deprecated OpenGL functions in this file */
+#endif
+
+#include "GPU_draw.h"
 
 #include <stdio.h>
 #include <string.h>

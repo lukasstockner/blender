@@ -69,6 +69,7 @@ void gpu_check(const char* file, int line, const char* text);
 /* Bails out of function even if assert or abort are disabled.
    Needs a variable in scope to store results of the test.
    Can be used in functions that return void if third argument is left blank */
+// XXX jwilkins: make this assert prettier
 #define GPU_SAFE_RETURN(test, var, ret) \
     var = (bool)(test);                 \
     GPU_ASSERT(((void)#test, var));     \

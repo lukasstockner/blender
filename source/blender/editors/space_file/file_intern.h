@@ -35,7 +35,9 @@
 
 struct ARegion;
 struct ARegionType;
+struct bContext;
 struct SpaceFile;
+struct ScrArea;
 
 /* file_ops.c */
 struct ARegion *file_buttons_region(struct ScrArea *sa);

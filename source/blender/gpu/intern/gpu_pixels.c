@@ -58,9 +58,8 @@ static struct GPUShader*  PIXELS_SHADER = NULL;
 static struct GPUcommon   PIXELS_COMMON = {0};
 static bool               PIXELS_FAILED = FALSE;
 
-#if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_ES20)
 static GLfloat PIXELS_POS[3] = { 0, 0, 0 };
-#endif
+
 
 #if GPU_SAFETY
 static bool PIXELS_BEGUN = false;

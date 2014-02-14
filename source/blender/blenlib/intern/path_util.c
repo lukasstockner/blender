@@ -77,6 +77,8 @@
 #  endif
 #endif /* WIN32 */
 
+#include <stddef.h>
+
 /* local */
 #define UNIQUE_NAME_MAX 128
 

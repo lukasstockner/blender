@@ -56,6 +56,7 @@ const char* get_glew_error_message_string(GLenum error)
 		case GLEW_ERROR_GLX_VERSION_11_ONLY:
 			return "GLX 1.2 or later is required.";
 
+#if WITH_GLEW_ES
 		case GLEW_ERROR_NOT_GLES_VERSION:
 			return "OpenGL ES is required.";
 
@@ -67,6 +68,7 @@ const char* get_glew_error_message_string(GLenum error)
 
 		case GLEW_ERROR_EGL_VERSION_10_ONLY:
 			return "EGL 1.1 or later is required.";
+#endif
 
 		default:
 			return NULL;
@@ -90,6 +92,7 @@ const char* get_glew_error_enum_string(GLenum error)
 		case GLEW_ERROR_GLX_VERSION_11_ONLY:
 			return "GLEW_ERROR_GLX_VERSION_11_ONLY";
 
+#if WITH_GLEW_ES
 		case GLEW_ERROR_NOT_GLES_VERSION:
 			return "GLEW_ERROR_NOT_GLES_VERSION";
 
@@ -101,6 +104,7 @@ const char* get_glew_error_enum_string(GLenum error)
 
 		case GLEW_ERROR_EGL_VERSION_10_ONLY:
 			return "GLEW_ERROR_EGL_VERSION_10_ONLY";
+#endif
 
 		default:
 			return NULL;
