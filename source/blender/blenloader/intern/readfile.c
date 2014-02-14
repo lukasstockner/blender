@@ -11293,7 +11293,7 @@ BlendFileData *blo_read_blendafterruntime(int file, const char *name, bli_off_t 
 	BlendFileData *bfd = NULL;
 	FileData *fd = filedata_new();
 	fd->filedes = file;
-	fd->buffersize = actualsize; // XXX jwilkins: changine buffersize to bli_off_t is beyond my paygrade...
+	fd->buffersize = actualsize; // XXX jwilkins: changing buffersize to bli_off_t is beyond my paygrade...
 	fd->read = fd_read_from_file;
 	
 	/* needed for library_append and read_libraries */

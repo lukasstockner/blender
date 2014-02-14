@@ -91,6 +91,7 @@ bool win32_chk(bool result, const char* file = NULL, int line = 0, const char* t
 				msg = "The device contexts specified are not compatible.  This can occur if the device contexts are managed by different drivers or possibly on different graphics adapters.\n";
 				break;
 
+#if WITH_GLEW_ES
 			case ERROR_INCOMPATIBLE_AFFINITY_MASKS_NV:
 				msg = "The device context(s) and rendering context have non-matching affinity masks.\n";
 				break;
@@ -98,6 +99,7 @@ bool win32_chk(bool result, const char* file = NULL, int line = 0, const char* t
 			case ERROR_MISSING_AFFINITY_MASK_NV:
 				msg = "The rendering context does not have an affinity mask set.\n";
 				break;
+#endif
 
 			case ERROR_PROFILE_DOES_NOT_MATCH_DEVICE:
 				msg = "The specified profile is intended for a device of a different type than the specified device.\n";
@@ -316,7 +318,9 @@ GHOST_ContextWGL::GHOST_ContextWGL(
 	assert(m_hWnd);
 	assert(m_hDC);
 
+#if WITH_GLEW_ES
 	assert((m_contextProfileMask & ~(WGL_CONTEXT_CORE_PROFILE_BIT_ARB|WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB|WGL_CONTEXT_ES_PROFILE_BIT_EXT|WGL_CONTEXT_ES2_PROFILE_BIT_EXT)) == 0);
+#endif
 }
 
 
@@ -922,7 +926,10 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 	if (WGLEW_ARB_create_context) {
 		int profileBitCore   = m_contextProfileMask & WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 		int profileBitCompat = m_contextProfileMask & WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
+
+#if WITH_GLEW_ES
 		int profileBitES     = m_contextProfileMask & WGL_CONTEXT_ES_PROFILE_BIT_EXT;
+#endif
 
 		if (!WGLEW_ARB_create_context_profile && profileBitCore)
 			fprintf(stderr, "Warning! OpenGL core profile not available.\n");
@@ -930,11 +937,13 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 		if (!WGLEW_ARB_create_context_profile && profileBitCompat)
 			fprintf(stderr, "Warning! OpenGL compatibility profile not available.\n");
 
+#if WITH_GLEW_ES
 		if (!WGLEW_EXT_create_context_es_profile && profileBitES && m_contextMajorVersion == 1)
 			fprintf(stderr, "Warning! OpenGL ES profile not available.\n");
 
 		if (!WGLEW_EXT_create_context_es2_profile && profileBitES && m_contextMajorVersion == 2)
 			fprintf(stderr, "Warning! OpenGL ES2 profile not available.\n");
+#endif
 
 		int profileMask = 0;
 
@@ -944,8 +953,10 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 		if (WGLEW_ARB_create_context_profile && profileBitCompat)
 			profileMask |= profileBitCompat;
 
+#if WITH_GLEW_ES
 		if (WGLEW_EXT_create_context_es_profile && profileBitES)
 			profileMask |= profileBitES;
+#endif
 
 		std::vector<int> iAttributes;
 

@@ -38,6 +38,10 @@
 #include "GPU_profile.h"
 #include "GPU_safety.h"
 
+/* external */
+#include "BLI_sys_types.h"
+#include "BLI_utildefines.h"
+
 /* standard */
 #include <string.h>
 

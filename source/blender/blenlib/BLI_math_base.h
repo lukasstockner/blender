@@ -135,8 +135,10 @@
 #endif  /* C99 or POSIX.1-2001 */
 
 #ifdef WIN32
-#  ifndef FREE_WINDOWS
-#    define isnan(n) _isnan(n)
+#  if !defined(FREE_WINDOWS)
+#    if _MSC_VER && _MSC_VER < 1800
+#      define isnan(n) _isnan(n)
+#    endif
 #    define finite _finite
 #    define hypot _hypot
 #  endif
