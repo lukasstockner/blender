@@ -304,7 +304,7 @@ mark_as_advanced(WITH_GLEW_ES)
 option(WITH_GLU "Provide the GL Utility Library (GLU). Only works with the 'compatibiity' profile. (deprecated)" ON)
 mark_as_advanced(WITH_GLU_ES)
 
-option(WITH_GL_SYSTEM_DESKTOP "Support using the AGL/WGL/XGL system library to initialize OpenGL. Can access 3.1+ core, compatibility, and 2.0 es profiles." OFF)
+option(WITH_GL_SYSTEM_DESKTOP "Support using the AGL/WGL/XGL system library to initialize OpenGL. Can access 3.1+ core, compatibility, and 2.0 es profiles." ON)
 mark_as_advanced(WITH_GL_SYSTEM_DESKTOP)
 
 option(WITH_GL_SYSTEM_EMBEDDED "Support using the EGL system library to initialize OpenGL ES." OFF)
