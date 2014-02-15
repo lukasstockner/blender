@@ -131,16 +131,16 @@ void gpu_commit_lighting(void)
 			glEnable (GL_LIGHT0+i);
 
 			glLightfv(GL_LIGHT0+i, GL_POSITION,              light->position);              // deprecated
-			glLightfv(GL_LIGHT0+i, GL_DIFFUSE,               light->diffuse);           // deprecated
-			glLightfv(GL_LIGHT0+i, GL_SPECULAR,              light->specular);           // deprecated
+			glLightfv(GL_LIGHT0+i, GL_DIFFUSE,               light->diffuse);               // deprecated
+			glLightfv(GL_LIGHT0+i, GL_SPECULAR,              light->specular);              // deprecated
 
-			glLightf (GL_LIGHT0+i, GL_CONSTANT_ATTENUATION,  light->constant_attenuation);           // deprecated
-			glLightf (GL_LIGHT0+i, GL_LINEAR_ATTENUATION,    light->linear_attenuation);           // deprecated
-			glLightf (GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, light->quadratic_attenuation);           // deprecated
+			glLightf (GL_LIGHT0+i, GL_CONSTANT_ATTENUATION,  light->constant_attenuation);  // deprecated
+			glLightf (GL_LIGHT0+i, GL_LINEAR_ATTENUATION,    light->linear_attenuation);    // deprecated
+			glLightf (GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, light->quadratic_attenuation); // deprecated
 
-			glLightfv(GL_LIGHT0+i, GL_SPOT_DIRECTION,        light->spot_direction);           // deprecated
+			glLightfv(GL_LIGHT0+i, GL_SPOT_DIRECTION,        light->spot_direction);        // deprecated
 			glLightf (GL_LIGHT0+i, GL_SPOT_CUTOFF,           light->spot_cutoff);           // deprecated
-			glLightf (GL_LIGHT0+i, GL_SPOT_EXPONENT,         light->spot_exponent);           // deprecated
+			glLightf (GL_LIGHT0+i, GL_SPOT_EXPONENT,         light->spot_exponent);         // deprecated
 		}
 #endif
 
@@ -203,6 +203,7 @@ void GPU_set_basic_material_specular(const float specular[4])
 
 void GPU_restore_basic_lights(int light_count, const GPUbasiclight lights[])
 {
+	GPU_ASSERT(light_count >= 0);
 	GPU_ASSERT(light_count < GPU_MAX_COMMON_LIGHTS);
 
 	memcpy(LIGHTING.light, lights, light_count*sizeof(GPUbasiclight));
