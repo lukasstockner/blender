@@ -88,9 +88,10 @@ void gpu_include_common_frag(DynStr* frag)
 
 void gpu_include_common_defs(DynStr* defs)
 {
-	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_TEXCOORDS " STRINGIFY(GPU_MAX_COMMON_TEXCOORDS) "\n");
-	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_SAMPLERS  " STRINGIFY(GPU_MAX_COMMON_SAMPLERS ) "\n");
-	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_LIGHTS    " STRINGIFY(GPU_MAX_COMMON_LIGHTS   ) "\n");
+	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_TEXCOORDS   " STRINGIFY(GPU_MAX_COMMON_TEXCOORDS  ) "\n");
+	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_SAMPLERS    " STRINGIFY(GPU_MAX_COMMON_SAMPLERS   ) "\n");
+	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_LIGHTS      " STRINGIFY(GPU_MAX_COMMON_LIGHTS     ) "\n");
+	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_CLIP_PLANES " STRINGIFY(GPU_MAX_COMMON_CLIP_PLANES) "\n");
 
 	if (GPU_PROFILE_COMPAT)
 		BLI_dynstr_append(defs, "#define GPU_PROFILE_COMPAT\n");
@@ -117,14 +118,18 @@ void gpu_common_get_symbols(GPUcommon* common, GPUShader* gpushader)
 {
 	int i;
 
+	/* Attributes */
 	common->vertex = GPU_shader_get_attrib(gpushader, "b_Vertex");
 	common->color  = GPU_shader_get_attrib(gpushader, "b_Color");
 	common->normal = GPU_shader_get_attrib(gpushader, "b_Normal");
 
+	/* Transformation */
 	common->modelview_matrix            = GPU_shader_get_uniform(gpushader, "b_ModelViewMatrix");
 	common->modelview_projection_matrix = GPU_shader_get_uniform(gpushader, "b_ModelViewProjectionMatrix");
 	common->modelview_matrix_inverse    = GPU_shader_get_uniform(gpushader, "b_ModelViewMatrixInverse");
 	common->projection_matrix           = GPU_shader_get_uniform(gpushader, "b_ProjectionMatrix");
+
+	/* Texture Mapping */
 
 	for (i = 0; i < GPU_MAX_COMMON_TEXCOORDS; i++) {
 		char symbol[100];
@@ -143,6 +148,9 @@ void gpu_common_get_symbols(GPUcommon* common, GPUShader* gpushader)
 		common->sampler[i] = GPU_shader_get_uniform(gpushader, symbol);
 	}
 
+	/* Lighting */
+
+	/* Lights */
 	for (i = 0; i < GPU_MAX_COMMON_LIGHTS; i++) {
 		char symbol[100];
 		int  len;
@@ -163,12 +171,23 @@ void gpu_common_get_symbols(GPUcommon* common, GPUShader* gpushader)
 		get_struct_uniform(common->light_spot_exponent         + i, gpushader, symbol, len, ".spotExponent");
 	}
 
-	common->normal_matrix      = GPU_shader_get_uniform(gpushader, "b_NormalMatrix");
+	common->normal_matrix = GPU_shader_get_uniform(gpushader, "b_NormalMatrix");
+	common->light_count   = GPU_shader_get_uniform(gpushader, "b_LightCount");
 
-	common->light_count        = GPU_shader_get_uniform(gpushader, "b_LightCount");
-
+	/* Material */
 	common->material_specular  = GPU_shader_get_uniform(gpushader, "b_FrontMaterial.specular");
 	common->material_shininess = GPU_shader_get_uniform(gpushader, "b_FrontMaterial.shininess");
+
+	/* Clip Planes */
+
+	for (i = 0; i < GPU_MAX_COMMON_CLIP_PLANES; i++) {
+		char symbol[100];
+
+		sprintf(symbol, "b_ClipPlane[%d]", i);
+		common->clip_plane[i] = GPU_shader_get_uniform(gpushader, symbol);
+	}
+
+	common->clip_plane_count = GPU_shader_get_uniform(gpushader, "b_ClipPlaneCount");
 }
 
 

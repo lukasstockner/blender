@@ -67,7 +67,9 @@
 #include "BKE_editmesh.h"
 #include "BKE_lattice.h"
 
+#include "GPU_basic.h"
 #include "GPU_blender_aspect.h"
+#include "GPU_clipping.h"
 #include "GPU_primitives.h"
 #include "GPU_matrix.h"
 #include "GPU_select.h"
@@ -967,9 +969,6 @@ static void postOrtho(int ortho)
 
 static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving, int drawflags, int combo)
 {
-#if defined(WITH_GL_PROFILE_COMPAT)
-	double plane[4];
-#endif
 	float matt[4][4];
 	float size;
 	float cywid = 0.33f * 0.01f * (float)U.tw_handlesize;
@@ -992,14 +991,13 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 	gpuPushMatrix();
 	gpuTranslate(rv3d->twmat[3][0], rv3d->twmat[3][1], rv3d->twmat[3][2]);
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT && arcs) {
-		/* clipplane makes nice handles, calc here because of multmatrix but with translate! */
-		copy_v3db_v3fl(plane, rv3d->viewinv[2]);
-		plane[3] = -0.02f * size; // clip just a bit more
-		glClipPlane(GL_CLIP_PLANE0, plane);
+	if (arcs) {
+		/* clip plane makes nice handles, calc here because of multmatrix but with translate! */
+		GPUplane plane;
+		copy_v3db_v3fl(plane.equation, rv3d->viewinv[2]);
+		plane.equation[3] = -0.02f * size; // clip just a bit more
+		GPU_set_clip_planes(1, &plane);
 	}
-#endif
 
 	/* sets view screen aligned */
 	gpuRotateVector(RAD2DEGF(-2.0f * saacos(rv3d->viewquat[0])), rv3d->viewquat+1);
@@ -1064,11 +1062,7 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 
 	// donut arcs
 	if (arcs) {
-#if defined(WITH_GL_PROFILE_COMPAT)
-		if (GPU_PROFILE_COMPAT) {
-			glEnable(GL_CLIP_PLANE0);
-		}
-#endif
+		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_CLIPPING);
 
 		/* Z circle */
 		if (drawflags & MAN_ROT_Z) {
@@ -1113,11 +1107,7 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 			postOrtho(ortho);
 		}
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-		if (GPU_PROFILE_COMPAT) {
-			glDisable(GL_CLIP_PLANE0);
-		}
-#endif
+		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_CLIPPING);
 	}
 	else /* !arcs */ {
 		/* axes */
@@ -1161,11 +1151,10 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 		}
 
 		if (moving) {
-#if defined(WITH_GL_PROFILE_COMPAT)
-		if (GPU_PROFILE_COMPAT) {
-			glEnable(GL_CLIP_PLANE0);
-		}
-#endif
+			if (arcs) {
+				GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_CLIPPING);
+			}
+
 			/* Z circle */
 			if (drawflags & MAN_ROT_Z) {
 				preOrthoFront(ortho, matt, 2);
@@ -1211,11 +1200,9 @@ static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, int moving,
 				postOrtho(ortho);
 			}
 
-#if defined(WITH_GL_PROFILE_COMPAT)
-			if (GPU_PROFILE_COMPAT && arcs) {
-				glDisable(GL_CLIP_PLANE0);
+			if (arcs) {
+				GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_CLIPPING);
 			}
-#endif
 		}
 
 		/* Z handle on X axis */

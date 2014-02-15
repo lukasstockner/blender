@@ -630,4 +630,7 @@
 #undef glLoadName
 #define glLoadName DO_NOT_USE_glLoadName
 
+#undef glClipPlane
+#define glClipPlane DO_NOT_USE_glClipPlane
+
 #endif /* _GPU_DEPRECATED_H_ */

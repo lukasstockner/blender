@@ -101,6 +101,8 @@ typedef struct GPUcommon {
 	GLint material_specular;                                  /* b_FrontMaterial.specular             */
 	GLint material_shininess;                                 /* b_FrontMaterial.shininess            */
 
+	GLint clip_plane[6];                                      /* b_ClipPlane[]                        */
+	GLint clip_plane_count;                                   /* b_ClipPlaneCount                     */
 } GPUcommon;
 
 

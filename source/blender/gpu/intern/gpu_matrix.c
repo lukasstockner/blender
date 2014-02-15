@@ -541,3 +541,12 @@ void GPU_feedback_vertex_4fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLflo
 	float in[4] = {x, y, z, w};
 	mul_v4_m4v4(out, m[0], in);
 }
+
+
+
+void GPU_feedback_vertex_4dv(GLenum type, GLdouble x, GLdouble y, GLdouble z, GLdouble w, GLdouble out[3])
+{
+	GPU_matrix* m = (GPU_matrix*)gpuGetMatrix(type, NULL);
+	double in[4] = {x, y, z, w};
+	mul_v4d_m4v4d(out, m[0], in);
+}

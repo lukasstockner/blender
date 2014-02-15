@@ -49,10 +49,11 @@ typedef enum GPUBasicOption {
 	GPU_BASIC_LOCAL_VIEWER   = (1<<3), /* use for orthographic projection         */
 	GPU_BASIC_SMOOTH         = (1<<4), /* use smooth shading                      */
 	GPU_BASIC_ALPHATEST      = (1<<5), /* use alpha test                          */
+	GPU_BASIC_CLIPPING       = (1<<6), /* use clipping                            */
 
-	GPU_BASIC_FAST_LIGHTING  = (1<<6), /* use faster lighting (set automatically) */
+	GPU_BASIC_FAST_LIGHTING  = (1<<7), /* use faster lighting (set automatically) */
 
-	GPU_BASIC_OPTIONS_NUM         = 7,
+	GPU_BASIC_OPTIONS_NUM         = 8,
 	GPU_BASIC_OPTION_COMBINATIONS = (1<<GPU_BASIC_OPTIONS_NUM)
 } GPUBasicOption;
 

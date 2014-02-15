@@ -42,9 +42,11 @@ extern "C" {
 
 
 
-#define GPU_MAX_COMMON_TEXCOORDS 1
-#define GPU_MAX_COMMON_SAMPLERS  1
-#define GPU_MAX_COMMON_LIGHTS    8
+// XXX jwilkins: do these belong here?
+#define GPU_MAX_COMMON_TEXCOORDS   1
+#define GPU_MAX_COMMON_SAMPLERS    1
+#define GPU_MAX_COMMON_LIGHTS      8
+#define GPU_MAX_COMMON_CLIP_PLANES 6
 
 
 

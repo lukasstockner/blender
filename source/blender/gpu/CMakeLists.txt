@@ -48,6 +48,7 @@ set(INTERN_INC
 	intern/gpu_aspect_intern.h
 	intern/gpu_basic_intern.h
 	intern/gpu_blender_aspect_intern.h
+	intern/gpu_clipping_intern.h
 	intern/gpu_common_intern.h
 	intern/gpu_codegen.h
 	intern/gpu_extensions_intern.h
@@ -96,6 +97,7 @@ set(SRC
 	intern/gpu_basic.c
 	intern/gpu_blender_aspect.c
 	intern/gpu_buffers.c
+	intern/gpu_clipping.c
 	intern/gpu_codegen.c
 	intern/gpu_common.c
 	intern/gpu_debug.c
@@ -120,6 +122,7 @@ set(SRC
 	GPU_basic.h
 	GPU_blender_aspect.h
 	GPU_buffers.h
+	GPU_clipping.h
 	GPU_colors.h
 	GPU_common.h
 	GPU_deprecated.h

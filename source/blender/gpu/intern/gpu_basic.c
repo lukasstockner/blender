@@ -55,6 +55,7 @@
 #include "GPU_state_latch.h"
 
 /* internal */
+#include "intern/gpu_clipping_intern.h"
 #include "intern/gpu_common_intern.h"
 #include "intern/gpu_lighting_intern.h"
 #include "intern/gpu_matrix_intern.h"
@@ -281,6 +282,8 @@ void gpu_basic_bind(void)
 			glShadeModel(GL_SMOOTH);
 		else
 			glShadeModel(GL_FLAT);
+
+		gpu_toggle_clipping(BASIC_SHADER.options & GPU_BASIC_CLIPPING);
 	}
 
 	GPU_CHECK_NO_ERROR();
@@ -289,6 +292,10 @@ void gpu_basic_bind(void)
 	if (BASIC_SHADER.options & GPU_BASIC_LIGHTING) {
 		gpu_commit_lighting();
 		gpu_commit_material();
+	}
+
+	if (BASIC_SHADER.options & GPU_BASIC_CLIPPING) {
+		gpu_commit_clipping();
 	}
 
 	gpu_commit_matrix();
@@ -309,6 +316,7 @@ void gpu_basic_unbind(void)
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 	glLightModeli(GL_LIGHT_MODEL_LOCAL_VIEWER, GL_FALSE);
 	glShadeModel(GL_FLAT);
+	gpu_toggle_clipping(false);
 
 	GPU_CHECK_NO_ERROR();
 #endif

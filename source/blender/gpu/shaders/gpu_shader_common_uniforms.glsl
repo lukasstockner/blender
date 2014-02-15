@@ -51,6 +51,13 @@ uniform int b_LightCount;
 
 #endif
 
+
+#ifdef USE_CLIP_PLANES
+
+uniform double b_ClipPlane[b_MaxClipPlanes][4];
+
+uniform int b_ClipPlaneCount;
+
+#endif
+
 /* end common uniforms */
-
-

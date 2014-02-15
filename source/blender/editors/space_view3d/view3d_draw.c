@@ -82,6 +82,7 @@
 
 #include "GPU_basic.h"
 #include "GPU_blender_aspect.h"
+#include "GPU_clipping.h"
 #include "GPU_colors.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
@@ -176,46 +177,27 @@ static void view3d_draw_clipping(RegionView3D *rv3d)
 
 void ED_view3d_clipping_set(RegionView3D *rv3d)
 {
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		double plane[4];
-		const unsigned int tot = (rv3d->viewlock & RV3D_BOXCLIP) ? 4 : 6;
-		unsigned int a;
+	GPUplane plane[6];
+	const unsigned int tot = (rv3d->viewlock & RV3D_BOXCLIP) ? 4 : 6;
+	unsigned int a;
 
-		for (a = 0; a < tot; a++) {
-			copy_v4db_v4fl(plane, rv3d->clip[a]);
-			glClipPlane(GL_CLIP_PLANE0 + a, plane);
-			glEnable(GL_CLIP_PLANE0 + a);
-		}
+	// XXX jwilkins: this copy would not be needed if planes were kept as doubles
+	for (a = 0; a < tot; a++) {
+		copy_v4db_v4fl(plane[a].equation, rv3d->clip[a]);
 	}
-#endif
+
+	GPU_set_clip_planes(tot, plane);
 }
 
 /* use these to temp disable/enable clipping when 'rv3d->rflag & RV3D_CLIPPING' is set */
 void ED_view3d_clipping_disable(void)
 {
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		unsigned int a;
-
-		for (a = 0; a < 6; a++) {
-			glDisable(GL_CLIP_PLANE0 + a);
-		}
-	}
-#endif
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_CLIPPING);
 }
 
 void ED_view3d_clipping_enable(void)
 {
-#if defined(WITH_GL_PROFILE_COMPAT)
-	if (GPU_PROFILE_COMPAT) {
-		unsigned int a;
-
-		for (a = 0; a < 6; a++) {
-			glEnable(GL_CLIP_PLANE0 + a);
-		}
-	}
-#endif
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_CLIPPING);
 }
 
 static bool view3d_clipping_test(const float co[3], float clip[6][4])

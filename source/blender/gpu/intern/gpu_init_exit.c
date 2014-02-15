@@ -39,6 +39,7 @@
 #include "intern/gpu_aspect_intern.h"
 #include "intern/gpu_basic_intern.h"
 #include "intern/gpu_blender_aspect_intern.h"
+#include "intern/gpu_clipping_intern.h"
 #include "intern/gpu_codegen.h"
 #include "intern/gpu_common_intern.h"
 #include "intern/gpu_extensions_intern.h"
@@ -77,6 +78,7 @@ void GPU_init(void)
 	gpu_aspect_init();
 	gpu_basic_init();
 	gpu_blender_aspect_init();
+	gpu_clipping_init();
 	gpu_codegen_init();
 	gpu_common_init();
 	gpu_font_init();
@@ -125,6 +127,7 @@ void GPU_exit(void)
 	gpu_font_exit();
 	gpu_common_exit();
 	gpu_codegen_exit();
+	gpu_clipping_exit();
 	gpu_blender_aspect_exit();
 	gpu_basic_exit();
 	gpu_aspect_exit();
