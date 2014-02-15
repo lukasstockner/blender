@@ -56,6 +56,10 @@ struct wmOperator;
 struct wmOperatorType;
 struct ImagePaintState;
 struct wmWindowManager;
+struct wmKeyConfig;
+struct Image;
+struct ImBuf;
+struct SpaceImage;
 enum PaintMode;
 
 /* paint_stroke.c */

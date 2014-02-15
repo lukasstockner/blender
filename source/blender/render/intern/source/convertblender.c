@@ -2399,7 +2399,8 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 	VlakRen *vlr, *vlr1;
 	Material *ma;
 	float *data, *nors, *orco=NULL, mat[4][4], imat[3][3], xn, yn, zn;
-	int a, need_orco, vlakindex, *index, negative_scale;
+	int a, need_orco, vlakindex, negative_scale;
+	unsigned int *index;
 	ListBase dispbase= {NULL, NULL};
 
 	if (ob!=BKE_mball_basis_find(re->scene, ob))
@@ -2910,7 +2911,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 				/* pass */
 			}
 			else if (dl->type==DL_INDEX3) {
-				int *index;
+				unsigned int *index;
 
 				startvert= obr->totvert;
 				data= dl->verts;

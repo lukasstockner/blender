@@ -178,7 +178,7 @@ static void draw_triangulated(const int mcords[][2], const short tot)
 	/* do the draw */
 	dl = lb.first;  /* filldisplist adds in head of list */
 	if (dl->type == DL_INDEX3) {
-		int *index;
+		unsigned int *index;
 		
 		a = dl->parts;
 		fp = dl->verts;

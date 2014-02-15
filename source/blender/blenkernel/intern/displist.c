@@ -456,7 +456,8 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 	ScanFillFace *sf_tri;
 	DispList *dlnew = NULL, *dl;
 	float *f1;
-	int colnr = 0, charidx = 0, cont = 1, tot, a, *index, nextcol = 0;
+	int colnr = 0, charidx = 0, cont = 1, tot, a, nextcol = 0;
+	unsigned int *index;
 	intptr_t totvert;
 
 	if (dispbase == NULL)
@@ -548,7 +549,7 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 					index[2] = (intptr_t)sf_tri->v3->tmp.l;
 
 					if (flipnormal)
-						SWAP(int, index[0], index[2]);
+						SWAP(unsigned int, index[0], index[2]);
 
 					index += 3;
 					sf_tri = sf_tri->next;
@@ -1046,7 +1047,7 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 static void displist_surf_indices(DispList *dl)
 {
 	int a, b, p1, p2, p3, p4;
-	int *index;
+	unsigned int *index;
 
 	dl->totindex = 0;
 

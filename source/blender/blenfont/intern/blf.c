@@ -559,7 +559,7 @@ static void blf_draw__start(FontBLF *font)
 #if GPU_SAFETY && defined(WITH_GL_PROFILE_COMPAT)
 	{
 	GLenum param;
-	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, &param);
+	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, (GLint*)(&param));
 	GPU_ASSERT(param == GL_MODULATE);
 
 	GPU_ASSERT(gpuGetMatrixMode() == GL_MODELVIEW);

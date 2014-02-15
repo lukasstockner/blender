@@ -801,13 +801,13 @@ static float metaball(float x, float y, float z)
 
 /* ******************************************** */
 
-static int *indices = NULL;
+static unsigned int *indices = NULL;
 static int totindex, curindex;
 
 
 static void accum_mballfaces(int i1, int i2, int i3, int i4)
 {
-	int *newi, *cur;
+	unsigned int *newi, *cur;
 	/* static int i = 0; I would like to delete altogether, but I don't dare to, yet */
 
 	if (totindex == curindex) {

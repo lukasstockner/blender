@@ -654,7 +654,7 @@ static void sort3(int sort[3], float a, float b, float c)
 
 /* Draw a live substitute of the view icon, which is always shown
  * colors copied from transform_manipulator.c, we should keep these matching. */
-static void draw_view_axis(RegionView3D *rv3d, rcti *rect)
+static void draw_view_axis(RegionView3D *rv3d, rcti *UNUSED(rect))
 {
 	/* axis size */
 	const float k = U.rvisize;
@@ -685,7 +685,7 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *rect)
 		{ 0, 0, size },
 	};
 
-	const unsigned char label[] = "xyz";
+	const char label[] = "xyz";
 	GLboolean showLabel[3];
 
 	GLubyte color[3][4];

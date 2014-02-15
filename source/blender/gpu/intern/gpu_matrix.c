@@ -65,8 +65,6 @@ typedef struct GPU_matrix_stack
 
 
 
-static GLboolean glslneedupdate = GL_TRUE;
-
 static GPU_matrix_stack ms_modelview;
 static GPU_matrix_stack ms_projection;
 static GPU_matrix_stack ms_texture;

@@ -1467,9 +1467,8 @@ static struct PyMethodDef BGL_methods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
-static struct PyMethodDef BGLES2_methods[] = {
-
 #if defined(WITH_GL_PROFILE_ES20)
+static struct PyMethodDef BGLES2_methods[] = {
 	MethodDef(AttachShader),
 	MethodDef(BindTexture), 
 	MethodDef(BlendFunc),
@@ -1540,10 +1539,10 @@ static struct PyMethodDef BGLES2_methods[] = {
 	MethodDef(UseProgram),
 	MethodDef(ValidateProgram),
 	MethodDef(Viewport),
-#endif
 
 	{NULL, NULL, 0, NULL}
 };
+#endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 static struct PyModuleDef BGL_module_def = {

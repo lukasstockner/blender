@@ -1268,8 +1268,9 @@ static PyObject *M_Geometry_tessellate_polygon(PyObject *UNUSED(self), PyObject 
 	ListBase dispbase = {NULL, NULL};
 	DispList *dl;
 	float *fp; /*pointer to the array of malloced dl->verts to set the points from the vectors */
-	int index, *dl_face, totpoints = 0;
-
+	int index, totpoints = 0;
+	unsigned int *dl_face;
+    
 	if (!PySequence_Check(polyLineSeq)) {
 		PyErr_SetString(PyExc_TypeError,
 		                "expected a sequence of poly lines");

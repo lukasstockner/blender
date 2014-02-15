@@ -52,6 +52,8 @@ struct wmNDOFMotionData;
 struct wmOperatorType;
 struct wmWindowManager;
 struct ListBase;
+struct wmKeyConfig;
+struct GPUTexture;
 
 /* drawing flags: */
 enum {

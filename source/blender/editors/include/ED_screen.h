@@ -48,6 +48,7 @@ struct bScreen;
 struct ARegion;
 struct uiBlock;
 struct rcti;
+struct Main;
 
 /* regions */
 void    ED_region_do_listen(struct ARegion *ar, struct wmNotifier *note);

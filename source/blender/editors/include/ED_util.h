@@ -40,6 +40,7 @@ struct wmOperator;
 struct wmOperatorType;
 struct BMEditMesh;
 struct Mesh;
+struct PackedFile;
 
 /* ed_util.c */
 

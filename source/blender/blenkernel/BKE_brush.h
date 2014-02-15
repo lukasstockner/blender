@@ -41,6 +41,7 @@ struct Main;
 struct rctf;
 struct Scene;
 struct wmOperator;
+struct UnifiedPaintSettings;
 // enum CurveMappingPreset;
 
 

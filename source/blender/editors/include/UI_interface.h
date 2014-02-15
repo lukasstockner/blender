@@ -75,6 +75,7 @@ struct ImBuf;
 struct bNodeTree;
 struct bNode;
 struct bNodeSocket;
+struct bScreen;
 
 typedef struct uiBut uiBut;
 typedef struct uiBlock uiBlock;
