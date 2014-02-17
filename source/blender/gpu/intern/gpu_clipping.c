@@ -53,7 +53,6 @@
 static struct CLIPPING {
 	double   clip_plane[GPU_MAX_COMMON_CLIP_PLANES][4];
 	uint32_t clip_plane_count;
-	bool     enabled;
 } CLIPPING;
 
 
