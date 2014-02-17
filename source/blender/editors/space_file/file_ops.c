@@ -570,7 +570,7 @@ int file_highlight_set(SpaceFile *sfile, ARegion *ar, int mx, int my)
 		float fx, fy;
 		int active_file;
 
-		UI_view2d_region_to_view(v2d, mx, my, &fx, &fy);
+		UI_view2d_region_to_view(v2d, (float)mx, (float)my, &fx, &fy);
 
 		active_file = ED_fileselect_layout_offset(sfile->layout, (int)(v2d->tot.xmin + fx), (int)(v2d->tot.ymax - fy));
 
