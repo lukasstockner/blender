@@ -42,6 +42,9 @@
 
 @class CocoaWindow;
 @class CocoaOpenGLView;
+@class NSCursor;
+@class NSOpenGLContext;
+@class NSScreen;
 
 class GHOST_SystemCocoa;
 
@@ -272,18 +275,24 @@ public:
 
 	
 protected:
-	/**
-	 * Tries to install a rendering context in this window.
-	 * \param type	The type of rendering context installed.
-	 * \return Indication as to whether installation has succeeded.
-	 */
-	virtual GHOST_TSuccess installDrawingContext(GHOST_TDrawingContextType type);
+	///**
+	// * Tries to install a rendering context in this window.
+	// * \param type	The type of rendering context installed.
+	// * \return Indication as to whether installation has succeeded.
+	// */
+	//virtual GHOST_TSuccess installDrawingContext(GHOST_TDrawingContextType type);
 
 	/**
-	 * Removes the current drawing context.
-	 * \return Indication as to whether removal has succeeded.
+	 * \param type	The type of rendering context create.
+	 * \return Indication of success.
 	 */
-	virtual GHOST_TSuccess removeDrawingContext();
+	virtual GHOST_Context* newDrawingContext(GHOST_TDrawingContextType type);
+
+	///**
+	// * Removes the current drawing context.
+	// * \return Indication as to whether removal has succeeded.
+	// */
+	//virtual GHOST_TSuccess removeDrawingContext();
     
 	/**
 	 * Invalidates the contents of this window.

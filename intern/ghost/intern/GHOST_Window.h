@@ -92,27 +92,6 @@ public:
 	    const GHOST_TUns16 numOfAASamples = 0);
 
 	/**
-	 * \section Interface inherited from GHOST_IWindow left for derived class
-	 * implementation.
-	 * virtual	bool getValid() const = 0;
-	 * virtual void setTitle(const STR_String& title) = 0;
-	 * virtual void getTitle(STR_String& title) const = 0;
-	 * virtual	void getWindowBounds(GHOST_Rect& bounds) const = 0;
-	 * virtual	void getClientBounds(GHOST_Rect& bounds) const = 0;
-	 * virtual	GHOST_TSuccess setClientWidth(GHOST_TUns32 width) = 0;
-	 * virtual	GHOST_TSuccess setClientHeight(GHOST_TUns32 height) = 0;
-	 * virtual	GHOST_TSuccess setClientSize(GHOST_TUns32 width, GHOST_TUns32 height) = 0;
-	 * virtual	void screenToClient(GHOST_TInt32 inX, GHOST_TInt32 inY, GHOST_TInt32& outX, GHOST_TInt32& outY) const = 0;
-	 * virtual	void clientToScreen(GHOST_TInt32 inX, GHOST_TInt32 inY, GHOST_TInt32& outX, GHOST_TInt32& outY) const = 0;
-	 * virtual GHOST_TWindowState getState() const = 0;
-	 * virtual GHOST_TSuccess setState(GHOST_TWindowState state) = 0;
-	 * virtual GHOST_TSuccess setOrder(GHOST_TWindowOrder order) = 0;
-	 * virtual GHOST_TSuccess swapBuffers() = 0;
-	 * virtual GHOST_TSuccess activateDrawingContext() = 0;
-	 * virtual GHOST_TSuccess invalidate() = 0;
-	 */
-	 
-	/**
 	 * Destructor.
 	 * Closes the window and disposes resources allocated.
 	 */
@@ -234,7 +213,7 @@ public:
 
 	/**
 	 * Tries to install a rendering context in this window.
-	 * Child classes do not need to overload this method.
+	 * Child classes do not need to overload this method,
 	 * They should overload newDrawingContext instead.
 	 * \param type	The type of rendering context installed.
 	 * \return Indication as to whether installation has succeeded.

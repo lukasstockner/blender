@@ -34,4 +34,61 @@
 #define __GHOST_CONTEXTCGL_H__
 
 
+#include "GHOST_Context.h"
+
+
+
+#ifndef GHOST_OPENGL_CGL_CONTEXT_FLAGS
+#define GHOST_OPENGL_CGL_CONTEXT_FLAGS 0
+#endif
+
+
+
+class GHOST_ContextCGL : public GHOST_Context
+{
+public:
+	/**
+	 * Constructor.
+	 */
+	GHOST_ContextCGL(
+		int  contextProfileMask  = 0,
+		int  contextMajorVersion = 0,
+		int  contextMinorVersion = 0,
+		int  contextFlags        = GHOST_OPENGL_CGL_CONTEXT_FLAGS);
+
+	/**
+	 * Destructor.
+	 */
+	virtual ~GHOST_ContextCGL();
+
+	/**
+	 * Swaps front and back buffers of a window.
+	 * \return  A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess swapBuffers();
+
+	/**
+	 * Activates the drawing context of this window.
+	 * \return  A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess activateDrawingContext();
+
+	/**
+	 * Call immediately after new to initialize.  If this fails then immediately delete the object.
+	 * \param stereoVisual		Stereo visual for quad buffered stereo.
+	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
+	 * \return Indication as to whether initialization has succeeded.
+	 */
+	virtual GHOST_TSuccess initializeDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
+
+	/**
+	 * Checks if it is OK for a remove the native display
+	 * \return Indication as to whether removal has succeeded.
+	 */
+	virtual GHOST_TSuccess releaseNativeHandles();
+};
+
+
+
+
 #endif // __GHOST_CONTEXTCGL_H__

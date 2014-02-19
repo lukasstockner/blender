@@ -41,8 +41,8 @@ extern "C" WGLEWContext* wglewContext;
 
 
 
-#ifndef GHOST_OPENGL_CONTEXT_FLAGS
-#define GHOST_OPENGL_CONTEXT_FLAGS 0
+#ifndef GHOST_OPENGL_WGL_CONTEXT_FLAGS
+#define GHOST_OPENGL_WGL_CONTEXT_FLAGS 0
 #endif
 
 
@@ -59,7 +59,7 @@ public:
 		int  contextProfileMask  = 0,
 		int  contextMajorVersion = 0,
 		int  contextMinorVersion = 0,
-		int  contextFlags        = GHOST_OPENGL_CONTEXT_FLAGS);
+		int  contextFlags        = GHOST_OPENGL_WGL_CONTEXT_FLAGS);
 
 	/**
 	 * Destructor.

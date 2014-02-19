@@ -30,3 +30,50 @@
  * Definition of GHOST_ContextCGL class.
  */
 
+#include "GHOST_ContextCGL.h"
+
+
+
+GHOST_ContextCGL::GHOST_ContextCGL(
+	int  contextProfileMask,
+	int  contextMajorVersion,
+	int  contextMinorVersion,
+	int  contextFlags)
+{
+
+}
+
+
+
+GHOST_ContextCGL::~GHOST_ContextCGL()
+{
+
+}
+
+
+
+GHOST_TSuccess GHOST_ContextCGL::swapBuffers()
+{
+    return GHOST_kFailure;
+}
+
+
+
+GHOST_TSuccess GHOST_ContextCGL::activateDrawingContext()
+{
+    return GHOST_kFailure;
+}
+
+
+
+GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext(bool stereoVisual, GHOST_TUns16 numOfAASamples)
+{
+    return GHOST_kFailure;
+}
+
+
+
+GHOST_TSuccess GHOST_ContextCGL::releaseNativeHandles()
+{
+    return GHOST_kFailure;
+}
