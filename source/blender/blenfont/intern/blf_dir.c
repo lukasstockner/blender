@@ -25,6 +25,8 @@
 
 /** \file blender/blenfont/intern/blf_dir.c
  *  \ingroup blf
+ *
+ * Manage search paths for font files.
  */
 
 
@@ -46,6 +48,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
+#include "BLI_threads.h"
 
 #include "BLF_api.h"
 #include "blf_internal_types.h"
@@ -196,14 +199,14 @@ char *blf_dir_metrics_search(const char *filename)
 		s[2] = 'm';
 
 		/* first check .afm */
-		if (BLI_exists(s))
-			return s;
+		if (BLI_exists(mfile))
+			return mfile;
 
 		/* and now check .pfm */
 		s[0] = 'p';
 
-		if (BLI_exists(s))
-			return s;
+		if (BLI_exists(mfile))
+			return mfile;
 	}
 	MEM_freeN(mfile);
 	return NULL;

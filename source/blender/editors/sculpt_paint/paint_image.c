@@ -87,6 +87,7 @@
 #include "UI_view2d.h"
 
 #include "ED_image.h"
+#include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
 #include "ED_uvedit.h"
@@ -242,7 +243,7 @@ void image_undo_remove_masks(void)
 	}
 }
 
-void image_undo_restore(bContext *C, ListBase *lb)
+void ED_image_undo_restore(bContext *C, ListBase *lb)
 {
 	Main *bmain = CTX_data_main(C);
 	Image *ima = NULL;
@@ -273,7 +274,7 @@ void image_undo_restore(bContext *C, ListBase *lb)
 
 			BKE_image_release_ibuf(ima, ibuf, NULL);
 
-			ibuf = BLI_findstring(&ima->ibufs, tile->ibufname, offsetof(ImBuf, name));
+			ibuf = BKE_image_get_ibuf_with_name(ima, tile->ibufname);
 		}
 
 		if (!ima || !ibuf || !(ibuf->rect || ibuf->rect_float)) {
@@ -308,7 +309,7 @@ void image_undo_restore(bContext *C, ListBase *lb)
 	IMB_freeImBuf(tmpibuf);
 }
 
-void image_undo_free(ListBase *lb)
+void ED_image_undo_free(ListBase *lb)
 {
 	UndoImageTile *tile;
 
@@ -318,7 +319,7 @@ void image_undo_free(ListBase *lb)
 
 /* Imagepaint Partial Redraw & Dirty Region */
 
-void imapaint_clear_partial_redraw(void)
+void ED_imapaint_clear_partial_redraw(void)
 {
 	memset(&imapaintpartial, 0, sizeof(imapaintpartial));
 }
@@ -335,7 +336,7 @@ void imapaint_region_tiles(ImBuf *ibuf, int x, int y, int w, int h, int *tx, int
 	*ty = (y >> IMAPAINT_TILE_BITS);
 }
 
-void imapaint_dirty_region(Image *ima, ImBuf *ibuf, int x, int y, int w, int h)
+void ED_imapaint_dirty_region(Image *ima, ImBuf *ibuf, int x, int y, int w, int h)
 {
 	ImBuf *tmpibuf = NULL;
 	int tilex, tiley, tilew, tileh, tx, ty;
@@ -510,12 +511,12 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mou
 	}
 
 	settings->imapaint.flag |= IMAGEPAINT_DRAWING;
-	undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
-	                      image_undo_restore, image_undo_free);
+	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
+	                      ED_image_undo_restore, ED_image_undo_free);
 
 	{
 		UnifiedPaintSettings *ups = &settings->unified_paint_settings;
-		ups->draw_pressure = true;
+		ups->stroke_active = true;
 	}
 
 	return pop;
@@ -586,7 +587,7 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 		paint_2d_stroke_done(pop->custom_paint);
 	}
 
-	undo_paint_push_end(UNDO_PAINT_IMAGE);
+	ED_undo_paint_push_end(UNDO_PAINT_IMAGE);
 
 	/* duplicate warning, see texpaint_init */
 #if 0
@@ -599,11 +600,11 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 
 	{
 		UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
-		ups->draw_pressure = false;
+		ups->stroke_active = false;
 	}
 }
 
-static int paint_stroke_test_start(bContext *UNUSED(C), wmOperator *UNUSED(op), const float UNUSED(mouse[2]))
+static bool paint_stroke_test_start(bContext *UNUSED(C), wmOperator *UNUSED(op), const float UNUSED(mouse[2]))
 {
 	return true;
 }
@@ -774,7 +775,7 @@ void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(
 		{
 			UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 			/* hrmf, duplicate paint_draw_cursor logic here */
-			if (ups->draw_pressure && BKE_brush_use_size_pressure(scene, brush)) {
+			if (ups->stroke_active && BKE_brush_use_size_pressure(scene, brush)) {
 				/* inner at full alpha */
 				gpuSingleCircle(0, 0, size * ups->pressure_value, 40);
 				/* outer at half alpha */
@@ -803,6 +804,7 @@ static void toggle_paint_cursor(bContext *C, int enable)
 	if (settings->imapaint.paintcursor && !enable) {
 		WM_paint_cursor_end(wm, settings->imapaint.paintcursor);
 		settings->imapaint.paintcursor = NULL;
+		paint_cursor_delete_textures();
 	}
 	else if (enable)
 		paint_cursor_start(C, image_paint_poll);
@@ -830,6 +832,9 @@ void ED_space_image_paint_update(wmWindowManager *wm, ToolSettings *settings)
 		BKE_paint_init(&imapaint->paint, PAINT_CURSOR_TEXTURE_PAINT);
 
 		paint_cursor_start_explicit(&imapaint->paint, wm, image_paint_poll);
+	}
+	else {
+		paint_cursor_delete_textures();
 	}
 }
 
@@ -905,10 +910,9 @@ static int grab_clone_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int grab_clone_cancel(bContext *UNUSED(C), wmOperator *op)
+static void grab_clone_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	MEM_freeN(op->customdata);
-	return OPERATOR_CANCELLED;
 }
 
 void PAINT_OT_grab_clone(wmOperatorType *ot)
@@ -933,14 +937,32 @@ void PAINT_OT_grab_clone(wmOperatorType *ot)
 }
 
 /******************** sample color operator ********************/
+typedef struct {
+	bool show_cursor;
+	short event_type;
+} SampleColorData;
+
 static int sample_color_exec(bContext *C, wmOperator *op)
 {
-	Brush *brush = image_paint_brush(C);
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *brush = BKE_paint_brush(paint);
 	ARegion *ar = CTX_wm_region(C);
+	wmWindow *win = CTX_wm_window(C);
+	bool show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
 	int location[2];
+
+	paint->flags &= ~PAINT_SHOW_BRUSH;
+
+	/* force redraw without cursor */
+	WM_paint_cursor_tag_redraw(win, ar);
+	WM_redraw_windows(C);
 
 	RNA_int_get_array(op->ptr, "location", location);
 	paint_sample_color(C, ar, location[0], location[1]);
+
+	if (show_cursor) {
+		paint->flags |= PAINT_SHOW_BRUSH;
+	}
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 	
@@ -949,10 +971,22 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 
 static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	RNA_int_set_array(op->ptr, "location", event->mval);
-	sample_color_exec(C, op);
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	SampleColorData *data = MEM_mallocN(sizeof(SampleColorData), "sample color custom data");
+	ARegion *ar = CTX_wm_region(C);
+	wmWindow *win = CTX_wm_window(C);
 
-	op->customdata = SET_INT_IN_POINTER(event->type);
+	data->event_type = event->type;
+	data->show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
+	op->customdata = data;
+	paint->flags &= ~PAINT_SHOW_BRUSH;
+
+	/* force redraw without cursor */
+	WM_paint_cursor_tag_redraw(win, ar);
+	WM_redraw_windows(C);
+
+	RNA_int_set_array(op->ptr, "location", event->mval);
+	paint_sample_color(C, ar, event->mval[0], event->mval[1]);
 
 	WM_event_add_modal_handler(C, op);
 
@@ -961,37 +995,36 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	if (event->type == (intptr_t)(op->customdata) && event->val == KM_RELEASE)
+	SampleColorData *data = op->customdata;
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *brush = BKE_paint_brush(paint);
+
+	if ((event->type == data->event_type) && (event->val == KM_RELEASE)) {
+		if (data->show_cursor) {
+			paint->flags |= PAINT_SHOW_BRUSH;
+		}
+
+		MEM_freeN(data);
 		return OPERATOR_FINISHED;
+	}
 
 	switch (event->type) {
 		case MOUSEMOVE:
+		{
+			ARegion *ar = CTX_wm_region(C);
 			RNA_int_set_array(op->ptr, "location", event->mval);
-			sample_color_exec(C, op);
+			paint_sample_color(C, ar, event->mval[0], event->mval[1]);
+			WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 			break;
+		}
 	}
 
 	return OPERATOR_RUNNING_MODAL;
 }
 
-/* same as image_paint_poll but fail when face mask mode is enabled */
-static int image_paint_sample_color_poll(bContext *C)
+static int sample_color_poll(bContext *C)
 {
-	if (image_paint_poll(C)) {
-		if (CTX_wm_view3d(C)) {
-			Object *obact = CTX_data_active_object(C);
-			if (obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
-				Mesh *me = BKE_mesh_from_object(obact);
-				if (me) {
-					return !(me->editflag & ME_EDIT_PAINT_FACE_SEL);
-				}
-			}
-		}
-
-		return 1;
-	}
-
-	return 0;
+	return (image_paint_poll(C) || vertex_paint_poll(C));
 }
 
 void PAINT_OT_sample_color(wmOperatorType *ot)
@@ -1005,7 +1038,7 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
 	ot->exec = sample_color_exec;
 	ot->invoke = sample_color_invoke;
 	ot->modal = sample_color_modal;
-	ot->poll = image_paint_sample_color_poll;
+	ot->poll = sample_color_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1018,9 +1051,12 @@ void PAINT_OT_sample_color(wmOperatorType *ot)
 
 static int texture_paint_toggle_poll(bContext *C)
 {
-	if (CTX_data_edit_object(C))
+	Object *ob = CTX_data_active_object(C);
+	if (ob == NULL || ob->type != OB_MESH)
 		return 0;
-	if (CTX_data_active_object(C) == NULL)
+	if (!ob->data || ((ID *)ob->data)->lib)
+		return 0;
+	if (CTX_data_edit_object(C))
 		return 0;
 
 	return 1;
@@ -1030,25 +1066,20 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
-	Mesh *me = NULL;
-	
-	if (ob == NULL)
-		return OPERATOR_CANCELLED;
-	
-	if (BKE_object_obdata_is_libdata(ob)) {
-		BKE_report(op->reports, RPT_ERROR, "Cannot edit external libdata");
-		return OPERATOR_CANCELLED;
+	const int mode_flag = OB_MODE_TEXTURE_PAINT;
+	const bool is_mode_set = (ob->mode & mode_flag) != 0;
+	Mesh *me;
+
+	if (!is_mode_set) {
+		if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
+			return OPERATOR_CANCELLED;
+		}
 	}
 
 	me = BKE_mesh_from_object(ob);
 
-	if (!(ob->mode & OB_MODE_TEXTURE_PAINT) && !me) {
-		BKE_report(op->reports, RPT_ERROR, "Can only enter texture paint mode for mesh objects");
-		return OPERATOR_CANCELLED;
-	}
-
-	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-		ob->mode &= ~OB_MODE_TEXTURE_PAINT;
+	if (ob->mode & mode_flag) {
+		ob->mode &= ~mode_flag;
 
 		if (U.glreslimit != 0)
 			GPU_free_images();
@@ -1057,7 +1088,7 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 		toggle_paint_cursor(C, 0);
 	}
 	else {
-		ob->mode |= OB_MODE_TEXTURE_PAINT;
+		ob->mode |= mode_flag;
 
 		if (me->mtface == NULL)
 			me->mtface = CustomData_add_layer(&me->fdata, CD_MTFACE, CD_DEFAULT,

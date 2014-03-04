@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "background.h"
@@ -42,7 +40,7 @@ CCL_NAMESPACE_BEGIN
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_,
 	BL::BlendData b_data_, BL::Scene b_scene_)
 : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_render(b_engine_.render()), b_scene(b_scene_),
-  b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL)
+  b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL), python_thread_state(NULL)
 {
 	/* offline render */
 
@@ -52,15 +50,13 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 	background = true;
 	last_redraw_time = 0.0;
 	start_resize_time = 0.0;
-
-	create_session();
 }
 
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_,
 	BL::BlendData b_data_, BL::Scene b_scene_,
 	BL::SpaceView3D b_v3d_, BL::RegionView3D b_rv3d_, int width_, int height_)
 : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_render(b_scene_.render()), b_scene(b_scene_),
-  b_v3d(b_v3d_), b_rv3d(b_rv3d_)
+  b_v3d(b_v3d_), b_rv3d(b_rv3d_), python_thread_state(NULL)
 {
 	/* 3d view render */
 
@@ -69,14 +65,19 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 	background = false;
 	last_redraw_time = 0.0;
 	start_resize_time = 0.0;
-
-	create_session();
-	session->start();
 }
 
 BlenderSession::~BlenderSession()
 {
 	free_session();
+}
+
+void BlenderSession::create()
+{
+	create_session();
+
+	if(b_v3d)
+		session->start();
 }
 
 void BlenderSession::create_session()
@@ -102,12 +103,16 @@ void BlenderSession::create_session()
 	/* create sync */
 	sync = new BlenderSync(b_engine, b_data, b_scene, scene, !background, session->progress, session_params.device.type == DEVICE_CPU);
 
-	/* for final render we will do data sync per render layer */
 	if(b_v3d) {
-		sync->sync_data(b_v3d, b_engine.camera_override());
+		/* full data sync */
+		sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state);
 		sync->sync_view(b_v3d, b_rv3d, width, height);
 	}
 	else {
+		/* for final render we will do full data sync per render layer, only
+		 * do some basic syncing here, no objects or materials for speed */
+		sync->sync_render_layers(b_v3d, NULL);
+		sync->sync_integrator();
 		sync->sync_camera(b_render, b_engine.camera_override(), width, height);
 	}
 
@@ -163,10 +168,11 @@ void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_)
 	/* sync object should be re-created */
 	sync = new BlenderSync(b_engine, b_data, b_scene, scene, !background, session->progress, session_params.device.type == DEVICE_CPU);
 
-	if(b_rv3d) {
-		sync->sync_data(b_v3d, b_engine.camera_override());
-		sync->sync_camera(b_render, b_engine.camera_override(), width, height);
-	}
+	/* for final render we will do full data sync per render layer, only
+	 * do some basic syncing here, no objects or materials for speed */
+	sync->sync_render_layers(b_v3d, NULL);
+	sync->sync_integrator();
+	sync->sync_camera(b_render, b_engine.camera_override(), width, height);
 
 	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, PointerRNA_NULL, PointerRNA_NULL, scene->camera, width, height);
 	session->reset(buffer_params, session_params.samples);
@@ -212,6 +218,8 @@ static PassType get_pass_type(BL::RenderPass b_pass)
 			return PASS_GLOSSY_DIRECT;
 		case BL::RenderPass::type_TRANSMISSION_DIRECT:
 			return PASS_TRANSMISSION_DIRECT;
+		case BL::RenderPass::type_SUBSURFACE_DIRECT:
+			return PASS_SUBSURFACE_DIRECT;
 
 		case BL::RenderPass::type_DIFFUSE_INDIRECT:
 			return PASS_DIFFUSE_INDIRECT;
@@ -219,6 +227,8 @@ static PassType get_pass_type(BL::RenderPass b_pass)
 			return PASS_GLOSSY_INDIRECT;
 		case BL::RenderPass::type_TRANSMISSION_INDIRECT:
 			return PASS_TRANSMISSION_INDIRECT;
+		case BL::RenderPass::type_SUBSURFACE_INDIRECT:
+			return PASS_SUBSURFACE_INDIRECT;
 
 		case BL::RenderPass::type_DIFFUSE_COLOR:
 			return PASS_DIFFUSE_COLOR;
@@ -226,6 +236,8 @@ static PassType get_pass_type(BL::RenderPass b_pass)
 			return PASS_GLOSSY_COLOR;
 		case BL::RenderPass::type_TRANSMISSION_COLOR:
 			return PASS_TRANSMISSION_COLOR;
+		case BL::RenderPass::type_SUBSURFACE_COLOR:
+			return PASS_SUBSURFACE_COLOR;
 
 		case BL::RenderPass::type_EMIT:
 			return PASS_EMISSION;
@@ -252,9 +264,9 @@ static BL::RenderResult begin_render_result(BL::RenderEngine b_engine, int x, in
 	return b_engine.begin_result(x, y, w, h, layername);
 }
 
-static void end_render_result(BL::RenderEngine b_engine, BL::RenderResult b_rr, bool cancel = false)
+static void end_render_result(BL::RenderEngine b_engine, BL::RenderResult b_rr, bool cancel, bool do_merge_results)
 {
-	b_engine.end_result(b_rr, (int)cancel);
+	b_engine.end_result(b_rr, (int)cancel, (int)do_merge_results);
 }
 
 void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_update_only)
@@ -275,6 +287,11 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 
 	BL::RenderResult::layers_iterator b_single_rlay;
 	b_rr.layers.begin(b_single_rlay);
+
+	/* layer will be missing if it was disabled in the UI */
+	if(b_single_rlay == b_rr.layers.end())
+		return;
+
 	BL::RenderLayer b_rlay = *b_single_rlay;
 
 	if (do_update_only) {
@@ -288,12 +305,12 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 			update_render_result(b_rr, b_rlay, rtile);
 		}
 
-		end_render_result(b_engine, b_rr, true);
+		end_render_result(b_engine, b_rr, true, true);
 	}
 	else {
 		/* write result */
 		write_render_result(b_rr, b_rlay, rtile);
-		end_render_result(b_engine, b_rr);
+		end_render_result(b_engine, b_rr, false, true);
 	}
 }
 
@@ -338,7 +355,7 @@ void BlenderSession::render()
 
 		/* layer will be missing if it was disabled in the UI */
 		if(b_single_rlay == b_rr.layers.end()) {
-			end_render_result(b_engine, b_rr, true);
+			end_render_result(b_engine, b_rr, true, false);
 			continue;
 		}
 
@@ -365,16 +382,17 @@ void BlenderSession::render()
 		}
 
 		/* free result without merging */
-		end_render_result(b_engine, b_rr, true);
+		end_render_result(b_engine, b_rr, true, false);
 
 		buffer_params.passes = passes;
+		scene->film->pass_alpha_threshold = b_iter->pass_alpha_threshold();
 		scene->film->tag_passes_update(scene, passes);
 		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
 
 		/* update scene */
-		sync->sync_data(b_v3d, b_engine.camera_override(), b_rlay_name.c_str());
 		sync->sync_camera(b_render, b_engine.camera_override(), width, height);
+		sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state, b_rlay_name.c_str());
 
 		/* update number of samples per layer */
 		int samples = sync->get_layer_samples();
@@ -491,7 +509,7 @@ void BlenderSession::synchronize()
 	}
 
 	/* data and camera synchronize */
-	sync->sync_data(b_v3d, b_engine.camera_override());
+	sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state);
 
 	if(b_rv3d)
 		sync->sync_view(b_v3d, b_rv3d, width, height);
@@ -575,7 +593,15 @@ bool BlenderSession::draw(int w, int h)
 	/* draw */
 	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, b_v3d, b_rv3d, scene->camera, width, height);
 
-	return !session->draw(buffer_params);
+	if(session->params.display_buffer_linear)
+		b_engine.bind_display_space_shader(b_scene);
+
+	bool draw_ok = !session->draw(buffer_params);
+
+	if(session->params.display_buffer_linear)
+		b_engine.unbind_display_space_shader();
+	
+	return draw_ok;
 }
 
 void BlenderSession::get_status(string& status, string& substatus)
@@ -603,30 +629,50 @@ void BlenderSession::get_progress(float& progress, double& total_time)
 void BlenderSession::update_status_progress()
 {
 	string timestatus, status, substatus;
+	string scene = "";
 	float progress;
-	double total_time;
+	double total_time, remaining_time = 0;
 	char time_str[128];
 	float mem_used = (float)session->stats.mem_used / 1024.0f / 1024.0f;
 	float mem_peak = (float)session->stats.mem_peak / 1024.0f / 1024.0f;
+	int samples = session->tile_manager.state.sample + 1;
+	int total_samples = session->tile_manager.num_samples;
 
 	get_status(status, substatus);
 	get_progress(progress, total_time);
 
-	timestatus = string_printf("Mem: %.2fM, Peak: %.2fM | ", mem_used, mem_peak);
+	
 
-	timestatus += b_scene.name();
-	if(b_rlay_name != "")
-		timestatus += ", "  + b_rlay_name;
-	timestatus += " | ";
+	if(background) {
+		if(progress>0)
+			remaining_time = (1-progress) * (total_time / progress);
 
-	BLI_timestr(total_time, time_str, sizeof(time_str));
-	timestatus += "Elapsed: " + string(time_str) + " | ";
+		scene += " | " + b_scene.name();
+		if(b_rlay_name != "")
+			scene += ", "  + b_rlay_name;
+	}
+	else {
+		BLI_timestr(total_time, time_str, sizeof(time_str));
+		timestatus = "Time:" + string(time_str) + " | ";
 
+		if(samples > 0 && total_samples != USHRT_MAX)
+			remaining_time = (total_samples - samples) * (total_time / samples);
+	}
+	
+	if(remaining_time>0) {
+		BLI_timestr(remaining_time, time_str, sizeof(time_str));
+		timestatus += "Remaining:" + string(time_str) + " | ";
+	}
+	
+	timestatus += string_printf("Mem:%.2fM, Peak:%.2fM", mem_used, mem_peak);
+
+	if(status.size() > 0)
+		status = " | " + status;
 	if(substatus.size() > 0)
 		status += " | " + substatus;
 
 	if(status != last_status) {
-		b_engine.update_stats("", (timestatus + status).c_str());
+		b_engine.update_stats("", (timestatus + scene + status).c_str());
 		b_engine.update_memory_stats(mem_used, mem_peak);
 		last_status = status;
 	}

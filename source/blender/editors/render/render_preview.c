@@ -222,10 +222,10 @@ void ED_preview_init_dbase(void)
 void ED_preview_free_dbase(void)
 {
 	if (G_pr_main)
-		free_main(G_pr_main);
+		BKE_main_free(G_pr_main);
 
 	if (G_pr_main_cycles)
-		free_main(G_pr_main_cycles);
+		BKE_main_free(G_pr_main_cycles);
 }
 
 static int preview_mat_has_sss(Material *mat, bNodeTree *ntree)
@@ -359,13 +359,14 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 					
 					/* turn off bounce lights for volume, 
 					 * doesn't make much visual difference and slows it down too */
-					if (mat->material_type == MA_TYPE_VOLUME) {
-						for (base = sce->base.first; base; base = base->next) {
-							if (base->object->type == OB_LAMP) {
-								/* if doesn't match 'Lamp.002' --> main key light */
-								if (strcmp(base->object->id.name + 2, "Lamp.002") != 0) {
+					for (base = sce->base.first; base; base = base->next) {
+						if (base->object->type == OB_LAMP) {
+							/* if doesn't match 'Lamp.002' --> main key light */
+							if (strcmp(base->object->id.name + 2, "Lamp.002") != 0) {
+								if (mat->material_type == MA_TYPE_VOLUME)
 									base->object->restrictflag |= OB_RESTRICT_RENDER;
-								}
+								else
+									base->object->restrictflag &= ~OB_RESTRICT_RENDER;
 							}
 						}
 					}
@@ -588,6 +589,7 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 		ID *parent = (ID *)parentp;
 		MTex *slot = (MTex *)slotp;
 		SpaceButs *sbuts = sa->spacedata.first;
+		ShaderPreview *sp = WM_jobs_customdata(wm, sa);
 		rcti newrect;
 		int ok;
 		int newx = BLI_rcti_size_x(rect);
@@ -609,9 +611,11 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 			*rect = newrect;
 
 		/* start a new preview render job if signalled through sbuts->preview,
-		 * or if no render result was found and no preview render job is running */
+		 * if no render result was found and no preview render job is running,
+		 * or if the job is running and the size of preview changed */
 		if ((sbuts->spacetype == SPACE_BUTS && sbuts->preview) ||
-		    (!ok && !WM_jobs_test(wm, sa, WM_JOB_TYPE_RENDER_PREVIEW)))
+		    (!ok && !WM_jobs_test(wm, sa, WM_JOB_TYPE_RENDER_PREVIEW)) ||
+		    (sp && (ABS(sp->sizex - newx) >= 2 || ABS(sp->sizey - newy) > 2)))
 		{
 			sbuts->preview = 0;
 			ED_preview_shader_job(C, sa, id, parent, slot, newx, newy, PR_BUTS_RENDER);
@@ -622,7 +626,7 @@ void ED_preview_draw(const bContext *C, void *idp, void *parentp, void *slotp, r
 /* **************************** new shader preview system ****************** */
 
 /* inside thread, called by renderer, sets job update value */
-static void shader_preview_draw(void *spv, RenderResult *UNUSED(rr), volatile struct rcti *UNUSED(rect))
+static void shader_preview_update(void *spv, RenderResult *UNUSED(rr), volatile struct rcti *UNUSED(rect))
 {
 	ShaderPreview *sp = spv;
 	
@@ -731,7 +735,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 
 	/* callbacs are cleared on GetRender() */
 	if (ELEM(sp->pr_method, PR_BUTS_RENDER, PR_NODE_RENDER)) {
-		RE_display_draw_cb(re, sp, shader_preview_draw);
+		RE_display_update_cb(re, sp, shader_preview_update);
 	}
 	/* set this for all previews, default is react to G.is_break still */
 	RE_test_break_cb(re, sp, shader_preview_break);
@@ -965,7 +969,7 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 
 		br->icon_imbuf = get_brush_icon(br);
 
-		memset(sp->pr_rect, 0x888888, sp->sizex * sp->sizey * sizeof(unsigned int));
+		memset(sp->pr_rect, 0x88, sp->sizex * sp->sizey * sizeof(unsigned int));
 
 		if (!(br->icon_imbuf) || !(br->icon_imbuf->rect))
 			return;
@@ -1032,7 +1036,7 @@ static void icon_preview_startjob_all_sizes(void *customdata, short *stop, short
 {
 	IconPreview *ip = (IconPreview *)customdata;
 	IconPreviewSize *cur_size = ip->sizes.first;
-	int use_new_shading = BKE_scene_use_new_shading_nodes(ip->scene);
+	const bool use_new_shading = BKE_scene_use_new_shading_nodes(ip->scene);
 
 	while (cur_size) {
 		ShaderPreview *sp = MEM_callocN(sizeof(ShaderPreview), "Icon ShaderPreview");
@@ -1181,5 +1185,7 @@ void ED_preview_kill_jobs(const struct bContext *C)
 	wmWindowManager *wm = CTX_wm_manager(C);
 	if (wm)
 		WM_jobs_kill(wm, NULL, common_preview_startjob);
+	
+	ED_viewport_render_kill_jobs(C, false);
 }
 

@@ -32,6 +32,7 @@
  *  \author nzc
  *  \since March 2001
  */
+struct EvaluationContext;
 struct Path;
 struct Object;
 struct PartEff;
@@ -59,14 +60,14 @@ void animviz_calc_motionpaths(struct Scene *scene, ListBase *targets);
 /* Curve Paths */
 
 void free_path(struct Path *path);
-void calc_curvepath(struct Object *ob);
+void calc_curvepath(struct Object *ob, struct ListBase *nurbs);
 int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], float quat[4], float *radius, float *weight);
 
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */
 
-struct ListBase *object_duplilist_ex(struct Scene *sce, struct Object *ob, bool update, bool for_render);
-struct ListBase *object_duplilist(struct Scene *sce, struct Object *ob, bool for_render);
+struct ListBase *object_duplilist_ex(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob, bool update);
+struct ListBase *object_duplilist(struct EvaluationContext *eval_ctx, struct Scene *sce, struct Object *ob);
 void free_object_duplilist(struct ListBase *lb);
 int count_duplilist(struct Object *ob);
 

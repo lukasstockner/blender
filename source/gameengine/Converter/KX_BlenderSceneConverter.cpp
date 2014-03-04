@@ -35,18 +35,15 @@
 
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
-#include "KX_BlenderSceneConverter.h"
 #include "KX_IpoConvert.h"
 #include "RAS_MeshObject.h"
 #include "KX_PhysicsEngineEnums.h"
 #include "PHY_IPhysicsEnvironment.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h" // So we can handle adding new text datablocks for Python to import
-#include "KX_IPhysicsController.h"
 #include "BL_Material.h"
 #include "BL_ActionActuator.h"
 #include "KX_BlenderMaterial.h"
-#include "KX_PolygonMaterial.h"
 
 
 #include "BL_System.h"
@@ -59,12 +56,10 @@
 #include "CcdPhysicsEnvironment.h"
 #endif
 
-#include "KX_BlenderSceneConverter.h"
 #include "KX_LibLoadStatus.h"
 #include "KX_BlenderScalarInterpolator.h"
 #include "BL_BlenderDataConversion.h"
 #include "BlenderWorldInfo.h"
-#include "KX_Scene.h"
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
@@ -100,9 +95,7 @@ extern "C"
 /* Only for dynamic loading and merging */
 #include "RAS_BucketManager.h" // XXX cant stay
 #include "KX_BlenderSceneConverter.h"
-#include "BL_BlenderDataConversion.h"
 #include "KX_MeshProxy.h"
-#include "RAS_MeshObject.h"
 extern "C" {
 	#include "PIL_time.h"
 	#include "BKE_context.h"
@@ -134,7 +127,7 @@ KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 							m_useglslmat(false),
 							m_use_mat_cache(true)
 {
-	tag_main(maggie, 0); /* avoid re-tagging later on */
+	BKE_main_id_tag_all(maggie, false);  /* avoid re-tagging later on */
 	m_newfilename = "";
 	m_threadinfo = new ThreadInfo();
 	pthread_mutex_init(&m_threadinfo->merge_lock, NULL);
@@ -170,21 +163,24 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 		delete (*itw).second;
 		itw++;
 	}
+	m_worldinfos.clear();
 
 	vector<pair<KX_Scene*,RAS_IPolyMaterial*> >::iterator itp = m_polymaterials.begin();
 	while (itp != m_polymaterials.end()) {
-		m_polymat_cache.erase((*itp).second->GetBlenderMaterial());
+		//m_polymat_cache.erase((*itp).second->GetBlenderMaterial());
 		delete (*itp).second;
 		itp++;
 	}
+	m_polymaterials.clear();
 
 	// delete after RAS_IPolyMaterial
 	vector<pair<KX_Scene*,BL_Material *> >::iterator itmat = m_materials.begin();
 	while (itmat != m_materials.end()) {
-		m_mat_cache.erase((*itmat).second->material);
+		//m_mat_cache.erase((*itmat).second->material);
 		delete (*itmat).second;
 		itmat++;
 	}
+	m_materials.clear();
 
 
 	vector<pair<KX_Scene*,RAS_MeshObject*> >::iterator itm = m_meshobjects.begin();
@@ -192,6 +188,7 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 		delete (*itm).second;
 		itm++;
 	}
+	m_meshobjects.clear();
 
 #ifdef WITH_BULLET
 	KX_ClearBulletSharedShapes();
@@ -252,7 +249,6 @@ Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String& name)
 	return (Scene*)m_maggie->scene.first;
 
 }
-#include "KX_PythonInit.h"
 
 #ifdef WITH_BULLET
 
@@ -309,7 +305,7 @@ struct	BlenderDebugDraw : public btIDebugDraw
 #endif
 
 void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
-											class RAS_IRenderTools* rendertools,
+											class RAS_IRasterizer* rendertools,
 											class RAS_ICanvas* canvas,
 											bool libloading)
 {
@@ -352,15 +348,15 @@ void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 		case UseBullet:
 			{
 				CcdPhysicsEnvironment* ccdPhysEnv = new CcdPhysicsEnvironment(useDbvtCulling);
-				ccdPhysEnv->setDebugDrawer(new BlenderDebugDraw());
-				ccdPhysEnv->setDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
-				ccdPhysEnv->setDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
-				ccdPhysEnv->setDeactivationTime(blenderscene->gm.deactivationtime);
+				ccdPhysEnv->SetDebugDrawer(new BlenderDebugDraw());
+				ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
+				ccdPhysEnv->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
+				ccdPhysEnv->SetDeactivationTime(blenderscene->gm.deactivationtime);
 
 				SYS_SystemHandle syshandle = SYS_GetSystem(); /*unused*/
 				int visualizePhysics = SYS_GetCommandLineInt(syshandle,"show_physics",0);
 				if (visualizePhysics)
-					ccdPhysEnv->setDebugMode(btIDebugDraw::DBG_DrawWireframe|btIDebugDraw::DBG_DrawAabb|btIDebugDraw::DBG_DrawContactPoints|btIDebugDraw::DBG_DrawText|btIDebugDraw::DBG_DrawConstraintLimits|btIDebugDraw::DBG_DrawConstraints);
+					ccdPhysEnv->SetDebugMode(btIDebugDraw::DBG_DrawWireframe|btIDebugDraw::DBG_DrawAabb|btIDebugDraw::DBG_DrawContactPoints|btIDebugDraw::DBG_DrawText|btIDebugDraw::DBG_DrawConstraintLimits|btIDebugDraw::DBG_DrawConstraints);
 		
 				//todo: get a button in blender ?
 				//disable / enable debug drawing (contact points, aabb's etc)
@@ -435,7 +431,7 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 	size = m_polymaterials.size();
 	for (i=0, polymit=m_polymaterials.begin(); i<size; ) {
 		if ((*polymit).first == scene) {
-			m_polymat_cache.erase((*polymit).second->GetBlenderMaterial());
+			m_polymat_cache[scene].erase((*polymit).second->GetBlenderMaterial());
 			delete (*polymit).second;
 			*polymit = m_polymaterials.back();
 			m_polymaterials.pop_back();
@@ -446,11 +442,13 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 		}
 	}
 
+	m_polymat_cache.erase(scene);
+
 	vector<pair<KX_Scene*,BL_Material*> >::iterator matit;
 	size = m_materials.size();
 	for (i=0, matit=m_materials.begin(); i<size; ) {
 		if ((*matit).first == scene) {
-			m_mat_cache.erase((*matit).second->material);
+			m_mat_cache[scene].erase((*matit).second->material);
 			delete (*matit).second;
 			*matit = m_materials.back();
 			m_materials.pop_back();
@@ -460,6 +458,8 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 			matit++;
 		}
 	}
+
+	m_mat_cache.erase(scene);
 
 	vector<pair<KX_Scene*,RAS_MeshObject*> >::iterator meshit;
 	size = m_meshobjects.size();
@@ -599,26 +599,26 @@ void KX_BlenderSceneConverter::RegisterPolyMaterial(RAS_IPolyMaterial *polymat)
 	m_polymaterials.push_back(pair<KX_Scene*,RAS_IPolyMaterial*>(m_currentScene,polymat));
 }
 
-void KX_BlenderSceneConverter::CachePolyMaterial(struct Material *mat, RAS_IPolyMaterial *polymat)
+void KX_BlenderSceneConverter::CachePolyMaterial(KX_Scene *scene, Material *mat, RAS_IPolyMaterial *polymat)
 {
 	if (m_use_mat_cache && mat)
-		m_polymat_cache[mat] = polymat;
+		m_polymat_cache[scene][mat] = polymat;
 }
 
-RAS_IPolyMaterial *KX_BlenderSceneConverter::FindCachedPolyMaterial(struct Material *mat)
+RAS_IPolyMaterial *KX_BlenderSceneConverter::FindCachedPolyMaterial(KX_Scene *scene, struct Material *mat)
 {
-	return (m_use_mat_cache) ? m_polymat_cache[mat] : NULL;
+	return (m_use_mat_cache) ? m_polymat_cache[scene][mat] : NULL;
 }
 
-void KX_BlenderSceneConverter::CacheBlenderMaterial(struct Material *mat, BL_Material *blmat)
+void KX_BlenderSceneConverter::CacheBlenderMaterial(KX_Scene *scene, struct Material *mat, BL_Material *blmat)
 {
 	if (m_use_mat_cache && mat)
-		m_mat_cache[mat] = blmat;
+		m_mat_cache[scene][mat] = blmat;
 }
 
-BL_Material *KX_BlenderSceneConverter::FindCachedBlenderMaterial(struct Material *mat)
+BL_Material *KX_BlenderSceneConverter::FindCachedBlenderMaterial(KX_Scene *scene, struct Material *mat)
 {
-	return (m_use_mat_cache) ? m_mat_cache[mat] : NULL;
+	return (m_use_mat_cache) ? m_mat_cache[scene][mat] : NULL;
 }
 
 void KX_BlenderSceneConverter::RegisterInterpolatorList(
@@ -700,9 +700,7 @@ void	KX_BlenderSceneConverter::ResetPhysicsObjectsAnimationIpo(bool clearIpo)
 		for (g=0;g<numObjects;g++)
 		{
 			KX_GameObject* gameObj = (KX_GameObject*)parentList->GetValue(g);
-			if (gameObj->IsDynamic())
-			{
-				//KX_IPhysicsController* physCtrl = gameObj->GetPhysicsController();
+			if (gameObj->IsRecordAnimation()) {
 				
 				Object* blenderObject = gameObj->GetBlenderObject();
 				if (blenderObject)
@@ -764,7 +762,7 @@ void	KX_BlenderSceneConverter::resetNoneDynamicObjectToIpo()
 			CListValue* parentList = scene->GetRootParentList();
 			for (int ix=0;ix<parentList->GetCount();ix++) {
 				KX_GameObject* gameobj = (KX_GameObject*)parentList->GetValue(ix);
-				if (!gameobj->IsDynamic()) {
+				if (!gameobj->IsRecordAnimation()) {
 					Object* blenderobject = gameobj->GetBlenderObject();
 					if (!blenderobject)
 						continue;
@@ -816,9 +814,7 @@ void	KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 		{
 			KX_GameObject* gameObj = (KX_GameObject*)parentList->GetValue(g);
 			Object* blenderObject = gameObj->GetBlenderObject();
-			if (blenderObject && blenderObject->parent==NULL && gameObj->IsDynamic())
-			{
-				//KX_IPhysicsController* physCtrl = gameObj->GetPhysicsController();
+			if (blenderObject && blenderObject->parent==NULL && gameObj->IsRecordAnimation()) {
 
 				if (blenderObject->adt==NULL)
 					BKE_id_add_animdata(&blenderObject->id);
@@ -935,10 +931,7 @@ void	KX_BlenderSceneConverter::TestHandlesPhysicsObjectToAnimationIpo()
 		for (g=0;g<numObjects;g++)
 		{
 			KX_GameObject* gameObj = (KX_GameObject*)parentList->GetValue(g);
-			if (gameObj->IsDynamic())
-			{
-				//KX_IPhysicsController* physCtrl = gameObj->GetPhysicsController();
-				
+			if (gameObj->IsRecordAnimation()) {
 #if 0
 				Object* blenderObject = gameObj->GetBlenderObject();
 				if (blenderObject && blenderObject->ipo)
@@ -1114,7 +1107,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		return NULL;
 	}
 	
-	main_newlib= (Main *)MEM_callocN( sizeof(Main), "BgeMain");
+	main_newlib = BKE_main_new();
 	BKE_reports_init(&reports, RPT_STORE);
 
 	load_datablocks(main_newlib, bpy_openlib, path, idcode);
@@ -1135,7 +1128,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 	
 	/* needed for lookups*/
 	GetMainDynamic().push_back(main_newlib);
-	strncpy(main_newlib->name, path, sizeof(main_newlib->name));
+	BLI_strncpy(main_newlib->name, path, sizeof(main_newlib->name));
 	
 	
 	status = new KX_LibLoadStatus(this, m_ketsjiEngine, scene_merge, path);
@@ -1232,7 +1225,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 	for (vector<Main*>::iterator it=m_DynamicMaggie.begin(); !(it==m_DynamicMaggie.end()); it++) {
 		Main *main= *it;
 		if (main != maggie) {
-			tag_main(main, 0);
+			BKE_main_id_tag_all(main, false);
 		}
 		else {
 			maggie_index= i;
@@ -1245,7 +1238,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 		return false;
 
 	m_DynamicMaggie.erase(m_DynamicMaggie.begin() + maggie_index);
-	tag_main(maggie, 1);
+	BKE_main_id_tag_all(maggie, true);
 
 
 	/* free all tagged objects */
@@ -1257,7 +1250,9 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 	{
 		KX_Scene* scene = scenes->at(scene_idx);
 		if (IS_TAGGED(scene->GetBlenderScene())) {
-			RemoveScene(scene); // XXX - not tested yet
+			m_ketsjiEngine->RemoveScene(scene->GetName());
+			m_mat_cache.erase(scene);
+			m_polymat_cache.erase(scene);
 			scene_idx--;
 			numScenes--;
 		}
@@ -1409,15 +1404,8 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 		RAS_IPolyMaterial *mat= (*polymit).second;
 		Material *bmat= NULL;
 
-		/* Why do we need to check for RAS_BLENDERMAT if both are cast to a (PyObject *)? - Campbell */
-		if (mat->GetFlag() & RAS_BLENDERMAT) {
-			KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial*>(mat);
-			bmat= bl_mat->GetBlenderMaterial();
-
-		} else {
-			KX_PolygonMaterial *kx_mat = static_cast<KX_PolygonMaterial*>(mat);
-			bmat= kx_mat->GetBlenderMaterial();
-		}
+		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial*>(mat);
+		bmat= bl_mat->GetBlenderMaterial();
 
 		if (IS_TAGGED(bmat)) {
 			/* only remove from bucket */
@@ -1434,15 +1422,8 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 		RAS_IPolyMaterial *mat= (*polymit).second;
 		Material *bmat= NULL;
 
-		/* Why do we need to check for RAS_BLENDERMAT if both are cast to a (PyObject *)? - Campbell */
-		if (mat->GetFlag() & RAS_BLENDERMAT) {
-			KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial*>(mat);
-			bmat= bl_mat->GetBlenderMaterial();
-
-		} else {
-			KX_PolygonMaterial *kx_mat = static_cast<KX_PolygonMaterial*>(mat);
-			bmat= kx_mat->GetBlenderMaterial();
-		}
+		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial*>(mat);
+		bmat= bl_mat->GetBlenderMaterial();
 
 		if (bmat) {
 			//printf("FOUND MAT '%s' !!! ", ((ID*)bmat)->name+2);
@@ -1452,7 +1433,6 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 		}
 
 		if (IS_TAGGED(bmat)) {
-			m_polymat_cache.erase((*polymit).second->GetBlenderMaterial());
 			delete (*polymit).second;
 			*polymit = m_polymaterials.back();
 			m_polymaterials.pop_back();
@@ -1470,7 +1450,6 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 	for (i=0, matit=m_materials.begin(); i<size; ) {
 		BL_Material *mat= (*matit).second;
 		if (IS_TAGGED(mat->material)) {
-			m_mat_cache.erase((*matit).second->material);
 			delete (*matit).second;
 			*matit = m_materials.back();
 			m_materials.pop_back();
@@ -1505,7 +1484,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 	delete m_status_map[maggie->name];
 	m_status_map.erase(maggie->name);
 
-	free_main(maggie);
+	BKE_main_free(maggie);
 
 	return true;
 }

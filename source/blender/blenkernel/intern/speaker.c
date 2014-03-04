@@ -15,11 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Contributor(s): Jörg Müller.
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -46,7 +41,7 @@ void *BKE_speaker_add(Main *bmain, const char *name)
 {
 	Speaker *spk;
 
-	spk =  BKE_libblock_alloc(&bmain->speaker, ID_SPK, name);
+	spk =  BKE_libblock_alloc(bmain, ID_SPK, name);
 
 	spk->attenuation = 1.0f;
 	spk->cone_angle_inner = 360.0f;

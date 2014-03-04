@@ -84,21 +84,33 @@ static void rna_Mask_update_parent(Main *bmain, Scene *scene, PointerRNA *ptr)
 			MovieTrackingObject *object = BKE_tracking_object_get_named(tracking, parent->parent);
 
 			if (object) {
-				MovieTrackingTrack *track = BKE_tracking_track_get_named(tracking, object, parent->sub_parent);
+				int clip_framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, scene->r.cfra);
 
-				if (track) {
-					int clip_framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, scene->r.cfra);
-					MovieTrackingMarker *marker = BKE_tracking_marker_get(track, clip_framenr);
-					float marker_pos_ofs[2], parmask_pos[2];
-					MovieClipUser user = {0};
+				if (parent->type == MASK_PARENT_POINT_TRACK) {
+					MovieTrackingTrack *track = BKE_tracking_track_get_named(tracking, object, parent->sub_parent);
 
-					BKE_movieclip_user_set_frame(&user, scene->r.cfra);
+					if (track) {
+						MovieTrackingMarker *marker = BKE_tracking_marker_get(track, clip_framenr);
+						float marker_pos_ofs[2], parmask_pos[2];
+						MovieClipUser user = {0};
 
-					add_v2_v2v2(marker_pos_ofs, marker->pos, track->offset);
+						BKE_movieclip_user_set_frame(&user, scene->r.cfra);
 
-					BKE_mask_coord_from_movieclip(clip, &user, parmask_pos, marker_pos_ofs);
+						add_v2_v2v2(marker_pos_ofs, marker->pos, track->offset);
 
-					copy_v2_v2(parent->parent_orig, parmask_pos);
+						BKE_mask_coord_from_movieclip(clip, &user, parmask_pos, marker_pos_ofs);
+
+						copy_v2_v2(parent->parent_orig, parmask_pos);
+					}
+				}
+				else /* if (parent->type == MASK_PARENT_PLANE_TRACK) */ {
+					MovieTrackingPlaneTrack *plane_track = BKE_tracking_plane_track_get_named(tracking, object, parent->sub_parent);
+					if (plane_track) {
+						MovieTrackingPlaneMarker *plane_marker = BKE_tracking_plane_marker_get(plane_track, clip_framenr);
+
+						memcpy(parent->parent_corners_orig, plane_marker->corners, sizeof(parent->parent_corners_orig));
+						zero_v2(parent->parent_orig);
+					}
 				}
 			}
 		}
@@ -220,7 +232,7 @@ static void rna_MaskLayer_active_spline_set(PointerRNA *ptr, PointerRNA value)
 	MaskSpline *spline = (MaskSpline *)value.data;
 	int index = BLI_findindex(&masklay->splines, spline);
 
-	if (index >= 0)
+	if (index != -1)
 		masklay->act_spline = spline;
 	else
 		masklay->act_spline = NULL;
@@ -434,7 +446,7 @@ static void rna_MaskSpline_points_add(ID *id, MaskSpline *spline, int count)
 		BKE_mask_parent_init(&new_point->parent);
 
 		/* Not efficient, but there's no other way for now */
-		BKE_mask_layer_shape_changed_add(layer, spline_shape_index + point_index, TRUE, TRUE);
+		BKE_mask_layer_shape_changed_add(layer, spline_shape_index + point_index, true, true);
 	}
 
 	WM_main_add_notifier(NC_MASK | ND_DATA, mask);
@@ -504,13 +516,18 @@ static void rna_MaskSpline_point_remove(ID *id, MaskSpline *spline, ReportList *
 }
 
 #else
- void rna_def_maskParent(BlenderRNA *brna)
+static void rna_def_maskParent(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
 
 	static EnumPropertyItem mask_id_type_items[] = {
 		{ID_MC, "MOVIECLIP", ICON_SEQUENCE, "Movie Clip", ""},
+		{0, NULL, 0, NULL, NULL}};
+
+	static EnumPropertyItem parent_type_items[] = {
+		{MASK_PARENT_POINT_TRACK, "POINT_TRACK", 0, "Point Track", ""},
+		{MASK_PARENT_PLANE_TRACK, "PLANE_TRACK", 0, "Plane Track", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	srna = RNA_def_struct(brna, "MaskParent", NULL);
@@ -533,6 +550,12 @@ static void rna_MaskSpline_point_remove(ID *id, MaskSpline *spline, ReportList *
 	RNA_def_property_enum_funcs(prop, NULL, "rna_MaskParent_id_type_set", NULL);
 	//RNA_def_property_editable_func(prop, "rna_MaskParent_id_type_editable");
 	RNA_def_property_ui_text(prop, "ID Type", "Type of ID-block that can be used");
+	RNA_def_property_update(prop, 0, "rna_Mask_update_parent");
+
+	/* type */
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, parent_type_items);
+	RNA_def_property_ui_text(prop, "Parent Type", "Parent Type");
 	RNA_def_property_update(prop, 0, "rna_Mask_update_parent");
 
 	/* parent */
@@ -804,7 +827,7 @@ static void rna_def_mask_layer(BlenderRNA *brna)
 
 	/* splines */
 	prop = RNA_def_property(srna, "splines", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_funcs(prop, "rna_MaskLayer_splines_begin", "rna_iterator_listbase_next", "rna_iterator_listbase_end", "rna_iterator_listbase_get", 0, 0, 0, 0);
+	RNA_def_property_collection_funcs(prop, "rna_MaskLayer_splines_begin", "rna_iterator_listbase_next", "rna_iterator_listbase_end", "rna_iterator_listbase_get", NULL, NULL, NULL, NULL);
 	RNA_def_property_struct_type(prop, "MaskSpline");
 	RNA_def_property_ui_text(prop, "Splines", "Collection of splines which defines this layer");
 	RNA_def_property_srna(prop, "MaskSplines");
@@ -861,6 +884,16 @@ static void rna_def_mask_layer(BlenderRNA *brna)
 	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_CURVE); /* Abusing id_curve :/ */
 	RNA_def_property_update(prop, NC_MASK | NA_EDITED, NULL);
 
+	/* filling options */
+	prop = RNA_def_property(srna, "use_fill_holes", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", MASK_LAYERFLAG_FILL_DISCRETE);
+	RNA_def_property_ui_text(prop, "Calculate Holes", "Calculate holes when filling overlapping curves");
+	RNA_def_property_update(prop, NC_MASK | NA_EDITED, NULL);
+
+	prop = RNA_def_property(srna, "use_fill_overlap", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MASK_LAYERFLAG_FILL_OVERLAP);
+	RNA_def_property_ui_text(prop, "Calculate Overlap", "Calculate self intersections and overlap before filling");
+	RNA_def_property_update(prop, NC_MASK | NA_EDITED, NULL);
 }
 
 static void rna_def_masklayers(BlenderRNA *brna, PropertyRNA *cprop)
@@ -878,7 +911,7 @@ static void rna_def_masklayers(BlenderRNA *brna, PropertyRNA *cprop)
 
 	func = RNA_def_function(srna, "new", "rna_Mask_layers_new");
 	RNA_def_function_ui_description(func, "Add layer to this mask");
-	RNA_def_string(func, "name", "", 0, "Name", "Name of new layer");
+	RNA_def_string(func, "name", NULL, 0, "Name", "Name of new layer");
 	parm = RNA_def_pointer(func, "layer", "MaskLayer", "", "New mask layer");
 	RNA_def_function_return(func, parm);
 
@@ -914,7 +947,7 @@ static void rna_def_mask(BlenderRNA *brna)
 
 	/* mask layers */
 	prop = RNA_def_property(srna, "layers", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_collection_funcs(prop, "rna_Mask_layers_begin", "rna_iterator_listbase_next", "rna_iterator_listbase_end", "rna_iterator_listbase_get", 0, 0, 0, 0);
+	RNA_def_property_collection_funcs(prop, "rna_Mask_layers_begin", "rna_iterator_listbase_next", "rna_iterator_listbase_end", "rna_iterator_listbase_get", NULL, NULL, NULL, NULL);
 	RNA_def_property_struct_type(prop, "MaskLayer");
 	RNA_def_property_ui_text(prop, "Layers", "Collection of layers which defines this mask");
 	rna_def_masklayers(brna, prop);

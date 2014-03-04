@@ -129,7 +129,7 @@ void poseAnim_mapping_get(bContext *C, ListBase *pfLinks, Object *ob, bAction *a
 	/* if no PoseChannels were found, try a second pass, doing visible ones instead
 	 * i.e. if nothing selected, do whole pose
 	 */
-	if (pfLinks->first == NULL) {
+	if (BLI_listbase_is_empty(pfLinks)) {
 		CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones)
 		{
 			fcurves_to_pchan_links_get(pfLinks, ob, act, pchan);
@@ -239,7 +239,7 @@ void poseAnim_mapping_autoKeyframe(bContext *C, Scene *scene, Object *ob, ListBa
 		 *	- only do this if keyframes should have been added
 		 *	- do not calculate unless there are paths already to update...
 		 */
-		if (C && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS)) {
+		if (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) {
 			//ED_pose_clear_paths(C, ob); // XXX for now, don't need to clear
 			ED_pose_recalculate_paths(scene, ob);
 		}

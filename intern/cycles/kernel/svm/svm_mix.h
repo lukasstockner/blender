@@ -1,39 +1,37 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 CCL_NAMESPACE_BEGIN
 
-__device float3 svm_mix_blend(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_blend(float t, float3 col1, float3 col2)
 {
 	return interp(col1, col2, t);
 }
 
-__device float3 svm_mix_add(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_add(float t, float3 col1, float3 col2)
 {
 	return interp(col1, col1 + col2, t);
 }
 
-__device float3 svm_mix_mul(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_mul(float t, float3 col1, float3 col2)
 {
 	return interp(col1, col1 * col2, t);
 }
 
-__device float3 svm_mix_screen(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_screen(float t, float3 col1, float3 col2)
 {
 	float tm = 1.0f - t;
 	float3 one = make_float3(1.0f, 1.0f, 1.0f);
@@ -42,7 +40,7 @@ __device float3 svm_mix_screen(float t, float3 col1, float3 col2)
 	return one - (tm3 + t*(one - col2))*(one - col1);
 }
 
-__device float3 svm_mix_overlay(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_overlay(float t, float3 col1, float3 col2)
 {
 	float tm = 1.0f - t;
 
@@ -66,12 +64,12 @@ __device float3 svm_mix_overlay(float t, float3 col1, float3 col2)
 	return outcol;
 }
 
-__device float3 svm_mix_sub(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_sub(float t, float3 col1, float3 col2)
 {
 	return interp(col1, col1 - col2, t);
 }
 
-__device float3 svm_mix_div(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_div(float t, float3 col1, float3 col2)
 {
 	float tm = 1.0f - t;
 
@@ -84,22 +82,22 @@ __device float3 svm_mix_div(float t, float3 col1, float3 col2)
 	return outcol;
 }
 
-__device float3 svm_mix_diff(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_diff(float t, float3 col1, float3 col2)
 {
 	return interp(col1, fabs(col1 - col2), t);
 }
 
-__device float3 svm_mix_dark(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_dark(float t, float3 col1, float3 col2)
 {
 	return min(col1, col2*t);
 }
 
-__device float3 svm_mix_light(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_light(float t, float3 col1, float3 col2)
 {
 	return max(col1, col2*t);
 }
 
-__device float3 svm_mix_dodge(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_dodge(float t, float3 col1, float3 col2)
 {
 	float3 outcol = col1;
 
@@ -134,7 +132,7 @@ __device float3 svm_mix_dodge(float t, float3 col1, float3 col2)
 	return outcol;
 }
 
-__device float3 svm_mix_burn(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_burn(float t, float3 col1, float3 col2)
 {
 	float tmp, tm = 1.0f - t;
 
@@ -173,7 +171,7 @@ __device float3 svm_mix_burn(float t, float3 col1, float3 col2)
 	return outcol;
 }
 
-__device float3 svm_mix_hue(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_hue(float t, float3 col1, float3 col2)
 {
 	float3 outcol = col1;
 
@@ -190,7 +188,7 @@ __device float3 svm_mix_hue(float t, float3 col1, float3 col2)
 	return outcol;
 }
 
-__device float3 svm_mix_sat(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_sat(float t, float3 col1, float3 col2)
 {
 	float tm = 1.0f - t;
 
@@ -208,7 +206,7 @@ __device float3 svm_mix_sat(float t, float3 col1, float3 col2)
 	return outcol;
 }
 
-__device float3 svm_mix_val(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_val(float t, float3 col1, float3 col2)
 {
 	float tm = 1.0f - t;
 
@@ -220,7 +218,7 @@ __device float3 svm_mix_val(float t, float3 col1, float3 col2)
 	return hsv_to_rgb(hsv);
 }
 
-__device float3 svm_mix_color(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_color(float t, float3 col1, float3 col2)
 {
 	float3 outcol = col1;
 	float3 hsv2 = rgb_to_hsv(col2);
@@ -237,7 +235,7 @@ __device float3 svm_mix_color(float t, float3 col1, float3 col2)
 	return outcol;
 }
 
-__device float3 svm_mix_soft(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_soft(float t, float3 col1, float3 col2)
 {
 	float tm = 1.0f - t;
 
@@ -247,29 +245,12 @@ __device float3 svm_mix_soft(float t, float3 col1, float3 col2)
 	return tm*col1 + t*((one - col1)*col2*col1 + col1*scr);
 }
 
-__device float3 svm_mix_linear(float t, float3 col1, float3 col2)
+ccl_device float3 svm_mix_linear(float t, float3 col1, float3 col2)
 {
-	float3 outcol = col1;
-
-	if(col2.x > 0.5f)
-		outcol.x = col1.x + t*(2.0f*(col2.x - 0.5f));
-	else
-		outcol.x = col1.x + t*(2.0f*(col2.x) - 1.0f);
-
-	if(col2.y > 0.5f)
-		outcol.y = col1.y + t*(2.0f*(col2.y - 0.5f));
-	else
-		outcol.y = col1.y + t*(2.0f*(col2.y) - 1.0f);
-
-	if(col2.z > 0.5f)
-		outcol.z = col1.z + t*(2.0f*(col2.z - 0.5f));
-	else
-		outcol.z = col1.z + t*(2.0f*(col2.z) - 1.0f);
-	
-	return outcol;
+	return col1 + t*(2.0f*col2 + make_float3(-1.0f, -1.0f, -1.0f));
 }
 
-__device float3 svm_mix_clamp(float3 col)
+ccl_device float3 svm_mix_clamp(float3 col)
 {
 	float3 outcol = col;
 
@@ -280,7 +261,7 @@ __device float3 svm_mix_clamp(float3 col)
 	return outcol;
 }
 
-__device float3 svm_mix(NodeMix type, float fac, float3 c1, float3 c2)
+ccl_device float3 svm_mix(NodeMix type, float fac, float3 c1, float3 c2)
 {
 	float t = clamp(fac, 0.0f, 1.0f);
 
@@ -311,7 +292,7 @@ __device float3 svm_mix(NodeMix type, float fac, float3 c1, float3 c2)
 
 /* Node */
 
-__device void svm_node_mix(KernelGlobals *kg, ShaderData *sd, float *stack, uint fac_offset, uint c1_offset, uint c2_offset, int *offset)
+ccl_device void svm_node_mix(KernelGlobals *kg, ShaderData *sd, float *stack, uint fac_offset, uint c1_offset, uint c2_offset, int *offset)
 {
 	/* read extra data */
 	uint4 node1 = read_node(kg, offset);

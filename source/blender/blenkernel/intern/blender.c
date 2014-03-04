@@ -113,13 +113,14 @@ char versionstr[48] = "";
 void free_blender(void)
 {
 	/* samples are in a global list..., also sets G.main->sound->sample NULL */
-	free_main(G.main);
+	BKE_main_free(G.main);
 	G.main = NULL;
 
 	BKE_spacetypes_free();      /* after free main, it uses space callbacks */
 	
 	IMB_exit();
 	BKE_images_exit();
+	DAG_exit();
 
 	BKE_brush_system_exit();
 
@@ -137,7 +138,7 @@ void initglobals(void)
 	
 	U.savetime = 1;
 
-	G.main = MEM_callocN(sizeof(Main), "initglobals");
+	G.main = BKE_main_new();
 
 	strcpy(G.ima, "//");
 
@@ -163,18 +164,18 @@ static void clear_global(void)
 {
 //	extern short winqueue_break;	/* screen.c */
 
-	free_main(G.main);          /* free all lib data */
+	BKE_main_free(G.main);          /* free all lib data */
 	
 //	free_vertexpaint();
 
 	G.main = NULL;
 }
 
-static int clean_paths_visit_cb(void *UNUSED(userdata), char *path_dst, const char *path_src)
+static bool clean_paths_visit_cb(void *UNUSED(userdata), char *path_dst, const char *path_src)
 {
 	strcpy(path_dst, path_src);
 	BLI_clean(path_dst);
-	return (strcmp(path_dst, path_src) == 0) ? FALSE : TRUE;
+	return !STREQ(path_dst, path_src);
 }
 
 /* make sure path names are correct for OS */
@@ -203,7 +204,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	char mode;
 
 	/* 'u' = undo save, 'n' = no UI load */
-	if (bfd->main->screen.first == NULL) mode = 'u';
+	if (BLI_listbase_is_empty(&bfd->main->screen)) mode = 'u';
 	else if (G.fileflags & G_FILE_NO_UI) mode = 'n';
 	else mode = 0;
 
@@ -416,6 +417,8 @@ void BKE_userdef_free(void)
 		MEM_freeN(addon);
 	}
 
+	BLI_freelistN(&U.autoexec_paths);
+
 	BLI_freelistN(&U.uistyles);
 	BLI_freelistN(&U.uifonts);
 	BLI_freelistN(&U.themes);
@@ -446,7 +449,7 @@ int BKE_read_file(bContext *C, const char *filepath, ReportList *reports)
 		if (bfd->user) retval = BKE_READ_FILE_OK_USERPREFS;
 		
 		if (0 == handle_subversion_warning(bfd->main, reports)) {
-			free_main(bfd->main);
+			BKE_main_free(bfd->main);
 			MEM_freeN(bfd);
 			bfd = NULL;
 			retval = BKE_READ_FILE_FAIL;
@@ -460,13 +463,16 @@ int BKE_read_file(bContext *C, const char *filepath, ReportList *reports)
 	return (bfd ? retval : BKE_READ_FILE_FAIL);
 }
 
-int BKE_read_file_from_memory(bContext *C, const void *filebuf, int filelength, ReportList *reports)
+int BKE_read_file_from_memory(bContext *C, const void *filebuf, int filelength, ReportList *reports, int update_defaults)
 {
 	BlendFileData *bfd;
 
 	bfd = BLO_read_from_memory(filebuf, filelength, reports);
-	if (bfd)
+	if (bfd) {
+		if (update_defaults)
+			BLO_update_defaults_startup_blend(bfd->main);
 		setup_app_data(C, bfd, "<memory2>");
+	}
 	else
 		BKE_reports_prepend(reports, "Loading failed: ");
 
@@ -482,9 +488,9 @@ int BKE_read_file_from_memfile(bContext *C, MemFile *memfile, ReportList *report
 	if (bfd) {
 		/* remove the unused screens and wm */
 		while (bfd->main->wm.first)
-			BKE_libblock_free(&bfd->main->wm, bfd->main->wm.first);
+			BKE_libblock_free_ex(bfd->main, bfd->main->wm.first, true);
 		while (bfd->main->screen.first)
-			BKE_libblock_free(&bfd->main->screen, bfd->main->screen.first);
+			BKE_libblock_free_ex(bfd->main, bfd->main->screen.first, true);
 		
 		setup_app_data(C, bfd, "<memory1>");
 	}
@@ -510,7 +516,7 @@ int BKE_read_file_userdef(const char *filepath, ReportList *reports)
 		U = *bfd->user;
 		MEM_freeN(bfd->user);
 	}
-	free_main(bfd->main);
+	BKE_main_free(bfd->main);
 	MEM_freeN(bfd);
 	
 	return retval;
@@ -814,7 +820,7 @@ int BKE_undo_save_file(const char *filename)
 	 * to avoid writing to a symlink - use 'O_EXCL' (CVE-2008-1103) */
 	errno = 0;
 	file = BLI_open(filename, flag, 0666);
-	if (file == -1) {
+	if (file < 0) {
 		if (errno == EEXIST) {
 			errno = 0;
 			file = BLI_open(filename, flag & ~O_CREAT, 0666);
@@ -864,10 +870,10 @@ Main *BKE_undo_get_main(Scene **scene)
 
 /* assumes data is in G.main */
 
-void BKE_copybuffer_begin(void)
+void BKE_copybuffer_begin(Main *bmain)
 {
 	/* set all id flags to zero; */
-	flag_all_listbases_ids(LIB_NEED_EXPAND | LIB_DOIT, 0);
+	BKE_main_id_flag_all(bmain, LIB_NEED_EXPAND | LIB_DOIT, false);
 }
 
 void BKE_copybuffer_tag_ID(ID *id)
@@ -892,6 +898,12 @@ int BKE_copybuffer_save(const char *filename, ReportList *reports)
 	ListBase *lbarray[MAX_LIBARRAY], *fromarray[MAX_LIBARRAY];
 	int a, retval;
 	
+	/* path backup/restore */
+	void     *path_list_backup;
+	const int path_list_flag = (BKE_BPATH_TRAVERSE_SKIP_LIBRARY | BKE_BPATH_TRAVERSE_SKIP_MULTIFILE);
+
+	path_list_backup = BKE_bpath_list_backup(G.main, path_list_flag);
+
 	BLO_main_expander(copybuffer_doit);
 	BLO_expand_main(NULL, G.main);
 	
@@ -913,7 +925,7 @@ int BKE_copybuffer_save(const char *filename, ReportList *reports)
 	
 	
 	/* save the buffer */
-	retval = BLO_write_file(mainb, filename, 0, reports, NULL);
+	retval = BLO_write_file(mainb, filename, G_FILE_RELATIVE_REMAP, reports, NULL);
 	
 	/* move back the main, now sorted again */
 	set_listbasepointers(G.main, lbarray);
@@ -922,9 +934,7 @@ int BKE_copybuffer_save(const char *filename, ReportList *reports)
 		ID *id;
 		ListBase *lb1 = lbarray[a], *lb2 = fromarray[a];
 		
-		while (lb2->first) {
-			id = lb2->first;
-			BLI_remlink(lb2, id);
+		while ((id = BLI_pophead(lb2))) {
 			BLI_addtail(lb1, id);
 			id_sort_by_name(lb1, id);
 		}
@@ -933,8 +943,13 @@ int BKE_copybuffer_save(const char *filename, ReportList *reports)
 	MEM_freeN(mainb);
 	
 	/* set id flag to zero; */
-	flag_all_listbases_ids(LIB_NEED_EXPAND | LIB_DOIT, 0);
+	BKE_main_id_flag_all(G.main, LIB_NEED_EXPAND | LIB_DOIT, false);
 	
+	if (path_list_backup) {
+		BKE_bpath_list_restore(G.main, path_list_flag, path_list_backup);
+		BKE_bpath_list_free(path_list_backup);
+	}
+
 	return retval;
 }
 
@@ -959,8 +974,8 @@ int BKE_copybuffer_paste(bContext *C, const char *libname, ReportList *reports)
 	/* tag everything, all untagged data can be made local
 	 * its also generally useful to know what is new
 	 *
-	 * take extra care flag_all_listbases_ids(LIB_LINK_TAG, 0) is called after! */
-	flag_all_listbases_ids(LIB_PRE_EXISTING, 1);
+	 * take extra care BKE_main_id_flag_all(bmain, LIB_LINK_TAG, false) is called after! */
+	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
 	
 	/* here appending/linking starts */
 	mainl = BLO_library_append_begin(bmain, &bh, libname);
@@ -970,7 +985,7 @@ int BKE_copybuffer_paste(bContext *C, const char *libname, ReportList *reports)
 	BLO_library_append_end(C, mainl, &bh, 0, 0);
 	
 	/* mark all library linked objects to be updated */
-	recalc_all_library_objects(bmain);
+	BKE_main_lib_objects_recalc_all(bmain);
 	IMB_colormanagement_check_file_config(bmain);
 	
 	/* append, rather than linking */
@@ -979,7 +994,7 @@ int BKE_copybuffer_paste(bContext *C, const char *libname, ReportList *reports)
 	
 	/* important we unset, otherwise these object wont
 	 * link into other scenes from this blend file */
-	flag_all_listbases_ids(LIB_PRE_EXISTING, 0);
+	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, false);
 	
 	/* recreate dependency graph to include new objects */
 	DAG_relations_tag_update(bmain);

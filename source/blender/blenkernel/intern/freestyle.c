@@ -52,13 +52,13 @@ void BKE_freestyle_config_init(FreestyleConfig *config)
 {
 	config->mode = FREESTYLE_CONTROL_EDITOR_MODE;
 
-	config->modules.first = config->modules.last = NULL;
+	BLI_listbase_clear(&config->modules);
 	config->flags = 0;
-	config->sphere_radius = 1.0f;
+	config->sphere_radius = 0.1f;
 	config->dkr_epsilon = 0.0f;
 	config->crease_angle = DEG2RADF(134.43f);
 
-	config->linesets.first = config->linesets.last = NULL;
+	BLI_listbase_clear(&config->linesets);
 }
 
 void BKE_freestyle_config_free(FreestyleConfig *config)
@@ -85,20 +85,19 @@ void BKE_freestyle_config_copy(FreestyleConfig *new_config, FreestyleConfig *con
 	FreestyleModuleConfig *module, *new_module;
 
 	new_config->mode = config->mode;
-	new_config->raycasting_algorithm = config->raycasting_algorithm; /* deprecated */
 	new_config->flags = config->flags;
 	new_config->sphere_radius = config->sphere_radius;
 	new_config->dkr_epsilon = config->dkr_epsilon;
 	new_config->crease_angle = config->crease_angle;
 
-	new_config->linesets.first = new_config->linesets.last = NULL;
+	BLI_listbase_clear(&new_config->linesets);
 	for (lineset = (FreestyleLineSet *)config->linesets.first; lineset; lineset = lineset->next) {
 		new_lineset = alloc_lineset();
 		copy_lineset(new_lineset, lineset);
 		BLI_addtail(&new_config->linesets, (void *)new_lineset);
 	}
 
-	new_config->modules.first = new_config->modules.last = NULL;
+	BLI_listbase_clear(&new_config->modules);
 	for (module = (FreestyleModuleConfig *)config->modules.first; module; module = module->next) {
 		new_module = alloc_module();
 		copy_module(new_module, module);
@@ -109,7 +108,8 @@ void BKE_freestyle_config_copy(FreestyleConfig *new_config, FreestyleConfig *con
 static void copy_lineset(FreestyleLineSet *new_lineset, FreestyleLineSet *lineset)
 {
 	new_lineset->linestyle = lineset->linestyle;
-	new_lineset->linestyle->id.us++;
+	if (new_lineset->linestyle)
+		new_lineset->linestyle->id.us++;
 	new_lineset->flags = lineset->flags;
 	new_lineset->selection = lineset->selection;
 	new_lineset->qi = lineset->qi;

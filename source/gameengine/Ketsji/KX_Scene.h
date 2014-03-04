@@ -309,8 +309,7 @@ public:
 	RAS_BucketManager* GetBucketManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform,
-	                   RAS_IRasterizer* rasty,
-	                   RAS_IRenderTools* rendertools);
+	                   RAS_IRasterizer* rasty);
 
 	/**
 	 * Update all transforms according to the scenegraph.
@@ -324,6 +323,7 @@ public:
 		return (m_groupGameObjects.empty() || 
 				m_groupGameObjects.find(gameobj) != m_groupGameObjects.end());
 	}
+	void AddObjectDebugProperties(class KX_GameObject* gameobj);
 	SCA_IObject* AddReplicaObject(CValue* gameobj,
 	                              CValue* locationobj,
 	                              int lifespan=0);
@@ -381,10 +381,6 @@ public:
 	);
 
 	/** Font Routines */
-		
-		std::list<class KX_FontObject*>*
-	GetFonts(
-	);
 
 	/** Find a font in the scene by pointer. */
 		KX_FontObject*              
@@ -398,6 +394,10 @@ public:
 		KX_FontObject*
 	);
 
+	/** Render the fonts in this scene. */
+		void
+	RenderFonts(
+	);
 
 	/** Camera Routines */
 
@@ -544,6 +544,9 @@ public:
 
 	// Resume a suspended scene.
 	void Resume();
+
+	// Update the mesh for objects based on level of detail settings
+	void UpdateObjectLods(void);
 	
 	// Update the activity box settings for objects in this scene, if needed.
 	void UpdateObjectActivity(void);

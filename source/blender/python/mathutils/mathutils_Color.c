@@ -170,7 +170,8 @@ static PyObject *Color_richcmpr(PyObject *a, PyObject *b, int op)
 
 	switch (op) {
 		case Py_NE:
-			ok = !ok; /* pass through */
+			ok = !ok;
+			/* fall-through */
 		case Py_EQ:
 			res = ok ? Py_False : Py_True;
 			break;
@@ -224,7 +225,7 @@ static int Color_ass_item(ColorObject *self, int i, PyObject *value)
 	if (f == -1 && PyErr_Occurred()) {  /* parsed item not a number */
 		PyErr_SetString(PyExc_TypeError,
 		                "color[item] = x: "
-		                "argument not a number");
+		                "assigned value not a number");
 		return -1;
 	}
 
@@ -721,7 +722,7 @@ static int Color_channel_hsv_set(ColorObject *self, PyObject *value, void *type)
 	if (f == -1 && PyErr_Occurred()) {
 		PyErr_SetString(PyExc_TypeError,
 		                "color.h/s/v = value: "
-		                "argument not a number");
+		                "assigned value not a number");
 		return -1;
 	}
 

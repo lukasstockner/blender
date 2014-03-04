@@ -365,6 +365,11 @@ public:
 
 	/*! Returns an orientedViewEdgeIterator pointing to the ViewEdge given as argument. */
 	virtual ViewVertexInternal::orientedViewEdgeIterator edgesIterator(ViewEdge *iEdge) = 0;
+
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:ViewVertex")
+#endif
+
 };
 
 /**********************************/
@@ -633,6 +638,11 @@ public:
 
 	/*! Returns an orientedViewEdgeIterator pointing to the ViewEdge given as argument. */
 	virtual ViewVertexInternal::orientedViewEdgeIterator edgesIterator(ViewEdge *iEdge);
+
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:TVertex")
+#endif
+
 };
 
 
@@ -845,6 +855,11 @@ public:
 
 	/*! Returns an orientedViewEdgeIterator pointing to the ViewEdge given as argument. */
 	virtual ViewVertexInternal::orientedViewEdgeIterator edgesIterator(ViewEdge *iEdge);
+
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:NonTVertex")
+#endif
+
 };
 
 /**********************************/
@@ -873,7 +888,7 @@ template<class Traits> class vertex_iterator_base;
 
 } // end of namespace ViewEdgeInternal
 
-/*! Class defining a ViewEdge. A ViewEdge in an edge of the image graph. it connnects two ViewVertex.
+/*! Class defining a ViewEdge. A ViewEdge in an edge of the image graph. it connects two ViewVertex.
  *  It is made by connecting a set of FEdges.
  */
 class LIB_VIEW_MAP_EXPORT ViewEdge : public Interface1D
@@ -1337,12 +1352,12 @@ public:
 	vertex_iterator vertices_end();
 
 	// Iterator access (Interface1D)
-	/*! Returns an Interface0DIterator to iterate over the SVertex constituing the embedding of this ViewEdge.
+	/*! Returns an Interface0DIterator to iterate over the SVertex constituting the embedding of this ViewEdge.
 	 *  The returned Interface0DIterator points to the first SVertex of the ViewEdge.
 	 */
 	virtual Interface0DIterator verticesBegin();
 
-	/*! Returns an Interface0DIterator to iterate over the SVertex constituing the embedding of this ViewEdge.
+	/*! Returns an Interface0DIterator to iterate over the SVertex constituting the embedding of this ViewEdge.
 	 *  The returned Interface0DIterator points after the last SVertex of the ViewEdge.
 	 */
 	virtual Interface0DIterator verticesEnd();
@@ -1360,6 +1375,11 @@ public:
 	 *    the sampling value.
 	 */
 	virtual Interface0DIterator pointsEnd(float t = 0.0f);
+
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:ViewEdge")
+#endif
+
 };
 
 

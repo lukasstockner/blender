@@ -37,6 +37,8 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_rand.h"
+#include "BLI_bitmap.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_key_types.h"
@@ -47,6 +49,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -54,6 +57,7 @@
 #include "BKE_lattice.h"
 #include "BKE_deform.h"
 #include "BKE_report.h"
+#include "BKE_utildefines.h"
 
 #include "ED_lattice.h"
 #include "ED_object.h"
@@ -170,6 +174,256 @@ void load_editLatt(Object *obedit)
 	}
 }
 
+/*************************** Transform Operator ************************/
+
+void ED_lattice_transform(Lattice *lt, float mat[4][4])
+{
+	BPoint *bp = lt->def;
+	int a = lt->pntsu * lt->pntsv * lt->pntsw;
+
+	while (a--) {
+		mul_m4_v3(mat, bp->vec);
+		bp++;
+	}
+
+	DAG_id_tag_update(&lt->id, 0);
+}
+
+static void bpoint_select_set(BPoint *bp, bool select)
+{
+	if (select) {
+		if (!bp->hide) {
+			bp->f1 |= SELECT;
+		}
+	}
+	else {
+		bp->f1 &= ~SELECT;
+	}
+}
+
+/************************** Select Random Operator **********************/
+
+static int lattice_select_random_exec(bContext *C, wmOperator *op)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
+	const float randfac = RNA_float_get(op->ptr, "percent") / 100.0f;
+	const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
+
+	int tot;
+	BPoint *bp;
+
+	tot = lt->pntsu * lt->pntsv * lt->pntsw;
+	bp = lt->def;
+	while (tot--) {
+		if (!bp->hide) {
+			if (BLI_frand() < randfac) {
+				bpoint_select_set(bp, select);
+			}
+		}
+		bp++;
+	}
+
+	if (select == false) {
+		lt->actbp = LT_ACTBP_NONE;
+	}
+
+	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+
+	return OPERATOR_FINISHED;
+}
+
+void LATTICE_OT_select_random(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Random";
+	ot->description = "Randomly select UVW control points";
+	ot->idname = "LATTICE_OT_select_random";
+
+	/* api callbacks */
+	ot->exec = lattice_select_random_exec;
+	ot->poll = ED_operator_editlattice;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* props */
+	RNA_def_float_percentage(ot->srna, "percent", 50.f, 0.0f, 100.0f,
+	                         "Percent", "Percentage of elements to select randomly", 0.f, 100.0f);
+	WM_operator_properties_select_action_simple(ot, SEL_SELECT);
+}
+
+
+/* -------------------------------------------------------------------- */
+/* Select Mirror Operator */
+
+static int lattice_select_mirror_exec(bContext *C, wmOperator *op)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
+	const int axis = RNA_enum_get(op->ptr, "axis");
+	bool flip_uvw[3] = {false};
+	int tot, i;
+	BPoint *bp;
+	BLI_bitmap *selpoints;
+
+	tot = lt->pntsu * lt->pntsv * lt->pntsw;
+
+	flip_uvw[axis] = true;
+
+	if (!extend) {
+		lt->actbp = LT_ACTBP_NONE;
+	}
+
+	/* store "original" selection */
+	selpoints = BLI_BITMAP_NEW(tot, __func__);
+	BKE_lattice_bitmap_from_flag(lt, selpoints, SELECT, false, false);
+
+	/* actual (de)selection */
+	for (i = 0; i < tot; i++) {
+		const int i_flip = BKE_lattice_index_flip(lt, i, flip_uvw[0], flip_uvw[1], flip_uvw[2]);
+		bp = &lt->def[i];
+		if (!bp->hide) {
+			if (BLI_BITMAP_GET(selpoints, i_flip)) {
+				bp->f1 |= SELECT;
+			}
+			else {
+				if (!extend) {
+					bp->f1 &= ~SELECT;
+				}
+			}
+		}
+	}
+
+
+	MEM_freeN(selpoints);
+
+	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+
+	return OPERATOR_FINISHED;
+}
+
+void LATTICE_OT_select_mirror(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Mirror";
+	ot->description = "Select mirrored lattice points";
+	ot->idname = "LATTICE_OT_select_mirror";
+
+	/* api callbacks */
+	ot->exec = lattice_select_mirror_exec;
+	ot->poll = ED_operator_editlattice;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* props */
+	RNA_def_enum(ot->srna, "axis", object_axis_unsigned_items, 0, "Axis", "");
+
+	RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
+}
+
+
+/************************** Select More/Less Operator *************************/
+
+static bool lattice_test_bitmap_uvw(Lattice *lt, BLI_bitmap *selpoints, int u, int v, int w, const bool selected)
+{
+	if ((u < 0 || u >= lt->pntsu) ||
+	    (v < 0 || v >= lt->pntsv) ||
+	    (w < 0 || w >= lt->pntsw))
+	{
+		return false;
+	}
+	else {
+		int i = BKE_lattice_index_from_uvw(lt, u, v, w);
+		if (lt->def[i].hide == 0) {
+			return (BLI_BITMAP_GET(selpoints, i) != 0) == selected;
+		}
+		return false;
+	}
+}
+
+static int lattice_select_more_less(bContext *C, const bool select)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
+	BPoint *bp;
+	const int tot = lt->pntsu * lt->pntsv * lt->pntsw;
+	int u, v, w;
+	BLI_bitmap *selpoints;
+
+	lt->actbp = LT_ACTBP_NONE;
+
+	selpoints = BLI_BITMAP_NEW(tot, __func__);
+	BKE_lattice_bitmap_from_flag(lt, selpoints, SELECT, false, false);
+
+	bp = lt->def;
+	for (w = 0; w < lt->pntsw; w++) {
+		for (v = 0; v < lt->pntsv; v++) {
+			for (u = 0; u < lt->pntsu; u++) {
+				if ((bp->hide == 0) && (((bp->f1 & SELECT) == 0) == select)) {
+					if (lattice_test_bitmap_uvw(lt, selpoints, u + 1, v, w, select) ||
+					    lattice_test_bitmap_uvw(lt, selpoints, u - 1, v, w, select) ||
+					    lattice_test_bitmap_uvw(lt, selpoints, u, v + 1, w, select) ||
+					    lattice_test_bitmap_uvw(lt, selpoints, u, v - 1, w, select) ||
+					    lattice_test_bitmap_uvw(lt, selpoints, u, v, w + 1, select) ||
+					    lattice_test_bitmap_uvw(lt, selpoints, u, v, w - 1, select))
+					{
+						BKE_BIT_TEST_SET(bp->f1, select, SELECT);
+					}
+				}
+				bp++;
+			}
+		}
+	}
+
+	MEM_freeN(selpoints);
+
+	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+	return OPERATOR_FINISHED;
+}
+
+static int lattice_select_more_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	return lattice_select_more_less(C, true);
+}
+
+static int lattice_select_less_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	return lattice_select_more_less(C, false);
+}
+
+void LATTICE_OT_select_more(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select More";
+	ot->description = "Select vertex directly linked to already selected ones";
+	ot->idname = "LATTICE_OT_select_more";
+
+	/* api callbacks */
+	ot->exec = lattice_select_more_exec;
+	ot->poll = ED_operator_editlattice;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+void LATTICE_OT_select_less(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Less";
+	ot->description = "Deselect vertices at the boundary of each selection region";
+	ot->idname = "LATTICE_OT_select_less";
+
+	/* api callbacks */
+	ot->exec = lattice_select_less_exec;
+	ot->poll = ED_operator_editlattice;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /************************** Select All Operator *************************/
 
 void ED_setflagsLatt(Object *obedit, int flag)
@@ -269,7 +523,7 @@ static int lattice_select_ungrouped_exec(bContext *C, wmOperator *op)
 	BPoint *bp;
 	int a, tot;
 
-	if (obedit->defbase.first == NULL || lt->dvert == NULL) {
+	if (BLI_listbase_is_empty(&obedit->defbase) || lt->dvert == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "No weights/vertex groups on object");
 		return OPERATOR_CANCELLED;
 	}
@@ -368,23 +622,7 @@ typedef enum eLattice_FlipAxes {
 	LATTICE_FLIP_W = 2
 } eLattice_FlipAxes;
 
-/* Helper macro for accessing item at index (u, v, w) 
- * < lt: (Lattice)
- * < U: (int) u-axis coordinate of point
- * < V: (int) v-axis coordinate of point
- * < W: (int) w-axis coordinate of point
- * < dimU: (int) number of points per row or number of columns (U-Axis)
- * < dimV: (int) number of rows (V-Axis)
- * > returns: (BPoint *) pointer to BPoint at this index
- */
-#define LATTICE_PT(lt, U, V, W, dimU, dimV)       \
-	( (lt)->def               +                   \
-	  ((dimU) * (dimV)) * (W) +                   \
-	  (dimU) * (V)            +                   \
-	  (U)                                         \
-	)
-	
-/* Flip midpoint value so that relative distances between midpoint and neighbour-pair is maintained
+/* Flip midpoint value so that relative distances between midpoint and neighbor-pair is maintained
  * ! Assumes that uvw <=> xyz (i.e. axis-aligned index-axes with coordinate-axes)
  * - Helper for lattice_flip_exec()
  */
@@ -394,7 +632,7 @@ static void lattice_flip_point_value(Lattice *lt, int u, int v, int w, float mid
 	float diff;
 	
 	/* just the point in the middle (unpaired) */
-	bp = LATTICE_PT(lt, u, v, w, lt->pntsu, lt->pntsv);
+	bp = &lt->def[BKE_lattice_index_from_uvw(lt, u, v, w)];
 	
 	/* flip over axis */
 	diff = mid - bp->vec[axis];
@@ -432,8 +670,8 @@ static void lattice_swap_point_pairs(Lattice *lt, int u, int v, int w, float mid
 	}
 	
 	/* get points to operate on */
-	bpA = LATTICE_PT(lt, u0, v0, w0, numU, numV);
-	bpB = LATTICE_PT(lt, u1, v1, w1, numU, numV);
+	bpA = &lt->def[BKE_lattice_index_from_uvw(lt, u0, v0, w0)];
+	bpB = &lt->def[BKE_lattice_index_from_uvw(lt, u1, v1, w1)];
 	
 	/* Swap all coordinates, so that flipped coordinates belong to
 	 * the indices on the correct side of the lattice.
@@ -526,8 +764,8 @@ static int lattice_flip_exec(bContext *C, wmOperator *op)
 					}
 				}
 			}
+			break;
 		}
-		break;
 		case LATTICE_FLIP_V:
 		{
 			int u, v, w;
@@ -547,8 +785,8 @@ static int lattice_flip_exec(bContext *C, wmOperator *op)
 					}
 				}
 			}
+			break;
 		}
-		break;
 		case LATTICE_FLIP_W:
 		{
 			int u, v, w;
@@ -567,9 +805,8 @@ static int lattice_flip_exec(bContext *C, wmOperator *op)
 					}
 				}
 			}
+			break;
 		}
-		break;
-		
 		default: /* shouldn't happen, but just in case */
 			break;
 	}

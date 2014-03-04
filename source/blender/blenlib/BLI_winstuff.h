@@ -94,13 +94,12 @@ extern "C" {
 /* defines for using ISO C++ conformant names */
 #define snprintf _snprintf
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || (defined(FREE_WINDOWS) && !defined(FREE_WINDOWS64))
 #  define	R_OK	4
 #  define	W_OK	2
 // not accepted by access() on windows
 //#  define	X_OK	1
 #  define	F_OK	0
-#  define	PATH_MAX 4096
 #endif
 
 /* use functions that take a 64 bit offset for files larger than 4GB */
@@ -124,6 +123,10 @@ typedef long ssize_t;
 #  endif
 #endif
 
+
+#ifdef FREE_WINDOWS
+#include <dirent.h>
+#else
 struct dirent {
 	int d_ino;
 	int d_off;
@@ -143,10 +146,12 @@ typedef struct _DIR {
 	struct dirent direntry;
 } DIR;
 
-void RegisterBlendExtension(void);
 DIR *opendir(const char *path);
 struct dirent *readdir(DIR *dp);
 int closedir(DIR *dp);
+#endif
+
+void RegisterBlendExtension(void);
 void get_default_root(char *root);
 int check_file_chars(char *filename);
 const char *dirname(char *path);

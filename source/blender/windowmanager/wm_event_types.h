@@ -15,9 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -49,9 +46,6 @@
 #define EVT_TABLET_STYLUS	1
 #define EVT_TABLET_ERASER	2
 
-#define MOUSEX		4
-#define MOUSEY		5
-
 
 /* *** wmEvent.type *** */
 
@@ -68,6 +62,9 @@
 		/* Extra mouse buttons */
 #define BUTTON4MOUSE	7
 #define BUTTON5MOUSE	8
+		/* More mouse buttons - can't use 9 and 10 here (wheel) */
+#define BUTTON6MOUSE	18
+#define BUTTON7MOUSE	19
 		/* Extra trackpad gestures */
 #define MOUSEPAN		14
 #define MOUSEZOOM		15
@@ -78,6 +75,9 @@
 		/* mapped with userdef */
 #define WHEELINMOUSE	12
 #define WHEELOUTMOUSE	13
+		/* Successive MOUSEMOVE's are converted to this, so we can easily
+		 * ignore all but the most recent MOUSEMOVE (for better performance),
+		 * paint and drawing tools however will want to handle these. */
 #define INBETWEEN_MOUSEMOVE	17
 
 
@@ -138,7 +138,7 @@ enum {
 	NDOF_BUTTON_C,
 	// the end
 	NDOF_LAST
-	};
+};
 
 
 /* SYSTEM : 0x01xx */
@@ -300,7 +300,7 @@ enum {
 #define ISKEYMODIFIER(event_type)  ((event_type >= LEFTCTRLKEY && event_type <= LEFTSHIFTKEY) || event_type == OSKEY)
 
 	/* test whether the event is a mouse button */
-#define ISMOUSE(event_type)  (event_type >= LEFTMOUSE && event_type <= MOUSEROTATE)
+#define ISMOUSE(event_type)  (event_type >= LEFTMOUSE && event_type <= BUTTON7MOUSE)
 
 	/* test whether the event is tweak event */
 #define ISTWEAK(event_type)  (event_type >= EVT_TWEAK_L && event_type <= EVT_GESTURE)

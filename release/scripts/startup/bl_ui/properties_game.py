@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel
+from bpy.types import Panel, Menu
 
 
 class PhysicsButtonsPanel():
@@ -156,6 +156,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             col = layout.column()
             col.prop(game, "use_actor")
             col.prop(game, "use_ghost")
+            col.prop(game, "use_record_animation")
             col.prop(ob, "hide_render", text="Invisible")
 
             layout.separator()
@@ -290,7 +291,9 @@ class RENDER_PT_game_player(RenderButtonsPanel, Panel):
     COMPAT_ENGINES = {'BLENDER_GAME'}
 
     def draw(self, context):
+        import sys
         layout = self.layout
+        not_osx = sys.platform != "darwin"
 
         gs = context.scene.game_settings
 
@@ -301,14 +304,17 @@ class RENDER_PT_game_player(RenderButtonsPanel, Panel):
         row = layout.row()
         row.label(text="Resolution:")
         row = layout.row(align=True)
+        row.active = not_osx or not gs.show_fullscreen
         row.prop(gs, "resolution_x", slider=False, text="X")
         row.prop(gs, "resolution_y", slider=False, text="Y")
         row = layout.row()
         col = row.column()
         col.prop(gs, "show_fullscreen")
-        col = row.column()
-        col.prop(gs, "use_desktop")
-        col.active = gs.show_fullscreen
+
+        if not_osx:
+            col = row.column()
+            col.prop(gs, "use_desktop")
+            col.active = gs.show_fullscreen
 
         col = layout.column()
         col.label(text="Quality:")
@@ -412,6 +418,9 @@ class RENDER_PT_game_system(RenderButtonsPanel, Panel):
         col = row.column()
         col.prop(gs, "use_display_lists")
         col.active = gs.raster_storage != 'VERTEX_BUFFER_OBJECT'
+
+        row = layout.row()
+        row.prop(gs, "vsync")
 
         row = layout.row()
         row.prop(gs, "raster_storage")
@@ -643,7 +652,7 @@ class WORLD_PT_game_physics(WorldButtonsPanel, Panel):
             sub.prop(gs, "deactivation_angular_threshold", text="Angular Threshold")
             sub = col.row()
             sub.prop(gs, "deactivation_time", text="Time")
-            
+
             col = layout.column()
             col.prop(gs, "use_occlusion_culling", text="Occlusion Culling")
             sub = col.column()
@@ -738,6 +747,56 @@ class DATA_PT_shadow_game(DataButtonsPanel, Panel):
         if lamp.type == 'SUN':
             row = layout.row()
             row.prop(lamp, "shadow_frustum_size", text="Frustum Size")
+
+
+class ObjectButtonsPanel():
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+
+
+class OBJECT_MT_lod_tools(Menu):
+    bl_label = "Level Of Detail Tools"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("object.lod_by_name", text="Set By Name")
+        layout.operator("object.lod_generate", text="Generate")
+        layout.operator("object.lod_clear_all", text="Clear All", icon='PANEL_CLOSE')
+
+
+class OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
+    bl_label = "Levels of Detail"
+    COMPAT_ENGINES = {'BLENDER_GAME'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.render.engine in cls.COMPAT_ENGINES
+
+    def draw(self, context):
+        layout = self.layout
+        ob = context.object
+
+        col = layout.column()
+
+        for i, level in enumerate(ob.lod_levels):
+            if i == 0:
+                continue
+            box = col.box()
+            row = box.row()
+            row.prop(level, "object", text="")
+            row.operator("object.lod_remove", text="", icon='PANEL_CLOSE').index = i
+
+            row = box.row()
+            row.prop(level, "distance")
+            row = row.row(align=True)
+            row.prop(level, "use_mesh", text="")
+            row.prop(level, "use_material", text="")
+
+        row = col.row(align=True)
+        row.operator("object.lod_add", text="Add", icon='ZOOMIN')
+        row.menu("OBJECT_MT_lod_tools", text="", icon='TRIA_DOWN')
 
 
 if __name__ == "__main__":  # only for live edit.

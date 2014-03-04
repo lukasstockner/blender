@@ -35,23 +35,23 @@ class PhysicButtonsPanel():
 
 
 def physics_add(self, layout, md, name, type, typeicon, toggles):
-    sub = layout.row(align=True)
+    row = layout.row(align=True)
     if md:
-        sub.context_pointer_set("modifier", md)
-        sub.operator("object.modifier_remove", text=name, text_ctxt=i18n_contexts.default, icon='X')
+        row.context_pointer_set("modifier", md)
+        row.operator("object.modifier_remove", text=name, text_ctxt=i18n_contexts.default, icon='X')
         if toggles:
-            sub.prop(md, "show_render", text="")
-            sub.prop(md, "show_viewport", text="")
+            row.prop(md, "show_render", text="")
+            row.prop(md, "show_viewport", text="")
     else:
-        sub.operator("object.modifier_add", text=name, text_ctxt=i18n_contexts.default, icon=typeicon).type = type
+        row.operator("object.modifier_add", text=name, text_ctxt=i18n_contexts.default, icon=typeicon).type = type
 
 
 def physics_add_special(self, layout, data, name, addop, removeop, typeicon):
-    sub = layout.row(align=True)
+    row = layout.row(align=True)
     if data:
-        sub.operator(removeop, text=name, text_ctxt=i18n_contexts.default, icon='X')
+        row.operator(removeop, text=name, text_ctxt=i18n_contexts.default, icon='X')
     else:
-        sub.operator(addop, text=name, text_ctxt=i18n_contexts.default, icon=typeicon)
+        row.operator(addop, text=name, text_ctxt=i18n_contexts.default, icon=typeicon)
 
 
 class PHYSICS_PT_add(PhysicButtonsPanel, Panel):
@@ -107,7 +107,7 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
     if not cachetype == 'RIGID_BODY':
         row = layout.row()
         row.template_list("UI_UL_list", "point_caches", cache, "point_caches",
-                          cache.point_caches, "active_index", rows=2)
+                          cache.point_caches, "active_index", rows=1)
         col = row.column(align=True)
         col.operator("ptcache.add", icon='ZOOMIN', text="")
         col.operator("ptcache.remove", icon='ZOOMOUT', text="")
@@ -122,14 +122,11 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
     if cache.use_external:
         split = layout.split(percentage=0.35)
         col = split.column()
-        col.label(text="File Name:")
-        if cache.use_external:
-            col.label(text="File Path:")
+        col.label(text="Index Number:")
+        col.label(text="File Path:")
 
         col = split.column()
-        sub = col.split(percentage=0.70, align=True)
-        sub.prop(cache, "name", text="")
-        sub.prop(cache, "index", text="")
+        col.prop(cache, "index", text="")
         col.prop(cache, "filepath", text="")
 
         cache_info = cache.info
@@ -140,11 +137,6 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
             if not bpy.data.is_saved:
                 layout.label(text="Cache is disabled until the file is saved")
                 layout.enabled = False
-
-        if cache.use_disk_cache:
-            layout.prop(cache, "name", text="File Name")
-        else:
-            layout.prop(cache, "name", text="Cache Name")
 
     if not cache.use_external or cachetype == 'SMOKE':
         row = layout.row(align=True)
@@ -158,6 +150,8 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
 
         if cachetype != 'SMOKE':
             layout.label(text=cache.info)
+
+        can_bake = True
 
         if cachetype not in {'SMOKE', 'DYNAMIC_PAINT', 'RIGID_BODY'}:
             split = layout.split()
@@ -176,9 +170,18 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
             row.label(text="Compression:")
             row.prop(cache, "compression", expand=True)
 
-        layout.separator()
+            layout.separator()
+
+            if cache.id_data.library and not cache.use_disk_cache:
+                can_bake = False
+
+                col = layout.column(align=True)
+                col.label(text="Linked object baking requires Disk Cache to be enabled", icon='INFO')
+        else:
+            layout.separator()
 
         split = layout.split()
+        split.active = can_bake
 
         col = split.column()
 
@@ -301,14 +304,14 @@ def basic_force_field_falloff_ui(self, context, field):
     col = split.column()
     row = col.row(align=True)
     row.prop(field, "use_min_distance", text="")
-    sub = row.row()
+    sub = row.row(align=True)
     sub.active = field.use_min_distance
     sub.prop(field, "distance_min", text="Minimum")
 
     col = split.column()
     row = col.row(align=True)
     row.prop(field, "use_max_distance", text="")
-    sub = row.row()
+    sub = row.row(align=True)
     sub.active = field.use_max_distance
     sub.prop(field, "distance_max", text="Maximum")
 

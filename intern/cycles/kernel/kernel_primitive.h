@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifndef __KERNEL_ATTRIBUTE_CL__
@@ -23,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 
 /* attribute lookup */
 
-__device_inline int find_attribute(KernelGlobals *kg, ShaderData *sd, uint id, AttributeElement *elem)
+ccl_device_inline int find_attribute(KernelGlobals *kg, ShaderData *sd, uint id, AttributeElement *elem)
 {
 	if(sd->object == ~0)
 		return (int)ATTR_STD_NOT_FOUND;
@@ -49,12 +47,15 @@ __device_inline int find_attribute(KernelGlobals *kg, ShaderData *sd, uint id, A
 
 		*elem = (AttributeElement)attr_map.y;
 		
+		if(sd->prim == ~0 && (AttributeElement)attr_map.y != ATTR_ELEMENT_MESH)
+			return ATTR_STD_NOT_FOUND;
+
 		/* return result */
 		return (attr_map.y == ATTR_ELEMENT_NONE) ? (int)ATTR_STD_NOT_FOUND : (int)attr_map.z;
 	}
 }
 
-__device float primitive_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
+ccl_device float primitive_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
 {
 #ifdef __HAIR__
 	if(sd->segment == ~0)
@@ -66,7 +67,7 @@ __device float primitive_attribute_float(KernelGlobals *kg, const ShaderData *sd
 #endif
 }
 
-__device float3 primitive_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
+ccl_device float3 primitive_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
 {
 #ifdef __HAIR__
 	if(sd->segment == ~0)
@@ -78,7 +79,19 @@ __device float3 primitive_attribute_float3(KernelGlobals *kg, const ShaderData *
 #endif
 }
 
-__device float3 primitive_uv(KernelGlobals *kg, ShaderData *sd)
+ccl_device Transform primitive_attribute_matrix(KernelGlobals *kg, const ShaderData *sd, int offset)
+{
+	Transform tfm;
+
+	tfm.x = kernel_tex_fetch(__attributes_float3, offset + 0);
+	tfm.y = kernel_tex_fetch(__attributes_float3, offset + 1);
+	tfm.z = kernel_tex_fetch(__attributes_float3, offset + 2);
+	tfm.w = kernel_tex_fetch(__attributes_float3, offset + 3);
+
+	return tfm;
+}
+
+ccl_device float3 primitive_uv(KernelGlobals *kg, ShaderData *sd)
 {
 	AttributeElement elem_uv;
 	int offset_uv = find_attribute(kg, sd, ATTR_STD_UV, &elem_uv);
@@ -91,11 +104,34 @@ __device float3 primitive_uv(KernelGlobals *kg, ShaderData *sd)
 	return uv;
 }
 
-__device float3 primitive_tangent(KernelGlobals *kg, ShaderData *sd)
+ccl_device bool primitive_ptex(KernelGlobals *kg, ShaderData *sd, float2 *uv, int *face_id)
+{
+	/* storing ptex data as attributes is not memory efficient but simple for tests */
+	AttributeElement elem_face_id, elem_uv;
+	int offset_face_id = find_attribute(kg, sd, ATTR_STD_PTEX_FACE_ID, &elem_face_id);
+	int offset_uv = find_attribute(kg, sd, ATTR_STD_PTEX_UV, &elem_uv);
+
+	if(offset_face_id == ATTR_STD_NOT_FOUND || offset_uv == ATTR_STD_NOT_FOUND)
+		return false;
+
+	float3 uv3 = primitive_attribute_float3(kg, sd, elem_uv, offset_uv, NULL, NULL);
+	float face_id_f = primitive_attribute_float(kg, sd, elem_face_id, offset_face_id, NULL, NULL);
+
+	*uv = make_float2(uv3.x, uv3.y);
+	*face_id = (int)face_id_f;
+
+	return true;
+}
+
+ccl_device float3 primitive_tangent(KernelGlobals *kg, ShaderData *sd)
 {
 #ifdef __HAIR__
 	if(sd->segment != ~0)
+#ifdef __DPDU__
 		return normalize(sd->dPdu);
+#else
+		return make_float3(0.0f, 0.0f, 0.0f);
+#endif
 #endif
 
 	/* try to create spherical tangent from generated coordinates */
@@ -110,13 +146,17 @@ __device float3 primitive_tangent(KernelGlobals *kg, ShaderData *sd)
 	}
 	else {
 		/* otherwise use surface derivatives */
+#ifdef __DPDU__
 		return normalize(sd->dPdu);
+#else
+		return make_float3(0.0f, 0.0f, 0.0f);
+#endif
 	}
 }
 
 /* motion */
 
-__device float4 primitive_motion_vector(KernelGlobals *kg, ShaderData *sd)
+ccl_device float4 primitive_motion_vector(KernelGlobals *kg, ShaderData *sd)
 {
 	float3 motion_pre = sd->P, motion_post = sd->P;
 

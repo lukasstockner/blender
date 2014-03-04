@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifndef __ATTRIBUTE_H__
@@ -33,6 +31,7 @@ class AttributeSet;
 class AttributeRequest;
 class AttributeRequestSet;
 class Mesh;
+struct Transform;
 
 /* Attribute
  *
@@ -59,13 +58,16 @@ public:
 	char *data() { return (buffer.size())? &buffer[0]: NULL; };
 	float3 *data_float3() { return (float3*)data(); }
 	float *data_float() { return (float*)data(); }
+	Transform *data_transform() { return (Transform*)data(); }
 
 	const char *data() const { return (buffer.size())? &buffer[0]: NULL; }
 	const float3 *data_float3() const { return (const float3*)data(); }
 	const float *data_float() const { return (const float*)data(); }
+	const Transform *data_transform() const { return (const Transform*)data(); }
 
 	void add(const float& f);
 	void add(const float3& f);
+	void add(const Transform& f);
 
 	static bool same_storage(TypeDesc a, TypeDesc b);
 	static const char *standard_name(AttributeStandard std);

@@ -51,7 +51,7 @@ def paths():
     return addon_paths
 
 
-def modules(module_cache):
+def modules_refresh(module_cache=addons_fake_modules):
     global error_duplicates
     global error_encoding
     import os
@@ -129,7 +129,7 @@ def modules(module_cache):
                 mod.__file__ = mod_path
                 mod.__time__ = os.path.getmtime(mod_path)
             except:
-                print("AST error in module %s" % mod_name)
+                print("AST error parsing bl_info for %s" % mod_name)
                 import traceback
                 traceback.print_exc()
                 raise
@@ -183,6 +183,11 @@ def modules(module_cache):
     for mod_stale in modules_stale:
         del module_cache[mod_stale]
     del modules_stale
+
+
+def modules(module_cache=addons_fake_modules, refresh=True):
+    if refresh:
+        modules_refresh(module_cache)
 
     mod_list = list(module_cache.values())
     mod_list.sort(key=lambda mod: (mod.bl_info["category"],
@@ -239,7 +244,7 @@ def _addon_remove(module_name):
             addons.remove(addon)
 
 
-def enable(module_name, default_set=True, persistent=False):
+def enable(module_name, default_set=True, persistent=False, handle_error=None):
     """
     Enables an addon by name.
 
@@ -253,9 +258,10 @@ def enable(module_name, default_set=True, persistent=False):
     import sys
     from bpy_restrict_state import RestrictBlend
 
-    def handle_error():
-        import traceback
-        traceback.print_exc()
+    if handle_error is None:
+        def handle_error():
+            import traceback
+            traceback.print_exc()
 
     # reload if the mtime changes
     mod = sys.modules.get(module_name)
@@ -322,7 +328,7 @@ def enable(module_name, default_set=True, persistent=False):
     return mod
 
 
-def disable(module_name, default_set=True):
+def disable(module_name, default_set=True, handle_error=None):
     """
     Disables an addon by name.
 
@@ -330,6 +336,12 @@ def disable(module_name, default_set=True):
     :type module_name: string
     """
     import sys
+
+    if handle_error is None:
+        def handle_error():
+            import traceback
+            traceback.print_exc()
+
     mod = sys.modules.get(module_name)
 
     # possible this addon is from a previous session and didn't load a
@@ -344,8 +356,7 @@ def disable(module_name, default_set=True):
         except:
             print("Exception in module unregister(): %r" %
                   getattr(mod, "__file__", module_name))
-            import traceback
-            traceback.print_exc()
+            handle_error()
     else:
         print("addon_utils.disable: %s not %s." %
               (module_name, "disabled" if mod is None else "loaded"))
@@ -363,7 +374,9 @@ def reset_all(reload_scripts=False):
     Sets the addon state based on the user preferences.
     """
     import sys
-    import imp
+
+    # initializes addons_fake_modules
+    modules_refresh()
 
     # RELEASE SCRIPTS: official scripts distributed in Blender releases
     paths_list = paths()
@@ -375,6 +388,7 @@ def reset_all(reload_scripts=False):
 
             # first check if reload is needed before changing state.
             if reload_scripts:
+                import imp
                 mod = sys.modules.get(mod_name)
                 if mod:
                     imp.reload(mod)
@@ -395,7 +409,6 @@ def module_bl_info(mod, info_basis={"name": "",
                                     "location": "",
                                     "description": "",
                                     "wiki_url": "",
-                                    "tracker_url": "",
                                     "support": 'COMMUNITY',
                                     "category": "",
                                     "warning": "",

@@ -44,6 +44,7 @@
 #include "DNA_object_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_math.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_library.h"
@@ -63,8 +64,7 @@ void free_sensors(ListBase *lb)
 {
 	bSensor *sens;
 	
-	while ((sens= lb->first)) {
-		BLI_remlink(lb, sens);
+	while ((sens = BLI_pophead(lb))) {
 		free_sensor(sens);
 	}
 }
@@ -112,9 +112,6 @@ void init_sensor(bSensor *sens)
 	switch (sens->type) {
 	case SENS_ALWAYS:
 		sens->pulse = 0;
-		break;
-	case SENS_TOUCH:
-		sens->data= MEM_callocN(sizeof(bTouchSensor), "touchsens");
 		break;
 	case SENS_NEAR:
 		ns=sens->data= MEM_callocN(sizeof(bNearSensor), "nearsens");
@@ -227,9 +224,9 @@ void free_controllers(ListBase *lb)
 {
 	bController *cont;
 	
-	while ((cont= lb->first)) {
-		BLI_remlink(lb, cont);
-		if (cont->slinks) MEM_freeN(cont->slinks);
+	while ((cont = BLI_pophead(lb))) {
+		if (cont->slinks)
+			MEM_freeN(cont->slinks);
 		free_controller(cont);
 	}
 }
@@ -346,8 +343,7 @@ void free_actuators(ListBase *lb)
 {
 	bActuator *act;
 	
-	while ((act= lb->first)) {
-		BLI_remlink(lb, act);
+	while ((act = BLI_pophead(lb))) {
 		free_actuator(act);
 	}
 }
@@ -410,8 +406,8 @@ void init_actuator(bActuator *act)
 		sa->sound3D.rolloff_factor = 1.0f;
 		sa->sound3D.reference_distance = 1.0f;
 		sa->sound3D.max_gain = 1.0f;
-		sa->sound3D.cone_inner_angle = 360.0f;
-		sa->sound3D.cone_outer_angle = 360.0f;
+		sa->sound3D.cone_inner_angle = DEG2RADF(360.0f);
+		sa->sound3D.cone_outer_angle = DEG2RADF(360.0f);
 		sa->sound3D.max_distance = FLT_MAX;
 		break;
 	case ACT_OBJECT:

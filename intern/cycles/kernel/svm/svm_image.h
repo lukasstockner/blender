@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 CCL_NAMESPACE_BEGIN
@@ -23,14 +21,14 @@ CCL_NAMESPACE_BEGIN
 /* For OpenCL all images are packed in a single array, and we do manual lookup
  * and interpolation. */
 
-__device_inline float4 svm_image_texture_read(KernelGlobals *kg, int offset)
+ccl_device_inline float4 svm_image_texture_read(KernelGlobals *kg, int offset)
 {
 	uchar4 r = kernel_tex_fetch(__tex_image_packed, offset);
 	float f = 1.0f/255.0f;
 	return make_float4(r.x*f, r.y*f, r.z*f, r.w*f);
 }
 
-__device_inline int svm_image_texture_wrap_periodic(int x, int width)
+ccl_device_inline int svm_image_texture_wrap_periodic(int x, int width)
 {
 	x %= width;
 	if(x < 0)
@@ -38,19 +36,19 @@ __device_inline int svm_image_texture_wrap_periodic(int x, int width)
 	return x;
 }
 
-__device_inline int svm_image_texture_wrap_clamp(int x, int width)
+ccl_device_inline int svm_image_texture_wrap_clamp(int x, int width)
 {
 	return clamp(x, 0, width-1);
 }
 
-__device_inline float svm_image_texture_frac(float x, int *ix)
+ccl_device_inline float svm_image_texture_frac(float x, int *ix)
 {
 	int i = float_to_int(x) - ((x < 0.0f)? 1: 0);
 	*ix = i;
 	return x - (float)i;
 }
 
-__device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
+ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
 {
 	/* first slots are used by float textures, which are not supported here */
 	if(id < TEX_NUM_FLOAT_IMAGES)
@@ -112,13 +110,19 @@ __device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, u
 
 #else
 
-__device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
+ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
 {
-	float4 r;
-
 #ifdef __KERNEL_CPU__
+#ifdef __KERNEL_SSE2__
+	__m128 r_m128;
+	float4 &r = (float4 &)r_m128;
 	r = kernel_tex_image_interp(id, x, y);
 #else
+	float4 r = kernel_tex_image_interp(id, x, y);
+#endif
+#else
+	float4 r;
+
 	/* not particularly proud of this massive switch, what are the
 	 * alternatives?
 	 * - use a single big 1D texture, and do our own lookup/filtering
@@ -235,6 +239,21 @@ __device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, u
 	}
 #endif
 
+#ifdef __KERNEL_SSE2__
+	float alpha = r.w;
+
+	if(use_alpha && alpha != 1.0f && alpha != 0.0f) {
+		r_m128 = _mm_div_ps(r_m128, _mm_set1_ps(alpha));
+		if(id >= TEX_NUM_FLOAT_IMAGES)
+			r_m128 = _mm_min_ps(r_m128, _mm_set1_ps(1.0f));
+		r.w = alpha;
+	}
+
+	if(srgb) {
+		r_m128 = color_srgb_to_scene_linear(r_m128);
+		r.w = alpha;
+	}
+#else
 	if(use_alpha && r.w != 1.0f && r.w != 0.0f) {
 		float invw = 1.0f/r.w;
 		r.x *= invw;
@@ -253,13 +272,14 @@ __device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, u
 		r.y = color_srgb_to_scene_linear(r.y);
 		r.z = color_srgb_to_scene_linear(r.z);
 	}
+#endif
 
 	return r;
 }
 
 #endif
 
-__device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint id = node.y;
 	uint co_offset, out_offset, alpha_offset, srgb;
@@ -276,7 +296,7 @@ __device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *stack
 		stack_store_float(stack, alpha_offset, f.w);
 }
 
-__device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	/* get object space normal */
 	float3 N = sd->N;
@@ -365,7 +385,7 @@ __device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float *s
 }
 
 
-__device void svm_node_tex_environment(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_environment(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint id = node.y;
 	uint co_offset, out_offset, alpha_offset, srgb;

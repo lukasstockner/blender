@@ -33,6 +33,9 @@
 #define __CURVE_INTERN_H__
 
 /* internal exports only */
+struct ListBase;
+struct EditNurb;
+struct Object;
 struct wmOperatorType;
 
 /* lorem.c */
@@ -53,10 +56,13 @@ void FONT_OT_case_set(struct wmOperatorType *ot);
 void FONT_OT_style_toggle(struct wmOperatorType *ot);
 void FONT_OT_style_set(struct wmOperatorType *ot);
 
+void FONT_OT_select_all(struct wmOperatorType *ot);
+
 void FONT_OT_text_copy(struct wmOperatorType *ot);
 void FONT_OT_text_cut(struct wmOperatorType *ot);
 void FONT_OT_text_paste(struct wmOperatorType *ot);
-void FONT_OT_file_paste(struct wmOperatorType *ot);
+void FONT_OT_text_paste_from_file(struct wmOperatorType *ot);
+void FONT_OT_text_paste_from_clipboard(struct wmOperatorType *ot);
 
 void FONT_OT_move(struct wmOperatorType *ot);
 void FONT_OT_move_select(struct wmOperatorType *ot);
@@ -71,11 +77,13 @@ void FONT_OT_unlink(struct wmOperatorType *ot);
 void FONT_OT_textbox_add(struct wmOperatorType *ot);
 void FONT_OT_textbox_remove(struct wmOperatorType *ot);
 
+
 /* editcurve.c */
 void CURVE_OT_hide(struct wmOperatorType *ot);
 void CURVE_OT_reveal(struct wmOperatorType *ot);
 
 void CURVE_OT_separate(struct wmOperatorType *ot);
+void CURVE_OT_split(struct wmOperatorType *ot);
 void CURVE_OT_duplicate(struct wmOperatorType *ot);
 void CURVE_OT_delete(struct wmOperatorType *ot);
 
@@ -83,25 +91,15 @@ void CURVE_OT_spline_type_set(struct wmOperatorType *ot);
 void CURVE_OT_radius_set(struct wmOperatorType *ot);
 void CURVE_OT_spline_weight_set(struct wmOperatorType *ot);
 void CURVE_OT_handle_type_set(struct wmOperatorType *ot);
+void CURVE_OT_normals_make_consistent(struct wmOperatorType *ot);
 void CURVE_OT_shade_smooth(struct wmOperatorType *ot);
 void CURVE_OT_shade_flat(struct wmOperatorType *ot);
 void CURVE_OT_tilt_clear(struct wmOperatorType *ot);
 
 void CURVE_OT_smooth(struct wmOperatorType *ot);
+void CURVE_OT_smooth_weight(struct wmOperatorType *ot);
 void CURVE_OT_smooth_radius(struct wmOperatorType *ot);
-
-void CURVE_OT_primitive_bezier_curve_add(struct wmOperatorType *ot);
-void CURVE_OT_primitive_bezier_circle_add(struct wmOperatorType *ot);
-void CURVE_OT_primitive_nurbs_curve_add(struct wmOperatorType *ot);
-void CURVE_OT_primitive_nurbs_circle_add(struct wmOperatorType *ot);
-void CURVE_OT_primitive_nurbs_path_add(struct wmOperatorType *ot);
-
-void SURFACE_OT_primitive_nurbs_surface_curve_add(struct wmOperatorType *ot);
-void SURFACE_OT_primitive_nurbs_surface_circle_add(struct wmOperatorType *ot);
-void SURFACE_OT_primitive_nurbs_surface_surface_add(struct wmOperatorType *ot);
-void SURFACE_OT_primitive_nurbs_surface_cylinder_add(struct wmOperatorType *ot);
-void SURFACE_OT_primitive_nurbs_surface_sphere_add(struct wmOperatorType *ot);
-void SURFACE_OT_primitive_nurbs_surface_torus_add(struct wmOperatorType *ot);
+void CURVE_OT_smooth_tilt(struct wmOperatorType *ot);
 
 void CURVE_OT_de_select_first(struct wmOperatorType *ot);
 void CURVE_OT_de_select_last(struct wmOperatorType *ot);
@@ -124,5 +122,26 @@ void CURVE_OT_vertex_add(struct wmOperatorType *ot);
 void CURVE_OT_extrude(struct wmOperatorType *ot);
 void CURVE_OT_cyclic_toggle(struct wmOperatorType *ot);
 
-#endif /* ED_UTIL_INTERN_H */
+void CURVE_OT_match_texture_space(struct wmOperatorType *ot);
 
+/* helper functions */
+void ed_editnurb_translate_flag(struct ListBase *editnurb, short flag, const float vec[3]);
+bool ed_editnurb_extrude_flag(struct EditNurb *editnurb, short flag);
+bool ed_editnurb_spin(float viewmat[4][4], struct Object *obedit, const float axis[3], const float cent[3]);
+
+
+/* editcurve_add.c */
+void CURVE_OT_primitive_bezier_curve_add(struct wmOperatorType *ot);
+void CURVE_OT_primitive_bezier_circle_add(struct wmOperatorType *ot);
+void CURVE_OT_primitive_nurbs_curve_add(struct wmOperatorType *ot);
+void CURVE_OT_primitive_nurbs_circle_add(struct wmOperatorType *ot);
+void CURVE_OT_primitive_nurbs_path_add(struct wmOperatorType *ot);
+
+void SURFACE_OT_primitive_nurbs_surface_curve_add(struct wmOperatorType *ot);
+void SURFACE_OT_primitive_nurbs_surface_circle_add(struct wmOperatorType *ot);
+void SURFACE_OT_primitive_nurbs_surface_surface_add(struct wmOperatorType *ot);
+void SURFACE_OT_primitive_nurbs_surface_cylinder_add(struct wmOperatorType *ot);
+void SURFACE_OT_primitive_nurbs_surface_sphere_add(struct wmOperatorType *ot);
+void SURFACE_OT_primitive_nurbs_surface_torus_add(struct wmOperatorType *ot);
+
+#endif /* __CURVE_INTERN_H__ */

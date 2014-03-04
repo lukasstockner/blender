@@ -144,6 +144,44 @@ bool MotionFromEssentialAndCorrespondence(const Mat3 &E,
  */
 void FundamentalToEssential(const Mat3 &F, Mat3 *E);
 
+/**
+ * This structure contains options that controls how the fundamental
+ * estimation operates.
+ *
+ * Defaults should be suitable for a wide range of use cases, but
+ * better performance and accuracy might require tweaking/
+ */
+struct EstimateFundamentalOptions {
+  // Default constructor which sets up a options for generic usage.
+  EstimateFundamentalOptions(void);
+
+  // Maximal number of iterations for refinement step.
+  int max_num_iterations;
+
+  // Expected average of symmetric epipolar distance between
+  // actual destination points and original ones transformed by
+  // estimated fundamental matrix.
+  //
+  // Refinement will finish as soon as average of symmetric
+  // epipolar distance is less or equal to this value.
+  //
+  // This distance is measured in the same units as input points are.
+  double expected_average_symmetric_distance;
+};
+
+/**
+ * Fundamental transformation estimation.
+ *
+ * This function estimates the fundamental transformation from a list of 2D
+ * correspondences by doing algebraic estimation first followed with result
+ * refinement.
+ */
+bool EstimateFundamentalFromCorrespondences(
+    const Mat &x1,
+    const Mat &x2,
+    const EstimateFundamentalOptions &options,
+    Mat3 *F);
+
 }  // namespace libmv
 
 #endif  // LIBMV_MULTIVIEW_FUNDAMENTAL_H_

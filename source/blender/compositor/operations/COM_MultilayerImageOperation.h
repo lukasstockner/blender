@@ -37,32 +37,32 @@ public:
 	/**
 	 * Constructor
 	 */
-	MultilayerBaseOperation(int pass);
+	MultilayerBaseOperation(int passindex);
 	void setRenderLayer(RenderLayer *renderlayer) { this->m_renderlayer = renderlayer; }
 };
 
 class MultilayerColorOperation : public MultilayerBaseOperation {
 public:
-	MultilayerColorOperation(int pass) : MultilayerBaseOperation(pass) {
+	MultilayerColorOperation(int passindex) : MultilayerBaseOperation(passindex) {
 		this->addOutputSocket(COM_DT_COLOR);
 	}
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 
 class MultilayerValueOperation : public MultilayerBaseOperation {
 public:
-	MultilayerValueOperation(int pass) : MultilayerBaseOperation(pass) {
+	MultilayerValueOperation(int passindex) : MultilayerBaseOperation(passindex) {
 		this->addOutputSocket(COM_DT_VALUE);
 	}
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 
 class MultilayerVectorOperation : public MultilayerBaseOperation {
 public:
-	MultilayerVectorOperation(int pass) : MultilayerBaseOperation(pass) {
+	MultilayerVectorOperation(int passindex) : MultilayerBaseOperation(passindex) {
 		this->addOutputSocket(COM_DT_VECTOR);
 	}
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 
 #endif

@@ -41,6 +41,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_math_color_blend.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -57,12 +58,15 @@
 
 #include "BIF_glutil.h"
 
+#include "BLF_api.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
 #include "ED_screen.h"
 
 #include "UI_interface.h"
+#include "UI_interface_icons.h"
 #include "UI_resources.h"
 
 #include "interface_intern.h"
@@ -78,6 +82,9 @@
 #define PNL_ANIM_ALIGN      8
 #define PNL_NEW_ADDED       16
 #define PNL_FIRST           32
+
+/* only show pin header button for pinned panels */
+#define USE_PIN_HIDDEN
 
 typedef enum uiHandlePanelState {
 	PANEL_STATE_DRAG,
@@ -177,9 +184,12 @@ static void panels_collapse_all(ScrArea *sa, ARegion *ar, Panel *from_pa)
 		from_pt = from_pa->type;
 
 		/* close panels with headers in the same context */
-		if (pt && from_pt && !(pt->flag & PNL_NO_HEADER))
-			if (!pt->context[0] || strcmp(pt->context, from_pt->context) == 0)
-				pa->flag = flag;
+		if (pt && from_pt && !(pt->flag & PNL_NO_HEADER)) {
+			if (!pt->context[0] || strcmp(pt->context, from_pt->context) == 0) {
+				pa->flag &= ~PNL_CLOSED;
+				pa->flag |= flag;
+			}
+		}
 	}
 }
 
@@ -192,23 +202,36 @@ static void ui_panel_copy_offset(Panel *pa, Panel *papar)
 	pa->ofsy = papar->ofsy + papar->sizey - pa->sizey;
 }
 
-Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, int *open)
+Panel *uiPanelFindByType(ARegion *ar, PanelType *pt)
 {
-	Panel *pa, *patab, *palast, *panext;
+	Panel *pa;
+
+	const char *idname = pt->idname;
+	const char *tabname = pt->idname;
+
+	for (pa = ar->panels.first; pa; pa = pa->next) {
+		if (STREQLEN(pa->panelname, idname, UI_MAX_NAME_STR)) {
+			if (STREQLEN(pa->tabname, tabname, UI_MAX_NAME_STR)) {
+				return pa;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+/**
+ * \note \a pa should be return value from #uiPanelFindByType and can be NULL.
+ */
+Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Panel *pa, bool *r_open)
+{
+	Panel *patab, *palast, *panext;
 	const char *drawname = CTX_IFACE_(pt->translation_context, pt->label);
 	char *idname = pt->idname;
 	char *tabname = pt->idname;
 	char *hookname = NULL;
-	int newpanel;
+	const bool newpanel = (pa == NULL);
 	int align = panel_aligned(sa, ar);
-	
-	/* check if Panel exists, then use that one */
-	for (pa = ar->panels.first; pa; pa = pa->next)
-		if (strncmp(pa->panelname, idname, UI_MAX_NAME_STR) == 0)
-			if (strncmp(pa->tabname, tabname, UI_MAX_NAME_STR) == 0)
-				break;
-	
-	newpanel = (pa == NULL);
 
 	if (!newpanel) {
 		pa->type = pt;
@@ -259,7 +282,7 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, int
 		pa->sizey = 0;
 	}
 
-	BLI_strncpy(pa->drawname, drawname, UI_MAX_NAME_STR);
+	BLI_strncpy(pa->drawname, drawname, sizeof(pa->drawname));
 
 	/* if a new panel is added, we insert it right after the panel
 	 * that was last added. this way new panels are inserted in the
@@ -283,12 +306,12 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, int
 	block->panel = pa;
 	pa->runtime_flag |= PNL_ACTIVE | PNL_LAST_ADDED;
 
-	*open = 0;
+	*r_open = false;
 
 	if (pa->paneltab) return pa;
 	if (pa->flag & PNL_CLOSED) return pa;
 
-	*open = 1;
+	*r_open = true;
 	
 	return pa;
 }
@@ -424,7 +447,7 @@ static void ui_draw_x_icon(float x, float y)
 
 #define PNL_ICON    UI_UNIT_X  /* could be UI_UNIT_Y too */
 
-static void ui_draw_panel_scalewidget(rcti *rect)
+static void ui_draw_panel_scalewidget(const rcti *rect)
 {
 	float xmin, xmax, dx;
 	float ymin, ymax, dy;
@@ -491,7 +514,7 @@ static void ui_draw_panel_dragwidget(const rctf *rect)
 }
 
 
-static void ui_draw_aligned_panel_header(uiStyle *style, uiBlock *block, rcti *rect, char dir)
+static void ui_draw_aligned_panel_header(uiStyle *style, uiBlock *block, const rcti *rect, char dir)
 {
 	Panel *panel = block->panel;
 	rcti hrect;
@@ -499,8 +522,10 @@ static void ui_draw_aligned_panel_header(uiStyle *style, uiBlock *block, rcti *r
 	const char *activename = panel->drawname[0] ? panel->drawname : panel->panelname;
 
 	/* + 0.001f to avoid flirting with float inaccuracy */
-	if (panel->control & UI_PNL_CLOSE) pnl_icons = (panel->labelofs + 2 * PNL_ICON + 5) / block->aspect + 0.001f;
-	else pnl_icons = (panel->labelofs + PNL_ICON + 5) / block->aspect + 0.001f;
+	if (panel->control & UI_PNL_CLOSE)
+		pnl_icons = (panel->labelofs + 2 * PNL_ICON + 5) / block->aspect + 0.001f;
+	else
+		pnl_icons = (panel->labelofs + PNL_ICON + 5) / block->aspect + 0.001f;
 	
 	/* active tab */
 	/* draw text label */
@@ -521,27 +546,14 @@ static void ui_draw_aligned_panel_header(uiStyle *style, uiBlock *block, rcti *r
 	}
 }
 
-static void rectf_scale(rctf *rect, const float scale)
-{
-	float centx = BLI_rctf_cent_x(rect);
-	float centy = BLI_rctf_cent_y(rect);
-	float sizex = BLI_rctf_size_x(rect) * 0.5f * scale;
-	float sizey = BLI_rctf_size_y(rect) * 0.5f * scale;
-	
-	rect->xmin = centx - sizex;
-	rect->xmax = centx + sizex;
-	rect->ymin = centy - sizey;
-	rect->ymax = centy + sizey;
-}
-
 /* panel integrated in buttonswindow, tool/property lists etc */
-void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
+void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, const bool show_pin)
 {
 	Panel *panel = block->panel;
 	rcti headrect;
 	rctf itemrect;
 	int ofsx;
-	
+
 	if (panel->paneltab) return;
 	if (panel->type && (panel->type->flag & PNL_NO_HEADER)) return;
 
@@ -550,14 +562,14 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 	headrect = *rect;
 	headrect.ymin = headrect.ymax;
 	headrect.ymax = headrect.ymin + floor(PNL_HEADER / block->aspect + 0.001f);
-	
+
 	{
 		float minx = rect->xmin;
 		float maxx = rect->xmax;
 		float y = headrect.ymax;
 
 		glEnable(GL_BLEND);
-		
+
 		if (UI_GetThemeValue(TH_PANEL_SHOW_HEADER)) {
 			/* draw with background color */
 			UI_ThemeColor4(TH_PANEL_HEADER);
@@ -594,6 +606,21 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 		glDisable(GL_BLEND);
 	}
 
+	/* draw optional pin icon */
+
+#ifdef USE_PIN_HIDDEN
+	if (show_pin && (block->panel->flag & PNL_PIN))
+#else
+	if (show_pin)
+#endif
+	{
+		glEnable(GL_BLEND);
+		UI_icon_draw_aspect(headrect.xmax - ((PNL_ICON * 2.2f) / block->aspect), headrect.ymin + (5.0f / block->aspect),
+		                    (panel->flag & PNL_PIN) ? ICON_PINNED : ICON_UNPINNED,
+		                    (block->aspect / UI_DPI_FAC), 1.0f);
+		glDisable(GL_BLEND);
+	}
+
 	/* horizontal title */
 	if (!(panel->flag & PNL_CLOSEDX)) {
 		ui_draw_aligned_panel_header(style, block, &headrect, 'h');
@@ -604,15 +631,14 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 		itemrect.ymin = headrect.ymin;
 		itemrect.ymax = headrect.ymax;
 
-		rectf_scale(&itemrect, 0.7f);
+		BLI_rctf_scale(&itemrect, 0.7f);
 		ui_draw_panel_dragwidget(&itemrect);
 	}
-	
+
 	/* if the panel is minimized vertically:
 	 * (------)
 	 */
 	if (panel->flag & PNL_CLOSEDY) {
-		
 	}
 	else if (panel->flag & PNL_CLOSEDX) {
 		/* draw vertical title */
@@ -620,16 +646,15 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 	}
 	/* an open panel */
 	else {
-		
 		/* in some occasions, draw a border */
 		if (panel->flag & PNL_SELECT) {
 			if (panel->control & UI_PNL_SOLID) uiSetRoundBox(UI_CNR_ALL);
 			else uiSetRoundBox(UI_CNR_NONE);
-			
+
 			UI_ThemeColorShade(TH_BACK, -120);
 			uiRoundRect(0.5f + rect->xmin, 0.5f + rect->ymin, 0.5f + rect->xmax, 0.5f + headrect.ymax + 1, 8);
 		}
-		
+
 		/* panel backdrop */
 		if (UI_GetThemeValue(TH_PANEL_SHOW_BACK)) {
 			/* draw with background color */
@@ -637,32 +662,31 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, rcti *rect)
 			UI_ThemeColor4(TH_PANEL_BACK);
 			gpuSingleFilledRecti(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 		}
-		
+
 		if (panel->control & UI_PNL_SCALE)
 			ui_draw_panel_scalewidget(rect);
 	}
-	
+
 	/* draw optional close icon */
-	
+
 	ofsx = 6;
 	if (panel->control & UI_PNL_CLOSE) {
-		
-		UI_ThemeColor(TH_TEXT);
+		UI_ThemeColor(TH_TITLE);
 		ui_draw_x_icon(rect->xmin + 2 + ofsx, rect->ymax + 2);
 		ofsx = 22;
 	}
-	
+
 	/* draw collapse icon */
-	UI_ThemeColor(TH_TEXT);
-	
+	UI_ThemeColor(TH_TITLE);
+
 	/* itemrect smaller */
 	itemrect.xmin = headrect.xmin + 5.0f / block->aspect;
 	itemrect.xmax = itemrect.xmin + BLI_rcti_size_y(&headrect);
 	itemrect.ymin = headrect.ymin;
 	itemrect.ymax = headrect.ymax;
-	
-	rectf_scale(&itemrect, 0.35f);
-	
+
+	BLI_rctf_scale(&itemrect, 0.35f);
+
 	if (panel->flag & PNL_CLOSEDY)
 		ui_draw_tria_rect(&itemrect, 'h');
 	else if (panel->flag & PNL_CLOSEDX)
@@ -759,12 +783,14 @@ static int compare_panel(const void *a1, const void *a2)
 
 /* this doesnt draw */
 /* returns 1 when it did something */
-static int uiAlignPanelStep(ScrArea *sa, ARegion *ar, float fac, int drag)
+static bool uiAlignPanelStep(ScrArea *sa, ARegion *ar, const float fac, const bool drag)
 {
 	Panel *pa;
 	PanelSort *ps, *panelsort, *psnext;
-	int a, tot = 0, done;
+	int a, tot = 0;
+	bool done;
 	int align = panel_aligned(sa, ar);
+	bool has_category_tabs = UI_panel_category_is_visible(ar);
 	
 	/* count active, not tabbed panels */
 	for (pa = ar->panels.first; pa; pa = pa->next)
@@ -814,6 +840,12 @@ static int uiAlignPanelStep(ScrArea *sa, ARegion *ar, float fac, int drag)
 	ps->pa->ofsx = 0;
 	ps->pa->ofsy = -get_panel_size_y(ps->pa);
 
+	if (has_category_tabs) {
+		if (align == BUT_VERTICAL) {
+			ps->pa->ofsx += UI_PANEL_CATEGORY_MARGIN_WIDTH;
+		}
+	}
+
 	for (a = 0; a < tot - 1; a++, ps++) {
 		psnext = ps + 1;
 
@@ -828,14 +860,14 @@ static int uiAlignPanelStep(ScrArea *sa, ARegion *ar, float fac, int drag)
 	}
 	
 	/* we interpolate */
-	done = FALSE;
+	done = false;
 	ps = panelsort;
 	for (a = 0; a < tot; a++, ps++) {
 		if ((ps->pa->flag & PNL_SELECT) == 0) {
 			if ((ps->orig->ofsx != ps->pa->ofsx) || (ps->orig->ofsy != ps->pa->ofsy)) {
-				ps->orig->ofsx = floorf(0.5f + fac * (float)ps->pa->ofsx + (1.0f - fac) * (float)ps->orig->ofsx);
-				ps->orig->ofsy = floorf(0.5f + fac * (float)ps->pa->ofsy + (1.0f - fac) * (float)ps->orig->ofsy);
-				done = TRUE;
+				ps->orig->ofsx = iroundf(fac * (float)ps->pa->ofsx + (1.0f - fac) * (float)ps->orig->ofsx);
+				ps->orig->ofsy = iroundf(fac * (float)ps->pa->ofsy + (1.0f - fac) * (float)ps->orig->ofsy);
+				done = true;
 			}
 		}
 	}
@@ -900,7 +932,7 @@ static void ui_do_animate(const bContext *C, Panel *panel)
 	fac = min_ff(sqrt(fac), 1.0f);
 
 	/* for max 1 second, interpolate positions */
-	if (uiAlignPanelStep(sa, ar, fac, 0)) {
+	if (uiAlignPanelStep(sa, ar, fac, false)) {
 		ED_region_tag_redraw(ar);
 	}
 	else {
@@ -970,7 +1002,7 @@ void uiEndPanels(const bContext *C, ARegion *ar, int *x, int *y)
 		if (pa)
 			panel_activate_state(C, pa, PANEL_STATE_ANIMATION);
 		else
-			uiAlignPanelStep(sa, ar, 1.0, 0);
+			uiAlignPanelStep(sa, ar, 1.0, false);
 	}
 
 	/* tag first panel */
@@ -1091,7 +1123,7 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 		panel->ofsy = data->startofsy + dy;
 		check_panel_overlap(ar, panel);
 		
-		if (align) uiAlignPanelStep(sa, ar, 0.2, 1);
+		if (align) uiAlignPanelStep(sa, ar, 0.2, true);
 	}
 
 	ED_region_tag_redraw(ar);
@@ -1102,12 +1134,31 @@ static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 
 /* this function is supposed to call general window drawing too */
 /* also it supposes a block has panel, and isn't a menu */
-static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, int my, int event, int ctrl)
+static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, int my, int event, short ctrl, short shift)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
 	Panel *pa;
+#ifdef USE_PIN_HIDDEN
+	const bool show_pin = UI_panel_category_is_visible(ar) && (block->panel->flag & PNL_PIN);
+#else
+	const bool show_pin = UI_panel_category_is_visible(ar);
+#endif
+
 	int align = panel_aligned(sa, ar), button = 0;
+
+	rctf rect_drag, rect_pin;
+	float rect_leftmost;
+
+
+	/* drag and pin rect's */
+	rect_drag = block->rect;
+	rect_drag.xmin = block->rect.xmax - (PNL_ICON * 1.5f);
+	rect_pin = rect_drag;
+	if (show_pin) {
+		BLI_rctf_translate(&rect_pin, -PNL_ICON, 0.0f);
+	}
+	rect_leftmost = rect_pin.xmin;
 
 	/* mouse coordinates in panel space! */
 	
@@ -1118,6 +1169,10 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 		button = 1;
 	else if (event == AKEY)
 		button = 1;
+	else if (ELEM3(event, 0, RETKEY, LEFTMOUSE) && shift) {
+		block->panel->flag ^= PNL_PIN;
+		button = 2;
+	}
 	else if (block->panel->flag & PNL_CLOSEDX) {
 		if (my >= block->rect.ymax) button = 1;
 	}
@@ -1126,7 +1181,7 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 		if (mx <= block->rect.xmax - 8 - PNL_ICON) button = 2;
 		//else if (mx <= block->rect.xmin + 10 + 2 * PNL_ICON + 2) button = 1;
 	}
-	else if (mx <= block->rect.xmax - PNL_ICON - 12) {
+	else if (mx < rect_leftmost) {
 		button = 1;
 	}
 	
@@ -1167,24 +1222,478 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 		else
 			ED_region_tag_redraw(ar);
 	}
-	else if (mx <= (block->rect.xmax - PNL_ICON - 12) + PNL_ICON + 2) {
+	else if (BLI_rctf_isect_x(&rect_drag, mx)) {
 		panel_activate_state(C, block->panel, PANEL_STATE_DRAG);
 	}
+	else if (show_pin && BLI_rctf_isect_x(&rect_pin, mx)) {
+		block->panel->flag ^= PNL_PIN;
+		ED_region_tag_redraw(ar);
+	}
+}
+
+bool UI_panel_category_is_visible(ARegion *ar)
+{
+	/* more then one */
+	return ar->panels_category.first && ar->panels_category.first != ar->panels_category.last;
+}
+
+PanelCategoryDyn *UI_panel_category_find(ARegion *ar, const char *idname)
+{
+	return BLI_findstring(&ar->panels_category, idname, offsetof(PanelCategoryDyn, idname));
+}
+
+PanelCategoryStack *UI_panel_category_active_find(ARegion *ar, const char *idname)
+{
+	return BLI_findstring(&ar->panels_category_active, idname, offsetof(PanelCategoryStack, idname));
+}
+
+const char *UI_panel_category_active_get(ARegion *ar, bool set_fallback)
+{
+	PanelCategoryStack *pc_act;
+
+	for (pc_act = ar->panels_category_active.first; pc_act; pc_act = pc_act->next) {
+		if (UI_panel_category_find(ar, pc_act->idname)) {
+			return pc_act->idname;
+		}
+	}
+
+	if (set_fallback) {
+		PanelCategoryDyn *pc_dyn = ar->panels_category.first;
+		if (pc_dyn) {
+			UI_panel_category_active_set(ar, pc_dyn->idname);
+			return pc_dyn->idname;
+		}
+	}
+
+	return NULL;
+}
+
+void UI_panel_category_active_set(ARegion *ar, const char *idname)
+{
+	ListBase *lb = &ar->panels_category_active;
+	PanelCategoryStack *pc_act = UI_panel_category_active_find(ar, idname);
+
+	if (pc_act) {
+		BLI_remlink(lb, pc_act);
+	}
+	else {
+		pc_act = MEM_callocN(sizeof(PanelCategoryStack), __func__);
+		BLI_strncpy(pc_act->idname, idname, sizeof(pc_act->idname));
+	}
+
+	BLI_addhead(lb, pc_act);
+
+
+	/* validate all active panels, we could do this on load,
+	 * they are harmless - but we should remove somewhere.
+	 * (addons could define own and gather cruft over time) */
+	{
+		PanelCategoryStack *pc_act_next;
+		/* intentionally skip first */
+		pc_act_next = pc_act->next;
+		while ((pc_act = pc_act_next)) {
+			pc_act_next = pc_act->next;
+			if (!BLI_findstring(&ar->type->paneltypes, pc_act->idname, offsetof(PanelType, category))) {
+				BLI_remlink(lb, pc_act);
+			}
+		}
+	}
+}
+
+PanelCategoryDyn *UI_panel_category_find_mouse_over_ex(ARegion *ar, const int x, const int y)
+{
+	PanelCategoryDyn *ptd;
+
+	for (ptd = ar->panels_category.first; ptd; ptd = ptd->next) {
+		if (BLI_rcti_isect_pt(&ptd->rect, x, y)) {
+			return ptd;
+		}
+	}
+
+	return NULL;
+}
+
+PanelCategoryDyn *UI_panel_category_find_mouse_over(ARegion *ar, const wmEvent *event)
+{
+	return UI_panel_category_find_mouse_over_ex(ar, event->mval[0], event->mval[1]);
+}
+
+
+void UI_panel_category_add(ARegion *ar, const char *name)
+{
+	PanelCategoryDyn *pc_dyn = MEM_callocN(sizeof(*pc_dyn), __func__);
+	BLI_addtail(&ar->panels_category, pc_dyn);
+
+	BLI_strncpy(pc_dyn->idname, name, sizeof(pc_dyn->idname));
+
+	/* 'pc_dyn->rect' must be set on draw */
+}
+
+void UI_panel_category_clear_all(ARegion *ar)
+{
+	BLI_freelistN(&ar->panels_category);
+}
+
+/* based on uiDrawBox, check on making a version which allows us to skip some sides */
+static void ui_panel_category_draw_tab(int mode, float minx, float miny, float maxx, float maxy, float rad,
+                                       int roundboxtype,
+                                       const bool use_highlight, const bool use_shadow,
+                                       const unsigned char highlight_fade[3])
+{
+	float vec[4][2] = {
+	    {0.195, 0.02},
+	    {0.55, 0.169},
+	    {0.831, 0.45},
+	    {0.98, 0.805}};
+	int a;
+
+	/* mult */
+	for (a = 0; a < 4; a++) {
+		mul_v2_fl(vec[a], rad);
+	}
+
+	(void)use_shadow;
+	(void)use_highlight;
+
+	glBegin(mode);
+
+	/* start with corner right-top */
+	if (use_highlight) {
+		if (roundboxtype & UI_CNR_TOP_RIGHT) {
+			glVertex2f(maxx, maxy - rad);
+			for (a = 0; a < 4; a++) {
+				glVertex2f(maxx - vec[a][1], maxy - rad + vec[a][0]);
+			}
+			glVertex2f(maxx - rad, maxy);
+		}
+		else {
+			glVertex2f(maxx, maxy);
+		}
+
+		/* corner left-top */
+		if (roundboxtype & UI_CNR_TOP_LEFT) {
+			glVertex2f(minx + rad, maxy);
+			for (a = 0; a < 4; a++) {
+				glVertex2f(minx + rad - vec[a][0], maxy - vec[a][1]);
+			}
+			glVertex2f(minx, maxy - rad);
+		}
+		else {
+			glVertex2f(minx, maxy);
+		}
+	}
+
+	if (use_highlight && !use_shadow) {
+		if (highlight_fade) {
+			glColor3ubv(highlight_fade);
+		}
+		glVertex2f(minx, miny + rad);
+		glEnd();
+		return;
+	}
+
+	/* corner left-bottom */
+	if (roundboxtype & UI_CNR_BOTTOM_LEFT) {
+		glVertex2f(minx, miny + rad);
+		for (a = 0; a < 4; a++) {
+			glVertex2f(minx + vec[a][1], miny + rad - vec[a][0]);
+		}
+		glVertex2f(minx + rad, miny);
+	}
+	else {
+		glVertex2f(minx, miny);
+	}
+
+	/* corner right-bottom */
+
+	if (roundboxtype & UI_CNR_BOTTOM_RIGHT) {
+		glVertex2f(maxx - rad, miny);
+		for (a = 0; a < 4; a++) {
+			glVertex2f(maxx - rad + vec[a][0], miny + vec[a][1]);
+		}
+		glVertex2f(maxx, miny + rad);
+	}
+	else {
+		glVertex2f(maxx, miny);
+	}
+
+	glEnd();
+}
+
+
+/**
+ * Draw vertical tabs on the left side of the region,
+ * one tab per category.
+ */
+void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
+{
+	/* no tab outlines for */
+// #define USE_FLAT_INACTIVE
+	View2D *v2d = &ar->v2d;
+	uiStyle *style = UI_GetStyle();
+	const uiFontStyle *fstyle = &style->widget;
+	const int fontid = fstyle->uifont_id;
+	short fstyle_points = fstyle->points;
+
+	PanelCategoryDyn *pc_dyn;
+	const float aspect = ((uiBlock *)ar->uiblocks.first)->aspect;
+	const float zoom = 1.0f / aspect;
+	const int px = max_ii(1, iroundf(U.pixelsize));
+	const int category_tabs_width = iroundf(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
+	const float dpi_fac = UI_DPI_FAC;
+	const int tab_v_pad_text = iroundf((2 + ((px * 3) * dpi_fac)) * zoom);  /* pading of tabs around text */
+	const int tab_v_pad = iroundf((4 + (2 * px * dpi_fac)) * zoom);  /* padding between tabs */
+	const float tab_curve_radius = ((px * 3) * dpi_fac) * zoom;
+	const int roundboxtype = UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT;
+	bool is_alpha;
+	bool do_scaletabs = false;
+#ifdef USE_FLAT_INACTIVE
+	bool is_active_prev = false;
+#endif
+	float scaletabs = 1.0f;
+	/* same for all tabs */
+	const int rct_xmin = v2d->mask.xmin + 3;  /* intentionally dont scale by 'px' */
+	const int rct_xmax = v2d->mask.xmin + category_tabs_width;
+	const int text_v_ofs = (rct_xmax - rct_xmin) * 0.3f;
+
+	int y_ofs = tab_v_pad;
+
+	/* Primary theme colors */
+	unsigned char theme_col_back[4];
+	unsigned char theme_col_text[3];
+	unsigned char theme_col_text_hi[3];
+
+	/* Tab colors */
+	unsigned char theme_col_tab_bg[4];
+	unsigned char theme_col_tab_active[3];
+	unsigned char theme_col_tab_inactive[3];
+
+	/* Secondary theme colors */
+	unsigned char theme_col_tab_outline[3];
+	unsigned char theme_col_tab_divider[3];  /* line that divides tabs from the main area */
+	unsigned char theme_col_tab_highlight[3];
+	unsigned char theme_col_tab_highlight_inactive[3];
+
+
+
+	UI_GetThemeColor4ubv(TH_BACK, theme_col_back);
+	UI_GetThemeColor3ubv(TH_TEXT, theme_col_text);
+	UI_GetThemeColor3ubv(TH_TEXT_HI, theme_col_text_hi);
+
+	UI_GetThemeColor4ubv(TH_TAB_BACK, theme_col_tab_bg);
+	UI_GetThemeColor3ubv(TH_TAB_ACTIVE, theme_col_tab_active);
+	UI_GetThemeColor3ubv(TH_TAB_INACTIVE, theme_col_tab_inactive);
+	UI_GetThemeColor3ubv(TH_TAB_OUTLINE, theme_col_tab_outline);
+
+	interp_v3_v3v3_uchar(theme_col_tab_divider, theme_col_back, theme_col_tab_outline, 0.3f);
+	interp_v3_v3v3_uchar(theme_col_tab_highlight, theme_col_back, theme_col_text_hi, 0.2f);
+	interp_v3_v3v3_uchar(theme_col_tab_highlight_inactive, theme_col_tab_inactive, theme_col_text_hi, 0.12f);
+
+	is_alpha = (ar->overlap && (theme_col_back[3] != 255));
+
+	if (fstyle->kerning == 1) {
+		BLF_enable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+	}
+
+	BLF_enable(fontid, BLF_ROTATION);
+	BLF_rotation(fontid, M_PI / 2);
+	//uiStyleFontSet(&style->widget);
+	ui_fontscale(&fstyle_points, aspect / (U.pixelsize * 1.1f));
+	BLF_size(fontid, fstyle_points, U.dpi);
+
+	BLF_enable(fontid, BLF_SHADOW);
+	BLF_shadow(fontid, 3, 1.0f, 1.0f, 1.0f, 0.25f);
+	BLF_shadow_offset(fontid, -1, -1);
+
+	BLI_assert(UI_panel_category_is_visible(ar));
+
+
+	/* calculate tab rect's and check if we need to scale down */
+	for (pc_dyn = ar->panels_category.first; pc_dyn; pc_dyn = pc_dyn->next) {
+		rcti *rct = &pc_dyn->rect;
+		const char *category_id = pc_dyn->idname;
+		const char *category_id_draw = IFACE_(category_id);
+		const int category_width = BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX);
+
+		rct->xmin = rct_xmin;
+		rct->xmax = rct_xmax;
+
+		rct->ymin = v2d->mask.ymax - (y_ofs + category_width + (tab_v_pad_text * 2));
+		rct->ymax = v2d->mask.ymax - (y_ofs);
+
+		y_ofs += category_width + tab_v_pad + (tab_v_pad_text * 2);
+	}
+
+	if (y_ofs > BLI_rcti_size_y(&v2d->mask)) {
+		scaletabs = (float)BLI_rcti_size_y(&v2d->mask) / (float)y_ofs;
+
+		for (pc_dyn = ar->panels_category.first; pc_dyn; pc_dyn = pc_dyn->next) {
+			rcti *rct = &pc_dyn->rect;
+			rct->ymin = ((rct->ymin - v2d->mask.ymax) * scaletabs) + v2d->mask.ymax;
+			rct->ymax = ((rct->ymax - v2d->mask.ymax) * scaletabs) + v2d->mask.ymax;
+		}
+
+		do_scaletabs = true;
+	}
+
+
+	/* begin drawing */
+	glEnable(GL_LINE_SMOOTH);
+
+	/* draw the background */
+	if (is_alpha) {
+		glEnable(GL_BLEND);
+		glColor4ubv(theme_col_tab_bg);
+	}
+	else {
+		glColor3ubv(theme_col_tab_bg);
+	}
+
+	glRecti(v2d->mask.xmin, v2d->mask.ymin, v2d->mask.xmin + category_tabs_width, v2d->mask.ymax);
+
+	if (is_alpha) {
+		glDisable(GL_BLEND);
+	}
+
+	for (pc_dyn = ar->panels_category.first; pc_dyn; pc_dyn = pc_dyn->next) {
+		const rcti *rct = &pc_dyn->rect;
+		const char *category_id = pc_dyn->idname;
+		const char *category_id_draw = IFACE_(category_id);
+		int category_width = BLI_rcti_size_y(rct) - (tab_v_pad_text * 2);
+		size_t category_draw_len = BLF_DRAW_STR_DUMMY_MAX;
+		// int category_width = BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX);
+
+		const bool is_active = STREQ(category_id, category_id_active);
+
+		glEnable(GL_BLEND);
+
+#ifdef USE_FLAT_INACTIVE
+		if (is_active)
+#endif
+		{
+			glColor3ubv(is_active ? theme_col_tab_active : theme_col_tab_inactive);
+			ui_panel_category_draw_tab(GL_POLYGON, rct->xmin, rct->ymin, rct->xmax, rct->ymax,
+			                           tab_curve_radius - px, roundboxtype, true, true, NULL);
+
+			/* tab outline */
+			glColor3ubv(theme_col_tab_outline);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			ui_panel_category_draw_tab(GL_LINE_STRIP, rct->xmin - px, rct->ymin - px, rct->xmax - px, rct->ymax + px,
+			                           tab_curve_radius, roundboxtype, true, true, NULL);
+			/* tab highlight (3d look) */
+			glShadeModel(GL_SMOOTH);
+			glColor3ubv(is_active ? theme_col_tab_highlight : theme_col_tab_highlight_inactive);
+			ui_panel_category_draw_tab(GL_LINE_STRIP, rct->xmin, rct->ymin, rct->xmax, rct->ymax,
+			                           tab_curve_radius, roundboxtype, true, false,
+			                           is_active ? theme_col_back : theme_col_tab_inactive);
+			glShadeModel(GL_FLAT);
+
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		}
+
+		/* tab blackline */
+		if (!is_active) {
+			glColor3ubv(theme_col_tab_divider);
+			glRecti(v2d->mask.xmin + category_tabs_width - px,
+			        rct->ymin - tab_v_pad,
+			        v2d->mask.xmin + category_tabs_width,
+			        rct->ymax + tab_v_pad);
+		}
+
+		if (do_scaletabs) {
+			category_draw_len = BLF_width_to_strlen(fontid, category_id_draw, category_draw_len,
+			                                        category_width, NULL);
+		}
+
+		BLF_position(fontid, rct->xmax - text_v_ofs, rct->ymin + tab_v_pad_text, 0.0f);
+
+		/* tab titles */
+
+		/* draw white shadow to give text more depth */
+		glColor3ubv(theme_col_text);
+
+		/* main tab title */
+		BLF_draw(fontid, category_id_draw, category_draw_len);
+
+		glDisable(GL_BLEND);
+
+		/* tab blackline remaining (last tab) */
+		if (pc_dyn->prev == NULL) {
+			glColor3ubv(theme_col_tab_divider);
+			glRecti(v2d->mask.xmin + category_tabs_width - px,
+			        rct->ymax + px,
+			        v2d->mask.xmin + category_tabs_width,
+			        v2d->mask.ymax);
+		}
+		if (pc_dyn->next == NULL) {
+			glColor3ubv(theme_col_tab_divider);
+			glRecti(v2d->mask.xmin + category_tabs_width - px,
+			        0,
+			        v2d->mask.xmin + category_tabs_width,
+			        rct->ymin);
+		}
+
+#ifdef USE_FLAT_INACTIVE
+		/* draw line between inactive tabs */
+		if (is_active == false && is_active_prev == false && pc_dyn->prev) {
+			glColor3ubv(theme_col_tab_divider);
+			glRecti(v2d->mask.xmin + (category_tabs_width / 5),
+			        rct->ymax + px,
+			        (v2d->mask.xmin + category_tabs_width) - (category_tabs_width / 5),
+			        rct->ymax + (px * 3));
+		}
+
+		is_active_prev = is_active;
+#endif
+
+		/* not essential, but allows events to be handled right up until the region edge [#38171] */
+		pc_dyn->rect.xmin = v2d->mask.xmin;
+	}
+
+	glDisable(GL_LINE_SMOOTH);
+
+	BLF_disable(fontid, BLF_ROTATION);
+
+	BLF_disable(fontid, BLF_SHADOW);
+
+	if (fstyle->kerning == 1) {
+		BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
+	}
+
+#undef USE_FLAT_INACTIVE
 }
 
 /* XXX should become modal keymap */
 /* AKey is opening/closing panels, independent of button state now */
 
-int ui_handler_panel_region(bContext *C, const wmEvent *event)
+int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 {
-	ARegion *ar = CTX_wm_region(C);
 	uiBlock *block;
 	Panel *pa;
 	int retval, mx, my;
+	bool has_category_tabs = UI_panel_category_is_visible(ar);
 
 	retval = WM_UI_HANDLER_CONTINUE;
+
+	if (has_category_tabs) {
+		if (event->val == KM_PRESS) {
+			if (event->type == LEFTMOUSE) {
+				PanelCategoryDyn *pc_dyn = UI_panel_category_find_mouse_over(ar, event);
+				if (pc_dyn) {
+					UI_panel_category_active_set(ar, pc_dyn->idname);
+					ED_region_tag_redraw(ar);
+					retval = WM_UI_HANDLER_BREAK;
+				}
+			}
+		}
+	}
+
+	if (retval == WM_UI_HANDLER_BREAK) {
+		return retval;
+	}
+
 	for (block = ar->uiblocks.last; block; block = block->prev) {
-		int inside = 0, inside_header = 0, inside_scale = 0;
+		bool inside = false, inside_header = false, inside_scale = false;
 		
 		mx = event->x;
 		my = event->y;
@@ -1201,24 +1710,24 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event)
 		/* clicked at panel header? */
 		if (pa->flag & PNL_CLOSEDX) {
 			if (block->rect.xmin <= mx && block->rect.xmin + PNL_HEADER >= mx)
-				inside_header = 1;
+				inside_header = true;
 		}
 		else if (block->rect.xmin > mx || block->rect.xmax < mx) {
 			/* outside left/right side */
 		}
 		else if ((block->rect.ymax <= my) && (block->rect.ymax + PNL_HEADER >= my)) {
-			inside_header = 1;
+			inside_header = true;
 		}
 		else if (!(pa->flag & PNL_CLOSEDY)) {
 			/* open panel */
 			if (pa->control & UI_PNL_SCALE) {
 				if (block->rect.xmax - PNL_HEADER <= mx)
 					if (block->rect.ymin + PNL_HEADER >= my)
-						inside_scale = 1;
+						inside_scale = true;
 			}
 			if (block->rect.xmin <= mx && block->rect.xmax >= mx)
 				if (block->rect.ymin <= my && block->rect.ymax + PNL_HEADER >= my)
-					inside = 1;
+					inside = true;
 		}
 		
 		/* XXX hardcoded key warning */
@@ -1227,10 +1736,10 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event)
 				
 				if (pa->flag & PNL_CLOSEDY) {
 					if ((block->rect.ymax <= my) && (block->rect.ymax + PNL_HEADER >= my))
-						ui_handle_panel_header(C, block, mx, my, event->type, event->ctrl);
+						ui_handle_panel_header(C, block, mx, my, event->type, event->ctrl, event->shift);
 				}
 				else
-					ui_handle_panel_header(C, block, mx, my, event->type, event->ctrl);
+					ui_handle_panel_header(C, block, mx, my, event->type, event->ctrl, event->shift);
 				
 				retval = WM_UI_HANDLER_BREAK;
 				continue;
@@ -1248,7 +1757,7 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event)
 				/* open close on header */
 				if (ELEM(event->type, RETKEY, PADENTER)) {
 					if (inside_header) {
-						ui_handle_panel_header(C, block, mx, my, RETKEY, event->ctrl);
+						ui_handle_panel_header(C, block, mx, my, RETKEY, event->ctrl, event->shift);
 						retval = WM_UI_HANDLER_BREAK;
 						break;
 					}
@@ -1258,7 +1767,7 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event)
 					retval = WM_UI_HANDLER_BREAK;
 					
 					if (inside_header) {
-						ui_handle_panel_header(C, block, mx, my, 0, event->ctrl);
+						ui_handle_panel_header(C, block, mx, my, 0, event->ctrl, event->shift);
 						retval = WM_UI_HANDLER_BREAK;
 						break;
 					}
@@ -1268,6 +1777,13 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event)
 						break;
 					}
 
+				}
+				else if (event->type == RIGHTMOUSE) {
+					if (inside_header) {
+						ui_panel_menu(C, ar, block->panel);
+						retval = WM_UI_HANDLER_BREAK;
+						break;
+					}
 				}
 				else if (event->type == ESCKEY) {
 					/*XXX 2.50*/
@@ -1395,7 +1911,7 @@ static void panel_activate_state(const bContext *C, Panel *pa, uiHandlePanelStat
 		MEM_freeN(data);
 		pa->activedata = NULL;
 
-		WM_event_remove_ui_handler(&win->modalhandlers, ui_handler_panel, ui_handler_remove_panel, pa, FALSE);
+		WM_event_remove_ui_handler(&win->modalhandlers, ui_handler_panel, ui_handler_remove_panel, pa, false);
 	}
 	else {
 		if (!data) {

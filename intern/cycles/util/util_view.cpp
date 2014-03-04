@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include <stdio.h>
@@ -40,9 +38,13 @@ struct View {
 	ViewResizeFunc resize;
 	ViewDisplayFunc display;
 	ViewKeyboardFunc keyboard;
+	ViewMotionFunc motion;
 
 	bool first_display;
 	bool redraw;
+
+	int mouseX, mouseY;
+	int mouseBut0, mouseBut2;
 
 	int width, height;
 } V;
@@ -72,6 +74,40 @@ void view_display_info(const char *info)
 	glColor3f(0.5f, 0.5f, 0.5f);
 
 	view_display_text(10, 7 + V.height - height, info);
+
+	glColor3f(1.0f, 1.0f, 1.0f);
+}
+
+void view_display_help()
+{
+	const int w = V.width / 1.15;
+	const int h = V.height / 1.15;
+
+	const int x1 = (V.width - w) / 2;
+	const int x2 = x1 + w;
+
+	const int y1 = (V.height - h) / 2;
+	const int y2 = y1 + h;
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glColor4f(0.5f, 0.5f, 0.5f, 0.8f);
+	glRectf(x1, y1, x2, y2);
+	glDisable(GL_BLEND);
+
+	glColor3f(0.8f, 0.8f, 0.8f);
+
+	view_display_text(x1+20, y2-20, "Cycles Renderer");
+	view_display_text(x1+20, y2-40, "(C) 2011-2014 Blender Foundation");
+	view_display_text(x1+20, y2-80, "Controls:");
+	view_display_text(x1+20, y2-100, "h:  Show/Hide this help message");
+	view_display_text(x1+20, y2-120, "r:  Restart the render");
+	view_display_text(x1+20, y2-140, "q:  Quit the program");
+	view_display_text(x1+20, y2-160, "esc:  Cancel the render");
+
+	view_display_text(x1+20, y2-190, "Interactive Mode (i-key):");
+	view_display_text(x1+20, y2-210, "LMB:  Move camera");
+	view_display_text(x1+20, y2-230, "RMB:  Rotate camera");
 
 	glColor3f(1.0f, 1.0f, 1.0f);
 }
@@ -107,7 +143,7 @@ static void view_reshape(int width, int height)
 {
 	if(width <= 0 || height <= 0)
 		return;
-	
+
 	V.width = width;
 	V.height = height;
 
@@ -136,7 +172,44 @@ static void view_keyboard(unsigned char key, int x, int y)
 	}
 }
 
-void view_idle()
+static void view_mouse(int button, int state, int x, int y)
+{
+	if(button == 0) {
+		if(state == GLUT_DOWN) {
+			V.mouseX = x;
+			V.mouseY = y;
+			V.mouseBut0 = 1;
+		}
+		else if(state == GLUT_UP) {
+			V.mouseBut0 = 0;
+		}
+	}
+	else if(button == 2) {
+		if(state == GLUT_DOWN) {
+			V.mouseX = x;
+			V.mouseY = y;
+			V.mouseBut2 = 1;
+		}
+		else if(state == GLUT_UP) {
+			V.mouseBut2 = 0;
+		}
+	}
+}
+
+static void view_motion(int x, int y)
+{
+	const int but = V.mouseBut0? 0:2;
+	const int distX = x - V.mouseX;
+	const int distY = y - V.mouseY;
+
+	if(V.motion)
+		V.motion(distX, distY, but);
+
+	V.mouseX = x;
+	V.mouseY = y;
+}
+
+static void view_idle(void)
 {
 	if(V.redraw) {
 		V.redraw = false;
@@ -149,7 +222,7 @@ void view_idle()
 void view_main_loop(const char *title, int width, int height,
 	ViewInitFunc initf, ViewExitFunc exitf,
 	ViewResizeFunc resize, ViewDisplayFunc display,
-	ViewKeyboardFunc keyboard)
+	ViewKeyboardFunc keyboard, ViewMotionFunc motion)
 {
 	const char *name = "app";
 	char *argv = (char*)name;
@@ -165,6 +238,7 @@ void view_main_loop(const char *title, int width, int height,
 	V.resize = resize;
 	V.display = display;
 	V.keyboard = keyboard;
+	V.motion = motion;
 
 	glutInit(&argc, &argv);
 	glutInitWindowSize(width, height);
@@ -182,6 +256,8 @@ void view_main_loop(const char *title, int width, int height,
 	glutIdleFunc(view_idle);
 	glutReshapeFunc(view_reshape);
 	glutKeyboardFunc(view_keyboard);
+	glutMouseFunc(view_mouse);
+	glutMotionFunc(view_motion);
 
 	glutMainLoop();
 }

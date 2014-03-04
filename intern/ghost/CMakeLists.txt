@@ -46,7 +46,6 @@ set(SRC
 	intern/GHOST_ISystemPaths.cpp
 	intern/GHOST_ModifierKeys.cpp
 	intern/GHOST_Path-api.cpp
-	intern/GHOST_Path-api.cpp
 	intern/GHOST_Rect.cpp
 	intern/GHOST_System.cpp
 	intern/GHOST_TimerManager.cpp
@@ -135,17 +134,10 @@ if(WITH_HEADLESS OR WITH_GHOST_SDL)
 
 	# ack, this is still system dependant
 	if(APPLE)
-		if(WITH_COCOA)
-			list(APPEND SRC
-				intern/GHOST_SystemPathsCocoa.mm
-				intern/GHOST_SystemPathsCocoa.h
-			)
-		else()
-			list(APPEND SRC
-				intern/GHOST_SystemPathsCarbon.cpp
-				intern/GHOST_SystemPathsCarbon.h
-			)
-		endif()
+		list(APPEND SRC
+			intern/GHOST_SystemPathsCocoa.mm
+			intern/GHOST_SystemPathsCocoa.h
+		)
 
 	elseif(UNIX)
 		list(APPEND SRC
@@ -184,18 +176,17 @@ else()
 	endif()
 
 	if(APPLE)
-		if(WITH_COCOA)
-			list(APPEND SRC
-				intern/GHOST_DisplayManagerCocoa.mm
-				intern/GHOST_SystemCocoa.mm
-				intern/GHOST_SystemPathsCocoa.mm
-				intern/GHOST_WindowCocoa.mm
+	list(APPEND SRC
+		intern/GHOST_DisplayManagerCocoa.mm
+		intern/GHOST_SystemCocoa.mm
+		intern/GHOST_SystemPathsCocoa.mm
+		intern/GHOST_WindowCocoa.mm
 
-				intern/GHOST_DisplayManagerCocoa.h
-				intern/GHOST_SystemCocoa.h
-				intern/GHOST_SystemPathsCocoa.h
-				intern/GHOST_WindowCocoa.h
-			)
+		intern/GHOST_DisplayManagerCocoa.h
+		intern/GHOST_SystemCocoa.h
+		intern/GHOST_SystemPathsCocoa.h
+		intern/GHOST_WindowCocoa.h
+	)
 			
 			if (WITH_GL_SYSTEM_DESKTOP)
 				list(APPEND SRC
@@ -205,25 +196,15 @@ else()
 				)
 			endif()
 
-			if(WITH_INPUT_NDOF)
-				list(APPEND SRC
-					intern/GHOST_NDOFManagerCocoa.mm
+	if(WITH_INPUT_NDOF)
+		list(APPEND SRC
+			intern/GHOST_NDOFManagerCocoa.mm
 					
-					intern/GHOST_NDOFManagerCocoa.h
-				)
-			endif()
-
-		else()
-			list(APPEND SRC
-				intern/GHOST_DisplayManagerCarbon.cpp
-				intern/GHOST_SystemCarbon.cpp
-				intern/GHOST_SystemPathsCarbon.cpp
-				intern/GHOST_WindowCarbon.cpp
-
-				intern/GHOST_DisplayManagerCarbon.h
-				intern/GHOST_SystemCarbon.h
-				intern/GHOST_SystemPathsCarbon.h
-				intern/GHOST_WindowCarbon.h
+			intern/GHOST_NDOFManagerCocoa.h
+		)
+		list(APPEND SRC_NDOF3DCONNEXION
+			intern/GHOST_NDOFManager3Dconnexion.c
+			intern/GHOST_NDOFManager3Dconnexion.h
 			)
 
 			if (WITH_GL_SYSTEM_DESKTOP)
@@ -362,6 +343,12 @@ else()
 
 endif()
 
+
 add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_intern_ghost "${SRC}" "${INC}" "${INC_SYS}")
+
+# workaround for apple clang mangling extern "C" symbols
+if(WITH_INPUT_NDOF AND APPLE)
+	blender_add_lib(bf_intern_ghostndof3dconnexion "${SRC_NDOF3DCONNEXION}" "${INC}" "${INC_SYS}")
+endif()

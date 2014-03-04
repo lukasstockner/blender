@@ -84,39 +84,25 @@ EditBone *ED_armature_edit_bone_add(bArmature *arm, const char *name)
 	return bone;
 }
 
-/* v3d and rv3d are allowed to be NULL */
-void add_primitive_bone(Scene *scene, View3D *v3d, RegionView3D *rv3d)
+void add_primitive_bone(Object *obedit_arm, bool view_aligned)
 {
-	Object *obedit = scene->obedit; // XXX get from context
-	bArmature *arm = obedit->data;
-	float obmat[3][3], curs[3], viewmat[3][3], totmat[3][3], imat[3][3];
-	EditBone    *bone;
+	bArmature *arm = obedit_arm->data;
+	EditBone *bone;
 
-	/* Get inverse point for head and orientation for tail */
-	invert_m4_m4(obedit->imat, obedit->obmat);
-	mul_v3_m4v3(curs, obedit->imat, give_cursor(scene, v3d));
-
-	if (rv3d && (U.flag & USER_ADD_VIEWALIGNED))
-		copy_m3_m4(obmat, rv3d->viewmat);
-	else unit_m3(obmat);
-	
-	copy_m3_m4(viewmat, obedit->obmat);
-	mul_m3_m3m3(totmat, obmat, viewmat);
-	invert_m3_m3(imat, totmat);
-	
-	ED_armature_deselect_all(obedit, 0);
+	ED_armature_deselect_all(obedit_arm, 0);
 	
 	/* Create a bone */
 	bone = ED_armature_edit_bone_add(arm, "Bone");
 
 	arm->act_edbone = bone;
 
-	copy_v3_v3(bone->head, curs);
-	
-	if (rv3d && (U.flag & USER_ADD_VIEWALIGNED))
-		add_v3_v3v3(bone->tail, bone->head, imat[1]);   // bone with unit length 1
+	zero_v3(bone->head);
+	zero_v3(bone->tail);
+
+	if (view_aligned)
+		bone->tail[1] = 1.0f;
 	else
-		add_v3_v3v3(bone->tail, bone->head, imat[2]);   // bone with unit length 1, pointing up Z
+		bone->tail[2] = 1.0f;
 }
 
 
@@ -190,7 +176,7 @@ static int armature_click_extrude_exec(bContext *C, wmOperator *UNUSED(op))
 			newbone->flag |= BONE_CONNECTED;
 		}
 		
-		curs = give_cursor(scene, v3d);
+		curs = ED_view3d_cursor3d_get(scene, v3d);
 		copy_v3_v3(newbone->tail, curs);
 		sub_v3_v3v3(newbone->tail, newbone->tail, obedit->obmat[3]);
 		
@@ -230,7 +216,7 @@ static int armature_click_extrude_invoke(bContext *C, wmOperator *op, const wmEv
 	ar = CTX_wm_region(C);
 	v3d = CTX_wm_view3d(C);
 	
-	fp = give_cursor(scene, v3d);
+	fp = ED_view3d_cursor3d_get(scene, v3d);
 	
 	copy_v3_v3(oldcurs, fp);
 
@@ -541,7 +527,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 	bArmature *arm;
 	EditBone *newbone, *ebone, *flipbone, *first = NULL;
 	int a, totbone = 0, do_extrude;
-	int forked = RNA_boolean_get(op->ptr, "forked");
+	bool forked = RNA_boolean_get(op->ptr, "forked");
 
 	obedit = CTX_data_edit_object(C);
 	arm = obedit->data;
@@ -638,7 +624,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 					BLI_strncpy(newbone->name, ebone->name, sizeof(newbone->name));
 					
 					if (flipbone && forked) {   // only set if mirror edit
-						if (strlen(newbone->name) < 30) {
+						if (strlen(newbone->name) < (MAXBONENAME - 2)) {
 							if (a == 0) strcat(newbone->name, "_L");
 							else strcat(newbone->name, "_R");
 						}
@@ -705,7 +691,7 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 	
 	RNA_string_get(op->ptr, "name", name);
 	
-	copy_v3_v3(curs, give_cursor(CTX_data_scene(C), CTX_wm_view3d(C)));
+	copy_v3_v3(curs, ED_view3d_cursor3d_get(CTX_data_scene(C), CTX_wm_view3d(C)));
 
 	/* Get inverse point for head and orientation for tail */
 	invert_m4_m4(obedit->imat, obedit->obmat);
@@ -803,11 +789,13 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
 			copy_v3_v3(newbone->tail, ebone->tail);
 			copy_v3_v3(ebone->tail, newbone->head);
 			
-			newbone->rad_head = 0.5f * (ebone->rad_head + ebone->rad_tail);
+			newbone->rad_head = ((ebone->rad_head * cutratio) + (ebone->rad_tail * cutratioI));
 			ebone->rad_tail = newbone->rad_head;
 			
 			newbone->flag |= BONE_CONNECTED;
-			
+
+			newbone->prop = NULL;
+
 			unique_editbone_name(arm->edbo, newbone->name, NULL);
 			
 			/* correct parent bones */

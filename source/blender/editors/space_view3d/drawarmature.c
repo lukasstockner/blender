@@ -36,7 +36,6 @@
 
 #include "ED_armature.h"
 #include "ED_keyframes_draw.h"
-
 #include "UI_resources.h"
 
 /* external */
@@ -200,8 +199,6 @@ static bool set_pchan_gpuColor(short colCode, int boneflag, short constflag)
 	
 			return true;
 		}
-		break;
-		
 		case PCHAN_COLOR_SOLID:
 		{
 			if (bcolor) {
@@ -212,8 +209,6 @@ static bool set_pchan_gpuColor(short colCode, int boneflag, short constflag)
 			
 			return true;
 		}
-		break;
-		
 		case PCHAN_COLOR_CONSTS:
 		{
 			if ((bcolor == NULL) || (bcolor->flag & TH_WIRECOLOR_CONSTCOLS)) {
@@ -224,11 +219,8 @@ static bool set_pchan_gpuColor(short colCode, int boneflag, short constflag)
 			
 				return true;
 			}
-			else
-				return 0;
+			return false;
 		}
-		break;
-
 		case PCHAN_COLOR_SPHEREBONE_BASE:
 		{
 			if (bcolor) {
@@ -254,7 +246,6 @@ static bool set_pchan_gpuColor(short colCode, int boneflag, short constflag)
 			
 			return true;
 		}
-		break;
 		case PCHAN_COLOR_SPHEREBONE_END:
 		{
 			if (bcolor) {
@@ -280,9 +271,8 @@ static bool set_pchan_gpuColor(short colCode, int boneflag, short constflag)
 				else if (boneflag & BONE_SELECTED) UI_ThemeColorShade(TH_BONE_POSE, -30);
 				else UI_ThemeColorShade(TH_BONE_SOLID, -30);
 			}
+			break;
 		}
-		break;
-		
 		case PCHAN_COLOR_LINEBONE:
 		{
 			/* inner part in background color or constraint */
@@ -304,7 +294,6 @@ static bool set_pchan_gpuColor(short colCode, int boneflag, short constflag)
 		
 			return true;
 		}
-		break;
 	}
 	
 	return false;
@@ -553,7 +542,7 @@ static void draw_bone_points(const short dt, int armflag, unsigned int boneflag,
 }
 
 /* 16 values of sin function (still same result!) */
-static float si[16] = {
+static const float si[16] = {
 	0.00000000f,
 	0.20129852f, 0.39435585f,
 	0.57126821f, 0.72479278f,
@@ -565,7 +554,7 @@ static float si[16] = {
 	0.10116832f
 };
 /* 16 values of cos function (still same result!) */
-static float co[16] = {
+static const float co[16] = {
 	1.00000000f,
 	0.97952994f, 0.91895781f,
 	0.82076344f, 0.68896691f,
@@ -1130,12 +1119,14 @@ static void draw_b_bone_boxes(const short dt, bPoseChannel *pchan, float xwidth,
 	
 	if ((segments > 1) && (pchan)) {
 		float dlen = length / (float)segments;
-		Mat4 *bbone = b_bone_spline_setup(pchan, 0);
+		Mat4 bbone[MAX_BBONE_SUBDIV];
 		int a;
-		
-		for (a = 0; a < segments; a++, bbone++) {
+
+		b_bone_spline_setup(pchan, 0, bbone);
+
+		for (a = 0; a < segments; a++) {
 			gpuPushMatrix();
-			gpuMultMatrix(bbone->mat[0]);
+			gpuMultMatrix(bbone[a].mat);
 			gpuScale(xwidth, dlen, zwidth);
 
 			if (dt == OB_SOLID) {
@@ -1283,6 +1274,7 @@ static void draw_wire_bone_segments(bPoseChannel *pchan, Mat4 *bbones, float len
 static void draw_wire_bone(const short dt, int armflag, int boneflag, short constflag, unsigned int id,
                            bPoseChannel *pchan, EditBone *ebone)
 {
+	Mat4 bbones_array[MAX_BBONE_SUBDIV];
 	Mat4 *bbones = NULL;
 	int segments = 0;
 	float length;
@@ -1291,8 +1283,10 @@ static void draw_wire_bone(const short dt, int armflag, int boneflag, short cons
 		segments = pchan->bone->segments;
 		length = pchan->bone->length;
 		
-		if (segments > 1)
-			bbones = b_bone_spline_setup(pchan, 0);
+		if (segments > 1) {
+			b_bone_spline_setup(pchan, 0, bbones_array);
+			bbones = bbones_array;
+		}
 	}
 	else 
 		length = ebone->length;
@@ -1468,8 +1462,8 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 
 				gpuEnd();
 				GPU_raster_set_line_style(0);
+				break;
 			}
-			break;
 		case CONSTRAINT_TYPE_SPLINEIK: 
 			{
 				bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
@@ -1493,12 +1487,12 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 
 				gpuEnd();
 				GPU_raster_set_line_style(0);
+				break;
 			}
-			break;
 		}
-	}
 
 	GPU_raster_end();
+	}
 }
 
 static void bgl_sphere_project(float ax, float az)
@@ -1539,7 +1533,7 @@ static void draw_dof_ellipse(float ax, float az)
 		z = staticSine[i];
 		
 		px = 0.0f;
-		for (j = 1; j < n - i + 1; j++) {
+		for (j = 1; j <= (n - i); j++) {
 			x = staticSine[j];
 			
 			if (j == n - i) {
@@ -1588,7 +1582,7 @@ static void draw_pose_dofs(Object *ob)
 			if (bone->flag & BONE_SELECTED) {
 				if (bone->layer & arm->layer) {
 					if (pchan->ikflag & (BONE_IK_XLIMIT | BONE_IK_ZLIMIT)) {
-						if (ED_pose_channel_in_IK_chain(ob, pchan)) {
+						if (BKE_pose_channel_in_IK_chain(ob, pchan)) {
 							float corner[4][3], posetrans[3], mat[4][4];
 							float phi = 0.0f, theta = 0.0f, scale;
 							int a, i;
@@ -1928,7 +1922,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		}
 		/* if solid && posemode, we draw again with polygonoffset */
 		else if ((dt > OB_WIRE) && (arm->flag & ARM_POSEMODE)) {
-			bglPolygonOffset(rv3d->dist, 1.0);
+			ED_view3d_polygon_offset(rv3d, 1.0);
 		}
 		else {
 			/* and we use selection indices if not done yet */
@@ -2043,7 +2037,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 		}
 		/* restore things */
 		if (!ELEM(arm->drawtype, ARM_WIRE, ARM_LINE) && (dt > OB_WIRE) && (arm->flag & ARM_POSEMODE))
-			bglPolygonOffset(rv3d->dist, 0.0);
+			ED_view3d_polygon_offset(rv3d, 0.0);
 	}
 	
 	/* restore */
@@ -2122,20 +2116,10 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 }
 
 /* in editmode, we don't store the bone matrix... */
-static void get_matrix_editbone(EditBone *eBone, float bmat[4][4])
+static void get_matrix_editbone(EditBone *ebone, float bmat[4][4])
 {
-	float delta[3];
-	float mat[3][3];
-	
-	/* Compose the parent transforms (i.e. their translations) */
-	sub_v3_v3v3(delta, eBone->tail, eBone->head);
-	
-	eBone->length = (float)sqrt(delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]);
-	
-	vec_roll_to_mat3(delta, eBone->roll, mat);
-	copy_m4_m3(bmat, mat);
-
-	add_v3_v3(bmat[3], eBone->head);
+	ebone->length = len_v3v3(ebone->tail, ebone->head);
+	ED_armature_ebone_to_mat4(ebone, bmat);
 }
 
 static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
@@ -2222,7 +2206,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 			index = 0;
 	}
 	else if (dt > OB_WIRE) 
-		bglPolygonOffset(rv3d->dist, 1.0f);
+		ED_view3d_polygon_offset(rv3d, 1.0);
 	else if (arm->flag & ARM_EDITMODE) 
 		index = 0;  /* do selection codes */
 	
@@ -2294,7 +2278,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 		/* pass */
 	}
 	else if (dt > OB_WIRE) {
-		bglPolygonOffset(rv3d->dist, 0.0f);
+		ED_view3d_polygon_offset(rv3d, 0.0);
 	}
 	
 	/* finally names and axes */

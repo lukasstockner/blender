@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "bvh.h"
@@ -41,6 +39,7 @@ CCL_NAMESPACE_BEGIN
 Mesh::Mesh()
 {
 	need_update = true;
+	need_update_rebuild = false;
 	transform_applied = false;
 	transform_negative_scaled = false;
 	transform_normal = transform_identity();
@@ -96,6 +95,18 @@ void Mesh::clear()
 	transform_applied = false;
 	transform_negative_scaled = false;
 	transform_normal = transform_identity();
+}
+
+void Mesh::set_triangle(int i, int v0, int v1, int v2, int shader_, bool smooth_)
+{
+	Triangle tri;
+	tri.v[0] = v0;
+	tri.v[1] = v1;
+	tri.v[2] = v2;
+
+	triangles[i] = tri;
+	shader[i] = shader_;
+	smooth[i] = smooth_;
 }
 
 void Mesh::add_triangle(int v0, int v1, int v2, int shader_, bool smooth_)
@@ -455,8 +466,9 @@ void MeshManager::update_osl_attributes(Device *device, Scene *scene, vector<Att
 			OSLGlobals::Attribute osl_attr;
 
 			osl_attr.type = attr.type();
-			osl_attr.elem = ATTR_ELEMENT_VALUE;
+			osl_attr.elem = ATTR_ELEMENT_OBJECT;
 			osl_attr.value = attr;
+			osl_attr.offset = 0;
 
 			og->attribute_map[i*ATTR_PRIM_TYPES][attr.name()] = osl_attr;
 			og->attribute_map[i*ATTR_PRIM_TYPES + ATTR_PRIM_CURVE][attr.name()] = osl_attr;
@@ -481,6 +493,8 @@ void MeshManager::update_osl_attributes(Device *device, Scene *scene, vector<Att
 
 				if(req.triangle_type == TypeDesc::TypeFloat)
 					osl_attr.type = TypeDesc::TypeFloat;
+				else if(req.triangle_type == TypeDesc::TypeMatrix)
+					osl_attr.type = TypeDesc::TypeMatrix;
 				else
 					osl_attr.type = TypeDesc::TypeColor;
 
@@ -501,6 +515,8 @@ void MeshManager::update_osl_attributes(Device *device, Scene *scene, vector<Att
 
 				if(req.curve_type == TypeDesc::TypeFloat)
 					osl_attr.type = TypeDesc::TypeFloat;
+				else if(req.curve_type == TypeDesc::TypeMatrix)
+					osl_attr.type = TypeDesc::TypeMatrix;
 				else
 					osl_attr.type = TypeDesc::TypeColor;
 
@@ -568,6 +584,8 @@ void MeshManager::update_svm_attributes(Device *device, DeviceScene *dscene, Sce
 
 				if(req.triangle_type == TypeDesc::TypeFloat)
 					attr_map[index].w = NODE_ATTR_FLOAT;
+				else if(req.triangle_type == TypeDesc::TypeMatrix)
+					attr_map[index].w = NODE_ATTR_MATRIX;
 				else
 					attr_map[index].w = NODE_ATTR_FLOAT3;
 			}
@@ -581,6 +599,8 @@ void MeshManager::update_svm_attributes(Device *device, DeviceScene *dscene, Sce
 
 				if(req.curve_type == TypeDesc::TypeFloat)
 					attr_map[index].w = NODE_ATTR_FLOAT;
+				else if(req.curve_type == TypeDesc::TypeMatrix)
+					attr_map[index].w = NODE_ATTR_MATRIX;
 				else
 					attr_map[index].w = NODE_ATTR_FLOAT3;
 			}
@@ -632,6 +652,15 @@ static void update_attribute_element_offset(Mesh *mesh, vector<float>& attr_floa
 
 			for(size_t k = 0; k < size; k++)
 				attr_float[offset+k] = data[k];
+		}
+		else if(mattr->type == TypeDesc::TypeMatrix) {
+			Transform *tfm = mattr->data_transform();
+			offset = attr_float3.size();
+
+			attr_float3.resize(attr_float3.size() + size*4);
+
+			for(size_t k = 0; k < size*4; k++)
+				attr_float3[offset+k] = (&tfm->x)[k];
 		}
 		else {
 			float3 *data = mattr->data_float3();

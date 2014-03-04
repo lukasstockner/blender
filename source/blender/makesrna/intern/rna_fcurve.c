@@ -453,34 +453,85 @@ static void rna_FCurve_modifiers_remove(FCurve *fcu, ReportList *reports, Pointe
 
 static void rna_FModifier_active_set(PointerRNA *ptr, int UNUSED(value))
 {
-	FModifier *fm = (FModifier *)ptr->data;
+	FModifier *fcm = (FModifier *)ptr->data;
 
 	/* don't toggle, always switch on */
-	fm->flag |= FMODIFIER_FLAG_ACTIVE;
+	fcm->flag |= FMODIFIER_FLAG_ACTIVE;
 }
 
-static void rna_FModifier_start_frame_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_FModifier_start_frame_set(PointerRNA *ptr, float value)
 {
 	FModifier *fcm = (FModifier *)ptr->data;
 	
-	*min = MINAFRAMEF;
-	*max = (fcm->flag & FMODIFIER_FLAG_RANGERESTRICT) ? fcm->efra : MAXFRAMEF;
+	CLAMP(value, MINAFRAMEF, MAXFRAMEF);
+	fcm->sfra = value;
+	
+	/* XXX: maintain old offset? */
+	if (fcm->sfra >= fcm->efra) {
+		fcm->efra = fcm->sfra;
+	}
 }
 
-static void rna_FModifier_end_frame_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_FModifer_end_frame_set(PointerRNA *ptr, float value)
 {
 	FModifier *fcm = (FModifier *)ptr->data;
-
-	*min = (fcm->flag & FMODIFIER_FLAG_RANGERESTRICT) ? fcm->sfra : MINAFRAMEF;
-	*max = MAXFRAMEF;
+	
+	CLAMP(value, MINAFRAMEF, MAXFRAMEF);
+	fcm->efra = value;
+	
+	/* XXX: maintain old offset? */
+	if (fcm->efra <= fcm->sfra) {
+		fcm->sfra = fcm->efra;
+	}
 }
 
-static void rna_FModifier_blending_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_FModifier_start_frame_range(PointerRNA *UNUSED(ptr), float *min, float *max,
+                                            float *UNUSED(softmin), float *UNUSED(softmax))
+{
+	// FModifier *fcm = (FModifier *)ptr->data;
+	
+	/* Technically, "sfra <= efra" must hold; however, we can't strictly enforce that, 
+	 * or else it becomes tricky to adjust the range...  [#36844] 
+	 * 
+	 * NOTE: we do not set soft-limits on lower bounds, as it's too confusing when you 
+	 *       can't easily use the slider to set things here
+	 */
+	*min     = MINAFRAMEF;
+	*max     = MAXFRAMEF;
+}
+
+static void rna_FModifier_end_frame_range(PointerRNA *ptr, float *min, float *max,
+                                          float *softmin, float *softmax)
+{
+	FModifier *fcm = (FModifier *)ptr->data;
+	
+	/* Technically, "sfra <= efra" must hold; however, we can't strictly enforce that, 
+	 * or else it becomes tricky to adjust the range...  [#36844] 
+	 */
+	*min     = MINAFRAMEF;
+	*softmin = (fcm->flag & FMODIFIER_FLAG_RANGERESTRICT) ? fcm->sfra : MINAFRAMEF;
+	
+	*softmax = MAXFRAMEF;
+	*max     = MAXFRAMEF;
+}
+
+static void rna_FModifier_blending_range(PointerRNA *ptr, float *min, float *max,
+                                         float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	FModifier *fcm = (FModifier *)ptr->data;
 
 	*min = 0.0f;
 	*max = fcm->efra - fcm->sfra;
+}
+
+static void rna_FModifier_verify_data_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	FModifier *fcm = (FModifier *)ptr->data;
+	FModifierTypeInfo *fmi = fmodifier_get_typeinfo(fcm);
+
+	/* call the verify callback on the modifier if applicable */
+	if (fmi && fmi->verify_data)
+		fmi->verify_data(fcm);
 }
 
 static void rna_FModifier_active_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -524,45 +575,106 @@ static void rna_FModifierGenerator_coefficients_set(PointerRNA *ptr, const float
 	memcpy(gen->coefficients, values, gen->arraysize * sizeof(float));
 }
 
-static void rna_FModifierLimits_minx_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+
+static void rna_FModifierLimits_minx_set(PointerRNA *ptr, float value)
 {
 	FModifier *fcm = (FModifier *)ptr->data;
 	FMod_Limits *data = fcm->data;
-
-	*min = MINAFRAMEF;
-	*max = (data->flag & FCM_LIMIT_XMAX) ? data->rect.xmax : MAXFRAMEF;
+	
+	data->rect.xmin = value;
+	
+	if (data->rect.xmin >= data->rect.xmax) {
+		data->rect.xmax = data->rect.xmin;
+	}
 }
 
-static void rna_FModifierLimits_maxx_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_FModifierLimits_maxx_set(PointerRNA *ptr, float value)
 {
 	FModifier *fcm = (FModifier *)ptr->data;
 	FMod_Limits *data = fcm->data;
-
-	*min = (data->flag & FCM_LIMIT_XMIN) ? data->rect.xmin : MINAFRAMEF;
-	*max = MAXFRAMEF;
+	
+	data->rect.xmax = value;
+	
+	if (data->rect.xmax <= data->rect.xmin) {
+		data->rect.xmin = data->rect.xmax;
+	}
 }
 
-static void rna_FModifierLimits_miny_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_FModifierLimits_miny_set(PointerRNA *ptr, float value)
 {
 	FModifier *fcm = (FModifier *)ptr->data;
 	FMod_Limits *data = fcm->data;
-
-	*min = -FLT_MAX;
-	*max = (data->flag & FCM_LIMIT_YMAX) ? data->rect.ymax : FLT_MAX;
+	
+	data->rect.ymin = value;
+	
+	if (data->rect.ymin >= data->rect.ymax) {
+		data->rect.ymax = data->rect.ymin;
+	}
 }
 
-static void rna_FModifierLimits_maxy_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_FModifierLimits_maxy_set(PointerRNA *ptr, float value)
 {
 	FModifier *fcm = (FModifier *)ptr->data;
 	FMod_Limits *data = fcm->data;
+	
+	data->rect.ymax = value;
+	
+	if (data->rect.ymax <= data->rect.ymin) {
+		data->rect.ymin = data->rect.ymax;
+	}
+}
 
-	*min = (data->flag & FCM_LIMIT_YMIN) ? data->rect.ymin : -FLT_MAX;
-	*max = FLT_MAX;
+static void rna_FModifierLimits_minx_range(PointerRNA *UNUSED(ptr), float *min, float *max,
+                                           float *UNUSED(softmin), float *UNUSED(softmax))
+{
+	// FModifier *fcm = (FModifier *)ptr->data;
+	// FMod_Limits *data = fcm->data;
+	
+	/* no soft-limits on lower bound - it's too confusing when you can't easily use the slider to set things here */
+	*min     = MINAFRAMEF;
+	*max     = MAXFRAMEF;
+}
+
+static void rna_FModifierLimits_maxx_range(PointerRNA *ptr, float *min, float *max,
+                                           float *softmin, float *softmax)
+{
+	FModifier *fcm = (FModifier *)ptr->data;
+	FMod_Limits *data = fcm->data;
+	
+	*min     = MINAFRAMEF;
+	*softmin = (data->flag & FCM_LIMIT_XMIN) ? data->rect.xmin : MINAFRAMEF;
+	
+	*softmax = MAXFRAMEF;
+	*max     = MAXFRAMEF;
+}
+
+static void rna_FModifierLimits_miny_range(PointerRNA *UNUSED(ptr), float *min, float *max,
+                                           float *UNUSED(softmin), float *UNUSED(softmax))
+{
+	// FModifier *fcm = (FModifier *)ptr->data;
+	// FMod_Limits *data = fcm->data;
+	
+	/* no soft-limits on lower bound - it's too confusing when you can't easily use the slider to set things here */
+	*min     = -FLT_MAX;
+	*max     = FLT_MAX;
+}
+
+static void rna_FModifierLimits_maxy_range(PointerRNA *ptr, float *min, float *max,
+                                           float *softmin, float *softmax)
+{
+	FModifier *fcm = (FModifier *)ptr->data;
+	FMod_Limits *data = fcm->data;
+	
+	*min     = -FLT_MAX;
+	*softmin = (data->flag & FCM_LIMIT_YMIN) ? data->rect.ymin : -FLT_MAX;
+	
+	*softmax = FLT_MAX;
+	*max     = FLT_MAX; 
 }
 
 
 static void rna_FModifierStepped_start_frame_range(PointerRNA *ptr, float *min, float *max,
-                                                   float *softmin, float *softmax)
+                                                   float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	FModifier *fcm = (FModifier *)ptr->data;
 	FMod_Stepped *data = fcm->data;
@@ -572,7 +684,7 @@ static void rna_FModifierStepped_start_frame_range(PointerRNA *ptr, float *min, 
 }
 
 static void rna_FModifierStepped_end_frame_range(PointerRNA *ptr, float *min, float *max,
-                                                 float *softmin, float *softmax)
+                                                 float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	FModifier *fcm = (FModifier *)ptr->data;
 	FMod_Stepped *data = fcm->data;
@@ -732,19 +844,17 @@ static void rna_def_fmodifier_generator(BlenderRNA *brna)
 	                         "the existing values instead of overwriting them");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 	
-	/* XXX this has a special validation func */
 	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, generator_mode_items);
 	RNA_def_property_ui_text(prop, "Mode", "Type of generator to use");
-	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
-	
+	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_verify_data_update");
 	
 	/* order of the polynomial */
-	/* XXX this has a special validation func */
 	prop = RNA_def_property(srna, "poly_order", PROP_INT, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Polynomial Order",
 	                         "The highest power of 'x' for this polynomial (number of coefficients - 1)");
-	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+	RNA_def_property_range(prop, 1, 100);
+	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_verify_data_update");
 	
 	/* coefficients array */
 	prop = RNA_def_property(srna, "coefficients", PROP_FLOAT, PROP_NONE);
@@ -1001,25 +1111,25 @@ static void rna_def_fmodifier_limits(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "min_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "rect.xmin");
-	RNA_def_property_float_funcs(prop, NULL, NULL, "rna_FModifierLimits_minx_range");
+	RNA_def_property_float_funcs(prop, NULL, "rna_FModifierLimits_minx_set", "rna_FModifierLimits_minx_range");
 	RNA_def_property_ui_text(prop, "Minimum X", "Lowest X value to allow");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 	
 	prop = RNA_def_property(srna, "min_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "rect.ymin");
-	RNA_def_property_float_funcs(prop, NULL, NULL, "rna_FModifierLimits_miny_range");
+	RNA_def_property_float_funcs(prop, NULL, "rna_FModifierLimits_miny_set", "rna_FModifierLimits_miny_range");
 	RNA_def_property_ui_text(prop, "Minimum Y", "Lowest Y value to allow");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 	
 	prop = RNA_def_property(srna, "max_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "rect.xmax");
-	RNA_def_property_float_funcs(prop, NULL, NULL, "rna_FModifierLimits_maxx_range");
+	RNA_def_property_float_funcs(prop, NULL, "rna_FModifierLimits_maxx_set", "rna_FModifierLimits_maxx_range");
 	RNA_def_property_ui_text(prop, "Maximum X", "Highest X value to allow");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 	
 	prop = RNA_def_property(srna, "max_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "rect.ymax");
-	RNA_def_property_float_funcs(prop, NULL, NULL, "rna_FModifierLimits_maxy_range");
+	RNA_def_property_float_funcs(prop, NULL, "rna_FModifierLimits_maxy_set", "rna_FModifierLimits_maxy_range");
 	RNA_def_property_ui_text(prop, "Maximum Y", "Highest Y value to allow");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 }
@@ -1063,6 +1173,11 @@ static void rna_def_fmodifier_noise(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "phase", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "phase");
 	RNA_def_property_ui_text(prop, "Phase", "A random seed for the noise effect");
+	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+
+	prop = RNA_def_property(srna, "offset", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "offset");
+	RNA_def_property_ui_text(prop, "Offset", "Time offset for the noise effect");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
 	
 	prop = RNA_def_property(srna, "depth", PROP_INT, PROP_UNSIGNED);
@@ -1184,14 +1299,14 @@ static void rna_def_fmodifier(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "frame_start", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "sfra");
-	RNA_def_property_float_funcs(prop, NULL, NULL, "rna_FModifier_start_frame_range");
+	RNA_def_property_float_funcs(prop, NULL, "rna_FModifier_start_frame_set", "rna_FModifier_start_frame_range");
 	RNA_def_property_ui_text(prop, "Start Frame",
 	                         "Frame that modifier's influence starts (if Restrict Frame Range is in use)");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
 	
 	prop = RNA_def_property(srna, "frame_end", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "efra");
-	RNA_def_property_float_funcs(prop, NULL, NULL, "rna_FModifier_end_frame_range");
+	RNA_def_property_float_funcs(prop, NULL, "rna_FModifer_end_frame_set", "rna_FModifier_end_frame_range");
 	RNA_def_property_ui_text(prop, "End Frame",
 	                         "Frame that modifier's influence ends (if Restrict Frame Range is in use)");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
@@ -1756,6 +1871,14 @@ static void rna_def_fcurve(BlenderRNA *brna)
 	                            "Min/Max values", -FLT_MAX, FLT_MAX);
 	RNA_def_property_flag(parm, PROP_THICK_WRAP);
 	RNA_def_function_output(func, parm);
+
+	func = RNA_def_function(srna, "update_autoflags", "update_autoflags_fcurve"); /* calls the C/API direct */
+	RNA_def_function_ui_description(func, "Update FCurve flags set automatically from affected property "
+	                                      "(currently, integer/discrete flags set when the property is not a float)");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
+	parm = RNA_def_pointer(func, "data", "AnyType", "Data",
+	                       "Data containing the property controlled by given FCurve");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_RNAPTR | PROP_NEVER_NULL);
 }
 
 /* *********************** */

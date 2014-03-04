@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "camera.h"
@@ -98,6 +96,9 @@ void Pass::add(PassType type, vector<Pass>& passes)
 		case PASS_TRANSMISSION_COLOR:
 			pass.components = 4;
 			break;
+		case PASS_SUBSURFACE_COLOR:
+			pass.components = 4;
+			break;
 		case PASS_DIFFUSE_INDIRECT:
 			pass.components = 4;
 			pass.exposure = true;
@@ -113,6 +114,11 @@ void Pass::add(PassType type, vector<Pass>& passes)
 			pass.exposure = true;
 			pass.divide_type = PASS_TRANSMISSION_COLOR;
 			break;
+		case PASS_SUBSURFACE_INDIRECT:
+			pass.components = 4;
+			pass.exposure = true;
+			pass.divide_type = PASS_SUBSURFACE_COLOR;
+			break;
 		case PASS_DIFFUSE_DIRECT:
 			pass.components = 4;
 			pass.exposure = true;
@@ -127,6 +133,11 @@ void Pass::add(PassType type, vector<Pass>& passes)
 			pass.components = 4;
 			pass.exposure = true;
 			pass.divide_type = PASS_TRANSMISSION_COLOR;
+			break;
+		case PASS_SUBSURFACE_DIRECT:
+			pass.components = 4;
+			pass.exposure = true;
+			pass.divide_type = PASS_SUBSURFACE_COLOR;
 			break;
 
 		case PASS_EMISSION:
@@ -250,6 +261,7 @@ Film::Film()
 {
 	exposure = 0.8f;
 	Pass::add(PASS_COMBINED, passes);
+	pass_alpha_threshold = 0.5f;
 
 	filter_type = FILTER_BOX;
 	filter_width = 1.0f;
@@ -260,6 +272,7 @@ Film::Film()
 	mist_falloff = 1.0f;
 
 	use_light_visibility = false;
+	use_sample_clamp = false;
 
 	need_update = true;
 }
@@ -281,7 +294,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kfilm->exposure = exposure;
 	kfilm->pass_flag = 0;
 	kfilm->pass_stride = 0;
-	kfilm->use_light_pass = use_light_visibility;
+	kfilm->use_light_pass = use_light_visibility || use_sample_clamp;
 
 	foreach(Pass& pass, passes) {
 		kfilm->pass_flag |= pass.type;
@@ -327,6 +340,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				kfilm->pass_transmission_color = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
 				break;
+			case PASS_SUBSURFACE_COLOR:
+				kfilm->pass_subsurface_color = kfilm->pass_stride;
+				kfilm->use_light_pass = 1;
+				break;
 			case PASS_DIFFUSE_INDIRECT:
 				kfilm->pass_diffuse_indirect = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
@@ -337,6 +354,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				break;
 			case PASS_TRANSMISSION_INDIRECT:
 				kfilm->pass_transmission_indirect = kfilm->pass_stride;
+				kfilm->use_light_pass = 1;
+				break;
+			case PASS_SUBSURFACE_INDIRECT:
+				kfilm->pass_subsurface_indirect = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
 				break;
 			case PASS_DIFFUSE_DIRECT:
@@ -351,6 +372,10 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 				kfilm->pass_transmission_direct = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
 				break;
+			case PASS_SUBSURFACE_DIRECT:
+				kfilm->pass_subsurface_direct = kfilm->pass_stride;
+				kfilm->use_light_pass = 1;
+				break;
 
 			case PASS_EMISSION:
 				kfilm->pass_emission = kfilm->pass_stride;
@@ -359,12 +384,15 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 			case PASS_BACKGROUND:
 				kfilm->pass_background = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
+				break;
 			case PASS_AO:
 				kfilm->pass_ao = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
+				break;
 			case PASS_SHADOW:
 				kfilm->pass_shadow = kfilm->pass_stride;
 				kfilm->use_light_pass = 1;
+				break;
 			case PASS_NONE:
 				break;
 		}
@@ -373,6 +401,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	}
 
 	kfilm->pass_stride = align_up(kfilm->pass_stride, 4);
+	kfilm->pass_alpha_threshold = pass_alpha_threshold;
 
 	/* update filter table */
 	vector<float> table = filter_table(filter_type, filter_width);
@@ -399,14 +428,23 @@ bool Film::modified(const Film& film)
 {
 	return !(exposure == film.exposure
 		&& Pass::equals(passes, film.passes)
+		&& pass_alpha_threshold == film.pass_alpha_threshold
+		&& use_sample_clamp == film.use_sample_clamp
 		&& filter_type == film.filter_type
-		&& filter_width == film.filter_width);
+		&& filter_width == film.filter_width
+		&& mist_start == film.mist_start
+		&& mist_depth == film.mist_depth
+		&& mist_falloff == film.mist_falloff);
 }
 
 void Film::tag_passes_update(Scene *scene, const vector<Pass>& passes_)
 {
-	if(Pass::contains(passes, PASS_UV) != Pass::contains(passes_, PASS_UV))
+	if(Pass::contains(passes, PASS_UV) != Pass::contains(passes_, PASS_UV)) {
 		scene->mesh_manager->tag_update(scene);
+
+		foreach(Shader *shader, scene->shaders)
+			shader->need_update_attributes = true;
+	}
 	else if(Pass::contains(passes, PASS_MOTION) != Pass::contains(passes_, PASS_MOTION))
 		scene->mesh_manager->tag_update(scene);
 

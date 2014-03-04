@@ -33,6 +33,7 @@
 #include "DNA_scene_types.h" /* for MAXFRAME */
 
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
 
 #include "BLF_translation.h"
 
@@ -45,7 +46,7 @@
 #include "WM_types.h"
 
 /* Always keep in alphabetical order */
-EnumPropertyItem actuator_type_items[] = {
+static EnumPropertyItem actuator_type_items[] = {
 	{ACT_ACTION, "ACTION", 0, "Action", ""},
 	{ACT_ARMATURE, "ARMATURE", 0, "Armature", ""},
 	{ACT_CAMERA, "CAMERA", 0, "Camera", ""},
@@ -431,7 +432,7 @@ static void rna_StateActuator_state_set(PointerRNA *ptr, const int *values)
 }
 
 /* Always keep in alphabetical order */
-EnumPropertyItem *rna_Actuator_type_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), int *free)
+EnumPropertyItem *rna_Actuator_type_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *item = NULL;
 	Object *ob = NULL;
@@ -470,7 +471,7 @@ EnumPropertyItem *rna_Actuator_type_itemf(bContext *C, PointerRNA *ptr, Property
 	RNA_enum_items_add_value(&item, &totitem, actuator_type_items, ACT_VISIBILITY);
 	
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 	
 	return item;
 }
@@ -593,6 +594,12 @@ static void rna_def_action_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_blend_items[] = {
+	    {ACT_ACTION_BLEND, "BLEND", 0, "Blend", ""},
+	    {ACT_ACTION_ADD, "ADD", 0, "Add", ""},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "ActionActuator", "Actuator");
 	RNA_def_struct_ui_text(srna, "Action Actuator", "Actuator to control the object movement");
 	RNA_def_struct_sdna_from(srna, "bActionActuator", "data");
@@ -656,7 +663,7 @@ static void rna_def_action_actuator(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "layer_weight", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.0, 1.0);
 	RNA_def_property_ui_text(prop, "Layer Weight",
-	                         "How much of the previous layer to blend into this one (0 = add mode)");
+	                         "How much of the previous layer to blend into this one");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "frame_property", PROP_STRING, PROP_NONE);
@@ -689,6 +696,12 @@ static void rna_def_action_actuator(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "apply_to_children", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_IPOCHILD);
 	RNA_def_property_ui_text(prop, "Child", "Update Action on all children Objects as well");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "blend_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "blend_mode");
+	RNA_def_property_enum_items(prop, prop_blend_items);
+	RNA_def_property_ui_text(prop, "Blend Mode", "How this layer is blended with previous layers");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 #ifdef __NLA_ACTION_BY_MOTION_ACTUATOR
@@ -1039,15 +1052,15 @@ static void rna_def_sound_actuator(BlenderRNA *brna)
 	                         "between this value and the normal gain in the inner cone)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop = RNA_def_property(srna, "cone_outer_angle_3d", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "cone_outer_angle_3d", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "sound3D.cone_outer_angle");
-	RNA_def_property_ui_range(prop, 0.0, 360.0, 1, 2);
+	RNA_def_property_ui_range(prop, 0.0, DEG2RADF(360.0f), 1, 2);
 	RNA_def_property_ui_text(prop, "Cone Outer Angle", "The angle of the outer cone");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop = RNA_def_property(srna, "cone_inner_angle_3d", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "cone_inner_angle_3d", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "sound3D.cone_inner_angle");
-	RNA_def_property_ui_range(prop, 0.0, 360.0, 1, 2);
+	RNA_def_property_ui_range(prop, 0.0, DEG2RADF(360.0f), 1, 2);
 	RNA_def_property_ui_text(prop, "Cone Inner Angle", "The angle of the inner cone");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 	
@@ -1247,21 +1260,19 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Reference Direction", "Reference Direction");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	/*XXX TODO - use radians internally then change to PROP_ANGLE */
-	prop = RNA_def_property(srna, "angle_min", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "angle_min", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "minloc[0]");
-	RNA_def_property_range(prop, 0.0, 180.0);
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
 	RNA_def_property_ui_text(prop, "Min Angle",
-	                         "Minimum angle (in degree) to maintain with target direction "
+	                         "Minimum angle to maintain with target direction "
 	                         "(no correction is done if angle with target direction is between min and max)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	/*XXX TODO - use radians internally then change to PROP_ANGLE */
-	prop = RNA_def_property(srna, "angle_max", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "angle_max", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "maxloc[0]");
-	RNA_def_property_range(prop, 0.0, 180.0);
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
 	RNA_def_property_ui_text(prop, "Max Angle",
-	                         "Maximum angle (in degree) allowed with target direction "
+	                         "Maximum angle allowed with target direction "
 	                         "(no correction is done if angle with target direction is between min and max)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 

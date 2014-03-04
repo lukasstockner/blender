@@ -62,13 +62,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	BuildModifierData *bmd = (BuildModifierData *) md;
 	BuildModifierData *tbmd = (BuildModifierData *) target;
-
-	tbmd->start = bmd->start;
-	tbmd->length = bmd->length;
-	tbmd->randomize = bmd->randomize;
-	tbmd->seed = bmd->seed;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static bool dependsOnTime(ModifierData *UNUSED(md))
@@ -109,7 +107,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 	edgeMap = MEM_mallocN(sizeof(*edgeMap) * numEdge_src, "build modifier edgeMap");
 	faceMap = MEM_mallocN(sizeof(*faceMap) * numPoly_src, "build modifier faceMap");
 
-#pragma omp parallel sections if (numVert_src + numEdge_src + numPoly_src >= DM_OMP_LIMIT)
+#pragma omp parallel sections if (numVert_src + numEdge_src + numPoly_src >= BKE_MESH_OMP_LIMIT)
 	{
 #pragma omp section
 		{ range_vn_i(vertMap, numVert_src, 0); }
@@ -121,7 +119,11 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 
 	frac = (BKE_scene_frame_get(md->scene) - bmd->start) / bmd->length;
 	CLAMP(frac, 0.0f, 1.0f);
-
+	
+	if (bmd->flag & MOD_BUILD_FLAG_REVERSE) {
+		frac = 1.0f - frac;
+	}
+	
 	numFaces_dst = numPoly_src * frac;
 	numEdges_dst = numEdge_src * frac;
 
@@ -131,7 +133,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 		MLoop *ml, *mloop;
 		MEdge *medge;
 		
-		if (bmd->randomize) {
+		if (bmd->flag & MOD_BUILD_FLAG_RANDOMIZE) {
 			BLI_array_randomize(faceMap, sizeof(*faceMap),
 			                    numPoly_src, bmd->seed);
 		}
@@ -176,7 +178,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 	else if (numEdges_dst) {
 		MEdge *medge, *me;
 
-		if (bmd->randomize)
+		if (bmd->flag & MOD_BUILD_FLAG_RANDOMIZE)
 			BLI_array_randomize(edgeMap, sizeof(*edgeMap),
 			                    numEdge_src, bmd->seed);
 
@@ -209,7 +211,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
 	else {
 		int numVerts = numVert_src * frac;
 
-		if (bmd->randomize) {
+		if (bmd->flag & MOD_BUILD_FLAG_RANDOMIZE) {
 			BLI_array_randomize(vertMap, sizeof(*vertMap),
 			                    numVert_src, bmd->seed);
 		}

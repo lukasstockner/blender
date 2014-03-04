@@ -30,12 +30,13 @@
 
 #include "ceres/dense_qr_solver.h"
 
-#include <cstddef>
 
+#include <cstddef>
 #include "Eigen/Dense"
 #include "ceres/dense_sparse_matrix.h"
 #include "ceres/internal/eigen.h"
 #include "ceres/internal/scoped_ptr.h"
+#include "ceres/lapack.h"
 #include "ceres/linear_solver.h"
 #include "ceres/types.h"
 #include "ceres/wall_time.h"
@@ -44,9 +45,81 @@ namespace ceres {
 namespace internal {
 
 DenseQRSolver::DenseQRSolver(const LinearSolver::Options& options)
-    : options_(options) {}
+    : options_(options) {
+  work_.resize(1);
+}
 
 LinearSolver::Summary DenseQRSolver::SolveImpl(
+    DenseSparseMatrix* A,
+    const double* b,
+    const LinearSolver::PerSolveOptions& per_solve_options,
+    double* x) {
+  if (options_.dense_linear_algebra_library_type == EIGEN) {
+    return SolveUsingEigen(A, b, per_solve_options, x);
+  } else {
+    return SolveUsingLAPACK(A, b, per_solve_options, x);
+  }
+}
+
+LinearSolver::Summary DenseQRSolver::SolveUsingLAPACK(
+    DenseSparseMatrix* A,
+    const double* b,
+    const LinearSolver::PerSolveOptions& per_solve_options,
+    double* x) {
+  EventLogger event_logger("DenseQRSolver::Solve");
+
+  const int num_rows = A->num_rows();
+  const int num_cols = A->num_cols();
+
+  if (per_solve_options.D != NULL) {
+    // Temporarily append a diagonal block to the A matrix, but undo
+    // it before returning the matrix to the user.
+    A->AppendDiagonal(per_solve_options.D);
+  }
+
+  // TODO(sameeragarwal): Since we are copying anyways, the diagonal
+  // can be appended to the matrix instead of doing it on A.
+  lhs_ =  A->matrix();
+
+  if (per_solve_options.D != NULL) {
+    // Undo the modifications to the matrix A.
+    A->RemoveDiagonal();
+  }
+
+  // rhs = [b;0] to account for the additional rows in the lhs.
+  if (rhs_.rows() != lhs_.rows()) {
+    rhs_.resize(lhs_.rows());
+  }
+  rhs_.setZero();
+  rhs_.head(num_rows) = ConstVectorRef(b, num_rows);
+
+  if (work_.rows() == 1) {
+    const int work_size =
+        LAPACK::EstimateWorkSizeForQR(lhs_.rows(), lhs_.cols());
+    VLOG(3) << "Working memory for Dense QR factorization: "
+            << work_size * sizeof(double);
+    work_.resize(work_size);
+  }
+
+  LinearSolver::Summary summary;
+  summary.num_iterations = 1;
+  summary.termination_type = LAPACK::SolveInPlaceUsingQR(lhs_.rows(),
+                                                         lhs_.cols(),
+                                                         lhs_.data(),
+                                                         work_.rows(),
+                                                         work_.data(),
+                                                         rhs_.data(),
+                                                         &summary.message);
+  event_logger.AddEvent("Solve");
+  if (summary.termination_type == LINEAR_SOLVER_SUCCESS) {
+    VectorRef(x, num_cols) = rhs_.head(num_cols);
+  }
+
+  event_logger.AddEvent("TearDown");
+  return summary;
+}
+
+LinearSolver::Summary DenseQRSolver::SolveUsingEigen(
     DenseSparseMatrix* A,
     const double* b,
     const LinearSolver::PerSolveOptions& per_solve_options,
@@ -73,7 +146,7 @@ LinearSolver::Summary DenseQRSolver::SolveImpl(
   event_logger.AddEvent("Setup");
 
   // Solve the system.
-  VectorRef(x, num_cols) = A->matrix().colPivHouseholderQr().solve(rhs_);
+  VectorRef(x, num_cols) = A->matrix().householderQr().solve(rhs_);
   event_logger.AddEvent("Solve");
 
   if (per_solve_options.D != NULL) {
@@ -86,7 +159,8 @@ LinearSolver::Summary DenseQRSolver::SolveImpl(
   // is good enough or not.
   LinearSolver::Summary summary;
   summary.num_iterations = 1;
-  summary.termination_type = TOLERANCE;
+  summary.termination_type = LINEAR_SOLVER_SUCCESS;
+  summary.message = "Success.";
 
   event_logger.AddEvent("TearDown");
   return summary;

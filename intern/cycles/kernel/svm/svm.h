@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifndef __SVM_H__
@@ -47,14 +45,14 @@ CCL_NAMESPACE_BEGIN
 
 /* Stack */
 
-__device_inline float3 stack_load_float3(float *stack, uint a)
+ccl_device_inline float3 stack_load_float3(float *stack, uint a)
 {
 	kernel_assert(a+2 < SVM_STACK_SIZE);
 
 	return make_float3(stack[a+0], stack[a+1], stack[a+2]);
 }
 
-__device_inline void stack_store_float3(float *stack, uint a, float3 f)
+ccl_device_inline void stack_store_float3(float *stack, uint a, float3 f)
 {
 	kernel_assert(a+2 < SVM_STACK_SIZE);
 
@@ -63,59 +61,59 @@ __device_inline void stack_store_float3(float *stack, uint a, float3 f)
 	stack[a+2] = f.z;
 }
 
-__device_inline float stack_load_float(float *stack, uint a)
+ccl_device_inline float stack_load_float(float *stack, uint a)
 {
 	kernel_assert(a < SVM_STACK_SIZE);
 
 	return stack[a];
 }
 
-__device_inline float stack_load_float_default(float *stack, uint a, uint value)
+ccl_device_inline float stack_load_float_default(float *stack, uint a, uint value)
 {
 	return (a == (uint)SVM_STACK_INVALID)? __uint_as_float(value): stack_load_float(stack, a);
 }
 
-__device_inline void stack_store_float(float *stack, uint a, float f)
+ccl_device_inline void stack_store_float(float *stack, uint a, float f)
 {
 	kernel_assert(a < SVM_STACK_SIZE);
 
 	stack[a] = f;
 }
 
-__device_inline int stack_load_int(float *stack, uint a)
+ccl_device_inline int stack_load_int(float *stack, uint a)
 {
 	kernel_assert(a < SVM_STACK_SIZE);
 
 	return __float_as_int(stack[a]);
 }
 
-__device_inline float stack_load_int_default(float *stack, uint a, uint value)
+ccl_device_inline float stack_load_int_default(float *stack, uint a, uint value)
 {
 	return (a == (uint)SVM_STACK_INVALID)? (int)value: stack_load_int(stack, a);
 }
 
-__device_inline void stack_store_int(float *stack, uint a, int i)
+ccl_device_inline void stack_store_int(float *stack, uint a, int i)
 {
 	kernel_assert(a < SVM_STACK_SIZE);
 
 	stack[a] = __int_as_float(i);
 }
 
-__device_inline bool stack_valid(uint a)
+ccl_device_inline bool stack_valid(uint a)
 {
 	return a != (uint)SVM_STACK_INVALID;
 }
 
 /* Reading Nodes */
 
-__device_inline uint4 read_node(KernelGlobals *kg, int *offset)
+ccl_device_inline uint4 read_node(KernelGlobals *kg, int *offset)
 {
 	uint4 node = kernel_tex_fetch(__svm_nodes, *offset);
 	(*offset)++;
 	return node;
 }
 
-__device_inline float4 read_node_float(KernelGlobals *kg, int *offset)
+ccl_device_inline float4 read_node_float(KernelGlobals *kg, int *offset)
 {
 	uint4 node = kernel_tex_fetch(__svm_nodes, *offset);
 	float4 f = make_float4(__uint_as_float(node.x), __uint_as_float(node.y), __uint_as_float(node.z), __uint_as_float(node.w));
@@ -123,13 +121,13 @@ __device_inline float4 read_node_float(KernelGlobals *kg, int *offset)
 	return f;
 }
 
-__device_inline float4 fetch_node_float(KernelGlobals *kg, int offset)
+ccl_device_inline float4 fetch_node_float(KernelGlobals *kg, int offset)
 {
 	uint4 node = kernel_tex_fetch(__svm_nodes, offset);
 	return make_float4(__uint_as_float(node.x), __uint_as_float(node.y), __uint_as_float(node.z), __uint_as_float(node.w));
 }
 
-__device_inline void decode_node_uchar4(uint i, uint *x, uint *y, uint *z, uint *w)
+ccl_device_inline void decode_node_uchar4(uint i, uint *x, uint *y, uint *z, uint *w)
 {
 	if(x) *x = (i & 0xFF);
 	if(y) *y = ((i >> 8) & 0xFF);
@@ -146,6 +144,7 @@ CCL_NAMESPACE_END
 
 #include "svm_attribute.h"
 #include "svm_gradient.h"
+#include "svm_blackbody.h"
 #include "svm_closure.h"
 #include "svm_noisetex.h"
 #include "svm_convert.h"
@@ -169,6 +168,7 @@ CCL_NAMESPACE_END
 #include "svm_mix.h"
 #include "svm_ramp.h"
 #include "svm_sepcomb_rgb.h"
+#include "svm_sepcomb_hsv.h"
 #include "svm_musgrave.h"
 #include "svm_sky.h"
 #include "svm_tex_coord.h"
@@ -176,23 +176,17 @@ CCL_NAMESPACE_END
 #include "svm_voronoi.h"
 #include "svm_checker.h"
 #include "svm_brick.h"
+#include "svm_vector_transform.h"
 
 CCL_NAMESPACE_BEGIN
 
 /* Main Interpreter Loop */
 
-__device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderType type, float randb, int path_flag)
+ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderType type, float randb, int path_flag)
 {
 	float stack[SVM_STACK_SIZE];
 	float closure_weight = 1.0f;
 	int offset = sd->shader & SHADER_MASK;
-
-#ifdef __MULTI_CLOSURE__
-	sd->num_closure = 0;
-	sd->randb_closure = randb;
-#else
-	sd->closure.type = NBUILTIN_CLOSURES;
-#endif
 
 	while(1) {
 		uint4 node = read_node(kg, &offset);
@@ -254,7 +248,7 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 #endif
 #ifdef __PROCEDURAL_TEXTURES__
 			case NODE_TEX_SKY:
-				svm_node_tex_sky(kg, sd, stack, node.y, node.z);
+				svm_node_tex_sky(kg, sd, stack, node, &offset);
 				break;
 			case NODE_TEX_GRADIENT:
 				svm_node_tex_gradient(sd, stack, node);
@@ -338,6 +332,12 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 			case NODE_COMBINE_RGB:
 				svm_node_combine_rgb(sd, stack, node.y, node.z, node.w);
 				break;
+			case NODE_SEPARATE_HSV:
+				svm_node_separate_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
+				break;
+			case NODE_COMBINE_HSV:
+				svm_node_combine_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
+				break;
 			case NODE_HSV:
 				svm_node_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
@@ -359,12 +359,15 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 			case NODE_LAYER_WEIGHT:
 				svm_node_layer_weight(sd, stack, node);
 				break;
+#ifdef __EXTRA_NODES__
 			case NODE_WIREFRAME:
 				svm_node_wireframe(kg, sd, stack, node.y, node.z, node.w);
 				break;
-#ifdef __EXTRA_NODES__
 			case NODE_WAVELENGTH:
 				svm_node_wavelength(sd, stack, node.y, node.z);
+				break;
+			case NODE_BLACKBODY:
+				svm_node_blackbody(kg, sd, stack, node.y, node.z);
 				break;
 			case NODE_SET_DISPLACEMENT:
 				svm_node_set_displacement(sd, stack, node.y);
@@ -377,6 +380,9 @@ __device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderT
 				break;
 			case NODE_VECTOR_MATH:
 				svm_node_vector_math(kg, sd, stack, node.y, node.z, node.w, &offset);
+				break;
+			case NODE_VECTOR_TRANSFORM:
+				svm_node_vector_transform(kg, sd, stack, node);
 				break;
 			case NODE_NORMAL:
 				svm_node_normal(kg, sd, stack, node.y, node.z, node.w, &offset);

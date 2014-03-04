@@ -41,6 +41,7 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
 #include "BLI_rect.h"
 
 #include "BLF_translation.h"
@@ -337,13 +338,30 @@ int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *index, 
 	/* sample only on the exact position */
 	*index = view3d_sample_backbuf(vc, mval[0], mval[1]);
 
-	if ((*index) <= 0 || (*index) > (unsigned int)totface) {
+	if ((*index) == 0 || (*index) > (unsigned int)totface) {
 		return 0;
 	}
 
 	(*index)--;
 	
 	return 1;
+}
+
+/* Uses symm to selectively flip any axis of a coordinate. */
+void flip_v3_v3(float out[3], const float in[3], const char symm)
+{
+	if (symm & PAINT_SYMM_X)
+		out[0] = -in[0];
+	else
+		out[0] = in[0];
+	if (symm & PAINT_SYMM_Y)
+		out[1] = -in[1];
+	else
+		out[1] = in[1];
+	if (symm & PAINT_SYMM_Z)
+		out[2] = -in[2];
+	else
+		out[2] = in[2];
 }
 
 /* used for both 3d view and image window */
@@ -420,7 +438,7 @@ void BRUSH_OT_curve_preset(wmOperatorType *ot)
 /* face-select ops */
 static int paint_select_linked_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	paintface_select_linked(C, CTX_data_active_object(C), NULL, 2);
+	paintface_select_linked(C, CTX_data_active_object(C), NULL, true);
 	ED_region_tag_redraw(CTX_wm_region(C));
 	return OPERATOR_FINISHED;
 }
@@ -439,8 +457,9 @@ void PAINT_OT_face_select_linked(wmOperatorType *ot)
 
 static int paint_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	int mode = RNA_boolean_get(op->ptr, "extend") ? 1 : 0;
-	paintface_select_linked(C, CTX_data_active_object(C), event->mval, mode);
+	const bool select = !RNA_boolean_get(op->ptr, "deselect");
+	view3d_operator_needs_opengl(C);
+	paintface_select_linked(C, CTX_data_active_object(C), event->mval, select);
 	ED_region_tag_redraw(CTX_wm_region(C));
 	return OPERATOR_FINISHED;
 }
@@ -448,7 +467,7 @@ static int paint_select_linked_pick_invoke(bContext *C, wmOperator *op, const wm
 void PAINT_OT_face_select_linked_pick(wmOperatorType *ot)
 {
 	ot->name = "Select Linked Pick";
-	ot->description = "Select linked faces";
+	ot->description = "Select linked faces under the cursor";
 	ot->idname = "PAINT_OT_face_select_linked_pick";
 
 	ot->invoke = paint_select_linked_pick_invoke;
@@ -456,7 +475,7 @@ void PAINT_OT_face_select_linked_pick(wmOperatorType *ot)
 
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend the existing selection");
+	RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Deselect rather than select items");
 }
 
 
@@ -513,7 +532,7 @@ static int vert_select_ungrouped_exec(bContext *C, wmOperator *op)
 	Object *ob = CTX_data_active_object(C);
 	Mesh *me = ob->data;
 
-	if ((ob->defbase.first == NULL) || (me->dvert == NULL)) {
+	if (BLI_listbase_is_empty(&ob->defbase) || (me->dvert == NULL)) {
 		BKE_report(op->reports, RPT_ERROR, "No weights/vertex groups on object");
 		return OPERATOR_CANCELLED;
 	}

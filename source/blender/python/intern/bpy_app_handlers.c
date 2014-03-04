@@ -50,13 +50,15 @@ static PyStructSequence_Field app_cb_info_fields[] = {
 	{(char *)"render_post",       (char *)"Callback list - on render (after)"},
 	{(char *)"render_stats",      (char *)"Callback list - on printing render statistics"},
 	{(char *)"render_complete",   (char *)"Callback list - on completion of render job"},
-	{(char *)"render_cancel",     (char *)"Callback list - on cancelling a render job"},
+	{(char *)"render_cancel",     (char *)"Callback list - on canceling a render job"},
 	{(char *)"load_pre",          (char *)"Callback list - on loading a new blend file (before)"},
 	{(char *)"load_post",         (char *)"Callback list - on loading a new blend file (after)"},
 	{(char *)"save_pre",          (char *)"Callback list - on saving a blend file (before)"},
 	{(char *)"save_post",         (char *)"Callback list - on saving a blend file (after)"},
 	{(char *)"scene_update_pre",  (char *)"Callback list - on updating the scenes data (before)"},
 	{(char *)"scene_update_post", (char *)"Callback list - on updating the scenes data (after)"},
+	{(char *)"game_pre",          (char *)"Callback list - on starting the game engine"},
+	{(char *)"game_post",         (char *)"Callback list - on ending the game engine"},
 
 	/* sets the permanent tag */
 #   define APP_CB_OTHER_FIELDS 1

@@ -34,6 +34,7 @@
 #include "Eigen/Core"
 #include "ceres/array_utils.h"
 #include "ceres/internal/eigen.h"
+#include "ceres/linear_least_squares_problems.h"
 #include "ceres/linear_solver.h"
 #include "ceres/sparse_matrix.h"
 #include "ceres/trust_region_strategy.h"
@@ -48,8 +49,8 @@ LevenbergMarquardtStrategy::LevenbergMarquardtStrategy(
     : linear_solver_(options.linear_solver),
       radius_(options.initial_radius),
       max_radius_(options.max_radius),
-      min_diagonal_(options.lm_min_diagonal),
-      max_diagonal_(options.lm_max_diagonal),
+      min_diagonal_(options.min_lm_diagonal),
+      max_diagonal_(options.max_lm_diagonal),
       decrease_factor_(2.0),
       reuse_diagonal_(false) {
   CHECK_NOTNULL(linear_solver_);
@@ -104,15 +105,33 @@ TrustRegionStrategy::Summary LevenbergMarquardtStrategy::ComputeStep(
   // do not need to be modified.
   LinearSolver::Summary linear_solver_summary =
       linear_solver_->Solve(jacobian, residuals, solve_options, step);
-  if (linear_solver_summary.termination_type == FAILURE ||
-      !IsArrayValid(num_parameters, step)) {
+
+  if (linear_solver_summary.termination_type == LINEAR_SOLVER_FATAL_ERROR) {
+    LOG(WARNING) << "Linear solver fatal error.";
+  } else if (linear_solver_summary.termination_type == LINEAR_SOLVER_FAILURE ||
+             !IsArrayValid(num_parameters, step)) {
     LOG(WARNING) << "Linear solver failure. Failed to compute a finite step.";
-    linear_solver_summary.termination_type = FAILURE;
+    linear_solver_summary.termination_type = LINEAR_SOLVER_FAILURE;
   } else {
     VectorRef(step, num_parameters) *= -1.0;
   }
-
   reuse_diagonal_ = true;
+
+  if (per_solve_options.dump_format_type == CONSOLE ||
+      (per_solve_options.dump_format_type != CONSOLE &&
+       !per_solve_options.dump_filename_base.empty())) {
+    if (!DumpLinearLeastSquaresProblem(per_solve_options.dump_filename_base,
+                                       per_solve_options.dump_format_type,
+                                       jacobian,
+                                       solve_options.D,
+                                       residuals,
+                                       step,
+                                       0)) {
+      LOG(ERROR) << "Unable to dump trust region problem."
+                 << " Filename base: " << per_solve_options.dump_filename_base;
+    }
+  }
+
 
   TrustRegionStrategy::Summary summary;
   summary.residual_norm = linear_solver_summary.residual_norm;

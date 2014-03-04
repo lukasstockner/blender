@@ -228,6 +228,9 @@ static void occ_build_shade(Render *re, OcclusionTree *tree)
 		vlr = RE_findOrAddVlak(obi->obr, tree->face[a].facenr);
 
 		occ_shade(&ssamp, obi, vlr, tree->rad[a]);
+
+		if (re->test_break(re->tbh))
+			break;
 	}
 }
 
@@ -371,7 +374,7 @@ static void occ_sum_occlusion(OcclusionTree *tree, OccNode *node)
 	for (b = 0; b < TOTCHILD; b++) {
 		if (node->childflag & (1 << b)) {
 			a = node->child[b].face;
-			occ_face(&tree->face[a], 0, 0, &area);
+			occ_face(&tree->face[a], NULL, NULL, &area);
 			occ += area * tree->occlusion[a];
 			if (indirect) madd_v3_v3fl(rad, tree->rad[a], area);
 			totarea += area;
@@ -521,7 +524,7 @@ static void *exec_occ_build(void *data)
 
 	occ_build_recursive(othread->tree, othread->node, othread->begin, othread->end, othread->depth);
 
-	return 0;
+	return NULL;
 }
 
 static void occ_build_recursive(OcclusionTree *tree, OccNode *node, int begin, int end, int depth)
@@ -567,7 +570,7 @@ static void occ_build_recursive(OcclusionTree *tree, OccNode *node, int begin, i
 				node->child[b].node = child;
 
 				/* keep track of maximum depth for stack */
-				if (depth + 1 > tree->maxdepth)
+				if (depth >= tree->maxdepth)
 					tree->maxdepth = depth + 1;
 
 				if (tree->dothreadedbuild)
@@ -714,14 +717,18 @@ static OcclusionTree *occ_tree_build(Render *re)
 	occ_build_recursive(tree, tree->root, 0, totface, 1);
 
 	if (tree->doindirect) {
-		occ_build_shade(re, tree);
-		occ_sum_occlusion(tree, tree->root);
+		if (!(re->test_break(re->tbh)))
+			occ_build_shade(re, tree);
+
+		if (!(re->test_break(re->tbh)))
+			occ_sum_occlusion(tree, tree->root);
 	}
 	
 	MEM_freeN(tree->co);
 	tree->co = NULL;
 
-	occ_build_sh_normalize(tree->root);
+	if (!(re->test_break(re->tbh)))
+		occ_build_sh_normalize(tree->root);
 
 	for (a = 0; a < BLENDER_MAX_THREADS; a++)
 		tree->stack[a] = MEM_callocN(sizeof(OccNode) * TOTCHILD * (tree->maxdepth + 1), "OccStack");
@@ -1244,7 +1251,7 @@ static void *exec_strandsurface_sample(void *data)
 		copy_v3_v3(othread->faceindirect[a], indirect);
 	}
 
-	return 0;
+	return NULL;
 }
 
 void make_occ_tree(Render *re)
@@ -1264,7 +1271,7 @@ void make_occ_tree(Render *re)
 	
 	re->occlusiontree = tree = occ_tree_build(re);
 	
-	if (tree) {
+	if (tree && !re->test_break(re->tbh)) {
 		if (re->wrld.ao_approx_passes > 0)
 			occ_compute_passes(re, tree, re->wrld.ao_approx_passes);
 		if (tree->doindirect && (re->wrld.mode & WO_INDIRECT_LIGHT))

@@ -98,6 +98,10 @@ static void node_init_output_index(bNodeSocket *sock, int *index, ListBase *inte
 		for (link = internal_links->first; link; link = link->next) {
 			if (link->tosock == sock) {
 				sock->stack_index = link->fromsock->stack_index;
+				/* set the link pointer to indicate that this socket
+				 * should not overwrite the stack value!
+				 */
+				sock->link = link;
 				break;
 			}
 		}
@@ -203,6 +207,7 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context, bNodeTree *ntree, bNo
 	/* prepare all nodes for execution */
 	for (n = 0, nodeexec = exec->nodeexec; n < totnodes; ++n, ++nodeexec) {
 		node = nodeexec->node = nodelist[n];
+		nodeexec->freeexecfunc = node->typeinfo->freeexecfunc;
 		
 		/* tag inputs */
 		for (sock = node->inputs.first; sock; sock = sock->next) {
@@ -241,9 +246,8 @@ void ntree_exec_end(bNodeTreeExec *exec)
 		MEM_freeN(exec->stack);
 	
 	for (n = 0, nodeexec = exec->nodeexec; n < exec->totnodes; ++n, ++nodeexec) {
-		if (nodeexec->node->typeinfo)
-			if (nodeexec->node->typeinfo->freeexecfunc)
-				nodeexec->node->typeinfo->freeexecfunc(nodeexec->node, nodeexec->data.data);
+		if (nodeexec->freeexecfunc)
+			nodeexec->freeexecfunc(nodeexec->data.data);
 	}
 	
 	if (exec->nodeexec)
@@ -283,8 +287,8 @@ void ntreeReleaseThreadStack(bNodeThreadStack *nts)
 
 bool ntreeExecThreadNodes(bNodeTreeExec *exec, bNodeThreadStack *nts, void *callerdata, int thread)
 {
-	bNodeStack *nsin[MAX_SOCKET];   /* arbitrary... watch this */
-	bNodeStack *nsout[MAX_SOCKET];  /* arbitrary... watch this */
+	bNodeStack *nsin[MAX_SOCKET] = {NULL};   /* arbitrary... watch this */
+	bNodeStack *nsout[MAX_SOCKET] = {NULL};  /* arbitrary... watch this */
 	bNodeExec *nodeexec;
 	bNode *node;
 	int n;

@@ -101,12 +101,12 @@ void node_socket_select(bNode *node, bNodeSocket *sock)
 		node->flag |= SELECT;
 }
 
-void node_socket_deselect(bNode *node, bNodeSocket *sock, int deselect_node)
+void node_socket_deselect(bNode *node, bNodeSocket *sock, const bool deselect_node)
 {
 	sock->flag &= ~SELECT;
 	
 	if (node && deselect_node) {
-		int sel = 0;
+		bool sel = 0;
 		
 		/* if no selected sockets remain, also deselect the node */
 		for (sock = node->inputs.first; sock; sock = sock->next) {
@@ -144,7 +144,7 @@ void node_deselect_all(SpaceNode *snode)
 		nodeSetSelected(node, FALSE);
 }
 
-void node_deselect_all_input_sockets(SpaceNode *snode, int deselect_nodes)
+void node_deselect_all_input_sockets(SpaceNode *snode, const bool deselect_nodes)
 {
 	bNode *node;
 	bNodeSocket *sock;
@@ -175,7 +175,7 @@ void node_deselect_all_input_sockets(SpaceNode *snode, int deselect_nodes)
 	}
 }
 
-void node_deselect_all_output_sockets(SpaceNode *snode, int deselect_nodes)
+void node_deselect_all_output_sockets(SpaceNode *snode, const bool deselect_nodes)
 {
 	bNode *node;
 	bNodeSocket *sock;
@@ -186,7 +186,7 @@ void node_deselect_all_output_sockets(SpaceNode *snode, int deselect_nodes)
 	 */
 	
 	for (node = snode->edittree->nodes.first; node; node = node->next) {
-		int sel = 0;
+		bool sel = false;
 		
 		for (sock = node->outputs.first; sock; sock = sock->next)
 			sock->flag &= ~SELECT;
@@ -306,24 +306,21 @@ static int node_mouse_select(Main *bmain, SpaceNode *snode, ARegion *ar, const i
 {
 	bNode *node, *tnode;
 	bNodeSocket *sock, *tsock;
-	float mx, my;
+	float cursor[2];
 	int selected = 0;
 	
 	/* get mouse coordinates in view2d space */
-	UI_view2d_region_to_view(&ar->v2d, mval[0], mval[1], &mx, &my);
-	/* node_find_indicated_socket uses snode->mx/my */
-	snode->cursor[0] = mx;
-	snode->cursor[1] = my;
+	UI_view2d_region_to_view(&ar->v2d, mval[0], mval[1], &cursor[0], &cursor[1]);
 	
 	if (extend) {
 		/* first do socket selection, these generally overlap with nodes.
 		 * socket selection only in extend mode.
 		 */
-		if (node_find_indicated_socket(snode, &node, &sock, SOCK_IN)) {
+		if (node_find_indicated_socket(snode, &node, &sock, cursor, SOCK_IN)) {
 			node_socket_toggle(node, sock, 1);
 			selected = 1;
 		}
-		else if (node_find_indicated_socket(snode, &node, &sock, SOCK_OUT)) {
+		else if (node_find_indicated_socket(snode, &node, &sock, cursor, SOCK_OUT)) {
 			if (sock->flag & SELECT) {
 				node_socket_deselect(node, sock, 1);
 			}
@@ -341,7 +338,7 @@ static int node_mouse_select(Main *bmain, SpaceNode *snode, ARegion *ar, const i
 		}
 		else {
 			/* find the closest visible node */
-			node = node_under_mouse_select(snode->edittree, mx, my);
+			node = node_under_mouse_select(snode->edittree, cursor[0], cursor[1]);
 			
 			if (node) {
 				if ((node->flag & SELECT) && (node->flag & NODE_ACTIVE) == 0) {
@@ -362,7 +359,7 @@ static int node_mouse_select(Main *bmain, SpaceNode *snode, ARegion *ar, const i
 	else {  /* extend == 0 */
 		
 		/* find the closest visible node */
-		node = node_under_mouse_select(snode->edittree, mx, my);
+		node = node_under_mouse_select(snode->edittree, cursor[0], cursor[1]);
 		
 		if (node) {
 			for (tnode = snode->edittree->nodes.first; tnode; tnode = tnode->next) {
@@ -429,6 +426,7 @@ void NODE_OT_select(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke = node_select_invoke;
+	ot->exec = node_select_exec;
 	ot->poll = ED_operator_node_active;
 	
 	/* flags */
@@ -450,7 +448,7 @@ static int node_borderselect_exec(bContext *C, wmOperator *op)
 	rcti rect;
 	rctf rectf;
 	int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
-	int extend = RNA_boolean_get(op->ptr, "extend");
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
 	
 	WM_operator_properties_border_to_rcti(op, &rect);
 
@@ -475,7 +473,7 @@ static int node_borderselect_exec(bContext *C, wmOperator *op)
 
 static int node_border_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	int tweak = RNA_boolean_get(op->ptr, "tweak");
+	const bool tweak = RNA_boolean_get(op->ptr, "tweak");
 	
 	if (tweak) {
 		/* prevent initiating the border select if the mouse is over a node */
@@ -516,9 +514,66 @@ void NODE_OT_select_border(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "tweak", 0, "Tweak", "Only activate when mouse is not over a node - useful for tweak gesture");
 }
 
+/* ****** Circle Select ****** */
+
+static int node_circleselect_exec(bContext *C, wmOperator *op)
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+	ARegion *ar = CTX_wm_region(C);
+	bNode *node;
+
+	int x, y, radius, gesture_mode;
+	float offset[2];
+
+	float zoom  = (float)(BLI_rcti_size_x(&ar->winrct)) / (float)(BLI_rctf_size_x(&ar->v2d.cur));
+
+	gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
+
+	/* get operator properties */
+	x = RNA_int_get(op->ptr, "x");
+	y = RNA_int_get(op->ptr, "y");
+	radius = RNA_int_get(op->ptr, "radius");
+
+	UI_view2d_region_to_view(&ar->v2d, x, y, &offset[0], &offset[1]);
+
+	for (node = snode->edittree->nodes.first; node; node = node->next) {
+		if (BLI_rctf_isect_circle(&node->totr, offset, radius / zoom)) {
+			nodeSetSelected(node, (gesture_mode == GESTURE_MODAL_SELECT));
+		}
+	}
+
+	WM_event_add_notifier(C, NC_NODE | NA_SELECTED, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void NODE_OT_select_circle(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Circle Select";
+	ot->idname = "NODE_OT_select_circle";
+	ot->description = "Use circle selection to select nodes";
+
+	/* api callbacks */
+	ot->invoke = WM_gesture_circle_invoke;
+	ot->exec = node_circleselect_exec;
+	ot->modal = WM_gesture_circle_modal;
+
+	ot->poll = ED_operator_node_active;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* rna */
+	RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "radius", 0, INT_MIN, INT_MAX, "Radius", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "gesture_mode", 0, INT_MIN, INT_MAX, "Gesture Mode", "", INT_MIN, INT_MAX);
+}
+
 /* ****** Lasso Select ****** */
 
-static int do_lasso_select_node(bContext *C, const int mcords[][2], short moves, short select)
+static bool do_lasso_select_node(bContext *C, const int mcords[][2], short moves, short select)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	bNode *node;
@@ -526,7 +581,7 @@ static int do_lasso_select_node(bContext *C, const int mcords[][2], short moves,
 	ARegion *ar = CTX_wm_region(C);
 
 	rcti rect;
-	int change = FALSE;
+	bool changed = false;
 
 	/* get rectangle from operator */
 	BLI_lasso_boundbox(&rect, mcords, moves);
@@ -543,18 +598,18 @@ static int do_lasso_select_node(bContext *C, const int mcords[][2], short moves,
 		                         &screen_co[0], &screen_co[1]);
 
 		if (BLI_rcti_isect_pt(&rect, screen_co[0], screen_co[1]) &&
-			BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], INT_MAX))
+		    BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], INT_MAX))
 		{
 			nodeSetSelected(node, select);
-			change = TRUE;
+			changed = true;
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		WM_event_add_notifier(C, NC_NODE | NA_SELECTED, NULL);
 	}
 
-	return change;
+	return changed;
 }
 
 static int node_lasso_select_exec(bContext *C, wmOperator *op)
@@ -780,8 +835,8 @@ static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
 	bNode **node_array;
 	bNode *active = nodeGetActive(snode->edittree);
 	int totnodes;
-	int revert = RNA_boolean_get(op->ptr, "prev");
-	int same_type = 1;
+	const bool revert = RNA_boolean_get(op->ptr, "prev");
+	const bool same_type = 1;
 	
 	ntreeGetDependencyList(snode->edittree, &node_array, &totnodes);
 	
@@ -833,7 +888,8 @@ static int node_select_same_type_step_exec(bContext *C, wmOperator *op)
 		if (active->totr.xmax < ar->v2d.cur.xmin || active->totr.xmin > ar->v2d.cur.xmax ||
 		    active->totr.ymax < ar->v2d.cur.ymin || active->totr.ymin > ar->v2d.cur.ymax)
 		{
-			space_node_view_flag(C, snode, CTX_wm_region(C), NODE_SELECT);
+			const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+			space_node_view_flag(C, snode, ar, NODE_SELECT, smooth_viewtx);
 		}
 	}
 	
@@ -897,7 +953,7 @@ static void node_find_call_cb(struct bContext *C, void *UNUSED(arg1), void *arg2
 		if (active->totr.xmax < ar->v2d.cur.xmin || active->totr.xmin > ar->v2d.cur.xmax ||
 		    active->totr.ymax < ar->v2d.cur.ymin || active->totr.ymin > ar->v2d.cur.ymax)
 		{
-			space_node_view_flag(C, snode, ar, NODE_SELECT);
+			space_node_view_flag(C, snode, ar, NODE_SELECT, U.smooth_viewtx);
 		}
 
 	}
@@ -925,7 +981,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *ar, void *arg_op)
 	uiEndBlock(C, block);
 	
 	//	uiButActiveOnly(C, ar, block, but); XXX using this here makes Blender hang - investigate
-	event = *(win->eventstate);  /* XXX huh huh? make api call */
+	wm_event_init_from_window(win, &event);
 	event.type = EVT_BUT_OPEN;
 	event.val = KM_PRESS;
 	event.customdata = but;

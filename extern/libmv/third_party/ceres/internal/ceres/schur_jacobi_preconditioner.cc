@@ -33,10 +33,9 @@
 #include <utility>
 #include <vector>
 #include "Eigen/Dense"
-#include "ceres/block_random_access_sparse_matrix.h"
+#include "ceres/block_random_access_diagonal_matrix.h"
 #include "ceres/block_sparse_matrix.h"
 #include "ceres/collections_port.h"
-#include "ceres/detect_structure.h"
 #include "ceres/internal/scoped_ptr.h"
 #include "ceres/linear_solver.h"
 #include "ceres/schur_eliminator.h"
@@ -57,16 +56,11 @@ SchurJacobiPreconditioner::SchurJacobiPreconditioner(
       << "SCHUR_JACOBI preconditioner.";
 
   block_size_.resize(num_blocks);
-  set<pair<int, int> > block_pairs;
-
-  int num_block_diagonal_entries = 0;
   for (int i = 0; i < num_blocks; ++i) {
     block_size_[i] = bs.cols[i + options_.elimination_groups[0]].size;
-    block_pairs.insert(make_pair(i, i));
-    num_block_diagonal_entries += block_size_[i] * block_size_[i];
   }
 
-  m_.reset(new BlockRandomAccessSparseMatrix(block_size_, block_pairs));
+  m_.reset(new BlockRandomAccessDiagonalMatrix(block_size_));
   InitEliminator(bs);
 }
 
@@ -77,22 +71,18 @@ SchurJacobiPreconditioner::~SchurJacobiPreconditioner() {
 void SchurJacobiPreconditioner::InitEliminator(
     const CompressedRowBlockStructure& bs) {
   LinearSolver::Options eliminator_options;
-
   eliminator_options.elimination_groups = options_.elimination_groups;
   eliminator_options.num_threads = options_.num_threads;
-
-  DetectStructure(bs, options_.elimination_groups[0],
-                  &eliminator_options.row_block_size,
-                  &eliminator_options.e_block_size,
-                  &eliminator_options.f_block_size);
-
+  eliminator_options.e_block_size = options_.e_block_size;
+  eliminator_options.f_block_size = options_.f_block_size;
+  eliminator_options.row_block_size = options_.row_block_size;
   eliminator_.reset(SchurEliminatorBase::Create(eliminator_options));
-  eliminator_->Init(options_.elimination_groups[0], &bs);
+  eliminator_->Init(eliminator_options.elimination_groups[0], &bs);
 }
 
 // Update the values of the preconditioner matrix and factorize it.
-bool SchurJacobiPreconditioner::Update(const BlockSparseMatrixBase& A,
-                                       const double* D) {
+bool SchurJacobiPreconditioner::UpdateImpl(const BlockSparseMatrix& A,
+                                           const double* D) {
   const int num_rows = m_->num_rows();
   CHECK_GT(num_rows, 0);
 
@@ -118,7 +108,7 @@ void SchurJacobiPreconditioner::RightMultiply(const double* x,
   CHECK_NOTNULL(y);
 
   const double* lhs_values =
-      down_cast<BlockRandomAccessSparseMatrix*>(m_.get())->matrix()->values();
+      down_cast<BlockRandomAccessDiagonalMatrix*>(m_.get())->matrix()->values();
 
   // This loop can be easily multi-threaded with OpenMP if need be.
   for (int i = 0; i < block_size_.size(); ++i) {
@@ -128,7 +118,7 @@ void SchurJacobiPreconditioner::RightMultiply(const double* x,
     VectorRef(y, block_size) =
         block
         .selfadjointView<Eigen::Upper>()
-        .ldlt()
+        .llt()
         .solve(ConstVectorRef(x, block_size));
 
     x += block_size;

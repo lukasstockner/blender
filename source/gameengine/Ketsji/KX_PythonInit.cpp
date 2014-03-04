@@ -142,8 +142,6 @@ extern "C" {
 	#include "BKE_idcode.h"
 }
 
-#include "NG_NetworkScene.h" //Needed for sendMessage()
-
 // 'local' copy of canvas ptr, for window height/width python scripts
 
 #ifdef WITH_PYTHON
@@ -233,9 +231,8 @@ static char gPyExpandPath_doc[] =
 path - the string path to convert.\n\n\
 Use / as directory separator in path\n\
 You can use '//' at the start of the string to define a relative path;\n\
-Blender replaces that string by the directory of the startup .blend or runtime\n\
-file to make a full path name (doesn't change during the game, even if you load\n\
-other .blend).\n\
+Blender replaces that string by the directory of the current .blend or runtime\n\
+file to make a full path name.\n\
 The function also converts the directory separator to the local file system format.";
 
 static PyObject *gPyExpandPath(PyObject *, PyObject *args)
@@ -481,7 +478,7 @@ static PyObject *gPySetPhysicsTicRate(PyObject *, PyObject *args)
 	if (!PyArg_ParseTuple(args, "f:setPhysicsTicRate", &ticrate))
 		return NULL;
 	
-	PHY_GetActiveEnvironment()->setFixedTimeStep(true,ticrate);
+	PHY_GetActiveEnvironment()->SetFixedTimeStep(true,ticrate);
 	Py_RETURN_NONE;
 }
 #if 0 // unused
@@ -499,7 +496,7 @@ static PyObject *gPySetPhysicsDebug(PyObject *, PyObject *args)
 
 static PyObject *gPyGetPhysicsTicRate(PyObject *)
 {
-	return PyFloat_FromDouble(PHY_GetActiveEnvironment()->getFixedTimeStep());
+	return PyFloat_FromDouble(PHY_GetActiveEnvironment()->GetFixedTimeStep());
 }
 
 static PyObject *gPyGetAverageFrameRate(PyObject *)
@@ -531,7 +528,7 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 
 	if ((dp  = opendir(cpath)) == NULL) {
 		/* todo, show the errno, this shouldnt happen anyway if the blendfile is readable */
-		fprintf(stderr, "Could not read directoty (%s) failed, code %d (%s)\n", cpath, errno, strerror(errno));
+		fprintf(stderr, "Could not read directory (%s) failed, code %d (%s)\n", cpath, errno, strerror(errno));
 		return list;
 	}
 	
@@ -1227,7 +1224,6 @@ static PyObject *gPyGetGLSLMaterialSetting(PyObject *,
 	return PyLong_FromLong(enabled);
 }
 
-#define KX_TEXFACE_MATERIAL				0
 #define KX_BLENDER_MULTITEX_MATERIAL	1
 #define KX_BLENDER_GLSL_MATERIAL		2
 
@@ -1245,8 +1241,6 @@ static PyObject *gPySetMaterialType(PyObject *,
 		gs->matmode= GAME_MAT_GLSL;
 	else if (type == KX_BLENDER_MULTITEX_MATERIAL)
 		gs->matmode= GAME_MAT_MULTITEX;
-	else if (type == KX_TEXFACE_MATERIAL)
-		gs->matmode= GAME_MAT_TEXFACE;
 	else {
 		PyErr_SetString(PyExc_ValueError, "Rasterizer.setMaterialType(int): material type is not known");
 		return NULL;
@@ -1262,10 +1256,8 @@ static PyObject *gPyGetMaterialType(PyObject *)
 
 	if (gs->matmode == GAME_MAT_GLSL)
 		flag = KX_BLENDER_GLSL_MATERIAL;
-	else if (gs->matmode == GAME_MAT_MULTITEX)
-		flag = KX_BLENDER_MULTITEX_MATERIAL;
 	else
-		flag = KX_TEXFACE_MATERIAL;
+		flag = KX_BLENDER_MULTITEX_MATERIAL;
 	
 	return PyLong_FromLong(flag);
 }
@@ -1372,6 +1364,29 @@ static PyObject *gPyGetMipmapping(PyObject *)
 	return PyLong_FromLong(gp_Rasterizer->GetMipmapping());
 }
 
+static PyObject *gPySetVsync(PyObject *, PyObject *args)
+{
+	int interval;
+
+	if (!PyArg_ParseTuple(args, "i:setVsync", &interval))
+		return NULL;
+
+	if (interval < 0 || interval > VSYNC_ADAPTIVE) {
+		PyErr_SetString(PyExc_ValueError, "Rasterizer.setVsync(value): value must be VSYNC_OFF, VSYNC_ON, or VSYNC_ADAPTIVE");
+		return NULL;
+	}
+
+	if (interval == VSYNC_ADAPTIVE)
+		interval = -1;
+	gp_Canvas->SetSwapInterval((interval == VSYNC_ON) ? 1 : 0);
+	Py_RETURN_NONE;
+}
+
+static PyObject *gPyGetVsync(PyObject *)
+{
+	return PyLong_FromLong(gp_Canvas->GetSwapInterval());
+}
+
 static struct PyMethodDef rasterizer_methods[] = {
 	{"getWindowWidth",(PyCFunction) gPyGetWindowWidth,
 	 METH_VARARGS, "getWindowWidth doc"},
@@ -1417,6 +1432,8 @@ static struct PyMethodDef rasterizer_methods[] = {
 	{"getFullScreen", (PyCFunction) gPyGetFullScreen, METH_NOARGS, ""},
 	{"setMipmapping", (PyCFunction) gPySetMipmapping, METH_VARARGS, ""},
 	{"getMipmapping", (PyCFunction) gPyGetMipmapping, METH_NOARGS, ""},
+	{"setVsync", (PyCFunction) gPySetVsync, METH_VARARGS, ""},
+	{"getVsync", (PyCFunction) gPyGetVsync, METH_NOARGS, ""},
 	{ NULL, (PyCFunction) NULL, 0, NULL }
 };
 
@@ -1651,16 +1668,16 @@ PyObject *initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_POS_X, KX_RadarSensor::KX_RADAR_AXIS_POS_X);
 	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_POS_Y, KX_RadarSensor::KX_RADAR_AXIS_POS_Y);
 	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_POS_Z, KX_RadarSensor::KX_RADAR_AXIS_POS_Z);
-	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_X, KX_RadarSensor::KX_RADAR_AXIS_NEG_Y);
-	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_Y, KX_RadarSensor::KX_RADAR_AXIS_NEG_X);
+	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_X, KX_RadarSensor::KX_RADAR_AXIS_NEG_X);
+	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_Y, KX_RadarSensor::KX_RADAR_AXIS_NEG_Y);
 	KX_MACRO_addTypesToDict(d, KX_RADAR_AXIS_NEG_Z, KX_RadarSensor::KX_RADAR_AXIS_NEG_Z);
 
 	/* Ray Sensor */
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_X, KX_RaySensor::KX_RAY_AXIS_POS_X);
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_Y, KX_RaySensor::KX_RAY_AXIS_POS_Y);
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_POS_Z, KX_RaySensor::KX_RAY_AXIS_POS_Z);
-	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_X, KX_RaySensor::KX_RAY_AXIS_NEG_Y);
-	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Y, KX_RaySensor::KX_RAY_AXIS_NEG_X);
+	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_X, KX_RaySensor::KX_RAY_AXIS_NEG_X);
+	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Y, KX_RaySensor::KX_RAY_AXIS_NEG_Y);
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Z, KX_RaySensor::KX_RAY_AXIS_NEG_Z);
 
 	/* Dynamic actuator */
@@ -1795,6 +1812,10 @@ PyObject *initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, KX_ACTION_MODE_PLAY, BL_Action::ACT_MODE_PLAY);
 	KX_MACRO_addTypesToDict(d, KX_ACTION_MODE_LOOP, BL_Action::ACT_MODE_LOOP);
 	KX_MACRO_addTypesToDict(d, KX_ACTION_MODE_PING_PONG, BL_Action::ACT_MODE_PING_PONG);
+
+	/* BL_Action blend modes */
+	KX_MACRO_addTypesToDict(d, KX_ACTION_BLEND_BLEND, BL_Action::ACT_BLEND_BLEND);
+	KX_MACRO_addTypesToDict(d, KX_ACTION_BLEND_ADD, BL_Action::ACT_BLEND_ADD);
 
 	// Check for errors
 	if (PyErr_Occurred())
@@ -2122,6 +2143,7 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene *startscene, Main *
 	                                        "'render':__import__('Rasterizer'), "
 	                                        "'events':__import__('GameKeys'), "
 	                                        "'constraints':__import__('PhysicsConstraints'), "
+	                                        "'physics':__import__('PhysicsConstraints'),"
 	                                        "'types':__import__('GameTypes'), "
 	                                        "'texture':__import__('VideoTexture')});"
 	                   /* so we can do 'import bge.foo as bar' */
@@ -2130,6 +2152,7 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene *startscene, Main *
 	                                       "'bge.render':bge.render, "
 	                                       "'bge.events':bge.events, "
 	                                       "'bge.constraints':bge.constraints, "
+	                                       "'bge.physics':bge.physics,"
 	                                       "'bge.types':bge.types, "
 	                                       "'bge.texture':bge.texture})"
 	                   );
@@ -2179,13 +2202,17 @@ PyObject *initRasterizer(RAS_IRasterizer* rasty,RAS_ICanvas* canvas)
 	Py_DECREF(ErrorObject);
 
 	/* needed for get/setMaterialType */
-	KX_MACRO_addTypesToDict(d, KX_TEXFACE_MATERIAL, KX_TEXFACE_MATERIAL);
 	KX_MACRO_addTypesToDict(d, KX_BLENDER_MULTITEX_MATERIAL, KX_BLENDER_MULTITEX_MATERIAL);
 	KX_MACRO_addTypesToDict(d, KX_BLENDER_GLSL_MATERIAL, KX_BLENDER_GLSL_MATERIAL);
 
 	KX_MACRO_addTypesToDict(d, RAS_MIPMAP_NONE, RAS_IRasterizer::RAS_MIPMAP_NONE);
 	KX_MACRO_addTypesToDict(d, RAS_MIPMAP_NEAREST, RAS_IRasterizer::RAS_MIPMAP_NEAREST);
 	KX_MACRO_addTypesToDict(d, RAS_MIPMAP_LINEAR, RAS_IRasterizer::RAS_MIPMAP_LINEAR);
+
+	/* for get/setVsync */
+	KX_MACRO_addTypesToDict(d, VSYNC_OFF, VSYNC_OFF);
+	KX_MACRO_addTypesToDict(d, VSYNC_ON, VSYNC_ON);
+	KX_MACRO_addTypesToDict(d, VSYNC_ADAPTIVE, VSYNC_ADAPTIVE);
 
 	// XXXX Add constants here
 
@@ -2415,6 +2442,8 @@ PyObject *initGameKeys()
 	KX_MACRO_addTypesToDict(d, F17KEY, SCA_IInputDevice::KX_F17KEY);
 	KX_MACRO_addTypesToDict(d, F18KEY, SCA_IInputDevice::KX_F18KEY);
 	KX_MACRO_addTypesToDict(d, F19KEY, SCA_IInputDevice::KX_F19KEY);
+
+	KX_MACRO_addTypesToDict(d, OSKEY, SCA_IInputDevice::KX_OSKEY);
 		
 	KX_MACRO_addTypesToDict(d, PAUSEKEY,  SCA_IInputDevice::KX_PAUSEKEY);
 	KX_MACRO_addTypesToDict(d, INSERTKEY, SCA_IInputDevice::KX_INSERTKEY);

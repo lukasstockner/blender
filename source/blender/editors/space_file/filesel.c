@@ -59,6 +59,7 @@
 #include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
 #include "BLI_fileops_types.h"
+#include "BLI_fnmatch.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -80,12 +81,6 @@
 
 #include "file_intern.h"
 #include "filelist.h"
-
-#if defined WIN32 && !defined _LIBC
-# include "BLI_fnmatch.h" /* use fnmatch included in blenlib */
-#else
-# include <fnmatch.h>
-#endif
 
 FileSelectParams *ED_fileselect_get_params(struct SpaceFile *sfile)
 {
@@ -115,11 +110,12 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 
 	/* set the parameters from the operator, if it exists */
 	if (op) {
-		const short is_files = (RNA_struct_find_property(op->ptr, "files") != NULL);
-		const short is_filepath = (RNA_struct_find_property(op->ptr, "filepath") != NULL);
-		const short is_filename = (RNA_struct_find_property(op->ptr, "filename") != NULL);
-		const short is_directory = (RNA_struct_find_property(op->ptr, "directory") != NULL);
-		const short is_relative_path = (RNA_struct_find_property(op->ptr, "relative_path") != NULL);
+		PropertyRNA *prop;
+		const bool is_files = (RNA_struct_find_property(op->ptr, "files") != NULL);
+		const bool is_filepath = (RNA_struct_find_property(op->ptr, "filepath") != NULL);
+		const bool is_filename = (RNA_struct_find_property(op->ptr, "filename") != NULL);
+		const bool is_directory = (RNA_struct_find_property(op->ptr, "directory") != NULL);
+		const bool is_relative_path = (RNA_struct_find_property(op->ptr, "relative_path") != NULL);
 
 		BLI_strncpy_utf8(params->title, RNA_struct_ui_name(op->type->srna), sizeof(params->title));
 
@@ -163,30 +159,30 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 		}
 
 		params->filter = 0;
-		if (RNA_struct_find_property(op->ptr, "filter_blender"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_blender") ? BLENDERFILE : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_backup"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_backup") ? BLENDERFILE_BACKUP : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_image"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_image") ? IMAGEFILE : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_movie"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_movie") ? MOVIEFILE : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_python"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_python") ? PYSCRIPTFILE : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_font"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_font") ? FTFONTFILE : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_sound"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_sound") ? SOUNDFILE : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_text"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_text") ? TEXTFILE : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_folder"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_folder") ? FOLDERFILE : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_btx"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_btx") ? BTXFILE : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_collada"))
-			params->filter |= RNA_boolean_get(op->ptr, "filter_collada") ? COLLADAFILE : 0;
-		if (RNA_struct_find_property(op->ptr, "filter_glob")) {
-			RNA_string_get(op->ptr, "filter_glob", params->filter_glob);
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_blender")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? BLENDERFILE : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_backup")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? BLENDERFILE_BACKUP : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_image")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? IMAGEFILE : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_movie")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? MOVIEFILE : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_python")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? PYSCRIPTFILE : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_font")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? FTFONTFILE : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_sound")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? SOUNDFILE : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_text")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? TEXTFILE : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_folder")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? FOLDERFILE : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_btx")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? BTXFILE : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_collada")))
+			params->filter |= RNA_property_boolean_get(op->ptr, prop) ? COLLADAFILE : 0;
+		if ((prop = RNA_struct_find_property(op->ptr, "filter_glob"))) {
+			RNA_property_string_get(op->ptr, prop, params->filter_glob);
 			params->filter |= (OPERATORFILE | FOLDERFILE);
 		}
 		else {
@@ -300,9 +296,9 @@ int ED_fileselect_layout_numfiles(FileLayout *layout, ARegion *ar)
 	}
 }
 
-static int is_inside(int x, int y, int cols, int rows)
+static bool is_inside(int x, int y, int cols, int rows)
 {
-	return ( (x >= 0) && (x < cols) && (y >= 0) && (y < rows) );
+	return ((x >= 0) && (x < cols) && (y >= 0) && (y < rows));
 }
 
 FileSelection ED_fileselect_layout_offset_rect(FileLayout *layout, const rcti *rect)
@@ -439,7 +435,7 @@ float file_string_width(const char *str)
 {
 	uiStyle *style = UI_GetStyle();
 	uiStyleFontSet(&style->widget);
-	return BLF_width(style->widget.uifont_id, str);
+	return BLF_width(style->widget.uifont_id, str, BLF_DRAW_STR_DUMMY_MAX);
 }
 
 float file_font_pointsize(void)
@@ -611,6 +607,7 @@ void file_change_dir(bContext *C, int checkdir)
 
 		folderlist_pushdir(sfile->folders_prev, sfile->params->dir);
 
+		file_draw_check_cb(C, NULL, NULL);
 	}
 }
 
@@ -632,16 +629,17 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matche
 			if (!match) {
 				BLI_strncpy(matched_file, file->relname, FILE_MAX);
 			}
-			match = 1;
+			match++;
 		}
 	}
 
 	return match;
 }
 
-void autocomplete_directory(struct bContext *C, char *str, void *UNUSED(arg_v))
+int autocomplete_directory(struct bContext *C, char *str, void *UNUSED(arg_v))
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
+	int match = AUTOCOMPLETE_NO_MATCH;
 
 	/* search if str matches the beginning of name */
 	if (str[0] && sfile->files) {
@@ -667,7 +665,7 @@ void autocomplete_directory(struct bContext *C, char *str, void *UNUSED(arg_v))
 					
 					BLI_join_dirfile(path, sizeof(path), dirname, de->d_name);
 
-					if (stat(path, &status) == 0) {
+					if (BLI_stat(path, &status) == 0) {
 						if (S_ISDIR(status.st_mode)) { /* is subdir */
 							autocomplete_do_name(autocpl, path);
 						}
@@ -676,20 +674,25 @@ void autocomplete_directory(struct bContext *C, char *str, void *UNUSED(arg_v))
 			}
 			closedir(dir);
 
-			autocomplete_end(autocpl, str);
-			if (BLI_exists(str)) {
-				BLI_add_slash(str);
-			}
-			else {
-				BLI_strncpy(sfile->params->dir, str, sizeof(sfile->params->dir));
+			match = autocomplete_end(autocpl, str);
+			if (match) {
+				if (match == AUTOCOMPLETE_FULL_MATCH) {
+					BLI_add_slash(str);
+				}
+				else {
+					BLI_strncpy(sfile->params->dir, str, sizeof(sfile->params->dir));
+				}
 			}
 		}
 	}
+
+	return match;
 }
 
-void autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
+int autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
+	int match = AUTOCOMPLETE_NO_MATCH;
 
 	/* search if str matches the beginning of name */
 	if (str[0] && sfile->files) {
@@ -699,12 +702,14 @@ void autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
 
 		for (i = 0; i < nentries; ++i) {
 			struct direntry *file = filelist_file(sfile->files, i);
-			if (file && S_ISREG(file->type)) {
+			if (file && (S_ISREG(file->type) || S_ISDIR(file->type))) {
 				autocomplete_do_name(autocpl, file->relname);
 			}
 		}
-		autocomplete_end(autocpl, str);
+		match = autocomplete_end(autocpl, str);
 	}
+
+	return match;
 }
 
 void ED_fileselect_clear(struct wmWindowManager *wm, struct SpaceFile *sfile)

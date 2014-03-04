@@ -23,7 +23,7 @@
 
 /** \file blender/freestyle/intern/system/TimeUtils.h
  *  \ingroup freestyle
- *  \brief Class to measure ellapsed time
+ *  \brief Class to measure elapsed time
  *  \author Stephane Grabli
  *  \date 10/04/2002
  */
@@ -60,7 +60,6 @@ private:
 	clock_t _start;
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
 	MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:Chronometer")
 #endif
 };

@@ -26,20 +26,20 @@
  */
 
 #include "RAS_StorageIM.h"
+#include "RAS_MaterialBucket.h"
+#include "RAS_IPolygonMaterial.h"
 
 #include "GL/glew.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 
-#include "DNA_meshdata_types.h"
-
 extern "C"{
-	#include "BLI_utildefines.h"
 	#include "BKE_DerivedMesh.h"
 }
 
 RAS_StorageIM::RAS_StorageIM(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :
+	m_drawingmode(RAS_IRasterizer::KX_TEXTURED),
 	m_texco_num(texco_num),
 	m_attrib_num(attrib_num),
 	m_texco(texco),
@@ -179,7 +179,7 @@ static int CheckTexfaceDM(void *mcol, int index)
 }
 */
 
-static DMDrawOption CheckTexDM(MTFace *tface, int has_mcol, int matnr)
+static DMDrawOption CheckTexDM(MTFace *tface, const bool has_mcol, int matnr)
 {
 
 	// index is the original face index, retrieve the polygon

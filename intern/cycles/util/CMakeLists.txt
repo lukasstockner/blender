@@ -13,7 +13,6 @@ set(SRC
 	util_cuda.cpp
 	util_dynlib.cpp
 	util_md5.cpp
-	util_memarena.cpp
 	util_opencl.cpp
 	util_path.cpp
 	util_string.cpp
@@ -23,7 +22,7 @@ set(SRC
 	util_transform.cpp
 )
 
-if(WITH_CYCLES_TEST)
+if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
 	list(APPEND SRC
 		util_view.cpp
 	)
@@ -39,19 +38,21 @@ set(SRC_HEADERS
 	util_dynlib.h
 	util_foreach.h
 	util_function.h
+	util_half.h
 	util_hash.h
 	util_image.h
 	util_list.h
 	util_map.h
 	util_math.h
 	util_md5.h
-	util_memarena.h
 	util_opencl.h
 	util_opengl.h
+	util_optimization.h
 	util_param.h
 	util_path.h
 	util_progress.h
 	util_set.h
+	util_simd.h
 	util_stats.h
 	util_string.h
 	util_system.h

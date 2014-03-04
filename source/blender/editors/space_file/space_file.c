@@ -148,7 +148,6 @@ static void file_free(SpaceLink *sl)
 static void file_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 {
 	SpaceFile *sfile = (SpaceFile *)sa->spacedata.first;
-	//printf("file_init\n");
 
 	/* refresh system directory list */
 	fsmenu_refresh_system_category(fsmenu_get());
@@ -255,7 +254,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 
 }
 
-static void file_listener(ScrArea *sa, wmNotifier *wmn)
+static void file_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 {
 	/* SpaceFile *sfile = (SpaceFile *)sa->spacedata.first; */
 
@@ -291,7 +290,7 @@ static void file_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 }
 
-static void file_main_area_listener(ARegion *ar, wmNotifier *wmn)
+static void file_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -313,7 +312,6 @@ static void file_main_area_draw(const bContext *C, ARegion *ar)
 	/* draw entirely, view changes should be handled here */
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
-	FileLayout *layout = NULL;
 
 	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
@@ -323,15 +321,14 @@ static void file_main_area_draw(const bContext *C, ARegion *ar)
 	if (!sfile->files || filelist_empty(sfile->files))
 		file_refresh(C, NULL);
 
-	layout = ED_fileselect_get_layout(sfile, ar);
-
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
 	glClearColor(col[0], col[1], col[2], 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	
 	/* Allow dynamically sliders to be set, saves notifiers etc. */
-	if (layout && (layout->flag == FILE_LAYOUT_VER)) {
+	
+	if (params->display == FILE_IMGDISPLAY) {
 		v2d->scroll = V2D_SCROLL_RIGHT;
 		v2d->keepofs &= ~V2D_LOCKOFS_Y;
 		v2d->keepofs |= V2D_LOCKOFS_X;
@@ -390,7 +387,7 @@ static void file_operatortypes(void)
 	WM_operatortype_append(FILE_OT_refresh);
 	WM_operatortype_append(FILE_OT_bookmark_toggle);
 	WM_operatortype_append(FILE_OT_bookmark_add);
-	WM_operatortype_append(FILE_OT_delete_bookmark);
+	WM_operatortype_append(FILE_OT_bookmark_delete);
 	WM_operatortype_append(FILE_OT_reset_recent);
 	WM_operatortype_append(FILE_OT_hidedot);
 	WM_operatortype_append(FILE_OT_filenum);
@@ -398,7 +395,6 @@ static void file_operatortypes(void)
 	WM_operatortype_append(FILE_OT_delete);
 	WM_operatortype_append(FILE_OT_rename);
 	WM_operatortype_append(FILE_OT_smoothscroll);
-	WM_operatortype_append(FILE_OT_directory);
 }
 
 /* NOTE: do not add .blend file reading on this level */
@@ -407,7 +403,7 @@ static void file_keymap(struct wmKeyConfig *keyconf)
 	wmKeyMapItem *kmi;
 	/* keys for all areas */
 	wmKeyMap *keymap = WM_keymap_find(keyconf, "File Browser", SPACE_FILE, 0);
-	WM_keymap_add_item(keymap, "FILE_OT_bookmark_toggle", NKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "FILE_OT_bookmark_toggle", TKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_parent", PKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_bookmark_add", BKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_hidedot", HKEY, KM_PRESS, 0, 0);
@@ -500,12 +496,14 @@ static void file_channel_area_draw(const bContext *C, ARegion *ar)
 	ED_region_panels(C, ar, 1, NULL, -1);
 }
 
-static void file_channel_area_listener(ARegion *UNUSED(ar), wmNotifier *wmn)
+static void file_channel_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
 {
+#if 0
 	/* context changes */
 	switch (wmn->category) {
 		
 	}
+#endif
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -560,7 +558,7 @@ static void file_ui_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 }
 
-static void file_ui_area_listener(ARegion *ar, wmNotifier *wmn)
+static void file_ui_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -639,16 +637,8 @@ void ED_spacetype_file(void)
 
 void ED_file_init(void)
 {
-	const char * const cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
-	
-	fsmenu_read_system(fsmenu_get(), TRUE);
+	ED_file_read_bookmarks();
 
-	if (cfgdir) {
-		char name[FILE_MAX];
-		BLI_make_file_string("/", name, cfgdir, BLENDER_BOOKMARK_FILE);
-		fsmenu_read_bookmarks(fsmenu_get(), name);
-	}
-	
 	if (G.background == FALSE) {
 		filelist_init_icons();
 	}
@@ -658,9 +648,25 @@ void ED_file_init(void)
 
 void ED_file_exit(void)
 {
-	fsmenu_free(fsmenu_get());
+	fsmenu_free();
 
 	if (G.background == FALSE) {
 		filelist_free_icons();
 	}
 }
+
+void ED_file_read_bookmarks(void)
+{
+	const char * const cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
+	
+	fsmenu_free();
+
+	fsmenu_read_system(fsmenu_get(), TRUE);
+
+	if (cfgdir) {
+		char name[FILE_MAX];
+		BLI_make_file_string("/", name, cfgdir, BLENDER_BOOKMARK_FILE);
+		fsmenu_read_bookmarks(fsmenu_get(), name);
+	}
+}
+

@@ -121,7 +121,7 @@ static int nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *op)
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 	
 	/* if no blocks, popup error? */
-	if (anim_data.first == NULL) {
+	if (BLI_listbase_is_empty(&anim_data)) {
 		BKE_report(op->reports, RPT_ERROR, "No AnimData blocks to enter tweak mode for");
 		return OPERATOR_CANCELLED;
 	}
@@ -173,26 +173,21 @@ void NLA_OT_tweakmode_enter(wmOperatorType *ot)
 
 /* ------------- */
 
-static int nlaedit_disable_tweakmode_exec(bContext *C, wmOperator *op)
+/* NLA Editor internal API function for exiting tweakmode */
+bool nlaedit_disable_tweakmode(bAnimContext *ac)
 {
-	bAnimContext ac;
-	
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
 	
-	/* get editor data */
-	if (ANIM_animdata_get_context(C, &ac) == 0)
-		return OPERATOR_CANCELLED;
-		
 	/* get a list of the AnimData blocks being shown in the NLA */
 	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_ANIMDATA);
-	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
+	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* if no blocks, popup error? */
-	if (anim_data.first == NULL) {
-		BKE_report(op->reports, RPT_ERROR, "No AnimData blocks to enter tweak mode for");
-		return OPERATOR_CANCELLED;
+	if (BLI_listbase_is_empty(&anim_data)) {
+		BKE_report(ac->reports, RPT_ERROR, "No AnimData blocks in tweak mode to exit from");
+		return false;
 	}
 	
 	/* for each AnimData block with NLA-data, try exitting tweak-mode */
@@ -209,16 +204,36 @@ static int nlaedit_disable_tweakmode_exec(bContext *C, wmOperator *op)
 	/* if we managed to enter tweakmode on at least one AnimData block, 
 	 * set the flag for this in the active scene and send notifiers
 	 */
-	if (ac.scene) {
+	if (ac->scene) {
 		/* clear editing flag */
-		ac.scene->flag &= ~SCE_NLA_EDIT_ON;
+		ac->scene->flag &= ~SCE_NLA_EDIT_ON;
 		
 		/* set notifier that things have changed */
-		WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, NULL);
+		WM_main_add_notifier(NC_ANIMATION | ND_NLA_ACTCHANGE, NULL);
 	}
 	
 	/* done */
-	return OPERATOR_FINISHED;
+	return true;
+}
+
+/* exit tweakmode operator callback */
+static int nlaedit_disable_tweakmode_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	bAnimContext ac;
+	bool ok = false;
+	
+	/* get editor data */
+	if (ANIM_animdata_get_context(C, &ac) == 0)
+		return OPERATOR_CANCELLED;
+		
+	/* perform operation */
+	ok = nlaedit_disable_tweakmode(&ac);
+	
+	/* success? */
+	if (ok)
+		return OPERATOR_FINISHED;
+	else
+		return OPERATOR_CANCELLED;
 }
  
 void NLA_OT_tweakmode_exit(wmOperatorType *ot)
@@ -425,8 +440,7 @@ static int nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
 	
 	if (items == 0) {
 		BKE_report(op->reports, RPT_ERROR, 
-		           "No active track(s) to add strip to. "
-		           "Select an existing track or add one before trying again");
+		           "No active track(s) to add strip to, select an existing track or add one before trying again");
 		return OPERATOR_CANCELLED;
 	}
 	
@@ -1290,7 +1304,7 @@ static int nlaedit_swap_exec(bContext *C, wmOperator *op)
 		/* special case: if there is only 1 island (i.e. temp meta BUT NOT unselected/normal/normal-meta strips) left after this, 
 		 * and this island has two strips inside it, then we should be able to just swap these still...
 		 */
-		if ((nlt->strips.first == nlt->strips.last) && (nlt->strips.first != NULL)) {
+		if (BLI_listbase_is_empty(&nlt->strips) == false) {
 			NlaStrip *mstrip = (NlaStrip *)nlt->strips.first;
 			
 			if ((mstrip->flag & NLASTRIP_FLAG_TEMP_META) && (BLI_countlist(&mstrip->strips) == 2)) {
@@ -1573,7 +1587,7 @@ static int nlaedit_sync_actlen_exec(bContext *C, wmOperator *op)
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
-	short active_only = RNA_boolean_get(op->ptr, "active");
+	const bool active_only = RNA_boolean_get(op->ptr, "active");
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -1990,7 +2004,7 @@ static int nla_fmodifier_add_exec(bContext *C, wmOperator *op)
 	
 	FModifier *fcm;
 	int type = RNA_enum_get(op->ptr, "type");
-	short onlyActive = RNA_boolean_get(op->ptr, "only_active");
+	const bool active_only = RNA_boolean_get(op->ptr, "only_active");
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -2007,7 +2021,7 @@ static int nla_fmodifier_add_exec(bContext *C, wmOperator *op)
 		
 		for (strip = nlt->strips.first; strip; strip = strip->next) {
 			/* can F-Modifier be added to the current strip? */
-			if (onlyActive) {
+			if (active_only) {
 				/* if not active, cannot add since we're only adding to active strip */
 				if ((strip->flag & NLASTRIP_FLAG_ACTIVE) == 0)
 					continue;

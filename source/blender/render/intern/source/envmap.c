@@ -149,7 +149,7 @@ static Render *envmap_render_copy(Render *re, EnvMap *env)
 	/* set up renderdata */
 	envre->r = re->r;
 	envre->r.mode &= ~(R_BORDER | R_PANORAMA | R_ORTHO | R_MBLUR);
-	envre->r.layers.first = envre->r.layers.last = NULL;
+	BLI_listbase_clear(&envre->r.layers);
 	envre->r.filtertype = 0;
 	envre->r.tilex = envre->r.xsch / 2;
 	envre->r.tiley = envre->r.ysch / 2;
@@ -157,6 +157,7 @@ static Render *envmap_render_copy(Render *re, EnvMap *env)
 	envre->r.yasp = envre->r.xasp = 1;
 	
 	RE_InitState(envre, NULL, &envre->r, NULL, cuberes, cuberes, NULL);
+	envre->main = re->main;
 	envre->scene = re->scene;    /* unsure about this... */
 	envre->scene_color_manage = re->scene_color_manage;
 	envre->lay = re->lay;
@@ -167,8 +168,8 @@ static Render *envmap_render_copy(Render *re, EnvMap *env)
 	copy_m4_m4(envre->viewmat_orig, re->viewmat_orig);
 	
 	/* callbacks */
-	envre->display_draw = re->display_draw;
-	envre->ddh = re->ddh;
+	envre->display_update = re->display_update;
+	envre->duh = re->duh;
 	envre->test_break = re->test_break;
 	envre->tbh = re->tbh;
 	
@@ -201,11 +202,11 @@ static void envmap_free_render_copy(Render *envre)
 	envre->totlamp = 0;
 	envre->totinstance = 0;
 	envre->sortedhalos = NULL;
-	envre->lights.first = envre->lights.last = NULL;
-	envre->objecttable.first = envre->objecttable.last = NULL;
-	envre->customdata_names.first = envre->customdata_names.last = NULL;
+	BLI_listbase_clear(&envre->lights);
+	BLI_listbase_clear(&envre->objecttable);
+	BLI_listbase_clear(&envre->customdata_names);
 	envre->raytree = NULL;
-	envre->instancetable.first = envre->instancetable.last = NULL;
+	BLI_listbase_clear(&envre->instancetable);
 	envre->objectinstance = NULL;
 	envre->qmcsamplers = NULL;
 	
@@ -244,9 +245,7 @@ static void envmap_transmatrix(float mat[4][4], int part)
 	
 	copy_m4_m4(tmat, mat);
 	eul_to_mat4(rotmat, eul);
-	mul_serie_m4(mat, tmat, rotmat,
-	             NULL, NULL, NULL,
-	             NULL, NULL, NULL);
+	mul_m4_m4m4(mat, tmat, rotmat);
 }
 /* ------------------------------------------------------------------------- */
 
@@ -721,6 +720,10 @@ int envmaptex(Tex *tex, const float texvec[3], float dxt[3], float dyt[3], int o
 					envmap_split_ima(env, ibuf_ima);
 				else
 					env->ok = 0;
+
+				if (env->type == ENV_PLANE)
+					tex->extend = TEX_EXTEND;
+
 				BKE_image_pool_release_ibuf(env->ima, ibuf_ima, pool);
 			}
 		}

@@ -64,13 +64,11 @@
 
 /* XXX Does some additional initialization on top of nodeAddNode
  * Can be used with both custom and static nodes, if idname==NULL the static int type will be used instead.
- * Can be called from menus too, but they should do own undopush and redraws.
  */
 bNode *node_add_node(const bContext *C, const char *idname, int type, float locx, float locy)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
 	bNode *node = NULL;
 	
 	node_deselect_all(snode);
@@ -86,32 +84,11 @@ bNode *node_add_node(const bContext *C, const char *idname, int type, float locx
 	node->locy = locy + 60.0f;     /* arbitrary... so its visible, (0,0) is top of node */
 	nodeSetSelected(node, TRUE);
 	
-	/* node location is mapped */
-	locx /= UI_DPI_FAC;
-	locy /= UI_DPI_FAC;
-	
 	node->locx = locx;
 	node->locy = locy + 60.0f;
 	
 	ntreeUpdateTree(bmain, snode->edittree);
 	ED_node_set_active(bmain, snode->edittree, node);
-	
-	if (snode->nodetree->type == NTREE_COMPOSIT) {
-		if (ELEM4(node->type, CMP_NODE_R_LAYERS, CMP_NODE_COMPOSITE, CMP_NODE_DEFOCUS, CMP_NODE_OUTPUT_FILE)) {
-			node->id = &scene->id;
-		}
-		else if (ELEM3(node->type, CMP_NODE_MOVIECLIP, CMP_NODE_MOVIEDISTORTION, CMP_NODE_STABILIZE2D)) {
-			node->id = (ID *)scene->clip;
-		}
-		
-		ntreeCompositForceHidden(snode->edittree, scene);
-	}
-	
-	if (node->id)
-		id_us_plus(node->id);
-	
-	if (snode->flag & SNODE_USE_HIDDEN_PREVIEW)
-		node->flag &= ~NODE_PREVIEW;
 	
 	snode_update(snode, node);
 	
@@ -123,7 +100,7 @@ bNode *node_add_node(const bContext *C, const char *idname, int type, float locx
 }
 
 /* ********************** Add reroute operator ***************** */
-static int add_reroute_intersect_check(bNodeLink *link, float mcoords[][2], int tot, float result[2])
+static bool add_reroute_intersect_check(bNodeLink *link, float mcoords[][2], int tot, float result[2])
 {
 	float coord_array[NODE_LINK_RESOL + 1][2];
 	int i, b;
@@ -215,8 +192,8 @@ static bNodeSocketLink *add_reroute_do_socket_section(bContext *C, bNodeSocketLi
 		/* average cut point from shared links */
 		mul_v2_fl(insert_point, 1.0f / num_links);
 		
-		reroute_node->locx = insert_point[0];
-		reroute_node->locy = insert_point[1];
+		reroute_node->locx = insert_point[0] / UI_DPI_FAC;
+		reroute_node->locy = insert_point[1] / UI_DPI_FAC;
 	}
 	
 	return socklink;
@@ -231,7 +208,7 @@ static int add_reroute_exec(bContext *C, wmOperator *op)
 	int i = 0;
 	
 	/* Get the cut path */
-	RNA_BEGIN(op->ptr, itemptr, "path")
+	RNA_BEGIN (op->ptr, itemptr, "path")
 	{
 		float loc[2];
 
@@ -255,8 +232,9 @@ static int add_reroute_exec(bContext *C, wmOperator *op)
 		node_deselect_all(snode);
 		
 		/* Find cut links and sort them by sockets */
-		output_links.first = output_links.last = NULL;
-		input_links.first = input_links.last = NULL;
+		BLI_listbase_clear(&output_links);
+		BLI_listbase_clear(&input_links);
+
 		for (link = ntree->links.first; link; link = link->next) {
 			if (nodeLinkIsHidden(link))
 				continue;
@@ -355,8 +333,6 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	node_deselect_all(snode);
-
 	switch (snode->nodetree->type) {
 		case NTREE_SHADER:
 			type = SH_NODE_TEX_IMAGE;
@@ -426,6 +402,65 @@ void NODE_OT_add_file(wmOperatorType *ot)
 	RNA_def_string(ot->srna, "name", "Image", MAX_ID_NAME - 2, "Name", "Datablock name to assign");
 }
 
+/* ****************** Add Mask Node Operator  ******************* */
+
+static int node_add_mask_poll(bContext *C)
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+
+	return ED_operator_node_editable(C) && snode->nodetree->type == NTREE_COMPOSIT;
+}
+
+static int node_add_mask_exec(bContext *C, wmOperator *op)
+{
+	SpaceNode *snode = CTX_wm_space_node(C);
+	bNode *node;
+	ID *mask = NULL;
+
+	/* check input variables */
+	char name[MAX_ID_NAME - 2];
+	RNA_string_get(op->ptr, "name", name);
+	mask = BKE_libblock_find_name(ID_MSK, name);
+	if (!mask) {
+		BKE_reportf(op->reports, RPT_ERROR, "Mask '%s' not found", name);
+		return OPERATOR_CANCELLED;
+	}
+
+	ED_preview_kill_jobs(C);
+
+	node = node_add_node(C, NULL, CMP_NODE_MASK, snode->cursor[0], snode->cursor[1]);
+
+	if (!node) {
+		BKE_report(op->reports, RPT_WARNING, "Could not add a mask node");
+		return OPERATOR_CANCELLED;
+	}
+
+	node->id = mask;
+	id_us_plus(mask);
+
+	snode_notify(C, snode);
+	snode_dag_update(C, snode);
+
+	return OPERATOR_FINISHED;
+}
+
+void NODE_OT_add_mask(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Mask Node";
+	ot->description = "Add a mask node to the current node editor";
+	ot->idname = "NODE_OT_add_mask";
+
+	/* callbacks */
+	ot->exec = node_add_mask_exec;
+	ot->poll = node_add_mask_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_string(ot->srna, "name", "Mask", MAX_ID_NAME - 2, "Name", "Datablock name to assign");
+}
+
 /********************** New node tree operator *********************/
 
 static int new_node_tree_exec(bContext *C, wmOperator *op)
@@ -484,9 +519,9 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static EnumPropertyItem *new_node_tree_type_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *new_node_tree_type_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
-	return rna_node_tree_type_itemf(NULL, NULL, free);
+	return rna_node_tree_type_itemf(NULL, NULL, r_free);
 }
 
 void NODE_OT_new_node_tree(wmOperatorType *ot)

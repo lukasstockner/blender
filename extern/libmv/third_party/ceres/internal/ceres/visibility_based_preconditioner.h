@@ -55,6 +55,7 @@
 #include "ceres/graph.h"
 #include "ceres/internal/macros.h"
 #include "ceres/internal/scoped_ptr.h"
+#include "ceres/linear_solver.h"
 #include "ceres/preconditioner.h"
 #include "ceres/suitesparse.h"
 
@@ -62,7 +63,7 @@ namespace ceres {
 namespace internal {
 
 class BlockRandomAccessSparseMatrix;
-class BlockSparseMatrixBase;
+class BlockSparseMatrix;
 struct CompressedRowBlockStructure;
 class SchurEliminatorBase;
 
@@ -123,7 +124,7 @@ class SchurEliminatorBase;
 //   preconditioner.RightMultiply(x, y);
 //
 #ifndef CERES_NO_SUITESPARSE
-class VisibilityBasedPreconditioner : public Preconditioner {
+class VisibilityBasedPreconditioner : public BlockSparseMatrixPreconditioner {
  public:
   // Initialize the symbolic structure of the preconditioner. bs is
   // the block structure of the linear system to be solved. It is used
@@ -136,17 +137,18 @@ class VisibilityBasedPreconditioner : public Preconditioner {
   virtual ~VisibilityBasedPreconditioner();
 
   // Preconditioner interface
-  virtual bool Update(const BlockSparseMatrixBase& A, const double* D);
   virtual void RightMultiply(const double* x, double* y) const;
   virtual int num_rows() const;
 
   friend class VisibilityBasedPreconditionerTest;
+
  private:
+  virtual bool UpdateImpl(const BlockSparseMatrix& A, const double* D);
   void ComputeClusterJacobiSparsity(const CompressedRowBlockStructure& bs);
   void ComputeClusterTridiagonalSparsity(const CompressedRowBlockStructure& bs);
   void InitStorage(const CompressedRowBlockStructure& bs);
   void InitEliminator(const CompressedRowBlockStructure& bs);
-  bool Factorize();
+  LinearSolverTerminationType Factorize();
   void ScaleOffDiagonalCells();
 
   void ClusterCameras(const vector< set<int> >& visibility);
@@ -203,7 +205,7 @@ class VisibilityBasedPreconditioner : public Preconditioner {
 #else  // SuiteSparse
 // If SuiteSparse is not compiled in, the preconditioner is not
 // available.
-class VisibilityBasedPreconditioner : public Preconditioner {
+class VisibilityBasedPreconditioner : public BlockSparseMatrixPreconditioner {
  public:
   VisibilityBasedPreconditioner(const CompressedRowBlockStructure& bs,
                                 const Preconditioner::Options& options) {
@@ -215,7 +217,9 @@ class VisibilityBasedPreconditioner : public Preconditioner {
   virtual void LeftMultiply(const double* x, double* y) const {}
   virtual int num_rows() const { return -1; }
   virtual int num_cols() const { return -1; }
-  bool Update(const BlockSparseMatrixBase& A, const double* D) {
+
+ private:
+  bool UpdateImpl(const BlockSparseMatrix& A, const double* D) {
     return false;
   }
 };

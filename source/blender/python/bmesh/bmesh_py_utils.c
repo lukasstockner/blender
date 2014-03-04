@@ -245,14 +245,10 @@ static PyObject *bpy_bm_utils_vert_separate(PyObject *UNUSED(self), PyObject *ar
 		return NULL;
 	}
 
-	if (BM_vert_separate(bm, py_vert->v, &elem, &elem_len, edge_array, edge_array_len)) {
-		/* return collected verts */
-		ret = BPy_BMElem_Array_As_Tuple(bm, (BMHeader **)elem, elem_len);
-		MEM_freeN(elem);
-	}
-	else {
-		ret = PyTuple_New(0);
-	}
+	BM_vert_separate(bm, py_vert->v, &elem, &elem_len, edge_array, edge_array_len);
+	/* return collected verts */
+	ret = BPy_BMElem_Array_As_Tuple(bm, (BMHeader **)elem, elem_len);
+	MEM_freeN(elem);
 
 	PyMem_FREE(edge_array);
 
@@ -405,6 +401,7 @@ static PyObject *bpy_bm_utils_face_split(PyObject *UNUSED(self), PyObject *args,
 	BMesh *bm;
 	BMFace *f_new = NULL;
 	BMLoop *l_new = NULL;
+	BMLoop *l_a, *l_b;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "O!O!O!|OiO!:face_split", (char **)kwlist,
 	                                 &BPy_BMFace_Type, &py_face,
@@ -426,9 +423,12 @@ static PyObject *bpy_bm_utils_face_split(PyObject *UNUSED(self), PyObject *args,
 	}
 
 	/* this doubles for checking that the verts are in the same mesh */
-	if (BM_vert_in_face(py_face->f, py_vert_a->v) == false ||
-	    BM_vert_in_face(py_face->f, py_vert_b->v) == false)
+	if ((l_a = BM_face_vert_share_loop(py_face->f, py_vert_a->v)) &&
+	    (l_b = BM_face_vert_share_loop(py_face->f, py_vert_b->v)))
 	{
+		/* pass */
+	}
+	else {
 		PyErr_SetString(PyExc_ValueError,
 		                "face_split(...): one of the verts passed is not found in the face");
 		return NULL;
@@ -452,14 +452,14 @@ static PyObject *bpy_bm_utils_face_split(PyObject *UNUSED(self), PyObject *args,
 
 	if (ncoords) {
 		f_new = BM_face_split_n(bm, py_face->f,
-		                        py_vert_a->v, py_vert_b->v,
+		                        l_a, l_b,
 		                        (float (*)[3])coords, ncoords,
 		                        &l_new, py_edge_example ? py_edge_example->e : NULL);
 		PyMem_Free(coords);
 	}
 	else {
 		f_new = BM_face_split(bm, py_face->f,
-		                      py_vert_a->v, py_vert_b->v,
+		                      l_a, l_b,
 		                      &l_new, py_edge_example ? py_edge_example->e : NULL, edge_exists);
 	}
 

@@ -20,6 +20,9 @@
  *		Monique Dewanchand
  */
 
+#ifndef __COM_COMPOSITOR_H__
+#define __COM_COMPOSITOR_H__
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -107,7 +110,7 @@ extern "C" {
  *  - [@ref ChunkExecutionState.COM_ES_EXECUTED]: Chunk is finished
  *
  * @see ExecutionGroup.execute
- * @see ViewerBaseOperation.getChunkOrder
+ * @see ViewerOperation.getChunkOrder
  * @see OrderOfChunks
  *
  * @section interest Area of interest
@@ -312,7 +315,7 @@ extern "C" {
  *            should be checked further, probably it'll be also needed for preview
  *            generation in display space
  */
-void COM_execute(RenderData *rd, bNodeTree *editingtree, int rendering,
+void COM_execute(RenderData *rd, Scene *scene, bNodeTree *editingtree, int rendering,
                  const ColorManagedViewSettings *viewSettings, const ColorManagedDisplaySettings *displaySettings);
 
 /**
@@ -343,3 +346,5 @@ int COM_isHighlightedbNode(bNode *bnode);
 #ifdef __cplusplus
 }
 #endif
+
+#endif  /* __COM_COMPOSITOR_H__ */

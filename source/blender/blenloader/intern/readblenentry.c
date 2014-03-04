@@ -53,7 +53,7 @@
 
 
 #include "BKE_main.h"
-#include "BKE_library.h" // for free_main
+#include "BKE_library.h" // for BKE_main_free
 #include "BKE_idcode.h"
 #include "BKE_report.h"
 
@@ -222,7 +222,7 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *to
 LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh) 
 {
 	FileData *fd = (FileData *) bh;
-	GHash *gathered = BLI_ghash_ptr_new("linkable_groups gh");
+	GSet *gathered = BLI_gset_ptr_new("linkable_groups gh");
 	LinkNode *names = NULL;
 	BHead *bhead;
 	
@@ -234,15 +234,15 @@ LinkNode *BLO_blendhandle_get_linkable_groups(BlendHandle *bh)
 			if (BKE_idcode_is_linkable(bhead->code)) {
 				const char *str = BKE_idcode_to_name(bhead->code);
 				
-				if (!BLI_ghash_haskey(gathered, (void *)str)) {
+				if (!BLI_gset_haskey(gathered, (void *)str)) {
 					BLI_linklist_prepend(&names, strdup(str));
-					BLI_ghash_insert(gathered, (void *)str, NULL);
+					BLI_gset_insert(gathered, (void *)str);
 				}
 			}
 		}
 	}
 	
-	BLI_ghash_free(gathered, NULL, NULL);
+	BLI_gset_free(gathered, NULL);
 	
 	return names;
 }		
@@ -326,7 +326,7 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain, const char *filename, MemFil
 			
 			/* Library structs themselves */
 			bfd->main->library = oldmain->library;
-			oldmain->library.first = oldmain->library.last = NULL;
+			BLI_listbase_clear(&oldmain->library);
 			
 			/* add the Library mainlist to the new main */
 			BLI_remlink(&mainlist, oldmain);
@@ -343,7 +343,7 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain, const char *filename, MemFil
 void BLO_blendfiledata_free(BlendFileData *bfd)
 {
 	if (bfd->main) {
-		free_main(bfd->main);
+		BKE_main_free(bfd->main);
 	}
 	
 	if (bfd->user) {

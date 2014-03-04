@@ -34,14 +34,17 @@
 #ifndef CERES_PUBLIC_CERES_H_
 #define CERES_PUBLIC_CERES_H_
 
-#define CERES_VERSION 1.5.0
-#define CERES_ABI_VERSION 1.5.0
+#define CERES_VERSION 1.8.0
+#define CERES_ABI_VERSION 1.8.0
 
 #include "ceres/autodiff_cost_function.h"
 #include "ceres/autodiff_local_parameterization.h"
 #include "ceres/cost_function.h"
 #include "ceres/cost_function_to_functor.h"
+#include "ceres/covariance.h"
 #include "ceres/crs_matrix.h"
+#include "ceres/dynamic_autodiff_cost_function.h"
+#include "ceres/dynamic_numeric_diff_cost_function.h"
 #include "ceres/iteration_callback.h"
 #include "ceres/jet.h"
 #include "ceres/local_parameterization.h"

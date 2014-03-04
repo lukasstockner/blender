@@ -26,17 +26,14 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_array.h"
+#include "BLI_utildefines.h"
+#include "BLI_alloca.h"
 #include "BLI_memarena.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_heap.h"
 #include "BLI_boxpack2d.h"
-#include "BLI_utildefines.h"
-
-
-
-#include "ONL_opennl.h"
+#include "BLI_convexhull2d.h"
 
 #include "uvedit_intern.h"
 #include "uvedit_parametrizer.h"
@@ -48,27 +45,31 @@
 
 #include "BLI_sys_types.h"  /* for intptr_t support */
 
+#ifdef WITH_OPENNL
+
+#include "ONL_opennl.h"
+
 /* Utils */
 
 #if 0
-	#define param_assert(condition)
-	#define param_warning(message)
-	#define param_test_equals_ptr(condition)
-	#define param_test_equals_int(condition)
+#  define param_assert(condition)
+#  define param_warning(message)
+#  define param_test_equals_ptr(condition)
+#  define param_test_equals_int(condition)
 #else
-	#define param_assert(condition) \
+#  define param_assert(condition) \
 		if (!(condition)) \
 			{ /*printf("Assertion %s:%d\n", __FILE__, __LINE__); abort();*/ } (void)0
-	#define param_warning(message) \
+#  define param_warning(message) \
 		{ /*printf("Warning %s:%d: %s\n", __FILE__, __LINE__, message);*/ } (void)0
-#if 0
-	#define param_test_equals_ptr(str, a, b) \
+#  if 0
+#    define param_test_equals_ptr(str, a, b) \
 		if (a != b) \
 			{ /*printf("Equals %s => %p != %p\n", str, a, b);*/ } (void)0
-	#define param_test_equals_int(str, a, b) \
+#    define param_test_equals_int(str, a, b) \
 		if (a != b) \
 			{ /*printf("Equals %s => %d != %d\n", str, a, b);*/ } (void)0
-#endif
+#  endif
 #endif
 typedef enum PBool {
 	P_TRUE = 1,
@@ -486,6 +487,36 @@ static void p_chart_uv_translate(PChart *chart, float trans[2])
 		v->uv[1] += trans[1];
 	}
 }
+
+static void p_chart_uv_transform(PChart *chart, float mat[2][2])
+{
+	PVert *v;
+
+	for (v = chart->verts; v; v = v->nextlink) {
+		mul_m2v2(mat, v->uv);
+	}
+}
+
+static void p_chart_uv_to_array(PChart *chart, float (*points)[2])
+{
+	PVert *v;
+	unsigned int i = 0;
+
+	for (v = chart->verts; v; v = v->nextlink) {
+		copy_v2_v2(points[i++], v->uv);
+	}
+}
+
+static void UNUSED_FUNCTION(p_chart_uv_from_array)(PChart *chart, float (*points)[2])
+{
+	PVert *v;
+	unsigned int i = 0;
+
+	for (v = chart->verts; v; v = v->nextlink) {
+		copy_v2_v2(v->uv, points[i++]);
+	}
+}
+
 
 static PBool p_intersect_line_2d_dir(float *v1, float *dir1, float *v2, float *dir2, float *isect)
 {
@@ -2925,7 +2956,7 @@ static PBool p_chart_symmetry_pins(PChart *chart, PEdge *outer, PVert **pin1, PV
 
 	p_chart_pin_positions(chart, pin1, pin2);
 
-	return P_TRUE;
+	return !equals_v3v3((*pin1)->co, (*pin2)->co);
 }
 
 static void p_chart_extrema_verts(PChart *chart, PVert **pin1, PVert **pin2)
@@ -3682,8 +3713,8 @@ static SmoothNode *p_node_new(MemArena *arena, SmoothTriangle **tri, int ntri, f
 	if (ntri <= 10 || depth >= 15)
 		return node;
 	
-	t1 = MEM_mallocN(sizeof(SmoothTriangle) * ntri, "PNodeTri1");
-	t2 = MEM_mallocN(sizeof(SmoothTriangle) * ntri, "PNodeTri1");
+	t1 = MEM_mallocN(sizeof(*t1) * ntri, "PNodeTri1");
+	t2 = MEM_mallocN(sizeof(*t2) * ntri, "PNodeTri1");
 
 	axis = (bmax[0] - bmin[0] > bmax[1] - bmin[1]) ? 0 : 1;
 	split = 0.5f * (bmin[axis] + bmax[axis]);
@@ -4094,7 +4125,7 @@ static void p_smooth(PChart *chart)
 	MEM_freeN(nodesx);
 	MEM_freeN(nodesy);
 
-	arena = BLI_memarena_new(1 << 16, "param smooth arena");
+	arena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "param smooth arena");
 	root = p_node_new(arena, tri, esize * 2, minv, maxv, 0);
 
 	for (v = chart->verts; v; v = v->nextlink)
@@ -4114,7 +4145,7 @@ ParamHandle *param_construct_begin(void)
 	PHandle *handle = MEM_callocN(sizeof(*handle), "PHandle");
 	handle->construction_chart = p_chart_new(handle);
 	handle->state = PHANDLE_STATE_ALLOCATED;
-	handle->arena = BLI_memarena_new((1 << 16), "param construct arena");
+	handle->arena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "param construct arena");
 	handle->aspx = 1.0f;
 	handle->aspy = 1.0f;
 	handle->do_aspect = FALSE;
@@ -4443,8 +4474,42 @@ void param_smooth_area(ParamHandle *handle)
 		p_smooth(chart);
 	}
 }
- 
-void param_pack(ParamHandle *handle, float margin)
+
+/* don't pack, just rotate (used for better packing) */
+static void param_pack_rotate(ParamHandle *handle)
+{
+	PChart *chart;
+	int i;
+
+	PHandle *phandle = (PHandle *)handle;
+
+	for (i = 0; i < phandle->ncharts; i++) {
+		float (*points)[2];
+		float angle;
+
+		chart = phandle->charts[i];
+
+		if (chart->flag & PCHART_NOPACK) {
+			continue;
+		}
+
+		points = MEM_mallocN(sizeof(*points) * chart->nverts, __func__);
+
+		p_chart_uv_to_array(chart, points);
+
+		angle = BLI_convexhull_aabb_fit_points_2d((const float (*)[2])points, chart->nverts);
+
+		MEM_freeN(points);
+
+		if (angle != 0.0f) {
+			float mat[2][2];
+			angle_to_mat2(mat, angle);
+			p_chart_uv_transform(chart, mat);
+		}
+	}
+}
+
+void param_pack(ParamHandle *handle, float margin, bool do_rotate)
 {	
 	/* box packing variables */
 	BoxPack *boxarray, *box;
@@ -4463,6 +4528,11 @@ void param_pack(ParamHandle *handle, float margin)
 	if (phandle->aspx != phandle->aspy)
 		param_scale(handle, 1.0f / phandle->aspx, 1.0f / phandle->aspy);
 	
+	/* this could be its own function */
+	if (do_rotate) {
+		param_pack_rotate(handle);
+	}
+
 	/* we may not use all these boxes */
 	boxarray = MEM_mallocN(phandle->ncharts * sizeof(BoxPack), "BoxPack box");
 	
@@ -4515,7 +4585,7 @@ void param_pack(ParamHandle *handle, float margin)
 		}
 	}
 	
-	BLI_box_pack_2D(boxarray, phandle->ncharts - unpacked, &tot_width, &tot_height);
+	BLI_box_pack_2d(boxarray, phandle->ncharts - unpacked, &tot_width, &tot_height);
 	
 	if (tot_height > tot_width)
 		scale = 1.0f / tot_height;
@@ -4647,3 +4717,36 @@ void param_flush_restore(ParamHandle *handle)
 	}
 }
 
+#else  /* WITH_OPENNL */
+
+#ifdef __GNUC__
+#  pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
+
+/* stubs */
+void param_face_add(ParamHandle *handle, ParamKey key, int nverts,
+                    ParamKey *vkeys, float **co, float **uv,
+                    ParamBool *pin, ParamBool *select, float normal[3]) {}
+void param_edge_set_seam(ParamHandle *handle,
+                         ParamKey *vkeys) {}
+void param_aspect_ratio(ParamHandle *handle, float aspx, float aspy) {}
+ParamHandle *param_construct_begin(void) { return NULL; }
+void param_construct_end(ParamHandle *handle, ParamBool fill, ParamBool impl) {}
+void param_delete(ParamHandle *handle) {}
+
+void param_stretch_begin(ParamHandle *handle) {}
+void param_stretch_blend(ParamHandle *handle, float blend) {}
+void param_stretch_iter(ParamHandle *handle) {}
+void param_stretch_end(ParamHandle *handle) {}
+
+void param_pack(ParamHandle *handle, float margin, bool do_rotate) {}
+void param_average(ParamHandle *handle) {}
+
+void param_flush(ParamHandle *handle) {}
+void param_flush_restore(ParamHandle *handle) {}
+
+void param_lscm_begin(ParamHandle *handle, ParamBool live, ParamBool abf) {}
+void param_lscm_solve(ParamHandle *handle) {}
+void param_lscm_end(ParamHandle *handle) {}
+
+#endif  /* WITH_OPENNL */

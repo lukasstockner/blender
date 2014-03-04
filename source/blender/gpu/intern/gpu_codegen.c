@@ -27,11 +27,12 @@
 
 /** \file blender/gpu/intern/gpu_codegen.c
  *  \ingroup gpu
+ *
+ * Convert material node-trees to GLSL.
  */
 
 /* my interface */
 #include "intern/gpu_codegen.h"
-
 /* internal */
 #include "intern/gpu_common_intern.h"
 
@@ -73,7 +74,7 @@ static char *glsl_material_library = NULL;
 
 /* structs and defines */
 
-static const char* GPU_DATATYPE_STR[17] = {"", "float", "vec2", "vec3", "vec4",
+static const char *GPU_DATATYPE_STR[17] = {"", "float", "vec2", "vec3", "vec4",
 	NULL, NULL, NULL, NULL, "mat3", NULL, NULL, NULL, NULL, NULL, NULL, "mat4"};
 
 #define LINK_IMAGE_BLENDER	1
@@ -469,7 +470,7 @@ static void codegen_set_unique_ids(ListBase *nodes)
 	BLI_ghash_free(definehash, NULL, NULL);
 }
 
-static void codegen_print_uniforms_functions(DynStr *ds, ListBase *nodes)
+static int codegen_print_uniforms_functions(DynStr *ds, ListBase *nodes)
 {
 	GPUNode *node;
 	GPUInput *input;
@@ -524,6 +525,8 @@ static void codegen_print_uniforms_functions(DynStr *ds, ListBase *nodes)
 	}
 
 	BLI_dynstr_append(ds, "\n");
+
+	return builtins;
 }
 
 static void codegen_declare_tmps(DynStr *ds, ListBase *nodes)
@@ -572,8 +575,12 @@ static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *final
 				codegen_convert_datatype(ds, input->link->output->type, input->type,
 					"tmp", input->link->output->id);
 			}
-			else if (input->source == GPU_SOURCE_BUILTIN)
-				BLI_dynstr_appendf(ds, "%s", GPU_builtin_name(input->builtin));
+			else if (input->source == GPU_SOURCE_BUILTIN) {
+				if (input->builtin == GPU_VIEW_NORMAL)
+					BLI_dynstr_append(ds, "facingnormal");
+				else
+					BLI_dynstr_append(ds, GPU_builtin_name(input->builtin));
+			}
 			else if (input->source == GPU_SOURCE_VEC_UNIFORM) {
 				if (input->dynamicvec)
 					BLI_dynstr_appendf(ds, "unf%d", input->id);
@@ -604,17 +611,22 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const ch
 {
 	DynStr *ds = BLI_dynstr_new();
 	char *code;
+	int builtins;
 
 	/*BLI_dynstr_append(ds, FUNCTION_PROTOTYPES);*/
 
 	codegen_set_unique_ids(nodes);
-	codegen_print_uniforms_functions(ds, nodes);
+	builtins = codegen_print_uniforms_functions(ds, nodes);
 
 	//if (G.debug & G_DEBUG)
 	//	BLI_dynstr_appendf(ds, "/* %s */\n", name);
 
 	BLI_dynstr_append(ds, "void main(void)\n");
 	BLI_dynstr_append(ds, "{\n");
+
+	if (builtins & GPU_VIEW_NORMAL)
+		BLI_dynstr_append(ds, "\tvec3 facingnormal = (gl_FrontFacing)? varnormal: -varnormal;\n");
+		
 
 	codegen_declare_tmps(ds, nodes);
 	codegen_call_functions(ds, nodes, output);
@@ -1039,9 +1051,7 @@ static void GPU_nodes_free(ListBase *nodes)
 {
 	GPUNode *node;
 
-	while (nodes->first) {
-		node = nodes->first;
-		BLI_remlink(nodes, node);
+	while ((node = BLI_pophead(nodes))) {
 		GPU_node_free(node);
 	}
 }
@@ -1192,7 +1202,7 @@ GPUNodeLink *GPU_builtin(GPUBuiltin builtin)
 	return link;
 }
 
-int GPU_link(GPUMaterial *mat, const char *name, ...)
+bool GPU_link(GPUMaterial *mat, const char *name, ...)
 {
 	GPUNode *node;
 	GPUFunction *function;
@@ -1228,7 +1238,7 @@ int GPU_link(GPUMaterial *mat, const char *name, ...)
 	return 1;
 }
 
-int GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNodeStack *out, ...)
+bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNodeStack *out, ...)
 {
 	GPUNode *node;
 	GPUFunction *function;

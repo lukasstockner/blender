@@ -227,39 +227,35 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 						{
 							/* reddish color from NLA */
 							UI_ThemeColor4(TH_ANIM_ACTIVE);
+							break;
 						}
-						break;
-						
 						case ANIMTYPE_SCENE:
 						case ANIMTYPE_OBJECT:
 						{
 							if (sel) gpuColor4ub(col1b[0], col1b[1], col1b[2], 0x45); 
 							else gpuColor4ub(col1b[0], col1b[1], col1b[2], 0x22); 
+							break;
 						}
-						break;
-						
 						case ANIMTYPE_FILLACTD:
 						case ANIMTYPE_DSSKEY:
 						case ANIMTYPE_DSWOR:
 						{
 							if (sel) gpuColor4ub(col2b[0], col2b[1], col2b[2], 0x45); 
 							else gpuColor4ub(col2b[0], col2b[1], col2b[2], 0x22); 
+							break;
 						}
-						break;
-						
 						case ANIMTYPE_GROUP:
 						{
 							if (sel) gpuColor4ub(col1a[0], col1a[1], col1a[2], 0x22);
 							else gpuColor4ub(col2a[0], col2a[1], col2a[2], 0x22);
+							break;
 						}
-						break;
-						
 						default:
 						{
 							if (sel) gpuColor4ub(col1[0], col1[1], col1[2], 0x22);
 							else gpuColor4ub(col2[0], col2[1], col2[2], 0x22);
+							break;
 						}
-						break;
 					}
 					
 					/* draw region twice: firstly backdrop, then the current range */

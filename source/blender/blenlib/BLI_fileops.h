@@ -47,6 +47,12 @@ typedef __int64 bli_off_t;
 typedef off_t bli_off_t;
 #endif
 
+#include <limits.h>  /* for PATH_MAX */
+
+#ifndef PATH_MAX
+#  define PATH_MAX 4096
+#endif
+
 struct gzFile;
 
 /* Common */

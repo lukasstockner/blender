@@ -49,9 +49,9 @@ enum {
 };
 
 enum {
+	SUBDIV_SELECT_NONE,
 	SUBDIV_SELECT_ORIG,
 	SUBDIV_SELECT_INNER,
-	SUBDIV_SELECT_INNER_SEL,
 	SUBDIV_SELECT_LOOPCUT
 };
 
@@ -115,6 +115,14 @@ enum {
 	BMOP_POKE_MEAN_WEIGHTED = 0,
 	BMOP_POKE_MEAN,
 	BMOP_POKE_BOUNDS
+};
+
+/* Bevel offset_type slot values */
+enum {
+	BEVEL_AMT_OFFSET,
+	BEVEL_AMT_WIDTH,
+	BEVEL_AMT_DEPTH,
+	BEVEL_AMT_PERCENT
 };
 
 extern const BMOpDefine *bmo_opdefines[];

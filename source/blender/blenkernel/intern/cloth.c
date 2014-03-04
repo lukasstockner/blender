@@ -38,7 +38,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
-#include "BLI_utildefines.h"
 #include "BLI_linklist.h"
 
 #include "BKE_cdderivedmesh.h"
@@ -99,6 +98,8 @@ void cloth_init(ClothModifierData *clmd )
 	clmd->sim_parms->preroll = 0;
 	clmd->sim_parms->maxspringlen = 10;
 	clmd->sim_parms->vgroup_mass = 0;
+	clmd->sim_parms->vgroup_shrink = 0;
+	clmd->sim_parms->shrink_min = 0.0f; /* min amount the fabric will shrink by 0.0 = no shrinking, 1.0 = shrink to nothing*/
 	clmd->sim_parms->avg_spring_len = 0.0;
 	clmd->sim_parms->presets = 2; /* cotton as start setting */
 	clmd->sim_parms->timescale = 1.0f; /* speed factor, describes how fast cloth moves */
@@ -332,11 +333,13 @@ static int do_init_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 	if (clmd->clothObject == NULL) {
 		if (!cloth_from_object(ob, clmd, result, framenr, 1)) {
 			BKE_ptcache_invalidate(cache);
+			modifier_setError(&(clmd->modifier), "Can't initialize cloth");
 			return 0;
 		}
 	
 		if (clmd->clothObject == NULL) {
 			BKE_ptcache_invalidate(cache);
+			modifier_setError(&(clmd->modifier), "Null cloth object");
 			return 0;
 		}
 	
@@ -373,7 +376,7 @@ static int do_step_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 		mul_m4_v3(ob->obmat, verts->xconst);
 	}
 
-	effectors = pdInitEffectors(clmd->scene, ob, NULL, clmd->sim_parms->effector_weights);
+	effectors = pdInitEffectors(clmd->scene, ob, NULL, clmd->sim_parms->effector_weights, true);
 
 	/* Support for dynamic vertex groups, changing from frame to frame */
 	cloth_apply_vgroup ( clmd, result );
@@ -476,7 +479,6 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 		BKE_ptcache_validate(cache, 0);
 		cache->last_exact= 0;
 		cache->flag &= ~PTCACHE_REDO_NEEDED;
-		return;
 	}
 	
 	// unused in the moment, calculated separately in implicit.c
@@ -736,6 +738,7 @@ int cloth_uses_vgroup(ClothModifierData *clmd)
 		((clmd->sim_parms->vgroup_mass>0) || 
 		(clmd->sim_parms->vgroup_struct>0)||
 		(clmd->sim_parms->vgroup_bend>0)  ||
+		(clmd->sim_parms->vgroup_shrink>0) ||
 		(clmd->coll_parms->vgroup_selfcol>0)));
 }
 
@@ -808,12 +811,25 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 								verts->flags |= CLOTH_VERT_FLAG_NOSELFCOLL;
 							}
 						}
+
+					if (clmd->sim_parms->vgroup_shrink > 0 )
+					{
+						if ( dvert->dw[j].def_nr == (clmd->sim_parms->vgroup_shrink-1))
+						{
+							verts->shrink_factor = clmd->sim_parms->shrink_min*(1.0f-dvert->dw[j].weight)+clmd->sim_parms->shrink_max*dvert->dw [j].weight; // linear interpolation between min and max shrink factor based on weight
+						}
+					}
+					else {
+						verts->shrink_factor = clmd->sim_parms->shrink_min;
+					}
+
 					}
 				}
 			}
 		}
 	}
 }
+
 
 static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *dm, float UNUSED(framenr), int first)
 {
@@ -974,6 +990,18 @@ static void cloth_from_mesh ( ClothModifierData *clmd, DerivedMesh *dm )
  * SPRING NETWORK BUILDING IMPLEMENTATION BEGIN
  ***************************************************************************************/
 
+BLI_INLINE void spring_verts_ordered_set(ClothSpring *spring, int v0, int v1)
+{
+	if (v0 < v1) {
+		spring->ij = v0;
+		spring->kl = v1;
+	}
+	else {
+		spring->ij = v1;
+		spring->kl = v0;
+	}
+}
+
 // be careful: implicit solver has to be resettet when using this one!
 // --> only for implicit handling of this spring!
 int cloth_add_spring(ClothModifierData *clmd, unsigned int indexA, unsigned int indexB, float restlength, int spring_type)
@@ -1005,10 +1033,20 @@ int cloth_add_spring(ClothModifierData *clmd, unsigned int indexA, unsigned int 
 	return 0;
 }
 
-static void cloth_free_errorsprings(Cloth *cloth, EdgeHash *UNUSED(edgehash), LinkNode **edgelist)
+static void cloth_free_edgelist(LinkNode **edgelist, unsigned int numverts)
 {
-	unsigned int i = 0;
-	
+	if (edgelist) {
+		unsigned int i;
+		for (i = 0; i < numverts; i++) {
+			BLI_linklist_free(edgelist[i], NULL);
+		}
+
+		MEM_freeN(edgelist);
+	}
+}
+
+static void cloth_free_errorsprings(Cloth *cloth,  LinkNode **edgelist)
+{
 	if ( cloth->springs != NULL ) {
 		LinkNode *search = cloth->springs;
 		while (search) {
@@ -1021,17 +1059,13 @@ static void cloth_free_errorsprings(Cloth *cloth, EdgeHash *UNUSED(edgehash), Li
 		
 		cloth->springs = NULL;
 	}
-	
-	if (edgelist) {
-		for ( i = 0; i < cloth->numverts; i++ ) {
-			BLI_linklist_free ( edgelist[i], NULL );
-		}
 
-		MEM_freeN ( edgelist );
-	}
+	cloth_free_edgelist(edgelist, cloth->numverts);
 	
-	if (cloth->edgehash)
-		BLI_edgehash_free ( cloth->edgehash, NULL );
+	if (cloth->edgehash) {
+		BLI_edgehash_free(cloth->edgehash, NULL);
+		cloth->edgehash = NULL;
+	}
 }
 
 /* update stiffness if vertex group values are changing from frame to frame */
@@ -1084,6 +1118,7 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 	unsigned int numverts = (unsigned int)dm->getNumVerts (dm);
 	unsigned int numedges = (unsigned int)dm->getNumEdges (dm);
 	unsigned int numfaces = (unsigned int)dm->getNumTessFaces (dm);
+	float shrink_factor;
 	MEdge *medge = dm->getEdgeArray (dm);
 	MFace *mface = dm->getTessFaceArray (dm);
 	int index2 = 0; // our second vertex index
@@ -1095,49 +1130,55 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 	if ( numedges==0 )
 		return 0;
 
+	/* NOTE: handling ownership of springs and edgehash is quite sloppy
+	 * currently they are never initialized but assert just to be sure */
+	BLI_assert(cloth->springs == NULL);
+	BLI_assert(cloth->edgehash == NULL);
+
 	cloth->springs = NULL;
+	cloth->edgehash = NULL;
 
 	edgelist = MEM_callocN ( sizeof (LinkNode *) * numverts, "cloth_edgelist_alloc" );
 	
 	if (!edgelist)
 		return 0;
-	
-	for ( i = 0; i < numverts; i++ ) {
-		edgelist[i] = NULL;
-	}
-
-	if ( cloth->springs )
-		MEM_freeN ( cloth->springs );
-
-	// create spring network hash
-	edgehash = BLI_edgehash_new();
 
 	// structural springs
 	for ( i = 0; i < numedges; i++ ) {
 		spring = (ClothSpring *)MEM_callocN ( sizeof ( ClothSpring ), "cloth spring" );
 
 		if ( spring ) {
-			spring->ij = MIN2(medge[i].v1, medge[i].v2);
-			spring->kl = MAX2(medge[i].v2, medge[i].v1);
-			spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest);
+			spring_verts_ordered_set(spring, medge[i].v1, medge[i].v2);
+			if(clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_SEW && medge[i].flag & ME_LOOSEEDGE) {
+				// handle sewing (loose edges will be pulled together)
+				spring->restlen = 0.0f;
+				spring->stiffness = 1.0f;
+				spring->type = CLOTH_SPRING_TYPE_SEWING;
+			} else {
+				if(clmd->sim_parms->vgroup_shrink > 0)
+					shrink_factor = 1.0f - ((cloth->verts[spring->ij].shrink_factor + cloth->verts[spring->kl].shrink_factor) / 2.0f);
+				else
+					shrink_factor = 1.0f - clmd->sim_parms->shrink_min;
+				spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest) * shrink_factor;
+				spring->stiffness = (cloth->verts[spring->kl].struct_stiff + cloth->verts[spring->ij].struct_stiff) / 2.0f;
+				spring->type = CLOTH_SPRING_TYPE_STRUCTURAL;
+			}
 			clmd->sim_parms->avg_spring_len += spring->restlen;
 			cloth->verts[spring->ij].avg_spring_len += spring->restlen;
 			cloth->verts[spring->kl].avg_spring_len += spring->restlen;
 			cloth->verts[spring->ij].spring_count++;
 			cloth->verts[spring->kl].spring_count++;
-			spring->type = CLOTH_SPRING_TYPE_STRUCTURAL;
 			spring->flags = 0;
-			spring->stiffness = (cloth->verts[spring->kl].struct_stiff + cloth->verts[spring->ij].struct_stiff) / 2.0f;
 			struct_springs++;
 			
 			BLI_linklist_prepend ( &cloth->springs, spring );
 		}
 		else {
-			cloth_free_errorsprings(cloth, edgehash, edgelist);
+			cloth_free_errorsprings(cloth, edgelist);
 			return 0;
 		}
 	}
-	
+
 	if (struct_springs > 0)
 		clmd->sim_parms->avg_spring_len /= struct_springs;
 	
@@ -1154,13 +1195,16 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 		spring = (ClothSpring *)MEM_callocN(sizeof(ClothSpring), "cloth spring");
 		
 		if (!spring) {
-			cloth_free_errorsprings(cloth, edgehash, edgelist);
+			cloth_free_errorsprings(cloth, edgelist);
 			return 0;
 		}
 
-		spring->ij = MIN2(mface[i].v1, mface[i].v3);
-		spring->kl = MAX2(mface[i].v3, mface[i].v1);
-		spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest);
+		spring_verts_ordered_set(spring, mface[i].v1, mface[i].v3);
+		if(clmd->sim_parms->vgroup_shrink > 0)
+			shrink_factor = 1.0f - ((cloth->verts[spring->ij].shrink_factor + cloth->verts[spring->kl].shrink_factor) / 2.0f);
+		else
+			shrink_factor = 1.0f - clmd->sim_parms->shrink_min;
+		spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest) * shrink_factor;
 		spring->type = CLOTH_SPRING_TYPE_SHEAR;
 		spring->stiffness = (cloth->verts[spring->kl].shear_stiff + cloth->verts[spring->ij].shear_stiff) / 2.0f;
 
@@ -1175,13 +1219,16 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 		spring = (ClothSpring *)MEM_callocN ( sizeof ( ClothSpring ), "cloth spring" );
 		
 		if (!spring) {
-			cloth_free_errorsprings(cloth, edgehash, edgelist);
+			cloth_free_errorsprings(cloth, edgelist);
 			return 0;
 		}
 
-		spring->ij = MIN2(mface[i].v2, mface[i].v4);
-		spring->kl = MAX2(mface[i].v4, mface[i].v2);
-		spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest);
+		spring_verts_ordered_set(spring, mface[i].v2, mface[i].v4);
+		if(clmd->sim_parms->vgroup_shrink > 0)
+			shrink_factor = 1.0f - ((cloth->verts[spring->ij].shrink_factor + cloth->verts[spring->kl].shrink_factor) / 2.0f);
+		else
+			shrink_factor = 1.0f - clmd->sim_parms->shrink_min;
+		spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest) * shrink_factor;
 		spring->type = CLOTH_SPRING_TYPE_SHEAR;
 		spring->stiffness = (cloth->verts[spring->kl].shear_stiff + cloth->verts[spring->ij].shear_stiff) / 2.0f;
 
@@ -1191,6 +1238,9 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 
 		BLI_linklist_prepend ( &cloth->springs, spring );
 	}
+
+	edgehash = BLI_edgehash_new_ex(__func__, numedges);
+	cloth->edgehash = edgehash;
 
 	if (numfaces) {
 		// bending springs
@@ -1207,18 +1257,17 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 
 				// check for existing spring
 				// check also if startpoint is equal to endpoint
-				if (!BLI_edgehash_haskey(edgehash, MIN2(tspring2->ij, index2), MAX2(tspring2->ij, index2)) &&
-				    (index2 != tspring2->ij))
+				if ((index2 != tspring2->ij) &&
+				    !BLI_edgehash_haskey(edgehash, tspring2->ij, index2))
 				{
 					spring = (ClothSpring *)MEM_callocN ( sizeof ( ClothSpring ), "cloth spring" );
 
 					if (!spring) {
-						cloth_free_errorsprings(cloth, edgehash, edgelist);
+						cloth_free_errorsprings(cloth, edgelist);
 						return 0;
 					}
 
-					spring->ij = MIN2(tspring2->ij, index2);
-					spring->kl = MAX2(tspring2->ij, index2);
+					spring_verts_ordered_set(spring, tspring2->ij, index2);
 					spring->restlen = len_v3v3(cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest);
 					spring->type = CLOTH_SPRING_TYPE_BENDING;
 					spring->stiffness = (cloth->verts[spring->kl].bend_stiff + cloth->verts[spring->ij].bend_stiff) / 2.0f;
@@ -1250,7 +1299,7 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 				spring = (ClothSpring *)MEM_callocN ( sizeof ( ClothSpring ), "cloth spring" );
 				
 				if (!spring) {
-					cloth_free_errorsprings(cloth, edgehash, edgelist);
+					cloth_free_errorsprings(cloth, edgelist);
 					return 0;
 				}
 
@@ -1269,34 +1318,30 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 		}
 	}
 	
+	/* note: the edges may already exist so run reinsert */
+
 	/* insert other near springs in edgehash AFTER bending springs are calculated (for selfcolls) */
 	for (i = 0; i < numedges; i++) { /* struct springs */
-		BLI_edgehash_insert(edgehash, MIN2(medge[i].v1, medge[i].v2), MAX2(medge[i].v2, medge[i].v1), NULL);
+		BLI_edgehash_reinsert(edgehash, medge[i].v1, medge[i].v2, NULL);
 	}
 
 	for (i = 0; i < numfaces; i++) { /* edge springs */
 		if (mface[i].v4) {
-			BLI_edgehash_insert(edgehash, MIN2(mface[i].v1, mface[i].v3), MAX2(mface[i].v3, mface[i].v1), NULL);
+			BLI_edgehash_reinsert(edgehash, mface[i].v1, mface[i].v3, NULL);
 			
-			BLI_edgehash_insert(edgehash, MIN2(mface[i].v2, mface[i].v4), MAX2(mface[i].v2, mface[i].v4), NULL);
+			BLI_edgehash_reinsert(edgehash, mface[i].v2, mface[i].v4, NULL);
 		}
 	}
 	
 	
 	cloth->numsprings = struct_springs + shear_springs + bend_springs;
 	
-	if ( edgelist ) {
-		for ( i = 0; i < numverts; i++ ) {
-			BLI_linklist_free ( edgelist[i], NULL );
-		}
-	
-		MEM_freeN ( edgelist );
-	}
-	
-	cloth->edgehash = edgehash;
-	
+	cloth_free_edgelist(edgelist, numverts);
+
+#if 0
 	if (G.debug_value > 0)
 		printf("avg_len: %f\n", clmd->sim_parms->avg_spring_len);
+#endif
 
 	return 1;
 

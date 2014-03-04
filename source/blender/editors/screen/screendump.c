@@ -81,6 +81,18 @@ typedef struct ScreenshotData {
 	ImageFormatData im_format;
 } ScreenshotData;
 
+static void screenshot_read_pixels(int x, int y, int w, int h, unsigned char *rect)
+{
+	int i;
+
+	glReadPixels(x, y, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rect);
+	glFinish();
+
+	/* clear alpha, it is not set to a meaningful value in opengl */
+	for (i = 0, rect += 3; i < w * h; i++, rect += 4)
+		*rect = 255;
+}
+
 /* get shot from frontbuffer */
 static unsigned int *screenshot(bContext *C, int *dumpsx, int *dumpsy)
 {
@@ -97,12 +109,11 @@ static unsigned int *screenshot(bContext *C, int *dumpsx, int *dumpsy)
 		
 		dumprect = MEM_mallocN(sizeof(int) * (*dumpsx) * (*dumpsy), "dumprect");
 #if !defined(GLEW_ES_ONLY) // XXX jwilkins: ES can only read from COLOR_ATTACHMENT0, which might work out OK if swap method is COPY
-	glReadBuffer(GL_FRONT);
+		glReadBuffer(GL_FRONT); // XXX jwilkins: this will probably cause a gl error with ES profile
 #endif
-		glReadPixels(x, y, *dumpsx, *dumpsy, GL_RGBA, GL_UNSIGNED_BYTE, dumprect);
-		glFinish();
+		screenshot_read_pixels(x, y, *dumpsx, *dumpsy, (unsigned char *)dumprect);
 #if !defined(GLEW_ES_ONLY)
-		glReadBuffer(GL_BACK);
+		glReadBuffer(GL_BACK); // XXX jwilkins: this will probably cause a gl error with ES profile
 #endif
 	}
 
@@ -228,16 +239,15 @@ static int screenshot_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 	return OPERATOR_CANCELLED;
 }
 
-static int screenshot_check(bContext *UNUSED(C), wmOperator *op)
+static bool screenshot_check(bContext *UNUSED(C), wmOperator *op)
 {
 	ScreenshotData *scd = op->customdata;
 	return WM_operator_filesel_ensure_ext_imtype(op, &scd->im_format);
 }
 
-static int screenshot_cancel(bContext *UNUSED(C), wmOperator *op)
+static void screenshot_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	screenshot_data_free(op);
-	return OPERATOR_CANCELLED;
 }
 
 static bool screenshot_draw_check_prop(PointerRNA *UNUSED(ptr), PropertyRNA *prop)
@@ -262,6 +272,13 @@ static void screenshot_draw(bContext *UNUSED(C), wmOperator *op)
 	uiDefAutoButsRNA(layout, &ptr, screenshot_draw_check_prop, '\0');
 }
 
+static int screenshot_poll(bContext *C)
+{
+	if (G.background)
+		return false;
+
+	return WM_operator_winactive(C);
+}
 
 void SCREEN_OT_screenshot(wmOperatorType *ot)
 {
@@ -274,7 +291,7 @@ void SCREEN_OT_screenshot(wmOperatorType *ot)
 	ot->exec = screenshot_exec;
 	ot->cancel = screenshot_cancel;
 	ot->ui = screenshot_draw;
-	ot->poll = WM_operator_winactive;
+	ot->poll = screenshot_poll;
 	
 	ot->flag = 0;
 	
@@ -317,8 +334,7 @@ static void screenshot_updatejob(void *sjv)
 	
 	if (sj->dumprect == NULL) {
 		dumprect = MEM_mallocN(sizeof(int) * sj->dumpsx * sj->dumpsy, "dumprect");
-		glReadPixels(sj->x, sj->y, sj->dumpsx, sj->dumpsy, GL_RGBA, GL_UNSIGNED_BYTE, dumprect);
-		glFinish();
+		screenshot_read_pixels(sj->x, sj->y, sj->dumpsx, sj->dumpsy, (unsigned char *)dumprect);
 		
 		sj->dumprect = dumprect;
 	}
@@ -516,7 +532,7 @@ void SCREEN_OT_screencast(wmOperatorType *ot)
 	
 	ot->invoke = WM_operator_confirm;
 	ot->exec = screencast_exec;
-	ot->poll = WM_operator_winactive;
+	ot->poll = screenshot_poll;  /* shared poll */
 	
 	ot->flag = 0;
 	

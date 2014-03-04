@@ -25,6 +25,8 @@
 
 /** \file blender/blenfont/intern/blf_lang.c
  *  \ingroup blf
+ *
+ * Main internationalization functions to set the locale and query available languages.
  */
 
 #include <stdio.h>
@@ -66,7 +68,7 @@ static void free_locales(void)
 			MEM_freeN((void *)locales_menu[idx].description); /* Also frees locales's relevant value! */
 		}
 
-		MEM_freeN((void*)locales);
+		MEM_freeN((void *)locales);
 		locales = NULL;
 	}
 	if (locales_menu) {

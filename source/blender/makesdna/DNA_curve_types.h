@@ -75,6 +75,7 @@ typedef struct BevList {
 	struct BevList *next, *prev;
 	int nr, dupe_nr;
 	int poly, hole;
+	int charidx;
 } BevList;
 
 /* These two Lines with # tell makesdna this struct can be excluded. */
@@ -130,7 +131,8 @@ typedef struct Nurb {
 	short type;
 	short mat_nr;		/* index into material list */
 	short hide, flag;
-	short pntsu, pntsv;		/* number of points in the U or V directions */
+	int pntsu, pntsv;		/* number of points in the U or V directions */
+	short pad[2];
 	short resolu, resolv;	/* tessellation resolution in the U or V directions */
 	short orderu, orderv;
 	short flagu, flagv;
@@ -177,17 +179,13 @@ typedef struct Curve {
 	struct BoundBox *bb;
 	
 	ListBase nurb;		/* actual data, called splines in rna */
-	ListBase disp;		/* undeformed display list, used mostly for texture space calculation */
 	
 	EditNurb *editnurb;	/* edited data, not in file, use pointer so we can check for it */
 	
 	struct Object *bevobj, *taperobj, *textoncurve;
 	struct Ipo *ipo    DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
-	Path *path;
 	struct Key *key;
 	struct Material **mat;
-	
-	ListBase bev;
 	
 	/* texture space, copied as one block in editobject.c */
 	float loc[3];
@@ -211,37 +209,47 @@ typedef struct Curve {
 
 	/* edit, index in nurb list */
 	int actnu;
-	/* edit, last selected point */
-	void *lastsel;
-	
+	/* edit, index in active nurb (BPoint or BezTriple) */
+	int actvert;
+
+	char pad[4];
+
 	/* font part */
-	short len, lines, pos, spacemode;
+	short lines;
+	char spacemode, pad1;
 	float spacing, linedist, shear, fsize, wordspace, ulpos, ulheight;
 	float xof, yof;
 	float linewidth;
 
+	/* copy of EditFont vars (wchar_t aligned),
+	 * warning! don't use in editmode (storage only) */
+	int pos;
+	int selstart, selend;
+
+	/* text data */
+	int len_wchar;  /* number of characters (strinfo) */
+	int len;        /* number of bytes (str - utf8) */
 	char *str;
-	struct SelBox *selboxes;
 	struct EditFont *editfont;
-	
-	char family[24];
+
+	char family[64];
 	struct VFont *vfont;
 	struct VFont *vfontb;
 	struct VFont *vfonti;
 	struct VFont *vfontbi;
-
-	int sepchar;
 	
-	float ctime;			/* current evaltime - for use by Objects parented to curves */
-	int totbox, actbox;
 	struct TextBox *tb;
-	
-	int selstart, selend;
+	int totbox, actbox;
 	
 	struct CharInfo *strinfo;
 	struct CharInfo curinfo;
+	/* font part end */
 
+
+	float ctime;			/* current evaltime - for use by Objects parented to curves */
 	float bevfac1, bevfac2;
+
+	char pad2[4];
 } Curve;
 
 /* **************** CURVE ********************* */
@@ -262,7 +270,7 @@ typedef struct Curve {
 #define CU_UV_ORCO		32
 #define CU_DEFORM_BOUNDS_OFF 64 
 #define CU_STRETCH		128
-#define CU_OFFS_PATHDIST	256
+/* #define CU_OFFS_PATHDIST	256 */ /* DEPRECATED */
 #define CU_FAST			512 /* Font: no filling inside editmode */
 /* #define CU_RETOPO               1024 */ /* DEPRECATED */
 #define CU_DS_EXPAND	2048
@@ -318,6 +326,8 @@ typedef struct Curve {
 #define CU_NURB_ENDPOINT	2
 #define CU_NURB_BEZIER		4
 
+#define CU_ACT_NONE		-1
+
 /* *************** BEZTRIPLE **************** */
 
 /* h1 h2 (beztriple) */
@@ -362,6 +372,8 @@ typedef enum eBezTriple_KeyframeType {
 /* mixed with KEY_LINEAR but define here since only curve supports */
 #define KEY_CU_EASE			3
 
+/* indicates point has been seen during surface duplication */
+#define SURF_SEEN			4
 
 #endif
 

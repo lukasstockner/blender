@@ -42,11 +42,11 @@
 #include "BKE_deform.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
-#include "BKE_bmesh.h" /* only for defines */
 
 #include "MOD_util.h"
 
 #include "bmesh.h"
+#include "bmesh_tools.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -58,10 +58,11 @@ static void initData(ModifierData *md)
 	bmd->value = 0.1f;
 	bmd->res = 1;
 	bmd->flags = 0;
-	bmd->val_flags = 0;
+	bmd->val_flags = MOD_BEVEL_AMT_OFFSET;
 	bmd->lim_flags = 0;
 	bmd->e_flags = 0;
-	bmd->bevel_angle = 30;
+	bmd->profile = 0.5f;
+	bmd->bevel_angle = DEG2RADF(30.0f);
 	bmd->defgrp_name[0] = '\0';
 }
 
@@ -76,6 +77,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	tbmd->val_flags = bmd->val_flags;
 	tbmd->lim_flags = bmd->lim_flags;
 	tbmd->e_flags = bmd->e_flags;
+	tbmd->profile = bmd->profile;
 	tbmd->bevel_angle = bmd->bevel_angle;
 	BLI_strncpy(tbmd->defgrp_name, bmd->defgrp_name, sizeof(tbmd->defgrp_name));
 }
@@ -91,8 +93,6 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	return dataMask;
 }
 
-#ifdef USE_BM_BEVEL_OP_AS_MOD
-
 /*
  * This calls the new bevel code (added since 2.64)
  */
@@ -105,33 +105,34 @@ static DerivedMesh *applyModifier(ModifierData *md, struct Object *ob,
 	BMIter iter;
 	BMEdge *e;
 	BMVert *v;
-	float weight;
+	float weight, weight2;
 	int vgroup = -1;
 	MDeformVert *dvert = NULL;
 	BevelModifierData *bmd = (BevelModifierData *) md;
-	const float threshold = cosf((bmd->bevel_angle + 0.00001f) * (float)M_PI / 180.0f);
-	const bool vertex_only = (bmd->flags & BME_BEVEL_VERT) != 0;
-	const bool do_clamp = !(bmd->flags & BME_BEVEL_OVERLAP_OK);
+	const float threshold = cosf(bmd->bevel_angle + 0.000000175f);
+	const bool vertex_only = (bmd->flags & MOD_BEVEL_VERT) != 0;
+	const bool do_clamp = !(bmd->flags & MOD_BEVEL_OVERLAP_OK);
+	const int offset_type = bmd->val_flags;
 
 	bm = DM_to_bmesh(dm, true);
+	if ((bmd->lim_flags & MOD_BEVEL_VGROUP) && bmd->defgrp_name[0])
+		modifier_get_vgroup(ob, dm, bmd->defgrp_name, &dvert, &vgroup);
 
 	if (vertex_only) {
-		if ((bmd->lim_flags & BME_BEVEL_VGROUP) && bmd->defgrp_name[0]) {
-			modifier_get_vgroup(ob, dm, bmd->defgrp_name, &dvert, &vgroup);
-		}
-		BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 			if (!BM_vert_is_manifold(v))
 				continue;
 			if (vgroup != -1) {
-				/* Is it safe to assume bmesh indices and dvert array line up?? */
 				weight = defvert_array_find_weight_safe(dvert, BM_elem_index_get(v), vgroup);
-				if (weight <= 0.0f)
+				/* Check is against 0.5 rather than != 0.0 because cascaded bevel modifiers will
+				 * interpolate weights for newly created vertices, and may cause unexpected "selection" */
+				if (weight < 0.5f)
 					continue;
 			}
 			BM_elem_flag_enable(v, BM_ELEM_TAG);
 		}
 	}
-	else if (bmd->lim_flags & BME_BEVEL_ANGLE) {
+	else if (bmd->lim_flags & MOD_BEVEL_ANGLE) {
 		BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
 			/* check for 1 edge having 2 face users */
 			BMLoop *l_a, *l_b;
@@ -148,9 +149,15 @@ static DerivedMesh *applyModifier(ModifierData *md, struct Object *ob,
 		/* crummy, is there a way just to operator on all? - campbell */
 		BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
 			if (BM_edge_is_manifold(e)) {
-				if (bmd->lim_flags & BME_BEVEL_WEIGHT) {
+				if (bmd->lim_flags & MOD_BEVEL_WEIGHT) {
 					weight = BM_elem_float_data_get(&bm->edata, e, CD_BWEIGHT);
 					if (weight == 0.0f)
+						continue;
+				}
+				else if (vgroup != -1) {
+					weight = defvert_array_find_weight_safe(dvert, BM_elem_index_get(e->v1), vgroup);
+					weight2 = defvert_array_find_weight_safe(dvert, BM_elem_index_get(e->v2), vgroup);
+					if (weight < 0.5f || weight2 < 0.5f)
 						continue;
 				}
 				BM_elem_flag_enable(e, BM_ELEM_TAG);
@@ -160,11 +167,11 @@ static DerivedMesh *applyModifier(ModifierData *md, struct Object *ob,
 		}
 	}
 
-	BM_mesh_bevel(bm, bmd->value, bmd->res,
-	              vertex_only, bmd->lim_flags & BME_BEVEL_WEIGHT, do_clamp,
+	BM_mesh_bevel(bm, bmd->value, offset_type, bmd->res, bmd->profile,
+	              vertex_only, bmd->lim_flags & MOD_BEVEL_WEIGHT, do_clamp,
 	              dvert, vgroup);
 
-	result = CDDM_from_bmesh(bm, TRUE);
+	result = CDDM_from_bmesh(bm, true);
 
 	BLI_assert(bm->vtoolflagpool == NULL &&
 	           bm->etoolflagpool == NULL &&
@@ -176,45 +183,10 @@ static DerivedMesh *applyModifier(ModifierData *md, struct Object *ob,
 	return result;
 }
 
-
-#else /* from trunk, see note above */
-
-static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
-                                  DerivedMesh *derivedData,
-                                  ModifierApplyFlag UNUSED(flag))
+static bool dependsOnNormals(ModifierData *UNUSED(md))
 {
-	DerivedMesh *result;
-	BMesh *bm;
-
-	/*bDeformGroup *def;*/
-	int /*i,*/ options, defgrp_index = -1;
-	BevelModifierData *bmd = (BevelModifierData *) md;
-
-	options = bmd->flags | bmd->val_flags | bmd->lim_flags | bmd->e_flags;
-
-#if 0
-	if ((options & BME_BEVEL_VWEIGHT) && bmd->defgrp_name[0]) {
-		defgrp_index = defgroup_name_index(ob, bmd->defgrp_name);
-		if (defgrp_index == -1) {
-			options &= ~BME_BEVEL_VWEIGHT;
-		}
-	}
-#endif
-
-	bm = DM_to_bmesh(derivedData);
-	BME_bevel(bm, bmd->value, bmd->res, options, defgrp_index, DEG2RADF(bmd->bevel_angle), NULL);
-	result = CDDM_from_bmesh(bm, TRUE);
-	BM_mesh_free(bm);
-
-	/* until we allow for dirty normal flag, always calc,
-	 * note: calculating on the CDDM is faster then the BMesh equivalent */
-	result->dirty |= DM_DIRTY_NORMALS;
-
-	return result;
+	return true;
 }
-
-#endif
-
 
 ModifierTypeInfo modifierType_Bevel = {
 	/* name */              "Bevel",
@@ -238,7 +210,7 @@ ModifierTypeInfo modifierType_Bevel = {
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    NULL,
 	/* dependsOnTime */     NULL,
-	/* dependsOnNormals */  NULL,
+	/* dependsOnNormals */  dependsOnNormals,
 	/* foreachObjectLink */ NULL,
 	/* foreachIDLink */     NULL,
 	/* foreachTexLink */    NULL,

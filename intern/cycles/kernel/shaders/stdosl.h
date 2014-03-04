@@ -134,12 +134,16 @@ normal mod (normal a, float  b) { return a - b*floor(a/b); }
 color  mod (color  a, float  b) { return a - b*floor(a/b); }
 float  mod (float  a, float  b) { return a - b*floor(a/b); }
 PERCOMP2 (min)
+int min (int a, int b) BUILTIN;
 PERCOMP2 (max)
+int max (int a, int b) BUILTIN;
 normal clamp (normal x, normal minval, normal maxval) { return max(min(x,maxval),minval); }
 vector clamp (vector x, vector minval, vector maxval) { return max(min(x,maxval),minval); }
 point  clamp (point x, point minval, point maxval) { return max(min(x,maxval),minval); }
 color  clamp (color x, color minval, color maxval) { return max(min(x,maxval),minval); }
 float  clamp (float x, float minval, float maxval) { return max(min(x,maxval),minval); }
+int    clamp (int x, int minval, int maxval) { return max(min(x,maxval),minval); }
+#if 0
 normal mix (normal x, normal y, normal a) { return x*(1-a) + y*a; }
 normal mix (normal x, normal y, float  a) { return x*(1-a) + y*a; }
 vector mix (vector x, vector y, vector a) { return x*(1-a) + y*a; }
@@ -149,6 +153,17 @@ point  mix (point  x, point  y, float  a) { return x*(1-a) + y*a; }
 color  mix (color  x, color  y, color  a) { return x*(1-a) + y*a; }
 color  mix (color  x, color  y, float  a) { return x*(1-a) + y*a; }
 float  mix (float  x, float  y, float  a) { return x*(1-a) + y*a; }
+#else
+normal mix (normal x, normal y, normal a) BUILTIN;
+normal mix (normal x, normal y, float  a) BUILTIN;
+vector mix (vector x, vector y, vector a) BUILTIN;
+vector mix (vector x, vector y, float  a) BUILTIN;
+point  mix (point  x, point  y, point  a) BUILTIN;
+point  mix (point  x, point  y, float  a) BUILTIN;
+color  mix (color  x, color  y, color  a) BUILTIN;
+color  mix (color  x, color  y, float  a) BUILTIN;
+float  mix (float  x, float  y, float  a) BUILTIN;
+#endif
 int isnan (float x) BUILTIN;
 int isinf (float x) BUILTIN;
 int isfinite (float x) BUILTIN;
@@ -397,12 +412,26 @@ matrix transpose (matrix m) BUILTIN;
 
 // Pattern generation
 
-float step (float edge, float x) BUILTIN;
 color step (color edge, color x) BUILTIN;
 point step (point edge, point x) BUILTIN;
 vector step (vector edge, vector x) BUILTIN;
 normal step (normal edge, normal x) BUILTIN;
+float step (float edge, float x) BUILTIN;
 float smoothstep (float edge0, float edge1, float x) BUILTIN;
+
+float aastep (float edge, float s, float dedge, float ds) {
+    // Box filtered AA step
+    float width = fabs(dedge) + fabs(ds);
+    float halfwidth = 0.5*width;
+    float e1 = edge-halfwidth;
+    return (s <= e1) ? 0.0 : ((s >= (edge+halfwidth)) ? 1.0 : (s-e1)/width);
+}
+float aastep (float edge, float s, float ds) {
+    return aastep (edge, s, filterwidth(edge), ds);
+}
+float aastep (float edge, float s) {
+    return aastep (edge, s, filterwidth(edge), filterwidth(s));
+}
 
 
 // Derivatives and area operators
@@ -418,8 +447,8 @@ int startswith (string s, string prefix) BUILTIN;
 int endswith (string s, string suffix) BUILTIN;
 string substr (string s, int start, int len) BUILTIN;
 string substr (string s, int start) { return substr (s, start, strlen(s)); }
-float strtof (string str) BUILTIN;
-int strtoi (string str) BUILTIN;
+float stof (string str) BUILTIN;
+int stoi (string str) BUILTIN;
 
 // Define concat in terms of shorter concat
 string concat (string a, string b, string c) {
@@ -463,10 +492,22 @@ closure color emission() BUILTIN;
 closure color background() BUILTIN;
 closure color holdout() BUILTIN;
 closure color ambient_occlusion() BUILTIN;
-closure color bssrdf_cubic(normal N, vector radius) BUILTIN;
+
+// BSSRDF
+closure color bssrdf_cubic(normal N, vector radius, float texture_blur, float sharpness) BUILTIN;
+closure color bssrdf_gaussian(normal N, vector radius, float texture_blur) BUILTIN;
+
+// Hair
+closure color hair_reflection(normal N, float roughnessu, float roughnessv, vector T, float offset) BUILTIN;
+closure color hair_transmission(normal N, float roughnessu, float roughnessv, vector T, float offset) BUILTIN;
+
+// Volume
+closure color henyey_greenstein(float g) BUILTIN;
+closure color absorption() BUILTIN;
 
 // Backwards compatibility
-
+closure color bssrdf_cubic(normal N, vector radius) BUILTIN;
+closure color bssrdf_gaussian(normal N, vector radius) BUILTIN;
 closure color specular_toon(normal N, float size, float smooth) BUILTIN;
 
 // Renderer state

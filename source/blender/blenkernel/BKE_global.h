@@ -48,7 +48,6 @@ extern "C" {
 /* forwards */
 struct Main;
 struct Object;
-struct BME_Glob;
 
 typedef struct Global {
 
@@ -76,7 +75,7 @@ typedef struct Global {
 	short winpos, displaymode;  /* used to be in Render */
 
 	/* to indicate render is busy, prevent renderwindow events etc */
-	short is_rendering;
+	bool is_rendering;
 
 	/* debug value, can be set from the UI and python, used for testing nonstandard features */
 	short debug_value;
@@ -132,10 +131,11 @@ enum {
 	G_DEBUG_WM =        (1 << 5), /* operator, undo */
 	G_DEBUG_JOBS =      (1 << 6), /* jobs time profiling */
 	G_DEBUG_FREESTYLE = (1 << 7), /* freestyle messages */
+	G_DEBUG_DEPSGRAPH = (1 << 8), /* depsgraph messages */
 };
 
 #define G_DEBUG_ALL  (G_DEBUG | G_DEBUG_FFMPEG | G_DEBUG_PYTHON | G_DEBUG_EVENTS | G_DEBUG_WM | G_DEBUG_JOBS | \
-                      G_DEBUG_FREESTYLE)
+                      G_DEBUG_FREESTYLE | G_DEBUG_DEPSGRAPH)
 
 
 /* G.fileflags */
@@ -194,8 +194,8 @@ enum {
 /* G.moving, signals drawing in (3d) window to denote transform */
 #define G_TRANSFORM_OBJ         1
 #define G_TRANSFORM_EDIT        2
-#define G_TRANSFORM_MANIP       4
-#define G_TRANSFORM_PARTICLE    8
+#define G_TRANSFORM_SEQ         4
+#define G_TRANSFORM_FCURVES     8
 
 /* G.special1 */
 

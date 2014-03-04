@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifndef __SUBD_DICE_H__
@@ -33,28 +31,50 @@ class Camera;
 class Mesh;
 class Patch;
 
+struct SubdParams {
+	Mesh *mesh;
+	int shader;
+	bool smooth;
+	bool ptex;
+
+	int test_steps;
+	int split_threshold;
+	float dicing_rate;
+	Camera *camera;
+
+	SubdParams(Mesh *mesh_, int shader_, bool smooth_ = true, bool ptex_ = false)
+	{
+		mesh = mesh_;
+		shader = shader_;
+		smooth = smooth_;
+		ptex = ptex_;
+
+		test_steps = 3;
+		split_threshold = 1;
+		dicing_rate = 0.1f;
+		camera = NULL;
+	}
+
+};
+
 /* EdgeDice Base */
 
 class EdgeDice {
 public:
-	Camera *camera;
-	Mesh *mesh;
+	SubdParams params;
 	float3 *mesh_P;
 	float3 *mesh_N;
-	float dicing_rate;
 	size_t vert_offset;
 	size_t tri_offset;
-	int shader;
-	bool smooth;
 
-	EdgeDice(Mesh *mesh, int shader, bool smooth, float dicing_rate);
+	EdgeDice(const SubdParams& params);
 
 	void reserve(int num_verts, int num_tris);
 
 	int add_vert(Patch *patch, float2 uv);
-	void add_triangle(int v0, int v1, int v2);
+	void add_triangle(Patch *patch, int v0, int v1, int v2);
 
-	void stitch_triangles(vector<int>& outer, vector<int>& inner);
+	void stitch_triangles(Patch *patch, vector<int>& outer, vector<int>& inner);
 };
 
 /* Quad EdgeDice
@@ -88,7 +108,7 @@ public:
 		int tv1;
 	};
 
-	QuadDice(Mesh *mesh, int shader, bool smooth, float dicing_rate);
+	QuadDice(const SubdParams& params);
 
 	void reserve(EdgeFactors& ef, int Mu, int Mv);
 	float3 eval_projected(SubPatch& sub, float u, float v);
@@ -142,7 +162,7 @@ public:
 		int tw;
 	};
 
-	TriangleDice(Mesh *mesh, int shader, bool smooth, float dicing_rate);
+	TriangleDice(const SubdParams& params);
 
 	void reserve(EdgeFactors& ef, int M);
 

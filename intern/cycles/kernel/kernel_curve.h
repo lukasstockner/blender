@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 CCL_NAMESPACE_BEGIN
@@ -22,7 +20,7 @@ CCL_NAMESPACE_BEGIN
 
 /* curve attributes */
 
-__device float curve_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
+ccl_device float curve_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
 {
 	if(elem == ATTR_ELEMENT_CURVE) {
 #ifdef __RAY_DIFFERENTIALS__
@@ -57,7 +55,7 @@ __device float curve_attribute_float(KernelGlobals *kg, const ShaderData *sd, At
 	}
 }
 
-__device float3 curve_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
+ccl_device float3 curve_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
 {
 	if(elem == ATTR_ELEMENT_CURVE) {
 		/* idea: we can't derive any useful differentials here, but for tiled
@@ -98,7 +96,7 @@ __device float3 curve_attribute_float3(KernelGlobals *kg, const ShaderData *sd, 
 
 /* hair info node functions */
 
-__device float curve_thickness(KernelGlobals *kg, ShaderData *sd)
+ccl_device float curve_thickness(KernelGlobals *kg, ShaderData *sd)
 {
 	float r = 0.0f;
 
@@ -115,20 +113,18 @@ __device float curve_thickness(KernelGlobals *kg, ShaderData *sd)
 	return r*2.0f;
 }
 
-__device float3 curve_tangent_normal(KernelGlobals *kg, ShaderData *sd)
+ccl_device float3 curve_tangent_normal(KernelGlobals *kg, ShaderData *sd)
 {	
 	float3 tgN = make_float3(0.0f,0.0f,0.0f);
 
 	if(sd->segment != ~0) {
-		float normalmix = kernel_data.curve_kernel_data.normalmix;
 
-		tgN = -(-sd->I - sd->dPdu * (dot(sd->dPdu,-sd->I) * normalmix / len_squared(sd->dPdu)));
+		tgN = -(-sd->I - sd->dPdu * (dot(sd->dPdu,-sd->I) / len_squared(sd->dPdu)));
 		tgN = normalize(tgN);
 
 		/* need to find suitable scaled gd for corrected normal */
 #if 0
-		if (kernel_data.curve_kernel_data.use_tangent_normal_correction)
-			tgN = normalize(tgN - gd * sd->dPdu);
+		tgN = normalize(tgN - gd * sd->dPdu);
 #endif
 	}
 

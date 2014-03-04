@@ -28,6 +28,11 @@
 #ifndef __DNA_FREESTYLE_TYPES_H__
 #define __DNA_FREESTYLE_TYPES_H__
 
+/** \file DNA_freestyle_types.h
+ *  \ingroup DNA
+ */
+
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 
 #ifdef __cplusplus
@@ -122,7 +127,7 @@ typedef struct FreestyleConfig {
 	ListBase modules;
 
 	int mode; /* scripting, editor */
-	int raycasting_algorithm; /* XXX deprecated */
+	int raycasting_algorithm  DNA_DEPRECATED;
 	int flags; /* suggestive contours, ridges/valleys, material boundaries */
 	float sphere_radius;
 	float dkr_epsilon;

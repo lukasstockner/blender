@@ -92,6 +92,7 @@ set(SRC
 	composite/nodes/node_composite_normal.c
 	composite/nodes/node_composite_normalize.c
 	composite/nodes/node_composite_outputFile.c
+	composite/nodes/node_composite_planetrackdeform.c
 	composite/nodes/node_composite_premulkey.c
 	composite/nodes/node_composite_rgb.c
 	composite/nodes/node_composite_rotate.c
@@ -132,6 +133,7 @@ set(SRC
 	shader/nodes/node_shader_geom.c
 	shader/nodes/node_shader_hueSatVal.c
 	shader/nodes/node_shader_invert.c
+	shader/nodes/node_shader_lamp.c
 	shader/nodes/node_shader_mapping.c
 	shader/nodes/node_shader_material.c
 	shader/nodes/node_shader_math.c
@@ -140,13 +142,16 @@ set(SRC
 	shader/nodes/node_shader_output.c
 	shader/nodes/node_shader_rgb.c
 	shader/nodes/node_shader_sepcombRGB.c
+	shader/nodes/node_shader_sepcombHSV.c
 	shader/nodes/node_shader_squeeze.c
 	shader/nodes/node_shader_texture.c
 	shader/nodes/node_shader_valToRgb.c
 	shader/nodes/node_shader_value.c
 	shader/nodes/node_shader_wireframe.c
 	shader/nodes/node_shader_wavelength.c
+	shader/nodes/node_shader_blackbody.c
 	shader/nodes/node_shader_vectMath.c
+	shader/nodes/node_shader_vectTransform.c
 	shader/nodes/node_shader_add_shader.c
 	shader/nodes/node_shader_ambient_occlusion.c
 	shader/nodes/node_shader_attribute.c
@@ -160,6 +165,7 @@ set(SRC
 	shader/nodes/node_shader_bsdf_translucent.c
 	shader/nodes/node_shader_bsdf_transparent.c
 	shader/nodes/node_shader_bsdf_velvet.c
+	shader/nodes/node_shader_bsdf_hair.c
 	shader/nodes/node_shader_bump.c
 	shader/nodes/node_shader_emission.c
 	shader/nodes/node_shader_fresnel.c
@@ -191,8 +197,8 @@ set(SRC
 	shader/nodes/node_shader_tex_sky.c
 	shader/nodes/node_shader_tex_voronoi.c
 	shader/nodes/node_shader_tex_wave.c
-	shader/nodes/node_shader_volume_isotropic.c
-	shader/nodes/node_shader_volume_transparent.c
+	shader/nodes/node_shader_volume_scatter.c
+	shader/nodes/node_shader_volume_absorption.c
 	shader/node_shader_tree.c
 	shader/node_shader_util.c
 

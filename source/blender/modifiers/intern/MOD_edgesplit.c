@@ -44,18 +44,18 @@
 #include "BKE_modifier.h"
 
 #include "bmesh.h"
-#include "tools/bmesh_edgesplit.h"
+#include "bmesh_tools.h"
 
 #include "DNA_object_types.h"
 
 
-static DerivedMesh *doEdgeSplit(DerivedMesh *dm, EdgeSplitModifierData *emd, Object *UNUSED(ob))
+static DerivedMesh *doEdgeSplit(DerivedMesh *dm, EdgeSplitModifierData *emd)
 {
 	DerivedMesh *result;
 	BMesh *bm;
 	BMIter iter;
 	BMEdge *e;
-	float threshold = cosf((emd->split_angle + 0.00001f) * (float)M_PI / 180.0f);
+	float threshold = cosf(emd->split_angle + 0.000000175f);
 	const bool calc_face_normals = (emd->flags & MOD_EDGESPLIT_FROMANGLE) != 0;
 
 	bm = DM_to_bmesh(dm, calc_face_normals);
@@ -91,13 +91,14 @@ static DerivedMesh *doEdgeSplit(DerivedMesh *dm, EdgeSplitModifierData *emd, Obj
 		}
 	}
 	
-	BM_mesh_edgesplit(bm, FALSE, TRUE);
+	BM_mesh_edgesplit(bm, false, true, false);
 
 	/* BM_mesh_validate(bm); */ /* for troubleshooting */
 
-	result = CDDM_from_bmesh(bm, TRUE);
+	result = CDDM_from_bmesh(bm, true);
 	BM_mesh_free(bm);
-	
+
+	result->dirty |= DM_DIRTY_NORMALS;
 	return result;
 }
 
@@ -106,38 +107,29 @@ static void initData(ModifierData *md)
 	EdgeSplitModifierData *emd = (EdgeSplitModifierData *) md;
 
 	/* default to 30-degree split angle, sharpness from both angle & flag */
-	emd->split_angle = 30;
+	emd->split_angle = DEG2RADF(30.0f);
 	emd->flags = MOD_EDGESPLIT_FROMANGLE | MOD_EDGESPLIT_FROMFLAG;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	EdgeSplitModifierData *emd = (EdgeSplitModifierData *) md;
 	EdgeSplitModifierData *temd = (EdgeSplitModifierData *) target;
-
-	temd->split_angle = emd->split_angle;
-	temd->flags = emd->flags;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
-static DerivedMesh *edgesplitModifier_do(EdgeSplitModifierData *emd,
-                                         Object *ob, DerivedMesh *dm)
-{
-	if (!(emd->flags & (MOD_EDGESPLIT_FROMANGLE | MOD_EDGESPLIT_FROMFLAG)))
-		return dm;
-
-	return doEdgeSplit(dm, emd, ob);
-}
-
-static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *derivedData,
+static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob), DerivedMesh *dm,
                                   ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *result;
 	EdgeSplitModifierData *emd = (EdgeSplitModifierData *) md;
 
-	result = edgesplitModifier_do(emd, ob, derivedData);
+	if (!(emd->flags & (MOD_EDGESPLIT_FROMANGLE | MOD_EDGESPLIT_FROMFLAG)))
+		return dm;
 
-	if (result != derivedData)
-		result->dirty |= DM_DIRTY_NORMALS;
+	result = doEdgeSplit(dm, emd);
 
 	return result;
 }

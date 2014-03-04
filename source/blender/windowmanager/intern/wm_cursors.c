@@ -27,8 +27,9 @@
 
 /** \file blender/windowmanager/intern/wm_cursors.c
  *  \ingroup wm
+ *
+ * Cursor pixmap and cursor utility functions to change the cursor.
  */
-
 
 #include <stdio.h>
 #include <string.h>
@@ -49,6 +50,7 @@
 #include "WM_types.h"
 #include "WM_api.h"
 #include "wm_cursors.h"
+#include "wm_window.h"
 
 /* XXX this still is mess from old code */
 
@@ -107,7 +109,9 @@ static BCursor *BlenderCursor[BC_NUMCURSORS]; /*Points to static BCursor Structs
 void WM_cursor_set(wmWindow *win, int curs)
 {
 
-	if (win == NULL) return;  /* Can't set custom cursor before Window init */
+	if (win == NULL || G.background) {
+		return;  /* Can't set custom cursor before Window init */
+	}
 
 	if (curs == CURSOR_NONE) {
 		GHOST_SetCursorVisibility(win->ghostwin, 0);
@@ -118,6 +122,11 @@ void WM_cursor_set(wmWindow *win, int curs)
 	/* the default win32 cross cursor is barely visible,
 	 * only 1 pixel thick, use another one instead */
 	if (curs == CURSOR_EDIT)
+		curs = BC_CROSSCURSOR;
+#else
+	/* in case of large cursor, also use custom cursor because
+	 * large cursors don't work for system cursors */
+	if (U.curssize && curs == CURSOR_EDIT)
 		curs = BC_CROSSCURSOR;
 #endif
 
@@ -138,7 +147,7 @@ void WM_cursor_set(wmWindow *win, int curs)
 		if (curs == SYSCURSOR) {  /* System default Cursor */
 			GHOST_SetCursorShape(win->ghostwin, convert_cursor(CURSOR_STD));
 		}
-		else if ( (U.curssize == 0) || (BlenderCursor[curs]->big_bm == NULL) ) {
+		else if ((U.curssize == 0) || (BlenderCursor[curs]->big_bm == NULL)) {
 			window_set_custom_cursor_ex(win, BlenderCursor[curs], 0);
 		}
 		else {
@@ -147,7 +156,7 @@ void WM_cursor_set(wmWindow *win, int curs)
 	}
 }
 
-void WM_cursor_modal(wmWindow *win, int val)
+void WM_cursor_modal_set(wmWindow *win, int val)
 {
 	if (win->lastcursor == 0)
 		win->lastcursor = win->cursor;
@@ -155,7 +164,7 @@ void WM_cursor_modal(wmWindow *win, int val)
 	WM_cursor_set(win, val);
 }
 
-void WM_cursor_restore(wmWindow *win)
+void WM_cursor_modal_restore(wmWindow *win)
 {
 	win->modalcursor = 0;
 	if (win->lastcursor)
@@ -172,10 +181,10 @@ void WM_cursor_wait(bool val)
 		
 		for (; win; win = win->next) {
 			if (val) {
-				WM_cursor_modal(win, BC_WAITCURSOR);
+				WM_cursor_modal_set(win, BC_WAITCURSOR);
 			}
 			else {
-				WM_cursor_restore(win);
+				WM_cursor_modal_restore(win);
 			}
 		}
 	}
@@ -231,25 +240,32 @@ void WM_cursor_grab_disable(wmWindow *win, int mouse_ungrab_xy[2])
 	}
 }
 
+static void wm_cursor_warp_relative(wmWindow *win, int x, int y)
+{
+	/* note: don't use wmEvent coords because of continuous grab [#36409] */
+	int cx, cy;
+	wm_get_cursor_position(win, &cx, &cy);
+	WM_cursor_warp(win, cx + x, cy + y);
+}
+
 /* give it a modal keymap one day? */
 int wm_cursor_arrow_move(wmWindow *win, wmEvent *event)
 {
 	if (win && event->val == KM_PRESS) {
-		
 		if (event->type == UPARROWKEY) {
-			WM_cursor_warp(win, event->x, event->y + 1);
+			wm_cursor_warp_relative(win, 0, 1);
 			return 1;
 		}
 		else if (event->type == DOWNARROWKEY) {
-			WM_cursor_warp(win, event->x, event->y - 1);
+			wm_cursor_warp_relative(win, 0, -1);
 			return 1;
 		}
 		else if (event->type == LEFTARROWKEY) {
-			WM_cursor_warp(win, event->x - 1, event->y);
+			wm_cursor_warp_relative(win, -1, 0);
 			return 1;
 		}
 		else if (event->type == RIGHTARROWKEY) {
-			WM_cursor_warp(win, event->x + 1, event->y);
+			wm_cursor_warp_relative(win, 1, 0);
 			return 1;
 		}
 	}

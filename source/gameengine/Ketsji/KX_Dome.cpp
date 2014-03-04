@@ -48,8 +48,6 @@ KX_Dome::KX_Dome (
         RAS_ICanvas* canvas,
         /// rasterizer
         RAS_IRasterizer* rasterizer,
-        /// render tools
-        RAS_IRenderTools* rendertools,
         /// engine
         KX_KetsjiEngine* engine,
 
@@ -71,7 +69,6 @@ KX_Dome::KX_Dome (
     m_tilt(tilt),
     m_canvas(canvas),
     m_rasterizer(rasterizer),
-    m_rendertools(rendertools),
     m_engine(engine)
 {
 	warp.usemesh = false;
@@ -401,21 +398,21 @@ void KX_Dome::GLDrawWarpQuads(void)
 				if (warp.nodes[i][j].i < 0 || warp.nodes[i+1][j].i < 0 || warp.nodes[i+1][j+1].i < 0 || warp.nodes[i][j+1].i < 0)
 					continue;
 
-				glColor3f(warp.nodes[i][j].i, warp.nodes[i][j].i, warp.nodes[i][j].i);
-				glTexCoord2f((warp.nodes[i][j].u * uv_width), (warp.nodes[i][j].v * uv_height));
-				glVertex3f(warp.nodes[i][j].x, warp.nodes[i][j].y,0.0);
-
-				glColor3f(warp.nodes[i+1][j].i, warp.nodes[i+1][j].i, warp.nodes[i+1][j].i);
-				glTexCoord2f((warp.nodes[i+1][j].u * uv_width), (warp.nodes[i+1][j].v * uv_height));
-				glVertex3f(warp.nodes[i+1][j].x, warp.nodes[i+1][j].y,0.0);
+				glColor3f(warp.nodes[i][j+1].i, warp.nodes[i][j+1].i, warp.nodes[i][j+1].i);
+				glTexCoord2f((warp.nodes[i][j+1].u * uv_width), (warp.nodes[i][j+1].v * uv_height));
+				glVertex3f(warp.nodes[i][j+1].x, warp.nodes[i][j+1].y,0.0);
 
 				glColor3f(warp.nodes[i+1][j+1].i, warp.nodes[i+1][j+1].i, warp.nodes[i+1][j+1].i);
 				glTexCoord2f((warp.nodes[i+1][j+1].u * uv_width), (warp.nodes[i+1][j+1].v * uv_height));
 				glVertex3f(warp.nodes[i+1][j+1].x, warp.nodes[i+1][j+1].y,0.0);
 
-				glColor3f(warp.nodes[i][j+1].i, warp.nodes[i][j+1].i, warp.nodes[i][j+1].i);
-				glTexCoord2f((warp.nodes[i][j+1].u * uv_width), (warp.nodes[i][j+1].v * uv_height));
-				glVertex3f(warp.nodes[i][j+1].x, warp.nodes[i][j+1].y,0.0);
+				glColor3f(warp.nodes[i+1][j].i, warp.nodes[i+1][j].i, warp.nodes[i+1][j].i);
+				glTexCoord2f((warp.nodes[i+1][j].u * uv_width), (warp.nodes[i+1][j].v * uv_height));
+				glVertex3f(warp.nodes[i+1][j].x, warp.nodes[i+1][j].y,0.0);
+
+				glColor3f(warp.nodes[i][j].i, warp.nodes[i][j].i, warp.nodes[i][j].i);
+				glTexCoord2f((warp.nodes[i][j].u * uv_width), (warp.nodes[i][j].v * uv_height));
+				glVertex3f(warp.nodes[i][j].x, warp.nodes[i][j].y,0.0);
 			}
 		}
 		glEnd();
@@ -468,7 +465,7 @@ bool KX_Dome::ParseWarpMesh(STR_String text)
 	 * 	n3_x n3_y n3_u n3_v n3_i
 	 * 	(...)
 	 * First line is the image type the mesh is support to be applied to: 2 = fisheye, 1=radial
-	 * Tthe next line has the mesh dimensions
+	 * The next line has the mesh dimensions
 	 * Rest of the lines are the nodes of the mesh. Each line has x y u v i
 	 *   (x,y) are the normalized screen coordinates
 	 *   (u,v) texture coordinates
@@ -2047,6 +2044,9 @@ void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
 	cam->NodeUpdateGS(0.f);
 
 	scene->CalculateVisibleMeshes(m_rasterizer,cam);
-	scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
+	scene->RenderBuckets(camtrans, m_rasterizer);
+
+	// update levels of detail
+	scene->UpdateObjectLods();
 }
 

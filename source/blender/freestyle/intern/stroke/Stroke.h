@@ -303,7 +303,6 @@ private:
 	Vec3fMap *_userAttributesVec3f;
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
 	MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:StrokeAttribute")
 #endif
 };
@@ -775,7 +774,7 @@ public:
 	const_vertex_iterator vertices_end() const;
 	vertex_iterator vertices_end();
 
-	/*! Returns a StrokeVertexIterator pointing on the first StrokeVertex of the Stroke. One can specifly a sampling
+	/*! Returns a StrokeVertexIterator pointing on the first StrokeVertex of the Stroke. One can specify a sampling
 	 *  value to resample the Stroke on the fly if needed.
 	 *  \param t
 	 *    The resampling value with which we want our Stroke to be resampled.
@@ -786,7 +785,7 @@ public:
 	/*! Returns a StrokeVertexIterator pointing after the last StrokeVertex of the Stroke. */
 	StrokeInternal::StrokeVertexIterator strokeVerticesEnd();
 
-	/*! Returns the number of StrokeVertex constituing the Stroke. */
+	/*! Returns the number of StrokeVertex constituting the Stroke. */
 	inline unsigned int strokeVerticesSize() const
 	{
 		return _Vertices.size();

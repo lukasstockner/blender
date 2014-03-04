@@ -54,6 +54,10 @@
 
 #include "armature_intern.h"
 
+/* utility macros fro storing a temp int in the bone (selection flag) */
+#define EBONE_PREV_FLAG_GET(ebone) ((void)0, (GET_INT_FROM_POINTER((ebone)->temp)))
+#define EBONE_PREV_FLAG_SET(ebone, val) ((ebone)->temp = SET_INT_IN_POINTER(val))
+
 /* **************** PoseMode & EditMode Selection Buffer Queries *************************** */
 
 /* only for opengl selection indices */
@@ -170,7 +174,7 @@ static int armature_select_linked_invoke(bContext *C, wmOperator *op, const wmEv
 {
 	bArmature *arm;
 	EditBone *bone, *curBone, *next;
-	int extend = RNA_boolean_get(op->ptr, "extend");
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
 	Object *obedit = CTX_data_edit_object(C);
 	arm = obedit->data;
 
@@ -244,7 +248,7 @@ void ARMATURE_OT_select_linked(wmOperatorType *ot)
 	ot->description = "Select bones related to selected ones by parent/child relationships";
 	
 	/* api callbacks */
-	ot->exec = NULL;
+	/* leave 'exec' unset */
 	ot->invoke = armature_select_linked_invoke;
 	ot->poll = armature_select_linked_poll;
 	
@@ -434,7 +438,7 @@ void ED_armature_deselect_all_visible(Object *obedit)
 
 	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
 		/* first and foremost, bone must be visible and selected */
-		if (EBONE_SELECTABLE(arm, ebone)) {
+		if (EBONE_VISIBLE(arm, ebone)) {
 			ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
 		}
 	}
@@ -559,76 +563,53 @@ bool mouse_armature(bContext *C, const int mval[2], bool extend, bool deselect, 
 
 /* ****************  Selections  ******************/
 
-static int armature_select_inverse_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	/*	Set the flags */
-	CTX_DATA_BEGIN(C, EditBone *, ebone, visible_bones)
-	{
-		/* ignore bone if selection can't change */
-		if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
-			/* select bone */
-			ebone->flag ^= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-		}
-	}
-	CTX_DATA_END;
-
-	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, NULL);
-	
-	return OPERATOR_FINISHED;
-}
-
-void ARMATURE_OT_select_inverse(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Select Inverse";
-	ot->idname = "ARMATURE_OT_select_inverse";
-	ot->description = "Flip the selection status of bones (selected -> unselected, unselected -> selected)";
-	
-	/* api callbacks */
-	ot->exec = armature_select_inverse_exec;
-	ot->poll = ED_operator_editarmature;
-	
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-	
-}
 static int armature_de_select_all_exec(bContext *C, wmOperator *op)
 {
 	int action = RNA_enum_get(op->ptr, "action");
 
 	if (action == SEL_TOGGLE) {
-		action = SEL_SELECT;
 		/* Determine if there are any selected bones
 		 * And therefore whether we are selecting or deselecting */
-		if (CTX_DATA_COUNT(C, selected_bones) > 0)
-			action = SEL_DESELECT;
+		action = SEL_SELECT;
+		CTX_DATA_BEGIN(C, EditBone *, ebone, visible_bones)
+		{
+			if (ebone->flag & (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL)) {
+				action = SEL_DESELECT;
+				break;
+			}
+		}
+		CTX_DATA_END;
 	}
 	
 	/*	Set the flags */
 	CTX_DATA_BEGIN(C, EditBone *, ebone, visible_bones)
 	{
 		/* ignore bone if selection can't change */
-		if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
-			switch (action) {
-				case SEL_SELECT:
+		switch (action) {
+			case SEL_SELECT:
+				if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
 					ebone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-					if (ebone->parent)
+					if (ebone->parent) {
 						ebone->parent->flag |= (BONE_TIPSEL);
-					break;
-				case SEL_DESELECT:
+					}
+				}
+				break;
+			case SEL_DESELECT:
+				ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
+				break;
+			case SEL_INVERT:
+				if (ebone->flag & BONE_SELECTED) {
 					ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-					break;
-				case SEL_INVERT:
-					if (ebone->flag & BONE_SELECTED) {
-						ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-					}
-					else {
+				}
+				else {
+					if ((ebone->flag & BONE_UNSELECTABLE) == 0) {
 						ebone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-						if (ebone->parent)
+						if (ebone->parent) {
 							ebone->parent->flag |= (BONE_TIPSEL);
+						}
 					}
-					break;
-			}
+				}
+				break;
 		}
 	}
 	CTX_DATA_END;
@@ -655,6 +636,139 @@ void ARMATURE_OT_select_all(wmOperatorType *ot)
 	WM_operator_properties_select_all(ot);
 }
 
+/**************** Select more/less **************/
+
+static void armature_select_more(bArmature *arm, EditBone *ebone)
+{
+	if ((EBONE_PREV_FLAG_GET(ebone) & (BONE_ROOTSEL | BONE_TIPSEL)) != 0) {
+		if (EBONE_SELECTABLE(arm, ebone)) {
+			ED_armature_ebone_select_set(ebone, true);
+		}
+	}
+
+	if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
+		/* to parent */
+		if ((EBONE_PREV_FLAG_GET(ebone) & BONE_ROOTSEL) != 0) {
+			if (EBONE_SELECTABLE(arm, ebone->parent)) {
+				ED_armature_ebone_selectflag_enable(ebone->parent, (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL));
+			}
+		}
+
+		/* from parent (difference from select less) */
+		if ((EBONE_PREV_FLAG_GET(ebone->parent) & BONE_TIPSEL) != 0) {
+			if (EBONE_SELECTABLE(arm, ebone)) {
+				ED_armature_ebone_selectflag_enable(ebone, (BONE_SELECTED | BONE_ROOTSEL));
+			}
+		}
+	}
+}
+
+static void armature_select_less(bArmature *UNUSED(arm), EditBone *ebone)
+{
+	if ((EBONE_PREV_FLAG_GET(ebone) & (BONE_ROOTSEL | BONE_TIPSEL)) != (BONE_ROOTSEL | BONE_TIPSEL)) {
+		ED_armature_ebone_select_set(ebone, false);
+	}
+
+	if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
+		/* to parent */
+		if ((EBONE_PREV_FLAG_GET(ebone) & BONE_SELECTED) == 0) {
+			ED_armature_ebone_selectflag_disable(ebone->parent, (BONE_SELECTED | BONE_TIPSEL));
+		}
+
+		/* from parent (difference from select more) */
+		if ((EBONE_PREV_FLAG_GET(ebone->parent) & BONE_SELECTED) == 0) {
+			ED_armature_ebone_selectflag_disable(ebone, (BONE_SELECTED | BONE_ROOTSEL));
+		}
+	}
+}
+
+static void armature_select_more_less(Object *ob, bool more)
+{
+	bArmature *arm = (bArmature *)ob->data;
+	EditBone *ebone;
+
+	/* XXX, eventually we shouldn't need this - campbell */
+	ED_armature_sync_selection(arm->edbo);
+
+	/* count bones & store selection state */
+	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+		EBONE_PREV_FLAG_SET(ebone, ED_armature_ebone_selectflag_get(ebone));
+	}
+
+	/* do selection */
+	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+		if (EBONE_VISIBLE(arm, ebone)) {
+			if (more) {
+				armature_select_more(arm, ebone);
+			}
+			else {
+				armature_select_less(arm, ebone);
+			}
+		}
+	}
+
+	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+		if (EBONE_VISIBLE(arm, ebone)) {
+			if (more == false) {
+				if (ebone->flag & BONE_SELECTED) {
+					ED_armature_ebone_select_set(ebone, true);
+				}
+			}
+		}
+		ebone->temp = NULL;
+	}
+
+	ED_armature_sync_selection(arm->edbo);
+}
+
+static int armature_de_select_more_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *obedit = CTX_data_edit_object(C);
+	armature_select_more_less(obedit, true);
+	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+
+	return OPERATOR_FINISHED;
+}
+
+void ARMATURE_OT_select_more(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select More";
+	ot->idname = "ARMATURE_OT_select_more";
+	ot->description = "Select those bones connected to the initial selection";
+
+	/* api callbacks */
+	ot->exec = armature_de_select_more_exec;
+	ot->poll = ED_operator_editarmature;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int armature_de_select_less_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *obedit = CTX_data_edit_object(C);
+	armature_select_more_less(obedit, false);
+	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+
+	return OPERATOR_FINISHED;
+}
+
+void ARMATURE_OT_select_less(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Less";
+	ot->idname = "ARMATURE_OT_select_less";
+	ot->description = "Deselect those bones at the boundary of each selection region";
+
+	/* api callbacks */
+	ot->exec = armature_de_select_less_exec;
+	ot->poll = ED_operator_editarmature;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 enum {
 	SIMEDBONE_LENGTH = 1,
 	SIMEDBONE_DIRECTION,
@@ -672,16 +786,6 @@ static EnumPropertyItem prop_similar_types[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-/* could be used in more places */
-static void ED_armature_edit_bone_select(EditBone *ebone)
-{
-	BLI_assert((ebone->flag & BONE_UNSELECTABLE) == 0);
-	ebone->flag |= (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-
-	if ((ebone->flag & BONE_CONNECTED) && (ebone->parent != NULL)) {
-		ebone->parent->flag |= BONE_TIPSEL;
-	}
-}
 
 static void select_similar_length(bArmature *arm, EditBone *ebone_act, const float thresh)
 {
@@ -696,7 +800,7 @@ static void select_similar_length(bArmature *arm, EditBone *ebone_act, const flo
 			if ((ebone->length >= len_min) &&
 			    (ebone->length <= len_max))
 			{
-				ED_armature_edit_bone_select(ebone);
+				ED_armature_ebone_select_set(ebone, true);
 			}
 		}
 	}
@@ -714,7 +818,7 @@ static void select_similar_direction(bArmature *arm, EditBone *ebone_act, const 
 			sub_v3_v3v3(dir, ebone->head, ebone->tail);
 
 			if (angle_v3v3(dir_act, dir) / (float)M_PI < thresh) {
-				ED_armature_edit_bone_select(ebone);
+				ED_armature_ebone_select_set(ebone, true);
 			}
 		}
 	}
@@ -727,7 +831,7 @@ static void select_similar_layer(bArmature *arm, EditBone *ebone_act)
 	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
 		if (EBONE_SELECTABLE(arm, ebone)) {
 			if (ebone->layer & ebone_act->layer) {
-				ED_armature_edit_bone_select(ebone);
+				ED_armature_ebone_select_set(ebone, true);
 			}
 		}
 	}
@@ -750,8 +854,8 @@ static void select_similar_prefix(bArmature *arm, EditBone *ebone_act)
 		if (EBONE_SELECTABLE(arm, ebone)) {
 			char prefix_other[MAX_VGROUP_NAME];
 			BKE_deform_split_prefix(ebone->name, prefix_other, body_tmp);
-			if (!strcmp(prefix_act, prefix_other)) {
-				ED_armature_edit_bone_select(ebone);
+			if (STREQ(prefix_act, prefix_other)) {
+				ED_armature_ebone_select_set(ebone, true);
 			}
 		}
 	}
@@ -774,8 +878,8 @@ static void select_similar_suffix(bArmature *arm, EditBone *ebone_act)
 		if (EBONE_SELECTABLE(arm, ebone)) {
 			char suffix_other[MAX_VGROUP_NAME];
 			BKE_deform_split_suffix(ebone->name, body_tmp, suffix_other);
-			if (!strcmp(suffix_act, suffix_other)) {
-				ED_armature_edit_bone_select(ebone);
+			if (STREQ(suffix_act, suffix_other)) {
+				ED_armature_ebone_select_set(ebone, true);
 			}
 		}
 	}
@@ -869,7 +973,7 @@ static int armature_select_hierarchy_exec(bContext *C, wmOperator *op)
 	bArmature *arm;
 	EditBone *curbone, *pabone, *chbone;
 	int direction = RNA_enum_get(op->ptr, "direction");
-	int add_to_sel = RNA_boolean_get(op->ptr, "extend");
+	const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
 	
 	ob = obedit;
 	arm = (bArmature *)ob->data;
@@ -944,3 +1048,195 @@ void ARMATURE_OT_select_hierarchy(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
 }
 
+/****************** Mirror Select ****************/
+
+/**
+ * \note clone of #pose_select_mirror_exec keep in sync
+ */
+static int armature_select_mirror_exec(bContext *C, wmOperator *op)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	bArmature *arm = obedit->data;
+	EditBone *ebone, *ebone_mirror_act = NULL;
+	const bool active_only = RNA_boolean_get(op->ptr, "only_active");
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
+
+	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+		const int flag = ED_armature_ebone_selectflag_get(ebone);
+		EBONE_PREV_FLAG_SET(ebone, flag);
+	}
+
+	for (ebone = arm->edbo->first; ebone; ebone = ebone->next) {
+		if (EBONE_SELECTABLE(arm, ebone)) {
+			EditBone *ebone_mirror;
+			int flag_new = extend ? EBONE_PREV_FLAG_GET(ebone) : 0;
+
+			if ((ebone_mirror = ED_armature_bone_get_mirrored(arm->edbo, ebone)) &&
+			    (EBONE_VISIBLE(arm, ebone_mirror)))
+			{
+				const int flag_mirror = EBONE_PREV_FLAG_GET(ebone_mirror);
+				flag_new |= flag_mirror;
+
+				if (ebone == arm->act_edbone) {
+					ebone_mirror_act = ebone_mirror;
+				}
+
+				/* skip all but the active or its mirror */
+				if (active_only && !ELEM(arm->act_edbone, ebone, ebone_mirror)) {
+					continue;
+				}
+			}
+
+			ED_armature_ebone_selectflag_set(ebone, flag_new);
+		}
+	}
+
+	if (ebone_mirror_act) {
+		arm->act_edbone = ebone_mirror_act;
+	}
+
+	ED_armature_sync_selection(arm->edbo);
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+
+	return OPERATOR_FINISHED;
+}
+
+void ARMATURE_OT_select_mirror(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Flip Active/Selected Bone";
+	ot->idname = "ARMATURE_OT_select_mirror";
+	ot->description = "Mirror the bone selection";
+
+	/* api callbacks */
+	ot->exec = armature_select_mirror_exec;
+	ot->poll = ED_operator_editarmature;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* properties */
+	RNA_def_boolean(ot->srna, "only_active", false, "Active Only", "Only operate on the active bone");
+	RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
+}
+
+
+/****************** Select Path ****************/
+
+static bool armature_shortest_path_select(bArmature *arm, EditBone *ebone_parent, EditBone *ebone_child,
+                                          bool use_parent, bool is_test)
+{
+	do {
+
+		if (!use_parent && (ebone_child == ebone_parent))
+			break;
+
+		if (is_test) {
+			if (!EBONE_SELECTABLE(arm, ebone_child)) {
+				return false;
+			}
+		}
+		else {
+			ED_armature_ebone_selectflag_set(ebone_child, (BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL));
+		}
+
+		if (ebone_child == ebone_parent)
+			break;
+
+		ebone_child = ebone_child->parent;
+	} while (true);
+
+	return true;
+}
+
+static int armature_shortest_path_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	bArmature *arm = obedit->data;
+	EditBone *ebone_src, *ebone_dst;
+	EditBone *ebone_isect_parent = NULL;
+	EditBone *ebone_isect_child[2];
+	bool changed;
+
+	view3d_operator_needs_opengl(C);
+
+	ebone_src = arm->act_edbone;
+	ebone_dst = get_nearest_bone(C, 0, event->mval[0], event->mval[1]);
+
+	/* fallback to object selection */
+	if (ELEM(NULL, ebone_src, ebone_dst) || (ebone_src == ebone_dst)) {
+		return OPERATOR_PASS_THROUGH;
+	}
+
+	ebone_isect_child[0] = ebone_src;
+	ebone_isect_child[1] = ebone_dst;
+
+
+	/* ensure 'ebone_src' is the parent of 'ebone_dst', or set 'ebone_isect_parent' */
+	if (ED_armature_ebone_is_child_recursive(ebone_src, ebone_dst)) {
+		/* pass */
+	}
+	else if (ED_armature_ebone_is_child_recursive(ebone_dst, ebone_src)) {
+		SWAP(EditBone *, ebone_src, ebone_dst);
+	}
+	else if ((ebone_isect_parent = ED_armature_bone_find_shared_parent(ebone_isect_child, 2))) {
+		/* pass */
+	}
+	else {
+		/* disconnected bones */
+		return OPERATOR_CANCELLED;
+	}
+
+
+	if (ebone_isect_parent) {
+		if (armature_shortest_path_select(arm, ebone_isect_parent, ebone_src, false, true) &&
+		    armature_shortest_path_select(arm, ebone_isect_parent, ebone_dst, false, true))
+		{
+			armature_shortest_path_select(arm, ebone_isect_parent, ebone_src, false, false);
+			armature_shortest_path_select(arm, ebone_isect_parent, ebone_dst, false, false);
+			changed = true;
+		}
+		else {
+			/* unselectable */
+			changed = false;
+		}
+	}
+	else {
+		if (armature_shortest_path_select(arm, ebone_src, ebone_dst, true, true)) {
+			armature_shortest_path_select(arm, ebone_src, ebone_dst, true, false);
+			changed = true;
+		}
+		else {
+			/* unselectable */
+			changed = false;
+		}
+	}
+
+	if (changed) {
+		arm->act_edbone = ebone_dst;
+		ED_armature_sync_selection(arm->edbo);
+		WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+
+		return OPERATOR_FINISHED;
+	}
+	else {
+		BKE_report(op->reports, RPT_WARNING, "Unselectable bone in chain");
+		return OPERATOR_CANCELLED;
+	}
+}
+
+void ARMATURE_OT_shortest_path_pick(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Pick Shortest Path";
+	ot->idname = "ARMATURE_OT_shortest_path_pick";
+	ot->description = "Select shortest path between two bones";
+
+	/* api callbacks */
+	ot->invoke = armature_shortest_path_pick_invoke;
+	ot->poll = ED_operator_editarmature;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}

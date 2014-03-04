@@ -15,11 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -51,13 +46,14 @@
 #include "BLI_polardecomp.h"
 #endif
 
-#include "ONL_opennl.h"
-
 #include "ED_mesh.h"
 #include "ED_armature.h"
 
 #include "meshlaplacian.h"
 
+#ifdef WITH_OPENNL
+
+#include "ONL_opennl.h"
 
 /* ************* XXX *************** */
 static void waitcursor(int UNUSED(val)) {}
@@ -286,7 +282,7 @@ static void laplacian_system_construct_end(LaplacianSystem *sys)
 
 	sys->varea = MEM_callocN(sizeof(float) * totvert, "LaplacianSystemVarea");
 
-	sys->edgehash = BLI_edgehash_new();
+	sys->edgehash = BLI_edgehash_new_ex(__func__, BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(sys->totface));
 	for (a = 0, face = sys->faces; a < sys->totface; a++, face++) {
 		laplacian_increase_edge_count(sys->edgehash, (*face)[0], (*face)[1]);
 		laplacian_increase_edge_count(sys->edgehash, (*face)[1], (*face)[2]);
@@ -652,6 +648,7 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 	float solution, weight;
 	int *vertsflipped = NULL, *mask = NULL;
 	int a, tottri, j, bbone, firstsegment, lastsegment;
+	bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
 	MVert *mvert = me->mvert;
 	int use_vert_sel = FALSE;
@@ -671,8 +668,9 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 		return;
 
 	/* count triangles and create mask */
-	if ((use_face_sel = ((me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0)) ||
-	    (use_vert_sel = ((me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0)))
+	if (ob->mode == OB_MODE_WEIGHT_PAINT &&
+	    ((use_face_sel = ((me->editflag & ME_EDIT_PAINT_FACE_SEL) != 0)) ||
+	     (use_vert_sel = ((me->editflag & ME_EDIT_PAINT_VERT_SEL) != 0))))
 	{
 		mask = MEM_callocN(sizeof(int) * me->totvert, "heat_bone_weighting mask");
 
@@ -716,7 +714,7 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 	if (dgroupflip) {
 		vertsflipped = MEM_callocN(sizeof(int) * me->totvert, "vertsflipped");
 		for (a = 0; a < me->totvert; a++)
-			vertsflipped[a] = mesh_get_x_mirror_vert(ob, a);
+			vertsflipped[a] = mesh_get_x_mirror_vert(ob, a, use_topology);
 	}
 	
 	/* compute weights per bone */
@@ -2010,3 +2008,13 @@ void mesh_deform_bind(Scene *scene, MeshDeformModifierData *mmd, float *vertexco
 	waitcursor(0);
 }
 
+#else  /* WITH_OPENNL */
+
+#ifdef __GNUC__
+#  pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
+
+void mesh_deform_bind(Scene *scene, MeshDeformModifierData *mmd, float *vertexcos, int totvert, float cagemat[4][4]) {}
+void *modifier_mdef_compact_influences_link_kludge = modifier_mdef_compact_influences;
+
+#endif  /* WITH_OPENNL */

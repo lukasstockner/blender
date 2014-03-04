@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifndef __KERNEL_COMPAT_OPENCL_H__
@@ -35,16 +33,18 @@
 #endif
 
 #ifdef __CL_NOINLINE__
-#define __noinline __attribute__((noinline))
+#define ccl_noinline __attribute__((noinline))
 #else
-#define __noinline
+#define ccl_noinline
 #endif
 
 /* in opencl all functions are device functions, so leave this empty */
-#define __device
-#define __device_inline __device
-#define __device_noinline  __device __noinline
-#define __may_alias
+#define ccl_device
+#define ccl_device_inline ccl_device
+#define ccl_device_noinline ccl_device ccl_noinline
+#define ccl_may_alias
+#define ccl_constant __constant
+#define ccl_global __global
 
 /* no assert in opencl */
 #define kernel_assert(cond)
@@ -108,12 +108,12 @@
 
 /* data lookup defines */
 #define kernel_data (*kg->data)
-#define kernel_tex_lookup(t, x, offset, size) kernel_tex_lookup_(kg->t, offset, size, x)
 #define kernel_tex_fetch(t, index) kg->t[index]
 
 /* define NULL */
 #define NULL 0
 
+#include "util_half.h"
 #include "util_types.h"
 
 #endif /* __KERNEL_COMPAT_OPENCL_H__ */

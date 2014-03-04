@@ -127,12 +127,15 @@ class BONE_PT_transform_locks(BoneButtonsPanel, Panel):
         col.label(text="Y:")
         col.label(text="Z:")
 
-        col = split.row()
-        sub = col.row()
-        sub.active = not (bone.parent and bone.use_connect)
-        sub.column().prop(pchan, "lock_location", text="Location")
-        col.column().prop(pchan, "lock_rotation", text="Rotation")
-        col.column().prop(pchan, "lock_scale", text="Scale")
+        col = split.column()
+        col.active = not (bone.parent and bone.use_connect)
+        col.prop(pchan, "lock_location", text="Location")
+
+        col = split.column()
+        col.prop(pchan, "lock_rotation", text="Rotation")
+
+        col = split.column()
+        col.prop(pchan, "lock_scale", text="Scale")
 
         if pchan.rotation_mode in {'QUATERNION', 'AXIS_ANGLE'}:
             row = layout.row()
@@ -250,7 +253,7 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel, Panel):
         active = pchan.is_in_ik_chain
 
         split = layout.split(percentage=0.25)
-        split.prop(pchan, "lock_ik_x", icon='LOCKED' if pchan.lock_ik_x else 'UNLOCKED', text="X")
+        split.prop(pchan, "lock_ik_x", text="X", icon_only=True)
         split.active = active
         row = split.row()
         row.prop(pchan, "ik_stiffness_x", text="Stiffness", slider=True)
@@ -267,7 +270,7 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel, Panel):
         sub.active = pchan.lock_ik_x is False and pchan.use_ik_limit_x and active
 
         split = layout.split(percentage=0.25)
-        split.prop(pchan, "lock_ik_y", icon='LOCKED' if pchan.lock_ik_y else 'UNLOCKED', text="Y")
+        split.prop(pchan, "lock_ik_y", text="Y", icon_only=True)
         split.active = active
         row = split.row()
         row.prop(pchan, "ik_stiffness_y", text="Stiffness", slider=True)
@@ -285,7 +288,7 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel, Panel):
         sub.active = pchan.lock_ik_y is False and pchan.use_ik_limit_y and active
 
         split = layout.split(percentage=0.25)
-        split.prop(pchan, "lock_ik_z", icon='LOCKED' if pchan.lock_ik_z else 'UNLOCKED', text="Z")
+        split.prop(pchan, "lock_ik_z", text="Z", icon_only=True)
         split.active = active
         sub = split.row()
         sub.prop(pchan, "ik_stiffness_z", text="Stiffness", slider=True)

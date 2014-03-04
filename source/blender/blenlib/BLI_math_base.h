@@ -80,6 +80,14 @@
 #define MAXFLOAT  ((float)3.40282347e+38)
 #endif
 
+#if defined(__GNUC__)
+#  define NAN_FLT __builtin_nanf("")
+#else
+/* evil quiet NaN definition */
+static const int NAN_INT = 0x7FC00000;
+#  define NAN_FLT  (*((float *)(&NAN_INT)))
+#endif
+
 /* do not redefine functions from C99 or POSIX.1-2001 */
 #if !(defined(_ISOC99_SOURCE) || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L))
 
@@ -131,16 +139,21 @@
 #ifndef hypotf
 #define hypotf(a, b) ((float)hypot(a, b))
 #endif
+#ifndef copysignf
+#define copysignf(a, b) ((float)copysign(a, b))
+#endif
 
 #endif  /* C99 or POSIX.1-2001 */
 
 #ifdef WIN32
-#  if !defined(FREE_WINDOWS)
-#    if _MSC_VER && _MSC_VER < 1800
+#  if defined(_MSC_VER)
+#    if (_MSC_VER < 1800) && !defined(isnan)
 #      define isnan(n) _isnan(n)
 #    endif
-#    define finite _finite
-#    define hypot _hypot
+#    define finite(n) _finite(n)
+#    if (_MSC_VER < 1800) && !defined(hypot)
+#      define hypot(a, b) _hypot(a, b)
+#    endif
 #  endif
 #endif
 
@@ -170,13 +183,6 @@
 } (void)0
 #endif
 
-#ifndef CLAMP
-#  define CLAMP(a, b, c)  {         \
-	if ((a) < (b)) (a) = (b);       \
-	else if ((a) > (c)) (a) = (c);  \
-} (void)0
-#endif
-
 #if BLI_MATH_DO_INLINE
 #include "intern/math_base_inline.c"
 #endif
@@ -191,6 +197,8 @@
 MINLINE float sqrt3f(float f);
 MINLINE double sqrt3d(double d);
 
+MINLINE float sqrtf_signed(float f);
+
 MINLINE float saacosf(float f);
 MINLINE float saasinf(float f);
 MINLINE float sasqrtf(float f);
@@ -202,9 +210,17 @@ MINLINE float interpf(float a, float b, float t);
 
 MINLINE float min_ff(float a, float b);
 MINLINE float max_ff(float a, float b);
+MINLINE float min_fff(float a, float b, float c);
+MINLINE float max_fff(float a, float b, float c);
+MINLINE float min_ffff(float a, float b, float c, float d);
+MINLINE float max_ffff(float a, float b, float c, float d);
 
 MINLINE int min_ii(int a, int b);
 MINLINE int max_ii(int a, int b);
+MINLINE int min_iii(int a, int b, int c);
+MINLINE int max_iii(int a, int b, int c);
+MINLINE int min_iiii(int a, int b, int c, int d);
+MINLINE int max_iiii(int a, int b, int c, int d);
 
 MINLINE float signf(float f);
 
@@ -215,7 +231,12 @@ MINLINE int is_power_of_2_i(int n);
 MINLINE int power_of_2_max_i(int n);
 MINLINE int power_of_2_min_i(int n);
 
+MINLINE int iroundf(float a);
 MINLINE int divide_round_i(int a, int b);
+MINLINE int mod_i(int i, int n);
+
+MINLINE unsigned int highest_order_bit_i(unsigned int n);
+MINLINE unsigned short highest_order_bit_s(unsigned short n);
 
 MINLINE float shell_angle_to_dist(const float angle);
 

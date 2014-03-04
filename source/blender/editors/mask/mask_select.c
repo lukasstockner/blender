@@ -55,7 +55,7 @@
 #include "mask_intern.h"  /* own include */
 
 /* 'check' select */
-int ED_mask_spline_select_check(MaskSpline *spline)
+bool ED_mask_spline_select_check(MaskSpline *spline)
 {
 	int i;
 
@@ -69,7 +69,7 @@ int ED_mask_spline_select_check(MaskSpline *spline)
 	return FALSE;
 }
 
-int ED_mask_layer_select_check(MaskLayer *masklay)
+bool ED_mask_layer_select_check(MaskLayer *masklay)
 {
 	MaskSpline *spline;
 
@@ -86,7 +86,7 @@ int ED_mask_layer_select_check(MaskLayer *masklay)
 	return FALSE;
 }
 
-int ED_mask_select_check(Mask *mask)
+bool ED_mask_select_check(Mask *mask)
 {
 	MaskLayer *masklay;
 
@@ -256,7 +256,7 @@ static int select_exec(bContext *C, wmOperator *op)
 	bool deselect = RNA_boolean_get(op->ptr, "deselect");
 	bool toggle = RNA_boolean_get(op->ptr, "toggle");
 
-	int is_handle = 0;
+	bool is_handle = 0;
 	const float threshold = 19;
 
 	RNA_float_get_array(op->ptr, "location", co);
@@ -412,7 +412,8 @@ static int border_select_exec(bContext *C, wmOperator *op)
 
 	rcti rect;
 	rctf rectf;
-	int change = FALSE, mode, extend;
+	int mode;
+	bool changed = false, extend;
 
 	/* get rectangle from operator */
 	WM_operator_properties_border_to_rcti(op, &rect);
@@ -450,12 +451,12 @@ static int border_select_exec(bContext *C, wmOperator *op)
 					BKE_mask_point_select_set_handle(point, FALSE);
 				}
 
-				change = TRUE;
+				changed = true;
 			}
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		ED_mask_select_flush_all(mask);
 
 		WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
@@ -470,7 +471,7 @@ void MASK_OT_select_border(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Border Select";
-	ot->description = "Select markers using border selection";
+	ot->description = "Select curve points using border selection";
 	ot->idname = "MASK_OT_select_border";
 
 	/* api callbacks */
@@ -486,7 +487,7 @@ void MASK_OT_select_border(wmOperatorType *ot)
 	WM_operator_properties_gesture_border(ot, TRUE);
 }
 
-static int do_lasso_select_mask(bContext *C, const int mcords[][2], short moves, short select)
+static bool do_lasso_select_mask(bContext *C, const int mcords[][2], short moves, short select)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -496,7 +497,7 @@ static int do_lasso_select_mask(bContext *C, const int mcords[][2], short moves,
 	int i;
 
 	rcti rect;
-	int change = FALSE;
+	bool changed = false;
 
 	/* get rectangle from operator */
 	BLI_lasso_boundbox(&rect, mcords, moves);
@@ -521,7 +522,7 @@ static int do_lasso_select_mask(bContext *C, const int mcords[][2], short moves,
 
 				float screen_co[2];
 
-				/* marker in screen coords */
+				/* point in screen coords */
 				ED_mask_point_pos__reverse(sa, ar,
 				                           point_deform->bezt.vec[1][0], point_deform->bezt.vec[1][1],
 				                           &screen_co[0], &screen_co[1]);
@@ -533,18 +534,18 @@ static int do_lasso_select_mask(bContext *C, const int mcords[][2], short moves,
 					BKE_mask_point_select_set_handle(point, select);
 				}
 
-				change = TRUE;
+				changed = true;
 			}
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		ED_mask_select_flush_all(mask);
 
 		WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
 	}
 
-	return change;
+	return changed;
 }
 
 static int clip_lasso_select_exec(bContext *C, wmOperator *op)
@@ -569,7 +570,7 @@ void MASK_OT_select_lasso(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Lasso Select";
-	ot->description = "Select markers using lasso selection";
+	ot->description = "Select curve points using lasso selection";
 	ot->idname = "MASK_OT_select_lasso";
 
 	/* api callbacks */
@@ -610,8 +611,9 @@ static int circle_select_exec(bContext *C, wmOperator *op)
 	MaskLayer *masklay;
 	int i;
 
-	int x, y, radius, width, height, mode, change = FALSE;
 	float zoomx, zoomy, offset[2], ellipse[2];
+	int x, y, radius, width, height, mode;
+	bool changed = false;
 
 	/* get operator properties */
 	x = RNA_int_get(op->ptr, "x");
@@ -649,13 +651,13 @@ static int circle_select_exec(bContext *C, wmOperator *op)
 					BKE_mask_point_select_set(point, mode == GESTURE_MODAL_SELECT);
 					BKE_mask_point_select_set_handle(point, mode == GESTURE_MODAL_SELECT);
 
-					change = TRUE;
+					changed = true;
 				}
 			}
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		ED_mask_select_flush_all(mask);
 
 		WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
@@ -670,7 +672,7 @@ void MASK_OT_select_circle(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Circle Select";
-	ot->description = "Select markers using circle selection";
+	ot->description = "Select curve points using circle selection";
 	ot->idname = "MASK_OT_select_circle";
 
 	/* api callbacks */
@@ -701,9 +703,9 @@ static int mask_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmE
 	float co[2];
 	int do_select = !RNA_boolean_get(op->ptr, "deselect");
 
-	int is_handle = 0;
+	bool is_handle = false;
 	const float threshold = 19;
-	int change = FALSE;
+	bool changed = false;
 
 	ED_mask_mouse_pos(sa, ar, event->mval, co);
 
@@ -714,10 +716,10 @@ static int mask_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmE
 		masklay->act_spline = spline;
 		masklay->act_point = point;
 
-		change = TRUE;
+		changed = true;
 	}
 
-	if (change) {
+	if (changed) {
 		ED_mask_select_flush_all(mask);
 
 		WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
@@ -750,7 +752,7 @@ static int mask_select_linked_exec(bContext *C, wmOperator *UNUSED(op))
 	Mask *mask = CTX_data_edit_mask(C);
 	MaskLayer *masklay;
 
-	int change = FALSE;
+	bool changed = false;
 
 	/* do actual selection */
 	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
@@ -763,12 +765,12 @@ static int mask_select_linked_exec(bContext *C, wmOperator *UNUSED(op))
 		for (spline = masklay->splines.first; spline; spline = spline->next) {
 			if (ED_mask_spline_select_check(spline)) {
 				ED_mask_spline_select_set(spline, TRUE);
-				change = TRUE;
+				changed = true;
 			}
 		}
 	}
 
-	if (change) {
+	if (changed) {
 		ED_mask_select_flush_all(mask);
 
 		WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
@@ -784,10 +786,127 @@ void MASK_OT_select_linked(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Select Linked All";
 	ot->idname = "MASK_OT_select_linked";
-	ot->description = "Select all vertices linked to the active mesh";
+	ot->description = "Select all curve points linked to already selected ones";
 
 	/* api callbacks */
 	ot->exec = mask_select_linked_exec;
+	ot->poll = ED_maskedit_mask_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/**************** Select more/less **************/
+
+static int mask_select_more_less(bContext *C, bool more)
+{
+	Mask *mask = CTX_data_edit_mask(C);
+	MaskLayer *masklay;
+
+	for (masklay = mask->masklayers.first; masklay; masklay = masklay->next) {
+		MaskSpline *spline;
+
+		if (masklay->restrictflag & (MASK_RESTRICT_VIEW | MASK_RESTRICT_SELECT)) {
+			continue;
+		}
+
+		for (spline = masklay->splines.first; spline; spline = spline->next) {
+			const bool cyclic = (spline->flag & MASK_SPLINE_CYCLIC) != 0;
+			bool start_sel, end_sel, prev_sel, cur_sel;
+			int i;
+
+			/* reselect point if any handle is selected to make the result more predictable */
+			for (i = 0; i < spline->tot_point; i++) {
+				BKE_mask_point_select_set(spline->points + i, MASKPOINT_ISSEL_ANY(spline->points + i));
+			}
+
+			/* select more/less does not affect empty/single point splines */
+			if (spline->tot_point < 2) {
+				continue;
+			}
+
+			if (cyclic) {
+				start_sel = !!MASKPOINT_ISSEL_KNOT(spline->points);
+				end_sel = !!MASKPOINT_ISSEL_KNOT(&spline->points[spline->tot_point - 1]);
+			}
+			else {
+				start_sel = false;
+				end_sel = false;
+			}
+
+			for (i = 0; i < spline->tot_point; i++) {
+				if (i == 0 && !cyclic) {
+					continue;
+				}
+
+				prev_sel = (i > 0) ? !!MASKPOINT_ISSEL_KNOT(&spline->points[i - 1]) : end_sel;
+				cur_sel = !!MASKPOINT_ISSEL_KNOT(&spline->points[i]);
+
+				if (cur_sel != more) {
+					if (prev_sel == more) {
+						BKE_mask_point_select_set(&spline->points[i], more);
+					}
+					i++;
+				}
+			}
+
+			for (i = spline->tot_point - 1; i >= 0; i--) {
+				if (i == spline->tot_point - 1 && !cyclic) {
+					continue;
+				}
+
+				prev_sel = (i < spline->tot_point - 1) ? !!MASKPOINT_ISSEL_KNOT(&spline->points[i + 1]) : start_sel;
+				cur_sel = !!MASKPOINT_ISSEL_KNOT(&spline->points[i]);
+
+				if (cur_sel != more) {
+					if (prev_sel == more) {
+						BKE_mask_point_select_set(&spline->points[i], more);
+					}
+					i--;
+				}
+			}
+		}
+	}
+
+	WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+
+	return OPERATOR_FINISHED;
+}
+
+static int mask_select_more_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	return mask_select_more_less(C, true);
+}
+
+void MASK_OT_select_more(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select More";
+	ot->idname = "MASK_OT_select_more";
+	ot->description = "Select more spline points connected to initial selection";
+
+	/* api callbacks */
+	ot->exec = mask_select_more_exec;
+	ot->poll = ED_maskedit_mask_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int mask_select_less_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	return mask_select_more_less(C, false);
+}
+
+void MASK_OT_select_less(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Less";
+	ot->idname = "MASK_OT_select_less";
+	ot->description = "Deselect spline points at the boundary of each selection region";
+
+	/* api callbacks */
+	ot->exec = mask_select_less_exec;
 	ot->poll = ED_maskedit_mask_poll;
 
 	/* flags */

@@ -27,11 +27,13 @@
 
 /** \file blender/gpu/intern/gpu_buffers.c
  *  \ingroup gpu
+ *
+ * Mesh drawing using OpenGL VBO (Vertex Buffer Objects),
+ * with fall-back to vertex arrays.
  */
 
 /* my interface */
 #include "GPU_buffers.h"
-
 /* my library */
 #include "GPU_basic.h"
 #include "GPU_blender_aspect.h"
@@ -89,6 +91,8 @@ static int useVBOs = -1;
 static GPUBufferState GLStates = 0;
 static GPUAttrib attribData[MAX_GPU_ATTRIB_DATA] = { { -1, 0, 0 } };
 
+static ThreadMutex buffer_mutex = BLI_MUTEX_INITIALIZER;
+
 /* stores recently-deleted buffers so that new buffers won't have to
  * be recreated as often
  *
@@ -103,11 +107,15 @@ static GPUAttrib attribData[MAX_GPU_ATTRIB_DATA] = { { -1, 0, 0 } };
 typedef struct GPUBufferPool {
 	/* number of allocated buffers stored */
 	int totbuf;
-	/* actual allocated length of the array */
+	int totpbvhbufids;
+	/* actual allocated length of the arrays */
 	int maxsize;
+	int maxpbvhsize;
 	GPUBuffer **buffers;
+	GLuint *pbvhbufids;
 } GPUBufferPool;
 #define MAX_FREE_GPU_BUFFERS 8
+#define MAX_FREE_GPU_BUFF_IDS 100
 
 /* create a new GPUBufferPool */
 static GPUBufferPool *gpu_buffer_pool_new(void)
@@ -121,9 +129,11 @@ static GPUBufferPool *gpu_buffer_pool_new(void)
 	pool = MEM_callocN(sizeof(GPUBufferPool), "GPUBuffer_Pool");
 
 	pool->maxsize = MAX_FREE_GPU_BUFFERS;
-	pool->buffers = MEM_callocN(sizeof(GPUBuffer *) * pool->maxsize,
-	                            "GPUBuffer.buffers");
-
+	pool->maxpbvhsize = MAX_FREE_GPU_BUFF_IDS;
+	pool->buffers = MEM_callocN(sizeof(*pool->buffers) * pool->maxsize,
+								"GPUBufferPool.buffers");
+	pool->pbvhbufids = MEM_callocN(sizeof(*pool->pbvhbufids) * pool->maxpbvhsize,
+								"GPUBufferPool.pbvhbuffers");
 	return pool;
 }
 
@@ -181,7 +191,24 @@ static void gpu_buffer_pool_free(GPUBufferPool *pool)
 		gpu_buffer_pool_delete_last(pool);
 
 	MEM_freeN(pool->buffers);
+	MEM_freeN(pool->pbvhbufids);
 	MEM_freeN(pool);
+}
+
+static void gpu_buffer_pool_free_unused(GPUBufferPool *pool)
+{
+	if (!pool)
+		return;
+
+	BLI_mutex_lock(&buffer_mutex);
+	
+	while (pool->totbuf)
+		gpu_buffer_pool_delete_last(pool);
+
+	glDeleteBuffersARB(pool->totpbvhbufids, pool->pbvhbufids);
+	pool->totpbvhbufids = 0;
+
+	BLI_mutex_unlock(&buffer_mutex);
 }
 
 static GPUBufferPool *gpu_buffer_pool = NULL;
@@ -200,9 +227,17 @@ void GPU_global_buffer_pool_free(void)
 	gpu_buffer_pool = NULL;
 }
 
+void GPU_global_buffer_pool_free_unused(void)
+{
+	gpu_buffer_pool_free_unused(gpu_buffer_pool);
+}
+
 /* get a GPUBuffer of at least `size' bytes; uses one from the buffer
- * pool if possible, otherwise creates a new one */
-GPUBuffer *GPU_buffer_alloc(int size)
+ * pool if possible, otherwise creates a new one
+ *
+ * Thread-unsafe version for internal usage only.
+ */
+static GPUBuffer *gpu_buffer_alloc_intern(int size)
 {
 	GPUBufferPool *pool;
 	GPUBuffer *buf;
@@ -282,10 +317,30 @@ GPUBuffer *GPU_buffer_alloc(int size)
 	return buf;
 }
 
+/* Same as above, but safe for threading. */
+GPUBuffer *GPU_buffer_alloc(int size)
+{
+	GPUBuffer *buffer;
+
+	if (size == 0) {
+		/* Early out, no lock needed in this case. */
+		return NULL;
+	}
+
+	BLI_mutex_lock(&buffer_mutex);
+	buffer = gpu_buffer_alloc_intern(size);
+	BLI_mutex_unlock(&buffer_mutex);
+
+	return buffer;
+}
+
 /* release a GPUBuffer; does not free the actual buffer or its data,
  * but rather moves it to the pool of recently-freed buffers for
- * possible re-use*/
-void GPU_buffer_free(GPUBuffer *buffer)
+ * possible re-use
+ *
+ * Thread-unsafe version for internal usage only.
+ */
+static void gpu_buffer_free_intern(GPUBuffer *buffer)
 {
 	GPUBufferPool *pool;
 	int i;
@@ -321,6 +376,19 @@ void GPU_buffer_free(GPUBuffer *buffer)
 	/* insert the buffer into the beginning of the pool */
 	pool->buffers[0] = buffer;
 	pool->totbuf++;
+}
+
+/* Same as above, but safe for threading. */
+void GPU_buffer_free(GPUBuffer *buffer)
+{
+	if (!buffer) {
+		/* Early output, no need to lock in this case, */
+		return;
+	}
+
+	BLI_mutex_lock(&buffer_mutex);
+	gpu_buffer_free_intern(buffer);
+	BLI_mutex_unlock(&buffer_mutex);
 }
 
 typedef struct GPUVertPointLink {
@@ -507,13 +575,17 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 
 	pool = gpu_get_global_buffer_pool();
 
+	BLI_mutex_lock(&buffer_mutex);
+
 	/* alloc a GPUBuffer; fall back to legacy mode on failure */
-	if (!(buffer = GPU_buffer_alloc(size)))
+	if (!(buffer = gpu_buffer_alloc_intern(size)))
 		dm->drawObject->legacy = 1;
 
 	/* nothing to do for legacy mode */
-	if (dm->drawObject->legacy)
+	if (dm->drawObject->legacy) {
+		BLI_mutex_unlock(&buffer_mutex);
 		return NULL;
+	}
 
 	cur_index_per_mat = MEM_mallocN(sizeof(int) * object->totmaterial,
 	                                "GPU_buffer_setup.cur_index_per_mat");
@@ -538,7 +610,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 			/* attempt to map the buffer */
 			if (!(varray = gpu_glMapBuffer(target, GL_WRITE_ONLY))) {
 				/* failed to map the buffer; delete it */
-				GPU_buffer_free(buffer);
+				gpu_buffer_free_intern(buffer);
 				gpu_buffer_pool_delete_last(pool);
 				buffer = NULL;
 
@@ -546,7 +618,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 				 * and reallocating the buffer */
 				if (pool->totbuf > 0) {
 					gpu_buffer_pool_delete_last(pool);
-					buffer = GPU_buffer_alloc(size);
+					buffer = gpu_buffer_alloc_intern(size);
 				}
 
 				/* allocation still failed; fall back
@@ -587,6 +659,8 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	}
 
 	MEM_freeN(cur_index_per_mat);
+
+	BLI_mutex_unlock(&buffer_mutex);
 
 	return buffer;
 }
@@ -1277,7 +1351,7 @@ typedef struct {
 	unsigned char color[3];
 } VertexBufferFormat;
 
-struct GPU_Buffers {
+struct GPU_PBVH_Buffers {
 	/* opengl buffer handles */
 	GLuint vert_buf, index_buf;
 	GLenum index_type;
@@ -1293,7 +1367,7 @@ struct GPU_Buffers {
 	CCGKey gridkey;
 	CCGElem **grids;
 	const DMFlagMat *grid_flag_mats;
-	const BLI_bitmap *grid_hidden;
+	BLI_bitmap * const *grid_hidden;
 	int *grid_indices;
 	int totgrid;
 	int has_hidden;
@@ -1391,7 +1465,7 @@ static void gpu_color_from_mask_quad_set(const CCGKey *key,
 	gpuColor3f(diffuse_color[0] * color, diffuse_color[1] * color, diffuse_color[2] * color);
 }
 
-void GPU_update_mesh_buffers(GPU_Buffers *buffers, MVert *mvert,
+void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
                              int *vert_indices, int totvert, const float *vmask,
                              int (*face_vert_indices)[4], int show_diffuse_color)
 {
@@ -1526,16 +1600,16 @@ void GPU_update_mesh_buffers(GPU_Buffers *buffers, MVert *mvert,
 	buffers->mvert = mvert;
 }
 
-GPU_Buffers *GPU_build_mesh_buffers(int (*face_vert_indices)[4],
+GPU_PBVH_Buffers *GPU_build_pbvh_mesh_buffers(int (*face_vert_indices)[4],
                                     MFace *mface, MVert *mvert,
                                     int *face_indices,
                                     int totface)
 {
-	GPU_Buffers *buffers;
+	GPU_PBVH_Buffers *buffers;
 	unsigned short *tri_data;
 	int i, j, k, tottri;
 
-	buffers = MEM_callocN(sizeof(GPU_Buffers), "GPU_Buffers");
+	buffers = MEM_callocN(sizeof(GPU_PBVH_Buffers), "GPU_Buffers");
 	buffers->index_type = GL_UNSIGNED_SHORT;
 	buffers->smooth = mface[face_indices[0]].flag & ME_SMOOTH;
 
@@ -1607,7 +1681,7 @@ GPU_Buffers *GPU_build_mesh_buffers(int (*face_vert_indices)[4],
 	return buffers;
 }
 
-void GPU_update_grid_buffers(GPU_Buffers *buffers, CCGElem **grids,
+void GPU_update_grid_pbvh_buffers(GPU_PBVH_Buffers *buffers, CCGElem **grids,
                              const DMFlagMat *grid_flag_mats, int *grid_indices,
                              int totgrid, const CCGKey *key, int show_diffuse_color)
 {
@@ -1717,7 +1791,7 @@ void GPU_update_grid_buffers(GPU_Buffers *buffers, CCGElem **grids,
 }
 
 /* Returns the number of visible quads in the nodes' grids. */
-static int gpu_count_grid_quads(BLI_bitmap *grid_hidden,
+static int gpu_count_grid_quads(BLI_bitmap **grid_hidden,
                                 int *grid_indices, int totgrid,
                                 int gridsize)
 {
@@ -1728,7 +1802,7 @@ static int gpu_count_grid_quads(BLI_bitmap *grid_hidden,
 	 * visibility */
 
 	for (i = 0, totquad = 0; i < totgrid; i++) {
-		const BLI_bitmap gh = grid_hidden[grid_indices[i]];
+		const BLI_bitmap *gh = grid_hidden[grid_indices[i]];
 
 		if (gh) {
 			/* grid hidden are present, have to check each element */
@@ -1763,7 +1837,7 @@ static int gpu_count_grid_quads(BLI_bitmap *grid_hidden,
 		                           GL_WRITE_ONLY);                  \
 		if (quad_data) {                                                \
 			for (i = 0; i < totgrid; ++i) {                             \
-				BLI_bitmap gh = NULL;                                   \
+				BLI_bitmap *gh = NULL;                                  \
 				if (grid_hidden)                                        \
 					gh = grid_hidden[(grid_indices)[i]];                \
 																		\
@@ -1801,7 +1875,7 @@ static GLuint gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned *to
 	static unsigned prev_totquad;
 
 	/* used in the FILL_QUAD_BUFFER macro */
-	const BLI_bitmap *grid_hidden = NULL;
+	BLI_bitmap * const *grid_hidden = NULL;
 	int *grid_indices = NULL;
 	int totgrid = 1;
 
@@ -1845,14 +1919,14 @@ static GLuint gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned *to
 	return buffer;
 }
 
-GPU_Buffers *GPU_build_grid_buffers(int *grid_indices, int totgrid,
-                                    BLI_bitmap *grid_hidden, int gridsize)
+GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
+                                    BLI_bitmap **grid_hidden, int gridsize)
 {
-	GPU_Buffers *buffers;
+	GPU_PBVH_Buffers *buffers;
 	int totquad;
 	int fully_visible_totquad = (gridsize - 1) * (gridsize - 1) * totgrid;
 
-	buffers = MEM_callocN(sizeof(GPU_Buffers), "GPU_Buffers");
+	buffers = MEM_callocN(sizeof(GPU_PBVH_Buffers), "GPU_Buffers");
 	buffers->grid_hidden = grid_hidden;
 	buffers->totgrid = totgrid;
 
@@ -1928,6 +2002,7 @@ static void gpu_bmesh_vert_to_buffer_copy(BMVert *v,
 		
 
 		/* Assign index for use in the triangle index buffer */
+		/* note: caller must set:  bm->elem_index_dirty |= BM_VERT; */
 		BM_elem_index_set(v, (*v_index)); /* set_dirty! */
 
 		(*v_index)++;
@@ -1935,19 +2010,19 @@ static void gpu_bmesh_vert_to_buffer_copy(BMVert *v,
 }
 
 /* Return the total number of vertices that don't have BM_ELEM_HIDDEN set */
-static int gpu_bmesh_vert_visible_count(GHash *bm_unique_verts,
-										GHash *bm_other_verts)
+static int gpu_bmesh_vert_visible_count(GSet *bm_unique_verts,
+                                        GSet *bm_other_verts)
 {
-	GHashIterator gh_iter;
+	GSetIterator gs_iter;
 	int totvert = 0;
 
-	GHASH_ITER (gh_iter, bm_unique_verts) {
-		BMVert *v = BLI_ghashIterator_getKey(&gh_iter);
+	GSET_ITER (gs_iter, bm_unique_verts) {
+		BMVert *v = BLI_gsetIterator_getKey(&gs_iter);
 		if (!BM_elem_flag_test(v, BM_ELEM_HIDDEN))
 			totvert++;
 	}
-	GHASH_ITER (gh_iter, bm_other_verts) {
-		BMVert *v = BLI_ghashIterator_getKey(&gh_iter);
+	GSET_ITER (gs_iter, bm_other_verts) {
+		BMVert *v = BLI_gsetIterator_getKey(&gs_iter);
 		if (!BM_elem_flag_test(v, BM_ELEM_HIDDEN))
 			totvert++;
 	}
@@ -1973,11 +2048,11 @@ static int gpu_bmesh_face_visible_count(GHash *bm_faces)
 
 /* Creates a vertex buffer (coordinate, normal, color) and, if smooth
  * shading, an element index buffer. */
-void GPU_update_bmesh_buffers(GPU_Buffers *buffers,
-							  BMesh *bm,
-							  GHash *bm_faces,
-							  GHash *bm_unique_verts,
-							  GHash *bm_other_verts)
+void GPU_update_bmesh_pbvh_buffers(GPU_PBVH_Buffers *buffers,
+                              BMesh *bm,
+                              GHash *bm_faces,
+                              GSet *bm_unique_verts,
+                              GSet *bm_other_verts)
 {
 	VertexBufferFormat *vert_data;
 	void *tri_data;
@@ -2008,22 +2083,23 @@ void GPU_update_bmesh_buffers(GPU_Buffers *buffers,
 	/* Fill vertex buffer */
 	vert_data = gpu_glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 	if (vert_data) {
-		GHashIterator gh_iter;
 		int v_index = 0;
 
 		if (buffers->smooth) {
+			GSetIterator gs_iter;
+
 			/* Vertices get an index assigned for use in the triangle
 			 * index buffer */
 			bm->elem_index_dirty |= BM_VERT;
 
-			GHASH_ITER (gh_iter, bm_unique_verts) {
-				gpu_bmesh_vert_to_buffer_copy(BLI_ghashIterator_getKey(&gh_iter),
+			GSET_ITER (gs_iter, bm_unique_verts) {
+				gpu_bmesh_vert_to_buffer_copy(BLI_gsetIterator_getKey(&gs_iter),
 				                              vert_data, &v_index, NULL, NULL,
 				                              cd_vert_mask_offset);
 			}
 
-			GHASH_ITER (gh_iter, bm_other_verts) {
-				gpu_bmesh_vert_to_buffer_copy(BLI_ghashIterator_getKey(&gh_iter),
+			GSET_ITER (gs_iter, bm_other_verts) {
+				gpu_bmesh_vert_to_buffer_copy(BLI_gsetIterator_getKey(&gs_iter),
 				                              vert_data, &v_index, NULL, NULL,
 				                              cd_vert_mask_offset);
 			}
@@ -2031,6 +2107,8 @@ void GPU_update_bmesh_buffers(GPU_Buffers *buffers,
 			maxvert = v_index;
 		}
 		else {
+			GHashIterator gh_iter;
+
 			GHASH_ITER (gh_iter, bm_faces) {
 				BMFace *f = BLI_ghashIterator_getKey(&gh_iter);
 
@@ -2062,6 +2140,9 @@ void GPU_update_bmesh_buffers(GPU_Buffers *buffers,
 		}
 
 		gpu_glUnmapBuffer(GL_ARRAY_BUFFER);
+
+		/* gpu_bmesh_vert_to_buffer_copy sets dirty index values */
+		bm->elem_index_dirty |= BM_VERT;
 	}
 	else {
 		/* Memory map failed */
@@ -2127,11 +2208,11 @@ void GPU_update_bmesh_buffers(GPU_Buffers *buffers,
 	}
 }
 
-GPU_Buffers *GPU_build_bmesh_buffers(int smooth_shading)
+GPU_PBVH_Buffers *GPU_build_bmesh_pbvh_buffers(int smooth_shading)
 {
-	GPU_Buffers *buffers;
+	GPU_PBVH_Buffers *buffers;
 
-	buffers = MEM_callocN(sizeof(GPU_Buffers), "GPU_Buffers");
+	buffers = MEM_callocN(sizeof(GPU_PBVH_Buffers), "GPU_Buffers");
 	if (smooth_shading)
 		gpu_glGenBuffers(1, &buffers->index_buf);
 	gpu_glGenBuffers(1, &buffers->vert_buf);
@@ -2141,7 +2222,7 @@ GPU_Buffers *GPU_build_bmesh_buffers(int smooth_shading)
 	return buffers;
 }
 
-static void gpu_draw_buffers_legacy_mesh(GPU_Buffers *buffers)
+static void gpu_draw_buffers_legacy_mesh(GPU_PBVH_Buffers *buffers)
 {
 	const MVert *mvert = buffers->mvert;
 	int i, j;
@@ -2217,7 +2298,7 @@ static void gpu_draw_buffers_legacy_mesh(GPU_Buffers *buffers)
 	}
 }
 
-static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers)
+static void gpu_draw_buffers_legacy_grids(GPU_PBVH_Buffers *buffers)
 {
 	const CCGKey *key = &buffers->gridkey;
 	int i, j, x, y, gridsize = buffers->gridkey.grid_size;
@@ -2237,7 +2318,7 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers)
 	for (i = 0; i < buffers->totgrid; ++i) {
 		int g = buffers->grid_indices[i];
 		CCGElem *grid = buffers->grids[g];
-		BLI_bitmap gh = buffers->grid_hidden[g];
+		BLI_bitmap *gh = buffers->grid_hidden[g];
 
 		/* TODO: could use strips with hiding as well */
 
@@ -2351,10 +2432,10 @@ static void gpu_draw_buffers_legacy_grids(GPU_Buffers *buffers)
 }
 
 /* XXX jwilkins: this needs more work to fit within the new abstraction layer */
-void GPU_draw_buffers(
-	GPU_Buffers*  buffers,
-	DMSetMaterial setMaterial,
-	bool          wireframe)
+void GPU_draw_pbvh_buffers(
+	GPU_PBVH_Buffers* buffers,
+	DMSetMaterial     setMaterial,
+	bool              wireframe)
 {
 	GPU_CHECK_NO_ERROR();
 
@@ -2446,7 +2527,7 @@ void GPU_draw_buffers(
 	GPU_CHECK_NO_ERROR();
 }
 
-int GPU_buffers_diffuse_changed(GPU_Buffers *buffers, int show_diffuse_color)
+int GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, int show_diffuse_color)
 {
 	float diffuse_color[4];
 
@@ -2472,13 +2553,50 @@ int GPU_buffers_diffuse_changed(GPU_Buffers *buffers, int show_diffuse_color)
 	       diffuse_color[2] != buffers->diffuse_color[2];
 }
 
-void GPU_free_buffers(GPU_Buffers *buffers)
+/* release a GPU_PBVH_Buffers id;
+ *
+ * Thread-unsafe version for internal usage only.
+ */
+static void gpu_pbvh_buffer_free_intern(GLuint id)
+{
+	GPUBufferPool *pool;
+
+	/* zero id is vertex buffers off */
+	if (!id)
+		return;
+
+	pool = gpu_get_global_buffer_pool();
+
+	/* free the buffers immediately if we are on main thread */
+	if (BLI_thread_is_main()) {
+		glDeleteBuffersARB(1, &id);
+
+		if (pool->totpbvhbufids > 0) {
+			glDeleteBuffersARB(pool->totpbvhbufids, pool->pbvhbufids);
+			pool->totpbvhbufids = 0;
+		}
+		return;
+	}
+	/* outside of main thread, can't safely delete the
+	 * buffer, so increase pool size */
+	if (pool->maxpbvhsize == pool->totpbvhbufids) {
+		pool->maxpbvhsize += MAX_FREE_GPU_BUFF_IDS;
+		pool->pbvhbufids = MEM_reallocN(pool->pbvhbufids,
+										sizeof(*pool->pbvhbufids) * pool->maxpbvhsize);
+	}
+
+	/* insert the buffer into the beginning of the pool */
+	pool->pbvhbufids[pool->totpbvhbufids++] = id;
+}
+
+
+void GPU_free_pbvh_buffers(GPU_PBVH_Buffers *buffers)
 {
 	if (buffers) {
 		if (buffers->vert_buf)
-			gpu_glDeleteBuffers(1, &buffers->vert_buf);
+			gpu_pbvh_buffer_free_intern(buffers->vert_buf);
 		if (buffers->index_buf && (buffers->tot_tri || buffers->has_hidden))
-			gpu_glDeleteBuffers(1, &buffers->index_buf);
+			gpu_pbvh_buffer_free_intern(buffers->index_buf);
 
 		MEM_freeN(buffers);
 	}

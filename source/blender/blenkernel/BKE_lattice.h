@@ -34,6 +34,8 @@
  *  \since June 2001
  */
 
+#include "BLI_compiler_attrs.h"
+
 struct Lattice;
 struct Main;
 struct Object;
@@ -49,17 +51,18 @@ void BKE_lattice_free(struct Lattice *lt);
 void BKE_lattice_make_local(struct Lattice *lt);
 void calc_lat_fudu(int flag, int res, float *r_fu, float *r_du);
 
-void init_latt_deform(struct Object *oblatt, struct Object *ob);
-void calc_latt_deform(struct Object *, float co[3], float weight);
-void end_latt_deform(struct Object *);
+struct LatticeDeformData;
+struct LatticeDeformData *init_latt_deform(struct Object *oblatt, struct Object *ob) ATTR_WARN_UNUSED_RESULT;
+void calc_latt_deform(struct LatticeDeformData *lattice_deform_data, float co[3], float weight);
+void end_latt_deform(struct LatticeDeformData *lattice_deform_data);
 
-int object_deform_mball(struct Object *ob, struct ListBase *dispbase);
+bool object_deform_mball(struct Object *ob, struct ListBase *dispbase);
 void outside_lattice(struct Lattice *lt);
 
-void curve_deform_verts(struct Scene *scene, struct Object *cuOb, struct Object *target,
+void curve_deform_verts(struct Object *cuOb, struct Object *target,
                         struct DerivedMesh *dm, float (*vertexCos)[3],
                         int numVerts, const char *vgroup, short defaxis);
-void curve_deform_vector(struct Scene *scene, struct Object *cuOb, struct Object *target,
+void curve_deform_vector(struct Object *cuOb, struct Object *target,
                          float orco[3], float vec[3], float mat[3][3], int no_rot_axis);
 
 void lattice_deform_verts(struct Object *laOb, struct Object *target,
@@ -80,7 +83,13 @@ struct BPoint *BKE_lattice_active_point_get(struct Lattice *lt);
 void BKE_lattice_minmax(struct Lattice *lt, float min[3], float max[3]);
 void BKE_lattice_center_median(struct Lattice *lt, float cent[3]);
 void BKE_lattice_center_bounds(struct Lattice *lt, float cent[3]);
-void BKE_lattice_translate(struct Lattice *lt, float offset[3], int do_keys);
+void BKE_lattice_translate(struct Lattice *lt, float offset[3], bool do_keys);
 
-#endif
+int  BKE_lattice_index_from_uvw(struct Lattice *lt, const int u, const int v, const int w);
+void BKE_lattice_index_to_uvw(struct Lattice *lt, const int index, int *r_u, int *r_v, int *r_w);
+int  BKE_lattice_index_flip(struct Lattice *lt, const int index,
+                            const bool flip_u, const bool flip_v, const bool flip_w);
+void BKE_lattice_bitmap_from_flag(struct Lattice *lt, unsigned int *bitmap, const short flag,
+                                  const bool clear, const bool respecthide);
 
+#endif  /* __BKE_LATTICE_H__ */

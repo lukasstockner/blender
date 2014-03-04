@@ -34,6 +34,8 @@
 #ifndef CERES_INTERNAL_LOW_RANK_INVERSE_HESSIAN_H_
 #define CERES_INTERNAL_LOW_RANK_INVERSE_HESSIAN_H_
 
+#include <list>
+
 #include "ceres/internal/eigen.h"
 #include "ceres/linear_operator.h"
 
@@ -61,10 +63,16 @@ class LowRankInverseHessian : public LinearOperator {
  public:
   // num_parameters is the row/column size of the Hessian.
   // max_num_corrections is the rank of the Hessian approximation.
+  // use_approximate_eigenvalue_scaling controls whether the initial
+  // inverse Hessian used during Right/LeftMultiply() is scaled by
+  // the approximate eigenvalue of the true inverse Hessian at the
+  // current operating point.
   // The approximation uses:
   // 2 * max_num_corrections * num_parameters + max_num_corrections
   // doubles.
-  LowRankInverseHessian(int num_parameters, int max_num_corrections);
+  LowRankInverseHessian(int num_parameters,
+                        int max_num_corrections,
+                        bool use_approximate_eigenvalue_scaling);
   virtual ~LowRankInverseHessian() {}
 
   // Update the low rank approximation. delta_x is the change in the
@@ -86,11 +94,12 @@ class LowRankInverseHessian : public LinearOperator {
  private:
   const int num_parameters_;
   const int max_num_corrections_;
-  int num_corrections_;
-  double diagonal_;
-  Matrix delta_x_history_;
-  Matrix delta_gradient_history_;
+  const bool use_approximate_eigenvalue_scaling_;
+  double approximate_eigenvalue_scale_;
+  ColMajorMatrix delta_x_history_;
+  ColMajorMatrix delta_gradient_history_;
   Vector delta_x_dot_delta_gradient_;
+  std::list<int> indices_;
 };
 
 }  // namespace internal

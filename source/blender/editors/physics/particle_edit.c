@@ -74,6 +74,7 @@
 
 #include "BIF_glutil.h"
 
+#include "ED_object.h"
 #include "ED_physics.h"
 #include "ED_mesh.h"
 #include "ED_particle.h"
@@ -231,7 +232,7 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 
 	/* in the case of only one editable thing, set pset->edittype accordingly */
-	if (pidlist.first && pidlist.first == pidlist.last) {
+	if (BLI_listbase_is_single(&pidlist)) {
 		pid = pidlist.first;
 		switch (pid->type) {
 			case PTCACHE_TYPE_PARTICLES:
@@ -419,7 +420,7 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 
 /*************************** selection utilities *******************************/
 
-static int key_test_depth(PEData *data, const float co[3], const int screen_co[2])
+static bool key_test_depth(PEData *data, const float co[3], const int screen_co[2])
 {
 	View3D *v3d= data->vc.v3d;
 	GLfloat u[3];
@@ -457,7 +458,7 @@ static int key_test_depth(PEData *data, const float co[3], const int screen_co[2
 		return 1;
 }
 
-static int key_inside_circle(PEData *data, float rad, const float co[3], float *distance)
+static bool key_inside_circle(PEData *data, float rad, const float co[3], float *distance)
 {
 	float dx, dy, dist;
 	int screen_co[2];
@@ -484,7 +485,7 @@ static int key_inside_circle(PEData *data, float rad, const float co[3], float *
 	return 0;
 }
 
-static int key_inside_rect(PEData *data, const float co[3])
+static bool key_inside_rect(PEData *data, const float co[3])
 {
 	int screen_co[2];
 
@@ -501,7 +502,7 @@ static int key_inside_rect(PEData *data, const float co[3])
 	return 0;
 }
 
-static int key_inside_test(PEData *data, const float co[3])
+static bool key_inside_test(PEData *data, const float co[3])
 {
 	if (data->mval)
 		return key_inside_circle(data, data->rad, co, NULL);
@@ -509,7 +510,7 @@ static int key_inside_test(PEData *data, const float co[3])
 		return key_inside_rect(data, co);
 }
 
-static int point_is_selected(PTCacheEditPoint *point)
+static bool point_is_selected(PTCacheEditPoint *point)
 {
 	KEY_K;
 
@@ -546,17 +547,19 @@ static void for_mouse_hit_keys(PEData *data, ForKeyFunc func, int nearest)
 
 	LOOP_VISIBLE_POINTS {
 		if (pset->selectmode == SCE_SELECT_END) {
-			/* only do end keys */
-			key= point->keys + point->totkey-1;
+			if (point->totkey) {
+				/* only do end keys */
+				key= point->keys + point->totkey-1;
 
-			if (nearest) {
-				if (key_inside_circle(data, dist, KEY_WCO, &dist)) {
-					nearest_point= p;
-					nearest_key= point->totkey-1;
+				if (nearest) {
+					if (key_inside_circle(data, dist, KEY_WCO, &dist)) {
+						nearest_point= p;
+						nearest_key= point->totkey-1;
+					}
 				}
+				else if (key_inside_test(data, KEY_WCO))
+					func(data, p, point->totkey-1);
 			}
-			else if (key_inside_test(data, KEY_WCO))
-				func(data, p, point->totkey-1);
 		}
 		else {
 			/* do all keys */
@@ -590,12 +593,14 @@ static void foreach_mouse_hit_point(PEData *data, ForPointFunc func, int selecte
 
 	LOOP_VISIBLE_POINTS {
 		if (pset->selectmode==SCE_SELECT_END) {
-			/* only do end keys */
-			key= point->keys + point->totkey - 1;
+			if (point->totkey) {
+				/* only do end keys */
+				key= point->keys + point->totkey - 1;
 
-			if (selected==0 || key->flag & PEK_SELECT)
-				if (key_inside_circle(data, data->rad, KEY_WCO, &data->dist))
-					func(data, p);
+				if (selected==0 || key->flag & PEK_SELECT)
+					if (key_inside_circle(data, data->rad, KEY_WCO, &data->dist))
+						func(data, p);
+			}
 		}
 		else {
 			/* do all keys */
@@ -629,17 +634,19 @@ static void foreach_mouse_hit_key(PEData *data, ForKeyMatFunc func, int selected
 
 	LOOP_VISIBLE_POINTS {
 		if (pset->selectmode==SCE_SELECT_END) {
-			/* only do end keys */
-			key= point->keys + point->totkey-1;
+			if (point->totkey) {
+				/* only do end keys */
+				key= point->keys + point->totkey-1;
 
-			if (selected==0 || key->flag & PEK_SELECT) {
-				if (key_inside_circle(data, data->rad, KEY_WCO, &data->dist)) {
-					if (edit->psys && !(edit->psys->flag & PSYS_GLOBAL_HAIR)) {
-						psys_mat_hair_to_global(data->ob, psmd->dm, psys->part->from, psys->particles + p, mat);
-						invert_m4_m4(imat, mat);
+				if (selected==0 || key->flag & PEK_SELECT) {
+					if (key_inside_circle(data, data->rad, KEY_WCO, &data->dist)) {
+						if (edit->psys && !(edit->psys->flag & PSYS_GLOBAL_HAIR)) {
+							psys_mat_hair_to_global(data->ob, psmd->dm, psys->part->from, psys->particles + p, mat);
+							invert_m4_m4(imat, mat);
+						}
+
+						func(data, mat, imat, p, point->totkey-1, key);
 					}
-
-					func(data, mat, imat, p, point->totkey-1, key);
 				}
 			}
 		}
@@ -706,9 +713,11 @@ static int count_selected_keys(Scene *scene, PTCacheEdit *edit)
 			}
 		}
 		else if (pset->selectmode==SCE_SELECT_END) {
-			key = point->keys + point->totkey - 1;
-			if (key->flag & PEK_SELECT)
-				sel++;
+			if (point->totkey) {
+				key = point->keys + point->totkey - 1;
+				if (key->flag & PEK_SELECT)
+					sel++;
+			}
 		}
 	}
 
@@ -1522,7 +1531,13 @@ void PARTICLE_OT_select_roots(wmOperatorType *ot)
 static void select_tip(PEData *data, int point_index)
 {
 	PTCacheEditPoint *point = data->edit->points + point_index;
-	PTCacheEditKey *key = &point->keys[point->totkey - 1];
+	PTCacheEditKey *key;
+
+	if (point->totkey == 0) {
+		return;
+	}
+
+	key = &point->keys[point->totkey - 1];
 	
 	if (point->flag & PEP_HIDE)
 		return;
@@ -1727,33 +1742,43 @@ int PE_lasso_select(bContext *C, const int mcords[][2], const short moves, bool 
 				    BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], IS_CLIPPED) &&
 				    key_test_depth(&data, co, screen_co))
 				{
-					if (select && !(key->flag & PEK_SELECT)) {
-						key->flag |= PEK_SELECT;
-						point->flag |= PEP_EDIT_RECALC;
+					if (select) {
+						if (!(key->flag & PEK_SELECT)) {
+							key->flag |= PEK_SELECT;
+							point->flag |= PEP_EDIT_RECALC;
+						}
 					}
-					else if (key->flag & PEK_SELECT) {
-						key->flag &= ~PEK_SELECT;
-						point->flag |= PEP_EDIT_RECALC;
+					else {
+						if (key->flag & PEK_SELECT) {
+							key->flag &= ~PEK_SELECT;
+							point->flag |= PEP_EDIT_RECALC;
+						}
 					}
 				}
 			}
 		}
 		else if (pset->selectmode==SCE_SELECT_END) {
-			key= point->keys + point->totkey - 1;
+			if (point->totkey) {
+				key= point->keys + point->totkey - 1;
 
-			copy_v3_v3(co, key->co);
-			mul_m4_v3(mat, co);
-			if ((ED_view3d_project_int_global(ar, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_OK) &&
-			    BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], IS_CLIPPED) &&
-			    key_test_depth(&data, co, screen_co))
-			{
-				if (select && !(key->flag & PEK_SELECT)) {
-					key->flag |= PEK_SELECT;
-					point->flag |= PEP_EDIT_RECALC;
-				}
-				else if (key->flag & PEK_SELECT) {
-					key->flag &= ~PEK_SELECT;
-					point->flag |= PEP_EDIT_RECALC;
+				copy_v3_v3(co, key->co);
+				mul_m4_v3(mat, co);
+				if ((ED_view3d_project_int_global(ar, co, screen_co, V3D_PROJ_TEST_CLIP_WIN) == V3D_PROJ_RET_OK) &&
+				    BLI_lasso_is_point_inside(mcords, moves, screen_co[0], screen_co[1], IS_CLIPPED) &&
+				    key_test_depth(&data, co, screen_co))
+				{
+					if (select) {
+						if (!(key->flag & PEK_SELECT)) {
+							key->flag |= PEK_SELECT;
+							point->flag |= PEP_EDIT_RECALC;
+						}
+					}
+					else {
+						if (key->flag & PEK_SELECT) {
+							key->flag &= ~PEK_SELECT;
+							point->flag |= PEP_EDIT_RECALC;
+						}
+					}
 				}
 			}
 		}
@@ -2449,7 +2474,7 @@ static int remove_doubles_exec(bContext *C, wmOperator *op)
 			copy_v3_v3(co, point->keys->co);
 			mul_m4_v3(mat, co);
 
-			totn= BLI_kdtree_find_n_nearest(tree, 10, co, NULL, nearest);
+			totn = BLI_kdtree_find_nearest_n(tree, co, NULL, nearest, 10);
 
 			for (n=0; n<totn; n++) {
 				/* this needs a custom threshold still */
@@ -2971,14 +2996,20 @@ static void brush_puff(PEData *data, int point_index)
 	KEY_K;
 	float mat[4][4], imat[4][4];
 
-	float lastco[3], rootco[3] = {0.0f, 0.0f, 0.0f}, co[3], nor[3], kco[3], dco[3], ofs[3] = {0.0f, 0.0f, 0.0f}, fac=0.0f, length=0.0f;
-	int puff_volume = 0;
-	int change= 0;
+	float onor_prev[3];  /* previous normal (particle-space) */
+	float ofs_prev[3];  /* accumulate offset for puff_volume (particle-space) */
+	float co_root[3], no_root[3];  /* root location and normal (global-space) */
+	float co_prev[3], co[3];  /* track key coords as we loop (global-space) */
+	float fac = 0.0f, length_accum = 0.0f;
+	bool puff_volume = false;
+	bool changed = false;
+
+	zero_v3(ofs_prev);
 
 	{
 		ParticleEditSettings *pset= PE_settings(data->scene);
 		ParticleBrushData *brush= &pset->brush[pset->brushtype];
-		puff_volume = brush->flag & PE_BRUSH_DATA_PUFF_VOLUME;
+		puff_volume = (brush->flag & PE_BRUSH_DATA_PUFF_VOLUME) != 0;
 	}
 
 	if (psys && !(psys->flag & PSYS_GLOBAL_HAIR)) {
@@ -2991,6 +3022,8 @@ static void brush_puff(PEData *data, int point_index)
 	}
 
 	LOOP_KEYS {
+		float kco[3];
+
 		if (k==0) {
 			/* find root coordinate and normal on emitter */
 			copy_v3_v3(co, key->co);
@@ -3000,12 +3033,16 @@ static void brush_puff(PEData *data, int point_index)
 			point_index= BLI_kdtree_find_nearest(edit->emitter_field, kco, NULL, NULL);
 			if (point_index == -1) return;
 
-			copy_v3_v3(rootco, co);
-			copy_v3_v3(nor, &edit->emitter_cosnos[point_index*6+3]);
-			mul_mat3_m4_v3(data->ob->obmat, nor); /* normal into worldspace */
+			copy_v3_v3(co_root, co);
+			copy_v3_v3(no_root, &edit->emitter_cosnos[point_index * 6 + 3]);
+			mul_mat3_m4_v3(data->ob->obmat, no_root);  /* normal into global-space */
+			normalize_v3(no_root);
 
-			normalize_v3(nor);
-			length= 0.0f;
+			if (puff_volume) {
+				copy_v3_v3(onor_prev, no_root);
+				mul_mat3_m4_v3(imat, onor_prev); /* global-space into particle space */
+				normalize_v3(onor_prev);
+			}
 
 			fac= (float)pow((double)(1.0f - data->dist / data->rad), (double)data->pufffac);
 			fac *= 0.025f;
@@ -3015,16 +3052,23 @@ static void brush_puff(PEData *data, int point_index)
 		else {
 			/* compute position as if hair was standing up straight.
 			 * */
-			copy_v3_v3(lastco, co);
+			float length;
+			copy_v3_v3(co_prev, co);
 			copy_v3_v3(co, key->co);
 			mul_m4_v3(mat, co);
-			length += len_v3v3(lastco, co);
+			length = len_v3v3(co_prev, co);
+			length_accum += length;
+
 			if ((data->select==0 || (key->flag & PEK_SELECT)) && !(key->flag & PEK_HIDE)) {
-				madd_v3_v3v3fl(kco, rootco, nor, length);
+				float dco[3];  /* delta temp var */
+
+				madd_v3_v3v3fl(kco, co_root, no_root, length_accum);
 
 				/* blend between the current and straight position */
 				sub_v3_v3v3(dco, kco, co);
 				madd_v3_v3fl(co, dco, fac);
+				/* keep the same distance from the root or we get glitches [#35406] */
+				dist_ensure_v3_v3fl(co, co_root, length_accum);
 
 				/* re-use dco to compare before and after translation and add to the offset  */
 				copy_v3_v3(dco, key->co);
@@ -3034,11 +3078,9 @@ static void brush_puff(PEData *data, int point_index)
 				if (puff_volume) {
 					/* accumulate the total distance moved to apply to unselected
 					 * keys that come after */
-					ofs[0] += key->co[0] - dco[0];
-					ofs[1] += key->co[1] - dco[1];
-					ofs[2] += key->co[2] - dco[2];
+					sub_v3_v3v3(ofs_prev, key->co, dco);
 				}
-				change = 1;
+				changed = true;
 			}
 			else {
 
@@ -3048,7 +3090,7 @@ static void brush_puff(PEData *data, int point_index)
 					add_v3_v3(key->co, ofs);
 #else
 					/* translate (not rotate) the rest of the hair if its not selected  */
-					if (ofs[0] || ofs[1] || ofs[2]) {
+					{
 #if 0					/* kindof works but looks worse then whats below */
 
 						/* Move the unselected point on a vector based on the
@@ -3078,11 +3120,18 @@ static void brush_puff(PEData *data, int point_index)
 							mul_mat3_m4_v3(data->ob->obmat, onor); /* normal into worldspace */
 							mul_mat3_m4_v3(imat, onor); /* worldspace into particle space */
 							normalize_v3(onor);
+						}
+						else {
+							copy_v3_v3(onor, onor_prev);
+						}
 
+						if (!is_zero_v3(ofs_prev)) {
+							mul_v3_fl(onor, len_v3(ofs_prev));
 
-							mul_v3_fl(onor, len_v3(ofs));
 							add_v3_v3(key->co, onor);
 						}
+
+						copy_v3_v3(onor_prev, onor);
 #endif
 					}
 #endif
@@ -3091,7 +3140,7 @@ static void brush_puff(PEData *data, int point_index)
 		}
 	}
 
-	if (change)
+	if (changed)
 		point->flag |= PEP_EDIT_RECALC;
 }
 
@@ -3417,7 +3466,7 @@ static int brush_add(PEData *data, short number)
 			}
 			
 			pa->size= 1.0f;
-			initialize_particle(&sim, pa, i);
+			initialize_particle(pa);
 			reset_particle(&sim, pa, 0.0, 1.0);
 			point->flag |= PEP_EDIT_RECALC;
 			if (pe_x_mirror(ob))
@@ -3434,7 +3483,7 @@ static int brush_add(PEData *data, short number)
 				float maxd, totw=0.0, weight[3];
 
 				psys_particle_on_dm(psmd->dm, psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co1, 0, 0, 0, 0, 0);
-				maxw= BLI_kdtree_find_n_nearest(tree, 3, co1, NULL, ptn);
+				maxw = BLI_kdtree_find_nearest_n(tree, co1, NULL, ptn, 3);
 
 				maxd= ptn[maxw-1].dist;
 				
@@ -3855,11 +3904,9 @@ static int brush_edit_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int brush_edit_cancel(bContext *UNUSED(C), wmOperator *op)
+static void brush_edit_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	brush_edit_exit(op);
-
-	return OPERATOR_CANCELLED;
 }
 
 void PARTICLE_OT_brush_edit(wmOperatorType *ot)
@@ -4227,7 +4274,7 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 	if (cache && cache->flag & PTCACHE_DISK_CACHE)
 		return;
 
-	if (psys == NULL && (cache && cache->mem_cache.first == NULL))
+	if (psys == NULL && (cache && BLI_listbase_is_empty(&cache->mem_cache)))
 		return;
 
 	edit = (psys) ? psys->edit : cache->edit;
@@ -4246,7 +4293,7 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 			psys->free_edit= PE_free_ptcache_edit;
 
 			edit->pathcache = NULL;
-			edit->pathcachebufs.first = edit->pathcachebufs.last = NULL;
+			BLI_listbase_clear(&edit->pathcachebufs);
 
 			pa = psys->particles;
 			LOOP_POINTS {
@@ -4321,23 +4368,36 @@ static void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache,
 
 static int particle_edit_toggle_poll(bContext *C)
 {
-	Scene *scene= CTX_data_scene(C);
-	Object *ob= CTX_data_active_object(C);
+	Object *ob = CTX_data_active_object(C);
 
-	if (!scene || !ob || ob->id.lib)
+	if (ob == NULL || ob->type != OB_MESH)
 		return 0;
-	
-	return (ob->particlesystem.first || modifiers_findByType(ob, eModifierType_Cloth) || modifiers_findByType(ob, eModifierType_Softbody));
+	if (!ob->data || ((ID *)ob->data)->lib)
+		return 0;
+	if (CTX_data_edit_object(C))
+		return 0;
+
+	return (ob->particlesystem.first ||
+	        modifiers_findByType(ob, eModifierType_Cloth) ||
+	        modifiers_findByType(ob, eModifierType_Softbody));
 }
 
-static int particle_edit_toggle_exec(bContext *C, wmOperator *UNUSED(op))
+static int particle_edit_toggle_exec(bContext *C, wmOperator *op)
 {
-	Scene *scene= CTX_data_scene(C);
-	Object *ob= CTX_data_active_object(C);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	const int mode_flag = OB_MODE_PARTICLE_EDIT;
+	const bool is_mode_set = (ob->mode & mode_flag) != 0;
 
-	if (!(ob->mode & OB_MODE_PARTICLE_EDIT)) {
+	if (!is_mode_set) {
+		if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
+			return OPERATOR_CANCELLED;
+		}
+	}
+
+	if (!is_mode_set) {
 		PTCacheEdit *edit;
-		ob->mode |= OB_MODE_PARTICLE_EDIT;
+		ob->mode |= mode_flag;
 		edit= PE_create_current(scene, ob);
 	
 		/* mesh may have changed since last entering editmode.
@@ -4349,7 +4409,7 @@ static int particle_edit_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_PARTICLE, NULL);
 	}
 	else {
-		ob->mode &= ~OB_MODE_PARTICLE_EDIT;
+		ob->mode &= ~mode_flag;
 		toggle_particle_cursor(C, 0);
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_OBJECT, NULL);
 	}
@@ -4383,7 +4443,7 @@ static int clear_edited_exec(bContext *C, wmOperator *UNUSED(op))
 	ParticleSystem *psys = psys_get_current(ob);
 	
 	if (psys->edit) {
-		if (psys->edit->edited || 1) { // XXX okee("Lose changes done in particle mode?"))
+		if (psys->edit->edited || 1) {
 			PE_free_ptcache_edit(psys->edit);
 
 			psys->edit = NULL;
@@ -4409,6 +4469,11 @@ static int clear_edited_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
+static int clear_edited_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	return WM_operator_confirm_message(C, op, "Lose changes done in particle mode? (no undo)");
+}
+
 void PARTICLE_OT_edited_clear(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -4419,6 +4484,7 @@ void PARTICLE_OT_edited_clear(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = clear_edited_exec;
 	ot->poll = particle_edit_toggle_poll;
+	ot->invoke = clear_edited_invoke;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;

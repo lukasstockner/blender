@@ -1,3 +1,27 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file blender/freestyle/intern/stroke/TextStrokeRenderer.h
+ *  \ingroup freestyle
+ */
+
 //
 //  Filename         : TextStrokeRenderer.h
 //  Author(s)        : Stephane Grabli
@@ -11,29 +35,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-
-//
-//  Copyright (C) : Please refer to the COPYRIGHT file distributed 
-//   with this source distribution. 
-//
-//  This program is free software; you can redistribute it and/or
-//  modify it under the terms of the GNU General Public License
-//  as published by the Free Software Foundation; either version 2
-//  of the License, or (at your option) any later version.
-//
-//  This program is distributed in the hope that it will be useful,
-//  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  GNU General Public License for more details.
-//
-//  You should have received a copy of the GNU General Public License
-//  along with this program; if not, write to the Free Software
-//  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-//
-///////////////////////////////////////////////////////////////////////////////
-
-#ifndef  TEXTSTROKERENDERER_H
-# define TEXTSTROKERENDERER_H
+#ifndef TEXTSTROKERENDERER_H
+#define TEXTSTROKERENDERER_H
 
 # include "StrokeRenderer.h"
 # include "../system/FreestyleConfig.h"
@@ -52,18 +55,18 @@ namespace Freestyle {
 class LIB_STROKE_EXPORT TextStrokeRenderer : public StrokeRenderer
 {
 public:
-  TextStrokeRenderer(const char *iFileName = NULL);
-  virtual ~TextStrokeRenderer();
+	TextStrokeRenderer(const char *iFileName = NULL);
+	virtual ~TextStrokeRenderer();
 
-  /*! Renders a stroke rep */
-  virtual void RenderStrokeRep(StrokeRep *iStrokeRep) const;
-  virtual void RenderStrokeRepBasic(StrokeRep *iStrokeRep) const;
+	/*! Renders a stroke rep */
+	virtual void RenderStrokeRep(StrokeRep *iStrokeRep) const;
+	virtual void RenderStrokeRepBasic(StrokeRep *iStrokeRep) const;
 
-  /*! Closes the output file */
-  void Close();
+	/*! Closes the output file */
+	void Close();
 
 protected:
-  mutable ofstream _ofstream;
+	mutable ofstream _ofstream;
 };
 
 } /* namespace Freestyle */

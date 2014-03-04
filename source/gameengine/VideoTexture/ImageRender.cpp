@@ -42,6 +42,7 @@
 #include "DNA_scene_types.h"
 #include "RAS_CameraData.h"
 #include "RAS_MeshObject.h"
+#include "RAS_Polygon.h"
 #include "BLI_math.h"
 
 #include "ImageRender.h"
@@ -70,7 +71,9 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera) :
     m_owncamera(false),
     m_observer(NULL),
     m_mirror(NULL),
-    m_clip(100.f)
+    m_clip(100.f),
+    m_mirrorHalfWidth(0.f),
+    m_mirrorHalfHeight(0.f)
 {
 	// initialize background color
 	setBackground(0, 0, 255, 255);
@@ -78,7 +81,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_Camera * camera) :
 	m_engine = KX_GetActiveEngine();
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
-	m_rendertools = m_engine->GetRenderTools();
 }
 
 // destructor
@@ -198,9 +200,8 @@ void ImageRender::Render()
 	m_canvas->ClearColor(m_background[0], m_background[1], m_background[2], m_background[3]);
 	m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
 	m_rasterizer->BeginFrame(RAS_IRasterizer::KX_TEXTURED,m_engine->GetClockTime());
-	m_rendertools->BeginFrame(m_rasterizer);
 	m_engine->SetWorldSettings(m_scene->GetWorldInfo());
-	m_rendertools->SetAuxilaryClientInfo(m_scene);
+	m_rasterizer->SetAuxilaryClientInfo(m_scene);
 	m_rasterizer->DisplayFog();
 	// matrix calculation, don't apply any of the stereo mode
 	m_rasterizer->SetStereoMode(RAS_IRasterizer::RAS_STEREO_NOSTEREO);
@@ -273,7 +274,9 @@ void ImageRender::Render()
 
 	m_scene->CalculateVisibleMeshes(m_rasterizer,m_camera);
 
-	m_scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
+	m_scene->RenderBuckets(camtrans, m_rasterizer);
+
+	m_scene->RenderFonts();
 
 	// restore the canvas area now that the render is completed
 	m_canvas->GetWindowArea() = area;
@@ -591,7 +594,6 @@ ImageRender::ImageRender (KX_Scene *scene, KX_GameObject *observer, KX_GameObjec
 	m_engine = KX_GetActiveEngine();
 	m_rasterizer = m_engine->GetRasterizer();
 	m_canvas = m_engine->GetCanvas();
-	m_rendertools = m_engine->GetRenderTools();
 	// locate the vertex assigned to mat and do following calculation in mesh coordinates
 	for (int meshIndex = 0; meshIndex < mirror->GetMeshCount(); meshIndex++)
 	{

@@ -28,17 +28,12 @@
  *  \ingroup modifiers
  */
 
-#define DO_PROFILE 0
-
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_string.h"
 #include "BLI_rand.h"
-
-#if DO_PROFILE
-	#include "PIL_time.h"
-#endif
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -57,6 +52,13 @@
 #include "MEM_guardedalloc.h"
 #include "MOD_util.h"
 #include "MOD_weightvg_util.h"
+
+// #define USE_TIMEIT
+
+#ifdef USE_TIMEIT
+#  include "PIL_time.h"
+#  include "PIL_time_utildefines.h"
+#endif
 
 /**************************************
  * Util functions.                    *
@@ -130,22 +132,22 @@ static void get_vert2geom_distance(int numVerts, float (*v_cos)[3],
 		 * This will lead in prunning of the search tree.
 		 */
 		if (dist_v) {
-			nearest_v.dist = nearest_v.index != -1 ? len_squared_v3v3(tmp_co, nearest_v.co) : FLT_MAX;
+			nearest_v.dist_sq = nearest_v.index != -1 ? len_squared_v3v3(tmp_co, nearest_v.co) : FLT_MAX;
 			/* Compute and store result. If invalid (-1 idx), keep FLT_MAX dist. */
 			BLI_bvhtree_find_nearest(treeData_v.tree, tmp_co, &nearest_v, treeData_v.nearest_callback, &treeData_v);
-			dist_v[i] = sqrtf(nearest_v.dist);
+			dist_v[i] = sqrtf(nearest_v.dist_sq);
 		}
 		if (dist_e) {
-			nearest_e.dist = nearest_e.index != -1 ? len_squared_v3v3(tmp_co, nearest_e.co) : FLT_MAX;
+			nearest_e.dist_sq = nearest_e.index != -1 ? len_squared_v3v3(tmp_co, nearest_e.co) : FLT_MAX;
 			/* Compute and store result. If invalid (-1 idx), keep FLT_MAX dist. */
 			BLI_bvhtree_find_nearest(treeData_e.tree, tmp_co, &nearest_e, treeData_e.nearest_callback, &treeData_e);
-			dist_e[i] = sqrtf(nearest_e.dist);
+			dist_e[i] = sqrtf(nearest_e.dist_sq);
 		}
 		if (dist_f) {
-			nearest_f.dist = nearest_f.index != -1 ? len_squared_v3v3(tmp_co, nearest_f.co) : FLT_MAX;
+			nearest_f.dist_sq = nearest_f.index != -1 ? len_squared_v3v3(tmp_co, nearest_f.co) : FLT_MAX;
 			/* Compute and store result. If invalid (-1 idx), keep FLT_MAX dist. */
 			BLI_bvhtree_find_nearest(treeData_f.tree, tmp_co, &nearest_f, treeData_f.nearest_callback, &treeData_f);
-			dist_f[i] = sqrtf(nearest_f.dist);
+			dist_f[i] = sqrtf(nearest_f.dist_sq);
 		}
 	}
 
@@ -216,7 +218,7 @@ static void do_map(Object *ob, float *weights, const int nidx, const float min_d
 		RNG *rng = NULL;
 
 		if (mode == MOD_WVG_MAPPING_RANDOM)
-			rng = BLI_rng_new_srandom(BLI_ghashutil_strhash(ob->id.name));
+			rng = BLI_rng_new_srandom(BLI_ghashutil_strhash(ob->id.name + 2));
 
 		weightvg_do_map(nidx, weights, mode, NULL, rng);
 
@@ -253,25 +255,12 @@ static void freeData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	WeightVGProximityModifierData *wmd  = (WeightVGProximityModifierData *) md;
+#endif
 	WeightVGProximityModifierData *twmd = (WeightVGProximityModifierData *) target;
 
-	BLI_strncpy(twmd->defgrp_name, wmd->defgrp_name, sizeof(twmd->defgrp_name));
-	twmd->proximity_mode         = wmd->proximity_mode;
-	twmd->proximity_flags        = wmd->proximity_flags;
-	twmd->proximity_ob_target    = wmd->proximity_ob_target;
-
-	twmd->falloff_type           = wmd->falloff_type;
-
-	twmd->mask_constant          = wmd->mask_constant;
-	BLI_strncpy(twmd->mask_defgrp_name, wmd->mask_defgrp_name, sizeof(twmd->mask_defgrp_name));
-	twmd->mask_texture           = wmd->mask_texture;
-	twmd->mask_tex_use_channel   = wmd->mask_tex_use_channel;
-	twmd->mask_tex_mapping       = wmd->mask_tex_mapping;
-	twmd->mask_tex_map_obj       = wmd->mask_tex_map_obj;
-	BLI_strncpy(twmd->mask_tex_uvlayer_name, wmd->mask_tex_uvlayer_name, sizeof(twmd->mask_tex_uvlayer_name));
-	twmd->min_dist               = wmd->min_dist;
-	twmd->max_dist               = wmd->max_dist;
+	modifier_copyData_generic(md, target);
 
 	if (twmd->mask_texture) {
 		id_us_plus(&twmd->mask_texture->id);
@@ -382,8 +371,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	int do_prev = (wmd->modifier.mode & eModifierMode_DoWeightPreview);
 #endif
 
-#if DO_PROFILE
-	TIMEIT_START(perf)
+#ifdef USE_TIMEIT
+	TIMEIT_START(perf);
 #endif
 
 	/* Get number of verts. */
@@ -392,7 +381,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	/* Check if we can just return the original mesh.
 	 * Must have verts and therefore verts assigned to vgroups to do anything useful!
 	 */
-	if ((numVerts == 0) || (ob->defbase.first == NULL))
+	if ((numVerts == 0) || BLI_listbase_is_empty(&ob->defbase))
 		return dm;
 
 	/* Get our target object. */
@@ -483,9 +472,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 				else if (obr->type == OB_MESH) {
 					Mesh *me = (Mesh *)obr->data;
 					if (me->edit_btmesh)
-						target_dm = CDDM_from_editbmesh(me->edit_btmesh, FALSE, FALSE);
+						target_dm = CDDM_from_editbmesh(me->edit_btmesh, false, false);
 					else
-						target_dm = CDDM_from_mesh(me, obr);
+						target_dm = CDDM_from_mesh(me);
 				}
 				free_target_dm = TRUE;
 			}
@@ -548,8 +537,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 		MEM_freeN(indices);
 	MEM_freeN(v_cos);
 
-#if DO_PROFILE
-	TIMEIT_END(perf)
+#ifdef USE_TIMEIT
+	TIMEIT_END(perf);
 #endif
 
 	/* Return the vgroup-modified mesh. */

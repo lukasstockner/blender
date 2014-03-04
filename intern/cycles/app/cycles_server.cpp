@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include <stdio.h>
@@ -37,6 +35,7 @@ int main(int argc, const char **argv)
 	string devicelist = "";
 	string devicename = "cpu";
 	bool list = false;
+	int threads = 0;
 
 	vector<DeviceType>& types = Device::available_types();
 
@@ -53,6 +52,7 @@ int main(int argc, const char **argv)
 	ap.options ("Usage: cycles_server [options]",
 		"--device %s", &devicename, ("Devices to use: " + devicelist).c_str(),
 		"--list-devices", &list, "List information about all available devices",
+		"--threads %d", &threads, "Number of threads to use for CPU device",
 		NULL);
 
 	if(ap.parse(argc, argv) < 0) {
@@ -86,11 +86,11 @@ int main(int argc, const char **argv)
 		}
 	}
 
-	TaskScheduler::init();
+	TaskScheduler::init(threads);
 
 	while(1) {
 		Stats stats;
-		Device *device = Device::create(device_info, stats);
+		Device *device = Device::create(device_info, stats, true);
 		printf("Cycles Server with device: %s\n", device->info.description.c_str());
 		device->server_run();
 		delete device;

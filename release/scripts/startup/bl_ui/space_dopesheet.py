@@ -89,6 +89,8 @@ def dopesheet_filter(layout, context, genericFiltersOnly=False):
                 row.prop(dopesheet, "show_particles", text="")
             if bpy.data.speakers:
                 row.prop(dopesheet, "show_speakers", text="")
+            if bpy.data.linestyles:
+                row.prop(dopesheet, "show_linestyles", text="")
 
 
 #######################################
@@ -105,20 +107,7 @@ class DOPESHEET_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        if context.area.show_menus:
-            row.menu("DOPESHEET_MT_view")
-            row.menu("DOPESHEET_MT_select")
-            row.menu("DOPESHEET_MT_marker")
-
-            if st.mode == 'DOPESHEET' or (st.mode == 'ACTION' and st.action is not None):
-                row.menu("DOPESHEET_MT_channel")
-            elif st.mode == 'GPENCIL':
-                row.menu("DOPESHEET_MT_gpencil_channel")
-
-            if st.mode != 'GPENCIL':
-                row.menu("DOPESHEET_MT_key")
-            else:
-                row.menu("DOPESHEET_MT_gpencil_frame")
+        DOPESHEET_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.prop(st, "mode", text="")
         layout.prop(st.dopesheet, "show_summary", text="Summary")
@@ -140,6 +129,32 @@ class DOPESHEET_HT_header(Header):
         row = layout.row(align=True)
         row.operator("action.copy", text="", icon='COPYDOWN')
         row.operator("action.paste", text="", icon='PASTEDOWN')
+
+
+class DOPESHEET_MT_editor_menus(Menu):
+    bl_idname = "DOPESHEET_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        st = context.space_data
+
+        layout.menu("DOPESHEET_MT_view")
+        layout.menu("DOPESHEET_MT_select")
+        layout.menu("DOPESHEET_MT_marker")
+
+        if st.mode == 'DOPESHEET' or (st.mode == 'ACTION' and st.action is not None):
+            layout.menu("DOPESHEET_MT_channel")
+        elif st.mode == 'GPENCIL':
+            layout.menu("DOPESHEET_MT_gpencil_channel")
+
+        if st.mode != 'GPENCIL':
+            layout.menu("DOPESHEET_MT_key")
+        else:
+            layout.menu("DOPESHEET_MT_gpencil_frame")
 
 
 class DOPESHEET_MT_view(Menu):

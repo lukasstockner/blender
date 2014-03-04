@@ -40,6 +40,7 @@ class SpellChecker():
         "derivate",
         "doesn",  # doesn't
         "fader",
+        "globbing",
         "hasn",  # hasn't
         "hoc",  # ad-hoc
         "indices",
@@ -50,6 +51,7 @@ class SpellChecker():
         "latin",
         "merchantability",
         "mplayer",
+        "teleport", "teleporting",
         "vertices",
 
         # Merged words
@@ -58,7 +60,10 @@ class SpellChecker():
         "arcsine", "arccosine", "arctangent",
         "autoclip",
         "autocomplete",
+        "autoexec",
+        "autoexecution",
         "autoname",
+        "autopack",
         "autosave",
         "autoscale",
         "autosmooth",
@@ -68,7 +73,9 @@ class SpellChecker():
         "backscattered",
         "bandnoise",
         "bindcode",
+        "bitflag", "bitflags",
         "bitrate",
+        "blackbody",
         "blendfile",
         "blendin",
         "bonesize",
@@ -175,7 +182,7 @@ class SpellChecker():
         "unprojected",
         "unreacted",
         "unregister",
-        "unselected",
+        "unselected", "unselectable",
         "unsubdivided", "unsubdivide",
         "unshadowed",
         "unspill",
@@ -272,6 +279,7 @@ class SpellChecker():
         "xy", "xz", "yx", "yz", "zx", "zy",
 
         # General computer/science terms
+        "bitangent",
         "boid", "boids",
         "equisolid",
         "euler", "eulers",
@@ -349,6 +357,7 @@ class SpellChecker():
         "raycasting",
         "raytrace", "raytracing", "raytraced",
         "renderfarm",
+        "scanfill",
         "shader", "shaders",
         "specular", "specularity",
         "spillmap",
@@ -358,6 +367,7 @@ class SpellChecker():
         "timecode",
         "voronoi",
         "voxel", "voxels",
+        "vsync",
         "wireframe",
         "zmask",
         "ztransp",
@@ -427,17 +437,22 @@ class SpellChecker():
         "catrom",
         "chebychev",
         "courant",
+        "hosek",
         "kutta",
         "lennard",
+        "mikktspace",
         "minkowski",
         "minnaert",
         "musgrave",
         "nayar",
         "netravali",
         "oren",
+        "preetham",
         "prewitt",
         "runge",
+        "sobol",
         "verlet",
+        "wilkie",
         "worley",
 
         # Acronyms

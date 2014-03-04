@@ -23,31 +23,28 @@
 
 #include "COM_MultilayerImageOperation.h"
 extern "C" {
-	#include "IMB_imbuf.h"
-	#include "IMB_imbuf_types.h"
+#  include "IMB_imbuf.h"
+#  include "IMB_imbuf_types.h"
 }
 
-MultilayerBaseOperation::MultilayerBaseOperation(int pass) : BaseImageOperation()
+MultilayerBaseOperation::MultilayerBaseOperation(int passindex) : BaseImageOperation()
 {
-	this->m_passId = pass;
+	this->m_passId = passindex;
 }
 ImBuf *MultilayerBaseOperation::getImBuf()
 {
-	RenderPass *rpass;
-	rpass = (RenderPass *)BLI_findlink(&this->m_renderlayer->passes, this->m_passId);
+	RenderPass *rpass = (RenderPass *)BLI_findlink(&this->m_renderlayer->passes, this->m_passId);
 	if (rpass) {
-		this->m_imageUser->pass = this->m_passId;
+		this->m_imageUser->pass = m_passId;
 		BKE_image_multilayer_index(this->m_image->rr, this->m_imageUser);
 		return BaseImageOperation::getImBuf();
 	}
 	return NULL;
 }
 
-void MultilayerColorOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void MultilayerColorOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
-	int yi = y;
-	int xi = x;
-	if (this->m_imageBuffer == NULL || xi < 0 || yi < 0 || (unsigned int)xi >= this->getWidth() || (unsigned int)yi >= this->getHeight() ) {
+	if (this->m_imageFloatBuffer == NULL) {
 		zero_v4(output);
 	}
 	else {
@@ -65,34 +62,48 @@ void MultilayerColorOperation::executePixel(float output[4], float x, float y, P
 			}
 		}
 		else {
-			int offset = (yi * this->getWidth() + xi) * 3;
-			copy_v3_v3(output, &this->m_imageBuffer[offset]);
+			int yi = y;
+			int xi = x;
+			if (xi < 0 || yi < 0 || (unsigned int)xi >= this->getWidth() || (unsigned int)yi >= this->getHeight())
+				zero_v4(output);
+			else {
+				int offset = (yi * this->getWidth() + xi) * 3;
+				copy_v3_v3(output, &this->m_imageFloatBuffer[offset]);
+			}
 		}
 	}
 }
 
-void MultilayerValueOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void MultilayerValueOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
-	int yi = y;
-	int xi = x;
-	if (this->m_imageBuffer == NULL || xi < 0 || yi < 0 || (unsigned int)xi >= this->getWidth() || (unsigned int)yi >= this->getHeight() ) {
+	if (this->m_imageFloatBuffer == NULL) {
 		output[0] = 0.0f;
 	}
 	else {
-		float result = this->m_imageBuffer[yi * this->getWidth() + xi];
-		output[0] = result;
+		int yi = y;
+		int xi = x;
+		if (xi < 0 || yi < 0 || (unsigned int)xi >= this->getWidth() || (unsigned int)yi >= this->getHeight())
+			output[0] = 0.0f;
+		else {
+			float result = this->m_imageFloatBuffer[yi * this->getWidth() + xi];
+			output[0] = result;
+		}
 	}
 }
 
-void MultilayerVectorOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void MultilayerVectorOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
-	int yi = y;
-	int xi = x;
-	if (this->m_imageBuffer == NULL || xi < 0 || yi < 0 || (unsigned int)xi >= this->getWidth() || (unsigned int)yi >= this->getHeight() ) {
+	if (this->m_imageFloatBuffer == NULL) {
 		output[0] = 0.0f;
 	}
 	else {
-		int offset = (yi * this->getWidth() + xi) * 3;
-		copy_v3_v3(output, &this->m_imageBuffer[offset]);
+		int yi = y;
+		int xi = x;
+		if (xi < 0 || yi < 0 || (unsigned int)xi >= this->getWidth() || (unsigned int)yi >= this->getHeight())
+			output[0] = 0.0f;
+		else {
+			int offset = (yi * this->getWidth() + xi) * 3;
+			copy_v3_v3(output, &this->m_imageFloatBuffer[offset]);
+		}
 	}
 }

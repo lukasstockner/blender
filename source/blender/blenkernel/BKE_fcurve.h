@@ -99,6 +99,8 @@ float driver_get_variable_value(struct ChannelDriver *driver, struct DriverVar *
 
 /* ************** F-Curve Modifiers *************** */
 
+typedef struct GHash FModifierStackStorage;
+
 /* F-Curve Modifier Type-Info (fmi):
  *  This struct provides function pointers for runtime, so that functions can be
  *  written more generally (with fewer/no special exceptions for various modifiers).
@@ -134,6 +136,10 @@ typedef struct FModifierTypeInfo {
 	float (*evaluate_modifier_time)(struct FCurve *fcu, struct FModifier *fcm, float cvalue, float evaltime);
 	/* evaluate the modifier for the given time and 'accumulated' value */
 	void (*evaluate_modifier)(struct FCurve *fcu, struct FModifier *fcm, float *cvalue, float evaltime);
+
+	/* Same as above but for modifiers which requires storage */
+	float (*evaluate_modifier_time_storage)(FModifierStackStorage *storage, struct FCurve *fcu, struct FModifier *fcm, float cvalue, float evaltime);
+	void (*evaluate_modifier_storage)(FModifierStackStorage *storage, struct FCurve *fcu, struct FModifier *fcm, float *cvalue, float evaltime);
 } FModifierTypeInfo;
 
 /* Values which describe the behavior of a FModifier Type */
@@ -157,7 +163,10 @@ typedef enum eFMI_Requirement_Flags {
 	 */
 	FMI_REQUIRES_NOTHING            = (1 << 1),
 	/* refer to modifier instance */
-	FMI_REQUIRES_RUNTIME_CHECK      = (1 << 2)
+	FMI_REQUIRES_RUNTIME_CHECK      = (1 << 2),
+
+	/* Requires to store data shared between time and valua evaluation */
+	FMI_REQUIRES_STORAGE            = (1 << 3)
 } eFMI_Requirement_Flags;
 
 /* Function Prototypes for FModifierTypeInfo's */
@@ -169,16 +178,18 @@ FModifierTypeInfo *get_fmodifier_typeinfo(int type);
 struct FModifier *add_fmodifier(ListBase *modifiers, int type);
 struct FModifier *copy_fmodifier(struct FModifier *src);
 void copy_fmodifiers(ListBase *dst, ListBase *src);
-int remove_fmodifier(ListBase *modifiers, struct FModifier *fcm);
+bool remove_fmodifier(ListBase *modifiers, struct FModifier *fcm);
 void free_fmodifiers(ListBase *modifiers);
 
 struct FModifier *find_active_fmodifier(ListBase *modifiers);
 void set_active_fmodifier(ListBase *modifiers, struct FModifier *fcm);
 
-short list_has_suitable_fmodifier(ListBase *modifiers, int mtype, short acttype);
+bool list_has_suitable_fmodifier(ListBase *modifiers, int mtype, short acttype);
 
-float evaluate_time_fmodifiers(ListBase *modifiers, struct FCurve *fcu, float cvalue, float evaltime);
-void evaluate_value_fmodifiers(ListBase *modifiers, struct FCurve *fcu, float *cvalue, float evaltime);
+FModifierStackStorage *evaluate_fmodifiers_storage_new(ListBase *modifiers);
+void evaluate_fmodifiers_storage_free(FModifierStackStorage *storage);
+float evaluate_time_fmodifiers(FModifierStackStorage *storage, ListBase *modifiers, struct FCurve *fcu, float cvalue, float evaltime);
+void evaluate_value_fmodifiers(FModifierStackStorage *storage, ListBase *modifiers, struct FCurve *fcu, float *cvalue, float evaltime);
 
 void fcurve_bake_modifiers(struct FCurve *fcu, int start, int end);
 
@@ -216,25 +227,26 @@ struct FCurve *rna_get_fcurve(struct PointerRNA *ptr, struct PropertyRNA *prop, 
 int binarysearch_bezt_index(struct BezTriple array[], float frame, int arraylen, bool *r_replace);
 
 /* get the time extents for F-Curve */
-void calc_fcurve_range(struct FCurve *fcu, float *min, float *max,
-                       const short do_sel_only, const short do_min_length);
+bool calc_fcurve_range(struct FCurve *fcu, float *min, float *max,
+                       const bool do_sel_only, const bool do_min_length);
 
 /* get the bounding-box extents for F-Curve */
-short calc_fcurve_bounds(struct FCurve *fcu, float *xmin, float *xmax, float *ymin, float *ymax,
-                         const short do_sel_only, const short include_handles);
+bool calc_fcurve_bounds(struct FCurve *fcu, float *xmin, float *xmax, float *ymin, float *ymax,
+                        const bool do_sel_only, const bool include_handles);
 
 /* .............. */
 
 /* Are keyframes on F-Curve of any use (to final result, and to show in editors)? */
-short fcurve_are_keyframes_usable(struct FCurve *fcu);
+bool fcurve_are_keyframes_usable(struct FCurve *fcu);
 
 /* Can keyframes be added to F-Curve? */
-short fcurve_is_keyframable(struct FCurve *fcu);
+bool fcurve_is_keyframable(struct FCurve *fcu);
+bool BKE_fcurve_is_protected(struct FCurve *fcu);
 
 /* -------- Curve Sanity --------  */
 
 void calchandles_fcurve(struct FCurve *fcu);
-void testhandles_fcurve(struct FCurve *fcu, const short use_handle);
+void testhandles_fcurve(struct FCurve *fcu, const bool use_handle);
 void sort_time_fcurve(struct FCurve *fcu);
 short test_time_fcurve(struct FCurve *fcu);
 

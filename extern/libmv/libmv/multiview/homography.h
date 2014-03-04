@@ -54,6 +54,57 @@ bool Homography2DFromCorrespondencesLinear(const Mat &x1,
                                              EigenDouble::dummy_precision());
 
 /**
+ * This structure contains options that controls how the homography
+ * estimation operates.
+ *
+ * Defaults should be suitable for a wide range of use cases, but
+ * better performance and accuracy might require tweaking/
+ */
+struct EstimateHomographyOptions {
+  // Default constructor which sets up a options for generic usage.
+  EstimateHomographyOptions(void);
+
+  // Normalize correspondencies before estimating the homography
+  // in order to increase estimation stability.
+  //
+  // Normaliztion will make it so centroid od correspondences
+  // is the coordinate origin and their average distance from
+  // the origin is sqrt(2).
+  //
+  // See:
+  //   - R. Hartley and A. Zisserman. Multiple View Geometry in Computer
+  //     Vision. Cambridge University Press, second edition, 2003.
+  //   - https://www.cs.ubc.ca/grads/resources/thesis/May09/Dubrofsky_Elan.pdf
+  bool use_normalization;
+
+  // Maximal number of iterations for the refinement step.
+  int max_num_iterations;
+
+  // Expected average of symmetric geometric distance between
+  // actual destination points and original ones transformed by
+  // estimated homography matrix.
+  //
+  // Refinement will finish as soon as average of symmetric
+  // geometric distance is less or equal to this value.
+  //
+  // This distance is measured in the same units as input points are.
+  double expected_average_symmetric_distance;
+};
+
+/**
+ * 2D homography transformation estimation.
+ *
+ * This function estimates the homography transformation from a list of 2D
+ * correspondences by doing algebraic estimation first followed with result
+ * refinement.
+ */
+bool EstimateHomography2DFromCorrespondences(
+    const Mat &x1,
+    const Mat &x2,
+    const EstimateHomographyOptions &options,
+    Mat3 *H);
+
+/**
  * 3D Homography transformation estimation.
  *
  * This function can be used in order to estimate the homography transformation
@@ -85,7 +136,9 @@ bool Homography3DFromCorrespondencesLinear(const Mat &x1,
  *
  * D(H * x1, x2)^2 + D(H^-1 * x2, x1)
  */
-double SymmetricGeometricDistance(Mat3 &H, Vec2 &x1, Vec2 &x2);
+double SymmetricGeometricDistance(const Mat3 &H,
+                                  const Vec2 &x1,
+                                  const Vec2 &x2);
 
 }  // namespace libmv
 

@@ -242,14 +242,17 @@ void filepath_qt(char *string, RenderData *rd)
 	BLI_path_abs(string, G.main->name);
 	
 	BLI_make_existing_file(string);
-	
-	if (!BLI_testextensie(string, ".mov")) {
-		/* if we don't have any #'s to insert numbers into, use 4 numbers by default */
-		if (strchr(string, '#')==NULL)
-			strcat(string, "####"); /* 4 numbers */
 
-		BLI_path_frame_range(string, rd->sfra, rd->efra, 4);
-		strcat(string, ".mov");
+	if (rd->scemode & R_EXTENSION) {
+		if (!BLI_testextensie(string, ".mov")) {
+			BLI_path_frame_range(string, rd->sfra, rd->efra, 4);
+			strcat(string, ".mov");
+		}
+	}
+	else {
+		if (BLI_path_frame_check_chars(string)) {
+			BLI_path_frame_range(string, rd->sfra, rd->efra, 4);
+		}
 	}
 }
 
@@ -317,7 +320,7 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 	int success = 1;
 	OSStatus err = noErr;
 
-	if(qtexport == NULL) qtexport = MEM_callocN(sizeof(QuicktimeExport), "QuicktimeExport");
+	if (qtexport == NULL) qtexport = MEM_callocN(sizeof(QuicktimeExport), "QuicktimeExport");
 	
 	[QTMovie enterQTKitOnThread];
 	
@@ -476,7 +479,7 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 				err = AudioFileCreateWithURL(outputFileURL, audioFileType, &qtexport->audioOutputFormat, kAudioFileFlags_EraseFile, &qtexport->audioFile);
 				CFRelease(outputFileURL);
 				
-				if(err)
+				if (err)
 					BKE_report(reports, RPT_ERROR, "\nQuicktime: unable to create temporary audio file. Format error ?");
 				else {
 					err = AudioConverterNew(&qtexport->audioInputFormat, &qtexport->audioOutputFormat, &qtexport->audioConverter);
@@ -542,7 +545,7 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 		else
 			qtexport->movie = [[QTMovie alloc] initToWritableFile:qtexport->filename error:&error];
 
-		if(qtexport->movie == nil) {
+		if (qtexport->movie == nil) {
 			BKE_report(reports, RPT_ERROR, "Unable to create quicktime movie.");
 			success = 0;
 			if (qtexport->filename) [qtexport->filename release];
@@ -749,13 +752,11 @@ void end_qt(void)
 			if (audioTmpMovie) {
 				NSArray *audioTracks = [audioTmpMovie tracksOfMediaType:QTMediaTypeSound];
 				QTTrack *audioTrack = nil;
-				if( [audioTracks count] > 0 )
-				{
+				if ( [audioTracks count] > 0 ) {
 					audioTrack = [audioTracks objectAtIndex:0];
 				}
 			
-				if( audioTrack )
-				{
+				if (audioTrack) {
 					QTTimeRange totalRange;
 					totalRange.time = QTZeroTime;
 					totalRange.duration = [[audioTmpMovie attributeForKey:QTMovieDurationAttribute] QTTimeValue];
@@ -798,7 +799,7 @@ void end_qt(void)
 	
 	[QTMovie exitQTKitOnThread];
 
-	if(qtexport) {
+	if (qtexport) {
 		MEM_freeN(qtexport);
 		qtexport = NULL;
 	}

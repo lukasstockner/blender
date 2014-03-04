@@ -15,11 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -50,6 +45,7 @@
 #include "BKE_texture.h"
 #include "BKE_icons.h"
 
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
@@ -139,7 +135,7 @@ Brush *BKE_brush_add(Main *bmain, const char *name)
 {
 	Brush *brush;
 
-	brush = BKE_libblock_alloc(&bmain->brush, ID_BR, name);
+	brush = BKE_libblock_alloc(bmain, ID_BR, name);
 
 	/* enable fake user by default */
 	brush->id.flag |= LIB_FAKEUSER;
@@ -311,7 +307,7 @@ void BKE_brush_debug_print_state(Brush *br)
 	BR_TEST_FLAG(BRUSH_ADAPTIVE_SPACE);
 	BR_TEST_FLAG(BRUSH_LOCK_SIZE);
 	BR_TEST_FLAG(BRUSH_EDGE_TO_EDGE);
-	BR_TEST_FLAG(BRUSH_RESTORE_MESH);
+	BR_TEST_FLAG(BRUSH_DRAG_DOT);
 	BR_TEST_FLAG(BRUSH_INVERSE_SMOOTH_PRESSURE);
 	BR_TEST_FLAG(BRUSH_RANDOM_ROTATION);
 	BR_TEST_FLAG(BRUSH_PLANE_TRIM);
@@ -544,7 +540,7 @@ float BKE_brush_sample_tex_3D(const Scene *scene, Brush *br,
 	else if (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) {
 		float rotation = -mtex->rot;
 		float point_2d[2] = {point[0], point[1]};
-		float x = 0.0f, y = 0.0f; /* Quite warnings */
+		float x, y;
 		float co[3];
 
 		x = point_2d[0] - br->stencil_pos[0];
@@ -644,6 +640,16 @@ float BKE_brush_sample_tex_3D(const Scene *scene, Brush *br,
 		rgba[2] = intensity;
 		rgba[3] = 1.0f;
 	}
+	else {
+		if (br->mtex.tex->type == TEX_IMAGE && br->mtex.tex->ima) {
+			ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(br->mtex.tex->ima, &br->mtex.tex->iuser, pool);
+			/* For consistency, sampling always returns color in linear space */
+			if (tex_ibuf && tex_ibuf->rect_float == NULL) {
+				IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, tex_ibuf->rect_colorspace);
+			}
+			BKE_image_pool_release_ibuf(br->mtex.tex->ima, tex_ibuf, pool);
+		}
+	}
 
 	return intensity;
 }
@@ -663,7 +669,7 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
 	if (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) {
 		float rotation = -mtex->rot;
 		float point_2d[2] = {point[0], point[1]};
-		float x = 0.0f, y = 0.0f; /* Quite warnings */
+		float x, y;
 		float co[3];
 
 		x = point_2d[0] - br->mask_stencil_pos[0];
@@ -767,7 +773,7 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
  * radius become inconsistent.
  * the biggest problem is that it isn't possible to change
  * unprojected radius because a view context is not
- * available.  my ussual solution to this is to use the
+ * available.  my usual solution to this is to use the
  * ratio of change of the size to change the unprojected
  * radius.  Not completely convinced that is correct.
  * In any case, a better solution is needed to prevent
@@ -904,7 +910,7 @@ void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], 
 
 	/* jitter-ed brush gives weird and unpredictable result for this
 	 * kinds of stroke, so manually disable jitter usage (sergey) */
-	use_jitter &= (brush->flag & (BRUSH_RESTORE_MESH | BRUSH_ANCHORED)) == 0;
+	use_jitter &= (brush->flag & (BRUSH_DRAG_DOT | BRUSH_ANCHORED)) == 0;
 
 	if (use_jitter) {
 		float rand_pos[2];
@@ -914,7 +920,7 @@ void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], 
 		do {
 			rand_pos[0] = BLI_rng_get_float(brush_rng) - 0.5f;
 			rand_pos[1] = BLI_rng_get_float(brush_rng) - 0.5f;
-		} while (len_v2(rand_pos) > 0.5f);
+		} while (len_squared_v2(rand_pos) > (0.5f * 0.5f));
 
 
 		if (brush->flag & BRUSH_ABSOLUTE_JITTER) {
@@ -956,7 +962,6 @@ float BKE_brush_curve_strength_clamp(Brush *br, float p, const float len)
 	if (p >= len) return 0;
 	else p = p / len;
 
-	curvemapping_initialize(br->curve);
 	strength = curvemapping_evaluateF(br->curve, 0, p);
 
 	CLAMP(strength, 0.0f, 1.0f);
@@ -972,15 +977,14 @@ float BKE_brush_curve_strength(Brush *br, float p, const float len)
 	else
 		p = p / len;
 
-	curvemapping_initialize(br->curve);
 	return curvemapping_evaluateF(br->curve, 0, p);
 }
 
 /* TODO: should probably be unified with BrushPainter stuff? */
-unsigned int *BKE_brush_gen_texture_cache(Brush *br, int half_side)
+unsigned int *BKE_brush_gen_texture_cache(Brush *br, int half_side, bool use_secondary)
 {
 	unsigned int *texcache = NULL;
-	MTex *mtex = &br->mtex;
+	MTex *mtex = (use_secondary) ? &br->mask_mtex : &br->mtex;
 	TexResult texres = {0};
 	int hasrgb, ix, iy;
 	int side = half_side * 2;
@@ -998,7 +1002,8 @@ unsigned int *BKE_brush_gen_texture_cache(Brush *br, int half_side)
 				co[2] = 0.0f;
 
 				/* This is copied from displace modifier code */
-				hasrgb = multitex_ext(mtex->tex, co, NULL, NULL, 0, &texres, NULL);
+				/* TODO(sergey): brush are always cacheing with CM enabled for now. */
+				hasrgb = multitex_ext(mtex->tex, co, NULL, NULL, 0, &texres, NULL, true);
 
 				/* if the texture gave an RGB value, we assume it didn't give a valid
 				 * intensity, so calculate one (formula from do_material_tex).
@@ -1020,7 +1025,7 @@ unsigned int *BKE_brush_gen_texture_cache(Brush *br, int half_side)
 
 
 /**** Radial Control ****/
-struct ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br)
+struct ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary)
 {
 	ImBuf *im = MEM_callocN(sizeof(ImBuf), "radial control texture");
 	unsigned int *texcache;
@@ -1028,7 +1033,8 @@ struct ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br)
 	int half = side / 2;
 	int i, j;
 
-	texcache = BKE_brush_gen_texture_cache(br, half);
+	curvemapping_initialize(br->curve);
+	texcache = BKE_brush_gen_texture_cache(br, half, secondary);
 	im->rect_float = MEM_callocN(sizeof(float) * side * side, "radial control rect");
 	im->x = im->y = side;
 

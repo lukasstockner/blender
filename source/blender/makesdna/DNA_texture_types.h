@@ -263,7 +263,7 @@ typedef struct TexMapping {
 	float loc[3], rot[3], size[3];
 	int flag;
 	char projx, projy, projz, mapping;
-	int pad;
+	int type;
 	
 	float mat[4][4];
 	float min[3], max[3];
@@ -286,6 +286,12 @@ typedef struct ColorMapping {
 #define TEXMAP_CLIP_MIN		1
 #define TEXMAP_CLIP_MAX		2
 #define TEXMAP_UNIT_MATRIX	4
+
+/* texmap->type */
+#define TEXMAP_TYPE_POINT		0
+#define TEXMAP_TYPE_TEXTURE		1
+#define TEXMAP_TYPE_VECTOR		2
+#define TEXMAP_TYPE_NORMAL		3
 
 /* colormap->flag */
 #define COLORMAP_USE_RAMP 1
@@ -376,6 +382,7 @@ typedef struct ColorMapping {
 #define TEX_REPEAT_YMIR		256
 #define TEX_FLAG_MASK		( TEX_COLORBAND | TEX_FLIPBLEND | TEX_NEGALPHA | TEX_CHECKER_ODD | TEX_CHECKER_EVEN | TEX_PRV_ALPHA | TEX_PRV_NOR | TEX_REPEAT_XMIR | TEX_REPEAT_YMIR ) 
 #define TEX_DS_EXPAND		512
+#define TEX_NO_CLAMP		1024
 
 /* extend (starts with 1 because of backward comp.) */
 #define TEX_EXTEND		1

@@ -93,6 +93,23 @@ static void meta_tmp_ref(Sequence *seq_par, Sequence *seq)
 	}
 }
 
+static void rna_SequenceElement_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	Scene *scene = (Scene *) ptr->id.data;
+	Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
+
+	if (ed) {
+		StripElem *se = (StripElem *)ptr->data;
+		Sequence *seq;
+
+		/* slow but we can't avoid! */
+		seq = BKE_sequencer_from_elem(&ed->seqbase, se);
+		if (seq) {
+			BKE_sequence_invalidate_cache(scene, seq);
+		}
+	}
+}
+
 static void rna_Sequence_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Scene *scene = (Scene *) ptr->id.data;
@@ -274,7 +291,7 @@ static void rna_Sequence_channel_set(PointerRNA *ptr, int value)
 
 	seq->machine = value;
 	
-	if (BKE_sequence_test_overlap(seqbase, seq) ) {
+	if (BKE_sequence_test_overlap(seqbase, seq)) {
 		BKE_sequence_base_shuffle(seqbase, seq, scene);  /* XXX - BROKEN!, uses context seqbasep */
 	}
 	BKE_sequencer_sort(scene);
@@ -703,7 +720,7 @@ static Sequence *sequence_get_by_proxy(Editing *ed, StripProxy *proxy)
 	return data.seq;
 }
 
-static void rna_Sequence_tcindex_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
+static void rna_Sequence_tcindex_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Scene *scene = (Scene *) ptr->id.data;
 	Editing *ed = BKE_sequencer_editing_get(scene, FALSE);
@@ -865,22 +882,6 @@ static void rna_SequenceEditor_overlay_frame_set(PointerRNA *ptr, int value)
 		ed->over_cfra = (scene->r.cfra + value);
 	else
 		ed->over_ofs = value;
-}
-
-
-static void rna_WipeSequence_angle_set(PointerRNA *ptr, float value)
-{
-	Sequence *seq = (Sequence *)(ptr->data);
-	value = RAD2DEGF(value);
-	CLAMP(value, -90.0f, 90.0f);
-	((WipeVars *)seq->effectdata)->angle = value;
-}
-
-static float rna_WipeSequence_angle_get(PointerRNA *ptr)
-{
-	Sequence *seq = (Sequence *)(ptr->data);
-
-	return DEG2RADF(((WipeVars *)seq->effectdata)->angle);
 }
 
 static int modifier_seq_cmp_cb(Sequence *seq, void *arg_pt)
@@ -1063,7 +1064,7 @@ static void rna_def_strip_element(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "filename", PROP_STRING, PROP_FILENAME);
 	RNA_def_property_string_sdna(prop, NULL, "name");
 	RNA_def_property_ui_text(prop, "Filename", "");
-	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
+	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceElement_update");
 
 	prop = RNA_def_property(srna, "orig_width", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "orig_width");
@@ -1281,7 +1282,7 @@ static void rna_def_strip_color_balance(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "StripColorBalance");
 }
 
-EnumPropertyItem blend_mode_items[] = {
+static EnumPropertyItem blend_mode_items[] = {
 	{SEQ_BLEND_REPLACE, "REPLACE", 0, "Replace", ""},
 	{SEQ_TYPE_CROSS, "CROSS", 0, "Cross", ""},
 	{SEQ_TYPE_ADD, "ADD", 0, "Add", ""},
@@ -1403,11 +1404,13 @@ static void rna_def_sequence(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_MUTE);
+	RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, true);
 	RNA_def_property_ui_text(prop, "Mute", "");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_mute_update");
 
 	prop = RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_LOCK);
+	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);
 	RNA_def_property_ui_text(prop, "Lock", "Lock strip so that it can't be transformed");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, NULL);
 
@@ -2025,18 +2028,11 @@ static void rna_def_wipe(StructRNA *srna)
 	                         "Width of the blur edge, in percentage relative to the image size");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 
-#if 1 /* expose as radians */
 	prop = RNA_def_property(srna, "angle", PROP_FLOAT, PROP_ANGLE);
-	RNA_def_property_float_funcs(prop, "rna_WipeSequence_angle_get", "rna_WipeSequence_angle_set", NULL);
-	RNA_def_property_range(prop, DEG2RAD(-90.0), DEG2RAD(90.0));
-#else
-	prop = RNA_def_property(srna, "angle", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "angle");
-	RNA_def_property_range(prop, -90.0f, 90.0f);
-#endif
+	RNA_def_property_range(prop, DEG2RADF(-90.0f), DEG2RADF(90.0f));
 	RNA_def_property_ui_text(prop, "Angle", "Edge angle");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
-	
+
 	prop = RNA_def_property(srna, "direction", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "forward");
 	RNA_def_property_enum_items(prop, wipe_direction_items);

@@ -63,14 +63,7 @@ class SEQUENCER_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        if context.area.show_menus:
-            row.menu("SEQUENCER_MT_view")
-
-            if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
-                row.menu("SEQUENCER_MT_select")
-                row.menu("SEQUENCER_MT_marker")
-                row.menu("SEQUENCER_MT_add")
-                row.menu("SEQUENCER_MT_strip")
+        SEQUENCER_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.prop(st, "view_type", expand=True, text="")
 
@@ -104,13 +97,32 @@ class SEQUENCER_HT_header(Header):
                     row.prop(st, "overlay_type", text="")
 
         row = layout.row(align=True)
-        props = row.operator("render.opengl", text="", icon='RENDER_STILL')
-        props.sequencer = True
+        row.operator("render.opengl", text="", icon='RENDER_STILL').sequencer = True
         props = row.operator("render.opengl", text="", icon='RENDER_ANIMATION')
         props.animation = True
         props.sequencer = True
 
         layout.template_running_jobs()
+
+
+class SEQUENCER_MT_editor_menus(Menu):
+    bl_idname = "SEQUENCER_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        st = context.space_data
+
+        layout.menu("SEQUENCER_MT_view")
+
+        if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
+            layout.menu("SEQUENCER_MT_select")
+            layout.menu("SEQUENCER_MT_marker")
+            layout.menu("SEQUENCER_MT_add")
+            layout.menu("SEQUENCER_MT_strip")
 
 
 class SEQUENCER_MT_view_toggle(Menu):
@@ -339,12 +351,11 @@ class SEQUENCER_MT_strip(Menu):
         #}
 
         layout.separator()
-        props = layout.operator("sequencer.reload", text="Reload Strips")
-        props.adjust_length = False
-        props = layout.operator("sequencer.reload", text="Reload Strips and Adjust Length")
-        props.adjust_length = True
+        layout.operator("sequencer.reload", text="Reload Strips").adjust_length = False
+        layout.operator("sequencer.reload", text="Reload Strips and Adjust Length").adjust_length = True
         layout.operator("sequencer.reassign_inputs")
         layout.operator("sequencer.swap_inputs")
+
         layout.separator()
         layout.operator("sequencer.lock")
         layout.operator("sequencer.unlock")
@@ -407,16 +418,21 @@ class SEQUENCER_PT_edit(SequencerButtonsPanel, Panel):
         split.label(text="Type:")
         split.prop(strip, "type", text="")
 
-        split = layout.split(percentage=0.3)
-        split.label(text="Blend:")
-        split.prop(strip, "blend_type", text="")
+        if strip.type not in {'SOUND'}:
+            split = layout.split(percentage=0.3)
+            split.label(text="Blend:")
+            split.prop(strip, "blend_type", text="")
 
-        row = layout.row(align=True)
-        sub = row.row()
-        sub.active = (not strip.mute)
-        sub.prop(strip, "blend_alpha", text="Opacity", slider=True)
-        row.prop(strip, "mute", toggle=True, icon='RESTRICT_VIEW_ON' if strip.mute else 'RESTRICT_VIEW_OFF', text="")
-        row.prop(strip, "lock", toggle=True, icon='LOCKED' if strip.lock else 'UNLOCKED', text="")
+            row = layout.row(align=True)
+            sub = row.row(align=True)
+            sub.active = (not strip.mute)
+            sub.prop(strip, "blend_alpha", text="Opacity", slider=True)
+            row.prop(strip, "mute", toggle=True, icon_only=True)
+            row.prop(strip, "lock", toggle=True, icon_only=True)
+        else:
+            row = layout.row(align=True)
+            row.prop(strip, "mute", toggle=True, icon_only=True)
+            row.prop(strip, "lock", toggle=True, icon_only=True)
 
         col = layout.column()
         sub = col.column()
@@ -426,10 +442,10 @@ class SEQUENCER_PT_edit(SequencerButtonsPanel, Panel):
         sub.prop(strip, "frame_final_duration")
 
         col = layout.column(align=True)
-        row = col.row()
+        row = col.row(align=True)
         row.label(text=iface_("Final Length: %s") % bpy.utils.smpte_from_frame(strip.frame_final_duration),
                   translate=False)
-        row = col.row()
+        row = col.row(align=True)
         row.active = (frame_current >= strip.frame_start and frame_current <= strip.frame_start + strip.frame_duration)
         row.label(text=iface_("Playhead: %d") % (frame_current - strip.frame_start), translate=False)
 
@@ -548,7 +564,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
             layout.prop(strip, "multicam_source")
 
             row = layout.row(align=True)
-            sub = row.row()
+            sub = row.row(align=True)
             sub.scale_x = 2.0
 
             sub.operator("screen.animation_play", text="", icon='PAUSE' if context.screen.is_animation_playing else 'PLAY')
@@ -671,13 +687,14 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
         layout.separator()
         layout.prop(strip, "filepath", text="")
 
-        row = layout.row()
-        if sound.packed_file:
-            row.operator("sound.unpack", icon='PACKAGE', text="Unpack")
-        else:
-            row.operator("sound.pack", icon='UGLYPACKAGE', text="Pack")
+        if sound is not None:
+            row = layout.row()
+            if sound.packed_file:
+                row.operator("sound.unpack", icon='PACKAGE', text="Unpack")
+            else:
+                row.operator("sound.pack", icon='UGLYPACKAGE', text="Pack")
 
-        row.prop(sound, "use_memory_cache")
+            row.prop(sound, "use_memory_cache")
 
         layout.prop(strip, "show_waveform")
         layout.prop(strip, "volume")
@@ -685,9 +702,14 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
         layout.prop(strip, "pan")
 
         col = layout.column(align=True)
-        col.label(text="Trim Duration:")
+        col.label(text="Trim Duration (hard):")
         col.prop(strip, "animation_offset_start", text="Start")
         col.prop(strip, "animation_offset_end", text="End")
+
+        col = layout.column(align=True)
+        col.label(text="Trim Duration (soft):")
+        col.prop(strip, "frame_offset_start", text="Start")
+        col.prop(strip, "frame_offset_end", text="End")
 
 
 class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
@@ -717,6 +739,8 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
         layout.template_ID(strip, "scene_camera")
 
         if scene:
+            layout.prop(scene, "audio_volume", text="Audio Volume")
+
             sta = scene.frame_start
             end = scene.frame_end
             layout.label(text=iface_("Original frame range: %d-%d (%d)") % (sta, end, end - sta + 1), translate=False)
@@ -923,8 +947,7 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
             props.name = mod.name
             props.direction = 'DOWN'
 
-            props = row.operator("sequencer.strip_modifier_remove", text="", icon='X', emboss=False)
-            props.name = mod.name
+            row.operator("sequencer.strip_modifier_remove", text="", icon='X', emboss=False).name = mod.name
 
             if mod.show_expanded:
                 row = box.row()

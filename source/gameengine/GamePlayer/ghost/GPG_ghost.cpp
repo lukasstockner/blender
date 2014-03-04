@@ -40,11 +40,6 @@
 #endif /* __alpha__ */
 #endif /* __linux__ */
 
-#ifdef __APPLE__
-// Can't use Carbon right now because of double defined type ID (In Carbon.h and DNA_ID.h, sigh)
-//#include <Carbon/Carbon.h>
-//#include <CFBundle.h>
-#endif // __APPLE__
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h"
 #include "KX_PythonMain.h"
@@ -57,22 +52,32 @@ extern "C"
 {
 #endif  // __cplusplus
 #include "MEM_guardedalloc.h"
+#include "MEM_CacheLimiterC-Api.h"
+
+#include "BLI_threads.h"
+#include "BLI_mempool.h"
+#include "BLI_blenlib.h"
+
+#include "DNA_scene_types.h"
+#include "DNA_userdef_types.h"
+
+#include "BLO_readfile.h"
+#include "BLO_runtime.h"
+
 #include "BKE_blender.h"
+#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_icons.h"
 #include "BKE_image.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_library.h"
-#include "BLI_threads.h"
-#include "BLI_blenlib.h"
-#include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
-#include "BLO_readfile.h"
-#include "BLO_runtime.h"
-#include "IMB_imbuf.h"
+#include "BKE_modifier.h"
 #include "BKE_text.h"
 #include "BKE_sound.h"
+
+#include "IMB_imbuf.h"
+#include "IMB_moviecache.h"
 	
 	int GHOST_HACK_getFirstFile(char buf[]);
 	
@@ -81,6 +86,8 @@ extern "C"
 #include "BLF_translation.h"
 extern int datatoc_bfont_ttf_size;
 extern char datatoc_bfont_ttf[];
+extern int datatoc_bmonofont_ttf_size;
+extern char datatoc_bmonofont_ttf[];
 
 #ifdef __cplusplus
 }
@@ -116,6 +123,14 @@ static void mem_error_cb(const char *errorStr)
 {
 	fprintf(stderr, "%s", errorStr);
 	fflush(stderr);
+}
+
+// library.c will only free window managers with a callback function.
+// We don't actually use a wmWindowManager, but loading a blendfile
+// loads wmWindows, so we need to free those.
+static void wm_free(bContext *C, wmWindowManager *wm)
+{
+	BLI_freelistN(&wm->windows);
 }
 
 #ifdef WIN32
@@ -409,27 +424,6 @@ int main(int argc, char** argv)
 #endif /* __linux__ */
 	BLI_init_program_path(argv[0]);
 	BLI_init_temporary_dir(NULL);
-#ifdef __APPLE__
-	// Can't use Carbon right now because of double defined type ID (In Carbon.h and DNA_ID.h, sigh)
-	/*
-	IBNibRef 		nibRef;
-	WindowRef 		window;
-	OSStatus		err;
-
-	  // Create a Nib reference passing the name of the nib file (without the .nib extension)
-	  // CreateNibReference only searches into the application bundle.
-	  err = ::CreateNibReference(CFSTR("main"), &nibRef);
-	  if (err) return -1;
-	  
-		// Once the nib reference is created, set the menu bar. "MainMenu" is the name of the menu bar
-		// object. This name is set in InterfaceBuilder when the nib is created.
-		err = ::SetMenuBarFromNib(nibRef, CFSTR("MenuBar"));
-		if (err) return -1;
-		
-		  // We don't need the nib reference anymore.
-		  ::DisposeNibReference(nibRef);
-	*/
-#endif // __APPLE__
 	
 	// We don't use threads directly in the BGE, but we need to call this so things like
 	// freeing up GPU_Textures works correctly.
@@ -443,11 +437,14 @@ int main(int argc, char** argv)
 
 	U.gameflags |= USER_DISABLE_VBO;
 	// We load our own G.main, so free the one that initglobals() gives us
-	free_main(G.main);
+	BKE_main_free(G.main);
 	G.main = NULL;
 
+	MEM_CacheLimiter_set_disabled(true);
 	IMB_init();
 	BKE_images_init();
+	BKE_modifier_init();
+	DAG_init();
 
 #ifdef WITH_FFMPEG
 	IMB_ffmpeg_init();
@@ -459,6 +456,8 @@ int main(int argc, char** argv)
 	BLF_lang_set("");
 
 	BLF_load_mem("default", (unsigned char*)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
+	if (blf_mono_font == -1)
+		blf_mono_font = BLF_load_mem_unique("monospace", (unsigned char*)datatoc_bmonofont_ttf, datatoc_bmonofont_ttf_size);
 
 	// Parse command line options
 #if defined(DEBUG)
@@ -500,6 +499,8 @@ int main(int argc, char** argv)
 	U.use_gpu_mipmap = 1;
 
 	sound_init_once();
+
+	set_free_windowmanager_cb(wm_free);
 
 	/* if running blenderplayer the last argument can't be parsed since it has to be the filename. */
 	isBlenderPlayer = !BLO_is_a_runtime(argv[0]);
@@ -567,8 +568,11 @@ int main(int argc, char** argv)
 
 			case 'd':
 				i++;
-				G.debug |= G_DEBUG;     /* std output printf's */
+				G.debug |= G_DEBUG;
 				MEM_set_memory_debug();
+#ifdef DEBUG
+				BLI_mempool_set_memory_debug();
+#endif
 				break;
 
 			case 'f':
@@ -656,6 +660,9 @@ int main(int argc, char** argv)
 					}
 					else if (!strcmp(argv[i], "syncdoubling"))
 						stereomode = RAS_IRasterizer::RAS_STEREO_ABOVEBELOW;
+
+					else if (!strcmp(argv[i], "3dtvtopbottom"))
+						stereomode = RAS_IRasterizer::RAS_STEREO_3DTVTOPBOTTOM;
 
 					else if (!strcmp(argv[i], "anaglyph"))
 						stereomode = RAS_IRasterizer::RAS_STEREO_ANAGLYPH;
@@ -750,11 +757,6 @@ int main(int argc, char** argv)
 	if (scr_saver_mode != SCREEN_SAVER_MODE_CONFIGURATION)
 #endif
 	{
-#ifdef __APPLE__
-		//SYS_WriteCommandLineInt(syshandle, "show_framerate", 1);
-		//SYS_WriteCommandLineInt(syshandle, "nomipmap", 1);
-		//fullScreen = false;		// Can't use full screen
-#endif
 
 		if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
 			GPU_set_mipmap(0);
@@ -813,9 +815,8 @@ int main(int argc, char** argv)
 
 						if (!bfd) {
 							// just add "//" in front of it
-							char temppath[242];
-							strcpy(temppath, "//");
-							strcat(temppath, basedpath);
+							char temppath[FILE_MAX] = "//";
+							BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
 
 							BLI_path_abs(temppath, pathname);
 							bfd = load_game_data(temppath);
@@ -1032,6 +1033,8 @@ int main(int argc, char** argv)
 						system->removeEventConsumer(&app);
 
 						BLO_blendfiledata_free(bfd);
+						/* G.main == bfd->main, it gets referenced in free_nodesystem so we can't have a dangling pointer */
+						G.main = NULL;
 						if (python_main) MEM_freeN(python_main);
 					}
 				} while (exitcode == KX_EXIT_REQUEST_RESTART_GAME || exitcode == KX_EXIT_REQUEST_START_OTHER_GAME);
@@ -1049,6 +1052,13 @@ int main(int argc, char** argv)
 		}
 	}
 
+	/* refer to WM_exit_ext() and free_blender(),
+	 * these are not called in the player but we need to match some of there behavior here,
+	 * if the order of function calls or blenders state isn't matching that of blender proper,
+	 * we may get troubles later on */
+
+	free_nodesystem();
+
 	// Cleanup
 	RNA_exit();
 	BLF_exit();
@@ -1061,7 +1071,8 @@ int main(int argc, char** argv)
 
 	IMB_exit();
 	BKE_images_exit();
-	free_nodesystem();
+	DAG_exit();
+	IMB_moviecache_destruct();
 
 	SYS_DeleteSystem(syshandle);
 

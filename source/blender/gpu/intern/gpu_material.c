@@ -27,6 +27,8 @@
 
 /** \file blender/gpu/intern/gpu_material.c
  *  \ingroup gpu
+ *
+ * Manages materials, lights and textures.
  */
 
 /* my interface */
@@ -372,6 +374,11 @@ void GPU_material_unbind(GPUMaterial *material)
 int GPU_material_bound(GPUMaterial *material)
 {
 	return material->bound;
+}
+
+Scene *GPU_material_scene(GPUMaterial *material)
+{
+	return material->scene;
 }
 
 void GPU_material_vertex_attributes(GPUMaterial *material, GPUVertexAttribs *attribs)
@@ -761,12 +768,16 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			}
 			
 			if (lamp->mode & LA_ONLYSHADOW) {
+				GPUNodeLink *rgb;
 				GPU_link(mat, "shade_only_shadow", i, shadfac,
 					GPU_dynamic_uniform(&lamp->dynenergy, GPU_DYNAMIC_LAMP_DYNENERGY, lamp->ob), &shadfac);
+
+				GPU_link(mat, "shade_mul", shi->rgb, GPU_uniform(lamp->shadow_color), &rgb);
+				GPU_link(mat, "mtex_rgb_invert", rgb, &rgb);
 				
 				if (!(lamp->mode & LA_NO_DIFF)) {
-					GPU_link(mat, "mix_mult", shadfac, shr->diff,
-						GPU_uniform(lamp->shadow_color), &shr->diff);
+					GPU_link(mat, "shade_only_shadow_diffuse", shadfac, rgb,
+						shr->diff, &shr->diff);
 				}
 
 				if (!(lamp->mode & LA_NO_SPEC))
@@ -861,17 +872,21 @@ static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 
 		if (ob->transflag & OB_DUPLI) {
 			DupliObject *dob;
-			ListBase *lb = object_duplilist(shi->gpumat->scene, ob, FALSE);
+			ListBase *lb = object_duplilist(G.main->eval_ctx, shi->gpumat->scene, ob);
 			
 			for (dob=lb->first; dob; dob=dob->next) {
 				Object *ob_iter = dob->ob;
 
 				if (ob_iter->type==OB_LAMP) {
+					float omat[4][4];
+					copy_m4_m4(omat, ob_iter->obmat);
 					copy_m4_m4(ob_iter->obmat, dob->mat);
 
 					lamp = GPU_lamp_from_blender(shi->gpumat->scene, ob_iter, ob);
 					if (lamp)
 						shade_one_light(shi, shr, lamp);
+
+					copy_m4_m4(ob_iter->obmat, omat);
 				}
 			}
 			
@@ -1142,7 +1157,16 @@ static void do_material_tex(GPUShadeInput *shi)
 								GPU_link(mat, "mtex_nspace_tangent", GPU_attribute(CD_TANGENT, ""), shi->vn, tnor, &newnor);
 							}
 						}
+						else if (mtex->normapspace == MTEX_NSPACE_OBJECT) {
+							/* transform normal by object then view matrix */
+							GPU_link(mat, "mtex_nspace_object", GPU_builtin(GPU_VIEW_MATRIX), GPU_builtin(GPU_OBJECT_MATRIX), tnor, &newnor);
+						}
+						else if (mtex->normapspace == MTEX_NSPACE_WORLD) {
+							/* transform normal by view matrix */
+							GPU_link(mat, "mtex_nspace_world", GPU_builtin(GPU_VIEW_MATRIX), tnor, &newnor);
+						}
 						else {
+							/* no transform, normal in camera space */
 							newnor = tnor;
 						}
 						
@@ -1382,7 +1406,7 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 	GPU_link(mat, "set_rgb", GPU_uniform(&ma->specr), &shi->specrgb);
 	GPU_link(mat, "shade_norm", GPU_builtin(GPU_VIEW_NORMAL), &shi->vn);
 
-	if (ma->mode & MA_TRANSP)
+	if (mat->alpha)
 		GPU_link(mat, "set_value", GPU_uniform(&ma->alpha), &shi->alpha);
 	else
 		GPU_link(mat, "set_value", GPU_uniform(&one), &shi->alpha);
@@ -1413,9 +1437,6 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		shi->rgb = shi->vcol;
 
 	do_material_tex(shi);
-
-	if ((ma->mode & MA_TRANSP) && (ma->mode & MA_ZTRANSP))
-		GPU_material_enable_alpha(mat);
 
 	if ((mat->scene->gm.flag & GAME_GLSL_NO_LIGHTS) || (ma->mode & MA_SHLESS)) {
 		GPU_link(mat, "set_rgb", shi->rgb, &shr->diff);
@@ -1489,7 +1510,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 			GPU_uniform(&world->horr), &shr->combined);
 	}
 
-	if (!((ma->mode & MA_TRANSP) && (ma->mode & MA_ZTRANSP))) {
+	if (!mat->alpha) {
 		if (world && (GPU_link_changed(shr->alpha) || ma->alpha != 1.0f))
 			GPU_link(mat, "shade_world_mix", GPU_uniform(&world->horr),
 				shr->combined, &shr->combined);
@@ -1584,9 +1605,16 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma)
 	mat = GPU_material_construct_begin(ma);
 	mat->scene = scene;
 
+	/* render pipeline option */
+	if (ma->mode & MA_TRANSP)
+		GPU_material_enable_alpha(mat);
+
 	if (!(scene->gm.flag & GAME_GLSL_NO_NODES) && ma->nodetree && ma->use_nodes) {
 		/* create nodes */
-		ntreeGPUMaterialNodes(ma->nodetree, mat);
+		if (BKE_scene_use_new_shading_nodes(scene))
+			ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_NEW_SHADING);
+		else
+			ntreeGPUMaterialNodes(ma->nodetree, mat, NODE_OLD_SHADING);
 	}
 	else {
 		if (BKE_scene_use_new_shading_nodes(scene)) {
@@ -1670,8 +1698,8 @@ void GPU_lamp_update_distance(GPULamp *lamp, float distance, float att1, float a
 
 void GPU_lamp_update_spot(GPULamp *lamp, float spotsize, float spotblend)
 {
-	lamp->spotsi= cosf((float)M_PI * spotsize / 360.0f);
-	lamp->spotbl= (1.0f - lamp->spotsi) * spotblend;
+	lamp->spotsi = cosf(spotsize * 0.5f);
+	lamp->spotbl = (1.0f - lamp->spotsi) * spotblend;
 }
 
 static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *la, GPULamp *lamp)
@@ -1696,11 +1724,11 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 
 	GPU_lamp_update(lamp, ob->lay, (ob->restrictflag & OB_RESTRICT_RENDER), ob->obmat);
 
-	lamp->spotsi= la->spotsize;
+	lamp->spotsi = la->spotsize;
 	if (lamp->mode & LA_HALO)
-		if (lamp->spotsi > 170.0f)
-			lamp->spotsi = 170.0f;
-	lamp->spotsi= cosf((float)M_PI*lamp->spotsi/360.0f);
+		if (lamp->spotsi > DEG2RADF(170.0f))
+			lamp->spotsi = DEG2RADF(170.0f);
+	lamp->spotsi = cosf(lamp->spotsi * 0.5f);
 	lamp->spotbl= (1.0f - lamp->spotsi)*la->spotblend;
 	lamp->k= la->k;
 
@@ -1779,7 +1807,7 @@ GPULamp *GPU_lamp_from_blender(Scene *scene, Object *ob, Object *par)
 	la = ob->data;
 	gpu_lamp_from_blender(scene, ob, par, la, lamp);
 
-	if ((la->type==LA_SPOT && (la->mode & LA_SHAD_BUF)) || (la->type==LA_SUN && (la->mode & LA_SHAD_RAY))) {
+	if ((la->type==LA_SPOT && (la->mode & (LA_SHAD_BUF | LA_SHAD_RAY))) || (la->type==LA_SUN && (la->mode & LA_SHAD_RAY))) {
 		/* opengl */
 		lamp->fb = GPU_framebuffer_create();
 		if (!lamp->fb) {
@@ -1885,11 +1913,11 @@ void GPU_lamp_free(Object *ob)
 	BLI_freelistN(&ob->gpulamp);
 }
 
-int GPU_lamp_has_shadow_buffer(GPULamp *lamp)
+bool GPU_lamp_has_shadow_buffer(GPULamp *lamp)
 {
 	return (!(lamp->scene->gm.flag & GAME_GLSL_NO_SHADOWS) &&
-			!(lamp->scene->gm.flag & GAME_GLSL_NO_LIGHTS) &&
-			lamp->tex && lamp->fb);
+	        !(lamp->scene->gm.flag & GAME_GLSL_NO_LIGHTS) &&
+	        lamp->tex && lamp->fb);
 }
 
 void GPU_lamp_update_buffer_mats(GPULamp *lamp)
@@ -1957,6 +1985,48 @@ int GPU_lamp_shadow_layer(GPULamp *lamp)
 		return lamp->lay;
 	else
 		return -1;
+}
+
+GPUNodeLink *GPU_lamp_get_data(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **col, GPUNodeLink **lv, GPUNodeLink **dist, GPUNodeLink **shadow)
+{
+	GPUNodeLink *visifac;
+
+	*col = GPU_dynamic_uniform(lamp->dyncol, GPU_DYNAMIC_LAMP_DYNCOL, lamp->ob);
+	visifac = lamp_get_visibility(mat, lamp, lv, dist);
+	shade_light_textures(mat, lamp, col);
+
+	if (GPU_lamp_has_shadow_buffer(lamp)) {
+		GPUNodeLink *vn, *inp;
+
+		GPU_link(mat, "shade_norm", GPU_builtin(GPU_VIEW_NORMAL), &vn);
+		GPU_link(mat, "shade_inp", vn, *lv, &inp);
+		mat->dynproperty |= DYN_LAMP_PERSMAT;
+
+		if (lamp->la->shadowmap_type == LA_SHADMAP_VARIANCE) {
+			GPU_link(mat, "shadows_only_vsm",
+				 GPU_builtin(GPU_VIEW_POSITION),
+				 GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+				 GPU_dynamic_uniform((float*)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
+				 GPU_uniform(&lamp->bias), GPU_uniform(&lamp->la->bleedbias),
+				 GPU_uniform(lamp->shadow_color), inp, shadow);
+		}
+		else {
+			GPU_link(mat, "shadows_only",
+				 GPU_builtin(GPU_VIEW_POSITION),
+				 GPU_dynamic_texture(lamp->tex, GPU_DYNAMIC_SAMPLER_2DSHADOW, lamp->ob),
+				 GPU_dynamic_uniform((float*)lamp->dynpersmat, GPU_DYNAMIC_LAMP_DYNPERSMAT, lamp->ob),
+				 GPU_uniform(&lamp->bias), GPU_uniform(lamp->shadow_color), inp, shadow);
+		}
+	}
+	else {
+		GPU_link(mat, "set_rgb_one", shadow);
+	}
+
+	/* ensure shadow buffer and lamp textures will be updated */
+	add_user_list(&mat->lamps, lamp);
+	add_user_list(&lamp->materials, mat->ma);
+
+	return visifac;
 }
 
 /* export the GLSL shader */

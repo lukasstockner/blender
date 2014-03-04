@@ -55,11 +55,11 @@ void ProjectorLensDistortionOperation::executePixel(float output[4], int x, int 
 	const float v = (y + 0.5f) / height;
 	const float u = (x + 0.5f) / width;
 	MemoryBuffer *inputBuffer = (MemoryBuffer *)data;
-	inputBuffer->readCubic(inputValue, (u * width + this->m_kr2) - 0.5f, v * height - 0.5f);
+	inputBuffer->readBilinear(inputValue, (u * width + this->m_kr2) - 0.5f, v * height - 0.5f);
 	output[0] = inputValue[0];
 	inputBuffer->read(inputValue, x, y);
 	output[1] = inputValue[1];
-	inputBuffer->readCubic(inputValue, (u * width - this->m_kr2) - 0.5f, v * height - 0.5f);
+	inputBuffer->readBilinear(inputValue, (u * width - this->m_kr2) - 0.5f, v * height - 0.5f);
 	output[2] = inputValue[2];
 	output[3] = 1.0f;
 }
@@ -102,7 +102,7 @@ void ProjectorLensDistortionOperation::updateDispersion()
 	this->lockMutex();
 	if (!this->m_dispersionAvailable) {
 		float result[4];
-		this->getInputSocketReader(1)->read(result, 1, 1, COM_PS_NEAREST);
+		this->getInputSocketReader(1)->readSampled(result, 1, 1, COM_PS_NEAREST);
 		this->m_dispersion = result[0];
 		this->m_kr = 0.25f * max_ff(min_ff(this->m_dispersion, 1.0f), 0.0f);
 		this->m_kr2 = this->m_kr * 20;

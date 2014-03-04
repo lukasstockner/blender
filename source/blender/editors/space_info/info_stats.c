@@ -115,8 +115,8 @@ static void stats_object(Object *ob, int sel, int totob, SceneStats *stats)
 		{
 			int totv = 0, totf = 0, tottri = 0;
 
-			if (ob->disp.first)
-				BKE_displist_count(&ob->disp, &totv, &totf, &tottri);
+			if (ob->curve_cache && ob->curve_cache->disp.first)
+				BKE_displist_count(&ob->curve_cache->disp, &totv, &totf, &tottri);
 
 			totv   *= totob;
 			totf   *= totob;
@@ -194,9 +194,9 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
 				a = nu->pntsu;
 				while (a--) {
 					stats->totvert += 3;
-					if (bezt->f1) stats->totvertsel++;
-					if (bezt->f2) stats->totvertsel++;
-					if (bezt->f3) stats->totvertsel++;
+					if (bezt->f1 & SELECT) stats->totvertsel++;
+					if (bezt->f2 & SELECT) stats->totvertsel++;
+					if (bezt->f3 & SELECT) stats->totvertsel++;
 					bezt++;
 				}
 			}
@@ -296,7 +296,16 @@ static void stats_dupli_object(Base *base, Object *ob, SceneStats *stats)
 	}
 	else if (ob->parent && (ob->parent->transflag & (OB_DUPLIVERTS | OB_DUPLIFACES))) {
 		/* Dupli Verts/Faces */
-		int tot = count_duplilist(ob->parent);
+		int tot;
+
+		/* metaball dupli-instances are tessellated once */
+		if (ob->type == OB_MBALL) {
+			tot = 1;
+		}
+		else {
+			tot = count_duplilist(ob->parent);
+		}
+
 		stats->totobj += tot;
 		stats_object(ob, base->flag & SELECT, tot, stats);
 	}
@@ -319,7 +328,7 @@ static void stats_dupli_object(Base *base, Object *ob, SceneStats *stats)
 	}
 }
 
-static int stats_is_object_dynamic_topology_sculpt(Object *ob)
+static bool stats_is_object_dynamic_topology_sculpt(Object *ob)
 {
 	return (ob && (ob->mode & OB_MODE_SCULPT) &&
 	        ob->sculpt && ob->sculpt->bm);

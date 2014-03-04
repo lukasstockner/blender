@@ -40,7 +40,7 @@ ifndef BUILD_CMAKE_ARGS
 endif
 
 ifndef BUILD_DIR
-	BUILD_DIR:=$(shell dirname $(BLENDER_DIR))/build_$(OS_NCASE)
+	BUILD_DIR:=$(shell dirname "$(BLENDER_DIR)")/build_$(OS_NCASE)
 endif
 
 
@@ -54,15 +54,19 @@ ifneq "$(findstring debug, $(MAKECMDGOALS))" ""
 endif
 ifneq "$(findstring lite, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_lite
-	BUILD_CMAKE_ARGS:=$(BUILD_CMAKE_ARGS) -C$(BLENDER_DIR)/build_files/cmake/config/blender_lite.cmake
+	BUILD_CMAKE_ARGS:=$(BUILD_CMAKE_ARGS) -C"$(BLENDER_DIR)/build_files/cmake/config/blender_lite.cmake"
+endif
+ifneq "$(findstring cycles, $(MAKECMDGOALS))" ""
+	BUILD_DIR:=$(BUILD_DIR)_cycles
+	BUILD_CMAKE_ARGS:=$(BUILD_CMAKE_ARGS) -C"$(BLENDER_DIR)/build_files/cmake/config/cycles_standalone.cmake"
 endif
 ifneq "$(findstring headless, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_bpy
-	BUILD_CMAKE_ARGS:=$(BUILD_CMAKE_ARGS) -C$(BLENDER_DIR)/build_files/cmake/config/blender_headless.cmake
+	BUILD_CMAKE_ARGS:=$(BUILD_CMAKE_ARGS) -C"$(BLENDER_DIR)/build_files/cmake/config/blender_headless.cmake"
 endif
 ifneq "$(findstring bpy, $(MAKECMDGOALS))" ""
 	BUILD_DIR:=$(BUILD_DIR)_bpy
-	BUILD_CMAKE_ARGS:=$(BUILD_CMAKE_ARGS) -C$(BLENDER_DIR)/build_files/cmake/config/bpy_module.cmake
+	BUILD_CMAKE_ARGS:=$(BUILD_CMAKE_ARGS) -C"$(BLENDER_DIR)/build_files/cmake/config/bpy_module.cmake"
 endif
 
 
@@ -87,8 +91,8 @@ endif
 # Macro for configuring cmake
 
 CMAKE_CONFIG = cmake $(BUILD_CMAKE_ARGS) \
-                     -H$(BLENDER_DIR) \
-                     -B$(BUILD_DIR) \
+                     -H"$(BLENDER_DIR)" \
+                     -B"$(BUILD_DIR)" \
                      -DCMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE)
 
 
@@ -118,7 +122,7 @@ all:
 
 	@echo
 	@echo Building Blender ...
-	$(MAKE) -C $(BUILD_DIR) -s -j $(NPROCS) install
+	$(MAKE) -C "$(BUILD_DIR)" -s -j $(NPROCS) install
 	@echo
 	@echo edit build configuration with: "$(BUILD_DIR)/CMakeCache.txt" run make again to rebuild.
 	@echo blender installed, run from: "$(BUILD_DIR)/bin/blender"
@@ -126,6 +130,7 @@ all:
 
 debug: all
 lite: all
+cycles: all
 headless: all
 bpy: all
 
@@ -133,7 +138,7 @@ bpy: all
 # -----------------------------------------------------------------------------
 # Configuration (save some cd'ing around)
 config:
-	$(CMAKE_CONFIG_TOOL) $(BUILD_DIR)
+	$(CMAKE_CONFIG_TOOL) "$(BUILD_DIR)"
 
 
 # -----------------------------------------------------------------------------
@@ -144,6 +149,7 @@ help:
 	@echo "  * debug     - build a debug binary"
 	@echo "  * lite      - disable non essential features for a smaller binary and faster build"
 	@echo "  * headless  - build without an interface (renderfarm or server automation)"
+	@echo "  * cycles    - build Cycles standalone only, without Blender"
 	@echo "  * bpy       - build as a python module which can be loaded from python directly"
 	@echo ""
 	@echo "  * config    - run cmake configuration tool to set build options"
@@ -182,8 +188,10 @@ help:
 	@echo "  * check_spelling_c_qtc - same as check_spelling_c but outputs QtCreator tasks format"
 	@echo "  * check_spelling_osl   - check for spelling errors (OSL only)"
 	@echo "  * check_spelling_py    - check for spelling errors (Python only)"
+	@echo "  * check_descriptions   - check for duplicate/invalid descriptions"
 	@echo ""
 	@echo "Utilities (not associated with building blender)"
+	@echo "  * icons    - updates PNG icons from SVG files."
 	@echo "  * tbz      - create a compressed svn export 'blender_archive.tar.bz2'"
 	@echo ""
 	@echo "Documentation Targets (not associated with building blender)"
@@ -203,7 +211,7 @@ package_pacman:
 	cd build_files/package_spec/pacman ; MAKEFLAGS="-j$(NPROCS)" makepkg --asroot
 
 package_archive:
-	make -C $(BUILD_DIR) -s package_archive
+	make -C "$(BUILD_DIR)" -s package_archive
 	@echo archive in "$(BUILD_DIR)/release"
 
 
@@ -229,25 +237,25 @@ test_deprecated:
 
 test_style_c:
 	# run our own checks on C/C++ style
-	PYTHONIOENCODING=utf_8 python3 $(BLENDER_DIR)/source/tools/check_style_c.py $(BLENDER_DIR)/source/blender $(BLENDER_DIR)/source/creator --no-length-check
+	PYTHONIOENCODING=utf_8 python3 "$(BLENDER_DIR)/source/tools/check_source/check_style_c.py" "$(BLENDER_DIR)/source/blender" "$(BLENDER_DIR)/source/creator" --no-length-check
 
 test_style_c_qtc:
 	# run our own checks on C/C++ style
 	USE_QTC_TASK=1 \
-	PYTHONIOENCODING=utf_8 python3 $(BLENDER_DIR)/source/tools/check_style_c.py $(BLENDER_DIR)/source/blender $(BLENDER_DIR)/source/creator --no-length-check > \
+	PYTHONIOENCODING=utf_8 python3 "$(BLENDER_DIR)/source/tools/check_source/check_style_c.py" "$(BLENDER_DIR)/source/blender" "$(BLENDER_DIR)/source/creator" --no-length-check > \
 	test_style.tasks
 	@echo "written: test_style.tasks"
 
 
 test_style_osl:
 	# run our own checks on C/C++ style
-	PYTHONIOENCODING=utf_8 python3 $(BLENDER_DIR)/source/tools/check_style_c.py $(BLENDER_DIR)/intern/cycles/kernel/shaders
+	PYTHONIOENCODING=utf_8 python3 "$(BLENDER_DIR)/source/tools/check_source/check_style_c.py" "$(BLENDER_DIR)/intern/cycles/kernel/shaders" "$(BLENDER_DIR)/release/scripts/templates_osl"
 
 
 test_style_osl_qtc:
 	# run our own checks on C/C++ style
 	USE_QTC_TASK=1 \
-	PYTHONIOENCODING=utf_8 python3 $(BLENDER_DIR)/source/tools/check_style_c.py $(BLENDER_DIR)/intern/cycles/kernel/shaders > \
+	PYTHONIOENCODING=utf_8 python3 "$(BLENDER_DIR)/source/tools/check_source/check_style_c.py" "$(BLENDER_DIR)/intern/cycles/kernel/shaders" "$(BLENDER_DIR)/release/scripts/templates_osl" > \
 	test_style.tasks
 	@echo "written: test_style.tasks"
 
@@ -256,13 +264,13 @@ test_style_osl_qtc:
 #
 
 project_qtcreator:
-	python3 build_files/cmake/cmake_qtcreator_project.py $(BUILD_DIR)
+	python3 build_files/cmake/cmake_qtcreator_project.py "$(BUILD_DIR)"
 
 project_netbeans:
-	python3 build_files/cmake/cmake_netbeans_project.py $(BUILD_DIR)
+	python3 build_files/cmake/cmake_netbeans_project.py "$(BUILD_DIR)"
 
 project_eclipse:
-	cmake -G"Eclipse CDT4 - Unix Makefiles" -H$(BLENDER_DIR) -B$(BUILD_DIR)
+	cmake -G"Eclipse CDT4 - Unix Makefiles" -H"$(BLENDER_DIR)" -B"$(BUILD_DIR)"
 
 
 # -----------------------------------------------------------------------------
@@ -271,46 +279,49 @@ project_eclipse:
 
 check_cppcheck:
 	$(CMAKE_CONFIG)
-	cd $(BUILD_DIR) ; \
-	python3 $(BLENDER_DIR)/build_files/cmake/cmake_static_check_cppcheck.py 2> \
-	$(BLENDER_DIR)/check_cppcheck.txt
+	cd "$(BUILD_DIR)" ; \
+	python3 "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_cppcheck.py" 2> \
+	"$(BLENDER_DIR)/check_cppcheck.txt"
 	@echo "written: check_cppcheck.txt"
 
 check_clang_array:
 	$(CMAKE_CONFIG)
-	cd $(BUILD_DIR) ; \
-	python3 $(BLENDER_DIR)/build_files/cmake/cmake_static_check_clang_array.py
+	cd "$(BUILD_DIR)" ; \
+	python3 "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_clang_array.py"
 
 check_splint:
 	$(CMAKE_CONFIG)
-	cd $(BUILD_DIR) ; \
-	python3 $(BLENDER_DIR)/build_files/cmake/cmake_static_check_splint.py
+	cd "$(BUILD_DIR)" ; \
+	python3 "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_splint.py"
 
 check_sparse:
 	$(CMAKE_CONFIG)
-	cd $(BUILD_DIR) ; \
-	python3 $(BLENDER_DIR)/build_files/cmake/cmake_static_check_sparse.py
+	cd "$(BUILD_DIR)" ; \
+	python3 "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_sparse.py"
 
 check_smatch:
 	$(CMAKE_CONFIG)
-	cd $(BUILD_DIR) ; \
-	python3 $(BLENDER_DIR)/build_files/cmake/cmake_static_check_smatch.py
+	cd "$(BUILD_DIR)" ; \
+	python3 "$(BLENDER_DIR)/build_files/cmake/cmake_static_check_smatch.py"
 
 check_spelling_py:
-	cd $(BUILD_DIR) ; \
-	PYTHONIOENCODING=utf_8 python3 $(BLENDER_DIR)/source/tools/spell_check_source.py $(BLENDER_DIR)/release/scripts
+	cd "$(BUILD_DIR)" ; \
+	PYTHONIOENCODING=utf_8 python3 "$(BLENDER_DIR)/source/tools/check_source/check_spelling.py" "$(BLENDER_DIR)/release/scripts"
 
 check_spelling_c:
-	cd $(BUILD_DIR) ; \
-	PYTHONIOENCODING=utf_8 python3 $(BLENDER_DIR)/source/tools/spell_check_source.py $(BLENDER_DIR)/source
+	cd "$(BUILD_DIR)" ; \
+	PYTHONIOENCODING=utf_8 python3 "$(BLENDER_DIR)/source/tools/check_source/check_spelling.py" "$(BLENDER_DIR)/source"
 
 check_spelling_c_qtc:
-	cd $(BUILD_DIR) ; USE_QTC_TASK=1 \
-	PYTHONIOENCODING=utf_8 python3 $(BLENDER_DIR)/source/tools/spell_check_source.py $(BLENDER_DIR)/source > \
-	$(BLENDER_DIR)/check_spelling_c.tasks
+	cd "$(BUILD_DIR)" ; USE_QTC_TASK=1 \
+	PYTHONIOENCODING=utf_8 python3 "$(BLENDER_DIR)/source/tools/check_source/check_spelling.py" "$(BLENDER_DIR)/source" > \
+	"$(BLENDER_DIR)/check_spelling_c.tasks"
 
 check_spelling_osl:
-	cd $(BUILD_DIR) ; PYTHONIOENCODING=utf_8 python3 $(BLENDER_DIR)/source/tools/spell_check_source.py $(BLENDER_DIR)/intern/cycles/kernel/shaders
+	cd "$(BUILD_DIR)" ; PYTHONIOENCODING=utf_8 python3 "$(BLENDER_DIR)/source/tools/check_source/check_spelling.py" "$(BLENDER_DIR)/intern/cycles/kernel/shaders"
+
+check_descriptions:
+	"$(BUILD_DIR)/bin/blender" --background -noaudio --factory-startup --python "$(BLENDER_DIR)/source/tools/check_source/check_descriptions.py"
 
 # -----------------------------------------------------------------------------
 # Utilities
@@ -322,6 +333,10 @@ tbz:
 	rm -rf blender_archive/
 	@echo "blender_archive.tar.bz2 written"
 
+icons:
+	"$(BLENDER_DIR)/release/datafiles/blender_icons_update.py"
+	"$(BLENDER_DIR)/release/datafiles/prvicons_update.py"
+
 
 # -----------------------------------------------------------------------------
 # Documentation
@@ -329,7 +344,7 @@ tbz:
 
 # Simple version of ./doc/python_api/sphinx_doc_gen.sh with no PDF generation.
 doc_py:
-	$(BUILD_DIR)/bin/blender --background -noaudio --factory-startup --python doc/python_api/sphinx_doc_gen.py
+	"$(BUILD_DIR)/bin/blender" --background -noaudio --factory-startup --python doc/python_api/sphinx_doc_gen.py
 	cd doc/python_api ; sphinx-build -b html sphinx-in sphinx-out
 	@echo "docs written into: '$(BLENDER_DIR)/doc/python_api/sphinx-out/contents.html'"
 
@@ -338,14 +353,14 @@ doc_doxy:
 	@echo "docs written into: '$(BLENDER_DIR)/doc/doxygen/html/index.html'"
 
 doc_dna:
-	$(BUILD_DIR)/bin/blender --background -noaudio --factory-startup --python doc/blender_file_format/BlendFileDnaExporter_25.py
+	"$(BUILD_DIR)/bin/blender" --background -noaudio --factory-startup --python doc/blender_file_format/BlendFileDnaExporter_25.py
 	@echo "docs written into: '$(BLENDER_DIR)/doc/blender_file_format/dna.html'"
 
 doc_man:
-	python3 doc/manpage/blender.1.py $(BUILD_DIR)/bin/blender
+	python3 doc/manpage/blender.1.py "$(BUILD_DIR)/bin/blender"
 
 
 clean:
-	$(MAKE) -C $(BUILD_DIR) clean
+	$(MAKE) -C "$(BUILD_DIR)" clean
 
 .PHONY: all

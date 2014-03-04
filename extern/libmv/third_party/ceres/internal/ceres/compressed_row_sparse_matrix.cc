@@ -31,10 +31,12 @@
 #include "ceres/compressed_row_sparse_matrix.h"
 
 #include <algorithm>
+#include <numeric>
 #include <vector>
 #include "ceres/crs_matrix.h"
 #include "ceres/internal/port.h"
-#include "ceres/matrix_proto.h"
+#include "ceres/triplet_sparse_matrix.h"
+#include "glog/logging.h"
 
 namespace ceres {
 namespace internal {
@@ -72,28 +74,27 @@ CompressedRowSparseMatrix::CompressedRowSparseMatrix(int num_rows,
                                                      int max_num_nonzeros) {
   num_rows_ = num_rows;
   num_cols_ = num_cols;
-  max_num_nonzeros_ = max_num_nonzeros;
+  rows_.resize(num_rows + 1, 0);
+  cols_.resize(max_num_nonzeros, 0);
+  values_.resize(max_num_nonzeros, 0.0);
 
-  VLOG(1) << "# of rows: " << num_rows_ << " # of columns: " << num_cols_
-          << " max_num_nonzeros: " << max_num_nonzeros_
+
+  VLOG(1) << "# of rows: " << num_rows_
+          << " # of columns: " << num_cols_
+          << " max_num_nonzeros: " << cols_.size()
           << ". Allocating " << (num_rows_ + 1) * sizeof(int) +  // NOLINT
-      max_num_nonzeros_ * sizeof(int) +  // NOLINT
-      max_num_nonzeros_ * sizeof(double);  // NOLINT
-
-  rows_.reset(new int[num_rows_ + 1]);
-  cols_.reset(new int[max_num_nonzeros_]);
-  values_.reset(new double[max_num_nonzeros_]);
-
-  fill(rows_.get(), rows_.get() + num_rows_ + 1, 0);
-  fill(cols_.get(), cols_.get() + max_num_nonzeros_, 0);
-  fill(values_.get(), values_.get() + max_num_nonzeros_, 0);
+      cols_.size() * sizeof(int) +  // NOLINT
+      cols_.size() * sizeof(double);  // NOLINT
 }
 
 CompressedRowSparseMatrix::CompressedRowSparseMatrix(
     const TripletSparseMatrix& m) {
   num_rows_ = m.num_rows();
   num_cols_ = m.num_cols();
-  max_num_nonzeros_ = m.max_num_nonzeros();
+
+  rows_.resize(num_rows_ + 1, 0);
+  cols_.resize(m.num_nonzeros(), 0);
+  values_.resize(m.max_num_nonzeros(), 0.0);
 
   // index is the list of indices into the TripletSparseMatrix m.
   vector<int> index(m.num_nonzeros(), 0);
@@ -105,18 +106,13 @@ CompressedRowSparseMatrix::CompressedRowSparseMatrix(
   // are broken by column.
   sort(index.begin(), index.end(), RowColLessThan(m.rows(), m.cols()));
 
-  VLOG(1) << "# of rows: " << num_rows_ << " # of columns: " << num_cols_
-          << " max_num_nonzeros: " << max_num_nonzeros_
-          << ". Allocating " << (num_rows_ + 1) * sizeof(int) +  // NOLINT
-      max_num_nonzeros_ * sizeof(int) +  // NOLINT
-      max_num_nonzeros_ * sizeof(double);  // NOLINT
-
-  rows_.reset(new int[num_rows_ + 1]);
-  cols_.reset(new int[max_num_nonzeros_]);
-  values_.reset(new double[max_num_nonzeros_]);
-
-  // rows_ = 0
-  fill(rows_.get(), rows_.get() + num_rows_ + 1, 0);
+  VLOG(1) << "# of rows: " << num_rows_
+          << " # of columns: " << num_cols_
+          << " max_num_nonzeros: " << cols_.size()
+          << ". Allocating "
+          << ((num_rows_ + 1) * sizeof(int) +  // NOLINT
+              cols_.size() * sizeof(int) +     // NOLINT
+              cols_.size() * sizeof(double));  // NOLINT
 
   // Copy the contents of the cols and values array in the order given
   // by index and count the number of entries in each row.
@@ -129,43 +125,11 @@ CompressedRowSparseMatrix::CompressedRowSparseMatrix(
 
   // Find the cumulative sum of the row counts.
   for (int i = 1; i < num_rows_ + 1; ++i) {
-    rows_[i] += rows_[i-1];
+    rows_[i] += rows_[i - 1];
   }
 
   CHECK_EQ(num_nonzeros(), m.num_nonzeros());
 }
-
-#ifndef CERES_NO_PROTOCOL_BUFFERS
-CompressedRowSparseMatrix::CompressedRowSparseMatrix(
-    const SparseMatrixProto& outer_proto) {
-  CHECK(outer_proto.has_compressed_row_matrix());
-
-  const CompressedRowSparseMatrixProto& proto =
-      outer_proto.compressed_row_matrix();
-
-  num_rows_ = proto.num_rows();
-  num_cols_ = proto.num_cols();
-
-  rows_.reset(new int[proto.rows_size()]);
-  cols_.reset(new int[proto.cols_size()]);
-  values_.reset(new double[proto.values_size()]);
-
-  for (int i = 0; i < proto.rows_size(); ++i) {
-    rows_[i] = proto.rows(i);
-  }
-
-  CHECK_EQ(proto.rows_size(), num_rows_ + 1);
-  CHECK_EQ(proto.cols_size(), proto.values_size());
-  CHECK_EQ(proto.cols_size(), rows_[num_rows_]);
-
-  for (int i = 0; i < proto.cols_size(); ++i) {
-    cols_[i] = proto.cols(i);
-    values_[i] = proto.values(i);
-  }
-
-  max_num_nonzeros_ = proto.cols_size();
-}
-#endif
 
 CompressedRowSparseMatrix::CompressedRowSparseMatrix(const double* diagonal,
                                                      int num_rows) {
@@ -173,11 +137,9 @@ CompressedRowSparseMatrix::CompressedRowSparseMatrix(const double* diagonal,
 
   num_rows_ = num_rows;
   num_cols_ = num_rows;
-  max_num_nonzeros_ = num_rows;
-
-  rows_.reset(new int[num_rows_ + 1]);
-  cols_.reset(new int[num_rows_]);
-  values_.reset(new double[num_rows_]);
+  rows_.resize(num_rows + 1);
+  cols_.resize(num_rows);
+  values_.resize(num_rows);
 
   rows_[0] = 0;
   for (int i = 0; i < num_rows_; ++i) {
@@ -193,7 +155,7 @@ CompressedRowSparseMatrix::~CompressedRowSparseMatrix() {
 }
 
 void CompressedRowSparseMatrix::SetZero() {
-  fill(values_.get(), values_.get() + num_nonzeros(), 0.0);
+  fill(values_.begin(), values_.end(), 0);
 }
 
 void CompressedRowSparseMatrix::RightMultiply(const double* x,
@@ -248,106 +210,324 @@ void CompressedRowSparseMatrix::ToDenseMatrix(Matrix* dense_matrix) const {
   }
 }
 
-#ifndef CERES_NO_PROTOCOL_BUFFERS
-void CompressedRowSparseMatrix::ToProto(SparseMatrixProto* outer_proto) const {
-  CHECK_NOTNULL(outer_proto);
-
-  outer_proto->Clear();
-  CompressedRowSparseMatrixProto* proto
-      = outer_proto->mutable_compressed_row_matrix();
-
-  proto->set_num_rows(num_rows_);
-  proto->set_num_cols(num_cols_);
-
-  for (int r = 0; r < num_rows_ + 1; ++r) {
-    proto->add_rows(rows_[r]);
-  }
-
-  for (int idx = 0; idx < rows_[num_rows_]; ++idx) {
-    proto->add_cols(cols_[idx]);
-    proto->add_values(values_[idx]);
-  }
-}
-#endif
-
 void CompressedRowSparseMatrix::DeleteRows(int delta_rows) {
   CHECK_GE(delta_rows, 0);
   CHECK_LE(delta_rows, num_rows_);
 
-  int new_num_rows = num_rows_ - delta_rows;
+  num_rows_ -= delta_rows;
+  rows_.resize(num_rows_ + 1);
 
-  num_rows_ = new_num_rows;
-  int* new_rows = new int[num_rows_ + 1];
-  copy(rows_.get(), rows_.get() + num_rows_ + 1, new_rows);
-  rows_.reset(new_rows);
+  // Walk the list of row blocks until we reach the new number of rows
+  // and the drop the rest of the row blocks.
+  int num_row_blocks = 0;
+  int num_rows = 0;
+  while (num_row_blocks < row_blocks_.size() && num_rows < num_rows_) {
+    num_rows += row_blocks_[num_row_blocks];
+    ++num_row_blocks;
+  }
+
+  row_blocks_.resize(num_row_blocks);
 }
 
 void CompressedRowSparseMatrix::AppendRows(const CompressedRowSparseMatrix& m) {
   CHECK_EQ(m.num_cols(), num_cols_);
 
-  // Check if there is enough space. If not, then allocate new arrays
-  // to hold the combined matrix and copy the contents of this matrix
-  // into it.
-  if (max_num_nonzeros_ < num_nonzeros() + m.num_nonzeros()) {
-    int new_max_num_nonzeros =  num_nonzeros() + m.num_nonzeros();
+  CHECK(row_blocks_.size() == 0 || m.row_blocks().size() !=0)
+      << "Cannot append a matrix with row blocks to one without and vice versa."
+      << "This matrix has : " << row_blocks_.size() << " row blocks."
+      << "The matrix being appended has: " << m.row_blocks().size()
+      << " row blocks.";
 
-    VLOG(1) << "Reallocating " << sizeof(int) * new_max_num_nonzeros;  // NOLINT
-
-    int* new_cols = new int[new_max_num_nonzeros];
-    copy(cols_.get(), cols_.get() + max_num_nonzeros_, new_cols);
-    cols_.reset(new_cols);
-
-    double* new_values = new double[new_max_num_nonzeros];
-    copy(values_.get(), values_.get() + max_num_nonzeros_, new_values);
-    values_.reset(new_values);
-
-    max_num_nonzeros_ = new_max_num_nonzeros;
+  if (cols_.size() < num_nonzeros() + m.num_nonzeros()) {
+    cols_.resize(num_nonzeros() + m.num_nonzeros());
+    values_.resize(num_nonzeros() + m.num_nonzeros());
   }
 
   // Copy the contents of m into this matrix.
-  copy(m.cols(), m.cols() + m.num_nonzeros(), cols_.get() + num_nonzeros());
-  copy(m.values(),
-       m.values() + m.num_nonzeros(),
-       values_.get() + num_nonzeros());
-
-  // Create the new rows array to hold the enlarged matrix.
-  int* new_rows = new int[num_rows_ + m.num_rows() + 1];
-  // The first num_rows_ entries are the same
-  copy(rows_.get(), rows_.get() + num_rows_, new_rows);
-
+  copy(m.cols(), m.cols() + m.num_nonzeros(), &cols_[num_nonzeros()]);
+  copy(m.values(), m.values() + m.num_nonzeros(), &values_[num_nonzeros()]);
+  rows_.resize(num_rows_ + m.num_rows() + 1);
   // new_rows = [rows_, m.row() + rows_[num_rows_]]
-  fill(new_rows + num_rows_,
-       new_rows + num_rows_ + m.num_rows() + 1,
+  fill(rows_.begin() + num_rows_,
+       rows_.begin() + num_rows_ + m.num_rows() + 1,
        rows_[num_rows_]);
 
   for (int r = 0; r < m.num_rows() + 1; ++r) {
-    new_rows[num_rows_ + r] += m.rows()[r];
+    rows_[num_rows_ + r] += m.rows()[r];
   }
 
-  rows_.reset(new_rows);
   num_rows_ += m.num_rows();
+  row_blocks_.insert(row_blocks_.end(), m.row_blocks().begin(), m.row_blocks().end());
 }
 
 void CompressedRowSparseMatrix::ToTextFile(FILE* file) const {
   CHECK_NOTNULL(file);
   for (int r = 0; r < num_rows_; ++r) {
     for (int idx = rows_[r]; idx < rows_[r + 1]; ++idx) {
-      fprintf(file, "% 10d % 10d %17f\n", r, cols_[idx], values_[idx]);
+      fprintf(file,
+              "% 10d % 10d %17f\n",
+              r,
+              cols_[idx],
+              values_[idx]);
     }
   }
 }
 
 void CompressedRowSparseMatrix::ToCRSMatrix(CRSMatrix* matrix) const {
-  matrix->num_rows = num_rows();
-  matrix->num_cols = num_cols();
+  matrix->num_rows = num_rows_;
+  matrix->num_cols = num_cols_;
+  matrix->rows = rows_;
+  matrix->cols = cols_;
+  matrix->values = values_;
 
+  // Trim.
   matrix->rows.resize(matrix->num_rows + 1);
-  matrix->cols.resize(num_nonzeros());
-  matrix->values.resize(num_nonzeros());
+  matrix->cols.resize(matrix->rows[matrix->num_rows]);
+  matrix->values.resize(matrix->rows[matrix->num_rows]);
+}
 
-  copy(rows_.get(), rows_.get() + matrix->num_rows + 1, matrix->rows.begin());
-  copy(cols_.get(), cols_.get() + num_nonzeros(), matrix->cols.begin());
-  copy(values_.get(), values_.get() + num_nonzeros(), matrix->values.begin());
+void CompressedRowSparseMatrix::SolveLowerTriangularInPlace(
+    double* solution) const {
+  for (int r = 0; r < num_rows_; ++r) {
+    for (int idx = rows_[r]; idx < rows_[r + 1] - 1; ++idx) {
+      solution[r] -= values_[idx] * solution[cols_[idx]];
+    }
+    solution[r] /=  values_[rows_[r + 1] - 1];
+  }
+}
+
+void CompressedRowSparseMatrix::SolveLowerTriangularTransposeInPlace(
+    double* solution) const {
+  for (int r = num_rows_ - 1; r >= 0; --r) {
+    solution[r] /= values_[rows_[r + 1] - 1];
+    for (int idx = rows_[r + 1] - 2; idx >= rows_[r]; --idx) {
+      solution[cols_[idx]] -= values_[idx] * solution[r];
+    }
+  }
+}
+
+CompressedRowSparseMatrix* CompressedRowSparseMatrix::CreateBlockDiagonalMatrix(
+    const double* diagonal,
+    const vector<int>& blocks) {
+  int num_rows = 0;
+  int num_nonzeros = 0;
+  for (int i = 0; i < blocks.size(); ++i) {
+    num_rows += blocks[i];
+    num_nonzeros += blocks[i] * blocks[i];
+  }
+
+  CompressedRowSparseMatrix* matrix =
+      new CompressedRowSparseMatrix(num_rows, num_rows, num_nonzeros);
+
+  int* rows = matrix->mutable_rows();
+  int* cols = matrix->mutable_cols();
+  double* values = matrix->mutable_values();
+  fill(values, values + num_nonzeros, 0.0);
+
+  int idx_cursor = 0;
+  int col_cursor = 0;
+  for (int i = 0; i < blocks.size(); ++i) {
+    const int block_size = blocks[i];
+    for (int r = 0; r < block_size; ++r) {
+      *(rows++) = idx_cursor;
+      values[idx_cursor + r] = diagonal[col_cursor + r];
+      for (int c = 0; c < block_size; ++c, ++idx_cursor) {
+        *(cols++) = col_cursor + c;
+      }
+    }
+    col_cursor += block_size;
+  }
+  *rows = idx_cursor;
+
+  *matrix->mutable_row_blocks() = blocks;
+  *matrix->mutable_col_blocks() = blocks;
+
+  CHECK_EQ(idx_cursor, num_nonzeros);
+  CHECK_EQ(col_cursor, num_rows);
+  return matrix;
+}
+
+CompressedRowSparseMatrix* CompressedRowSparseMatrix::Transpose() const {
+  CompressedRowSparseMatrix* transpose =
+      new CompressedRowSparseMatrix(num_cols_, num_rows_, num_nonzeros());
+
+  int* transpose_rows = transpose->mutable_rows();
+  int* transpose_cols = transpose->mutable_cols();
+  double* transpose_values = transpose->mutable_values();
+
+  for (int idx = 0; idx < num_nonzeros(); ++idx) {
+    ++transpose_rows[cols_[idx] + 1];
+  }
+
+  for (int i = 1; i < transpose->num_rows() + 1; ++i) {
+    transpose_rows[i] += transpose_rows[i - 1];
+  }
+
+  for (int r = 0; r < num_rows(); ++r) {
+    for (int idx = rows_[r]; idx < rows_[r + 1]; ++idx) {
+      const int c = cols_[idx];
+      const int transpose_idx = transpose_rows[c]++;
+      transpose_cols[transpose_idx] = r;
+      transpose_values[transpose_idx] = values_[idx];
+    }
+  }
+
+  for (int i = transpose->num_rows() - 1; i > 0 ; --i) {
+    transpose_rows[i] = transpose_rows[i - 1];
+  }
+  transpose_rows[0] = 0;
+
+  return transpose;
+}
+
+namespace {
+// A ProductTerm is a term in the outer product of a matrix with
+// itself.
+struct ProductTerm {
+  ProductTerm(const int row, const int col, const int index)
+      : row(row), col(col), index(index) {
+  }
+
+  bool operator<(const ProductTerm& right) const {
+    if (row == right.row) {
+      if (col == right.col) {
+        return index < right.index;
+      }
+      return col < right.col;
+    }
+    return row < right.row;
+  }
+
+  int row;
+  int col;
+  int index;
+};
+
+CompressedRowSparseMatrix*
+CompressAndFillProgram(const int num_rows,
+                       const int num_cols,
+                       const vector<ProductTerm>& product,
+                       vector<int>* program) {
+  CHECK_GT(product.size(), 0);
+
+  // Count the number of unique product term, which in turn is the
+  // number of non-zeros in the outer product.
+  int num_nonzeros = 1;
+  for (int i = 1; i < product.size(); ++i) {
+    if (product[i].row != product[i - 1].row ||
+        product[i].col != product[i - 1].col) {
+      ++num_nonzeros;
+    }
+  }
+
+  CompressedRowSparseMatrix* matrix =
+      new CompressedRowSparseMatrix(num_rows, num_cols, num_nonzeros);
+
+  int* crsm_rows = matrix->mutable_rows();
+  std::fill(crsm_rows, crsm_rows + num_rows + 1, 0);
+  int* crsm_cols = matrix->mutable_cols();
+  std::fill(crsm_cols, crsm_cols + num_nonzeros, 0);
+
+  CHECK_NOTNULL(program)->clear();
+  program->resize(product.size());
+
+  // Iterate over the sorted product terms. This means each row is
+  // filled one at a time, and we are able to assign a position in the
+  // values array to each term.
+  //
+  // If terms repeat, i.e., they contribute to the same entry in the
+  // result matrix), then they do not affect the sparsity structure of
+  // the result matrix.
+  int nnz = 0;
+  crsm_cols[0] = product[0].col;
+  crsm_rows[product[0].row + 1]++;
+  (*program)[product[0].index] = nnz;
+  for (int i = 1; i < product.size(); ++i) {
+    const ProductTerm& previous = product[i - 1];
+    const ProductTerm& current = product[i];
+
+    // Sparsity structure is updated only if the term is not a repeat.
+    if (previous.row != current.row || previous.col != current.col) {
+      crsm_cols[++nnz] = current.col;
+      crsm_rows[current.row + 1]++;
+    }
+
+    // All terms get assigned the position in the values array where
+    // their value is accumulated.
+    (*program)[current.index] = nnz;
+  }
+
+  for (int i = 1; i < num_rows + 1; ++i) {
+    crsm_rows[i] += crsm_rows[i - 1];
+  }
+
+  return matrix;
+}
+
+}  // namespace
+
+CompressedRowSparseMatrix*
+CompressedRowSparseMatrix::CreateOuterProductMatrixAndProgram(
+      const CompressedRowSparseMatrix& m,
+      vector<int>* program) {
+  CHECK_NOTNULL(program)->clear();
+  CHECK_GT(m.num_nonzeros(), 0) << "Congratulations, "
+                                << "you found a bug in Ceres. Please report it.";
+
+  vector<ProductTerm> product;
+  const vector<int>& row_blocks = m.row_blocks();
+  int row_block_begin = 0;
+  // Iterate over row blocks
+  for (int row_block = 0; row_block < row_blocks.size(); ++row_block) {
+    const int row_block_end = row_block_begin + row_blocks[row_block];
+    // Compute the outer product terms for just one row per row block.
+    const int r = row_block_begin;
+    // Compute the lower triangular part of the product.
+    for (int idx1 = m.rows()[r]; idx1 < m.rows()[r + 1]; ++idx1) {
+      for (int idx2 = m.rows()[r]; idx2 <= idx1; ++idx2) {
+        product.push_back(ProductTerm(m.cols()[idx1], m.cols()[idx2], product.size()));
+      }
+    }
+    row_block_begin = row_block_end;
+  }
+  CHECK_EQ(row_block_begin, m.num_rows());
+  sort(product.begin(), product.end());
+  return CompressAndFillProgram(m.num_cols(), m.num_cols(), product, program);
+}
+
+void CompressedRowSparseMatrix::ComputeOuterProduct(
+    const CompressedRowSparseMatrix& m,
+    const vector<int>& program,
+    CompressedRowSparseMatrix* result) {
+  result->SetZero();
+  double* values = result->mutable_values();
+  const vector<int>& row_blocks = m.row_blocks();
+
+  int cursor = 0;
+  int row_block_begin = 0;
+  const double* m_values = m.values();
+  const int* m_rows = m.rows();
+  // Iterate over row blocks.
+  for (int row_block = 0; row_block < row_blocks.size(); ++row_block) {
+    const int row_block_end = row_block_begin + row_blocks[row_block];
+    const int saved_cursor = cursor;
+    for (int r = row_block_begin; r < row_block_end; ++r) {
+      // Reuse the program segment for each row in this row block.
+      cursor = saved_cursor;
+      const int row_begin = m_rows[r];
+      const int row_end = m_rows[r + 1];
+      for (int idx1 = row_begin; idx1 < row_end; ++idx1) {
+        const double v1 =  m_values[idx1];
+        for (int idx2 = row_begin; idx2 <= idx1; ++idx2, ++cursor) {
+          values[program[cursor]] += v1 * m_values[idx2];
+        }
+      }
+    }
+    row_block_begin = row_block_end;
+  }
+
+  CHECK_EQ(row_block_begin, m.num_rows());
+  CHECK_EQ(cursor, program.size());
 }
 
 }  // namespace internal

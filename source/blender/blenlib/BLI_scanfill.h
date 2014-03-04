@@ -46,41 +46,46 @@ typedef struct ScanFillContext {
 	ListBase filledgebase;
 	ListBase fillfacebase;
 
-	/* simple optimization for allocating thousands of small memory blocks
-	 * only to be used within loops, and not by one function at a time
-	 * free in the end, with argument '-1'
-	 */
-#define MEM_ELEM_BLOCKSIZE 16384
-	struct mem_elements *melem__cur;
-	int melem__offs;                   /* the current free address */
-	ListBase melem__lb;
+	/* increment this value before adding each curve to skip having to calculate
+	 * 'poly_nr' for edges and verts (which can take approx half scanfill time) */
+	unsigned short poly_nr;
 
 	/* private */
-	struct ScanFillVertLink *_scdata;
+	struct MemArena *arena;
 } ScanFillContext;
 
-/* note; changing this also might affect the undo copy in editmesh.c */
+#define BLI_SCANFILL_ARENA_SIZE MEM_SIZE_OPTIMAL(1 << 14)
+
+/**
+ * \note this is USHRT_MAX so incrementing  will set to zero
+ * which happens if callers choose to increment #ScanFillContext.poly_nr before adding each curve.
+ * Nowhere else in scanfill do we make use of intentional overflow like this.
+ */
+#define SF_POLY_UNSET ((unsigned short)-1)
+
 typedef struct ScanFillVert {
 	struct ScanFillVert *next, *prev;
 	union {
 		struct ScanFillVert *v;
 		void                *p;
-		intptr_t             l;
+		int                  i;
 		unsigned int         u;
 	} tmp;
-	float co[3]; /* vertex location */
-	float xy[2]; /* 2D copy of vertex location (using dominant axis) */
-	unsigned int keyindex; /* original index #, for restoring  key information */
-	short poly_nr;
+	float co[3];  /* vertex location */
+	float xy[2];  /* 2D projection of vertex location */
+	unsigned int keyindex; /* index, caller can use how it likes to match the scanfill result with own data */
+	unsigned short poly_nr;
 	unsigned char edge_tot;  /* number of edges using this vertex */
-	unsigned char f;
+	unsigned int f : 4;  /* vert status */
+	unsigned int user_flag : 4;  /* flag callers can use as they like */
 } ScanFillVert;
 
 typedef struct ScanFillEdge {
 	struct ScanFillEdge *next, *prev;
 	struct ScanFillVert *v1, *v2;
-	short poly_nr;
-	unsigned char f;
+	unsigned short poly_nr;
+	unsigned int f : 4;  /* edge status */
+	unsigned int user_flag : 4;  /* flag callers can use as they like */
 	union {
 		unsigned char c;
 	} tmp;
@@ -91,7 +96,7 @@ typedef struct ScanFillFace {
 	struct ScanFillVert *v1, *v2, *v3;
 } ScanFillFace;
 
-/* scanfill.c: used in displist only... */
+/* scanfill.c */
 struct ScanFillVert *BLI_scanfill_vert_add(ScanFillContext *sf_ctx, const float vec[3]);
 struct ScanFillEdge *BLI_scanfill_edge_add(ScanFillContext *sf_ctx, struct ScanFillVert *v1, struct ScanFillVert *v2);
 
@@ -103,19 +108,31 @@ enum {
 	 * removing double verts. - campbell */
 	BLI_SCANFILL_CALC_REMOVE_DOUBLES   = (1 << 1),
 
+	/* calculate isolated polygons */
+	BLI_SCANFILL_CALC_POLYS            = (1 << 2),
+
 	/* note: This flag removes checks for overlapping polygons.
 	 * when this flag is set, we'll never get back more faces then (totvert - 2) */
-	BLI_SCANFILL_CALC_HOLES            = (1 << 2)
+	BLI_SCANFILL_CALC_HOLES            = (1 << 3),
+
+	/* checks valid edge users - can skip for simple loops */
+	BLI_SCANFILL_CALC_LOOSE            = (1 << 4),
 };
 void BLI_scanfill_begin(ScanFillContext *sf_ctx);
-int  BLI_scanfill_calc(ScanFillContext *sf_ctx, const int flag);
-int  BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag,
+unsigned int BLI_scanfill_calc(ScanFillContext *sf_ctx, const int flag);
+unsigned int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag,
                           const float nor_proj[3]);
 void BLI_scanfill_end(ScanFillContext *sf_ctx);
 
-/* These callbacks are needed to make the lib finction properly */
-void BLI_setErrorCallBack(void (*f)(const char *));
-void BLI_setInterruptCallBack(int (*f)(void));
+void BLI_scanfill_begin_arena(ScanFillContext *sf_ctx, struct MemArena *arena);
+void BLI_scanfill_end_arena(ScanFillContext *sf_ctx, struct MemArena *arena);
+
+
+/* scanfill_utils.c */
+bool BLI_scanfill_calc_self_isect(
+        ScanFillContext *sf_ctx,
+        ListBase *fillvertbase,
+        ListBase *filledgebase);
 
 #ifdef __cplusplus
 }

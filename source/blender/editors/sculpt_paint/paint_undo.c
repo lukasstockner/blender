@@ -124,6 +124,30 @@ static void undo_stack_push_end(UndoStack *stack)
 {
 	UndoElem *uel;
 	uintptr_t totmem, maxmem;
+	int totundo = 0;
+
+	/* first limit to undo steps */
+	uel = stack->elems.last;
+
+	while (uel) {
+		totundo++;
+		if (totundo > U.undosteps) break;
+		uel = uel->prev;
+	}
+
+	if (uel) {
+		UndoElem *first;
+
+		/* in case the undo steps are zero, the current pointer will be invalid */
+		if (uel == stack->current)
+			stack->current = NULL;
+
+		do {
+			first = stack->elems.first;
+			undo_elem_free(stack, first);
+			BLI_freelinkN(&stack->elems, first);
+		} while (first != uel);
+	}
 
 	if (U.undomemory != 0) {
 		/* limit to maximum memory (afterwards, we can't know in advance) */
@@ -167,7 +191,7 @@ static int undo_stack_step(bContext *C, UndoStack *stack, int step, const char *
 		}
 	}
 	else if (step == -1) {
-		if ((stack->current != NULL && stack->current->next == NULL) || stack->elems.first == NULL) {
+		if ((stack->current != NULL && stack->current->next == NULL) || BLI_listbase_is_empty(&stack->elems)) {
 			/* pass */
 		}
 		else {
@@ -199,7 +223,7 @@ static void undo_stack_free(UndoStack *stack)
 
 /* Exported Functions */
 
-void undo_paint_push_begin(int type, const char *name, UndoRestoreCb restore, UndoFreeCb free)
+void ED_undo_paint_push_begin(int type, const char *name, UndoRestoreCb restore, UndoFreeCb free)
 {
 	if (type == UNDO_PAINT_IMAGE)
 		undo_stack_push_begin(&ImageUndoStack, name, restore, free);
@@ -229,7 +253,7 @@ void undo_paint_push_count_alloc(int type, int size)
 		MeshUndoStack.current->undosize += size;
 }
 
-void undo_paint_push_end(int type)
+void ED_undo_paint_push_end(int type)
 {
 	if (type == UNDO_PAINT_IMAGE)
 		undo_stack_push_end(&ImageUndoStack);

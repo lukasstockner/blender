@@ -34,6 +34,23 @@
 
 #include <string.h>
 
+/********************************** Polygons *********************************/
+
+MINLINE float cross_tri_v2(const float v1[2], const float v2[2], const float v3[2])
+{
+	return (v1[0] - v2[0]) * (v2[1] - v3[1]) + (v1[1] - v2[1]) * (v3[0] - v2[0]);
+}
+
+MINLINE float area_tri_signed_v2(const float v1[2], const float v2[2], const float v3[2])
+{
+	return 0.5f * ((v1[0] - v2[0]) * (v2[1] - v3[1]) + (v1[1] - v2[1]) * (v3[0] - v2[0]));
+}
+
+MINLINE float area_tri_v2(const float v1[2], const float v2[2], const float v3[2])
+{
+	return fabsf(area_tri_signed_v2(v1, v2, v3));
+}
+
 /****************************** Spherical Harmonics **************************/
 
 MINLINE void zero_sh(float r[9])
@@ -62,7 +79,7 @@ MINLINE void add_sh_shsh(float r[9], const float a[9], const float b[9])
 		r[i] = a[i] + b[i];
 }
 
-MINLINE float dot_shsh(float a[9], float b[9])
+MINLINE float dot_shsh(const float a[9], const float b[9])
 {
 	float r = 0.0f;
 	int i;
@@ -183,6 +200,11 @@ MINLINE int poly_to_tri_count(const int poly_count, const int corner_count)
 	else {
 		return 0;
 	}
+}
+
+MINLINE float plane_point_side_v3(const float plane[4], const float co[3])
+{
+	return dot_v3v3(co, plane) + plane[3];
 }
 
 #endif /* __MATH_GEOM_INLINE_C__ */

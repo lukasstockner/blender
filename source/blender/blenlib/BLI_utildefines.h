@@ -48,13 +48,37 @@
 #endif
 
 /* min/max */
+#if defined(__GNUC__) || defined(__clang__)
+
+#define MIN2(x, y)  ({  \
+	typeof(x) x_ = (x); \
+	typeof(y) y_ = (y); \
+	((x_) < (y_) ? (x_) : (y_)); })
+
+#define MAX2(x, y)  ({  \
+	typeof(x) x_ = (x); \
+	typeof(y) y_ = (y); \
+	((x_) > (y_) ? (x_) : (y_)); })
+
+#else
 #define MIN2(x, y)          ((x) < (y) ? (x) : (y))
+#define MAX2(x, y)          ((x) > (y) ? (x) : (y))
+#endif
+
 #define MIN3(x, y, z)       (MIN2(MIN2((x), (y)), (z)))
 #define MIN4(x, y, z, a)    (MIN2(MIN2((x), (y)), MIN2((z), (a))))
 
-#define MAX2(x, y)          ((x) > (y) ? (x) : (y))
 #define MAX3(x, y, z)       (MAX2(MAX2((x), (y)), (z)))
 #define MAX4(x, y, z, a)    (MAX2(MAX2((x), (y)), MAX2((z), (a))))
+
+/* min/max that return a value of our choice */
+#define MAX3_PAIR(cmp_a, cmp_b, cmp_c, ret_a, ret_b, ret_c) \
+	((cmp_a > cmp_b) ? ((cmp_a > cmp_c) ? ret_a : ret_c) : \
+	                   ((cmp_b > cmp_c) ? ret_b : ret_c))
+
+#define MIN3_PAIR(cmp_a, cmp_b, cmp_c, ret_a, ret_b, ret_c) \
+	((cmp_a < cmp_b) ? ((cmp_a < cmp_c) ? ret_a : ret_c) : \
+	                   ((cmp_b < cmp_c) ? ret_b : ret_c))
 
 #define INIT_MINMAX(min, max) {                                               \
 		(min)[0] = (min)[1] = (min)[2] =  1.0e30f;                            \
@@ -113,7 +137,7 @@
 
 /* can be used in simple macros */
 #define CHECK_TYPE_INLINE(val, type) \
-	((void)(((type *)0) != (val)))
+	((void)(((type)0) != (val)))
 
 #define SWAP(type, a, b)  {    \
 	type sw_ap;                \
@@ -171,9 +195,7 @@
 } (void)0
 
 
-#define ABS(a)          ( (a) < 0 ? (-(a)) : (a) )
-
-#define FTOCHAR(val) ((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : (char)((255.0f * (val)) + 0.5f))
+#define FTOCHAR(val) (char)(((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : ((255.0f * (val)) + 0.5f)))
 #define FTOUSHORT(val) ((val >= 1.0f - 0.5f / 65535) ? 65535 : (val <= 0.0f) ? 0 : (unsigned short)(val * 65535.0f + 0.5f))
 #define USHORTTOUCHAR(val) ((unsigned char)(((val) >= 65535 - 128) ? 255 : ((val) + 128) >> 8))
 #define F3TOCHAR3(v2, v1) {                                                   \
@@ -254,15 +276,45 @@
 } (void)0
 
 /* some misc stuff.... */
+
+/* avoid multiple access & type conversions for supported compilers */
+#if defined(__GNUC__) || defined(__clang__)
+
+#define ABS(a)  ({ \
+	typeof(a) a_ = (a); \
+	((a_) < 0 ? (-(a_)) : (a_)); })
+
+#define CLAMPIS(a, b, c)  ({ \
+	typeof(a) a_ = (a), b_ = (b), c_ = (c); \
+	((a_) < (b_) ? (b_) : (a_) > (c_) ? (c_) : (a_)); })
+
+#define CLAMP(a, b, c)  {            \
+	typeof(a) b_ = (b), c_ = (c);   \
+	if      ((a) < (b_)) (a) = (b_); \
+	else if ((a) > (c_)) (a) = (c_); \
+} (void)0
+
+#else
+
+#define ABS(a)  ((a) < 0 ? (-(a)) : (a))
+
+#define CLAMPIS(a, b, c)  ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
+
 #define CLAMP(a, b, c)  {           \
-	if ((a) < (b)) (a) = (b);       \
+	if      ((a) < (b)) (a) = (b);  \
 	else if ((a) > (c)) (a) = (c);  \
 } (void)0
 
-#define CLAMPIS(a, b, c) ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
+#endif
 
-#define IS_EQ(a, b) ((fabs((double)(a) - (b)) >= (double) FLT_EPSILON) ? 0 : 1)
-#define IS_EQF(a, b) ((fabsf((float)(a) - (b)) >= (float) FLT_EPSILON) ? 0 : 1)
+
+#define IS_EQ(a, b)  ( \
+	CHECK_TYPE_INLINE(a, double), CHECK_TYPE_INLINE(b, double), \
+	((fabs((double)(a) - (b)) >= (double) FLT_EPSILON) ? false : true))
+
+#define IS_EQF(a, b)  ( \
+	CHECK_TYPE_INLINE(a, float), CHECK_TYPE_INLINE(b, float), \
+	((fabsf((float)(a) - (b)) >= (float) FLT_EPSILON) ? false : true))
 
 #define IS_EQT(a, b, c) ((a > b) ? (((a - b) <= c) ? 1 : 0) : ((((b - a) <= c) ? 1 : 0)))
 #define IN_RANGE(a, b, c) ((b < c) ? ((b < a && a < c) ? 1 : 0) : ((c < a && a < b) ? 1 : 0))
@@ -284,8 +336,21 @@
 #define STACK_PUSH(stack, val)  (void)((stack)[(_##stack##_index)++] = val)
 #define STACK_PUSH_RET(stack)  ((void)stack, ((stack)[(_##stack##_index)++]))
 #define STACK_PUSH_RET_PTR(stack)  ((void)stack, &((stack)[(_##stack##_index)++]))
-#define STACK_POP(stack)       ((_##stack##_index) ? ((stack)[--(_##stack##_index)]) : NULL)
+#define STACK_POP(stack)         ((_##stack##_index) ?  ((stack)[--(_##stack##_index)]) : NULL)
+#define STACK_POP_PTR(stack)     ((_##stack##_index) ? &((stack)[--(_##stack##_index)]) : NULL)
+#define STACK_POP_ELSE(stack, r) ((_##stack##_index) ?  ((stack)[--(_##stack##_index)]) : r)
 #define STACK_FREE(stack)      ((void)stack)
+#ifdef __GNUC__
+#define STACK_SWAP(stack_a, stack_b) { \
+	SWAP(typeof(stack_a), stack_a, stack_b); \
+	SWAP(unsigned int, _##stack_a##_index, _##stack_b##_index); \
+	} (void)0
+#else
+#define STACK_SWAP(stack_a, stack_b) { \
+	SWAP(void *, stack_a, stack_b); \
+	SWAP(unsigned int, _##stack_a##_index, _##stack_b##_index); \
+	} (void)0
+#endif
 
 /* array helpers */
 #define ARRAY_LAST_ITEM(arr_start, arr_dtype, elem_size, tot) \
@@ -294,6 +359,12 @@
 #define ARRAY_HAS_ITEM(arr_item, arr_start, tot) \
 	((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(tot))
 
+#define ARRAY_DELETE(arr, index, tot_delete, tot)  { \
+		BLI_assert(index + tot_delete <= tot);  \
+		memmove(&(arr)[(index)], \
+		        &(arr)[(index) + (tot_delete)], \
+		         (((tot) - (index)) - (tot_delete)) * sizeof(*(arr))); \
+	} (void)0
 
 /* Warning-free macros for storing ints in pointers. Use these _only_
  * for storing an int in a pointer, not a pointer in an int (64bit)! */
@@ -345,12 +416,6 @@
 #  define UNUSED_FUNCTION(x) UNUSED_ ## x
 #endif
 
-#ifdef __GNUC__
-#  define WARN_UNUSED  __attribute__((warn_unused_result))
-#else
-#  define WARN_UNUSED
-#endif
-
 /*little macro so inline keyword works*/
 #if defined(_MSC_VER)
 #  define BLI_INLINE static __forceinline
@@ -396,8 +461,11 @@
 #  define BLI_assert(a) (void)0
 #endif
 
-/* C++ can't use _Static_assert, expects static_assert() but c++0x only */
-#if (!defined(__cplusplus)) && (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 406))  /* gcc4.6+ only */
+/* C++ can't use _Static_assert, expects static_assert() but c++0x only,
+ * Coverity also errors out. */
+#if (!defined(__cplusplus)) && \
+    (!defined(__COVERITY__)) && \
+    (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 406))  /* gcc4.6+ only */
 #  define BLI_STATIC_ASSERT(a, msg) _Static_assert(a, msg);
 #else
    /* TODO msvc, clang */

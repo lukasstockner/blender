@@ -15,9 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
  * Contributor(s): Blender Foundation (2008).
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -201,8 +198,7 @@ void CTX_store_free_list(ListBase *contexts)
 {
 	bContextStore *ctx;
 
-	while ((ctx = contexts->first)) {
-		BLI_remlink(contexts, ctx);
+	while ((ctx = BLI_pophead(contexts))) {
 		CTX_store_free(ctx);
 	}
 }
@@ -370,8 +366,7 @@ static int ctx_data_collection_get(const bContext *C, const char *member, ListBa
 		return 1;
 	}
 
-	list->first = NULL;
-	list->last = NULL;
+	BLI_listbase_clear(list);
 
 	return 0;
 }
@@ -534,12 +529,12 @@ ListBase CTX_data_dir_get(const bContext *C)
 	return CTX_data_dir_get_ex(C, TRUE, FALSE, FALSE);
 }
 
-int CTX_data_equals(const char *member, const char *str)
+bool CTX_data_equals(const char *member, const char *str)
 {
 	return (strcmp(member, str) == 0);
 }
 
-int CTX_data_dir(const char *member)
+bool CTX_data_dir(const char *member)
 {
 	return member[0] == '\0';
 }

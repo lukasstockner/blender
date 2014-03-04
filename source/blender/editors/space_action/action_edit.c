@@ -231,11 +231,12 @@ void ACTION_OT_markers_make_local(wmOperatorType *ot)
 /* *************************** Calculate Range ************************** */
 
 /* Get the min/max keyframes*/
-static void get_keyframe_extents(bAnimContext *ac, float *min, float *max, const short onlySel)
+static bool get_keyframe_extents(bAnimContext *ac, float *min, float *max, const short onlySel)
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
+	bool found = false;
 	
 	/* get data to filter, from Action or Dopesheet */
 	/* XXX: what is sel doing here?!
@@ -261,6 +262,7 @@ static void get_keyframe_extents(bAnimContext *ac, float *min, float *max, const
 					const float framenum = (float)gpf->framenum;
 					*min = min_ff(*min, framenum);
 					*max = max_ff(*max, framenum);
+					found = true;
 				}
 			}
 			else if (ale->datatype == ALE_MASKLAY) {
@@ -275,6 +277,7 @@ static void get_keyframe_extents(bAnimContext *ac, float *min, float *max, const
 					const float framenum = (float)masklay_shape->frame;
 					*min = min_ff(*min, framenum);
 					*max = max_ff(*max, framenum);
+					found = true;
 				}
 			}
 			else {
@@ -282,16 +285,18 @@ static void get_keyframe_extents(bAnimContext *ac, float *min, float *max, const
 				float tmin, tmax;
 
 				/* get range and apply necessary scaling before processing */
-				calc_fcurve_range(fcu, &tmin, &tmax, onlySel, TRUE);
+				if (calc_fcurve_range(fcu, &tmin, &tmax, onlySel, TRUE)) {
 
-				if (adt) {
-					tmin = BKE_nla_tweakedit_remap(adt, tmin, NLATIME_CONVERT_MAP);
-					tmax = BKE_nla_tweakedit_remap(adt, tmax, NLATIME_CONVERT_MAP);
+					if (adt) {
+						tmin = BKE_nla_tweakedit_remap(adt, tmin, NLATIME_CONVERT_MAP);
+						tmax = BKE_nla_tweakedit_remap(adt, tmax, NLATIME_CONVERT_MAP);
+					}
+
+					/* try to set cur using these values, if they're more extreme than previously set values */
+					*min = min_ff(*min, tmin);
+					*max = max_ff(*max, tmax);
+					found = true;
 				}
-
-				/* try to set cur using these values, if they're more extreme than previously set values */
-				*min = min_ff(*min, tmin);
-				*max = max_ff(*max, tmax);
 			}
 		}
 		
@@ -309,6 +314,8 @@ static void get_keyframe_extents(bAnimContext *ac, float *min, float *max, const
 			*max = 100;
 		}
 	}
+
+	return found;
 }
 
 /* ****************** Automatic Preview-Range Operator ****************** */
@@ -330,8 +337,8 @@ static int actkeys_previewrange_exec(bContext *C, wmOperator *UNUSED(op))
 	/* set the range directly */
 	get_keyframe_extents(&ac, &min, &max, FALSE);
 	scene->r.flag |= SCER_PRV_RANGE;
-	scene->r.psfra = (int)floor(min + 0.5f);
-	scene->r.pefra = (int)floor(max + 0.5f);
+	scene->r.psfra = iroundf(min);
+	scene->r.pefra = iroundf(max);
 	
 	/* set notifier that things have changed */
 	// XXX err... there's nothing for frame ranges yet, but this should do fine too
@@ -357,11 +364,12 @@ void ACTION_OT_previewrange_set(wmOperatorType *ot)
 
 /* ****************** View-All Operator ****************** */
 
-static int actkeys_viewall(bContext *C, const short onlySel)
+static int actkeys_viewall(bContext *C, const bool only_sel, const bool only_xaxis)
 {
 	bAnimContext ac;
 	View2D *v2d;
 	float extra;
+	bool found;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -369,15 +377,20 @@ static int actkeys_viewall(bContext *C, const short onlySel)
 	v2d = &ac.ar->v2d;
 	
 	/* set the horizontal range, with an extra offset so that the extreme keys will be in view */
-	get_keyframe_extents(&ac, &v2d->cur.xmin, &v2d->cur.xmax, onlySel);
+	found = get_keyframe_extents(&ac, &v2d->cur.xmin, &v2d->cur.xmax, only_sel);
+
+	if (only_sel && (found == false))
+		return OPERATOR_CANCELLED;
 	
 	extra = 0.1f * BLI_rctf_size_x(&v2d->cur);
 	v2d->cur.xmin -= extra;
 	v2d->cur.xmax += extra;
 	
 	/* set vertical range */
-	v2d->cur.ymax = 0.0f;
-	v2d->cur.ymin = (float)-BLI_rcti_size_y(&v2d->mask);
+	if (only_xaxis == false) {
+		v2d->cur.ymax = 0.0f;
+		v2d->cur.ymin = (float)-BLI_rcti_size_y(&v2d->mask);
+	}
 	
 	/* do View2D syncing */
 	UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
@@ -393,13 +406,13 @@ static int actkeys_viewall(bContext *C, const short onlySel)
 static int actkeys_viewall_exec(bContext *C, wmOperator *UNUSED(op))
 {	
 	/* whole range */
-	return actkeys_viewall(C, FALSE);
+	return actkeys_viewall(C, false, false);
 }
 
 static int actkeys_viewsel_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	/* only selected */
-	return actkeys_viewall(C, TRUE);
+	return actkeys_viewall(C, true, true);
 }
  
 void ACTION_OT_view_all(wmOperatorType *ot)
@@ -767,11 +780,12 @@ void ACTION_OT_duplicate(wmOperatorType *ot)
 
 /* ******************** Delete Keyframes Operator ************************* */
 
-static void delete_action_keys(bAnimContext *ac)
+static bool delete_action_keys(bAnimContext *ac)
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
+	bool changed = false;
 	
 	/* filter data */
 	if (ELEM(ac->datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
@@ -783,17 +797,17 @@ static void delete_action_keys(bAnimContext *ac)
 	/* loop through filtered data and delete selected keys */
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		if (ale->type == ANIMTYPE_GPLAYER) {
-			ED_gplayer_frames_delete((bGPDlayer *)ale->data);
+			changed |= ED_gplayer_frames_delete((bGPDlayer *)ale->data);
 		}
 		else if (ale->type == ANIMTYPE_MASKLAYER) {
-			ED_masklayer_frames_delete((MaskLayer *)ale->data);
+			changed |= ED_masklayer_frames_delete((MaskLayer *)ale->data);
 		}
 		else {
 			FCurve *fcu = (FCurve *)ale->key_data;
 			AnimData *adt = ale->adt;
 			
 			/* delete selected keyframes only */
-			delete_fcurve_keys(fcu); 
+			changed |= delete_fcurve_keys(fcu);
 			
 			/* Only delete curve too if it won't be doing anything anymore */
 			if ((fcu->totvert == 0) && (list_has_suitable_fmodifier(&fcu->modifiers, 0, FMI_TYPE_GENERATE_CURVE) == 0))
@@ -803,6 +817,8 @@ static void delete_action_keys(bAnimContext *ac)
 	
 	/* free filtered list */
 	BLI_freelistN(&anim_data);
+
+	return changed;
 }
 
 /* ------------------- */
@@ -816,7 +832,8 @@ static int actkeys_delete_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 		
 	/* delete keyframes */
-	delete_action_keys(&ac);
+	if (!delete_action_keys(&ac))
+		return OPERATOR_CANCELLED;
 	
 	/* validate keyframes after editing */
 	if (!ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
@@ -1355,7 +1372,7 @@ static int actkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
 	/* set the new current frame value, based on the average time */
 	if (ked.i1) {
 		Scene *scene = ac.scene;
-		CFRA = (int)floor((ked.f1 / ked.i1) + 0.5f);
+		CFRA = iroundf(ked.f1 / ked.i1);
 		SUBFRA = 0.f;
 	}
 	

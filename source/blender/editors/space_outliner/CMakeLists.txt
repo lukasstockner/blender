@@ -29,7 +29,6 @@ set(INC
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
-	../../../../intern/opennl/extern
 )
 
 set(INC_SYS

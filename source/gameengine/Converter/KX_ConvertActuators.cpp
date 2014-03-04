@@ -80,7 +80,7 @@
 /* This little block needed for linking to Blender... */
 #include "BKE_text.h"
 #include "BLI_blenlib.h"
-#include "BLI_math_base.h"
+#include "BLI_math.h"
 #include "BLI_path_util.h"
 
 #include "KX_NetworkMessageActuator.h"
@@ -120,7 +120,6 @@ void BL_ConvertActuators(const char* maggiename,
                          KX_KetsjiEngine* ketsjiEngine,
                          int activeLayerBitInfo,
                          bool isInActiveLayer,
-                         RAS_IRenderTools* rendertools,
                          KX_BlenderSceneConverter* converter
                          )
 {
@@ -206,8 +205,8 @@ void BL_ConvertActuators(const char* maggiename,
 		case ACT_ACTION:
 			{
 				bActionActuator* actact = (bActionActuator*) bact->data;
-				STR_String propname = (actact->name ? actact->name : "");
-				STR_String propframe = (actact->frameProp ? actact->frameProp : "");
+				STR_String propname = actact->name;
+				STR_String propframe = actact->frameProp;
 
 				short ipo_flags = 0;
 
@@ -225,6 +224,7 @@ void BL_ConvertActuators(const char* maggiename,
 				            actact->end,
 				            actact->act,
 				            actact->type, // + 1, because Blender starts to count at zero,
+				            actact->blend_mode,
 				            actact->blendin,
 				            actact->priority,
 				            actact->layer,
@@ -241,8 +241,8 @@ void BL_ConvertActuators(const char* maggiename,
 			{
 				if (blenderobject->type==OB_MESH) {
 					bActionActuator* actact = (bActionActuator*) bact->data;
-					STR_String propname = (actact->name ? actact->name : "");
-					STR_String propframe = (actact->frameProp ? actact->frameProp : "");
+					STR_String propname = actact->name;
+					STR_String propframe = actact->frameProp;
 					
 					BL_ShapeActionActuator* tmpbaseact = new BL_ShapeActionActuator(
 					            gameobj,
@@ -319,26 +319,20 @@ void BL_ConvertActuators(const char* maggiename,
 				/* Get the name of the properties that objects must own that
 				 * we're sending to, if present
 				 */
-				STR_String toPropName = (msgAct->toPropName
-					? (char*) msgAct->toPropName
-					: "");
+				STR_String toPropName = msgAct->toPropName;
 				
 				/* Get the Message Subject to send.
 				 */
-				STR_String subject = (msgAct->subject
-					? (char*) msgAct->subject
-					: "");
+				STR_String subject = msgAct->subject;
 				
 				/* Get the bodyType
 				 */
 				int bodyType = msgAct->bodyType;
-				
+
 				/* Get the body (text message or property name whose value
 				 * we'll be sending, might be empty
 				 */
-				STR_String body = (msgAct->body
-					? (char*) msgAct->body
-					: "");
+				const STR_String body = msgAct->body;
 				
 				KX_NetworkMessageActuator *tmpmsgact = new KX_NetworkMessageActuator(
 				            gameobj,					// actuator controlling object
@@ -392,8 +386,8 @@ void BL_ConvertActuators(const char* maggiename,
 					bool is3d = soundact->flag & ACT_SND_3D_SOUND ? true : false;
 					boost::shared_ptr<AUD_IFactory> snd_sound;
 					KX_3DSoundSettings settings;
-					settings.cone_inner_angle = soundact->sound3D.cone_inner_angle;
-					settings.cone_outer_angle = soundact->sound3D.cone_outer_angle;
+					settings.cone_inner_angle = RAD2DEGF(soundact->sound3D.cone_inner_angle);
+					settings.cone_outer_angle = RAD2DEGF(soundact->sound3D.cone_outer_angle);
 					settings.cone_outer_gain = soundact->sound3D.cone_outer_gain;
 					settings.max_distance = soundact->sound3D.max_distance;
 					settings.max_gain = soundact->sound3D.max_gain;
@@ -577,8 +571,8 @@ void BL_ConvertActuators(const char* maggiename,
 				/* convert settings... degrees in the ui become radians  */ 
 				/* internally                                            */ 
 				if (conact->type == ACT_CONST_TYPE_ORI) {
-					min = (float)(((float)MT_2_PI * conact->minloc[0]) / 360.0f);
-					max = (float)(((float)MT_2_PI * conact->maxloc[0]) / 360.0f);
+					min = conact->minloc[0];
+					max = conact->maxloc[0];
 					switch (conact->mode) {
 					case ACT_CONST_DIRPX:
 						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_ORIX;
@@ -754,9 +748,8 @@ void BL_ConvertActuators(const char* maggiename,
 							break;
 						};
 						
-						if (sceneact->scene)
-						{
-							nextSceneName = sceneact->scene->id.name + 2; // this '2' is necessary to remove prefix 'SC'
+						if (sceneact->scene) {
+							nextSceneName = sceneact->scene->id.name + 2;
 						}
 						
 						break;

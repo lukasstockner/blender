@@ -1,26 +1,24 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 CCL_NAMESPACE_BEGIN
 
 /* Closure Nodes */
 
-__device void svm_node_glass_setup(ShaderData *sd, ShaderClosure *sc, int type, float eta, float roughness, bool refract)
+ccl_device void svm_node_glass_setup(ShaderData *sd, ShaderClosure *sc, int type, float eta, float roughness, bool refract)
 {
 	if(type == CLOSURE_BSDF_SHARP_GLASS_ID) {
 		if(refract) {
@@ -51,7 +49,7 @@ __device void svm_node_glass_setup(ShaderData *sd, ShaderClosure *sc, int type, 
 	}
 }
 
-__device_inline ShaderClosure *svm_node_closure_get_non_bsdf(ShaderData *sd, ClosureType type, float mix_weight)
+ccl_device_inline ShaderClosure *svm_node_closure_get_non_bsdf(ShaderData *sd, ClosureType type, float mix_weight)
 {
 #ifdef __MULTI_CLOSURE__
 	ShaderClosure *sc = &sd->closure[sd->num_closure];
@@ -72,14 +70,14 @@ __device_inline ShaderClosure *svm_node_closure_get_non_bsdf(ShaderData *sd, Clo
 #endif
 }
 
-__device_inline ShaderClosure *svm_node_closure_get_bsdf(ShaderData *sd, float mix_weight)
+ccl_device_inline ShaderClosure *svm_node_closure_get_bsdf(ShaderData *sd, float mix_weight)
 {
 #ifdef __MULTI_CLOSURE__
 	ShaderClosure *sc = &sd->closure[sd->num_closure];
 	float3 weight = sc->weight * mix_weight;
 	float sample_weight = fabsf(average(weight));
 
-	if(sample_weight > 1e-5f && sd->num_closure < MAX_CLOSURE) {
+	if(sample_weight > CLOSURE_WEIGHT_CUTOFF && sd->num_closure < MAX_CLOSURE) {
 		sc->weight = weight;
 		sc->sample_weight = sample_weight;
 		sd->num_closure++;
@@ -95,7 +93,30 @@ __device_inline ShaderClosure *svm_node_closure_get_bsdf(ShaderData *sd, float m
 #endif
 }
 
-__device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, float randb, int path_flag, int *offset)
+ccl_device_inline ShaderClosure *svm_node_closure_get_absorption(ShaderData *sd, float mix_weight)
+{
+#ifdef __MULTI_CLOSURE__
+	ShaderClosure *sc = &sd->closure[sd->num_closure];
+	float3 weight = (make_float3(1.0f, 1.0f, 1.0f) - sc->weight) * mix_weight;
+	float sample_weight = fabsf(average(weight));
+
+	if(sample_weight > CLOSURE_WEIGHT_CUTOFF && sd->num_closure < MAX_CLOSURE) {
+		sc->weight = weight;
+		sc->sample_weight = sample_weight;
+		sd->num_closure++;
+#ifdef __OSL__
+		sc->prim = NULL;
+#endif
+		return sc;
+	}
+
+	return NULL;
+#else
+	return &sd->closure;
+#endif
+}
+
+ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, float randb, int path_flag, int *offset)
 {
 	uint type, param1_offset, param2_offset;
 
@@ -110,13 +131,13 @@ __device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *st
 	if(mix_weight == 0.0f)
 		return;
 
-	float3 N = stack_valid(data_node.y)? stack_load_float3(stack, data_node.y): sd->N; 
+	float3 N = stack_valid(data_node.x)? stack_load_float3(stack, data_node.x): sd->N; 
 #else
 	decode_node_uchar4(node.y, &type, &param1_offset, &param2_offset, NULL);
 	float mix_weight = 1.0f;
 
 	uint4 data_node = read_node(kg, offset);
-	float3 N = stack_valid(data_node.y)? stack_load_float3(stack, data_node.y): sd->N; 
+	float3 N = stack_valid(data_node.x)? stack_load_float3(stack, data_node.x): sd->N; 
 #endif
 
 	float param1 = (stack_valid(param1_offset))? stack_load_float(stack, param1_offset): __uint_as_float(node.z);
@@ -204,7 +225,7 @@ __device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *st
 				sc->N = N;
 				sc->data0 = param1;
 
-				float eta = fmaxf(param2, 1.0f + 1e-5f);
+				float eta = fmaxf(param2, 1e-5f);
 				sc->data1 = (sd->flag & SD_BACKFACING)? 1.0f/eta: eta;
 
 				/* setup bsdf */
@@ -226,7 +247,7 @@ __device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *st
 				break;
 #endif
 			/* index of refraction */
-			float eta = fmaxf(param2, 1.0f + 1e-5f);
+			float eta = fmaxf(param2, 1e-5f);
 			eta = (sd->flag & SD_BACKFACING)? 1.0f/eta: eta;
 
 			/* fresnel */
@@ -281,10 +302,10 @@ __device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *st
 				sc->N = N;
 
 #ifdef __ANISOTROPIC__
-				sc->T = stack_load_float3(stack, data_node.z);
+				sc->T = stack_load_float3(stack, data_node.y);
 
 				/* rotate tangent */
-				float rotation = stack_load_float(stack, data_node.w);
+				float rotation = stack_load_float(stack, data_node.z);
 
 				if(rotation != 0.0f)
 					sc->T = rotate_around_axis(sc->T, sc->N, rotation * M_2PI_F);
@@ -339,29 +360,79 @@ __device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *st
 			}
 			break;
 		}
+#ifdef __HAIR__
+		case CLOSURE_BSDF_HAIR_REFLECTION_ID:
+		case CLOSURE_BSDF_HAIR_TRANSMISSION_ID: {
+			
+			if(sd->flag & SD_BACKFACING && sd->segment != ~0) {
+				ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+				if(sc) {
+					sc->weight = make_float3(1.0f,1.0f,1.0f);
+					sc->N = N;
+					sd->flag |= bsdf_transparent_setup(sc);
+				}
+			}
+			else {
+				ShaderClosure *sc = &sd->closure[sd->num_closure];
+				sc = svm_node_closure_get_bsdf(sd, mix_weight);
+
+				if(sc) {
+					sc->N = N;
+					sc->data0 = param1;
+					sc->data1 = param2;
+					sc->offset = -stack_load_float(stack, data_node.z);
+					if(sd->segment == ~0) {
+						sc->T = normalize(sd->dPdv);
+						sc->offset = 0.0f;
+					}
+					else
+						sc->T = sd->dPdu;
+					if(type == CLOSURE_BSDF_HAIR_REFLECTION_ID) {
+						sd->flag |= bsdf_hair_reflection_setup(sc);
+					}
+					else {
+						sd->flag |= bsdf_hair_transmission_setup(sc);
+					}
+				}
+			}
+
+			break;
+		}
+#endif
+
 #ifdef __SUBSURFACE__
-		case CLOSURE_BSSRDF_ID: {
+		case CLOSURE_BSSRDF_CUBIC_ID:
+		case CLOSURE_BSSRDF_GAUSSIAN_ID: {
 			ShaderClosure *sc = &sd->closure[sd->num_closure];
 			float3 weight = sc->weight * mix_weight;
 			float sample_weight = fabsf(average(weight));
+			
+			/* disable in case of diffuse ancestor, can't see it well then and
+			 * adds considerably noise due to probabilities of continuing path
+			 * getting lower and lower */
+			if(path_flag & PATH_RAY_DIFFUSE_ANCESTOR)
+				param1 = 0.0f;
 
-			if(sample_weight > 1e-5f && sd->num_closure+2 < MAX_CLOSURE) {
+			if(sample_weight > CLOSURE_WEIGHT_CUTOFF && sd->num_closure+2 < MAX_CLOSURE) {
 				/* radius * scale */
-				float3 radius = stack_load_float3(stack, data_node.w)*param1;
-				/* index of refraction */
-				float eta = fmaxf(param2, 1.0f + 1e-5f);
+				float3 radius = stack_load_float3(stack, data_node.z)*param1;
+				/* sharpness */
+				float sharpness = stack_load_float(stack, data_node.w);
+				/* texture color blur */
+				float texture_blur = param2;
 
 				/* create one closure per color channel */
 				if(fabsf(weight.x) > 0.0f) {
 					sc->weight = make_float3(weight.x, 0.0f, 0.0f);
 					sc->sample_weight = sample_weight;
 					sc->data0 = radius.x;
-					sc->data1 = eta;
+					sc->data1 = texture_blur;
+					sc->T.x = sharpness;
 #ifdef __OSL__
 					sc->prim = NULL;
 #endif
 					sc->N = N;
-					sd->flag |= bssrdf_setup(sc);
+					sd->flag |= bssrdf_setup(sc, (ClosureType)type);
 
 					sd->num_closure++;
 					sc++;
@@ -371,12 +442,13 @@ __device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *st
 					sc->weight = make_float3(0.0f, weight.y, 0.0f);
 					sc->sample_weight = sample_weight;
 					sc->data0 = radius.y;
-					sc->data1 = eta;
+					sc->data1 = texture_blur;
+					sc->T.x = sharpness;
 #ifdef __OSL__
 					sc->prim = NULL;
 #endif
 					sc->N = N;
-					sd->flag |= bssrdf_setup(sc);
+					sd->flag |= bssrdf_setup(sc, (ClosureType)type);
 
 					sd->num_closure++;
 					sc++;
@@ -386,12 +458,13 @@ __device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *st
 					sc->weight = make_float3(0.0f, 0.0f, weight.z);
 					sc->sample_weight = sample_weight;
 					sc->data0 = radius.z;
-					sc->data1 = eta;
+					sc->data1 = texture_blur;
+					sc->T.x = sharpness;
 #ifdef __OSL__
 					sc->prim = NULL;
 #endif
 					sc->N = N;
-					sd->flag |= bssrdf_setup(sc);
+					sd->flag |= bssrdf_setup(sc, (ClosureType)type);
 
 					sd->num_closure++;
 					sc++;
@@ -406,8 +479,9 @@ __device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *st
 	}
 }
 
-__device void svm_node_closure_volume(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int path_flag)
+ccl_device void svm_node_closure_volume(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int path_flag)
 {
+#ifdef __VOLUME__
 	uint type, param1_offset, param2_offset;
 
 #ifdef __MULTI_CLOSURE__
@@ -423,33 +497,35 @@ __device void svm_node_closure_volume(KernelGlobals *kg, ShaderData *sd, float *
 #endif
 
 	float param1 = (stack_valid(param1_offset))? stack_load_float(stack, param1_offset): __uint_as_float(node.z);
-	//float param2 = (stack_valid(param2_offset))? stack_load_float(stack, param2_offset): __uint_as_float(node.w);
+	float param2 = (stack_valid(param2_offset))? stack_load_float(stack, param2_offset): __uint_as_float(node.w);
+	float density = param1;
 
 	switch(type) {
-		case CLOSURE_VOLUME_TRANSPARENT_ID: {
-			ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+		case CLOSURE_VOLUME_ABSORPTION_ID: {
+			ShaderClosure *sc = svm_node_closure_get_absorption(sd, mix_weight * density);
 
 			if(sc) {
-				float density = param1;
-				sd->flag |= volume_transparent_setup(sc, density);
+				sd->flag |= volume_absorption_setup(sc);
 			}
 			break;
 		}
-		case CLOSURE_VOLUME_ISOTROPIC_ID: {
-			ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+		case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID: {
+			ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight * density);
 
 			if(sc) {
-				float density = param1;
-				sd->flag |= volume_isotropic_setup(sc, density);
+				float g = param2;
+				sc->data0 = g;
+				sd->flag |= volume_henyey_greenstein_setup(sc);
 			}
 			break;
 		}
 		default:
 			break;
 	}
+#endif
 }
 
-__device void svm_node_closure_emission(ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_closure_emission(ShaderData *sd, float *stack, uint4 node)
 {
 #ifdef __MULTI_CLOSURE__
 	uint mix_weight_offset = node.y;
@@ -472,7 +548,7 @@ __device void svm_node_closure_emission(ShaderData *sd, float *stack, uint4 node
 	sd->flag |= SD_EMISSION;
 }
 
-__device void svm_node_closure_background(ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_closure_background(ShaderData *sd, float *stack, uint4 node)
 {
 #ifdef __MULTI_CLOSURE__
 	uint mix_weight_offset = node.y;
@@ -493,7 +569,7 @@ __device void svm_node_closure_background(ShaderData *sd, float *stack, uint4 no
 #endif
 }
 
-__device void svm_node_closure_holdout(ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_closure_holdout(ShaderData *sd, float *stack, uint4 node)
 {
 #ifdef __MULTI_CLOSURE__
 	uint mix_weight_offset = node.y;
@@ -516,7 +592,7 @@ __device void svm_node_closure_holdout(ShaderData *sd, float *stack, uint4 node)
 	sd->flag |= SD_HOLDOUT;
 }
 
-__device void svm_node_closure_ambient_occlusion(ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_closure_ambient_occlusion(ShaderData *sd, float *stack, uint4 node)
 {
 #ifdef __MULTI_CLOSURE__
 	uint mix_weight_offset = node.y;
@@ -541,7 +617,7 @@ __device void svm_node_closure_ambient_occlusion(ShaderData *sd, float *stack, u
 
 /* Closure Nodes */
 
-__device_inline void svm_node_closure_store_weight(ShaderData *sd, float3 weight)
+ccl_device_inline void svm_node_closure_store_weight(ShaderData *sd, float3 weight)
 {
 #ifdef __MULTI_CLOSURE__
 	if(sd->num_closure < MAX_CLOSURE)
@@ -551,13 +627,13 @@ __device_inline void svm_node_closure_store_weight(ShaderData *sd, float3 weight
 #endif
 }
 
-__device void svm_node_closure_set_weight(ShaderData *sd, uint r, uint g, uint b)
+ccl_device void svm_node_closure_set_weight(ShaderData *sd, uint r, uint g, uint b)
 {
 	float3 weight = make_float3(__uint_as_float(r), __uint_as_float(g), __uint_as_float(b));
 	svm_node_closure_store_weight(sd, weight);
 }
 
-__device void svm_node_emission_set_weight_total(KernelGlobals *kg, ShaderData *sd, uint r, uint g, uint b)
+ccl_device void svm_node_emission_set_weight_total(KernelGlobals *kg, ShaderData *sd, uint r, uint g, uint b)
 {
 	float3 weight = make_float3(__uint_as_float(r), __uint_as_float(g), __uint_as_float(b));
 
@@ -567,14 +643,14 @@ __device void svm_node_emission_set_weight_total(KernelGlobals *kg, ShaderData *
 	svm_node_closure_store_weight(sd, weight);
 }
 
-__device void svm_node_closure_weight(ShaderData *sd, float *stack, uint weight_offset)
+ccl_device void svm_node_closure_weight(ShaderData *sd, float *stack, uint weight_offset)
 {
 	float3 weight = stack_load_float3(stack, weight_offset);
 
 	svm_node_closure_store_weight(sd, weight);
 }
 
-__device void svm_node_emission_weight(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_emission_weight(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint color_offset = node.y;
 	uint strength_offset = node.z;
@@ -589,7 +665,7 @@ __device void svm_node_emission_weight(KernelGlobals *kg, ShaderData *sd, float 
 	svm_node_closure_store_weight(sd, weight);
 }
 
-__device void svm_node_mix_closure(ShaderData *sd, float *stack,
+ccl_device void svm_node_mix_closure(ShaderData *sd, float *stack,
 	uint4 node, int *offset, float *randb)
 {
 #ifdef __MULTI_CLOSURE__
@@ -625,7 +701,7 @@ __device void svm_node_mix_closure(ShaderData *sd, float *stack,
 #endif
 }
 
-__device void svm_node_add_closure(ShaderData *sd, float *stack, uint unused,
+ccl_device void svm_node_add_closure(ShaderData *sd, float *stack, uint unused,
 	uint node_jump, int *offset, float *randb, float *closure_weight)
 {
 #ifdef __MULTI_CLOSURE__
@@ -649,7 +725,7 @@ __device void svm_node_add_closure(ShaderData *sd, float *stack, uint unused,
 
 /* (Bump) normal */
 
-__device void svm_node_set_normal(KernelGlobals *kg, ShaderData *sd, float *stack, uint in_direction, uint out_normal)
+ccl_device void svm_node_set_normal(KernelGlobals *kg, ShaderData *sd, float *stack, uint in_direction, uint out_normal)
 {
 	float3 normal = stack_load_float3(stack, in_direction);
 	sd->N = normal;

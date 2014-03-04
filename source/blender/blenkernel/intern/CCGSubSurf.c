@@ -1,3 +1,22 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file blender/blenkernel/intern/CCGSubSurf.c
  *  \ingroup bke
@@ -229,7 +248,7 @@ static CCGAllocatorIFC *_getStandardAllocatorIFC(void)
 
 /***/
 
-int ccg_gridsize(int level)
+BLI_INLINE int ccg_gridsize(int level)
 {
 	BLI_assert(level > 0);
 	BLI_assert(level <= CCGSUBSURF_LEVEL_MAX + 1);
@@ -237,7 +256,12 @@ int ccg_gridsize(int level)
 	return (1 << (level - 1)) + 1;
 }
 
-int ccg_factor(int low_level, int high_level)
+int BKE_ccg_gridsize(int level)
+{
+	return ccg_gridsize(level);
+}
+
+int BKE_ccg_factor(int low_level, int high_level)
 {
 	BLI_assert(low_level > 0 && high_level > 0);
 	BLI_assert(low_level <= high_level);
@@ -245,7 +269,7 @@ int ccg_factor(int low_level, int high_level)
 	return 1 << (high_level - low_level);
 }
 
-static int ccg_edgesize(int level)
+BLI_INLINE int ccg_edgesize(int level)
 {
 	BLI_assert(level > 0);
 	BLI_assert(level <= CCGSUBSURF_LEVEL_MAX + 1);
@@ -253,7 +277,7 @@ static int ccg_edgesize(int level)
 	return 1 + (1 << level);
 }
 
-static int ccg_spacing(int high_level, int low_level)
+BLI_INLINE int ccg_spacing(int high_level, int low_level)
 {
 	BLI_assert(high_level > 0 && low_level > 0);
 	BLI_assert(high_level >= low_level);
@@ -262,7 +286,7 @@ static int ccg_spacing(int high_level, int low_level)
 	return 1 << (high_level - low_level);
 }
 
-static int ccg_edgebase(int level)
+BLI_INLINE int ccg_edgebase(int level)
 {
 	BLI_assert(level > 0);
 	BLI_assert(level <= CCGSUBSURF_LEVEL_MAX + 1);
@@ -723,7 +747,7 @@ BLI_INLINE float *_face_getIFNo(CCGFace *f, int lvl, int S, int x, int y, int le
 	byte *gridBase = FACE_getCenterData(f) + dataSize * (1 + S * (maxGridSize + maxGridSize * maxGridSize));
 	return (float *) &gridBase[dataSize * (maxGridSize + (y * maxGridSize + x) * spacing) + normalDataOffset];
 }
-static int _face_getVertIndex(CCGFace *f, CCGVert *v)
+BLI_INLINE int _face_getVertIndex(CCGFace *f, CCGVert *v)
 {
 	int i;
 	for (i = 0; i < f->numVerts; i++)
@@ -731,7 +755,7 @@ static int _face_getVertIndex(CCGFace *f, CCGVert *v)
 			return i;
 	return -1;
 }
-static int _face_getEdgeIndex(CCGFace *f, CCGEdge *e)
+BLI_INLINE int _face_getEdgeIndex(CCGFace *f, CCGEdge *e)
 {
 	int i;
 	for (i = 0; i < f->numVerts; i++)
@@ -1412,7 +1436,7 @@ static void ccgSubSurf__calcVertNormals(CCGSubSurf *ss,
 	int normalDataOffset = ss->normalDataOffset;
 	int vertDataSize = ss->meshIFC.vertDataSize;
 
-	#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 		CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 		int S, x, y;
@@ -1552,7 +1576,7 @@ static void ccgSubSurf__calcVertNormals(CCGSubSurf *ss,
 		}
 	}
 
-	#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 		CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 		int S, x, y;
@@ -1633,7 +1657,7 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 	int vertDataSize = ss->meshIFC.vertDataSize;
 	float *q = ss->q, *r = ss->r;
 
-	#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 		CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 		int S, x, y;
@@ -1980,17 +2004,17 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 		}
 	}
 
-	#pragma omp parallel private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel private(ptrIdx) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	{
 		float *q, *r;
 
-		#pragma omp critical
+#pragma omp critical
 		{
 			q = MEM_mallocN(ss->meshIFC.vertDataSize, "CCGSubsurf q");
 			r = MEM_mallocN(ss->meshIFC.vertDataSize, "CCGSubsurf r");
 		}
 
-		#pragma omp for schedule(static)
+#pragma omp for schedule(static)
 		for (ptrIdx = 0; ptrIdx < numEffectedF; ptrIdx++) {
 			CCGFace *f = (CCGFace *) effectedF[ptrIdx];
 			int S, x, y;
@@ -2081,7 +2105,7 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 			}
 		}
 
-		#pragma omp critical
+#pragma omp critical
 		{
 			MEM_freeN(q);
 			MEM_freeN(r);
@@ -2093,14 +2117,14 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 	gridSize = ccg_gridsize(nextLvl);
 	cornerIdx = gridSize - 1;
 
-	#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (i = 0; i < numEffectedE; i++) {
 		CCGEdge *e = effectedE[i];
 		VertDataCopy(EDGE_getCo(e, nextLvl, 0), VERT_getCo(e->v0, nextLvl), ss);
 		VertDataCopy(EDGE_getCo(e, nextLvl, edgeSize - 1), VERT_getCo(e->v1, nextLvl), ss);
 	}
 
-	#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
+#pragma omp parallel for private(i) if (numEffectedF * edgeSize * edgeSize * 4 >= CCG_OMP_LIMIT)
 	for (i = 0; i < numEffectedF; i++) {
 		CCGFace *f = effectedF[i];
 		int S, x;

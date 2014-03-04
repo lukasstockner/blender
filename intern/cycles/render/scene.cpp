@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include <stdlib.h>
@@ -135,19 +133,13 @@ void Scene::device_update(Device *device_, Progress& progress)
 	/* The order of updates is important, because there's dependencies between
 	 * the different managers, using data computed by previous managers.
 	 *
-	 * - Background generates shader graph compiled by shader manager.
 	 * - Image manager uploads images used by shaders.
 	 * - Camera may be used for adapative subdivison.
 	 * - Displacement shader must have all shader data available.
-	 * - Light manager needs final mesh data to compute emission CDF.
+	 * - Light manager needs lookup tables and final mesh data to compute emission CDF.
 	 */
 	
 	image_manager->set_pack_images(device->info.pack_images);
-
-	progress.set_status("Updating Background");
-	background->device_update(device, &dscene, this);
-
-	if(progress.get_cancel()) return;
 
 	progress.set_status("Updating Shaders");
 	shader_manager->device_update(device, &dscene, this, progress);
@@ -156,6 +148,11 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	progress.set_status("Updating Images");
 	image_manager->device_update(device, &dscene, progress);
+
+	if(progress.get_cancel()) return;
+
+	progress.set_status("Updating Background");
+	background->device_update(device, &dscene, this);
 
 	if(progress.get_cancel()) return;
 
@@ -174,6 +171,16 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel()) return;
 
+	progress.set_status("Updating Film");
+	film->device_update(device, &dscene, this);
+
+	if(progress.get_cancel()) return;
+
+	progress.set_status("Updating Lookup Tables");
+	lookup_tables->device_update(device, &dscene);
+
+	if(progress.get_cancel()) return;
+
 	progress.set_status("Updating Meshes");
 	mesh_manager->device_update(device, &dscene, this, progress);
 
@@ -189,18 +196,8 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel()) return;
 
-	progress.set_status("Updating Film");
-	film->device_update(device, &dscene, this);
-
-	if(progress.get_cancel()) return;
-
 	progress.set_status("Updating Integrator");
 	integrator->device_update(device, &dscene, this);
-
-	if(progress.get_cancel()) return;
-
-	progress.set_status("Updating Lookup Tables");
-	lookup_tables->device_update(device, &dscene);
 
 	if(progress.get_cancel()) return;
 
@@ -222,7 +219,7 @@ bool Scene::need_global_attribute(AttributeStandard std)
 {
 	if(std == ATTR_STD_UV)
 		return Pass::contains(film->passes, PASS_UV);
-	if(std == ATTR_STD_MOTION_PRE || ATTR_STD_MOTION_POST)
+	if(std == ATTR_STD_MOTION_PRE || std == ATTR_STD_MOTION_POST)
 		return need_motion() == MOTION_PASS;
 	
 	return false;

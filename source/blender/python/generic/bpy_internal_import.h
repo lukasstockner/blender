@@ -15,11 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * This is a new part of Blender.
- *
  * Contributor(s): Willian P. Germano, Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -48,6 +43,7 @@ struct Text;
 
 void bpy_import_init(PyObject *builtins);
 
+bool        bpy_text_compile(struct Text *text);
 PyObject   *bpy_text_import(struct Text *text);
 PyObject   *bpy_text_import_name(const char *name, int *found);
 PyObject   *bpy_text_reimport(PyObject *module, int *found);

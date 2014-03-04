@@ -28,10 +28,10 @@
 #include "BLI_listbase.h"
 #include "BKE_image.h"
 extern "C" {
-	#include "RE_pipeline.h"
-	#include "RE_shader_ext.h"
-	#include "RE_render_ext.h"
-	#include "MEM_guardedalloc.h"
+#  include "RE_pipeline.h"
+#  include "RE_shader_ext.h"
+#  include "RE_render_ext.h"
+#  include "MEM_guardedalloc.h"
 }
 
 /**
@@ -42,7 +42,8 @@ protected:
 	ImBuf *m_buffer;
 	Image *m_image;
 	ImageUser *m_imageUser;
-	float *m_imageBuffer;
+	float *m_imageFloatBuffer;
+	unsigned int *m_imageByteBuffer;
 	float *m_depthBuffer;
 	int m_imageheight;
 	int m_imagewidth;
@@ -72,7 +73,7 @@ public:
 	 * Constructor
 	 */
 	ImageOperation();
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 class ImageAlphaOperation : public BaseImageOperation {
 public:
@@ -80,7 +81,7 @@ public:
 	 * Constructor
 	 */
 	ImageAlphaOperation();
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 class ImageDepthOperation : public BaseImageOperation {
 public:
@@ -88,6 +89,6 @@ public:
 	 * Constructor
 	 */
 	ImageDepthOperation();
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 #endif

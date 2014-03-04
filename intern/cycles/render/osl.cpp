@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "device.h"
@@ -23,6 +21,7 @@
 #include "osl.h"
 #include "scene.h"
 #include "shader.h"
+#include "nodes.h"
 
 #ifdef WITH_OSL
 
@@ -100,7 +99,7 @@ void OSLShaderManager::device_update(Device *device, DeviceScene *dscene, Scene 
 		compiler.background = (shader == scene->shaders[scene->default_background]);
 		compiler.compile(og, shader);
 
-		if(shader->sample_as_light && shader->has_surface_emission)
+		if(shader->use_mis && shader->has_surface_emission)
 			scene->light_manager->need_update = true;
 	}
 
@@ -122,6 +121,12 @@ void OSLShaderManager::device_update(Device *device, DeviceScene *dscene, Scene 
 	scene->image_manager->set_osl_texture_system((void*)ts);
 
 	device_update_common(device, dscene, scene, progress);
+
+	/* greedyjit test
+	{
+		thread_scoped_lock lock(ss_shared_mutex);
+		ss->optimize_all_groups();
+	}*/
 }
 
 void OSLShaderManager::device_free(Device *device, DeviceScene *dscene, Scene *scene)
@@ -186,22 +191,27 @@ void OSLShaderManager::shading_system_init()
 		ss_shared = OSL::ShadingSystem::create(services_shared, ts_shared, &errhandler);
 		ss_shared->attribute("lockgeom", 1);
 		ss_shared->attribute("commonspace", "world");
-		ss_shared->attribute("optimize", 2);
-		//ss_shared->attribute("debug", 1);
-		//ss_shared->attribute("statistics:level", 1);
 		ss_shared->attribute("searchpath:shader", path_get("shader"));
+		//ss_shared->attribute("greedyjit", 1);
 
 		/* our own ray types */
 		static const char *raytypes[] = {
-			"camera",		/* PATH_RAY_CAMERA */
-			"reflection",	/* PATH_RAY_REFLECT */
-			"refraction",	/* PATH_RAY_TRANSMIT */
-			"diffuse",		/* PATH_RAY_DIFFUSE */
-			"gloss_sharedy",		/* PATH_RAY_GLOSSY */
-			"singular",		/* PATH_RAY_SINGULAR */
-			"transparent",	/* PATH_RAY_TRANSPARENT */
-			"shadow",		/* PATH_RAY_SHADOW_OPAQUE */
-			"shadow",		/* PATH_RAY_SHADOW_TRANSPARENT */
+			"camera",			/* PATH_RAY_CAMERA */
+			"reflection",		/* PATH_RAY_REFLECT */
+			"refraction",		/* PATH_RAY_TRANSMIT */
+			"diffuse",			/* PATH_RAY_DIFFUSE */
+			"glossy",			/* PATH_RAY_GLOSSY */
+			"singular",			/* PATH_RAY_SINGULAR */
+			"transparent",		/* PATH_RAY_TRANSPARENT */
+			"volume_scatter",	/* PATH_RAY_VOLUME_SCATTER */
+			"shadow",			/* PATH_RAY_SHADOW_OPAQUE */
+			"shadow",			/* PATH_RAY_SHADOW_TRANSPARENT */
+
+			"__unused__",
+			"__unused__",
+			"diffuse_ancestor", /* PATH_RAY_DIFFUSE_ANCESTOR */
+			"glossy_ancestor",  /* PATH_RAY_GLOSSY_ANCESTOR */
+			"bssrdf_ancestor",  /* PATH_RAY_BSSRDF_ANCESTOR */
 		};
 
 		const int nraytypes = sizeof(raytypes)/sizeof(raytypes[0]);
@@ -539,8 +549,10 @@ void OSLCompiler::add(ShaderNode *node, const char *name, bool isfilepath)
 			current_shader->has_surface_emission = true;
 		if(info->has_surface_transparent)
 			current_shader->has_surface_transparent = true;
-		if(info->has_surface_bssrdf)
+		if(info->has_surface_bssrdf) {
 			current_shader->has_surface_bssrdf = true;
+			current_shader->has_bssrdf_bump = true; /* can't detect yet */
+		}
 	}
 }
 
@@ -701,8 +713,11 @@ void OSLCompiler::generate_nodes(const set<ShaderNode*>& nodes)
 						current_shader->has_surface_emission = true;
 					if(node->has_surface_transparent())
 						current_shader->has_surface_transparent = true;
-					if(node->has_surface_bssrdf())
+					if(node->has_surface_bssrdf()) {
 						current_shader->has_surface_bssrdf = true;
+						if(node->has_bssrdf_bump())
+							current_shader->has_bssrdf_bump = true;
+					}
 				}
 				else
 					nodes_done = false;
@@ -711,13 +726,17 @@ void OSLCompiler::generate_nodes(const set<ShaderNode*>& nodes)
 	} while(!nodes_done);
 }
 
-void OSLCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType type)
+OSL::ShadingAttribStateRef OSLCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType type)
 {
 	OSL::ShadingSystem *ss = (OSL::ShadingSystem*)shadingsys;
 
 	current_type = type;
 
-	ss->ShaderGroupBegin();
+#if OSL_LIBRARY_VERSION_CODE >= 10501
+	OSL::ShadingAttribStateRef group = ss->ShaderGroupBegin(shader->name.c_str());
+#else
+	ss->ShaderGroupBegin(shader->name.c_str());
+#endif
 
 	ShaderNode *output = graph->output();
 	set<ShaderNode*> dependencies;
@@ -744,12 +763,19 @@ void OSLCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
 		assert(0);
 
 	ss->ShaderGroupEnd();
+
+#if OSL_LIBRARY_VERSION_CODE >= 10501
+	return group;
+#else
+	OSL::ShadingAttribStateRef group = ss->state();
+	ss->clear_state();
+	return group;
+#endif
 }
 
 void OSLCompiler::compile(OSLGlobals *og, Shader *shader)
 {
 	if(shader->need_update) {
-		OSL::ShadingSystem *ss = (OSL::ShadingSystem*)shadingsys;
 		ShaderGraph *graph = shader->graph;
 		ShaderNode *output = (graph)? graph->output(): NULL;
 
@@ -769,21 +795,18 @@ void OSLCompiler::compile(OSLGlobals *og, Shader *shader)
 		shader->has_surface_emission = false;
 		shader->has_surface_transparent = false;
 		shader->has_surface_bssrdf = false;
+		shader->has_bssrdf_bump = false;
 		shader->has_volume = false;
 		shader->has_displacement = false;
 
 		/* generate surface shader */
 		if(shader->used && graph && output->input("Surface")->link) {
-			compile_type(shader, shader->graph, SHADER_TYPE_SURFACE);
-			shader->osl_surface_ref = ss->state();
+			shader->osl_surface_ref = compile_type(shader, shader->graph, SHADER_TYPE_SURFACE);
 
-			if(shader->graph_bump) {
-				ss->clear_state();
-				compile_type(shader, shader->graph_bump, SHADER_TYPE_SURFACE);
-			}
-
-			shader->osl_surface_bump_ref = ss->state();
-			ss->clear_state();
+			if(shader->graph_bump)
+				shader->osl_surface_bump_ref = compile_type(shader, shader->graph_bump, SHADER_TYPE_SURFACE);
+			else
+				shader->osl_surface_bump_ref = shader->osl_surface_ref;
 
 			shader->has_surface = true;
 		}
@@ -794,21 +817,16 @@ void OSLCompiler::compile(OSLGlobals *og, Shader *shader)
 
 		/* generate volume shader */
 		if(shader->used && graph && output->input("Volume")->link) {
-			compile_type(shader, shader->graph, SHADER_TYPE_VOLUME);
+			shader->osl_volume_ref = compile_type(shader, shader->graph, SHADER_TYPE_VOLUME);
 			shader->has_volume = true;
-
-			shader->osl_volume_ref = ss->state();
-			ss->clear_state();
 		}
 		else
 			shader->osl_volume_ref = OSL::ShadingAttribStateRef();
 
 		/* generate displacement shader */
 		if(shader->used && graph && output->input("Displacement")->link) {
-			compile_type(shader, shader->graph, SHADER_TYPE_DISPLACEMENT);
+			shader->osl_displacement_ref = compile_type(shader, shader->graph, SHADER_TYPE_DISPLACEMENT);
 			shader->has_displacement = true;
-			shader->osl_displacement_ref = ss->state();
-			ss->clear_state();
 		}
 		else
 			shader->osl_displacement_ref = OSL::ShadingAttribStateRef();

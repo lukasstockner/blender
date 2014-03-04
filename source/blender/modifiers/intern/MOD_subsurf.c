@@ -60,13 +60,15 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	SubsurfModifierData *smd = (SubsurfModifierData *) md;
+#endif
 	SubsurfModifierData *tsmd = (SubsurfModifierData *) target;
 
-	tsmd->flags = smd->flags;
-	tsmd->levels = smd->levels;
-	tsmd->renderLevels = smd->renderLevels;
-	tsmd->subdivType = smd->subdivType;
+	modifier_copyData_generic(md, target);
+
+	tsmd->emCache = tsmd->mCache = NULL;
+
 }
 
 static void freeData(ModifierData *md)
@@ -121,14 +123,14 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 static DerivedMesh *applyModifierEM(ModifierData *md, Object *UNUSED(ob),
                                     struct BMEditMesh *UNUSED(editData),
                                     DerivedMesh *derivedData,
-                                    ModifierApplyFlag UNUSED(flag))
+                                    ModifierApplyFlag flag)
 {
 	SubsurfModifierData *smd = (SubsurfModifierData *) md;
 	DerivedMesh *result;
+	/* 'orco' using editmode flags would cause cache to be used twice in editbmesh_calc_modifiers */
+	SubsurfFlags ss_flags = (flag & MOD_APPLY_ORCO) ? 0 : (SUBSURF_FOR_EDIT_MODE | SUBSURF_IN_EDIT_MODE);
 
-	result = subsurf_make_derived_from_derived(derivedData, smd,
-	                                           NULL, (SUBSURF_FOR_EDIT_MODE |
-	                                                  SUBSURF_IN_EDIT_MODE));
+	result = subsurf_make_derived_from_derived(derivedData, smd, NULL, ss_flags);
 
 	return result;
 }

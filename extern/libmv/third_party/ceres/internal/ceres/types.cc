@@ -101,13 +101,31 @@ const char* SparseLinearAlgebraLibraryTypeToString(
   }
 }
 
-
 bool StringToSparseLinearAlgebraLibraryType(
     string value,
     SparseLinearAlgebraLibraryType* type) {
   UpperCase(&value);
   STRENUM(SUITE_SPARSE);
   STRENUM(CX_SPARSE);
+  return false;
+}
+
+const char* DenseLinearAlgebraLibraryTypeToString(
+    DenseLinearAlgebraLibraryType type) {
+  switch (type) {
+    CASESTR(EIGEN);
+    CASESTR(LAPACK);
+    default:
+      return "UNKNOWN";
+  }
+}
+
+bool StringToDenseLinearAlgebraLibraryType(
+    string value,
+    DenseLinearAlgebraLibraryType* type) {
+  UpperCase(&value);
+  STRENUM(EIGEN);
+  STRENUM(LAPACK);
   return false;
 }
 
@@ -165,6 +183,7 @@ const char* LineSearchDirectionTypeToString(LineSearchDirectionType type) {
     CASESTR(STEEPEST_DESCENT);
     CASESTR(NONLINEAR_CONJUGATE_GRADIENT);
     CASESTR(LBFGS);
+    CASESTR(BFGS);
     default:
       return "UNKNOWN";
   }
@@ -176,12 +195,14 @@ bool StringToLineSearchDirectionType(string value,
   STRENUM(STEEPEST_DESCENT);
   STRENUM(NONLINEAR_CONJUGATE_GRADIENT);
   STRENUM(LBFGS);
+  STRENUM(BFGS);
   return false;
 }
 
 const char* LineSearchTypeToString(LineSearchType type) {
   switch (type) {
     CASESTR(ARMIJO);
+    CASESTR(WOLFE);
     default:
       return "UNKNOWN";
   }
@@ -190,6 +211,28 @@ const char* LineSearchTypeToString(LineSearchType type) {
 bool StringToLineSearchType(string value, LineSearchType* type) {
   UpperCase(&value);
   STRENUM(ARMIJO);
+  STRENUM(WOLFE);
+  return false;
+}
+
+const char* LineSearchInterpolationTypeToString(
+    LineSearchInterpolationType type) {
+  switch (type) {
+    CASESTR(BISECTION);
+    CASESTR(QUADRATIC);
+    CASESTR(CUBIC);
+    default:
+      return "UNKNOWN";
+  }
+}
+
+bool StringToLineSearchInterpolationType(
+    string value,
+    LineSearchInterpolationType* type) {
+  UpperCase(&value);
+  STRENUM(BISECTION);
+  STRENUM(QUADRATIC);
+  STRENUM(CUBIC);
   return false;
 }
 
@@ -214,28 +257,53 @@ bool StringToNonlinearConjugateGradientType(
   return false;
 }
 
-const char* SolverTerminationTypeToString(SolverTerminationType type) {
+const char* CovarianceAlgorithmTypeToString(
+    CovarianceAlgorithmType type) {
   switch (type) {
-    CASESTR(NO_CONVERGENCE);
-    CASESTR(FUNCTION_TOLERANCE);
-    CASESTR(GRADIENT_TOLERANCE);
-    CASESTR(PARAMETER_TOLERANCE);
-    CASESTR(NUMERICAL_FAILURE);
-    CASESTR(USER_ABORT);
-    CASESTR(USER_SUCCESS);
-    CASESTR(DID_NOT_RUN);
+    CASESTR(DENSE_SVD);
+    CASESTR(SPARSE_CHOLESKY);
+    CASESTR(SPARSE_QR);
     default:
       return "UNKNOWN";
   }
 }
 
-const char* LinearSolverTerminationTypeToString(
-    LinearSolverTerminationType type) {
+bool StringToCovarianceAlgorithmType(
+    string value,
+    CovarianceAlgorithmType* type) {
+  UpperCase(&value);
+  STRENUM(DENSE_SVD);
+  STRENUM(SPARSE_CHOLESKY);
+  STRENUM(SPARSE_QR);
+  return false;
+}
+
+const char* VisibilityClusteringTypeToString(
+    VisibilityClusteringType type) {
   switch (type) {
-    CASESTR(TOLERANCE);
-    CASESTR(MAX_ITERATIONS);
-    CASESTR(STAGNATION);
+    CASESTR(CANONICAL_VIEWS);
+    CASESTR(SINGLE_LINKAGE);
+    default:
+      return "UNKNOWN";
+  }
+}
+
+bool StringToVisibilityClusteringType(
+    string value,
+    VisibilityClusteringType* type) {
+  UpperCase(&value);
+  STRENUM(CANONICAL_VIEWS);
+  STRENUM(SINGLE_LINKAGE);
+  return false;
+}
+
+const char* TerminationTypeToString(TerminationType type) {
+  switch (type) {
+    CASESTR(CONVERGENCE);
+    CASESTR(NO_CONVERGENCE);
     CASESTR(FAILURE);
+    CASESTR(USER_SUCCESS);
+    CASESTR(USER_FAILURE);
     default:
       return "UNKNOWN";
   }
@@ -269,6 +337,23 @@ bool IsSparseLinearAlgebraLibraryTypeAvailable(
   }
 
   LOG(WARNING) << "Unknown sparse linear algebra library " << type;
+  return false;
+}
+
+bool IsDenseLinearAlgebraLibraryTypeAvailable(
+    DenseLinearAlgebraLibraryType type) {
+  if (type == EIGEN) {
+    return true;
+  }
+  if (type == LAPACK) {
+#ifdef CERES_NO_LAPACK
+    return false;
+#else
+    return true;
+#endif
+  }
+
+  LOG(WARNING) << "Unknown dense linear algebra library " << type;
   return false;
 }
 

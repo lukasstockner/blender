@@ -266,7 +266,7 @@ static PyObject *Stroke_stroke_vertices_begin(BPy_Stroke *self, PyObject *args, 
 }
 
 PyDoc_STRVAR(Stroke_stroke_vertices_end_doc,
-".. method:: strokeVerticesEnd()\n"
+".. method:: stroke_vertices_end()\n"
 "\n"
 "   Returns a StrokeVertexIterator pointing after the last StrokeVertex\n"
 "   of the Stroke.\n"
@@ -283,7 +283,7 @@ static PyObject *Stroke_stroke_vertices_end(BPy_Stroke *self)
 PyDoc_STRVAR(Stroke_stroke_vertices_size_doc,
 ".. method:: stroke_vertices_size()\n"
 "\n"
-"   Returns the number of StrokeVertex constituing the Stroke.\n"
+"   Returns the number of StrokeVertex constituting the Stroke.\n"
 "\n"
 "   :return: The number of stroke vertices.\n"
 "   :rtype: int");

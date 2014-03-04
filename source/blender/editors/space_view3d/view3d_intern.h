@@ -92,11 +92,14 @@ void VIEW3D_OT_view_lock_to_active(struct wmOperatorType *ot);
 void VIEW3D_OT_view_center_cursor(struct wmOperatorType *ot);
 void VIEW3D_OT_view_center_pick(struct wmOperatorType *ot);
 void VIEW3D_OT_view_center_camera(struct wmOperatorType *ot);
+void VIEW3D_OT_view_center_lock(struct wmOperatorType *ot);
 void VIEW3D_OT_view_pan(struct wmOperatorType *ot);
 void VIEW3D_OT_view_persportho(struct wmOperatorType *ot);
+void VIEW3D_OT_navigate(struct wmOperatorType *ot);
 void VIEW3D_OT_background_image_add(struct wmOperatorType *ot);
 void VIEW3D_OT_background_image_remove(struct wmOperatorType *ot);
 void VIEW3D_OT_view_orbit(struct wmOperatorType *ot);
+void VIEW3D_OT_view_roll(struct wmOperatorType *ot);
 void VIEW3D_OT_clip_border(struct wmOperatorType *ot);
 void VIEW3D_OT_cursor3d(struct wmOperatorType *ot);
 void VIEW3D_OT_manipulator(struct wmOperatorType *ot);
@@ -112,6 +115,9 @@ float ndof_to_axis_angle(const struct wmNDOFMotionData *ndof, float axis[3]);
 /* view3d_fly.c */
 void view3d_keymap(struct wmKeyConfig *keyconf);
 void VIEW3D_OT_fly(struct wmOperatorType *ot);
+
+/* view3d_walk.c */
+void VIEW3D_OT_walk(struct wmOperatorType *ot);
 
 /* view3d_ruler.c */
 void VIEW3D_OT_ruler(struct wmOperatorType *ot);
@@ -136,6 +142,8 @@ void view3d_cached_text_draw_begin(void);
 void view3d_cached_text_draw_add(const float co[3], const char *str, short xoffs, short flag, const unsigned char col[4]);
 void view3d_cached_text_draw_end(struct View3D *v3d, struct ARegion *ar, bool depth_write, float mat[4][4]);
 
+bool check_object_draw_texture(struct Scene *scene, struct View3D *v3d, const char drawtype);
+
 enum {
 	V3D_CACHE_TEXT_ZBUF         = (1 << 0),
 	V3D_CACHE_TEXT_WORLDSPACE   = (1 << 1),
@@ -154,6 +162,10 @@ void draw_mesh_textured(struct Scene *scene, struct View3D *v3d, struct RegionVi
                         struct Object *ob, struct DerivedMesh *dm, const int draw_flags);
 void draw_mesh_face_select(struct RegionView3D *rv3d, struct Mesh *me, struct DerivedMesh *dm);
 void draw_mesh_paint(struct View3D *v3d, struct RegionView3D *rv3d,
+void draw_mesh_paint_weight_faces(struct DerivedMesh *dm, const bool do_light,
+                                  void *facemask_cb, void *user_data);
+void draw_mesh_paint_weight_edges(RegionView3D *rv3d, struct DerivedMesh *dm, const bool use_depth,
+                                  void *edgemask_cb, void *user_data);
                      struct Object *ob, struct DerivedMesh *dm, const int draw_flags);
 
 /* view3d_draw.c */
@@ -182,13 +194,15 @@ void VIEW3D_OT_game_start(struct wmOperatorType *ot);
 
 bool ED_view3d_boundbox_clip(struct RegionView3D *rv3d, float obmat[4][4], const struct BoundBox *bb);
 
-void view3d_smooth_view(struct bContext *C, struct View3D *v3d, struct ARegion *ar, struct Object *, struct Object *,
-                        float *ofs, float *quat, float *dist, float *lens);
+void ED_view3d_smooth_view(struct bContext *C, struct View3D *v3d, struct ARegion *ar, struct Object *, struct Object *,
+                           float *ofs, float *quat, float *dist, float *lens,
+                           const int smooth_viewtx);
 
 void setwinmatrixview3d(struct ARegion *ar, struct View3D *v3d, struct rctf *rect);
 void setviewmatrixview3d(struct Scene *scene, struct View3D *v3d, struct RegionView3D *rv3d);
 
 void fly_modal_keymap(struct wmKeyConfig *keyconf);
+void walk_modal_keymap(struct wmKeyConfig *keyconf);
 void viewrotate_modal_keymap(struct wmKeyConfig *keyconf);
 void viewmove_modal_keymap(struct wmKeyConfig *keyconf);
 void viewzoom_modal_keymap(struct wmKeyConfig *keyconf);
@@ -197,6 +211,20 @@ void viewdolly_modal_keymap(struct wmKeyConfig *keyconf);
 /* view3d_buttons.c */
 void VIEW3D_OT_properties(struct wmOperatorType *ot);
 void view3d_buttons_register(struct ARegionType *art);
+
+/* view3d_camera_control.c */
+struct View3DCameraControl *ED_view3d_cameracontrol_aquire(
+        Scene *scene, View3D *v3d, RegionView3D *rv3d,
+        const bool use_parent_root);
+void ED_view3d_cameracontrol_update(
+        struct View3DCameraControl *vctrl,
+        const bool use_autokey,
+        struct bContext *C, const bool do_rotate, const bool do_translate);
+void ED_view3d_cameracontrol_release(
+        struct View3DCameraControl *vctrl,
+        const bool restore);
+Object *ED_view3d_cameracontrol_object_get(
+        struct View3DCameraControl *vctrl);
 
 /* view3d_toolbar.c */
 void VIEW3D_OT_toolshelf(struct wmOperatorType *ot);

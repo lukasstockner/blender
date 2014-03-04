@@ -31,7 +31,7 @@ if len(sys.argv) < 2:
 builder = sys.argv[1]
 
 # we run from build/ directory
-blender_dir = '../blender'
+blender_dir = '../blender.git'
 
 if builder.find('cmake') != -1:
     # cmake
@@ -143,6 +143,15 @@ else:
             scons_options.append('BF_CYCLES_CUDA_NVCC=nvcc.exe')
             if builder.find('mingw') != -1:
                 scons_options.append('BF_TOOLSET=mingw')
+            if builder.endswith('vc2012'):
+                scons_options.append('MSVS_VERSION=11.0')
+            if builder.endswith('vc2013'):
+                scons_options.append('MSVS_VERSION=12.0')
+                scons_options.append('MSVC_VERSION=12.0')
+                scons_options.append('WITH_BF_CYCLES_CUDA_BINARIES=1')
+                scons_options.append('BF_CYCLES_CUDA_NVCC=nvcc')
+            scons_options.append('BF_NUMJOBS=1')
+
         elif builder.find('mac') != -1:
             if builder.find('x86_64') != -1:
                 config = 'user-config-mac-x86_64.py'
@@ -151,15 +160,22 @@ else:
 
             scons_options.append('BF_CONFIG=' + os.path.join(config_dir, config))
 
-        retcode = subprocess.call(['python', 'scons/scons.py'] + scons_options)
-
         if builder.find('win') != -1:
-            dlls = ('msvcm90.dll', 'msvcp90.dll', 'msvcr90.dll', 'vcomp90.dll', 'Microsoft.VC90.CRT.manifest', 'Microsoft.VC90.OpenMP.manifest')
-            if builder.find('win64') == -1:
-                dlls_path = 'C:\\b\\redist\\x86'
+            if not os.path.exists(install_dir):
+                os.makedirs(install_dir)
+            if builder.endswith('vc2013'):
+                dlls = ('msvcp120.dll', 'msvcr120.dll', 'vcomp120.dll')
+            elif builder.endswith('vc2012'):
+                dlls = ('msvcp110.dll', 'msvcr110.dll', 'vcomp110.dll')
             else:
-                dlls_path = 'C:\\b\\redist\\amd64'
+                dlls = ('msvcm90.dll', 'msvcp90.dll', 'msvcr90.dll', 'vcomp90.dll', 'Microsoft.VC90.CRT.manifest', 'Microsoft.VC90.OpenMP.manifest')
+            if builder.find('win64') == -1:
+                dlls_path = '..\\..\\..\\redist\\x86'
+            else:
+                dlls_path = '..\\..\\..\\redist\\amd64'
             for dll in dlls:
                 shutil.copyfile(os.path.join(dlls_path, dll), os.path.join(install_dir, dll))
+
+        retcode = subprocess.call(['python', 'scons/scons.py'] + scons_options)
 
         sys.exit(retcode)

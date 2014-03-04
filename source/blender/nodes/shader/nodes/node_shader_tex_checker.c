@@ -39,14 +39,14 @@ static bNodeSocketTemplate sh_node_tex_checker_in[] = {
 
 static bNodeSocketTemplate sh_node_tex_checker_out[] = {
 	{	SOCK_RGBA, 0, N_("Color"),		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-	{	SOCK_FLOAT, 0, N_("Fac"),		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_FLOAT, 0, N_("Fac"),		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	-1, 0, ""	}
 };
 
 static void node_shader_init_tex_checker(bNodeTree *UNUSED(ntree), bNode *node)
 {
 	NodeTexChecker *tex = MEM_callocN(sizeof(NodeTexChecker), "NodeTexChecker");
-	default_tex_mapping(&tex->base.tex_mapping);
+	default_tex_mapping(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
 	default_color_mapping(&tex->base.color_mapping);
 
 	node->storage = tex;

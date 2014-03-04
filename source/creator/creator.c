@@ -63,6 +63,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 
 /* This little block needed for linking to Blender... */
 
@@ -76,12 +77,12 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 #include "BLI_callbacks.h"
+#include "BLI_blenlib.h"
+#include "BLI_mempool.h"
 
 #include "DNA_ID.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
-
-#include "BLI_blenlib.h"
 
 #include "BKE_blender.h"
 #include "BKE_brush.h"
@@ -92,6 +93,7 @@
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
+#include "BKE_modifier.h"
 #include "BKE_packedFile.h"
 #include "BKE_scene.h"
 #include "BKE_node.h"
@@ -116,8 +118,6 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
-
-#include "BLI_scanfill.h" /* for BLI_setErrorCallBack, TODO, move elsewhere */
 
 #ifdef WITH_FREESTYLE
 #  include "FRS_freestyle.h"
@@ -154,7 +154,14 @@
 #ifdef BUILD_DATE
 extern char build_date[];
 extern char build_time[];
-extern char build_rev[];
+extern char build_hash[];
+extern unsigned long build_commit_timestamp;
+
+/* TODO(sergey): ideally size need to be in sync with buildinfo.c */
+extern char build_commit_date[16];
+extern char build_commit_time[16];
+
+extern char build_branch[];
 extern char build_platform[];
 extern char build_type[];
 extern char build_cflags[];
@@ -173,11 +180,12 @@ static int print_version(int argc, const char **argv, void *data);
 #endif
 
 /* for the callbacks: */
-
+#ifndef WITH_PYTHON_MODULE
 #define BLEND_VERSION_FMT         "Blender %d.%02d (sub %d)"
 #define BLEND_VERSION_ARG         BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION
 /* pass directly to printf */
 #define BLEND_VERSION_STRING_FMT  BLEND_VERSION_FMT "\n", BLEND_VERSION_ARG
+#endif
 
 /* Initialize callbacks for the modules that need them */
 static void setCallbacks(void); 
@@ -219,7 +227,9 @@ static int print_version(int UNUSED(argc), const char **UNUSED(argv), void *UNUS
 #ifdef BUILD_DATE
 	printf("\tbuild date: %s\n", build_date);
 	printf("\tbuild time: %s\n", build_time);
-	printf("\tbuild revision: %s\n", build_rev);
+	printf("\tbuild commit date: %s\n", build_commit_date);
+	printf("\tbuild commit time: %s\n", build_commit_time);
+	printf("\tbuild hash: %s\n", build_hash);
 	printf("\tbuild platform: %s\n", build_platform);
 	printf("\tbuild type: %s\n", build_type);
 	printf("\tbuild c flags: %s\n", build_cflags);
@@ -249,12 +259,12 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	BLI_argsPrintArgDoc(ba, "--frame-jump");
 	BLI_argsPrintArgDoc(ba, "--render-output");
 	BLI_argsPrintArgDoc(ba, "--engine");
+	BLI_argsPrintArgDoc(ba, "--threads");
 	
 	printf("\n");
 	printf("Format Options:\n");
 	BLI_argsPrintArgDoc(ba, "--render-format");
 	BLI_argsPrintArgDoc(ba, "--use-extension");
-	BLI_argsPrintArgDoc(ba, "--threads");
 
 	printf("\n");
 	printf("Animation Playback Options:\n");
@@ -266,26 +276,54 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	BLI_argsPrintArgDoc(ba, "--window-borderless");
 	BLI_argsPrintArgDoc(ba, "--window-geometry");
 	BLI_argsPrintArgDoc(ba, "--start-console");
+	BLI_argsPrintArgDoc(ba, "--no-native-pixels");
+
 
 	printf("\n");
 	printf("Game Engine Specific Options:\n");
 	BLI_argsPrintArgDoc(ba, "-g");
 
 	printf("\n");
-	printf("Misc Options:\n");
-	BLI_argsPrintArgDoc(ba, "--debug");
-	BLI_argsPrintArgDoc(ba, "--debug-fpe");
-	BLI_argsPrintArgDoc(ba, "--disable-crash-handler");
+	printf("Python Options:\n");
+	BLI_argsPrintArgDoc(ba, "--enable-autoexec");
+	BLI_argsPrintArgDoc(ba, "--disable-autoexec");
 
+	printf("\n");
+
+	BLI_argsPrintArgDoc(ba, "--python");
+	BLI_argsPrintArgDoc(ba, "--python-text");
+	BLI_argsPrintArgDoc(ba, "--python-console");
+	BLI_argsPrintArgDoc(ba, "--addons");
+
+
+	printf("\n");
+	printf("Debug Options:\n");
+	BLI_argsPrintArgDoc(ba, "--debug");
+	BLI_argsPrintArgDoc(ba, "--debug-value");
+
+	printf("\n");
+	BLI_argsPrintArgDoc(ba, "--debug-events");
 #ifdef WITH_FFMPEG
 	BLI_argsPrintArgDoc(ba, "--debug-ffmpeg");
 #endif
-
+	BLI_argsPrintArgDoc(ba, "--debug-handlers");
 #ifdef WITH_LIBMV
 	BLI_argsPrintArgDoc(ba, "--debug-libmv");
 #endif
+	BLI_argsPrintArgDoc(ba, "--debug-memory");
+	BLI_argsPrintArgDoc(ba, "--debug-jobs");
+	BLI_argsPrintArgDoc(ba, "--debug-python");
+	BLI_argsPrintArgDoc(ba, "--debug-depsgraph");
+
+	BLI_argsPrintArgDoc(ba, "--debug-wm");
+	BLI_argsPrintArgDoc(ba, "--debug-all");
 
 	printf("\n");
+	BLI_argsPrintArgDoc(ba, "--debug-fpe");
+	BLI_argsPrintArgDoc(ba, "--disable-crash-handler");
+
+	printf("\n");
+	printf("Misc Options:\n");
 	BLI_argsPrintArgDoc(ba, "--factory-startup");
 	printf("\n");
 	BLI_argsPrintArgDoc(ba, "--env-system-config");
@@ -301,18 +339,6 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	printf("\n");
 
 	BLI_argsPrintArgDoc(ba, "--help");
-
-	printf("\n");
-
-	BLI_argsPrintArgDoc(ba, "--enable-autoexec");
-	BLI_argsPrintArgDoc(ba, "--disable-autoexec");
-
-	printf("\n");
-
-	BLI_argsPrintArgDoc(ba, "--python");
-	BLI_argsPrintArgDoc(ba, "--python-text");
-	BLI_argsPrintArgDoc(ba, "--python-console");
-	BLI_argsPrintArgDoc(ba, "--addons");
 
 #ifdef WIN32
 	BLI_argsPrintArgDoc(ba, "-R");
@@ -344,7 +370,7 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	printf("  $BLENDER_USER_CONFIG      Directory for user configuration files.\n");
 	printf("  $BLENDER_USER_SCRIPTS     Directory for user scripts.\n");
 	printf("  $BLENDER_SYSTEM_SCRIPTS   Directory for system wide scripts.\n");
-	printf("  Directory for user data files (icons, translations, ..).\n");
+	printf("  $BLENDER_USER_DATAFILES   Directory for user data files (icons, translations, ..).\n");
 	printf("  $BLENDER_SYSTEM_DATAFILES Directory for system wide data files.\n");
 	printf("  $BLENDER_SYSTEM_PYTHON    Directory for system python libraries.\n");
 #ifdef WIN32
@@ -398,10 +424,13 @@ static int debug_mode(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	G.debug |= G_DEBUG;  /* std output printf's */
 	printf(BLEND_VERSION_STRING_FMT);
 	MEM_set_memory_debug();
+#ifdef DEBUG
+	BLI_mempool_set_memory_debug();
+#endif
 
 #ifdef WITH_BUILDINFO
 	printf("Build: %s %s %s %s\n", build_date, build_time, build_platform, build_type);
-#endif // WITH_BUILDINFO
+#endif
 
 	BLI_argsPrint(data);
 	return 0;
@@ -421,6 +450,12 @@ static int debug_mode_libmv(int UNUSED(argc), const char **UNUSED(argv), void *U
 	return 0;
 }
 #endif
+
+static int debug_mode_memory(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+{
+	MEM_set_memory_debug();
+	return 0;
+}
 
 static int set_debug_value(int argc, const char **argv, void *UNUSED(data))
 {
@@ -566,13 +601,12 @@ static void blender_crash_handler(int signum)
 	printf("Writing: %s\n", fname);
 	fflush(stdout);
 
-	BLI_snprintf(header, sizeof(header), "# " BLEND_VERSION_FMT ", Revision: %s\n", BLEND_VERSION_ARG,
-#ifdef BUILD_DATE
-	             build_rev
+#ifndef BUILD_DATE
+	BLI_snprintf(header, sizeof(header), "# " BLEND_VERSION_FMT ", Unknown revision\n", BLEND_VERSION_ARG);
 #else
-	             "Unknown"
+	BLI_snprintf(header, sizeof(header), "# " BLEND_VERSION_FMT ", Commit date: %s %s, Hash %s\n",
+	             BLEND_VERSION_ARG, build_commit_date, build_commit_time, build_hash);
 #endif
-	             );
 
 	/* open the crash log */
 	errno = 0;
@@ -746,7 +780,7 @@ static int set_audio(int argc, const char **argv, void *UNUSED(data))
 static int set_output(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
-	if (argc >= 1) {
+	if (argc > 1) {
 		Scene *scene = CTX_data_scene(C);
 		if (scene) {
 			BLI_strncpy(scene->r.pic, argv[1], sizeof(scene->r.pic));
@@ -837,7 +871,7 @@ static int set_threads(int argc, const char **argv, void *UNUSED(data))
 		return 1;
 	}
 	else {
-		printf("\nError: you must specify a number of threads between 0 and 8 '-t  / --threads'.\n");
+		printf("\nError: you must specify a number of threads between 0 and %d '-t / --threads'.\n", BLENDER_MAX_THREADS);
 		return 0;
 	}
 }
@@ -864,7 +898,7 @@ static int set_verbosity(int argc, const char **argv, void *UNUSED(data))
 static int set_extension(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
-	if (argc >= 1) {
+	if (argc > 1) {
 		Scene *scene = CTX_data_scene(C);
 		if (scene) {
 			if (argv[1][0] == '0') {
@@ -1225,9 +1259,10 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 		 * pointcache works */
 		if (retval != BKE_READ_FILE_FAIL) {
 			wmWindowManager *wm = CTX_wm_manager(C);
+			Main *bmain = CTX_data_main(C);
 
 			/* special case, 2.4x files */
-			if (wm == NULL && CTX_data_main(C)->wm.first == NULL) {
+			if (wm == NULL && BLI_listbase_is_empty(&bmain->wm)) {
 				extern void wm_add_default(bContext *C);
 
 				/* wm_add_default() needs the screen to be set. */
@@ -1240,7 +1275,8 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 			G.relbase_valid = 1;
 			if (CTX_wm_manager(C) == NULL) CTX_wm_manager_set(C, wm);  /* reset wm */
 
-			DAG_on_visible_update(CTX_data_main(C), TRUE);
+			DAG_on_visible_update(bmain, TRUE);
+			BKE_scene_update_tagged(bmain->eval_ctx, bmain, CTX_data_scene(C));
 		}
 		else {
 			/* failed to load file, stop processing arguments */
@@ -1262,6 +1298,7 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 		 * a file - this should do everything a 'load file' does */
 		ReportList reports;
 		BKE_reports_init(&reports, RPT_PRINT);
+		WM_file_autoexec_init(filename);
 		WM_file_read(C, filename, &reports);
 		BKE_reports_clear(&reports);
 	}
@@ -1341,7 +1378,7 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 #undef PY_ENABLE_AUTO
 #undef PY_DISABLE_AUTO
 	
-	BLI_argsAdd(ba, 1, "-b", "--background", "<file>\n\tLoad <file> in background (often used for UI-less rendering)", background_mode, NULL);
+	BLI_argsAdd(ba, 1, "-b", "--background", "\n\tRun in background (often used for UI-less rendering)", background_mode, NULL);
 
 	BLI_argsAdd(ba, 1, "-a", NULL, playback_doc, playback_mode, NULL);
 
@@ -1366,9 +1403,11 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 #ifdef WITH_LIBMV
 	BLI_argsAdd(ba, 1, NULL, "--debug-libmv", "\n\tEnable debug messages from libmv library", debug_mode_libmv, NULL);
 #endif
+	BLI_argsAdd(ba, 1, NULL, "--debug-memory", "\n\tEnable fully guarded memory allocation and debugging", debug_mode_memory, NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--debug-value", "<value>\n\tSet debug value of <value> on startup\n", set_debug_value, NULL);
 	BLI_argsAdd(ba, 1, NULL, "--debug-jobs",  "\n\tEnable time profiling for background jobs.", debug_mode_generic, (void *)G_DEBUG_JOBS);
+	BLI_argsAdd(ba, 1, NULL, "--debug-depsgraph", "\n\tEnable debug messages from dependency graph", debug_mode_generic, (void *)G_DEBUG_DEPSGRAPH);
 
 	BLI_argsAdd(ba, 1, NULL, "--verbose", "<verbose>\n\tSet logging verbosity level.", set_verbosity, NULL);
 
@@ -1436,22 +1475,65 @@ int main(int argc, const char **UNUSED(argv_c)) /* Do not mess with const */
 int main(int argc, const char **argv)
 #endif
 {
-	bContext *C = CTX_create();
+	bContext *C;
 	SYS_SystemHandle syshandle;
 
 #ifndef WITH_PYTHON_MODULE
 	bArgs *ba;
 #endif
 
-#ifdef WIN32
+#ifdef WIN32 /* Win32 Unicode Args */
+	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialized
+	 *       (it depends on the args passed in, which is what we're getting here!)
+	 */
 	wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
+	char **argv = malloc(argc * sizeof(char *));
 	int argci = 0;
-	char **argv = MEM_mallocN(argc * sizeof(char *), "argv array");
+	
 	for (argci = 0; argci < argc; argci++) {
 		argv[argci] = alloc_utf_8_from_16(argv_16[argci], 0);
 	}
+	
 	LocalFree(argv_16);
 #endif
+
+	/* NOTE: Special exception for guarded allocator type switch:
+	 *       we need to perform switch from lock-free to fully
+	 *       guarded allocator before any allocation happened.
+	 */
+	{
+		int i;
+		for (i = 0; i < argc; i++) {
+			if (STREQ(argv[i], "--debug") || STREQ(argv[i], "-d") ||
+			    STREQ(argv[i], "--debug-memory"))
+			{
+				printf("Switching to fully guarded memory allocator.\n");
+				MEM_use_guarded_allocator();
+				break;
+			}
+			else if (STREQ(argv[i], "--")) {
+				break;
+			}
+		}
+	}
+
+#ifdef BUILD_DATE
+	{
+		time_t temp_time = build_commit_timestamp;
+		struct tm *tm = gmtime(&temp_time);
+		if (LIKELY(tm)) {
+			strftime(build_commit_date, sizeof(build_commit_date), "%Y-%m-%d", tm);
+			strftime(build_commit_time, sizeof(build_commit_time), "%H:%M", tm);
+		}
+		else {
+			const char *unknown = "date-unknown";
+			BLI_strncpy(build_commit_date, unknown, sizeof(build_commit_date));
+			BLI_strncpy(build_commit_time, unknown, sizeof(build_commit_time));
+		}
+	}
+#endif
+
+	C = CTX_create();
 
 #ifdef WITH_PYTHON_MODULE
 #ifdef __APPLE__
@@ -1502,6 +1584,8 @@ int main(int argc, const char **argv)
 
 	IMB_init();
 	BKE_images_init();
+	BKE_modifier_init();
+	DAG_init();
 
 	BKE_brush_system_init();
 
@@ -1569,10 +1653,6 @@ int main(int argc, const char **argv)
 		/* this is properly initialized with user defs, but this is default */
 		/* call after loading the startup.blend so we can read U.tempdir */
 		BLI_init_temporary_dir(U.tempdir);
-
-#ifdef WITH_SDL
-		BLI_setenv("SDL_VIDEODRIVER", "dummy");
-#endif
 	}
 	else {
 #ifndef WITH_PYTHON_MODULE
@@ -1626,7 +1706,7 @@ int main(int argc, const char **argv)
 	while (argci) {
 		free(argv[--argci]);
 	}
-	MEM_freeN(argv);
+	free(argv);
 	argv = NULL;
 #endif
 
@@ -1666,16 +1746,10 @@ int main(int argc, const char **argv)
 #ifdef WITH_PYTHON_MODULE
 void main_python_exit(void)
 {
-	WM_exit((bContext *)evil_C);
+	WM_exit_ext((bContext *)evil_C, true);
 	evil_C = NULL;
 }
 #endif
-
-static void error_cb(const char *err)
-{
-	
-	printf("%s\n", err);    /* XXX do this in WM too */
-}
 
 static void mem_error_cb(const char *errorStr)
 {
@@ -1687,11 +1761,4 @@ static void setCallbacks(void)
 {
 	/* Error output from the alloc routines: */
 	MEM_set_error_callback(mem_error_cb);
-
-
-	/* BLI_blenlib: */
-
-	BLI_setErrorCallBack(error_cb); /* */
-// XXX	BLI_setInterruptCallBack(blender_test_break);
-
 }

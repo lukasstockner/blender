@@ -47,7 +47,7 @@
 namespace ceres {
 namespace internal {
 
-// A threaf safe square block sparse implementation of
+// A thread safe square block sparse implementation of
 // BlockRandomAccessMatrix. Internally a TripletSparseMatrix is used
 // for doing the actual storage. This class augments this matrix with
 // an unordered_map that allows random read/write access.
@@ -74,7 +74,6 @@ class BlockRandomAccessSparseMatrix : public BlockRandomAccessMatrix {
   // This is not a thread safe method, it assumes that no cell is
   // locked.
   virtual void SetZero();
-  virtual bool IsThreadSafe() const { return true; }
 
   // Since the matrix is square, num_rows() == num_cols().
   virtual int num_rows() const { return tsm_->num_rows(); }

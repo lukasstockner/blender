@@ -15,11 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * This is a new part of Blender.
- *
  * Contributor(s): Joseph Gilbert, Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -479,6 +474,12 @@ static struct PyModuleDef M_Mathutils_module_def = {
 	NULL,  /* m_free */
 };
 
+
+/* submodules only */
+#include "mathutils_geometry.h"
+#include "mathutils_kdtree.h"
+#include "mathutils_noise.h"
+
 PyMODINIT_FUNC PyInit_mathutils(void)
 {
 	PyObject *mod;
@@ -515,10 +516,17 @@ PyMODINIT_FUNC PyInit_mathutils(void)
 	PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule);
 	Py_INCREF(submodule);
 
+#ifndef MATH_STANDALONE
 	/* Noise submodule */
 	PyModule_AddObject(mod, "noise", (submodule = PyInit_mathutils_noise()));
 	PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule);
 	Py_INCREF(submodule);
+
+	/* KDTree submodule */
+	PyModule_AddObject(mod, "kdtree", (submodule = PyInit_mathutils_kdtree()));
+	PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule);
+	Py_INCREF(submodule);
+#endif
 
 	mathutils_matrix_row_cb_index = Mathutils_RegisterCallback(&mathutils_matrix_row_cb);
 	mathutils_matrix_col_cb_index = Mathutils_RegisterCallback(&mathutils_matrix_col_cb);

@@ -30,6 +30,7 @@
 
 #include "BLI_math.h"
 #include "BLI_array.h"
+#include "BLI_alloca.h"
 
 #include "BKE_customdata.h"
 
@@ -40,30 +41,32 @@
 static void remdoubles_splitface(BMFace *f, BMesh *bm, BMOperator *op, BMOpSlot *slot_targetmap)
 {
 	BMIter liter;
-	BMLoop *l;
-	BMVert *v2, *v_double;
+	BMLoop *l, *l_tar, *l_double;
 	bool split = false;
 
 	BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-		v2 = BMO_slot_map_elem_get(slot_targetmap, l->v);
-		/* ok: if v2 is NULL (e.g. not in the map) then it's
+		BMVert *v_tar = BMO_slot_map_elem_get(slot_targetmap, l->v);
+		/* ok: if v_tar is NULL (e.g. not in the map) then it's
 		 *     a target vert, otherwise it's a double */
-		if ((v2 && BM_vert_in_face(f, v2)) &&
-		    (v2 != l->prev->v) &&
-		    (v2 != l->next->v))
-		{
-			v_double = l->v;
-			split = true;
-			break;
+		if (v_tar) {
+			l_tar = BM_face_vert_share_loop(f, v_tar);
+
+			if (l_tar && (l_tar != l) && !BM_loop_is_adjacent(l_tar, l)) {
+				l_double = l;
+				split = true;
+				break;
+			}
 		}
 	}
 
-	if (split && v_double != v2) {
+	if (split) {
 		BMLoop *l_new;
-		BMFace *f2 = BM_face_split(bm, f, v_double, v2, &l_new, NULL, false);
+		BMFace *f_new;
 
-		remdoubles_splitface(f, bm, op, slot_targetmap);
-		remdoubles_splitface(f2, bm, op, slot_targetmap);
+		f_new = BM_face_split(bm, f, l_double, l_tar, &l_new, NULL, false);
+
+		remdoubles_splitface(f,     bm, op, slot_targetmap);
+		remdoubles_splitface(f_new, bm, op, slot_targetmap);
 	}
 }
 
@@ -71,51 +74,109 @@ static void remdoubles_splitface(BMFace *f, BMesh *bm, BMOperator *op, BMOpSlot 
 #define EDGE_COL	2
 #define FACE_MARK	2
 
-#if 0
-int remdoubles_face_overlaps(BMesh *bm, BMVert **varr,
-                             int len, BMFace *exclude,
-                             BMFace **overlapface)
+/**
+ * helper function for bmo_weld_verts_exec so we can use stack memory
+ */
+static void remdoubles_createface(BMesh *bm, BMFace *f, BMOpSlot *slot_targetmap)
 {
-	BMIter vertfaces;
-	BMFace *f;
-	int i, amount;
+	BMIter liter;
+	BMFace *f_new;
+	BMEdge *e_new;
 
-	if (overlapface) *overlapface = NULL;
+	BMLoop *l;
 
-	for (i = 0; i < len; i++) {
-		f = BM_iter_new(&vertfaces, bm, BM_FACES_OF_VERT, varr[i]);
-		while (f) {
-			amount = BM_verts_in_face(bm, f, varr, len);
-			if (amount >= len) {
-				if (overlapface) *overlapface = f;
-				return true;
+	BMEdge **edges = BLI_array_alloca(edges, f->len);
+	BMLoop **loops = BLI_array_alloca(loops, f->len);
+
+	STACK_DECLARE(edges);
+	STACK_DECLARE(loops);
+
+	STACK_INIT(edges);
+	STACK_INIT(loops);
+
+	BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
+		BMVert *v1 = l->v;
+		BMVert *v2 = l->next->v;
+
+		const bool is_del_v1 = BMO_elem_flag_test_bool(bm, v1, ELE_DEL);
+		const bool is_del_v2 = BMO_elem_flag_test_bool(bm, v2, ELE_DEL);
+
+		/* only search for a new edge if one of the verts is mapped */
+		if (is_del_v1 || is_del_v2) {
+			if (is_del_v1)
+				v1 = BMO_slot_map_elem_get(slot_targetmap, v1);
+			if (is_del_v2)
+				v2 = BMO_slot_map_elem_get(slot_targetmap, v2);
+
+			e_new = (v1 != v2) ? BM_edge_exists(v1, v2) : NULL;
+		}
+		else {
+			e_new = l->e;
+		}
+
+		if (e_new) {
+			unsigned int i;
+			for (i = 0; i < STACK_SIZE(edges); i++) {
+				if (edges[i] == e_new) {
+					break;
+				}
 			}
-			f = BM_iter_step(&vertfaces);
+			if (UNLIKELY(i != STACK_SIZE(edges))) {
+				continue;
+			}
+
+			STACK_PUSH(edges, e_new);
+			STACK_PUSH(loops, l);
 		}
 	}
-	return false;
-}
-#endif
 
+	if (STACK_SIZE(edges) >= 3) {
+		BMVert *v1 = loops[0]->v;
+		BMVert *v2 = loops[1]->v;
+
+		if (BMO_elem_flag_test(bm, v1, ELE_DEL)) {
+			v1 = BMO_slot_map_elem_get(slot_targetmap, v1);
+		}
+		if (BMO_elem_flag_test(bm, v2, ELE_DEL)) {
+			v2 = BMO_slot_map_elem_get(slot_targetmap, v2);
+		}
+
+		f_new = BM_face_create_ngon(bm, v1, v2, edges, STACK_SIZE(edges), f, BM_CREATE_NO_DOUBLE);
+		BLI_assert(f_new != f);
+
+		if (f_new) {
+			unsigned int i;
+			BM_ITER_ELEM_INDEX (l, &liter, f_new, BM_LOOPS_OF_FACE, i) {
+				BM_elem_attrs_copy(bm, bm, loops[i], l);
+			}
+		}
+	}
+
+	STACK_FREE(edges);
+	STACK_FREE(loops);
+}
+
+/**
+ * \note with 'targetmap', multiple 'keys' are currently supported, though no callers should be using.
+ * (because slot maps currently use GHash without the GHASH_FLAG_ALLOW_DUPES flag set)
+ *
+ */
 void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 {
 	BMIter iter, liter;
-	BMVert *v, *v2;
-	BMEdge *e, *e_new, **edges = NULL;
-	BLI_array_declare(edges);
-	BMLoop *l, *l_new, **loops = NULL;
-	BLI_array_declare(loops);
-	BMFace *f, *f_new;
-	int a, b;
+	BMVert *v1, *v2;
+	BMEdge *e;
+	BMLoop *l;
+	BMFace *f;
 	BMOpSlot *slot_targetmap = BMO_slot_get(op->slots_in, "targetmap");
 
 	/* mark merge verts for deletion */
-	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-		if ((v2 = BMO_slot_map_elem_get(slot_targetmap, v))) {
-			BMO_elem_flag_enable(bm, v, ELE_DEL);
+	BM_ITER_MESH (v1, &iter, bm, BM_VERTS_OF_MESH) {
+		if ((v2 = BMO_slot_map_elem_get(slot_targetmap, v1))) {
+			BMO_elem_flag_enable(bm, v1, ELE_DEL);
 
 			/* merge the vertex flags, else we get randomly selected/unselected verts */
-			BM_elem_flag_merge(v, v2);
+			BM_elem_flag_merge(v1, v2);
 		}
 	}
 
@@ -126,18 +187,20 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 	}
 
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-		if (BMO_elem_flag_test(bm, e->v1, ELE_DEL) || BMO_elem_flag_test(bm, e->v2, ELE_DEL)) {
-			v  = BMO_slot_map_elem_get(slot_targetmap, e->v1);
-			v2 = BMO_slot_map_elem_get(slot_targetmap, e->v2);
-			
-			if (!v) v = e->v1;
-			if (!v2) v2 = e->v2;
+		const bool is_del_v1 = BMO_elem_flag_test_bool(bm, (v1 = e->v1), ELE_DEL);
+		const bool is_del_v2 = BMO_elem_flag_test_bool(bm, (v2 = e->v2), ELE_DEL);
 
-			if (v == v2) {
+		if (is_del_v1 || is_del_v2) {
+			if (is_del_v1)
+				v1 = BMO_slot_map_elem_get(slot_targetmap, v1);
+			if (is_del_v2)
+				v2 = BMO_slot_map_elem_get(slot_targetmap, v2);
+
+			if (v1 == v2) {
 				BMO_elem_flag_enable(bm, e, EDGE_COL);
 			}
-			else if (!BM_edge_exists(v, v2)) {
-				BM_edge_create(bm, v, v2, e, BM_CREATE_NO_DOUBLE);
+			else if (!BM_edge_exists(v1, v2)) {
+				BM_edge_create(bm, v1, v2, e, BM_CREATE_NO_DOUBLE);
 			}
 
 			BMO_elem_flag_enable(bm, e, ELE_DEL);
@@ -169,70 +232,10 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
 			continue;
 		}
 
-		BLI_array_empty(edges);
-		BLI_array_empty(loops);
-		a = 0;
-		BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-			v = l->v;
-			v2 = l->next->v;
-			if (BMO_elem_flag_test(bm, v, ELE_DEL)) {
-				v = BMO_slot_map_elem_get(slot_targetmap, v);
-			}
-			if (BMO_elem_flag_test(bm, v2, ELE_DEL)) {
-				v2 = BMO_slot_map_elem_get(slot_targetmap, v2);
-			}
-			
-			e_new = v != v2 ? BM_edge_exists(v, v2) : NULL;
-			if (e_new) {
-				for (b = 0; b < a; b++) {
-					if (edges[b] == e_new) {
-						break;
-					}
-				}
-				if (b != a) {
-					continue;
-				}
-
-				BLI_array_grow_one(edges);
-				BLI_array_grow_one(loops);
-
-				edges[a] = e_new;
-				loops[a] = l;
-
-				a++;
-			}
-		}
-		
-		if (BLI_array_count(loops) < 3)
-			continue;
-		v = loops[0]->v;
-		v2 = loops[1]->v;
-
-		if (BMO_elem_flag_test(bm, v, ELE_DEL)) {
-			v = BMO_slot_map_elem_get(slot_targetmap, v);
-		}
-		if (BMO_elem_flag_test(bm, v2, ELE_DEL)) {
-			v2 = BMO_slot_map_elem_get(slot_targetmap, v2);
-		}
-		
-		f_new = BM_face_create_ngon(bm, v, v2, edges, a, BM_CREATE_NO_DOUBLE);
-		if (f_new && (f_new != f)) {
-			BM_elem_attrs_copy(bm, bm, f, f_new);
-
-			a = 0;
-			BM_ITER_ELEM (l, &liter, f_new, BM_LOOPS_OF_FACE) {
-				l_new = loops[a];
-				BM_elem_attrs_copy(bm, bm, l_new, l);
-
-				a++;
-			}
-		}
+		remdoubles_createface(bm, f, slot_targetmap);
 	}
 
-	BMO_op_callf(bm, op->flag, "delete geom=%fvef context=%i", ELE_DEL, DEL_ONLYTAGGED);
-
-	BLI_array_free(edges);
-	BLI_array_free(loops);
+	BMO_mesh_delete_oflag_context(bm, ELE_DEL, DEL_ONLYTAGGED);
 }
 
 static int vergaverco(const void *e1, const void *e2)
@@ -377,7 +380,7 @@ void bmo_collapse_exec(BMesh *bm, BMOperator *op)
 	BMEdge *e, **edges = NULL;
 	BLI_array_declare(edges);
 	float min[3], max[3], center[3];
-	int i, tot;
+	unsigned int i, tot;
 	BMOpSlot *slot_targetmap;
 	
 	BMO_op_callf(bm, op->flag, "collapse_uvs edges=%s", op, "edges");
@@ -392,6 +395,8 @@ void bmo_collapse_exec(BMesh *bm, BMOperator *op)
 	         BMW_NIL_LAY);
 
 	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+		BMVert *v_tar;
+
 		if (!BMO_elem_flag_test(bm, e, EDGE_MARK))
 			continue;
 
@@ -404,19 +409,29 @@ void bmo_collapse_exec(BMesh *bm, BMOperator *op)
 
 			minmax_v3v3_v3(min, max, e->v1->co);
 			minmax_v3v3_v3(min, max, e->v2->co);
+
+			/* prevent adding to slot_targetmap multiple times */
+			BM_elem_flag_disable(e->v1, BM_ELEM_TAG);
+			BM_elem_flag_disable(e->v2, BM_ELEM_TAG);
 		}
 
 		mid_v3_v3v3(center, min, max);
 
 		/* snap edges to a point.  for initial testing purposes anyway */
+		v_tar = edges[0]->v1;
+
 		for (i = 0; i < tot; i++) {
-			copy_v3_v3(edges[i]->v1->co, center);
-			copy_v3_v3(edges[i]->v2->co, center);
-			
-			if (edges[i]->v1 != edges[0]->v1)
-				BMO_slot_map_elem_insert(&weldop, slot_targetmap, edges[i]->v1, edges[0]->v1);
-			if (edges[i]->v2 != edges[0]->v1)
-				BMO_slot_map_elem_insert(&weldop, slot_targetmap, edges[i]->v2, edges[0]->v1);
+			unsigned int j;
+
+			for (j = 0; j < 2; j++) {
+				BMVert *v_src = *((&edges[i]->v1) + j);
+
+				copy_v3_v3(v_src->co, center);
+				if ((v_src != v_tar) && !BM_elem_flag_test(v_src, BM_ELEM_TAG)) {
+					BM_elem_flag_enable(v_src, BM_ELEM_TAG);
+					BMO_slot_map_elem_insert(&weldop, slot_targetmap, v_src, v_tar);
+				}
+			}
 		}
 	}
 	
@@ -428,7 +443,7 @@ void bmo_collapse_exec(BMesh *bm, BMOperator *op)
 }
 
 /* uv collapse function */
-static void bmo_collapsecon_do_layer(BMesh *bm, BMOperator *op, int layer)
+static void bmo_collapsecon_do_layer(BMesh *bm, const int layer, const short oflag)
 {
 	BMIter iter, liter;
 	BMFace *f;
@@ -439,19 +454,14 @@ static void bmo_collapsecon_do_layer(BMesh *bm, BMOperator *op, int layer)
 	CDBlockBytes min, max;
 	int i, tot, type = bm->ldata.layers[layer].type;
 
-	/* clear all short flags */
-	BMO_mesh_flag_disable_all(bm, op, BM_ALL, (1 << 16) - 1);
-
-	BMO_slot_buffer_flag_enable(bm, op->slots_in, "edges", BM_EDGE, EDGE_MARK);
-
 	BMW_init(&walker, bm, BMW_LOOPDATA_ISLAND,
-	         BMW_MASK_NOP, EDGE_MARK, BMW_MASK_NOP,
+	         BMW_MASK_NOP, oflag, BMW_MASK_NOP,
 	         BMW_FLAG_NOP, /* no need to use BMW_FLAG_TEST_HIDDEN, already marked data */
 	         layer);
 
 	BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
 		BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
-			if (BMO_elem_flag_test(bm, l->e, EDGE_MARK)) {
+			if (BMO_elem_flag_test(bm, l->e, oflag)) {
 				/* walk */
 				BLI_array_empty(blocks);
 
@@ -482,12 +492,33 @@ static void bmo_collapsecon_do_layer(BMesh *bm, BMOperator *op, int layer)
 
 void bmo_collapse_uvs_exec(BMesh *bm, BMOperator *op)
 {
+	const short oflag = EDGE_MARK;
 	int i;
+
+	/* check flags dont change once set */
+#ifndef NDEBUG
+	int tot_test;
+#endif
+
+	if (!CustomData_has_math(&bm->ldata)) {
+		return;
+	}
+
+	BMO_slot_buffer_flag_enable(bm, op->slots_in, "edges", BM_EDGE, oflag);
+
+#ifndef NDEBUG
+	tot_test = BM_iter_mesh_count_flag(BM_EDGES_OF_MESH, bm, oflag, true);
+#endif
 
 	for (i = 0; i < bm->ldata.totlayer; i++) {
 		if (CustomData_layer_has_math(&bm->ldata, i))
-			bmo_collapsecon_do_layer(bm, op, i);
+			bmo_collapsecon_do_layer(bm, i, oflag);
 	}
+
+#ifndef NDEBUG
+	BLI_assert(tot_test == BM_iter_mesh_count_flag(BM_EDGES_OF_MESH, bm, EDGE_MARK, true));
+#endif
+
 }
 
 static void bmesh_find_doubles_common(BMesh *bm, BMOperator *op,
@@ -521,12 +552,17 @@ static void bmesh_find_doubles_common(BMesh *bm, BMOperator *op,
 	for (i = 0; i < verts_len; i++) {
 		BMVert *v_check = verts[i];
 
-		if (BMO_elem_flag_test(bm, v_check, VERT_DOUBLE)) {
+		if (BMO_elem_flag_test(bm, v_check, VERT_DOUBLE | VERT_TARGET)) {
 			continue;
 		}
 
 		for (j = i + 1; j < verts_len; j++) {
 			BMVert *v_other = verts[j];
+
+			/* a match has already been found, (we could check which is best, for now don't) */
+			if (BMO_elem_flag_test(bm, v_other, VERT_DOUBLE | VERT_TARGET)) {
+				continue;
+			}
 
 			/* Compare sort values of the verts using 3x tolerance (allowing for the tolerance
 			 * on each of the three axes). This avoids the more expensive length comparison

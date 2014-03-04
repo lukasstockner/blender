@@ -58,19 +58,18 @@ Lamp *BKE_lamp_add(Main *bmain, const char *name)
 {
 	Lamp *la;
 	
-	la =  BKE_libblock_alloc(&bmain->lamp, ID_LA, name);
+	la =  BKE_libblock_alloc(bmain, ID_LA, name);
 	
 	la->r = la->g = la->b = la->k = 1.0f;
 	la->haint = la->energy = 1.0f;
 	la->dist = 25.0f;
-	la->spotsize = 45.0f;
+	la->spotsize = DEG2RADF(45.0f);
 	la->spotblend = 0.15f;
 	la->att2 = 1.0f;
 	la->mode = LA_SHAD_BUF;
 	la->bufsize = 512;
 	la->clipsta = 0.5f;
 	la->clipend = 40.0f;
-	la->shadspotsize = 45.0f;
 	la->samp = 3;
 	la->bias = 1.0f;
 	la->soft = 3.0f;
@@ -172,9 +171,6 @@ void BKE_lamp_make_local(Lamp *la)
 	if (la->id.lib == NULL) return;
 	if (la->id.us == 1) {
 		id_clear_lib_data(bmain, &la->id);
-		/* nodetree uses same lib */
-		if (la->nodetree)
-			la->nodetree->id.lib = NULL;
 		return;
 	}
 	
@@ -189,9 +185,6 @@ void BKE_lamp_make_local(Lamp *la)
 	
 	if (is_local && is_lib == FALSE) {
 		id_clear_lib_data(bmain, &la->id);
-		/* nodetree uses same lib */
-		if (la->nodetree)
-			la->nodetree->id.lib = NULL;
 	}
 	else if (is_local && is_lib) {
 		Lamp *la_new = BKE_lamp_copy(la);

@@ -648,6 +648,17 @@ void AnimationImporter:: Assign_float_animations(const COLLADAFW::UniqueId& list
 			//Add the curves of the current animation to the object
 			for (iter = animcurves.begin(); iter != animcurves.end(); iter++) {
 				FCurve *fcu = *iter;
+				/* All anim_types whose values are to be converted from Degree to Radians can be ORed here */
+				if (strcmp("spot_size", anim_type)==0) {
+					/* NOTE: Do NOT convert if imported file was made by blender <= 2.69.10
+					 * Reason: old blender versions stored spot_size in radians (was a bug)
+					 */
+					if (this->import_from_version == "" || BLI_natstrcmp(this->import_from_version.c_str(), "2.69.10") != -1) {
+						fcurve_deg_to_rad(fcu);
+					}
+				}
+				/** XXX What About animtype "rotation" ? */
+
 				BLI_addtail(AnimCurves, fcu);
 			}
 		}
@@ -1687,6 +1698,18 @@ void AnimationImporter::evaluate_transform_at_frame(float mat[4][4], COLLADAFW::
 	}
 }
 
+static void report_class_type_unsupported(const char *path, 
+                                         const COLLADAFW::AnimationList::AnimationClass animclass,
+                                         const COLLADAFW::Transformation::TransformationType type) 
+{
+	if (animclass == COLLADAFW::AnimationList::UNKNOWN_CLASS) {
+		fprintf(stderr, "%s: UNKNOWN animation class\n", path);
+	}
+	else {
+		fprintf(stderr, "%s: animation class %d is not supported yet for transformation type %d\n", path, animclass, type);
+	}
+}
+
 // return true to indicate that mat contains a sane value
 bool AnimationImporter::evaluate_animation(COLLADAFW::Transformation *tm, float mat[4][4], float fra, const char *node_id)
 {
@@ -1741,11 +1764,6 @@ bool AnimationImporter::evaluate_animation(COLLADAFW::Transformation *tm, float 
 					break;
 			}
 
-			if (animclass == COLLADAFW::AnimationList::UNKNOWN_CLASS) {
-				fprintf(stderr, "%s: UNKNOWN animation class\n", path);
-				//continue;
-			}
-
 			if (type == COLLADAFW::Transformation::ROTATE) {
 				if (curves.size() != 1) {
 					fprintf(stderr, "expected 1 curve, got %d\n", (int)curves.size());
@@ -1754,7 +1772,7 @@ bool AnimationImporter::evaluate_animation(COLLADAFW::Transformation *tm, float 
 
 				// TODO support other animclasses
 				if (animclass != COLLADAFW::AnimationList::ANGLE) {
-					fprintf(stderr, "%s: animation class %d is not supported yet\n", path, animclass);
+					report_class_type_unsupported(path, animclass, type);
 					return false;
 				}
 
@@ -1793,7 +1811,7 @@ bool AnimationImporter::evaluate_animation(COLLADAFW::Transformation *tm, float 
 						vec[2] = evaluate_fcurve(curves[2], fra);
 						break;
 					default:
-						fprintf(stderr, "%s: animation class %d is not supported yet\n", path, animclass);
+						report_class_type_unsupported(path, animclass, type);
 						break;
 				}
 			}
@@ -1998,3 +2016,7 @@ void AnimationImporter::add_bezt(FCurve *fcu, float fra, float value)
 	calchandles_fcurve(fcu);
 }
 
+void AnimationImporter::set_import_from_version(std::string import_from_version)
+{
+	this->import_from_version = import_from_version;
+}

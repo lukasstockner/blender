@@ -28,13 +28,13 @@
 #include "COM_SetValueOperation.h"
 #include "COM_MathBaseOperation.h"
 #include "COM_AntiAliasOperation.h"
-#include "COM_MixBlendOperation.h"
+#include "COM_MixOperation.h"
 
 #include "DNA_material_types.h" // the ramp types
 
 void ZCombineNode::convertToOperations(ExecutionSystem *system, CompositorContext *context)
 {
-	if (context->getRenderData()->scemode & R_FULL_SAMPLE) {
+	if ((context->getRenderData()->scemode & R_FULL_SAMPLE) || this->getbNode()->custom2) {
 		if (this->getOutputSocket(0)->isConnected()) {
 			ZCombineOperation *operation = NULL;
 			if (this->getbNode()->custom1) {
@@ -89,7 +89,7 @@ void ZCombineNode::convertToOperations(ExecutionSystem *system, CompositorContex
 		addLink(system, maskoperation->getOutputSocket(), antialiasoperation->getInputSocket(0));
 
 		// use mask to blend between the input colors.
-		ZCombineMaskOperation *zcombineoperation = this->getbNode()->custom1?new ZCombineMaskAlphaOperation():new ZCombineMaskOperation();
+		ZCombineMaskOperation *zcombineoperation = this->getbNode()->custom1 ? new ZCombineMaskAlphaOperation() : new ZCombineMaskOperation();
 		addLink(system, antialiasoperation->getOutputSocket(), zcombineoperation->getInputSocket(0));
 		this->getInputSocket(0)->relinkConnections(zcombineoperation->getInputSocket(1), 0, system);
 		this->getInputSocket(2)->relinkConnections(zcombineoperation->getInputSocket(2), 2, system);

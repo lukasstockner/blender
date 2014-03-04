@@ -39,9 +39,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_array.h"
 #include "BLI_blenlib.h"
+#include "BLI_alloca.h"
 #include "BLI_dynstr.h"
+#include "BLI_listbase.h"
 
 #include "BLF_translation.h"
 
@@ -272,7 +273,7 @@ AnimData *BKE_copy_animdata(AnimData *adt, const bool do_action)
 	copy_fcurves(&dadt->drivers, &adt->drivers);
 	
 	/* don't copy overrides */
-	dadt->overrides.first = dadt->overrides.last = NULL;
+	BLI_listbase_clear(&dadt->overrides);
 	
 	/* return */
 	return dadt;
@@ -464,7 +465,7 @@ void action_move_fcurves_by_basepath(bAction *srcAct, bAction *dstAct, const cha
 				/* if group is empty and tagged, then we can remove as this operation
 				 * moved out all the channels that were formerly here
 				 */
-				if (agrp->channels.first == NULL)
+				if (BLI_listbase_is_empty(&agrp->channels))
 					BLI_freelinkN(&srcAct->groups, agrp);
 				else
 					agrp->flag &= ~AGRP_TEMP;
@@ -710,6 +711,49 @@ static void nlastrips_path_rename_fix(ID *owner_id, const char *prefix, const ch
 	}
 }
 
+/* Fix all RNA_Paths in the given Action, relative to the given ID block 
+ *
+ * This is just an external wrapper for the F-Curve fixing function,
+ * with input validity checks on top of the basic method.
+ *
+ * NOTE: it is assumed that the structure we're replacing is <prefix><["><name><"]>
+ *       i.e. pose.bones["Bone"]
+ */
+void BKE_action_fix_paths_rename(ID *owner_id, bAction *act, const char *prefix, const char *oldName,
+                                 const char *newName, int oldSubscript, int newSubscript, int verify_paths)
+{
+	char *oldN, *newN;
+	
+	/* if no action, no need to proceed */
+	if (ELEM(NULL, owner_id, act))
+		return;
+	
+	/* Name sanitation logic - copied from BKE_animdata_fix_paths_rename() */
+	if ((oldName != NULL) && (newName != NULL)) {
+		/* pad the names with [" "] so that only exact matches are made */
+		const size_t name_old_len = strlen(oldName);
+		const size_t name_new_len = strlen(newName);
+		char *name_old_esc = BLI_array_alloca(name_old_esc, (name_old_len * 2) + 1);
+		char *name_new_esc = BLI_array_alloca(name_new_esc, (name_new_len * 2) + 1);
+
+		BLI_strescape(name_old_esc, oldName, (name_old_len * 2) + 1);
+		BLI_strescape(name_new_esc, newName, (name_new_len * 2) + 1);
+		oldN = BLI_sprintfN("[\"%s\"]", name_old_esc);
+		newN = BLI_sprintfN("[\"%s\"]", name_new_esc);
+	}
+	else {
+		oldN = BLI_sprintfN("[%d]", oldSubscript);
+		newN = BLI_sprintfN("[%d]", newSubscript);
+	}
+	
+	/* fix paths in action */
+	fcurves_path_rename_fix(owner_id, prefix, oldName, newName, oldN, newN, &act->curves, verify_paths);
+	
+	/* free the temp names */
+	MEM_freeN(oldN);
+	MEM_freeN(newN);
+}
+
 /* Fix all RNA-Paths in the AnimData block used by the given ID block
  * NOTE: it is assumed that the structure we're replacing is <prefix><["><name><"]>
  *       i.e. pose.bones["Bone"]
@@ -724,6 +768,7 @@ void BKE_animdata_fix_paths_rename(ID *owner_id, AnimData *adt, ID *ref_id, cons
 	if (ELEM(NULL, owner_id, adt))
 		return;
 	
+	/* Name sanitation logic - shared with BKE_action_fix_paths_rename() */
 	if ((oldName != NULL) && (newName != NULL)) {
 		/* pad the names with [" "] so that only exact matches are made */
 		const size_t name_old_len = strlen(oldName);
@@ -757,6 +802,76 @@ void BKE_animdata_fix_paths_rename(ID *owner_id, AnimData *adt, ID *ref_id, cons
 	/* free the temp names */
 	MEM_freeN(oldN);
 	MEM_freeN(newN);
+}
+
+/* *************************** */
+/* remove of individual paths */
+
+/* Check RNA-Paths for a list of F-Curves */
+static void fcurves_path_remove_fix(const char *prefix, ListBase *curves)
+{
+	FCurve *fcu, *fcn;
+	if (!prefix) return;
+
+	/* we need to check every curve... */
+	for (fcu = curves->first; fcu; fcu = fcn) {
+		fcn = fcu->next;
+
+		if (fcu->rna_path) {
+			if (STRPREFIX(fcu->rna_path, prefix)) {
+				BLI_remlink(curves, fcu);
+				free_fcurve(fcu);
+			}
+		}
+	}
+}
+
+/* Check RNA-Paths for a list of F-Curves */
+static void nlastrips_path_remove_fix(const char *prefix, ListBase *strips)
+{
+	NlaStrip *strip;
+
+	/* recursively check strips, fixing only actions... */
+	for (strip = strips->first; strip; strip = strip->next) {
+
+		/* fix strip's action */
+		if (strip->act)
+			fcurves_path_remove_fix(prefix, &strip->act->curves);
+
+		/* check sub-strips (if metas) */
+		nlastrips_path_remove_fix(prefix, &strip->strips);
+	}
+}
+
+void BKE_animdata_fix_paths_remove(ID *id, const char *prefix)
+{
+	/* Only some ID-blocks have this info for now, so we cast the
+	 * types that do to be of type IdAdtTemplate
+	 */
+	NlaTrack *nlt;
+
+	if (id_type_can_have_animdata(id)) {
+		IdAdtTemplate *iat = (IdAdtTemplate *)id;
+		AnimData *adt = iat->adt;
+
+		/* check if there's any AnimData to start with */
+		if (adt) {
+
+			/* free fcurves */
+			if (adt->action)
+				fcurves_path_remove_fix(prefix, &adt->action->curves);
+
+			if (adt->tmpact)
+				fcurves_path_remove_fix(prefix, &adt->tmpact->curves);
+
+			/* free drivers - stored as a list of F-Curves */
+			fcurves_path_remove_fix(prefix, &adt->drivers);
+
+			/* NLA Data - Animation Data for Strips */
+			for (nlt = adt->nla_tracks.first; nlt; nlt = nlt->next)
+				nlastrips_path_remove_fix(prefix, &nlt->strips);
+		}
+	}
 }
 
 /* Whole Database Ops -------------------------------------------- */
@@ -1267,8 +1382,13 @@ static short animsys_write_rna_setting(PointerRNA *ptr, char *path, int array_in
 			 * be run, it's for e.g. render engines to synchronize data */
 			if (written && new_ptr.id.data) {
 				ID *id = new_ptr.id.data;
-				id->flag |= LIB_ID_RECALC;
-				DAG_id_type_tag(G.main, GS(id->name));
+
+				/* for cases like duplifarmes it's only a temporary so don't
+				 * notify anyone of updates */
+				if (!(id->flag & LIB_ANIM_NO_RECALC)) {
+					id->flag |= LIB_ID_RECALC;
+					DAG_id_type_tag(G.main, GS(id->name));
+				}
 			}
 		}
 		
@@ -1452,11 +1572,11 @@ static float nlastrip_get_influence(NlaStrip *strip, float cframe)
 	strip->blendout = fabsf(strip->blendout);
 	
 	/* result depends on where frame is in respect to blendin/out values */
-	if (IS_EQ(strip->blendin, 0) == 0 && (cframe <= (strip->start + strip->blendin))) {
+	if (IS_EQF(strip->blendin, 0.0f) == false && (cframe <= (strip->start + strip->blendin))) {
 		/* there is some blend-in */
 		return fabsf(cframe - strip->start) / (strip->blendin);
 	}
-	else if (IS_EQ(strip->blendout, 0) == 0 && (cframe >= (strip->end - strip->blendout))) {
+	else if (IS_EQF(strip->blendout, 0.0f) == false && (cframe >= (strip->end - strip->blendout))) {
 		/* there is some blend-out */
 		return fabsf(strip->end - cframe) / (strip->blendout);
 	}
@@ -1639,8 +1759,46 @@ static NlaEvalChannel *nlaevalchan_find_match(ListBase *channels, PointerRNA *pt
 	return NULL;
 }
 
+/* initialise default value for NlaEvalChannel, so that it doesn't blend things wrong */
+static void nlaevalchan_value_init(NlaEvalChannel *nec)
+{
+	PointerRNA *ptr = &nec->ptr;
+	PropertyRNA *prop = nec->prop;
+	int index = nec->index;
+	
+	/* NOTE: while this doesn't work for all RNA properties as default values aren't in fact 
+	 * set properly for most of them, at least the common ones (which also happen to get used 
+	 * in NLA strips a lot, e.g. scale) are set correctly.
+	 */
+	switch (RNA_property_type(prop)) {
+		case PROP_BOOLEAN:
+			if (RNA_property_array_check(prop))
+				nec->value = (float)RNA_property_boolean_get_default_index(ptr, prop, index);
+			else
+				nec->value = (float)RNA_property_boolean_get_default(ptr, prop);
+			break;
+		case PROP_INT:
+			if (RNA_property_array_check(prop))
+				nec->value = (float)RNA_property_int_get_default_index(ptr, prop, index);
+			else
+				nec->value = (float)RNA_property_int_get_default(ptr, prop);
+			break;
+		case PROP_FLOAT:
+			if (RNA_property_array_check(prop))
+				nec->value = RNA_property_float_get_default_index(ptr, prop, index);
+			else
+				nec->value = RNA_property_float_get_default(ptr, prop);
+			break;
+		case PROP_ENUM:
+			nec->value = (float)RNA_property_enum_get_default(ptr, prop);
+			break;
+		default:
+			break;
+	}
+}
+
 /* verify that an appropriate NlaEvalChannel for this F-Curve exists */
-static NlaEvalChannel *nlaevalchan_verify(PointerRNA *ptr, ListBase *channels, NlaEvalStrip *nes, FCurve *fcu, short *newChan)
+static NlaEvalChannel *nlaevalchan_verify(PointerRNA *ptr, ListBase *channels, NlaEvalStrip *nes, FCurve *fcu)
 {
 	NlaEvalChannel *nec;
 	NlaStrip *strip = nes->strip;
@@ -1674,22 +1832,23 @@ static NlaEvalChannel *nlaevalchan_verify(PointerRNA *ptr, ListBase *channels, N
 	/* allocate a new struct for this if none found */
 	if (nec == NULL) {
 		nec = MEM_callocN(sizeof(NlaEvalChannel), "NlaEvalChannel");
-		*newChan = 1;
 		BLI_addtail(channels, nec);
 		
+		/* store property links for writing to the property later */
 		nec->ptr = new_ptr;
 		nec->prop = prop;
 		nec->index = fcu->array_index;
+		
+		/* initialise value using default value of property [#35856] */
+		nlaevalchan_value_init(nec);
 	}
-	else
-		*newChan = 0;
 	
 	/* we can now return */
 	return nec;
 }
 
 /* accumulate (i.e. blend) the given value on to the channel it affects */
-static void nlaevalchan_accumulate(NlaEvalChannel *nec, NlaEvalStrip *nes, short UNUSED(newChan), float value)
+static void nlaevalchan_accumulate(NlaEvalChannel *nec, NlaEvalStrip *nes, float value)
 {
 	NlaStrip *strip = nes->strip;
 	short blendmode = strip->blendmode;
@@ -1702,7 +1861,7 @@ static void nlaevalchan_accumulate(NlaEvalChannel *nec, NlaEvalStrip *nes, short
 		inf *= nes->strip_time;
 	
 	/* optimisation: no need to try applying if there is no influence */
-	if (IS_EQ(inf, 0)) return;
+	if (IS_EQF(inf, 0.0f)) return;
 	
 	/* perform blending */
 	switch (blendmode) {
@@ -1741,7 +1900,7 @@ static void nlaevalchan_buffers_accumulate(ListBase *channels, ListBase *tmp_buf
 	NlaEvalChannel *nec, *necn, *necd;
 	
 	/* optimize - abort if no channels */
-	if (tmp_buffer->first == NULL)
+	if (BLI_listbase_is_empty(tmp_buffer))
 		return;
 	
 	/* accumulate results in tmp_channels buffer to the accumulation buffer */
@@ -1756,7 +1915,7 @@ static void nlaevalchan_buffers_accumulate(ListBase *channels, ListBase *tmp_buf
 		 * otherwise, add the current channel to the buffer for efficiency
 		 */
 		if (necd)
-			nlaevalchan_accumulate(necd, nes, 0, nec->value);
+			nlaevalchan_accumulate(necd, nes, nec->value);
 		else {
 			BLI_remlink(tmp_buffer, nec);
 			BLI_addtail(channels, nec);
@@ -1827,6 +1986,7 @@ static void nlaeval_fmodifiers_split_stacks(ListBase *list1, ListBase *list2)
 /* evaluate action-clip strip */
 static void nlastrip_evaluate_actionclip(PointerRNA *ptr, ListBase *channels, ListBase *modifiers, NlaEvalStrip *nes)
 {
+	FModifierStackStorage *storage;
 	ListBase tmp_modifiers = {NULL, NULL};
 	NlaStrip *strip = nes->strip;
 	FCurve *fcu;
@@ -1847,13 +2007,13 @@ static void nlastrip_evaluate_actionclip(PointerRNA *ptr, ListBase *channels, Li
 	nlaeval_fmodifiers_join_stacks(&tmp_modifiers, &strip->modifiers, modifiers);
 	
 	/* evaluate strip's modifiers which modify time to evaluate the base curves at */
-	evaltime = evaluate_time_fmodifiers(&tmp_modifiers, NULL, 0.0f, strip->strip_time);
+	storage = evaluate_fmodifiers_storage_new(&tmp_modifiers);
+	evaltime = evaluate_time_fmodifiers(storage, &tmp_modifiers, NULL, 0.0f, strip->strip_time);
 	
 	/* evaluate all the F-Curves in the action, saving the relevant pointers to data that will need to be used */
 	for (fcu = strip->act->curves.first; fcu; fcu = fcu->next) {
 		NlaEvalChannel *nec;
 		float value = 0.0f;
-		short newChan = -1;
 		
 		/* check if this curve should be skipped */
 		if (fcu->flag & (FCURVE_MUTED | FCURVE_DISABLED))
@@ -1869,17 +2029,20 @@ static void nlastrip_evaluate_actionclip(PointerRNA *ptr, ListBase *channels, Li
 		/* apply strip's F-Curve Modifiers on this value 
 		 * NOTE: we apply the strip's original evaluation time not the modified one (as per standard F-Curve eval)
 		 */
-		evaluate_value_fmodifiers(&tmp_modifiers, fcu, &value, strip->strip_time);
+		evaluate_value_fmodifiers(storage, &tmp_modifiers, fcu, &value, strip->strip_time);
 		
 		
 		/* get an NLA evaluation channel to work with, and accumulate the evaluated value with the value(s)
 		 * stored in this channel if it has been used already
 		 */
-		nec = nlaevalchan_verify(ptr, channels, nes, fcu, &newChan);
+		nec = nlaevalchan_verify(ptr, channels, nes, fcu);
 		if (nec)
-			nlaevalchan_accumulate(nec, nes, newChan, value);
+			nlaevalchan_accumulate(nec, nes, value);
 	}
-	
+
+	/* free temporary storage */
+	evaluate_fmodifiers_storage_free(storage);
+
 	/* unlink this strip's modifiers from the parent's modifiers again */
 	nlaeval_fmodifiers_split_stacks(&strip->modifiers, modifiers);
 }
@@ -1921,7 +2084,7 @@ static void nlastrip_evaluate_transition(PointerRNA *ptr, ListBase *channels, Li
 	tmp_nes = *nes;
 	
 	/* evaluate these strips into a temp-buffer (tmp_channels) */
-	/* FIXME: modifier evalation here needs some work... */
+	/* FIXME: modifier evaluation here needs some work... */
 	/* first strip */
 	tmp_nes.strip_mode = NES_TIME_TRANSITION_START;
 	tmp_nes.strip = s1;
@@ -1933,7 +2096,7 @@ static void nlastrip_evaluate_transition(PointerRNA *ptr, ListBase *channels, Li
 	nlastrip_evaluate(ptr, &tmp_channels, &tmp_modifiers, &tmp_nes);
 	
 	
-	/* assumulate temp-buffer and full-buffer, using the 'real' strip */
+	/* accumulate temp-buffer and full-buffer, using the 'real' strip */
 	nlaevalchan_buffers_accumulate(channels, &tmp_channels, nes);
 	
 	/* unlink this strip's modifiers from the parent's modifiers again */
@@ -1971,7 +2134,7 @@ static void nlastrip_evaluate_meta(PointerRNA *ptr, ListBase *channels, ListBase
 	 */
 	nlastrip_evaluate(ptr, &tmp_channels, &tmp_modifiers, tmp_nes);
 	
-	/* assumulate temp-buffer and full-buffer, using the 'real' strip */
+	/* accumulate temp-buffer and full-buffer, using the 'real' strip */
 	nlaevalchan_buffers_accumulate(channels, &tmp_channels, nes);
 	
 	/* free temp eval-strip */
@@ -2033,19 +2196,19 @@ void nladata_flush_channels(ListBase *channels)
 		/* write values - see animsys_write_rna_setting() to sync the code */
 		switch (RNA_property_type(prop)) {
 			case PROP_BOOLEAN:
-				if (RNA_property_array_length(ptr, prop))
+				if (RNA_property_array_check(prop))
 					RNA_property_boolean_set_index(ptr, prop, array_index, ANIMSYS_FLOAT_AS_BOOL(value));
 				else
 					RNA_property_boolean_set(ptr, prop, ANIMSYS_FLOAT_AS_BOOL(value));
 				break;
 			case PROP_INT:
-				if (RNA_property_array_length(ptr, prop))
+				if (RNA_property_array_check(prop))
 					RNA_property_int_set_index(ptr, prop, array_index, (int)value);
 				else
 					RNA_property_int_set(ptr, prop, (int)value);
 				break;
 			case PROP_FLOAT:
-				if (RNA_property_array_length(ptr, prop))
+				if (RNA_property_array_check(prop))
 					RNA_property_float_set_index(ptr, prop, array_index, value);
 				else
 					RNA_property_float_set(ptr, prop, value);
@@ -2070,7 +2233,7 @@ static void animsys_evaluate_nla(ListBase *echannels, PointerRNA *ptr, AnimData 
 {
 	NlaTrack *nlt;
 	short track_index = 0;
-	short has_strips = 0;
+	bool has_strips = false;
 	
 	ListBase estrips = {NULL, NULL};
 	NlaEvalStrip *nes;
@@ -2145,7 +2308,7 @@ static void animsys_evaluate_nla(ListBase *echannels, PointerRNA *ptr, AnimData 
 	}
 	
 	/* only continue if there are strips to evaluate */
-	if (estrips.first == NULL)
+	if (BLI_listbase_is_empty(&estrips))
 		return;
 	
 	
@@ -2181,7 +2344,7 @@ static void animsys_calculate_nla(PointerRNA *ptr, AnimData *adt, float ctime)
 /* ***************************************** */ 
 /* Overrides System - Public API */
 
-/* Clear all overides */
+/* Clear all overrides */
 
 /* Add or get existing Override for given setting */
 #if 0
@@ -2361,7 +2524,7 @@ void BKE_animsys_evaluate_all_animation(Main *main, Scene *scene, float ctime)
 	 * however, if there are some curves, we will need to make sure that their 'ctime' property gets
 	 * set correctly, so this optimization must be skipped in that case...
 	 */
-	if ((main->action.first == NULL) && (main->curve.first == NULL)) {
+	if (BLI_listbase_is_empty(&main->action) && BLI_listbase_is_empty(&main->curve)) {
 		if (G.debug & G_DEBUG)
 			printf("\tNo Actions, so no animation needs to be evaluated...\n");
 			

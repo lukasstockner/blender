@@ -62,7 +62,7 @@
 #include "node_composite_util.h"
 
 #ifdef WITH_COMPOSITOR
-	#include "COM_compositor.h"
+#  include "COM_compositor.h"
 #endif
 
 static void composite_get_from_context(const bContext *C, bNodeTreeType *UNUSED(treetype), bNodeTree **r_ntree, ID **r_id, ID **r_from)
@@ -74,7 +74,7 @@ static void composite_get_from_context(const bContext *C, bNodeTreeType *UNUSED(
 	*r_ntree = scene->nodetree;
 	
 	/* update output sockets based on available layers */
-	ntreeCompositForceHidden(scene->nodetree, scene);
+	ntreeCompositForceHidden(scene->nodetree);
 	
 }
 
@@ -218,6 +218,16 @@ static void update(bNodeTree *ntree)
 	}
 }
 
+static void composite_node_add_init(bNodeTree *UNUSED(bnodetree), bNode *bnode)
+{
+	/* Composite node will only show previews for input classes 
+	 * by default, other will be hidden 
+	 * but can be made visible with the show_preview option */
+	if (bnode->typeinfo->nclass != NODE_CLASS_INPUT) {
+		bnode->flag &= ~NODE_PREVIEW;
+	}	
+}
+
 bNodeTreeType *ntreeType_Composite;
 
 void register_node_tree_type_cmp(void)
@@ -238,6 +248,7 @@ void register_node_tree_type_cmp(void)
 	tt->local_merge = local_merge;
 	tt->update = update;
 	tt->get_from_context = composite_get_from_context;
+	tt->node_add_init = composite_node_add_init;
 	
 	tt->ext.srna = &RNA_CompositorNodeTree;
 	
@@ -246,14 +257,14 @@ void register_node_tree_type_cmp(void)
 
 void *COM_linker_hack = NULL;
 
-void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int rendering, int do_preview,
+void ntreeCompositExecTree(Scene *scene, bNodeTree *ntree, RenderData *rd, int rendering, int do_preview,
                            const ColorManagedViewSettings *view_settings,
                            const ColorManagedDisplaySettings *display_settings)
 {
 #ifdef WITH_COMPOSITOR
-	COM_execute(rd, ntree, rendering, view_settings, display_settings);
+	COM_execute(rd, scene, ntree, rendering, view_settings, display_settings);
 #else
-	(void)ntree, (void)rd, (void)rendering, (void)do_preview;
+	(void)scene, (void)ntree, (void)rd, (void)rendering, (void)do_preview;
 	(void)view_settings, (void)display_settings;
 #endif
 
@@ -262,77 +273,25 @@ void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int rendering, int 
 
 /* *********************************************** */
 
-static void set_output_visible(bNode *node, int passflag, int index, int pass)
-{
-	bNodeSocket *sock = BLI_findlink(&node->outputs, index);
-	/* clear the SOCK_HIDDEN flag as well, in case a socket was hidden before */
-	if (passflag & pass)
-		sock->flag &= ~(SOCK_HIDDEN | SOCK_UNAVAIL);
-	else
-		sock->flag |= SOCK_UNAVAIL;
-}
-
-/* clumsy checking... should do dynamic outputs once */
-static void force_hidden_passes(bNode *node, int passflag)
-{
-	bNodeSocket *sock;
-	
-	for (sock = node->outputs.first; sock; sock = sock->next)
-		sock->flag &= ~SOCK_UNAVAIL;
-	
-	set_output_visible(node, passflag, RRES_OUT_IMAGE,            SCE_PASS_COMBINED);
-	set_output_visible(node, passflag, RRES_OUT_ALPHA,            SCE_PASS_COMBINED);
-	
-	set_output_visible(node, passflag, RRES_OUT_Z,                SCE_PASS_Z);
-	set_output_visible(node, passflag, RRES_OUT_NORMAL,           SCE_PASS_NORMAL);
-	set_output_visible(node, passflag, RRES_OUT_VEC,              SCE_PASS_VECTOR);
-	set_output_visible(node, passflag, RRES_OUT_UV,               SCE_PASS_UV);
-	set_output_visible(node, passflag, RRES_OUT_RGBA,             SCE_PASS_RGBA);
-	set_output_visible(node, passflag, RRES_OUT_DIFF,             SCE_PASS_DIFFUSE);
-	set_output_visible(node, passflag, RRES_OUT_SPEC,             SCE_PASS_SPEC);
-	set_output_visible(node, passflag, RRES_OUT_SHADOW,           SCE_PASS_SHADOW);
-	set_output_visible(node, passflag, RRES_OUT_AO,               SCE_PASS_AO);
-	set_output_visible(node, passflag, RRES_OUT_REFLECT,          SCE_PASS_REFLECT);
-	set_output_visible(node, passflag, RRES_OUT_REFRACT,          SCE_PASS_REFRACT);
-	set_output_visible(node, passflag, RRES_OUT_INDIRECT,         SCE_PASS_INDIRECT);
-	set_output_visible(node, passflag, RRES_OUT_INDEXOB,          SCE_PASS_INDEXOB);
-	set_output_visible(node, passflag, RRES_OUT_INDEXMA,          SCE_PASS_INDEXMA);
-	set_output_visible(node, passflag, RRES_OUT_MIST,             SCE_PASS_MIST);
-	set_output_visible(node, passflag, RRES_OUT_EMIT,             SCE_PASS_EMIT);
-	set_output_visible(node, passflag, RRES_OUT_ENV,              SCE_PASS_ENVIRONMENT);
-	set_output_visible(node, passflag, RRES_OUT_DIFF_DIRECT,      SCE_PASS_DIFFUSE_DIRECT);
-	set_output_visible(node, passflag, RRES_OUT_DIFF_INDIRECT,    SCE_PASS_DIFFUSE_INDIRECT);
-	set_output_visible(node, passflag, RRES_OUT_DIFF_COLOR,       SCE_PASS_DIFFUSE_COLOR);
-	set_output_visible(node, passflag, RRES_OUT_GLOSSY_DIRECT,    SCE_PASS_GLOSSY_DIRECT);
-	set_output_visible(node, passflag, RRES_OUT_GLOSSY_INDIRECT,  SCE_PASS_GLOSSY_INDIRECT);
-	set_output_visible(node, passflag, RRES_OUT_GLOSSY_COLOR,     SCE_PASS_GLOSSY_COLOR);
-	set_output_visible(node, passflag, RRES_OUT_TRANSM_DIRECT,    SCE_PASS_TRANSM_DIRECT);
-	set_output_visible(node, passflag, RRES_OUT_TRANSM_INDIRECT,  SCE_PASS_TRANSM_INDIRECT);
-	set_output_visible(node, passflag, RRES_OUT_TRANSM_COLOR,     SCE_PASS_TRANSM_COLOR);
-}
-
 /* based on rules, force sockets hidden always */
-void ntreeCompositForceHidden(bNodeTree *ntree, Scene *curscene)
+void ntreeCompositForceHidden(bNodeTree *ntree)
 {
 	bNode *node;
 
 	if (ntree == NULL) return;
 
 	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == CMP_NODE_R_LAYERS) {
-			Scene *sce = node->id ? (Scene *)node->id : curscene;
-			SceneRenderLayer *srl = BLI_findlink(&sce->r.layers, node->custom1);
-			if (srl)
-				force_hidden_passes(node, srl->passflag);
-		}
+		if (node->type == CMP_NODE_R_LAYERS)
+			node_cmp_rlayers_force_hidden_passes(node);
+		
 		/* XXX this stuff is called all the time, don't want that.
 		 * Updates should only happen when actually necessary.
 		 */
-		#if 0
+#if 0
 		else if (node->type == CMP_NODE_IMAGE) {
 			nodeUpdate(ntree, node);
 		}
-		#endif
+#endif
 	}
 
 }
@@ -370,38 +329,22 @@ static int node_animation_properties(bNodeTree *ntree, bNode *node)
 	lb = RNA_struct_type_properties(ptr.type);
 
 	for (link = lb->first; link; link = link->next) {
-		int len = 1, index;
-		bool driven;
 		prop = (PropertyRNA *)link;
 
-		if (RNA_property_array_check(prop))
-			len = RNA_property_array_length(&ptr, prop);
-
-		for (index = 0; index < len; index++) {
-			if (rna_get_fcurve(&ptr, prop, index, NULL, &driven)) {
-				nodeUpdate(ntree, node);
-				return 1;
-			}
+		if (RNA_property_animated(&ptr, prop)) {
+			nodeUpdate(ntree, node);
+			return 1;
 		}
 	}
 
 	/* now check node sockets */
 	for (sock = node->inputs.first; sock; sock = sock->next) {
-		int len = 1, index;
-		bool driven;
-
 		RNA_pointer_create((ID *)ntree, &RNA_NodeSocket, sock, &ptr);
 		prop = RNA_struct_find_property(&ptr, "default_value");
-		if (prop) {
-			if (RNA_property_array_check(prop))
-				len = RNA_property_array_length(&ptr, prop);
 
-			for (index = 0; index < len; index++) {
-				if (rna_get_fcurve(&ptr, prop, index, NULL, &driven)) {
-					nodeUpdate(ntree, node);
-					return 1;
-				}
-			}
+		if (RNA_property_animated(&ptr, prop)) {
+			nodeUpdate(ntree, node);
+			return 1;
 		}
 	}
 
@@ -423,7 +366,7 @@ int ntreeCompositTagAnimated(bNodeTree *ntree)
 		/* otherwise always tag these node types */
 		if (node->type == CMP_NODE_IMAGE) {
 			Image *ima = (Image *)node->id;
-			if (ima && ELEM(ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
+			if (ima && BKE_image_is_animated(ima)) {
 				nodeUpdate(ntree, node);
 				tagged = 1;
 			}
@@ -434,7 +377,7 @@ int ntreeCompositTagAnimated(bNodeTree *ntree)
 		}
 		/* here was tag render layer, but this is called after a render, so re-composites fail */
 		else if (node->type == NODE_GROUP) {
-			if (ntreeCompositTagAnimated((bNodeTree *)node->id) ) {
+			if (ntreeCompositTagAnimated((bNodeTree *)node->id)) {
 				nodeUpdate(ntree, node);
 			}
 		}

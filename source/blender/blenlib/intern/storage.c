@@ -42,27 +42,25 @@
 #include <time.h>
 #include <sys/stat.h>
 
-#if defined(__sun__) || defined(__sun) || defined(__NetBSD__)
-#  include <sys/statvfs.h> /* Other modern unix os's should probably use this also */
-#elif !defined(__FreeBSD__) && !defined(linux) && (defined(__sparc) || defined(__sparc__))
+#if defined(__NetBSD__) || defined(__DragonFly__) || defined(__sun__) || defined(__sun)
+   /* Other modern unix os's should probably use this also */
+#  include <sys/statvfs.h>
+#  define USE_STATFS_STATVFS
+#elif (defined(__sparc) || defined(__sparc__)) && !defined(__FreeBSD__) && !defined(__linux__)
 #  include <sys/statfs.h>
+   /* 4 argument version (not common) */
+#  define USE_STATFS_4ARGS
 #endif
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-#  include <sys/param.h>
-#  include <sys/mount.h>
-#endif
-
-#if defined(linux) || defined(__CYGWIN32__) || defined(__hpux) || defined(__GNU__) || defined(__GLIBC__)
-#include <sys/vfs.h>
-#endif
-
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
    /* For statfs */
 #  include <sys/param.h>
 #  include <sys/mount.h>
-#endif /* __APPLE__ */
+#endif
 
+#if defined(__linux__) || defined(__hpux) || defined(__GNU__) || defined(__GLIBC__)
+#  include <sys/vfs.h>
+#endif
 
 #include <fcntl.h>
 #include <string.h>  /* strcpy etc.. */
@@ -70,7 +68,6 @@
 #ifdef WIN32
 #  include <io.h>
 #  include <direct.h>
-#  include <limits.h>  /* PATH_MAX */
 #  include "BLI_winstuff.h"
 #  include "utfconv.h"
 #else
@@ -173,11 +170,12 @@ double BLI_dir_free_space(const char *dir)
 	return (double) (freec * bytesps * sectorspc);
 #else
 
-#if defined(__sun__) || defined(__sun) || defined(__NetBSD__)
+#ifdef USE_STATFS_STATVFS
 	struct statvfs disk;
 #else
 	struct statfs disk;
 #endif
+
 	char name[FILE_MAXDIR], *slash;
 	int len = strlen(dir);
 	
@@ -194,15 +192,12 @@ double BLI_dir_free_space(const char *dir)
 		strcpy(name, "/");
 	}
 
-#if defined(__FreeBSD__) || defined(linux) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__GNU__) || defined(__GLIBC__)
-	if (statfs(name, &disk)) return(-1);
-#endif
-
-#if defined(__sun__) || defined(__sun) || defined(__NetBSD__)
-	if (statvfs(name, &disk)) return(-1);
-#elif !defined(__FreeBSD__) && !defined(linux) && (defined(__sparc) || defined(__sparc__))
-	/* WARNING - This may not be supported by geeneric unix os's - Campbell */
-	if (statfs(name, &disk, sizeof(struct statfs), 0)) return(-1);
+#if  defined(USE_STATFS_STATVFS)
+	if (statvfs(name, &disk)) return -1;
+#elif defined(USE_STATFS_4ARGS)
+	if (statfs(name, &disk, sizeof(struct statfs), 0)) return -1;
+#else
+	if (statfs(name, &disk)) return -1;
 #endif
 
 	return ( ((double) disk.f_bsize) * ((double) disk.f_bfree));
@@ -388,17 +383,14 @@ static void bli_adddirstrings(struct BuildDirCtx *dir_ctx)
 		 */
 		st_size = file->s.st_size;
 
-		/* FIXME: Either change decimal prefixes to binary ones
-		 * <http://en.wikipedia.org/wiki/Binary_prefix>, or change
-		 * divisor factors from 1024 to 1000. */
 		if (st_size > 1024 * 1024 * 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.2f GB", ((double)st_size) / (1024 * 1024 * 1024));
+			BLI_snprintf(file->size, sizeof(file->size), "%.2f GiB", ((double)st_size) / (1024 * 1024 * 1024));
 		}
 		else if (st_size > 1024 * 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.1f MB", ((double)st_size) / (1024 * 1024));
+			BLI_snprintf(file->size, sizeof(file->size), "%.1f MiB", ((double)st_size) / (1024 * 1024));
 		}
 		else if (st_size > 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%d KB", (int)(st_size / 1024));
+			BLI_snprintf(file->size, sizeof(file->size), "%d KiB", (int)(st_size / 1024));
 		}
 		else {
 			BLI_snprintf(file->size, sizeof(file->size), "%d B", (int)st_size);
@@ -494,7 +486,7 @@ int BLI_exists(const char *name)
 	unsigned int old_error_mode;
 
 	len = wcslen(tmp_16);
-	if (len > 3 && (tmp_16[len - 1] == L'\\' || tmp_16[len - 1] == L'/') )
+	if (len > 3 && (tmp_16[len - 1] == L'\\' || tmp_16[len - 1] == L'/'))
 		tmp_16[len - 1] = '\0';
 
 	/* change error mode so user does not get a "no disk in drive" popup
@@ -526,11 +518,11 @@ int BLI_stat(const char *path, struct stat *buffer)
 	UTF16_ENCODE(path);
 
 	/* workaround error in MinGW64 headers, normally, a wstat should work */
-	#ifndef __MINGW64__
+#ifndef __MINGW64__
 	r = wstat(path_16, buffer);
-	#else
+#else
 	r = _wstati64(path_16, buffer);
-	#endif
+#endif
 
 	UTF16_UN_ENCODE(path);
 	return r;

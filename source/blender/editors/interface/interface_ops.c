@@ -27,20 +27,14 @@
  *  \ingroup edinterface
  */
 
-#include <stdio.h>
-#include <math.h>
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_text_types.h" /* for UI_OT_reports_to_text */
 
 #include "BLI_blenlib.h"
-#include "BLI_math_color.h"
-#include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "BLF_api.h"
 #include "BLF_translation.h"
@@ -54,11 +48,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "GPU_glew.h"
-
 #include "UI_interface.h"
-
-#include "IMB_colormanagement.h"
 
 #include "interface_intern.h"
 
@@ -70,286 +60,10 @@
 #include "BKE_main.h"
 #include "BLI_ghash.h"
 
-#include "ED_image.h"  /* for HDR color sampling */
-#include "ED_node.h"   /* for HDR color sampling */
-#include "ED_clip.h"   /* for HDR color sampling */
-
-/* ********************************************************** */
-
-typedef struct Eyedropper {
-	struct ColorManagedDisplay *display;
-
-	PointerRNA ptr;
-	PropertyRNA *prop;
-	int index;
-
-	int   accum_start; /* has mouse been presed */
-	float accum_col[3];
-	int   accum_tot;
-} Eyedropper;
-
-static int eyedropper_init(bContext *C, wmOperator *op)
-{
-	Scene *scene = CTX_data_scene(C);
-	Eyedropper *eye;
-	
-	op->customdata = eye = MEM_callocN(sizeof(Eyedropper), "Eyedropper");
-	
-	uiContextActiveProperty(C, &eye->ptr, &eye->prop, &eye->index);
-
-	if ((eye->ptr.data == NULL) ||
-	    (eye->prop == NULL) ||
-	    (RNA_property_editable(&eye->ptr, eye->prop) == FALSE) ||
-	    (RNA_property_array_length(&eye->ptr, eye->prop) < 3) ||
-	    (RNA_property_type(eye->prop) != PROP_FLOAT))
-	{
-		return FALSE;
-	}
-
-	if (RNA_property_subtype(eye->prop) == PROP_COLOR) {
-		const char *display_device;
-
-		display_device = scene->display_settings.display_device;
-		eye->display = IMB_colormanagement_display_get_named(display_device);
-	}
-
-	return TRUE;
-}
-
-static void eyedropper_exit(bContext *C, wmOperator *op)
-{
-	WM_cursor_restore(CTX_wm_window(C));
-	
-	if (op->customdata)
-		MEM_freeN(op->customdata);
-	op->customdata = NULL;
-}
-
-static int eyedropper_cancel(bContext *C, wmOperator *op)
-{
-	eyedropper_exit(C, op);
-	return OPERATOR_CANCELLED;
-}
-
-/* *** eyedropper_color_ helper functions *** */
-
-/**
- * \brief get the color from the screen.
- *
- * Special check for image or nodes where we MAY have HDR pixels which don't display.
- */
-static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int mx, int my, float r_col[3])
-{
-
-	/* we could use some clever */
-	wmWindow *win = CTX_wm_window(C);
-	ScrArea *sa;
-	for (sa = win->screen->areabase.first; sa; sa = sa->next) {
-		if (BLI_rcti_isect_pt(&sa->totrct, mx, my)) {
-			if (sa->spacetype == SPACE_IMAGE) {
-				ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-				if (BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
-					SpaceImage *sima = sa->spacedata.first;
-					int mval[2] = {mx - ar->winrct.xmin,
-					               my - ar->winrct.ymin};
-
-					if (ED_space_image_color_sample(sima, ar, mval, r_col)) {
-						return;
-					}
-				}
-			}
-			else if (sa->spacetype == SPACE_NODE) {
-				ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-				if (BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
-					SpaceNode *snode = sa->spacedata.first;
-					int mval[2] = {mx - ar->winrct.xmin,
-					               my - ar->winrct.ymin};
-
-					if (ED_space_node_color_sample(snode, ar, mval, r_col)) {
-						return;
-					}
-				}
-			}
-			else if (sa->spacetype == SPACE_CLIP) {
-				ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
-				if (BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
-					SpaceClip *sc = sa->spacedata.first;
-					int mval[2] = {mx - ar->winrct.xmin,
-					               my - ar->winrct.ymin};
-
-					if (ED_space_clip_color_sample(sc, ar, mval, r_col)) {
-						return;
-					}
-				}
-			}
-		}
-	}
-
-	/* fallback to simple opengl picker */
 #if !defined(GLEW_ES_ONLY) // XXX jwilkins: ES can only read from COLOR_ATTACHMENT0, which might work out OK if swap method is COPY
-	glReadBuffer(GL_FRONT);
 #endif
-	glReadPixels(mx, my, 1, 1, GL_RGB, GL_FLOAT, r_col);
 #if !defined(GLEW_ES_ONLY)
-	glReadBuffer(GL_BACK);
 #endif
-}
-
-/* sets the sample color RGB, maintaining A */
-static void eyedropper_color_set(bContext *C, Eyedropper *eye, const float col[3])
-{
-	float col_conv[4];
-
-	/* to maintain alpha */
-	RNA_property_float_get_array(&eye->ptr, eye->prop, col_conv);
-
-	/* convert from display space to linear rgb space */
-	if (eye->display) {
-		copy_v3_v3(col_conv, col);
-		IMB_colormanagement_display_to_scene_linear_v3(col_conv, eye->display);
-	}
-	else {
-		copy_v3_v3(col_conv, col);
-	}
-
-	RNA_property_float_set_array(&eye->ptr, eye->prop, col_conv);
-
-	RNA_property_update(C, &eye->ptr, eye->prop);
-}
-
-/* set sample from accumulated values */
-static void eyedropper_color_set_accum(bContext *C, Eyedropper *eye)
-{
-	float col[3];
-	mul_v3_v3fl(col, eye->accum_col, 1.0f / (float)eye->accum_tot);
-	eyedropper_color_set(C, eye, col);
-}
-
-/* single point sample & set */
-static void eyedropper_color_sample(bContext *C, Eyedropper *eye, int mx, int my)
-{
-	float col[3];
-	eyedropper_color_sample_fl(C, eye, mx, my, col);
-	eyedropper_color_set(C, eye, col);
-}
-
-static void eyedropper_color_sample_accum(bContext *C, Eyedropper *eye, int mx, int my)
-{
-	float col[3];
-	eyedropper_color_sample_fl(C, eye, mx, my, col);
-	/* delay linear conversion */
-	add_v3_v3(eye->accum_col, col);
-	eye->accum_tot++;
-}
-
-/* main modal status check */
-static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
-{
-	Eyedropper *eye = (Eyedropper *)op->customdata;
-	
-	switch (event->type) {
-		case ESCKEY:
-		case RIGHTMOUSE:
-			return eyedropper_cancel(C, op);
-		case LEFTMOUSE:
-			if (event->val == KM_RELEASE) {
-				if (eye->accum_tot == 0) {
-					eyedropper_color_sample(C, eye, event->x, event->y);
-				}
-				else {
-					eyedropper_color_set_accum(C, eye);
-				}
-				eyedropper_exit(C, op);
-				return OPERATOR_FINISHED;
-			}
-			else if (event->val == KM_PRESS) {
-				/* enable accum and make first sample */
-				eye->accum_start = TRUE;
-				eyedropper_color_sample_accum(C, eye, event->x, event->y);
-			}
-			break;
-		case MOUSEMOVE:
-			if (eye->accum_start) {
-				/* button is pressed so keep sampling */
-				eyedropper_color_sample_accum(C, eye, event->x, event->y);
-				eyedropper_color_set_accum(C, eye);
-			}
-			break;
-		case SPACEKEY:
-			if (event->val == KM_RELEASE) {
-				eye->accum_tot = 0;
-				zero_v3(eye->accum_col);
-				eyedropper_color_sample_accum(C, eye, event->x, event->y);
-				eyedropper_color_set_accum(C, eye);
-			}
-			break;
-	}
-	
-	return OPERATOR_RUNNING_MODAL;
-}
-
-/* Modal Operator init */
-static int eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
-{
-	/* init */
-	if (eyedropper_init(C, op)) {
-		WM_cursor_modal(CTX_wm_window(C), BC_EYEDROPPER_CURSOR);
-
-		/* add temp handler */
-		WM_event_add_modal_handler(C, op);
-		
-		return OPERATOR_RUNNING_MODAL;
-	}
-	else {
-		eyedropper_exit(C, op);
-		return OPERATOR_CANCELLED;
-	}
-}
-
-/* Repeat operator */
-static int eyedropper_exec(bContext *C, wmOperator *op)
-{
-	/* init */
-	if (eyedropper_init(C, op)) {
-		
-		/* do something */
-		
-		/* cleanup */
-		eyedropper_exit(C, op);
-		
-		return OPERATOR_FINISHED;
-	}
-	else {
-		return OPERATOR_CANCELLED;
-	}
-}
-
-static int eyedropper_poll(bContext *C)
-{
-	if (!CTX_wm_window(C)) return 0;
-	else return 1;
-}
-
-static void UI_OT_eyedropper(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Eyedropper";
-	ot->idname = "UI_OT_eyedropper";
-	ot->description = "Sample a color from the Blender Window to store in a property";
-	
-	/* api callbacks */
-	ot->invoke = eyedropper_invoke;
-	ot->modal = eyedropper_modal;
-	ot->cancel = eyedropper_cancel;
-	ot->exec = eyedropper_exec;
-	ot->poll = eyedropper_poll;
-	
-	/* flags */
-	ot->flag = OPTYPE_BLOCKING;
-	
-	/* properties */
-}
-
 /* Reset Default Theme ------------------------ */
 
 static int reset_default_theme_exec(bContext *C, wmOperator *UNUSED(op))
@@ -412,7 +126,7 @@ static int copy_data_path_button_exec(bContext *C, wmOperator *UNUSED(op))
 		path = RNA_path_from_ID_to_property(&ptr, prop);
 		
 		if (path) {
-			WM_clipboard_text_set(path, FALSE);
+			WM_clipboard_text_set(path, false);
 			MEM_freeN(path);
 			return OPERATOR_FINISHED;
 		}
@@ -438,6 +152,28 @@ static void UI_OT_copy_data_path_button(wmOperatorType *ot)
 
 /* Reset to Default Values Button Operator ------------------------ */
 
+static int operator_button_property_finish(bContext *C, PointerRNA *ptr, PropertyRNA *prop)
+{
+	ID *id = ptr->id.data;
+
+	/* perform updates required for this property */
+	RNA_property_update(C, ptr, prop);
+
+	/* as if we pressed the button */
+	uiContextActivePropertyHandle(C);
+
+	/* Since we don't want to undo _all_ edits to settings, eg window
+	 * edits on the screen or on operator settings.
+	 * it might be better to move undo's inline - campbell */
+	if (id && ID_CHECK_UNDO(id)) {
+		/* do nothing, go ahead with undo */
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+}
+
 static int reset_default_button_poll(bContext *C)
 {
 	PointerRNA ptr;
@@ -453,40 +189,19 @@ static int reset_default_button_exec(bContext *C, wmOperator *op)
 {
 	PointerRNA ptr;
 	PropertyRNA *prop;
-	int success = 0;
-	int index, all = RNA_boolean_get(op->ptr, "all");
+	int index;
+	const bool all = RNA_boolean_get(op->ptr, "all");
 
 	/* try to reset the nominated setting to its default value */
 	uiContextActiveProperty(C, &ptr, &prop, &index);
 	
 	/* if there is a valid property that is editable... */
 	if (ptr.data && prop && RNA_property_editable(&ptr, prop)) {
-		if (RNA_property_reset(&ptr, prop, (all) ? -1 : index)) {
-			/* perform updates required for this property */
-			RNA_property_update(C, &ptr, prop);
-
-			/* as if we pressed the button */
-			uiContextActivePropertyHandle(C);
-
-			success = 1;
-		}
+		if (RNA_property_reset(&ptr, prop, (all) ? -1 : index))
+			return operator_button_property_finish(C, &ptr, prop);
 	}
 
-	/* Since we don't want to undo _all_ edits to settings, eg window
-	 * edits on the screen or on operator settings.
-	 * it might be better to move undo's inline - campbell */
-	if (success) {
-		ID *id = ptr.id.data;
-		if (id && ID_CHECK_UNDO(id)) {
-			/* do nothing, go ahead with undo */
-		}
-		else {
-			return OPERATOR_CANCELLED;
-		}
-	}
-	/* end hack */
-
-	return (success) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+	return OPERATOR_CANCELLED;
 }
 
 static void UI_OT_reset_default_button(wmOperatorType *ot)
@@ -507,11 +222,48 @@ static void UI_OT_reset_default_button(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "all", 1, "All", "Reset to default values all elements of the array");
 }
 
+/* Unset Property Button Operator ------------------------ */
+
+static int unset_property_button_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PointerRNA ptr;
+	PropertyRNA *prop;
+	int index;
+
+	/* try to unset the nominated property */
+	uiContextActiveProperty(C, &ptr, &prop, &index);
+
+	/* if there is a valid property that is editable... */
+	if (ptr.data && prop && RNA_property_editable(&ptr, prop)
+	    /*&& RNA_property_is_idprop(prop)*/ && RNA_property_is_set(&ptr, prop))
+	{
+		RNA_property_unset(&ptr, prop);
+		return operator_button_property_finish(C, &ptr, prop);
+	}
+
+	return OPERATOR_CANCELLED;
+}
+
+static void UI_OT_unset_property_button(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Unset property";
+	ot->idname = "UI_OT_unset_property_button";
+	ot->description = "Clear the property and use default or generated value in operators";
+
+	/* callbacks */
+	ot->poll = ED_operator_regionactive;
+	ot->exec = unset_property_button_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
+}
+
 /* Copy To Selected Operator ------------------------ */
 
-static int copy_to_selected_list(bContext *C, PointerRNA *ptr, ListBase *lb, int *use_path)
+static bool copy_to_selected_list(bContext *C, PointerRNA *ptr, ListBase *lb, bool *use_path)
 {
-	*use_path = FALSE;
+	*use_path = false;
 
 	if (RNA_struct_is_a(ptr->type, &RNA_EditBone))
 		*lb = CTX_data_collection_get(C, "selected_editable_bones");
@@ -524,13 +276,14 @@ static int copy_to_selected_list(bContext *C, PointerRNA *ptr, ListBase *lb, int
 
 		if (id && GS(id->name) == ID_OB) {
 			*lb = CTX_data_collection_get(C, "selected_editable_objects");
-			*use_path = TRUE;
+			*use_path = true;
 		}
-		else
-			return 0;
+		else {
+			return false;
+		}
 	}
 	
-	return 1;
+	return true;
 }
 
 static int copy_to_selected_button_poll(bContext *C)
@@ -543,7 +296,7 @@ static int copy_to_selected_button_poll(bContext *C)
 
 	if (ptr.data && prop) {
 		char *path = NULL;
-		int use_path;
+		bool use_path;
 		CollectionPointerLink *link;
 		ListBase lb;
 
@@ -585,7 +338,8 @@ static int copy_to_selected_button_exec(bContext *C, wmOperator *op)
 	PointerRNA ptr, lptr, idptr;
 	PropertyRNA *prop, *lprop;
 	int success = 0;
-	int index, all = RNA_boolean_get(op->ptr, "all");
+	int index;
+	const bool all = RNA_boolean_get(op->ptr, "all");
 
 	/* try to reset the nominated setting to its default value */
 	uiContextActiveProperty(C, &ptr, &prop, &index);
@@ -593,7 +347,7 @@ static int copy_to_selected_button_exec(bContext *C, wmOperator *op)
 	/* if there is a valid property that is editable... */
 	if (ptr.data && prop) {
 		char *path = NULL;
-		int use_path;
+		bool use_path;
 		CollectionPointerLink *link;
 		ListBase lb;
 
@@ -708,12 +462,12 @@ static void UI_OT_reports_to_textblock(wmOperatorType *ot)
 /* EditSource Utility funcs and operator,
  * note, this includes utility functions and button matching checks */
 
-struct uiEditSourceStore {
+typedef struct uiEditSourceStore {
 	uiBut but_orig;
 	GHash *hash;
 } uiEditSourceStore;
 
-struct uiEditSourceButStore {
+typedef struct uiEditSourceButStore {
 	char py_dbg_fn[FILE_MAX];
 	int py_dbg_ln;
 } uiEditSourceButStore;
@@ -743,7 +497,7 @@ static void ui_editsource_active_but_clear(void)
 	ui_editsource_info = NULL;
 }
 
-static int ui_editsource_uibut_match(uiBut *but_a, uiBut *but_b)
+static bool ui_editsource_uibut_match(uiBut *but_a, uiBut *but_b)
 {
 #if 0
 	printf("matching buttons: '%s' == '%s'\n",
@@ -760,10 +514,10 @@ static int ui_editsource_uibut_match(uiBut *but_a, uiBut *but_b)
 	    (but_a->unit_type == but_b->unit_type) &&
 	    (strncmp(but_a->drawstr, but_b->drawstr, UI_MAX_DRAW_STR) == 0))
 	{
-		return TRUE;
+		return true;
 	}
 	else {
-		return FALSE;
+		return false;
 	}
 }
 
@@ -828,7 +582,7 @@ static int editsource_text_edit(bContext *C, wmOperator *op,
 			BKE_reportf(op->reports, RPT_INFO, "See '%s' in the text editor", text->id.name + 2);
 		}
 
-		txt_move_toline(text, line - 1, FALSE);
+		txt_move_toline(text, line - 1, false);
 		WM_event_add_notifier(C, NC_TEXT | ND_CURSOR, text);
 	}
 
@@ -921,7 +675,7 @@ static void edittranslation_find_po_file(const char *root, const char *uilng, ch
 	/* First, full lang code. */
 	BLI_snprintf(tstr, sizeof(tstr), "%s.po", uilng);
 	BLI_join_dirfile(path, maxlen, root, uilng);
-	BLI_join_dirfile(path, maxlen, path, tstr);
+	BLI_path_append(path, maxlen, tstr);
 	if (BLI_is_file(path))
 		return;
 
@@ -945,7 +699,7 @@ static void edittranslation_find_po_file(const char *root, const char *uilng, ch
 
 			BLI_join_dirfile(path, maxlen, root, tstr);
 			strcat(tstr, ".po");
-			BLI_join_dirfile(path, maxlen, path, tstr);
+			BLI_path_append(path, maxlen, tstr);
 			if (BLI_is_file(path))
 				return;
 		}
@@ -1081,10 +835,10 @@ static void UI_OT_reloadtranslation(wmOperatorType *ot)
 
 void UI_buttons_operatortypes(void)
 {
-	WM_operatortype_append(UI_OT_eyedropper);
 	WM_operatortype_append(UI_OT_reset_default_theme);
 	WM_operatortype_append(UI_OT_copy_data_path_button);
 	WM_operatortype_append(UI_OT_reset_default_button);
+	WM_operatortype_append(UI_OT_unset_property_button);
 	WM_operatortype_append(UI_OT_copy_to_selected_button);
 	WM_operatortype_append(UI_OT_reports_to_textblock);  /* XXX: temp? */
 
@@ -1093,4 +847,8 @@ void UI_buttons_operatortypes(void)
 	WM_operatortype_append(UI_OT_edittranslation_init);
 #endif
 	WM_operatortype_append(UI_OT_reloadtranslation);
+
+	/* external */
+	WM_operatortype_append(UI_OT_eyedropper_color);
+	WM_operatortype_append(UI_OT_eyedropper_id);
 }

@@ -56,6 +56,7 @@
 #include "ED_mask.h"
 #include "ED_mesh.h"
 #include "ED_node.h"
+#include "ED_render.h"
 #include "ED_space_api.h"
 #include "ED_screen.h"
 #include "ED_uvedit.h"
@@ -108,7 +109,7 @@ ARegion *image_has_buttons_region(ScrArea *sa)
 	
 	BLI_insertlinkafter(&sa->regionbase, ar, arnew);
 	arnew->regiontype = RGN_TYPE_UI;
-	arnew->alignment = RGN_ALIGN_LEFT;
+	arnew->alignment = RGN_ALIGN_RIGHT;
 	
 	arnew->flag = RGN_FLAG_HIDDEN;
 	
@@ -132,7 +133,7 @@ ARegion *image_has_scope_region(ScrArea *sa)
 	
 	BLI_insertlinkafter(&sa->regionbase, ar, arnew);
 	arnew->regiontype = RGN_TYPE_PREVIEW;
-	arnew->alignment = RGN_ALIGN_RIGHT;
+	arnew->alignment = RGN_ALIGN_LEFT;
 	
 	arnew->flag = RGN_FLAG_HIDDEN;
 
@@ -173,7 +174,7 @@ static SpaceLink *image_new(const bContext *UNUSED(C))
 	
 	BLI_addtail(&simage->regionbase, ar);
 	ar->regiontype = RGN_TYPE_UI;
-	ar->alignment = RGN_ALIGN_LEFT;
+	ar->alignment = RGN_ALIGN_RIGHT;
 	ar->flag = RGN_FLAG_HIDDEN;
 	
 	/* scopes */
@@ -181,7 +182,7 @@ static SpaceLink *image_new(const bContext *UNUSED(C))
 	
 	BLI_addtail(&simage->regionbase, ar);
 	ar->regiontype = RGN_TYPE_PREVIEW;
-	ar->alignment = RGN_ALIGN_RIGHT;
+	ar->alignment = RGN_ALIGN_LEFT;
 	ar->flag = RGN_FLAG_HIDDEN;
 
 	/* main area */
@@ -277,6 +278,10 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "Image", SPACE_IMAGE, 0);
 	
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
+
+	kmi = WM_keymap_add_item(keymap, "IMAGE_OT_view_all", FKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "fit_view", TRUE);
+
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_selected", PADPERIOD, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_pan", MIDDLEMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_view_pan", MIDDLEMOUSE, KM_PRESS, KM_SHIFT, 0);
@@ -376,15 +381,10 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 	
 	/* check if we have to set the image from the editmesh */
 	if (ima && (ima->source == IMA_SRC_VIEWER && sima->mode == SI_MODE_MASK)) {
-		if (sima->lock == FALSE && G.moving) {
-			/* pass */
-		}
-		else {
-			if (scene->nodetree) {
-				Mask *mask = ED_space_image_get_mask(sima);
-				if (mask) {
-					ED_node_composite_job(C, scene->nodetree, scene);
-				}
+		if (scene->nodetree) {
+			Mask *mask = ED_space_image_get_mask(sima);
+			if (mask) {
+				ED_node_composite_job(C, scene->nodetree, scene);
 			}
 		}
 	}
@@ -420,8 +420,9 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 	}
 }
 
-static void image_listener(ScrArea *sa, wmNotifier *wmn)
+static void image_listener(bScreen *sc, ScrArea *sa, wmNotifier *wmn)
 {
+	Scene *scene = sc->scene;
 	SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 	
 	/* context changes */
@@ -497,6 +498,7 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 			break;
 		}
 		case NC_GEOM:
+		{
 			switch (wmn->data) {
 				case ND_DATA:
 				case ND_SELECT:
@@ -505,18 +507,23 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 					ED_area_tag_redraw(sa);
 					break;
 			}
+			break;
+		}
 		case NC_OBJECT:
 		{
-			Object *ob = (Object *)wmn->reference;
+			Object *ob = OBACT;
 			switch (wmn->data) {
 				case ND_TRANSFORM:
 				case ND_MODIFIER:
-					if (ob && (ob->mode & OB_MODE_EDIT) && sima->lock && (sima->flag & SI_DRAWSHADOW)) {
-						ED_area_tag_refresh(sa);
-						ED_area_tag_redraw(sa);
+					if (ob == (Object *)wmn->reference && (ob->mode & OB_MODE_EDIT)) {
+						if (sima->lock && (sima->flag & SI_DRAWSHADOW)) {
+							ED_area_tag_refresh(sa);
+							ED_area_tag_redraw(sa);
+						}
 					}
 					break;
 			}
+			break;
 		}
 	}
 }
@@ -650,7 +657,16 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	/* put scene context variable in iuser */
-	sima->iuser.scene = scene;
+	if (sima->image && sima->image->type == IMA_TYPE_R_RESULT) {
+		/* for render result, try to use the currently rendering scene */
+		Scene *render_scene = ED_render_job_get_scene(C);
+		if (render_scene)
+			sima->iuser.scene = render_scene;
+		else
+			sima->iuser.scene = scene;
+	}
+	else
+		sima->iuser.scene = scene;
 
 	/* we set view2d from own zoom and offset each time */
 	image_main_area_set_view2d(sima, ar);
@@ -671,7 +687,6 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	}
 	else if (sima->mode == SI_MODE_MASK) {
 		mask = ED_space_image_get_mask(sima);
-		draw_image_cursor(sima, ar);
 	}
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
@@ -712,7 +727,9 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 			BLI_unlock_thread(LOCK_DRAW_IMAGE);
 
 		ED_mask_draw_region(mask, ar,
-		                    sima->mask_info.draw_flag, sima->mask_info.draw_type,
+		                    sima->mask_info.draw_flag,
+		                    sima->mask_info.draw_type,
+		                    sima->mask_info.overlay_mode,
 		                    width, height,
 		                    aspx, aspy,
 		                    TRUE, FALSE,
@@ -720,7 +737,9 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 
 		ED_mask_draw_frames(mask, ar, CFRA, mask->sfra, mask->efra);
 
-		draw_image_cursor(sima, ar);
+		UI_view2d_view_ortho(v2d);
+		draw_image_cursor(ar, sima->cursor);
+		UI_view2d_view_restore(C);
 	}
 
 	/* scrollers? */
@@ -731,7 +750,7 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 #endif
 }
 
-static void image_main_area_listener(ARegion *ar, wmNotifier *wmn)
+static void image_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -765,7 +784,7 @@ static void image_buttons_area_draw(const bContext *C, ARegion *ar)
 	ED_region_panels(C, ar, 1, NULL, -1);
 }
 
-static void image_buttons_area_listener(ARegion *ar, wmNotifier *wmn)
+static void image_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -821,7 +840,7 @@ static void image_scope_area_draw(const bContext *C, ARegion *ar)
 	ED_region_panels(C, ar, 1, NULL, -1);
 }
 
-static void image_scope_area_listener(ARegion *ar, wmNotifier *wmn)
+static void image_scope_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -858,7 +877,7 @@ static void image_header_area_draw(const bContext *C, ARegion *ar)
 	ED_region_header(C, ar);
 }
 
-static void image_header_area_listener(ARegion *ar, wmNotifier *wmn)
+static void image_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -877,7 +896,7 @@ static void image_header_area_listener(ARegion *ar, wmNotifier *wmn)
 					ED_region_tag_redraw(ar);
 					break;
 			}
-			
+			break;
 	}
 }
 

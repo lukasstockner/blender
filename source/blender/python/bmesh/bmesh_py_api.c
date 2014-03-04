@@ -42,6 +42,7 @@
 
 #include "bmesh_py_ops.h"
 #include "bmesh_py_utils.h"
+#include "bmesh_py_geometry.h"
 
 #include "BKE_editmesh.h"
 
@@ -138,6 +139,12 @@ static PyObject *bpy_bm_update_edit_mesh(PyObject *UNUSED(self), PyObject *args,
 
 	{
 		extern void EDBM_update_generic(BMEditMesh *em, const bool do_tessface, const bool is_destructive);
+		BMEditMesh *em = me->edit_btmesh;
+		BMesh *bm = em->bm;
+
+		/* python won't ensure matching uv/mtex */
+		BM_mesh_cd_validate(bm);
+
 		EDBM_update_generic(me->edit_btmesh, do_tessface, is_destructive);
 	}
 
@@ -192,6 +199,10 @@ PyObject *BPyInit_bmesh(void)
 	Py_INCREF(submodule);
 
 	PyModule_AddObject(mod, "utils", (submodule = BPyInit_bmesh_utils()));
+	PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule);
+	Py_INCREF(submodule);
+
+	PyModule_AddObject(mod, "geometry", (submodule = BPyInit_bmesh_geometry()));
 	PyDict_SetItemString(sys_modules, PyModule_GetName(submodule), submodule);
 	Py_INCREF(submodule);
 

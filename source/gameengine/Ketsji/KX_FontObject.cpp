@@ -31,10 +31,12 @@
 
 #include "KX_FontObject.h"
 #include "DNA_curve_types.h"
+#include "DNA_vfont_types.h"
 #include "KX_Scene.h"
 #include "KX_PythonInit.h"
 #include "BLI_math.h"
 #include "StringValue.h"
+#include "RAS_IRasterizer.h"
 
 /* paths needed for font load */
 #include "BLI_blenlib.h"
@@ -75,13 +77,15 @@ static std::vector<STR_String> split_string(STR_String str)
 
 KX_FontObject::KX_FontObject(void* sgReplicationInfo,
                              SG_Callbacks callbacks,
-                             RAS_IRenderTools* rendertools,
-                             Object *ob):
+                             RAS_IRasterizer* rasterizer,
+                             Object *ob,
+                             bool do_color_management):
 	KX_GameObject(sgReplicationInfo, callbacks),
 	m_object(ob),
 	m_dpi(72),
 	m_resolution(1.f),
-	m_rendertools(rendertools)
+	m_rasterizer(rasterizer),
+	m_do_color_management(do_color_management)
 {
 	Curve *text = static_cast<Curve *> (ob->data);
 	m_text = split_string(text->str);
@@ -174,6 +178,15 @@ void KX_FontObject::DrawText()
 	/* update the animated color */
 	this->GetObjectColor().getValue(m_color);
 
+	/* Font Objects don't use the glsl shader, this color management code is copied from gpu_shader_material.glsl */
+	float color[4];
+	if (m_do_color_management) {
+		linearrgb_to_srgb_v4(color, m_color);
+	}
+	else {
+		copy_v4_v4(color, m_color);
+	}
+
 	/* HARDCODED MULTIPLICATION FACTOR - this will affect the render resolution directly */
 	const float RES = BGE_FONT_RES * m_resolution;
 
@@ -201,7 +214,7 @@ void KX_FontObject::DrawText()
 			mat[13] -= spacing[1];
 			mat[14] -= spacing[2];
 		}
-		m_rendertools->RenderText3D(m_fontid, m_text[i], int(size), m_dpi, m_color, mat, aspect);
+		m_rasterizer->RenderText3D(m_fontid, m_text[i], int(size), m_dpi, color, mat, aspect);
 	}
 }
 

@@ -272,7 +272,9 @@ typedef struct ParticleSystem {
 	struct DerivedMesh *hair_in_dm, *hair_out_dm;	/* input/output for cloth simulation */
 
 	struct Object *target_ob;
-	struct Object *lattice;
+
+	struct LatticeDeformData *lattice_deform_data;		/* run-time only lattice deformation data */
+
 	struct Object *parent;					/* particles from global space -> parent space */
 
 	struct ListBase targets;				/* used for keyed and boid physics */
@@ -473,6 +475,7 @@ typedef struct ParticleSystem {
 #define PART_ROT_OB_X		6
 #define PART_ROT_OB_Y		7
 #define PART_ROT_OB_Z		8
+#define PART_ROT_NOR_TAN	9
 
 /* part->avemode */
 #define PART_AVE_VELOCITY	1
@@ -506,7 +509,7 @@ typedef struct ParticleSystem {
 #define PSYS_GLOBAL_HAIR	2
 #define PSYS_HAIR_DYNAMICS	4
 #define	PSYS_KEYED_TIMING	8
-#define PSYS_ENABLED		16	/* deprecated */
+//#define PSYS_ENABLED		16	/* deprecated */
 #define PSYS_HAIR_UPDATED	32  /* signal for updating hair particle mode */
 #define PSYS_DRAWING		64
 #define PSYS_USE_IMAT		128
@@ -561,7 +564,7 @@ typedef struct ParticleSystem {
 
 /* mapto */
 /* init */
-#define PAMAP_INIT		15
+#define PAMAP_INIT		(PAMAP_TIME | PAMAP_LIFE | PAMAP_DENS | PAMAP_SIZE)
 #define PAMAP_TIME		(1<<0)	/* emission time */
 #define PAMAP_LIFE		(1<<1)	/* life time */
 #define PAMAP_DENS		(1<<2)	/* density */
@@ -569,12 +572,12 @@ typedef struct ParticleSystem {
 /* reset */
 #define PAMAP_IVEL		(1<<5)	/* initial velocity */
 /* physics */
-#define PAMAP_PHYSICS	3136
+#define PAMAP_PHYSICS	(PAMAP_FIELD | PAMAP_GRAVITY | PAMAP_DAMP)
 #define PAMAP_FIELD		(1<<6)	/* force fields */
 #define PAMAP_GRAVITY	(1<<10)
 #define PAMAP_DAMP		(1<<11)
 /* children */
-#define PAMAP_CHILD		912
+#define PAMAP_CHILD		(PAMAP_CLUMP | PAMAP_KINK | PAMAP_ROUGH | PAMAP_LENGTH)
 #define PAMAP_CLUMP		(1<<7)
 #define PAMAP_KINK		(1<<8)
 #define PAMAP_ROUGH		(1<<9)

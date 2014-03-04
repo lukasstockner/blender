@@ -39,6 +39,7 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
@@ -58,6 +59,7 @@
 #include "ED_mball.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
+#include "ED_render.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
 #include "ED_util.h"
@@ -139,9 +141,12 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 		SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 		
 		if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->mode == SI_MODE_PAINT)) {
-			if (!ED_undo_paint_step(C, UNDO_PAINT_IMAGE, step, undoname) && undoname)
-				if (U.uiflag & USER_GLOBALUNDO)
+			if (!ED_undo_paint_step(C, UNDO_PAINT_IMAGE, step, undoname) && undoname) {
+				if (U.uiflag & USER_GLOBALUNDO) {
+					ED_viewport_render_kill_jobs(C, true);
 					BKE_undo_name(C, undoname);
+				}
+			}
 			
 			WM_event_add_notifier(C, NC_WINDOW, NULL);
 			return OPERATOR_FINISHED;
@@ -191,6 +196,8 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 			/* for example, texface stores image pointers */
 			undo_editmode_clear();
 			
+			ED_viewport_render_kill_jobs(C, true);
+
 			if (undoname)
 				BKE_undo_name(C, undoname);
 			else
@@ -351,16 +358,18 @@ int ED_undo_operator_repeat(bContext *C, struct wmOperator *op)
 		if (ar1)
 			CTX_wm_region_set(C, ar1);
 
-		if ( (WM_operator_repeat_check(C, op)) &&
-		     (WM_operator_poll(C, op->type)) &&
+		if ((WM_operator_repeat_check(C, op)) &&
+		    (WM_operator_poll(C, op->type)) &&
 		     /* note, undo/redo cant run if there are jobs active,
 		      * check for screen jobs only so jobs like material/texture/world preview
 		      * (which copy their data), wont stop redo, see [#29579]],
 		      *
 		      * note, - WM_operator_check_ui_enabled() jobs test _must_ stay in sync with this */
-		     (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY) == 0))
+		    (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY) == 0))
 		{
 			int retval;
+
+			ED_viewport_render_kill_jobs(C, true);
 
 			if (G.debug & G_DEBUG)
 				printf("redo_cb: operator redo %s\n", op->type->name);
@@ -528,6 +537,7 @@ static int undo_history_exec(bContext *C, wmOperator *op)
 			WM_event_add_notifier(C, NC_GEOM | ND_DATA, NULL);
 		}
 		else {
+			ED_viewport_render_kill_jobs(C, true);
 			BKE_undo_number(C, item);
 			WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, CTX_data_scene(C));
 		}

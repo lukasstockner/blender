@@ -22,8 +22,6 @@
 
 #include "COM_ExecutionSystem.h"
 
-#include <sstream>
-
 #include "PIL_time.h"
 #include "BLI_utildefines.h"
 extern "C" {
@@ -40,6 +38,7 @@ extern "C" {
 #include "COM_WriteBufferOperation.h"
 #include "COM_ReadBufferOperation.h"
 #include "COM_ExecutionSystemHelper.h"
+#include "COM_Debug.h"
 
 #include "BKE_global.h"
 
@@ -47,9 +46,10 @@ extern "C" {
 #include "MEM_guardedalloc.h"
 #endif
 
-ExecutionSystem::ExecutionSystem(RenderData *rd, bNodeTree *editingtree, bool rendering, bool fastcalculation,
+ExecutionSystem::ExecutionSystem(RenderData *rd, Scene *scene, bNodeTree *editingtree, bool rendering, bool fastcalculation,
                                  const ColorManagedViewSettings *viewSettings, const ColorManagedDisplaySettings *displaySettings)
 {
+	this->m_context.setScene(scene);
 	this->m_context.setbNodeTree(editingtree);
 	this->m_context.setPreviewHash(editingtree->previews);
 	this->m_context.setFastCalculation(fastcalculation);
@@ -101,9 +101,7 @@ ExecutionSystem::ExecutionSystem(RenderData *rd, bNodeTree *editingtree, bool re
 		}
 	}
 
-#ifdef COM_DEBUG
-	ExecutionSystemHelper::debugDump(this);
-#endif
+//	DebugInfo::graphviz(this);
 }
 
 ExecutionSystem::~ExecutionSystem()
@@ -133,6 +131,8 @@ ExecutionSystem::~ExecutionSystem()
 
 void ExecutionSystem::execute()
 {
+	DebugInfo::execute_started(this);
+	
 	unsigned int order = 0;
 	for (vector<NodeOperation *>::iterator iter = this->m_operations.begin(); iter != this->m_operations.end(); ++iter) {
 		NodeBase *node = *iter;
@@ -199,11 +199,13 @@ void ExecutionSystem::executeGroups(CompositorPriority priority)
 void ExecutionSystem::addOperation(NodeOperation *operation)
 {
 	ExecutionSystemHelper::addOperation(this->m_operations, operation);
-//	operation->setBTree
+	DebugInfo::operation_added(operation);
 }
 
 void ExecutionSystem::addReadWriteBufferOperations(NodeOperation *operation)
 {
+	DebugInfo::operation_read_write_buffer(operation);
+	
 	// for every input add write and read operation if input is not a read operation
 	// only add read operation to other links when they are attached to buffered operations.
 	unsigned int index;
@@ -283,8 +285,10 @@ static void debug_check_node_connections(Node *node)
 void ExecutionSystem::convertToOperations()
 {
 	unsigned int index;
+
 	for (index = 0; index < this->m_nodes.size(); index++) {
 		Node *node = (Node *)this->m_nodes[index];
+		DebugInfo::node_to_operations(node);
 		node->convertToOperations(this, &this->m_context);
 
 		debug_check_node_connections(node);

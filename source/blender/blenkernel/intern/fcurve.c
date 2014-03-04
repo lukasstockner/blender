@@ -112,7 +112,7 @@ void free_fcurves(ListBase *list)
 	}
 	
 	/* clear pointers just in case */
-	list->first = list->last = NULL;
+	BLI_listbase_clear(list);
 }	
 
 /* ---------------------- Copy --------------------------- */
@@ -159,7 +159,7 @@ void copy_fcurves(ListBase *dst, ListBase *src)
 		return;
 	
 	/* clear destination list first */
-	dst->first = dst->last = NULL;
+	BLI_listbase_clear(dst);
 	
 	/* copy one-by-one */
 	for (sfcu = src->first; sfcu; sfcu = sfcu->next) {
@@ -433,7 +433,7 @@ int binarysearch_bezt_index(BezTriple array[], float frame, int arraylen, bool *
 
 /* helper for calc_fcurve_* functions -> find first and last BezTriple to be used */
 static short get_fcurve_end_keyframes(FCurve *fcu, BezTriple **first, BezTriple **last,
-                                      const short do_sel_only)
+                                      const bool do_sel_only)
 {
 	short found = FALSE;
 	
@@ -482,12 +482,12 @@ static short get_fcurve_end_keyframes(FCurve *fcu, BezTriple **first, BezTriple 
 
 
 /* Calculate the extents of F-Curve's data */
-short calc_fcurve_bounds(FCurve *fcu, float *xmin, float *xmax, float *ymin, float *ymax,
-                         const short do_sel_only, const short include_handles)
+bool calc_fcurve_bounds(FCurve *fcu, float *xmin, float *xmax, float *ymin, float *ymax,
+                        const bool do_sel_only, const bool include_handles)
 {
 	float xminv = 999999999.0f, xmaxv = -999999999.0f;
 	float yminv = 999999999.0f, ymaxv = -999999999.0f;
-	short foundvert = FALSE;
+	bool foundvert = false;
 	unsigned int i;
 	
 	if (fcu->totvert) {
@@ -577,8 +577,8 @@ short calc_fcurve_bounds(FCurve *fcu, float *xmin, float *xmax, float *ymin, flo
 }
 
 /* Calculate the extents of F-Curve's keyframes */
-void calc_fcurve_range(FCurve *fcu, float *start, float *end,
-                       const short do_sel_only, const short do_min_length)
+bool calc_fcurve_range(FCurve *fcu, float *start, float *end,
+                       const bool do_sel_only, const bool do_min_length)
 {
 	float min = 999999999.0f, max = -999999999.0f;
 	short foundvert = FALSE;
@@ -621,6 +621,8 @@ void calc_fcurve_range(FCurve *fcu, float *start, float *end,
 
 	*start = min;
 	*end = max;
+
+	return foundvert;
 }
 
 /* ----------------- Status Checks -------------------------- */
@@ -629,7 +631,7 @@ void calc_fcurve_range(FCurve *fcu, float *start, float *end,
  * Usability of keyframes refers to whether they should be displayed,
  * and also whether they will have any influence on the final result.
  */
-short fcurve_are_keyframes_usable(FCurve *fcu)
+bool fcurve_are_keyframes_usable(FCurve *fcu)
 {
 	/* F-Curve must exist */
 	if (fcu == NULL)
@@ -665,17 +667,16 @@ short fcurve_are_keyframes_usable(FCurve *fcu)
 					
 					if ((data->flag & FCM_GENERATOR_ADDITIVE) == 0)
 						return 0;
+					break;
 				}
-				break;
 				case FMODIFIER_TYPE_FN_GENERATOR:
 				{
 					FMod_FunctionGenerator *data = (FMod_FunctionGenerator *)fcm->data;
 					
 					if ((data->flag & FCM_GENERATOR_ADDITIVE) == 0)
 						return 0;
+					break;
 				}
-				break;
-					
 				/* always harmful - cannot allow */
 				default:
 					return 0;
@@ -687,21 +688,27 @@ short fcurve_are_keyframes_usable(FCurve *fcu)
 	return 1;
 }
 
+bool BKE_fcurve_is_protected(FCurve *fcu)
+{
+	return ((fcu->flag & FCURVE_PROTECTED) ||
+	        ((fcu->grp) && (fcu->grp->flag & AGRP_PROTECTED)));
+}
+
 /* Can keyframes be added to F-Curve? 
  * Keyframes can only be added if they are already visible
  */
-short fcurve_is_keyframable(FCurve *fcu)
+bool fcurve_is_keyframable(FCurve *fcu)
 {
 	/* F-Curve's keyframes must be "usable" (i.e. visible + have an effect on final result) */
 	if (fcurve_are_keyframes_usable(fcu) == 0)
-		return 0;
+		return false;
 		
 	/* F-Curve must currently be editable too */
-	if ( (fcu->flag & FCURVE_PROTECTED) || ((fcu->grp) && (fcu->grp->flag & AGRP_PROTECTED)) )
-		return 0;
+	if (BKE_fcurve_is_protected(fcu))
+		return false;
 	
 	/* F-Curve is keyframable */
-	return 1;
+	return true;
 }
 
 /* ***************************** Keyframe Column Tools ********************************* */
@@ -840,14 +847,7 @@ void calchandles_fcurve(FCurve *fcu)
 	}
 }
 
-/* Use when F-Curve with handles has changed
- * It treats all BezTriples with the following rules:
- *  - PHASE 1: do types have to be altered?
- *      -> Auto handles: become aligned when selection status is NOT(000 || 111)
- *      -> Vector handles: become 'nothing' when (one half selected AND other not)
- *  - PHASE 2: recalculate handles
- */
-void testhandles_fcurve(FCurve *fcu, const short use_handle)
+void testhandles_fcurve(FCurve *fcu, const bool use_handle)
 {
 	BezTriple *bezt;
 	unsigned int a;
@@ -855,45 +855,10 @@ void testhandles_fcurve(FCurve *fcu, const short use_handle)
 	/* only beztriples have handles (bpoints don't though) */
 	if (ELEM(NULL, fcu, fcu->bezt))
 		return;
-	
+
 	/* loop over beztriples */
 	for (a = 0, bezt = fcu->bezt; a < fcu->totvert; a++, bezt++) {
-		short flag = 0;
-		
-		/* flag is initialized as selection status
-		 * of beztriple control-points (labelled 0, 1, 2)
-		 */
-		if (bezt->f2 & SELECT) flag |= (1 << 1);  // == 2
-		if (use_handle == FALSE) {
-			if (flag & 2) {
-				flag |= (1 << 0) | (1 << 2);
-			}
-		}
-		else {
-			if (bezt->f1 & SELECT) flag |= (1 << 0);  // == 1
-			if (bezt->f3 & SELECT) flag |= (1 << 2);  // == 4
-		}
-		
-		/* one or two handles selected only */
-		if (ELEM(flag, 0, 7) == 0) {
-			/* auto handles become aligned */
-			if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM))
-				bezt->h1 = HD_ALIGN;
-			if (ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM))
-				bezt->h2 = HD_ALIGN;
-			
-			/* vector handles become 'free' when only one half selected */
-			if (bezt->h1 == HD_VECT) {
-				/* only left half (1 or 2 or 1+2) */
-				if (flag < 4) 
-					bezt->h1 = 0;
-			}
-			if (bezt->h2 == HD_VECT) {
-				/* only right half (4 or 2+4) */
-				if (flag > 3) 
-					bezt->h2 = 0;
-			}
-		}
+		BKE_nurb_bezt_handle_test(bezt, use_handle);
 	}
 
 	/* recalculate handles */
@@ -1182,6 +1147,10 @@ static float dvar_eval_rotDiff(ChannelDriver *driver, DriverVar *dvar)
 		
 		/* stop here... */
 		return 0.0f;
+	}
+	else {
+		dtar1->flag &= ~DTAR_FLAG_INVALID;
+		dtar2->flag &= ~DTAR_FLAG_INVALID;
 	}
 	
 	/* use the final posed locations */
@@ -1619,7 +1588,7 @@ ChannelDriver *fcurve_copy_driver(ChannelDriver *driver)
 	ndriver->expr_comp = NULL;
 	
 	/* copy variables */
-	ndriver->variables.first = ndriver->variables.last = NULL;
+	BLI_listbase_clear(&ndriver->variables);
 	BLI_duplicatelist(&ndriver->variables, &driver->variables);
 	
 	for (dvar = ndriver->variables.first; dvar; dvar = dvar->next) {
@@ -1679,7 +1648,7 @@ static float evaluate_driver(ChannelDriver *driver, const float evaltime)
 		case DRIVER_TYPE_SUM: /* sum values of driver targets */
 		{
 			/* check how many variables there are first (i.e. just one?) */
-			if (driver->variables.first == driver->variables.last) {
+			if (BLI_listbase_is_single(&driver->variables)) {
 				/* just one target, so just use that */
 				dvar = driver->variables.first;
 				driver->curval = driver_get_variable_value(driver, dvar);
@@ -1697,13 +1666,12 @@ static float evaluate_driver(ChannelDriver *driver, const float evaltime)
 				
 				/* perform operations on the total if appropriate */
 				if (driver->type == DRIVER_TYPE_AVERAGE)
-					driver->curval = (value / (float)tot);
+					driver->curval = tot ? (value / (float)tot) : 0.0f;
 				else
 					driver->curval = value;
 			}
+			break;
 		}
-		break;
-			
 		case DRIVER_TYPE_MIN: /* smallest value */
 		case DRIVER_TYPE_MAX: /* largest value */
 		{
@@ -1736,9 +1704,8 @@ static float evaluate_driver(ChannelDriver *driver, const float evaltime)
 			
 			/* store value in driver */
 			driver->curval = value;
+			break;
 		}
-		break;
-			
 		case DRIVER_TYPE_PYTHON: /* expression */
 		{
 #ifdef WITH_PYTHON
@@ -1757,15 +1724,15 @@ static float evaluate_driver(ChannelDriver *driver, const float evaltime)
 #else /* WITH_PYTHON*/
 			(void)evaltime;
 #endif /* WITH_PYTHON*/
+			break;
 		}
-		break;
-		
 		default:
 		{
 			/* special 'hack' - just use stored value 
 			 *	This is currently used as the mechanism which allows animated settings to be able
 			 *  to be changed via the UI.
 			 */
+			break;
 		}
 	}
 	
@@ -2171,20 +2138,50 @@ static float fcurve_eval_samples(FCurve *fcu, FPoint *fpts, float evaltime)
  */
 float evaluate_fcurve(FCurve *fcu, float evaltime)
 {
+	FModifierStackStorage *storage;
 	float cvalue = 0.0f;
 	float devaltime;
 	
 	/* if there is a driver (only if this F-Curve is acting as 'driver'), evaluate it to find value to use as "evaltime" 
 	 * since drivers essentially act as alternative input (i.e. in place of 'time') for F-Curves
-	 *	- this value will also be returned as the value of the 'curve', if there are no keyframes
 	 */
 	if (fcu->driver) {
 		/* evaltime now serves as input for the curve */
-		evaltime = cvalue = evaluate_driver(fcu->driver, evaltime);
+		evaltime = evaluate_driver(fcu->driver, evaltime);
+		
+		/* only do a default 1-1 mapping if it's unlikely that anything else will set a value... */
+		if (fcu->totvert == 0) {
+			FModifier *fcm;
+			bool do_linear = true;
+			
+			/* out-of-range F-Modifiers will block, as will those which just plain overwrite the values 
+			 * XXX: additive is a bit more dicey; it really depends then if things are in range or not...
+			 */
+			for (fcm = fcu->modifiers.first; fcm; fcm = fcm->next) {
+				/* if there are range-restrictions, we must definitely block [#36950] */
+				if ((fcm->flag & FMODIFIER_FLAG_RANGERESTRICT) == 0 ||
+				    ((fcm->sfra <= evaltime) && (fcm->efra >= evaltime)) )
+				{
+					/* within range: here it probably doesn't matter, though we'd want to check on additive... */
+				}
+				else {
+					/* outside range: modifier shouldn't contribute to the curve here, though it does in other areas,
+					 * so neither should the driver!
+					 */
+					do_linear = false;
+				}
+			}
+			
+			/* only copy over results if none of the modifiers disagreed with this */
+			if (do_linear) {
+				cvalue = evaltime;
+			}
+		}
 	}
-	
+
 	/* evaluate modifiers which modify time to evaluate the base curve at */
-	devaltime = evaluate_time_fmodifiers(&fcu->modifiers, fcu, cvalue, evaltime);
+	storage = evaluate_fmodifiers_storage_new(&fcu->modifiers);
+	devaltime = evaluate_time_fmodifiers(storage, &fcu->modifiers, fcu, cvalue, evaltime);
 	
 	/* evaluate curve-data 
 	 *	- 'devaltime' instead of 'evaltime', as this is the time that the last time-modifying 
@@ -2196,8 +2193,10 @@ float evaluate_fcurve(FCurve *fcu, float evaltime)
 		cvalue = fcurve_eval_samples(fcu, fcu->fpt, devaltime);
 	
 	/* evaluate modifiers */
-	evaluate_value_fmodifiers(&fcu->modifiers, fcu, &cvalue, evaltime);
-	
+	evaluate_value_fmodifiers(storage, &fcu->modifiers, fcu, &cvalue, evaltime);
+
+	evaluate_fmodifiers_storage_free(storage);
+
 	/* if curve can only have integral values, perform truncation (i.e. drop the decimal part)
 	 * here so that the curve can be sampled correctly
 	 */

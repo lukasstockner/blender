@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 CCL_NAMESPACE_BEGIN
@@ -32,7 +30,7 @@ enum ObjectVectorTransform {
 	OBJECT_VECTOR_MOTION_POST = 3
 };
 
-__device_inline Transform object_fetch_transform(KernelGlobals *kg, int object, enum ObjectTransform type)
+ccl_device_inline Transform object_fetch_transform(KernelGlobals *kg, int object, enum ObjectTransform type)
 {
 	int offset = object*OBJECT_SIZE + (int)type;
 
@@ -45,7 +43,7 @@ __device_inline Transform object_fetch_transform(KernelGlobals *kg, int object, 
 	return tfm;
 }
 
-__device_inline Transform object_fetch_vector_transform(KernelGlobals *kg, int object, enum ObjectVectorTransform type)
+ccl_device_inline Transform object_fetch_vector_transform(KernelGlobals *kg, int object, enum ObjectVectorTransform type)
 {
 	int offset = object*OBJECT_VECTOR_SIZE + (int)type;
 
@@ -59,7 +57,7 @@ __device_inline Transform object_fetch_vector_transform(KernelGlobals *kg, int o
 }
 
 #ifdef __OBJECT_MOTION__
-__device_inline Transform object_fetch_transform_motion(KernelGlobals *kg, int object, float time)
+ccl_device_inline Transform object_fetch_transform_motion(KernelGlobals *kg, int object, float time)
 {
 	DecompMotionTransform motion;
 
@@ -81,7 +79,7 @@ __device_inline Transform object_fetch_transform_motion(KernelGlobals *kg, int o
 	return tfm;
 }
 
-__device_inline Transform object_fetch_transform_motion_test(KernelGlobals *kg, int object, float time, Transform *itfm)
+ccl_device_inline Transform object_fetch_transform_motion_test(KernelGlobals *kg, int object, float time, Transform *itfm)
 {
 	int object_flag = kernel_tex_fetch(__object_flag, object);
 
@@ -104,7 +102,7 @@ __device_inline Transform object_fetch_transform_motion_test(KernelGlobals *kg, 
 }
 #endif
 
-__device_inline void object_position_transform(KernelGlobals *kg, ShaderData *sd, float3 *P)
+ccl_device_inline void object_position_transform(KernelGlobals *kg, ShaderData *sd, float3 *P)
 {
 #ifdef __OBJECT_MOTION__
 	*P = transform_point(&sd->ob_tfm, *P);
@@ -114,7 +112,7 @@ __device_inline void object_position_transform(KernelGlobals *kg, ShaderData *sd
 #endif
 }
 
-__device_inline void object_inverse_position_transform(KernelGlobals *kg, ShaderData *sd, float3 *P)
+ccl_device_inline void object_inverse_position_transform(KernelGlobals *kg, ShaderData *sd, float3 *P)
 {
 #ifdef __OBJECT_MOTION__
 	*P = transform_point(&sd->ob_itfm, *P);
@@ -124,7 +122,7 @@ __device_inline void object_inverse_position_transform(KernelGlobals *kg, Shader
 #endif
 }
 
-__device_inline void object_inverse_normal_transform(KernelGlobals *kg, ShaderData *sd, float3 *N)
+ccl_device_inline void object_inverse_normal_transform(KernelGlobals *kg, ShaderData *sd, float3 *N)
 {
 #ifdef __OBJECT_MOTION__
 	*N = normalize(transform_direction_transposed(&sd->ob_tfm, *N));
@@ -134,7 +132,7 @@ __device_inline void object_inverse_normal_transform(KernelGlobals *kg, ShaderDa
 #endif
 }
 
-__device_inline void object_normal_transform(KernelGlobals *kg, ShaderData *sd, float3 *N)
+ccl_device_inline void object_normal_transform(KernelGlobals *kg, ShaderData *sd, float3 *N)
 {
 #ifdef __OBJECT_MOTION__
 	*N = normalize(transform_direction_transposed(&sd->ob_itfm, *N));
@@ -144,7 +142,7 @@ __device_inline void object_normal_transform(KernelGlobals *kg, ShaderData *sd, 
 #endif
 }
 
-__device_inline void object_dir_transform(KernelGlobals *kg, ShaderData *sd, float3 *D)
+ccl_device_inline void object_dir_transform(KernelGlobals *kg, ShaderData *sd, float3 *D)
 {
 #ifdef __OBJECT_MOTION__
 	*D = transform_direction(&sd->ob_tfm, *D);
@@ -154,7 +152,17 @@ __device_inline void object_dir_transform(KernelGlobals *kg, ShaderData *sd, flo
 #endif
 }
 
-__device_inline float3 object_location(KernelGlobals *kg, ShaderData *sd)
+ccl_device_inline void object_inverse_dir_transform(KernelGlobals *kg, ShaderData *sd, float3 *D)
+{
+#ifdef __OBJECT_MOTION__
+	*D = transform_direction(&sd->ob_itfm, *D);
+#else
+	Transform tfm = object_fetch_transform(kg, sd->object, OBJECT_INVERSE_TRANSFORM);
+	*D = transform_direction(&tfm, *D);
+#endif
+}
+
+ccl_device_inline float3 object_location(KernelGlobals *kg, ShaderData *sd)
 {
 	if(sd->object == ~0)
 		return make_float3(0.0f, 0.0f, 0.0f);
@@ -167,14 +175,14 @@ __device_inline float3 object_location(KernelGlobals *kg, ShaderData *sd)
 #endif
 }
 
-__device_inline float object_surface_area(KernelGlobals *kg, int object)
+ccl_device_inline float object_surface_area(KernelGlobals *kg, int object)
 {
 	int offset = object*OBJECT_SIZE + OBJECT_PROPERTIES;
 	float4 f = kernel_tex_fetch(__objects, offset);
 	return f.x;
 }
 
-__device_inline float object_pass_id(KernelGlobals *kg, int object)
+ccl_device_inline float object_pass_id(KernelGlobals *kg, int object)
 {
 	if(object == ~0)
 		return 0.0f;
@@ -184,7 +192,7 @@ __device_inline float object_pass_id(KernelGlobals *kg, int object)
 	return f.y;
 }
 
-__device_inline float object_random_number(KernelGlobals *kg, int object)
+ccl_device_inline float object_random_number(KernelGlobals *kg, int object)
 {
 	if(object == ~0)
 		return 0.0f;
@@ -194,7 +202,7 @@ __device_inline float object_random_number(KernelGlobals *kg, int object)
 	return f.z;
 }
 
-__device_inline uint object_particle_id(KernelGlobals *kg, int object)
+ccl_device_inline uint object_particle_id(KernelGlobals *kg, int object)
 {
 	if(object == ~0)
 		return 0.0f;
@@ -204,7 +212,7 @@ __device_inline uint object_particle_id(KernelGlobals *kg, int object)
 	return __float_as_uint(f.w);
 }
 
-__device_inline float3 object_dupli_generated(KernelGlobals *kg, int object)
+ccl_device_inline float3 object_dupli_generated(KernelGlobals *kg, int object)
 {
 	if(object == ~0)
 		return make_float3(0.0f, 0.0f, 0.0f);
@@ -214,7 +222,7 @@ __device_inline float3 object_dupli_generated(KernelGlobals *kg, int object)
 	return make_float3(f.x, f.y, f.z);
 }
 
-__device_inline float3 object_dupli_uv(KernelGlobals *kg, int object)
+ccl_device_inline float3 object_dupli_uv(KernelGlobals *kg, int object)
 {
 	if(object == ~0)
 		return make_float3(0.0f, 0.0f, 0.0f);
@@ -225,54 +233,54 @@ __device_inline float3 object_dupli_uv(KernelGlobals *kg, int object)
 }
 
 
-__device int shader_pass_id(KernelGlobals *kg, ShaderData *sd)
+ccl_device int shader_pass_id(KernelGlobals *kg, ShaderData *sd)
 {
 	return kernel_tex_fetch(__shader_flag, (sd->shader & SHADER_MASK)*2 + 1);
 }
 
-__device_inline float particle_index(KernelGlobals *kg, int particle)
+ccl_device_inline float particle_index(KernelGlobals *kg, int particle)
 {
 	int offset = particle*PARTICLE_SIZE;
 	float4 f = kernel_tex_fetch(__particles, offset + 0);
 	return f.x;
 }
 
-__device float particle_age(KernelGlobals *kg, int particle)
+ccl_device float particle_age(KernelGlobals *kg, int particle)
 {
 	int offset = particle*PARTICLE_SIZE;
 	float4 f = kernel_tex_fetch(__particles, offset + 0);
 	return f.y;
 }
 
-__device float particle_lifetime(KernelGlobals *kg, int particle)
+ccl_device float particle_lifetime(KernelGlobals *kg, int particle)
 {
 	int offset = particle*PARTICLE_SIZE;
 	float4 f = kernel_tex_fetch(__particles, offset + 0);
 	return f.z;
 }
 
-__device float particle_size(KernelGlobals *kg, int particle)
+ccl_device float particle_size(KernelGlobals *kg, int particle)
 {
 	int offset = particle*PARTICLE_SIZE;
 	float4 f = kernel_tex_fetch(__particles, offset + 0);
 	return f.w;
 }
 
-__device float4 particle_rotation(KernelGlobals *kg, int particle)
+ccl_device float4 particle_rotation(KernelGlobals *kg, int particle)
 {
 	int offset = particle*PARTICLE_SIZE;
 	float4 f = kernel_tex_fetch(__particles, offset + 1);
 	return f;
 }
 
-__device float3 particle_location(KernelGlobals *kg, int particle)
+ccl_device float3 particle_location(KernelGlobals *kg, int particle)
 {
 	int offset = particle*PARTICLE_SIZE;
 	float4 f = kernel_tex_fetch(__particles, offset + 2);
 	return make_float3(f.x, f.y, f.z);
 }
 
-__device float3 particle_velocity(KernelGlobals *kg, int particle)
+ccl_device float3 particle_velocity(KernelGlobals *kg, int particle)
 {
 	int offset = particle*PARTICLE_SIZE;
 	float4 f2 = kernel_tex_fetch(__particles, offset + 2);
@@ -280,7 +288,7 @@ __device float3 particle_velocity(KernelGlobals *kg, int particle)
 	return make_float3(f2.w, f3.x, f3.y);
 }
 
-__device float3 particle_angular_velocity(KernelGlobals *kg, int particle)
+ccl_device float3 particle_angular_velocity(KernelGlobals *kg, int particle)
 {
 	int offset = particle*PARTICLE_SIZE;
 	float4 f3 = kernel_tex_fetch(__particles, offset + 3);

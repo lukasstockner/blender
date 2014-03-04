@@ -78,7 +78,7 @@ bArmature *BKE_armature_add(Main *bmain, const char *name)
 {
 	bArmature *arm;
 
-	arm = BKE_libblock_alloc(&bmain->armature, ID_AR, name);
+	arm = BKE_libblock_alloc(bmain, ID_AR, name);
 	arm->deformflag = ARM_DEF_VGROUP | ARM_DEF_ENVELOPE;
 	arm->flag = ARM_COL_CUSTOM; /* custom bone-group colors */
 	arm->layer = 1;
@@ -285,7 +285,7 @@ int bone_autoside_name(char name[MAXBONENAME], int UNUSED(strip_number), short a
 	 */
 	if (axis == 2) {
 		/* z-axis - vertical (top/bottom) */
-		if (IS_EQ(head, 0)) {
+		if (IS_EQF(head, 0.0f)) {
 			if (tail < 0)
 				strcpy(extension, "Bot");
 			else if (tail > 0)
@@ -300,7 +300,7 @@ int bone_autoside_name(char name[MAXBONENAME], int UNUSED(strip_number), short a
 	}
 	else if (axis == 1) {
 		/* y-axis - depth (front/back) */
-		if (IS_EQ(head, 0)) {
+		if (IS_EQF(head, 0.0f)) {
 			if (tail < 0)
 				strcpy(extension, "Fr");
 			else if (tail > 0)
@@ -315,7 +315,7 @@ int bone_autoside_name(char name[MAXBONENAME], int UNUSED(strip_number), short a
 	}
 	else {
 		/* x-axis - horizontal (left/right) */
-		if (IS_EQ(head, 0)) {
+		if (IS_EQF(head, 0.0f)) {
 			if (tail < 0)
 				strcpy(extension, "R");
 			else if (tail > 0)
@@ -335,15 +335,15 @@ int bone_autoside_name(char name[MAXBONENAME], int UNUSED(strip_number), short a
 	 *	- otherwise, just append to end
 	 */
 	if (extension[0]) {
-		int change = 1;
+		bool changed = true;
 
-		while (change) { /* remove extensions */
-			change = 0;
+		while (changed) { /* remove extensions */
+			changed = false;
 			if (len > 2 && basename[len - 2] == '.') {
 				if (basename[len - 1] == 'L' || basename[len - 1] == 'R') { /* L R */
 					basename[len - 2] = '\0';
 					len -= 2;
-					change = 1;
+					changed = true;
 				}
 			}
 			else if (len > 3 && basename[len - 3] == '.') {
@@ -352,7 +352,7 @@ int bone_autoside_name(char name[MAXBONENAME], int UNUSED(strip_number), short a
 				{
 					basename[len - 3] = '\0';
 					len -= 3;
-					change = 1;
+					changed = true;
 				}
 			}
 			else if (len > 4 && basename[len - 4] == '.') {
@@ -361,7 +361,7 @@ int bone_autoside_name(char name[MAXBONENAME], int UNUSED(strip_number), short a
 				{
 					basename[len - 4] = '\0';
 					len -= 4;
-					change = 1;
+					changed = true;
 				}
 			}
 		}
@@ -380,8 +380,6 @@ int bone_autoside_name(char name[MAXBONENAME], int UNUSED(strip_number), short a
 }
 
 /* ************* B-Bone support ******************* */
-
-#define MAX_BBONE_SUBDIV    32
 
 /* data has MAX_BBONE_SUBDIV+1 interpolated points, will become desired amount with equal distances */
 static void equalize_bezier(float *data, int desired)
@@ -407,7 +405,7 @@ static void equalize_bezier(float *data, int desired)
 		dist = ((float)a) * ddist;
 
 		/* we're looking for location (distance) 'dist' in the array */
-		while ((dist >= pdist[nr]) && nr < MAX_BBONE_SUBDIV)
+		while ((nr < MAX_BBONE_SUBDIV) && (dist >= pdist[nr]))
 			nr++;
 
 		fac1 = pdist[nr] - pdist[nr - 1];
@@ -426,31 +424,24 @@ static void equalize_bezier(float *data, int desired)
 
 /* returns pointer to static array, filled with desired amount of bone->segments elements */
 /* this calculation is done  within unit bone space */
-Mat4 *b_bone_spline_setup(bPoseChannel *pchan, int rest)
+void b_bone_spline_setup(bPoseChannel *pchan, int rest, Mat4 result_array[MAX_BBONE_SUBDIV])
 {
-	static Mat4 bbone_array[MAX_BBONE_SUBDIV];
-	static Mat4 bbone_rest_array[MAX_BBONE_SUBDIV];
-	Mat4 *result_array = (rest) ? bbone_rest_array : bbone_array;
 	bPoseChannel *next, *prev;
 	Bone *bone = pchan->bone;
 	float h1[3], h2[3], scale[3], length, hlength1, hlength2, roll1 = 0.0f, roll2;
 	float mat3[3][3], imat[4][4], posemat[4][4], scalemat[4][4], iscalemat[4][4];
 	float data[MAX_BBONE_SUBDIV + 1][4], *fp;
-	int a, do_scale = 0;
+	int a;
+	bool do_scale = false;
 
 	length = bone->length;
 
 	if (!rest) {
 		/* check if we need to take non-uniform bone scaling into account */
-		scale[0] = len_v3(pchan->pose_mat[0]);
-		scale[1] = len_v3(pchan->pose_mat[1]);
-		scale[2] = len_v3(pchan->pose_mat[2]);
+		mat4_to_size(scale, pchan->pose_mat);
 
 		if (fabsf(scale[0] - scale[1]) > 1e-6f || fabsf(scale[1] - scale[2]) > 1e-6f) {
-			unit_m4(scalemat);
-			scalemat[0][0] = scale[0];
-			scalemat[1][1] = scale[1];
-			scalemat[2][2] = scale[2];
+			size_to_mat4(scalemat, scale);
 			invert_m4_m4(iscalemat, scalemat);
 
 			length *= scale[1];
@@ -587,8 +578,6 @@ Mat4 *b_bone_spline_setup(bPoseChannel *pchan, int rest)
 			mul_serie_m4(result_array[a].mat, iscalemat, result_array[a].mat, scalemat, NULL, NULL, NULL, NULL, NULL);
 		}
 	}
-
-	return result_array;
 }
 
 /* ************ Armature Deform ******************* */
@@ -602,12 +591,14 @@ typedef struct bPoseChanDeform {
 static void pchan_b_bone_defmats(bPoseChannel *pchan, bPoseChanDeform *pdef_info, int use_quaternion)
 {
 	Bone *bone = pchan->bone;
-	Mat4 *b_bone = b_bone_spline_setup(pchan, 0);
-	Mat4 *b_bone_rest = b_bone_spline_setup(pchan, 1);
+	Mat4 b_bone[MAX_BBONE_SUBDIV], b_bone_rest[MAX_BBONE_SUBDIV];
 	Mat4 *b_bone_mats;
 	DualQuat *b_bone_dual_quats = NULL;
 	float tmat[4][4] = MAT4_UNITY;
 	int a;
+
+	b_bone_spline_setup(pchan, 0, b_bone);
+	b_bone_spline_setup(pchan, 1, b_bone_rest);
 
 	/* allocate b_bone matrices and dual quats */
 	b_bone_mats = MEM_mallocN((1 + bone->segments) * sizeof(Mat4), "BBone defmats");
@@ -672,7 +663,7 @@ static void b_bone_deform(bPoseChanDeform *pdef_info, Bone *bone, float co[3], D
 /* using vec with dist to bone b1 - b2 */
 float distfactor_to_bone(const float vec[3], const float b1[3], const float b2[3], float rad1, float rad2, float rdist)
 {
-	float dist = 0.0f;
+	float dist_sq;
 	float bdelta[3];
 	float pdelta[3];
 	float hsqr, a, l, rad;
@@ -687,16 +678,16 @@ float distfactor_to_bone(const float vec[3], const float b1[3], const float b2[3
 
 	if (a < 0.0f) {
 		/* If we're past the end of the bone, do a spherical field attenuation thing */
-		dist = len_squared_v3v3(b1, vec);
+		dist_sq = len_squared_v3v3(b1, vec);
 		rad = rad1;
 	}
 	else if (a > l) {
 		/* If we're past the end of the bone, do a spherical field attenuation thing */
-		dist = len_squared_v3v3(b2, vec);
+		dist_sq = len_squared_v3v3(b2, vec);
 		rad = rad2;
 	}
 	else {
-		dist = (hsqr - (a * a));
+		dist_sq = (hsqr - (a * a));
 
 		if (l != 0.0f) {
 			rad = a / l;
@@ -707,15 +698,15 @@ float distfactor_to_bone(const float vec[3], const float b1[3], const float b2[3
 	}
 
 	a = rad * rad;
-	if (dist < a)
+	if (dist_sq < a)
 		return 1.0f;
 	else {
 		l = rad + rdist;
 		l *= l;
-		if (rdist == 0.0f || dist >= l)
+		if (rdist == 0.0f || dist_sq >= l)
 			return 0.0f;
 		else {
-			a = sqrtf(dist) - rad;
+			a = sqrtf(dist_sq) - rad;
 			return 1.0f - (a * a) / (rdist * rdist);
 		}
 	}
@@ -1329,6 +1320,7 @@ void BKE_pchan_mat3_to_rot(bPoseChannel *pchan, float mat[3][3], short use_compa
 				mat3_to_compatible_eulO(pchan->eul, pchan->eul, pchan->rotmode, mat);
 			else
 				mat3_to_eulO(pchan->eul, pchan->rotmode, mat);
+			break;
 	}
 }
 
@@ -1474,7 +1466,7 @@ void vec_roll_to_mat3(const float vec[3], const float roll, float mat[3][3])
 		theta = angle_normalized_v3v3(target, nor);
 
 		/* Make Bone matrix*/
-		vec_rot_to_mat3(bMatrix, axis, theta);
+		axis_angle_normalized_to_mat3(bMatrix, axis, theta);
 	}
 	else {
 		/* if nor is a multiple of target ... */
@@ -1490,7 +1482,7 @@ void vec_roll_to_mat3(const float vec[3], const float roll, float mat[3][3])
 	}
 
 	/* Make Roll matrix */
-	vec_rot_to_mat3(rMatrix, nor, roll);
+	axis_angle_normalized_to_mat3(rMatrix, nor, roll);
 
 	/* Combine and output result */
 	mul_m3_m3m3(mat, rMatrix, bMatrix);
@@ -1604,7 +1596,10 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 			pchanw.next = pchan->next;
 			pchanw.parent = pchan->parent;
 			pchanw.child = pchan->child;
-			
+
+			pchanw.mpath = pchan->mpath;
+			pchan->mpath = NULL;
+
 			/* this is freed so copy a copy, else undo crashes */
 			if (pchanw.prop) {
 				pchanw.prop = IDP_CopyProperty(pchanw.prop);
@@ -1651,10 +1646,16 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 			
 			/* copy data in temp back over to the cleaned-out (but still allocated) original channel */
 			*pchan = pchanw;
+			if (pchan->custom) {
+				id_us_plus(&pchan->custom->id);
+			}
 		}
 		else {
 			/* always copy custom shape */
 			pchan->custom = pchanp->custom;
+			if (pchan->custom) {
+				id_us_plus(&pchan->custom->id);
+			}
 			if (pchanp->custom_tx)
 				pchan->custom_tx = BKE_pose_channel_find_name(pose, pchanp->custom_tx->name);
 
@@ -1816,18 +1817,16 @@ static void splineik_init_tree_from_pchan(Scene *scene, Object *UNUSED(ob), bPos
 	 *     - this is a workaround for a depsgraph bug...
 	 */
 	if (ikData->tar) {
-		Curve *cu = ikData->tar->data;
-
 		/* note: when creating constraints that follow path, the curve gets the CU_PATH set now,
 		 *       currently for paths to work it needs to go through the bevlist/displist system (ton)
 		 */
 
 		/* only happens on reload file, but violates depsgraph still... fix! */
-		if (ELEM(NULL, cu->path, cu->path->data)) {
+		if (ELEM3(NULL,  ikData->tar->curve_cache, ikData->tar->curve_cache->path, ikData->tar->curve_cache->path->data)) {
 			BKE_displist_make_curveTypes(scene, ikData->tar, 0);
 			
 			/* path building may fail in EditMode after removing verts [#33268]*/
-			if (ELEM(NULL, cu->path, cu->path->data)) {
+			if (ELEM(NULL, ikData->tar->curve_cache->path, ikData->tar->curve_cache->path->data)) {
 				/* BLI_assert(cu->path != NULL); */
 				return;
 			}
@@ -1891,7 +1890,6 @@ static void splineik_init_tree_from_pchan(Scene *scene, Object *UNUSED(ob), bPos
 	 * since it's easier to determine the positions of all the joints beforehand this way
 	 */
 	if ((ikData->flag & CONSTRAINT_SPLINEIK_SCALE_LIMITED) && (totLength != 0.0f)) {
-		Curve *cu = (Curve *)ikData->tar->data;
 		float splineLen, maxScale;
 		int i;
 
@@ -1904,7 +1902,7 @@ static void splineik_init_tree_from_pchan(Scene *scene, Object *UNUSED(ob), bPos
 
 		/* get the current length of the curve */
 		/* NOTE: this is assumed to be correct even after the curve was resized */
-		splineLen = cu->path->totdist;
+		splineLen = ikData->tar->curve_cache->path->totdist;
 
 		/* calculate the scale factor to multiply all the path values by so that the
 		 * bone chain retains its current length, such that
@@ -2100,8 +2098,8 @@ static void splineik_evaluate_bone(tSplineIK_Tree *tree, Scene *scene, Object *o
 				/* z-axis scale */
 				scale = len_v3(pchan->pose_mat[2]);
 				mul_v3_fl(poseMat[2], scale);
+				break;
 			}
-			break;
 			case CONSTRAINT_SPLINEIK_XZS_VOLUMETRIC:
 			{
 				/* 'volume preservation' */
@@ -2123,8 +2121,8 @@ static void splineik_evaluate_bone(tSplineIK_Tree *tree, Scene *scene, Object *o
 				/* apply the scaling */
 				mul_v3_fl(poseMat[0], scale);
 				mul_v3_fl(poseMat[2], scale);
+				break;
 			}
-			break;
 		}
 
 		/* finally, multiply the x and z scaling by the radius of the curve too,
@@ -2308,7 +2306,7 @@ static void do_strip_modifiers(Scene *scene, Object *armob, Bone *bone, bPoseCha
 							if (strcmp(pchan->name, amod->channel) == 0) {
 								float mat4[4][4], mat3[3][3];
 
-								curve_deform_vector(scene, amod->ob, armob, bone->arm_mat[3], pchan->pose_mat[3], mat3, amod->no_rot_axis);
+								curve_deform_vector(amod->ob, armob, bone->arm_mat[3], pchan->pose_mat[3], mat3, amod->no_rot_axis);
 								copy_m4_m4(mat4, pchan->pose_mat);
 								mul_m4_m3m4(pchan->pose_mat, mat3, mat4);
 
@@ -2539,7 +2537,7 @@ static int minmax_armature(Object *ob, float r_min[3], float r_max[3])
 		minmax_v3v3_v3(r_min, r_max, pchan->pose_tail);
 	}
 
-	return (ob->pose->chanbase.first != NULL);
+	return (BLI_listbase_is_empty(&ob->pose->chanbase) == false);
 }
 
 static void boundbox_armature(Object *ob, float loc[3], float size[3])

@@ -32,6 +32,10 @@
 
 #include "node_composite_util.h"
 
+#include "BKE_context.h"
+
+#include "RNA_access.h"
+
 /* **************** Translate  ******************** */
 
 static bNodeSocketTemplate cmp_node_moviedistortion_in[] = {
@@ -44,12 +48,20 @@ static bNodeSocketTemplate cmp_node_moviedistortion_out[] = {
 	{	-1, 0, ""	}
 };
 
-static const char *label(bNode *node)
+static void label(bNodeTree *UNUSED(ntree), bNode *node, char *label, int maxlen)
 {
 	if (node->custom1 == 0)
-		return IFACE_("Undistortion");
+		BLI_strncpy(label, IFACE_("Undistortion"), maxlen);
 	else
-		return IFACE_("Distortion");
+		BLI_strncpy(label, IFACE_("Distortion"), maxlen);
+}
+
+static void init(const bContext *C, PointerRNA *ptr)
+{
+	bNode *node = ptr->data;
+	Scene *scene = CTX_data_scene(C);
+	
+	node->id = (ID *)scene->clip;
 }
 
 static void storage_free(bNode *node)
@@ -74,6 +86,7 @@ void register_node_type_cmp_moviedistortion(void)
 	node_type_socket_templates(&ntype, cmp_node_moviedistortion_in, cmp_node_moviedistortion_out);
 	node_type_label(&ntype, label);
 
+	ntype.initfunc_api = init;
 	node_type_storage(&ntype, NULL, storage_free, storage_copy);
 
 	nodeRegisterType(&ntype);

@@ -27,6 +27,9 @@
 
 /** \file blender/gpu/intern/gpu_extensions.c
  *  \ingroup gpu
+ *
+ * Wrap OpenGL features such as textures, shaders and GLSL
+ * with checks for drivers and GPU support.
  */
 
 /* my interface */
@@ -108,6 +111,7 @@ static struct GPUGlobal {
 	int extdisabled;
 	int colordepth;
 	int npotdisabled; /* ATI 3xx-5xx (and more) chipsets support NPoT partially (== not enough) */
+	int dlistsdisabled; /* Legacy ATI driver does not support display lists well */
 	GPUDeviceType device;
 	GPUOSType os;
 	GPUDriverType driver;
@@ -265,6 +269,9 @@ void gpu_extensions_init(void)
 		 * Incomplete list http://dri.freedesktop.org/wiki/ATIRadeon
 		 * New IDs from MESA's src/gallium/drivers/r300/r300_screen.c
 		 */
+		/* This list is close enough to those using the legacy driver which
+		 * has a bug with display lists and glVertexAttrib 
+		 */
 		if (strstr(renderer, "R3")    || strstr(renderer, "RV3")      ||
 		    strstr(renderer, "R4")    || strstr(renderer, "RV4")      ||
 		    strstr(renderer, "RS4")   || strstr(renderer, "RC4")      ||
@@ -275,6 +282,7 @@ void gpu_extensions_init(void)
 		    strstr(renderer, "RADEON 9"))
 		{
 			GG.npotdisabled = 1;
+			GG.dlistsdisabled = 1;
 		}
 	}
 
@@ -301,6 +309,11 @@ int GPU_glsl_support(void)
 int GPU_non_power_of_two_support(void)
 {
 	return GG.npotdisabled ? 0 : GLEW_ARB_texture_non_power_of_two;
+}
+
+int GPU_display_list_support(void)
+{
+	return !GG.dlistsdisabled;
 }
 
 int GPU_color_depth(void)
@@ -1163,6 +1176,8 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	gpuMatrixMode(GL_MODELVIEW); /* make sure last current matrix is modelview */
 	gpuLoadIdentity();
 
+	glDisable(GL_DEPTH_TEST);
+
 	GPU_texture_bind(tex, 0);
 
 	// SSS Enable Texturing
@@ -1386,9 +1401,9 @@ static const char *gpu_shader_standard_defines(void)
 	/* some useful defines to detect GPU type */
 	if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY))
 		return "#define GPU_ATI\n";
-	else if(GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY))
+	else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY))
 		return "#define GPU_NVIDIA\n";
-	else if(GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY))
+	else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY))
 		return "#define GPU_INTEL\n";
 	
 	return "";

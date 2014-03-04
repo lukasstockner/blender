@@ -33,7 +33,6 @@
 #define __DNA_MESH_TYPES_H__
 
 #include "DNA_defs.h"
-#include "DNA_listBase.h"
 #include "DNA_ID.h"
 #include "DNA_customdata_types.h"
 
@@ -80,7 +79,7 @@ typedef struct Mesh {
 	 * real faces are now stored in nface.*/
 	struct MFace *mface;	/* array of mesh object mode faces for tessellation */
 	struct MTFace *mtface;	/* store tessellation face UV's and texture here */
-	struct TFace *tface;	/* depecrated, use mtface */
+	struct TFace *tface	DNA_DEPRECATED; /* deprecated, use mtface */
 	struct MVert *mvert;	/* array of verts */
 	struct MEdge *medge;	/* array of edges */
 	struct MDeformVert *dvert;	/* deformgroup vertices */
@@ -141,6 +140,10 @@ typedef struct TFace {
 	short mode, tile, unwrap;
 } TFace;
 
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison TFace
+#endif
+
 /* **************** MESH ********************* */
 
 /* texflag */
@@ -165,7 +168,7 @@ typedef struct TFace {
 
 /* me->flag */
 /* #define ME_ISDONE		1 */
-#define ME_DEPRECATED	2
+/* #define ME_DEPRECATED	2 */
 #define ME_TWOSIDED		4
 #define ME_UVEFFECT		8
 #define ME_VCOLEFFECT	16

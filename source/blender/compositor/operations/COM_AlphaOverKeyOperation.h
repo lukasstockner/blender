@@ -22,7 +22,7 @@
 
 #ifndef _COM_AlphaOverKeyOperation_h
 #define _COM_AlphaOverKeyOperation_h
-#include "COM_MixBaseOperation.h"
+#include "COM_MixOperation.h"
 
 
 /**
@@ -39,6 +39,6 @@ public:
 	/**
 	 * the inner loop of this program
 	 */
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 };
 #endif

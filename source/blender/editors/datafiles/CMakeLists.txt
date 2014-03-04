@@ -47,8 +47,21 @@ if(WITH_BLENDER)
 
 		# images
 		data_to_c_simple(../../../../release/datafiles/splash.png SRC)
-		data_to_c_simple(../../../../release/datafiles/blender_icons16.png SRC)
-		data_to_c_simple(../../../../release/datafiles/blender_icons32.png SRC)
+		# XXX These are handy, but give nasty "false changes" in svn :/
+		#svg_to_png(../../../../release/datafiles/blender_icons.svg
+		           #../../../../release/datafiles/blender_icons16.png
+		           #90 SRC)
+
+		data_to_c_simple_icons(../../../../release/datafiles/blender_icons16 SRC)
+		#data_to_c_simple(../../../../release/datafiles/blender_icons16.png SRC)
+		#svg_to_png(../../../../release/datafiles/blender_icons.svg
+		           #../../../../release/datafiles/blender_icons32.png
+		           #180 SRC)
+		data_to_c_simple_icons(../../../../release/datafiles/blender_icons32 SRC)
+		#data_to_c_simple(../../../../release/datafiles/blender_icons32.png SRC)
+		#svg_to_png(../../../../release/datafiles/prvicons.svg
+		           #../../../../release/datafiles/prvicons.png
+		           #90 SRC)
 		data_to_c_simple(../../../../release/datafiles/prvicons.png SRC)
 
 		# brushes

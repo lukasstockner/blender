@@ -588,17 +588,19 @@ GHOST_TKey GHOST_SystemWin32::convertKey(GHOST_IWindow *window, short vKey, shor
 			case VK_GR_LESS:        key = GHOST_kKeyGrLess;         break;
 
 			case VK_SHIFT:
-					/* Check single shift presses */
-					if (scanCode == 0x36) {
-						key = GHOST_kKeyRightShift;
-					} else if (scanCode == 0x2a) {
-						key = GHOST_kKeyLeftShift;
-					} else {
-						/* Must be a combination SHIFT (Left or Right) + a Key 
-						 * Ignore this as the next message will contain
-						 * the desired "Key" */
-						key = GHOST_kKeyUnknown;
-					}
+				/* Check single shift presses */
+				if (scanCode == 0x36) {
+					key = GHOST_kKeyRightShift;
+				}
+				else if (scanCode == 0x2a) {
+					key = GHOST_kKeyLeftShift;
+				}
+				else {
+					/* Must be a combination SHIFT (Left or Right) + a Key
+					 * Ignore this as the next message will contain
+					 * the desired "Key" */
+					key = GHOST_kKeyUnknown;
+				}
 				break;
 			case VK_CONTROL:
 				key = (extend) ? GHOST_kKeyRightControl : GHOST_kKeyLeftControl;
@@ -1099,7 +1101,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					event = processWindowEvent(LOWORD(wParam) ? GHOST_kEventWindowActivate : GHOST_kEventWindowDeactivate, window);
 					/* WARNING: Let DefWindowProc handle WM_ACTIVATE, otherwise WM_MOUSEWHEEL
 					 * will not be dispatched to OUR active window if we minimize one of OUR windows. */
-					if(LOWORD(wParam)==WA_INACTIVE)
+					if (LOWORD(wParam)==WA_INACTIVE)
 						window->lostMouseCapture();
 
 					lResult = ::DefWindowProc(hwnd, msg, wParam, lParam);
@@ -1125,10 +1127,9 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					 * function when the application obtains a WM_PAINT message by using the GetMessage or 
 					 * PeekMessage function. 
 					 */
-					if(!window->m_inLiveResize)
-					{
-					event = processWindowEvent(GHOST_kEventWindowUpdate, window);
-					::ValidateRect(hwnd, NULL);
+					if (!window->m_inLiveResize) {
+						event = processWindowEvent(GHOST_kEventWindowUpdate, window);
+						::ValidateRect(hwnd, NULL);
 					}
 					else {
 						eventHandled = true;
@@ -1152,15 +1153,13 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					 * message without calling DefWindowProc.
 					 */
 					/* we get first WM_SIZE before we fully init. So, do not dispatch before we continiously resizng */
-						if(window->m_inLiveResize)
-						{
-							system->pushEvent(processWindowEvent(GHOST_kEventWindowSize, window));
-							system->dispatchEvents();
-						}
-						else
-						{
-							event = processWindowEvent(GHOST_kEventWindowSize, window);
-						}
+					if (window->m_inLiveResize) {
+						system->pushEvent(processWindowEvent(GHOST_kEventWindowSize, window));
+						system->dispatchEvents();
+					}
+					else {
+						event = processWindowEvent(GHOST_kEventWindowSize, window);
+					}
 					break;
 				case WM_CAPTURECHANGED:
 					window->lostMouseCapture();
@@ -1176,16 +1175,14 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					 * to perform any move or size change processing during the WM_WINDOWPOSCHANGED 
 					 * message without calling DefWindowProc. 
 					 */
-						/* see WM_SIZE comment*/
-						if(window->m_inLiveResize)
-						{
-							system->pushEvent(processWindowEvent(GHOST_kEventWindowMove, window));
-							system->dispatchEvents();
-						}						
-						else
-						{
-							event = processWindowEvent(GHOST_kEventWindowMove, window);
-						}
+					/* see WM_SIZE comment*/
+					if (window->m_inLiveResize) {
+						system->pushEvent(processWindowEvent(GHOST_kEventWindowMove, window));
+						system->dispatchEvents();
+					}
+					else {
+						event = processWindowEvent(GHOST_kEventWindowMove, window);
+					}
 
 					break;
 				////////////////////////////////////////////////////////////////////////
@@ -1378,49 +1375,43 @@ void GHOST_SystemWin32::putClipboard(GHOST_TInt8 *buffer, bool selection) const
 	}
 }
 
+static bool isStartedFromCommandPrompt()
+{
+	HWND hwnd = GetConsoleWindow();
+	
+	if (hwnd) {
+		DWORD pid = (DWORD)-1;
+
+		GetWindowThreadProcessId(hwnd, &pid);
+
+		if (pid == GetCurrentProcessId())
+			return true;
+	}
+
+	return false;
+}
+
 int GHOST_SystemWin32::toggleConsole(int action)
 {
 	switch (action)
 	{
-		case 3: //hide if no console
+		case 3: // startup: hide if not started from command prompt
 		{
-			DWORD sp = GetCurrentProcessId();
-			HANDLE ptree = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-			PROCESSENTRY32 e = {0}; e.dwSize = sizeof(PROCESSENTRY32);
-
-			if (Process32First(ptree, &e)) {
-				do {     //Searches for Blender's PROCESSENTRY32
-					if (e.th32ProcessID == sp) {
-						sp = e.th32ParentProcessID;
-						Process32First(ptree, &e);
-						do {             //Got parent id, searches for its PROCESSENTRY32
-							if (e.th32ProcessID == sp) {
-								if (strcmp("explorer.exe", e.szExeFile) == 0)
-								{             //If explorer, hide cmd
-									ShowWindow(GetConsoleWindow(), SW_HIDE);
-									m_consoleStatus = 0;
-								}
-								break;
-							}
-
-						} while (Process32Next(ptree, &e));
-						break;
-					}
-				} while (Process32Next(ptree, &e));
+			if (isStartedFromCommandPrompt()) {
+				ShowWindow(GetConsoleWindow(), SW_HIDE);
+				m_consoleStatus = 0;
 			}
-
-			CloseHandle(ptree);
 			break;
 		}
-		case 0: //hide
+		case 0: // hide
 			ShowWindow(GetConsoleWindow(), SW_HIDE);
 			m_consoleStatus = 0;
 			break;
-		case 1: //show
+		case 1: // show
 			ShowWindow(GetConsoleWindow(), SW_SHOW);
 			m_consoleStatus = 1;
 			break;
-		case 2: //toggle
+		case 2: // toggle
 			ShowWindow(GetConsoleWindow(), m_consoleStatus ? SW_HIDE : SW_SHOW);
 			m_consoleStatus = !m_consoleStatus;
 			break;

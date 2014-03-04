@@ -57,6 +57,7 @@ struct Scene;
 #define RE_USE_POSTPROCESS		8
 #define RE_USE_SHADING_NODES	16
 #define RE_USE_EXCLUDE_LAYERS	32
+#define RE_USE_SAVE_BUFFERS		64
 
 /* RenderEngine.flag */
 #define RE_ENGINE_ANIMATION		1
@@ -70,6 +71,7 @@ struct Scene;
 /* RenderEngine.update_flag, used by internal now */
 #define RE_ENGINE_UPDATE_MA			1
 #define RE_ENGINE_UPDATE_OTHER		2
+#define RE_ENGINE_UPDATE_DATABASE	4
 
 extern ListBase R_engines;
 
@@ -97,7 +99,7 @@ typedef struct RenderEngine {
 	RenderEngineType *type;
 	void *py_instance;
 
-	int flag, update_flag;
+	int flag;
 	struct Object *camera_override;
 
 	int tile_x;
@@ -105,11 +107,20 @@ typedef struct RenderEngine {
 
 	struct Render *re;
 	ListBase fullresult;
-	char *text;
+	char text[512]; /* IMA_MAX_RENDER_TEXT */
 
 	int resolution_x, resolution_y;
 
 	struct ReportList *reports;
+
+	/* for blender internal only */
+	int update_flag;
+	int job_update_flag;
+
+	rctf last_viewplane;
+	rcti last_disprect;
+	float last_viewmat[4][4];
+	int last_winx, last_winy;
 } RenderEngine;
 
 RenderEngine *RE_engine_create(RenderEngineType *type);
@@ -121,7 +132,7 @@ void RE_result_load_from_file(struct RenderResult *result, struct ReportList *re
 
 struct RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername);
 void RE_engine_update_result(RenderEngine *engine, struct RenderResult *result);
-void RE_engine_end_result(RenderEngine *engine, struct RenderResult *result, int cancel);
+void RE_engine_end_result(RenderEngine *engine, struct RenderResult *result, int cancel, int merge_results);
 
 int RE_engine_test_break(RenderEngine *engine);
 void RE_engine_update_stats(RenderEngine *engine, const char *stats, const char *info);
@@ -131,7 +142,7 @@ void RE_engine_report(RenderEngine *engine, int type, const char *msg);
 
 int RE_engine_render(struct Render *re, int do_all);
 
-int RE_engine_is_external(struct Render *re);
+bool RE_engine_is_external(struct Render *re);
 
 /* Engine Types */
 

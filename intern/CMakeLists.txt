@@ -23,13 +23,12 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
+# add_subdirectory(atomic)  # header only
 add_subdirectory(string)
 add_subdirectory(ghost)
 add_subdirectory(guardedalloc)
-add_subdirectory(moto)
 add_subdirectory(memutil)
 add_subdirectory(opencolorio)
-add_subdirectory(opennl)
 add_subdirectory(mikktspace)
 add_subdirectory(raskter)
 
@@ -49,16 +48,16 @@ if(WITH_MOD_SMOKE)
 	add_subdirectory(smoke)
 endif()
 
-if(WITH_MOD_BOOLEAN)
-	add_subdirectory(bsp)
-endif()
-
 if(WITH_IK_SOLVER)
 	add_subdirectory(iksolver)
 endif()
 
 if(WITH_IK_ITASC)
 	add_subdirectory(itasc)
+endif()
+
+if(WITH_IK_SOLVER OR WITH_GAMEENGINE OR WITH_MOD_BOOLEAN)
+	add_subdirectory(moto)
 endif()
 
 if(WITH_CYCLES)
@@ -75,6 +74,10 @@ endif()
 
 if(WITH_COMPOSITOR)
 	add_subdirectory(opencl)
+endif()
+
+if(WITH_OPENNL)
+	add_subdirectory(opennl)
 endif()
 
 # only windows needs utf16 converter

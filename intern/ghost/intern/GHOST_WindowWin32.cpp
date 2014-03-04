@@ -58,6 +58,11 @@ const int GHOST_WindowWin32::s_maxTitleLength = 128;
 
 
 
+/* force NVidia Optimus to used dedicated graphics */
+extern "C" {
+	__declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+}
+
 GHOST_WindowWin32::GHOST_WindowWin32(
     GHOST_SystemWin32 *system,
     const STR_String& title,
@@ -74,6 +79,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(
     //int msPixelFormat
 )
 	: GHOST_Window(width, height, state, stereoVisual, false, numOfAASamples),
+	m_inLiveResize(false),
 	m_system(system),
 	m_hDC(0),
 	m_hasMouseCaptured(false),
@@ -85,8 +91,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 	m_tablet(0),
 	m_maxPressure(0),
 	m_normal_state(GHOST_kWindowStateNormal),
-	m_parentWindowHwnd(parentwindowhwnd),
-	m_inLiveResize(false)
+	m_parentWindowHwnd(parentwindowhwnd)
 {
 	OSVERSIONINFOEX versionInfo;
 	bool hasMinVersionForTaskbar = false;
@@ -114,8 +119,21 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		MONITORINFO monitor;
 		GHOST_TUns32 tw, th; 
 
-		width += GetSystemMetrics(SM_CXSIZEFRAME) * 2;
-		height += GetSystemMetrics(SM_CYSIZEFRAME) * 2 + GetSystemMetrics(SM_CYCAPTION);
+#if !defined(_MSC_VER) || _MSC_VER < 1700
+		int cxsizeframe = GetSystemMetrics(SM_CXSIZEFRAME);
+		int cysizeframe = GetSystemMetrics(SM_CYSIZEFRAME);
+#else
+		// MSVC 2012+ returns bogus values from GetSystemMetrics, bug in Windows
+		// http://connect.microsoft.com/VisualStudio/feedback/details/753224/regression-getsystemmetrics-delivers-different-values
+		RECT cxrect = {0, 0, 0, 0};
+		AdjustWindowRectEx(&cxrect, WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_THICKFRAME | WS_DLGFRAME, FALSE, 0);
+
+		int cxsizeframe = abs(cxrect.bottom);
+		int cysizeframe = abs(cxrect.left);
+#endif
+
+		width += cxsizeframe * 2;
+		height += cysizeframe * 2 + GetSystemMetrics(SM_CYCAPTION);
 
 		rect.left = left;
 		rect.right = left + width;
@@ -560,6 +578,20 @@ GHOST_TSuccess GHOST_WindowWin32::setOrder(GHOST_TWindowOrder order)
 }
 
 
+GHOST_TSuccess GHOST_WindowWin32::setSwapInterval(int interval)
+{
+	if (!WGL_EXT_swap_control)
+		return GHOST_kFailure;
+	return wglSwapIntervalEXT(interval) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
+}
+
+int GHOST_WindowWin32::getSwapInterval()
+{
+	if (WGL_EXT_swap_control)
+		return wglGetSwapIntervalEXT();
+
+	return 0;
+}
 
 GHOST_TSuccess GHOST_WindowWin32::invalidate()
 {
@@ -807,10 +839,12 @@ void GHOST_WindowWin32::processWin32TabletEvent(WPARAM wParam, LPARAM lParam)
 							break;
 						case 1:
 						case 4:
+						case 7:
 							m_tabletData->Active = GHOST_kTabletModeStylus; /* stylus */
 							break;
 						case 2:
 						case 5:
+						case 8:
 							m_tabletData->Active = GHOST_kTabletModeEraser; /* eraser */
 							break;
 					}

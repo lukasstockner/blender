@@ -353,7 +353,7 @@ static void nla_buttons_area_draw(const bContext *C, ARegion *ar)
 	ED_region_panels(C, ar, 1, NULL, -1);
 }
 
-static void nla_region_listener(ARegion *ar, wmNotifier *wmn)
+static void nla_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -386,7 +386,7 @@ static void nla_region_listener(ARegion *ar, wmNotifier *wmn)
 }
 
 
-static void nla_main_area_listener(ARegion *ar, wmNotifier *wmn)
+static void nla_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -427,10 +427,11 @@ static void nla_main_area_listener(ARegion *ar, wmNotifier *wmn)
 		default:
 			if (wmn->data == ND_KEYS)
 				ED_region_tag_redraw(ar);
+			break;
 	}
 }
 
-static void nla_channel_area_listener(ARegion *ar, wmNotifier *wmn)
+static void nla_channel_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -457,15 +458,15 @@ static void nla_channel_area_listener(ARegion *ar, wmNotifier *wmn)
 			if (wmn->action == NA_RENAME)
 				ED_region_tag_redraw(ar);
 			break;
-
 		default:
 			if (wmn->data == ND_KEYS)
 				ED_region_tag_redraw(ar);
+			break;
 	}
 }
 
 /* editor level listener */
-static void nla_listener(ScrArea *sa, wmNotifier *wmn)
+static void nla_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -543,7 +544,7 @@ void ED_spacetype_nla(void)
 	art = MEM_callocN(sizeof(ARegionType), "spacetype nla region");
 	art->regionid = RGN_TYPE_CHANNELS;
 	art->prefsizex = 200;
-	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
+	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
 	
 	art->init = nla_channel_area_init;
 	art->draw = nla_channel_area_draw;

@@ -41,7 +41,6 @@
 #include "KX_Python.h"
 #include "KX_WorldInfo.h"
 #include <vector>
-#include <set>
 
 class KX_TimeCategoryLogger;
 
@@ -75,7 +74,6 @@ private:
 	class RAS_ICanvas*					m_canvas; // 2D Canvas (2D Rendering Device Context)
 	class RAS_IRasterizer*				m_rasterizer;  // 3D Rasterizer (3D Rendering)
 	class KX_ISystem*					m_kxsystem;
-	class RAS_IRenderTools*				m_rendertools;
 	class KX_ISceneConverter*			m_sceneconverter;
 	class NG_NetworkDeviceInterface*	m_networkdevice;
 #ifdef WITH_PYTHON
@@ -88,13 +86,13 @@ private:
 	class KX_Dome*						m_dome; // dome stereo mode
 
 	/** Lists of scenes scheduled to be removed at the end of the frame. */
-	std::set<STR_String> m_removingScenes;
+	std::vector<STR_String> m_removingScenes;
 	/** Lists of overley scenes scheduled to be added at the end of the frame. */
-	std::set<STR_String> m_addingOverlayScenes;
+	std::vector<STR_String> m_addingOverlayScenes;
 	/** Lists of background scenes scheduled to be added at the end of the frame. */
-	std::set<STR_String> m_addingBackgroundScenes;
+	std::vector<STR_String> m_addingBackgroundScenes;
 	/** Lists of scenes scheduled to be replaced at the end of the frame. */
-	std::set<std::pair<STR_String,STR_String> >	m_replace_scenes;
+	std::vector<std::pair<STR_String,STR_String> >	m_replace_scenes;
 
 	/* The current list of scenes. */
 	KX_SceneList		m_scenes;
@@ -159,9 +157,10 @@ private:
 		tc_network,
 		tc_scenegraph,
 		tc_rasterizer,
-		tc_services,	// time spend in miscelaneous activities
+		tc_services,	// time spent in miscelaneous activities
 		tc_overhead,	// profile info drawing overhead
-		tc_outside,		// time spend outside main loop
+		tc_outside,		// time spent outside main loop
+		tc_latency,		// time spent waiting on the gpu
 		tc_numCategories
 	} KX_TimeCategory;
 
@@ -206,7 +205,6 @@ private:
 	void					RenderDebugProperties();
 	void					RenderShadowBuffers(KX_Scene *scene);
 	void					SetBackGround(KX_WorldInfo* worldinfo);
-	void					RenderFonts(KX_Scene* scene);
 
 public:
 	KX_KetsjiEngine(class KX_ISystem* system);
@@ -218,7 +216,6 @@ public:
 	void			SetMouseDevice(SCA_IInputDevice* mousedevice);
 	void			SetNetworkDevice(NG_NetworkDeviceInterface* networkdevice);
 	void			SetCanvas(RAS_ICanvas* canvas);
-	void			SetRenderTools(RAS_IRenderTools* rendertools);
 	void			SetRasterizer(RAS_IRasterizer* rasterizer);
 #ifdef WITH_PYTHON
 	void			SetPyNamespace(PyObject *pythondictionary);
@@ -230,7 +227,6 @@ public:
 
 	RAS_IRasterizer*		GetRasterizer() { return m_rasterizer; }
 	RAS_ICanvas*		    GetCanvas() { return m_canvas; }
-	RAS_IRenderTools*	    GetRenderTools() { return m_rendertools; }
 	SCA_IInputDevice*		GetKeyboardDevice() { return m_keyboarddevice; }
 	SCA_IInputDevice*		GetMouseDevice() { return m_mousedevice; }
 
@@ -439,7 +435,6 @@ protected:
 	/**
 	 * This method is invoked when the scene lists have changed.
 	 */
-	void			SceneListsChanged(void);
 
 	void			RemoveScheduledScenes(void);
 	void			AddScheduledScenes(void);

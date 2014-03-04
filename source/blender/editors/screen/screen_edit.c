@@ -264,12 +264,15 @@ void removenotused_scredges(bScreen *sc)
 	}
 }
 
-int scredge_is_horizontal(ScrEdge *se)
+bool scredge_is_horizontal(ScrEdge *se)
 {
 	return (se->v1->vec.y == se->v2->vec.y);
 }
 
-ScrEdge *screen_find_active_scredge(bScreen *sc, int mx, int my)
+/* need win size to make sure not to include edges along screen edge */
+ScrEdge *screen_find_active_scredge(bScreen *sc,
+                                    const int winsize_x, const int winsize_y,
+                                    const int mx, const int my)
 {
 	ScrEdge *se;
 	int safety = U.widget_unit / 10;
@@ -278,20 +281,24 @@ ScrEdge *screen_find_active_scredge(bScreen *sc, int mx, int my)
 	
 	for (se = sc->edgebase.first; se; se = se->next) {
 		if (scredge_is_horizontal(se)) {
-			short min, max;
-			min = MIN2(se->v1->vec.x, se->v2->vec.x);
-			max = MAX2(se->v1->vec.x, se->v2->vec.x);
-			
-			if (abs(my - se->v1->vec.y) <= safety && mx >= min && mx <= max)
-				return se;
+			if (se->v1->vec.y > 0 && se->v1->vec.y < winsize_y - 1) {
+				short min, max;
+				min = MIN2(se->v1->vec.x, se->v2->vec.x);
+				max = MAX2(se->v1->vec.x, se->v2->vec.x);
+				
+				if (abs(my - se->v1->vec.y) <= safety && mx >= min && mx <= max)
+					return se;
+			}
 		}
 		else {
-			short min, max;
-			min = MIN2(se->v1->vec.y, se->v2->vec.y);
-			max = MAX2(se->v1->vec.y, se->v2->vec.y);
-			
-			if (abs(mx - se->v1->vec.x) <= safety && my >= min && my <= max)
-				return se;
+			if (se->v1->vec.x > 0 && se->v1->vec.x < winsize_x - 1) {
+				short min, max;
+				min = MIN2(se->v1->vec.y, se->v2->vec.y);
+				max = MAX2(se->v1->vec.y, se->v2->vec.y);
+				
+				if (abs(mx - se->v1->vec.x) <= safety && my >= min && my <= max)
+					return se;
+			}
 		}
 	}
 	
@@ -332,10 +339,12 @@ static void screen_delarea(bContext *C, bScreen *sc, ScrArea *sa)
 static short testsplitpoint(ScrArea *sa, char dir, float fac)
 {
 	short x, y;
+	const short area_min_x = AREAMINX;
+	const short area_min_y = ED_area_headersize();
 	
 	// area big enough?
-	if (dir == 'v' && (sa->v4->vec.x - sa->v1->vec.x <= 2 * AREAMINX)) return 0;
-	if (dir == 'h' && (sa->v2->vec.y - sa->v1->vec.y <= 2 * AREAMINY)) return 0;
+	if (dir == 'v' && (sa->v4->vec.x - sa->v1->vec.x <= 2 * area_min_x)) return 0;
+	if (dir == 'h' && (sa->v2->vec.y - sa->v1->vec.y <= 2 * area_min_y)) return 0;
 	
 	// to be sure
 	CLAMP(fac, 0.0f, 1.0f);
@@ -343,10 +352,10 @@ static short testsplitpoint(ScrArea *sa, char dir, float fac)
 	if (dir == 'h') {
 		y = sa->v1->vec.y + fac * (sa->v2->vec.y - sa->v1->vec.y);
 		
-		if (y - sa->v1->vec.y < AREAMINY)
-			y = sa->v1->vec.y + AREAMINY;
-		else if (sa->v2->vec.y - y < AREAMINY)
-			y = sa->v2->vec.y - AREAMINY;
+		if (y - sa->v1->vec.y < area_min_y)
+			y = sa->v1->vec.y + area_min_y;
+		else if (sa->v2->vec.y - y < area_min_y)
+			y = sa->v2->vec.y - area_min_y;
 		else y -= (y % AREAGRID);
 		
 		return y;
@@ -354,10 +363,10 @@ static short testsplitpoint(ScrArea *sa, char dir, float fac)
 	else {
 		x = sa->v1->vec.x + fac * (sa->v4->vec.x - sa->v1->vec.x);
 		
-		if (x - sa->v1->vec.x < AREAMINX)
-			x = sa->v1->vec.x + AREAMINX;
-		else if (sa->v4->vec.x - x < AREAMINX)
-			x = sa->v4->vec.x - AREAMINX;
+		if (x - sa->v1->vec.x < area_min_x)
+			x = sa->v1->vec.x + area_min_x;
+		else if (sa->v4->vec.x - x < area_min_x)
+			x = sa->v4->vec.x - area_min_x;
 		else x -= (x % AREAGRID);
 		
 		return x;
@@ -456,19 +465,22 @@ ScrArea *area_split(bScreen *sc, ScrArea *sa, char dir, float fac, int merge)
 /* uses window size */
 bScreen *ED_screen_add(wmWindow *win, Scene *scene, const char *name)
 {
+	const int winsize_x = WM_window_pixels_x(win);
+	const int winsize_y = WM_window_pixels_y(win);
+
 	bScreen *sc;
 	ScrVert *sv1, *sv2, *sv3, *sv4;
 	
-	sc = BKE_libblock_alloc(&G.main->screen, ID_SCR, name);
+	sc = BKE_libblock_alloc(G.main, ID_SCR, name);
 	sc->scene = scene;
 	sc->do_refresh = TRUE;
 	sc->redraws_flag = TIME_ALL_3D_WIN | TIME_ALL_ANIM_WIN;
 	sc->winid = win->winid;
 
 	sv1 = screen_addvert(sc, 0, 0);
-	sv2 = screen_addvert(sc, 0, WM_window_pixels_y(win) - 1);
-	sv3 = screen_addvert(sc, WM_window_pixels_x(win) - 1, WM_window_pixels_y(win) - 1);
-	sv4 = screen_addvert(sc, WM_window_pixels_x(win) - 1, 0);
+	sv2 = screen_addvert(sc, 0, winsize_y - 1);
+	sv3 = screen_addvert(sc, winsize_x - 1, winsize_y - 1);
+	sv4 = screen_addvert(sc, winsize_x - 1, 0);
 	
 	screen_addedge(sc, sv1, sv2);
 	screen_addedge(sc, sv2, sv3);
@@ -493,7 +505,7 @@ static void screen_copy(bScreen *to, bScreen *from)
 	BLI_duplicatelist(&to->vertbase, &from->vertbase);
 	BLI_duplicatelist(&to->edgebase, &from->edgebase);
 	BLI_duplicatelist(&to->areabase, &from->areabase);
-	to->regionbase.first = to->regionbase.last = NULL;
+	BLI_listbase_clear(&to->regionbase);
 	
 	s2 = to->vertbase.first;
 	for (s1 = from->vertbase.first; s1; s1 = s1->next, s2 = s2->next) {
@@ -513,10 +525,10 @@ static void screen_copy(bScreen *to, bScreen *from)
 		sa->v3 = sa->v3->newv;
 		sa->v4 = sa->v4->newv;
 
-		sa->spacedata.first = sa->spacedata.last = NULL;
-		sa->regionbase.first = sa->regionbase.last = NULL;
-		sa->actionzones.first = sa->actionzones.last = NULL;
-		sa->handlers.first = sa->handlers.last = NULL;
+		BLI_listbase_clear(&sa->spacedata);
+		BLI_listbase_clear(&sa->regionbase);
+		BLI_listbase_clear(&sa->actionzones);
+		BLI_listbase_clear(&sa->handlers);
 		
 		area_copy_data(sa, saf, 0);
 	}
@@ -573,7 +585,7 @@ int screen_area_join(bContext *C, bScreen *scr, ScrArea *sa1, ScrArea *sa2)
 	dir = area_getorientation(sa1, sa2);
 	/*printf("dir is : %i\n", dir);*/
 	
-	if (dir < 0) {
+	if (dir == -1) {
 		if (sa1) sa1->flag &= ~AREA_FLAG_DRAWJOINFROM;
 		if (sa2) sa2->flag &= ~AREA_FLAG_DRAWJOINTO;
 		return 0;
@@ -658,11 +670,16 @@ void select_connected_scredge(bScreen *sc, ScrEdge *edge)
 }
 
 /* test if screen vertices should be scaled */
-static void screen_test_scale(bScreen *sc, int winsizex, int winsizey)
+static void screen_test_scale(bScreen *sc, int winsize_x, int winsize_y)
 {
+	/* clamp Y size of header sized areas when expanding windows
+	 * avoids annoying empty space around file menu */
+#define USE_HEADER_SIZE_CLAMP
+
+	const int headery_init = ED_area_headersize();
 	ScrVert *sv = NULL;
 	ScrArea *sa;
-	int sizex, sizey;
+	int winsize_x_prev, winsize_y_prev;
 	float facx, facy, tempf, min[2], max[2];
 	
 	/* calculate size */
@@ -680,14 +697,41 @@ static void screen_test_scale(bScreen *sc, int winsizex, int winsizey)
 		sv->vec.y -= min[1];
 	}
 	
-	sizex = max[0] - min[0];
-	sizey = max[1] - min[1];
-	
-	if (sizex != winsizex || sizey != winsizey) {
-		facx = winsizex;
-		facx /= (float)sizex;
-		facy = winsizey;
-		facy /= (float)sizey;
+	winsize_x_prev = (max[0] - min[0]) + 1;
+	winsize_y_prev = (max[1] - min[1]) + 1;
+
+
+#ifdef USE_HEADER_SIZE_CLAMP
+#define TEMP_BOTTOM 1
+#define TEMP_TOP 2
+
+	/* if the window's Y axis grows, clamp header sized areas */
+	if (winsize_y_prev < winsize_y) {  /* growing? */
+		const int headery_margin_max = headery_init + 4;
+		for (sa = sc->areabase.first; sa; sa = sa->next) {
+			ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
+			sa->temp = 0;
+
+			if (ar && !(ar->flag & RGN_FLAG_HIDDEN)) {
+				if (sa->v2->vec.y == winsize_y_prev - 1) {
+					if ((sa->v2->vec.y - sa->v1->vec.y) < headery_margin_max) {
+						sa->temp = TEMP_TOP;
+					}
+				}
+				else if (sa->v1->vec.y == 0) {
+					if ((sa->v2->vec.y - sa->v1->vec.y) < headery_margin_max) {
+						sa->temp = TEMP_BOTTOM;
+					}
+				}
+			}
+		}
+	}
+#endif
+
+
+	if (winsize_x_prev != winsize_x || winsize_y_prev != winsize_y) {
+		facx = ((float)winsize_x - 1) / ((float)winsize_x_prev - 1);
+		facy = ((float)winsize_y - 1) / ((float)winsize_y_prev - 1);
 		
 		/* make sure it fits! */
 		for (sv = sc->vertbase.first; sv; sv = sv->next) {
@@ -698,25 +742,79 @@ static void screen_test_scale(bScreen *sc, int winsizex, int winsizey)
 			//sv->vec.x += AREAGRID - 1;
 			//sv->vec.x -=  (sv->vec.x % AREAGRID);
 
-			CLAMP(sv->vec.x, 0, winsizex);
+			CLAMP(sv->vec.x, 0, winsize_x - 1);
 			
 			tempf = ((float)sv->vec.y) * facy;
 			sv->vec.y = (short)(tempf + 0.5f);
 			//sv->vec.y += AREAGRID - 1;
 			//sv->vec.y -=  (sv->vec.y % AREAGRID);
 
-			CLAMP(sv->vec.y, 0, winsizey);
+			CLAMP(sv->vec.y, 0, winsize_y - 1);
 		}
 	}
-	
+
+
+#ifdef USE_HEADER_SIZE_CLAMP
+	if (winsize_y_prev < winsize_y) {  /* growing? */
+		for (sa = sc->areabase.first; sa; sa = sa->next) {
+			ScrEdge *se = NULL;
+
+			if (sa->temp == 0)
+				continue;
+
+			if (sa->v1 == sa->v2)
+				continue;
+
+			/* adjust headery if verts are along the edge of window */
+			if (sa->temp == TEMP_TOP) {
+				/* lower edge */
+				const int yval = sa->v2->vec.y - headery_init;
+				se = screen_findedge(sc, sa->v4, sa->v1);
+				select_connected_scredge(sc, se);
+				for (sv = sc->vertbase.first; sv; sv = sv->next) {
+					if (sv != sa->v2 && sv != sa->v3) {
+						if (sv->flag) {
+							sv->vec.y = yval;
+						}
+					}
+				}
+			}
+			else {
+				/* upper edge */
+				const int yval = sa->v1->vec.y + headery_init;
+				se = screen_findedge(sc, sa->v2, sa->v3);
+				select_connected_scredge(sc, se);
+				for (sv = sc->vertbase.first; sv; sv = sv->next) {
+					if (sv != sa->v1 && sv != sa->v4) {
+						if (sv->flag) {
+							sv->vec.y = yval;
+						}
+					}
+				}
+			}
+		}
+	}
+
+#undef USE_HEADER_SIZE_CLAMP
+#undef TEMP_BOTTOM
+#undef TEMP_TOP
+#endif
+
+
 	/* test for collapsed areas. This could happen in some blender version... */
 	/* ton: removed option now, it needs Context... */
 	
 	/* make each window at least ED_area_headersize() high */
 	for (sa = sc->areabase.first; sa; sa = sa->next) {
-		int headery = ED_area_headersize() + U.pixelsize;
+		int headery = headery_init;
 		
-		if (sa->v1->vec.y + headery > sa->v2->vec.y) {
+		/* adjust headery if verts are along the edge of window */
+		if (sa->v1->vec.y > 0)
+			headery += U.pixelsize;
+		if (sa->v2->vec.y < winsize_y - 1)
+			headery += U.pixelsize;
+		
+		if (sa->v2->vec.y - sa->v1->vec.y + 1 < headery) {
 			/* lower edge */
 			ScrEdge *se = screen_findedge(sc, sa->v4, sa->v1);
 			if (se && sa->v1 != sa->v2) {
@@ -725,14 +823,14 @@ static void screen_test_scale(bScreen *sc, int winsizex, int winsizey)
 				select_connected_scredge(sc, se);
 				
 				/* all selected vertices get the right offset */
-				yval = sa->v2->vec.y - headery;
-				sv = sc->vertbase.first;
-				while (sv) {
+				yval = sa->v2->vec.y - headery + 1;
+				for (sv = sc->vertbase.first; sv; sv = sv->next) {
 					/* if is a collapsed area */
 					if (sv != sa->v2 && sv != sa->v3) {
-						if (sv->flag) sv->vec.y = yval;
+						if (sv->flag) {
+							sv->vec.y = yval;
+						}
 					}
-					sv = sv->next;
 				}
 			}
 		}
@@ -958,7 +1056,7 @@ static void drawscredge_area(ScrArea *sa, int sizex, int sizey, int center)
 	if (center == 0) {
 		if (U.pixelsize > 1.0f) {
 			gpuGray3f(0.314f);
-			gpuLineWidth(1.5f * U.pixelsize);
+			gpuLineWidth((2.0f * U.pixelsize) - 1);
 			drawscredge_area_draw(sizex, sizey, x1, y1, x2, y2, 0);
 			gpuLineWidth(1.0f);
 		}
@@ -1020,8 +1118,6 @@ void ED_screen_do_listen(bContext *C, wmNotifier *note)
 			win->screen->do_draw = TRUE;
 			break;
 		case NC_SCREEN:
-			if (note->data == ND_SUBWINACTIVE)
-				uiFreeActiveButtons(C, win->screen);
 			if (note->action == NA_EDITED)
 				win->screen->do_draw = win->screen->do_refresh = TRUE;
 			break;
@@ -1035,6 +1131,9 @@ void ED_screen_do_listen(bContext *C, wmNotifier *note)
 /* only for edge lines between areas, and the blended join arrows */
 void ED_screen_draw(wmWindow *win)
 {
+	const int winsize_x = WM_window_pixels_x(win);
+	const int winsize_y = WM_window_pixels_y(win);
+
 	ScrArea *sa;
 	ScrArea *sa1 = NULL;
 	ScrArea *sa2 = NULL;
@@ -1048,15 +1147,15 @@ void ED_screen_draw(wmWindow *win)
 		if (sa->flag & AREA_FLAG_DRAWJOINFROM) sa1 = sa;
 		if (sa->flag & AREA_FLAG_DRAWJOINTO) sa2 = sa;
 		if (sa->flag & (AREA_FLAG_DRAWSPLIT_H | AREA_FLAG_DRAWSPLIT_V)) sa3 = sa;
-		drawscredge_area(sa, WM_window_pixels_x(win), WM_window_pixels_y(win), 0);
+		drawscredge_area(sa, winsize_x, winsize_y, 0);
 	}
 	for (sa = win->screen->areabase.first; sa; sa = sa->next)
-		drawscredge_area(sa, WM_window_pixels_x(win), WM_window_pixels_y(win), 1);
+		drawscredge_area(sa, winsize_x, winsize_y, 1);
 	
 	/* blended join arrow */
 	if (sa1 && sa2) {
 		dir = area_getorientation(sa1, sa2);
-		if (dir >= 0) {
+		if (dir != -1) {
 			switch (dir) {
 				case 0: /* W */
 					dir = 'r';
@@ -1127,18 +1226,20 @@ void ED_screen_refresh(wmWindowManager *wm, wmWindow *win)
 {	
 	/* exception for bg mode, we only need the screen context */
 	if (!G.background) {
+		const int winsize_x = WM_window_pixels_x(win);
+		const int winsize_y = WM_window_pixels_y(win);
 		ScrArea *sa;
 		rcti winrct;
 	
 		winrct.xmin = 0;
-		winrct.xmax = WM_window_pixels_x(win) - 1;
+		winrct.xmax = winsize_x - 1;
 		winrct.ymin = 0;
-		winrct.ymax = WM_window_pixels_y(win) - 1;
+		winrct.ymax = winsize_y - 1;
 		
 		/* header size depends on DPI, let's verify */
 		screen_refresh_headersizes();
 		
-		screen_test_scale(win->screen, WM_window_pixels_x(win), WM_window_pixels_y(win));
+		screen_test_scale(win->screen, winsize_x, winsize_y);
 		
 		if (win->screen->mainwin == 0)
 			win->screen->mainwin = wm_subwindow_open(win, &winrct);
@@ -1153,7 +1254,7 @@ void ED_screen_refresh(wmWindowManager *wm, wmWindow *win)
 	
 		/* wake up animtimer */
 		if (win->screen->animtimer)
-			WM_event_timer_sleep(wm, win, win->screen->animtimer, 0);
+			WM_event_timer_sleep(wm, win, win->screen->animtimer, false);
 	}
 
 	if (G.debug & G_DEBUG_EVENTS) {
@@ -1265,6 +1366,9 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
 /* case when on area-edge or in azones, or outside window */
 static void screen_cursor_set(wmWindow *win, wmEvent *event)
 {
+	const int winsize_x = WM_window_pixels_x(win);
+	const int winsize_y = WM_window_pixels_y(win);
+
 	AZone *az = NULL;
 	ScrArea *sa;
 	
@@ -1283,7 +1387,7 @@ static void screen_cursor_set(wmWindow *win, wmEvent *event)
 		}
 	}
 	else {
-		ScrEdge *actedge = screen_find_active_scredge(win->screen, event->x, event->y);
+		ScrEdge *actedge = screen_find_active_scredge(win->screen, winsize_x, winsize_y, event->x, event->y);
 		
 		if (actedge) {
 			if (scredge_is_horizontal(actedge))
@@ -1353,7 +1457,11 @@ void ED_screen_set_subwinactive(bContext *C, wmEvent *event)
 			/* notifier invokes freeing the buttons... causing a bit too much redraws */
 			if (oldswin != scr->subwinactive) {
 				region_cursor_set(win, scr->subwinactive, TRUE);
-				WM_event_add_notifier(C, NC_SCREEN | ND_SUBWINACTIVE, scr);
+
+				/* this used to be a notifier, but needs to be done immediate
+				 * because it can undo setting the right button as active due
+				 * to delayed notifier handling */
+				uiFreeActiveButtons(C, win->screen);
 			}
 			else
 				region_cursor_set(win, scr->subwinactive, FALSE);
@@ -1398,10 +1506,7 @@ void ED_screen_set(bContext *C, bScreen *sc)
 	if (id == NULL)
 		return;
 	
-	/* check for valid winid */
-	if (sc->winid != 0 && sc->winid != win->winid)
-		return;
-	
+
 	if (sc->full) {             /* find associated full */
 		bScreen *sc1;
 		for (sc1 = bmain->screen.first; sc1; sc1 = sc1->id.next) {
@@ -1412,10 +1517,15 @@ void ED_screen_set(bContext *C, bScreen *sc)
 			}
 		}
 	}
+
+	/* check for valid winid */
+	if (sc->winid != 0 && sc->winid != win->winid)
+		return;
 	
 	if (oldscreen != sc) {
 		wmTimer *wt = oldscreen->animtimer;
 		ScrArea *sa;
+		Scene *oldscene = oldscreen->scene;
 
 		/* remove handlers referencing areas in old screen */
 		for (sa = oldscreen->areabase.first; sa; sa = sa->next) {
@@ -1425,7 +1535,7 @@ void ED_screen_set(bContext *C, bScreen *sc)
 		/* we put timer to sleep, so screen_exit has to think there's no timer */
 		oldscreen->animtimer = NULL;
 		if (wt)
-			WM_event_timer_sleep(wm, win, wt, 1);
+			WM_event_timer_sleep(wm, win, wt, true);
 		
 		ED_screen_exit(C, win, oldscreen);
 		oldscreen->animtimer = wt;
@@ -1442,6 +1552,26 @@ void ED_screen_set(bContext *C, bScreen *sc)
 		
 		/* makes button hilites work */
 		WM_event_add_mousemove(C);
+
+		/* Needed to make sure all the derivedMeshes are
+		 * up-to-date before viewport starts acquiring this.
+		 *
+		 * This is needed in cases when, for example, boolean
+		 * modifier uses operant from invisible layer.
+		 * Without this trick boolean wouldn't apply correct.
+		 *
+		 * Quite the same happens when setting screen's scene,
+		 * so perhaps this is in fact correct thing to do.
+		 */
+		if (oldscene != sc->scene) {
+			BKE_scene_set_background(bmain, sc->scene);
+		}
+
+		/* Always do visible update since it's possible new screen will
+		 * have different layers visible in 3D viewpots. This is possible
+		 * because of view3d.lock_camera_and_layers option.
+		 */
+		DAG_on_visible_update(bmain, FALSE);
 	}
 }
 
@@ -1491,7 +1621,7 @@ void ED_screen_delete(bContext *C, bScreen *sc)
 	ED_screen_set(C, newsc);
 
 	if (delete && win->screen != sc)
-		BKE_libblock_free(&bmain->screen, sc);
+		BKE_libblock_free(bmain, sc);
 }
 
 static void ed_screen_set_3dview_camera(Scene *scene, bScreen *sc, ScrArea *sa, View3D *v3d)
@@ -1655,23 +1785,17 @@ void ED_screen_full_restore(bContext *C, ScrArea *sa)
 	if (sl->next) {
 		/* specific checks for space types */
 
-		int sima_restore = 0;
-
 		/* Special check added for non-render image window (back from fullscreen through "Back to Previous" button) */
 		if (sl->spacetype == SPACE_IMAGE) {
 			SpaceImage *sima = sa->spacedata.first;
-			if (!(sima->flag & SI_PREVSPACE) && !(sima->flag & SI_FULLWINDOW))
-				sima_restore = 1;
-		}
 
-		if (sl->spacetype == SPACE_IMAGE && !sima_restore) {
-			SpaceImage *sima = sa->spacedata.first;
-			if (sima->flag & SI_PREVSPACE)
+			if (sima->flag & (SI_PREVSPACE | SI_FULLWINDOW)) {
 				sima->flag &= ~SI_PREVSPACE;
-			if (sima->flag & SI_FULLWINDOW) {
 				sima->flag &= ~SI_FULLWINDOW;
 				ED_screen_full_prevspace(C, sa);
 			}
+			else
+				ED_screen_full_toggle(C, win, sa);
 		}
 		else if (sl->spacetype == SPACE_FILE) {
 			ED_screen_full_prevspace(C, sa);
@@ -1735,7 +1859,7 @@ ScrArea *ED_screen_full_toggle(bContext *C, wmWindow *win, ScrArea *sa)
 		ED_screen_set(C, sc);
 
 		BKE_screen_free(oldscreen);
-		BKE_libblock_free(&CTX_data_main(C)->screen, oldscreen);
+		BKE_libblock_free(CTX_data_main(C), oldscreen);
 
 	}
 	else {
@@ -1933,7 +2057,7 @@ void ED_update_for_newframe(Main *bmain, Scene *scene, int UNUSED(mute))
 		layers |= BKE_screen_visible_layers(window->screen, scene);
 
 	/* this function applies the changes too */
-	BKE_scene_update_for_newframe(bmain, scene, layers); /* BKE_scene.h */
+	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, layers);
 	
 	//if ( (CFRA>1) && (!mute) && (scene->r.audio.flag & AUDIO_SCRUB)) 
 	//	audiostream_scrub( CFRA );

@@ -68,17 +68,11 @@
 /* ************************************************** */
 /* EditBone Names */
 
-/* checks if an EditBone with a matching name already, returning the matching bone if it exists */
-EditBone *editbone_name_exists(ListBase *edbo, const char *name)
-{
-	return BLI_findstring(edbo, name, offsetof(EditBone, name));
-}
-
 /* note: there's a unique_bone_name() too! */
 static bool editbone_unique_check(void *arg, const char *name)
 {
 	struct {ListBase *lb; void *bone; } *data = arg;
-	EditBone *dupli = editbone_name_exists(data->lb, name);
+	EditBone *dupli = ED_armature_bone_find_name(data->lb, name);
 	return dupli && dupli != data->bone;
 }
 
@@ -114,18 +108,26 @@ static void constraint_bone_name_fix(Object *ob, ListBase *conlist, const char *
 		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(curcon);
 		ListBase targets = {NULL, NULL};
 		
+		/* constraint targets */
 		if (cti && cti->get_constraint_targets) {
 			cti->get_constraint_targets(curcon, &targets);
 			
 			for (ct = targets.first; ct; ct = ct->next) {
 				if (ct->tar == ob) {
-					if (!strcmp(ct->subtarget, oldname) )
+					if (STREQ(ct->subtarget, oldname)) {
 						BLI_strncpy(ct->subtarget, newname, MAXBONENAME);
+					}
 				}
 			}
 			
 			if (cti->flush_constraint_targets)
 				cti->flush_constraint_targets(curcon, &targets, 0);
+		}
+		
+		/* action constraints */
+		if (curcon->type == CONSTRAINT_TYPE_ACTION) {
+			bActionConstraint *actcon = (bActionConstraint *)curcon->data;
+			BKE_action_fix_paths_rename(&ob->id, actcon->act, "pose.bones", oldname, newname, 0, 0, 1);
 		}
 	}
 }
@@ -149,7 +151,7 @@ void ED_armature_bone_rename(bArmature *arm, const char *oldnamep, const char *n
 		
 		/* now check if we're in editmode, we need to find the unique name */
 		if (arm->edbo) {
-			EditBone *eBone = editbone_name_exists(arm->edbo, oldname);
+			EditBone *eBone = ED_armature_bone_find_name(arm->edbo, oldname);
 			
 			if (eBone) {
 				unique_editbone_name(arm->edbo, newname, NULL);
@@ -183,16 +185,22 @@ void ED_armature_bone_rename(bArmature *arm, const char *oldnamep, const char *n
 				if (ob->pose) {
 					bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, oldname);
 					if (pchan) {
+						GHash *gh = ob->pose->chanhash;
+
+						/* remove the old hash entry, and replace with the new name */
+						if (gh) {
+							BLI_assert(BLI_ghash_haskey(gh, pchan->name));
+							BLI_ghash_remove(gh, pchan->name, NULL, NULL);
+						}
+
 						BLI_strncpy(pchan->name, newname, MAXBONENAME);
-						
-						if (ob->pose->chanhash) {
-							GHash *gh = ob->pose->chanhash;
-							
-							/* remove the old hash entry, and replace with the new name */
-							BLI_ghash_remove(gh, oldname, NULL, NULL);
+
+						if (gh) {
 							BLI_ghash_insert(gh, pchan->name, pchan);
 						}
 					}
+
+					BLI_assert(BKE_pose_channels_is_valid(ob->pose) == true);
 				}
 				
 				/* Update any object constraints to use the new bone name */
@@ -226,14 +234,33 @@ void ED_armature_bone_rename(bArmature *arm, const char *oldnamep, const char *n
 			
 			/* fix modifiers that might be using this name */
 			for (md = ob->modifiers.first; md; md = md->next) {
-				if (md->type == eModifierType_Hook) {
-					HookModifierData *hmd = (HookModifierData *)md;
-					
-					/* uses armature, so may use the affected bone name */
-					if (hmd->object && (hmd->object->data == arm)) {
-						if (!strcmp(hmd->subtarget, oldname))
-							BLI_strncpy(hmd->subtarget, newname, MAXBONENAME);
+				switch (md->type) {
+					case eModifierType_Hook:
+					{
+						HookModifierData *hmd = (HookModifierData *)md;
+
+						if (hmd->object && (hmd->object->data == arm)) {
+							if (STREQ(hmd->subtarget, oldname))
+								BLI_strncpy(hmd->subtarget, newname, MAXBONENAME);
+						}
+						break;
 					}
+					case eModifierType_UVWarp:
+					{
+						UVWarpModifierData *umd = (UVWarpModifierData *)md;
+
+						if (umd->object_src && (umd->object_src->data == arm)) {
+							if (STREQ(umd->bone_src, oldname))
+								BLI_strncpy(umd->bone_src, newname, MAXBONENAME);
+						}
+						if (umd->object_dst && (umd->object_dst->data == arm)) {
+							if (STREQ(umd->bone_dst, oldname))
+								BLI_strncpy(umd->bone_dst, newname, MAXBONENAME);
+						}
+						break;
+					}
+					default:
+						break;
 				}
 			}
 		}
@@ -277,7 +304,6 @@ static int armature_flip_names_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = CTX_data_edit_object(C);
 	bArmature *arm;
-	char newname[MAXBONENAME];
 	
 	/* paranoia checks */
 	if (ELEM(NULL, ob, ob->pose)) 
@@ -287,17 +313,22 @@ static int armature_flip_names_exec(bContext *C, wmOperator *UNUSED(op))
 	/* loop through selected bones, auto-naming them */
 	CTX_DATA_BEGIN(C, EditBone *, ebone, selected_editable_bones)
 	{
-		flip_side_name(newname, ebone->name, TRUE); // 1 = do strip off number extensions
-		ED_armature_bone_rename(arm, ebone->name, newname);
+		char name_flip[MAXBONENAME];
+		BKE_deform_flip_side_name(name_flip, ebone->name, true);
+		ED_armature_bone_rename(arm, ebone->name, name_flip);
 	}
 	CTX_DATA_END;
 	
 	/* since we renamed stuff... */
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
-	/* note, notifier might evolve */
-	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
-	
+	/* copied from #rna_Bone_update_renamed */
+	/* redraw view */
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+
+	/* update animation channels */
+	WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, ob->data);
+
 	return OPERATOR_FINISHED;
 }
 

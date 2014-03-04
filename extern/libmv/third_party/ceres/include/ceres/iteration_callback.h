@@ -50,10 +50,13 @@ struct IterationSummary {
         cost(0.0),
         cost_change(0.0),
         gradient_max_norm(0.0),
+        gradient_norm(0.0),
         step_norm(0.0),
         eta(0.0),
         step_size(0.0),
         line_search_function_evaluations(0),
+        line_search_gradient_evaluations(0),
+        line_search_iterations(0),
         linear_solver_iterations(0),
         iteration_time_in_seconds(0.0),
         step_solver_time_in_seconds(0.0),
@@ -98,6 +101,9 @@ struct IterationSummary {
   // Infinity norm of the gradient vector.
   double gradient_max_norm;
 
+  // 2-norm of the gradient vector.
+  double gradient_norm;
+
   // 2-norm of the size of the step computed by the optimization
   // algorithm.
   double step_norm;
@@ -121,12 +127,20 @@ struct IterationSummary {
   // Step sized computed by the line search algorithm.
   double step_size;
 
-  // Number of function evaluations used by the line search algorithm.
+  // Number of function value evaluations used by the line search algorithm.
   int line_search_function_evaluations;
+
+  // Number of function gradient evaluations used by the line search algorithm.
+  int line_search_gradient_evaluations;
+
+  // Number of iterations taken by the line search algorithm.
+  int line_search_iterations;
 
   // Number of iterations taken by the linear solver to solve for the
   // Newton step.
   int linear_solver_iterations;
+
+  // All times reported below are wall times.
 
   // Time (in seconds) spent inside the minimizer loop in the current
   // iteration.

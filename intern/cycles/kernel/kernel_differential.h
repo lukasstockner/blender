@@ -1,26 +1,24 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 CCL_NAMESPACE_BEGIN
 
 /* See "Tracing Ray Differentials", Homan Igehy, 1999. */
 
-__device void differential_transfer(differential3 *dP_, const differential3 dP, float3 D, const differential3 dD, float3 Ng, float t)
+ccl_device void differential_transfer(differential3 *dP_, const differential3 dP, float3 D, const differential3 dD, float3 Ng, float t)
 {
 	/* ray differential transfer through homogeneous medium, to
 	 * compute dPdx/dy at a shading point from the incoming ray */
@@ -33,7 +31,7 @@ __device void differential_transfer(differential3 *dP_, const differential3 dP, 
 	dP_->dy = tmpy - dot(tmpy, Ng)*tmp;
 }
 
-__device void differential_incoming(differential3 *dI, const differential3 dD)
+ccl_device void differential_incoming(differential3 *dI, const differential3 dD)
 {
 	/* compute dIdx/dy at a shading point, we just need to negate the
 	 * differential of the ray direction */
@@ -42,7 +40,7 @@ __device void differential_incoming(differential3 *dI, const differential3 dD)
 	dI->dy = -dD.dy;
 }
 
-__device void differential_dudv(differential *du, differential *dv, float3 dPdu, float3 dPdv, differential3 dP, float3 Ng)
+ccl_device void differential_dudv(differential *du, differential *dv, float3 dPdu, float3 dPdv, differential3 dP, float3 Ng)
 {
 	/* now we have dPdx/dy from the ray differential transfer, and dPdu/dv
 	 * from the primitive, we can compute dudx/dy and dvdx/dy. these are
@@ -86,7 +84,7 @@ __device void differential_dudv(differential *du, differential *dv, float3 dPdu,
 	dv->dy = (dP.dy.y*dPdu.x - dP.dy.x*dPdu.y)*det;
 }
 
-__device differential differential_zero()
+ccl_device differential differential_zero()
 {
 	differential d;
 	d.dx = 0.0f;
@@ -95,7 +93,7 @@ __device differential differential_zero()
 	return d;
 }
 
-__device differential3 differential3_zero()
+ccl_device differential3 differential3_zero()
 {
 	differential3 d;
 	d.dx = make_float3(0.0f, 0.0f, 0.0f);

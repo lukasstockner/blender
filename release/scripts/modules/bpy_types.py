@@ -219,8 +219,9 @@ class _GenericBone:
 
     @property
     def length(self):
-        """ The distance from head to tail,
-            when set the head is moved to fit the length.
+        """
+        The distance from head to tail,
+        when set the head is moved to fit the length.
         """
         return self.vector.length
 
@@ -230,8 +231,9 @@ class _GenericBone:
 
     @property
     def vector(self):
-        """ The direction this bone is pointing.
-            Utility function for (tail - head)
+        """
+        The direction this bone is pointing.
+        Utility function for (tail - head)
         """
         return (self.tail - self.head)
 
@@ -303,6 +305,15 @@ class _GenericBone:
 
 class PoseBone(StructRNA, _GenericBone, metaclass=StructMetaPropGroup):
     __slots__ = ()
+
+    @property
+    def children(self):
+        obj = self.id_data
+        pbones = obj.pose.bones
+        self_bone = self.bone
+
+        return tuple(pbones[bone.name] for bone in obj.data.bones
+                     if bone.parent == self_bone)
 
 
 class Bone(StructRNA, _GenericBone, metaclass=StructMetaPropGroup):
@@ -547,7 +558,7 @@ class OrderedDictMini(dict):
         self.order.remove(key)
 
 
-class RNAMetaPropGroup(RNAMeta, StructMetaPropGroup):
+class RNAMetaPropGroup(StructMetaPropGroup, RNAMeta):
     pass
 
 
@@ -741,6 +752,15 @@ class Menu(StructRNA, _GenericUI, metaclass=RNAMeta):
         self.path_menu(bpy.utils.preset_paths(self.preset_subdir),
                        self.preset_operator,
                        filter_ext=lambda ext: ext.lower() in {".py", ".xml"})
+
+    @classmethod
+    def draw_collapsible(cls, context, layout):
+        # helper function for (optionally) collapsed header menus
+        # only usable within headers
+        if context.area.show_menus:
+            cls.draw_menus(layout, context)
+        else:
+            layout.menu(cls.__name__, icon='COLLAPSEMENU')
 
 
 class Region(StructRNA):

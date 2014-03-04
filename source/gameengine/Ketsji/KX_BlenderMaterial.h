@@ -78,8 +78,9 @@ public:
 	)const;
 
 	Material* GetBlenderMaterial() const;
-	MTFace* GetMTFace(void) const;
-	unsigned int* GetMCol(void) const;
+	Image* GetBlenderImage() const;
+	MTFace* GetMTFace() const;
+	unsigned int* GetMCol() const;
 	BL_Texture * getTex (unsigned int idx) { 
 		return (idx < MAXTEX) ? mTextures + idx : NULL; 
 	}

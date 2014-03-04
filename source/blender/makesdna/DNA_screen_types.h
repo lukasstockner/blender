@@ -112,22 +112,78 @@ typedef struct Panel {		/* the part from uiBlock that needs saved in file */
 	void *activedata;			/* runtime for panel manipulation */
 } Panel;
 
-typedef struct uiList {				/* some list UI data need to be saved in file */
+
+/* Notes on Panel Catogories:
+ *
+ * ar->panels_category (PanelCategoryDyn) is a runtime only list of categories collected during draw.
+ *
+ * ar->panels_category_active (PanelCategoryStack) is basically a list of strings (category id's).
+ *
+ * Clicking on a tab moves it to the front of ar->panels_category_active,
+ * If the context changes so this tab is no longer displayed,
+ * then the first-most tab in ar->panels_category_active is used.
+ *
+ * This way you can change modes and always have the tab you last clicked on.
+ */
+
+/* region level tabs */
+#
+#
+typedef struct PanelCategoryDyn {
+	struct PanelCategoryDyn *next, *prev;
+	char idname[64];
+	rcti rect;
+} PanelCategoryDyn;
+
+/* region stack of active tabs */
+typedef struct PanelCategoryStack {
+	struct PanelCategoryStack *next, *prev;
+	char idname[64];
+} PanelCategoryStack;
+
+
+/* uiList dynamic data... */
+/* These two Lines with # tell makesdna this struct can be excluded. */
+#
+#
+typedef struct uiListDyn {
+	int height;                   /* Number of rows needed to draw all elements. */
+	int visual_height;            /* Actual visual height of the list (in rows). */
+	int visual_height_min;        /* Minimal visual height of the list (in rows). */
+
+	int items_len;                /* Number of items in collection. */
+	int items_shown;              /* Number of items actually visible after filtering. */
+
+	/* Filtering data. */
+	int *items_filter_flags;      /* items_len length. */
+	int *items_filter_neworder;   /* org_idx -> new_idx, items_len length. */
+} uiListDyn;
+
+typedef struct uiList {           /* some list UI data need to be saved in file */
 	struct uiList *next, *prev;
 
-	struct uiListType *type;		/* runtime */
-	void *padp;
+	struct uiListType *type;      /* runtime */
 
-	char list_id[64];				/* defined as UI_MAX_NAME_STR */
+	char list_id[64];             /* defined as UI_MAX_NAME_STR */
 
-	int layout_type;				/* How items are layedout in the list */
-	int padi;
+	int layout_type;              /* How items are layedout in the list */
+	int flag;
 
 	int list_scroll;
-	int list_size;
+	int list_grip;
 	int list_last_len;
-	int list_grip_size;
-/*	char list_search[64]; */
+	int list_last_activei;
+
+	/* Filtering data. */
+	char filter_byname[64];       /* defined as UI_MAX_NAME_STR */
+	int filter_flag;
+	int filter_sort_flag;
+
+	/* Custom sub-classes properties. */
+	IDProperty *properties;
+
+	/* Dynamic data (runtime). */
+	uiListDyn *dyn_data;
 } uiList;
 
 typedef struct ScrArea {
@@ -146,7 +202,7 @@ typedef struct ScrArea {
 	short flag;
 	short region_active_win;		/* index of last used region of 'RGN_TYPE_WINDOW'
 									 * runtuime variable, updated by executing operators */
-	short pad;
+	char temp, pad;
 	
 	struct SpaceType *type;		/* callbacks for this space type */
 	
@@ -183,8 +239,10 @@ typedef struct ARegion {
 	
 	ListBase uiblocks;			/* uiBlock */
 	ListBase panels;			/* Panel */
+	ListBase panels_category_active;	/* Stack of panel categories */
 	ListBase ui_lists;			/* uiList */
 	ListBase handlers;			/* wmEventHandler */
+	ListBase panels_category;	/* Panel categories runtime */
 	
 	struct wmTimer *regiontimer; /* blend in/out */
 	
@@ -218,6 +276,16 @@ typedef struct ARegion {
 #define SCREENNORMAL	0
 #define SCREENFULL		1
 
+/* Panel->flag */
+enum {
+	PNL_SELECT      = (1 << 0),
+	PNL_CLOSEDX     = (1 << 1),
+	PNL_CLOSEDY     = (1 << 2),
+	PNL_CLOSED      = (PNL_CLOSEDX | PNL_CLOSEDY),
+	/*PNL_TABBED    = (1 << 3), */ /*UNUSED*/
+	PNL_OVERLAP     = (1 << 4),
+	PNL_PIN         = (1 << 5),
+};
 
 /* Panel->snap - for snapping to screen edges */
 #define PNL_SNAP_NONE		0
@@ -232,12 +300,37 @@ typedef struct ARegion {
 #define PNL_DEFAULT_CLOSED		1
 #define PNL_NO_HEADER			2
 
-/* uilist layout_type */
+/* uiList layout_type */
 enum {
 	UILST_LAYOUT_DEFAULT          = 0,
 	UILST_LAYOUT_COMPACT          = 1,
 	UILST_LAYOUT_GRID             = 2,
 };
+
+/* uiList flag */
+enum {
+	UILST_SCROLL_TO_ACTIVE_ITEM   = 1 << 0,          /* Scroll list to make active item visible. */
+	UILST_RESIZING                = 1 << 1,          /* We are currently resizing, deactivate autosize! */
+};
+
+/* uiList filter flags (dyn_data) */
+enum {
+	UILST_FLT_ITEM      = 1 << 31,  /* This item has passed the filter process successfully. */
+};
+
+/* uiList filter options */
+enum {
+	UILST_FLT_SHOW      = 1 << 0,          /* Show filtering UI. */
+	UILST_FLT_EXCLUDE   = UILST_FLT_ITEM,  /* Exclude filtered items, *must* use this same value. */
+};
+
+/* uiList filter orderby type */
+enum {
+	UILST_FLT_SORT_ALPHA         = 1 << 0,
+	UILST_FLT_SORT_REVERSE      = 1 << 31  /* Special value, bitflag used to reverse order! */
+};
+
+#define UILST_FLT_SORT_MASK (((unsigned int)UILST_FLT_SORT_REVERSE) - 1)
 
 /* regiontype, first two are the default set */
 /* Do NOT change order, append on end. Types are hardcoded needed */
@@ -272,6 +365,7 @@ enum {
 /* region do_draw */
 #define RGN_DRAW			1
 #define RGN_DRAW_PARTIAL	2
+#define RGN_DRAWING			4
 
 #endif
 

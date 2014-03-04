@@ -19,7 +19,11 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
-from bl_ui.properties_paint_common import UnifiedPaintPanel, brush_texture_settings, brush_mask_texture_settings
+from bl_ui.properties_paint_common import (
+        UnifiedPaintPanel,
+        brush_texture_settings,
+        brush_mask_texture_settings,
+        )
 from bpy.app.translations import pgettext_iface as iface_
 
 
@@ -106,7 +110,6 @@ class IMAGE_MT_select(Menu):
 
         layout.operator("uv.select_all").action = 'TOGGLE'
         layout.operator("uv.select_all", text="Inverse").action = 'INVERT'
-        layout.operator("uv.select_split")
 
         layout.separator()
 
@@ -183,17 +186,10 @@ class IMAGE_MT_image_invert(Menu):
 
         layout.separator()
 
-        props = layout.operator("image.invert", text="Invert Red Channel")
-        props.invert_r = True
-
-        props = layout.operator("image.invert", text="Invert Green Channel")
-        props.invert_g = True
-
-        props = layout.operator("image.invert", text="Invert Blue Channel")
-        props.invert_b = True
-
-        props = layout.operator("image.invert", text="Invert Alpha Channel")
-        props.invert_a = True
+        layout.operator("image.invert", text="Invert Red Channel").invert_r = True
+        layout.operator("image.invert", text="Invert Green Channel").invert_g = True
+        layout.operator("image.invert", text="Invert Blue Channel").invert_b = True
+        layout.operator("image.invert", text="Invert Alpha Channel").invert_a = True
 
 
 class IMAGE_MT_uvs_showhide(Menu):
@@ -232,6 +228,7 @@ class IMAGE_MT_uvs_snap(Menu):
 
         layout.operator("uv.snap_selected", text="Selected to Pixels").target = 'PIXELS'
         layout.operator("uv.snap_selected", text="Selected to Cursor").target = 'CURSOR'
+        layout.operator("uv.snap_selected", text="Selected to Cursor (Offset)").target = 'CURSOR_OFFSET'
         layout.operator("uv.snap_selected", text="Selected to Adjacent Unselected").target = 'ADJACENT_UNSELECTED'
 
         layout.separator()
@@ -376,23 +373,9 @@ class IMAGE_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        # menus
-        if context.area.show_menus:
-            sub = row.row(align=True)
-            sub.menu("IMAGE_MT_view")
+        MASK_MT_editor_menus.draw_collapsible(context, layout)
 
-            if show_uvedit:
-                sub.menu("IMAGE_MT_select")
-
-            if ima and ima.is_dirty:
-                sub.menu("IMAGE_MT_image", text="Image*")
-            else:
-                sub.menu("IMAGE_MT_image", text="Image")
-
-            if show_uvedit:
-                sub.menu("IMAGE_MT_uvs")
-
-        layout.template_ID(sima, "image", new="image.new")
+        layout.template_ID(sima, "image", new="image.new", open="image.open")
         if not show_render:
             layout.prop(sima, "use_image_pin", text="")
 
@@ -403,7 +386,7 @@ class IMAGE_HT_header(Header):
             row.template_ID(sima, "mask", new="mask.new")
 
         if show_uvedit or show_maskedit:
-            layout.prop(sima, "pivot_point", text="", icon_only=True)
+            layout.prop(sima, "pivot_point", icon_only=True)
 
         # uv editing
         if show_uvedit:
@@ -415,16 +398,16 @@ class IMAGE_HT_header(Header):
                 layout.template_edit_mode_selection()
             else:
                 layout.prop(toolsettings, "uv_select_mode", text="", expand=True)
-                layout.prop(uvedit, "sticky_select_mode", text="", icon_only=True)
+                layout.prop(uvedit, "sticky_select_mode", icon_only=True)
 
             row = layout.row(align=True)
-            row.prop(toolsettings, "proportional_edit", text="", icon_only=True)
+            row.prop(toolsettings, "proportional_edit", icon_only=True)
             if toolsettings.proportional_edit != 'DISABLED':
-                row.prop(toolsettings, "proportional_edit_falloff", text="", icon_only=True)
+                row.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
 
             row = layout.row(align=True)
             row.prop(toolsettings, "use_snap", text="")
-            row.prop(toolsettings, "snap_uv_element", text="", icon_only=True)
+            row.prop(toolsettings, "snap_uv_element", icon_only=True)
             if toolsettings.snap_uv_element != 'INCREMENT':
                 row.prop(toolsettings, "snap_target", text="")
 
@@ -446,7 +429,41 @@ class IMAGE_HT_header(Header):
                 row.operator("image.play_composite", icon='PLAY')
 
         if show_uvedit or show_maskedit or mode == 'PAINT':
-            layout.prop(sima, "use_realtime_update", text="", icon_only=True, icon='LOCKED')
+            layout.prop(sima, "use_realtime_update", icon_only=True, icon='LOCKED')
+
+
+class MASK_MT_editor_menus(Menu):
+    bl_idname = "MASK_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        sima = context.space_data
+        ima = sima.image
+
+        show_render = sima.show_render
+        show_uvedit = sima.show_uvedit
+        show_maskedit = sima.show_maskedit
+
+        layout.menu("IMAGE_MT_view")
+
+        if show_uvedit:
+            layout.menu("IMAGE_MT_select")
+        if show_maskedit:
+            layout.menu("MASK_MT_select")
+
+        if ima and ima.is_dirty:
+            layout.menu("IMAGE_MT_image", text="Image*")
+        else:
+            layout.menu("IMAGE_MT_image", text="Image")
+
+        if show_uvedit:
+            layout.menu("IMAGE_MT_uvs")
+        if show_maskedit:
+            layout.menu("MASK_MT_mask")
 
 
 class IMAGE_PT_image_properties(Panel):
@@ -527,7 +544,7 @@ class IMAGE_PT_view_histogram(Panel):
 
         layout.template_histogram(sima.scopes, "histogram")
         row = layout.row(align=True)
-        row.prop(hist, "mode", icon_only=True, expand=True)
+        row.prop(hist, "mode", expand=True)
         row.prop(hist, "show_line", text="")
 
 
@@ -549,7 +566,7 @@ class IMAGE_PT_view_waveform(Panel):
         layout.template_waveform(sima, "scopes")
         row = layout.split(percentage=0.75)
         row.prop(sima.scopes, "waveform_alpha")
-        row.prop(sima.scopes, "waveform_mode", text="", icon_only=True)
+        row.prop(sima.scopes, "waveform_mode", icon_only=True)
 
 
 class IMAGE_PT_view_vectorscope(Panel):
@@ -709,14 +726,65 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
             self.prop_unified_strength(row, context, brush, "strength", slider=True, text="Strength")
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
-            row = col.row(align=True)
-
             col.prop(brush, "blend", text="Blend")
 
             if brush.image_tool == 'CLONE':
                 col.separator()
                 col.prop(brush, "clone_image", text="Image")
                 col.prop(brush, "clone_alpha", text="Alpha")
+
+
+class IMAGE_PT_tools_brush_overlay(BrushButtonsPanel, Panel):
+    bl_label = "Overlay"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        toolsettings = context.tool_settings.image_paint
+        brush = toolsettings.brush
+        tex_slot = brush.texture_slot
+        tex_slot_mask = brush.mask_texture_slot
+
+        col = layout.column()
+
+        col.label(text="Curve:")
+
+        row = col.row(align=True)
+        if brush.use_cursor_overlay:
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
+        else:
+            row.prop(brush, "use_cursor_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+
+        sub = row.row(align=True)
+        sub.prop(brush, "cursor_overlay_alpha", text="Alpha")
+        sub.prop(brush, "use_cursor_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
+
+        col.active = brush.brush_capabilities.has_overlay
+        col.label(text="Texture:")
+        row = col.row(align=True)
+        if tex_slot.map_mode != 'STENCIL':
+            if brush.use_primary_overlay:
+                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
+            else:
+                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+
+        sub = row.row(align=True)
+        sub.prop(brush, "texture_overlay_alpha", text="Alpha")
+        sub.prop(brush, "use_primary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
+
+        col.label(text="Mask Texture:")
+
+        row = col.row(align=True)
+        if tex_slot_mask.map_mode != 'STENCIL':
+            if brush.use_secondary_overlay:
+                row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
+            else:
+                row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
+
+        sub = row.row(align=True)
+        sub.prop(brush, "mask_overlay_alpha", text="Alpha")
+        sub.prop(brush, "use_secondary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
 
 class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
@@ -735,23 +803,6 @@ class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
 
         brush_texture_settings(col, brush, 0)
 
-        # use_texture_overlay and texture_overlay_alpha
-        col = layout.column(align=True)
-        col.active = brush.brush_capabilities.has_overlay
-        col.label(text="Overlay:")
-
-        row = col.row()
-        if tex_slot.map_mode != 'STENCIL':
-            if brush.use_primary_overlay:
-                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_primary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-
-        sub = row.row()
-        sub.prop(brush, "texture_overlay_alpha", text="Alpha")
-        sub.prop(brush, "use_primary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
-
-
 
 class IMAGE_PT_tools_mask_texture(BrushButtonsPanel, Panel):
     bl_label = "Texture Mask"
@@ -768,21 +819,6 @@ class IMAGE_PT_tools_mask_texture(BrushButtonsPanel, Panel):
         col.template_ID_preview(brush, "mask_texture", new="texture.new", rows=3, cols=8)
 
         brush_mask_texture_settings(col, brush)
-
-        col = layout.column(align=True)
-        col.active = brush.brush_capabilities.has_overlay
-        col.label(text="Overlay:")
-
-        row = col.row()
-        if tex_slot_alpha.map_mode != 'STENCIL':
-            if brush.use_secondary_overlay:
-                row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_OFF')
-            else:
-                row.prop(brush, "use_secondary_overlay", toggle=True, text="", icon='RESTRICT_VIEW_ON')
-        
-        sub = row.row()
-        sub.prop(brush, "mask_overlay_alpha", text="Alpha")
-        sub.prop(brush, "use_secondary_overlay_override", toggle=True, text="", icon='BRUSH_DATA')
 
 
 class IMAGE_PT_tools_brush_tool(BrushButtonsPanel, Panel):
@@ -814,9 +850,6 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
         brush = toolsettings.brush
 
         col = layout.column()
-        col.prop(toolsettings, "input_samples")
-
-        col = layout.column()
 
         col.label(text="Stroke Method:")
 
@@ -840,6 +873,17 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
         col = layout.column()
         col.separator()
 
+        row = col.row(align=True)
+        row.prop(brush, "use_relative_jitter", icon_only=True)
+        if brush.use_relative_jitter:
+            row.prop(brush, "jitter", slider=True)
+        else:
+            row.prop(brush, "jitter_absolute")
+        row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+
+        col = layout.column()
+        col.separator()
+
         col.prop(brush, "use_smooth_stroke")
 
         sub = col.column()
@@ -849,14 +893,9 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
 
         col.separator()
 
-        row = col.row(align=True)
-        if brush.use_relative_jitter:
-            row.prop(brush, "use_relative_jitter", text="", icon='LOCKED')
-            row.prop(brush, "jitter", slider=True)
-        else:
-            row.prop(brush, "use_relative_jitter", text="", icon='UNLOCKED')
-            row.prop(brush, "jitter_absolute")
-        row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+        col.prop(toolsettings, "input_samples")
+
+        col.separator()
 
         col.prop(brush, "use_wrap")
 
@@ -897,7 +936,7 @@ class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
             return
 
         col = layout.column()
-        col.prop(toolsettings, "show_brush");
+        col.prop(toolsettings, "show_brush")
 
         col = col.column()
         col.prop(brush, "cursor_color_add", text="")

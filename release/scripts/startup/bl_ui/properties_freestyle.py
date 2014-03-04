@@ -47,7 +47,7 @@ class RENDER_PT_freestyle(RenderFreestyleButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        
+
         rd = context.scene.render
 
         layout.active = rd.use_freestyle
@@ -55,7 +55,7 @@ class RENDER_PT_freestyle(RenderFreestyleButtonsPanel, Panel):
         row = layout.row()
         row.label(text="Line Thickness:")
         row.prop(rd, "line_thickness_mode", expand=True)
-        
+
         if (rd.line_thickness_mode == 'ABSOLUTE'):
             layout.prop(rd, "line_thickness")
 
@@ -65,7 +65,7 @@ class RENDER_PT_freestyle(RenderFreestyleButtonsPanel, Panel):
 
 
 # Render layer properties
-        
+
 class RenderLayerFreestyleButtonsPanel():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -77,7 +77,7 @@ class RenderLayerFreestyleButtonsPanel():
         scene = context.scene
         rd = context.scene.render
         with_freestyle = bpy.app.build_options.freestyle
-        
+
         return (scene and with_freestyle and rd.use_freestyle
             and rd.layers.active and(scene.render.engine in cls.COMPAT_ENGINES))
 
@@ -97,7 +97,7 @@ class RENDERLAYER_UL_linesets(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         lineset = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.label(lineset.name, icon_value=icon)
+            layout.prop(lineset, "name", text="", emboss=False, icon_value=icon)
             layout.prop(lineset, "show_render", text="", index=index)
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
@@ -119,27 +119,28 @@ class RENDERLAYER_PT_freestyle(RenderLayerFreestyleButtonsPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        
+
         rd = context.scene.render
         rl = rd.layers.active
         freestyle = rl.freestyle_settings
 
         layout.active = rl.use_freestyle
-        
+
         layout.prop(freestyle, "mode", text="Control mode")
         layout.label(text="Edge Detection Options:")
-        
+
         split = layout.split()
-        
+
         col = split.column()
         col.prop(freestyle, "crease_angle")
         col.prop(freestyle, "use_culling")
         col.prop(freestyle, "use_advanced_options")
-        
+
         col = split.column()
         col.prop(freestyle, "use_smoothness")
-        col.prop(freestyle, "use_material_boundaries")
-        
+        if freestyle.mode == 'SCRIPT':
+            col.prop(freestyle, "use_material_boundaries")
+
         # Advanced options are hidden by default to warn new users
         if freestyle.use_advanced_options:
             if freestyle.mode == 'SCRIPT':
@@ -177,13 +178,13 @@ class RENDERLAYER_PT_freestyle_lineset(RenderLayerFreestyleEditorButtonsPanel, P
         # draw edge type buttons
         row = box.row(align=True)
         row.prop(lineset, select_edge_type)
-        sub = row.column()
+        sub = row.column(align=True)
         sub.prop(lineset, exclude_edge_type, text="")
         sub.active = getattr(lineset, select_edge_type)
 
     def draw(self, context):
         layout = self.layout
-        
+
         rd = context.scene.render
         rl = rd.layers.active
         freestyle = rl.freestyle_settings
@@ -192,7 +193,7 @@ class RENDERLAYER_PT_freestyle_lineset(RenderLayerFreestyleEditorButtonsPanel, P
         layout.active = rl.use_freestyle
 
         row = layout.row()
-        rows = 5 if lineset else 2
+        rows = 4 if lineset else 2
         row.template_list("RENDERLAYER_UL_linesets", "", freestyle, "linesets", freestyle.linesets, "active_index", rows=rows)
 
         sub = row.column(align=True)
@@ -204,8 +205,6 @@ class RENDERLAYER_PT_freestyle_lineset(RenderLayerFreestyleEditorButtonsPanel, P
             sub.separator()
             sub.operator("scene.freestyle_lineset_move", icon='TRIA_UP', text="").direction = 'UP'
             sub.operator("scene.freestyle_lineset_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
-
-            layout.prop(lineset, "name")
 
             col = layout.column()
             col.label(text="Selection By:")
@@ -232,14 +231,14 @@ class RENDERLAYER_PT_freestyle_lineset(RenderLayerFreestyleEditorButtonsPanel, P
                 row.prop(lineset, "edge_type_combination", expand=True)
 
                 split = col.split()
-                
+
                 sub = split.column()
                 self.draw_edge_type_buttons(sub, lineset, "silhouette")
                 self.draw_edge_type_buttons(sub, lineset, "border")
                 self.draw_edge_type_buttons(sub, lineset, "contour")
                 self.draw_edge_type_buttons(sub, lineset, "suggestive_contour")
                 self.draw_edge_type_buttons(sub, lineset, "ridge_valley")
-                
+
                 sub = split.column()
                 self.draw_edge_type_buttons(sub, lineset, "crease")
                 self.draw_edge_type_buttons(sub, lineset, "edge_mark")
@@ -517,7 +516,7 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
 
     def draw(self, context):
         layout = self.layout
-        
+
         rd = context.scene.render
         rl = rd.layers.active
         lineset = rl.freestyle_settings.linesets.active
@@ -529,6 +528,8 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
         linestyle = lineset.linestyle
 
         layout.template_ID(lineset, "linestyle", new="scene.freestyle_linestyle_new")
+        if linestyle is None:
+            return
         row = layout.row(align=True)
         row.prop(linestyle, "panel", expand=True)
         if linestyle.panel == 'STROKES':
@@ -575,7 +576,7 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             # End of columns
             row = layout.row(align=True)
             row.prop(linestyle, "use_split_pattern", text="")
-            sub = row.row()
+            sub = row.row(align=True)
             sub.active = linestyle.use_split_pattern
             sub.prop(linestyle, "split_dash1", text="D1")
             sub.prop(linestyle, "split_gap1", text="G1")
@@ -611,7 +612,7 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             layout.label(text="Dashed Line:")
             row = layout.row(align=True)
             row.prop(linestyle, "use_dashed_line", text="")
-            sub = row.row()
+            sub = row.row(align=True)
             sub.active = linestyle.use_dashed_line
             sub.prop(linestyle, "dash1", text="D1")
             sub.prop(linestyle, "gap1", text="G1")

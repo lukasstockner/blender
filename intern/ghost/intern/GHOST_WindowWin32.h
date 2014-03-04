@@ -43,6 +43,8 @@
 #include "GHOST_Window.h"
 #include "GHOST_TaskbarWin32.h"
 
+#ifndef __MINGW64__
+#endif
 #include <windows.h>
 
 //#if defined(WITH_GL_SYSTEM_EMBEDDED) // XXX jwilkins: can remove this after implementing GHOST_Context
@@ -210,6 +212,19 @@ public:
 	virtual GHOST_TSuccess setOrder(GHOST_TWindowOrder order);
 
 	/**
+
+	/**
+	 * Sets the swap interval for swapBuffers.
+	 * \param interval The swap interval to use.
+	 * \return A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess setSwapInterval(int interval);
+
+	/**
+	 * Gets the current swap interval for swapBuffers.
+	 * \return An integer.
+	 */
+	virtual int getSwapInterval();
 	 * Invalidates the contents of this window.
 	 */
 	virtual GHOST_TSuccess invalidate();

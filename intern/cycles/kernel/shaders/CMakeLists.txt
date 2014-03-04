@@ -12,6 +12,7 @@ set(SRC_OSL
 	node_camera.osl
 	node_checker_texture.osl
 	node_combine_rgb.osl
+	node_combine_hsv.osl
 	node_convert_from_color.osl
 	node_convert_from_float.osl
 	node_convert_from_int.osl
@@ -28,6 +29,8 @@ set(SRC_OSL
 	node_glossy_bsdf.osl
 	node_gradient_texture.osl
 	node_hair_info.osl
+	node_scatter_volume.osl
+	node_absorption_volume.osl
 	node_holdout.osl
 	node_hsv.osl
 	node_image_texture.osl
@@ -53,6 +56,7 @@ set(SRC_OSL
 	node_rgb_curves.osl
 	node_rgb_ramp.osl
 	node_separate_rgb.osl
+	node_separate_hsv.osl
 	node_set_normal.osl
 	node_sky_texture.osl
 	node_subsurface_scattering.osl
@@ -64,12 +68,15 @@ set(SRC_OSL
 	node_value.osl
 	node_vector_curves.osl
 	node_vector_math.osl
+	node_vector_transform.osl
 	node_velvet_bsdf.osl
 	node_voronoi_texture.osl
 	node_ward_bsdf.osl
 	node_wavelength.osl
+	node_blackbody.osl
 	node_wave_texture.osl
 	node_wireframe.osl
+	node_hair_bsdf.osl
 )
 
 set(SRC_OSL_HEADERS
@@ -91,7 +98,7 @@ foreach(_file ${SRC_OSL})
 	string(REPLACE ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} _OSO_FILE ${_OSO_FILE})
 	add_custom_command(
 		OUTPUT ${_OSO_FILE} 
-		COMMAND ${OSL_COMPILER} -O2  -I"${CMAKE_CURRENT_SOURCE_DIR}" ${_OSL_FILE}
+		COMMAND ${OSL_COMPILER} -q -O2  -I"${CMAKE_CURRENT_SOURCE_DIR}" ${_OSL_FILE}
 		DEPENDS ${_OSL_FILE} ${SRC_OSL_HEADERS})
 	list(APPEND SRC_OSO
 		${_OSO_FILE}

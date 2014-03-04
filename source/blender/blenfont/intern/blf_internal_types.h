@@ -56,7 +56,7 @@ typedef struct GlyphCacheBLF {
 	unsigned int ntex;
 
 	/* and the last texture, aka. the current texture. */
-	int cur_tex;
+	unsigned int cur_tex;
 
 	/* like bftgl, we draw every glyph in a big texture, so this is the
 	 * current position inside the texture.
@@ -219,6 +219,9 @@ typedef struct FontBLF {
 	/* freetype2 lib handle. */
 	FT_Library ft_lib;
 
+	/* Mutex lock for library */
+	SpinLock *ft_lib_mutex;
+
 	/* freetype2 face. */
 	FT_Face face;
 
@@ -235,5 +238,7 @@ typedef struct DirBLF {
 	/* full path where search fonts. */
 	char *path;
 } DirBLF;
+
+#define BLF_CURTEX_UNSET ((unsigned int)-1)
 
 #endif /* __BLF_INTERNAL_TYPES_H__ */

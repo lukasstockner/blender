@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #ifndef __INTEGRATOR_H__
@@ -35,6 +33,7 @@ public:
 	int max_diffuse_bounce;
 	int max_glossy_bounce;
 	int max_transmission_bounce;
+	int max_volume_bounce;
 	bool probalistic_termination;
 
 	int transparent_min_bounce;
@@ -42,13 +41,17 @@ public:
 	bool transparent_probalistic;
 	bool transparent_shadows;
 
+	int volume_max_steps;
+	float volume_step_size;
+
 	bool no_caustics;
 	float filter_glossy;
 
 	int seed;
 	int layer_flag;
 
-	float sample_clamp;
+	float sample_clamp_direct;
+	float sample_clamp_indirect;
 	bool motion_blur;
 
 	int aa_samples;
@@ -58,8 +61,14 @@ public:
 	int ao_samples;
 	int mesh_light_samples;
 	int subsurface_samples;
+	int volume_samples;
 
-	bool progressive;
+	enum Method {
+		BRANCHED_PATH = 0,
+		PATH = 1
+	};
+	
+	Method method;
 
 	SamplingPattern sampling_pattern;
 

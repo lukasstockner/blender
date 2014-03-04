@@ -63,7 +63,10 @@ class TEXTURE_UL_texslots(UIList):
         slot = item
         tex = slot.texture if slot else None
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.label(text=tex.name if tex else "", translate=False, icon_value=icon)
+            if tex:
+                layout.prop(tex, "name", text="", emboss=False, icon_value=icon)
+            else:
+                layout.label(text="", icon_value=icon)
             if tex and isinstance(item, bpy.types.MaterialTextureSlot):
                 layout.prop(ma, "use_textures", text="", index=index)
         elif self.layout_type in {'GRID'}:
@@ -265,6 +268,9 @@ class TEXTURE_PT_colors(TextureButtonsPanel, Panel):
         col.prop(tex, "intensity")
         col.prop(tex, "contrast")
         col.prop(tex, "saturation")
+
+        col = layout.column()
+        col.prop(tex, "use_clamp", text="Clamp")
 
 # Texture Slot Panels #
 
@@ -476,7 +482,7 @@ class TEXTURE_PT_image_sampling(TextureTypePanel, Panel):
         col = split.column()
         col.label(text="Alpha:")
         row = col.row()
-        row.active = tex.image and tex.image.use_alpha
+        row.active = bool(tex.image and tex.image.use_alpha)
         row.prop(tex, "use_alpha", text="Use")
         col.prop(tex, "use_calculate_alpha", text="Calculate")
         col.prop(tex, "invert_alpha", text="Invert")
@@ -555,17 +561,17 @@ class TEXTURE_PT_image_mapping(TextureTypePanel, Panel):
 
             col = split.column(align=True)
             col.label(text="Mirror:")
-            row = col.row()
+            row = col.row(align=True)
             row.prop(tex, "use_mirror_x", text="X")
             row.active = (tex.repeat_x > 1)
-            row = col.row()
+            row = col.row(align=True)
             row.prop(tex, "use_mirror_y", text="Y")
             row.active = (tex.repeat_y > 1)
             layout.separator()
 
         elif tex.extension == 'CHECKER':
             col = split.column(align=True)
-            row = col.row()
+            row = col.row(align=True)
             row.prop(tex, "use_checker_even", text="Even")
             row.prop(tex, "use_checker_odd", text="Odd")
 
@@ -1007,7 +1013,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
         def factor_but(layout, toggle, factor, name):
             row = layout.row(align=True)
             row.prop(tex, toggle, text="")
-            sub = row.row()
+            sub = row.row(align=True)
             sub.active = getattr(tex, toggle)
             sub.prop(tex, factor, text=name, slider=True)
             return sub  # XXX, temp. use_map_normal needs to override.

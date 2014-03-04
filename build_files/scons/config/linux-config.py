@@ -100,10 +100,6 @@ BF_FREETYPE_INC = '${BF_FREETYPE}/include ${BF_FREETYPE}/include/freetype2'
 BF_FREETYPE_LIB = 'freetype'
 #BF_FREETYPE_LIB_STATIC = '${BF_FREETYPE}/lib/libfreetype.a'
 
-WITH_BF_QUICKTIME = False
-BF_QUICKTIME = '/usr/local'
-BF_QUICKTIME_INC = '${BF_QUICKTIME}/include'
-
 WITH_BF_ICONV = False
 BF_ICONV = "/usr"
 BF_ICONV_INC = '${BF_ICONV}/include'
@@ -152,7 +148,7 @@ BF_REDCODE_LIBPATH='${BF_REDCODE}/lib'
 WITH_BF_STATICOPENGL = False
 BF_OPENGL = '/usr'
 BF_OPENGL_INC = '${BF_OPENGL}/include'
-BF_OPENGL_LIB = 'GL GLU X11 Xi'
+BF_OPENGL_LIB = 'GL GLU X11 Xi Xxf86vm'
 BF_OPENGL_LIBPATH = '/usr/X11R6/lib'
 BF_OPENGL_LIB_STATIC = '${BF_OPENGL_LIBPATH}/libGL.a ${BF_OPENGL_LIBPATH}/libGLU.a ${BF_OPENGL_LIBPATH}/libXxf86vm.a ${BF_OPENGL_LIBPATH}/libX11.a ${BF_OPENGL_LIBPATH}/libXi.a ${BF_OPENGL_LIBPATH}/libXext.a ${BF_OPENGL_LIBPATH}/libXxf86vm.a'
 
@@ -210,7 +206,7 @@ WITH_BF_CYCLES = WITH_BF_OIIO and WITH_BF_BOOST
 
 WITH_BF_CYCLES_CUDA_BINARIES = False
 BF_CYCLES_CUDA_NVCC = '/usr/local/cuda/bin/nvcc'
-BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30']
+BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30', 'sm_35']
 
 WITH_BF_OPENMP = True
 
@@ -251,7 +247,7 @@ C_WARN = ['-Wno-char-subscripts', '-Wdeclaration-after-statement', '-Wunused-par
 CC_WARN = ['-Wall']
 CXX_WARN = ['-Wno-invalid-offsetof', '-Wno-sign-compare']
 
-LLIBS = ['util', 'c', 'm', 'dl', 'pthread', 'stdc++']
+LLIBS = ['util', 'c', 'm', 'dl', 'pthread']
 
 BF_PROFILE = False
 BF_PROFILE_CCFLAGS = ['-pg','-g']

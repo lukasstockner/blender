@@ -33,6 +33,7 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
 
@@ -132,6 +133,7 @@ void ED_spacetypes_init(void)
 	 * maybe we'll need to have them go after python operators too? */
 	ED_operatormacros_armature();
 	ED_operatormacros_mesh();
+	ED_operatormacros_metaball();
 	ED_operatormacros_node();
 	ED_operatormacros_object();
 	ED_operatormacros_file();

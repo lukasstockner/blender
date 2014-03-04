@@ -44,6 +44,7 @@
 
 struct bGPdata;
 struct ImBuf;
+struct Image;
 struct MovieReconstructedCamera;
 struct MovieTrackingCamera;
 struct MovieTrackingBundle;
@@ -142,7 +143,59 @@ typedef struct MovieTrackingTrack {
 	float minimum_correlation;          /* minimal correlation which is still treated as successful tracking */
 
 	struct bGPdata *gpd;        /* grease-pencil data */
+
+	/* Weight of this track.
+	 *
+	 * Weight defines how much the track affects on the final reconstruction,
+	 * usually gets animated in a way so when track has just appeared it's
+	 * weight is zero and then it gets faded up.
+	 *
+	 * Used to prevent jumps of the camera when tracks are appearing or
+	 * disappearing.
+	 */
+	float weight, pad;
 } MovieTrackingTrack;
+
+typedef struct MovieTrackingPlaneMarker {
+	/* Corners of the plane in the following order:
+	 *
+	 *       Y
+	 *       ^
+	 *       | (3) --- (2)
+	 *       |  |       |
+	 *       |  |       |
+	 *       |  |       |
+	 *       | (0) --- (1)
+	 *       +-------------> X
+	 *
+	 * The coordinates are stored in frame normalized coordinates.
+	 */
+	float corners[4][2];
+
+	int framenr;    /* Number of frame plane marker is associated with */
+	int flag;       /* Marker's flag (alive, ...) */
+} MovieTrackingPlaneMarker;
+
+typedef struct MovieTrackingPlaneTrack {
+	struct MovieTrackingPlaneTrack *next, *prev;
+
+	char name[64];  /* MAX_NAME */
+
+	MovieTrackingTrack **point_tracks;  /* Array of point tracks used to define this plane.
+	                                     * Each element is a pointer to MovieTrackingTrack. */
+	int point_tracksnr, pad;  /* Number of tracks in point_tracks array. */
+
+	MovieTrackingPlaneMarker *markers;   /* Markers in the plane track */
+	int markersnr;                       /* Count of markers in track (size of markers array) */
+
+	int flag;    /* flags (selection, ...) */
+
+	struct Image *image;                 /* Image displaying during editing */
+	float image_opacity;                 /* Opacity of the image */
+
+	/* Runtime data */
+	int last_marker;                     /* Most recently used marker */
+} MovieTrackingPlaneTrack;
 
 typedef struct MovieTrackingSettings {
 	int flag;
@@ -169,8 +222,7 @@ typedef struct MovieTrackingSettings {
 		                             * were moved to per-tracking object settings
 		                             */
 
-	float reconstruction_success_threshold;
-	int reconstruction_flag;
+	int reconstruction_flag, pad;
 
 	/* which camera intrinsics to refine. uses on the REFINE_* flags */
 	short refine_camera_intrinsics, pad2;
@@ -225,6 +277,7 @@ typedef struct MovieTrackingObject {
 	float scale;            /* scale of object solution in amera space */
 
 	ListBase tracks;        /* list of tracks use to tracking this object */
+	ListBase plane_tracks;  /* list of plane tracks used by this object */
 	MovieTrackingReconstruction reconstruction; /* reconstruction data for this object */
 
 	/* reconstruction options */
@@ -280,9 +333,11 @@ typedef struct MovieTracking {
 	MovieTrackingSettings settings; /* different tracking-related settings */
 	MovieTrackingCamera camera;     /* camera intrinsics */
 	ListBase tracks;                /* list of tracks used for camera object */
+	ListBase plane_tracks;          /* list of plane tracks used by camera object */
 	MovieTrackingReconstruction reconstruction; /* reconstruction data for camera object */
 	MovieTrackingStabilization stabilization;   /* stabilization data */
-	MovieTrackingTrack *act_track;      /* active track */
+	MovieTrackingTrack *act_track;             /* active track */
+	MovieTrackingPlaneTrack *act_plane_track;  /* active plane track */
 
 	ListBase objects;
 	int objectnr, tot_object;       /* index of active object and total number of objects */
@@ -347,7 +402,8 @@ enum {
 
 /* MovieTrackingSettings->flag */
 enum {
-	TRACKING_SETTINGS_SHOW_DEFAULT_EXPANDED = (1 << 0)
+	TRACKING_SETTINGS_SHOW_DEFAULT_EXPANDED = (1 << 0),
+	TRACKING_SETTINGS_SHOW_EXTRA_EXPANDED = (1 << 1)
 };
 
 /* MovieTrackingSettings->motion_flag */
@@ -368,7 +424,7 @@ enum {
 
 /* MovieTrackingSettings->reconstruction_flag */
 enum {
-	TRACKING_USE_FALLBACK_RECONSTRUCTION = (1 << 0),
+	/* TRACKING_USE_FALLBACK_RECONSTRUCTION = (1 << 0), */  /* DEPRECATED */
 	TRACKING_USE_KEYFRAME_SELECTION      = (1 << 1)
 };
 
@@ -430,6 +486,19 @@ enum {
 	TRACKING_COVERAGE_BAD        = 0,
 	TRACKING_COVERAGE_ACCEPTABLE = 1,
 	TRACKING_COVERAGE_OK         = 2
+};
+
+/* MovieTrackingPlaneMarker->flag */
+enum {
+	PLANE_MARKER_DISABLED = (1 << 0),
+	PLANE_MARKER_TRACKED  = (1 << 1),
+};
+
+/* MovieTrackingPlaneTrack->flag */
+enum {
+	PLANE_TRACK_HIDDEN  = (1 << 1),
+	PLANE_TRACK_LOCKED  = (1 << 2),
+	PLANE_TRACK_AUTOKEY = (1 << 3),
 };
 
 #endif  /* __DNA_TRACKING_TYPES_H__ */

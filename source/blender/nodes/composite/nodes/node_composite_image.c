@@ -31,8 +31,15 @@
 
 #include "node_composite_util.h"
 
+#include "BLI_utildefines.h"
+
+#include "DNA_scene_types.h"
+
+#include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
+
+#include "RNA_access.h"
 
 /* **************** IMAGE (and RenderResult, multilayer image) ******************** */
 
@@ -65,6 +72,9 @@ static bNodeSocketTemplate cmp_node_rlayers_out[] = {
 	{	SOCK_RGBA, 0, N_("Transmission Direct"),	0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA, 0, N_("Transmission Indirect"),	0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA, 0, N_("Transmission Color"),		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 0, N_("Subsurface Direct"),		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 0, N_("Subsurface Indirect"),	0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_RGBA, 0, N_("Subsurface Color"),		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	-1, 0, ""	}
 };
 
@@ -145,6 +155,13 @@ static void cmp_node_image_add_render_pass_outputs(bNodeTree *ntree, bNode *node
 		cmp_node_image_add_render_pass_output(ntree, node, SCE_PASS_TRANSM_INDIRECT, RRES_OUT_TRANSM_INDIRECT);
 	if (passflag & SCE_PASS_TRANSM_COLOR)
 		cmp_node_image_add_render_pass_output(ntree, node, SCE_PASS_TRANSM_COLOR, RRES_OUT_TRANSM_COLOR);
+		
+	if (passflag & SCE_PASS_SUBSURFACE_DIRECT)
+		cmp_node_image_add_render_pass_output(ntree, node, SCE_PASS_SUBSURFACE_DIRECT, RRES_OUT_SUBSURFACE_DIRECT);
+	if (passflag & SCE_PASS_SUBSURFACE_INDIRECT)
+		cmp_node_image_add_render_pass_output(ntree, node, SCE_PASS_SUBSURFACE_INDIRECT, RRES_OUT_SUBSURFACE_INDIRECT);
+	if (passflag & SCE_PASS_SUBSURFACE_COLOR)
+		cmp_node_image_add_render_pass_output(ntree, node, SCE_PASS_SUBSURFACE_COLOR, RRES_OUT_SUBSURFACE_COLOR);
 }
 
 static void cmp_node_image_add_multilayer_outputs(bNodeTree *ntree, bNode *node, RenderLayer *rl)
@@ -184,7 +201,7 @@ static void cmp_node_image_create_outputs(bNodeTree *ntree, bNode *node)
 		 * fail and sockets detection will go wrong.
 		 *
 		 * So we manually construct image user to be sure first
-		 * image from sequence (that one which is set as fileanme
+		 * image from sequence (that one which is set as filename
 		 * for image datablock) is used for sockets detection
 		 */
 		load_iuser.ok = 1;
@@ -252,7 +269,7 @@ static void cmp_node_image_verify_outputs(bNodeTree *ntree, bNode *node)
 	
 	/* store current nodes in oldsocklist, then clear socket list */
 	oldsocklist = node->outputs;
-	node->outputs.first = node->outputs.last = NULL;
+	BLI_listbase_clear(&node->outputs);
 	
 	/* XXX make callback */
 	cmp_node_image_create_outputs(ntree, node);
@@ -347,6 +364,81 @@ void register_node_type_cmp_image(void)
 
 /* **************** RENDER RESULT ******************** */
 
+static void set_output_visible(bNode *node, int passflag, int index, int pass)
+{
+	bNodeSocket *sock = BLI_findlink(&node->outputs, index);
+	/* clear the SOCK_HIDDEN flag as well, in case a socket was hidden before */
+	if (passflag & pass)
+		sock->flag &= ~(SOCK_HIDDEN | SOCK_UNAVAIL);
+	else
+		sock->flag |= SOCK_UNAVAIL;
+}
+
+/* clumsy checking... should do dynamic outputs once */
+void node_cmp_rlayers_force_hidden_passes(bNode *node)
+{
+	Scene *scene = (Scene *)node->id;
+	SceneRenderLayer *srl;
+	int passflag;
+	bNodeSocket *sock;
+	
+	/* must always have valid scene pointer */
+	if (!scene)
+		return;
+	
+	srl = BLI_findlink(&scene->r.layers, node->custom1);
+	if (!srl)
+		return;
+	
+	passflag = srl->passflag;
+	
+	for (sock = node->outputs.first; sock; sock = sock->next)
+		sock->flag &= ~SOCK_UNAVAIL;
+	
+	set_output_visible(node, passflag, RRES_OUT_IMAGE,                  SCE_PASS_COMBINED);
+	set_output_visible(node, passflag, RRES_OUT_ALPHA,                  SCE_PASS_COMBINED);
+	                                                                    
+	set_output_visible(node, passflag, RRES_OUT_Z,                      SCE_PASS_Z);
+	set_output_visible(node, passflag, RRES_OUT_NORMAL,                 SCE_PASS_NORMAL);
+	set_output_visible(node, passflag, RRES_OUT_VEC,                    SCE_PASS_VECTOR);
+	set_output_visible(node, passflag, RRES_OUT_UV,                     SCE_PASS_UV);
+	set_output_visible(node, passflag, RRES_OUT_RGBA,                   SCE_PASS_RGBA);
+	set_output_visible(node, passflag, RRES_OUT_DIFF,                   SCE_PASS_DIFFUSE);
+	set_output_visible(node, passflag, RRES_OUT_SPEC,                   SCE_PASS_SPEC);
+	set_output_visible(node, passflag, RRES_OUT_SHADOW,                 SCE_PASS_SHADOW);
+	set_output_visible(node, passflag, RRES_OUT_AO,                     SCE_PASS_AO);
+	set_output_visible(node, passflag, RRES_OUT_REFLECT,                SCE_PASS_REFLECT);
+	set_output_visible(node, passflag, RRES_OUT_REFRACT,                SCE_PASS_REFRACT);
+	set_output_visible(node, passflag, RRES_OUT_INDIRECT,               SCE_PASS_INDIRECT);
+	set_output_visible(node, passflag, RRES_OUT_INDEXOB,                SCE_PASS_INDEXOB);
+	set_output_visible(node, passflag, RRES_OUT_INDEXMA,                SCE_PASS_INDEXMA);
+	set_output_visible(node, passflag, RRES_OUT_MIST,                   SCE_PASS_MIST);
+	set_output_visible(node, passflag, RRES_OUT_EMIT,                   SCE_PASS_EMIT);
+	set_output_visible(node, passflag, RRES_OUT_ENV,                    SCE_PASS_ENVIRONMENT);
+	set_output_visible(node, passflag, RRES_OUT_DIFF_DIRECT,            SCE_PASS_DIFFUSE_DIRECT);
+	set_output_visible(node, passflag, RRES_OUT_DIFF_INDIRECT,          SCE_PASS_DIFFUSE_INDIRECT);
+	set_output_visible(node, passflag, RRES_OUT_DIFF_COLOR,             SCE_PASS_DIFFUSE_COLOR);
+	set_output_visible(node, passflag, RRES_OUT_GLOSSY_DIRECT,          SCE_PASS_GLOSSY_DIRECT);
+	set_output_visible(node, passflag, RRES_OUT_GLOSSY_INDIRECT,        SCE_PASS_GLOSSY_INDIRECT);
+	set_output_visible(node, passflag, RRES_OUT_GLOSSY_COLOR,           SCE_PASS_GLOSSY_COLOR);
+	set_output_visible(node, passflag, RRES_OUT_TRANSM_DIRECT,          SCE_PASS_TRANSM_DIRECT);
+	set_output_visible(node, passflag, RRES_OUT_TRANSM_INDIRECT,        SCE_PASS_TRANSM_INDIRECT);
+	set_output_visible(node, passflag, RRES_OUT_TRANSM_COLOR,           SCE_PASS_TRANSM_COLOR);
+	set_output_visible(node, passflag, RRES_OUT_SUBSURFACE_DIRECT,      SCE_PASS_SUBSURFACE_DIRECT);
+	set_output_visible(node, passflag, RRES_OUT_SUBSURFACE_INDIRECT,    SCE_PASS_SUBSURFACE_INDIRECT);
+	set_output_visible(node, passflag, RRES_OUT_SUBSURFACE_COLOR,       SCE_PASS_SUBSURFACE_COLOR);
+}
+
+static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
+{
+	Scene *scene = CTX_data_scene(C);
+	bNode *node = ptr->data;
+	
+	node->id = &scene->id;
+	
+	node_cmp_rlayers_force_hidden_passes(node);
+}
+
 static int node_composit_poll_rlayers(bNodeType *UNUSED(ntype), bNodeTree *ntree)
 {
 	if (strcmp(ntree->idname, "CompositorNodeTree") == 0) {
@@ -371,6 +463,7 @@ void register_node_type_cmp_rlayers(void)
 
 	cmp_node_type_base(&ntype, CMP_NODE_R_LAYERS, "Render Layers", NODE_CLASS_INPUT, NODE_PREVIEW);
 	node_type_socket_templates(&ntype, NULL, cmp_node_rlayers_out);
+	ntype.initfunc_api = node_composit_init_rlayers;
 	ntype.poll = node_composit_poll_rlayers;
 
 	nodeRegisterType(&ntype);

@@ -107,17 +107,15 @@ static PyObject *SVertex_add_normal(BPy_SVertex *self, PyObject *args, PyObject 
 {
 	static const char *kwlist[] = {"normal", NULL};
 	PyObject *py_normal;
+	Vec3r n;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", (char **)kwlist, &py_normal))
 		return NULL;
-	Vec3r *n = Vec3r_ptr_from_PyObject(py_normal);
-	if (!n) {
+	if (!Vec3r_ptr_from_PyObject(py_normal, n)) {
 		PyErr_SetString(PyExc_TypeError, "argument 1 must be a 3D vector (either a list of 3 elements or Vector)");
 		return NULL;
 	}
-	self->sv->AddNormal(*n);
-	delete n;
-
+	self->sv->AddNormal(n);
 	Py_RETURN_NONE;
 }
 
@@ -371,6 +369,7 @@ static PyObject *SVertex_normals_size_get(BPy_SVertex *self, void *UNUSED(closur
 PyDoc_STRVAR(SVertex_viewvertex_doc,
 "If this SVertex is also a ViewVertex, this property refers to the\n"
 "ViewVertex, and None otherwise.\n"
+"\n"
 ":type: :class:`ViewVertex`");
 
 static PyObject *SVertex_viewvertex_get(BPy_SVertex *self, void *UNUSED(closure))

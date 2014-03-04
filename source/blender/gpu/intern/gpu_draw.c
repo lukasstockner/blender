@@ -27,11 +27,17 @@
 
 /** \file blender/gpu/intern/gpu_draw.c
  *  \ingroup gpu
+ *
+ * Utility functions for dealing with OpenGL texture & material context,
+ * mipmap generation and light objects.
+ *
+ * These are some obscure rendering functions shared between the
+ * game engine and the blender, in this module to avoid duplication
+ * and abstract them away from the rest a bit.
  */
 
 /* my interface */
 #include "GPU_draw.h"
-
 #include "intern/gpu_extensions_intern.h"
 #include "intern/gpu_raster_intern.h"
 
@@ -53,7 +59,10 @@
 
 /* external */
 
+#include "BLI_blenlib.h"
+#include "BLI_linklist.h"
 #include "BLI_math.h"
+#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_lamp_types.h"
@@ -70,9 +79,6 @@
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
-
-#include "BLI_threads.h"
-#include "BLI_blenlib.h"
 
 #include "BKE_bmfont.h"
 #include "BKE_global.h"
@@ -93,10 +99,6 @@
 
 extern Material defmaterial; /* from material.c */
 
-/* These are some obscure rendering functions shared between the
- * game engine and the blender, in this module to avoid duplicaten
- * and abstract them away from the rest a bit */
-
 /* Text Rendering */
 
 static void gpu_mcol(unsigned int ucol)
@@ -112,7 +114,9 @@ void GPU_render_text(MTFace *tface, int mode,
 {
 	if ((mode & GEMAT_TEXT) && (textlen>0) && tface->tpage) {
 		Image* ima = (Image *)tface->tpage;
-		int index, character;
+		ImBuf *first_ibuf;
+		const size_t textlen_st = textlen;
+		size_t index;
 		float centerx, centery, sizex, sizey, transx, transy, movex, movey, advance;
 		float advance_tab;
 		
@@ -136,18 +140,20 @@ void GPU_render_text(MTFace *tface, int mode,
 		gpuPushMatrix();
 		
 		/* get the tab width */
-		matrixGlyph((ImBuf *)ima->ibufs.first, ' ', & centerx, &centery,
+		first_ibuf = BKE_image_get_first_ibuf(ima);
+		matrixGlyph(first_ibuf, ' ', &centerx, &centery,
 			&sizex, &sizey, &transx, &transy, &movex, &movey, &advance);
 		
 		advance_tab= advance * 4; /* tab width could also be an option */
 		
 		gpuImmediateFormat_V2();
 
-		for (index = 0; index < textlen; index++) {
+		for (index = 0; index < textlen_st; ) {
+			unsigned int character;
 			float uv[4][2];
 
 			// lets calculate offset stuff
-			character = textstr[index];
+			character = BLI_str_utf8_as_unicode_and_size_safe(textstr + index, &index);
 			
 			if (character=='\n') {
 				gpuTranslate(line_start, -line_height, 0.0);
@@ -160,10 +166,14 @@ void GPU_render_text(MTFace *tface, int mode,
 				continue;
 				
 			}
+			else if (character > USHRT_MAX) {
+				/* not much we can do here bmfonts take ushort */
+				character = '?';
+			}
 			
 			// space starts at offset 1
 			// character = character - ' ' + 1;
-			matrixGlyph((ImBuf *)ima->ibufs.first, character, & centerx, &centery,
+			matrixGlyph(first_ibuf, character, & centerx, &centery,
 				&sizex, &sizey, &transx, &transy, &movex, &movey, &advance);
 
 			uv[0][0] = (tface->uv[0][0] - centerx) * sizex + transx;
@@ -207,6 +217,8 @@ void GPU_render_text(MTFace *tface, int mode,
 		gpuImmediateUnformat();
 
 		gpuPopMatrix();
+		
+		BKE_image_release_ibuf(ima, first_ibuf, NULL);
 	}
 }
 
@@ -1059,6 +1071,77 @@ void GPU_paint_set_mipmap(int mipmap)
 	}
 }
 
+
+/* check if image has been downscaled and do scaled partial update */
+static bool GPU_check_scaled_image(ImBuf *ibuf, Image *ima, float *frect, int x, int y, int w, int h)
+{
+	if ((!GPU_non_power_of_two_support() && !is_power_of_2_resolution(ibuf->x, ibuf->y)) ||
+	    is_over_resolution_limit(ibuf->x, ibuf->y))
+	{
+		int x_limit = smaller_power_of_2_limit(ibuf->x);
+		int y_limit = smaller_power_of_2_limit(ibuf->y);
+
+		float xratio = x_limit / (float)ibuf->x;
+		float yratio = y_limit / (float)ibuf->y;
+
+		/* find new width, height and x,y gpu texture coordinates */
+
+		/* take ceiling because we will be losing 1 pixel due to rounding errors in x,y... */
+		int rectw = (int)ceil(xratio * w);
+		int recth = (int)ceil(yratio * h);
+
+		x *= xratio;
+		y *= yratio;
+
+		/* ...but take back if we are over the limit! */
+		if (rectw + x > x_limit) rectw--;
+		if (recth + y > y_limit) recth--;
+
+		/* float rectangles are already continuous in memory so we can use gluScaleImage */
+		if (frect) {
+			float *fscalerect = MEM_mallocN(rectw*recth*sizeof(*fscalerect)*4, "fscalerect");
+			gluScaleImage(GL_RGBA, w, h, GL_FLOAT, frect, rectw, recth, GL_FLOAT, fscalerect);
+
+			glBindTexture(GL_TEXTURE_2D, ima->bindcode);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, rectw, recth, GL_RGBA,
+			                GL_FLOAT, fscalerect);
+
+			MEM_freeN(fscalerect);
+		}
+		/* byte images are not continuous in memory so do manual interpolation */
+		else {
+			unsigned char *scalerect = MEM_mallocN(rectw * recth * sizeof(*scalerect) * 4, "scalerect");
+			unsigned int *p = (unsigned int *)scalerect;
+			int i, j;
+			float inv_xratio = 1.0f / xratio;
+			float inv_yratio = 1.0f / yratio;
+			for (i = 0; i < rectw; i++) {
+				float u = (x + i) * inv_xratio;
+				for (j = 0; j < recth; j++) {
+					float v = (y + j) * inv_yratio;
+					bilinear_interpolation_color_wrap(ibuf, (unsigned char *)(p + i + j * (rectw)), NULL, u, v);
+				}
+			}
+			glBindTexture(GL_TEXTURE_2D, ima->bindcode);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, rectw, recth, GL_RGBA,
+			                GL_UNSIGNED_BYTE, scalerect);
+
+			MEM_freeN(scalerect);
+		}
+
+		if (GPU_get_mipmap()) {
+			gpu_generate_mipmap(GL_TEXTURE_2D);
+		}
+		else {
+			ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 {
 	ImBuf *ibuf;
@@ -1081,6 +1164,15 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 			int is_data = (ima->tpageflag & IMA_GLBIND_IS_DATA);
 			IMB_partial_rect_from_float(ibuf, buffer, x, y, w, h, is_data);
 
+			if (GPU_check_scaled_image(ibuf, ima, buffer, x, y, w, h)) {
+				MEM_freeN(buffer);
+				glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
+				glPixelStorei(GL_UNPACK_SKIP_PIXELS, skip_pixels);
+				glPixelStorei(GL_UNPACK_SKIP_ROWS, skip_rows);
+				BKE_image_release_ibuf(ima, ibuf, NULL);
+				return;
+			}
+
 			gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 			glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA,
 					GL_FLOAT, buffer);
@@ -1099,8 +1191,14 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 			BKE_image_release_ibuf(ima, ibuf, NULL);
 			return;
 		}
-		
-		gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
+
+		if (GPU_check_scaled_image(ibuf, ima, NULL, x, y, w, h)) {
+			glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
+			glPixelStorei(GL_UNPACK_SKIP_PIXELS, skip_pixels);
+			glPixelStorei(GL_UNPACK_SKIP_ROWS, skip_rows);
+			BKE_image_release_ibuf(ima, ibuf, NULL);
+			return;
+		}
 
 		if (ibuf->x != 0)
 			glPixelStorei(GL_UNPACK_ROW_LENGTH,  ibuf->x);
@@ -1111,6 +1209,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 		if (y != 0)
 			glPixelStorei(GL_UNPACK_SKIP_ROWS,   y);
 
+		gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA,
 			GL_UNSIGNED_BYTE, ibuf->rect);
 
@@ -1257,19 +1356,18 @@ void GPU_create_smoke(SmokeModifierData *smd, int highres)
 #endif // WITH_SMOKE
 }
 
-static ListBase image_free_queue = {NULL, NULL};
+static LinkNode *image_free_queue = NULL;
 
 static void gpu_queue_image_for_free(Image *ima)
 {
-	Image *cpy = MEM_dupallocN(ima);
-
 	BLI_lock_thread(LOCK_OPENGL);
-	BLI_addtail(&image_free_queue, cpy);
+	BLI_linklist_prepend(&image_free_queue, ima);
 	BLI_unlock_thread(LOCK_OPENGL);
 }
 
 void GPU_free_unused_buffers(void)
 {
+	LinkNode *node;
 	Image *ima;
 
 	if (!BLI_thread_is_main())
@@ -1278,14 +1376,19 @@ void GPU_free_unused_buffers(void)
 	BLI_lock_thread(LOCK_OPENGL);
 
 	/* images */
-	for (ima=image_free_queue.first; ima; ima=ima->id.next)
-		GPU_free_image(ima);
+	for (node=image_free_queue; node; node=node->next) {
+		ima = node->link;
 
-	BLI_freelistN(&image_free_queue);
+		/* check in case it was freed in the meantime */
+		if (G.main && BLI_findindex(&G.main->image, ima) != -1)
+			GPU_free_image(ima);
+	}
+
+	BLI_linklist_free(image_free_queue, NULL);
+	image_free_queue = NULL;
 
 	/* vbo buffers */
-	/* it's probably not necessary to free all buffers every frame */
-	/* GPU_buffer_pool_free_unused(0); */
+	GPU_global_buffer_pool_free_unused();
 
 	BLI_unlock_thread(LOCK_OPENGL);
 }
@@ -1336,7 +1439,7 @@ void GPU_free_images_anim(void)
 
 	if (G.main)
 		for (ima=G.main->image.first; ima; ima=ima->id.next)
-			if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE))
+			if (BKE_image_is_animated(ima))
 				GPU_free_image(ima);
 }
 
@@ -1366,11 +1469,11 @@ static struct GPUMaterialState {
 	float (*gviewmat)[4];
 	float (*gviewinv)[4];
 
-	int backface_culling;
+	bool backface_culling;
 
 	GPUBlendMode *alphablend;
 	GPUBlendMode alphablend_fixed[FIXEDMAT];
-	int use_alpha_pass, is_alpha_pass;
+	bool use_alpha_pass, is_alpha_pass;
 
 	int lastmatnr, lastretval;
 	GPUBlendMode lastalphablend;
@@ -1531,9 +1634,11 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	GPUMaterial *gpumat;
 	GPUBlendMode alphablend;
 	int a;
-	int gamma = BKE_scene_check_color_management_enabled(scene);
-	int new_shading_nodes = BKE_scene_use_new_shading_nodes(scene);
-	int use_matcap = (v3d->flag2 & V3D_SHOW_SOLID_MATCAP); /* assumes v3d->defmaterial->preview is set */
+	const bool gamma = BKE_scene_check_color_management_enabled(scene);
+	const bool new_shading_nodes = BKE_scene_use_new_shading_nodes(scene);
+	const bool use_matcap = (v3d->flag2 & V3D_SHOW_SOLID_MATCAP) != 0;  /* assumes v3d->defmaterial->preview is set */
+
+	ob = BKE_object_lod_matob_get(ob, scene);
 	
 	/* initialize state */
 	memset(&GMS, 0, sizeof(GMS));
@@ -1548,7 +1653,7 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	GMS.lastblendenabled      = GL_FALSE;
 	GMS.lastblendfuncdefault  = GL_TRUE;
 
-	GMS.backface_culling = (v3d->flag2 & V3D_BACKFACE_CULLING);
+	GMS.backface_culling = (v3d->flag2 & V3D_BACKFACE_CULLING) != 0;
 
 	GMS.gob = ob;
 	GMS.gscene = scene;
@@ -1902,8 +2007,6 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 		gpuPushMatrix();
 		gpuLoadMatrix((float *)viewmat);
 
-		BKE_object_where_is_calc_simul(scene, base->object);
-
 		lights[count] = GPU_DEFAULT_LIGHT;
 
 		if (la->type==LA_SUN) {
@@ -1923,8 +2026,7 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 			if (la->type==LA_SPOT) {
 				/* spot lamp */
 				negate_v3_v3(lights[count].spot_direction, base->object->obmat[2]);
-				lights[count].spot_cutoff   = la->spotsize/2.0f;
-				lights[count].spot_exponent = 128.0f*la->spotblend;
+				lights[count].spot_cutoff = RAD2DEGF(la->spotsize / 2.0f);
 			}
 		}
 

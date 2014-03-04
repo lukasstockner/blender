@@ -62,6 +62,7 @@ struct Material;
 struct Bone;
 struct Mesh;
 struct DerivedMesh;
+struct EvaluationContext;
 
 /* used for curves, nurbs, mball, importing */
 typedef struct DispList {
@@ -91,8 +92,8 @@ void BKE_displist_make_surf(struct Scene *scene, struct Object *ob, struct ListB
 void BKE_displist_make_curveTypes(struct Scene *scene, struct Object *ob, int forOrco);
 void BKE_displist_make_curveTypes_forRender(struct Scene *scene, struct Object *ob, struct ListBase *dispbase, struct DerivedMesh **derivedFinal, int forOrco, int renderResolution);
 void BKE_displist_make_curveTypes_forOrco(struct Scene *scene, struct Object *ob, struct ListBase *dispbase);
-void BKE_displist_make_mball(struct Scene *scene, struct Object *ob);
-void BKE_displist_make_mball_forRender(struct Scene *scene, struct Object *ob, struct ListBase *dispbase);
+void BKE_displist_make_mball(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
+void BKE_displist_make_mball_forRender(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob, struct ListBase *dispbase);
 
 bool BKE_displist_surfindex_get(DispList *dl, int a, int *b, int *p1, int *p2, int *p3, int *p4);
 void BKE_displist_fill(struct ListBase *dispbase, struct ListBase *to, const float normal_proj[3], const bool flipnormal);
@@ -101,5 +102,7 @@ float BKE_displist_calc_taper(struct Scene *scene, struct Object *taperobj, int 
 
 /* add Orco layer to the displist object which has got derived mesh and return orco */
 float *BKE_displist_make_orco(struct Scene *scene, struct Object *ob, struct DerivedMesh *derivedFinal, int forRender, int renderResolution);
+
+void BKE_displist_minmax(struct ListBase *dispbase, float min[3], float max[3]);
 
 #endif

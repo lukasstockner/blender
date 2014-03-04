@@ -134,6 +134,12 @@ base class --- :class:`SCA_IObject`
 
       :type: :class:`KX_GameObject` or None
 
+   .. attribute:: collisionCallbacks
+
+      A list of callables to be run when a collision occurs.
+
+      :type: list
+
    .. attribute:: scene
 
       The object's scene. (read-only).
@@ -145,10 +151,16 @@ base class --- :class:`SCA_IObject`
       visibility flag.
 
       :type: boolean
-      
+
       .. note::
-      
+
          Game logic will still run for invisible objects.
+
+   .. attribute:: record_animation
+
+      Record animation for this object.
+
+      :type: boolean
 
    .. attribute:: color
 
@@ -708,8 +720,8 @@ base class --- :class:`SCA_IObject`
       :rtype:
 
          * 3-tuple (:class:`KX_GameObject`, 3-tuple (x, y, z), 3-tuple (nx, ny, nz))
-         * or 4-tuple (:class:`KX_GameObject`, 3-tuple (x, y, z), 3-tuple (nx, ny, nz), :class:`PolyProxy`)
-         * or 5-tuple (:class:`KX_GameObject`, 3-tuple (x, y, z), 3-tuple (nx, ny, nz), :class:`PolyProxy`, 2-tuple (u, v))
+         * or 4-tuple (:class:`KX_GameObject`, 3-tuple (x, y, z), 3-tuple (nx, ny, nz), :class:`KX_PolyProxy`)
+         * or 5-tuple (:class:`KX_GameObject`, 3-tuple (x, y, z), 3-tuple (nx, ny, nz), :class:`KX_PolyProxy`, 2-tuple (u, v))
 
       .. note::
       
@@ -776,7 +788,7 @@ base class --- :class:`SCA_IObject`
       Return the value matching key, or the default value if its not found.
       :return: The key value or a default.
 
-   .. method:: playAction(name, start_frame, end_frame, layer=0, priority=0, blendin=0, play_mode=ACT_MODE_PLAY, layer_weight=0.0, ipo_flags=0, speed=1.0)
+   .. method:: playAction(name, start_frame, end_frame, layer=0, priority=0, blendin=0, play_mode=KX_ACTION_MODE_PLAY, layer_weight=0.0, ipo_flags=0, speed=1.0, blend_mode=KX_ACTION_BLEND_BLEND)
 
       Plays an action.
       
@@ -794,12 +806,14 @@ base class --- :class:`SCA_IObject`
       :type blendin: float
       :arg play_mode: the play mode
       :type play_mode: one of :ref:`these constants <gameobject-playaction-mode>`
-      :arg layer_weight: how much of the previous layer to use for blending (0 = add)
+      :arg layer_weight: how much of the previous layer to use for blending
       :type layer_weight: float
       :arg ipo_flags: flags for the old IPO behaviors (force, etc)
       :type ipo_flags: int bitfield
       :arg speed: the playback speed of the action as a factor (1.0 = normal speed, 2.0 = 2x speed, etc)
       :type speed: float
+	  :arg blend_mode: how to blend this layer with previous layers
+	  :type blend_mode: one of :ref:`these constants <gameobject-playaction-blend>`
 
    .. method:: stopAction(layer=0)
       

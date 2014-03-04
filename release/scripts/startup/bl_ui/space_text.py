@@ -34,22 +34,15 @@ class TEXT_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        if context.area.show_menus:
-            row.menu("TEXT_MT_view")
-            row.menu("TEXT_MT_text")
-
-            if text:
-                row.menu("TEXT_MT_edit")
-                row.menu("TEXT_MT_format")
-
-            row.menu("TEXT_MT_templates")
+        TEXT_MT_editor_menus.draw_collapsible(context, layout)
 
         if text and text.is_modified:
-            sub = row.row()
+            sub = row.row(align=True)
             sub.alert = True
             sub.operator("text.resolve_conflict", text="", icon='HELP')
 
-        row.template_ID(st, "text", new="text.new", unlink="text.unlink")
+        row = layout.row(align=True)
+        row.template_ID(st, "text", new="text.new", unlink="text.unlink", open="text.open")
 
         row = layout.row(align=True)
         row.prop(st, "show_line_numbers", text="")
@@ -82,6 +75,28 @@ class TEXT_HT_header(Header):
                 row.label(text="Text: External"
                           if text.library
                           else "Text: Internal")
+
+
+class TEXT_MT_editor_menus(Menu):
+    bl_idname = "TEXT_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        st = context.space_data
+        text = st.text
+
+        layout.menu("TEXT_MT_view")
+        layout.menu("TEXT_MT_text")
+
+        if text:
+            layout.menu("TEXT_MT_edit")
+            layout.menu("TEXT_MT_format")
+
+        layout.menu("TEXT_MT_templates")
 
 
 class TEXT_PT_properties(Panel):
@@ -127,21 +142,21 @@ class TEXT_PT_find(Panel):
 
         # find
         col = layout.column(align=True)
-        row = col.row()
+        row = col.row(align=True)
         row.prop(st, "find_text", text="")
         row.operator("text.find_set_selected", text="", icon='TEXT')
         col.operator("text.find")
 
         # replace
         col = layout.column(align=True)
-        row = col.row()
+        row = col.row(align=True)
         row.prop(st, "replace_text", text="")
         row.operator("text.replace_set_selected", text="", icon='TEXT')
         col.operator("text.replace")
 
         # settings
         layout.prop(st, "use_match_case")
-        row = layout.row()
+        row = layout.row(align=True)
         row.prop(st, "use_find_wrap", text="Wrap")
         row.prop(st, "use_find_all", text="All")
 
@@ -301,7 +316,7 @@ class TEXT_MT_edit(Menu):
         layout.separator()
 
         layout.operator("text.jump")
-        layout.operator("text.properties", text="Find...")
+        layout.operator("text.start_find", text="Find...")
         layout.operator("text.autocomplete")
 
         layout.separator()

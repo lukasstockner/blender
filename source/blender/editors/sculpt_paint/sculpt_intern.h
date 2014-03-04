@@ -57,12 +57,14 @@ struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct 
 
 int sculpt_mode_poll(struct bContext *C);
 int sculpt_mode_poll_view3d(struct bContext *C);
+/* checks for a brush, not just sculpt mode */
 int sculpt_poll(struct bContext *C);
+int sculpt_poll_view3d(struct bContext *C);
 void sculpt_update_mesh_elements(struct Scene *scene, struct Sculpt *sd, struct Object *ob,
                                  int need_pmap, int need_mask);
 
 /* Stroke */
-int sculpt_stroke_get_location(struct bContext *C, float out[3], const float mouse[2]);
+bool sculpt_stroke_get_location(struct bContext *C, float out[3], const float mouse[2]);
 
 /* Dynamic topology */
 void sculpt_pbvh_clear(struct Object *ob);
@@ -99,14 +101,14 @@ typedef struct SculptUndoNode {
 	/* non-multires */
 	int maxvert;                /* to verify if totvert it still the same */
 	int *index;                 /* to restore into right location */
-	BLI_bitmap vert_hidden;
+	BLI_bitmap *vert_hidden;
 
 	/* multires */
 	int maxgrid;                /* same for grid */
 	int gridsize;               /* same for grid */
 	int totgrid;                /* to restore into right location */
 	int *grids;                 /* to restore into right location */
-	BLI_bitmap *grid_hidden;
+	BLI_bitmap **grid_hidden;
 
 	/* bmesh */
 	struct BMLogEntry *bm_entry;
@@ -130,5 +132,7 @@ void sculpt_undo_push_begin(const char *name);
 void sculpt_undo_push_end(void);
 
 void sculpt_vertcos_to_key(struct Object *ob, struct KeyBlock *kb, float (*vertCos)[3]);
+
+void sculpt_update_object_bounding_box(struct Object *ob);
 
 #endif

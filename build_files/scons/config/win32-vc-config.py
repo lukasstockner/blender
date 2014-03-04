@@ -1,12 +1,34 @@
-LCGDIR = '#../lib/windows'
+import subprocess
+
+CL_OUT = subprocess.Popen(["cl.exe"],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+CL_STDOUT, CL_STDERR = CL_OUT.communicate()
+
+if "18.00." in CL_STDERR:
+    VC_VERSION = '12.0'
+    LCGDIR = '#../lib/windows_vc12'
+elif "17.00." in CL_STDERR:
+    VC_VERSION = '11.0'
+    LCGDIR = '#../lib/windows_vc11'
+elif "15.00." in  CL_STDERR:
+    VC_VERSION = '9.0'
+    LCGDIR = '#../lib/windows'
+else:
+    import sys
+    print("Visual C version not supported {}\n".format(CL_STDERR))
+    sys.exit(1)
+
 LIBDIR = '${LCGDIR}'
 
 WITH_BF_FFMPEG = True
 BF_FFMPEG = LIBDIR +'/ffmpeg'
 BF_FFMPEG_INC = '${BF_FFMPEG}/include ${BF_FFMPEG}/include/msvc'
 BF_FFMPEG_LIBPATH='${BF_FFMPEG}/lib'
-BF_FFMPEG_LIB = 'avformat-53.lib avcodec-53.lib avdevice-53.lib avutil-51.lib swscale-2.lib'
-BF_FFMPEG_DLL = '${BF_FFMPEG_LIBPATH}/avformat-53.dll ${BF_FFMPEG_LIBPATH}/avcodec-53.dll ${BF_FFMPEG_LIBPATH}/avdevice-53.dll ${BF_FFMPEG_LIBPATH}/avutil-51.dll ${BF_FFMPEG_LIBPATH}/swscale-2.dll'
+if VC_VERSION == '11.0':
+    BF_FFMPEG_LIB = 'avformat-54.lib avcodec-54.lib avdevice-54.lib avutil-52.lib avfilter-3.lib swscale-2.lib swresample-0.lib'
+    BF_FFMPEG_DLL = '${BF_FFMPEG_LIBPATH}/avformat-54.dll ${BF_FFMPEG_LIBPATH}/avcodec-54.dll ${BF_FFMPEG_LIBPATH}/avdevice-54.dll ${BF_FFMPEG_LIBPATH}/avutil-52.dll ${BF_FFMPEG_LIBPATH}/avfilter-3.dll ${BF_FFMPEG_LIBPATH}/swscale-2.dll ${BF_FFMPEG_LIBPATH}/swresample-0.dll'
+else:
+    BF_FFMPEG_LIB = 'avformat-53.lib avcodec-53.lib avdevice-53.lib avutil-51.lib swscale-2.lib'
+    BF_FFMPEG_DLL = '${BF_FFMPEG_LIBPATH}/avformat-53.dll ${BF_FFMPEG_LIBPATH}/avcodec-53.dll ${BF_FFMPEG_LIBPATH}/avdevice-53.dll ${BF_FFMPEG_LIBPATH}/avutil-51.dll ${BF_FFMPEG_LIBPATH}/swscale-2.dll'
 
 BF_PYTHON = LIBDIR + '/python'
 BF_PYTHON_VERSION = '3.3'
@@ -19,7 +41,10 @@ BF_PYTHON_LIBPATH = '${BF_PYTHON}/lib'
 WITH_BF_OPENAL = True
 BF_OPENAL = LIBDIR + '/openal'
 BF_OPENAL_INC = '${BF_OPENAL}/include '
-BF_OPENAL_LIB = 'wrap_oal'
+if VC_VERSION == '11.0':
+    BF_OPENAL_LIB = 'OpenAL32'
+else:
+    BF_OPENAL_LIB = 'wrap_oal'
 BF_OPENAL_LIBPATH = '${BF_OPENAL}/lib'
 
 WITH_BF_ICONV = True
@@ -43,7 +68,10 @@ BF_SNDFILE_LIBPATH = '${BF_SNDFILE}/lib'
 WITH_BF_SDL = True
 BF_SDL = LIBDIR + '/sdl'
 BF_SDL_INC = '${BF_SDL}/include'
-BF_SDL_LIB = 'SDL.lib'
+if VC_VERSION == '11.0':
+    BF_SDL_LIB = 'SDL.lib dxguid.lib'
+else:
+    BF_SDL_LIB = 'SDL.lib'
 BF_SDL_LIBPATH = '${BF_SDL}/lib'
 
 BF_PTHREADS = LIBDIR + '/pthreads'
@@ -55,7 +83,10 @@ WITH_BF_OPENEXR = True
 WITH_BF_STATICOPENEXR = False
 BF_OPENEXR = LIBDIR + '/openexr'
 BF_OPENEXR_INC = '${BF_OPENEXR}/include ${BF_OPENEXR}/include/OpenEXR '
-BF_OPENEXR_LIB = ' Iex Half IlmImf Imath IlmThread '
+if VC_VERSION == '12.0':
+    BF_OPENEXR_LIB = ' Iex-2_1 Half IlmImf-2_1 Imath-2_1 IlmThread-2_1 '
+else:
+    BF_OPENEXR_LIB = ' Iex Half IlmImf Imath IlmThread '
 BF_OPENEXR_LIBPATH = '${BF_OPENEXR}/lib'
 BF_OPENEXR_LIB_STATIC = '${BF_OPENEXR}/lib/libHalf.a ${BF_OPENEXR}/lib/libIlmImf.a ${BF_OPENEXR}/lib/libIex.a ${BF_OPENEXR}/lib/libImath.a ${BF_OPENEXR}/lib/libIlmThread.a'
 
@@ -111,12 +142,6 @@ BF_FREETYPE = LIBDIR + '/freetype'
 BF_FREETYPE_INC = '${BF_FREETYPE}/include ${BF_FREETYPE}/include/freetype2'
 BF_FREETYPE_LIB = 'freetype2ST'
 BF_FREETYPE_LIBPATH = '${BF_FREETYPE}/lib'
-
-WITH_BF_QUICKTIME = False
-BF_QUICKTIME = LIBDIR + '/QTDevWin'
-BF_QUICKTIME_INC = '${BF_QUICKTIME}/CIncludes'
-BF_QUICKTIME_LIB = 'qtmlClient'
-BF_QUICKTIME_LIBPATH = '${BF_QUICKTIME}/Libraries'
 
 WITH_BF_OPENJPEG = True 
 BF_OPENJPEG = '#extern/libopenjpeg'
@@ -182,14 +207,26 @@ WITH_BF_STATICOCIO = True
 WITH_BF_BOOST = True
 BF_BOOST = '${LIBDIR}/boost'
 BF_BOOST_INC = '${BF_BOOST}/include'
-BF_BOOST_LIB = 'libboost_date_time-vc90-mt-s-1_49 libboost_filesystem-vc90-mt-s-1_49 libboost_regex-vc90-mt-s-1_49 libboost_system-vc90-mt-s-1_49 libboost_thread-vc90-mt-s-1_49 libboost_wave-vc90-mt-s-1_49'
-BF_BOOST_LIB_INTERNATIONAL = 'libboost_locale-vc90-mt-s-1_49'
+if VC_VERSION == '12.0':
+    BF_BOOST_LIB = 'libboost_date_time-vc120-mt-s-1_55 libboost_filesystem-vc120-mt-s-1_55 libboost_regex-vc120-mt-s-1_55 libboost_system-vc120-mt-s-1_55 libboost_thread-vc120-mt-s-1_55 libboost_wave-vc120-mt-s-1_55'
+    BF_BOOST_LIB_INTERNATIONAL = ' libboost_locale-vc120-mt-s-1_55'
+elif VC_VERSION == '11.0':
+    BF_BOOST_LIB = 'libboost_date_time-vc110-mt-s-1_53 libboost_filesystem-vc110-mt-s-1_53 libboost_regex-vc110-mt-s-1_53 libboost_system-vc110-mt-s-1_53 libboost_thread-vc110-mt-s-1_53 libboost_wave-vc110-mt-s-1_53'
+    BF_BOOST_LIB_INTERNATIONAL = ' libboost_locale-vc110-mt-s-1_53'
+else:
+    BF_BOOST_LIB = 'libboost_date_time-vc90-mt-s-1_49 libboost_filesystem-vc90-mt-s-1_49 libboost_regex-vc90-mt-s-1_49 libboost_system-vc90-mt-s-1_49 libboost_thread-vc90-mt-s-1_49 libboost_wave-vc90-mt-s-1_49'
+    BF_BOOST_LIB_INTERNATIONAL = 'libboost_locale-vc90-mt-s-1_49'
 BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
 
 #CUDA
 WITH_BF_CYCLES_CUDA_BINARIES = False
 #BF_CYCLES_CUDA_NVCC = "" # Path to the nvidia compiler
-BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30']
+
+# Workaround for ptxas.exe crash on VS2012 and cuda 5.5
+if VC_VERSION == '11.0':
+	BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30']
+else:
+	BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30', 'sm_35']
 
 #Ray trace optimization
 WITH_BF_RAYOPTIMIZATION = True
@@ -209,16 +246,16 @@ BF_OPENGL_LIB_STATIC = [ '${BF_OPENGL}/lib/libGL.a', '${BF_OPENGL}/lib/libGLU.a'
 CC = 'cl.exe'
 CXX = 'cl.exe'
 
-CCFLAGS = ['/nologo', '/Ob1', '/J', '/W1', '/Gd', '/wd4018', '/wd4244', '/wd4305', '/wd4800', '/wd4065', '/wd4267', '/we4013']
+CCFLAGS = ['/nologo', '/J', '/W1', '/Gd', '/wd4018', '/wd4244', '/wd4305', '/wd4800', '/wd4065', '/wd4267', '/we4013']
 CXXFLAGS = ['/EHsc']
-BGE_CXXFLAGS = ['/O2', '/EHsc', '/GR', '/fp:fast', '/arch:SSE']
+BGE_CXXFLAGS = ['/O2', '/Ob2', '/EHsc', '/GR', '/fp:fast', '/arch:SSE']
 
-BF_DEBUG_CCFLAGS = ['/Zi', '/FR${TARGET}.sbr']
+BF_DEBUG_CCFLAGS = ['/Zi', '/Ob0', '/Od', '/FR${TARGET}.sbr']
 
 CPPFLAGS = ['-DWIN32','-D_CONSOLE', '-D_LIB', '-D_CRT_SECURE_NO_DEPRECATE', '-DOPJ_STATIC']
 REL_CFLAGS = []
 REL_CXXFLAGS = []
-REL_CCFLAGS = ['-O2', '-DNDEBUG']
+REL_CCFLAGS = ['-O2', '/Ob2', '-DNDEBUG']
 
 C_WARN = []
 CC_WARN = []
@@ -235,5 +272,9 @@ PLATFORM_LINKFLAGS = ['/SUBSYSTEM:CONSOLE','/MACHINE:IX86','/STACK:2097152','/IN
 
 BF_BSC=False
 
-BF_BUILDDIR = '..\\build\\win32-vc'
-BF_INSTALLDIR='..\\install\\win32-vc'
+if VC_VERSION == '11.0':
+    BF_BUILDDIR = '..\\build\\win32-vc11'
+    BF_INSTALLDIR='..\\install\\win32-vc11'
+else:
+    BF_BUILDDIR = '..\\build\\win32-vc'
+    BF_INSTALLDIR='..\\install\\win32-vc'

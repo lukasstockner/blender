@@ -60,7 +60,10 @@ typedef struct CurveMap {
 	float ext_in[2], ext_out[2];	/* for extrapolated curves, the direction vector */
 	CurveMapPoint *curve;			/* actual curve */
 	CurveMapPoint *table;			/* display and evaluate table */
+
 	CurveMapPoint *premultable;		/* for RGB curves, premulled table */
+	float premul_ext_in[2];			/* for RGB curves, premulled extrapolation vector */
+	float premul_ext_out[2];
 } CurveMap;
 
 /* cuma->flag */
@@ -162,6 +165,7 @@ typedef struct Scopes {
 
 typedef struct ColorManagedViewSettings {
 	int flag, pad;
+	char look[64];   /* look which is being applied when displaying buffer on the screen (prior to view transform) */
 	char view_transform[64];   /* view transform which is being applied when displaying buffer on the screen */
 	float exposure;            /* fstop exposure */
 	float gamma;               /* post-display gamma transform */

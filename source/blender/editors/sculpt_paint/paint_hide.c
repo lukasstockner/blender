@@ -71,23 +71,11 @@
 
 #include <assert.h>
 
-static int planes_contain_v3(float (*planes)[4], int totplane, const float p[3])
-{
-	int i;
-
-	for (i = 0; i < totplane; i++) {
-		if (dot_v3v3(planes[i], p) + planes[i][3] > 0)
-			return 0;
-	}
-
-	return 1;
-}
-
 /* return true if the element should be hidden/shown */
-static int is_effected(PartialVisArea area,
-                       float planes[4][4],
-                       const float co[3],
-                       const float mask)
+static bool is_effected(PartialVisArea area,
+                        float planes[4][4],
+                        const float co[3],
+                        const float mask)
 {
 	if (area == PARTIALVIS_ALL)
 		return 1;
@@ -95,7 +83,7 @@ static int is_effected(PartialVisArea area,
 		return mask > 0.5f;
 	}
 	else {
-		int inside = planes_contain_v3(planes, 4, co);
+		bool inside = isect_point_planes_v3(planes, 4, co);
 		return ((inside && area == PARTIALVIS_INSIDE) ||
 		        (!inside && area == PARTIALVIS_OUTSIDE));
 	}
@@ -112,7 +100,8 @@ static void partialvis_update_mesh(Object *ob,
 	MVert *mvert;
 	float *paint_mask;
 	int *vert_indices;
-	int any_changed = 0, any_visible = 0, totvert, i;
+	int totvert, i;
+	bool any_changed = false, any_visible = false;
 			
 	BKE_pbvh_node_num_verts(pbvh, node, NULL, &totvert);
 	BKE_pbvh_node_get_verts(pbvh, node, &vert_indices, &mvert);
@@ -130,11 +119,11 @@ static void partialvis_update_mesh(Object *ob,
 				v->flag |= ME_HIDE;
 			else
 				v->flag &= ~ME_HIDE;
-			any_changed = 1;
+			any_changed = true;
 		}
 
 		if (!(v->flag & ME_HIDE))
-			any_visible = 1;
+			any_visible = true;
 	}
 
 	if (any_changed) {
@@ -154,9 +143,10 @@ static void partialvis_update_grids(Object *ob,
 {
 	CCGElem **grids;
 	CCGKey key;
-	BLI_bitmap *grid_hidden;
-	int any_visible = 0;
-	int *grid_indices, totgrid, any_changed, i;
+	BLI_bitmap **grid_hidden;
+	int *grid_indices, totgrid, i;
+	bool any_changed = false, any_visible = false;
+
 
 	/* get PBVH data */
 	BKE_pbvh_node_get_grids(pbvh, node,
@@ -166,12 +156,11 @@ static void partialvis_update_grids(Object *ob,
 	BKE_pbvh_get_grid_key(pbvh, &key);
 	
 	sculpt_undo_push_node(ob, node, SCULPT_UNDO_HIDDEN);
-	
-	any_changed = 0;
+
 	for (i = 0; i < totgrid; i++) {
 		int any_hidden = 0;
 		int g = grid_indices[i], x, y;
-		BLI_bitmap gh = grid_hidden[g];
+		BLI_bitmap *gh = grid_hidden[g];
 
 		if (!gh) {
 			switch (action) {
@@ -190,8 +179,8 @@ static void partialvis_update_grids(Object *ob,
 			 * grid */
 			MEM_freeN(gh);
 			grid_hidden[g] = NULL;
-			any_changed = 1;
-			any_visible = 1;
+			any_changed = true;
+			any_visible = true;
 			continue;
 		}
 
@@ -207,14 +196,14 @@ static void partialvis_update_grids(Object *ob,
 					BLI_BITMAP_MODIFY(gh, y * key.grid_size + x,
 					                  action == PARTIALVIS_HIDE);
 
-					any_changed = 1;
+					any_changed = true;
 				}
 
 				/* keep track of whether any elements are still hidden */
 				if (BLI_BITMAP_GET(gh, y * key.grid_size + x))
-					any_hidden = 1;
+					any_hidden = true;
 				else
-					any_visible = 1;
+					any_visible = true;
 			}
 		}
 
@@ -235,20 +224,20 @@ static void partialvis_update_grids(Object *ob,
 }
 
 static void partialvis_update_bmesh_verts(BMesh *bm,
-										  GHash *verts,
-										  PartialVisAction action,
-										  PartialVisArea area,
-										  float planes[4][4],
-										  int *any_changed,
-										  int *any_visible)
+                                          GSet *verts,
+                                          PartialVisAction action,
+                                          PartialVisArea area,
+                                          float planes[4][4],
+                                          bool *any_changed,
+                                          bool *any_visible)
 {
-	GHashIterator gh_iter;
+	GSetIterator gs_iter;
 
-	GHASH_ITER (gh_iter, verts) {
-		BMVert *v = BLI_ghashIterator_getKey(&gh_iter);
+	GSET_ITER (gs_iter, verts) {
+		BMVert *v = BLI_gsetIterator_getKey(&gs_iter);
 		float *vmask = CustomData_bmesh_get(&bm->vdata,
-											v->head.data,
-											CD_PAINT_MASK);
+		                                    v->head.data,
+		                                    CD_PAINT_MASK);
 
 		/* hide vertex if in the hide volume */
 		if (is_effected(area, planes, v->co, *vmask)) {
@@ -256,24 +245,24 @@ static void partialvis_update_bmesh_verts(BMesh *bm,
 				BM_elem_flag_enable(v, BM_ELEM_HIDDEN);
 			else
 				BM_elem_flag_disable(v, BM_ELEM_HIDDEN);
-			(*any_changed) = TRUE;
+			(*any_changed) = true;
 		}
 
 		if (!BM_elem_flag_test(v, BM_ELEM_HIDDEN))
-			(*any_visible) = TRUE;
+			(*any_visible) = true;
 	}
 }
 
 static void partialvis_update_bmesh(Object *ob,
-									PBVH *pbvh,
-									PBVHNode *node,
-									PartialVisAction action,
-									PartialVisArea area,
-									float planes[4][4])
+                                    PBVH *pbvh,
+                                    PBVHNode *node,
+                                    PartialVisAction action,
+                                    PartialVisArea area,
+                                    float planes[4][4])
 {
 	BMesh *bm;
-	GHash *unique, *other;
-	int any_changed = 0, any_visible = 0;
+	GSet *unique, *other;
+	bool any_changed = false, any_visible = false;
 
 	bm = BKE_pbvh_get_bmesh(pbvh);
 	unique = BKE_pbvh_bmesh_node_unique_verts(node);
@@ -282,20 +271,20 @@ static void partialvis_update_bmesh(Object *ob,
 	sculpt_undo_push_node(ob, node, SCULPT_UNDO_HIDDEN);
 
 	partialvis_update_bmesh_verts(bm,
-								  unique,
-								  action,
-								  area,
-								  planes,
-								  &any_changed,
-								  &any_visible);
+	                              unique,
+	                              action,
+	                              area,
+	                              planes,
+	                              &any_changed,
+	                              &any_visible);
 
 	partialvis_update_bmesh_verts(bm,
-								  other,
-								  action,
-								  area,
-								  planes,
-								  &any_changed,
-								  &any_visible);
+	                              other,
+	                              action,
+	                              area,
+	                              planes,
+	                              &any_changed,
+	                              &any_visible);
 
 	if (any_changed) {
 		BKE_pbvh_node_mark_rebuild_draw(node);
@@ -416,9 +405,7 @@ static int hide_show_exec(bContext *C, wmOperator *op)
 	/* ensure that edges and faces get hidden as well (not used by
 	 * sculpt but it looks wrong when entering editmode otherwise) */
 	if (pbvh_type == PBVH_FACES) {
-		BKE_mesh_flush_hidden_from_verts(me->mvert, me->mloop,
-		                                 me->medge, me->totedge,
-		                                 me->mpoly, me->totpoly);
+		BKE_mesh_flush_hidden_from_verts(me);
 	}
 
 	ED_region_tag_redraw(ar);

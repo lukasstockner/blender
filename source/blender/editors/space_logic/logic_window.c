@@ -428,8 +428,6 @@ static const char *sensor_name(int type)
 	switch (type) {
 	case SENS_ALWAYS:
 		return "Always";
-	case SENS_TOUCH:
-		return "Touch";
 	case SENS_NEAR:
 		return "Near";
 	case SENS_KEYBOARD:
@@ -775,7 +773,7 @@ static uiBlock *sensor_menu(bContext *C, ARegion *ar, void *UNUSED(arg))
 	
 	uiDefBut(block, BUTM, 1, IFACE_("Show Objects"),	0, (short)(yco-=20), 160, 19, NULL, 0.0, 0.0, 1, 0, "");
 	uiDefBut(block, BUTM, 1, IFACE_("Hide Objects"),	0, (short)(yco-=20), 160, 19, NULL, 0.0, 0.0, 1, 1, "");
-	uiDefBut(block, SEPR, 0, "",	0, (short)(yco-=6), 160, 6, NULL, 0.0, 0.0, 0, 0, "");
+	uiDefBut(block, SEPRLINE, 0, "",	0, (short)(yco-=6), 160, 6, NULL, 0.0, 0.0, 0, 0, "");
 	uiDefBut(block, BUTM, 1, IFACE_("Show Sensors"),	0, (short)(yco-=20), 160, 19, NULL, 0.0, 0.0, 1, 2, "");
 	uiDefBut(block, BUTM, 1, IFACE_("Hide Sensors"),	0, (short)(yco-=20), 160, 19, NULL, 0.0, 0.0, 1, 3, "");
 
@@ -824,7 +822,7 @@ static uiBlock *controller_menu(bContext *C, ARegion *ar, void *UNUSED(arg))
 	
 	uiDefBut(block, BUTM, 1, IFACE_("Show Objects"),	0, (short)(yco-=20), 160, 19, NULL, 0.0, 0.0, 1, 0, "");
 	uiDefBut(block, BUTM, 1, IFACE_("Hide Objects"),	0, (short)(yco-=20), 160, 19, NULL, 0.0, 0.0, 1, 1, "");
-	uiDefBut(block, SEPR, 0, "",					0, (short)(yco-=6), 160, 6, NULL, 0.0, 0.0, 0, 0, "");
+	uiDefBut(block, SEPRLINE, 0, "",					0, (short)(yco-=6), 160, 6, NULL, 0.0, 0.0, 0, 0, "");
 	uiDefBut(block, BUTM, 1, IFACE_("Show Controllers"),	0, (short)(yco-=20), 160, 19, NULL, 0.0, 0.0, 2, 2, "");
 	uiDefBut(block, BUTM, 1, IFACE_("Hide Controllers"),	0, (short)(yco-=20), 160, 19, NULL, 0.0, 0.0, 3, 3, "");
 
@@ -873,7 +871,7 @@ static uiBlock *actuator_menu(bContext *C, ARegion *ar, void *UNUSED(arg))
 	
 	uiDefBut(block, BUTM, 1, IFACE_("Show Objects"),	0, (short)(xco-=20), 160, 19, NULL, 0.0, 0.0, 1, 0, "");
 	uiDefBut(block, BUTM, 1, IFACE_("Hide Objects"),	0, (short)(xco-=20), 160, 19, NULL, 0.0, 0.0, 1, 1, "");
-	uiDefBut(block, SEPR, 0, "",	0, (short)(xco-=6), 160, 6, NULL, 0.0, 0.0, 0, 0, "");
+	uiDefBut(block, SEPRLINE, 0, "",	0, (short)(xco-=6), 160, 6, NULL, 0.0, 0.0, 0, 0, "");
 	uiDefBut(block, BUTM, 1, IFACE_("Show Actuators"),	0, (short)(xco-=20), 160, 19, NULL, 0.0, 0.0, 1, 2, "");
 	uiDefBut(block, BUTM, 1, IFACE_("Hide Actuators"),	0, (short)(xco-=20), 160, 19, NULL, 0.0, 0.0, 1, 3, "");
 
@@ -1010,8 +1008,6 @@ static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
 	bSensor *sens = (bSensor *)ptr->data;
 	bArmatureSensor *as = (bArmatureSensor *) sens->data;
 	Object *ob = (Object *)ptr->id.data;
-	PointerRNA pose_ptr, pchan_ptr;
-	PropertyRNA *bones_prop= NULL;
 	uiLayout *row;
 
 	if (ob->type != OB_ARMATURE) {
@@ -1020,11 +1016,12 @@ static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
 	}
 
 	if (ob->pose) {
+		PointerRNA pose_ptr, pchan_ptr;
+		PropertyRNA *bones_prop;
+
 		RNA_pointer_create((ID *)ob, &RNA_Pose, ob->pose, &pose_ptr);
 		bones_prop = RNA_struct_find_property(&pose_ptr, "bones");
-	}
 
-	if (&pose_ptr.data) {
 		uiItemPointerR(layout, ptr, "bone", &pose_ptr, "bones", NULL, ICON_BONE_DATA);
 
 		if (RNA_property_collection_lookup_string(&pose_ptr, bones_prop, as->posechannel, &pchan_ptr))
@@ -1235,11 +1232,6 @@ static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr, bContext *C)
 	uiItemR(row, ptr, "use_x_ray", UI_ITEM_R_TOGGLE, NULL, ICON_NONE);
 }
 
-static void draw_sensor_touch(uiLayout *layout, PointerRNA *ptr)
-{
-	uiItemR(layout, ptr, "material", 0, NULL, ICON_NONE);
-}
-
 static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)
 {
 	uiLayout *box;
@@ -1293,9 +1285,6 @@ static void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)
 			break;
 		case SENS_RAY:
 			draw_sensor_ray(box, ptr, C);
-			break;
-		case SENS_TOUCH:
-			draw_sensor_touch(box, ptr);
 			break;
 	}
 }
@@ -1467,6 +1456,7 @@ static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
 	row = uiLayoutRow(layout, FALSE);
 	uiItemR(row, ptr, "layer", 0, NULL, ICON_NONE);
 	uiItemR(row, ptr, "layer_weight", 0, NULL, ICON_NONE);
+	uiItemR(row, ptr, "blend_mode", 0, "", ICON_NONE);
 
 	uiItemPointerR(layout, ptr, "frame_property", &settings_ptr, "properties", NULL, ICON_NONE);
 
@@ -2296,7 +2286,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 	/* ****************** Controllers ****************** */
 	
 	xco= 21 * U.widget_unit; yco= - U.widget_unit / 2; width= 15 * U.widget_unit;
-	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, UI_GetStyle());
+	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, 0, UI_GetStyle());
 	row = uiLayoutRow(layout, TRUE);
 	
 	uiDefBlockBut(block, controller_menu, NULL, IFACE_("Controllers"), xco - U.widget_unit / 2, yco, width, UI_UNIT_Y, "");		/* replace this with uiLayout stuff later */
@@ -2403,7 +2393,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 	/* ****************** Sensors ****************** */
 	
 	xco= U.widget_unit / 2; yco= -U.widget_unit / 2; width= 17 * U.widget_unit;
-	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, UI_GetStyle());
+	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, 0, UI_GetStyle());
 	row = uiLayoutRow(layout, TRUE);
 	
 	uiDefBlockBut(block, sensor_menu, NULL, IFACE_("Sensors"), xco - U.widget_unit / 2, yco, 15 * U.widget_unit, UI_UNIT_Y, "");		/* replace this with uiLayout stuff later */
@@ -2472,7 +2462,7 @@ void logic_buttons(bContext *C, ARegion *ar)
 	/* ****************** Actuators ****************** */
 	
 	xco= 40 * U.widget_unit; yco= -U.widget_unit / 2; width= 17 * U.widget_unit;
-	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, UI_GetStyle());
+	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, xco, yco, width, 20, 0, UI_GetStyle());
 	row = uiLayoutRow(layout, TRUE);
 	
 	uiDefBlockBut(block, actuator_menu, NULL, IFACE_("Actuators"), xco - U.widget_unit / 2, yco, 15 * U.widget_unit, UI_UNIT_Y, "");		/* replace this with uiLayout stuff later */

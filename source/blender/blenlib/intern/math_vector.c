@@ -27,9 +27,9 @@
  *  \ingroup bli
  */
 
-
-
 #include "BLI_math.h"
+
+#include "BLI_strict_flags.h"
 
 //******************************* Interpolation *******************************/
 
@@ -107,6 +107,33 @@ void interp_v3_v3v3v3_uv(float p[3], const float v1[3], const float v2[3], const
 	p[0] = v1[0] + ((v2[0] - v1[0]) * uv[0]) + ((v3[0] - v1[0]) * uv[1]);
 	p[1] = v1[1] + ((v2[1] - v1[1]) * uv[0]) + ((v3[1] - v1[1]) * uv[1]);
 	p[2] = v1[2] + ((v2[2] - v1[2]) * uv[0]) + ((v3[2] - v1[2]) * uv[1]);
+}
+
+void interp_v3_v3v3_uchar(char unsigned target[3], const unsigned char a[3], const unsigned char b[3], const float t)
+{
+	float s = 1.0f - t;
+
+	target[0] = (char)floorf(s * a[0] + t * b[0]);
+	target[1] = (char)floorf(s * a[1] + t * b[1]);
+	target[2] = (char)floorf(s * a[2] + t * b[2]);
+}
+void interp_v3_v3v3_char(char target[3], const char a[3], const char b[3], const float t)
+{
+	interp_v3_v3v3_uchar((unsigned char *)target, (const unsigned char *)a, (const unsigned char *)b, t);
+}
+
+void interp_v4_v4v4_uchar(char unsigned target[4], const unsigned char a[4], const unsigned char b[4], const float t)
+{
+	float s = 1.0f - t;
+
+	target[0] = (char)floorf(s * a[0] + t * b[0]);
+	target[1] = (char)floorf(s * a[1] + t * b[1]);
+	target[2] = (char)floorf(s * a[2] + t * b[2]);
+	target[3] = (char)floorf(s * a[3] + t * b[3]);
+}
+void interp_v4_v4v4_char(char target[4], const char a[4], const char b[4], const float t)
+{
+	interp_v4_v4v4_uchar((unsigned char *)target, (const unsigned char *)a, (const unsigned char *)b, t);
 }
 
 void mid_v3_v3v3(float v[3], const float v1[3], const float v2[3])
@@ -297,17 +324,14 @@ float angle_normalized_v3v3(const float v1[3], const float v2[3])
 	BLI_ASSERT_UNIT_V3(v2);
 
 	/* this is the same as acos(dot_v3v3(v1, v2)), but more accurate */
-	if (dot_v3v3(v1, v2) < 0.0f) {
-		float vec[3];
-
-		vec[0] = -v2[0];
-		vec[1] = -v2[1];
-		vec[2] = -v2[2];
-
-		return (float)M_PI - 2.0f * (float)saasin(len_v3v3(vec, v1) / 2.0f);
+	if (dot_v3v3(v1, v2) >= 0.0f) {
+		return 2.0f * saasin(len_v3v3(v1, v2) / 2.0f);
 	}
-	else
-		return 2.0f * (float)saasin(len_v3v3(v2, v1) / 2.0f);
+	else {
+		float v2_n[3];
+		negate_v3_v3(v2_n, v2);
+		return (float)M_PI - 2.0f * saasin(len_v3v3(v1, v2_n) / 2.0f);
+	}
 }
 
 float angle_normalized_v2v2(const float v1[2], const float v2[2])
@@ -317,16 +341,14 @@ float angle_normalized_v2v2(const float v1[2], const float v2[2])
 	BLI_ASSERT_UNIT_V2(v2);
 
 	/* this is the same as acos(dot_v3v3(v1, v2)), but more accurate */
-	if (dot_v2v2(v1, v2) < 0.0f) {
-		float vec[2];
-
-		vec[0] = -v2[0];
-		vec[1] = -v2[1];
-
-		return (float)M_PI - 2.0f * saasin(len_v2v2(vec, v1) / 2.0f);
+	if (dot_v2v2(v1, v2) >= 0.0f) {
+		return 2.0f * saasin(len_v2v2(v1, v2) / 2.0f);
 	}
-	else
-		return 2.0f * (float)saasin(len_v2v2(v2, v1) / 2.0f);
+	else {
+		float v2_n[2];
+		negate_v2_v2(v2_n, v2);
+		return (float)M_PI - 2.0f * saasin(len_v2v2(v1, v2_n) / 2.0f);
+	}
 }
 
 /**
@@ -497,8 +519,8 @@ void ortho_basis_v3v3_v3(float v1[3], float v2[3], const float v[3])
  */
 void rotate_normalized_v3_v3v3fl(float r[3], const float p[3], const float axis[3], const float angle)
 {
-	const float costheta = cos(angle);
-	const float sintheta = sin(angle);
+	const float costheta = cosf(angle);
+	const float sintheta = sinf(angle);
 
 	/* double check they are normalized */
 	BLI_ASSERT_UNIT_V3(axis);
@@ -540,6 +562,16 @@ void print_v3(const char *str, const float v[3])
 void print_v4(const char *str, const float v[4])
 {
 	printf("%s: %.3f %.3f %.3f %.3f\n", str, v[0], v[1], v[2], v[3]);
+}
+
+void print_vn(const char *str, const float v[], const int n)
+{
+	int i = 0;
+	printf("%s[%d]:", str, n);
+	while (i < n) {
+		printf(" %.3f", v[i++]);
+	}
+	printf("\n");
 }
 
 void minmax_v3v3_v3(float min[3], float max[3], const float vec[3])

@@ -77,11 +77,10 @@
 
 /******************** open sound operator ********************/
 
-static int sound_open_cancel(bContext *UNUSED(C), wmOperator *op)
+static void sound_open_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	MEM_freeN(op->customdata);
 	op->customdata = NULL;
-	return OPERATOR_CANCELLED;
 }
 
 static void sound_open_init(bContext *C, wmOperator *op)
@@ -288,11 +287,11 @@ static int sound_bake_animation_exec(bContext *C, wmOperator *UNUSED(op))
 
 	for (cfra = (scene->r.sfra > 0) ? (scene->r.sfra - 1) : 0; cfra <= scene->r.efra + 1; cfra++) {
 		scene->r.cfra = cfra;
-		BKE_scene_update_for_newframe(bmain, scene, scene->lay);
+		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
 	}
 
 	scene->r.cfra = oldfra;
-	BKE_scene_update_for_newframe(bmain, scene, scene->lay);
+	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
 
 	return OPERATOR_FINISHED;
 }
@@ -391,7 +390,7 @@ static const char *snd_ext_sound[] = {
 	NULL
 };
 
-static int sound_mixdown_check(bContext *UNUSED(C), wmOperator *op)
+static bool sound_mixdown_check(bContext *UNUSED(C), wmOperator *op)
 {
 	AUD_Container container = RNA_enum_get(op->ptr, "container");
 
@@ -788,7 +787,7 @@ static void SOUND_OT_unpack(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_enum(ot->srna, "method", unpack_method_items, PF_USE_LOCAL, "Method", "How to unpack");
-	RNA_def_string(ot->srna, "id", "", MAX_ID_NAME - 2, "Sound Name", "Sound datablock name to unpack"); /* XXX, weark!, will fail with library, name collisions */
+	RNA_def_string(ot->srna, "id", NULL, MAX_ID_NAME - 2, "Sound Name", "Sound datablock name to unpack"); /* XXX, weark!, will fail with library, name collisions */
 }
 
 /* ******************************************************* */

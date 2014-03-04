@@ -54,6 +54,7 @@ struct MCol;
 struct MFace;
 struct MVert;
 struct IpoCurve;
+struct LatticeDeformData;
 struct LinkNode;
 struct KDTree;
 struct RNG;
@@ -258,7 +259,7 @@ void psys_set_current_num(Object *ob, int index);
 /* UNUSED */
 // struct Object *psys_find_object(struct Scene *scene, struct ParticleSystem *psys);
 
-struct Object *psys_get_lattice(struct ParticleSimulationData *sim);
+struct LatticeDeformData *psys_create_lattice_deform_data(struct ParticleSimulationData *sim);
 
 int psys_in_edit_mode(struct Scene *scene, struct ParticleSystem *psys);
 int psys_check_enabled(struct Object *ob, struct ParticleSystem *psys);
@@ -329,6 +330,7 @@ void psys_apply_hair_lattice(struct Scene *scene, struct Object *ob, struct Part
 struct ParticleSystem *psys_get_target_system(struct Object *ob, struct ParticleTarget *pt);
 void psys_count_keyed_targets(struct ParticleSimulationData *sim);
 void psys_update_particle_tree(struct ParticleSystem *psys, float cfra);
+void psys_changed_type(struct Object *ob, struct ParticleSystem *psys);
 
 void psys_make_temp_pointcache(struct Object *ob, struct ParticleSystem *psys);
 void psys_get_pointcache_start_end(struct Scene *scene, ParticleSystem *psys, int *sfra, int *efra);
@@ -374,11 +376,13 @@ void psys_particle_on_dm(struct DerivedMesh *dm, int from, int index, int index_
                          float orco[3], float ornor[3]);
 
 /* particle_system.c */
-void initialize_particle(struct ParticleSimulationData *sim, struct ParticleData *pa, int p);
+void initialize_particle(struct ParticleData *pa);
 void psys_calc_dmcache(struct Object *ob, struct DerivedMesh *dm, struct ParticleSystem *psys);
 int psys_particle_dm_face_lookup(struct Object *ob, struct DerivedMesh *dm, int index, const float fw[4], struct LinkNode *node);
 
 void reset_particle(struct ParticleSimulationData *sim, struct ParticleData *pa, float dtime, float cfra);
+
+float psys_get_current_display_percentage(struct ParticleSystem *psys);
 
 /* psys_reset */
 #define PSYS_RESET_ALL          1

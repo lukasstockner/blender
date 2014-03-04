@@ -35,6 +35,7 @@ extern "C"
 #include "DNA_armature_types.h"
 #include "DNA_material_types.h"
 #include "DNA_constraint_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_math.h"
 #include "BLI_string.h"
@@ -52,10 +53,6 @@ extern "C"
 #include "BIK_api.h"
 #include "BKE_global.h"
 #include "ED_object.h"
-
-#ifdef NAN_BUILDINFO
-extern char build_rev[];
-#endif
 }
 
 #include "MEM_guardedalloc.h"
@@ -143,7 +140,7 @@ protected:
 	void add_source_parameters(COLLADASW::SourceBase::ParameterNameList& param,
 	                           COLLADASW::InputSemantic::Semantics semantic, bool is_rot, const char *axis, bool transform);
 	
-	void get_source_values(BezTriple *bezt, COLLADASW::InputSemantic::Semantics semantic, bool rotation, float *values, int *length);
+	void get_source_values(BezTriple *bezt, COLLADASW::InputSemantic::Semantics semantic, bool is_angle, float *values, int *length);
 	
 	float* get_eul_source_for_quat(Object *ob );
 

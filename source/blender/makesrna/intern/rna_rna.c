@@ -60,6 +60,7 @@ EnumPropertyItem property_subtype_items[] = {
 	{PROP_PASSWORD, "PASSWORD", 0, "Password", "A string that is displayed hidden ('********')"},
 
 	/* numbers */
+	{PROP_PIXEL, "PIXEL", 0, "Pixel", ""},
 	{PROP_UNSIGNED, "UNSIGNED", 0, "Unsigned", ""},
 	{PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", ""},
 	{PROP_FACTOR, "FACTOR", 0, "Factor", ""},
@@ -464,14 +465,14 @@ static void rna_Property_name_get(PointerRNA *ptr, char *value)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
 	rna_idproperty_check(&prop, ptr);
-	strcpy(value, prop->name);
+	strcpy(value, prop->name ? prop->name : "");
 }
 
 static int rna_Property_name_length(PointerRNA *ptr)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
 	rna_idproperty_check(&prop, ptr);
-	return strlen(prop->name);
+	return prop->name ? strlen(prop->name) : 0;
 }
 
 static void rna_Property_description_get(PointerRNA *ptr, char *value)
@@ -564,6 +565,12 @@ static int rna_Property_is_required_get(PointerRNA *ptr)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
 	return prop->flag & PROP_REQUIRED ? 1 : 0;
+}
+
+static int rna_Property_is_argument_optional_get(PointerRNA *ptr)
+{
+	PropertyRNA *prop = (PropertyRNA *)ptr->data;
+	return prop->flag & PROP_PYFUNC_OPTIONAL ? 1 : 0;
 }
 
 static int rna_Property_is_never_none_get(PointerRNA *ptr)
@@ -796,7 +803,7 @@ static int rna_StringProperty_max_length_get(PointerRNA *ptr)
 }
 
 static EnumPropertyItem *rna_EnumProperty_default_itemf(bContext *C, PointerRNA *ptr,
-                                                        PropertyRNA *prop_parent, int *free)
+                                                        PropertyRNA *prop_parent, bool *r_free)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
 	EnumPropertyRNA *eprop;
@@ -817,7 +824,7 @@ static EnumPropertyItem *rna_EnumProperty_default_itemf(bContext *C, PointerRNA 
 		return eprop->item;
 	}
 
-	return eprop->itemf(C, ptr, prop, free);
+	return eprop->itemf(C, ptr, prop, r_free);
 }
 
 /* XXX - not sure this is needed? */
@@ -840,7 +847,8 @@ static void rna_EnumProperty_items_begin(CollectionPropertyIterator *iter, Point
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
 	/* EnumPropertyRNA *eprop;  *//* UNUSED */
 	EnumPropertyItem *item = NULL;
-	int totitem, free = 0;
+	int totitem;
+	bool free;
 	
 	rna_idproperty_check(&prop, ptr);
 	/* eprop = (EnumPropertyRNA *)prop; */
@@ -1079,6 +1087,7 @@ static void rna_def_property(BlenderRNA *brna)
 		{PROP_NONE, "NONE", 0, "None", ""},
 		{PROP_FILEPATH, "FILE_PATH", 0, "File Path", ""},
 		{PROP_DIRPATH, "DIRECTORY_PATH", 0, "Directory Path", ""},
+		{PROP_PIXEL, "PIXEL", 0, "Pixel", ""},
 		{PROP_UNSIGNED, "UNSIGNED", 0, "Unsigned Number", ""},
 		{PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", ""},
 		{PROP_FACTOR, "FACTOR", 0, "Factor", ""},
@@ -1170,6 +1179,12 @@ static void rna_def_property(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_Property_is_required_get", NULL);
 	RNA_def_property_ui_text(prop, "Required", "False when this property is an optional argument in an RNA function");
+
+	prop = RNA_def_property(srna, "is_argument_optional", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_Property_is_argument_optional_get", NULL);
+	RNA_def_property_ui_text(prop, "Optional Argument",
+	                         "True when the property is optional in a Python function implementing an RNA function");
 
 	prop = RNA_def_property(srna, "is_never_none", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

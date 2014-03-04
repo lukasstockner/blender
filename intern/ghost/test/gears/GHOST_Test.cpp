@@ -468,7 +468,7 @@ bool Application::processEvent(GHOST_IEvent *event)
 		std::cout << "GHOST_kEventCursorButton"; break;
 	case GHOST_kEventCursorMove:
 		std::cout << "GHOST_kEventCursorMove"; break;
- #endif
+#endif
 		case GHOST_kEventWheel:
 		{
 			GHOST_TEventWheelData *wheelData = (GHOST_TEventWheelData *) event->getData();
@@ -715,13 +715,16 @@ int main(int /*argc*/, char ** /*argv*/)
 
 		// Add the application as event consumer
 		fSystem->addEventConsumer(&app);
-                
+
 		// Enter main loop
 		while (!app.m_exitRequested) {
 			//printf("main: loop\n");
 			fSystem->processEvents(true);
 			fSystem->dispatchEvents();
 		}
+
+		// Remove so ghost doesn't do a double free
+		fSystem->removeEventConsumer(&app);
 	}
 
 	// Dispose the system

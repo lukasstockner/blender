@@ -54,6 +54,7 @@
 #include "BKE_customdata.h"
 #include "BKE_image.h"
 #include "BKE_key.h"
+#include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_global.h"
 #include "BKE_paint.h"
@@ -101,7 +102,6 @@
 #include "IMB_colormanagement.h"
 
 #include "RE_engine.h"
-#include "RE_pipeline.h"  /* make_stars */
 
 #include "WM_api.h"
 
@@ -121,14 +121,8 @@ static void bl_debug_draw(void);
 extern void bl_debug_draw_quad_clear(void);
 extern void bl_debug_draw_quad_add(const float v0[3], const float v1[3], const float v2[3], const float v3[3]);
 extern void bl_debug_draw_edge_add(const float v0[3], const float v1[3]);
+extern void bl_debug_color_set(const unsigned int col);
 #endif
-
-static void star_stuff_init_func(void)
-{
-	gpuImmediateFormat_V3();
-	gpuColor3P(CPACK_WHITE);
-	GPU_sprite_begin();
-}
 
 static void star_stuff_vertex_func(float *i)
 {
@@ -202,10 +196,10 @@ void ED_view3d_clipping_enable(void)
 
 static bool view3d_clipping_test(const float co[3], float clip[6][4])
 {
-	if (0.0f < clip[0][3] + dot_v3v3(co, clip[0]))
-		if (0.0f < clip[1][3] + dot_v3v3(co, clip[1]))
-			if (0.0f < clip[2][3] + dot_v3v3(co, clip[2]))
-				if (0.0f < clip[3][3] + dot_v3v3(co, clip[3]))
+	if (plane_point_side_v3(clip[0], co) > 0.0f)
+		if (plane_point_side_v3(clip[1], co) > 0.0f)
+			if (plane_point_side_v3(clip[2], co) > 0.0f)
+				if (plane_point_side_v3(clip[3], co) > 0.0f)
 					return false;
 
 	return true;
@@ -335,18 +329,19 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 		}
 	}
 	else {
-		short sublines = v3d->gridsubdiv;
+		const double sublines    = v3d->gridsubdiv;
+		const float  sublines_fl = v3d->gridsubdiv;
 
 		if (dx < GRID_MIN_PX_D) {
-			rv3d->gridview *= sublines;
+			rv3d->gridview *= sublines_fl;
 			dx *= sublines;
 
 			if (dx < GRID_MIN_PX_D) {
-				rv3d->gridview *= sublines;
+				rv3d->gridview *= sublines_fl;
 				dx *= sublines;
 
 				if (dx < GRID_MIN_PX_D) {
-					rv3d->gridview *= sublines;
+					rv3d->gridview *= sublines_fl;
 					dx *= sublines;
 					if (dx < GRID_MIN_PX_D) {
 						/* pass */
@@ -374,10 +369,10 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 		}
 		else {
 			if (dx > (GRID_MIN_PX_D * 10.0)) {  /* start blending in */
-				rv3d->gridview /= sublines;
+				rv3d->gridview /= sublines_fl;
 				dx /= sublines;
 				if (dx > (GRID_MIN_PX_D * 10.0)) {  /* start blending in */
-					rv3d->gridview /= sublines;
+					rv3d->gridview /= sublines_fl;
 					dx /= sublines;
 					if (dx > (GRID_MIN_PX_D * 10.0)) {
 						UI_ThemeColor(TH_GRID);
@@ -497,6 +492,7 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 
 	/* draw the Y axis and/or grid lines */
 	if (v3d->gridflag & V3D_SHOW_FLOOR) {
+		const int sublines = v3d->gridsubdiv;
 		float vert[4][2];
 		unsigned char col_bg[3];
 		unsigned char col_grid_emphasise[3], col_grid_light[3];
@@ -520,7 +516,7 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 
 		for (a = -gridlines; a <= gridlines; a++) {
 			const float line = a * grid_scale;
-			const int is_emphasise = (a % 10) == 0;
+			const int is_emphasise = (a % sublines) == 0;
 
 			if (is_emphasise != prev_emphasise) {
 				gpuColor3ubv(is_emphasise ? col_grid_emphasise : col_grid_light);
@@ -536,8 +532,6 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 
 		gpuEnd();
 		gpuImmediateUnformat();
-
-		GPU_print_error("sdsd");
 	}
 	
 	/* draw the Z axis line */
@@ -577,7 +571,7 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 	int co[2];
 
 	/* we don't want the clipping for cursor */
-	if (ED_view3d_project_int_global(ar, give_cursor(scene, v3d), co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
+	if (ED_view3d_project_int_global(ar, ED_view3d_cursor3d_get(scene, v3d), co, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 		const float f5 = 0.25f * U.widget_unit;
 		const float f10 = 0.5f * U.widget_unit;
 		const float f20 = U.widget_unit;
@@ -656,10 +650,11 @@ static void sort3(int sort[3], float a, float b, float c)
  * colors copied from transform_manipulator.c, we should keep these matching. */
 static void draw_view_axis(RegionView3D *rv3d, rcti *UNUSED(rect))
 {
-	/* axis size */
-	const float k = U.rvisize;
+	const float k =  U.rvisize * U.pixelsize;
 	 /* line width is proportional to size */
 	const float size = k/25.0f;
+	char axis_text[2] = "x";
+	int i;
 
 	/* axis center in screen coordinates, x=y=z */
 	const float start = k + 1.0f;
@@ -672,7 +667,7 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *UNUSED(rect))
 	/* axis alpha offset (rvibright has range 0-10) */
  	const int bright = - 20 * (10 - U.rvibright);
 
-	
+
 	float axis[3][3] = {
 		{ 1, 0, 0 },
 		{ 0, 1, 0 },
@@ -687,16 +682,13 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *UNUSED(rect))
 
 	const char label[] = "xyz";
 	GLboolean showLabel[3];
-
 	GLubyte color[3][4];
-	
 	const GLfloat jitter[4][3] = {
 		{  -size/2,  0, 0 },
 		{   0, -size/2, 0 },
 		{   size/2,  0, 0 },
 		{   0,  size/2, 0 },
 	};
-
 	int sort[3];
 
 	int i;
@@ -704,9 +696,7 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *UNUSED(rect))
 	UI_GetThemeColor3ubv(TH_AXIS_X, color[0]);
 	UI_GetThemeColor3ubv(TH_AXIS_Y, color[1]);
 	UI_GetThemeColor3ubv(TH_AXIS_Z, color[2]);
-
 	color[0][3] = color[1][3] = color [2][3] = bright;
-
 	for (i = 0; i < 3; i++) {
 		mul_qt_v3(rv3d->viewquat, axis[i]);
 		mul_qt_v3(rv3d->viewquat, offset[i]);
@@ -968,29 +958,35 @@ static void draw_viewport_name(ARegion *ar, View3D *v3d, rcti *rect)
  * framenum, object name, bone name (if available), marker name (if available)
  */
 
-#define BREAD_CRUMB_SEPARATOR " : "
-#define SHAPE_KEY_PINNED " (Pinned)"
-
 static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 {
-	char info[256], *markern;
+	const int cfra = CFRA;
+	const char *msg_pin = " (Pinned)";
+	const char *msg_sep = " : ";
+
+	char info[300];
+	char *markern;
+	char *s = info;
 	short offset = 1.5f * UI_UNIT_X + rect->xmin;
 
+	s += sprintf(s, "(%d)", cfra);
+
 	/* 
-	 * breadcrumbs can contain 3 object names (MAX_NAME)
-	 * and 2 BREAD_CRUMB_SEPARATORs (6)
-	 * and a SHAPE_KEY_PINNED marker and a trailing '\0' (9+1)
+	 * info can contain:
+	 * - a frame (7 + 2)
+	 * - 3 object names (MAX_NAME)
+	 * - 2 BREAD_CRUMB_SEPARATORs (6)
+	 * - a SHAPE_KEY_PINNED marker and a trailing '\0' (9+1) - translated, so give some room!
+	 * - a marker name (MAX_NAME + 3)
 	 */
-	char bread_crumbs[3 * MAX_NAME + 6 + 10];
-	bread_crumbs[0] = '\0';
-	
+
 	/* get name of marker on current frame (if available) */
-	markern = BKE_scene_find_marker_name(scene, CFRA);
+	markern = BKE_scene_find_marker_name(scene, cfra);
 	
 	/* check if there is an object */
 	if (ob) {
-		strcat(bread_crumbs, " ");
-		strcat(bread_crumbs, ob->id.name + 2);
+		*s++ = ' ';
+		s += BLI_strcpy_rlen(s, ob->id.name + 2);
 
 		/* name(s) to display depends on type of object */
 		if (ob->type == OB_ARMATURE) {
@@ -998,18 +994,17 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 			
 			/* show name of active bone too (if possible) */
 			if (arm->edbo) {
-
 				if (arm->act_edbone) {
-					strcat(bread_crumbs, BREAD_CRUMB_SEPARATOR);
-					strcat(bread_crumbs, ((EditBone *)arm->act_edbone)->name);
+					s += BLI_strcpy_rlen(s, msg_sep);
+					s += BLI_strcpy_rlen(s, arm->act_edbone->name);
 				}
 			}
 			else if (ob->mode & OB_MODE_POSE) {
 				if (arm->act_bone) {
 
 					if (arm->act_bone->layer & arm->layer) {
-						strcat(bread_crumbs, BREAD_CRUMB_SEPARATOR);
-						strcat(bread_crumbs, arm->act_bone->name);
+						s += BLI_strcpy_rlen(s, msg_sep);
+						s += BLI_strcpy_rlen(s, arm->act_bone->name);
 					}
 				}
 			}
@@ -1026,8 +1021,8 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 					bArmature *arm = armobj->data;
 					if (arm->act_bone) {
 						if (arm->act_bone->layer & arm->layer) {
-							strcat(bread_crumbs, BREAD_CRUMB_SEPARATOR);
-							strcat(bread_crumbs, arm->act_bone->name);
+							s += BLI_strcpy_rlen(s, msg_sep);
+							s += BLI_strcpy_rlen(s, arm->act_bone->name);
 						}
 					}
 				}
@@ -1037,17 +1032,17 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 			if (key) {
 				kb = BLI_findlink(&key->block, ob->shapenr - 1);
 				if (kb) {
-					strcat(bread_crumbs, BREAD_CRUMB_SEPARATOR);
-					strcat(bread_crumbs, kb->name);
-					if (ob->shapeflag == OB_SHAPE_LOCK) {
-						strcat(bread_crumbs, IFACE_(SHAPE_KEY_PINNED));
+					s += BLI_strcpy_rlen(s, msg_sep);
+					s += BLI_strcpy_rlen(s, kb->name);
+					if (ob->shapeflag & OB_SHAPE_LOCK) {
+						s += BLI_strcpy_rlen(s, IFACE_(msg_pin));
 					}
 				}
 			}
 		}
 		
 		/* color depends on whether there is a keyframe */
-		if (id_frame_has_keyframe((ID *)ob, /* BKE_scene_frame_get(scene) */ (float)(CFRA), ANIMFILTER_KEYS_LOCAL))
+		if (id_frame_has_keyframe((ID *)ob, /* BKE_scene_frame_get(scene) */ (float)cfra, ANIMFILTER_KEYS_LOCAL))
 			UI_ThemeColor(TH_VERTEX_SELECT);
 		else
 			UI_ThemeColor(TH_TEXT_HI);
@@ -1058,10 +1053,9 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 		UI_ThemeColor(TH_TEXT_HI);
 	}
 
-	if (markern)
-		BLI_snprintf(info, sizeof(info), "(%d)%s <%s>", CFRA, bread_crumbs, markern);
-	else
-		BLI_snprintf(info, sizeof(info), "(%d)%s", CFRA, bread_crumbs);
+	if (markern) {
+		s += sprintf(s, " <%s>", markern);
+	}
 	
 	if (U.uiflag & USER_SHOW_ROTVIEWICON)
 		offset = U.widget_unit + (U.rvisize * 2) + rect->xmin;
@@ -1263,7 +1257,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 		y4 = y1 + scene->r.border.ymax * (y2 - y1);
 		
 		gpuColor3P(0x4040FF);
-		gpuDrawWireRectf(x3,  y3,  x4,  y4); 
+		gpuDrawWireRecti(x3,  y3,  x4,  y4); 
 	}
 
 	gpuImmediateUnformat();
@@ -1417,7 +1411,8 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 		return;
 	}
 
-	if (!(v3d->flag & V3D_INVALID_BACKBUF) ) return;
+	if (!(v3d->flag & V3D_INVALID_BACKBUF))
+		return;
 
 #if 0
 	if (test) {
@@ -1754,7 +1749,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 
 				if (bgpic->flag & V3D_BGPIC_CAMERACLIP) {
 					if (scene->camera)
-						clip = BKE_object_movieclip_get(scene, scene->camera, 1);
+						clip = BKE_object_movieclip_get(scene, scene->camera, true);
 				}
 				else {
 					clip = bgpic->clip;
@@ -2093,6 +2088,8 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 {
 	RegionView3D *rv3d = ar->regiondata;
 	ListBase *lb;
+	LodLevel *savedlod;
+	float savedobmat[4][4];
 	DupliObject *dob_prev = NULL, *dob, *dob_next = NULL;
 	Base tbase = {NULL};
 	short transflag;
@@ -2107,7 +2104,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 	if (base->object->restrictflag & OB_RESTRICT_VIEW) return;
 	
 	tbase.flag = OB_FROMDUPLI | base->flag;
-	lb = object_duplilist(scene, base->object, false);
+	lb = object_duplilist(G.main->eval_ctx, scene, base->object);
 	// BLI_sortlist(lb, dupli_ob_sort); /* might be nice to have if we have a dupli list with mixed objects. */
 
 	dob = dupli_step(lb->first);
@@ -2115,6 +2112,14 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 
 	for (; dob; dob_prev = dob, dob = dob_next, dob_next = dob_next ? dupli_step(dob_next->next) : NULL) {
 		tbase.object = dob->ob;
+
+		/* Make sure lod is updated from dupli's position */
+
+		copy_m4_m4(savedobmat, dob->ob->obmat);
+		copy_m4_m4(dob->ob->obmat, dob->mat);
+		savedlod = dob->ob->currentlod;
+		BKE_object_lod_update(dob->ob, rv3d->viewinv[3]);
+		
 
 		/* extra service: draw the duplicator in drawtype of parent, minimum taken
 		 * to allow e.g. boundbox box objects in groups for LOD */
@@ -2130,8 +2135,11 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 
 		/* negative scale flag has to propagate */
 		transflag = tbase.object->transflag;
-		if (base->object->transflag & OB_NEG_SCALE)
-			tbase.object->transflag ^= OB_NEG_SCALE;
+
+		if (is_negative_m4(dob->mat))
+			tbase.object->transflag |= OB_NEG_SCALE;
+		else
+			tbase.object->transflag &= ~OB_NEG_SCALE;
 
 		UI_ThemeColorBlend(color, TH_BACK, 0.5);
 
@@ -2156,7 +2164,10 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 			    /* lamp drawing messes with matrices, could be handled smarter... but this works */
 			    (dob->ob->type == OB_LAMP) ||
 			    (dob->type == OB_DUPLIGROUP && dob->animated) ||
-			    !(bb_tmp = BKE_object_boundbox_get(dob->ob)))
+			    !(bb_tmp = BKE_object_boundbox_get(dob->ob)) ||
+			    draw_glsl_material(scene, dob->ob, v3d, dt) ||
+			    check_object_draw_texture(scene, v3d, dt) ||
+			    (base->object == OBACT && v3d->flag2 & V3D_SOLID_MATCAP))
 			{
 				// printf("draw_dupli_objects_color: skipping displist for %s\n", dob->ob->id.name + 2);
 				use_displist = false;
@@ -2166,7 +2177,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 				bb = *bb_tmp; /* must make a copy  */
 
 				/* disable boundbox check for list creation */
-				BKE_object_boundbox_flag(dob->ob, OB_BB_DISABLED, 1);
+				BKE_object_boundbox_flag(dob->ob, BOUNDBOX_DISABLED, 1);
 				/* need this for next part of code */
 				unit_m4(dob->ob->obmat);    /* obmat gets restored */
 
@@ -2176,7 +2187,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 				glEndList();
 
 				use_displist = true;
-				BKE_object_boundbox_flag(dob->ob, OB_BB_DISABLED, 0);
+				BKE_object_boundbox_flag(dob->ob, BOUNDBOX_DISABLED, 0);
 			}
 
 		}
@@ -2192,18 +2203,19 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 		else
 #endif
 		{
-			copy_m4_m4(dob->ob->obmat, dob->mat);
 			draw_object(scene, ar, v3d, &tbase, DRAW_CONSTCOLOR);
 		}
 
 		tbase.object->dt = dt;
 		tbase.object->dtx = dtx;
 		tbase.object->transflag = transflag;
+		tbase.object->currentlod = savedlod;
+		copy_m4_m4(tbase.object->obmat, savedobmat);
 	}
 	
 	/* Transp afterdraw disabled, afterdraw only stores base pointers, and duplis can be same obj */
 	
-	free_object_duplilist(lb);  /* does restore */
+	free_object_duplilist(lb);
 	
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (use_displist)
@@ -2525,7 +2537,7 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 	Base *base;
 	Object *ob;
 	
-	shadows.first = shadows.last = NULL;
+	BLI_listbase_clear(&shadows);
 	
 	/* update lamp transform and gather shadow lamps */
 	for (SETLOOPER(scene, sce_iter, base)) {
@@ -2536,7 +2548,7 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 		
 		if (ob->transflag & OB_DUPLI) {
 			DupliObject *dob;
-			ListBase *lb = object_duplilist(scene, ob, false);
+			ListBase *lb = object_duplilist(G.main->eval_ctx, scene, ob);
 			
 			for (dob = lb->first; dob; dob = dob->next)
 				if (dob->ob->type == OB_LAMP)
@@ -2965,7 +2977,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, Object *camera, int w
 /* NOTE: the info that this uses is updated in ED_refresh_viewport_fps(), 
  * which currently gets called during SCREEN_OT_animation_step.
  */
-static void draw_viewport_fps(Scene *scene, rcti *rect)
+void ED_scene_draw_fps(Scene *scene, rcti *rect)
 {
 	ScreenFrameRateInfo *fpsi = scene->fps_info;
 	float fps;
@@ -3061,10 +3073,8 @@ bool ED_view3d_calc_render_border(Scene *scene, View3D *v3d, ARegion *ar, rcti *
 		rect->ymax = v3d->render_border.ymax * ar->winy;
 	}
 
-	rect->xmin = CLAMPIS(ar->winrct.xmin + rect->xmin, ar->winrct.xmin, ar->winrct.xmax);
-	rect->ymin = CLAMPIS(ar->winrct.ymin + rect->ymin, ar->winrct.ymin, ar->winrct.ymax);
-	rect->xmax = CLAMPIS(ar->winrct.xmin + rect->xmax, ar->winrct.xmin, ar->winrct.xmax);
-	rect->ymax = CLAMPIS(ar->winrct.ymin + rect->ymax, ar->winrct.ymin, ar->winrct.ymax);
+	BLI_rcti_translate(rect, ar->winrct.xmin, ar->winrct.ymin);
+	BLI_rcti_isect(&ar->winrct, rect, rect);
 
 	return true;
 }
@@ -3141,19 +3151,19 @@ static void view3d_main_area_draw_engine_info(View3D *v3d, RegionView3D *rv3d, A
 {
 	float fill_color[4] = {0.0f, 0.0f, 0.0f, 0.25f};
 
-	if (!rv3d->render_engine || !rv3d->render_engine->text)
+	if (!rv3d->render_engine || !rv3d->render_engine->text[0])
 		return;
 	
 	if (render_border) {
 		/* draw darkened background color. no alpha because border render does
 		 * partial redraw and will not redraw the area behind this info bar */
 		float alpha = 1.0f - fill_color[3];
-	
-		if (rv3d->persp == RV3D_CAMOB && v3d->camera && v3d->camera->type == OB_CAMERA) {
-			Camera *ca = v3d->camera->data;
+		Camera *camera = ED_view3d_camera_data_get(v3d, rv3d);
 
-			if (ca && (ca->flag & CAM_SHOWPASSEPARTOUT))
-				alpha *= (1.0f - ca->passepartalpha);
+		if (camera) {
+			if (camera->flag & CAM_SHOWPASSEPARTOUT) {
+				alpha *= (1.0f - camera->passepartalpha);
+			}
 		}
 
 		UI_GetThemeColor3fv(TH_HIGH_GRAD, fill_color);
@@ -3343,6 +3353,18 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 	}
 }
 
+static void update_lods(Scene *scene, float camera_pos[3])
+{
+	Scene *sce_iter;
+	Base *base;
+	Object *ob;
+
+	for (SETLOOPER(scene, sce_iter, base)) {
+		ob = base->object;
+		BKE_object_lod_update(ob, camera_pos);
+	}
+}
+
 /* warning: this function has duplicate drawing in ED_view3d_draw_offscreen() */
 static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const char **grid_unit)
 {
@@ -3364,6 +3386,9 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 
 	/* setup view matrices */
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
+
+	/* Make sure LoDs are up to date */
+	update_lods(scene, rv3d->viewinv[3]);
 
 	/* clear the background */
 	view3d_main_area_clear(scene, v3d, ar);
@@ -3394,14 +3419,6 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 	if ((rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO)) {
 		if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 			drawfloor(scene, v3d, grid_unit);
-		}
-		if (rv3d->persp == RV3D_CAMOB) {
-			if (scene->world) {
-				if (scene->world->mode & WO_STARS) {
-					RE_make_stars(NULL, scene, star_stuff_init_func, star_stuff_vertex_func,
-					              star_stuff_term_func);
-				}
-			}
 		}
 	}
 	else {
@@ -3470,8 +3487,9 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 	/* draw selected and editmode */
 	for (base = scene->base.first; base; base = base->next) {
 		if (v3d->lay & base->lay) {
-			if (base->object == scene->obedit || (base->flag & SELECT) )
+			if (base->object == scene->obedit || (base->flag & SELECT)) {
 				draw_object(scene, ar, v3d, base, 0);
+			}
 		}
 	}
 
@@ -3515,7 +3533,7 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 		BDR_drawSketch(C);
 	}
 
-	if ((U.ndof_flag & NDOF_SHOW_GUIDE) && (rv3d->viewlock != RV3D_LOCKED) && (rv3d->persp != RV3D_CAMOB))
+	if ((U.ndof_flag & NDOF_SHOW_GUIDE) && ((rv3d->viewlock & RV3D_LOCKED) == 0) && (rv3d->persp != RV3D_CAMOB))
 		/* TODO: draw something else (but not this) during fly mode */
 		draw_rotation_guide(rv3d);
 
@@ -3543,7 +3561,7 @@ static void view3d_main_area_draw_info(const bContext *C, ARegion *ar, const cha
 
 		gpuColor3P(0x4040FF);
 
-		gpuSingleFilledRectf(
+		gpuSingleFilledRecti(
 		        v3d->render_border.xmin * ar->winx, v3d->render_border.ymin * ar->winy,
 		        v3d->render_border.xmax * ar->winx, v3d->render_border.ymax * ar->winy);
 
@@ -3580,7 +3598,7 @@ static void view3d_main_area_draw_info(const bContext *C, ARegion *ar, const cha
 
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 		if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_playing(wm)) {
-			draw_viewport_fps(scene, &rect);
+			ED_scene_draw_fps(scene, &rect);
 		}
 		else if (U.uiflag & USER_SHOW_VIEWPORTNAME) {
 			draw_viewport_name(ar, v3d, &rect);
@@ -3640,11 +3658,19 @@ static float _bl_debug_draw_quads[_DEBUG_DRAW_QUAD_TOT][4][3];
 static int   _bl_debug_draw_quads_tot = 0;
 static float _bl_debug_draw_edges[_DEBUG_DRAW_QUAD_TOT][2][3];
 static int   _bl_debug_draw_edges_tot = 0;
+static unsigned int _bl_debug_draw_quads_color[_DEBUG_DRAW_QUAD_TOT];
+static unsigned int _bl_debug_draw_edges_color[_DEBUG_DRAW_EDGE_TOT];
+static unsigned int _bl_debug_draw_color;
 
 void bl_debug_draw_quad_clear(void)
 {
 	_bl_debug_draw_quads_tot = 0;
 	_bl_debug_draw_edges_tot = 0;
+	_bl_debug_draw_color = 0x00FF0000;
+}
+void bl_debug_color_set(const unsigned int color)
+{
+	_bl_debug_draw_color = color;
 }
 void bl_debug_draw_quad_add(const float v0[3], const float v1[3], const float v2[3], const float v3[3])
 {
@@ -3657,6 +3683,7 @@ void bl_debug_draw_quad_add(const float v0[3], const float v1[3], const float v2
 		copy_v3_v3(pt, v1); pt += 3;
 		copy_v3_v3(pt, v2); pt += 3;
 		copy_v3_v3(pt, v3); pt += 3;
+		_bl_debug_draw_quads_color[_bl_debug_draw_quads_tot] = _bl_debug_draw_color;
 		_bl_debug_draw_quads_tot++;
 	}
 }
@@ -3669,15 +3696,22 @@ void bl_debug_draw_edge_add(const float v0[3], const float v1[3])
 		float *pt = &_bl_debug_draw_edges[_bl_debug_draw_edges_tot][0][0];
 		copy_v3_v3(pt, v0); pt += 3;
 		copy_v3_v3(pt, v1); pt += 3;
+		_bl_debug_draw_edges_color[_bl_debug_draw_edges_tot] = _bl_debug_draw_color;
 		_bl_debug_draw_edges_tot++;
 	}
 }
 static void bl_debug_draw(void)
 {
+	unsigned int color;
 	if (_bl_debug_draw_quads_tot) {
 		int i;
-		cpack(0x00FF0000);
+		color = _bl_debug_draw_quads_color[0];
+		cpack(color);
 		for (i = 0; i < _bl_debug_draw_quads_tot; i ++) {
+			if (_bl_debug_draw_quads_color[i] != color) {
+				color = _bl_debug_draw_quads_color[i];
+				cpack(color);
+			}
 			glBegin(GL_LINE_LOOP);
 			glVertex3fv(_bl_debug_draw_quads[i][0]);
 			glVertex3fv(_bl_debug_draw_quads[i][1]);
@@ -3688,20 +3722,33 @@ static void bl_debug_draw(void)
 	}
 	if (_bl_debug_draw_edges_tot) {
 		int i;
-		cpack(0x00FFFF00);
+		color = _bl_debug_draw_edges_color[0];
+		cpack(color);
 		glBegin(GL_LINES);
 		for (i = 0; i < _bl_debug_draw_edges_tot; i ++) {
+			if (_bl_debug_draw_edges_color[i] != color) {
+				color = _bl_debug_draw_edges_color[i];
+				cpack(color);
+			}
 			glVertex3fv(_bl_debug_draw_edges[i][0]);
 			glVertex3fv(_bl_debug_draw_edges[i][1]);
 		}
 		glEnd();
+		
 		GPU_point_size(4);
-		glBegin(GL_POINTS);
+		
+		color = _bl_debug_draw_edges_color[0];
+		gpuColor3P(color);
+		gpuBegin(GL_POINTS);
 		for (i = 0; i < _bl_debug_draw_edges_tot; i ++) {
-			glVertex3fv(_bl_debug_draw_edges[i][0]);
-			glVertex3fv(_bl_debug_draw_edges[i][1]);
+			if (_bl_debug_draw_edges_color[i] != color) {
+				color = _bl_debug_draw_edges_color[i];
+				cpack(color);
+			}
+			gpuVertex3fv(_bl_debug_draw_edges[i][0]);
+			gpuVertex3fv(_bl_debug_draw_edges[i][1]);
 		}
-		glEnd();
+		gpuEnd();
 		GPU_point_size(1);
 	}
 }

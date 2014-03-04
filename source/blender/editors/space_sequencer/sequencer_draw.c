@@ -65,6 +65,7 @@
 #include "DNA_sound_types.h"
 
 #include "IMB_imbuf_types.h"
+#include "BKE_main.h"
 
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
@@ -172,12 +173,7 @@ static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[
 			break;
 
 		case SEQ_TYPE_COLOR:
-			if (colvars->col) {
-				rgb_float_to_uchar(col, colvars->col);
-			}
-			else {
-				col[0] = col[1] = col[2] = 128;
-			}
+			rgb_float_to_uchar(col, colvars->col);
 			break;
 
 		case SEQ_TYPE_SOUND_RAM:
@@ -188,6 +184,7 @@ static void get_seq_color3ubv(Scene *curscene, Sequence *seq, unsigned char col[
 		
 		default:
 			col[0] = 10; col[1] = 255; col[2] = 40;
+			break;
 	}
 }
 
@@ -429,7 +426,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 		glDisable(GL_BLEND);
 	}
 	
-	if (G.moving || (seq->flag & whichsel)) {
+	if ((G.moving & G_TRANSFORM_SEQ) || (seq->flag & whichsel)) {
 		const char col[4] = {255, 255, 255, 255};
 		if (direction == SEQ_LEFTHANDLE) {
 			BLI_snprintf(numstr, sizeof(numstr), "%d", seq->startdisp);
@@ -805,7 +802,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, Sequence *seq, int outline
 	}
 
 	get_seq_color3ubv(scene, seq, col);
-	if (G.moving && (seq->flag & SELECT)) {
+	if ((G.moving & G_TRANSFORM_SEQ) && (seq->flag & SELECT)) {
 		if (seq->flag & SEQ_OVERLAP) {
 			col[0] = 255; col[1] = col[2] = 40;
 		}
@@ -892,7 +889,7 @@ ImBuf *sequencer_ibuf_get(struct Main *bmain, Scene *scene, SpaceSeq *sseq, int 
 	rectx = (render_size * (float)scene->r.xsch) / 100.0f + 0.5f;
 	recty = (render_size * (float)scene->r.ysch) / 100.0f + 0.5f;
 
-	context = BKE_sequencer_new_render_data(bmain, scene, rectx, recty, proxy_size);
+	context = BKE_sequencer_new_render_data(bmain->eval_ctx, bmain, scene, rectx, recty, proxy_size);
 
 	/* sequencer could start rendering, in this case we need to be sure it wouldn't be canceled
 	 * by Esc pressed somewhere in the past
@@ -900,11 +897,11 @@ ImBuf *sequencer_ibuf_get(struct Main *bmain, Scene *scene, SpaceSeq *sseq, int 
 	G.is_break = FALSE;
 
 	if (special_seq_update)
-		ibuf = BKE_sequencer_give_ibuf_direct(context, cfra + frame_ofs, special_seq_update);
+		ibuf = BKE_sequencer_give_ibuf_direct(&context, cfra + frame_ofs, special_seq_update);
 	else if (!U.prefetchframes) // XXX || (G.f & G_PLAYANIM) == 0) {
-		ibuf = BKE_sequencer_give_ibuf(context, cfra + frame_ofs, sseq->chanshown);
+		ibuf = BKE_sequencer_give_ibuf(&context, cfra + frame_ofs, sseq->chanshown);
 	else
-		ibuf = BKE_sequencer_give_ibuf_threaded(context, cfra + frame_ofs, sseq->chanshown);
+		ibuf = BKE_sequencer_give_ibuf_threaded(&context, cfra + frame_ofs, sseq->chanshown);
 
 	/* restore state so real rendering would be canceled (if needed) */
 	G.is_break = is_break;
@@ -979,13 +976,13 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		/* stop all running jobs, except screen one. currently previews frustrate Render
 		 * needed to make so sequencer's rendering doesn't conflict with compositor
 		 */
-		WM_jobs_kill_type(CTX_wm_manager(C), WM_JOB_TYPE_COMPOSITE);
+		WM_jobs_kill_type(CTX_wm_manager(C), NULL, WM_JOB_TYPE_COMPOSITE);
 
 		if ((scene->r.seq_flag & R_SEQ_GL_PREV) == 0) {
 			/* in case of final rendering used for preview, kill all previews,
 			 * otherwise threading conflict will happen in rendering module
 			 */
-			WM_jobs_kill_type(CTX_wm_manager(C), WM_JOB_TYPE_RENDER_PREVIEW);
+			WM_jobs_kill_type(CTX_wm_manager(C), NULL, WM_JOB_TYPE_RENDER_PREVIEW);
 		}
 	}
 
@@ -1017,11 +1014,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glClearColor(col[0], col[1], col[2], 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 	}
-
-	gpuColor3P(CPACK_WHITE);
-
-	UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
-	UI_view2d_curRect_validate(v2d);
 
 	/* only initialize the preview if a render is in progress */
 	if (G.is_rendering)
@@ -1078,8 +1070,22 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 				break;
 		}
 
-		scopes->reference_ibuf = ibuf;
+		/* future files may have new scopes we don't catch above */
+		if (scope) {
+			scopes->reference_ibuf = ibuf;
+			viewrectx = scope->x;
+			viewrecty = scope->y;
+		}
+		else {
+			scopes->reference_ibuf = NULL;
+		}
 	}
+
+	/* without this colors can flicker from previous opengl state */
+	glColor4ub(255, 255, 255, 255);
+
+	UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
+	UI_view2d_curRect_validate(v2d);
 
 	/* setting up the view - actual drawing starts here */
 	UI_view2d_view_ortho(v2d);
@@ -1138,10 +1144,10 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			type = GL_FLOAT;
 
 			if (ibuf->float_colorspace) {
-				glsl_used = IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, ibuf->float_colorspace, TRUE);
+				glsl_used = IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, ibuf->float_colorspace, ibuf->dither, true);
 			}
 			else {
-				glsl_used = IMB_colormanagement_setup_glsl_draw_ctx(C, TRUE);
+				glsl_used = IMB_colormanagement_setup_glsl_draw_ctx(C, ibuf->dither, true);
 			}
 		}
 		else if (ibuf->rect) {
@@ -1149,7 +1155,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			format = GL_RGBA;
 			type = GL_UNSIGNED_BYTE;
 
-			glsl_used = IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, ibuf->rect_colorspace, FALSE);
+			glsl_used = IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, ibuf->rect_colorspace, ibuf->dither, false);
 		}
 		else {
 			format = GL_RGBA;
@@ -1325,7 +1331,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			height = (scene->r.size * scene->r.ysch) / 100;
 
 			ED_mask_draw_region(mask, ar,
-			                    0, 0,  /* TODO */
+			                    0, 0, 0,  /* TODO */
 			                    width, height,
 			                    aspx, aspy,
 			                    FALSE, TRUE,
@@ -1556,7 +1562,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 
 	/* scrollers */
-	unit = (sseq->flag & SEQ_DRAWFRAMES) ? V2D_UNIT_FRAMES : V2D_UNIT_SECONDSSEQ;
+	unit = (sseq->flag & SEQ_DRAWFRAMES) ? V2D_UNIT_FRAMES : V2D_UNIT_SECONDS;
 	scrollers = UI_view2d_scrollers_calc(C, v2d, unit, V2D_GRID_CLAMP, V2D_UNIT_VALUES, V2D_GRID_CLAMP);
 	UI_view2d_scrollers_draw(C, v2d, scrollers);
 	UI_view2d_scrollers_free(scrollers);

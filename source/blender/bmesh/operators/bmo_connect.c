@@ -23,14 +23,13 @@
 /** \file blender/bmesh/operators/bmo_connect.c
  *  \ingroup bmesh
  *
- * Connect verts across faces (splits faces) and bridge tool.
+ * Connect verts across faces (splits faces).
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math.h"
-#include "BLI_array.h"
 #include "BLI_utildefines.h"
+#include "BLI_alloca.h"
+#include "BLI_linklist_stack.h"
 
 #include "bmesh.h"
 
@@ -64,7 +63,7 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f)
 				continue;
 			}
 
-			if (l_last != l->prev && l_last != l->next) {
+			if (!BM_loop_is_adjacent(l_last, l)) {
 				BMLoop **l_pair = STACK_PUSH_RET(loops_split);
 				l_pair[0] = l_last;
 				l_pair[1] = l;
@@ -83,7 +82,7 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f)
 		l_pair[1] = loops_split[0][0];
 	}
 
-	BM_face_legal_splits(bm, f, loops_split, STACK_SIZE(loops_split));
+	BM_face_legal_splits(f, loops_split, STACK_SIZE(loops_split));
 
 	for (i = 0; i < STACK_SIZE(loops_split); i++) {
 		BMVert **v_pair;
@@ -97,7 +96,17 @@ static int bm_face_connect_verts(BMesh *bm, BMFace *f)
 	}
 
 	for (i = 0; i < STACK_SIZE(verts_pair); i++) {
-		f_new = BM_face_split(bm, f, verts_pair[i][0], verts_pair[i][1], &l_new, NULL, false);
+		BMLoop *l_a, *l_b;
+
+		if ((l_a = BM_face_vert_share_loop(f, verts_pair[i][0])) &&
+		    (l_b = BM_face_vert_share_loop(f, verts_pair[i][1])))
+		{
+			f_new = BM_face_split(bm, f, l_a, l_b, &l_new, NULL, false);
+		}
+		else {
+			f_new = NULL;
+		}
+
 		f = f_new;
 
 		if (!l_new || !f_new) {
@@ -117,10 +126,9 @@ void bmo_connect_verts_exec(BMesh *bm, BMOperator *op)
 	BMIter iter;
 	BMVert *v;
 	BMFace *f;
-	BMFace **faces = MEM_mallocN(sizeof(BMFace *) * bm->totface, __func__);
-	STACK_DECLARE(faces);
+	BLI_LINKSTACK_DECLARE(faces, BMFace *);
 
-	STACK_INIT(faces);
+	BLI_LINKSTACK_INIT(faces);
 
 	/* add all faces connected to verts */
 	BMO_ITER (v, &siter, op->slots_in, "verts", BM_VERT) {
@@ -129,20 +137,20 @@ void bmo_connect_verts_exec(BMesh *bm, BMOperator *op)
 			if (!BMO_elem_flag_test(bm, f, FACE_TAG)) {
 				BMO_elem_flag_enable(bm, f, FACE_TAG);
 				if (f->len > 3) {
-					STACK_PUSH(faces, f);
+					BLI_LINKSTACK_PUSH(faces, f);
 				}
 			}
 		}
 	}
 
 	/* connect faces */
-	while ((f = STACK_POP(faces))) {
+	while ((f = BLI_LINKSTACK_POP(faces))) {
 		if (bm_face_connect_verts(bm, f) == -1) {
 			BMO_error_raise(bm, op, BMERR_CONNECTVERT_FAILED, NULL);
 		}
 	}
 
-	MEM_freeN(faces);
+	BLI_LINKSTACK_FREE(faces);
 
 	BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "edges.out", BM_EDGE, EDGE_OUT);
 }

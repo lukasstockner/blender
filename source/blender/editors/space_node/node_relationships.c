@@ -78,7 +78,7 @@ static int sort_nodes_locx(void *a, void *b)
 		return 0;
 }
 
-static int socket_is_available(bNodeTree *UNUSED(ntree), bNodeSocket *sock, int allow_used)
+static bool socket_is_available(bNodeTree *UNUSED(ntree), bNodeSocket *sock, const bool allow_used)
 {
 	if (nodeSocketIsHidden(sock))
 		return 0;
@@ -89,7 +89,7 @@ static int socket_is_available(bNodeTree *UNUSED(ntree), bNodeSocket *sock, int 
 	return 1;
 }
 
-static bNodeSocket *best_socket_output(bNodeTree *ntree, bNode *node, bNodeSocket *sock_target, int allow_multiple)
+static bNodeSocket *best_socket_output(bNodeTree *ntree, bNode *node, bNodeSocket *sock_target, const bool allow_multiple)
 {
 	bNodeSocket *sock;
 
@@ -184,7 +184,7 @@ static int snode_autoconnect_input(SpaceNode *snode, bNode *node_fr, bNodeSocket
 	return 1;
 }
 
-static void snode_autoconnect(SpaceNode *snode, int allow_multiple, int replace)
+static void snode_autoconnect(SpaceNode *snode, const bool allow_multiple, const bool replace)
 {
 	bNodeTree *ntree = snode->edittree;
 	ListBase *nodelist = MEM_callocN(sizeof(ListBase), "items_list");
@@ -274,7 +274,7 @@ static int node_link_viewer(const bContext *C, bNode *tonode)
 	bNodeSocket *sock;
 
 	/* context check */
-	if (tonode == NULL || tonode->outputs.first == NULL)
+	if (tonode == NULL || BLI_listbase_is_empty(&tonode->outputs))
 		return OPERATOR_CANCELLED;
 	if (ELEM(tonode->type, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER))
 		return OPERATOR_CANCELLED;
@@ -356,7 +356,7 @@ static int node_link_viewer(const bContext *C, bNode *tonode)
 }
 
 
-static int node_active_link_viewer(bContext *C, wmOperator *UNUSED(op))
+static int node_active_link_viewer_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	bNode *node;
@@ -385,7 +385,7 @@ void NODE_OT_link_viewer(wmOperatorType *ot)
 	ot->idname = "NODE_OT_link_viewer";
 
 	/* api callbacks */
-	ot->exec = node_active_link_viewer;
+	ot->exec = node_active_link_viewer_exec;
 	ot->poll = composite_node_editable;
 
 	/* flags */
@@ -395,38 +395,33 @@ void NODE_OT_link_viewer(wmOperatorType *ot)
 
 /* *************************** add link op ******************** */
 
-static void node_remove_extra_links(SpaceNode *snode, bNodeSocket *tsock, bNodeLink *link)
+static void node_remove_extra_links(SpaceNode *snode, bNodeLink *link)
 {
-	bNodeLink *tlink;
-	bNodeSocket *sock;
-
-	if (tsock && nodeCountSocketLinks(snode->edittree, link->tosock) > tsock->limit) {
-
-		for (tlink = snode->edittree->links.first; tlink; tlink = tlink->next) {
-			if (link != tlink && tlink->tosock == link->tosock)
-				break;
-		}
-		if (tlink) {
-			/* try to move the existing link to the next available socket */
-			if (tlink->tonode) {
-				/* is there a free input socket with the target type? */
-				for (sock = tlink->tonode->inputs.first; sock; sock = sock->next) {
-					if (sock->type == tlink->tosock->type)
-						if (nodeCountSocketLinks(snode->edittree, sock) < sock->limit)
-							break;
-				}
-				if (sock) {
-					tlink->tosock = sock;
-					sock->flag &= ~SOCK_HIDDEN;
-				}
-				else {
-					nodeRemLink(snode->edittree, tlink);
-				}
+	bNodeTree *ntree = snode->edittree;
+	bNodeSocket *from = link->fromsock, *to = link->tosock;
+	int max_from = from->limit, max_to = to->limit;
+	int count_from = 1, count_to = 1; /* start at 1, link is included */
+	bNodeLink *tlink, *tlink_next;
+	
+	for (tlink = ntree->links.first; tlink; tlink = tlink_next) {
+		tlink_next = tlink->next;
+		if (tlink == link)
+			continue;
+		
+		if (tlink && tlink->fromsock == from) {
+			++count_from;
+			if (count_from > max_from) {
+				nodeRemLink(ntree, tlink);
+				tlink = NULL;
 			}
-			else
-				nodeRemLink(snode->edittree, tlink);
-
-			snode->edittree->update |= NTREE_UPDATE_LINKS;
+		}
+		
+		if (tlink && tlink->tosock == to) {
+			++count_to;
+			if (count_to > max_to) {
+				nodeRemLink(ntree, tlink);
+				tlink = NULL;
+			}
 		}
 	}
 }
@@ -443,18 +438,19 @@ static int node_link_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	bNodeSocket *tsock = NULL;
 	bNodeLink *link;
 	LinkData *linkdata;
+	float cursor[2];
 	int in_out;
 
 	in_out = nldrag->in_out;
 	
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1],
-	                         &snode->cursor[0], &snode->cursor[1]);
+	                         &cursor[0], &cursor[1]);
 
 	switch (event->type) {
 		case MOUSEMOVE:
 			
 			if (in_out == SOCK_OUT) {
-				if (node_find_indicated_socket(snode, &tnode, &tsock, SOCK_IN)) {
+				if (node_find_indicated_socket(snode, &tnode, &tsock, cursor, SOCK_IN)) {
 					for (linkdata = nldrag->links.first; linkdata; linkdata = linkdata->next) {
 						link = linkdata->data;
 						
@@ -480,7 +476,7 @@ static int node_link_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				}
 			}
 			else {
-				if (node_find_indicated_socket(snode, &tnode, &tsock, SOCK_OUT)) {
+				if (node_find_indicated_socket(snode, &tnode, &tsock, cursor, SOCK_OUT)) {
 					for (linkdata = nldrag->links.first; linkdata; linkdata = linkdata->next) {
 						link = linkdata->data;
 						
@@ -526,8 +522,7 @@ static int node_link_modal(bContext *C, wmOperator *op, const wmEvent *event)
 					link->tonode->update |= NODE_UPDATE;
 					
 					/* we might need to remove a link */
-					if (in_out == SOCK_OUT)
-						node_remove_extra_links(snode, link->tosock, link);
+					node_remove_extra_links(snode, link);
 				}
 				else
 					nodeRemLink(ntree, link);
@@ -550,7 +545,7 @@ static int node_link_modal(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 /* return 1 when socket clicked */
-static bNodeLinkDrag *node_link_init(SpaceNode *snode, int detach)
+static bNodeLinkDrag *node_link_init(SpaceNode *snode, float cursor[2], const bool detach)
 {
 	bNode *node;
 	bNodeSocket *sock;
@@ -560,7 +555,7 @@ static bNodeLinkDrag *node_link_init(SpaceNode *snode, int detach)
 	int num_links;
 
 	/* output indicated? */
-	if (node_find_indicated_socket(snode, &node, &sock, SOCK_OUT)) {
+	if (node_find_indicated_socket(snode, &node, &sock, cursor, SOCK_OUT)) {
 		nldrag = MEM_callocN(sizeof(bNodeLinkDrag), "drag link op customdata");
 
 		num_links = nodeCountSocketLinks(snode->edittree, sock);
@@ -596,7 +591,7 @@ static bNodeLinkDrag *node_link_init(SpaceNode *snode, int detach)
 		}
 	}
 	/* or an input? */
-	else if (node_find_indicated_socket(snode, &node, &sock, SOCK_IN)) {
+	else if (node_find_indicated_socket(snode, &node, &sock, cursor, SOCK_IN)) {
 		nldrag = MEM_callocN(sizeof(bNodeLinkDrag), "drag link op customdata");
 
 		num_links = nodeCountSocketLinks(snode->edittree, sock);
@@ -644,14 +639,16 @@ static int node_link_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	SpaceNode *snode = CTX_wm_space_node(C);
 	ARegion *ar = CTX_wm_region(C);
 	bNodeLinkDrag *nldrag;
-	int detach = RNA_boolean_get(op->ptr, "detach");
+	float cursor[2];
+	
+	const bool detach = RNA_boolean_get(op->ptr, "detach");
 
 	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1],
-	                         &snode->cursor[0], &snode->cursor[1]);
+	                         &cursor[0], &cursor[1]);
 
 	ED_preview_kill_jobs(C);
 
-	nldrag = node_link_init(snode, detach);
+	nldrag = node_link_init(snode, cursor, detach);
 
 	if (nldrag) {
 		op->customdata = nldrag;
@@ -666,7 +663,7 @@ static int node_link_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
 }
 
-static int node_link_cancel(bContext *C, wmOperator *op)
+static void node_link_cancel(bContext *C, wmOperator *op)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
 	bNodeLinkDrag *nldrag = op->customdata;
@@ -675,8 +672,6 @@ static int node_link_cancel(bContext *C, wmOperator *op)
 
 	BLI_freelistN(&nldrag->links);
 	MEM_freeN(nldrag);
-
-	return OPERATOR_CANCELLED;
 }
 
 void NODE_OT_link(wmOperatorType *ot)
@@ -705,7 +700,7 @@ void NODE_OT_link(wmOperatorType *ot)
 static int node_make_link_exec(bContext *C, wmOperator *op)
 {
 	SpaceNode *snode = CTX_wm_space_node(C);
-	int replace = RNA_boolean_get(op->ptr, "replace");
+	const bool replace = RNA_boolean_get(op->ptr, "replace");
 
 	ED_preview_kill_jobs(C);
 
@@ -762,7 +757,7 @@ static int cut_links_exec(bContext *C, wmOperator *op)
 	float mcoords[256][2];
 	int i = 0;
 
-	RNA_BEGIN(op->ptr, itemptr, "path")
+	RNA_BEGIN (op->ptr, itemptr, "path")
 	{
 		float loc[2];
 
@@ -874,34 +869,6 @@ void NODE_OT_links_detach(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-
-/* ****************** Show Cyclic Dependencies Operator  ******************* */
-
-static int node_show_cycles_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	SpaceNode *snode = CTX_wm_space_node(C);
-
-	/* this is just a wrapper around this call... */
-	ntreeUpdateTree(CTX_data_main(C), snode->nodetree);
-	snode_notify(C, snode);
-
-	return OPERATOR_FINISHED;
-}
-
-void NODE_OT_show_cyclic_dependencies(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Show Cyclic Dependencies";
-	ot->description = "Sort the nodes and show the cyclic dependencies between the nodes";
-	ot->idname = "NODE_OT_show_cyclic_dependencies";
-
-	/* callbacks */
-	ot->exec = node_show_cycles_exec;
-	ot->poll = ED_operator_node_active;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
 
 /* ****************** Set Parent ******************* */
 
@@ -1065,18 +1032,23 @@ void NODE_OT_join(wmOperatorType *ot)
 
 /* ****************** Attach ******************* */
 
-static int node_attach_exec(bContext *C, wmOperator *UNUSED(op))
+static int node_attach_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
 {
+	ARegion *ar = CTX_wm_region(C);
 	SpaceNode *snode = CTX_wm_space_node(C);
 	bNodeTree *ntree = snode->edittree;
 	bNode *frame;
+	float cursor[2];
+	
+	/* convert mouse coordinates to v2d space */
+	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &cursor[0], &cursor[1]);
 
 	/* check nodes front to back */
 	for (frame = ntree->nodes.last; frame; frame = frame->prev) {
 		/* skip selected, those are the nodes we want to attach */
 		if ((frame->type != NODE_FRAME) || (frame->flag & NODE_SELECT))
 			continue;
-		if (BLI_rctf_isect_pt(&frame->totr, snode->cursor[0], snode->cursor[1]))
+		if (BLI_rctf_isect_pt(&frame->totr, cursor[0], cursor[1]))
 			break;
 	}
 	if (frame) {
@@ -1116,16 +1088,6 @@ static int node_attach_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
-static int node_attach_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-	ARegion *ar = CTX_wm_region(C);
-	SpaceNode *snode = CTX_wm_space_node(C);
-
-	/* convert mouse coordinates to v2d space */
-	UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &snode->cursor[0], &snode->cursor[1]);
-
-	return node_attach_exec(C, op);
-}
 
 void NODE_OT_attach(wmOperatorType *ot)
 {
@@ -1135,7 +1097,7 @@ void NODE_OT_attach(wmOperatorType *ot)
 	ot->idname = "NODE_OT_attach";
 
 	/* api callbacks */
-	ot->exec = node_attach_exec;
+	
 	ot->invoke = node_attach_invoke;
 	ot->poll = ED_operator_node_editable;
 
@@ -1216,52 +1178,62 @@ void NODE_OT_detach(wmOperatorType *ot)
 
 
 /* prevent duplicate testing code below */
-static SpaceNode *ed_node_link_conditions(ScrArea *sa, bNode **select)
+static bool ed_node_link_conditions(ScrArea *sa, bool test, SpaceNode **r_snode, bNode **r_select)
 {
 	SpaceNode *snode = sa ? sa->spacedata.first : NULL;
-	bNode *node;
+	bNode *node, *select = NULL;
 	bNodeLink *link;
 
-	/* no unlucky accidents */
-	if (sa == NULL || sa->spacetype != SPACE_NODE) return NULL;
+	*r_snode = snode;
+	*r_select = NULL;
 
-	*select = NULL;
+	/* no unlucky accidents */
+	if (sa == NULL || sa->spacetype != SPACE_NODE)
+		return false;
+
+	if (!test) {
+		/* no need to look for a node */
+		return true;
+	}
 
 	for (node = snode->edittree->nodes.first; node; node = node->next) {
 		if (node->flag & SELECT) {
-			if (*select)
+			if (select)
 				break;
 			else
-				*select = node;
+				select = node;
 		}
 	}
 	/* only one selected */
-	if (node || *select == NULL) return NULL;
+	if (node || select == NULL)
+		return false;
 
 	/* correct node */
-	if ((*select)->inputs.first == NULL || (*select)->outputs.first == NULL) return NULL;
+	if (BLI_listbase_is_empty(&select->inputs) || BLI_listbase_is_empty(&select->outputs))
+		return false;
 
 	/* test node for links */
 	for (link = snode->edittree->links.first; link; link = link->next) {
 		if (nodeLinkIsHidden(link))
 			continue;
 		
-		if (link->tonode == *select || link->fromnode == *select)
-			return NULL;
+		if (link->tonode == select || link->fromnode == select)
+			return false;
 	}
 
-	return snode;
+	*r_select = select;
+	return true;
 }
 
 /* test == 0, clear all intersect flags */
 void ED_node_link_intersect_test(ScrArea *sa, int test)
 {
 	bNode *select;
-	SpaceNode *snode = ed_node_link_conditions(sa, &select);
+	SpaceNode *snode;
 	bNodeLink *link, *selink = NULL;
 	float mcoords[6][2];
 
-	if (snode == NULL) return;
+	if (!ed_node_link_conditions(sa, test, &snode, &select)) return;
 
 	/* clear flags */
 	for (link = snode->edittree->links.first; link; link = link->next)
@@ -1336,11 +1308,11 @@ static bNodeSocket *socket_best_match(ListBase *sockets)
 void ED_node_link_insert(ScrArea *sa)
 {
 	bNode *node, *select;
-	SpaceNode *snode = ed_node_link_conditions(sa, &select);
+	SpaceNode *snode;
 	bNodeLink *link;
 	bNodeSocket *sockto;
 
-	if (snode == NULL) return;
+	if (!ed_node_link_conditions(sa, true, &snode, &select)) return;
 
 	/* get the link */
 	for (link = snode->edittree->links.first; link; link = link->next)
@@ -1357,7 +1329,7 @@ void ED_node_link_insert(ScrArea *sa)
 			
 			link->tonode = select;
 			link->tosock = best_input;
-			node_remove_extra_links(snode, link->tosock, link);
+			node_remove_extra_links(snode, link);
 			link->flag &= ~NODE_LINKFLAG_HILITE;
 			
 			nodeAddLink(snode->edittree, select, best_output, node, sockto);

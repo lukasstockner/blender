@@ -48,7 +48,7 @@ class USERPREF_HT_header(Header):
     def draw(self, context):
         layout = self.layout
 
-        layout.template_header(menus=False)
+        layout.template_header()
 
         userpref = context.user_preferences
 
@@ -62,6 +62,7 @@ class USERPREF_HT_header(Header):
             layout.operator("wm.keyconfig_export")
         elif userpref.active_section == 'ADDONS':
             layout.operator("wm.addon_install", icon="FILESEL")
+            layout.operator("wm.addon_refresh", icon='FILE_REFRESH')
             layout.menu("USERPREF_MT_addons_dev_guides")
         elif userpref.active_section == 'THEMES':
             layout.operator("ui.reset_default_theme")
@@ -209,10 +210,14 @@ class USERPREF_PT_interface(Panel):
 
         col.label(text="Menus:")
         col.prop(view, "use_mouse_over_open")
-        col.label(text="Menu Open Delay:")
-        col.prop(view, "open_toplevel_delay", text="Top Level")
-        col.prop(view, "open_sublevel_delay", text="Sub Level")
+        sub = col.column()
+        sub.active = view.use_mouse_over_open
 
+        sub.prop(view, "open_toplevel_delay", text="Top Level")
+        sub.prop(view, "open_sublevel_delay", text="Sub Level")
+
+        col.separator()
+        col.separator()
         col.separator()
 
         col.prop(view, "show_splash")
@@ -267,11 +272,15 @@ class USERPREF_PT_edit(Panel):
 
         col = row.column()
         col.label(text="Grease Pencil:")
+        col.prop(edit, "grease_pencil_eraser_radius", text="Eraser Radius")
+        col.separator()
         col.prop(edit, "grease_pencil_manhattan_distance", text="Manhattan Distance")
         col.prop(edit, "grease_pencil_euclidean_distance", text="Euclidean Distance")
-        col.prop(edit, "grease_pencil_eraser_radius", text="Eraser Radius")
+        col.separator()
         col.prop(edit, "use_grease_pencil_smooth_stroke", text="Smooth Stroke")
         col.prop(edit, "use_grease_pencil_simplify_stroke", text="Simplify Stroke")
+        col.separator()
+        col.prop(edit, "grease_pencil_default_color", text="Default Color")
         col.separator()
         col.separator()
         col.separator()
@@ -371,7 +380,6 @@ class USERPREF_PT_system(Panel):
         col.prop(system, "scrollback", text="Console Scrollback")
 
         col.separator()
-        col.separator()
 
         col.label(text="Sound:")
         col.row().prop(system, "audio_device", expand=True)
@@ -384,13 +392,11 @@ class USERPREF_PT_system(Panel):
         sub.prop(system, "audio_sample_format", text="Sample Format")
 
         col.separator()
-        col.separator()
 
         col.label(text="Screencast:")
         col.prop(system, "screencast_fps")
         col.prop(system, "screencast_wait_time")
 
-        col.separator()
         col.separator()
 
         if hasattr(system, "compute_device_type"):
@@ -410,9 +416,15 @@ class USERPREF_PT_system(Panel):
         col.prop(system, "use_mipmaps")
         col.prop(system, "use_gpu_mipmap")
         col.prop(system, "use_16bit_textures")
+
+        col.separator()
+
         col.label(text="Anisotropic Filtering")
         col.prop(system, "anisotropic_filter", text="")
         col.prop(system, "use_vertex_buffer_objects")
+
+        col.separator()
+
         col.label(text="Window Draw Method:")
         col.prop(system, "window_draw_method", text="")
         col.prop(system, "multi_sample", text="")
@@ -420,8 +432,14 @@ class USERPREF_PT_system(Panel):
             col.label(text="Might fail for Mesh editing selection!")
             col.separator()
         col.prop(system, "use_region_overlap")
+
+        col.separator()
+
         col.label(text="Text Draw Options:")
         col.prop(system, "use_text_antialiasing")
+
+        col.separator()
+
         col.label(text="Textures:")
         col.prop(system, "gl_texture_limit", text="Limit Size")
         col.prop(system, "texture_time_out", text="Time Out")
@@ -432,7 +450,6 @@ class USERPREF_PT_system(Panel):
         col.label(text="Images Draw Method:")
         col.prop(system, "image_draw_method", text="")
 
-        col.separator()
         col.separator()
 
         col.label(text="Sequencer / Clip Editor:")
@@ -477,7 +494,7 @@ class USERPREF_PT_system(Panel):
                 column.prop(system, "language")
                 row = column.row()
                 row.label(text="Translate:", text_ctxt=i18n_contexts.id_windowmanager)
-                row = column.row(True)
+                row = column.row(align=True)
                 row.prop(system, "use_translate_interface", text="Interface", toggle=True)
                 row.prop(system, "use_translate_tooltips", text="Tooltips", toggle=True)
                 row.prop(system, "use_translate_new_dataname", text="New Data", toggle=True)
@@ -734,8 +751,9 @@ class USERPREF_PT_theme(Panel):
             padding = subsplit.split(percentage=0.15)
             colsub = padding.column()
             colsub = padding.column()
-            colsub.active = False
-            colsub.row().prop(ui, "icon_file")
+            # Not working yet.
+            #~ colsub.active = False
+            #~ colsub.row().prop(ui, "icon_file")
 
             subsplit = row.split(percentage=0.85)
 
@@ -867,8 +885,21 @@ class USERPREF_PT_file(Panel):
 
         colsplit = col.split(percentage=0.95)
         sub = colsplit.column()
-        sub.label(text="Author:")
-        sub.prop(system, "author", text="")
+
+        row = sub.split(percentage=0.3)
+        row.label(text="Auto Execution:")
+        row.prop(system, "use_scripts_auto_execute")
+
+        if system.use_scripts_auto_execute:
+            box = sub.box()
+            row = box.row()
+            row.label(text="Excluded Paths:")
+            row.operator("wm.userpref_autoexec_path_add", text="", icon='ZOOMIN', emboss=False)
+            for i, path_cmp in enumerate(userpref.autoexec_paths):
+                row = box.row()
+                row.prop(path_cmp, "path", text="")
+                row.prop(path_cmp, "use_glob", text="", icon='FILTER')
+                row.operator("wm.userpref_autoexec_path_remove", text="", icon='X', emboss=False).index = i
 
         col = split.column()
         col.label(text="Save & Load:")
@@ -882,11 +913,13 @@ class USERPREF_PT_file(Panel):
         col.prop(paths, "show_thumbnails")
 
         col.separator()
-        col.separator()
 
         col.prop(paths, "save_version")
         col.prop(paths, "recent_files")
         col.prop(paths, "use_save_preview_images")
+
+        col.separator()
+
         col.label(text="Auto Save:")
         col.prop(paths, "use_keep_session")
         col.prop(paths, "use_auto_save_temporary_files")
@@ -896,12 +929,16 @@ class USERPREF_PT_file(Panel):
 
         col.separator()
 
-        col.label(text="Scripts:")
-        col.prop(system, "use_scripts_auto_execute")
+        col.label(text="Text Editor:")
         col.prop(system, "use_tabs_as_spaces")
 
+        colsplit = col.split(percentage=0.95)
+        col1 = colsplit.split(percentage=0.3)
 
-from bl_ui.space_userpref_keymap import InputKeyMapPanel
+        sub = col1.column()
+        sub.label(text="Author:")
+        sub = col1.column()
+        sub.prop(system, "author", text="")
 
 
 class USERPREF_MT_ndof_settings(Menu):
@@ -944,9 +981,25 @@ class USERPREF_MT_ndof_settings(Menu):
             layout.prop(input_prefs, "ndof_lock_horizon", icon='NDOF_DOM')
 
 
-class USERPREF_PT_input(Panel, InputKeyMapPanel):
+class USERPREF_MT_keyconfigs(Menu):
+    bl_label = "KeyPresets"
+    preset_subdir = "keyconfig"
+    preset_operator = "wm.keyconfig_activate"
+
+    def draw(self, context):
+        props = self.layout.operator("wm.context_set_value", text="Blender (default)")
+        props.data_path = "window_manager.keyconfigs.active"
+        props.value = "context.window_manager.keyconfigs.default"
+
+        # now draw the presets
+        Menu.draw_preset(self, context)
+
+
+class USERPREF_PT_input(Panel):
     bl_space_type = 'USER_PREFERENCES'
     bl_label = "Input"
+    bl_region_type = 'WINDOW'
+    bl_options = {'HIDE_HEADER'}
 
     @classmethod
     def poll(cls, context):
@@ -993,25 +1046,47 @@ class USERPREF_PT_input(Panel, InputKeyMapPanel):
         sub.label(text="Orbit Style:")
         sub.row().prop(inputs, "view_rotate_method", expand=True)
 
+        sub.separator()
+
         sub.label(text="Zoom Style:")
         sub.row().prop(inputs, "view_zoom_method", text="")
         if inputs.view_zoom_method in {'DOLLY', 'CONTINUE'}:
             sub.row().prop(inputs, "view_zoom_axis", expand=True)
-            sub.prop(inputs, "invert_mouse_zoom")
+            sub.prop(inputs, "invert_mouse_zoom", text="Invert Mouse Zoom Direction")
 
         #sub.prop(inputs, "use_mouse_mmb_paste")
 
         #col.separator()
 
         sub = col.column()
-        sub.label(text="Mouse Wheel:")
         sub.prop(inputs, "invert_zoom_wheel", text="Invert Wheel Zoom Direction")
         #sub.prop(view, "wheel_scroll_lines", text="Scroll Lines")
 
         if sys.platform == "darwin":
             sub = col.column()
-            sub.label(text="Trackpad:")
-            sub.prop(inputs, "use_trackpad_natural")
+            sub.prop(inputs, "use_trackpad_natural", text="Natural Trackpad Direction")
+
+        col.separator()
+        sub = col.column()
+        sub.label(text="View Navigation:")
+        sub.row().prop(inputs, "navigation_mode", expand=True)
+        if inputs.navigation_mode == 'WALK':
+            walk = inputs.walk_navigation
+
+            sub.prop(walk, "use_mouse_reverse")
+            sub.prop(walk, "mouse_speed")
+            sub.prop(walk, "teleport_time")
+
+            sub = col.column(align=True)
+            sub.prop(walk, "walk_speed")
+            sub.prop(walk, "walk_speed_factor")
+
+            sub.separator()
+            sub.prop(walk, "use_gravity")
+            sub = col.column(align=True)
+            sub.active = walk.use_gravity
+            sub.prop(walk, "view_height")
+            sub.prop(walk, "jump_height")
 
         col.separator()
         sub = col.column()
@@ -1023,6 +1098,8 @@ class USERPREF_PT_input(Panel, InputKeyMapPanel):
         row.separator()
 
     def draw(self, context):
+        from rna_keymap_ui import draw_keymaps
+
         layout = self.layout
 
         #import time
@@ -1039,7 +1116,7 @@ class USERPREF_PT_input(Panel, InputKeyMapPanel):
         self.draw_input_prefs(inputs, split)
 
         # Keymap Settings
-        self.draw_keymaps(context, split)
+        draw_keymaps(context, split)
 
         #print("runtime", time.time() - start)
 
@@ -1111,7 +1188,7 @@ class USERPREF_PT_addons(Panel):
         scripts_addons_folder = bpy.utils.user_resource('SCRIPTS', "addons")
 
         # collect the categories that can be filtered on
-        addons = [(mod, addon_utils.module_bl_info(mod)) for mod in addon_utils.modules(addon_utils.addons_fake_modules)]
+        addons = [(mod, addon_utils.module_bl_info(mod)) for mod in addon_utils.modules(refresh=False)]
 
         split = layout.split(percentage=0.2)
         col = split.column()
@@ -1125,7 +1202,7 @@ class USERPREF_PT_addons(Panel):
 
         col = split.column()
 
-        # set in addon_utils.modules(...)
+        # set in addon_utils.modules_refresh()
         if addon_utils.error_duplicates:
             self.draw_error(col,
                             "Multiple addons using the same name found!\n"
@@ -1155,12 +1232,12 @@ class USERPREF_PT_addons(Panel):
                 continue
 
             # check if addon should be visible with current filters
-            if     ((filter == "All") or
-                    (filter == info["category"]) or
-                    (filter == "Enabled" and is_enabled) or
-                    (filter == "Disabled" and not is_enabled) or
-                    (filter == "User" and (mod.__file__.startswith((scripts_addons_folder, userpref_addons_folder))))
-                    ):
+            if ((filter == "All") or
+                (filter == info["category"]) or
+                (filter == "Enabled" and is_enabled) or
+                (filter == "Disabled" and not is_enabled) or
+                (filter == "User" and (mod.__file__.startswith((scripts_addons_folder, userpref_addons_folder))))
+                ):
 
                 if search and search not in info["name"].lower():
                     if info["author"]:
@@ -1219,15 +1296,15 @@ class USERPREF_PT_addons(Panel):
                         split.label(text='  ' + info["warning"], icon='ERROR')
 
                     user_addon = USERPREF_PT_addons.is_user_addon(mod, user_addon_paths)
-                    tot_row = bool(info["wiki_url"]) + bool(info["tracker_url"]) + bool(user_addon)
+                    tot_row = bool(info["wiki_url"]) + bool(user_addon)
 
                     if tot_row:
                         split = colsub.row().split(percentage=0.15)
                         split.label(text="Internet:")
                         if info["wiki_url"]:
                             split.operator("wm.url_open", text="Documentation", icon='HELP').url = info["wiki_url"]
-                        if info["tracker_url"]:
-                            split.operator("wm.url_open", text="Report a Bug", icon='URL').url = info["tracker_url"]
+                        tracker_url = "http://developer.blender.org/maniphest/task/create/?project=3&type=Bug"
+                        split.operator("wm.url_open", text="Report a Bug", icon='URL').url = tracker_url
                         if user_addon:
                             split.operator("wm.addon_remove", text="Remove", icon='CANCEL').module = mod.__name__
 

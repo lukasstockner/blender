@@ -29,23 +29,19 @@
  *  \ingroup bgerast
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "DNA_object_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
+
+#include "CTR_HashedPtr.h"
 
 #include "RAS_MeshObject.h"
-#include "RAS_IRasterizer.h"
-#include "MT_MinMax.h"
+#include "RAS_Polygon.h"
+#include "RAS_IPolygonMaterial.h"
+#include "RAS_Deformer.h"
 #include "MT_Point3.h"
 
 #include <algorithm>
 
-extern "C" {
-#	include "BKE_deform.h"
-}
 
 /* polygon sorting */
 
@@ -124,17 +120,6 @@ RAS_MeshObject::RAS_MeshObject(Mesh* mesh)
 RAS_MeshObject::~RAS_MeshObject()
 {
 	vector<RAS_Polygon*>::iterator it;
-
-	if (m_mesh && m_mesh->key) 
-	{
-		KeyBlock *kb;
-		// remove the weight cache to avoid memory leak 
-		for (kb = (KeyBlock *)m_mesh->key->block.first; kb; kb = (KeyBlock *)kb->next) {
-			if (kb->weights) 
-				MEM_freeN(kb->weights);
-			kb->weights= NULL;
-		}
-	}
 
 	for (it=m_Polygons.begin(); it!=m_Polygons.end(); it++)
 		delete (*it);
@@ -551,6 +536,16 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot& ms, const MT_Transform &transfor
 }
 
 
+bool RAS_MeshObject::HasColliderPolygon()
+{
+	int numpolys= NumPolygons();
+	for (int p=0; p<numpolys; p++)
+		if (m_Polygons[p]->IsCollider())
+			return true;
+
+	return false;
+}
+
 void RAS_MeshObject::SchedulePolygons(int drawingmode)
 {
 	if (m_bModified)
@@ -559,61 +554,3 @@ void RAS_MeshObject::SchedulePolygons(int drawingmode)
 		m_bMeshModified = true;
 	} 
 }
-
-static int get_def_index(Object* ob, const char* vgroup)
-{
-	bDeformGroup *curdef;
-	int index = 0;
-
-	for (curdef = (bDeformGroup*)ob->defbase.first; curdef; curdef=(bDeformGroup*)curdef->next, index++)
-		if (!strcmp(curdef->name, vgroup))
-			return index;
-
-	return -1;
-}
-
-void RAS_MeshObject::CheckWeightCache(Object* obj)
-{
-	KeyBlock *kb;
-	int kbindex, defindex;
-	MDeformVert *dv= NULL;
-	int totvert, i;
-	float *weights;
-
-	if (!m_mesh->key)
-		return;
-
-	for (kbindex = 0, kb = (KeyBlock *)m_mesh->key->block.first; kb; kb = kb->next, kbindex++)
-	{
-		// first check the cases where the weight must be cleared
-		if (kb->vgroup[0] == 0 ||
-			m_mesh->dvert == NULL ||
-			(defindex = get_def_index(obj, kb->vgroup)) == -1) {
-			if (kb->weights) {
-				MEM_freeN(kb->weights);
-				kb->weights = NULL;
-			}
-			m_cacheWeightIndex[kbindex] = -1;
-		} else if (m_cacheWeightIndex[kbindex] != defindex) {
-			// a weight array is required but the cache is not matching
-			if (kb->weights) {
-				MEM_freeN(kb->weights);
-				kb->weights = NULL;
-			}
-
-			dv= m_mesh->dvert;
-			totvert= m_mesh->totvert;
-		
-			weights= (float*)MEM_mallocN(totvert*sizeof(float), "weights");
-		
-			for (i=0; i < totvert; i++, dv++) {
-				weights[i] = defvert_find_weight(dv, defindex);
-			}
-
-			kb->weights = weights;
-			m_cacheWeightIndex[kbindex] = defindex;
-		}
-	}
-}
-
-

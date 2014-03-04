@@ -35,6 +35,7 @@
 #define CERES_INTERNAL_IMPLICIT_SCHUR_COMPLEMENT_H_
 
 #include "ceres/linear_operator.h"
+#include "ceres/linear_solver.h"
 #include "ceres/partitioned_matrix_view.h"
 #include "ceres/internal/eigen.h"
 #include "ceres/internal/scoped_ptr.h"
@@ -44,7 +45,6 @@ namespace ceres {
 namespace internal {
 
 class BlockSparseMatrix;
-class BlockSparseMatrixBase;
 
 // This class implements various linear algebraic operations related
 // to the Schur complement without explicitly forming it.
@@ -97,7 +97,7 @@ class ImplicitSchurComplement : public LinearOperator {
   //
   // TODO(sameeragarwal): Get rid of the two bools below and replace
   // them with enums.
-  ImplicitSchurComplement(int num_eliminate_blocks, bool preconditioner);
+  ImplicitSchurComplement(const LinearSolver::Options& options);
   virtual ~ImplicitSchurComplement();
 
   // Initialize the Schur complement for a linear least squares
@@ -110,7 +110,7 @@ class ImplicitSchurComplement : public LinearOperator {
   // is important that the matrix A have a BlockStructure object
   // associated with it and has a block structure that is compatible
   // with the SchurComplement solver.
-  void Init(const BlockSparseMatrixBase& A, const double* D, const double* b);
+  void Init(const BlockSparseMatrix& A, const double* D, const double* b);
 
   // y += Sx, where S is the Schur complement.
   virtual void RightMultiply(const double* x, double* y) const;
@@ -143,10 +143,9 @@ class ImplicitSchurComplement : public LinearOperator {
   void AddDiagonalAndInvert(const double* D, BlockSparseMatrix* matrix);
   void UpdateRhs();
 
-  int num_eliminate_blocks_;
-  bool preconditioner_;
+  const LinearSolver::Options& options_;
 
-  scoped_ptr<PartitionedMatrixView> A_;
+  scoped_ptr<PartitionedMatrixViewBase> A_;
   const double* D_;
   const double* b_;
 

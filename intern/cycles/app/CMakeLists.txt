@@ -20,35 +20,45 @@ set(LIBRARIES
 	cycles_subd
 	cycles_util
 	${BOOST_LIBRARIES}
+	${OPENEXR_LIBRARIES}
 	${SYSTEM_GL_LIBRARIES}
-	${CYCLES_GLEW_LIBRARY}
+	${CYCLES_GLEW_LIBRARY} # XXX jwilkins, is this needed with the viewport fx re-factor?
 	${OPENIMAGEIO_LIBRARIES}
+	${PNG_LIBRARIES}
+	${JPEG_LIBRARIES}
+	${ZLIB_LIBRARIES}
+	${TIFF_LIBRARY}
 )
 
-link_directories(${OPENIMAGEIO_LIBPATH} ${BOOST_LIBPATH})
+if(WIN32)
+	list(APPEND LIBRARIES ${PTHREADS_LIBRARIES})
+endif()
 
-if(WITH_CYCLES_TEST)
+link_directories(${OPENIMAGEIO_LIBPATH} ${BOOST_LIBPATH} ${PNG_LIBPATH} ${JPEG_LIBPATH} ${ZLIB_LIBPATH} ${TIFF_LIBPATH})
+
+if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
 	list(APPEND LIBRARIES ${GLUT_LIBRARIES})
 endif()
 
 if(WITH_CYCLES_OSL)
-	list(APPEND LIBRARIES cycles_kernel_osl ${OSL_LIBRARIES})
+	list(APPEND LIBRARIES cycles_kernel_osl ${OSL_LIBRARIES} ${LLVM_LIBRARY})
 endif()
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})
 
-if(WITH_CYCLES_TEST)
+if(WITH_CYCLES_STANDALONE)
 	set(SRC
-		cycles_test.cpp
+		cycles_standalone.cpp
 		cycles_xml.cpp
 		cycles_xml.h
 	)
-	add_executable(cycles_test ${SRC})
-	target_link_libraries(cycles_test ${LIBRARIES})
+	add_executable(cycles ${SRC})
+	list(APPEND LIBRARIES ${PLATFORM_LINKLIBS})
+	target_link_libraries(cycles ${LIBRARIES} ${CMAKE_DL_LIBS})
 
 	if(UNIX AND NOT APPLE)
-		set_target_properties(cycles_test PROPERTIES INSTALL_RPATH $ORIGIN/lib)
+		set_target_properties(cycles PROPERTIES INSTALL_RPATH $ORIGIN/lib)
 	endif()
 	unset(SRC)
 endif()
@@ -58,7 +68,7 @@ if(WITH_CYCLES_NETWORK)
 		cycles_server.cpp
 	)
 	add_executable(cycles_server ${SRC})
-	target_link_libraries(cycles_server ${LIBRARIES})
+	target_link_libraries(cycles_server ${LIBRARIES} ${CMAKE_DL_LIBS})
 
 	if(UNIX AND NOT APPLE)
 		set_target_properties(cycles_server PROPERTIES INSTALL_RPATH $ORIGIN/lib)

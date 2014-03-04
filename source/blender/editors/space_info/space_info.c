@@ -179,6 +179,7 @@ static void info_main_area_draw(const bContext *C, ARegion *ar)
 
 static void info_operatortypes(void)
 {
+	WM_operatortype_append(FILE_OT_autopack_toggle);
 	WM_operatortype_append(FILE_OT_pack_all);
 	WM_operatortype_append(FILE_OT_pack_libraries);
 	WM_operatortype_append(FILE_OT_unpack_all);
@@ -220,6 +221,9 @@ static void info_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "INFO_OT_report_delete", XKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "INFO_OT_report_delete", DELKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "INFO_OT_report_copy", CKEY, KM_PRESS, KM_CTRL, 0);
+#ifdef __APPLE__
+	WM_keymap_add_item(keymap, "INFO_OT_report_copy", CKEY, KM_PRESS, KM_OSKEY, 0);
+#endif
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -233,7 +237,7 @@ static void info_header_area_draw(const bContext *C, ARegion *ar)
 	ED_region_header(C, ar);
 }
 
-static void info_main_area_listener(ARegion *ar, wmNotifier *wmn)
+static void info_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	// SpaceInfo *sinfo = sa->spacedata.first;
 
@@ -248,7 +252,7 @@ static void info_main_area_listener(ARegion *ar, wmNotifier *wmn)
 	}
 }
 
-static void info_header_listener(ARegion *ar, wmNotifier *wmn)
+static void info_header_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch (wmn->category) {
@@ -271,6 +275,7 @@ static void info_header_listener(ARegion *ar, wmNotifier *wmn)
 		case NC_ID:
 			if (wmn->action == NA_RENAME)
 				ED_region_tag_redraw(ar);
+			break;
 	}
 	
 }
@@ -326,7 +331,7 @@ void ED_spacetype_info(void)
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype info region");
 	art->regionid = RGN_TYPE_WINDOW;
-	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
+	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
 
 	art->init = info_main_area_init;
 	art->draw = info_main_area_draw;

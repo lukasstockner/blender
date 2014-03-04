@@ -166,14 +166,7 @@ static void SimpleDeformModifier_do(SimpleDeformModifierData *smd, struct Object
 	/* Calculate matrixs do convert between coordinate spaces */
 	if (smd->origin) {
 		transf = &tmp_transf;
-
-		if (smd->originOpts & MOD_SIMPLEDEFORM_ORIGIN_LOCAL) {
-			space_transform_from_matrixs(transf, ob->obmat, smd->origin->obmat);
-		}
-		else {
-			copy_m4_m4(transf->local2target, smd->origin->obmat);
-			invert_m4_m4(transf->target2local, transf->local2target);
-		}
+		space_transform_from_matrixs(transf, ob->obmat, smd->origin->obmat);
 	}
 
 	/* Setup vars,
@@ -252,27 +245,21 @@ static void initData(ModifierData *md)
 	SimpleDeformModifierData *smd = (SimpleDeformModifierData *) md;
 
 	smd->mode = MOD_SIMPLEDEFORM_MODE_TWIST;
-	smd->originOpts = MOD_SIMPLEDEFORM_ORIGIN_LOCAL;
 	smd->axis = 0;
 
 	smd->origin   =  NULL;
-	smd->factor   =  0.35f;
+	smd->factor   =  DEG2RADF(45.0f);
 	smd->limit[0] =  0.0f;
 	smd->limit[1] =  1.0f;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	SimpleDeformModifierData *smd  = (SimpleDeformModifierData *)md;
 	SimpleDeformModifierData *tsmd = (SimpleDeformModifierData *)target;
-
-	tsmd->mode  = smd->mode;
-	tsmd->axis  = smd->axis;
-	tsmd->origin = smd->origin;
-	tsmd->originOpts = smd->originOpts;
-	tsmd->factor = smd->factor;
-	memcpy(tsmd->limit, smd->limit, sizeof(tsmd->limit));
-	BLI_strncpy(tsmd->vgroup_name, smd->vgroup_name, sizeof(tsmd->vgroup_name));
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -317,7 +304,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 	/* we implement requiredDataMask but thats not really useful since
 	 * mesh_calc_modifiers pass a NULL derivedData */
 	if (dataMask)
-		dm = get_dm(ob, NULL, dm, NULL, 0);
+		dm = get_dm(ob, NULL, dm, NULL, false, false);
 
 	SimpleDeformModifier_do((SimpleDeformModifierData *)md, ob, dm, vertexCos, numVerts);
 
@@ -337,7 +324,7 @@ static void deformVertsEM(ModifierData *md, Object *ob,
 	/* we implement requiredDataMask but thats not really useful since
 	 * mesh_calc_modifiers pass a NULL derivedData */
 	if (dataMask)
-		dm = get_dm(ob, editData, dm, NULL, 0);
+		dm = get_dm(ob, editData, dm, NULL, false, false);
 
 	SimpleDeformModifier_do((SimpleDeformModifierData *)md, ob, dm, vertexCos, numVerts);
 

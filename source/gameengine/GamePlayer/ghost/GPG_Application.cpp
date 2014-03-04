@@ -32,8 +32,8 @@
 
 
 #ifdef WIN32
-	#pragma warning (disable:4786) // suppress stl-MSVC debug info warning
-	#include <windows.h>
+#  pragma warning (disable:4786) // suppress stl-MSVC debug info warning
+#  include <windows.h>
 #endif
 
 #include "GL/glew.h"
@@ -86,7 +86,6 @@ extern "C"
 #include "NG_LoopBackNetworkDeviceInterface.h"
 
 #include "GPC_MouseDevice.h"
-#include "GPC_RenderTools.h"
 #include "GPG_Canvas.h" 
 #include "GPG_KeyboardDevice.h"
 #include "GPG_System.h"
@@ -98,6 +97,12 @@ extern "C"
 #include "GHOST_IEventConsumer.h"
 #include "GHOST_IWindow.h"
 #include "GHOST_Rect.h"
+
+#ifdef WITH_AUDASPACE
+#  include "AUD_C-API.h"
+#  include "AUD_I3DDevice.h"
+#  include "AUD_IDevice.h"
+#endif
 
 static void frameTimerProc(GHOST_ITimerTask* task, GHOST_TUns64 time);
 
@@ -120,8 +125,7 @@ GPG_Application::GPG_Application(GHOST_ISystem* system)
 	  m_kxsystem(0), 
 	  m_keyboard(0), 
 	  m_mouse(0), 
-	  m_canvas(0), 
-	  m_rendertools(0), 
+	  m_canvas(0),
 	  m_rasterizer(0), 
 	  m_sceneconverter(0),
 	  m_networkdevice(0),
@@ -554,14 +558,13 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		GameData *gm= &m_startScene->gm;
 		bool properties	= (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
 		bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
-		bool fixedFr = (gm->flag & GAME_ENABLE_ALL_FRAMES);
 
 		bool showPhysics = (gm->flag & GAME_SHOW_PHYSICS);
 		SYS_WriteCommandLineInt(syshandle, "show_physics", showPhysics);
 
-		bool fixed_framerate= (SYS_GetCommandLineInt(syshandle, "fixedtime", fixedFr) != 0);
+		bool fixed_framerate= (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) != 0);
 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
-		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0);
+		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0) && GPU_display_list_support();
 		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
 		bool restrictAnimFPS = gm->flag & GAME_RESTRICT_ANIM_UPDATES;
 
@@ -577,14 +580,15 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_canvas = new GPG_Canvas(window);
 		if (!m_canvas)
 			return false;
-				
+
+		if (gm->vsync == VSYNC_ADAPTIVE)
+			m_canvas->SetSwapInterval(-1);
+		else
+			m_canvas->SetSwapInterval((gm->vsync == VSYNC_ON) ? 1 : 0);
+
 		m_canvas->Init();
 		if (gm->flag & GAME_SHOW_MOUSE)
 			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
-
-		m_rendertools = new GPC_RenderTools();
-		if (!m_rendertools)
-			goto initFailed;
 		
 		//Don't use displaylists with VBOs
 		//If auto starts using VBOs, make sure to check for that here
@@ -629,10 +633,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_ketsjiengine->SetMouseDevice(m_mouse);
 		m_ketsjiengine->SetNetworkDevice(m_networkdevice);
 		m_ketsjiengine->SetCanvas(m_canvas);
-		m_ketsjiengine->SetRenderTools(m_rendertools);
 		m_ketsjiengine->SetRasterizer(m_rasterizer);
-
-		m_ketsjiengine->SetTimingDisplay(frameRate, false, false);
 
 		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
 #ifdef WITH_PYTHON
@@ -659,10 +660,8 @@ initFailed:
 	delete m_mouse;
 	delete m_keyboard;
 	delete m_rasterizer;
-	delete m_rendertools;
 	delete m_canvas;
 	m_canvas = NULL;
-	m_rendertools = NULL;
 	m_rasterizer = NULL;
 	m_keyboard = NULL;
 	m_mouse = NULL;
@@ -704,7 +703,7 @@ bool GPG_Application::startEngine(void)
 
 		//	if (always_use_expand_framing)
 		//		sceneconverter->SetAlwaysUseExpandFraming(true);
-		if (m_blendermat && (m_globalSettings->matmode != GAME_MAT_TEXFACE))
+		if (m_blendermat)
 			m_sceneconverter->SetMaterials(true);
 		if (m_blenderglslmat && (m_globalSettings->matmode == GAME_MAT_GLSL))
 			m_sceneconverter->SetGLSLMaterials(true);
@@ -728,6 +727,15 @@ bool GPG_Application::startEngine(void)
 		if (m_startScene->gm.stereoflag == STEREO_DOME)
 			m_ketsjiengine->InitDome(m_startScene->gm.dome.res, m_startScene->gm.dome.mode, m_startScene->gm.dome.angle, m_startScene->gm.dome.resbuf, m_startScene->gm.dome.tilt, m_startScene->gm.dome.warptext);
 
+		// initialize 3D Audio Settings
+		AUD_I3DDevice* dev = AUD_get3DDevice();
+		if (dev)
+		{
+			dev->setSpeedOfSound(m_startScene->audio.speed_of_sound);
+			dev->setDopplerFactor(m_startScene->audio.doppler_factor);
+			dev->setDistanceModel(AUD_DistanceModel(m_startScene->audio.distance_model));
+		}
+
 #ifdef WITH_PYTHON
 		// Set the GameLogic.globalDict from marshal'd data, so we can
 		// load new blend files and keep data in GameLogic.globalDict
@@ -735,7 +743,7 @@ bool GPG_Application::startEngine(void)
 #endif
 		m_sceneconverter->ConvertScene(
 			startscene,
-			m_rendertools,
+			m_rasterizer,
 			m_canvas);
 		m_ketsjiengine->AddScene(startscene);
 		
@@ -775,9 +783,6 @@ void GPG_Application::stopEngine()
 	}
 
 	m_pyGlobalDictString_Length = saveGamePythonConfig(&m_pyGlobalDictString);
-	
-	// when exiting the mainloop
-	exitGamePythonScripting();
 #endif
 	
 	m_ketsjiengine->StopEngine();
@@ -791,6 +796,7 @@ void GPG_Application::stopEngine()
 		m_system->removeTimer(m_frameTimer);
 		m_frameTimer = 0;
 	}
+
 	m_engineRunning = false;
 }
 
@@ -855,11 +861,6 @@ void GPG_Application::exitEngine()
 		delete m_rasterizer;
 		m_rasterizer = 0;
 	}
-	if (m_rendertools)
-	{
-		delete m_rendertools;
-		m_rendertools = 0;
-	}
 	if (m_canvas)
 	{
 		delete m_canvas;
@@ -867,6 +868,11 @@ void GPG_Application::exitEngine()
 	}
 
 	GPU_extensions_exit();
+
+#ifdef WITH_PYTHON
+	// Call this after we're sure nothing needs Python anymore (e.g., destructors)
+	exitGamePlayerPythonScripting();
+#endif
 
 	m_exitRequested = 0;
 	m_engineInitialized = false;
@@ -945,11 +951,12 @@ bool GPG_Application::handleKey(GHOST_IEvent* event, bool isDown)
 	{
 		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
 		GHOST_TEventKeyData* keyData = static_cast<GHOST_TEventKeyData*>(eventData);
+		unsigned int unicode = keyData->utf8_buf[0] ? BLI_str_utf8_as_unicode(keyData->utf8_buf) : keyData->ascii;
 
 		if (m_keyboard->ToNative(keyData->key) == KX_KetsjiEngine::GetExitKey() && !m_keyboard->m_hookesc && !m_isEmbedded) {
 			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
 		}
-		m_keyboard->ConvertEvent(keyData->key, isDown);
+		m_keyboard->ConvertEvent(keyData->key, isDown, unicode);
 		handled = true;
 	}
 	return handled;

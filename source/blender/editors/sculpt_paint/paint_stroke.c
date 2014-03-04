@@ -46,6 +46,7 @@
 #include "BKE_context.h"
 #include "BKE_paint.h"
 #include "BKE_brush.h"
+#include "BKE_colortools.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -79,6 +80,7 @@ typedef struct PaintStroke {
 	ViewContext vc;
 	bglMats mats;
 	Brush *brush;
+	UnifiedPaintSettings *ups;
 
 	/* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
 	 * to smooth the stroke */
@@ -91,7 +93,7 @@ typedef struct PaintStroke {
 	/* Set whether any stroke step has yet occurred
 	 * e.g. in sculpt mode, stroke doesn't start until cursor
 	 * passes over the mesh */
-	int stroke_started;
+	bool stroke_started;
 	/* event that started stroke, for modal() return */
 	int event_type;
 	/* check if stroke variables have been initialized */
@@ -189,7 +191,7 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 
 	/* Truly temporary data that isn't stored in properties */
 
-	ups->draw_pressure = TRUE;
+	ups->stroke_active = true;
 	ups->pressure_value = stroke->cached_pressure;
 
 	ups->pixel_radius = BKE_brush_size_get(scene, brush);
@@ -200,7 +202,8 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 
 	if (paint_supports_dynamic_tex_coords(brush, mode)) {
 		if (((brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) ||
-		    (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)) &&
+		     (brush->mtex.brush_map_mode == MTEX_MAP_MODE_AREA) ||
+		     (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)) &&
 		    !(brush->flag & BRUSH_RAKE))
 		{
 			if (brush->flag & BRUSH_RANDOM_ROTATION)
@@ -261,7 +264,7 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 		else
 			copy_v2_v2(ups->anchored_initial_mouse, stroke->initial_mouse);
 
-		ups->draw_anchored = 1;
+		ups->draw_anchored = true;
 	}
 	else if (brush->flag & BRUSH_RAKE) {
 		if (!stroke->brush_init)
@@ -391,13 +394,13 @@ static float paint_space_stroke_spacing(const Scene *scene, PaintStroke *stroke,
 
 	/* apply spacing pressure */
 	if (stroke->brush->flag & BRUSH_SPACING_PRESSURE)
-		spacing = max_ff(1.0f, spacing * (1.5f - spacing_pressure));
+		spacing = spacing * (1.5f - spacing_pressure);
 
 	/* stroke system is used for 2d paint too, so we need to account for
 	 * the fact that brush can be scaled there. */
 	spacing *= stroke->zoom_2d;
 
-	return (size_clamp * spacing / 50.0f);
+	return max_ff(1.0, size_clamp * spacing / 50.0f);
 }
 
 static float paint_space_stroke_spacing_variable(const Scene *scene, PaintStroke *stroke, float pressure, float dpressure, float length)
@@ -481,8 +484,10 @@ PaintStroke *paint_stroke_new(bContext *C,
                               StrokeDone done, int event_type)
 {
 	PaintStroke *stroke = MEM_callocN(sizeof(PaintStroke), "PaintStroke");
-
+	ToolSettings *toolsettings = CTX_data_tool_settings(C);
+	UnifiedPaintSettings *ups = &toolsettings->unified_paint_settings;
 	Brush *br = stroke->brush = BKE_paint_brush(BKE_paint_get_active_from_context(C));
+
 	view3d_set_viewcontext(C, &stroke->vc);
 	if (stroke->vc.v3d)
 		view3d_get_transformation(stroke->vc.ar, stroke->vc.rv3d, stroke->vc.obact, &stroke->mats);
@@ -493,6 +498,10 @@ PaintStroke *paint_stroke_new(bContext *C,
 	stroke->redraw = redraw;
 	stroke->done = done;
 	stroke->event_type = event_type; /* for modal, return event */
+	stroke->ups = ups;
+
+	/* initialize here to avoid initialization conflict with threaded strokes */
+	curvemapping_initialize(br->curve);
 	
 	BKE_paint_set_overlay_override(br->overlay_flags);
 
@@ -509,6 +518,14 @@ void paint_stroke_data_free(struct wmOperator *op)
 static void stroke_done(struct bContext *C, struct wmOperator *op)
 {
 	struct PaintStroke *stroke = op->customdata;
+	UnifiedPaintSettings *ups = stroke->ups;
+
+	ups->draw_anchored = false;
+	ups->stroke_active = false;
+
+	/* reset rotation here to avoid doing so in cursor display */
+	if (!(stroke->brush->flag & BRUSH_RAKE))
+		ups->brush_rotation = 0.0f;
 
 	if (stroke->stroke_started) {
 		if (stroke->redraw)
@@ -556,8 +573,9 @@ bool paint_supports_dynamic_size(Brush *br, PaintMode mode)
 		case PAINT_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
+			break;
 		default:
-			;
+			break;
 	}
 	return true;
 }
@@ -566,7 +584,7 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 {
 	if (!(br->flag & BRUSH_SMOOTH_STROKE) ||
 	     (br->flag & BRUSH_ANCHORED) ||
-	     (br->flag & BRUSH_RESTORE_MESH))
+	     (br->flag & BRUSH_DRAG_DOT))
 	{
 		return false;
 	}
@@ -575,10 +593,17 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 		case PAINT_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
+			break;
 		default:
-			;
+			break;
 	}
 	return true;
+}
+
+bool paint_supports_texture(PaintMode mode)
+{
+	/* ommit: PAINT_WEIGHT, PAINT_SCULPT_UV, PAINT_INVALID */
+	return ELEM4(mode, PAINT_SCULPT, PAINT_VERTEX, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D);
 }
 
 /* return true if the brush size can change during paint (normally used for pressure) */
@@ -591,9 +616,10 @@ bool paint_supports_dynamic_tex_coords(Brush *br, PaintMode mode)
 		case PAINT_SCULPT:
 			if (sculpt_is_grab_tool(br))
 				return false;
+			break;
 		default:
-			;
-		}
+			break;
+	}
 	return true;
 }
 
@@ -720,10 +746,13 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* Cancel */
 	if (event->type == EVT_MODAL_MAP && event->val == PAINT_STROKE_MODAL_CANCEL) {
-		if (op->type->cancel)
-			return op->type->cancel(C, op);
-		else
-			return paint_stroke_cancel(C, op);
+		if (op->type->cancel) {
+			op->type->cancel(C, op);
+		}
+		else {
+			paint_stroke_cancel(C, op);
+		}
+		return OPERATOR_CANCELLED;
 	}
 
 	if (event->type == stroke->event_type && event->val == KM_RELEASE && !first_modal) {
@@ -789,10 +818,9 @@ int paint_stroke_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-int paint_stroke_cancel(bContext *C, wmOperator *op)
+void paint_stroke_cancel(bContext *C, wmOperator *op)
 {
 	stroke_done(C, op);
-	return OPERATOR_CANCELLED;
 }
 
 ViewContext *paint_stroke_view_context(PaintStroke *stroke)

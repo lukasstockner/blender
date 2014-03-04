@@ -166,7 +166,7 @@ void BPY_text_free_code(Text *text)
 {
 	if (text->compiled) {
 		PyGILState_STATE gilstate;
-		bool use_gil = !PYC_INTERPRETER_ACTIVE;
+		bool use_gil = !PyC_IsInterpreterActive();
 
 		if (use_gil)
 			gilstate = PyGILState_Ensure();
@@ -213,6 +213,7 @@ static struct _inittab bpy_internal_modules[] = {
 	{(char *)"mathutils", PyInit_mathutils},
 //	{(char *)"mathutils.geometry", PyInit_mathutils_geometry},
 //	{(char *)"mathutils.noise", PyInit_mathutils_noise},
+//	{(char *)"mathutils.kdtree", PyInit_mathutils_kdtree},
 	{(char *)"_bpy_path", BPyInit__bpy_path},
 #if defined(WITH_GL_PROFILE_COMPAT)
 	{(char *)"bgl", BPyInit_bgl},
@@ -224,6 +225,7 @@ static struct _inittab bpy_internal_modules[] = {
 	{(char *)"bmesh", BPyInit_bmesh},
 	// {(char *)"bmesh.types", BPyInit_bmesh_types},
 	// {(char *)"bmesh.utils", BPyInit_bmesh_utils},
+	// {(char *)"bmesh.utils", BPyInit_bmesh_geometry},
 #ifdef WITH_AUDASPACE
 	{(char *)"aud", AUD_initPython},
 #endif
@@ -364,8 +366,10 @@ void BPY_python_start(int argc, const char **argv)
 void BPY_python_end(void)
 {
 	// fprintf(stderr, "Ending Python!\n");
+	PyGILState_STATE gilstate;
 
-	PyGILState_Ensure(); /* finalizing, no need to grab the state */
+	/* finalizing, no need to grab the state, except when we are a module */
+	gilstate = PyGILState_Ensure();
 	
 	/* free other python data. */
 	pyrna_free_types();
@@ -376,10 +380,14 @@ void BPY_python_end(void)
 
 #ifndef WITH_PYTHON_MODULE
 	BPY_atexit_unregister(); /* without this we get recursive calls to WM_exit */
-#endif
 
 	Py_Finalize();
-	
+
+	(void)gilstate;
+#else
+	PyGILState_Release(gilstate);
+#endif
+
 #ifdef TIME_PY_RUN
 	/* measure time since py started */
 	bpy_timer = PIL_check_seconds_timer() - bpy_timer;
@@ -584,7 +592,7 @@ void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr)
 
 
 /* return -1 on error, else 0 */
-int BPY_button_exec(bContext *C, const char *expr, double *value, const short verbose)
+int BPY_button_exec(bContext *C, const char *expr, double *value, const bool verbose)
 {
 	PyGILState_STATE gilstate;
 	PyObject *py_dict, *mod, *retval;
@@ -765,7 +773,7 @@ void BPY_modules_load_user(bContext *C)
 int BPY_context_member_get(bContext *C, const char *member, bContextDataResult *result)
 {
 	PyGILState_STATE gilstate;
-	bool use_gil = !PYC_INTERPRETER_ACTIVE;
+	bool use_gil = !PyC_IsInterpreterActive();
 
 	PyObject *pyctx;
 	PyObject *item;
@@ -826,8 +834,12 @@ int BPY_context_member_get(bContext *C, const char *member, bContextDataResult *
 	}
 
 	if (done == false) {
-		if (item) printf("PyContext '%s' not a valid type\n", member);
-		else      printf("PyContext '%s' not found\n", member);
+		if (item) {
+			printf("PyContext '%s' not a valid type\n", member);
+		}
+		else {
+			printf("PyContext '%s' not found\n", member);
+		}
 	}
 	else {
 		if (G.debug & G_DEBUG_PYTHON) {

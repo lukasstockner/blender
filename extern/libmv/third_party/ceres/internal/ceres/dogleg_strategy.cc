@@ -34,6 +34,7 @@
 #include "Eigen/Dense"
 #include "ceres/array_utils.h"
 #include "ceres/internal/eigen.h"
+#include "ceres/linear_least_squares_problems.h"
 #include "ceres/linear_solver.h"
 #include "ceres/polynomial.h"
 #include "ceres/sparse_matrix.h"
@@ -52,8 +53,8 @@ DoglegStrategy::DoglegStrategy(const TrustRegionStrategy::Options& options)
     : linear_solver_(options.linear_solver),
       radius_(options.initial_radius),
       max_radius_(options.max_radius),
-      min_diagonal_(options.lm_min_diagonal),
-      max_diagonal_(options.lm_max_diagonal),
+      min_diagonal_(options.min_lm_diagonal),
+      max_diagonal_(options.max_lm_diagonal),
       mu_(kMinMu),
       min_mu_(kMinMu),
       max_mu_(kMaxMu),
@@ -98,7 +99,7 @@ TrustRegionStrategy::Summary DoglegStrategy::ComputeStep(
     }
     TrustRegionStrategy::Summary summary;
     summary.num_iterations = 0;
-    summary.termination_type = TOLERANCE;
+    summary.termination_type = LINEAR_SOLVER_SUCCESS;
     return summary;
   }
 
@@ -127,14 +128,18 @@ TrustRegionStrategy::Summary DoglegStrategy::ComputeStep(
   ComputeCauchyPoint(jacobian);
 
   LinearSolver::Summary linear_solver_summary =
-      ComputeGaussNewtonStep(jacobian, residuals);
+      ComputeGaussNewtonStep(per_solve_options, jacobian, residuals);
 
   TrustRegionStrategy::Summary summary;
   summary.residual_norm = linear_solver_summary.residual_norm;
   summary.num_iterations = linear_solver_summary.num_iterations;
   summary.termination_type = linear_solver_summary.termination_type;
 
-  if (linear_solver_summary.termination_type != FAILURE) {
+  if (linear_solver_summary.termination_type == LINEAR_SOLVER_FATAL_ERROR) {
+    return summary;
+  }
+
+  if (linear_solver_summary.termination_type != LINEAR_SOLVER_FAILURE) {
     switch (dogleg_type_) {
       // Interpolate the Cauchy point and the Gauss-Newton step.
       case TRADITIONAL_DOGLEG:
@@ -145,7 +150,7 @@ TrustRegionStrategy::Summary DoglegStrategy::ComputeStep(
       // Cauchy point and the (Gauss-)Newton step.
       case SUBSPACE_DOGLEG:
         if (!ComputeSubspaceModel(jacobian)) {
-          summary.termination_type = FAILURE;
+          summary.termination_type = LINEAR_SOLVER_FAILURE;
           break;
         }
         ComputeSubspaceDoglegStep(step);
@@ -507,11 +512,12 @@ bool DoglegStrategy::FindMinimumOnTrustRegionBoundary(Vector2d* minimum) const {
 }
 
 LinearSolver::Summary DoglegStrategy::ComputeGaussNewtonStep(
+    const PerSolveOptions& per_solve_options,
     SparseMatrix* jacobian,
     const double* residuals) {
   const int n = jacobian->num_cols();
   LinearSolver::Summary linear_solver_summary;
-  linear_solver_summary.termination_type = FAILURE;
+  linear_solver_summary.termination_type = LINEAR_SOLVER_FAILURE;
 
   // The Jacobian matrix is often quite poorly conditioned. Thus it is
   // necessary to add a diagonal matrix at the bottom to prevent the
@@ -524,7 +530,7 @@ LinearSolver::Summary DoglegStrategy::ComputeGaussNewtonStep(
   // If the solve fails, the multiplier to the diagonal is increased
   // up to max_mu_ by a factor of mu_increase_factor_ every time. If
   // the linear solver is still not successful, the strategy returns
-  // with FAILURE.
+  // with LINEAR_SOLVER_FAILURE.
   //
   // Next time when a new Gauss-Newton step is requested, the
   // multiplier starts out from the last successful solve.
@@ -561,17 +567,37 @@ LinearSolver::Summary DoglegStrategy::ComputeGaussNewtonStep(
                                                   solve_options,
                                                   gauss_newton_step_.data());
 
-    if (linear_solver_summary.termination_type == FAILURE ||
+    if (per_solve_options.dump_format_type == CONSOLE ||
+        (per_solve_options.dump_format_type != CONSOLE &&
+         !per_solve_options.dump_filename_base.empty())) {
+      if (!DumpLinearLeastSquaresProblem(per_solve_options.dump_filename_base,
+                                         per_solve_options.dump_format_type,
+                                         jacobian,
+                                         solve_options.D,
+                                         residuals,
+                                         gauss_newton_step_.data(),
+                                         0)) {
+        LOG(ERROR) << "Unable to dump trust region problem."
+                   << " Filename base: "
+                   << per_solve_options.dump_filename_base;
+      }
+    }
+
+    if (linear_solver_summary.termination_type == LINEAR_SOLVER_FATAL_ERROR) {
+      return linear_solver_summary;
+    }
+
+    if (linear_solver_summary.termination_type == LINEAR_SOLVER_FAILURE ||
         !IsArrayValid(n, gauss_newton_step_.data())) {
       mu_ *= mu_increase_factor_;
       VLOG(2) << "Increasing mu " << mu_;
-      linear_solver_summary.termination_type = FAILURE;
+      linear_solver_summary.termination_type = LINEAR_SOLVER_FAILURE;
       continue;
     }
     break;
   }
 
-  if (linear_solver_summary.termination_type != FAILURE) {
+  if (linear_solver_summary.termination_type != LINEAR_SOLVER_FAILURE) {
     // The scaled Gauss-Newton step is D * GN:
     //
     //     - (D^-1 J^T J D^-1)^-1 (D^-1 g)

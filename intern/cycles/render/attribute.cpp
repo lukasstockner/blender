@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 #include "mesh.h"
@@ -21,6 +19,7 @@
 
 #include "util_debug.h"
 #include "util_foreach.h"
+#include "util_transform.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -36,7 +35,7 @@ void Attribute::set(ustring name_, TypeDesc type_, AttributeElement element_)
 	/* string and matrix not supported! */
 	assert(type == TypeDesc::TypeFloat || type == TypeDesc::TypeColor ||
 		type == TypeDesc::TypePoint || type == TypeDesc::TypeVector ||
-		type == TypeDesc::TypeNormal);
+		type == TypeDesc::TypeNormal || type == TypeDesc::TypeMatrix);
 }
 
 void Attribute::reserve(int numverts, int numtris, int numcurves, int numkeys)
@@ -62,10 +61,21 @@ void Attribute::add(const float3& f)
 		buffer.push_back(data[i]);
 }
 
+void Attribute::add(const Transform& f)
+{
+	char *data = (char*)&f;
+	size_t size = sizeof(f);
+
+	for(size_t i = 0; i < size; i++)
+		buffer.push_back(data[i]);
+}
+
 size_t Attribute::data_sizeof() const
 {
 	if(type == TypeDesc::TypeFloat)
 		return sizeof(float);
+	else if(type == TypeDesc::TypeMatrix)
+		return sizeof(Transform);
 	else
 		return sizeof(float3);
 }
@@ -75,7 +85,8 @@ size_t Attribute::element_size(int numverts, int numtris, int numcurves, int num
 	size_t size;
 	
 	switch(element) {
-		case ATTR_ELEMENT_VALUE:
+		case ATTR_ELEMENT_OBJECT:
+		case ATTR_ELEMENT_MESH:
 			size = 1;
 			break;
 		case ATTR_ELEMENT_VERTEX:
@@ -147,10 +158,14 @@ const char *Attribute::standard_name(AttributeStandard std)
 		return "motion_post";
 	else if(std == ATTR_STD_PARTICLE)
 		return "particle";
-	else if(std == ATTR_STD_CURVE_TANGENT)
-		return "curve_tangent";
 	else if(std == ATTR_STD_CURVE_INTERCEPT)
 		return "curve_intercept";
+	else if(std == ATTR_STD_PTEX_FACE_ID)
+		return "ptex_face_id";
+	else if(std == ATTR_STD_PTEX_UV)
+		return "ptex_uv";
+	else if(std == ATTR_STD_GENERATED_TRANSFORM)
+		return "generated_transform";
 	
 	return "";
 }
@@ -244,19 +259,20 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
 				attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_CORNER);
 				break;
 			case ATTR_STD_GENERATED:
-				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_VERTEX);
-				break;
 			case ATTR_STD_POSITION_UNDEFORMED:
-				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_VERTEX);
-				break;
 			case ATTR_STD_POSITION_UNDISPLACED:
-				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_VERTEX);
-				break;
 			case ATTR_STD_MOTION_PRE:
-				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_VERTEX);
-				break;
 			case ATTR_STD_MOTION_POST:
 				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_VERTEX);
+				break;
+			case ATTR_STD_PTEX_FACE_ID:
+				attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_FACE);
+				break;
+			case ATTR_STD_PTEX_UV:
+				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_VERTEX);
+				break;
+			case ATTR_STD_GENERATED_TRANSFORM:
+				attr = add(name, TypeDesc::TypeMatrix, ATTR_ELEMENT_MESH);
 				break;
 			default:
 				assert(0);
@@ -266,22 +282,18 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
 	else if(curve_mesh) {
 		switch(std) {
 			case ATTR_STD_UV:
-				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_CURVE);
-				break;
 			case ATTR_STD_GENERATED:
 				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_CURVE);
 				break;
 			case ATTR_STD_MOTION_PRE:
-				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_CURVE_KEY);
-				break;
 			case ATTR_STD_MOTION_POST:
 				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_CURVE_KEY);
 				break;
-			case ATTR_STD_CURVE_TANGENT:
-				attr = add(name, TypeDesc::TypeVector, ATTR_ELEMENT_CURVE_KEY);
-				break;
 			case ATTR_STD_CURVE_INTERCEPT:
 				attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_CURVE_KEY);
+				break;
+			case ATTR_STD_GENERATED_TRANSFORM:
+				attr = add(name, TypeDesc::TypeMatrix, ATTR_ELEMENT_MESH);
 				break;
 			default:
 				assert(0);

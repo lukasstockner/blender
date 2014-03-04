@@ -15,9 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
  * The Original Code is: all of this file.
  *
  * Contributor(s): none yet.
@@ -37,6 +34,7 @@ extern "C" {
 #endif
 
 struct Base;
+struct EvaluationContext;
 struct Scene;
 struct Object;
 struct Camera;
@@ -51,6 +49,7 @@ struct rctf;
 struct MovieClip;
 struct Main;
 struct RigidBodyWorld;
+struct HookModifierData;
 
 void BKE_object_workob_clear(struct Object *workob);
 void BKE_object_workob_calc_parent(struct Scene *scene, struct Object *ob, struct Object *workob);
@@ -63,10 +62,14 @@ void BKE_object_copy_softbody(struct Object *obn, struct Object *ob);
 void BKE_object_free_particlesystems(struct Object *ob);
 void BKE_object_free_softbody(struct Object *ob);
 void BKE_object_free_bulletsoftbody(struct Object *ob);
+void BKE_object_free_curve_cache(struct Object *ob);
 void BKE_object_update_base_layer(struct Scene *scene, struct Object *ob);
 
 void BKE_object_free(struct Object *ob);
+void BKE_object_free_ex(struct Object *ob, bool do_id_user);
 void BKE_object_free_derived_caches(struct Object *ob);
+
+void BKE_object_modifier_hook_reset(struct Object *ob, struct HookModifierData *hmd);
 
 bool BKE_object_support_modifier_type_check(struct Object *ob, int modifier_type);
 
@@ -79,10 +82,20 @@ void BKE_object_copy_proxy_drivers(struct Object *ob, struct Object *target);
 void BKE_object_unlink(struct Object *ob);
 bool BKE_object_exists_check(struct Object *obtest);
 bool BKE_object_is_in_editmode(struct Object *ob);
+bool BKE_object_is_in_editmode_vgroup(struct Object *ob);
+bool BKE_object_is_in_wpaint_select_vert(struct Object *ob);
 
 struct Object *BKE_object_add_only_object(struct Main *bmain, int type, const char *name);
 struct Object *BKE_object_add(struct Main *bmain, struct Scene *scene, int type);
 void *BKE_object_obdata_add_from_type(struct Main *bmain, int type);
+
+void BKE_object_lod_add(struct Object *ob);
+void BKE_object_lod_sort(struct Object *ob);
+bool BKE_object_lod_remove(struct Object *ob, int level);
+bool BKE_object_lod_update(struct Object *ob, float camera_position[3]);
+bool BKE_object_lod_is_usable(struct Object *ob, struct Scene *scene);
+struct Object *BKE_object_lod_meshob_get(struct Object *ob, struct Scene *scene);
+struct Object *BKE_object_lod_matob_get(struct Object *ob, struct Scene *scene);
 
 struct Object *BKE_object_copy_ex(struct Main *bmain, struct Object *ob, int copy_caches);
 struct Object *BKE_object_copy(struct Object *ob);
@@ -96,26 +109,28 @@ void BKE_object_mat3_to_rot(struct Object *ob, float mat[3][3], bool use_compat)
 void BKE_object_to_mat3(struct Object *ob, float mat[3][3]);
 void BKE_object_to_mat4(struct Object *ob, float mat[4][4]);
 void BKE_object_apply_mat4(struct Object *ob, float mat[4][4], const bool use_compat, const bool use_parent);
+void BKE_object_matrix_local_get(struct Object *ob, float mat[4][4]);
 
 bool BKE_object_pose_context_check(struct Object *ob);
 struct Object *BKE_object_pose_armature_get(struct Object *ob);
 
 void BKE_object_where_is_calc(struct Scene *scene, struct Object *ob);
-void BKE_object_where_is_calc_ex(struct Scene *scene, struct RigidBodyWorld *rbw, struct Object *ob);
+void BKE_object_where_is_calc_ex(struct Scene *scene, struct RigidBodyWorld *rbw, struct Object *ob, float r_originmat[3][3]);
 void BKE_object_where_is_calc_time(struct Scene *scene, struct Object *ob, float ctime);
 void BKE_object_where_is_calc_time_ex(struct Scene *scene, struct Object *ob, float ctime,
-                                      struct RigidBodyWorld *rbw);
-void BKE_object_where_is_calc_simul(struct Scene *scene, struct Object *ob);
+                                      struct RigidBodyWorld *rbw, float r_originmat[3][3]);
 void BKE_object_where_is_calc_mat4(struct Scene *scene, struct Object *ob, float obmat[4][4]);
 
 /* possibly belong in own moduke? */
 struct BoundBox *BKE_boundbox_alloc_unit(void);
 void BKE_boundbox_init_from_minmax(struct BoundBox *bb, const float min[3], const float max[3]);
-bool BKE_boundbox_ray_hit_check(struct BoundBox *bb, const float ray_start[3], const float ray_normal[3]);
+bool BKE_boundbox_ray_hit_check(struct BoundBox *bb, const float ray_start[3], const float ray_normal[3],
+                                float *r_lambda);
 
 struct BoundBox *BKE_object_boundbox_get(struct Object *ob);
 void BKE_object_dimensions_get(struct Object *ob, float vec[3]);
 void BKE_object_dimensions_set(struct Object *ob, const float *value);
+void BKE_object_empty_draw_type_set(struct Object *ob, const int value);
 void BKE_object_boundbox_flag(struct Object *ob, int flag, int set);
 void BKE_object_minmax(struct Object *ob, float r_min[3], float r_max[3], const bool use_hidden);
 bool BKE_object_minmax_dupli(struct Scene *scene, struct Object *ob, float r_min[3], float r_max[3], const bool use_hidden);
@@ -149,16 +164,17 @@ void BKE_object_tfm_protected_restore(struct Object *ob,
                                       const ObjectTfmProtectedChannels *obtfm,
                                       const short protectflag);
 
-void BKE_object_handle_update(struct Scene *scene, struct Object *ob);
-void BKE_object_handle_update_ex(struct Scene *scene, struct Object *ob,
+void BKE_object_handle_update(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
+void BKE_object_handle_update_ex(struct EvaluationContext *eval_ctx,
+                                 struct Scene *scene, struct Object *ob,
                                  struct RigidBodyWorld *rbw);
 void BKE_object_sculpt_modifiers_changed(struct Object *ob);
 
 int BKE_object_obdata_texspace_get(struct Object *ob, short **r_texflag, float **r_loc, float **r_size, float **r_rot);
 
 int BKE_object_insert_ptcache(struct Object *ob);
-// void object_delete_ptcache(struct Object *ob, int index);
-struct KeyBlock *BKE_object_insert_shape_key(struct Scene *scene, struct Object *ob, const char *name, int from_mix);
+void BKE_object_delete_ptcache(struct Object *ob, int index);
+struct KeyBlock *BKE_object_insert_shape_key(struct Scene *scene, struct Object *ob, const char *name, const bool from_mix);
 
 bool BKE_object_is_child_recursive(struct Object *ob_parent, struct Object *ob_child);
 bool BKE_object_is_animated(struct Scene *scene, struct Object *ob);
@@ -169,7 +185,7 @@ int BKE_object_is_deform_modified(struct Scene *scene, struct Object *ob);
 
 void BKE_object_relink(struct Object *ob);
 
-struct MovieClip *BKE_object_movieclip_get(struct Scene *scene, struct Object *ob, int use_default);
+struct MovieClip *BKE_object_movieclip_get(struct Scene *scene, struct Object *ob, bool use_default);
 
 /* this function returns a superset of the scenes selection based on relationships */
 
@@ -192,6 +208,8 @@ typedef enum eObjectSet {
 struct LinkNode *BKE_object_relational_superset(struct Scene *scene, eObjectSet objectSet, eObRelationTypes includeFilter);
 struct LinkNode *BKE_object_groups(struct Object *ob);
 void             BKE_object_groups_clear(struct Scene *scene, struct Base *base, struct Object *object);
+
+struct KDTree *BKE_object_as_kdtree(struct Object *ob, int *r_tot);
 
 #ifdef __cplusplus
 }

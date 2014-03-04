@@ -45,7 +45,6 @@
 #include "BKE_main.h"
 #include "BKE_sequencer.h"
 #include "BKE_movieclip.h"
-#include "BKE_sequencer.h"
 #include "BKE_mask.h"
 #include "BKE_report.h"
 
@@ -99,7 +98,7 @@ void SEQUENCER_OT_strip_modifier_add(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Add Strip Modifier";
 	ot->idname = "SEQUENCER_OT_strip_modifier_add";
-	ot->description = "Add a modifier to strip";
+	ot->description = "Add a modifier to the strip";
 
 	/* api callbacks */
 	ot->exec = strip_modifier_add_exec;
@@ -142,7 +141,7 @@ void SEQUENCER_OT_strip_modifier_remove(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Remove Strip Modifier";
 	ot->idname = "SEQUENCER_OT_strip_modifier_remove";
-	ot->description = "Add a modifier to strip";
+	ot->description = "Remove a modifier from the strip";
 
 	/* api callbacks */
 	ot->exec = strip_modifier_remove_exec;

@@ -15,9 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
  * Contributor(s): Michel Selten & Joseph Gilbert
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -374,13 +371,14 @@ static PyObject *Matrix_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 					}
 				}
 			}
+			break;
 		}
 	}
 
 	/* will overwrite error */
 	PyErr_SetString(PyExc_TypeError,
 	                "Matrix(): "
-	                "expects no args or 2-4 numeric sequences");
+	                "expects no args or a single arg containing 2-4 numeric sequences");
 	return NULL;
 }
 
@@ -524,18 +522,12 @@ static PyObject *C_Matrix_Rotation(PyObject *cls, PyObject *args)
 		axis_angle_to_mat3((float (*)[3])mat, tvec, angle);
 	}
 	else if (matSize == 2) {
-		const float angle_cos = cosf(angle);
-		const float angle_sin = sinf(angle);
+		angle_to_mat2((float (*)[2])mat, angle);
 
-		/* 2D rotation matrix */
-		mat[0] =  angle_cos;
-		mat[1] =  angle_sin;
-		mat[2] = -angle_sin;
-		mat[3] =  angle_cos;
 	}
 	else {
 		/* valid axis checked above */
-		single_axis_angle_to_mat3((float (*)[3])mat, axis[0], angle);
+		axis_angle_to_mat3_single((float (*)[3])mat, axis[0], angle);
 	}
 
 	if (matSize == 4) {
@@ -1376,7 +1368,7 @@ static PyObject *Matrix_rotate(MatrixObject *self, PyObject *value)
 PyDoc_STRVAR(Matrix_decompose_doc,
 ".. method:: decompose()\n"
 "\n"
-"   Return the location, rotaion and scale components of this matrix.\n"
+"   Return the location, rotation and scale components of this matrix.\n"
 "\n"
 "   :return: loc, rot, scale triple.\n"
 "   :rtype: (:class:`Vector`, :class:`Quaternion`, :class:`Vector`)"
@@ -1421,7 +1413,7 @@ PyDoc_STRVAR(Matrix_lerp_doc,
 "   :type other: :class:`Matrix`\n"
 "   :arg factor: The interpolation value in [0.0, 1.0].\n"
 "   :type factor: float\n"
-"   :return: The interpolated rotation.\n"
+"   :return: The interpolated matrix.\n"
 "   :rtype: :class:`Matrix`\n"
 );
 static PyObject *Matrix_lerp(MatrixObject *self, PyObject *args)
@@ -1755,7 +1747,8 @@ static PyObject *Matrix_richcmpr(PyObject *a, PyObject *b, int op)
 
 	switch (op) {
 		case Py_NE:
-			ok = !ok; /* pass through */
+			ok = !ok;
+			/* fall-through */
 		case Py_EQ:
 			res = ok ? Py_False : Py_True;
 			break;

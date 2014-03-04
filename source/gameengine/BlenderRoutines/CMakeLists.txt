@@ -25,11 +25,11 @@ set(INC
 	../../blender/windowmanager
 	../../../intern/container
 	../../../intern/guardedalloc
-	../../../intern/moto/include
 	../../../intern/string
 )
 
 set(INC_SYS
+	../../../intern/moto/include
 	${PTHREADS_INCLUDE_DIRS}
 	${GLEW_INCLUDE_PATH}
 	${BOOST_INCLUDE_DIR}
@@ -39,20 +39,16 @@ set(SRC
 	BL_KetsjiEmbedStart.cpp
 	BL_System.cpp
 	KX_BlenderCanvas.cpp
-	KX_BlenderGL.cpp
 	KX_BlenderInputDevice.cpp
 	KX_BlenderKeyboardDevice.cpp
 	KX_BlenderMouseDevice.cpp
-	KX_BlenderRenderTools.cpp
 	KX_BlenderSystem.cpp
 
 	BL_System.h
 	KX_BlenderCanvas.h
-	KX_BlenderGL.h
 	KX_BlenderInputDevice.h
 	KX_BlenderKeyboardDevice.h
 	KX_BlenderMouseDevice.h
-	KX_BlenderRenderTools.h
 	KX_BlenderSystem.h
 )
 

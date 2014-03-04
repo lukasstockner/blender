@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -60,6 +60,7 @@
 #include "IMB_imbuf.h"
 
 #include "BKE_blender.h"
+#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 
@@ -908,17 +909,20 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 					}
 					break;
 				case 's':
-					sfra = MIN2(MAXFRAME, MAX2(1, atoi(argv[2]) ));
+					sfra = atoi(argv[2]);
+					CLAMP(sfra, 1, MAXFRAME);
 					argc--;
 					argv++;
 					break;
 				case 'e':
-					efra = MIN2(MAXFRAME, MAX2(1, atoi(argv[2]) ));
+					efra = atoi(argv[2]);
+					CLAMP(efra, 1, MAXFRAME);
 					argc--;
 					argv++;
 					break;
 				case 'j':
-					ps.fstep = MIN2(MAXFRAME, MAX2(1, atoi(argv[2])));
+					ps.fstep = atoi(argv[2]);
+					CLAMP(ps.fstep, 1, MAXFRAME);
 					swaptime *= ps.fstep;
 					argc--;
 					argv++;
@@ -953,6 +957,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 		}
 	}
 	else if (!IMB_ispic(filepath)) {
+		printf("%s: '%s' not an image file\n", __func__, filepath);
 		exit(1);
 	}
 
@@ -962,14 +967,14 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	}
 
 	if (ibuf == NULL) {
-		printf("couldn't open %s\n", filepath);
+		printf("%s: '%s' couldn't open\n", __func__, filepath);
 		exit(1);
 	}
 
 #if 0 //XXX25
-	#if !defined(WIN32) && !defined(__APPLE__)
+#if !defined(WIN32) && !defined(__APPLE__)
 	if (fork()) exit(0);
-	#endif
+#endif
 #endif //XXX25
 
 	{
@@ -1203,13 +1208,14 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	GHOST_DisposeWindow(g_WS.ghost_system, g_WS.ghost_window);
 
 	/* early exit, IMB and BKE should be exited only in end */
-	if (ps.dropped_file) {
+	if (ps.dropped_file[0]) {
 		BLI_strncpy(filepath, ps.dropped_file, sizeof(filepath));
 		return filepath;
 	}
 	
 	IMB_exit();
 	BKE_images_exit();
+	DAG_exit();
 
 	totblock = MEM_get_memory_blocks_in_use();
 	if (totblock != 0) {

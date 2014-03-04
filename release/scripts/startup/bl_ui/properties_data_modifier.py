@@ -64,13 +64,15 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         layout.separator()
 
-        row = layout.row()
-        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
-        sub = row.row()
-        sub.active = bool(md.vertex_group)
-        sub.prop(md, "invert_vertex_group")
+        split = layout.split()
 
-        layout.prop(md, "use_multi_modifier")
+        row = split.row(align=True)
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        sub = row.row(align=True)
+        sub.active = bool(md.vertex_group)
+        sub.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
+
+        split.prop(md, "use_multi_modifier")
 
     def ARRAY(self, layout, ob, md):
         layout.prop(md, "fit_type")
@@ -120,10 +122,11 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
     def BEVEL(self, layout, ob, md):
         split = layout.split()
-        
+
         col = split.column()
         col.prop(md, "width")
         col.prop(md, "segments")
+        col.prop(md, "profile")
 
         col = split.column()
         col.prop(md, "use_only_vertices")
@@ -136,8 +139,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         elif md.limit_method == 'VGROUP':
             layout.label(text="Vertex Group:")
             layout.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
-        # elif md.limit_method == 'WEIGHT':
-        #    layout.row().prop(md, "edge_weight_method", expand=True)
+
+        layout.label(text="Width Method:")
+        layout.row().prop(md, "offset_type", expand=True)
 
     def BOOLEAN(self, layout, ob, md):
         split = layout.split()
@@ -156,6 +160,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.prop(md, "frame_start")
         col.prop(md, "frame_duration")
+        col.prop(md, "use_reverse")
 
         col = split.column()
         col.prop(md, "use_random_order")
@@ -250,16 +255,20 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.row().prop(md, "deform_axis", expand=True)
 
     def DECIMATE(self, layout, ob, md):
+        decimate_type = md.decimate_type
+
         row = layout.row()
         row.prop(md, "decimate_type", expand=True)
-        decimate_type = md.decimate_type
 
         if decimate_type == 'COLLAPSE':
             layout.prop(md, "ratio")
-            row = layout.row()
+
+            split = layout.split()
+            row = split.row(align=True)
             row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
-            row.prop(md, "invert_vertex_group")
-            layout.prop(md, "use_collapse_triangulate")
+            row.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
+
+            split.prop(md, "use_collapse_triangulate")
         elif decimate_type == 'UNSUBDIV':
             layout.prop(md, "iterations")
         else:  # decimate_type == 'DISSOLVE':
@@ -373,6 +382,25 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             row.operator("object.hook_select", text="Select")
             row.operator("object.hook_assign", text="Assign")
 
+    def LAPLACIANDEFORM(self, layout, ob, md):
+        is_bind = md.is_bind
+
+        layout.prop(md, "iterations")
+
+        row = layout.row()
+        row.active = not is_bind
+        row.label(text="Anchors Vertex Group:")
+
+        row = layout.row()
+        row.enabled = not is_bind
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+
+        layout.separator()
+
+        row = layout.row()
+        row.enabled = bool(md.vertex_group)
+        row.operator("object.laplaciandeform_bind", text="Unbind" if is_bind else "Bind")
+
     def LAPLACIANSMOOTH(self, layout, ob, md):
         layout.prop(md, "iterations")
 
@@ -416,33 +444,35 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.label(text="Mode:")
         col.prop(md, "mode", text="")
+
         col = split.column()
         if md.mode == 'ARMATURE':
             col.label(text="Armature:")
             col.prop(md, "armature", text="")
         elif md.mode == 'VERTEX_GROUP':
             col.label(text="Vertex Group:")
-            col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
-
-        sub = col.column()
-        sub.active = bool(md.vertex_group)
-        sub.prop(md, "invert_vertex_group")
+            row = col.row(align=True)
+            row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+            sub = row.row(align=True)
+            sub.active = bool(md.vertex_group)
+            sub.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
 
     def MESH_DEFORM(self, layout, ob, md):
         split = layout.split()
 
         col = split.column()
-        sub = col.column()
-        sub.label(text="Object:")
-        sub.prop(md, "object", text="")
-        sub.active = not md.is_bound
+        col.active = not md.is_bound
+        col.label(text="Object:")
+        col.prop(md, "object", text="")
+
         col = split.column()
         col.label(text="Vertex Group:")
-        col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
 
-        sub = col.column()
+        row = col.row(align=True)
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        sub = row.row(align=True)
         sub.active = bool(md.vertex_group)
-        sub.prop(md, "invert_vertex_group")
+        sub.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
 
         layout.separator()
 
@@ -553,7 +583,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.prop(md, "wave_alignment", text="Alignment")
         sub = col.column()
-        sub.active = md.wave_alignment > 0
+        sub.active = (md.wave_alignment > 0.0)
         sub.prop(md, "wave_direction", text="Direction")
         sub.prop(md, "damping")
 
@@ -656,6 +686,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "use_normal_calculate")
         col.prop(md, "use_normal_flip")
         col.prop(md, "iterations")
+        col.prop(md, "use_stretch_u")
+        col.prop(md, "use_stretch_v")
 
     def SHRINKWRAP(self, layout, ob, md):
         split = layout.split()
@@ -670,13 +702,17 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
         col = split.column()
         col.prop(md, "offset")
-        col.prop(md, "subsurf_levels")
 
         col = split.column()
         col.label(text="Mode:")
         col.prop(md, "wrap_method", text="")
 
         if md.wrap_method == 'PROJECT':
+            split = layout.split()
+            col = split.column()
+            col.prop(md, "subsurf_levels")
+            col = split.column()
+
             col.prop(md, "project_limit", text="Limit")
             split = layout.split(percentage=0.25)
 
@@ -715,9 +751,11 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.label(text="Origin:")
         col.prop(md, "origin", text="")
-        sub = col.column()
-        sub.active = (md.origin is not None)
-        sub.prop(md, "use_relative")
+
+        if md.deform_method in {'TAPER', 'STRETCH', 'TWIST'}:
+            col.label(text="Lock:")
+            col.prop(md, "lock_x")
+            col.prop(md, "lock_y")
 
         col = split.column()
         col.label(text="Deform:")
@@ -726,9 +764,6 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         else:
             col.prop(md, "angle")
         col.prop(md, "limits", slider=True)
-        if md.deform_method in {'TAPER', 'STRETCH', 'TWIST'}:
-            col.prop(md, "lock_x")
-            col.prop(md, "lock_y")
 
     def SMOKE(self, layout, ob, md):
         layout.label(text="Settings can be found inside the Physics context")
@@ -757,31 +792,41 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.prop(md, "thickness")
         col.prop(md, "thickness_clamp")
-        col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+
+        col.separator()
+
+        row = col.row(align=True)
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        sub = row.row(align=True)
+        sub.active = bool(md.vertex_group)
+        sub.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
+
+        sub = col.row()
+        sub.active = bool(md.vertex_group)
+        sub.prop(md, "thickness_vertex_group", text="Factor")
 
         col.label(text="Crease:")
         col.prop(md, "edge_crease_inner", text="Inner")
         col.prop(md, "edge_crease_outer", text="Outer")
         col.prop(md, "edge_crease_rim", text="Rim")
-        col.label(text="Material Index Offset:")
 
         col = split.column()
 
         col.prop(md, "offset")
         col.prop(md, "use_flip_normals")
-        sub = col.column()
-        sub.active = bool(md.vertex_group)
-        sub.prop(md, "invert_vertex_group", text="Invert")
-        sub.prop(md, "thickness_vertex_group", text="Factor")
 
         col.prop(md, "use_even_offset")
         col.prop(md, "use_quality_normals")
         col.prop(md, "use_rim")
 
+        col.separator()
+
+        col.label(text="Material Index Offset:")
+
         sub = col.column()
         row = sub.split(align=True, percentage=0.4)
         row.prop(md, "material_offset", text="")
-        row = row.row()
+        row = row.row(align=True)
         row.active = md.use_rim
         row.prop(md, "material_offset_rim", text="Rim")
 
@@ -982,26 +1027,26 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
     def VERTEX_WEIGHT_EDIT(self, layout, ob, md):
         split = layout.split()
-        
+
         col = split.column()
         col.label(text="Vertex Group:")
         col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
 
         col.label(text="Default Weight:")
         col.prop(md, "default_weight", text="")
-        
+
         col = split.column()
         col.prop(md, "use_add")
         sub = col.column()
         sub.active = md.use_add
         sub.prop(md, "add_threshold")
-        
+
         col = col.column()
         col.prop(md, "use_remove")
         sub = col.column()
         sub.active = md.use_remove
         sub.prop(md, "remove_threshold")
-        
+
         layout.separator()
 
         layout.prop(md, "falloff_type")
@@ -1047,20 +1092,20 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.label(text="Target Object:")
         col.prop(md, "target", text="")
-        
+
         split = layout.split()
-        
+
         col = split.column()
         col.label(text="Distance:")
         col.prop(md, "proximity_mode", text="")
         if md.proximity_mode == 'GEOMETRY':
             col.row().prop(md, "proximity_geometry")
-            
+
         col = split.column()
         col.label()
         col.prop(md, "min_dist")
         col.prop(md, "max_dist")
-        
+
         layout.separator()
         layout.prop(md, "falloff_type")
 
@@ -1070,25 +1115,25 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
 
     def SKIN(self, layout, ob, md):
         layout.operator("object.skin_armature_create", text="Create Armature")
-        
+
         layout.separator()
-        
+
         col = layout.column(align=True)
         col.prop(md, "branch_smoothing")
         col.prop(md, "use_smooth_shade")
-        
+
         split = layout.split()
-        
+
         col = split.column()
         col.label(text="Selected Vertices:")
         sub = col.column(align=True)
         sub.operator("object.skin_loose_mark_clear", text="Mark Loose").action = 'MARK'
         sub.operator("object.skin_loose_mark_clear", text="Clear Loose").action = 'CLEAR'
-        
+
         sub = col.column()
         sub.operator("object.skin_root_mark", text="Mark Root")
         sub.operator("object.skin_radii_equalize", text="Equalize Radii")
-        
+
         col = split.column()
         col.label(text="Symmetry Axes:")
         col.prop(md, "use_x_symmetry")
@@ -1096,7 +1141,14 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "use_z_symmetry")
 
     def TRIANGULATE(self, layout, ob, md):
-        layout.prop(md, "use_beauty")
+        row = layout.row()
+
+        col = row.column()
+        col.label(text="Quad Method:")
+        col.prop(md, "quad_method", text="")
+        col = row.column()
+        col.label(text="Ngon Method:")
+        col.prop(md, "ngon_method", text="")
 
     def UV_WARP(self, layout, ob, md):
         split = layout.split()
@@ -1139,6 +1191,37 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col = split.column()
         col.label(text="UV Map:")
         col.prop_search(md, "uv_layer", ob.data, "uv_textures", text="")
+
+    def WIREFRAME(self, layout, ob, md):
+        has_vgroup = bool(md.vertex_group)
+
+        split = layout.split()
+
+        col = split.column()
+        col.prop(md, "thickness", text="Thickness")
+
+        row = col.row(align=True)
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+        sub = row.row(align=True)
+        sub.active = has_vgroup
+        sub.prop(md, "invert_vertex_group", text="", icon='ARROW_LEFTRIGHT')
+        row = col.row(align=True)
+        row.active = has_vgroup
+        row.prop(md, "thickness_vertex_group", text="Factor")
+
+        col.prop(md, "use_crease", text="Crease Edges")
+        col.prop(md, "crease_weight", text="Crease Weight")
+
+        col = split.column()
+
+        col.prop(md, "offset")
+        col.prop(md, "use_even_offset", text="Even Thickness")
+        col.prop(md, "use_relative_offset", text="Relative Thickness")
+        col.prop(md, "use_boundary", text="Boundary")
+        col.prop(md, "use_replace", text="Replace Original")
+
+        col.prop(md, "material_offset", text="Material Offset")
+
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

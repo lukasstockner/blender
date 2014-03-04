@@ -1,19 +1,17 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 /* Constant Globals */
@@ -33,8 +31,8 @@ struct OSLThreadData;
 struct OSLShadingSystem;
 #endif
 
-#define MAX_BYTE_IMAGES   512
-#define MAX_FLOAT_IMAGES  5
+#define MAX_BYTE_IMAGES   1024
+#define MAX_FLOAT_IMAGES  1024
 
 typedef struct KernelGlobals {
 	texture_image_uchar4 texture_byte_images[MAX_BYTE_IMAGES];
@@ -68,7 +66,11 @@ typedef struct KernelGlobals {
 __constant__ KernelData __data;
 typedef struct KernelGlobals {} KernelGlobals;
 
+#ifdef __KERNEL_CUDA_TEX_STORAGE__
 #define KERNEL_TEX(type, ttype, name) ttype name;
+#else
+#define KERNEL_TEX(type, ttype, name) const __constant__ __device__ type *name;
+#endif
 #define KERNEL_IMAGE_TEX(type, ttype, name) ttype name;
 #include "kernel_textures.h"
 
@@ -79,10 +81,10 @@ typedef struct KernelGlobals {} KernelGlobals;
 #ifdef __KERNEL_OPENCL__
 
 typedef struct KernelGlobals {
-	__constant KernelData *data;
+	ccl_constant KernelData *data;
 
 #define KERNEL_TEX(type, ttype, name) \
-	__global type *name;
+	ccl_global type *name;
 #include "kernel_textures.h"
 } KernelGlobals;
 
@@ -90,7 +92,7 @@ typedef struct KernelGlobals {
 
 /* Interpolated lookup table access */
 
-__device float lookup_table_read(KernelGlobals *kg, float x, int offset, int size)
+ccl_device float lookup_table_read(KernelGlobals *kg, float x, int offset, int size)
 {
 	x = clamp(x, 0.0f, 1.0f)*(size-1);
 
@@ -106,7 +108,7 @@ __device float lookup_table_read(KernelGlobals *kg, float x, int offset, int siz
 	return (1.0f - t)*data0 + t*data1;
 }
 
-__device float lookup_table_read_2D(KernelGlobals *kg, float x, float y, int offset, int xsize, int ysize)
+ccl_device float lookup_table_read_2D(KernelGlobals *kg, float x, float y, int offset, int xsize, int ysize)
 {
 	y = clamp(y, 0.0f, 1.0f)*(ysize-1);
 

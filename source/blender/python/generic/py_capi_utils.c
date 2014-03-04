@@ -162,6 +162,20 @@ PyObject *PyC_FromArray(const void *array, int length, const PyTypeObject *type,
 	return tuple;
 }
 
+/**
+ * Caller needs to ensure tuple is uninitialized.
+ * Handy for filling a typle with None for eg.
+ */
+void PyC_Tuple_Fill(PyObject *tuple, PyObject *value)
+{
+	unsigned int tot = PyTuple_GET_SIZE(tuple);
+	unsigned int i;
+
+	for (i = 0; i < tot; i++) {
+		PyTuple_SET_ITEM(tuple, i, value);
+		Py_INCREF(value);
+	}
+}
 
 /* for debugging */
 void PyC_ObSpit(const char *name, PyObject *var)
@@ -191,7 +205,7 @@ void PyC_LineSpit(void)
 	int lineno;
 
 	/* Note, allow calling from outside python (RNA) */
-	if (!PYC_INTERPRETER_ACTIVE) {
+	if (!PyC_IsInterpreterActive()) {
 		fprintf(stderr, "python line lookup failed, interpreter inactive\n");
 		return;
 	}
@@ -205,7 +219,7 @@ void PyC_LineSpit(void)
 void PyC_StackSpit(void)
 {
 	/* Note, allow calling from outside python (RNA) */
-	if (!PYC_INTERPRETER_ACTIVE) {
+	if (!PyC_IsInterpreterActive()) {
 		fprintf(stderr, "python line lookup failed, interpreter inactive\n");
 		return;
 	}
@@ -258,7 +272,7 @@ void PyC_FileAndNum(const char **filename, int *lineno)
 
 void PyC_FileAndNum_Safe(const char **filename, int *lineno)
 {
-	if (!PYC_INTERPRETER_ACTIVE) {
+	if (!PyC_IsInterpreterActive()) {
 		return;
 	}
 
@@ -599,6 +613,11 @@ void PyC_SetHomePath(const char *py_path_bundle)
 	}
 }
 
+bool PyC_IsInterpreterActive(void)
+{
+	return (((PyThreadState *)_Py_atomic_load_relaxed(&_PyThreadState_Current)) != NULL);
+}
+
 /* Would be nice if python had this built in
  * See: http://wiki.blender.org/index.php/Dev:Doc/Tools/Debugging/PyFromC
  */
@@ -882,3 +901,19 @@ PyObject *PyC_FlagSet_FromBitfield(PyC_FlagSet *items, int flag)
 
 	return ret;
 }
+
+/* compat only */
+#if PY_VERSION_HEX <  0x03030200
+int
+_PyLong_AsInt(PyObject *obj)
+{
+	int overflow;
+	long result = PyLong_AsLongAndOverflow(obj, &overflow);
+	if (overflow || result > INT_MAX || result < INT_MIN) {
+		PyErr_SetString(PyExc_OverflowError,
+		                "Python int too large to convert to C int");
+		return -1;
+	}
+	return (int)result;
+}
+#endif

@@ -34,12 +34,7 @@ class OUTLINER_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        if context.area.show_menus:
-            sub = row.row(align=True)
-            sub.menu("OUTLINER_MT_view")
-            sub.menu("OUTLINER_MT_search")
-            if space.display_mode == 'DATABLOCKS':
-                sub.menu("OUTLINER_MT_edit_datablocks")
+        OUTLINER_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.prop(space, "display_mode", text="")
 
@@ -53,15 +48,33 @@ class OUTLINER_HT_header(Header):
             row.operator("outliner.keyingset_remove_selected", icon='ZOOMOUT', text="")
 
             if ks:
-                row = layout.row(align=False)
+                row = layout.row()
                 row.prop_search(scene.keying_sets, "active", scene, "keying_sets", text="")
 
                 row = layout.row(align=True)
                 row.operator("anim.keyframe_insert", text="", icon='KEY_HLT')
                 row.operator("anim.keyframe_delete", text="", icon='KEY_DEHLT')
             else:
-                row = layout.row(align=False)
+                row = layout.row()
                 row.label(text="No Keying Set active")
+
+
+class OUTLINER_MT_editor_menus(Menu):
+    bl_idname = "OUTLINER_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        space = context.space_data
+
+        layout.menu("OUTLINER_MT_view")
+        layout.menu("OUTLINER_MT_search")
+
+        if space.display_mode == 'DATABLOCKS':
+            layout.menu("OUTLINER_MT_edit_datablocks")
 
 
 class OUTLINER_MT_view(Menu):

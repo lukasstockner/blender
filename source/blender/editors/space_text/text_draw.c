@@ -1258,22 +1258,22 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 
 			wrap_offset_in_line(st, ar, text->sell, text->selc, &offl, &offc);
 
-			y1 = ar->winy - 2 - (vsell - offl) * lheight;
-			y2 = y1 - (lheight * visible_lines + TXT_LINE_SPACING);
+			y1 = ar->winy - (vsell - offl) * lheight;
+			y2 = y1 - (lheight * visible_lines);
 		}
 		else {
-			y1 = ar->winy - 2 - vsell * lheight;
-			y2 = y1 - (lheight + TXT_LINE_SPACING);
+			y1 = ar->winy - vsell * lheight;
+			y2 = y1 - (lheight);
 		}
 
 		if (!(y1 < 0 || y2 > ar->winy)) { /* check we need to draw */
-			x1 = st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
+			x1 = 0; // st->showlinenrs ? TXT_OFFSET + TEXTXLOC : TXT_OFFSET;
 			x2 = x1 + ar->winx;
 
 			gpuColor4P(CPACK_WHITE, 0.125f);
 			
 			glEnable(GL_BLEND);
-			gpuSingleFilledRecti(x1 - 4, y1, x2, y2 + TXT_LINE_SPACING);
+			gpuSingleFilledRecti(x1 - 4, y1, x2, y2);
 			glDisable(GL_BLEND);
 		}
 	}
@@ -1441,15 +1441,13 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	int wraplinecount = 0, wrap_skip = 0;
 	int margin_column_x;
 
-	/* dpi controlled line height and font size */
-	st->lheight_dpi = (U.widget_unit * st->lheight) / 20;
-	
-	if (st->lheight_dpi) st->viewlines = (int)ar->winy / (st->lheight_dpi + TXT_LINE_SPACING);
-	else st->viewlines = 0;
-
 	/* if no text, nothing to do */
 	if (!text)
 		return;
+
+	/* dpi controlled line height and font size */
+	st->lheight_dpi = (U.widget_unit * st->lheight) / 20;
+	st->viewlines = (st->lheight_dpi) ? (int)ar->winy / (st->lheight_dpi + TXT_LINE_SPACING) : 0;
 	
 	text_update_drawcache(st, ar);
 
@@ -1631,6 +1629,9 @@ void text_scroll_to_cursor(SpaceText *st, ScrArea *sa)
 
 	if (st->top < 0) st->top = 0;
 	if (st->left < 0) st->left = 0;
+
+	st->scroll_accum[0] = 0.0f;
+	st->scroll_accum[1] = 0.0f;
 }
 
 void text_update_cursor_moved(bContext *C)

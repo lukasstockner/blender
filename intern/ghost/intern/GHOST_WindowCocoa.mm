@@ -116,6 +116,26 @@ enum {
 	systemCocoa->handleWindowEvent(GHOST_kEventWindowMove, associatedWindow);
 }
 
+- (void)windowWillEnterFullScreen:(NSNotification *)notification
+{
+	associatedWindow->setImmediateDraw(true);
+}
+
+- (void)windowDidEnterFullScreen:(NSNotification *)notification
+{
+	associatedWindow->setImmediateDraw(false);
+}
+
+- (void)windowWillExitFullScreen:(NSNotification *)notification
+{
+	associatedWindow->setImmediateDraw(true);
+}
+
+- (void)windowDidExitFullScreen:(NSNotification *)notification
+{
+	associatedWindow->setImmediateDraw(false);
+}
+
 - (void)windowDidResize:(NSNotification *)notification
 {
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
@@ -258,6 +278,8 @@ enum {
 
 	bool composing;
 	NSString *composing_text;
+
+	bool immediate_draw;
 }
 - (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa windowCocoa:(GHOST_WindowCocoa *)winCocoa;
 @end
@@ -270,6 +292,8 @@ enum {
 
 	composing = false;
 	composing_text = nil;
+
+	immediate_draw = false;
 }
 
 - (BOOL)acceptsFirstResponder
@@ -408,6 +432,11 @@ enum {
 	else {
 		[super drawRect:rect];
 		systemCocoa->handleWindowEvent(GHOST_kEventWindowUpdate, associatedWindow);
+
+		/* For some cases like entering fullscreen we need to redraw immediately
+		 * so our window does not show blank during the animation */
+		if (associatedWindow->getImmediateDraw())
+			systemCocoa->dispatchEvents();
 	}
 }
 
@@ -537,7 +566,9 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 		
 	m_systemCocoa = systemCocoa;
 	m_fullScreen = false;
-	
+	m_immediateDraw = false;
+	m_lionStyleFullScreen = false;
+
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	
 	//Creates the window
@@ -706,6 +737,14 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	
 	if (state == GHOST_kWindowStateFullScreen)
 		setState(GHOST_kWindowStateFullScreen);
+
+	//Starting with 10.9, we always use Lion fullscreen, since it
+	//now has proper multi-monitor support for fullscreen
+	struct { SInt32 major, minor; } systemversion;
+	Gestalt(gestaltSystemVersionMajor, &systemversion.major);
+	Gestalt(gestaltSystemVersionMinor, &systemversion.minor);
+
+	m_lionStyleFullScreen = (systemversion.major > 10 || (systemversion.major == 10 && systemversion.minor >= 9));
 		
 	[pool drain];
 }
@@ -1044,11 +1083,16 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 			[m_window zoom:nil];
 			break;
 		
-		case GHOST_kWindowStateFullScreen: {
+		case GHOST_kWindowStateFullScreen:
+		{
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 			NSUInteger masks = [m_window styleMask];
 
 			if (!m_fullScreen && !(masks & NSFullScreenWindowMask)) {
+				if (m_lionStyleFullScreen) {
+					[m_window toggleFullScreen:nil];
+					break;
+				}
 #else
 			if (!m_fullScreen) {
 #endif
@@ -1111,7 +1155,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 				m_systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, this);
 				
 				[pool drain];
-				}
+			}
 			break;
 		}
 		case GHOST_kWindowStateNormal:

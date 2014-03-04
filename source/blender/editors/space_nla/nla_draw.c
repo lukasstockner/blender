@@ -316,8 +316,8 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 					gpuVertex2f(strip->start, yminc);
 					gpuEnd();
 				}
-			/* no break needed... */
-				
+				/* fall-through */
+
 			/* this only draws after the strip */
 			case NLASTRIP_EXTEND_HOLD_FORWARD: 
 				/* only need to try and draw if the next strip doesn't occur immediately after */
@@ -582,9 +582,8 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 								nla_draw_strip_frames_text(nlt, strip, v2d, yminc, ymaxc);
 						}
 					}
+					break;
 				}
-				break;
-					
 				case ANIMTYPE_NLAACTION:
 				{
 					AnimData *adt = ale->adt;
@@ -629,8 +628,8 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					glDisable(GL_BLEND);
 
 					gpuImmediateUnformat();
+					break;
 				}
-				break;
 			}
 		}
 		
@@ -665,53 +664,13 @@ static void draw_nla_channel_list_gl(bAnimContext *ac, ListBase *anim_data, View
 		{
 			AnimData *adt = ale->adt;
 			
-			short indent = 0, offset = 0, sel = 0, group = 0, nonSolo = 0;
-			int expand = -1, protect = -1, special = -1, mute = -1;
+			short indent = 0, offset = 0, sel = 0, group = 0;
+			int special = -1;
 			char name[128];
-			short do_draw = FALSE;
+			bool do_draw = false;
 			
 			/* determine what needs to be drawn */
 			switch (ale->type) {
-				case ANIMTYPE_NLATRACK: /* NLA Track */
-				{
-					NlaTrack *nlt = (NlaTrack *)ale->data;
-					
-					/* 'solo' as the 'special' button? */
-					if (nlt->flag & NLATRACK_SOLO)
-						special = ICON_SOLO_ON;
-					else
-						special = ICON_SOLO_OFF;
-						
-					/* if this track is active and we're tweaking it, don't draw these toggles */
-					// TODO: need a special macro for this...
-					if (((nlt->flag & NLATRACK_ACTIVE) && (nlt->flag & NLATRACK_DISABLED)) == 0) {
-						if (nlt->flag & NLATRACK_MUTED)
-							mute = ICON_MUTE_IPO_ON;
-						else
-							mute = ICON_MUTE_IPO_OFF;
-							
-						if (EDITABLE_NLT(nlt))
-							protect = ICON_UNLOCKED;
-						else
-							protect = ICON_LOCKED;
-					}
-					
-					/* is track enabled for solo drawing? */
-					if ((adt) && (adt->flag & ADT_NLA_SOLO_TRACK)) {
-						if ((nlt->flag & NLATRACK_SOLO) == 0) {
-							/* tag for special non-solo handling; also hide the mute toggles */
-							nonSolo = 1;
-							mute = 0;
-						}
-					}
-						
-					sel = SEL_NLT(nlt);
-					BLI_strncpy(name, nlt->name, sizeof(name));
-					
-					/* draw manually still */
-					do_draw = TRUE;
-				}
-				break;
 				case ANIMTYPE_NLAACTION: /* NLA Action-Line */
 				{
 					bAction *act = (bAction *)ale->data;
@@ -724,11 +683,10 @@ static void draw_nla_channel_list_gl(bAnimContext *ac, ListBase *anim_data, View
 
 					/* draw manually still */
 					do_draw = TRUE;
+					break;
 				}
-				break;
-					
 				default: /* handled by standard channel-drawing API */
-					// draw backdrops only...
+					/* (draw backdrops only...) */
 					ANIM_channel_draw(ac, ale, yminc, ymaxc);
 					break;
 			}
@@ -751,17 +709,15 @@ static void draw_nla_channel_list_gl(bAnimContext *ac, ListBase *anim_data, View
 								/* same as for textures */
 								offset = 0.7f * U.widget_unit;
 								indent = 1;
+								break;
 							}
-							break;
-								
 							case NTREE_TEXTURE:
 							{
 								/* even more */
 								offset = U.widget_unit;
 								indent = 1;
+								break;
 							}
-							break;
-								
 							default:
 								/* normal will do */
 								offset = 0.7f * U.widget_unit;
@@ -812,25 +768,7 @@ static void draw_nla_channel_list_gl(bAnimContext *ac, ListBase *anim_data, View
 					/* clear group value, otherwise we cause errors... */
 					group = 0;
 				}
-				else {
-					/* NLA tracks - darker color if not solo track when we're showing solo */
-					UI_ThemeColorShade(TH_HEADER, ((nonSolo == 0) ? 20 : -20));
-					
-					indent += group;
-					offset += 0.35f * U.widget_unit * indent;
-					gpuBegin(GL_TRIANGLE_FAN);
-					gpuVertex2f(x + offset, yminc);
-					gpuVertex2f(x + offset, ymaxc);
-					gpuVertex2f((float)v2d->cur.xmax, ymaxc);
-					gpuVertex2f((float)v2d->cur.xmax, yminc);
-					gpuEnd();
-				}
 				
-				/* draw expand/collapse triangle */
-				if (expand > 0) {
-					UI_icon_draw(x + offset, ydatac, expand);
-					offset += 0.85f * U.widget_unit;
-				}
 				
 				/* draw special icon indicating certain data-types */
 				if (special > -1) {
@@ -853,17 +791,6 @@ static void draw_nla_channel_list_gl(bAnimContext *ac, ListBase *anim_data, View
 
 				glEnable(GL_BLEND);
 
-				/* draw protect 'lock' */
-				if (protect > -1) {
-					offset =  0.8f * U.widget_unit;
-					UI_icon_draw((float)(v2d->cur.xmax - offset), ydatac, protect);
-				}
-				
-				/* draw mute 'eye' */
-				if (mute > -1) {
-					offset += 0.8f * U.widget_unit;
-					UI_icon_draw((float)(v2d->cur.xmax - offset), ydatac, mute);
-				}
 				
 				/* draw NLA-action line 'status-icons' - only when there's an action */
 				if ((ale->type == ANIMTYPE_NLAACTION) && (ale->data)) {

@@ -30,6 +30,8 @@
 
 /** \file blender/windowmanager/intern/wm_subwindow.c
  *  \ingroup wm
+ *
+ * Internal subwindows used for OpenGL state, used for regions and screens.
  */
 
 #include <string.h>
@@ -150,6 +152,15 @@ void wm_subwindow_getmatrix(wmWindow *win, int swinid, float mat[4][4])
 	}
 }
 
+void wm_subwindow_getrect(wmWindow *win, int swinid, rcti *r_rect)
+{
+	wmSubWindow *swin = swin_from_swinid(win, swinid);
+
+	if (swin) {
+		*r_rect = swin->winrct;
+	}
+}
+
 /* always sets pixel-precise 2D window/view matrices */
 /* coords is in whole pixels. xmin = 15, xmax = 16: means window is 2 pix big */
 int wm_subwindow_open(wmWindow *win, rcti *winrct)
@@ -202,6 +213,9 @@ void wm_subwindow_position(wmWindow *win, int swinid, rcti *winrct)
 	wmSubWindow *swin = swin_from_swinid(win, swinid);
 	
 	if (swin) {
+		const int winsize_x = WM_window_pixels_x(win);
+		const int winsize_y = WM_window_pixels_y(win);
+
 		int width, height;
 		
 		swin->winrct = *winrct;
@@ -219,10 +233,10 @@ void wm_subwindow_position(wmWindow *win, int swinid, rcti *winrct)
 		 * fixed it). - zr  (2001!)
 		 */
 		
-		if (swin->winrct.xmax > WM_window_pixels_x(win))
-			swin->winrct.xmax = WM_window_pixels_x(win);
-		if (swin->winrct.ymax > WM_window_pixels_y(win))
-			swin->winrct.ymax = WM_window_pixels_y(win);
+		if (swin->winrct.xmax > winsize_x)
+			swin->winrct.xmax = winsize_x;
+		if (swin->winrct.ymax > winsize_y)
+			swin->winrct.ymax = winsize_y;
 		
 		/* extra service */
 		wmSubWindowSet(win, swinid);
@@ -241,7 +255,7 @@ void wm_subwindow_position(wmWindow *win, int swinid, rcti *winrct)
 static wmWindow    *_curwindow  = NULL;
 static wmSubWindow *_curswin    = NULL;
 
-void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
+void wmSubWindowScissorSet(wmWindow *win, int swinid, const rcti *srct, bool srct_pad)
 {
 	int x, y, width, height;
 	_curswin = swin_from_swinid(win, swinid);
@@ -272,11 +286,21 @@ void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
 		(float)height - GLA_PIXEL_OFS);
 
 	if (srct) {
+		int scissor_width  = BLI_rcti_size_x(srct);
+		int scissor_height = BLI_rcti_size_y(srct);
+
+		/* typically a single pixel doesn't matter,
+		 * but one pixel offset is noticable with viewport border render */
+		if (srct_pad) {
+			scissor_width  += 1;
+			scissor_height += 1;
+		}
+
 		glScissor(
 			srct->xmin,
 			srct->ymin,
-			BLI_rcti_size_x(srct) + 1,
-			BLI_rcti_size_y(srct) + 1);
+			scissor_width,
+			scissor_height);
 	}
 	else {
 		glScissor(
@@ -292,7 +316,7 @@ void wmSubWindowScissorSet(wmWindow *win, int swinid, rcti *srct)
 /* enable the WM versions of opengl calls */
 void wmSubWindowSet(wmWindow *win, int swinid)
 {
-	wmSubWindowScissorSet(win, swinid, NULL);
+	wmSubWindowScissorSet(win, swinid, NULL, true);
 }
 
 void wmFrustum(float x1, float x2, float y1, float y2, float n, float f)

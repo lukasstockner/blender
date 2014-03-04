@@ -15,11 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * This is a new part of Blender.
- *
  * Contributor(s): eeshlo, Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -358,6 +353,7 @@ PyDoc_STRVAR(M_Noise_seed_set_doc,
 "   Sets the random seed used for random_unit_vector, random_vector and random.\n"
 "\n"
 "   :arg seed: Seed used for the random generator.\n"
+"      When seed is zero, the current time will be used instead.\n"
 "   :type seed: Int\n"
 );
 static PyObject *M_Noise_seed_set(PyObject *UNUSED(self), PyObject *args)
@@ -797,7 +793,7 @@ static PyObject *M_Noise_cell_vector(PyObject *UNUSED(self), PyObject *args)
 		return NULL;
 
 	cellNoiseV(vec[0], vec[1], vec[2], r_vec);
-	return Vector_CreatePyObject(NULL, 3, Py_NEW, NULL);
+	return Vector_CreatePyObject(r_vec, 3, Py_NEW, NULL);
 }
 
 static PyMethodDef M_Noise_methods[] = {

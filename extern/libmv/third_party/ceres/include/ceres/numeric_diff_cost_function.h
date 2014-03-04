@@ -36,8 +36,10 @@
 // To get an numerically differentiated cost function, you must define
 // a class with a operator() (a functor) that computes the residuals.
 //
-// The function must write the computed value in the last argument (the only
-// non-const one) and return true to indicate success.
+// The function must write the computed value in the last argument
+// (the only non-const one) and return true to indicate success.
+// Please see cost_function.h for details on how the return value
+// maybe used to impose simple constraints on the parameter block.
 //
 // For example, consider a scalar error e = k - x'y, where both x and y are
 // two-dimensional column vector parameters, the prime sign indicates
@@ -80,18 +82,33 @@
 //
 //   CostFunction* cost_function
 //       = new NumericDiffCostFunction<MyScalarCostFunctor, CENTRAL, 1, 2, 2>(
-//           new MyScalarCostFunctor(1.0));                          ^  ^  ^
-//                                                               |   |  |  |
-//                                   Finite Differencing Scheme -+   |  |  |
-//                                   Dimension of residual ----------+  |  |
-//                                   Dimension of x --------------------+  |
-//                                   Dimension of y -----------------------+
+//           new MyScalarCostFunctor(1.0));                    ^     ^  ^  ^
+//                                                             |     |  |  |
+//                                 Finite Differencing Scheme -+     |  |  |
+//                                 Dimension of residual ------------+  |  |
+//                                 Dimension of x ----------------------+  |
+//                                 Dimension of y -------------------------+
 //
-// In this example, there is usually an instance for each measumerent of k.
+// In this example, there is usually an instance for each measurement of k.
 //
 // In the instantiation above, the template parameters following
 // "MyScalarCostFunctor", "1, 2, 2", describe the functor as computing
 // a 1-dimensional output from two arguments, both 2-dimensional.
+//
+// NumericDiffCostFunction also supports cost functions with a
+// runtime-determined number of residuals. For example:
+//
+//   CostFunction* cost_function
+//       = new NumericDiffCostFunction<MyScalarCostFunctor, CENTRAL, DYNAMIC, 2, 2>(
+//           new CostFunctorWithDynamicNumResiduals(1.0),               ^     ^  ^
+//           TAKE_OWNERSHIP,                                            |     |  |
+//           runtime_number_of_residuals); <----+                       |     |  |
+//                                              |                       |     |  |
+//                                              |                       |     |  |
+//             Actual number of residuals ------+                       |     |  |
+//             Indicate dynamic number of residuals --------------------+     |  |
+//             Dimension of x ------------------------------------------------+  |
+//             Dimension of y ---------------------------------------------------+
 //
 // The framework can currently accommodate cost functions of up to 10
 // independent variables, and there is no limit on the dimensionality
@@ -101,8 +118,6 @@
 // twice as many function evaluations than forward difference. Consider using
 // central differences begin with, and only after that works, trying forward
 // difference to improve performance.
-//
-// TODO(sameeragarwal): Add support for dynamic number of residuals.
 //
 // WARNING #1: A common beginner's error when first using
 // NumericDiffCostFunction is to get the sizing wrong. In particular,
@@ -124,7 +139,7 @@
 // To get a numerically differentiated cost function, define a
 // subclass of CostFunction such that the Evaluate() function ignores
 // the jacobian parameter. The numeric differentiation wrapper will
-// fill in the jacobian parameter if nececssary by repeatedly calling
+// fill in the jacobian parameter if necessary by repeatedly calling
 // the Evaluate() function with small changes to the appropriate
 // parameters, and computing the slope. For performance, the numeric
 // differentiation wrapper class is templated on the concrete cost
@@ -146,13 +161,13 @@
 #ifndef CERES_PUBLIC_NUMERIC_DIFF_COST_FUNCTION_H_
 #define CERES_PUBLIC_NUMERIC_DIFF_COST_FUNCTION_H_
 
-#include <glog/logging.h>
 #include "Eigen/Dense"
 #include "ceres/cost_function.h"
 #include "ceres/internal/numeric_diff.h"
 #include "ceres/internal/scoped_ptr.h"
 #include "ceres/sized_cost_function.h"
 #include "ceres/types.h"
+#include "glog/logging.h"
 
 namespace ceres {
 
@@ -175,17 +190,19 @@ class NumericDiffCostFunction
                                N5, N6, N7, N8, N9> {
  public:
   NumericDiffCostFunction(CostFunctor* functor,
+                          Ownership ownership = TAKE_OWNERSHIP,
+                          int num_residuals = kNumResiduals,
                           const double relative_step_size = 1e-6)
       :functor_(functor),
-       ownership_(TAKE_OWNERSHIP),
-       relative_step_size_(relative_step_size) {}
-
-  NumericDiffCostFunction(CostFunctor* functor,
-                          Ownership ownership,
-                          const double relative_step_size = 1e-6)
-      : functor_(functor),
-        ownership_(ownership),
-        relative_step_size_(relative_step_size) {}
+       ownership_(ownership),
+       relative_step_size_(relative_step_size) {
+    if (kNumResiduals == DYNAMIC) {
+      SizedCostFunction<kNumResiduals,
+                        N0, N1, N2, N3, N4,
+                        N5, N6, N7, N8, N9>
+          ::set_num_residuals(num_residuals);
+    }
+  }
 
   ~NumericDiffCostFunction() {
     if (ownership_ != TAKE_OWNERSHIP) {
@@ -214,7 +231,7 @@ class NumericDiffCostFunction
       return false;
     }
 
-    if (!jacobians) {
+    if (jacobians == NULL) {
       return true;
     }
 
@@ -230,8 +247,8 @@ class NumericDiffCostFunction
     if (N5) parameters_reference_copy[5] = parameters_reference_copy[4] + N4;
     if (N6) parameters_reference_copy[6] = parameters_reference_copy[5] + N5;
     if (N7) parameters_reference_copy[7] = parameters_reference_copy[6] + N6;
-    if (N7) parameters_reference_copy[8] = parameters_reference_copy[7] + N7;
-    if (N8) parameters_reference_copy[9] = parameters_reference_copy[8] + N8;
+    if (N8) parameters_reference_copy[8] = parameters_reference_copy[7] + N7;
+    if (N9) parameters_reference_copy[9] = parameters_reference_copy[8] + N8;
 
 #define COPY_PARAMETER_BLOCK(block)                                     \
   if (N ## block) memcpy(parameters_reference_copy[block],              \
@@ -262,6 +279,9 @@ class NumericDiffCostFunction
                            functor_.get(),                              \
                            residuals,                                   \
                            relative_step_size_,                         \
+                          SizedCostFunction<kNumResiduals,              \
+                           N0, N1, N2, N3, N4,                          \
+                           N5, N6, N7, N8, N9>::num_residuals(),        \
                            parameters_reference_copy.get(),             \
                            jacobians[block])) {                         \
         return false;                                                   \

@@ -90,11 +90,6 @@ BF_FREETYPE = '/usr/local'
 BF_FREETYPE_INC = '${BF_FREETYPE}/include ${BF_FREETYPE}/include/freetype2'
 BF_FREETYPE_LIB = 'freetype'
 
-### XXX Find what this actually wants; it doesn't want libquicktime.
-WITH_BF_QUICKTIME = False
-BF_QUICKTIME = '/usr/local'
-BF_QUICKTIME_INC = '${BF_QUICKTIME}/include'
-
 WITH_BF_ICONV = True
 BF_ICONV = LIBDIR + "/iconv"
 BF_ICONV_INC = '${BF_ICONV}/include'
@@ -139,7 +134,7 @@ BF_REDCODE_LIBPATH='${BF_REDCODE}/lib'
 WITH_BF_STATICOPENGL = False
 BF_OPENGL = '/usr/local'
 BF_OPENGL_INC = '${BF_OPENGL}/include'
-BF_OPENGL_LIB = 'GL GLU X11 Xi'
+BF_OPENGL_LIB = 'GL GLU X11 Xi Xxf86vm'
 BF_OPENGL_LIBPATH = '/usr/X11R6/lib'
 BF_OPENGL_LIB_STATIC = '${BF_OPENGL_LIBPATH}/libGL.a ${BF_OPENGL_LIBPATH}/libGLU.a ${BF_OPENGL_LIBPATH}/libXxf86vm.a ${BF_OPENGL_LIBPATH}/libX11.a ${BF_OPENGL_LIBPATH}/libXi.a ${BF_OPENGL_LIBPATH}/libXext.a ${BF_OPENGL_LIBPATH}/libXxf86vm.a'
 

@@ -1,46 +1,50 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 CCL_NAMESPACE_BEGIN
 
 /* Fresnel Node */
 
-__device void svm_node_fresnel(ShaderData *sd, float *stack, uint ior_offset, uint ior_value, uint out_offset)
+ccl_device void svm_node_fresnel(ShaderData *sd, float *stack, uint ior_offset, uint ior_value, uint node)
 {
+	uint normal_offset, out_offset;
+	decode_node_uchar4(node, &normal_offset, &out_offset, NULL, NULL);
 	float eta = (stack_valid(ior_offset))? stack_load_float(stack, ior_offset): __uint_as_float(ior_value);
-	eta = fmaxf(eta, 1.0f + 1e-5f);
+	float3 normal_in = stack_valid(normal_offset)? stack_load_float3(stack, normal_offset): sd->N;
+	
+	eta = fmaxf(eta, 1e-5f);
 	eta = (sd->flag & SD_BACKFACING)? 1.0f/eta: eta;
 
-	float f = fresnel_dielectric_cos(dot(sd->I, sd->N), eta);
+	float f = fresnel_dielectric_cos(dot(sd->I, normal_in), eta);
 
 	stack_store_float(stack, out_offset, f);
 }
 
-/* Blend Weight Node */
+/* Layer Weight Node */
 
-__device void svm_node_layer_weight(ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_layer_weight(ShaderData *sd, float *stack, uint4 node)
 {
 	uint blend_offset = node.y;
 	uint blend_value = node.z;
-	float blend = (stack_valid(blend_offset))? stack_load_float(stack, blend_offset): __uint_as_float(blend_value);
 
-	uint type, out_offset;
-	decode_node_uchar4(node.w, &type, &out_offset, NULL, NULL);
+	uint type, normal_offset, out_offset;
+	decode_node_uchar4(node.w, &type, &normal_offset, &out_offset, NULL);
+
+	float blend = (stack_valid(blend_offset))? stack_load_float(stack, blend_offset): __uint_as_float(blend_value);
+	float3 normal_in = (stack_valid(normal_offset))? stack_load_float3(stack, normal_offset): sd->N;
 
 	float f;
 
@@ -48,10 +52,10 @@ __device void svm_node_layer_weight(ShaderData *sd, float *stack, uint4 node)
 		float eta = fmaxf(1.0f - blend, 1e-5f);
 		eta = (sd->flag & SD_BACKFACING)? eta: 1.0f/eta;
 
-		f = fresnel_dielectric_cos(dot(sd->I, sd->N), eta);
+		f = fresnel_dielectric_cos(dot(sd->I, normal_in), eta);
 	}
 	else {
-		f = fabsf(dot(sd->I, sd->N));
+		f = fabsf(dot(sd->I, normal_in));
 
 		if(blend != 0.5f) {
 			blend = clamp(blend, 0.0f, 1.0f-1e-5f);

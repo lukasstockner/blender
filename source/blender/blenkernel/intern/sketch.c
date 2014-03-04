@@ -64,8 +64,7 @@ SK_Sketch *createSketch(void)
 	sketch->active_stroke = NULL;
 	sketch->gesture = NULL;
 
-	sketch->strokes.first = NULL;
-	sketch->strokes.last = NULL;
+	BLI_listbase_clear(&sketch->strokes);
 
 	return sketch;
 }
@@ -487,7 +486,7 @@ void sk_endContinuousStroke(SK_Stroke *stk)
 void sk_updateNextPoint(SK_Sketch *sketch, SK_Stroke *stk)
 {
 	if (stk) {
-		memcpy(&sketch->next_point, stk->points[stk->nb_points - 1].p, sizeof(SK_Point));
+		memcpy(&(sketch->next_point), &(stk->points[stk->nb_points - 1]), sizeof(SK_Point));
 	}
 }
 

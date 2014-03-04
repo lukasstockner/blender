@@ -61,6 +61,11 @@ MINLINE double sqrt3d(double d)
 	else                         return  exp(log( d) / 3.0);
 }
 
+MINLINE float sqrtf_signed(float f)
+{
+	return (f >= 0.0f) ? sqrtf(f) : -sqrtf(-f);
+}
+
 MINLINE float saacos(float fac)
 {
 	if      (UNLIKELY(fac <= -1.0f)) return (float)M_PI;
@@ -131,8 +136,9 @@ MINLINE int power_of_2_max_i(int n)
 	if (is_power_of_2_i(n))
 		return n;
 
-	while (!is_power_of_2_i(n))
+	do {
 		n = n & (n - 1);
+	} while (!is_power_of_2_i(n));
 
 	return n * 2;
 }
@@ -145,11 +151,24 @@ MINLINE int power_of_2_min_i(int n)
 	return n;
 }
 
+MINLINE int iroundf(float a)
+{
+	return (int)floorf(a + 0.5f);
+}
+
 /* integer division that rounds 0.5 up, particularly useful for color blending
  * with integers, to avoid gradual darkening when rounding down */
 MINLINE int divide_round_i(int a, int b)
 {
 	return (2 * a + b) / (2 * b);
+}
+
+/**
+ * modulo that handles negative numbers, works the same as Python's.
+ */
+MINLINE int mod_i(int i, int n)
+{
+	return (i % n + n) % n;
 }
 
 MINLINE unsigned int highest_order_bit_i(unsigned int n)
@@ -168,7 +187,7 @@ MINLINE unsigned short highest_order_bit_s(unsigned short n)
 	n |= (n >>  2);
 	n |= (n >>  4);
 	n |= (n >>  8);
-	return n - (n >> 1);
+	return (unsigned short)(n - (n >> 1));
 }
 
 MINLINE float min_ff(float a, float b)

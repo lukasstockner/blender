@@ -1,26 +1,24 @@
 /*
- * Copyright 2012, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 CCL_NAMESPACE_BEGIN
 
 /* Brick */
 
-__device_noinline float brick_noise(int n) /* fast integer noise */
+ccl_device_noinline float brick_noise(int n) /* fast integer noise */
 {
 	int nn;
 	n = (n >> 13) ^ n;
@@ -28,12 +26,10 @@ __device_noinline float brick_noise(int n) /* fast integer noise */
 	return 0.5f * ((float)nn / 1073741824.0f);
 }
 
-__device_noinline float2 svm_brick(float3 p, float scale, float mortar_size, float bias,
+ccl_device_noinline float2 svm_brick(float3 p, float mortar_size, float bias,
 	float brick_width, float row_height, float offset_amount, int offset_frequency,
 	float squash_amount, int squash_frequency)
-{	
-	p *= scale;
-
+{
 	int bricknum, rownum;
 	float offset = 0.0f;
 	float x, y;
@@ -41,8 +37,8 @@ __device_noinline float2 svm_brick(float3 p, float scale, float mortar_size, flo
 	rownum = floor_to_int(p.y / row_height);
 	
 	if(offset_frequency && squash_frequency) {
-		brick_width *= ((int)(rownum) % squash_frequency ) ? 1.0f : squash_amount; /* squash */
-		offset = ((int)(rownum) % offset_frequency ) ? 0 : (brick_width*offset_amount); /* offset */
+		brick_width *= (rownum % squash_frequency) ? 1.0f : squash_amount; /* squash */
+		offset = (rownum % offset_frequency) ? 0.0f : (brick_width*offset_amount); /* offset */
 	}
 
 	bricknum = floor_to_int((p.x+offset) / brick_width);
@@ -58,7 +54,7 @@ __device_noinline float2 svm_brick(float3 p, float scale, float mortar_size, flo
 		y > (row_height - mortar_size)) ? 1.0f : 0.0f);
 }
 
-__device void svm_node_tex_brick(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_tex_brick(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
 {	
 	uint4 node2 = read_node(kg, offset);
 	uint4 node3 = read_node(kg, offset);
@@ -91,7 +87,7 @@ __device void svm_node_tex_brick(KernelGlobals *kg, ShaderData *sd, float *stack
 	float offset_amount = __int_as_float(node3.z);
 	float squash_amount = __int_as_float(node3.w);
 	
-	float2 f2 = svm_brick(co, scale, mortar_size, bias, brick_width, row_height,
+	float2 f2 = svm_brick(co*scale, mortar_size, bias, brick_width, row_height,
 		offset_amount, offset_frequency, squash_amount, squash_frequency);
 
 	float tint = f2.x;

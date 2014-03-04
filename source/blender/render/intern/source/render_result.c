@@ -71,6 +71,7 @@ void render_result_free(RenderResult *res)
 		/* acolrect and scolrect are optionally allocated in shade_tile, only free here since it can be used for drawing */
 		if (rl->acolrect) MEM_freeN(rl->acolrect);
 		if (rl->scolrect) MEM_freeN(rl->scolrect);
+		if (rl->display_buffer) MEM_freeN(rl->display_buffer);
 		
 		while (rl->passes.first) {
 			RenderPass *rpass = rl->passes.first;
@@ -279,6 +280,24 @@ static const char *get_pass_name(int passtype, int channel)
 		if (channel == 1) return "TransCol.G";
 		return "TransCol.B";
 	}
+	if (passtype == SCE_PASS_SUBSURFACE_DIRECT) {
+		if (channel == -1) return "SubsurfaceDir";
+		if (channel == 0) return "SubsurfaceDir.R";
+		if (channel == 1) return "SubsurfaceDir.G";
+		return "SubsurfaceDir.B";
+	}
+	if (passtype == SCE_PASS_SUBSURFACE_INDIRECT) {
+		if (channel == -1) return "SubsurfaceInd";
+		if (channel == 0) return "SubsurfaceInd.R";
+		if (channel == 1) return "SubsurfaceInd.G";
+		return "SubsurfaceInd.B";
+	}
+	if (passtype == SCE_PASS_SUBSURFACE_COLOR) {
+		if (channel == -1) return "SubsurfaceCol";
+		if (channel == 0) return "SubsurfaceCol.R";
+		if (channel == 1) return "SubsurfaceCol.G";
+		return "SubsurfaceCol.B";
+	}
 	return "Unknown";
 }
 
@@ -368,6 +387,15 @@ static int passtype_from_name(const char *str)
 
 	if (strcmp(str, "TransCol") == 0)
 		return SCE_PASS_TRANSM_COLOR;
+		
+	if (strcmp(str, "SubsurfaceDir") == 0)
+		return SCE_PASS_SUBSURFACE_DIRECT;
+
+	if (strcmp(str, "SubsurfaceInd") == 0)
+		return SCE_PASS_SUBSURFACE_INDIRECT;
+
+	if (strcmp(str, "SubsurfaceCol") == 0)
+		return SCE_PASS_SUBSURFACE_COLOR;
 
 	return 0;
 }
@@ -474,6 +502,8 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 		rl->recty = recty;
 		
 		if (rr->do_exr_tile) {
+			rl->display_buffer = MEM_mapallocN(rectx * recty * sizeof(unsigned int), "Combined display space rgba");
+
 			rl->exrhandle = IMB_exr_get_handle();
 
 			IMB_exr_add_channel(rl->exrhandle, rl->name, "Combined.R", 0, 0, NULL);
@@ -538,9 +568,15 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_TRANSM_INDIRECT);
 		if (srl->passflag  & SCE_PASS_TRANSM_COLOR)
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_TRANSM_COLOR);
+		if (srl->passflag  & SCE_PASS_SUBSURFACE_DIRECT)
+			render_layer_add_pass(rr, rl, 3, SCE_PASS_SUBSURFACE_DIRECT);
+		if (srl->passflag  & SCE_PASS_SUBSURFACE_INDIRECT)
+			render_layer_add_pass(rr, rl, 3, SCE_PASS_SUBSURFACE_INDIRECT);
+		if (srl->passflag  & SCE_PASS_SUBSURFACE_COLOR)
+			render_layer_add_pass(rr, rl, 3, SCE_PASS_SUBSURFACE_COLOR);
 	}
 	/* sss, previewrender and envmap don't do layers, so we make a default one */
-	if (rr->layers.first == NULL && !(layername && layername[0])) {
+	if (BLI_listbase_is_empty(&rr->layers) && !(layername && layername[0])) {
 		rl = MEM_callocN(sizeof(RenderLayer), "new render layer");
 		BLI_addtail(&rr->layers, rl);
 		
@@ -1091,7 +1127,13 @@ ImBuf *render_result_rect_to_ibuf(RenderResult *rr, RenderData *rd)
 	 */
 	if (ibuf->rect) {
 		if (BKE_imtype_valid_depths(rd->im_format.imtype) & (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_24 | R_IMF_CHAN_DEPTH_32)) {
-			IMB_float_from_rect(ibuf);
+			if (rd->im_format.depth == R_IMF_CHAN_DEPTH_8) {
+				/* Higher depth bits are supported but not needed for current file output. */
+				ibuf->rect_float = NULL;
+			}
+			else {
+				IMB_float_from_rect(ibuf);
+			}
 		}
 		else {
 			/* ensure no float buffer remained from previous frame */
@@ -1158,7 +1200,7 @@ void render_result_rect_get_pixels(RenderResult *rr, unsigned int *rect, int rec
 	}
 	else if (rr->rectf) {
 		IMB_display_buffer_transform_apply((unsigned char *) rect, rr->rectf, rr->rectx, rr->recty, 4,
-		                                   view_settings, display_settings, TRUE);
+		                                   view_settings, display_settings, true);
 	}
 	else
 		/* else fill with black */

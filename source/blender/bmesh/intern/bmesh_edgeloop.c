@@ -56,7 +56,7 @@ static int bm_vert_other_tag(BMVert *v, BMVert *v_prev,
                              BMEdge **r_e)
 {
 	BMIter iter;
-	BMEdge *e, *e_next;
+	BMEdge *e, *e_next = NULL;
 	unsigned int count = 0;
 
 	BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
@@ -230,7 +230,7 @@ static bool bm_loop_path_build_step(BLI_mempool *vs_pool, ListBase *lb, const in
 					/* on the same side - do nothing */
 				}
 				else {
-					/* we have met out match! (vertices from differnt sides meet) */
+					/* we have met out match! (vertices from different sides meet) */
 					if (dir == 1) {
 						v_match[0] = vs->v;
 						v_match[1] = v_next;
@@ -252,7 +252,7 @@ static bool bm_loop_path_build_step(BLI_mempool *vs_pool, ListBase *lb, const in
 	/* lb is now full of free'd items, overwrite */
 	*lb = lb_tmp;
 
-	return (lb->first != NULL);
+	return (BLI_listbase_is_empty(lb) == false);
 }
 
 bool BM_mesh_edgeloops_find_path(BMesh *bm, ListBase *r_eloops,
@@ -361,8 +361,7 @@ bool BM_mesh_edgeloops_find_path(BMesh *bm, ListBase *r_eloops,
 void BM_mesh_edgeloops_free(ListBase *eloops)
 {
 	BMEdgeLoopStore *el_store;
-	while ((el_store = eloops->first)) {
-		BLI_remlink(eloops, el_store);
+	while ((el_store = BLI_pophead(eloops))) {
 		BM_edgeloop_free(el_store);
 	}
 }
@@ -407,11 +406,11 @@ void BM_mesh_edgeloops_calc_order(BMesh *UNUSED(bm), ListBase *eloops, const boo
 	/* find far outest loop */
 	{
 		BMEdgeLoopStore *el_store_best = NULL;
-		float len_best = -1.0f;
+		float len_best_sq = -1.0f;
 		for (el_store = eloops->first; el_store; el_store = el_store->next) {
-			const float len = len_squared_v3v3(cent, el_store->co);
-			if (len > len_best) {
-				len_best = len;
+			const float len_sq = len_squared_v3v3(cent, el_store->co);
+			if (len_sq > len_best_sq) {
+				len_best_sq = len_sq;
 				el_store_best = el_store;
 			}
 		}
@@ -425,27 +424,27 @@ void BM_mesh_edgeloops_calc_order(BMesh *UNUSED(bm), ListBase *eloops, const boo
 		BMEdgeLoopStore *el_store_best = NULL;
 		const float *co = ((BMEdgeLoopStore *)eloops_ordered.last)->co;
 		const float *no = ((BMEdgeLoopStore *)eloops_ordered.last)->no;
-		float len_best = FLT_MAX;
+		float len_best_sq = FLT_MAX;
 
 		if (use_normals)
-			BLI_assert(fabsf(len_squared_v3(no) - 1.0f) < FLT_EPSILON);
+			BLI_ASSERT_UNIT_V3(no);
 
 		for (el_store = eloops->first; el_store; el_store = el_store->next) {
-			float len;
+			float len_sq;
 			if (use_normals) {
 				/* scale the length by how close the loops are to pointing at eachother */
 				float dir[3];
 				sub_v3_v3v3(dir, co, el_store->co);
-				len = normalize_v3(dir);
-				len = len * ((1.0f - fabsf(dot_v3v3(dir, no))) +
-				             (1.0f - fabsf(dot_v3v3(dir, el_store->no))));
+				len_sq = normalize_v3(dir);
+				len_sq = len_sq * ((1.0f - fabsf(dot_v3v3(dir, no))) +
+				                   (1.0f - fabsf(dot_v3v3(dir, el_store->no))));
 			}
 			else {
-				len = len_squared_v3v3(co, el_store->co);
+				len_sq = len_squared_v3v3(co, el_store->co);
 			}
 
-			if (len < len_best) {
-				len_best = len;
+			if (len_sq < len_best_sq) {
+				len_best_sq = len_sq;
 				el_store_best = el_store;
 			}
 		}
@@ -520,7 +519,7 @@ const float *BM_edgeloop_center_get(struct BMEdgeLoopStore *el_store)
 #define NODE_AS_CO(n) ((BMVert *)((LinkData *)n)->data)->co
 
 /**
- * edges are assined to one vert -> the next.
+ * edges are assigned to one vert -> the next.
  */
 void BM_edgeloop_edges_get(struct BMEdgeLoopStore *el_store, BMEdge **e_arr)
 {
@@ -612,7 +611,7 @@ bool BM_edgeloop_calc_normal(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
 }
 
 /**
- * For open loops that are stright lines,
+ * For open loops that are straight lines,
  * calculating the normal as if it were a polygon is meaningless.
  *
  * Instead use an alignment vector and calculate the normal based on that.

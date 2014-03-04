@@ -26,8 +26,9 @@
 
 /** \file blender/windowmanager/intern/wm_gesture.c
  *  \ingroup wm
+ *
+ * Gestures (cursor motions) creating, evaluating and drawing, shared between operators.
  */
-
 
 #include "DNA_screen_types.h"
 #include "DNA_vec_types.h"
@@ -38,8 +39,8 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_scanfill.h"   /* lasso tessellation */
 #include "BLI_utildefines.h"
+#include "BLI_lasso.h"
 
 #include "BKE_context.h"
 
@@ -138,8 +139,8 @@ int wm_gesture_evaluate(wmGesture *gesture)
 		rcti *rect = gesture->customdata;
 		int dx = BLI_rcti_size_x(rect);
 		int dy = BLI_rcti_size_y(rect);
-		if (ABS(dx) + ABS(dy) > U.tweak_threshold) {
-			int theta = (int)floor(4.0f * atan2f((float)dy, (float)dx) / (float)M_PI + 0.5f);
+		if (abs(dx) + abs(dy) > U.tweak_threshold) {
+			int theta = iroundf(4.0f * atan2f((float)dy, (float)dx) / (float)M_PI);
 			int val = EVT_GESTURE_W;
 
 			if (theta == 0) val = EVT_GESTURE_E;
@@ -256,58 +257,78 @@ static void wm_gesture_draw_circle(wmGesture *gt)
 	GPU_raster_end();
 }
 
-static void draw_filled_lasso(wmGesture *gt)
+struct LassoFillData {
+	unsigned int *px;
+	int width;
+};
+
+static void draw_filled_lasso_px_cb(int x, int y, void *user_data)
 {
-	ScanFillContext sf_ctx;
-	ScanFillVert *sf_vert = NULL, *sf_vert_last = NULL, *sf_vert_first = NULL;
-	ScanFillFace *sf_tri;
+	struct LassoFillData *data = user_data;
+	unsigned char *col = (unsigned char *)&(data->px[(y * data->width) + x]);
+	col[0] = col[1] = col[2] = 0xff;
+	col[3] = 0x10;
+}
+
+static void draw_filled_lasso(wmWindow *win, wmGesture *gt)
+{
 	short *lasso = (short *)gt->customdata;
+	const int tot = gt->points;
+	int (*moves)[2] = MEM_mallocN(sizeof(*moves) * (tot + 1), __func__);
 	int i;
+	rcti rect;
+	rcti rect_win;
 
-	BLI_scanfill_begin(&sf_ctx);
-	for (i = 0; i < gt->points; i++, lasso += 2) {
-		float co[3];
-
-		co[0] = (float)lasso[0];
-		co[1] = (float)lasso[1];
-		co[2] = 0.0f;
-
-		sf_vert = BLI_scanfill_vert_add(&sf_ctx, co);
-		if (sf_vert_last)
-			/* e = */ /* UNUSED */ BLI_scanfill_edge_add(&sf_ctx, sf_vert_last, sf_vert);
-		sf_vert_last = sf_vert;
-		if (sf_vert_first == NULL) sf_vert_first = sf_vert;
+	for (i = 0; i < tot; i++, lasso += 2) {
+		moves[i][0] = lasso[0];
+		moves[i][1] = lasso[1];
 	}
 
-	/* highly unlikely this will fail, but could crash if (gt->points == 0) */
-	if (sf_vert_first) {
-		const float zvec[3] = {0.0f, 0.0f, 1.0f};
-		BLI_scanfill_edge_add(&sf_ctx, sf_vert_first, sf_vert);
-		BLI_scanfill_calc_ex(&sf_ctx, BLI_SCANFILL_CALC_REMOVE_DOUBLES | BLI_SCANFILL_CALC_HOLES, zvec);
+	BLI_lasso_boundbox(&rect, (const int (*)[2])moves, tot);
+
+	wm_subwindow_getrect(win, gt->swinid, &rect_win);
+	BLI_rcti_translate(&rect, rect_win.xmin, rect_win.ymin);
+	BLI_rcti_isect(&rect_win, &rect, &rect);
+	BLI_rcti_translate(&rect, -rect_win.xmin, -rect_win.ymin);
+
+	/* highly unlikely this will fail, but could crash if (tot == 0) */
+	if (BLI_rcti_is_empty(&rect) == false) {
+		const int w = BLI_rcti_size_x(&rect);
+		const int h = BLI_rcti_size_y(&rect);
+		unsigned int *pixel_buf = MEM_callocN(sizeof(*pixel_buf) * w * h, __func__);
+		struct LassoFillData lasso_fill_data = {pixel_buf, w};
+
+		fill_poly_v2i_n(
+		       rect.xmin, rect.ymin, rect.xmax, rect.ymax,
+		       (const int (*)[2])moves, tot,
+		       draw_filled_lasso_px_cb, &lasso_fill_data);
 
 		glEnable(GL_BLEND);
 
 		gpuColor4P(CPACK_WHITE, 0.050f);
-		gpuBegin(GL_TRIANGLES);
-		for (sf_tri = sf_ctx.fillfacebase.first; sf_tri; sf_tri = sf_tri->next) {
-			gpuVertex2fv(sf_tri->v1->co);
-			gpuVertex2fv(sf_tri->v2->co);
-			gpuVertex2fv(sf_tri->v3->co);
-		}
-		gpuEnd();
+
+
+
+		glRasterPos2f(rect.xmin, rect.ymin);
+
+		glDrawPixels(w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixel_buf);
 
 		glDisable(GL_BLEND);
-
-		BLI_scanfill_end(&sf_ctx);
+		MEM_freeN(pixel_buf);
 	}
+
+	MEM_freeN(moves);
 }
 
-static void wm_gesture_draw_lasso(wmGesture *gt)
+
+static void wm_gesture_draw_lasso(wmWindow *win, wmGesture *gt, bool filled)
 {
 	short *lasso = (short *)gt->customdata;
 	int i;
 
-	draw_filled_lasso(gt);
+	if (filled) {
+		draw_filled_lasso(win, gt);
+	}
 
 	GPU_raster_begin();
 
@@ -352,8 +373,8 @@ static void wm_gesture_draw_lasso(wmGesture *gt)
 static void wm_gesture_draw_cross(wmWindow *win, wmGesture *gt)
 {
 	rcti *rect = (rcti *)gt->customdata;
-	int winsizex = WM_window_pixels_x(win);
-	int winsizey = WM_window_pixels_y(win);
+	const int winsize_x = WM_window_pixels_x(win);
+	const int winsize_y = WM_window_pixels_y(win);
 
 	GPU_raster_begin();
 
@@ -362,15 +383,15 @@ static void wm_gesture_draw_cross(wmWindow *win, wmGesture *gt)
 	gpuLineStipple(1, 0xCCCC);
 	gpuGray3f(0.376f);
 	gpuBegin(GL_LINES);
-	gpuAppendLinei(rect->xmin - winsizex, rect->ymin, rect->xmin + winsizex, rect->ymin);
-	gpuAppendLinei(rect->xmin, rect->ymin - winsizey, rect->xmin, rect->ymin + winsizey);
+	gpuAppendLinei(rect->xmin - winsize_x, rect->ymin, rect->xmin + winsize_x, rect->ymin);
+	gpuAppendLinei(rect->xmin, rect->ymin - winsize_y, rect->xmin, rect->ymin + winsize_y);
 	gpuEnd();
 
 	gpuLineStipple(1, 0x3333);
 	gpuColor3P(CPACK_WHITE);
 	gpuBegin(GL_LINES);
-	gpuAppendLinei(rect->xmin - winsizex, rect->ymin, rect->xmin + winsizex, rect->ymin);
-	gpuAppendLinei(rect->xmin, rect->ymin - winsizey, rect->xmin, rect->ymin + winsizey);
+	gpuAppendLinei(rect->xmin - winsize_x, rect->ymin, rect->xmin + winsize_x, rect->ymin);
+	gpuAppendLinei(rect->xmin, rect->ymin - winsize_y, rect->xmin, rect->ymin + winsize_y);
 	gpuEnd();
 
 	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
@@ -402,9 +423,9 @@ void wm_gesture_draw(wmWindow *win)
 				wm_gesture_draw_cross(win, gt);
 		}
 		else if (gt->type == WM_GESTURE_LINES)
-			wm_gesture_draw_lasso(gt);
+			wm_gesture_draw_lasso(win, gt, false);
 		else if (gt->type == WM_GESTURE_LASSO)
-			wm_gesture_draw_lasso(gt);
+			wm_gesture_draw_lasso(win, gt, true);
 		else if (gt->type == WM_GESTURE_STRAIGHTLINE)
 			wm_gesture_draw_line(gt);
 	}

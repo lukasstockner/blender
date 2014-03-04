@@ -313,8 +313,8 @@ static Brush *brush_tool_toggle(Main *bmain, Brush *brush_orig, const int tool, 
 
 static int brush_generic_tool_set(Main *bmain, Paint *paint, const int tool,
                                   const size_t tool_offset, const int ob_mode,
-                                  const char *tool_name, int create_missing,
-                                  int toggle)
+                                  const char *tool_name, const bool create_missing,
+                                  const bool toggle)
 {
 	Brush *brush, *brush_orig = BKE_paint_brush(paint);
 
@@ -350,8 +350,8 @@ static int brush_select_exec(bContext *C, wmOperator *op)
 	ToolSettings *toolsettings = CTX_data_tool_settings(C);
 	Paint *paint = NULL;
 	int tool, paint_mode = RNA_enum_get(op->ptr, "paint_mode");
-	int create_missing = RNA_boolean_get(op->ptr, "create_missing");
-	int toggle = RNA_boolean_get(op->ptr, "toggle");
+	const bool create_missing = RNA_boolean_get(op->ptr, "create_missing");
+	const bool toggle = RNA_boolean_get(op->ptr, "toggle");
 	const char *tool_name = "Brush";
 	size_t tool_offset;
 
@@ -613,13 +613,12 @@ static void stencil_restore(StencilControlData *scd)
 	*scd->rot_target = scd->init_rot;
 }
 
-static int stencil_control_cancel(bContext *UNUSED(C), wmOperator *op)
+static void stencil_control_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	StencilControlData *scd = op->customdata;
 
 	stencil_restore(scd);
 	MEM_freeN(op->customdata);
-	return OPERATOR_CANCELLED;
 }
 
 static void stencil_control_calculate(StencilControlData *scd, const int mval[2])
@@ -695,6 +694,7 @@ static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *eve
 				WM_event_add_notifier(C, NC_WINDOW, NULL);
 				return OPERATOR_CANCELLED;
 			}
+			break;
 		case XKEY:
 			if (event->val == KM_PRESS) {
 
@@ -727,9 +727,16 @@ static int stencil_control_modal(bContext *C, wmOperator *op, const wmEvent *eve
 
 static int stencil_control_poll(bContext *C)
 {
-	Paint *paint = BKE_paint_get_active_from_context(C);
-	Brush *br = BKE_paint_brush(paint);
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 
+	Paint *paint;
+	Brush *br;
+
+	if (!paint_supports_texture(mode))
+		return false;
+
+	paint = BKE_paint_get_active_from_context(C);
+	br = BKE_paint_brush(paint);
 	return (br &&
 	        (br->mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL ||
 	         br->mask_mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL));
@@ -846,7 +853,7 @@ static void BRUSH_OT_stencil_fit_image_aspect(wmOperatorType *ot)
 }
 
 
-static int stencil_reset_transform(bContext *C, wmOperator *op)
+static int stencil_reset_transform_exec(bContext *C, wmOperator *op)
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Brush *br = BKE_paint_brush(paint);
@@ -888,7 +895,7 @@ static void BRUSH_OT_stencil_reset_transform(wmOperatorType *ot)
 	ot->idname = "BRUSH_OT_stencil_reset_transform";
 
 	/* api callbacks */
-	ot->exec = stencil_reset_transform;
+	ot->exec = stencil_reset_transform_exec;
 	ot->poll = stencil_control_poll;
 
 	/* flags */
@@ -979,6 +986,7 @@ void ED_operatortypes_paint(void)
 
 	/* paint masking */
 	WM_operatortype_append(PAINT_OT_mask_flood_fill);
+	WM_operatortype_append(PAINT_OT_mask_lasso_gesture);
 }
 
 
@@ -1010,7 +1018,8 @@ typedef enum {
 	RC_COLOR    = 1,
 	RC_ROTATION = 2,
 	RC_ZOOM     = 4,
-	RC_WEIGHT   = 8
+	RC_WEIGHT   = 8,
+	RC_SECONDARY_ROTATION = 16
 } RCFlags;
 
 static void set_brush_rc_path(PointerRNA *ptr, const char *brush_path,
@@ -1042,7 +1051,10 @@ static void set_brush_rc_props(PointerRNA *ptr, const char *paint,
 		RNA_string_set(ptr, "data_path_secondary", "");
 	}
 	set_brush_rc_path(ptr, brush_path, "color_path", "cursor_color_add");
-	set_brush_rc_path(ptr, brush_path, "rotation_path", "texture_slot.angle");
+	if (flags & RC_SECONDARY_ROTATION)
+		set_brush_rc_path(ptr, brush_path, "rotation_path", "mask_texture_slot.angle");
+	else
+		set_brush_rc_path(ptr, brush_path, "rotation_path", "texture_slot.angle");
 	RNA_string_set(ptr, "image_id", brush_path);
 
 	if (flags & RC_COLOR)
@@ -1054,6 +1066,11 @@ static void set_brush_rc_props(PointerRNA *ptr, const char *paint,
 	else
 		RNA_string_set(ptr, "zoom_path", "");
 
+	if (flags & RC_SECONDARY_ROTATION)
+		RNA_boolean_set(ptr, "secondary_tex", true);
+	else
+		RNA_boolean_set(ptr, "secondary_tex", false);
+
 	MEM_freeN(brush_path);
 }
 
@@ -1063,6 +1080,7 @@ static void ed_keymap_paint_brush_radial_control(wmKeyMap *keymap, const char *p
 	wmKeyMapItem *kmi;
 	/* only size needs to follow zoom, strength shows fixed size circle */
 	int flags_nozoom = flags & (~RC_ZOOM);
+	int flags_noradial_secondary = flags & (~(RC_SECONDARY_ROTATION | RC_ZOOM));
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, 0, 0);
 	set_brush_rc_props(kmi->ptr, paint, "size", "use_unified_size", flags);
@@ -1077,7 +1095,12 @@ static void ed_keymap_paint_brush_radial_control(wmKeyMap *keymap, const char *p
 
 	if (flags & RC_ROTATION) {
 		kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL, 0);
-		set_brush_rc_props(kmi->ptr, paint, "texture_slot.angle", NULL, flags_nozoom);
+		set_brush_rc_props(kmi->ptr, paint, "texture_slot.angle", NULL, flags_noradial_secondary);
+	}
+
+	if (flags & RC_SECONDARY_ROTATION) {
+		kmi = WM_keymap_add_item(keymap, "WM_OT_radial_control", FKEY, KM_PRESS, KM_CTRL | KM_ALT, 0);
+		set_brush_rc_props(kmi->ptr, paint, "mask_texture_slot.angle", NULL, flags_nozoom);
 	}
 }
 
@@ -1125,6 +1148,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/* Invert mask */
 	kmi = WM_keymap_add_item(keymap, "PAINT_OT_mask_flood_fill", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "mode", PAINT_MASK_INVERT);
+
+	WM_keymap_add_item(keymap, "PAINT_OT_mask_lasso_gesture", LEFTMOUSE, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
 
 	/* Toggle dynamic topology */
 	WM_keymap_add_item(keymap, "SCULPT_OT_dynamic_topology_toggle", DKEY, KM_PRESS, KM_CTRL, 0);
@@ -1242,7 +1267,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/*Weight paint's Vertex Selection Mode */
 	keymap = WM_keymap_find(keyconf, "Weight Paint Vertex Selection", 0, 0);
 	keymap->poll = vert_paint_poll;
-	WM_keymap_add_item(keymap, "PAINT_OT_vert_select_all", AKEY, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "PAINT_OT_vert_select_all", AKEY, KM_PRESS, 0, 0);
+	RNA_enum_set(kmi->ptr, "action", SEL_TOGGLE);
 	kmi = WM_keymap_add_item(keymap, "PAINT_OT_vert_select_all", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
 	WM_keymap_add_item(keymap, "VIEW3D_OT_select_border", BKEY, KM_PRESS, 0, 0);
@@ -1263,7 +1289,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 
 	ed_keymap_paint_brush_switch(keymap, "image_paint");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.image_paint.brush.size");
-	ed_keymap_paint_brush_radial_control(keymap, "image_paint", RC_COLOR | RC_ZOOM | RC_ROTATION);
+	ed_keymap_paint_brush_radial_control(keymap, "image_paint", RC_COLOR | RC_ZOOM | RC_ROTATION | RC_SECONDARY_ROTATION);
 
 	ed_keymap_stencil(keymap);
 
@@ -1283,7 +1309,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "Face Mask", 0, 0);
 	keymap->poll = facemask_paint_poll;
 
-	WM_keymap_add_item(keymap, "PAINT_OT_face_select_all", AKEY, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "PAINT_OT_face_select_all", AKEY, KM_PRESS, 0, 0);
+	RNA_enum_set(kmi->ptr, "action", SEL_TOGGLE);
 	kmi = WM_keymap_add_item(keymap, "PAINT_OT_face_select_all", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
 	kmi = WM_keymap_add_item(keymap, "PAINT_OT_face_select_hide", HKEY, KM_PRESS, 0, 0);
@@ -1293,7 +1320,10 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "PAINT_OT_face_select_reveal", HKEY, KM_PRESS, KM_ALT, 0);
 
 	WM_keymap_add_item(keymap, "PAINT_OT_face_select_linked", LKEY, KM_PRESS, KM_CTRL, 0);
-	WM_keymap_add_item(keymap, "PAINT_OT_face_select_linked_pick", LKEY, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "PAINT_OT_face_select_linked_pick", LKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "deselect", false);
+	kmi = WM_keymap_add_item(keymap, "PAINT_OT_face_select_linked_pick", LKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "deselect", true);
 
 	keymap = WM_keymap_find(keyconf, "UV Sculpt", 0, 0);
 	keymap->poll = uv_sculpt_poll;

@@ -45,6 +45,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
+#include "BKE_unit.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -129,11 +130,11 @@ int ED_markers_post_apply_transform(ListBase *markers, Scene *scene, int mode, f
 {
 	TimeMarker *marker;
 	float cfra = (float)CFRA;
-	int changed = 0;
+	int changed_tot = 0;
 	
 	/* sanity check */
 	if (markers == NULL)
-		return changed;
+		return changed_tot;
 	
 	/* affect selected markers - it's unlikely that we will want to affect all in this way? */
 	for (marker = markers->first; marker; marker = marker->next) {
@@ -147,23 +148,23 @@ int ED_markers_post_apply_transform(ListBase *markers, Scene *scene, int mode, f
 					    (side == 'L' && marker->frame < cfra) ||
 					    (side == 'R' && marker->frame >= cfra))
 					{
-						marker->frame += (int)floorf(value + 0.5f);
-						changed++;
+						marker->frame += iroundf(value);
+						changed_tot++;
 					}
 					break;
 				}
 				case TFM_TIME_SCALE:
 				{
 					/* rescale the distance between the marker and the current frame */
-					marker->frame = cfra + (int)floorf(((float)(marker->frame - cfra) * value) + 0.5f);
-					changed++;
+					marker->frame = cfra + iroundf((float)(marker->frame - cfra) * value);
+					changed_tot++;
 					break;
 				}
 			}
 		}
 	}
 	
-	return changed;
+	return changed_tot;
 }
 
 /* --------------------------------- */
@@ -177,7 +178,7 @@ TimeMarker *ED_markers_find_nearest_marker(ListBase *markers, float x)
 	
 	if (markers) {
 		for (marker = markers->first; marker; marker = marker->next) {
-			dist = ABS((float)marker->frame - x);
+			dist = fabsf((float)marker->frame - x);
 			
 			if (dist < min_dist) {
 				min_dist = dist;
@@ -193,7 +194,7 @@ TimeMarker *ED_markers_find_nearest_marker(ListBase *markers, float x)
 int ED_markers_find_nearest_marker_time(ListBase *markers, float x)
 {
 	TimeMarker *nearest = ED_markers_find_nearest_marker(markers, x);
-	return (nearest) ? (nearest->frame) : (int)floor(x + 0.5f);
+	return (nearest) ? (nearest->frame) : iroundf(x);
 }
 
 
@@ -201,58 +202,23 @@ void ED_markers_get_minmax(ListBase *markers, short sel, float *first, float *la
 {
 	TimeMarker *marker;
 	float min, max;
-	int selcount = 0;
 	
 	/* sanity check */
 	//printf("markers = %p -  %p, %p\n", markers, markers->first, markers->last);
-	if (markers == NULL) {
+	if (ELEM3(NULL, markers, markers->first, markers->last)) {
 		*first = 0.0f;
 		*last = 0.0f;
 		return;
 	}
-	
-	if (markers->first && markers->last) {
-		TimeMarker *fm = markers->first;
-		TimeMarker *lm = markers->last;
-		
-		min = (float)fm->frame;
-		max = (float)lm->frame;
-	}
-	else {
-		*first = 0.0f;
-		*last = 0.0f;
-		return;
-	}
-	
-	/* count how many markers are usable - see later */
-	if (sel) {
-		for (marker = markers->first; marker; marker = marker->next) {
-			if (marker->flag & SELECT)
-				selcount++;
-		}
-	}
-	else
-		selcount = BLI_countlist(markers);
-	
-	/* if only selected are to be considered, only consider the selected ones
-	 * (optimization for not searching list)
-	 */
-	if (selcount > 1) {
-		for (marker = markers->first; marker; marker = marker->next) {
-			if (sel) {
-				if (marker->flag & SELECT) {
-					if (marker->frame < min)
-						min = (float)marker->frame;
-					if (marker->frame > max)
-						max = (float)marker->frame;
-				}
-			}
-			else {
-				if (marker->frame < min)
-					min = (float)marker->frame;
-				if (marker->frame > max)
-					max = (float)marker->frame;
-			}
+
+	min = FLT_MAX;
+	max = -FLT_MAX;
+	for (marker = markers->first; marker; marker = marker->next) {
+		if (!sel || (marker->flag & SELECT)) {
+			if (marker->frame < min)
+				min = (float)marker->frame;
+			if (marker->frame > max)
+				max = (float)marker->frame;
 		}
 	}
 	
@@ -409,7 +375,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 	glDisable(GL_BLEND);
 	
 	/* and the marker name too, shifted slightly to the top-right */
-	if (marker->name && marker->name[0]) {
+	if (marker->name[0]) {
 		float x, y;
 
 		/* minimal y coordinate which wouldn't be occluded by scroll */
@@ -558,7 +524,7 @@ static int ed_markers_opwrap_invoke(bContext *C, wmOperator *op, const wmEvent *
 /* ************************** add markers *************************** */
 
 /* add TimeMarker at curent frame */
-static int ed_marker_add(bContext *C, wmOperator *UNUSED(op))
+static int ed_marker_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ListBase *markers = ED_context_get_markers(C);
 	TimeMarker *marker;
@@ -598,7 +564,7 @@ static void MARKER_OT_add(wmOperatorType *ot)
 	ot->idname = "MARKER_OT_add";
 	
 	/* api callbacks */
-	ot->exec = ed_marker_add;
+	ot->exec = ed_marker_add_exec;
 	ot->invoke = ed_markers_opwrap_invoke;
 	ot->poll = ED_operator_animview_active;
 	
@@ -643,6 +609,7 @@ typedef struct MarkerMove {
 /* return 0 if not OK */
 static int ed_marker_move_init(bContext *C, wmOperator *op)
 {
+	Scene *scene = CTX_data_scene(C);
 	ListBase *markers = ED_context_get_markers(C);
 	MarkerMove *mm;
 	TimeMarker *marker;
@@ -663,8 +630,10 @@ static int ed_marker_move_init(bContext *C, wmOperator *op)
 
 	initNumInput(&mm->num);
 	mm->num.idx_max = 0; /* one axis */
-	mm->num.flag |= NUM_NO_FRACTION;
-	mm->num.increment = 1.0f;
+	mm->num.val_flag[0] |= NUM_NO_FRACTION;
+	mm->num.unit_sys = scene->unit.system;
+	/* No time unit supporting frames currently... */
+	mm->num.unit_type[0] = B_UNIT_NONE;
 	
 	for (a = 0, marker = markers->first; marker; marker = marker->next) {
 		if (marker->flag & SELECT) {
@@ -751,13 +720,11 @@ static void ed_marker_move_apply(bContext *C, wmOperator *op)
 }
 
 /* only for modal */
-static int ed_marker_move_cancel(bContext *C, wmOperator *op)
+static void ed_marker_move_cancel(bContext *C, wmOperator *op)
 {
 	RNA_int_set(op->ptr, "frames", 0);
 	ed_marker_move_apply(C, op);
 	ed_marker_move_exit(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 
@@ -768,14 +735,12 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 	MarkerMove *mm = op->customdata;
 	View2D *v2d = UI_view2d_fromcontext(C);
 	TimeMarker *marker, *selmarker = NULL;
-	float dx, fac;
 	char str[256];
 		
 	switch (event->type) {
 		case ESCKEY:
 			ed_marker_move_cancel(C, op);
 			return OPERATOR_CANCELLED;
-		
 		case RIGHTMOUSE:
 			/* press = user manually demands transform to be canceled */
 			if (event->val == KM_PRESS) {
@@ -796,6 +761,9 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 			}
 			break;
 		case MOUSEMOVE:
+		{
+			float dx, fac;
+
 			if (hasNumInput(&mm->num))
 				break;
 			
@@ -868,10 +836,12 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 				
 				ED_area_headerprint(CTX_wm_area(C), str);
 			}
+			break;
+		}
 	}
 
 	if (event->val == KM_PRESS) {
-		if (handleNumInput(&mm->num, event)) {
+		if (handleNumInput(C, &mm->num, event)) {
 			char str_tx[NUM_STR_REP_LEN];
 			float value = RNA_int_get(op->ptr, "frames");
 			applyNumInput(&mm->num, &value);
@@ -1122,7 +1092,7 @@ static int ed_marker_select(bContext *C, const wmEvent *event, bool extend, bool
 
 static int ed_marker_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	bool extend = RNA_boolean_get(op->ptr, "extend");
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
 	bool camera = false;
 #ifdef DURIAN_CAMERA_SWITCH
 	camera = RNA_boolean_get(op->ptr, "camera");
@@ -1187,7 +1157,7 @@ static int ed_marker_border_select_exec(bContext *C, wmOperator *op)
 	TimeMarker *marker;
 	float xminf, xmaxf, yminf, ymaxf;
 	int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
-	int extend = RNA_boolean_get(op->ptr, "extend");
+	bool extend = RNA_boolean_get(op->ptr, "extend");
 	rcti rect;
 	
 	WM_operator_properties_border_to_rcti(op, &rect);
@@ -1309,7 +1279,7 @@ static int ed_marker_delete_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ListBase *markers = ED_context_get_markers(C);
 	TimeMarker *marker, *nmarker;
-	short changed = 0;
+	bool changed = false;
 	
 	if (markers == NULL)
 		return OPERATOR_CANCELLED;
@@ -1318,7 +1288,7 @@ static int ed_marker_delete_exec(bContext *C, wmOperator *UNUSED(op))
 		nmarker = marker->next;
 		if (marker->flag & SELECT) {
 			BLI_freelinkN(markers, marker);
-			changed = 1;
+			changed = true;
 		}
 	}
 	
@@ -1381,7 +1351,7 @@ static int ed_marker_rename_invoke_wrapper(bContext *C, wmOperator *op, const wm
 		RNA_string_set(op->ptr, "name", marker->name);
 	
 	/* now see if the operator is usable */
-	return ed_markers_opwrap_invoke_custom(C, op, event, WM_operator_props_popup);
+	return ed_markers_opwrap_invoke_custom(C, op, event, WM_operator_props_popup_confirm);
 }
 
 static void MARKER_OT_rename(wmOperatorType *ot)
@@ -1555,8 +1525,8 @@ void ED_marker_keymap(wmKeyConfig *keyconf)
 	
 	WM_keymap_verify_item(keymap, "MARKER_OT_select_border", BKEY, KM_PRESS, 0, 0);
 	WM_keymap_verify_item(keymap, "MARKER_OT_select_all", AKEY, KM_PRESS, 0, 0);
-	WM_keymap_verify_item(keymap, "MARKER_OT_delete", XKEY, KM_PRESS, 0, 0);
-	WM_keymap_verify_item(keymap, "MARKER_OT_delete", DELKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "MARKER_OT_delete", XKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "MARKER_OT_delete", DELKEY, KM_PRESS, 0, 0);
 	WM_keymap_verify_item(keymap, "MARKER_OT_rename", MKEY, KM_PRESS, KM_CTRL, 0);
 	
 	WM_keymap_add_item(keymap, "MARKER_OT_move", GKEY, KM_PRESS, 0, 0);

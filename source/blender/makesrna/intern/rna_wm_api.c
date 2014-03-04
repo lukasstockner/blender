@@ -41,7 +41,30 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "wm_cursors.h"
+
 #include "rna_internal.h"  /* own include */
+
+/* confusingm 2 enums mixed up here */
+EnumPropertyItem window_cursor_items[] = {
+	{CURSOR_STD, "DEFAULT", 0, "Default", ""},
+	{CURSOR_NONE, "NONE", 0, "None", ""},
+	{CURSOR_WAIT, "WAIT", 0, "Wait", ""},
+	{CURSOR_EDIT, "CROSSHAIR", 0, "Crosshair", ""},
+	{CURSOR_X_MOVE, "MOVE_X", 0, "Move-X", ""},
+	{CURSOR_Y_MOVE, "MOVE_Y", 0, "Move-Y", ""},
+
+	/* new */
+	{BC_KNIFECURSOR, "KNIFE", 0, "Knife", ""},
+	{BC_TEXTEDITCURSOR, "TEXT", 0, "Text", ""},
+	{BC_PAINTBRUSHCURSOR, "PAINT_BRUSH", 0, "Paint Brush", ""},
+	{BC_HANDCURSOR, "HAND", 0, "Hand", ""},
+	{BC_EW_SCROLLCURSOR, "SCROLL_X", 0, "Scroll-X", ""},
+	{BC_NS_SCROLLCURSOR, "SCROLL_Y", 0, "Scroll-Y", ""},
+	{BC_NSEW_SCROLLCURSOR, "SCROLL_XY", 0, "Scroll-XY", ""},
+	{BC_EYEDROPPER_CURSOR, "EYEDROPPER", 0, "Eyedropper", ""},
+	{0, NULL, 0, NULL, NULL}
+};
 
 #ifdef RNA_RUNTIME
 
@@ -95,7 +118,7 @@ struct wmStaticProgress {
 } wm_progress_state = {0, 0, false};
 
 
-static void rna_progress_begin(struct wmWindowManager *wm, float min, float max)
+static void rna_progress_begin(struct wmWindowManager *UNUSED(wm), float min, float max)
 {
 	float range = max - min;
 	if (range != 0) {
@@ -112,16 +135,22 @@ static void rna_progress_update(struct wmWindowManager *wm, float value)
 {
 	if (wm_progress_state.is_valid) {
 		/* Map to cursor_time range [0,9999] */
-		int val = (int)(10000 * (value - wm_progress_state.min) / (wm_progress_state.max - wm_progress_state.min));
-		WM_cursor_time(wm->winactive, val);
+		wmWindow *win = wm->winactive;
+		if (win) {
+			int val = (int)(10000 * (value - wm_progress_state.min) / (wm_progress_state.max - wm_progress_state.min));
+			WM_cursor_time(win, val);
+		}
 	}
 }
 
 static void rna_progress_end(struct wmWindowManager *wm)
 {
 	if (wm_progress_state.is_valid) {
-		WM_cursor_restore(wm->winactive);
-		wm_progress_state.is_valid = false;
+		wmWindow *win = wm->winactive;
+		if (win) {
+			WM_cursor_modal_restore(win);
+			wm_progress_state.is_valid = false;
+		}
 	}
 }
 
@@ -239,6 +268,18 @@ static wmKeyMap *rna_keymap_find_modal(wmKeyConfig *UNUSED(keyconf), const char 
 		return ot->modalkeymap;
 }
 
+static void rna_KeyMap_remove(wmKeyConfig *keyconfig, ReportList *reports, PointerRNA *keymap_ptr)
+{
+	wmKeyMap *keymap = keymap_ptr->data;
+
+	if (WM_keymap_remove(keyconfig, keymap) == FALSE) {
+		BKE_reportf(reports, RPT_ERROR, "KeyConfig '%s' cannot be removed", keymap->idname);
+		return;
+	}
+
+	RNA_POINTER_INVALIDATE(keymap_ptr);
+}
+
 static void rna_KeyConfig_remove(wmWindowManager *wm, ReportList *reports, PointerRNA *keyconf_ptr)
 {
 	wmKeyConfig *keyconf = keyconf_ptr->data;
@@ -299,6 +340,34 @@ static void rna_generic_op_invoke(FunctionRNA *func, int flag)
 	}
 }
 
+void RNA_api_window(StructRNA *srna)
+{
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	func = RNA_def_function(srna, "cursor_warp", "WM_cursor_warp");
+	parm = RNA_def_int(func, "x", 0, INT_MIN, INT_MAX, "", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_int(func, "y", 0, INT_MIN, INT_MAX, "", "", INT_MIN, INT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_function_ui_description(func, "Set the cursor position");
+
+	func = RNA_def_function(srna, "cursor_set", "WM_cursor_set");
+	parm = RNA_def_property(func, "cursor", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(parm, window_cursor_items);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_function_ui_description(func, "Set the cursor");
+
+	func = RNA_def_function(srna, "cursor_modal_set", "WM_cursor_modal_set");
+	parm = RNA_def_property(func, "cursor", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(parm, window_cursor_items);
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_function_ui_description(func, "Set the cursor, so the previous cursor can be restored");
+
+	RNA_def_function(srna, "cursor_modal_restore", "WM_cursor_modal_restore");
+	RNA_def_function_ui_description(func, "Restore the previous cursor after calling ``cursor_modal_set``");
+}
+
 void RNA_api_wm(StructRNA *srna)
 {
 	FunctionRNA *func;
@@ -333,17 +402,23 @@ void RNA_api_wm(StructRNA *srna)
 
 	/* Progress bar interface */
 	func = RNA_def_function(srna, "progress_begin", "rna_progress_begin");
+	RNA_def_function_ui_description(func, "Start Progress bar");
+
 	parm = RNA_def_property(func, "min", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_text(parm, "min", "any value in range [0,9999]");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+
 	parm = RNA_def_property(func, "max", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_property_ui_text(parm, "max", "any value in range [min+1,9998]");
 
 	func = RNA_def_function(srna, "progress_update", "rna_progress_update");
 	parm = RNA_def_property(func, "value", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	RNA_def_property_ui_text(parm, "value", "any value between min and max as set in progress_init()");
+	RNA_def_property_ui_text(parm, "value", "any value between min and max as set in progress_begin()");
 
 	func = RNA_def_function(srna, "progress_end", "rna_progress_end");
+	RNA_def_function_ui_description(func, "Terminate Progress bar");
 
 	/* invoke functions, for use with python */
 	func = RNA_def_function(srna, "invoke_props_popup", "rna_Operator_props_popup");
@@ -372,7 +447,7 @@ void RNA_api_wm(StructRNA *srna)
 	/* wrap uiPupMenuBegin */
 	func = RNA_def_function(srna, "pupmenu_begin__internal", "rna_PupMenuBegin");
 	RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
-	parm = RNA_def_string(func, "title", "", 0, "", "");
+	parm = RNA_def_string(func, "title", NULL, 0, "", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_property(func, "icon", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(parm, icon_items);
@@ -397,7 +472,7 @@ void RNA_api_operator(StructRNA *srna)
 	func = RNA_def_function(srna, "report", "rna_Operator_report");
 	parm = RNA_def_enum_flag(func, "type", wm_report_items, 0, "Type", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm = RNA_def_string(func, "message", "", 0, "Report Message", "");
+	parm = RNA_def_string(func, "message", NULL, 0, "Report Message", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
 
@@ -470,10 +545,6 @@ void RNA_api_operator(StructRNA *srna)
 	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
 	parm = RNA_def_pointer(func, "context", "Context", "", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
-
-	/* better name? */
-	parm = RNA_def_enum_flag(func, "result", operator_return_items, OPERATOR_CANCELLED, "result", "");
-	RNA_def_function_return(func, parm);
 }
 
 void RNA_api_macro(StructRNA *srna)
@@ -485,7 +556,7 @@ void RNA_api_macro(StructRNA *srna)
 	func = RNA_def_function(srna, "report", "rna_Operator_report");
 	parm = RNA_def_enum_flag(func, "type", wm_report_items, 0, "Type", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm = RNA_def_string(func, "message", "", 0, "Report Message", "");
+	parm = RNA_def_string(func, "message", NULL, 0, "Report Message", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
 
@@ -551,7 +622,7 @@ void RNA_api_keymapitems(StructRNA *srna)
 
 	func = RNA_def_function(srna, "new", "rna_KeyMap_item_new");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	parm = RNA_def_string(func, "idname", "", 0, "Operator Identifier", "");
+	parm = RNA_def_string(func, "idname", NULL, 0, "Operator Identifier", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_enum(func, "type", event_type_items, 0, "Type", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
@@ -571,7 +642,7 @@ void RNA_api_keymapitems(StructRNA *srna)
 
 	func = RNA_def_function(srna, "new_modal", "rna_KeyMap_item_new_modal");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	parm = RNA_def_string(func, "propvalue", "", 0, "Property Value", "");
+	parm = RNA_def_string(func, "propvalue", NULL, 0, "Property Value", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_enum(func, "type", event_type_items, 0, "Type", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
@@ -606,7 +677,7 @@ void RNA_api_keymaps(StructRNA *srna)
 	PropertyRNA *parm;
 
 	func = RNA_def_function(srna, "new", "rna_keymap_new"); /* add_keymap */
-	parm = RNA_def_string(func, "name", "", 0, "Name", "");
+	parm = RNA_def_string(func, "name", NULL, 0, "Name", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	RNA_def_enum(func, "space_type", space_type_items, SPACE_EMPTY, "Space Type", "");
 	RNA_def_enum(func, "region_type", region_type_items, RGN_TYPE_WINDOW, "Region Type", "");
@@ -614,8 +685,14 @@ void RNA_api_keymaps(StructRNA *srna)
 	parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Added key map");
 	RNA_def_function_return(func, parm);
 
+	func = RNA_def_function(srna, "remove", "rna_KeyMap_remove"); /* remove_keymap */
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Removed key map");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
+
 	func = RNA_def_function(srna, "find", "rna_keymap_find"); /* find_keymap */
-	parm = RNA_def_string(func, "name", "", 0, "Name", "");
+	parm = RNA_def_string(func, "name", NULL, 0, "Name", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	RNA_def_enum(func, "space_type", space_type_items, SPACE_EMPTY, "Space Type", "");
 	RNA_def_enum(func, "region_type", region_type_items, RGN_TYPE_WINDOW, "Region Type", "");
@@ -623,7 +700,7 @@ void RNA_api_keymaps(StructRNA *srna)
 	RNA_def_function_return(func, parm);
 
 	func = RNA_def_function(srna, "find_modal", "rna_keymap_find_modal"); /* find_keymap_modal */
-	parm = RNA_def_string(func, "name", "", 0, "Operator Name", "");
+	parm = RNA_def_string(func, "name", NULL, 0, "Operator Name", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Corresponding key map");
 	RNA_def_function_return(func, parm);
@@ -635,7 +712,7 @@ void RNA_api_keyconfigs(StructRNA *srna)
 	PropertyRNA *parm;
 
 	func = RNA_def_function(srna, "new", "WM_keyconfig_new_user"); /* add_keyconfig */
-	parm = RNA_def_string(func, "name", "", 0, "Name", "");
+	parm = RNA_def_string(func, "name", NULL, 0, "Name", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_pointer(func, "keyconfig", "KeyConfig", "Key Configuration", "Added key configuration");
 	RNA_def_function_return(func, parm);

@@ -42,11 +42,9 @@
 
 #include "GL/glew.h"
 
-#include "KX_BlenderGL.h"
 #include "KX_BlenderCanvas.h"
 #include "KX_BlenderKeyboardDevice.h"
 #include "KX_BlenderMouseDevice.h"
-#include "KX_BlenderRenderTools.h"
 #include "KX_BlenderSystem.h"
 #include "BL_Material.h"
 
@@ -153,8 +151,9 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
 	while (wmEvent *event= (wmEvent *)win->queue.first) {
 		short val = 0;
 		//unsigned short event = 0; //XXX extern_qread(&val);
+		unsigned int unicode = event->utf8_buf[0] ? BLI_str_utf8_as_unicode(event->utf8_buf) : event->ascii;
 
-		if (keyboarddevice->ConvertBlenderEvent(event->type,event->val))
+		if (keyboarddevice->ConvertBlenderEvent(event->type, event->val, unicode))
 			exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;
 
 		/* Coordinate conversion... where
@@ -163,13 +162,13 @@ static int BL_KetsjiNextFrame(KX_KetsjiEngine *ketsjiengine, bContext *C, wmWind
 		if (event->type == MOUSEMOVE) {
 			/* Note, not nice! XXX 2.5 event hack */
 			val = event->x - ar->winrct.xmin;
-			mousedevice->ConvertBlenderEvent(MOUSEX, val);
+			mousedevice->ConvertBlenderEvent(MOUSEX, val, 0);
 
 			val = ar->winy - (event->y - ar->winrct.ymin) - 1;
-			mousedevice->ConvertBlenderEvent(MOUSEY, val);
+			mousedevice->ConvertBlenderEvent(MOUSEY, val, 0);
 		}
 		else {
-			mousedevice->ConvertBlenderEvent(event->type,event->val);
+			mousedevice->ConvertBlenderEvent(event->type, event->val, 0);
 		}
 
 		BLI_remlink(&win->queue, event);
@@ -266,7 +265,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
 		bool animation_record = (SYS_GetCommandLineInt(syshandle, "animation_record", 0) != 0);
-		bool displaylists = (SYS_GetCommandLineInt(syshandle, "displaylists", 0) != 0);
+		bool displaylists = (SYS_GetCommandLineInt(syshandle, "displaylists", 0) != 0) && GPU_display_list_support();
 #ifdef WITH_PYTHON
 		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 0) != 0);
 #endif
@@ -276,7 +275,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 		if (animation_record) usefixed= false; /* override since you don't want to run full-speed for sim recording */
 
-		// create the canvas, rasterizer and rendertools
+		// create the canvas and rasterizer
 		RAS_ICanvas* canvas = new KX_BlenderCanvas(wm, win, area_rect, ar);
 		
 		// default mouse state set on render panel
@@ -284,7 +283,14 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 		else
 			canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
-		RAS_IRenderTools* rendertools = new KX_BlenderRenderTools();
+
+		// Setup vsync
+		int previous_vsync = canvas->GetSwapInterval();
+		if (startscene->gm.vsync == VSYNC_ADAPTIVE)
+			canvas->SetSwapInterval(-1);
+		else
+			canvas->SetSwapInterval((startscene->gm.vsync == VSYNC_ON) ? 1 : 0);
+
 		RAS_IRasterizer* rasterizer = NULL;
 		//Don't use displaylists with VBOs
 		//If auto starts using VBOs, make sure to check for that here
@@ -316,7 +322,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 		ketsjiengine->SetMouseDevice(mousedevice);
 		ketsjiengine->SetNetworkDevice(networkdevice);
 		ketsjiengine->SetCanvas(canvas);
-		ketsjiengine->SetRenderTools(rendertools);
 		ketsjiengine->SetRasterizer(rasterizer);
 		ketsjiengine->SetUseFixedTime(usefixed);
 		ketsjiengine->SetTimingDisplay(frameRate, profile, properties);
@@ -371,7 +376,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			// to the original file working directory
 
 			if (exitstring != "")
-				strcpy(basedpath, exitstring.Ptr());
+				BLI_strncpy(basedpath, exitstring.ReadPtr(), sizeof(basedpath));
 
 			// load relative to the last loaded file, this used to be relative
 			// to the first file but that makes no sense, relative paths in
@@ -384,9 +389,8 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			if (!bfd)
 			{
 				// just add "//" in front of it
-				char temppath[242];
-				strcpy(temppath, "//");
-				strcat(temppath, basedpath);
+				char temppath[FILE_MAX] = "//";
+				BLI_strncpy(temppath + 2, basedpath, FILE_MAX - 2);
 				
 				BLI_path_abs(temppath, pathname);
 				bfd = load_game_data(temppath);
@@ -467,7 +471,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			else if (gs.matmode == GAME_MAT_GLSL)
 				usemat = false;
 
-			if (usemat && (gs.matmode != GAME_MAT_TEXFACE))
+			if (usemat)
 				sceneconverter->SetMaterials(true);
 			if (useglslmat && (gs.matmode == GAME_MAT_GLSL))
 				sceneconverter->SetGLSLMaterials(true);
@@ -511,7 +515,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				// convert and add scene
 				sceneconverter->ConvertScene(
 					startscene,
-					rendertools,
+				    rasterizer,
 					canvas);
 				ketsjiengine->AddScene(startscene);
 				
@@ -657,13 +661,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			delete rasterizer;
 			rasterizer = NULL;
 		}
-		if (rendertools)
-		{
-			delete rendertools;
-			rendertools = NULL;
-		}
 		if (canvas)
 		{
+			canvas->SetSwapInterval(previous_vsync); // Set the swap interval back
 			delete canvas;
 			canvas = NULL;
 		}

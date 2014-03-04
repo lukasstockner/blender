@@ -26,6 +26,8 @@
 
 /** \file blender/windowmanager/intern/wm_window.c
  *  \ingroup wm
+ *
+ * Window management, wrap GHOST.
  */
 
 #include <math.h>
@@ -115,8 +117,8 @@ void wm_get_screensize(int *width_r, int *height_r)
 	*height_r = uiheight;
 }
 
-/* size of all screens, useful since the mouse is bound by this */
-void wm_get_screensize_all(int *width_r, int *height_r)
+/* size of all screens (desktop), useful since the mouse is bound by this */
+void wm_get_desktopsize(int *width_r, int *height_r)
 {
 	unsigned int uiwidth;
 	unsigned int uiheight;
@@ -133,10 +135,6 @@ static void wm_window_check_position(rcti *rect)
 	int width, height, d;
 	
 	wm_get_screensize(&width, &height);
-	
-#if defined(__APPLE__) && !defined(GHOST_COCOA)
-	height -= 70;
-#endif
 	
 	if (rect->xmin < 0) {
 		rect->xmax -= rect->xmin;
@@ -270,7 +268,7 @@ wmWindow *wm_window_copy(bContext *C, wmWindow *winorig)
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 {
 	wmWindow *tmpwin;
-	int do_exit = 0;
+	bool do_exit = false;
 	
 	/* first check if we have to quit (there are non-temp remaining windows) */
 	for (tmpwin = wm->windows.first; tmpwin; tmpwin = tmpwin->next) {
@@ -311,7 +309,7 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 		/* if temp screen, delete it after window free (it stops jobs that can access it) */
 		if (screen->temp) {
 			Main *bmain = CTX_data_main(C);
-			BKE_libblock_free(&bmain->screen, screen);
+			BKE_libblock_free(bmain, screen);
 		}
 	}		
 }
@@ -338,12 +336,6 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
 		 * in case of OS application terminate request (e.g. OS Shortcut Alt+F4, Cmd+Q, (...), or session end) */
 		GHOST_SetWindowModifiedState(win->ghostwin, (GHOST_TUns8) !wm->file_saved);
 		
-#if defined(__APPLE__) && !defined(GHOST_COCOA)
-		if (wm->file_saved)
-			GHOST_SetWindowState(win->ghostwin, GHOST_kWindowStateUnModified);
-		else
-			GHOST_SetWindowState(win->ghostwin, GHOST_kWindowStateModified);
-#endif
 	}
 }
 
@@ -375,14 +367,14 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 		/* needed so we can detect the graphics card below */
 		GPU_init();
 
-		/* set the state*/
-		GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
-
 		win->ghostwin = ghostwin;
 		GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
 
 		if (win->eventstate == NULL)
 			win->eventstate = MEM_callocN(sizeof(wmEvent), "window event state");
+
+		/* set the state */
+		GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
 
 		/* until screens get drawn, make it nice gray */
 		glClearColor(0.55, 0.55, 0.55, 0.0);
@@ -427,20 +419,12 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 	if (wm_init_state.size_x == 0) {
 		wm_get_screensize(&wm_init_state.size_x, &wm_init_state.size_y);
 		
-#if defined(__APPLE__) && !defined(GHOST_COCOA)
-		/* Cocoa provides functions to get correct max window size */
-		{
-			extern void wm_set_apple_prefsize(int, int);    /* wm_apple.c */
-			
-			wm_set_apple_prefsize(wm_init_state.size_x, wm_init_state.size_y);
-		}
-#else
-		/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
-		 * we'd need a wm_get_screensize like function that gives offset,
-		 * in practice the window manager will likely move to the correct monitor */
-		wm_init_state.start_x = 0;
-		wm_init_state.start_y = 0;
-#endif
+	/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
+	 * we'd need a wm_get_screensize like function that gives offset,
+	 * in practice the window manager will likely move to the correct monitor */
+	wm_init_state.start_x = 0;
+	wm_init_state.start_y = 0;
+
 
 #if !defined(__APPLE__) && !defined(WIN32)  /* X11 */
 		/* X11, start maximized but use default sane size */
@@ -499,7 +483,7 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 /* new window, no screen yet, but we open ghostwindow for it */
 /* also gets the window level handlers */
 /* area-rip calls this */
-wmWindow *WM_window_open(bContext *C, rcti *rect)
+wmWindow *WM_window_open(bContext *C, const rcti *rect)
 {
 	wmWindow *win = wm_window_new(C);
 	
@@ -807,7 +791,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 				 * currently it seems to be common practice to generate new event for, but probably
 				 * we'll need utility function for this? (sergey)
 				 */
-				event = *(win->eventstate);
+				wm_event_init_from_window(win, &event);
 				event.type = MOUSEMOVE;
 				event.prevx = event.x;
 				event.prevy = event.y;
@@ -855,7 +839,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 					
 					GHOST_DisposeRectangle(client_rect);
 					
-					wm_get_screensize_all(&scr_w, &scr_h);
+					wm_get_desktopsize(&scr_w, &scr_h);
 					sizex = r - l;
 					sizey = b - t;
 					posx = l;
@@ -956,7 +940,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 				win->eventstate->x = wx;
 				win->eventstate->y = wy;
 				
-				event = *(win->eventstate);  /* copy last state, like mouse coords */
+				wm_event_init_from_window(win, &event);  /* copy last state, like mouse coords */
 				
 				/* activate region */
 				event.type = MOUSEMOVE;
@@ -1064,7 +1048,8 @@ static int wm_window_timer(const bContext *C)
 				else if (wt->event_type == TIMERAUTOSAVE)
 					wm_autosave_timer(C, wm, wt);
 				else if (win) {
-					wmEvent event = *(win->eventstate);
+					wmEvent event;
+					wm_event_init_from_window(win, &event);
 					
 					event.type = wt->event_type;
 					event.val = 0;
@@ -1153,7 +1138,7 @@ void wm_ghost_exit(void)
 /* **************** timer ********************** */
 
 /* to (de)activate running timers temporary */
-void WM_event_timer_sleep(wmWindowManager *wm, wmWindow *UNUSED(win), wmTimer *timer, int dosleep)
+void WM_event_timer_sleep(wmWindowManager *wm, wmWindow *UNUSED(win), wmTimer *timer, bool do_sleep)
 {
 	wmTimer *wt;
 	
@@ -1162,7 +1147,7 @@ void WM_event_timer_sleep(wmWindowManager *wm, wmWindow *UNUSED(win), wmTimer *t
 			break;
 
 	if (wt)
-		wt->sleep = dosleep;
+		wt->sleep = do_sleep;
 }
 
 wmTimer *WM_event_add_timer(wmWindowManager *wm, wmWindow *win, int event_type, double timestep)
@@ -1215,37 +1200,78 @@ void WM_event_remove_timer(wmWindowManager *wm, wmWindow *UNUSED(win), wmTimer *
 
 /* ******************* clipboard **************** */
 
-char *WM_clipboard_text_get(int selection)
+static char *wm_clipboard_text_get_ex(bool selection, int *r_len,
+                                      bool firstline)
 {
 	char *p, *p2, *buf, *newbuf;
 
-	if (G.background)
+	if (G.background) {
+		*r_len = 0;
 		return NULL;
+	}
 
 	buf = (char *)GHOST_getClipboard(selection);
-	if (!buf)
+	if (!buf) {
+		*r_len = 0;
 		return NULL;
+	}
 	
 	/* always convert from \r\n to \n */
-	newbuf = MEM_callocN(strlen(buf) + 1, __func__);
+	p2 = newbuf = MEM_mallocN(strlen(buf) + 1, __func__);
 
-	for (p = buf, p2 = newbuf; *p; p++) {
-		if (*p != '\r')
-			*(p2++) = *p;
+	if (firstline) {
+		/* will return an over-alloc'ed value in the case there are newlines */
+		for (p = buf; *p; p++) {
+			if ((*p != '\n') && (*p != '\r')) {
+				*(p2++) = *p;
+			}
+			else {
+				break;
+			}
+		}
 	}
+	else {
+		for (p = buf; *p; p++) {
+			if (*p != '\r') {
+				*(p2++) = *p;
+			}
+		}
+	}
+
 	*p2 = '\0';
 
 	free(buf); /* ghost uses regular malloc */
 	
+	*r_len = (p2 - newbuf);
+
 	return newbuf;
 }
 
-void WM_clipboard_text_set(char *buf, int selection)
+/**
+ * Return text from the clipboard.
+ *
+ * \note Caller needs to check for valid utf8 if this is a requirement.
+ */
+char *WM_clipboard_text_get(bool selection, int *r_len)
+{
+	return wm_clipboard_text_get_ex(selection, r_len, false);
+}
+
+/**
+ * Convenience function for pasting to areas of Blender which don't support newlines.
+ */
+char *WM_clipboard_text_get_firstline(bool selection, int *r_len)
+{
+	return wm_clipboard_text_get_ex(selection, r_len, true);
+}
+
+void WM_clipboard_text_set(const char *buf, bool selection)
 {
 	if (!G.background) {
 #ifdef _WIN32
 		/* do conversion from \n to \r\n on Windows */
-		char *p, *p2, *newbuf;
+		const char *p;
+		char *p2, *newbuf;
 		int newlen = 0;
 		
 		for (p = buf; *p; p++) {
@@ -1320,6 +1346,16 @@ void wm_window_swap_buffers(wmWindow *win)
 #else
 	GHOST_SwapWindowBuffers(win->ghostwin);
 #endif
+}
+
+void wm_window_set_swap_interval (wmWindow *win, int interval)
+{
+	GHOST_SetSwapInterval(win->ghostwin, interval);
+}
+
+int wm_window_get_swap_interval (wmWindow *win)
+{
+	return GHOST_GetSwapInterval(win->ghostwin);
 }
 
 

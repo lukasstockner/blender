@@ -53,11 +53,10 @@ void text_update_character_width(struct SpaceText *st);
 void text_scroll_to_cursor(struct SpaceText *st, struct ScrArea *sa);
 void text_update_cursor_moved(struct bContext *C);
 
-	/* TXT_OFFSET used to be 35 when the scrollbar was on the left... */
-#define TXT_OFFSET			((int)(0.75f * U.widget_unit))
+#define TXT_OFFSET			((int)(0.5f * U.widget_unit))
 #define TXT_SCROLL_WIDTH	U.widget_unit
 #define TXT_SCROLL_SPACE	((int)(0.1f * U.widget_unit))
-#define TXT_LINE_SPACING	((int)(0.2f * U.widget_unit)) /* space between lines */
+#define TXT_LINE_SPACING	((int)(0.3f * st->lheight_dpi)) /* space between lines */
 #define TEXTXLOC			(st->cwidth * st->linenrs_tot)
 
 #define SUGG_LIST_SIZE	7
@@ -75,8 +74,6 @@ int text_get_char_pos(struct SpaceText *st, const char *line, int cur);
 
 void text_drawcache_tag_update(struct SpaceText *st, int full);
 void text_free_caches(struct SpaceText *st);
-
-int text_file_modified(struct Text *text);
 
 int text_do_suggest_select(struct SpaceText *st, struct ARegion *ar);
 void text_pop_suggest_list(void);

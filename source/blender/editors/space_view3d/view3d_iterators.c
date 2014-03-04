@@ -30,6 +30,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
@@ -39,6 +40,7 @@
 #include "BKE_curve.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_displist.h"
+#include "BKE_editmesh.h"
 
 #include "bmesh.h"
 
@@ -123,7 +125,7 @@ void meshobject_foreachScreenVert(
 		ED_view3d_clipping_local(vc->rv3d, vc->obedit->obmat);  /* for local clipping lookups */
 	}
 
-	dm->foreachMappedVert(dm, meshobject_foreachScreenVert__mapFunc, &data);
+	dm->foreachMappedVert(dm, meshobject_foreachScreenVert__mapFunc, &data, DM_FOREACH_NOP);
 
 	dm->release(dm);
 }
@@ -132,7 +134,7 @@ static void mesh_foreachScreenVert__mapFunc(void *userData, int index, const flo
                                             const float UNUSED(no_f[3]), const short UNUSED(no_s[3]))
 {
 	foreachScreenVert_userData *data = userData;
-	BMVert *eve = EDBM_vert_at_index(data->vc.em, index);
+	BMVert *eve = BM_vert_at_index(data->vc.em->bm, index);
 
 	if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 		float screen_co[2];
@@ -164,8 +166,8 @@ void mesh_foreachScreenVert(
 		ED_view3d_clipping_local(vc->rv3d, vc->obedit->obmat);  /* for local clipping lookups */
 	}
 
-	EDBM_index_arrays_ensure(vc->em, BM_VERT);
-	dm->foreachMappedVert(dm, mesh_foreachScreenVert__mapFunc, &data);
+	BM_mesh_elem_table_ensure(vc->em->bm, BM_VERT);
+	dm->foreachMappedVert(dm, mesh_foreachScreenVert__mapFunc, &data, DM_FOREACH_NOP);
 
 	dm->release(dm);
 }
@@ -175,7 +177,7 @@ void mesh_foreachScreenVert(
 static void mesh_foreachScreenEdge__mapFunc(void *userData, int index, const float v0co[3], const float v1co[3])
 {
 	foreachScreenEdge_userData *data = userData;
-	BMEdge *eed = EDBM_edge_at_index(data->vc.em, index);
+	BMEdge *eed = BM_edge_at_index(data->vc.em->bm, index);
 
 	if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
 		float screen_co_a[2];
@@ -224,7 +226,7 @@ void mesh_foreachScreenEdge(
 		ED_view3d_clipping_local(vc->rv3d, vc->obedit->obmat);  /* for local clipping lookups */
 	}
 
-	EDBM_index_arrays_ensure(vc->em, BM_EDGE);
+	BM_mesh_elem_table_ensure(vc->em->bm, BM_EDGE);
 	dm->foreachMappedEdge(dm, mesh_foreachScreenEdge__mapFunc, &data);
 
 	dm->release(dm);
@@ -235,9 +237,9 @@ void mesh_foreachScreenEdge(
 static void mesh_foreachScreenFace__mapFunc(void *userData, int index, const float cent[3], const float UNUSED(no[3]))
 {
 	foreachScreenFace_userData *data = userData;
-	BMFace *efa = EDBM_face_at_index(data->vc.em, index);
+	BMFace *efa = BM_face_at_index(data->vc.em->bm, index);
 
-	if (efa && !BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
+	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		float screen_co[2];
 		if (ED_view3d_project_float_object(data->vc.ar, cent, screen_co, data->clip_flag) == V3D_PROJ_RET_OK) {
 			data->func(data->userData, efa, screen_co, index);
@@ -260,8 +262,8 @@ void mesh_foreachScreenFace(
 	data.userData = userData;
 	data.clip_flag = clip_flag;
 
-	EDBM_index_arrays_ensure(vc->em, BM_FACE);
-	dm->foreachMappedFaceCenter(dm, mesh_foreachScreenFace__mapFunc, &data);
+	BM_mesh_elem_table_ensure(vc->em->bm, BM_FACE);
+	dm->foreachMappedFaceCenter(dm, mesh_foreachScreenFace__mapFunc, &data, DM_FOREACH_NOP);
 
 	dm->release(dm);
 }
@@ -367,7 +369,7 @@ void lattice_foreachScreenVert(
 	Object *obedit = vc->obedit;
 	Lattice *lt = obedit->data;
 	BPoint *bp = lt->editlatt->latt->def;
-	DispList *dl = BKE_displist_find(&obedit->disp, DL_VERTS);
+	DispList *dl = obedit->curve_cache ? BKE_displist_find(&obedit->curve_cache->disp, DL_VERTS) : NULL;
 	float *co = dl ? dl->verts : NULL;
 	int i, N = lt->editlatt->latt->pntsu * lt->editlatt->latt->pntsv * lt->editlatt->latt->pntsw;
 

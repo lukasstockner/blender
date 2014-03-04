@@ -48,15 +48,15 @@ struct Object;
 typedef struct TreeElement {
 	struct TreeElement *next, *prev, *parent;
 	ListBase subtree;
-	float xs, ys;       // do selection
-	int store_index;    // offset in tree store
-	short flag;         // flag for non-saved stuff
-	short index;        // index for data arrays
-	short idcode;       // from TreeStore id
-	short xend;         // width of item display, for select
+	int xs, ys;                // do selection
+	TreeStoreElem *store_elem; // element in tree store
+	short flag;                // flag for non-saved stuff
+	short index;               // index for data arrays
+	short idcode;              // from TreeStore id
+	short xend;                // width of item display, for select
 	const char *name;
-	void *directdata;   // Armature Bones, Base, Sequence, Strip...
-	PointerRNA rnaptr;  // RNA Pointer
+	void *directdata;          // Armature Bones, Base, Sequence, Strip...
+	PointerRNA rnaptr;         // RNA Pointer
 }  TreeElement;
 
 /* TreeElement->flag */
@@ -77,7 +77,7 @@ typedef struct TreeElement {
 #define TSE_MODIFIER_BASE   9
 #define TSE_MODIFIER        10
 #define TSE_LINKED_OB       11
-#define TSE_SCRIPT_BASE     12
+// #define TSE_SCRIPT_BASE     12  // UNUSED
 #define TSE_POSE_BASE       13
 #define TSE_POSE_CHANNEL    14
 #define TSE_ANIM_DATA       15
@@ -108,10 +108,22 @@ typedef struct TreeElement {
 /* button events */
 #define OL_NAMEBUTTON       1
 
+typedef enum {
+	OL_DRAWSEL_NONE    = 0,  /* inactive (regular black text) */
+	OL_DRAWSEL_NORMAL  = 1,  /* active object (draws white text) */
+	OL_DRAWSEL_ACTIVE  = 2,  /* active obdata (draws a circle around the icon) */
+} eOLDrawState;
+
+typedef enum {
+	OL_SETSEL_NONE     = 0,  /* don't change the selection state */
+	OL_SETSEL_NORMAL   = 1,  /* select the item */
+	OL_SETSEL_EXTEND   = 2,  /* select the item and extend (also toggles selection) */
+} eOLSetState;
+
 /* get TreeStoreElem associated with a TreeElement 
  * < a: (TreeElement) tree element to find stored element for
  */
-#define TREESTORE(a) (soops->treestore->data + (a)->store_index)
+#define TREESTORE(a) ((a)->store_elem)
 
 /* size constants */
 #define OL_Y_OFFSET 2
@@ -165,8 +177,12 @@ void draw_outliner(const struct bContext *C);
 void restrictbutton_gr_restrict_flag(void *poin, void *poin2, int flag);
 
 /* outliner_select.c -------------------------------------------- */
-int tree_element_type_active(struct bContext *C, struct Scene *scene, struct SpaceOops *soops, TreeElement *te, TreeStoreElem *tselem, int set, bool recursive);
-int tree_element_active(struct bContext *C, struct Scene *scene, SpaceOops *soops, TreeElement *te, int set);
+eOLDrawState tree_element_type_active(
+        struct bContext *C, struct Scene *scene, struct SpaceOops *soops,
+        TreeElement *te, TreeStoreElem *tselem, const eOLSetState set, bool recursive);
+eOLDrawState tree_element_active(
+        struct bContext *C, struct Scene *scene, SpaceOops *soops,
+        TreeElement *te, const eOLSetState set);
 int outliner_item_do_activate(struct bContext *C, int x, int y, bool extend, bool recursive);
 
 /* outliner_edit.c ---------------------------------------------- */
@@ -176,7 +192,7 @@ void outliner_do_object_operation(struct bContext *C, struct Scene *scene, struc
 
 int common_restrict_check(struct bContext *C, struct Object *ob);
 
-int outliner_has_one_flag(struct SpaceOops *soops, ListBase *lb, short flag, short curlevel);
+int outliner_has_one_flag(struct SpaceOops *soops, ListBase *lb, short flag, const int curlevel);
 void outliner_set_flag(struct SpaceOops *soops, ListBase *lb, short flag, short set);
 
 void object_toggle_visibility_cb(struct bContext *C, struct Scene *scene, TreeElement *te, struct TreeStoreElem *tsep, struct TreeStoreElem *tselem);

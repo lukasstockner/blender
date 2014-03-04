@@ -342,6 +342,10 @@ def dump_rna_messages(msgs, reports, settings, verbose=False):
         elif cls.__doc__:  # XXX Some classes (like KeyingSetInfo subclasses) have void description... :(
             process_msg(msgs, default_context, cls.__doc__, msgsrc, reports, check_ctxt_rna_tip, settings)
 
+        # Panels' "tabs" system.
+        if hasattr(bl_rna, 'bl_category') and  bl_rna.bl_category:
+            process_msg(msgs, default_context, bl_rna.bl_category, msgsrc, reports, check_ctxt_rna, settings)
+
         if hasattr(bl_rna, 'bl_label') and  bl_rna.bl_label:
             process_msg(msgs, msgctxt, bl_rna.bl_label, msgsrc, reports, check_ctxt_rna, settings)
 
@@ -410,9 +414,15 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
     def make_rel(path):
         for rp in root_paths:
             if path.startswith(rp):
-                return os.path.relpath(path, rp)
+                try:  # can't always find the relative path (between drive letters on windows)
+                    return os.path.relpath(path, rp)
+                except ValueError:
+                    return path
         # Use binary's dir as fallback...
-        return os.path.relpath(path, os.path.dirname(bpy.app.binary_path))
+        try:  # can't always find the relative path (between drive letters on windows)
+            return os.path.relpath(path, os.path.dirname(bpy.app.binary_path))
+        except ValueError:
+            return path
 
     # Helper function
     def extract_strings_ex(node, is_split=False):
@@ -768,7 +778,10 @@ def dump_src_messages(msgs, reports, settings):
             if os.path.splitext(fname)[1] not in settings.PYGETTEXT_ALLOWED_EXTS:
                 continue
             path = os.path.join(root, fname)
-            rel_path = os.path.relpath(path, settings.SOURCE_DIR)
+            try:  # can't always find the relative path (between drive letters on windows)
+                rel_path = os.path.relpath(path, settings.SOURCE_DIR)
+            except ValueError:
+                rel_path = path
             if rel_path in forbidden:
                 continue
             elif rel_path not in forced:
@@ -782,10 +795,10 @@ def dump_src_messages(msgs, reports, settings):
 ##### Main functions! #####
 def dump_messages(do_messages, do_checks, settings):
     bl_ver = "Blender " + bpy.app.version_string
-    bl_rev = bpy.app.build_revision
+    bl_hash = bpy.app.build_hash
     bl_date = datetime.datetime.strptime(bpy.app.build_date.decode() + "T" + bpy.app.build_time.decode(),
                                          "%Y-%m-%dT%H:%M:%S")
-    pot = utils.I18nMessages.gen_empty_messages(settings.PARSER_TEMPLATE_ID, bl_ver, bl_rev, bl_date, bl_date.year,
+    pot = utils.I18nMessages.gen_empty_messages(settings.PARSER_TEMPLATE_ID, bl_ver, bl_hash, bl_date, bl_date.year,
                                                 settings=settings)
     msgs = pot.msgs
 

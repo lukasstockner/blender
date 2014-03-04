@@ -21,6 +21,10 @@
 #ifndef __PBVH_INTERN_H__
 #define __PBVH_INTERN_H__
 
+/** \file blender/blenkernel/intern/pbvh_intern.h
+ *  \ingroup bli
+ */
+
 /* Axis-aligned bounding box */
 typedef struct {
 	float bmin[3], bmax[3];
@@ -35,7 +39,7 @@ typedef struct {
  * union'd structs */
 struct PBVHNode {
 	/* Opaque handle for drawing code */
-	struct GPU_Buffers *draw_buffers;
+	struct GPU_PBVH_Buffers *draw_buffers;
 
 	/* Voxel bounds */
 	BB vb;
@@ -101,8 +105,8 @@ struct PBVHNode {
 
 	/* Dyntopo */
 	GHash *bm_faces;
-	GHash *bm_unique_verts;
-	GHash *bm_other_verts;
+	GSet *bm_unique_verts;
+	GSet *bm_other_verts;
 	float (*bm_orco)[3];
 	int (*bm_ortri)[3];
 	int bm_tot_ortri;
@@ -139,20 +143,20 @@ struct PBVH {
 	void **gridfaces;
 	const DMFlagMat *grid_flag_mats;
 	int totgrid;
-	BLI_bitmap *grid_hidden;
+	BLI_bitmap **grid_hidden;
 
 	/* Only used during BVH build and update,
 	 * don't need to remain valid after */
-	BLI_bitmap vert_bitmap;
+	BLI_bitmap *vert_bitmap;
 
 #ifdef PERFCNTRS
 	int perf_modified;
 #endif
 
 	/* flag are verts/faces deformed */
-	int deformed;
+	bool deformed;
 
-	int show_diffuse_color;
+	bool show_diffuse_color;
 
 	/* Dynamic topology */
 	BMesh *bm;
@@ -171,9 +175,9 @@ void BB_expand_with_bb(BB *bb, BB *bb2);
 void BBC_update_centroid(BBC *bbc);
 int BB_widest_axis(const BB *bb);
 void pbvh_grow_nodes(PBVH *bvh, int totnode);
-int ray_face_intersection(const float ray_start[3], const float ray_normal[3],
-						  const float *t0, const float *t1, const float *t2,
-						  const float *t3, float *fdist);
+bool ray_face_intersection(const float ray_start[3], const float ray_normal[3],
+                           const float *t0, const float *t1, const float *t2,
+                           const float *t3, float *fdist);
 void pbvh_update_BB_redraw(PBVH *bvh, PBVHNode **nodes, int totnode, int flag);
 
 /* pbvh_bmesh.c */

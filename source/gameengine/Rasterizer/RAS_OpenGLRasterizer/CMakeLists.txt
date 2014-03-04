@@ -25,19 +25,25 @@
 
 set(INC
 	..
+	# XXX Remove these <<<
 	../../BlenderRoutines
+	../../Expressions
+	../../GameLogic
 	../../Ketsji
+	../../Physics/common
+	# >>>
 	../../SceneGraph
+	../../../blender/blenfont
 	../../../blender/blenkernel
 	../../../blender/blenlib
 	../../../blender/gpu
 	../../../blender/makesdna
 	../../../../intern/container
-	../../../../intern/moto/include
 	../../../../intern/string
 )
 
 set(INC_SYS
+	../../../../intern/moto/include
 	${GLEW_INCLUDE_PATH}
 )
 

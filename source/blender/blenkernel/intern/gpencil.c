@@ -38,10 +38,12 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_math_vector.h"
 
 #include "BLF_translation.h"
 
 #include "DNA_gpencil_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
@@ -56,13 +58,11 @@
 /* --------- Memory Management ------------ */
 
 /* Free strokes belonging to a gp-frame */
-void free_gpencil_strokes(bGPDframe *gpf)
+bool free_gpencil_strokes(bGPDframe *gpf)
 {
 	bGPDstroke *gps, *gpsn;
-	
-	/* error checking */
-	if (gpf == NULL) return;
-	
+	bool changed = (BLI_listbase_is_empty(&gpf->strokes) == false);
+
 	/* free strokes */
 	for (gps = gpf->strokes.first; gps; gps = gpsn) {
 		gpsn = gps->next;
@@ -71,6 +71,8 @@ void free_gpencil_strokes(bGPDframe *gpf)
 		if (gps->points) MEM_freeN(gps->points);
 		BLI_freelinkN(&gpf->strokes, gps);
 	}
+
+	return changed;
 }
 
 /* Free all of a gp-layer's frames */
@@ -125,8 +127,8 @@ bGPDframe *gpencil_frame_addnew(bGPDlayer *gpl, int cframe)
 	bGPDframe *gpf, *gf;
 	short state = 0;
 	
-	/* error checking */
-	if ((gpl == NULL) || (cframe <= 0))
+	/* error checking (neg frame only if they are not allowed in Blender!) */
+	if ((gpl == NULL) || ((U.flag & USER_NONEGFRAMES) && (cframe <= 0)))
 		return NULL;
 		
 	/* allocate memory for this frame */
@@ -181,7 +183,7 @@ bGPDlayer *gpencil_layer_addnew(bGPdata *gpd, const char *name, int setactive)
 	BLI_addtail(&gpd->layers, gpl);
 	
 	/* set basic settings */
-	gpl->color[3] = 0.9f;
+	copy_v4_v4(gpl->color, U.gpencil_new_layer_col);
 	gpl->thickness = 3;
 	
 	/* auto-name */
@@ -202,7 +204,7 @@ bGPdata *gpencil_data_addnew(const char name[])
 	bGPdata *gpd;
 	
 	/* allocate memory for a new block */
-	gpd = BKE_libblock_alloc(&G.main->gpencil, ID_GD, name);
+	gpd = BKE_libblock_alloc(G.main, ID_GD, name);
 	
 	/* initial settings */
 	gpd->flag = (GP_DATA_DISPINFO | GP_DATA_EXPAND);
@@ -232,7 +234,7 @@ bGPDframe *gpencil_frame_duplicate(bGPDframe *src)
 	dst->prev = dst->next = NULL;
 	
 	/* copy strokes */
-	dst->strokes.first = dst->strokes.last = NULL;
+	BLI_listbase_clear(&dst->strokes);
 	for (gps = src->strokes.first; gps; gps = gps->next) {
 		/* make copy of source stroke, then adjust pointer to points too */
 		gpsd = MEM_dupallocN(gps);
@@ -260,7 +262,7 @@ bGPDlayer *gpencil_layer_duplicate(bGPDlayer *src)
 	dst->prev = dst->next = NULL;
 	
 	/* copy frames */
-	dst->frames.first = dst->frames.last = NULL;
+	BLI_listbase_clear(&dst->frames);
 	for (gpf = src->frames.first; gpf; gpf = gpf->next) {
 		/* make a copy of source frame */
 		gpfd = gpencil_frame_duplicate(gpf);
@@ -289,7 +291,7 @@ bGPdata *gpencil_data_duplicate(bGPdata *src)
 	dst = MEM_dupallocN(src);
 	
 	/* copy layers */
-	dst->layers.first = dst->layers.last = NULL;
+	BLI_listbase_clear(&dst->layers);
 	for (gpl = src->layers.first; gpl; gpl = gpl->next) {
 		/* make a copy of source layer and its data */
 		gpld = gpencil_layer_duplicate(gpl);
@@ -317,7 +319,7 @@ void gpencil_frame_delete_laststroke(bGPDlayer *gpl, bGPDframe *gpf)
 	BLI_freelinkN(&gpf->strokes, gps);
 	
 	/* if frame has no strokes after this, delete it */
-	if (gpf->strokes.first == NULL) {
+	if (BLI_listbase_is_empty(&gpf->strokes)) {
 		gpencil_layer_delframe(gpl, gpf);
 		gpencil_layer_getframe(gpl, cfra, 0);
 	}
@@ -349,7 +351,8 @@ bGPDframe *gpencil_layer_getframe(bGPDlayer *gpl, int cframe, short addnew)
 	
 	/* error checking */
 	if (gpl == NULL) return NULL;
-	if (cframe <= 0) cframe = 1;
+	/* No reason to forbid negative frames when they are allowed in Blender! */
+	if ((U.flag & USER_NONEGFRAMES) && cframe <= 0) cframe = 1;
 	
 	/* check if there is already an active frame */
 	if (gpl->actframe) {
@@ -464,16 +467,20 @@ bGPDframe *gpencil_layer_getframe(bGPDlayer *gpl, int cframe, short addnew)
 }
 
 /* delete the given frame from a layer */
-void gpencil_layer_delframe(bGPDlayer *gpl, bGPDframe *gpf)
+bool gpencil_layer_delframe(bGPDlayer *gpl, bGPDframe *gpf)
 {
+	bool changed = false;
+
 	/* error checking */
 	if (ELEM(NULL, gpl, gpf))
-		return;
+		return false;
 		
 	/* free the frame and its data */
-	free_gpencil_strokes(gpf);
+	changed = free_gpencil_strokes(gpf);
 	BLI_freelinkN(&gpl->frames, gpf);
 	gpl->actframe = NULL;
+
+	return changed;
 }
 
 /* get the active gp-layer for editing */

@@ -54,15 +54,27 @@
 
 #include "ED_transform.h"
 
+#ifdef WITH_PYTHON
+#  include "BPY_extern.h"
+#endif
+
 static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 {
-	float cfra = (float)frame + subframe;
+	double cfra = (double)frame + (double)subframe;
 
-	scene->r.cfra = floorf(cfra);
-	scene->r.subframe = cfra - floorf(cfra);
-	
-	CLAMP(scene->r.cfra, MINAFRAME, MAXFRAME);
-	BKE_scene_update_for_newframe(G.main, scene, (1 << 20) - 1);
+	CLAMP(cfra, MINAFRAME, MAXFRAME);
+	BKE_scene_frame_set(scene, cfra);
+
+#ifdef WITH_PYTHON
+	BPy_BEGIN_ALLOW_THREADS;
+#endif
+
+	BKE_scene_update_for_newframe(G.main->eval_ctx, G.main, scene, (1 << 20) - 1);
+
+#ifdef WITH_PYTHON
+	BPy_END_ALLOW_THREADS;
+#endif
+
 	BKE_scene_camera_switch_update(scene);
 
 	/* don't do notifier when we're rendering, avoid some viewport crashes
@@ -79,7 +91,15 @@ static void rna_Scene_frame_set(Scene *scene, int frame, float subframe)
 
 static void rna_Scene_update_tagged(Scene *scene)
 {
-	BKE_scene_update_tagged(G.main, scene);
+#ifdef WITH_PYTHON
+	BPy_BEGIN_ALLOW_THREADS;
+#endif
+
+	BKE_scene_update_tagged(G.main->eval_ctx, G.main, scene);
+
+#ifdef WITH_PYTHON
+	BPy_END_ALLOW_THREADS;
+#endif
 }
 
 static void rna_SceneRender_get_frame_path(RenderData *rd, int frame, char *name)
@@ -143,12 +163,12 @@ static void rna_Scene_collada_export(
         int use_object_instantiation,
         int sort_by_name,
         int export_transformation_type,
-        int second_life)
+        int open_sim)
 {
 	collada_export(scene, filepath, apply_modifiers, export_mesh_type, selected,
 	               include_children, include_armatures, include_shapekeys, deform_bones_only,
 	               active_uv_only, include_uv_textures, include_material_textures,
-	               use_texture_copies, use_ngons, use_object_instantiation, sort_by_name, export_transformation_type, second_life);
+	               use_texture_copies, use_ngons, use_object_instantiation, sort_by_name, export_transformation_type, open_sim);
 }
 
 #endif
@@ -199,7 +219,7 @@ void RNA_api_scene(StructRNA *srna)
 #ifdef WITH_COLLADA
 	/* don't remove this, as COLLADA exporting cannot be done through operators in render() callback. */
 	func = RNA_def_function(srna, "collada_export", "rna_Scene_collada_export");
-	parm = RNA_def_string(func, "filepath", "", FILE_MAX, "File Path", "File path to write Collada file");
+	parm = RNA_def_string(func, "filepath", NULL, FILE_MAX, "File Path", "File path to write Collada file");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	RNA_def_property_subtype(parm, PROP_FILEPATH); /* allow non utf8 */
 	parm = RNA_def_boolean(func, "apply_modifiers", 0, "Apply Modifiers", "Apply modifiers");
@@ -219,7 +239,7 @@ void RNA_api_scene(StructRNA *srna)
 	parm = RNA_def_boolean(func, "use_ngons", 1, "Use NGons", "Keep NGons in Export");
 	parm = RNA_def_boolean(func, "use_object_instantiation", 1, "Use Object Instances", "Instantiate multiple Objects from same Data");
 	parm = RNA_def_boolean(func, "sort_by_name", 0, "Sort by Object name", "Sort exported data by Object name");
-	parm = RNA_def_boolean(func, "second_life", 0, "Export for Second Life", "Compatibility mode for Second Life");
+	parm = RNA_def_boolean(func, "open_sim", 0, "Export for SL/OpenSim", "Compatibility mode for SL, OpenSim and similar online worlds");
 
 	parm = RNA_def_int(func, "export_transformation_type", 0, INT_MIN, INT_MAX,
 	            "Transformation", "Transformation type for translation, scale and rotation", INT_MIN, INT_MAX);
@@ -238,7 +258,7 @@ void RNA_api_scene_render(StructRNA *srna)
 	RNA_def_function_ui_description(func, "Return the absolute path to the filename to be written for a given frame");
 	RNA_def_int(func, "frame", INT_MIN, INT_MIN, INT_MAX, "",
 	            "Frame number to use, if unset the current frame will be used", MINAFRAME, MAXFRAME);
-	parm = RNA_def_string_file_path(func, "filepath", "", FILE_MAX, "File Path",
+	parm = RNA_def_string_file_path(func, "filepath", NULL, FILE_MAX, "File Path",
 	                                "The resulting filepath from the scenes render settings");
 	RNA_def_property_flag(parm, PROP_THICK_WRAP); /* needed for string return value */
 	RNA_def_function_output(func, parm);

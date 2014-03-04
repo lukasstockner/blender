@@ -124,8 +124,9 @@ typedef struct BlenderDefRNA {
 extern BlenderDefRNA DefRNA;
 
 /* Define functions for all types */
-
+#ifndef __RNA_ACCESS_H__
 extern BlenderRNA BLENDER_RNA;
+#endif
 
 void RNA_def_ID(struct BlenderRNA *brna);
 void RNA_def_action(struct BlenderRNA *brna);
@@ -238,6 +239,7 @@ void rna_TextureSlot_brush_update(struct Main *bmain, struct Scene *scene, struc
 int rna_Armature_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Camera_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Curve_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+int rna_Lamp_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Lattice_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Mesh_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 
@@ -246,6 +248,7 @@ int rna_Action_id_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Action_actedit_assign_poll(struct PointerRNA *ptr, struct PointerRNA value);
 
 char *rna_TextureSlot_path(struct PointerRNA *ptr);
+char *rna_Node_ImageUser_path(struct PointerRNA *ptr);
 
 /* API functions */
 
@@ -253,8 +256,10 @@ void RNA_api_action(StructRNA *srna);
 void RNA_api_armature_edit_bone(StructRNA *srna);
 void RNA_api_bone(StructRNA *srna);
 void RNA_api_camera(StructRNA *srna);
+void RNA_api_curve(StructRNA *srna);
 void RNA_api_drivers(StructRNA *srna);
 void RNA_api_image(struct StructRNA *srna);
+void RNA_api_lattice(struct StructRNA *srna);
 void RNA_api_operator(struct StructRNA *srna);
 void RNA_api_macro(struct StructRNA *srna);
 void RNA_api_keyconfig(struct StructRNA *srna);
@@ -277,7 +282,10 @@ void RNA_api_scene_render(struct StructRNA *srna);
 void RNA_api_sequence_strip(StructRNA *srna);
 void RNA_api_text(struct StructRNA *srna);
 void RNA_api_ui_layout(struct StructRNA *srna);
+void RNA_api_window(struct StructRNA *srna);
 void RNA_api_wm(struct StructRNA *srna);
+void RNA_api_space_node(struct StructRNA *srna);
+void RNA_api_region_view3d(struct StructRNA *srna);
 void RNA_api_sensor(struct StructRNA *srna);
 void RNA_api_controller(struct StructRNA *srna);
 void RNA_api_actuator(struct StructRNA *srna);
@@ -330,8 +338,10 @@ extern CollectionPropertyRNA rna_PropertyGroupItem_idp_array;
 extern FloatPropertyRNA rna_PropertyGroupItem_double;
 extern FloatPropertyRNA rna_PropertyGroupItem_double_array;
 
+#ifndef __RNA_ACCESS_H__
 extern StructRNA RNA_PropertyGroupItem;
 extern StructRNA RNA_PropertyGroup;
+#endif
 
 struct IDProperty *rna_idproperty_check(struct PropertyRNA **prop, struct PointerRNA *ptr);
 
@@ -375,7 +385,7 @@ typedef struct ArrayIterator {
 } ArrayIterator;
 
 void rna_iterator_array_begin(struct CollectionPropertyIterator *iter, void *ptr, int itemsize, int length,
-                              int free_ptr, IteratorSkipFunc skip);
+                              bool free_ptr, IteratorSkipFunc skip);
 void rna_iterator_array_next(struct CollectionPropertyIterator *iter);
 void *rna_iterator_array_get(struct CollectionPropertyIterator *iter);
 void *rna_iterator_array_dereference_get(struct CollectionPropertyIterator *iter);
@@ -401,7 +411,6 @@ PointerRNA rna_pointer_inherit_refine(struct PointerRNA *ptr, struct StructRNA *
 /* Functions */
 
 int rna_parameter_size(struct PropertyRNA *parm);
-int rna_parameter_size_alloc(struct PropertyRNA *parm);
 
 struct Mesh *rna_Main_meshes_new_from_object(
         struct Main *bmain, struct ReportList *reports, struct Scene *sce,
@@ -419,5 +428,11 @@ int rna_IDMaterials_assign_int(struct PointerRNA *ptr, int key, const struct Poi
 /* Internal functions that cycles uses so we need to declare (tsk tsk) */
 void rna_RenderLayer_rect_set(PointerRNA *ptr, const float *values);
 void rna_RenderPass_rect_set(PointerRNA *ptr, const float *values);
+
+#ifdef RNA_RUNTIME
+#  ifdef __GNUC__
+#    pragma GCC diagnostic ignored "-Wredundant-decls"
+#  endif
+#endif
 
 #endif  /* __RNA_INTERNAL_H__ */

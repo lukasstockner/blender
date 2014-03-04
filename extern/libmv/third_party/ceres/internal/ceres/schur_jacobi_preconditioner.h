@@ -49,8 +49,8 @@
 namespace ceres {
 namespace internal {
 
-class BlockRandomAccessSparseMatrix;
-class BlockSparseMatrixBase;
+class BlockRandomAccessDiagonalMatrix;
+class BlockSparseMatrix;
 struct CompressedRowBlockStructure;
 class SchurEliminatorBase;
 
@@ -73,7 +73,7 @@ class SchurEliminatorBase;
 //   preconditioner.Update(A, NULL);
 //   preconditioner.RightMultiply(x, y);
 //
-class SchurJacobiPreconditioner : public Preconditioner {
+class SchurJacobiPreconditioner : public BlockSparseMatrixPreconditioner {
  public:
   // Initialize the symbolic structure of the preconditioner. bs is
   // the block structure of the linear system to be solved. It is used
@@ -86,12 +86,12 @@ class SchurJacobiPreconditioner : public Preconditioner {
   virtual ~SchurJacobiPreconditioner();
 
   // Preconditioner interface.
-  virtual bool Update(const BlockSparseMatrixBase& A, const double* D);
   virtual void RightMultiply(const double* x, double* y) const;
   virtual int num_rows() const;
 
  private:
   void InitEliminator(const CompressedRowBlockStructure& bs);
+  virtual bool UpdateImpl(const BlockSparseMatrix& A, const double* D);
 
   Preconditioner::Options options_;
 
@@ -100,7 +100,7 @@ class SchurJacobiPreconditioner : public Preconditioner {
   scoped_ptr<SchurEliminatorBase> eliminator_;
 
   // Preconditioner matrix.
-  scoped_ptr<BlockRandomAccessSparseMatrix> m_;
+  scoped_ptr<BlockRandomAccessDiagonalMatrix> m_;
   CERES_DISALLOW_COPY_AND_ASSIGN(SchurJacobiPreconditioner);
 };
 

@@ -78,7 +78,7 @@ typedef struct SpaceType {
 	/* exit is called when the area is hidden or removed */
 	void (*exit)(struct wmWindowManager *, struct ScrArea *);
 	/* Listeners can react to bContext changes */
-	void (*listener)(struct ScrArea *, struct wmNotifier *);
+	void (*listener)(struct bScreen *sc, struct ScrArea *, struct wmNotifier *);
 	
 	/* refresh context, called after filereads, ED_area_tag_refresh() */
 	void (*refresh)(const struct bContext *, struct ScrArea *);
@@ -123,7 +123,7 @@ typedef struct ARegionType {
 	/* draw entirely, view changes should be handled here */
 	void (*draw)(const struct bContext *, struct ARegion *);
 	/* contextual changes should be handled here */
-	void (*listener)(struct ARegion *, struct wmNotifier *);
+	void (*listener)(struct bScreen *sc, struct ScrArea *, struct ARegion *, struct wmNotifier *);
 	
 	void (*free)(struct ARegion *);
 
@@ -171,6 +171,7 @@ typedef struct PanelType {
 	char label[BKE_ST_MAXNAME];               /* for panel header */
 	char translation_context[BKE_ST_MAXNAME];
 	char context[BKE_ST_MAXNAME];             /* for buttons window */
+	char category[BKE_ST_MAXNAME];            /* for category tabs */
 	int space_type;
 	int region_type;
 
@@ -189,9 +190,15 @@ typedef struct PanelType {
 
 /* uilist types */
 
-/* draw an item in the uiList */
+/* Draw an item in the uiList */
 typedef void (*uiListDrawItemFunc)(struct uiList *, struct bContext *, struct uiLayout *, struct PointerRNA *,
-                                   struct PointerRNA *, int, struct PointerRNA *, const char *, int);
+                                   struct PointerRNA *, int, struct PointerRNA *, const char *, int, int);
+
+/* Draw the filtering part of an uiList */
+typedef void (*uiListDrawFilterFunc)(struct uiList *, struct bContext *, struct uiLayout *);
+
+/* Filter items of an uiList */
+typedef void (*uiListFilterItemsFunc)(struct uiList *, struct bContext *, struct PointerRNA *, const char *);
 
 typedef struct uiListType {
 	struct uiListType *next, *prev;
@@ -199,6 +206,8 @@ typedef struct uiListType {
 	char idname[BKE_ST_MAXNAME];            /* unique name */
 
 	uiListDrawItemFunc draw_item;
+	uiListDrawFilterFunc draw_filter;
+	uiListFilterItemsFunc filter_items;
 
 	/* RNA integration */
 	ExtensionRNA ext;
@@ -233,7 +242,7 @@ typedef struct MenuType {
 	char idname[BKE_ST_MAXNAME];        /* unique name */
 	char label[BKE_ST_MAXNAME];         /* for button text */
 	char translation_context[BKE_ST_MAXNAME];
-	char *description;
+	const char *description;
 
 	/* verify if the menu should draw or not */
 	int (*poll)(const struct bContext *, struct MenuType *);
@@ -254,6 +263,7 @@ struct SpaceType *BKE_spacetype_from_id(int spaceid);
 struct ARegionType *BKE_regiontype_from_id(struct SpaceType *st, int regionid);
 const struct ListBase *BKE_spacetypes_list(void);
 void BKE_spacetype_register(struct SpaceType *st);
+int BKE_spacetype_exists(int spaceid);
 void BKE_spacetypes_free(void); /* only for quitting blender */
 
 /* spacedata */
@@ -273,6 +283,8 @@ struct ScrArea *BKE_screen_find_big_area(struct bScreen *sc, const int spacetype
 void BKE_screen_view3d_sync(struct View3D *v3d, struct Scene *scene);
 void BKE_screen_view3d_scene_sync(struct bScreen *sc);
 void BKE_screen_view3d_main_sync(ListBase *screen_lb, struct Scene *scene);
+void BKE_screen_view3d_twmode_remove(struct View3D *v3d, const int i);
+void BKE_screen_view3d_main_twmode_remove(ListBase *screen_lb, struct Scene *scene, const int i);
 
 /* zoom factor conversion */
 float BKE_screen_view3d_zoom_to_fac(float camzoom);

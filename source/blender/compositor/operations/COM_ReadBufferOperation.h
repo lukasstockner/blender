@@ -29,6 +29,7 @@
 class ReadBufferOperation : public NodeOperation {
 private:
 	MemoryProxy *m_memoryProxy;
+	bool m_single_value; /* single value stored in buffer, copied from associated write operation */
 	unsigned int m_offset;
 	MemoryBuffer *m_buffer;
 public:
@@ -39,11 +40,13 @@ public:
 	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
 	
 	void *initializeTileData(rcti *rect);
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
-	void executePixel(float output[4], float x, float y, float dx, float dy, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelExtend(float output[4], float x, float y, PixelSampler sampler,
+	                        MemoryBufferExtend extend_x, MemoryBufferExtend extend_y);
+	void executePixelFiltered(float output[4], float x, float y, float dx[2], float dy[2], PixelSampler sampler);
 	const bool isReadBufferOperation() const { return true; }
 	void setOffset(unsigned int offset) { this->m_offset = offset; }
-	unsigned int getOffset() { return this->m_offset; }
+	unsigned int getOffset() const { return this->m_offset; }
 	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
 	MemoryBuffer *getInputMemoryBuffer(MemoryBuffer **memoryBuffers) { return memoryBuffers[this->m_offset]; }
 	void readResolutionFromWriteBuffer();

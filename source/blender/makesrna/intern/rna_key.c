@@ -39,6 +39,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "rna_internal.h"
 
@@ -98,7 +99,8 @@ static void rna_ShapeKey_value_set(PointerRNA *ptr, float value)
 	data->curval = value;
 }
 
-static void rna_ShapeKey_value_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_ShapeKey_value_range(PointerRNA *ptr, float *min, float *max,
+                                     float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	KeyBlock *data = (KeyBlock *)ptr->data;
 
@@ -109,7 +111,8 @@ static void rna_ShapeKey_value_range(PointerRNA *ptr, float *min, float *max, fl
 /* epsilon for how close one end of shapekey range can get to the other */
 #define SHAPEKEY_SLIDER_TOL 0.001f
 
-static void rna_ShapeKey_slider_min_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_ShapeKey_slider_min_range(PointerRNA *ptr, float *min, float *max,
+                                          float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	KeyBlock *data = (KeyBlock *)ptr->data;
 
@@ -127,7 +130,8 @@ static void rna_ShapeKey_slider_min_set(PointerRNA *ptr, float value)
 	data->slidermin = value;
 }
 
-static void rna_ShapeKey_slider_max_range(PointerRNA *ptr, float *min, float *max, float *softmin, float *softmax)
+static void rna_ShapeKey_slider_max_range(PointerRNA *ptr, float *min, float *max,
+                                          float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	KeyBlock *data = (KeyBlock *)ptr->data;
 
@@ -167,7 +171,7 @@ int rna_object_shapekey_index_set(ID *id, PointerRNA value, int current)
 
 	if (key) {
 		int a = BLI_findindex(&key->block, value.data);
-		if (a >= 0) return a;
+		if (a != -1) return a;
 	}
 	
 	return current;
@@ -401,7 +405,7 @@ static KeyBlock *rna_ShapeKeyData_find_keyblock(Key *key, float *point)
 			}
 			
 			/* determine where end of array is
-			 *	- elemsize is in bytes, so use char* cast to get array in terms of bytes
+			 *	- elemsize is in bytes, so use (char *) cast to get array in terms of bytes
 			 */
 			end = (float *)((char *)start + (key->elemsize * kb->totelem));
 			
@@ -418,7 +422,7 @@ static KeyBlock *rna_ShapeKeyData_find_keyblock(Key *key, float *point)
 
 static int rna_ShapeKeyPoint_get_index(Key *key, KeyBlock *kb, float *point)
 {
-	/* if we frame the data array and point pointers as char*, then the difference between
+	/* if we frame the data array and point pointers as (char *), then the difference between
 	 * them will be in bytes. Thus, dividing through by key->elemsize (number of bytes per point)
 	 * gives us the offset of point from start of array.
 	 */
@@ -426,6 +430,19 @@ static int rna_ShapeKeyPoint_get_index(Key *key, KeyBlock *kb, float *point)
 	char *pt = (char *)point;
 	
 	return (int)(pt - start) / key->elemsize;
+}
+
+static int rna_ShapeKeyBezierPoint_get_index(KeyBlock *kb, float *point)
+{
+	float *start = (float *)kb->data;
+	
+	/* Unlike with rna_ShapeKeyPoint_get_index(), we cannot use key->elemsize here
+	 * since the default value for curves (16) is actually designed for BPoints
+	 * (i.e. NURBS Surfaces). The magic number "12" here was found by empirical
+	 * testing on a 64-bit system, and is similar to what's used for meshes and 
+	 * lattices. For more details, see T38013
+	 */
+	return (int)(point - start) / 12;
 }
 
 static char *rna_ShapeKeyPoint_path(PointerRNA *ptr)
@@ -440,7 +457,12 @@ static char *rna_ShapeKeyPoint_path(PointerRNA *ptr)
 	
 	if (kb) {
 		char name_esc_kb[sizeof(kb->name) * 2];
-		int index = rna_ShapeKeyPoint_get_index(key, kb, point);
+		int index;
+		
+		if (ptr->type == &RNA_ShapeKeyBezierPoint)
+			index = rna_ShapeKeyBezierPoint_get_index(kb, point);
+		else
+			index = rna_ShapeKeyPoint_get_index(key, kb, point);
 
 		BLI_strescape(name_esc_kb, kb->name, sizeof(name_esc_kb));
 		
@@ -458,6 +480,7 @@ static char *rna_ShapeKeyPoint_path(PointerRNA *ptr)
 EnumPropertyItem keyblock_type_items[] = {
 	{KEY_LINEAR, "KEY_LINEAR", 0, "Linear", ""},
 	{KEY_CARDINAL, "KEY_CARDINAL", 0, "Cardinal", ""},
+	{KEY_CATMULL_ROM, "KEY_CATMULL_ROM", 0, "Catmull-Rom", ""},
 	{KEY_BSPLINE, "KEY_BSPLINE", 0, "BSpline", ""},
 	{0, NULL, 0, NULL, NULL}
 };

@@ -32,58 +32,47 @@
  *  \ingroup bli
  */
 
+#include "BLI_compiler_attrs.h"
+
 #if !defined(_MSC_VER)
 #include <stdint.h>
 #endif
 
-/* a light stack-friendly hash library,
- * (it uses stack space for smallish hash tables) */
-
-/* based on a doubling non-chaining approach */
 
 typedef struct {
 	uintptr_t key;
 	void *val;
 } SmallHashEntry;
 
-/*how much stack space to use before dynamically allocating memory*/
-#define SMSTACKSIZE 64
+/* how much stack space to use before dynamically allocating memory.
+ * set to match one of the values in 'hashsizes' to avoid too many mallocs  */
+#define SMSTACKSIZE 131
 typedef struct SmallHash {
-	SmallHashEntry *table;
-	SmallHashEntry _stacktable[SMSTACKSIZE];
-	SmallHashEntry _copytable[SMSTACKSIZE];
-	SmallHashEntry *stacktable, *copytable;
-	unsigned int used;
-	unsigned int curhash;
-	unsigned int size;
+	unsigned int nbuckets;
+	unsigned int nentries;
+	unsigned int cursize;
+
+	SmallHashEntry *buckets;
+	SmallHashEntry  buckets_stack[SMSTACKSIZE];
 } SmallHash;
 
 typedef struct {
-	SmallHash *hash;
-	int i;
+	SmallHash *sh;
+	unsigned int i;
 } SmallHashIter;
 
-#ifdef __GNUC__
-#  define ATTR_NONULL_FIRST  __attribute__((nonnull(1)))
-#  define ATTR_UNUSED_RESULT __attribute__((warn_unused_result))
-#else
-#  define ATTR_NONULL_FIRST
-#  define ATTR_UNUSED_RESULT
-#endif
-
-
-void    BLI_smallhash_init(SmallHash *hash)  ATTR_NONULL_FIRST;
-void    BLI_smallhash_release(SmallHash *hash)  ATTR_NONULL_FIRST;
-void    BLI_smallhash_insert(SmallHash *hash, uintptr_t key, void *item)  ATTR_NONULL_FIRST;
-void    BLI_smallhash_remove(SmallHash *hash, uintptr_t key)  ATTR_NONULL_FIRST;
-void   *BLI_smallhash_lookup(SmallHash *hash, uintptr_t key)  ATTR_NONULL_FIRST ATTR_UNUSED_RESULT;
-int     BLI_smallhash_haskey(SmallHash *hash, uintptr_t key)  ATTR_NONULL_FIRST;
-int     BLI_smallhash_count(SmallHash *hash)  ATTR_NONULL_FIRST;
-void   *BLI_smallhash_iternext(SmallHashIter *iter, uintptr_t *key)  ATTR_NONULL_FIRST ATTR_UNUSED_RESULT;
-void   *BLI_smallhash_iternew(SmallHash *hash, SmallHashIter *iter, uintptr_t *key)  ATTR_NONULL_FIRST ATTR_UNUSED_RESULT;
-/* void BLI_smallhash_print(SmallHash *hash); */ /* UNUSED */
-
-#undef ATTR_NONULL_FIRST
-#undef ATTR_UNUSED_RESULT
+void    BLI_smallhash_init_ex(SmallHash *sh,
+                              const unsigned int nentries_reserve) ATTR_NONNULL(1);
+void    BLI_smallhash_init(SmallHash *sh) ATTR_NONNULL(1);
+void    BLI_smallhash_release(SmallHash *sh) ATTR_NONNULL(1);
+void    BLI_smallhash_insert(SmallHash *sh, uintptr_t key, void *item) ATTR_NONNULL(1);
+bool    BLI_smallhash_remove(SmallHash *sh, uintptr_t key) ATTR_NONNULL(1);
+void   *BLI_smallhash_lookup(SmallHash *sh, uintptr_t key) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
+void  **BLI_smallhash_lookup_p(SmallHash *sh, uintptr_t key) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
+bool    BLI_smallhash_haskey(SmallHash *sh, uintptr_t key) ATTR_NONNULL(1);
+int     BLI_smallhash_count(SmallHash *sh)  ATTR_NONNULL(1);
+void   *BLI_smallhash_iternext(SmallHashIter *iter, uintptr_t *key)  ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
+void   *BLI_smallhash_iternew(SmallHash *sh, SmallHashIter *iter, uintptr_t *key) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
+/* void BLI_smallhash_print(SmallHash *sh); */ /* UNUSED */
 
 #endif /* __BLI_SMALLHASH_H__ */

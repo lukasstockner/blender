@@ -123,7 +123,7 @@ void ControllerExporter::operator()(Object *ob)
 	if (ob_arm) {
 		export_skin_controller(ob, ob_arm);
 	}
-	if (key) {
+	if (key && this->export_settings->include_shapekeys) {
 		export_morph_controller(ob, key);
 	}
 }
@@ -291,7 +291,7 @@ void ControllerExporter::export_skin_controller(Object *ob, Object *ob_arm)
 	add_joints_element(&ob->defbase, joints_source_id, inv_bind_mat_source_id);
 	add_vertex_weights_element(weights_source_id, joints_source_id, vcounts, joints);
 
-	BKE_libblock_free_us(&(G.main->mesh), me);
+	BKE_libblock_free_us(G.main, me);
 
 	closeSkin();
 	closeController();
@@ -327,7 +327,7 @@ void ControllerExporter::export_morph_controller(Object *ob, Key *key)
 	                                 COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, morph_weights_id)));
 	targets.add();
 
-	BKE_libblock_free_us(&(G.main->mesh), me);
+	BKE_libblock_free_us(G.main, me);
 
 
 	//support for animations
@@ -507,8 +507,8 @@ std::string ControllerExporter::add_inv_bind_mats_source(Object *ob_arm, ListBas
 			float world[4][4];
 			float inv_bind_mat[4][4];
 
-			// SECOND_LIFE_COMPATIBILITY
-			if (export_settings->second_life) {
+			// OPEN_SIM_COMPATIBILITY
+			if (export_settings->open_sim) {
 				// Only translations, no rotation vs armature
 				float temp[4][4];
 				unit_m4(temp);

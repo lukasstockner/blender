@@ -56,6 +56,7 @@ class KX_RaySensor : public SCA_ISensor
 	SCA_IObject*	m_hitObject;
 	float			m_hitNormal[3];
 	float			m_rayDirection[3];
+	STR_String		m_hitMaterial;
 
 public:
 	KX_RaySensor(class SCA_EventManager* eventmgr,
@@ -83,8 +84,8 @@ public:
 
 	//Python Interface
 	enum RayAxis {
-		KX_RAY_AXIS_POS_Y = 0,
-		KX_RAY_AXIS_POS_X,
+		KX_RAY_AXIS_POS_X = 0,
+		KX_RAY_AXIS_POS_Y,
 		KX_RAY_AXIS_POS_Z,
 		KX_RAY_AXIS_NEG_X,
 		KX_RAY_AXIS_NEG_Y,

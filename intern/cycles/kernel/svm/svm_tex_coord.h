@@ -1,46 +1,38 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2011-2013 Blender Foundation
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
  */
 
 CCL_NAMESPACE_BEGIN
 
 /* Texture Coordinate Node */
 
-__device void svm_node_tex_coord(KernelGlobals *kg, ShaderData *sd, int path_flag, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_tex_coord(KernelGlobals *kg, ShaderData *sd, int path_flag, float *stack, uint type, uint out_offset)
 {
 	float3 data;
 
 	switch(type) {
 		case NODE_TEXCO_OBJECT: {
-			if(sd->object != ~0) {
-				data = sd->P;
+			data = sd->P;
+			if(sd->object != ~0)
 				object_inverse_position_transform(kg, sd, &data);
-			}
-			else
-				data = sd->P;
 			break;
 		}
 		case NODE_TEXCO_NORMAL: {
-			if(sd->object != ~0) {
-				data = sd->N;
+			data = sd->N;
+			if(sd->object != ~0)
 				object_inverse_normal_transform(kg, sd, &data);
-			}
-			else
-				data = sd->N;
 			break;
 		}
 		case NODE_TEXCO_CAMERA: {
@@ -75,33 +67,43 @@ __device void svm_node_tex_coord(KernelGlobals *kg, ShaderData *sd, int path_fla
 			data = object_dupli_uv(kg, sd->object);
 			break;
 		}
+		case NODE_TEXCO_VOLUME_GENERATED: {
+			data = sd->P;
+
+			if(sd->object != ~0) {
+				AttributeElement attr_elem;
+				int attr_offset = find_attribute(kg, sd, ATTR_STD_GENERATED_TRANSFORM, &attr_elem);
+
+				object_inverse_position_transform(kg, sd, &data);
+
+				if(attr_offset != ATTR_STD_NOT_FOUND) {
+					Transform tfm = primitive_attribute_matrix(kg, sd, attr_offset);
+					data = transform_point(&tfm, data);
+				}
+			}
+			break;
+		}
 	}
 
 	stack_store_float3(stack, out_offset, data);
 }
 
-__device void svm_node_tex_coord_bump_dx(KernelGlobals *kg, ShaderData *sd, int path_flag, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_tex_coord_bump_dx(KernelGlobals *kg, ShaderData *sd, int path_flag, float *stack, uint type, uint out_offset)
 {
 #ifdef __RAY_DIFFERENTIALS__
 	float3 data;
 
 	switch(type) {
 		case NODE_TEXCO_OBJECT: {
-			if(sd->object != ~0) {
-				data = sd->P + sd->dP.dx;
+			data = sd->P + sd->dP.dx;
+			if(sd->object != ~0)
 				object_inverse_position_transform(kg, sd, &data);
-			}
-			else
-				data = sd->P + sd->dP.dx;
 			break;
 		}
 		case NODE_TEXCO_NORMAL: {
-			if(sd->object != ~0) {
-				data = sd->N;
+			data = sd->N;
+			if(sd->object != ~0)
 				object_inverse_normal_transform(kg, sd, &data);
-			}
-			else
-				data = sd->N;
 			break;
 		}
 		case NODE_TEXCO_CAMERA: {
@@ -136,6 +138,22 @@ __device void svm_node_tex_coord_bump_dx(KernelGlobals *kg, ShaderData *sd, int 
 			data = object_dupli_uv(kg, sd->object);
 			break;
 		}
+		case NODE_TEXCO_VOLUME_GENERATED: {
+			data = sd->P + sd->dP.dx;
+
+			if(sd->object != ~0) {
+				AttributeElement attr_elem;
+				int attr_offset = find_attribute(kg, sd, ATTR_STD_GENERATED_TRANSFORM, &attr_elem);
+
+				object_inverse_position_transform(kg, sd, &data);
+
+				if(attr_offset != ATTR_STD_NOT_FOUND) {
+					Transform tfm = primitive_attribute_matrix(kg, sd, attr_offset);
+					data = transform_point(&tfm, data);
+				}
+			}
+			break;
+		}
 	}
 
 	stack_store_float3(stack, out_offset, data);
@@ -144,28 +162,22 @@ __device void svm_node_tex_coord_bump_dx(KernelGlobals *kg, ShaderData *sd, int 
 #endif
 }
 
-__device void svm_node_tex_coord_bump_dy(KernelGlobals *kg, ShaderData *sd, int path_flag, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_tex_coord_bump_dy(KernelGlobals *kg, ShaderData *sd, int path_flag, float *stack, uint type, uint out_offset)
 {
 #ifdef __RAY_DIFFERENTIALS__
 	float3 data;
 
 	switch(type) {
 		case NODE_TEXCO_OBJECT: {
-			if(sd->object != ~0) {
-				data = sd->P + sd->dP.dy;
+			data = sd->P + sd->dP.dy;
+			if(sd->object != ~0)
 				object_inverse_position_transform(kg, sd, &data);
-			}
-			else
-				data = sd->P + sd->dP.dy;
 			break;
 		}
 		case NODE_TEXCO_NORMAL: {
-			if(sd->object != ~0) {
-				data = sd->N;
+			data = sd->N;
+			if(sd->object != ~0)
 				object_inverse_normal_transform(kg, sd, &data);
-			}
-			else
-				data = sd->N;
 			break;
 		}
 		case NODE_TEXCO_CAMERA: {
@@ -200,6 +212,22 @@ __device void svm_node_tex_coord_bump_dy(KernelGlobals *kg, ShaderData *sd, int 
 			data = object_dupli_uv(kg, sd->object);
 			break;
 		}
+		case NODE_TEXCO_VOLUME_GENERATED: {
+			data = sd->P + sd->dP.dy;
+
+			if(sd->object != ~0) {
+				AttributeElement attr_elem;
+				int attr_offset = find_attribute(kg, sd, ATTR_STD_GENERATED_TRANSFORM, &attr_elem);
+
+				object_inverse_position_transform(kg, sd, &data);
+
+				if(attr_offset != ATTR_STD_NOT_FOUND) {
+					Transform tfm = primitive_attribute_matrix(kg, sd, attr_offset);
+					data = transform_point(&tfm, data);
+				}
+			}
+			break;
+		}
 	}
 
 	stack_store_float3(stack, out_offset, data);
@@ -208,7 +236,7 @@ __device void svm_node_tex_coord_bump_dy(KernelGlobals *kg, ShaderData *sd, int 
 #endif
 }
 
-__device void svm_node_normal_map(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_normal_map(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint color_offset, strength_offset, normal_offset, space;
 	decode_node_uchar4(node.y, &color_offset, &strength_offset, &normal_offset, &space);
@@ -241,10 +269,13 @@ __device void svm_node_normal_map(KernelGlobals *kg, ShaderData *sd, float *stac
 		float sign = primitive_attribute_float(kg, sd, attr_sign_elem, attr_sign_offset, NULL, NULL);
 		float3 normal;
 
-		if(sd->shader & SHADER_SMOOTH_NORMAL)
+		if(sd->shader & SHADER_SMOOTH_NORMAL) {
 			normal = primitive_attribute_float3(kg, sd, attr_normal_elem, attr_normal_offset, NULL, NULL);
-		else
-			normal = sd->N;
+		}
+		else {
+			normal = sd->Ng;
+			object_inverse_normal_transform(kg, sd, &normal);
+		}
 
 		/* apply normal map */
 		float3 B = sign * cross(normal, tangent);
@@ -279,7 +310,7 @@ __device void svm_node_normal_map(KernelGlobals *kg, ShaderData *sd, float *stac
 	stack_store_float3(stack, normal_offset, N);
 }
 
-__device void svm_node_tangent(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tangent(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint tangent_offset, direction_type, axis;
 	decode_node_uchar4(node.y, &tangent_offset, &direction_type, &axis, NULL);

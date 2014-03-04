@@ -15,10 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -938,7 +934,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 			//BKE_ptcache_ids_from_object(&pidlist, ob);
 
 			//for (pid = pidlist.first; pid; pid = pid->next) {
-			//	if (pid->ptcaches->first == NULL)
+			//	if (BLI_listbase_is_empty(pid->ptcaches))
 			//		pid->ptcaches->first = pid->ptcaches->last = pid->cache;
 			//}
 
@@ -2327,7 +2323,7 @@ void blo_do_versions_250(FileData *fd, Library *lib, Main *main)
 			KeyBlock *kb;
 
 			for (kb = key->block.first; kb; kb = kb->next) {
-				if (IS_EQF(kb->slidermin, kb->slidermax) && IS_EQ(kb->slidermax, 0))
+				if (IS_EQF(kb->slidermin, kb->slidermax) && IS_EQF(kb->slidermax, 0.0f))
 					kb->slidermax = kb->slidermin + 1.0f;
 			}
 		}

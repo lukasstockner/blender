@@ -39,6 +39,7 @@ extern "C" {
 
 struct AviCodecData;
 struct Base;
+struct EvaluationContext;
 struct bglMats;
 struct Main;
 struct Object;
@@ -75,7 +76,19 @@ struct Base *BKE_scene_base_add(struct Scene *sce, struct Object *ob);
 void         BKE_scene_base_unlink(struct Scene *sce, struct Base *base);
 void         BKE_scene_base_deselect_all(struct Scene *sce);
 void         BKE_scene_base_select(struct Scene *sce, struct Base *selbase);
-int          BKE_scene_base_iter_next(struct Scene **scene, int val, struct Base **base, struct Object **ob);
+
+/* Scene base iteration function.
+ * Define struct here, so no need to bother with alloc/free it.
+ */
+typedef struct SceneBaseIter {
+	struct ListBase *duplilist;
+	struct DupliObject *dupob;
+	float omat[4][4];
+	int phase;
+} SceneBaseIter;
+
+int BKE_scene_base_iter_next(struct EvaluationContext *eval_ctx, struct SceneBaseIter *iter,
+                             struct Scene **scene, int val, struct Base **base, struct Object **ob);
 
 void BKE_scene_base_flag_to_objects(struct Scene *scene);
 void BKE_scene_base_flag_from_objects(struct Scene *scene);
@@ -99,13 +112,14 @@ int BKE_scene_validate_setscene(struct Main *bmain, struct Scene *sce);
 
 float BKE_scene_frame_get(struct Scene *scene);
 float BKE_scene_frame_get_from_ctime(struct Scene *scene, const float frame);
+void  BKE_scene_frame_set(struct Scene *scene, double cfra);
 
-void BKE_scene_update_tagged(struct Main *bmain, struct Scene *sce);
-
-void BKE_scene_update_for_newframe(struct Main *bmain, struct Scene *sce, unsigned int lay);
+/* **  Scene evaluation ** */
+void BKE_scene_update_tagged(struct EvaluationContext *eval_ctx, struct Main *bmain, struct Scene *sce);
+void BKE_scene_update_for_newframe(struct EvaluationContext *eval_ctx, struct Main *bmain, struct Scene *sce, unsigned int lay);
 
 struct SceneRenderLayer *BKE_scene_add_render_layer(struct Scene *sce, const char *name);
-int BKE_scene_remove_render_layer(struct Main *main, struct Scene *scene, struct SceneRenderLayer *srl);
+bool BKE_scene_remove_render_layer(struct Main *main, struct Scene *scene, struct SceneRenderLayer *srl);
 
 /* render profile */
 int get_render_subsurf_level(struct RenderData *r, int level);
@@ -113,11 +127,11 @@ int get_render_child_particle_number(struct RenderData *r, int num);
 int get_render_shadow_samples(struct RenderData *r, int samples);
 float get_render_aosss_error(struct RenderData *r, float error);
 
-int BKE_scene_use_new_shading_nodes(struct Scene *scene);
+bool BKE_scene_use_new_shading_nodes(struct Scene *scene);
 
 void BKE_scene_disable_color_management(struct Scene *scene);
-int BKE_scene_check_color_management_enabled(const struct Scene *scene);
-int BKE_scene_check_rigidbody_active(const struct Scene *scene);
+bool BKE_scene_check_color_management_enabled(const struct Scene *scene);
+bool BKE_scene_check_rigidbody_active(const struct Scene *scene);
 
 int BKE_scene_num_threads(const struct Scene *scene);
 int BKE_render_num_threads(const struct RenderData *r);

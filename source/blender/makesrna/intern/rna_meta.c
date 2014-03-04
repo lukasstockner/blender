@@ -158,6 +158,28 @@ static void rna_MetaBall_elements_clear(MetaBall *mb)
 	}
 }
 
+static int rna_Meta_is_editmode_get(PointerRNA *ptr)
+{
+	MetaBall *mb = ptr->id.data;
+	return (mb->editelems != NULL);
+}
+
+static char *rna_MetaElement_path(PointerRNA *ptr)
+{
+	MetaBall *mb = ptr->id.data;
+	MetaElem *ml = ptr->data;
+	int index = -1;
+
+	if (mb->editelems)
+		index = BLI_findindex(mb->editelems, ml);
+	if (index == -1)
+		index = BLI_findindex(&mb->elems, ml);
+	if (index == -1)
+		return NULL;
+
+	return BLI_sprintfN("elements[%d]", index);
+}
+
 #else
 
 static void rna_def_metaelement(BlenderRNA *brna)
@@ -168,6 +190,7 @@ static void rna_def_metaelement(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "MetaElement", NULL);
 	RNA_def_struct_sdna(srna, "MetaElem");
 	RNA_def_struct_ui_text(srna, "Meta Element", "Blobby element in a Metaball datablock");
+	RNA_def_struct_path_func(srna, "rna_MetaElement_path");
 	RNA_def_struct_ui_icon(srna, ICON_OUTLINER_DATA_META);
 
 	/* enums */
@@ -196,18 +219,21 @@ static void rna_def_metaelement(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "size_x", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "expx");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_range(prop, 0.0f, 20.0f);
 	RNA_def_property_ui_text(prop, "Size X", "Size of element, use of components depends on element type");
 	RNA_def_property_update(prop, 0, "rna_MetaBall_update_data");
 
 	prop = RNA_def_property(srna, "size_y", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "expy");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_range(prop, 0.0f, 20.0f);
 	RNA_def_property_ui_text(prop, "Size Y", "Size of element, use of components depends on element type");
 	RNA_def_property_update(prop, 0, "rna_MetaBall_update_data");
 
 	prop = RNA_def_property(srna, "size_z", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "expz");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_range(prop, 0.0f, 20.0f);
 	RNA_def_property_ui_text(prop, "Size Z", "Size of element, use of components depends on element type");
 	RNA_def_property_update(prop, 0, "rna_MetaBall_update_data");
@@ -297,13 +323,15 @@ static void rna_def_metaball(BlenderRNA *brna)
 	/* number values */
 	prop = RNA_def_property(srna, "resolution", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "wiresize");
-	RNA_def_property_range(prop, 0.050f, 1.0f);
+	RNA_def_property_range(prop, 0.005f, 10000.0f);
+	RNA_def_property_ui_range(prop, 0.05f, 1000.0f, 2.5f, 3);
 	RNA_def_property_ui_text(prop, "Wire Size", "Polygonization resolution in the 3D viewport");
 	RNA_def_property_update(prop, 0, "rna_MetaBall_update_data");
 	
 	prop = RNA_def_property(srna, "render_resolution", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "rendersize");
-	RNA_def_property_range(prop, 0.050f, 1.0f);
+	RNA_def_property_range(prop, 0.005f, 10000.0f);
+	RNA_def_property_ui_range(prop, 0.025f, 1000.0f, 2.5f, 3);
 	RNA_def_property_ui_text(prop, "Render Size", "Polygonization resolution in rendering");
 	RNA_def_property_update(prop, 0, "rna_MetaBall_update_data");
 	
@@ -328,6 +356,7 @@ static void rna_def_metaball(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "texspace_size", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_array(prop, 3);
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_text(prop, "Texture Space Size", "Texture space size");
 	RNA_def_property_editable_func(prop, "rna_Meta_texspace_editable");
 	RNA_def_property_float_funcs(prop, "rna_Meta_texspace_size_get", "rna_Meta_texspace_size_set", NULL);
@@ -348,8 +377,13 @@ static void rna_def_metaball(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "Material");
 	RNA_def_property_ui_text(prop, "Materials", "");
 	RNA_def_property_srna(prop, "IDMaterials"); /* see rna_ID.c */
-	RNA_def_property_collection_funcs(prop, 0, NULL, NULL, NULL, NULL, NULL, NULL, "rna_IDMaterials_assign_int");
+	RNA_def_property_collection_funcs(prop, NULL, NULL, NULL, NULL, NULL, NULL, NULL, "rna_IDMaterials_assign_int");
 	
+	prop = RNA_def_property(srna, "is_editmode", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_Meta_is_editmode_get", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Is Editmode", "True when used in editmode");
+
 	/* anim */
 	rna_def_animdata_common(srna);
 

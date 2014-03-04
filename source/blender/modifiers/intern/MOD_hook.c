@@ -64,15 +64,9 @@ static void copyData(ModifierData *md, ModifierData *target)
 	HookModifierData *hmd = (HookModifierData *) md;
 	HookModifierData *thmd = (HookModifierData *) target;
 
-	copy_v3_v3(thmd->cent, hmd->cent);
-	thmd->falloff = hmd->falloff;
-	thmd->force = hmd->force;
-	thmd->object = hmd->object;
-	thmd->totindex = hmd->totindex;
+	modifier_copyData_generic(md, target);
+
 	thmd->indexar = MEM_dupallocN(hmd->indexar);
-	memcpy(thmd->parentinv, hmd->parentinv, sizeof(hmd->parentinv));
-	BLI_strncpy(thmd->name, hmd->name, sizeof(thmd->name));
-	BLI_strncpy(thmd->subtarget, hmd->subtarget, sizeof(thmd->subtarget));
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -252,7 +246,7 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
 	DerivedMesh *dm = derivedData;
 	/* We need a valid dm for meshes when a vgroup is set... */
 	if (!dm && ob->type == OB_MESH && hmd->name[0] != '\0')
-		dm = get_dm(ob, NULL, dm, NULL, 0);
+		dm = get_dm(ob, NULL, dm, NULL, false, false);
 
 	deformVerts_do(hmd, ob, dm, vertexCos, numVerts);
 
@@ -267,7 +261,7 @@ static void deformVertsEM(ModifierData *md, Object *ob, struct BMEditMesh *editD
 	DerivedMesh *dm = derivedData;
 	/* We need a valid dm for meshes when a vgroup is set... */
 	if (!dm && ob->type == OB_MESH && hmd->name[0] != '\0')
-		dm = get_dm(ob, editData, dm, NULL, 0);
+		dm = get_dm(ob, editData, dm, NULL, false, false);
 
 	deformVerts_do(hmd, ob, dm, vertexCos, numVerts);
 

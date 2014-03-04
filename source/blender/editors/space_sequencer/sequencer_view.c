@@ -152,7 +152,8 @@ static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 			info->colfp = info->colf;
 
 			/* sequencer's image buffers are in non-linear space, need to make them linear */
-			BKE_sequencer_pixel_from_sequencer_space_v4(scene, info->colf);
+			copy_v4_v4(info->linearcol, info->colf);
+			BKE_sequencer_pixel_from_sequencer_space_v4(scene, info->linearcol);
 
 			info->color_manage = TRUE;
 		}
@@ -210,16 +211,15 @@ static int sample_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int sample_cancel(bContext *C, wmOperator *op)
+static void sample_cancel(bContext *C, wmOperator *op)
 {
 	sample_exit(C, op);
-
-	return OPERATOR_CANCELLED;
 }
 
 static int sample_poll(bContext *C)
 {
-	return BKE_sequencer_editing_get(CTX_data_scene(C), FALSE) != NULL;
+	SpaceSeq *sseq = CTX_wm_space_seq(C);
+	return sseq && BKE_sequencer_editing_get(CTX_data_scene(C), FALSE) != NULL;
 }
 
 void SEQUENCER_OT_sample(wmOperatorType *ot)
