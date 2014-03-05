@@ -325,12 +325,15 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 	}
 
 	if (ELEM3(but->type, TEX, SEARCH_MENU, SEARCH_MENU_UNLINK)) {
-		/* full string */
-		ui_get_but_string(but, buf, sizeof(buf));
-		if (buf[0]) {
-			BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Value: %s"), buf);
-			data->color_id[data->totline] = UI_TIP_LC_NORMAL;
-			data->totline++;
+		/* better not show the value of a password */
+		if ((but->rnaprop && (RNA_property_subtype(but->rnaprop) == PROP_PASSWORD)) == 0) {
+			/* full string */
+			ui_get_but_string(but, buf, sizeof(buf));
+			if (buf[0]) {
+				BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), TIP_("Value: %s"), buf);
+				data->color_id[data->totline] = UI_TIP_LC_NORMAL;
+				data->totline++;
+			}
 		}
 	}
 
@@ -662,8 +665,7 @@ int uiSearchBoxHeight(void)
 
 int uiSearchBoxWidth(void)
 {
-	/* was hardcoded at 150 */
-	return 9 * UI_UNIT_X;
+	return 12 * UI_UNIT_X;
 }
 
 int uiSearchItemFindIndex(uiSearchItems *items, const char *name)
@@ -1379,7 +1381,6 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 
 		BLI_rctf_translate(&bt->rect, xof, yof);
 
-		bt->aspect = 1.0f;
 		/* ui_check_but recalculates drawstring size in pixels */
 		ui_check_but(bt);
 	}
@@ -1944,7 +1945,7 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	uiBlockEndAlign(block);
 
 	if (rgba[3] != FLT_MAX) {
-		bt = uiDefButR_prop(block, NUMSLI, 0, IFACE_("A "),  0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, ptr, prop, 3, 0.0, 0.0, 0, 3, TIP_("Alpha"));
+		bt = uiDefButR_prop(block, NUMSLI, 0, IFACE_("A: "),  0, yco -= UI_UNIT_Y, butwidth, UI_UNIT_Y, ptr, prop, 3, 0.0, 0.0, 0, 3, TIP_("Alpha"));
 		uiButSetFunc(bt, do_picker_rna_cb, bt, NULL);
 	}
 	else {
@@ -2038,7 +2039,7 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
 
 /************************ Popup Menu Memory ****************************/
 
-static int ui_popup_string_hash(const char *str)
+static unsigned int ui_popup_string_hash(const char *str)
 {
 	/* sometimes button contains hotkey, sometimes not, strip for proper compare */
 	int hash;
@@ -2051,16 +2052,19 @@ static int ui_popup_string_hash(const char *str)
 	return hash;
 }
 
-static int ui_popup_menu_hash(const char *str)
+static unsigned int ui_popup_menu_hash(const char *str)
 {
 	return BLI_ghashutil_strhash(str);
 }
 
 /* but == NULL read, otherwise set */
-uiBut *ui_popup_menu_memory(uiBlock *block, uiBut *but)
+static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
 {
-	static int mem[256], first = 1;
-	int hash = block->puphash;
+	static unsigned int mem[256];
+	static bool first = true;
+
+	const unsigned int hash = block->puphash;
+	const unsigned int hash_mod = hash & 255;
 	
 	if (first) {
 		/* init */
@@ -2070,17 +2074,27 @@ uiBut *ui_popup_menu_memory(uiBlock *block, uiBut *but)
 
 	if (but) {
 		/* set */
-		mem[hash & 255] = ui_popup_string_hash(but->str);
+		mem[hash_mod] = ui_popup_string_hash(but->str);
 		return NULL;
 	}
 	else {
 		/* get */
 		for (but = block->buttons.first; but; but = but->next)
-			if (ui_popup_string_hash(but->str) == mem[hash & 255])
+			if (ui_popup_string_hash(but->str) == mem[hash_mod])
 				return but;
 
 		return NULL;
 	}
+}
+
+uiBut *ui_popup_menu_memory_get(uiBlock *block)
+{
+	return ui_popup_menu_memory__internal(block, NULL);
+}
+
+void ui_popup_menu_memory_set(uiBlock *block, uiBut *but)
+{
+	ui_popup_menu_memory__internal(block, but);
 }
 
 /******************** Popup Menu with callback or string **********************/
@@ -2123,7 +2137,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 			direction = pup->block->direction;
 		}
 		else if ((pup->but->type == PULLDOWN) ||
-		    (uiButGetMenuType(pup->but) != NULL))
+		         (uiButGetMenuType(pup->but) != NULL))
 		{
 			direction = UI_DOWN;
 		}
@@ -2157,7 +2171,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 
 		/* offset the mouse position, possibly based on earlier selection */
 		if ((block->flag & UI_BLOCK_POPUP_MEMORY) &&
-		    (bt = ui_popup_menu_memory(block, NULL)))
+		    (bt = ui_popup_menu_memory_get(block)))
 		{
 			/* position mouse on last clicked item, at 0.8*width of the
 			 * button, so it doesn't overlap the text too much, also note
@@ -2385,7 +2399,7 @@ bool uiPupMenuInvoke(bContext *C, const char *idname, ReportList *reports)
 	MenuType *mt = WM_menutype_find(idname, true);
 
 	if (mt == NULL) {
-		BKE_reportf(reports, RPT_ERROR, "menu \"%s\" not found\n", idname);
+		BKE_reportf(reports, RPT_ERROR, "Menu \"%s\" not found", idname);
 		return false;
 	}
 

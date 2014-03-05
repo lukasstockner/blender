@@ -114,7 +114,7 @@ ccl_device bool volume_stack_is_heterogeneous(KernelGlobals *kg, VolumeStack *st
  * These functions are used to attenuate shadow rays to lights. Both absorption
  * and scattering will block light, represented by the extinction coefficient. */
 
-/* homogenous volume: assume shader evaluation at the starts gives
+/* homogeneous volume: assume shader evaluation at the starts gives
  * the extinction coefficient for the entire line segment */
 ccl_device void kernel_volume_shadow_homogeneous(KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd, float3 *throughput)
 {
@@ -192,7 +192,7 @@ ccl_device_noinline void kernel_volume_shadow(KernelGlobals *kg, PathState *stat
 
 /* Volume Path */
 
-/* homogenous volume: assume shader evaluation at the starts gives
+/* homogeneous volume: assume shader evaluation at the start gives
  * the volume shading coefficient for the entire line segment */
 ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(KernelGlobals *kg,
 	PathState *state, Ray *ray, ShaderData *sd, PathRadiance *L, float3 *throughput,
@@ -228,21 +228,72 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(KernelGloba
 		else
 			sample_sigma_t = sigma_t.z;
 
-		/* xi is [0, 1[ so log(0) should never happen, division by zero is
-		 * avoided because sample_sigma_t > 0 when SD_SCATTER is set */
-		float xi = path_state_rng_1D(kg, rng, state, PRNG_SCATTER_DISTANCE);
-		float sample_t = min(t, -logf(1.0f - xi)/sample_sigma_t);
+		/* distance sampling */
+		if(kernel_data.integrator.volume_homogeneous_sampling == 0 || !kernel_data.integrator.num_all_lights) { 
+			/* xi is [0, 1[ so log(0) should never happen, division by zero is
+			 * avoided because sample_sigma_t > 0 when SD_SCATTER is set */
+			float xi = path_state_rng_1D(kg, rng, state, PRNG_SCATTER_DISTANCE);
+			float sample_t = min(t, -logf(1.0f - xi)/sample_sigma_t);
 
-		transmittance = volume_color_attenuation(sigma_t, sample_t);
+			transmittance = volume_color_attenuation(sigma_t, sample_t);
 
-		if(sample_t < t) {
-			float pdf = dot(sigma_t, transmittance);
-			new_tp = *throughput * coeff.sigma_s * transmittance * (3.0f / pdf);
-			t = sample_t;
+			if(sample_t < t) {
+				float pdf = dot(sigma_t, transmittance);
+				new_tp = *throughput * coeff.sigma_s * transmittance * (3.0f / pdf);
+				t = sample_t;
+			}
+			else {
+				float pdf = (transmittance.x + transmittance.y + transmittance.z);
+				new_tp = *throughput * transmittance * (3.0f / pdf);
+			}
 		}
+		/* equi-angular sampling */
 		else {
-			float pdf = (transmittance.x + transmittance.y + transmittance.z);
-			new_tp = *throughput * transmittance * (3.0f / pdf);
+			/* decide if we are going to scatter or not, based on sigma_t. this
+			 * is not ideal, instead we should perhaps split the path here and
+			 * do both, and at least add multiple importance sampling */
+			float xi = path_state_rng_1D(kg, rng, state, PRNG_SCATTER_DISTANCE);
+			float sample_transmittance = expf(-sample_sigma_t * t);
+
+			if(xi < sample_transmittance) {
+				/* no scattering */
+				transmittance = volume_color_attenuation(sigma_t, t);
+				float pdf = (transmittance.x + transmittance.y + transmittance.z);
+				new_tp = *throughput * transmittance * (3.0f / pdf);
+			}
+			else {
+				/* rescale random number so we can reuse it */
+				xi = (xi - sample_transmittance)/(1.0f - sample_transmittance);
+
+				/* equi-angular scattering somewhere on segment 0..t */
+				/* see "Importance Sampling Techniques for Path Tracing in Participating Media" */
+
+				/* light RNGs */
+				float light_t = path_state_rng_1D(kg, rng, state, PRNG_LIGHT);
+				float light_u, light_v;
+				path_state_rng_2D(kg, rng, state, PRNG_LIGHT_U, &light_u, &light_v);
+
+				/* light sample */
+				LightSample ls;
+				light_sample(kg, light_t, light_u, light_v, ray->time, ray->P, &ls);
+				if(ls.pdf == 0.0f)
+					return VOLUME_PATH_MISSED;
+
+				/* sampling */
+				float delta = dot((ls.P - ray->P) , ray->D);
+				float D = sqrtf(len_squared(ls.P - ray->P) - delta * delta);
+				float theta_a = -atan2f(delta, D);
+				float theta_b = atan2f(t - delta, D);
+				float t_ = D * tan((xi * theta_b) + (1 - xi) * theta_a);
+
+				float pdf = D / ((theta_b - theta_a) * (D * D + t_ * t_));
+				float sample_t = min(t, delta + t_);
+
+				transmittance = volume_color_attenuation(sigma_t, sample_t);
+
+				new_tp = *throughput * coeff.sigma_s * transmittance / ((1.0f - sample_transmittance) * pdf);
+				t = sample_t;
+			}
 		}
 	}
 	else if(closure_flag & SD_ABSORPTION) {
@@ -380,7 +431,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous(KernelGlo
 					accum_sigma_s = (accum_sigma_s + dt*sigma_s)/new_t;
 
 					/* todo: it's not clear to me that this is correct if we move
-					 * through a color volumed, needs verification */
+					 * through a color volume, needs verification */
 					float pdf = dot(accum_sigma_t, accum_transmittance);
 					new_tp = tp * accum_sigma_s * transmittance * (3.0f / pdf);
 
@@ -485,12 +536,17 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous(KernelGlo
 ccl_device_noinline VolumeIntegrateResult kernel_volume_integrate(KernelGlobals *kg,
 	PathState *state, ShaderData *sd, Ray *ray, PathRadiance *L, float3 *throughput, RNG *rng)
 {
+	/* workaround to fix correlation bug in T38710, can find better solution
+	 * in random number generator later, for now this is done here to not impact
+	 * performance of rendering without volumes */
+	RNG tmp_rng = cmj_hash(*rng, state->rng_offset);
+
 	shader_setup_from_volume(kg, sd, ray, state->bounce);
 
 	if(volume_stack_is_heterogeneous(kg, state->volume_stack))
-		return kernel_volume_integrate_heterogeneous(kg, state, ray, sd, L, throughput, rng);
+		return kernel_volume_integrate_heterogeneous(kg, state, ray, sd, L, throughput, &tmp_rng);
 	else
-		return kernel_volume_integrate_homogeneous(kg, state, ray, sd, L, throughput, rng);
+		return kernel_volume_integrate_homogeneous(kg, state, ray, sd, L, throughput, &tmp_rng);
 }
 
 /* Volume Stack

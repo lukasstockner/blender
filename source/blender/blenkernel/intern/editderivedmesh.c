@@ -92,35 +92,16 @@ static void emDM_ensureVertNormals(EditDerivedBMesh *bmdm)
 		const float (*vertexCos)[3], (*polyNos)[3];
 		float (*vertexNos)[3];
 
-		BMFace *efa;
-		BMVert *eve;
-		BMIter fiter;
-		BMIter viter;
-		int i;
-
-		vertexCos = bmdm->vertexCos;
-		vertexNos = MEM_callocN(sizeof(*vertexNos) * bm->totvert, __func__);
-
 		/* calculate vertex normals from poly normals */
 		emDM_ensurePolyNormals(bmdm);
 
 		BM_mesh_elem_index_ensure(bm, BM_FACE);
 
-		vertexCos = bmdm->vertexCos;
 		polyNos = bmdm->polyNos;
+		vertexCos = bmdm->vertexCos;
+		vertexNos = MEM_callocN(sizeof(*vertexNos) * bm->totvert, __func__);
 
-		BM_ITER_MESH_INDEX (eve, &viter, bm, BM_VERTS_OF_MESH, i) {
-			float *no = vertexNos[i];
-			BM_ITER_ELEM (efa, &fiter, eve, BM_FACES_OF_VERT) {
-				add_v3_v3(no, polyNos[BM_elem_index_get(efa)]);
-			}
-
-			/* following Mesh convention; we use vertex coordinate itself
-			 * for normal in this case */
-			if (UNLIKELY(normalize_v3(no) == 0.0f)) {
-				normalize_v3_v3(no, vertexCos[i]);
-			}
-		}
+		BM_verts_calc_normal_vcos(bm, polyNos, vertexCos, vertexNos);
 
 		bmdm->vertexNos = (const float (*)[3])vertexNos;
 	}
@@ -1760,9 +1741,13 @@ static void statvis_calc_overhang(
 	float dir[3];
 	int index;
 	const float minmax_irange = 1.0f / (max - min);
+	bool is_max;
 
 	/* fallback */
-	const char col_fallback[4] = {64, 64, 64, 255};
+	const char col_fallback[2][4] = {
+	    {64, 64, 64, 255},  /* gray */
+	    {0,  0,  0,  255},  /* max color */
+	};
 
 	BLI_assert(min <= max);
 
@@ -1773,12 +1758,19 @@ static void statvis_calc_overhang(
 		normalize_v3(dir);
 	}
 
+	/* fallback max */
+	{
+		float fcol[3];
+		weight_to_rgb(fcol, 1.0f);
+		rgb_float_to_uchar((unsigned char *)col_fallback[1], fcol);
+	}
+
 	/* now convert into global space */
 	BM_ITER_MESH_INDEX (f, &iter, bm, BM_FACES_OF_MESH, index) {
 		float fac = angle_normalized_v3v3(polyNos ? polyNos[index] : f->no, dir) / (float)M_PI;
 
 		/* remap */
-		if (fac >= min && fac <= max) {
+		if ((is_max = (fac <= max)) && (fac >= min)) {
 			float fcol[3];
 			fac = (fac - min) * minmax_irange;
 			fac = 1.0f - fac;
@@ -1787,7 +1779,7 @@ static void statvis_calc_overhang(
 			rgb_float_to_uchar(r_face_colors[index], fcol);
 		}
 		else {
-			copy_v4_v4_char((char *)r_face_colors[index], (const char *)col_fallback);
+			copy_v4_v4_char((char *)r_face_colors[index], (const char *)(col_fallback[is_max]));
 		}
 	}
 }

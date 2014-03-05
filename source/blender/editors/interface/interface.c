@@ -583,8 +583,6 @@ static void ui_but_update_linklines(uiBlock *block, uiBut *oldbut, uiBut *newbut
  */
 static bool ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut **but_p, uiBut **but_old_p)
 {
-	/* flags from the buttons we want to refresh, may want to add more here... */
-	const int flag_copy = UI_BUT_REDALERT | UI_BUT_DRAG_MULTI;
 	const int drawflag_copy = 0;  /* None currently. */
 
 	uiBlock *oldblock = block->oldblock;
@@ -617,6 +615,9 @@ static bool ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBu
 	}
 
 	if (oldbut->active) {
+		/* flags from the buttons we want to refresh, may want to add more here... */
+		const int flag_copy = UI_BUT_REDALERT;
+
 		found_active = true;
 
 #if 0
@@ -695,6 +696,8 @@ static bool ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBu
 		/* note: if layout hasn't been applied yet, it uses old button pointers... */
 	}
 	else {
+		const int flag_copy = UI_BUT_DRAG_MULTI;
+
 		but->flag = (but->flag & ~flag_copy) | (oldbut->flag & flag_copy);
 
 		/* ensures one button can get activated, and in case the buttons
@@ -1792,6 +1795,21 @@ int ui_get_but_string_max_length(uiBut *but)
 		return UI_MAX_DRAW_STR;
 }
 
+uiBut *ui_get_but_drag_multi_edit(uiBut *but)
+{
+	uiBut *but_iter;
+
+	BLI_assert(but->flag & UI_BUT_DRAG_MULTI);
+
+	for (but_iter = but->block->buttons.first; but_iter; but_iter = but_iter->next) {
+		if (but_iter->editstr) {
+			break;
+		}
+	}
+
+	return but_iter;
+}
+
 static double ui_get_but_scale_unit(uiBut *but, double value)
 {
 	UnitSettings *unit = but->block->unit;
@@ -2488,6 +2506,25 @@ void ui_check_but(uiBut *but)
 	
 	/* name: */
 	switch (but->type) {
+
+		case MENU:
+			if (BLI_rctf_size_x(&but->rect) > 24.0f) {
+				/* only needed for menus in popup blocks that don't recreate buttons on redraw */
+				if (but->block->flag & UI_BLOCK_LOOP) {
+					if (but->rnaprop && (RNA_property_type(but->rnaprop) == PROP_ENUM)) {
+						int value = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
+						const char *buf;
+						if (RNA_property_enum_name_gettexted(but->block->evil_C,
+						                                     &but->rnapoin, but->rnaprop, value, &buf))
+						{
+							BLI_strncpy(but->str, buf, sizeof(but->strdata));
+						}
+					}
+				}
+				BLI_strncpy(but->drawstr, but->str, sizeof(but->drawstr));
+			}
+			break;
+
 		case NUM:
 		case NUMSLI:
 
@@ -2634,9 +2671,17 @@ void uiBlockBeginAlign(uiBlock *block)
 static bool buts_are_horiz(uiBut *but1, uiBut *but2)
 {
 	float dx, dy;
-	
-	dx = fabs(but1->rect.xmax - but2->rect.xmin);
-	dy = fabs(but1->rect.ymin - but2->rect.ymax);
+
+	/* simple case which can fail if buttons shift apart
+	 * with proportional layouts, see: [#38602] */
+	if ((but1->rect.ymin == but2->rect.ymin) &&
+	    (but1->rect.xmin != but2->rect.xmin))
+	{
+		return true;
+	}
+
+	dx = fabsf(but1->rect.xmax - but2->rect.xmin);
+	dy = fabsf(but1->rect.ymin - but2->rect.ymax);
 	
 	return (dx <= dy);
 }
@@ -2904,7 +2949,6 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	but->lockstr = block->lockstr;
 	but->dt = block->dt;
 
-	but->aspect = 1.0f;  /* XXX block->aspect; */
 	but->block = block;  /* pointer back, used for frontbuffer status, and picker */
 
 	if ((block->flag & UI_BUT_ALIGN) && ui_but_can_align(but))
@@ -3112,7 +3156,7 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 {
 	const PropertyType proptype = RNA_property_type(prop);
 	uiBut *but;
-	int freestr = 0, icon = 0;
+	int icon = 0;
 	uiMenuCreateFunc func = NULL;
 
 	if (ELEM3(type, COLOR, HSVCIRCLE, HSVCUBE)) {
@@ -3234,6 +3278,10 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 		but->drawflag |= UI_BUT_ICON_LEFT;
 	}
 	
+	if ((type == MENU) && (but->dt == UI_EMBOSSP)) {
+		but->flag |= UI_ICON_SUBMENU;
+	}
+
 	if (!RNA_property_editable(&but->rnapoin, prop)) {
 		ui_def_but_rna__disable(but);
 	}
@@ -3250,10 +3298,6 @@ static uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, const char *s
 	if (func) {
 		but->menu_create_func = func;
 		but->poin = (char *)but;
-	}
-
-	if (freestr) {
-		MEM_freeN((void *)str);
 	}
 
 	return but;
@@ -4170,22 +4214,11 @@ void uiButGetStrInfo(bContext *C, uiBut *but, ...)
 
 		if (type == BUT_GET_LABEL) {
 			if (but->str) {
-				/* Menu labels can have some complex formating stuff marked by pipes or %t, we don't want those here! */
-				const char *tc1, *tc2;
-
-				tc1 = strstr(but->str, "%t");
-				tc2 = strstr(but->str, UI_SEP_CHAR_S);
-
-				if (tc2 && (!tc1 || tc1 > tc2))
-					tc1 = tc2;
-
-				if (tc1)
-					tmp = BLI_strdupn(but->str, tc1 - but->str);
-				else
-					tmp = BLI_strdup(but->str);
+				tmp = BLI_strdup(but->str);
 			}
-			else
+			else {
 				type = BUT_GET_RNA_LABEL;  /* Fail-safe solution... */
+			}
 		}
 		else if (type == BUT_GET_TIP) {
 			if (but->tip && but->tip[0])

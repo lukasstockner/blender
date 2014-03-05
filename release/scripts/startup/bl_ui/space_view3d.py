@@ -2175,6 +2175,7 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.separator()
 
         layout.operator("mesh.bevel").vertex_only = True
+        layout.operator("mesh.convex_hull")
         layout.operator("mesh.vertices_smooth")
         layout.operator("mesh.remove_doubles")
 
@@ -2318,8 +2319,10 @@ class VIEW3D_MT_edit_mesh_clean(Menu):
 
         layout.separator()
 
-        layout.operator("mesh.fill_holes")
+        layout.operator("mesh.dissolve_degenerate")
+        layout.operator("mesh.dissolve_limited")
         layout.operator("mesh.vert_connect_nonplanar")
+        layout.operator("mesh.fill_holes")
 
 
 class VIEW3D_MT_edit_mesh_delete(Menu):
@@ -2890,11 +2893,12 @@ class VIEW3D_PT_view3d_motion_tracking(Panel):
 
         col = layout.column()
         col.active = view.show_reconstruction
-        col.prop(view, "show_bundle_names")
-        col.prop(view, "show_camera_path")
-        col.label(text="Tracks:")
-        col.prop(view, "tracks_draw_type", text="")
-        col.prop(view, "tracks_draw_size", text="Size")
+        col.prop(view, "show_camera_path", text="Camera Path")
+        col.prop(view, "show_bundle_names", text="3D Marker Names")
+        col.label(text="Track Type and Size:")
+        row = col.row(align=True)
+        row.prop(view, "tracks_draw_type", text="")
+        row.prop(view, "tracks_draw_size", text="")
 
 
 class VIEW3D_PT_view3d_meshdisplay(Panel):

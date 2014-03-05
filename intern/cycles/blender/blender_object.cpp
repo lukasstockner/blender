@@ -38,7 +38,11 @@ CCL_NAMESPACE_BEGIN
 bool BlenderSync::BKE_object_is_modified(BL::Object b_ob)
 {
 	/* test if we can instance or if the object is modified */
-	if(ccl::BKE_object_is_modified(b_ob, b_scene, preview)) {
+	if(b_ob.type() == BL::Object::type_META) {
+		/* multi-user and dupli metaballs are fused, can't instance */
+		return true;
+	}
+	else if(ccl::BKE_object_is_modified(b_ob, b_scene, preview)) {
 		/* modifiers */
 		return true;
 	}
@@ -429,9 +433,6 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion)
 	BL::Scene::objects_iterator b_ob;
 	BL::Scene b_sce = b_scene;
 
-	/* global particle index counter */
-	int particle_id = 1;
-
 	bool cancel = false;
 
 	for(; b_sce && !cancel; b_sce = b_sce.background_set()) {
@@ -466,13 +467,8 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion)
 
 							/* sync possible particle data, note particle_id
 							 * starts counting at 1, first is dummy particle */
-							if(!motion && object && sync_dupli_particle(*b_ob, *b_dup, object)) {
-								if(particle_id != object->particle_id) {
-									object->particle_id = particle_id;
-									scene->object_manager->tag_update(scene);
-								}
-
-								particle_id++;
+							if(!motion && object) {
+								sync_dupli_particle(*b_ob, *b_dup, object);
 							}
 
 						}
@@ -516,7 +512,7 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, int motion)
 		mesh_motion_synced.clear();
 }
 
-void BlenderSync::sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override)
+void BlenderSync::sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override, void **python_thread_state)
 {
 	if(scene->need_motion() == Scene::MOTION_NONE)
 		return;
@@ -532,7 +528,12 @@ void BlenderSync::sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override)
 	int frame = b_scene.frame_current();
 
 	for(int motion = -1; motion <= 1; motion += 2) {
+		/* we need to set the python thread state again because this
+		 * function assumes it is being executed from python and will
+		 * try to save the thread state */
+		python_thread_state_restore(python_thread_state);
 		b_scene.frame_set(frame + motion, 0.0f);
+		python_thread_state_save(python_thread_state);
 
 		/* camera object */
 		if(b_cam)
@@ -542,7 +543,12 @@ void BlenderSync::sync_motion(BL::SpaceView3D b_v3d, BL::Object b_override)
 		sync_objects(b_v3d, motion);
 	}
 
+	/* we need to set the python thread state again because this
+	 * function assumes it is being executed from python and will
+	 * try to save the thread state */
+	python_thread_state_restore(python_thread_state);
 	b_scene.frame_set(frame, 0.0f);
+	python_thread_state_save(python_thread_state);
 
 	/* tag camera for motion update */
 	if(scene->camera->motion_modified(prevcam))

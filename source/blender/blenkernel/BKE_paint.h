@@ -115,8 +115,9 @@ void BKE_paint_palette_set(struct Paint *p, struct Palette *palette);
 /* testing face select mode
  * Texture paint could be removed since selected faces are not used
  * however hiding faces is useful */
-bool paint_facesel_test(struct Object *ob);
-bool paint_vertsel_test(struct Object *ob);
+bool BKE_paint_select_face_test(struct Object *ob);
+bool BKE_paint_select_vert_test(struct Object *ob);
+bool BKE_paint_select_elem_test(struct Object *ob);
 
 /* partial visibility */
 bool paint_is_face_hidden(const struct MFace *f, const struct MVert *mvert);

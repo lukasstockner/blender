@@ -167,6 +167,10 @@ class CyclesRender_PT_volume_sampling(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
 
+        layout.prop(cscene, "volume_homogeneous_sampling", text="Homogeneous")
+
+        layout.label("Heterogeneous:")
+
         split = layout.split()
         split.prop(cscene, "volume_step_size")
         split.prop(cscene, "volume_max_steps")
@@ -997,8 +1001,9 @@ class CyclesMaterial_PT_settings(CyclesButtonsPanel, Panel):
 
         split = layout.split()
 
-        col = split.column()
+        col = split.column(align=True)
         col.prop(mat, "diffuse_color", text="Viewport Color")
+        col.prop(mat, "alpha")
 
         col = split.column(align=True)
         col.label()
@@ -1195,7 +1200,7 @@ class CyclesRender_PT_CurveRendering(CyclesButtonsPanel, Panel):
         layout.prop(ccscene, "primitive", text="Primitive")
         layout.prop(ccscene, "shape", text="Shape")
 
-        if (ccscene.primitive in {'CURVE_SEGMENTS', 'LINE_SEGMENTS'} and ccscene.shape == 'RIBBONS') == False:
+        if not (ccscene.primitive in {'CURVE_SEGMENTS', 'LINE_SEGMENTS'} and ccscene.shape == 'RIBBONS'):
             layout.prop(ccscene, "cull_backfacing", text="Cull back-faces")
 
         if ccscene.primitive == 'TRIANGLES' and ccscene.shape == 'THICK':
@@ -1381,6 +1386,7 @@ def get_panels():
         ]
 
     return [getattr(types, p) for p in panels if hasattr(types, p)]
+
 
 def register():
     bpy.types.RENDER_PT_render.append(draw_device)

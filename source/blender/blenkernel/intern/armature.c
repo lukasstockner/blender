@@ -888,7 +888,7 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm, float
 		if (ELEM(target->type, OB_MESH, OB_LATTICE)) {
 			/* if we have a DerivedMesh, only use dverts if it has them */
 			if (dm) {
-				use_dverts = (dm->getVertData(dm, 0, CD_MDEFORMVERT) != NULL);
+				use_dverts = (dm->getVertDataArray(dm, CD_MDEFORMVERT) != NULL);
 			}
 			else if (dverts) {
 				use_dverts = TRUE;
@@ -2306,7 +2306,7 @@ static void do_strip_modifiers(Scene *scene, Object *armob, Bone *bone, bPoseCha
 							if (strcmp(pchan->name, amod->channel) == 0) {
 								float mat4[4][4], mat3[3][3];
 
-								curve_deform_vector(amod->ob, armob, bone->arm_mat[3], pchan->pose_mat[3], mat3, amod->no_rot_axis);
+								curve_deform_vector(scene, amod->ob, armob, bone->arm_mat[3], pchan->pose_mat[3], mat3, amod->no_rot_axis);
 								copy_m4_m4(mat4, pchan->pose_mat);
 								mul_m4_m3m4(pchan->pose_mat, mat3, mat4);
 

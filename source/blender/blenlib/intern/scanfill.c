@@ -38,7 +38,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_callbacks.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
@@ -52,7 +51,7 @@ typedef struct PolyFill {
 	unsigned int edges, verts;
 	float min_xy[2], max_xy[2];
 	unsigned short nr;
-	unsigned char f;
+	bool f;
 } PolyFill;
 
 typedef struct ScanFillVertLink {
@@ -66,22 +65,24 @@ typedef struct ScanFillVertLink {
 #define SF_EPSILON   0.00003f
 #define SF_EPSILON_SQ (SF_EPSILON * SF_EPSILON)
 
-#define SF_VERT_AVAILABLE  1  /* available - in an edge */
-#define SF_VERT_ZERO_LEN 255
 
+/* ScanFillVert.status */
+#define SF_VERT_NEW        0  /* all new verts have this flag set */
+#define SF_VERT_AVAILABLE  1  /* available - in an edge */
+#define SF_VERT_ZERO_LEN   2
+
+
+/* ScanFillEdge.status */
 /* Optionally set ScanFillEdge f to this to mark original boundary edges.
  * Only needed if there are internal diagonal edges passed to BLI_scanfill_calc. */
-#define SF_EDGE_BOUNDARY 1
-#define SF_EDGE_UNKNOWN  2    /* TODO, what is this for exactly? - need to document it! */
-
-/**
- * \note this is USHRT_MAX so incrementing  will set to zero
- * which happens if callers choose to increment #ScanFillContext.poly_nr before adding each curve.
- * Nowhere else in scanfill do we make use of intentional overflow like this.
- */
-#define SF_POLY_UNSET USHRT_MAX
+#define SF_EDGE_NEW      0  /* all new edges have this flag set */
+// #define SF_EDGE_BOUNDARY 1  /* UNUSED */
+#define SF_EDGE_INTERNAL 2  /* edge is created while scan-filling */
 
 
+/* PolyFill.status */
+#define SF_POLY_NEW   0  /* all polys initialized to this */
+#define SF_POLY_VALID 1  /* has at least 3 verts */
 
 /* ****  FUNCTIONS FOR QSORT *************************** */
 
@@ -128,7 +129,8 @@ ScanFillVert *BLI_scanfill_vert_add(ScanFillContext *sf_ctx, const float vec[3])
 	sf_v->keyindex = 0;
 	sf_v->poly_nr = sf_ctx->poly_nr;
 	sf_v->edge_tot = 0;
-	sf_v->f = 0;
+	sf_v->f = SF_VERT_NEW;
+	sf_v->user_flag = 0;
 
 	return sf_v;
 }
@@ -145,7 +147,8 @@ ScanFillEdge *BLI_scanfill_edge_add(ScanFillContext *sf_ctx, ScanFillVert *v1, S
 
 	/* just zero out the rest */
 	sf_ed->poly_nr = sf_ctx->poly_nr;
-	sf_ed->f = 0;
+	sf_ed->f = SF_EDGE_NEW;
+	sf_ed->user_flag = 0;
 	sf_ed->tmp.c = 0;
 
 	return sf_ed;
@@ -486,7 +489,7 @@ static unsigned int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int fl
 		if (eve->poly_nr == nr) {
 			if (eve->f != SF_VERT_ZERO_LEN) {
 				verts++;
-				eve->f = 0;  /* flag for connectedges later on */
+				eve->f = SF_VERT_NEW;  /* flag for connectedges later on */
 				sc->vert = eve;
 				sc->edge_first = sc->edge_last = NULL;
 				/* if (even->tmp.v == NULL) eve->tmp.u = verts; */ /* Note, debug print only will work for curve polyfill, union is in use for mesh */
@@ -548,7 +551,7 @@ static unsigned int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int fl
 
 	/* STEP 2: FILL LOOP */
 
-	if (pf->f == 0)
+	if (pf->f == SF_POLY_NEW)
 		twoconnected = true;
 
 	/* (temporal) security: never much more faces than vertices */
@@ -591,7 +594,7 @@ static unsigned int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int fl
 				sc->edge_first = sc->edge_last = NULL;
 				/* printf("just 1 edge to vert\n"); */
 				BLI_addtail(&sf_ctx->filledgebase, ed1);
-				ed1->v2->f = 0;
+				ed1->v2->f = SF_VERT_NEW;
 				ed1->v1->edge_tot--;
 				ed1->v2->edge_tot--;
 			}
@@ -614,7 +617,7 @@ static unsigned int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int fl
 				sc1 = sc + 1;
 
 				for (b = a + 1; b < verts; b++, sc1++) {
-					if (sc1->vert->f == 0) {
+					if (sc1->vert->f == SF_VERT_NEW) {
 						if (sc1->vert->xy[1] <= miny) break;
 						if (testedgeside(v1->xy, v2->xy, sc1->vert->xy)) {
 							if (testedgeside(v2->xy, v3->xy, sc1->vert->xy)) {
@@ -658,7 +661,7 @@ static unsigned int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int fl
 					BLI_remlink(&sf_ctx->filledgebase, ed3);
 					BLI_insertlinkbefore((ListBase *)&(sc->edge_first), ed2, ed3);
 					ed3->v2->f = SF_VERT_AVAILABLE;
-					ed3->f = SF_EDGE_UNKNOWN;
+					ed3->f = SF_EDGE_INTERNAL;
 					ed3->v1->edge_tot++;
 					ed3->v2->edge_tot++;
 				}
@@ -669,14 +672,14 @@ static unsigned int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int fl
 					totface++;
 					BLI_remlink((ListBase *)&(sc->edge_first), ed1);
 					BLI_addtail(&sf_ctx->filledgebase, ed1);
-					ed1->v2->f = 0;
+					ed1->v2->f = SF_VERT_NEW;
 					ed1->v1->edge_tot--;
 					ed1->v2->edge_tot--;
 					/* ed2 can be removed when it's a boundary edge */
-					if ((ed2->f == 0 && twoconnected) || (ed2->f == SF_EDGE_BOUNDARY)) {
+					if (((ed2->f == SF_EDGE_NEW) && twoconnected) /* || (ed2->f == SF_EDGE_BOUNDARY) */) {
 						BLI_remlink((ListBase *)&(sc->edge_first), ed2);
 						BLI_addtail(&sf_ctx->filledgebase, ed2);
-						ed2->v2->f = 0;
+						ed2->v2->f = SF_VERT_NEW;
 						ed2->v1->edge_tot--;
 						ed2->v2->edge_tot--;
 					}
@@ -684,7 +687,7 @@ static unsigned int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int fl
 					/* new edge */
 					ed3 = BLI_scanfill_edge_add(sf_ctx, v1, v3);
 					BLI_remlink(&sf_ctx->filledgebase, ed3);
-					ed3->f = SF_EDGE_UNKNOWN;
+					ed3->f = SF_EDGE_INTERNAL;
 					ed3->v1->edge_tot++;
 					ed3->v2->edge_tot++;
 					
@@ -698,7 +701,7 @@ static unsigned int scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int fl
 
 						for (ed3 = sc1->edge_first; ed3; ed3 = ed3->next) {
 							if ((ed3->v1 == v1 && ed3->v2 == v3) || (ed3->v1 == v3 && ed3->v2 == v1)) {
-								if (twoconnected || ed3->f == SF_EDGE_BOUNDARY) {
+								if (twoconnected /* || (ed3->f == SF_EDGE_BOUNDARY) */) {
 									BLI_remlink((ListBase *)&(sc1->edge_first), ed3);
 									BLI_addtail(&sf_ctx->filledgebase, ed3);
 									ed3->v1->edge_tot--;
@@ -842,7 +845,7 @@ unsigned int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const
 	}
 
 	for (eve = sf_ctx->fillvertbase.first; eve; eve = eve->next) {
-		if (eve->f & SF_VERT_AVAILABLE) {
+		if (eve->f == SF_VERT_AVAILABLE) {
 			break;
 		}
 	}
@@ -889,7 +892,7 @@ unsigned int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const
 		sf_ctx->poly_nr = SF_POLY_UNSET;
 	}
 
-	if (flag & BLI_SCANFILL_CALC_HOLES && (poly == 0)) {
+	if (flag & BLI_SCANFILL_CALC_POLYS && (poly == 0)) {
 		for (eve = sf_ctx->fillvertbase.first; eve; eve = eve->next) {
 			mul_v2_m3v3(eve->xy, mat_2d, eve->co);
 
@@ -1033,7 +1036,7 @@ unsigned int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const
 		pf->edges = pf->verts = 0;
 		pf->min_xy[0] = pf->min_xy[1] =  1.0e20f;
 		pf->max_xy[0] = pf->max_xy[1] = -1.0e20f;
-		pf->f = 0;
+		pf->f = SF_POLY_NEW;
 		pf->nr = a;
 		pf++;
 	}
@@ -1050,7 +1053,9 @@ unsigned int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const
 		min_xy_p[1] = (min_xy_p[1]) < (eve->xy[1]) ? (min_xy_p[1]) : (eve->xy[1]);
 		max_xy_p[0] = (max_xy_p[0]) > (eve->xy[0]) ? (max_xy_p[0]) : (eve->xy[0]);
 		max_xy_p[1] = (max_xy_p[1]) > (eve->xy[1]) ? (max_xy_p[1]) : (eve->xy[1]);
-		if (eve->edge_tot > 2) pflist[eve->poly_nr].f = 1;
+		if (eve->edge_tot > 2) {
+			pflist[eve->poly_nr].f = SF_POLY_VALID;
+		}
 	}
 
 	/* STEP 4: FIND HOLES OR BOUNDS, JOIN THEM
@@ -1058,7 +1063,7 @@ unsigned int BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const
 	 *    the edgefill itself has good auto-hole detection)
 	 * WATCH IT: ONLY WORKS WITH SORTED POLYS!!! */
 	
-	if (poly > 1) {
+	if ((flag & BLI_SCANFILL_CALC_HOLES) && (poly > 1)) {
 		unsigned short *polycache, *pc;
 
 		/* so, sort first */

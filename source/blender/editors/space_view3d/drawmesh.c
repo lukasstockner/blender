@@ -36,7 +36,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_bitmap.h"
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
 
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -651,7 +650,7 @@ static void draw_mesh_text(Scene *scene, Object *ob, int glsl)
 	if (ob->mode & OB_MODE_EDIT)
 		return;
 	else if (ob == OBACT)
-		if (paint_facesel_test(ob) || paint_vertsel_test(ob))
+		if (BKE_paint_select_elem_test(ob))
 			return;
 
 	ddm = mesh_get_derived_deform(scene, ob, CD_MASK_BAREMESH);

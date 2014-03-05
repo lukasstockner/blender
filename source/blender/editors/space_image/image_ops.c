@@ -599,31 +599,19 @@ static int image_view_ndof_invoke(bContext *C, wmOperator *UNUSED(op), const wmE
 	else {
 		SpaceImage *sima = CTX_wm_space_image(C);
 		ARegion *ar = CTX_wm_region(C);
+		float pan_vec[3];
 
-		wmNDOFMotionData *ndof = (wmNDOFMotionData *) event->customdata;
+		const wmNDOFMotionData *ndof = event->customdata;
+		const float speed = NDOF_PIXELS_PER_SECOND;
 
-		float dt = ndof->dt;
-		/* tune these until it feels right */
-		const float zoom_sensitivity = 0.5f; // 50% per second (I think)
-		const float pan_sensitivity = 300.f; // screen pixels per second
+		WM_event_ndof_pan_get(ndof, pan_vec, true);
 
-		float pan_x = pan_sensitivity * dt * ndof->tvec[0] / sima->zoom;
-		float pan_y = pan_sensitivity * dt * ndof->tvec[1] / sima->zoom;
+		mul_v2_fl(pan_vec, (speed * ndof->dt) / sima->zoom);
+		pan_vec[2] *= -ndof->dt;
 
-		/* "mouse zoom" factor = 1 + (dx + dy) / 300
-		 * what about "ndof zoom" factor? should behave like this:
-		 * at rest -> factor = 1
-		 * move forward -> factor > 1
-		 * move backward -> factor < 1
-		 */
-		float zoom_factor = 1.f + zoom_sensitivity * dt * -ndof->tvec[2];
-
-		if (U.ndof_flag & NDOF_ZOOM_INVERT)
-			zoom_factor = -zoom_factor;
-
-		sima_zoom_set_factor(sima, ar, zoom_factor, NULL);
-		sima->xof += pan_x;
-		sima->yof += pan_y;
+		sima_zoom_set_factor(sima, ar, 1.0f + pan_vec[2], NULL);
+		sima->xof += pan_vec[0];
+		sima->yof += pan_vec[1];
 
 		ED_region_tag_redraw(ar);
 
@@ -640,6 +628,7 @@ void IMAGE_OT_view_ndof(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke = image_view_ndof_invoke;
+	ot->poll = space_image_main_area_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_LOCK_BYPASS;
@@ -1037,6 +1026,7 @@ static int image_sequence_get_len(ListBase *frames, int *ofs)
 
 static int image_open_exec(bContext *C, wmOperator *op)
 {
+	Main *bmain = CTX_data_main(C);
 	SpaceImage *sima = CTX_wm_space_image(C); /* XXX other space types can call */
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
@@ -1047,6 +1037,8 @@ static int image_open_exec(bContext *C, wmOperator *op)
 	char path[FILE_MAX];
 	int frame_seq_len = 0;
 	int frame_ofs = 1;
+
+	const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
 
 	if (RNA_struct_property_is_set(op->ptr, "files") && RNA_struct_property_is_set(op->ptr, "directory")) {	
 		ListBase frames;
@@ -1073,6 +1065,12 @@ static int image_open_exec(bContext *C, wmOperator *op)
 
 	if (!op->customdata)
 		image_open_init(C, op);
+
+	/* only image path after save, never ibuf */
+	if (is_relative_path) {
+		const char *relbase = ID_BLEND_PATH(bmain, &ima->id);
+		BLI_path_rel(ima->name, relbase);
+	}
 
 	/* hook into UI */
 	iod = op->customdata;

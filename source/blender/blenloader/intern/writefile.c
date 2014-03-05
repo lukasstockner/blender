@@ -145,7 +145,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
-#include "BLI_utildefines.h"
 #include "BLI_mempool.h"
 
 #include "BKE_action.h"
@@ -445,7 +444,7 @@ static void IDP_WriteIDPArray(IDProperty *prop, void *wd)
 static void IDP_WriteString(IDProperty *prop, void *wd)
 {
 	/*REMEMBER to set totalen to len in the linking code!!*/
-	writedata(wd, DATA, prop->len+1, prop->data.pointer);
+	writedata(wd, DATA, prop->len, prop->data.pointer);
 }
 
 static void IDP_WriteGroup(IDProperty *prop, void *wd)

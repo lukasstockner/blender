@@ -459,6 +459,7 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 	float *f1;
 	int colnr = 0, charidx = 0, cont = 1, tot, a, *index, nextcol = 0;
 	int totvert;
+	const int scanfill_flag = BLI_SCANFILL_CALC_REMOVE_DOUBLES | BLI_SCANFILL_CALC_POLYS | BLI_SCANFILL_CALC_HOLES;
 
 	if (dispbase == NULL)
 		return;
@@ -519,7 +520,7 @@ void BKE_displist_fill(ListBase *dispbase, ListBase *to, const float normal_proj
 
 		/* XXX (obedit && obedit->actcol) ? (obedit->actcol-1) : 0)) { */
 		if (totvert && (tot = BLI_scanfill_calc_ex(&sf_ctx,
-		                                           BLI_SCANFILL_CALC_REMOVE_DOUBLES | BLI_SCANFILL_CALC_HOLES,
+		                                           scanfill_flag,
 		                                           normal_proj)))
 		{
 			if (tot) {
@@ -801,6 +802,8 @@ static void curve_calc_modifiers_pre(Scene *scene, Object *ob, ListBase *nurb,
 	float (*deformedVerts)[3] = NULL;
 	float *keyVerts = NULL;
 	int required_mode;
+
+	modifiers_clearErrors(ob);
 
 	if (editmode)
 		app_flag |= MOD_APPLY_USECACHE;
@@ -1374,8 +1377,14 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 
 		BLI_freelistN(&(ob->curve_cache->bev));
 
-		if (ob->curve_cache->path) free_path(ob->curve_cache->path);
-		ob->curve_cache->path = NULL;
+		/* We only re-evlauate path if evaluation is not happening for orco.
+		 * If the calculation happens for orco, we should never free data which
+		 * was needed before and only not needed for orco calculation.
+		 */
+		if (!forOrco) {
+			if (ob->curve_cache->path) free_path(ob->curve_cache->path);
+			ob->curve_cache->path = NULL;
+		}
 
 		if (ob->type == OB_FONT) {
 			BKE_vfont_to_curve_nubase(G.main, ob, FO_EDIT, &nubase);

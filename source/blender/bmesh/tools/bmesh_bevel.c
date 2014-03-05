@@ -552,6 +552,15 @@ static void slide_dist(EdgeHalf *e, BMVert *v, float d, float slideco[3])
 	madd_v3_v3fl(slideco, dir, -d);
 }
 
+/* Is co not on the edge e? */
+static bool is_outside_edge(EdgeHalf *e, const float co[3])
+{
+	float d_squared;
+
+	d_squared = dist_squared_to_line_segment_v3(co, e->e->v1->co, e->e->v2->co);
+	return d_squared > 10000.0f * BEVEL_EPSILON_SQ;
+}
+
 /*
  * Calculate the meeting point between the offset edges for e1 and e2, putting answer in meetco.
  * e1 and e2 share vertex v and face f (may be NULL) and viewed from the normal side of
@@ -601,10 +610,12 @@ static void offset_meet(EdgeHalf *e1, EdgeHalf *e2, BMVert *v, BMFace *f, float 
 	else {
 		/* Get normal to plane where meet point should be,
 		 * using cross product instead of f->no in case f is non-planar.
-		 * If e1-v-e2 is a reflex angle (viewed from vertex normal side), need to flip*/
+		 * If e1-v-e2 is a reflex angle (viewed from vertex normal side), need to flip.
+		 * Use f->no to figure out which side to look at angle from, as even if
+		 * f is non-planar, will be more accurate than vertex normal */
 		cross_v3_v3v3(norm_v, dir2, dir1);
 		normalize_v3(norm_v);
-		if (dot_v3v3(norm_v, v->no) < 0.0f)
+		if (dot_v3v3(norm_v, f ? f->no : v->no) < 0.0f)
 			negate_v3(norm_v);
 
 		/* get vectors perp to each edge, perp to norm_v, and pointing into face */
@@ -630,6 +641,20 @@ static void offset_meet(EdgeHalf *e1, EdgeHalf *e2, BMVert *v, BMFace *f, float 
 			d = dist_to_line_v3(meetco, v->co, BM_edge_other_vert(e2->e, v)->co);
 			if (fabsf(d - e2->offset_l) > BEVEL_EPSILON)
 				e2->offset_l = d;
+		}
+		else {
+			/* The lines intersect, but is it at a reasonable place?
+			 * One problem to check: if one of the offsets is 0, then don't
+			 * want an intersection that is outside that edge itself.
+			 * This can happen if angle between them is > 180 degrees. */
+			if (e1->offset_r == 0.0f && is_outside_edge(e1, meetco)) {
+				copy_v3_v3(meetco, v->co);
+				e2->offset_l = 0.0f;
+			}
+			if (e2->offset_l == 0.0f && is_outside_edge(e2, meetco)) {
+				copy_v3_v3(meetco, v->co);
+				e1->offset_r = 0.0f;
+			}
 		}
 	}
 }
@@ -1162,7 +1187,7 @@ static void get_profile_point(BevelParams *bp, const Profile *pro, int i, int n,
 	}
 }
 
-/* Calculcate the actual coordinate values for bndv's profile.
+/* Calculate the actual coordinate values for bndv's profile.
  * This is only needed if bp->seg > 1.
  * Allocate the space for them if that hasn't been done already.
  * If bp->seg is not a power of 2, also need to calculate

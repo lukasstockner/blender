@@ -330,7 +330,7 @@ static void ui_imageuser_layer_menu(bContext *UNUSED(C), uiLayout *layout, void 
 	RenderResult *rr = rnd_data[0];
 	ImageUser *iuser = rnd_data[1];
 	RenderLayer *rl;
-	RenderLayer rl_fake = {0};
+	RenderLayer rl_fake = {NULL};
 	const char *fake_name;
 	int nr;
 
@@ -382,7 +382,7 @@ static void ui_imageuser_pass_menu(bContext *UNUSED(C), uiLayout *layout, void *
 	ImageUser *iuser = ptrpair[1];
 	/* rl==NULL means composite result */
 	RenderLayer *rl = ptrpair[2];
-	RenderPass rpass_fake = {0};
+	RenderPass rpass_fake = {NULL};
 	RenderPass *rpass;
 	const char *fake_name;
 	int nr;
@@ -525,6 +525,7 @@ static void uiblock_layer_pass_buttons(uiLayout *layout, RenderResult *rr, Image
 		char str[64];
 		BLI_snprintf(str, sizeof(str), IFACE_("Slot %d"), *render_slot + 1);
 		but = uiDefMenuBut(block, ui_imageuser_slot_menu, render_slot, str, 0, 0, wmenu1, UI_UNIT_Y, TIP_("Select Slot"));
+		uiButSetFunc(but, image_multi_cb, rr, iuser);
 		uiButSetMenuFromPulldown(but);
 	}
 
@@ -947,6 +948,7 @@ void uiTemplateImageLayers(uiLayout *layout, bContext *C, Image *ima, ImageUser 
 void image_buttons_register(ARegionType *art)
 {
 	PanelType *pt;
+	const char *category = "Grease Pencil";
 
 	pt = MEM_callocN(sizeof(PanelType), "spacetype image panel gpencil");
 	strcpy(pt->idname, "IMAGE_PT_gpencil");
@@ -954,6 +956,7 @@ void image_buttons_register(ARegionType *art)
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw_header = gpencil_panel_standard_header;
 	pt->draw = gpencil_panel_standard;
+	BLI_strncpy(pt->category, category, BLI_strlen_utf8(category));
 	BLI_addtail(&art->paneltypes, pt);
 }
 
@@ -984,7 +987,7 @@ void IMAGE_OT_properties(wmOperatorType *ot)
 static int image_scopes_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = image_has_scope_region(sa);
+	ARegion *ar = image_has_tools_region(sa);
 	
 	if (ar)
 		ED_region_toggle_hidden(C, ar);
@@ -992,12 +995,12 @@ static int image_scopes_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
-void IMAGE_OT_scopes(wmOperatorType *ot)
+void IMAGE_OT_toolshelf(wmOperatorType *ot)
 {
-	ot->name = "Scopes";
-	ot->idname = "IMAGE_OT_scopes";
-	ot->description = "Toggle display scopes panel";
-	
+	ot->name = "Tool Shelf";
+	ot->idname = "IMAGE_OT_toolshelf";
+	ot->description = "Toggles tool shelf display";
+
 	ot->exec = image_scopes_toggle_exec;
 	ot->poll = ED_operator_image_active;
 	

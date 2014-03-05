@@ -4133,7 +4133,7 @@ static void surface_determineForceTargetPoints(PaintSurfaceData *sData, int inde
 		closest_d[0] = 1.0f - closest_d[1];
 
 		/* and multiply depending on how deeply force intersects surface */
-		temp = fabs(force_intersect);
+		temp = fabsf(force_intersect);
 		CLAMP(temp, 0.0f, 1.0f);
 		mul_v2_fl(closest_d, acosf(temp) / (float)M_PI_2);
 	}
@@ -4225,7 +4225,7 @@ static int dynamicPaint_prepareEffectStep(DynamicPaintSurface *surface, Scene *s
 	/* Init force data if required */
 	if (surface->effect & MOD_DPAINT_EFFECT_DO_DRIP) {
 		float vel[3] = {0};
-		ListBase *effectors = pdInitEffectors(scene, ob, NULL, surface->effector_weights);
+		ListBase *effectors = pdInitEffectors(scene, ob, NULL, surface->effector_weights, true);
 
 		/* allocate memory for force data (dir vector + strength) */
 		*force = MEM_mallocN(sData->total_points * 4 * sizeof(float), "PaintEffectForces");

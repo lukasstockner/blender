@@ -48,6 +48,12 @@
 #include "UI_interface.h"
 
 
+/* NumInput.flag */
+enum {
+	/* (1 << 8) and below are reserved for public flags! */
+	NUM_EDIT_FULL       = (1 << 9),   /* Enable full editing, with units and math operators support. */
+};
+
 /* NumInput.val_flag[] */
 enum {
 	/* (1 << 8) and below are reserved for public flags! */
@@ -207,6 +213,19 @@ static bool editstr_insert_at_cursor(NumInput *n, const char *buf, const int buf
 	return true;
 }
 
+static bool editstr_is_simple_numinput(const char ascii)
+{
+	if (ascii >= '0' && ascii <= '9') {
+		return true;
+	}
+	else if (ascii == '.') {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
 bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
 {
 	const char *utf8_buf = NULL;
@@ -319,9 +338,17 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
 			ascii[0] = '.';
 			utf8_buf = ascii;
 			break;
+		case EQUALKEY:
+			/* XXX Advanced mode toggle, hack around keyboards without direct access to '=' nor '*'... */
+			ascii[0] = '=';
+			break;
+		case PADASTERKEY:
+			/* XXX Advanced mode toggle, hack around keyboards without direct access to '=' nor '*'... */
+			ascii[0] = '*';
+			break;
 		case PADMINUS:
 		case MINUSKEY:
-			if (event->ctrl) {
+			if (event->ctrl || !(n->flag & NUM_EDIT_FULL)) {
 				n->val_flag[idx] ^= NUM_NEGATE;
 				updated = true;
 				break;
@@ -329,7 +356,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
 			/* fall-through */
 		case PADSLASHKEY:
 		case SLASHKEY:
-			if (event->ctrl) {
+			if (event->ctrl || !(n->flag & NUM_EDIT_FULL)) {
 				n->val_flag[idx] ^= NUM_INVERSE;
 				updated = true;
 				break;
@@ -371,12 +398,33 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
 			break;
 	}
 
+	/* XXX Hack around keyboards without direct access to '=' nor '*'... */
+	if (ELEM(ascii[0], '=', '*')) {
+		if (!(n->flag & NUM_EDIT_FULL)) {
+			n->flag |= NUM_EDIT_FULL;
+			n->val_flag[idx] |= NUM_EDITED;
+			return true;
+		}
+		else if (event->ctrl) {
+			n->flag &= ~NUM_EDIT_FULL;
+			return true;
+		}
+	}
+
 	if (utf8_buf && !utf8_buf[0] && ascii[0]) {
 		/* Fallback to ascii. */
 		utf8_buf = ascii;
 	}
 
 	if (utf8_buf && utf8_buf[0]) {
+		if (!(n->flag & NUM_EDIT_FULL)) {
+			/* In simple edit mode, we only keep a few chars as valid! */
+			/* no need to decode unicode, ascii is first char only */
+			if (!editstr_is_simple_numinput(utf8_buf[0])) {
+				return false;
+			}
+		}
+
 		if (!editstr_insert_at_cursor(n, utf8_buf, BLI_str_utf8_size(utf8_buf))) {
 			return false;
 		}

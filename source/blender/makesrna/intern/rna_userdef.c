@@ -3893,12 +3893,12 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "screencast_fps", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "scrcastfps");
-	RNA_def_property_range(prop, 10, 50);
+	RNA_def_property_range(prop, 10, 100);
 	RNA_def_property_ui_text(prop, "FPS", "Frame rate for the screencast to be played back");
 
 	prop = RNA_def_property(srna, "screencast_wait_time", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "scrcastwait");
-	RNA_def_property_range(prop, 50, 1000);
+	RNA_def_property_range(prop, 10, 1000);
 	RNA_def_property_ui_text(prop, "Wait Timer (ms)",
 	                         "Time in milliseconds between each frame recorded for screencast");
 
@@ -3947,10 +3947,16 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 		{0, "RIGHT", 0, "Right", "Use Right Mouse Button for selection"},
 		{0, NULL, 0, NULL, NULL}
 	};
-		
+
 	static EnumPropertyItem view_rotation_items[] = {
 		{0, "TURNTABLE", 0, "Turntable", "Use turntable style rotation in the viewport"},
 		{USER_TRACKBALL, "TRACKBALL", 0, "Trackball", "Use trackball style rotation in the viewport"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem ndof_view_navigation_items[] = {
+		{0, "FREE", 0, "Free", "Use full 6 degrees of freedom by default"},
+		{NDOF_MODE_ORBIT, "ORBIT", 0, "Orbit", "Orbit about the view center by default"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -3959,7 +3965,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 		{0, "TRACKBALL", 0, "Trackball", "Use trackball style rotation in the viewport"},
 		{0, NULL, 0, NULL, NULL}
 	};
-		
+
 	static EnumPropertyItem view_zoom_styles[] = {
 		{USER_ZOOM_CONT, "CONTINUE", 0, "Continue", "Old style zoom, continues while moving mouse up or down"},
 		{USER_ZOOM_DOLLY, "DOLLY", 0, "Dolly", "Zoom in and out based on vertical mouse movement"},
@@ -4046,10 +4052,10 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.25f, 40.0f);
 	RNA_def_property_ui_text(prop, "Orbit Sensitivity", "Overall sensitivity of the 3D Mouse for orbiting");
 
-	prop = RNA_def_property(srna, "ndof_zoom_updown", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_ZOOM_UPDOWN);
-	RNA_def_property_ui_text(prop, "Zoom = Up/Down",
-	                         "Zoom using up/down on the device (otherwise forward/backward)");
+	prop = RNA_def_property(srna, "ndof_pan_yz_swap_axis", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_PAN_YZ_SWAP_AXIS);
+	RNA_def_property_ui_text(prop, "Y/Z Swap Axis",
+	                         "Pan using up/down on the device (otherwise forward/backward)");
 
 	prop = RNA_def_property(srna, "ndof_zoom_invert", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_ZOOM_INVERT);
@@ -4062,40 +4068,45 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	/* TODO: update description when fly-mode visuals are in place  ("projected position in fly mode")*/
 	
 	/* 3D view */
+	prop = RNA_def_property(srna, "ndof_view_navigate_method", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "ndof_flag");
+	RNA_def_property_enum_items(prop, ndof_view_navigation_items);
+	RNA_def_property_ui_text(prop, "NDOF View Navigate", "Navigation style in the viewport");
+
 	prop = RNA_def_property(srna, "ndof_view_rotate_method", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "ndof_flag");
 	RNA_def_property_enum_items(prop, ndof_view_rotation_items);
 	RNA_def_property_ui_text(prop, "NDOF View Rotation", "Rotation style in the viewport");
 
+	/* 3D view: yaw */
+	prop = RNA_def_property(srna, "ndof_rotx_invert_axis", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_ROTX_INVERT_AXIS);
+	RNA_def_property_ui_text(prop, "Invert Pitch (X) Axis", "");
+
+	/* 3D view: pitch */
+	prop = RNA_def_property(srna, "ndof_roty_invert_axis", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_ROTY_INVERT_AXIS);
+	RNA_def_property_ui_text(prop, "Invert Yaw (Y) Axis", "");
+
 	/* 3D view: roll */
-	prop = RNA_def_property(srna, "ndof_roll_invert_axis", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_ROLL_INVERT_AXIS);
-	RNA_def_property_ui_text(prop, "Invert roll Axis", "Invert roll axis");
-
-	/* 3D view: tilt */
-	prop = RNA_def_property(srna, "ndof_tilt_invert_axis", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_TILT_INVERT_AXIS);
-	RNA_def_property_ui_text(prop, "Invert tilt Axis", "Invert tilt axis");
-
-	/* 3D view: rotate */
-	prop = RNA_def_property(srna, "ndof_rotate_invert_axis", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_ROTATE_INVERT_AXIS);
-	RNA_def_property_ui_text(prop, "Invert rotation Axis", "Invert rotation axis");
+	prop = RNA_def_property(srna, "ndof_rotz_invert_axis", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_ROTZ_INVERT_AXIS);
+	RNA_def_property_ui_text(prop, "Invert Roll (Z) Axis", "");
 
 	/* 3D view: pan x */
 	prop = RNA_def_property(srna, "ndof_panx_invert_axis", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_PANX_INVERT_AXIS);
-	RNA_def_property_ui_text(prop, "Invert x Axis", "Invert x axis");
+	RNA_def_property_ui_text(prop, "Invert X Axis", "");
 
 	/* 3D view: pan y */
 	prop = RNA_def_property(srna, "ndof_pany_invert_axis", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_PANY_INVERT_AXIS);
-	RNA_def_property_ui_text(prop, "Invert y Axis", "Invert y axis");
+	RNA_def_property_ui_text(prop, "Invert Y Axis", "");
 
 	/* 3D view: pan z */
 	prop = RNA_def_property(srna, "ndof_panz_invert_axis", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "ndof_flag", NDOF_PANZ_INVERT_AXIS);
-	RNA_def_property_ui_text(prop, "Invert z Axis", "Invert z axis");
+	RNA_def_property_ui_text(prop, "Invert Z Axis", "");
 
 	/* 3D view: fly */
 	prop = RNA_def_property(srna, "ndof_lock_horizon", PROP_BOOLEAN, PROP_NONE);

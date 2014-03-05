@@ -90,7 +90,7 @@ typedef struct Brush {
 
 	float plane_offset;     /* offset for plane brushes (clay, flatten, fill, scrape) */
 
-	float gravity_factor;     /* gravity factor for sculpting */
+	float pad;
 	int gradient_spacing;
 	int gradient_stroke_mode; /* source for stroke color gradient application */
 	int gradient_fill_mode;   /* source for fill tool color gradient application */

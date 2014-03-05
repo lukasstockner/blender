@@ -21,6 +21,7 @@
 import bpy
 from bpy.types import Panel, Header, Menu, UIList
 from bpy.app.translations import pgettext_iface as iface_
+from bl_ui.properties_grease_pencil_common import GreasePencilPanel
 
 
 class CLIP_UL_tracking_objects(UIList):
@@ -124,17 +125,18 @@ class CLIP_HT_header(Header):
 
         layout.prop(sc, "mode", text="")
 
-        row = layout.row()
-        row.template_ID(sc, "mask", new="mask.new")
+        if clip:
+            row = layout.row()
+            row.template_ID(sc, "mask", new="mask.new")
 
-        layout.prop(sc, "pivot_point", text="", icon_only=True)
+            layout.prop(sc, "pivot_point", text="", icon_only=True)
 
-        row = layout.row(align=True)
-        row.prop(toolsettings, "use_proportional_edit_mask",
-                 text="", icon_only=True)
-        if toolsettings.use_proportional_edit_mask:
-            row.prop(toolsettings, "proportional_edit_falloff",
+            row = layout.row(align=True)
+            row.prop(toolsettings, "use_proportional_edit_mask",
                      text="", icon_only=True)
+            if toolsettings.use_proportional_edit_mask:
+                row.prop(toolsettings, "proportional_edit_falloff",
+                         text="", icon_only=True)
 
     def draw(self, context):
         layout = self.layout
@@ -333,6 +335,9 @@ class CLIP_PT_tracking_settings(CLIP_PT_tracking_panel, Panel):
             sub.prop(settings, "default_correlation_min")
             sub.prop(settings, "default_frames_limit")
             sub.prop(settings, "default_margin")
+
+            col = box.column()
+            col.prop(settings, "default_weight")
 
 
 class CLIP_PT_tools_tracking(CLIP_PT_tracking_panel, Panel):
@@ -1039,27 +1044,10 @@ class CLIP_PT_tools_mask(MASK_PT_tools, Panel):
 # --- end mask ---
 
 
-class CLIP_PT_tools_grease_pencil(Panel):
+class CLIP_PT_tools_grease_pencil(GreasePencilPanel, Panel):
     bl_space_type = 'CLIP_EDITOR'
     bl_region_type = 'TOOLS'
-    bl_label = "Grease Pencil"
     bl_category = "Grease Pencil"
-
-    def draw(self, context):
-        layout = self.layout
-
-        col = layout.column(align=True)
-
-        row = col.row(align=True)
-        row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
-        row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
-
-        row = col.row(align=True)
-        row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
-        row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
-
-        row = col.row(align=True)
-        row.prop(context.tool_settings, "use_grease_pencil_sessions")
 
 
 class CLIP_PT_footage(CLIP_PT_clip_view_panel, Panel):

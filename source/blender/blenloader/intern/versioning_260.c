@@ -2499,7 +2499,7 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 						}
 						else {
 							tmd->quad_method = MOD_TRIANGULATE_QUAD_FIXED;
-							tmd->ngon_method = MOD_TRIANGULATE_NGON_SCANFILL;
+							tmd->ngon_method = MOD_TRIANGULATE_NGON_EARCLIP;
 						}
 					}
 				}
@@ -2672,46 +2672,33 @@ void blo_do_versions_260(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
-	if (!DNA_struct_elem_find(fd->filesdna, "BevelModifierData", "float", "profile")) {
-		Object *ob;
+	if (!MAIN_VERSION_ATLEAST(main, 269, 11)) {
+		bScreen *sc;
 
-		for (ob = main->object.first; ob; ob = ob->id.next) {
-			ModifierData *md;
-			for (md = ob->modifiers.first; md; md = md->next) {
-				if (md->type == eModifierType_Bevel) {
-					BevelModifierData *bmd = (BevelModifierData *)md;
-					bmd->profile = 0.5f;
-					bmd->val_flags = MOD_BEVEL_AMT_OFFSET;
-				}
-			}
-		}
-	}
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *space_link;
 
-	{
-		/* nodes don't use fixed node->id any more, clean up */
-		FOREACH_NODETREE(main, ntree, id) {
-			if (ntree->type == NTREE_COMPOSIT) {
-				bNode *node;
-				for (node = ntree->nodes.first; node; node = node->next) {
-					if (ELEM(node->type, CMP_NODE_COMPOSITE, CMP_NODE_OUTPUT_FILE)) {
-						node->id = NULL;
-					}
-				}
-			}
-		} FOREACH_NODETREE_END
+				for (space_link = sa->spacedata.first; space_link; space_link = space_link->next) {
+					if (space_link->spacetype == SPACE_IMAGE) {
+						ARegion *ar;
+						ListBase *lb;
 
-		{
-			bScreen *screen;
+						if (space_link == sa->spacedata.first) {
+							lb = &sa->regionbase;
+						}
+						else {
+							lb = &space_link->regionbase;
+						}
 
-			for (screen = main->screen.first; screen; screen = screen->id.next) {
-				ScrArea *area;
-				for (area = screen->areabase.first; area; area = area->next) {
-					SpaceLink *space_link;
-					for (space_link = area->spacedata.first; space_link; space_link = space_link->next) {
-						if (space_link->spacetype == SPACE_CLIP) {
-							SpaceClip *space_clip = (SpaceClip *) space_link;
-							if (space_clip->mode != SC_MODE_MASKEDIT) {
-								space_clip->mode = SC_MODE_TRACKING;
+						for (ar = lb->first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_PREVIEW) {
+								ar->regiontype = RGN_TYPE_TOOLS;
+								ar->alignment = RGN_ALIGN_LEFT;
+							}
+							else if (ar->regiontype == RGN_TYPE_UI) {
+								ar->alignment = RGN_ALIGN_RIGHT;
 							}
 						}
 					}

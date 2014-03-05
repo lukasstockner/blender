@@ -546,7 +546,7 @@ void WM_event_print(const wmEvent *event)
 		       event->keymap_idname, (void *)event);
 
 		if (ISNDOF(event->type)) {
-			const wmNDOFMotionData *ndof = (wmNDOFMotionData *) event->customdata;
+			const wmNDOFMotionData *ndof = event->customdata;
 			if (event->type == NDOF_MOTION) {
 				printf("   ndof: rot: (%.4f %.4f %.4f),\n"
 				       "          tx: (%.4f %.4f %.4f),\n"
@@ -1650,19 +1650,14 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 	return WM_HANDLER_BREAK;
 }
 
-/* fileselect handlers are only in the window queue, so it's save to switch screens or area types */
-static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHandler *handler, wmEvent *event)
+/* fileselect handlers are only in the window queue, so it's safe to switch screens or area types */
+static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHandler *handler, int val)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile;
 	int action = WM_HANDLER_CONTINUE;
-	
-	if (event->type != EVT_FILESELECT)
-		return action;
-	if (handler->op != (wmOperator *)event->customdata)
-		return action;
-	
-	switch (event->val) {
+
+	switch (val) {
 		case EVT_FILESELECT_OPEN: 
 		case EVT_FILESELECT_FULL_OPEN: 
 		{
@@ -1678,7 +1673,7 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 				sa = handler->op_area;
 			}
 					
-			if (event->val == EVT_FILESELECT_OPEN) {
+			if (val == EVT_FILESELECT_OPEN) {
 				ED_area_newspace(C, sa, SPACE_FILE);     /* 'sa' is modified in-place */
 			}
 			else {
@@ -1709,7 +1704,7 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 			/* remlink now, for load file case before removing*/
 			BLI_remlink(handlers, handler);
 				
-			if (event->val != EVT_FILESELECT_EXTERNAL_CANCEL) {
+			if (val != EVT_FILESELECT_EXTERNAL_CANCEL) {
 				if (screen != handler->filescreen) {
 					ED_screen_full_prevspace(C, CTX_wm_area(C));
 				}
@@ -1722,7 +1717,7 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 
 			/* needed for uiPupMenuReports */
 
-			if (event->val == EVT_FILESELECT_EXEC) {
+			if (val == EVT_FILESELECT_EXEC) {
 				int retval;
 
 				if (handler->op->type->flag & OPTYPE_UNDO)
@@ -1797,6 +1792,18 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 	}
 	
 	return action;
+}
+
+static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHandler *handler, wmEvent *event)
+{
+	int action = WM_HANDLER_CONTINUE;
+	
+	if (event->type != EVT_FILESELECT)
+		return action;
+	if (handler->op != (wmOperator *)event->customdata)
+		return action;
+	
+	return wm_handler_fileselect_do(C, handlers, handler, event->val);
 }
 
 static bool handler_boundbox_test(wmEventHandler *handler, wmEvent *event)
@@ -2423,10 +2430,25 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
 		handlernext = handler->next;
 		
 		if (handler->type == WM_HANDLER_FILESELECT) {
-			if (handler->op)
-				WM_operator_free(handler->op);
-			BLI_remlink(&win->modalhandlers, handler);
-			wm_event_free_handler(handler);
+			bScreen *screen = CTX_wm_screen(C);
+			ScrArea *sa;
+
+			/* find the area with the file selector for this handler */
+			for (sa = screen->areabase.first; sa; sa = sa->next) {
+				if (sa->spacetype == SPACE_FILE) {
+					SpaceFile *sfile = sa->spacedata.first;
+
+					if (sfile->op == handler->op) {
+						CTX_wm_area_set(C, sa);
+						wm_handler_fileselect_do(C, &win->modalhandlers, handler, EVT_FILESELECT_CANCEL);
+						break;
+					}
+				}
+			}
+
+			/* if not found we stop the handler without changing the screen */
+			if (!sa)
+				wm_handler_fileselect_do(C, &win->modalhandlers, handler, EVT_FILESELECT_EXTERNAL_CANCEL);
 		}
 	}
 	
@@ -2869,33 +2891,17 @@ static void attach_ndof_data(wmEvent *event, const GHOST_TEventNDOFMotionData *g
 {
 	wmNDOFMotionData *data = MEM_mallocN(sizeof(wmNDOFMotionData), "customdata NDOF");
 
-	const float s = U.ndof_sensitivity;
+	const float ts = U.ndof_sensitivity;
 	const float rs = U.ndof_orbit_sensitivity;
 
-	data->tx = s * ghost->tx;
+	mul_v3_v3fl(data->tvec, &ghost->tx, ts);
+	mul_v3_v3fl(data->rvec, &ghost->rx, rs);
 
-	data->rx = rs * ghost->rx;
-	data->ry = rs * ghost->ry;
-	data->rz = rs * ghost->rz;
-
-	if (U.ndof_flag & NDOF_ZOOM_UPDOWN) {
-		/* rotate so Y is where Z was */
-		data->ty = s * ghost->tz;
-		data->tz = s * ghost->ty;
-		/* maintain handed-ness? or just do what feels right? */
-
-		/* should this affect rotation also?
-		 * initial guess is 'yes', but get user feedback immediately!
-		 */
-#if 0
-		/* after turning this on, my guess becomes 'no' */
-		data->ry = s * ghost->rz;
-		data->rz = s * ghost->ry;
-#endif
-	}
-	else {
-		data->ty = s * ghost->ty;
-		data->tz = s * ghost->tz;
+	if (U.ndof_flag & NDOF_PAN_YZ_SWAP_AXIS) {
+		float t;
+		t =  data->tvec[1];
+		data->tvec[1] = -data->tvec[2];
+		data->tvec[2] = t;
 	}
 
 	data->dt = ghost->dt;
@@ -3349,3 +3355,49 @@ void WM_set_locked_interface(wmWindowManager *wm, bool lock)
 	 */
 	BKE_spacedata_draw_locks(lock);
 }
+
+
+/* -------------------------------------------------------------------- */
+/* NDOF */
+
+/** \name NDOF Utility Functions
+ * \{ */
+
+
+void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], const bool use_zoom)
+{
+	int z_flag = use_zoom ? NDOF_ZOOM_INVERT : NDOF_PANZ_INVERT_AXIS;
+	r_pan[0] = ndof->tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -1.0f : 1.0f);
+	r_pan[1] = ndof->tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -1.0f : 1.0f);
+	r_pan[2] = ndof->tvec[2] * ((U.ndof_flag & z_flag)                ? -1.0f : 1.0f);
+}
+
+void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3])
+{
+	r_rot[0] = ndof->rvec[0] * ((U.ndof_flag & NDOF_ROTX_INVERT_AXIS) ? -1.0f : 1.0f);
+	r_rot[1] = ndof->rvec[1] * ((U.ndof_flag & NDOF_ROTY_INVERT_AXIS) ? -1.0f : 1.0f);
+	r_rot[2] = ndof->rvec[2] * ((U.ndof_flag & NDOF_ROTZ_INVERT_AXIS) ? -1.0f : 1.0f);
+}
+
+float WM_event_ndof_to_axis_angle(const struct wmNDOFMotionData *ndof, float axis[3])
+{
+	float angle;
+	angle = normalize_v3_v3(axis, ndof->rvec);
+
+	axis[0] = axis[0] * ((U.ndof_flag & NDOF_ROTX_INVERT_AXIS) ? -1.0f : 1.0f);
+	axis[1] = axis[1] * ((U.ndof_flag & NDOF_ROTY_INVERT_AXIS) ? -1.0f : 1.0f);
+	axis[2] = axis[2] * ((U.ndof_flag & NDOF_ROTZ_INVERT_AXIS) ? -1.0f : 1.0f);
+
+	return ndof->dt * angle;
+}
+
+void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
+{
+	float axis[3];
+	float angle;
+
+	angle = WM_event_ndof_to_axis_angle(ndof, axis);
+	axis_angle_to_quat(q, axis, angle);
+}
+
+/** \} */

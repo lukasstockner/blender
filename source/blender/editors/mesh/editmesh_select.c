@@ -271,7 +271,7 @@ bool EDBM_backbuf_border_mask_init(ViewContext *vc, const int mcords[][2], short
 	
 	/* method in use for face selecting too */
 	if (vc->obedit == NULL) {
-		if (!(paint_facesel_test(vc->obact) || paint_vertsel_test(vc->obact))) {
+		if (!BKE_paint_select_elem_test(vc->obact)) {
 			return false;
 		}
 	}
@@ -320,7 +320,7 @@ bool EDBM_backbuf_circle_init(ViewContext *vc, short xs, short ys, short rads)
 	
 	/* method in use for face selecting too */
 	if (vc->obedit == NULL) {
-		if (!(paint_facesel_test(vc->obact) || paint_vertsel_test(vc->obact))) {
+		if (!BKE_paint_select_elem_test(vc->obact)) {
 			return false;
 		}
 	}
@@ -2733,7 +2733,8 @@ static int edbm_select_random_exec(bContext *C, wmOperator *op)
 	}
 
 	if (select) {
-		EDBM_select_flush(em);
+		/* was EDBM_select_flush, but it over select in edge/face mode */
+		EDBM_selectmode_flush(em);
 	}
 	else {
 		EDBM_deselect_flush(em);

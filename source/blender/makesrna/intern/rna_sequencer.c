@@ -76,6 +76,8 @@ EnumPropertyItem sequence_modifier_type_items[] = {
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "IMB_imbuf.h"
+
 typedef struct SequenceSearchData {
 	Sequence *seq;
 	void *data;
@@ -601,6 +603,10 @@ static void rna_Sequence_proxy_filepath_set(PointerRNA *ptr, const char *value)
 {
 	StripProxy *proxy = (StripProxy *)(ptr->data);
 	BLI_split_dirfile(value, proxy->dir, proxy->file, sizeof(proxy->dir), sizeof(proxy->file));
+	if (proxy->anim) {
+		IMB_free_anim(proxy->anim);
+		proxy->anim = NULL;
+	}
 }
 
 static void rna_Sequence_proxy_filepath_get(PointerRNA *ptr, char *value)
@@ -994,9 +1000,6 @@ static int rna_SequenceModifier_otherSequence_poll(PointerRNA *ptr, PointerRNA v
 	Sequence *cur = (Sequence *) value.data;
 
 	if (seq == cur)
-		return FALSE;
-
-	if (BKE_sequence_check_depend(seq, cur))
 		return FALSE;
 
 	return TRUE;
@@ -2127,13 +2130,13 @@ static void rna_def_transform(StructRNA *srna)
 	prop = RNA_def_property(srna, "translate_start_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "xIni");
 	RNA_def_property_ui_text(prop, "Translate X", "");
-	RNA_def_property_ui_range(prop, -500.0f, 500.0f, 3, 6);
+	RNA_def_property_ui_range(prop, -4000.0f, 4000.0f, 3, 6);
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 	
 	prop = RNA_def_property(srna, "translate_start_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "yIni");
 	RNA_def_property_ui_text(prop, "Translate Y", "");
-	RNA_def_property_ui_range(prop, -500.0f, 500.0f, 3, 6);
+	RNA_def_property_ui_range(prop, -4000.0f, 4000.0f, 3, 6);
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 	
 	prop = RNA_def_property(srna, "rotation_start", PROP_FLOAT, PROP_NONE);
