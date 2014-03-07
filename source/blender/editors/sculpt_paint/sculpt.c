@@ -305,6 +305,7 @@ typedef struct StrokeCache {
 	float gravity_direction[3];
 
 	rcti previous_r; /* previous redraw rectangle */
+	rcti current_r; /* current redraw rectangle */
 } StrokeCache;
 
 /************** Access to original unmodified vertex data *************/
@@ -541,12 +542,18 @@ void sculpt_get_redraw_planes(float planes[4][4], ARegion *ar,
                               RegionView3D *rv3d, Object *ob)
 {
 	PBVH *pbvh = ob->sculpt->pbvh;
-	rcti rect;
+	/* copy here, original will be used below */
+	rcti rect = ob->sculpt->cache->current_r;
 
-	sculpt_get_redraw_rect(ar, rv3d, ob, &rect);
 	sculpt_extend_redraw_rect_previous(ob, &rect);
 
 	paint_calc_redraw_planes(planes, ar, rv3d, ob, &rect);
+
+	/* we will draw this rect, so now we can set it as the previous partial rect.
+	 * Note that we don't update with the union of previous/current (rect), only with
+	 * the current. Thus we avoid the rectangle needlessly growing to include
+	 * all the stroke area */
+	ob->sculpt->cache->previous_r = ob->sculpt->cache->current_r;
 
 	/* clear redraw flag from nodes */
 	if (pbvh)
@@ -3873,8 +3880,8 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	mul_m3_v3(mat, viewDir);
 	normalize_v3_v3(cache->true_view_normal, viewDir);
 
-	cache->supports_gravity = !ELEM3(brush->sculpt_tool, SCULPT_TOOL_MASK, SCULPT_TOOL_SMOOTH, SCULPT_TOOL_SIMPLIFY)
-							  && sd->gravity_factor > 0.0f;
+	cache->supports_gravity = (!ELEM3(brush->sculpt_tool, SCULPT_TOOL_MASK, SCULPT_TOOL_SMOOTH, SCULPT_TOOL_SIMPLIFY) &&
+	                           (sd->gravity_factor > 0.0f));
 	/* get gravity vector in world space */
 	if (cache->supports_gravity) {
 		if (sd->gravity_object) {
@@ -4364,15 +4371,18 @@ static void sculpt_flush_update(bContext *C)
 		sculpt_update_object_bounding_box(ob);
 
 		if (sculpt_get_redraw_rect(ar, CTX_wm_region_view3d(C), ob, &r)) {
-			if (ss->cache)
-				ss->cache->previous_r = r;
+			if (ss->cache) {
+				ss->cache->current_r = r;
+			}
 
+			/* previous is not set in the current cache else
+			 * the partial rect will always grow */
 			sculpt_extend_redraw_rect_previous(ob, &r);
 
-			r.xmin += ar->winrct.xmin + 1;
-			r.xmax += ar->winrct.xmin - 1;
-			r.ymin += ar->winrct.ymin + 1;
-			r.ymax += ar->winrct.ymin - 1;
+			r.xmin += ar->winrct.xmin - 2;
+			r.xmax += ar->winrct.xmin + 2;
+			r.ymin += ar->winrct.ymin - 2;
+			r.ymax += ar->winrct.ymin + 2;
 
 			ss->partial_redraw = 1;
 			ED_region_tag_redraw_partial(ar, &r);
@@ -4426,10 +4436,15 @@ static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *UNUSED(st
 	sculpt_update_cache_variants(C, sd, ob, itemptr);
 	sculpt_restore_mesh(sd, ob);
 
-	BKE_pbvh_bmesh_detail_size_set(ss->pbvh,
-	                               (ss->cache->radius /
-	                                (float)ups->pixel_radius) *
-	                               (float)sd->detail_size);
+	if (sd->flags & SCULPT_DYNTOPO_DETAIL_CONSTANT) {
+		BKE_pbvh_bmesh_detail_size_set(ss->pbvh, (float)sd->detail_size / 100.0f);
+	}
+	else {
+		BKE_pbvh_bmesh_detail_size_set(ss->pbvh,
+		                               (ss->cache->radius /
+		                                (float)ups->pixel_radius) *
+		                               (float)sd->detail_size);
+	}
 
 	if (sculpt_stroke_dynamic_topology(ss, brush)) {
 		do_symmetrical_brush_actions(sd, ob, sculpt_topology_update, ups);
