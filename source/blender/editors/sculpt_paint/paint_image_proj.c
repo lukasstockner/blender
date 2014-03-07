@@ -4344,33 +4344,14 @@ void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], co
 	}
 
 	/* handle gradient and inverted stroke color here */
-	if (ELEM(ps->tool, PAINT_TOOL_DRAW, PAINT_TOOL_FILL)) {
-		if (ps->mode == BRUSH_STROKE_INVERT)
-			copy_v3_v3(ps->paint_color, brush->secondary_rgb);
-		else {
-			if (brush->flag & BRUSH_USE_GRADIENT) {
-				switch (brush->gradient_stroke_mode) {
-					case BRUSH_GRADIENT_PRESSURE:
-						do_colorband(brush->gradient, pressure, ps->paint_color);
-						break;
-					case BRUSH_GRADIENT_SPACING_REPEAT:
-					{
-						float coord = fmod(distance / brush->gradient_spacing, 1.0);
-						do_colorband(brush->gradient, coord, ps->paint_color);
-						break;
-					}
-					case BRUSH_GRADIENT_SPACING_CLAMP:
-					{
-						do_colorband(brush->gradient, distance / brush->gradient_spacing, ps->paint_color);
-						break;
-					}
-				}
-			}
-			else
-				copy_v3_v3(ps->paint_color, brush->rgb);
-
-			srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
-		}
+	if (ps->tool == PAINT_TOOL_DRAW) {
+		paint_brush_color_get(brush, false, ps->mode == BRUSH_STROKE_INVERT, distance, pressure,  ps->paint_color);
+		srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
+	}
+	else if (ps->tool == PAINT_TOOL_FILL)
+	{
+		copy_v3_v3(ps->paint_color, brush->rgb);
+		srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
 	}
 
 	/* continue adding to existing partial redraw rects until redraw */

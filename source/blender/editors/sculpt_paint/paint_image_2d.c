@@ -296,32 +296,7 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 
 	/* get brush color */
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
-		if (painter->cache.invert)
-			copy_v3_v3(brush_rgb, brush->secondary_rgb);
-		else {
-			if (brush->flag & BRUSH_USE_GRADIENT) {
-				switch (brush->gradient_stroke_mode) {
-					case BRUSH_GRADIENT_PRESSURE:
-						do_colorband(brush->gradient, pressure, brush_rgb);
-						break;
-					case BRUSH_GRADIENT_SPACING_REPEAT:
-					{
-						float coord = fmod(distance / brush->gradient_spacing, 1.0);
-						do_colorband(brush->gradient, coord, brush_rgb);
-						break;
-					}
-					case BRUSH_GRADIENT_SPACING_CLAMP:
-					{
-						do_colorband(brush->gradient, distance / brush->gradient_spacing, brush_rgb);
-						break;
-					}
-				}
-			}
-			else
-				copy_v3_v3(brush_rgb, brush->rgb);
-		}
-		if (use_color_correction)
-			srgb_to_linearrgb_v3_v3(brush_rgb, brush_rgb);
+		paint_brush_color_get(brush, use_color_correction, painter->cache.invert, distance, pressure, brush_rgb);
 	}
 	else {
 		brush_rgb[0] = 1.0f;
