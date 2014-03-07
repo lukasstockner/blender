@@ -77,7 +77,6 @@
 typedef struct BrushPainterCache {
 	bool use_float;              /* need float imbuf? */
 	bool use_color_correction;   /* use color correction for float */
-	bool use_masking;            /* use masking? */
 	bool invert;
 
 	bool is_texbrush;
@@ -93,7 +92,7 @@ typedef struct BrushPainterCache {
 	ImBuf *ibuf;
 	ImBuf *texibuf;
 	unsigned short *curve_mask;
-	unsigned short *max_mask;
+	unsigned short *tex_mask;
 } BrushPainterCache;
 
 typedef struct BrushPainter {
@@ -162,17 +161,17 @@ static BrushPainter *brush_painter_2d_new(Scene *scene, Brush *brush, bool inver
 }
 
 
-static void brush_painter_2d_require_imbuf(BrushPainter *painter, bool use_float, bool use_color_correction, bool use_masking)
+static void brush_painter_2d_require_imbuf(BrushPainter *painter, bool use_float, bool use_color_correction)
 {
 	Brush *brush = painter->brush;
 
 	if ((painter->cache.use_float != use_float)) {
 		if (painter->cache.ibuf) IMB_freeImBuf(painter->cache.ibuf);
 		if (painter->cache.curve_mask) MEM_freeN(painter->cache.curve_mask);
-		if (painter->cache.max_mask) MEM_freeN(painter->cache.max_mask);
+		if (painter->cache.tex_mask) MEM_freeN(painter->cache.tex_mask);
 		painter->cache.ibuf = NULL;
 		painter->cache.curve_mask = NULL;
-		painter->cache.max_mask = NULL;
+		painter->cache.tex_mask = NULL;
 		painter->cache.lastdiameter = -1; /* force ibuf create in refresh */
 	}
 
@@ -184,7 +183,6 @@ static void brush_painter_2d_require_imbuf(BrushPainter *painter, bool use_float
 
 	painter->cache.use_float = use_float;
 	painter->cache.use_color_correction = use_float && use_color_correction;
-	painter->cache.use_masking = use_masking;
 	painter->cache.is_texbrush = (brush->mtex.tex && brush->imagepaint_tool == PAINT_TOOL_DRAW) ? true : false;
 	painter->cache.is_maskbrush = (brush->mask_mtex.tex) ? true : false;
 }
@@ -194,7 +192,7 @@ static void brush_painter_2d_free(BrushPainter *painter)
 	if (painter->cache.ibuf) IMB_freeImBuf(painter->cache.ibuf);
 	if (painter->cache.texibuf) IMB_freeImBuf(painter->cache.texibuf);
 	if (painter->cache.curve_mask) MEM_freeN(painter->cache.curve_mask);
-	if (painter->cache.max_mask) MEM_freeN(painter->cache.max_mask);
+	if (painter->cache.tex_mask) MEM_freeN(painter->cache.tex_mask);
 	MEM_freeN(painter);
 }
 
@@ -205,17 +203,13 @@ static void brush_imbuf_tex_co(rctf *mapping, int x, int y, float texco[3])
 	texco[2] = 0.0f;
 }
 
-/* create a mask with the falloff strength and optionally brush alpha */
-static unsigned short *brush_painter_max_mask_new(BrushPainter *painter, int size)
+/* create a mask with the mask texture */
+static unsigned short *brush_painter_mask_ibuf_new(BrushPainter *painter, int size)
 {
 	Scene *scene = painter->scene;
 	Brush *brush = painter->brush;
-	bool use_masking = painter->cache.use_masking;
 	rctf mask_mapping = painter->mask_mapping;
 	struct ImagePool *pool = painter->pool;
-	bool is_maskbrush = painter->cache.is_maskbrush;
-
-	float max_alpha = (use_masking)? BKE_brush_alpha_get(scene, brush) : 1.0f;
 
 	float texco[3];
 	unsigned short *mask, *m;
@@ -226,14 +220,11 @@ static unsigned short *brush_painter_max_mask_new(BrushPainter *painter, int siz
 
 	for (y = 0; y < size; y++) {
 		for (x = 0; x < size; x++, m++) {
-			float strength = max_alpha;
-
-			if (is_maskbrush) {
-				brush_imbuf_tex_co(&mask_mapping, x, y, texco);
-				strength *= BKE_brush_sample_masktex(scene, brush, texco, thread, pool);
-			}
-
-			*m = (unsigned short)(65535.0f * strength);
+			float res;
+			brush_imbuf_tex_co(&mask_mapping, x, y, texco);
+			res = BKE_brush_sample_masktex(scene, brush, texco, thread, pool);
+			CLAMP(res, 0.0, 1.0);
+			*m = (unsigned short)(65535.0f * res);
 		}
 	}
 
@@ -277,19 +268,12 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 	rctf tex_mapping = painter->tex_mapping;
 	struct ImagePool *pool = painter->pool;
 
-	bool use_masking = painter->cache.use_masking;
 	bool use_color_correction = painter->cache.use_color_correction;
 	bool use_float = painter->cache.use_float;
 	bool is_texbrush = painter->cache.is_texbrush;
-	bool is_maskbrush = painter->cache.is_maskbrush;
 
 	int x, y, thread = 0;
 	float brush_rgb[3];
-	float alpha = (is_maskbrush)? BKE_brush_alpha_get(scene, brush) :
-	                              BKE_brush_alpha_get(scene, brush) * 65535.0f;
-
-	unsigned short *mask = painter->cache.curve_mask;
-	unsigned short *max_mask = painter->cache.max_mask;
 
 	/* allocate image buffer */
 	ImBuf *ibuf = IMB_allocImBuf(size, size, 32, (use_float) ? IB_rectfloat : IB_rect);
@@ -324,13 +308,6 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 				rgba[3] = 1.0f;
 			}
 
-			/* when not using masking, multiply in falloff and strength */
-			if (!use_masking) {
-				unsigned short *m = mask + (y * ibuf->x + x);
-				unsigned short max_m = (is_maskbrush)? *(max_mask + (y * ibuf->x + x)) * alpha : alpha;
-				rgba[3] *= (*m) * (1.0f / 65535.0f) * (max_m) * (1.0f / 65535.0f);
-			}
-
 			if (use_float) {
 				/* write to float pixel */
 				float *dstf = ibuf->rect_float + (y * size + x) * 4;
@@ -360,33 +337,20 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 	rctf tex_mapping = painter->tex_mapping;
 	struct ImagePool *pool = painter->pool;
 
-	bool use_masking = painter->cache.use_masking;
 	bool use_color_correction = painter->cache.use_color_correction;
 	bool use_float = painter->cache.use_float;
 	bool is_texbrush = painter->cache.is_texbrush;
-	bool is_maskbrush = painter->cache.is_maskbrush;
 	bool use_texture_old = (oldtexibuf != NULL);
-
-	float alpha = (is_maskbrush)? BKE_brush_alpha_get(scene, brush) :
-	                              BKE_brush_alpha_get(scene, brush) * 65535.0f;
 
 	int x, y, thread = 0;
 	float brush_rgb[3];
 
 	ImBuf *ibuf = painter->cache.ibuf;
 	ImBuf *texibuf = painter->cache.texibuf;
-	unsigned short *mask = painter->cache.curve_mask;
-	unsigned short *max_mask = painter->cache.max_mask;
 
 	/* get brush color */
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
-		if (painter->cache.invert)
-			copy_v3_v3(brush_rgb, brush->secondary_rgb);
-		else
-			copy_v3_v3(brush_rgb, brush->rgb);
-
-		if (use_color_correction)
-			srgb_to_linearrgb_v3_v3(brush_rgb, brush_rgb);
+		paint_brush_color_get(brush, use_color_correction, painter->cache.invert, 0.0, 1.0, brush_rgb);
 	}
 	else {
 		brush_rgb[0] = 1.0f;
@@ -430,13 +394,6 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 				/* write to new texture buffer */
 				copy_v4_v4(tf, rgba);
 
-				/* if not using masking, multiply in the mask now */
-				if (!use_masking) {
-					unsigned short *m = mask + (y * ibuf->x + x);
-					unsigned short max_m = (is_maskbrush)? *(max_mask + (y * ibuf->x + x)) * alpha : alpha;
-					rgba[3] *= (*m) * (1.0f / 65535.0f) * (max_m) * (1.0f / 65535.0f);
-				}
-
 				/* output premultiplied float image, mf was already premultiplied */
 				mul_v3_v3fl(bf, rgba, rgba[3]);
 				bf[3] = rgba[3];
@@ -464,13 +421,6 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 				t[1] = crgba[1];
 				t[2] = crgba[2];
 				t[3] = crgba[3];
-
-				/* if not using masking, multiply in the mask now */
-				if (!use_masking) {
-					unsigned short *m = mask + (y * ibuf->x + x);
-					unsigned short max_m = (is_maskbrush)? *(max_mask + (y * ibuf->x + x)) * alpha : alpha;
-					crgba[3] = crgba[3] * (*m) * 1/(65535.0f) * (max_m) * 1/(65535.0f);
-				}
 
 				/* write to brush image buffer */
 				b[0] = crgba[0];
@@ -621,26 +571,15 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		bool do_view_mask = false;
 		//bool do_partial_update_mask = false;
 		/* invalidate case for all mapping modes */
-		if (diameter != cache->lastdiameter ||
-		    alpha != cache->lastalpha)
-		{
-			renew_maxmask = true;
-		}
 		if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
 			do_view_mask = true;
 			mask_rotation += ups->brush_rotation;
 		}
 		else if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-			/* we need to force random to take new mask values into account */
-			if (!painter->cache.use_masking)
-				do_random = true;
 			renew_maxmask = true;
 			//do_partial_update_mask = false;
 		}
 		else {
-			/* we need to do partial update to take new mask values into account */
-			if (!painter->cache.use_masking)
-				do_partial_update = true;
 			//do_partial_update_mask = true;
 			renew_maxmask = true;
 		}
@@ -654,14 +593,21 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 			//do_partial_update_mask = false;
 		}
 
-		brush_painter_2d_tex_mapping(s, diameter, painter->startpaintpos, pos, mouse,
-		                             brush->mask_mtex.brush_map_mode, &painter->mask_mapping);
-		if (renew_maxmask) {
-			if (cache->max_mask) {
-				MEM_freeN(cache->max_mask);
-				cache->max_mask = NULL;
+		if (diameter != cache->lastdiameter ||
+			alpha != cache->lastalpha ||
+			mask_rotation != cache->last_mask_rotation ||
+			renew_maxmask)
+		{
+			if (cache->tex_mask) {
+				MEM_freeN(cache->tex_mask);
+				cache->tex_mask = NULL;
 			}
-			cache->max_mask = brush_painter_max_mask_new(painter, diameter);
+
+			brush_painter_2d_tex_mapping(s, diameter, painter->startpaintpos, pos, mouse,
+										 brush->mask_mtex.brush_map_mode, &painter->mask_mapping);
+
+			cache->tex_mask = brush_painter_mask_ibuf_new(painter, diameter);
+			cache->last_mask_rotation = mask_rotation;
 		}
 	}
 
@@ -684,8 +630,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	if (diameter != cache->lastdiameter ||
 	    alpha != cache->lastalpha ||
 	    brush->jitter != cache->lastjitter ||
-	    tex_rotation != cache->last_tex_rotation ||
-	    mask_rotation != cache->last_mask_rotation ||
+		tex_rotation != cache->last_tex_rotation ||
 	    do_random ||
 	    update_color)
 	{
@@ -699,7 +644,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 			brush_painter_imbuf_partial_update(painter, pos, diameter);
 		}
 		else {
-			/* create brush and mask from scratch */
+			/* create brush from scratch */
 			cache->ibuf = brush_painter_imbuf_new(painter, diameter, pressure, distance);
 		}
 
@@ -707,7 +652,6 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		cache->lastalpha = alpha;
 		cache->lastjitter = brush->jitter;
 		cache->last_tex_rotation = tex_rotation;
-		cache->last_mask_rotation = mask_rotation;
 		cache->last_pressure = pressure;
 	}
 	else if (do_partial_update) {
@@ -955,10 +899,10 @@ static void paint_2d_convert_brushco(ImBuf *ibufb, const float pos[2], int ipos[
 	ipos[1] = (int)floorf((pos[1] - ibufb->y / 2) + 1.0f);
 }
 
-static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *maskb, unsigned short *mmask, const float lastpos[2], const float pos[2])
+static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *curveb, unsigned short *texmaskb, const float lastpos[2], const float pos[2])
 {
 	ImagePaintState *s = ((ImagePaintState *)state);
-	ImBuf *clonebuf = NULL, *frombuf, *tmpbuf = NULL;
+	ImBuf *clonebuf = NULL, *frombuf;
 	ImagePaintRegion region[4];
 	short torus = s->brush->flag & BRUSH_TORUS;
 	short blend = s->blend;
@@ -1000,9 +944,6 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *maskb, unsigne
 		paint_2d_set_region(region, bpos[0], bpos[1], 0, 0, frombuf->x, frombuf->y);
 		tot = 1;
 	}
-
-	if (s->do_masking)
-		tmpbuf = IMB_allocImBuf(IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, 32, 0);
 	
 	/* blend into canvas */
 	for (a = 0; a < tot; a++) {
@@ -1013,11 +954,14 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *maskb, unsigne
 		if (s->do_masking) {
 			/* masking, find original pixels tiles from undo buffer to composite over */
 			int tilex, tiley, tilew, tileh, tx, ty;
+			ImBuf *tmpbuf;
 
 			imapaint_region_tiles(s->canvas, region[a].destx, region[a].desty,
 			                      region[a].width, region[a].height,
 			                      &tilex, &tiley, &tilew, &tileh);
-			
+
+			tmpbuf = IMB_allocImBuf(IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, 32, 0);
+
 			for (ty = tiley; ty <= tileh; ty++) {
 				for (tx = tilex; tx <= tilew; tx++) {
 					/* retrieve original pixels + mask from undo buffer */
@@ -1031,17 +975,19 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *maskb, unsigne
 						tmpbuf->rect = image_undo_find_tile(s->image, s->canvas, tx, ty, &mask, false);
 
 					IMB_rectblend(s->canvas, tmpbuf, frombuf, mask,
-					              maskb, mmask, mask_max,
-					              region[a].destx, region[a].desty,
-					              origx, origy,
-					              region[a].srcx, region[a].srcy,
-					              region[a].width, region[a].height, blend);
+								  curveb, texmaskb, mask_max,
+								  region[a].destx, region[a].desty,
+								  origx, origy,
+								  region[a].srcx, region[a].srcy,
+								  region[a].width, region[a].height, blend);
 				}
 			}
+
+			IMB_freeImBuf(tmpbuf);
 		}
 		else {
 			/* no masking, composite brush directly onto canvas */
-			IMB_rectblend(s->canvas, s->canvas, frombuf, NULL, NULL, NULL, 0,
+			IMB_rectblend(s->canvas, s->canvas, frombuf, NULL, curveb, texmaskb, mask_max,
 			              region[a].destx, region[a].desty,
 			              region[a].destx, region[a].desty,
 			              region[a].srcx, region[a].srcy,
@@ -1050,7 +996,6 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *maskb, unsigne
 	}
 
 	if (clonebuf) IMB_freeImBuf(clonebuf);
-	if (tmpbuf) IMB_freeImBuf(tmpbuf);
 
 	return 1;
 }
@@ -1115,8 +1060,7 @@ static void paint_2d_canvas_free(ImagePaintState *s)
 		MEM_freeN(s->blurkernel);
 	}
 
-	if (s->do_masking)
-		image_undo_remove_masks();
+	image_undo_remove_masks();
 }
 
 void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], int eraser, float pressure, float distance, float size)
@@ -1162,11 +1106,11 @@ void paint_2d_stroke(void *ps, const float prev_mval[2], const float mval[2], in
 	/* OCIO_TODO: float buffers are now always linear, so always use color correction
 	 *            this should probably be changed when texture painting color space is supported
 	 */
-	brush_painter_2d_require_imbuf(painter, (ibuf->rect_float != NULL), !is_data, s->do_masking);
+	brush_painter_2d_require_imbuf(painter, (ibuf->rect_float != NULL), !is_data);
 
 	brush_painter_2d_refresh_cache(s, painter, newuv, mval, pressure, distance, size);
 
-	if (paint_2d_op(s, painter->cache.ibuf, painter->cache.curve_mask, painter->cache.max_mask, olduv, newuv))
+	if (paint_2d_op(s, painter->cache.ibuf, painter->cache.curve_mask, painter->cache.tex_mask, olduv, newuv))
 		s->need_redraw = true;
 
 	BKE_image_release_ibuf(s->image, ibuf, NULL);

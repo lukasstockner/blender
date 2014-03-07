@@ -73,6 +73,7 @@
 #include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
+#include "BKE_texture.h"
 #include "BKE_colortools.h"
 
 #include "BKE_editmesh.h"
@@ -638,6 +639,35 @@ bool paint_use_opacity_masking(Brush *brush)
 				false : true;
 }
 
+void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert, float distance, float pressure, float color[3])
+{
+	if (invert)
+		copy_v3_v3(color, br->secondary_rgb);
+	else {
+		if (br->flag & BRUSH_USE_GRADIENT) {
+			switch (br->gradient_stroke_mode) {
+				case BRUSH_GRADIENT_PRESSURE:
+					do_colorband(br->gradient, pressure, color);
+					break;
+				case BRUSH_GRADIENT_SPACING_REPEAT:
+				{
+					float coord = fmod(distance / br->gradient_spacing, 1.0);
+					do_colorband(br->gradient, coord, color);
+					break;
+				}
+				case BRUSH_GRADIENT_SPACING_CLAMP:
+				{
+					do_colorband(br->gradient, distance / br->gradient_spacing, color);
+					break;
+				}
+			}
+		}
+		else
+			copy_v3_v3(color, br->rgb);
+	}
+	if (color_correction)
+		srgb_to_linearrgb_v3_v3(color, color);
+}
 
 void paint_brush_init_tex(Brush *brush)
 {
