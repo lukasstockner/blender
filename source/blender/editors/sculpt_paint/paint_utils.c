@@ -390,7 +390,7 @@ void flip_v3_v3(float out[3], const float in[3], const char symm)
 }
 
 /* used for both 3d view and image window */
-void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_proj, bool use_palette)    /* frontbuf */
+void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_proj, bool use_palette, bool use_last)
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Palette *palette = BKE_paint_palette(paint);
@@ -489,8 +489,12 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 	}
 	cp = (unsigned char *)&col;
 	
-	if (use_palette && palette) {
-		PaletteColor *color = BKE_palette_color_add(palette);
+	if (use_palette) {
+		PaletteColor *color;
+		if (use_last && !BKE_palette_is_empty(palette))
+			color = BKE_palette_color_get_last(palette);
+		else
+			color = BKE_palette_color_add(palette);
 		rgb_uchar_to_float(color->rgb, cp);
 	} else if (br) {
 		rgb_uchar_to_float(br->rgb, cp);

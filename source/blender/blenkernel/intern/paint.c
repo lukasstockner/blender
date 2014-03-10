@@ -311,6 +311,17 @@ PaletteColor *BKE_palette_color_add(Palette *palette)
 	return color;
 }
 
+struct PaletteColor *BKE_palette_color_get_last(struct Palette *palette)
+{
+	return palette->colors.last;
+}
+
+bool BKE_palette_is_empty(const struct Palette *palette)
+{
+	return BLI_listbase_is_empty(&palette->colors);
+}
+
+
 /* are we in vertex paint or weight pain face select mode? */
 bool BKE_paint_select_face_test(Object *ob)
 {

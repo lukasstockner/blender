@@ -98,6 +98,8 @@ void BKE_paint_set_overlay_override(enum OverlayFlags flag);
 void BKE_free_palette(struct Palette *palette);
 struct Palette *BKE_palette_add(struct Main *bmain, const char *name);
 struct PaletteColor *BKE_palette_color_add(struct Palette *palette);
+struct PaletteColor *BKE_palette_color_get_last(struct Palette *palette);
+bool BKE_palette_is_empty(const struct Palette *palette);
 void BKE_palette_remove_color (struct Palette *palette, struct PaletteColor *colour);
 
 void BKE_paint_init(struct Paint *p, const char col[3]);
