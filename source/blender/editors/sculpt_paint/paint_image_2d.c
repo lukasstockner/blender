@@ -91,6 +91,9 @@ typedef struct BrushPainterCache {
 	ImBuf *texibuf;
 	unsigned short *curve_mask;
 	unsigned short *tex_mask;
+	unsigned short *tex_mask_old;
+	unsigned int tex_mask_old_w;
+	unsigned int tex_mask_old_h;
 } BrushPainterCache;
 
 typedef struct BrushPainter {
@@ -167,15 +170,10 @@ static void brush_painter_2d_require_imbuf(BrushPainter *painter, bool use_float
 		if (painter->cache.ibuf) IMB_freeImBuf(painter->cache.ibuf);
 		if (painter->cache.curve_mask) MEM_freeN(painter->cache.curve_mask);
 		if (painter->cache.tex_mask) MEM_freeN(painter->cache.tex_mask);
+		if (painter->cache.tex_mask_old) MEM_freeN(painter->cache.tex_mask_old);
 		painter->cache.ibuf = NULL;
 		painter->cache.curve_mask = NULL;
 		painter->cache.tex_mask = NULL;
-		painter->cache.lastdiameter = -1; /* force ibuf create in refresh */
-	}
-
-	if (painter->cache.use_float != use_float) {
-		if (painter->cache.texibuf) IMB_freeImBuf(painter->cache.texibuf);
-		painter->cache.texibuf = NULL;
 		painter->cache.lastdiameter = -1; /* force ibuf create in refresh */
 	}
 
@@ -191,6 +189,7 @@ static void brush_painter_2d_free(BrushPainter *painter)
 	if (painter->cache.texibuf) IMB_freeImBuf(painter->cache.texibuf);
 	if (painter->cache.curve_mask) MEM_freeN(painter->cache.curve_mask);
 	if (painter->cache.tex_mask) MEM_freeN(painter->cache.tex_mask);
+	if (painter->cache.tex_mask_old) MEM_freeN(painter->cache.tex_mask_old);
 	MEM_freeN(painter);
 }
 
@@ -213,7 +212,7 @@ static unsigned short *brush_painter_mask_ibuf_new(BrushPainter *painter, int si
 	unsigned short *mask, *m;
 	int x, y, thread = 0;
 
-	mask = MEM_callocN(sizeof(unsigned short) * size * size, "brush_painter_mask");
+	mask = MEM_mallocN(sizeof(unsigned short) * size * size, "brush_painter_mask");
 	m = mask;
 
 	for (y = 0; y < size; y++) {
@@ -229,6 +228,117 @@ static unsigned short *brush_painter_mask_ibuf_new(BrushPainter *painter, int si
 	return mask;
 }
 
+/* update rectangular section of the brush image */
+static void brush_painter_mask_imbuf_update(BrushPainter *painter, unsigned short *tex_mask_old,
+									   int origx, int origy, int w, int h, int xt, int yt, int diameter)
+{
+	Scene *scene = painter->scene;
+	Brush *brush = painter->brush;
+	rctf tex_mapping = painter->mask_mapping;
+	struct ImagePool *pool = painter->pool;
+	unsigned short res;
+
+	bool use_texture_old = (tex_mask_old != NULL);
+
+	int x, y, thread = 0;
+
+	unsigned short *tex_mask = painter->cache.tex_mask;
+	unsigned short *tex_mask_cur = painter->cache.tex_mask_old;
+
+	/* fill pixels */
+	for (y = origy; y < h; y++) {
+		for (x = origx; x < w; x++) {
+			/* sample texture */
+			float texco[3];
+
+			/* handle byte pixel */
+			unsigned short *b = tex_mask + (y * diameter + x);
+			unsigned short *t = tex_mask_cur + (y * diameter + x);
+
+			if (!use_texture_old) {
+				brush_imbuf_tex_co(&tex_mapping, x, y, texco);
+				res = (unsigned short)(65535.0f * BKE_brush_sample_masktex(scene, brush, texco, thread, pool));
+			}
+
+			/* read from old texture buffer */
+			if (use_texture_old) {
+				res = *(tex_mask_old + ((y - origy + yt) * painter->cache.tex_mask_old_w + (x - origx + xt)));
+			}
+
+			/* write to new texture mask */
+			*t = res;
+			/* write to mask image buffer */
+			*b = res;
+		}
+	}
+}
+
+
+/* update the brush mask image by trying to reuse the cached texture result. this
+ * can be considerably faster for brushes that change size due to pressure or
+ * textures that stick to the surface where only part of the pixels are new */
+static void brush_painter_mask_imbuf_partial_update(BrushPainter *painter, const float pos[2], int diameter)
+{
+	BrushPainterCache *cache = &painter->cache;
+	unsigned short *tex_mask_old;
+	int destx, desty, srcx, srcy, w, h, x1, y1, x2, y2;
+
+	/* create brush image buffer if it didn't exist yet */
+	if (!cache->tex_mask)
+		cache->tex_mask = MEM_mallocN(sizeof(unsigned short) * diameter * diameter, "brush_painter_mask");
+
+	/* create new texture image buffer with coordinates relative to old */
+	tex_mask_old = cache->tex_mask_old;
+	cache->tex_mask_old = MEM_mallocN(sizeof(unsigned short) * diameter * diameter, "brush_painter_mask");
+
+	if (tex_mask_old) {
+		ImBuf maskibuf;
+		ImBuf maskibuf_old;
+		maskibuf.x = maskibuf.y = diameter;
+		maskibuf_old.x = cache->tex_mask_old_w;
+		maskibuf_old.y = cache->tex_mask_old_h;
+
+		srcx = srcy = 0;
+		destx = (int)painter->lastpaintpos[0] - (int)pos[0];
+		desty = (int)painter->lastpaintpos[1] - (int)pos[1];
+		w = cache->tex_mask_old_w;
+		h = cache->tex_mask_old_h;
+
+		/* hack, use temporary rects so that clipping works */
+		IMB_rectclip(&maskibuf, &maskibuf_old, &destx, &desty, &srcx, &srcy, &w, &h);
+	}
+	else {
+		srcx = srcy = 0;
+		destx = desty = 0;
+		w = h = 0;
+	}
+
+	x1 = destx;
+	y1 = desty;
+	x2 = min_ii(destx + w, diameter);
+	y2 = min_ii(desty + h, diameter);
+
+	/* blend existing texture in new position */
+	if ((x1 < x2) && (y1 < y2))
+		brush_painter_mask_imbuf_update(painter, tex_mask_old, x1, y1, x2, y2, srcx, srcy, diameter);
+
+	if (tex_mask_old)
+		MEM_freeN(tex_mask_old);
+
+	/* sample texture in new areas */
+	if ((0 < x1) && (0 < diameter))
+		brush_painter_mask_imbuf_update(painter, NULL, 0, 0, x1, diameter, 0, 0, diameter);
+	if ((x2 < diameter) && (0 < diameter))
+		brush_painter_mask_imbuf_update(painter, NULL, x2, 0, diameter, diameter, 0, 0, diameter);
+	if ((x1 < x2) && (0 < y1))
+		brush_painter_mask_imbuf_update(painter, NULL, x1, 0, x2, y1, 0, 0, diameter);
+	if ((x1 < x2) && (y2 < diameter))
+		brush_painter_mask_imbuf_update(painter, NULL, x1, y2, x2, diameter, 0, 0, diameter);
+
+	/* through with sampling, now update sizes */
+	cache->tex_mask_old_w = diameter;
+	cache->tex_mask_old_h = diameter;
+}
 
 /* create a mask with the falloff strength */
 static unsigned short *brush_painter_curve_mask_new(BrushPainter *painter, int diameter, float radius)
@@ -241,7 +351,7 @@ static unsigned short *brush_painter_curve_mask_new(BrushPainter *painter, int d
 	unsigned short *mask, *m;
 	int x, y;
 
-	mask = MEM_callocN(sizeof(unsigned short) * diameter * diameter, "brush_painter_mask");
+	mask = MEM_mallocN(sizeof(unsigned short) * diameter * diameter, "brush_painter_mask");
 	m = mask;
 
 	for (y = 0; y < diameter; y++) {
@@ -596,7 +706,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 										 brush->mask_mtex.brush_map_mode, &painter->mask_mapping);
 
 			if (do_partial_update_mask)
-				cache->tex_mask = brush_painter_mask_ibuf_new(painter, diameter);
+				brush_painter_mask_imbuf_partial_update(painter, pos, diameter);
 			else
 				cache->tex_mask = brush_painter_mask_ibuf_new(painter, diameter);
 			cache->last_mask_rotation = mask_rotation;
