@@ -83,7 +83,6 @@ typedef struct BrushPainterCache {
 	bool is_maskbrush;
 
 	int lastdiameter;
-	float lastjitter;
 	float last_tex_rotation;
 	float last_mask_rotation;
 	float last_pressure;
@@ -596,7 +595,10 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 			brush_painter_2d_tex_mapping(s, diameter, painter->startpaintpos, pos, mouse,
 										 brush->mask_mtex.brush_map_mode, &painter->mask_mapping);
 
-			cache->tex_mask = brush_painter_mask_ibuf_new(painter, diameter);
+			if (do_partial_update_mask)
+				cache->tex_mask = brush_painter_mask_ibuf_new(painter, diameter);
+			else
+				cache->tex_mask = brush_painter_mask_ibuf_new(painter, diameter);
 			cache->last_mask_rotation = mask_rotation;
 		}
 	}
@@ -613,7 +615,6 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 
 	/* detect if we need to recreate image brush buffer */
 	if (diameter != cache->lastdiameter ||
-	    brush->jitter != cache->lastjitter ||
 		tex_rotation != cache->last_tex_rotation ||
 	    do_random ||
 	    update_color)
@@ -633,7 +634,6 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		}
 
 		cache->lastdiameter = diameter;
-		cache->lastjitter = brush->jitter;
 		cache->last_tex_rotation = tex_rotation;
 		cache->last_pressure = pressure;
 	}
