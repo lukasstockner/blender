@@ -83,7 +83,6 @@ typedef struct BrushPainterCache {
 	bool is_maskbrush;
 
 	int lastdiameter;
-	float lastalpha;
 	float lastjitter;
 	float last_tex_rotation;
 	float last_mask_rotation;
@@ -540,21 +539,20 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	Brush *brush = painter->brush;
 	BrushPainterCache *cache = &painter->cache;
 	const int diameter = 2 * size;
-	const float alpha = BKE_brush_alpha_get(scene, brush);
 
 	bool do_random = false;
 	bool do_partial_update = false;
-	bool do_view = false;
 	bool update_color = (brush->flag & BRUSH_USE_GRADIENT) &&
 	                    ((ELEM(brush->gradient_stroke_mode, BRUSH_GRADIENT_SPACING_REPEAT, BRUSH_GRADIENT_SPACING_CLAMP))
 	                     || (cache->last_pressure != pressure));
 	float tex_rotation = -brush->mtex.rot;
 	float mask_rotation = -brush->mask_mtex.rot;
 
+	painter->pool = BKE_image_pool_new();
+
 	/* determine how can update based on textures used */
 	if (painter->cache.is_texbrush) {
 		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
-			do_view = true;
 			tex_rotation += ups->brush_rotation;
 		}
 		else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM)
@@ -568,33 +566,25 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 
 	if (painter->cache.is_maskbrush) {
 		bool renew_maxmask = false;
-		bool do_view_mask = false;
-		//bool do_partial_update_mask = false;
+		bool do_partial_update_mask = false;
 		/* invalidate case for all mapping modes */
 		if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
-			do_view_mask = true;
 			mask_rotation += ups->brush_rotation;
 		}
 		else if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
 			renew_maxmask = true;
-			//do_partial_update_mask = false;
 		}
 		else {
-			//do_partial_update_mask = true;
+			do_partial_update_mask = true;
 			renew_maxmask = true;
 		}
 		/* explicilty disable partial update even if it has been enabled above */
 		if (brush->mask_pressure) {
-			//do_partial_update_mask = false;
+			do_partial_update_mask = false;
 			renew_maxmask = true;
 		}
 
-		if (do_view_mask) {
-			//do_partial_update_mask = false;
-		}
-
 		if (diameter != cache->lastdiameter ||
-			alpha != cache->lastalpha ||
 			mask_rotation != cache->last_mask_rotation ||
 			renew_maxmask)
 		{
@@ -611,11 +601,6 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		}
 	}
 
-	if (do_view || do_random)
-		do_partial_update = false;
-
-	painter->pool = BKE_image_pool_new();
-
 	/* curve mask can only change if the size changes */
 	if (diameter != cache->lastdiameter) {
 		if (cache->curve_mask) {
@@ -628,7 +613,6 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 
 	/* detect if we need to recreate image brush buffer */
 	if (diameter != cache->lastdiameter ||
-	    alpha != cache->lastalpha ||
 	    brush->jitter != cache->lastjitter ||
 		tex_rotation != cache->last_tex_rotation ||
 	    do_random ||
@@ -649,7 +633,6 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		}
 
 		cache->lastdiameter = diameter;
-		cache->lastalpha = alpha;
 		cache->lastjitter = brush->jitter;
 		cache->last_tex_rotation = tex_rotation;
 		cache->last_pressure = pressure;
@@ -908,8 +891,7 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *curveb, unsign
 	short blend = s->blend;
 	float *offset = s->brush->clone.offset;
 	float liftpos[2];
-	float brush_alpha = BKE_brush_alpha_get(s->scene, s->brush);
-	unsigned short mask_max = (unsigned short)(brush_alpha * 65535.0f);
+	unsigned short mask_max = (unsigned short)(BKE_brush_alpha_get(s->scene, s->brush) * 65535.0f);
 	int bpos[2], blastpos[2], bliftpos[2];
 	int a, tot;
 
