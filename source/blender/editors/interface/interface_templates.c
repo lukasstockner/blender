@@ -1526,6 +1526,8 @@ static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand
 
 			row = uiLayoutRow(layout, false);
 			uiItemR(row, &ptr, "color", 0, "", ICON_NONE);
+			bt = block->buttons.last;
+			uiButSetNFunc(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
 		}
 		else {
 			split = uiLayoutSplit(layout, 0.5f, false);
@@ -1541,6 +1543,8 @@ static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand
 
 			row = uiLayoutRow(split, false);
 			uiItemR(row, &ptr, "color", 0, "", ICON_NONE);
+			bt = block->buttons.last;
+			uiButSetNFunc(bt, rna_update_cb, MEM_dupallocN(cb), NULL);
 		}
 	}
 }
