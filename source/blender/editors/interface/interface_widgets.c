@@ -2063,12 +2063,12 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	hsvo[1] = hsv[1] = hsv_ptr[1];
 	hsvo[2] = hsv[2] = hsv_ptr[2];
 
-	rgb_to_hsv_compat_v(rgb, hsvo);
+	ui_rgb_to_color_picker_compat_v(rgb, hsvo);
 
 	if (color_profile)
 		ui_block_to_display_space_v3(but->block, rgb);
 
-	rgb_to_hsv_compat_v(rgb, hsv);
+	ui_rgb_to_color_picker_compat_v(rgb, hsv);
 	
 	/* exception: if 'lock' is set
 	 * lock the value of the color wheel to 1.
@@ -2076,8 +2076,8 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	if (but->flag & UI_BUT_COLOR_LOCK)
 		hsv[2] = 1.f;
 	
-	hsv_to_rgb(0.f, 0.f, hsv[2], colcent, colcent + 1, colcent + 2);
-	
+	ui_color_picker_to_rgb(0.f, 0.f, hsv[2], colcent, colcent + 1, colcent + 2);
+
 	glShadeModel(GL_SMOOTH);
 
 	glBegin(GL_TRIANGLE_FAN);
@@ -2091,7 +2091,8 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 		ui_hsvcircle_vals_from_pos(hsv, hsv + 1, rect, centx + co * radius, centy + si * radius);
 		CLAMP(hsv[2], 0.0f, 1.0f); /* for display only */
 
-		hsv_to_rgb_v(hsv, col);
+		ui_color_picker_to_rgb_v(hsv, col);
+
 		glColor3fv(col);
 		glVertex2f(centx + co * radius, centy + si * radius);
 	}
@@ -2291,6 +2292,7 @@ void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *x
 		case UI_GRAD_V:
 			x = hsv[2]; y = 0.5; break;
 		case UI_GRAD_V_ALT:
+		case UI_GRAD_L_ALT:
 			x = 0.5f;
 			/* exception only for value strip - use the range set in but->min/max */
 			y = (hsv[2] - but->softmin ) / (but->softmax - but->softmin);
@@ -2350,7 +2352,10 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 	if (color_profile)
 		ui_block_to_display_space_v3(but->block, rgb);
 
-	rgb_to_hsv_v(rgb, hsv);
+	if (but->a1 == UI_GRAD_L_ALT)
+		rgb_to_hsl_v(rgb, hsv);
+	else
+		rgb_to_hsv_v(rgb, hsv);
 	v = hsv[2];
 	
 	/* map v from property range to [0,1] */
@@ -3432,20 +3437,26 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				
 			case MENU:
 			case BLOCK:
-				/* new node-link button, not active yet XXX */
-				if (but->flag & UI_BUT_NODE_LINK)
+				if (but->flag & UI_BUT_NODE_LINK) {
+					/* new node-link button, not active yet XXX */
 					wt = widget_type(UI_WTYPE_MENU_NODE_LINK);
-
-				/* no text, with icon */
-				else if (!but->str[0] && but->icon) {
-					if (but->drawflag & UI_BUT_DRAW_ENUM_ARROWS)
-						wt = widget_type(UI_WTYPE_MENU_RADIO);  /* with arrows */
-					else
-						wt = widget_type(UI_WTYPE_MENU_ICON_RADIO);  /* no arrows */
 				}
-				/* with menu arrows */
-				else
-					wt = widget_type(UI_WTYPE_MENU_RADIO);
+				else {
+					/* with menu arrows */
+
+					/* we could use a flag for this, but for now just check size,
+					 * add updown arrows if there is room. */
+					if ((!but->str[0] && but->icon && (BLI_rcti_size_x(rect) < BLI_rcti_size_y(rect) + 2)) ||
+					    /* disable for brushes also */
+					    (but->flag & UI_ICON_PREVIEW))
+					{
+						/* no arrows */
+						wt = widget_type(UI_WTYPE_MENU_ICON_RADIO);
+					}
+					else {
+						wt = widget_type(UI_WTYPE_MENU_RADIO);
+					}
+				}
 				break;
 				
 			case PULLDOWN:
@@ -3477,7 +3488,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 				
 			case HSVCUBE:
-				if (but->a1 == UI_GRAD_V_ALT) {  /* vertical V slider, uses new widget draw now */
+				if (ELEM(but->a1, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {  /* vertical V slider, uses new widget draw now */
 					ui_draw_but_HSV_v(but, rect);
 				}
 				else {  /* other HSV pickers... */
