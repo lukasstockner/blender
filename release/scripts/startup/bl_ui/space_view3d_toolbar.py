@@ -1027,9 +1027,9 @@ class TEXTURE_UL_texpaintslots(UIList):
             layout.label(text="")
 
 
-class VIEW3D_PT_layers_projectpaint(View3DPanel, Panel):
+class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
     bl_context = "imagepaint"
-    bl_label = "Layers"
+    bl_label = "Slots"
     bl_category = "Layers"
 
     @classmethod
@@ -1050,7 +1050,7 @@ class VIEW3D_PT_layers_projectpaint(View3DPanel, Panel):
         col.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
         mat = ob.active_material;
         if mat:
-            col.label("Available Paint layers")
+            col.label("Available Paint Slots")
             col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "active_paint_texture_index", rows=2)
             #col.label("Only slots with UV mapping and image textures are available")
             
