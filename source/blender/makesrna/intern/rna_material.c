@@ -29,11 +29,15 @@
 
 #include "DNA_material_types.h"
 #include "DNA_texture_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
 #include "rna_internal.h"
+
+#include "ED_image.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -175,6 +179,29 @@ static int rna_texture_paint_material(CollectionPropertyIterator *UNUSED(iter), 
 		return 0;
 
 	return 1;
+}
+
+static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	bScreen *sc;
+	Material *ma = ptr->id.data;
+	refresh_texpaint_image_cache(ma);
+
+	for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+		ScrArea *sa;
+		for (sa = sc->areabase.first; sa; sa = sa->next) {
+			SpaceLink *sl;
+			for (sl = sa->spacedata.first; sl; sl = sl->next) {
+				if (sl->spacetype == SPACE_IMAGE) {
+						SpaceImage *sima = (SpaceImage *)sl;
+						ED_space_image_set(sima, scene, scene->obedit, ma->texpaintima);
+				}
+			}
+		}
+	}
+
+	DAG_id_tag_update(&ma->id, 0);
+	WM_main_add_notifier(NC_MATERIAL | ND_SHADING, ma);
 }
 
 static void rna_MaterialTexturePaint_mtex_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -2162,7 +2189,7 @@ void rna_def_mtex_texpaint(StructRNA *srna, const char *structname)
 	RNA_def_property_int_sdna(prop, NULL, "texactpaint");
 	RNA_def_property_range(prop, 0, MAX_MTEX - 1);
 	RNA_def_property_ui_text(prop, "Active Paint Texture Index", "Index of active texture paint slot");
-	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, "rna_Material_update");
+	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, "rna_Material_active_paint_texture_index_update");
 }
 
 
