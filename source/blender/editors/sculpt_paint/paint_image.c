@@ -1254,7 +1254,7 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 	RNA_int_get_array(op->ptr, "location", location);
 	use_palette = RNA_boolean_get(op->ptr, "palette");
 
-	paint_sample_color(C, ar, location[0], location[1], mode == PAINT_TEXTURE_PROJECTIVE, use_palette, false);
+	paint_sample_color(C, ar, location[0], location[1], mode == PAINT_TEXTURE_PROJECTIVE, use_palette);
 
 	if (show_cursor) {
 		paint->flags |= PAINT_SHOW_BRUSH;
@@ -1290,7 +1290,7 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	WM_redraw_windows(C);
 
 	RNA_int_set_array(op->ptr, "location", event->mval);
-	paint_sample_color(C, ar, event->mval[0], event->mval[1], mode == PAINT_TEXTURE_PROJECTIVE, false, false);
+	paint_sample_color(C, ar, event->mval[0], event->mval[1], mode == PAINT_TEXTURE_PROJECTIVE, false);
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 
@@ -1326,7 +1326,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		{
 			ARegion *ar = CTX_wm_region(C);
 			RNA_int_set_array(op->ptr, "location", event->mval);
-			paint_sample_color(C, ar, event->mval[0], event->mval[1], mode == PAINT_TEXTURE_PROJECTIVE, data->sample_palette, data->sample_palette);
+			paint_sample_color(C, ar, event->mval[0], event->mval[1], mode == PAINT_TEXTURE_PROJECTIVE, false);
 			WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 			break;
 		}
@@ -1335,7 +1335,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (event->val == KM_PRESS) {
 				ARegion *ar = CTX_wm_region(C);
 				RNA_int_set_array(op->ptr, "location", event->mval);
-				paint_sample_color(C, ar, event->mval[0], event->mval[1], mode == PAINT_TEXTURE_PROJECTIVE, true, false);
+				paint_sample_color(C, ar, event->mval[0], event->mval[1], mode == PAINT_TEXTURE_PROJECTIVE, true);
 				if (!data->sample_palette) {
 					data->sample_palette = true;
 					sample_color_update_header(data, C);
