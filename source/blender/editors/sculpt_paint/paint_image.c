@@ -1388,21 +1388,67 @@ static int texture_paint_toggle_poll(bContext *C)
 	return 1;
 }
 
+
+/* Make sure that active object has a material, and assign UVs and image layers (TODO) if they do not exist */
+void paint_proj_mesh_data_ensure(bContext *C, Object *ob)
+{
+	Mesh *me;
+	int layernum;
+	bool add_material = false;
+
+	/* no material, add one */
+	if (ob->totcol == 0) {
+		add_material = true;
+	}
+	else {
+		/* there may be material slots but they may be empty, check */
+		bool has_material = false;
+		int i;
+
+		for (i = 1; i < ob->totcol + 1; i++) {
+			Material *ma = give_current_material(ob, i);
+			if (ma) {
+				has_material = true;
+				refresh_texpaint_image_cache(ma);
+				if (!ma->texpaintima) {
+					proj_paint_add_slot(C, MAP_COL, ma);
+					refresh_texpaint_image_cache(ma);
+				}
+			}
+		}
+
+		if (!has_material)
+			add_material = true;
+	}
+
+	if (add_material) {
+		Material *ma = BKE_material_add(CTX_data_main(C), "Material");
+		/* no material found, just assign to first slot */
+		assign_material(ob, ma, 1, BKE_MAT_ASSIGN_USERPREF);
+		proj_paint_add_slot(C, MAP_COL, ma);
+		refresh_texpaint_image_cache(ma);
+	}
+
+	me = BKE_mesh_from_object(ob);
+	layernum = CustomData_number_of_layers(&me->pdata, CD_MTEXPOLY);
+
+	if (layernum == 0) {
+		ED_mesh_uv_texture_add(me, "UVMap", true);
+	}
+}
+
 static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
 	const int mode_flag = OB_MODE_TEXTURE_PAINT;
 	const bool is_mode_set = (ob->mode & mode_flag) != 0;
-	Mesh *me;
 
 	if (!is_mode_set) {
 		if (!ED_object_mode_compat_set(C, ob, mode_flag, op->reports)) {
 			return OPERATOR_CANCELLED;
 		}
 	}
-
-	me = BKE_mesh_from_object(ob);
 
 	if (ob->mode & mode_flag) {
 		ob->mode &= ~mode_flag;
@@ -1414,19 +1460,9 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 		toggle_paint_cursor(C, 0);
 	}
 	else {
-		/* Make sure that active object has a material, and assign UVs and image layers (TODO) if they do not exist */
-
-		/* no material, add one */
-		if (ob->totcol == 0) {
-			Material *ma = BKE_material_add(CTX_data_main(C), "Material");
-			assign_material(ob, ma, 1, BKE_MAT_ASSIGN_USERPREF);
-		}
+		paint_proj_mesh_data_ensure(C, ob);
 
 		ob->mode |= mode_flag;
-
-		if (me->mtface == NULL)
-			me->mtface = CustomData_add_layer(&me->fdata, CD_MTFACE, CD_DEFAULT,
-			                                  NULL, me->totface);
 
 		BKE_paint_init(&scene->toolsettings->imapaint.paint, PAINT_CURSOR_TEXTURE_PAINT);
 

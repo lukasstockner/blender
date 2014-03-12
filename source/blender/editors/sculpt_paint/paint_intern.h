@@ -162,6 +162,8 @@ void *paint_proj_new_stroke(struct bContext *C, struct Object *ob, const float m
 void paint_proj_stroke(const struct bContext *C, void *ps, const float prevmval_i[2], const float mval_i[2], float pressure, float distance, float size);
 void paint_proj_redraw(const bContext *C, void *pps, bool final);
 void paint_proj_stroke_done(void *ps);
+void paint_proj_mesh_data_ensure(bContext *C, struct Object *ob);
+bool proj_paint_add_slot(bContext *C, int type, struct Material *ma);
 
 void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert, float distance, float pressure, float color[3]);
 bool paint_use_opacity_masking(struct Brush *brush);
@@ -174,8 +176,7 @@ void PAINT_OT_brush_colors_flip(struct wmOperatorType *ot);
 void PAINT_OT_texture_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_project_image(struct wmOperatorType *ot);
 void PAINT_OT_image_from_view(struct wmOperatorType *ot);
-void PAINT_OT_add_layer(struct wmOperatorType *ot);
-/* new texture painting */
+void PAINT_OT_add_texture_paint_slot(struct wmOperatorType *ot);
 void PAINT_OT_image_paint(struct wmOperatorType *ot);
 
 /* uv sculpting */

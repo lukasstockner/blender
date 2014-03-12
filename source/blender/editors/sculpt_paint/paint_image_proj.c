@@ -4448,7 +4448,9 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int mode)
 {
 	ProjPaintState *ps = MEM_callocN(sizeof(ProjPaintState), "ProjectionPaintState");
-	refresh_object_texpaint_images(ob);
+
+	paint_proj_mesh_data_ensure(C, ob);
+
 	project_state_init(C, ob, ps, mode);
 
 	if (ps->tool == PAINT_TOOL_CLONE && mode == BRUSH_STROKE_INVERT) {
@@ -4746,28 +4748,29 @@ static EnumPropertyItem layer_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-static int texture_paint_add_layer_exec(bContext *C, wmOperator *op)
+bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 {
-	Material *ma;
 	Object *ob = CTX_data_active_object(C);
 	float color[4] = {0.0, 0.0, 0.0, 1.0};
 	int i;
 	ImagePaintSettings *imapaint = &CTX_data_tool_settings(C)->imapaint;
-	int width = imapaint->new_layer_xresolution;
-	int height = imapaint->new_layer_yresolution;
-
-	int type = RNA_enum_get(op->ptr, "type");
+	int width;
+	int height;
 
 	if (!ob)
-		return OPERATOR_CANCELLED;
+		return false;
 
-	/* unlikely, but just in case */
-	if (width * height == 0) {
-		BKE_report(op->reports, RPT_ERROR, "New layer dimensions need to be greater than 0");
-		return OPERATOR_CANCELLED;
-	}
+	/* should not be allowed, but just in case */
+	if (imapaint->new_slot_xresolution == 0)
+		imapaint->new_slot_xresolution = 1024;
+	if (imapaint->new_slot_yresolution == 0)
+		imapaint->new_slot_yresolution = 1024;
 
-	ma = give_current_material(ob, ob->actcol);
+	width = imapaint->new_slot_xresolution;
+	height = imapaint->new_slot_yresolution;
+
+	if (!ma)
+		ma = give_current_material(ob, ob->actcol);
 
 	if (ma) {
 		MTex *mtex = add_mtex_id(&ma->id, -1);
@@ -4798,7 +4801,7 @@ static int texture_paint_add_layer_exec(bContext *C, wmOperator *op)
 
 				if (prop) {
 					/* when creating new ID blocks, use is already 1, but RNA
-				     * pointer se also increases user, so this compensates it */
+					 * pointer se also increases user, so this compensates it */
 					mtex->tex->id.us--;
 
 					RNA_id_pointer_create(&mtex->tex->id, &idptr);
@@ -4817,7 +4820,7 @@ static int texture_paint_add_layer_exec(bContext *C, wmOperator *op)
 
 				if (prop) {
 					/* when creating new ID blocks, use is already 1, but RNA
-				     * pointer se also increases user, so this compensates it */
+					 * pointer se also increases user, so this compensates it */
 					ima->id.us--;
 
 					RNA_id_pointer_create(&ima->id, &idptr);
@@ -4830,22 +4833,29 @@ static int texture_paint_add_layer_exec(bContext *C, wmOperator *op)
 			}
 
 			WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));
-			return OPERATOR_FINISHED;
+			return true;
 		}
 	}
 
-	return OPERATOR_CANCELLED;
+	return false;
 }
 
-void PAINT_OT_add_layer(wmOperatorType *ot)
+static int texture_paint_add_texture_paint_slot_exec(bContext *C, wmOperator *op)
+{
+	int type = RNA_enum_get(op->ptr, "type");
+
+	return proj_paint_add_slot(C, type, NULL) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+}
+
+void PAINT_OT_add_texture_paint_slot(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Add Paint Layer";
-	ot->description = "Add a paint layer";
-	ot->idname = "PAINT_OT_add_layer";
+	ot->name = "Add Texture Paint Slot";
+	ot->description = "Add a texture paint slot";
+	ot->idname = "PAINT_OT_add_texture_paint_slot";
 
 	/* api callbacks */
-	ot->exec = texture_paint_add_layer_exec;
+	ot->exec = texture_paint_add_texture_paint_slot_exec;
 	ot->poll = ED_operator_region_view3d_active;
 
 	/* flags */

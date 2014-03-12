@@ -955,10 +955,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             row = col.row(align=True)
             
             if capabilities.has_space_attenuation:
-                if brush.use_space_attenuation:
-                    row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='LOCKED')
-                else:
-                    row.prop(brush, "use_space_attenuation", toggle=True, text="", icon='UNLOCKED')
+                row.prop(brush, "use_space_attenuation", toggle=True, icon_only=True)
 
             self.prop_unified_strength(row, context, brush, "strength", text="Strength")
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")
@@ -1057,11 +1054,11 @@ class VIEW3D_PT_layers_projectpaint(View3DPanel, Panel):
             col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "active_paint_texture_index", rows=2)
             #col.label("Only slots with UV mapping and image textures are available")
             
-            col.operator_menu_enum("paint.add_layer", "type")
+            col.operator_menu_enum("paint.add_texture_paint_slot", "type")
         
         row = col.row(align=True)
-        row.prop(settings, "new_layer_xresolution")
-        row.prop(settings, "new_layer_yresolution")
+        row.prop(settings, "new_slot_xresolution")
+        row.prop(settings, "new_slot_yresolution")
 
 
 class VIEW3D_PT_tools_brush_overlay(Panel, View3DPaintPanel):

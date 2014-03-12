@@ -1306,6 +1306,8 @@ void refresh_texpaint_image_cache(Material *ma)
 	if (!ma)
 		return;
 
+	ma->texpaintima = NULL;
+
 	for(mtex = ma->mtex; i < MAX_MTEX; i++, mtex++) {
 		if (get_mtex_slot_valid_texpaint(*mtex)) {
 			if (index++ == ma->texactpaint) {

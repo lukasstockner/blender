@@ -598,12 +598,14 @@ static void rna_def_image_paint(BlenderRNA *brna)
 	                         "Size to capture the image for re-projecting", 0, 0);
 	RNA_def_property_range(prop, 512, 16384);
 
-	prop = RNA_def_property(srna, "new_layer_xresolution", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_ui_range(prop, 1, 4096, 0, -1);
+	prop = RNA_def_property(srna, "new_slot_xresolution", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_range(prop, 1, SHRT_MAX);
+	RNA_def_property_ui_range(prop, 64, 4096, 0, -1);
 	RNA_def_property_ui_text(prop, "X resolution", "X Resolution of new image");
 
-	prop = RNA_def_property(srna, "new_layer_yresolution", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_ui_range(prop, 1, 4096, 0, -1);
+	prop = RNA_def_property(srna, "new_slot_yresolution", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_range(prop, 1, SHRT_MAX);
+	RNA_def_property_ui_range(prop, 64, 4096, 0, -1);
 	RNA_def_property_ui_text(prop, "Y resolution", "Y Resolution of new image");
 }
 

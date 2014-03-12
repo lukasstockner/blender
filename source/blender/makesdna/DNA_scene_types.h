@@ -797,8 +797,8 @@ typedef struct ImagePaintSettings {
 	short screen_grab_size[2]; /* capture size for re-projection */
 
 	/* new layer default resolution */
-	int new_layer_xresolution;
-	int new_layer_yresolution;
+	int new_slot_xresolution;
+	int new_slot_yresolution;
 
 	int pad1;
 

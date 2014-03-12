@@ -109,4 +109,12 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 270, 1)) {
+		Scene *sce;
+		for (sce = main->scene.first; sce; sce = sce->id.next) {
+			sce->toolsettings->imapaint.new_slot_xresolution = 1024;
+			sce->toolsettings->imapaint.new_slot_yresolution = 1024;
+		}
+	}
 }
