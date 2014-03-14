@@ -3012,7 +3012,10 @@ static int gpf_cmp_frame(void *thunk, void *a, void *b)
 	*((bool *)thunk) = true;
 	/* selected last */
 	if ((frame_a->flag & GP_FRAME_SELECT) &&
-	    ((frame_b->flag & GP_FRAME_SELECT) == 0)) return  1;
+	    ((frame_b->flag & GP_FRAME_SELECT) == 0))
+	{
+		return  1;
+	}
 	return 0;
 }
 
@@ -3026,7 +3029,10 @@ static int masklay_shape_cmp_frame(void *thunk, void *a, void *b)
 	*((bool *)thunk) = true;
 	/* selected last */
 	if ((frame_a->flag & MASK_SHAPE_SELECT) &&
-	    ((frame_b->flag & MASK_SHAPE_SELECT) == 0)) return  1;
+	    ((frame_b->flag & MASK_SHAPE_SELECT) == 0))
+	{
+		return 1;
+	}
 	return 0;
 }
 
@@ -6593,7 +6599,7 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 
 			td->flag = 0;
 			td->loc = td2d->loc;
-			copy_v3_v3(td->center, bezt->vec[1]);
+			mul_v2_m3v2(td->center, parent_matrix, bezt->vec[1]);
 			copy_v3_v3(td->iloc, td->loc);
 
 			memset(td->axismtx, 0, sizeof(td->axismtx));
@@ -6641,7 +6647,7 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 
 		td->flag = 0;
 		td->loc = td2d->loc;
-		copy_v3_v3(td->center, bezt->vec[1]);
+		mul_v2_m3v2(td->center, parent_matrix, bezt->vec[1]);
 		copy_v3_v3(td->iloc, td->loc);
 
 		memset(td->axismtx, 0, sizeof(td->axismtx));

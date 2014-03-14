@@ -1897,10 +1897,6 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	RNA_property_float_get_array(ptr, prop, rgba);
 
 	switch (U.color_picker_type) {
-		case USER_CP_CIRCLE_HSV:
-		case USER_CP_CIRCLE_HSL:
-			circle_picker(block, ptr, prop);
-			break;
 		case USER_CP_SQUARE_SV:
 			square_picker(block, ptr, prop, UI_GRAD_SV);
 			break;
@@ -1910,6 +1906,13 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 		case USER_CP_SQUARE_HV:
 			square_picker(block, ptr, prop, UI_GRAD_HV);
 			break;
+
+		/* user default */
+		case USER_CP_CIRCLE_HSV:
+		case USER_CP_CIRCLE_HSL:
+		default:
+			circle_picker(block, ptr, prop);
+			break;
 	}
 	
 	/* mode */
@@ -1917,10 +1920,10 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	uiBlockBeginAlign(block);
 	bt = uiDefButS(block, ROW, 0, IFACE_("RGB"), 0, yco, width / 3, UI_UNIT_Y, &colormode, 0.0, 0.0, 0, 0, "");
 	uiButSetFunc(bt, do_picker_new_mode_cb, bt, NULL);
-	if (U.color_picker_type == USER_CP_CIRCLE_HSV)
-		bt = uiDefButS(block, ROW, 0, IFACE_("HSV"), width / 3, yco, width / 3, UI_UNIT_Y, &colormode, 0.0, 1.0, 0, 0, "");
-	else if (U.color_picker_type == USER_CP_CIRCLE_HSL)
+	if (U.color_picker_type == USER_CP_CIRCLE_HSL)
 		bt = uiDefButS(block, ROW, 0, IFACE_("HSL"), width / 3, yco, width / 3, UI_UNIT_Y, &colormode, 0.0, 1.0, 0, 0, "");
+	else
+		bt = uiDefButS(block, ROW, 0, IFACE_("HSV"), width / 3, yco, width / 3, UI_UNIT_Y, &colormode, 0.0, 1.0, 0, 0, "");
 	uiButSetFunc(bt, do_picker_new_mode_cb, bt, NULL);
 	bt = uiDefButS(block, ROW, 0, IFACE_("Hex"), 2 * width / 3, yco, width / 3, UI_UNIT_Y, &colormode, 0.0, 2.0, 0, 0, "");
 	uiButSetFunc(bt, do_picker_new_mode_cb, bt, NULL);
