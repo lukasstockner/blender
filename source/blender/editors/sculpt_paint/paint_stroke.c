@@ -164,6 +164,28 @@ static void paint_draw_smooth_cursor(bContext *C, int x, int y, void *customdata
 	}
 }
 
+BLI_INLINE void draw_tri_point(float *co, float width)
+{
+	float w = width/2.0;
+	glColor4f(1.0, 0.5, 0.5, 0.5);
+	glLineWidth(4.0);
+
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(co[0], co[1] + w);
+	glVertex2f(co[0] - w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] - w);
+	glEnd();
+
+	glColor4f(1.0, 1.0, 1.0, 0.5);
+	glLineWidth(2.0);
+
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(co[0], co[1] + w);
+	glVertex2f(co[0] - w, co[1] - w);
+	glVertex2f(co[0] + w, co[1] - w);
+	glEnd();
+}
+
 static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), void *customdata)
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
@@ -187,6 +209,7 @@ static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), vo
 			sdrawline((int)p->pos[0], (int)p->pos[1],
 			          (int)p->next->pos[0], (int)p->next->pos[1]);
 
+			draw_tri_point(p->pos, 10.0);
 			p = p->next;
 		}
 
@@ -208,6 +231,7 @@ static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), vo
 			          (int)p->next->pos[0], (int)p->next->pos[1]);
 
 			glDisable(GL_LINE_STIPPLE);
+			draw_tri_point(p->pos, 10.0);
 		}
 
 		glLineWidth(1.0);
@@ -217,75 +241,41 @@ static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), vo
 	}
 }
 
-BLI_INLINE void draw_rect_line(float *co, float width)
+BLI_INLINE void draw_rect_point(float *co, float width)
 {
 	float w = width/2.0;
 	glColor4f(0.5, 1.0, 0.5, 0.5);
 	glLineWidth(4.0);
 
-	glBegin(GL_LINE_STRIP);
+	glBegin(GL_LINE_LOOP);
 	glVertex2f(co[0] + w, co[1] + w);
 	glVertex2f(co[0] - w, co[1] + w);
 	glVertex2f(co[0] - w, co[1] - w);
 	glVertex2f(co[0] + w, co[1] - w);
-	glVertex2f(co[0] + w, co[1] + w);
 	glEnd();
 
 	glColor4f(1.0, 1.0, 1.0, 0.5);
 	glLineWidth(2.0);
 
-	glBegin(GL_LINE_STRIP);
+	glBegin(GL_LINE_LOOP);
 	glVertex2f(co[0] + w, co[1] + w);
 	glVertex2f(co[0] - w, co[1] + w);
 	glVertex2f(co[0] - w, co[1] - w);
 	glVertex2f(co[0] + w, co[1] - w);
-	glVertex2f(co[0] + w, co[1] + w);
 	glEnd();
 }
 
-BLI_INLINE void draw_tri_line(float *co, float width)
+
+BLI_INLINE void draw_bezier_handle_lines(BezTriple *bez)
 {
-	float w = width/2.0;
-	glColor4f(1.0, 0.5, 0.5, 0.5);
-	glLineWidth(4.0);
-
-	glBegin(GL_LINE_STRIP);
-	glVertex2f(co[0], co[1] + w);
-	glVertex2f(co[0] - w, co[1] - w);
-	glVertex2f(co[0] + w, co[1] - w);
-	glVertex2f(co[0], co[1] + w);
-	glEnd();
-
-	glColor4f(1.0, 1.0, 1.0, 0.5);
-	glLineWidth(2.0);
-
-	glBegin(GL_LINE_STRIP);
-	glVertex2f(co[0], co[1] + w);
-	glVertex2f(co[0] - w, co[1] - w);
-	glVertex2f(co[0] + w, co[1] - w);
-	glVertex2f(co[0], co[1] + w);
-	glEnd();
-}
-
-BLI_INLINE void draw_bezier_lines(BezTriple *bez)
-{
+	glVertexPointer(2, GL_FLOAT, 3 * sizeof(float), bez->vec);
 	glColor4f(0.0, 0.0, 0.0, 0.5);
 	glLineWidth(4.0);
-	glBegin(GL_LINES);
-	glVertex2fv(&bez->vec[1][0]);
-	glVertex2fv(&bez->vec[0][0]);
-	glVertex2fv(&bez->vec[1][0]);
-	glVertex2fv(&bez->vec[2][0]);
-	glEnd();
+	glDrawArrays(GL_LINE_STRIP, 0, 3);
 
 	glColor4f(1.0, 1.0, 1.0, 0.5);
 	glLineWidth(2.0);
-	glBegin(GL_LINES);
-	glVertex2fv(&bez->vec[1][0]);
-	glVertex2fv(&bez->vec[0][0]);
-	glVertex2fv(&bez->vec[1][0]);
-	glVertex2fv(&bez->vec[2][0]);
-	glEnd();
+	glDrawArrays(GL_LINE_STRIP, 0, 3);
 }
 
 #define NUM_SEGMENTS 40
@@ -302,16 +292,17 @@ static void paint_draw_curve_cursor(bContext *C, int UNUSED(x), int UNUSED(y), v
 
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
+		glEnableClientState(GL_VERTEX_ARRAY);
 
 		/* draw the bezier handles and the curve segment between the current and next point */
 		while (cp->next) {
 			int j;
 			float data[(NUM_SEGMENTS + 1) * 2];
 			/* use color coding to distinguish handles vs curve segments  */
-			draw_bezier_lines(&cp->bez);
-			draw_tri_line(&cp->bez.vec[1][0], 10.0);
-			draw_rect_line(&cp->bez.vec[0][0], 8.0);
-			draw_rect_line(&cp->bez.vec[2][0], 8.0);
+			draw_bezier_handle_lines(&cp->bez);
+			draw_tri_point(&cp->bez.vec[1][0], 10.0);
+			draw_rect_point(&cp->bez.vec[0][0], 8.0);
+			draw_rect_point(&cp->bez.vec[2][0], 8.0);
 
 			for (j = 0; j < 2; j++)
 				BKE_curve_forward_diff_bezier(cp->bez.vec[1][j],
@@ -320,31 +311,29 @@ static void paint_draw_curve_cursor(bContext *C, int UNUSED(x), int UNUSED(y), v
 							                  cp->next->bez.vec[1][j],
 							                  data + j, NUM_SEGMENTS, 2 * sizeof(float));
 
+			glVertexPointer(2, GL_FLOAT, 0, data);
 			glLineWidth(4.0);
 			glColor4f(0.0, 0.0, 0.0, 0.5);
-			glBegin(GL_LINE_STRIP);
-			for (j = 0; j < NUM_SEGMENTS; j++)
-				glVertex2fv(data + j * 2);
-			glEnd();
+			glDrawArrays(GL_LINE_STRIP, 0, NUM_SEGMENTS + 1);
+
 			glLineWidth(2.0);
 			glColor4f(1.0, 1.0, 1.0, 0.5);
-			glBegin(GL_LINE_STRIP);
-			for (j = 0; j < NUM_SEGMENTS; j++)
-				glVertex2fv(data + j * 2);
-			glEnd();
+			glDrawArrays(GL_LINE_STRIP, 0, NUM_SEGMENTS + 1);
+
 			cp = cp->next;
 		}
 
 		/* draw last line segment */
-		draw_bezier_lines(&cp->bez);
-		draw_tri_line(&cp->bez.vec[1][0], 10.0);
-		draw_rect_line(&cp->bez.vec[0][0], 8.0);
-		draw_rect_line(&cp->bez.vec[2][0], 8.0);
+		draw_bezier_handle_lines(&cp->bez);
+		draw_tri_point(&cp->bez.vec[1][0], 10.0);
+		draw_rect_point(&cp->bez.vec[0][0], 8.0);
+		draw_rect_point(&cp->bez.vec[2][0], 8.0);
 
 		glLineWidth(1.0);
 
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
+		glDisableClientState(GL_VERTEX_ARRAY);
 	}
 }
 
