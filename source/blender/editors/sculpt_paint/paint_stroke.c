@@ -168,7 +168,7 @@ BLI_INLINE void draw_tri_point(float *co, float width)
 {
 	float w = width/2.0;
 	glColor4f(1.0, 0.5, 0.5, 0.5);
-	glLineWidth(4.0);
+	glLineWidth(3.0);
 
 	glBegin(GL_LINE_LOOP);
 	glVertex2f(co[0], co[1] + w);
@@ -177,7 +177,7 @@ BLI_INLINE void draw_tri_point(float *co, float width)
 	glEnd();
 
 	glColor4f(1.0, 1.0, 1.0, 0.5);
-	glLineWidth(2.0);
+	glLineWidth(1.0);
 
 	glBegin(GL_LINE_LOOP);
 	glVertex2f(co[0], co[1] + w);
@@ -200,12 +200,12 @@ static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), vo
 
 		while (p->next && p->next->next) {
 			glColor4ub(0, 0, 0, paint->paint_cursor_col[3]);
-			glLineWidth(4.0);
+			glLineWidth(3.0);
 			sdrawline((int)p->pos[0], (int)p->pos[1],
 			          (int)p->next->pos[0], (int)p->next->pos[1]);
 
 			glColor4ubv(paint->paint_cursor_col);
-			glLineWidth(2.0);
+			glLineWidth(1.0);
 			sdrawline((int)p->pos[0], (int)p->pos[1],
 			          (int)p->next->pos[0], (int)p->next->pos[1]);
 
@@ -221,12 +221,12 @@ static void paint_draw_line_cursor(bContext *C, int UNUSED(x), int UNUSED(y), vo
 			}
 
 			glColor4ub(0, 0, 0, paint->paint_cursor_col[3]);
-			glLineWidth(4.0);
+			glLineWidth(3.0);
 			sdrawline((int)p->pos[0], (int)p->pos[1],
 			          (int)p->next->pos[0], (int)p->next->pos[1]);
 
 			glColor4ubv(paint->paint_cursor_col);
-			glLineWidth(2.0);
+			glLineWidth(1.0);
 			sdrawline((int)p->pos[0], (int)p->pos[1],
 			          (int)p->next->pos[0], (int)p->next->pos[1]);
 
@@ -245,7 +245,7 @@ BLI_INLINE void draw_rect_point(float *co, float width)
 {
 	float w = width/2.0;
 	glColor4f(0.5, 1.0, 0.5, 0.5);
-	glLineWidth(4.0);
+	glLineWidth(3.0);
 
 	glBegin(GL_LINE_LOOP);
 	glVertex2f(co[0] + w, co[1] + w);
@@ -255,7 +255,7 @@ BLI_INLINE void draw_rect_point(float *co, float width)
 	glEnd();
 
 	glColor4f(1.0, 1.0, 1.0, 0.5);
-	glLineWidth(2.0);
+	glLineWidth(1.0);
 
 	glBegin(GL_LINE_LOOP);
 	glVertex2f(co[0] + w, co[1] + w);
@@ -270,11 +270,11 @@ BLI_INLINE void draw_bezier_handle_lines(BezTriple *bez)
 {
 	glVertexPointer(2, GL_FLOAT, 3 * sizeof(float), bez->vec);
 	glColor4f(0.0, 0.0, 0.0, 0.5);
-	glLineWidth(4.0);
+	glLineWidth(3.0);
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
 
 	glColor4f(1.0, 1.0, 1.0, 0.5);
-	glLineWidth(2.0);
+	glLineWidth(1.0);
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
 }
 
@@ -312,12 +312,12 @@ static void paint_draw_curve_cursor(bContext *C, int UNUSED(x), int UNUSED(y), v
 							                  data + j, NUM_SEGMENTS, 2 * sizeof(float));
 
 			glVertexPointer(2, GL_FLOAT, 0, data);
-			glLineWidth(4.0);
+			glLineWidth(3.0);
 			glColor4f(0.0, 0.0, 0.0, 0.5);
 			glDrawArrays(GL_LINE_STRIP, 0, NUM_SEGMENTS + 1);
 
-			glLineWidth(2.0);
-			glColor4f(1.0, 1.0, 1.0, 0.5);
+			glLineWidth(1.0);
+			glColor4f(0.9, 0.9, 1.0, 0.5);
 			glDrawArrays(GL_LINE_STRIP, 0, NUM_SEGMENTS + 1);
 
 			cp = cp->next;
