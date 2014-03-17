@@ -280,4 +280,9 @@ enum BlurKernelType;
 BlurKernel *paint_new_blur_kernel(struct Brush *br);
 void paint_delete_blur_kernel(BlurKernel *);
 
+/* paint curve defines */
+#define PAINT_CURVE_NUM_SEGMENTS 40
+#define PAINT_CURVE_SELECT_THRESHOLD 6.0
+
+
 #endif /* __PAINT_INTERN_H__ */

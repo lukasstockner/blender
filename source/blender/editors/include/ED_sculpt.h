@@ -57,6 +57,7 @@ enum {
 
 /* paint_ops.c */
 void ED_operatortypes_paint(void);
+void ED_operatormacros_paint(void);
 void ED_keymap_paint(struct wmKeyConfig *keyconf);
 
 /* paint_undo.c */

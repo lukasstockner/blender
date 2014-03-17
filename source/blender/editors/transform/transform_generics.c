@@ -632,6 +632,9 @@ static void recalcData_image(TransInfo *t)
 	if (t->options & CTX_MASK) {
 		recalcData_mask_common(t);
 	}
+	else if (t->options & CTX_PAINT_CURVE) {
+		flushTransPaintCurve(t);
+	}
 	else if (t->obedit && t->obedit->type == OB_MESH) {
 		SpaceImage *sima = t->sa->spacedata.first;
 		
@@ -941,6 +944,9 @@ void recalcData(TransInfo *t)
 	else if (t->options & CTX_EDGE) {
 		recalcData_objects(t);
 	}
+	else if (t->options & CTX_PAINT_CURVE) {
+		flushTransPaintCurve(t);
+	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		recalcData_image(t);
 	}
@@ -1049,6 +1055,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	ARegion *ar = CTX_wm_region(C);
 	ScrArea *sa = CTX_wm_area(C);
 	Object *obedit = CTX_data_edit_object(C);
+	Object *ob = CTX_data_active_object(C);
 	PropertyRNA *prop;
 	
 	t->scene = sce;
@@ -1174,6 +1181,10 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			}
 		}
 
+		if (ob && ob->mode & OB_MODE_SCULPT) {
+			t->options |= CTX_PAINT_CURVE;
+		}
+
 		/* initialize UV transform from */
 		if (op && ((prop = RNA_struct_find_property(op->ptr, "correct_uv")))) {
 			if (RNA_property_is_set(op->ptr, prop)) {
@@ -1202,7 +1213,8 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		else if (sima->mode == SI_MODE_MASK) {
 			t->options |= CTX_MASK;
 		}
-		else {
+		else if (sima->mode == SI_MODE_PAINT){
+			t->options |= CTX_PAINT_CURVE;
 			/* image not in uv edit, nor in mask mode, can happen for some tools */
 		}
 	}
@@ -1385,7 +1397,7 @@ void postTrans(bContext *C, TransInfo *t)
 	}
 	
 	if (t->spacetype == SPACE_IMAGE) {
-		if (t->options & CTX_MASK) {
+		if (t->options & (CTX_MASK | CTX_PAINT_CURVE)) {
 			/* pass */
 		}
 		else {
@@ -1526,7 +1538,7 @@ void calculateCenterCursor2D(TransInfo *t)
 	
 	if (t->spacetype == SPACE_IMAGE) {
 		SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
-		if (t->options & CTX_MASK) {
+		if (t->options & (CTX_MASK)) {
 			ED_space_image_get_aspect(sima, &aspx, &aspy);
 		}
 		else {

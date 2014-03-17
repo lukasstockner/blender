@@ -35,6 +35,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_texture_types.h" /* for MTex */
+#include "DNA_curve_types.h"
 
 //#ifndef MAX_MTEX // XXX Not used?
 //#define MAX_MTEX	18
@@ -63,6 +64,8 @@ typedef struct Brush {
 	struct ImBuf *icon_imbuf;
 	PreviewImage *preview;
 	struct ColorBand *gradient;	/* color gradient */
+	struct PaintCurve *paint_curve;
+
 	char icon_filepath[1024]; /* 1024 = FILE_MAX */
 
 	float normal_weight;
@@ -152,6 +155,20 @@ typedef struct Palette
 	int num_of_colours;
 	int pad;
 } Palette;
+
+typedef struct PaintCurvePoint
+{
+	BezTriple bez; /* bezier handle */
+	float pressure; /* pressure on that point */
+} PaintCurvePoint;
+
+typedef struct PaintCurve
+{
+	ID id;
+	PaintCurvePoint *points; /* points of curve */
+	int tot_points;
+	int active_point;
+} PaintCurve;
 
 /* Brush.gradient_source */
 typedef enum BrushGradientSourceStroke {

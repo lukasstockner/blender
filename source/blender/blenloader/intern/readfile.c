@@ -1838,6 +1838,7 @@ static void lib_link_brush(FileData *fd, Main *main)
 			brush->mtex.tex = newlibadr_us(fd, brush->id.lib, brush->mtex.tex);
 			brush->mask_mtex.tex = newlibadr_us(fd, brush->id.lib, brush->mask_mtex.tex);
 			brush->clone.image = newlibadr_us(fd, brush->id.lib, brush->clone.image);
+			brush->paint_curve = newlibadr_us(fd, brush->id.lib, brush->paint_curve);
 		}
 	}
 }
@@ -1876,6 +1877,23 @@ static void direct_link_palette(FileData *fd, Palette *palette)
 {
 	/* palette itself has been read */
 	link_list(fd, &palette->colors);
+}
+
+static void lib_link_paint_curve(FileData *UNUSED(fd), Main *main)
+{
+	PaintCurve *pc;
+
+	/* only link ID pointers */
+	for (pc = main->paintcurves.first; pc; pc = pc->id.next) {
+		if (pc->id.flag & LIB_NEED_LINK) {
+			pc->id.flag -= LIB_NEED_LINK;
+		}
+	}
+}
+
+static void direct_link_paint_curve(FileData *fd, PaintCurve *pc)
+{
+	pc->points = newdataadr(fd, pc->points);
 }
 
 
@@ -7143,6 +7161,7 @@ static const char *dataname(short id_code)
 		case ID_BR: return "Data from BR";
 		case ID_PA: return "Data from PA";
 		case ID_PAL: return "Data from PAL";
+		case ID_PC: return "Data from PCRV";
 		case ID_GD: return "Data from GD";
 		case ID_WM: return "Data from WM";
 		case ID_MC: return "Data from MC";
@@ -7330,6 +7349,9 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 			break;
 		case ID_PAL:
 			direct_link_palette(fd, (Palette *)id);
+			break;
+		case ID_PC:
+			direct_link_paint_curve(fd, (PaintCurve *)id);
 			break;
 	}
 	
@@ -7520,6 +7542,7 @@ static void lib_link_all(FileData *fd, Main *main)
 	lib_link_nodetree(fd, main);	/* has to be done after scene/materials, this will verify group nodes */
 	lib_link_brush(fd, main);
 	lib_link_palette(fd, main);
+	lib_link_paint_curve(fd, main);
 	lib_link_particlesettings(fd, main);
 	lib_link_movieclip(fd, main);
 	lib_link_mask(fd, main);
@@ -8059,6 +8082,7 @@ static void expand_brush(FileData *fd, Main *mainvar, Brush *brush)
 	expand_doit(fd, mainvar, brush->mtex.tex);
 	expand_doit(fd, mainvar, brush->mask_mtex.tex);
 	expand_doit(fd, mainvar, brush->clone.image);
+	expand_doit(fd, mainvar, brush->paint_curve);
 }
 
 static void expand_material(FileData *fd, Main *mainvar, Material *ma)

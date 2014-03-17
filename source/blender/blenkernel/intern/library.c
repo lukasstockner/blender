@@ -519,6 +519,8 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->linestyle);
 		case ID_PAL:
 			return &(mainlib->palettes);
+		case ID_PC:
+			return &(mainlib->paintcurves);
 	}
 	return NULL;
 }
@@ -615,6 +617,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->movieclip);
 	lb[a++] = &(main->mask);
 	lb[a++] = &(main->palettes);
+	lb[a++] = &(main->paintcurves);
 	
 	lb[a] = NULL;
 
@@ -738,6 +741,9 @@ static ID *alloc_libblock_notest(short type)
 			break;
 		case ID_PAL:
 			id = MEM_callocN(sizeof(Palette), "Palette");
+			break;
+		case ID_PC:
+			id = MEM_callocN(sizeof(PaintCurve), "Paint Curve");
 			break;
 	}
 	return id;
@@ -990,6 +996,9 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			break;
 		case ID_PAL:
 			BKE_free_palette((Palette *)id);
+			break;
+		case ID_PC:
+			BKE_free_paint_curve((PaintCurve *)id);
 			break;
 	}
 

@@ -914,6 +914,10 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
             row = col.row(align=True)
             row.prop(brush, "spacing", text="Spacing")
 
+        if brush.use_curve:
+            col.separator()
+            col.template_ID(brush, "paint_curve", new="paintcurve.new")
+
         col = layout.column()
         col.separator()
 

@@ -54,7 +54,6 @@ static void InputVector(TransInfo *t, MouseInput *mi, const int mval[2], float o
 	else {
 		convertViewVec(t, output, (mval[0] - t->imval[0]), (mval[1] - t->imval[1]));
 	}
-
 }
 
 static void InputSpring(TransInfo *UNUSED(t), MouseInput *mi, const int mval[2], float output[3])

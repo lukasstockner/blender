@@ -39,6 +39,7 @@
 #include <math.h>
 
 #include "DNA_anim_types.h"
+#include "DNA_brush_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
@@ -86,6 +87,7 @@
 #include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
+#include "BKE_paint.h"
 #include "BKE_pointcache.h"
 #include "BKE_report.h"
 #include "BKE_rigidbody.h"
@@ -5744,6 +5746,9 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	}
+	else if (t->options & CTX_PAINT_CURVE) {
+
+	}
 	else if ((t->scene->basact) &&
 	         (ob = t->scene->basact->object) &&
 	         (ob->mode & OB_MODE_PARTICLE_EDIT) &&
@@ -6670,6 +6675,7 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 	}
 }
 
+
 static void createTransMaskingData(bContext *C, TransInfo *t)
 {
 	Scene *scene = CTX_data_scene(C);
@@ -6796,6 +6802,166 @@ void flushTransMasking(TransInfo *t)
 	}
 }
 
+typedef struct TransDataPaintCurve {
+	PaintCurvePoint *pcp; /* initial curve point */
+	bool aligned; /* if we transform only one handle of the point that is */
+	char id;
+} TransDataPaintCurve;
+
+
+#define PC_IS_ANY_SEL(pc) (((pc)->bez.f1 | (pc)->bez.f2 | (pc)->bez.f3) & SELECT)
+
+static void PaintCurvePointToTransData(PaintCurvePoint *pcp, TransData *td, TransData2D *td2d, TransDataPaintCurve *tdpc)
+{
+	BezTriple *bezt = &pcp->bez;
+
+	if (pcp->bez.f2 == SELECT) {
+		int i;
+		for (i = 0; i < 3; i++) {
+			/* CV coords are scaled by aspects. this is needed for rotations and
+			 * proportional editing to be consistent with the stretched CV coords
+			 * that are displayed. this also means that for display and numinput,
+			 * and when the the CV coords are flushed, these are converted each time */
+			copy_v2_v2(td2d->loc, bezt->vec[i]);
+			td2d->loc[2] = 0.0f;
+			td2d->loc2d = bezt->vec[i];
+
+			td->flag = 0;
+			td->loc = td2d->loc;
+			copy_v3_v3(td->center, bezt->vec[1]);
+			copy_v3_v3(td->iloc, td->loc);
+
+			memset(td->axismtx, 0, sizeof(td->axismtx));
+			td->axismtx[2][2] = 1.0f;
+
+			td->ext = NULL;
+			td->val = NULL;
+			td->flag |= TD_SELECTED;
+			td->dist = 0.0;
+
+			unit_m3(td->mtx);
+			unit_m3(td->smtx);
+
+			tdpc->id = i;
+			tdpc->pcp = pcp;
+			tdpc->aligned = false;
+
+			td++;
+			td2d++;
+			tdpc++;
+		}
+	}
+	else {
+		int id = (pcp->bez.f3 & SELECT) ? 2 : 0;
+		tdpc->aligned = (((id) ? bezt->h2 : bezt->h1) == HD_ALIGN);
+
+		copy_v2_v2(td2d->loc, bezt->vec[id]);
+		td2d->loc[2] = 0.0f;
+		td2d->loc2d = bezt->vec[id];
+
+		td->flag = 0;
+		td->loc = td2d->loc;
+		copy_v3_v3(td->center, bezt->vec[id]);
+		copy_v3_v3(td->iloc, td->loc);
+
+		memset(td->axismtx, 0, sizeof(td->axismtx));
+		td->axismtx[2][2] = 1.0f;
+
+		td->ext = NULL;
+		td->val = NULL;
+		td->flag |= TD_SELECTED;
+		td->dist = 0.0;
+
+		unit_m3(td->mtx);
+		unit_m3(td->smtx);
+
+		tdpc->id = id;
+		tdpc->pcp = pcp;
+	}
+
+	/* reset all handles after transform - weird, to be changed later */
+	pcp->bez.h1 = pcp->bez.h2 = HD_FREE;
+}
+
+static void createTransPaintCurveVerts(bContext *C, TransInfo *t)
+{
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	PaintCurve *pc;
+	PaintCurvePoint *pcp;
+	Brush *br;
+	TransData *td = NULL;
+	TransData2D *td2d = NULL;
+	TransDataPaintCurve *tdpc = NULL;
+	int i;
+	int total = 0;
+
+	t->total = 0;
+
+	if (!paint || !paint->brush || !paint->brush->paint_curve)
+		return;
+
+	br = paint->brush;
+	pc = br->paint_curve;
+
+	for (pcp = pc->points, i = 0; i < pc->tot_points; i++, pcp++) {
+		if (PC_IS_ANY_SEL(pcp)) {
+			if (pcp->bez.f2 & SELECT) {
+				total += 3;
+				continue;
+			}
+			else {
+				total++;
+			}
+		}
+	}
+
+	if (!total)
+		return;
+
+	t->total = total;
+	td2d = t->data2d = MEM_callocN(t->total * sizeof(TransData2D), "TransData2D");
+	td = t->data = MEM_callocN(t->total * sizeof(TransData), "TransData");
+	tdpc = t->customData = MEM_callocN(t->total * sizeof(TransDataPaintCurve), "TransDataPaintCurve");
+	t->flag |= T_FREE_CUSTOMDATA;
+
+	for (pcp = pc->points, i = 0; i < pc->tot_points; i++, pcp++) {
+		if (PC_IS_ANY_SEL(pcp)) {
+			PaintCurvePointToTransData (pcp, td, td2d, tdpc);
+
+			if (pcp->bez.f2 & SELECT) {
+				td += 3;
+				td2d += 3;
+				tdpc += 3;
+			}
+			else {
+				td++;
+				td2d++;
+				tdpc++;
+			}
+		}
+	}
+}
+
+
+void flushTransPaintCurve(TransInfo *t)
+{
+	int i;
+	TransData2D *td2d = t->data2d;
+	TransDataPaintCurve *tdpc = (TransDataPaintCurve *)t->customData;
+
+	for (i = 0; i < t->total; i++, tdpc++, td2d++) {
+		PaintCurvePoint *pcp = tdpc->pcp;
+		if (tdpc->aligned) {
+			float diff[2];
+			int id_other = ((tdpc->id) ? 0 : 2);
+			sub_v2_v2v2(diff, pcp->bez.vec[1], td2d->loc);
+			add_v2_v2v2(pcp->bez.vec[id_other], pcp->bez.vec[1], diff);
+		}
+		copy_v2_v2(pcp->bez.vec[tdpc->id], td2d->loc);
+	}
+}
+
+
 void createTransData(bContext *C, TransInfo *t)
 {
 	Scene *scene = t->scene;
@@ -6827,6 +6993,9 @@ void createTransData(bContext *C, TransInfo *t)
 				set_prop_dist(t, TRUE);
 				sort_trans_data_dist(t);
 			}
+		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			createTransPaintCurveVerts(C, t);
 		}
 		else if (t->obedit) {
 			createTransUVs(C, t);
@@ -6965,6 +7134,8 @@ void createTransData(bContext *C, TransInfo *t)
 		 *
 		 * Could use 'OB_MODE_ALL_PAINT' since there are key conflicts,
 		 * transform + paint isn't well supported. */
+		createTransPaintCurveVerts(C, t);
+		t->flag |= T_POINTS | T_2D_EDIT;
 	}
 	else {
 		createTransObject(C, t);

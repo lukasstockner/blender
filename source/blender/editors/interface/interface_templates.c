@@ -355,6 +355,7 @@ static const char *template_id_browse_tip(StructRNA *type)
 			case ID_PA:  return N_("Browse Particle Settings to be linked");
 			case ID_GD:  return N_("Browse Grease Pencil Data to be linked");
 			case ID_PAL: return N_("Browse Palette Data to be linked");
+			case ID_PC:  return N_("Browse Paint Curve Data to be linked");
 		}
 	}
 	return N_("Browse ID data to be linked");

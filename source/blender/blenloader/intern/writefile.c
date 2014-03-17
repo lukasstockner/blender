@@ -2926,7 +2926,7 @@ static void write_palettes(WriteData *wd, ListBase *idbase)
 {
 	Palette *palette;
 
-	for (palette = idbase->first; palette; palette= palette->id.next) {
+	for (palette = idbase->first; palette; palette = palette->id.next) {
 		if (palette->id.us > 0 || wd->current) {
 			PaletteColor *color;
 			writestruct(wd, ID_PAL, "Palette", 1, palette);
@@ -2934,6 +2934,20 @@ static void write_palettes(WriteData *wd, ListBase *idbase)
 
 			for (color = palette->colors.first; color; color= color->next)
 				writestruct(wd, DATA, "PaletteColor", 1, color);
+		}
+	}
+}
+
+static void write_paintcurves(WriteData *wd, ListBase *idbase)
+{
+	PaintCurve *pc;
+
+	for (pc = idbase->first; pc; pc = pc->id.next) {
+		if (pc->id.us > 0 || wd->current) {
+			writestruct(wd, ID_PC, "Palette", 1, pc);
+
+			writestruct(wd, DATA, "PaintCurvePoint", pc->tot_points, pc->points);
+			if (pc->id.properties) IDP_WriteProperty(pc->id.properties, wd);
 		}
 	}
 }
@@ -3402,6 +3416,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	write_nodetrees(wd, &mainvar->nodetree);
 	write_brushes  (wd, &mainvar->brush);
 	write_palettes (wd, &mainvar->palettes);
+	write_paintcurves (wd, &mainvar->paintcurves);
 	write_scripts  (wd, &mainvar->script);
 	write_gpencils (wd, &mainvar->gpencil);
 	write_linestyles(wd, &mainvar->linestyle);

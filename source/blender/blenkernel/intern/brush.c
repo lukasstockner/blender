@@ -166,6 +166,9 @@ Brush *BKE_brush_copy(Brush *brush)
 	if (brush->mask_mtex.tex)
 		id_us_plus((ID *)brush->mask_mtex.tex);
 
+	if (brush->paint_curve)
+		id_us_plus((ID *)brush->paint_curve);
+
 	if (brush->icon_imbuf)
 		brushn->icon_imbuf = IMB_dupImBuf(brush->icon_imbuf);
 
@@ -191,6 +194,9 @@ void BKE_brush_free(Brush *brush)
 	if (brush->mask_mtex.tex)
 		brush->mask_mtex.tex->id.us--;
 
+	if (brush->paint_curve)
+		brush->paint_curve->id.us--;
+
 	if (brush->icon_imbuf)
 		IMB_freeImBuf(brush->icon_imbuf);
 
@@ -207,6 +213,7 @@ static void extern_local_brush(Brush *brush)
 	id_lib_extern((ID *)brush->mtex.tex);
 	id_lib_extern((ID *)brush->mask_mtex.tex);
 	id_lib_extern((ID *)brush->clone.image);
+	id_lib_extern((ID *)brush->paint_curve);
 }
 
 void BKE_brush_make_local(Brush *brush)

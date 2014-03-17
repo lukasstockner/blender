@@ -153,7 +153,6 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
 
 static int palette_new_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	/*int type = RNA_enum_get(op->ptr, "type");*/
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Main *bmain = CTX_data_main(C);
 	Palette *palette;
@@ -178,6 +177,225 @@ static void PALETTE_OT_new(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+static int paintcurve_poll(bContext *C)
+{
+	Paint *p = BKE_paint_get_active_from_context(C);
+
+	if (p && p->brush && p->brush->flag & BRUSH_CURVE) {
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+static int paintcurve_new_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Paint *p = BKE_paint_get_active_from_context(C);
+	Main *bmain = CTX_data_main(C);
+
+	if (p && p->brush) {
+		p->brush->paint_curve = BKE_paint_curve_add(bmain, "PaintCurve");
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+static void PAINTCURVE_OT_new(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add New Paint Curve";
+	ot->description = "Add new paint curve";
+	ot->idname = "PAINTCURVE_OT_new";
+
+	/* api callbacks */
+	ot->exec = paintcurve_new_exec;
+	ot->poll = paintcurve_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static void paintcurve_point_add(bContext *C, const int loc[2])
+{
+	Paint *p = BKE_paint_get_active_from_context(C);
+	Brush *br = p->brush;
+	Main *bmain = CTX_data_main(C);
+	PaintCurve *pc;
+	PaintCurvePoint *pcp;
+	float vec[3] = {loc[0], loc[1], 0.0};
+	int lastindex;
+	int i;
+
+	pc = br->paint_curve;
+	if (!pc) {
+		br->paint_curve = pc = BKE_paint_curve_add(bmain, "PaintCurve");
+	}
+
+	pcp = MEM_mallocN((pc->tot_points + 1) * sizeof(PaintCurvePoint), "PaintCurvePoint");
+	lastindex = pc->tot_points;
+
+	if (pc->points) {
+		memcpy(pcp, pc->points, pc->tot_points * sizeof(PaintCurvePoint));
+		MEM_freeN(pc->points);
+	}
+	pc->points = pcp;
+	pc->tot_points++;
+
+	/* initialize new point */
+	memset(&pcp[lastindex], 0, sizeof(PaintCurvePoint));
+	copy_v3_v3(pcp[lastindex].bez.vec[0], vec);
+	copy_v3_v3(pcp[lastindex].bez.vec[1], vec);
+	copy_v3_v3(pcp[lastindex].bez.vec[2], vec);
+
+	/* last step, clear selection from all bezier handles expect the next */
+	for (i = 0; i < pc->tot_points; i++) {
+		pcp[i].bez.f1 = pcp[i].bez.f2 = pcp[i].bez.f3 = 0;
+	}
+	pcp[lastindex].bez.f3 = SELECT;
+	pcp[lastindex].bez.h2 = HD_ALIGN;
+}
+
+
+static int paintcurve_add_point_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	int loc[2] = {event->mval[0], event->mval[1]};
+	paintcurve_point_add(C, loc);
+	RNA_int_set_array(op->ptr, "location", loc);
+	return OPERATOR_FINISHED;
+}
+
+static int paintcurve_add_point_exec(bContext *C, wmOperator *op)
+{
+	int loc[2];
+
+	if (RNA_struct_property_is_set(op->ptr, "location")) {
+		RNA_int_get_array(op->ptr, "location", loc);
+		paintcurve_point_add(C, loc);
+		return OPERATOR_FINISHED;
+	}
+
+	return OPERATOR_CANCELLED;
+}
+
+static void PAINTCURVE_OT_add_point(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add New Paint Curve Point";
+	ot->description = "Add new paint curve point";
+	ot->idname = "PAINTCURVE_OT_add_point";
+
+	/* api callbacks */
+	ot->invoke = paintcurve_add_point_invoke;
+	ot->exec = paintcurve_add_point_exec;
+	ot->poll = paintcurve_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
+
+	/* properties */
+	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, SHRT_MAX,
+						 "Location", "Location of vertex in area space", 0, SHRT_MAX);
+}
+
+static void paintcurve_point_select(bContext *C, const int loc[2], bool handle)
+{
+	Paint *p = BKE_paint_get_active_from_context(C);
+	Brush *br = p->brush;
+	PaintCurve *pc;
+	PaintCurvePoint *pcp;
+	int i;
+
+	pc = br->paint_curve;
+
+	if (!pc)
+		return;
+	pcp = pc->points;
+
+	/* first clear selection from all bezier handles */
+	for (i = 0; i < pc->tot_points; i++) {
+		pcp[i].bez.f1 = pcp[i].bez.f2 = pcp[i].bez.f3 = 0;
+	}
+
+	for (i = 0; i < pc->tot_points; i++, pcp++) {
+		/* shift means constrained editing so exclude center handles from collision detection */
+		if (!handle) {
+			if ((fabs(loc[0] - pcp->bez.vec[1][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
+				(fabs(loc[1] - pcp->bez.vec[1][1]) < PAINT_CURVE_SELECT_THRESHOLD))
+			{
+				pcp->bez.f2 = SELECT;
+				break;
+			}
+		}
+
+		if ((fabs(loc[0] - pcp->bez.vec[0][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
+			(fabs(loc[1] - pcp->bez.vec[0][1]) < PAINT_CURVE_SELECT_THRESHOLD))
+		{
+			pcp->bez.f1 = SELECT;
+			if (handle)
+				pcp->bez.h1 = HD_ALIGN;
+			break;
+		}
+
+		if ((fabs(loc[0] - pcp->bez.vec[2][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
+			(fabs(loc[1] - pcp->bez.vec[2][1]) < PAINT_CURVE_SELECT_THRESHOLD))
+		{
+			pcp->bez.f3 = SELECT;
+			if (handle)
+				pcp->bez.h2 = HD_ALIGN;
+			break;
+		}
+	}
+}
+
+
+static int paintcurve_select_point_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	int loc[2] = {event->mval[0], event->mval[1]};
+	bool handle = RNA_boolean_get(op->ptr, "handle");
+	paintcurve_point_select(C, loc, handle);
+	RNA_int_set_array(op->ptr, "location", loc);
+	return OPERATOR_FINISHED;
+}
+
+static int paintcurve_select_point_exec(bContext *C, wmOperator *op)
+{
+	int loc[2];
+
+	if (RNA_struct_property_is_set(op->ptr, "location")) {
+		bool handle = RNA_boolean_get(op->ptr, "handle");
+		RNA_int_get_array(op->ptr, "location", loc);
+		paintcurve_point_select(C, loc, handle);
+		return OPERATOR_FINISHED;
+	}
+
+	return OPERATOR_CANCELLED;
+}
+
+static void PAINTCURVE_OT_select(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+
+	/* identifiers */
+	ot->name = "Select Paint Curve Point";
+	ot->description = "Select a paint curve point";
+	ot->idname = "PAINTCURVE_OT_select";
+
+	/* api callbacks */
+	ot->invoke = paintcurve_select_point_invoke;
+	ot->exec = paintcurve_select_point_exec;
+	ot->poll = paintcurve_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
+
+	/* properties */
+	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, SHRT_MAX,
+						 "Location", "Location of vertex in area space", 0, SHRT_MAX);
+	prop = RNA_def_boolean(ot->srna, "handle", FALSE, "Handle", "Prefer Handle selection");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+}
+
 
 static int palette_color_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -1009,11 +1227,30 @@ static void ed_keymap_stencil(wmKeyMap *keymap)
 
 /**************************** registration **********************************/
 
+void ED_operatormacros_paint(void)
+{
+	wmOperatorType *ot;
+	wmOperatorTypeMacro *otmacro;
+
+	ot = WM_operatortype_append_macro("PAINTCURVE_OT_add_point_slide", "Add Curve Point and Slide",
+									  "Add new curve point and slide it", OPTYPE_UNDO | OPTYPE_REGISTER);
+	ot->description = "Add new curve point and slide it";
+	WM_operatortype_macro_define(ot, "PAINTCURVE_OT_add_point");
+	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	RNA_boolean_set(otmacro->ptr, "release_confirm", TRUE);
+}
+
+
 void ED_operatortypes_paint(void)
 {
 	/* palette */
 	WM_operatortype_append(PALETTE_OT_new);
 	WM_operatortype_append(PALETTE_OT_color_add);
+
+	/* paint curve */
+	WM_operatortype_append(PAINTCURVE_OT_new);
+	WM_operatortype_append(PAINTCURVE_OT_add_point);
+	WM_operatortype_append(PAINTCURVE_OT_select);
 
 	/* brush */
 	WM_operatortype_append(BRUSH_OT_add);
@@ -1206,6 +1443,25 @@ static void paint_partial_visibility_keys(wmKeyMap *keymap)
 	RNA_enum_set(kmi->ptr, "area", PARTIALVIS_ALL);
 }
 
+
+static void paint_keymap_curve(wmKeyMap *keymap, const char *paintop)
+{
+	wmKeyMapItem *kmi;
+
+	WM_keymap_add_item(keymap, "PAINTCURVE_OT_add_point_slide", ACTIONMOUSE, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", SELECTMOUSE, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", ACTIONMOUSE, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", ACTIONMOUSE, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "handle", true);
+
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, 0, 0);
+	RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
+	WM_keymap_add_item(keymap, paintop, RETKEY, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
+	WM_keymap_add_item(keymap, paintop, RETKEY, KM_PRESS, 0, 0);
+}
+
 void ED_keymap_paint(wmKeyConfig *keyconf)
 {
 	wmKeyMap *keymap;
@@ -1215,6 +1471,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/* Sculpt mode */
 	keymap = WM_keymap_find(keyconf, "Sculpt", 0, 0);
 	keymap->poll = sculpt_mode_poll;
+
+	paint_keymap_curve(keymap, "SCULPT_OT_brush_stroke");
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "SCULPT_OT_brush_stroke", LEFTMOUSE, KM_PRESS, 0,        0)->ptr, "mode", BRUSH_STROKE_NORMAL);
 	RNA_enum_set(WM_keymap_add_item(keymap, "SCULPT_OT_brush_stroke", LEFTMOUSE, KM_PRESS, KM_CTRL,  0)->ptr, "mode", BRUSH_STROKE_INVERT);
@@ -1291,6 +1549,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "Vertex Paint", 0, 0);
 	keymap->poll = vertex_paint_mode_poll;
 
+	paint_keymap_curve(keymap, "PAINT_OT_vertex_paint");
+
 	WM_keymap_verify_item(keymap, "PAINT_OT_vertex_paint", LEFTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_sample_color", SKEY, KM_PRESS, 0, 0);
 
@@ -1318,6 +1578,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/* Weight Paint mode */
 	keymap = WM_keymap_find(keyconf, "Weight Paint", 0, 0);
 	keymap->poll = weight_paint_mode_poll;
+
+	paint_keymap_curve(keymap, "PAINT_OT_weight_paint");
 
 	WM_keymap_verify_item(keymap, "PAINT_OT_weight_paint", LEFTMOUSE, KM_PRESS, 0, 0);
 
@@ -1367,6 +1629,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/* Image/Texture Paint mode */
 	keymap = WM_keymap_find(keyconf, "Image Paint", 0, 0);
 	keymap->poll = image_texture_paint_poll;
+
+	paint_keymap_curve(keymap, "PAINT_OT_image_paint");
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_image_paint", LEFTMOUSE, KM_PRESS, 0,        0)->ptr, "mode", BRUSH_STROKE_NORMAL);
 	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_image_paint", LEFTMOUSE, KM_PRESS, KM_CTRL,  0)->ptr, "mode", BRUSH_STROKE_INVERT);

@@ -154,6 +154,7 @@ short RNA_type_to_ID_code(StructRNA *type)
 	if (RNA_struct_is_a(type, &RNA_MovieClip)) return ID_MC;
 	if (RNA_struct_is_a(type, &RNA_Mask)) return ID_MSK;
 	if (RNA_struct_is_a(type, &RNA_Palette)) return ID_PAL;
+	if (RNA_struct_is_a(type, &RNA_PaintCurve)) return ID_PC;
 
 	return 0;
 }
@@ -192,6 +193,7 @@ StructRNA *ID_code_to_RNA_type(short idcode)
 		case ID_MC: return &RNA_MovieClip;
 		case ID_MSK: return &RNA_Mask;
 		case ID_PAL: return &RNA_Palette;
+		case ID_PC: return &RNA_PaintCurve;
 
 		default: return &RNA_ID;
 	}

@@ -204,7 +204,7 @@ static bool transdata_check_local_center(TransInfo *t, short around)
 	            (t->flag & (T_OBJECT | T_POSE)) ||
 	            (t->obedit && ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE)) ||
 	            (t->spacetype == SPACE_IPO) ||
-	            (t->options & (CTX_MOVIECLIP | CTX_MASK)))
+				(t->options & (CTX_MOVIECLIP | CTX_MASK | CTX_PAINT_CURVE)))
 	        );
 }
 
@@ -275,16 +275,26 @@ static void convertViewVec2D_mask(View2D *v2d, float r_vec[3], int dx, int dy)
 void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
 {
 	if ((t->spacetype == SPACE_VIEW3D) && (t->ar->regiontype == RGN_TYPE_WINDOW)) {
-		const float mval_f[2] = {(float)dx, (float)dy};
-		ED_view3d_win_to_delta(t->ar, mval_f, r_vec, t->zfac);
+		if (t->options & CTX_PAINT_CURVE) {
+			r_vec[0] = dx;
+			r_vec[1] = dy;
+		}
+		else {	const float mval_f[2] = {(float)dx, (float)dy};
+			ED_view3d_win_to_delta(t->ar, mval_f, r_vec, t->zfac);
+		}
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		float aspx, aspy;
 
 		if (t->options & CTX_MASK) {
-
 			convertViewVec2D_mask(t->view, r_vec, dx, dy);
 			ED_space_image_get_aspect(t->sa->spacedata.first, &aspx, &aspy);
+		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			r_vec[0] = dx;
+			r_vec[1] = dy;
+
+			aspx = aspy = 1.0;
 		}
 		else {
 			convertViewVec2D(t->view, r_vec, dx, dy);
@@ -366,6 +376,9 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
 
 			adr[0] = v[0];
 			adr[1] = v[1];
+		}
+		else if (t->options & CTX_PAINT_CURVE){
+			UI_view2d_to_region_no_clip(t->view, vec[0], vec[1], adr, adr + 1);
 		}
 		else {
 			float aspx, aspy, v[2];
@@ -500,7 +513,7 @@ void projectFloatView(TransInfo *t, const float vec[3], float adr[2])
 
 void applyAspectRatio(TransInfo *t, float vec[2])
 {
-	if ((t->spacetype == SPACE_IMAGE) && (t->mode == TFM_TRANSLATION)) {
+	if ((t->spacetype == SPACE_IMAGE) && (t->mode == TFM_TRANSLATION) && !(t->options & CTX_PAINT_CURVE)) {
 		SpaceImage *sima = t->sa->spacedata.first;
 		float aspx, aspy;
 
@@ -577,17 +590,22 @@ void removeAspectRatio(TransInfo *t, float vec[2])
 static void viewRedrawForce(const bContext *C, TransInfo *t)
 {
 	if (t->spacetype == SPACE_VIEW3D) {
-		/* Do we need more refined tags? */
-		if (t->flag & T_POSE)
-			WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
-		else
-			WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
+		if (t->options & CTX_PAINT_CURVE) {
+			ED_area_tag_redraw(t->sa);
+		}
+		else {
+			/* Do we need more refined tags? */
+			if (t->flag & T_POSE)
+				WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
+			else
+				WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
 
-		/* for realtime animation record - send notifiers recognised by animation editors */
-		// XXX: is this notifier a lame duck?
-		if ((t->animtimer) && IS_AUTOKEY_ON(t->scene))
-			WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, NULL);
-		
+			/* for realtime animation record - send notifiers recognised by animation editors */
+			// XXX: is this notifier a lame duck?
+			if ((t->animtimer) && IS_AUTOKEY_ON(t->scene))
+				WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, NULL);
+
+		}
 	}
 	else if (t->spacetype == SPACE_ACTION) {
 		//SpaceAction *saction = (SpaceAction *)t->sa->spacedata.first;
@@ -612,6 +630,10 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 			Mask *mask = CTX_data_edit_mask(C);
 
 			WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			wmWindow *window = CTX_wm_window(C);
+			WM_paint_cursor_tag_redraw(window, t->ar);
 		}
 		else {
 			// XXX how to deal with lock?

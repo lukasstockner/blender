@@ -1225,6 +1225,10 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
             row = col.row(align=True)
             row.prop(brush, "spacing", text="Spacing")
 
+        if brush.use_curve:
+            col.separator()
+            col.template_ID(brush, "paint_curve", new="paintcurve.new")
+
         if context.sculpt_object:
             if brush.sculpt_capabilities.has_jitter:
                 col.separator()

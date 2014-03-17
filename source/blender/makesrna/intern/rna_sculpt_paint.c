@@ -326,6 +326,15 @@ static void rna_def_palette(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Palette Color", "Colors that are part of this palette");
 }
 
+static void rna_def_paint_curve(BlenderRNA *brna)
+{
+	StructRNA *srna;
+
+	srna = RNA_def_struct(brna, "PaintCurve", "ID");
+	RNA_def_struct_ui_text(srna, "Paint Curve", "");
+	RNA_def_struct_ui_icon(srna, ICON_CURVE_BEZCURVE);
+}
+
 
 static void rna_def_paint(BlenderRNA *brna)
 {
@@ -792,6 +801,7 @@ void RNA_def_sculpt_paint(BlenderRNA *brna)
 	RNA_define_animate_sdna(false);
 	rna_def_palettecolor(brna);
 	rna_def_palette(brna);
+	rna_def_paint_curve(brna);
 	rna_def_paint(brna);
 	rna_def_sculpt(brna);
 	rna_def_uv_sculpt(brna);

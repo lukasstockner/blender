@@ -267,6 +267,24 @@ void BKE_paint_brush_set(Paint *p, Brush *br)
 	}
 }
 
+void BKE_free_paint_curve(PaintCurve *pc)
+{
+	if (pc->points) {
+		MEM_freeN(pc->points);
+		pc->points = NULL;
+		pc->tot_points = 0;
+	}
+}
+
+PaintCurve *BKE_paint_curve_add(Main *bmain, const char *name)
+{
+	PaintCurve *pc;
+
+	pc = BKE_libblock_alloc(bmain, ID_PC, name);
+
+	return pc;
+}
+
 Palette *BKE_paint_palette(Paint *p)
 {
 	return p ? p->palette : NULL;
@@ -281,8 +299,17 @@ void BKE_paint_palette_set(Paint *p, Palette *palette)
 	}
 }
 
+void BKE_paint_curve_set(Brush *br, PaintCurve *pc)
+{
+	if (br) {
+		id_us_min((ID *)br->paint_curve);
+		id_us_plus((ID *)pc);
+		br->paint_curve = pc;
+	}
+}
+
 /* remove colour from palette. Must be certain colour is inside the palette! */
-void BKE_palette_remove_color (Palette *palette, PaletteColor *colour)
+void BKE_palette_remove_color(Palette *palette, PaletteColor *colour)
 {
 	BLI_remlink(&palette->colors, colour);
 	MEM_freeN(colour);

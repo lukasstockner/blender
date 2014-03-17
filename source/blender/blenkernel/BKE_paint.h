@@ -45,6 +45,7 @@ struct MultireModifierData;
 struct MVert;
 struct Object;
 struct Paint;
+struct PaintCurve;
 struct PBVH;
 struct Scene;
 struct StrokeCache;
@@ -102,6 +103,10 @@ struct PaletteColor *BKE_palette_color_get_last(struct Palette *palette);
 bool BKE_palette_is_empty(const struct Palette *palette);
 void BKE_palette_remove_color (struct Palette *palette, struct PaletteColor *colour);
 
+/* paint curves */
+struct PaintCurve *BKE_paint_curve_add(struct Main *bmain, const char *name);
+void BKE_free_paint_curve(struct PaintCurve *pc);
+
 void BKE_paint_init(struct Paint *p, const char col[3]);
 void BKE_paint_free(struct Paint *p);
 void BKE_paint_copy(struct Paint *src, struct Paint *tar);
@@ -113,6 +118,7 @@ struct Brush *BKE_paint_brush(struct Paint *paint);
 void BKE_paint_brush_set(struct Paint *paint, struct Brush *br);
 struct Palette *BKE_paint_palette(struct Paint *paint);
 void BKE_paint_palette_set(struct Paint *p, struct Palette *palette);
+void BKE_paint_curve_set(struct Brush *br, struct PaintCurve *pc);
 
 /* testing face select mode
  * Texture paint could be removed since selected faces are not used
