@@ -567,10 +567,10 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 					else {
 						for (x = width; x > 0; x--, dr++, or++, sr++, cmr++) {
 							unsigned char *src = (unsigned char *)sr;
+							unsigned short mask = (((texmaskrect) ? ((float)mask_max * (*tmr++) / 65535.0f) : (float)mask_max) * (*cmr)) / 65535.0f;
 
-							if (src[3] && *cmr) {
+							if (src[3] && *cmr && mask) {
 								unsigned char mask_src[4];
-								unsigned short mask = (((texmaskrect) ? ((float)mask_max * (*tmr++) / 65535.0f) : (float)mask_max) * (*cmr)) / 65535.0f;
 
 								mask_src[0] = src[0];
 								mask_src[1] = src[1];
