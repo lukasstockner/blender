@@ -40,6 +40,8 @@
 #include "BKE_context.h"
 #include "BKE_mask.h"
 
+#include "BIF_glutil.h"
+
 #include "DNA_mask_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_object_types.h"   /* SELECT */

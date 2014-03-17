@@ -1130,7 +1130,7 @@ static bool GPU_check_scaled_image(ImBuf *ibuf, Image *ima, float *frect, int x,
 		}
 
 		if (GPU_get_mipmap()) {
-			gpu_generate_mipmap(GL_TEXTURE_2D);
+			gpu_glGenerateMipmap(GL_TEXTURE_2D);
 		}
 		else {
 			ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
@@ -1157,6 +1157,11 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 	else {
 		/* for the special case, we can do a partial update
 		 * which is much quicker for painting */
+		GLint row_length, skip_pixels, skip_rows;
+		
+		glGetIntegerv(GL_UNPACK_ROW_LENGTH,  &row_length);
+		glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &skip_pixels);
+		glGetIntegerv(GL_UNPACK_SKIP_ROWS,   &skip_rows);
 
 		/* if color correction is needed, we must update the part that needs updating. */
 		if (ibuf->rect_float) {
@@ -1166,9 +1171,9 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 
 			if (GPU_check_scaled_image(ibuf, ima, buffer, x, y, w, h)) {
 				MEM_freeN(buffer);
-				glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
+				glPixelStorei(GL_UNPACK_ROW_LENGTH,  row_length);
 				glPixelStorei(GL_UNPACK_SKIP_PIXELS, skip_pixels);
-				glPixelStorei(GL_UNPACK_SKIP_ROWS, skip_rows);
+				glPixelStorei(GL_UNPACK_SKIP_ROWS,   skip_rows);
 				BKE_image_release_ibuf(ima, ibuf, NULL);
 				return;
 			}
@@ -1193,9 +1198,9 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 		}
 
 		if (GPU_check_scaled_image(ibuf, ima, NULL, x, y, w, h)) {
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
+			glPixelStorei(GL_UNPACK_ROW_LENGTH,  row_length);
 			glPixelStorei(GL_UNPACK_SKIP_PIXELS, skip_pixels);
-			glPixelStorei(GL_UNPACK_SKIP_ROWS, skip_rows);
+			glPixelStorei(GL_UNPACK_SKIP_ROWS,   skip_rows);
 			BKE_image_release_ibuf(ima, ibuf, NULL);
 			return;
 		}

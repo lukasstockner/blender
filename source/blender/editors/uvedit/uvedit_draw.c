@@ -558,7 +558,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 					if (tf == activetf) {
 						/* only once */
 						glEnable(GL_POLYGON_STIPPLE);
-						glPolygonStipple(stipple_quarttone);
+						glPolygonStipple(GPU_stipple_quarttone);
 						UI_ThemeColor4(TH_EDITMESH_ACTIVE);
 					}
 					else {

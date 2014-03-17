@@ -459,7 +459,7 @@ static void emDM_drawMappedFaces(
 		const float (*vertexNos)[3];
 		const float (*polyNos)[3];
 
-		if (skip_normals) {
+		if (!useNormals) {
 			vertexNos = NULL;
 			polyNos = NULL;
 		}
@@ -972,6 +972,7 @@ static void emdm_pass_attrib_vertex_glsl(DMVertexAttribs *attribs, BMLoop *loop,
 		int index = i * 4 + index_in_face;
 		const float *tang = (attribs->tang.array) ? attribs->tang.array[index] : zero;
 		gpuVertexAttrib4fv(attribs->tang.gl_index, tang);
+	}
 }
 
 

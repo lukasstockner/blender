@@ -65,6 +65,7 @@
 /* needed for uintptr_t and attributes, exception, dont use BLI anywhere else in MEM_* */
 #include "../../source/blender/blenlib/BLI_sys_types.h"
 #include "../../source/blender/blenlib/BLI_compiler_attrs.h"
+#include "../../source/blender/blenlib/BLI_utildefines.h" /* for __func__ */
 
 #ifdef __cplusplus
 extern "C" {

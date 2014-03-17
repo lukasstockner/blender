@@ -27,7 +27,6 @@ set(INC
 	../../bmesh
 	../../gpu
 	../../imbuf
-	../../gpu
 	../../makesdna
 	../../makesrna
 	../../render/extern/include

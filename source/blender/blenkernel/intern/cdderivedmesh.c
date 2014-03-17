@@ -1290,7 +1290,7 @@ static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int 
 		if (attribs->orco.gl_texco)
 			gpuTexCoord3fv(orco);
 		else
-			gpuVertexAttrib3fvARB(attribs->orco.gl_index, orco);
+			gpuVertexAttrib3fv(attribs->orco.gl_index, orco);
 	}
 
 	/* uv texture coordinates */
@@ -1308,7 +1308,7 @@ static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int 
 		if (attribs->tface[b].gl_texco)
 			gpuTexCoord2fv(uv);
 		else
-			gpuVertexAttrib2fvARB(attribs->tface[b].gl_index, uv);
+			gpuVertexAttrib2fv(attribs->tface[b].gl_index, uv);
 	}
 
 	/* vertex colors */

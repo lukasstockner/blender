@@ -76,7 +76,7 @@
  * - include support for editing the path verts */
 
 /* Set up drawing environment for drawing motion paths */
-void draw_motion_paths_init(View3D *v3d, ARegion *ar) 
+void draw_motion_paths_init(View3D *v3d, struct ARegion *ar) 
 {
 	RegionView3D *rv3d = ar->regiondata;
 	

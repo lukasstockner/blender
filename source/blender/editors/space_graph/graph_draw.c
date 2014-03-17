@@ -553,7 +553,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 	/* apply unit mapping */
 	gpuPushMatrix();
 	unit_scale = ANIM_unit_mapping_get_factor(ac->scene, id, fcu, mapping_flag);
-	gpuScalef(1.0f, unit_scale, 1.0f);
+	gpuScale(1.0f, unit_scale, 1.0f);
 
 	gpuBegin(GL_LINE_STRIP);
 	
@@ -635,7 +635,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 	/* apply unit mapping */
 	gpuPushMatrix();
 	unit_scale = ANIM_unit_mapping_get_factor(ac->scene, id, fcu, mapping_flag);
-	gpuScalef(1.0f, unit_scale, 1.0f);
+	gpuScale(1.0f, unit_scale, 1.0f);
 
 	gpuBegin(GL_LINE_STRIP);
 	

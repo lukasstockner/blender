@@ -243,13 +243,15 @@ static Material *give_current_material_or_def(Object *ob, int matnr)
 
 /* Icky globals, fix with userdata parameter */
 
-static struct TextureDrawState {
+typedef struct TextureDrawState {
 	Object *ob;
 	int is_lit, is_tex;
 	int color_profile;
 	bool use_backface_culling;
 	unsigned char obcol[4];
-} Gtexdraw = {NULL, 0, 0, 0, false, {0, 0, 0, 0}};
+} TextureDrawState;
+
+static TextureDrawState Gtexdraw = {NULL, 0, 0, 0, false, {0, 0, 0, 0}};
 
 static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *ma, struct TextureDrawState gtexdraw)
 {
@@ -619,7 +621,7 @@ static DMDrawOption draw_em_tf_mapped__set_draw(void *userData, int index)
 	BMFace *efa;
 
 	if (UNLIKELY(index >= em->bm->totface))
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 
 	efa = BM_face_at_index(em->bm, index);
 
@@ -838,6 +840,7 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 				NULL,
 				me,
 				DM_DRAW_USE_COLORS|DM_DRAW_ALWAYS_SMOOTH);
+		}
 		else {
 			drawTFace_userData userData;
 
@@ -989,7 +992,7 @@ static bool tex_mat_set_face_editmesh_cb(void *userData, int index)
 	BMFace *efa;
 
 	if (UNLIKELY(index >= em->bm->totface))
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 
 	efa = BM_face_at_index(em->bm, index);
 
@@ -1116,7 +1119,7 @@ void draw_mesh_paint_weight_faces(DerivedMesh *dm, const bool use_light,
 		GPU_enable_material,
 		NULL,
 		user_data,
-		DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH | (do_light ? DM_DRAW_USE_NORMALS : 0));
+		DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH | (use_light ? DM_DRAW_USE_NORMALS : 0));
 
 	gpuImmediateUnformat();
 
@@ -1195,7 +1198,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 			                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
 		}
 		else {
-			glColor3f(1.0f, 1.0f, 1.0f);
+			gpuColor3P(CPACK_WHITE);
 			dm->drawMappedFaces(dm, facemask, GPU_enable_material, NULL, me,
 			                    DM_DRAW_ALWAYS_SMOOTH);
 		}

@@ -77,6 +77,8 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
+#include <stddef.h> /* for offsetof */
+
 /* Undo stuff */
 typedef struct {
 	ListBase nubase;

@@ -2504,7 +2504,7 @@ static void draw_dm_creases(BMEditMesh *em, DerivedMesh *dm)
 
 	if (data.cd_layer_offset != -1) {
 		gpuLineWidth(3.0);
-		gpuImmediateFormat_C4_V3()
+		gpuImmediateFormat_C4_V3();
 		dm->drawMappedEdges(dm, draw_dm_creases__setDrawOptions, &data);
 		gpuImmediateUnformat();
 		gpuLineWidth(1.0);
@@ -3102,7 +3102,7 @@ static DMDrawOption draw_em_fancy__setFaceOpts(void *userData, int index)
 	BMFace *efa;
 
 	if (UNLIKELY(index >= em->bm->totface))
-		return DM_DRAW_OPTION_NORMAL;
+		return DM_DRAW_OPTION_NORMALLY;
 
 	efa = BM_face_at_index(em->bm, index);
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
@@ -7876,13 +7876,13 @@ static void bbs_mesh_wire(BMEditMesh *em, DerivedMesh *dm, size_t offset)
 }
 
 typedef struct mesh_solid_options {
-	BMEditMesh* em;
-	int         facecol;
+	BMesh* bm;
+	int    facecol;
 } mesh_solid_options;
 
 static DMDrawOption bbs_mesh_solid__setSolidDrawOptions(mesh_solid_options *opts, int index)
 {
-	BMFace *efa = BM_face_at_index(opts->em, index);
+	BMFace *efa = BM_face_at_index(opts->bm, index);
 	
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		if (opts->facecol) {
@@ -7897,7 +7897,7 @@ static DMDrawOption bbs_mesh_solid__setSolidDrawOptions(mesh_solid_options *opts
 
 static void bbs_mesh_solid__drawCenter(mesh_solid_options *opts, int index, const float cent[3], const float UNUSED(no[3]))
 {
-	BMFace *efa = BM_face_at_index(opts->em, index);
+	BMFace *efa = BM_face_at_index(opts->bm, index);
 
 	if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
 		WM_framebuffer_index_set(index + 1);

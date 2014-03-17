@@ -31,6 +31,8 @@
 #ifndef __FILE_INTERN_H__
 #define __FILE_INTERN_H__
 
+#include "BLI_sys_types.h" /* for bool */
+
 /* internal exports only */
 
 struct ARegion;
@@ -91,8 +93,8 @@ int file_next_exec(struct bContext *C, struct wmOperator *unused);
 int file_directory_new_exec(struct bContext *C, struct wmOperator *unused);
 int file_delete_exec(struct bContext *C, struct wmOperator *unused);
 
-void file_directory_enter_handle(bContext *C, void *arg_unused, void *arg_but);
-void file_filename_enter_handle(bContext *C, void *arg_unused, void *arg_but);
+void file_directory_enter_handle(struct bContext *C, void *arg_unused, void *arg_but);
+void file_filename_enter_handle(struct bContext *C, void *arg_unused, void *arg_but);
 
 int file_highlight_set(struct SpaceFile *sfile, struct ARegion *ar, int mx, int my);
 

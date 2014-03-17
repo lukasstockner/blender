@@ -691,8 +691,6 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *UNUSED(rect))
 	};
 	int sort[3];
 
-	int i;
-
 	UI_GetThemeColor3ubv(TH_AXIS_X, color[0]);
 	UI_GetThemeColor3ubv(TH_AXIS_Y, color[1]);
 	UI_GetThemeColor3ubv(TH_AXIS_Z, color[2]);

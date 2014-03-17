@@ -26,7 +26,6 @@ set(INC
 	../../bmesh
 	../../gpu
 	../../imbuf
-	../../gpu
 	../../makesdna
 	../../makesrna
 	../../windowmanager

@@ -71,6 +71,8 @@
 
 #include "interface_intern.h"
 
+#include <stddef.h> /* for offsetof */
+
 /*********************** defines and structs ************************/
 
 #define ANIMATION_TIME      0.30

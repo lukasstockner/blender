@@ -225,6 +225,8 @@ public:
 	 * \return An integer.
 	 */
 	virtual int getSwapInterval();
+
+	/**
 	 * Invalidates the contents of this window.
 	 */
 	virtual GHOST_TSuccess invalidate();

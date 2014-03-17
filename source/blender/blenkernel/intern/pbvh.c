@@ -1598,7 +1598,7 @@ void BKE_pbvh_node_draw(PBVHNode *node, void *data_v)
 	gpuColor3f(1, 0, 0);
 #endif
 
-	if ((node->flag & PBVH_FullyHidden) == 0)
+	if ((node->flag & PBVH_FullyHidden) == 0) {
 		GPU_draw_pbvh_buffers(node->draw_buffers,
 		                 data->setMaterial,
 		                 data->wireframe);

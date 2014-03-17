@@ -180,9 +180,9 @@ static void blf_glyph_cache_texture(FontBLF *font, GlyphCacheBLF *gc)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
 #if defined(WITH_GL_PROFILE_CORE)
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, gc->p2_width, gc->p2_height, 0, GL_RED, GL_UNSIGNED_BYTE, buf);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, gc->p2_width, gc->p2_height, 0, GL_RED, GL_UNSIGNED_BYTE, NULL);
 #elif defined(WITH_GL_PROFILE_COMPAT) || defined(WITH_GL_PROFILE_ES20)
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, gc->p2_width, gc->p2_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, buf);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, gc->p2_width, gc->p2_height, 0, GL_ALPHA, GL_UNSIGNED_BYTE, NULL);
 #endif
 GPU_CHECK_NO_ERROR();
 }

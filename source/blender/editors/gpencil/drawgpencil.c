@@ -220,7 +220,7 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 		if (fabsf(pt->pressure - curpressure) > 0.2f / (float)thickness) {
 			gpuEnd();
 			curpressure = pt->pressure;
-			gpulLineWidth(curpressure * thickness);
+			gpuLineWidth(curpressure * thickness);
 			gpuBegin(GL_LINE_STRIP);
 			
 			/* need to roll-back one point to ensure that there are no gaps in the stroke */

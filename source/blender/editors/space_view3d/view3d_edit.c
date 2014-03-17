@@ -4344,7 +4344,7 @@ bool ED_view3d_autodist(Scene *scene, ARegion *ar, View3D *v3d,
 
 	cent[2] = view_autodist_depth_margin(ar, mval, 4);
 
-	if (cent[2] != FLT_MAX)
+	if (cent[2] != FLT_MAX) {
 		cent[0] = mval[0];
 		cent[1] = mval[1];
 

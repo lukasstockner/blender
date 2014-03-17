@@ -23,15 +23,14 @@ set(INC
 	../../blenfont
 	../../blenkernel
 	../../blenlib
-	../../imbuf
 	../../bmesh
+	../../imbuf
 	../../gpu
 	../../makesdna
 	../../makesrna
 	../../render/extern/include
 	../../windowmanager
 	../../../../intern/guardedalloc
-	../../gpu
 )
 
 set(INC_SYS

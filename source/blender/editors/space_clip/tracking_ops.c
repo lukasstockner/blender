@@ -83,6 +83,8 @@
 
 #include "clip_intern.h"    // own include
 
+#include <stddef.h> /* for offsetof */
+
 /********************** add marker operator *********************/
 
 static bool add_marker(const bContext *C, float x, float y)

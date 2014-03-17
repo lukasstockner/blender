@@ -48,6 +48,8 @@
 
 #include "armature_intern.h"
 
+#include <stddef.h> /* for offsetof */
+
 /* *************************************************************** */
 /* Validation */
 

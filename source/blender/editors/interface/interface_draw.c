@@ -1033,16 +1033,14 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti 
 	gpuColor4ub(UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, 255);
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
 
-	gpuColor4ub(UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, 255);
-	gpuPolygonStipple(stipple_checker_8px);
+	GPU_raster_begin();
 	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
+	gpuPolygonStipple(stipple_checker_8px);
 
-	gpuColor4ub(UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, UI_TRANSP_LIGHT, 255);
-	gpuPolygonStipple(checker_stipple_sml);
+	gpuColor4ub(UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, 255);
 	gpuDrawFilledRectf(x1, y1, x1 + sizex, y1 + sizey);
 
 	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_POLYGON|GPU_RASTER_STIPPLE);
-
 	GPU_raster_end();
 
 	// SSS Enable Smooth

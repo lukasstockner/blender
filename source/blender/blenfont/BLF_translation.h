@@ -33,7 +33,7 @@
 #ifndef __BLF_TRANSLATION_H__
 #define __BLF_TRANSLATION_H__
 
-#include "BLI_utildefines.h"  /* for bool type */
+#include "BLI_sys_types.h"  /* for bool type */
 
 #define TEXT_DOMAIN_NAME "blender"
 

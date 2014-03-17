@@ -54,6 +54,7 @@ struct wmWindowManager;
 struct ListBase;
 struct wmKeyConfig;
 struct GPUTexture;
+struct RegionView3D;
 
 /* drawing flags: */
 enum {
@@ -162,11 +163,11 @@ void draw_mesh_textured(struct Scene *scene, struct View3D *v3d, struct RegionVi
                         struct Object *ob, struct DerivedMesh *dm, const int draw_flags);
 void draw_mesh_face_select(struct RegionView3D *rv3d, struct Mesh *me, struct DerivedMesh *dm);
 void draw_mesh_paint(struct View3D *v3d, struct RegionView3D *rv3d,
+                     struct Object *ob, struct DerivedMesh *dm, const int draw_flags);
 void draw_mesh_paint_weight_faces(struct DerivedMesh *dm, const bool do_light,
                                   void *facemask_cb, void *user_data);
-void draw_mesh_paint_weight_edges(RegionView3D *rv3d, struct DerivedMesh *dm, const bool use_depth,
+void draw_mesh_paint_weight_edges(struct RegionView3D *rv3d, struct DerivedMesh *dm, const bool use_depth,
                                   void *edgemask_cb, void *user_data);
-                     struct Object *ob, struct DerivedMesh *dm, const int draw_flags);
 
 /* view3d_draw.c */
 void view3d_main_area_draw(const struct bContext *C, struct ARegion *ar);
@@ -214,7 +215,7 @@ void view3d_buttons_register(struct ARegionType *art);
 
 /* view3d_camera_control.c */
 struct View3DCameraControl *ED_view3d_cameracontrol_aquire(
-        Scene *scene, View3D *v3d, RegionView3D *rv3d,
+        struct Scene *scene, struct View3D *v3d, struct RegionView3D *rv3d,
         const bool use_parent_root);
 void ED_view3d_cameracontrol_update(
         struct View3DCameraControl *vctrl,
@@ -223,7 +224,7 @@ void ED_view3d_cameracontrol_update(
 void ED_view3d_cameracontrol_release(
         struct View3DCameraControl *vctrl,
         const bool restore);
-Object *ED_view3d_cameracontrol_object_get(
+struct Object *ED_view3d_cameracontrol_object_get(
         struct View3DCameraControl *vctrl);
 
 /* view3d_toolbar.c */
