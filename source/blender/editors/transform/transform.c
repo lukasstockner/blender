@@ -378,7 +378,9 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
 			adr[1] = v[1];
 		}
 		else if (t->options & CTX_PAINT_CURVE){
-			UI_view2d_to_region_no_clip(t->view, vec[0], vec[1], adr, adr + 1);
+			adr[0] = vec[0];
+			adr[1] = vec[1];
+			adr[2] = 0.0;
 		}
 		else {
 			float aspx, aspy, v[2];
@@ -485,7 +487,11 @@ void projectFloatViewEx(TransInfo *t, const float vec[3], float adr[2], const eV
 	switch (t->spacetype) {
 		case SPACE_VIEW3D:
 		{
-			if (t->ar->regiontype == RGN_TYPE_WINDOW) {
+			if (t->options & CTX_PAINT_CURVE) {
+				adr[0] = vec[0];
+				adr[1] = vec[1];
+			}
+			else if (t->ar->regiontype == RGN_TYPE_WINDOW) {
 				/* allow points behind the view [#33643] */
 				if (ED_view3d_project_float_global(t->ar, vec, adr, flag) != V3D_PROJ_RET_OK) {
 					/* XXX, 2.64 and prior did this, weak! */
@@ -3629,8 +3635,14 @@ static void initRotation(TransInfo *t)
 	if (t->flag & T_2D_EDIT)
 		t->flag |= T_NO_CONSTRAINT;
 
-	negate_v3_v3(t->axis, t->viewinv[2]);
-	normalize_v3(t->axis);
+	if (t->options & CTX_PAINT_CURVE) {
+		t->axis[0] = 0.0;
+		t->axis[1] = 0.0;
+		t->axis[2] = -1.0;
+	} else {
+		negate_v3_v3(t->axis, t->viewinv[2]);
+		normalize_v3(t->axis);
+	}
 
 	copy_v3_v3(t->axis_orig, t->axis);
 }

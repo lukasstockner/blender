@@ -298,54 +298,77 @@ static void PAINTCURVE_OT_add_point(wmOperatorType *ot)
 						 "Location", "Location of vertex in area space", 0, SHRT_MAX);
 }
 
-static void paintcurve_point_select(bContext *C, const int loc[2], bool handle)
+static void paintcurve_point_select(bContext *C, const int loc[2], bool handle, bool toggle, bool extend)
 {
+	wmWindow *window = CTX_wm_window(C);
+	ARegion *ar = CTX_wm_region(C);
 	Paint *p = BKE_paint_get_active_from_context(C);
 	Brush *br = p->brush;
 	PaintCurve *pc;
 	PaintCurvePoint *pcp;
 	int i;
+	int select = 0;
 
 	pc = br->paint_curve;
 
 	if (!pc)
 		return;
+
 	pcp = pc->points;
 
-	/* first clear selection from all bezier handles */
-	for (i = 0; i < pc->tot_points; i++) {
-		pcp[i].bez.f1 = pcp[i].bez.f2 = pcp[i].bez.f3 = 0;
-	}
-
-	for (i = 0; i < pc->tot_points; i++, pcp++) {
-		/* shift means constrained editing so exclude center handles from collision detection */
-		if (!handle) {
-			if ((fabs(loc[0] - pcp->bez.vec[1][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
-				(fabs(loc[1] - pcp->bez.vec[1][1]) < PAINT_CURVE_SELECT_THRESHOLD))
-			{
-				pcp->bez.f2 = SELECT;
+	if (toggle) {
+		bool selected = false;
+		for (i = 0; i < pc->tot_points; i++) {
+			if (pcp[i].bez.f1 || pcp[i].bez.f2 || pcp[i].bez.f3) {
+				selected = true;
 				break;
 			}
 		}
 
-		if ((fabs(loc[0] - pcp->bez.vec[0][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
-			(fabs(loc[1] - pcp->bez.vec[0][1]) < PAINT_CURVE_SELECT_THRESHOLD))
-		{
-			pcp->bez.f1 = SELECT;
-			if (handle)
-				pcp->bez.h1 = HD_ALIGN;
-			break;
-		}
+		if (!selected)
+			select = SELECT;
+	}
 
-		if ((fabs(loc[0] - pcp->bez.vec[2][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
-			(fabs(loc[1] - pcp->bez.vec[2][1]) < PAINT_CURVE_SELECT_THRESHOLD))
-		{
-			pcp->bez.f3 = SELECT;
-			if (handle)
-				pcp->bez.h2 = HD_ALIGN;
-			break;
+	if (!extend) {
+		/* first clear selection from all bezier handles */
+		for (i = 0; i < pc->tot_points; i++) {
+			pcp[i].bez.f1 = pcp[i].bez.f2 = pcp[i].bez.f3 = select;
 		}
 	}
+
+	if (!toggle) {
+		for (i = 0; i < pc->tot_points; i++, pcp++) {
+			/* shift means constrained editing so exclude center handles from collision detection */
+			if (!handle) {
+				if ((fabs(loc[0] - pcp->bez.vec[1][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
+						(fabs(loc[1] - pcp->bez.vec[1][1]) < PAINT_CURVE_SELECT_THRESHOLD))
+				{
+					pcp->bez.f2 ^= SELECT;
+					break;
+				}
+			}
+
+			if ((fabs(loc[0] - pcp->bez.vec[0][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
+					(fabs(loc[1] - pcp->bez.vec[0][1]) < PAINT_CURVE_SELECT_THRESHOLD))
+			{
+				pcp->bez.f1 ^= SELECT;
+				if (handle)
+					pcp->bez.h1 = HD_ALIGN;
+				break;
+			}
+
+			if ((fabs(loc[0] - pcp->bez.vec[2][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
+					(fabs(loc[1] - pcp->bez.vec[2][1]) < PAINT_CURVE_SELECT_THRESHOLD))
+			{
+				pcp->bez.f3 ^= SELECT;
+				if (handle)
+					pcp->bez.h2 = HD_ALIGN;
+				break;
+			}
+		}
+	}
+
+	WM_paint_cursor_tag_redraw(window, ar);
 }
 
 
@@ -353,7 +376,9 @@ static int paintcurve_select_point_invoke(bContext *C, wmOperator *op, const wmE
 {
 	int loc[2] = {event->mval[0], event->mval[1]};
 	bool handle = RNA_boolean_get(op->ptr, "handle");
-	paintcurve_point_select(C, loc, handle);
+	bool toggle = RNA_boolean_get(op->ptr, "toggle");
+	bool extend = RNA_boolean_get(op->ptr, "extend");
+	paintcurve_point_select(C, loc, handle, toggle, extend);
 	RNA_int_set_array(op->ptr, "location", loc);
 	return OPERATOR_FINISHED;
 }
@@ -364,8 +389,10 @@ static int paintcurve_select_point_exec(bContext *C, wmOperator *op)
 
 	if (RNA_struct_property_is_set(op->ptr, "location")) {
 		bool handle = RNA_boolean_get(op->ptr, "handle");
+		bool toggle = RNA_boolean_get(op->ptr, "toggle");
+		bool extend = RNA_boolean_get(op->ptr, "extend");
 		RNA_int_get_array(op->ptr, "location", loc);
-		paintcurve_point_select(C, loc, handle);
+		paintcurve_point_select(C, loc, handle, toggle, extend);
 		return OPERATOR_FINISHED;
 	}
 
@@ -392,7 +419,11 @@ static void PAINTCURVE_OT_select(wmOperatorType *ot)
 	/* properties */
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, SHRT_MAX,
 						 "Location", "Location of vertex in area space", 0, SHRT_MAX);
-	prop = RNA_def_boolean(ot->srna, "handle", FALSE, "Handle", "Prefer Handle selection");
+	prop = RNA_def_boolean(ot->srna, "toggle", FALSE, "Toggle", "Select/Deselect all");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "extend", FALSE, "Extend", "Extend selection");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "handle", FALSE, "Handle", "Prefer handle selection");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -1450,9 +1481,14 @@ static void paint_keymap_curve(wmKeyMap *keymap, const char *paintop)
 
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_add_point_slide", ACTIONMOUSE, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", SELECTMOUSE, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", SELECTMOUSE, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", true);
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", ACTIONMOUSE, KM_PRESS, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", ACTIONMOUSE, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "handle", true);
+
+	kmi = WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", AKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "toggle", true);
 
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, 0, 0);
 	RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
@@ -1460,6 +1496,9 @@ static void paint_keymap_curve(wmKeyMap *keymap, const char *paintop)
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
 	WM_keymap_add_item(keymap, paintop, RETKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "TRANSFORM_OT_rotate", RKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "TRANSFORM_OT_resize", SKEY, KM_PRESS, 0, 0);
 }
 
 void ED_keymap_paint(wmKeyConfig *keyconf)
