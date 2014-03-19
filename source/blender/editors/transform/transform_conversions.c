@@ -6972,6 +6972,9 @@ void createTransData(bContext *C, TransInfo *t)
 		t->flag |= T_TEXTURE;
 		createTransTexspace(t);
 	}
+	else if (t->options & CTX_PAINT_CURVE) {
+		createTransPaintCurveVerts(C, t);
+	}
 	else if (t->options & CTX_EDGE) {
 		t->ext = NULL;
 		t->flag |= T_EDIT;
@@ -6993,9 +6996,6 @@ void createTransData(bContext *C, TransInfo *t)
 				set_prop_dist(t, TRUE);
 				sort_trans_data_dist(t);
 			}
-		}
-		else if (t->options & CTX_PAINT_CURVE) {
-			createTransPaintCurveVerts(C, t);
 		}
 		else if (t->obedit) {
 			createTransUVs(C, t);
@@ -7127,15 +7127,6 @@ void createTransData(bContext *C, TransInfo *t)
 			set_prop_dist(t, 1);
 			sort_trans_data_dist(t);
 		}
-	}
-	else if (ob && (ob->mode & (OB_MODE_ALL_PAINT))) {
-		/* sculpt mode and project paint have own undo stack
-		 * transform ops redo clears sculpt/project undo stack.
-		 *
-		 * Could use 'OB_MODE_ALL_PAINT' since there are key conflicts,
-		 * transform + paint isn't well supported. */
-		createTransPaintCurveVerts(C, t);
-		t->flag |= T_POINTS | T_2D_EDIT;
 	}
 	else {
 		createTransObject(C, t);

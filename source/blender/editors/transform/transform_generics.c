@@ -38,6 +38,7 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_brush_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -68,6 +69,7 @@
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
+#include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_displist.h"
@@ -75,7 +77,7 @@
 #include "BKE_lattice.h"
 #include "BKE_mesh.h"
 #include "BKE_nla.h"
-#include "BKE_context.h"
+#include "BKE_paint.h"
 #include "BKE_sequencer.h"
 #include "BKE_editmesh.h"
 #include "BKE_tracking.h"
@@ -1181,8 +1183,10 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			}
 		}
 
-		if (ob && ob->mode & OB_MODE_SCULPT) {
-			t->options |= CTX_PAINT_CURVE;
+		if (ob && ob->mode & OB_MODE_ALL_PAINT) {
+			Paint *p = BKE_paint_get_active_from_context(C);
+			if (p && p->brush && (p->brush->flag & BRUSH_CURVE))
+				t->options |= CTX_PAINT_CURVE;
 		}
 
 		/* initialize UV transform from */
