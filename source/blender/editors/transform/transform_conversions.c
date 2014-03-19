@@ -6973,6 +6973,7 @@ void createTransData(bContext *C, TransInfo *t)
 		createTransTexspace(t);
 	}
 	else if (t->options & CTX_PAINT_CURVE) {
+		t->flag |= T_POINTS | T_2D_EDIT;
 		createTransPaintCurveVerts(C, t);
 	}
 	else if (t->options & CTX_EDGE) {
