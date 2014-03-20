@@ -610,15 +610,15 @@ static void shadecolors4(char coltop[4], char coldown[4], const char *color, sho
 	coldown[3] = color[3];
 }
 
-static void round_box_shade_col4_r(unsigned char col_r[4], const char col1[4], const char col2[4], const float fac)
+static void round_box_shade_col4_r(unsigned char r_col[4], const char col1[4], const char col2[4], const float fac)
 {
 	const int faci = FTOCHAR(fac);
 	const int facm = 255 - faci;
 
-	col_r[0] = (faci * col1[0] + facm * col2[0]) >> 8;
-	col_r[1] = (faci * col1[1] + facm * col2[1]) >> 8;
-	col_r[2] = (faci * col1[2] + facm * col2[2]) >> 8;
-	col_r[3] = (faci * col1[3] + facm * col2[3]) >> 8;
+	r_col[0] = (faci * col1[0] + facm * col2[0]) >> 8;
+	r_col[1] = (faci * col1[1] + facm * col2[1]) >> 8;
+	r_col[2] = (faci * col1[2] + facm * col2[2]) >> 8;
+	r_col[3] = (faci * col1[3] + facm * col2[3]) >> 8;
 }
 
 static void widget_verts_to_quad_strip(uiWidgetBase *wtb, const int totvert, float quad_strip[WIDGET_SIZE_MAX * 2 + 2][2])
@@ -978,6 +978,8 @@ static void ui_text_clip_right_ex(uiFontStyle *fstyle, char *str, const size_t m
 	float tmp;
 	int l_end;
 
+	BLI_assert(str[0]);
+
 	/* If the trailing ellipsis takes more than 20% of all available width, just cut the string
 	 * (as using the ellipsis would remove even more useful chars, and we cannot show much already!).
 	 */
@@ -999,6 +1001,8 @@ static float ui_text_clip_middle_ex(uiFontStyle *fstyle, char *str, const float 
                                     const size_t max_len)
 {
 	float strwidth;
+
+	BLI_assert(str[0]);
 
 	/* need to set this first */
 	uiStyleFontSet(fstyle);
@@ -1146,7 +1150,7 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 	but->ofs = 0;
 	
 
-	/* First shorten num-buttopns eg,
+	/* First shorten num-buttons eg,
 	 *   Translucency: 0.000
 	 * becomes
 	 *   Trans: 0.000
@@ -1416,6 +1420,11 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	/* clip but->drawstr to fit in available space */
 	if (but->editstr && but->pos >= 0) {
 		ui_text_clip_cursor(fstyle, but, rect);
+	}
+	else if (but->drawstr[0] == '\0') {
+		/* bypass text clipping on icon buttons */
+		but->ofs = 0;
+		but->strwidth = 0;
 	}
 	else if (ELEM(but->type, NUM, NUMSLI)) {
 		ui_text_clip_right_label(fstyle, but, rect);
@@ -2027,7 +2036,7 @@ void ui_hsvcircle_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float 
 	
 	ang = 2.0f * (float)M_PI * hsv[0] + 0.5f * (float)M_PI;
 	
-	if (but->flag & UI_BUT_COLOR_CUBIC)
+	if ((but->flag & UI_BUT_COLOR_CUBIC) && (U.color_picker_type == USER_CP_CIRCLE_HSV))
 		radius_t = (1.0f - powf(1.0f - hsv[1], 3.0f));
 	else
 		radius_t = hsv[1];
@@ -2063,15 +2072,20 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	if (color_profile)
 		ui_block_to_display_space_v3(but->block, rgb);
 
-	ui_rgb_to_color_picker_compat_v(rgb, hsvo);
-
 	ui_rgb_to_color_picker_compat_v(rgb, hsv);
-	
+	copy_v3_v3(hsvo, hsv);
+
+	CLAMP(hsv[2], 0.0f, 1.0f); /* for display only */
+
 	/* exception: if 'lock' is set
 	 * lock the value of the color wheel to 1.
 	 * Useful for color correction tools where you're only interested in hue. */
-	if (but->flag & UI_BUT_COLOR_LOCK)
-		hsv[2] = 1.f;
+	if (but->flag & UI_BUT_COLOR_LOCK) {
+		if(U.color_picker_type == USER_CP_CIRCLE_HSV)
+			hsv[2] = 1.f;
+		else
+			hsv[2] = 0.5f;
+	}
 	
 	ui_color_picker_to_rgb(0.f, 0.f, hsv[2], colcent, colcent + 1, colcent + 2);
 
@@ -2086,7 +2100,6 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 		float co = cos(ang);
 		
 		ui_hsvcircle_vals_from_pos(hsv, hsv + 1, rect, centx + co * radius, centy + si * radius);
-		CLAMP(hsv[2], 0.0f, 1.0f); /* for display only */
 
 		ui_color_picker_to_rgb_v(hsv, col);
 
@@ -2287,8 +2300,12 @@ void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *x
 			x = hsv[1]; y = 0.5; break;
 		case UI_GRAD_V:
 			x = hsv[2]; y = 0.5; break;
-		case UI_GRAD_V_ALT:
 		case UI_GRAD_L_ALT:
+			x = 0.5f;
+			/* exception only for value strip - use the range set in but->min/max */
+			y = hsv[2];
+			break;
+		case UI_GRAD_V_ALT:
 			x = 0.5f;
 			/* exception only for value strip - use the range set in but->min/max */
 			y = (hsv[2] - but->softmin ) / (but->softmax - but->softmin);
@@ -2337,7 +2354,7 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 	uiWidgetBase wtb;
 	const float rad = 0.5f * BLI_rcti_size_x(rect);
 	float x, y;
-	float rgb[3], hsv[3], v, range;
+	float rgb[3], hsv[3], v;
 	bool color_profile = but->block->color_profile;
 	
 	if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA)
@@ -2355,9 +2372,11 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 	v = hsv[2];
 	
 	/* map v from property range to [0,1] */
-	range = but->softmax - but->softmin;
-	v = (v - but->softmin) / range;
-	
+	if (but->a1 == UI_GRAD_V_ALT) {
+		float range = but->softmax - but->softmin;
+		v = (v - but->softmin) / range;
+	}
+
 	widget_init(&wtb);
 	
 	/* fully rounded */

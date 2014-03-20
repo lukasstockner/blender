@@ -236,9 +236,6 @@ void RE_free_sample_material(struct Material *mat) RET_NONE
 void RE_sample_material_color(struct Material *mat, float color[3], float *alpha, const float volume_co[3], const float surface_co[3],
                               int face_index, short hit_quad, struct DerivedMesh *orcoDm, struct Object *ob) RET_NONE
 
-/* skin modifier*/
-void modifier_skin_customdata_ensure(struct Object *ob) RET_NONE
-
 /* nodes */
 struct Render *RE_GetRender(const char *name) RET_NULL
 float RE_lamp_get_data(struct ShadeInput *shi, struct Object *lamp_obj, float col[4], float lv[3], float *dist, float shadow[4]) RET_ZERO
@@ -317,7 +314,7 @@ void UI_view2d_to_region_no_clip(struct View2D *v2d, float x, float y, int *regi
 struct EditBone *ED_armature_bone_get_mirrored(const struct ListBase *edbo, EditBone *ebo) RET_NULL
 struct EditBone *ED_armature_edit_bone_add(struct bArmature *arm, const char *name) RET_NULL
 struct ListBase *get_active_constraints (struct Object *ob) RET_NULL
-struct ListBase *get_constraint_lb(struct Object *ob, struct bConstraint *con, struct bPoseChannel **pchan_r) RET_NULL
+struct ListBase *get_constraint_lb(struct Object *ob, struct bConstraint *con, struct bPoseChannel **r_pchan) RET_NULL
 
 bool ED_space_image_show_uvedit(struct SpaceImage *sima, struct Object *obedit) RET_ZERO
 bool ED_space_image_show_render(struct SpaceImage *sima) RET_ZERO

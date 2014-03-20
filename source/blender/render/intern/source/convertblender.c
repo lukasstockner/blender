@@ -5031,6 +5031,8 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 					if (!allow_render_object(re, obd, nolamps, onlyselected, actob))
 						continue;
 
+					copy_m4_m4(obd->obmat, dob->mat);
+
 					if (allow_render_dupli_instance(re, dob, obd)) {
 						ParticleSystem *psys;
 						ObjectRen *obr = NULL;
@@ -5866,7 +5868,9 @@ void RE_Database_Baking(Render *re, Main *bmain, Scene *scene, unsigned int lay,
 	re->lay= lay;
 
 	/* renderdata setup and exceptions */
-	re->r= scene->r;
+	BLI_freelistN(&re->r.layers);
+	re->r = scene->r;
+	BLI_duplicatelist(&re->r.layers, &scene->r.layers);
 	
 	RE_init_threadcount(re);
 	

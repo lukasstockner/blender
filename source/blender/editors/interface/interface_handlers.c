@@ -2940,7 +2940,7 @@ static uiBut *ui_but_list_row_text_activate(bContext *C, uiBut *but, uiHandleBut
 	ARegion *ar = CTX_wm_region(C);
 	uiBut *labelbut = ui_but_find_mouse_over_ex(ar, event->x, event->y, true);
 
-	if (labelbut && labelbut->type == TEX) {
+	if (labelbut && labelbut->type == TEX && !(labelbut->flag & UI_BUT_DISABLED)) {
 		/* exit listrow */
 		data->cancel = true;
 		button_activate_exit(C, but, data, false, false);
@@ -4482,8 +4482,10 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 		case UI_GRAD_V:
 			hsv[2] = x;
 			break;
-		case UI_GRAD_V_ALT:
 		case UI_GRAD_L_ALT:
+			hsv[2] = y;
+			break;
+		case UI_GRAD_V_ALT:
 			/* vertical 'value' strip */
 
 			/* exception only for value strip - use the range set in but->min/max */
@@ -4506,7 +4508,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 		ui_block_to_scene_linear_v3(but->block, rgb);
 
 	/* clamp because with color conversion we can exceed range [#34295] */
-	if (ELEM((int)but->a1, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {
+	if (but->a1 == UI_GRAD_V_ALT) {
 		clamp_axis_max_v3(rgb, but->softmax);
 	}
 
@@ -4749,8 +4751,14 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 
 	/* exception, when using color wheel in 'locked' value state:
 	 * allow choosing a hue for black values, by giving a tiny increment */
-	if (but->flag & UI_BUT_COLOR_LOCK) { // lock
-		if (hsv[2] == 0.f) hsv[2] = 0.0001f;
+	if (but->flag & UI_BUT_COLOR_LOCK) {
+		if (U.color_picker_type == USER_CP_CIRCLE_HSV) { // lock
+			if (hsv[2] == 0.f) hsv[2] = 0.0001f;
+		}
+		else {
+			if (hsv[2] == 0.f) hsv[2] = 0.0001f;
+			if (hsv[2] == 1.f) hsv[2] = 0.9999f;
+		}
 	}
 
 	/* only apply the delta motion, not absolute */
@@ -4775,7 +4783,7 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 	
 	ui_hsvcircle_vals_from_pos(hsv, hsv + 1, &rect, mx_fl, my_fl);
 
-	if (but->flag & UI_BUT_COLOR_CUBIC)
+	if ((but->flag & UI_BUT_COLOR_CUBIC) && (U.color_picker_type == USER_CP_CIRCLE_HSV))
 		hsv[1] = 1.0f - sqrt3f(1.0f - hsv[1]);
 
 	if (snap != SNAP_OFF) {
@@ -4838,8 +4846,14 @@ static void ui_ndofedit_but_HSVCIRCLE(uiBut *but, uiHandleButtonData *data,
 
 	/* exception, when using color wheel in 'locked' value state:
 	 * allow choosing a hue for black values, by giving a tiny increment */
-	if (but->flag & UI_BUT_COLOR_LOCK) { // lock
-		if (hsv[2] == 0.0f) hsv[2] = 0.0001f;
+	if (but->flag & UI_BUT_COLOR_LOCK) {
+		if (U.color_picker_type == USER_CP_CIRCLE_HSV) { // lock
+			if (hsv[2] == 0.f) hsv[2] = 0.0001f;
+		}
+		else {
+			if (hsv[2] == 0.f) hsv[2] = 0.0001f;
+			if (hsv[2] == 1.f) hsv[2] = 0.9999f;
+		}
 	}
 
 	if (snap != SNAP_OFF) {

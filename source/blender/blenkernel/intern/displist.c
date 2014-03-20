@@ -596,7 +596,7 @@ static void bevels_to_filledpoly(Curve *cu, ListBase *dispbase)
 	while (dl) {
 		if (dl->type == DL_SURF) {
 			if ((dl->flag & DL_CYCL_V) && (dl->flag & DL_CYCL_U) == 0) {
-				if ( (cu->flag & CU_BACK) && (dl->flag & DL_BACK_CURVE)) {
+				if ((cu->flag & CU_BACK) && (dl->flag & DL_BACK_CURVE)) {
 					dlnew = MEM_callocN(sizeof(DispList), "filldisp");
 					BLI_addtail(&front, dlnew);
 					dlnew->verts = fp1 = MEM_mallocN(sizeof(float) * 3 * dl->parts, "filldisp1");
@@ -1282,9 +1282,9 @@ void BKE_displist_make_surf(Scene *scene, Object *ob, ListBase *dispbase,
 	BKE_nurbList_free(&nubase);
 }
 
-static void rotateBevelPiece(Curve *cu, BevPoint *bevp, BevPoint *nbevp, DispList *dlb, float bev_blend, float widfac, float fac, float **data_r)
+static void rotateBevelPiece(Curve *cu, BevPoint *bevp, BevPoint *nbevp, DispList *dlb, float bev_blend, float widfac, float fac, float **r_data)
 {
-	float *fp, *data = *data_r;
+	float *fp, *data = *r_data;
 	int b;
 
 	fp = dlb->verts;
@@ -1335,7 +1335,7 @@ static void rotateBevelPiece(Curve *cu, BevPoint *bevp, BevPoint *nbevp, DispLis
 		}
 	}
 
-	*data_r = data;
+	*r_data = data;
 }
 
 static void fillBevelCap(Nurb *nu, DispList *dlb, float *prev_fp, ListBase *dispbase)
