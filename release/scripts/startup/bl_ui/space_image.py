@@ -317,7 +317,7 @@ class IMAGE_MT_uvs(Menu):
         layout.prop(uv, "use_live_unwrap")
         layout.operator("uv.unwrap")
         layout.operator("uv.pin", text="Unpin").clear = True
-        layout.operator("uv.pin")
+        layout.operator("uv.pin").clear = False
 
         layout.separator()
 

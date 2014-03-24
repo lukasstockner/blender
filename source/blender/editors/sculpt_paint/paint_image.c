@@ -1295,6 +1295,7 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 	RNA_int_set_array(op->ptr, "location", event->mval);
 	paint_sample_color(C, ar, event->mval[0], event->mval[1], mode == PAINT_TEXTURE_PROJECTIVE, false);
+	WM_cursor_modal_set(CTX_wm_window(C), BC_EYEDROPPER_CURSOR);
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 
@@ -1319,6 +1320,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			copy_v3_v3(brush->rgb, data->initcolor);
 			RNA_boolean_set(op->ptr, "palette", true);
 		}
+		WM_cursor_modal_restore(CTX_wm_window(C));
 		MEM_freeN(data);
 		ED_area_headerprint(sa, NULL);
 
