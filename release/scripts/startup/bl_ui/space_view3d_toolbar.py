@@ -1221,10 +1221,7 @@ class VIEW3D_PT_tools_brush_stroke(Panel, View3DPaintPanel):
 
         col.label(text="Stroke Method:")
 
-        if context.sculpt_object or context.image_paint_object:
-            col.prop(brush, "stroke_method", text="")
-        else:
-            col.prop(brush, "stroke_method_limited", text="")
+        col.prop(brush, "stroke_method", text="")
 
         if brush.use_anchor:
             col.separator()

@@ -5336,8 +5336,8 @@ static int sculpt_sample_detail_size_modal(bContext *C, wmOperator *op, const wm
 			ScrArea *sa = CTX_wm_area(C);
 			WM_cursor_modal_restore(CTX_wm_window(C));
 			ED_area_headerprint(sa, NULL);
+
 			return OPERATOR_CANCELLED;
-			break;
 		}
 	}
 

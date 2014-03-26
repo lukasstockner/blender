@@ -417,11 +417,7 @@ static int view3d_camera_to_view_exec(bContext *C, wmOperator *UNUSED(op))
 	ED_view3d_context_user_region(C, &v3d, &ar);
 	rv3d = ar->regiondata;
 
-	copy_qt_qt(rv3d->lviewquat, rv3d->viewquat);
-	rv3d->lview = rv3d->view;
-	if (rv3d->persp != RV3D_CAMOB) {
-		rv3d->lpersp = rv3d->persp;
-	}
+	ED_view3d_lastview_store(rv3d);
 
 	BKE_object_tfm_protected_backup(v3d->camera, &obtfm);
 
@@ -838,7 +834,7 @@ static float view3d_quat_axis[6][4] = {
 	{0.5f, -0.5f, -0.5f, -0.5f},            /* RV3D_VIEW_RIGHT */
 	{1.0f, 0.0f, 0.0f, 0.0f},               /* RV3D_VIEW_TOP */
 	{0.0f, -1.0f, 0.0f, 0.0f},              /* RV3D_VIEW_BOTTOM */
-	};
+};
 
 
 bool ED_view3d_quat_from_axis_view(const char view, float quat[4])

@@ -134,12 +134,13 @@ float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3]
 	return area;
 }
 
-float area_poly_v3(int nr, float verts[][3], const float normal[3])
+float area_poly_v3(const float verts[][3], unsigned int nr, const float normal[3])
 {
-	int a, px, py;
+	unsigned int a;
+	int px, py;
 	const float max = axis_dominant_v3_max(&px, &py, normal);
 	float area;
-	float *co_curr, *co_prev;
+	const float *co_curr, *co_prev;
 
 	/* The Trapezium Area Rule */
 	co_prev = verts[nr - 1];
@@ -154,9 +155,9 @@ float area_poly_v3(int nr, float verts[][3], const float normal[3])
 	return fabsf(0.5f * area / max);
 }
 
-float cross_poly_v2(int nr, float verts[][2])
+float cross_poly_v2(const float verts[][2], unsigned int nr)
 {
-	int a;
+	unsigned int a;
 	float cross;
 	const float *co_curr, *co_prev;
 
@@ -173,9 +174,9 @@ float cross_poly_v2(int nr, float verts[][2])
 	return cross;
 }
 
-float area_poly_v2(int nr, float verts[][2])
+float area_poly_v2(const float verts[][2], unsigned int nr)
 {
-	return fabsf(0.5f * cross_poly_v2(nr, verts));
+	return fabsf(0.5f * cross_poly_v2(verts, nr));
 }
 
 /********************************* Planes **********************************/
@@ -2683,8 +2684,13 @@ void interp_cubic_v3(float x[3], float v[3], const float x1[3], const float v1[3
 
 #define IS_ZERO(x) ((x > (-DBL_EPSILON) && x < DBL_EPSILON) ? 1 : 0)
 
-/* Barycentric reverse  */
-void resolve_tri_uv(float r_uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2])
+/**
+ * Barycentric reverse
+ *
+ * Compute coordinates (u, v) for point \a st with respect to triangle (\a st0, \a st1, \a st2)
+ */
+void resolve_tri_uv_v2(float r_uv[2], const float st[2],
+                       const float st0[2], const float st1[2], const float st2[2])
 {
 	/* find UV such that
 	 * t = u * t0 + v * t1 + (1 - u - v) * t2
@@ -2693,8 +2699,9 @@ void resolve_tri_uv(float r_uv[2], const float st[2], const float st0[2], const 
 	const double c = st0[1] - st2[1], d = st1[1] - st2[1];
 	const double det = a * d - c * b;
 
-	if (IS_ZERO(det) == 0) { /* det should never be zero since the determinant is the signed ST area of the triangle. */
-		const double x[] = {st[0] - st2[0], st[1] - st2[1]};
+	/* det should never be zero since the determinant is the signed ST area of the triangle. */
+	if (IS_ZERO(det) == 0) {
+		const double x[2] = {st[0] - st2[0], st[1] - st2[1]};
 
 		r_uv[0] = (float)((d * x[0] - b * x[1]) / det);
 		r_uv[1] = (float)(((-c) * x[0] + a * x[1]) / det);
@@ -2704,15 +2711,51 @@ void resolve_tri_uv(float r_uv[2], const float st[2], const float st0[2], const 
 	}
 }
 
-/* bilinear reverse */
-void resolve_quad_uv(float r_uv[2], const float st[2], const float st0[2], const float st1[2], const float st2[2], const float st3[2])
+/**
+ * Barycentric reverse 3d
+ *
+ * Compute coordinates (u, v) for point \a st with respect to triangle (\a st0, \a st1, \a st2)
+ */
+void resolve_tri_uv_v3(float r_uv[2], const float st[3], const float st0[3], const float st1[3], const float st2[3])
 {
-	resolve_quad_uv_deriv(r_uv, NULL, st, st0, st1, st2, st3);
+	float v0[3], v1[3], v2[3];
+	double d00, d01, d11, d20, d21, det;
+
+	sub_v3_v3v3(v0, st1, st0);
+	sub_v3_v3v3(v1, st2, st0);
+	sub_v3_v3v3(v2, st, st0);
+
+	d00 = dot_v3v3(v0, v0);
+	d01 = dot_v3v3(v0, v1);
+	d11 = dot_v3v3(v1, v1);
+	d20 = dot_v3v3(v2, v0);
+	d21 = dot_v3v3(v2, v1);
+
+	det = d00 * d11 - d01 * d01;
+
+	/* det should never be zero since the determinant is the signed ST area of the triangle. */
+	if (IS_ZERO(det) == 0) {
+		float w;
+
+		w =       (float)((d00 * d21 - d01 * d20) / det);
+		r_uv[1] = (float)((d11 * d20 - d01 * d21) / det);
+		r_uv[0] = 1.0f - r_uv[1] - w;
+	}
+	else {
+		zero_v2(r_uv);
+	}
+}
+
+/* bilinear reverse */
+void resolve_quad_uv_v2(float r_uv[2], const float st[2],
+                        const float st0[2], const float st1[2], const float st2[2], const float st3[2])
+{
+	resolve_quad_uv_v2_deriv(r_uv, NULL, st, st0, st1, st2, st3);
 }
 
 /* bilinear reverse with derivatives */
-void resolve_quad_uv_deriv(float r_uv[2], float r_deriv[2][2],
-                           const float st[2], const float st0[2], const float st1[2], const float st2[2], const float st3[2])
+void resolve_quad_uv_v2_deriv(float r_uv[2], float r_deriv[2][2],
+                              const float st[2], const float st0[2], const float st1[2], const float st2[2], const float st3[2])
 {
 	const double signed_area = (st0[0] * st1[1] - st0[1] * st1[0]) + (st1[0] * st2[1] - st1[1] * st2[0]) +
 	                           (st2[0] * st3[1] - st2[1] * st3[0]) + (st3[0] * st0[1] - st3[1] * st0[0]);
