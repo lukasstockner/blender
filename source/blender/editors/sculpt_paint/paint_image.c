@@ -219,7 +219,7 @@ void *image_undo_find_tile(Image *ima, ImBuf *ibuf, int x_tile, int y_tile, unsi
 	return NULL;
 }
 
-void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile, int y_tile, unsigned short **mask, bool **valid)
+void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile, int y_tile, unsigned short **mask, bool **valid, bool proj)
 {
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
 	UndoImageTile *tile;
@@ -228,10 +228,14 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 	void *data;
 
 	/* check if tile is already pushed */
-	data = image_undo_find_tile(ima, ibuf, x_tile, y_tile, mask, true);
-	if (data)
-		return data;
-	
+
+	/* in projective painting we keep accounting of tiles, so if we need one pushed, just push! */
+	if (!proj) {
+		data = image_undo_find_tile(ima, ibuf, x_tile, y_tile, mask, true);
+		if (data)
+			return data;
+	}
+
 	if (*tmpibuf == NULL)
 		*tmpibuf = IMB_allocImBuf(IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, 32, IB_rectfloat | IB_rect);
 	
@@ -261,10 +265,18 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 		*valid = &tile->valid;
 
 	undo_copy_tile(tile, *tmpibuf, ibuf, COPY);
-	undo_paint_push_count_alloc(UNDO_PAINT_IMAGE, allocsize);
 
+
+	/* in projective texturing we need to protect this part */
+	if (proj)
+		BLI_lock_thread(LOCK_CUSTOM1);
+
+	undo_paint_push_count_alloc(UNDO_PAINT_IMAGE, allocsize);
 	BLI_addtail(lb, tile);
-	
+
+	if (proj)
+		BLI_unlock_thread(LOCK_CUSTOM1);
+
 	return tile->rect.pt;
 }
 
@@ -465,7 +477,7 @@ void ED_imapaint_dirty_region(Image *ima, ImBuf *ibuf, int x, int y, int w, int 
 
 	for (ty = tiley; ty <= tileh; ty++)
 		for (tx = tilex; tx <= tilew; tx++)
-			image_undo_push_tile(ima, ibuf, &tmpibuf, tx, ty, NULL, NULL);
+			image_undo_push_tile(ima, ibuf, &tmpibuf, tx, ty, NULL, NULL, false);
 
 	ibuf->userflags |= IB_BITMAPDIRTY;
 	

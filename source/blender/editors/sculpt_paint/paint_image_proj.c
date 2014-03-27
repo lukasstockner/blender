@@ -175,6 +175,8 @@ BLI_INLINE unsigned char f_to_char(const float val)
 /* vert flags */
 #define PROJ_VERT_CULL 1
 
+#define TILE_PENDING SET_INT_IN_POINTER(-1)
+
 /* This is mainly a convenience struct used so we can keep an array of images we use
  * Thir imbufs, etc, in 1 array, When using threads this array is copied for each thread
  * because 'partRedrawRect' and 'touch' values would not be thread safe */
@@ -183,7 +185,7 @@ typedef struct ProjPaintImage {
 	ImBuf *ibuf;
 	ImagePaintPartialRedraw *partRedrawRect;
 	void **undoRect; /* only used to build undo tiles after painting */
-	void **maskRect; /* the mask accumulation must happen on canvas, not on space screen bucket.
+	unsigned short **maskRect; /* the mask accumulation must happen on canvas, not on space screen bucket.
 	                  * Here we store the mask rectangle */
 	bool **valid; /* store flag to enforce validation of undo rectangle */
 	int touch;
@@ -1394,35 +1396,41 @@ static int project_paint_pixel_sizeof(const short tool)
 	}
 }
 
-static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty, bool **valid)
+static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 {
-	unsigned short *maskrect;
 	ProjPaintImage *pjIma = tinf->pjima;
+	bool generate_tile = false;
+	int tile_index = tx + ty * tinf->tile_width;
 
-	int tileindex = tx + ty * tinf->tile_width;
+	/* double check lock + lazy initialization will ensure we do not get waiting on other threads while
+	 * tile is copied */
+	if (UNLIKELY(!pjIma->undoRect[tile_index])) {
 
-	if (tinf->threaded)
-		BLI_lock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
+		if (tinf->threaded)
+			BLI_lock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
 
-	if (UNLIKELY(!pjIma->undoRect[tileindex])) {
-		if (tinf->masked) {
-			pjIma->undoRect[tileindex] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, &maskrect, &pjIma->valid[tileindex]);
-			pjIma->maskRect[tileindex] = maskrect;
+		if (!pjIma->undoRect[tile_index]) {
+			generate_tile = true;
+			pjIma->undoRect[tile_index] = TILE_PENDING;
 		}
-		else
-			pjIma->undoRect[tileindex] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, NULL, &pjIma->valid[tileindex]);
+		if (tinf->threaded)
+			BLI_unlock_thread(LOCK_CUSTOM1);
 
-		*valid = pjIma->valid[tileindex];
+	}
+
+	if (generate_tile) {
+		void *undorect;
+		if (tinf->masked) {
+			undorect = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, &pjIma->maskRect[tile_index], &pjIma->valid[tile_index], true);
+		}
+		else {
+			undorect = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, NULL, &pjIma->valid[tile_index], true);
+		}
 		pjIma->ibuf->userflags |= IB_BITMAPDIRTY;
+		/* all ready, publish */
+		pjIma->undoRect[tile_index] = undorect;
 	}
-	else {
-		*valid = pjIma->valid[tileindex];
-	}
-
-	if (tinf->threaded)
-		BLI_unlock_thread(LOCK_CUSTOM1);
-
-	return tileindex;
+	return tile_index;
 }
 
 /* run this function when we know a bucket's, face's pixel can be initialized,
@@ -1464,10 +1472,16 @@ static ProjPixel *project_paint_uvpixel_init(
 	//memset(projPixel, 0, size);
 
 	tile_offset = (x_px - x_round) + (y_px - y_round) * IMAPAINT_TILE_SIZE;
-	tile_index = project_paint_undo_subtiles(tinf, x_tile, y_tile, &projPixel->valid);
+	tile_index = project_paint_undo_subtiles(tinf, x_tile, y_tile);
 
 	BLI_assert(tile_index < (IMAPAINT_TILE_NUMBER(ibuf->x) * IMAPAINT_TILE_NUMBER(ibuf->y)));
 	BLI_assert(tile_offset < (IMAPAINT_TILE_SIZE * IMAPAINT_TILE_SIZE));
+
+	/* wait for other thread to initialize the tile */
+	while (projima->undoRect[tile_index] == TILE_PENDING)
+		;
+
+	projPixel->valid = projima->valid[tile_index];
 
 	if (ibuf->rect_float) {
 		projPixel->pixel.f_pt = ibuf->rect_float + ((x_px + y_px * ibuf->x) * 4);
@@ -1475,7 +1489,7 @@ static ProjPixel *project_paint_uvpixel_init(
 		zero_v4(projPixel->newColor.f);
 	}
 	else {
-		projPixel->pixel.ch_pt = ((unsigned char *)ibuf->rect + ((x_px + y_px * ibuf->x) * 4));
+		projPixel->pixel.ch_pt = (unsigned char *)(ibuf->rect + (x_px + y_px * ibuf->x));
 		projPixel->origColor.uint_pt = (unsigned int *)projima->undoRect[tile_index] + tile_offset;
 		projPixel->newColor.uint = 0;
 	}
@@ -1492,7 +1506,7 @@ static ProjPixel *project_paint_uvpixel_init(
 
 	projPixel->mask = (unsigned short)(mask * 65535);
 	if (ps->do_masking)
-		projPixel->mask_accum = (unsigned short *)projima->maskRect[tile_index] + tile_offset;
+		projPixel->mask_accum = projima->maskRect[tile_index] + tile_offset;
 	else
 		projPixel->mask_accum = NULL;
 
@@ -3423,7 +3437,7 @@ static void project_paint_begin(ProjPaintState *ps)
 		memset(projIma->partRedrawRect, 0, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED);
 		projIma->undoRect = (void **) BLI_memarena_alloc(arena, size);
 		memset(projIma->undoRect, 0, size);
-		projIma->maskRect = (void **) BLI_memarena_alloc(arena, size);
+		projIma->maskRect = (unsigned short **) BLI_memarena_alloc(arena, size);
 		memset(projIma->maskRect, 0, size);
 		projIma->valid = (bool **) BLI_memarena_alloc(arena, size);
 		memset(projIma->valid, 0, size);

@@ -146,7 +146,7 @@ typedef struct ImagePaintPartialRedraw {
 
 int image_texture_paint_poll(struct bContext *C);
 void *image_undo_find_tile(struct Image *ima, struct ImBuf *ibuf, int x_tile, int y_tile, unsigned short **mask, bool validate);
-void *image_undo_push_tile(struct Image *ima, struct ImBuf *ibuf, struct ImBuf **tmpibuf, int x_tile, int y_tile,  unsigned short **, bool **valid);
+void *image_undo_push_tile(struct Image *ima, struct ImBuf *ibuf, struct ImBuf **tmpibuf, int x_tile, int y_tile,  unsigned short **, bool **valid, bool proj);
 void image_undo_remove_masks(void);
 void imapaint_image_update(struct SpaceImage *sima, struct Image *image, struct ImBuf *ibuf, short texpaint);
 struct ImagePaintPartialRedraw *get_imapaintpartial(void);
