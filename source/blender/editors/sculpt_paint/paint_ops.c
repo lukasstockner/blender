@@ -182,7 +182,7 @@ static int paintcurve_poll(bContext *C)
 {
 	Paint *p = BKE_paint_get_active_from_context(C);
 
-	if (p && p->brush && p->brush->flag & BRUSH_CURVE) {
+	if (p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
 		return TRUE;
 	}
 
@@ -427,6 +427,47 @@ static void PAINTCURVE_OT_select(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+
+static int paintcurve_draw_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
+	const char *name;
+
+	switch (mode) {
+		case PAINT_TEXTURE_2D:
+		case PAINT_TEXTURE_PROJECTIVE:
+			name = "PAINT_OT_image_paint";
+			break;
+		case PAINT_WEIGHT:
+			name = "PAINT_OT_weight_paint";
+			break;
+		case PAINT_VERTEX:
+			name = "PAINT_OT_vertex_paint";
+			break;
+		case PAINT_SCULPT:
+			name = "SCULPT_OT_brush_stroke";
+			break;
+		default:
+			return OPERATOR_PASS_THROUGH;
+	}
+
+	return 	WM_operator_name_call(C, name, WM_OP_INVOKE_DEFAULT, NULL);
+}
+
+static void PAINTCURVE_OT_draw(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Draw Curve";
+	ot->description = "Draw curve";
+	ot->idname = "PAINTCURVE_OT_draw";
+
+	/* api callbacks */
+	ot->exec = paintcurve_draw_exec;
+	ot->poll = paintcurve_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
+}
 
 static int palette_color_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -1282,6 +1323,7 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINTCURVE_OT_new);
 	WM_operatortype_append(PAINTCURVE_OT_add_point);
 	WM_operatortype_append(PAINTCURVE_OT_select);
+	WM_operatortype_append(PAINTCURVE_OT_draw);
 
 	/* brush */
 	WM_operatortype_append(BRUSH_OT_add);
@@ -1475,7 +1517,7 @@ static void paint_partial_visibility_keys(wmKeyMap *keymap)
 }
 
 
-static void paint_keymap_curve(wmKeyMap *keymap, const char *paintop)
+static void paint_keymap_curve(wmKeyMap *keymap)
 {
 	wmKeyMapItem *kmi;
 
@@ -1492,10 +1534,9 @@ static void paint_keymap_curve(wmKeyMap *keymap, const char *paintop)
 
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, 0, 0);
 	RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
-	WM_keymap_add_item(keymap, paintop, RETKEY, KM_PRESS, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
-	WM_keymap_add_item(keymap, paintop, RETKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "PAINTCURVE_OT_draw", RETKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_rotate", RKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_resize", SKEY, KM_PRESS, 0, 0);
@@ -1507,11 +1548,14 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	wmKeyMapItem *kmi;
 	int i;
 	
+	keymap = WM_keymap_find(keyconf, "Curve", 0, 0);
+	keymap->poll = paintcurve_poll;
+
+	paint_keymap_curve(keymap);
+
 	/* Sculpt mode */
 	keymap = WM_keymap_find(keyconf, "Sculpt", 0, 0);
 	keymap->poll = sculpt_mode_poll;
-
-	paint_keymap_curve(keymap, "SCULPT_OT_brush_stroke");
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "SCULPT_OT_brush_stroke", LEFTMOUSE, KM_PRESS, 0,        0)->ptr, "mode", BRUSH_STROKE_NORMAL);
 	RNA_enum_set(WM_keymap_add_item(keymap, "SCULPT_OT_brush_stroke", LEFTMOUSE, KM_PRESS, KM_CTRL,  0)->ptr, "mode", BRUSH_STROKE_INVERT);
@@ -1588,8 +1632,6 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "Vertex Paint", 0, 0);
 	keymap->poll = vertex_paint_mode_poll;
 
-	paint_keymap_curve(keymap, "PAINT_OT_vertex_paint");
-
 	WM_keymap_verify_item(keymap, "PAINT_OT_vertex_paint", LEFTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_sample_color", SKEY, KM_PRESS, 0, 0);
 
@@ -1617,8 +1659,6 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/* Weight Paint mode */
 	keymap = WM_keymap_find(keyconf, "Weight Paint", 0, 0);
 	keymap->poll = weight_paint_mode_poll;
-
-	paint_keymap_curve(keymap, "PAINT_OT_weight_paint");
 
 	WM_keymap_verify_item(keymap, "PAINT_OT_weight_paint", LEFTMOUSE, KM_PRESS, 0, 0);
 
@@ -1668,8 +1708,6 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/* Image/Texture Paint mode */
 	keymap = WM_keymap_find(keyconf, "Image Paint", 0, 0);
 	keymap->poll = image_texture_paint_poll;
-
-	paint_keymap_curve(keymap, "PAINT_OT_image_paint");
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_image_paint", LEFTMOUSE, KM_PRESS, 0,        0)->ptr, "mode", BRUSH_STROKE_NORMAL);
 	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_image_paint", LEFTMOUSE, KM_PRESS, KM_CTRL,  0)->ptr, "mode", BRUSH_STROKE_INVERT);

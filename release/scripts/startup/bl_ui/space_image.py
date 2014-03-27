@@ -917,6 +917,7 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
         if brush.use_curve:
             col.separator()
             col.template_ID(brush, "paint_curve", new="paintcurve.new")
+            col.operator("paintcurve.draw")
 
         col = layout.column()
         col.separator()
