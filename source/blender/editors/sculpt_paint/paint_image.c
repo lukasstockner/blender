@@ -266,8 +266,14 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 
 	undo_copy_tile(tile, *tmpibuf, ibuf, COPY);
 
+	if (proj)
+		BLI_lock_thread(LOCK_CUSTOM1);
+
 	undo_paint_push_count_alloc(UNDO_PAINT_IMAGE, allocsize);
 	BLI_addtail(lb, tile);
+
+	if (proj)
+		BLI_unlock_thread(LOCK_CUSTOM1);
 
 	return tile->rect.pt;
 }

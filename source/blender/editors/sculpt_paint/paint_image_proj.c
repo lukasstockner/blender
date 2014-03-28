@@ -175,6 +175,9 @@ BLI_INLINE unsigned char f_to_char(const float val)
 /* vert flags */
 #define PROJ_VERT_CULL 1
 
+/* to avoid locking in tile initialization */
+#define TILE_PENDING SET_INT_IN_POINTER(-1)
+
 /* This is mainly a convenience struct used so we can keep an array of images we use
  * Thir imbufs, etc, in 1 array, When using threads this array is copied for each thread
  * because 'partRedrawRect' and 'touch' values would not be thread safe */
@@ -182,7 +185,7 @@ typedef struct ProjPaintImage {
 	Image *ima;
 	ImBuf *ibuf;
 	ImagePaintPartialRedraw *partRedrawRect;
-	void **undoRect; /* only used to build undo tiles after painting */
+	volatile void **undoRect; /* only used to build undo tiles after painting */
 	unsigned short **maskRect; /* the mask accumulation must happen on canvas, not on space screen bucket.
 	                  * Here we store the mask rectangle */
 	bool **valid; /* store flag to enforce validation of undo rectangle */
@@ -1398,22 +1401,35 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 {
 	ProjPaintImage *pjIma = tinf->pjima;
 	int tile_index = tx + ty * tinf->tile_width;
+	bool generate_tile = false;
 
-	if (tinf->threaded)
-		BLI_lock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
-
-	if (!pjIma->undoRect[tile_index]) {
-		if (tinf->masked) {
-			pjIma->undoRect[tile_index] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, &pjIma->maskRect[tile_index], &pjIma->valid[tile_index], true);
+	/* double check lock to avoid locking */
+	if (UNLIKELY(!pjIma->undoRect[tile_index])) {
+		if (tinf->threaded)
+			BLI_lock_thread(LOCK_CUSTOM1);
+		if (LIKELY(!pjIma->undoRect[tile_index])) {
+			pjIma->undoRect[tile_index] = TILE_PENDING;
+			generate_tile = true;
 		}
-		else {
-			pjIma->undoRect[tile_index] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, NULL, &pjIma->valid[tile_index], true);
-		}
-		pjIma->ibuf->userflags |= IB_BITMAPDIRTY;
+		if (tinf->threaded)
+			BLI_unlock_thread(LOCK_CUSTOM1);
 	}
 
-	if (tinf->threaded)
-		BLI_unlock_thread(LOCK_CUSTOM1);
+
+	if (generate_tile) {
+		volatile void *undorect;
+		if (tinf->masked) {
+			undorect = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, &pjIma->maskRect[tile_index], &pjIma->valid[tile_index], true);
+		}
+		else {
+			undorect = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, NULL, &pjIma->valid[tile_index], true);
+		}
+
+		pjIma->ibuf->userflags |= IB_BITMAPDIRTY;
+		/* tile ready, publish */
+		pjIma->undoRect[tile_index] = undorect;
+	}
+
 	return tile_index;
 }
 
@@ -1434,7 +1450,9 @@ static ProjPixel *project_paint_uvpixel_init(
 	ProjPixel *projPixel;
 	int x_tile, y_tile;
 	int x_round, y_round;
-	int tile_offset, tile_index;
+	int tile_offset;
+	/* volatile is important here to ensure pending check is not optimized away by compiler*/
+	volatile int tile_index;
 
 	ProjPaintImage *projima = tinf->pjima;
 	ImBuf *ibuf = projima->ibuf;
@@ -1457,6 +1475,10 @@ static ProjPixel *project_paint_uvpixel_init(
 
 	tile_offset = (x_px - x_round) + (y_px - y_round) * IMAPAINT_TILE_SIZE;
 	tile_index = project_paint_undo_subtiles(tinf, x_tile, y_tile);
+
+	/* other thread may be initializing the tile so wait here */
+	while (projima->undoRect[tile_index] == TILE_PENDING)
+		;
 
 	BLI_assert(tile_index < (IMAPAINT_TILE_NUMBER(ibuf->x) * IMAPAINT_TILE_NUMBER(ibuf->y)));
 	BLI_assert(tile_offset < (IMAPAINT_TILE_SIZE * IMAPAINT_TILE_SIZE));
@@ -3415,7 +3437,7 @@ static void project_paint_begin(ProjPaintState *ps)
 		size = sizeof(void **) * IMAPAINT_TILE_NUMBER(projIma->ibuf->x) * IMAPAINT_TILE_NUMBER(projIma->ibuf->y);
 		projIma->partRedrawRect =  BLI_memarena_alloc(arena, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED);
 		memset(projIma->partRedrawRect, 0, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED);
-		projIma->undoRect = (void **) BLI_memarena_alloc(arena, size);
+		projIma->undoRect = (volatile void **) BLI_memarena_alloc(arena, size);
 		memset(projIma->undoRect, 0, size);
 		projIma->maskRect = (unsigned short **) BLI_memarena_alloc(arena, size);
 		memset(projIma->maskRect, 0, size);
