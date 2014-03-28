@@ -175,8 +175,6 @@ BLI_INLINE unsigned char f_to_char(const float val)
 /* vert flags */
 #define PROJ_VERT_CULL 1
 
-#define TILE_PENDING SET_INT_IN_POINTER(-1)
-
 /* This is mainly a convenience struct used so we can keep an array of images we use
  * Thir imbufs, etc, in 1 array, When using threads this array is copied for each thread
  * because 'partRedrawRect' and 'touch' values would not be thread safe */
@@ -1399,37 +1397,23 @@ static int project_paint_pixel_sizeof(const short tool)
 static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 {
 	ProjPaintImage *pjIma = tinf->pjima;
-	bool generate_tile = false;
 	int tile_index = tx + ty * tinf->tile_width;
 
-	/* double check lock + lazy initialization will ensure we do not get waiting on other threads while
-	 * tile is copied */
-	if (UNLIKELY(!pjIma->undoRect[tile_index])) {
+	if (tinf->threaded)
+		BLI_lock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
 
-		if (tinf->threaded)
-			BLI_lock_thread(LOCK_CUSTOM1);  /* Other threads could be modifying these vars */
-
-		if (!pjIma->undoRect[tile_index]) {
-			generate_tile = true;
-			pjIma->undoRect[tile_index] = TILE_PENDING;
-		}
-		if (tinf->threaded)
-			BLI_unlock_thread(LOCK_CUSTOM1);
-
-	}
-
-	if (generate_tile) {
-		void *undorect;
+	if (!pjIma->undoRect[tile_index]) {
 		if (tinf->masked) {
-			undorect = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, &pjIma->maskRect[tile_index], &pjIma->valid[tile_index], true);
+			pjIma->undoRect[tile_index] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, &pjIma->maskRect[tile_index], &pjIma->valid[tile_index], true);
 		}
 		else {
-			undorect = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, NULL, &pjIma->valid[tile_index], true);
+			pjIma->undoRect[tile_index] = image_undo_push_tile(pjIma->ima, pjIma->ibuf, tinf->tmpibuf, tx, ty, NULL, &pjIma->valid[tile_index], true);
 		}
 		pjIma->ibuf->userflags |= IB_BITMAPDIRTY;
-		/* all ready, publish */
-		pjIma->undoRect[tile_index] = undorect;
 	}
+
+	if (tinf->threaded)
+		BLI_unlock_thread(LOCK_CUSTOM1);
 	return tile_index;
 }
 
@@ -1476,10 +1460,6 @@ static ProjPixel *project_paint_uvpixel_init(
 
 	BLI_assert(tile_index < (IMAPAINT_TILE_NUMBER(ibuf->x) * IMAPAINT_TILE_NUMBER(ibuf->y)));
 	BLI_assert(tile_offset < (IMAPAINT_TILE_SIZE * IMAPAINT_TILE_SIZE));
-
-	/* wait for other thread to initialize the tile */
-	while (projima->undoRect[tile_index] == TILE_PENDING)
-		;
 
 	projPixel->valid = projima->valid[tile_index];
 
