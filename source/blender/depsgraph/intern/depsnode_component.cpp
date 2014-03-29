@@ -97,6 +97,9 @@ OperationDepsNode *ComponentDepsNode::create_operation(eDepsNode_Type type, cons
 	if (!op_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(type);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, NULL, name);
+		
+		/* register */
+		this->operations[name] = op_node;
 	}
 	return op_node;
 }

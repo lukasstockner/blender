@@ -219,6 +219,9 @@ ComponentDepsNode *IDDepsNode::create_component(eDepsNode_Type type, const strin
 	if (!comp_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(type);
 		comp_node = (ComponentDepsNode *)factory->create_node(this->id, NULL, name);
+		
+		/* register */
+		this->components[type] = comp_node;
 	}
 	return comp_node;
 }
