@@ -165,7 +165,9 @@ struct IDDepsNode : public DepsNode {
 	~IDDepsNode();
 	
 	ComponentDepsNode *find_component(eDepsNode_Type type) const;
-	ComponentDepsNode *create_component(eDepsNode_Type type, const char *name);
+	ComponentDepsNode *create_component(eDepsNode_Type type, const string &name);
+	void remove_component(eDepsNode_Type type);
+	void clear_components();
 	
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);

@@ -220,6 +220,8 @@ struct Depsgraph {
 	                                 DepsEvalOperationCb op, const string &name);
 	
 	IDDepsNode *create_id_node(ID *id, const string &name);
+	void remove_id_node(const ID *id);
+	void clear_id_nodes();
 	
 	/* Remove node from graph, but don't free any of its data */
 	void remove_node(DepsNode *node);

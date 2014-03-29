@@ -247,8 +247,31 @@ IDDepsNode *Depsgraph::create_id_node(ID *id, const string &name)
 	if (!id_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_ID_REF);
 		id_node = (IDDepsNode *)factory->create_node(id, NULL, name);
+		
+		/* register */
+		this->id_hash[id] = id_node;
 	}
 	return id_node;
+}
+
+void Depsgraph::remove_id_node(const ID *id)
+{
+	IDDepsNode *id_node = find_id_node(id);
+	if (id_node) {
+		/* unregister */
+		this->id_hash.erase(id);
+		
+		delete id_node;
+	}
+}
+
+void Depsgraph::clear_id_nodes()
+{
+	for (IDNodeMap::const_iterator it = id_hash.begin(); it != id_hash.end(); ++it) {
+		IDDepsNode *id_node = it->second;
+		delete id_node;
+	}
+	id_hash.clear();
 }
 
 /* Add new relationship between two nodes */

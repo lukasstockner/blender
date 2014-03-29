@@ -101,6 +101,26 @@ OperationDepsNode *ComponentDepsNode::create_operation(eDepsNode_Type type, cons
 	return op_node;
 }
 
+void ComponentDepsNode::remove_operation(const string &name)
+{
+	OperationDepsNode *op_node = find_operation(name);
+	if (op_node) {
+		/* unregister */
+		this->operations.erase(name);
+		
+		delete op_node;
+	}
+}
+
+void ComponentDepsNode::clear_operations()
+{
+	for (OperationMap::const_iterator it = operations.begin(); it != operations.end(); ++it) {
+		OperationDepsNode *op_node = it->second;
+		delete op_node;
+	}
+	operations.clear();
+}
+
 /* Add 'component' node to graph */
 void ComponentDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {

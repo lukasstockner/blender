@@ -59,6 +59,8 @@ struct ComponentDepsNode : public DepsNode {
 	
 	OperationDepsNode *find_operation(const string &name) const;
 	OperationDepsNode *create_operation(eDepsNode_Type type, const string &name);
+	void remove_operation(const string &name);
+	void clear_operations();
 	
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);

@@ -213,7 +213,7 @@ ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type) const
 	return it != components.end() ? it->second : NULL;
 }
 
-ComponentDepsNode *IDDepsNode::create_component(eDepsNode_Type type, const char *name)
+ComponentDepsNode *IDDepsNode::create_component(eDepsNode_Type type, const string &name)
 {
 	ComponentDepsNode *comp_node = find_component(type);
 	if (!comp_node) {
@@ -221,6 +221,26 @@ ComponentDepsNode *IDDepsNode::create_component(eDepsNode_Type type, const char 
 		comp_node = (ComponentDepsNode *)factory->create_node(this->id, NULL, name);
 	}
 	return comp_node;
+}
+
+void IDDepsNode::remove_component(eDepsNode_Type type)
+{
+	ComponentDepsNode *comp_node = find_component(type);
+	if (comp_node) {
+		/* unregister */
+		this->components.erase(type);
+		
+		delete comp_node;
+	}
+}
+
+void IDDepsNode::clear_components()
+{
+	for (ComponentMap::const_iterator it = components.begin(); it != components.end(); ++it) {
+		ComponentDepsNode *comp_node = it->second;
+		delete comp_node;
+	}
+	components.clear();
 }
 
 /* Add 'id' node to graph */
