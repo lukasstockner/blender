@@ -207,6 +207,22 @@ void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 	// TODO: perform a second loop to fix up links?
 }
 
+ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type) const
+{
+	ComponentMap::const_iterator it = components.find(type);
+	return it != components.end() ? it->second : NULL;
+}
+
+ComponentDepsNode *IDDepsNode::create_component(eDepsNode_Type type, const char *name)
+{
+	ComponentDepsNode *comp_node = find_component(type);
+	if (!comp_node) {
+		DepsNodeFactory *factory = DEG_get_node_factory(type);
+		comp_node = (ComponentDepsNode *)factory->create_node(this->id, NULL, name);
+	}
+	return comp_node;
+}
+
 /* Add 'id' node to graph */
 void IDDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 {
@@ -286,12 +302,6 @@ void IDDepsNode::validate_links(Depsgraph *graph)
 		DepsNode *component = it->second;
 		component->validate_links(graph);
 	}
-}
-
-ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type) const
-{
-	ComponentMap::const_iterator it = components.find(type);
-	return it != components.end() ? it->second : NULL;
 }
 
 DEG_DEPSNODE_DEFINE(IDDepsNode, DEPSNODE_TYPE_ID_REF, "ID Node");

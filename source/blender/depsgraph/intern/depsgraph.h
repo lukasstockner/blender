@@ -219,6 +219,8 @@ struct Depsgraph {
 	                                 eDepsNode_Type type, eDepsOperation_Type optype, 
 	                                 DepsEvalOperationCb op, const string &name);
 	
+	IDDepsNode *create_id_node(ID *id, const string &name);
+	
 	/* Remove node from graph, but don't free any of its data */
 	void remove_node(DepsNode *node);
 	

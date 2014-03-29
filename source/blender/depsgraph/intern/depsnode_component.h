@@ -53,13 +53,12 @@ struct BoneComponentDepsNode;
 struct ComponentDepsNode : public DepsNode {
 	typedef unordered_map<string, OperationDepsNode *> OperationMap;
 	
-	IDDepsNode *owner;
-	
-	OperationDepsNode *find_operation(const string &name) const;
-	
 	void init(const ID *id, const string &subdata);
 	void copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src);
 	~ComponentDepsNode();
+	
+	OperationDepsNode *find_operation(const string &name) const;
+	OperationDepsNode *create_operation(eDepsNode_Type type, const string &name);
 	
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
@@ -72,6 +71,8 @@ struct ComponentDepsNode : public DepsNode {
 	 * NOTE: this does not free the actual context in question
 	 */
 	virtual void eval_context_free(eEvaluationContextType context_type) {}
+	
+	IDDepsNode *owner;
 	
 	OperationMap operations;    /* inner nodes for this component */
 	

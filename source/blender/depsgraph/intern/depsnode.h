@@ -164,12 +164,13 @@ struct IDDepsNode : public DepsNode {
 	void copy(DepsgraphCopyContext *dcc, const IDDepsNode *src);
 	~IDDepsNode();
 	
+	ComponentDepsNode *find_component(eDepsNode_Type type) const;
+	ComponentDepsNode *create_component(eDepsNode_Type type, const char *name);
+	
 	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
 	
 	void validate_links(Depsgraph *graph);
-	
-	ComponentDepsNode *find_component(eDepsNode_Type type) const;
 	
 	struct ID *id;                  /* ID Block referenced */
 	ComponentMap components;        /* hash to make it faster to look up components */

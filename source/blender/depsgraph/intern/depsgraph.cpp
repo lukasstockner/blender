@@ -241,6 +241,16 @@ OperationDepsNode *Depsgraph::add_operation(ID *id, const string &subdata,
 	return op_node;
 }
 
+IDDepsNode *Depsgraph::create_id_node(ID *id, const string &name)
+{
+	IDDepsNode *id_node = find_id_node(id);
+	if (!id_node) {
+		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_ID_REF);
+		id_node = (IDDepsNode *)factory->create_node(id, NULL, name);
+	}
+	return id_node;
+}
+
 /* Add new relationship between two nodes */
 DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to, 
                                           eDepsRelation_Type type, 

@@ -45,12 +45,6 @@ extern "C" {
 
 /* Standard Component Methods ============================= */
 
-OperationDepsNode *ComponentDepsNode::find_operation(const string &name) const
-{
-	OperationMap::const_iterator it = this->operations.find(name);
-	return it != this->operations.end() ? it->second : NULL;
-}
-
 /* Initialise 'component' node - from pointer data given */
 void ComponentDepsNode::init(const ID *id, const string &subdata)
 {
@@ -89,6 +83,22 @@ ComponentDepsNode::~ComponentDepsNode()
 		OperationDepsNode *op = it->second;
 		delete op;
 	}
+}
+
+OperationDepsNode *ComponentDepsNode::find_operation(const string &name) const
+{
+	OperationMap::const_iterator it = this->operations.find(name);
+	return it != this->operations.end() ? it->second : NULL;
+}
+
+OperationDepsNode *ComponentDepsNode::create_operation(eDepsNode_Type type, const string &name)
+{
+	OperationDepsNode *op_node = find_operation(name);
+	if (!op_node) {
+		DepsNodeFactory *factory = DEG_get_node_factory(type);
+		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, NULL, name);
+	}
+	return op_node;
 }
 
 /* Add 'component' node to graph */
