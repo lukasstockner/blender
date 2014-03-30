@@ -91,7 +91,7 @@ OperationDepsNode *ComponentDepsNode::find_operation(const string &name) const
 	return it != this->operations.end() ? it->second : NULL;
 }
 
-OperationDepsNode *ComponentDepsNode::create_operation(eDepsNode_Type type, const string &name)
+OperationDepsNode *ComponentDepsNode::get_operation(eDepsNode_Type type, const string &name)
 {
 	OperationDepsNode *op_node = find_operation(name);
 	if (!op_node) {

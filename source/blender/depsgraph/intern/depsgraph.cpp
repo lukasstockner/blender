@@ -241,7 +241,7 @@ OperationDepsNode *Depsgraph::add_operation(ID *id, const string &subdata,
 	return op_node;
 }
 
-IDDepsNode *Depsgraph::create_id_node(ID *id, const string &name)
+IDDepsNode *Depsgraph::get_id_node(ID *id, const string &name)
 {
 	IDDepsNode *id_node = find_id_node(id);
 	if (!id_node) {

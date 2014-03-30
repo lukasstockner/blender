@@ -165,7 +165,7 @@ struct IDDepsNode : public DepsNode {
 	~IDDepsNode();
 	
 	ComponentDepsNode *find_component(eDepsNode_Type type) const;
-	ComponentDepsNode *create_component(eDepsNode_Type type, const string &name);
+	ComponentDepsNode *get_component(eDepsNode_Type type, const string &name);
 	void remove_component(eDepsNode_Type type);
 	void clear_components();
 	

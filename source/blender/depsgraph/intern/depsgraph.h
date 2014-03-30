@@ -219,7 +219,7 @@ struct Depsgraph {
 	                                 eDepsNode_Type type, eDepsOperation_Type optype, 
 	                                 DepsEvalOperationCb op, const string &name);
 	
-	IDDepsNode *create_id_node(ID *id, const string &name);
+	IDDepsNode *get_id_node(ID *id, const string &name);
 	void remove_id_node(const ID *id);
 	void clear_id_nodes();
 	

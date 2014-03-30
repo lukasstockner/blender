@@ -213,7 +213,7 @@ ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type) const
 	return it != components.end() ? it->second : NULL;
 }
 
-ComponentDepsNode *IDDepsNode::create_component(eDepsNode_Type type, const string &name)
+ComponentDepsNode *IDDepsNode::get_component(eDepsNode_Type type, const string &name)
 {
 	ComponentDepsNode *comp_node = find_component(type);
 	if (!comp_node) {
