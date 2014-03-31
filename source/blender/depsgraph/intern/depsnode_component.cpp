@@ -91,12 +91,16 @@ OperationDepsNode *ComponentDepsNode::find_operation(const string &name) const
 	return it != this->operations.end() ? it->second : NULL;
 }
 
-OperationDepsNode *ComponentDepsNode::get_operation(eDepsNode_Type type, const string &name)
+OperationDepsNode *ComponentDepsNode::add_operation(eDepsNode_Type type, eDepsOperation_Type optype, 
+                                                    DepsEvalOperationCb op, const string &name)
 {
 	OperationDepsNode *op_node = find_operation(name);
 	if (!op_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(type);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, NULL, name);
+		/* attach extra data */
+		op_node->evaluate = op;
+		op_node->optype = optype;
 		
 		/* register */
 		this->operations[name] = op_node;

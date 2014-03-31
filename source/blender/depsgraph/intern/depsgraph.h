@@ -164,7 +164,6 @@ struct Depsgraph {
 	 *            OR NULL if no such node exists in the graph
 	 */
 	DepsNode *find_node(const ID *id, const string &subdata, eDepsNode_Type type, const string &name);
-	IDDepsNode *find_id_node(const ID *id) const;
 	/* Convenience wrapper to find node given just pointer + property
 	 * < ptr: pointer to the data that node will represent
 	 * < (prop): optional property affected - providing this effectively results in inner nodes being returned
@@ -219,7 +218,8 @@ struct Depsgraph {
 	                                 eDepsNode_Type type, eDepsOperation_Type optype, 
 	                                 DepsEvalOperationCb op, const string &name);
 	
-	IDDepsNode *get_id_node(ID *id, const string &name);
+	IDDepsNode *find_id_node(const ID *id) const;
+	IDDepsNode *get_id_node(ID *id, const string &name = "");
 	void remove_id_node(const ID *id);
 	void clear_id_nodes();
 	

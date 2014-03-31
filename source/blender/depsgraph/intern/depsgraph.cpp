@@ -81,12 +81,6 @@ static void find_node_criteria_from_pointer(const PointerRNA *ptr, const Propert
 /* ************************************************** */
 /* Node Management */
 
-IDDepsNode *Depsgraph::find_id_node(const ID *id) const
-{
-	IDNodeMap::const_iterator it = this->id_hash.find(id);
-	return it != this->id_hash.end() ? it->second : NULL;
-}
-
 /* Get Node ----------------------------------------- */
 
 /* Get a matching node, creating one if need be */
@@ -239,6 +233,12 @@ OperationDepsNode *Depsgraph::add_operation(ID *id, const string &subdata,
 	
 	/* return newly created node */
 	return op_node;
+}
+
+IDDepsNode *Depsgraph::find_id_node(const ID *id) const
+{
+	IDNodeMap::const_iterator it = this->id_hash.find(id);
+	return it != this->id_hash.end() ? it->second : NULL;
 }
 
 IDDepsNode *Depsgraph::get_id_node(ID *id, const string &name)

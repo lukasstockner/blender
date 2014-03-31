@@ -58,7 +58,8 @@ struct ComponentDepsNode : public DepsNode {
 	~ComponentDepsNode();
 	
 	OperationDepsNode *find_operation(const string &name) const;
-	OperationDepsNode *get_operation(eDepsNode_Type type, const string &name);
+	OperationDepsNode *add_operation(eDepsNode_Type type, eDepsOperation_Type optype, 
+	                                 DepsEvalOperationCb op, const string &name);
 	void remove_operation(const string &name);
 	void clear_operations();
 	
