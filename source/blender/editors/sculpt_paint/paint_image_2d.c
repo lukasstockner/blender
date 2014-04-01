@@ -967,7 +967,7 @@ static void paint_2d_lift_smear(ImBuf *ibuf, ImBuf *ibufb, int *pos)
 		IMB_rectblend(ibufb, ibufb, ibuf, NULL, NULL, NULL, 0, region[a].destx, region[a].desty,
 		              region[a].destx, region[a].desty,
 		              region[a].srcx, region[a].srcy,
-		              region[a].width, region[a].height, IMB_BLEND_COPY_RGB);
+		              region[a].width, region[a].height, IMB_BLEND_COPY_RGB, false);
 }
 
 static ImBuf *paint_2d_lift_clone(ImBuf *ibuf, ImBuf *ibufb, int *pos)
@@ -979,9 +979,9 @@ static ImBuf *paint_2d_lift_clone(ImBuf *ibuf, ImBuf *ibufb, int *pos)
 
 	IMB_rectclip(clonebuf, ibuf, &destx, &desty, &srcx, &srcy, &w, &h);
 	IMB_rectblend(clonebuf, clonebuf, ibufb, NULL, NULL, NULL, 0, destx, desty, destx, desty, destx, desty, w, h,
-	              IMB_BLEND_COPY_ALPHA);
+	              IMB_BLEND_COPY_ALPHA, false);
 	IMB_rectblend(clonebuf, clonebuf, ibuf, NULL, NULL, NULL, 0, destx, desty, destx, desty, srcx, srcy, w, h,
-	              IMB_BLEND_COPY_RGB);
+	              IMB_BLEND_COPY_RGB, false);
 
 	return clonebuf;
 }
@@ -1001,7 +1001,7 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *curveb, unsign
 	short blend = s->blend;
 	float *offset = s->brush->clone.offset;
 	float liftpos[2];
-	unsigned short mask_max = (unsigned short)(BKE_brush_alpha_get(s->scene, s->brush) * 65535.0f);
+	float mask_max = BKE_brush_alpha_get(s->scene, s->brush);
 	int bpos[2], blastpos[2], bliftpos[2];
 	int a, tot;
 
@@ -1071,7 +1071,7 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *curveb, unsign
 								  region[a].destx, region[a].desty,
 								  origx, origy,
 								  region[a].srcx, region[a].srcy,
-								  region[a].width, region[a].height, blend);
+								  region[a].width, region[a].height, blend, ((s->brush->flag & BRUSH_ACCUMULATE) != 0));
 				}
 			}
 
@@ -1083,7 +1083,7 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *curveb, unsign
 			              region[a].destx, region[a].desty,
 			              region[a].destx, region[a].desty,
 			              region[a].srcx, region[a].srcy,
-			              region[a].width, region[a].height, blend);
+			              region[a].width, region[a].height, blend, false);
 		}
 	}
 

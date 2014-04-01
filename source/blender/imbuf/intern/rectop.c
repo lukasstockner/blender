@@ -291,7 +291,7 @@ static void imb_rectclip3(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, int *destx,
 void IMB_rectcpy(ImBuf *dbuf, ImBuf *sbuf, int destx, 
                  int desty, int srcx, int srcy, int width, int height)
 {
-	IMB_rectblend(dbuf, dbuf, sbuf, NULL, NULL, NULL, 0, destx, desty, destx, desty, srcx, srcy, width, height, IMB_BLEND_COPY);
+	IMB_rectblend(dbuf, dbuf, sbuf, NULL, NULL, NULL, 0, destx, desty, destx, desty, srcx, srcy, width, height, IMB_BLEND_COPY, false);
 }
 
 typedef void (*IMB_blend_func)(unsigned char *dst, const unsigned char *src1, const unsigned char *src2);
@@ -299,9 +299,9 @@ typedef void (*IMB_blend_func_float)(float *dst, const float *src1, const float 
 
 
 void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask, unsigned short *curvemask,
-				   unsigned short *texmask, unsigned short mask_max,
+				   unsigned short *texmask, float mask_max,
                    int destx,  int desty, int origx, int origy, int srcx, int srcy, int width, int height,
-                   IMB_BlendMode mode)
+                   IMB_BlendMode mode, bool accumulate)
 {
 	unsigned int *drect = NULL, *orect, *srect = NULL, *dr, *or, *sr;
 	float *drectf = NULL, *orectf, *srectf = NULL, *drf, *orf, *srf;
@@ -542,10 +542,18 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 						dmr = dmaskrect;
 						for (x = width; x > 0; x--, dr++, or++, sr++, dmr++, cmr++) {
 							unsigned char *src = (unsigned char *)sr;
-							float mask_lim = (texmaskrect) ? ((float)mask_max * (*tmr++) / 65535.0f) : mask_max;
+							float mask_lim = mask_max * (*cmr);
 
-							if (src[3] && *cmr) {
-								unsigned short mask = *dmr + (((mask_lim - *dmr) * (*cmr)) / 65535.0f);
+							if (texmaskrect)
+								mask_lim *= ((*tmr++) / 65535.0f);
+
+							if (src[3] && mask_lim) {
+								float mask;
+
+								if (accumulate)
+									mask = min_ff(*dmr + mask_lim, 65535.0);
+								else
+									mask = *dmr + (((mask_lim - *dmr) * (*cmr)) / 65535.0f);
 
 								if (mask > *dmr) {
 									unsigned char mask_src[4];
@@ -563,13 +571,16 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 						}
 						dmaskrect += origskip;
 					}
-					/* no destination alpha buffer, do regular blend with masktexture if present */
+					/* no destination mask buffer, do regular blend with masktexture if present */
 					else {
 						for (x = width; x > 0; x--, dr++, or++, sr++, cmr++) {
 							unsigned char *src = (unsigned char *)sr;
-							unsigned short mask = (((texmaskrect) ? ((float)mask_max * (*tmr++) / 65535.0f) : (float)mask_max) * (*cmr)) / 65535.0f;
+							unsigned short mask = (float)mask_max * ((float)(*cmr));
 
-							if (src[3] && *cmr && mask) {
+							if (texmaskrect)
+								mask *= ((float)(*tmr++) / 65535.0f);
+
+							if (src[3] && mask) {
 								unsigned char mask_src[4];
 
 								mask_src[0] = src[0];
@@ -604,19 +615,49 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 				orf = orectf;
 				srf = srectf;
 
-				if (dmaskrect && cmaskrect) {
+				if (cmaskrect) {
 					/* mask accumulation for painting */
-					dmr = dmaskrect;
 					cmr = cmaskrect;
 					tmr = texmaskrect;
 
-					for (x = width; x > 0; x--, drf += 4, orf += 4, srf += 4, dmr++, cmr++) {
-						unsigned short mask_lim = (texmaskrect)? *tmr++ : mask_max;
+					/* destination mask present, do max alpha masking */
+					if (dmaskrect) {
+						dmr = dmaskrect;
+						for (x = width; x > 0; x--, drf +=4 , orf += 4, srf += 4, dmr++, cmr++) {
+							float mask_lim = mask_max * (*cmr);
 
-						if (srf[3] != 0 && *cmr) {
-							unsigned short mask = *dmr + (((mask_lim - *dmr) * (*cmr)) / 65535);
+							if (texmaskrect)
+								mask_lim *= ((*tmr++) / 65535.0f);
 
-							if (mask > *dmr) {
+							if (srf[3] && mask_lim) {
+								float mask;
+
+								if (accumulate)
+									mask = min_ff(*dmr + mask_lim, 65535.0);
+								else
+									mask = *dmr + (((mask_lim - *dmr) * (*cmr)) / 65535.0f);
+
+								if (mask > *dmr) {
+									float mask_srf[4];
+
+									*dmr = mask;
+									mul_v4_v4fl(mask_srf, srf, mask * (1.0f / 65535.0f));
+
+									func_float(drf, orf, mask_srf);
+								}
+							}
+						}
+						dmaskrect += origskip;
+					}
+					/* no destination mask buffer, do regular blend with masktexture if present */
+					else {
+						for (x = width; x > 0; x--, drf += 4, orf += 4, srf += 4, cmr++) {
+							float mask = (float)mask_max * ((float)(*cmr));
+
+							if (texmaskrect)
+								mask *= ((float)(*tmr++) / 65535.0f);
+
+							if (srf[3] && mask) {
 								float mask_srf[4];
 
 								*dmr = mask;
@@ -627,7 +668,6 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 						}
 					}
 
-					dmaskrect += origskip;
 					cmaskrect += srcskip;
 					if (texmaskrect)
 						texmaskrect += srcskip;
