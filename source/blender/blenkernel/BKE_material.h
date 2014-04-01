@@ -85,8 +85,8 @@ void assign_matarar(struct Object *ob, struct Material ***matar, short totcol);
 
 short find_material_index(struct Object *ob, struct Material *ma);
 
-int object_add_material_slot(struct Object *ob);
-int object_remove_material_slot(struct Object *ob);
+bool object_add_material_slot(struct Object *ob);
+bool object_remove_material_slot(struct Object *ob);
 
 bool get_mtex_slot_valid_texpaint(struct MTex *);
 void refresh_texpaint_image_cache(struct Material *ma);
@@ -105,7 +105,7 @@ void init_render_materials(struct Main *, int, float *);
 void end_render_material(struct Material *);
 void end_render_materials(struct Main *);
 
-int material_in_material(struct Material *parmat, struct Material *mat);
+bool material_in_material(struct Material *parmat, struct Material *mat);
 
 void ramp_blend(int type, float r_col[3], const float fac, const float col[3]);
 

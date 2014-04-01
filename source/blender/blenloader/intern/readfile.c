@@ -2574,7 +2574,7 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 				 * the ntree interface sockets, which need to be redirected to new interface nodes.
 				 */
 				for (link = ntree->links.first; link; link = next_link) {
-					int free_link = FALSE;
+					bool free_link = false;
 					next_link = link->next;
 					
 					if (link->fromnode == NULL) {
@@ -2589,8 +2589,9 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 								input_locy += link->tonode->locy;
 							}
 						}
-						else
-							free_link = TRUE;
+						else {
+							free_link = true;
+						}
 					}
 					
 					if (link->tonode == NULL) {
@@ -2605,8 +2606,9 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 								output_locy += link->fromnode->locy;
 							}
 						}
-						else
-							free_link = TRUE;
+						else {
+							free_link = true;
+						}
 					}
 					
 					if (free_link)
@@ -2666,7 +2668,7 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 	bNodeLink *link;
 	
 	ntree->init = 0;		/* to set callbacks and force setting types */
-	ntree->is_updating = FALSE;
+	ntree->is_updating = false;
 	ntree->typeinfo= NULL;
 	ntree->interface_type = NULL;
 	
@@ -5402,7 +5404,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			
 			seq->strip = newdataadr(fd, seq->strip);
 			if (seq->strip && seq->strip->done==0) {
-				seq->strip->done = TRUE;
+				seq->strip->done = true;
 				
 				if (ELEM4(seq->type, SEQ_TYPE_IMAGE, SEQ_TYPE_MOVIE, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SOUND_HD)) {
 					seq->strip->stripdata = newdataadr(fd, seq->strip->stripdata);
@@ -5534,7 +5536,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			rbw->effector_weights = BKE_add_effector_weights(NULL);
 
 		/* link cache */
-		direct_link_pointcache_list(fd, &rbw->ptcaches, &rbw->pointcache, FALSE);
+		direct_link_pointcache_list(fd, &rbw->ptcaches, &rbw->pointcache, false);
 		/* make sure simulation starts from the beginning after loading file */
 		if (rbw->pointcache) {
 			rbw->ltime = (float)rbw->pointcache->startframe;
@@ -7705,7 +7707,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 	
 	lib_link_all(fd, bfd->main);
 	//do_versions_after_linking(fd, NULL, bfd->main); // XXX: not here (or even in this function at all)! this causes crashes on many files - Aligorith (July 04, 2010)
-	lib_verify_nodetree(bfd->main, TRUE);
+	lib_verify_nodetree(bfd->main, true);
 	fix_relpaths_library(fd->relabase, bfd->main); /* make all relative paths, relative to the open blend file */
 	
 	link_global(fd, bfd);	/* as last */
@@ -8650,10 +8652,11 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
 	ListBase *lbarray[MAX_LIBARRAY];
 	FileData *fd = fdhandle;
 	ID *id;
-	int a, do_it = TRUE;
+	int a;
+	bool do_it = true;
 	
 	while (do_it) {
-		do_it = FALSE;
+		do_it = false;
 		
 		a = set_listbasepointers(mainvar, lbarray);
 		while (a--) {
@@ -8735,7 +8738,7 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
 						break;
 					}
 					
-					do_it = TRUE;
+					do_it = true;
 					id->flag -= LIB_NEED_EXPAND;
 					
 				}
@@ -8775,27 +8778,27 @@ static void give_base_to_objects(Main *mainvar, Scene *sce, Library *lib, const 
 			 *
 			 * (ob->id.flag & LIB_PRE_EXISTING)==0 means that this is a newly appended object - Campbell */
 			if (is_group_append==0 || (ob->id.flag & LIB_PRE_EXISTING)==0) {
-				int do_it = FALSE;
+				bool do_it = false;
 				
 				if (ob->id.us == 0) {
-					do_it = TRUE;
+					do_it = true;
 				}
 				else if (idcode==ID_GR) {
-					if (ob->id.us==1 && is_link==FALSE && ob->id.lib==lib) {
+					if (ob->id.us == 1 && is_link == false && ob->id.lib == lib) {
 						if ((ob->flag & OB_FROMGROUP) && object_in_any_scene(mainvar, ob)==0) {
-							do_it = TRUE;
+							do_it = true;
 						}
 					}
 				}
 				else {
 					/* when appending, make sure any indirectly loaded objects
 					 * get a base else they cant be accessed at all [#27437] */
-					if (ob->id.us==1 && is_link==FALSE && ob->id.lib==lib) {
+					if (ob->id.us==1 && is_link == false && ob->id.lib == lib) {
 						/* we may be appending from a scene where we already
 						 *  have a linked object which is not in any scene [#27616] */
 						if ((ob->id.flag & LIB_PRE_EXISTING)==0) {
 							if (object_in_any_scene(mainvar, ob)==0) {
-								do_it = TRUE;
+								do_it = true;
 							}
 						}
 					}
@@ -9064,7 +9067,7 @@ static void library_append_end(const bContext *C, Main *mainl, FileData **fd, in
 	mainl = NULL; /* blo_join_main free's mainl, cant use anymore */
 	
 	lib_link_all(*fd, mainvar);
-	lib_verify_nodetree(mainvar, FALSE);
+	lib_verify_nodetree(mainvar, false);
 	fix_relpaths_library(G.main->name, mainvar); /* make all relative paths, relative to the open blend file */
 	
 	if (C) {
@@ -9139,13 +9142,14 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 	Main *mainl = mainlist->first;
 	Main *mainptr;
 	ListBase *lbarray[MAX_LIBARRAY];
-	int a, do_it = TRUE;
+	int a;
+	bool do_it = true;
 	
 	/* expander now is callback function */
 	BLO_main_expander(expand_doit_library);
 	
 	while (do_it) {
-		do_it = FALSE;
+		do_it = false;
 		
 		/* test 1: read libdata */
 		mainptr= mainl->next;
@@ -9232,7 +9236,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					}
 				}
 				if (fd) {
-					do_it = TRUE;
+					do_it = true;
 					a = set_listbasepointers(mainptr, lbarray);
 					while (a--) {
 						ID *id = lbarray[a]->first;

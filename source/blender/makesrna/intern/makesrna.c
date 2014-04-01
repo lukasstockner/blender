@@ -1768,12 +1768,12 @@ static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, Property
 
 			if (cprop->item_type)
 				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s, %s)", collection_funcs, (const char *)cprop->item_type, srna->identifier,
-				        rna_safe_id(prop->identifier), (cprop->length ? "TRUE" : "FALSE"),
-				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
+				        rna_safe_id(prop->identifier), (cprop->length ? "true" : "false"),
+				        (cprop->lookupint ? "true" : "false"), (cprop->lookupstring ? "true" : "false"));
 			else
 				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s, %s)", collection_funcs, "UnknownType", srna->identifier,
-				        rna_safe_id(prop->identifier), (cprop->length ? "TRUE" : "FALSE"),
-				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
+				        rna_safe_id(prop->identifier), (cprop->length ? "true" : "false"),
+				        (cprop->lookupint ? "true" : "false"), (cprop->lookupstring ? "true" : "false"));
 			break;
 		}
 	}
@@ -1949,12 +1949,12 @@ static void rna_def_property_funcs_impl_cpp(FILE *f, StructRNA *srna, PropertyDe
 
 			if (cprop->type)
 				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s)", (const char *)cprop->type, srna->identifier,
-				        prop->identifier, (cprop->length ? "TRUE" : "FALSE"),
-				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
+				        prop->identifier, (cprop->length ? "true" : "false"),
+				        (cprop->lookupint ? "true" : "false"), (cprop->lookupstring ? "true" : "false"));
 			else
 				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s)", "UnknownType", srna->identifier,
-				        prop->identifier, (cprop->length ? "TRUE" : "FALSE"),
-				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
+				        prop->identifier, (cprop->length ? "true" : "false"),
+				        (cprop->lookupint ? "true" : "false"), (cprop->lookupstring ? "true" : "false"));
 #endif
 			break;
 		}
@@ -3517,7 +3517,7 @@ static const char *cpp_classes = ""
 "#define POINTER_PROPERTY(type, sname, identifier) \\\n"
 "	inline type sname::identifier(void) { return type(sname##_##identifier##_get(&ptr)); }\n"
 "\n"
-"#define COLLECTION_PROPERTY_LENGTH_FALSE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LENGTH_false(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_length_wrap(PointerRNA *ptr) \\\n"
 "	{ \\\n"
 "		CollectionPropertyIterator iter; \\\n"
@@ -3530,11 +3530,11 @@ static const char *cpp_classes = ""
 "		sname##_##identifier##_end(&iter); \\\n"
 "		return length; \\\n"
 "	} \n"
-"#define COLLECTION_PROPERTY_LENGTH_TRUE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LENGTH_true(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_length_wrap(PointerRNA *ptr) \\\n"
 "	{ return sname##_##identifier##_length(ptr); } \n"
 "\n"
-"#define COLLECTION_PROPERTY_LOOKUP_INT_FALSE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LOOKUP_INT_false(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_lookup_int_wrap(PointerRNA *ptr, int key, PointerRNA *r_ptr) \\\n"
 "	{ \\\n"
 "		CollectionPropertyIterator iter; \\\n"
@@ -3554,7 +3554,7 @@ static const char *cpp_classes = ""
 "			memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
 "		return found; \\\n"
 "	} \n"
-"#define COLLECTION_PROPERTY_LOOKUP_INT_TRUE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LOOKUP_INT_true(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_lookup_int_wrap(PointerRNA *ptr, int key, PointerRNA *r_ptr) \\\n"
 "	{ \\\n"
 "		int found = sname##_##identifier##_lookup_int(ptr, key, r_ptr); \\\n"
@@ -3562,7 +3562,7 @@ static const char *cpp_classes = ""
 "			memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
 "		return found; \\\n"
 "	} \n"
-"#define COLLECTION_PROPERTY_LOOKUP_STRING_FALSE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LOOKUP_STRING_false(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_lookup_string_wrap(PointerRNA *ptr, const char *key, PointerRNA *r_ptr) \\\n"
 "	{ \\\n"
 "		CollectionPropertyIterator iter; \\\n"
@@ -3587,7 +3587,7 @@ static const char *cpp_classes = ""
 "			memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
 "		return found; \\\n"
 "	} \n"
-"#define COLLECTION_PROPERTY_LOOKUP_STRING_TRUE(sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LOOKUP_STRING_true(sname, identifier) \\\n"
 "	inline static int sname##_##identifier##_lookup_string_wrap(PointerRNA *ptr, const char *key, PointerRNA *r_ptr) \\\n"
 "	{ \\\n"
 "		int found = sname##_##identifier##_lookup_string(ptr, key, r_ptr); \\\n"

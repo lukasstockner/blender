@@ -329,6 +329,7 @@ class VIEW3D_PT_tools_meshedit(View3DPanel, Panel):
         row.operator("transform.vert_slide", text="Vertex")
         col.operator("mesh.noise")
         col.operator("mesh.vertices_smooth")
+        col.operator("object.vertex_random")
 
         col = layout.column(align=True)
         col.label(text="Add:")
@@ -500,6 +501,7 @@ class VIEW3D_PT_tools_curveedit(View3DPanel, Panel):
         col.operator("curve.extrude_move", text="Extrude")
         col.operator("curve.subdivide")
         col.operator("curve.smooth")
+        col.operator("object.vertex_random")
 
         draw_repeat_tools(context, layout)
 
@@ -552,6 +554,10 @@ class VIEW3D_PT_tools_surfaceedit(View3DPanel, Panel):
         col.label(text="Modeling:")
         col.operator("curve.extrude", text="Extrude")
         col.operator("curve.subdivide")
+
+        col = layout.column(align=True)
+        col.label(text="Deform:")
+        col.operator("object.vertex_random")
 
         draw_repeat_tools(context, layout)
 
@@ -621,6 +627,10 @@ class VIEW3D_PT_tools_armatureedit(View3DPanel, Panel):
         col.operator("armature.extrude_move")
         col.operator("armature.subdivide", text="Subdivide")
 
+        col = layout.column(align=True)
+        col.label(text="Deform:")
+        col.operator("object.vertex_random")
+
         draw_repeat_tools(context, layout)
 
 
@@ -649,6 +659,10 @@ class VIEW3D_PT_tools_mballedit(View3DPanel, Panel):
         col.operator("transform.translate")
         col.operator("transform.rotate")
         col.operator("transform.resize", text="Scale")
+
+        col = layout.column(align=True)
+        col.label(text="Deform:")
+        col.operator("object.vertex_random")
 
         draw_repeat_tools(context, layout)
 
@@ -685,6 +699,10 @@ class VIEW3D_PT_tools_latticeedit(View3DPanel, Panel):
 
         col = layout.column(align=True)
         col.operator("lattice.make_regular")
+
+        col = layout.column(align=True)
+        col.label(text="Deform:")
+        col.operator("object.vertex_random")
 
         draw_repeat_tools(context, layout)
 
@@ -1378,6 +1396,7 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
 
     def draw(self, context):
         layout = self.layout
+        scene = context.scene
 
         toolsettings = context.tool_settings
         sculpt = toolsettings.sculpt
@@ -1388,6 +1407,14 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         col.label(text="Gravity:")
         col.prop(sculpt, "gravity", slider=True, text="Factor")
         col.prop(sculpt, "gravity_object")
+
+        col.separator()
+        col.label(text="Threads:")
+        col.row(align=True).prop(scene, "omp_threads_mode", expand=True)
+        sub = col.column(align=True)
+        sub.enabled = (scene.omp_threads_mode != 'AUTO')
+        sub.prop(scene, "omp_threads")
+        col.separator()
 
         layout.prop(sculpt, "use_threaded", text="Threaded Sculpt")
         layout.prop(sculpt, "show_low_resolution")

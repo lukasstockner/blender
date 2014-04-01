@@ -1320,7 +1320,7 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	}
 #endif
 
-	if (v3d->drawtype > OB_WIRE) v3d->zbuf = TRUE;
+	if (v3d->drawtype > OB_WIRE) v3d->zbuf = true;
 	
 	/* dithering and AA break color coding, so disable */
 	glDisable(GL_DITHER);
@@ -1385,7 +1385,7 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	v3d->flag &= ~V3D_INVALID_BACKBUF;
 
 	G.f &= ~G_BACKBUFSEL;
-	v3d->zbuf = FALSE;
+	v3d->zbuf = false;
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_DITHER);
 	if (multisample_enabled)
@@ -1884,7 +1884,7 @@ static void view3d_draw_transp(Scene *scene, ARegion *ar, View3D *v3d)
 	View3DAfter *v3da, *next;
 	
 	glDepthMask(0);
-	v3d->transp = TRUE;
+	v3d->transp = true;
 	
 	for (v3da = v3d->afterdraw_transp.first; v3da; v3da = next) {
 		next = v3da->next;
@@ -1892,7 +1892,7 @@ static void view3d_draw_transp(Scene *scene, ARegion *ar, View3D *v3d)
 		BLI_remlink(&v3d->afterdraw_transp, v3da);
 		MEM_freeN(v3da);
 	}
-	v3d->transp = FALSE;
+	v3d->transp = false;
 	
 	glDepthMask(1);
 	
@@ -1906,14 +1906,14 @@ static void view3d_draw_xray(Scene *scene, ARegion *ar, View3D *v3d, int clear)
 	if (clear && v3d->zbuf)
 		glClear(GL_DEPTH_BUFFER_BIT);
 
-	v3d->xray = TRUE;
+	v3d->xray = true;
 	for (v3da = v3d->afterdraw_xray.first; v3da; v3da = next) {
 		next = v3da->next;
 		draw_object(scene, ar, v3d, v3da->base, v3da->dflag);
 		BLI_remlink(&v3d->afterdraw_xray, v3da);
 		MEM_freeN(v3da);
 	}
-	v3d->xray = FALSE;
+	v3d->xray = false;
 }
 
 
@@ -1925,8 +1925,8 @@ static void view3d_draw_xraytransp(Scene *scene, ARegion *ar, View3D *v3d, int c
 	if (clear && v3d->zbuf)
 		glClear(GL_DEPTH_BUFFER_BIT);
 
-	v3d->xray = TRUE;
-	v3d->transp = TRUE;
+	v3d->xray = true;
+	v3d->transp = true;
 	
 	for (v3da = v3d->afterdraw_xraytransp.first; v3da; v3da = next) {
 		next = v3da->next;
@@ -1935,8 +1935,8 @@ static void view3d_draw_xraytransp(Scene *scene, ARegion *ar, View3D *v3d, int c
 		MEM_freeN(v3da);
 	}
 
-	v3d->transp = FALSE;
-	v3d->xray = FALSE;
+	v3d->transp = false;
+	v3d->xray = false;
 
 }
 
@@ -2237,7 +2237,7 @@ void draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 
 	glLoadMatrixf(rv3d->viewmat);
 
-	v3d->zbuf = TRUE;
+	v3d->zbuf = true;
 	glEnable(GL_DEPTH_TEST);
 
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {
@@ -2279,7 +2279,7 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 		ED_view3d_clipping_set(rv3d);
 	}
 	
-	v3d->zbuf = TRUE;
+	v3d->zbuf = true;
 	glEnable(GL_DEPTH_TEST);
 	
 	/* draw set first */
@@ -2317,7 +2317,7 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 		View3DAfter *v3da, *next;
 		int mask_orig;
 
-		v3d->xray = TRUE;
+		v3d->xray = true;
 		
 		/* transp materials can change the depth mask, see #21388 */
 		glGetIntegerv(GL_DEPTH_WRITEMASK, &mask_orig);
@@ -2333,8 +2333,8 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 		}
 
 		/* draw 3 passes, transp/xray/xraytransp */
-		v3d->xray = FALSE;
-		v3d->transp = TRUE;
+		v3d->xray = false;
+		v3d->transp = true;
 		for (v3da = v3d->afterdraw_transp.first; v3da; v3da = next) {
 			next = v3da->next;
 			draw_object(scene, ar, v3d, v3da->base, 0);
@@ -2342,8 +2342,8 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 			MEM_freeN(v3da);
 		}
 
-		v3d->xray = TRUE;
-		v3d->transp = FALSE;
+		v3d->xray = true;
+		v3d->transp = false;
 		for (v3da = v3d->afterdraw_xray.first; v3da; v3da = next) {
 			next = v3da->next;
 			draw_object(scene, ar, v3d, v3da->base, 0);
@@ -2351,8 +2351,8 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 			MEM_freeN(v3da);
 		}
 
-		v3d->xray = TRUE;
-		v3d->transp = TRUE;
+		v3d->xray = true;
+		v3d->transp = true;
 		for (v3da = v3d->afterdraw_xraytransp.first; v3da; v3da = next) {
 			next = v3da->next;
 			draw_object(scene, ar, v3d, v3da->base, 0);
@@ -2361,8 +2361,8 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (*func)(void *), boo
 		}
 
 		
-		v3d->xray = FALSE;
-		v3d->transp = FALSE;
+		v3d->xray = false;
+		v3d->transp = false;
 
 		glDepthMask(mask_orig);
 	}
@@ -2633,11 +2633,11 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, 
 
 	/* set zbuffer */
 	if (v3d->drawtype > OB_WIRE) {
-		v3d->zbuf = TRUE;
+		v3d->zbuf = true;
 		glEnable(GL_DEPTH_TEST);
 	}
 	else
-		v3d->zbuf = FALSE;
+		v3d->zbuf = false;
 
 	/* important to do before clipping */
 	if (do_bgpic) {
@@ -2694,7 +2694,7 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, 
 
 	/* cleanup */
 	if (v3d->zbuf) {
-		v3d->zbuf = FALSE;
+		v3d->zbuf = false;
 		glDisable(GL_DEPTH_TEST);
 	}
 
@@ -3262,11 +3262,11 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 	
 	/* set zbuffer after we draw clipping region */
 	if (v3d->drawtype > OB_WIRE) {
-		v3d->zbuf = TRUE;
+		v3d->zbuf = true;
 		glEnable(GL_DEPTH_TEST);
 	}
 	else
-		v3d->zbuf = FALSE;
+		v3d->zbuf = false;
 
 	/* enables anti-aliasing for 3D view drawing */
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
@@ -3387,7 +3387,7 @@ static void view3d_main_area_draw_objects(const bContext *C, ARegion *ar, const 
 
 	
 	if (v3d->zbuf) {
-		v3d->zbuf = FALSE;
+		v3d->zbuf = false;
 		glDisable(GL_DEPTH_TEST);
 	}
 

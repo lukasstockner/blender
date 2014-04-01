@@ -183,10 +183,10 @@ static int paintcurve_poll(bContext *C)
 	Paint *p = BKE_paint_get_active_from_context(C);
 
 	if (p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 static int paintcurve_new_exec(bContext *C, wmOperator *UNUSED(op))
@@ -419,11 +419,11 @@ static void PAINTCURVE_OT_select(wmOperatorType *ot)
 	/* properties */
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, SHRT_MAX,
 						 "Location", "Location of vertex in area space", 0, SHRT_MAX);
-	prop = RNA_def_boolean(ot->srna, "toggle", FALSE, "Toggle", "Select/Deselect all");
+	prop = RNA_def_boolean(ot->srna, "toggle", false, "Toggle", "Select/Deselect all");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "extend", FALSE, "Extend", "Extend selection");
+	prop = RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend selection");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "handle", FALSE, "Handle", "Prefer handle selection");
+	prop = RNA_def_boolean(ot->srna, "handle", false, "Handle", "Prefer handle selection");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -499,9 +499,9 @@ static int palette_color_add_poll(bContext *C)
 	Paint *paint = BKE_paint_get_active_from_context(C);
 
 	if (paint && paint->palette != NULL)
-		return TRUE;
+		return true;
 
-	return FALSE;
+	return false;
 }
 
 static void PALETTE_OT_color_add(wmOperatorType *ot)
@@ -1309,7 +1309,7 @@ void ED_operatormacros_paint(void)
 	ot->description = "Add new curve point and slide it";
 	WM_operatortype_macro_define(ot, "PAINTCURVE_OT_add_point");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-	RNA_boolean_set(otmacro->ptr, "release_confirm", TRUE);
+	RNA_boolean_set(otmacro->ptr, "release_confirm", true);
 }
 
 
@@ -1533,9 +1533,9 @@ static void paint_keymap_curve(wmKeyMap *keymap)
 	RNA_boolean_set(kmi->ptr, "toggle", true);
 
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, 0, 0);
-	RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
+	RNA_boolean_set(kmi->ptr, "release_confirm", true);
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
+	RNA_boolean_set(kmi->ptr, "release_confirm", true);
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_draw", RETKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_rotate", RKEY, KM_PRESS, 0, 0);
@@ -1592,11 +1592,11 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/* multires switch */
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_subdivision_set", PAGEUPKEY, KM_PRESS, 0, 0);
 	RNA_int_set(kmi->ptr, "level", 1);
-	RNA_boolean_set(kmi->ptr, "relative", TRUE);
+	RNA_boolean_set(kmi->ptr, "relative", true);
 
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_subdivision_set", PAGEDOWNKEY, KM_PRESS, 0, 0);
 	RNA_int_set(kmi->ptr, "level", -1);
-	RNA_boolean_set(kmi->ptr, "relative", TRUE);
+	RNA_boolean_set(kmi->ptr, "relative", true);
 
 	ed_keymap_paint_brush_switch(keymap, "sculpt");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.sculpt.brush.size");
@@ -1700,9 +1700,9 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
 	WM_keymap_add_item(keymap, "VIEW3D_OT_select_border", BKEY, KM_PRESS, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "VIEW3D_OT_select_lasso", EVT_TWEAK_A, KM_ANY, KM_CTRL, 0);
-	RNA_boolean_set(kmi->ptr, "deselect", FALSE);
+	RNA_boolean_set(kmi->ptr, "deselect", false);
 	kmi = WM_keymap_add_item(keymap, "VIEW3D_OT_select_lasso", EVT_TWEAK_A, KM_ANY, KM_SHIFT | KM_CTRL, 0);
-	RNA_boolean_set(kmi->ptr, "deselect", TRUE);
+	RNA_boolean_set(kmi->ptr, "deselect", true);
 	WM_keymap_add_item(keymap, "VIEW3D_OT_select_circle", CKEY, KM_PRESS, 0, 0);
 
 	/* Image/Texture Paint mode */
@@ -1741,9 +1741,9 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "PAINT_OT_face_select_all", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
 	kmi = WM_keymap_add_item(keymap, "PAINT_OT_face_select_hide", HKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "unselected", FALSE);
+	RNA_boolean_set(kmi->ptr, "unselected", false);
 	kmi = WM_keymap_add_item(keymap, "PAINT_OT_face_select_hide", HKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "unselected", TRUE);
+	RNA_boolean_set(kmi->ptr, "unselected", true);
 	WM_keymap_add_item(keymap, "PAINT_OT_face_select_reveal", HKEY, KM_PRESS, KM_ALT, 0);
 
 	WM_keymap_add_item(keymap, "PAINT_OT_face_select_linked", LKEY, KM_PRESS, KM_CTRL, 0);

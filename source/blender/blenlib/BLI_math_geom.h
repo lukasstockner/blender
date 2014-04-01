@@ -57,6 +57,7 @@ float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3]
 float area_quad_v3(const float a[3], const float b[3], const float c[3], const float d[3]);
 float area_poly_v3(const float verts[][3], unsigned int nr, const float normal[3]);
 float area_poly_v2(const float verts[][2], unsigned int nr);
+float cotangent_tri_weight_v3(const float v1[3], const float v2[3], const float v3[3]);
 
 MINLINE float cross_tri_v2(const float v1[2], const float v2[2], const float v3[2]);
 float cross_poly_v2(const float verts[][2], unsigned int nr);
@@ -71,8 +72,9 @@ MINLINE float plane_point_side_v3(const float plane[4], const float co[3]);
 
 float volume_tetrahedron_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3]);
 
-int is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3]);
-int is_quad_convex_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2]);
+bool is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3]);
+bool is_quad_convex_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2]);
+bool is_poly_convex_v2(const float verts[][2], unsigned int nr);
 
 /********************************* Distance **********************************/
 
@@ -121,7 +123,7 @@ int isect_line_line_v2_int(const int a1[2], const int a2[2], const int b1[2], co
 int isect_line_sphere_v3(const float l1[3], const float l2[3], const float sp[3], const float r, float r_p1[3], float r_p2[3]);
 int isect_line_sphere_v2(const float l1[2], const float l2[2], const float sp[2], const float r, float r_p1[2], float r_p2[2]);
 int isect_seg_seg_v2_point(const float v1[2], const float v2[2], const float v3[2], const float v4[2], float vi[2]);
-int isect_seg_seg_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2]);
+bool isect_seg_seg_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2]);
 
 int isect_line_line_v3(const float v1[3], const float v2[3],
                        const float v3[3], const float v4[3],
@@ -161,9 +163,9 @@ bool isect_point_poly_v2_int(const int pt[2], const int verts[][2], const unsign
 
 int isect_point_quad_v2(const float p[2], const float a[2], const float b[2], const float c[2], const float d[2]);
 
-int isect_point_tri_v2(const float pt[2], const float v1[2], const float v2[2], const float v3[2]);
-int isect_point_tri_v2_cw(const float pt[2], const float v1[2], const float v2[2], const float v3[2]);
-int isect_point_tri_v2_int(const int x1, const int y1, const int x2, const int y2, const int a, const int b);
+int  isect_point_tri_v2(const float pt[2], const float v1[2], const float v2[2], const float v3[2]);
+bool isect_point_tri_v2_cw(const float pt[2], const float v1[2], const float v2[2], const float v3[2]);
+int  isect_point_tri_v2_int(const int x1, const int y1, const int x2, const int y2, const int a, const int b);
 bool isect_point_tri_prism_v3(const float p[3], const float v1[3], const float v2[3], const float v3[3]);
 
 /* axis-aligned bounding box */

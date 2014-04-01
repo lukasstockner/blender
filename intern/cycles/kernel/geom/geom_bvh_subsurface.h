@@ -51,10 +51,10 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 	const float tmax = ray->t;
 	float3 P = ray->P;
 	float3 idir = bvh_inverse_direction(ray->D);
-	int object = ~0;
+	int object = OBJECT_NONE;
 	float isect_t = tmax;
 
-	const uint visibility = ~0;
+	const uint visibility = PATH_RAY_ALL_VISIBILITY;
 	uint num_hits = 0;
 
 #if FEATURE(BVH_MOTION)
@@ -204,19 +204,27 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 
 					/* primitive intersection */
 					for(; primAddr < primAddr2; primAddr++) {
-#if FEATURE(BVH_HAIR)
-						uint segment = kernel_tex_fetch(__prim_segment, primAddr);
-						if(segment != ~0)
-							continue;
-#endif
-
 						/* only primitives from the same object */
-						uint tri_object = (object == ~0)? kernel_tex_fetch(__prim_object, primAddr): object;
+						uint tri_object = (object == OBJECT_NONE)? kernel_tex_fetch(__prim_object, primAddr): object;
 
-						if(tri_object == subsurface_object) {
+						if(tri_object != subsurface_object)
+							continue;
 
-							/* intersect ray against primitive */
-							bvh_triangle_intersect_subsurface(kg, isect_array, P, idir, object, primAddr, isect_t, &num_hits, lcg_state, max_hits);
+						/* intersect ray against primitive */
+						uint type = kernel_tex_fetch(__prim_type, primAddr);
+
+						switch(type & PRIMITIVE_ALL) {
+							case PRIMITIVE_TRIANGLE: {
+								triangle_intersect_subsurface(kg, isect_array, P, idir, object, primAddr, isect_t, &num_hits, lcg_state, max_hits);
+								break;
+							}
+							case PRIMITIVE_MOTION_TRIANGLE: {
+								motion_triangle_intersect_subsurface(kg, isect_array, P, idir, ray->time, object, primAddr, isect_t, &num_hits, lcg_state, max_hits);
+								break;
+							}
+							default: {
+								break;
+							}
 						}
 					}
 				}
@@ -259,7 +267,7 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 
 #if FEATURE(BVH_INSTANCING)
 		if(stackPtr >= 0) {
-			kernel_assert(object != ~0);
+			kernel_assert(object != OBJECT_NONE);
 
 			/* instance pop */
 #if FEATURE(BVH_MOTION)
@@ -278,7 +286,7 @@ ccl_device uint BVH_FUNCTION_NAME(KernelGlobals *kg, const Ray *ray, Intersectio
 			gen_idirsplat_swap(pn, shuf_identity, shuf_swap, idir, idirsplat, shufflexyz);
 #endif
 
-			object = ~0;
+			object = OBJECT_NONE;
 			nodeAddr = traversalStack[stackPtr];
 			--stackPtr;
 		}

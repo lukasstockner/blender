@@ -853,7 +853,7 @@ typedef struct Sculpt {
 	int radial_symm[3];
 
 	/* Maximum edge length for dynamic topology sculpting (in pixels) */
-	int detail_size;
+	float detail_size;
 
 	/* Direction used for SCULPT_OT_symmetrize operator */
 	int symmetrize_direction;
@@ -1176,8 +1176,13 @@ typedef struct Scene {
 	
 	short flag;								/* various settings */
 	
-	short use_nodes;
-	
+	char use_nodes;
+
+	/* Openmp Global Settings */
+	char  omp_threads_mode;
+	short omp_threads;
+	char pad[6];
+
 	struct bNodeTree *nodetree;
 	
 	struct Editing *ed;								/* sequence editor data is allocated here */
@@ -1236,7 +1241,6 @@ typedef struct Scene {
 	/* RigidBody simulation world+settings */
 	struct RigidBodyWorld *rigidbody_world;
 } Scene;
-
 
 /* **************** RENDERDATA ********************* */
 
@@ -1779,6 +1783,10 @@ typedef enum SculptFlags {
 /* UnitSettings->flag */
 #define	USER_UNIT_OPT_SPLIT		1
 #define USER_UNIT_ROT_RADIANS	2
+
+/* OpenMP settings */
+#define SCE_OMP_AUTO 0
+#define SCE_OMP_FIXED 1
 
 #ifdef __cplusplus
 }

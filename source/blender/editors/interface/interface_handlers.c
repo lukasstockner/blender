@@ -3506,10 +3506,21 @@ static int ui_do_but_NUM(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 			}
 		}
 		else if (event->type == LEFTMOUSE && event->val != KM_PRESS) {
-			if (data->dragchange)
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-			else
+			if (data->dragchange) {
+#ifdef USE_DRAG_MULTINUM
+				/* if we started multibutton but didnt drag, then edit */
+				if (data->multi_data.init == BUTTON_MULTI_INIT_SETUP) {
+					click = 1;
+				}
+				else
+#endif
+				{
+					button_activate_state(C, but, BUTTON_STATE_EXIT);
+				}
+			}
+			else {
 				click = 1;
+			}
 		}
 		else if (event->type == MOUSEMOVE) {
 			const enum eSnapType snap = ui_event_to_snap(event);
@@ -3792,10 +3803,21 @@ static int ui_do_but_SLI(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 			}
 		}
 		else if (event->type == LEFTMOUSE && event->val != KM_PRESS) {
-			if (data->dragchange)
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-			else
+			if (data->dragchange) {
+#ifdef USE_DRAG_MULTINUM
+				/* if we started multibutton but didnt drag, then edit */
+				if (data->multi_data.init == BUTTON_MULTI_INIT_SETUP) {
+					click = 1;
+				}
+				else
+#endif
+				{
+					button_activate_state(C, but, BUTTON_STATE_EXIT);
+				}
+			}
+			else {
 				click = 1;
+			}
 		}
 		else if (event->type == MOUSEMOVE) {
 #ifdef USE_DRAG_MULTINUM
@@ -4172,7 +4194,7 @@ static bool ui_numedit_but_NORMAL(uiBut *but, uiHandleButtonData *data,
 	if (mrad < radsq) { /* inner circle */
 		fp[0] = dx;
 		fp[1] = dy;
-		fp[2] = sqrt(radsq - dx * dx - dy * dy);
+		fp[2] = sqrtf(radsq - dx * dx - dy * dy);
 	}
 	else {  /* outer circle */
 		
@@ -4185,7 +4207,7 @@ static bool ui_numedit_but_NORMAL(uiBut *but, uiHandleButtonData *data,
 		if (mrad < radsq) {
 			fp[0] = dx;
 			fp[1] = dy;
-			fp[2] = -sqrt(radsq - dx * dx - dy * dy);
+			fp[2] = -sqrtf(radsq - dx * dx - dy * dy);
 		}
 	}
 	normalize_v3(fp);

@@ -206,6 +206,40 @@ static void mikk_compute_tangents(BL::Mesh b_mesh, BL::MeshTextureFaceLayer b_la
 	}
 }
 
+/* Create Volume Attribute */
+
+static void create_mesh_volume_attribute(BL::Object b_ob, Mesh *mesh, ImageManager *image_manager, AttributeStandard std)
+{
+	BL::SmokeDomainSettings b_domain = object_smoke_domain_find(b_ob);
+
+	if(!b_domain)
+		return;
+	
+	Attribute *attr = mesh->attributes.add(std);
+	VoxelAttribute *volume_data = attr->data_voxel();
+	bool is_float, is_linear;
+	bool animated = false;
+
+	volume_data->manager = image_manager;
+	volume_data->slot = image_manager->add_image(Attribute::standard_name(std),
+		b_ob.ptr.data, animated, is_float, is_linear, INTERPOLATION_LINEAR);
+}
+
+static void create_mesh_volume_attributes(Scene *scene, BL::Object b_ob, Mesh *mesh)
+{
+	/* for smoke volume rendering */
+	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_DENSITY))
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_DENSITY);
+	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_COLOR))
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_COLOR);
+	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_FLAME))
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_FLAME);
+	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_HEAT))
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_HEAT);
+	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_VELOCITY))
+		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_VELOCITY);
+}
+
 /* Create Mesh */
 
 static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<uint>& used_shaders)
@@ -449,6 +483,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 	Mesh *mesh;
 
 	if(!mesh_map.sync(&mesh, key)) {
+		
 		/* if transform was applied to mesh, need full update */
 		if(object_updated && mesh->transform_applied);
 		/* test if shaders changed, these can be object level so mesh
@@ -481,7 +516,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 	
 	/* compares curve_keys rather than strands in order to handle quick hair
 	 * adjustsments in dynamic BVH - other methods could probably do this better*/
-	vector<Mesh::CurveKey> oldcurve_keys = mesh->curve_keys;
+	vector<float4> oldcurve_keys = mesh->curve_keys;
 
 	mesh->clear();
 	mesh->used_shaders = used_shaders;
@@ -500,10 +535,12 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 					create_subd_mesh(scene, mesh, b_mesh, &cmesh, used_shaders);
 				else
 					create_mesh(scene, mesh, b_mesh, used_shaders);
+
+				create_mesh_volume_attributes(scene, b_ob, mesh);
 			}
 
 			if(render_layer.use_hair)
-				sync_curves(mesh, b_mesh, b_ob, 0);
+				sync_curves(mesh, b_mesh, b_ob, false);
 
 			/* free derived mesh */
 			b_data.meshes.remove(b_mesh);
@@ -535,7 +572,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 	if(oldcurve_keys.size() != mesh->curve_keys.size())
 		rebuild = true;
 	else if(oldcurve_keys.size()) {
-		if(memcmp(&oldcurve_keys[0], &mesh->curve_keys[0], sizeof(Mesh::CurveKey)*oldcurve_keys.size()) != 0)
+		if(memcmp(&oldcurve_keys[0], &mesh->curve_keys[0], sizeof(float4)*oldcurve_keys.size()) != 0)
 			rebuild = true;
 	}
 	
@@ -544,46 +581,119 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 	return mesh;
 }
 
-void BlenderSync::sync_mesh_motion(BL::Object b_ob, Mesh *mesh, int motion)
+void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion_time)
 {
-	/* todo: displacement, subdivision */
-	size_t size = mesh->verts.size();
-
-	/* skip objects without deforming modifiers. this is not a totally reliable,
-	 * would need a more extensive check to see which objects are animated */
-	if(!size || !ccl::BKE_object_is_deform_modified(b_ob, b_scene, preview))
-		return;
-
 	/* ensure we only sync instanced meshes once */
+	Mesh *mesh = object->mesh;
+
 	if(mesh_motion_synced.find(mesh) != mesh_motion_synced.end())
 		return;
 
 	mesh_motion_synced.insert(mesh);
 
+	/* for motion pass always compute, for motion blur it can be disabled */
+	int time_index = 0;
+
+	if(scene->need_motion() == Scene::MOTION_BLUR) {
+		if(!mesh->use_motion_blur)
+			return;
+		
+		/* see if this mesh needs motion data at this time */
+		vector<float> object_times = object->motion_times();
+		bool found = false;
+
+		foreach(float object_time, object_times) {
+			if(motion_time == object_time) {
+				found = true;
+				break;
+			}
+			else
+				time_index++;
+		}
+
+		if(!found)
+			return;
+	}
+	else {
+		if(motion_time == -1.0f)
+			time_index = 0;
+		else if(motion_time == 1.0f)
+			time_index = 1;
+		else
+			return;
+	}
+
+	/* skip objects without deforming modifiers. this is not totally reliable,
+	 * would need a more extensive check to see which objects are animated */
+	size_t numverts = mesh->verts.size();
+	size_t numkeys = mesh->curve_keys.size();
+
+	if((!numverts && !numkeys) || !ccl::BKE_object_is_deform_modified(b_ob, b_scene, preview))
+		return;
+	
 	/* get derived mesh */
 	BL::Mesh b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !preview, false);
 
-	if(b_mesh) {
+	if(!b_mesh)
+		return;
+	
+	if(numverts) {
+		/* find attributes */
+		Attribute *attr_mP = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+		Attribute *attr_mN = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_NORMAL);
+		Attribute *attr_N = mesh->attributes.find(ATTR_STD_VERTEX_NORMAL);
+		bool new_attribute = false;
+
+		/* add new attributes if they don't exist already */
+		if(!attr_mP) {
+			attr_mP = mesh->attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+			if(attr_N)
+				attr_mN = mesh->attributes.add(ATTR_STD_MOTION_VERTEX_NORMAL);
+
+			new_attribute = true;
+		}
+
+		/* load vertex data from mesh */
+		float3 *mP = attr_mP->data_float3() + time_index*numverts;
+		float3 *mN = (attr_mN)? attr_mN->data_float3() + time_index*numverts: NULL;
+
 		BL::Mesh::vertices_iterator v;
-		AttributeStandard std = (motion == -1)? ATTR_STD_MOTION_PRE: ATTR_STD_MOTION_POST;
-		Attribute *attr_M = mesh->attributes.add(std);
-		float3 *M = attr_M->data_float3(), *cur_M;
-		size_t i = 0;
+		int i = 0;
 
-		for(b_mesh.vertices.begin(v), cur_M = M; v != b_mesh.vertices.end() && i < size; ++v, cur_M++, i++)
-			*cur_M = get_float3(v->co());
+		for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end() && i < numverts; ++v, ++i) {
+			mP[i] = get_float3(v->co());
+			if(mN)
+				mN[i] = get_float3(v->normal());
+		}
 
-		/* if number of vertices changed, or if coordinates stayed the same, drop it */
-		if(i != size || memcmp(M, &mesh->verts[0], sizeof(float3)*size) == 0)
-			mesh->attributes.remove(std);
+		/* in case of new attribute, we verify if there really was any motion */
+		if(new_attribute) {
+			if(i != numverts || memcmp(mP, &mesh->verts[0], sizeof(float3)*numverts) == 0) {
+				/* no motion, remove attributes again */
+				mesh->attributes.remove(ATTR_STD_MOTION_VERTEX_POSITION);
+				if(attr_mN)
+					mesh->attributes.remove(ATTR_STD_MOTION_VERTEX_NORMAL);
+			}
+			else if(time_index > 0) {
+				/* motion, fill up previous steps that we might have skipped because
+				 * they had no motion, but we need them anyway now */
+				float3 *P = &mesh->verts[0];
+				float3 *N = (attr_N)? attr_N->data_float3(): NULL;
 
-		/* hair motion */
-		if(render_layer.use_hair)
-			sync_curves(mesh, b_mesh, b_ob, motion);
-
-		/* free derived mesh */
-		b_data.meshes.remove(b_mesh);
+				for(int step = 0; step < time_index; step++) {
+					memcpy(attr_mP->data_float3() + step*numverts, P, sizeof(float3)*numverts);
+					memcpy(attr_mN->data_float3() + step*numverts, N, sizeof(float3)*numverts);
+				}
+			}
+		}
 	}
+
+	/* hair motion */
+	if(numkeys)
+		sync_curves(mesh, b_mesh, b_ob, true, time_index);
+
+	/* free derived mesh */
+	b_data.meshes.remove(b_mesh);
 }
 
 CCL_NAMESPACE_END

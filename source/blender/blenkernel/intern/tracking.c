@@ -2340,8 +2340,8 @@ static void tracking_dopesheet_channels_calc(MovieTracking *tracking)
 		BKE_tracking_object_get_reconstruction(tracking, object);
 	ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, object);
 
-	short sel_only = dopesheet->flag & TRACKING_DOPE_SELECTED_ONLY;
-	short show_hidden = dopesheet->flag & TRACKING_DOPE_SHOW_HIDDEN;
+	bool sel_only = (dopesheet->flag & TRACKING_DOPE_SELECTED_ONLY) != 0;
+	bool show_hidden = (dopesheet->flag & TRACKING_DOPE_SHOW_HIDDEN) != 0;
 
 	for (track = tracksbase->first; track; track = track->next) {
 		MovieTrackingDopesheetChannel *channel;
@@ -2500,7 +2500,7 @@ void BKE_tracking_dopesheet_tag_update(MovieTracking *tracking)
 {
 	MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
 
-	dopesheet->ok = FALSE;
+	dopesheet->ok = false;
 }
 
 /* Do dopesheet update, if update is not needed nothing will happen. */
@@ -2523,5 +2523,5 @@ void BKE_tracking_dopesheet_update(MovieTracking *tracking)
 	/* frame coverage */
 	tracking_dopesheet_calc_coverage(tracking);
 
-	dopesheet->ok = TRUE;
+	dopesheet->ok = true;
 }

@@ -67,6 +67,7 @@
 #include "BKE_multires.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
+#include "BKE_scene.h"
 #include "BKE_lattice.h" /* for armature_deform_verts */
 #include "BKE_node.h"
 #include "BKE_object.h"
@@ -103,20 +104,6 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
-
-#if defined(__APPLE__)
-#include <sys/sysctl.h>
-
-/* how many cores not counting HT aka pysical cores */
-int system_physical_thread_count(void); // declaration here for simplification
-int system_physical_thread_count(void)
-{
-	int pcount;
-	size_t pcount_len = sizeof(pcount);
-	sysctlbyname("hw.physicalcpu", &pcount, &pcount_len, NULL, 0);
-	return pcount;
-}
-#endif // __APPLE__
 
 void ED_sculpt_get_average_stroke(Object *ob, float stroke[3])
 {
@@ -901,6 +888,7 @@ static float tex_strength(SculptSession *ss, Brush *br,
 	MTex *mtex = &br->mtex;
 	float avg = 1;
 	float rgba[4];
+	int thread_num;
 
 	if (!mtex->tex) {
 		avg = 1;
@@ -943,7 +931,12 @@ static float tex_strength(SculptSession *ss, Brush *br,
 			x += br->mtex.ofs[0];
 			y += br->mtex.ofs[1];
 
-			avg = paint_get_tex_pixel(&br->mtex, x, y, ss->tex_pool);
+#ifdef _OPENMP
+			thread_num = omp_get_thread_num();
+#else
+			thread_num = 0;
+#endif
+			avg = paint_get_tex_pixel(&br->mtex, x, y, ss->tex_pool, thread_num);
 
 			avg += br->texture_sample_bias;
 		}
@@ -995,7 +988,7 @@ static bool sculpt_search_sphere_cb(PBVHNode *node, void *data_v)
 	
 	sub_v3_v3v3(t, center, nearest);
 
-	return dot_v3v3(t, t) < data->radius_squared;
+	return len_squared_v3(t) < data->radius_squared;
 }
 
 /* Handles clipping against a mirror modifier and SCULPT_LOCK axis flags */
@@ -1505,10 +1498,10 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 
 	grid_hidden = BKE_pbvh_grid_hidden(ss->pbvh);
 
-	thread_num = 0;
 #ifdef _OPENMP
-	if (sd->flags & SCULPT_USE_OPENMP)
-		thread_num = omp_get_thread_num();
+	thread_num = omp_get_thread_num();
+#else
+	thread_num = 0;
 #endif
 	tmpgrid_co = ss->cache->tmpgrid_co[thread_num];
 	tmprow_co = ss->cache->tmprow_co[thread_num];
@@ -1686,7 +1679,7 @@ static void smooth(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode,
 static void do_smooth_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 {
 	SculptSession *ss = ob->sculpt;
-	smooth(sd, ob, nodes, totnode, ss->cache->bstrength, FALSE);
+	smooth(sd, ob, nodes, totnode, ss->cache->bstrength, false);
 }
 
 static void do_mask_brush_draw(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
@@ -1731,7 +1724,7 @@ static void do_mask_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 			do_mask_brush_draw(sd, ob, nodes, totnode);
 			break;
 		case BRUSH_MASK_SMOOTH:
-			smooth(sd, ob, nodes, totnode, ss->cache->bstrength, TRUE);
+			smooth(sd, ob, nodes, totnode, ss->cache->bstrength, true);
 			break;
 	}
 }
@@ -3207,10 +3200,10 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush)
 		    brush->autosmooth_factor > 0)
 		{
 			if (brush->flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
-				smooth(sd, ob, nodes, totnode, brush->autosmooth_factor * (1 - ss->cache->pressure), FALSE);
+				smooth(sd, ob, nodes, totnode, brush->autosmooth_factor * (1 - ss->cache->pressure), false);
 			}
 			else {
-				smooth(sd, ob, nodes, totnode, brush->autosmooth_factor, FALSE);
+				smooth(sd, ob, nodes, totnode, brush->autosmooth_factor, false);
 			}
 		}
 
@@ -3523,7 +3516,7 @@ static void sculpt_update_tex(const Scene *scene, Sculpt *sd, SculptSession *ss)
  * \param need_mask So the DerivedMesh thats returned has mask data
  */
 void sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
-                                 int need_pmap, int need_mask)
+                                 bool need_pmap, bool need_mask)
 {
 	DerivedMesh *dm;
 	SculptSession *ss = ob->sculpt;
@@ -3735,7 +3728,7 @@ static void sculpt_init_mirror_clipping(Object *ob, SculptSession *ss)
 	}
 }
 
-static void sculpt_omp_start(Sculpt *sd, SculptSession *ss)
+static void sculpt_omp_start(Scene *scene, Sculpt *sd, SculptSession *ss)
 {
 	StrokeCache *cache = ss->cache;
 
@@ -3745,17 +3738,14 @@ static void sculpt_omp_start(Sculpt *sd, SculptSession *ss)
 	 * Justification: Empirically I've found that two threads per
 	 * processor gives higher throughput. */
 	if (sd->flags & SCULPT_USE_OPENMP) {
-#if defined(__APPLE__)
-		cache->num_threads = system_physical_thread_count();
-#else
-		cache->num_threads = omp_get_num_procs();
-#endif
+		cache->num_threads = BKE_scene_num_omp_threads(scene);
 	}
 	else {
 		cache->num_threads = 1;
 	}
-	omp_set_num_threads(cache->num_threads);
+	omp_set_num_threads(cache->num_threads);  /* set user-defined corecount, "AUTO" = physical cores on OSX, logical cores for other OS atm.*/
 #else
+	(void)scene;
 	(void)sd;
 	cache->num_threads = 1;
 #endif
@@ -3973,7 +3963,7 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	cache->previous_vertex_rotation = 0;
 	cache->init_dir_set = false;
 
-	sculpt_omp_start(sd, ss);
+	sculpt_omp_start(scene, sd, ss);
 }
 
 static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Brush *brush)
@@ -4200,7 +4190,7 @@ static void sculpt_stroke_modifiers_check(const bContext *C, Object *ob)
 		Brush *brush = BKE_paint_brush(&sd->paint);
 
 		sculpt_update_mesh_elements(CTX_data_scene(C), sd, ob,
-		                            sculpt_any_smooth_mode(brush, ss->cache, 0), FALSE);
+		                            sculpt_any_smooth_mode(brush, ss->cache, 0), false);
 	}
 }
 
@@ -4224,17 +4214,17 @@ static void sculpt_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
 	if (BKE_pbvh_node_get_tmin(node) < *tmin) {
 		SculptRaycastData *srd = data_v;
 		float (*origco)[3] = NULL;
-		int use_origco = FALSE;
+		bool use_origco = false;
 
 		if (srd->original && srd->ss->cache) {
 			if (BKE_pbvh_type(srd->ss->pbvh) == PBVH_BMESH) {
-				use_origco = TRUE;
+				use_origco = true;
 			}
 			else {
 				/* intersect with coordinates from before we started stroke */
 				SculptUndoNode *unode = sculpt_undo_get_node(node);
 				origco = (unode) ? unode->co : NULL;
-				use_origco = origco ? TRUE : FALSE;
+				use_origco = origco ? true : false;
 			}
 		}
 
@@ -4355,10 +4345,10 @@ static int sculpt_brush_stroke_init(bContext *C, wmOperator *op)
 	Brush *brush = BKE_paint_brush(&sd->paint);
 	int mode = RNA_enum_get(op->ptr, "mode");
 	int is_smooth = 0;
-	int need_mask = FALSE;
+	int need_mask = false;
 
 	if (brush->sculpt_tool == SCULPT_TOOL_MASK) {
-		need_mask = TRUE;
+		need_mask = true;
 	}
 
 	view3d_operator_needs_opengl(C);
@@ -4498,7 +4488,7 @@ static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *UNUSED(st
 		BKE_pbvh_bmesh_detail_size_set(ss->pbvh,
 		                               (ss->cache->radius /
 		                                (float)ups->pixel_radius) *
-		                               (float)sd->detail_size);
+		                               (float)sd->detail_size / 0.4f);
 	}
 
 	if (sculpt_stroke_dynamic_topology(ss, brush)) {
@@ -4515,7 +4505,7 @@ static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *UNUSED(st
 	if (ss->modifiers_active)
 		sculpt_flush_stroke_deform(sd, ob);
 
-	ss->cache->first_time = FALSE;
+	ss->cache->first_time = false;
 
 	/* Cleanup */
 	sculpt_flush_update(C);
@@ -4590,6 +4580,11 @@ static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(str
 
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 	}
+
+#ifdef _OPENMP
+	if (!(sd->flags & SCULPT_USE_OPENMP))
+		omp_set_num_threads(BLI_system_thread_count()); /* set back to original logical corecount */
+#endif
 
 	sculpt_brush_exit_tex(sd);
 }
@@ -4761,7 +4756,7 @@ void sculpt_update_after_dynamic_topology_toggle(bContext *C)
 	Sculpt *sd = scene->toolsettings->sculpt;
 
 	/* Create the PBVH */
-	sculpt_update_mesh_elements(scene, sd, ob, FALSE, FALSE);
+	sculpt_update_mesh_elements(scene, sd, ob, false, false);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 }
 
@@ -4838,7 +4833,7 @@ void sculpt_dynamic_topology_disable(bContext *C,
 		BKE_mesh_update_customdata_pointers(me, false);
 	}
 	else {
-		sculptsession_bm_to_me(ob, TRUE);
+		sculptsession_bm_to_me(ob, true);
 	}
 
 	/* Clear data */
@@ -5006,7 +5001,7 @@ static void sculpt_init_session(Scene *scene, Object *ob)
 {
 	ob->sculpt = MEM_callocN(sizeof(SculptSession), "sculpt session");
 
-	sculpt_update_mesh_elements(scene, scene->toolsettings->sculpt, ob, 0, FALSE);
+	sculpt_update_mesh_elements(scene, scene->toolsettings->sculpt, ob, 0, false);
 }
 
 int ED_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)

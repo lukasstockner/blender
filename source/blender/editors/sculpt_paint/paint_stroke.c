@@ -372,7 +372,7 @@ static void paint_brush_update(bContext *C,
 			zero_v3(location);
 	}
 
-	stroke->brush_init = TRUE;
+	stroke->brush_init = true;
 }
 
 

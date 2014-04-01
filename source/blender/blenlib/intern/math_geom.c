@@ -179,6 +179,24 @@ float area_poly_v2(const float verts[][2], unsigned int nr)
 	return fabsf(0.5f * cross_poly_v2(verts, nr));
 }
 
+float cotangent_tri_weight_v3(const float v1[3], const float v2[3], const float v3[3])
+{
+	float a[3], b[3], c[3], c_len;
+
+	sub_v3_v3v3(a, v2, v1);
+	sub_v3_v3v3(b, v3, v1);
+	cross_v3_v3v3(c, a, b);
+
+	c_len = len_v3(c);
+
+	if (c_len > FLT_EPSILON) {
+		return dot_v3v3(a, b) / c_len;
+	}
+	else {
+		return 0.0f;
+	}
+}
+
 /********************************* Planes **********************************/
 
 /**
@@ -601,7 +619,7 @@ int isect_seg_seg_v2_point(const float v1[2], const float v2[2], const float v3[
 	return -1;
 }
 
-int isect_seg_seg_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2])
+bool isect_seg_seg_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2])
 {
 #define CCW(A, B, C) ((C[1] - A[1]) * (B[0] - A[0]) > (B[1]-A[1]) * (C[0]-A[0]))
 
@@ -638,7 +656,7 @@ int isect_line_sphere_v3(const float l1[3], const float l2[3],
 		l2[2] - l1[2]
 	};
 
-	const float a = dot_v3v3(ldir, ldir);
+	const float a = len_squared_v3(ldir);
 
 	const float b = 2.0f *
 	                (ldir[0] * (l1[0] - sp[0]) +
@@ -646,8 +664,8 @@ int isect_line_sphere_v3(const float l1[3], const float l2[3],
 	                 ldir[2] * (l1[2] - sp[2]));
 
 	const float c =
-	    dot_v3v3(sp, sp) +
-	    dot_v3v3(l1, l1) -
+	    len_squared_v3(sp) +
+	    len_squared_v3(l1) -
 	    (2.0f * dot_v3v3(sp, l1)) -
 	    (r * r);
 
@@ -854,7 +872,7 @@ bool isect_point_poly_v2_int(const int pt[2], const int verts[][2], const unsign
 /* point in tri */
 
 /* only single direction */
-int isect_point_tri_v2_cw(const float pt[2], const float v1[2], const float v2[2], const float v3[2])
+bool isect_point_tri_v2_cw(const float pt[2], const float v1[2], const float v2[2], const float v3[2])
 {
 	if (line_point_side_v2(v1, v2, pt) >= 0.0f) {
 		if (line_point_side_v2(v2, v3, pt) >= 0.0f) {
@@ -1113,7 +1131,7 @@ bool isect_ray_tri_threshold_v3(const float p1[3], const float d[3],
 {
 	float p[3], s[3], e1[3], e2[3], q[3];
 	float a, f, u, v;
-	float du = 0, dv = 0;
+	float du, dv;
 
 	sub_v3_v3v3(e1, v1, v0);
 	sub_v3_v3v3(e2, v2, v0);
@@ -1132,20 +1150,25 @@ bool isect_ray_tri_threshold_v3(const float p1[3], const float d[3],
 	u = f * dot_v3v3(s, p);
 	v = f * dot_v3v3(d, q);
 
-	if (u < 0) du = u;
-	if (u > 1) du = u - 1;
-	if (v < 0) dv = v;
-	if (v > 1) dv = v - 1;
 	if (u > 0 && v > 0 && u + v > 1) {
-		float t = u + v - 1;
-		du = u - t / 2;
-		dv = v - t / 2;
+		float t = (u + v - 1) / 2;
+		du = u - t;
+		dv = v - t;
+	}
+	else {
+		if      (u < 0) du = u;
+		else if (u > 1) du = u - 1;
+		else            du = 0.0f;
+
+		if      (v < 0) dv = v;
+		else if (v > 1) dv = v - 1;
+		else            dv = 0.0f;
 	}
 
 	mul_v3_fl(e1, du);
 	mul_v3_fl(e2, dv);
 
-	if (dot_v3v3(e1, e1) + dot_v3v3(e2, e2) > threshold * threshold) {
+	if (len_squared_v3(e1) + len_squared_v3(e2) > threshold * threshold) {
 		return 0;
 	}
 
@@ -1244,7 +1267,7 @@ static bool getLowestRoot(const float a, const float b, const float c, const flo
 	if (determinant >= 0.0f) {
 		/* calculate the two roots: (if determinant == 0 then
 		 * x1==x2 but lets disregard that slight optimization) */
-		float sqrtD = (float)sqrt(determinant);
+		float sqrtD = sqrtf(determinant);
 		float r1 = (-b - sqrtD) / (2.0f * a);
 		float r2 = (-b + sqrtD) / (2.0f * a);
 
@@ -2140,7 +2163,7 @@ static float tri_signed_area(const float v1[3], const float v2[3], const float v
 }
 
 /* return 1 when degenerate */
-static int barycentric_weights(const float v1[3], const float v2[3], const float v3[3], const float co[3], const float n[3], float w[3])
+static bool barycentric_weights(const float v1[3], const float v2[3], const float v3[3], const float co[3], const float n[3], float w[3])
 {
 	float wtot;
 	int i, j;
@@ -2182,7 +2205,7 @@ void interp_weights_face_v3(float w[4], const float v1[3], const float v2[3], co
 	else {
 		/* otherwise compute barycentric interpolation weights */
 		float n1[3], n2[3], n[3];
-		int degenerate;
+		bool degenerate;
 
 		sub_v3_v3v3(n1, v1, v3);
 		if (v4) {
@@ -2356,7 +2379,7 @@ void barycentric_transform(float pt_tar[3], float const pt_src[3],
                            const float tri_src_p1[3], const float tri_src_p2[3], const float tri_src_p3[3])
 {
 	/* this works by moving the source triangle so its normal is pointing on the Z
-	 * axis where its barycentric wights can be calculated in 2D and its Z offset can
+	 * axis where its barycentric weights can be calculated in 2D and its Z offset can
 	 *  be re-applied. The weights are applied directly to the targets 3D points and the
 	 *  z-depth is used to scale the targets normal as an offset.
 	 * This saves transforming the target into its Z-Up orientation and back (which could also work) */
@@ -2974,8 +2997,8 @@ void lookat_m4(float mat[4][4], float vx, float vy, float vz, float px, float py
 	dy = py - vy;
 	dz = pz - vz;
 	hyp = dx * dx + dz * dz; /* hyp squared	*/
-	hyp1 = (float)sqrt(dy * dy + hyp);
-	hyp = (float)sqrt(hyp); /* the real hyp	*/
+	hyp1 = sqrtf(dy * dy + hyp);
+	hyp = sqrtf(hyp); /* the real hyp	*/
 
 	if (hyp1 != 0.0f) { /* rotate X	*/
 		sine = -dy / hyp1;
@@ -3097,7 +3120,7 @@ void map_to_sphere(float *r_u, float *r_v, const float x, const float y, const f
 		if (x == 0.0f && y == 0.0f) *r_u = 0.0f;  /* othwise domain error */
 		else *r_u = (1.0f - atan2f(x, y) / (float)M_PI) / 2.0f;
 
-		*r_v = 1.0f - (float)saacos(z / len) / (float)M_PI;
+		*r_v = 1.0f - saacos(z / len) / (float)M_PI;
 	}
 	else {
 		*r_v = *r_u = 0.0f; /* to avoid un-initialized variables */
@@ -3791,7 +3814,7 @@ float form_factor_hemi_poly(float p[3], float n[3], float v1[3], float v2[3], fl
 }
 
 /* evaluate if entire quad is a proper convex quad */
-int is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3])
+bool is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3])
 {
 	float nor[3], nor_a[3], nor_b[3], vec[4][2];
 	float mat[3][3];
@@ -3841,8 +3864,47 @@ int is_quad_convex_v3(const float v1[3], const float v2[3], const float v3[3], c
 	return (isect_line_line_v2(vec[0], vec[2], vec[1], vec[3]) > 0);
 }
 
-int is_quad_convex_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2])
+bool is_quad_convex_v2(const float v1[2], const float v2[2], const float v3[2], const float v4[2])
 {
 	/* linetests, the 2 diagonals have to instersect to be convex */
 	return (isect_line_line_v2(v1, v3, v2, v4) > 0);
+}
+
+bool is_poly_convex_v2(const float verts[][2], unsigned int nr)
+{
+	unsigned int sign_flag = 0;
+	unsigned int a;
+	const float *co_curr, *co_prev;
+	float dir_curr[2], dir_prev[2];
+
+	co_prev = verts[nr - 1];
+	co_curr = verts[0];
+
+	sub_v2_v2v2(dir_prev, verts[nr - 2], co_prev);
+
+	for (a = 0; a < nr; a++) {
+		float cross;
+
+		sub_v2_v2v2(dir_curr, co_prev, co_curr);
+
+		cross = cross_v2v2(dir_prev, dir_curr);
+
+		if (cross < 0.0f) {
+			sign_flag |= 1;
+		}
+		else if (cross > 0.0f) {
+			sign_flag |= 2;
+		}
+
+		if (sign_flag == (1 | 2)) {
+			return false;
+		}
+
+		copy_v2_v2(dir_prev, dir_curr);
+
+		co_prev = co_curr;
+		co_curr += 2;
+	}
+
+	return true;
 }
