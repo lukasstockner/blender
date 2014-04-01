@@ -4116,15 +4116,19 @@ static void *do_projectpaint_thread(void *ph_v)
 							 * Instead we use a formula that adds up but approaches brush_alpha slowly
 							 * and never exceeds it, which gives nice smooth results. */
 							float mask_accum = *projPixel->mask_accum;
+							float max_mask = brush_alpha * mask * 65535.0f;
 
 							if (ps->is_maskbrush) {
 								float texmask = BKE_brush_sample_masktex(ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool);
 								CLAMP(texmask, 0.0f, 1.0f);
-								mask = mask_accum + (brush_alpha * texmask * 65535.0f - mask_accum) * mask;
+								max_mask *= texmask;
 							}
-							else {
-								mask = mask_accum + (brush_alpha * 65535.0f - mask_accum) * mask;
-							}
+
+							if (brush->flag & BRUSH_ACCUMULATE)
+								mask = min_ff(mask_accum + max_mask, 65535.0f);
+							else
+								mask = mask_accum + (max_mask - mask_accum) * mask;
+
 							mask_short = (unsigned short)mask;
 
 							if (mask_short > *projPixel->mask_accum) {
