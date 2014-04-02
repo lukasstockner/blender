@@ -1742,7 +1742,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 	if (ccgdm->pbvh && ccgdm->multires.mmd && !fast) {
 		if (dm->numTessFaceData) {
 			BKE_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL,
-			              setMaterial, FALSE);
+			              setMaterial, false);
 			glShadeModel(GL_FLAT);
 		}
 
@@ -1763,12 +1763,15 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 			new_shademodel = GL_SMOOTH;
 			new_matnr = 0;
 		}
-		
+
 		if (shademodel != new_shademodel || matnr != new_matnr) {
 			matnr = new_matnr;
 			shademodel = new_shademodel;
 
-			drawcurrent = setMaterial(matnr + 1, NULL);
+			if (setMaterial)
+				drawcurrent = setMaterial(matnr + 1, NULL);
+			else
+				drawcurrent = 1;
 
 			glShadeModel(shademodel);
 		}

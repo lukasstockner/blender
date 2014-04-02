@@ -151,7 +151,7 @@ void ED_area_do_refresh(bContext *C, ScrArea *sa)
 	if (sa->type && sa->type->refresh) {
 		sa->type->refresh(C, sa);
 	}
-	sa->do_refresh = FALSE;
+	sa->do_refresh = false;
 }
 
 /**
@@ -408,7 +408,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	/* see BKE_spacedata_draw_locks() */
 	if (at->do_lock)
 		return;
-	
+
 	/* if no partial draw rect set, full rect */
 	if (ar->drawrct.xmin == ar->drawrct.xmax) {
 		ar->drawrct = ar->winrct;
@@ -526,7 +526,7 @@ void ED_area_tag_redraw_regiontype(ScrArea *sa, int regiontype)
 void ED_area_tag_refresh(ScrArea *sa)
 {
 	if (sa)
-		sa->do_refresh = TRUE;
+		sa->do_refresh = true;
 }
 
 /* *************************************************************** */
@@ -1312,6 +1312,27 @@ void ED_area_initialize(wmWindowManager *wm, wmWindow *win, ScrArea *sa)
 	}
 }
 
+static void region_update_rect(ARegion *ar)
+{
+	ar->winx = BLI_rcti_size_x(&ar->winrct) + 1;
+	ar->winy = BLI_rcti_size_y(&ar->winrct) + 1;
+
+	/* v2d mask is used to subtract scrollbars from a 2d view. Needs initialize here. */
+	BLI_rcti_init(&ar->v2d.mask, 0, ar->winx - 1, 0, ar->winy -1);
+}
+
+/**
+ * Call to move a popup window (keep OpenGL context free!)
+ */
+void ED_region_update_rect(bContext *C, ARegion *ar)
+{
+	wmWindow *win = CTX_wm_window(C);
+
+	wm_subwindow_rect_set(win, ar->swinid, &ar->winrct);
+
+	region_update_rect(ar);
+}
+
 /* externally called for floating regions like menus */
 void ED_region_init(bContext *C, ARegion *ar)
 {
@@ -1320,11 +1341,7 @@ void ED_region_init(bContext *C, ARegion *ar)
 	/* refresh can be called before window opened */
 	region_subwindow(CTX_wm_window(C), ar);
 	
-	ar->winx = BLI_rcti_size_x(&ar->winrct) + 1;
-	ar->winy = BLI_rcti_size_y(&ar->winrct) + 1;
-	
-	/* v2d mask is used to subtract scrollbars from a 2d view. Needs initialize here. */
-	BLI_rcti_init(&ar->v2d.mask, 0, ar->winx - 1, 0, ar->winy -1);
+	region_update_rect(ar);
 
 	/* UI convention */
 	wmOrtho2(-0.01f, ar->winx - 0.01f, -0.01f, ar->winy - 0.01f);
@@ -1332,7 +1349,7 @@ void ED_region_init(bContext *C, ARegion *ar)
 }
 
 /* for quick toggle, can skip fades */
-void region_toggle_hidden(bContext *C, ARegion *ar, int do_fade)
+void region_toggle_hidden(bContext *C, ARegion *ar, bool do_fade)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	
@@ -1359,7 +1376,7 @@ void ED_region_toggle_hidden(bContext *C, ARegion *ar)
 
 /* sa2 to sa1, we swap spaces for fullscreen to keep all allocated data */
 /* area vertices were set */
-void area_copy_data(ScrArea *sa1, ScrArea *sa2, int swap_space)
+void area_copy_data(ScrArea *sa1, ScrArea *sa2, const bool swap_space)
 {
 	SpaceType *st;
 	ARegion *ar;

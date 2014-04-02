@@ -164,26 +164,25 @@ float paint_calc_object_space_radius(ViewContext *vc, const float center[3],
 	return len_v3(delta) / scale;
 }
 
-float paint_get_tex_pixel(MTex *mtex, float u, float v, struct ImagePool *pool)
+float paint_get_tex_pixel(MTex *mtex, float u, float v, struct ImagePool *pool, int thread)
 {
 	float intensity, rgba[4];
 	float co[3] = {u, v, 0.0f};
 
 	externtex(mtex, co, &intensity,
-		                   rgba, rgba + 1, rgba + 2, rgba + 3, 0, pool);
+	          rgba, rgba + 1, rgba + 2, rgba + 3, thread, pool);
 
 	return intensity;
 }
 
-void paint_get_tex_pixel_col(MTex *mtex, float u, float v, float rgba[4], struct ImagePool *pool)
+void paint_get_tex_pixel_col(MTex *mtex, float u, float v, float rgba[4], struct ImagePool *pool, int thread)
 {
 	float co[3] = {u, v, 0.0f};
 	int hasrgb;
 	float intensity;
 
 	hasrgb = externtex(mtex, co, &intensity,
-		                   rgba, rgba + 1, rgba + 2, rgba + 3, 0, pool);
-
+	                   rgba, rgba + 1, rgba + 2, rgba + 3, thread, pool);
 	if (!hasrgb) {
 		rgba[0] = intensity;
 		rgba[1] = intensity;
@@ -474,7 +473,7 @@ void PAINT_OT_face_select_linked_pick(wmOperatorType *ot)
 static int face_select_all_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
-	paintface_deselect_all_visible(ob, RNA_enum_get(op->ptr, "action"), TRUE);
+	paintface_deselect_all_visible(ob, RNA_enum_get(op->ptr, "action"), true);
 	ED_region_tag_redraw(CTX_wm_region(C));
 	return OPERATOR_FINISHED;
 }
@@ -498,7 +497,7 @@ void PAINT_OT_face_select_all(wmOperatorType *ot)
 static int vert_select_all_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
-	paintvert_deselect_all_visible(ob, RNA_enum_get(op->ptr, "action"), TRUE);
+	paintvert_deselect_all_visible(ob, RNA_enum_get(op->ptr, "action"), true);
 	ED_region_tag_redraw(CTX_wm_region(C));
 	return OPERATOR_FINISHED;
 }
@@ -529,7 +528,7 @@ static int vert_select_ungrouped_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	paintvert_select_ungrouped(ob, RNA_boolean_get(op->ptr, "extend"), TRUE);
+	paintvert_select_ungrouped(ob, RNA_boolean_get(op->ptr, "extend"), true);
 	ED_region_tag_redraw(CTX_wm_region(C));
 	return OPERATOR_FINISHED;
 }

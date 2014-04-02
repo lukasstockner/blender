@@ -440,7 +440,7 @@ static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value)
 /* calculate time extents of F-Curve */
 static void rna_FCurve_range(FCurve *fcu, float range[2])
 {
-	calc_fcurve_range(fcu, range, range + 1, FALSE, FALSE);
+	calc_fcurve_range(fcu, range, range + 1, false, false);
 }
 
 
@@ -448,7 +448,7 @@ static void rna_FCurve_range(FCurve *fcu, float range[2])
 static void rna_FCurve_update_data_ex(FCurve *fcu)
 {
 	sort_time_fcurve(fcu);
-	testhandles_fcurve(fcu, TRUE);
+	testhandles_fcurve(fcu, true);
 }
 
 /* RNA update callback for F-Curves after curve shape changes */
@@ -1676,7 +1676,8 @@ static void rna_def_fkeyframe(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "amplitude", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "amplitude");
-	RNA_def_property_ui_text(prop, "Amplitude", "Amplitude of bounces for elastic easing");
+	RNA_def_property_range(prop, 0.0f, FLT_MAX); /* only positive values... */
+	RNA_def_property_ui_text(prop, "Amplitude", "Amount to boost elastic bounces for 'elastic' easing");
 	RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);
 
 	prop = RNA_def_property(srna, "period", PROP_FLOAT, PROP_NONE);

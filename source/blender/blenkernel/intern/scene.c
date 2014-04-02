@@ -643,6 +643,9 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 
 	sce->gm.exitkey = 218; // Blender key code for ESC
 
+	sce->omp_threads_mode = SCE_OMP_AUTO;
+	sce->omp_threads = 1;
+
 	sound_create_scene(sce);
 
 	/* color management */
@@ -1584,7 +1587,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	
 	/* notify editors and python about recalc */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_POST);
-	DAG_ids_check_recalc(bmain, scene, FALSE);
+	DAG_ids_check_recalc(bmain, scene, false);
 
 	/* clear recalc flags */
 	DAG_ids_clear_recalc(bmain);
@@ -1667,7 +1670,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_POST);
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_POST);
 
-	DAG_ids_check_recalc(bmain, sce, TRUE);
+	DAG_ids_check_recalc(bmain, sce, true);
 
 	/* clear recalc flags */
 	DAG_ids_clear_recalc(bmain);
@@ -1873,3 +1876,10 @@ int BKE_scene_num_threads(const Scene *scene)
 	return BKE_render_num_threads(&scene->r);
 }
 
+int BKE_scene_num_omp_threads(const struct Scene *scene)
+{
+	if (scene->omp_threads_mode == SCE_OMP_AUTO)
+		return BLI_omp_thread_count();
+	else
+		return scene->omp_threads;
+}
