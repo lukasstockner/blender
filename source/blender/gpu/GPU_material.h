@@ -84,7 +84,9 @@ typedef enum GPUBuiltin {
 	GPU_VIEW_POSITION = 16,
 	GPU_VIEW_NORMAL = 32,
 	GPU_OBCOLOR = 64,
-	GPU_AUTO_BUMPSCALE = 128
+	GPU_AUTO_BUMPSCALE = 128,
+	GPU_MATCAP_NORMAL = 256,
+	GPU_COLOR = 512,
 } GPUBuiltin;
 
 typedef enum GPUBlendMode {
@@ -108,7 +110,7 @@ typedef struct GPUNodeStack {
 GPUNodeLink *GPU_attribute(int type, const char *name);
 GPUNodeLink *GPU_uniform(float *num);
 GPUNodeLink *GPU_dynamic_uniform(float *num, int dynamictype, void *data);
-GPUNodeLink *GPU_image(struct Image *ima, struct ImageUser *iuser, int isdata);
+GPUNodeLink *GPU_image(struct Image *ima, struct ImageUser *iuser, bool is_data);
 GPUNodeLink *GPU_image_preview(struct PreviewImage *prv);
 GPUNodeLink *GPU_texture(int size, float *pixels);
 GPUNodeLink *GPU_dynamic_texture(struct GPUTexture *tex, int dynamictype, void *data);
@@ -138,7 +140,7 @@ struct Scene *GPU_material_scene(GPUMaterial *material);
 void GPU_material_vertex_attributes(GPUMaterial *material,
 	struct GPUVertexAttribs *attrib);
 
-int GPU_material_do_color_management(GPUMaterial *mat);
+bool GPU_material_do_color_management(GPUMaterial *mat);
 
 /* Exported shading */
 

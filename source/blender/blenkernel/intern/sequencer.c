@@ -515,6 +515,7 @@ SeqRenderData BKE_sequencer_new_render_data(EvaluationContext *eval_ctx,
 	rval.motion_blur_shutter = 0;
 	rval.eval_ctx = eval_ctx;
 	rval.skip_cache = false;
+	rval.is_proxy_render = false;
 
 	return rval;
 }
@@ -1579,7 +1580,7 @@ void BKE_sequencer_proxy_rebuild(SeqIndexBuildContext *context, short *stop, sho
 		}
 
 		*progress = (float) (cfra - seq->startdisp - seq->startstill) / (seq->enddisp - seq->endstill - seq->startdisp - seq->startstill);
-		*do_update = TRUE;
+		*do_update = true;
 
 		if (*stop || G.is_break)
 			break;
@@ -2570,7 +2571,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 				re = RE_NewRender(scene->id.name);
 
 			BKE_scene_update_for_newframe(context->eval_ctx, context->bmain, scene, scene->lay);
-			RE_BlenderFrame(re, context->bmain, scene, NULL, camera, scene->lay, frame, FALSE);
+			RE_BlenderFrame(re, context->bmain, scene, NULL, camera, scene->lay, frame, false);
 
 			/* restore previous state after it was toggled on & off by RE_BlenderFrame */
 			G.is_rendering = is_rendering;
@@ -3650,7 +3651,7 @@ void BKE_sequence_sound_init(Scene *scene, Sequence *seq)
 			seq->scene_sound = sound_add_scene_sound_defaults(scene, seq);
 		}
 		if (seq->scene) {
-			sound_scene_add_scene_sound_defaults(scene, seq);
+			seq->scene_sound = sound_scene_add_scene_sound_defaults(scene, seq);
 		}
 	}
 }
@@ -4034,11 +4035,19 @@ void BKE_sequencer_offset_animdata(Scene *scene, Sequence *seq, int ofs)
 	for (fcu = scene->adt->action->curves.first; fcu; fcu = fcu->next) {
 		if (strstr(fcu->rna_path, "sequence_editor.sequences_all[") && strstr(fcu->rna_path, str)) {
 			unsigned int i;
-			for (i = 0; i < fcu->totvert; i++) {
-				BezTriple *bezt = &fcu->bezt[i];
-				bezt->vec[0][0] += ofs;
-				bezt->vec[1][0] += ofs;
-				bezt->vec[2][0] += ofs;
+			if (fcu->bezt) {
+				for (i = 0; i < fcu->totvert; i++) {
+					BezTriple *bezt = &fcu->bezt[i];
+					bezt->vec[0][0] += ofs;
+					bezt->vec[1][0] += ofs;
+					bezt->vec[2][0] += ofs;
+				}
+			}
+			if (fcu->fpt) {
+				for (i = 0; i < fcu->totvert; i++) {
+					FPoint *fpt = &fcu->fpt[i];
+					fpt->vec[0] += ofs;
+				}
 			}
 		}
 	}
@@ -4101,7 +4110,7 @@ static void seq_free_animdata(Scene *scene, Sequence *seq)
 	}
 }
 
-Sequence *BKE_sequence_get_by_name(ListBase *seqbase, const char *name, int recursive)
+Sequence *BKE_sequence_get_by_name(ListBase *seqbase, const char *name, bool recursive)
 {
 	Sequence *iseq = NULL;
 	Sequence *rseq = NULL;

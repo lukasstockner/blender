@@ -168,7 +168,7 @@ GPU_PBVH_Buffers *GPU_build_pbvh_mesh_buffers(int (*face_vert_indices)[4],
 
 void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
                              int *vert_indices, int totvert, const float *vmask,
-                             int (*face_vert_indices)[4], int show_diffuse_color);
+                             int (*face_vert_indices)[4], bool show_diffuse_color);
 
 GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
                                     unsigned int **grid_hidden, int gridsize);
@@ -184,12 +184,12 @@ void GPU_update_bmesh_pbvh_buffers(GPU_PBVH_Buffers *buffers,
 void GPU_update_grid_pbvh_buffers(GPU_PBVH_Buffers *buffers, struct CCGElem **grids,
                              const struct DMFlagMat *grid_flag_mats,
                              int *grid_indices, int totgrid, const struct CCGKey *key,
-                             int show_diffuse_color);
+                             bool show_diffuse_color);
 
 void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
-					  int wireframe);
+                           bool wireframe);
 
-int GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, int show_diffuse_color);
+bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, bool show_diffuse_color);
 
 void GPU_free_pbvh_buffers(GPU_PBVH_Buffers *buffers);
 

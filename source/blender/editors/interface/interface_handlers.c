@@ -96,6 +96,9 @@
 /* so we can avoid very small mouse-moves from jumping away from keyboard navigation [#34936] */
 #define USE_KEYNAV_LIMIT
 
+/* drag popups by their header */
+#define USE_DRAG_POPUP
+
 /* proto */
 static void ui_add_smart_controller(bContext *C, uiBut *from, uiBut *to);
 static void ui_add_link(bContext *C, uiBut *from, uiBut *to);
@@ -3477,10 +3480,21 @@ static int ui_do_but_NUM(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 			}
 		}
 		else if (event->type == LEFTMOUSE && event->val != KM_PRESS) {
-			if (data->dragchange)
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-			else
+			if (data->dragchange) {
+#ifdef USE_DRAG_MULTINUM
+				/* if we started multibutton but didnt drag, then edit */
+				if (data->multi_data.init == BUTTON_MULTI_INIT_SETUP) {
+					click = 1;
+				}
+				else
+#endif
+				{
+					button_activate_state(C, but, BUTTON_STATE_EXIT);
+				}
+			}
+			else {
 				click = 1;
+			}
 		}
 		else if (event->type == MOUSEMOVE) {
 			const enum eSnapType snap = ui_event_to_snap(event);
@@ -3763,10 +3777,21 @@ static int ui_do_but_SLI(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 			}
 		}
 		else if (event->type == LEFTMOUSE && event->val != KM_PRESS) {
-			if (data->dragchange)
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-			else
+			if (data->dragchange) {
+#ifdef USE_DRAG_MULTINUM
+				/* if we started multibutton but didnt drag, then edit */
+				if (data->multi_data.init == BUTTON_MULTI_INIT_SETUP) {
+					click = 1;
+				}
+				else
+#endif
+				{
+					button_activate_state(C, but, BUTTON_STATE_EXIT);
+				}
+			}
+			else {
 				click = 1;
+			}
 		}
 		else if (event->type == MOUSEMOVE) {
 #ifdef USE_DRAG_MULTINUM
@@ -4142,7 +4167,7 @@ static bool ui_numedit_but_NORMAL(uiBut *but, uiHandleButtonData *data,
 	if (mrad < radsq) { /* inner circle */
 		fp[0] = dx;
 		fp[1] = dy;
-		fp[2] = sqrt(radsq - dx * dx - dy * dy);
+		fp[2] = sqrtf(radsq - dx * dx - dy * dy);
 	}
 	else {  /* outer circle */
 		
@@ -4155,7 +4180,7 @@ static bool ui_numedit_but_NORMAL(uiBut *but, uiHandleButtonData *data,
 		if (mrad < radsq) {
 			fp[0] = dx;
 			fp[1] = dy;
-			fp[2] = -sqrt(radsq - dx * dx - dy * dy);
+			fp[2] = -sqrtf(radsq - dx * dx - dy * dy);
 		}
 	}
 	normalize_v3(fp);
@@ -7840,13 +7865,14 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
 }
 
 static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu,
-                                int level, const bool is_parent_inside)
+                                int level, const bool is_parent_inside, const bool is_floating)
 {
 	ARegion *ar;
 	uiBlock *block;
 	uiBut *but, *bt;
 	int mx, my, retval;
 	bool inside;
+	bool inside_title;  /* check for title dragging */
 
 	ar = menu->region;
 	block = ar->uiblocks.first;
@@ -7859,9 +7885,34 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 
 	/* check if mouse is inside block */
 	inside = BLI_rctf_isect_pt(&block->rect, mx, my);
+	inside_title = inside && ((my + (UI_UNIT_Y * 1.5f)) > block->rect.xmax);
 
 	/* if there's an active modal button, don't check events or outside, except for search menu */
 	but = ui_but_find_activated(ar);
+
+#ifdef USE_DRAG_POPUP
+	if (menu->is_grab) {
+		if (event->type == LEFTMOUSE) {
+			menu->is_grab = false;
+		}
+		else {
+			if (event->type == MOUSEMOVE) {
+				int mdiff[2];
+
+				sub_v2_v2v2_int(mdiff, &event->x, menu->grab_xy_prev);
+				copy_v2_v2_int(menu->grab_xy_prev, &event->x);
+
+				BLI_rcti_translate(&ar->winrct, UNPACK2(mdiff));
+
+				ED_region_update_rect(C, ar);
+
+				ED_region_tag_redraw(ar);
+			}
+
+			return retval;
+		}
+	}
+#endif
 
 	if (but && button_modal_state(but->active->state)) {
 		if (block->flag & UI_BLOCK_MOVEMOUSE_QUIT) {
@@ -8198,6 +8249,16 @@ static int ui_handle_menu_event(bContext *C, const wmEvent *event, uiPopupBlockH
 				if (!ui_but_find_activated(ar))
 					menu->menuretval = UI_RETURN_CANCEL | UI_RETURN_POPUP_OK;
 			}
+#ifdef USE_DRAG_POPUP
+			else if ((event->type == LEFTMOUSE) && (event->val == KM_PRESS) &&
+			         (inside && is_floating && inside_title))
+			{
+				if (!ui_but_find_activated(ar)) {
+					menu->is_grab = true;
+					copy_v2_v2_int(menu->grab_xy_prev, &event->x);
+				}
+			}
+#endif
 			else {
 
 				/* check mouse moving outside of the menu */
@@ -8306,7 +8367,7 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 }
 
 static int ui_handle_menus_recursive(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu,
-                                     int level, const bool is_parent_inside)
+                                     int level, const bool is_parent_inside, const bool is_floating)
 {
 	uiBut *but;
 	uiHandleButtonData *data;
@@ -8332,7 +8393,7 @@ static int ui_handle_menus_recursive(bContext *C, const wmEvent *event, uiPopupB
 			inside = BLI_rctf_isect_pt(&block->rect, mx, my);
 		}
 
-		retval = ui_handle_menus_recursive(C, event, submenu, level + 1, is_parent_inside || inside);
+		retval = ui_handle_menus_recursive(C, event, submenu, level + 1, is_parent_inside || inside, false);
 	}
 
 	/* now handle events for our own menu */
@@ -8365,7 +8426,7 @@ static int ui_handle_menus_recursive(bContext *C, const wmEvent *event, uiPopupB
 			}
 		}
 		else {
-			retval = ui_handle_menu_event(C, event, menu, level, is_parent_inside);
+			retval = ui_handle_menu_event(C, event, menu, level, is_parent_inside, is_floating);
 		}
 	}
 
@@ -8462,7 +8523,7 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void *UNUSE
 			/* handle events for menus and their buttons recursively,
 			 * this will handle events from the top to the bottom menu */
 			if (data->menu)
-				retval = ui_handle_menus_recursive(C, event, data->menu, 0, false);
+				retval = ui_handle_menus_recursive(C, event, data->menu, 0, false, false);
 
 			/* handle events for the activated button */
 			if ((data->menu && (retval == WM_UI_HANDLER_CONTINUE)) ||
@@ -8508,7 +8569,7 @@ static int ui_handler_popup(bContext *C, const wmEvent *event, void *userdata)
 		retval = WM_UI_HANDLER_CONTINUE;
 	}
 
-	ui_handle_menus_recursive(C, event, menu, 0, false);
+	ui_handle_menus_recursive(C, event, menu, 0, false, true);
 
 	/* free if done, does not free handle itself */
 	if (menu->menuretval) {

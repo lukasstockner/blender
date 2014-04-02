@@ -45,6 +45,7 @@
 #include "BKE_freestyle.h"
 #include "BKE_editmesh.h"
 #include "BKE_paint.h"
+#include "BKE_scene.h"
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -354,11 +355,11 @@ static int rna_Scene_object_bases_lookup_string(PointerRNA *ptr, const char *key
 	for (base = scene->base.first; base; base = base->next) {
 		if (strncmp(base->object->id.name + 2, key, sizeof(base->object->id.name) - 2) == 0) {
 			*r_ptr = rna_pointer_inherit_refine(ptr, &RNA_ObjectBase, base);
-			return TRUE;
+			return true;
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 static PointerRNA rna_Scene_objects_get(CollectionPropertyIterator *iter)
@@ -687,6 +688,12 @@ static char *rna_RenderSettings_path(PointerRNA *UNUSED(ptr))
 	return BLI_sprintfN("render");
 }
 
+static int rna_omp_threads_get(PointerRNA *ptr)
+{
+	Scene *scene = (Scene *)ptr->data;
+	return BKE_scene_num_omp_threads(scene);
+}
+
 static int rna_RenderSettings_threads_get(PointerRNA *ptr)
 {
 	RenderData *rd = (RenderData *)ptr->data;
@@ -736,7 +743,7 @@ static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
 	ID *id = ptr->id.data;
 	const char is_render = (id && GS(id->name) == ID_SCE);
 	/* see note below on why this is */
-	const char chan_flag = BKE_imtype_valid_channels(imf->imtype) | (is_render ? IMA_CHAN_FLAG_BW : 0);
+	const char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) | (is_render ? IMA_CHAN_FLAG_BW : 0);
 
 	imf->imtype = value;
 
@@ -807,7 +814,7 @@ static EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext *UNUS
 	 * where 'BW' will force grayscale even if the output format writes
 	 * as RGBA, this is age old blender convention and not sure how useful
 	 * it really is but keep it for now - campbell */
-	char chan_flag = BKE_imtype_valid_channels(imf->imtype) | (is_render ? IMA_CHAN_FLAG_BW : 0);
+	char chan_flag = BKE_imtype_valid_channels(imf->imtype, true) | (is_render ? IMA_CHAN_FLAG_BW : 0);
 
 #ifdef WITH_FFMPEG
 	/* a WAY more crappy case than B&W flag: depending on codec, file format MIGHT support
@@ -1408,7 +1415,7 @@ static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
 static void rna_TimeLine_remove(Scene *scene, ReportList *reports, PointerRNA *marker_ptr)
 {
 	TimeMarker *marker = marker_ptr->data;
-	if (BLI_remlink_safe(&scene->markers, marker) == FALSE) {
+	if (BLI_remlink_safe(&scene->markers, marker) == false) {
 		BKE_reportf(reports, RPT_ERROR, "Timeline marker '%s' not found in scene '%s'",
 		            marker->name, scene->id.name + 2);
 		return;
@@ -5144,6 +5151,12 @@ void RNA_def_scene(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem omp_threads_mode_items[] = {
+		{SCE_OMP_AUTO, "AUTO", 0, "Auto-detect", "Automatically determine the number of threads"},
+		{SCE_OMP_FIXED, "FIXED", 0, "Fixed", "Manually determine the number of threads"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	/* Struct definition */
 	srna = RNA_def_struct(brna, "Scene", "ID");
 	RNA_def_struct_ui_text(srna, "Scene",
@@ -5505,6 +5518,16 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "sequencer_colorspace_settings");
 	RNA_def_property_struct_type(prop, "ColorManagedSequencerColorspaceSettings");
 	RNA_def_property_ui_text(prop, "Sequencer Color Space Settings", "Settings of color space sequencer is working in");
+
+	prop = RNA_def_property(srna, "omp_threads", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 1, BLENDER_MAX_THREADS);
+	RNA_def_property_int_funcs(prop, "rna_omp_threads_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "OpenMP Threads",
+	                         "Number of CPU threads to use for openmp");
+
+	prop = RNA_def_property(srna, "omp_threads_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, omp_threads_mode_items);
+	RNA_def_property_ui_text(prop, "OpenMP Mode", "Determine the amount of openmp threads used");
 
 	/* Dependency Graph */
 	prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);

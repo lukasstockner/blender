@@ -114,6 +114,7 @@ static const EnumPropertyItem curve3d_fill_mode_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+#ifdef RNA_RUNTIME
 static const EnumPropertyItem curve2d_fill_mode_items[] = {
 	{0, "NONE", 0, "None", ""},
 	{CU_BACK, "BACK", 0, "Back", ""},
@@ -121,6 +122,7 @@ static const EnumPropertyItem curve2d_fill_mode_items[] = {
 	{CU_FRONT | CU_BACK, "BOTH", 0, "Both", ""},
 	{0, NULL, 0, NULL, NULL}
 };
+#endif
 
 #ifdef RNA_RUNTIME
 
@@ -626,7 +628,7 @@ static void rna_Curve_spline_remove(Curve *cu, ReportList *reports, PointerRNA *
 	Nurb *nu = nu_ptr->data;
 	ListBase *nurbs = BKE_curve_nurbs_get(cu);
 
-	if (BLI_remlink_safe(nurbs, nu) == FALSE) {
+	if (BLI_remlink_safe(nurbs, nu) == false) {
 		BKE_reportf(reports, RPT_ERROR, "Curve '%s' does not contain spline given", cu->id.name + 2);
 		return;
 	}
@@ -1324,7 +1326,14 @@ static void rna_def_curve(BlenderRNA *brna)
 		 "Allow editing on the Z axis of this curve, also allows tilt and curve radius to be used"},
 		{0, NULL, 0, NULL, NULL}
 	};
-			
+
+	static EnumPropertyItem bevfac_mapping_items[] = {
+		{CU_BEVFAC_MAP_RESOLU, "RESOLUTION", 0, "Resolution", "Map the bevel factor to the number of subdivisions of a spline (U resolution)"},
+		{CU_BEVFAC_MAP_SEGMENT, "SEGMENTS", 0, "Segments", "Map the bevel factor to the length of a segment and to the number of subdivisions of a segment"},
+		{CU_BEVFAC_MAP_SPLINE, "SPLINE", 0, "Spline", "Map the bevel factor to the length of a spline"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "Curve", "ID");
 	RNA_def_struct_ui_text(srna, "Curve", "Curve datablock storing curves, splines and NURBS");
 	RNA_def_struct_ui_icon(srna, ICON_CURVE_DATA);
@@ -1465,6 +1474,18 @@ static void rna_def_curve(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "twist_mode");
 	RNA_def_property_enum_items(prop, curve_twist_mode_items);
 	RNA_def_property_ui_text(prop, "Twist Method", "The type of tilt calculation for 3D Curves");
+	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+
+	prop = RNA_def_property(srna, "bevel_factor_mapping_start", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "bevfac1_mapping");
+	RNA_def_property_enum_items(prop, bevfac_mapping_items);
+	RNA_def_property_ui_text(prop, "Start Mapping Type", "Determines how the start bevel factor is mapped to a spline");
+	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+
+	prop = RNA_def_property(srna, "bevel_factor_mapping_end", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "bevfac2_mapping");
+	RNA_def_property_enum_items(prop, bevfac_mapping_items);
+	RNA_def_property_ui_text(prop, "End Mapping Type", "Determines how the end bevel factor is mapped to a spline");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
 	/* XXX - would be nice to have a better way to do this, only add for testing. */

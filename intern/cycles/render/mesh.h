@@ -46,6 +46,8 @@ public:
 	/* Mesh Triangle */
 	struct Triangle {
 		int v[3];
+
+		void bounds_grow(const float3 *verts, BoundBox& bounds) const;
 	};
 
 	/* Mesh Curve */
@@ -55,11 +57,8 @@ public:
 		uint shader;
 
 		int num_segments() { return num_keys - 1; }
-	};
 
-	struct CurveKey {
-		float3 co;
-		float radius;
+		void bounds_grow(const int k, const float4 *curve_keys, BoundBox& bounds) const;
 	};
 
 	/* Displacement */
@@ -77,7 +76,7 @@ public:
 	vector<uint> shader;
 	vector<bool> smooth;
 
-	vector<CurveKey> curve_keys;
+	vector<float4> curve_keys; /* co + radius */
 	vector<Curve> curves;
 
 	vector<uint> used_shaders;
@@ -89,6 +88,9 @@ public:
 	bool transform_negative_scaled;
 	Transform transform_normal;
 	DisplacementMethod displacement_method;
+
+	uint motion_steps;
+	bool use_motion_blur;
 
 	/* Update Flags */
 	bool need_update;
@@ -126,6 +128,8 @@ public:
 	bool need_attribute(Scene *scene, ustring name);
 
 	void tag_update(Scene *scene, bool rebuild);
+
+	bool has_motion_blur() const;
 };
 
 /* Mesh Manager */

@@ -225,7 +225,7 @@ static void pbvh_bmesh_node_split(PBVH *bvh, GHash *prim_bbc, int node_index)
 }
 
 /* Recursively split the node if it exceeds the leaf_limit */
-static int pbvh_bmesh_node_limit_ensure(PBVH *bvh, int node_index)
+static bool pbvh_bmesh_node_limit_ensure(PBVH *bvh, int node_index)
 {
 	GHash *prim_bbc;
 	GHash *bm_faces;
@@ -238,7 +238,7 @@ static int pbvh_bmesh_node_limit_ensure(PBVH *bvh, int node_index)
 	bm_faces_size = BLI_ghash_size(bm_faces);
 	if (bm_faces_size <= bvh->leaf_limit) {
 		/* Node limit not exceeded */
-		return FALSE;
+		return false;
 	}
 
 	/* For each BMFace, store the AABB and AABB centroid */
@@ -266,7 +266,7 @@ static int pbvh_bmesh_node_limit_ensure(PBVH *bvh, int node_index)
 	BLI_ghash_free(prim_bbc, NULL, NULL);
 	MEM_freeN(bbc_array);
 
-	return TRUE;
+	return true;
 }
 
 /**********************************************************************/
@@ -317,6 +317,9 @@ static BMFace *pbvh_bmesh_face_create(PBVH *bvh, int node_index,
 
 		BLI_ghash_insert(bvh->nodes[node_index].bm_faces, f, NULL);
 		BLI_ghash_insert(bvh->bm_face_to_node, f, val);
+
+		/* mark node for update */
+		bvh->nodes[node_index].flag |= PBVH_UpdateDrawBuffers | PBVH_UpdateNormals | PBVH_UpdateBB;
 
 		/* Log the new face */
 		BM_log_face_added(bvh->bm_log, f);
@@ -371,6 +374,10 @@ static void pbvh_bmesh_vert_ownership_transfer(PBVH *bvh, PBVHNode *new_owner,
 	PBVHNode *current_owner;
 
 	current_owner = pbvh_bmesh_node_lookup(bvh, bvh->bm_vert_to_node, v);
+	/* mark node for update */
+	current_owner->flag |= PBVH_UpdateDrawBuffers | PBVH_UpdateNormals | PBVH_UpdateBB;
+
+
 	BLI_assert(current_owner != new_owner);
 
 	/* Remove current ownership */
@@ -382,6 +389,9 @@ static void pbvh_bmesh_vert_ownership_transfer(PBVH *bvh, PBVHNode *new_owner,
 	BLI_gset_insert(new_owner->bm_unique_verts, v);
 	BLI_gset_remove(new_owner->bm_other_verts, v, NULL);
 	BLI_assert(!BLI_gset_haskey(new_owner->bm_other_verts, v));
+
+	/* mark node for update */
+	new_owner->flag |= PBVH_UpdateDrawBuffers | PBVH_UpdateNormals | PBVH_UpdateBB;
 }
 
 static void pbvh_bmesh_vert_remove(PBVH *bvh, BMVert *v)
@@ -449,6 +459,9 @@ static void pbvh_bmesh_face_remove(PBVH *bvh, BMFace *f)
 
 	/* Log removed face */
 	BM_log_face_removed(bvh->bm_log, f);
+
+	/* mark node for update */
+	f_node->flag |= PBVH_UpdateDrawBuffers | PBVH_UpdateNormals | PBVH_UpdateBB;
 }
 
 static void pbvh_bmesh_edge_loops(BLI_Buffer *buf, BMEdge *e)
@@ -709,9 +722,6 @@ static void pbvh_bmesh_split_edge(EdgeQueueContext *eq_ctx, PBVH *bvh,
 		nip = BLI_ghash_lookup(bvh->bm_face_to_node, f_adj);
 		ni = GET_INT_FROM_POINTER(nip);
 
-		/* Ensure node gets redrawn */
-		bvh->nodes[ni].flag |= PBVH_UpdateDrawBuffers | PBVH_UpdateNormals;
-
 		/* Find the vertex not in the edge */
 		v_opp = l_adj->prev->v;
 
@@ -765,10 +775,10 @@ static void pbvh_bmesh_split_edge(EdgeQueueContext *eq_ctx, PBVH *bvh,
 	BM_edge_kill(bvh->bm, e);
 }
 
-static int pbvh_bmesh_subdivide_long_edges(EdgeQueueContext *eq_ctx, PBVH *bvh,
-                                           BLI_Buffer *edge_loops)
+static bool pbvh_bmesh_subdivide_long_edges(EdgeQueueContext *eq_ctx, PBVH *bvh,
+                                            BLI_Buffer *edge_loops)
 {
-	int any_subdivided = FALSE;
+	bool any_subdivided = false;
 
 	while (!BLI_heap_is_empty(eq_ctx->q->heap)) {
 		BMVert **pair = BLI_heap_popmin(eq_ctx->q->heap);
@@ -796,7 +806,7 @@ static int pbvh_bmesh_subdivide_long_edges(EdgeQueueContext *eq_ctx, PBVH *bvh,
 		if (BM_edge_calc_length_squared(e) <= eq_ctx->q->limit_len_squared)
 			continue;
 
-		any_subdivided = TRUE;
+		any_subdivided = true;
 
 		pbvh_bmesh_split_edge(eq_ctx, bvh, e, edge_loops);
 	}
@@ -940,14 +950,14 @@ static void pbvh_bmesh_collapse_edge(PBVH *bvh, BMEdge *e, BMVert *v1,
 	BM_vert_kill(bvh->bm, v2);
 }
 
-static int pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
-                                           PBVH *bvh,
-                                           BLI_Buffer *edge_loops,
-                                           BLI_Buffer *deleted_faces)
+static bool pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
+                                            PBVH *bvh,
+                                            BLI_Buffer *edge_loops,
+                                            BLI_Buffer *deleted_faces)
 {
 	float min_len_squared = bvh->bm_min_edge_len * bvh->bm_min_edge_len;
 	GHash *deleted_verts;
-	int any_collapsed = FALSE;
+	bool any_collapsed = false;
 
 	deleted_verts = BLI_ghash_ptr_new("deleted_verts");
 
@@ -982,7 +992,7 @@ static int pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
 		if (BM_edge_calc_length_squared(e) >= min_len_squared)
 			continue;
 
-		any_collapsed = TRUE;
+		any_collapsed = true;
 
 		pbvh_bmesh_collapse_edge(bvh, e, v1, v2,
 		                         deleted_verts, edge_loops,
@@ -1523,7 +1533,7 @@ void pbvh_bmesh_verify(PBVH *bvh)
 		void *nip = BLI_ghashIterator_getValue(&gh_iter);
 		int ni = GET_INT_FROM_POINTER(nip);
 		PBVHNode *n = &bvh->nodes[ni];
-		int found;
+		bool found;
 
 		/* Check that the vert's node is a leaf */
 		BLI_assert(n->flag & PBVH_Leaf);
@@ -1538,7 +1548,7 @@ void pbvh_bmesh_verify(PBVH *bvh)
 		 * adjacent faces */
 		BM_ITER_ELEM (f, &bm_iter, v, BM_FACES_OF_VERT) {
 			if (BLI_ghash_lookup(bvh->bm_face_to_node, f) == nip) {
-				found = TRUE;
+				found = true;
 				break;
 			}
 		}
