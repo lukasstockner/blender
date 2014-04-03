@@ -926,7 +926,7 @@ typedef struct uiDragColorHandle {
 
 void UI_buttons_operatortypes(void);
 void UI_drop_color_copy(struct wmDrag *drag, struct wmDropBox *drop);
-bool UI_drop_color_poll(struct bContext *C, struct wmDrag *drag, const struct wmEvent *event);
+int UI_drop_color_poll(struct bContext *C, struct wmDrag *drag, const struct wmEvent *event);
 
 /* Helpers for Operators */
 uiBut *uiContextActiveButton(const struct bContext *C);

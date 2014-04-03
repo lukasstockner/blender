@@ -829,7 +829,7 @@ static void UI_OT_reloadtranslation(wmOperatorType *ot)
 	ot->exec = reloadtranslation_exec;
 }
 
-bool UI_drop_color_poll(struct bContext *C, wmDrag *drag, const wmEvent *UNUSED(event))
+int UI_drop_color_poll(struct bContext *C, wmDrag *drag, const wmEvent *UNUSED(event))
 {
 	/* should only return true for regions that include buttons, for now
 	 * return true always */
@@ -838,16 +838,16 @@ bool UI_drop_color_poll(struct bContext *C, wmDrag *drag, const wmEvent *UNUSED(
 		ARegion *ar = CTX_wm_region(C);
 
 		if (UI_but_active_drop_color(C))
-			return true;
+			return 1;
 
 		/* should only return true for regions that include buttons, for now
 		 * return true always */
 		if (sima && (sima->mode == SI_MODE_PAINT)
 		    && sima->image && (ar && ar->regiontype == RGN_TYPE_WINDOW))
-			return true;
+			return 1;
 	}
 
-	return false;
+	return 0;
 }
 
 void UI_drop_color_copy(wmDrag *drag, wmDropBox *drop)
