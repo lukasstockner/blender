@@ -1085,7 +1085,8 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode)
 					                         bvh->bm,
 					                         node->bm_faces,
 					                         node->bm_unique_verts,
-					                         node->bm_other_verts);
+					                         node->bm_other_verts,
+					                         bvh->show_diffuse_color);
 					break;
 			}
 
@@ -1673,7 +1674,7 @@ static void pbvh_node_check_diffuse_changed(PBVH *bvh, PBVHNode *node)
 	if (!node->draw_buffers)
 		return;
 
-	if (GPU_pbvh_buffers_diffuse_changed(node->draw_buffers, bvh->show_diffuse_color))
+	if (GPU_pbvh_buffers_diffuse_changed(node->draw_buffers, node->bm_faces, bvh->show_diffuse_color))
 		node->flag |= PBVH_UpdateDrawBuffers;
 }
 
@@ -1924,5 +1925,20 @@ void pbvh_vertex_iter_init(PBVH *bvh, PBVHNode *node,
 
 void pbvh_show_diffuse_color_set(PBVH *bvh, bool show_diffuse_color)
 {
-	bvh->show_diffuse_color = show_diffuse_color;
+	bool has_mask = false;
+
+	switch (bvh->type) {
+		case PBVH_GRIDS:
+			has_mask = (bvh->gridkey.has_mask != 0);
+			break;
+		case PBVH_FACES:
+			has_mask = (bvh->vdata && CustomData_get_layer(bvh->vdata,
+			                                CD_PAINT_MASK));
+			break;
+		case PBVH_BMESH:
+			has_mask = (bvh->bm && (CustomData_get_offset(&bvh->bm->vdata, CD_PAINT_MASK) != -1));
+			break;
+	}
+
+	bvh->show_diffuse_color = !has_mask || show_diffuse_color;
 }

@@ -408,7 +408,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	/* see BKE_spacedata_draw_locks() */
 	if (at->do_lock)
 		return;
-	
+
 	/* if no partial draw rect set, full rect */
 	if (ar->drawrct.xmin == ar->drawrct.xmax) {
 		ar->drawrct = ar->winrct;
@@ -1312,6 +1312,27 @@ void ED_area_initialize(wmWindowManager *wm, wmWindow *win, ScrArea *sa)
 	}
 }
 
+static void region_update_rect(ARegion *ar)
+{
+	ar->winx = BLI_rcti_size_x(&ar->winrct) + 1;
+	ar->winy = BLI_rcti_size_y(&ar->winrct) + 1;
+
+	/* v2d mask is used to subtract scrollbars from a 2d view. Needs initialize here. */
+	BLI_rcti_init(&ar->v2d.mask, 0, ar->winx - 1, 0, ar->winy -1);
+}
+
+/**
+ * Call to move a popup window (keep OpenGL context free!)
+ */
+void ED_region_update_rect(bContext *C, ARegion *ar)
+{
+	wmWindow *win = CTX_wm_window(C);
+
+	wm_subwindow_rect_set(win, ar->swinid, &ar->winrct);
+
+	region_update_rect(ar);
+}
+
 /* externally called for floating regions like menus */
 void ED_region_init(bContext *C, ARegion *ar)
 {
@@ -1320,11 +1341,7 @@ void ED_region_init(bContext *C, ARegion *ar)
 	/* refresh can be called before window opened */
 	region_subwindow(CTX_wm_window(C), ar);
 	
-	ar->winx = BLI_rcti_size_x(&ar->winrct) + 1;
-	ar->winy = BLI_rcti_size_y(&ar->winrct) + 1;
-	
-	/* v2d mask is used to subtract scrollbars from a 2d view. Needs initialize here. */
-	BLI_rcti_init(&ar->v2d.mask, 0, ar->winx - 1, 0, ar->winy -1);
+	region_update_rect(ar);
 
 	/* UI convention */
 	wmOrtho2(-0.01f, ar->winx - 0.01f, -0.01f, ar->winy - 0.01f);
@@ -1332,7 +1349,7 @@ void ED_region_init(bContext *C, ARegion *ar)
 }
 
 /* for quick toggle, can skip fades */
-void region_toggle_hidden(bContext *C, ARegion *ar, bool do_fade)
+void region_toggle_hidden(bContext *C, ARegion *ar, const bool do_fade)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	
@@ -1988,5 +2005,51 @@ void ED_region_visible_rect(ARegion *ar, rcti *rect)
 		}
 	}
 	BLI_rcti_translate(rect, -ar->winrct.xmin, -ar->winrct.ymin);
+}
+
+/* Cache display helpers */
+
+void ED_region_cache_draw_background(const ARegion *ar)
+{
+	glColor4ub(128, 128, 255, 64);
+	glRecti(0, 0, ar->winx, 8 * UI_DPI_FAC);
+}
+
+void ED_region_cache_draw_curfra_label(const int framenr, const float x, const float y)
+{
+	uiStyle *style = UI_GetStyle();
+	int fontid = style->widget.uifont_id;
+	char numstr[32];
+	float font_dims[2] = {0.0f, 0.0f};
+
+	/* frame number */
+	BLF_size(fontid, 11.0f * U.pixelsize, U.dpi);
+	BLI_snprintf(numstr, sizeof(numstr), "%d", framenr);
+
+	BLF_width_and_height(fontid, numstr, sizeof(numstr), &font_dims[0], &font_dims[1]);
+
+	glRecti(x, y, x + font_dims[0] + 6.0f, y + font_dims[1] + 4.0f);
+
+	UI_ThemeColor(TH_TEXT);
+	BLF_position(fontid, x + 2.0f, y + 2.0f, 0.0f);
+	BLF_draw(fontid, numstr, sizeof(numstr));
+}
+
+void ED_region_cache_draw_cached_segments(const ARegion *ar, const int num_segments, const int *points, const int sfra, const int efra)
+{
+	if (num_segments) {
+		int a;
+
+		glColor4ub(128, 128, 255, 128);
+
+		for (a = 0; a < num_segments; a++) {
+			float x1, x2;
+
+			x1 = (float)(points[a * 2] - sfra) / (efra - sfra + 1) * ar->winx;
+			x2 = (float)(points[a * 2 + 1] - sfra + 1) / (efra - sfra + 1) * ar->winx;
+
+			glRecti(x1, 0, x2, 8 * UI_DPI_FAC);
+		}
+	}
 }
 

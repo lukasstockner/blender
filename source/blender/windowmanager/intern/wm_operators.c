@@ -2146,6 +2146,11 @@ static void WM_OT_read_homefile(wmOperatorType *ot)
 	                                "Path to an alternative start-up file");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
 
+	/* So scripts can use an alternative start-up file without the UI */
+	prop = RNA_def_boolean(ot->srna, "load_ui", true, "Load UI",
+	                       "Load user interface setup from the .blend file");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
 	/* ommit poll to run in background mode */
 }
 
@@ -2188,30 +2193,6 @@ struct FileRuntime {
 	bool is_untrusted;
 };
 
-
-static void open_set_load_ui(wmOperator *op, bool use_prefs)
-{
-	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "load_ui");
-	if (!RNA_property_is_set(op->ptr, prop)) {
-		RNA_property_boolean_set(op->ptr, prop, use_prefs ?
-		                         (U.flag & USER_FILENOUI) == 0 :
-		                         (G.fileflags & G_FILE_NO_UI) == 0);
-	}
-}
-
-static void open_set_use_scripts(wmOperator *op, bool use_prefs)
-{
-	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_scripts");
-	if (!RNA_property_is_set(op->ptr, prop)) {
-		/* use G_SCRIPT_AUTOEXEC rather than the userpref because this means if
-		 * the flag has been disabled from the command line, then opening
-		 * from the menu wont enable this setting. */
-		RNA_property_boolean_set(op->ptr, prop, use_prefs ?
-		                         (U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0 :
-		                         (G.f & G_SCRIPT_AUTOEXEC) != 0);
-	}
-}
-
 static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	const char *openname = G.main->name;
@@ -2231,8 +2212,8 @@ static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 	}
 
 	RNA_string_set(op->ptr, "filepath", openname);
-	open_set_load_ui(op, true);
-	open_set_use_scripts(op, true);
+	wm_open_init_load_ui(op, true);
+	wm_open_init_use_scripts(op, true);
 	op->customdata = NULL;
 
 	WM_event_add_fileselect(C, op);
@@ -2248,8 +2229,8 @@ static int wm_open_mainfile_exec(bContext *C, wmOperator *op)
 	RNA_string_get(op->ptr, "filepath", filepath);
 
 	/* re-use last loaded setting so we can reload a file without changing */
-	open_set_load_ui(op, false);
-	open_set_use_scripts(op, false);
+	wm_open_init_load_ui(op, false);
+	wm_open_init_use_scripts(op, false);
 
 	if (RNA_boolean_get(op->ptr, "load_ui"))
 		G.fileflags &= ~G_FILE_NO_UI;
@@ -3036,7 +3017,7 @@ int WM_border_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	int sx, sy;
 	
 	if (event->type == MOUSEMOVE) {
-		wm_subwindow_getorigin(CTX_wm_window(C), gesture->swinid, &sx, &sy);
+		wm_subwindow_origin_get(CTX_wm_window(C), gesture->swinid, &sx, &sy);
 
 		if (gesture->type == WM_GESTURE_CROSS_RECT && gesture->mode == 0) {
 			rect->xmin = rect->xmax = event->x - sx;
@@ -3137,7 +3118,7 @@ int WM_gesture_circle_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	int sx, sy;
 
 	if (event->type == MOUSEMOVE) {
-		wm_subwindow_getorigin(CTX_wm_window(C), gesture->swinid, &sx, &sy);
+		wm_subwindow_origin_get(CTX_wm_window(C), gesture->swinid, &sx, &sy);
 
 		rect->xmin = event->x - sx;
 		rect->ymin = event->y - sy;
@@ -3236,7 +3217,7 @@ static void tweak_gesture_modal(bContext *C, const wmEvent *event)
 		case MOUSEMOVE:
 		case INBETWEEN_MOUSEMOVE:
 			
-			wm_subwindow_getorigin(window, gesture->swinid, &sx, &sy);
+			wm_subwindow_origin_get(window, gesture->swinid, &sx, &sy);
 			
 			rect->xmax = event->x - sx;
 			rect->ymax = event->y - sy;
@@ -3376,7 +3357,7 @@ int WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			
 			wm_gesture_tag_redraw(C);
 			
-			wm_subwindow_getorigin(CTX_wm_window(C), gesture->swinid, &sx, &sy);
+			wm_subwindow_origin_get(CTX_wm_window(C), gesture->swinid, &sx, &sy);
 
 			if (gesture->points == gesture->size) {
 				short *old_lasso = gesture->customdata;
@@ -3559,7 +3540,7 @@ int WM_gesture_straightline_modal(bContext *C, wmOperator *op, const wmEvent *ev
 	int sx, sy;
 	
 	if (event->type == MOUSEMOVE) {
-		wm_subwindow_getorigin(CTX_wm_window(C), gesture->swinid, &sx, &sy);
+		wm_subwindow_origin_get(CTX_wm_window(C), gesture->swinid, &sx, &sy);
 		
 		if (gesture->mode == 0) {
 			rect->xmin = rect->xmax = event->x - sx;
