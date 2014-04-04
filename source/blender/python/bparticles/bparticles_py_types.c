@@ -468,6 +468,8 @@ static PyObject *bpy_bpar_particle_data_read(NParticleAttributeDescription *desc
 		case PAR_ATTR_DATATYPE_POINT:
 		case PAR_ATTR_DATATYPE_NORMAL:
 			return Vector_CreatePyObject((float*)data, 3, Py_WRAP, NULL);
+		case PAR_ATTR_DATATYPE_QUATERNION:
+			return Quaternion_CreatePyObject((float*)data, Py_WRAP, NULL);
 		case PAR_ATTR_DATATYPE_COLOR:
 			return Color_CreatePyObject((float*)data, Py_WRAP, NULL);
 		case PAR_ATTR_DATATYPE_MATRIX:
@@ -521,6 +523,11 @@ static int bpy_bpar_particle_data_write(NParticleAttributeDescription *desc, voi
 		case PAR_ATTR_DATATYPE_POINT:
 		case PAR_ATTR_DATATYPE_NORMAL: {
 			if (mathutils_array_parse((float*)data, 3, 3, value, "NParticleParticle") == -1)
+				return -1;
+			break;
+		}
+		case PAR_ATTR_DATATYPE_QUATERNION: {
+			if (mathutils_array_parse((float*)data, 4, 4, value, "NParticleParticle") == -1)
 				return -1;
 			break;
 		}
