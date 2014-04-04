@@ -219,7 +219,7 @@ typedef struct ProjPaintState {
 
 	MVert          *dm_mvert;
 	MFace          *dm_mface;
-	MTFace         *dm_mtface;
+	MTFace         **dm_mtface;
 	MTFace         *dm_mtface_clone;    /* other UV map, use for cloning between layers */
 	MTFace         *dm_mtface_stencil;
 
@@ -360,11 +360,24 @@ static Image *project_paint_face_image(const ProjPaintState *ps, int face_index)
 	else {
 		MFace *mf = ps->dm_mface + face_index;
 		Material *ma = give_current_material(ps->ob, mf->mat_nr + 1);
-		ima = ma->texpaintima;
+		ima = ma->texpaintslot->tex->ima;
 	}
 
 	return ima;
 }
+
+static MTex *project_paint_face_paint_slot(const ProjPaintState *ps, int face_index)
+{
+	if (ps->do_new_shading_nodes) { /* cached BKE_scene_use_new_shading_nodes result */
+		return NULL;
+	}
+	else {
+		MFace *mf = ps->dm_mface + face_index;
+		Material *ma = give_current_material(ps->ob, mf->mat_nr + 1);
+		return ma->texpaintslot;
+	}
+}
+
 
 static Image *project_paint_mtface_image(const ProjPaintState *ps, MTFace *dm_mtface, int face_index)
 {
@@ -569,7 +582,7 @@ static bool project_paint_PickColor(const ProjPaintState *ps, const float pt[2],
 	if (face_index == -1)
 		return 0;
 
-	tf = ps->dm_mtface + face_index;
+	tf = *(ps->dm_mtface + face_index);
 
 	if (side == 0) {
 		interp_v2_v2v2v2(uv, tf->uv[0], tf->uv[1], tf->uv[2], w);
@@ -918,7 +931,7 @@ static bool check_seam(const ProjPaintState *ps,
 	MFace *mf;
 	MTFace *tf;
 	const MFace *orig_mf = ps->dm_mface + orig_face;
-	const MTFace *orig_tf = ps->dm_mtface + orig_face;
+	const MTFace *orig_tf = ps->dm_mtface[orig_face];
 
 	/* vert indices from face vert order indices */
 	i1 = (*(&orig_mf->v1 + orig_i1_fidx));
@@ -946,7 +959,7 @@ static bool check_seam(const ProjPaintState *ps,
 				BLI_assert(i1_fidx != -1);
 
 				/* This IS an adjacent face!, now lets check if the UVs are ok */
-				tf = ps->dm_mtface + face_index;
+				tf = ps->dm_mtface[face_index];
 
 				/* set up the other face */
 				*other_face = face_index;
@@ -2305,7 +2318,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
                      ps->projImages + image_index
 	                };
 	const MFace *mf = ps->dm_mface + face_index;
-	const MTFace *tf = ps->dm_mtface + face_index;
+	const MTFace *tf = ps->dm_mtface[face_index];
 
 	/* UV/pixel seeking data */
 	int x; /* Image X-Pixel */
@@ -2947,11 +2960,13 @@ static void project_paint_begin(ProjPaintState *ps)
 
 	ProjPaintImage *projIma;
 	Image *tpage_last = NULL, *tpage;
+	MTex *slot_last = NULL, *slot;
 
 	/* Face vars */
 	MPoly *mpoly_orig;
 	MFace *mf;
-	MTFace *tf;
+	MTFace **tf;
+	MTFace *tf_base;
 
 	int a, i; /* generic looping vars */
 	int image_index = -1, face_index;
@@ -3008,7 +3023,7 @@ static void project_paint_begin(ProjPaintState *ps)
 
 	ps->dm_mvert = ps->dm->getVertArray(ps->dm);
 	ps->dm_mface = ps->dm->getTessFaceArray(ps->dm);
-	ps->dm_mtface = ps->dm->getTessFaceDataArray(ps->dm, CD_MTFACE);
+	ps->dm_mtface = MEM_mallocN(ps->dm->getNumTessFaces(ps->dm) * sizeof (MTFace *), "proj_paint_mtfaces");
 
 	ps->dm_totvert = ps->dm->getNumVerts(ps->dm);
 	ps->dm_totface = ps->dm->getNumTessFaces(ps->dm);
@@ -3038,7 +3053,7 @@ static void project_paint_begin(ProjPaintState *ps)
 		if (layer_num != -1)
 			ps->dm_mtface_clone = CustomData_get_layer_n(&ps->dm->faceData, CD_MTFACE, layer_num);
 
-		if (ps->dm_mtface_clone == NULL || ps->dm_mtface_clone == ps->dm_mtface) {
+		if (ps->dm_mtface_clone == NULL) {
 			ps->do_layer_clone = false;
 			ps->dm_mtface_clone = NULL;
 		}
@@ -3050,7 +3065,7 @@ static void project_paint_begin(ProjPaintState *ps)
 		if (layer_num != -1)
 			ps->dm_mtface_stencil = CustomData_get_layer_n(&ps->dm->faceData, CD_MTFACE, layer_num);
 
-		if (ps->dm_mtface_stencil == NULL || ps->dm_mtface_stencil == ps->dm_mtface) {
+		if (ps->dm_mtface_stencil == NULL) {
 			ps->do_layer_stencil = false;
 			ps->dm_mtface_stencil = NULL;
 		}
@@ -3328,7 +3343,25 @@ static void project_paint_begin(ProjPaintState *ps)
 			is_face_sel = true;
 		}
 
-		if (is_face_sel && (tpage = project_paint_face_image(ps, face_index))) {
+		slot = project_paint_face_paint_slot(ps, face_index);
+		if (slot) {
+			if (slot != slot_last) {
+				if (slot->uvname[0])
+					tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname);
+				else
+					tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
+				*tf = tf_base + face_index;
+			}
+			else {
+				*tf = tf_base + face_index;
+			}
+
+			/* tfbase here should be non-null! */
+			if (ps->dm_mtface_stencil == tf_base || ps->dm_mtface_clone == tf_base)
+				continue;
+		}
+
+		if (is_face_sel && ((slot && (tpage = slot->tex->ima)) || (tpage = project_paint_face_image(ps, face_index)))) {
 			float *v1coSS, *v2coSS, *v3coSS, *v4coSS = NULL;
 
 			v1coSS = ps->screenCoords[mf->v1];
@@ -3478,6 +3511,7 @@ static void project_paint_end(ProjPaintState *ps)
 	MEM_freeN(ps->bucketRect);
 	MEM_freeN(ps->bucketFaces);
 	MEM_freeN(ps->bucketFlags);
+	MEM_freeN(ps->dm_mtface);
 
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 	if (ps->seam_bleed_px > 0.0f) {

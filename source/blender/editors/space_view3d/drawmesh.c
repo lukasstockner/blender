@@ -274,7 +274,7 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 			alphablend = GPU_BLEND_ALPHA;
 	}
 	else if (texpaint && ma) {
-		ima = ma->texpaintima;
+		ima = ma->texpaintslot->tex->ima;
 	}
 	else
 		textured = 0;
@@ -295,7 +295,7 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 		if (textured) {
 			if (texpaint) {
 				c_badtex = false;
-				if(GPU_verify_image(ima, NULL, 0, 1, 0, false)) {
+				if (GPU_verify_image(ima, NULL, 0, 1, 0, false)) {
 					glEnable(GL_TEXTURE_2D);
 				}
 				else {

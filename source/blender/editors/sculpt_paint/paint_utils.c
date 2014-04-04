@@ -365,7 +365,7 @@ static Image *imapaint_face_image(DerivedMesh *dm, Scene *scene, Object *ob, int
 	else {
 		MFace *mf = dm_mface + face_index;
 		Material *ma = give_current_material(ob, mf->mat_nr + 1);
-		ima = ma->texpaintima;
+		ima = ma->texpaintslot->tex->ima;
 	}
 
 	return ima;

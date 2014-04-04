@@ -136,9 +136,9 @@ typedef struct Material {
 	char mapflag;
 
 	/* texture painting */
-	char texactpaint;
-	struct Image *texpaintima; /* cached image for painting. Make sure to recalculate before use
-	                            * with refresh_texpaint_image_cache */
+	char paint_active_slot;
+	struct MTex *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
+	                            * with refresh_texpaint_image_slot */
 
 	/* shaders */
 	short diff_shader, spec_shader;

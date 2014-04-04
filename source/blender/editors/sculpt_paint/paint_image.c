@@ -1425,7 +1425,7 @@ void paint_proj_mesh_data_ensure(bContext *C, Object *ob)
 			if (ma) {
 				has_material = true;
 				refresh_texpaint_image_cache(ma);
-				if (!ma->texpaintima) {
+				if (!ma->texpaintslot) {
 					proj_paint_add_slot(C, MAP_COL, ma);
 					refresh_texpaint_image_cache(ma);
 				}

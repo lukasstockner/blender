@@ -194,7 +194,7 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *s
 			for (sl = sa->spacedata.first; sl; sl = sl->next) {
 				if (sl->spacetype == SPACE_IMAGE) {
 						SpaceImage *sima = (SpaceImage *)sl;
-						ED_space_image_set(sima, scene, scene->obedit, ma->texpaintima);
+						ED_space_image_set(sima, scene, scene->obedit, ma->texpaintslot->tex->ima);
 				}
 			}
 		}
@@ -2186,7 +2186,7 @@ void rna_def_mtex_texpaint(StructRNA *srna, const char *structname)
 	RNA_def_property_ui_text(prop, "Textures", "Texture slots defining the mapping and influence of textures");
 
 	prop = RNA_def_property(srna, "active_paint_texture_index", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_sdna(prop, NULL, "texactpaint");
+	RNA_def_property_int_sdna(prop, NULL, "paint_active_slot");
 	RNA_def_property_range(prop, 0, MAX_MTEX - 1);
 	RNA_def_property_ui_text(prop, "Active Paint Texture Index", "Index of active texture paint slot");
 	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, "rna_Material_active_paint_texture_index_update");

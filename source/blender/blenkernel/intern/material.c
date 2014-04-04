@@ -1300,12 +1300,12 @@ void refresh_texpaint_image_cache(Material *ma)
 	if (!ma)
 		return;
 
-	ma->texpaintima = NULL;
+	ma->texpaintslot = NULL;
 
 	for(mtex = ma->mtex; i < MAX_MTEX; i++, mtex++) {
 		if (get_mtex_slot_valid_texpaint(*mtex)) {
-			if (index++ == ma->texactpaint) {
-				ma->texpaintima = (*mtex)->tex->ima;
+			if (index++ == ma->paint_active_slot) {
+				ma->texpaintslot = (*mtex);
 				return;
 			}
 
@@ -1315,8 +1315,8 @@ void refresh_texpaint_image_cache(Material *ma)
 
 	/* possible to not have selected anything as active texture. Just set to a valid index */
 	if (index > 0) {
-		ma->texactpaint = index;
-		ma->texpaintima = validmtex->tex->ima;
+		ma->paint_active_slot = index;
+		ma->texpaintslot = validmtex;
 	}
 
 	return;
@@ -1344,7 +1344,7 @@ struct MTex *give_current_texpaint_slot(Material *ma)
 
 	for(mtex = ma->mtex; i < MAX_MTEX; i++, mtex++) {
 		if (get_mtex_slot_valid_texpaint(*mtex)) {
-			if (index++ == ma->texactpaint)
+			if (index++ == ma->paint_active_slot)
 				return (*mtex);
 
 			validmtex = *mtex;
@@ -1353,7 +1353,7 @@ struct MTex *give_current_texpaint_slot(Material *ma)
 
 	/* possible to not have selected anything as active texture. Just set to a valid index */
 	if (index > 0) {
-		ma->texactpaint = index;
+		ma->paint_active_slot = index;
 	}
 
 	return validmtex;
