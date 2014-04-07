@@ -246,7 +246,7 @@ IDDepsNode *Depsgraph::get_id_node(ID *id, const string &name)
 	IDDepsNode *id_node = find_id_node(id);
 	if (!id_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_ID_REF);
-		id_node = (IDDepsNode *)factory->create_node(id, NULL, name);
+		id_node = (IDDepsNode *)factory->create_node(id, "", name);
 		
 		/* register */
 		this->id_hash[id] = id_node;

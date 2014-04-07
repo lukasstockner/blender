@@ -240,7 +240,7 @@ static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const string
 {
 	PoseComponentDepsNode *pose_comp;
 	
-	pose_comp = (PoseComponentDepsNode *)graph->find_node(id, NULL, DEPSNODE_TYPE_EVAL_POSE, "");
+	pose_comp = (PoseComponentDepsNode *)graph->find_node(id, "", DEPSNODE_TYPE_EVAL_POSE, "");
 	if (pose_comp)  {
 		/* lookup bone component with matching name */
 		BoneComponentDepsNode *bone_node = pose_comp->find_bone_component(subdata);

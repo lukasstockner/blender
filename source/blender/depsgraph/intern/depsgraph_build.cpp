@@ -137,7 +137,7 @@ void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSc
 	DepsNode *node = handle->node;
 	
 	eDepsNode_Type type = deg_build_scene_component_type(component);
-	DepsNode *comp_node = graph->find_node((ID *)scene, NULL, type, NULL);
+	DepsNode *comp_node = graph->find_node((ID *)scene, "", type, "");
 	if (comp_node)
 		graph->add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, string(description));
 }
@@ -148,7 +148,7 @@ void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObj
 	DepsNode *node = handle->node;
 	
 	eDepsNode_Type type = deg_build_object_component_type(component);
-	DepsNode *comp_node = graph->find_node((ID *)ob, NULL, type, NULL);
+	DepsNode *comp_node = graph->find_node((ID *)ob, "", type, "");
 	if (comp_node)
 		graph->add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, string(description));
 }
@@ -1639,7 +1639,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	 * - this way it should be the first in the graph,
 	 *   reflecting its role as the entrypoint
 	 */
-	graph->root_node = (RootDepsNode *)graph->get_node(NULL, NULL, DEPSNODE_TYPE_ROOT, "Root (Scene)");
+	graph->root_node = (RootDepsNode *)graph->get_node(NULL, "", DEPSNODE_TYPE_ROOT, "Root (Scene)");
 	
 	/* build graph for scene and all attached data */
 	scene_node = deg_build_scene_graph(graph, bmain, scene);

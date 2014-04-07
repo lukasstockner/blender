@@ -123,7 +123,7 @@ void DEG_node_tag_update(Depsgraph *graph, DepsNode *node)
  */
 void DEG_id_tag_update(Depsgraph *graph, const ID *id)
 {
-	DepsNode *node = graph->find_node(id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
+	DepsNode *node = graph->find_node(id, "", DEPSNODE_TYPE_ID_REF, "");
 	DEG_node_tag_update(graph, node);
 }
 

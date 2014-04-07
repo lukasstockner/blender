@@ -51,7 +51,7 @@ extern "C" {
 void OperationDepsNode::add_to_component_node(Depsgraph *graph, const ID *id, eDepsNode_Type component_type)
 {
 	/* get component node to add operation to */
-	ComponentDepsNode *component = (ComponentDepsNode *)graph->get_node(id, NULL, component_type, NULL);
+	ComponentDepsNode *component = (ComponentDepsNode *)graph->get_node(id, "", component_type, "");
 	
 	/* add to hash table */
 	component->operations[this->name] = this;
@@ -196,7 +196,7 @@ void BoneOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	BLI_assert(this->ptr.type == &RNA_PoseBone);
 	pchan = (bPoseChannel *)this->ptr.data;
 	
-	bone_comp = (BoneComponentDepsNode *)graph->get_node(id, pchan->name, DEPSNODE_TYPE_BONE, NULL);
+	bone_comp = (BoneComponentDepsNode *)graph->get_node(id, pchan->name, DEPSNODE_TYPE_BONE, "");
 	
 	/* add to hash table */
 	bone_comp->operations[pchan->name] = this;

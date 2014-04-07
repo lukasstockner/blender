@@ -108,7 +108,7 @@ void TimeSourceDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	/* determine which node to attach timesource to */
 	if (id) {
 		/* get ID node */
-//		DepsNode *id_node = graph->get_node(id, NULL, DEPSNODE_TYPE_ID_REF, NULL);
+//		DepsNode *id_node = graph->get_node(id, "", DEPSNODE_TYPE_ID_REF, "");
 		
 		/* depends on what this is... */
 		switch (GS(id->name)) {
@@ -218,7 +218,7 @@ ComponentDepsNode *IDDepsNode::get_component(eDepsNode_Type type, const string &
 	ComponentDepsNode *comp_node = find_component(type);
 	if (!comp_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(type);
-		comp_node = (ComponentDepsNode *)factory->create_node(this->id, NULL, name);
+		comp_node = (ComponentDepsNode *)factory->create_node(this->id, "", name);
 		
 		/* register */
 		this->components[type] = comp_node;
