@@ -241,7 +241,7 @@ IDDepsNode *Depsgraph::find_id_node(const ID *id) const
 	return it != this->id_hash.end() ? it->second : NULL;
 }
 
-IDDepsNode *Depsgraph::get_id_node(ID *id, const string &name)
+IDDepsNode *Depsgraph::get_id_node(const ID *id, const string &name)
 {
 	IDDepsNode *id_node = find_id_node(id);
 	if (!id_node) {

@@ -52,62 +52,12 @@ struct DepsNode;
 struct RootDepsNode;
 struct IDDepsNode;
 struct SubgraphDepsNode;
+struct ComponentDepsNode;
 struct OperationDepsNode;
 
 
 /* ************************************* */
 /* Relationships Between Nodes */
-
-/* Types of relationships between nodes 
- *
- * This is used to provide additional hints to use when filtering
- * the graph, so that we can go without doing more extensive
- * data-level checks...
- */
-typedef enum eDepsRelation_Type {
-	/* reationship type unknown/irrelevant */
-	DEPSREL_TYPE_STANDARD = 0,
-	
-	/* root -> active scene or entity (screen, image, etc.) */
-	DEPSREL_TYPE_ROOT_TO_ACTIVE,
-	
-	/* general datablock dependency */
-	DEPSREL_TYPE_DATABLOCK,
-	
-	/* time dependency */
-	DEPSREL_TYPE_TIME,
-	
-	/* component depends on results of another */
-	DEPSREL_TYPE_COMPONENT_ORDER,
-	
-	/* relationship is just used to enforce ordering of operations
-	 * (e.g. "init()" callback done before "exec() and "cleanup()")
-	 */
-	DEPSREL_TYPE_OPERATION,
-	
-	/* relationship results from a property driver affecting property */
-	DEPSREL_TYPE_DRIVER,
-	
-	/* relationship is something driver depends on */
-	DEPSREL_TYPE_DRIVER_TARGET,
-	
-	/* relationship is used for transform stack 
-	 * (e.g. parenting, user transforms, constraints)
-	 */
-	DEPSREL_TYPE_TRANSFORM,
-	
-	/* relationship is used for geometry evaluation 
-	 * (e.g. metaball "motherball" or modifiers)
-	 */
-	DEPSREL_TYPE_GEOMETRY_EVAL,
-	
-	/* relationship is used to trigger a post-change validity updates */
-	DEPSREL_TYPE_UPDATE,
-	
-	/* relationship is used to trigger editor/screen updates */
-	DEPSREL_TYPE_UPDATE_UI,
-} eDepsRelation_Type;
-
 
 /* Settings/Tags on Relationship */
 typedef enum eDepsRelation_Flag {
@@ -219,9 +169,16 @@ struct Depsgraph {
 	                                 DepsEvalOperationCb op, const string &name);
 	
 	IDDepsNode *find_id_node(const ID *id) const;
-	IDDepsNode *get_id_node(ID *id, const string &name = "");
+	IDDepsNode *get_id_node(const ID *id, const string &name = "");
 	void remove_id_node(const ID *id);
 	void clear_id_nodes();
+	
+	ComponentDepsNode *find_component_node(const ID *id, eDepsNode_Type type, const string &subdata = "");
+	OperationDepsNode *find_operation_node(const ID *id, const string &subdata, eDepsNode_Type type);
+	OperationDepsNode *find_operation_node(const ID *id, eDepsNode_Type type)
+	{
+		return find_operation_node(id, "", type);
+	}
 	
 	/* Remove node from graph, but don't free any of its data */
 	void remove_node(DepsNode *node);

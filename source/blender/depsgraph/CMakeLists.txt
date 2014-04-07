@@ -60,6 +60,7 @@ set(SRC
 	intern/depsnode.h
 	intern/depsnode_component.h
 	intern/depsnode_operation.h
+	intern/depsgraph_build.h
 	intern/depsgraph_eval.h
 	intern/depsgraph_intern.h
 	intern/depsgraph_queue.h
