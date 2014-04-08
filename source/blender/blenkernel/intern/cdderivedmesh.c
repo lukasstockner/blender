@@ -631,7 +631,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
                                      DMSetDrawOptionsTex drawParams,
                                      DMSetDrawOptions drawParamsMapped,
                                      DMCompareDrawOptions compareDrawOptions,
-                                     void *userData)
+                                     void *userData, DMDrawFlag uvflag)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	MVert *mv = cddm->mvert;
@@ -773,7 +773,10 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		GPU_vertex_setup(dm);
 		GPU_normal_setup(dm);
-		GPU_uv_setup(dm);
+		if (uvflag & DM_DRAW_USE_TEXPAINT_UV)
+			GPU_texpaint_uv_setup(dm);
+		else
+			GPU_uv_setup(dm);
 		if (mcol) {
 			GPU_color_setup(dm, colType);
 		}
@@ -849,9 +852,9 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 static void cdDM_drawFacesTex(DerivedMesh *dm,
                               DMSetDrawOptionsTex setDrawOptions,
                               DMCompareDrawOptions compareDrawOptions,
-                              void *userData)
+                              void *userData, DMDrawFlag uvflag)
 {
-	cdDM_drawFacesTex_common(dm, setDrawOptions, NULL, compareDrawOptions, userData);
+	cdDM_drawFacesTex_common(dm, setDrawOptions, NULL, compareDrawOptions, userData, uvflag);
 }
 
 static void cdDM_drawMappedFaces(DerivedMesh *dm,
@@ -1057,9 +1060,9 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 static void cdDM_drawMappedFacesTex(DerivedMesh *dm,
                                     DMSetDrawOptions setDrawOptions,
                                     DMCompareDrawOptions compareDrawOptions,
-                                    void *userData)
+                                    void *userData, DMDrawFlag flag)
 {
-	cdDM_drawFacesTex_common(dm, NULL, setDrawOptions, compareDrawOptions, userData);
+	cdDM_drawFacesTex_common(dm, NULL, setDrawOptions, compareDrawOptions, userData, flag);
 }
 
 static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int a, int index, int vert, int smoothnormal)

@@ -41,6 +41,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -2153,17 +2154,20 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
                                       DMSetDrawOptionsTex drawParams,
                                       DMSetDrawOptions drawParamsMapped,
                                       DMCompareDrawOptions compareDrawOptions,
-                                      void *userData)
+                                      void *userData, DMDrawFlag flag)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
 	MCol *mcol = dm->getTessFaceDataArray(dm, CD_PREVIEW_MCOL);
 	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
+	MTFace *tf_base;
 	DMFlagMat *faceFlags = ccgdm->faceFlags;
 	DMDrawOption draw_option;
 	int i, totface, gridSize = ccgSubSurf_getGridSize(ss);
 	int gridFaces = gridSize - 1;
+	int gridOffset = 0;
+	int mat_nr_cache = -1;
 
 	(void) compareDrawOptions;
 
@@ -2192,6 +2196,25 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		else {
 			drawSmooth = 1;
 			mat_nr = 0;
+		}
+
+		/* texture painting, handle the correct uv layer here */
+		if (flag & DM_DRAW_USE_TEXPAINT_UV) {
+			if (mat_nr != mat_nr_cache) {
+				if (dm->totmat > 1) {
+					int mat_i = mat_nr + 1;
+					if (dm->mat[mat_i] && dm->mat[mat_i]->texpaintslot && dm->mat[mat_i]->texpaintslot->uvname[0])
+						tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE, dm->mat[mat_i]->texpaintslot->uvname);
+					else
+						tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+				}
+				else
+					tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+
+				mat_nr_cache = mat_nr;
+			}
+			tf = tf_base + gridOffset;
+			gridOffset += gridFaces * gridFaces * numVerts;
 		}
 
 		if (drawParams)
@@ -2303,17 +2326,17 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 static void ccgDM_drawFacesTex(DerivedMesh *dm,
                                DMSetDrawOptionsTex setDrawOptions,
                                DMCompareDrawOptions compareDrawOptions,
-                               void *userData)
+                               void *userData, DMDrawFlag flag)
 {
-	ccgDM_drawFacesTex_common(dm, setDrawOptions, NULL, compareDrawOptions, userData);
+	ccgDM_drawFacesTex_common(dm, setDrawOptions, NULL, compareDrawOptions, userData, flag);
 }
 
 static void ccgDM_drawMappedFacesTex(DerivedMesh *dm,
                                      DMSetDrawOptions setDrawOptions,
                                      DMCompareDrawOptions compareDrawOptions,
-                                     void *userData)
+                                     void *userData, DMDrawFlag flag)
 {
-	ccgDM_drawFacesTex_common(dm, NULL, setDrawOptions, compareDrawOptions, userData);
+	ccgDM_drawFacesTex_common(dm, NULL, setDrawOptions, compareDrawOptions, userData, flag);
 }
 
 static void ccgDM_drawUVEdges(DerivedMesh *dm)

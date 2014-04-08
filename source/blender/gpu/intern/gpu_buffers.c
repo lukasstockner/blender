@@ -823,6 +823,61 @@ static void GPU_buffer_copy_uv(DerivedMesh *dm, float *varray, int *index, int *
 	}
 }
 
+
+static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *UNUSED(user))
+{
+	int start;
+	int i, totface;
+
+	int totmaterial = dm->totmat;
+	MTFace **mtface_base;
+	MFace *f;
+
+	/* should have been checked for before, reassert */
+	BLI_assert(DM_get_tessface_data_layer(dm, CD_MTFACE));
+	f = dm->getTessFaceArray(dm);
+	mtface_base = MEM_mallocN(totmaterial * sizeof(*mtface_base), "texslots");
+
+	if (totmaterial > 1) {
+		for (i = 0; i < totmaterial - 1; i++) {
+			int mat_i = i + 1;
+			if (dm->mat[mat_i] && dm->mat[mat_i]->texpaintslot && dm->mat[mat_i]->texpaintslot->uvname[0])
+				mtface_base[i] = CustomData_get_layer_named(&dm->faceData, CD_MTFACE, dm->mat[mat_i]->texpaintslot->uvname);
+			else
+				mtface_base[i] = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+		}
+	}
+	else {
+		/* Only default material, use active */
+		mtface_base[0] = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+	}
+
+	totface = dm->getNumTessFaces(dm);
+
+	for (i = 0; i < totface; i++, f++) {
+		int mat_i = f->mat_nr;
+		start = index[mat_orig_to_new[mat_i]];
+
+		/* v1 v2 v3 */
+		copy_v2_v2(&varray[start], mtface_base[mat_i][i].uv[0]);
+		copy_v2_v2(&varray[start + 2], mtface_base[mat_i][i].uv[1]);
+		copy_v2_v2(&varray[start + 4], mtface_base[mat_i][i].uv[2]);
+		index[mat_orig_to_new[f->mat_nr]] += 6;
+
+		if (f->v4) {
+			/* v3 v4 v1 */
+			copy_v2_v2(&varray[start + 6], mtface_base[mat_i][i].uv[2]);
+			copy_v2_v2(&varray[start + 8], mtface_base[mat_i][i].uv[3]);
+			copy_v2_v2(&varray[start + 10], mtface_base[mat_i][i].uv[0]);
+			index[mat_orig_to_new[f->mat_nr]] += 6;
+		}
+	}
+
+	if (mtface_base)
+		MEM_freeN(mtface_base);
+}
+
+
 static void copy_mcol_uc3(unsigned char *v, unsigned char *col)
 {
 	v[0] = col[3];
@@ -912,6 +967,7 @@ typedef enum {
 	GPU_BUFFER_NORMAL,
 	GPU_BUFFER_COLOR,
 	GPU_BUFFER_UV,
+	GPU_BUFFER_UV_TEXPAINT,
 	GPU_BUFFER_EDGE,
 	GPU_BUFFER_UVEDGE,
 } GPUBufferType;
@@ -927,6 +983,7 @@ const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
 	{GPU_buffer_copy_normal, GL_ARRAY_BUFFER_ARB, 3},
 	{GPU_buffer_copy_mcol, GL_ARRAY_BUFFER_ARB, 3},
 	{GPU_buffer_copy_uv, GL_ARRAY_BUFFER_ARB, 2},
+    {GPU_buffer_copy_uv_texpaint, GL_ARRAY_BUFFER_ARB, 2},
 	{GPU_buffer_copy_edge, GL_ELEMENT_ARRAY_BUFFER_ARB, 2},
 	{GPU_buffer_copy_uvedge, GL_ELEMENT_ARRAY_BUFFER_ARB, 4}
 };
@@ -942,6 +999,8 @@ static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBuffer
 		case GPU_BUFFER_COLOR:
 			return &gdo->colors;
 		case GPU_BUFFER_UV:
+			return &gdo->uv;
+		case GPU_BUFFER_UV_TEXPAINT:
 			return &gdo->uv;
 		case GPU_BUFFER_EDGE:
 			return &gdo->edges;
@@ -963,6 +1022,8 @@ static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 		case GPU_BUFFER_COLOR:
 			return sizeof(char) * 3 * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_UV:
+			return sizeof(float) * 2 * dm->drawObject->tot_triangle_point;
+		case GPU_BUFFER_UV_TEXPAINT:
 			return sizeof(float) * 2 * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_EDGE:
 			return sizeof(int) * 2 * dm->drawObject->totedge;
@@ -992,7 +1053,7 @@ static GPUBuffer *gpu_buffer_setup_type(DerivedMesh *dm, GPUBufferType type)
 		if (!(user_data = DM_get_tessface_data_layer(dm, dm->drawObject->colType)))
 			return NULL;
 	}
-	else if (type == GPU_BUFFER_UV) {
+	else if (ELEM(type, GPU_BUFFER_UV, GPU_BUFFER_UV_TEXPAINT)) {
 		if (!DM_get_tessface_data_layer(dm, CD_MTFACE))
 			return NULL;
 	}
@@ -1070,6 +1131,24 @@ void GPU_uv_setup(DerivedMesh *dm)
 
 	GLStates |= GPU_BUFFER_TEXCOORD_STATE;
 }
+
+void GPU_texpaint_uv_setup(DerivedMesh *dm)
+{
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_UV_TEXPAINT))
+		return;
+
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+	if (useVBOs) {
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->uv->id);
+		glTexCoordPointer(2, GL_FLOAT, 0, 0);
+	}
+	else {
+		glTexCoordPointer(2, GL_FLOAT, 0, dm->drawObject->uv->pointer);
+	}
+
+	GLStates |= GPU_BUFFER_TEXCOORD_STATE;
+}
+
 
 void GPU_color_setup(DerivedMesh *dm, int colType)
 {

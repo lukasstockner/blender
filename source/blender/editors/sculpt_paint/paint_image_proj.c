@@ -3344,22 +3344,26 @@ static void project_paint_begin(ProjPaintState *ps)
 		}
 
 		slot = project_paint_face_paint_slot(ps, face_index);
-		if (slot) {
-			if (slot != slot_last) {
-				if (slot->uvname[0])
-					tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname);
-				else
-					tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
-				*tf = tf_base + face_index;
-			}
-			else {
-				*tf = tf_base + face_index;
-			}
+		/* all faces should have a valid slot, reassert here */
+		if (slot == NULL)
+			continue;
 
-			/* tfbase here should be non-null! */
-			if (ps->dm_mtface_stencil == tf_base || ps->dm_mtface_clone == tf_base)
-				continue;
+		if (slot != slot_last) {
+			if (slot->uvname[0])
+				tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname);
+			else
+				tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
+			*tf = tf_base + face_index;
+			slot_last = slot;
 		}
+		else {
+			*tf = tf_base + face_index;
+		}
+
+		/* tfbase here should be non-null! */
+		BLI_assert (tf_base!= NULL);
+		if (ps->dm_mtface_stencil == tf_base || ps->dm_mtface_clone == tf_base)
+			continue;
 
 		if (is_face_sel && ((slot && (tpage = slot->tex->ima)) || (tpage = project_paint_face_image(ps, face_index)))) {
 			float *v1coSS, *v2coSS, *v3coSS, *v4coSS = NULL;

@@ -788,7 +788,8 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
                                    Object *ob, DerivedMesh *dm, const int draw_flags)
 {
 	Mesh *me = ob->data;
-	
+	DMDrawFlag uvflag = DM_DRAW_USE_ACTIVE_UV;
+
 	/* correct for negative scale */
 	if (ob->transflag & OB_NEG_SCALE) glFrontFace(GL_CW);
 	else glFrontFace(GL_CCW);
@@ -797,6 +798,10 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 	draw_textured_begin(scene, v3d, rv3d, ob);
 
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+		uvflag = DM_DRAW_USE_TEXPAINT_UV;
+	}
 
 	if (ob->mode & OB_MODE_EDIT) {
 		drawEMTFMapped_userData data;
@@ -807,7 +812,7 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 		data.mf = DM_get_tessface_data_layer(dm, CD_MFACE);
 		data.tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
 
-		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, compareDrawOptionsEm, &data);
+		dm->drawMappedFacesTex(dm, draw_em_tf_mapped__set_draw, compareDrawOptionsEm, &data, 0);
 	}
 	else if (draw_flags & DRAW_FACE_SELECT) {
 		if (ob->mode & OB_MODE_WEIGHT_PAINT)
@@ -819,15 +824,15 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 			userData.mf = DM_get_tessface_data_layer(dm, CD_MFACE);
 			userData.tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
 			userData.me = me;
-			dm->drawMappedFacesTex(dm, me->mpoly ? draw_tface_mapped__set_draw : NULL, compareDrawOptions, &userData);
+			dm->drawMappedFacesTex(dm, me->mpoly ? draw_tface_mapped__set_draw : NULL, compareDrawOptions, &userData, uvflag);
 		}
 	}
 	else {
 		if (GPU_buffer_legacy(dm)) {
 			if (draw_flags & DRAW_MODIFIERS_PREVIEW)
-				dm->drawFacesTex(dm, draw_mcol__set_draw_legacy, NULL, NULL);
+				dm->drawFacesTex(dm, draw_mcol__set_draw_legacy, NULL, NULL, uvflag);
 			else 
-				dm->drawFacesTex(dm, draw_tface__set_draw_legacy, NULL, NULL);
+				dm->drawFacesTex(dm, draw_tface__set_draw_legacy, NULL, NULL, uvflag);
 		}
 		else {
 			drawTFace_userData userData;
@@ -838,7 +843,7 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 			userData.tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
 			userData.me = NULL;
 
-			dm->drawFacesTex(dm, draw_tface__set_draw, compareDrawOptions, &userData);
+			dm->drawFacesTex(dm, draw_tface__set_draw, compareDrawOptions, &userData, uvflag);
 		}
 	}
 

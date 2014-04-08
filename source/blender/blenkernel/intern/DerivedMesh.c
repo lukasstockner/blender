@@ -3086,7 +3086,7 @@ static void navmesh_drawColored(DerivedMesh *dm)
 static void navmesh_DM_drawFacesTex(DerivedMesh *dm,
                                     DMSetDrawOptionsTex setDrawOptions,
                                     DMCompareDrawOptions compareDrawOptions,
-                                    void *userData)
+                                    void *userData, DMDrawFlag UNUSED(flag))
 {
 	(void) setDrawOptions;
 	(void) compareDrawOptions;

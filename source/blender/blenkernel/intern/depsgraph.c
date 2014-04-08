@@ -2473,6 +2473,15 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 						BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
 		}
 
+		if (idtype == ID_MA) {
+			for (obt = bmain->object.first; obt; obt = obt->id.next) {
+				if (obt->mode & OB_MODE_TEXTURE_PAINT) {
+					obt->recalc |= OB_RECALC_DATA;
+					lib_id_recalc_data_tag(bmain, &obt->id);
+				}
+			}
+		}
+
 		if (idtype == ID_MC) {
 			MovieClip *clip = (MovieClip *) id;
 

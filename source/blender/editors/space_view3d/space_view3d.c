@@ -846,6 +846,8 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 				case ND_SHADING:
 				case ND_NODES:
 					if ((v3d->drawtype == OB_MATERIAL) ||
+					    (scene->basact && scene->basact->object &&
+			                 (scene->basact->object->mode == OB_MODE_TEXTURE_PAINT)) ||
 					    (v3d->drawtype == OB_TEXTURE &&
 					         (scene->gm.matmode == GAME_MAT_GLSL ||
 					          BKE_scene_use_new_shading_nodes(scene))))

@@ -151,7 +151,9 @@ typedef DMDrawOption (*DMSetDrawOptionsTex)(struct MTFace *tface, const bool has
 
 typedef enum DMDrawFlag {
 	DM_DRAW_USE_COLORS = 1,
-	DM_DRAW_ALWAYS_SMOOTH = 2
+	DM_DRAW_ALWAYS_SMOOTH = 2,
+	DM_DRAW_USE_ACTIVE_UV = 3,
+	DM_DRAW_USE_TEXPAINT_UV = 4
 } DMDrawFlag;
 
 typedef enum DMForeachFlag {
@@ -377,7 +379,7 @@ struct DerivedMesh {
 	void (*drawFacesTex)(DerivedMesh *dm,
 	                     DMSetDrawOptionsTex setDrawOptions,
 	                     DMCompareDrawOptions compareDrawOptions,
-	                     void *userData);
+	                     void *userData, DMDrawFlag uvflag);
 
 	/** Draw all faces with GLSL materials
 	 *  o setMaterial is called for every different material nr
@@ -411,7 +413,7 @@ struct DerivedMesh {
 	void (*drawMappedFacesTex)(DerivedMesh *dm,
 	                           DMSetDrawOptions setDrawOptions,
 	                           DMCompareDrawOptions compareDrawOptions,
-	                           void *userData);
+	                           void *userData, DMDrawFlag uvflag);
 
 	/** Draw mapped faces with GLSL materials
 	 * - setMaterial is called for every different material nr
