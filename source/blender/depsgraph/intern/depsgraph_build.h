@@ -42,6 +42,7 @@ struct World;
 
 struct Depsgraph;
 struct DepsNode;
+struct RootDepsNode;
 struct IDDepsNode;
 struct TimeSourceDepsNode;
 struct ComponentDepsNode;
@@ -51,6 +52,7 @@ struct DepsgraphNodeBuilder {
 	DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph);
 	~DepsgraphNodeBuilder();
 	
+	RootDepsNode *add_root_node();
 	IDDepsNode *add_id_node(IDPtr id);
 	TimeSourceDepsNode *add_time_source(IDPtr id);
 	ComponentDepsNode *add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &subdata = "");
@@ -70,6 +72,10 @@ struct DepsgraphNodeBuilder {
 private:
 	Main *m_bmain;
 	Depsgraph *m_graph;
+};
+
+struct RootKey
+{
 };
 
 struct IDKey
@@ -111,6 +117,7 @@ struct DepsgraphRelationBuilder {
 	void build_compositor(Scene *scene);
 	
 protected:
+	RootDepsNode *find_node(const RootKey &key) const;
 	IDDepsNode *find_node(const IDKey &key) const;
 	ComponentDepsNode *find_node(const ComponentKey &key) const;
 	OperationDepsNode *find_node(const OperationKey &key) const;

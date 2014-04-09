@@ -182,6 +182,13 @@ DepsgraphNodeBuilder::~DepsgraphNodeBuilder()
 {
 }
 
+RootDepsNode *DepsgraphNodeBuilder::add_root_node()
+{
+	RootDepsNode *root_node = (RootDepsNode *)m_graph->get_node(NULL, "", DEPSNODE_TYPE_ROOT, "Root (Scene)");
+	m_graph->root_node = root_node;
+	return root_node;
+}
+
 IDDepsNode *DepsgraphNodeBuilder::add_id_node(IDPtr id)
 {
 	return m_graph->get_id_node(id);
@@ -427,6 +434,11 @@ void DepsgraphNodeBuilder::build_compositor(Scene *scene)
 DepsgraphRelationBuilder::DepsgraphRelationBuilder(Depsgraph *graph) :
     m_graph(graph)
 {
+}
+
+RootDepsNode *DepsgraphRelationBuilder::find_node(const RootKey &key) const
+{
+	return m_graph->root_node;
 }
 
 IDDepsNode *DepsgraphRelationBuilder::find_node(const IDKey &key) const
@@ -768,25 +780,23 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	BKE_main_id_tag_idcode(bmain, ID_WO, false);
 	BKE_main_id_tag_idcode(bmain, ID_TE, false);
 	
+	
 	DepsgraphNodeBuilder node_builder(bmain, graph);
-	node_builder.build_scene(scene);
-
-	DepsgraphRelationBuilder relation_builder(graph);
-	relation_builder.build_scene(scene);
-
-#if 0
 	/* create root node for scene first
 	 * - this way it should be the first in the graph,
 	 *   reflecting its role as the entrypoint
 	 */
-	graph->root_node = (RootDepsNode *)graph->get_node(NULL, "", DEPSNODE_TYPE_ROOT, "Root (Scene)");
+	node_builder.add_root_node();
+	node_builder.build_scene(scene);
+
+	DepsgraphRelationBuilder relation_builder(graph);
+	/* hook scene up to the root node as entrypoint to graph */
+	relation_builder.add_relation(RootKey(), IDKey(scene), DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
+	relation_builder.build_scene(scene);
 	
+#if 0
 	/* build graph for scene and all attached data */
 	DepsNode *scene_node = deg_build_scene_graph(graph, bmain, scene);
-	
-	/* hook this up to a "root" node as entrypoint to graph... */
-	graph->add_new_relation(graph->root_node, scene_node, 
-	                     DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
 	
 	/* ensure that all implicit constraints between nodes are satisfied */
 	DEG_graph_validate_links(graph);
