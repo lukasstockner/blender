@@ -75,11 +75,12 @@ typedef enum eDepsNode_Flag {
 struct DepsNode {
 	/* Helper class for static typeinfo in subclasses */
 	struct TypeInfo {
-		TypeInfo(eDepsNode_Type type, const string &tname);
+		TypeInfo(eDepsNode_Type type, const string &tname, eDepsNode_Type component_type = DEPSNODE_TYPE_UNDEFINED);
 		
 		eDepsNode_Type type;
 		eDepsNode_Class tclass;
 		string tname;
+		eDepsNode_Type component_type; /*< associated component type for operations */
 	};
 	
 	typedef unordered_set<DepsRelation *> Relations;

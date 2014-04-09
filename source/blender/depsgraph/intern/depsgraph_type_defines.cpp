@@ -56,6 +56,8 @@ extern "C" {
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
 
+#include "depsgraph_util_map.h"
+
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
 void BKE_animsys_eval_driver(void *context, void *item) {}
@@ -83,6 +85,8 @@ void BKE_mball_eval_geometry(void *context, void *item) {}
 void BKE_curve_eval_geometry(void *context, void *item) {}
 void BKE_curve_eval_path(void *context, void *item) {}
 void BKE_lattice_eval_geometry(void *context, void *item) {}
+
+const char *DEPSNODE_OP_NAME_CONSTRAINT_STACK = "Constraint Stack";
 
 /* ******************************************************** */
 /* External API */

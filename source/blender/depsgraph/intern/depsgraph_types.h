@@ -51,6 +51,8 @@ typedef enum eDepsNode_Class {
 
 /* Types of Nodes */
 typedef enum eDepsNode_Type {
+	DEPSNODE_TYPE_UNDEFINED        = -1,       /* fallback type for invalid return value */
+	
 	/* Generic Types */
 	DEPSNODE_TYPE_ROOT             = 0,        /* "Current Scene" - basically whatever kicks off the evaluation process */
 	DEPSNODE_TYPE_TIMESOURCE       = 1,        /* Time-Source */
@@ -90,6 +92,12 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_OP_PARTICLE      = 120,      /* Particles Evaluation [Particle] */
 	DEPSNODE_TYPE_OP_RIGIDBODY     = 121,      /* Rigidbody Sim (Step) Evaluation */
 } eDepsNode_Type;
+
+/* Standard operation names */
+/* XXX this needs to be revisited, probably operation types could be
+ * combined in a concise struct with name+callback+eDepsOperation_Type
+ */
+extern const char *DEPSNODE_OP_NAME_CONSTRAINT_STACK;
 
 /* Type of operation */
 typedef enum eDepsOperation_Type {

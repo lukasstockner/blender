@@ -69,6 +69,10 @@ protected:
 	void add_to_component_node(Depsgraph *graph, const ID *id, eDepsNode_Type component_type);
 };
 
+/* Macros for common static typeinfo */
+#define DEG_DEPSNODE_OP_DEFINE(NodeType, type_, comp_type_, tname_) \
+	const DepsNode::TypeInfo NodeType::typeinfo = DepsNode::TypeInfo(type_, tname_, comp_type_)
+
 /* Extra flags affecting operations */
 typedef enum eDepsOperation_Flag {
 	DEPSOP_FLAG_USES_PYTHON   = (1 << 0),  /* Operation is evaluated using CPython; has GIL and security implications... */      

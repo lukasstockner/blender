@@ -398,7 +398,7 @@ void DepsgraphNodeBuilder::build_constraints(ComponentDepsNode *comp_node, eDeps
 	/* create node for constraint stack */
 	add_operation_node(comp_node, constraint_op_type, 
 	                   DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
-	                   "Constraint Stack");
+	                   DEPSNODE_OP_NAME_CONSTRAINT_STACK);
 }
 
 void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
@@ -451,10 +451,13 @@ OperationDepsNode *DepsgraphRelationBuilder::find_node(const OperationKey &key) 
 	if (!id_node)
 		return NULL;
 	
-#if 0 /* XXX TODO! */
-	ComponentDepsNode *node = id_node->find_component(key.type);
-	return node;
-#endif
+	DepsNodeFactory *factory = DEG_get_node_factory(key.type);
+	ComponentDepsNode *comp_node = id_node->find_component(factory->component_type());
+	if (!comp_node)
+		return NULL;
+	
+	OperationDepsNode *op_node = comp_node->find_operation(key.name);
+	return op_node;
 }
 
 void DepsgraphRelationBuilder::add_node_relation(DepsNode *node_from, DepsNode *node_to,
@@ -646,7 +649,7 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 void DepsgraphRelationBuilder::build_constraints(Scene *scene, IDPtr id, eDepsNode_Type constraint_op_type,
                                                  ListBase *constraints)
 {
-	OperationKey constraint_op_key(id, constraint_op_type);
+	OperationKey constraint_op_key(id, constraint_op_type, DEPSNODE_OP_NAME_CONSTRAINT_STACK);
 	
 	/* add dependencies for each constraint in turn */
 	for (bConstraint *con = (bConstraint *)constraints->first; con; con = con->next) {

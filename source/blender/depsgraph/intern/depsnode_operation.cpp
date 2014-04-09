@@ -79,7 +79,7 @@ void ParametersOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	add_to_component_node(graph, id, DEPSNODE_TYPE_PARAMETERS);
 }
 
-DEG_DEPSNODE_DEFINE(ParametersOperationDepsNode, DEPSNODE_TYPE_OP_PARAMETER, "Parameters Operation");
+DEG_DEPSNODE_OP_DEFINE(ParametersOperationDepsNode, DEPSNODE_TYPE_OP_PARAMETER, DEPSNODE_TYPE_PARAMETERS, "Parameters Operation");
 static DepsNodeFactoryImpl<ParametersOperationDepsNode> DNTI_OP_PARAMETERS;
 
 /* Proxy Operation ======================================== */
@@ -90,7 +90,7 @@ void ProxyOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	add_to_component_node(graph, id, DEPSNODE_TYPE_PROXY);
 }
 
-DEG_DEPSNODE_DEFINE(ProxyOperationDepsNode, DEPSNODE_TYPE_OP_PROXY, "Proxy Operation");
+DEG_DEPSNODE_OP_DEFINE(ProxyOperationDepsNode, DEPSNODE_TYPE_OP_PROXY, DEPSNODE_TYPE_PROXY, "Proxy Operation");
 static DepsNodeFactoryImpl<ProxyOperationDepsNode> DNTI_OP_PROXY;
 
 /* Animation Operation ==================================== */
@@ -101,7 +101,7 @@ void AnimationOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	add_to_component_node(graph, id, DEPSNODE_TYPE_ANIMATION);
 }
 
-DEG_DEPSNODE_DEFINE(AnimationOperationDepsNode, DEPSNODE_TYPE_OP_ANIMATION, "Animation Operation");
+DEG_DEPSNODE_OP_DEFINE(AnimationOperationDepsNode, DEPSNODE_TYPE_OP_ANIMATION, DEPSNODE_TYPE_ANIMATION, "Animation Operation");
 static DepsNodeFactoryImpl<AnimationOperationDepsNode> DNTI_OP_ANIMATION;
 
 /* Transform Operation ==================================== */
@@ -112,7 +112,7 @@ void TransformOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	add_to_component_node(graph, id, DEPSNODE_TYPE_TRANSFORM);
 }
 
-DEG_DEPSNODE_DEFINE(TransformOperationDepsNode, DEPSNODE_TYPE_OP_TRANSFORM, "Transform Operation");
+DEG_DEPSNODE_OP_DEFINE(TransformOperationDepsNode, DEPSNODE_TYPE_OP_TRANSFORM, DEPSNODE_TYPE_TRANSFORM, "Transform Operation");
 static DepsNodeFactoryImpl<TransformOperationDepsNode> DNTI_OP_TRANSFORM;
 
 /* Geometry Operation ===================================== */
@@ -123,7 +123,7 @@ void GeometryOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	add_to_component_node(graph, id, DEPSNODE_TYPE_GEOMETRY);
 }
 
-DEG_DEPSNODE_DEFINE(GeometryOperationDepsNode, DEPSNODE_TYPE_OP_GEOMETRY, "Geometry Operation");
+DEG_DEPSNODE_OP_DEFINE(GeometryOperationDepsNode, DEPSNODE_TYPE_OP_GEOMETRY, DEPSNODE_TYPE_GEOMETRY, "Geometry Operation");
 static DepsNodeFactoryImpl<GeometryOperationDepsNode> DNTI_OP_GEOMETRY;
 
 /* Sequencer Operation ==================================== */
@@ -134,7 +134,7 @@ void SequencerOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	add_to_component_node(graph, id, DEPSNODE_TYPE_SEQUENCER);
 }
 
-DEG_DEPSNODE_DEFINE(SequencerOperationDepsNode, DEPSNODE_TYPE_OP_SEQUENCER, "Sequencer Operation");
+DEG_DEPSNODE_OP_DEFINE(SequencerOperationDepsNode, DEPSNODE_TYPE_OP_SEQUENCER, DEPSNODE_TYPE_SEQUENCER, "Sequencer Operation");
 static DepsNodeFactoryImpl<SequencerOperationDepsNode> DNTI_OP_SEQUENCER;
 
 /* Update Operation ======================================= */
@@ -145,7 +145,7 @@ void UpdateOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	add_to_component_node(graph, id, DEPSNODE_TYPE_PARAMETERS);
 }
 
-DEG_DEPSNODE_DEFINE(UpdateOperationDepsNode, DEPSNODE_TYPE_OP_UPDATE, "RNA Update Operation");
+DEG_DEPSNODE_OP_DEFINE(UpdateOperationDepsNode, DEPSNODE_TYPE_OP_UPDATE, DEPSNODE_TYPE_PARAMETERS, "RNA Update Operation");
 static DepsNodeFactoryImpl<UpdateOperationDepsNode> DNTI_OP_UPDATE;
 
 /* Driver Operation ===================================== */
@@ -157,7 +157,7 @@ void DriverOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	add_to_component_node(graph, id, DEPSNODE_TYPE_PARAMETERS);
 }
 
-DEG_DEPSNODE_DEFINE(DriverOperationDepsNode, DEPSNODE_TYPE_OP_DRIVER, "Driver Operation");
+DEG_DEPSNODE_OP_DEFINE(DriverOperationDepsNode, DEPSNODE_TYPE_OP_DRIVER, DEPSNODE_TYPE_PARAMETERS, "Driver Operation");
 static DepsNodeFactoryImpl<DriverOperationDepsNode> DNTI_OP_DRIVER;
 
 /* Pose Operation ========================================= */
@@ -168,7 +168,7 @@ void PoseOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	add_to_component_node(graph, id, DEPSNODE_TYPE_EVAL_POSE);
 }
 
-DEG_DEPSNODE_DEFINE(PoseOperationDepsNode, DEPSNODE_TYPE_OP_POSE, "Pose Operation");
+DEG_DEPSNODE_OP_DEFINE(PoseOperationDepsNode, DEPSNODE_TYPE_OP_POSE, DEPSNODE_TYPE_EVAL_POSE, "Pose Operation");
 static DepsNodeFactoryImpl<PoseOperationDepsNode> DNTI_OP_POSE;
 
 /* Bone Operation ========================================= */
@@ -205,7 +205,7 @@ void BoneOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	this->owner = bone_comp;
 }
 
-DEG_DEPSNODE_DEFINE(BoneOperationDepsNode, DEPSNODE_TYPE_OP_BONE, "Bone Operation");
+DEG_DEPSNODE_OP_DEFINE(BoneOperationDepsNode, DEPSNODE_TYPE_OP_BONE, DEPSNODE_TYPE_BONE, "Bone Operation");
 static DepsNodeFactoryImpl<BoneOperationDepsNode> DNTI_OP_BONE;
 
 /* Particle Operation ===================================== */
@@ -223,7 +223,7 @@ void ParticlesOperationDepsNode::remove_from_graph(Depsgraph *graph)
 	OperationDepsNode::remove_from_graph(graph);
 }
 
-DEG_DEPSNODE_DEFINE(ParticlesOperationDepsNode, DEPSNODE_TYPE_OP_PARTICLE, "Particles Operation");
+DEG_DEPSNODE_OP_DEFINE(ParticlesOperationDepsNode, DEPSNODE_TYPE_OP_PARTICLE, DEPSNODE_TYPE_EVAL_PARTICLES, "Particles Operation");
 static DepsNodeFactoryImpl<ParticlesOperationDepsNode> DNTI_OP_PARTICLES;
 
 /* RigidBody Operation ==================================== */
@@ -235,7 +235,7 @@ void RigidBodyOperationDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
 	add_to_component_node(graph, id, DEPSNODE_TYPE_TRANSFORM); // XXX
 }
 
-DEG_DEPSNODE_DEFINE(RigidBodyOperationDepsNode, DEPSNODE_TYPE_OP_RIGIDBODY, "RigidBody Operation");
+DEG_DEPSNODE_OP_DEFINE(RigidBodyOperationDepsNode, DEPSNODE_TYPE_OP_RIGIDBODY, DEPSNODE_TYPE_TRANSFORM, "RigidBody Operation");
 static DepsNodeFactoryImpl<RigidBodyOperationDepsNode> DNTI_OP_RIGIDBODY;
 
 

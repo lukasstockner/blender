@@ -88,9 +88,10 @@ struct ComponentKey
 
 struct OperationKey
 {
-	OperationKey(IDPtr id, eDepsNode_Type type) : id(id), type(type) {}
+	OperationKey(IDPtr id, eDepsNode_Type type, const string &name) : id(id), type(type), name(name) {}
 	IDPtr id;
 	eDepsNode_Type type;
+	string name;
 };
 
 struct DepsgraphRelationBuilder {
