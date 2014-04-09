@@ -449,7 +449,27 @@ void DepsgraphRelationBuilder::build_driver(IDPtr id, FCurve *fcurve)
 
 void DepsgraphRelationBuilder::build_world(Scene *scene, World *world)
 {
+	/* Prevent infinite recursion by checking (and tagging the world) as having been visited 
+	 * already. This assumes wo->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (id_is_tagged(world))
+		return;
+	id_tag_set(world);
 	
+	build_animdata(world);
+	
+	/* TODO: other settings? */
+	
+	/* textures */
+//	deg_build_texture_stack_graph(graph, scene, owner_component, wo->mtex);
+	
+	/* world's nodetree */
+	if (world->nodetree) {
+//		deg_build_nodetree_graph(graph, scene, owner_component, wo->nodetree);
+	}
+
+	id_tag_clear(world);
 }
 
 void DepsgraphRelationBuilder::build_compositor(Scene *scene)

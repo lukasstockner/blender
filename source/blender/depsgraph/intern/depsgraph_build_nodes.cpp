@@ -104,21 +104,6 @@ extern "C" {
 /* ************************************************* */
 /* Node Builder */
 
-static bool is_id_tagged(ConstIDPtr id)
-{
-	return id->flag & LIB_DOIT;
-}
-
-static void id_tag_set(IDPtr id)
-{
-	id->flag |= LIB_DOIT;
-}
-
-static void id_tag_clear(IDPtr id)
-{
-	id->flag &= ~LIB_DOIT;
-}
-
 IDDepsNode *DepsgraphNodeBuilder::build_scene(Scene *scene)
 {
 	IDDepsNode *scene_node = add_id_node(scene);
@@ -157,7 +142,7 @@ IDDepsNode *DepsgraphNodeBuilder::build_scene(Scene *scene)
 	
 	/* tagged groups */
 	for (Group *group = (Group *)m_bmain->group.first; group; group = (Group *)group->id.next) {
-		if (is_id_tagged(group)) {
+		if (id_is_tagged(group)) {
 			// TODO: we need to make this group reliant on the object that spawned it...
 			build_subgraph(group);
 			
@@ -177,7 +162,7 @@ IDDepsNode *DepsgraphNodeBuilder::build_scene(Scene *scene)
 	
 	/* world */
 	if (scene->world) {
-		build_world(scene, scene->world);
+		build_world(scene->world);
 	}
 	
 	/* compo nodes */
@@ -367,9 +352,33 @@ OperationDepsNode *DepsgraphNodeBuilder::build_driver(ComponentDepsNode *adt_nod
 	return driver_op;
 }
 
-void DepsgraphNodeBuilder::build_world(Scene *scene, World *world)
+/* Recursively build graph for world */
+void DepsgraphNodeBuilder::build_world(World *world)
 {
+	/* Prevent infinite recursion by checking (and tagging the world) as having been visited 
+	 * already. This assumes wo->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (id_is_tagged(world))
+		return;
+	id_tag_set(world);
 	
+	/* world itself */
+	IDDepsNode *world_node = add_id_node(world); /* world shading/params? */
+	
+	build_animdata(world_node);
+	
+	/* TODO: other settings? */
+	
+	/* textures */
+//	deg_build_texture_stack_graph(graph, scene, owner_component, wo->mtex);
+	
+	/* world's nodetree */
+	if (world->nodetree) {
+//		deg_build_nodetree_graph(graph, scene, owner_component, wo->nodetree);
+	}
+
+	id_tag_clear(world);
 }
 
 void DepsgraphNodeBuilder::build_compositor(Scene *scene)

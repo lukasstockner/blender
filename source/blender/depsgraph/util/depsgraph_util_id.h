@@ -25,6 +25,10 @@
 #ifndef __DEPSGRAPH_UTIL_ID_H__
 #define __DEPSGRAPH_UTIL_ID_H__
 
+extern "C" {
+#include "BLI_utildefines.h"
+}
+
 /* Helper types for handling ID subtypes in C
  * 
  * These can be casted implicitly from/to ID*
@@ -64,5 +68,21 @@ struct ConstIDPtr {
 private:
 	const ID *m_ptr;
 };
+
+
+BLI_INLINE bool id_is_tagged(ConstIDPtr id)
+{
+	return id->flag & LIB_DOIT;
+}
+
+BLI_INLINE void id_tag_set(IDPtr id)
+{
+	id->flag |= LIB_DOIT;
+}
+
+BLI_INLINE void id_tag_clear(IDPtr id)
+{
+	id->flag &= ~LIB_DOIT;
+}
 
 #endif /* __DEPSGRAPH_UTIL_ID_H__ */

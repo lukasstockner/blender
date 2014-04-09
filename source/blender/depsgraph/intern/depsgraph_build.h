@@ -70,7 +70,7 @@ struct DepsgraphNodeBuilder {
 	void build_rigidbody(Scene *scene);
 	void build_animdata(IDDepsNode *id_node);
 	OperationDepsNode *build_driver(ComponentDepsNode *adt_node, FCurve *fcurve);
-	void build_world(Scene *scene, World *world);
+	void build_world(World *world);
 	void build_compositor(Scene *scene);
 	
 private:
