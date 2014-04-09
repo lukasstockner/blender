@@ -371,14 +371,102 @@ void DepsgraphNodeBuilder::build_world(World *world)
 	/* TODO: other settings? */
 	
 	/* textures */
-//	deg_build_texture_stack_graph(graph, scene, owner_component, wo->mtex);
+	build_texture_stack(world_node, world->mtex);
 	
 	/* world's nodetree */
 	if (world->nodetree) {
-//		deg_build_nodetree_graph(graph, scene, owner_component, wo->nodetree);
+		build_nodetree(world_node, world->nodetree);
 	}
 
 	id_tag_clear(world);
+}
+
+void DepsgraphNodeBuilder::build_nodetree(IDDepsNode *owner_node, bNodeTree *ntree)
+{
+	if (!ntree)
+		return;
+	
+	/* nodetree itself */
+	IDDepsNode *ntree_node = add_id_node(ntree);
+	
+	build_animdata(ntree_node);
+	
+	/* nodetree's nodes... */
+	for (bNode *bnode = (bNode *)ntree->nodes.first; bnode; bnode = bnode->next) {
+		if (bnode->id) {
+			if (GS(bnode->id->name) == ID_MA) {
+				build_material(owner_node, (Material *)bnode->id);
+			}
+			else if (bnode->type == ID_TE) {
+				build_texture(owner_node, (Tex *)bnode->id);
+			}
+			else if (bnode->type == NODE_GROUP) {
+				build_nodetree(owner_node, (bNodeTree *)bnode->id);
+			}
+		}
+	}
+	
+	// TODO: link from nodetree to owner_component?
+}
+
+/* Recursively build graph for material */
+void DepsgraphNodeBuilder::build_material(IDDepsNode *owner_node, Material *ma)
+{
+	/* Prevent infinite recursion by checking (and tagging the material) as having been visited 
+	 * already. This assumes ma->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (id_is_tagged(ma))
+		return;
+	id_tag_set(ma);
+	
+	/* material itself */
+	IDDepsNode *ma_node = add_id_node(ma);
+	
+	build_animdata(ma_node);
+	
+	/* textures */
+	build_texture_stack(owner_node, ma->mtex);
+	
+	/* material's nodetree */
+	build_nodetree(owner_node, ma->nodetree);
+	
+	id_tag_clear(ma);
+}
+
+/* Texture-stack attached to some shading datablock */
+void DepsgraphNodeBuilder::build_texture_stack(IDDepsNode *owner_node, MTex **texture_stack)
+{
+	int i;
+	
+	/* for now assume that all texture-stacks have same number of max items */
+	for (i = 0; i < MAX_MTEX; i++) {
+		MTex *mtex = texture_stack[i];
+		if (mtex)
+			build_texture(owner_node, mtex->tex);
+	}
+}
+
+/* Recursively build graph for texture */
+void DepsgraphNodeBuilder::build_texture(IDDepsNode *owner_node, Tex *tex)
+{
+	/* Prevent infinite recursion by checking (and tagging the texture) as having been visited 
+	 * already. This assumes tex->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (id_is_tagged(tex))
+		return;
+	id_tag_set(tex);
+	
+	IDDepsNode *tex_node = add_id_node(tex);
+	
+	/* texture itself */
+	build_animdata(tex_node);
+	
+	/* texture's nodetree */
+	build_nodetree(owner_node, tex->nodetree);
+	
+	id_tag_clear(tex);
 }
 
 void DepsgraphNodeBuilder::build_compositor(Scene *scene)

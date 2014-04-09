@@ -462,14 +462,92 @@ void DepsgraphRelationBuilder::build_world(Scene *scene, World *world)
 	/* TODO: other settings? */
 	
 	/* textures */
-//	deg_build_texture_stack_graph(graph, scene, owner_component, wo->mtex);
+	build_texture_stack(world, world->mtex);
 	
 	/* world's nodetree */
-	if (world->nodetree) {
-//		deg_build_nodetree_graph(graph, scene, owner_component, wo->nodetree);
-	}
+	build_nodetree(world, world->nodetree);
 
 	id_tag_clear(world);
+}
+
+void DepsgraphRelationBuilder::build_nodetree(IDPtr owner, bNodeTree *ntree)
+{
+	if (!ntree)
+		return;
+	
+	build_animdata(ntree);
+	
+	/* nodetree's nodes... */
+	for (bNode *bnode = (bNode *)ntree->nodes.first; bnode; bnode = bnode->next) {
+		if (bnode->id) {
+			if (GS(bnode->id->name) == ID_MA) {
+				build_material(owner, (Material *)bnode->id);
+			}
+			else if (bnode->type == ID_TE) {
+				build_texture(owner, (Tex *)bnode->id);
+			}
+			else if (bnode->type == NODE_GROUP) {
+				build_nodetree(owner, (bNodeTree *)bnode->id);
+			}
+		}
+	}
+	
+	// TODO: link from nodetree to owner_component?
+}
+
+/* Recursively build graph for material */
+void DepsgraphRelationBuilder::build_material(IDPtr owner, Material *ma)
+{
+	/* Prevent infinite recursion by checking (and tagging the material) as having been visited 
+	 * already. This assumes ma->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (id_is_tagged(ma))
+		return;
+	id_tag_set(ma);
+	
+	build_animdata(ma);
+	
+	/* textures */
+	build_texture_stack(owner, ma->mtex);
+	
+	/* material's nodetree */
+	build_nodetree(owner, ma->nodetree);
+	
+	id_tag_clear(ma);
+}
+
+/* Recursively build graph for texture */
+void DepsgraphRelationBuilder::build_texture(IDPtr owner, Tex *tex)
+{
+	/* Prevent infinite recursion by checking (and tagging the texture) as having been visited 
+	 * already. This assumes tex->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (id_is_tagged(tex))
+		return;
+	id_tag_set(tex);
+	
+	/* texture itself */
+	build_animdata(tex);
+	
+	/* texture's nodetree */
+	build_nodetree(owner, tex->nodetree);
+	
+	id_tag_clear(tex);
+}
+
+/* Texture-stack attached to some shading datablock */
+void DepsgraphRelationBuilder::build_texture_stack(IDPtr owner, MTex **texture_stack)
+{
+	int i;
+	
+	/* for now assume that all texture-stacks have same number of max items */
+	for (i = 0; i < MAX_MTEX; i++) {
+		MTex *mtex = texture_stack[i];
+		if (mtex)
+			build_texture(owner, mtex->tex);
+	}
 }
 
 void DepsgraphRelationBuilder::build_compositor(Scene *scene)

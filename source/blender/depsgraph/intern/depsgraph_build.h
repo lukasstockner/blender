@@ -38,8 +38,12 @@ struct ID;
 struct FCurve;
 struct Group;
 struct Main;
+struct Material;
+struct MTex;
+struct bNodeTree;
 struct Object;
 struct Scene;
+struct Tex;
 struct World;
 
 struct Depsgraph;
@@ -70,6 +74,10 @@ struct DepsgraphNodeBuilder {
 	void build_rigidbody(Scene *scene);
 	void build_animdata(IDDepsNode *id_node);
 	OperationDepsNode *build_driver(ComponentDepsNode *adt_node, FCurve *fcurve);
+	void build_nodetree(IDDepsNode *owner_node, bNodeTree *ntree);
+	void build_material(IDDepsNode *owner_node, Material *ma);
+	void build_texture(IDDepsNode *owner_node, Tex *tex);
+	void build_texture_stack(IDDepsNode *owner_node, MTex **texture_stack);
 	void build_world(World *world);
 	void build_compositor(Scene *scene);
 	
@@ -134,6 +142,10 @@ struct DepsgraphRelationBuilder {
 	void build_animdata(IDPtr id);
 	void build_driver(IDPtr id, FCurve *fcurve);
 	void build_world(Scene *scene, World *world);
+	void build_nodetree(IDPtr owner, bNodeTree *ntree);
+	void build_material(IDPtr owner, Material *ma);
+	void build_texture(IDPtr owner, Tex *tex);
+	void build_texture_stack(IDPtr owner, MTex **texture_stack);
 	void build_compositor(Scene *scene);
 	
 protected:
