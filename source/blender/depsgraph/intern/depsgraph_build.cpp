@@ -196,7 +196,42 @@ IDDepsNode *DepsgraphNodeBuilder::add_id_node(IDPtr id)
 
 TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(IDPtr id)
 {
-	return (TimeSourceDepsNode *)m_graph->get_node(id, "", DEPSNODE_TYPE_TIMESOURCE, string_format("%s Time Source", id->name+2));
+	TimeSourceDepsNode *time_source = (TimeSourceDepsNode *)m_graph->get_node(id, "", DEPSNODE_TYPE_TIMESOURCE, string_format("%s Time Source", id->name+2));
+
+	/* determine which node to attach timesource to */
+	if (id) {
+#if 0 /* XXX TODO */
+		/* get ID node */
+		IDDepsNode id_node = m_graph->find_id_node(id);
+		
+		/* depends on what this is... */
+		switch (GS(id->name)) {
+			case ID_SCE: /* Scene - Usually sequencer strip causing time remapping... */
+			{
+				// TODO...
+			}
+			break;
+			
+			case ID_GR: /* Group */
+			{
+				// TODO...
+			}
+			break;
+			
+			// XXX: time source...
+			
+			default:     /* Unhandled */
+				printf("%s(): Unhandled ID - %s \n", __func__, id->name);
+				break;
+		}
+#endif
+	}
+	else {
+		/* root-node */
+		RootDepsNode *root_node = m_graph->root_node;
+		root_node->time_source = time_source;
+		/*time_source->owner = root_node;*/
+	}
 }
 
 ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &subdata)
