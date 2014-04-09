@@ -42,7 +42,7 @@ BLI_INLINE PointerRNA make_rna_pointer(IDPtr id, StructRNA *type, void *data)
 	return ptr;
 }
 
-PointerRNA make_rna_id_pointer(IDPtr id)
+BLI_INLINE PointerRNA make_rna_id_pointer(IDPtr id)
 {
 	PointerRNA ptr;
 	RNA_id_pointer_create(id, &ptr);

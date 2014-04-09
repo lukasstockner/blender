@@ -45,6 +45,8 @@ set(SRC
 	intern/depsnode_component.cpp
 	intern/depsnode_operation.cpp
 	intern/depsgraph_build.cpp
+	intern/depsgraph_build_nodes.cpp
+	intern/depsgraph_build_relations.cpp
 	intern/depsgraph_core.cpp
 	intern/depsgraph_debug.cpp
 	intern/depsgraph_eval.cpp
