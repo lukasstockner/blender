@@ -167,7 +167,7 @@ IDDepsNode *DepsgraphNodeBuilder::build_scene(Scene *scene)
 	
 	/* compo nodes */
 	if (scene->nodetree) {
-		build_compositor(scene);
+		build_compositor(scene_node, scene);
 	}
 	
 	/* sequencer */
@@ -381,7 +381,7 @@ void DepsgraphNodeBuilder::build_world(World *world)
 	id_tag_clear(world);
 }
 
-void DepsgraphNodeBuilder::build_nodetree(IDDepsNode *owner_node, bNodeTree *ntree)
+void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree)
 {
 	if (!ntree)
 		return;
@@ -410,7 +410,7 @@ void DepsgraphNodeBuilder::build_nodetree(IDDepsNode *owner_node, bNodeTree *ntr
 }
 
 /* Recursively build graph for material */
-void DepsgraphNodeBuilder::build_material(IDDepsNode *owner_node, Material *ma)
+void DepsgraphNodeBuilder::build_material(DepsNode *owner_node, Material *ma)
 {
 	/* Prevent infinite recursion by checking (and tagging the material) as having been visited 
 	 * already. This assumes ma->id.flag & LIB_DOIT isn't set by anything else
@@ -435,7 +435,7 @@ void DepsgraphNodeBuilder::build_material(IDDepsNode *owner_node, Material *ma)
 }
 
 /* Texture-stack attached to some shading datablock */
-void DepsgraphNodeBuilder::build_texture_stack(IDDepsNode *owner_node, MTex **texture_stack)
+void DepsgraphNodeBuilder::build_texture_stack(DepsNode *owner_node, MTex **texture_stack)
 {
 	int i;
 	
@@ -448,7 +448,7 @@ void DepsgraphNodeBuilder::build_texture_stack(IDDepsNode *owner_node, MTex **te
 }
 
 /* Recursively build graph for texture */
-void DepsgraphNodeBuilder::build_texture(IDDepsNode *owner_node, Tex *tex)
+void DepsgraphNodeBuilder::build_texture(DepsNode *owner_node, Tex *tex)
 {
 	/* Prevent infinite recursion by checking (and tagging the texture) as having been visited 
 	 * already. This assumes tex->id.flag & LIB_DOIT isn't set by anything else
@@ -469,7 +469,14 @@ void DepsgraphNodeBuilder::build_texture(IDDepsNode *owner_node, Tex *tex)
 	id_tag_clear(tex);
 }
 
-void DepsgraphNodeBuilder::build_compositor(Scene *scene)
+void DepsgraphNodeBuilder::build_compositor(IDDepsNode *scene_node, Scene *scene)
 {
+	/* For now, just a plain wrapper? */
+	// TODO: create compositing component?
+	// XXX: component type undefined!
+	//graph->get_node(&scene->id, NULL, DEPSNODE_TYPE_COMPOSITING, NULL);
 	
+	/* for now, nodetrees are just parameters; compositing occurs in internals of renderer... */
+	ComponentDepsNode *owner_node = add_component_node(scene_node, DEPSNODE_TYPE_PARAMETERS);
+	build_nodetree(owner_node, scene->nodetree);
 }

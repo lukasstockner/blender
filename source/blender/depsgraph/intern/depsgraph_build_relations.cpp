@@ -552,5 +552,6 @@ void DepsgraphRelationBuilder::build_texture_stack(IDPtr owner, MTex **texture_s
 
 void DepsgraphRelationBuilder::build_compositor(Scene *scene)
 {
-	
+	/* For now, just a plain wrapper? */
+	build_nodetree(scene, scene->nodetree);
 }

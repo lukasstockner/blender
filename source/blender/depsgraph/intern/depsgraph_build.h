@@ -74,12 +74,12 @@ struct DepsgraphNodeBuilder {
 	void build_rigidbody(Scene *scene);
 	void build_animdata(IDDepsNode *id_node);
 	OperationDepsNode *build_driver(ComponentDepsNode *adt_node, FCurve *fcurve);
-	void build_nodetree(IDDepsNode *owner_node, bNodeTree *ntree);
-	void build_material(IDDepsNode *owner_node, Material *ma);
-	void build_texture(IDDepsNode *owner_node, Tex *tex);
-	void build_texture_stack(IDDepsNode *owner_node, MTex **texture_stack);
+	void build_nodetree(DepsNode *owner_node, bNodeTree *ntree);
+	void build_material(DepsNode *owner_node, Material *ma);
+	void build_texture(DepsNode *owner_node, Tex *tex);
+	void build_texture_stack(DepsNode *owner_node, MTex **texture_stack);
 	void build_world(World *world);
-	void build_compositor(Scene *scene);
+	void build_compositor(IDDepsNode *scene_node, Scene *scene);
 	
 private:
 	Main *m_bmain;
