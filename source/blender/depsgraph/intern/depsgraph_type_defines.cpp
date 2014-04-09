@@ -86,7 +86,11 @@ void BKE_curve_eval_geometry(void *context, void *item) {}
 void BKE_curve_eval_path(void *context, void *item) {}
 void BKE_lattice_eval_geometry(void *context, void *item) {}
 
-const char *DEPSNODE_OP_NAME_CONSTRAINT_STACK = "Constraint Stack";
+const string deg_op_name_constraint_stack = "Constraint Stack";
+string deg_op_name_driver(const ChannelDriver *driver)
+{
+	return string_format("Driver @ %p", driver);
+}
 
 /* ******************************************************** */
 /* External API */

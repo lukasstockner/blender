@@ -96,6 +96,7 @@ extern "C" {
 #include "depsgraph_eval.h"
 #include "depsgraph_intern.h"
 
+#include "depsgraph_util_rna.h"
 #include "depsgraph_util_string.h"
 
 #include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
@@ -232,6 +233,8 @@ TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(IDPtr id)
 		root_node->time_source = time_source;
 		/*time_source->owner = root_node;*/
 	}
+	
+	return time_source;
 }
 
 ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &subdata)
@@ -242,12 +245,11 @@ ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(IDDepsNode *id_node,
 }
 
 OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ComponentDepsNode *comp_node, eDepsNode_Type type,
-                                                            eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description)
+                                                            eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description,
+                                                            PointerRNA ptr)
 {
 	OperationDepsNode *op_node = comp_node->add_operation(type, optype, op, description);
-	BLI_assert(comp_node->owner);
-	BLI_assert(comp_node->owner->id);
-	RNA_id_pointer_create(comp_node->owner->id, &op_node->ptr);
+	op_node->ptr = ptr;
 	return op_node;
 }
 
@@ -304,7 +306,7 @@ IDDepsNode *DepsgraphNodeBuilder::build_scene(Scene *scene)
 	
 	/* scene's animation and drivers */
 	if (scene->adt) {
-		build_animdata(scene);
+		build_animdata(scene_node);
 	}
 	
 	/* world */
@@ -341,7 +343,7 @@ IDDepsNode *DepsgraphNodeBuilder::build_object(Object *ob)
 	if (ob->parent) {
 		add_operation_node(trans_node, DEPSNODE_TYPE_OP_TRANSFORM, 
 		                   DEPSOP_TYPE_EXEC, BKE_object_eval_parent,
-		                   "BKE_object_eval_parent");
+		                   "BKE_object_eval_parent", make_rna_id_pointer(ob));
 	}
 	
 	/* object constraints */
@@ -413,7 +415,7 @@ ComponentDepsNode *DepsgraphNodeBuilder::build_object_transform(Object *ob, IDDe
 	/* init operation */
 	add_operation_node(trans_node, DEPSNODE_TYPE_OP_TRANSFORM,
 	                   DEPSOP_TYPE_INIT, BKE_object_eval_local_transform,
-	                   "BKE_object_eval_local_transform");
+	                   "BKE_object_eval_local_transform", make_rna_id_pointer(ob));
 	
 	/* return component created */
 	return trans_node;
@@ -440,7 +442,7 @@ void DepsgraphNodeBuilder::build_constraints(ComponentDepsNode *comp_node, eDeps
 	/* create node for constraint stack */
 	add_operation_node(comp_node, constraint_op_type, 
 	                   DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
-	                   DEPSNODE_OP_NAME_CONSTRAINT_STACK);
+	                   deg_op_name_constraint_stack, make_rna_id_pointer(comp_node->owner->id));
 }
 
 void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
@@ -448,9 +450,56 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 	
 }
 
-void DepsgraphNodeBuilder::build_animdata(IDPtr id)
+/* Build graph nodes for AnimData block 
+ * < scene_node: Scene that ID-block this lives on belongs to
+ * < id: ID-Block which hosts the AnimData
+ */
+void DepsgraphNodeBuilder::build_animdata(IDDepsNode *id_node)
 {
+	AnimData *adt = BKE_animdata_from_id(id_node->id);
+	if (!adt)
+		return;
 	
+	/* animation */
+	if (adt->action || adt->nla_tracks.first || adt->drivers.first) {
+		/* create "animation" data node for this block */
+		ComponentDepsNode *adt_node = add_component_node(id_node, DEPSNODE_TYPE_ANIMATION);
+		
+		// XXX: Hook up specific update callbacks for special properties which may need it...
+		
+		/* drivers */
+		for (FCurve *fcu = (FCurve *)adt->drivers.first; fcu; fcu = fcu->next) {
+			/* create driver */
+			/*OperationDepsNode *driver_node =*/ build_driver(adt_node, fcu);
+			
+			/* hook up update callback associated with F-Curve */
+			// ...
+		}
+	}
+}
+
+/* Build graph node(s) for Driver
+ * < id: ID-Block that driver is attached to
+ * < fcu: Driver-FCurve
+ */
+OperationDepsNode *DepsgraphNodeBuilder::build_driver(ComponentDepsNode *adt_node, FCurve *fcurve)
+{
+	IDPtr id = adt_node->owner->id;
+	ChannelDriver *driver = fcurve->driver;
+	
+	/* create data node for this driver ..................................... */
+	OperationDepsNode *driver_op = add_operation_node(adt_node, DEPSNODE_TYPE_OP_DRIVER,
+	                                                  DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
+	                                                  deg_op_name_driver(driver),
+	                                                  make_rna_pointer(id, &RNA_FCurve, fcurve));
+	
+	/* tag "scripted expression" drivers as needing Python (due to GIL issues, etc.) */
+	if (driver->type == DRIVER_TYPE_PYTHON) {
+		driver_op->flag |= DEPSOP_FLAG_USES_PYTHON;
+	}
+	
+	/* return driver node created */
+	return driver_op;
 }
 
 void DepsgraphNodeBuilder::build_world(Scene *scene, World *world)
@@ -466,6 +515,25 @@ void DepsgraphNodeBuilder::build_compositor(Scene *scene)
 /* ************************************************* */
 /* Relations Builder */
 
+RNAPathKey::RNAPathKey(IDPtr id, const string &path) :
+    id(id)
+{
+	/* create ID pointer for root of path lookup */
+	PointerRNA id_ptr = make_rna_id_pointer(id);
+	/* try to resolve path... */
+	if (!RNA_path_resolve(&id_ptr, path.c_str(), &this->ptr, &this->prop)) {
+		this->ptr = PointerRNA_NULL;
+		this->prop = NULL;
+	}
+}
+
+RNAPathKey::RNAPathKey(IDPtr id, const PointerRNA &ptr, PropertyRNA *prop) :
+    id(id),
+    ptr(ptr),
+    prop(prop)
+{
+}
+
 DepsgraphRelationBuilder::DepsgraphRelationBuilder(Depsgraph *graph) :
     m_graph(graph)
 {
@@ -474,6 +542,17 @@ DepsgraphRelationBuilder::DepsgraphRelationBuilder(Depsgraph *graph) :
 RootDepsNode *DepsgraphRelationBuilder::find_node(const RootKey &key) const
 {
 	return m_graph->root_node;
+}
+
+TimeSourceDepsNode *DepsgraphRelationBuilder::find_node(const TimeSourceKey &key) const
+{
+	if (key.id) {
+		/* XXX TODO */
+		return NULL;
+	}
+	else {
+		return m_graph->root_node->time_source;
+	}
 }
 
 IDDepsNode *DepsgraphRelationBuilder::find_node(const IDKey &key) const
@@ -505,6 +584,11 @@ OperationDepsNode *DepsgraphRelationBuilder::find_node(const OperationKey &key) 
 	
 	OperationDepsNode *op_node = comp_node->find_operation(key.name);
 	return op_node;
+}
+
+DepsNode *DepsgraphRelationBuilder::find_node(const RNAPathKey &key) const
+{
+	return m_graph->find_node_from_pointer(&key.ptr, key.prop);
 }
 
 void DepsgraphRelationBuilder::add_node_relation(DepsNode *node_from, DepsNode *node_to,
@@ -696,7 +780,7 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 void DepsgraphRelationBuilder::build_constraints(Scene *scene, IDPtr id, eDepsNode_Type constraint_op_type,
                                                  ListBase *constraints)
 {
-	OperationKey constraint_op_key(id, constraint_op_type, DEPSNODE_OP_NAME_CONSTRAINT_STACK);
+	OperationKey constraint_op_key(id, constraint_op_type, deg_op_name_constraint_stack);
 	
 	/* add dependencies for each constraint in turn */
 	for (bConstraint *con = (bConstraint *)constraints->first; con; con = con->next) {
@@ -788,7 +872,79 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 
 void DepsgraphRelationBuilder::build_animdata(IDPtr id)
 {
+	AnimData *adt = BKE_animdata_from_id(id);
+	if (!adt)
+		return;
 	
+	ComponentKey adt_key(id, DEPSNODE_TYPE_ANIMATION);
+	
+	/* animation */
+	if (adt->action || adt->nla_tracks.first) {
+		/* wire up dependency to time source */
+		TimeSourceKey time_src_key;
+		add_relation(time_src_key, adt_key, DEPSREL_TYPE_TIME, "[TimeSrc -> Animation] DepsRel");
+		
+		// XXX: Hook up specific update callbacks for special properties which may need it...
+	}
+	
+	/* drivers */
+	for (FCurve *fcurve = (FCurve *)adt->drivers.first; fcurve; fcurve = fcurve->next) {
+		OperationKey driver_key(id, DEPSNODE_TYPE_OP_DRIVER, deg_op_name_driver(fcurve->driver));
+		
+		/* hook up update callback associated with F-Curve */
+		// ...
+		
+		/* prevent driver from occurring before own animation... */
+		// NOTE: probably not strictly needed (anim before parameters anyway)...
+		add_relation(adt_key, driver_key, DEPSREL_TYPE_OPERATION, 
+		             "[AnimData Before Drivers] DepsRel");
+		
+		build_driver(id, fcurve);
+	}
+}
+
+void DepsgraphRelationBuilder::build_driver(IDPtr id, FCurve *fcurve)
+{
+	ChannelDriver *driver = fcurve->driver;
+	OperationKey driver_key(id, DEPSNODE_TYPE_OP_DRIVER, deg_op_name_driver(driver));
+	
+	/* create dependency between driver and data affected by it */
+	// XXX: this should return a parameter context for dealing with this...
+	RNAPathKey affected_key(id, fcurve->rna_path);
+	/* make data dependent on driver */
+	add_relation(driver_key, affected_key, DEPSREL_TYPE_DRIVER, "[Driver -> Data] DepsRel");
+	
+	/* ensure that affected prop's update callbacks will be triggered once done */
+	// TODO: implement this once the functionality to add these links exists in RNA
+	// XXX: the data itself could also set this, if it were to be truly initialised later?
+	
+	/* loop over variables to get the target relationships */
+	for (DriverVar *dvar = (DriverVar *)driver->variables.first; dvar; dvar = dvar->next) {
+		/* only used targets */
+		DRIVER_TARGETS_USED_LOOPER(dvar) 
+		{
+			if (!dtar->id)
+				continue;
+			
+			/* special handling for directly-named bones */
+			if ((dtar->flag & DTAR_FLAG_STRUCT_REF) && (dtar->pchan_name[0])) {
+				Object *ob = (Object *)dtar->id;
+				bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
+				
+				/* get node associated with bone */
+				ComponentKey target_key(dtar->id, DEPSNODE_TYPE_BONE, pchan->name);
+				add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
+				             "[Target -> Driver] DepsRel");
+			}
+			else {
+				/* resolve path to get node */
+				RNAPathKey target_key(dtar->id, dtar->rna_path);
+				add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
+				             "[Target -> Driver] DepsRel");
+			}
+		}
+		DRIVER_TARGETS_LOOPER_END
+	}
 }
 
 void DepsgraphRelationBuilder::build_world(Scene *scene, World *world)

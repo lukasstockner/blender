@@ -33,6 +33,10 @@
 #ifndef __DEPSGRAPH_TYPES_H__
 #define __DEPSGRAPH_TYPES_H__
 
+#include "depsgraph_util_string.h"
+
+struct ChannelDriver;
+
 /* Evaluation Operation for atomic operation 
  * < context: (ComponentEvalContext) context containing data necessary for performing this operation
  *            Results can generally be written to the context directly...
@@ -97,7 +101,8 @@ typedef enum eDepsNode_Type {
 /* XXX this needs to be revisited, probably operation types could be
  * combined in a concise struct with name+callback+eDepsOperation_Type
  */
-extern const char *DEPSNODE_OP_NAME_CONSTRAINT_STACK;
+extern const string deg_op_name_constraint_stack;
+string deg_op_name_driver(const ChannelDriver *driver);
 
 /* Type of operation */
 typedef enum eDepsOperation_Type {

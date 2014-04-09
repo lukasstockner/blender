@@ -30,12 +30,14 @@
 #include "depsgraph_types.h"
 
 #include "depsgraph_util_id.h"
+#include "depsgraph_util_rna.h"
 #include "depsgraph_util_string.h"
 
 struct ListBase;
 struct ID;
-struct Main;
+struct FCurve;
 struct Group;
+struct Main;
 struct Object;
 struct Scene;
 struct World;
@@ -57,7 +59,8 @@ struct DepsgraphNodeBuilder {
 	TimeSourceDepsNode *add_time_source(IDPtr id);
 	ComponentDepsNode *add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &subdata = "");
 	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node, eDepsNode_Type type,
-	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
+	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description,
+	                                      PointerRNA ptr);
 	
 	IDDepsNode *build_scene(Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
@@ -65,7 +68,8 @@ struct DepsgraphNodeBuilder {
 	ComponentDepsNode *build_object_transform(Object *ob, IDDepsNode *ob_node);
 	void build_constraints(ComponentDepsNode *comp_node, eDepsNode_Type constraint_op_type);
 	void build_rigidbody(Scene *scene);
-	void build_animdata(IDPtr id);
+	void build_animdata(IDDepsNode *id_node);
+	OperationDepsNode *build_driver(ComponentDepsNode *adt_node, FCurve *fcurve);
 	void build_world(Scene *scene, World *world);
 	void build_compositor(Scene *scene);
 	
@@ -76,6 +80,12 @@ private:
 
 struct RootKey
 {
+};
+
+struct TimeSourceKey
+{
+	TimeSourceKey(IDPtr id = NULL) : id(id) {}
+	IDPtr id;
 };
 
 struct IDKey
@@ -100,6 +110,15 @@ struct OperationKey
 	string name;
 };
 
+struct RNAPathKey
+{
+	RNAPathKey(IDPtr id, const string &path);
+	RNAPathKey(IDPtr id, const PointerRNA &ptr, PropertyRNA *prop);
+	IDPtr id;
+	PointerRNA ptr;
+	PropertyRNA *prop;
+};
+
 struct DepsgraphRelationBuilder {
 	DepsgraphRelationBuilder(Depsgraph *graph);
 	
@@ -113,14 +132,17 @@ struct DepsgraphRelationBuilder {
 	void build_constraints(Scene *scene, IDPtr id, eDepsNode_Type constraint_op_type, ListBase *constraints);
 	void build_rigidbody(Scene *scene);
 	void build_animdata(IDPtr id);
+	void build_driver(IDPtr id, FCurve *fcurve);
 	void build_world(Scene *scene, World *world);
 	void build_compositor(Scene *scene);
 	
 protected:
 	RootDepsNode *find_node(const RootKey &key) const;
+	TimeSourceDepsNode *find_node(const TimeSourceKey &key) const;
 	IDDepsNode *find_node(const IDKey &key) const;
 	ComponentDepsNode *find_node(const ComponentKey &key) const;
 	OperationDepsNode *find_node(const OperationKey &key) const;
+	DepsNode *find_node(const RNAPathKey &key) const;
 	
 	void add_node_relation(DepsNode *node_from, DepsNode *node_to,
 	                  eDepsRelation_Type type, const string &description);
