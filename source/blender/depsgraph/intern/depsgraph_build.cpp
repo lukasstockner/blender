@@ -339,6 +339,9 @@ IDDepsNode *DepsgraphNodeBuilder::build_object(Object *ob)
 	ComponentDepsNode *params_node = add_component_node(ob_node, DEPSNODE_TYPE_OP_PARAMETER);
 	ComponentDepsNode *trans_node = build_object_transform(ob, ob_node);
 	
+	/* AnimData */
+	build_animdata(ob_node);
+	
 	/* object parent */
 	if (ob->parent) {
 		add_operation_node(trans_node, DEPSNODE_TYPE_OP_TRANSFORM, 
@@ -351,18 +354,12 @@ IDDepsNode *DepsgraphNodeBuilder::build_object(Object *ob)
 		build_constraints(trans_node, DEPSNODE_TYPE_OP_TRANSFORM);
 	}
 	
-#if 0
 	/* object data */
 	if (ob->data) {
 		ID *obdata_id = (ID *)ob->data;
-		AnimData *data_adt;
+		IDDepsNode *obdata_node = NULL;
 		
-		/* ob data animation */
-		data_adt = BKE_animdata_from_id(obdata_id);
-		if (data_adt) {
-			deg_build_animdata_graph(graph, scene, obdata_id);
-		}
-		
+#if 0
 		/* type-specific data... */
 		switch (ob->type) {
 			case OB_MESH:     /* Geometry */
@@ -390,16 +387,18 @@ IDDepsNode *DepsgraphNodeBuilder::build_object(Object *ob)
 				deg_build_camera_graph(graph, scene, ob);
 				break;
 		}
+#endif
+		
+		if (obdata_node) {
+			/* ob data animation */
+			build_animdata(obdata_node);
+		}
 	}
 	
+#if 0
 	/* particle systems */
 	if (ob->particlesystem.first) {
 		deg_build_particles_graph(graph, scene, ob);
-	}
-	
-	/* AnimData */
-	if (ob->adt) {
-		deg_build_animdata_graph(graph, scene, &ob->id);
 	}
 #endif
 	
@@ -648,23 +647,22 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	if (ob->parent)
 		build_object_parent(ob);
 	
+	/* AnimData */
+	build_animdata(ob);
+	
 	/* object constraints */
 	if (ob->constraints.first) {
 		build_constraints(scene, ob, DEPSNODE_TYPE_OP_TRANSFORM, &ob->constraints);
 	}
 	
-#if 0
 	/* object data */
 	if (ob->data) {
 		ID *obdata_id = (ID *)ob->data;
-		AnimData *data_adt;
 		
 		/* ob data animation */
-		data_adt = BKE_animdata_from_id(obdata_id);
-		if (data_adt) {
-			deg_build_animdata_graph(graph, scene, obdata_id);
-		}
+		build_animdata(obdata_id);
 		
+#if 0
 		/* type-specific data... */
 		switch (ob->type) {
 			case OB_MESH:     /* Geometry */
@@ -692,20 +690,14 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 				deg_build_camera_graph(graph, scene, ob);
 				break;
 		}
+#endif
 	}
 	
+#if 0
 	/* particle systems */
 	if (ob->particlesystem.first) {
 		deg_build_particles_graph(graph, scene, ob);
 	}
-	
-	/* AnimData */
-	if (ob->adt) {
-		deg_build_animdata_graph(graph, scene, &ob->id);
-	}
-	
-	/* return object node... */
-	return ob_node;
 #endif
 }
 
