@@ -494,40 +494,6 @@ void DepsgraphNodeBuilder::build_ik_pose(ComponentDepsNode *bone_node, Object *o
 	add_operation_node(bone_node, DEPSNODE_TYPE_OP_POSE,
 	                   DEPSOP_TYPE_SIM, BKE_pose_iktree_evaluate, 
 	                   deg_op_name_ik_solver, make_rna_pointer(ob, &RNA_PoseBone, rootchan));
-	
-#if 0
-	/* attach owner to IK Solver too 
-	 * - assume that owner is always part of chain 
-	 * - see notes on direction of rel below...
-	 */
-	graph->add_new_relation(owner_node, solver_node, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
-	
-	
-	/* exclude tip from chain? */
-	if ((data->flag & CONSTRAINT_IK_TIP) == 0)
-		parchan = pchan->parent;
-	else
-		parchan = pchan;
-	
-	/* Walk to the chain's root */
-	while (parchan) {
-		/* Make IK-solver dependent on this bone's result,
-		 * since it can only run after the standard results 
-		 * of the bone are know. Validate links step on the 
-		 * bone will ensure that users of this bone only
-		 * grab the result with IK solver results...
-		 */
-		DepsNode *parchan_node = graph->get_node(&ob->id, parchan->name, DEPSNODE_TYPE_BONE, NULL);
-		graph->add_new_relation(parchan_node, solver_node, DEPSREL_TYPE_TRANSFORM, "IK Solver Update");
-		
-		/* continue up chain, until we reach target number of items... */
-		segcount++;
-		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
-		
-		rootchan = parchan;
-		parchan  = parchan->parent;
-	}
-#endif
 }
 
 /* Spline IK Eval Steps */
@@ -553,45 +519,6 @@ void DepsgraphNodeBuilder::build_splineik_pose(ComponentDepsNode *bone_node, Obj
 	                   DEPSOP_TYPE_SIM, BKE_pose_splineik_evaluate, deg_op_name_spline_ik_solver,
 	                   make_rna_pointer(ob, &RNA_PoseBone, rootchan));
 	// XXX: what sort of ID-data is needed?
-	
-#if 0
-	DepsNode *curve_node;
-	
-	/* component for spline-path geometry that this uses */
-	// XXX: target may not exist!
-	curve_node = graph->get_node((ID *)data->tar, NULL, DEPSNODE_TYPE_GEOMETRY, "Path");
-	
-	/* attach owner to IK Solver too 
-	 * - assume that owner is always part of chain 
-	 * - see notes on direction of rel below...
-	 */
-	graph->add_new_relation(owner_node, solver_node, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Owner");
-	
-	/* attach path dependency to solver */
-	graph->add_new_relation(curve_node, solver_node, DEPSREL_TYPE_GEOMETRY_EVAL, "[Curve.Path -> Spline IK] DepsRel");
-	
-	/* --------------- */
-	
-	/* Walk to the chain's root */
-	bPoseChannel *rootchan = pchan;
-	for (bPoseChannel *parchan = pchan->parent;
-	     parchan;
-	     rootchan = parchan,  parchan = parchan->parent)
-	{
-		/* Make Spline IK solver dependent on this bone's result,
-		 * since it can only run after the standard results 
-		 * of the bone are know. Validate links step on the 
-		 * bone will ensure that users of this bone only
-		 * grab the result with IK solver results...
-		 */
-		DepsNode *parchan_node = graph->get_node(&ob->id, parchan->name, DEPSNODE_TYPE_BONE, NULL);
-		graph->add_new_relation(parchan_node, solver_node, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
-		
-		/* continue up chain, until we reach target number of items... */
-		segcount++;
-		if ((segcount == data->chainlen) || (segcount > 255)) break;  /* 255 is weak */
-	}
-#endif
 }
 
 /* Pose/Armature Bones Graph */
@@ -646,14 +573,6 @@ void DepsgraphNodeBuilder::build_rig(IDDepsNode *ob_node, Object *ob)
 		add_operation_node(bone_node, DEPSNODE_TYPE_OP_BONE, 
 		                   DEPSOP_TYPE_EXEC, BKE_pose_eval_bone,
 		                   "Bone Transforms", make_rna_pointer(ob, &RNA_PoseBone, pchan));
-		
-#if 0
-		/* bone parent */
-		if (pchan->parent) {
-			DepsNode *par_bone = graph->get_node(&ob->id, pchan->parent->name, DEPSNODE_TYPE_BONE, NULL);
-			graph->add_new_relation(par_bone, bone_node, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
-		}
-#endif
 		
 		/* constraints */
 		build_constraints(bone_node, DEPSNODE_TYPE_OP_BONE);
