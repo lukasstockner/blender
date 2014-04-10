@@ -71,7 +71,7 @@ struct DepsgraphNodeBuilder {
 	IDDepsNode *build_object(Object *ob);
 	ComponentDepsNode *build_object_transform(Object *ob, IDDepsNode *ob_node);
 	void build_constraints(ComponentDepsNode *comp_node, eDepsNode_Type constraint_op_type);
-	void build_rigidbody(Scene *scene);
+	void build_rigidbody(IDDepsNode *scene_node, Scene *scene);
 	void build_animdata(IDDepsNode *id_node);
 	OperationDepsNode *build_driver(ComponentDepsNode *adt_node, FCurve *fcurve);
 	void build_nodetree(DepsNode *owner_node, bNodeTree *ntree);

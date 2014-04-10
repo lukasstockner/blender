@@ -152,7 +152,7 @@ IDDepsNode *DepsgraphNodeBuilder::build_scene(Scene *scene)
 	
 	/* rigidbody */
 	if (scene->rigidbody_world) {
-		build_rigidbody(scene);
+		build_rigidbody(scene_node, scene);
 	}
 	
 	/* scene's animation and drivers */
@@ -197,7 +197,7 @@ IDDepsNode *DepsgraphNodeBuilder::build_object(Object *ob)
 	if (ob->parent) {
 		add_operation_node(trans_node, DEPSNODE_TYPE_OP_TRANSFORM, 
 		                   DEPSOP_TYPE_EXEC, BKE_object_eval_parent,
-		                   "BKE_object_eval_parent", make_rna_id_pointer(ob));
+		                   deg_op_name_object_parent, make_rna_id_pointer(ob));
 	}
 	
 	/* object constraints */
@@ -265,7 +265,7 @@ ComponentDepsNode *DepsgraphNodeBuilder::build_object_transform(Object *ob, IDDe
 	/* init operation */
 	add_operation_node(trans_node, DEPSNODE_TYPE_OP_TRANSFORM,
 	                   DEPSOP_TYPE_INIT, BKE_object_eval_local_transform,
-	                   "BKE_object_eval_local_transform", make_rna_id_pointer(ob));
+	                   deg_op_name_object_local_transform, make_rna_id_pointer(ob));
 	
 	/* return component created */
 	return trans_node;
@@ -293,11 +293,6 @@ void DepsgraphNodeBuilder::build_constraints(ComponentDepsNode *comp_node, eDeps
 	add_operation_node(comp_node, constraint_op_type, 
 	                   DEPSOP_TYPE_EXEC, BKE_constraints_evaluate,
 	                   deg_op_name_constraint_stack, make_rna_id_pointer(comp_node->owner->id));
-}
-
-void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
-{
-	
 }
 
 /* Build graph nodes for AnimData block 
@@ -379,6 +374,63 @@ void DepsgraphNodeBuilder::build_world(World *world)
 	}
 
 	id_tag_clear(world);
+}
+
+/* Rigidbody Simulation - Scene Level */
+void DepsgraphNodeBuilder::build_rigidbody(IDDepsNode *scene_node, Scene *scene)
+{
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+	OperationDepsNode *init_node;
+	OperationDepsNode *sim_node; // XXX: what happens if we need to split into several groups?
+	
+	/* == Rigidbody Simulation Nodes == 
+	 * There are 3 nodes related to Rigidbody Simulation:
+	 * 1) "Initialise/Rebuild World" - this is called sparingly, only when the simulation
+	 *    needs to be rebuilt (mainly after file reload, or moving back to start frame)
+	 * 2) "Do Simulation" - perform a simulation step - interleaved between the evaluation
+	 *    steps for clusters of objects (i.e. between those affected and/or not affected by
+	 *    the sim for instance)
+	 *
+	 * 3) "Pull Results" - grab the specific transforms applied for a specific object -
+	 *    performed as part of object's transform-stack building
+	 */
+	
+	/* create nodes ------------------------------------------------------------------------ */
+	/* XXX this needs to be reviewed! */
+	ComponentDepsNode *scene_trans = scene_node->find_component(DEPSNODE_TYPE_TRANSFORM);
+	
+	/* init/rebuild operation */
+	init_node = add_operation_node(scene_trans, DEPSNODE_TYPE_OP_RIGIDBODY,
+	                               DEPSOP_TYPE_REBUILD, BKE_rigidbody_rebuild_sim,
+	                               deg_op_name_rigidbody_world_rebuild, PointerRNA_NULL);
+	
+	/* do-sim operation */
+	sim_node = add_operation_node(scene_trans, DEPSNODE_TYPE_OP_RIGIDBODY,
+	                              DEPSOP_TYPE_SIM, BKE_rigidbody_eval_simulation,
+	                              deg_op_name_rigidbody_world_simulate, PointerRNA_NULL);
+	
+	/* objects - simulation participants */
+	if (rbw->group) {
+		for (GroupObject *go = (GroupObject *)rbw->group->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			
+			if (!ob || ob->type != OB_MESH)
+				continue;
+			
+			/* object's transform component - where the rigidbody operation lives
+			 * NOTE: since we're doing this step after all objects have been built,
+			 *       we can safely assume that all necessary ops we have to play with
+			 *       already exist
+			 */
+			IDDepsNode *ob_node = m_graph->find_id_node(&ob->id);
+			ComponentDepsNode *tcomp = ob_node->find_component(DEPSNODE_TYPE_TRANSFORM);
+			
+			/* 2) create operation for flushing results */
+			add_operation_node(tcomp, DEPSNODE_TYPE_OP_TRANSFORM,
+			                   DEPSOP_TYPE_EXEC, BKE_rigidbody_object_sync_transforms, /* xxx: function name */
+			                   deg_op_name_rigidbody_object_sync, PointerRNA_NULL);
+		}
+	}
 }
 
 void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree)

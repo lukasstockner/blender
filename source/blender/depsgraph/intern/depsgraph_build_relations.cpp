@@ -367,7 +367,76 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, IDPtr id, eDepsNo
 
 void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 {
+	RigidBodyWorld *rbw = scene->rigidbody_world;
 	
+	OperationKey init_key(scene, DEPSNODE_TYPE_OP_RIGIDBODY, deg_op_name_rigidbody_world_rebuild);
+	OperationKey sim_key(scene, DEPSNODE_TYPE_OP_RIGIDBODY, deg_op_name_rigidbody_world_simulate);
+	
+	/* rel between the two sim-nodes */
+	add_relation(init_key, sim_key, DEPSREL_TYPE_OPERATION, "Rigidbody [Init -> SimStep]");
+	
+	/* set up dependencies between these operations and other builtin nodes --------------- */	
+	
+	/* time dependency */
+	TimeSourceKey time_src_key;
+	add_relation(time_src_key, init_key, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Reset/Rebuild (Optional)");
+	add_relation(time_src_key, sim_key, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Sim Step");
+	
+	/* objects - simulation participants */
+	if (rbw->group) {
+		for (GroupObject *go = (GroupObject *)rbw->group->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			if (!ob || ob->type != OB_MESH)
+				continue;
+			
+			/* hook up evaluation order... 
+			 * 1) flushing rigidbody results follows base transforms being applied
+			 * 2) rigidbody flushing can only be performed after simulation has been run
+			 *
+			 * 3) simulation needs to know base transforms to figure out what to do
+			 *    XXX: there's probably a difference between passive and active 
+			 *         - passive don't change, so may need to know full transform...
+			 */
+			OperationKey rbo_key(ob, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
+			
+			const string &trans_op_name = ob->parent ? deg_op_name_object_parent : deg_op_name_object_local_transform;
+			OperationKey trans_op(ob, DEPSNODE_TYPE_OP_TRANSFORM, trans_op_name);
+			
+			add_relation(trans_op, rbo_key, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
+			add_relation(sim_key, rbo_key, DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
+			
+			OperationKey constraint_key(ob, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_constraint_stack);
+			add_relation(rbo_key, constraint_key, DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Ob Constraints");
+			
+			/* needed to get correct base values */
+			add_relation(trans_op, sim_key, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval");
+		}
+	}
+	
+	/* constraints */
+	if (rbw->constraints) {
+		for (GroupObject *go = (GroupObject *)rbw->constraints->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			if (!ob || !ob->rigidbody_constraint)
+				continue;
+			
+			RigidBodyCon *rbc = ob->rigidbody_constraint;
+			
+			/* final result of the constraint object's transform controls how the
+			 * constraint affects the physics sim for these objects 
+			 */
+			ComponentKey trans_key(ob, DEPSNODE_TYPE_TRANSFORM);
+			OperationKey ob1_key(rbc->ob1, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
+			OperationKey ob2_key(rbc->ob2, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
+			
+			/* - constrained-objects sync depends on the constraint-holder */
+			add_relation(trans_key, ob1_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_1");
+			add_relation(trans_key, ob2_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_2");
+			
+			/* - ensure that sim depends on this constraint's transform */
+			add_relation(trans_key, sim_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint Transform -> RB Simulation");
+		}
+	}
 }
 
 void DepsgraphRelationBuilder::build_animdata(IDPtr id)

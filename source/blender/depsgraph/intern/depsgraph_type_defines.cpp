@@ -86,7 +86,12 @@ void BKE_curve_eval_geometry(void *context, void *item) {}
 void BKE_curve_eval_path(void *context, void *item) {}
 void BKE_lattice_eval_geometry(void *context, void *item) {}
 
+const string deg_op_name_object_parent = "BKE_object_eval_parent";
+const string deg_op_name_object_local_transform = "BKE_object_eval_local_transform";
 const string deg_op_name_constraint_stack = "Constraint Stack";
+const string deg_op_name_rigidbody_world_rebuild = "Rigidbody World Rebuild";
+const string deg_op_name_rigidbody_world_simulate = "Rigidbody World Do Simulation";
+const string deg_op_name_rigidbody_object_sync = "RigidBodyObject Sync";
 string deg_op_name_driver(const ChannelDriver *driver)
 {
 	return string_format("Driver @ %p", driver);

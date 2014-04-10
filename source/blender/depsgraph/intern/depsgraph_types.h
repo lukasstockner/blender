@@ -101,7 +101,12 @@ typedef enum eDepsNode_Type {
 /* XXX this needs to be revisited, probably operation types could be
  * combined in a concise struct with name+callback+eDepsOperation_Type
  */
+extern const string deg_op_name_object_parent;
+extern const string deg_op_name_object_local_transform;
 extern const string deg_op_name_constraint_stack;
+extern const string deg_op_name_rigidbody_world_rebuild;
+extern const string deg_op_name_rigidbody_world_simulate;
+extern const string deg_op_name_rigidbody_object_sync;
 string deg_op_name_driver(const ChannelDriver *driver);
 
 /* Type of operation */
