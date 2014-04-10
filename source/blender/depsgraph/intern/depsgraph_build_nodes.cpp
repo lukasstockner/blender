@@ -246,12 +246,10 @@ IDDepsNode *DepsgraphNodeBuilder::build_object(Object *ob)
 		}
 	}
 	
-#if 0
 	/* particle systems */
 	if (ob->particlesystem.first) {
-		deg_build_particles_graph(graph, scene, ob);
+		build_particles(ob_node, ob);
 	}
-#endif
 	
 	/* return object node... */
 	return ob_node;
@@ -431,6 +429,42 @@ void DepsgraphNodeBuilder::build_rigidbody(IDDepsNode *scene_node, Scene *scene)
 			                   deg_op_name_rigidbody_object_sync, PointerRNA_NULL);
 		}
 	}
+}
+
+void DepsgraphNodeBuilder::build_particles(IDDepsNode *ob_node, Object *ob)
+{
+	/* == Particle Systems Nodes ==
+	 * There are two types of nodes associated with representing
+	 * particle systems:
+	 *  1) Component (EVAL_PARTICLES) - This is the particle-system
+	 *     evaluation context for an object. It acts as the container
+	 *     for all the nodes associated with a particular set of particle
+	 *     systems.
+	 *  2) Particle System Eval Operation - This operation node acts as a
+	 *     blackbox evaluation step for one particle system referenced by
+	 *     the particle systems stack. All dependencies link to this operation.
+	 */
+	
+	/* component for all particle systems */
+	ComponentDepsNode *psys_comp = add_component_node(ob_node, DEPSNODE_TYPE_EVAL_PARTICLES);
+	
+	/* particle systems */
+	for (ParticleSystem *psys = (ParticleSystem *)ob->particlesystem.first; psys; psys = psys->next) {
+		ParticleSettings *part = psys->part;
+		
+		/* particle settings */
+		// XXX: what if this is used more than once!
+		IDDepsNode *part_node = add_id_node(part);
+		build_animdata(part_node);
+		
+		/* this particle system */
+		add_operation_node(psys_comp, DEPSNODE_TYPE_OP_PARTICLE,
+		                   DEPSOP_TYPE_EXEC, BKE_particle_system_eval, 
+		                   deg_op_name_psys_eval, PointerRNA_NULL);
+	}
+	
+	/* pointcache */
+	// TODO...
 }
 
 /* IK Solver Eval Steps */

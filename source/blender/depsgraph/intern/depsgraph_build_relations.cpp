@@ -201,12 +201,10 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 #endif
 	}
 	
-#if 0
 	/* particle systems */
 	if (ob->particlesystem.first) {
-		deg_build_particles_graph(graph, scene, ob);
+		build_particles(scene, ob);
 	}
-#endif
 }
 
 void DepsgraphRelationBuilder::build_object_parent(Object *ob)
@@ -537,6 +535,93 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 			add_relation(trans_key, sim_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint Transform -> RB Simulation");
 		}
 	}
+}
+
+void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
+{
+	/* particle systems */
+	for (ParticleSystem *psys = (ParticleSystem *)ob->particlesystem.first; psys; psys = psys->next) {
+		ParticleSettings *part = psys->part;
+		
+		/* particle settings */
+		build_animdata(part);
+		
+		/* this particle system */
+		OperationKey psys_key(ob, DEPSNODE_TYPE_OP_PARTICLE, deg_op_name_psys_eval);
+		
+		/* XXX: if particle system is later re-enabled, we must do full rebuild? */
+		if (!psys_check_enabled(ob, psys))
+			continue;
+		
+#if 0
+		if (ELEM(part->phystype, PART_PHYS_KEYED, PART_PHYS_BOIDS)) {
+			ParticleTarget *pt;
+
+			for (pt = psys->targets.first; pt; pt = pt->next) {
+				if (pt->ob && BLI_findlink(&pt->ob->particlesystem, pt->psys - 1)) {
+					node2 = dag_get_node(dag, pt->ob);
+					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Particle Targets");
+				}
+			}
+		}
+		
+		if (part->ren_as == PART_DRAW_OB && part->dup_ob) {
+			node2 = dag_get_node(dag, part->dup_ob);
+			/* note that this relation actually runs in the wrong direction, the problem
+			 * is that dupli system all have this (due to parenting), and the render
+			 * engine instancing assumes particular ordering of objects in list */
+			dag_add_relation(dag, node, node2, DAG_RL_OB_OB, "Particle Object Visualization");
+			if (part->dup_ob->type == OB_MBALL)
+				dag_add_relation(dag, node, node2, DAG_RL_DATA_DATA, "Particle Object Visualization");
+		}
+		
+		if (part->ren_as == PART_DRAW_GR && part->dup_group) {
+			for (go = part->dup_group->gobject.first; go; go = go->next) {
+				node2 = dag_get_node(dag, go->ob);
+				dag_add_relation(dag, node2, node, DAG_RL_OB_OB, "Particle Group Visualization");
+			}
+		}
+#endif
+		
+		/* effectors */
+		ListBase *effectors = pdInitEffectors(scene, ob, psys, part->effector_weights, false);
+		
+		if (effectors) {
+			for (EffectorCache *eff = (EffectorCache *)effectors->first; eff; eff = eff->next) {
+				if (eff->psys) {
+					// XXX: DAG_RL_DATA_DATA | DAG_RL_OB_DATA
+					ComponentKey eff_key(eff->ob, DEPSNODE_TYPE_GEOMETRY); // xxx: particles instead?
+					add_relation(eff_key, psys_key, DEPSREL_TYPE_STANDARD, "Particle Field");
+				}
+			}
+		}
+		
+		pdEndEffectors(&effectors);
+		
+		/* boids */
+		if (part->boids) {
+			BoidRule *rule = NULL;
+			BoidState *state = NULL;
+			
+			for (state = (BoidState *)part->boids->states.first; state; state = state->next) {
+				for (rule = (BoidRule *)state->rules.first; rule; rule = rule->next) {
+					Object *ruleob = NULL;
+					if (rule->type == eBoidRuleType_Avoid)
+						ruleob = ((BoidRuleGoalAvoid *)rule)->ob;
+					else if (rule->type == eBoidRuleType_FollowLeader)
+						ruleob = ((BoidRuleFollowLeader *)rule)->ob;
+
+					if (ruleob) {
+						ComponentKey ruleob_key(ruleob, DEPSNODE_TYPE_TRANSFORM);
+						add_relation(ruleob_key, psys_key, DEPSREL_TYPE_TRANSFORM, "Boid Rule");
+					}
+				}
+			}
+		}
+	}
+	
+	/* pointcache */
+	// TODO...
 }
 
 /* IK Solver Eval Steps */
