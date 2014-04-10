@@ -71,9 +71,6 @@ typedef enum {
 
 #define MAX_GPU_ATTRIB_DATA 32
 
-/* material number is an 16-bit signed short and the range (assume material number is non-negative) */
-#define MAX_MATERIALS MAXMAT
-
 /* -1 - undefined, 0 - vertex arrays, 1 - VBOs */
 static int useVBOs = -1;
 static GPUBufferState GLStates = 0;
@@ -118,10 +115,10 @@ static GPUBufferPool *gpu_buffer_pool_new(void)
 
 	pool->maxsize = MAX_FREE_GPU_BUFFERS;
 	pool->maxpbvhsize = MAX_FREE_GPU_BUFF_IDS;
-	pool->buffers = MEM_callocN(sizeof(*pool->buffers) * pool->maxsize,
-								"GPUBufferPool.buffers");
-	pool->pbvhbufids = MEM_callocN(sizeof(*pool->pbvhbufids) * pool->maxpbvhsize,
-								"GPUBufferPool.pbvhbuffers");
+	pool->buffers = MEM_mallocN(sizeof(*pool->buffers) * pool->maxsize,
+	                            "GPUBufferPool.buffers");
+	pool->pbvhbufids = MEM_mallocN(sizeof(*pool->pbvhbufids) * pool->maxpbvhsize,
+	                               "GPUBufferPool.pbvhbuffers");
 	return pool;
 }
 
@@ -380,14 +377,22 @@ void GPU_buffer_free(GPUBuffer *buffer)
 	BLI_mutex_unlock(&buffer_mutex);
 }
 
+/* currently unused */
+// #define USE_GPU_POINT_LINK
+
 typedef struct GPUVertPointLink {
+#ifdef USE_GPU_POINT_LINK
 	struct GPUVertPointLink *next;
+#endif
 	/* -1 means uninitialized */
 	int point_index;
 } GPUVertPointLink;
 
+
 /* add a new point to the list of points related to a particular
  * vertex */
+#ifdef USE_GPU_POINT_LINK
+
 static void gpu_drawobject_add_vert_point(GPUDrawObject *gdo, int vert_index, int point_index)
 {
 	GPUVertPointLink *lnk;
@@ -407,6 +412,19 @@ static void gpu_drawobject_add_vert_point(GPUDrawObject *gdo, int vert_index, in
 	lnk->point_index = point_index;
 }
 
+#else
+
+static void gpu_drawobject_add_vert_point(GPUDrawObject *gdo, int vert_index, int point_index)
+{
+	GPUVertPointLink *lnk;
+	lnk = &gdo->vert_points[vert_index];
+	if (lnk->point_index == -1) {
+		lnk->point_index = point_index;
+	}
+}
+
+#endif  /* USE_GPU_POINT_LINK */
+
 /* update the vert_points and triangle_to_mface fields with a new
  * triangle */
 static void gpu_drawobject_add_triangle(GPUDrawObject *gdo,
@@ -422,17 +440,21 @@ static void gpu_drawobject_add_triangle(GPUDrawObject *gdo,
 
 /* for each vertex, build a list of points related to it; these lists
  * are stored in an array sized to the number of vertices */
-static void gpu_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int totface)
+static void gpu_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int totface, int totmat)
 {
 	GPUBufferMaterial *mat;
-	int i, mat_orig_to_new[MAX_MATERIALS];
+	int i, *mat_orig_to_new;
 
+	mat_orig_to_new = MEM_callocN(sizeof(*mat_orig_to_new) * totmat,
+	                                             "GPUDrawObject.mat_orig_to_new");
 	/* allocate the array and space for links */
-	gdo->vert_points = MEM_callocN(sizeof(GPUVertPointLink) * gdo->totvert,
+	gdo->vert_points = MEM_mallocN(sizeof(GPUVertPointLink) * gdo->totvert,
 	                               "GPUDrawObject.vert_points");
+#ifdef USE_GPU_POINT_LINK
 	gdo->vert_points_mem = MEM_callocN(sizeof(GPUVertPointLink) * gdo->tot_triangle_point,
 	                                   "GPUDrawObject.vert_points_mem");
 	gdo->vert_points_usage = 0;
+#endif
 
 	/* build a map from the original material indices to the new
 	 * GPUBufferMaterial indices */
@@ -440,8 +462,12 @@ static void gpu_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int to
 		mat_orig_to_new[gdo->materials[i].mat_nr] = i;
 
 	/* -1 indicates the link is not yet used */
-	for (i = 0; i < gdo->totvert; i++)
+	for (i = 0; i < gdo->totvert; i++) {
+#ifdef USE_GPU_POINT_LINK
+		gdo->vert_points[i].link = NULL;
+#endif
 		gdo->vert_points[i].point_index = -1;
+	}
 
 	for (i = 0; i < totface; i++, f++) {
 		mat = &gdo->materials[mat_orig_to_new[f->mat_nr]];
@@ -466,6 +492,8 @@ static void gpu_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int to
 			gdo->tot_loose_point++;
 		}
 	}
+
+	MEM_freeN(mat_orig_to_new);
 }
 
 /* see GPUDrawObject's structure definition for a description of the
@@ -474,15 +502,19 @@ GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm)
 {
 	GPUDrawObject *gdo;
 	MFace *mface;
-	int points_per_mat[MAX_MATERIALS];
+	int totmat = dm->totmat;
+	int *points_per_mat;
 	int i, curmat, curpoint, totface;
+
+	/* object contains at least one material (default included) so zero means uninitialized dm */
+	BLI_assert(totmat != 0);
 
 	mface = dm->getTessFaceArray(dm);
 	totface = dm->getNumTessFaces(dm);
 
 	/* get the number of points used by each material, treating
 	 * each quad as two triangles */
-	memset(points_per_mat, 0, sizeof(int) * MAX_MATERIALS);
+	points_per_mat = MEM_callocN(sizeof(*points_per_mat) * totmat, "GPU_drawobject_new.mat_orig_to_new");
 	for (i = 0; i < totface; i++)
 		points_per_mat[mface[i].mat_nr] += mface[i].v4 ? 6 : 3;
 
@@ -492,7 +524,7 @@ GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm)
 	gdo->totedge = dm->getNumEdges(dm);
 
 	/* count the number of materials used by this DerivedMesh */
-	for (i = 0; i < MAX_MATERIALS; i++) {
+	for (i = 0; i < totmat; i++) {
 		if (points_per_mat[i] > 0)
 			gdo->totmaterial++;
 	}
@@ -502,7 +534,7 @@ GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm)
 	                             "GPUDrawObject.materials");
 
 	/* initialize the materials array */
-	for (i = 0, curmat = 0, curpoint = 0; i < MAX_MATERIALS; i++) {
+	for (i = 0, curmat = 0, curpoint = 0; i < totmat; i++) {
 		if (points_per_mat[i] > 0) {
 			gdo->materials[curmat].start = curpoint;
 			gdo->materials[curmat].totpoint = 0;
@@ -519,7 +551,8 @@ GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm)
 	gdo->triangle_to_mface = MEM_mallocN(sizeof(int) * (gdo->tot_triangle_point / 3),
 	                                     "GPUDrawObject.triangle_to_mface");
 
-	gpu_drawobject_init_vert_points(gdo, mface, totface);
+	gpu_drawobject_init_vert_points(gdo, mface, totface, totmat);
+	MEM_freeN(points_per_mat);
 
 	return gdo;
 }
@@ -534,7 +567,9 @@ void GPU_drawobject_free(DerivedMesh *dm)
 	MEM_freeN(gdo->materials);
 	MEM_freeN(gdo->triangle_to_mface);
 	MEM_freeN(gdo->vert_points);
+#ifdef USE_GPU_POINT_LINK
 	MEM_freeN(gdo->vert_points_mem);
+#endif
 	GPU_buffer_free(gdo->points);
 	GPU_buffer_free(gdo->normals);
 	GPU_buffer_free(gdo->uv);
@@ -556,7 +591,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	GPUBufferPool *pool;
 	GPUBuffer *buffer;
 	float *varray;
-	int mat_orig_to_new[MAX_MATERIALS];
+	int *mat_orig_to_new;
 	int *cur_index_per_mat;
 	int i;
 	int success;
@@ -576,6 +611,8 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 		return NULL;
 	}
 
+	mat_orig_to_new = MEM_mallocN(sizeof(*mat_orig_to_new) * dm->totmat,
+                                  "GPU_buffer_setup.mat_orig_to_new");
 	cur_index_per_mat = MEM_mallocN(sizeof(int) * object->totmaterial,
 	                                "GPU_buffer_setup.cur_index_per_mat");
 	for (i = 0; i < object->totmaterial; i++) {
@@ -648,6 +685,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	}
 
 	MEM_freeN(cur_index_per_mat);
+	MEM_freeN(mat_orig_to_new);
 
 	BLI_mutex_unlock(&buffer_mutex);
 
@@ -2010,15 +2048,15 @@ static int gpu_bmesh_vert_visible_count(GSet *bm_unique_verts,
 }
 
 /* Return the total number of visible faces */
-static int gpu_bmesh_face_visible_count(GHash *bm_faces)
+static int gpu_bmesh_face_visible_count(GSet *bm_faces)
 {
-	GHashIterator gh_iter;
+	GSetIterator gh_iter;
 	int totface = 0;
 
-	GHASH_ITER (gh_iter, bm_faces) {
-		BMFace *f = BLI_ghashIterator_getKey(&gh_iter);
+	GSET_ITER (gh_iter, bm_faces) {
+		BMFace *f = BLI_gsetIterator_getKey(&gh_iter);
 
-		if (!paint_is_bmesh_face_hidden(f))
+		if (!BM_elem_flag_test(f, BM_ELEM_HIDDEN))
 			totface++;
 	}
 
@@ -2029,7 +2067,7 @@ static int gpu_bmesh_face_visible_count(GHash *bm_faces)
  * shading, an element index buffer. */
 void GPU_update_bmesh_pbvh_buffers(GPU_PBVH_Buffers *buffers,
                               BMesh *bm,
-                              GHash *bm_faces,
+                              GSet *bm_faces,
                               GSet *bm_unique_verts,
                               GSet *bm_other_verts,
                               bool show_diffuse_color)
@@ -2075,10 +2113,10 @@ void GPU_update_bmesh_pbvh_buffers(GPU_PBVH_Buffers *buffers,
 		diffuse_color[0] = diffuse_color[1] = diffuse_color[2] = 1.0;
 	else if (show_diffuse_color) {
 		/* due to dynamic nature of dyntopo, only get first material */
-		GHashIterator gh_iter;
+		GSetIterator gs_iter;
 		BMFace *f;
-		BLI_ghashIterator_init(&gh_iter, bm_faces);
-		f = BLI_ghashIterator_getKey(&gh_iter);
+		BLI_gsetIterator_init(&gs_iter, bm_faces);
+		f = BLI_gsetIterator_getKey(&gs_iter);
 		GPU_material_diffuse_get(f->mat_nr + 1, diffuse_color);
 	}
 
@@ -2117,10 +2155,10 @@ void GPU_update_bmesh_pbvh_buffers(GPU_PBVH_Buffers *buffers,
 			maxvert = v_index;
 		}
 		else {
-			GHashIterator gh_iter;
+			GSetIterator gs_iter;
 
-			GHASH_ITER (gh_iter, bm_faces) {
-				BMFace *f = BLI_ghashIterator_getKey(&gh_iter);
+			GSET_ITER (gs_iter, bm_faces) {
+				BMFace *f = BLI_gsetIterator_getKey(&gs_iter);
 
 				BLI_assert(f->len == 3);
 
@@ -2175,10 +2213,10 @@ void GPU_update_bmesh_pbvh_buffers(GPU_PBVH_Buffers *buffers,
 		/* Fill triangle index buffer */
 		tri_data = glMapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
 		if (tri_data) {
-			GHashIterator gh_iter;
+			GSetIterator gs_iter;
 
-			GHASH_ITER (gh_iter, bm_faces) {
-				BMFace *f = BLI_ghashIterator_getKey(&gh_iter);
+			GSET_ITER (gs_iter, bm_faces) {
+				BMFace *f = BLI_gsetIterator_getKey(&gs_iter);
 
 				if (!paint_is_bmesh_face_hidden(f)) {
 					BMLoop *l_iter;
@@ -2529,7 +2567,7 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 	}
 }
 
-bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, GHash *bm_faces, bool show_diffuse_color)
+bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, GSet *bm_faces, bool show_diffuse_color)
 {
 	float diffuse_color[4];
 
@@ -2549,10 +2587,10 @@ bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, GHash *bm_faces
 	}
 	else if (buffers->use_bmesh) {
 		/* due to dynamc nature of dyntopo, only get first material */
-		GHashIterator gh_iter;
+		GSetIterator gs_iter;
 		BMFace *f;
-		BLI_ghashIterator_init(&gh_iter, bm_faces);
-		f = BLI_ghashIterator_getKey(&gh_iter);
+		BLI_gsetIterator_init(&gs_iter, bm_faces);
+		f = BLI_gsetIterator_getKey(&gs_iter);
 		GPU_material_diffuse_get(f->mat_nr + 1, diffuse_color);
 	}
 	else {

@@ -497,9 +497,9 @@ void *MEM_guarded_mallocN(size_t len, const char *str)
 	
 	memh = (MemHead *)malloc(len + sizeof(MemHead) + sizeof(MemTail));
 
-	if (memh) {
+	if (LIKELY(memh)) {
 		make_memhead_header(memh, len, str);
-		if (malloc_debug_memset && len)
+		if (UNLIKELY(malloc_debug_memset && len))
 			memset(memh + 1, 255, len);
 
 #ifdef DEBUG_MEMCOUNTER
@@ -951,7 +951,7 @@ static void rem_memblock(MemHead *memh)
 #endif
 	}
 	else {
-		if (malloc_debug_memset && memh->len)
+		if (UNLIKELY(malloc_debug_memset && memh->len))
 			memset(memh + 1, 255, memh->len);
 		free(memh);
 	}

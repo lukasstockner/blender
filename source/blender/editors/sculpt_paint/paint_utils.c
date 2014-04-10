@@ -84,12 +84,12 @@
 /* Convert the object-space axis-aligned bounding box (expressed as
  * its minimum and maximum corners) into a screen-space rectangle,
  * returns zero if the result is empty */
-int paint_convert_bb_to_rect(rcti *rect,
-                             const float bb_min[3],
-                             const float bb_max[3],
-                             const ARegion *ar,
-                             RegionView3D *rv3d,
-                             Object *ob)
+bool paint_convert_bb_to_rect(rcti *rect,
+                              const float bb_min[3],
+                              const float bb_max[3],
+                              const ARegion *ar,
+                              RegionView3D *rv3d,
+                              Object *ob)
 {
 	float projection_mat[4][4];
 	int i, j, k;
@@ -262,7 +262,7 @@ static void imapaint_tri_weights(Object *ob,
 }
 
 /* compute uv coordinates of mouse in face */
-void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, const int xy[2], float uv[2])
+static void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, const int xy[2], float uv[2])
 {
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 	MTFace *tface = dm->getTessFaceDataArray(dm, CD_MTFACE), *tf;
@@ -334,7 +334,7 @@ void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, const in
 }
 
 /* returns 0 if not found, otherwise 1 */
-int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *index, unsigned int totface)
+static int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *index, unsigned int totface)
 {
 	if (totface == 0)
 		return 0;
@@ -347,7 +347,7 @@ int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *index, 
 	}
 
 	(*index)--;
-	
+
 	return 1;
 }
 
