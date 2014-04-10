@@ -160,7 +160,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	
 	/* object constraints */
 	if (ob->constraints.first) {
-		build_constraints(scene, ob, DEPSNODE_TYPE_OP_TRANSFORM, &ob->constraints);
+		build_constraints(scene, ob, "", DEPSNODE_TYPE_OP_TRANSFORM, &ob->constraints);
 	}
 	
 	/* object data */
@@ -277,10 +277,10 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 	}
 }
 
-void DepsgraphRelationBuilder::build_constraints(Scene *scene, IDPtr id, eDepsNode_Type constraint_op_type,
-                                                 ListBase *constraints)
+void DepsgraphRelationBuilder::build_constraints(Scene *scene, IDPtr id, const string &component_subdata,
+                                                 eDepsNode_Type constraint_op_type, ListBase *constraints)
 {
-	OperationKey constraint_op_key(id, constraint_op_type, deg_op_name_constraint_stack);
+	OperationKey constraint_op_key(id, component_subdata, constraint_op_type, deg_op_name_constraint_stack);
 	
 	/* add dependencies for each constraint in turn */
 	for (bConstraint *con = (bConstraint *)constraints->first; con; con = con->next) {
@@ -361,80 +361,6 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, IDPtr id, eDepsNo
 			
 			if (cti->flush_constraint_targets)
 				cti->flush_constraint_targets(con, &targets, 1);
-		}
-	}
-}
-
-void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
-{
-	RigidBodyWorld *rbw = scene->rigidbody_world;
-	
-	OperationKey init_key(scene, DEPSNODE_TYPE_OP_RIGIDBODY, deg_op_name_rigidbody_world_rebuild);
-	OperationKey sim_key(scene, DEPSNODE_TYPE_OP_RIGIDBODY, deg_op_name_rigidbody_world_simulate);
-	
-	/* rel between the two sim-nodes */
-	add_relation(init_key, sim_key, DEPSREL_TYPE_OPERATION, "Rigidbody [Init -> SimStep]");
-	
-	/* set up dependencies between these operations and other builtin nodes --------------- */	
-	
-	/* time dependency */
-	TimeSourceKey time_src_key;
-	add_relation(time_src_key, init_key, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Reset/Rebuild (Optional)");
-	add_relation(time_src_key, sim_key, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Sim Step");
-	
-	/* objects - simulation participants */
-	if (rbw->group) {
-		for (GroupObject *go = (GroupObject *)rbw->group->gobject.first; go; go = go->next) {
-			Object *ob = go->ob;
-			if (!ob || ob->type != OB_MESH)
-				continue;
-			
-			/* hook up evaluation order... 
-			 * 1) flushing rigidbody results follows base transforms being applied
-			 * 2) rigidbody flushing can only be performed after simulation has been run
-			 *
-			 * 3) simulation needs to know base transforms to figure out what to do
-			 *    XXX: there's probably a difference between passive and active 
-			 *         - passive don't change, so may need to know full transform...
-			 */
-			OperationKey rbo_key(ob, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
-			
-			const string &trans_op_name = ob->parent ? deg_op_name_object_parent : deg_op_name_object_local_transform;
-			OperationKey trans_op(ob, DEPSNODE_TYPE_OP_TRANSFORM, trans_op_name);
-			
-			add_relation(trans_op, rbo_key, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
-			add_relation(sim_key, rbo_key, DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
-			
-			OperationKey constraint_key(ob, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_constraint_stack);
-			add_relation(rbo_key, constraint_key, DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Ob Constraints");
-			
-			/* needed to get correct base values */
-			add_relation(trans_op, sim_key, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval");
-		}
-	}
-	
-	/* constraints */
-	if (rbw->constraints) {
-		for (GroupObject *go = (GroupObject *)rbw->constraints->gobject.first; go; go = go->next) {
-			Object *ob = go->ob;
-			if (!ob || !ob->rigidbody_constraint)
-				continue;
-			
-			RigidBodyCon *rbc = ob->rigidbody_constraint;
-			
-			/* final result of the constraint object's transform controls how the
-			 * constraint affects the physics sim for these objects 
-			 */
-			ComponentKey trans_key(ob, DEPSNODE_TYPE_TRANSFORM);
-			OperationKey ob1_key(rbc->ob1, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
-			OperationKey ob2_key(rbc->ob2, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
-			
-			/* - constrained-objects sync depends on the constraint-holder */
-			add_relation(trans_key, ob1_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_1");
-			add_relation(trans_key, ob2_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_2");
-			
-			/* - ensure that sim depends on this constraint's transform */
-			add_relation(trans_key, sim_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint Transform -> RB Simulation");
 		}
 	}
 }
@@ -537,6 +463,214 @@ void DepsgraphRelationBuilder::build_world(Scene *scene, World *world)
 	build_nodetree(world, world->nodetree);
 
 	id_tag_clear(world);
+}
+
+void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
+{
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+	
+	OperationKey init_key(scene, DEPSNODE_TYPE_OP_RIGIDBODY, deg_op_name_rigidbody_world_rebuild);
+	OperationKey sim_key(scene, DEPSNODE_TYPE_OP_RIGIDBODY, deg_op_name_rigidbody_world_simulate);
+	
+	/* rel between the two sim-nodes */
+	add_relation(init_key, sim_key, DEPSREL_TYPE_OPERATION, "Rigidbody [Init -> SimStep]");
+	
+	/* set up dependencies between these operations and other builtin nodes --------------- */	
+	
+	/* time dependency */
+	TimeSourceKey time_src_key;
+	add_relation(time_src_key, init_key, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Reset/Rebuild (Optional)");
+	add_relation(time_src_key, sim_key, DEPSREL_TYPE_TIME, "TimeSrc -> Rigidbody Sim Step");
+	
+	/* objects - simulation participants */
+	if (rbw->group) {
+		for (GroupObject *go = (GroupObject *)rbw->group->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			if (!ob || ob->type != OB_MESH)
+				continue;
+			
+			/* hook up evaluation order... 
+			 * 1) flushing rigidbody results follows base transforms being applied
+			 * 2) rigidbody flushing can only be performed after simulation has been run
+			 *
+			 * 3) simulation needs to know base transforms to figure out what to do
+			 *    XXX: there's probably a difference between passive and active 
+			 *         - passive don't change, so may need to know full transform...
+			 */
+			OperationKey rbo_key(ob, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
+			
+			const string &trans_op_name = ob->parent ? deg_op_name_object_parent : deg_op_name_object_local_transform;
+			OperationKey trans_op(ob, DEPSNODE_TYPE_OP_TRANSFORM, trans_op_name);
+			
+			add_relation(trans_op, rbo_key, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
+			add_relation(sim_key, rbo_key, DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
+			
+			OperationKey constraint_key(ob, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_constraint_stack);
+			add_relation(rbo_key, constraint_key, DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Ob Constraints");
+			
+			/* needed to get correct base values */
+			add_relation(trans_op, sim_key, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval");
+		}
+	}
+	
+	/* constraints */
+	if (rbw->constraints) {
+		for (GroupObject *go = (GroupObject *)rbw->constraints->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			if (!ob || !ob->rigidbody_constraint)
+				continue;
+			
+			RigidBodyCon *rbc = ob->rigidbody_constraint;
+			
+			/* final result of the constraint object's transform controls how the
+			 * constraint affects the physics sim for these objects 
+			 */
+			ComponentKey trans_key(ob, DEPSNODE_TYPE_TRANSFORM);
+			OperationKey ob1_key(rbc->ob1, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
+			OperationKey ob2_key(rbc->ob2, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
+			
+			/* - constrained-objects sync depends on the constraint-holder */
+			add_relation(trans_key, ob1_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_1");
+			add_relation(trans_key, ob2_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_2");
+			
+			/* - ensure that sim depends on this constraint's transform */
+			add_relation(trans_key, sim_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint Transform -> RB Simulation");
+		}
+	}
+}
+
+/* IK Solver Eval Steps */
+void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con)
+{
+	bKinematicConstraint *data = (bKinematicConstraint *)con->data;
+	
+	/* attach owner to IK Solver too 
+	 * - assume that owner is always part of chain 
+	 * - see notes on direction of rel below...
+	 */
+	ComponentKey bone_key(ob, DEPSNODE_TYPE_BONE, pchan->name);
+	OperationKey solver_key(ob, pchan->name, DEPSNODE_TYPE_OP_POSE, deg_op_name_spline_ik_solver);
+	add_relation(bone_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
+	
+	bPoseChannel *parchan = pchan;
+	/* exclude tip from chain? */
+	if (!(data->flag & CONSTRAINT_IK_TIP))
+		parchan = pchan->parent;
+	
+	/* Walk to the chain's root */
+	bPoseChannel *rootchan = pchan;
+	size_t segcount = 0;
+	while (parchan) {
+		/* Make IK-solver dependent on this bone's result,
+		 * since it can only run after the standard results 
+		 * of the bone are know. Validate links step on the 
+		 * bone will ensure that users of this bone only
+		 * grab the result with IK solver results...
+		 */
+		ComponentKey parent_key(ob, DEPSNODE_TYPE_BONE, parchan->name);
+		add_relation(parent_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Update");
+		
+		/* continue up chain, until we reach target number of items... */
+		segcount++;
+		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
+		
+		rootchan = parchan;
+		parchan  = parchan->parent;
+	}
+}
+
+/* Spline IK Eval Steps */
+void DepsgraphRelationBuilder::build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con)
+{
+	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
+	
+	ComponentKey bone_key(ob, DEPSNODE_TYPE_BONE, pchan->name);
+	OperationKey solver_key(ob, pchan->name, DEPSNODE_TYPE_OP_POSE, deg_op_name_spline_ik_solver);
+	
+	/* attach owner to IK Solver too 
+	 * - assume that owner is always part of chain 
+	 * - see notes on direction of rel below...
+	 */
+	add_relation(bone_key, solver_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Owner");
+	
+	/* attach path dependency to solver */
+	if (data->tar) {
+		ComponentKey curve_path_key(data->tar, DEPSNODE_TYPE_GEOMETRY);
+		add_relation(curve_path_key, solver_key, DEPSREL_TYPE_GEOMETRY_EVAL, "[Curve.Path -> Spline IK] DepsRel");
+	}
+	
+	/* Walk to the chain's root */
+	bPoseChannel *rootchan = pchan;
+	size_t segcount = 0;
+	for (bPoseChannel *parchan = pchan->parent;
+	     parchan;
+	     rootchan = parchan,  parchan = parchan->parent)
+	{
+		/* Make Spline IK solver dependent on this bone's result,
+		 * since it can only run after the standard results 
+		 * of the bone are know. Validate links step on the 
+		 * bone will ensure that users of this bone only
+		 * grab the result with IK solver results...
+		 */
+		ComponentKey parent_key(ob, DEPSNODE_TYPE_BONE, parchan->name);
+		add_relation(parent_key, solver_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
+		
+		/* continue up chain, until we reach target number of items... */
+		segcount++;
+		if ((segcount == data->chainlen) || (segcount > 255)) break;  /* 255 is weak */
+	}
+}
+
+/* Pose/Armature Bones Graph */
+void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
+{
+	bArmature *arm = (bArmature *)ob->data;
+	
+	/* Armature-Data */
+	// TODO: selection status?
+	/* animation and/or drivers linking posebones to base-armature used to define them */
+	// TODO: we need a bit of an exception here to redirect drivers to posebones?
+	build_animdata(arm);
+	
+	/* bones */
+	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+		ComponentKey bone_key(ob, DEPSNODE_TYPE_BONE, pchan->name);
+		
+		/* bone parent */
+		if (pchan->parent) {
+			ComponentKey parent_key(ob, DEPSNODE_TYPE_BONE, pchan->parent->name);
+			add_relation(parent_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+		}
+		
+		/* constraints */
+		build_constraints(scene, ob, pchan->name, DEPSNODE_TYPE_OP_BONE, &pchan->constraints);
+	}
+	
+	/* IK Solvers...
+	 * - These require separate processing steps are pose-level
+	 *   to be executed between chains of bones (i.e. once the
+	 *   base transforms of a bunch of bones is done)
+	 *
+	 * Unsolved Issues:
+	 * - Care is needed to ensure that multi-headed trees work out the same as in ik-tree building
+	 * - Animated chain-lengths are a problem...
+	 */
+	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+		for (bConstraint *con = (bConstraint *)pchan->constraints.first; con; con = con->next) {
+			switch (con->type) {
+				case CONSTRAINT_TYPE_KINEMATIC:
+					build_ik_pose(ob, pchan, con);
+					break;
+					
+				case CONSTRAINT_TYPE_SPLINEIK:
+					build_splineik_pose(ob, pchan, con);
+					break;
+					
+				default:
+					break;
+			}
+		}
+	}
 }
 
 void DepsgraphRelationBuilder::build_nodetree(IDPtr owner, bNodeTree *ntree)

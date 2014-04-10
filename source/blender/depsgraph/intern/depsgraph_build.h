@@ -33,6 +33,7 @@
 #include "depsgraph_util_rna.h"
 #include "depsgraph_util_string.h"
 
+struct bConstraint;
 struct ListBase;
 struct ID;
 struct FCurve;
@@ -42,6 +43,7 @@ struct Material;
 struct MTex;
 struct bNodeTree;
 struct Object;
+struct bPoseChannel;
 struct Scene;
 struct Tex;
 struct World;
@@ -74,6 +76,9 @@ struct DepsgraphNodeBuilder {
 	void build_rigidbody(IDDepsNode *scene_node, Scene *scene);
 	void build_animdata(IDDepsNode *id_node);
 	OperationDepsNode *build_driver(ComponentDepsNode *adt_node, FCurve *fcurve);
+	void build_ik_pose(ComponentDepsNode *bone_node, Object *ob, bPoseChannel *pchan, bConstraint *con);
+	void build_splineik_pose(ComponentDepsNode *bone_node, Object *ob, bPoseChannel *pchan, bConstraint *con);
+	void build_rig(IDDepsNode *ob_node, Object *ob);
 	void build_nodetree(DepsNode *owner_node, bNodeTree *ntree);
 	void build_material(DepsNode *owner_node, Material *ma);
 	void build_texture(DepsNode *owner_node, Tex *tex);
@@ -112,8 +117,14 @@ struct ComponentKey
 
 struct OperationKey
 {
-	OperationKey(IDPtr id, eDepsNode_Type type, const string &name) : id(id), type(type), name(name) {}
+	OperationKey(IDPtr id, eDepsNode_Type type, const string &name) :
+	    id(id), component_subdata(""), type(type), name(name)
+	{}
+	OperationKey(IDPtr id, const string &component_subdata, eDepsNode_Type type, const string &name) :
+	    id(id), component_subdata(component_subdata), type(type), name(name)
+	{}
 	IDPtr id;
+	string component_subdata;
 	eDepsNode_Type type;
 	string name;
 };
@@ -137,11 +148,14 @@ struct DepsgraphRelationBuilder {
 	void build_scene(Scene *scene);
 	void build_object(Scene *scene, Object *ob);
 	void build_object_parent(Object *ob);
-	void build_constraints(Scene *scene, IDPtr id, eDepsNode_Type constraint_op_type, ListBase *constraints);
-	void build_rigidbody(Scene *scene);
+	void build_constraints(Scene *scene, IDPtr id, const string &component_subdata, eDepsNode_Type constraint_op_type, ListBase *constraints);
 	void build_animdata(IDPtr id);
 	void build_driver(IDPtr id, FCurve *fcurve);
 	void build_world(Scene *scene, World *world);
+	void build_rigidbody(Scene *scene);
+	void build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
+	void build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
+	void build_rig(Scene *scene, Object *ob);
 	void build_nodetree(IDPtr owner, bNodeTree *ntree);
 	void build_material(IDPtr owner, Material *ma);
 	void build_texture(IDPtr owner, Tex *tex);

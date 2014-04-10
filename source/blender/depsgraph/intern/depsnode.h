@@ -165,7 +165,7 @@ struct IDDepsNode : public DepsNode {
 	void copy(DepsgraphCopyContext *dcc, const IDDepsNode *src);
 	~IDDepsNode();
 	
-	ComponentDepsNode *find_component(eDepsNode_Type type) const;
+	ComponentDepsNode *find_component(eDepsNode_Type type, const string &subdata = "") const;
 	ComponentDepsNode *get_component(eDepsNode_Type type, const string &name = "");
 	void remove_component(eDepsNode_Type type);
 	void clear_components();

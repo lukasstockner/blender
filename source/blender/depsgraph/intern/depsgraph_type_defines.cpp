@@ -92,6 +92,8 @@ const string deg_op_name_constraint_stack = "Constraint Stack";
 const string deg_op_name_rigidbody_world_rebuild = "Rigidbody World Rebuild";
 const string deg_op_name_rigidbody_world_simulate = "Rigidbody World Do Simulation";
 const string deg_op_name_rigidbody_object_sync = "RigidBodyObject Sync";
+const string deg_op_name_ik_solver = "IK Solver";
+const string deg_op_name_spline_ik_solver = "Spline IK Solver";
 string deg_op_name_driver(const ChannelDriver *driver)
 {
 	return string_format("Driver @ %p", driver);

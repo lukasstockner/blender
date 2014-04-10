@@ -433,6 +433,223 @@ void DepsgraphNodeBuilder::build_rigidbody(IDDepsNode *scene_node, Scene *scene)
 	}
 }
 
+/* IK Solver Eval Steps */
+void DepsgraphNodeBuilder::build_ik_pose(ComponentDepsNode *bone_node, Object *ob, bPoseChannel *pchan, bConstraint *con)
+{
+	bKinematicConstraint *data = (bKinematicConstraint *)con->data;
+	
+	/* find the chain's root */
+	bPoseChannel *rootchan = pchan;
+	/* exclude tip from chain? */
+	if (!(data->flag & CONSTRAINT_IK_TIP)) {
+		rootchan = rootchan->parent;
+	}
+	
+	if (rootchan) {
+		size_t segcount = 0;
+		while (rootchan->parent) {
+			/* continue up chain, until we reach target number of items... */
+			segcount++;
+			if ((segcount == data->rootbone) || (segcount > 255)) break;  /* XXX 255 is weak */
+			
+			rootchan = rootchan->parent;
+		}
+	}
+	
+	/* operation node for evaluating/running IK Solver */
+	add_operation_node(bone_node, DEPSNODE_TYPE_OP_POSE,
+	                   DEPSOP_TYPE_SIM, BKE_pose_iktree_evaluate, 
+	                   deg_op_name_ik_solver, make_rna_pointer(ob, &RNA_PoseBone, rootchan));
+	
+#if 0
+	/* attach owner to IK Solver too 
+	 * - assume that owner is always part of chain 
+	 * - see notes on direction of rel below...
+	 */
+	graph->add_new_relation(owner_node, solver_node, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
+	
+	
+	/* exclude tip from chain? */
+	if ((data->flag & CONSTRAINT_IK_TIP) == 0)
+		parchan = pchan->parent;
+	else
+		parchan = pchan;
+	
+	/* Walk to the chain's root */
+	while (parchan) {
+		/* Make IK-solver dependent on this bone's result,
+		 * since it can only run after the standard results 
+		 * of the bone are know. Validate links step on the 
+		 * bone will ensure that users of this bone only
+		 * grab the result with IK solver results...
+		 */
+		DepsNode *parchan_node = graph->get_node(&ob->id, parchan->name, DEPSNODE_TYPE_BONE, NULL);
+		graph->add_new_relation(parchan_node, solver_node, DEPSREL_TYPE_TRANSFORM, "IK Solver Update");
+		
+		/* continue up chain, until we reach target number of items... */
+		segcount++;
+		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
+		
+		rootchan = parchan;
+		parchan  = parchan->parent;
+	}
+#endif
+}
+
+/* Spline IK Eval Steps */
+void DepsgraphNodeBuilder::build_splineik_pose(ComponentDepsNode *bone_node, Object *ob, bPoseChannel *pchan, bConstraint *con)
+{
+	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
+	
+	/* find the chain's root */
+	bPoseChannel *rootchan = pchan;
+	size_t segcount = 0;
+	while (rootchan->parent) {
+		/* continue up chain, until we reach target number of items... */
+		segcount++;
+		if ((segcount == data->chainlen) || (segcount > 255)) break;  /* XXX 255 is weak */
+		
+		rootchan = rootchan->parent;
+	}
+	
+	/* operation node for evaluating/running IK Solver
+	 * store the "root bone" of this chain in the solver, so it knows where to start
+	 */
+	add_operation_node(bone_node, DEPSNODE_TYPE_OP_POSE,
+	                   DEPSOP_TYPE_SIM, BKE_pose_splineik_evaluate, deg_op_name_spline_ik_solver,
+	                   make_rna_pointer(ob, &RNA_PoseBone, rootchan));
+	// XXX: what sort of ID-data is needed?
+	
+#if 0
+	DepsNode *curve_node;
+	
+	/* component for spline-path geometry that this uses */
+	// XXX: target may not exist!
+	curve_node = graph->get_node((ID *)data->tar, NULL, DEPSNODE_TYPE_GEOMETRY, "Path");
+	
+	/* attach owner to IK Solver too 
+	 * - assume that owner is always part of chain 
+	 * - see notes on direction of rel below...
+	 */
+	graph->add_new_relation(owner_node, solver_node, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Owner");
+	
+	/* attach path dependency to solver */
+	graph->add_new_relation(curve_node, solver_node, DEPSREL_TYPE_GEOMETRY_EVAL, "[Curve.Path -> Spline IK] DepsRel");
+	
+	/* --------------- */
+	
+	/* Walk to the chain's root */
+	bPoseChannel *rootchan = pchan;
+	for (bPoseChannel *parchan = pchan->parent;
+	     parchan;
+	     rootchan = parchan,  parchan = parchan->parent)
+	{
+		/* Make Spline IK solver dependent on this bone's result,
+		 * since it can only run after the standard results 
+		 * of the bone are know. Validate links step on the 
+		 * bone will ensure that users of this bone only
+		 * grab the result with IK solver results...
+		 */
+		DepsNode *parchan_node = graph->get_node(&ob->id, parchan->name, DEPSNODE_TYPE_BONE, NULL);
+		graph->add_new_relation(parchan_node, solver_node, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
+		
+		/* continue up chain, until we reach target number of items... */
+		segcount++;
+		if ((segcount == data->chainlen) || (segcount > 255)) break;  /* 255 is weak */
+	}
+#endif
+}
+
+/* Pose/Armature Bones Graph */
+void DepsgraphNodeBuilder::build_rig(IDDepsNode *ob_node, Object *ob)
+{
+	bArmature *arm = (bArmature *)ob->data;
+	
+	/* Armature-Data */
+	IDDepsNode *arm_node = add_id_node(arm);
+	
+	// TODO: bone names?
+	/* animation and/or drivers linking posebones to base-armature used to define them 
+	 * NOTE: AnimData here is really used to control animated deform properties, 
+	 *       which ideally should be able to be unique across different instances.
+	 *       Eventually, we need some type of proxy/isolation mechanism inbetween here
+	 *       to ensure that we can use same rig multiple times in same scene...
+	 */
+	build_animdata(arm_node);
+	
+	/* == Pose Rig Graph ==
+	 * Pose Component:
+	 * - Mainly used for referencing Bone components.
+	 * - This is where the evaluation operations for init/exec/cleanup
+	 *   (ik) solvers live, and are later hooked up (so that they can be
+	 *   interleaved during runtime) with bone-operations they depend on/affect.
+	 * - init_pose_eval() and cleanup_pose_eval() are absolute first and last
+	 *   steps of pose eval process. ALL bone operations must be performed 
+	 *   between these two...
+	 * 
+	 * Bone Component:
+	 * - Used for representing each bone within the rig
+	 * - Acts to encapsulate the evaluation operations (base matrix + parenting, 
+	 *   and constraint stack) so that they can be easily found.
+	 * - Everything else which depends on bone-results hook up to the component only
+	 *   so that we can redirect those to point at either the the post-IK/
+	 *   post-constraint/post-matrix steps, as needed.
+	 */
+	// TODO: rest pose/editmode handling!
+	
+	/* pose eval context 
+	 * NOTE: init/cleanup steps for this are handled as part of the node's code
+	 */
+	/*PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)*/add_component_node(ob_node, DEPSNODE_TYPE_EVAL_POSE);
+	
+	/* bones */
+	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+		/* component for hosting bone operations */
+		BoneComponentDepsNode *bone_node = (BoneComponentDepsNode *)add_component_node(ob_node, DEPSNODE_TYPE_BONE, pchan->name);
+		bone_node->pchan = pchan;
+		
+		/* node for bone eval */
+		add_operation_node(bone_node, DEPSNODE_TYPE_OP_BONE, 
+		                   DEPSOP_TYPE_EXEC, BKE_pose_eval_bone,
+		                   "Bone Transforms", make_rna_pointer(ob, &RNA_PoseBone, pchan));
+		
+#if 0
+		/* bone parent */
+		if (pchan->parent) {
+			DepsNode *par_bone = graph->get_node(&ob->id, pchan->parent->name, DEPSNODE_TYPE_BONE, NULL);
+			graph->add_new_relation(par_bone, bone_node, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+		}
+#endif
+		
+		/* constraints */
+		build_constraints(bone_node, DEPSNODE_TYPE_OP_BONE);
+		
+		/* IK Solvers...
+		 * - These require separate processing steps are pose-level
+		 *   to be executed between chains of bones (i.e. once the
+		 *   base transforms of a bunch of bones is done)
+		 *
+		 * Unsolved Issues:
+		 * - Care is needed to ensure that multi-headed trees work out the same as in ik-tree building
+		 * - Animated chain-lengths are a problem...
+		 */
+		for (bConstraint *con = (bConstraint *)pchan->constraints.first; con; con = con->next) {
+			switch (con->type) {
+				case CONSTRAINT_TYPE_KINEMATIC:
+					build_ik_pose(bone_node, ob, pchan, con);
+					break;
+					
+				case CONSTRAINT_TYPE_SPLINEIK:
+					build_splineik_pose(bone_node, ob, pchan, con);
+					break;
+					
+				default:
+					break;
+			}
+		}
+	}
+}
+
 void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree)
 {
 	if (!ntree)

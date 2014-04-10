@@ -208,8 +208,9 @@ void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 	// TODO: perform a second loop to fix up links?
 }
 
-ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type) const
+ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type, const string &subdata) const
 {
+	#pragma message("DEPSGRAPH PORTING XXX: subdata has to be handled here somehow!")
 	ComponentMap::const_iterator it = components.find(type);
 	return it != components.end() ? it->second : NULL;
 }
