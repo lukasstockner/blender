@@ -104,7 +104,7 @@ static void library_foreach_modifiersForeachIDLink(void *user_data, Object *UNUS
 }
 
 static void library_foreach_constraintObjectLooper(bConstraint *UNUSED(con), ID **id_pointer,
-                                                   short UNUSED(isReference), void *user_data)
+                                                   bool UNUSED(is_reference), void *user_data)
 {
 	LibraryForeachIDData *data = (LibraryForeachIDData *) user_data;
 	FOREACH_CALLBACK_INVOKE_ID_PP(data->self_id, id_pointer, data->flag, data->callback, data->user_data, IDWALK_NOP);
@@ -230,7 +230,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 				     pose_channel = pose_channel->next)
 				{
 					CALLBACK_INVOKE(pose_channel->custom, IDWALK_NOP);
-					BKE_id_loop_constraints(&pose_channel->constraints,
+					BKE_constraints_id_loop(&pose_channel->constraints,
 					                        library_foreach_constraintObjectLooper,
 					                        &data);
 				}
@@ -239,7 +239,7 @@ void BKE_library_foreach_ID_link(ID *id, LibraryIDLinkCallback callback, void *u
 			modifiers_foreachIDLink(object,
 			                        library_foreach_modifiersForeachIDLink,
 			                        &data);
-			BKE_id_loop_constraints(&object->constraints,
+			BKE_constraints_id_loop(&object->constraints,
 			                        library_foreach_constraintObjectLooper,
 			                        &data);
 			break;

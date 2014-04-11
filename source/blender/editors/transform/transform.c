@@ -2506,8 +2506,8 @@ static void protectedQuaternionBits(short protectflag, float quat[4], const floa
 static void constraintTransLim(TransInfo *t, TransData *td)
 {
 	if (td->con) {
-		bConstraintTypeInfo *ctiLoc = BKE_get_constraint_typeinfo(CONSTRAINT_TYPE_LOCLIMIT);
-		bConstraintTypeInfo *ctiDist = BKE_get_constraint_typeinfo(CONSTRAINT_TYPE_DISTLIMIT);
+		bConstraintTypeInfo *ctiLoc = BKE_constraint_typeinfo_from_type(CONSTRAINT_TYPE_LOCLIMIT);
+		bConstraintTypeInfo *ctiDist = BKE_constraint_typeinfo_from_type(CONSTRAINT_TYPE_DISTLIMIT);
 		
 		bConstraintOb cob = {NULL};
 		bConstraint *con;
@@ -2557,7 +2557,7 @@ static void constraintTransLim(TransInfo *t, TransData *td)
 				}
 				
 				/* get constraint targets if needed */
-				BKE_get_constraint_targets_for_solving(con, &cob, &targets, ctime);
+				BKE_constraint_targets_for_solving_get(con, &cob, &targets, ctime);
 				
 				/* do constraint */
 				cti->evaluate_constraint(con, &cob, &targets);
@@ -2609,10 +2609,10 @@ static void constraintob_from_transdata(bConstraintOb *cob, TransData *td)
 static void constraintRotLim(TransInfo *UNUSED(t), TransData *td)
 {
 	if (td->con) {
-		bConstraintTypeInfo *cti = BKE_get_constraint_typeinfo(CONSTRAINT_TYPE_ROTLIMIT);
+		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(CONSTRAINT_TYPE_ROTLIMIT);
 		bConstraintOb cob;
 		bConstraint *con;
-		int do_limit = false;
+		bool do_limit = false;
 
 		/* Evaluate valid constraints */
 		for (con = td->con; con; con = con->next) {
@@ -2676,7 +2676,7 @@ static void constraintRotLim(TransInfo *UNUSED(t), TransData *td)
 static void constraintSizeLim(TransInfo *t, TransData *td)
 {
 	if (td->con && td->ext) {
-		bConstraintTypeInfo *cti = BKE_get_constraint_typeinfo(CONSTRAINT_TYPE_SIZELIMIT);
+		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(CONSTRAINT_TYPE_SIZELIMIT);
 		bConstraintOb cob = {NULL};
 		bConstraint *con;
 		float size_sign[3], size_abs[3];
@@ -4141,7 +4141,8 @@ static void headerTranslation(TransInfo *t, float vec[3], char str[MAX_INFO_LEN]
 
 		dist = len_v3(vec);
 		if (!(t->flag & T_2D_EDIT) && t->scene->unit.system) {
-			int i, do_split = t->scene->unit.flag & USER_UNIT_OPT_SPLIT ? 1 : 0;
+			const bool do_split = (t->scene->unit.flag & USER_UNIT_OPT_SPLIT) != 0;
+			int i;
 
 			for (i = 0; i < 3; i++) {
 				bUnit_AsString(&tvec[NUM_STR_REP_LEN * i], NUM_STR_REP_LEN, dvec[i] * t->scene->unit.scale_length,
@@ -4155,13 +4156,18 @@ static void headerTranslation(TransInfo *t, float vec[3], char str[MAX_INFO_LEN]
 		}
 	}
 
-	if (!(t->flag & T_2D_EDIT) && t->scene->unit.system)
+	if (!(t->flag & T_2D_EDIT) && t->scene->unit.system) {
+		const bool do_split = (t->scene->unit.flag & USER_UNIT_OPT_SPLIT) != 0;
 		bUnit_AsString(distvec, sizeof(distvec), dist * t->scene->unit.scale_length, 4, t->scene->unit.system,
-		               B_UNIT_LENGTH, t->scene->unit.flag & USER_UNIT_OPT_SPLIT, false);
-	else if (dist > 1e10f || dist < -1e10f)     /* prevent string buffer overflow */
+		               B_UNIT_LENGTH, do_split, false);
+	}
+	else if (dist > 1e10f || dist < -1e10f)  {
+		/* prevent string buffer overflow */
 		BLI_snprintf(distvec, NUM_STR_REP_LEN, "%.4e", dist);
-	else
+	}
+	else {
 		BLI_snprintf(distvec, NUM_STR_REP_LEN, "%.4f", dist);
+	}
 
 	if (t->flag & T_AUTOIK) {
 		short chainlen = t->settings->autoik_chainlen;
@@ -4605,7 +4611,8 @@ static void applyMaskShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 {
 	TransData *td;
 	float ratio;
-	int i, initial_feather = false;
+	int i;
+	bool initial_feather = false;
 	char str[MAX_INFO_LEN];
 
 	ratio = t->values[0];
