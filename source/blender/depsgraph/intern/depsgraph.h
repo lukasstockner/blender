@@ -130,20 +130,6 @@ struct Depsgraph {
 	 * > returns: A node matching the required characteristics that exists in the graph
 	 */
 	DepsNode *get_node(const ID *id, const string &subdata, eDepsNode_Type type, const string &name);
-	/* Get the most appropriate node referred to by pointer + property 
-	 * < graph: Depsgraph to find node from
-	 * < ptr: RNA Pointer to the data that we're supposed to find a node for
-	 * < (prop): optional RNA Property that is affected
-	 */
-	// XXX: returns matching outer node only, except for drivers
-	DepsNode *get_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop);
-	/* Get the most appropriate node referred to by data path
-	 * < graph: Depsgraph to find node from
-	 * < id: ID-Block that path is rooted on
-	 * < path: RNA-Path to resolve
-	 * > returns: (IDDepsNode | DataDepsNode) as appropriate
-	 */
-	DepsNode *get_node_from_rna_path(const ID *id, const string &path);
 	
 	/* Create a new node and add to graph
 	 * ! Arguments are as for DEG_find_node()

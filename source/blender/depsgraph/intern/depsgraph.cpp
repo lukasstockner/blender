@@ -99,44 +99,6 @@ DepsNode *Depsgraph::get_node(const ID *id, const string &subdata, eDepsNode_Typ
 	return node;
 }
 
-/* Get the most appropriate node referred to by pointer + property */
-DepsNode *Depsgraph::get_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop)
-{
-	DepsNode *node = NULL;
-	
-	ID *id;
-	eDepsNode_Type type;
-	string subdata;
-	string name;
-	
-	/* get querying conditions */
-	find_node_criteria_from_pointer(ptr, prop, &id, &subdata, &type, &name);
-	
-	/* use standard lookup mechanisms... */
-	node = get_node(id, subdata, type, name);
-	return node;
-}
-
-/* Get DepsNode referred to by data path */
-DepsNode *Depsgraph::get_node_from_rna_path(const ID *id, const string &path)
-{
-	PointerRNA id_ptr, ptr;
-	PropertyRNA *prop = NULL;
-	DepsNode *node = NULL;
-	
-	/* create ID pointer for root of path lookup */
-	RNA_id_pointer_create((ID *)id, &id_ptr);
-	
-	/* try to resolve path... */
-	if (RNA_path_resolve(&id_ptr, path.c_str(), &ptr, &prop)) {
-		/* get matching node... */
-		node = this->get_node_from_pointer(&ptr, prop);
-	}
-	
-	/* return node found */
-	return node;
-}
-
 /* Add ------------------------------------------------ */
 
 /* Add a new node */
