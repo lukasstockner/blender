@@ -205,7 +205,7 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 	subgraph_builder.build_group(group);
 	
 	/* create a node for representing subgraph */
-	SubgraphDepsNode *subgraph_node = (SubgraphDepsNode *)m_graph->add_new_node(&group->id, "", DEPSNODE_TYPE_SUBGRAPH, group->id.name+2);
+	SubgraphDepsNode *subgraph_node = m_graph->add_subgraph_node(&group->id);
 	subgraph_node->graph = subgraph;
 	
 	/* make a copy of the data this node will need? */

@@ -94,13 +94,17 @@ OperationDepsNode *ComponentDepsNode::find_operation(const string &name) const
 OperationDepsNode *ComponentDepsNode::add_operation(eDepsNode_Type type, eDepsOperation_Type optype, 
                                                     DepsEvalOperationCb op, const string &name)
 {
+	DepsNodeFactory *factory = DEG_get_node_factory(type);
+	/* make sure only valid operations are added to this component */
+	BLI_assert(factory->component_type() == this->type);
+	
 	OperationDepsNode *op_node = find_operation(name);
 	if (!op_node) {
-		DepsNodeFactory *factory = DEG_get_node_factory(type);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
 		
 		/* register */
 		this->operations[name] = op_node;
+		op_node->owner = this;
 	}
 	
 	/* attach extra data */
@@ -129,18 +133,6 @@ void ComponentDepsNode::clear_operations()
 		delete op_node;
 	}
 	operations.clear();
-}
-
-/* Add 'component' node to graph */
-void ComponentDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
-{
-	/* find ID node that we belong to (and create it if it doesn't exist!) */
-	IDDepsNode *id_node = (IDDepsNode *)graph->get_node(id, "", DEPSNODE_TYPE_ID_REF, "");
-	BLI_assert(id_node != NULL);
-	
-	/* add component to id */
-	id_node->components[this->type] = this;
-	this->owner = id_node;
 }
 
 /* Remove 'component' node from graph */
@@ -194,6 +186,42 @@ BoneComponentDepsNode *PoseComponentDepsNode::find_bone_component(const string &
 {
 	BoneComponentMap::const_iterator it = this->bone_hash.find(name);
 	return it != this->bone_hash.end() ? it->second : NULL;
+}
+
+
+BoneComponentDepsNode *PoseComponentDepsNode::add_bone_component(const string &name)
+{
+	BoneComponentDepsNode *bone_node = find_bone_component(name);
+	if (!bone_node) {
+		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_BONE);
+		bone_node = (BoneComponentDepsNode *)factory->create_node(this->owner->id, name, name);
+		
+		/* register */
+		this->bone_hash[name] = bone_node;
+		bone_node->owner = this->owner;
+		bone_node->pose_owner = this;
+	}
+	return bone_node;
+}
+
+void PoseComponentDepsNode::remove_bone_component(const string &name)
+{
+	BoneComponentDepsNode *bone_node = find_bone_component(name);
+	if (bone_node) {
+		/* unregister */
+		this->bone_hash.erase(name);
+		
+		delete bone_node;
+	}
+}
+
+void PoseComponentDepsNode::clear_bone_components()
+{
+	for (BoneComponentMap::const_iterator it = bone_hash.begin(); it != bone_hash.end(); ++it) {
+		BoneComponentDepsNode *bone_node = it->second;
+		delete bone_node;
+	}
+	bone_hash.clear();
 }
 
 /* Initialise 'pose eval' node - from pointer data given */
@@ -284,21 +312,6 @@ void BoneComponentDepsNode::init(const ID *id, const string &subdata)
 	/* bone-specific node data */
 	Object *ob = (Object *)id;
 	this->pchan = BKE_pose_channel_find_name(ob->pose, subdata.c_str());
-}
-
-/* Add 'bone component' node to graph */
-void BoneComponentDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
-{
-	PoseComponentDepsNode *pose_node;
-	
-	/* find pose node that we belong to (and create it if it doesn't exist!) */
-	pose_node = (PoseComponentDepsNode *)graph->get_node(id, "", DEPSNODE_TYPE_EVAL_POSE, "");
-	BLI_assert(pose_node != NULL);
-	
-	/* add bone component to pose bone-hash */
-	pose_node->bone_hash[this->name] = this;
-#pragma message("DEPSGRAPH PORTING XXX: Type mismatch! bone components are actually sub-components, this should be a distinct class")
-//	this->owner = pose_node;
 }
 
 /* Remove 'bone component' node from graph */

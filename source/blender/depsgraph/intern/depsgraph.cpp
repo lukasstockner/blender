@@ -113,12 +113,6 @@ DepsNode *Depsgraph::add_new_node(const ID *id, const string &subdata,
 	/* create node data... */
 	node = factory->create_node(id, subdata, name);
 	
-	/* add node to graph 
-	 * NOTE: additional nodes may be created in order to add this node to the graph
-	 *       (i.e. parent/owner nodes) where applicable...
-	 */
-	node->add_to_graph(this, id);
-	
 	/* add node to operation-node list if it plays a part in the evaluation process */
 	if (ELEM(node->tclass, DEPSNODE_CLASS_GENERIC, DEPSNODE_CLASS_OPERATION)) {
 		this->all_opnodes.push_back(node);
@@ -174,13 +168,42 @@ DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const Propert
 
 /* Convenience Functions ---------------------------- */
 
+RootDepsNode *Depsgraph::add_root_node()
+{
+	if (!root_node) {
+		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_ROOT);
+		root_node = (RootDepsNode *)factory->create_node(NULL, "", "Root (Scene)");
+	}
+	return root_node;
+}
+
+SubgraphDepsNode *Depsgraph::add_subgraph_node(const ID *id)
+{
+	DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_SUBGRAPH);
+	SubgraphDepsNode *subgraph_node = (SubgraphDepsNode *)factory->create_node(id, "", id->name+2);
+	
+	/* add to subnodes list */
+	this->subgraphs.insert(subgraph_node);
+	
+	/* if there's an ID associated, add to ID-nodes lookup too */
+	if (id) {
+#if 0 /* XXX subgraph node is NOT a true IDDepsNode - what is this supposed to do? */
+		// TODO: what to do if subgraph's ID has already been added?
+		BLI_assert(!graph->find_id_node(id));
+		graph->id_hash[id] = this;
+#endif
+	}
+	
+	return subgraph_node;
+}
+
 IDDepsNode *Depsgraph::find_id_node(const ID *id) const
 {
 	IDNodeMap::const_iterator it = this->id_hash.find(id);
 	return it != this->id_hash.end() ? it->second : NULL;
 }
 
-IDDepsNode *Depsgraph::get_id_node(const ID *id, const string &name)
+IDDepsNode *Depsgraph::add_id_node(const ID *id, const string &name)
 {
 	IDDepsNode *id_node = find_id_node(id);
 	if (!id_node) {

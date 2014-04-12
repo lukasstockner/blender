@@ -106,10 +106,6 @@ public:
 	virtual void init(const ID *id, const string &subdata) {}
 	virtual void copy(DepsgraphCopyContext *dcc, const DepsNode *src) {}
 	
-	/* Add node to graph - Will add additional inbetween nodes as needed
-	 * < (id): ID-Block that node is associated with (if applicable)
-	 */
-	virtual void add_to_graph(Depsgraph *graph, const ID *id) = 0;
 	/* Remove node from graph - Only use when node is to be replaced... */
 	virtual void remove_from_graph(Depsgraph *graph) = 0;
 	
@@ -135,7 +131,6 @@ struct ComponentDepsNode;
 
 /* Time Source Node */
 struct TimeSourceDepsNode : public DepsNode {
-	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
 	
 	// XXX: how do we keep track of the chain of time sources for propagation of delays?
@@ -148,8 +143,9 @@ struct TimeSourceDepsNode : public DepsNode {
 
 /* Root Node */
 struct RootDepsNode : public DepsNode {
-	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
+	
+	TimeSourceDepsNode *add_time_source(const string &name = "");
 	
 	struct Scene *scene;             /* scene that this corresponds to */
 	TimeSourceDepsNode *time_source; /* entrypoint node for time-changed */
@@ -166,11 +162,10 @@ struct IDDepsNode : public DepsNode {
 	~IDDepsNode();
 	
 	ComponentDepsNode *find_component(eDepsNode_Type type, const string &subdata = "") const;
-	ComponentDepsNode *get_component(eDepsNode_Type type, const string &name = "");
+	ComponentDepsNode *add_component(eDepsNode_Type type, const string &name = "");
 	void remove_component(eDepsNode_Type type);
 	void clear_components();
 	
-	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
 	
 	void validate_links(Depsgraph *graph);
@@ -187,7 +182,6 @@ struct SubgraphDepsNode : public DepsNode {
 	void copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src);
 	~SubgraphDepsNode();
 	
-	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
 	
 	void validate_links(Depsgraph *graph);

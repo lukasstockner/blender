@@ -170,20 +170,16 @@ DepsgraphNodeBuilder::~DepsgraphNodeBuilder()
 
 RootDepsNode *DepsgraphNodeBuilder::add_root_node()
 {
-	RootDepsNode *root_node = (RootDepsNode *)m_graph->get_node(NULL, "", DEPSNODE_TYPE_ROOT, "Root (Scene)");
-	m_graph->root_node = root_node;
-	return root_node;
+	return m_graph->add_root_node();
 }
 
 IDDepsNode *DepsgraphNodeBuilder::add_id_node(IDPtr id)
 {
-	return m_graph->get_id_node(id);
+	return m_graph->add_id_node(id);
 }
 
 TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(IDPtr id)
 {
-	TimeSourceDepsNode *time_source = (TimeSourceDepsNode *)m_graph->get_node(id, "", DEPSNODE_TYPE_TIMESOURCE, string_format("%s Time Source", id->name+2));
-
 	/* determine which node to attach timesource to */
 	if (id) {
 #if 0 /* XXX TODO */
@@ -215,16 +211,17 @@ TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(IDPtr id)
 	else {
 		/* root-node */
 		RootDepsNode *root_node = m_graph->root_node;
-		root_node->time_source = time_source;
-		/*time_source->owner = root_node;*/
+		if (root_node) {
+			return root_node->add_time_source("Time Source");
+		}
 	}
 	
-	return time_source;
+	return NULL;
 }
 
 ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &subdata)
 {
-	ComponentDepsNode *comp_node = id_node->get_component(comp_type);
+	ComponentDepsNode *comp_node = id_node->add_component(comp_type);
 	comp_node->owner = id_node;
 	return comp_node;
 }

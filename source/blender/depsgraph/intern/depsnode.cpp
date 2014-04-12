@@ -83,13 +83,6 @@ DepsNode::~DepsNode()
 
 /* Root Node ============================================== */
 
-/* Add 'root' node to graph */
-void RootDepsNode::add_to_graph(Depsgraph *graph, const ID *UNUSED(id))
-{
-	BLI_assert(graph->root_node == NULL);
-	graph->root_node = this;
-}
-
 /* Remove 'root' node from graph */
 void RootDepsNode::remove_from_graph(Depsgraph *graph)
 {
@@ -97,48 +90,20 @@ void RootDepsNode::remove_from_graph(Depsgraph *graph)
 	graph->root_node = NULL;
 }
 
+TimeSourceDepsNode *RootDepsNode::add_time_source(const string &name)
+{
+	if (!time_source) {
+		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_TIMESOURCE);
+		time_source = (TimeSourceDepsNode *)factory->create_node(NULL, "", name);
+		/*time_source->owner = this;*/ // XXX
+	}
+	return time_source;
+}
+
 DEG_DEPSNODE_DEFINE(RootDepsNode, DEPSNODE_TYPE_ROOT, "Root DepsNode");
 static DepsNodeFactoryImpl<RootDepsNode> DNTI_ROOT;
 
 /* Time Source Node ======================================= */
-
-///* Add 'time source' node to graph */
-void TimeSourceDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
-{
-#if 0
-	/* determine which node to attach timesource to */
-	if (id) {
-		/* get ID node */
-//		DepsNode *id_node = graph->get_node(id, "", DEPSNODE_TYPE_ID_REF, "");
-		
-		/* depends on what this is... */
-		switch (GS(id->name)) {
-			case ID_SCE: /* Scene - Usually sequencer strip causing time remapping... */
-			{
-				// TODO...
-			}
-			break;
-			
-			case ID_GR: /* Group */
-			{
-				// TODO...
-			}
-			break;
-			
-			// XXX: time source...
-			
-			default:     /* Unhandled */
-				printf("%s(): Unhandled ID - %s \n", __func__, id->name);
-				break;
-		}
-	}
-	else {
-		/* root-node */
-		graph->root_node->time_source = this;
-		this->owner = graph->root_node;
-	}
-#endif
-}
 
 /* Remove 'time source' node from graph */
 void TimeSourceDepsNode::remove_from_graph(Depsgraph *graph)
@@ -215,7 +180,7 @@ ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type, const string 
 	return it != components.end() ? it->second : NULL;
 }
 
-ComponentDepsNode *IDDepsNode::get_component(eDepsNode_Type type, const string &name)
+ComponentDepsNode *IDDepsNode::add_component(eDepsNode_Type type, const string &name)
 {
 	ComponentDepsNode *comp_node = find_component(type);
 	if (!comp_node) {
@@ -224,6 +189,7 @@ ComponentDepsNode *IDDepsNode::get_component(eDepsNode_Type type, const string &
 		
 		/* register */
 		this->components[type] = comp_node;
+		comp_node->owner = this;
 	}
 	return comp_node;
 }
@@ -246,13 +212,6 @@ void IDDepsNode::clear_components()
 		delete comp_node;
 	}
 	components.clear();
-}
-
-/* Add 'id' node to graph */
-void IDDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
-{
-	/* add to hash so that it can be found */
-	graph->id_hash[id] = this;
 }
 
 /* Remove 'id' node from graph */
@@ -364,22 +323,6 @@ void SubgraphDepsNode::copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *s
 	//SubgraphDepsNode *dst_node       = (SubgraphDepsNode *)dst;
 	
 	/* for now, subgraph itself isn't copied... */
-}
-
-/* Add 'subgraph' node to graph */
-void SubgraphDepsNode::add_to_graph(Depsgraph *graph, const ID *id)
-{
-	/* add to subnodes list */
-	graph->subgraphs.insert(this);
-	
-	/* if there's an ID associated, add to ID-nodes lookup too */
-	if (id) {
-#if 0 /* XXX subgraph node is NOT a true IDDepsNode - what is this supposed to do? */
-		// TODO: what to do if subgraph's ID has already been added?
-		BLI_assert(!graph->find_id_node(id));
-		graph->id_hash[id] = this;
-#endif
-	}
 }
 
 /* Remove 'subgraph' node from graph */

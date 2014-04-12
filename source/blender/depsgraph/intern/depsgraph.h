@@ -50,6 +50,7 @@ struct PropertyRNA;
 
 struct DepsNode;
 struct RootDepsNode;
+struct TimeSourceDepsNode;
 struct IDDepsNode;
 struct SubgraphDepsNode;
 struct ComponentDepsNode;
@@ -140,8 +141,11 @@ struct Depsgraph {
 	DepsNode *add_new_node(const ID *id, const string &subdata,
 	                       eDepsNode_Type type, const string &name);
 	
+	RootDepsNode *add_root_node();
+	SubgraphDepsNode *add_subgraph_node(const ID *id);
+	
 	IDDepsNode *find_id_node(const ID *id) const;
-	IDDepsNode *get_id_node(const ID *id, const string &name = "");
+	IDDepsNode *add_id_node(const ID *id, const string &name = "");
 	void remove_id_node(const ID *id);
 	void clear_id_nodes();
 	

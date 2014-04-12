@@ -72,7 +72,6 @@ struct ComponentDepsNode : public DepsNode {
 	void remove_operation(const string &name);
 	void clear_operations();
 	
-	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
 	
 	/* Evaluation Context Management .................. */
@@ -127,6 +126,9 @@ struct PoseComponentDepsNode : public ComponentDepsNode {
 	typedef unordered_map<string, BoneComponentDepsNode *> BoneComponentMap;
 	
 	BoneComponentDepsNode *find_bone_component(const string &name) const;
+	BoneComponentDepsNode *add_bone_component(const string &name);
+	void remove_bone_component(const string &name);
+	void clear_bone_components();
 	
 	void init(const ID *id, const string &subdata);
 	void copy(DepsgraphCopyContext *dcc, const PoseComponentDepsNode *src);
@@ -143,11 +145,11 @@ struct PoseComponentDepsNode : public ComponentDepsNode {
 struct BoneComponentDepsNode : public ComponentDepsNode {
 	void init(const ID *id, const string &subdata);
 	
-	void add_to_graph(Depsgraph *graph, const ID *id);
 	void remove_from_graph(Depsgraph *graph);
 	
 	void validate_links(Depsgraph *graph);
 	
+	PoseComponentDepsNode *pose_owner;
 	struct bPoseChannel *pchan;     /* the bone that this component represents */
 	
 	DEG_DEPSNODE_DECLARE;
