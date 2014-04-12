@@ -159,13 +159,6 @@ struct Depsgraph {
 	void remove_id_node(const ID *id);
 	void clear_id_nodes();
 	
-	ComponentDepsNode *find_component_node(const ID *id, eDepsNode_Type type, const string &subdata = "");
-	OperationDepsNode *find_operation_node(const ID *id, const string &subdata, eDepsNode_Type type);
-	OperationDepsNode *find_operation_node(const ID *id, eDepsNode_Type type)
-	{
-		return find_operation_node(id, "", type);
-	}
-	
 	/* Remove node from graph, but don't free any of its data */
 	void remove_node(DepsNode *node);
 	
