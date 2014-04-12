@@ -52,6 +52,7 @@ struct World;
 struct Depsgraph;
 struct DepsNode;
 struct RootDepsNode;
+struct SubgraphDepsNode;
 struct IDDepsNode;
 struct TimeSourceDepsNode;
 struct ComponentDepsNode;
@@ -71,6 +72,7 @@ struct DepsgraphNodeBuilder {
 	
 	IDDepsNode *build_scene(Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
+	void build_group(Group *group);
 	IDDepsNode *build_object(Scene *scene, Object *ob);
 	ComponentDepsNode *build_object_transform(Object *ob, IDDepsNode *ob_node);
 	void build_constraints(ComponentDepsNode *comp_node, eDepsNode_Type constraint_op_type);

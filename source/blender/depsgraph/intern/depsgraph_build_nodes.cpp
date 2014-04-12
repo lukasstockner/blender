@@ -176,9 +176,43 @@ IDDepsNode *DepsgraphNodeBuilder::build_scene(Scene *scene)
 	return scene_node;
 }
 
+/* Build depsgraph for the given group
+ * This is usually used for building subgraphs for groups to use
+ */
+void DepsgraphNodeBuilder::build_group(Group *group)
+{
+	/* add group objects */
+	for (GroupObject *go = (GroupObject *)group->gobject.first; go; go = go->next) {
+		/*Object *ob = go->ob;*/
+		
+		/* Each "group object" is effectively a separate instance of the underlying
+		 * object data. When the group is evaluated, the transform results and/or 
+		 * some other attributes end up getting overridden by the group
+		 */
+	}
+}
+
 SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 {
+	/* sanity checks */
+	if (!group)
+		return NULL;
 	
+	/* create new subgraph's data */
+	Depsgraph *subgraph = DEG_graph_new();
+	
+	DepsgraphNodeBuilder subgraph_builder(m_bmain, subgraph);
+	subgraph_builder.build_group(group);
+	
+	/* create a node for representing subgraph */
+	SubgraphDepsNode *subgraph_node = (SubgraphDepsNode *)m_graph->add_new_node(&group->id, "", DEPSNODE_TYPE_SUBGRAPH, group->id.name+2);
+	subgraph_node->graph = subgraph;
+	
+	/* make a copy of the data this node will need? */
+	// XXX: do we do this now, or later?
+	// TODO: need API function which queries graph's ID's hash, and duplicates those blocks thoroughly with all outside links removed...
+	
+	return subgraph_node;
 }
 
 IDDepsNode *DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
@@ -187,7 +221,7 @@ IDDepsNode *DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 	IDDepsNode *ob_node = add_id_node(ob);
 	
 	/* standard components */
-	ComponentDepsNode *params_node = add_component_node(ob_node, DEPSNODE_TYPE_OP_PARAMETER);
+	/*ComponentDepsNode *params_node =*/ add_component_node(ob_node, DEPSNODE_TYPE_OP_PARAMETER);
 	ComponentDepsNode *trans_node = build_object_transform(ob, ob_node);
 	
 	/* AnimData */
