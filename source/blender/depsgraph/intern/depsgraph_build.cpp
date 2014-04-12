@@ -351,9 +351,6 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	relation_builder.build_scene(scene);
 	
 #if 0
-	/* build graph for scene and all attached data */
-	DepsNode *scene_node = deg_build_scene_graph(graph, bmain, scene);
-	
 	/* ensure that all implicit constraints between nodes are satisfied */
 	DEG_graph_validate_links(graph);
 	
