@@ -337,7 +337,6 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	BKE_main_id_tag_idcode(bmain, ID_WO, false);
 	BKE_main_id_tag_idcode(bmain, ID_TE, false);
 	
-	
 	DepsgraphNodeBuilder node_builder(bmain, graph);
 	/* create root node for scene first
 	 * - this way it should be the first in the graph,

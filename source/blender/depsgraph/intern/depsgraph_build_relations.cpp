@@ -758,6 +758,159 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	}
 }
 
+/* Shapekeys */
+void DepsgraphRelationBuilder::build_shapekeys(IDPtr obdata, Key *key)
+{
+	build_animdata(key);
+	
+	/* attach to geometry */
+	// XXX: aren't shapekeys now done as a pseudo-modifier on object?
+	ComponentKey obdata_key(obdata, DEPSNODE_TYPE_GEOMETRY);
+	ComponentKey key_key(key, DEPSNODE_TYPE_GEOMETRY);
+	add_relation(key_key, obdata_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Shapekeys");
+}
+
+/* ObData Geometry Evaluation */
+// XXX: what happens if the datablock is shared!
+void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
+{
+	ID *obdata = (ID *)ob->data;
+	
+	/* get nodes for result of obdata's evaluation, and geometry evaluation on object */
+	ComponentKey geom_key(ob, DEPSNODE_TYPE_GEOMETRY);
+	ComponentKey obdata_geom_key(obdata, DEPSNODE_TYPE_GEOMETRY);
+	
+	/* link components to each other */
+	add_relation(obdata_geom_key, geom_key, DEPSREL_TYPE_DATABLOCK, "Object Geometry Base Data");
+	
+	/* type-specific node/links */
+	switch (ob->type) {
+		case OB_MESH:
+			break;
+		
+		case OB_MBALL: 
+		{
+			Object *mom = BKE_mball_basis_find(scene, ob);
+			
+			/* motherball - mom depends on children! */
+			if (mom != ob) {
+				/* non-motherball -> cannot be directly evaluated! */
+				ComponentKey mom_key(mom, DEPSNODE_TYPE_GEOMETRY);
+				add_relation(geom_key, mom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
+			}
+		}
+		break;
+		
+		case OB_CURVE:
+		case OB_FONT:
+		{
+			Curve *cu = (Curve *)obdata;
+			
+			/* curve's dependencies */
+			// XXX: these needs geom data, but where is geom stored?
+			if (cu->bevobj) {
+				ComponentKey bevob_key(cu->bevobj, DEPSNODE_TYPE_GEOMETRY);
+				add_relation(bevob_key, geom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
+			}
+			if (cu->taperobj) {
+				ComponentKey taperob_key(cu->taperobj, DEPSNODE_TYPE_GEOMETRY);
+				add_relation(taperob_key, geom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
+			}
+			if (ob->type == OB_FONT) {
+				if (cu->textoncurve) {
+					ComponentKey textoncurve_key(cu->taperobj, DEPSNODE_TYPE_GEOMETRY);
+					add_relation(textoncurve_key, geom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
+				}
+			}
+		}
+		break;
+		
+		case OB_SURF: /* Nurbs Surface */
+		{
+		}
+		break;
+		
+		case OB_LATTICE: /* Lattice */
+		{
+		}
+		break;
+	}
+	
+	/* ShapeKeys */
+	Key *key = BKE_key_from_object(ob);
+	if (key)
+		build_shapekeys(obdata, key);
+	
+	/* Modifiers */
+	if (ob->modifiers.first) {
+		ModifierData *md;
+		
+		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
+			
+			if (mti->updateDepgraph) {
+				#pragma message("ModifierTypeInfo->updateDepsgraph()")
+				//mti->updateDepgraph(md, graph, scene, ob);
+			}
+		}
+	}
+	
+	/* materials */
+	if (ob->totcol) {
+		int a;
+		
+		for (a = 1; a <= ob->totcol; a++) {
+			Material *ma = give_current_material(ob, a);
+			
+			if (ma)
+				build_material(ob, ma);
+		}
+	}
+	
+	/* geometry collision */
+	if (ELEM3(ob->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
+		// add geometry collider relations
+	}
+}
+
+/* Cameras */
+// TODO: Link scene-camera links in somehow...
+void DepsgraphRelationBuilder::build_camera(Object *ob)
+{
+	Camera *cam = (Camera *)ob->data;
+	ComponentKey param_key(cam, DEPSNODE_TYPE_PARAMETERS);
+	
+	/* DOF */
+	if (cam->dof_ob) {
+		ComponentKey dof_ob_key(cam->dof_ob, DEPSNODE_TYPE_TRANSFORM);
+		add_relation(dof_ob_key, param_key, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
+	}
+}
+
+/* Lamps */
+void DepsgraphRelationBuilder::build_lamp(Object *ob)
+{
+	Lamp *la = (Lamp *)ob->data;
+	
+	/* Prevent infinite recursion by checking (and tagging the lamp) as having been visited 
+	 * already. This assumes la->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (id_is_tagged(la))
+		return;
+	id_tag_set(la);
+	
+	/* lamp's nodetree */
+	if (la->nodetree) {
+		build_nodetree(la, la->nodetree);
+	}
+	
+	/* textures */
+	build_texture_stack(la, la->mtex);
+	
+	id_tag_clear(la);
+}
+
 void DepsgraphRelationBuilder::build_nodetree(IDPtr owner, bNodeTree *ntree)
 {
 	if (!ntree)

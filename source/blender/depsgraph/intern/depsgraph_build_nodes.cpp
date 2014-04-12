@@ -122,12 +122,12 @@ IDDepsNode *DepsgraphNodeBuilder::build_scene(Scene *scene)
 		Object *ob = base->object;
 		
 		/* object itself */
-		build_object(ob);
+		build_object(scene, ob);
 		
 		/* object that this is a proxy for */
 		// XXX: the way that proxies work needs to be completely reviewed!
 		if (ob->proxy) {
-			build_object(ob->proxy);
+			build_object(scene, ob->proxy);
 		}
 		
 		/* handled in next loop... 
@@ -181,7 +181,7 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 	
 }
 
-IDDepsNode *DepsgraphNodeBuilder::build_object(Object *ob)
+IDDepsNode *DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 {
 	/* create node for object itself */
 	IDDepsNode *ob_node = add_id_node(ob);
@@ -208,9 +208,10 @@ IDDepsNode *DepsgraphNodeBuilder::build_object(Object *ob)
 	/* object data */
 	if (ob->data) {
 		ID *obdata_id = (ID *)ob->data;
-		IDDepsNode *obdata_node = NULL;
+		IDDepsNode *obdata_node = add_id_node(obdata_id);
+		/* ob data animation */
+		build_animdata(obdata_node);
 		
-#if 0
 		/* type-specific data... */
 		switch (ob->type) {
 			case OB_MESH:     /* Geometry */
@@ -220,29 +221,21 @@ IDDepsNode *DepsgraphNodeBuilder::build_object(Object *ob)
 			case OB_MBALL:
 			case OB_LATTICE:
 			{
-				deg_build_obdata_geom_graph(graph, scene, ob);
+				build_obdata_geom(ob_node, obdata_node, scene, ob);
 			}
 			break;
 			
-			
 			case OB_ARMATURE: /* Pose */
-				deg_build_rig_graph(graph, scene, ob);
+				build_rig(ob_node, ob);
 				break;
 			
-			
 			case OB_LAMP:   /* Lamp */
-				deg_build_lamp_graph(graph, scene, ob);
+				build_lamp(ob_node, obdata_node, ob);
 				break;
 				
 			case OB_CAMERA: /* Camera */
-				deg_build_camera_graph(graph, scene, ob);
+				build_camera(ob_node, obdata_node, ob);
 				break;
-		}
-#endif
-		
-		if (obdata_node) {
-			/* ob data animation */
-			build_animdata(obdata_node);
 		}
 	}
 	
@@ -601,6 +594,162 @@ void DepsgraphNodeBuilder::build_rig(IDDepsNode *ob_node, Object *ob)
 			}
 		}
 	}
+}
+
+/* Shapekeys */
+void DepsgraphNodeBuilder::build_shapekeys(Key *key)
+{
+	/* create node for shapekeys block */
+	IDDepsNode *key_node = add_id_node(key);
+	build_animdata(key_node);
+	
+	// XXX: assume geometry - that's where shapekeys get evaluated anyways...
+	add_component_node(key_node, DEPSNODE_TYPE_GEOMETRY);
+}
+
+/* ObData Geometry Evaluation */
+// XXX: what happens if the datablock is shared!
+void DepsgraphNodeBuilder::build_obdata_geom(IDDepsNode *ob_node, IDDepsNode *obdata_node, Scene *scene, Object *ob)
+{
+	ID *obdata = (ID *)ob->data;
+	
+	/* get nodes for result of obdata's evaluation, and geometry evaluation on object */
+	ComponentDepsNode *geom_node = add_component_node(ob_node, DEPSNODE_TYPE_GEOMETRY);
+	ComponentDepsNode *obdata_geom_node = add_component_node(obdata_node, DEPSNODE_TYPE_GEOMETRY);
+	
+	/* type-specific node/links */
+	switch (ob->type) {
+		case OB_MESH:
+		{
+			//Mesh *me = (Mesh *)ob->data;
+			
+			/* evaluation operations */
+			add_operation_node(geom_node, DEPSNODE_TYPE_OP_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, BKE_mesh_eval_geometry, 
+			                   "Geometry Eval", make_rna_id_pointer(obdata));
+		}
+		break;
+		
+		case OB_MBALL: 
+		{
+			Object *mom = BKE_mball_basis_find(scene, ob);
+			
+			/* motherball - mom depends on children! */
+			if (mom == ob) {
+				/* metaball evaluation operations */
+				/* NOTE: only the motherball gets evaluated! */
+				add_operation_node(geom_node, DEPSNODE_TYPE_OP_GEOMETRY,
+				                   DEPSOP_TYPE_EXEC, BKE_mball_eval_geometry, 
+				                   "Geometry Eval", make_rna_id_pointer(obdata));
+			}
+		}
+		break;
+		
+		case OB_CURVE:
+		case OB_FONT:
+		{
+			/* curve evaluation operations */
+			/* - calculate curve geometry (including path) */
+			add_operation_node(geom_node, DEPSNODE_TYPE_OP_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, BKE_curve_eval_geometry, 
+			                   "Geometry Eval", make_rna_id_pointer(obdata));
+			
+			/* - calculate curve path - this is used by constraints, etc. */
+			add_operation_node(obdata_geom_node, DEPSNODE_TYPE_OP_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, BKE_curve_eval_path,
+			                   "Path", PointerRNA_NULL);
+		}
+		break;
+		
+		case OB_SURF: /* Nurbs Surface */
+		{
+			/* nurbs evaluation operations */
+			add_operation_node(geom_node, DEPSNODE_TYPE_OP_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, BKE_curve_eval_geometry, 
+			                   "Geometry Eval", make_rna_id_pointer(obdata));
+		}
+		break;
+		
+		case OB_LATTICE: /* Lattice */
+		{
+			/* lattice evaluation operations */
+			add_operation_node(geom_node, DEPSNODE_TYPE_OP_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, BKE_lattice_eval_geometry, 
+			                   "Geometry Eval", make_rna_id_pointer(obdata));
+		}
+		break;
+	}
+	
+	/* ShapeKeys */
+	Key *key = BKE_key_from_object(ob);
+	if (key)
+		build_shapekeys(key);
+	
+	/* Modifiers */
+	if (ob->modifiers.first) {
+		ModifierData *md;
+		
+		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
+			
+			if (mti->updateDepgraph) {
+				#pragma message("ModifierTypeInfo->updateDepsgraph()")
+				//mti->updateDepgraph(md, graph, scene, ob);
+			}
+		}
+	}
+	
+	/* materials */
+	if (ob->totcol) {
+		int a;
+		
+		for (a = 1; a <= ob->totcol; a++) {
+			Material *ma = give_current_material(ob, a);
+			
+			if (ma)
+				build_material(geom_node, ma);
+		}
+	}
+	
+	/* geometry collision */
+	if (ELEM3(ob->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
+		// add geometry collider relations
+	}
+}
+
+/* Cameras */
+// TODO: Link scene-camera links in somehow...
+void DepsgraphNodeBuilder::build_camera(IDDepsNode *ob_node, IDDepsNode *obdata_node, Object *ob)
+{
+	/* node for obdata */
+	add_component_node(obdata_node, DEPSNODE_TYPE_PARAMETERS);
+}
+
+/* Lamps */
+void DepsgraphNodeBuilder::build_lamp(IDDepsNode *ob_node, IDDepsNode *obdata_node, Object *ob)
+{
+	Lamp *la = (Lamp *)ob->data;
+	
+	/* Prevent infinite recursion by checking (and tagging the lamp) as having been visited 
+	 * already. This assumes la->id.flag & LIB_DOIT isn't set by anything else
+	 * in the meantime... [#32017]
+	 */
+	if (id_is_tagged(la))
+		return;
+	id_tag_set(la);
+	
+	/* node for obdata */
+	ComponentDepsNode *param_node = add_component_node(obdata_node, DEPSNODE_TYPE_PARAMETERS);
+	
+	/* lamp's nodetree */
+	if (la->nodetree) {
+		build_nodetree(param_node, la->nodetree);
+	}
+	
+	/* textures */
+	build_texture_stack(param_node, la->mtex);
+	
+	id_tag_clear(la);
 }
 
 void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree)
