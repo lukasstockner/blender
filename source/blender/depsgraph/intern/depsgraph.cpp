@@ -174,29 +174,6 @@ DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const Propert
 
 /* Convenience Functions ---------------------------- */
 
-/* Create a new node for representing an operation and add this to graph */
-OperationDepsNode *Depsgraph::add_operation(ID *id, const string &subdata,
-                                            eDepsNode_Type type, eDepsOperation_Type optype, 
-                                            DepsEvalOperationCb op, const string &name)
-{
-	OperationDepsNode *op_node = NULL;
-	
-	/* sanity check */
-	if (ELEM(NULL, id, op))
-		return NULL;
-	
-	/* create operation node (or find an existing but perhaps on partially completed one) */
-	op_node = (OperationDepsNode *)get_node(id, subdata, type, name);
-	BLI_assert(op_node != NULL);
-	
-	/* attach extra data... */
-	op_node->evaluate = op;
-	op_node->optype = optype;
-	
-	/* return newly created node */
-	return op_node;
-}
-
 IDDepsNode *Depsgraph::find_id_node(const ID *id) const
 {
 	IDNodeMap::const_iterator it = this->id_hash.find(id);

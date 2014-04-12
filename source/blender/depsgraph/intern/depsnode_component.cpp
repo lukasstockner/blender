@@ -98,13 +98,16 @@ OperationDepsNode *ComponentDepsNode::add_operation(eDepsNode_Type type, eDepsOp
 	if (!op_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(type);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
-		/* attach extra data */
-		op_node->evaluate = op;
-		op_node->optype = optype;
 		
 		/* register */
 		this->operations[name] = op_node;
 	}
+	
+	/* attach extra data */
+	op_node->evaluate = op;
+	op_node->optype = optype;
+	op_node->name = name;
+	
 	return op_node;
 }
 
@@ -232,19 +235,19 @@ void PoseComponentDepsNode::validate_links(Depsgraph *graph)
 		ob = (Object *)id;
 		
 		/* create standard pose evaluation start/end hooks */
-		rebuild_op = graph->add_operation(id, "", DEPSNODE_TYPE_OP_POSE,
-		                                  DEPSOP_TYPE_REBUILD, BKE_pose_rebuild_op,
-		                                  "Rebuild Pose");
+		rebuild_op = add_operation(DEPSNODE_TYPE_OP_POSE,
+		                           DEPSOP_TYPE_REBUILD, BKE_pose_rebuild_op,
+		                           "Rebuild Pose");
 		RNA_pointer_create(id, &RNA_Pose, ob->pose, &rebuild_op->ptr);
 		
-		init_op = graph->add_operation(id, "", DEPSNODE_TYPE_OP_POSE,
-		                               DEPSOP_TYPE_INIT, BKE_pose_eval_init,
-		                               "Init Pose Eval");
+		init_op = add_operation(DEPSNODE_TYPE_OP_POSE,
+		                        DEPSOP_TYPE_INIT, BKE_pose_eval_init,
+		                        "Init Pose Eval");
 		RNA_pointer_create(id, &RNA_Pose, ob->pose, &init_op->ptr);
 		
-		cleanup_op = graph->add_operation(id, "", DEPSNODE_TYPE_OP_POSE,
-		                                  DEPSOP_TYPE_POST, BKE_pose_eval_flush,
-		                                  "Flush Pose Eval");
+		cleanup_op = add_operation(DEPSNODE_TYPE_OP_POSE,
+		                           DEPSOP_TYPE_POST, BKE_pose_eval_flush,
+		                           "Flush Pose Eval");
 		RNA_pointer_create(id, &RNA_Pose, ob->pose, &cleanup_op->ptr);
 		
 		
