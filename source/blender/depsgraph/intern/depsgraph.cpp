@@ -42,6 +42,24 @@ extern "C" {
 #include "depsgraph_intern.h"
 
 
+Depsgraph::Depsgraph()
+{
+	this->root_node = NULL;
+}
+
+Depsgraph::~Depsgraph()
+{
+	/* free root node - it won't have been freed yet... */
+	if (this->root_node) {
+		delete this->root_node;
+	}
+	
+	clear_id_nodes();
+	clear_subgraph_nodes();
+}
+
+/* Query Conditions from RNA ----------------------- */
+
 /* Determine node-querying criteria for finding a suitable node,
  * given a RNA Pointer (and optionally, a property too)
  */
@@ -78,8 +96,6 @@ static void find_node_criteria_from_pointer(const PointerRNA *ptr, const Propert
 	}
 }
 
-/* Query Conditions from RNA ----------------------- */
-
 /* Convenience wrapper to find node given just pointer + property */
 DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop)
 {
@@ -95,7 +111,7 @@ DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const Propert
 	return find_node(id, subdata, type, name);
 }
 
-/* Convenience Functions ---------------------------- */
+/* Node Management ---------------------------- */
 
 RootDepsNode *Depsgraph::add_root_node()
 {
@@ -220,31 +236,11 @@ DepsRelation::~DepsRelation()
 /* ************************************************** */
 /* Public Graph API */
 
-Depsgraph::Depsgraph()
-{
-	this->root_node = NULL;
-}
-
-Depsgraph::~Depsgraph()
-{
-	/* free root node - it won't have been freed yet... */
-	if (this->root_node) {
-		delete this->root_node;
-	}
-	
-	clear_id_nodes();
-	clear_subgraph_nodes();
-}
-
-/* Init --------------------------------------------- */
-
 /* Initialise a new Depsgraph */
 Depsgraph *DEG_graph_new()
 {
 	return new Depsgraph;
 }
-
-/* Freeing ------------------------------------------- */
 
 /* Free graph's contents and graph itself */
 void DEG_graph_free(Depsgraph *graph)
