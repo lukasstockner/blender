@@ -282,7 +282,7 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, IDPtr id, const s
 	
 	/* add dependencies for each constraint in turn */
 	for (bConstraint *con = (bConstraint *)constraints->first; con; con = con->next) {
-		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 		/* invalid constraint type... */
 		if (cti == NULL)
 			continue;
