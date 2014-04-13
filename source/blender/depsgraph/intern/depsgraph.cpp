@@ -227,12 +227,6 @@ Depsgraph::Depsgraph()
 
 Depsgraph::~Depsgraph()
 {
-	/* free node hash */
-	for (Depsgraph::IDNodeMap::const_iterator it = this->id_hash.begin(); it != this->id_hash.end(); ++it) {
-		DepsNode *node = it->second;
-		delete node;
-	}
-	
 	/* free root node - it won't have been freed yet... */
 	if (this->root_node) {
 		delete this->root_node;
