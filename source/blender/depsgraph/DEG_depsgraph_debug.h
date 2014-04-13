@@ -48,6 +48,11 @@ typedef void (*DEG_DebugBuildCb_RelationAdded)(void *userdata, const struct Deps
 void DEG_debug_build_init(void *userdata, DEG_DebugBuildCb_NodeAdded node_added_cb, DEG_DebugBuildCb_RelationAdded rel_added_cb);
 void DEG_debug_build_end(void);
 
+typedef void (*DEG_DebugEvalCb)(void *userdata, const char *message);
+
+void DEG_debug_eval_init(void *userdata, DEG_DebugEvalCb cb);
+void DEG_debug_eval_end(void);
+
 /* ************************************************ */
 
 #ifdef __cplusplus

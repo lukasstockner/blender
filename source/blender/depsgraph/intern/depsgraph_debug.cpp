@@ -490,8 +490,10 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 #ifdef DEG_DEBUG_BUILD
 
 static void *deg_debug_build_userdata;
+static void *deg_debug_eval_userdata;
 DEG_DebugBuildCb_NodeAdded deg_debug_build_node_added_cb;
 DEG_DebugBuildCb_RelationAdded deg_debug_build_rel_added_cb;
+DEG_DebugEvalCb deg_debug_eval_cb;
 
 void DEG_debug_build_init(void *userdata, DEG_DebugBuildCb_NodeAdded node_added_cb, DEG_DebugBuildCb_RelationAdded rel_added_cb)
 {
@@ -519,6 +521,18 @@ void DEG_debug_build_end(void)
 	deg_debug_build_userdata = NULL;
 	deg_debug_build_node_added_cb = NULL;
 	deg_debug_build_rel_added_cb = NULL;
+}
+
+void DEG_debug_eval_init(void *userdata, DEG_DebugEvalCb cb)
+{
+	deg_debug_eval_userdata = userdata;
+	deg_debug_eval_cb = cb;
+}
+
+void DEG_debug_eval_end(void)
+{
+	deg_debug_eval_userdata = NULL;
+	deg_debug_eval_cb = NULL;
 }
 
 #else /* DEG_DEBUG_BUILD */

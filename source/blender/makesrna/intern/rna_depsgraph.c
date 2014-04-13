@@ -51,12 +51,57 @@ static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
 	fclose(f);
 }
 
+typedef struct DepsgraphEvalDebugInfo {
+	const char *filename;
+	int step;
+	const Depsgraph *graph;
+} DepsgraphEvalDebugInfo;
+
+/* generic debug output function */
+static void rna_Depsgraph_debug_simulate_cb(DepsgraphEvalDebugInfo *info, const char *UNUSED(message))
+{
+	char filename[FILE_MAX];
+	
+	BLI_snprintf(filename, sizeof(filename), "%s_eval_%04d", info->filename, info->step);
+	FILE *f = fopen(filename, "w");
+	if (f == NULL)
+		return;
+	
+	DEG_debug_graphviz(info->graph, f);
+	
+	fclose(f);
+	
+	++info->step;
+}
+
+static void rna_Depsgraph_debug_simulate(Depsgraph *graph, const char *filename)
+{
+	FILE *f = fopen(filename, "w");
+	if (f == NULL)
+		return;
+	
+	
+	DEG_debug_graphviz(graph, f);
+	
+	fclose(f);
+	DepsgraphEvalDebugInfo debug_info;
+	debug_info.filename = filename;
+	debug_info.step = 0;
+	debug_info.graph = graph;
+	
+	DEG_debug_eval_init(&debug_info,
+	                    (DEG_DebugEvalCb)rna_Depsgraph_debug_simulate_cb);
+	
+	/* ... TODO */
+	
+	DEG_debug_eval_end();
+}
+
 #else
 
 static void rna_def_depsgraph(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	PropertyRNA *prop;
 	FunctionRNA *func;
 	PropertyRNA *parm;
 	
@@ -64,6 +109,11 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Dependency Graph", "");
 	
 	func = RNA_def_function(srna, "debug_graphviz", "rna_Depsgraph_debug_graphviz");
+	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
+	                                "File in which to store graphviz debug output");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	
+	func = RNA_def_function(srna, "debug_simulate", "rna_Depsgraph_debug_simulate");
 	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "File in which to store graphviz debug output");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
