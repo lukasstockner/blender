@@ -471,6 +471,7 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 	ctx.show_tags = false;
 	
 	deg_debug_printf(ctx, "digraph depgraph {" NL);
+	deg_debug_printf(ctx, "rankdir=LR;" NL);
 	deg_debug_printf(ctx, "graph [compound=true];" NL);
 	
 	deg_debug_graphviz_graph_nodes(ctx, graph);
