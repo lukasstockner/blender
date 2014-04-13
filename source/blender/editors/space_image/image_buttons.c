@@ -763,7 +763,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 					if (has_alpha) {
 						col = uiLayoutColumn(layout, false);
 						uiItemR(col, &imaptr, "use_alpha", 0, NULL, ICON_NONE);
-						uiItemR(col, &imaptr, "alpha_mode", 0, "Alpha", ICON_NONE);
+						uiItemR(col, &imaptr, "alpha_mode", 0, IFACE_("Alpha"), ICON_NONE);
 					}
 
 					uiItemS(layout);
@@ -839,7 +839,7 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, int color_man
 	const bool is_render_out = (id && GS(id->name) == ID_SCE);
 
 	uiLayout *col, *row, *split, *sub;
-	int show_preview = false;
+	bool show_preview = false;
 
 	col = uiLayoutColumn(layout, false);
 

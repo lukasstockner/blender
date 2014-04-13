@@ -314,7 +314,7 @@ void BKE_lattice_make_local(Lattice *lt)
 {
 	Main *bmain = G.main;
 	Object *ob;
-	int is_local = false, is_lib = false;
+	bool is_local = false, is_lib = false;
 
 	/* - only lib users: do nothing
 	 * - only local users: set flag
@@ -647,10 +647,17 @@ static bool calc_curve_deform(Scene *scene, Object *par, float co[3],
 	}
 	else {
 		index = axis;
-		if (cu->flag & CU_STRETCH)
+		if (cu->flag & CU_STRETCH) {
 			fac = (co[index] - cd->dmin[index]) / (cd->dmax[index] - cd->dmin[index]);
-		else
-			fac = +(co[index] - cd->dmin[index]) / (par->curve_cache->path->totdist);
+		}
+		else {
+			if (LIKELY(par->curve_cache->path->totdist > FLT_EPSILON)) {
+				fac = +(co[index] - cd->dmin[index]) / (par->curve_cache->path->totdist);
+			}
+			else {
+				fac = 0.0f;
+			}
+		}
 	}
 	
 	if (where_on_path_deform(par, fac, loc, dir, new_quat, &radius)) {  /* returns OK */

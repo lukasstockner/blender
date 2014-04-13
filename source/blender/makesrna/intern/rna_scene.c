@@ -364,7 +364,7 @@ static int rna_Scene_object_bases_lookup_string(PointerRNA *ptr, const char *key
 
 static PointerRNA rna_Scene_objects_get(CollectionPropertyIterator *iter)
 {
-	ListBaseIterator *internal = iter->internal;
+	ListBaseIterator *internal = &iter->internal.listbase;
 
 	/* we are actually iterating a Base list, so override get */
 	return rna_pointer_inherit_refine(&iter->parent, &RNA_Object, ((Base *)internal->link)->object);
@@ -671,7 +671,7 @@ static void rna_Scene_all_keyingsets_begin(CollectionPropertyIterator *iter, Poi
 
 static void rna_Scene_all_keyingsets_next(CollectionPropertyIterator *iter)
 {
-	ListBaseIterator *internal = iter->internal;
+	ListBaseIterator *internal = &iter->internal.listbase;
 	KeyingSet *ks = (KeyingSet *)internal->link;
 	
 	/* if we've run out of links in Scene list, jump over to the builtins list unless we're there already */
@@ -4156,7 +4156,6 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	static EnumPropertyItem raytrace_structure_items[] = {
 		{R_RAYSTRUCTURE_AUTO, "AUTO", 0, "Auto", "Automatically select acceleration structure"},
 		{R_RAYSTRUCTURE_OCTREE, "OCTREE", 0, "Octree", "Use old Octree structure"},
-		{R_RAYSTRUCTURE_BLIBVH, "BLIBVH", 0, "BLI BVH", "Use BLI K-Dop BVH.c"},
 		{R_RAYSTRUCTURE_VBVH, "VBVH", 0, "vBVH", "Use vBVH"},
 		{R_RAYSTRUCTURE_SIMD_SVBVH, "SIMD_SVBVH", 0, "SIMD SVBVH", "Use SIMD SVBVH"},
 		{R_RAYSTRUCTURE_SIMD_QBVH, "SIMD_QBVH", 0, "SIMD QBVH", "Use SIMD QBVH"},

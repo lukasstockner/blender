@@ -586,6 +586,14 @@ void snode_set_context(const bContext *C)
 	if (snode->nodetree != ntree || snode->id != id || snode->from != from) {
 		ED_node_tree_start(snode, ntree, id, from);
 	}
+	
+	/* XXX Legacy hack to update render layer node outputs.
+	 * This should be handled by the depsgraph eventually ...
+	 */
+	if (ED_node_is_compositor(snode) && snode->nodetree) {
+		/* update output sockets based on available layers */
+		ntreeCompositForceHidden(snode->nodetree);
+	}
 }
 
 void snode_update(SpaceNode *snode, bNode *node)
@@ -2315,9 +2323,9 @@ static int node_shader_script_update_poll(bContext *C)
 }
 
 /* recursively check for script nodes in groups using this text and update */
-static int node_shader_script_update_text_recursive(RenderEngine *engine, RenderEngineType *type, bNodeTree *ntree, Text *text)
+static bool node_shader_script_update_text_recursive(RenderEngine *engine, RenderEngineType *type, bNodeTree *ntree, Text *text)
 {
-	int found = false;
+	bool found = false;
 	bNode *node;
 	
 	ntree->done = true;
@@ -2348,7 +2356,7 @@ static int node_shader_script_update_exec(bContext *C, wmOperator *op)
 	bNode *node = NULL;
 	RenderEngine *engine;
 	RenderEngineType *type;
-	int found = false;
+	bool found = false;
 
 	/* setup render engine */
 	type = RE_engines_find(scene->r.engine);

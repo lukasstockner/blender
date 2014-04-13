@@ -2050,7 +2050,7 @@ static void object_solver_inverted_matrix(Scene *scene, Object *ob, float invmat
 	bool found = false;
 
 	for (con = ob->constraints.first; con; con = con->next) {
-		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 
 		if (!cti)
 			continue;
@@ -2081,7 +2081,7 @@ static Object *object_solver_camera(Scene *scene, Object *ob)
 	bConstraint *con;
 
 	for (con = ob->constraints.first; con; con = con->next) {
-		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 
 		if (!cti)
 			continue;
@@ -3501,9 +3501,10 @@ void CLIP_OT_stabilize_2d_set_rotation(wmOperatorType *ot)
 
 /********************** clean tracks operator *********************/
 
-static int is_track_clean(MovieTrackingTrack *track, int frames, int del)
+static bool is_track_clean(MovieTrackingTrack *track, int frames, int del)
 {
-	int ok = 1, a, prev = -1, count = 0;
+	bool ok = true;
+	int a, prev = -1, count = 0;
 	MovieTrackingMarker *markers = track->markers, *new_markers = NULL;
 	int start_disabled = 0;
 	int markersnr = track->markersnr;

@@ -1147,7 +1147,7 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 	fprintf(f, "	if (iter.valid) {\n");
 
 	if (strcmp(nextfunc, "rna_iterator_array_next") == 0) {
-		fprintf(f, "		ArrayIterator *internal = iter.internal;\n");
+		fprintf(f, "		ArrayIterator *internal = &iter.internal.array;\n");
 		fprintf(f, "		if (index < 0 || index >= internal->length) {\n");
 		fprintf(f, "#ifdef __GNUC__\n");
 		fprintf(f, "			printf(\"Array iterator out of range: %%s (index %%d)\\n\", __func__, index);\n");
@@ -1167,7 +1167,7 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 		fprintf(f, "		}\n");
 	}
 	else if (strcmp(nextfunc, "rna_iterator_listbase_next") == 0) {
-		fprintf(f, "		ListBaseIterator *internal = iter.internal;\n");
+		fprintf(f, "		ListBaseIterator *internal = &iter.internal.listbase;\n");
 		fprintf(f, "		if (internal->skip) {\n");
 		fprintf(f, "			while (index-- > 0 && iter.valid) {\n");
 		fprintf(f, "				rna_iterator_listbase_next(&iter);\n");
@@ -2156,7 +2156,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 	PropertyType type;
 	const char *funcname, *valstr;
 	const char *ptrstr;
-	const short has_data = (dfunc->cont.properties.first != NULL);
+	const bool has_data = (dfunc->cont.properties.first != NULL);
 	int flag, pout, cptr, first;
 
 	srna = dsrna->srna;

@@ -34,6 +34,7 @@
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
+#include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
@@ -48,9 +49,34 @@
 #include "BKE_main.h"
 #include "BKE_node.h"
 
+#include "BLI_math.h"
+
 #include "BLO_readfile.h"
 
 #include "readfile.h"
+
+
+static void do_version_constraints_radians_degrees_270_1(ListBase *lb)
+{
+	bConstraint *con;
+
+	for (con = lb->first; con; con = con->next) {
+		if (con->type == CONSTRAINT_TYPE_TRANSFORM) {
+			bTransformConstraint *data = (bTransformConstraint *)con->data;
+			const float deg_to_rad_f = DEG2RADF(1.0f);
+
+			if (data->from == TRANS_ROTATION) {
+				mul_v3_fl(data->from_min, deg_to_rad_f);
+				mul_v3_fl(data->from_max, deg_to_rad_f);
+			}
+
+			if (data->to == TRANS_ROTATION) {
+				mul_v3_fl(data->to_min, deg_to_rad_f);
+				mul_v3_fl(data->to_max, deg_to_rad_f);
+			}
+		}
+	}
+}
 
 
 void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
@@ -107,6 +133,30 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			MovieClip *clip;
 			for (clip = main->movieclip.first; clip; clip = clip->id.next) {
 				clip->tracking.settings.default_weight = 1.0f;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 270, 1)) {
+		Scene *sce;
+		Object *ob;
+
+		/* Update Transform constraint (another deg -> rad stuff). */
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			do_version_constraints_radians_degrees_270_1(&ob->constraints);
+
+			if (ob->pose) {
+				/* Bones constraints! */
+				bPoseChannel *pchan;
+				for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+					do_version_constraints_radians_degrees_270_1(&pchan->constraints);
+				}
+			}
+		}
+
+		for (sce = main->scene.first; sce; sce = sce->id.next) {
+			if (sce->r.raytrace_structure == R_RAYSTRUCTURE_BLIBVH) {
+				sce->r.raytrace_structure = R_RAYSTRUCTURE_AUTO;
 			}
 		}
 	}

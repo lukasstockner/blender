@@ -1349,7 +1349,7 @@ void ED_region_init(bContext *C, ARegion *ar)
 }
 
 /* for quick toggle, can skip fades */
-void region_toggle_hidden(bContext *C, ARegion *ar, bool do_fade)
+void region_toggle_hidden(bContext *C, ARegion *ar, const bool do_fade)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	
@@ -1374,53 +1374,52 @@ void ED_region_toggle_hidden(bContext *C, ARegion *ar)
 	region_toggle_hidden(C, ar, 1);
 }
 
-/* sa2 to sa1, we swap spaces for fullscreen to keep all allocated data */
-/* area vertices were set */
-void area_copy_data(ScrArea *sa1, ScrArea *sa2, const bool swap_space)
+/**
+ * we swap spaces for fullscreen to keep all allocated data area vertices were set
+ */
+void ED_area_data_copy(ScrArea *sa_dst, ScrArea *sa_src, const bool do_free)
 {
 	SpaceType *st;
 	ARegion *ar;
-	int spacetype = sa1->spacetype;
+	const char spacetype = sa_dst->spacetype;
 	
-	sa1->headertype = sa2->headertype;
-	sa1->spacetype = sa2->spacetype;
-	sa1->type = sa2->type;
-	sa1->butspacetype = sa2->butspacetype;
-	
-	if (swap_space == 1) {
-		SWAP(ListBase, sa1->spacedata, sa2->spacedata);
-		/* exception: ensure preview is reset */
-//		if (sa1->spacetype == SPACE_VIEW3D)
-// XXX			BIF_view3d_previewrender_free(sa1->spacedata.first);
+	sa_dst->headertype = sa_src->headertype;
+	sa_dst->spacetype = sa_src->spacetype;
+	sa_dst->type = sa_src->type;
+	sa_dst->butspacetype = sa_src->butspacetype;
+
+	/* area */
+	if (do_free) {
+		BKE_spacedata_freelist(&sa_dst->spacedata);
 	}
-	else if (swap_space == 2) {
-		BKE_spacedata_copylist(&sa1->spacedata, &sa2->spacedata);
-	}
-	else {
-		BKE_spacedata_freelist(&sa1->spacedata);
-		BKE_spacedata_copylist(&sa1->spacedata, &sa2->spacedata);
-	}
-	
+	BKE_spacedata_copylist(&sa_dst->spacedata, &sa_src->spacedata);
+
 	/* Note; SPACE_EMPTY is possible on new screens */
-	
+
 	/* regions */
-	if (swap_space == 1) {
-		SWAP(ListBase, sa1->regionbase, sa2->regionbase);
+	if (do_free) {
+		st = BKE_spacetype_from_id(spacetype);
+		for (ar = sa_dst->regionbase.first; ar; ar = ar->next)
+			BKE_area_region_free(st, ar);
+		BLI_freelistN(&sa_dst->regionbase);
 	}
-	else {
-		if (swap_space < 2) {
-			st = BKE_spacetype_from_id(spacetype);
-			for (ar = sa1->regionbase.first; ar; ar = ar->next)
-				BKE_area_region_free(st, ar);
-			BLI_freelistN(&sa1->regionbase);
-		}
-		
-		st = BKE_spacetype_from_id(sa2->spacetype);
-		for (ar = sa2->regionbase.first; ar; ar = ar->next) {
-			ARegion *newar = BKE_area_region_copy(st, ar);
-			BLI_addtail(&sa1->regionbase, newar);
-		}
+	st = BKE_spacetype_from_id(sa_src->spacetype);
+	for (ar = sa_src->regionbase.first; ar; ar = ar->next) {
+		ARegion *newar = BKE_area_region_copy(st, ar);
+		BLI_addtail(&sa_dst->regionbase, newar);
 	}
+}
+
+void ED_area_data_swap(ScrArea *sa_dst, ScrArea *sa_src)
+{
+	sa_dst->headertype = sa_src->headertype;
+	sa_dst->spacetype = sa_src->spacetype;
+	sa_dst->type = sa_src->type;
+	sa_dst->butspacetype = sa_src->butspacetype;
+
+
+	SWAP(ListBase, sa_dst->spacedata, sa_src->spacedata);
+	SWAP(ListBase, sa_dst->regionbase, sa_src->regionbase);
 }
 
 /* *********** Space switching code *********** */
@@ -1432,9 +1431,9 @@ void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
 	ED_area_exit(C, sa1);
 	ED_area_exit(C, sa2);
 
-	area_copy_data(tmp, sa1, 2);
-	area_copy_data(sa1, sa2, 0);
-	area_copy_data(sa2, tmp, 0);
+	ED_area_data_copy(tmp, sa1, false);
+	ED_area_data_copy(sa1, sa2, true);
+	ED_area_data_copy(sa2, tmp, true);
 	ED_area_initialize(CTX_wm_manager(C), CTX_wm_window(C), sa1);
 	ED_area_initialize(CTX_wm_manager(C), CTX_wm_window(C), sa2);
 
@@ -2005,5 +2004,51 @@ void ED_region_visible_rect(ARegion *ar, rcti *rect)
 		}
 	}
 	BLI_rcti_translate(rect, -ar->winrct.xmin, -ar->winrct.ymin);
+}
+
+/* Cache display helpers */
+
+void ED_region_cache_draw_background(const ARegion *ar)
+{
+	glColor4ub(128, 128, 255, 64);
+	glRecti(0, 0, ar->winx, 8 * UI_DPI_FAC);
+}
+
+void ED_region_cache_draw_curfra_label(const int framenr, const float x, const float y)
+{
+	uiStyle *style = UI_GetStyle();
+	int fontid = style->widget.uifont_id;
+	char numstr[32];
+	float font_dims[2] = {0.0f, 0.0f};
+
+	/* frame number */
+	BLF_size(fontid, 11.0f * U.pixelsize, U.dpi);
+	BLI_snprintf(numstr, sizeof(numstr), "%d", framenr);
+
+	BLF_width_and_height(fontid, numstr, sizeof(numstr), &font_dims[0], &font_dims[1]);
+
+	glRecti(x, y, x + font_dims[0] + 6.0f, y + font_dims[1] + 4.0f);
+
+	UI_ThemeColor(TH_TEXT);
+	BLF_position(fontid, x + 2.0f, y + 2.0f, 0.0f);
+	BLF_draw(fontid, numstr, sizeof(numstr));
+}
+
+void ED_region_cache_draw_cached_segments(const ARegion *ar, const int num_segments, const int *points, const int sfra, const int efra)
+{
+	if (num_segments) {
+		int a;
+
+		glColor4ub(128, 128, 255, 128);
+
+		for (a = 0; a < num_segments; a++) {
+			float x1, x2;
+
+			x1 = (float)(points[a * 2] - sfra) / (efra - sfra + 1) * ar->winx;
+			x2 = (float)(points[a * 2 + 1] - sfra + 1) / (efra - sfra + 1) * ar->winx;
+
+			glRecti(x1, 0, x2, 8 * UI_DPI_FAC);
+		}
+	}
 }
 

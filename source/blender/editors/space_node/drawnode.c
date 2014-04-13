@@ -37,6 +37,7 @@
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -873,6 +874,20 @@ static void node_shader_buts_bump(uiLayout *layout, bContext *UNUSED(C), Pointer
 	uiItemR(layout, ptr, "invert", 0, NULL, 0);
 }
 
+static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "from_dupli", 0, NULL, 0);
+
+	if (!RNA_boolean_get(ptr, "from_dupli")) {
+		PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
+
+		if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
+			PointerRNA dataptr = RNA_pointer_get(&obptr, "data");
+			uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_textures", "", ICON_NONE);
+		}
+	}
+}
+
 static void node_shader_buts_normal_map(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "space", 0, "", 0);
@@ -924,7 +939,7 @@ static void node_shader_buts_subsurface(uiLayout *layout, bContext *C, PointerRN
 	PointerRNA scene = CTX_data_pointer_get(C, "scene");
 	if (scene.data) {
 		PointerRNA cscene = RNA_pointer_get(&scene, "cycles");
-		if (cscene.data && RNA_enum_get(&cscene, "device") == 1)
+		if (cscene.data && (RNA_enum_get(&cscene, "device") == 1 && U.compute_device_type != 0))
 			uiItemL(layout, IFACE_("SSS not supported on GPU"), ICON_ERROR);
 	}
 
@@ -934,12 +949,12 @@ static void node_shader_buts_subsurface(uiLayout *layout, bContext *C, PointerRN
 
 static void node_shader_buts_volume(uiLayout *layout, bContext *C, PointerRNA *UNUSED(ptr))
 {
-	/* SSS does not work on GPU yet */
+	/* Volume does not work on GPU yet */
 	PointerRNA scene = CTX_data_pointer_get(C, "scene");
 	if (scene.data) {
 		PointerRNA cscene = RNA_pointer_get(&scene, "cycles");
 
-		if (cscene.data && RNA_enum_get(&cscene, "device") == 1)
+		if (cscene.data && (RNA_enum_get(&cscene, "device") == 1 && U.compute_device_type != 0))
 			uiItemL(layout, IFACE_("Volumes not supported on GPU"), ICON_ERROR);
 	}
 }
@@ -1102,6 +1117,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 		case SH_NODE_SCRIPT:
 			ntype->draw_buttons = node_shader_buts_script;
 			ntype->draw_buttons_ex = node_shader_buts_script_ex;
+			break;
+		case SH_NODE_UVMAP:
+			ntype->draw_buttons = node_shader_buts_uvmap;
 			break;
 	}
 }
@@ -2708,7 +2726,7 @@ static void node_template_properties_update(bNodeType *ntype)
 static void node_socket_undefined_draw(bContext *UNUSED(C), uiLayout *layout, PointerRNA *UNUSED(ptr), PointerRNA *UNUSED(node_ptr),
                                        const char *UNUSED(text))
 {
-	uiItemL(layout, "Undefined Socket Type", ICON_ERROR);
+	uiItemL(layout, IFACE_("Undefined Socket Type"), ICON_ERROR);
 }
 
 static void node_socket_undefined_draw_color(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PointerRNA *UNUSED(node_ptr), float *r_color)
@@ -2721,7 +2739,7 @@ static void node_socket_undefined_draw_color(bContext *UNUSED(C), PointerRNA *UN
 
 static void node_socket_undefined_interface_draw(bContext *UNUSED(C), uiLayout *layout, PointerRNA *UNUSED(ptr))
 {
-	uiItemL(layout, "Undefined Socket Type", ICON_ERROR);
+	uiItemL(layout, IFACE_("Undefined Socket Type"), ICON_ERROR);
 }
 
 static void node_socket_undefined_interface_draw_color(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), float *r_color)
@@ -2927,8 +2945,8 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 			uiLayout *row;
 			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
 			row = uiLayoutRow(layout, true);
-			uiItemR(row, ptr, "min_value", 0, "Min", 0);
-			uiItemR(row, ptr, "max_value", 0, "Max", 0);
+			uiItemR(row, ptr, "min_value", 0, IFACE_("Min"), 0);
+			uiItemR(row, ptr, "max_value", 0, IFACE_("Max"), 0);
 			break;
 		}
 		case SOCK_INT:
@@ -2936,8 +2954,8 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 			uiLayout *row;
 			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
 			row = uiLayoutRow(layout, true);
-			uiItemR(row, ptr, "min_value", 0, "Min", 0);
-			uiItemR(row, ptr, "max_value", 0, "Max", 0);
+			uiItemR(row, ptr, "min_value", 0, IFACE_("Min"), 0);
+			uiItemR(row, ptr, "max_value", 0, IFACE_("Max"), 0);
 			break;
 		}
 		case SOCK_BOOLEAN:
@@ -2950,8 +2968,8 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 			uiLayout *row;
 			uiItemR(layout, ptr, "default_value", UI_ITEM_R_EXPAND, NULL, 0);
 			row = uiLayoutRow(layout, true);
-			uiItemR(row, ptr, "min_value", 0, "Min", 0);
-			uiItemR(row, ptr, "max_value", 0, "Max", 0);
+			uiItemR(row, ptr, "min_value", 0, IFACE_("Min"), 0);
+			uiItemR(row, ptr, "max_value", 0, IFACE_("Max"), 0);
 			break;
 		}
 		case SOCK_RGBA:

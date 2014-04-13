@@ -2462,7 +2462,7 @@ static void lib_verify_nodetree(Main *main, int UNUSED(open))
 	} FOREACH_NODETREE_END
 	
 	{
-		int has_old_groups = 0;
+		bool has_old_groups = false;
 		/* XXX this should actually be part of do_versions, but since we need
 		 * finished library linking, it is not possible there. Instead in do_versions
 		 * we have set the NTREE_DO_VERSIONS_GROUP_EXPOSE_2_56_2 flag, so at this point we can do the
@@ -2752,12 +2752,12 @@ typedef struct tConstraintLinkData {
 	ID *id;
 } tConstraintLinkData;
 /* callback function used to relink constraint ID-links */
-static void lib_link_constraint_cb(bConstraint *UNUSED(con), ID **idpoin, short isReference, void *userdata)
+static void lib_link_constraint_cb(bConstraint *UNUSED(con), ID **idpoin, bool is_reference, void *userdata)
 {
 	tConstraintLinkData *cld= (tConstraintLinkData *)userdata;
 	
 	/* for reference types, we need to increment the usercounts on load... */
-	if (isReference) {
+	if (is_reference) {
 		/* reference type - with usercount */
 		*idpoin = newlibadr_us(cld->fd, cld->id->lib, *idpoin);
 	}
@@ -2787,7 +2787,7 @@ static void lib_link_constraints(FileData *fd, ID *id, ListBase *conlist)
 	cld.fd = fd;
 	cld.id = id;
 	
-	BKE_id_loop_constraints(conlist, lib_link_constraint_cb, &cld);
+	BKE_constraints_id_loop(conlist, lib_link_constraint_cb, &cld);
 }
 
 static void direct_link_constraints(FileData *fd, ListBase *lb)
@@ -6169,6 +6169,8 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 		IDP_DirectLinkGroup_OrFree(&ui_list->properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 	}
 
+	link_list(fd, &ar->ui_previews);
+
 	if (spacetype == SPACE_EMPTY) {
 		/* unkown space type, don't leak regiondata */
 		ar->regiondata = NULL;
@@ -8207,7 +8209,7 @@ typedef struct tConstraintExpandData {
 	Main *mainvar;
 } tConstraintExpandData;
 /* callback function used to expand constraint ID-links */
-static void expand_constraint_cb(bConstraint *UNUSED(con), ID **idpoin, short UNUSED(isReference), void *userdata)
+static void expand_constraint_cb(bConstraint *UNUSED(con), ID **idpoin, bool UNUSED(is_reference), void *userdata)
 {
 	tConstraintExpandData *ced = (tConstraintExpandData *)userdata;
 	expand_doit(ced->fd, ced->mainvar, *idpoin);
@@ -8222,7 +8224,7 @@ static void expand_constraints(FileData *fd, Main *mainvar, ListBase *lb)
 	ced.fd = fd;
 	ced.mainvar = mainvar;
 	
-	BKE_id_loop_constraints(lb, expand_constraint_cb, &ced);
+	BKE_constraints_id_loop(lb, expand_constraint_cb, &ced);
 	
 	/* deprecated manual expansion stuff */
 	for (curcon = lb->first; curcon; curcon = curcon->next) {

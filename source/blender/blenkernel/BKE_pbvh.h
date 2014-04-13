@@ -67,8 +67,7 @@ void BKE_pbvh_build_grids(PBVH *bvh, struct CCGElem **grid_elems,
                           struct DMGridAdjacency *gridadj, int totgrid,
                           struct CCGKey *key, void **gridfaces, struct DMFlagMat *flagmats,
                           unsigned int **grid_hidden);
-void BKE_pbvh_build_bmesh(PBVH *bvh, struct BMesh *bm, int smooth_shading,
-                          struct BMLog *log);
+void BKE_pbvh_build_bmesh(PBVH *bvh, struct BMesh *bm, bool smooth_shading, struct BMLog *log);
 
 void BKE_pbvh_free(PBVH *bvh);
 void BKE_pbvh_free_layer_disp(PBVH *bvh);
@@ -186,6 +185,7 @@ bool BKE_pbvh_node_planes_exclude_AABB(PBVHNode *node, void *data);
 
 struct GSet *BKE_pbvh_bmesh_node_unique_verts(PBVHNode *node);
 struct GSet *BKE_pbvh_bmesh_node_other_verts(PBVHNode *node);
+struct GSet *BKE_pbvh_bmesh_node_faces(PBVHNode *node);
 void BKE_pbvh_bmesh_node_save_orig(PBVHNode *node);
 void BKE_pbvh_bmesh_after_stroke(PBVH *bvh);
 

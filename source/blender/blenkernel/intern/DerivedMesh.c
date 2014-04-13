@@ -54,6 +54,7 @@
 #include "BKE_displist.h"
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
+#include "BKE_material.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
@@ -349,6 +350,12 @@ int DM_release(DerivedMesh *dm)
 		CustomData_free(&dm->loopData, dm->numLoopData);
 		CustomData_free(&dm->polyData, dm->numPolyData);
 
+		if (dm->mat) {
+			MEM_freeN(dm->mat);
+			dm->mat = NULL;
+			dm->totmat = 0;
+		}
+
 		return 1;
 	}
 	else {
@@ -481,6 +488,23 @@ void DM_update_tessface_data(DerivedMesh *dm)
 
 	dm->dirty &= ~DM_DIRTY_TESS_CDLAYERS;
 }
+
+void DM_update_materials(DerivedMesh *dm, Object *ob)
+{
+	int i, totmat = ob->totcol + 1; /* materials start from 1, default material is 0 */
+	dm->totmat = totmat;
+
+	/* invalidate old materials */
+	if (dm->mat)
+		MEM_freeN(dm->mat);
+
+	dm->mat = MEM_callocN(totmat * sizeof(*dm->mat), "DerivedMesh.mat");
+
+	for (i = 1; i < totmat; i++) {
+		dm->mat[i] = give_current_material(ob, i);
+	}
+}
+
 
 void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 {
@@ -970,7 +994,7 @@ static void add_orco_dm(Object *ob, BMEditMesh *em, DerivedMesh *dm,
 	totvert = dm->getNumVerts(dm);
 
 	if (orcodm) {
-		orco = MEM_callocN(sizeof(float) * 3 * totvert, "dm orco");
+		orco = MEM_callocN(sizeof(float[3]) * totvert, "dm orco");
 		free = 1;
 
 		if (orcodm->getNumVerts(orcodm) == totvert)

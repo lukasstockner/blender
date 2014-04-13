@@ -280,7 +280,7 @@ static void sculpt_undo_bmesh_restore_generic(bContext *C,
 		unode->applied = true;
 	}
 
-	if (unode->type == SCULPT_UNDO_MASK) {
+	if (ELEM(unode->type, SCULPT_UNDO_MASK, SCULPT_UNDO_MASK)) {
 		int i, totnode;
 		PBVHNode **nodes;
 
@@ -296,6 +296,9 @@ static void sculpt_undo_bmesh_restore_generic(bContext *C,
 		for (i = 0; i < totnode; i++) {
 			BKE_pbvh_node_mark_redraw(nodes[i]);
 		}
+
+		if (nodes)
+			MEM_freeN(nodes);
 	}
 	else {
 		/* A bit lame, but for now just recreate the PBVH. The alternative
@@ -399,8 +402,8 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 	DerivedMesh *dm;
 	SculptSession *ss = ob->sculpt;
 	SculptUndoNode *unode;
-	int update = false, rebuild = false;
-	int need_mask = false;
+	bool update = false, rebuild = false;
+	bool need_mask = false;
 
 	for (unode = lb->first; unode; unode = unode->next) {
 		if (strcmp(unode->idname, ob->id.name) == 0) {
@@ -709,7 +712,7 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
 	PBVHVertexIter vd;
 
 	if (!lb->first) {
-		unode = MEM_callocN(sizeof(*unode), AT);
+		unode = MEM_callocN(sizeof(*unode), __func__);
 
 		BLI_strncpy(unode->idname, ob->id.name, sizeof(unode->idname));
 		unode->type = type;
@@ -753,15 +756,30 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
 	if (node) {
 		switch (type) {
 			case SCULPT_UNDO_COORDS:
-			case SCULPT_UNDO_HIDDEN:
 			case SCULPT_UNDO_MASK:
 				/* Before any vertex values get modified, ensure their
 				 * original positions are logged */
 				BKE_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_ALL) {
-					BM_log_vert_before_modified(ss->bm, ss->bm_log, vd.bm_vert);
+					BM_log_vert_before_modified(ss->bm_log, vd.bm_vert, vd.cd_vert_mask_offset);
 				}
 				BKE_pbvh_vertex_iter_end;
 				break;
+
+			case SCULPT_UNDO_HIDDEN:
+			{
+				GSetIterator gs_iter;
+				GSet *faces = BKE_pbvh_bmesh_node_faces(node);
+				BKE_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_ALL) {
+					BM_log_vert_before_modified(ss->bm_log, vd.bm_vert, vd.cd_vert_mask_offset);
+				}
+				BKE_pbvh_vertex_iter_end;
+
+				GSET_ITER (gs_iter, faces) {
+					BMFace *f = BLI_gsetIterator_getKey(&gs_iter);
+					BM_log_face_modified(ss->bm_log, f);
+				}
+				break;
+			}
 
 			case SCULPT_UNDO_DYNTOPO_BEGIN:
 			case SCULPT_UNDO_DYNTOPO_END:

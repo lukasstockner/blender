@@ -178,7 +178,7 @@ static int object_hide_view_set_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	bool changed = false;
-	const int unselected = RNA_boolean_get(op->ptr, "unselected");
+	const bool unselected = RNA_boolean_get(op->ptr, "unselected");
 	
 	CTX_DATA_BEGIN(C, Base *, base, visible_bases)
 	{
@@ -273,7 +273,7 @@ void OBJECT_OT_hide_render_clear(wmOperatorType *ot)
 
 static int object_hide_render_set_exec(bContext *C, wmOperator *op)
 {
-	const int unselected = RNA_boolean_get(op->ptr, "unselected");
+	const bool unselected = RNA_boolean_get(op->ptr, "unselected");
 
 	CTX_DATA_BEGIN(C, Base *, base, visible_bases)
 	{
@@ -432,7 +432,7 @@ void ED_object_editmode_enter(bContext *C, int flag)
 	Object *ob;
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = NULL;
-	int ok = 0;
+	bool ok = false;
 
 	if (scene->id.lib) return;
 
@@ -990,7 +990,7 @@ static void copy_attr(Main *bmain, Scene *scene, View3D *v3d, short event)
 				}
 				else if (event == 22) {
 					/* Copy the constraint channels over */
-					BKE_copy_constraints(&base->object->constraints, &ob->constraints, true);
+					BKE_constraints_copy(&base->object->constraints, &ob->constraints, true);
 					
 					do_depgraph_update = true;
 				}

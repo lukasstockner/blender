@@ -41,7 +41,7 @@
 #include "DNA_lamp_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_cpu.h"
+#include "BLI_system.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
@@ -119,8 +119,6 @@ RayObject *RE_rayobject_create(int type, int size, int octree_resolution)
 		
 	if (type == R_RAYSTRUCTURE_OCTREE) //TODO dynamic ocres
 		res = RE_rayobject_octree_create(octree_resolution, size);
-	else if (type == R_RAYSTRUCTURE_BLIBVH)
-		res = RE_rayobject_blibvh_create(size);
 	else if (type == R_RAYSTRUCTURE_VBVH)
 		res = RE_rayobject_vbvh_create(size);
 	else if (type == R_RAYSTRUCTURE_SIMD_SVBVH)

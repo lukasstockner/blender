@@ -248,8 +248,8 @@ public:
 		}
 		
 		/* Currently no Branched Path on sm_30 */
-		if(branched && major == 3 && minor == 0) {
-			cuda_error_message(string_printf("CUDA device: Branched Path is currently disabled on sm_30 GPUs."));
+		if(branched) {
+			cuda_error_message(string_printf("CUDA device: Branched Path is currently disabled, due to compile errors."));
 			return false;
 		}
 		
@@ -320,7 +320,7 @@ public:
 		/* CUDA 5.x build flags for different archs */
 		if(major == 2) {
 			/* sm_2x */
-			arch_flags = "--maxrregcount=32 --use_fast_math";
+			arch_flags = "--maxrregcount=40 --use_fast_math";
 		}
 		else if(major == 3) {
 			/* sm_3x */

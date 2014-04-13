@@ -884,7 +884,7 @@ static short pose_grab_with_ik_add(bPoseChannel *pchan)
 		}
 	}
 
-	con = BKE_add_pose_constraint(NULL, pchan, "TempConstraint", CONSTRAINT_TYPE_KINEMATIC);
+	con = BKE_constraint_add_for_pose(NULL, pchan, "TempConstraint", CONSTRAINT_TYPE_KINEMATIC);
 	pchan->constflag |= (PCHAN_HAS_IK | PCHAN_HAS_TARGET);    /* for draw, but also for detecting while pose solving */
 	data = con->data;
 	if (targetless) {
@@ -3862,13 +3862,13 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 					
 				}
 				/* special hack (must be done after initTransDataCurveHandles(), as that stores handle settings to restore...):
-				 *	- Check if we've got entire BezTriple selected and we're rotating that point,
+				 *	- Check if we've got entire BezTriple selected and we're scaling/rotating that point,
 				 *	  then check if we're using auto-handles.
 				 *	- If so, change them auto-handles to aligned handles so that handles get affected too
 				 */
-				if ((t->mode == TFM_ROTATION) &&
-				    ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM) &&
-				    ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM))
+				if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM) &&
+				    ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM) &&
+				    ELEM(t->mode, TFM_ROTATION, TFM_RESIZE))
 				{
 					if (hdata && (sel1) && (sel3)) {
 						bezt->h1 = HD_ALIGN;
@@ -6596,7 +6596,7 @@ static void MaskHandleToTransData(MaskSplinePoint *point, eMaskWhichHandle which
                                   /*const*/ float parent_inverse_matrix[3][3])
 {
 	BezTriple *bezt = &point->bezt;
-	short is_sel_any = MASKPOINT_ISSEL_ANY(point);
+	const bool is_sel_any = MASKPOINT_ISSEL_ANY(point);
 
 	tdm->point = point;
 	copy_m3_m3(tdm->vec, bezt->vec);

@@ -81,13 +81,12 @@
 
 #include "zlib.h"
 
-#ifndef WIN32
-#  include <unistd.h>
-#else
+#ifdef WIN32
 #  include "winsock2.h"
 #  include <io.h>
-#  include <process.h> // for getpid
 #  include "BLI_winstuff.h"
+#else
+#  include <unistd.h>  /* FreeBSD, for write() and close(). */
 #endif
 
 #include "BLI_utildefines.h"
@@ -1266,7 +1265,7 @@ static void write_constraints(WriteData *wd, ListBase *conlist)
 	bConstraint *con;
 
 	for (con=conlist->first; con; con=con->next) {
-		bConstraintTypeInfo *cti= BKE_constraint_get_typeinfo(con);
+		bConstraintTypeInfo *cti= BKE_constraint_typeinfo_get(con);
 		
 		/* Write the specific data */
 		if (cti && con->data) {
@@ -2490,6 +2489,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 			SpaceLink *sl;
 			Panel *pa;
 			uiList *ui_list;
+			uiPreview *ui_preview;
 			PanelCategoryStack *pc_act;
 			ARegion *ar;
 			
@@ -2506,6 +2506,9 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 
 				for (ui_list = ar->ui_lists.first; ui_list; ui_list = ui_list->next)
 					write_uilist(wd, ui_list);
+
+				for (ui_preview = ar->ui_previews.first; ui_preview; ui_preview = ui_preview->next)
+					writestruct(wd, DATA, "uiPreview", 1, ui_preview);
 			}
 			
 			sl= sa->spacedata.first;
