@@ -78,11 +78,7 @@ void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode 
 /* Free 'component' node */
 ComponentDepsNode::~ComponentDepsNode()
 {
-	/* free nodes and list of nodes */
-	for (OperationMap::const_iterator it = this->operations.begin(); it != this->operations.end(); ++it) {
-		OperationDepsNode *op = it->second;
-		delete op;
-	}
+	clear_operations();
 }
 
 OperationDepsNode *ComponentDepsNode::find_operation(const string &name) const
@@ -133,21 +129,6 @@ void ComponentDepsNode::clear_operations()
 		delete op_node;
 	}
 	operations.clear();
-}
-
-/* Remove 'component' node from graph */
-void ComponentDepsNode::remove_from_graph(Depsgraph *graph)
-{
-	/* detach from owner (i.e. id-ref) */
-	if (this->owner) {
-		IDDepsNode *id_node = this->owner;
-		id_node->components.erase(this->type);
-		this->owner = NULL;
-	}
-	
-	/* NOTE: don't need to do anything about relationships,
-	 * as those are handled via the standard mechanism
-	 */
 }
 
 /* Parameter Component Defines ============================ */
@@ -244,6 +225,7 @@ void PoseComponentDepsNode::copy(DepsgraphCopyContext *dcc, const PoseComponentD
 /* Free 'pose eval' node */
 PoseComponentDepsNode::~PoseComponentDepsNode()
 {
+	clear_bone_components();
 }
 
 /* Validate links for pose evaluation */
@@ -312,22 +294,6 @@ void BoneComponentDepsNode::init(const ID *id, const string &subdata)
 	/* bone-specific node data */
 	Object *ob = (Object *)id;
 	this->pchan = BKE_pose_channel_find_name(ob->pose, subdata.c_str());
-}
-
-/* Remove 'bone component' node from graph */
-void BoneComponentDepsNode::remove_from_graph(Depsgraph *graph)
-{
-	/* detach from owner (i.e. pose component) */
-	if (this->owner) {
-		PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)this->owner;
-		
-		pose_node->bone_hash.erase(this->name);
-		this->owner = NULL;
-	}
-	
-	/* NOTE: don't need to do anything about relationships,
-	 * as those are handled via the standard mechanism
-	 */
 }
 
 /* Validate 'bone component' links... 

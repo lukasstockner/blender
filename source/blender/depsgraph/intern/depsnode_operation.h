@@ -51,8 +51,6 @@ struct DepsgraphCopyContext;
 
 /* Atomic Operation - Base type for all operations */
 struct OperationDepsNode : public DepsNode {
-	void remove_from_graph(Depsgraph *graph);
-	
 	ComponentDepsNode *owner;     /* component that contains the operation */
 	
 	DepsEvalOperationCb evaluate; /* callback for operation */
@@ -118,8 +116,6 @@ struct BoneOperationDepsNode : public OperationDepsNode {
 };
 
 struct ParticlesOperationDepsNode : public OperationDepsNode {
-	void remove_from_graph(Depsgraph *graph);
-	
 	DEG_DEPSNODE_DECLARE;
 };
 

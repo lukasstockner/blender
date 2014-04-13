@@ -83,13 +83,6 @@ DepsNode::~DepsNode()
 
 /* Root Node ============================================== */
 
-/* Remove 'root' node from graph */
-void RootDepsNode::remove_from_graph(Depsgraph *graph)
-{
-	BLI_assert(graph->root_node == this);
-	graph->root_node = NULL;
-}
-
 TimeSourceDepsNode *RootDepsNode::add_time_source(const string &name)
 {
 	if (!time_source) {
@@ -104,28 +97,6 @@ DEG_DEPSNODE_DEFINE(RootDepsNode, DEPSNODE_TYPE_ROOT, "Root DepsNode");
 static DepsNodeFactoryImpl<RootDepsNode> DNTI_ROOT;
 
 /* Time Source Node ======================================= */
-
-/* Remove 'time source' node from graph */
-void TimeSourceDepsNode::remove_from_graph(Depsgraph *graph)
-{
-#if 0
-	BLI_assert(this->owner != NULL);
-	
-	switch(this->owner->type) {
-		case DEPSNODE_TYPE_ROOT: /* root node - standard case */
-		{
-			graph->root_node->time_source = NULL;
-			this->owner = NULL;
-		}
-		break;
-		
-		// XXX: ID node - as needed...
-		
-		default: /* unhandled for now */
-			break;
-	}
-#endif
-}
 
 DEG_DEPSNODE_DEFINE(TimeSourceDepsNode, DEPSNODE_TYPE_TIMESOURCE, "Time Source");
 static DepsNodeFactoryImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
@@ -148,10 +119,7 @@ void IDDepsNode::init(const ID *id, const string &UNUSED(subdata))
 /* Free 'id' node */
 IDDepsNode::~IDDepsNode()
 {
-	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin(); it != this->components.end(); ++it) {
-		const ComponentDepsNode *comp = it->second;
-		delete comp;
-	}
+	clear_components();
 }
 
 /* Copy 'id' node */
@@ -212,13 +180,6 @@ void IDDepsNode::clear_components()
 		delete comp_node;
 	}
 	components.clear();
-}
-
-/* Remove 'id' node from graph */
-void IDDepsNode::remove_from_graph(Depsgraph *graph)
-{
-	/* remove toplevel node and hash entry, but don't free... */
-	graph->id_hash.erase(this->id);
 }
 
 /* Validate links between components */
@@ -323,21 +284,6 @@ void SubgraphDepsNode::copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *s
 	//SubgraphDepsNode *dst_node       = (SubgraphDepsNode *)dst;
 	
 	/* for now, subgraph itself isn't copied... */
-}
-
-/* Remove 'subgraph' node from graph */
-void SubgraphDepsNode::remove_from_graph(Depsgraph *graph)
-{
-	/* remove from subnodes list */
-	graph->subgraphs.erase(this);
-	
-	/* remove from ID-nodes lookup */
-	if (this->root_id) {
-#if 0 /* XXX subgraph node is NOT a true IDDepsNode - what is this supposed to do? */
-		BLI_assert(graph->find_id_node(this->root_id) == this);
-		graph->id_hash.erase(this->root_id);
-#endif
-	}
 }
 
 /* Validate subgraph links... */

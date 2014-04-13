@@ -106,9 +106,6 @@ public:
 	virtual void init(const ID *id, const string &subdata) {}
 	virtual void copy(DepsgraphCopyContext *dcc, const DepsNode *src) {}
 	
-	/* Remove node from graph - Only use when node is to be replaced... */
-	virtual void remove_from_graph(Depsgraph *graph) = 0;
-	
 	/* Recursively ensure that all implicit/builtin link rules have been applied */
 	/* i.e. init()/cleanup() callbacks as last items for components + component ordering rules obeyed */
 	virtual void validate_links(Depsgraph *graph) {}
@@ -131,8 +128,6 @@ struct ComponentDepsNode;
 
 /* Time Source Node */
 struct TimeSourceDepsNode : public DepsNode {
-	void remove_from_graph(Depsgraph *graph);
-	
 	// XXX: how do we keep track of the chain of time sources for propagation of delays?
 	
 	double cfra;                    /* new "current time" */
@@ -143,8 +138,6 @@ struct TimeSourceDepsNode : public DepsNode {
 
 /* Root Node */
 struct RootDepsNode : public DepsNode {
-	void remove_from_graph(Depsgraph *graph);
-	
 	TimeSourceDepsNode *add_time_source(const string &name = "");
 	
 	struct Scene *scene;             /* scene that this corresponds to */
@@ -166,8 +159,6 @@ struct IDDepsNode : public DepsNode {
 	void remove_component(eDepsNode_Type type);
 	void clear_components();
 	
-	void remove_from_graph(Depsgraph *graph);
-	
 	void validate_links(Depsgraph *graph);
 	
 	struct ID *id;                  /* ID Block referenced */
@@ -181,8 +172,6 @@ struct SubgraphDepsNode : public DepsNode {
 	void init(const ID *id, const string &subdata);
 	void copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src);
 	~SubgraphDepsNode();
-	
-	void remove_from_graph(Depsgraph *graph);
 	
 	void validate_links(Depsgraph *graph);
 	

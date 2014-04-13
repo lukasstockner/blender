@@ -124,31 +124,6 @@ DepsNode *Depsgraph::add_new_node(const ID *id, const string &subdata,
 	return node;
 }
 
-/* Remove/Free ---------------------------------------- */
-
-/* Remove node from graph, but don't free any of its data */
-void Depsgraph::remove_node(DepsNode *node)
-{
-	if (node == NULL)
-		return;
-	
-	/* relationships 
-	 * - remove these, since they're at the same level as the
-	 *   node itself (inter-relations between sub-nodes will
-	 *   still remain and/or can still work that way)
-	 */
-	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks, rel)
-		delete rel;
-	DEPSNODE_RELATIONS_ITER_END;
-	
-	DEPSNODE_RELATIONS_ITER_BEGIN(node->outlinks, rel)
-		delete rel;
-	DEPSNODE_RELATIONS_ITER_END;
-	
-	/* remove node from graph - handle special data the node might have */
-	node->remove_from_graph(this);
-}
-
 /* Query Conditions from RNA ----------------------- */
 
 /* Convenience wrapper to find node given just pointer + property */
@@ -195,6 +170,21 @@ SubgraphDepsNode *Depsgraph::add_subgraph_node(const ID *id)
 	}
 	
 	return subgraph_node;
+}
+
+void Depsgraph::remove_subgraph_node(SubgraphDepsNode *subgraph_node)
+{
+	subgraphs.erase(subgraph_node);
+	delete subgraph_node;
+}
+
+void Depsgraph::clear_subgraph_nodes()
+{
+	for (Subgraphs::iterator it = subgraphs.begin(); it != subgraphs.end(); ++it) {
+		SubgraphDepsNode *subgraph_node = *it;
+		delete subgraph_node;
+	}
+	subgraphs.clear();
 }
 
 IDDepsNode *Depsgraph::find_id_node(const ID *id) const
@@ -293,6 +283,9 @@ Depsgraph::~Depsgraph()
 	if (this->root_node) {
 		delete this->root_node;
 	}
+	
+	clear_id_nodes();
+	clear_subgraph_nodes();
 }
 
 /* Init --------------------------------------------- */

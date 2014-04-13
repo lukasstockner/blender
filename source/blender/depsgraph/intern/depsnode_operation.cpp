@@ -44,21 +44,6 @@ extern "C" {
 /* ******************************************************** */
 /* Inner Nodes */
 
-/* Standard Operation Callbacks =========================== */
-/* NOTE: some of these are just templates used by the others */
-
-/* Callback to remove 'operation' node from graph */
-void OperationDepsNode::remove_from_graph(Depsgraph *UNUSED(graph))
-{
-	if (this->owner) {
-		ComponentDepsNode *comp_node = this->owner;
-		/* remove node from hash table */
-		comp_node->operations.erase(this->name);
-		/* remove backlink */
-		this->owner = NULL;
-	}
-}
-
 /* Parameter Operation ==================================== */
 
 DEG_DEPSNODE_OP_DEFINE(ParametersOperationDepsNode, DEPSNODE_TYPE_OP_PARAMETER, DEPSNODE_TYPE_PARAMETERS, "Parameters Operation");
@@ -124,13 +109,6 @@ DEG_DEPSNODE_OP_DEFINE(BoneOperationDepsNode, DEPSNODE_TYPE_OP_BONE, DEPSNODE_TY
 static DepsNodeFactoryImpl<BoneOperationDepsNode> DNTI_OP_BONE;
 
 /* Particle Operation ===================================== */
-
-/* Remove 'particle operation' node from graph */
-void ParticlesOperationDepsNode::remove_from_graph(Depsgraph *graph)
-{
-	// XXX...
-	OperationDepsNode::remove_from_graph(graph);
-}
 
 DEG_DEPSNODE_OP_DEFINE(ParticlesOperationDepsNode, DEPSNODE_TYPE_OP_PARTICLE, DEPSNODE_TYPE_EVAL_PARTICLES, "Particles Operation");
 static DepsNodeFactoryImpl<ParticlesOperationDepsNode> DNTI_OP_PARTICLES;

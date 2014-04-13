@@ -72,8 +72,6 @@ struct ComponentDepsNode : public DepsNode {
 	void remove_operation(const string &name);
 	void clear_operations();
 	
-	void remove_from_graph(Depsgraph *graph);
-	
 	/* Evaluation Context Management .................. */
 	
 	/* Initialise component's evaluation context used for the specified purpose */
@@ -144,8 +142,6 @@ struct PoseComponentDepsNode : public ComponentDepsNode {
 /* Bone Component */
 struct BoneComponentDepsNode : public ComponentDepsNode {
 	void init(const ID *id, const string &subdata);
-	
-	void remove_from_graph(Depsgraph *graph);
 	
 	void validate_links(Depsgraph *graph);
 	

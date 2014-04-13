@@ -143,14 +143,13 @@ struct Depsgraph {
 	
 	RootDepsNode *add_root_node();
 	SubgraphDepsNode *add_subgraph_node(const ID *id);
+	void remove_subgraph_node(SubgraphDepsNode *subgraph_node);
+	void clear_subgraph_nodes();
 	
 	IDDepsNode *find_id_node(const ID *id) const;
 	IDDepsNode *add_id_node(const ID *id, const string &name = "");
 	void remove_id_node(const ID *id);
 	void clear_id_nodes();
-	
-	/* Remove node from graph, but don't free any of its data */
-	void remove_node(DepsNode *node);
 	
 	/* Add new relationship between two nodes */
 	DepsRelation *add_new_relation(DepsNode *from, DepsNode *to,
