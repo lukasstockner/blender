@@ -78,52 +78,6 @@ static void find_node_criteria_from_pointer(const PointerRNA *ptr, const Propert
 	}
 }
 
-/* ************************************************** */
-/* Node Management */
-
-/* Get Node ----------------------------------------- */
-
-/* Get a matching node, creating one if need be */
-DepsNode *Depsgraph::get_node(const ID *id, const string &subdata, eDepsNode_Type type, const string &name)
-{
-	DepsNode *node;
-	
-	/* firstly try to get an existing node... */
-	node = find_node(id, subdata, type, name);
-	if (node == NULL) {
-		/* nothing exists, so create one instead! */
-		node = add_new_node(id, subdata, type, name);
-	}
-	
-	/* return the node - it must exist now... */
-	return node;
-}
-
-/* Add ------------------------------------------------ */
-
-/* Add a new node */
-DepsNode *Depsgraph::add_new_node(const ID *id, const string &subdata,
-                                  eDepsNode_Type type, const string &name)
-{
-	DepsNode *node;
-	
-	DepsNodeFactory *factory = DEG_get_node_factory(type);
-	BLI_assert(factory != NULL);
-	
-	/* create node data... */
-	node = factory->create_node(id, subdata, name);
-	
-	/* add node to operation-node list if it plays a part in the evaluation process */
-	if (ELEM(node->tclass, DEPSNODE_CLASS_GENERIC, DEPSNODE_CLASS_OPERATION)) {
-		this->all_opnodes.push_back(node);
-	}
-	
-	DEG_debug_build_node_added(node);
-	
-	/* return the newly created node matching the description */
-	return node;
-}
-
 /* Query Conditions from RNA ----------------------- */
 
 /* Convenience wrapper to find node given just pointer + property */

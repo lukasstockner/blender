@@ -124,24 +124,8 @@ struct Depsgraph {
 	 */
 	DepsNode *find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop);
 	
-	/* Create or find a node with data matching the requested characteristics
-	 * ! New nodes are created if no matching nodes exist...
-	 * ! Arguments are as for DEG_find_node()
-	 *
-	 * > returns: A node matching the required characteristics that exists in the graph
-	 */
-	DepsNode *get_node(const ID *id, const string &subdata, eDepsNode_Type type, const string &name);
-	
-	/* Create a new node and add to graph
-	 * ! Arguments are as for DEG_find_node()
-	 *
-	 * > returns: The new node created (of the specified type) which now exists in the graph already
-	 *            (i.e. even if an ID node was created first, the inner node would get created first)
-	 */
-	DepsNode *add_new_node(const ID *id, const string &subdata,
-	                       eDepsNode_Type type, const string &name);
-	
 	RootDepsNode *add_root_node();
+	
 	SubgraphDepsNode *add_subgraph_node(const ID *id);
 	void remove_subgraph_node(SubgraphDepsNode *subgraph_node);
 	void clear_subgraph_nodes();
@@ -167,6 +151,7 @@ struct Depsgraph {
 	EntryTags entry_tags;       /* nodes which have been tagged as "directly modified" */
 	
 	/* Convenience Data ................... */
+	/* XXX: should be collected after building (if actually needed?) */
 	OperationNodes all_opnodes; /* all operation nodes, sorted in order of single-thread traversal order */
 	
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
