@@ -153,7 +153,7 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType contex
 	tsrc = (TimeSourceDepsNode *)graph->find_node(NULL, "", DEPSNODE_TYPE_TIMESOURCE, "");
 	tsrc->cfra = ctime;
 	
-	DEG_node_tag_update(graph, tsrc);
+	graph->tag_update(tsrc);
 	
 	/* recursively push updates out to all nodes dependent on this, 
 	 * until all affected are tagged and/or scheduled up for eval

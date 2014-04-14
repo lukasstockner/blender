@@ -150,6 +150,9 @@ struct Depsgraph {
 	 */
 	void sort();
 	
+	/* Tag a specific node as needing updates */
+	void tag_update(DepsNode *node);
+	
 	
 	/* Core Graph Functionality ........... */
 	IDNodeMap id_hash;          /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */

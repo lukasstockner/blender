@@ -268,6 +268,24 @@ DepsRelation::~DepsRelation()
 	this->to->inlinks.erase(this);
 }
 
+/* Low level tagging -------------------------------------- */
+
+/* Tag a specific node as needing updates */
+void Depsgraph::tag_update(DepsNode *node)
+{
+	/* sanity check */
+	if (!node)
+		return;
+	
+	/* tag for update, but also not that this was the source of an update */
+	node->flag |= (DEPSNODE_FLAG_NEEDS_UPDATE | DEPSNODE_FLAG_DIRECTLY_MODIFIED);
+	
+	/* add to graph-level set of directly modified nodes to start searching from
+	 * NOTE: this is necessary since we have several thousand nodes to play with...
+	 */
+	this->entry_tags.insert(node);
+}
+
 /* ************************************************** */
 /* Public Graph API */
 

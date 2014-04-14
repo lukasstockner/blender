@@ -123,11 +123,5 @@ typedef struct DEG_PoseContext {
 } DEG_PoseContext;
 
 /* ****************************************** */
-/* Tagging */
-
-/* Tag a specific node as needing updates */
-void DEG_node_tag_update(Depsgraph *graph, DepsNode *node);
-
-/* ****************************************** */
 
 #endif // __DEPSGRAPH_EVAL_TYPES_H__

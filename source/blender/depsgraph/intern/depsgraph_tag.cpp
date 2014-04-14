@@ -51,24 +51,6 @@ extern "C" {
 /* ************************************************** */
 /* Update Tagging/Flushing */
 
-/* Low-Level Tagging -------------------------------- */
-
-/* Tag a specific node as needing updates */
-void DEG_node_tag_update(Depsgraph *graph, DepsNode *node)
-{
-	/* sanity check */
-	if (ELEM(NULL, graph, node))
-		return;
-		
-	/* tag for update, but also not that this was the source of an update */
-	node->flag |= (DEPSNODE_FLAG_NEEDS_UPDATE | DEPSNODE_FLAG_DIRECTLY_MODIFIED);
-	
-	/* add to graph-level set of directly modified nodes to start searching from
-	 * NOTE: this is necessary since we have several thousand nodes to play with...
-	 */
-	graph->entry_tags.insert(node);
-}
-
 /* Data-Based Tagging ------------------------------- */
 
 /* Tag all nodes in ID-block for update 
@@ -77,21 +59,21 @@ void DEG_node_tag_update(Depsgraph *graph, DepsNode *node)
 void DEG_id_tag_update(Depsgraph *graph, const ID *id)
 {
 	DepsNode *node = graph->find_node(id, "", DEPSNODE_TYPE_ID_REF, "");
-	DEG_node_tag_update(graph, node);
+	graph->tag_update(node);
 }
 
 /* Tag nodes related to a specific piece of data */
 void DEG_data_tag_update(Depsgraph *graph, const PointerRNA *ptr)
 {
 	DepsNode *node = graph->find_node_from_pointer(ptr, NULL);
-	DEG_node_tag_update(graph, node);
+	graph->tag_update(node);
 }
 
 /* Tag nodes related to a specific property */
 void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
 {
 	DepsNode *node = graph->find_node_from_pointer(ptr, prop);
-	DEG_node_tag_update(graph, node);
+	graph->tag_update(node);
 }
 
 /* Update Flushing ---------------------------------- */
