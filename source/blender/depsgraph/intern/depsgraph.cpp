@@ -209,6 +209,41 @@ DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to,
 	return rel;
 }
 
+/* Ensure that all implicit constraints between nodes are satisfied 
+ * (e.g. components are only allowed to be executed in a certain order)
+ */
+void Depsgraph::validate_links()
+{
+	/* go over each ID node to recursively call validate_links()
+	 * on it, which should be enough to ensure that all of those
+	 * subtrees are valid
+	 */
+	for (Depsgraph::IDNodeMap::const_iterator it = this->id_hash.begin(); it != this->id_hash.end(); ++it) {
+		DepsNode *node = it->second;
+		node->validate_links(this);
+	}
+}
+
+/* Sort nodes to determine evaluation order for operation nodes
+ * where dependency relationships won't get violated.
+ */
+void Depsgraph::sort()
+{
+#if 0
+	void *ctx = NULL; // XXX: temp struct for keeping track of visited nodes, etc.?
+	
+	/* 1) traverse graph from root
+	 *   - note when each graph was visited (within its peers)
+	 *   - tag/knock out relationships leading to cyclic dependencies
+	 */
+	DEG_graph_traverse(graph, DEG_Filter_ExecutableNodes, NULL, 
+	                          tag_nodes_for_sorting,      ctx); 
+	
+
+	/* 2) tweak order of nodes within each set of links */
+#endif	
+}
+
 /* ************************************************** */
 /* Relationships Management */
 

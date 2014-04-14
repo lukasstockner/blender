@@ -45,21 +45,6 @@ struct Main;
 struct Group;
 struct Scene;
 
-/* Low-Level Querying ============================================== */
-
-/* Graph Validity -------------------------------------------------- */
-
-/* Ensure that all implicit constraints between nodes are satisfied 
- * (e.g. components are only allowed to be executed in a certain order)
- */
-void DEG_graph_validate_links(Depsgraph *graph);
-
-
-/* Sort nodes to determine evaluation order for operation nodes
- * where dependency relationships won't get violated.
- */
-void DEG_graph_sort(Depsgraph *graph);
-
 /* Graph Building ======================================================== */
 
 /* Build depsgraph for the given group, and dump results in given graph container 

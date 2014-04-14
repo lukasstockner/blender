@@ -53,49 +53,6 @@ extern "C" {
 #include "depsgraph_intern.h"
 
 /* ************************************************** */
-/* Validity + Integrity */
-
-/* Ensure that all implicit constraints between nodes are satisfied 
- * (e.g. components are only allowed to be executed in a certain order)
- */
-void DEG_graph_validate_links(Depsgraph *graph)
-{
-	BLI_assert(graph != NULL);
-	
-	/* go over each ID node to recursively call validate_links()
-	 * on it, which should be enough to ensure that all of those
-	 * subtrees are valid
-	 */
-	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
-		DepsNode *node = it->second;
-		node->validate_links(graph);
-	}
-}
-
-/* ************************************************** */
-/* Low-Level Graph Traversal and Sorting */
-
-/* Sort nodes to determine evaluation order for operation nodes
- * where dependency relationships won't get violated.
- */
-void DEG_graph_sort(Depsgraph *graph)
-{
-#if 0
-	void *ctx = NULL; // XXX: temp struct for keeping track of visited nodes, etc.?
-	
-	/* 1) traverse graph from root
-	 *   - note when each graph was visited (within its peers)
-	 *   - tag/knock out relationships leading to cyclic dependencies
-	 */
-	DEG_graph_traverse(graph, DEG_Filter_ExecutableNodes, NULL, 
-	                          tag_nodes_for_sorting,      ctx); 
-	
-
-	/* 2) tweak order of nodes within each set of links */
-#endif	
-}
-
-/* ************************************************** */
 /* Update Tagging/Flushing */
 
 /* Low-Level Tagging -------------------------------- */

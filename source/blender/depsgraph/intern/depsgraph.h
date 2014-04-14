@@ -140,6 +140,16 @@ struct Depsgraph {
 	                               eDepsRelation_Type type, 
 	                               const string &description);
 	
+	/* Ensure that all implicit constraints between nodes are satisfied 
+	 * (e.g. components are only allowed to be executed in a certain order)
+	 */
+	void validate_links();
+	
+	/* Sort nodes to determine evaluation order for operation nodes
+	 * where dependency relationships won't get violated.
+	 */
+	void sort();
+	
 	
 	/* Core Graph Functionality ........... */
 	IDNodeMap id_hash;          /* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks (for quick lookups) */
