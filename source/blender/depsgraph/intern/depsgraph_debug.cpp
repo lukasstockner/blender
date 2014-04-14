@@ -517,6 +517,12 @@ void DEG_debug_build_relation_added(const DepsRelation *rel)
 	}
 }
 
+void DEG_debug_eval_step(const char *message)
+{
+	if (deg_debug_eval_cb)
+		deg_debug_eval_cb(deg_debug_eval_userdata, message);
+}
+
 void DEG_debug_build_end(void)
 {
 	deg_debug_build_userdata = NULL;

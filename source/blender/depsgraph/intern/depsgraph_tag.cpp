@@ -85,6 +85,8 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 	if (graph == NULL)
 		return;
 	
+	DEG_debug_eval_step("Flush Begin");
+	
 	/* starting from the tagged "entry" nodes, flush outwards... */
 	// XXX: perhaps instead of iterating, we should just push these onto the queue of nodes to check?
 	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done

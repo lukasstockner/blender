@@ -92,7 +92,7 @@ static void rna_Depsgraph_debug_simulate(Depsgraph *graph, const char *filename)
 	DEG_debug_eval_init(&debug_info,
 	                    (DEG_DebugEvalCb)rna_Depsgraph_debug_simulate_cb);
 	
-	/* ... TODO */
+	DEG_graph_flush_updates(graph);
 	
 	DEG_debug_eval_end();
 }

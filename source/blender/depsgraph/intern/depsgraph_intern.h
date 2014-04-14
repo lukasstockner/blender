@@ -162,6 +162,7 @@ DepsNodeFactory *DEG_node_get_factory(const DepsNode *node);
 
 void DEG_debug_build_node_added(const DepsNode *node);
 void DEG_debug_build_relation_added(const DepsRelation *rel);
+void DEG_debug_eval_step(const char *message);
 
 
 #endif // __DEPSGRAPH_INTERN_H__
