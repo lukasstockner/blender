@@ -47,11 +47,11 @@ set(SRC
 	intern/depsgraph_build.cpp
 	intern/depsgraph_build_nodes.cpp
 	intern/depsgraph_build_relations.cpp
-	intern/depsgraph_core.cpp
 	intern/depsgraph_debug.cpp
 	intern/depsgraph_eval.cpp
 	intern/depsgraph_query.cpp
 	intern/depsgraph_queue.cpp
+	intern/depsgraph_tag.cpp
 	intern/depsgraph_type_defines.cpp
 
 	DEG_depsgraph.h

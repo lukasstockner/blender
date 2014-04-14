@@ -28,13 +28,9 @@
  
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
-#include "MEM_guardedalloc.h"
 
 extern "C" {
 #include "BLI_blenlib.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_defs.h"
@@ -48,7 +44,7 @@ extern "C" {
 } /* extern "C" */
 
 #include "depsgraph.h"
-#include "depsgraph_eval.h"
+#include "depsnode.h"
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
