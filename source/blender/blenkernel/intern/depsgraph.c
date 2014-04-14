@@ -84,6 +84,9 @@
 
 #include "depsgraph_private.h"
 
+#pragma message("DEPSGRAPH PORTING XXX: only needed to hijack existing tagging functions until new depsgraph API is stabilized")
+#include "DEG_depsgraph.h"
+
 static SpinLock threaded_update_lock;
 
 void DAG_init(void)
@@ -2759,6 +2762,16 @@ void DAG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 			/* disable because this is called on various ID types automatically.
 			 * where printing warning is not useful. for now just ignore */
 			/* BLI_assert(!"invalid flag for this 'idtype'"); */
+		}
+	}
+	
+	/* XXX sneaky update for testing new depsgraph */
+	{
+		/* for now Depsgraph is stored in Scene, so just tag all of them ... */
+		Scene *scene;
+		for (scene = G.main->scene.first; scene; scene = scene->id.next) {
+			if (scene->depsgraph)
+				DEG_id_tag_update(scene->depsgraph, id);
 		}
 	}
 }
