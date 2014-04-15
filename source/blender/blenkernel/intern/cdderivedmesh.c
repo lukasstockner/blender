@@ -51,6 +51,7 @@
 #include "BKE_editmesh.h"
 #include "BKE_curve.h"
 
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -679,14 +680,35 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	cdDM_update_normals_from_pbvh(dm);
 
 	if (GPU_buffer_legacy(dm)) {
+		int mat_nr_cache = -1;
+		MTFace *tf_base = DM_get_tessface_data_layer(dm, CD_MTFACE);;
+
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesTex_common\n");
 		for (i = 0; i < dm->numTessFaceData; i++, mf++) {
 			MVert *mvert;
 			DMDrawOption draw_option;
 			unsigned char *cp = NULL;
 
+			if (uvflag & DM_DRAW_USE_TEXPAINT_UV) {
+				if (mf->mat_nr != mat_nr_cache) {
+					if (dm->totmat > 1) {
+						int mat_i = mf->mat_nr + 1;
+						if (dm->mat[mat_i] && dm->mat[mat_i]->texpaintslot && dm->mat[mat_i]->texpaintslot->uvname[0])
+							tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE, dm->mat[mat_i]->texpaintslot->uvname);
+						else
+							tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+					}
+					else
+						tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+
+					mat_nr_cache = mf->mat_nr;
+				}
+			}
+
+			tf = tf_base ? tf_base + i : NULL;
+
 			if (drawParams) {
-				draw_option = drawParams(tf ? &tf[i] : NULL, (mcol != NULL), mf->mat_nr);
+				draw_option = drawParams(tf, (mcol != NULL), mf->mat_nr);
 			}
 			else {
 				if (index_mf_to_mpoly) {
@@ -739,26 +761,26 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				}
 
 				glBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
-				if (tf) glTexCoord2fv(tf[i].uv[0]);
+				if (tf) glTexCoord2fv(tf->uv[0]);
 				if (cp) glColor3ub(cp[3], cp[2], cp[1]);
 				mvert = &mv[mf->v1];
 				if (mf->flag & ME_SMOOTH) glNormal3sv(mvert->no);
 				glVertex3fv(mvert->co);
 					
-				if (tf) glTexCoord2fv(tf[i].uv[1]);
+				if (tf) glTexCoord2fv(tf->uv[1]);
 				if (cp) glColor3ub(cp[7], cp[6], cp[5]);
 				mvert = &mv[mf->v2];
 				if (mf->flag & ME_SMOOTH) glNormal3sv(mvert->no);
 				glVertex3fv(mvert->co);
 
-				if (tf) glTexCoord2fv(tf[i].uv[2]);
+				if (tf) glTexCoord2fv(tf->uv[2]);
 				if (cp) glColor3ub(cp[11], cp[10], cp[9]);
 				mvert = &mv[mf->v3];
 				if (mf->flag & ME_SMOOTH) glNormal3sv(mvert->no);
 				glVertex3fv(mvert->co);
 
 				if (mf->v4) {
-					if (tf) glTexCoord2fv(tf[i].uv[3]);
+					if (tf) glTexCoord2fv(tf->uv[3]);
 					if (cp) glColor3ub(cp[15], cp[14], cp[13]);
 					mvert = &mv[mf->v4];
 					if (mf->flag & ME_SMOOTH) glNormal3sv(mvert->no);
