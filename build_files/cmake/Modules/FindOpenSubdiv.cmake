@@ -38,7 +38,7 @@ SET(_opensubdiv_SEARCH_DIRS
 
 FIND_PATH(OPENSUBDIV_INCLUDE_DIR
   NAMES
-    osd/mesh.h
+    opensubdiv/osd/mesh.h
   HINTS
     ${_opensubdiv_SEARCH_DIRS}
   PATH_SUFFIXES
