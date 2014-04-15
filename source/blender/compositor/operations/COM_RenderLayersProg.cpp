@@ -103,15 +103,6 @@ void RenderLayersBaseProg::doInterpolation(float output[4], float x, float y, Pi
 			BLI_bicubic_interpolation_fl(this->m_inputBuffer, output, width, height, this->m_elementsize, x, y);
 			break;
 	}
-
-	if (this->m_elementsize == 1) {
-		output[1] = 0.0f;
-		output[2] = 0.0f;
-		output[3] = 0.0f;
-	}
-	else if (this->m_elementsize == 3) {
-		output[3] = 1.0f;
-	}
 }
 
 void RenderLayersBaseProg::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
@@ -140,7 +131,15 @@ void RenderLayersBaseProg::executePixelSampled(float output[4], float x, float y
 #endif
 
 	if (this->m_inputBuffer == NULL) {
-		zero_v4(output);
+        int elemsize = this->m_elementsize;
+        if (elemsize == 1) {
+            output[0] = 0.0f;
+        }
+        else if (elemsize == 3) {
+                zero_v3(output);
+        } else {
+            zero_v4(output);
+        }
 	}
 	else {
 		doInterpolation(output, ix, iy, sampler);
@@ -202,16 +201,10 @@ void RenderLayersAlphaProg::executePixelSampled(float output[4], float x, float 
 
 	if (inputBuffer == NULL || ix < 0 || iy < 0 || ix >= (int)this->getWidth() || iy >= (int)this->getHeight() ) {
 		output[0] = 0.0f;
-		output[1] = 0.0f;
-		output[2] = 0.0f;
-		output[3] = 0.0f;
 	}
 	else {
 		unsigned int offset = (iy * this->getWidth() + ix) * 4;
 		output[0] = inputBuffer[offset + 3];
-		output[1] = 0.0f;
-		output[2] = 0.0f;
-		output[3] = 0.0f;
 	}
 }
 
@@ -244,16 +237,10 @@ void RenderLayersDepthProg::executePixelSampled(float output[4], float x, float 
 
 	if (inputBuffer == NULL || ix < 0 || iy < 0 || ix >= (int)this->getWidth() || iy >= (int)this->getHeight() ) {
 		output[0] = 0.0f;
-		output[1] = 0.0f;
-		output[2] = 0.0f;
-		output[3] = 0.0f;
 	}
 	else {
 		unsigned int offset = (iy * this->getWidth() + ix);
 		output[0] = inputBuffer[offset];
-		output[1] = 0.0f;
-		output[2] = 0.0f;
-		output[3] = 0.0f;
 	}
 }
 

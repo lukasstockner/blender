@@ -46,12 +46,7 @@ private:
 	 * @brief reference to the executor. the Execution group that can fill a chunk
 	 */
 	ExecutionGroup *m_executor;
-	
-	/**
-	 * @brief datatype of this MemoryProxy
-	 */
-	/* DataType m_datatype; */ /* UNUSED */
-	
+
 	/**
 	 * @brief channel information of this buffer
 	 */
@@ -62,8 +57,13 @@ private:
 	 */
 	MemoryBuffer *m_buffer;
 
+	/**
+	 * @brief datatype of this MemoryProxy
+	 */
+	DataType m_datatype;
+	
 public:
-	MemoryProxy();
+	MemoryProxy(DataType type);
 	
 	/**
 	 * @brief set the ExecutionGroup that can be scheduled to calculate a certain chunk.
@@ -102,6 +102,8 @@ public:
 	 * @brief get the allocated memory
 	 */
 	inline MemoryBuffer *getBuffer() { return this->m_buffer; }
+
+	inline DataType getDataType() { return this->m_datatype; }
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("COM:MemoryProxy")

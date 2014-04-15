@@ -25,7 +25,6 @@
 
 #include <vector>
 #include "COM_Socket.h"
-#include "COM_ChannelInfo.h"
 
 using namespace std;
 class SocketConnection;

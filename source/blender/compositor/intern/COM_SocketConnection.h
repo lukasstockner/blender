@@ -26,7 +26,6 @@
 #include "DNA_node_types.h"
 #include "COM_Node.h"
 #include "COM_Socket.h"
-#include "COM_ChannelInfo.h"
 
 /**
  * @brief An SocketConnection is an connection between an InputSocket and an OutputSocket.

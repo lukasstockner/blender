@@ -35,7 +35,7 @@ class WriteBufferOperation : public NodeOperation {
 	bool m_single_value; /* single value stored in buffer */
 	NodeOperation *m_input;
 public:
-	WriteBufferOperation();
+	WriteBufferOperation(DataType type);
 	~WriteBufferOperation();
 	int isBufferOperation() { return true; }
 	MemoryProxy *getMemoryProxy() { return this->m_memoryProxy; }

@@ -44,8 +44,8 @@ void TranslateNode::convertToOperations(ExecutionSystem *graph, CompositorContex
 	NodeTranslateData *data = (NodeTranslateData *)bnode->storage;
 
 	if (data->wrap_axis) {
-		WriteBufferOperation *writeOperation = new WriteBufferOperation();
-		WrapOperation *wrapOperation = new WrapOperation();
+		WriteBufferOperation *writeOperation = new WriteBufferOperation(COM_DT_COLOR);
+        WrapOperation *wrapOperation = new WrapOperation(COM_DT_COLOR);
 		wrapOperation->setMemoryProxy(writeOperation->getMemoryProxy());
 		wrapOperation->setWrapping(data->wrap_axis);
 		

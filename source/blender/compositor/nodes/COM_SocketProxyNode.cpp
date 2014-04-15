@@ -57,12 +57,13 @@ void SocketProxyNode::convertToOperations(ExecutionSystem *graph, CompositorCont
 		graph->addOperation(operation);
 		
 		if (m_buffer) {
-			WriteBufferOperation *writeOperation = new WriteBufferOperation();
-			ReadBufferOperation *readOperation = new ReadBufferOperation();
+			OutputSocket * osocket = operation->getOutputSocket();
+			WriteBufferOperation *writeOperation = new WriteBufferOperation(osocket->getDataType());
+            ReadBufferOperation *readOperation = new ReadBufferOperation(osocket->getDataType());
 			readOperation->setMemoryProxy(writeOperation->getMemoryProxy());
 			
-			operation->getOutputSocket()->relinkConnections(readOperation->getOutputSocket());
-			addLink(graph, operation->getOutputSocket(), writeOperation->getInputSocket(0));
+			osocket->relinkConnections(readOperation->getOutputSocket());
+			addLink(graph, osocket, writeOperation->getInputSocket(0));
 			
 			graph->addOperation(writeOperation);
 			graph->addOperation(readOperation);

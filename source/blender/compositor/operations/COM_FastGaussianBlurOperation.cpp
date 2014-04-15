@@ -129,16 +129,16 @@ void *FastGaussianBlurOperation::initializeTileData(rcti *rect)
 		this->m_sy = this->m_data->sizey * this->m_size / 2.0f;
 		
 		if ((this->m_sx == this->m_sy) && (this->m_sx > 0.f)) {
-			for (c = 0; c < COM_NUMBER_OF_CHANNELS; ++c)
+			for (c = 0; c < COM_NO_CHANNELS_COLOR; ++c)
 				IIR_gauss(copy, this->m_sx, c, 3);
 		}
 		else {
 			if (this->m_sx > 0.0f) {
-				for (c = 0; c < COM_NUMBER_OF_CHANNELS; ++c)
+				for (c = 0; c < COM_NO_CHANNELS_COLOR; ++c)
 					IIR_gauss(copy, this->m_sx, c, 1);
 			}
 			if (this->m_sy > 0.0f) {
-				for (c = 0; c < COM_NUMBER_OF_CHANNELS; ++c)
+				for (c = 0; c < COM_NO_CHANNELS_COLOR; ++c)
 					IIR_gauss(copy, this->m_sy, c, 2);
 			}
 		}
@@ -170,7 +170,7 @@ void *FastGaussianBlurOperation::initializeTileData(rcti *rect)
 	dai.ymin = max(dai.ymin, buf_rect->ymin);
 	dai.ymax = min(dai.ymax, buf_rect->ymax);
 
-	MemoryBuffer *tile = new MemoryBuffer(NULL, &dai);
+    MemoryBuffer *tile = MemoryBuffer::create(COM_DT_COLOR, &dai);
 	tile->copyContentFrom(buffer);
 
 	int c;
@@ -178,16 +178,16 @@ void *FastGaussianBlurOperation::initializeTileData(rcti *rect)
 	float sy = this->m_data->sizey * this->m_size / 2.0f;
 
 	if ((sx == sy) && (sx > 0.f)) {
-		for (c = 0; c < COM_NUMBER_OF_CHANNELS; ++c)
+		for (c = 0; c < COM_NO_CHANNELS_COLOR; ++c)
 			IIR_gauss(tile, sx, c, 3);
 	}
 	else {
 		if (sx > 0.0f) {
-			for (c = 0; c < COM_NUMBER_OF_CHANNELS; ++c)
+			for (c = 0; c < COM_NO_CHANNELS_COLOR; ++c)
 				IIR_gauss(tile, sx, c, 1);
 		}
 		if (sy > 0.0f) {
-			for (c = 0; c < COM_NUMBER_OF_CHANNELS; ++c)
+			for (c = 0; c < COM_NO_CHANNELS_COLOR; ++c)
 				IIR_gauss(tile, sy, c, 2);
 		}
 	}
@@ -217,6 +217,7 @@ void FastGaussianBlurOperation::IIR_gauss(MemoryBuffer *src, float sigma, unsign
 	unsigned int x, y, sz;
 	unsigned int i;
 	float *buffer = src->getBuffer();
+    const unsigned int no_channels = src->get_no_channels();
 	
 	// <0.5 not valid, though can have a possibly useful sort of sharpening effect
 	if (sigma < 0.5f) return;
@@ -295,31 +296,31 @@ void FastGaussianBlurOperation::IIR_gauss(MemoryBuffer *src, float sigma, unsign
 		int offset;
 		for (y = 0; y < src_height; ++y) {
 			const int yx = y * src_width;
-			offset = yx * COM_NUMBER_OF_CHANNELS + chan;
+            offset = yx * no_channels + chan;
 			for (x = 0; x < src_width; ++x) {
 				X[x] = buffer[offset];
-				offset += COM_NUMBER_OF_CHANNELS;
+                offset += no_channels;
 			}
 			YVV(src_width);
-			offset = yx * COM_NUMBER_OF_CHANNELS + chan;
+            offset = yx * no_channels + chan;
 			for (x = 0; x < src_width; ++x) {
 				buffer[offset] = Y[x];
-				offset += COM_NUMBER_OF_CHANNELS;
+                offset += no_channels;
 			}
 		}
 	}
 	if (xy & 2) {   // V
 		int offset;
-		const int add = src_width * COM_NUMBER_OF_CHANNELS;
+        const int add = src_width * no_channels;
 
 		for (x = 0; x < src_width; ++x) {
-			offset = x * COM_NUMBER_OF_CHANNELS + chan;
+            offset = x * no_channels + chan;
 			for (y = 0; y < src_height; ++y) {
 				X[y] = buffer[offset];
 				offset += add;
 			}
 			YVV(src_height);
-			offset = x * COM_NUMBER_OF_CHANNELS + chan;
+            offset = x * no_channels + chan;
 			for (y = 0; y < src_height; ++y) {
 				buffer[offset] = Y[y];
 				offset += add;
@@ -395,7 +396,7 @@ void *FastGaussianBlurValueOperation::initializeTileData(rcti *rect)
 		if (this->m_overlay == FAST_GAUSS_OVERLAY_MIN) {
 			float *src = newBuf->getBuffer();
 			float *dst = copy->getBuffer();
-			for (int i = copy->getWidth() * copy->getHeight(); i != 0; i--, src += COM_NUMBER_OF_CHANNELS, dst += COM_NUMBER_OF_CHANNELS) {
+            for (int i = copy->getWidth() * copy->getHeight(); i != 0; i--, src += COM_NO_CHANNELS_VALUE, dst += COM_NO_CHANNELS_VALUE) {
 				if (*src < *dst) {
 					*dst = *src;
 				}
@@ -404,14 +405,12 @@ void *FastGaussianBlurValueOperation::initializeTileData(rcti *rect)
 		else if (this->m_overlay == FAST_GAUSS_OVERLAY_MAX) {
 			float *src = newBuf->getBuffer();
 			float *dst = copy->getBuffer();
-			for (int i = copy->getWidth() * copy->getHeight(); i != 0; i--, src += COM_NUMBER_OF_CHANNELS, dst += COM_NUMBER_OF_CHANNELS) {
+            for (int i = copy->getWidth() * copy->getHeight(); i != 0; i--, src += COM_NO_CHANNELS_VALUE, dst += COM_NO_CHANNELS_VALUE) {
 				if (*src > *dst) {
 					*dst = *src;
 				}
 			}
 		}
-
-//		newBuf->
 
 		this->m_iirgaus = copy;
 	}

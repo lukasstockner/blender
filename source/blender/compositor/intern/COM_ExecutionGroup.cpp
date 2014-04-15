@@ -416,7 +416,7 @@ MemoryBuffer **ExecutionGroup::getInputBuffersOpenCL(int chunkNumber)
 MemoryBuffer *ExecutionGroup::constructConsolidatedMemoryBuffer(MemoryProxy *memoryProxy, rcti *rect)
 {
 	MemoryBuffer *imageBuffer = memoryProxy->getBuffer();
-	MemoryBuffer *result = new MemoryBuffer(memoryProxy, rect);
+	MemoryBuffer *result = MemoryBuffer::create(memoryProxy, rect);
 	result->copyContentFrom(imageBuffer);
 	return result;
 }
@@ -509,7 +509,7 @@ MemoryBuffer *ExecutionGroup::allocateOutputBuffer(int chunkNumber, rcti *rect)
 	NodeOperation *operation = this->getOutputNodeOperation();
 	if (operation->isWriteBufferOperation()) {
 		WriteBufferOperation *writeOperation = (WriteBufferOperation *)operation;
-		MemoryBuffer *buffer = new MemoryBuffer(writeOperation->getMemoryProxy(), rect);
+		MemoryBuffer *buffer = MemoryBuffer::create(writeOperation->getMemoryProxy(), rect);
 		return buffer;
 	}
 	return NULL;

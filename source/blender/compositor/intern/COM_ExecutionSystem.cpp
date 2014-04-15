@@ -101,7 +101,7 @@ ExecutionSystem::ExecutionSystem(RenderData *rd, Scene *scene, bNodeTree *editin
 		}
 	}
 
-//	DebugInfo::graphviz(this);
+    DebugInfo::graphviz(this);
 }
 
 ExecutionSystem::~ExecutionSystem()
@@ -219,13 +219,13 @@ void ExecutionSystem::addReadWriteBufferOperations(NodeOperation *operation)
 				OutputSocket *fromsocket = connection->getFromSocket();
 				WriteBufferOperation *writeoperation = fromsocket->findAttachedWriteBufferOperation();
 				if (writeoperation == NULL) {
-					writeoperation = new WriteBufferOperation();
+					writeoperation = new WriteBufferOperation(fromsocket->getDataType());
 					writeoperation->setbNodeTree(this->getContext().getbNodeTree());
 					this->addOperation(writeoperation);
 					ExecutionSystemHelper::addLink(this->getConnections(), fromsocket, writeoperation->getInputSocket(0));
 					writeoperation->readResolutionFromInputSocket();
 				}
-				ReadBufferOperation *readoperation = new ReadBufferOperation();
+                ReadBufferOperation *readoperation = new ReadBufferOperation(fromsocket->getDataType());
 				readoperation->setMemoryProxy(writeoperation->getMemoryProxy());
 				connection->setFromSocket(readoperation->getOutputSocket());
 				readoperation->getOutputSocket()->addConnection(connection);
@@ -256,7 +256,7 @@ void ExecutionSystem::addReadWriteBufferOperations(NodeOperation *operation)
 		}
 		/* if no write buffer operation exists yet, create a new one */
 		if (!writeOperation) {
-			writeOperation = new WriteBufferOperation();
+			writeOperation = new WriteBufferOperation(outputsocket->getDataType());
 			writeOperation->setbNodeTree(this->getContext().getbNodeTree());
 			this->addOperation(writeOperation);
 			ExecutionSystemHelper::addLink(this->getConnections(), outputsocket, writeOperation->getInputSocket(0));
@@ -269,7 +269,7 @@ void ExecutionSystem::addReadWriteBufferOperations(NodeOperation *operation)
 			if (connection->getToNode() == writeOperation)
 				continue;
 			
-			ReadBufferOperation *readoperation = new ReadBufferOperation();
+            ReadBufferOperation *readoperation = new ReadBufferOperation(outputsocket->getDataType());
 			readoperation->setMemoryProxy(writeOperation->getMemoryProxy());
 			connection->setFromSocket(readoperation->getOutputSocket());
 			readoperation->getOutputSocket()->addConnection(connection);
