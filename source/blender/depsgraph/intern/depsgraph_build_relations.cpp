@@ -431,7 +431,7 @@ void DepsgraphRelationBuilder::build_driver(IDPtr id, FCurve *fcurve)
 			}
 			else {
 				/* resolve path to get node */
-				RNAPathKey target_key(dtar->id, dtar->rna_path);
+				RNAPathKey target_key(dtar->id, dtar->rna_path ? dtar->rna_path : "");
 				add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
 				             "[Target -> Driver] DepsRel");
 			}
