@@ -1531,7 +1531,7 @@ static void rna_Scene_depsgraph_debug(SceneDepsgraphDebugInfo *info, void *UNUSE
 	if (f == NULL)
 		return;
 	
-	DEG_debug_graphviz(info->graph, f);
+	DEG_debug_graphviz(info->graph, f, false);
 	
 	fclose(f);
 	

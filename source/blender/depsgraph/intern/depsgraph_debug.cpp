@@ -186,14 +186,73 @@ static int deg_debug_relation_type_color_index(eDepsRelation_Type type)
 
 static void deg_debug_graphviz_node_color(const DebugContext &ctx, const DepsNode *node)
 {
-	const char *defaultcolor = "gainsboro";
-	int color = deg_debug_node_type_color_index(node->type);
+	const char *color_default = "black";
+	const char *color_modified = "orangered4";
+	const char *color_update = "dodgerblue3";
 	
-	if (color < 0)
-		deg_debug_printf(ctx, "%s", defaultcolor);
-	else
-		deg_debug_printf(ctx, "\"%s\"", deg_debug_colors_light[color % deg_debug_max_colors]);
+	const char *color = color_default;
+	if (ctx.show_tags) {
+		if (node->flag & DEPSNODE_FLAG_DIRECTLY_MODIFIED)
+			color = color_modified;
+		else if (node->flag & DEPSNODE_FLAG_NEEDS_UPDATE)
+			color = color_update;
+	}
+	
+	deg_debug_printf(ctx, "\"%s\"", color);
 }
+
+static void deg_debug_graphviz_node_penwidth(const DebugContext &ctx, const DepsNode *node)
+{
+	float penwidth_default = 1.0f;
+	float penwidth_modified = 4.0f;
+	float penwidth_update = 4.0f;
+	
+	float penwidth = penwidth_default;
+	if (ctx.show_tags) {
+		if (node->flag & DEPSNODE_FLAG_DIRECTLY_MODIFIED)
+			penwidth = penwidth_modified;
+		else if (node->flag & DEPSNODE_FLAG_NEEDS_UPDATE)
+			penwidth = penwidth_update;
+	}
+	
+	deg_debug_printf(ctx, "\"%f\"", penwidth);
+}
+
+static void deg_debug_graphviz_node_fillcolor(const DebugContext &ctx, const DepsNode *node)
+{
+	const char *defaultcolor = "gainsboro";
+	
+	int color_index = deg_debug_node_type_color_index(node->type);
+	const char *fillcolor = color_index < 0 ? defaultcolor : deg_debug_colors_light[color_index % deg_debug_max_colors];
+	
+	deg_debug_printf(ctx, "\"%s\"", fillcolor);
+}
+
+#if 0 /* implementation using stripes, a bit too noisy ... */
+static void deg_debug_graphviz_node_fillcolor(const DebugContext &ctx, const DepsNode *node)
+{
+	const char *defaultcolor = "gainsboro";
+	const char *color_needs_update = "orange";
+	const int num_stripes = 10;
+	
+	int color_index = deg_debug_node_type_color_index(node->type);
+	const char *base_color = color_index < 0 ? defaultcolor : deg_debug_colors_light[color_index % deg_debug_max_colors];
+	
+	if (ctx.show_tags &&
+	    (node->flag & (DEPSNODE_FLAG_DIRECTLY_MODIFIED | DEPSNODE_FLAG_NEEDS_UPDATE))) {
+		deg_debug_printf(ctx, "\"");
+		for (int i = 0; i < num_stripes; ++i) {
+			if (i > 0)
+				deg_debug_printf(ctx, ":");
+			deg_debug_printf(ctx, "%s:%s", base_color, color_needs_update);
+		}
+		deg_debug_printf(ctx, "\"");
+	}
+	else {
+		deg_debug_printf(ctx, "\"%s\"", base_color);
+	}
+}
+#endif
 
 static void deg_debug_graphviz_relation_color(const DebugContext &ctx, const DepsRelation *UNUSED(rel))
 {
@@ -244,7 +303,9 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx, const DepsNo
 	deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 	deg_debug_printf(ctx, ",shape=%s", shape);
 	deg_debug_printf(ctx, ",style="); deg_debug_graphviz_node_style(ctx, node);
-	deg_debug_printf(ctx, ",fillcolor="); deg_debug_graphviz_node_color(ctx, node);
+	deg_debug_printf(ctx, ",color="); deg_debug_graphviz_node_color(ctx, node);
+	deg_debug_printf(ctx, ",fillcolor="); deg_debug_graphviz_node_fillcolor(ctx, node);
+	deg_debug_printf(ctx, ",penwidth="); deg_debug_graphviz_node_penwidth(ctx, node);
 	deg_debug_printf(ctx, "];" NL);
 	
 	deg_debug_printf(ctx, NL);
@@ -260,7 +321,9 @@ static void deg_debug_graphviz_node_cluster_begin(const DebugContext &ctx, const
 	deg_debug_printf(ctx, "label=<%s>;" NL, name);
 	deg_debug_printf(ctx, "fontname=\"%s\";" NL, deg_debug_graphviz_fontname);
 	deg_debug_printf(ctx, "style="); deg_debug_graphviz_node_style(ctx, node); deg_debug_printf(ctx, ";" NL);
-	deg_debug_printf(ctx, "fillcolor="); deg_debug_graphviz_node_color(ctx, node); deg_debug_printf(ctx, ";" NL);
+	deg_debug_printf(ctx, "color="); deg_debug_graphviz_node_color(ctx, node); deg_debug_printf(ctx, ";" NL);
+	deg_debug_printf(ctx, "fillcolor="); deg_debug_graphviz_node_fillcolor(ctx, node); deg_debug_printf(ctx, ";" NL);
+	deg_debug_printf(ctx, "penwidth="); deg_debug_graphviz_node_penwidth(ctx, node); deg_debug_printf(ctx, ";" NL);
 	
 	/* dummy node, so we can add edges between clusters */
 	deg_debug_printf(ctx, "\"node_%p\"", node);
@@ -460,7 +523,7 @@ static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const De
 	}
 }
 
-void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
+void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, bool show_tags)
 {
 #if 0 /* generate shaded color set */
 	static char colors[][3] = {{0xa6, 0xce, 0xe3},{0x1f, 0x78, 0xb4},{0xb2, 0xdf, 0x8a},{0x33, 0xa0, 0x2c},
@@ -477,7 +540,7 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f)
 	
 	DebugContext ctx;
 	ctx.file = f;
-	ctx.show_tags = false;
+	ctx.show_tags = show_tags;
 	
 	deg_debug_printf(ctx, "digraph depgraph {" NL);
 	deg_debug_printf(ctx, "rankdir=LR;" NL);

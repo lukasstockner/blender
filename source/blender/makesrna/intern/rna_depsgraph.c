@@ -46,7 +46,7 @@ static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
 	if (f == NULL)
 		return;
 	
-	DEG_debug_graphviz(graph, f);
+	DEG_debug_graphviz(graph, f, false);
 	
 	fclose(f);
 }
@@ -62,12 +62,12 @@ static void rna_Depsgraph_debug_simulate_cb(DepsgraphEvalDebugInfo *info, const 
 {
 	char filename[FILE_MAX];
 	
-	BLI_snprintf(filename, sizeof(filename), "%s_eval_%04d", info->filename, info->step);
+	BLI_snprintf(filename, sizeof(filename), "%s_%04d", info->filename, info->step);
 	FILE *f = fopen(filename, "w");
 	if (f == NULL)
 		return;
 	
-	DEG_debug_graphviz(info->graph, f);
+	DEG_debug_graphviz(info->graph, f, true);
 	
 	fclose(f);
 	
@@ -76,14 +76,6 @@ static void rna_Depsgraph_debug_simulate_cb(DepsgraphEvalDebugInfo *info, const 
 
 static void rna_Depsgraph_debug_simulate(Depsgraph *graph, const char *filename)
 {
-	FILE *f = fopen(filename, "w");
-	if (f == NULL)
-		return;
-	
-	
-	DEG_debug_graphviz(graph, f);
-	
-	fclose(f);
 	DepsgraphEvalDebugInfo debug_info;
 	debug_info.filename = filename;
 	debug_info.step = 0;
