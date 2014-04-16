@@ -29,6 +29,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <queue>
+
 extern "C" {
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -45,6 +47,7 @@ extern "C" {
 
 #include "depsgraph.h"
 #include "depsnode.h"
+#include "depsnode_component.h"
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
@@ -78,6 +81,10 @@ void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const Prop
 
 /* Update Flushing ---------------------------------- */
 
+/* FIFO queue for tagged nodes that need flushing */
+/* XXX This may get a dedicated implementation later if needed - lukas */
+typedef std::queue<DepsNode*> FlushQueue;
+
 /* Flush updates from tagged nodes outwards until all affected nodes are tagged */
 void DEG_graph_flush_updates(Depsgraph *graph)
 {
@@ -87,22 +94,66 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 	
 	DEG_debug_eval_step("Flush Begin");
 	
+	FlushQueue queue;
 	/* starting from the tagged "entry" nodes, flush outwards... */
-	// XXX: perhaps instead of iterating, we should just push these onto the queue of nodes to check?
 	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done
 	// NOTE: count how many nodes we need to handle - entry nodes may be component nodes which don't count for this purpose!
 	for (Depsgraph::EntryTags::const_iterator it = graph->entry_tags.begin(); it != graph->entry_tags.end(); ++it) {
 		DepsNode *node = *it;
+		queue.push(node);
+	}
+	
+	while (!queue.empty()) {
+		DepsNode *node = queue.front();
+		queue.pop();
 		
 		/* flush to sub-nodes... */
 		// NOTE: if flushing to subnodes, we should then proceed to remove tag(s) from self, as only the subnode tags matter
+		bool flushed_subnodes = false;
+		switch (node->type) {
+			case DEPSNODE_TYPE_ID_REF: {
+				IDDepsNode *id_node = (IDDepsNode *)node;
+				for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin(); it != id_node->components.end(); ++it) {
+					ComponentDepsNode *comp_node = it->second;
+					
+					if (!(comp_node->flag & DEPSNODE_FLAG_NEEDS_UPDATE)) {
+						comp_node->flag |= DEPSNODE_FLAG_NEEDS_UPDATE;
+						queue.push(comp_node);
+						
+						flushed_subnodes = true;
+					}
+				}
+				break;
+			}
+			
+			default: break;
+		}
+		
+		if (flushed_subnodes)
+			DEG_debug_eval_step("Flush Components");
 		
 		/* flush to nodes along links... */
+		bool flushed_relations = false;
+		for (DepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
+			DepsRelation *rel = *it;
+			DepsNode *to_node = rel->to;
+			
+			if (!(to_node->flag & DEPSNODE_FLAG_NEEDS_UPDATE)) {
+				to_node->flag |= DEPSNODE_FLAG_NEEDS_UPDATE;
+				queue.push(to_node);
+				
+				flushed_relations = true;
+			}
+		}
 		
+		if (flushed_relations)
+			DEG_debug_eval_step("Flush Dependencies");
 	}
 	
 	/* clear entry tags, since all tagged nodes should now be reachable from root */
 	graph->entry_tags.clear();
+	
+	DEG_debug_eval_step("Flush End");
 }
 
 /* Clear tags from all operation nodes */
