@@ -37,8 +37,10 @@
 #include "BKE_subsurf.h"
 
 #ifdef WITH_OPENSUBDIV
-#  include "opensubdiv_capi.h"
+#  include <opensubdiv/osdutil/evaluator_capi.h>
 #endif
+
+#define DUMP_SS_GRIDS
 
 /* used for normalize_v3 in BLI_math_vector
  * float.h's FLT_EPSILON causes trouble with subsurf normals - campbell */
@@ -340,7 +342,8 @@ struct CCGVert {
 	CCGVertHDL vHDL;    /* EHData.key */
 
 	short numEdges, numFaces, flags, pad;
-	int tag, pad2;
+	int tag;
+	int osd_index;  /* Index of the vertex in the map, used by OSD. */
 
 	CCGEdge **edges;
 	CCGFace **faces;
@@ -448,6 +451,10 @@ struct CCGSubSurf {
 	int lenTempArrays;
 	CCGVert **tempVerts;
 	CCGEdge **tempEdges;
+
+#ifdef WITH_OPENSUBDIV
+	struct OpenSubdiv_EvaluatorDescr *osd_evaluator;
+#endif
 };
 
 #define CCGSUBSURF_alloc(ss, nb)            ((ss)->allocatorIFC.alloc((ss)->allocator, nb))
@@ -901,6 +908,10 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 		ss->tempVerts = NULL;
 		ss->tempEdges = NULL;
 
+#ifdef WITH_OPENSUBDIV
+		ss->osd_evaluator = NULL;
+#endif
+
 		return ss;
 	}
 }
@@ -909,6 +920,12 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 {
 	CCGAllocatorIFC allocatorIFC = ss->allocatorIFC;
 	CCGAllocatorHDL allocator = ss->allocator;
+
+#ifdef WITH_OPENSUBDIV
+	if (ss->osd_evaluator) {
+		openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
+	}
+#endif
 
 	if (ss->syncState) {
 		_ehash_free(ss->oldFMap, (EHEntryFreeFP) _face_free, ss);
@@ -2147,6 +2164,7 @@ static void ccgSubSurf__calcSubdivLevel(CCGSubSurf *ss,
 	}
 }
 
+#ifdef DUMP_SS_GRIDS
 static void ccgSubSurf__dumpCoords(CCGSubSurf *ss)
 {
 	int vertDataSize = ss->meshIFC.vertDataSize;
@@ -2198,6 +2216,7 @@ static void ccgSubSurf__dumpCoords(CCGSubSurf *ss)
 		}
 	}
 }
+#endif  /* DUMP_SS_GRIDS */
 
 BLI_INLINE void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
                                           float *face_u, float *face_v)
@@ -2228,25 +2247,19 @@ BLI_INLINE void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
 	}
 }
 
-static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
+#ifdef WITH_OPENSUBDIV
+
+#  define OSD_LOG if (false) printf
+
+static void opensubdiv_initEvaluator(CCGSubSurf *ss)
 {
-	struct OpenSubdiv_MeshDescr *mesh_descr;
-	struct OpenSubdiv_EvaluationDescr *evaluation_descr;
-	int subdivLevels = ss->subdivLevels;
-	int vertDataSize = ss->meshIFC.vertDataSize;
-	int gridSize = ccg_gridsize(subdivLevels);
-	int edgeSize = ccg_edgesize(subdivLevels);
-	int i, index, S;
+	int i, index;
 
-	mesh_descr = openSubdiv_createMeshDescr();
-
-	/* Create basis vertices of the mesh. */
+	/* Set an osd_index member in each one so we have consistent indexing. */
 	for (i = 0, index = 0; i < ss->vMap->curSize; i++) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next, index++) {
-			float *co = VERT_getCo(v, 0);
-			openSubdiv_createMeshDescrVertex(mesh_descr, co);
-			v->tag = index;
+			v->osd_index = index;
 		}
 	}
 
@@ -2256,25 +2269,29 @@ static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 		for (; f; f = f->next) {
 			int *indices;
 			int indices_static[MAX_STATIC_VERTS];
+			int S;
 
-			/* If number of vertices per face is low, we use sttaic array,
+			/* If number of vertices per face is low, we use static array,
 			 * this is so because of performance issues -- in most cases
-			 * we'll just use sttaic array and wouldn't streess memory
+			 * we'll just use static array and wouldn't stress memory
 			 * allocator at all.
 			 */
 			if (f->numVerts <= MAX_STATIC_VERTS) {
 				indices = indices_static;
-			}
-			else {
+			} else {
+				/* TODO(sergey): Avoid per-ngon allocation, allocate the array once
+				 * and grow it then when needed.
+				 */
 				indices = MEM_mallocN(sizeof(int) * f->numVerts, "subsurf hbr tmp vertices");
 			}
 
 			/* Fill in vertex indices array. */
 			for (S = 0; S < f->numVerts; S++) {
-				indices[S] = FACE_getVerts(f)[S]->tag;
+				indices[S] = FACE_getVerts(f)[S]->osd_index;
 			}
 
-			openSubdiv_createMeshDescrFace(mesh_descr, f->numVerts, indices);
+			openSubdiv_createEvaluatorDescrFace(
+				ss->osd_evaluator, f->numVerts, indices);
 
 			if (indices != indices_static) {
 				MEM_freeN(indices);
@@ -2283,10 +2300,66 @@ static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 	}
 #undef MAX_STATIC_VERTS
 
-	/* Finish mesh creation. */
-	openSubdiv_finishMeshDescr(mesh_descr);
+	/* Do feature adaptive refinement and get ready to update
+	 * coarse points and evaluate.
+	 */
+	openSubdiv_finishEvaluatorDescr(ss->osd_evaluator, ss->subdivLevels);
+}
 
-	evaluation_descr = openSubdiv_createEvaluationDescr(mesh_descr);
+static void opensubdiv_ensureEvaluator(CCGSubSurf *ss)
+{
+	bool evaluator_needs_init = false;
+	if (ss->osd_evaluator == NULL) {
+		int num_basis_verts = ss->vMap->numEntries;
+		OSD_LOG("Allocating new evaluator\n");
+		ss->osd_evaluator =
+			openSubdiv_createEvaluatorDescr(num_basis_verts);
+		evaluator_needs_init = true;
+	} else {
+		OSD_LOG("Re-using old evaluator\n");
+		/* TODO(dirk, sergey): Need to check that the existing evaluator has matching:
+		 * - Number of vertices
+		 * - Face topology
+		 *  - Subdivision level
+		 *
+		 * If not we need to blow away and recreate the evaluator.
+		 */
+	}
+	if (evaluator_needs_init) {
+		opensubdiv_initEvaluator(ss);
+	}
+}
+
+static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
+{
+	float *positions;
+	int vertDataSize = ss->meshIFC.vertDataSize;
+	int num_basis_verts = ss->vMap->numEntries;
+	int i;
+	positions = MEM_mallocN(3 * sizeof(float) * num_basis_verts, "OpenSubdiv coarse points");
+	for (i = 0; i < ss->vMap->curSize; i++) {
+		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
+		for (; v; v = v->next) {
+			float *co = VERT_getCo(v, 0);
+			int index = v->osd_index * 3;
+			BLI_assert(index + 2 < num_basis_verts * 3);
+			OSD_LOG("Point %d has value %f %f %f\n",
+			        v->osd_index, co[0], co[1], co[2]);
+			copy_v3_v3(positions + index, co);
+		}
+	}
+	openSubdiv_setEvaluatorCoarsePositions(
+	    ss->osd_evaluator, positions, num_basis_verts);
+	MEM_freeN(positions);
+}
+
+static void opensubdiv_evaluateGrids(CCGSubSurf *ss)
+{
+	int subdivLevels = ss->subdivLevels;
+	int gridSize = ccg_gridsize(subdivLevels);
+	int edgeSize = ccg_edgesize(subdivLevels);
+	int vertDataSize = ss->meshIFC.vertDataSize;
+	int i, index, S;
 
 	for (i = 0, index = 0; i < ss->fMap->curSize; i++) {
 		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
@@ -2305,10 +2378,10 @@ static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 
 						ccgSubSurf__mapGridToFace(S, grid_u, grid_v, &face_u, &face_v);
 
-						openSubdiv_evaluateDescr(evaluation_descr, index, face_u, face_v, P, NULL, NULL);
+						openSubdiv_evaluateLimit(ss->osd_evaluator, index, face_u, face_v, P, NULL, NULL);
 
-						//printf("face=%d, corner=%d, u=%f, v=%f, P=(%f, %f, %f)\n",
-						//       index, S, face_u, face_v, P[0], P[1], P[2]);
+						OSD_LOG("face=%d, corner=%d, u=%f, v=%f, P=(%f, %f, %f)\n",
+						        index, S, face_u, face_v, P[0], P[1], P[2]);
 
 						copy_v3_v3(co, P);
 
@@ -2329,12 +2402,22 @@ static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 			}
 		}
 	}
-
-	/* Clean-up.. */
-	openSubdiv_deleteEvaluationDescr(evaluation_descr);
-	openSubdiv_deleteMeshDescr(mesh_descr);
 }
 
+static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
+{
+	/* Make sure OSD evaluator is up-to-date. */
+	opensubdiv_ensureEvaluator(ss);
+
+	/* Update coarse points in the OpenSubdiv evaluator. */
+	opensubdiv_updateCoarsePositions(ss);
+
+	/* Evaluate opensubdiv mesh into the CCG grids. */
+	opensubdiv_evaluateGrids(ss);
+}
+
+#  undef OSD_LOG
+#else  /* WITH_OPENSUBDIV */
 static void ccgSubSurf__syncLegacy(CCGSubSurf *ss)
 {
 	CCGVert **effectedV;
@@ -2615,19 +2698,19 @@ static void ccgSubSurf__syncLegacy(CCGSubSurf *ss)
 	MEM_freeN(effectedE);
 	MEM_freeN(effectedV);
 }
+#endif  /* WITH_OPENSUBDIV */
 
 static void ccgSubSurf__sync(CCGSubSurf *ss)
 {
-	if (true) {
-		ccgSubSurf__syncOpenSubdiv(ss);
-	}
-	else {
-		ccgSubSurf__syncLegacy(ss);
-	}
+#ifdef WITH_OPENSUBDIV
+	ccgSubSurf__syncOpenSubdiv(ss);
+#else
+	ccgSubSurf__syncLegacy(ss);
+#endif
 
-	if (true) {
+#ifdef DUMP_SS_GRIDS
 		ccgSubSurf__dumpCoords(ss);
-	}
+#endif
 }
 
 static void ccgSubSurf__allFaces(CCGSubSurf *ss, CCGFace ***faces, int *numFaces, int *freeFaces)

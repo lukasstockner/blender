@@ -438,7 +438,7 @@ endif()
 if(WITH_OPENSUBDIV)
 	add_definitions(-DWITH_OPENSUBDIV)
 	list(APPEND INC_SYS
-		../../../intern/opensubdiv
+		${OPENSUBDIV_INCLUDE_DIRS}
 	)
 endif()
 
