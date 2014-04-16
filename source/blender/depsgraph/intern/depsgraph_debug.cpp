@@ -470,7 +470,7 @@ static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const Dep
 		deg_debug_printf(ctx, "\"node_%p\"", head);
 
 		deg_debug_printf(ctx, "[");
-		deg_debug_printf(ctx, "label=<%s>", rel->name.c_str());
+		deg_debug_printf(ctx, "label=\"%s\"", rel->name.c_str());
 		deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 		deg_debug_printf(ctx, ",color="); deg_debug_graphviz_relation_color(ctx, rel);
 		
