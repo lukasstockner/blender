@@ -69,6 +69,9 @@ struct DepsgraphNodeBuilder {
 	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node, eDepsNode_Type type,
 	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description,
 	                                      PointerRNA ptr);
+	OperationDepsNode *add_operation_node(IDDepsNode *id_node, eDepsNode_Type type,
+	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description,
+	                                      PointerRNA ptr);
 	
 	IDDepsNode *build_scene(Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
@@ -79,7 +82,7 @@ struct DepsgraphNodeBuilder {
 	void build_rigidbody(IDDepsNode *scene_node, Scene *scene);
 	void build_particles(IDDepsNode *ob_node, Object *ob);
 	void build_animdata(IDDepsNode *id_node);
-	OperationDepsNode *build_driver(ComponentDepsNode *adt_node, FCurve *fcurve);
+	OperationDepsNode *build_driver(IDDepsNode *id_node, FCurve *fcurve);
 	void build_ik_pose(ComponentDepsNode *bone_node, Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_splineik_pose(ComponentDepsNode *bone_node, Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_rig(IDDepsNode *ob_node, Object *ob);

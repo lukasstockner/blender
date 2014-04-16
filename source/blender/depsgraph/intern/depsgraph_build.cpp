@@ -237,6 +237,17 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ComponentDepsNode *c
 	return op_node;
 }
 
+OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(IDDepsNode *id_node, eDepsNode_Type type,
+                                                            eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description,
+                                                            PointerRNA ptr)
+{
+	DepsNodeFactory *factory = DEG_get_node_factory(type);
+	ComponentDepsNode *comp_node = id_node->add_component(factory->component_type());
+	OperationDepsNode *op_node = comp_node->add_operation(type, optype, op, description);
+	op_node->ptr = ptr;
+	return op_node;
+}
+
 /* ************************************************* */
 /* Relations Builder */
 

@@ -340,7 +340,7 @@ void DepsgraphNodeBuilder::build_animdata(IDDepsNode *id_node)
 		/* drivers */
 		for (FCurve *fcu = (FCurve *)adt->drivers.first; fcu; fcu = fcu->next) {
 			/* create driver */
-			/*OperationDepsNode *driver_node =*/ build_driver(adt_node, fcu);
+			/*OperationDepsNode *driver_node =*/ build_driver(id_node, fcu);
 			
 			/* hook up update callback associated with F-Curve */
 			// ...
@@ -352,13 +352,13 @@ void DepsgraphNodeBuilder::build_animdata(IDDepsNode *id_node)
  * < id: ID-Block that driver is attached to
  * < fcu: Driver-FCurve
  */
-OperationDepsNode *DepsgraphNodeBuilder::build_driver(ComponentDepsNode *adt_node, FCurve *fcurve)
+OperationDepsNode *DepsgraphNodeBuilder::build_driver(IDDepsNode *id_node, FCurve *fcurve)
 {
-	IDPtr id = adt_node->owner->id;
+	IDPtr id = id_node->id;
 	ChannelDriver *driver = fcurve->driver;
 	
 	/* create data node for this driver ..................................... */
-	OperationDepsNode *driver_op = add_operation_node(adt_node, DEPSNODE_TYPE_OP_DRIVER,
+	OperationDepsNode *driver_op = add_operation_node(id_node, DEPSNODE_TYPE_OP_DRIVER,
 	                                                  DEPSOP_TYPE_EXEC, BKE_animsys_eval_driver,
 	                                                  deg_op_name_driver(driver),
 	                                                  make_rna_pointer(id, &RNA_FCurve, fcurve));
