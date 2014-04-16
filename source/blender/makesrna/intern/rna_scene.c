@@ -1525,13 +1525,15 @@ typedef struct SceneDepsgraphDebugInfo {
 static void rna_Scene_depsgraph_debug(SceneDepsgraphDebugInfo *info, void *UNUSED(elem))
 {
 	char filename[FILE_MAX];
+	char label[256];
 	
 	BLI_snprintf(filename, sizeof(filename), "%s_%04d", info->filename, info->step);
 	FILE *f = fopen(filename, "w");
 	if (f == NULL)
 		return;
 	
-	DEG_debug_graphviz(info->graph, f, false);
+	BLI_snprintf(label, sizeof(label), "Build Step #%d", info->step);
+	DEG_debug_graphviz(info->graph, f, label, false);
 	
 	fclose(f);
 	

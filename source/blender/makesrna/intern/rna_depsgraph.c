@@ -46,7 +46,7 @@ static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
 	if (f == NULL)
 		return;
 	
-	DEG_debug_graphviz(graph, f, false);
+	DEG_debug_graphviz(graph, f, "Depsgraph", false);
 	
 	fclose(f);
 }
@@ -58,7 +58,7 @@ typedef struct DepsgraphEvalDebugInfo {
 } DepsgraphEvalDebugInfo;
 
 /* generic debug output function */
-static void rna_Depsgraph_debug_simulate_cb(DepsgraphEvalDebugInfo *info, const char *UNUSED(message))
+static void rna_Depsgraph_debug_simulate_cb(DepsgraphEvalDebugInfo *info, const char *message)
 {
 	char filename[FILE_MAX];
 	
@@ -67,7 +67,7 @@ static void rna_Depsgraph_debug_simulate_cb(DepsgraphEvalDebugInfo *info, const 
 	if (f == NULL)
 		return;
 	
-	DEG_debug_graphviz(info->graph, f, true);
+	DEG_debug_graphviz(info->graph, f, message, true);
 	
 	fclose(f);
 	

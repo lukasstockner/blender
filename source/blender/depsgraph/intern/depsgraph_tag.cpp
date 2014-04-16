@@ -130,7 +130,7 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 		}
 		
 		if (flushed_subnodes)
-			DEG_debug_eval_step("Flush Components");
+			DEG_debug_eval_step(string_format("Flush Components: %s", node->name.c_str()).c_str());
 		
 		/* flush to nodes along links... */
 		bool flushed_relations = false;
@@ -147,7 +147,7 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 		}
 		
 		if (flushed_relations)
-			DEG_debug_eval_step("Flush Dependencies");
+			DEG_debug_eval_step(string_format("Flush Dependencies: %s", node->name.c_str()).c_str());
 	}
 	
 	/* clear entry tags, since all tagged nodes should now be reachable from root */

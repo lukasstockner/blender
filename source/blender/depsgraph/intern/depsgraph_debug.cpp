@@ -61,6 +61,8 @@ extern "C" {
 #define NL "\r\n"
 
 static const char *deg_debug_graphviz_fontname = "helvetica";
+static float deg_debug_graphviz_graph_label_size = 20.0f;
+static float deg_debug_graphviz_node_label_size = 14.0f;
 static const int deg_debug_max_colors = 12;
 static const char *deg_debug_colors_dark[] = {"#6e8997","#144f77","#76945b","#216a1d",
                                               "#a76665","#971112","#a87f49","#a9540",
@@ -301,6 +303,7 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx, const DepsNo
 //	deg_debug_printf(ctx, "label=<<B>%s</B>>", name);
 	deg_debug_printf(ctx, "label=<%s>", name);
 	deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
+	deg_debug_printf(ctx, ",fontsize=%f", deg_debug_graphviz_node_label_size);
 	deg_debug_printf(ctx, ",shape=%s", shape);
 	deg_debug_printf(ctx, ",style="); deg_debug_graphviz_node_style(ctx, node);
 	deg_debug_printf(ctx, ",color="); deg_debug_graphviz_node_color(ctx, node);
@@ -320,6 +323,7 @@ static void deg_debug_graphviz_node_cluster_begin(const DebugContext &ctx, const
 //	deg_debug_printf(ctx, "label=<<B>%s</B>>;" NL, name);
 	deg_debug_printf(ctx, "label=<%s>;" NL, name);
 	deg_debug_printf(ctx, "fontname=\"%s\";" NL, deg_debug_graphviz_fontname);
+	deg_debug_printf(ctx, "fontsize=%f;" NL, deg_debug_graphviz_node_label_size);
 	deg_debug_printf(ctx, "style="); deg_debug_graphviz_node_style(ctx, node); deg_debug_printf(ctx, ";" NL);
 	deg_debug_printf(ctx, "color="); deg_debug_graphviz_node_color(ctx, node); deg_debug_printf(ctx, ";" NL);
 	deg_debug_printf(ctx, "fillcolor="); deg_debug_graphviz_node_fillcolor(ctx, node); deg_debug_printf(ctx, ";" NL);
@@ -523,7 +527,7 @@ static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const De
 	}
 }
 
-void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, bool show_tags)
+void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, const char *label, bool show_tags)
 {
 #if 0 /* generate shaded color set */
 	static char colors[][3] = {{0xa6, 0xce, 0xe3},{0x1f, 0x78, 0xb4},{0xb2, 0xdf, 0x8a},{0x33, 0xa0, 0x2c},
@@ -544,7 +548,13 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, bool show_tags)
 	
 	deg_debug_printf(ctx, "digraph depgraph {" NL);
 	deg_debug_printf(ctx, "rankdir=LR;" NL);
-	deg_debug_printf(ctx, "graph [compound=true];" NL);
+	deg_debug_printf(ctx, "graph [");
+	deg_debug_printf(ctx, "compound=true");
+	deg_debug_printf(ctx, ",labelloc=\"t\"");
+	deg_debug_printf(ctx, ",fontsize=%f", deg_debug_graphviz_graph_label_size);
+	deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
+	deg_debug_printf(ctx, ",label=\"%s\"", label);
+	deg_debug_printf(ctx, "];" NL);
 	
 	deg_debug_graphviz_graph_nodes(ctx, graph);
 	deg_debug_graphviz_graph_relations(ctx, graph);
