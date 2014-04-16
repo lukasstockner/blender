@@ -457,6 +457,31 @@ static bool deg_debug_graphviz_is_cluster(const DepsNode *node)
 	}
 }
 
+static bool deg_debug_graphviz_is_owner(const DepsNode *node, const DepsNode *other)
+{
+	switch (node->tclass) {
+		case DEPSNODE_CLASS_COMPONENT: {
+			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
+			if (comp_node->owner == other)
+				return true;
+			break;
+		}
+		
+		case DEPSNODE_CLASS_OPERATION: {
+			OperationDepsNode *op_node = (OperationDepsNode *)node;
+			if (op_node->owner == other)
+				return true;
+			else if (op_node->owner->owner == other)
+				return true;
+			break;
+		}
+		
+		default: break;
+	}
+	
+	return false;
+}
+
 static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const DepsNode *node)
 {
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks, rel)
@@ -474,9 +499,12 @@ static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const Dep
 		deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 		deg_debug_printf(ctx, ",color="); deg_debug_graphviz_relation_color(ctx, rel);
 		
-		if (deg_debug_graphviz_is_cluster(tail))
+		/* note: edge from node to own cluster is not possible and gives graphviz warning,
+		 * avoid this here by just linking directly to the invisible placeholder node
+		 */
+		if (deg_debug_graphviz_is_cluster(tail) && !deg_debug_graphviz_is_owner(head, tail))
 			deg_debug_printf(ctx, ",ltail=\"cluster_%p\"", tail);
-		if (deg_debug_graphviz_is_cluster(head))
+		if (deg_debug_graphviz_is_cluster(head) && !deg_debug_graphviz_is_owner(tail, head))
 			deg_debug_printf(ctx, ",lhead=\"cluster_%p\"", head);
 		
 		deg_debug_printf(ctx, "];" NL);
