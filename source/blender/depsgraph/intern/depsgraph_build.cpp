@@ -66,6 +66,7 @@ extern "C" {
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_group.h"
+#include "BKE_idcode.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -175,7 +176,8 @@ RootDepsNode *DepsgraphNodeBuilder::add_root_node()
 
 IDDepsNode *DepsgraphNodeBuilder::add_id_node(IDPtr id)
 {
-	return m_graph->add_id_node(id);
+	const char *idtype_name = BKE_idcode_to_name(GS(id->name));
+	return m_graph->add_id_node(id, string_format("%s [%s]", id->name+2, idtype_name));
 }
 
 TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(IDPtr id)
