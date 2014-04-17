@@ -56,7 +56,6 @@ static EnumPropertyItem sculpt_stroke_method_items[] = {
 	{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", "Keep applying paint effect while holding mouse (spray)"},
     {BRUSH_ANCHORED, "ANCHORED", 0, "Anchored", "Keep the brush anchored to the initial location"},
 	{BRUSH_LINE, "LINE", 0, "Line", "Draw a line with dabs separated according to spacing"},
-	{BRUSH_POLYLINE, "POLYLINE", 0, "Polyline", "Draw a series of lines with dabs separated according to spacing"},
 	{BRUSH_CURVE, "CURVE", 0, "Curve", "Define the stroke curve with a bezier curve. Dabs are separated according to spacing"},
 	{0, NULL, 0, NULL, NULL}
 };
@@ -227,7 +226,6 @@ static int rna_SculptToolCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
 	return (!(br->flag & BRUSH_ANCHORED) &&
 	        !(br->flag & BRUSH_DRAG_DOT) &&
 	        !(br->flag & BRUSH_LINE) &&
-	        !(br->flag & BRUSH_POLYLINE) &&
 	        !(br->flag & BRUSH_CURVE) &&
 	        !ELEM4(br->sculpt_tool,
 	               SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
@@ -240,7 +238,6 @@ static int rna_BrushCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
 	return (!(br->flag & BRUSH_ANCHORED) &&
 	        !(br->flag & BRUSH_DRAG_DOT) &&
 	        !(br->flag & BRUSH_LINE) &&
-	        !(br->flag & BRUSH_POLYLINE) &&
 	        !(br->flag & BRUSH_CURVE)
 	        );
 }
@@ -248,7 +245,7 @@ static int rna_BrushCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
 static int rna_SculptToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	return ((br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_POLYLINE | BRUSH_CURVE)) &&
+	return ((br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_CURVE)) &&
 	        !ELEM4(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
 	               SCULPT_TOOL_SMOOTH, SCULPT_TOOL_SNAKE_HOOK));
 }
@@ -256,7 +253,7 @@ static int rna_SculptToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
 static int rna_ImapaintToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
-	return (br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_POLYLINE | BRUSH_CURVE)) &&
+	return (br->flag & (BRUSH_SPACE | BRUSH_LINE | BRUSH_CURVE)) &&
 	        br->imagepaint_tool != PAINT_TOOL_FILL;
 }
 
@@ -576,7 +573,6 @@ static EnumPropertyItem *rna_Brush_stroke_itemf(bContext *C, PointerRNA *UNUSED(
 		{BRUSH_SPACE, "SPACE", 0, "Space", "Limit brush application to the distance specified by spacing"},
 		{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", "Keep applying paint effect while holding mouse (spray)"},
 		{BRUSH_LINE, "LINE", 0, "Line", "Drag a line with dabs separated according to spacing"},
-		{BRUSH_POLYLINE, "POLYLINE", 0, "Polyline", "Draw a series of lines with dabs separated according to spacing"},
 		{BRUSH_CURVE, "CURVE", 0, "Curve", "Define the stroke curve with a bezier curve. Dabs are separated according to spacing"},
 		{0, NULL, 0, NULL, NULL}
 	};
@@ -1195,11 +1191,6 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_line", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_LINE);
 	RNA_def_property_ui_text(prop, "Line", "Draw a line with dabs separated according to spacing");
-	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-	prop = RNA_def_property(srna, "use_polyline", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_POLYLINE);
-	RNA_def_property_ui_text(prop, "Polyline", "Draw a series of lines with dabs separated according to spacing");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop = RNA_def_property(srna, "use_curve", PROP_BOOLEAN, PROP_NONE);

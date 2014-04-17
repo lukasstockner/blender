@@ -190,7 +190,7 @@ typedef enum BrushFlags {
 	BRUSH_SIZE_PRESSURE = (1 << 3),
 	BRUSH_JITTER_PRESSURE = (1 << 4),
 	BRUSH_SPACING_PRESSURE = (1 << 5),
-	BRUSH_POLYLINE = (1 << 6),
+	BRUSH_UNUSED = (1 << 6),
 	BRUSH_RAKE = (1 << 7),
 	BRUSH_ANCHORED = (1 << 8),
 	BRUSH_DIR_IN = (1 << 9),
