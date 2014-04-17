@@ -512,26 +512,25 @@ static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const Dep
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 
-	switch (node->type) {
-		case DEPSNODE_TYPE_ID_REF: {
-			const IDDepsNode *id_node = (const IDDepsNode *)node;
-			for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin(); it != id_node->components.end(); ++it) {
-				const ComponentDepsNode *comp = it->second;
-				deg_debug_graphviz_node_relations(ctx, comp);
-			}
-			break;
+	if (node->tclass == DEPSNODE_CLASS_COMPONENT) {
+		const ComponentDepsNode *comp_node = (const ComponentDepsNode *)node;
+		for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->operations.begin(); it != comp_node->operations.end(); ++it) {
+			OperationDepsNode *op_node = it->second;
+			deg_debug_graphviz_node_relations(ctx, op_node);
 		}
-		
-		case DEPSNODE_TYPE_SUBGRAPH: {
-			SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
-			if (sub_node->graph) {
-				deg_debug_graphviz_graph_relations(ctx, sub_node->graph);
-			}
-			break;
+	}
+	else if (node->type == DEPSNODE_TYPE_ID_REF) {
+		const IDDepsNode *id_node = (const IDDepsNode *)node;
+		for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin(); it != id_node->components.end(); ++it) {
+			const ComponentDepsNode *comp = it->second;
+			deg_debug_graphviz_node_relations(ctx, comp);
 		}
-		
-		default:
-			break;
+	}
+	else if (node->type == DEPSNODE_TYPE_SUBGRAPH) {
+		SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
+		if (sub_node->graph) {
+			deg_debug_graphviz_graph_relations(ctx, sub_node->graph);
+		}
 	}
 }
 
