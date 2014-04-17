@@ -223,6 +223,8 @@ static void paintcurve_point_add(bContext *C, const int loc[2])
 	Main *bmain = CTX_data_main(C);
 	PaintCurve *pc;
 	PaintCurvePoint *pcp;
+	wmWindow *window = CTX_wm_window(C);
+	ARegion *ar = CTX_wm_region(C);
 	float vec[3] = {loc[0], loc[1], 0.0};
 	int lastindex;
 	int i;
@@ -254,6 +256,8 @@ static void paintcurve_point_add(bContext *C, const int loc[2])
 	}
 	pcp[lastindex].bez.f3 = SELECT;
 	pcp[lastindex].bez.h2 = HD_ALIGN;
+
+	WM_paint_cursor_tag_redraw(window, ar);
 }
 
 
@@ -297,6 +301,69 @@ static void PAINTCURVE_OT_add_point(wmOperatorType *ot)
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, SHRT_MAX,
 						 "Location", "Location of vertex in area space", 0, SHRT_MAX);
 }
+
+static int paintcurve_delete_point_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Paint *p = BKE_paint_get_active_from_context(C);
+	Brush *br = p->brush;
+	PaintCurve *pc;
+	PaintCurvePoint *pcp;
+	wmWindow *window = CTX_wm_window(C);
+	ARegion *ar = CTX_wm_region(C);
+	int i;
+	int tot_del = 0;
+	pc = br->paint_curve;
+	if (!pc || pc->tot_points == 0) {
+		return OPERATOR_CANCELLED;
+	}
+
+#define DELETE_TAG 2
+
+	for (i = 0, pcp = pc->points; i < pc->tot_points; i++, pcp++) {
+		if ((pcp->bez.f1 & SELECT) || (pcp->bez.f2 & SELECT) || (pcp->bez.f3 & SELECT)) {
+			pcp->bez.f2 |= DELETE_TAG;
+			tot_del++;
+		}
+	}
+
+	if (tot_del > 0) {
+		int new_tot = pc->tot_points - tot_del;
+		PaintCurvePoint *points_new = MEM_mallocN(new_tot * sizeof(PaintCurvePoint), "PaintCurvePoint");
+		PaintCurvePoint *pcp_new = points_new;
+		for (i = 0, pcp = pc->points; i < pc->tot_points; i++, pcp++) {
+			if (!(pcp->bez.f2 & DELETE_TAG)) {
+				*pcp_new++ = pc->points[i];
+			}
+		}
+		MEM_freeN(pc->points);
+
+		pc->points = points_new;
+		pc->tot_points = new_tot;
+	}
+
+#undef DELETE_TAG
+
+	WM_paint_cursor_tag_redraw(window, ar);
+
+	return OPERATOR_FINISHED;
+}
+
+
+static void PAINTCURVE_OT_delete_point(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add New Paint Curve Point";
+	ot->description = "Add new paint curve point";
+	ot->idname = "PAINTCURVE_OT_delete_point";
+
+	/* api callbacks */
+	ot->exec = paintcurve_delete_point_exec;
+	ot->poll = paintcurve_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
+}
+
 
 static void paintcurve_point_select(bContext *C, const int loc[2], bool handle, bool toggle, bool extend)
 {
@@ -1322,6 +1389,7 @@ void ED_operatortypes_paint(void)
 	/* paint curve */
 	WM_operatortype_append(PAINTCURVE_OT_new);
 	WM_operatortype_append(PAINTCURVE_OT_add_point);
+	WM_operatortype_append(PAINTCURVE_OT_delete_point);
 	WM_operatortype_append(PAINTCURVE_OT_select);
 	WM_operatortype_append(PAINTCURVE_OT_draw);
 
@@ -1528,6 +1596,7 @@ static void paint_keymap_curve(wmKeyMap *keymap)
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", ACTIONMOUSE, KM_PRESS, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", ACTIONMOUSE, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "handle", true);
+	WM_keymap_add_item(keymap, "PAINTCURVE_OT_delete_point", XKEY, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", AKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "toggle", true);
