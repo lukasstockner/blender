@@ -170,7 +170,6 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 		/* ob data animation */
 		build_animdata(obdata_id);
 		
-#if 0
 		/* type-specific data... */
 		switch (ob->type) {
 			case OB_MESH:     /* Geometry */
@@ -180,25 +179,23 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 			case OB_MBALL:
 			case OB_LATTICE:
 			{
-				deg_build_obdata_geom_graph(graph, scene, ob);
+				build_obdata_geom(scene, ob);
 			}
 			break;
 			
 			
 			case OB_ARMATURE: /* Pose */
-				deg_build_rig_graph(graph, scene, ob);
+				build_rig(scene, ob);
 				break;
 			
-			
 			case OB_LAMP:   /* Lamp */
-				deg_build_lamp_graph(graph, scene, ob);
+				build_lamp(ob);
 				break;
 				
 			case OB_CAMERA: /* Camera */
-				deg_build_camera_graph(graph, scene, ob);
+				build_camera(ob);
 				break;
 		}
-#endif
 	}
 	
 	/* particle systems */
