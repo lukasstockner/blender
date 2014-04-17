@@ -104,23 +104,30 @@ private:
 
 struct RootKey
 {
+	RootKey() {}
 };
 
 struct TimeSourceKey
 {
-	TimeSourceKey(IDPtr id = NULL) : id(id) {}
+	TimeSourceKey() : id(NULL) {}
+	TimeSourceKey(IDPtr id) : id(id) {}
+	
 	IDPtr id;
 };
 
 struct IDKey
 {
+	IDKey() : id(NULL) {}
 	IDKey(IDPtr id) : id(id) {}
+	
 	IDPtr id;
 };
 
 struct ComponentKey
 {
+	ComponentKey() : id(NULL), type(DEPSNODE_TYPE_UNDEFINED), subdata("") {}
 	ComponentKey(IDPtr id, eDepsNode_Type type, const string &subdata = "") : id(id), type(type), subdata(subdata) {}
+	
 	IDPtr id;
 	eDepsNode_Type type;
 	string subdata;
@@ -128,12 +135,14 @@ struct ComponentKey
 
 struct OperationKey
 {
+	OperationKey() : id(NULL), component_subdata(""), type(DEPSNODE_TYPE_UNDEFINED), name("") {}
 	OperationKey(IDPtr id, eDepsNode_Type type, const string &name) :
 	    id(id), component_subdata(""), type(type), name(name)
 	{}
 	OperationKey(IDPtr id, const string &component_subdata, eDepsNode_Type type, const string &name) :
 	    id(id), component_subdata(component_subdata), type(type), name(name)
 	{}
+	
 	IDPtr id;
 	string component_subdata;
 	eDepsNode_Type type;
