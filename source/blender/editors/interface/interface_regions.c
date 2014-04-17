@@ -1684,6 +1684,7 @@ static void ui_update_block_buts_rgb(uiBlock *block, const float rgb[3], bool is
 		}
 		else if (strcmp(bt->str, "Hex: ") == 0) {
 			float rgb_gamma[3];
+			unsigned char rgb_gamma_uchar[3];
 			double intpart;
 			char col[16];
 			
@@ -1700,8 +1701,8 @@ static void ui_update_block_buts_rgb(uiBlock *block, const float rgb[3], bool is
 			if (rgb_gamma[1] > 1.0f) rgb_gamma[1] = modf(rgb_gamma[1], &intpart);
 			if (rgb_gamma[2] > 1.0f) rgb_gamma[2] = modf(rgb_gamma[2], &intpart);
 
-			BLI_snprintf(col, sizeof(col), "%02X%02X%02X",
-			             FTOCHAR(rgb_gamma[0]), FTOCHAR(rgb_gamma[1]), FTOCHAR(rgb_gamma[2]));
+			rgb_float_to_uchar(rgb_gamma_uchar, rgb_gamma);
+			BLI_snprintf(col, sizeof(col), "%02X%02X%02X", UNPACK3OP((unsigned int), rgb_gamma_uchar));
 			
 			strcpy(bt->poin, col);
 		}
@@ -1883,6 +1884,7 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 	static char tip[50];
 	static char hexcol[128];
 	float rgb_gamma[3];
+	unsigned char rgb_gamma_uchar[3];
 	float softmin, softmax, hardmin, hardmax, step, precision;
 	float *hsv = ui_block_hsv_get(block);
 	int yco;
@@ -1987,14 +1989,15 @@ static void uiBlockPicker(uiBlock *block, float rgba[4], PointerRNA *ptr, Proper
 		rgba[3] = 1.0f;
 	}
 
-	BLI_snprintf(hexcol, sizeof(hexcol), "%02X%02X%02X", FTOCHAR(rgb_gamma[0]), FTOCHAR(rgb_gamma[1]), FTOCHAR(rgb_gamma[2]));
+	rgb_float_to_uchar(rgb_gamma_uchar, rgb_gamma);
+	BLI_snprintf(hexcol, sizeof(hexcol), "%02X%02X%02X", UNPACK3OP((unsigned int), rgb_gamma_uchar));
 
 	yco = -3.0f * UI_UNIT_Y;
 	bt = uiDefBut(block, TEX, 0, IFACE_("Hex: "), 0, yco, butwidth, UI_UNIT_Y, hexcol, 0, 8, 0, 0, TIP_("Hex triplet for color (#RRGGBB)"));
 	uiButSetFunc(bt, do_hex_rna_cb, bt, hexcol);
 	uiDefBut(block, LABEL, 0, IFACE_("(Gamma Corrected)"), 0, yco - UI_UNIT_Y, butwidth, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
 
-	rgb_to_hsv_v(rgba, hsv);
+	ui_rgb_to_color_picker_v(rgb_gamma, hsv);
 
 	picker_new_hide_reveal(block, colormode);
 }
@@ -2088,9 +2091,12 @@ static unsigned int ui_popup_string_hash(const char *str)
 	int hash;
 	char *delimit = strchr(str, UI_SEP_CHAR);
 
-	if (delimit) *delimit = '\0';
-	hash = BLI_ghashutil_strhash(str);
-	if (delimit) *delimit = UI_SEP_CHAR;
+	if (delimit) {
+		hash = BLI_ghashutil_strhash_n(str, delimit - str);
+	}
+	else {
+		hash = BLI_ghashutil_strhash(str);
+	}
 
 	return hash;
 }
@@ -2552,6 +2558,18 @@ void ui_rgb_to_color_picker_compat_v(const float rgb[3], float r_cp[3])
 			break;
 		default:
 			rgb_to_hsv_compat_v(rgb, r_cp);
+			break;
+	}
+}
+
+void ui_rgb_to_color_picker_v(const float rgb[3], float r_cp[3])
+{
+	switch (U.color_picker_type) {
+		case USER_CP_CIRCLE_HSL:
+			rgb_to_hsl_v(rgb, r_cp);
+			break;
+		default:
+			rgb_to_hsv_v(rgb, r_cp);
 			break;
 	}
 }

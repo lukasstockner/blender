@@ -648,15 +648,9 @@ float BKE_brush_sample_tex_3D(const Scene *scene, Brush *br,
 		rgba[2] = intensity;
 		rgba[3] = 1.0f;
 	}
-	else {
-		if (br->mtex.tex->type == TEX_IMAGE && br->mtex.tex->ima) {
-			ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(br->mtex.tex->ima, &br->mtex.tex->iuser, pool);
-			/* For consistency, sampling always returns color in linear space */
-			if (tex_ibuf && tex_ibuf->rect_float == NULL) {
-				IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, tex_ibuf->rect_colorspace);
-			}
-			BKE_image_pool_release_ibuf(br->mtex.tex->ima, tex_ibuf, pool);
-		}
+	/* For consistency, sampling always returns color in linear space */
+	else if (ups->do_linear_conversion) {
+		IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, ups->colorspace);
 	}
 
 	return intensity;
@@ -765,10 +759,10 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
 
 	switch(br->mask_pressure) {
 		case BRUSH_MASK_PRESSURE_CUTOFF:
-			intensity  = ((1.0 - intensity) < ups->pressure_value)? 1.0 : 0.0;
+			intensity  = ((1.0 - intensity) < ups->size_pressure_value)? 1.0 : 0.0;
 			break;
 		case BRUSH_MASK_PRESSURE_RAMP:
-			intensity = ups->pressure_value + intensity*(1.0 - ups->pressure_value);
+			intensity = ups->size_pressure_value + intensity*(1.0 - ups->size_pressure_value);
 			break;
 		default:
 			break;

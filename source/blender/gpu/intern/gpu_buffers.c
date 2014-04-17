@@ -594,7 +594,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	int *mat_orig_to_new;
 	int *cur_index_per_mat;
 	int i;
-	int success;
+	bool success;
 	GLboolean uploaded;
 
 	pool = gpu_get_global_buffer_pool();
@@ -737,6 +737,7 @@ static void GPU_buffer_copy_normal(DerivedMesh *dm, float *varray, int *index, i
 	float f_no[3];
 
 	float *nors = dm->getTessFaceDataArray(dm, CD_NORMAL);
+	short (*tlnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	MVert *mvert = dm->getVertArray(dm);
 	MFace *f = dm->getTessFaceArray(dm);
 
@@ -747,7 +748,20 @@ static void GPU_buffer_copy_normal(DerivedMesh *dm, float *varray, int *index, i
 		start = index[mat_orig_to_new[f->mat_nr]];
 		index[mat_orig_to_new[f->mat_nr]] += f->v4 ? 18 : 9;
 
-		if (smoothnormal) {
+		if (tlnors) {
+			short (*tlnor)[3] = tlnors[i];
+			/* Copy loop normals */
+			normal_short_to_float_v3(&varray[start], tlnor[0]);
+			normal_short_to_float_v3(&varray[start + 3], tlnor[1]);
+			normal_short_to_float_v3(&varray[start + 6], tlnor[2]);
+
+			if (f->v4) {
+				normal_short_to_float_v3(&varray[start + 9], tlnor[2]);
+				normal_short_to_float_v3(&varray[start + 12], tlnor[3]);
+				normal_short_to_float_v3(&varray[start + 15], tlnor[0]);
+			}
+		}
+		else if (smoothnormal) {
 			/* copy vertex normal */
 			normal_short_to_float_v3(&varray[start], mvert[f->v1].no);
 			normal_short_to_float_v3(&varray[start + 3], mvert[f->v2].no);
@@ -1348,13 +1362,13 @@ void GPU_color_switch(int mode)
 
 /* return 1 if drawing should be done using old immediate-mode
  * code, 0 otherwise */
-int GPU_buffer_legacy(DerivedMesh *dm)
+bool GPU_buffer_legacy(DerivedMesh *dm)
 {
 	int test = (U.gameflags & USER_DISABLE_VBO);
 	if (test)
 		return 1;
 
-	if (dm->drawObject == 0)
+	if (dm->drawObject == NULL)
 		dm->drawObject = GPU_drawobject_new(dm);
 	return dm->drawObject->legacy;
 }
@@ -2641,14 +2655,15 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, GSet *bm_faces, bool show_diffuse_color)
 {
 	float diffuse_color[4];
+	bool use_matcaps = GPU_material_use_matcaps_get();
 
 	if (buffers->show_diffuse_color != show_diffuse_color)
 		return true;
 
-	if (buffers->use_matcaps != GPU_material_use_matcaps_get())
+	if (buffers->use_matcaps != use_matcaps)
 		return true;
 
-	if (buffers->show_diffuse_color == false)
+	if ((buffers->show_diffuse_color == false) || use_matcaps)
 		return false;
 
 	if (buffers->mface) {

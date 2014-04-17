@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,24 +15,27 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor:
- *		Dalai Felinto
+ * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef _COM_SeparateYCCANode_h_
-#define _COM_SeparateYCCANode_h_
-
-#include "COM_Node.h"
-#include "DNA_node_types.h"
-#include "COM_SeparateRGBANode.h"
-
-/**
- * @brief SeparateYCCANode
- * @ingroup Node
+/** \file blender/freestyle/intern/stroke/Predicates1D.cpp
+ *  \ingroup freestyle
  */
-class SeparateYCCANode : public SeparateRGBANode {
-public:
-	SeparateYCCANode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
-};
-#endif
+
+#include "Predicates1D.h"
+
+#include "../python/Director.h"
+
+namespace Freestyle {
+
+int UnaryPredicate1D::operator()(Interface1D& inter)
+{
+	return Director_BPy_UnaryPredicate1D___call__(this, inter);
+}
+
+int BinaryPredicate1D::operator()(Interface1D& inter1, Interface1D& inter2)
+{
+	return Director_BPy_BinaryPredicate1D___call__(this, inter1, inter2);
+}
+
+} /* namespace Freestyle */

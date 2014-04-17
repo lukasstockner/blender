@@ -88,6 +88,27 @@ float normal_quad_v3(float n[3], const float v1[3], const float v2[3], const flo
 	return normalize_v3(n);
 }
 
+/**
+ * Computes the normal of a planar
+ * polygon See Graphics Gems for
+ * computing newell normal.
+ */
+float normal_poly_v3(float n[3], const float verts[][3], unsigned int nr)
+{
+	float const *v_prev = verts[nr - 1];
+	float const *v_curr = verts[0];
+	unsigned int i;
+
+	zero_v3(n);
+
+	/* Newell's Method */
+	for (i = 0; i < nr; v_prev = v_curr, v_curr = verts[++i]) {
+		add_newell_cross_v3_v3v3(n, v_prev, v_curr);
+	}
+
+	return normalize_v3(n);
+}
+
 /* only convex Quadrilaterals */
 float area_quad_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3])
 {
@@ -134,25 +155,10 @@ float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3]
 	return area;
 }
 
-float area_poly_v3(const float verts[][3], unsigned int nr, const float normal[3])
+float area_poly_v3(const float verts[][3], unsigned int nr)
 {
-	unsigned int a;
-	int px, py;
-	const float max = axis_dominant_v3_max(&px, &py, normal);
-	float area;
-	const float *co_curr, *co_prev;
-
-	/* The Trapezium Area Rule */
-	co_prev = verts[nr - 1];
-	co_curr = verts[0];
-	area = 0.0f;
-	for (a = 0; a < nr; a++) {
-		area += (co_curr[px] - co_prev[px]) * (co_curr[py] + co_prev[py]);
-		co_prev = co_curr;
-		co_curr += 3;
-	}
-
-	return fabsf(0.5f * area / max);
+	float n[3];
+	return normal_poly_v3(n, verts, nr) * 0.5f;
 }
 
 float cross_poly_v2(const float verts[][2], unsigned int nr)
@@ -2127,32 +2133,20 @@ void fill_poly_v2i_n(
  * \param r_mat The matrix to return.
  * \param normal A unit length vector.
  */
-bool axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3])
+void axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3])
 {
-	float up[3] = {0.0f, 0.0f, 1.0f};
-	float axis[3];
-	float angle;
-
-	/* double check they are normalized */
 	BLI_ASSERT_UNIT_V3(normal);
 
-	cross_v3_v3v3(axis, normal, up);
-	angle = saacos(dot_v3v3(normal, up));
+	copy_v3_v3(r_mat[2], normal);
+	ortho_basis_v3v3_v3(r_mat[0], r_mat[1], r_mat[2]);
 
-	if (angle >= FLT_EPSILON) {
-		if (len_squared_v3(axis) < FLT_EPSILON) {
-			axis[0] = 0.0f;
-			axis[1] = 1.0f;
-			axis[2] = 0.0f;
-		}
+	BLI_ASSERT_UNIT_V3(r_mat[0]);
+	BLI_ASSERT_UNIT_V3(r_mat[1]);
 
-		axis_angle_to_mat3(r_mat, axis, angle);
-		return true;
-	}
-	else {
-		unit_m3(r_mat);
-		return false;
-	}
+	transpose_m3(r_mat);
+
+	BLI_assert(!is_negative_m3(r_mat));
+	BLI_assert(fabsf(dot_m3_v3_row_z(r_mat, normal) - 1.0f) < BLI_ASSERT_UNIT_EPSILON);
 }
 
 /****************************** Interpolation ********************************/

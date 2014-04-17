@@ -20,11 +20,11 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_SingleThreadedNodeOperation_h
-#define _COM_SingleThreadedNodeOperation_h
+#ifndef _COM_SingleThreadedOperation_h
+#define _COM_SingleThreadedOperation_h
 #include "COM_NodeOperation.h"
 
-class SingleThreadedNodeOperation : public NodeOperation {
+class SingleThreadedOperation : public NodeOperation {
 private:
 	MemoryBuffer *m_cachedInstance;
 	
@@ -34,7 +34,7 @@ protected:
 	}
 
 public:
-	SingleThreadedNodeOperation();
+	SingleThreadedOperation();
 	
 	/**
 	 * the inner loop of this program

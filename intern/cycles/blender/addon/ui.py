@@ -47,12 +47,12 @@ class CyclesButtonsPanel():
     def poll(cls, context):
         rd = context.scene.render
         return rd.engine in cls.COMPAT_ENGINES
-        
-        
+
+
 def use_cpu(context):
     cscene = context.scene.cycles
     device_type = context.user_preferences.system.compute_device_type
-    
+
     return (device_type == 'NONE' or cscene.device == 'CPU')
 
 
@@ -554,28 +554,6 @@ class Cycles_PT_mesh_displacement(CyclesButtonsPanel, Panel):
         layout.prop(cdata, "displacement_method", text="Method")
         layout.prop(cdata, "use_subdivision")
         layout.prop(cdata, "dicing_rate")
-
-
-class Cycles_PT_mesh_normals(CyclesButtonsPanel, Panel):
-    bl_label = "Normals"
-    bl_context = "data"
-
-    @classmethod
-    def poll(cls, context):
-        return CyclesButtonsPanel.poll(context) and context.mesh
-
-    def draw(self, context):
-        layout = self.layout
-
-        mesh = context.mesh
-
-        split = layout.split()
-
-        col = split.column()
-        col.prop(mesh, "show_double_sided")
-
-        col = split.column()
-        col.label()
 
 
 class CyclesObject_PT_motion_blur(CyclesButtonsPanel, Panel):
@@ -1148,7 +1126,7 @@ class CyclesTexture_PT_colors(CyclesButtonsPanel, Panel):
     def poll(cls, context):
         # node = context.texture_node
         return False
-        #return node and CyclesButtonsPanel.poll(context)
+        # return node and CyclesButtonsPanel.poll(context)
 
     def draw(self, context):
         layout = self.layout
@@ -1356,6 +1334,7 @@ def get_panels():
         "DATA_PT_context_camera",
         "DATA_PT_context_lamp",
         "DATA_PT_context_speaker",
+        "DATA_PT_normals",
         "DATA_PT_texture_space",
         "DATA_PT_curve_texture_space",
         "DATA_PT_mball_texture_space",

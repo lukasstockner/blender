@@ -37,6 +37,8 @@ struct bContext;
 struct bglMats;
 struct Brush;
 struct ImagePool;
+struct ColorSpace;
+struct ColorManagedDisplay;
 struct ListBase;
 struct Material;
 struct Mesh;
@@ -166,7 +168,7 @@ void paint_proj_stroke_done(void *ps);
 void paint_proj_mesh_data_ensure(bContext *C, struct Object *ob);
 bool proj_paint_add_slot(bContext *C, int type, struct Material *ma);
 
-void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert, float distance, float pressure, float color[3]);
+void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert, float distance, float pressure, float color[3], struct ColorManagedDisplay *display);
 bool paint_use_opacity_masking(struct Brush *brush);
 void paint_brush_init_tex(struct Brush *brush);
 void paint_brush_exit_tex(struct Brush *brush);
@@ -208,8 +210,7 @@ void paint_calc_redraw_planes(float planes[4][4],
 
 float paint_calc_object_space_radius(struct ViewContext *vc, const float center[3], float pixel_radius);
 float paint_get_tex_pixel(struct MTex *mtex, float u, float v, struct ImagePool *pool, int thread);
-void paint_get_tex_pixel_col(struct MTex *mtex, float u, float v, float rgba[4], struct ImagePool *pool, int thread);
-void brush_drawcursor_texpaint_uvsculpt(struct bContext *C, int x, int y, void *customdata);
+void paint_get_tex_pixel_col(struct MTex *mtex, float u, float v, float rgba[4], struct ImagePool *pool, int thread, bool convert, struct ColorSpace *colorspace);
 
 void paint_sample_color(bContext *C, struct ARegion *ar, int x, int y, bool texpaint_proj, bool palette);
 void BRUSH_OT_curve_preset(struct wmOperatorType *ot);

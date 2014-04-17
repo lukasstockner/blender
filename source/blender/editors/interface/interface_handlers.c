@@ -6361,7 +6361,7 @@ void uiFreeActiveButtons(const bContext *C, bScreen *screen)
 
 /* returns true if highlighted button allows drop of names */
 /* called in region context */
-int UI_but_active_drop_name(bContext *C)
+bool UI_but_active_drop_name(bContext *C)
 {
 	ARegion *ar = CTX_wm_region(C);
 	uiBut *but = ui_but_find_activated(ar);
@@ -6374,15 +6374,15 @@ int UI_but_active_drop_name(bContext *C)
 	return 0;
 }
 
-int UI_but_active_drop_color(bContext *C)
+bool UI_but_active_drop_color(bContext *C)
 {
 	ARegion *ar = CTX_wm_region(C);
 	uiBut *but = ui_but_find_activated(ar);
 
 	if (but && but->type == COLOR)
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 static void ui_blocks_set_tooltips(ARegion *ar, const bool enable)

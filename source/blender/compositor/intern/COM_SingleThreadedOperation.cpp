@@ -20,25 +20,41 @@
  *		Monique Dewanchand
  */
 
-#include "COM_SeparateHSVANode.h"
+#include "COM_SingleThreadedOperation.h"
 
-#include "COM_ExecutionSystem.h"
-#include "COM_SetValueOperation.h"
-#include "COM_ConvertOperation.h"
-
-SeparateHSVANode::SeparateHSVANode(bNode *editorNode) : SeparateRGBANode(editorNode)
+SingleThreadedOperation::SingleThreadedOperation() : NodeOperation()
 {
-	/* pass */
+	this->m_cachedInstance = NULL;
+	setComplex(true);
 }
 
-void SeparateHSVANode::convertToOperations(ExecutionSystem *graph, CompositorContext *context)
+void SingleThreadedOperation::initExecution()
 {
-	ConvertRGBToHSVOperation *operation = new ConvertRGBToHSVOperation();
-	InputSocket *inputSocket = this->getInputSocket(0);
-	if (inputSocket->isConnected()) {
-		inputSocket->relinkConnections(operation->getInputSocket(0));
-		addLink(graph, operation->getOutputSocket(), inputSocket);
+	initMutex();
+}
+
+void SingleThreadedOperation::executePixel(float output[4], int x, int y, void *data)
+{
+	this->m_cachedInstance->readNoCheck(output, x, y);
+}
+
+void SingleThreadedOperation::deinitExecution()
+{
+	deinitMutex();
+	if (this->m_cachedInstance) {
+		delete this->m_cachedInstance;
+		this->m_cachedInstance = NULL;
 	}
-	graph->addOperation(operation);
-	SeparateRGBANode::convertToOperations(graph, context);
+}
+void *SingleThreadedOperation::initializeTileData(rcti *rect)
+{
+	if (this->m_cachedInstance) return this->m_cachedInstance;
+	
+	lockMutex();
+	if (this->m_cachedInstance == NULL) {
+		//
+		this->m_cachedInstance = createMemoryBuffer(rect);
+	}
+	unlockMutex();
+	return this->m_cachedInstance;
 }

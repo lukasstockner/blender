@@ -211,6 +211,8 @@ static BMLoop *bm_loop_create(BMesh *bm, BMVert *v, BMEdge *e, BMFace *f,
 	l->prev = NULL;
 	/* --- done --- */
 
+	/* may add to middle of the pool */
+	bm->elem_index_dirty |= BM_LOOP;
 
 	bm->totloop++;
 
@@ -675,6 +677,7 @@ static void bm_kill_only_face(BMesh *bm, BMFace *f)
 static void bm_kill_only_loop(BMesh *bm, BMLoop *l)
 {
 	bm->totloop--;
+	bm->elem_index_dirty |= BM_LOOP;
 	if (l->head.data)
 		CustomData_bmesh_free_block(&bm->ldata, &l->head.data);
 
@@ -800,13 +803,13 @@ void BM_edge_kill(BMesh *bm, BMEdge *e)
 void BM_vert_kill(BMesh *bm, BMVert *v)
 {
 	if (v->e) {
-		BMEdge *e, *nexte;
+		BMEdge *e, *e_next;
 		
 		e = v->e;
 		while (v->e) {
-			nexte = bmesh_disk_edge_next(e, v);
+			e_next = bmesh_disk_edge_next(e, v);
 			BM_edge_kill(bm, e);
-			e = nexte;
+			e = e_next;
 		}
 	}
 
@@ -1023,12 +1026,8 @@ static bool disk_is_flagged(BMVert *v, int flag)
 		do {
 			if (!BM_ELEM_API_FLAG_TEST(l->f, flag))
 				return false;
-
-			l = l->radial_next;
-		} while (l != e->l);
-
-		e = bmesh_disk_edge_next(e, v);
-	} while (e != v->e);
+		} while ((l = l->radial_next) != e->l);
+	} while ((e = bmesh_disk_edge_next(e, v)) != v->e);
 
 	return true;
 }

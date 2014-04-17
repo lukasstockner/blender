@@ -55,6 +55,8 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "IMB_imbuf_types.h"
+
 #include "ED_view3d.h"
 
 #include "paint_intern.h"
@@ -160,6 +162,8 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
 	if (refresh) {
 		struct ImagePool *pool = NULL;
+		bool convert_to_linear = false;
+		struct ColorSpace *colorspace;
 		/* stencil is rotated later */
 		const float rotation = (mtex->brush_map_mode != MTEX_MAP_MODE_STENCIL) ?
 		                       -mtex->rot : 0;
@@ -219,6 +223,17 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 			thread_num = 0;
 #endif
 
+			if (mtex->tex->type == TEX_IMAGE && mtex->tex->ima) {
+				ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(mtex->tex->ima, &mtex->tex->iuser, pool);
+				/* For consistency, sampling always returns color in linear space */
+				if (tex_ibuf && tex_ibuf->rect_float == NULL) {
+					convert_to_linear = true;
+					colorspace = tex_ibuf->rect_colorspace;
+				}
+				BKE_image_pool_release_ibuf(mtex->tex->ima, tex_ibuf, pool);
+			}
+
+
 			for (i = 0; i < size; i++) {
 
 				// largely duplicated from tex_strength
@@ -257,7 +272,7 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 					if (col) {
 						float rgba[4];
 
-						paint_get_tex_pixel_col(mtex, x, y, rgba, pool, thread_num);
+						paint_get_tex_pixel_col(mtex, x, y, rgba, pool, thread_num, convert_to_linear, colorspace);
 
 						buffer[index * 4]     = rgba[0] * 255;
 						buffer[index * 4 + 1] = rgba[1] * 255;
@@ -584,7 +599,7 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			/* scale based on tablet pressure */
 			if (primary && ups->stroke_active && BKE_brush_use_size_pressure(vc->scene, brush)) {
 				glTranslatef(0.5f, 0.5f, 0);
-				glScalef(1.0f / ups->pressure_value, 1.0f / ups->pressure_value, 1);
+				glScalef(1.0f / ups->size_pressure_value, 1.0f / ups->size_pressure_value, 1);
 				glTranslatef(-0.5f, -0.5f, 0);
 			}
 
@@ -712,7 +727,7 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 			glPushMatrix();
 			glLoadIdentity();
 			glTranslatef(center[0], center[1], 0);
-			glScalef(ups->pressure_value, ups->pressure_value, 1);
+			glScalef(ups->size_pressure_value, ups->size_pressure_value, 1);
 			glTranslatef(-center[0], -center[1], 0);
 		}
 
@@ -922,7 +937,7 @@ static void paint_cursor_on_hit(UnifiedPaintSettings *ups, Brush *brush, ViewCon
 
 		/* scale 3D brush radius by pressure */
 		if (ups->stroke_active && BKE_brush_use_size_pressure(vc->scene, brush))
-			unprojected_radius *= ups->pressure_value;
+			unprojected_radius *= ups->size_pressure_value;
 
 		/* set cached value in either Brush or UnifiedPaintSettings */
 		BKE_brush_unprojected_radius_set(vc->scene, brush, unprojected_radius);
@@ -1026,7 +1041,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	/* draw an inner brush */
 	if (ups->stroke_active && BKE_brush_use_size_pressure(scene, brush)) {
 		/* inner at full alpha */
-		glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius * ups->pressure_value, 40);
+		glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius * ups->size_pressure_value, 40);
 		/* outer at half alpha */
 		glColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha * 0.5f);
 	}

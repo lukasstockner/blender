@@ -4399,7 +4399,7 @@ void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], co
 
 	/* handle gradient and inverted stroke color here */
 	if (ps->tool == PAINT_TOOL_DRAW) {
-		paint_brush_color_get(brush, false, ps->mode == BRUSH_STROKE_INVERT, distance, pressure,  ps->paint_color);
+		paint_brush_color_get(brush, false, ps->mode == BRUSH_STROKE_INVERT, distance, pressure,  ps->paint_color, NULL);
 		srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
 	}
 	else if (ps->tool == PAINT_TOOL_FILL)

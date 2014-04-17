@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,25 +15,27 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef _COM_SeparateHSVANode_h_
-#define _COM_SeparateHSVANode_h_
-
-#include "COM_Node.h"
-#include "DNA_node_types.h"
-#include "COM_SeparateRGBANode.h"
-
-/**
- * @brief SeparateHSVANode
- * @ingroup Node
+/** \file blender/freestyle/intern/stroke/Predicates0D.cpp
+ *  \ingroup freestyle
  */
-class SeparateHSVANode : public SeparateRGBANode {
-public:
-	SeparateHSVANode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
-};
-#endif
+
+#include "Predicates0D.h"
+
+#include "../python/Director.h"
+
+namespace Freestyle {
+
+int UnaryPredicate0D::operator()(Interface0DIterator& it)
+{
+	return Director_BPy_UnaryPredicate0D___call__(this, it);
+}
+
+int BinaryPredicate0D::operator()(Interface0D& inter1, Interface0D& inter2)
+{
+	return Director_BPy_BinaryPredicate0D___call__(this, inter1, inter2);
+}
+
+} /* namespace Freestyle */

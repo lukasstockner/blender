@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,23 +15,22 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef _COM_SeparateRGBANode_h_
-#define _COM_SeparateRGBANode_h_
-
-#include "COM_Node.h"
-#include "DNA_node_types.h"
-/**
- * @brief SeparateRGBANode
- * @ingroup Node
+/** \file blender/freestyle/intern/stroke/StrokeShader.cpp
+ *  \ingroup freestyle
  */
-class SeparateRGBANode : public Node {
-public:
-	SeparateRGBANode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
-};
-#endif
+
+#include "StrokeShader.h"
+
+#include "../python/Director.h"
+
+namespace Freestyle {
+
+int StrokeShader::shade(Stroke& ioStroke) const
+{
+	return Director_BPy_StrokeShader_shade( const_cast<StrokeShader *>(this), ioStroke);
+}
+
+} /* namespace Freestyle */

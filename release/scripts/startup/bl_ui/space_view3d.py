@@ -2168,6 +2168,13 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
 
         layout.separator()
 
+        op = layout.operator("mesh.mark_sharp", text="Shade Smooth")
+        op.use_verts = True
+        op.clear = True
+        layout.operator("mesh.mark_sharp", text="Shade Sharp").use_verts = True
+
+        layout.separator()
+
         layout.operator("mesh.bevel").vertex_only = True
         layout.operator("mesh.convex_hull")
         layout.operator("mesh.vertices_smooth")
@@ -2211,7 +2218,7 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
         layout.separator()
 
-        layout.operator("mesh.mark_sharp").clear = False
+        layout.operator("mesh.mark_sharp")
         layout.operator("mesh.mark_sharp", text="Clear Sharp").clear = True
 
         layout.separator()
@@ -2760,6 +2767,15 @@ class VIEW3D_PT_view3d_name(Panel):
                 row.label(text="", icon='BONE_DATA')
                 row.prop(bone, "name", text="")
 
+        elif ob.type == 'MESH':
+            me = ob.data
+            row = layout.row()
+            row.prop(me, "use_auto_smooth")
+            row = row.row()
+            if not me.use_auto_smooth:
+                row.active = False
+            row.prop(me, "auto_smooth_angle", text="")
+
 
 class VIEW3D_PT_view3d_display(Panel):
     bl_space_type = 'VIEW_3D'
@@ -2936,14 +2952,14 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
 
         col.separator()
         col.label(text="Normals:")
-        row = col.row()
+        row = col.row(align=True)
+
+        row.prop(mesh, "show_normal_vertex", text="", icon='VERTEXSEL')
+        row.prop(mesh, "show_normal_loop", text="", icon='VERTEXSEL')
+        row.prop(mesh, "show_normal_face", text="", icon='FACESEL')
 
         sub = row.row(align=True)
-        sub.prop(mesh, "show_normal_vertex", text="", icon='VERTEXSEL')
-        sub.prop(mesh, "show_normal_face", text="", icon='FACESEL')
-
-        sub = row.row(align=True)
-        sub.active = mesh.show_normal_vertex or mesh.show_normal_face
+        sub.active = mesh.show_normal_vertex or mesh.show_normal_face or mesh.show_normal_loop
         sub.prop(context.scene.tool_settings, "normal_size", text="Size")
 
         col.separator()

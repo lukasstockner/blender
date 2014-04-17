@@ -50,6 +50,7 @@
 #include "BKE_brush.h"
 #include "BKE_curve.h"
 #include "BKE_colortools.h"
+#include "BKE_image.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -59,6 +60,8 @@
 
 #include "ED_screen.h"
 #include "ED_view3d.h"
+
+#include "IMB_imbuf_types.h"
 
 #include "paint_intern.h"
 
@@ -120,7 +123,7 @@ typedef struct PaintStroke {
 	bool brush_init;
 	float initial_mouse[2];
 	/* cached_pressure stores initial pressure for size pressure influence mainly */
-	float cached_pressure;
+	float cached_size_pressure;
 	/* last pressure will store last pressure value for use in interpolation for space strokes */
 	float last_pressure;
 
@@ -253,12 +256,12 @@ static float event_tablet_data(const wmEvent *event, int *pen_flip)
 
 /* Initialize the stroke cache variants from operator properties */
 static void paint_brush_update(bContext *C,
-                                         Brush *brush,
-                                         PaintMode mode,
-                                         struct PaintStroke *stroke,
-                                         const float mouse_init[2],
-                                         float mouse[2], float pressure,
-                                         float location[3])
+                               Brush *brush,
+                               PaintMode mode,
+                               struct PaintStroke *stroke,
+                               const float mouse_init[2],
+                               float mouse[2], float pressure,
+                               float location[3])
 {
 	Scene *scene = CTX_data_scene(C);
 	UnifiedPaintSettings *ups = stroke->ups;
@@ -268,21 +271,41 @@ static void paint_brush_update(bContext *C,
 	 *      brush coord/pressure/etc.
 	 *      It's more an events design issue, which doesn't split coordinate/pressure/angle
 	 *      changing events. We should avoid this after events system re-design */
-	if (paint_supports_dynamic_size(brush, mode) || !stroke->brush_init) {
+	if (!stroke->brush_init) {
 		copy_v2_v2(stroke->initial_mouse, mouse);
+		copy_v2_v2(ups->last_rake, mouse);
 		copy_v2_v2(ups->tex_mouse, mouse);
 		copy_v2_v2(ups->mask_tex_mouse, mouse);
-		stroke->cached_pressure = pressure;
+		stroke->cached_size_pressure = pressure;
+
+		/* check here if color sampling the main brush should do color conversion. This is done here
+		 * to avoid locking up to get the image buffer during sampling */
+		if (brush->mtex.tex && brush->mtex.tex->type == TEX_IMAGE && brush->mtex.tex->ima) {
+			ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(brush->mtex.tex->ima, &brush->mtex.tex->iuser, NULL);
+			if (tex_ibuf && tex_ibuf->rect_float == NULL) {
+				ups->do_linear_conversion = true;
+				ups->colorspace = tex_ibuf->rect_colorspace;
+			}
+			BKE_image_pool_release_ibuf(brush->mtex.tex->ima, tex_ibuf, NULL);
+		}
+
+		stroke->brush_init = true;
+	}
+
+	if (paint_supports_dynamic_size(brush, mode)) {
+		copy_v2_v2(ups->tex_mouse, mouse);
+		copy_v2_v2(ups->mask_tex_mouse, mouse);
+		stroke->cached_size_pressure = pressure;
 	}
 
 	/* Truly temporary data that isn't stored in properties */
-
-	ups->pressure_value = stroke->cached_pressure;
+	ups->stroke_active = true;
+	ups->size_pressure_value = stroke->cached_size_pressure;
 
 	ups->pixel_radius = BKE_brush_size_get(scene, brush);
 
 	if (BKE_brush_use_size_pressure(scene, brush) && paint_supports_dynamic_size(brush, mode)) {
-		ups->pixel_radius *= stroke->cached_pressure;
+		ups->pixel_radius *= stroke->cached_size_pressure;
 	}
 
 	if (paint_supports_dynamic_tex_coords(brush, mode)) {
@@ -371,8 +394,6 @@ static void paint_brush_update(bContext *C,
 		else
 			zero_v3(location);
 	}
-
-	stroke->brush_init = true;
 }
 
 

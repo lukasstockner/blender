@@ -648,7 +648,8 @@ bool paint_use_opacity_masking(Brush *brush)
 	            false : true;
 }
 
-void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert, float distance, float pressure, float color[3])
+void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert, float distance,
+                           float pressure, float color[3], struct ColorManagedDisplay *display)
 {
 	if (invert)
 		copy_v3_v3(color, br->secondary_rgb);
@@ -675,7 +676,7 @@ void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert,
 			copy_v3_v3(color, br->rgb);
 	}
 	if (color_correction)
-		srgb_to_linearrgb_v3_v3(color, color);
+		IMB_colormanagement_display_to_scene_linear_v3(color, display);
 }
 
 void paint_brush_init_tex(Brush *brush)
@@ -1014,71 +1015,6 @@ int get_imapaint_zoom(bContext *C, float *zoomx, float *zoomy)
 }
 
 /************************ cursor drawing *******************************/
-
-void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(customdata))
-{
-#define PX_SIZE_FADE_MAX 12.0f
-#define PX_SIZE_FADE_MIN 4.0f
-
-	Scene *scene = CTX_data_scene(C);
-	//Brush *brush = image_paint_brush(C);
-	Paint *paint = BKE_paint_get_active_from_context(C);
-	Brush *brush = BKE_paint_brush(paint);
-
-	if (paint && brush && paint->flags & PAINT_SHOW_BRUSH) {
-		float zoomx, zoomy;
-		const float size = (float)BKE_brush_size_get(scene, brush);
-		short use_zoom;
-		float pixel_size;
-		float alpha = 0.5f;
-
-		use_zoom = get_imapaint_zoom(C, &zoomx, &zoomy);
-
-		if (use_zoom) {
-			pixel_size = size * max_ff(zoomx, zoomy);
-		}
-		else {
-			pixel_size = size;
-		}
-
-		/* fade out the brush (cheap trick to work around brush interfering with sampling [#])*/
-		if (pixel_size < PX_SIZE_FADE_MIN) {
-			return;
-		}
-		else if (pixel_size < PX_SIZE_FADE_MAX) {
-			alpha *= (pixel_size - PX_SIZE_FADE_MIN) / (PX_SIZE_FADE_MAX - PX_SIZE_FADE_MIN);
-		}
-
-		glPushMatrix();
-
-		glTranslatef((float)x, (float)y, 0.0f);
-
-		/* No need to scale for uv sculpting, on the contrary it might be useful to keep un-scaled */
-		if (use_zoom)
-			glScalef(zoomx, zoomy, 1.0f);
-
-		glColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
-		glEnable(GL_LINE_SMOOTH);
-		glEnable(GL_BLEND);
-		{
-			UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
-			/* hrmf, duplicate paint_draw_cursor logic here */
-			if (ups->stroke_active && BKE_brush_use_size_pressure(scene, brush)) {
-				/* inner at full alpha */
-				glutil_draw_lined_arc(0, (float)(M_PI * 2.0), size * ups->pressure_value, 40);
-				/* outer at half alpha */
-				glColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha * 0.5f);
-			}
-		}
-		glutil_draw_lined_arc(0, (float)(M_PI * 2.0), size, 40);
-		glDisable(GL_BLEND);
-		glDisable(GL_LINE_SMOOTH);
-
-		glPopMatrix();
-	}
-#undef PX_SIZE_FADE_MAX
-#undef PX_SIZE_FADE_MIN
-}
 
 static void toggle_paint_cursor(bContext *C, int enable)
 {
