@@ -728,7 +728,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(IDDepsNode *ob_node, IDDepsNode *ob
 			
 			add_operation_node(ob_node, DEPSNODE_TYPE_OP_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, BKE_object_eval_modifier,
-			                   string_format("Modifier %s", md->name), make_rna_pointer(ob, &RNA_Modifier, md));
+			                   deg_op_name_modifier(md), make_rna_pointer(ob, &RNA_Modifier, md));
 		}
 	}
 	

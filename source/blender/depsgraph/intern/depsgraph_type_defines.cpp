@@ -37,6 +37,7 @@ extern "C" {
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -99,6 +100,10 @@ const string deg_op_name_psys_eval = "PSys Eval";
 string deg_op_name_driver(const ChannelDriver *driver)
 {
 	return string_format("Driver @ %p", driver);
+}
+string deg_op_name_modifier(const ModifierData *md)
+{
+	return string_format("Modifier %s", md->name);
 }
 
 /* ******************************************************** */

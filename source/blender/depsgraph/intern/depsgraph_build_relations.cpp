@@ -841,14 +841,22 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	/* Modifiers */
 	if (ob->modifiers.first) {
 		ModifierData *md;
+		OperationKey prev_mod_key;
 		
 		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
 			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
+			OperationKey mod_key(ob, DEPSNODE_TYPE_OP_GEOMETRY, deg_op_name_modifier(md));
+			
+			/* stack relation: modifier depends on previous modifier in the stack */
+			if (md->prev)
+				add_relation(prev_mod_key, mod_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Modifier Stack");
 			
 			if (mti->updateDepsgraph) {
-				DepsNodeHandle handle = create_node_handle(OperationKey(ob, DEPSNODE_TYPE_OP_GEOMETRY, md->name));
+				DepsNodeHandle handle = create_node_handle(mod_key);
 				mti->updateDepsgraph(md, scene, ob, &handle);
 			}
+			
+			prev_mod_key = mod_key;
 		}
 	}
 	

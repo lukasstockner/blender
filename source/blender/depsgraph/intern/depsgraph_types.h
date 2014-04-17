@@ -36,6 +36,7 @@
 #include "depsgraph_util_string.h"
 
 struct ChannelDriver;
+struct ModifierData;
 
 /* Evaluation Operation for atomic operation 
  * < context: (ComponentEvalContext) context containing data necessary for performing this operation
@@ -111,6 +112,7 @@ extern const string deg_op_name_ik_solver;
 extern const string deg_op_name_spline_ik_solver;
 extern const string deg_op_name_psys_eval;
 string deg_op_name_driver(const ChannelDriver *driver);
+string deg_op_name_modifier(const ModifierData *md);
 
 /* Type of operation */
 typedef enum eDepsOperation_Type {
