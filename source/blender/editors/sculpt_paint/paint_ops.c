@@ -226,7 +226,7 @@ static void paintcurve_point_add(bContext *C, const int loc[2])
 	wmWindow *window = CTX_wm_window(C);
 	ARegion *ar = CTX_wm_region(C);
 	float vec[3] = {loc[0], loc[1], 0.0};
-	int lastindex;
+	int add_index;
 	int i;
 
 	pc = br->paint_curve;
@@ -235,27 +235,33 @@ static void paintcurve_point_add(bContext *C, const int loc[2])
 	}
 
 	pcp = MEM_mallocN((pc->tot_points + 1) * sizeof(PaintCurvePoint), "PaintCurvePoint");
-	lastindex = pc->tot_points;
+	add_index = pc->active_point;
 
 	if (pc->points) {
-		memcpy(pcp, pc->points, pc->tot_points * sizeof(PaintCurvePoint));
+		if (add_index > 0)
+			memcpy(pcp, pc->points, add_index * sizeof(PaintCurvePoint));
+		if (add_index < pc->tot_points)
+			memcpy(pcp + add_index + 1, pc->points + add_index, (pc->tot_points - add_index) * sizeof(PaintCurvePoint));
+
 		MEM_freeN(pc->points);
 	}
 	pc->points = pcp;
 	pc->tot_points++;
 
 	/* initialize new point */
-	memset(&pcp[lastindex], 0, sizeof(PaintCurvePoint));
-	copy_v3_v3(pcp[lastindex].bez.vec[0], vec);
-	copy_v3_v3(pcp[lastindex].bez.vec[1], vec);
-	copy_v3_v3(pcp[lastindex].bez.vec[2], vec);
+	memset(&pcp[add_index], 0, sizeof(PaintCurvePoint));
+	copy_v3_v3(pcp[add_index].bez.vec[0], vec);
+	copy_v3_v3(pcp[add_index].bez.vec[1], vec);
+	copy_v3_v3(pcp[add_index].bez.vec[2], vec);
 
 	/* last step, clear selection from all bezier handles expect the next */
 	for (i = 0; i < pc->tot_points; i++) {
 		pcp[i].bez.f1 = pcp[i].bez.f2 = pcp[i].bez.f3 = 0;
 	}
-	pcp[lastindex].bez.f3 = SELECT;
-	pcp[lastindex].bez.h2 = HD_ALIGN;
+	pcp[add_index].bez.f3 = SELECT;
+	pcp[add_index].bez.h2 = HD_ALIGN;
+
+	pc->active_point = add_index + 1;
 
 	WM_paint_cursor_tag_redraw(window, ar);
 }
@@ -327,12 +333,21 @@ static int paintcurve_delete_point_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 
 	if (tot_del > 0) {
+		int j = 0;
 		int new_tot = pc->tot_points - tot_del;
 		PaintCurvePoint *points_new = MEM_mallocN(new_tot * sizeof(PaintCurvePoint), "PaintCurvePoint");
-		PaintCurvePoint *pcp_new = points_new;
 		for (i = 0, pcp = pc->points; i < pc->tot_points; i++, pcp++) {
 			if (!(pcp->bez.f2 & DELETE_TAG)) {
-				*pcp_new++ = pc->points[i];
+				points_new[j] = pc->points[i];
+
+				if (i == pc->active_point) {
+					pc->active_point = j;
+				}
+				j++;
+			}
+			else if (i == pc->active_point) {
+				/* prefer previous point */
+				pc->active_point = j;
 			}
 		}
 		MEM_freeN(pc->points);
@@ -411,6 +426,7 @@ static void paintcurve_point_select(bContext *C, const int loc[2], bool handle, 
 						(fabs(loc[1] - pcp->bez.vec[1][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 				{
 					pcp->bez.f2 ^= SELECT;
+					pc->active_point = i;
 					break;
 				}
 			}
@@ -419,6 +435,7 @@ static void paintcurve_point_select(bContext *C, const int loc[2], bool handle, 
 					(fabs(loc[1] - pcp->bez.vec[0][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 			{
 				pcp->bez.f1 ^= SELECT;
+				pc->active_point = i;
 				if (handle)
 					pcp->bez.h1 = HD_ALIGN;
 				break;
@@ -428,6 +445,7 @@ static void paintcurve_point_select(bContext *C, const int loc[2], bool handle, 
 					(fabs(loc[1] - pcp->bez.vec[2][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 			{
 				pcp->bez.f3 ^= SELECT;
+				pc->active_point = i;
 				if (handle)
 					pcp->bez.h2 = HD_ALIGN;
 				break;
