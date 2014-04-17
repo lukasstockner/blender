@@ -724,12 +724,11 @@ void DepsgraphNodeBuilder::build_obdata_geom(IDDepsNode *ob_node, IDDepsNode *ob
 		ModifierData *md;
 		
 		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
-			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
+//			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
 			
-			if (mti->updateDepgraph) {
-				#pragma message("ModifierTypeInfo->updateDepsgraph()")
-				//mti->updateDepgraph(md, graph, scene, ob);
-			}
+			add_operation_node(ob_node, DEPSNODE_TYPE_OP_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, BKE_object_eval_modifier,
+			                   string_format("Modifier %s", md->name), make_rna_pointer(ob, &RNA_Modifier, md));
 		}
 	}
 	

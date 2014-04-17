@@ -156,6 +156,10 @@ struct DepsgraphRelationBuilder {
 	void add_relation(const KeyFrom &key_from, const KeyTo &key_to,
 	                  eDepsRelation_Type type, const string &description);
 	
+	template <typename KeyType>
+	void add_node_handle_relation(const KeyType &key_from, const DepsNodeHandle *handle,
+	                              eDepsRelation_Type type, const string &description);
+	
 	void build_scene(Scene *scene);
 	void build_object(Scene *scene, Object *ob);
 	void build_object_parent(Object *ob);
@@ -189,9 +193,26 @@ protected:
 	void add_node_relation(DepsNode *node_from, DepsNode *node_to,
 	                  eDepsRelation_Type type, const string &description);
 	
+	template <typename KeyType>
+	DepsNodeHandle create_node_handle(const KeyType &key, const string &default_name = "");
+	
 private:
 	Depsgraph *m_graph;
 };
+
+struct DepsNodeHandle {
+	DepsNodeHandle(DepsgraphRelationBuilder *builder, DepsNode *node, const string &default_name = "") :
+	    builder(builder),
+	    node(node),
+	    default_name(default_name)
+	{}
+	
+	DepsgraphRelationBuilder *builder;
+	DepsNode *node;
+	const string &default_name;
+};
+
+/* Inline Function Templates -------------------------------------------------- */
 
 template <typename KeyFrom, typename KeyTo>
 void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo &key_to,
@@ -210,6 +231,31 @@ void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo
 			/* XXX TODO handle as error or report if needed */
 		}
 	}
+}
+
+template <typename KeyType>
+void DepsgraphRelationBuilder::add_node_handle_relation(const KeyType &key_from, const DepsNodeHandle *handle,
+                                                        eDepsRelation_Type type, const string &description)
+{
+	DepsNode *node_from = find_node(key_from);
+	DepsNode *node_to = handle->node;
+	if (node_from && node_to) {
+		add_node_relation(node_from, node_to, type, description);
+	}
+	else {
+		if (!node_from) {
+			/* XXX TODO handle as error or report if needed */
+		}
+		if (!node_to) {
+			/* XXX TODO handle as error or report if needed */
+		}
+	}
+}
+
+template <typename KeyType>
+DepsNodeHandle DepsgraphRelationBuilder::create_node_handle(const KeyType &key, const string &default_name)
+{
+	return DepsNodeHandle(this, find_node(key), default_name);
 }
 
 

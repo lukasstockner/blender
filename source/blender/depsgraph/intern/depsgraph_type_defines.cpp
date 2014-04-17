@@ -79,6 +79,7 @@ void BKE_rigidbody_object_sync_transforms(void *context, void *item) {}
 
 void BKE_object_eval_local_transform(void *context, void *item) {}
 void BKE_object_eval_parent(void *context, void *item) {}
+void BKE_object_eval_modifier(void *context, void *item) {}
 
 void BKE_mesh_eval_geometry(void *context, void *item) {}
 void BKE_mball_eval_geometry(void *context, void *item) {}

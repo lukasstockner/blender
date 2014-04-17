@@ -848,9 +848,9 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
 			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
 			
-			if (mti->updateDepgraph) {
-				#pragma message("ModifierTypeInfo->updateDepsgraph()")
-				//mti->updateDepgraph(md, graph, scene, ob);
+			if (mti->updateDepsgraph) {
+				DepsNodeHandle handle = create_node_handle(OperationKey(ob, DEPSNODE_TYPE_OP_GEOMETRY, md->name));
+				mti->updateDepsgraph(md, scene, ob, &handle);
 			}
 		}
 	}

@@ -105,12 +105,6 @@ extern "C" {
 /* ************************************************* */
 /* External Build API */
 
-struct DepsNodeHandle {
-	Depsgraph *graph;
-	DepsNode *node;
-	const string &default_name;
-};
-
 static eDepsNode_Type deg_build_scene_component_type(eDepsSceneComponentType component)
 {
 	switch (component) {
@@ -136,24 +130,16 @@ static eDepsNode_Type deg_build_object_component_type(eDepsObjectComponentType c
 
 void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSceneComponentType component, const char *description)
 {
-	Depsgraph *graph = handle->graph;
-	DepsNode *node = handle->node;
-	
 	eDepsNode_Type type = deg_build_scene_component_type(component);
-	DepsNode *comp_node = graph->find_node((ID *)scene, "", type, "");
-	if (comp_node)
-		graph->add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, string(description));
+	ComponentKey comp_key(scene, type);
+	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, string(description));
 }
 
 void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObjectComponentType component, const char *description)
 {
-	Depsgraph *graph = handle->graph;
-	DepsNode *node = handle->node;
-	
 	eDepsNode_Type type = deg_build_object_component_type(component);
-	DepsNode *comp_node = graph->find_node((ID *)ob, "", type, "");
-	if (comp_node)
-		graph->add_new_relation(comp_node, node, DEPSREL_TYPE_STANDARD, string(description));
+	ComponentKey comp_key(ob, type);
+	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, string(description));
 }
 
 /* ************************************************* */
