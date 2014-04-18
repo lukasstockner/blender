@@ -42,7 +42,7 @@
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_sdna_types.h"
+#include "DNA_linestyle_types.h"
 
 #include "DNA_genfile.h"
 
@@ -50,8 +50,6 @@
 
 #include "BKE_main.h"
 #include "BKE_node.h"
-
-#include "BLI_math.h"
 
 #include "BLO_readfile.h"
 
@@ -173,6 +171,16 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 	}
 
 	if (!MAIN_VERSION_ATLEAST(main, 270, 3)) {
+		FreestyleLineStyle *linestyle;
+
+		for (linestyle = main->linestyle.first; linestyle; linestyle = linestyle->id.next) {
+			linestyle->flag |= LS_NO_SORTING;
+			linestyle->sort_key = LS_SORT_KEY_DISTANCE_FROM_CAMERA;
+			linestyle->integration_type = LS_INTEGRATION_MEAN;
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 270, 4)) {
 		Scene *sce;
 		for (sce = main->scene.first; sce; sce = sce->id.next) {
 			sce->toolsettings->imapaint.new_slot_xresolution = 1024;
