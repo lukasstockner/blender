@@ -266,6 +266,14 @@ typedef enum {
 void PAINT_OT_mask_flood_fill(struct wmOperatorType *ot);
 void PAINT_OT_mask_lasso_gesture(struct wmOperatorType *ot);
 
+/* paint_curve.c */
+int paintcurve_poll(struct bContext *C);
+void PAINTCURVE_OT_new(struct wmOperatorType *ot);
+void PAINTCURVE_OT_add_point(struct wmOperatorType *ot);
+void PAINTCURVE_OT_delete_point(struct wmOperatorType *ot);
+void PAINTCURVE_OT_select(struct wmOperatorType *ot);
+void PAINTCURVE_OT_draw(struct wmOperatorType *ot);
+
 /* image painting blur kernel */
 typedef struct {
 	float *wdata; /* actual kernel */
