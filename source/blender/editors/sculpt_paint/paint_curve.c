@@ -129,7 +129,6 @@ static void paintcurve_undo_begin(bContext *C, wmOperator *op, PaintCurve *pc)
 
 
 	if (lb != NULL) {
-		ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
 		UndoCurve *uc = MEM_callocN(sizeof(UndoCurve), "Undo_curve");
 
 		lb->first = uc;
@@ -412,7 +411,7 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 						(fabs(loc[1] - pcp->bez.vec[1][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 				{
 					pcp->bez.f2 ^= SELECT;
-					pc->active_point = i;
+					pc->active_point = i + 1;
 					break;
 				}
 			}
@@ -421,7 +420,7 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 					(fabs(loc[1] - pcp->bez.vec[0][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 			{
 				pcp->bez.f1 ^= SELECT;
-				pc->active_point = i;
+				pc->active_point = i + 1;
 				if (handle)
 					pcp->bez.h1 = HD_ALIGN;
 				break;
@@ -431,7 +430,7 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 					(fabs(loc[1] - pcp->bez.vec[2][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 			{
 				pcp->bez.f3 ^= SELECT;
-				pc->active_point = i;
+				pc->active_point = i + 1;
 				if (handle)
 					pcp->bez.h2 = HD_ALIGN;
 				break;
