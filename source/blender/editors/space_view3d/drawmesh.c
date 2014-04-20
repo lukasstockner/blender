@@ -274,7 +274,7 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 			alphablend = GPU_BLEND_ALPHA;
 	}
 	else if (texpaint && ma) {
-		ima = ma->texpaintslot->tex->ima;
+		ima = (ma->texpaintslot)? ma->texpaintslot->tex->ima : NULL;
 	}
 	else
 		textured = 0;
