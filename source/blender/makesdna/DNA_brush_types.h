@@ -167,7 +167,7 @@ typedef struct PaintCurve
 	ID id;
 	PaintCurvePoint *points; /* points of curve */
 	int tot_points;
-	int active_point;
+	int add_index; /* index where next point will be added */
 } PaintCurve;
 
 /* Brush.gradient_source */

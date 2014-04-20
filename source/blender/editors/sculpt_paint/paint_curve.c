@@ -88,7 +88,7 @@ static void paintcurve_undo_restore(bContext *C, ListBase *lb)
 	if (strncmp(uc->idname, pc->id.name, BLI_strnlen(uc->idname, sizeof(uc->idname))) == 0) {
 		SWAP(PaintCurvePoint *, pc->points, uc->points);
 		SWAP(int, pc->tot_points, uc->tot_points);
-		SWAP(int, pc->active_point, uc->active_point);
+		SWAP(int, pc->add_index, uc->active_point);
 	}
 }
 
@@ -107,58 +107,43 @@ static void paintcurve_undo_begin(bContext *C, wmOperator *op, PaintCurve *pc)
 {
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	ListBase *lb = NULL;
+	int undo_stack_id;
+	UndoCurve *uc;
 
 	switch (mode) {
 		case PAINT_TEXTURE_2D:
 		case PAINT_TEXTURE_PROJECTIVE:
-			ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
-			                         paintcurve_undo_restore, paintcurve_undo_delete);
-			lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
+			undo_stack_id = UNDO_PAINT_IMAGE;
 			break;
 
 		case PAINT_SCULPT:
-			ED_undo_paint_push_begin(UNDO_PAINT_MESH, op->type->name,
-			                         paintcurve_undo_restore, paintcurve_undo_delete);
-			lb = undo_paint_push_get_list(UNDO_PAINT_MESH);
+			undo_stack_id = UNDO_PAINT_MESH;
 			break;
 
 		default:
 			/* do nothing, undo is handled by global */
-			break;
+			return;
 	}
 
 
-	if (lb != NULL) {
-		UndoCurve *uc = MEM_callocN(sizeof(UndoCurve), "Undo_curve");
+	ED_undo_paint_push_begin(undo_stack_id, op->type->name,
+	                         paintcurve_undo_restore, paintcurve_undo_delete);
+	lb = undo_paint_push_get_list(undo_stack_id);
 
-		lb->first = uc;
+	uc = MEM_callocN(sizeof(*uc), "Undo_curve");
 
-		BLI_strncpy(uc->idname, pc->id.name, sizeof(uc->idname));
-		uc->tot_points = pc->tot_points;
-		uc->active_point = pc->active_point;
-		uc->points = MEM_dupallocN(pc->points);
-	}
+	lb->first = uc;
+
+	BLI_strncpy(uc->idname, pc->id.name, sizeof(uc->idname));
+	uc->tot_points = pc->tot_points;
+	uc->active_point = pc->add_index;
+	uc->points = MEM_dupallocN(pc->points);
+
+	undo_paint_push_count_alloc(undo_stack_id, sizeof(*uc) + sizeof(*pc->points) * pc->tot_points);
+
+	ED_undo_paint_push_end(undo_stack_id);
 }
 
-static void paintcurve_undo_end(bContext *C)
-{
-	PaintMode mode = BKE_paintmode_get_active_from_context(C);
-
-	switch (mode) {
-		case PAINT_TEXTURE_2D:
-		case PAINT_TEXTURE_PROJECTIVE:
-			ED_undo_paint_push_end(UNDO_PAINT_IMAGE);
-			break;
-
-		case PAINT_SCULPT:
-			ED_undo_paint_push_end(UNDO_PAINT_MESH);
-			break;
-
-		default:
-			/* do nothing, undo is handled by global */
-			break;
-	}
-}
 
 /******************* Operators *********************************/
 
@@ -210,7 +195,7 @@ static void paintcurve_point_add(bContext *C,  wmOperator *op, const int loc[2])
 	paintcurve_undo_begin(C, op, pc);
 
 	pcp = MEM_mallocN((pc->tot_points + 1) * sizeof(PaintCurvePoint), "PaintCurvePoint");
-	add_index = pc->active_point;
+	add_index = pc->add_index;
 
 	if (pc->points) {
 		if (add_index > 0)
@@ -236,9 +221,7 @@ static void paintcurve_point_add(bContext *C,  wmOperator *op, const int loc[2])
 	pcp[add_index].bez.f3 = SELECT;
 	pcp[add_index].bez.h2 = HD_ALIGN;
 
-	pc->active_point = add_index + 1;
-
-	paintcurve_undo_end(C);
+	pc->add_index = add_index + 1;
 
 	WM_paint_cursor_tag_redraw(window, ar);
 }
@@ -320,14 +303,14 @@ static int paintcurve_delete_point_exec(bContext *C, wmOperator *op)
 			if (!(pcp->bez.f2 & DELETE_TAG)) {
 				points_new[j] = pc->points[i];
 
-				if ((i + 1) == pc->active_point) {
-					pc->active_point = j + 1;
+				if ((i + 1) == pc->add_index) {
+					pc->add_index = j + 1;
 				}
 				j++;
 			}
-			else if ((i + 1) == pc->active_point) {
+			else if ((i + 1) == pc->add_index) {
 				/* prefer previous point */
-				pc->active_point = j;
+				pc->add_index = j;
 			}
 		}
 		MEM_freeN(pc->points);
@@ -337,8 +320,6 @@ static int paintcurve_delete_point_exec(bContext *C, wmOperator *op)
 	}
 
 #undef DELETE_TAG
-
-	paintcurve_undo_end(C);
 
 	WM_paint_cursor_tag_redraw(window, ar);
 
@@ -411,7 +392,7 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 						(fabs(loc[1] - pcp->bez.vec[1][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 				{
 					pcp->bez.f2 ^= SELECT;
-					pc->active_point = i + 1;
+					pc->add_index = i + 1;
 					break;
 				}
 			}
@@ -420,7 +401,7 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 					(fabs(loc[1] - pcp->bez.vec[0][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 			{
 				pcp->bez.f1 ^= SELECT;
-				pc->active_point = i + 1;
+				pc->add_index = i + 1;
 				if (handle)
 					pcp->bez.h1 = HD_ALIGN;
 				break;
@@ -430,15 +411,13 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 					(fabs(loc[1] - pcp->bez.vec[2][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 			{
 				pcp->bez.f3 ^= SELECT;
-				pc->active_point = i + 1;
+				pc->add_index = i + 1;
 				if (handle)
 					pcp->bez.h2 = HD_ALIGN;
 				break;
 			}
 		}
 	}
-
-	paintcurve_undo_end(C);
 
 	WM_paint_cursor_tag_redraw(window, ar);
 }
