@@ -320,12 +320,12 @@ static int paintcurve_delete_point_exec(bContext *C, wmOperator *op)
 			if (!(pcp->bez.f2 & DELETE_TAG)) {
 				points_new[j] = pc->points[i];
 
-				if (i == pc->active_point) {
-					pc->active_point = j;
+				if ((i + 1) == pc->active_point) {
+					pc->active_point = j + 1;
 				}
 				j++;
 			}
-			else if (i == pc->active_point) {
+			else if ((i + 1) == pc->active_point) {
 				/* prefer previous point */
 				pc->active_point = j;
 			}
