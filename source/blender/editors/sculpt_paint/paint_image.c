@@ -1408,6 +1408,10 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 		toggle_paint_cursor(C, 0);
 	}
 	else {
+		/* This has to stay here to regenerate the texture paint
+		 * cache in case we are loading a file */
+		refresh_object_texpaint_images(ob);
+
 		paint_proj_mesh_data_ensure(C, ob);
 
 		ob->mode |= mode_flag;

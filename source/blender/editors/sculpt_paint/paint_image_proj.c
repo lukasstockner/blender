@@ -359,7 +359,7 @@ static Image *project_paint_face_image(const ProjPaintState *ps, int face_index)
 	}
 	else {
 		MFace *mf = ps->dm_mface + face_index;
-		Material *ma = give_current_material(ps->ob, mf->mat_nr + 1);
+		Material *ma = ps->dm->mat[mf->mat_nr];
 		ima = ma->texpaintslot[ma->paint_active_slot].ima;
 	}
 
@@ -373,7 +373,7 @@ static TexPaintSlot *project_paint_face_paint_slot(const ProjPaintState *ps, int
 	}
 	else {
 		MFace *mf = ps->dm_mface + face_index;
-		Material *ma = give_current_material(ps->ob, mf->mat_nr + 1);
+		Material *ma = ps->dm->mat[mf->mat_nr];
 		return &ma->texpaintslot[ma->paint_active_slot];
 	}
 }
@@ -3020,6 +3020,8 @@ static void project_paint_begin(ProjPaintState *ps)
 		ps->dm = NULL;
 		return;
 	}
+
+	DM_update_materials(ps->dm, ps->ob);
 
 	ps->dm_mvert = ps->dm->getVertArray(ps->dm);
 	ps->dm_mface = ps->dm->getTessFaceArray(ps->dm);

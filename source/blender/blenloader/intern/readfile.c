@@ -3569,7 +3569,8 @@ static void direct_link_material(FileData *fd, Material *ma)
 	for (a = 0; a < MAX_MTEX; a++) {
 		ma->mtex[a] = newdataadr(fd, ma->mtex[a]);
 	}
-	
+	ma->texpaintslot = NULL;
+
 	ma->ramp_col = newdataadr(fd, ma->ramp_col);
 	ma->ramp_spec = newdataadr(fd, ma->ramp_spec);
 	
