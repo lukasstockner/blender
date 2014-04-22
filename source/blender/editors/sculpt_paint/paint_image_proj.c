@@ -3509,6 +3509,7 @@ static void project_paint_end(ProjPaintState *ps)
 	/* dereference used image buffers */
 	for (a = 0, projIma = ps->projImages; a < ps->image_tot; a++, projIma++) {
 		BKE_image_release_ibuf(projIma->ima, projIma->ibuf, NULL);
+		DAG_id_tag_update(&projIma->ima->id, 0);
 	}
 
 	BKE_image_release_ibuf(ps->reproject_image, ps->reproject_ibuf, NULL);
