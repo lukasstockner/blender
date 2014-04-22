@@ -4858,7 +4858,7 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 				BLI_strncat_utf8(imagename, name, FILE_MAX);
 				/* take the second letter to avoid the ID identifier */
 
-				ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, 0, IMA_GENTYPE_BLANK, color);
+				ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, type == MAP_NORM, IMA_GENTYPE_BLANK, color);
 
 				uiIDContextProperty(C, &ptr, &prop);
 
