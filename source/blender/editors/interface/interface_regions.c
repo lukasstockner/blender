@@ -2160,6 +2160,16 @@ struct uiPopupMenu {
 	void *menu_arg;
 };
 
+struct uiPieMenu {
+	uiBlock *block;
+	uiLayout *layout;
+
+	/*center coordinates of pie menu in window space */
+	int mx, my;
+	/* event that was used to fire up the pie. Used to detect when to quit */
+	short event;
+};
+
 static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, void *arg_pup)
 {
 	uiBlock *block;
@@ -2389,6 +2399,156 @@ uiLayout *uiPupMenuLayout(uiPopupMenu *pup)
 	return pup->layout;
 }
 
+/*************************** Pie Menus ***************************************/
+static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void *arg_pie)
+{
+	uiBlock *block;
+	uiBut *bt;
+	uiPieMenu *pie = arg_pie;
+	int offset[2], minwidth, width, height, direction;
+
+	minwidth = 50;
+	direction = UI_DOWN;
+	block = pie->block;
+
+	/* in some cases we create the block before the region,
+	 * so we set it delayed here if necessary */
+	if (BLI_findindex(&handle->region->uiblocks, block) == -1)
+		uiBlockSetRegion(block, handle->region);
+
+	block->direction = UI_DOWN;
+
+	uiBlockLayoutResolve(block, &width, &height);
+
+	uiBlockSetFlag(block, UI_BLOCK_MOVEMOUSE_QUIT);
+
+	uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_NUMSELECT);
+	uiBlockSetDirection(block, direction);
+
+	/* offset the mouse position, possibly based on earlier selection */
+	if ((block->flag & UI_BLOCK_POPUP_MEMORY) &&
+			(bt = ui_popup_menu_memory_get(block)))
+	{
+		/* position mouse on last clicked item, at 0.8*width of the
+			 * button, so it doesn't overlap the text too much, also note
+			 * the offset is negative because we are inverse moving the
+			 * block to be under the mouse */
+		offset[0] = -(bt->rect.xmin + 0.8f * BLI_rctf_size_x(&bt->rect));
+		offset[1] = -(bt->rect.ymin + 0.5f * UI_UNIT_Y);
+	}
+	else {
+		/* position mouse at 0.8*width of the button and below the tile
+			 * on the first item */
+		offset[0] = 0;
+		for (bt = block->buttons.first; bt; bt = bt->next)
+			offset[0] = min_ii(offset[0], -(bt->rect.xmin + 0.8f * BLI_rctf_size_x(&bt->rect)));
+
+		offset[1] = 1.5 * UI_UNIT_Y;
+	}
+
+	block->minbounds = minwidth;
+	uiMenuPopupBoundsBlock(block, 1, offset[0], offset[1]);
+	block->bounds_type = UI_BLOCK_BOUNDS_PIE_CENTER;
+
+	/* pies: useful for later, but keep it basic for now
+	if (pup->slideout)
+		uiBlockSetDirection(block, UI_RIGHT);
+	*/
+	uiEndBlock(C, block);
+
+	return pie->block;
+}
+
+struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, short event)
+{
+	uiStyle *style = UI_GetStyleDraw();
+	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
+	uiBut *but;
+
+	pie->block = uiBeginBlock(C, NULL, __func__, UI_EMBOSSR);
+	pie->block->flag |= UI_BLOCK_POPUP_MEMORY;
+	pie->block->puphash = ui_popup_menu_hash(title);
+	pie->block->flag |= UI_BLOCK_RADIAL;
+
+	pie->layout = uiBlockLayout(pie->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
+
+	pie->event = event;
+
+	/* create title button */
+	if (title[0]) {
+		char titlestr[256];
+
+		if (icon) {
+			BLI_snprintf(titlestr, sizeof(titlestr), " %s", title);
+			uiDefIconTextBut(pie->block, LABEL, 0, icon, titlestr, 0, 0, 200, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+		}
+		else {
+			but = uiDefBut(pie->block, LABEL, 0, title, 0, 0, 200, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+			but->drawflag = UI_BUT_TEXT_LEFT;
+			/* hack, draw label with default transparent style */
+			but->dt = UI_EMBOSSP;
+		}
+	}
+
+	return pie;
+}
+
+void uiPieMenuEnd(bContext *C, uiPieMenu *pie)
+{
+	wmWindow *window = CTX_wm_window(C);
+	uiPopupBlockHandle *menu;
+
+	/* initially start pie from mouse position */
+	pie->mx = window->eventstate->x;
+	pie->my = window->eventstate->y;
+
+	menu = ui_popup_block_create(C, NULL, NULL, NULL, ui_block_func_PIE, pie);
+	menu->popup = true;
+
+	/* change to pie version! */
+	UI_add_popup_handlers(C, &window->modalhandlers, menu);
+	WM_event_add_mousemove(C);
+
+	MEM_freeN(pie);
+}
+
+
+uiLayout *uiPieMenuLayout(uiPieMenu *pie)
+{
+	return pie->layout;
+}
+
+void uiPieMenuInvoke(struct bContext *C, const char *idname, short event)
+{
+	uiPieMenu *pie;
+	uiLayout *layout;
+	Menu menu;
+	MenuType *mt = WM_menutype_find(idname, true);
+
+	if (mt == NULL) {
+		printf("%s: named menu \"%s\" not found\n", __func__, idname);
+		return;
+	}
+
+	if (mt->poll && mt->poll(C, mt) == 0)
+		return;
+
+	pie = uiPieMenuBegin(C, IFACE_(mt->label), ICON_NONE, event);
+	layout = uiPieMenuLayout(pie);
+
+	menu.layout = layout;
+	menu.type = mt;
+
+	if (G.debug & G_DEBUG_WM) {
+		printf("%s: opening menu \"%s\"\n", __func__, idname);
+	}
+
+	mt->draw(C, &menu);
+
+	uiPieMenuEnd(C, pie);
+}
+
+
 /*************************** Standard Popup Menus ****************************/
 
 void uiPupMenuReports(bContext *C, ReportList *reports)
@@ -2471,7 +2631,6 @@ bool uiPupMenuInvoke(bContext *C, const char *idname, ReportList *reports)
 
 	return true;
 }
-
 
 /*************************** Popup Block API **************************/
 

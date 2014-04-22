@@ -95,7 +95,7 @@ bool ui_block_is_menu(const uiBlock *block)
 {
 	return (((block->flag & UI_BLOCK_LOOP) != 0) &&
 	        /* non-menu popups use keep-open, so check this is off */
-	        ((block->flag & UI_BLOCK_KEEP_OPEN) == 0));
+			((block->flag & UI_BLOCK_KEEP_OPEN) == 0));
 }
 
 /* ************* window matrix ************** */
@@ -310,6 +310,35 @@ static void ui_centered_bounds_block(const bContext *C, uiBlock *block)
 	ui_bounds_block(block);
 	
 }
+
+static void ui_centered_pie_bounds_block(const bContext *C, uiBlock *block)
+{
+	wmWindow *window = CTX_wm_window(C);
+	int x, y;
+	int startx, starty;
+	int width, height;
+
+	/* note: this is used for the splash where window bounds event has not been
+	 * updated by ghost, get the window bounds from ghost directly */
+
+	x = window->eventstate->x;
+	y = window->eventstate->y;
+
+	ui_bounds_block(block);
+
+	width  = BLI_rctf_size_x(&block->rect);
+	height = BLI_rctf_size_y(&block->rect);
+
+	startx = x - (width * 0.5f);
+	starty = y - (height * 0.5f);
+
+	ui_block_translate(block, startx - block->rect.xmin, starty - block->rect.ymin);
+
+	/* now recompute bounds and safety */
+	ui_bounds_block(block);
+}
+
+
 static void ui_popup_bounds_block(const bContext *C, uiBlock *block, eBlockBoundsCalc bounds_calc)
 {
 	wmWindow *window = CTX_wm_window(C);
@@ -1120,12 +1149,14 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 	if (block->layouts.first) {
 		uiBlockLayoutResolve(block, NULL, NULL);
 	}
-	ui_block_do_align(block);
+	if (!(block->flag & UI_BLOCK_RADIAL))
+		ui_block_do_align(block);
+
 	if ((block->flag & UI_BLOCK_LOOP) && (block->flag & UI_BLOCK_NUMSELECT)) {
 		ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
 	}
 
-	if (block->flag & UI_BLOCK_LOOP) {
+	if ((block->flag & UI_BLOCK_LOOP) && !(block->flag & UI_BLOCK_RADIAL)) {
 		ui_menu_block_set_keymaps(C, block);
 	}
 	
@@ -1141,6 +1172,9 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 			break;
 		case UI_BLOCK_BOUNDS_POPUP_CENTER:
 			ui_centered_bounds_block(C, block);
+			break;
+		case UI_BLOCK_BOUNDS_PIE_CENTER:
+			ui_centered_pie_bounds_block(C, block);
 			break;
 
 			/* fallback */
@@ -1241,7 +1275,7 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	wmOrtho2(-0.01f, ar->winx - 0.01f, -0.01f, ar->winy - 0.01f);
 	
 	/* back */
-	if (block->flag & UI_BLOCK_LOOP)
+	if ((block->flag & UI_BLOCK_LOOP) && !(block->flag & UI_BLOCK_RADIAL))
 		ui_draw_menu_back(&style, block, &rect);
 	else if (block->panel)
 		ui_draw_aligned_panel(&style, block, &rect, UI_panel_category_is_visible(ar));

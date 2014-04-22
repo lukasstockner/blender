@@ -1676,6 +1676,16 @@ class VIEW3D_PT_tools_grease_pencil(GreasePencilPanel, Panel):
     bl_region_type = 'TOOLS'
     bl_category = "Grease Pencil"
 
+class VIEW3D_PIE_object_mode(Menu):
+    bl_label = "Pies!"
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.pie()
+        pie.operator_enum("object.mode_set", "mode")
+        #pie.label("blackberry")
+        #pie.label("cheese")
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

@@ -106,6 +106,7 @@ typedef enum uiItemType {
 	ITEM_LAYOUT_ABSOLUTE,
 	ITEM_LAYOUT_SPLIT,
 	ITEM_LAYOUT_OVERLAP,
+	ITEM_LAYOUT_RADIAL,
 
 	ITEM_LAYOUT_ROOT
 #if 0
@@ -218,7 +219,7 @@ static int ui_item_fit(int item, int pos, int all, int available, int last, int 
 
 static int ui_layout_vary_direction(uiLayout *layout)
 {
-	return (layout->root->type == UI_LAYOUT_HEADER || layout->alignment != UI_LAYOUT_ALIGN_EXPAND) ? UI_ITEM_VARY_X : UI_ITEM_VARY_Y;
+	return (ELEM(layout->root->type, UI_LAYOUT_HEADER, UI_LAYOUT_PIEMENU) || layout->alignment != UI_LAYOUT_ALIGN_EXPAND) ? UI_ITEM_VARY_X : UI_ITEM_VARY_Y;
 }
 
 /* estimated size of text + icon */
@@ -561,7 +562,10 @@ static void ui_item_enum_expand(uiLayout *layout, uiBlock *block, PointerRNA *pt
 	RNA_property_enum_items_gettexted(block->evil_C, ptr, prop, &item_array, NULL, &free);
 
 	/* we dont want nested rows, cols in menus */
-	if (layout->root->type != UI_LAYOUT_MENU) {
+	if (layout->root->type == UI_LAYOUT_PIEMENU) {
+		uiBlockSetCurLayout(block, uiLayoutRadial(layout));
+	}
+	else if (layout->root->type != UI_LAYOUT_MENU) {
 		uiBlockSetCurLayout(block, ui_item_local_sublayout(layout, layout, 1));
 	}
 	else {
@@ -869,6 +873,7 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 	PointerRNA ptr;
 	PropertyRNA *prop;
 	uiBlock *block = layout->root->block;
+	bool radial = layout->item.type == ITEM_LAYOUT_RADIAL;
 
 	if (!ot || !ot->srna) {
 		ui_item_disabled(layout, opname);
@@ -905,20 +910,30 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 				}
 				RNA_property_enum_set(&tptr, prop, item->value);
 
-				uiItemFullO_ptr(column, ot, item->name, item->icon, tptr.data, context, flag);
+				if (radial)
+					uiItemFullO_ptr(layout, ot, item->name, item->icon, tptr.data, context, flag);
+				else
+					uiItemFullO_ptr(column, ot, item->name, item->icon, tptr.data, context, flag);
+
 				ui_but_tip_from_enum_item(block->buttons.last, item);
 			}
 			else {
 				if (item->name) {
 					uiBut *but;
-					if (item != item_array) {
+
+					if (item != item_array && !radial) {
 						column = uiLayoutColumn(split, layout->align);
+
 						/* inconsistent, but menus with labels do not look good flipped */
 						block->flag |= UI_BLOCK_NO_FLIP;
 					}
 
-					if (item->icon) {
-						uiItemL(column, item->name, item->icon);
+					if (item->icon || radial) {
+						if (radial)
+							uiItemL(layout, item->name, item->icon);
+						else
+							uiItemL(column, item->name, item->icon);
+
 						but = block->buttons.last;
 					}
 					else {
@@ -929,7 +944,10 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 					ui_but_tip_from_enum_item(but, item);
 				}
 				else {  /* XXX bug here, colums draw bottom item badly */
-					uiItemS(column);
+					if (radial)
+						;
+					else
+						uiItemS(column);
 				}
 			}
 		}
@@ -2069,16 +2087,208 @@ static void ui_litem_layout_column(uiLayout *litem)
 	litem->y = y;
 }
 
+/* calculates the angle of a specified button in a radial menu,
+ * stores a float vector in unit circle */
+static void ui_get_radialbut_vec(float *vec, short itemnum, short totitems)
+{
+	float angle=0;
+	/* this goes in a seemingly weird pattern:
+
+		3
+	 4     5
+	0       1
+	 6     7
+		2
+
+	but it's actually quite logical. It's designed to be 'upwards compatible'
+	for muscle memory so that the menu item locations are fixed and don't move
+	as new items are added to the menu later on. It also optimises efficiency -
+	a radial menu is best kept symmetrical, with as large an angle between
+	items as possible, so that the gestural mouse movements can be fast and inexact.
+
+	It starts off with two opposite sides for the first two items
+	then joined by the one below for the third (this way, even with three items,
+	the menu seems to still be 'in order' reading left to right). Then the fourth is
+	added to complete the compass directions. From here, it's just a matter of
+	subdividing the rest of the angles for the last 4 items.
+
+	--Matt 07/2006
+	*/
+
+	if (itemnum <= 4) {
+		switch(itemnum) {
+			case 1:
+				angle = 270;
+				break;
+			case 2:
+				angle = 90;
+				break;
+			case 3:
+				angle = 180;
+				break;
+			case 4:
+				angle = 0;
+				break;
+		}
+	} else if (totitems <= 8) {
+		switch(itemnum) {
+			case 5:
+				angle = 45;
+				break;
+			case 6:
+				angle = 135;
+				break;
+			case 7:
+				angle = 225;
+				break;
+			case 8:
+				angle = 315;
+				break;
+		}
+	} else {	/* subdivide quadrants progressively, depending on number of items */
+		int anglepad, curquad, numinquad, aligncorrect=0;
+		int quaditems, overflow;
+
+		overflow = totitems % 4;		/* how many items are in the last incomplete loop */
+		curquad = itemnum % 4;	/* the quadrant that the current button is in */
+
+		quaditems = (int)((totitems-4) / 4);	/* how many items in this quadrant between compass points */
+		if ((overflow) && (curquad <= overflow)) quaditems++;
+		numinquad = (int)((itemnum - 1) / 4);	/* the ordered position of the current button in its quadrant */
+
+
+		/* divide up the required angle for this quadrant, and find the angle to offset this item */
+		anglepad = 90 / (quaditems+1);
+		switch(curquad) {
+			case 1:
+				angle = 0;
+				break;
+			case 2:
+				angle = 90;
+				break;
+			case 3:
+				angle = 180;
+				break;
+			case 0:
+				angle = 270;
+				break;
+		}
+		angle += anglepad * numinquad;
+
+
+		/* if the angle is near the horizontal, squish it a bit closer.
+		 * This visually spaces the horizontal menu items better, since even though the
+		 * item centers may be evenly distributed, it doesn't look that way. */
+		if (angle < 90)
+			aligncorrect = angle;
+		else if (angle < 270)
+			aligncorrect = angle - 180;
+		else if (angle <= 360)
+			aligncorrect = angle - 360;
+
+		angle += aligncorrect/17;	/* 17 == magic number, works nicely */
+	}
+
+	angle = angle/180.0 * M_PI;
+
+	vec[0] = sin(angle);
+	vec[1] = cos(angle);
+}
+
+static bool ui_item_is_radial_displayable (uiButtonItem *UNUSED(bitem))
+{
+//	if (bitem->but->type == LABEL)
+//		return false;
+
+	return true;
+}
+
+static void ui_litem_layout_radial(uiLayout *litem)
+{
+	uiItem *item;
+	int itemh, itemw, x, y;
+	int itemnum = 0;
+	int totitems = 0;
+	float vec[2];
+
+	int minx, miny, maxx, maxy;
+	/* For the radial layout we will use Matt Ebb's design
+	 * for radiation, see http://mattebb.com/weblog/radiation/
+	 * also the old code at http://developer.blender.org/T5103
+	 */
+
+#define PIE_RADIUS 150
+
+	x = litem->x;
+	y = litem->y;
+
+	minx = x, miny = y, maxx = x, maxy = y;
+
+	/* first count total items */
+	for (item = litem->items.first; item; item = item->next)
+		totitems++;
+
+	for (item = litem->items.first; item; item = item->next) {
+		if (item->type == ITEM_BUTTON) {
+			uiButtonItem *bitem = (uiButtonItem *) item;
+
+			/* not all button types are drawn in a radial menu, do filtering here */
+			if(ui_item_is_radial_displayable(bitem)) {
+				itemnum++;
+
+				ui_get_radialbut_vec(vec, itemnum, totitems);
+				/* scale the buttons */
+				bitem->but->rect.ymax *= 1.5;
+				/* XXX Add to avoid clipping of text by icons. There may be a better way to handle this? */
+				bitem->but->rect.xmax += UI_UNIT_X;
+				ui_item_size(item, &itemw, &itemh);
+
+				ui_item_position(item, x + vec[0] * PIE_RADIUS - itemw/2, y + vec[1] * PIE_RADIUS - itemh/2, itemw, itemh);
+
+				minx = min_ii(minx, x + vec[0] * PIE_RADIUS - itemw/2);
+				maxx = max_ii(maxx, x + vec[0] * PIE_RADIUS + itemw/2);
+				miny = min_ii(miny, y + vec[1] * PIE_RADIUS - itemh/2);
+				maxy = max_ii(maxy, y + vec[1] * PIE_RADIUS + itemh/2);
+			}
+		}
+	}
+
+	litem->x = minx;
+	litem->y = miny;
+	litem->w = maxx - minx;
+	litem->h = maxy - miny;
+}
+
+
+
 /* root layout */
 static void ui_litem_estimate_root(uiLayout *UNUSED(litem))
 {
 	/* nothing to do */
 }
 
+static void ui_litem_layout_root_radial(uiLayout *litem)
+{
+	/* first item is pie menu title, align on center of menu */
+	uiItem *item = litem->items.first;
+
+	if (item->type == ITEM_BUTTON) {
+		int itemh, itemw, x, y;
+		x = litem->x;
+		y = litem->y;
+
+		ui_item_size(item, &itemw, &itemh);
+
+		ui_item_position(item, x - itemw/2, y - itemh/2, itemw, itemh);
+	}
+}
+
 static void ui_litem_layout_root(uiLayout *litem)
 {
 	if (litem->root->type == UI_LAYOUT_HEADER)
 		ui_litem_layout_row(litem);
+	else if (litem->root->type == UI_LAYOUT_PIEMENU)
+		ui_litem_layout_root_radial(litem);
 	else
 		ui_litem_layout_column(litem);
 }
@@ -2494,6 +2704,40 @@ static uiLayoutItemBx *ui_layout_box(uiLayout *layout, int type)
 	return box;
 }
 
+uiLayout *uiLayoutRadial(uiLayout *layout)
+{
+	uiLayout *litem;
+	uiItem *item;
+
+	/* radial layouts are only valid for radial menus */
+	if (layout->root->type != UI_LAYOUT_PIEMENU)
+		return ui_item_local_sublayout(layout, layout, 0);
+
+	/* only one radial wheel per root layout is allowed, so check and return that, if it exists */
+	for (item = layout->root->layout->items.first; item; item = item->next) {
+		litem = (uiLayout *)item;
+		if (litem->item.type == ITEM_LAYOUT_RADIAL) {
+			uiBlockSetCurLayout(layout->root->block, litem);
+			return litem;
+		}
+	}
+
+	litem = MEM_callocN(sizeof(uiLayout), "uiLayoutRow");
+	litem->item.type = ITEM_LAYOUT_RADIAL;
+	litem->root = layout->root;
+	litem->active = true;
+	litem->enabled = true;
+	litem->context = layout->context;
+	litem->redalert = layout->redalert;
+	litem->w = layout->w;
+	BLI_addtail(&layout->items, litem);
+
+	uiBlockSetCurLayout(layout->root->block, litem);
+
+	return litem;
+}
+
+
 uiLayout *uiLayoutBox(uiLayout *layout)
 {
 	return (uiLayout *)ui_layout_box(layout, ROUNDBOX);
@@ -2840,6 +3084,9 @@ static void ui_item_layout(uiItem *item)
 			case ITEM_LAYOUT_OVERLAP:
 				ui_litem_layout_overlap(litem);
 				break;
+			case ITEM_LAYOUT_RADIAL:
+				ui_litem_layout_radial(litem);
+				break;
 			default:
 				break;
 		}
@@ -2913,7 +3160,7 @@ uiLayout *uiBlockLayout(uiBlock *block, int dir, int type, int x, int y, int siz
 	layout->enabled = 1;
 	layout->context = NULL;
 
-	if (type == UI_LAYOUT_MENU)
+	if (type == UI_LAYOUT_MENU || type == UI_LAYOUT_PIEMENU)
 		layout->space = 0;
 
 	if (dir == UI_LAYOUT_HORIZONTAL) {

@@ -2958,6 +2958,18 @@ static void widget_menu_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(sta
 	widgetbase_draw(&wtb, wcol);
 }
 
+static void widget_menu_radial_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+{
+	uiWidgetBase wtb;
+	float rad;
+	widget_init(&wtb);
+
+	rad = 0.5f * BLI_rcti_size_y(rect);
+	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
+
+	widgetbase_draw(&wtb, wcol);
+}
+
 static void widget_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	uiWidgetBase wtb;
@@ -3276,6 +3288,12 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			wt.wcol_theme = &btheme->tui.wcol_progress;
 			wt.custom = widget_progressbar;
 			break;
+
+		case UI_WTYPE_MENU_ITEM_RADIAL:
+			wt.wcol_theme = &btheme->tui.wcol_menu_back;
+			wt.draw = widget_menu_radial_itembut;
+			wt.state = widget_state_menu_item;
+			break;
 	}
 	
 	return &wt;
@@ -3381,6 +3399,9 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 	else if (but->dt == UI_EMBOSSN) {
 		/* "nothing" */
 		wt = widget_type(UI_WTYPE_ICON);
+	}
+	else if (but->dt == UI_EMBOSSR) {
+		wt = widget_type(UI_WTYPE_MENU_ITEM_RADIAL);
 	}
 	else {
 		

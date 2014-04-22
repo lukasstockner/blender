@@ -99,6 +99,7 @@ typedef struct uiLayout uiLayout;
 #define UI_EMBOSSN      1   /* Nothing, only icon and/or text */
 #define UI_EMBOSSP      2   /* Pulldown menu style */
 #define UI_EMBOSST      3   /* Table */
+#define UI_EMBOSSR      4   /* Pie Menu */
 
 /* uiBlock->direction */
 #define UI_DIRECTION       (UI_TOP | UI_DOWN | UI_LEFT | UI_RIGHT)
@@ -134,6 +135,7 @@ typedef struct uiLayout uiLayout;
 /* block->flag bits 14-17 are identical to but->drawflag bits */
 
 #define UI_BLOCK_LIST_ITEM   (1 << 19)
+#define UI_BLOCK_RADIAL      (1 << 20)
 
 /* uiPopupBlockHandle->menuretval */
 #define UI_RETURN_CANCEL     (1 << 0)   /* cancel all menus cascading */
@@ -352,6 +354,13 @@ struct uiLayout *uiPupMenuLayout(uiPopupMenu *head);
 void uiPupMenuReports(struct bContext *C, struct ReportList *reports) ATTR_NONNULL();
 bool uiPupMenuInvoke(struct bContext *C, const char *idname, struct ReportList *reports) ATTR_NONNULL(1, 2);
 
+/* Pie menus */
+typedef struct uiPieMenu uiPieMenu;
+
+void uiPieMenuInvoke(struct bContext *C, const char *idname, short event);
+struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, short event) ATTR_NONNULL();
+void uiPieMenuEnd(struct bContext *C, uiPieMenu *pie);
+struct uiLayout *uiPieMenuLayout(struct uiPieMenu *pie);
 /* Popup Blocks
  *
  * Functions used to create popup blocks. These are like popup menus
@@ -407,7 +416,8 @@ typedef enum {
 	UI_BLOCK_BOUNDS_TEXT,
 	UI_BLOCK_BOUNDS_POPUP_MOUSE,
 	UI_BLOCK_BOUNDS_POPUP_MENU,
-	UI_BLOCK_BOUNDS_POPUP_CENTER
+	UI_BLOCK_BOUNDS_POPUP_CENTER,
+	UI_BLOCK_BOUNDS_PIE_CENTER,
 } eBlockBoundsCalc;
 
 void uiBoundsBlock(struct uiBlock *block, int addval);
@@ -727,6 +737,7 @@ void UI_exit(void);
 #define UI_LAYOUT_HEADER        1
 #define UI_LAYOUT_MENU          2
 #define UI_LAYOUT_TOOLBAR       3
+#define UI_LAYOUT_PIEMENU       4
 
 #define UI_UNIT_X               ((void)0, U.widget_unit)
 #define UI_UNIT_Y               ((void)0, U.widget_unit)
@@ -817,8 +828,8 @@ uiLayout *uiLayoutListBox(uiLayout *layout, struct uiList *ui_list, struct Point
 uiLayout *uiLayoutAbsolute(uiLayout *layout, int align);
 uiLayout *uiLayoutSplit(uiLayout *layout, float percentage, int align);
 uiLayout *uiLayoutOverlap(uiLayout *layout);
-
 uiBlock *uiLayoutAbsoluteBlock(uiLayout *layout);
+uiLayout *uiLayoutRadial(uiLayout *layout);
 
 /* templates */
 void uiTemplateHeader(uiLayout *layout, struct bContext *C);

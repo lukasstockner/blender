@@ -140,6 +140,15 @@ class WindowManager(bpy_types.ID):
         finally:
             self.pupmenu_end__internal(popup)
 
+    def pie_menu(self, event, draw_func, title="", icon='NONE'):
+        import bpy
+        pie = self.piemenu_begin__internal(title, icon, event.type)
+
+        try:
+            draw_func(pie, bpy.context)
+        finally:
+            self.piemenu_end__internal(pie)
+
 
 class _GenericBone:
     """
