@@ -274,7 +274,7 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 			alphablend = GPU_BLEND_ALPHA;
 	}
 	else if (texpaint && ma) {
-		ima = (ma->texpaintslot)? ma->texpaintslot->tex->ima : NULL;
+		ima = (ma->texpaintslot)? ma->texpaintslot[ma->paint_active_slot].ima : NULL;
 	}
 	else
 		textured = 0;
@@ -372,9 +372,6 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 		else
 			Gtexdraw.is_lit = GPU_scene_object_lights(scene, ob, v3d->lay, rv3d->viewmat, !rv3d->is_persp);
 	}
-
-	if (ob->mode & OB_MODE_TEXTURE_PAINT)
-		refresh_object_texpaint_images(ob);
 	
 	rgba_float_to_uchar(obcol, ob->col);
 

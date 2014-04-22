@@ -41,6 +41,7 @@
 #endif
 
 struct MTex;
+struct Image;
 struct ColorBand;
 struct Group;
 struct bNodeTree;
@@ -81,6 +82,11 @@ typedef struct GameSettings {
 	int face_orientation;
 	int pad1;
 } GameSettings;
+
+typedef struct TexPaintSlot {
+	struct Image *ima; /* image to be painted on */
+	char uvname[64]; /* customdata index for uv layer */
+} TexPaintSlot;
 
 typedef struct Material {
 	ID id;
@@ -133,12 +139,13 @@ typedef struct Material {
 	short pr_lamp, pr_texture, ml_flag;	/* ml_flag is for disable base material */
 	
 	/* mapping */
-	char mapflag;
+	char mapflag, pad;
 
 	/* texture painting */
-	char paint_active_slot;
-	struct MTex *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
-	                            * with refresh_texpaint_image_slot */
+	int paint_active_slot;
+	int tot_slots;
+	struct TexPaintSlot *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
+	                                    * with refresh_texpaint_image_cache */
 
 	/* shaders */
 	short diff_shader, spec_shader;

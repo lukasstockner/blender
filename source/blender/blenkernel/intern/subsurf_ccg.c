@@ -2305,8 +2305,12 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		if (flag & DM_DRAW_USE_TEXPAINT_UV) {
 			if (mat_nr != mat_nr_cache) {
 				if (dm->totmat > 1) {
-					if (dm->mat[mat_nr] && dm->mat[mat_nr]->texpaintslot && dm->mat[mat_nr]->texpaintslot->uvname[0])
-						tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE, dm->mat[mat_nr]->texpaintslot->uvname);
+					if (dm->mat[mat_nr] && dm->mat[mat_nr]->texpaintslot &&
+					    dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname[0])
+					{
+						tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE,
+						                                     dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname);
+					}
 					else
 						tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
 				}

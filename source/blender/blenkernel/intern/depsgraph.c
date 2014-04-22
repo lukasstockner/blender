@@ -2477,6 +2477,7 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 			for (obt = bmain->object.first; obt; obt = obt->id.next) {
 				if (obt->mode & OB_MODE_TEXTURE_PAINT) {
 					obt->recalc |= OB_RECALC_DATA;
+					refresh_object_texpaint_images(obt);
 					lib_id_recalc_data_tag(bmain, &obt->id);
 				}
 			}

@@ -169,23 +169,17 @@ static void rna_Material_mtex_begin(CollectionPropertyIterator *iter, PointerRNA
 	rna_iterator_array_begin(iter, (void *)ma->mtex, sizeof(MTex *), MAX_MTEX, 0, NULL);
 }
 
-/* texture painting on material slots */
-static int rna_texture_paint_material(CollectionPropertyIterator *UNUSED(iter), void *data)
+static void rna_Material_texpaint_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-	MTex *mtex = (*((MTex **)data));
-
-	/* do not skip under these circumstances */
-	if(get_mtex_slot_valid_texpaint(mtex))
-		return 0;
-
-	return 1;
+	Material *ma = (Material *)ptr->data;
+	rna_iterator_array_begin(iter, (void *)ma->texpaintslot, sizeof(TexPaintSlot), ma->tot_slots, 0, NULL);
 }
+
 
 static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	bScreen *sc;
 	Material *ma = ptr->id.data;
-	refresh_texpaint_image_cache(ma);
 
 	for (sc = bmain->screen.first; sc; sc = sc->id.next) {
 		ScrArea *sa;
@@ -194,7 +188,7 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *s
 			for (sl = sa->spacedata.first; sl; sl = sl->next) {
 				if (sl->spacetype == SPACE_IMAGE) {
 						SpaceImage *sima = (SpaceImage *)sl;
-						ED_space_image_set(sima, scene, scene->obedit, ma->texpaintslot->tex->ima);
+						ED_space_image_set(sima, scene, scene->obedit, ma->texpaintslot[ma->paint_active_slot].ima);
 				}
 			}
 		}
@@ -202,12 +196,6 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *s
 
 	DAG_id_tag_update(&ma->id, 0);
 	WM_main_add_notifier(NC_MATERIAL | ND_SHADING, ma);
-}
-
-static void rna_MaterialTexturePaint_mtex_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-	Material *ma = (Material *)ptr->data;
-	rna_iterator_array_begin(iter, (void *)ma->mtex, sizeof(MTex *), MAX_MTEX, 0, rna_texture_paint_material);
 }
 
 static PointerRNA rna_Material_active_texture_get(PointerRNA *ptr)
@@ -874,6 +862,7 @@ static void rna_def_material_gamesettings(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GEMAT_NOPHYSICS); /* use bitflags */
 	RNA_def_property_ui_text(prop, "Physics", "Use physics properties of materials ");
 }
+
 
 static void rna_def_material_colors(StructRNA *srna)
 {
@@ -2084,7 +2073,7 @@ void RNA_def_material(BlenderRNA *brna)
 	                    "rna_Material_active_texture_set", "rna_Material_active_texture_editable",
 	                    "MaterialTextureSlot", "MaterialTextureSlots", "rna_Material_update");
 
-	rna_def_mtex_texpaint(srna, "MaterialTextureSlot");
+	rna_def_mtex_texpaint(srna);
 
 	/* only material has this one */
 	prop = RNA_def_property(srna, "use_textures", PROP_BOOLEAN, PROP_NONE);
@@ -2174,20 +2163,19 @@ void rna_def_mtex_common(BlenderRNA *brna, StructRNA *srna, const char *begin,
 	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, update);
 }
 
-void rna_def_mtex_texpaint(StructRNA *srna, const char *structname)
+void rna_def_mtex_texpaint(StructRNA *srna)
 {
 	PropertyRNA *prop;
 
 	/* mtex */
 	prop = RNA_def_property(srna, "texture_paint_slots", PROP_COLLECTION, PROP_NONE);
-	RNA_def_property_struct_type(prop, structname);
-	RNA_def_property_collection_funcs(prop, "rna_MaterialTexturePaint_mtex_begin", "rna_iterator_array_next", "rna_iterator_array_end",
+	RNA_def_property_collection_funcs(prop, "rna_Material_texpaint_begin", "rna_iterator_array_next", "rna_iterator_array_end",
 	                                  "rna_iterator_array_dereference_get", NULL, NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "Image");
 	RNA_def_property_ui_text(prop, "Textures", "Texture slots defining the mapping and influence of textures");
 
-	prop = RNA_def_property(srna, "active_paint_texture_index", PROP_INT, PROP_UNSIGNED);
-	RNA_def_property_int_sdna(prop, NULL, "paint_active_slot");
-	RNA_def_property_range(prop, 0, MAX_MTEX - 1);
+	prop = RNA_def_property(srna, "paint_active_slot", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_range(prop, 0, INT_MAX);
 	RNA_def_property_ui_text(prop, "Active Paint Texture Index", "Index of active texture paint slot");
 	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, "rna_Material_active_paint_texture_index_update");
 }

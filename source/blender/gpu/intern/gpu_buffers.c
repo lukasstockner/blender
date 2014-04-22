@@ -853,8 +853,12 @@ static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *ind
 	mtface_base = MEM_mallocN(totmaterial * sizeof(*mtface_base), "texslots");
 
 	for (i = 0; i < totmaterial; i++) {
-		if (dm->mat[i] && dm->mat[i]->texpaintslot && dm->mat[i]->texpaintslot->uvname[0])
-			mtface_base[i] = CustomData_get_layer_named(&dm->faceData, CD_MTFACE, dm->mat[i]->texpaintslot->uvname);
+		if (dm->mat[i] && dm->mat[i]->texpaintslot &&
+		    dm->mat[i]->texpaintslot[dm->mat[i]->paint_active_slot].uvname[0])
+		{
+			mtface_base[i] = CustomData_get_layer_named(&dm->faceData, CD_MTFACE,
+			                                            dm->mat[i]->texpaintslot[dm->mat[i]->paint_active_slot].uvname);
+		}
 		else
 			mtface_base[i] = CustomData_get_layer(&dm->faceData, CD_MTFACE);
 	}

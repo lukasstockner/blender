@@ -202,8 +202,7 @@ void rna_def_texmat_common(struct StructRNA *srna, const char *texspace_editable
 void rna_def_mtex_common(struct BlenderRNA *brna, struct StructRNA *srna, const char *begin, const char *activeget,
                          const char *activeset, const char *activeeditable, const char *structname,
                          const char *structname_slots, const char *update);
-void rna_def_mtex_texpaint(struct StructRNA *srna,
-                         const char *structname);
+void rna_def_mtex_texpaint(struct StructRNA *srna);
 
 void rna_def_render_layer_common(struct StructRNA *srna, int scene);
 

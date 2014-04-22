@@ -1075,12 +1075,11 @@ class TEXTURE_UL_texpaintslots(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.MaterialTextureSlot)
         ma = data
-        slot = item
-        tex = slot.texture if slot else None
+        ima = item
 
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             # layout.label(text=tex.image.name, translate=False)
-            layout.label(text=tex.name, translate=False, icon_value=icon)
+            layout.label(text=ima.name, translate=False, icon_value=icon)
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="")
@@ -1110,7 +1109,7 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
         mat = ob.active_material;
         if mat:
             col.label("Available Paint Slots")
-            col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "active_paint_texture_index", rows=2)
+            col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "paint_active_slot", rows=2)
             #col.label("Only slots with UV mapping and image textures are available")
             
             col.operator_menu_enum("paint.add_texture_paint_slot", "type")

@@ -111,6 +111,11 @@ void BKE_material_free_ex(Material *ma, bool do_id_user)
 		MEM_freeN(ma->nodetree);
 	}
 
+	if (ma->texpaintslot) {
+		MEM_freeN(ma->texpaintslot);
+		ma->tot_slots = 0;
+	}
+
 	if (ma->gpumaterial.first)
 		GPU_material_free(ma);
 }
@@ -268,7 +273,9 @@ Material *localize_material(Material *ma)
 	
 	if (ma->ramp_col) man->ramp_col = MEM_dupallocN(ma->ramp_col);
 	if (ma->ramp_spec) man->ramp_spec = MEM_dupallocN(ma->ramp_spec);
-	
+
+	if (ma->texpaintslot) man->texpaintslot = MEM_dupallocN(man->texpaintslot);
+
 	man->preview = NULL;
 	
 	if (ma->nodetree)
@@ -1293,30 +1300,42 @@ bool get_mtex_slot_valid_texpaint(struct MTex *mtex)
 
 void refresh_texpaint_image_cache(Material *ma)
 {
-	MTex **mtex, *validmtex = NULL;
-
-	short index = 0, i = 0;
+	MTex **mtex;
+	short count = 0;
+	short index = 0, i;
 
 	if (!ma)
 		return;
 
-	ma->texpaintslot = NULL;
+	if (ma->texpaintslot) {
+		MEM_freeN (ma->texpaintslot);
+		ma->texpaintslot = NULL;
+	}
 
-	for(mtex = ma->mtex; i < MAX_MTEX; i++, mtex++) {
+	for(mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
 		if (get_mtex_slot_valid_texpaint(*mtex)) {
-			if (index++ == ma->paint_active_slot) {
-				ma->texpaintslot = (*mtex);
-				return;
-			}
-
-			validmtex = *mtex;
+			count++;
 		}
 	}
 
-	/* possible to not have selected anything as active texture. Just set to a valid index */
-	if (index > 0) {
-		ma->paint_active_slot = index;
-		ma->texpaintslot = validmtex;
+	ma->tot_slots = count;
+
+	if (count == 0) {
+		ma->paint_active_slot = 0;
+		return;
+	}
+
+	ma->texpaintslot = MEM_callocN(sizeof(*ma->texpaintslot) * count, "texpaint_slots");
+
+	for(mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
+		if (get_mtex_slot_valid_texpaint(*mtex)) {
+			ma->texpaintslot[index].ima = (*mtex)->tex->ima;
+			BLI_strncpy(ma->texpaintslot[index++].uvname, (*mtex)->uvname, 64);
+		}
+	}
+
+	if (ma->paint_active_slot >= count) {
+	    ma->paint_active_slot = count - 1;
 	}
 
 	return;

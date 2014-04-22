@@ -360,13 +360,13 @@ static Image *project_paint_face_image(const ProjPaintState *ps, int face_index)
 	else {
 		MFace *mf = ps->dm_mface + face_index;
 		Material *ma = give_current_material(ps->ob, mf->mat_nr + 1);
-		ima = ma->texpaintslot->tex->ima;
+		ima = ma->texpaintslot[ma->paint_active_slot].ima;
 	}
 
 	return ima;
 }
 
-static MTex *project_paint_face_paint_slot(const ProjPaintState *ps, int face_index)
+static TexPaintSlot *project_paint_face_paint_slot(const ProjPaintState *ps, int face_index)
 {
 	if (ps->do_new_shading_nodes) { /* cached BKE_scene_use_new_shading_nodes result */
 		return NULL;
@@ -374,7 +374,7 @@ static MTex *project_paint_face_paint_slot(const ProjPaintState *ps, int face_in
 	else {
 		MFace *mf = ps->dm_mface + face_index;
 		Material *ma = give_current_material(ps->ob, mf->mat_nr + 1);
-		return ma->texpaintslot;
+		return &ma->texpaintslot[ma->paint_active_slot];
 	}
 }
 
@@ -2960,7 +2960,7 @@ static void project_paint_begin(ProjPaintState *ps)
 
 	ProjPaintImage *projIma;
 	Image *tpage_last = NULL, *tpage;
-	MTex *slot_last = NULL, *slot;
+	TexPaintSlot *slot_last = NULL, *slot;
 
 	/* Face vars */
 	MPoly *mpoly_orig;
@@ -3365,7 +3365,7 @@ static void project_paint_begin(ProjPaintState *ps)
 		if (ps->dm_mtface_stencil == tf_base || ps->dm_mtface_clone == tf_base)
 			continue;
 
-		if (is_face_sel && ((slot && (tpage = slot->tex->ima)) || (tpage = project_paint_face_image(ps, face_index)))) {
+		if (is_face_sel && ((slot && (tpage = slot->ima)) || (tpage = project_paint_face_image(ps, face_index)))) {
 			float *v1coSS, *v2coSS, *v3coSS, *v4coSS = NULL;
 
 			v1coSS = ps->screenCoords[mf->v1];
@@ -4833,8 +4833,6 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 		if (mtex) {
 			char imagename[FILE_MAX];
 			char name[TEXNAME_MAX];
-			PointerRNA ptr, idptr;
-			PropertyRNA *prop;
 			Main *bmain = CTX_data_main(C);
 			Image *ima;
 
@@ -4850,19 +4848,6 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 			mtex->mapto = type;
 
 			if (mtex->tex) {
-				/* hook into UI */
-				uiIDContextProperty(C, &ptr, &prop);
-
-				if (prop) {
-					/* when creating new ID blocks, use is already 1, but RNA
-					 * pointer se also increases user, so this compensates it */
-					mtex->tex->id.us--;
-
-					RNA_id_pointer_create(&mtex->tex->id, &idptr);
-					RNA_property_pointer_set(&ptr, prop, idptr);
-					RNA_property_update(C, &ptr, prop);
-				}
-
 				BLI_strncpy(imagename, &ma->id.name[2], FILE_MAX);
 				BLI_strncat_utf8(imagename, "_", FILE_MAX);
 				BLI_strncat_utf8(imagename, name, FILE_MAX);
@@ -4870,18 +4855,7 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 
 				ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, 0, IMA_GENTYPE_BLANK, color);
 
-				uiIDContextProperty(C, &ptr, &prop);
-
-				if (prop) {
-					/* when creating new ID blocks, use is already 1, but RNA
-					 * pointer se also increases user, so this compensates it */
-					ima->id.us--;
-
-					RNA_id_pointer_create(&ima->id, &idptr);
-					RNA_property_pointer_set(&ptr, prop, idptr);
-					RNA_property_update(C, &ptr, prop);
-				}
-
+				refresh_texpaint_image_cache(ma);
 				BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
 				WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, mtex->tex);
 			}
