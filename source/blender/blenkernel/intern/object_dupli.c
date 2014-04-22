@@ -93,7 +93,7 @@ typedef struct DupliContext {
 } DupliContext;
 
 typedef struct DupliGenerator {
-	int type;				/* dupli type */
+	short type;				/* dupli type */
 	void (*make_duplis)(const DupliContext *ctx);
 } DupliGenerator;
 
