@@ -4861,6 +4861,8 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 				refresh_texpaint_image_cache(ma);
 				BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
 				WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, mtex->tex);
+				WM_event_add_notifier(C, NC_IMAGE | NA_ADDED, ima);
+				ED_area_tag_redraw(CTX_wm_area(C));
 			}
 
 			WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));

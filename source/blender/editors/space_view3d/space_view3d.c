@@ -1085,6 +1085,11 @@ static void view3d_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa
 			if (wmn->data == ND_DATA || wmn->action == NA_EDITED)
 				ED_region_tag_redraw(ar);
 			break;
+		case NC_IMAGE:
+			/* Update for the image layers in texture paint. */
+			if (wmn->action == NA_EDITED)
+				ED_region_tag_redraw(ar);
+			break;
 	}
 }
 
