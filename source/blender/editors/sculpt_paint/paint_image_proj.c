@@ -4135,7 +4135,7 @@ static void *do_projectpaint_thread(void *ph_v)
 							if (brush->flag & BRUSH_ACCUMULATE)
 								mask = min_ff(mask_accum + max_mask, 65535.0f);
 							else
-								mask = mask_accum + (max_mask - mask_accum) * falloff;
+								mask = mask_accum + (max_mask - mask_accum * falloff);
 
 							mask_short = (unsigned short)mask;
 

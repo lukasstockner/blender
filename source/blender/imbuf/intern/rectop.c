@@ -553,7 +553,7 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 								if (accumulate)
 									mask = min_ff(*dmr + mask_lim, 65535.0);
 								else
-									mask = *dmr + (((mask_lim - *dmr) * (*cmr)) / 65535.0f);
+									mask = *dmr + (((mask_lim - *dmr  * (*cmr) / 65535.0f)));
 
 								if (mask > *dmr) {
 									unsigned char mask_src[4];
@@ -635,7 +635,7 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 								if (accumulate)
 									mask = min_ff(*dmr + mask_lim, 65535.0);
 								else
-									mask = *dmr + (((mask_lim - *dmr) * (*cmr)) / 65535.0f);
+									mask = *dmr + (((mask_lim - *dmr  * (*cmr) / 65535.0f)));
 
 								if (mask > *dmr) {
 									float mask_srf[4];
@@ -660,7 +660,6 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 							if (srf[3] && mask) {
 								float mask_srf[4];
 
-								*dmr = mask;
 								mul_v4_v4fl(mask_srf, srf, mask * (1.0f / 65535.0f));
 
 								func_float(drf, orf, mask_srf);
