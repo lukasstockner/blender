@@ -45,8 +45,6 @@ struct MTFace;
 struct Scene;
 struct Image;
 struct MTex;
-struct ImageUser;
-struct bNode;
 
 /* materials */
 

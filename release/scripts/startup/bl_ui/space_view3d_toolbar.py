@@ -1112,11 +1112,12 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
             col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "paint_active_slot", rows=2)
             #col.label("Only slots with UV mapping and image textures are available")
             
-            col.operator_menu_enum("paint.add_texture_paint_slot", "type")
+            if not mat.use_nodes:
+                col.operator_menu_enum("paint.add_texture_paint_slot", "type")
         
-        row = col.row(align=True)
-        row.prop(settings, "new_slot_xresolution")
-        row.prop(settings, "new_slot_yresolution")
+                row = col.row(align=True)
+                row.prop(settings, "new_slot_xresolution")
+                row.prop(settings, "new_slot_yresolution")
 
 
 class VIEW3D_PT_tools_brush_overlay(Panel, View3DPaintPanel):
