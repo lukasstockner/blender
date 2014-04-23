@@ -163,7 +163,7 @@ void paint_2d_bucket_fill(const struct bContext *C, float color[3], struct Brush
 void paint_2d_gradient_fill (const struct bContext *C, struct Brush *br, float mouse_init[2], float mouse_final[2], void *ps);
 void *paint_proj_new_stroke(struct bContext *C, struct Object *ob, const float mouse[2], int mode);
 void paint_proj_stroke(const struct bContext *C, void *ps, const float prevmval_i[2], const float mval_i[2], float pressure, float distance, float size);
-void paint_proj_redraw(const bContext *C, void *pps, bool final);
+void paint_proj_redraw(const struct bContext *C, void *pps, bool final);
 void paint_proj_stroke_done(void *ps);
 void paint_proj_mesh_data_ensure(bContext *C, struct Object *ob);
 bool proj_paint_add_slot(bContext *C, int type, struct Material *ma);

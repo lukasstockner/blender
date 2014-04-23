@@ -377,10 +377,9 @@ void ED_image_undo_restore(bContext *C, ListBase *lb)
 			ibuf->userflags |= IB_MIPMAP_INVALID;  /* force mipmap recreatiom */
 		ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
 
-		IMB_partial_display_buffer_update_delayed(ibuf, tile->x * IMAPAINT_TILE_SIZE, tile->y * IMAPAINT_TILE_SIZE,
-		                                          (tile->x + 1) * IMAPAINT_TILE_SIZE, (tile->y + 1) * IMAPAINT_TILE_SIZE);
-		BKE_image_release_ibuf(ima, ibuf, NULL);
 		DAG_id_tag_update(&ima->id, 0);
+
+		BKE_image_release_ibuf(ima, ibuf, NULL);
 	}
 
 	IMB_freeImBuf(tmpibuf);

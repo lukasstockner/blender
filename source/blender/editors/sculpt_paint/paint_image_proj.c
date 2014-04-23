@@ -4837,8 +4837,6 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 			char imagename[FILE_MAX];
 			char name[TEXNAME_MAX];
 			Main *bmain = CTX_data_main(C);
-			PointerRNA ptr, idptr;
-			PropertyRNA *prop;
 			Image *ima;
 
 			/* get the name of the texture layer type */
@@ -4859,18 +4857,6 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 				/* take the second letter to avoid the ID identifier */
 
 				ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, type == MAP_NORM, IMA_GENTYPE_BLANK, color);
-
-				uiIDContextProperty(C, &ptr, &prop);
-
-				if (prop) {
-					/* when creating new ID blocks, use is already 1, but RNA
-					 * pointer se also increases user, so this compensates it */
-					ima->id.us--;
-
-					RNA_id_pointer_create(&ima->id, &idptr);
-					RNA_property_pointer_set(&ptr, prop, idptr);
-					RNA_property_update(C, &ptr, prop);
-				}
 
 				refresh_texpaint_image_cache(ma);
 				BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
