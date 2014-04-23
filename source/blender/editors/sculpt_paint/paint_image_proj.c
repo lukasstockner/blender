@@ -419,27 +419,6 @@ static int project_bucket_offset_safe(const ProjPaintState *ps, const float proj
 	}
 }
 
-/* still use 2D X,Y space but this works for verts transformed by a perspective matrix, using their 4th component as a weight */
-static void barycentric_weights_v2_persp(const float v1[4], const float v2[4], const float v3[4], const float co[2], float w[3])
-{
-	float wtot_inv, wtot;
-
-	w[0] = area_tri_signed_v2(v2, v3, co) / v1[3];
-	w[1] = area_tri_signed_v2(v3, v1, co) / v2[3];
-	w[2] = area_tri_signed_v2(v1, v2, co) / v3[3];
-	wtot = w[0] + w[1] + w[2];
-
-	if (wtot != 0.0f) {
-		wtot_inv = 1.0f / wtot;
-
-		w[0] = w[0] * wtot_inv;
-		w[1] = w[1] * wtot_inv;
-		w[2] = w[2] * wtot_inv;
-	}
-	else /* dummy values for zero area face */
-		w[0] = w[1] = w[2] = 1.0f / 3.0f;
-}
-
 static float VecZDepthOrtho(const float pt[2],
                             const float v1[3], const float v2[3], const float v3[3],
                             float w[3])
@@ -1053,19 +1032,16 @@ static void uv_image_outset(float (*orig_uv)[2], float (*outset_uv)[2], const fl
 		normalize_v2(dir3);
 	}
 
-	/* TODO - angle_normalized_v2v2(...) * (M_PI/180.0f)
-	 * This is incorrect. Its already given radians but without it wont work.
-	 * need to look into a fix - campbell */
 	if (is_quad) {
-		a1 = shell_angle_to_dist(angle_normalized_v2v2(dir4, dir1) * ((float)M_PI / 180.0f));
-		a2 = shell_angle_to_dist(angle_normalized_v2v2(dir1, dir2) * ((float)M_PI / 180.0f));
-		a3 = shell_angle_to_dist(angle_normalized_v2v2(dir2, dir3) * ((float)M_PI / 180.0f));
-		a4 = shell_angle_to_dist(angle_normalized_v2v2(dir3, dir4) * ((float)M_PI / 180.0f));
+		a1 = shell_v2v2_mid_normalized_to_dist(dir4, dir1);
+		a2 = shell_v2v2_mid_normalized_to_dist(dir1, dir2);
+		a3 = shell_v2v2_mid_normalized_to_dist(dir2, dir3);
+		a4 = shell_v2v2_mid_normalized_to_dist(dir3, dir4);
 	}
 	else {
-		a1 = shell_angle_to_dist(angle_normalized_v2v2(dir3, dir1) * ((float)M_PI / 180.0f));
-		a2 = shell_angle_to_dist(angle_normalized_v2v2(dir1, dir2) * ((float)M_PI / 180.0f));
-		a3 = shell_angle_to_dist(angle_normalized_v2v2(dir2, dir3) * ((float)M_PI / 180.0f));
+		a1 = shell_v2v2_mid_normalized_to_dist(dir3, dir1);
+		a2 = shell_v2v2_mid_normalized_to_dist(dir1, dir2);
+		a3 = shell_v2v2_mid_normalized_to_dist(dir2, dir3);
 	}
 
 	if (is_quad) {

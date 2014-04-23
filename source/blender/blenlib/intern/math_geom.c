@@ -2272,8 +2272,9 @@ bool barycentric_coords_v2(const float v1[2], const float v2[2], const float v3[
 	return false;
 }
 
-/* used by projection painting
- * note: using area_tri_signed_v2 means locations outside the triangle are correctly weighted */
+/**
+ * \note: using #area_tri_signed_v2 means locations outside the triangle are correctly weighted
+ */
 void barycentric_weights_v2(const float v1[2], const float v2[2], const float v3[2], const float co[2], float w[3])
 {
 	float wtot;
@@ -2289,6 +2290,26 @@ void barycentric_weights_v2(const float v1[2], const float v2[2], const float v3
 	else { /* dummy values for zero area face */
 		copy_v3_fl(w, 1.0f / 3.0f);
 	}
+}
+
+/**
+ * still use 2D X,Y space but this works for verts transformed by a perspective matrix,
+ * using their 4th component as a weight
+ */
+void barycentric_weights_v2_persp(const float v1[4], const float v2[4], const float v3[4], const float co[2], float w[3])
+{
+	float wtot;
+
+	w[0] = area_tri_signed_v2(v2, v3, co) / v1[3];
+	w[1] = area_tri_signed_v2(v3, v1, co) / v2[3];
+	w[2] = area_tri_signed_v2(v1, v2, co) / v3[3];
+	wtot = w[0] + w[1] + w[2];
+
+	if (wtot != 0.0f) {
+		mul_v3_fl(w, 1.0f / wtot);
+	}
+	else /* dummy values for zero area face */
+		w[0] = w[1] = w[2] = 1.0f / 3.0f;
 }
 
 /* same as #barycentric_weights_v2 but works with a quad,
@@ -2377,9 +2398,8 @@ void barycentric_transform(float pt_tar[3], float const pt_src[3],
 	 *  be re-applied. The weights are applied directly to the targets 3D points and the
 	 *  z-depth is used to scale the targets normal as an offset.
 	 * This saves transforming the target into its Z-Up orientation and back (which could also work) */
-	const float z_up[3] = {0, 0, 1};
 	float no_tar[3], no_src[3];
-	float quat_src[4];
+	float mat_src[3][3];
 	float pt_src_xy[3];
 	float tri_xy_src[3][3];
 	float w_src[3];
@@ -2389,19 +2409,14 @@ void barycentric_transform(float pt_tar[3], float const pt_src[3],
 	normal_tri_v3(no_tar, tri_tar_p1, tri_tar_p2, tri_tar_p3);
 	normal_tri_v3(no_src, tri_src_p1, tri_src_p2, tri_src_p3);
 
-	rotation_between_vecs_to_quat(quat_src, no_src, z_up);
-	normalize_qt(quat_src);
-
-	copy_v3_v3(pt_src_xy, pt_src);
-	copy_v3_v3(tri_xy_src[0], tri_src_p1);
-	copy_v3_v3(tri_xy_src[1], tri_src_p2);
-	copy_v3_v3(tri_xy_src[2], tri_src_p3);
+	axis_dominant_v3_to_m3(mat_src, no_src);
 
 	/* make the source tri xy space */
-	mul_qt_v3(quat_src, pt_src_xy);
-	mul_qt_v3(quat_src, tri_xy_src[0]);
-	mul_qt_v3(quat_src, tri_xy_src[1]);
-	mul_qt_v3(quat_src, tri_xy_src[2]);
+	mul_v3_m3v3(pt_src_xy,     mat_src, pt_src);
+	mul_v3_m3v3(tri_xy_src[0], mat_src, tri_src_p1);
+	mul_v3_m3v3(tri_xy_src[1], mat_src, tri_src_p2);
+	mul_v3_m3v3(tri_xy_src[2], mat_src, tri_src_p3);
+
 
 	barycentric_weights_v2(tri_xy_src[0], tri_xy_src[1], tri_xy_src[2], pt_src_xy, w_src);
 	interp_v3_v3v3v3(pt_tar, tri_tar_p1, tri_tar_p2, tri_tar_p3, w_src);
