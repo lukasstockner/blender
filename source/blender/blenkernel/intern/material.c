@@ -1298,7 +1298,8 @@ bool get_mtex_slot_valid_texpaint(struct MTex *mtex)
 		       mtex->tex->ima;
 }
 
-void refresh_texpaint_image_cache(Material *ma)
+
+void refresh_texpaint_image_cache(Material *ma, bool use_nodes)
 {
 	MTex **mtex;
 	short count = 0;
@@ -1307,41 +1308,73 @@ void refresh_texpaint_image_cache(Material *ma)
 	if (!ma)
 		return;
 
+	/* blender internal  calculation goes here */
 	if (ma->texpaintslot) {
 		MEM_freeN (ma->texpaintslot);
 		ma->texpaintslot = NULL;
 	}
 
-	for(mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
-		if (get_mtex_slot_valid_texpaint(*mtex)) {
-			count++;
+	if (use_nodes) {
+		bNode *node, *active_node;
+
+		if (!(ma->use_nodes && ma->nodetree))
+			return;
+
+		for (node = ma->nodetree->nodes.first; node; node = node->next) {
+			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE)
+				count++;
+		}
+
+		ma->tot_slots = count;
+
+		if (count == 0) {
+			ma->paint_active_slot = 0;
+			return;
+		}
+		ma->texpaintslot = MEM_callocN(sizeof(*ma->texpaintslot) * count, "texpaint_slots");
+
+		active_node = nodeGetActiveTexture(ma->nodetree);
+
+		for (node = ma->nodetree->nodes.first; node; node = node->next) {
+			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
+				if (active_node == node)
+					ma->paint_active_slot = index;
+				ma->texpaintslot[index++].ima = (Image *)node->id;
+			}
 		}
 	}
+	else {
+		for(mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
+			if (get_mtex_slot_valid_texpaint(*mtex)) {
+				count++;
+			}
+		}
 
-	ma->tot_slots = count;
+		ma->tot_slots = count;
 
-	if (count == 0) {
-		ma->paint_active_slot = 0;
-		return;
-	}
+		if (count == 0) {
+			ma->paint_active_slot = 0;
+			return;
+		}
 
-	ma->texpaintslot = MEM_callocN(sizeof(*ma->texpaintslot) * count, "texpaint_slots");
+		ma->texpaintslot = MEM_callocN(sizeof(*ma->texpaintslot) * count, "texpaint_slots");
 
-	for(mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
-		if (get_mtex_slot_valid_texpaint(*mtex)) {
-			ma->texpaintslot[index].ima = (*mtex)->tex->ima;
-			BLI_strncpy(ma->texpaintslot[index++].uvname, (*mtex)->uvname, 64);
+		for(mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
+			if (get_mtex_slot_valid_texpaint(*mtex)) {
+				ma->texpaintslot[index].ima = (*mtex)->tex->ima;
+				BLI_strncpy(ma->texpaintslot[index++].uvname, (*mtex)->uvname, 64);
+			}
 		}
 	}
 
 	if (ma->paint_active_slot >= count) {
-	    ma->paint_active_slot = count - 1;
+		ma->paint_active_slot = count - 1;
 	}
 
 	return;
 }
 
-void refresh_object_texpaint_images(struct Object *ob)
+void refresh_object_texpaint_images(struct Object *ob, bool use_nodes)
 {
 	int i;
 
@@ -1350,7 +1383,7 @@ void refresh_object_texpaint_images(struct Object *ob)
 
 	for (i = 1; i < ob->totcol + 1; i++) {
 		Material *ma = give_current_material(ob, i);
-		refresh_texpaint_image_cache(ma);
+		refresh_texpaint_image_cache(ma, use_nodes);
 	}
 }
 

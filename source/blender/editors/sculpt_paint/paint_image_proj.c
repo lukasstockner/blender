@@ -368,14 +368,9 @@ static Image *project_paint_face_image(const ProjPaintState *ps, int face_index)
 
 static TexPaintSlot *project_paint_face_paint_slot(const ProjPaintState *ps, int face_index)
 {
-	if (ps->do_new_shading_nodes) { /* cached BKE_scene_use_new_shading_nodes result */
-		return NULL;
-	}
-	else {
-		MFace *mf = ps->dm_mface + face_index;
-		Material *ma = ps->dm->mat[mf->mat_nr];
-		return &ma->texpaintslot[ma->paint_active_slot];
-	}
+	MFace *mf = ps->dm_mface + face_index;
+	Material *ma = ps->dm->mat[mf->mat_nr];
+	return &ma->texpaintslot[ma->paint_active_slot];
 }
 
 
@@ -4808,9 +4803,11 @@ static EnumPropertyItem layer_type_items[] = {
 bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 {
 	Object *ob = CTX_data_active_object(C);
+	Scene *scene = CTX_data_scene(C);
 	float color[4] = {0.0, 0.0, 0.0, 1.0};
 	int i;
 	ImagePaintSettings *imapaint = &CTX_data_tool_settings(C)->imapaint;
+	bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
 	int width;
 	int height;
 
@@ -4830,43 +4827,49 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 		ma = give_current_material(ob, ob->actcol);
 
 	if (ma) {
-		MTex *mtex = add_mtex_id(&ma->id, -1);
 
-		/* successful creation of mtex layer, now create set */
-		if (mtex) {
-			char imagename[FILE_MAX];
-			char name[TEXNAME_MAX];
-			Main *bmain = CTX_data_main(C);
-			Image *ima;
+		if (use_nodes) {
+			/* not supported for now */
+		}
+		else {
+			MTex *mtex = add_mtex_id(&ma->id, -1);
 
-			/* get the name of the texture layer type */
-			for (i = 0; i < sizeof(layer_type_items); i++) {
-				if (type == layer_type_items[i].value) {
-					BLI_strncpy(name, layer_type_items[i].name, TEXNAME_MAX);
-					break;
+			/* successful creation of mtex layer, now create set */
+			if (mtex) {
+				char imagename[FILE_MAX];
+				char name[TEXNAME_MAX];
+				Main *bmain = CTX_data_main(C);
+				Image *ima;
+
+				/* get the name of the texture layer type */
+				for (i = 0; i < sizeof(layer_type_items); i++) {
+					if (type == layer_type_items[i].value) {
+						BLI_strncpy(name, layer_type_items[i].name, TEXNAME_MAX);
+						break;
+					}
 				}
+
+				mtex->tex = add_texture(bmain, DATA_(name));
+				mtex->mapto = type;
+
+				if (mtex->tex) {
+					BLI_strncpy(imagename, &ma->id.name[2], FILE_MAX);
+					BLI_strncat_utf8(imagename, "_", FILE_MAX);
+					BLI_strncat_utf8(imagename, name, FILE_MAX);
+					/* take the second letter to avoid the ID identifier */
+
+					ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, type == MAP_NORM, IMA_GENTYPE_BLANK, color);
+
+					refresh_texpaint_image_cache(ma, false);
+					BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
+					WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, mtex->tex);
+					WM_event_add_notifier(C, NC_IMAGE | NA_ADDED, ima);
+					ED_area_tag_redraw(CTX_wm_area(C));
+				}
+
+				WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));
+				return true;
 			}
-
-			mtex->tex = add_texture(bmain, DATA_(name));
-			mtex->mapto = type;
-
-			if (mtex->tex) {
-				BLI_strncpy(imagename, &ma->id.name[2], FILE_MAX);
-				BLI_strncat_utf8(imagename, "_", FILE_MAX);
-				BLI_strncat_utf8(imagename, name, FILE_MAX);
-				/* take the second letter to avoid the ID identifier */
-
-				ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, type == MAP_NORM, IMA_GENTYPE_BLANK, color);
-
-				refresh_texpaint_image_cache(ma);
-				BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
-				WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, mtex->tex);
-				WM_event_add_notifier(C, NC_IMAGE | NA_ADDED, ima);
-				ED_area_tag_redraw(CTX_wm_area(C));
-			}
-
-			WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));
-			return true;
 		}
 	}
 

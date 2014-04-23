@@ -35,6 +35,8 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
+#include "BKE_scene.h"
+
 #include "rna_internal.h"
 
 #include "ED_image.h"
@@ -180,6 +182,21 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *s
 {
 	bScreen *sc;
 	Material *ma = ptr->id.data;
+
+
+	if (BKE_scene_use_new_shading_nodes(scene) && ma->use_nodes && ma->nodetree) {
+		struct bNode *node;
+		int index = 0;
+		for (node = ma->nodetree->nodes.first; node; node = node->next) {
+			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
+				if (index++ == ma->paint_active_slot) {
+					break;
+				}
+			}
+		}
+		if (node)
+			nodeSetActive(ma->nodetree, node);
+	}
 
 	for (sc = bmain->screen.first; sc; sc = sc->id.next) {
 		ScrArea *sa;

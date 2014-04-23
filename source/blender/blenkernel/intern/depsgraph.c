@@ -2473,11 +2473,11 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 						BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
 		}
 
-		if (idtype == ID_MA) {
+		if (ELEM(idtype, ID_MA, ID_TE)) {
 			for (obt = bmain->object.first; obt; obt = obt->id.next) {
 				if (obt->mode & OB_MODE_TEXTURE_PAINT) {
 					obt->recalc |= OB_RECALC_DATA;
-					refresh_object_texpaint_images(obt);
+					refresh_object_texpaint_images(obt, BKE_scene_use_new_shading_nodes(sce));
 					lib_id_recalc_data_tag(bmain, &obt->id);
 				}
 			}

@@ -149,7 +149,7 @@ bool ED_object_get_active_image(Object *ob, int mat_nr,
 		if (r_node) *r_node = node;
 		return true;
 	}
-	
+
 	if (r_ima) *r_ima = NULL;
 	if (r_iuser) *r_iuser = NULL;
 	if (r_node) *r_node = node;
