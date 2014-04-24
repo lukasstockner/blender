@@ -197,12 +197,13 @@ void BKE_rigidbody_objects_build(Scene *scene, struct RigidBodyWorld *rbw, bool 
 	GroupObject *go;
 	for (go = rbw->group->gobject.first; go; go = go->next) {
 		Object *ob = go->ob;
+		RigidBodyOb *rbo;
 
 		if (!ob || ob->type != OB_MESH)
 			continue;
 		
 		/* validate that we've got valid object set up here... */
-		RigidBodyOb *rbo = ob->rigidbody_object;
+		rbo = ob->rigidbody_object;
 		/* update transformation matrix of the object so we don't get a frame of lag for simple animations */
 		BKE_object_where_is_calc(scene, ob);
 		
