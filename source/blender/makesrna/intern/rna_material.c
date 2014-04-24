@@ -2201,6 +2201,11 @@ void rna_def_mtex_texpaint(StructRNA *srna)
 	RNA_def_property_range(prop, 0, INT_MAX);
 	RNA_def_property_ui_text(prop, "Active Paint Texture Index", "Index of active texture paint slot");
 	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, "rna_Material_active_paint_texture_index_update");
+
+	prop = RNA_def_property(srna, "paint_clone_slot", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_range(prop, 0, INT_MAX);
+	RNA_def_property_ui_text(prop, "Clone Paint Texture Index", "Index of clone texture paint slot");
+	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, NULL);
 }
 
 

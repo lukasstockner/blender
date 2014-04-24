@@ -1386,6 +1386,10 @@ void refresh_texpaint_image_cache(Material *ma, bool use_nodes)
 		ma->paint_active_slot = count - 1;
 	}
 
+	if (ma->paint_clone_slot >= count) {
+		ma->paint_clone_slot = count - 1;
+	}
+
 	return;
 }
 

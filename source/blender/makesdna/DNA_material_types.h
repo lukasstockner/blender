@@ -143,7 +143,8 @@ typedef struct Material {
 	char mapflag, pad;
 
 	/* texture painting */
-	int paint_active_slot;
+	short paint_active_slot;
+	short paint_clone_slot;
 	int tot_slots;
 	struct TexPaintSlot *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
 	                                    * with refresh_texpaint_image_cache */

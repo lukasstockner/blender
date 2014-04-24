@@ -220,7 +220,7 @@ typedef struct ProjPaintState {
 	MVert          *dm_mvert;
 	MFace          *dm_mface;
 	MTFace         **dm_mtface;
-	MTFace         *dm_mtface_clone;    /* other UV map, use for cloning between layers */
+	MTFace         **dm_mtface_clone;    /* other UV map, use for cloning between layers */
 	MTFace         *dm_mtface_stencil;
 
 	/* projection painting only */
@@ -349,28 +349,18 @@ typedef struct {
 
 /* Finish projection painting structs */
 
-static Image *project_paint_face_image(const ProjPaintState *ps, int face_index)
-{
-	Image *ima;
-
-	if (ps->do_new_shading_nodes) { /* cached BKE_scene_use_new_shading_nodes result */
-		MFace *mf = ps->dm_mface + face_index;
-		ED_object_get_active_image(ps->ob, mf->mat_nr + 1, &ima, NULL, NULL);
-	}
-	else {
-		MFace *mf = ps->dm_mface + face_index;
-		Material *ma = ps->dm->mat[mf->mat_nr];
-		ima = ma->texpaintslot[ma->paint_active_slot].ima;
-	}
-
-	return ima;
-}
-
 static TexPaintSlot *project_paint_face_paint_slot(const ProjPaintState *ps, int face_index)
 {
 	MFace *mf = ps->dm_mface + face_index;
 	Material *ma = ps->dm->mat[mf->mat_nr];
 	return &ma->texpaintslot[ma->paint_active_slot];
+}
+
+static TexPaintSlot *project_paint_face_clone_slot(const ProjPaintState *ps, int face_index)
+{
+	MFace *mf = ps->dm_mface + face_index;
+	Material *ma = ps->dm->mat[mf->mat_nr];
+	return &ma->texpaintslot[ma->paint_clone_slot];
 }
 
 
@@ -388,7 +378,6 @@ static Image *project_paint_mtface_image(const ProjPaintState *ps, MTFace *dm_mt
 
 	return ima;
 }
-
 
 /* fast projection bucket array lookup, use the safe version for bound checking  */
 static int project_bucket_offset(const ProjPaintState *ps, const float projCoSS[2])
@@ -565,7 +554,7 @@ static bool project_paint_PickColor(const ProjPaintState *ps, const float pt[2],
 		interp_v2_v2v2v2(uv, tf->uv[0], tf->uv[2], tf->uv[3], w);
 	}
 
-	ima = project_paint_face_image(ps, face_index);
+	ima = project_paint_face_paint_slot(ps, face_index)->ima;
 	ibuf = BKE_image_get_first_ibuf(ima); /* we must have got the imbuf before getting here */
 	if (!ibuf) return 0;
 
@@ -927,8 +916,8 @@ static bool check_seam(const ProjPaintState *ps,
 
 			/* Only need to check if 'i2_fidx' is valid because we know i1_fidx is the same vert on both faces */
 			if (i2_fidx != -1) {
-				Image *tpage = project_paint_face_image(ps, face_index);
-				Image *orig_tpage = project_paint_face_image(ps, orig_face);
+				Image *tpage = project_paint_face_paint_slot(ps, face_index)->ima;
+				Image *orig_tpage = project_paint_face_paint_slot(ps, orig_face)->ima;
 
 				BLI_assert(i1_fidx != -1);
 
@@ -1500,8 +1489,8 @@ static ProjPixel *project_paint_uvpixel_init(
 	if (ps->tool == PAINT_TOOL_CLONE) {
 		if (ps->dm_mtface_clone) {
 			ImBuf *ibuf_other;
-			Image *other_tpage = project_paint_mtface_image(ps, ps->dm_mtface_clone, face_index);
-			const MTFace *tf_other = ps->dm_mtface_clone + face_index;
+			Image *other_tpage = project_paint_face_clone_slot(ps, face_index)->ima;
+			const MTFace *tf_other = ps->dm_mtface_clone[face_index];
 
 			if (other_tpage && (ibuf_other = BKE_image_acquire_ibuf(other_tpage, NULL, NULL))) {
 				/* BKE_image_acquire_ibuf - TODO - this may be slow */
@@ -2763,7 +2752,7 @@ static void project_bucket_init(const ProjPaintState *ps, const int thread_index
 			face_index = GET_INT_FROM_POINTER(node->link);
 
 			/* Image context switching */
-			tpage = project_paint_face_image(ps, face_index);
+			tpage = project_paint_face_paint_slot(ps, face_index)->ima;
 			if (tpage_last != tpage) {
 				tpage_last = tpage;
 
@@ -2932,12 +2921,16 @@ static void project_paint_begin(ProjPaintState *ps)
 	ProjPaintImage *projIma;
 	Image *tpage_last = NULL, *tpage;
 	TexPaintSlot *slot_last = NULL, *slot;
+	TexPaintSlot *slot_last_clone = NULL, *slot_clone;
 
 	/* Face vars */
 	MPoly *mpoly_orig;
 	MFace *mf;
 	MTFace **tf;
 	MTFace *tf_base;
+
+	MTFace **tf_clone;
+	MTFace *tf_clone_base;
 
 	int a, i; /* generic looping vars */
 	int image_index = -1, face_index;
@@ -2994,12 +2987,12 @@ static void project_paint_begin(ProjPaintState *ps)
 
 	DM_update_materials(ps->dm, ps->ob);
 
-	ps->dm_mvert = ps->dm->getVertArray(ps->dm);
-	ps->dm_mface = ps->dm->getTessFaceArray(ps->dm);
-	ps->dm_mtface = MEM_mallocN(ps->dm->getNumTessFaces(ps->dm) * sizeof (MTFace *), "proj_paint_mtfaces");
-
 	ps->dm_totvert = ps->dm->getNumVerts(ps->dm);
 	ps->dm_totface = ps->dm->getNumTessFaces(ps->dm);
+
+	ps->dm_mvert = ps->dm->getVertArray(ps->dm);
+	ps->dm_mface = ps->dm->getTessFaceArray(ps->dm);
+	ps->dm_mtface = MEM_mallocN(ps->dm_totface * sizeof (MTFace *), "proj_paint_mtfaces");
 
 	if (ps->do_face_sel) {
 		index_mf_to_mpoly = ps->dm->getTessFaceDataArray(ps->dm, CD_ORIGINDEX);
@@ -3016,20 +3009,8 @@ static void project_paint_begin(ProjPaintState *ps)
 	}
 
 	/* use clone mtface? */
-
-
-	/* Note, use the original mesh for getting the clone and mask layer index
-	 * this avoids re-generating the derived mesh just to get the new index */
 	if (ps->do_layer_clone) {
-		//int layer_num = CustomData_get_clone_layer(&ps->dm->faceData, CD_MTFACE);
-		int layer_num = CustomData_get_clone_layer(&((Mesh *)ps->ob->data)->pdata, CD_MTEXPOLY);
-		if (layer_num != -1)
-			ps->dm_mtface_clone = CustomData_get_layer_n(&ps->dm->faceData, CD_MTFACE, layer_num);
-
-		if (ps->dm_mtface_clone == NULL) {
-			ps->do_layer_clone = false;
-			ps->dm_mtface_clone = NULL;
-		}
+		ps->dm_mtface_clone = MEM_mallocN(ps->dm_totface * sizeof (MTFace *), "proj_paint_mtfaces");
 	}
 
 	if (ps->do_layer_stencil) {
@@ -3326,19 +3307,36 @@ static void project_paint_begin(ProjPaintState *ps)
 				tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname);
 			else
 				tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
-			*tf = tf_base + face_index;
 			slot_last = slot;
 		}
-		else {
-			*tf = tf_base + face_index;
+
+		*tf = tf_base + face_index;
+
+		if (ps->do_layer_clone) {
+			slot_clone = project_paint_face_clone_slot(ps, face_index);
+			/* all faces should have a valid slot, reassert here */
+			if (ELEM(slot_clone, NULL, slot))
+				continue;
+
+			tf_clone = ps->dm_mtface_clone + face_index;
+
+			if (slot_clone != slot_last_clone) {
+				if (slot_clone->uvname[0])
+					tf_clone_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot_clone->uvname);
+				else
+					tf_clone_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
+				slot_last_clone = slot_clone;
+			}
+
+			*tf_clone = tf_clone_base + face_index;
 		}
 
 		/* tfbase here should be non-null! */
-		BLI_assert (tf_base!= NULL);
-		if (ps->dm_mtface_stencil == tf_base || ps->dm_mtface_clone == tf_base)
+		BLI_assert (tf_base != NULL);
+		if (ps->dm_mtface_stencil == tf_base)
 			continue;
 
-		if (is_face_sel && ((slot && (tpage = slot->ima)) || (tpage = project_paint_face_image(ps, face_index)))) {
+		if (is_face_sel && ((slot && (tpage = slot->ima)) || (tpage = project_paint_face_paint_slot(ps, face_index)->ima))) {
 			float *v1coSS, *v2coSS, *v3coSS, *v4coSS = NULL;
 
 			v1coSS = ps->screenCoords[mf->v1];
@@ -3490,6 +3488,8 @@ static void project_paint_end(ProjPaintState *ps)
 	MEM_freeN(ps->bucketFaces);
 	MEM_freeN(ps->bucketFlags);
 	MEM_freeN(ps->dm_mtface);
+	if (ps->do_layer_clone)
+		MEM_freeN(ps->dm_mtface_clone);
 
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 	if (ps->seam_bleed_px > 0.0f) {

@@ -1100,6 +1100,7 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
         layout = self.layout
 
         settings = context.tool_settings.image_paint
+        brush = settings.brush
 
         ob = context.active_object
         col = layout.column()
@@ -1110,7 +1111,6 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
         if mat:
             col.label("Available Paint Slots")
             col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "paint_active_slot", rows=2)
-            #col.label("Only slots with UV mapping and image textures are available")
             
             if not mat.use_nodes:
                 col.operator_menu_enum("paint.add_texture_paint_slot", "type")
@@ -1118,6 +1118,11 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
                 row = col.row(align=True)
                 row.prop(settings, "new_slot_xresolution")
                 row.prop(settings, "new_slot_yresolution")
+                
+            if brush.image_tool == 'CLONE' and settings.use_clone_layer:
+                col.label("Clone Slot")
+                col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "paint_clone_slot", rows=2)
+            
 
 
 class VIEW3D_PT_tools_brush_overlay(Panel, View3DPaintPanel):
@@ -1665,9 +1670,9 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
 
         col = layout.column()
         col.active = (settings.brush.image_tool == 'CLONE')
-        col.prop(ipaint, "use_clone_layer", text="Clone from UV map")
-        clone_text = mesh.uv_texture_clone.name if mesh.uv_texture_clone else ""
-        col.menu("VIEW3D_MT_tools_projectpaint_clone", text=clone_text, translate=False)
+        col.prop(ipaint, "use_clone_layer", text="Clone from paint slot")
+        #clone_text = mesh.uv_texture_clone.name if mesh.uv_texture_clone else ""
+        #col.menu("VIEW3D_MT_tools_projectpaint_clone", text=clone_text, translate=False)
 
         layout.prop(ipaint, "seam_bleed")
 
