@@ -2247,6 +2247,10 @@ static void ccgSubSurf__dumpCoords(CCGSubSurf *ss)
 }
 #endif  /* DUMP_RESULT_GRIDS */
 
+#ifdef WITH_OPENSUBDIV
+
+#  define OSD_LOG if (false) printf
+
 BLI_INLINE void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
                                           float *face_u, float *face_v)
 {
@@ -2276,58 +2280,78 @@ BLI_INLINE void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
 	}
 }
 
-#ifdef WITH_OPENSUBDIV
+BLI_INLINE void ccgSubSurf__mapEdgeToFace(int S,
+                                          int edge_segment,
+                                          bool inverse_edge,
+                                          int edgeSize,
+                                          float *face_u, float *face_v)
+{
+	int t = inverse_edge ? edgeSize - edge_segment - 1 : edge_segment;
+	if (S == 0) {
+		*face_u = (float) t / (edgeSize - 1);
+		*face_v = 0.0f;
+	}
+	else if (S == 1) {
+		*face_u = 1.0f;
+		*face_v = (float) t / (edgeSize - 1);
+	}
+	else if (S == 2) {
+		*face_u = 1.0f - (float) t / (edgeSize - 1);
+		*face_v = 1.0f;
+	}
+	else {
+		*face_u = 0.0f;
+		*face_v = 1.0f - (float) t / (edgeSize - 1);
+	}
+}
 
-#  define OSD_LOG if (false) printf
+static void opensubdiv_initEvaluatorQuad(CCGSubSurf *ss,
+                                         CCGFace *face)
+{
+	int indices[4];
+	int S;
+
+	BLI_assert(face->numVerts == 4);
+
+	/* Fill in vertex indices array. */
+	for (S = 0; S < face->numVerts; S++) {
+		indices[S] = FACE_getVerts(face)[S]->osd_index;
+	}
+
+	openSubdiv_createEvaluatorDescrFace(ss->osd_evaluator,
+	                                    face->numVerts,
+	                                    indices);
+}
 
 static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 {
-	int i, index;
+	int i, osd_vert_index;
 
 	/* Set an osd_index member in each one so we have consistent indexing. */
-	for (i = 0, index = 0; i < ss->vMap->curSize; i++) {
-		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
-		for (; v; v = v->next, index++) {
-			v->osd_index = index;
+	for (i = 0, osd_vert_index = 0; i < ss->vMap->curSize; ++i) {
+		CCGVert *vert = (CCGVert *) ss->vMap->buckets[i];
+		for (; vert; vert = vert->next, ++osd_vert_index) {
+			vert->osd_index = osd_vert_index;
 		}
 	}
 
-#define MAX_STATIC_VERTS 64
 	for (i = 0; i < ss->fMap->curSize; i++) {
-		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
-		for (; f; f = f->next) {
-			int *indices;
-			int indices_static[MAX_STATIC_VERTS];
-			int S;
-
-			/* If number of vertices per face is low, we use static array,
-			 * this is so because of performance issues -- in most cases
-			 * we'll just use static array and wouldn't stress memory
-			 * allocator at all.
-			 */
-			if (f->numVerts <= MAX_STATIC_VERTS) {
-				indices = indices_static;
-			} else {
-				/* TODO(sergey): Avoid per-ngon allocation, allocate the array once
-				 * and grow it then when needed.
+		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
+		for (; face; face = face->next) {
+			if (face->numVerts == 4) {
+				/* Quads goes to OpenSubdiv as-is, grid coord flipping
+				 * will happen later during evaluation.
 				 */
-				indices = MEM_mallocN(sizeof(int) * f->numVerts, "subsurf hbr tmp vertices");
+				opensubdiv_initEvaluatorQuad(ss, face);
 			}
-
-			/* Fill in vertex indices array. */
-			for (S = 0; S < f->numVerts; S++) {
-				indices[S] = FACE_getVerts(f)[S]->osd_index;
-			}
-
-			openSubdiv_createEvaluatorDescrFace(
-				ss->osd_evaluator, f->numVerts, indices);
-
-			if (indices != indices_static) {
-				MEM_freeN(indices);
+			else {
+				/* Tris and ngons requires special handling since they're
+				 * represented by numVerts grids which corresponds to separate
+				 * faces duing subsurf process.
+				 */
 			}
 		}
 	}
-#undef MAX_STATIC_VERTS
 
 	/* Do feature adaptive refinement and get ready to update
 	 * coarse points and evaluate.
@@ -2383,112 +2407,112 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 	MEM_freeN(positions);
 }
 
-static void opensubdiv_evaluateGrids(CCGSubSurf *ss)
+static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
+                                             CCGFace *f,
+                                             const int osd_face_index)
 {
 	int normalDataOffset = ss->normalDataOffset;
 	int subdivLevels = ss->subdivLevels;
 	int gridSize = ccg_gridsize(subdivLevels);
 	int edgeSize = ccg_edgesize(subdivLevels);
 	int vertDataSize = ss->meshIFC.vertDataSize;
-	int i, index, S;
+	int S;
 
-	for (i = 0, index = 0; i < ss->fMap->curSize; i++) {
-		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
-		for (; f; f = f->next, index++) {
-			for (S = 0; S < f->numVerts; S++) {
-				int x, y, k;
-				CCGEdge *e = NULL;
-				bool inverse_edge;
+	for (S = 0; S < f->numVerts; S++) {
+		int x, y, k;
+		CCGEdge *e = NULL;
+		bool inverse_edge;
 
-				for (x = 0; x < gridSize; x++) {
-					for (y = 0; y < gridSize; y++) {
-						float *co = FACE_getIFCo(f, subdivLevels, S, x, y);
-						float *no = FACE_getIFNo(f, subdivLevels, S, x, y);
-						float grid_u = (float) x / (gridSize - 1),
-						      grid_v = (float) y / (gridSize - 1);
-						float face_u, face_v;
-						float P[3], dPdu[3], dPdv[3];
+		for (x = 0; x < gridSize; x++) {
+			for (y = 0; y < gridSize; y++) {
+				float *co = FACE_getIFCo(f, subdivLevels, S, x, y);
+				float *no = FACE_getIFNo(f, subdivLevels, S, x, y);
+				float grid_u = (float) x / (gridSize - 1),
+				      grid_v = (float) y / (gridSize - 1);
+				float face_u, face_v;
+				float P[3], dPdu[3], dPdv[3];
 
-						ccgSubSurf__mapGridToFace(S, grid_u, grid_v, &face_u, &face_v);
+				ccgSubSurf__mapGridToFace(S, grid_u, grid_v, &face_u, &face_v);
 
-						openSubdiv_evaluateLimit(ss->osd_evaluator, index, face_u, face_v, P, dPdu, dPdv);
+				openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index, face_u, face_v, P, dPdu, dPdv);
 
-						OSD_LOG("face=%d, corner=%d, grid_u=%f, grid_v=%f, face_u=%f, face_v=%f, P=(%f, %f, %f)\n",
-						        index, S, grid_u, grid_v, face_u, face_v, P[0], P[1], P[2]);
+				OSD_LOG("face=%d, corner=%d, grid_u=%f, grid_v=%f, face_u=%f, face_v=%f, P=(%f, %f, %f)\n",
+				        osd_face_index, S, grid_u, grid_v, face_u, face_v, P[0], P[1], P[2]);
 
-						copy_v3_v3(co, P);
-						cross_v3_v3v3(no, dPdu, dPdv);
-						normalize_v3(no);
+				copy_v3_v3(co, P);
+				cross_v3_v3v3(no, dPdu, dPdv);
+				normalize_v3(no);
 
-						if (x == gridSize - 1 && y == gridSize - 1) {
-							float *co = VERT_getCo(FACE_getVerts(f)[S], subdivLevels);
-							float *no = VERT_getNo(FACE_getVerts(f)[S], subdivLevels);
-							copy_v3_v3(co, P);
-							cross_v3_v3v3(no, dPdu, dPdv);
-							normalize_v3(no);
-						}
-						if (S == 0 && x == 0 && y == 0) {
-							float *co = (float *)FACE_getCenterData(f);
-							copy_v3_v3(co, P);
-						}
-					}
-				}
-
-				for (x = 0; x < gridSize; x++) {
-					VertDataCopy(FACE_getIECo(f, subdivLevels, S, x), FACE_getIFCo(f, subdivLevels, S, x, 0), ss);
-				}
-
-				for (k = 0; k < f->numVerts; k++) {
-					CCGEdge *current_edge = FACE_getEdges(f)[k];
-					CCGVert **face_verts = FACE_getVerts(f);
-					if (current_edge->v0 == face_verts[S] &&
-					    current_edge->v1 == face_verts[(S + 1) % f->numVerts])
-					{
-						e = current_edge;
-						inverse_edge = false;
-						break;
-					}
-					if (current_edge->v1 == face_verts[S] &&
-					    current_edge->v0 == face_verts[(S + 1) % f->numVerts])
-					{
-						e = current_edge;
-						inverse_edge = true;
-						break;
-					}
-				}
-
-				BLI_assert(e != NULL);
-
-				for (x = 0; x < edgeSize; x++) {
-					int t = inverse_edge ? edgeSize - x - 1 : x;
-					float u = 0, v = 0;
-					float *co = EDGE_getCo(e, subdivLevels, x);
-					float *no = EDGE_getNo(e, subdivLevels, x);
-					float P[3], dPdu[3], dPdv[3];
-					if (S == 0) {
-						u = (float) t / (edgeSize - 1);
-						v = 0.0f;
-					}
-					else if (S == 1) {
-						u = 1.0f;
-						v = (float) t / (edgeSize - 1);
-					}
-					else if (S == 2) {
-						u = 1.0f - (float) t / (edgeSize - 1);
-						v = 1.0f;
-					}
-					else {
-						u = 0.0f;
-						v = 1.0f - (float) t / (edgeSize - 1);
-					}
-					/* TODO(sergey): Ideally we will re-use grid here, but for now
-					 * let's just re-evaluate for simplicity.
-					 */
-					openSubdiv_evaluateLimit(ss->osd_evaluator, index, u, v, P, dPdu, dPdv);
+				if (x == gridSize - 1 && y == gridSize - 1) {
+					float *co = VERT_getCo(FACE_getVerts(f)[S], subdivLevels);
+					float *no = VERT_getNo(FACE_getVerts(f)[S], subdivLevels);
 					copy_v3_v3(co, P);
 					cross_v3_v3v3(no, dPdu, dPdv);
 					normalize_v3(no);
 				}
+				if (S == 0 && x == 0 && y == 0) {
+					float *co = (float *)FACE_getCenterData(f);
+					copy_v3_v3(co, P);
+				}
+			}
+		}
+
+		for (x = 0; x < gridSize; x++) {
+			VertDataCopy(FACE_getIECo(f, subdivLevels, S, x), FACE_getIFCo(f, subdivLevels, S, x, 0), ss);
+		}
+
+		for (k = 0; k < f->numVerts; k++) {
+			CCGEdge *current_edge = FACE_getEdges(f)[k];
+			CCGVert **face_verts = FACE_getVerts(f);
+			if (current_edge->v0 == face_verts[S] &&
+			    current_edge->v1 == face_verts[(S + 1) % f->numVerts])
+			{
+				e = current_edge;
+				inverse_edge = false;
+				break;
+			}
+			if (current_edge->v1 == face_verts[S] &&
+			    current_edge->v0 == face_verts[(S + 1) % f->numVerts])
+			{
+				e = current_edge;
+				inverse_edge = true;
+				break;
+			}
+		}
+
+		BLI_assert(e != NULL);
+
+		for (x = 0; x < edgeSize; x++) {
+			float u = 0, v = 0;
+			float *co = EDGE_getCo(e, subdivLevels, x);
+			float *no = EDGE_getNo(e, subdivLevels, x);
+			float P[3], dPdu[3], dPdv[3];
+			ccgSubSurf__mapEdgeToFace(S, x,
+			                          inverse_edge,
+			                          edgeSize,
+			                          &u, &v);
+
+			/* TODO(sergey): Ideally we will re-use grid here, but for now
+			 * let's just re-evaluate for simplicity.
+			 */
+			openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index, u, v, P, dPdu, dPdv);
+			copy_v3_v3(co, P);
+			cross_v3_v3v3(no, dPdu, dPdv);
+			normalize_v3(no);
+		}
+	}
+}
+
+static void opensubdiv_evaluateGrids(CCGSubSurf *ss)
+{
+	int i, osd_face_index;
+
+	for (i = 0, osd_face_index = 0; i < ss->fMap->curSize; i++) {
+		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
+		for (; face; face = face->next) {
+			if (face->numVerts == 4) {
+				opensubdiv_evaluateQuadFaceGrids(ss, face, osd_face_index);
+				osd_face_index++;
 			}
 		}
 	}
