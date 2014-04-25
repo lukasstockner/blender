@@ -2654,6 +2654,7 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
                                              CCGFace *face,
                                              const int osd_face_index)
 {
+	CCGVert **all_verts = FACE_getVerts(face);
 	int normalDataOffset = ss->normalDataOffset;
 	int subdivLevels = ss->subdivLevels;
 	int gridSize = ccg_gridsize(subdivLevels);
@@ -2661,9 +2662,9 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 	int vertDataSize = ss->meshIFC.vertDataSize;
 	int S;
 
+	/* Evaluate face grids. */
 	for (S = 0; S < face->numVerts; S++) {
 		int x, y;
-
 		for (x = 0; x < gridSize; x++) {
 			for (y = 0; y < gridSize; y++) {
 				float *co = FACE_getIFCo(face, subdivLevels, S, x, y);
@@ -2694,18 +2695,35 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 				}
 			}
 		}
+		for (x = 0; x < gridSize; x++) {
+			VertDataCopy(FACE_getIECo(face, subdivLevels, S, x),
+			             FACE_getIFCo(face, subdivLevels, S, x, 0), ss);
+		}
+	}
 
-		/* TODO(sergey): Just to prevent uninitialized memory for now,
-		 * for sure needs a proper solution.
-		 */
-		{
-			CCGEdge *edge = FACE_getEdges(face)[S];
-			for (x = 0; x < edgeSize; x++) {
-				float *co = EDGE_getCo(edge, subdivLevels, x);
-				float *no = EDGE_getNo(edge, subdivLevels, x);
-				zero_v3(co);
-				zero_v3(no);
+	/* Evaluate edges. */
+	for (S = 0; S < face->numVerts; S++) {
+		CCGEdge *edge = FACE_getEdges(face)[S];
+		int x, S0, S1;
+
+		for (x = 0; x < face->numVerts; ++x) {
+			if (all_verts[x] == edge->v0) {
+				S0 = x;
 			}
+			else if (all_verts[x] == edge->v1) {
+				S1 = x;
+			}
+		}
+
+		for (x = 0; x <= edgeSize / 2; x++) {
+			float *edge_co = EDGE_getCo(edge, subdivLevels, x);
+			float *face_edge_co = FACE_getIFCo(face, subdivLevels, S0, gridSize - 1 - x, gridSize - 1);
+			VertDataCopy(edge_co, face_edge_co, ss);
+		}
+		for (x = edgeSize / 2 + 1; x < edgeSize; x++) {
+			float *edge_co = EDGE_getCo(edge, subdivLevels, x);
+			float *face_edge_co = FACE_getIFCo(face, subdivLevels, S1, gridSize - 1, x - edgeSize / 2);
+			VertDataCopy(edge_co, face_edge_co, ss);
 		}
 	}
 }
