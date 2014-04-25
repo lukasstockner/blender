@@ -30,8 +30,7 @@ class VIEW3D_HT_header(Header):
         layout = self.layout
 
         view = context.space_data
-        mode_string = context.mode
-        edit_object = context.edit_object
+        # mode_string = context.mode
         obj = context.active_object
         toolsettings = context.tool_settings
 
@@ -1787,7 +1786,7 @@ class VIEW3D_MT_pose(Menu):
         layout.separator()
 
         layout.operator_context = 'INVOKE_AREA'
-        layout.operator("pose.armature_layers", text="Change Armature Layers...")
+        layout.operator("armature.armature_layers", text="Change Armature Layers...")
         layout.operator("pose.bone_layers", text="Change Bone Layers...")
 
         layout.separator()
@@ -2793,8 +2792,6 @@ class VIEW3D_PT_view3d_display(Panel):
 
         view = context.space_data
         scene = context.scene
-        gs = scene.game_settings
-        obj = context.object
 
         col = layout.column()
         col.prop(view, "show_only_render")
