@@ -64,12 +64,15 @@
 typedef enum {
 	GPU_BUFFER_VERTEX_STATE = 1,
 	GPU_BUFFER_NORMAL_STATE = 2,
-	GPU_BUFFER_TEXCOORD_STATE = 4,
-	GPU_BUFFER_COLOR_STATE = 8,
-	GPU_BUFFER_ELEMENT_STATE = 16,
+	GPU_BUFFER_TEXCOORD_STATE_UNIT_0 = 4,
+	GPU_BUFFER_TEXCOORD_STATE_UNIT_1 = 8,
+	GPU_BUFFER_COLOR_STATE = 16,
+	GPU_BUFFER_ELEMENT_STATE = 32,
 } GPUBufferState;
 
 #define MAX_GPU_ATTRIB_DATA 32
+
+#define BUFFER_OFFSET(n) ((GLubyte *)NULL + (n))
 
 /* -1 - undefined, 0 - vertex arrays, 1 - VBOs */
 static int useVBOs = -1;
@@ -845,6 +848,8 @@ static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *ind
 
 	int totmaterial = dm->totmat;
 	MTFace **mtface_base;
+	MTFace *stencil_base;
+	int stencil;
 	MFace *f;
 
 	/* should have been checked for before, reassert */
@@ -863,6 +868,9 @@ static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *ind
 			mtface_base[i] = CustomData_get_layer(&dm->faceData, CD_MTFACE);
 	}
 
+	stencil = CustomData_get_stencil_layer(&dm->faceData, CD_MTFACE);
+	stencil_base = CustomData_get_layer_n(&dm->faceData, CD_MTFACE, stencil);
+
 	totface = dm->getNumTessFaces(dm);
 
 	for (i = 0; i < totface; i++, f++) {
@@ -871,21 +879,26 @@ static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *ind
 
 		/* v1 v2 v3 */
 		copy_v2_v2(&varray[start], mtface_base[mat_i][i].uv[0]);
-		copy_v2_v2(&varray[start + 2], mtface_base[mat_i][i].uv[1]);
-		copy_v2_v2(&varray[start + 4], mtface_base[mat_i][i].uv[2]);
-		index[mat_orig_to_new[f->mat_nr]] += 6;
+		copy_v2_v2(&varray[start + 2], stencil_base[i].uv[0]);
+		copy_v2_v2(&varray[start + 4], mtface_base[mat_i][i].uv[1]);
+		copy_v2_v2(&varray[start + 6], stencil_base[i].uv[1]);
+		copy_v2_v2(&varray[start + 8], mtface_base[mat_i][i].uv[2]);
+		copy_v2_v2(&varray[start + 10], stencil_base[i].uv[2]);
+		index[mat_orig_to_new[mat_i]] += 12;
 
 		if (f->v4) {
 			/* v3 v4 v1 */
-			copy_v2_v2(&varray[start + 6], mtface_base[mat_i][i].uv[2]);
-			copy_v2_v2(&varray[start + 8], mtface_base[mat_i][i].uv[3]);
-			copy_v2_v2(&varray[start + 10], mtface_base[mat_i][i].uv[0]);
-			index[mat_orig_to_new[f->mat_nr]] += 6;
+			copy_v2_v2(&varray[start + 12], mtface_base[mat_i][i].uv[2]);
+			copy_v2_v2(&varray[start + 14], stencil_base[i].uv[2]);
+			copy_v2_v2(&varray[start + 16], mtface_base[mat_i][i].uv[3]);
+			copy_v2_v2(&varray[start + 18], stencil_base[i].uv[3]);
+			copy_v2_v2(&varray[start + 20], mtface_base[mat_i][i].uv[0]);
+			copy_v2_v2(&varray[start + 22], stencil_base[i].uv[0]);
+			index[mat_orig_to_new[mat_i]] += 12;
 		}
 	}
 
-	if (mtface_base)
-		MEM_freeN(mtface_base);
+	MEM_freeN(mtface_base);
 }
 
 
@@ -994,7 +1007,7 @@ const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
 	{GPU_buffer_copy_normal, GL_ARRAY_BUFFER_ARB, 3},
 	{GPU_buffer_copy_mcol, GL_ARRAY_BUFFER_ARB, 3},
 	{GPU_buffer_copy_uv, GL_ARRAY_BUFFER_ARB, 2},
-    {GPU_buffer_copy_uv_texpaint, GL_ARRAY_BUFFER_ARB, 2},
+    {GPU_buffer_copy_uv_texpaint, GL_ARRAY_BUFFER_ARB, 4},
 	{GPU_buffer_copy_edge, GL_ELEMENT_ARRAY_BUFFER_ARB, 2},
 	{GPU_buffer_copy_uvedge, GL_ELEMENT_ARRAY_BUFFER_ARB, 4}
 };
@@ -1035,7 +1048,7 @@ static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 		case GPU_BUFFER_UV:
 			return sizeof(float) * 2 * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_UV_TEXPAINT:
-			return sizeof(float) * 2 * dm->drawObject->tot_triangle_point;
+			return sizeof(float) * 4 * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_EDGE:
 			return sizeof(int) * 2 * dm->drawObject->totedge;
 		case GPU_BUFFER_UVEDGE:
@@ -1140,7 +1153,7 @@ void GPU_uv_setup(DerivedMesh *dm)
 		glTexCoordPointer(2, GL_FLOAT, 0, dm->drawObject->uv->pointer);
 	}
 
-	GLStates |= GPU_BUFFER_TEXCOORD_STATE;
+	GLStates |= GPU_BUFFER_TEXCOORD_STATE_UNIT_0;
 }
 
 void GPU_texpaint_uv_setup(DerivedMesh *dm)
@@ -1151,13 +1164,21 @@ void GPU_texpaint_uv_setup(DerivedMesh *dm)
 	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 	if (useVBOs) {
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, dm->drawObject->uv->id);
-		glTexCoordPointer(2, GL_FLOAT, 0, 0);
+		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), 0);
+		glClientActiveTexture(GL_TEXTURE1);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), BUFFER_OFFSET(2 * sizeof(float)));
+		glClientActiveTexture(GL_TEXTURE0);
 	}
 	else {
-		glTexCoordPointer(2, GL_FLOAT, 0, dm->drawObject->uv->pointer);
+		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), dm->drawObject->uv->pointer);
+		glClientActiveTexture(GL_TEXTURE1);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), (char *)dm->drawObject->uv->pointer + 2 * sizeof(float));
+		glClientActiveTexture(GL_TEXTURE0);
 	}
 
-	GLStates |= GPU_BUFFER_TEXCOORD_STATE;
+	GLStates |= GPU_BUFFER_TEXCOORD_STATE_UNIT_0 | GPU_BUFFER_TEXCOORD_STATE_UNIT_1;
 }
 
 
@@ -1318,8 +1339,13 @@ void GPU_buffer_unbind(void)
 		glDisableClientState(GL_VERTEX_ARRAY);
 	if (GLStates & GPU_BUFFER_NORMAL_STATE)
 		glDisableClientState(GL_NORMAL_ARRAY);
-	if (GLStates & GPU_BUFFER_TEXCOORD_STATE)
+	if (GLStates & GPU_BUFFER_TEXCOORD_STATE_UNIT_0)
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+	if (GLStates & GPU_BUFFER_TEXCOORD_STATE_UNIT_1) {
+		glClientActiveTexture(GL_TEXTURE1);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		glClientActiveTexture(GL_TEXTURE0);
+	}
 	if (GLStates & GPU_BUFFER_COLOR_STATE)
 		glDisableClientState(GL_COLOR_ARRAY);
 	if (GLStates & GPU_BUFFER_ELEMENT_STATE) {
@@ -1328,8 +1354,8 @@ void GPU_buffer_unbind(void)
 		}
 	}
 	GLStates &= ~(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE |
-	              GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE |
-	              GPU_BUFFER_ELEMENT_STATE);
+	              GPU_BUFFER_TEXCOORD_STATE_UNIT_0 | GPU_BUFFER_TEXCOORD_STATE_UNIT_1 |
+	              GPU_BUFFER_COLOR_STATE | GPU_BUFFER_ELEMENT_STATE);
 
 	for (i = 0; i < MAX_GPU_ATTRIB_DATA; i++) {
 		if (attribData[i].index != -1) {

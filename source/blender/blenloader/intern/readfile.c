@@ -5159,6 +5159,10 @@ static void lib_link_scene(FileData *fd, Main *main)
 				sce->toolsettings->sculpt->gravity_object =
 						newlibadr_us(fd, sce->id.lib, sce->toolsettings->sculpt->gravity_object);
 
+			if (sce->toolsettings->imapaint.stencil)
+				sce->toolsettings->imapaint.stencil =
+				        newlibadr_us(fd, sce->id.lib, sce->toolsettings->imapaint.stencil);
+
 			sce->toolsettings->skgen_template = newlibadr(fd, sce->id.lib, sce->toolsettings->skgen_template);
 			
 			for (base = sce->base.first; base; base = next) {

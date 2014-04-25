@@ -216,12 +216,13 @@ static Material *give_current_material_or_def(Object *ob, int matnr)
 
 static struct TextureDrawState {
 	Object *ob;
+	Image *stencil;
 	bool use_game_mat;
 	int is_lit, is_tex;
 	int color_profile;
 	bool use_backface_culling;
 	unsigned char obcol[4];
-} Gtexdraw = {NULL, false, 0, 0, 0, false, {0, 0, 0, 0}};
+} Gtexdraw = {NULL, NULL, false, 0, 0, 0, false, {0, 0, 0, 0}};
 
 static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *ma, struct TextureDrawState gtexdraw)
 {
@@ -248,6 +249,18 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 		c_badtex = false;
 		c_has_texface = -1;
 		c_ma = NULL;
+
+		/* load the stencil texture here */
+		if ((Gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) && (Gtexdraw.stencil != NULL)) {
+			glActiveTexture(GL_TEXTURE1);
+			if (GPU_verify_image(Gtexdraw.stencil, NULL, 0, 1, 0, false)) {
+				glEnable(GL_TEXTURE_2D);
+				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+			}
+			glActiveTexture(GL_TEXTURE0);
+		}
 	}
 	else {
 		textured = gtexdraw.is_tex;
@@ -350,6 +363,7 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	unsigned char obcol[4];
 	bool is_tex, solidtex;
 	Mesh *me = ob->data;
+	ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
 
 	/* XXX scene->obedit warning */
 
@@ -379,6 +393,7 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	else is_tex = false;
 
 	Gtexdraw.ob = ob;
+	Gtexdraw.stencil = (imapaint->flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) ? imapaint->stencil : NULL;
 	Gtexdraw.is_tex = is_tex;
 
 	Gtexdraw.color_profile = BKE_scene_check_color_management_enabled(scene);
@@ -396,6 +411,14 @@ static void draw_textured_end(void)
 {
 	/* switch off textures */
 	GPU_set_tpage(NULL, 0, 0);
+
+	if(Gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) {
+		glActiveTexture(GL_TEXTURE1);
+		GPU_set_tpage(NULL, 0, 0);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glActiveTexture(GL_TEXTURE0);
+	}
 
 	glShadeModel(GL_FLAT);
 	glDisable(GL_CULL_FACE);

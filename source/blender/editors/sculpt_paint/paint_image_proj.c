@@ -3296,6 +3296,10 @@ static void project_paint_begin(ProjPaintState *ps)
 			slot_last = slot;
 		}
 
+		/* don't allow using the same inage for painting and stencilling */
+		if (slot->ima == ps->stencil_ima)
+			continue;
+
 		*tf = tf_base + face_index;
 
 		if (ps->do_layer_clone) {
