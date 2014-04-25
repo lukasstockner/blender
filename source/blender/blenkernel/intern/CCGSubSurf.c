@@ -2318,14 +2318,85 @@ static void opensubdiv_initEvaluatorQuad(CCGSubSurf *ss,
 		indices[S] = FACE_getVerts(face)[S]->osd_index;
 	}
 
+	OSD_LOG("Creating quad face (%d, %d, %d, %d)\n",
+	        indices[0], indices[1], indices[2], indices[3]);
 	openSubdiv_createEvaluatorDescrFace(ss->osd_evaluator,
 	                                    face->numVerts,
 	                                    indices);
 }
 
+static void opensubdiv_initEvaluatorNGon(CCGSubSurf *ss,
+                                         CCGFace *face,
+                                         int fake_vert_index)
+{
+	CCGVert **all_verts;
+	int S, indices[4];
+
+	/*
+	 * Here we create an OpenSubdiv face for every ngon corner.
+	 * For this we connect face center with prev/next edge midpoint.
+	 *
+	 * Certices are called and numbered in the following way:
+	 *
+	 *                                                     |
+	 *                                                (vert_next)
+	 *                                                     |
+	 *                                                     |
+	 *                                                     |
+	 *                  (face_center) ------------------- (v2)
+	 *                         | (o)-------------------->  |
+	 *                         |  |                     v  |
+	 *                         |  |                        |
+	 *                         |  |                        |
+	 *                         |  |                        |
+	 *                         |  |                        |
+	 *                         |  |                        |
+	 *                         |  v  u                     |
+	 *                         |                           |
+	 * ---- (vert_prev) ---- (v1)  --------------------  (vert)
+	 *
+	 * Osd face indices would be:
+	 *   face_center, v1, vert_current, v2
+	 * This makes it so osd face's coords fully corresponds to grid
+	 * coords makes it easy to evaluate.
+	 */
+
+	all_verts = FACE_getVerts(face);
+
+	/* All osd faces starts with the same face center vertex,
+	 * let's set it in advance to save some CPU ticks.
+	 */
+	indices[0] = fake_vert_index;
+
+	for (S = 0; S < face->numVerts; S++) {
+		int v1, v2;
+		CCGVert *vert = all_verts[S];
+
+		if (S == 0) {
+			v1 = fake_vert_index + face->numVerts;
+			v2 = fake_vert_index + S + 1;
+		}
+		else {
+			v1 = fake_vert_index + S;
+			v2 = fake_vert_index + S + 1;
+		}
+
+		/* indices[0] = face_center; */
+		indices[1] = v1;
+		indices[2] = vert->osd_index;
+		indices[3] = v2;
+
+		OSD_LOG("Creating quad face (%d, %d, %d, %d)\n",
+		        indices[0], indices[1], indices[2], indices[3]);
+		openSubdiv_createEvaluatorDescrFace(ss->osd_evaluator,
+		                                    4,
+		                                    indices);
+	}
+}
+
 static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 {
-	int i, osd_vert_index;
+	int i, osd_vert_index, fake_vert_index;
 
 	/* Set an osd_index member in each one so we have consistent indexing. */
 	for (i = 0, osd_vert_index = 0; i < ss->vMap->curSize; ++i) {
@@ -2335,7 +2406,7 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 		}
 	}
 
-	for (i = 0; i < ss->fMap->curSize; i++) {
+	for (i = 0, fake_vert_index = ss->vMap->numEntries; i < ss->fMap->curSize; i++) {
 		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
 		for (; face; face = face->next) {
 			if (face->numVerts == 4) {
@@ -2349,6 +2420,8 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 				 * represented by numVerts grids which corresponds to separate
 				 * faces duing subsurf process.
 				 */
+				opensubdiv_initEvaluatorNGon(ss, face, fake_vert_index);
+				fake_vert_index += 1 + face->numVerts;
 			}
 		}
 	}
@@ -2359,24 +2432,54 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 	return openSubdiv_finishEvaluatorDescr(ss->osd_evaluator, ss->subdivLevels) != 0;
 }
 
+static int opensubdiv_countBaseVerts(CCGSubSurf *ss)
+{
+	int i, num_basis_verts = ss->vMap->numEntries;
+	/* For every NGon and triangle we add a vertex to the
+	 * face median point and subdivide each of face edges.
+	 *
+	 * TODO(sergey): re-use additional vertices when having
+	 * two adjacent tris or ngons.
+	 */
+	for (i = 0; i < ss->fMap->curSize; i++) {
+		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
+		for (; face; face = face->next) {
+			if (face->numVerts != 4) {
+				num_basis_verts += 1 + face->numVerts;
+			}
+		}
+	}
+	return num_basis_verts;
+}
+
+
 static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 {
 	bool evaluator_needs_init = false;
-	if (ss->osd_evaluator == NULL) {
-		int num_basis_verts = ss->vMap->numEntries;
-		OSD_LOG("Allocating new evaluator\n");
-		ss->osd_evaluator =
-			openSubdiv_createEvaluatorDescr(num_basis_verts);
-		evaluator_needs_init = true;
-	} else {
-		OSD_LOG("Re-using old evaluator\n");
+
+	if (ss->osd_evaluator != NULL) {
 		/* TODO(dirk, sergey): Need to check that the existing evaluator has matching:
 		 * - Number of vertices
 		 * - Face topology
 		 *  - Subdivision level
 		 *
 		 * If not we need to blow away and recreate the evaluator.
+		 *
+		 * For now we always re-create the evaluator to be sure edit mode works all
+		 * fine and no topology changes caused by the previous modifiers are screwing
+		 * us up.
 		 */
+		openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
+		ss->osd_evaluator = NULL;
+	}
+	if (ss->osd_evaluator == NULL) {
+		int num_basis_verts = opensubdiv_countBaseVerts(ss);
+		OSD_LOG("Allocating new evaluator, %d verts\n", num_basis_verts);
+		ss->osd_evaluator =
+			openSubdiv_createEvaluatorDescr(num_basis_verts);
+		evaluator_needs_init = true;
+	} else {
+		OSD_LOG("Re-using old evaluator\n");
 	}
 	if (evaluator_needs_init) {
 		return opensubdiv_initEvaluator(ss);
@@ -2386,29 +2489,73 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 
 static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 {
-	float *positions;
+	float (*positions)[3];
 	int vertDataSize = ss->meshIFC.vertDataSize;
-	int num_basis_verts = ss->vMap->numEntries;
+	/* TODO(sergey): De-duplicate this call with evaluator init routines.
+	 * No actual need to re-calculate ngons/tris count here, we just need
+	 * to cache this value somewhere.
+	 */
+	int num_basis_verts = opensubdiv_countBaseVerts(ss);
 	int i;
+
 	positions = MEM_mallocN(3 * sizeof(float) * num_basis_verts, "OpenSubdiv coarse points");
 	for (i = 0; i < ss->vMap->curSize; i++) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
 			float *co = VERT_getCo(v, 0);
-			int index = v->osd_index * 3;
-			BLI_assert(index + 2 < num_basis_verts * 3);
+			BLI_assert(v->osd_index < ss->vMap->numEntries);
 			OSD_LOG("Point %d has value %f %f %f\n",
 			        v->osd_index, co[0], co[1], co[2]);
-			copy_v3_v3(positions + index, co);
+			copy_v3_v3(positions[v->osd_index], co);
 		}
 	}
-	openSubdiv_setEvaluatorCoarsePositions(
-	    ss->osd_evaluator, positions, num_basis_verts);
+
+	/* Only iterate faces if we've got tris and/or ngons. */
+	if (num_basis_verts != ss->vMap->numEntries) {
+		int index = ss->vMap->numEntries;
+		for (i = 0; i < ss->fMap->curSize; i++) {
+			CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
+			for (; face; face = face->next) {
+				if (face->numVerts != 4) {
+					CCGVert **all_verts = FACE_getVerts(face);
+					int S;
+					/* Calculate median point of the face. */
+					float median_acc[3] = {0.0f, 0.0f, 0.0f};
+					for (S = 0; S < face->numVerts; S++) {
+						add_v3_v3(median_acc, VERT_getCo(all_verts[S], 0));
+					}
+					mul_v3_v3fl(positions[index++], median_acc, 1.0f / (float) face->numVerts);
+					OSD_LOG("Point %d (face median) has value %f %f %f\n",
+					        index - 1,
+					        positions[index - 1][0],
+					        positions[index - 1][1],
+					        positions[index - 1][2]);
+					/* Calculate median points of all edges. */
+					for (S = 0; S < face->numVerts; S++) {
+						interp_v3_v3v3(positions[index++],
+						               positions[all_verts[S]->osd_index],
+						               positions[all_verts[(S + 1) % face->numVerts]->osd_index],
+						               0.5f);
+						OSD_LOG("Point %d (edge %d median) has value %f %f %f\n",
+						        index - 1, S,
+						        positions[index - 1][0],
+						        positions[index - 1][1],
+						        positions[index - 1][2]);
+					}
+				}
+			}
+		}
+	}
+
+	openSubdiv_setEvaluatorCoarsePositions(ss->osd_evaluator,
+	                                       (float *) positions,
+	                                       num_basis_verts);
+
 	MEM_freeN(positions);
 }
 
 static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
-                                             CCGFace *f,
+                                             CCGFace *face,
                                              const int osd_face_index)
 {
 	int normalDataOffset = ss->normalDataOffset;
@@ -2418,15 +2565,15 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 	int vertDataSize = ss->meshIFC.vertDataSize;
 	int S;
 
-	for (S = 0; S < f->numVerts; S++) {
+	for (S = 0; S < face->numVerts; S++) {
 		int x, y, k;
-		CCGEdge *e = NULL;
+		CCGEdge *edge = NULL;
 		bool inverse_edge;
 
 		for (x = 0; x < gridSize; x++) {
 			for (y = 0; y < gridSize; y++) {
-				float *co = FACE_getIFCo(f, subdivLevels, S, x, y);
-				float *no = FACE_getIFNo(f, subdivLevels, S, x, y);
+				float *co = FACE_getIFCo(face, subdivLevels, S, x, y);
+				float *no = FACE_getIFNo(face, subdivLevels, S, x, y);
 				float grid_u = (float) x / (gridSize - 1),
 				      grid_v = (float) y / (gridSize - 1);
 				float face_u, face_v;
@@ -2444,48 +2591,48 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 				normalize_v3(no);
 
 				if (x == gridSize - 1 && y == gridSize - 1) {
-					float *co = VERT_getCo(FACE_getVerts(f)[S], subdivLevels);
-					float *no = VERT_getNo(FACE_getVerts(f)[S], subdivLevels);
-					copy_v3_v3(co, P);
-					cross_v3_v3v3(no, dPdu, dPdv);
-					normalize_v3(no);
+					float *vert_co = VERT_getCo(FACE_getVerts(face)[S], subdivLevels);
+					float *vert_no = VERT_getNo(FACE_getVerts(face)[S], subdivLevels);
+					copy_v3_v3(vert_co, co);
+					copy_v3_v3(vert_no, no);
 				}
 				if (S == 0 && x == 0 && y == 0) {
-					float *co = (float *)FACE_getCenterData(f);
-					copy_v3_v3(co, P);
+					float *center_co = (float *)FACE_getCenterData(face);
+					copy_v3_v3(center_co, co);
 				}
 			}
 		}
 
 		for (x = 0; x < gridSize; x++) {
-			VertDataCopy(FACE_getIECo(f, subdivLevels, S, x), FACE_getIFCo(f, subdivLevels, S, x, 0), ss);
+			VertDataCopy(FACE_getIECo(face, subdivLevels, S, x),
+			             FACE_getIFCo(face, subdivLevels, S, x, 0), ss);
 		}
 
-		for (k = 0; k < f->numVerts; k++) {
-			CCGEdge *current_edge = FACE_getEdges(f)[k];
-			CCGVert **face_verts = FACE_getVerts(f);
+		for (k = 0; k < face->numVerts; k++) {
+			CCGEdge *current_edge = FACE_getEdges(face)[k];
+			CCGVert **face_verts = FACE_getVerts(face);
 			if (current_edge->v0 == face_verts[S] &&
-			    current_edge->v1 == face_verts[(S + 1) % f->numVerts])
+			    current_edge->v1 == face_verts[(S + 1) % face->numVerts])
 			{
-				e = current_edge;
+				edge = current_edge;
 				inverse_edge = false;
 				break;
 			}
 			if (current_edge->v1 == face_verts[S] &&
-			    current_edge->v0 == face_verts[(S + 1) % f->numVerts])
+			    current_edge->v0 == face_verts[(S + 1) % face->numVerts])
 			{
-				e = current_edge;
+				edge = current_edge;
 				inverse_edge = true;
 				break;
 			}
 		}
 
-		BLI_assert(e != NULL);
+		BLI_assert(edge != NULL);
 
 		for (x = 0; x < edgeSize; x++) {
 			float u = 0, v = 0;
-			float *co = EDGE_getCo(e, subdivLevels, x);
-			float *no = EDGE_getNo(e, subdivLevels, x);
+			float *co = EDGE_getCo(edge, subdivLevels, x);
+			float *no = EDGE_getNo(edge, subdivLevels, x);
 			float P[3], dPdu[3], dPdv[3];
 			ccgSubSurf__mapEdgeToFace(S, x,
 			                          inverse_edge,
@@ -2503,6 +2650,66 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 	}
 }
 
+static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
+                                             CCGFace *face,
+                                             const int osd_face_index)
+{
+	int normalDataOffset = ss->normalDataOffset;
+	int subdivLevels = ss->subdivLevels;
+	int gridSize = ccg_gridsize(subdivLevels);
+	int edgeSize = ccg_edgesize(subdivLevels);
+	int vertDataSize = ss->meshIFC.vertDataSize;
+	int S;
+
+	for (S = 0; S < face->numVerts; S++) {
+		int x, y;
+
+		for (x = 0; x < gridSize; x++) {
+			for (y = 0; y < gridSize; y++) {
+				float *co = FACE_getIFCo(face, subdivLevels, S, x, y);
+				float *no = FACE_getIFNo(face, subdivLevels, S, x, y);
+				float u = (float) x / (gridSize - 1),
+				      v = (float) y / (gridSize - 1);
+				float P[3], dPdu[3], dPdv[3];
+
+				openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index + S, u, v, P, dPdu, dPdv);
+
+				OSD_LOG("face=%d, corner=%d, u=%f, v=%f, P=(%f, %f, %f)\n",
+				        osd_face_index + S, S, u, v, P[0], P[1], P[2]);
+
+				copy_v3_v3(co, P);
+				cross_v3_v3v3(no, dPdu, dPdv);
+				normalize_v3(no);
+
+				/* TODO(sergey): De-dpuplicate with the quad case. */
+				if (x == gridSize - 1 && y == gridSize - 1) {
+					float *vert_co = VERT_getCo(FACE_getVerts(face)[S], subdivLevels);
+					float *vert_no = VERT_getNo(FACE_getVerts(face)[S], subdivLevels);
+					copy_v3_v3(vert_co, co);
+					copy_v3_v3(vert_no, no);
+				}
+				if (S == 0 && x == 0 && y == 0) {
+					float *center_co = (float *)FACE_getCenterData(face);
+					copy_v3_v3(center_co, co);
+				}
+			}
+		}
+
+		/* TODO(sergey): Just to prevent uninitialized memory for now,
+		 * for sure needs a proper solution.
+		 */
+		{
+			CCGEdge *edge = FACE_getEdges(face)[S];
+			for (x = 0; x < edgeSize; x++) {
+				float *co = EDGE_getCo(edge, subdivLevels, x);
+				float *no = EDGE_getNo(edge, subdivLevels, x);
+				zero_v3(co);
+				zero_v3(no);
+			}
+		}
+	}
+}
+
 static void opensubdiv_evaluateGrids(CCGSubSurf *ss)
 {
 	int i, osd_face_index;
@@ -2511,8 +2718,18 @@ static void opensubdiv_evaluateGrids(CCGSubSurf *ss)
 		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
 		for (; face; face = face->next) {
 			if (face->numVerts == 4) {
+				/* For quads we do special magic with converting face coords
+				 * into corner coords and interpolating grids from it.
+				 */
 				opensubdiv_evaluateQuadFaceGrids(ss, face, osd_face_index);
 				osd_face_index++;
+			}
+			else {
+				/* NGons and tris are split into separate osd faces which
+				 * evaluates onto grids directly.
+				 */
+				opensubdiv_evaluateNGonFaceGrids(ss, face, osd_face_index);
+				osd_face_index += face->numVerts;
 			}
 		}
 	}
