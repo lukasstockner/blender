@@ -257,6 +257,7 @@ typedef struct ProjPaintState {
 	bool  do_layer_clone;
 	bool  do_layer_stencil;
 	bool  do_layer_stencil_inv;
+	bool  do_stencil_brush;
 
 	bool  do_occlude;               /* Use raytraced occlusion? - ortherwise will paint right through to the back*/
 	bool  do_backfacecull;          /* ignore faces with normals pointing away, skips a lot of raycasts if your normals are correctly flipped */
@@ -357,6 +358,19 @@ static TexPaintSlot *project_paint_face_paint_slot(const ProjPaintState *ps, int
 	Material *ma = ps->dm->mat[mf->mat_nr];
 	return &ma->texpaintslot[ma->paint_active_slot];
 }
+
+static Image *project_paint_face_paint_image(const ProjPaintState *ps, int face_index)
+{
+	if (ps->do_stencil_brush) {
+		return ps->stencil_ima;
+	}
+	else {
+		MFace *mf = ps->dm_mface + face_index;
+		Material *ma = ps->dm->mat[mf->mat_nr];
+		return ma->texpaintslot[ma->paint_active_slot].ima;
+	}
+}
+
 
 static TexPaintSlot *project_paint_face_clone_slot(const ProjPaintState *ps, int face_index)
 {
@@ -540,7 +554,7 @@ static bool project_paint_PickColor(const ProjPaintState *ps, const float pt[2],
 		interp_v2_v2v2v2(uv, tf->uv[0], tf->uv[2], tf->uv[3], w);
 	}
 
-	ima = project_paint_face_paint_slot(ps, face_index)->ima;
+	ima = project_paint_face_paint_image(ps, face_index);
 	ibuf = BKE_image_get_first_ibuf(ima); /* we must have got the imbuf before getting here */
 	if (!ibuf) return 0;
 
@@ -902,8 +916,8 @@ static bool check_seam(const ProjPaintState *ps,
 
 			/* Only need to check if 'i2_fidx' is valid because we know i1_fidx is the same vert on both faces */
 			if (i2_fidx != -1) {
-				Image *tpage = project_paint_face_paint_slot(ps, face_index)->ima;
-				Image *orig_tpage = project_paint_face_paint_slot(ps, orig_face)->ima;
+				Image *tpage = project_paint_face_paint_image(ps, face_index);
+				Image *orig_tpage = project_paint_face_paint_image(ps, orig_face);
 
 				BLI_assert(i1_fidx != -1);
 
@@ -2738,7 +2752,7 @@ static void project_bucket_init(const ProjPaintState *ps, const int thread_index
 			face_index = GET_INT_FROM_POINTER(node->link);
 
 			/* Image context switching */
-			tpage = project_paint_face_paint_slot(ps, face_index)->ima;
+			tpage = project_paint_face_paint_image(ps, face_index);
 			if (tpage_last != tpage) {
 				tpage_last = tpage;
 
@@ -2906,7 +2920,7 @@ static void project_paint_begin(ProjPaintState *ps)
 
 	ProjPaintImage *projIma;
 	Image *tpage_last = NULL, *tpage;
-	TexPaintSlot *slot_last = NULL, *slot;
+	TexPaintSlot *slot_last = NULL, *slot = NULL;
 	TexPaintSlot *slot_last_clone = NULL, *slot_clone;
 
 	/* Face vars */
@@ -2999,16 +3013,19 @@ static void project_paint_begin(ProjPaintState *ps)
 		ps->dm_mtface_clone = MEM_mallocN(ps->dm_totface * sizeof (MTFace *), "proj_paint_mtfaces");
 	}
 
-	if (ps->do_layer_stencil) {
+	if (ps->do_layer_stencil || ps->do_stencil_brush) {
 		//int layer_num = CustomData_get_stencil_layer(&ps->dm->faceData, CD_MTFACE);
 		int layer_num = CustomData_get_stencil_layer(&((Mesh *)ps->ob->data)->pdata, CD_MTEXPOLY);
 		if (layer_num != -1)
 			ps->dm_mtface_stencil = CustomData_get_layer_n(&ps->dm->faceData, CD_MTFACE, layer_num);
 
 		if (ps->dm_mtface_stencil == NULL) {
-			ps->do_layer_stencil = false;
-			ps->dm_mtface_stencil = NULL;
+			/* get active instead */
+			ps->dm_mtface_stencil = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
 		}
+
+		if (ps->do_stencil_brush)
+			tf_base = ps->dm_mtface_stencil;
 	}
 
 	/* when using subsurf or multires, mface arrays are thrown away, we need to keep a copy */
@@ -3283,20 +3300,22 @@ static void project_paint_begin(ProjPaintState *ps)
 			is_face_sel = true;
 		}
 
-		slot = project_paint_face_paint_slot(ps, face_index);
-		/* all faces should have a valid slot, reassert here */
-		if (slot == NULL)
-			continue;
+		if (!ps->do_stencil_brush) {
+			slot = project_paint_face_paint_slot(ps, face_index);
+			/* all faces should have a valid slot, reassert here */
+			if (slot == NULL)
+				continue;
 
-		if (slot != slot_last) {
-			if (!slot->uvname[0] || !(tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname)))
-				tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
-			slot_last = slot;
+			if (slot != slot_last) {
+				if (!slot->uvname[0] || !(tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname)))
+					tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
+				slot_last = slot;
+			}
+
+			/* don't allow using the same inage for painting and stencilling */
+			if (slot->ima == ps->stencil_ima)
+				continue;
 		}
-
-		/* don't allow using the same inage for painting and stencilling */
-		if (slot->ima == ps->stencil_ima)
-			continue;
 
 		*tf = tf_base + face_index;
 
@@ -3320,7 +3339,7 @@ static void project_paint_begin(ProjPaintState *ps)
 		/* tfbase here should be non-null! */
 		BLI_assert (tf_base != NULL);
 
-		if (is_face_sel && ((slot && (tpage = slot->ima)) || (tpage = project_paint_face_paint_slot(ps, face_index)->ima))) {
+		if (is_face_sel && ((slot && (tpage = slot->ima)) || (tpage = project_paint_face_paint_image(ps, face_index)))) {
 			float *v1coSS, *v2coSS, *v3coSS, *v4coSS = NULL;
 
 			v1coSS = ps->screenCoords[mf->v1];
@@ -3898,6 +3917,35 @@ static void do_projectpaint_draw_f(ProjPaintState *ps, ProjPixel *projPixel, con
 	}
 }
 
+static void do_projectpaint_mask(ProjPaintState *ps, ProjPixel *projPixel, float mask)
+{
+	unsigned char rgba_ub[4];
+	rgba_ub[0] = rgba_ub[1] = rgba_ub[2] = ps->brush->weight * 255.0;
+	rgba_ub[3] = f_to_char(mask);
+
+	if (ps->do_masking) {
+		IMB_blend_color_byte(projPixel->pixel.ch_pt, projPixel->origColor.ch_pt, rgba_ub, ps->blend);
+	}
+	else {
+		IMB_blend_color_byte(projPixel->pixel.ch_pt, projPixel->pixel.ch_pt, rgba_ub, ps->blend);
+	}
+}
+
+static void do_projectpaint_mask_f(ProjPaintState *ps, ProjPixel *projPixel, float mask)
+{
+	float rgba[4];
+	rgba[0] = rgba[1] = rgba[2] = ps->brush->weight;
+	rgba[3] = mask;
+
+	if (ps->do_masking) {
+		IMB_blend_color_float(projPixel->pixel.f_pt, projPixel->origColor.f_pt, rgba, ps->blend);
+	}
+	else {
+		IMB_blend_color_float(projPixel->pixel.f_pt, projPixel->pixel.f_pt, rgba, ps->blend);
+	}
+}
+
+
 /* run this for single and multithreaded painting */
 static void *do_projectpaint_thread(void *ph_v)
 {
@@ -4203,6 +4251,10 @@ static void *do_projectpaint_thread(void *ph_v)
 									if (is_floatbuf) do_projectpaint_soften_f(ps, projPixel, mask, softenArena, &softenPixels_f);
 									else             do_projectpaint_soften(ps, projPixel, mask, softenArena, &softenPixels);
 									break;
+								case PAINT_TOOL_MASK:
+									if (is_floatbuf) do_projectpaint_mask_f(ps, projPixel, mask);
+									else             do_projectpaint_mask(ps, projPixel, mask);
+									break;
 								default:
 									if (is_floatbuf) do_projectpaint_draw_f(ps, projPixel, texrgb, mask);
 									else             do_projectpaint_draw(ps, projPixel, texrgb, mask);
@@ -4432,7 +4484,9 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	if (ps->tool == PAINT_TOOL_CLONE)
 		ps->do_layer_clone = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_CLONE) ? 1 : 0;
 
-	ps->do_layer_stencil = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) ? 1 : 0;
+	ps->do_stencil_brush = ps->brush->imagepaint_tool == PAINT_TOOL_MASK;
+	/* deactivate stenciling for the stencil brush :) */
+	ps->do_layer_stencil = ((settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) && !(ps->do_stencil_brush)) ? 1 : 0;
 	ps->do_layer_stencil_inv = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV) ? 1 : 0;
 
 

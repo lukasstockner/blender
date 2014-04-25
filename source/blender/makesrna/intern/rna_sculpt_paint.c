@@ -285,6 +285,12 @@ static void rna_Paint_brush_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Po
 	BKE_paint_invalidate_overlay_all();
 	WM_main_add_notifier(NC_BRUSH | NA_EDITED, br);
 }
+
+static void rna_ImaPaint_stencil_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
+{
+	/* not the best solution maybe, but will refresh the 3D viewport */
+	WM_main_add_notifier(NC_OBJECT | ND_DRAW, NULL);
+}
 #else
 
 static void rna_def_palettecolor(BlenderRNA *brna)
@@ -591,7 +597,7 @@ static void rna_def_image_paint(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "invert_stencil", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", IMAGEPAINT_PROJECT_LAYER_STENCIL_INV);
 	RNA_def_property_ui_text(prop, "Invert", "Invert the stencil layer");
-	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, "rna_ImaPaint_stencil_update");
 
 	prop = RNA_def_property(srna, "stencil_image", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "stencil");

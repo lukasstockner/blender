@@ -997,11 +997,6 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                           
             col = layout.column()
             
-            if capabilities.has_radius:
-                row = col.row(align=True)
-                self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
-                self.prop_unified_size(row, context, brush, "use_pressure_size")
-
             if brush.image_tool == 'SOFTEN':
                 col = layout.column(align=True)
                 col.row().prop(brush, "direction", expand=True)
@@ -1010,6 +1005,14 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col.prop(brush, "blur_kernel_radius")
                 col.separator()
                 col.prop(brush, "blur_mode")
+
+            if brush.image_tool == 'MASK':
+                col.prop(brush, "weight", text="Mask Value", slider=True)
+            
+            if capabilities.has_radius:
+                row = col.row(align=True)
+                self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
+                self.prop_unified_size(row, context, brush, "use_pressure_size")
 
             row = col.row(align=True)
             
