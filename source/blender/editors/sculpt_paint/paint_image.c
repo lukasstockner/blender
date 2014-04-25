@@ -1404,6 +1404,7 @@ void paint_proj_mesh_data_ensure(bContext *C, Object *ob)
 		width = imapaint->new_slot_xresolution;
 		height = imapaint->new_slot_yresolution;
 		imapaint->stencil = BKE_image_add_generated(bmain, width, height, "Stencil", 32, false, IMA_GENTYPE_BLANK, color);
+		imapaint->flag |= IMAGEPAINT_PROJECT_LAYER_STENCIL;
 	}
 }
 
