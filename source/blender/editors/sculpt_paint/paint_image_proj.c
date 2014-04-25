@@ -3289,9 +3289,7 @@ static void project_paint_begin(ProjPaintState *ps)
 			continue;
 
 		if (slot != slot_last) {
-			if (slot->uvname[0])
-				tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname);
-			else
+			if (!slot->uvname[0] || !(tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname)))
 				tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
 			slot_last = slot;
 		}
@@ -3311,9 +3309,7 @@ static void project_paint_begin(ProjPaintState *ps)
 			tf_clone = ps->dm_mtface_clone + face_index;
 
 			if (slot_clone != slot_last_clone) {
-				if (slot_clone->uvname[0])
-					tf_clone_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot_clone->uvname);
-				else
+				if (!slot_clone->uvname[0] || !(tf_clone_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot_clone->uvname)))
 					tf_clone_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
 				slot_last_clone = slot_clone;
 			}
