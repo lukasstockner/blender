@@ -102,6 +102,7 @@ EnumPropertyItem brush_image_tool_items[] = {
 	{PAINT_TOOL_SMEAR, "SMEAR", ICON_BRUSH_SMEAR, "Smear", ""},
 	{PAINT_TOOL_CLONE, "CLONE", ICON_BRUSH_CLONE, "Clone", ""},
 	{PAINT_TOOL_FILL, "FILL", ICON_BRUSH_CLONE, "Fill", ""},
+    {PAINT_TOOL_MASK, "MASK", ICON_BRUSH_CLONE, "Mask", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 

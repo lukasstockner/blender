@@ -223,6 +223,8 @@ typedef struct ProjPaintState {
 	MTFace         **dm_mtface_clone;    /* other UV map, use for cloning between layers */
 	MTFace         *dm_mtface_stencil;
 
+	Image *stencil_ima;
+
 	/* projection painting only */
 	MemArena *arena_mt[BLENDER_MAX_THREADS]; /* for multithreading, the first item is sometimes used for non threaded cases too */
 	LinkNode **bucketRect;              /* screen sized 2D array, each pixel has a linked list of ProjPixel's */
@@ -361,22 +363,6 @@ static TexPaintSlot *project_paint_face_clone_slot(const ProjPaintState *ps, int
 	MFace *mf = ps->dm_mface + face_index;
 	Material *ma = ps->dm->mat[mf->mat_nr];
 	return &ma->texpaintslot[ma->paint_clone_slot];
-}
-
-
-static Image *project_paint_mtface_image(const ProjPaintState *ps, MTFace *dm_mtface, int face_index)
-{
-	Image *ima;
-
-	if (ps->do_new_shading_nodes) { /* cached BKE_scene_use_new_shading_nodes result */
-		MFace *mf = ps->dm_mface + face_index;
-		ED_object_get_active_image(ps->ob, mf->mat_nr + 1, &ima, NULL, NULL);
-	}
-	else {
-		ima = dm_mtface[face_index].tpage;
-	}
-
-	return ima;
 }
 
 /* fast projection bucket array lookup, use the safe version for bound checking  */
@@ -1238,7 +1224,7 @@ static float project_paint_uvpixel_mask(
 	if (ps->do_layer_stencil) {
 		/* another UV maps image is masking this one's */
 		ImBuf *ibuf_other;
-		Image *other_tpage = project_paint_mtface_image(ps, ps->dm_mtface_stencil, face_index);
+		Image *other_tpage = ps->stencil_ima;
 		const MTFace *tf_other = ps->dm_mtface_stencil + face_index;
 
 		if (other_tpage && (ibuf_other = BKE_image_acquire_ibuf(other_tpage, NULL, NULL))) {
@@ -3333,8 +3319,6 @@ static void project_paint_begin(ProjPaintState *ps)
 
 		/* tfbase here should be non-null! */
 		BLI_assert (tf_base != NULL);
-		if (ps->dm_mtface_stencil == tf_base)
-			continue;
 
 		if (is_face_sel && ((slot && (tpage = slot->ima)) || (tpage = project_paint_face_paint_slot(ps, face_index)->ima))) {
 			float *v1coSS, *v2coSS, *v3coSS, *v4coSS = NULL;
@@ -4438,6 +4422,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	ps->scene = scene;
 	ps->ob = ob; /* allow override of active object */
 
+	ps->stencil_ima = settings->imapaint.stencil;
 	/* setup projection painting data */
 	ps->do_backfacecull = (settings->imapaint.flag & IMAGEPAINT_PROJECT_BACKFACE) ? 0 : 1;
 	ps->do_occlude = (settings->imapaint.flag & IMAGEPAINT_PROJECT_XRAY) ? 0 : 1;
@@ -4563,6 +4548,8 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 	int orig_brush_size;
 	IDProperty *idgroup;
 	IDProperty *view_data = NULL;
+
+	paint_proj_mesh_data_ensure(C, OBACT);
 
 	project_state_init(C, OBACT, &ps, BRUSH_STROKE_NORMAL);
 

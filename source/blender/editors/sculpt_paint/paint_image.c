@@ -1348,6 +1348,8 @@ void paint_proj_mesh_data_ensure(bContext *C, Object *ob)
 	Mesh *me;
 	int layernum;
 	bool add_material = false;
+	ImagePaintSettings *imapaint = &(CTX_data_tool_settings(C)->imapaint);
+	Brush *br = BKE_paint_brush(&imapaint->paint);
 
 	/* no material, add one */
 	if (ob->totcol == 0) {
@@ -1384,6 +1386,24 @@ void paint_proj_mesh_data_ensure(bContext *C, Object *ob)
 
 	if (layernum == 0) {
 		ED_mesh_uv_texture_add(me, "UVMap", true);
+	}
+
+	/* Make sure we have a stencil to paint on! */
+	if ((br->imagepaint_tool == PAINT_TOOL_MASK) && (imapaint->stencil == NULL)) {
+		int width;
+		int height;
+		Main *bmain = CTX_data_main(C);
+		float color[4] = {0.0, 0.0, 0.0, 1.0};
+
+		/* should not be allowed, but just in case */
+		if (imapaint->new_slot_xresolution == 0)
+			imapaint->new_slot_xresolution = 1024;
+		if (imapaint->new_slot_yresolution == 0)
+			imapaint->new_slot_yresolution = 1024;
+
+		width = imapaint->new_slot_xresolution;
+		height = imapaint->new_slot_yresolution;
+		imapaint->stencil = BKE_image_add_generated(bmain, width, height, "Stencil", 32, false, IMA_GENTYPE_BLANK, color);
 	}
 }
 
