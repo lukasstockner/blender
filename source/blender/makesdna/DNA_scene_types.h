@@ -805,6 +805,8 @@ typedef struct ImagePaintSettings {
 
 	void *paintcursor;			/* wm handle */
 	struct Image *stencil;      /* workaround until we support true layer masks */
+	float stencil_col[3];
+	float pad2;
 } ImagePaintSettings;
 
 /* ------------------------------------------- */

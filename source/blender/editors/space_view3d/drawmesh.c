@@ -223,7 +223,8 @@ static struct TextureDrawState {
 	int color_profile;
 	bool use_backface_culling;
 	unsigned char obcol[4];
-} Gtexdraw = {NULL, NULL, false, false, 0, 0, 0, false, {0, 0, 0, 0}};
+	float stencil_col[4];
+} Gtexdraw = {NULL, NULL, false, false, 0, 0, 0, false, {0, 0, 0, 0}, {0.0f, 0.0f, 0.0f, 1.0f}};
 
 static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *ma, struct TextureDrawState gtexdraw)
 {
@@ -257,10 +258,14 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 			if (GPU_verify_image(Gtexdraw.stencil, NULL, 0, 1, 0, false)) {
 				glEnable(GL_TEXTURE_2D);
 				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_MODULATE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_INTERPOLATE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SRC2_RGB, GL_TEXTURE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_CONSTANT);
 				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+				glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, Gtexdraw.stencil_col);
 				if (!Gtexdraw.stencil_invert) {
-					glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_RGB, GL_ONE_MINUS_SRC_COLOR);
+					glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_ONE_MINUS_SRC_COLOR);
 				}
 			}
 			glActiveTexture(GL_TEXTURE0);
@@ -399,6 +404,7 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	Gtexdraw.ob = ob;
 	Gtexdraw.stencil = (imapaint->flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) ? imapaint->stencil : NULL;
 	Gtexdraw.stencil_invert = ((imapaint->flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV) != 0);
+	copy_v3_v3(Gtexdraw.stencil_col, imapaint->stencil_col);
 	Gtexdraw.is_tex = is_tex;
 
 	Gtexdraw.color_profile = BKE_scene_check_color_management_enabled(scene);
@@ -417,10 +423,10 @@ static void draw_textured_end(void)
 	/* switch off textures */
 	GPU_set_tpage(NULL, 0, 0);
 
-	if(Gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) {
+	if((Gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) && (Gtexdraw.stencil != NULL)) {
 		glActiveTexture(GL_TEXTURE1);
 		GPU_set_tpage(NULL, 0, 0);
-		glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_RGB, GL_SRC_COLOR);
+		glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_COLOR);
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		glActiveTexture(GL_TEXTURE0);

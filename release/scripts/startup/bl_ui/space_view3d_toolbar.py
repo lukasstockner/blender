@@ -1670,6 +1670,7 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
         row.menu("VIEW3D_MT_tools_projectpaint_stencil", text=stencil_text, translate=False)
         row.prop(ipaint, "invert_stencil", text="", icon='IMAGE_ALPHA')
         col.template_ID(ipaint, "stencil_image", new="image.new")
+        col.prop(ipaint, "stencil_color")
 
         col = layout.column()
         col.active = (settings.brush.image_tool == 'CLONE')
