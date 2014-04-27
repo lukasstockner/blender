@@ -4821,7 +4821,6 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 {
 	Object *ob = CTX_data_active_object(C);
 	Scene *scene = CTX_data_scene(C);
-	float color[4] = {0.0, 0.0, 0.0, 1.0};
 	int i;
 	ImagePaintSettings *imapaint = &CTX_data_tool_settings(C)->imapaint;
 	bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
@@ -4870,12 +4869,26 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 				mtex->mapto = type;
 
 				if (mtex->tex) {
+					float color[4];
+					bool use_float = type == MAP_NORM;
+
+					copy_v4_v4(color, imapaint->new_layer_col);
+					if (use_float) {
+						mul_v3_fl(color, color[3]);
+					}
+					else {
+						/* crappy workaround because we only upload straight color to OpenGL and that makes
+						 * painting result on viewport too opaque */
+						color[3] = 1.0;
+					}
+
 					BLI_strncpy(imagename, &ma->id.name[2], FILE_MAX);
 					BLI_strncat_utf8(imagename, "_", FILE_MAX);
 					BLI_strncat_utf8(imagename, name, FILE_MAX);
 					/* take the second letter to avoid the ID identifier */
 
-					ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, type == MAP_NORM, IMA_GENTYPE_BLANK, color);
+					ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, use_float,
+					                                               IMA_GENTYPE_BLANK, color);
 
 					refresh_texpaint_image_cache(ma, false);
 					BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);

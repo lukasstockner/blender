@@ -45,6 +45,7 @@
 #include "BLI_bitmap.h"
 
 #include "BKE_context.h"
+#include "BKE_depsgraph.h"
 #include "BKE_brush.h"
 #include "BKE_main.h"
 #include "BKE_image.h"
@@ -1278,6 +1279,7 @@ void paint_2d_redraw(const bContext *C, void *ps, bool final)
 
 		/* compositor listener deals with updating */
 		WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, s->image);
+		DAG_id_tag_update(&s->image->id, 0);
 	}
 	else {
 		if (!s->sima || !s->sima->lock)
