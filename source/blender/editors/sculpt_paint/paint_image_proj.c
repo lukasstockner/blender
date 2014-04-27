@@ -4160,15 +4160,15 @@ static void *do_projectpaint_thread(void *ph_v)
 
 							if (ps->is_maskbrush) {
 								float texmask = BKE_brush_sample_masktex(ps->scene, ps->brush, projPixel->projCoSS, thread_index, pool);
-								CLAMP(texmask, 0.0f, 1.0f);
 								max_mask *= texmask;
 							}
 
 							if (brush->flag & BRUSH_ACCUMULATE)
-								mask = min_ff(mask_accum + max_mask, 65535.0f);
+								mask = mask_accum + max_mask;
 							else
 								mask = mask_accum + (max_mask - mask_accum * falloff);
 
+							mask = min_ff(mask, 65535.0f);
 							mask_short = (unsigned short)mask;
 
 							if (mask_short > *projPixel->mask_accum) {

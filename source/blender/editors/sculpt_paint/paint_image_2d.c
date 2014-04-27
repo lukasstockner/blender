@@ -220,7 +220,6 @@ static unsigned short *brush_painter_mask_ibuf_new(BrushPainter *painter, int si
 			float res;
 			brush_imbuf_tex_co(&mask_mapping, x, y, texco);
 			res = BKE_brush_sample_masktex(scene, brush, texco, thread, pool);
-			CLAMP(res, 0.0, 1.0);
 			*m = (unsigned short)(65535.0f * res);
 		}
 	}

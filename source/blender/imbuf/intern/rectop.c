@@ -551,9 +551,11 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 								float mask;
 
 								if (accumulate)
-									mask = min_ff(*dmr + mask_lim, 65535.0);
+									mask = *dmr + mask_lim;
 								else
-									mask = *dmr + (((mask_lim - *dmr  * (*cmr) / 65535.0f)));
+									mask = *dmr + mask_lim - (*dmr  * (*cmr / 65535.0f));
+
+								mask = min_ff(mask, 65535.0);
 
 								if (mask > *dmr) {
 									unsigned char mask_src[4];
@@ -575,12 +577,14 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 					else {
 						for (x = width; x > 0; x--, dr++, or++, sr++, cmr++) {
 							unsigned char *src = (unsigned char *)sr;
-							unsigned short mask = (float)mask_max * ((float)(*cmr));
+							float mask = (float)mask_max * ((float)(*cmr));
 
 							if (texmaskrect)
 								mask *= ((float)(*tmr++) / 65535.0f);
 
-							if (src[3] && mask) {
+							mask = min_ff(mask, 65535.0);
+
+							if (src[3] && (mask > 0.0)) {
 								unsigned char mask_src[4];
 
 								mask_src[0] = src[0];
@@ -635,13 +639,15 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 								if (accumulate)
 									mask = min_ff(*dmr + mask_lim, 65535.0);
 								else
-									mask = *dmr + (((mask_lim - *dmr  * (*cmr) / 65535.0f)));
+									mask = *dmr + mask_lim - (*dmr  * (*cmr / 65535.0f));
+
+								mask = min_ff(mask, 65535.0);
 
 								if (mask > *dmr) {
 									float mask_srf[4];
 
 									*dmr = mask;
-									mul_v4_v4fl(mask_srf, srf, mask * (1.0f / 65535.0f));
+									mul_v4_v4fl(mask_srf, srf, mask / 65535.0f);
 
 									func_float(drf, orf, mask_srf);
 								}
@@ -657,10 +663,12 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 							if (texmaskrect)
 								mask *= ((float)(*tmr++) / 65535.0f);
 
-							if (srf[3] && mask) {
+							mask = min_ff(mask, 65535.0);
+
+							if (srf[3] && (mask > 0.0)) {
 								float mask_srf[4];
 
-								mul_v4_v4fl(mask_srf, srf, mask * (1.0f / 65535.0f));
+								mul_v4_v4fl(mask_srf, srf, mask / 65535.0f);
 
 								func_float(drf, orf, mask_srf);
 							}

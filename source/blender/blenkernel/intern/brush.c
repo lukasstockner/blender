@@ -757,12 +757,14 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
 		          rgba, rgba + 1, rgba + 2, rgba + 3, thread, pool);
 	}
 
+	CLAMP(intensity, 0.0, 1.0);
+
 	switch(br->mask_pressure) {
 		case BRUSH_MASK_PRESSURE_CUTOFF:
 			intensity  = ((1.0 - intensity) < ups->size_pressure_value)? 1.0 : 0.0;
 			break;
 		case BRUSH_MASK_PRESSURE_RAMP:
-			intensity = ups->size_pressure_value + intensity*(1.0 - ups->size_pressure_value);
+			intensity = ups->size_pressure_value + intensity * (1.0 - ups->size_pressure_value);
 			break;
 		default:
 			break;
