@@ -958,28 +958,28 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             col = layout.column()
 
-            if brush.image_tool in ('DRAW', 'FILL') and brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'):
+            if brush.image_tool in {'DRAW', 'FILL'} and brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'}:
                 if not brush.use_gradient:
                     col.template_color_picker(brush, "color", value_slider=True)
                 col.prop(brush, "use_gradient")
-                
+
                 if brush.use_gradient:
                     col.label("Gradient Colors")
                     col.template_color_ramp(brush, "gradient", expand=True)
 
                     if brush.image_tool != 'FILL':
-                        col.label("Background Color")            
-                        row = col.row(align=True)            
+                        col.label("Background Color")
+                        row = col.row(align=True)
                         row.prop(brush, "secondary_color", text="")
 
                     if brush.image_tool == 'DRAW':
                         col.prop(brush, "gradient_stroke_mode", text="Mode")
-                        if brush.gradient_stroke_mode in ('SPACING_REPEAT', 'SPACING_CLAMP'):
+                        if brush.gradient_stroke_mode in {'SPACING_REPEAT', 'SPACING_CLAMP'}:
                             col.prop(brush, "grad_spacing")
                     elif brush.image_tool == 'FILL':
-                        col.prop(brush, "gradient_fill_mode")						
+                        col.prop(brush, "gradient_fill_mode")
                 else:
-                    row = layout.row(align=True)            
+                    row = layout.row(align=True)
                     row.prop(brush, "color", text="")
                     if brush.image_tool != 'FILL':
                         row.prop(brush, "secondary_color", text="")
@@ -992,12 +992,12 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col = layout.column()
                 col.template_ID(settings, "palette", new="palette.new")
                 if settings.palette:
-                    col.template_palette(settings, "palette", color=True)      
+                    col.template_palette(settings, "palette", color=True)
 
             col.prop(brush, "blend", text="Blend")
-                          
+
             col = layout.column()
-            
+
             if brush.image_tool == 'SOFTEN':
                 col = layout.column(align=True)
                 col.row().prop(brush, "direction", expand=True)
@@ -1009,14 +1009,14 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             if brush.image_tool == 'MASK':
                 col.prop(brush, "weight", text="Mask Value", slider=True)
-            
+
             if capabilities.has_radius:
                 row = col.row(align=True)
                 self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
                 self.prop_unified_size(row, context, brush, "use_pressure_size")
 
             row = col.row(align=True)
-            
+
             if capabilities.has_space_attenuation:
                 row.prop(brush, "use_space_attenuation", toggle=True, icon_only=True)
 
@@ -1027,7 +1027,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             if capabilities.has_accumulate:
                 col = layout.column(align=True)
                 col.prop(brush, "use_accumulate")
-            
+
         # Weight Paint Mode #
         elif context.weight_paint_object and brush:
 
@@ -1057,7 +1057,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             col.prop(brush, "color", text="")
             col.template_ID(settings, "palette", new="palette.new")
             if settings.palette:
-                col.template_palette(settings, "palette", color=True)      
+                col.template_palette(settings, "palette", color=True)
 
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
@@ -1111,22 +1111,21 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
 
         col.label("Materials")
         col.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
-        mat = ob.active_material;
+        mat = ob.active_material
         if mat:
             col.label("Available Paint Slots")
             col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "paint_active_slot", rows=2)
-            
+
             if not mat.use_nodes:
                 col.operator_menu_enum("paint.add_texture_paint_slot", "type")
-        
+
                 row = col.row(align=True)
                 row.prop(settings, "new_slot_xresolution")
                 row.prop(settings, "new_slot_yresolution")
-                
+
             if brush.image_tool == 'CLONE' and settings.use_clone_layer:
                 col.label("Clone Slot")
                 col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "paint_clone_slot", rows=2)
-            
 
 
 class VIEW3D_PT_tools_brush_overlay(Panel, View3DPaintPanel):
@@ -1394,7 +1393,7 @@ class VIEW3D_PT_sculpt_dyntopo(Panel, View3DPaintPanel):
         col = layout.column()
         col.active = context.sculpt_object.use_dynamic_topology_sculpting
         sub = col.column(align=True)
-        sub.active = brush and brush.sculpt_tool not in ('MASK')
+        sub.active = (brush and brush.sculpt_tool != 'MASK')
         if (sculpt.detail_type_method == 'CONSTANT'):
             row = sub.row(align=True)
             row.operator("sculpt.sample_detail_size", text="", icon='EYEDROPPER')
