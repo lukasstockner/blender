@@ -719,7 +719,7 @@ static void init_iconfile_list(struct ListBase *list)
 
 	for (i = 0; i < totfile; i++) {
 		if ((dir[i].type & S_IFREG)) {
-			char *filename = dir[i].relname;
+			const char *filename = dir[i].relname;
 			
 			if (BLI_testextensie(filename, ".png")) {
 				/* loading all icons on file start is overkill & slows startup
@@ -1137,7 +1137,7 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 #endif
 		if (!iimg->rect) return;  /* something has gone wrong! */
 
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		icon_draw_rect(x, y, w, h, aspect, iimg->w, iimg->h, iimg->rect, alpha, rgb, is_preview);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}

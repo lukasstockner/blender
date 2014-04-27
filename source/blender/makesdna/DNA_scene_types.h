@@ -1189,12 +1189,8 @@ typedef struct Scene {
 	short flag;								/* various settings */
 	
 	char use_nodes;
-
-	/* Openmp Global Settings */
-	char  omp_threads_mode;
-	short omp_threads;
-	char pad[6];
-
+	char pad[1];
+	
 	struct bNodeTree *nodetree;
 	
 	struct Editing *ed;								/* sequence editor data is allocated here */
@@ -1260,6 +1256,8 @@ typedef struct Scene {
 	/* use preview range */
 #define SCER_PRV_RANGE	(1<<0)
 #define SCER_LOCK_FRAME_SELECTION	(1<<1)
+	/* timeline/keyframe jumping - only selected items (on by default) */
+#define SCE_KEYS_NO_SELONLY	(1<<2)
 
 /* mode (int now) */
 #define R_OSA			0x0001
@@ -1795,10 +1793,6 @@ typedef enum SculptFlags {
 /* UnitSettings->flag */
 #define	USER_UNIT_OPT_SPLIT		1
 #define USER_UNIT_ROT_RADIANS	2
-
-/* OpenMP settings */
-#define SCE_OMP_AUTO 0
-#define SCE_OMP_FIXED 1
 
 #ifdef __cplusplus
 }

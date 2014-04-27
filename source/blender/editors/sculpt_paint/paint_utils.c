@@ -406,7 +406,7 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 	PaletteColor *color;
 	Brush *br = BKE_paint_brush(BKE_paint_get_active_from_context(C));
 	unsigned int col;
-	unsigned char *cp;
+	const unsigned char *cp;
 
 	CLAMP(x, 0, ar->winx);
 	CLAMP(y, 0, ar->winy);
