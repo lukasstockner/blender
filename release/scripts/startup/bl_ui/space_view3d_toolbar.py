@@ -964,26 +964,27 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col.prop(brush, "use_gradient")
                 
                 if brush.use_gradient:
-                    if brush.image_tool == 'DRAW':
-                        col.prop(brush, "gradient_stroke_mode")
-                        if brush.gradient_stroke_mode in ('SPACING_REPEAT', 'SPACING_CLAMP'):
-                            col.prop(brush, "grad_spacing")
-                    elif brush.image_tool == 'FILL':
-                        col.prop(brush, "gradient_fill_mode")
-
                     col.label("Gradient Colors")
                     col.template_color_ramp(brush, "gradient", expand=True)
 
                     if brush.image_tool != 'FILL':
-                        col.label("Secondary Color")
-                        col.prop(brush, "secondary_color", text="")
-                        col.operator("paint.brush_colors_flip", icon='FILE_REFRESH')
+                        col.label("Background Color")            
+                        row = col.row(align=True)            
+                        row.prop(brush, "secondary_color", text="")
+
+                    if brush.image_tool == 'DRAW':
+                        col.prop(brush, "gradient_stroke_mode", text="Mode")
+                        if brush.gradient_stroke_mode in ('SPACING_REPEAT', 'SPACING_CLAMP'):
+                            col.prop(brush, "grad_spacing")
+                    elif brush.image_tool == 'FILL':
+                        col.prop(brush, "gradient_fill_mode")						
                 else:
-                    col = layout.column(align=True)            
-                    col.prop(brush, "color", text="")
+                    row = layout.row(align=True)            
+                    row.prop(brush, "color", text="")
                     if brush.image_tool != 'FILL':
-                        col.prop(brush, "secondary_color", text="")
-                        col.operator("paint.brush_colors_flip", icon='FILE_REFRESH')
+                        row.prop(brush, "secondary_color", text="")
+                        row.separator()
+                        row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
 
                 col = layout.column()
                 col.prop(brush, "use_alpha")
