@@ -690,59 +690,49 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
     def draw(self, context):
         layout = self.layout
 
-        toolsettings = context.tool_settings.image_paint
-        brush = toolsettings.brush
+        settings = context.tool_settings.image_paint
+        brush = settings.brush
 
         col = layout.column()
-        col.template_ID_preview(toolsettings, "brush", new="brush.add", rows=2, cols=6)
+        col.template_ID_preview(settings, "brush", new="brush.add", rows=2, cols=6)
 
         if brush:
             capabilities = brush.imapaint_capabilities
 
             col = layout.column()
 
-            if brush.image_tool in ('DRAW', 'FILL') and brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'):
-                if not brush.use_gradient:
-                    col.template_color_picker(brush, "color", value_slider=True)
-                col.prop(brush, "use_gradient")
-                
-                if brush.use_gradient:
-                    if brush.image_tool == 'DRAW':
-                        col.prop(brush, "gradient_stroke_mode")
-                        if brush.gradient_stroke_mode in ('SPACING_REPEAT', 'SPACING_CLAMP'):
-                            col.prop(brush, "grad_spacing")
-                    elif brush.image_tool == 'FILL':
-                        col.prop(brush, "gradient_fill_mode")
-                        
-                    col.label("Gradient Colors")
-                    col.template_color_ramp(brush, "gradient", expand=True)
-                    if brush.image_tool != 'FILL':
-                        col.label("Secondary Color")
-                        col.prop(brush, "secondary_color", text="")
-                        col.operator("paint.brush_colors_flip", icon='FILE_REFRESH')
-                else:
-                    col = layout.column(align=True)            
-                    col.prop(brush, "color", text="")
-                
-                    if brush.image_tool != 'FILL':
-                        col.prop(brush, "secondary_color", text="")
-                        col.operator("paint.brush_colors_flip", icon='FILE_REFRESH')
+            if brush.image_tool in {'DRAW', 'FILL'}:
+                if brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'}:
+                    if not brush.use_gradient:
+                        col.template_color_picker(brush, "color", value_slider=True)
 
-                col = layout.column()
-                col.template_ID(toolsettings, "palette", new="palette.new")
-                if toolsettings.palette:
-                    col.template_palette(toolsettings, "palette", color=True)
-                    
-            col.prop(brush, "blend", text="Blend")
+                    if settings.palette:
+                        col.template_palette(settings, "palette", color=True)
+						
+                    if brush.use_gradient:
+                        col.label("Gradient Colors")
+                        col.template_color_ramp(brush, "gradient", expand=True)
 
-            col = layout.column()
-            
-            if capabilities.has_radius:
-                row = col.row(align=True)
-                self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
-                self.prop_unified_size(row, context, brush, "use_pressure_size")
-            
-            if brush.image_tool == 'SOFTEN':
+                        if brush.image_tool != 'FILL':
+                            col.label("Background Color")
+                            row = col.row(align=True)
+                            row.prop(brush, "secondary_color", text="")
+
+                        if brush.image_tool == 'DRAW':
+                            col.prop(brush, "gradient_stroke_mode", text="Mode")
+                            if brush.gradient_stroke_mode in {'SPACING_REPEAT', 'SPACING_CLAMP'}:
+                                col.prop(brush, "grad_spacing")
+                        elif brush.image_tool == 'FILL':
+                            col.prop(brush, "gradient_fill_mode")
+                    else:
+                        row = col.row(align=True)
+                        row.prop(brush, "color", text="")
+                        if brush.image_tool != 'FILL':
+                            row.prop(brush, "secondary_color", text="")
+                            row.separator()
+                            row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
+
+            elif brush.image_tool == 'SOFTEN':
                 col = layout.column(align=True)
                 col.row().prop(brush, "direction", expand=True)
                 col.separator()
@@ -750,7 +740,10 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 col.prop(brush, "blur_kernel_radius")
                 col.separator()
                 col.prop(brush, "blur_mode")
-            
+
+            elif brush.image_tool == 'MASK':
+                col.prop(brush, "weight", text="Mask Value", slider=True)
+
             elif brush.image_tool == 'CLONE':
                 col.separator()
                 col.prop(brush, "clone_image", text="Image")
@@ -758,20 +751,39 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 
             elif brush.image_tool == 'FILL':
                  col.prop(brush, "fill_threshold")
-                 
+
+            col.separator()
+			
+            if capabilities.has_radius:
+                row = col.row(align=True)
+                self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
+                self.prop_unified_size(row, context, brush, "use_pressure_size")
+
             row = col.row(align=True)
 
             if capabilities.has_space_attenuation:
                 row.prop(brush, "use_space_attenuation", toggle=True, icon_only=True)
 
-            self.prop_unified_strength(row, context, brush, "strength", slider=True, text="Strength")
+            self.prop_unified_strength(row, context, brush, "strength", text="Strength")
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")
+
+            if brush.image_tool in {'DRAW', 'FILL'}:
+                col.separator()
+                col.prop(brush, "blend", text="Blend")
+
+            col = layout.column()
 
             # use_accumulate
             if capabilities.has_accumulate:
-                col.separator()
-
+                col = layout.column(align=True)
                 col.prop(brush, "use_accumulate")
+
+            col.prop(brush, "use_alpha")
+            col.prop(brush, "use_gradient")
+
+            col.separator()
+            col.template_ID(settings, "palette", new="palette.new")
+
 
 class IMAGE_PT_tools_brush_overlay(BrushButtonsPanel, Panel):
     bl_label = "Overlay"

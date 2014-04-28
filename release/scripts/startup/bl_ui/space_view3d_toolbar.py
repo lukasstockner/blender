@@ -958,47 +958,38 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
             col = layout.column()
 
-            if brush.image_tool in {'DRAW', 'FILL'} and brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'}:
-                if not brush.use_gradient:
-                    col.template_color_picker(brush, "color", value_slider=True)
-                col.prop(brush, "use_gradient")
+            if brush.image_tool in {'DRAW', 'FILL'}:
+                if brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'}:
+                    if not brush.use_gradient:
+                        col.template_color_picker(brush, "color", value_slider=True)
 
-                if brush.use_gradient:
-                    col.label("Gradient Colors")
-                    col.template_color_ramp(brush, "gradient", expand=True)
+                    if settings.palette:
+                        col.template_palette(settings, "palette", color=True)
+						
+                    if brush.use_gradient:
+                        col.label("Gradient Colors")
+                        col.template_color_ramp(brush, "gradient", expand=True)
 
-                    if brush.image_tool != 'FILL':
-                        col.label("Background Color")
+                        if brush.image_tool != 'FILL':
+                            col.label("Background Color")
+                            row = col.row(align=True)
+                            row.prop(brush, "secondary_color", text="")
+
+                        if brush.image_tool == 'DRAW':
+                            col.prop(brush, "gradient_stroke_mode", text="Mode")
+                            if brush.gradient_stroke_mode in {'SPACING_REPEAT', 'SPACING_CLAMP'}:
+                                col.prop(brush, "grad_spacing")
+                        elif brush.image_tool == 'FILL':
+                            col.prop(brush, "gradient_fill_mode")
+                    else:
                         row = col.row(align=True)
-                        row.prop(brush, "secondary_color", text="")
+                        row.prop(brush, "color", text="")
+                        if brush.image_tool != 'FILL':
+                            row.prop(brush, "secondary_color", text="")
+                            row.separator()
+                            row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
 
-                    if brush.image_tool == 'DRAW':
-                        col.prop(brush, "gradient_stroke_mode", text="Mode")
-                        if brush.gradient_stroke_mode in {'SPACING_REPEAT', 'SPACING_CLAMP'}:
-                            col.prop(brush, "grad_spacing")
-                    elif brush.image_tool == 'FILL':
-                        col.prop(brush, "gradient_fill_mode")
-                else:
-                    row = layout.row(align=True)
-                    row.prop(brush, "color", text="")
-                    if brush.image_tool != 'FILL':
-                        row.prop(brush, "secondary_color", text="")
-                        row.separator()
-                        row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
-
-                col = layout.column()
-                col.prop(brush, "use_alpha")
-
-                col = layout.column()
-                col.template_ID(settings, "palette", new="palette.new")
-                if settings.palette:
-                    col.template_palette(settings, "palette", color=True)
-
-            col.prop(brush, "blend", text="Blend")
-
-            col = layout.column()
-
-            if brush.image_tool == 'SOFTEN':
+            elif brush.image_tool == 'SOFTEN':
                 col = layout.column(align=True)
                 col.row().prop(brush, "direction", expand=True)
                 col.separator()
@@ -1007,9 +998,11 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col.separator()
                 col.prop(brush, "blur_mode")
 
-            if brush.image_tool == 'MASK':
+            elif brush.image_tool == 'MASK':
                 col.prop(brush, "weight", text="Mask Value", slider=True)
 
+            col.separator()
+			
             if capabilities.has_radius:
                 row = col.row(align=True)
                 self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
@@ -1023,10 +1016,22 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             self.prop_unified_strength(row, context, brush, "strength", text="Strength")
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
+            if brush.image_tool in {'DRAW', 'FILL'}:
+                col.separator()
+                col.prop(brush, "blend", text="Blend")
+
+            col.separator()
+
             # use_accumulate
             if capabilities.has_accumulate:
                 col = layout.column(align=True)
                 col.prop(brush, "use_accumulate")
+
+            col.prop(brush, "use_alpha")
+            col.prop(brush, "use_gradient")
+			
+            col.separator()
+            col.template_ID(settings, "palette", new="palette.new")
 
         # Weight Paint Mode #
         elif context.weight_paint_object and brush:
@@ -1054,11 +1059,11 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
         elif context.vertex_paint_object and brush:
             col = layout.column()
             col.template_color_picker(brush, "color", value_slider=True)
-            col.prop(brush, "color", text="")
-            col.template_ID(settings, "palette", new="palette.new")
             if settings.palette:
                 col.template_palette(settings, "palette", color=True)
+            col.prop(brush, "color", text="")
 
+            col.separator()			
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
             self.prop_unified_size(row, context, brush, "use_pressure_size")
@@ -1071,8 +1076,11 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             #row = col.row(align=True)
             #row.prop(brush, "jitter", slider=True)
             #row.prop(brush, "use_pressure_jitter", toggle=True, text="")
-
+            col.separator()
             col.prop(brush, "vertex_tool", text="Blend")
+
+            col.separator()
+            col.template_ID(settings, "palette", new="palette.new")
 
 
 class TEXTURE_UL_texpaintslots(UIList):

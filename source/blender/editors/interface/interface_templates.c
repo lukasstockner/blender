@@ -2364,6 +2364,10 @@ void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, 
 
 	col = uiLayoutColumn(layout, true);
 	uiLayoutRow(col, true);
+	uiDefIconButO(block, BUT, "PALETTE_OT_color_add", WM_OP_INVOKE_DEFAULT, ICON_PLUS, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
+
+	col = uiLayoutColumn(layout, true);
+	uiLayoutRow(col, true);
 
 	for (; color; color = color->next) {
 		PointerRNA ptr;
@@ -2379,10 +2383,6 @@ void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, 
 
 		row_cols++;
 	}
-
-	col = uiLayoutColumn(layout, true);
-	uiLayoutRow(col, true);
-	uiDefIconButO(block, BUT, "PALETTE_OT_color_add", WM_OP_INVOKE_DEFAULT, ICON_PLUS, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
 }
 
 
