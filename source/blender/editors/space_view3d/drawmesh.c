@@ -242,7 +242,8 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 	int lit = 0;
 	int has_texface = texface != NULL;
 	bool need_set_tpage = false;
-	bool texpaint = false;
+	bool texpaint = ((gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) != 0);
+
 	Image *ima = NULL;
 
 	if (clearcache) {
@@ -251,29 +252,9 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 		c_badtex = false;
 		c_has_texface = -1;
 		c_ma = NULL;
-
-		/* load the stencil texture here */
-		if ((Gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) && (Gtexdraw.stencil != NULL)) {
-			glActiveTexture(GL_TEXTURE1);
-			if (GPU_verify_image(Gtexdraw.stencil, NULL, 0, 1, 0, false)) {
-				glEnable(GL_TEXTURE_2D);
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_INTERPOLATE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC2_RGB, GL_TEXTURE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_CONSTANT);
-				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
-				glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, Gtexdraw.stencil_col);
-				if (!Gtexdraw.stencil_invert) {
-					glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_ONE_MINUS_SRC_COLOR);
-				}
-			}
-			glActiveTexture(GL_TEXTURE0);
-		}
 	}
 	else {
 		textured = gtexdraw.is_tex;
-		texpaint = ((gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) != 0);
 	}
 
 	/* convert number of lights into boolean */
@@ -321,7 +302,9 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 					glEnable(GL_TEXTURE_2D);
 				}
 				else {
-					GPU_set_tpage(NULL, 0, 0);
+					c_badtex = true;
+					GPU_clear_tpage(true);
+					glDisable(GL_TEXTURE_2D);
 					glBindTexture(GL_TEXTURE_2D, 0);
 				}
 			}
@@ -407,6 +390,25 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	copy_v3_v3(Gtexdraw.stencil_col, imapaint->stencil_col);
 	Gtexdraw.is_tex = is_tex;
 
+	/* load the stencil texture here */
+	if ((ob->mode == OB_MODE_TEXTURE_PAINT) && (Gtexdraw.stencil != NULL)) {
+		glActiveTexture(GL_TEXTURE1);
+		if (GPU_verify_image(Gtexdraw.stencil, NULL, 0, 1, 0, false)) {
+			glEnable(GL_TEXTURE_2D);
+			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_INTERPOLATE);
+			glTexEnvi(GL_TEXTURE_ENV, GL_SRC0_RGB, GL_PREVIOUS);
+			glTexEnvi(GL_TEXTURE_ENV, GL_SRC2_RGB, GL_TEXTURE);
+			glTexEnvi(GL_TEXTURE_ENV, GL_SRC1_RGB, GL_CONSTANT);
+			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+			glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, Gtexdraw.stencil_col);
+			if (!Gtexdraw.stencil_invert) {
+				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_ONE_MINUS_SRC_COLOR);
+			}
+		}
+		glActiveTexture(GL_TEXTURE0);
+	}
+
 	Gtexdraw.color_profile = BKE_scene_check_color_management_enabled(scene);
 	Gtexdraw.use_game_mat = (RE_engines_find(scene->r.engine)->flag & RE_GAME) != 0;
 	Gtexdraw.use_backface_culling = (v3d->flag2 & V3D_BACKFACE_CULLING) != 0;
@@ -420,16 +422,23 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 
 static void draw_textured_end(void)
 {
-	/* switch off textures */
-	GPU_set_tpage(NULL, 0, 0);
-
-	if((Gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) && (Gtexdraw.stencil != NULL)) {
-		glActiveTexture(GL_TEXTURE1);
-		GPU_set_tpage(NULL, 0, 0);
-		glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_COLOR);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	if (Gtexdraw.ob->mode & OB_MODE_TEXTURE_PAINT) {
+		if (Gtexdraw.stencil != NULL) {
+			glActiveTexture(GL_TEXTURE1);
+			glDisable(GL_TEXTURE_2D);
+			glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_COLOR);
+			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+			glBindTexture(GL_TEXTURE_2D, 0);
+			glActiveTexture(GL_TEXTURE0);
+		}
+		/* manual reset, since we don't use tpage */
 		glBindTexture(GL_TEXTURE_2D, 0);
-		glActiveTexture(GL_TEXTURE0);
+		/* force switch off textures */
+		GPU_clear_tpage(true);
+	}
+	else {
+		/* switch off textures */
+		GPU_set_tpage(NULL, 0, 0);
 	}
 
 	glShadeModel(GL_FLAT);
