@@ -1241,6 +1241,7 @@ static void paint_keymap_curve(wmKeyMap *keymap)
 
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, 0, 0);
 	RNA_boolean_set(kmi->ptr, "release_confirm", true);
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_S, KM_ANY, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "release_confirm", true);
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_draw", RETKEY, KM_PRESS, 0, 0);
