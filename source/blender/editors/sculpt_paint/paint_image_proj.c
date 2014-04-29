@@ -4479,8 +4479,6 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
 {
 	ProjPaintState *ps = MEM_callocN(sizeof(ProjPaintState), "ProjectionPaintState");
 
-	paint_proj_mesh_data_ensure(C, ob);
-
 	project_state_init(C, ob, ps, mode);
 
 	if (ps->tool == PAINT_TOOL_CLONE && mode == BRUSH_STROKE_INVERT) {
@@ -4565,10 +4563,11 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 	int orig_brush_size;
 	IDProperty *idgroup;
 	IDProperty *view_data = NULL;
+	Object *ob = OBACT;
 
-	paint_proj_mesh_data_ensure(C, OBACT);
+	paint_proj_mesh_data_ensure(C, ob, op);
 
-	project_state_init(C, OBACT, &ps, BRUSH_STROKE_NORMAL);
+	project_state_init(C, ob, &ps, BRUSH_STROKE_NORMAL);
 
 	if (ps.ob == NULL || ps.ob->type != OB_MESH) {
 		BKE_report(op->reports, RPT_ERROR, "No active mesh object");

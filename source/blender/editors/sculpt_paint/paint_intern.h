@@ -165,7 +165,7 @@ void *paint_proj_new_stroke(struct bContext *C, struct Object *ob, const float m
 void paint_proj_stroke(const struct bContext *C, void *ps, const float prevmval_i[2], const float mval_i[2], float pressure, float distance, float size);
 void paint_proj_redraw(const struct bContext *C, void *pps, bool final);
 void paint_proj_stroke_done(void *ps);
-void paint_proj_mesh_data_ensure(bContext *C, struct Object *ob);
+void paint_proj_mesh_data_ensure(bContext *C, struct Object *ob, struct wmOperator *op);
 bool proj_paint_add_slot(bContext *C, int type, struct Material *ma);
 
 void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert, float distance, float pressure, float color[3], struct ColorManagedDisplay *display);

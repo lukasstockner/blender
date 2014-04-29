@@ -745,8 +745,10 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
 
 	/* initialize from context */
 	if (CTX_wm_region_view3d(C)) {
+		Object *ob = OBACT;
+		paint_proj_mesh_data_ensure(C, ob, op);
 		pop->mode = PAINT_MODE_3D_PROJECT;
-		pop->custom_paint = paint_proj_new_stroke(C, OBACT, mouse, mode);
+		pop->custom_paint = paint_proj_new_stroke(C, ob, mouse, mode);
 	}
 	else {
 		pop->mode = PAINT_MODE_2D;
@@ -1343,7 +1345,7 @@ static int texture_paint_toggle_poll(bContext *C)
 
 
 /* Make sure that active object has a material, and assign UVs and image layers (TODO) if they do not exist */
-void paint_proj_mesh_data_ensure(bContext *C, Object *ob)
+void paint_proj_mesh_data_ensure(bContext *C, Object *ob, wmOperator *op)
 {
 	Mesh *me;
 	int layernum;
@@ -1385,6 +1387,8 @@ void paint_proj_mesh_data_ensure(bContext *C, Object *ob)
 	layernum = CustomData_number_of_layers(&me->pdata, CD_MTEXPOLY);
 
 	if (layernum == 0) {
+		BKE_reportf(op->reports, RPT_WARNING, "Object did not have UV map. Recommend manual unwrap");
+
 		ED_mesh_uv_texture_add(me, "UVMap", true);
 	}
 
@@ -1436,7 +1440,7 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 		 * cache in case we are loading a file */
 		refresh_object_texpaint_images(ob, use_nodes);
 
-		paint_proj_mesh_data_ensure(C, ob);
+		paint_proj_mesh_data_ensure(C, ob, op);
 
 		ob->mode |= mode_flag;
 
