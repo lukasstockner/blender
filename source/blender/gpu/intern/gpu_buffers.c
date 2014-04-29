@@ -64,8 +64,8 @@
 typedef enum {
 	GPU_BUFFER_VERTEX_STATE = 1,
 	GPU_BUFFER_NORMAL_STATE = 2,
-	GPU_BUFFER_TEXCOORD_STATE_UNIT_0 = 4,
-	GPU_BUFFER_TEXCOORD_STATE_UNIT_1 = 8,
+	GPU_BUFFER_TEXCOORD_UNIT_0_STATE = 4,
+	GPU_BUFFER_TEXCOORD_UNIT_1_STATE = 8,
 	GPU_BUFFER_COLOR_STATE = 16,
 	GPU_BUFFER_ELEMENT_STATE = 32,
 } GPUBufferState;
@@ -1157,7 +1157,7 @@ void GPU_uv_setup(DerivedMesh *dm)
 		glTexCoordPointer(2, GL_FLOAT, 0, dm->drawObject->uv->pointer);
 	}
 
-	GLStates |= GPU_BUFFER_TEXCOORD_STATE_UNIT_0;
+	GLStates |= GPU_BUFFER_TEXCOORD_UNIT_0_STATE;
 }
 
 void GPU_texpaint_uv_setup(DerivedMesh *dm)
@@ -1182,7 +1182,7 @@ void GPU_texpaint_uv_setup(DerivedMesh *dm)
 		glClientActiveTexture(GL_TEXTURE0);
 	}
 
-	GLStates |= GPU_BUFFER_TEXCOORD_STATE_UNIT_0 | GPU_BUFFER_TEXCOORD_STATE_UNIT_1;
+	GLStates |= GPU_BUFFER_TEXCOORD_UNIT_0_STATE | GPU_BUFFER_TEXCOORD_UNIT_1_STATE;
 }
 
 
@@ -1343,9 +1343,9 @@ void GPU_buffer_unbind(void)
 		glDisableClientState(GL_VERTEX_ARRAY);
 	if (GLStates & GPU_BUFFER_NORMAL_STATE)
 		glDisableClientState(GL_NORMAL_ARRAY);
-	if (GLStates & GPU_BUFFER_TEXCOORD_STATE_UNIT_0)
+	if (GLStates & GPU_BUFFER_TEXCOORD_UNIT_0_STATE)
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	if (GLStates & GPU_BUFFER_TEXCOORD_STATE_UNIT_1) {
+	if (GLStates & GPU_BUFFER_TEXCOORD_UNIT_1_STATE) {
 		glClientActiveTexture(GL_TEXTURE1);
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 		glClientActiveTexture(GL_TEXTURE0);
@@ -1358,7 +1358,7 @@ void GPU_buffer_unbind(void)
 		}
 	}
 	GLStates &= ~(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE |
-	              GPU_BUFFER_TEXCOORD_STATE_UNIT_0 | GPU_BUFFER_TEXCOORD_STATE_UNIT_1 |
+	              GPU_BUFFER_TEXCOORD_UNIT_0_STATE | GPU_BUFFER_TEXCOORD_UNIT_1_STATE |
 	              GPU_BUFFER_COLOR_STATE | GPU_BUFFER_ELEMENT_STATE);
 
 	for (i = 0; i < MAX_GPU_ATTRIB_DATA; i++) {

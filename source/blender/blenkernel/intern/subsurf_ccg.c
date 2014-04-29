@@ -2291,8 +2291,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	CCGKey key;
 	MCol *mcol = dm->getTessFaceDataArray(dm, CD_PREVIEW_MCOL);
 	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
-	int stencil = CustomData_get_stencil_layer(&dm->faceData, CD_MTFACE);
-	MTFace *tf_stencil_base = CustomData_get_layer_n(&dm->faceData, CD_MTFACE, stencil);
+	MTFace *tf_stencil_base = NULL;
 	MTFace *tf_stencil = NULL;
 	MTFace *tf_base;
 	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
@@ -2315,6 +2314,12 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		mcol = dm->getTessFaceDataArray(dm, CD_TEXTURE_MCOL);
 
 	totface = ccgSubSurf_getNumFaces(ss);
+
+	if (flag & DM_DRAW_USE_TEXPAINT_UV) {
+		int stencil = CustomData_get_stencil_layer(&dm->faceData, CD_MTFACE);
+		tf_stencil_base = CustomData_get_layer_n(&dm->faceData, CD_MTFACE, stencil);
+	}
+
 	for (i = 0; i < totface; i++) {
 		CCGFace *f = ccgdm->faceMap[i].face;
 		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);

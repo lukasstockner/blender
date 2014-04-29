@@ -699,7 +699,14 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 	if (GPU_buffer_legacy(dm)) {
 		int mat_nr_cache = -1;
-		MTFace *tf_base = DM_get_tessface_data_layer(dm, CD_MTFACE);;
+		MTFace *tf_base = DM_get_tessface_data_layer(dm, CD_MTFACE);
+		MTFace *tf_stencil_base = NULL;
+		MTFace *tf_stencil = NULL;
+
+		if (uvflag & DM_DRAW_USE_TEXPAINT_UV) {
+			int stencil = CustomData_get_stencil_layer(&dm->faceData, CD_MTFACE);
+			tf_stencil_base = CustomData_get_layer_n(&dm->faceData, CD_MTFACE, stencil);
+		}
 
 		DEBUG_VBO("Using legacy code. cdDM_drawFacesTex_common\n");
 		for (i = 0; i < dm->numTessFaceData; i++, mf++) {
@@ -728,6 +735,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			}
 
 			tf = tf_base ? tf_base + i : NULL;
+			tf_stencil = tf_stencil_base ? tf_stencil_base + i : NULL;
 
 			if (drawParams) {
 				draw_option = drawParams(tf, (mcol != NULL), mf->mat_nr);
@@ -784,6 +792,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 				glBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
 				if (tf) glTexCoord2fv(tf->uv[0]);
+				if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf->uv[0]);
 				if (cp) glColor3ub(cp[3], cp[2], cp[1]);
 				mvert = &mv[mf->v1];
 				if (lnors) glNormal3sv((const GLshort *)lnors[0][0]);
@@ -791,6 +800,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				glVertex3fv(mvert->co);
 
 				if (tf) glTexCoord2fv(tf->uv[1]);
+				if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf->uv[1]);
 				if (cp) glColor3ub(cp[7], cp[6], cp[5]);
 				mvert = &mv[mf->v2];
 				if (lnors) glNormal3sv((const GLshort *)lnors[0][1]);
@@ -798,6 +808,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				glVertex3fv(mvert->co);
 
 				if (tf) glTexCoord2fv(tf->uv[2]);
+				if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf->uv[2]);
 				if (cp) glColor3ub(cp[11], cp[10], cp[9]);
 				mvert = &mv[mf->v3];
 				if (lnors) glNormal3sv((const GLshort *)lnors[0][2]);
@@ -806,6 +817,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 				if (mf->v4) {
 					if (tf) glTexCoord2fv(tf->uv[3]);
+					if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf->uv[3]);
 					if (cp) glColor3ub(cp[15], cp[14], cp[13]);
 					mvert = &mv[mf->v4];
 					if (lnors) glNormal3sv((const GLshort *)lnors[0][3]);
