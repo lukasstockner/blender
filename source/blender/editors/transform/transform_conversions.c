@@ -7137,10 +7137,6 @@ void createTransData(bContext *C, TransInfo *t)
 		t->flag |= T_TEXTURE;
 		createTransTexspace(t);
 	}
-	else if (t->options & CTX_PAINT_CURVE) {
-		t->flag |= T_POINTS | T_2D_EDIT;
-		createTransPaintCurveVerts(C, t);
-	}
 	else if (t->options & CTX_EDGE) {
 		t->ext = NULL;
 		t->flag |= T_EDIT;
@@ -7162,6 +7158,9 @@ void createTransData(bContext *C, TransInfo *t)
 				set_prop_dist(t, true);
 				sort_trans_data_dist(t);
 			}
+		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			createTransPaintCurveVerts(C, t);
 		}
 		else if (t->obedit) {
 			createTransUVs(C, t);
@@ -7292,6 +7291,12 @@ void createTransData(bContext *C, TransInfo *t)
 			sort_trans_data(t); // makes selected become first in array
 			set_prop_dist(t, 1);
 			sort_trans_data_dist(t);
+		}
+	}
+	else if (ob && (ob->mode & OB_MODE_ALL_PAINT)) {
+		if (t->options & CTX_PAINT_CURVE) {
+			t->flag |= T_POINTS | T_2D_EDIT;
+			createTransPaintCurveVerts(C, t);
 		}
 	}
 	else {
