@@ -798,14 +798,14 @@ typedef struct ImagePaintSettings {
 	short screen_grab_size[2]; /* capture size for re-projection */
 
 	/* new layer default resolution */
-	int new_slot_xresolution;
-	int new_slot_yresolution;
+	int slot_xresolution_default;
+	int slot_yresolution_default;
 
 	int pad1;
 
 	void *paintcursor;			/* wm handle */
 	struct Image *stencil;      /* workaround until we support true layer masks */
-	float new_layer_col[4];
+	float slot_color_default[4];
 	float stencil_col[3];
 	float pad2;
 } ImagePaintSettings;

@@ -4794,13 +4794,13 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 		return false;
 
 	/* should not be allowed, but just in case */
-	if (imapaint->new_slot_xresolution == 0)
-		imapaint->new_slot_xresolution = 1024;
-	if (imapaint->new_slot_yresolution == 0)
-		imapaint->new_slot_yresolution = 1024;
+	if (imapaint->slot_xresolution_default == 0)
+		imapaint->slot_xresolution_default = 1024;
+	if (imapaint->slot_yresolution_default == 0)
+		imapaint->slot_yresolution_default = 1024;
 
-	width = imapaint->new_slot_xresolution;
-	height = imapaint->new_slot_yresolution;
+	width = imapaint->slot_xresolution_default;
+	height = imapaint->slot_yresolution_default;
 
 	if (!ma)
 		ma = give_current_material(ob, ob->actcol);
@@ -4835,7 +4835,7 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 					float color[4];
 					bool use_float = type == MAP_NORM;
 
-					copy_v4_v4(color, imapaint->new_layer_col);
+					copy_v4_v4(color, imapaint->slot_color_default);
 					if (use_float) {
 						mul_v3_fl(color, color[3]);
 					}
@@ -4845,10 +4845,8 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 						color[3] = 1.0;
 					}
 
-					BLI_strncpy(imagename, &ma->id.name[2], FILE_MAX);
-					BLI_strncat_utf8(imagename, "_", FILE_MAX);
-					BLI_strncat_utf8(imagename, name, FILE_MAX);
 					/* take the second letter to avoid the ID identifier */
+					BLI_snprintf(imagename, FILE_MAX, "%s_%s", &ma->id.name[2], name);
 
 					ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, use_float,
 					                                               IMA_GENTYPE_BLANK, color);

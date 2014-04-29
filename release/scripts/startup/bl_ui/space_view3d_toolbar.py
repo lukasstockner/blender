@@ -1128,9 +1128,9 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
                 col.operator_menu_enum("paint.add_texture_paint_slot", "type")
 
                 row = col.row(align=True)
-                row.prop(settings, "new_slot_xresolution")
-                row.prop(settings, "new_slot_yresolution")
-                col.prop(settings, "new_layer_color")
+                row.prop(settings, "slot_xresolution_default")
+                row.prop(settings, "slot_yresolution_default")
+                col.prop(settings, "slot_color_default")
                 
             if brush.image_tool == 'CLONE' and settings.use_clone_layer:
                 col.label("Clone Slot")

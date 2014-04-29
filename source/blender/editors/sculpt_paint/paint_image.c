@@ -1396,13 +1396,13 @@ void paint_proj_mesh_data_ensure(bContext *C, Object *ob)
 		float color[4] = {0.0, 0.0, 0.0, 1.0};
 
 		/* should not be allowed, but just in case */
-		if (imapaint->new_slot_xresolution == 0)
-			imapaint->new_slot_xresolution = 1024;
-		if (imapaint->new_slot_yresolution == 0)
-			imapaint->new_slot_yresolution = 1024;
+		if (imapaint->slot_xresolution_default == 0)
+			imapaint->slot_xresolution_default = 1024;
+		if (imapaint->slot_yresolution_default == 0)
+			imapaint->slot_yresolution_default = 1024;
 
-		width = imapaint->new_slot_xresolution;
-		height = imapaint->new_slot_yresolution;
+		width = imapaint->slot_xresolution_default;
+		height = imapaint->slot_yresolution_default;
 		imapaint->stencil = BKE_image_add_generated(bmain, width, height, "Stencil", 32, false, IMA_GENTYPE_BLANK, color);
 		imapaint->flag |= IMAGEPAINT_PROJECT_LAYER_STENCIL;
 	}

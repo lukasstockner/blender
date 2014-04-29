@@ -195,10 +195,6 @@ static int palette_color_add_exec(bContext *C, wmOperator *UNUSED(op))
 		zero_v3(color->rgb);
 		color->value = brush->weight;
 	}
-	else if (mode == PAINT_WEIGHT) {
-		zero_v3(color->rgb);
-		color->value = brush->alpha;
-	}
 
 	return OPERATOR_FINISHED;
 }

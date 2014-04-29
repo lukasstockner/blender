@@ -216,36 +216,27 @@ void paint_get_tex_pixel_col(MTex *mtex, float u, float v, float rgba[4], struct
 
 /* 3D Paint */
 
-static void imapaint_project(Object *ob, float model[4][4], float proj[4][4], const float co[3], float pco[4])
+static void imapaint_project(float matrix[4][4], const float co[3], float pco[4])
 {
 	copy_v3_v3(pco, co);
 	pco[3] = 1.0f;
 
-	mul_m4_v3(ob->obmat, pco);
-	mul_m4_v3(model, pco);
-	mul_m4_v4(proj, pco);
+	mul_m4_v4(matrix, pco);
 }
 
-static void imapaint_tri_weights(Object *ob,
+static void imapaint_tri_weights(float matrix[4][4], GLint view[4],
                                  const float v1[3], const float v2[3], const float v3[3],
                                  const float co[2], float w[3])
 {
 	float pv1[4], pv2[4], pv3[4], h[3], divw;
-	float model[4][4], proj[4][4], wmat[3][3], invwmat[3][3];
-	GLint view[4];
+	float wmat[3][3], invwmat[3][3];
 
 	/* compute barycentric coordinates */
 
-	/* get the needed opengl matrices */
-	glGetIntegerv(GL_VIEWPORT, view);
-	glGetFloatv(GL_MODELVIEW_MATRIX,  (float *)model);
-	glGetFloatv(GL_PROJECTION_MATRIX, (float *)proj);
-	view[0] = view[1] = 0;
-
 	/* project the verts */
-	imapaint_project(ob, model, proj, v1, pv1);
-	imapaint_project(ob, model, proj, v2, pv2);
-	imapaint_project(ob, model, proj, v3, pv3);
+	imapaint_project(matrix, v1, pv1);
+	imapaint_project(matrix, v2, pv2);
+	imapaint_project(matrix, v3, pv3);
 
 	/* do inverse view mapping, see gluProject man page */
 	h[0] = (co[0] - view[0]) * 2.0f / view[2] - 1;
@@ -280,6 +271,10 @@ static void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, c
 	float p[2], w[3], absw, minabsw;
 	MFace mf;
 	MVert mv[4];
+	float matrix[4][4], proj[4][4];
+	GLint view[4];
+
+	/* compute barycentric coordinates */
 
 	/* double lookup */
 	const int *index_mf_to_mpoly = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
@@ -287,6 +282,14 @@ static void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, c
 	if (index_mf_to_mpoly == NULL) {
 		index_mp_to_orig = NULL;
 	}
+
+	/* get the needed opengl matrices */
+	glGetIntegerv(GL_VIEWPORT, view);
+	glGetFloatv(GL_MODELVIEW_MATRIX,  (float *)matrix);
+	glGetFloatv(GL_PROJECTION_MATRIX, (float *)proj);
+	view[0] = view[1] = 0;
+	mul_m4_m4m4(matrix, matrix, ob->obmat);
+	mul_m4_m4m4(matrix, proj, matrix);
 
 	minabsw = 1e10;
 	uv[0] = uv[1] = 0.0;
@@ -312,7 +315,7 @@ static void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, c
 			if (mf.v4) {
 				/* the triangle with the largest absolute values is the one
 				 * with the most negative weights */
-				imapaint_tri_weights(ob, mv[0].co, mv[1].co, mv[3].co, p, w);
+				imapaint_tri_weights(matrix, view, mv[0].co, mv[1].co, mv[3].co, p, w);
 				absw = fabsf(w[0]) + fabsf(w[1]) + fabsf(w[2]);
 				if (absw < minabsw) {
 					uv[0] = tf->uv[0][0] * w[0] + tf->uv[1][0] * w[1] + tf->uv[3][0] * w[2];
@@ -320,7 +323,7 @@ static void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, c
 					minabsw = absw;
 				}
 
-				imapaint_tri_weights(ob, mv[1].co, mv[2].co, mv[3].co, p, w);
+				imapaint_tri_weights(matrix, view, mv[1].co, mv[2].co, mv[3].co, p, w);
 				absw = fabsf(w[0]) + fabsf(w[1]) + fabsf(w[2]);
 				if (absw < minabsw) {
 					uv[0] = tf->uv[1][0] * w[0] + tf->uv[2][0] * w[1] + tf->uv[3][0] * w[2];
@@ -329,7 +332,7 @@ static void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, c
 				}
 			}
 			else {
-				imapaint_tri_weights(ob, mv[0].co, mv[1].co, mv[2].co, p, w);
+				imapaint_tri_weights(matrix, view, mv[0].co, mv[1].co, mv[2].co, p, w);
 				absw = fabsf(w[0]) + fabsf(w[1]) + fabsf(w[2]);
 				if (absw < minabsw) {
 					uv[0] = tf->uv[0][0] * w[0] + tf->uv[1][0] * w[1] + tf->uv[2][0] * w[2];
@@ -489,9 +492,11 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 			glReadBuffer(GL_FRONT);
 			glReadPixels(x + ar->winrct.xmin, y + ar->winrct.ymin, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
 			glReadBuffer(GL_BACK);
-		} else
+		}
+		else
 			return;
-	} else {
+	}
+	else {
 		glReadBuffer(GL_FRONT);
 		glReadPixels(x + ar->winrct.xmin, y + ar->winrct.ymin, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
 		glReadBuffer(GL_BACK);
