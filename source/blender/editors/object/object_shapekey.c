@@ -482,52 +482,24 @@ void OBJECT_OT_shape_key_mirror(wmOperatorType *ot)
 }
 
 
+static int shape_key_move_poll(bContext *C)
+{
+	Object *ob = ED_object_context(C);
+	ID *data = (ob) ? ob->data : NULL;
+	Key *key = BKE_key_from_object(ob);
+	return (ob && !ob->id.lib && data && !data->lib && ob->mode != OB_MODE_EDIT && key && key->totkey);
+}
+
+
 static int shape_key_move_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 
-	int type = RNA_enum_get(op->ptr, "type");
+	int steps = RNA_int_get(op->ptr, "steps");
+	int act_index = ob->shapenr - 1;
 	Key *key = BKE_key_from_object(ob);
 
-	if (key) {
-		KeyBlock *kb, *kb_other;
-		int shapenr_act = ob->shapenr - 1;
-		int shapenr_swap = shapenr_act + type;
-		kb = BLI_findlink(&key->block, shapenr_act);
-
-		if ((type == -1 && kb->prev == NULL) || (type == 1 && kb->next == NULL)) {
-			return OPERATOR_CANCELLED;
-		}
-
-		for (kb_other = key->block.first; kb_other; kb_other = kb_other->next) {
-			if (kb_other->relative == shapenr_act) {
-				kb_other->relative += type;
-			}
-			else if (kb_other->relative == shapenr_swap) {
-				kb_other->relative -= type;
-			}
-		}
-
-		if (type == -1) {
-			/* move back */
-			kb_other = kb->prev;
-			BLI_remlink(&key->block, kb);
-			BLI_insertlinkbefore(&key->block, kb_other, kb);
-			ob->shapenr--;
-		}
-		else {
-			/* move next */
-			kb_other = kb->next;
-			BLI_remlink(&key->block, kb);
-			BLI_insertlinkafter(&key->block, kb_other, kb);
-			ob->shapenr++;
-		}
-
-		SWAP(float, kb_other->pos, kb->pos); /* for absolute shape keys */
-
-		/* First key is refkey, matches interface and BKE_key_sort */
-		key->refkey = key->block.first;
-	}
+	BKE_key_move(ob, BKE_keyblock_from_object(ob), act_index + steps); 
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -537,24 +509,51 @@ static int shape_key_move_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_shape_key_move(wmOperatorType *ot)
 {
-	static EnumPropertyItem slot_move[] = {
-		{-1, "UP", 0, "Up", ""},
-		{1, "DOWN", 0, "Down", ""},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	/* identifiers */
 	ot->name = "Move Shape Key";
 	ot->idname = "OBJECT_OT_shape_key_move";
 	ot->description = "Move the active shape key up/down in the list";
 
 	/* api callbacks */
-	ot->poll = shape_key_mode_poll;
+	ot->poll = shape_key_move_poll;
 	ot->exec = shape_key_move_exec;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
+	//RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
+	RNA_def_int(ot->srna, "steps", 1, -INT_MAX, INT_MAX, "Direction", "Move the shape key up or down?", -1, 1);
 }
 
+
+static int shape_key_place_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = ED_object_context(C);
+	int act_index = ob->shapenr - 1;
+	int new_index = RNA_int_get(op->ptr, "index");
+	Key *key = BKE_key_from_object(ob);
+
+	BKE_key_move(ob, BLI_findlink(&key->block, act_index), RNA_int_get(op->ptr, "index"));
+
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_shape_key_place_at_index(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Place Shape Key At Index";
+	ot->idname = "OBJECT_OT_shape_key_place_at_index";
+	ot->description = "Place a shape key at a given position in the list";
+
+	/* api callbacks */
+	ot->poll = shape_key_move_poll;
+	ot->exec = shape_key_place_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_int(ot->srna, "index", 1, -INT_MAX, INT_MAX, "New Shape Index", "The desired position of the shape key", 0, INT_MAX);
+}

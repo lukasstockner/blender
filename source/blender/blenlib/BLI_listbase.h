@@ -89,6 +89,15 @@ BLI_INLINE void BLI_listbase_clear(struct ListBase *lb) { lb->first = lb->last =
 /* create a generic list node containing link to provided data */
 struct LinkData *BLI_genericNodeN(void *data);
 
+
+/* Loops through the whole list fwd or bwd */
+
+#define LISTBASE_ITER_FWD(lb, lb_iter) \
+	for (lb_iter = lb.first; lb_iter; lb_iter = lb_iter->next)
+
+#define LISTBASE_ITER_BWD(lb, lb_iter) \
+	for (lb_iter = lb.last; lb_iter; lb_iter = lb_iter->prev)
+
 /**
  * Does a full loop on the list, with any value acting as first
  * (handy for cycling items)

@@ -249,7 +249,8 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
 
         rows = 2
         if kb:
-            rows = 4
+            rows = 7
+            
         row.template_list("MESH_UL_shape_keys", "", key, "key_blocks", ob, "active_shape_key_index", rows=rows)
 
         col = row.column()
@@ -263,8 +264,10 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             col.separator()
 
             sub = col.column(align=True)
-            sub.operator("object.shape_key_move", icon='TRIA_UP', text="").type = 'UP'
-            sub.operator("object.shape_key_move", icon='TRIA_DOWN', text="").type = 'DOWN'
+            sub.operator("object.shape_key_move", icon='TRIA_UP', text="").steps = -5
+            sub.operator("object.shape_key_move", icon='TRIA_UP', text="").steps = -1
+            sub.operator("object.shape_key_move", icon='TRIA_DOWN', text="").steps = 1
+            sub.operator("object.shape_key_move", icon='TRIA_DOWN', text="").steps = 5
 
             split = layout.split(percentage=0.4)
             row = split.row()

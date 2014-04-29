@@ -2041,3 +2041,73 @@ void BKE_key_convert_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3])
 		}
 	}
 }
+
+void BKE_key_move(Object *ob, KeyBlock *key_block, int new_index) 
+{
+	Key *key = BKE_key_from_object(ob);
+	KeyBlock *kb;
+	int delete_index, insert_index;
+	int act_shape_index = ob->shapenr - 1;
+
+	/* find where to put */
+	delete_index = BLI_findindex(&key->block, key_block);
+	insert_index = new_index - 1;
+
+	CLAMP(new_index, 0, key->totkey - 1);
+
+	if (new_index == delete_index)
+		return;
+
+	BLI_remlink(&key->block, key_block);
+
+	if (insert_index >= key->totkey - 1) {
+		insert_index = key->totkey - 1;
+		kb = key->block.last;
+		BLI_insertlinkafter(&key->block, kb, key_block);
+	} 
+	else if (insert_index < 0) {
+		/* special case -- position 0 */
+		insert_index = 0;
+		kb = key->block.first;
+		BLI_insertlinkbefore(&key->block, kb, key_block);
+	}
+	else {
+		kb = BLI_findlink(&key->block, insert_index);
+		BLI_insertlinkafter(&key->block, kb, key_block);
+	}
+
+	/* patch refkey */
+	key->refkey = key->block.first;
+
+	/* fix abs positions */
+	SWAP(float, kb->pos, key_block->pos);
+
+	/* need to update active shape number if it's affected */
+	if (act_shape_index == delete_index) {
+		ob->shapenr = new_index + 1;
+	} 
+	else if (insert_index <= act_shape_index && delete_index > act_shape_index) {
+		/* insert before, remove after */
+		ob->shapenr++;
+	} 
+	else if (insert_index >= act_shape_index && delete_index < act_shape_index) {
+		/* insert after, remove before */
+		ob->shapenr--;
+	}
+
+	/* patch basis indeces*/
+	LISTBASE_ITER_FWD(key->block, kb) {
+		if (kb->relative == delete_index) {
+			kb->relative = new_index;
+			continue;
+		}
+		if (new_index <= kb->relative && delete_index > kb->relative) {
+			/* insert before, remove after */
+			kb->relative++;
+		} 
+		else if (new_index >= kb->relative && delete_index < kb->relative) {
+			/* insert after, remove before */
+			kb->relative--;
+		}
+	}
+}
