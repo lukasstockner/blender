@@ -740,7 +740,8 @@ static float calc_overlap(StrokeCache *cache, const char symm, const char axis, 
 	flip_v3_v3(mirror, cache->true_location, symm);
 
 	if (axis != 0) {
-		float mat[4][4] = MAT4_UNITY;
+		float mat[4][4];
+		unit_m4(mat);
 		rotate_m4(mat, axis, angle);
 		mul_m4_v3(mat, mirror);
 	}
@@ -3741,7 +3742,7 @@ static void sculpt_init_mirror_clipping(Object *ob, SculptSession *ss)
 	}
 }
 
-static void sculpt_omp_start(Scene *scene, Sculpt *sd, SculptSession *ss)
+static void sculpt_omp_start(Sculpt *sd, SculptSession *ss)
 {
 	StrokeCache *cache = ss->cache;
 
@@ -3763,7 +3764,6 @@ static void sculpt_omp_start(Scene *scene, Sculpt *sd, SculptSession *ss)
 	cache->max_threads = omp_get_max_threads();
 	omp_set_num_threads(cache->num_threads);
 #else
-	(void)scene;
 	(void)sd;
 	cache->num_threads = 1;
 #endif
@@ -3984,7 +3984,7 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	cache->previous_vertex_rotation = 0;
 	cache->init_dir_set = false;
 
-	sculpt_omp_start(scene, sd, ss);
+	sculpt_omp_start(sd, ss);
 }
 
 static void sculpt_update_brush_delta(UnifiedPaintSettings *ups, Object *ob, Brush *brush)

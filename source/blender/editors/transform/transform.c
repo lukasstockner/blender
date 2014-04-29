@@ -973,7 +973,6 @@ static void transform_event_xyz_constraint(TransInfo *t, short key_type, char cm
 
 int transformEvent(TransInfo *t, const wmEvent *event)
 {
-	float mati[3][3] = MAT3_UNITY;
 	char cmode = constraintModeToChar(t);
 	bool handled = false;
 
@@ -1334,7 +1333,9 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 							}
 							else {
 								/* bit hackish... but it prevents mmb select to print the orientation from menu */
+								float mati[3][3];
 								strcpy(t->spacename, "global");
+								unit_m3(mati);
 								initSelectConstraint(t, mati);
 							}
 							postSelectConstraint(t);
