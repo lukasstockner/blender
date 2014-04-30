@@ -682,11 +682,10 @@ static int pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
 }
 
 /* common code for cancel() */
-static int pose_slide_cancel(bContext *UNUSED(C), wmOperator *op)
+static void pose_slide_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	/* cleanup and done */
 	pose_slide_exit(op);
-	return OPERATOR_CANCELLED;
 }
 
 /* common code for exec() methods */
@@ -1014,11 +1013,11 @@ static float pose_propagate_get_boneHoldEndFrame(Object *ob, tPChanFCurveLink *p
 }
 
 /* get reference value from F-Curve using RNA */
-static short pose_propagate_get_refVal(Object *ob, FCurve *fcu, float *value)
+static bool pose_propagate_get_refVal(Object *ob, FCurve *fcu, float *value)
 {
 	PointerRNA id_ptr, ptr;
 	PropertyRNA *prop;
-	short found = FALSE;
+	bool found = false;
 	
 	/* base pointer is always the object -> id_ptr */
 	RNA_id_pointer_create(&ob->id, &id_ptr);
@@ -1028,7 +1027,7 @@ static short pose_propagate_get_refVal(Object *ob, FCurve *fcu, float *value)
 		if (RNA_property_array_check(prop)) {
 			/* array */
 			if (fcu->array_index < RNA_property_array_length(&ptr, prop)) {
-				found = TRUE;
+				found = true;
 				switch (RNA_property_type(prop)) {
 					case PROP_BOOLEAN:
 						*value = (float)RNA_property_boolean_get_index(&ptr, prop, fcu->array_index);
@@ -1040,14 +1039,14 @@ static short pose_propagate_get_refVal(Object *ob, FCurve *fcu, float *value)
 						*value = RNA_property_float_get_index(&ptr, prop, fcu->array_index);
 						break;
 					default:
-						found = FALSE;
+						found = false;
 						break;
 				}
 			}
 		}
 		else {
 			/* not an array */
-			found = TRUE;
+			found = true;
 			switch (RNA_property_type(prop)) {
 				case PROP_BOOLEAN:
 					*value = (float)RNA_property_boolean_get(&ptr, prop);
@@ -1062,7 +1061,7 @@ static short pose_propagate_get_refVal(Object *ob, FCurve *fcu, float *value)
 					*value = RNA_property_float_get(&ptr, prop);
 					break;
 				default:
-					found = FALSE;
+					found = false;
 					break;
 			}
 		}
@@ -1130,7 +1129,7 @@ static void pose_propagate_fcurve(wmOperator *op, Object *ob, FCurve *fcu,
 			
 			/* stop on matching marker if there is one */
 			for (ce = modeData.sel_markers.first; ce; ce = ce->next) {
-				if (ce->cfra == (int)(floor(bezt->vec[1][0] + 0.5f)))
+				if (ce->cfra == iroundf(bezt->vec[1][0]))
 					break;
 			}
 			

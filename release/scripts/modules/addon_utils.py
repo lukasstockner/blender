@@ -35,6 +35,7 @@ error_duplicates = False
 error_encoding = False
 addons_fake_modules = {}
 
+
 def paths():
     # RELEASE SCRIPTS: official scripts distributed in Blender releases
     addon_paths = _bpy.utils.script_paths("addons")
@@ -228,9 +229,9 @@ def check(module_name):
 
 def _addon_ensure(module_name):
     addons = _user_preferences.addons
-    addon = _user_preferences.addons.get(module_name)
+    addon = addons.get(module_name)
     if not addon:
-        addon = _user_preferences.addons.new()
+        addon = addons.new()
         addon.module = module_name
 
 
@@ -408,7 +409,6 @@ def module_bl_info(mod, info_basis={"name": "",
                                     "location": "",
                                     "description": "",
                                     "wiki_url": "",
-                                    "tracker_url": "",
                                     "support": 'COMMUNITY',
                                     "category": "",
                                     "warning": "",

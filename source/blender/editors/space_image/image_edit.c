@@ -135,11 +135,11 @@ void ED_space_image_release_buffer(SpaceImage *sima, ImBuf *ibuf, void *lock)
 		BKE_image_release_ibuf(sima->image, ibuf, lock);
 }
 
-int ED_space_image_has_buffer(SpaceImage *sima)
+bool ED_space_image_has_buffer(SpaceImage *sima)
 {
 	ImBuf *ibuf;
 	void *lock;
-	int has_buffer;
+	bool has_buffer;
 
 	ibuf = ED_space_image_acquire_buffer(sima, &lock);
 	has_buffer = (ibuf != NULL);
@@ -257,7 +257,7 @@ void ED_image_mouse_pos(SpaceImage *sima, ARegion *ar, const int mval[2], float 
 	ED_space_image_get_zoom(sima, ar, &zoomx, &zoomy);
 	ED_space_image_get_size(sima, &width, &height);
 
-	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
 
 	co[0] = ((mval[0] - sx) / zoomx) / width;
 	co[1] = ((mval[1] - sy) / zoomy) / height;
@@ -271,7 +271,7 @@ void ED_image_point_pos(SpaceImage *sima, ARegion *ar, float x, float y, float *
 	ED_space_image_get_zoom(sima, ar, &zoomx, &zoomy);
 	ED_space_image_get_size(sima, &width, &height);
 
-	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
 
 	*xr = ((x - sx) / zoomx) / width;
 	*yr = ((y - sy) / zoomy) / height;
@@ -283,7 +283,7 @@ void ED_image_point_pos__reverse(SpaceImage *sima, ARegion *ar, const float co[2
 	int width, height;
 	int sx, sy;
 
-	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &sx, &sy);
 	ED_space_image_get_size(sima, &width, &height);
 	ED_space_image_get_zoom(sima, ar, &zoomx, &zoomy);
 
@@ -291,12 +291,12 @@ void ED_image_point_pos__reverse(SpaceImage *sima, ARegion *ar, const float co[2
 	r_co[1] = (co[1] * height * zoomy) + (float)sy;
 }
 
-int ED_space_image_show_render(SpaceImage *sima)
+bool ED_space_image_show_render(SpaceImage *sima)
 {
 	return (sima->image && ELEM(sima->image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE));
 }
 
-int ED_space_image_show_paint(SpaceImage *sima)
+bool ED_space_image_show_paint(SpaceImage *sima)
 {
 	if (ED_space_image_show_render(sima))
 		return 0;
@@ -304,7 +304,7 @@ int ED_space_image_show_paint(SpaceImage *sima)
 	return (sima->mode == SI_MODE_PAINT);
 }
 
-int ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
+bool ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 {
 	if (sima && (ED_space_image_show_render(sima) || ED_space_image_show_paint(sima)))
 		return 0;
@@ -321,7 +321,7 @@ int ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 	return 0;
 }
 
-int ED_space_image_show_uvshadow(SpaceImage *sima, Object *obedit)
+bool ED_space_image_show_uvshadow(SpaceImage *sima, Object *obedit)
 {
 	if (ED_space_image_show_render(sima))
 		return 0;
@@ -340,12 +340,12 @@ int ED_space_image_show_uvshadow(SpaceImage *sima, Object *obedit)
 }
 
 /* matches clip function */
-int ED_space_image_check_show_maskedit(Scene *scene, SpaceImage *sima)
+bool ED_space_image_check_show_maskedit(Scene *scene, SpaceImage *sima)
 {
 	/* check editmode - this is reserved for UV editing */
 	Object *ob = OBACT;
 	if (ob && ob->mode & OB_MODE_EDIT && ED_space_image_show_uvedit(sima, ob)) {
-		return FALSE;
+		return false;
 	}
 
 	return (sima->mode == SI_MODE_MASK);
@@ -360,7 +360,7 @@ int ED_space_image_maskedit_poll(bContext *C)
 		return ED_space_image_check_show_maskedit(scene, sima);
 	}
 
-	return FALSE;
+	return false;
 }
 
 int ED_space_image_maskedit_mask_poll(bContext *C)
@@ -370,6 +370,6 @@ int ED_space_image_maskedit_mask_poll(bContext *C)
 		return sima->mask_info.mask != NULL;
 	}
 
-	return FALSE;
+	return false;
 }
 

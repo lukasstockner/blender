@@ -49,6 +49,19 @@
 #include "MEM_CacheLimiterC-Api.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_threads.h"
+
+static SpinLock refcounter_spin;
+
+void imb_refcounter_lock_init(void)
+{
+	BLI_spin_init(&refcounter_spin);
+}
+
+void imb_refcounter_lock_exit(void)
+{
+	BLI_spin_end(&refcounter_spin);
+}
 
 void imb_freemipmapImBuf(ImBuf *ibuf)
 {
@@ -154,10 +167,18 @@ void IMB_freezbuffloatImBuf(ImBuf *ibuf)
 void IMB_freeImBuf(ImBuf *ibuf)
 {
 	if (ibuf) {
+		bool needs_free = false;
+
+		BLI_spin_lock(&refcounter_spin);
 		if (ibuf->refcounter > 0) {
 			ibuf->refcounter--;
 		}
 		else {
+			needs_free = true;
+		}
+		BLI_spin_unlock(&refcounter_spin);
+
+		if (needs_free) {
 			imb_freerectImBuf(ibuf);
 			imb_freerectfloatImBuf(ibuf);
 			imb_freetilesImBuf(ibuf);
@@ -177,7 +198,9 @@ void IMB_freeImBuf(ImBuf *ibuf)
 
 void IMB_refImBuf(ImBuf *ibuf)
 {
+	BLI_spin_lock(&refcounter_spin);
 	ibuf->refcounter++;
+	BLI_spin_unlock(&refcounter_spin);
 }
 
 ImBuf *IMB_makeSingleUser(ImBuf *ibuf)
@@ -201,7 +224,7 @@ bool addzbufImBuf(ImBuf *ibuf)
 	
 	IMB_freezbufImBuf(ibuf);
 	
-	size = (size_t)(ibuf->x * ibuf->y) * sizeof(unsigned int);
+	size = (size_t)ibuf->x * (size_t)ibuf->y * sizeof(unsigned int);
 
 	if ((ibuf->zbuf = MEM_mapallocN(size, __func__))) {
 		ibuf->mall |= IB_zbuf;
@@ -220,7 +243,7 @@ bool addzbuffloatImBuf(ImBuf *ibuf)
 	
 	IMB_freezbuffloatImBuf(ibuf);
 	
-	size = (size_t)(ibuf->x * ibuf->y) * sizeof(float);
+	size = (size_t)ibuf->x * (size_t)ibuf->y * sizeof(float);
 
 	if ((ibuf->zbuf_float = MEM_mapallocN(size, __func__))) {
 		ibuf->mall |= IB_zbuffloat;
@@ -300,7 +323,7 @@ bool imb_addrectfloatImBuf(ImBuf *ibuf)
 	if (ibuf->rect_float)
 		imb_freerectfloatImBuf(ibuf);  /* frees mipmap too, hrm */
 	
-	size = (size_t)(ibuf->x * ibuf->y) * sizeof(float[4]);
+	size = (size_t)ibuf->x * (size_t)ibuf->y * sizeof(float[4]);
 
 	ibuf->channels = 4;
 	if ((ibuf->rect_float = MEM_mapallocN(size, __func__))) {
@@ -324,7 +347,7 @@ bool imb_addrectImBuf(ImBuf *ibuf)
 		MEM_freeN(ibuf->rect);
 	ibuf->rect = NULL;
 	
-	size = (size_t)(ibuf->x * ibuf->y) * sizeof(unsigned int);
+	size = (size_t)ibuf->x * (size_t)ibuf->y * sizeof(unsigned int);
 
 	if ((ibuf->rect = MEM_mapallocN(size, __func__))) {
 		ibuf->mall |= IB_rect;
@@ -361,7 +384,7 @@ ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y, uchar planes, unsigned int
 		ibuf->x = x;
 		ibuf->y = y;
 		ibuf->planes = planes;
-		ibuf->ftype = PNG | 90; /* the 90 means, set compression to nearly the maximum */
+		ibuf->ftype = PNG | 15; /* the 15 means, set compression to low ratio but not time consuming */
 		ibuf->channels = 4;  /* float option, is set to other values when buffers get assigned */
 		ibuf->ppm[0] = ibuf->ppm[1] = IMB_DPI_DEFAULT / 0.0254f; /* IMB_DPI_DEFAULT -> pixels-per-meter */
 

@@ -48,13 +48,53 @@
 #endif
 
 /* min/max */
-#define MIN2(x, y)          ((x) < (y) ? (x) : (y))
-#define MIN3(x, y, z)       (MIN2(MIN2((x), (y)), (z)))
-#define MIN4(x, y, z, a)    (MIN2(MIN2((x), (y)), MIN2((z), (a))))
+#if defined(__GNUC__) || defined(__clang__)
 
-#define MAX2(x, y)          ((x) > (y) ? (x) : (y))
-#define MAX3(x, y, z)       (MAX2(MAX2((x), (y)), (z)))
-#define MAX4(x, y, z, a)    (MAX2(MAX2((x), (y)), MAX2((z), (a))))
+#define MIN2(a, b) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b); \
+	((a_) < (b_) ? (a_) : (b_)); })
+
+#define MAX2(a, b) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b); \
+	((a_) > (b_) ? (a_) : (b_)); })
+
+#define MIN3(a, b, c) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b); typeof(c) c_ = (c); \
+	((a_ < b_) ? ((a_ < c_) ? a_ : c_) : ((b_ < c_) ? b_ : c_)); })
+
+#define MAX3(a, b, c) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b);  typeof(c) c_ = (c); \
+	((a_ > b_) ? ((a_ > c_) ? a_ : c_) : ((b_ > c_) ? b_ : c_)); })
+
+#define MIN4(a, b, c, d) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b); typeof(c) c_ = (c); typeof(d) d_ = (d); \
+	((a_ < b_) ? ((a_ < c_) ? ((a_ < d_) ? a_ : d_) : ((c_ < d_) ? c_ : d_)) : \
+	             ((b_ < c_) ? ((b_ < d_) ? b_ : d_) : ((c_ < d_) ? c_ : d_))); })
+
+#define MAX4(a, b, c, d) __extension__ ({  \
+	typeof(a) a_ = (a); typeof(b) b_ = (b); typeof(c) c_ = (c); typeof(d) d_ = (d); \
+	((a_ > b_) ? ((a_ > c_) ? ((a_ > d_) ? a_ : d_) : ((c_ > d_) ? c_ : d_)) : \
+	             ((b_ > c_) ? ((b_ > d_) ? b_ : d_) : ((c_ > d_) ? c_ : d_))); })
+
+#else
+#define MIN2(a, b)  ((a) < (b) ? (a) : (b))
+#define MAX2(a, b)  ((a) > (b) ? (a) : (b))
+
+#define MIN3(a, b, c)       (MIN2(MIN2((a), (b)), (c)))
+#define MIN4(a, b, c, d)    (MIN2(MIN2((a), (b)), MIN2((c), (d))))
+
+#define MAX3(a, b, c)       (MAX2(MAX2((a), (b)), (c)))
+#define MAX4(a, b, c, d)    (MAX2(MAX2((a), (b)), MAX2((c), (d))))
+#endif
+
+/* min/max that return a value of our choice */
+#define MAX3_PAIR(cmp_a, cmp_b, cmp_c, ret_a, ret_b, ret_c) \
+	((cmp_a > cmp_b) ? ((cmp_a > cmp_c) ? ret_a : ret_c) : \
+	                   ((cmp_b > cmp_c) ? ret_b : ret_c))
+
+#define MIN3_PAIR(cmp_a, cmp_b, cmp_c, ret_a, ret_b, ret_c) \
+	((cmp_a < cmp_b) ? ((cmp_a < cmp_c) ? ret_a : ret_c) : \
+	                   ((cmp_b < cmp_c) ? ret_b : ret_c))
 
 #define INIT_MINMAX(min, max) {                                               \
 		(min)[0] = (min)[1] = (min)[2] =  1.0e30f;                            \
@@ -171,10 +211,10 @@
 } (void)0
 
 
-#define ABS(a)          ( (a) < 0 ? (-(a)) : (a) )
-
-#define FTOCHAR(val) ((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : (char)((255.0f * (val)) + 0.5f))
-#define FTOUSHORT(val) ((val >= 1.0f - 0.5f / 65535) ? 65535 : (val <= 0.0f) ? 0 : (unsigned short)(val * 65535.0f + 0.5f))
+#define FTOCHAR(val) ((CHECK_TYPE_INLINE(val, float)), \
+		(char)(((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : ((255.0f * (val)) + 0.5f))))
+#define FTOUSHORT(val) ((CHECK_TYPE_INLINE(val, float)), \
+		((val >= 1.0f - 0.5f / 65535) ? 65535 : (val <= 0.0f) ? 0 : (unsigned short)(val * 65535.0f + 0.5f)))
 #define USHORTTOUCHAR(val) ((unsigned char)(((val) >= 65535 - 128) ? 255 : ((val) + 128) >> 8))
 #define F3TOCHAR3(v2, v1) {                                                   \
 		(v1)[0] = FTOCHAR((v2[0]));                                           \
@@ -222,9 +262,9 @@
 		*(v1 + 2) = *(v2 + 2) + *(v3 + 2) * (fac);                            \
 } (void)0
 #define VECMADD(v1, v2, v3, v4) {                                             \
-		*(v1) =   *(v2)   + *(v3) * (*(v4));                                     \
-		*(v1 + 1) = *(v2 + 1) + *(v3 + 1) * (*(v4 + 1));                         \
-		*(v1 + 2) = *(v2 + 2) + *(v3 + 2) * (*(v4 + 2));                         \
+		*(v1) =   *(v2)   + *(v3) * (*(v4));                                  \
+		*(v1 + 1) = *(v2 + 1) + *(v3 + 1) * (*(v4 + 1));                      \
+		*(v1 + 2) = *(v2 + 2) + *(v3 + 2) * (*(v4 + 2));                      \
 } (void)0
 #define VECSUBFAC(v1, v2, v3, fac) {                                          \
 		*(v1) =   *(v2)   - *(v3) * (fac);                                    \
@@ -233,15 +273,42 @@
 } (void)0
 
 /* some misc stuff.... */
+
+/* avoid multiple access for supported compilers */
+#if defined(__GNUC__) || defined(__clang__)
+
+#define ABS(a)  ({ \
+	typeof(a) a_ = (a); \
+	((a_) < 0 ? (-(a_)) : (a_)); })
+
+#else
+
+#define ABS(a)  ((a) < 0 ? (-(a)) : (a))
+
+#endif
+
+#define CLAMPIS(a, b, c)  ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
+
 #define CLAMP(a, b, c)  {           \
-	if ((a) < (b)) (a) = (b);       \
+	if      ((a) < (b)) (a) = (b);  \
 	else if ((a) > (c)) (a) = (c);  \
 } (void)0
 
-#define CLAMPIS(a, b, c) ((a) < (b) ? (b) : (a) > (c) ? (c) : (a))
+#define CLAMP_MAX(a, c)  {          \
+	if ((a) > (c)) (a) = (c);       \
+} (void)0
 
-#define IS_EQ(a, b) ((fabs((double)(a) - (b)) >= (double) FLT_EPSILON) ? 0 : 1)
-#define IS_EQF(a, b) ((fabsf((float)(a) - (b)) >= (float) FLT_EPSILON) ? 0 : 1)
+#define CLAMP_MIN(a, b)  {          \
+	if      ((a) < (b)) (a) = (b);  \
+} (void)0
+
+#define IS_EQ(a, b)  ( \
+	CHECK_TYPE_INLINE(a, double), CHECK_TYPE_INLINE(b, double), \
+	((fabs((double)(a) - (b)) >= (double) FLT_EPSILON) ? false : true))
+
+#define IS_EQF(a, b)  ( \
+	CHECK_TYPE_INLINE(a, float), CHECK_TYPE_INLINE(b, float), \
+	((fabsf((float)(a) - (b)) >= (float) FLT_EPSILON) ? false : true))
 
 #define IS_EQT(a, b, c) ((a > b) ? (((a - b) <= c) ? 1 : 0) : ((((b - a) <= c) ? 1 : 0)))
 #define IN_RANGE(a, b, c) ((b < c) ? ((b < a && a < c) ? 1 : 0) : ((c < a && a < b) ? 1 : 0))
@@ -286,6 +353,12 @@
 #define ARRAY_HAS_ITEM(arr_item, arr_start, tot) \
 	((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(tot))
 
+#define ARRAY_DELETE(arr, index, tot_delete, tot)  { \
+		BLI_assert(index + tot_delete <= tot);  \
+		memmove(&(arr)[(index)], \
+		        &(arr)[(index) + (tot_delete)], \
+		         (((tot) - (index)) - (tot_delete)) * sizeof(*(arr))); \
+	} (void)0
 
 /* Warning-free macros for storing ints in pointers. Use these _only_
  * for storing an int in a pointer, not a pointer in an int (64bit)! */
@@ -387,7 +460,7 @@
 #if (!defined(__cplusplus)) && \
     (!defined(__COVERITY__)) && \
     (defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 406))  /* gcc4.6+ only */
-#  define BLI_STATIC_ASSERT(a, msg) _Static_assert(a, msg);
+#  define BLI_STATIC_ASSERT(a, msg) __extension__ _Static_assert(a, msg);
 #else
    /* TODO msvc, clang */
 #  define BLI_STATIC_ASSERT(a, msg)

@@ -61,7 +61,6 @@
 #include "RE_render_ext.h"
 
 /* local includes */
-#include "gammaCorrectionTables.h"
 #include "pixelblending.h"
 #include "render_result.h"
 #include "render_types.h"
@@ -2368,7 +2367,7 @@ void zbuffer_shadow(Render *re, float winmat[4][4], LampRen *lar, int *rectz, in
 			if (vlr->mat!= ma) {
 				ma= vlr->mat;
 				ok= 1;
-				if ((ma->mode & MA_SHADBUF)==0) ok= 0;
+				if ((ma->mode2 & MA_CASTSHADOW)==0 || (ma->mode & MA_SHADBUF)==0) ok= 0;
 			}
 
 			if (ok && (obi->lay & lay) && !(vlr->flag & R_HIDDEN)) {
@@ -2421,7 +2420,7 @@ void zbuffer_shadow(Render *re, float winmat[4][4], LampRen *lar, int *rectz, in
 					if (sseg.buffer->ma!= ma) {
 						ma= sseg.buffer->ma;
 						ok= 1;
-						if ((ma->mode & MA_SHADBUF)==0) ok= 0;
+						if ((ma->mode2 & MA_CASTSHADOW)==0 || (ma->mode & MA_SHADBUF)==0) ok= 0;
 					}
 
 					if (ok && (sseg.buffer->lay & lay)) {
@@ -3067,7 +3066,7 @@ void RE_zbuf_accumulate_vecblur(NodeBlurData *nbd, int xsize, int ysize, float *
 	/* has to become static, the init-jit calls a random-seed, screwing up texture noise node */
 	if (firsttime) {
 		firsttime= 0;
-		BLI_jitter_init(jit[0], 256);
+		BLI_jitter_init(jit, 256);
 	}
 	
 	memset(newrect, 0, sizeof(float)*xsize*ysize*4);
@@ -3349,7 +3348,7 @@ static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *APixbuf, ListBase *
 			if (vlr->mat!=ma) {
 				ma= vlr->mat;
 				if (shadow)
-					dofill= (ma->mode & MA_SHADBUF);
+					dofill= (ma->mode2 & MA_CASTSHADOW) && (ma->mode & MA_SHADBUF);
 				else
 					dofill= (((ma->mode & MA_TRANSP) && (ma->mode & MA_ZTRANSP)) && !(ma->mode & MA_ONLYCAST));
 			}
@@ -4008,7 +4007,7 @@ unsigned short *zbuffer_transp_shade(RenderPart *pa, RenderLayer *rl, float *pas
 	
 	if (R.osa > 16) {  /* MAX_OSA */
 		printf("zbuffer_transp_shade: osa too large\n");
-		G.is_break = TRUE;
+		G.is_break = true;
 		return NULL;
 	}
 	

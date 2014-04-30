@@ -159,11 +159,11 @@ static float rollBoneByQuatAligned(EditBone *bone, float old_up_axis[3], float q
 	
 	if (angle_normalized_v3v3(x_axis, new_up_axis) < angle_normalized_v3v3(z_axis, new_up_axis)) {
 		rotation_between_vecs_to_quat(qroll, new_up_axis, x_axis); /* set roll rotation quat */
-		return ED_rollBoneToVector(bone, x_axis, FALSE);
+		return ED_rollBoneToVector(bone, x_axis, false);
 	}
 	else {
 		rotation_between_vecs_to_quat(qroll, new_up_axis, z_axis); /* set roll rotation quat */
-		return ED_rollBoneToVector(bone, z_axis, FALSE);
+		return ED_rollBoneToVector(bone, z_axis, false);
 	}
 }
 
@@ -208,7 +208,7 @@ static float rollBoneByQuatJoint(RigEdge *edge, RigEdge *previous, float qrot[4]
 		/* real qroll between normal and up_axis */
 		rotation_between_vecs_to_quat(qroll, new_up_axis, normal);
 
-		return ED_rollBoneToVector(edge->bone, normal, FALSE);
+		return ED_rollBoneToVector(edge->bone, normal, false);
 	}
 }
 
@@ -219,7 +219,7 @@ float rollBoneByQuat(EditBone *bone, float old_up_axis[3], float qrot[4])
 	copy_v3_v3(new_up_axis, old_up_axis);
 	mul_qt_v3(qrot, new_up_axis);
 	
-	return ED_rollBoneToVector(bone, new_up_axis, FALSE);
+	return ED_rollBoneToVector(bone, new_up_axis, false);
 }
 
 /************************************ DESTRUCTORS ******************************************************/
@@ -697,7 +697,7 @@ static int RIG_parentControl(RigControl *ctrl, EditBone *link)
 static void RIG_reconnectControlBones(RigGraph *rg)
 {
 	RigControl *ctrl;
-	int change = 1;
+	bool changed = true;
 	
 	/* first pass, link to deform bones */
 	for (ctrl = rg->controls.first; ctrl; ctrl = ctrl->next) {
@@ -708,7 +708,7 @@ static void RIG_reconnectControlBones(RigGraph *rg)
 		/* DO SOME MAGIC HERE */
 		for (pchan = rg->ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 			for (con = pchan->constraints.first; con; con = con->next) {
-				bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+				bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 				ListBase targets = {NULL, NULL};
 				bConstraintTarget *ct;
 				
@@ -812,8 +812,8 @@ static void RIG_reconnectControlBones(RigGraph *rg)
 	
 	
 	/* second pass, make chains in control bones */
-	while (change) {
-		change = 0;
+	while (changed) {
+		changed = false;
 		
 		for (ctrl = rg->controls.first; ctrl; ctrl = ctrl->next) {
 			/* if control is not linked yet */
@@ -833,7 +833,7 @@ static void RIG_reconnectControlBones(RigGraph *rg)
 				/* DO SOME MAGIC HERE */
 				for (pchan = rg->ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 					for (con = pchan->constraints.first; con; con = con->next) {
-						bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+						bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 						ListBase targets = {NULL, NULL};
 						bConstraintTarget *ct;
 						
@@ -865,7 +865,7 @@ static void RIG_reconnectControlBones(RigGraph *rg)
 					/* check if parent is already linked */
 					if (ctrl_parent && ctrl_parent->link) {
 						RIG_parentControl(ctrl, ctrl_parent->bone);
-						change = 1;
+						changed = true;
 					}
 					else {
 						/* check childs */
@@ -873,7 +873,7 @@ static void RIG_reconnectControlBones(RigGraph *rg)
 							/* if a child is linked, link to that one */
 							if (ctrl_child->link && ctrl_child->bone->parent == ctrl->bone) {
 								RIG_parentControl(ctrl, ctrl_child->bone);
-								change = 1;
+								changed = true;
 								break;
 							}
 						}
@@ -944,7 +944,7 @@ static void RIG_joinArcs(RigGraph *rg, RigNode *node, RigArc *joined_arc1, RigAr
 	
 	joined_arc1->tail = joined_arc2->tail;
 	
-	joined_arc2->edges.first = joined_arc2->edges.last = NULL;
+	BLI_listbase_clear(&joined_arc2->edges);
 	
 	BLI_removeArc((BGraph *)rg, (BArc *)joined_arc2);
 	
@@ -1129,7 +1129,7 @@ static void RIG_removeUneededOffsets(RigGraph *rg)
 	}
 }
 
-static void RIG_arcFromBoneChain(RigGraph *rg, ListBase *list, EditBone *root_bone, RigNode *starting_node, int selected)
+static void RIG_arcFromBoneChain(RigGraph *rg, ListBase *list, EditBone *root_bone, RigNode *starting_node, bool selected)
 {
 	EditBone *bone, *last_bone = root_bone;
 	RigArc *arc = NULL;
@@ -1684,7 +1684,7 @@ static RetargetMode detectArcRetargetMode(RigArc *iarc)
 	
 	if (nb_edges > 2) {
 		for (edge = iarc->edges.first; edge; edge = edge->next) {
-			if (fabs(edge->angle - avg_angle) > M_PI / 6) {
+			if (fabsf(edge->angle - avg_angle) > (float)(M_PI / 6)) {
 				large_angle = 1;
 			}
 		}
@@ -1795,7 +1795,7 @@ static float costLength(float original_length, float current_length, float lengt
 		return MAX_COST;
 	}
 	else {
-		float length_ratio = fabs((current_length - original_length) / original_length);
+		float length_ratio = fabsf((current_length - original_length) / original_length);
 		return length_weight * length_ratio * length_ratio;
 	}
 }
@@ -2416,7 +2416,7 @@ static void adjustGraphs(bContext *C, RigGraph *rigg)
 
 	/* Turn the list into an armature */
 	arm->edbo = rigg->editbones;
-	ED_armature_from_edit(rigg->ob);
+	ED_armature_from_edit(arm);
 	
 	ED_undo_push(C, "Retarget Skeleton");
 }
@@ -2443,7 +2443,7 @@ static void retargetGraphs(bContext *C, RigGraph *rigg)
 
 	/* Turn the list into an armature */
 	arm->edbo = rigg->editbones;
-	ED_armature_from_edit(rigg->ob);
+	ED_armature_from_edit(arm);
 }
 
 const char *RIG_nameBone(RigGraph *rg, int arc_index, int bone_index)
@@ -2593,7 +2593,7 @@ void BIF_retargetArc(bContext *C, ReebArc *earc, RigGraph *template_rigg)
 		template_rigg = armatureSelectedToGraph(C, ob, ob->data);
 	}
 	
-	if (template_rigg->arcs.first == NULL) {
+	if (BLI_listbase_is_empty(&template_rigg->arcs)) {
 //		XXX
 //		error("No Template and no deforming bones selected");
 		return;

@@ -48,7 +48,7 @@ struct Scene;
 
 void init_def_material(void);
 void BKE_material_free(struct Material *sc); 
-void BKE_material_free_ex(struct Material *ma, int do_id_user);
+void BKE_material_free_ex(struct Material *ma, bool do_id_user);
 void test_object_materials(struct Main *bmain, struct ID *id);
 void BKE_material_resize_object(struct Object *ob, const short totcol, bool do_id_user);
 void init_material(struct Material *ma);
@@ -83,8 +83,8 @@ void assign_matarar(struct Object *ob, struct Material ***matar, short totcol);
 
 short find_material_index(struct Object *ob, struct Material *ma);
 
-int object_add_material_slot(struct Object *ob);
-int object_remove_material_slot(struct Object *ob);
+bool object_add_material_slot(struct Object *ob);
+bool object_remove_material_slot(struct Object *ob);
 
 /* rna api */
 void BKE_material_resize_id(struct ID *id, short totcol, bool do_id_user);
@@ -98,7 +98,7 @@ void init_render_materials(struct Main *, int, float *);
 void end_render_material(struct Material *);
 void end_render_materials(struct Main *);
 
-int material_in_material(struct Material *parmat, struct Material *mat);
+bool material_in_material(struct Material *parmat, struct Material *mat);
 
 void ramp_blend(int type, float r_col[3], const float fac, const float col[3]);
 
@@ -111,8 +111,8 @@ void free_matcopybuf(void);
 void copy_matcopybuf(struct Material *ma);
 void paste_matcopybuf(struct Material *ma);
 
-/* handle backward compatibility for tface/materials called from doversion (fileload=1) or Help Menu (fileload=0) */	
-int do_version_tface(struct Main *main, int fileload);
+/* handle backward compatibility for tface/materials called from doversion */	
+int do_version_tface(struct Main *main);
 
 #ifdef __cplusplus
 }

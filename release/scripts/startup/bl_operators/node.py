@@ -61,7 +61,6 @@ class NodeAddOperator():
     @staticmethod
     def store_mouse_cursor(context, event):
         space = context.space_data
-        v2d = context.region.view2d
         tree = space.edit_tree
 
         # convert mouse position to the View2D for later node placement
@@ -96,9 +95,6 @@ class NodeAddOperator():
                 self.report({'ERROR_INVALID_INPUT'}, "Node has no attribute " + setting.name)
                 print(str(e))
                 # Continue despite invalid attribute
-
-        if space.use_hidden_preview:
-            node.show_preview = False
 
         node.select = True
         tree.nodes.active = node
@@ -222,7 +218,7 @@ class NODE_OT_add_search(NodeAddOperator, Operator):
             self.create_node(context, item.nodetype)
 
             if self.use_transform:
-                bpy.ops.transform.translate('INVOKE_DEFAULT')
+                bpy.ops.transform.translate('INVOKE_DEFAULT', remove_on_cancel=True)
 
             return {'FINISHED'}
         else:

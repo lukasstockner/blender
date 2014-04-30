@@ -34,6 +34,8 @@
 #include "KX_IpoConvert.h"
 #include "KX_GameObject.h"
 
+#include "SG_Controller.h"
+
 // These three are for getting the action from the logic manager
 #include "KX_Scene.h"
 #include "SCA_LogicManager.h"
@@ -49,10 +51,14 @@ extern "C" {
 #include "DNA_material_types.h"
 }
 
+#include "MEM_guardedalloc.h"
+#include "BKE_library.h"
+#include "BKE_global.h"
+
 BL_Action::BL_Action(class KX_GameObject* gameobj)
 :
 	m_action(NULL),
-	m_pose(NULL),
+	m_tmpaction(NULL),
 	m_blendpose(NULL),
 	m_blendinpose(NULL),
 	m_obj(gameobj),
@@ -75,13 +81,16 @@ BL_Action::BL_Action(class KX_GameObject* gameobj)
 
 BL_Action::~BL_Action()
 {
-	if (m_pose)
-		game_free_pose(m_pose);
 	if (m_blendpose)
-		game_free_pose(m_blendpose);
+		BKE_pose_free(m_blendpose);
 	if (m_blendinpose)
-		game_free_pose(m_blendinpose);
+		BKE_pose_free(m_blendinpose);
 	ClearControllerList();
+
+	if (m_tmpaction) {
+		BKE_libblock_free(G.main, m_tmpaction);
+		m_tmpaction = NULL;
+	}
 }
 
 void BL_Action::ClearControllerList()
@@ -136,6 +145,13 @@ bool BL_Action::Play(const char* name,
 	if (!IsDone() && m_action == prev_action && m_startframe == start && m_endframe == end
 			&& m_priority == priority && m_speed == playback_speed)
 		return false;
+
+	// Keep a copy of the action for threading purposes
+	if (m_tmpaction) {
+		BKE_libblock_free(G.main, m_tmpaction);
+		m_tmpaction = NULL;
+	}
+	m_tmpaction = BKE_action_copy(m_action);
 
 	// First get rid of any old controllers
 	ClearControllerList();
@@ -206,7 +222,7 @@ bool BL_Action::Play(const char* name,
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
 	{
 		BL_ArmatureObject *obj = (BL_ArmatureObject*)m_obj;
-		obj->GetMRDPose(&m_blendinpose);
+		obj->GetPose(&m_blendinpose);
 	}
 	else
 	{
@@ -400,22 +416,12 @@ void BL_Action::Update(float curtime)
 	if (m_obj->GetGameObjectType() == SCA_IObject::OBJ_ARMATURE)
 	{
 		BL_ArmatureObject *obj = (BL_ArmatureObject*)m_obj;
-		obj->GetPose(&m_pose);
+
+		if (m_layer_weight >= 0)
+			obj->GetPose(&m_blendpose);
 
 		// Extract the pose from the action
-		{
-			Object *arm = obj->GetArmatureObject();
-			bPose *temp = arm->pose;
-
-			arm->pose = m_pose;
-
-			PointerRNA ptrrna;
-			RNA_id_pointer_create(&arm->id, &ptrrna);
-
-			animsys_evaluate_action(&ptrrna, m_action, NULL, m_localtime);
-
-			arm->pose = temp;
-		}
+		obj->SetPoseByAction(m_tmpaction, m_localtime);
 
 		// Handle blending between armature actions
 		if (m_blendin && m_blendframe<m_blendin)
@@ -426,20 +432,15 @@ void BL_Action::Update(float curtime)
 			float weight = 1.f - (m_blendframe/m_blendin);
 
 			// Blend the poses
-			game_blend_poses(m_pose, m_blendinpose, weight, ACT_BLEND_BLEND);
+			obj->BlendInPose(m_blendinpose, weight, ACT_BLEND_BLEND);
 		}
 
 
 		// Handle layer blending
 		if (m_layer_weight >= 0)
-		{
-			obj->GetMRDPose(&m_blendpose);
-			game_blend_poses(m_pose, m_blendpose, m_layer_weight, m_blendmode);
-		}
+			obj->BlendInPose(m_blendpose, m_layer_weight, m_blendmode);
 
-		obj->SetPose(m_pose);
-
-		obj->SetActiveAction(NULL, 0, curtime);
+		obj->UpdateTimestep(curtime);
 	}
 	else
 	{
@@ -454,7 +455,7 @@ void BL_Action::Update(float curtime)
 			PointerRNA ptrrna;
 			RNA_id_pointer_create(&key->id, &ptrrna);
 
-			animsys_evaluate_action(&ptrrna, m_action, NULL, m_localtime);
+			animsys_evaluate_action(&ptrrna, m_tmpaction, NULL, m_localtime);
 
 			// Handle blending between shape actions
 			if (m_blendin && m_blendframe < m_blendin)

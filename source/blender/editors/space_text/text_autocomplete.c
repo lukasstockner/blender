@@ -280,7 +280,7 @@ static int text_autocomplete_invoke(bContext *C, wmOperator *op, const wmEvent *
 	SpaceText *st = CTX_wm_space_text(C);
 	Text *text = CTX_data_edit_text(C);
 
-	st->doplugins = TRUE;
+	st->doplugins = true;
 	op->customdata = text_autocomplete_build(text);
 
 	if (texttool_suggest_first()) {
@@ -524,15 +524,14 @@ static void text_autocomplete_free(bContext *C, wmOperator *op)
 	/* other stuff */
 	{
 		SpaceText *st = CTX_wm_space_text(C);
-		st->doplugins = FALSE;
+		st->doplugins = false;
 		texttool_text_clear();
 	}
 }
 
-static int text_autocomplete_cancel(bContext *C, wmOperator *op)
+static void text_autocomplete_cancel(bContext *C, wmOperator *op)
 {
 	text_autocomplete_free(C, op);
-	return OPERATOR_CANCELLED;
 }
 
 void TEXT_OT_autocomplete(wmOperatorType *ot)

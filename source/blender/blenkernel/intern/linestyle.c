@@ -81,7 +81,7 @@ static void default_linestyle_settings(FreestyleLineStyle *linestyle)
 	linestyle->thickness = 3.0f;
 	linestyle->thickness_position = LS_THICKNESS_CENTER;
 	linestyle->thickness_ratio = 0.5f;
-	linestyle->flag = LS_SAME_OBJECT;
+	linestyle->flag = LS_SAME_OBJECT | LS_NO_SORTING;
 	linestyle->chaining = LS_CHAINING_PLAIN;
 	linestyle->rounds = 3;
 	linestyle->min_angle = DEG2RADF(0.0f);
@@ -89,11 +89,13 @@ static void default_linestyle_settings(FreestyleLineStyle *linestyle)
 	linestyle->min_length = 0.0f;
 	linestyle->max_length = 10000.0f;
 	linestyle->split_length = 100;
+	linestyle->sort_key = LS_SORT_KEY_DISTANCE_FROM_CAMERA;
+	linestyle->integration_type = LS_INTEGRATION_MEAN;
 
-	linestyle->color_modifiers.first = linestyle->color_modifiers.last = NULL;
-	linestyle->alpha_modifiers.first = linestyle->alpha_modifiers.last = NULL;
-	linestyle->thickness_modifiers.first = linestyle->thickness_modifiers.last = NULL;
-	linestyle->geometry_modifiers.first = linestyle->geometry_modifiers.last = NULL;
+	BLI_listbase_clear(&linestyle->color_modifiers);
+	BLI_listbase_clear(&linestyle->alpha_modifiers);
+	BLI_listbase_clear(&linestyle->thickness_modifiers);
+	BLI_listbase_clear(&linestyle->geometry_modifiers);
 
 	BKE_add_linestyle_geometry_modifier(linestyle, LS_MODIFIER_SAMPLING);
 
@@ -107,7 +109,7 @@ FreestyleLineStyle *BKE_new_linestyle(const char *name, struct Main *main)
 	if (!main)
 		main = G.main;
 
-	linestyle = (FreestyleLineStyle *)BKE_libblock_alloc(&main->linestyle, ID_LS, name);
+	linestyle = (FreestyleLineStyle *)BKE_libblock_alloc(main, ID_LS, name);
 
 	default_linestyle_settings(linestyle);
 
@@ -1005,7 +1007,8 @@ void BKE_list_modifier_color_ramps(FreestyleLineStyle *linestyle, ListBase *list
 	ColorBand *color_ramp;
 	LinkData *link;
 
-	listbase->first = listbase->last = NULL;
+	BLI_listbase_clear(listbase);
+
 	for (m = (LineStyleModifier *)linestyle->color_modifiers.first; m; m = m->next) {
 		switch (m->type) {
 			case LS_MODIFIER_ALONG_STROKE:
@@ -1023,7 +1026,7 @@ void BKE_list_modifier_color_ramps(FreestyleLineStyle *linestyle, ListBase *list
 			default:
 				continue;
 		}
-		link = (LinkData *) MEM_callocN( sizeof(LinkData), "link to color ramp");
+		link = (LinkData *) MEM_callocN(sizeof(LinkData), "link to color ramp");
 		link->data = color_ramp;
 		BLI_addtail(listbase, link);
 	}

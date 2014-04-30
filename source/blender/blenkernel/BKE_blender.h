@@ -41,8 +41,8 @@ extern "C" {
 /* these lines are grep'd, watch out for our not-so-awesome regex
  * and keep comment above the defines.
  * Use STRINGIFY() rather than defining with quotes */
-#define BLENDER_VERSION         269
-#define BLENDER_SUBVERSION      1
+#define BLENDER_VERSION         270
+#define BLENDER_SUBVERSION      4
 /* 262 was the last editmesh release but it has compatibility code for bmesh data */
 #define BLENDER_MINVERSION      262
 #define BLENDER_MINSUBVERSION   0
@@ -99,11 +99,11 @@ extern int BKE_undo_valid(const char *name);
 extern void BKE_reset_undo(void);
 extern void BKE_undo_number(struct bContext *C, int nr);
 extern const char *BKE_undo_get_name(int nr, int *active);
-extern int BKE_undo_save_file(const char *filename);
+extern bool BKE_undo_save_file(const char *filename);
 extern struct Main *BKE_undo_get_main(struct Scene **scene);
 
 /* copybuffer */
-void BKE_copybuffer_begin(void);
+void BKE_copybuffer_begin(struct Main *bmain);
 void BKE_copybuffer_tag_ID(struct ID *id);
 int BKE_copybuffer_save(const char *filename, struct ReportList *reports);
 int BKE_copybuffer_paste(struct bContext *C, const char *libname, struct ReportList *reports);

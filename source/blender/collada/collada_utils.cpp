@@ -160,7 +160,7 @@ Mesh *bc_get_mesh_copy(Scene *scene, Object *ob, BC_export_mesh_type export_mesh
 		}
 	}
 	else {
-		dm = mesh_create_derived((Mesh *)ob->data, ob, NULL);
+		dm = mesh_create_derived((Mesh *)ob->data, NULL);
 	}
 
 	tmpmesh = BKE_mesh_add(G.main, "ColladaMesh"); // name is not important here
@@ -362,6 +362,6 @@ void bc_triangulate_mesh(Mesh *me)
 	BM_mesh_bm_from_me(bm, me, true, false, 0);
 	BM_mesh_triangulate(bm, quad_method, use_beauty, tag_only, NULL, NULL);
 
-	BM_mesh_bm_to_me(bm, me, FALSE);
+	BM_mesh_bm_to_me(bm, me, false);
 	BM_mesh_free(bm);
 }

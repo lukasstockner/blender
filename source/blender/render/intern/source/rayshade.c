@@ -41,8 +41,7 @@
 #include "DNA_lamp_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_cpu.h"
-#include "BLI_jitter.h"
+#include "BLI_system.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
@@ -120,8 +119,6 @@ RayObject *RE_rayobject_create(int type, int size, int octree_resolution)
 		
 	if (type == R_RAYSTRUCTURE_OCTREE) //TODO dynamic ocres
 		res = RE_rayobject_octree_create(octree_resolution, size);
-	else if (type == R_RAYSTRUCTURE_BLIBVH)
-		res = RE_rayobject_blibvh_create(size);
 	else if (type == R_RAYSTRUCTURE_VBVH)
 		res = RE_rayobject_vbvh_create(size);
 	else if (type == R_RAYSTRUCTURE_SIMD_SVBVH)
@@ -292,7 +289,7 @@ RayObject* makeraytree_object(Render *re, ObjectInstanceRen *obi)
 	return obi->obr->raytree;
 }
 
-static int has_special_rayobject(Render *re, ObjectInstanceRen *obi)
+static bool has_special_rayobject(Render *re, ObjectInstanceRen *obi)
 {
 	if ( (obi->flag & R_TRANSFORMED) && (re->r.raytrace_options & R_RAYTRACE_USE_INSTANCES) ) {
 		ObjectRen *obr = obi->obr;
@@ -499,36 +496,6 @@ static void shade_ray_set_derivative(ShadeInput *shi)
 	
 }
 
-/* four functions to facilitate envmap rotation for raytrace */
-static void ray_env_rotate_start(Isect *is, float imat[4][4])
-{
-	copy_v3_v3(is->origstart, is->start);
-	mul_m4_v3(imat, is->start);
-}
-
-static void ray_env_rotate_dir(Isect *is, float imat[4][4])
-{
-	float end[3];
-	
-	copy_v3_v3(is->origdir, is->dir);
-	add_v3_v3v3(end, is->origstart, is->dir);
-	
-	mul_m4_v3(imat, end);
-	sub_v3_v3v3(is->dir, end, is->start);
-}
-
-static void ray_env_rotate(Isect *is, float imat[4][4])
-{
-	ray_env_rotate_start(is, imat);
-	ray_env_rotate_dir(is, imat);
-}
-
-static void ray_env_rotate_restore(Isect *is)
-{
-	copy_v3_v3(is->start, is->origstart);
-	copy_v3_v3(is->dir, is->origdir);
-}
-
 /* main ray shader */
 void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 {
@@ -593,6 +560,7 @@ void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 		
 		/* raytrace likes to separate the spec color */
 		sub_v3_v3v3(shr->diff, shr->combined, shr->spec);
+		copy_v3_v3(shr->diffshad, shr->diff);
 	}
 
 }
@@ -757,15 +725,13 @@ static void traceray(ShadeInput *origshi, ShadeResult *origshr, short depth, con
 	RE_RC_INIT(isec, shi);
 	
 	/* database is in original view, obi->imat transforms current position back to original */
-	if (origshi->obi->flag & R_ENV_TRANSFORMED)
-		ray_env_rotate(&isec, origshi->obi->imat);
+	RE_instance_rotate_ray(origshi->obi, &isec);
 
 	if (RE_rayobject_raycast(R.raytree, &isec)) {
 		ShadeResult shr= {{0}};
 		float d= 1.0f;
 
-		if (origshi->obi->flag & R_ENV_TRANSFORMED)
-			ray_env_rotate_restore(&isec);
+		RE_instance_rotate_ray_restore(origshi->obi, &isec);
 		
 		/* for as long we don't have proper dx/dy transform for rays we copy over original */
 		copy_v3_v3(shi.dxco, origshi->dxco);
@@ -781,7 +747,7 @@ static void traceray(ShadeInput *origshi, ShadeResult *origshr, short depth, con
 		shi.lay= origshi->lay;
 		shi.passflag= SCE_PASS_COMBINED; /* result of tracing needs no pass info */
 		shi.combinedflag= 0xFFFFFF;		 /* ray trace does all options */
-		//shi.do_preview = FALSE; // memset above, so don't need this
+		//shi.do_preview = false; // memset above, so don't need this
 		shi.light_override= origshi->light_override;
 		shi.mat_override= origshi->mat_override;
 		
@@ -1237,13 +1203,13 @@ static QMCSampler *get_thread_qmcsampler(Render *re, int thread, int type, int t
 
 	for (qsa=re->qmcsamplers[thread].first; qsa; qsa=qsa->next) {
 		if (qsa->type == type && qsa->tot == tot && !qsa->used) {
-			qsa->used = TRUE;
+			qsa->used = true;
 			return qsa;
 		}
 	}
 
 	qsa= QMC_initSampler(type, tot);
-	qsa->used = TRUE;
+	qsa->used = true;
 	BLI_addtail(&re->qmcsamplers[thread], qsa);
 
 	return qsa;
@@ -1667,8 +1633,7 @@ static void ray_trace_shadow_tra(Isect *is, ShadeInput *origshi, int depth, int 
 		shi.lay= origshi->lay;
 		shi.nodes= origshi->nodes;
 		
-		if (origshi->obi->flag & R_ENV_TRANSFORMED)
-			ray_env_rotate_restore(is);
+		RE_instance_rotate_ray_restore(origshi->obi, is);
 
 		shade_ray(is, &shi, &shr);
 		if (shi.mat->material_type == MA_TYPE_SURFACE) {
@@ -1705,18 +1670,6 @@ static void ray_trace_shadow_tra(Isect *is, ShadeInput *origshi, int depth, int 
 
 
 /* aolight: function to create random unit sphere vectors for total random sampling */
-static void RandomSpherical(RNG *rng, float v[3])
-{
-	float r;
-	v[2] = 2.f*BLI_rng_get_float(rng)-1.f;
-	if ((r = 1.f - v[2]*v[2])>0.f) {
-		float a = 6.283185307f*BLI_rng_get_float(rng);
-		r = sqrt(r);
-		v[0] = r * cosf(a);
-		v[1] = r * sinf(a);
-	}
-	else v[2] = 1.f;
-}
 
 /* calc distributed spherical energy */
 static void DS_energy(float *sphere, int tot, float vec[3])
@@ -1762,7 +1715,7 @@ void init_ao_sphere(World *wrld)
 	/* init */
 	fp= wrld->aosphere;
 	for (a=0; a<tot; a++, fp+= 3) {
-		RandomSpherical(rng, fp);
+		BLI_rng_get_float_unit_v3(rng, fp);
 	}
 	
 	while (iter--) {
@@ -1813,7 +1766,7 @@ static float *sphere_sampler(int type, int resol, int thread, int xs, int ys, in
 
 		vec= sphere;
 		for (a=0; a<tot; a++, vec+=3) {
-			RandomSpherical(rng, vec);
+			BLI_rng_get_float_unit_v3(rng, vec);
 		}
 
 		BLI_rng_free(rng);
@@ -1887,8 +1840,7 @@ static void ray_ao_qmc(ShadeInput *shi, float ao[3], float env[3])
 	
 	copy_v3_v3(isec.start, shi->co);
 	
-	if (shi->obi->flag & R_ENV_TRANSFORMED)
-		ray_env_rotate_start(&isec, shi->obi->imat);
+	RE_instance_rotate_ray_start(shi->obi, &isec);
 	
 	RE_rayobject_hint_bb(R.raytree, &point_hint, isec.start, isec.start);
 	isec.hint = &point_hint;
@@ -1948,8 +1900,7 @@ static void ray_ao_qmc(ShadeInput *shi, float ao[3], float env[3])
 		isec.dir[2] = -dir[2];
 		isec.dist = maxdist;
 		
-		if (shi->obi->flag & R_ENV_TRANSFORMED)
-			ray_env_rotate_dir(&isec, shi->obi->imat);
+		RE_instance_rotate_ray_dir(shi->obi, &isec);
 		
 		prev = fac;
 		
@@ -2033,8 +1984,7 @@ static void ray_ao_spheresamp(ShadeInput *shi, float ao[3], float env[3])
 	isec.lay= -1;
 
 	copy_v3_v3(isec.start, shi->co);
-	if (shi->obi->flag & R_ENV_TRANSFORMED)
-		ray_env_rotate_start(&isec, shi->obi->imat);
+	RE_instance_rotate_ray_start(shi->obi, &isec);
 
 	RE_rayobject_hint_bb(R.raytree, &point_hint, isec.start, isec.start);
 	isec.hint = &point_hint;
@@ -2093,8 +2043,7 @@ static void ray_ao_spheresamp(ShadeInput *shi, float ao[3], float env[3])
 			isec.dir[2] = -vec[2];
 			isec.dist = maxdist;
 			
-			if (shi->obi->flag & R_ENV_TRANSFORMED)
-				ray_env_rotate_dir(&isec, shi->obi->imat);
+			RE_instance_rotate_ray_dir(shi->obi, &isec);
 
 			/* do the trace */
 			if (RE_rayobject_raycast(R.raytree, &isec)) {
@@ -2205,7 +2154,8 @@ static void ray_shadow_qmc(ShadeInput *shi, LampRen *lar, const float lampco[3],
 	float adapt_thresh = lar->adapt_thresh;
 	int min_adapt_samples=4, max_samples = lar->ray_totsamp;
 	float start[3];
-	int do_soft = TRUE, full_osa = FALSE, i;
+	bool do_soft = true, full_osa = false;
+	int i;
 
 	float min[3], max[3];
 	RayHint bb_hint;
@@ -2220,8 +2170,8 @@ static void ray_shadow_qmc(ShadeInput *shi, LampRen *lar, const float lampco[3],
 	else
 		shadfac[3]= 1.0f;
 	
-	if (lar->ray_totsamp < 2) do_soft = FALSE;
-	if ((R.r.mode & R_OSA) && (R.osa > 0) && (shi->vlr->flag & R_FULL_OSA)) full_osa = TRUE;
+	if (lar->ray_totsamp < 2) do_soft = false;
+	if ((R.r.mode & R_OSA) && (R.osa > 0) && (shi->vlr->flag & R_FULL_OSA)) full_osa = true;
 	
 	if (full_osa) {
 		if (do_soft) max_samples  = max_samples/R.osa + 1;
@@ -2320,8 +2270,7 @@ static void ray_shadow_qmc(ShadeInput *shi, LampRen *lar, const float lampco[3],
 		sub_v3_v3v3(isec->dir, end, start);
 		isec->dist = normalize_v3(isec->dir);
 		
-		if (shi->obi->flag & R_ENV_TRANSFORMED)
-			ray_env_rotate(isec, shi->obi->imat);
+		RE_instance_rotate_ray(shi->obi, isec);
 
 		/* trace the ray */
 		if (isec->mode==RE_RAY_SHADOW_TRA) {
@@ -2399,8 +2348,7 @@ static void ray_shadow_jitter(ShadeInput *shi, LampRen *lar, const float lampco[
 	else if (a==9) mask |= (mask>>9);
 	
 	copy_v3_v3(isec->start, shi->co);
-	if (shi->obi->flag & R_ENV_TRANSFORMED)
-		ray_env_rotate_start(isec, shi->obi->imat);
+	RE_instance_rotate_ray_start(shi->obi, isec);
 	
 	isec->orig.ob   = shi->obi;
 	isec->orig.face = shi->vlr;
@@ -2428,8 +2376,7 @@ static void ray_shadow_jitter(ShadeInput *shi, LampRen *lar, const float lampco[
 		isec->dir[1] = vec[1]+lampco[1]-isec->start[1];
 		isec->dir[2] = vec[2]+lampco[2]-isec->start[2];
 		
-		if (shi->obi->flag & R_ENV_TRANSFORMED)
-			ray_env_rotate_dir(isec, shi->obi->imat);
+		RE_instance_rotate_ray_dir(shi->obi, isec);
 		
 		isec->dist = 1.0f;
 		isec->check = RE_CHECK_VLR_RENDER;
@@ -2530,8 +2477,7 @@ void ray_shadow(ShadeInput *shi, LampRen *lar, float shadfac[4])
 			sub_v3_v3v3(isec.dir, lampco, isec.start);
 			isec.dist = normalize_v3(isec.dir);
 
-			if (shi->obi->flag & R_ENV_TRANSFORMED)
-				ray_env_rotate(&isec, shi->obi->imat);
+			RE_instance_rotate_ray(shi->obi, &isec);
 
 			if (isec.mode==RE_RAY_SHADOW_TRA) {
 				/* isec.col is like shadfac, so defines amount of light (0.0 is full shadow) */

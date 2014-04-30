@@ -42,6 +42,7 @@
 #include "KX_WorldInfo.h"
 #include <vector>
 
+struct TaskScheduler;
 class KX_TimeCategoryLogger;
 
 #define LEFT_EYE  1
@@ -74,7 +75,6 @@ private:
 	class RAS_ICanvas*					m_canvas; // 2D Canvas (2D Rendering Device Context)
 	class RAS_IRasterizer*				m_rasterizer;  // 3D Rasterizer (3D Rendering)
 	class KX_ISystem*					m_kxsystem;
-	class RAS_IRenderTools*				m_rendertools;
 	class KX_ISceneConverter*			m_sceneconverter;
 	class NG_NetworkDeviceInterface*	m_networkdevice;
 #ifdef WITH_PYTHON
@@ -128,12 +128,7 @@ private:
 
 	int					m_exitcode;
 	STR_String			m_exitstring;
-		/**
-		 * Some drawing parameters, the drawing mode
-		 * (wire/flat/texture), and the camera zoom
-		 * factor.
-		 */
-	int				m_drawingmode;
+
 	float			m_cameraZoom;
 	
 	bool			m_overrideCam;
@@ -201,6 +196,9 @@ private:
 	/** Settings that doesn't go away with Game Actuator */
 	GlobalSettings m_globalsettings;
 
+	/** Task scheduler for multi-threading */
+	TaskScheduler* m_taskscheduler;
+
 	void					RenderFrame(KX_Scene* scene, KX_Camera* cam);
 	void					PostRenderScene(KX_Scene* scene);
 	void					RenderDebugProperties();
@@ -217,7 +215,6 @@ public:
 	void			SetMouseDevice(SCA_IInputDevice* mousedevice);
 	void			SetNetworkDevice(NG_NetworkDeviceInterface* networkdevice);
 	void			SetCanvas(RAS_ICanvas* canvas);
-	void			SetRenderTools(RAS_IRenderTools* rendertools);
 	void			SetRasterizer(RAS_IRasterizer* rasterizer);
 #ifdef WITH_PYTHON
 	void			SetPyNamespace(PyObject *pythondictionary);
@@ -229,9 +226,10 @@ public:
 
 	RAS_IRasterizer*		GetRasterizer() { return m_rasterizer; }
 	RAS_ICanvas*		    GetCanvas() { return m_canvas; }
-	RAS_IRenderTools*	    GetRenderTools() { return m_rendertools; }
 	SCA_IInputDevice*		GetKeyboardDevice() { return m_keyboarddevice; }
 	SCA_IInputDevice*		GetMouseDevice() { return m_mousedevice; }
+
+	TaskScheduler*			GetTaskScheduler() { return m_taskscheduler; }
 
 	/// Dome functions
 	void			InitDome(short res, short mode, short angle, float resbuf, short tilt, struct Text* text); 
@@ -263,9 +261,6 @@ public:
 	void			ResumeScene(const STR_String& scenename);
 
 	void			GetSceneViewport(KX_Scene* scene, KX_Camera* cam, RAS_Rect& area, RAS_Rect& viewport);
-
-	void SetDrawType(int drawingtype);
-	int  GetDrawType() { return m_drawingmode; }
 
 	void SetCameraZoom(float camzoom);
 	

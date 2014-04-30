@@ -125,7 +125,7 @@ typedef struct RegionView3D {
 								 * also matches -viewinv[3][0:3] in ortho mode.*/
 	float camzoom;				/* viewport zoom on the camera frame, see BKE_screen_view3d_zoom_to_fac */
 	char is_persp;				/* check if persp/ortho view, since 'persp' cant be used for this since
-								 * it can have cameras assigned as well. (only set in setwinmatrixview3d) */
+								 * it can have cameras assigned as well. (only set in view3d_winmatrix_set) */
 	char persp;
 	char view;
 	char viewlock;
@@ -142,7 +142,7 @@ typedef struct RegionView3D {
 	short lpersp, lview; /* lpersp can never be set to 'RV3D_CAMOB' */
 
 	float gridview;
-	float twangle[3];
+	float tw_idot[3];  /* manipulator runtime: (1 - dot) product with view vector (used to check view alignment) */
 
 
 	/* active rotation from NDOF or elsewhere */
@@ -218,7 +218,7 @@ typedef struct View3D {
 
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */
-	
+
 	/* XXX deprecated? */
 	struct bGPdata *gpd  DNA_DEPRECATED;		/* Grease-Pencil Data (annotation layers) */
 
@@ -247,6 +247,7 @@ typedef struct View3D {
 #define RV3D_CLIPPING				4
 #define RV3D_NAVIGATING				8
 #define RV3D_GPULIGHT_UPDATE		16
+#define RV3D_IS_GAME_ENGINE			32  /* runtime flag, used to check if LoD's should be used */
 
 /* RegionView3d->viewlock */
 #define RV3D_LOCKED			(1 << 0)
@@ -265,6 +266,9 @@ typedef struct View3D {
 #define RV3D_VIEW_BOTTOM		 6
 #define RV3D_VIEW_PERSPORTHO	 7
 #define RV3D_VIEW_CAMERA		 8
+
+#define RV3D_VIEW_IS_AXIS(view) \
+	((view >= RV3D_VIEW_FRONT) && (view <= RV3D_VIEW_BOTTOM))
 
 /* View3d->flag2 (short) */
 #define V3D_RENDER_OVERRIDE		4

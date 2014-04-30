@@ -77,11 +77,10 @@
 
 /******************** open sound operator ********************/
 
-static int sound_open_cancel(bContext *UNUSED(C), wmOperator *op)
+static void sound_open_cancel(bContext *UNUSED(C), wmOperator *op)
 {
 	MEM_freeN(op->customdata);
 	op->customdata = NULL;
-	return OPERATOR_CANCELLED;
 }
 
 static void sound_open_init(bContext *C, wmOperator *op)
@@ -188,8 +187,8 @@ static void SOUND_OT_open(wmOperatorType *ot)
 	/* properties */
 	WM_operator_properties_filesel(ot, FOLDERFILE | SOUNDFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
-	RNA_def_boolean(ot->srna, "cache", FALSE, "Cache", "Cache the sound in memory");
-	RNA_def_boolean(ot->srna, "mono", FALSE, "Mono", "Mixdown the sound to mono");
+	RNA_def_boolean(ot->srna, "cache", false, "Cache", "Cache the sound in memory");
+	RNA_def_boolean(ot->srna, "mono", false, "Mono", "Mixdown the sound to mono");
 }
 
 static void SOUND_OT_open_mono(wmOperatorType *ot)
@@ -210,8 +209,8 @@ static void SOUND_OT_open_mono(wmOperatorType *ot)
 	/* properties */
 	WM_operator_properties_filesel(ot, FOLDERFILE | SOUNDFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
-	RNA_def_boolean(ot->srna, "cache", FALSE, "Cache", "Cache the sound in memory");
-	RNA_def_boolean(ot->srna, "mono", TRUE, "Mono", "Mixdown the sound to mono");
+	RNA_def_boolean(ot->srna, "cache", false, "Cache", "Cache the sound in memory");
+	RNA_def_boolean(ot->srna, "mono", true, "Mono", "Mixdown the sound to mono");
 }
 
 /* ******************************************************* */
@@ -288,11 +287,11 @@ static int sound_bake_animation_exec(bContext *C, wmOperator *UNUSED(op))
 
 	for (cfra = (scene->r.sfra > 0) ? (scene->r.sfra - 1) : 0; cfra <= scene->r.efra + 1; cfra++) {
 		scene->r.cfra = cfra;
-		BKE_scene_update_for_newframe(bmain, scene, scene->lay);
+		BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
 	}
 
 	scene->r.cfra = oldfra;
-	BKE_scene_update_for_newframe(bmain, scene, scene->lay);
+	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
 
 	return OPERATOR_FINISHED;
 }
@@ -431,10 +430,10 @@ static bool sound_mixdown_check(bContext *UNUSED(C), wmOperator *op)
 			return check;
 
 		RNA_property_string_set(op->ptr, prop, filepath);
-		return TRUE;
+		return true;
 	}
 
-	return FALSE;
+	return false;
 }
 
 #endif // WITH_AUDASPACE
@@ -474,12 +473,6 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
 	static EnumPropertyItem mp3_format_items[] = {
 		{AUD_FORMAT_S16, "S16", 0, "S16", "16 bit signed"},
 		{AUD_FORMAT_S32, "S32", 0, "S32", "32 bit signed"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
-	static EnumPropertyItem ac3_format_items[] = {
-		{AUD_FORMAT_S16, "S16", 0, "S16", "16 bit signed"},
-		{AUD_FORMAT_FLOAT32, "F32", 0, "F32", "32 bit floating point"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -528,10 +521,9 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
 
 	switch (container) {
 		case AUD_CONTAINER_AC3:
-			RNA_def_property_clear_flag(prop_format, PROP_HIDDEN);
-			RNA_def_property_enum_items(prop_format, ac3_format_items);
 			RNA_def_property_enum_items(prop_codec, all_codec_items);
 			RNA_enum_set(op->ptr, "codec", AUD_CODEC_AC3);
+			RNA_enum_set(op->ptr, "format", AUD_FORMAT_FLOAT32);
 			break;
 		case AUD_CONTAINER_FLAC:
 			RNA_def_property_flag(prop_bitrate, PROP_HIDDEN);
@@ -553,8 +545,7 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
 					RNA_enum_set(op->ptr, "format", AUD_FORMAT_S16);
 					break;
 				case AUD_CODEC_AC3:
-					RNA_def_property_enum_items(prop_format, ac3_format_items);
-					RNA_def_property_clear_flag(prop_format, PROP_HIDDEN);
+					RNA_enum_set(op->ptr, "format", AUD_FORMAT_FLOAT32);
 					break;
 				case AUD_CODEC_FLAC:
 					RNA_def_property_flag(prop_bitrate, PROP_HIDDEN);
@@ -788,7 +779,7 @@ static void SOUND_OT_unpack(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_enum(ot->srna, "method", unpack_method_items, PF_USE_LOCAL, "Method", "How to unpack");
-	RNA_def_string(ot->srna, "id", "", MAX_ID_NAME - 2, "Sound Name", "Sound datablock name to unpack"); /* XXX, weark!, will fail with library, name collisions */
+	RNA_def_string(ot->srna, "id", NULL, MAX_ID_NAME - 2, "Sound Name", "Sound datablock name to unpack"); /* XXX, weark!, will fail with library, name collisions */
 }
 
 /* ******************************************************* */

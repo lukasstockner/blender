@@ -257,24 +257,24 @@ static int compute_mdisp_quad(BMLoop *l, float v1[3], float v2[3], float v3[3], 
 }
 
 /* funnily enough, I think this is identical to face_to_crn_interp, heh */
-static float quad_coord(float aa[3], float bb[3], float cc[3], float dd[3], int a1, int a2)
+static float quad_coord(const float aa[3], const float bb[3], const float cc[3], const float dd[3], int a1, int a2)
 {
 	float x, y, z, f1;
+	float div;
 	
 	x = aa[a1] * cc[a2] - cc[a1] * aa[a2];
 	y = aa[a1] * dd[a2] + bb[a1] * cc[a2] - cc[a1] * bb[a2] - dd[a1] * aa[a2];
 	z = bb[a1] * dd[a2] - dd[a1] * bb[a2];
-	
-	if (fabsf(2.0f * (x - y + z)) > FLT_EPSILON * 10.0f) {
-		float f2;
 
-		f1 = ( sqrtf(y * y - 4.0f * x * z) - y + 2.0f * z) / (2.0f * (x - y + z));
-		f2 = (-sqrtf(y * y - 4.0f * x * z) - y + 2.0f * z) / (2.0f * (x - y + z));
+	div = 2.0f * (x - y + z);
 
-		f1 = fabsf(f1);
-		f2 = fabsf(f2);
-		f1 = min_ff(f1, f2);
-		CLAMP(f1, 0.0f, 1.0f + FLT_EPSILON);
+	if (fabsf(div) > FLT_EPSILON * 10.0f) {
+		const float f_tmp = sqrtf(y * y - 4.0f * x * z);
+
+		f1 = min_ff(fabsf(( f_tmp - y + 2.0f * z) / div),
+		            fabsf((-f_tmp - y + 2.0f * z) / div));
+
+		CLAMP_MAX(f1, 1.0f + FLT_EPSILON);
 	}
 	else {
 		f1 = -z / (y - 2 * z);
@@ -317,12 +317,7 @@ static int quad_co(float *x, float *y, float v1[3], float v2[3], float v3[3], fl
 
 	/* rotate */
 	poly_rotate_plane(n, projverts, 5);
-	
-	/* flatten */
-	for (i = 0; i < 5; i++) {
-		projverts[i][2] = 0.0f;
-	}
-	
+
 	/* subtract origin */
 	for (i = 0; i < 4; i++) {
 		sub_v3_v3(projverts[i], projverts[4]);
@@ -355,8 +350,8 @@ static void mdisp_axis_from_quad(float v1[3], float v2[3], float UNUSED(v3[3]), 
 
 /* tl is loop to project onto, l is loop whose internal displacement, co, is being
  * projected.  x and y are location in loop's mdisps grid of point co. */
-static int mdisp_in_mdispquad(BMLoop *l, BMLoop *tl, float p[3], float *x, float *y,
-                              int res, float axis_x[3], float axis_y[3])
+static bool mdisp_in_mdispquad(BMLoop *l, BMLoop *tl, float p[3], float *x, float *y,
+                               int res, float axis_x[3], float axis_y[3])
 {
 	float v1[3], v2[3], c[3], v3[3], v4[3], e1[3], e2[3];
 	float eps = FLT_EPSILON * 4000;
@@ -776,7 +771,7 @@ void BM_data_layer_add(BMesh *bm, CustomData *data, int type)
 	CustomData olddata;
 
 	olddata = *data;
-	olddata.layers = (olddata.layers) ? MEM_dupallocN(olddata.layers): NULL;
+	olddata.layers = (olddata.layers) ? MEM_dupallocN(olddata.layers) : NULL;
 
 	/* the pool is now owned by olddata and must not be shared */
 	data->pool = NULL;
@@ -792,7 +787,7 @@ void BM_data_layer_add_named(BMesh *bm, CustomData *data, int type, const char *
 	CustomData olddata;
 
 	olddata = *data;
-	olddata.layers = (olddata.layers) ? MEM_dupallocN(olddata.layers): NULL;
+	olddata.layers = (olddata.layers) ? MEM_dupallocN(olddata.layers) : NULL;
 
 	/* the pool is now owned by olddata and must not be shared */
 	data->pool = NULL;
@@ -809,7 +804,7 @@ void BM_data_layer_free(BMesh *bm, CustomData *data, int type)
 	bool has_layer;
 
 	olddata = *data;
-	olddata.layers = (olddata.layers) ? MEM_dupallocN(olddata.layers): NULL;
+	olddata.layers = (olddata.layers) ? MEM_dupallocN(olddata.layers) : NULL;
 
 	/* the pool is now owned by olddata and must not be shared */
 	data->pool = NULL;
@@ -828,7 +823,7 @@ void BM_data_layer_free_n(BMesh *bm, CustomData *data, int type, int n)
 	bool has_layer;
 
 	olddata = *data;
-	olddata.layers = (olddata.layers) ? MEM_dupallocN(olddata.layers): NULL;
+	olddata.layers = (olddata.layers) ? MEM_dupallocN(olddata.layers) : NULL;
 
 	/* the pool is now owned by olddata and must not be shared */
 	data->pool = NULL;

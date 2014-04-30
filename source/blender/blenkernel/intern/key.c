@@ -61,7 +61,6 @@
 #include "BKE_editmesh.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
-#include "BKE_deform.h"
 #include "BKE_scene.h"
 
 
@@ -109,7 +108,7 @@ Key *BKE_key_add(ID *id)    /* common function */
 	Key *key;
 	char *el;
 	
-	key = BKE_libblock_alloc(&G.main->key, ID_KE, "Key");
+	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
 	
 	key->type = KEY_NORMAL;
 	key->from = id;
@@ -547,10 +546,10 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 
 
 /* currently only the first value of 'ofs' may be set. */
-static short key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs)
+static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs)
 {
 	if (key->from == NULL) {
-		return FALSE;
+		return false;
 	}
 
 	switch (GS(key->from->name)) {
@@ -575,10 +574,10 @@ static short key_pointer_size(const Key *key, const int mode, int *poinsize, int
 			break;
 		default:
 			BLI_assert(!"invalid 'key->from' ID type");
-			return FALSE;
+			return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 static void cp_key(const int start, int end, const int tot, char *poin, Key *key, KeyBlock *actkb, KeyBlock *kb, float *weights, const int mode)
@@ -1397,7 +1396,7 @@ float *BKE_key_evaluate_object_ex(Scene *scene, Object *ob, int *r_totelem,
 	char *out;
 	int tot = 0, size = 0;
 
-	if (key == NULL || key->block.first == NULL)
+	if (key == NULL || BLI_listbase_is_empty(&key->block))
 		return NULL;
 
 	/* compute size of output array */
@@ -1558,7 +1557,7 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
  * \param name Optional name for the new keyblock.
  * \param do_force always use ctime even for relative keys.
  */
-KeyBlock *BKE_keyblock_add_ctime(Key *key, const char *name, const short do_force)
+KeyBlock *BKE_keyblock_add_ctime(Key *key, const char *name, const bool do_force)
 {
 	KeyBlock *kb = BKE_keyblock_add(key, name);
 

@@ -61,30 +61,30 @@
 /* Generics - Loopers */
 
 /* Loops over the mask-frames for a mask-layer, and applies the given callback */
-short ED_masklayer_frames_looper(MaskLayer *masklay, Scene *scene, short (*masklay_shape_cb)(MaskLayerShape *, Scene *))
+bool ED_masklayer_frames_looper(MaskLayer *masklay, Scene *scene, short (*masklay_shape_cb)(MaskLayerShape *, Scene *))
 {
 	MaskLayerShape *masklay_shape;
 
 	/* error checker */
 	if (masklay == NULL)
-		return 0;
+		return false;
 
 	/* do loop */
 	for (masklay_shape = masklay->splines_shapes.first; masklay_shape; masklay_shape = masklay_shape->next) {
 		/* execute callback */
 		if (masklay_shape_cb(masklay_shape, scene))
-			return 1;
+			return true;
 	}
 
 	/* nothing to return */
-	return 0;
+	return false;
 }
 
 /* ****************************************** */
 /* Data Conversion Tools */
 
 /* make a listing all the mask-frames in a layer as cfraelems */
-void ED_masklayer_make_cfra_list(MaskLayer *masklay, ListBase *elems, short onlysel)
+void ED_masklayer_make_cfra_list(MaskLayer *masklay, ListBase *elems, bool onlysel)
 {
 	MaskLayerShape *masklay_shape;
 	CfraElem *ce;
@@ -95,7 +95,7 @@ void ED_masklayer_make_cfra_list(MaskLayer *masklay, ListBase *elems, short only
 
 	/* loop through mask-frames, adding */
 	for (masklay_shape = masklay->splines_shapes.first; masklay_shape; masklay_shape = masklay_shape->next) {
-		if ((onlysel == 0) || (masklay_shape->flag & MASK_SHAPE_SELECT)) {
+		if ((onlysel == false) || (masklay_shape->flag & MASK_SHAPE_SELECT)) {
 			ce = MEM_callocN(sizeof(CfraElem), "CfraElem");
 
 			ce->cfra = (float)masklay_shape->frame;
@@ -110,7 +110,7 @@ void ED_masklayer_make_cfra_list(MaskLayer *masklay, ListBase *elems, short only
 /* Selection Tools */
 
 /* check if one of the frames in this layer is selected */
-short ED_masklayer_frame_select_check(MaskLayer *masklay)
+bool ED_masklayer_frame_select_check(MaskLayer *masklay)
 {
 	MaskLayerShape *masklay_shape;
 
@@ -207,21 +207,26 @@ void ED_masklayer_frames_select_border(MaskLayer *masklay, float min, float max,
 /* Frame Editing Tools */
 
 /* Delete selected frames */
-void ED_masklayer_frames_delete(MaskLayer *masklay)
+bool ED_masklayer_frames_delete(MaskLayer *masklay)
 {
 	MaskLayerShape *masklay_shape, *masklay_shape_next;
+	bool changed = false;
 
 	/* error checking */
 	if (masklay == NULL)
-		return;
+		return false;
 
 	/* check for frames to delete */
 	for (masklay_shape = masklay->splines_shapes.first; masklay_shape; masklay_shape = masklay_shape_next) {
 		masklay_shape_next = masklay_shape->next;
 
-		if (masklay_shape->flag & MASK_SHAPE_SELECT)
+		if (masklay_shape->flag & MASK_SHAPE_SELECT) {
 			BKE_mask_layer_shape_unlink(masklay, masklay_shape);
+			changed = true;
+		}
 	}
+
+	return changed;
 }
 
 /* Duplicate selected frames from given mask-layer */

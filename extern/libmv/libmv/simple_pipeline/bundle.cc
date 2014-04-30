@@ -32,6 +32,7 @@
 #include "libmv/simple_pipeline/camera_intrinsics.h"
 #include "libmv/simple_pipeline/reconstruction.h"
 #include "libmv/simple_pipeline/tracks.h"
+#include "libmv/simple_pipeline/distortion_models.h"
 
 #ifdef _OPENMP
 #  include <omp.h>
@@ -42,15 +43,26 @@ namespace libmv {
 // The intrinsics need to get combined into a single parameter block; use these
 // enums to index instead of numeric constants.
 enum {
+  // Camera calibration values.
   OFFSET_FOCAL_LENGTH,
   OFFSET_PRINCIPAL_POINT_X,
   OFFSET_PRINCIPAL_POINT_Y,
+
+  // Distortion model coefficients.
   OFFSET_K1,
   OFFSET_K2,
   OFFSET_K3,
   OFFSET_P1,
   OFFSET_P2,
+
+  // Maximal possible offset.
+  OFFSET_MAX,
 };
+
+#define FIRST_DISTORTION_COEFFICIENT OFFSET_K1
+#define LAST_DISTORTION_COEFFICIENT OFFSET_P2
+#define NUM_DISTORTION_COEFFICIENTS  \
+  (LAST_DISTORTION_COEFFICIENT - FIRST_DISTORTION_COEFFICIENT + 1)
 
 namespace {
 
@@ -60,10 +72,12 @@ namespace {
 //
 // This functor uses a radial distortion model.
 struct OpenCVReprojectionError {
-  OpenCVReprojectionError(const double observed_x,
+  OpenCVReprojectionError(const DistortionModelType distortion_model,
+                          const double observed_x,
                           const double observed_y,
                           const double weight)
-      : observed_x_(observed_x), observed_y_(observed_y),
+      : distortion_model_(distortion_model),
+        observed_x_(observed_x), observed_y_(observed_y),
         weight_(weight) {}
 
   template <typename T>
@@ -76,11 +90,6 @@ struct OpenCVReprojectionError {
     const T& focal_length      = intrinsics[OFFSET_FOCAL_LENGTH];
     const T& principal_point_x = intrinsics[OFFSET_PRINCIPAL_POINT_X];
     const T& principal_point_y = intrinsics[OFFSET_PRINCIPAL_POINT_Y];
-    const T& k1                = intrinsics[OFFSET_K1];
-    const T& k2                = intrinsics[OFFSET_K2];
-    const T& k3                = intrinsics[OFFSET_K3];
-    const T& p1                = intrinsics[OFFSET_P1];
-    const T& p2                = intrinsics[OFFSET_P2];
 
     // Compute projective coordinates: x = RX + t.
     T x[3];
@@ -104,15 +113,44 @@ struct OpenCVReprojectionError {
     // Apply distortion to the normalized points to get (xd, yd).
     // TODO(keir): Do early bailouts for zero distortion; these are expensive
     // jet operations.
-    ApplyRadialDistortionCameraIntrinsics(focal_length,
-                                          focal_length,
-                                          principal_point_x,
-                                          principal_point_y,
-                                          k1, k2, k3,
-                                          p1, p2,
-                                          xn, yn,
-                                          &predicted_x,
-                                          &predicted_y);
+    switch (distortion_model_) {
+      case DISTORTION_MODEL_POLYNOMIAL:
+        {
+          const T& k1 = intrinsics[OFFSET_K1];
+          const T& k2 = intrinsics[OFFSET_K2];
+          const T& k3 = intrinsics[OFFSET_K3];
+          const T& p1 = intrinsics[OFFSET_P1];
+          const T& p2 = intrinsics[OFFSET_P2];
+
+          ApplyPolynomialDistortionModel(focal_length,
+                                         focal_length,
+                                         principal_point_x,
+                                         principal_point_y,
+                                         k1, k2, k3,
+                                         p1, p2,
+                                         xn, yn,
+                                         &predicted_x,
+                                         &predicted_y);
+          break;
+        }
+      case DISTORTION_MODEL_DIVISION:
+        {
+          const T& k1 = intrinsics[OFFSET_K1];
+          const T& k2 = intrinsics[OFFSET_K2];
+
+          ApplyDivisionDistortionModel(focal_length,
+                                       focal_length,
+                                       principal_point_x,
+                                       principal_point_y,
+                                       k1, k2,
+                                       xn, yn,
+                                       &predicted_x,
+                                       &predicted_y);
+          break;
+        }
+      default:
+        LOG(FATAL) << "Unknown distortion model";
+    }
 
     // The error is the difference between the predicted and observed position.
     residuals[0] = (predicted_x - T(observed_x_)) * weight_;
@@ -120,6 +158,7 @@ struct OpenCVReprojectionError {
     return true;
   }
 
+  const DistortionModelType distortion_model_;
   const double observed_x_;
   const double observed_y_;
   const double weight_;
@@ -154,32 +193,38 @@ void BundleIntrinsicsLogMessage(const int bundle_intrinsics) {
 // Pack intrinsics from object to an array for easier
 // and faster minimization.
 void PackIntrinisicsIntoArray(const CameraIntrinsics &intrinsics,
-                              double ceres_intrinsics[8]) {
+                              double ceres_intrinsics[OFFSET_MAX]) {
   ceres_intrinsics[OFFSET_FOCAL_LENGTH]       = intrinsics.focal_length();
   ceres_intrinsics[OFFSET_PRINCIPAL_POINT_X]  = intrinsics.principal_point_x();
   ceres_intrinsics[OFFSET_PRINCIPAL_POINT_Y]  = intrinsics.principal_point_y();
-  ceres_intrinsics[OFFSET_K1]                 = intrinsics.k1();
-  ceres_intrinsics[OFFSET_K2]                 = intrinsics.k2();
-  ceres_intrinsics[OFFSET_K3]                 = intrinsics.k3();
-  ceres_intrinsics[OFFSET_P1]                 = intrinsics.p1();
-  ceres_intrinsics[OFFSET_P2]                 = intrinsics.p2();
+
+  int num_distortion_parameters = intrinsics.num_distortion_parameters();
+  assert(num_distortion_parameters <= NUM_DISTORTION_COEFFICIENTS);
+
+  const double *distortion_parameters = intrinsics.distortion_parameters();
+  for (int i = 0; i < num_distortion_parameters; ++i) {
+    ceres_intrinsics[FIRST_DISTORTION_COEFFICIENT + i] =
+        distortion_parameters[i];
+  }
 }
 
 // Unpack intrinsics back from an array to an object.
-void UnpackIntrinsicsFromArray(const double ceres_intrinsics[8],
-                                 CameraIntrinsics *intrinsics) {
-    intrinsics->SetFocalLength(ceres_intrinsics[OFFSET_FOCAL_LENGTH],
-                               ceres_intrinsics[OFFSET_FOCAL_LENGTH]);
+void UnpackIntrinsicsFromArray(const double ceres_intrinsics[OFFSET_MAX],
+                               CameraIntrinsics *intrinsics) {
+  intrinsics->SetFocalLength(ceres_intrinsics[OFFSET_FOCAL_LENGTH],
+                             ceres_intrinsics[OFFSET_FOCAL_LENGTH]);
 
-    intrinsics->SetPrincipalPoint(ceres_intrinsics[OFFSET_PRINCIPAL_POINT_X],
-                                  ceres_intrinsics[OFFSET_PRINCIPAL_POINT_Y]);
+  intrinsics->SetPrincipalPoint(ceres_intrinsics[OFFSET_PRINCIPAL_POINT_X],
+                                ceres_intrinsics[OFFSET_PRINCIPAL_POINT_Y]);
 
-    intrinsics->SetRadialDistortion(ceres_intrinsics[OFFSET_K1],
-                                    ceres_intrinsics[OFFSET_K2],
-                                    ceres_intrinsics[OFFSET_K3]);
+  int num_distortion_parameters = intrinsics->num_distortion_parameters();
+  assert(num_distortion_parameters <= NUM_DISTORTION_COEFFICIENTS);
 
-    intrinsics->SetTangentialDistortion(ceres_intrinsics[OFFSET_P1],
-                                        ceres_intrinsics[OFFSET_P2]);
+  double *distortion_parameters = intrinsics->distortion_parameters();
+  for (int i = 0; i < num_distortion_parameters; ++i) {
+    distortion_parameters[i] =
+        ceres_intrinsics[FIRST_DISTORTION_COEFFICIENT + i];
+  }
 }
 
 // Get a vector of camera's rotations denoted by angle axis
@@ -262,10 +307,24 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
     int num_cameras = all_cameras_R_t->size();
     int num_points = 0;
 
+    vector<EuclideanPoint*> minimized_points;
     for (int i = 0; i <= max_track; i++) {
-      const EuclideanPoint *point = reconstruction->PointForTrack(i);
+      EuclideanPoint *point = reconstruction->PointForTrack(i);
       if (point) {
-        num_points++;
+        // We need to know whether the track is constant zero weight,
+        // and it so it wouldn't have parameter block in the problem.
+        //
+        // Getting all markers for track is not so bac currently since
+        // this code is only used by keyframe selection when there are
+        // not so much tracks and only 2 frames anyway.
+        vector<Marker> markera_of_track = tracks.MarkersForTrack(i);
+        for (int j = 0; j < markera_of_track.size(); j++) {
+          if (markera_of_track.at(j).weight != 0.0) {
+            minimized_points.push_back(point);
+            num_points++;
+            break;
+          }
+        }
       }
     }
 
@@ -275,35 +334,28 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
     evaluation->num_cameras = num_cameras;
     evaluation->num_points = num_points;
 
-    if (evaluation->evaluate_jacobian) {
-      // Evaluate jacobian matrix.
+    if (evaluation->evaluate_jacobian) {      // Evaluate jacobian matrix.
       ceres::CRSMatrix evaluated_jacobian;
       ceres::Problem::EvaluateOptions eval_options;
 
       // Cameras goes first in the ordering.
       int max_image = tracks.MaxImage();
-      bool is_first_camera = true;
       for (int i = 0; i <= max_image; i++) {
         const EuclideanCamera *camera = reconstruction->CameraForImage(i);
         if (camera) {
           double *current_camera_R_t = &(*all_cameras_R_t)[i](0);
 
           // All cameras are variable now.
-          if (is_first_camera) {
-            problem->SetParameterBlockVariable(current_camera_R_t);
-            is_first_camera = false;
-          }
+          problem->SetParameterBlockVariable(current_camera_R_t);
 
           eval_options.parameter_blocks.push_back(current_camera_R_t);
         }
       }
 
       // Points goes at the end of ordering,
-      for (int i = 0; i <= max_track; i++) {
-        EuclideanPoint *point = reconstruction->PointForTrack(i);
-        if (point) {
-          eval_options.parameter_blocks.push_back(&point->X(0));
-        }
+      for (int i = 0; i < minimized_points.size(); i++) {
+        EuclideanPoint *point = minimized_points.at(i);
+        eval_options.parameter_blocks.push_back(&point->X(0));
       }
 
       problem->Evaluate(eval_options,
@@ -314,35 +366,110 @@ void EuclideanBundlerPerformEvaluation(const Tracks &tracks,
     }
 }
 
+// This is an utility function to only bundle 3D position of
+// given markers list.
+//
+// Main purpose of this function is to adjust positions of tracks
+// which does have constant zero weight and so far only were using
+// algebraic intersection to obtain their 3D positions.
+//
+// At this point we only need to bundle points positions, cameras
+// are to be totally still here.
+void EuclideanBundlePointsOnly(const DistortionModelType distortion_model,
+                               const vector<Marker> &markers,
+                               vector<Vec6> &all_cameras_R_t,
+                               double ceres_intrinsics[OFFSET_MAX],
+                               EuclideanReconstruction *reconstruction) {
+  ceres::Problem::Options problem_options;
+  ceres::Problem problem(problem_options);
+  int num_residuals = 0;
+  for (int i = 0; i < markers.size(); ++i) {
+    const Marker &marker = markers[i];
+    EuclideanCamera *camera = reconstruction->CameraForImage(marker.image);
+    EuclideanPoint *point = reconstruction->PointForTrack(marker.track);
+    if (camera == NULL || point == NULL) {
+      continue;
+    }
+
+    // Rotation of camera denoted in angle axis followed with
+    // camera translaiton.
+    double *current_camera_R_t = &all_cameras_R_t[camera->image](0);
+
+    problem.AddResidualBlock(new ceres::AutoDiffCostFunction<
+        OpenCVReprojectionError, 2, OFFSET_MAX, 6, 3>(
+            new OpenCVReprojectionError(
+                distortion_model,
+                marker.x,
+                marker.y,
+                1.0)),
+        NULL,
+        ceres_intrinsics,
+        current_camera_R_t,
+        &point->X(0));
+
+    problem.SetParameterBlockConstant(current_camera_R_t);
+    num_residuals++;
+  }
+
+  LG << "Number of residuals: " << num_residuals;
+  if (!num_residuals) {
+    LG << "Skipping running minimizer with zero residuals";
+    return;
+  }
+
+  problem.SetParameterBlockConstant(ceres_intrinsics);
+
+  // Configure the solver.
+  ceres::Solver::Options options;
+  options.use_nonmonotonic_steps = true;
+  options.preconditioner_type = ceres::SCHUR_JACOBI;
+  options.linear_solver_type = ceres::ITERATIVE_SCHUR;
+  options.use_inner_iterations = true;
+  options.max_num_iterations = 100;
+
+#ifdef _OPENMP
+  options.num_threads = omp_get_max_threads();
+  options.num_linear_solver_threads = omp_get_max_threads();
+#endif
+
+  // Solve!
+  ceres::Solver::Summary summary;
+  ceres::Solve(options, &problem, &summary);
+
+  LG << "Final report:\n" << summary.FullReport();
+
+}
+
 }  // namespace
 
 void EuclideanBundle(const Tracks &tracks,
                      EuclideanReconstruction *reconstruction) {
-  CameraIntrinsics intrinsics;
+  PolynomialCameraIntrinsics empty_intrinsics;
   EuclideanBundleCommonIntrinsics(tracks,
                                   BUNDLE_NO_INTRINSICS,
                                   BUNDLE_NO_CONSTRAINTS,
                                   reconstruction,
-                                  &intrinsics,
+                                  &empty_intrinsics,
                                   NULL);
 }
 
-void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
-                                     const int bundle_intrinsics,
-                                     const int bundle_constraints,
-                                     EuclideanReconstruction *reconstruction,
-                                     CameraIntrinsics *intrinsics,
-                                     BundleEvaluation *evaluation) {
+void EuclideanBundleCommonIntrinsics(
+    const Tracks &tracks,
+    const int bundle_intrinsics,
+    const int bundle_constraints,
+    EuclideanReconstruction *reconstruction,
+    CameraIntrinsics *intrinsics,
+    BundleEvaluation *evaluation) {
   LG << "Original intrinsics: " << *intrinsics;
   vector<Marker> markers = tracks.AllMarkers();
 
-  ceres::Problem::Options problem_options;
-  ceres::Problem problem(problem_options);
+  // N-th element denotes whether track N is a constant zero-weigthed track.
+  vector<bool> zero_weight_tracks_flags(tracks.MaxTrack() + 1, true);
 
   // Residual blocks with 10 parameters are unwieldly with Ceres, so pack the
   // intrinsics into a single block and rely on local parameterizations to
   // control which intrinsics are allowed to vary.
-  double ceres_intrinsics[8];
+  double ceres_intrinsics[OFFSET_MAX];
   PackIntrinisicsIntoArray(*intrinsics, ceres_intrinsics);
 
   // Convert cameras rotations to angle axis and merge with translation
@@ -368,6 +495,8 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   }
 
   // Add residual blocks to the problem.
+  ceres::Problem::Options problem_options;
+  ceres::Problem problem(problem_options);
   int num_residuals = 0;
   bool have_locked_camera = false;
   for (int i = 0; i < markers.size(); ++i) {
@@ -387,8 +516,9 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
     // This way ceres is not gonna to go crazy.
     if (marker.weight != 0.0) {
       problem.AddResidualBlock(new ceres::AutoDiffCostFunction<
-          OpenCVReprojectionError, 2, 8, 6, 3>(
+          OpenCVReprojectionError, 2, OFFSET_MAX, 6, 3>(
               new OpenCVReprojectionError(
+                  intrinsics->GetDistortionModelType(),
                   marker.x,
                   marker.y,
                   marker.weight)),
@@ -405,8 +535,10 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
 
       if (bundle_constraints & BUNDLE_NO_TRANSLATION) {
         problem.SetParameterization(current_camera_R_t,
-                                  constant_translation_parameterization);
+                                    constant_translation_parameterization);
       }
+
+      zero_weight_tracks_flags[marker.track] = false;
     }
 
     num_residuals++;
@@ -416,6 +548,12 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   if (!num_residuals) {
     LG << "Skipping running minimizer with zero residuals";
     return;
+  }
+
+  if (intrinsics->GetDistortionModelType() == DISTORTION_MODEL_DIVISION &&
+    (bundle_intrinsics & BUNDLE_TANGENTIAL) != 0) {
+    LOG(FATAL) << "Division model doesn't support bundling "
+                  "of tangential distortion";
   }
 
   BundleIntrinsicsLogMessage(bundle_intrinsics);
@@ -446,7 +584,7 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
     constant_intrinsics.push_back(OFFSET_K3);
 
     ceres::SubsetParameterization *subset_parameterization =
-      new ceres::SubsetParameterization(8, constant_intrinsics);
+      new ceres::SubsetParameterization(OFFSET_MAX, constant_intrinsics);
 
     problem.SetParameterization(ceres_intrinsics, subset_parameterization);
   }
@@ -484,6 +622,29 @@ void EuclideanBundleCommonIntrinsics(const Tracks &tracks,
   if (evaluation) {
     EuclideanBundlerPerformEvaluation(tracks, reconstruction, &all_cameras_R_t,
                                       &problem, evaluation);
+  }
+
+  // Separate step to adjust positions of tracks which are
+  // constant zero-weighted.
+  vector<Marker> zero_weight_markers;
+  for (int track = 0; track < tracks.MaxTrack(); ++track) {
+    if (zero_weight_tracks_flags[track]) {
+      vector<Marker> current_markers = tracks.MarkersForTrack(track);
+      zero_weight_markers.reserve(zero_weight_markers.size() +
+                                  current_markers.size());
+      for (int i = 0; i < current_markers.size(); ++i) {
+        zero_weight_markers.push_back(current_markers[i]);
+      }
+    }
+  }
+
+  if (zero_weight_markers.size()) {
+    LG << "Refining position of constant zero-weighted tracks";
+    EuclideanBundlePointsOnly(intrinsics->GetDistortionModelType(),
+                              zero_weight_markers,
+                              all_cameras_R_t,
+                              ceres_intrinsics,
+                              reconstruction);
   }
 }
 

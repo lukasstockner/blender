@@ -37,6 +37,8 @@
 #include <iostream>
 #include <stdio.h>
 
+#include "BLI_task.h"
+
 #include "KX_KetsjiEngine.h"
 
 #include "ListValue.h"
@@ -48,8 +50,8 @@
 #include "RAS_BucketManager.h"
 #include "RAS_Rect.h"
 #include "RAS_IRasterizer.h"
-#include "RAS_IRenderTools.h"
 #include "RAS_ICanvas.h"
+#include "RAS_ILightObject.h"
 #include "MT_Vector3.h"
 #include "MT_Transform.h"
 #include "SCA_IInputDevice.h"
@@ -121,7 +123,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	:	m_canvas(NULL),
 	m_rasterizer(NULL),
 	m_kxsystem(system),
-	m_rendertools(NULL),
 	m_sceneconverter(NULL),
 	m_networkdevice(NULL),
 #ifdef WITH_PYTHON
@@ -144,8 +145,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 
 	m_exitcode(KX_EXIT_REQUEST_NO_REQUEST),
 	m_exitstring(""),
-	
-	m_drawingmode(5),
+
 	m_cameraZoom(1.0),
 	
 	m_overrideCam(false),
@@ -186,6 +186,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 #ifdef WITH_PYTHON
 	m_pyprofiledict = PyDict_New();
 #endif
+
+	m_taskscheduler = BLI_task_scheduler_create(TASK_SCHEDULER_AUTO_THREADS);
 }
 
 
@@ -202,6 +204,9 @@ KX_KetsjiEngine::~KX_KetsjiEngine()
 #ifdef WITH_PYTHON
 	Py_CLEAR(m_pyprofiledict);
 #endif
+
+	if (m_taskscheduler)
+		BLI_task_scheduler_free(m_taskscheduler);
 }
 
 
@@ -233,14 +238,6 @@ void KX_KetsjiEngine::SetCanvas(RAS_ICanvas* canvas)
 {
 	MT_assert(canvas);
 	m_canvas = canvas;
-}
-
-
-
-void KX_KetsjiEngine::SetRenderTools(RAS_IRenderTools* rendertools)
-{
-	MT_assert(rendertools);
-	m_rendertools = rendertools;
 }
 
 
@@ -278,7 +275,7 @@ void KX_KetsjiEngine::SetSceneConverter(KX_ISceneConverter* sceneconverter)
 
 void KX_KetsjiEngine::InitDome(short res, short mode, short angle, float resbuf, short tilt, struct Text* text)
 {
-	m_dome = new KX_Dome(m_canvas, m_rasterizer, m_rendertools,this, res, mode, angle, resbuf, tilt, text);
+	m_dome = new KX_Dome(m_canvas, m_rasterizer,this, res, mode, angle, resbuf, tilt, text);
 	m_usedome = true;
 }
 
@@ -319,7 +316,6 @@ void KX_KetsjiEngine::RenderDome()
 			scene = *sceneit;
 			KX_Camera* cam = scene->GetActiveCamera();
 
-			m_rendertools->BeginFrame(m_rasterizer);
 			// pass the scene's worldsettings to the rasterizer
 			SetWorldSettings(scene->GetWorldInfo());
 
@@ -333,7 +329,7 @@ void KX_KetsjiEngine::RenderDome()
 				if (scene->IsClearingZBuffer())
 					m_rasterizer->ClearDepthBuffer();
 		
-				m_rendertools->SetAuxilaryClientInfo(scene);
+				m_rasterizer->SetAuxilaryClientInfo(scene);
 		
 				// do the rendering
 				m_dome->RenderDomeFrame(scene,cam, i);
@@ -351,7 +347,7 @@ void KX_KetsjiEngine::RenderDome()
 					if (scene->IsClearingZBuffer())
 						m_rasterizer->ClearDepthBuffer();
 			
-					m_rendertools->SetAuxilaryClientInfo(scene);
+					m_rasterizer->SetAuxilaryClientInfo(scene);
 			
 					// do the rendering
 					m_dome->RenderDomeFrame(scene, (*it),i);
@@ -362,7 +358,7 @@ void KX_KetsjiEngine::RenderDome()
 				it++;
 			}
 			// Part of PostRenderScene()
-			m_rendertools->MotionBlur(m_rasterizer);
+			m_rasterizer->MotionBlur();
 			scene->Render2DFilters(m_canvas);
 			// no RunDrawingCallBacks
 			// no FlushDebugLines
@@ -498,8 +494,7 @@ bool KX_KetsjiEngine::BeginFrame()
 	{
 		ClearFrame();
 
-		m_rasterizer->BeginFrame(m_drawingmode , m_kxsystem->GetTimeInSeconds());
-		m_rendertools->BeginFrame(m_rasterizer);
+		m_rasterizer->BeginFrame(m_kxsystem->GetTimeInSeconds());
 
 		return true;
 	}
@@ -510,7 +505,7 @@ bool KX_KetsjiEngine::BeginFrame()
 
 void KX_KetsjiEngine::EndFrame()
 {
-	m_rendertools->MotionBlur(m_rasterizer);
+	m_rasterizer->MotionBlur();
 
 	// Show profiling info
 	m_logger->StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds(), true);
@@ -546,9 +541,6 @@ void KX_KetsjiEngine::EndFrame()
 	m_logger->StartLog(tc_latency, m_kxsystem->GetTimeInSeconds(), true);
 	m_rasterizer->SwapBuffers();
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
-
-	m_rendertools->EndFrame(m_rasterizer);
-
 	
 	m_canvas->EndDraw();
 }
@@ -661,7 +653,7 @@ bool KX_KetsjiEngine::NextFrame()
 #endif
 				KX_SetActiveScene(scene);
 	
-				scene->GetPhysicsEnvironment()->endFrame();
+				scene->GetPhysicsEnvironment()->EndFrame();
 				
 				// Update scenegraph after physics step. This maps physics calculations
 				// into node positions.
@@ -703,11 +695,11 @@ bool KX_KetsjiEngine::NextFrame()
 
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2);
-				scene->GetPhysicsEnvironment()->beginFrame();
+				scene->GetPhysicsEnvironment()->BeginFrame();
 		
 				// Perform physics calculations on the scene. This can involve 
 				// many iterations of the physics solver.
-				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_frameTime,timestep,framestep);//m_deltatimerealDeltaTime);
+				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_frameTime,timestep,framestep);//m_deltatimerealDeltaTime);
 
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2_UPDATE);
@@ -777,7 +769,7 @@ bool KX_KetsjiEngine::NextFrame()
 				// Perform physics calculations on the scene. This can involve 
 				// many iterations of the physics solver.
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
-				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_clockTime,timestep,timestep);
+				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_clockTime,timestep,timestep);
 				// Update scenegraph after physics step. This maps physics calculations
 				// into node positions.
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
@@ -852,7 +844,7 @@ void KX_KetsjiEngine::Render()
 	// clear the entire game screen with the border color
 	// only once per frame
 	m_canvas->BeginDraw();
-	if (m_drawingmode == RAS_IRasterizer::KX_TEXTURED) {
+	if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED) {
 		m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
 		if (m_overrideFrameColor)
 		{
@@ -905,7 +897,7 @@ void KX_KetsjiEngine::Render()
 			if (scene->IsClearingZBuffer())
 				m_rasterizer->ClearDepthBuffer();
 	
-			m_rendertools->SetAuxilaryClientInfo(scene);
+			m_rasterizer->SetAuxilaryClientInfo(scene);
 	
 			// do the rendering
 			RenderFrame(scene, cam);
@@ -921,7 +913,7 @@ void KX_KetsjiEngine::Render()
 				if (scene->IsClearingZBuffer())
 					m_rasterizer->ClearDepthBuffer();
 		
-				m_rendertools->SetAuxilaryClientInfo(scene);
+				m_rasterizer->SetAuxilaryClientInfo(scene);
 		
 				// do the rendering
 				RenderFrame(scene, (*it));
@@ -954,7 +946,7 @@ void KX_KetsjiEngine::Render()
 				m_rasterizer->ClearDepthBuffer();
 
 			//pass the scene, for picking and raycasting (shadows)
-			m_rendertools->SetAuxilaryClientInfo(scene);
+			m_rasterizer->SetAuxilaryClientInfo(scene);
 
 			// do the rendering
 			//RenderFrame(scene);
@@ -970,7 +962,7 @@ void KX_KetsjiEngine::Render()
 					if (scene->IsClearingZBuffer())
 						m_rasterizer->ClearDepthBuffer();
 			
-					m_rendertools->SetAuxilaryClientInfo(scene);
+					m_rasterizer->SetAuxilaryClientInfo(scene);
 			
 					// do the rendering
 					RenderFrame(scene, (*it));
@@ -1033,7 +1025,7 @@ void KX_KetsjiEngine::SetBackGround(KX_WorldInfo* wi)
 {
 	if (wi->hasWorld())
 	{
-		if (m_drawingmode == RAS_IRasterizer::KX_TEXTURED)
+		if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
 		{
 			m_rasterizer->SetBackColor(
 				wi->getBackColorRed(),
@@ -1058,7 +1050,7 @@ void KX_KetsjiEngine::SetWorldSettings(KX_WorldInfo* wi)
 			wi->getAmbientColorBlue()
 		);
 
-		if (m_drawingmode >= RAS_IRasterizer::KX_SOLID)
+		if (m_rasterizer->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID)
 		{
 			if (wi->hasMist())
 			{
@@ -1072,13 +1064,6 @@ void KX_KetsjiEngine::SetWorldSettings(KX_WorldInfo* wi)
 			}
 		}
 	}
-}
-
-
-
-void KX_KetsjiEngine::SetDrawType(int drawingmode)
-{
-	m_drawingmode = drawingmode;
 }
 
 
@@ -1172,16 +1157,17 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 	CListValue *lightlist = scene->GetLightList();
 	int i, drawmode;
 
-	m_rendertools->SetAuxilaryClientInfo(scene);
+	m_rasterizer->SetAuxilaryClientInfo(scene);
 
 	for (i=0; i<lightlist->GetCount(); i++) {
 		KX_GameObject *gameobj = (KX_GameObject*)lightlist->GetValue(i);
 
 		KX_LightObject *light = (KX_LightObject*)gameobj;
+		RAS_ILightObject *raslight = light->GetLightData();
 
-		light->Update();
+		raslight->Update();
 
-		if (m_drawingmode == RAS_IRasterizer::KX_TEXTURED && light->HasShadowBuffer()) {
+		if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED && raslight->HasShadowBuffer()) {
 			/* make temporary camera */
 			RAS_CameraData camdata = RAS_CameraData();
 			KX_Camera *cam = new KX_Camera(scene, scene->m_callbacks, camdata, true, true);
@@ -1194,18 +1180,18 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			m_rasterizer->SetDrawingMode(RAS_IRasterizer::KX_SHADOW);
 
 			/* binds framebuffer object, sets up camera .. */
-			light->BindShadowBuffer(m_rasterizer, m_canvas, cam, camtrans);
+			raslight->BindShadowBuffer(m_canvas, cam, camtrans);
 
 			/* update scene */
-			scene->CalculateVisibleMeshes(m_rasterizer, cam, light->GetShadowLayer());
+			scene->CalculateVisibleMeshes(m_rasterizer, cam, raslight->GetShadowLayer());
 
 			/* render */
 			m_rasterizer->ClearDepthBuffer();
 			m_rasterizer->ClearColorBuffer();
-			scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
+			scene->RenderBuckets(camtrans, m_rasterizer);
 
 			/* unbind framebuffer object, restore drawmode, free camera */
-			light->UnbindShadowBuffer(m_rasterizer);
+			raslight->UnbindShadowBuffer();
 			m_rasterizer->SetDrawingMode(drawmode);
 			cam->Release();
 		}
@@ -1330,6 +1316,9 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 
 	scene->CalculateVisibleMeshes(m_rasterizer,cam);
 
+	// update levels of detail
+	scene->UpdateObjectLods();
+
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_RENDER);
 
@@ -1338,13 +1327,13 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	scene->RunDrawingCallbacks(scene->GetPreDrawCB());
 #endif
 
-	scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
+	scene->RenderBuckets(camtrans, m_rasterizer);
 
 	//render all the font objects for this scene
 	scene->RenderFonts();
 	
 	if (scene->GetPhysicsEnvironment())
-		scene->GetPhysicsEnvironment()->debugDrawWorld();
+		scene->GetPhysicsEnvironment()->DebugDrawWorld();
 }
 
 /*
@@ -1475,7 +1464,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	
 	if (m_show_framerate || m_show_profile) {
 		/* Title for profiling("Profile") */
-		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 		                            "Profile",
 		                            xcoord + const_xindent + title_xmargin, // Adds the constant x indent (0 for now) to the title x margin
 		                            ycoord,
@@ -1490,7 +1479,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 	/* Framerate display */
 	if (m_show_framerate) {
-		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 		                            "Frametime :",
 		                            xcoord + const_xindent,
 		                            ycoord,
@@ -1498,7 +1487,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 		                            m_canvas->GetHeight() /* RdV, TODO ?? */);
 		
 		debugtxt.Format("%5.1fms (%.1ffps)", tottime * 1000.f, 1.0/tottime);
-		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 		                            debugtxt.ReadPtr(),
 		                            xcoord + const_xindent + profile_indent,
 		                            ycoord,
@@ -1511,7 +1500,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	/* Profile display */
 	if (m_show_profile) {
 		for (int j = tc_first; j < tc_numCategories; j++) {
-			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+			m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 			                            m_profileLabels[j],
 			                            xcoord + const_xindent,
 			                            ycoord,
@@ -1521,13 +1510,13 @@ void KX_KetsjiEngine::RenderDebugProperties()
 			double time = m_logger->GetAverage((KX_TimeCategory)j);
 
 			debugtxt.Format("%5.2fms | %d%%", time*1000.f, (int)(time/tottime * 100.f));
-			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+			m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 			                            debugtxt.ReadPtr(),
 			                            xcoord + const_xindent + profile_indent, ycoord,
 			                            m_canvas->GetWidth(),
 			                            m_canvas->GetHeight());
 
-			m_rendertools->RenderBox2D(xcoord + (int)(2.2 * profile_indent), ycoord, m_canvas->GetWidth(), m_canvas->GetHeight(), time/tottime);
+			m_rasterizer->RenderBox2D(xcoord + (int)(2.2 * profile_indent), ycoord, m_canvas->GetWidth(), m_canvas->GetHeight(), time/tottime);
 			ycoord += const_ysize;
 		}
 	}
@@ -1538,7 +1527,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	if (m_show_debug_properties) {
 
 		/* Title for debugging("Debug properties") */
-		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+		m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 		                            "Debug Properties",
 		                            xcoord + const_xindent + title_xmargin, // Adds the constant x indent (0 for now) to the title x margin
 		                            ycoord,
@@ -1584,7 +1573,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 							first = false;
 						}
 					}
-					m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+					m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 					                            debugtxt.ReadPtr(),
 					                            xcoord + const_xindent,
 					                            ycoord,
@@ -1597,7 +1586,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 					if (propval) {
 						STR_String text = propval->GetText();
 						debugtxt = objname + ": '" + propname + "' = " + text;
-						m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+						m_rasterizer->RenderText2D(RAS_IRasterizer::RAS_TEXT_PADDED,
 						                            debugtxt.ReadPtr(),
 						                            xcoord + const_xindent,
 						                            ycoord,
@@ -1704,7 +1693,7 @@ KX_Scene* KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 									  m_canvas);
 
 	m_sceneconverter->ConvertScene(tmpscene,
-							  m_rendertools,
+							  m_rasterizer,
 							  m_canvas,
 							  libloading);
 
@@ -1714,6 +1703,8 @@ KX_Scene* KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 KX_Scene* KX_KetsjiEngine::CreateScene(const STR_String& scenename)
 {
 	Scene *scene = m_sceneconverter->GetBlenderSceneForName(scenename);
+	if (!scene)
+		return NULL;
 	return CreateScene(scene);
 }
 
@@ -1729,8 +1720,12 @@ void KX_KetsjiEngine::AddScheduledScenes()
 		{
 			STR_String scenename = *scenenameit;
 			KX_Scene* tmpscene = CreateScene(scenename);
-			m_scenes.push_back(tmpscene);
-			PostProcessScene(tmpscene);
+			if (tmpscene) {
+				m_scenes.push_back(tmpscene);
+				PostProcessScene(tmpscene);
+			} else {
+				printf("warning: scene %s could not be found, not added!\n",scenename.ReadPtr());
+			}
 		}
 		m_addingOverlayScenes.clear();
 	}
@@ -1743,9 +1738,12 @@ void KX_KetsjiEngine::AddScheduledScenes()
 		{
 			STR_String scenename = *scenenameit;
 			KX_Scene* tmpscene = CreateScene(scenename);
-			m_scenes.insert(m_scenes.begin(),tmpscene);
-			PostProcessScene(tmpscene);
-
+			if (tmpscene) {
+				m_scenes.insert(m_scenes.begin(),tmpscene);
+				PostProcessScene(tmpscene);
+			} else {
+				printf("warning: scene %s could not be found, not added!\n",scenename.ReadPtr());
+			}
 		}
 		m_addingBackgroundScenes.clear();
 	}

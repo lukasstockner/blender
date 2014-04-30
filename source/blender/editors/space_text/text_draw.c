@@ -822,7 +822,7 @@ static void calc_text_rcts(SpaceText *st, ARegion *ar, rcti *scroll, rcti *back)
 		/* the scrollbar is non-linear sized */
 		if (pix_bardiff > 0) {
 			/* the start of the highlight is in the current viewport */
-			if (ltexth && st->viewlines && lhlstart >= st->top && lhlstart <= st->top + st->viewlines) {
+			if (st->viewlines && lhlstart >= st->top && lhlstart <= st->top + st->viewlines) {
 				/* speed the progresion of the start of the highlight through the scrollbar */
 				hlstart = ( ( (pix_available - pix_bardiff) * lhlstart) / ltexth) + (pix_bardiff * (lhlstart - st->top) / st->viewlines);
 			}
@@ -840,7 +840,7 @@ static void calc_text_rcts(SpaceText *st, ARegion *ar, rcti *scroll, rcti *back)
 			}
 
 			/* the end of the highlight is in the current viewport */
-			if (ltexth && st->viewlines && lhlend >= st->top && lhlend <= st->top + st->viewlines) {
+			if (st->viewlines && lhlend >= st->top && lhlend <= st->top + st->viewlines) {
 				/* speed the progresion of the end of the highlight through the scrollbar */
 				hlend = (((pix_available - pix_bardiff) * lhlend) / ltexth) + (pix_bardiff * (lhlend - st->top) / st->viewlines);
 			}
@@ -1340,7 +1340,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	lineno = 0;
 	for (i = 0; i < st->top && tmp; i++) {
 		if (st->showsyntax && !tmp->format)
-			tft->format_line(st, tmp, 0);
+			tft->format_line(st, tmp, false);
 
 		if (st->wordwrap) {
 			int lines = text_get_visible_lines_no(st, lineno);
@@ -1389,7 +1389,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 
 	for (i = 0; y > 0 && i < st->viewlines && tmp; i++, tmp = tmp->next) {
 		if (st->showsyntax && !tmp->format)
-			tft->format_line(st, tmp, 0);
+			tft->format_line(st, tmp, false);
 
 		if (st->showlinenrs && !wrap_skip) {
 			/* draw line number */
@@ -1495,6 +1495,9 @@ void text_scroll_to_cursor(SpaceText *st, ScrArea *sa)
 
 	if (st->top < 0) st->top = 0;
 	if (st->left < 0) st->left = 0;
+
+	st->scroll_accum[0] = 0.0f;
+	st->scroll_accum[1] = 0.0f;
 }
 
 void text_update_cursor_moved(bContext *C)

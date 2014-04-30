@@ -25,7 +25,7 @@
 #include "MEM_guardedalloc.h"
 
 extern "C" {
-	#include "RE_pipeline.h"
+#  include "RE_pipeline.h"
 }
 
 BlurBaseOperation::BlurBaseOperation(DataType data_type) : NodeOperation()
@@ -36,30 +36,29 @@ BlurBaseOperation::BlurBaseOperation(DataType data_type) : NodeOperation()
 	this->addOutputSocket(data_type);
 	this->setComplex(true);
 	this->m_inputProgram = NULL;
-	this->m_data = NULL;
+	memset(&m_data, 0, sizeof(NodeBlurData));
 	this->m_size = 1.0f;
-	this->m_deleteData = false;
 	this->m_sizeavailable = false;
 }
 void BlurBaseOperation::initExecution()
 {
 	this->m_inputProgram = this->getInputSocketReader(0);
 	this->m_inputSize = this->getInputSocketReader(1);
-	this->m_data->image_in_width = this->getWidth();
-	this->m_data->image_in_height = this->getHeight();
-	if (this->m_data->relative) {
-		switch (this->m_data->aspect) {
+	this->m_data.image_in_width = this->getWidth();
+	this->m_data.image_in_height = this->getHeight();
+	if (this->m_data.relative) {
+		switch (this->m_data.aspect) {
 			case CMP_NODE_BLUR_ASPECT_NONE:
-				this->m_data->sizex = (int)(this->m_data->percentx * 0.01f * this->m_data->image_in_width);
-				this->m_data->sizey = (int)(this->m_data->percenty * 0.01f * this->m_data->image_in_height);
+				this->m_data.sizex = (int)(this->m_data.percentx * 0.01f * this->m_data.image_in_width);
+				this->m_data.sizey = (int)(this->m_data.percenty * 0.01f * this->m_data.image_in_height);
 				break;
 			case CMP_NODE_BLUR_ASPECT_Y:
-				this->m_data->sizex = (int)(this->m_data->percentx * 0.01f * this->m_data->image_in_width);
-				this->m_data->sizey = (int)(this->m_data->percenty * 0.01f * this->m_data->image_in_width);
+				this->m_data.sizex = (int)(this->m_data.percentx * 0.01f * this->m_data.image_in_width);
+				this->m_data.sizey = (int)(this->m_data.percenty * 0.01f * this->m_data.image_in_width);
 				break;
 			case CMP_NODE_BLUR_ASPECT_X:
-				this->m_data->sizex = (int)(this->m_data->percentx * 0.01f * this->m_data->image_in_height);
-				this->m_data->sizey = (int)(this->m_data->percenty * 0.01f * this->m_data->image_in_height);
+				this->m_data.sizex = (int)(this->m_data.percentx * 0.01f * this->m_data.image_in_height);
+				this->m_data.sizey = (int)(this->m_data.percenty * 0.01f * this->m_data.image_in_height);
 				break;
 		}
 	}
@@ -68,20 +67,21 @@ void BlurBaseOperation::initExecution()
 
 }
 
-float *BlurBaseOperation::make_gausstab(int rad)
+float *BlurBaseOperation::make_gausstab(float rad, int size)
 {
 	float *gausstab, sum, val;
 	int i, n;
 
-	n = 2 * rad + 1;
+	n = 2 * size + 1;
 
 	gausstab = (float *)MEM_mallocN(sizeof(float) * n, __func__);
 
 	sum = 0.0f;
-	for (i = -rad; i <= rad; i++) {
-		val = RE_filter_value(this->m_data->filtertype, (float)i / (float)rad);
+	float fac = (rad > 0.0f ? 1.0f / rad : 0.0f);
+	for (i = -size; i <= size; i++) {
+		val = RE_filter_value(this->m_data.filtertype, (float)i * fac);
 		sum += val;
-		gausstab[i + rad] = val;
+		gausstab[i + size] = val;
 	}
 
 	sum = 1.0f / sum;
@@ -93,17 +93,18 @@ float *BlurBaseOperation::make_gausstab(int rad)
 
 /* normalized distance from the current (inverted so 1.0 is close and 0.0 is far)
  * 'ease' is applied after, looks nicer */
-float *BlurBaseOperation::make_dist_fac_inverse(int rad, int falloff)
+float *BlurBaseOperation::make_dist_fac_inverse(float rad, int size, int falloff)
 {
 	float *dist_fac_invert, val;
 	int i, n;
 
-	n = 2 * rad + 1;
+	n = 2 * size + 1;
 
 	dist_fac_invert = (float *)MEM_mallocN(sizeof(float) * n, __func__);
 
-	for (i = -rad; i <= rad; i++) {
-		val = 1.0f - fabsf(((float)i / (float)rad));
+	float fac = (rad > 0.0f ? 1.0f / rad : 0.0f);
+	for (i = -size; i <= size; i++) {
+		val = 1.0f - fabsf((float)i * fac);
 
 		/* keep in sync with proportional_falloff_curve_only_items */
 		switch (falloff) {
@@ -132,7 +133,7 @@ float *BlurBaseOperation::make_dist_fac_inverse(int rad, int falloff)
 				/* nothing */
 				break;
 		}
-		dist_fac_invert[i + rad] = val;
+		dist_fac_invert[i + size] = val;
 	}
 
 	return dist_fac_invert;
@@ -142,17 +143,18 @@ void BlurBaseOperation::deinitExecution()
 {
 	this->m_inputProgram = NULL;
 	this->m_inputSize = NULL;
-	if (this->m_deleteData) {
-		delete this->m_data;
-	}
-	this->m_data = NULL;
+}
+
+void BlurBaseOperation::setData(const NodeBlurData *data)
+{
+	memcpy(&m_data, data, sizeof(NodeBlurData));
 }
 
 void BlurBaseOperation::updateSize()
 {
 	if (!this->m_sizeavailable) {
 		float result[4];
-		this->getInputSocketReader(1)->read(result, 0, 0, COM_PS_NEAREST);
+		this->getInputSocketReader(1)->readSampled(result, 0, 0, COM_PS_NEAREST);
 		this->m_size = result[0];
 		this->m_sizeavailable = true;
 	}

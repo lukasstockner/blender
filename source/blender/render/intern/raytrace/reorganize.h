@@ -38,8 +38,6 @@
 #include <queue>
 #include <vector>
 
-#include "BKE_global.h"
-
 #ifdef _WIN32
 #  ifdef INFINITY
 #    undef INFINITY
@@ -289,6 +287,10 @@ static float bvh_refit(Node *node)
 #define MAX_CUT_SIZE         4               /* svbvh assumes max 4 children! */
 #define MAX_OPTIMIZE_CHILDS  MAX_CUT_SIZE
 
+#define CUT_SIZE_IS_VALID(cut_size) ((cut_size) < MAX_CUT_SIZE && (cut_size) >= 0)
+#define CUT_SIZE_INVALID -1
+
+
 struct OVBVHNode {
 	float bb[6];
 
@@ -302,6 +304,7 @@ struct OVBVHNode {
 	float cut_cost[MAX_CUT_SIZE];
 	float get_cost(int cutsize)
 	{
+		assert(CUT_SIZE_IS_VALID(cutsize - 1));
 		return cut_cost[cutsize - 1];
 	}
 	
@@ -312,6 +315,7 @@ struct OVBVHNode {
 	int cut_size[MAX_CUT_SIZE];
 	int get_cut_size(int parent_cut_size)
 	{
+		assert(CUT_SIZE_IS_VALID(parent_cut_size - 1));
 		return cut_size[parent_cut_size - 1];
 	}
 	
@@ -345,9 +349,9 @@ struct OVBVHNode {
 	{
 		if (RE_rayobject_isAligned(this->child)) {
 			//Calc new childs
-			{
+			if (this->best_cutsize != CUT_SIZE_INVALID) {
 				OVBVHNode **cut = &(this->child);
-				set_cut(best_cutsize, &cut);
+				set_cut(this->best_cutsize, &cut);
 				*cut = NULL;
 			}
 
@@ -470,24 +474,36 @@ struct VBVH_optimalPackSIMD {
 					}
 				}
 			}
-			assert(node->cut_cost[0] != INFINITY);
+
+			if (node->cut_cost[0] == INFINITY) {
+				node->best_cutsize = CUT_SIZE_INVALID;
+			}
 		}
 		else {
 			node->cut_cost[0] = 1.0f;
 			for (int i = 1; i < MAX_CUT_SIZE; i++)
 				node->cut_cost[i] = INFINITY;
+
+			/* node->best_cutsize can remain unset here */
 		}
 	}
 
 	Node *transform(Node *node)
 	{
 		if (RE_rayobject_isAligned(node->child)) {
+#ifdef DEBUG
 			static int num = 0;
 			bool first = false;
 			if (num == 0) { num++; first = true; }
-			
+#endif
+
 			calc_costs(node);
-			if ((G.debug & G_DEBUG) && first) printf("expected cost = %f (%d)\n", node->cut_cost[0], node->best_cutsize);
+
+#ifdef DEBUG
+			if (first) {
+				printf("expected cost = %f (%d)\n", node->cut_cost[0], node->best_cutsize);
+			}
+#endif
 			node->optimize();
 		}
 		return node;

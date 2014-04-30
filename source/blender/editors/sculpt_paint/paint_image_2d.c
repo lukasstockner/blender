@@ -49,6 +49,7 @@
 #include "BKE_report.h"
 
 #include "ED_screen.h"
+#include "ED_sculpt.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -200,7 +201,7 @@ static unsigned short *brush_painter_mask_new(BrushPainter *painter, int size)
 	Brush *brush = painter->brush;
 	bool use_masking = painter->cache.use_masking;
 
-	float alpha = (use_masking)? 1.0f: BKE_brush_alpha_get(scene, brush);
+	float alpha = (use_masking) ? 1.0f : BKE_brush_alpha_get(scene, brush);
 	int radius = BKE_brush_size_get(scene, brush);
 	int xoff = -size * 0.5f + 0.5f;
 	int yoff = -size * 0.5f + 0.5f;
@@ -232,6 +233,9 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size)
 	Scene *scene = painter->scene;
 	Brush *brush = painter->brush;
 
+	const char *display_device = scene->display_settings.display_device;
+	struct ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
+
 	rctf tex_mapping = painter->tex_mapping;
 	rctf mask_mapping = painter->mask_mapping;
 	struct ImagePool *pool = painter->pool;
@@ -242,7 +246,7 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size)
 	bool is_texbrush = painter->cache.is_texbrush;
 	bool is_maskbrush = painter->cache.is_maskbrush;
 
-	float alpha = (use_masking)? 1.0f: BKE_brush_alpha_get(scene, brush);
+	float alpha = (use_masking) ? 1.0f : BKE_brush_alpha_get(scene, brush);
 	int radius = BKE_brush_size_get(scene, brush);
 	int xoff = -size * 0.5f + 0.5f;
 	int yoff = -size * 0.5f + 0.5f;
@@ -257,8 +261,9 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size)
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
 		copy_v3_v3(brush_rgb, brush->rgb);
 
-		if (use_color_correction)
-			srgb_to_linearrgb_v3_v3(brush_rgb, brush_rgb);
+		if (use_color_correction) {
+			IMB_colormanagement_display_to_scene_linear_v3(brush_rgb, display);
+		}
 	}
 	else {
 		brush_rgb[0] = 1.0f;
@@ -275,6 +280,10 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size)
 			if (is_texbrush) {
 				brush_imbuf_tex_co(&tex_mapping, x, y, texco);
 				BKE_brush_sample_tex_3D(scene, brush, texco, rgba, thread, pool);
+				/* TODO(sergey): Support texture paint color space. */
+				if (!use_float) {
+					IMB_colormanagement_display_to_scene_linear_v3(rgba, display);
+				}
 				mul_v3_v3(rgba, brush_rgb);
 			}
 			else {
@@ -321,6 +330,9 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 	Scene *scene = painter->scene;
 	Brush *brush = painter->brush;
 
+	const char *display_device = scene->display_settings.display_device;
+	struct ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
+
 	rctf tex_mapping = painter->tex_mapping;
 	rctf mask_mapping = painter->mask_mapping;
 	struct ImagePool *pool = painter->pool;
@@ -343,8 +355,9 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
 		copy_v3_v3(brush_rgb, brush->rgb);
 
-		if (use_color_correction)
-			srgb_to_linearrgb_v3_v3(brush_rgb, brush_rgb);
+		if (use_color_correction) {
+			IMB_colormanagement_display_to_scene_linear_v3(brush_rgb, display);
+		}
 	}
 	else {
 		brush_rgb[0] = 1.0f;
@@ -362,6 +375,10 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 				if (is_texbrush) {
 					brush_imbuf_tex_co(&tex_mapping, x, y, texco);
 					BKE_brush_sample_tex_3D(scene, brush, texco, rgba, thread, pool);
+					/* TODO(sergey): Support texture paint color space. */
+					if (!use_float) {
+						IMB_colormanagement_display_to_scene_linear_v3(rgba, display);
+					}
 					mul_v3_v3(rgba, brush_rgb);
 				}
 				else {
@@ -512,8 +529,8 @@ static void brush_painter_2d_tex_mapping(ImagePaintState *s, int size, const flo
 
 	if (mapmode == MTEX_MAP_MODE_STENCIL) {
 		/* map from view coordinates of brush to region coordinates */
-		UI_view2d_to_region_no_clip(s->v2d, ipos[0] * invw, ipos[1] * invh, &xmin, &ymin);
-		UI_view2d_to_region_no_clip(s->v2d, (ipos[0] + size) * invw, (ipos[1] + size) * invh, &xmax, &ymax);
+		UI_view2d_view_to_region(s->v2d, ipos[0] * invw, ipos[1] * invh, &xmin, &ymin);
+		UI_view2d_view_to_region(s->v2d, (ipos[0] + size) * invw, (ipos[1] + size) * invh, &xmax, &ymax);
 
 		/* output mapping from brush ibuf x/y to region coordinates */
 		mapping->xmin = xmin;
@@ -644,7 +661,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 }
 
 /* keep these functions in sync */
-static void paint_2d_ibuf_rgb_get(ImBuf *ibuf, int x, int y, const short is_torus, float r_rgb[4])
+static void paint_2d_ibuf_rgb_get(ImBuf *ibuf, int x, int y, const bool is_torus, float r_rgb[4])
 {
 	if (is_torus) {
 		x %= ibuf->x;
@@ -662,7 +679,7 @@ static void paint_2d_ibuf_rgb_get(ImBuf *ibuf, int x, int y, const short is_toru
 		straight_uchar_to_premul_float(r_rgb, rrgb);
 	}
 }
-static void paint_2d_ibuf_rgb_set(ImBuf *ibuf, int x, int y, const short is_torus, const float rgb[4])
+static void paint_2d_ibuf_rgb_set(ImBuf *ibuf, int x, int y, const bool is_torus, const float rgb[4])
 {
 	if (is_torus) {
 		x %= ibuf->x;
@@ -673,7 +690,7 @@ static void paint_2d_ibuf_rgb_set(ImBuf *ibuf, int x, int y, const short is_toru
 
 	if (ibuf->rect_float) {
 		float *rrgbf = ibuf->rect_float + (ibuf->x * y + x) * 4;
-		float map_alpha = (rgb[3] == 0.0f)? rrgbf[3] : rrgbf[3] / rgb[3];
+		float map_alpha = (rgb[3] == 0.0f) ? rrgbf[3] : rrgbf[3] / rgb[3];
 
 		mul_v3_v3fl(rrgbf, rgb, map_alpha);
 	}
@@ -706,7 +723,7 @@ static int paint_2d_ibuf_add_if(ImBuf *ibuf, unsigned int x, unsigned int y, flo
 	return 1;
 }
 
-static void paint_2d_lift_soften(ImBuf *ibuf, ImBuf *ibufb, int *pos, const short is_torus)
+static void paint_2d_lift_soften(ImBuf *ibuf, ImBuf *ibufb, int *pos, const bool is_torus)
 {
 	int x, y, count, xi, yi, xo, yo;
 	int out_off[2], in_off[2], dim[2];
@@ -894,7 +911,7 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *maskb, const f
 	
 	/* blend into canvas */
 	for (a = 0; a < tot; a++) {
-		imapaint_dirty_region(s->image, s->canvas,
+		ED_imapaint_dirty_region(s->image, s->canvas,
 		                      region[a].destx, region[a].desty,
 		                      region[a].width, region[a].height);
 	
@@ -1103,7 +1120,7 @@ void paint_2d_redraw(const bContext *C, void *ps, bool final)
 		ImBuf *ibuf = BKE_image_acquire_ibuf(s->image, s->sima ? &s->sima->iuser : NULL, NULL);
 
 		imapaint_image_update(s->sima, s->image, ibuf, false);
-		imapaint_clear_partial_redraw();
+		ED_imapaint_clear_partial_redraw();
 
 		BKE_image_release_ibuf(s->image, ibuf, NULL);
 

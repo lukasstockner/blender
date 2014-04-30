@@ -26,8 +26,9 @@
 
 /** \file blender/windowmanager/intern/wm_draw.c
  *  \ingroup wm
+ *
+ * Handle OpenGL buffers for windowing, also paint cursor.
  */
-
 
 #include <stdlib.h>
 #include <string.h>
@@ -118,10 +119,10 @@ static void wm_area_mark_invalid_backbuf(ScrArea *sa)
 		((View3D *)sa->spacedata.first)->flag |= V3D_INVALID_BACKBUF;
 }
 
-static int wm_area_test_invalid_backbuf(ScrArea *sa)
+static bool wm_area_test_invalid_backbuf(ScrArea *sa)
 {
 	if (sa->spacetype == SPACE_VIEW3D)
-		return (((View3D *)sa->spacedata.first)->flag & V3D_INVALID_BACKBUF);
+		return (((View3D *)sa->spacedata.first)->flag & V3D_INVALID_BACKBUF) != 0;
 	else
 		return 1;
 }
@@ -429,6 +430,9 @@ static void wm_draw_triple_fail(bContext *C, wmWindow *win)
 
 static int wm_triple_gen_textures(wmWindow *win, wmDrawTriple *triple)
 {
+	const int winsize_x = WM_window_pixels_x(win);
+	const int winsize_y = WM_window_pixels_y(win);
+
 	GLint maxsize;
 	int x, y;
 
@@ -437,22 +441,22 @@ static int wm_triple_gen_textures(wmWindow *win, wmDrawTriple *triple)
 		triple->target = GL_TEXTURE_RECTANGLE_ARB;
 		triple->nx = 1;
 		triple->ny = 1;
-		triple->x[0] = WM_window_pixels_x(win);
-		triple->y[0] = WM_window_pixels_y(win);
+		triple->x[0] = winsize_x;
+		triple->y[0] = winsize_y;
 	}
 	else if (GPU_non_power_of_two_support()) {
 		triple->target = GL_TEXTURE_2D;
 		triple->nx = 1;
 		triple->ny = 1;
-		triple->x[0] = WM_window_pixels_x(win);
-		triple->y[0] = WM_window_pixels_y(win);
+		triple->x[0] = winsize_x;
+		triple->y[0] = winsize_y;
 	}
 	else {
 		triple->target = GL_TEXTURE_2D;
 		triple->nx = 0;
 		triple->ny = 0;
-		split_width(WM_window_pixels_x(win), MAX_N_TEX, triple->x, &triple->nx);
-		split_width(WM_window_pixels_y(win), MAX_N_TEX, triple->y, &triple->ny);
+		split_width(winsize_x, MAX_N_TEX, triple->x, &triple->nx);
+		split_width(winsize_y, MAX_N_TEX, triple->y, &triple->ny);
 	}
 
 	/* generate texture names */
@@ -499,6 +503,9 @@ static int wm_triple_gen_textures(wmWindow *win, wmDrawTriple *triple)
 
 static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float alpha)
 {
+	const int winsize_x = WM_window_pixels_x(win);
+	const int winsize_y = WM_window_pixels_y(win);
+
 	float halfx, halfy, ratiox, ratioy;
 	int x, y, sizex, sizey, offx, offy;
 
@@ -506,8 +513,8 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 
 	for (y = 0, offy = 0; y < triple->ny; offy += triple->y[y], y++) {
 		for (x = 0, offx = 0; x < triple->nx; offx += triple->x[x], x++) {
-			sizex = (x == triple->nx - 1) ? WM_window_pixels_x(win) - offx : triple->x[x];
-			sizey = (y == triple->ny - 1) ? WM_window_pixels_y(win) - offy : triple->y[y];
+			sizex = (x == triple->nx - 1) ? winsize_x - offx : triple->x[x];
+			sizey = (y == triple->ny - 1) ? winsize_y - offy : triple->y[y];
 
 			/* wmOrtho for the screen has this same offset */
 			ratiox = sizex;
@@ -548,12 +555,15 @@ static void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float a
 
 static void wm_triple_copy_textures(wmWindow *win, wmDrawTriple *triple)
 {
+	const int winsize_x = WM_window_pixels_x(win);
+	const int winsize_y = WM_window_pixels_y(win);
+
 	int x, y, sizex, sizey, offx, offy;
 
 	for (y = 0, offy = 0; y < triple->ny; offy += triple->y[y], y++) {
 		for (x = 0, offx = 0; x < triple->nx; offx += triple->x[x], x++) {
-			sizex = (x == triple->nx - 1) ? WM_window_pixels_x(win) - offx : triple->x[x];
-			sizey = (y == triple->ny - 1) ? WM_window_pixels_y(win) - offy : triple->y[y];
+			sizex = (x == triple->nx - 1) ? winsize_x - offx : triple->x[x];
+			sizey = (y == triple->ny - 1) ? winsize_y - offy : triple->y[y];
 
 			glBindTexture(triple->target, triple->bind[x + y * triple->nx]);
 			glCopyTexSubImage2D(triple->target, 0, 0, 0, offx, offy, sizex, sizey);
@@ -696,19 +706,19 @@ static void wm_method_draw_triple(bContext *C, wmWindow *win)
 /****************** main update call **********************/
 
 /* quick test to prevent changing window drawable */
-static int wm_draw_update_test_window(wmWindow *win)
+static bool wm_draw_update_test_window(wmWindow *win)
 {
 	ScrArea *sa;
 	ARegion *ar;
-	int do_draw = FALSE;
+	bool do_draw = false;
 
 	for (ar = win->screen->regionbase.first; ar; ar = ar->next) {
 		if (ar->do_draw_overlay) {
 			wm_tag_redraw_overlay(win, ar);
-			ar->do_draw_overlay = FALSE;
+			ar->do_draw_overlay = false;
 		}
 		if (ar->swinid && ar->do_draw)
-			do_draw = TRUE;
+			do_draw = true;
 	}
 
 	for (sa = win->screen->areabase.first; sa; sa = sa->next) {
@@ -716,7 +726,7 @@ static int wm_draw_update_test_window(wmWindow *win)
 			wm_region_test_render_do_draw(win->screen, sa, ar);
 
 			if (ar->swinid && ar->do_draw)
-				do_draw = TRUE;
+				do_draw = true;
 		}
 	}
 
@@ -786,13 +796,13 @@ void wm_tag_redraw_overlay(wmWindow *win, ARegion *ar)
 	if (ar && win) {
 		if (wm_automatic_draw_method(win) != USER_DRAW_TRIPLE)
 			ED_region_tag_redraw(ar);
-		win->screen->do_draw_paintcursor = TRUE;
+		win->screen->do_draw_paintcursor = true;
 	}
 }
 
 void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion *ar)
 {
-	win->screen->do_draw_paintcursor = TRUE;
+	win->screen->do_draw_paintcursor = true;
 	wm_tag_redraw_overlay(win, ar);
 }
 
@@ -845,9 +855,9 @@ void wm_draw_update(bContext *C)
 			else // if (drawmethod == USER_DRAW_TRIPLE)
 				wm_method_draw_triple(C, win);
 
-			win->screen->do_draw_gesture = FALSE;
-			win->screen->do_draw_paintcursor = FALSE;
-			win->screen->do_draw_drag = FALSE;
+			win->screen->do_draw_gesture = false;
+			win->screen->do_draw_paintcursor = false;
+			win->screen->do_draw_drag = false;
 		
 			wm_window_swap_buffers(win);
 
@@ -883,7 +893,7 @@ void wm_draw_region_clear(wmWindow *win, ARegion *ar)
 	if (ELEM(drawmethod, USER_DRAW_OVERLAP, USER_DRAW_OVERLAP_FLIP))
 		wm_flush_regions_down(win->screen, &ar->winrct);
 
-	win->screen->do_draw = TRUE;
+	win->screen->do_draw = true;
 }
 
 void WM_redraw_windows(bContext *C)

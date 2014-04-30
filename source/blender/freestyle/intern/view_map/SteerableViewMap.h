@@ -51,7 +51,7 @@ class GrayImage;
 /*! This class checks for every FEdge in which steerable it belongs and stores the mapping allowing to retrieve 
  *  this information from the FEdge Id.
  */
-class LIB_VIEW_MAP_EXPORT SteerableViewMap
+class SteerableViewMap
 {
 protected:
 	// for each vector the list of nbOrientations weigths corresponding to its contributions
@@ -95,7 +95,7 @@ public:
 
 	/*! Builds _nbOrientations+1 pyramids of images from the _nbOrientations+1 base images of the steerable viewmap.
 	 *  \param steerableBases
-	 *    The _nbOrientations+1 images constituing the basis for the steerable pyramid.
+	 *    The _nbOrientations+1 images constituting the basis for the steerable pyramid.
 	 *  \param copy
 	 *    If false, the data is not duplicated, and Canvas deals with the memory management of these
 	 *    _nbOrientations+1 images. If true, data is copied, and it's up to the caller to delete the images.

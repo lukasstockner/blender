@@ -48,8 +48,8 @@
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_uvproject.h"
-#include "BLI_utildefines.h"
 #include "BLI_string.h"
+#include "BLI_scanfill.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_subsurf.h"
@@ -62,11 +62,6 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_editmesh.h"
-
-#include "BLI_math.h"
-#include "BLI_edgehash.h"
-#include "BLI_scanfill.h"
-#include "BLI_uvproject.h"
 
 #include "PIL_time.h"
 
@@ -86,22 +81,22 @@
 #include "uvedit_intern.h"
 #include "uvedit_parametrizer.h"
 
-static void modifier_unwrap_state(Object *obedit, Scene *scene, short *use_subsurf)
+static void modifier_unwrap_state(Object *obedit, Scene *scene, bool *r_use_subsurf)
 {
 	ModifierData *md;
-	short subsurf = scene->toolsettings->uvcalc_flag & UVCALC_USESUBSURF;
+	bool subsurf = (scene->toolsettings->uvcalc_flag & UVCALC_USESUBSURF) != 0;
 
 	md = obedit->modifiers.first;
 
 	/* subsurf will take the modifier settings only if modifier is first or right after mirror */
 	if (subsurf) {
 		if (md && md->type == eModifierType_Subsurf)
-			subsurf = TRUE;
+			subsurf = true;
 		else
-			subsurf = FALSE;
+			subsurf = false;
 	}
 
-	*use_subsurf = subsurf;
+	*r_use_subsurf = subsurf;
 }
 
 static bool ED_uvedit_ensure_uvs(bContext *C, Scene *scene, Object *obedit)
@@ -200,8 +195,8 @@ static bool uvedit_have_selection(Scene *scene, BMEditMesh *em, bool implicit)
 
 void uvedit_get_aspect(Scene *scene, Object *ob, BMEditMesh *em, float *aspx, float *aspy)
 {
-	int sloppy = TRUE;
-	int selected = FALSE;
+	bool sloppy = true;
+	bool selected = false;
 	BMFace *efa;
 	Image *ima;
 
@@ -256,8 +251,8 @@ static void construct_param_handle_face_add(ParamHandle *handle, Scene *scene,
 }
 
 static ParamHandle *construct_param_handle(Scene *scene, Object *ob, BMEditMesh *em,
-                                           short implicit, short fill, short sel,
-                                           short correct_aspect)
+                                           const bool implicit, const bool fill, const bool sel,
+                                           const bool correct_aspect)
 {
 	BMesh *bm = em->bm;
 	ParamHandle *handle;
@@ -399,7 +394,7 @@ static ParamHandle *construct_param_handle_subsurfed(Scene *scene, Object *ob, B
 	smd.levels = smd_real->levels;
 	smd.subdivType = smd_real->subdivType;
 		
-	initialDerived = CDDM_from_editbmesh(em, FALSE, FALSE);
+	initialDerived = CDDM_from_editbmesh(em, false, false);
 	derivedMesh = subsurf_make_derived_from_derived(initialDerived, &smd,
 	                                                NULL, SUBSURF_IN_EDIT_MODE);
 
@@ -516,7 +511,7 @@ static bool minimize_stretch_init(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	MinStretch *ms;
-	int fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
+	const bool fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
 	bool implicit = true;
 
 	if (!uvedit_have_selection(scene, em, implicit)) {
@@ -542,7 +537,7 @@ static bool minimize_stretch_init(bContext *C, wmOperator *op)
 	return true;
 }
 
-static void minimize_stretch_iteration(bContext *C, wmOperator *op, int interactive)
+static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interactive)
 {
 	MinStretch *ms = op->customdata;
 	ScrArea *sa = CTX_wm_area(C);
@@ -570,7 +565,7 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, int interact
 	}
 }
 
-static void minimize_stretch_exit(bContext *C, wmOperator *op, int cancel)
+static void minimize_stretch_exit(bContext *C, wmOperator *op, bool cancel)
 {
 	MinStretch *ms = op->customdata;
 	ScrArea *sa = CTX_wm_area(C);
@@ -604,8 +599,8 @@ static int minimize_stretch_exec(bContext *C, wmOperator *op)
 
 	iterations = RNA_int_get(op->ptr, "iterations");
 	for (i = 0; i < iterations; i++)
-		minimize_stretch_iteration(C, op, 0);
-	minimize_stretch_exit(C, op, 0);
+		minimize_stretch_iteration(C, op, false);
+	minimize_stretch_exit(C, op, false);
 
 	return OPERATOR_FINISHED;
 }
@@ -617,7 +612,7 @@ static int minimize_stretch_invoke(bContext *C, wmOperator *op, const wmEvent *U
 	if (!minimize_stretch_init(C, op))
 		return OPERATOR_CANCELLED;
 
-	minimize_stretch_iteration(C, op, 1);
+	minimize_stretch_iteration(C, op, true);
 
 	ms = op->customdata;
 	WM_event_add_modal_handler(C, op);
@@ -633,12 +628,12 @@ static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *ev
 	switch (event->type) {
 		case ESCKEY:
 		case RIGHTMOUSE:
-			minimize_stretch_exit(C, op, 1);
+			minimize_stretch_exit(C, op, true);
 			return OPERATOR_CANCELLED;
 		case RETKEY:
 		case PADENTER:
 		case LEFTMOUSE:
-			minimize_stretch_exit(C, op, 0);
+			minimize_stretch_exit(C, op, false);
 			return OPERATOR_FINISHED;
 		case PADPLUSKEY:
 		case WHEELUPMOUSE:
@@ -647,7 +642,7 @@ static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *ev
 					ms->blend += 0.1f;
 					ms->lasttime = 0.0f;
 					RNA_float_set(op->ptr, "blend", ms->blend);
-					minimize_stretch_iteration(C, op, 1);
+					minimize_stretch_iteration(C, op, true);
 				}
 			}
 			break;
@@ -658,7 +653,7 @@ static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *ev
 					ms->blend -= 0.1f;
 					ms->lasttime = 0.0f;
 					RNA_float_set(op->ptr, "blend", ms->blend);
-					minimize_stretch_iteration(C, op, 1);
+					minimize_stretch_iteration(C, op, true);
 				}
 			}
 			break;
@@ -667,25 +662,23 @@ static int minimize_stretch_modal(bContext *C, wmOperator *op, const wmEvent *ev
 				double start = PIL_check_seconds_timer();
 
 				do {
-					minimize_stretch_iteration(C, op, 1);
+					minimize_stretch_iteration(C, op, true);
 				} while (PIL_check_seconds_timer() - start < 0.01);
 			}
 			break;
 	}
 
 	if (ms->iterations && ms->i >= ms->iterations) {
-		minimize_stretch_exit(C, op, 0);
+		minimize_stretch_exit(C, op, false);
 		return OPERATOR_FINISHED;
 	}
 
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static int minimize_stretch_cancel(bContext *C, wmOperator *op)
+static void minimize_stretch_cancel(bContext *C, wmOperator *op)
 {
-	minimize_stretch_exit(C, op, 1);
-
-	return OPERATOR_CANCELLED;
+	minimize_stretch_exit(C, op, true);
 }
 
 void UV_OT_minimize_stretch(wmOperatorType *ot)
@@ -804,9 +797,9 @@ static ParamHandle *liveHandle = NULL;
 void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit)
 {
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	short abf = scene->toolsettings->unwrapper == 0;
-	short fillholes = scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES;
-	short use_subsurf;
+	const bool abf = (scene->toolsettings->unwrapper == 0);
+	const bool fillholes = (scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES) != 0;
+	bool use_subsurf;
 
 	modifier_unwrap_state(obedit, scene, &use_subsurf);
 
@@ -815,9 +808,9 @@ void ED_uvedit_live_unwrap_begin(Scene *scene, Object *obedit)
 	}
 
 	if (use_subsurf)
-		liveHandle = construct_param_handle_subsurfed(scene, obedit, em, fillholes, FALSE, TRUE);
+		liveHandle = construct_param_handle_subsurfed(scene, obedit, em, fillholes, false, true);
 	else
-		liveHandle = construct_param_handle(scene, obedit, em, FALSE, fillholes, FALSE, TRUE);
+		liveHandle = construct_param_handle(scene, obedit, em, false, fillholes, false, true);
 
 	param_lscm_begin(liveHandle, PARAM_TRUE, abf);
 }
@@ -848,7 +841,7 @@ void ED_uvedit_live_unwrap(Scene *scene, Object *obedit)
 	if (scene->toolsettings->edge_mode_live_unwrap &&
 	    CustomData_has_layer(&em->bm->ldata, CD_MLOOPUV))
 	{
-		ED_unwrap_lscm(scene, obedit, FALSE); /* unwrap all not just sel */
+		ED_unwrap_lscm(scene, obedit, false); /* unwrap all not just sel */
 	}
 }
 
@@ -1070,9 +1063,9 @@ static void uv_map_clip_correct(Scene *scene, Object *ob, BMEditMesh *em, wmOper
 	BMIter iter, liter;
 	MLoopUV *luv;
 	float dx, dy, min[2], max[2];
-	int correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
-	int clip_to_bounds = RNA_boolean_get(op->ptr, "clip_to_bounds");
-	int scale_to_bounds = RNA_boolean_get(op->ptr, "scale_to_bounds");
+	const bool correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
+	const bool clip_to_bounds = RNA_boolean_get(op->ptr, "clip_to_bounds");
+	const bool scale_to_bounds = RNA_boolean_get(op->ptr, "scale_to_bounds");
 
 	const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 
@@ -1137,16 +1130,16 @@ void ED_unwrap_lscm(Scene *scene, Object *obedit, const short sel)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	ParamHandle *handle;
 
-	const short fill_holes = scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES;
-	const short correct_aspect = !(scene->toolsettings->uvcalc_flag & UVCALC_NO_ASPECT_CORRECT);
-	short use_subsurf;
+	const bool fill_holes = (scene->toolsettings->uvcalc_flag & UVCALC_FILLHOLES) != 0;
+	const bool correct_aspect = (scene->toolsettings->uvcalc_flag & UVCALC_NO_ASPECT_CORRECT) != 0;
+	bool use_subsurf;
 
 	modifier_unwrap_state(obedit, scene, &use_subsurf);
 
 	if (use_subsurf)
 		handle = construct_param_handle_subsurfed(scene, obedit, em, fill_holes, sel, correct_aspect);
 	else
-		handle = construct_param_handle(scene, obedit, em, FALSE, fill_holes, sel, correct_aspect);
+		handle = construct_param_handle(scene, obedit, em, false, fill_holes, sel, correct_aspect);
 
 	param_lscm_begin(handle, PARAM_FALSE, scene->toolsettings->unwrapper == 0);
 	param_lscm_solve(handle);
@@ -1166,10 +1159,10 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	int method = RNA_enum_get(op->ptr, "method");
-	int fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
-	int correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
-	int use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf_data");
-	short use_subsurf_final;
+	const bool fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
+	const bool correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
+	const bool use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf_data");
+	bool use_subsurf_final;
 	float obsize[3];
 	bool implicit = false;
 
@@ -1218,7 +1211,7 @@ static int unwrap_exec(bContext *C, wmOperator *op)
 		BKE_report(op->reports, RPT_INFO, "Subsurf modifier needs to be first to work with unwrap");
 
 	/* execute unwrap */
-	ED_unwrap_lscm(scene, obedit, TRUE);
+	ED_unwrap_lscm(scene, obedit, true);
 
 	DAG_id_tag_update(obedit->data, 0);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
@@ -1256,18 +1249,6 @@ void UV_OT_unwrap(wmOperatorType *ot)
 	RNA_def_float_factor(ot->srna, "margin", 0.001f, 0.0f, 1.0f, "Margin", "Space between islands", 0.0f, 1.0f);
 }
 
-/* NOTE: could be generic function */
-static Camera *view3d_camera_get(View3D *v3d, RegionView3D *rv3d)
-{
-	/* establish the camera object, so we can default to view mapping if anything is wrong with it */
-	if ((rv3d->persp == RV3D_CAMOB) && (v3d->camera) && (v3d->camera->type == OB_CAMERA)) {
-		return v3d->camera->data;
-	}
-	else {
-		return NULL;
-	}
-}
-
 /**************** Project From View operator **************/
 static int uv_from_view_exec(bContext *C, wmOperator *op);
 
@@ -1275,7 +1256,7 @@ static int uv_from_view_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
-	Camera *camera = view3d_camera_get(v3d, rv3d);
+	Camera *camera = ED_view3d_camera_data_get(v3d, rv3d);
 	PropertyRNA *prop;
 
 	prop = RNA_struct_find_property(op->ptr, "camera_bounds");
@@ -1294,7 +1275,7 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
-	Camera *camera = view3d_camera_get(v3d, rv3d);
+	Camera *camera = ED_view3d_camera_data_get(v3d, rv3d);
 	BMFace *efa;
 	BMLoop *l;
 	BMIter iter, liter;
@@ -1328,9 +1309,6 @@ static int uv_from_view_exec(bContext *C, wmOperator *op)
 		struct ProjCameraInfo *uci = BLI_uvproject_camera_info(v3d->camera, obedit->obmat,
 		                                                       camera_bounds ? (scene->r.xsch * scene->r.xasp) : 1.0f,
 		                                                       camera_bounds ? (scene->r.ysch * scene->r.yasp) : 1.0f);
-		
-
-		// BLI_uvproject_camera_info_scale
 
 		if (uci) {
 			BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {

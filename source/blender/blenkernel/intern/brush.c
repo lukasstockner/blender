@@ -45,6 +45,7 @@
 #include "BKE_texture.h"
 #include "BKE_icons.h"
 
+#include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
@@ -134,7 +135,7 @@ Brush *BKE_brush_add(Main *bmain, const char *name)
 {
 	Brush *brush;
 
-	brush = BKE_libblock_alloc(&bmain->brush, ID_BR, name);
+	brush = BKE_libblock_alloc(bmain, ID_BR, name);
 
 	/* enable fake user by default */
 	brush->id.flag |= LIB_FAKEUSER;
@@ -211,7 +212,7 @@ void BKE_brush_make_local(Brush *brush)
 
 	Main *bmain = G.main;
 	Scene *scene;
-	int is_local = FALSE, is_lib = FALSE;
+	bool is_local = false, is_lib = false;
 
 	if (brush->id.lib == NULL) return;
 
@@ -224,12 +225,12 @@ void BKE_brush_make_local(Brush *brush)
 
 	for (scene = bmain->scene.first; scene && ELEM(0, is_lib, is_local); scene = scene->id.next) {
 		if (BKE_paint_brush(&scene->toolsettings->imapaint.paint) == brush) {
-			if (scene->id.lib) is_lib = TRUE;
-			else is_local = TRUE;
+			if (scene->id.lib) is_lib = true;
+			else is_local = true;
 		}
 	}
 
-	if (is_local && is_lib == FALSE) {
+	if (is_local && is_lib == false) {
 		id_clear_lib_data(bmain, &brush->id);
 		extern_local_brush(brush);
 
@@ -306,7 +307,7 @@ void BKE_brush_debug_print_state(Brush *br)
 	BR_TEST_FLAG(BRUSH_ADAPTIVE_SPACE);
 	BR_TEST_FLAG(BRUSH_LOCK_SIZE);
 	BR_TEST_FLAG(BRUSH_EDGE_TO_EDGE);
-	BR_TEST_FLAG(BRUSH_RESTORE_MESH);
+	BR_TEST_FLAG(BRUSH_DRAG_DOT);
 	BR_TEST_FLAG(BRUSH_INVERSE_SMOOTH_PRESSURE);
 	BR_TEST_FLAG(BRUSH_RANDOM_ROTATION);
 	BR_TEST_FLAG(BRUSH_PLANE_TRIM);
@@ -449,7 +450,7 @@ void BKE_brush_curve_preset(Brush *b, int preset)
 
 	b->curve->preset = preset;
 	curvemap_reset(cm, &b->curve->clipr, b->curve->preset, CURVEMAP_SLOPE_NEGATIVE);
-	curvemapping_changed(b->curve, FALSE);
+	curvemapping_changed(b->curve, false);
 }
 
 int BKE_brush_texture_set_nr(Brush *brush, int nr)
@@ -560,11 +561,8 @@ float BKE_brush_sample_tex_3D(const Scene *scene, Brush *br,
 		x /= (br->stencil_dimension[0]);
 		y /= (br->stencil_dimension[1]);
 
-		x *= mtex->size[0];
-		y *= mtex->size[1];
-
-		co[0] = x + mtex->ofs[0];
-		co[1] = y + mtex->ofs[1];
+		co[0] = x;
+		co[1] = y;
 		co[2] = 0.0f;
 
 		hasrgb = externtex(mtex, co, &intensity,
@@ -620,11 +618,8 @@ float BKE_brush_sample_tex_3D(const Scene *scene, Brush *br,
 			y = flen * sinf(angle);
 		}
 
-		x *= mtex->size[0];
-		y *= mtex->size[1];
-
-		co[0] = x + mtex->ofs[0];
-		co[1] = y + mtex->ofs[1];
+		co[0] = x;
+		co[1] = y;
 		co[2] = 0.0f;
 
 		hasrgb = externtex(mtex, co, &intensity,
@@ -639,12 +634,16 @@ float BKE_brush_sample_tex_3D(const Scene *scene, Brush *br,
 		rgba[2] = intensity;
 		rgba[3] = 1.0f;
 	}
+	/* For consistency, sampling always returns color in linear space */
+	else if (ups->do_linear_conversion) {
+		IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, ups->colorspace);
+	}
 
 	return intensity;
 }
 
 float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
-                               const float point[3],
+                               const float point[2],
                                const int thread,
                                struct ImagePool *pool)
 {
@@ -679,11 +678,8 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
 		x /= (br->mask_stencil_dimension[0]);
 		y /= (br->mask_stencil_dimension[1]);
 
-		x *= mtex->size[0];
-		y *= mtex->size[1];
-
-		co[0] = x + mtex->ofs[0];
-		co[1] = y + mtex->ofs[1];
+		co[0] = x;
+		co[1] = y;
 		co[2] = 0.0f;
 
 		externtex(mtex, co, &intensity,
@@ -739,11 +735,8 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
 			y = flen * sinf(angle);
 		}
 
-		x *= mtex->size[0];
-		y *= mtex->size[1];
-
-		co[0] = x + mtex->ofs[0];
-		co[1] = y + mtex->ofs[1];
+		co[0] = x;
+		co[1] = y;
 		co[2] = 0.0f;
 
 		externtex(mtex, co, &intensity,
@@ -762,7 +755,7 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
  * radius become inconsistent.
  * the biggest problem is that it isn't possible to change
  * unprojected radius because a view context is not
- * available.  my ussual solution to this is to use the
+ * available.  my usual solution to this is to use the
  * ratio of change of the size to change the unprojected
  * radius.  Not completely convinced that is correct.
  * In any case, a better solution is needed to prevent
@@ -899,7 +892,7 @@ void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], 
 
 	/* jitter-ed brush gives weird and unpredictable result for this
 	 * kinds of stroke, so manually disable jitter usage (sergey) */
-	use_jitter &= (brush->flag & (BRUSH_RESTORE_MESH | BRUSH_ANCHORED)) == 0;
+	use_jitter &= (brush->flag & (BRUSH_DRAG_DOT | BRUSH_ANCHORED)) == 0;
 
 	if (use_jitter) {
 		float rand_pos[2];
@@ -909,7 +902,7 @@ void BKE_brush_jitter_pos(const Scene *scene, Brush *brush, const float pos[2], 
 		do {
 			rand_pos[0] = BLI_rng_get_float(brush_rng) - 0.5f;
 			rand_pos[1] = BLI_rng_get_float(brush_rng) - 0.5f;
-		} while (len_v2(rand_pos) > 0.5f);
+		} while (len_squared_v2(rand_pos) > (0.5f * 0.5f));
 
 
 		if (brush->flag & BRUSH_ABSOLUTE_JITTER) {
@@ -974,8 +967,9 @@ unsigned int *BKE_brush_gen_texture_cache(Brush *br, int half_side, bool use_sec
 {
 	unsigned int *texcache = NULL;
 	MTex *mtex = (use_secondary) ? &br->mask_mtex : &br->mtex;
-	TexResult texres = {0};
-	int hasrgb, ix, iy;
+	float intensity;
+	float rgba[4];
+	int ix, iy;
 	int side = half_side * 2;
 
 	if (mtex->tex) {
@@ -992,19 +986,13 @@ unsigned int *BKE_brush_gen_texture_cache(Brush *br, int half_side, bool use_sec
 
 				/* This is copied from displace modifier code */
 				/* TODO(sergey): brush are always cacheing with CM enabled for now. */
-				hasrgb = multitex_ext(mtex->tex, co, NULL, NULL, 0, &texres, NULL, true);
-
-				/* if the texture gave an RGB value, we assume it didn't give a valid
-				 * intensity, so calculate one (formula from do_material_tex).
-				 * if the texture didn't give an RGB value, copy the intensity across
-				 */
-				if (hasrgb & TEX_RGB)
-					texres.tin = rgb_to_grayscale(&texres.tr);
+				externtex(mtex, co, &intensity,
+				          rgba, rgba + 1, rgba + 2, rgba + 3, 0, NULL);
 
 				((char *)texcache)[(iy * side + ix) * 4] =
 				((char *)texcache)[(iy * side + ix) * 4 + 1] =
 				((char *)texcache)[(iy * side + ix) * 4 + 2] =
-				((char *)texcache)[(iy * side + ix) * 4 + 3] = (char)(texres.tin * 255.0f);
+				((char *)texcache)[(iy * side + ix) * 4 + 3] = (char)(intensity * 255.0f);
 			}
 		}
 	}

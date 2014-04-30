@@ -25,7 +25,7 @@
 #include "BLI_listbase.h"
 #include "BKE_image.h"
 
-TextureBaseOperation::TextureBaseOperation() : SingleThreadedNodeOperation()
+TextureBaseOperation::TextureBaseOperation() : SingleThreadedOperation()
 {
 	this->addInputSocket(COM_DT_VECTOR); //offset
 	this->addInputSocket(COM_DT_VECTOR); //size
@@ -50,7 +50,7 @@ void TextureBaseOperation::initExecution()
 	this->m_inputOffset = getInputSocketReader(0);
 	this->m_inputSize = getInputSocketReader(1);
 	this->m_pool = BKE_image_pool_new();
-	SingleThreadedNodeOperation::initExecution();
+	SingleThreadedOperation::initExecution();
 }
 void TextureBaseOperation::deinitExecution()
 {
@@ -58,7 +58,7 @@ void TextureBaseOperation::deinitExecution()
 	this->m_inputOffset = NULL;
 	BKE_image_pool_free(this->m_pool);
 	this->m_pool = NULL;
-	SingleThreadedNodeOperation::deinitExecution();
+	SingleThreadedOperation::deinitExecution();
 }
 
 void TextureBaseOperation::determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2])
@@ -75,16 +75,16 @@ void TextureBaseOperation::determineResolution(unsigned int resolution[2], unsig
 	}
 }
 
-void TextureAlphaOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void TextureAlphaOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
-	TextureBaseOperation::executePixel(output, x, y, sampler);
+	TextureBaseOperation::executePixelSampled(output, x, y, sampler);
 	output[0] = output[3];
 	output[1] = 0.0f;
 	output[2] = 0.0f;
 	output[3] = 0.0f;
 }
 
-void TextureBaseOperation::executePixel(float output[4], float x, float y, PixelSampler sampler)
+void TextureBaseOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
 {
 	TexResult texres = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, NULL};
 	float textureSize[4];
@@ -96,8 +96,8 @@ void TextureBaseOperation::executePixel(float output[4], float x, float y, Pixel
 	const float u = (x - cx) / this->getWidth() * 2;
 	const float v = (y - cy) / this->getHeight() * 2;
 
-	this->m_inputSize->read(textureSize, x, y, sampler);
-	this->m_inputOffset->read(textureOffset, x, y, sampler);
+	this->m_inputSize->readSampled(textureSize, x, y, sampler);
+	this->m_inputOffset->readSampled(textureOffset, x, y, sampler);
 
 	vec[0] = textureSize[0] * (u + textureOffset[0]);
 	vec[1] = textureSize[1] * (v + textureOffset[1]);
@@ -136,7 +136,7 @@ MemoryBuffer *TextureBaseOperation::createMemoryBuffer(rcti *rect2)
 
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++, data += 4) {
-			this->executePixel(data, x, y, COM_PS_NEAREST);
+			this->executePixelSampled(data, x, y, COM_PS_NEAREST);
 		}
 	}
 

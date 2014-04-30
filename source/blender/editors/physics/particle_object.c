@@ -588,7 +588,7 @@ static int disconnect_hair_exec(bContext *C, wmOperator *op)
 	Object *ob= ED_object_context(C);
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem);
 	ParticleSystem *psys= NULL;
-	int all = RNA_boolean_get(op->ptr, "all");
+	const bool all = RNA_boolean_get(op->ptr, "all");
 
 	if (!ob)
 		return OPERATOR_CANCELLED;
@@ -623,7 +623,7 @@ void PARTICLE_OT_disconnect_hair(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "all", 0, "All hair", "Disconnect all hair systems from the emitter mesh");
 }
 
-static int connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
+static bool connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 {
 	ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
 	ParticleData *pa;
@@ -642,7 +642,7 @@ static int connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 	float v[4][3], vec[3];
 
 	if (!psys || !psys->part || psys->part->type != PART_HAIR || !psmd->dm)
-		return FALSE;
+		return false;
 	
 	edit= psys->edit;
 	point=  edit ? edit->points : NULL;
@@ -675,7 +675,7 @@ static int connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 		key = pa->hair;
 
 		nearest.index = -1;
-		nearest.dist = FLT_MAX;
+		nearest.dist_sq = FLT_MAX;
 
 		BLI_bvhtree_find_nearest(bvhtree.tree, key->co, &nearest, bvhtree.nearest_callback, &bvhtree);
 
@@ -730,7 +730,7 @@ static int connect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 
 	PE_update_object(scene, ob, 0);
 
-	return TRUE;
+	return true;
 }
 
 static int connect_hair_exec(bContext *C, wmOperator *op)
@@ -739,8 +739,8 @@ static int connect_hair_exec(bContext *C, wmOperator *op)
 	Object *ob= ED_object_context(C);
 	PointerRNA ptr = CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem);
 	ParticleSystem *psys= NULL;
-	int all = RNA_boolean_get(op->ptr, "all");
-	int any_connected = FALSE;
+	const bool all = RNA_boolean_get(op->ptr, "all");
+	bool any_connected = false;
 
 	if (!ob)
 		return OPERATOR_CANCELLED;

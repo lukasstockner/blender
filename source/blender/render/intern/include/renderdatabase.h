@@ -33,6 +33,10 @@
 #ifndef __RENDERDATABASE_H__
 #define __RENDERDATABASE_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Object;
 struct VlakRen;
 struct VertRen;
@@ -47,6 +51,7 @@ struct StrandBuffer;
 struct StrandRen;
 struct ObjectInstanceRen;
 struct RadFace;
+struct Isect;
 
 #define RE_QUAD_MASK	0x7FFFFFF
 #define RE_QUAD_OFFS	0x8000000
@@ -91,7 +96,7 @@ void free_renderdata_tables(struct Render *re);
 void free_renderdata_vertnodes(struct VertTableNode *vertnodes);
 void free_renderdata_vlaknodes(struct VlakTableNode *vlaknodes);
 
-void project_renderdata(struct Render *re, void (*projectfunc)(const float *, float mat[4][4], float *),  int do_pano, float xoffs, int do_buckets);
+void project_renderdata(struct Render *re, void (*projectfunc)(const float *, float mat[4][4], float *),  bool do_pano, float xoffs, bool do_buckets);
 int clip_render_object(float boundbox[2][3], float bounds[4], float mat[4][4]);
 
 /* functions are not exported... so wrong names */
@@ -112,6 +117,11 @@ struct StrandBuffer *RE_addStrandBuffer(struct ObjectRen *obr, int totvert);
 struct ObjectRen *RE_addRenderObject(struct Render *re, struct Object *ob, struct Object *par, int index, int psysindex, int lay);
 struct ObjectInstanceRen *RE_addRenderInstance(struct Render *re, struct ObjectRen *obr, struct Object *ob, struct Object *par, int index, int psysindex, float mat[4][4], int lay);
 void RE_makeRenderInstances(struct Render *re);
+
+void RE_instance_rotate_ray_start(struct ObjectInstanceRen *obi, struct Isect *is);
+void RE_instance_rotate_ray_dir(struct ObjectInstanceRen *obi, struct Isect *is);
+void RE_instance_rotate_ray(struct ObjectInstanceRen *obi, struct Isect *is);
+void RE_instance_rotate_ray_restore(struct ObjectInstanceRen *obi, struct Isect *is);
 
 float *RE_vertren_get_stress(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *RE_vertren_get_rad(struct ObjectRen *obr, struct VertRen *ver, int verify);
@@ -153,6 +163,9 @@ void area_lamp_vectors(struct LampRen *lar);
 void init_render_world(Render *re);
 void RE_Database_FromScene_Vectors(Render *re, struct Main *bmain, struct Scene *sce, unsigned int lay);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __RENDERDATABASE_H__ */
 

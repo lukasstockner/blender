@@ -58,7 +58,7 @@ EnumPropertyItem id_type_items[] = {
 	{ID_KE, "KEY", ICON_SHAPEKEY_DATA, "Key", ""},
 	{ID_LA, "LAMP", ICON_LAMP_DATA, "Lamp", ""},
 	{ID_LI, "LIBRARY", ICON_LIBRARY_DATA_DIRECT, "Library", ""},
-	{ID_LS, "LINESTYLE", ICON_BRUSH_DATA, "Line Style", ""}, /* FIXME proper icon */
+	{ID_LS, "LINESTYLE", ICON_LINE_DATA, "Line Style", ""},
 	{ID_LT, "LATTICE", ICON_LATTICE_DATA, "Lattice", ""},
 	{ID_MA, "MATERIAL", ICON_MATERIAL_DATA, "Material", ""},
 	{ID_MB, "META", ICON_META_DATA, "MetaBall", ""},
@@ -115,10 +115,10 @@ static int rna_ID_name_editable(PointerRNA *ptr)
 	if (GS(id->name) == ID_VF) {
 		VFont *vfont = (VFont *)id;
 		if (BKE_vfont_is_builtin(vfont))
-			return FALSE;
+			return false;
 	}
 	
-	return TRUE;
+	return true;
 }
 
 short RNA_type_to_ID_code(StructRNA *type)
@@ -280,7 +280,7 @@ static void rna_ID_update_tag(ID *id, ReportList *reports, int flag)
 	if (ob->type == OB_FONT) {
 		Curve *cu = ob->data;
 		freedisplist(&cu->disp);
-		BKE_vfont_to_curve(sce, ob, CU_LEFT);
+		BKE_vfont_to_curve(bmain, sce, ob, FO_EDIT, NULL);
 	}
 #endif
 

@@ -1,3 +1,5 @@
+libmv/base/aligned_malloc.cc
+libmv/base/aligned_malloc.h
 libmv/base/id_generator.h
 libmv/base/scoped_ptr.h
 libmv/base/vector.h
@@ -7,6 +9,7 @@ libmv/image/array_nd.h
 libmv/image/convolve.cc
 libmv/image/convolve.h
 libmv/image/correlation.h
+libmv/image/image_converter.h
 libmv/image/image.h
 libmv/image/sample.h
 libmv/image/tuple.h
@@ -40,8 +43,11 @@ libmv/simple_pipeline/bundle.h
 libmv/simple_pipeline/callbacks.h
 libmv/simple_pipeline/camera_intrinsics.cc
 libmv/simple_pipeline/camera_intrinsics.h
+libmv/simple_pipeline/camera_intrinsics_impl.h
 libmv/simple_pipeline/detect.cc
 libmv/simple_pipeline/detect.h
+libmv/simple_pipeline/distortion_models.cc
+libmv/simple_pipeline/distortion_models.h
 libmv/simple_pipeline/initialize_reconstruction.cc
 libmv/simple_pipeline/initialize_reconstruction.h
 libmv/simple_pipeline/intersect.cc
@@ -75,16 +81,6 @@ libmv/tracking/track_region.cc
 libmv/tracking/track_region.h
 libmv/tracking/trklt_region_tracker.cc
 libmv/tracking/trklt_region_tracker.h
-third_party/fast/fast_10.c
-third_party/fast/fast_11.c
-third_party/fast/fast_12.c
-third_party/fast/fast_9.c
-third_party/fast/fast.c
-third_party/fast/fast.h
-third_party/fast/LICENSE
-third_party/fast/nonmax.c
-third_party/fast/README
-third_party/fast/README.libmv
 third_party/gflags/AUTHORS
 third_party/gflags/ChangeLog
 third_party/gflags/config.h

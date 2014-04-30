@@ -18,10 +18,10 @@ BF_OPENAL_LIB = 'wrap_oal'
 BF_OPENAL_LIBPATH = '${BF_OPENAL}/lib'
 
 WITH_BF_FFMPEG = True
-BF_FFMPEG_LIB = 'avformat-53 avcodec-53 avdevice-53 avutil-51 swscale-2'
+BF_FFMPEG_LIB = 'avformat-55 avcodec-55 avdevice-55 avutil-52 swscale-2'
 BF_FFMPEG_LIBPATH = LIBDIR + '/ffmpeg/lib'
 BF_FFMPEG_INC =  LIBDIR + '/ffmpeg/include'
-BF_FFMPEG_DLL = '${BF_FFMPEG_LIBPATH}/avformat-53.dll ${BF_FFMPEG_LIBPATH}/avcodec-53.dll ${BF_FFMPEG_LIBPATH}/avdevice-53.dll ${BF_FFMPEG_LIBPATH}/avutil-51.dll ${BF_FFMPEG_LIBPATH}/swscale-2.dll'
+BF_FFMPEG_DLL = '${BF_FFMPEG_LIBPATH}/avformat-55.dll ${BF_FFMPEG_LIBPATH}/avcodec-55.dll ${BF_FFMPEG_LIBPATH}/avdevice-55.dll ${BF_FFMPEG_LIBPATH}/avutil-52.dll ${BF_FFMPEG_LIBPATH}/swscale-2.dll'
 
 WITH_BF_JACK = False
 BF_JACK = LIBDIR + '/jack'
@@ -111,10 +111,6 @@ BF_FREETYPE = LIBDIR + '/freetype'
 BF_FREETYPE_INC = '${BF_FREETYPE}/include ${BF_FREETYPE}/include/freetype2'
 BF_FREETYPE_LIB = 'freetype'
 BF_FREETYPE_LIBPATH = '${BF_FREETYPE}/lib'
-
-WITH_BF_QUICKTIME = False
-BF_QUICKTIME = '/usr/local'
-BF_QUICKTIME_INC = '${BF_QUICKTIME}/include'
 
 WITH_BF_ICONV = False
 BF_ICONV = LIBDIR + "/iconv"

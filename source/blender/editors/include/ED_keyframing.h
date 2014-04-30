@@ -81,6 +81,15 @@ struct FCurve *verify_fcurve(struct bAction *act, const char group[], struct Poi
 /* -------- */
 
 /* Lesser Keyframing API call:
+ *  Update integer/discrete flags of the FCurve (used when creating/inserting keyframes,
+ *  but also through RNA when editing an ID prop, see T37103).
+ */
+void update_autoflags_fcurve(struct FCurve *fcu, struct bContext *C, struct ReportList *reports,
+                             struct PointerRNA *ptr);
+
+/* -------- */
+
+/* Lesser Keyframing API call:
  *  Use this when validation of necessary animation data isn't necessary as it already
  *  exists, and there is a beztriple that can be directly copied into the array.
  */
@@ -99,7 +108,7 @@ int insert_vert_fcurve(struct FCurve *fcu, float x, float y, short flag);
  *	Use this to insert a keyframe using the current value being keyframed, in the 
  *	nominated F-Curve (no creation of animation data performed). Returns success.
  */
-short insert_keyframe_direct(struct ReportList *reports, struct PointerRNA ptr, struct PropertyRNA *prop, struct FCurve *fcu, float cfra, short flag);
+bool insert_keyframe_direct(struct ReportList *reports, struct PointerRNA ptr, struct PropertyRNA *prop, struct FCurve *fcu, float cfra, short flag);
 
 /* -------- */
 
@@ -212,10 +221,10 @@ int ANIM_scene_get_keyingset_index(struct Scene *scene, struct KeyingSet *ks);
 struct KeyingSet *ANIM_get_keyingset_for_autokeying(struct Scene *scene, const char *tranformKSName);
 
 /* Dynamically populate an enum of Keying Sets */
-struct EnumPropertyItem *ANIM_keying_sets_enum_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
+struct EnumPropertyItem *ANIM_keying_sets_enum_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 
 /* Check if KeyingSet can be used in the current context */
-short ANIM_keyingset_context_ok_poll(struct bContext *C, struct KeyingSet *ks);
+bool ANIM_keyingset_context_ok_poll(struct bContext *C, struct KeyingSet *ks);
 
 /* ************ Drivers ********************** */
 
@@ -235,28 +244,28 @@ struct FCurve *verify_driver_fcurve(struct ID *id, const char rna_path[], const 
 /* -------- */
 
 /* Returns whether there is a driver in the copy/paste buffer to paste */
-short ANIM_driver_can_paste(void);
+bool ANIM_driver_can_paste(void);
 
 /* Main Driver Management API calls:
  *  Add a new driver for the specified property on the given ID block
  */
-short ANIM_add_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag, int type);
+int ANIM_add_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag, int type);
 
 /* Main Driver Management API calls:
  *  Remove the driver for the specified property on the given ID block (if available)
  */
-short ANIM_remove_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
+bool ANIM_remove_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
 
 /* Main Driver Management API calls:
  *  Make a copy of the driver for the specified property on the given ID block
  */
-short ANIM_copy_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
+bool ANIM_copy_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
 
 /* Main Driver Management API calls:
  *  Add a new driver for the specified property on the given ID block or replace an existing one
  *	with the driver + driver-curve data from the buffer 
  */
-short ANIM_paste_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
+bool ANIM_paste_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
 
 /* ************ Auto-Keyframing ********************** */
 /* Notes:
@@ -288,7 +297,7 @@ int autokeyframe_cfra_can_key(struct Scene *scene, struct ID *id);
 /* Lesser Keyframe Checking API call:
  *	- Used for the buttons to check for keyframes...
  */
-short fcurve_frame_has_keyframe(struct FCurve *fcu, float frame, short filter);
+bool fcurve_frame_has_keyframe(struct FCurve *fcu, float frame, short filter);
 
 /* Main Keyframe Checking API call:
  * Checks whether a keyframe exists for the given ID-block one the given frame.
@@ -296,7 +305,7 @@ short fcurve_frame_has_keyframe(struct FCurve *fcu, float frame, short filter);
  *    in case some detail of the implementation changes...
  *	- frame: the value of this is quite often result of BKE_scene_frame_get()
  */
-short id_frame_has_keyframe(struct ID *id, float frame, short filter);
+bool id_frame_has_keyframe(struct ID *id, float frame, short filter);
 
 /* filter flags for id_cfra_has_keyframe 
  *
@@ -315,8 +324,8 @@ typedef enum eAnimFilterFlags {
 } eAnimFilterFlags;
 
 /* utility funcs for auto keyframe */
-int ED_autokeyframe_object(struct bContext *C, struct Scene *scene, struct Object *ob, struct KeyingSet *ks);
-int ED_autokeyframe_pchan(struct bContext *C, struct Scene *scene, struct Object *ob, struct bPoseChannel *pchan, struct KeyingSet *ks);
+bool ED_autokeyframe_object(struct bContext *C, struct Scene *scene, struct Object *ob, struct KeyingSet *ks);
+bool ED_autokeyframe_pchan(struct bContext *C, struct Scene *scene, struct Object *ob, struct bPoseChannel *pchan, struct KeyingSet *ks);
 
 /* Names for builtin keying sets so we don't confuse these with labels/text,
  * defined in python script: keyingsets_builtins.py */

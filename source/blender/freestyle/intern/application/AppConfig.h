@@ -29,7 +29,7 @@
  */
 
 #include <string>
-#include "../system/FreestyleConfig.h"
+#include <algorithm>
 #include "../system/Precision.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC

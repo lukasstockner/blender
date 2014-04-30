@@ -18,7 +18,8 @@ CCL_NAMESPACE_BEGIN
 
 /* Voronoi Distances */
 
-__device float voronoi_distance(NodeDistanceMetric distance_metric, float3 d, float e)
+#if 0
+ccl_device float voronoi_distance(NodeDistanceMetric distance_metric, float3 d, float e)
 {
 #if 0
 	if(distance_metric == NODE_VORONOI_DISTANCE_SQUARED)
@@ -43,8 +44,7 @@ __device float voronoi_distance(NodeDistanceMetric distance_metric, float3 d, fl
 }
 
 /* Voronoi / Worley like */
-
-__device_noinline float4 voronoi_Fn(float3 p, float e, int n1, int n2)
+ccl_device_inline float4 voronoi_Fn(float3 p, float e, int n1, int n2)
 {
 	float da[4];
 	float3 pa[4];
@@ -119,30 +119,119 @@ __device_noinline float4 voronoi_Fn(float3 p, float e, int n1, int n2)
 
 	return result;
 }
+#endif
 
-__device float voronoi_F1(float3 p) { return voronoi_Fn(p, 0.0f, 0, -1).w; }
-__device float voronoi_F2(float3 p) { return voronoi_Fn(p, 0.0f, 1, -1).w; }
-__device float voronoi_F3(float3 p) { return voronoi_Fn(p, 0.0f, 2, -1).w; }
-__device float voronoi_F4(float3 p) { return voronoi_Fn(p, 0.0f, 3, -1).w; }
-__device float voronoi_F1F2(float3 p) { return voronoi_Fn(p, 0.0f, 0, 1).w; }
+ccl_device float voronoi_F1_distance(float3 p)
+{
+	/* returns squared distance in da */
+	float da = 1e10f;
 
-__device float voronoi_Cr(float3 p)
+#ifndef __KERNEL_SSE2__
+	int ix = floor_to_int(p.x), iy = floor_to_int(p.y), iz = floor_to_int(p.z);
+
+	for (int xx = -1; xx <= 1; xx++) {
+		for (int yy = -1; yy <= 1; yy++) {
+			for (int zz = -1; zz <= 1; zz++) {
+				float3 ip = make_float3(ix + xx, iy + yy, iz + zz);
+				float3 vp = ip + cellnoise_color(ip);
+				float d = len_squared(p - vp);
+				da = min(d, da);
+			}
+		}
+	}
+#else
+	__m128 vec_p = load_m128(p);
+	__m128i xyzi = quick_floor_sse(vec_p);
+
+	for (int xx = -1; xx <= 1; xx++) {
+		for (int yy = -1; yy <= 1; yy++) {
+			for (int zz = -1; zz <= 1; zz++) {
+				__m128 ip = _mm_cvtepi32_ps(_mm_add_epi32(xyzi, _mm_setr_epi32(xx, yy, zz, 0)));
+				__m128 vp = _mm_add_ps(ip, cellnoise_color(ip));
+				float d = len_squared<1, 1, 1, 0>(_mm_sub_ps(vec_p, vp));
+				da = min(d, da);
+			}
+		}
+	}
+#endif
+
+	return da;
+}
+
+ccl_device float3 voronoi_F1_color(float3 p)
+{
+	/* returns color of the nearest point */
+	float da = 1e10f;
+
+#ifndef __KERNEL_SSE2__
+	float3 pa;
+	int ix = floor_to_int(p.x), iy = floor_to_int(p.y), iz = floor_to_int(p.z);
+
+	for (int xx = -1; xx <= 1; xx++) {
+		for (int yy = -1; yy <= 1; yy++) {
+			for (int zz = -1; zz <= 1; zz++) {
+				float3 ip = make_float3(ix + xx, iy + yy, iz + zz);
+				float3 vp = ip + cellnoise_color(ip);
+				float d = len_squared(p - vp);
+
+				if(d < da) {
+					da = d;
+					pa = vp;
+				}
+			}
+		}
+	}
+
+	return cellnoise_color(pa);
+#else
+	__m128 pa, vec_p = load_m128(p);
+	__m128i xyzi = quick_floor_sse(vec_p);
+
+	for (int xx = -1; xx <= 1; xx++) {
+		for (int yy = -1; yy <= 1; yy++) {
+			for (int zz = -1; zz <= 1; zz++) {
+				__m128 ip = _mm_cvtepi32_ps(_mm_add_epi32(xyzi, _mm_setr_epi32(xx, yy, zz, 0)));
+				__m128 vp = _mm_add_ps(ip, cellnoise_color(ip));
+				float d = len_squared<1, 1, 1, 0>(_mm_sub_ps(vec_p, vp));
+
+				if(d < da) {
+					da = d;
+					pa = vp;
+				}
+			}
+		}
+	}
+
+	__m128 color = cellnoise_color(pa);
+	return (float3 &)color;
+#endif
+}
+
+#if 0
+ccl_device float voronoi_F1(float3 p) { return voronoi_Fn(p, 0.0f, 0, -1).w; }
+ccl_device float voronoi_F2(float3 p) { return voronoi_Fn(p, 0.0f, 1, -1).w; }
+ccl_device float voronoi_F3(float3 p) { return voronoi_Fn(p, 0.0f, 2, -1).w; }
+ccl_device float voronoi_F4(float3 p) { return voronoi_Fn(p, 0.0f, 3, -1).w; }
+ccl_device float voronoi_F1F2(float3 p) { return voronoi_Fn(p, 0.0f, 0, 1).w; }
+
+ccl_device float voronoi_Cr(float3 p)
 {
 	/* crackle type pattern, just a scale/clamp of F2-F1 */
 	float t = 10.0f*voronoi_F1F2(p);
 	return (t > 1.0f)? 1.0f: t;
 }
 
-__device float voronoi_F1S(float3 p) { return 2.0f*voronoi_F1(p) - 1.0f; }
-__device float voronoi_F2S(float3 p) { return 2.0f*voronoi_F2(p) - 1.0f; }
-__device float voronoi_F3S(float3 p) { return 2.0f*voronoi_F3(p) - 1.0f; }
-__device float voronoi_F4S(float3 p) { return 2.0f*voronoi_F4(p) - 1.0f; }
-__device float voronoi_F1F2S(float3 p) { return 2.0f*voronoi_F1F2(p) - 1.0f; }
-__device float voronoi_CrS(float3 p) { return 2.0f*voronoi_Cr(p) - 1.0f; }
+ccl_device float voronoi_F1S(float3 p) { return 2.0f*voronoi_F1(p) - 1.0f; }
+ccl_device float voronoi_F2S(float3 p) { return 2.0f*voronoi_F2(p) - 1.0f; }
+ccl_device float voronoi_F3S(float3 p) { return 2.0f*voronoi_F3(p) - 1.0f; }
+ccl_device float voronoi_F4S(float3 p) { return 2.0f*voronoi_F4(p) - 1.0f; }
+ccl_device float voronoi_F1F2S(float3 p) { return 2.0f*voronoi_F1F2(p) - 1.0f; }
+ccl_device float voronoi_CrS(float3 p) { return 2.0f*voronoi_Cr(p) - 1.0f; }
+#endif
 
 /* Noise Bases */
 
-__device float noise_basis(float3 p, NodeNoiseBasis basis)
+ccl_device float noise_basis(float3 p, NodeNoiseBasis basis)
 {
 	/* Only Perlin enabled for now, others break CUDA compile by making kernel
 	 * too big, with compile using > 4GB, due to everything being inlined. */
@@ -173,7 +262,7 @@ __device float noise_basis(float3 p, NodeNoiseBasis basis)
 
 /* Soft/Hard Noise */
 
-__device float noise_basis_hard(float3 p, NodeNoiseBasis basis, int hard)
+ccl_device float noise_basis_hard(float3 p, NodeNoiseBasis basis, int hard)
 {
 	float t = noise_basis(p, basis);
 	return (hard)? fabsf(2.0f*t - 1.0f): t;
@@ -181,7 +270,7 @@ __device float noise_basis_hard(float3 p, NodeNoiseBasis basis, int hard)
 
 /* Turbulence */
 
-__device_noinline float noise_turbulence(float3 p, NodeNoiseBasis basis, float octaves, int hard)
+ccl_device_noinline float noise_turbulence(float3 p, NodeNoiseBasis basis, float octaves, int hard)
 {
 	float fscale = 1.0f;
 	float amp = 1.0f;

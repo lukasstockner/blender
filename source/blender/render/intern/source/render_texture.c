@@ -65,7 +65,6 @@
 #include "BKE_scene.h"
 
 #include "BKE_library.h"
-#include "BKE_image.h"
 #include "BKE_texture.h"
 #include "BKE_key.h"
 #include "BKE_ipo.h"
@@ -98,7 +97,7 @@ extern struct Render R;
 static void init_render_texture(Render *re, Tex *tex)
 {
 	/* imap test */
-	if (tex->ima && ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
+	if (tex->ima && BKE_image_is_animated(tex->ima)) {
 		BKE_image_user_frame_calc(&tex->iuser, re ? re->r.cfra : 0, re ? re->flag & R_SEC_FIELD:0);
 	}
 	
@@ -644,10 +643,10 @@ static float voronoiTex(Tex *tex, const float texvec[3], TexResult *texres)
 {
 	int rv = TEX_INT;
 	float da[4], pa[12];	/* distance and point coordinate arrays of 4 nearest neighbors */
-	float aw1 = fabs(tex->vn_w1);
-	float aw2 = fabs(tex->vn_w2);
-	float aw3 = fabs(tex->vn_w3);
-	float aw4 = fabs(tex->vn_w4);
+	float aw1 = fabsf(tex->vn_w1);
+	float aw2 = fabsf(tex->vn_w2);
+	float aw3 = fabsf(tex->vn_w3);
+	float aw4 = fabsf(tex->vn_w4);
 	float sc = (aw1 + aw2 + aw3 + aw4);
 	if (sc!=0.f) sc =  tex->ns_outscale/sc;
 
@@ -752,9 +751,9 @@ static int cubemap_glob(const float n[3], float x, float y, float z, float *adr1
 	}
 	mul_mat3_m4_v3(R.viewinv, nor);
 
-	x1= fabs(nor[0]);
-	y1= fabs(nor[1]);
-	z1= fabs(nor[2]);
+	x1 = fabsf(nor[0]);
+	y1 = fabsf(nor[1]);
+	z1 = fabsf(nor[2]);
 	
 	if (z1>=x1 && z1>=y1) {
 		*adr1 = (x + 1.0f) / 2.0f;
@@ -845,9 +844,9 @@ static int cubemap_ob(Object *ob, const float n[3], float x, float y, float z, f
 	copy_v3_v3(nor, n);
 	if (ob) mul_mat3_m4_v3(ob->imat, nor);
 	
-	x1= fabs(nor[0]);
-	y1= fabs(nor[1]);
-	z1= fabs(nor[2]);
+	x1 = fabsf(nor[0]);
+	y1 = fabsf(nor[1]);
+	z1 = fabsf(nor[2]);
 	
 	if (z1>=x1 && z1>=y1) {
 		*adr1 = (x + 1.0f) / 2.0f;
@@ -1104,7 +1103,7 @@ static int multitex(Tex *tex, float texvec[3], float dxt[3], float dyt[3], int o
 	float tmpvec[3];
 	int retval = 0; /* return value, int:0, col:1, nor:2, everything:3 */
 
-	texres->talpha = FALSE;  /* is set when image texture returns alpha (considered premul) */
+	texres->talpha = false;  /* is set when image texture returns alpha (considered premul) */
 	
 	if (tex->use_nodes && tex->nodetree) {
 		retval = ntreeTexExecTree(tex->nodetree, texres, texvec, dxt, dyt, osatex, thread,
@@ -1201,7 +1200,7 @@ static int multitex(Tex *tex, float texvec[3], float dxt[3], float dyt[3], int o
 	if (tex->flag & TEX_COLORBAND) {
 		float col[4];
 		if (do_colorband(tex->coba, texres->tin, col)) {
-			texres->talpha = TRUE;
+			texres->talpha = true;
 			texres->tr= col[0];
 			texres->tg= col[1];
 			texres->tb= col[2];
@@ -1327,7 +1326,7 @@ int multitex_ext_safe(Tex *tex, float texvec[3], TexResult *texres, struct Image
 {
 	int use_nodes= tex->use_nodes, retval;
 	
-	tex->use_nodes = FALSE;
+	tex->use_nodes = false;
 	retval= multitex_nodes_intern(tex, texvec, NULL, NULL, 0, texres, 0, 0, NULL, NULL, pool, scene_color_manage);
 	tex->use_nodes= use_nodes;
 	
@@ -1643,7 +1642,7 @@ static void texco_mapping(ShadeInput *shi, Tex *tex, MTex *mtex,
 typedef struct CompatibleBump {
 	float nu[3], nv[3], nn[3];
 	float dudnu, dudnv, dvdnu, dvdnv;
-	int nunvdone;
+	bool nunvdone;
 } CompatibleBump;
 
 static void compatible_bump_init(CompatibleBump *compat_bump)
@@ -1680,7 +1679,7 @@ static void compatible_bump_uv_derivs(CompatibleBump *compat_bump, ShadeInput *s
 				compat_bump->nn[1] = -shi->vn[1];
 				compat_bump->nn[2] = -shi->vn[2];
 				ortho_basis_v3v3_v3(compat_bump->nu, compat_bump->nv, compat_bump->nn);
-				compat_bump->nunvdone = TRUE;
+				compat_bump->nunvdone = true;
 			}
 
 			if (tf) {
@@ -1734,7 +1733,7 @@ static int compatible_bump_compute(CompatibleBump *compat_bump, ShadeInput *shi,
 		/* render normal is negated */
 		negate_v3_v3(compat_bump->nn, shi->vn);
 		ortho_basis_v3v3_v3(compat_bump->nu, compat_bump->nv, compat_bump->nn);
-		compat_bump->nunvdone = TRUE;
+		compat_bump->nunvdone = true;
 	}
 
 	/* two methods, either constant based on main image resolution,
@@ -1917,7 +1916,7 @@ static int ntap_bump_compute(NTapBump *ntap_bump, ShadeInput *shi, MTex *mtex, T
 		ntap_bump->fPrevMagnitude = 1.0f;
 		ntap_bump->iPrevBumpSpace = 0;
 		
-		ntap_bump->init_done = TRUE;
+		ntap_bump->init_done = true;
 	}
 
 	/* resolve image dimensions */
@@ -2143,10 +2142,10 @@ void do_material_tex(ShadeInput *shi, Render *re)
 	float *co = NULL, *dx = NULL, *dy = NULL;
 	float fact, facm, factt, facmm, stencilTin=1.0;
 	float texvec[3], dxt[3], dyt[3], tempvec[3], norvec[3], warpvec[3]={0.0f, 0.0f, 0.0f}, Tnor=1.0;
-	int tex_nr, rgbnor= 0, warp_done = FALSE;
-	int use_compat_bump = FALSE, use_ntap_bump = FALSE;
-	int found_nmapping = 0, found_deriv_map = 0;
-	int iFirstTimeNMap=1;
+	int tex_nr, rgbnor= 0;
+	bool warp_done = false, use_compat_bump = false, use_ntap_bump = false;
+	bool found_nmapping = false, found_deriv_map = false;
+	bool iFirstTimeNMap = true;
 
 	compatible_bump_init(&compat_bump);
 	ntap_bump_init(&ntap_bump);
@@ -2166,25 +2165,25 @@ void do_material_tex(ShadeInput *shi, Render *re)
 			if (tex == NULL) continue;
 
 			found_deriv_map = (tex->type==TEX_IMAGE) && (tex->imaflag & TEX_DERIVATIVEMAP);
-			use_compat_bump= (mtex->texflag & MTEX_COMPAT_BUMP);
-			use_ntap_bump = ((mtex->texflag & (MTEX_3TAP_BUMP|MTEX_5TAP_BUMP|MTEX_BICUBIC_BUMP))!=0 || found_deriv_map!=0) ? TRUE : FALSE;
+			use_compat_bump= (mtex->texflag & MTEX_COMPAT_BUMP) != 0;
+			use_ntap_bump = ((mtex->texflag & (MTEX_3TAP_BUMP|MTEX_5TAP_BUMP|MTEX_BICUBIC_BUMP))!=0 || found_deriv_map!=0) ? true : false;
 
 			/* XXX texture node trees don't work for this yet */
 			if (tex->nodetree && tex->use_nodes) {
-				use_compat_bump = FALSE;
-				use_ntap_bump = FALSE;
+				use_compat_bump = false;
+				use_ntap_bump = false;
 			}
 			
 			/* case displacement mapping */
 			if (shi->osatex == 0 && use_ntap_bump) {
-				use_ntap_bump = FALSE;
-				use_compat_bump = TRUE;
+				use_ntap_bump = false;
+				use_compat_bump = true;
 			}
 			
 			/* case ocean */
 			if (tex->type == TEX_OCEAN) {
-				use_ntap_bump = FALSE;
-				use_compat_bump = FALSE;
+				use_ntap_bump = false;
+				use_compat_bump = false;
 			}
 
 			/* which coords */
@@ -2322,7 +2321,7 @@ void do_material_tex(ShadeInput *shi, Render *re)
 
 			/* texture output */
 
-			if ( (rgbnor & TEX_RGB) && (mtex->texflag & MTEX_RGBTOINT)) {
+			if ((rgbnor & TEX_RGB) && (mtex->texflag & MTEX_RGBTOINT)) {
 				texres.tin = rgb_to_grayscale(&texres.tr);
 				rgbnor -= TEX_RGB;
 			}
@@ -2382,7 +2381,7 @@ void do_material_tex(ShadeInput *shi, Render *re)
 					warpvec[0]= mtex->warpfac*warpnor[0];
 					warpvec[1]= mtex->warpfac*warpnor[1];
 					warpvec[2]= mtex->warpfac*warpnor[2];
-					warp_done = TRUE;
+					warp_done = true;
 				}
 #if 0				
 				if (mtex->texflag & MTEX_VIEWSPACE) {
@@ -2477,8 +2476,8 @@ void do_material_tex(ShadeInput *shi, Render *re)
 						if (mtex->normapspace == MTEX_NSPACE_TANGENT) {
 							/* qdn: tangent space */
 							float B[3], tv[3];
-							const float * no = iFirstTimeNMap!=0 ? shi->nmapnorm : shi->vn;
-							iFirstTimeNMap=0;
+							const float *no = iFirstTimeNMap ? shi->nmapnorm : shi->vn;
+							iFirstTimeNMap = false;
 							cross_v3_v3v3(B, no, shi->nmaptang);	/* bitangent */
 							mul_v3_fl(B, shi->nmaptang[3]);
 							/* transform norvec from tangent space to object surface in camera space */
@@ -2756,11 +2755,11 @@ void do_volume_tex(ShadeInput *shi, const float *xyz, int mapto_flag, float col_
 				else texvec[2]= mtex->size[2]*(mtex->ofs[2]);
 			}
 			
-			rgbnor = multitex(tex, texvec, NULL, NULL, 0, &texres, 0, mtex->which_output, re->pool);	/* NULL = dxt/dyt, 0 = shi->osatex - not supported */
+			rgbnor = multitex(tex, texvec, NULL, NULL, 0, &texres, shi->thread, mtex->which_output, re->pool);	/* NULL = dxt/dyt, 0 = shi->osatex - not supported */
 			
 			/* texture output */
 
-			if ( (rgbnor & TEX_RGB) && (mtex->texflag & MTEX_RGBTOINT)) {
+			if ((rgbnor & TEX_RGB) && (mtex->texflag & MTEX_RGBTOINT)) {
 				texres.tin = rgb_to_grayscale(&texres.tr);
 				rgbnor -= TEX_RGB;
 			}
@@ -3558,12 +3557,15 @@ Material *RE_init_sample_material(Material *orig_mat, Scene *scene)
 
 	/* strip material copy from unsupported flags */
 	for (tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
-		if (mat->septex & (1<<tex_nr)) continue;
 	
 		if (mat->mtex[tex_nr]) {
 			MTex *mtex = mat->mtex[tex_nr];
 
-			if (!mtex->tex) continue;
+			/* just in case make all non-used mtexes empty*/
+			Tex *cur_tex = mtex->tex;
+			mtex->tex = NULL;
+
+			if (mat->septex & (1<<tex_nr) || !cur_tex) continue;
 
 			/* only keep compatible texflags */
 			mtex->texflag = mtex->texflag & (MTEX_RGBTOINT | MTEX_STENCIL | MTEX_NEGATIVE | MTEX_ALPHAMIX);
@@ -3598,7 +3600,7 @@ Material *RE_init_sample_material(Material *orig_mat, Scene *scene)
 			}
 
 			/* copy texture */
-			tex= mtex->tex = localize_texture(mtex->tex);
+			tex= mtex->tex = localize_texture(cur_tex);
 
 			/* update texture anims */
 			BKE_animsys_evaluate_animdata(scene, &tex->id, tex->adt, BKE_scene_frame_get(scene), ADT_RECALC_ANIM);
@@ -3619,7 +3621,7 @@ Material *RE_init_sample_material(Material *orig_mat, Scene *scene)
 			}
 
 			/* update image sequences and movies */
-			if (tex->ima && ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
+			if (tex->ima && BKE_image_is_animated(tex->ima)) {
 				BKE_image_user_check_frame_calc(&tex->iuser, (int)scene->r.cfra, 0);
 			}
 		}
@@ -3646,7 +3648,8 @@ void RE_free_sample_material(Material *mat)
 		}
 	}
 
-	BKE_material_free(mat);
+	/* don't update user counts as we are freeing a duplicate */
+	BKE_material_free_ex(mat, false);
 	MEM_freeN(mat);
 }
 

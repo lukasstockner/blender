@@ -73,11 +73,14 @@ class MATERIAL_MT_specials(Menu):
 class MATERIAL_UL_matslots(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.MaterialSlot)
-        ob = data
+        # ob = data
         slot = item
         ma = slot.material
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.label(text=ma.name if ma else "", translate=False, icon_value=icon)
+            if ma:
+                layout.prop(ma, "name", text="", emboss=False, icon_value=icon)
+            else:
+                layout.label(text="", icon_value=icon)
             if ma and not context.scene.render.use_shading_nodes:
                 manode = ma.active_node_material
                 if manode:
@@ -213,15 +216,18 @@ class MATERIAL_PT_pipeline(MaterialButtonsPanel, Panel):
         sub.active = mat_type
         sub.prop(mat, "use_sky")
         sub.prop(mat, "invert_z")
+        col.prop(mat, "pass_index")
 
         col = split.column()
         col.active = mat_type
 
+        col.prop(mat, "use_cast_shadows", text="Cast")
         col.prop(mat, "use_cast_shadows_only", text="Cast Only")
-        col.prop(mat, "shadow_cast_alpha", text="Casting Alpha")
         col.prop(mat, "use_cast_buffer_shadows")
+        sub = col.column()
+        sub.active = mat.use_cast_buffer_shadows
+        sub.prop(mat, "shadow_cast_alpha", text="Casting Alpha")
         col.prop(mat, "use_cast_approximate")
-        col.prop(mat, "pass_index")
 
 
 class MATERIAL_PT_diffuse(MaterialButtonsPanel, Panel):
@@ -409,7 +415,7 @@ class MATERIAL_PT_transp(MaterialButtonsPanel, Panel):
         col.active = (not mat.use_shadeless)
         col.prop(rayt, "fresnel")
         sub = col.column()
-        sub.active = rayt.fresnel > 0
+        sub.active = (rayt.fresnel > 0.0)
         sub.prop(rayt, "fresnel_factor", text="Blend")
 
         if base_mat.transparency_method == 'RAYTRACE':
@@ -466,7 +472,7 @@ class MATERIAL_PT_mirror(MaterialButtonsPanel, Panel):
         col = split.column()
         col.prop(raym, "fresnel")
         sub = col.column()
-        sub.active = raym.fresnel > 0
+        sub.active = (raym.fresnel > 0.0)
         sub.prop(raym, "fresnel_factor", text="Blend")
 
         split = layout.split()
@@ -477,7 +483,7 @@ class MATERIAL_PT_mirror(MaterialButtonsPanel, Panel):
         col.prop(raym, "distance", text="Max Dist")
         col.separator()
         sub = col.split(percentage=0.4)
-        sub.active = raym.distance > 0.0
+        sub.active = (raym.distance > 0.0)
         sub.label(text="Fade To:")
         sub.prop(raym, "fade_to", text="")
 
@@ -485,7 +491,7 @@ class MATERIAL_PT_mirror(MaterialButtonsPanel, Panel):
         col.label(text="Gloss:")
         col.prop(raym, "gloss_factor", text="Amount")
         sub = col.column()
-        sub.active = raym.gloss_factor < 1.0
+        sub.active = (raym.gloss_factor < 1.0)
         sub.prop(raym, "gloss_threshold", text="Threshold")
         sub.prop(raym, "gloss_samples", text="Samples")
         sub.prop(raym, "gloss_anisotropic", text="Anisotropic")
@@ -811,24 +817,30 @@ class MATERIAL_PT_shadow(MaterialButtonsPanel, Panel):
         col = split.column()
         col.prop(mat, "use_shadows", text="Receive")
         col.prop(mat, "use_transparent_shadows", text="Receive Transparent")
-        if simple_material(base_mat):
-            col.prop(mat, "use_cast_shadows_only", text="Cast Only")
-            col.prop(mat, "shadow_cast_alpha", text="Casting Alpha")
         col.prop(mat, "use_only_shadow", text="Shadows Only")
         sub = col.column()
         sub.active = mat.use_only_shadow
         sub.prop(mat, "shadow_only_type", text="")
 
-        col = split.column()
-        if simple_material(base_mat):
-            col.prop(mat, "use_cast_buffer_shadows")
-        sub = col.column()
-        sub.active = mat.use_cast_buffer_shadows
-        sub.prop(mat, "shadow_buffer_bias", text="Buffer Bias")
+        if not simple_material(base_mat):
+            col = split.column()
+
         col.prop(mat, "use_ray_shadow_bias", text="Auto Ray Bias")
         sub = col.column()
         sub.active = (not mat.use_ray_shadow_bias)
         sub.prop(mat, "shadow_ray_bias", text="Ray Bias")
+
+        if simple_material(base_mat):
+            col = split.column()
+
+            col.prop(mat, "use_cast_shadows", text="Cast")
+            col.prop(mat, "use_cast_shadows_only", text="Cast Only")
+            col.prop(mat, "use_cast_buffer_shadows")
+        sub = col.column()
+        sub.active = mat.use_cast_buffer_shadows
+        if simple_material(base_mat):
+            sub.prop(mat, "shadow_cast_alpha", text="Casting Alpha")
+        sub.prop(mat, "shadow_buffer_bias", text="Buffer Bias")
         if simple_material(base_mat):
             col.prop(mat, "use_cast_approximate")
 

@@ -69,7 +69,17 @@ static int ED_space_clip_graph_poll(bContext *C)
 		return sc->view == SC_VIEW_GRAPH;
 	}
 
-	return FALSE;
+	return false;
+}
+
+static int clip_graph_knots_poll(bContext *C)
+{
+	if (ED_space_clip_graph_poll(C)) {
+		SpaceClip *sc = CTX_wm_space_clip(C);
+
+		return (sc->flag & SC_SHOW_GRAPH_TRACKS_MOTION) != 0;
+	}
+	return false;
 }
 
 typedef struct {
@@ -126,11 +136,11 @@ static void find_nearest_tracking_segment_cb(void *userdata, MovieTrackingTrack 
 		}
 	}
 
-	data->has_prev = TRUE;
+	data->has_prev = true;
 	copy_v2_v2(data->prev_co, co);
 }
 
-static void find_nearest_tracking_segment_end_cb(void *userdata)
+static void find_nearest_tracking_segment_end_cb(void *userdata, int UNUSED(coord))
 {
 	MouseSelectUserData *data = userdata;
 
@@ -156,7 +166,7 @@ static void find_nearest_tracking_knot_cb(void *userdata, MovieTrackingTrack *tr
 
 }
 
-static void mouse_select_init_data(MouseSelectUserData *userdata, float *co)
+static void mouse_select_init_data(MouseSelectUserData *userdata, const float co[2])
 {
 	memset(userdata, 0, sizeof(MouseSelectUserData));
 	userdata->min_dist = FLT_MAX;
@@ -183,10 +193,10 @@ static bool mouse_select_knot(bContext *C, float co[2], bool extend)
 		if (userdata.marker) {
 			int x1, y1, x2, y2;
 
-			UI_view2d_view_to_region(v2d, co[0], co[1], &x1, &y1);
-			UI_view2d_view_to_region(v2d, userdata.min_co[0], userdata.min_co[1], &x2, &y2);
-
-			if (abs(x2 - x1) <= delta && abs(y2 - y1) <= delta) {
+			if (UI_view2d_view_to_region_clip(v2d, co[0], co[1], &x1, &y1) &&
+			    UI_view2d_view_to_region_clip(v2d, userdata.min_co[0], userdata.min_co[1], &x2, &y2) &&
+			    (abs(x2 - x1) <= delta && abs(y2 - y1) <= delta))
+			{
 				if (!extend) {
 					SelectUserData selectdata = {SEL_DESELECT};
 
@@ -238,7 +248,7 @@ static bool mouse_select_curve(bContext *C, float co[2], bool extend)
 			ListBase *tracksbase = BKE_tracking_object_get_tracks(tracking, object);
 
 			tracking->act_track = userdata.track;
-			BKE_tracking_track_select(tracksbase, userdata.track, TRACK_AREA_ALL, TRUE);
+			BKE_tracking_track_select(tracksbase, userdata.track, TRACK_AREA_ALL, true);
 
 			/* deselect all knots on newly selected curve */
 			clip_graph_tracking_iterate(sc,
@@ -302,7 +312,7 @@ void CLIP_OT_graph_select(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = select_exec;
 	ot->invoke = select_invoke;
-	ot->poll = ED_space_clip_graph_poll;
+	ot->poll = clip_graph_knots_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
@@ -319,7 +329,7 @@ void CLIP_OT_graph_select(wmOperatorType *ot)
 typedef struct BorderSelectuserData {
 	rctf rect;
 	int mode;
-	bool change, extend;
+	bool changed, extend;
 } BorderSelectuserData;
 
 static void border_select_cb(void *userdata, MovieTrackingTrack *UNUSED(track),
@@ -340,7 +350,7 @@ static void border_select_cb(void *userdata, MovieTrackingTrack *UNUSED(track),
 		else
 			marker->flag &= ~flag;
 
-		data->change = TRUE;
+		data->changed = true;
 	}
 	else if (!data->extend) {
 		marker->flag &= ~MARKER_GRAPH_SEL;
@@ -356,25 +366,23 @@ static int border_select_graph_exec(bContext *C, wmOperator *op)
 	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(tracking);
 	BorderSelectuserData userdata;
-	rcti rect;
+	rctf rect;
 
 	if (act_track == NULL) {
 		return OPERATOR_CANCELLED;
 	}
 
 	/* get rectangle from operator */
-	WM_operator_properties_border_to_rcti(op, &rect);
+	WM_operator_properties_border_to_rctf(op, &rect);
+	UI_view2d_region_to_view_rctf(&ar->v2d, &rect, &userdata.rect);
 
-	UI_view2d_region_to_view(&ar->v2d, rect.xmin, rect.ymin, &userdata.rect.xmin, &userdata.rect.ymin);
-	UI_view2d_region_to_view(&ar->v2d, rect.xmax, rect.ymax, &userdata.rect.xmax, &userdata.rect.ymax);
-
-	userdata.change = false;
+	userdata.changed = false;
 	userdata.mode = RNA_int_get(op->ptr, "gesture_mode");
 	userdata.extend = RNA_boolean_get(op->ptr, "extend");
 
 	clip_graph_tracking_values_iterate_track(sc, act_track, &userdata, border_select_cb, NULL, NULL);
 
-	if (userdata.change) {
+	if (userdata.changed) {
 		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, NULL);
 
 		return OPERATOR_FINISHED;
@@ -394,13 +402,13 @@ void CLIP_OT_graph_select_border(wmOperatorType *ot)
 	ot->invoke = WM_border_select_invoke;
 	ot->exec = border_select_graph_exec;
 	ot->modal = WM_border_select_modal;
-	ot->poll = ED_space_clip_graph_poll;
+	ot->poll = clip_graph_knots_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_gesture_border(ot, TRUE);
+	WM_operator_properties_gesture_border(ot, true);
 }
 
 /********************** select all operator *********************/
@@ -461,7 +469,7 @@ void CLIP_OT_graph_select_all_markers(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = graph_select_all_markers_exec;
-	ot->poll = ED_space_clip_graph_poll;
+	ot->poll = clip_graph_knots_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -478,8 +486,10 @@ static int delete_curve_exec(bContext *C, wmOperator *UNUSED(op))
 	MovieTracking *tracking = &clip->tracking;
 	MovieTrackingTrack *act_track = BKE_tracking_track_get_active(tracking);
 
-	if (act_track)
-		clip_delete_track(C, clip, act_track);
+	if (!act_track)
+		return OPERATOR_CANCELLED;
+
+	clip_delete_track(C, clip, act_track);
 
 	return OPERATOR_FINISHED;
 }
@@ -488,13 +498,13 @@ void CLIP_OT_graph_delete_curve(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Delete Curve";
-	ot->description = "Delete selected curves";
+	ot->description = "Delete track corresponding to the selected curve";
 	ot->idname = "CLIP_OT_graph_delete_curve";
 
 	/* api callbacks */
 	ot->invoke = WM_operator_confirm;
 	ot->exec = delete_curve_exec;
-	ot->poll = ED_space_clip_tracking_poll;
+	ot->poll = clip_graph_knots_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -534,7 +544,7 @@ void CLIP_OT_graph_delete_knot(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = delete_knot_exec;
-	ot->poll = ED_space_clip_graph_poll;
+	ot->poll = clip_graph_knots_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

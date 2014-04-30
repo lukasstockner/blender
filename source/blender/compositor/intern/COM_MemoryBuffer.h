@@ -27,10 +27,11 @@ class MemoryBuffer;
 
 #include "COM_ExecutionGroup.h"
 #include "COM_MemoryProxy.h"
+#include "COM_SocketReader.h"
 
 extern "C" {
-	#include "BLI_math.h"
-	#include "BLI_rect.h"
+#  include "BLI_math.h"
+#  include "BLI_rect.h"
 }
 
 /**
@@ -245,7 +246,7 @@ public:
 		result[3] = color1[3] * mvaluex + color3[3] * valuex;
 	}
 
-	void readEWA(float result[4], float fx, float fy, float dx, float dy, PixelSampler sampler);
+	void readEWA(float result[4], const float uv[2], const float derivatives[2][2], PixelSampler sampler);
 	
 	/**
 	 * @brief is this MemoryBuffer a temporarily buffer (based on an area, not on a chunk)

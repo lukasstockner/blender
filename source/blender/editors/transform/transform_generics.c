@@ -306,7 +306,7 @@ static void animrecord_check_state(Scene *scene, ID *id, wmTimer *animtimer)
 	}
 }
 
-static int fcu_test_selected(FCurve *fcu)
+static bool fcu_test_selected(FCurve *fcu)
 {
 	BezTriple *bezt = fcu->bezt;
 	unsigned int i;
@@ -497,7 +497,7 @@ static void recalcData_nla(TransInfo *t)
 			pExceeded = ((strip->prev) && (strip->prev->type != NLASTRIP_TYPE_TRANSITION) && (tdn->h1[0] < strip->prev->end));
 			nExceeded = ((strip->next) && (strip->next->type != NLASTRIP_TYPE_TRANSITION) && (tdn->h2[0] > strip->next->start));
 			
-			if ((pExceeded && nExceeded) || (iter == 4) ) {
+			if ((pExceeded && nExceeded) || (iter == 4)) {
 				/* both endpoints exceeded (or iteration ping-pong'd meaning that we need a compromise)
 				 *	- simply crop strip to fit within the bounds of the strips bounding it
 				 *	- if there were no neighbors, clear the transforms (make it default to the strip's current values)
@@ -531,21 +531,40 @@ static void recalcData_nla(TransInfo *t)
 		
 		/* handle auto-snapping */
 		switch (snla->autosnap) {
-			case SACTSNAP_FRAME: /* snap to nearest frame/time  */
-				if (snla->flag & SNLA_DRAWTIME) {
-					tdn->h1[0] = (float)(floor(((double)tdn->h1[0] / secf) + 0.5) * secf);
-					tdn->h2[0] = (float)(floor(((double)tdn->h2[0] / secf) + 0.5) * secf);
-				}
-				else {
-					tdn->h1[0] = floorf(tdn->h1[0] + 0.5f);
-					tdn->h2[0] = floorf(tdn->h2[0] + 0.5f);
-				}
+			case SACTSNAP_FRAME: /* snap to nearest frame */
+			case SACTSNAP_STEP: /* frame step - this is basically the same, since we don't have any remapping going on */
+			{
+				tdn->h1[0] = floorf(tdn->h1[0] + 0.5f);
+				tdn->h2[0] = floorf(tdn->h2[0] + 0.5f);
 				break;
+			}
+			
+			case SACTSNAP_SECOND: /* snap to nearest second */
+			case SACTSNAP_TSTEP: /* second step - this is basically the same, since we don't have any remapping going on */
+			{
+				/* This case behaves differently from the rest, since lengths of strips
+				 * may not be multiples of a second. If we just naively resize adjust
+				 * the handles, things may not work correctly. Instead, we only snap
+				 * the first handle, and move the other to fit.
+				 *
+				 * FIXME: we do run into problems here when user attempts to negatively
+				 *        scale the strip, as it then just compresses down and refuses
+				 *        to expand out the other end.
+				 */
+				float h1_new = (float)(floor(((double)tdn->h1[0] / secf) + 0.5) * secf);
+				float delta  = h1_new - tdn->h1[0];
+				
+				tdn->h1[0] = h1_new;
+				tdn->h2[0] += delta;
+				break;
+			}
 			
 			case SACTSNAP_MARKER: /* snap to nearest marker */
+			{
 				tdn->h1[0] = (float)ED_markers_find_nearest_marker_time(&t->scene->markers, tdn->h1[0]);
 				tdn->h2[0] = (float)ED_markers_find_nearest_marker_time(&t->scene->markers, tdn->h2[0]);
 				break;
+			}
 		}
 		
 		/* Use RNA to write the values to ensure that constraints on these are obeyed
@@ -689,8 +708,8 @@ static void recalcData_spaceclip(TransInfo *t)
 	}
 }
 
-/* helper for recalcData() - for 3d-view transforms */
-static void recalcData_view3d(TransInfo *t)
+/* helper for recalcData() - for object transforms, typically in the 3D view */
+static void recalcData_objects(TransInfo *t)
 {
 	Base *base = t->scene->basact;
 	
@@ -796,8 +815,7 @@ static void recalcData_view3d(TransInfo *t)
 				}
 			}
 			
-			
-			if (t->mode != TFM_BONE_ROLL) {
+			if (!ELEM3(t->mode, TFM_BONE_ROLL, TFM_BONE_ENVELOPE, TFM_BONESIZE)) {
 				/* fix roll */
 				for (i = 0; i < t->total; i++, td++) {
 					if (td->extra) {
@@ -806,21 +824,23 @@ static void recalcData_view3d(TransInfo *t)
 						float roll;
 						
 						ebo = td->extra;
-						copy_v3_v3(up_axis, td->axismtx[2]);
-						
-						if (t->mode != TFM_ROTATION) {
+
+						if (t->state == TRANS_CANCEL) {
+							/* restore roll */
+							ebo->roll = td->ival;
+						}
+						else {
+							copy_v3_v3(up_axis, td->axismtx[2]);
+
 							sub_v3_v3v3(vec, ebo->tail, ebo->head);
 							normalize_v3(vec);
 							rotation_between_vecs_to_quat(qrot, td->axismtx[1], vec);
 							mul_qt_v3(qrot, up_axis);
+
+							/* roll has a tendency to flip in certain orientations - [#34283], [#33974] */
+							roll = ED_rollBoneToVector(ebo, up_axis, false);
+							ebo->roll = angle_compat_rad(roll, td->ival);
 						}
-						else {
-							mul_m3_v3(t->mat, up_axis);
-						}
-						
-						/* roll has a tendency to flip in certain orientations - [#34283], [#33974] */
-						roll = ED_rollBoneToVector(ebo, up_axis, false);
-						ebo->roll = angle_compat_rad(roll, ebo->roll);
 					}
 				}
 			}
@@ -933,29 +953,36 @@ static void recalcData_sequencer(TransInfo *t)
 /* called for updating while transform acts, once per redraw */
 void recalcData(TransInfo *t)
 {
-	if (t->spacetype == SPACE_NODE) {
-		flushTransNodes(t);
+	/* if tests must match createTransData for correct updates */
+	if (t->options & CTX_TEXTURE) {
+		recalcData_objects(t);
 	}
-	else if (t->spacetype == SPACE_SEQ) {
-		recalcData_sequencer(t);
-	}
-	else if (t->spacetype == SPACE_ACTION) {
-		recalcData_actedit(t);
-	}
-	else if (t->spacetype == SPACE_IPO) {
-		recalcData_graphedit(t);
-	}
-	else if (t->spacetype == SPACE_NLA) {
-		recalcData_nla(t);
+	else if (t->options & CTX_EDGE) {
+		recalcData_objects(t);
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		recalcData_image(t);
 	}
-	else if (t->spacetype == SPACE_VIEW3D) {
-		recalcData_view3d(t);
+	else if (t->spacetype == SPACE_ACTION) {
+		recalcData_actedit(t);
+	}
+	else if (t->spacetype == SPACE_NLA) {
+		recalcData_nla(t);
+	}
+	else if (t->spacetype == SPACE_SEQ) {
+		recalcData_sequencer(t);
+	}
+	else if (t->spacetype == SPACE_IPO) {
+		recalcData_graphedit(t);
+	}
+	else if (t->spacetype == SPACE_NODE) {
+		flushTransNodes(t);
 	}
 	else if (t->spacetype == SPACE_CLIP) {
 		recalcData_spaceclip(t);
+	}
+	else {
+		recalcData_objects(t);
 	}
 }
 
@@ -1029,8 +1056,12 @@ static int initTransInfo_edit_pet_to_flag(const int proportional)
 	}
 }
 
-/* the *op can be NULL */
-int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event)
+/**
+ * Setup internal data, mouse, vectors
+ *
+ * \note \a op and \a event can be NULL
+ */
+void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event)
 {
 	Scene *sce = CTX_data_scene(C);
 	ToolSettings *ts = CTX_data_tool_settings(C);
@@ -1137,8 +1168,8 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 		if (v3d->flag & V3D_ALIGN) t->flag |= T_V3D_ALIGN;
 		t->around = v3d->around;
 		
-		/* warp always uses the cursor */
-		if (t->mode == TFM_WARP) {
+		/* bend always uses the cursor */
+		if (t->mode == TFM_BEND) {
 			t->around = V3D_CURSOR;
 		}
 
@@ -1321,8 +1352,6 @@ int initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *even
 
 	setTransformViewMatrices(t);
 	initNumInput(&t->num);
-	
-	return 1;
 }
 
 /* Here I would suggest only TransInfo related issues, like free data & reset vars. Not redraws */
@@ -1665,7 +1694,7 @@ void calculateCenter(TransInfo *t)
 					float center[3];
 					Curve *cu = (Curve *)t->obedit->data;
 
-					if (ED_curve_actSelection(cu, center)) {
+					if (ED_curve_active_center(cu, center)) {
 						copy_v3_v3(t->center, center);
 						calculateCenter2D(t);
 						break;
@@ -1705,11 +1734,8 @@ void calculateCenter(TransInfo *t)
 	/* for panning from cameraview */
 	if (t->flag & T_OBJECT) {
 		if (t->spacetype == SPACE_VIEW3D && t->ar && t->ar->regiontype == RGN_TYPE_WINDOW) {
-			View3D *v3d = t->view;
-			Scene *scene = t->scene;
-			RegionView3D *rv3d = t->ar->regiondata;
 			
-			if (v3d->camera == OBACT && rv3d->persp == RV3D_CAMOB) {
+			if (t->flag & T_CAMERA) {
 				float axis[3];
 				/* persinv is nasty, use viewinv instead, always right */
 				copy_v3_v3(axis, t->viewinv[2]);
@@ -1811,7 +1837,7 @@ void calculatePropRatio(TransInfo *t)
 						td->factor = 3.0f * dist * dist - 2.0f * dist * dist * dist;
 						break;
 					case PROP_ROOT:
-						td->factor = (float)sqrt(dist);
+						td->factor = sqrtf(dist);
 						break;
 					case PROP_LIN:
 						td->factor = dist;
@@ -1820,7 +1846,7 @@ void calculatePropRatio(TransInfo *t)
 						td->factor = 1.0f;
 						break;
 					case PROP_SPHERE:
-						td->factor = (float)sqrt(2 * dist - dist * dist);
+						td->factor = sqrtf(2 * dist - dist * dist);
 						break;
 					case PROP_RANDOM:
 						td->factor = BLI_frand() * dist;

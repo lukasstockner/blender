@@ -66,7 +66,7 @@ typedef struct BMHeader {
 	int index; /* notes:
 	            * - Use BM_elem_index_get/set macros for index
 	            * - Uninitialized to -1 so we can easily tell its not set.
-	            * - Used for edge/vert/face, check BMesh.elem_index_dirty for valid index values,
+	            * - Used for edge/vert/face/loop, check BMesh.elem_index_dirty for valid index values,
 	            *   this is abused by various tools which set it dirty.
 	            * - For loops this is used for sorting during tessellation. */
 
@@ -91,8 +91,14 @@ typedef struct BMVert {
 	BMHeader head;
 	struct BMFlagLayer *oflags; /* keep after header, an array of flags, mostly used by the operator stack */
 
-	float co[3];
-	float no[3];
+	float co[3];  /* vertex coordinates */
+	float no[3];  /* vertex normal */
+
+	/* pointer to (any) edge using this vertex (for disk cycles)
+	 *
+	 * note: some higher level functions set this to different edges that use this vertex,
+	 *       which is a bit of an abuse of internal bmesh data but also works OK for now (use with care!).
+	 */
 	struct BMEdge *e;
 } BMVert;
 
@@ -105,10 +111,14 @@ typedef struct BMEdge {
 	BMHeader head;
 	struct BMFlagLayer *oflags; /* keep after header, an array of flags, mostly used by the operator stack */
 
-	struct BMVert *v1, *v2;
+	struct BMVert *v1, *v2;  /* vertices (unordered) */
+
+	/* the list of loops around the edge (use l->radial_prev/next)
+	 * to access the other loops using the edge */
 	struct BMLoop *l;
 	
-	/* disk cycle pointers */
+	/* disk cycle pointers
+	 * relative data: d1 indicates indicates the next/prev edge around vertex v1 and d2 does the same for v2 */
 	BMDiskLink v1_disk_link, v2_disk_link;
 } BMEdge;
 
@@ -161,9 +171,9 @@ typedef struct BMFace {
 #else
 	BMLoop *l_first;
 #endif
-	int   len;   /* includes all boundary loops */
-	float no[3]; /* yes, we do store this here */
-	short mat_nr;
+	int   len;   /* number of vertices in the face */
+	float no[3];  /* face normal */
+	short mat_nr;  /* material index */
 //	short _pad[3];
 } BMFace;
 
@@ -178,9 +188,8 @@ typedef struct BMesh {
 	int totvertsel, totedgesel, totfacesel;
 
 	/* flag index arrays as being dirty so we can check if they are clean and
-	 * avoid looping over the entire vert/edge/face array in those cases.
-	 * valid flags are - BM_VERT | BM_EDGE | BM_FACE.
-	 * BM_LOOP isn't handled so far. */
+	 * avoid looping over the entire vert/edge/face/loop array in those cases.
+	 * valid flags are - BM_VERT | BM_EDGE | BM_FACE | BM_LOOP. */
 	char elem_index_dirty;
 
 	/* flag array table as being dirty so we know when its safe to use it,
@@ -227,7 +236,7 @@ typedef struct BMesh {
 	int shapenr;
 	
 	int walkers, totflags;
-	ListBase selected, error_stack;
+	ListBase selected;
 
 	BMFace *act_face;
 
@@ -276,6 +285,12 @@ extern void bpy_bm_generic_invalidate(struct BPy_BMGeneric *self);
 typedef bool (*BMElemFilterFunc)(BMElem *, void *user_data);
 
 /* defines */
+#define BM_ELEM_CD_SET_INT(ele, offset, f) \
+	{ assert(offset != -1); *((int *)((char *)(ele)->head.data + (offset))) = (f); } (void)0
+
+#define BM_ELEM_CD_GET_INT(ele, offset) \
+	(assert(offset != -1), *((int *)((char *)(ele)->head.data + (offset))))
+
 #define BM_ELEM_CD_GET_VOID_P(ele, offset) \
 	(assert(offset != -1), (void *)((char *)(ele)->head.data + (offset)))
 

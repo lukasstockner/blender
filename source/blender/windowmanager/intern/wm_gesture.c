@@ -26,8 +26,9 @@
 
 /** \file blender/windowmanager/intern/wm_gesture.c
  *  \ingroup wm
+ *
+ * Gestures (cursor motions) creating, evaluating and drawing, shared between operators.
  */
-
 
 #include "DNA_screen_types.h"
 #include "DNA_vec_types.h"
@@ -38,7 +39,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_scanfill.h"   /* lasso tessellation */
 #include "BLI_utildefines.h"
 #include "BLI_lasso.h"
 
@@ -72,7 +72,7 @@ wmGesture *WM_gesture_new(bContext *C, const wmEvent *event, int type)
 	gesture->event_type = event->type;
 	gesture->swinid = ar->swinid;    /* means only in area-region context! */
 	
-	wm_subwindow_getorigin(window, gesture->swinid, &sx, &sy);
+	wm_subwindow_origin_get(window, gesture->swinid, &sx, &sy);
 	
 	if (ELEM5(type, WM_GESTURE_RECT, WM_GESTURE_CROSS_RECT, WM_GESTURE_TWEAK,
 	          WM_GESTURE_CIRCLE, WM_GESTURE_STRAIGHTLINE))
@@ -136,8 +136,8 @@ int wm_gesture_evaluate(wmGesture *gesture)
 		rcti *rect = gesture->customdata;
 		int dx = BLI_rcti_size_x(rect);
 		int dy = BLI_rcti_size_y(rect);
-		if (ABS(dx) + ABS(dy) > U.tweak_threshold) {
-			int theta = (int)floor(4.0f * atan2f((float)dy, (float)dx) / (float)M_PI + 0.5f);
+		if (abs(dx) + abs(dy) > U.tweak_threshold) {
+			int theta = iroundf(4.0f * atan2f((float)dy, (float)dx) / (float)M_PI);
 			int val = EVT_GESTURE_W;
 
 			if (theta == 0) val = EVT_GESTURE_E;
@@ -261,7 +261,7 @@ static void draw_filled_lasso(wmWindow *win, wmGesture *gt)
 
 	BLI_lasso_boundbox(&rect, (const int (*)[2])moves, tot);
 
-	wm_subwindow_getrect(win, gt->swinid, &rect_win);
+	wm_subwindow_rect_get(win, gt->swinid, &rect_win);
 	BLI_rcti_translate(&rect, rect_win.xmin, rect_win.ymin);
 	BLI_rcti_isect(&rect_win, &rect, &rect);
 	BLI_rcti_translate(&rect, -rect_win.xmin, -rect_win.ymin);
@@ -329,19 +329,19 @@ static void wm_gesture_draw_lasso(wmWindow *win, wmGesture *gt, bool filled)
 static void wm_gesture_draw_cross(wmWindow *win, wmGesture *gt)
 {
 	rcti *rect = (rcti *)gt->customdata;
-	int winsizex = WM_window_pixels_x(win);
-	int winsizey = WM_window_pixels_y(win);
+	const int winsize_x = WM_window_pixels_x(win);
+	const int winsize_y = WM_window_pixels_y(win);
 
 	glEnable(GL_LINE_STIPPLE);
 	glColor3ub(96, 96, 96);
 	glLineStipple(1, 0xCCCC);
-	sdrawline(rect->xmin - winsizex, rect->ymin, rect->xmin + winsizex, rect->ymin);
-	sdrawline(rect->xmin, rect->ymin - winsizey, rect->xmin, rect->ymin + winsizey);
+	sdrawline(rect->xmin - winsize_x, rect->ymin, rect->xmin + winsize_x, rect->ymin);
+	sdrawline(rect->xmin, rect->ymin - winsize_y, rect->xmin, rect->ymin + winsize_y);
 	
 	glColor3ub(255, 255, 255);
 	glLineStipple(1, 0x3333);
-	sdrawline(rect->xmin - winsizex, rect->ymin, rect->xmin + winsizex, rect->ymin);
-	sdrawline(rect->xmin, rect->ymin - winsizey, rect->xmin, rect->ymin + winsizey);
+	sdrawline(rect->xmin - winsize_x, rect->ymin, rect->xmin + winsize_x, rect->ymin);
+	sdrawline(rect->xmin, rect->ymin - winsize_y, rect->xmin, rect->ymin + winsize_y);
 	glDisable(GL_LINE_STIPPLE);
 }
 
@@ -382,7 +382,7 @@ void wm_gesture_tag_redraw(bContext *C)
 	ARegion *ar = CTX_wm_region(C);
 	
 	if (screen)
-		screen->do_draw_gesture = TRUE;
+		screen->do_draw_gesture = true;
 
 	wm_tag_redraw_overlay(win, ar);
 }

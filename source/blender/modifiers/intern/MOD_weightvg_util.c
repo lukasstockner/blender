@@ -94,10 +94,10 @@ void weightvg_do_map(int num, float *new_w, short falloff_type, CurveMapping *cm
 				fac = 3.0f * fac * fac - 2.0f * fac * fac * fac;
 				break;
 			case MOD_WVG_MAPPING_ROOT:
-				fac = (float)sqrt(fac);
+				fac = sqrtf(fac);
 				break;
 			case MOD_WVG_MAPPING_SPHERE:
-				fac = (float)sqrt(2 * fac - fac * fac);
+				fac = sqrtf(2 * fac - fac * fac);
 				break;
 			case MOD_WVG_MAPPING_RANDOM:
 				fac = BLI_rng_get_float(rng) * fac;
@@ -244,8 +244,8 @@ void weightvg_do_mask(int num, const int *indices, float *org_w, const float *ne
  * vertex index (in case the weight array does not cover the whole vertices...).
  */
 void weightvg_update_vg(MDeformVert *dvert, int defgrp_idx, MDeformWeight **dws, int num,
-                        const int *indices, const float *weights, int do_add,
-                        float add_thresh, int do_rem, float rem_thresh)
+                        const int *indices, const float *weights, const bool do_add,
+                        const float add_thresh, const bool do_rem, const float rem_thresh)
 {
 	int i;
 

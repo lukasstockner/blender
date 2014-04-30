@@ -225,7 +225,10 @@ typedef enum eAnimFilter_Flags {
 	ANIMFILTER_NODUPLIS       = (1 << 11),
 	
 	/* for checking if we should keep some collapsed channel around (internal use only!) */
-	ANIMFILTER_TMP_PEEK       = (1 << 30)
+	ANIMFILTER_TMP_PEEK       = (1 << 30),
+
+	/* ignore ONLYSEL flag from filterflag, (internal use only!) */
+	ANIMFILTER_TMP_IGNORE_ONLYSEL = (1 << 31)
 } eAnimFilter_Flags;
 
 /* ---------- Flag Checking Macros ------------ */
@@ -344,13 +347,13 @@ size_t ANIM_animdata_filter(bAnimContext *ac, ListBase *anim_data, int filter_mo
 /* Obtain current anim-data context from Blender Context info.
  * Returns whether the operation was successful. 
  */
-short ANIM_animdata_get_context(const struct bContext *C, bAnimContext *ac);
+bool ANIM_animdata_get_context(const struct bContext *C, bAnimContext *ac);
 
 /* Obtain current anim-data context (from Animation Editor) given 
  * that Blender Context info has already been set. 
  * Returns whether the operation was successful.
  */
-short ANIM_animdata_context_getdata(bAnimContext *ac);
+bool ANIM_animdata_context_getdata(bAnimContext *ac);
 
 /* ************************************************ */
 /* ANIMATION CHANNELS LIST */
@@ -396,15 +399,15 @@ typedef struct bAnimChannelType {
 	/* get name (for channel lists) */
 	void (*name)(bAnimListElem *ale, char *name);
 	/* get RNA property+pointer for editing the name */
-	short (*name_prop)(bAnimListElem *ale, struct PointerRNA *ptr, struct PropertyRNA **prop);
+	bool (*name_prop)(bAnimListElem *ale, struct PointerRNA *ptr, struct PropertyRNA **prop);
 	/* get icon (for channel lists) */
 	int (*icon)(bAnimListElem *ale);
 	
 	/* settings */
 	/* check if the given setting is valid in the current context */
-	short (*has_setting)(bAnimContext *ac, bAnimListElem *ale, int setting);
+	bool (*has_setting)(bAnimContext *ac, bAnimListElem *ale, int setting);
 	/* get the flag used for this setting */
-	int (*setting_flag)(bAnimContext *ac, int setting, short *neg);
+	int (*setting_flag)(bAnimContext *ac, int setting, bool *neg);
 	/* get the pointer to int/short where data is stored,
 	 * with type being  sizeof(ptr_data) which should be fine for runtime use...
 	 *	- assume that setting has been checked to be valid for current context
@@ -451,7 +454,7 @@ void ANIM_channel_setting_set(bAnimContext *ac, bAnimListElem *ale, int setting,
  *	- setting: type of setting to set
  *	- on: whether the visibility setting has been enabled or disabled 
  */
-void ANIM_flush_setting_anim_channels(bAnimContext *ac, ListBase *anim_data, bAnimListElem *ale_setting, int setting, short on);
+void ANIM_flush_setting_anim_channels(bAnimContext *ac, ListBase *anim_data, bAnimListElem *ale_setting, int setting, short mode);
 
 
 /* Deselect all animation channels */
@@ -467,9 +470,6 @@ void ANIM_fcurve_delete_from_animdata(bAnimContext *ac, struct AnimData *adt, st
 /* ************************************************ */
 /* DRAWING API */
 /* anim_draw.c */
-
-/* Get string representing the given frame number as an appropriately represented frame or timecode */
-void ANIM_timecode_string_from_frame(char *str, struct Scene *scene, int power, short timecodes, float cfra);
 
 /* ---------- Current Frame Drawing ---------------- */
 
@@ -511,12 +511,12 @@ void free_fmodifiers_copybuf(void);
  * assuming that the buffer has been cleared already with free_fmodifiers_copybuf()
  *	- active: only copy the active modifier
  */
-short ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, short active);
+bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active);
 
 /* 'Paste' the F-Modifier(s) from the buffer to the specified list 
  *	- replace: free all the existing modifiers to leave only the pasted ones 
  */
-short ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, short replace);
+bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace);
 
 /* ************************************************* */
 /* ASSORTED TOOLS */
@@ -537,7 +537,7 @@ void getcolor_fcurve_rainbow(int cur, int tot, float out[3]);
 struct AnimData *ANIM_nla_mapping_get(bAnimContext *ac, bAnimListElem *ale);
 
 /* Apply/Unapply NLA mapping to all keyframes in the nominated F-Curve */
-void ANIM_nla_mapping_apply_fcurve(struct AnimData *adt, struct FCurve *fcu, short restore, short only_keys);
+void ANIM_nla_mapping_apply_fcurve(struct AnimData *adt, struct FCurve *fcu, bool restore, bool only_keys);
 
 /* ..... */
 
@@ -567,7 +567,7 @@ typedef enum eAnimUnitConv_Flags {
 	ANIM_UNITCONV_NORMALIZE_FREEZE  = (1 << 6),
 } eAnimUnitConv_Flags;
 
-/* Normalizatin flags from Space Graph passing to ANIM_unit_mapping_get_factor */
+/* Normalization flags from Space Graph passing to ANIM_unit_mapping_get_factor */
 short ANIM_get_normalization_flags(bAnimContext *ac);
 
 /* Get unit conversion factor for given ID + F-Curve */

@@ -112,6 +112,36 @@ typedef struct Panel {		/* the part from uiBlock that needs saved in file */
 	void *activedata;			/* runtime for panel manipulation */
 } Panel;
 
+
+/* Notes on Panel Catogories:
+ *
+ * ar->panels_category (PanelCategoryDyn) is a runtime only list of categories collected during draw.
+ *
+ * ar->panels_category_active (PanelCategoryStack) is basically a list of strings (category id's).
+ *
+ * Clicking on a tab moves it to the front of ar->panels_category_active,
+ * If the context changes so this tab is no longer displayed,
+ * then the first-most tab in ar->panels_category_active is used.
+ *
+ * This way you can change modes and always have the tab you last clicked on.
+ */
+
+/* region level tabs */
+#
+#
+typedef struct PanelCategoryDyn {
+	struct PanelCategoryDyn *next, *prev;
+	char idname[64];
+	rcti rect;
+} PanelCategoryDyn;
+
+/* region stack of active tabs */
+typedef struct PanelCategoryStack {
+	struct PanelCategoryStack *next, *prev;
+	char idname[64];
+} PanelCategoryStack;
+
+
 /* uiList dynamic data... */
 /* These two Lines with # tell makesdna this struct can be excluded. */
 #
@@ -123,6 +153,12 @@ typedef struct uiListDyn {
 
 	int items_len;                /* Number of items in collection. */
 	int items_shown;              /* Number of items actually visible after filtering. */
+
+	/* Those are temp data used during drag-resize with GRIP button (they are in pixels, the meaningful data is the
+	 * difference between resize_prev and resize)...
+	 */
+	int resize;
+	int resize_prev;
 
 	/* Filtering data. */
 	int *items_filter_flags;      /* items_len length. */
@@ -142,10 +178,10 @@ typedef struct uiList {           /* some list UI data need to be saved in file 
 	int list_scroll;
 	int list_grip;
 	int list_last_len;
-	int padi1;
+	int list_last_activei;
 
 	/* Filtering data. */
-	char filter_byname[64];	      /* defined as UI_MAX_NAME_STR */
+	char filter_byname[64];       /* defined as UI_MAX_NAME_STR */
 	int filter_flag;
 	int filter_sort_flag;
 
@@ -155,6 +191,14 @@ typedef struct uiList {           /* some list UI data need to be saved in file 
 	/* Dynamic data (runtime). */
 	uiListDyn *dyn_data;
 } uiList;
+
+typedef struct uiPreview {           /* some preview UI data need to be saved in file */
+	struct uiPreview *next, *prev;
+
+	char preview_id[64];             /* defined as UI_MAX_NAME_STR */
+	short height;
+	short pad1[3];
+} uiPreview;
 
 typedef struct ScrArea {
 	struct ScrArea *next, *prev;
@@ -172,7 +216,7 @@ typedef struct ScrArea {
 	short flag;
 	short region_active_win;		/* index of last used region of 'RGN_TYPE_WINDOW'
 									 * runtuime variable, updated by executing operators */
-	short pad;
+	char temp, pad;
 	
 	struct SpaceType *type;		/* callbacks for this space type */
 	
@@ -209,8 +253,11 @@ typedef struct ARegion {
 	
 	ListBase uiblocks;			/* uiBlock */
 	ListBase panels;			/* Panel */
+	ListBase panels_category_active;	/* Stack of panel categories */
 	ListBase ui_lists;			/* uiList */
+	ListBase ui_previews;		/* uiPreview */
 	ListBase handlers;			/* wmEventHandler */
+	ListBase panels_category;	/* Panel categories runtime */
 	
 	struct wmTimer *regiontimer; /* blend in/out */
 	
@@ -244,6 +291,16 @@ typedef struct ARegion {
 #define SCREENNORMAL	0
 #define SCREENFULL		1
 
+/* Panel->flag */
+enum {
+	PNL_SELECT      = (1 << 0),
+	PNL_CLOSEDX     = (1 << 1),
+	PNL_CLOSEDY     = (1 << 2),
+	PNL_CLOSED      = (PNL_CLOSEDX | PNL_CLOSEDY),
+	/*PNL_TABBED    = (1 << 3), */ /*UNUSED*/
+	PNL_OVERLAP     = (1 << 4),
+	PNL_PIN         = (1 << 5),
+};
 
 /* Panel->snap - for snapping to screen edges */
 #define PNL_SNAP_NONE		0
@@ -268,8 +325,10 @@ enum {
 /* uiList flag */
 enum {
 	UILST_SCROLL_TO_ACTIVE_ITEM   = 1 << 0,          /* Scroll list to make active item visible. */
-	UILST_RESIZING                = 1 << 1,          /* We are currently resizing, deactivate autosize! */
 };
+
+/* Value (in number of items) we have to go below minimum shown items to enable auto size. */
+#define UI_LIST_AUTO_SIZE_THRESHOLD 1
 
 /* uiList filter flags (dyn_data) */
 enum {
@@ -323,6 +382,7 @@ enum {
 /* region do_draw */
 #define RGN_DRAW			1
 #define RGN_DRAW_PARTIAL	2
+#define RGN_DRAWING			4
 
 #endif
 

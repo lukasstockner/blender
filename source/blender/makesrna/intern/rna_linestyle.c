@@ -310,25 +310,25 @@ static void rna_def_modifier_type_common(StructRNA *srna, EnumPropertyItem *modi
 static void rna_def_color_modifier(StructRNA *srna)
 {
 	rna_def_modifier_type_common(srna, linestyle_color_modifier_type_items,
-	                             "rna_LineStyleColorModifier_name_set", TRUE, TRUE);
+	                             "rna_LineStyleColorModifier_name_set", true, true);
 }
 
 static void rna_def_alpha_modifier(StructRNA *srna)
 {
 	rna_def_modifier_type_common(srna, linestyle_alpha_modifier_type_items,
-	                             "rna_LineStyleAlphaModifier_name_set", TRUE, FALSE);
+	                             "rna_LineStyleAlphaModifier_name_set", true, false);
 }
 
 static void rna_def_thickness_modifier(StructRNA *srna)
 {
 	rna_def_modifier_type_common(srna, linestyle_thickness_modifier_type_items,
-	                             "rna_LineStyleThicknessModifier_name_set", TRUE, FALSE);
+	                             "rna_LineStyleThicknessModifier_name_set", true, false);
 }
 
 static void rna_def_geometry_modifier(StructRNA *srna)
 {
 	rna_def_modifier_type_common(srna, linestyle_geometry_modifier_type_items,
-	                             "rna_LineStyleGeometryModifier_name_set", FALSE, FALSE);
+	                             "rna_LineStyleGeometryModifier_name_set", false, false);
 }
 
 static void rna_def_modifier_color_ramp_common(StructRNA *srna, int range)
@@ -354,7 +354,7 @@ static void rna_def_modifier_color_ramp_common(StructRNA *srna, int range)
 	}
 }
 
-static void rna_def_modifier_curve_common(StructRNA *srna, int range, int value)
+static void rna_def_modifier_curve_common(StructRNA *srna, bool range, bool value)
 {
 	PropertyRNA *prop;
 
@@ -467,17 +467,17 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "LineStyleColorModifier_AlongStroke", "LineStyleColorModifier");
 	RNA_def_struct_ui_text(srna, "Along Stroke", "Change line color along stroke");
 	rna_def_color_modifier(srna);
-	rna_def_modifier_color_ramp_common(srna, FALSE);
+	rna_def_modifier_color_ramp_common(srna, false);
 
 	srna = RNA_def_struct(brna, "LineStyleColorModifier_DistanceFromCamera", "LineStyleColorModifier");
 	RNA_def_struct_ui_text(srna, "Distance from Camera", "Change line color based on the distance from the camera");
 	rna_def_color_modifier(srna);
-	rna_def_modifier_color_ramp_common(srna, TRUE);
+	rna_def_modifier_color_ramp_common(srna, true);
 
 	srna = RNA_def_struct(brna, "LineStyleColorModifier_DistanceFromObject", "LineStyleColorModifier");
 	RNA_def_struct_ui_text(srna, "Distance from Object", "Change line color based on the distance from an object");
 	rna_def_color_modifier(srna);
-	rna_def_modifier_color_ramp_common(srna, TRUE);
+	rna_def_modifier_color_ramp_common(srna, true);
 
 	prop = RNA_def_property(srna, "target", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "target");
@@ -490,7 +490,7 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Material", "Change line color based on a material attribute");
 	rna_def_color_modifier(srna);
 	rna_def_modifier_material_common(srna);
-	rna_def_modifier_color_ramp_common(srna, FALSE);
+	rna_def_modifier_color_ramp_common(srna, false);
 
 	prop = RNA_def_property(srna, "use_ramp", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", LS_MODIFIER_USE_RAMP);
@@ -508,19 +508,19 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "LineStyleAlphaModifier_AlongStroke", "LineStyleAlphaModifier");
 	RNA_def_struct_ui_text(srna, "Along Stroke", "Change alpha transparency along stroke");
 	rna_def_alpha_modifier(srna);
-	rna_def_modifier_curve_common(srna, FALSE, FALSE);
+	rna_def_modifier_curve_common(srna, false, false);
 
 	srna = RNA_def_struct(brna, "LineStyleAlphaModifier_DistanceFromCamera", "LineStyleAlphaModifier");
 	RNA_def_struct_ui_text(srna, "Distance from Camera",
 	                       "Change alpha transparency based on the distance from the camera");
 	rna_def_alpha_modifier(srna);
-	rna_def_modifier_curve_common(srna, TRUE, FALSE);
+	rna_def_modifier_curve_common(srna, true, false);
 
 	srna = RNA_def_struct(brna, "LineStyleAlphaModifier_DistanceFromObject", "LineStyleAlphaModifier");
 	RNA_def_struct_ui_text(srna, "Distance from Object",
 	                       "Change alpha transparency based on the distance from an object");
 	rna_def_alpha_modifier(srna);
-	rna_def_modifier_curve_common(srna, TRUE, FALSE);
+	rna_def_modifier_curve_common(srna, true, false);
 
 	prop = RNA_def_property(srna, "target", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "target");
@@ -533,7 +533,7 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Material", "Change alpha transparency based on a material attribute");
 	rna_def_alpha_modifier(srna);
 	rna_def_modifier_material_common(srna);
-	rna_def_modifier_curve_common(srna, FALSE, FALSE);
+	rna_def_modifier_curve_common(srna, false, false);
 
 	/* line thickness modifiers */
 
@@ -546,17 +546,17 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "LineStyleThicknessModifier_AlongStroke", "LineStyleThicknessModifier");
 	RNA_def_struct_ui_text(srna, "Along Stroke", "Change line thickness along stroke");
 	rna_def_thickness_modifier(srna);
-	rna_def_modifier_curve_common(srna, FALSE, TRUE);
+	rna_def_modifier_curve_common(srna, false, true);
 
 	srna = RNA_def_struct(brna, "LineStyleThicknessModifier_DistanceFromCamera", "LineStyleThicknessModifier");
 	RNA_def_struct_ui_text(srna, "Distance from Camera", "Change line thickness based on the distance from the camera");
 	rna_def_thickness_modifier(srna);
-	rna_def_modifier_curve_common(srna, TRUE, TRUE);
+	rna_def_modifier_curve_common(srna, true, true);
 
 	srna = RNA_def_struct(brna, "LineStyleThicknessModifier_DistanceFromObject", "LineStyleThicknessModifier");
 	RNA_def_struct_ui_text(srna, "Distance from Object", "Change line thickness based on the distance from an object");
 	rna_def_thickness_modifier(srna);
-	rna_def_modifier_curve_common(srna, TRUE, TRUE);
+	rna_def_modifier_curve_common(srna, true, true);
 
 	prop = RNA_def_property(srna, "target", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "target");
@@ -569,7 +569,7 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Material", "Change line thickness based on a material attribute");
 	rna_def_thickness_modifier(srna);
 	rna_def_modifier_material_common(srna);
-	rna_def_modifier_curve_common(srna, FALSE, TRUE);
+	rna_def_modifier_curve_common(srna, false, true);
 
 	srna = RNA_def_struct(brna, "LineStyleThicknessModifier_Calligraphy", "LineStyleThicknessModifier");
 	RNA_def_struct_ui_text(srna, "Calligraphy",
@@ -848,11 +848,13 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "scale_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "scale_x");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_text(prop, "Scale X", "Scaling factor that is applied along the X axis");
 	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
 
 	prop = RNA_def_property(srna, "scale_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "scale_y");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_text(prop, "Scale Y", "Scaling factor that is applied along the Y axis");
 	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
 
@@ -907,16 +909,34 @@ static void rna_def_linestyle(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 	static EnumPropertyItem thickness_position_items[] = {
-		{LS_THICKNESS_CENTER, "CENTER", 0, "Center", "Stroke is centered along stroke geometry"},
-		{LS_THICKNESS_INSIDE, "INSIDE", 0, "Inside", "Stroke is drawn inside stroke geometry"},
-		{LS_THICKNESS_OUTSIDE, "OUTSIDE", 0, "Outside", "Stroke is drawn outside stroke geometry"},
-		{LS_THICKNESS_RELATIVE, "RELATIVE", 0, "Relative", "Stroke thickness is split by a user-defined ratio"},
+		{LS_THICKNESS_CENTER, "CENTER", 0, "Center", "Silhouettes and border edges are centered along stroke geometry"},
+		{LS_THICKNESS_INSIDE, "INSIDE", 0, "Inside", "Silhouettes and border edges are drawn inside of stroke geometry"},
+		{LS_THICKNESS_OUTSIDE, "OUTSIDE", 0, "Outside", "Silhouettes and border edges are drawn outside of stroke geometry"},
+		{LS_THICKNESS_RELATIVE, "RELATIVE", 0, "Relative", "Silhouettes and border edges are shifted by a user-defined ratio"},
+		{0, NULL, 0, NULL, NULL}
+	};
+	static EnumPropertyItem sort_key_items[] = {
+		{LS_SORT_KEY_DISTANCE_FROM_CAMERA, "DISTANCE_FROM_CAMERA", 0, "Distance from Camera", "Sort by distance from camera (closer lines lie on top of further lines)"},
+		{LS_SORT_KEY_2D_LENGTH, "2D_LENGTH", 0, "2D Length", "Sort by curvilinear 2D length (longer lines lie on top of shorter lines)"},
+		{0, NULL, 0, NULL, NULL}
+	};
+	static EnumPropertyItem sort_order_items[] = {
+		{0, "DEFAULT", 0, "Default", "Default order of the sort key"},
+		{LS_REVERSE_ORDER, "REVERSE", 0, "Reverse", "Reverse order"},
+		{0, NULL, 0, NULL, NULL}
+	};
+	static EnumPropertyItem integration_type_items[] = {
+		{LS_INTEGRATION_MEAN, "MEAN", 0, "Mean", "The value computed for the chain is the mean of the values obtained for chain vertices"},
+		{LS_INTEGRATION_MIN, "MIN", 0, "Min", "The value computed for the chain is the minimum of the values obtained for chain vertices"},
+		{LS_INTEGRATION_MAX, "MAX", 0, "Max", "The value computed for the chain is the maximum of the values obtained for chain vertices"},
+		{LS_INTEGRATION_FIRST, "FIRST", 0, "First", "The value computed for the chain is the value obtained for the first chain vertex"},
+		{LS_INTEGRATION_LAST, "LAST", 0, "Last", "The value computed for the chain is the value obtained for the last chain vertex"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
 	srna = RNA_def_struct(brna, "FreestyleLineStyle", "ID");
 	RNA_def_struct_ui_text(srna, "Freestyle Line Style", "Freestyle line style, reusable by multiple line sets");
-	RNA_def_struct_ui_icon(srna, ICON_BRUSH_DATA); /* FIXME: use a proper icon */
+	RNA_def_struct_ui_icon(srna, ICON_LINE_DATA);
 
 	prop = RNA_def_property(srna, "panel", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "panel");
@@ -933,7 +953,7 @@ static void rna_def_linestyle(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "alpha", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "alpha");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Alpha",
+	RNA_def_property_ui_text(prop, "Alpha Transparency",
 	                         "Base alpha transparency, possibly modified by alpha transparency modifiers");
 	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
 
@@ -946,7 +966,8 @@ static void rna_def_linestyle(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "thickness_position", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "thickness_position");
 	RNA_def_property_enum_items(prop, thickness_position_items);
-	RNA_def_property_ui_text(prop, "Thickness Position", "Select the position of stroke thickness");
+	RNA_def_property_ui_text(prop, "Thickness Position",
+	                               "Thickness position of silhouettes and border edges (applicable when plain chaining is used with the Same Object option)");
 	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
 
 	prop = RNA_def_property(srna, "thickness_ratio", PROP_FLOAT, PROP_FACTOR);
@@ -980,7 +1001,7 @@ static void rna_def_linestyle(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "chaining", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "chaining");
 	RNA_def_property_enum_items(prop, chaining_items);
-	RNA_def_property_ui_text(prop, "Chaining", "Select the way how feature edges are jointed to form chains");
+	RNA_def_property_ui_text(prop, "Chaining Method", "Select the way how feature edges are jointed to form chains");
 	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
 
 	prop = RNA_def_property(srna, "rounds", PROP_INT, PROP_UNSIGNED);
@@ -1102,6 +1123,29 @@ static void rna_def_linestyle(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Material Boundary", "If true, chains of feature edges are split at material boundaries");
 	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
 
+	prop = RNA_def_property(srna, "use_sorting", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", LS_NO_SORTING);
+	RNA_def_property_ui_text(prop, "Sorting", "Arrange the stacking order of strokes");
+	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
+
+	prop = RNA_def_property(srna, "sort_key", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "sort_key");
+	RNA_def_property_enum_items(prop, sort_key_items);
+	RNA_def_property_ui_text(prop, "Sort Key", "Select the sort key to determine the stacking order of chains");
+	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
+
+	prop = RNA_def_property(srna, "sort_order", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
+	RNA_def_property_enum_items(prop, sort_order_items);
+	RNA_def_property_ui_text(prop, "Sort Order", "Select the sort order");
+	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
+
+	prop = RNA_def_property(srna, "integration_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "integration_type");
+	RNA_def_property_enum_items(prop, integration_type_items);
+	RNA_def_property_ui_text(prop, "Integration Type", "Select the way how the sort key is computed for each chain");
+	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
+
 	prop = RNA_def_property(srna, "use_dashed_line", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", LS_DASHED_LINE);
 	RNA_def_property_ui_text(prop, "Dashed Line", "Enable or disable dashed line");
@@ -1110,7 +1154,7 @@ static void rna_def_linestyle(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "caps", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "caps");
 	RNA_def_property_enum_items(prop, cap_items);
-	RNA_def_property_ui_text(prop, "Cap", "Select the shape of both ends of strokes");
+	RNA_def_property_ui_text(prop, "Caps", "Select the shape of both ends of strokes");
 	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
 
 	prop = RNA_def_property(srna, "dash1", PROP_INT, PROP_UNSIGNED);

@@ -223,7 +223,7 @@ static int borderselect_exec(bContext *C, wmOperator *op)
 	ARegion *ar = CTX_wm_region(C);
 	ReportList *reports = CTX_wm_reports(C);
 	int report_mask = info_report_mask(sinfo);
-	int extend = RNA_boolean_get(op->ptr, "extend");
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
 	Report *report_min, *report_max, *report;
 
 	//View2D *v2d = UI_view2d_fromcontext(C);
@@ -231,19 +231,10 @@ static int borderselect_exec(bContext *C, wmOperator *op)
 
 	rcti rect;
 	//rctf rectf, rq;
-	short selecting = (RNA_int_get(op->ptr, "gesture_mode") == GESTURE_MODAL_SELECT);
+	const bool select = (RNA_int_get(op->ptr, "gesture_mode") == GESTURE_MODAL_SELECT);
 	//int mval[2];
 
 	WM_operator_properties_border_to_rcti(op, &rect);
-
-#if 0
-	mval[0] = rect.xmin;
-	mval[1] = rect.ymin;
-	UI_view2d_region_to_view(v2d, mval[0], mval[1], &rectf.xmin, &rectf.ymin);
-	mval[0] = rect.xmax;
-	mval[1] = rect.ymax;
-	UI_view2d_region_to_view(v2d, mval[0], mval[1], &rectf.xmax, &rectf.ymax);
-#endif
 
 	if (!extend) {
 		for (report = reports->list.first; report; report = report->next) {
@@ -287,7 +278,7 @@ static int borderselect_exec(bContext *C, wmOperator *op)
 		if ((report->type & report_mask) == 0)
 			continue;
 
-		if (selecting)
+		if (select)
 			report->flag |= SELECT;
 		else
 			report->flag &= ~SELECT;
@@ -319,7 +310,7 @@ void INFO_OT_select_border(wmOperatorType *ot)
 	/* ot->flag = OPTYPE_REGISTER; */
 
 	/* rna */
-	WM_operator_properties_gesture_border(ot, TRUE);
+	WM_operator_properties_gesture_border(ot, true);
 }
 
 

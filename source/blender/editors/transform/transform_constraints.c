@@ -135,9 +135,9 @@ static void postConstraintChecks(TransInfo *t, float vec[3], float pvec[3])
 
 	mul_m3_v3(t->con.imtx, vec);
 
-	snapGrid(t, vec);
+	snapGridIncrement(t, vec);
 
-	if (t->num.flag & T_NULL_ONE) {
+	if (t->flag & T_NULL_ONE) {
 		if (!(t->con.mode & CON_AXIS0))
 			vec[0] = 1.0f;
 
@@ -148,8 +148,7 @@ static void postConstraintChecks(TransInfo *t, float vec[3], float pvec[3])
 			vec[2] = 1.0f;
 	}
 
-	if (hasNumInput(&t->num)) {
-		applyNumInput(&t->num, vec);
+	if (applyNumInput(&t->num, vec)) {
 		constraintNumInput(t, vec);
 		removeAspectRatio(t, vec);
 	}
@@ -576,7 +575,15 @@ void setConstraint(TransInfo *t, float space[3][3], int mode, const char text[])
 void setAxisMatrixConstraint(TransInfo *t, int mode, const char text[])
 {
 	if (t->total == 1) {
-		setConstraint(t, t->data->axismtx, mode, text);
+		float axismtx[3][3];
+		if (t->flag & T_EDIT) {
+			mul_m3_m3m3(axismtx, t->obedit_mat, t->data->axismtx);
+		}
+		else {
+			copy_m3_m3(axismtx, t->data->axismtx);
+		}
+
+		setConstraint(t, axismtx, mode, text);
 	}
 	else {
 		BLI_strncpy(t->con.text + 1, text, sizeof(t->con.text) - 1);
@@ -917,7 +924,7 @@ void postSelectConstraint(TransInfo *t)
 static void setNearestAxis2d(TransInfo *t)
 {
 	/* no correction needed... just use whichever one is lower */
-	if (abs(t->mval[0] - t->con.imval[0]) < abs(t->mval[1] - t->con.imval[1]) ) {
+	if (abs(t->mval[0] - t->con.imval[0]) < abs(t->mval[1] - t->con.imval[1])) {
 		t->con.mode |= CON_AXIS1;
 		BLI_strncpy(t->con.text, IFACE_(" along Y axis"), sizeof(t->con.text));
 	}
@@ -930,9 +937,9 @@ static void setNearestAxis2d(TransInfo *t)
 static void setNearestAxis3d(TransInfo *t)
 {
 	float zfac;
-	float mvec[3], axis[3], proj[3];
+	float mvec[3], proj[3];
 	float len[3];
-	int i, icoord[2];
+	int i;
 
 	/* calculate mouse movement */
 	mvec[0] = (float)(t->mval[0] - t->con.imval[0]);
@@ -950,24 +957,25 @@ static void setNearestAxis3d(TransInfo *t)
 	zfac = len_v3(t->persinv[0]) * 2.0f / t->ar->winx * zfac * 30.0f;
 
 	for (i = 0; i < 3; i++) {
+		float axis[3], axis_2d[2];
+
 		copy_v3_v3(axis, t->con.mtx[i]);
 
 		mul_v3_fl(axis, zfac);
 		/* now we can project to get window coordinate */
 		add_v3_v3(axis, t->con.center);
-		projectIntView(t, axis, icoord);
+		projectFloatView(t, axis, axis_2d);
 
-		axis[0] = (float)(icoord[0] - t->center2d[0]);
-		axis[1] = (float)(icoord[1] - t->center2d[1]);
+		sub_v2_v2v2(axis, axis_2d, t->center2d);
 		axis[2] = 0.0f;
 
-		if (normalize_v3(axis) != 0.0f) {
+		if (normalize_v3(axis) > 1e-3f) {
 			project_v3_v3v3(proj, mvec, axis);
 			sub_v3_v3v3(axis, mvec, proj);
 			len[i] = normalize_v3(axis);
 		}
 		else {
-			len[i] = 10000000000.0f;
+			len[i] = 1e10f;
 		}
 	}
 

@@ -105,6 +105,13 @@ enum {
 	BOUNDBOX_DIRTY  = (1 << 1),
 };
 
+typedef struct LodLevel {
+	struct LodLevel *next, *prev;
+	struct Object *source;
+	int flags;
+	float distance;
+} LodLevel;
+
 typedef struct Object {
 	ID id;
 	struct AnimData *adt;		/* animation data (must be immediately after id for utilities to use it) */ 
@@ -169,8 +176,6 @@ typedef struct Object {
 	float imat_ren[4][4];
 	
 	unsigned int lay;	/* copy of Base's layer in the scene */
-	
-	float sf; /* sf is time-offset */
 
 	short flag;			/* copy of Base */
 	short colbits DNA_DEPRECATED;		/* deprecated, use 'matbits' */
@@ -201,7 +206,7 @@ typedef struct Object {
 	 */
 
 	float formfactor;
-	float rdamping, sizefac;
+	float rdamping;
 	float margin;
 	float max_vel; /* clamp the maximum velocity 0.0 is disabled */
 	float min_vel; /* clamp the minimum velocity 0.0 is disabled */
@@ -232,7 +237,8 @@ typedef struct Object {
 	ListBase controllers;	/* game logic controllers */
 	ListBase actuators;		/* game logic actuators */
 
-	float bbsize[3]  DNA_DEPRECATED;
+	float sf; /* sf is time-offset */
+
 	short index;			/* custom index, for renderpasses */
 	unsigned short actdef;	/* current deformation group, note: index starts at 1 */
 	float col[4];			/* object color */
@@ -263,8 +269,10 @@ typedef struct Object {
 
 	struct FluidsimSettings *fluidsimSettings; /* if fluidsim enabled, store additional settings */
 
+	/* Runtime valuated curve-specific data, not stored in the file */
+	struct CurveCache *curve_cache;
+
 	struct DerivedMesh *derivedDeform, *derivedFinal;
-	int *pad;
 	uint64_t lastDataMask;   /* the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
 	uint64_t customdata_mask; /* (extra) custom data layer mask to use for creating derivedmesh, set by depsgraph */
 	unsigned int state;			/* bit masks of game controllers that are active */
@@ -278,9 +286,10 @@ typedef struct Object {
 	struct RigidBodyCon *rigidbody_constraint;	/* settings for Bullet constraint */
 
 	float ima_ofs[2];		/* offset for image empties */
+	ImageUser *iuser;		/* must be non-null when oject is an empty image */
 
-	/* Runtime valuated curve-specific data, not stored in the file */
-	struct CurveCache *curve_cache;
+	ListBase lodlevels;		/* contains data for levels of detail */
+	LodLevel *currentlod;
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */
@@ -306,7 +315,7 @@ typedef struct DupliObject {
 	struct DupliObject *next, *prev;
 	struct Object *ob;
 	unsigned int origlay, pad;
-	float mat[4][4], omat[4][4];
+	float mat[4][4];
 	float orco[3], uv[2];
 
 	short type; /* from Object.transflag */
@@ -470,6 +479,12 @@ enum {
 	OB_BOUND_CAPSULE       = 7,
 };
 
+/* lod flags */
+enum {
+	OB_LOD_USE_MESH		= 1 << 0,
+	OB_LOD_USE_MAT		= 1 << 1,
+};
+
 
 /* **************** BASE ********************* */
 
@@ -542,6 +557,8 @@ enum {
 	OB_NAVMESH               = 1 << 20,
 	OB_HASOBSTACLE           = 1 << 21,
 	OB_CHARACTER             = 1 << 22,
+
+	OB_RECORD_ANIMATION      = 1 << 23,
 };
 
 /* ob->gameflag2 */
@@ -607,7 +624,7 @@ enum {
 /* ob->shapeflag */
 enum {
 	OB_SHAPE_LOCK       = 1 << 0,
-	OB_SHAPE_TEMPLOCK   = 1 << 1,  /* deprecated */
+	// OB_SHAPE_TEMPLOCK   = 1 << 1,  /* deprecated */
 	OB_SHAPE_EDIT_MODE  = 1 << 2,
 };
 

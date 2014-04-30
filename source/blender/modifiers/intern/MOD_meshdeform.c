@@ -35,6 +35,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -82,6 +83,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	MeshDeformModifierData *tmmd = (MeshDeformModifierData *) target;
 
 	tmmd->gridsize = mmd->gridsize;
+	tmmd->flag = mmd->flag;
 	tmmd->object = mmd->object;
 }
 
@@ -129,7 +131,7 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	}
 }
 
-static float meshdeform_dynamic_bind(MeshDeformModifierData *mmd, float (*dco)[3], float *vec)
+static float meshdeform_dynamic_bind(MeshDeformModifierData *mmd, float (*dco)[3], float vec[3])
 {
 	MDefCell *cell;
 	MDefInfluence *inf;
@@ -186,8 +188,6 @@ static void meshdeformModifier_do(
         float (*vertexCos)[3], int numVerts)
 {
 	MeshDeformModifierData *mmd = (MeshDeformModifierData *) md;
-	struct Mesh *me = (mmd->object) ? mmd->object->data : NULL;
-	BMEditMesh *em = me ? me->edit_btmesh : NULL;
 	DerivedMesh *tmpdm, *cagedm;
 	MDeformVert *dvert = NULL;
 	MDefInfluence *influences;
@@ -199,10 +199,20 @@ static void meshdeformModifier_do(
 
 	if (!mmd->object || (!mmd->bindcagecos && !mmd->bindfunc))
 		return;
-	
-	/* get cage derivedmesh */
-	if (em) {
-		tmpdm = editbmesh_get_derived_cage_and_final(md->scene, ob, em, &cagedm, 0);
+
+	/* Get cage derivedmesh.
+	 *
+	 * Only do this is the target object is in edit mode by itself, meaning
+	 * we don't allow linked edit meshes here.
+	 * This is because editbmesh_get_derived_cage_and_final() might easily
+	 * conflict with the thread which evaluates object which is in the edit
+	 * mode for this mesh.
+	 *
+	 * We'll support this case once granular dependency graph is landed.
+	 */
+	if (mmd->object == md->scene->obedit) {
+		BMEditMesh *em = BKE_editmesh_from_object(mmd->object);
+		tmpdm = editbmesh_get_derived_cage_and_final(md->scene, mmd->object, em, &cagedm, 0);
 		if (tmpdm)
 			tmpdm->release(tmpdm);
 	}
@@ -261,7 +271,7 @@ static void meshdeformModifier_do(
 		return;
 	}
 
-	cagecos = MEM_callocN(sizeof(*cagecos) * totcagevert, "meshdeformModifier vertCos");
+	cagecos = MEM_mallocN(sizeof(*cagecos) * totcagevert, "meshdeformModifier vertCos");
 
 	/* setup deformation data */
 	cagedm->getVertCos(cagedm, cagecos);
@@ -346,7 +356,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
 
 	modifier_vgroup_cache(md, vertexCos); /* if next modifier needs original vertices */
-	
+
 	meshdeformModifier_do(md, ob, dm, vertexCos, numVerts);
 
 	if (dm && dm != derivedData)

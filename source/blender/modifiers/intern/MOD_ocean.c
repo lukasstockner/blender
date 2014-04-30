@@ -64,7 +64,7 @@ static void clear_cache_data(struct OceanModifierData *omd)
 {
 	BKE_free_ocean_cache(omd->oceancache);
 	omd->oceancache = NULL;
-	omd->cached = FALSE;
+	omd->cached = false;
 }
 
 /* keep in sync with init_ocean_modifier_bake(), object_modifier.c */
@@ -74,7 +74,7 @@ static void init_ocean_modifier(struct OceanModifierData *omd)
 
 	if (!omd || !omd->ocean) return;
 
-	do_heightfield = TRUE;
+	do_heightfield = true;
 	do_chop = (omd->chop_amount > 0);
 	do_normals = (omd->flag & MOD_OCEAN_GENERATE_NORMALS);
 	do_jacobian = (omd->flag & MOD_OCEAN_GENERATE_FOAM);
@@ -317,7 +317,7 @@ static DerivedMesh *generate_ocean_geometry(OceanModifierData *omd)
 	origindex = CustomData_get_layer(&result->polyData, CD_ORIGINDEX);
 
 	/* create vertices */
-	#pragma omp parallel for private(x, y) if (rx > OMP_MIN_RES)
+#pragma omp parallel for private(x, y) if (rx > OMP_MIN_RES)
 	for (y = 0; y <= res_y; y++) {
 		for (x = 0; x <= res_x; x++) {
 			const int i = y * (res_x + 1) + x;
@@ -329,7 +329,7 @@ static DerivedMesh *generate_ocean_geometry(OceanModifierData *omd)
 	}
 
 	/* create faces */
-	#pragma omp parallel for private(x, y) if (rx > OMP_MIN_RES)
+#pragma omp parallel for private(x, y) if (rx > OMP_MIN_RES)
 	for (y = 0; y < res_y; y++) {
 		for (x = 0; x < res_x; x++) {
 			const int fi = y * res_x + x;
@@ -367,7 +367,7 @@ static DerivedMesh *generate_ocean_geometry(OceanModifierData *omd)
 		if (mloopuvs) { /* unlikely to fail */
 			ix = 1.0 / rx;
 			iy = 1.0 / ry;
-			#pragma omp parallel for private(x, y) if (rx > OMP_MIN_RES)
+#pragma omp parallel for private(x, y) if (rx > OMP_MIN_RES)
 			for (y = 0; y < res_y; y++) {
 				for (x = 0; x < res_x; x++) {
 					const int i = y * res_x + x;
@@ -442,7 +442,7 @@ static DerivedMesh *doOcean(ModifierData *md, Object *ob,
 	omd->refresh = 0;
 
 	/* do ocean simulation */
-	if (omd->cached == TRUE) {
+	if (omd->cached == true) {
 		if (!omd->oceancache) init_cache_data(ob, omd);
 		BKE_simulate_ocean_cache(omd->oceancache, md->scene->r.cfra);
 	}
@@ -495,7 +495,7 @@ static DerivedMesh *doOcean(ModifierData *md, Object *ob,
 						const float u = OCEAN_CO(size_co_inv, co[0]);
 						const float v = OCEAN_CO(size_co_inv, co[1]);
 
-						if (omd->oceancache && omd->cached == TRUE) {
+						if (omd->oceancache && omd->cached == true) {
 							BKE_ocean_cache_eval_uv(omd->oceancache, &ocr, cfra, u, v);
 							foam = ocr.foam;
 							CLAMP(foam, 0.0f, 1.0f);
@@ -523,7 +523,7 @@ static DerivedMesh *doOcean(ModifierData *md, Object *ob,
 		const float u = OCEAN_CO(size_co_inv, mv->co[0]);
 		const float v = OCEAN_CO(size_co_inv, mv->co[1]);
 
-		if (omd->oceancache && omd->cached == TRUE)
+		if (omd->oceancache && omd->cached == true)
 			BKE_ocean_cache_eval_uv(omd->oceancache, &ocr, cfra, u, v);
 		else
 			BKE_ocean_eval_uv(omd->ocean, &ocr, u, v);

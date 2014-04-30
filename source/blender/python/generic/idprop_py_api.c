@@ -525,7 +525,17 @@ int BPy_Wrap_SetMapItem(IDProperty *prop, PyObject *key, PyObject *val)
 	}
 
 	if (val == NULL) { /* del idprop[key] */
-		IDProperty *pkey = IDP_GetPropertyFromGroup(prop, _PyUnicode_AsString(key));
+		IDProperty *pkey;
+		const char *name = _PyUnicode_AsString(key);
+
+		if (name == NULL) {
+			PyErr_Format(PyExc_KeyError,
+			             "expected a string, not %.200s",
+			             Py_TYPE(key)->tp_name);
+			return -1;
+		}
+
+		pkey = IDP_GetPropertyFromGroup(prop, name);
 		if (pkey) {
 			IDP_FreeFromGroup(prop, pkey);
 			return 0;
@@ -837,7 +847,7 @@ static PyObject *BPy_IDGroup_Update(BPy_IDProperty *self, PyObject *value)
 		}
 
 		/* XXX, possible one is inside the other */
-		IDP_MergeGroup(self->prop, other->prop, TRUE);
+		IDP_MergeGroup(self->prop, other->prop, true);
 	}
 	else if (PyDict_Check(value)) {
 		while (PyDict_Next(value, &i, &pkey, &pval)) {
@@ -992,22 +1002,22 @@ PyTypeObject BPy_IDGroup_Type = {
 
 /********Array Wrapper********/
 
-static PyTypeObject *idp_array_py_type(BPy_IDArray *self, short *is_double)
+static PyTypeObject *idp_array_py_type(BPy_IDArray *self, bool *r_is_double)
 {
 	switch (self->prop->subtype) {
 		case IDP_FLOAT:
-			*is_double = 0;
+			*r_is_double = false;
 			return &PyFloat_Type;
 		case IDP_DOUBLE:
-			*is_double = 1;
+			*r_is_double = true;
 			return &PyFloat_Type;
 		case IDP_INT:
-			*is_double = 0;
+			*r_is_double = false;
 			return &PyLong_Type;
+		default:
+			*r_is_double = false;
+			return NULL;
 	}
-
-	*is_double = 0;
-	return NULL;
 }
 
 static PyObject *BPy_IDArray_repr(BPy_IDArray *self)
@@ -1178,7 +1188,7 @@ static PyObject *BPy_IDArray_slice(BPy_IDArray *self, int begin, int end)
 static int BPy_IDArray_ass_slice(BPy_IDArray *self, int begin, int end, PyObject *seq)
 {
 	IDProperty *prop = self->prop;
-	short is_double = 0;
+	bool is_double;
 	const PyTypeObject *py_type = idp_array_py_type(self, &is_double);
 	const size_t elem_size = is_double ? sizeof(double) : sizeof(float);
 	size_t alloc_len;
@@ -1387,7 +1397,7 @@ static PyObject *BPy_Group_Iter_Next(BPy_IDGroup_Iter *self)
 		}
 	}
 	else {
-		PyErr_SetString(PyExc_StopIteration, "iterator at end");
+		PyErr_SetNone(PyExc_StopIteration);
 		return NULL;
 	}
 }
@@ -1540,7 +1550,7 @@ void IDP_spit(IDProperty *prop)
 {
 	if (prop) {
 		PyGILState_STATE gilstate;
-		int use_gil = TRUE; /* !PyC_IsInterpreterActive(); */
+		bool use_gil = true; /* !PyC_IsInterpreterActive(); */
 		PyObject *ret_dict;
 		PyObject *ret_str;
 

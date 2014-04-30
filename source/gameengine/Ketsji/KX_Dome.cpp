@@ -48,8 +48,6 @@ KX_Dome::KX_Dome (
         RAS_ICanvas* canvas,
         /// rasterizer
         RAS_IRasterizer* rasterizer,
-        /// render tools
-        RAS_IRenderTools* rendertools,
         /// engine
         KX_KetsjiEngine* engine,
 
@@ -63,7 +61,7 @@ KX_Dome::KX_Dome (
         ):
     dlistSupported(false),
     canvaswidth(-1), canvasheight(-1),
-    m_drawingmode(engine->GetDrawType()),
+    m_drawingmode(rasterizer->GetDrawingMode()),
     m_resolution(res),
     m_mode(mode),
     m_angle(angle),
@@ -71,7 +69,6 @@ KX_Dome::KX_Dome (
     m_tilt(tilt),
     m_canvas(canvas),
     m_rasterizer(rasterizer),
-    m_rendertools(rendertools),
     m_engine(engine)
 {
 	warp.usemesh = false;
@@ -2047,6 +2044,9 @@ void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
 	cam->NodeUpdateGS(0.f);
 
 	scene->CalculateVisibleMeshes(m_rasterizer,cam);
-	scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
+	scene->RenderBuckets(camtrans, m_rasterizer);
+
+	// update levels of detail
+	scene->UpdateObjectLods();
 }
 

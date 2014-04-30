@@ -141,7 +141,7 @@ static float *give_jitter_tab(int samp)
 
 	if (ctab[samp]==0) {
 		ctab[samp]= 1;
-		BLI_jitter_init(jit[offset], samp*samp);
+		BLI_jitter_init((float (*)[2])jit[offset], samp*samp);
 	}
 		
 	return jit[offset];
@@ -660,7 +660,7 @@ static void shadowbuf_autoclip(Render *re, LampRen *lar)
 			if (vlr->mat!= ma) {
 				ma= vlr->mat;
 				ok= 1;
-				if ((ma->mode & MA_SHADBUF)==0) ok= 0;
+				if ((ma->mode2 & MA_CASTSHADOW)==0 || (ma->mode & MA_SHADBUF)==0) ok= 0;
 			}
 			
 			if (ok && (obi->lay & lay)) {
@@ -1702,7 +1702,7 @@ static int point_behind_strand(const float p[3], BSPFace *face)
 			
 			rc[0]= pt[0]-p[0];
 			rc[1]= pt[1]-p[1];
-			dist= (float)sqrt(rc[0]*rc[0]+ rc[1]*rc[1]);
+			dist= sqrtf(rc[0]*rc[0]+ rc[1]*rc[1]);
 			
 			if (dist < face->radline) {
 				float zval= face->vec1[2] + lambda*face->rc[2];
@@ -2013,7 +2013,7 @@ static void isb_bsp_fillfaces(Render *re, LampRen *lar, ISBBranch *root)
 			if (vlr->mat!= ma) {
 				ma= vlr->mat;
 				ok= 1;
-				if ((ma->mode & MA_SHADBUF)==0) ok= 0;
+				if ((ma->mode2 & MA_CASTSHADOW)==0 || (ma->mode & MA_SHADBUF)==0) ok= 0;
 				if (ma->material_type == MA_TYPE_WIRE) ok= 0;
 				zspanstrand.shad_alpha= zspan.shad_alpha= ma->shad_alpha;
 			}
@@ -2120,7 +2120,7 @@ static int viewpixel_to_lampbuf(ShadBuf *shb, ObjectInstanceRen *obi, VlakRen *v
 	
 	/* clip We can test for -1.0/1.0 because of the properties of the
 	 * coordinate transformations. */
-	fac= fabs(hoco[3]);
+	fac = fabsf(hoco[3]);
 	if (hoco[0]<-fac || hoco[0]>fac)
 		return 0;
 	if (hoco[1]<-fac || hoco[1]>fac)

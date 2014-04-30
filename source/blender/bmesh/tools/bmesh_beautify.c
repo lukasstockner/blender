@@ -59,16 +59,14 @@ typedef struct EdRotState {
 	int f1, f2; /*	face vert, small -> large */
 } EdRotState;
 
+#if 0
+/* use BLI_ghashutil_inthash_v4 direct */
 static unsigned int erot_gsetutil_hash(const void *ptr)
 {
 	const EdRotState *e_state = (const EdRotState *)ptr;
-	unsigned int
-	hash  = BLI_ghashutil_inthash(SET_INT_IN_POINTER(e_state->v1));
-	hash ^= BLI_ghashutil_inthash(SET_INT_IN_POINTER(e_state->v2));
-	hash ^= BLI_ghashutil_inthash(SET_INT_IN_POINTER(e_state->f1));
-	hash ^= BLI_ghashutil_inthash(SET_INT_IN_POINTER(e_state->f2));
-	return hash;
+	return BLI_ghashutil_inthash_v4(&e_state->v1);
 }
+#endif
 static int erot_gsetutil_cmp(const void *a, const void *b)
 {
 	const EdRotState *e_state_a = (const EdRotState *)a;
@@ -86,15 +84,13 @@ static int erot_gsetutil_cmp(const void *a, const void *b)
 
 static GSet *erot_gset_new(void)
 {
-	return BLI_gset_new(erot_gsetutil_hash, erot_gsetutil_cmp, __func__);
+	return BLI_gset_new(BLI_ghashutil_inthash_v4_p, erot_gsetutil_cmp, __func__);
 }
 
 /* ensure v0 is smaller */
-#define EDGE_ORD(v0, v1) \
-	if (v0 > v1) {       \
-		v0 ^= v1;        \
-		v1 ^= v0;        \
-		v0 ^= v1;        \
+#define EDGE_ORD(v0, v1)   \
+	if (v0 > v1) {         \
+		SWAP(int, v0, v1); \
 	} (void)0
 
 static void erot_state_ex(const BMEdge *e, int v_index[2], int f_index[2])
@@ -137,10 +133,11 @@ static float bm_edge_calc_rotate_beauty__area(
 	/* not a loop (only to be able to break out) */
 	do {
 		float v1_xy[2], v2_xy[2], v3_xy[2], v4_xy[2];
+		bool is_zero_a, is_zero_b;
 
 		/* first get the 2d values */
 		{
-			bool is_zero_a, is_zero_b;
+			float no_a[3], no_b[3];
 			float no[3];
 			float axis_mat[3][3];
 
@@ -150,23 +147,20 @@ static float bm_edge_calc_rotate_beauty__area(
 			           (ELEM3(v3, v1, v2, v4) == false) &&
 			           (ELEM3(v4, v1, v2, v3) == false));
 
-			is_zero_a = area_tri_v3(v2, v3, v4) <= FLT_EPSILON;
-			is_zero_b = area_tri_v3(v2, v4, v1) <= FLT_EPSILON;
+			is_zero_a = (normal_tri_v3(no_a, v2, v3, v4) <= FLT_EPSILON);
+			is_zero_b = (normal_tri_v3(no_b, v2, v4, v1) <= FLT_EPSILON);
 
 			if (LIKELY(is_zero_a == false && is_zero_b == false)) {
-				float no_a[3], no_b[3];
-				normal_tri_v3(no_a, v2, v3, v4);  /* a */
-				normal_tri_v3(no_b, v2, v4, v1);  /* b */
 				add_v3_v3v3(no, no_a, no_b);
 				if (UNLIKELY(normalize_v3(no) <= FLT_EPSILON)) {
 					break;
 				}
 			}
 			else if (is_zero_a == false) {
-				normal_tri_v3(no, v2, v3, v4);  /* a */
+				copy_v3_v3(no, no_a);
 			}
 			else if (is_zero_b == false) {
-				normal_tri_v3(no, v2, v4, v1);  /* b */
+				copy_v3_v3(no, no_b);
 			}
 			else {
 				/* both zero area, no useful normal can be calculated */
@@ -184,7 +178,32 @@ static float bm_edge_calc_rotate_beauty__area(
 
 		// printf("%p %p %p %p - %p %p\n", v1, v2, v3, v4, e->l->f, e->l->radial_next->f);
 
-		if (is_quad_convex_v2(v1_xy, v2_xy, v3_xy, v4_xy)) {
+		if (is_zero_a == false && is_zero_b == false) {
+			/* both tri's are valid, check we make a concave quad */
+			if (!is_quad_convex_v2(v1_xy, v2_xy, v3_xy, v4_xy)) {
+				break;
+			}
+		}
+		else {
+			/* one of the tri's was degenerate, chech we're not rotating
+			 * into a different degenerate shape or flipping the face */
+			float area_a, area_b;
+
+			area_a = area_tri_signed_v2(v1_xy, v2_xy, v3_xy);
+			area_b = area_tri_signed_v2(v1_xy, v3_xy, v4_xy);
+
+			if ((fabsf(area_a) <= FLT_EPSILON) || (fabsf(area_b) <= FLT_EPSILON)) {
+				/* one of the new rotations is degenerate */
+				break;
+			}
+
+			if ((area_a >= 0.0f) != (area_b >= 0.0f)) {
+				/* rotation would cause flipping */
+				break;
+			}
+		}
+
+		{
 			/* testing rule: the area divided by the perimeter,
 			 * check if (1-3) beats the existing (2-4) edge rotation */
 			float area_a, area_b;
@@ -253,7 +272,8 @@ static float bm_edge_calc_rotate_beauty__angle(
 }
 
 float BM_verts_calc_rotate_beauty(
-const BMVert *v1, const BMVert *v2, const BMVert *v3, const BMVert *v4, const short flag, const short method)
+        const BMVert *v1, const BMVert *v2, const BMVert *v3, const BMVert *v4,
+        const short flag, const short method)
 {
 	/* not a loop (only to be able to break out) */
 	do {
@@ -294,11 +314,22 @@ static float bm_edge_calc_rotate_beauty(const BMEdge *e, const short flag, const
 /* -------------------------------------------------------------------- */
 /* Update the edge cost of rotation in the heap */
 
+BLI_INLINE bool edge_in_array(const BMEdge *e, const BMEdge **edge_array, const int edge_array_len)
+{
+	const int index = BM_elem_index_get(e);
+	return ((index >= 0) &&
+	        (index < edge_array_len) &&
+	        (e == edge_array[index]));
+}
+
 /* recalc an edge in the heap (surrounding geometry has changed) */
 static void bm_edge_update_beauty_cost_single(BMEdge *e, Heap *eheap, HeapNode **eheap_table, GSet **edge_state_arr,
+                                              /* only for testing the edge is in the array */
+                                              const BMEdge **edge_array, const int edge_array_len,
+
                                               const short flag, const short method)
 {
-	if (BM_elem_flag_test(e, BM_ELEM_TAG)) {
+	if (edge_in_array(e, edge_array, edge_array_len)) {
 		const int i = BM_elem_index_get(e);
 		GSet *e_state_set = edge_state_arr[i];
 
@@ -309,8 +340,6 @@ static void bm_edge_update_beauty_cost_single(BMEdge *e, Heap *eheap, HeapNode *
 
 		/* check if we can add it back */
 		BLI_assert(BM_edge_is_manifold(e) == true);
-		//BLI_assert(BMO_elem_flag_test(bm, e->l->f, FACE_MARK) &&
-		//           BMO_elem_flag_test(bm, e->l->radial_next->f, FACE_MARK));
 
 		/* check we're not moving back into a state we have been in before */
 		if (e_state_set != NULL) {
@@ -337,29 +366,38 @@ static void bm_edge_update_beauty_cost_single(BMEdge *e, Heap *eheap, HeapNode *
 
 /* we have rotated an edge, tag other edges and clear this one */
 static void bm_edge_update_beauty_cost(BMEdge *e, Heap *eheap, HeapNode **eheap_table, GSet **edge_state_arr,
+                                       const BMEdge **edge_array, const int edge_array_len,
+                                       /* only for testing the edge is in the array */
                                        const short flag, const short method)
 {
-	BMLoop *l;
+	int i;
+
+	BMEdge *e_arr[4] = {
+	    e->l->next->e,
+	    e->l->prev->e,
+	    e->l->radial_next->next->e,
+	    e->l->radial_next->prev->e,
+	};
+
 	BLI_assert(e->l->f->len == 3 &&
 	           e->l->radial_next->f->len == 3);
 
-	l = e->l;
-	bm_edge_update_beauty_cost_single(l->next->e, eheap, eheap_table, edge_state_arr, flag, method);
-	bm_edge_update_beauty_cost_single(l->prev->e, eheap, eheap_table, edge_state_arr, flag, method);
-	l = l->radial_next;
-	bm_edge_update_beauty_cost_single(l->next->e, eheap, eheap_table, edge_state_arr, flag, method);
-	bm_edge_update_beauty_cost_single(l->prev->e, eheap, eheap_table, edge_state_arr, flag, method);
+	BLI_assert(BM_edge_face_count(e) == 2);
+
+	for (i = 0; i < 4; i++) {
+		bm_edge_update_beauty_cost_single(
+		        e_arr[i],
+		        eheap, eheap_table, edge_state_arr,
+		        edge_array, edge_array_len,
+		        flag, method);
+	}
 }
 
 /* -------------------------------------------------------------------- */
 /* Beautify Fill */
 
-#define ELE_NEW		1
-#define FACE_MARK	2
-
 /**
- * \note All edges in \a edge_array must be tagged and
- * have their index values set according to their position in the array.
+ * \note This function sets the edge indices to invalid values.
  */
 void BM_mesh_beautify_fill(BMesh *bm, BMEdge **edge_array, const int edge_array_len,
                                   const short flag, const short method,
@@ -369,7 +407,7 @@ void BM_mesh_beautify_fill(BMesh *bm, BMEdge **edge_array, const int edge_array_
 	HeapNode **eheap_table;  /* edge index aligned table pointing to the eheap */
 
 	GSet       **edge_state_arr  = MEM_callocN((size_t)edge_array_len * sizeof(GSet *), __func__);
-	BLI_mempool *edge_state_pool = BLI_mempool_create(sizeof(EdRotState), 512, 512, BLI_MEMPOOL_SYSMALLOC);
+	BLI_mempool *edge_state_pool = BLI_mempool_create(sizeof(EdRotState), 0, 512, BLI_MEMPOOL_NOP);
 	int i;
 
 #ifdef DEBUG_TIME
@@ -389,14 +427,22 @@ void BM_mesh_beautify_fill(BMesh *bm, BMEdge **edge_array, const int edge_array_
 		else {
 			eheap_table[i] = NULL;
 		}
+
+		BM_elem_index_set(e, i);  /* set_dirty */
 	}
+	bm->elem_index_dirty |= BM_EDGE;
 
 	while (BLI_heap_is_empty(eheap) == false) {
 		BMEdge *e = BLI_heap_popmin(eheap);
 		i = BM_elem_index_get(e);
 		eheap_table[i] = NULL;
 
+		BLI_assert(BM_edge_face_count(e) == 2);
+
 		e = BM_edge_rotate(bm, e, false, BM_EDGEROT_CHECK_EXISTS);
+
+		BLI_assert(e == NULL || BM_edge_face_count(e) == 2);
+
 		if (LIKELY(e)) {
 			GSet *e_state_set = edge_state_arr[i];
 
@@ -419,7 +465,9 @@ void BM_mesh_beautify_fill(BMesh *bm, BMEdge **edge_array, const int edge_array_
 			BM_elem_index_set(e, i);
 
 			/* recalculate faces connected on the heap */
-			bm_edge_update_beauty_cost(e, eheap, eheap_table, edge_state_arr, flag, method);
+			bm_edge_update_beauty_cost(e, eheap, eheap_table, edge_state_arr,
+			                           (const BMEdge **)edge_array, edge_array_len,
+			                           flag, method);
 
 			/* update flags */
 			if (oflag_edge)

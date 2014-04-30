@@ -19,7 +19,7 @@
 bl_info = {
     "name": "Cycles Render Engine",
     "author": "",
-    "blender": (2, 67, 0),
+    "blender": (2, 70, 0),
     "location": "Info header, render engine menu",
     "description": "Cycles Render Engine integration",
     "warning": "",
@@ -51,7 +51,8 @@ class CyclesRender(bpy.types.RenderEngine):
     def update(self, data, scene):
         if self.is_preview:
             if not self.session:
-                use_osl = bpy.context.scene.cycles.shading_system
+                cscene = bpy.context.scene.cycles
+                use_osl = cscene.shading_system and cscene.device == 'CPU'
 
                 engine.create(self, data, scene,
                               None, None, None, use_osl)

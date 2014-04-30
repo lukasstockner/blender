@@ -44,8 +44,6 @@
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
-#include "ED_screen.h"
-
 #include "BIF_gl.h"
 
 #include "WM_api.h"
@@ -376,11 +374,20 @@ static void action_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 				saction->flag |= SACTION_TEMP_NEEDCHANSYNC;
 				ED_area_tag_refresh(sa);
 			}
-			/* for selection changes of animation data, we can just redraw... otherwise autocolor might need to be done again */
-			else if (ELEM(wmn->data, ND_KEYFRAME, ND_ANIMCHAN) && (wmn->action == NA_SELECTED))
-				ED_area_tag_redraw(sa);
-			else
+			/* autocolor only really needs to change when channels are added/removed, or previously hidden stuff appears 
+			 * (assume for now that if just adding these works, that will be fine)
+			 */
+			else if (((wmn->data == ND_KEYFRAME) && ELEM(wmn->action, NA_ADDED, NA_REMOVED)) ||
+			         ((wmn->data == ND_ANIMCHAN) && (wmn->action != NA_SELECTED)))
+			{
 				ED_area_tag_refresh(sa);
+			}
+			/* for simple edits to the curve data though (or just plain selections), a simple redraw should work 
+			 * (see T39851 for an example of how this can go wrong)
+			 */
+			else {
+				ED_area_tag_redraw(sa);
+			}
 			break;
 		case NC_SCENE:
 			switch (wmn->data) {
@@ -452,6 +459,8 @@ static void action_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 
 static void action_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
+	// SpaceAction *saction = (SpaceAction *)sa->spacedata.first;
+
 	/* context changes */
 	switch (wmn->category) {
 		case NC_SCENE:
@@ -465,7 +474,16 @@ static void action_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa)
 			if (wmn->action == NA_RENAME)
 				ED_region_tag_redraw(ar);
 			break;
+		case NC_ANIMATION:
+			switch (wmn->data) {
+				case ND_KEYFRAME:
+					//saction->flag |= SACTION_TEMP_NEEDCHANSYNC;
+					ED_region_tag_redraw(ar);
+					break;
+			}
+			break;
 	}
+
 }
 
 static void action_refresh(const bContext *C, ScrArea *sa)
@@ -541,7 +559,7 @@ void ED_spacetype_action(void)
 	art = MEM_callocN(sizeof(ARegionType), "spacetype action region");
 	art->regionid = RGN_TYPE_CHANNELS;
 	art->prefsizex = 200;
-	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
+	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
 	
 	art->init = action_channel_area_init;
 	art->draw = action_channel_area_draw;

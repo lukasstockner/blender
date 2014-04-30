@@ -50,7 +50,7 @@ int ED_space_clip_view_clip_poll(struct bContext *C);
 
 int ED_space_clip_tracking_poll(struct bContext *C);
 int ED_space_clip_maskedit_poll(struct bContext *C);
-int ED_space_clip_maskedit_mask_poll(bContext *C);
+int ED_space_clip_maskedit_mask_poll(struct bContext *C);
 
 void ED_space_clip_get_size(struct SpaceClip *sc, int *width, int *height);
 void ED_space_clip_get_size_fl(struct SpaceClip *sc, float size[2]);
@@ -63,7 +63,7 @@ int ED_space_clip_get_clip_frame_number(struct SpaceClip *sc);
 struct ImBuf *ED_space_clip_get_buffer(struct SpaceClip *sc);
 struct ImBuf *ED_space_clip_get_stable_buffer(struct SpaceClip *sc, float loc[2], float *scale, float *angle);
 
-bool ED_space_clip_color_sample(struct SpaceClip *sc, struct ARegion *ar, int mval[2], float r_col[3]);
+bool ED_space_clip_color_sample(struct Scene *scene, struct SpaceClip *sc, struct ARegion *ar, int mval[2], float r_col[3]);
 
 void ED_clip_update_frame(const struct Main *mainp, int cfra);
 bool ED_clip_view_selection(const struct bContext *C, struct ARegion *ar, bool fit);
@@ -85,4 +85,4 @@ void ED_space_clip_set_mask(struct bContext *C, struct SpaceClip *sc, struct Mas
 /* ** clip_ops.c ** */
 void ED_operatormacros_clip(void);
 
-#endif /* ED_CLIP_H */
+#endif /* __ED_CLIP_H__ */

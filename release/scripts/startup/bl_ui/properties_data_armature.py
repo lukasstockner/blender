@@ -136,10 +136,6 @@ class DATA_PT_bone_groups(ArmatureButtonsPanel, Panel):
             col.operator("pose.group_move", icon='TRIA_UP', text="").direction = 'UP'
             col.operator("pose.group_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
-            col = layout.column()
-            col.active = (ob.proxy is None)
-            col.prop(group, "name")
-
             split = layout.split()
             split.active = (ob.proxy is None)
 
@@ -204,10 +200,6 @@ class DATA_PT_pose_library(ArmatureButtonsPanel, Panel):
                 col.operator("poselib.apply_pose", icon='ZOOM_SELECTED', text="").pose_index = poselib.pose_markers.active_index
 
             col.operator("poselib.action_sanitize", icon='HELP', text="")  # XXX: put in menu?
-
-            # properties for active marker
-            if pose_marker_active is not None:
-                layout.prop(pose_marker_active, "name")
 
 
 # TODO: this panel will soon be deprecated too
@@ -300,7 +292,7 @@ class DATA_PT_motion_paths(MotionPathButtonsPanel, Panel):
         return (context.object) and (context.armature)
 
     def draw(self, context):
-        layout = self.layout
+        # layout = self.layout
 
         ob = context.object
         avs = ob.pose.animation_visualization

@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Vector Transform */
 
-__device void svm_node_vector_transform(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_vector_transform(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint itype, ifrom, ito;
 	uint vector_in, vector_out;
@@ -33,7 +33,7 @@ __device void svm_node_vector_transform(KernelGlobals *kg, ShaderData *sd, float
 	NodeVectorTransformConvertSpace to = (NodeVectorTransformConvertSpace)ito;
 	
 	Transform tfm;
-	bool is_object = (sd->object != ~0);
+	bool is_object = (sd->object != OBJECT_NONE);
 	bool is_direction = (type == NODE_VECTOR_TRANSFORM_TYPE_VECTOR || type == NODE_VECTOR_TRANSFORM_TYPE_NORMAL);
 	
 	/* From world */

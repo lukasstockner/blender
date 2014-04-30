@@ -21,7 +21,6 @@
  */
 
 #include "COM_PreviewOperation.h"
-#include "COM_SocketConnection.h"
 #include "BLI_listbase.h"
 #include "BKE_image.h"
 #include "WM_api.h"
@@ -32,11 +31,11 @@
 #include "COM_defines.h"
 #include "BLI_math.h"
 extern "C" {
-	#include "MEM_guardedalloc.h"
-	#include "IMB_imbuf.h"
-	#include "IMB_imbuf_types.h"
-	#include "IMB_colormanagement.h"
-	#include "BKE_node.h"
+#  include "MEM_guardedalloc.h"
+#  include "IMB_imbuf.h"
+#  include "IMB_imbuf_types.h"
+#  include "IMB_colormanagement.h"
+#  include "BKE_node.h"
 }
 
 
@@ -56,7 +55,7 @@ void PreviewOperation::verifyPreview(bNodeInstanceHash *previews, bNodeInstanceK
 	/* Size (0, 0) ensures the preview rect is not allocated in advance,
 	 * this is set later in initExecution once the resolution is determined.
 	 */
-	this->m_preview = BKE_node_preview_verify(previews, key, 0, 0, TRUE);
+	this->m_preview = BKE_node_preview_verify(previews, key, 0, 0, true);
 }
 
 void PreviewOperation::initExecution()
@@ -104,7 +103,7 @@ void PreviewOperation::executeRegion(rcti *rect, unsigned int tileNumber)
 			color[1] = 0.0f;
 			color[2] = 0.0f;
 			color[3] = 1.0f;
-			this->m_input->read(color, rx, ry, COM_PS_NEAREST);
+			this->m_input->readSampled(color, rx, ry, COM_PS_NEAREST);
 			IMB_colormanagement_processor_apply_v4(cm_processor, color);
 			F4TOCHAR4(color, this->m_outputBuffer + offset);
 			offset += 4;

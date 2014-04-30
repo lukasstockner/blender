@@ -74,7 +74,7 @@ void multitestapp_exit(MultiTestApp *app);
 
 /**/
 
-void rect_bevel_side(int rect[2][2], int side, float *lt, float *dk, float *col, int width)
+void rect_bevel_side(int rect[2][2], int side, float *lt, float *dk, const float col[3], int width)
 {
 	int ltidx = (side / 2) % 4;
 	int dkidx = (ltidx + 1 + (side & 1)) % 4;
@@ -602,7 +602,7 @@ LoggerWindow *loggerwindow_new(MultiTestApp *app) {
 #else
 		lw->font = BLF_load_mem("default", (unsigned char *)datatoc_bfont_ttf, datatoc_bfont_ttf_size);
 		BLF_size(lw->font, 11, 72);
-		lw->fontheight = BLF_height(lw->font, "A_");
+		lw->fontheight = BLF_height(lw->font, "A_", 2);
 #endif
 		
 		lw->nloglines = lw->logsize = 0;

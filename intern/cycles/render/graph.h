@@ -29,12 +29,14 @@
 CCL_NAMESPACE_BEGIN
 
 class AttributeRequestSet;
+class Shader;
 class ShaderInput;
 class ShaderOutput;
 class ShaderNode;
 class ShaderGraph;
 class SVMCompiler;
 class OSLCompiler;
+class OutputNode;
 
 /* Socket Type
  *
@@ -182,7 +184,7 @@ public:
 	ShaderOutput *add_output(const char *name, ShaderSocketType type);
 
 	virtual ShaderNode *clone() const = 0;
-	virtual void attributes(AttributeRequestSet *attributes);
+	virtual void attributes(Shader *shader, AttributeRequestSet *attributes);
 	virtual void compile(SVMCompiler& compiler) = 0;
 	virtual void compile(OSLCompiler& compiler) = 0;
 
@@ -191,6 +193,7 @@ public:
 	virtual bool has_surface_bssrdf() { return false; }
 	virtual bool has_converter_blackbody() { return false; }
 	virtual bool has_bssrdf_bump() { return false; }
+	virtual bool has_spatial_varying() { return false; }
 
 	vector<ShaderInput*> inputs;
 	vector<ShaderOutput*> outputs;
@@ -238,13 +241,13 @@ public:
 	ShaderGraph *copy();
 
 	ShaderNode *add(ShaderNode *node);
-	ShaderNode *output();
+	OutputNode *output();
 
 	void connect(ShaderOutput *from, ShaderInput *to);
 	void disconnect(ShaderInput *to);
 
 	void remove_unneeded_nodes();
-	void finalize(bool do_bump = false, bool do_osl = false, bool do_multi_closure = false);
+	void finalize(bool do_bump = false, bool do_osl = false);
 
 protected:
 	typedef pair<ShaderNode* const, ShaderNode*> NodePair;

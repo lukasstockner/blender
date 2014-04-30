@@ -89,18 +89,18 @@ static char btempdir[FILE_MAX];     /* temporary directory */
  */
 int BLI_stringdec(const char *string, char *head, char *tail, unsigned short *numlen)
 {
-	unsigned short nums = 0, nume = 0;
-	short i;
+	unsigned int nums = 0, nume = 0;
+	int i;
 	bool found_digit = false;
 	const char * const lslash = BLI_last_slash(string);
-	const unsigned short string_len = strlen(string);
-	const unsigned short lslash_len = lslash != NULL ? (int)(lslash - string) : 0;
-	unsigned short name_end = string_len;
+	const unsigned int string_len = strlen(string);
+	const unsigned int lslash_len = lslash != NULL ? (int)(lslash - string) : 0;
+	unsigned int name_end = string_len;
 
 	while (name_end > lslash_len && string[--name_end] != '.') {} /* name ends at dot if present */
 	if (name_end == lslash_len && string[name_end] != '.') name_end = string_len;
 
-	for (i = name_end - 1; i >= lslash_len; i--) {
+	for (i = name_end - 1; i >= (int)lslash_len; i--) {
 		if (isdigit(string[i])) {
 			if (found_digit) {
 				nums = i;
@@ -229,7 +229,7 @@ void BLI_newname(char *name, int add)
  * \return true if there if the name was changed
  */
 bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
-                       void *arg, const char *defname, char delim, char *name, short name_len)
+                       void *arg, const char *defname, char delim, char *name, int name_len)
 {
 	if (name[0] == '\0') {
 		BLI_strncpy(name, defname, name_len);
@@ -268,7 +268,7 @@ bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
 
 /* little helper macro for BLI_uniquename */
 #ifndef GIVE_STRADDR
-	#define GIVE_STRADDR(data, offset) ( ((char *)data) + offset)
+#  define GIVE_STRADDR(data, offset) ( ((char *)data) + offset)
 #endif
 
 /* Generic function to set a unique name. It is only designed to be used in situations
@@ -281,13 +281,13 @@ bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
  *  defname: the name that should be used by default if none is specified already
  *  delim: the character which acts as a delimiter between parts of the name
  */
-static bool uniquename_find_dupe(ListBase *list, void *vlink, const char *name, short name_offs)
+static bool uniquename_find_dupe(ListBase *list, void *vlink, const char *name, int name_offs)
 {
 	Link *link;
 
 	for (link = list->first; link; link = link->next) {
 		if (link != vlink) {
-			if (!strcmp(GIVE_STRADDR(link, name_offs), name)) {
+			if (STREQ(GIVE_STRADDR(link, name_offs), name)) {
 				return true;
 			}
 		}
@@ -298,7 +298,7 @@ static bool uniquename_find_dupe(ListBase *list, void *vlink, const char *name, 
 
 static bool uniquename_unique_check(void *arg, const char *name)
 {
-	struct {ListBase *lb; void *vlink; short name_offs; } *data = arg;
+	struct {ListBase *lb; void *vlink; int name_offs; } *data = arg;
 	return uniquename_find_dupe(data->lb, data->vlink, name, data->name_offs);
 }
 
@@ -313,9 +313,9 @@ static bool uniquename_unique_check(void *arg, const char *name)
  * \param name_offs  Offset of name within block structure
  * \param name_len  Maximum length of name area
  */
-void BLI_uniquename(ListBase *list, void *vlink, const char *defname, char delim, short name_offs, short name_len)
+void BLI_uniquename(ListBase *list, void *vlink, const char *defname, char delim, int name_offs, int name_len)
 {
-	struct {ListBase *lb; void *vlink; short name_offs; } data;
+	struct {ListBase *lb; void *vlink; int name_offs; } data;
 	data.lb = list;
 	data.vlink = vlink;
 	data.name_offs = name_offs;
@@ -329,7 +329,7 @@ void BLI_uniquename(ListBase *list, void *vlink, const char *defname, char delim
 	BLI_uniquename_cb(uniquename_unique_check, &data, defname, delim, GIVE_STRADDR(vlink, name_offs), name_len);
 }
 
-
+static int BLI_path_unc_prefix_len(const char *path); /* defined below in same file */
 
 /* ******************** string encoding ***************** */
 
@@ -394,7 +394,9 @@ void BLI_cleanup_path(const char *relabase, char *path)
 		memmove(start, eind, strlen(eind) + 1);
 	}
 
-	while ( (start = strstr(path, "\\\\")) ) {
+	/* remove two consecutive backslashes, but skip the UNC prefix,
+	 * which needs to be preserved */
+	while ( (start = strstr(path + BLI_path_unc_prefix_len(path), "\\\\")) ) {
 		eind = start + strlen("\\\\") - 1;
 		memmove(start, eind, strlen(eind) + 1);
 	}
@@ -463,6 +465,110 @@ bool BLI_path_is_rel(const char *path)
 	return path[0] == '/' && path[1] == '/';
 }
 
+/* return true if the path is a UNC share */
+bool BLI_path_is_unc(const char *name)
+{
+	return name[0] == '\\' && name[1] == '\\';
+}
+
+/**
+ * Returns the length of the identifying prefix
+ * of a UNC path which can start with '\\' (short version)
+ * or '\\?\' (long version)
+ * If the path is not a UNC path, return 0
+ *
+ * \param name  the path name
+ */
+static int BLI_path_unc_prefix_len(const char *path)
+{
+	if (BLI_path_is_unc(path)) {
+		if ((path[2] == '?') && (path[3] == '\\') ) {
+			/* we assume long UNC path like \\?\server\share\folder etc... */
+			return 4;
+		}
+		else {
+			return 2;
+		}
+	}
+
+	return 0;
+}
+
+#if defined(WIN32)
+
+/* return true if the path is absolute ie starts with a drive specifier (eg A:\) or is a UNC path */
+static bool BLI_path_is_abs(const char *name)
+{
+	return (name[1] == ':' && (name[2] == '\\' || name[2] == '/') ) || BLI_path_is_unc(name);
+}
+
+static wchar_t *next_slash(wchar_t *path)
+{
+	wchar_t *slash = path;
+	while (*slash && *slash != L'\\') slash++;
+	return slash;
+}
+
+/* adds a slash if the unc path points sto a share */
+static void BLI_path_add_slash_to_share(wchar_t *uncpath)
+{
+	wchar_t *slash_after_server = next_slash(uncpath + 2);
+	if (*slash_after_server) {
+		wchar_t *slash_after_share = next_slash(slash_after_server + 1);
+		if (!(*slash_after_share)) {
+			slash_after_share[0] = L'\\';
+			slash_after_share[1] = L'\0';
+		}
+	}
+}
+
+static void BLI_path_unc_to_short(wchar_t *unc)
+{
+	wchar_t tmp[PATH_MAX];
+
+	int len = wcslen(unc);
+	int copy_start = 0;
+	/* convert:
+	 *    \\?\UNC\server\share\folder\... to \\server\share\folder\...
+	 *    \\?\C:\ to C:\ and \\?\C:\folder\... to C:\folder\...
+	 */
+	if ((len > 3) &&
+	    (unc[0] ==  L'\\') &&
+	    (unc[1] ==  L'\\') &&
+	    (unc[2] ==  L'?') &&
+	    ((unc[3] ==  L'\\') || (unc[3] ==  L'/')))
+	{
+		if ((len > 5) && (unc[5] ==  L':')) {
+			wcsncpy(tmp, unc + 4, len - 4);
+			tmp[len - 4] = L'\0';
+			wcscpy(unc, tmp);
+		}
+		else if ((len > 7) && (wcsncmp(&unc[4], L"UNC", 3) == 0) &&
+		         ((unc[7] ==  L'\\') || (unc[7] ==  L'/')))
+		{
+			tmp[0] = L'\\';
+			tmp[1] = L'\\';
+			wcsncpy(tmp + 2, unc + 8, len - 8);
+			tmp[len - 6] = L'\0';
+			wcscpy(unc, tmp);
+		}
+	}
+}
+
+void BLI_cleanup_unc(char *path, int maxlen)
+{
+	wchar_t *tmp_16 = alloc_utf16_from_8(path, 1);
+	BLI_cleanup_unc_16(tmp_16);
+	conv_utf_16_to_8(tmp_16, path, maxlen);
+}
+
+void BLI_cleanup_unc_16(wchar_t *path_16)
+{
+	BLI_path_unc_to_short(path_16);
+	BLI_path_add_slash_to_share(path_16);
+}
+#endif
+
 /**
  * Replaces *file with a relative version (prefixed by "//") such that BLI_path_abs, given
  * the same *relfile, will convert it back to its original value.
@@ -484,7 +590,7 @@ void BLI_path_rel(char *file, const char *relfile)
 	}
 
 #ifdef WIN32
-	if (BLI_strnlen(relfile, 3) > 2 && relfile[1] != ':') {
+	if (BLI_strnlen(relfile, 3) > 2 && !BLI_path_is_abs(relfile)) {
 		char *ptemp;
 		/* fix missing volume name in relative base,
 		 * can happen with old recent-files.txt files */
@@ -500,15 +606,35 @@ void BLI_path_rel(char *file, const char *relfile)
 	}
 
 	if (BLI_strnlen(file, 3) > 2) {
-		if (temp[1] == ':' && file[1] == ':' && temp[0] != file[0])
+		bool is_unc = BLI_path_is_unc(file);
+
+		/* Ensure paths are both UNC paths or are both drives */
+		if (BLI_path_is_unc(temp) != is_unc) {
 			return;
+		}
+
+		/* Ensure both UNC paths are on the same share */
+		if (is_unc) {
+			int off;
+			int slash = 0;
+			for (off = 0; temp[off] && slash < 4; off++) {
+				if (temp[off] != file[off])
+					return;
+
+				if (temp[off] == '\\')
+					slash++;
+			}
+		}
+		else if (temp[1] == ':' && file[1] == ':' && temp[0] != file[0]) {
+			return;
+		}
 	}
 #else
 	BLI_strncpy(temp, relfile, FILE_MAX);
 #endif
 
-	BLI_char_switch(temp, '\\', '/');
-	BLI_char_switch(file, '\\', '/');
+	BLI_char_switch(temp + BLI_path_unc_prefix_len(temp), '\\', '/');
+	BLI_char_switch(file + BLI_path_unc_prefix_len(file), '\\', '/');
 	
 	/* remove /./ which confuse the following slash counting... */
 	BLI_cleanup_path(NULL, file);
@@ -576,31 +702,12 @@ void BLI_path_rel(char *file, const char *relfile)
 }
 
 /**
- * Cleans path and makes sure it ends with a slash.
- * \return  true if \a path has more than one other path separator in it.
- */
-bool BLI_has_parent(char *path)
-{
-	int len;
-	int slashes = 0;
-	BLI_clean(path);
-	len = BLI_add_slash(path) - 1;
-
-	while (len >= 0) {
-		if ((path[len] == '\\') || (path[len] == '/'))
-			slashes++;
-		len--;
-	}
-	return slashes > 1;
-}
-
-/**
  * Replaces path with the path of its parent directory, returning true if
  * it was able to find a parent directory within the pathname.
  */
 bool BLI_parent_dir(char *path)
 {
-	static char parent_dir[] = {'.', '.', SEP, '\0'}; /* "../" or "..\\" */
+	const char parent_dir[] = {'.', '.', SEP, '\0'}; /* "../" or "..\\" */
 	char tmp[FILE_MAX + 4];
 
 	BLI_join_dirfile(tmp, sizeof(tmp), path, parent_dir);
@@ -622,7 +729,7 @@ bool BLI_parent_dir(char *path)
  */
 static bool stringframe_chars(const char *path, int *char_start, int *char_end)
 {
-	int ch_sta, ch_end, i;
+	unsigned int ch_sta, ch_end, i;
 	/* Insert current frame: file### -> file001 */
 	ch_sta = ch_end = 0;
 	for (i = 0; path[i] != '\0'; i++) {
@@ -720,6 +827,15 @@ bool BLI_path_frame_range(char *path, int sta, int end, int digits)
 }
 
 /**
+ * Check if we have '#' chars, usable for #BLI_path_frame, #BLI_path_frame_range
+ */
+bool BLI_path_frame_check_chars(const char *path)
+{
+	int ch_sta, ch_end;  /* dummy args */
+	return stringframe_chars(path, &ch_sta, &ch_end);
+}
+
+/**
  * If path begins with "//", strips that and replaces it with basepath directory. Also converts
  * a drive-letter prefix to something more sensible if this is a non-drive-letter-based system.
  * Returns true if "//" prefix expansion was done.
@@ -737,7 +853,7 @@ bool BLI_path_abs(char *path, const char *basepath)
 	 * blend file as a lib main - we are basically checking for the case that a 
 	 * UNIX root '/' is passed.
 	 */
-	if (!wasrelative && (vol[1] != ':' && (vol[0] == '\0' || vol[0] == '/' || vol[0] == '\\'))) {
+	if (!wasrelative && !BLI_path_is_abs(path)) {
 		char *p = path;
 		get_default_root(tmp);
 		// get rid of the slashes at the beginning of the path
@@ -767,24 +883,28 @@ bool BLI_path_abs(char *path, const char *basepath)
 	
 #endif
 
-	BLI_strncpy(base, basepath, sizeof(base));
-
-	/* file component is ignored, so don't bother with the trailing slash */
-	BLI_cleanup_path(NULL, base);
-	
 	/* push slashes into unix mode - strings entering this part are
 	 * potentially messed up: having both back- and forward slashes.
 	 * Here we push into one conform direction, and at the end we
 	 * push them into the system specific dir. This ensures uniformity
 	 * of paths and solving some problems (and prevent potential future
-	 * ones) -jesterKing. */
-	BLI_char_switch(tmp, '\\', '/');
-	BLI_char_switch(base, '\\', '/');
+	 * ones) -jesterKing.
+	 * For UNC paths the first characters containing the UNC prefix
+	 * shouldn't be switched as we need to distinguish them from
+	 * paths relative to the .blend file -elubie */
+	BLI_char_switch(tmp + BLI_path_unc_prefix_len(tmp), '\\', '/');
 
 	/* Paths starting with // will get the blend file as their base,
 	 * this isn't standard in any os but is used in blender all over the place */
 	if (wasrelative) {
-		const char * const lslash = BLI_last_slash(base);
+		const char *lslash;
+		BLI_strncpy(base, basepath, sizeof(base));
+
+		/* file component is ignored, so don't bother with the trailing slash */
+		BLI_cleanup_path(NULL, base);
+		lslash = BLI_last_slash(base);
+		BLI_char_switch(base + BLI_path_unc_prefix_len(base), '\\', '/');
+
 		if (lslash) {
 			const int baselen = (int) (lslash - base) + 1;  /* length up to and including last "/" */
 			/* use path for temp storage here, we copy back over it right away */
@@ -833,7 +953,7 @@ bool BLI_path_cwd(char *path)
 	const int filelen = strlen(path);
 	
 #ifdef WIN32
-	if (filelen >= 3 && path[1] == ':' && (path[2] == '\\' || path[2] == '/'))
+	if ((filelen >= 3 && BLI_path_is_abs(path)) || BLI_path_is_unc(path))
 		wasrelative = false;
 #else
 	if (filelen >= 2 && path[0] == '/')
@@ -1379,7 +1499,7 @@ void BLI_clean(char *path)
 		BLI_char_switch(path + 2, '/', '\\');
 	}
 #else
-	BLI_char_switch(path, '\\', '/');
+	BLI_char_switch(path + BLI_path_unc_prefix_len(path), '\\', '/');
 #endif
 }
 
@@ -1496,9 +1616,12 @@ void BLI_make_file_string(const char *relabase, char *string, const char *dir, c
 			BLI_strncpy(string, dir, 3);
 			dir += 2;
 		}
+		else if (BLI_strnlen(dir, 3) >= 2 && BLI_path_is_unc(dir)) {
+			string[0] = 0;
+		}
 		else { /* no drive specified */
 			   /* first option: get the drive from the relabase if it has one */
-			if (relabase && strlen(relabase) >= 2 && relabase[1] == ':') {
+			if (relabase && BLI_strnlen(relabase, 3) >= 2 && relabase[1] == ':') {
 				BLI_strncpy(string, relabase, 3);
 				string[2] = '\\';
 				string[3] = '\0';
@@ -1534,20 +1657,53 @@ void BLI_make_file_string(const char *relabase, char *string, const char *dir, c
 	BLI_clean(string);
 }
 
+static bool testextensie_ex(const char *str, const size_t str_len,
+                            const char *ext, const size_t ext_len)
+{
+	BLI_assert(strlen(str) == str_len);
+	BLI_assert(strlen(ext) == ext_len);
+
+	return  (((str_len == 0 || ext_len == 0 || ext_len >= str_len) == 0) &&
+	         (BLI_strcasecmp(ext, str + str_len - ext_len) == 0));
+}
+
 /* does str end with ext. */
 bool BLI_testextensie(const char *str, const char *ext)
 {
-	const size_t a = strlen(str);
-	const size_t b = strlen(ext);
-	return !(a == 0 || b == 0 || b >= a) && (BLI_strcasecmp(ext, str + a - b) == 0);
+	return testextensie_ex(str, strlen(str), ext, strlen(ext));
+}
+
+bool BLI_testextensie_n(const char *str, ...)
+{
+	const size_t str_len = strlen(str);
+
+	va_list args;
+	const char *ext;
+	bool ret = false;
+
+	va_start(args, str);
+
+	while ((ext = (const char *) va_arg(args, void *))) {
+		if (testextensie_ex(str, str_len, ext, strlen(ext))) {
+			ret = true;
+			goto finally;
+		}
+	}
+
+finally:
+	va_end(args);
+
+	return ret;
 }
 
 /* does str end with any of the suffixes in *ext_array. */
 bool BLI_testextensie_array(const char *str, const char **ext_array)
 {
+	const size_t str_len = strlen(str);
 	int i = 0;
+
 	while (ext_array[i]) {
-		if (BLI_testextensie(str, ext_array[i])) {
+		if (testextensie_ex(str, str_len, ext_array[i], strlen(ext_array[i]))) {
 			return true;
 		}
 
@@ -2045,7 +2201,7 @@ static void bli_where_am_i(char *fullname, const size_t maxlen, const char *name
 	if (GetModuleFileNameW(0, fullname_16, maxlen)) {
 		conv_utf_16_to_8(fullname_16, fullname, maxlen);
 		if (!BLI_exists(fullname)) {
-			printf("path can't be found: \"%.*s\"\n", maxlen, fullname);
+			printf("path can't be found: \"%.*s\"\n", (int)maxlen, fullname);
 			MessageBox(NULL, "path contains invalid characters or is too long (see console)", "Error", MB_OK);
 		}
 		MEM_freeN(fullname_16);

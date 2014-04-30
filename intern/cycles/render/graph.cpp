@@ -17,6 +17,7 @@
 #include "attribute.h"
 #include "graph.h"
 #include "nodes.h"
+#include "shader.h"
 
 #include "util_algorithm.h"
 #include "util_debug.h"
@@ -116,14 +117,20 @@ ShaderOutput *ShaderNode::add_output(const char *name, ShaderSocketType type)
 	return output;
 }
 
-void ShaderNode::attributes(AttributeRequestSet *attributes)
+void ShaderNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
 	foreach(ShaderInput *input, inputs) {
 		if(!input->link) {
-			if(input->default_value == ShaderInput::TEXTURE_GENERATED)
-				attributes->add(ATTR_STD_GENERATED);
-			else if(input->default_value == ShaderInput::TEXTURE_UV)
-				attributes->add(ATTR_STD_UV);
+			if(input->default_value == ShaderInput::TEXTURE_GENERATED) {
+				if(shader->has_surface)
+					attributes->add(ATTR_STD_GENERATED);
+				if(shader->has_volume)
+					attributes->add(ATTR_STD_GENERATED_TRANSFORM);
+			}
+			else if(input->default_value == ShaderInput::TEXTURE_UV) {
+				if(shader->has_surface)
+					attributes->add(ATTR_STD_UV);
+			}
 		}
 	}
 }
@@ -151,9 +158,9 @@ ShaderNode *ShaderGraph::add(ShaderNode *node)
 	return node;
 }
 
-ShaderNode *ShaderGraph::output()
+OutputNode *ShaderGraph::output()
 {
-	return nodes.front();
+	return (OutputNode*)nodes.front();
 }
 
 ShaderGraph *ShaderGraph::copy()
@@ -220,7 +227,7 @@ void ShaderGraph::disconnect(ShaderInput *to)
 	from->links.erase(remove(from->links.begin(), from->links.end(), to), from->links.end());
 }
 
-void ShaderGraph::finalize(bool do_bump, bool do_osl, bool do_multi_transform)
+void ShaderGraph::finalize(bool do_bump, bool do_osl)
 {
 	/* before compiling, the shader graph may undergo a number of modifications.
 	 * currently we set default geometry shader inputs, and create automatic bump
@@ -235,17 +242,15 @@ void ShaderGraph::finalize(bool do_bump, bool do_osl, bool do_multi_transform)
 		if(do_bump)
 			bump_from_displacement();
 
-		if(do_multi_transform) {
-			ShaderInput *surface_in = output()->input("Surface");
-			ShaderInput *volume_in = output()->input("Volume");
+		ShaderInput *surface_in = output()->input("Surface");
+		ShaderInput *volume_in = output()->input("Volume");
 
-			/* todo: make this work when surface and volume closures are tangled up */
+		/* todo: make this work when surface and volume closures are tangled up */
 
-			if(surface_in->link)
-				transform_multi_closure(surface_in->link->parent, NULL, false);
-			if(volume_in->link)
-				transform_multi_closure(volume_in->link->parent, NULL, true);
-		}
+		if(surface_in->link)
+			transform_multi_closure(surface_in->link->parent, NULL, false);
+		if(volume_in->link)
+			transform_multi_closure(volume_in->link->parent, NULL, true);
 
 		finalized = true;
 	}
@@ -607,11 +612,11 @@ void ShaderGraph::refine_bump_nodes()
 			foreach(NodePair& pair, nodes_dy)
 				add(pair.second);
 			
-			/* connect what is conected is bump to samplecenter input*/
+			/* connect what is connected is bump to samplecenter input*/
 			connect(out , node->input("SampleCenter"));
 
 			/* bump input is just for connectivity purpose for the graph input,
-			 * we reconected this input to samplecenter, so lets disconnect it
+			 * we re-connected this input to samplecenter, so lets disconnect it
 			 * from bump input */
 			disconnect(bump_input);
 		}

@@ -203,7 +203,7 @@ enum {
 } /*eActKeys_BorderSelect_Mode*/;
 
 
-static void borderselect_action(bAnimContext *ac, rcti rect, short mode, short selectmode)
+static void borderselect_action(bAnimContext *ac, const rcti rect, short mode, short selectmode)
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
@@ -305,7 +305,8 @@ static int actkeys_borderselect_exec(bContext *C, wmOperator *op)
 	bAnimContext ac;
 	rcti rect;
 	short mode = 0, selectmode = 0;
-	int gesture_mode, extend;
+	int gesture_mode;
+	bool extend;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -368,7 +369,7 @@ void ACTION_OT_select_border(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* rna */
-	WM_operator_properties_gesture_border(ot, TRUE);
+	WM_operator_properties_gesture_border(ot, true);
 	
 	ot->prop = RNA_def_boolean(ot->srna, "axis_range", 0, "Axis Range", "");
 }
@@ -889,7 +890,7 @@ static int actkeys_select_leftright_invoke(bContext *C, wmOperator *op, const wm
 		float x;
 
 		/* determine which side of the current frame mouse is on */
-		UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, NULL);
+		x = UI_view2d_region_to_view_x(v2d, event->mval[0]);
 		if (x < CFRA)
 			RNA_enum_set(op->ptr, "mode", ACTKEYS_LRSEL_LEFT);
 		else

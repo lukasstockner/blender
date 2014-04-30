@@ -47,6 +47,7 @@
 #include "BLI_utildefines.h"
 
 
+#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
 #include "BKE_library.h"
@@ -137,7 +138,7 @@ Group *BKE_group_add(Main *bmain, const char *name)
 {
 	Group *group;
 	
-	group = BKE_libblock_alloc(&bmain->group, ID_GR, name);
+	group = BKE_libblock_alloc(bmain, ID_GR, name);
 	group->layer = (1 << 20) - 1;
 	return group;
 }
@@ -153,17 +154,17 @@ Group *BKE_group_copy(Group *group)
 }
 
 /* external */
-static int group_object_add_internal(Group *group, Object *ob)
+static bool group_object_add_internal(Group *group, Object *ob)
 {
 	GroupObject *go;
 	
 	if (group == NULL || ob == NULL) {
-		return FALSE;
+		return false;
 	}
 	
 	/* check if the object has been added already */
 	if (BLI_findptr(&group->gobject, ob, offsetof(GroupObject, ob))) {
-		return FALSE;
+		return false;
 	}
 	
 	go = MEM_callocN(sizeof(GroupObject), "groupobject");
@@ -171,7 +172,7 @@ static int group_object_add_internal(Group *group, Object *ob)
 	
 	go->ob = ob;
 	
-	return TRUE;
+	return true;
 }
 
 bool BKE_group_object_add(Group *group, Object *object, Scene *scene, Base *base)
@@ -295,7 +296,7 @@ static void group_replaces_nla(Object *parent, Object *target, char mode)
 {
 	static ListBase nlastrips = {NULL, NULL};
 	static bAction *action = NULL;
-	static int done = FALSE;
+	static bool done = false;
 	bActionStrip *strip, *nstrip;
 	
 	if (mode == 's') {
@@ -305,11 +306,11 @@ static void group_replaces_nla(Object *parent, Object *target, char mode)
 				if (done == 0) {
 					/* clear nla & action from object */
 					nlastrips = target->nlastrips;
-					target->nlastrips.first = target->nlastrips.last = NULL;
+					BLI_listbase_clear(&target->nlastrips);
 					action = target->action;
 					target->action = NULL;
 					target->nlaflag |= OB_NLA_OVERRIDE;
-					done = TRUE;
+					done = true;
 				}
 				nstrip = MEM_dupallocN(strip);
 				BLI_addtail(&target->nlastrips, nstrip);
@@ -322,9 +323,9 @@ static void group_replaces_nla(Object *parent, Object *target, char mode)
 			target->nlastrips = nlastrips;
 			target->action = action;
 			
-			nlastrips.first = nlastrips.last = NULL;  /* not needed, but yah... :) */
+			BLI_listbase_clear(&nlastrips);  /* not needed, but yah... :) */
 			action = NULL;
-			done = FALSE;
+			done = false;
 		}
 	}
 }
@@ -334,7 +335,7 @@ static void group_replaces_nla(Object *parent, Object *target, char mode)
  * you can draw everything, leaves tags in objects to signal it needs further updating */
 
 /* note: does not work for derivedmesh and render... it recreates all again in convertblender.c */
-void BKE_group_handle_recalc_and_update(Scene *scene, Object *UNUSED(parent), Group *group)
+void BKE_group_handle_recalc_and_update(EvaluationContext *eval_ctx, Scene *scene, Object *UNUSED(parent), Group *group)
 {
 	GroupObject *go;
 	
@@ -356,7 +357,7 @@ void BKE_group_handle_recalc_and_update(Scene *scene, Object *UNUSED(parent), Gr
 				go->ob->recalc = go->recalc;
 				
 				group_replaces_nla(parent, go->ob, 's');
-				BKE_object_handle_update(scene, go->ob);
+				BKE_object_handle_update(eval_ctx, scene, go->ob);
 				group_replaces_nla(parent, go->ob, 'e');
 				
 				/* leave recalc tags in case group members are in normal scene */
@@ -374,7 +375,7 @@ void BKE_group_handle_recalc_and_update(Scene *scene, Object *UNUSED(parent), Gr
 		for (go = group->gobject.first; go; go = go->next) {
 			if (go->ob) {
 				if (go->ob->recalc) {
-					BKE_object_handle_update(scene, go->ob);
+					BKE_object_handle_update(eval_ctx, scene, go->ob);
 				}
 			}
 		}

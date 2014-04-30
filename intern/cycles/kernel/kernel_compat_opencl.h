@@ -33,16 +33,18 @@
 #endif
 
 #ifdef __CL_NOINLINE__
-#define __noinline __attribute__((noinline))
+#define ccl_noinline __attribute__((noinline))
 #else
-#define __noinline
+#define ccl_noinline
 #endif
 
 /* in opencl all functions are device functions, so leave this empty */
-#define __device
-#define __device_inline __device
-#define __device_noinline  __device __noinline
-#define __may_alias
+#define ccl_device
+#define ccl_device_inline ccl_device
+#define ccl_device_noinline ccl_device ccl_noinline
+#define ccl_may_alias
+#define ccl_constant __constant
+#define ccl_global __global
 
 /* no assert in opencl */
 #define kernel_assert(cond)
@@ -83,26 +85,35 @@
 #define __float_as_uint(x) as_uint(x)
 #define __int_as_float(x) as_float(x)
 #define __float_as_int(x) as_int(x)
-#define sqrtf(x) sqrt(((float)x))
-#define cosf(x) cos(((float)x))
-#define sinf(x) sin(((float)x))
 #define powf(x, y) pow(((float)x), ((float)y))
 #define fabsf(x) fabs(((float)x))
 #define copysignf(x, y) copysign(((float)x), ((float)y))
-#define cosf(x) cos(((float)x))
 #define asinf(x) asin(((float)x))
 #define acosf(x) acos(((float)x))
 #define atanf(x) atan(((float)x))
-#define tanf(x) tan(((float)x))
-#define logf(x) log(((float)x))
 #define floorf(x) floor(((float)x))
 #define ceilf(x) ceil(((float)x))
-#define expf(x) exp(((float)x))
 #define hypotf(x, y) hypot(((float)x), ((float)y))
 #define atan2f(x, y) atan2(((float)x), ((float)y))
 #define fmaxf(x, y) fmax(((float)x), ((float)y))
 #define fminf(x, y) fmin(((float)x), ((float)y))
 #define fmodf(x, y) fmod((float)x, (float)y)
+
+#ifndef __CL_USE_NATIVE__
+#define sinf(x) native_sin(((float)x))
+#define cosf(x) native_cos(((float)x))
+#define tanf(x) native_tan(((float)x))
+#define expf(x) native_exp(((float)x))
+#define sqrtf(x) native_sqrt(((float)x))
+#define logf(x) native_log(((float)x))
+#else
+#define sinf(x) sin(((float)x))
+#define cosf(x) cos(((float)x))
+#define tanf(x) tan(((float)x))
+#define expf(x) exp(((float)x))
+#define sqrtf(x) sqrt(((float)x))
+#define logf(x) log(((float)x))
+#endif
 
 /* data lookup defines */
 #define kernel_data (*kg->data)
@@ -111,6 +122,7 @@
 /* define NULL */
 #define NULL 0
 
+#include "util_half.h"
 #include "util_types.h"
 
 #endif /* __KERNEL_COMPAT_OPENCL_H__ */

@@ -34,7 +34,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Wireframe Node */
 
-__device void svm_node_wireframe(KernelGlobals *kg, ShaderData *sd, float *stack, uint in_size, uint out_fac, uint use_pixel_size)
+ccl_device void svm_node_wireframe(KernelGlobals *kg, ShaderData *sd, float *stack, uint in_size, uint out_fac, uint use_pixel_size)
 {
 	/* Input Data */
 	float size = stack_load_float(stack, in_size);
@@ -45,9 +45,9 @@ __device void svm_node_wireframe(KernelGlobals *kg, ShaderData *sd, float *stack
 
 	/* Calculate wireframe */
 #ifdef __HAIR__
-	if (sd->prim != ~0 && sd->segment == ~0) {
+	if (sd->prim != PRIM_NONE && sd->type & PRIMITIVE_ALL_TRIANGLE) {
 #else
-	if (sd->prim != ~0) {
+	if (sd->prim != PRIM_NONE) {
 #endif
 		float3 Co[3];
 		float pixelwidth = 1.0f;
@@ -55,7 +55,10 @@ __device void svm_node_wireframe(KernelGlobals *kg, ShaderData *sd, float *stack
 		/* Triangles */
 		float np = 3;
 		
-		triangle_vertices(kg, sd->prim, Co);
+		if(sd->type & PRIMITIVE_TRIANGLE)
+			triangle_vertices(kg, sd->prim, Co);
+		else
+			motion_triangle_vertices(kg, sd->object, sd->prim, sd->time, Co);
 
 		if(!(sd->flag & SD_TRANSFORM_APPLIED)) {
 			object_position_transform(kg, sd, &Co[0]);

@@ -338,6 +338,45 @@ static void rna_MeshLoop_normal_get(PointerRNA *ptr, float *values)
 	}
 }
 
+static void rna_MeshLoop_tangent_get(PointerRNA *ptr, float *values)
+{
+	Mesh *me = rna_mesh(ptr);
+	MLoop *ml = (MLoop *)ptr->data;
+	const float (*vec)[4] = CustomData_get(&me->ldata, (int)(ml - me->mloop), CD_MLOOPTANGENT);
+
+	if (!vec) {
+		zero_v3(values);
+	}
+	else {
+		copy_v3_v3(values, (const float *)vec);
+	}
+}
+
+static float rna_MeshLoop_bitangent_sign_get(PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	MLoop *ml = (MLoop *)ptr->data;
+	const float (*vec)[4] = CustomData_get(&me->ldata, (int)(ml - me->mloop), CD_MLOOPTANGENT);
+
+	return (vec) ? (*vec)[3] : 0.0f;
+}
+
+static void rna_MeshLoop_bitangent_get(PointerRNA *ptr, float *values)
+{
+	Mesh *me = rna_mesh(ptr);
+	MLoop *ml = (MLoop *)ptr->data;
+	const float (*nor)[3] = CustomData_get(&me->ldata, (int)(ml - me->mloop), CD_NORMAL);
+	const float (*vec)[4] = CustomData_get(&me->ldata, (int)(ml - me->mloop), CD_MLOOPTANGENT);
+
+	if (nor && vec) {
+		cross_v3_v3v3(values, (const float *)nor, (const float *)vec);
+		mul_v3_fl(values, (*vec)[3]);
+	}
+	else {
+		zero_v3(values);
+	}
+}
+
 static void rna_MeshPolygon_normal_get(PointerRNA *ptr, float *values)
 {
 	Mesh *me = rna_mesh(ptr);
@@ -359,7 +398,7 @@ static float rna_MeshPolygon_area_get(PointerRNA *ptr)
 	Mesh *me = (Mesh *)ptr->id.data;
 	MPoly *mp = (MPoly *)ptr->data;
 
-	return BKE_mesh_calc_poly_area(mp, me->mloop + mp->loopstart, me->mvert, NULL);
+	return BKE_mesh_calc_poly_area(mp, me->mloop + mp->loopstart, me->mvert);
 }
 
 static void rna_MeshTessFace_normal_get(PointerRNA *ptr, float *values)
@@ -372,6 +411,21 @@ static void rna_MeshTessFace_normal_get(PointerRNA *ptr, float *values)
 		               me->mvert[mface->v3].co, me->mvert[mface->v4].co);
 	else
 		normal_tri_v3(values, me->mvert[mface->v1].co, me->mvert[mface->v2].co, me->mvert[mface->v3].co);
+}
+
+static void rna_MeshTessFace_split_normals_get(PointerRNA *ptr, float *values)
+{
+	Mesh *me = rna_mesh(ptr);
+	MFace *mface = (MFace *)ptr->data;
+	const short (*vec)[4][3] = CustomData_get(&me->fdata, (int)(mface - me->mface), CD_TESSLOOPNORMAL);
+	int i = 4;
+
+	if (!vec) {
+		while (i--) zero_v3(&values[i * 3]);
+	}
+	else {
+		while (i--) normal_short_to_float_v3(&values[i * 3], (const short *)(*vec)[i]);
+	}
 }
 
 static float rna_MeshTessFace_area_get(PointerRNA *ptr)
@@ -686,6 +740,58 @@ static void rna_CustomDataLayer_clone_set(PointerRNA *ptr, CustomData *data, int
 		return;
 
 	CustomData_set_layer_clone_index(data, type, n);
+}
+
+static int rna_MEdge_freestyle_edge_mark_get(PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	MEdge *medge = (MEdge *)ptr->data;
+	FreestyleEdge *fed = CustomData_get(&me->edata, (int)(medge - me->medge), CD_FREESTYLE_EDGE);
+
+	return fed && (fed->flag & FREESTYLE_EDGE_MARK) != 0;
+}
+
+static void rna_MEdge_freestyle_edge_mark_set(PointerRNA *ptr, int value)
+{
+	Mesh *me = rna_mesh(ptr);
+	MEdge *medge = (MEdge *)ptr->data;
+	FreestyleEdge *fed = CustomData_get(&me->edata, (int)(medge - me->medge), CD_FREESTYLE_EDGE);
+
+	if (!fed) {
+		fed = CustomData_add_layer(&me->edata, CD_FREESTYLE_EDGE, CD_CALLOC, NULL, me->totedge);
+	}
+	if (value) {
+		fed->flag |= FREESTYLE_EDGE_MARK;
+	}
+	else {
+		fed->flag &= ~FREESTYLE_EDGE_MARK;
+	}
+}
+
+static int rna_MPoly_freestyle_face_mark_get(PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	MPoly *mpoly = (MPoly *)ptr->data;
+	FreestyleFace *ffa = CustomData_get(&me->pdata, (int)(mpoly - me->mpoly), CD_FREESTYLE_FACE);
+
+	return ffa && (ffa->flag & FREESTYLE_FACE_MARK) != 0;
+}
+
+static void rna_MPoly_freestyle_face_mark_set(PointerRNA *ptr, int value)
+{
+	Mesh *me = rna_mesh(ptr);
+	MPoly *mpoly = (MPoly *)ptr->data;
+	FreestyleFace *ffa = CustomData_get(&me->pdata, (int)(mpoly - me->mpoly), CD_FREESTYLE_FACE);
+
+	if (!ffa) {
+		ffa = CustomData_add_layer(&me->pdata, CD_FREESTYLE_FACE, CD_CALLOC, NULL, me->totpoly);
+	}
+	if (value) {
+		ffa->flag |= FREESTYLE_FACE_MARK;
+	}
+	else {
+		ffa->flag &= ~FREESTYLE_FACE_MARK;
+	}
 }
 
 /* Generic UV rename! */
@@ -1064,20 +1170,6 @@ static void rna_TextureFace_image_set(PointerRNA *ptr, PointerRNA value)
 	}
 
 	tf->tpage = (struct Image *)id;
-}
-
-static void rna_Mesh_auto_smooth_angle_set(PointerRNA *ptr, float value)
-{
-	Mesh *me = rna_mesh(ptr);
-	value = RAD2DEGF(value);
-	CLAMP(value, 1.0f, 80.0f);
-	me->smoothresh = (int)value;
-}
-
-static float rna_Mesh_auto_smooth_angle_get(PointerRNA *ptr)
-{
-	Mesh *me = rna_mesh(ptr);
-	return DEG2RADF((float)me->smoothresh);
 }
 
 static int rna_MeshTessFace_verts_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
@@ -1768,6 +1860,11 @@ static void rna_def_medge(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ME_LOOSEEDGE);
 	RNA_def_property_ui_text(prop, "Loose", "Loose edge");
 
+	prop = RNA_def_property(srna, "use_freestyle_mark", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_MEdge_freestyle_edge_mark_get", "rna_MEdge_freestyle_edge_mark_set");
+	RNA_def_property_ui_text(prop, "Freestyle Edge Mark", "Edge mark for Freestyle line rendering");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
 	prop = RNA_def_property(srna, "index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_funcs(prop, "rna_MeshEdge_index_get", NULL, NULL);
@@ -1778,6 +1875,7 @@ static void rna_def_mface(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	const int splitnor_dim[] = {4, 3};
 
 	srna = RNA_def_struct(brna, "MeshTessFace", NULL);
 	RNA_def_struct_sdna(srna, "MFace");
@@ -1829,6 +1927,16 @@ static void rna_def_mface(BlenderRNA *brna)
 	RNA_def_property_float_funcs(prop, "rna_MeshTessFace_normal_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Face Normal", "Local space unit length normal vector for this face");
 
+	prop = RNA_def_property(srna, "split_normals", PROP_FLOAT, PROP_DIRECTION);
+	RNA_def_property_multi_array(prop, 2, splitnor_dim);
+	RNA_def_property_range(prop, -1.0f, 1.0f);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_float_funcs(prop, "rna_MeshTessFace_split_normals_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Split Normals",
+	                         "Local space unit length split normals vectors of the vertices of this face "
+	                         "(must be computed beforehand using calc_normals_split or calc_tangents, "
+	                         "and then calc_tessface)");
+
 	prop = RNA_def_property(srna, "area", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_MeshTessFace_area_get", NULL, NULL);
@@ -1870,10 +1978,35 @@ static void rna_def_mloop(BlenderRNA *brna)
 	RNA_def_property_range(prop, -1.0f, 1.0f);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_MeshLoop_normal_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Loop Normal",
+	RNA_def_property_ui_text(prop, "Normal",
 	                         "Local space unit length split normal vector of this vertex for this polygon "
-	                         "(only computed on demand!)");
+	                         "(must be computed beforehand using calc_normals_split or calc_tangents)");
 
+	prop = RNA_def_property(srna, "tangent", PROP_FLOAT, PROP_DIRECTION);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_range(prop, -1.0f, 1.0f);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_float_funcs(prop, "rna_MeshLoop_tangent_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Tangent",
+	                         "Local space unit length tangent vector of this vertex for this polygon "
+	                         "(must be computed beforehand using calc_tangents)");
+
+	prop = RNA_def_property(srna, "bitangent_sign", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, -1.0f, 1.0f);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_float_funcs(prop, "rna_MeshLoop_bitangent_sign_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Bitangent Sign",
+	                         "Sign of the bitangent vector of this vertex for this polygon (must be computed "
+	                         "beforehand using calc_tangents, bitangent = bitangent_sign * cross(normal, tangent))");
+
+	prop = RNA_def_property(srna, "bitangent", PROP_FLOAT, PROP_DIRECTION);
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_range(prop, -1.0f, 1.0f);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_float_funcs(prop, "rna_MeshLoop_bitangent_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Bitangent",
+	                         "Bitangent vector of this vertex for this polygon (must be computed beforehand using "
+	                         "calc_tangents, *use it only if really needed*, slower access than bitangent_sign)");
 }
 
 static void rna_def_mpolygon(BlenderRNA *brna)
@@ -1931,6 +2064,11 @@ static void rna_def_mpolygon(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Smooth", "");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
+	prop = RNA_def_property(srna, "use_freestyle_mark", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_MPoly_freestyle_face_mark_get", "rna_MPoly_freestyle_face_mark_set");
+	RNA_def_property_ui_text(prop, "Freestyle Face Mark", "Face mark for Freestyle line rendering");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
 	prop = RNA_def_property(srna, "normal", PROP_FLOAT, PROP_DIRECTION);
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_range(prop, -1.0f, 1.0f);
@@ -1938,7 +2076,7 @@ static void rna_def_mpolygon(BlenderRNA *brna)
 	RNA_def_property_float_funcs(prop, "rna_MeshPolygon_normal_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Polygon Normal", "Local space unit length normal vector for this polygon");
 
-	prop = RNA_def_property(srna, "center", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "center", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_funcs(prop, "rna_MeshPolygon_center_get", NULL, NULL);
@@ -2422,6 +2560,7 @@ void rna_def_texmat_common(StructRNA *srna, const char *texspace_editable)
 
 	prop = RNA_def_property(srna, "texspace_size", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "size");
+	RNA_def_property_flag(prop, PROP_PROPORTIONAL);
 	RNA_def_property_ui_text(prop, "Texture Space Size", "Texture space size");
 	RNA_def_property_float_funcs(prop, "rna_Mesh_texspace_size_get", NULL, NULL);
 	RNA_def_property_editable_func(prop, texspace_editable);
@@ -3048,19 +3187,17 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ME_AUTOSMOOTH);
 	RNA_def_property_ui_text(prop, "Auto Smooth",
 	                         "Treat all set-smoothed faces with angles less than the specified angle "
-	                         "as 'smooth' during render");
+	                         "as 'smooth', unless they are linked by a sharp edge");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
-#if 1 /* expose as radians */
 	prop = RNA_def_property(srna, "auto_smooth_angle", PROP_FLOAT, PROP_ANGLE);
-	RNA_def_property_float_funcs(prop, "rna_Mesh_auto_smooth_angle_get", "rna_Mesh_auto_smooth_angle_set", NULL);
-	RNA_def_property_ui_range(prop, DEG2RAD(1.0), DEG2RAD(80), 1.0, 1);
-#else
-	prop = RNA_def_property(srna, "auto_smooth_angle", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "smoothresh");
-	RNA_def_property_range(prop, 1, 80);
-#endif
+	RNA_def_property_float_sdna(prop, NULL, "smoothresh");
+	RNA_def_property_float_default(prop, DEG2RADF(180.0f));
+	RNA_def_property_range(prop, 0.0f, DEG2RADF(180.0f));
+	RNA_def_property_ui_range(prop, DEG2RADF(0.0f), DEG2RADF(180.0f), 1.0, 1);
 	RNA_def_property_ui_text(prop, "Auto Smooth Angle",
 	                         "Maximum angle between face normals that 'Auto Smooth' will operate on");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop = RNA_def_property(srna, "show_double_sided", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ME_TWOSIDED);
@@ -3116,6 +3253,11 @@ static void rna_def_mesh(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_normal_face", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_DRAWNORMALS);
 	RNA_def_property_ui_text(prop, "Draw Normals", "Display face normals as lines");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+
+	prop = RNA_def_property(srna, "show_normal_loop", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "drawflag", ME_DRAW_LNORMALS);
+	RNA_def_property_ui_text(prop, "Draw Split Normals", "Display vertex-per-face normals as lines");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
 
 	prop = RNA_def_property(srna, "show_normal_vertex", PROP_BOOLEAN, PROP_NONE);

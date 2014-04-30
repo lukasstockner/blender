@@ -32,8 +32,8 @@
 
 
 #ifdef WIN32
-	#pragma warning (disable:4786) // suppress stl-MSVC debug info warning
-	#include <windows.h>
+#  pragma warning (disable:4786) // suppress stl-MSVC debug info warning
+#  include <windows.h>
 #endif
 
 #include "GL/glew.h"
@@ -86,7 +86,6 @@ extern "C"
 #include "NG_LoopBackNetworkDeviceInterface.h"
 
 #include "GPC_MouseDevice.h"
-#include "GPC_RenderTools.h"
 #include "GPG_Canvas.h" 
 #include "GPG_KeyboardDevice.h"
 #include "GPG_System.h"
@@ -126,8 +125,7 @@ GPG_Application::GPG_Application(GHOST_ISystem* system)
 	  m_kxsystem(0), 
 	  m_keyboard(0), 
 	  m_mouse(0), 
-	  m_canvas(0), 
-	  m_rendertools(0), 
+	  m_canvas(0),
 	  m_rasterizer(0), 
 	  m_sceneconverter(0),
 	  m_networkdevice(0),
@@ -189,7 +187,7 @@ static POINT scr_save_mouse_pos;
 
 static LRESULT CALLBACK screenSaverWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	BOOL close = FALSE;
+	BOOL close = false;
 	switch (uMsg)
 	{
 		case WM_MOUSEMOVE:
@@ -201,7 +199,7 @@ static LRESULT CALLBACK screenSaverWindowProc(HWND hwnd, UINT uMsg, WPARAM wPara
 			if (abs(dx) > SCR_SAVE_MOUSE_MOVE_THRESHOLD
 			        || abs(dy) > SCR_SAVE_MOUSE_MOVE_THRESHOLD)
 			{
-				close = TRUE;
+				close = true;
 			}
 			scr_save_mouse_pos = pt;
 			break;
@@ -210,7 +208,7 @@ static LRESULT CALLBACK screenSaverWindowProc(HWND hwnd, UINT uMsg, WPARAM wPara
 		case WM_MBUTTONDOWN: 
 		case WM_RBUTTONDOWN: 
 		case WM_KEYDOWN:
-			close = TRUE;
+			close = true;
 	}
 	if (close)
 		PostMessage(hwnd,WM_CLOSE,0,0);
@@ -220,11 +218,11 @@ static LRESULT CALLBACK screenSaverWindowProc(HWND hwnd, UINT uMsg, WPARAM wPara
 BOOL CALLBACK findGhostWindowHWNDProc(HWND hwnd, LPARAM lParam)
 {
 	GHOST_IWindow *p = (GHOST_IWindow*) GetWindowLongPtr(hwnd, GWLP_USERDATA);
-	BOOL ret = TRUE;
+	BOOL ret = true;
 	if (p == ghost_window_to_find)
 	{
 		found_ghost_window_hwnd = hwnd;
-		ret = FALSE;
+		ret = false;
 	}
 	return ret;
 }
@@ -270,7 +268,7 @@ bool GPG_Application::startScreenSaverPreview(
 		LONG_PTR exstyle = GetWindowLongPtr(ghost_hwnd, GWL_EXSTYLE);
 
 		RECT adjrc = { 0, 0, windowWidth, windowHeight };
-		AdjustWindowRectEx(&adjrc, style, FALSE, exstyle);
+		AdjustWindowRectEx(&adjrc, style, false, exstyle);
 
 		style = (style & (~(WS_POPUP|WS_OVERLAPPEDWINDOW|WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_TILEDWINDOW ))) | WS_CHILD;
 		SetWindowLongPtr(ghost_hwnd, GWL_STYLE, style);
@@ -591,10 +589,6 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_canvas->Init();
 		if (gm->flag & GAME_SHOW_MOUSE)
 			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
-
-		m_rendertools = new GPC_RenderTools();
-		if (!m_rendertools)
-			goto initFailed;
 		
 		//Don't use displaylists with VBOs
 		//If auto starts using VBOs, make sure to check for that here
@@ -639,7 +633,6 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_ketsjiengine->SetMouseDevice(m_mouse);
 		m_ketsjiengine->SetNetworkDevice(m_networkdevice);
 		m_ketsjiengine->SetCanvas(m_canvas);
-		m_ketsjiengine->SetRenderTools(m_rendertools);
 		m_ketsjiengine->SetRasterizer(m_rasterizer);
 
 		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
@@ -667,10 +660,8 @@ initFailed:
 	delete m_mouse;
 	delete m_keyboard;
 	delete m_rasterizer;
-	delete m_rendertools;
 	delete m_canvas;
 	m_canvas = NULL;
-	m_rendertools = NULL;
 	m_rasterizer = NULL;
 	m_keyboard = NULL;
 	m_mouse = NULL;
@@ -712,7 +703,7 @@ bool GPG_Application::startEngine(void)
 
 		//	if (always_use_expand_framing)
 		//		sceneconverter->SetAlwaysUseExpandFraming(true);
-		if (m_blendermat && (m_globalSettings->matmode != GAME_MAT_TEXFACE))
+		if (m_blendermat)
 			m_sceneconverter->SetMaterials(true);
 		if (m_blenderglslmat && (m_globalSettings->matmode == GAME_MAT_GLSL))
 			m_sceneconverter->SetGLSLMaterials(true);
@@ -752,7 +743,7 @@ bool GPG_Application::startEngine(void)
 #endif
 		m_sceneconverter->ConvertScene(
 			startscene,
-			m_rendertools,
+			m_rasterizer,
 			m_canvas);
 		m_ketsjiengine->AddScene(startscene);
 		
@@ -870,11 +861,6 @@ void GPG_Application::exitEngine()
 		delete m_rasterizer;
 		m_rasterizer = 0;
 	}
-	if (m_rendertools)
-	{
-		delete m_rendertools;
-		m_rendertools = 0;
-	}
 	if (m_canvas)
 	{
 		delete m_canvas;
@@ -965,11 +951,12 @@ bool GPG_Application::handleKey(GHOST_IEvent* event, bool isDown)
 	{
 		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
 		GHOST_TEventKeyData* keyData = static_cast<GHOST_TEventKeyData*>(eventData);
+		unsigned int unicode = keyData->utf8_buf[0] ? BLI_str_utf8_as_unicode(keyData->utf8_buf) : keyData->ascii;
 
 		if (m_keyboard->ToNative(keyData->key) == KX_KetsjiEngine::GetExitKey() && !m_keyboard->m_hookesc && !m_isEmbedded) {
 			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
 		}
-		m_keyboard->ConvertEvent(keyData->key, isDown);
+		m_keyboard->ConvertEvent(keyData->key, isDown, unicode);
 		handled = true;
 	}
 	return handled;

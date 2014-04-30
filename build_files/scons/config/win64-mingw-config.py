@@ -111,8 +111,6 @@ BF_FREETYPE_INC = '${BF_FREETYPE}/include ${BF_FREETYPE}/include/freetype2/'
 BF_FREETYPE_LIB = 'freetype'
 BF_FREETYPE_LIBPATH = '${BF_FREETYPE}/lib'
 
-WITH_BF_QUICKTIME = False
-
 WITH_BF_ICONV = False
 BF_ICONV = LIBDIR + "/iconv"
 BF_ICONV_INC = '${BF_ICONV}/include'
@@ -171,8 +169,7 @@ BF_BOOST_LIBPATH = '${BF_BOOST}/lib'
 WITH_BF_RAYOPTIMIZATION = True
 BF_RAYOPTIMIZATION_SSE_FLAGS = ['-mmmx', '-msse', '-msse2']
 
-#May produce errors with unsupported MinGW-w64 builds
-WITH_BF_OPENMP = False
+WITH_BF_OPENMP = True
 
 #Freestyle
 WITH_BF_FREESTYLE = True

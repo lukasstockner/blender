@@ -191,6 +191,8 @@ static int pointref_cmp_y(const void *a_, const void *b_)
  * \param  points  An array of 2D points.
  * \param  n  The number of points in points.
  * \param  r_points  An array of the convex hull vertex indices (max is n).
+ *         _must_ be allocated as ``n * 2`` becauise of how its used internally,
+ *         even though the final result will be no more then \a n in size.
  * \returns the number of points in r_points.
  */
 int BLI_convexhull_2d(const float (*points)[2], const int n, int r_points[])
@@ -251,28 +253,24 @@ float BLI_convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], unsigned in
 {
 	unsigned int i, i_prev;
 	float area_best = FLT_MAX;
-	float angle_best = 0.0f;
+	float dvec_best[2];  /* best angle, delay atan2 */
 
 	i_prev = n - 1;
 	for (i = 0; i < n; i++) {
 		const float *ev_a = points_hull[i];
 		const float *ev_b = points_hull[i_prev];
-		float dvec[2];
+		float dvec[2];  /* 2d rotation matrix */
 
 		sub_v2_v2v2(dvec, ev_a, ev_b);
 		if (normalize_v2(dvec) != 0.0f) {
-			float mat[2][2];
+			/* rotation matrix */
 			float min[2] = {FLT_MAX, FLT_MAX}, max[2] = {-FLT_MAX, -FLT_MAX};
-
 			unsigned int j;
-			const float angle = atan2f(dvec[0], dvec[1]);
 			float area;
-
-			angle_to_mat2(mat, angle);
 
 			for (j = 0; j < n; j++) {
 				float tvec[2];
-				mul_v2_m2v2(tvec, mat, points_hull[j]);
+				mul_v2_v2_cw(tvec, dvec, points_hull[j]);
 
 				min[0] = min_ff(min[0], tvec[0]);
 				min[1] = min_ff(min[1], tvec[1]);
@@ -288,14 +286,14 @@ float BLI_convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], unsigned in
 
 			if (area < area_best) {
 				area_best = area;
-				angle_best = angle;
+				copy_v2_v2(dvec_best, dvec);
 			}
 		}
 
 		i_prev = i;
 	}
 
-	return angle_best;
+	return (area_best != FLT_MAX) ? atan2f(dvec_best[0], dvec_best[1]) : 0.0f;
 }
 
 /**
@@ -310,7 +308,7 @@ float BLI_convexhull_aabb_fit_points_2d(const float (*points)[2], unsigned int n
 
 	float angle;
 
-	index_map = MEM_mallocN(sizeof(*index_map) * n, __func__);
+	index_map = MEM_mallocN(sizeof(*index_map) * n * 2, __func__);
 
 	tot = BLI_convexhull_2d((const float (*)[2])points, (int)n, index_map);
 

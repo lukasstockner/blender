@@ -152,7 +152,7 @@ static void file_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 	/* refresh system directory list */
 	fsmenu_refresh_system_category(fsmenu_get());
 
-	if (sfile->layout) sfile->layout->dirty = TRUE;
+	if (sfile->layout) sfile->layout->dirty = true;
 }
 
 static void file_exit(wmWindowManager *wm, ScrArea *sa)
@@ -250,7 +250,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 		BLI_strncpy(sfile->params->renameedit, sfile->params->renamefile, sizeof(sfile->params->renameedit));
 		params->renamefile[0] = '\0';
 	}
-	if (sfile->layout) sfile->layout->dirty = TRUE;
+	if (sfile->layout) sfile->layout->dirty = true;
 
 }
 
@@ -395,7 +395,6 @@ static void file_operatortypes(void)
 	WM_operatortype_append(FILE_OT_delete);
 	WM_operatortype_append(FILE_OT_rename);
 	WM_operatortype_append(FILE_OT_smoothscroll);
-	WM_operatortype_append(FILE_OT_directory);
 }
 
 /* NOTE: do not add .blend file reading on this level */
@@ -404,7 +403,7 @@ static void file_keymap(struct wmKeyConfig *keyconf)
 	wmKeyMapItem *kmi;
 	/* keys for all areas */
 	wmKeyMap *keymap = WM_keymap_find(keyconf, "File Browser", SPACE_FILE, 0);
-	WM_keymap_add_item(keymap, "FILE_OT_bookmark_toggle", NKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "FILE_OT_bookmark_toggle", TKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_parent", PKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_bookmark_add", BKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_hidedot", HKEY, KM_PRESS, 0, 0);
@@ -418,26 +417,26 @@ static void file_keymap(struct wmKeyConfig *keyconf)
 	/* keys for main area */
 	keymap = WM_keymap_find(keyconf, "File Browser Main", SPACE_FILE, 0);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_execute", LEFTMOUSE, KM_DBL_CLICK, 0, 0);
-	RNA_boolean_set(kmi->ptr, "need_active", TRUE);
+	RNA_boolean_set(kmi->ptr, "need_active", true);
 
 	/* left mouse selects and opens */
 	WM_keymap_add_item(keymap, "FILE_OT_select", LEFTMOUSE, KM_CLICK, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", LEFTMOUSE, KM_CLICK, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "extend", TRUE);
+	RNA_boolean_set(kmi->ptr, "extend", true);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", LEFTMOUSE, KM_CLICK, KM_ALT, 0);
-	RNA_boolean_set(kmi->ptr, "extend", TRUE);
-	RNA_boolean_set(kmi->ptr, "fill", TRUE);
+	RNA_boolean_set(kmi->ptr, "extend", true);
+	RNA_boolean_set(kmi->ptr, "fill", true);
 
 	/* right mouse selects without opening */
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", RIGHTMOUSE, KM_CLICK, 0, 0);
-	RNA_boolean_set(kmi->ptr, "open", FALSE);
+	RNA_boolean_set(kmi->ptr, "open", false);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", RIGHTMOUSE, KM_CLICK, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "extend", TRUE);
-	RNA_boolean_set(kmi->ptr, "open", FALSE);
+	RNA_boolean_set(kmi->ptr, "extend", true);
+	RNA_boolean_set(kmi->ptr, "open", false);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_select", RIGHTMOUSE, KM_CLICK, KM_ALT, 0);
-	RNA_boolean_set(kmi->ptr, "extend", TRUE);
-	RNA_boolean_set(kmi->ptr, "fill", TRUE);
-	RNA_boolean_set(kmi->ptr, "open", FALSE);
+	RNA_boolean_set(kmi->ptr, "extend", true);
+	RNA_boolean_set(kmi->ptr, "fill", true);
+	RNA_boolean_set(kmi->ptr, "open", false);
 
 	/* front and back mouse folder navigation */
 	WM_keymap_add_item(keymap, "FILE_OT_previous", BUTTON4MOUSE, KM_CLICK, 0, 0);
@@ -638,17 +637,9 @@ void ED_spacetype_file(void)
 
 void ED_file_init(void)
 {
-	const char * const cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
-	
-	fsmenu_read_system(fsmenu_get(), TRUE);
+	ED_file_read_bookmarks();
 
-	if (cfgdir) {
-		char name[FILE_MAX];
-		BLI_make_file_string("/", name, cfgdir, BLENDER_BOOKMARK_FILE);
-		fsmenu_read_bookmarks(fsmenu_get(), name);
-	}
-	
-	if (G.background == FALSE) {
+	if (G.background == false) {
 		filelist_init_icons();
 	}
 
@@ -657,9 +648,25 @@ void ED_file_init(void)
 
 void ED_file_exit(void)
 {
-	fsmenu_free(fsmenu_get());
+	fsmenu_free();
 
-	if (G.background == FALSE) {
+	if (G.background == false) {
 		filelist_free_icons();
 	}
 }
+
+void ED_file_read_bookmarks(void)
+{
+	const char * const cfgdir = BLI_get_folder(BLENDER_USER_CONFIG, NULL);
+	
+	fsmenu_free();
+
+	fsmenu_read_system(fsmenu_get(), true);
+
+	if (cfgdir) {
+		char name[FILE_MAX];
+		BLI_make_file_string("/", name, cfgdir, BLENDER_BOOKMARK_FILE);
+		fsmenu_read_bookmarks(fsmenu_get(), name);
+	}
+}
+

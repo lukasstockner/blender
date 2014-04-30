@@ -56,7 +56,7 @@
 
 static void rna_ActionGroup_channels_next(CollectionPropertyIterator *iter)
 {
-	ListBaseIterator *internal = iter->internal;
+	ListBaseIterator *internal = &iter->internal.listbase;
 	FCurve *fcu = (FCurve *)internal->link;
 	bActionGroup *grp = fcu->grp;
 	
@@ -80,7 +80,7 @@ static void rna_Action_groups_remove(bAction *act, ReportList *reports, PointerR
 	FCurve *fcu, *fcn;
 	
 	/* try to remove the F-Curve from the action */
-	if (BLI_remlink_safe(&act->groups, agrp) == FALSE) {
+	if (BLI_remlink_safe(&act->groups, agrp) == false) {
 		BKE_reportf(reports, RPT_ERROR, "Action group '%s' not found in action '%s'", agrp->name, act->id.name + 2);
 		return;
 	}
@@ -205,7 +205,7 @@ static void rna_Action_active_pose_marker_index_range(PointerRNA *ptr, int *min,
 static void rna_Action_frame_range_get(PointerRNA *ptr, float *values)
 {   /* don't include modifiers because they too easily can have very large
 	 * ranges: MINAFRAMEF to MAXFRAMEF. */
-	calc_action_range(ptr->id.data, values, values + 1, FALSE);
+	calc_action_range(ptr->id.data, values, values + 1, false);
 }
 
 
@@ -406,7 +406,7 @@ static void rna_def_dopesheet(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_linestyles", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "filterflag", ADS_FILTER_NOLINESTYLE);
 	RNA_def_property_ui_text(prop, "Display Line Style", "Include visualization of Line Style related Animation data");
-	RNA_def_property_ui_icon(prop, ICON_BRUSH_DATA, 0); /* FIXME */
+	RNA_def_property_ui_icon(prop, ICON_LINE_DATA, 0);
 	RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, NULL);
 	
 	prop = RNA_def_property(srna, "show_textures", PROP_BOOLEAN, PROP_NONE);
@@ -558,10 +558,10 @@ static void rna_def_action_fcurves(BlenderRNA *brna, PropertyRNA *cprop)
 	func = RNA_def_function(srna, "new", "rna_Action_fcurve_new");
 	RNA_def_function_ui_description(func, "Add a keyframe to the F-Curve");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	parm = RNA_def_string(func, "data_path", "", 0, "Data Path", "F-Curve data path to use");
+	parm = RNA_def_string(func, "data_path", NULL, 0, "Data Path", "F-Curve data path to use");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	RNA_def_int(func, "index", 0, 0, INT_MAX, "Index", "Array index", 0, INT_MAX);
-	RNA_def_string(func, "action_group", "", 0, "Action Group", "Acton group to add this F-Curve into");
+	RNA_def_string(func, "action_group", NULL, 0, "Action Group", "Acton group to add this F-Curve into");
 
 	parm = RNA_def_pointer(func, "fcurve", "FCurve", "", "Newly created F-Curve");
 	RNA_def_function_return(func, parm);
@@ -590,7 +590,7 @@ static void rna_def_action_pose_markers(BlenderRNA *brna, PropertyRNA *cprop)
 
 	func = RNA_def_function(srna, "new", "rna_Action_pose_markers_new");
 	RNA_def_function_ui_description(func, "Add a pose marker to the action");
-	parm = RNA_def_string(func, "name", "Marker", 0, "", "New name for the marker (not unique)");
+	parm = RNA_def_string(func, "name", "Marker", 0, NULL, "New name for the marker (not unique)");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
 	parm = RNA_def_pointer(func, "marker", "TimelineMarker", "", "Newly created marker");

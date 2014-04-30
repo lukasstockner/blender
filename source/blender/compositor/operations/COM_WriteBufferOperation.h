@@ -27,7 +27,7 @@
 #include "COM_MemoryProxy.h"
 #include "COM_SocketReader.h"
 /**
- * @brief Operation to write to a tile
+ * @brief NodeOperation to write to a tile
  * @ingroup Operation
  */
 class WriteBufferOperation : public NodeOperation {
@@ -37,9 +37,8 @@ class WriteBufferOperation : public NodeOperation {
 public:
 	WriteBufferOperation();
 	~WriteBufferOperation();
-	int isBufferOperation() { return true; }
 	MemoryProxy *getMemoryProxy() { return this->m_memoryProxy; }
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 	const bool isWriteBufferOperation() const { return true; }
 	bool isSingleValue() const { return m_single_value; }
 	

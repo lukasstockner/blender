@@ -35,8 +35,6 @@
 #include "BLI_boxpack2d.h"
 #include "BLI_convexhull2d.h"
 
-#include "ONL_opennl.h"
-
 #include "uvedit_intern.h"
 #include "uvedit_parametrizer.h"
 
@@ -47,27 +45,31 @@
 
 #include "BLI_sys_types.h"  /* for intptr_t support */
 
+#ifdef WITH_OPENNL
+
+#include "ONL_opennl.h"
+
 /* Utils */
 
 #if 0
-	#define param_assert(condition)
-	#define param_warning(message)
-	#define param_test_equals_ptr(condition)
-	#define param_test_equals_int(condition)
+#  define param_assert(condition)
+#  define param_warning(message)
+#  define param_test_equals_ptr(condition)
+#  define param_test_equals_int(condition)
 #else
-	#define param_assert(condition) \
+#  define param_assert(condition) \
 		if (!(condition)) \
 			{ /*printf("Assertion %s:%d\n", __FILE__, __LINE__); abort();*/ } (void)0
-	#define param_warning(message) \
+#  define param_warning(message) \
 		{ /*printf("Warning %s:%d: %s\n", __FILE__, __LINE__, message);*/ } (void)0
-#if 0
-	#define param_test_equals_ptr(str, a, b) \
+#  if 0
+#    define param_test_equals_ptr(str, a, b) \
 		if (a != b) \
 			{ /*printf("Equals %s => %p != %p\n", str, a, b);*/ } (void)0
-	#define param_test_equals_int(str, a, b) \
+#    define param_test_equals_int(str, a, b) \
 		if (a != b) \
 			{ /*printf("Equals %s => %d != %d\n", str, a, b);*/ } (void)0
-#endif
+#  endif
 #endif
 typedef enum PBool {
 	P_TRUE = 1,
@@ -198,7 +200,7 @@ typedef struct PChart {
 		} lscm;
 		struct PChartPack {
 			float rescale, area;
-			float size[2], trans[2];
+			float size[2] /* , trans[2] */;
 		} pack;
 	} u;
 
@@ -491,7 +493,7 @@ static void p_chart_uv_transform(PChart *chart, float mat[2][2])
 	PVert *v;
 
 	for (v = chart->verts; v; v = v->nextlink) {
-		mul_v2_m2v2(v->uv, mat, v->uv);
+		mul_m2v2(mat, v->uv);
 	}
 }
 
@@ -1098,7 +1100,7 @@ static PFace *p_face_add(PHandle *handle)
 }
 
 static PFace *p_face_add_construct(PHandle *handle, ParamKey key, ParamKey *vkeys,
-                                   float *co[3], float *uv[3], int i1, int i2, int i3,
+                                   float *co[4], float *uv[4], int i1, int i2, int i3,
                                    ParamBool *pin, ParamBool *select)
 {
 	PFace *f = p_face_add(handle);
@@ -1884,7 +1886,7 @@ static PBool p_collapse_allowed_geometric(PEdge *edge, PEdge *pair)
 
 	if (p_vert_interior(oldv)) {
 		/* hlscm criterion: angular defect smaller than threshold */
-		if (fabs(angulardefect) > (M_PI * 30.0 / 180.0))
+		if (fabsf(angulardefect) > (float)(M_PI * 30.0 / 180.0))
 			return P_FALSE;
 	}
 	else {
@@ -1950,7 +1952,7 @@ static float p_collapse_cost(PEdge *edge, PEdge *pair)
 			sub_v3_v3v3(tetrav3, co2, oldv->co);
 			cross_v3_v3v3(c, tetrav2, tetrav3);
 
-			volumecost += fabs(dot_v3v3(edgevec, c) / 6.0f);
+			volumecost += fabsf(dot_v3v3(edgevec, c) / 6.0f);
 #if 0
 			shapecost += dot_v3v3(co1, keepv->co);
 
@@ -2819,9 +2821,9 @@ static void p_chart_pin_positions(PChart *chart, PVert **pin1, PVert **pin2)
 		float sub[3];
 
 		sub_v3_v3v3(sub, (*pin1)->co, (*pin2)->co);
-		sub[0] = fabs(sub[0]);
-		sub[1] = fabs(sub[1]);
-		sub[2] = fabs(sub[2]);
+		sub[0] = fabsf(sub[0]);
+		sub[1] = fabsf(sub[1]);
+		sub[2] = fabsf(sub[2]);
 
 		if ((sub[0] > sub[1]) && (sub[0] > sub[2])) {
 			dirx = 0;
@@ -2954,7 +2956,7 @@ static PBool p_chart_symmetry_pins(PChart *chart, PEdge *outer, PVert **pin1, PV
 
 	p_chart_pin_positions(chart, pin1, pin2);
 
-	return P_TRUE;
+	return !equals_v3v3((*pin1)->co, (*pin2)->co);
 }
 
 static void p_chart_extrema_verts(PChart *chart, PVert **pin1, PVert **pin2)
@@ -4146,7 +4148,7 @@ ParamHandle *param_construct_begin(void)
 	handle->arena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "param construct arena");
 	handle->aspx = 1.0f;
 	handle->aspy = 1.0f;
-	handle->do_aspect = FALSE;
+	handle->do_aspect = false;
 
 	handle->hash_verts = phash_new((PHashLink **)&handle->construction_chart->verts, 1);
 	handle->hash_edges = phash_new((PHashLink **)&handle->construction_chart->edges, 1);
@@ -4161,7 +4163,7 @@ void param_aspect_ratio(ParamHandle *handle, float aspx, float aspy)
 
 	phandle->aspx = aspx;
 	phandle->aspy = aspy;
-	phandle->do_aspect = TRUE;
+	phandle->do_aspect = true;
 }
 
 void param_delete(ParamHandle *handle)
@@ -4248,7 +4250,7 @@ static void p_add_ngon(ParamHandle *handle, ParamKey key, int nverts,
 }
 
 void param_face_add(ParamHandle *handle, ParamKey key, int nverts,
-                    ParamKey *vkeys, float **co, float **uv,
+                    ParamKey *vkeys, float *co[4], float *uv[4],
                     ParamBool *pin, ParamBool *select, float normal[3])
 {
 	PHandle *phandle = (PHandle *)handle;
@@ -4715,3 +4717,36 @@ void param_flush_restore(ParamHandle *handle)
 	}
 }
 
+#else  /* WITH_OPENNL */
+
+#ifdef __GNUC__
+#  pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
+
+/* stubs */
+void param_face_add(ParamHandle *handle, ParamKey key, int nverts,
+                    ParamKey *vkeys, float **co, float **uv,
+                    ParamBool *pin, ParamBool *select, float normal[3]) {}
+void param_edge_set_seam(ParamHandle *handle,
+                         ParamKey *vkeys) {}
+void param_aspect_ratio(ParamHandle *handle, float aspx, float aspy) {}
+ParamHandle *param_construct_begin(void) { return NULL; }
+void param_construct_end(ParamHandle *handle, ParamBool fill, ParamBool impl) {}
+void param_delete(ParamHandle *handle) {}
+
+void param_stretch_begin(ParamHandle *handle) {}
+void param_stretch_blend(ParamHandle *handle, float blend) {}
+void param_stretch_iter(ParamHandle *handle) {}
+void param_stretch_end(ParamHandle *handle) {}
+
+void param_pack(ParamHandle *handle, float margin, bool do_rotate) {}
+void param_average(ParamHandle *handle) {}
+
+void param_flush(ParamHandle *handle) {}
+void param_flush_restore(ParamHandle *handle) {}
+
+void param_lscm_begin(ParamHandle *handle, ParamBool live, ParamBool abf) {}
+void param_lscm_solve(ParamHandle *handle) {}
+void param_lscm_end(ParamHandle *handle) {}
+
+#endif  /* WITH_OPENNL */

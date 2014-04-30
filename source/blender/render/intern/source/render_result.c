@@ -41,6 +41,8 @@
 #include "BLI_path_util.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_system.h"
+#include BLI_SYSTEM_PID_H
 #include "BLI_threads.h"
 
 #include "BKE_image.h"
@@ -71,6 +73,7 @@ void render_result_free(RenderResult *res)
 		/* acolrect and scolrect are optionally allocated in shade_tile, only free here since it can be used for drawing */
 		if (rl->acolrect) MEM_freeN(rl->acolrect);
 		if (rl->scolrect) MEM_freeN(rl->scolrect);
+		if (rl->display_buffer) MEM_freeN(rl->display_buffer);
 		
 		while (rl->passes.first) {
 			RenderPass *rpass = rl->passes.first;
@@ -470,7 +473,7 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 	rr->tilerect.ymax = partrct->ymax - re->disprect.ymin;
 	
 	if (savebuffers) {
-		rr->do_exr_tile = TRUE;
+		rr->do_exr_tile = true;
 	}
 
 	/* check renderdata for amount of layers */
@@ -501,6 +504,8 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 		rl->recty = recty;
 		
 		if (rr->do_exr_tile) {
+			rl->display_buffer = MEM_mapallocN(rectx * recty * sizeof(unsigned int), "Combined display space rgba");
+
 			rl->exrhandle = IMB_exr_get_handle();
 
 			IMB_exr_add_channel(rl->exrhandle, rl->name, "Combined.R", 0, 0, NULL);
@@ -573,7 +578,7 @@ RenderResult *render_result_new(Render *re, rcti *partrct, int crop, int savebuf
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_SUBSURFACE_COLOR);
 	}
 	/* sss, previewrender and envmap don't do layers, so we make a default one */
-	if (rr->layers.first == NULL && !(layername && layername[0])) {
+	if (BLI_listbase_is_empty(&rr->layers) && !(layername && layername[0])) {
 		rl = MEM_callocN(sizeof(RenderLayer), "new render layer");
 		BLI_addtail(&rr->layers, rl);
 		
@@ -661,7 +666,7 @@ static void ml_addpass_cb(void *UNUSED(base), void *lay, const char *str, float 
 }
 
 /* from imbuf, if a handle was returned we convert this to render result */
-RenderResult *render_result_new_from_exr(void *exrhandle, const char *colorspace, int predivide, int rectx, int recty)
+RenderResult *render_result_new_from_exr(void *exrhandle, const char *colorspace, bool predivide, int rectx, int recty)
 {
 	RenderResult *rr = MEM_callocN(sizeof(RenderResult), __func__);
 	RenderLayer *rl;
@@ -768,12 +773,12 @@ static char *make_pass_name(RenderPass *rpass, int chan)
 
 /* filename already made absolute */
 /* called from within UI, saves both rendered result as a file-read result */
-int RE_WriteRenderResult(ReportList *reports, RenderResult *rr, const char *filename, int compress)
+bool RE_WriteRenderResult(ReportList *reports, RenderResult *rr, const char *filename, int compress)
 {
 	RenderLayer *rl;
 	RenderPass *rpass;
 	void *exrhandle = IMB_exr_get_handle();
-	int success;
+	bool success;
 
 	BLI_make_existing_file(filename);
 	
@@ -816,12 +821,12 @@ int RE_WriteRenderResult(ReportList *reports, RenderResult *rr, const char *file
 	/* when the filename has no permissions, this can fail */
 	if (IMB_exr_begin_write(exrhandle, filename, rr->rectx, rr->recty, compress)) {
 		IMB_exr_write_channels(exrhandle);
-		success = TRUE;
+		success = true;
 	}
 	else {
 		/* TODO, get the error from openexr's exception */
 		BKE_report(reports, RPT_ERROR, "Error writing render result (see console)");
-		success = FALSE;
+		success = false;
 	}
 	IMB_exr_close(exrhandle);
 
@@ -865,7 +870,7 @@ void render_result_single_layer_end(Render *re)
 		BLI_remlink(&re->result->layers, rl);
 		
 		/* reconstruct render result layers */
-		for (nr = 0, srl = re->scene->r.layers.first; srl; srl = srl->next, nr++) {
+		for (nr = 0, srl = re->r.layers.first; srl; srl = srl->next, nr++) {
 			if (nr == re->r.actlay) {
 				BLI_addtail(&re->result->layers, rl);
 			}
@@ -998,7 +1003,7 @@ void render_result_exr_file_end(Render *re)
 			rl->exrhandle = NULL;
 		}
 
-		rr->do_exr_tile = FALSE;
+		rr->do_exr_tile = false;
 	}
 	
 	render_result_free_list(&re->fullresult, re->result);
@@ -1020,10 +1025,13 @@ void render_result_exr_file_path(Scene *scene, const char *layname, int sample, 
 	char name[FILE_MAXFILE + MAX_ID_NAME + MAX_ID_NAME + 100], fi[FILE_MAXFILE];
 	
 	BLI_split_file_part(G.main->name, fi, sizeof(fi));
-	if (sample == 0)
-		BLI_snprintf(name, sizeof(name), "%s_%s_%s.exr", fi, scene->id.name + 2, layname);
-	else
-		BLI_snprintf(name, sizeof(name), "%s_%s_%s%d.exr", fi, scene->id.name + 2, layname, sample);
+	if (sample == 0) {
+		BLI_snprintf(name, sizeof(name), "%s_%s_%s_%d.exr", fi, scene->id.name + 2, layname, abs(getpid()));
+	}
+	else {
+		BLI_snprintf(name, sizeof(name), "%s_%s_%s%d_%d.exr", fi, scene->id.name + 2, layname, sample,
+		             abs(getpid()));
+	}
 
 	BLI_make_file_string("/", filepath, BLI_temporary_dir(), name);
 }
@@ -1033,7 +1041,7 @@ int render_result_exr_file_read(Render *re, int sample)
 {
 	RenderLayer *rl;
 	char str[FILE_MAX];
-	int success = TRUE;
+	bool success = true;
 
 	RE_FreeRenderResult(re->result);
 	re->result = render_result_new(re, &re->disprect, 0, RR_USE_MEM, RR_ALL_LAYERS);
@@ -1045,7 +1053,7 @@ int render_result_exr_file_read(Render *re, int sample)
 
 		if (!render_result_exr_file_read_path(re->result, rl, str)) {
 			printf("cannot read: %s\n", str);
-			success = FALSE;
+			success = false;
 
 		}
 	}
@@ -1124,7 +1132,13 @@ ImBuf *render_result_rect_to_ibuf(RenderResult *rr, RenderData *rd)
 	 */
 	if (ibuf->rect) {
 		if (BKE_imtype_valid_depths(rd->im_format.imtype) & (R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_24 | R_IMF_CHAN_DEPTH_32)) {
-			IMB_float_from_rect(ibuf);
+			if (rd->im_format.depth == R_IMF_CHAN_DEPTH_8) {
+				/* Higher depth bits are supported but not needed for current file output. */
+				ibuf->rect_float = NULL;
+			}
+			else {
+				IMB_float_from_rect(ibuf);
+			}
 		}
 		else {
 			/* ensure no float buffer remained from previous frame */

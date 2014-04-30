@@ -80,6 +80,7 @@
 
 #include "RE_render_ext.h"	/* externtex */
 
+#include "rayintersection.h"
 #include "rayobject.h"
 #include "renderpipeline.h"
 #include "render_types.h"
@@ -1233,13 +1234,13 @@ HaloRen *RE_inithalo_particle(Render *re, ObjectRen *obr, DerivedMesh *dm, Mater
 /* -------------------------- operations on entire database ----------------------- */
 
 /* ugly function for halos in panorama */
-static int panotestclip(Render *re, int do_pano, float v[4])
+static int panotestclip(Render *re, bool do_pano, float v[4])
 {
 	/* part size (ensure we run RE_parts_clamp first) */
 	BLI_assert(re->partx == min_ii(re->r.tilex, re->rectx));
 	BLI_assert(re->party == min_ii(re->r.tiley, re->recty));
 
-	if (do_pano == FALSE) {
+	if (do_pano == false) {
 		return testclip(v);
 	}
 	else {
@@ -1277,7 +1278,7 @@ static int panotestclip(Render *re, int do_pano, float v[4])
 
 void project_renderdata(Render *re,
                         void (*projectfunc)(const float *, float mat[4][4], float *),
-                        int do_pano, float xoffs, int UNUSED(do_buckets))
+                        bool do_pano, float xoffs, bool UNUSED(do_buckets))
 {
 	ObjectRen *obr;
 	HaloRen *har = NULL;
@@ -1417,6 +1418,42 @@ void RE_makeRenderInstances(Render *re)
 
 	BLI_freelistN(&re->instancetable);
 	re->instancetable= newlist;
+}
+
+/* four functions to facilitate envmap rotation for raytrace */
+void RE_instance_rotate_ray_start(ObjectInstanceRen *obi, Isect *is)
+{
+	if (obi && (obi->flag & R_ENV_TRANSFORMED)) {
+		copy_v3_v3(is->origstart, is->start);
+		mul_m4_v3(obi->imat, is->start);
+	}
+}
+
+void RE_instance_rotate_ray_dir(ObjectInstanceRen *obi, Isect *is)
+{
+	if (obi && (obi->flag & R_ENV_TRANSFORMED)) {
+		float end[3];
+
+		copy_v3_v3(is->origdir, is->dir);
+		add_v3_v3v3(end, is->origstart, is->dir);
+
+		mul_m4_v3(obi->imat, end);
+		sub_v3_v3v3(is->dir, end, is->start);
+	}
+}
+
+void RE_instance_rotate_ray(ObjectInstanceRen *obi, Isect *is)
+{
+	RE_instance_rotate_ray_start(obi, is);
+	RE_instance_rotate_ray_dir(obi, is);
+}
+
+void RE_instance_rotate_ray_restore(ObjectInstanceRen *obi, Isect *is)
+{
+	if (obi && (obi->flag & R_ENV_TRANSFORMED)) {
+		copy_v3_v3(is->start, is->origstart);
+		copy_v3_v3(is->dir, is->origdir);
+	}
 }
 
 int clip_render_object(float boundbox[2][3], float bounds[4], float winmat[4][4])

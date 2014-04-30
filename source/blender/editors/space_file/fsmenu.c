@@ -55,9 +55,7 @@
 #endif
 
 #ifdef __APPLE__
-/* XXX BIG WARNING: carbon.h can not be included in blender code, it conflicts with struct ID */
-#  define ID ID_
-#  include <CoreServices/CoreServices.h>
+#include <Carbon/Carbon.h>
 #endif /* __APPLE__ */
 
 #ifdef __linux__
@@ -544,14 +542,19 @@ void fsmenu_refresh_system_category(struct FSMenu *fsmenu)
 	fsmenu_set_category(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, NULL);
 
 	/* Add all entries to system category */
-	fsmenu_read_system(fsmenu, TRUE);
+	fsmenu_read_system(fsmenu, true);
 }
 
-void fsmenu_free(struct FSMenu *fsmenu)
+void fsmenu_free(void)
 {
-	fsmenu_free_category(fsmenu, FS_CATEGORY_SYSTEM);
-	fsmenu_free_category(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS);
-	fsmenu_free_category(fsmenu, FS_CATEGORY_BOOKMARKS);
-	fsmenu_free_category(fsmenu, FS_CATEGORY_RECENT);
-	MEM_freeN(fsmenu);
+	if (g_fsmenu) {
+		fsmenu_free_category(g_fsmenu, FS_CATEGORY_SYSTEM);
+		fsmenu_free_category(g_fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS);
+		fsmenu_free_category(g_fsmenu, FS_CATEGORY_BOOKMARKS);
+		fsmenu_free_category(g_fsmenu, FS_CATEGORY_RECENT);
+		MEM_freeN(g_fsmenu);
+	}
+
+	g_fsmenu = NULL;
 }
+

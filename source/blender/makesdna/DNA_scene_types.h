@@ -60,6 +60,7 @@ struct Editing;
 struct SceneStats;
 struct bGPdata;
 struct MovieClip;
+struct ColorSpace;
 
 /* ************************************************************* */
 /* Scene Data */
@@ -187,7 +188,7 @@ typedef struct SceneRenderLayer {
 	int pass_xor;
 
 	int samples;
-	int pad;
+	float pass_alpha_threshold;
 	
 	struct FreestyleConfig freestyleConfig;
 } SceneRenderLayer;
@@ -432,7 +433,8 @@ typedef struct RenderData {
 	 * Render to image editor, fullscreen or to new window.
 	 */
 	short displaymode;
-	short pad7;
+	char use_lock_interface;
+	char pad7;
 
 	/**
 	 * Flags for render settings. Use bit-masking to access the settings.
@@ -678,6 +680,7 @@ typedef struct GameData {
 #define STEREO_SIDEBYSIDE	6
 #define STEREO_VINTERLACE	7
 //#define STEREO_DOME		8
+#define STEREO_3DTVTOPBOTTOM 9
 
 /* physicsEngine */
 #define WOPHY_NONE		0
@@ -725,9 +728,15 @@ typedef struct GameData {
 #define GAME_PLAYER_DESKTOP_RESOLUTION		(1 << 1)
 
 /* GameData.matmode */
-#define GAME_MAT_TEXFACE	0
-#define GAME_MAT_MULTITEX	1
-#define GAME_MAT_GLSL		2
+enum {
+	GAME_MAT_TEXFACE    = 0, /* deprecated */
+	GAME_MAT_MULTITEX   = 1,
+	GAME_MAT_GLSL       = 2,
+};
+
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison GAME_MAT_TEXFACE
+#endif
 
 /* UV Paint */
 #define UV_SCULPT_LOCK_BORDERS				1
@@ -770,7 +779,8 @@ typedef struct Paint {
 	 * smooth the stroke */
 	int num_input_samples;
 	
-	int pad;
+	/* flags used for symmetry */
+	int symmetry_flags;
 } Paint;
 
 /* ------------------------------------------- */
@@ -839,10 +849,19 @@ typedef struct Sculpt {
 	int radial_symm[3];
 
 	/* Maximum edge length for dynamic topology sculpting (in pixels) */
-	int detail_size;
+	float detail_size;
 
 	/* Direction used for SCULPT_OT_symmetrize operator */
 	int symmetrize_direction;
+
+	/* gravity factor for sculpting */
+	float gravity_factor;
+
+	/* scale for constant detail size */
+	float constant_detail;
+
+	struct Object *gravity_object;
+	void *pad2;
 } Sculpt;
 
 typedef struct UvSculpt {
@@ -866,7 +885,7 @@ typedef struct VPaint {
 /* VPaint.flag */
 enum {
 	// VP_COLINDEX  = (1 << 0),  /* only paint onto active material*/  /* deprecated since before 2.49 */
-	VP_AREA         = (1 << 1),
+	// VP_AREA      = (1 << 1),  /* deprecated since 2.70 */
 	VP_NORMALS      = (1 << 3),
 	VP_SPRAY        = (1 << 4),
 	// VP_MIRROR_X  = (1 << 5),  /* deprecated in 2.5x use (me->editflag & ME_EDIT_MIRROR_X) */
@@ -914,14 +933,18 @@ typedef struct UnifiedPaintSettings {
 
 	float brush_rotation;
 
-	// all this below is used to communicate with the cursor drawing routine
+	/*********************************************************************************
+	 *  all data below are used to communicate with cursor drawing and tex sampling  *
+	 *********************************************************************************/
 	int draw_anchored;
 	int   anchored_size;
 	float anchored_initial_mouse[2];
 
+	/* check is there an ongoing stroke right now */
+	int stroke_active;
+
 	/* drawing pressure */
-	int draw_pressure;
-	float pressure_value;
+	float size_pressure_value;
 
 	/* position of mouse, used to sample the texture */
 	float tex_mouse[2];
@@ -929,9 +952,14 @@ typedef struct UnifiedPaintSettings {
 	/* position of mouse, used to sample the mask texture */
 	float mask_tex_mouse[2];
 
+	/* ColorSpace cache to avoid locking up during sampling */
+	int do_linear_conversion;
+	struct ColorSpace *colorspace;
+
 	/* radius of brush, premultiplied with pressure.
 	 * In case of anchored brushes contains that radius */
 	float pixel_radius;
+	int pad2;
 } UnifiedPaintSettings;
 
 typedef enum {
@@ -939,7 +967,7 @@ typedef enum {
 	UNIFIED_PAINT_ALPHA = (1 << 1),
 	UNIFIED_PAINT_WEIGHT = (1 << 5),
 
-	/* only used if unified size is enabled, mirros the brush flags
+	/* only used if unified size is enabled, mirrors the brush flags
 	 * BRUSH_LOCK_SIZE and BRUSH_SIZE_PRESSURE */
 	UNIFIED_PAINT_BRUSH_LOCK_SIZE = (1 << 2),
 	UNIFIED_PAINT_BRUSH_SIZE_PRESSURE   = (1 << 3),
@@ -1145,8 +1173,13 @@ typedef struct Scene {
 	
 	short flag;								/* various settings */
 	
-	short use_nodes;
-	
+	char use_nodes;
+
+	/* Openmp Global Settings */
+	char  omp_threads_mode;
+	short omp_threads;
+	char pad[6];
+
 	struct bNodeTree *nodetree;
 	
 	struct Editing *ed;								/* sequence editor data is allocated here */
@@ -1205,7 +1238,6 @@ typedef struct Scene {
 	/* RigidBody simulation world+settings */
 	struct RigidBodyWorld *rigidbody_world;
 } Scene;
-
 
 /* **************** RENDERDATA ********************* */
 
@@ -1275,7 +1307,7 @@ typedef struct Scene {
 /* raytrace structure */
 #define R_RAYSTRUCTURE_AUTO				0
 #define R_RAYSTRUCTURE_OCTREE			1
-#define R_RAYSTRUCTURE_BLIBVH			2
+#define R_RAYSTRUCTURE_BLIBVH			2	/* removed */
 #define R_RAYSTRUCTURE_VBVH				3
 #define R_RAYSTRUCTURE_SIMD_SVBVH		4	/* needs SIMD */
 #define R_RAYSTRUCTURE_SIMD_QBVH		5	/* needs SIMD */
@@ -1330,21 +1362,36 @@ typedef struct Scene {
 /*#define R_ALPHAKEY		2*/ /* deprecated, shouldn't be used */
 
 /* color_mgt_flag */
-#define R_COLOR_MANAGEMENT              (1 << 0)  /* deprecated, should only be used in versioning code only */
-/*#define R_COLOR_MANAGEMENT_PREDIVIDE    (1 << 1)*/  /* deprecated, shouldn't be used */
+enum {
+	R_COLOR_MANAGEMENT              = (1 << 0),  /* deprecated, should only be used in versioning code only */
+	/*R_COLOR_MANAGEMENT_PREDIVIDE    = (1 << 1)*/  /* deprecated, shouldn't be used */
+};
+
+#if 0  /* TODO */
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison R_COLOR_MANAGEMENT
+#endif
+#endif
 
 /* subimtype, flag options for imtype */
-#define R_OPENEXR_HALF    1                                      /*deprecated*/
-#define R_OPENEXR_ZBUF    2                                      /*deprecated*/
-#define R_PREVIEW_JPG    4                                       /*deprecated*/
-#define R_CINEON_LOG     8                                       /*deprecated*/
-#define R_TIFF_16BIT    16                                       /*deprecated*/
+enum {
+	R_OPENEXR_HALF	= 1,  /*deprecated*/
+	R_OPENEXR_ZBUF	= 2,  /*deprecated*/
+	R_PREVIEW_JPG	= 4,  /*deprecated*/
+	R_CINEON_LOG	= 8,  /*deprecated*/
+	R_TIFF_16BIT	= 16, /*deprecated*/
 
-#define R_JPEG2K_12BIT    32 /* Jpeg2000 */                      /*deprecated*/
-#define R_JPEG2K_16BIT    64                                     /*deprecated*/
-#define R_JPEG2K_YCC    128 /* when disabled use RGB */          /*deprecated*/
-#define R_JPEG2K_CINE_PRESET    256                              /*deprecated*/
-#define R_JPEG2K_CINE_48FPS        512                           /*deprecated*/
+	R_JPEG2K_12BIT			=     32,  /* Jpeg2000 */                    /*deprecated*/
+	R_JPEG2K_16BIT			=     64,                                    /*deprecated*/
+	R_JPEG2K_YCC			=     128,  /* when disabled use RGB */      /*deprecated*/
+	R_JPEG2K_CINE_PRESET	=     256,                                   /*deprecated*/
+	R_JPEG2K_CINE_48FPS		=     512,                                   /*deprecated*/
+};
+
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison R_OPENEXR_HALF R_OPENEXR_ZBUF R_PREVIEW_JPG R_CINEON_LOG R_TIFF_16BIT
+#pragma GCC poison R_JPEG2K_12BIT R_JPEG2K_16BIT R_JPEG2K_YCC R_JPEG2K_CINE_PRESET R_JPEG2K_CINE_48FPS
+#endif
 
 /* bake_mode: same as RE_BAKE_xxx defines */
 /* bake_flag: */
@@ -1457,6 +1504,7 @@ typedef struct Scene {
 #define SCE_SNAP_MODE_NODE_X	5
 #define SCE_SNAP_MODE_NODE_Y	6
 #define SCE_SNAP_MODE_NODE_XY	7
+#define SCE_SNAP_MODE_GRID		8
 
 /* toolsettings->selectmode */
 #define SCE_SELECT_VERTEX	1 /* for mesh */
@@ -1538,9 +1586,16 @@ typedef enum eVGroupSelect {
 #define AUDIO_SCRUB		          (1<<2)
 #define AUDIO_VOLUME_ANIMATED     (1<<3)
 
-#define FFMPEG_MULTIPLEX_AUDIO  1 /* deprecated, you can choose none as audiocodec now */
-#define FFMPEG_AUTOSPLIT_OUTPUT 2
-#define FFMPEG_LOSSLESS_OUTPUT  4
+enum {
+	FFMPEG_MULTIPLEX_AUDIO  = 1,  /* deprecated, you can choose none as audiocodec now */
+	FFMPEG_AUTOSPLIT_OUTPUT = 2,
+	FFMPEG_LOSSLESS_OUTPUT  = 4,
+};
+
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison FFMPEG_MULTIPLEX_AUDIO
+#endif
+
 
 /* Paint.flags */
 typedef enum {
@@ -1549,16 +1604,31 @@ typedef enum {
 	PAINT_SHOW_BRUSH_ON_SURFACE = (1 << 2),
 } PaintFlags;
 
+/* Paint.symmetry_flags
+ * (for now just a duplicate of sculpt symmetry flags) */
+typedef enum SymmetryFlags {
+	PAINT_SYMM_X = (1 << 0),
+	PAINT_SYMM_Y = (1 << 1),
+	PAINT_SYMM_Z = (1 << 2),
+	PAINT_SYMMETRY_FEATHER = (1 << 3)
+} SymmetryFlags;
+
+#define PAINT_SYMM_AXIS_ALL (PAINT_SYMM_X | PAINT_SYMM_Y | PAINT_SYMM_Z)
+
 /* Sculpt.flags */
 /* These can eventually be moved to paint flags? */
 typedef enum SculptFlags {
+	/* deprecated, part of paint struct symmetry_flags now */
 	SCULPT_SYMM_X = (1 << 0),
 	SCULPT_SYMM_Y = (1 << 1),
 	SCULPT_SYMM_Z = (1 << 2),
+
 	SCULPT_LOCK_X = (1 << 3),
 	SCULPT_LOCK_Y = (1 << 4),
 	SCULPT_LOCK_Z = (1 << 5),
+	/* deprecated, part of paint struct symmetry_flags now */
 	SCULPT_SYMMETRY_FEATHER = (1 << 6),
+
 	SCULPT_USE_OPENMP = (1 << 7),
 	SCULPT_ONLY_DEFORM = (1 << 8),
 	SCULPT_SHOW_DIFFUSE = (1 << 9),
@@ -1567,10 +1637,19 @@ typedef enum SculptFlags {
 	 * dynamic-topology mode */
 	SCULPT_DYNTOPO_SMOOTH_SHADING = (1 << 10),
 
-	/* If set, dynamic-topology brushes will collapse short edges in
-	 * addition to subdividing long ones */
-	SCULPT_DYNTOPO_COLLAPSE = (1 << 11)
+	/* If set, dynamic-topology brushes will subdivide short edges */
+	SCULPT_DYNTOPO_SUBDIVIDE = (1 << 12),
+	/* If set, dynamic-topology brushes will collapse short edges */
+	SCULPT_DYNTOPO_COLLAPSE = (1 << 11),
+
+	/* If set, dynamic-topology detail size will be constant in object space */
+	SCULPT_DYNTOPO_DETAIL_CONSTANT = (1 << 13)
 } SculptFlags;
+
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison SCULPT_SYMM_X SCULPT_SYMM_Y SCULPT_SYMM_Z SCULPT_SYMMETRY_FEATHER
+#endif
+
 
 /* ImagePaintSettings.flag */
 #define IMAGEPAINT_DRAWING				1
@@ -1701,6 +1780,10 @@ typedef enum SculptFlags {
 /* UnitSettings->flag */
 #define	USER_UNIT_OPT_SPLIT		1
 #define USER_UNIT_ROT_RADIANS	2
+
+/* OpenMP settings */
+#define SCE_OMP_AUTO 0
+#define SCE_OMP_FIXED 1
 
 #ifdef __cplusplus
 }

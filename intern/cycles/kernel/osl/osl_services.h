@@ -30,6 +30,10 @@
 
 #include <textures/vdb_volume.h>
 
+#ifdef WITH_PTEX
+class PtexCache;
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 class Object;
@@ -73,8 +77,14 @@ public:
 	                      float radius, int max_points, bool sort, size_t *out_indices,
 	                      float *out_distances, int derivs_offset);
 
-	int pointcloud_get(ustring filename, size_t *indices, int count, ustring attr_name,
-	                   TypeDesc attr_type, void *out_data);
+	int pointcloud_get(OSL::ShaderGlobals *sg, ustring filename, size_t *indices, int count,
+	                   ustring attr_name, TypeDesc attr_type, void *out_data);
+
+	bool pointcloud_write(OSL::ShaderGlobals *sg,
+	                      ustring filename, const OSL::Vec3 &pos,
+	                      int nattribs, const ustring *names,
+	                      const TypeDesc *types,
+	                      const void **data);
 
 	bool trace(TraceOpt &options, OSL::ShaderGlobals *sg,
 	           const OSL::Vec3 &P, const OSL::Vec3 &dPdx,
@@ -136,6 +146,7 @@ public:
 	static ustring u_curve_tangent_normal;
 	static ustring u_path_ray_length;
 	static ustring u_path_ray_depth;
+	static ustring u_path_transparent_depth;
 	static ustring u_trace;
 	static ustring u_hit;
 	static ustring u_hitdist;
@@ -151,6 +162,11 @@ private:
 	KernelGlobals *kernel_globals;
 	OSL::TextureSystem *osl_ts;
     ccl::VDBTextureSystem::Ptr vdb_ts;
+
+#ifdef WITH_PTEX
+	PtexCache *ptex_cache;
+#endif
+
 };
 
 CCL_NAMESPACE_END

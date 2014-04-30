@@ -118,8 +118,10 @@ void shade_material_loop(ShadeInput *shi, ShadeResult *shr)
 		madd_v3_v3fl(shr->combined, shr_t.combined, fac);
 		if (shi->passflag & SCE_PASS_SPEC)
 			madd_v3_v3fl(shr->spec, shr_t.spec, fac);
-		if (shi->passflag & SCE_PASS_DIFFUSE)
+		if (shi->passflag & SCE_PASS_DIFFUSE) {
 			madd_v3_v3fl(shr->diff, shr_t.diff, fac);
+			madd_v3_v3fl(shr->diffshad, shr_t.diffshad, fac);
+		}
 		if (shi->passflag & SCE_PASS_SHADOW)
 			madd_v3_v3fl(shr->shad, shr_t.shad, fac);
 
@@ -274,6 +276,7 @@ void shade_input_set_triangle_i(ShadeInput *shi, ObjectInstanceRen *obi, VlakRen
 	
 	shi->osatex = (shi->mat->texco & TEXCO_OSA);
 	shi->mode = shi->mat->mode_l;        /* or-ed result for all nodes */
+	shi->mode2 = shi->mat->mode2_l;
 
 	/* facenormal copy, can get flipped */
 	shi->flippednor = 0;

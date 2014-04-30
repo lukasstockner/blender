@@ -45,12 +45,11 @@
 #include "BKE_global.h"
 #include "BKE_icons.h"
 #include "BKE_library.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_world.h"
 
-void BKE_world_free_ex(World *wrld, int do_id_user)
+void BKE_world_free_ex(World *wrld, bool do_id_user)
 {
 	MTex *mtex;
 	int a;
@@ -76,14 +75,14 @@ void BKE_world_free_ex(World *wrld, int do_id_user)
 
 void BKE_world_free(World *wrld)
 {
-	BKE_world_free_ex(wrld, TRUE);
+	BKE_world_free_ex(wrld, true);
 }
 
 World *add_world(Main *bmain, const char *name)
 {
 	World *wrld;
 
-	wrld = BKE_libblock_alloc(&bmain->world, ID_WO, name);
+	wrld = BKE_libblock_alloc(bmain, ID_WO, name);
 	
 	wrld->horr = 0.05f;
 	wrld->horg = 0.05f;
@@ -92,8 +91,6 @@ World *add_world(Main *bmain, const char *name)
 	wrld->zeng = 0.01f;
 	wrld->zenb = 0.01f;
 	wrld->skytype = 0;
-	wrld->stardist = 15.0f;
-	wrld->starsize = 2.0f;
 
 	wrld->exp = 0.0f;
 	wrld->exposure = wrld->range = 1.0f;
@@ -169,7 +166,7 @@ void BKE_world_make_local(World *wrld)
 {
 	Main *bmain = G.main;
 	Scene *sce;
-	int is_local = FALSE, is_lib = FALSE;
+	bool is_local = false, is_lib = false;
 
 	/* - only lib users: do nothing
 	 * - only local users: set flag
@@ -182,14 +179,14 @@ void BKE_world_make_local(World *wrld)
 		return;
 	}
 	
-	for (sce = bmain->scene.first; sce && ELEM(FALSE, is_lib, is_local); sce = sce->id.next) {
+	for (sce = bmain->scene.first; sce && ELEM(false, is_lib, is_local); sce = sce->id.next) {
 		if (sce->world == wrld) {
-			if (sce->id.lib) is_lib = TRUE;
-			else is_local = TRUE;
+			if (sce->id.lib) is_lib = true;
+			else is_local = true;
 		}
 	}
 
-	if (is_local && is_lib == FALSE) {
+	if (is_local && is_lib == false) {
 		id_clear_lib_data(bmain, &wrld->id);
 	}
 	else if (is_local && is_lib) {

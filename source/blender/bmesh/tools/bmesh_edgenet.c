@@ -42,7 +42,7 @@
 #include "BLI_strict_flags.h"  /* keep last */
 
 
-/* Data for one end of an edge involved in a bevel */
+/* Struct for storing a path of verts walked over */
 typedef struct VertNetInfo {
 	BMVert *prev;               /* previous vertex */
 	int pass;                   /* path scanning pass value, for internal calculation */
@@ -221,7 +221,7 @@ static BMEdge *bm_edgenet_path_step(
 
 					if (vn_curr->pass == -vn_next->pass) {
 						if ((vn_curr->flag & VNINFO_FLAG_IS_MIXFACE) ||
-							(vn_next->flag & VNINFO_FLAG_IS_MIXFACE))
+						    (vn_next->flag & VNINFO_FLAG_IS_MIXFACE))
 						{
 							/* found connecting edge */
 							if (bm_edgenet_path_check_overlap(v_curr, v_next, vnet_info) == false) {
@@ -237,8 +237,8 @@ static BMEdge *bm_edgenet_path_step(
 						/* flush flag down the path */
 						vn_next->flag &= ~VNINFO_FLAG_IS_MIXFACE;
 						if ((vn_curr->flag & VNINFO_FLAG_IS_MIXFACE) ||
-							(vn_next->face == -1) ||
-							(vn_next->face != vn_curr->face))
+						    (vn_next->face == -1) ||
+						    (vn_next->face != vn_curr->face))
 						{
 							vn_next->flag |= VNINFO_FLAG_IS_MIXFACE;
 						}
@@ -443,8 +443,8 @@ void BM_mesh_edgenet(BMesh *bm,
                      const bool use_edge_tag, const bool use_new_face_tag)
 {
 	VertNetInfo *vnet_info = MEM_callocN(sizeof(*vnet_info) * (size_t)bm->totvert, __func__);
-	BLI_mempool *edge_queue_pool = BLI_mempool_create(sizeof(LinkNode), 1, 512, 0);
-	BLI_mempool *path_pool = BLI_mempool_create(sizeof(LinkNode), 1, 512, 0);
+	BLI_mempool *edge_queue_pool = BLI_mempool_create(sizeof(LinkNode), 0, 512, BLI_MEMPOOL_NOP);
+	BLI_mempool *path_pool = BLI_mempool_create(sizeof(LinkNode), 0, 512, BLI_MEMPOOL_NOP);
 	LinkNode *edge_queue = NULL;
 
 	BMEdge *e;
@@ -500,7 +500,7 @@ void BM_mesh_edgenet(BMesh *bm,
 		BLI_assert(BLI_mempool_count(path_pool) == 0);
 	}
 
-	bm->elem_index_dirty |= BM_FACE;
+	bm->elem_index_dirty |= BM_FACE | BM_LOOP;
 
 	BLI_mempool_destroy(edge_queue_pool);
 	BLI_mempool_destroy(path_pool);

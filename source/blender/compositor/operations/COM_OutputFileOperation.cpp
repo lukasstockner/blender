@@ -22,7 +22,6 @@
  */
 
 #include "COM_OutputFileOperation.h"
-#include "COM_SocketConnection.h"
 #include <string.h>
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
@@ -34,10 +33,10 @@
 #include "DNA_color_types.h"
 
 extern "C" {
-	#include "MEM_guardedalloc.h"
-	#include "IMB_imbuf.h"
-	#include "IMB_colormanagement.h"
-	#include "IMB_imbuf_types.h"
+#  include "MEM_guardedalloc.h"
+#  include "IMB_imbuf.h"
+#  include "IMB_colormanagement.h"
+#  include "IMB_imbuf_types.h"
 }
 
 static int get_datatype_size(DataType datatype)
@@ -79,7 +78,7 @@ static void write_buffer_rect(rcti *rect, const bNodeTree *tree,
 
 	for (y = y1; y < y2 && (!breaked); y++) {
 		for (x = x1; x < x2 && (!breaked); x++) {
-			reader->read(color, x, y, COM_PS_NEAREST);
+			reader->readSampled(color, x, y, COM_PS_NEAREST);
 			
 			for (i = 0; i < size; ++i)
 				buffer[offset + i] = color[i];
@@ -141,8 +140,8 @@ void OutputSingleLayerOperation::deinitExecution()
 		IMB_colormanagement_imbuf_for_write(ibuf, true, false, m_viewSettings, m_displaySettings,
 		                                    this->m_format);
 
-		BKE_makepicstring(filename, this->m_path, bmain->name, this->m_rd->cfra, this->m_format,
-		                  (this->m_rd->scemode & R_EXTENSION), true);
+		BKE_makepicstring(filename, this->m_path, bmain->name, this->m_rd->cfra,
+		                  this->m_format, (this->m_rd->scemode & R_EXTENSION) != 0, true);
 		
 		if (0 == BKE_imbuf_write(ibuf, filename, this->m_format))
 			printf("Cannot save Node File Output to %s\n", filename);
@@ -212,7 +211,7 @@ void OutputOpenExrMultiLayerOperation::deinitExecution()
 		void *exrhandle = IMB_exr_get_handle();
 		
 		BKE_makepicstring_from_type(filename, this->m_path, bmain->name, this->m_rd->cfra, R_IMF_IMTYPE_MULTILAYER,
-		                  (this->m_rd->scemode & R_EXTENSION), true);
+		                            (this->m_rd->scemode & R_EXTENSION) != 0, true);
 		BLI_make_existing_file(filename);
 		
 		for (unsigned int i = 0; i < this->m_layers.size(); ++i) {

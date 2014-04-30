@@ -62,6 +62,7 @@
 #include "ED_node.h"
 
 #include "IMB_colormanagement.h"
+#include "IMB_imbuf.h"
 
 static int rna_CurveMapping_curves_length(PointerRNA *ptr)
 {
@@ -89,7 +90,7 @@ static void rna_CurveMapping_clip_set(PointerRNA *ptr, int value)
 	if (value) cumap->flag |= CUMA_DO_CLIP;
 	else cumap->flag &= ~CUMA_DO_CLIP;
 
-	curvemapping_changed(cumap, FALSE);
+	curvemapping_changed(cumap, false);
 }
 
 static void rna_CurveMapping_black_level_set(PointerRNA *ptr, const float *values)
@@ -228,7 +229,7 @@ static char *rna_ColorRampElement_path(PointerRNA *ptr)
 	prop = RNA_struct_find_property(&ramp_ptr, "elements");                   \
 	if (prop) {                                                               \
 		index = RNA_property_collection_lookup_index(&ramp_ptr, prop, ptr);   \
-		if (index >= 0) {                                                     \
+		if (index != -1) {                                                    \
 			char *texture_path = rna_ColorRamp_path(&ramp_ptr);               \
 			path = BLI_sprintfN("%s.elements[%d]", texture_path, index);      \
 			MEM_freeN(texture_path);                                          \
@@ -369,7 +370,7 @@ static void rna_ColorRampElement_remove(struct ColorBand *coba, ReportList *repo
 {
 	CBData *element = element_ptr->data;
 	int index = (int)(element - coba->data);
-	if (colorband_element_remove(coba, index) == FALSE) {
+	if (colorband_element_remove(coba, index) == false) {
 		BKE_report(reports, RPT_ERROR, "Element not found in element collection or last element");
 		return;
 	}
@@ -380,7 +381,7 @@ static void rna_ColorRampElement_remove(struct ColorBand *coba, ReportList *repo
 void rna_CurveMap_remove_point(CurveMap *cuma, ReportList *reports, PointerRNA *point_ptr)
 {
 	CurveMapPoint *point = point_ptr->data;
-	if (curvemap_remove_point(cuma, point) == FALSE) {
+	if (curvemap_remove_point(cuma, point) == false) {
 		BKE_report(reports, RPT_ERROR, "Unable to remove curve point");
 		return;
 	}
@@ -412,7 +413,7 @@ static void rna_ColorManagedDisplaySettings_display_device_set(struct PointerRNA
 }
 
 static EnumPropertyItem *rna_ColorManagedDisplaySettings_display_device_itemf(
-        bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+        bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *items = NULL;
 	int totitem = 0;
@@ -420,7 +421,7 @@ static EnumPropertyItem *rna_ColorManagedDisplaySettings_display_device_itemf(
 	IMB_colormanagement_display_items_add(&items, &totitem);
 	RNA_enum_item_end(&items, &totitem);
 
-	*free = TRUE;
+	*r_free = true;
 
 	return items;
 }
@@ -439,6 +440,11 @@ static void rna_ColorManagedDisplaySettings_display_device_update(Main *UNUSED(b
 
 		WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, NULL);
 	}
+}
+
+static char *rna_ColorManagedDisplaySettings_path(PointerRNA *UNUSED(ptr))
+{
+	return BLI_sprintfN("display_settings");
 }
 
 static int rna_ColorManagedViewSettings_view_transform_get(PointerRNA *ptr)
@@ -460,7 +466,7 @@ static void rna_ColorManagedViewSettings_view_transform_set(PointerRNA *ptr, int
 }
 
 static EnumPropertyItem *rna_ColorManagedViewSettings_view_transform_itemf(
-        bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+        bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Scene *scene = CTX_data_scene(C);
 	EnumPropertyItem *items = NULL;
@@ -470,7 +476,7 @@ static EnumPropertyItem *rna_ColorManagedViewSettings_view_transform_itemf(
 	IMB_colormanagement_view_items_add(&items, &totitem, display_settings->display_device);
 	RNA_enum_item_end(&items, &totitem);
 
-	*free = TRUE;
+	*r_free = true;
 	return items;
 }
 
@@ -493,7 +499,7 @@ static void rna_ColorManagedViewSettings_look_set(PointerRNA *ptr, int value)
 }
 
 static EnumPropertyItem *rna_ColorManagedViewSettings_look_itemf(
-        bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+        bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *items = NULL;
 	int totitem = 0;
@@ -501,7 +507,7 @@ static EnumPropertyItem *rna_ColorManagedViewSettings_look_itemf(
 	IMB_colormanagement_look_items_add(&items, &totitem);
 	RNA_enum_item_end(&items, &totitem);
 
-	*free = TRUE;
+	*r_free = true;
 	return items;
 }
 
@@ -521,6 +527,12 @@ static void rna_ColorManagedViewSettings_use_curves_set(PointerRNA *ptr, int val
 	}
 }
 
+static char *rna_ColorManagedViewSettings_path(PointerRNA *UNUSED(ptr))
+{
+	return BLI_sprintfN("view_settings");
+}
+
+
 static int rna_ColorManagedColorspaceSettings_colorspace_get(struct PointerRNA *ptr)
 {
 	ColorManagedColorspaceSettings *colorspace = (ColorManagedColorspaceSettings *) ptr->data;
@@ -533,13 +545,13 @@ static void rna_ColorManagedColorspaceSettings_colorspace_set(struct PointerRNA 
 	ColorManagedColorspaceSettings *colorspace = (ColorManagedColorspaceSettings *) ptr->data;
 	const char *name = IMB_colormanagement_colorspace_get_indexed_name(value);
 
-	if (name) {
+	if (name && name[0]) {
 		BLI_strncpy(colorspace->name, name, sizeof(colorspace->name));
 	}
 }
 
 static EnumPropertyItem *rna_ColorManagedColorspaceSettings_colorspace_itemf(
-        bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+        bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *items = NULL;
 	int totitem = 0;
@@ -547,7 +559,7 @@ static EnumPropertyItem *rna_ColorManagedColorspaceSettings_colorspace_itemf(
 	IMB_colormanagement_colorspace_items_add(&items, &totitem);
 	RNA_enum_item_end(&items, &totitem);
 
-	*free = TRUE;
+	*r_free = true;
 
 	return items;
 }
@@ -584,13 +596,13 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *UNUSED(bmain)
 		if (scene->ed) {
 			ColorManagedColorspaceSettings *colorspace_settings = (ColorManagedColorspaceSettings *) ptr->data;
 			Sequence *seq;
-			int seq_found = FALSE;
+			bool seq_found = false;
 
 			if (&scene->sequencer_colorspace_settings != colorspace_settings) {
 				SEQ_BEGIN(scene->ed, seq);
 				{
 					if (seq->strip && &seq->strip->colorspace_settings == colorspace_settings) {
-						seq_found = TRUE;
+						seq_found = true;
 						break;
 					}
 				}
@@ -598,10 +610,24 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *UNUSED(bmain)
 			}
 
 			if (seq_found) {
+				if (seq->anim) {
+					IMB_free_anim(seq->anim);
+					seq->anim = NULL;
+				}
+
 				BKE_sequence_invalidate_cache(scene, seq);
 				BKE_sequencer_preprocessed_cache_cleanup_sequence(seq);
 			}
 			else {
+				SEQ_BEGIN(scene->ed, seq);
+				{
+					if (seq->anim) {
+						IMB_free_anim(seq->anim);
+						seq->anim = NULL;
+					}
+				}
+				SEQ_END;
+
 				BKE_sequencer_cache_cleanup();
 				BKE_sequencer_preprocessed_cache_cleanup();
 			}
@@ -609,6 +635,16 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *UNUSED(bmain)
 			WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, NULL);
 		}
 	}
+}
+
+static char *rna_ColorManagedSequencerColorspaceSettings_path(PointerRNA *UNUSED(ptr))
+{
+	return BLI_sprintfN("sequencer_colorspace_settings");
+}
+
+static char *rna_ColorManagedInputColorspaceSettings_path(PointerRNA *UNUSED(ptr))
+{
+	return BLI_sprintfN("colorspace_settings");
 }
 
 static void rna_ColorManagement_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -880,7 +916,7 @@ static void rna_def_color_ramp(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "ipotype");
 	RNA_def_property_enum_items(prop, prop_interpolation_items);
-	RNA_def_property_ui_text(prop, "Interpolation", "");
+	RNA_def_property_ui_text(prop, "Interpolation", "Set interpolation between color stops");
 	RNA_def_property_update(prop, 0, "rna_ColorRamp_update");
 
 #if 0 /* use len(elements) */
@@ -1011,6 +1047,7 @@ static void rna_def_colormanage(BlenderRNA *brna)
 
 	/* ** Display Settings  **  */
 	srna = RNA_def_struct(brna, "ColorManagedDisplaySettings", NULL);
+	RNA_def_struct_path_func(srna, "rna_ColorManagedDisplaySettings_path");
 	RNA_def_struct_ui_text(srna, "ColorManagedDisplaySettings", "Color management specific to display device");
 
 	prop = RNA_def_property(srna, "display_device", PROP_ENUM, PROP_NONE);
@@ -1023,6 +1060,7 @@ static void rna_def_colormanage(BlenderRNA *brna)
 
 	/* ** View Settings  **  */
 	srna = RNA_def_struct(brna, "ColorManagedViewSettings", NULL);
+	RNA_def_struct_path_func(srna, "rna_ColorManagedViewSettings_path");
 	RNA_def_struct_ui_text(srna, "ColorManagedViewSettings", "Color management settings used for displaying images on the display");
 
 	prop = RNA_def_property(srna, "look", PROP_ENUM, PROP_NONE);
@@ -1068,6 +1106,7 @@ static void rna_def_colormanage(BlenderRNA *brna)
 
 	/* ** Colorspace **  */
 	srna = RNA_def_struct(brna, "ColorManagedInputColorspaceSettings", NULL);
+	RNA_def_struct_path_func(srna, "rna_ColorManagedInputColorspaceSettings_path");
 	RNA_def_struct_ui_text(srna, "ColorManagedInputColorspaceSettings", "Input color space settings");
 
 	prop = RNA_def_property(srna, "name", PROP_ENUM, PROP_NONE);
@@ -1079,7 +1118,9 @@ static void rna_def_colormanage(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Input Color Space", "Color space of the image or movie on disk");
 	RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagedColorspaceSettings_reload_update");
 
+	//
 	srna = RNA_def_struct(brna, "ColorManagedSequencerColorspaceSettings", NULL);
+	RNA_def_struct_path_func(srna, "rna_ColorManagedSequencerColorspaceSettings_path");
 	RNA_def_struct_ui_text(srna, "ColorManagedSequencerColorspaceSettings", "Input color space settings");
 
 	prop = RNA_def_property(srna, "name", PROP_ENUM, PROP_NONE);

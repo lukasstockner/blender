@@ -78,7 +78,7 @@ void ED_operatortypes_gpencil(void);
 /* drawgpencil.c */
 
 void draw_gpencil_2dimage(const struct bContext *C);
-void draw_gpencil_view2d(const struct bContext *C, short onlyv2d);
+void draw_gpencil_view2d(const struct bContext *C, bool onlyv2d);
 void draw_gpencil_view3d(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, bool only3d);
 
 void gpencil_panel_standard_header(const struct bContext *C, struct Panel *pa);
@@ -95,7 +95,7 @@ void  ED_gplayer_frames_select_border(struct bGPDlayer *gpl, float min, float ma
 void  ED_gpencil_select_frames(struct bGPDlayer *gpl, short select_mode);
 void  ED_gpencil_select_frame(struct bGPDlayer *gpl, int selx, short select_mode);
 
-void  ED_gplayer_frames_delete(struct bGPDlayer *gpl);
+bool  ED_gplayer_frames_delete(struct bGPDlayer *gpl);
 void  ED_gplayer_frames_duplicate(struct bGPDlayer *gpl);
 
 void  ED_gplayer_snap_frames(struct bGPDlayer *gpl, struct Scene *scene, short mode);

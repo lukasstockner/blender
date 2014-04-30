@@ -116,8 +116,9 @@ typedef struct Mesh {
 	float rot[3];
 
 	int drawflag;
-	short texflag, pad2[3];
-	short smoothresh, flag;
+	short texflag, flag;
+	float smoothresh;
+	int pad2;
 
 	/* customdata flag, for bevel-weight and crease, which are now optional */
 	char cd_flag, pad;
@@ -139,6 +140,10 @@ typedef struct TFace {
 	char flag, transp;
 	short mode, tile, unwrap;
 } TFace;
+
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison TFace
+#endif
 
 /* **************** MESH ********************* */
 
@@ -164,7 +169,7 @@ typedef struct TFace {
 
 /* me->flag */
 /* #define ME_ISDONE		1 */
-#define ME_DEPRECATED	2
+/* #define ME_DEPRECATED	2 */
 #define ME_TWOSIDED		4
 #define ME_UVEFFECT		8
 #define ME_VCOLEFFECT	16
@@ -207,6 +212,9 @@ typedef struct TFace {
 
 /* draw stats */
 #define ME_DRAW_STATVIS (1 << 17)
+
+/* draw loop normals */
+#define ME_DRAW_LNORMALS (1 << 18)
 
 /* Subsurf Type */
 #define ME_CC_SUBSURF 		0

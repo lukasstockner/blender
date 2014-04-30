@@ -34,16 +34,15 @@ private:
 	MemoryBuffer *m_buffer;
 public:
 	ReadBufferOperation();
-	int isBufferOperation() { return true; }
 	void setMemoryProxy(MemoryProxy *memoryProxy) { this->m_memoryProxy = memoryProxy; }
 	MemoryProxy *getMemoryProxy() { return this->m_memoryProxy; }
 	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
 	
 	void *initializeTileData(rcti *rect);
-	void executePixel(float output[4], float x, float y, PixelSampler sampler);
+	void executePixelSampled(float output[4], float x, float y, PixelSampler sampler);
 	void executePixelExtend(float output[4], float x, float y, PixelSampler sampler,
 	                        MemoryBufferExtend extend_x, MemoryBufferExtend extend_y);
-	void executePixel(float output[4], float x, float y, float dx, float dy, PixelSampler sampler);
+	void executePixelFiltered(float output[4], float x, float y, float dx[2], float dy[2], PixelSampler sampler);
 	const bool isReadBufferOperation() const { return true; }
 	void setOffset(unsigned int offset) { this->m_offset = offset; }
 	unsigned int getOffset() const { return this->m_offset; }

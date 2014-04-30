@@ -239,6 +239,7 @@ void rna_TextureSlot_brush_update(struct Main *bmain, struct Scene *scene, struc
 int rna_Armature_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Camera_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Curve_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
+int rna_Lamp_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Lattice_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 int rna_Mesh_object_poll(struct PointerRNA *ptr, struct PointerRNA value);
 
@@ -255,8 +256,10 @@ void RNA_api_action(StructRNA *srna);
 void RNA_api_armature_edit_bone(StructRNA *srna);
 void RNA_api_bone(StructRNA *srna);
 void RNA_api_camera(StructRNA *srna);
+void RNA_api_curve(StructRNA *srna);
 void RNA_api_drivers(StructRNA *srna);
 void RNA_api_image(struct StructRNA *srna);
+void RNA_api_lattice(struct StructRNA *srna);
 void RNA_api_operator(struct StructRNA *srna);
 void RNA_api_macro(struct StructRNA *srna);
 void RNA_api_keyconfig(struct StructRNA *srna);
@@ -281,6 +284,8 @@ void RNA_api_text(struct StructRNA *srna);
 void RNA_api_ui_layout(struct StructRNA *srna);
 void RNA_api_window(struct StructRNA *srna);
 void RNA_api_wm(struct StructRNA *srna);
+void RNA_api_space_node(struct StructRNA *srna);
+void RNA_api_region_view3d(struct StructRNA *srna);
 void RNA_api_sensor(struct StructRNA *srna);
 void RNA_api_controller(struct StructRNA *srna);
 void RNA_api_actuator(struct StructRNA *srna);
@@ -350,37 +355,14 @@ int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Point
 
 /* Iterators */
 
-typedef int (*IteratorSkipFunc)(struct CollectionPropertyIterator *iter, void *data);
-
-typedef struct ListBaseIterator {
-	Link *link;
-	int flag;
-	IteratorSkipFunc skip;
-} ListBaseIterator;
-
 void rna_iterator_listbase_begin(struct CollectionPropertyIterator *iter, struct ListBase *lb, IteratorSkipFunc skip);
 void rna_iterator_listbase_next(struct CollectionPropertyIterator *iter);
 void *rna_iterator_listbase_get(struct CollectionPropertyIterator *iter);
 void rna_iterator_listbase_end(struct CollectionPropertyIterator *iter);
 PointerRNA rna_listbase_lookup_int(PointerRNA *ptr, StructRNA *type, struct ListBase *lb, int index);
 
-typedef struct ArrayIterator {
-	char *ptr;
-	char *endptr;  /* past the last valid pointer, only for comparisons, ignores skipped values */
-	void *free_ptr; /* will be freed if set */
-	int itemsize;
-
-	/* array length with no skip functions applied, take care not to compare against index from animsys
-	 * or python indices */
-	int length;
-
-	/* optional skip function, when set the array as viewed by rna can contain only a subset of the members.
-	 * this changes indices so quick array index lookups are not possible when skip function is used. */
-	IteratorSkipFunc skip;
-} ArrayIterator;
-
 void rna_iterator_array_begin(struct CollectionPropertyIterator *iter, void *ptr, int itemsize, int length,
-                              int free_ptr, IteratorSkipFunc skip);
+                              bool free_ptr, IteratorSkipFunc skip);
 void rna_iterator_array_next(struct CollectionPropertyIterator *iter);
 void *rna_iterator_array_get(struct CollectionPropertyIterator *iter);
 void *rna_iterator_array_dereference_get(struct CollectionPropertyIterator *iter);

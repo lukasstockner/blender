@@ -60,6 +60,7 @@ EnumPropertyItem property_subtype_items[] = {
 	{PROP_PASSWORD, "PASSWORD", 0, "Password", "A string that is displayed hidden ('********')"},
 
 	/* numbers */
+	{PROP_PIXEL, "PIXEL", 0, "Pixel", ""},
 	{PROP_UNSIGNED, "UNSIGNED", 0, "Unsigned", ""},
 	{PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", ""},
 	{PROP_FACTOR, "FACTOR", 0, "Factor", ""},
@@ -252,7 +253,7 @@ static void rna_inheritance_functions_listbase_next(CollectionPropertyIterator *
 
 static void rna_Struct_properties_next(CollectionPropertyIterator *iter)
 {
-	ListBaseIterator *internal = iter->internal;
+	ListBaseIterator *internal = &iter->internal.listbase;
 	IDProperty *group;
 
 	if (internal->flag) {
@@ -270,7 +271,7 @@ static void rna_Struct_properties_next(CollectionPropertyIterator *iter)
 			if (group) {
 				rna_iterator_listbase_end(iter);
 				rna_iterator_listbase_begin(iter, &group->data.group, rna_idproperty_known);
-				internal = iter->internal;
+				internal = &iter->internal.listbase;
 				internal->flag = 1;
 			}
 		}
@@ -294,7 +295,7 @@ static void rna_Struct_properties_begin(CollectionPropertyIterator *iter, Pointe
 
 static PointerRNA rna_Struct_properties_get(CollectionPropertyIterator *iter)
 {
-	ListBaseIterator *internal = iter->internal;
+	ListBaseIterator *internal = &iter->internal.listbase;
 
 	/* we return either PropertyRNA* or IDProperty*, the rna_access.c
 	 * functions can handle both as PropertyRNA* with some tricks */
@@ -323,7 +324,7 @@ static void rna_Struct_functions_begin(CollectionPropertyIterator *iter, Pointer
 
 static PointerRNA rna_Struct_functions_get(CollectionPropertyIterator *iter)
 {
-	ListBaseIterator *internal = iter->internal;
+	ListBaseIterator *internal = &iter->internal.listbase;
 
 	/* we return either PropertyRNA* or IDProperty*, the rna_access.c
 	 * functions can handle both as PropertyRNA* with some tricks */
@@ -380,7 +381,7 @@ int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Point
 				propptr.data = prop;
 
 				*r_ptr = propptr;
-				return TRUE;
+				return true;
 			}
 		}
 		else {
@@ -390,7 +391,7 @@ int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Point
 					propptr.data = prop;
 
 					*r_ptr = propptr;
-					return TRUE;
+					return true;
 				}
 			}
 		}
@@ -412,13 +413,13 @@ int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Point
 					propptr.data = idp;
 
 					*r_ptr = propptr;
-					return TRUE;
+					return true;
 				}
 			}
 		}
 	}
 #endif
-	return FALSE;
+	return false;
 }
 
 PointerRNA rna_builtin_type_get(PointerRNA *ptr)
@@ -464,14 +465,14 @@ static void rna_Property_name_get(PointerRNA *ptr, char *value)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
 	rna_idproperty_check(&prop, ptr);
-	strcpy(value, prop->name);
+	strcpy(value, prop->name ? prop->name : "");
 }
 
 static int rna_Property_name_length(PointerRNA *ptr)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
 	rna_idproperty_check(&prop, ptr);
-	return strlen(prop->name);
+	return prop->name ? strlen(prop->name) : 0;
 }
 
 static void rna_Property_description_get(PointerRNA *ptr, char *value)
@@ -802,7 +803,7 @@ static int rna_StringProperty_max_length_get(PointerRNA *ptr)
 }
 
 static EnumPropertyItem *rna_EnumProperty_default_itemf(bContext *C, PointerRNA *ptr,
-                                                        PropertyRNA *prop_parent, int *free)
+                                                        PropertyRNA *prop_parent, bool *r_free)
 {
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
 	EnumPropertyRNA *eprop;
@@ -820,10 +821,12 @@ static EnumPropertyItem *rna_EnumProperty_default_itemf(bContext *C, PointerRNA 
 	    (ptr->type == &RNA_EnumProperty) ||
 	    (C == NULL))
 	{
-		return eprop->item;
+		if (eprop->item) {
+			return eprop->item;
+		}
 	}
 
-	return eprop->itemf(C, ptr, prop, free);
+	return eprop->itemf(C, ptr, prop, r_free);
 }
 
 /* XXX - not sure this is needed? */
@@ -846,7 +849,8 @@ static void rna_EnumProperty_items_begin(CollectionPropertyIterator *iter, Point
 	PropertyRNA *prop = (PropertyRNA *)ptr->data;
 	/* EnumPropertyRNA *eprop;  *//* UNUSED */
 	EnumPropertyItem *item = NULL;
-	int totitem, free = 0;
+	int totitem;
+	bool free;
 	
 	rna_idproperty_check(&prop, ptr);
 	/* eprop = (EnumPropertyRNA *)prop; */
@@ -988,10 +992,10 @@ static int rna_BlenderRNA_structs_lookup_int(PointerRNA *ptr, int index, Pointer
 
 	if (srna) {
 		RNA_pointer_create(NULL, &RNA_Struct, srna, r_ptr);
-		return TRUE;
+		return true;
 	}
 	else {
-		return FALSE;
+		return false;
 	}
 }
 static int rna_BlenderRNA_structs_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
@@ -1000,11 +1004,11 @@ static int rna_BlenderRNA_structs_lookup_string(PointerRNA *ptr, const char *key
 	for (; srna; srna = srna->cont.next) {
 		if (key[0] == srna->identifier[0] && strcmp(key, srna->identifier) == 0) {
 			RNA_pointer_create(NULL, &RNA_Struct, srna, r_ptr);
-			return TRUE;
+			return true;
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 
@@ -1084,7 +1088,8 @@ static void rna_def_property(BlenderRNA *brna)
 	static EnumPropertyItem subtype_items[] = {
 		{PROP_NONE, "NONE", 0, "None", ""},
 		{PROP_FILEPATH, "FILE_PATH", 0, "File Path", ""},
-		{PROP_DIRPATH, "DIRECTORY_PATH", 0, "Directory Path", ""},
+		{PROP_DIRPATH, "DIR_PATH", 0, "Directory Path", ""},
+		{PROP_PIXEL, "PIXEL", 0, "Pixel", ""},
 		{PROP_UNSIGNED, "UNSIGNED", 0, "Unsigned Number", ""},
 		{PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", ""},
 		{PROP_FACTOR, "FACTOR", 0, "Factor", ""},
