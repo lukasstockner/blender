@@ -2565,6 +2565,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 	int vertDataSize = ss->meshIFC.vertDataSize;
 	int S;
 
+#pragma omp parallel for
 	for (S = 0; S < face->numVerts; S++) {
 		int x, y, k;
 		CCGEdge *edge = NULL;
@@ -2663,6 +2664,7 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 	int S;
 
 	/* Evaluate face grids. */
+#pragma omp parallel for
 	for (S = 0; S < face->numVerts; S++) {
 		int x, y;
 		for (x = 0; x < gridSize; x++) {
