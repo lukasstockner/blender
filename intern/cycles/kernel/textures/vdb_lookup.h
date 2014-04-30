@@ -154,8 +154,8 @@ typename GridType::ValueType VDBAccessor::vdb_lookup_single_point(float x, float
 {
     typename GridType::Ptr grid = openvdb::gridPtrCast<GridType>(getGridPtr());
     typename GridType::Accessor acc = grid->getAccessor();
-    
-    openvdb::tools::GridSampler<openvdb::tree::ValueAccessor<typename GridType::TreeType>, openvdb::tools::PointSampler> sampler(acc);
+    // needs to be checked.
+    openvdb::tools::GridSampler<typename GridType::TreeType, openvdb::tools::PointSampler> sampler(*grid.get());
     openvdb::Vec3d p(x, y, z);
 
     return sampler.wsSample(p);

@@ -77,7 +77,7 @@ CountOn(Index32 v)
 {
     v = v - ((v >> 1) & 0x55555555U);
     v = (v & 0x33333333U) + ((v >> 2) & 0x33333333U);
-    return ((v + (v >> 4) & 0xF0F0F0FU) * 0x1010101U) >> 24;
+    return (((v + (v >> 4)) & 0xF0F0F0FU) * 0x1010101U) >> 24;
 }
 
 /// Return the number of off bits in the given 32-bit value.
@@ -89,7 +89,7 @@ CountOn(Index64 v)
 {
     v = v - ((v >> 1) & UINT64_C(0x5555555555555555));
     v = (v & UINT64_C(0x3333333333333333)) + ((v >> 2) & UINT64_C(0x3333333333333333));
-    return ((v + (v >> 4) & UINT64_C(0xF0F0F0F0F0F0F0F)) * UINT64_C(0x101010101010101)) >> 56;
+    return (((v + (v >> 4)) & UINT64_C(0xF0F0F0F0F0F0F0F)) * UINT64_C(0x101010101010101)) >> 56;
 }
 
 /// Return the number of off bits in the given 64-bit value.
@@ -168,10 +168,9 @@ public:
     bool operator==(const BaseMaskIterator &iter) const {return mPos == iter.mPos;}
     bool operator!=(const BaseMaskIterator &iter) const {return mPos != iter.mPos;}
     bool operator< (const BaseMaskIterator &iter) const {return mPos <  iter.mPos;}
-    void operator= (const BaseMaskIterator  &iter)
+    BaseMaskIterator& operator=(const BaseMaskIterator& iter)
     {
-        mPos    = iter.mPos;
-        mParent = iter.mParent;
+        mPos = iter.mPos; mParent = iter.mParent; return *this;
     }
     Index32 offset() const {return mPos;}
     Index32 pos() const {return mPos;}
@@ -318,11 +317,12 @@ public:
     /// Destructor
     ~NodeMask() {}
     /// Assignment operator
-    void operator = (const NodeMask &other)
+    NodeMask& operator=(const NodeMask& other)
     {
         Index32 n = WORD_COUNT;
         const Word* w2 = other.mWords;
-        for ( Word* w1 = mWords; n--; ++w1, ++w2) *w1 = *w2;
+        for (Word* w1 = mWords; n--; ++w1, ++w2) *w1 = *w2;
+        return *this;
     }
 
     typedef OnMaskIterator<NodeMask>    OnIterator;
@@ -375,8 +375,6 @@ public:
     NodeMask operator^(const NodeMask& other) const { NodeMask m(*this); m ^= other; return m; }
     /// Return the byte size of this NodeMask
     static Index32 memUsage() { return WORD_COUNT*sizeof(Word); }
-    /// Return the byte size of this NodeMask
-    OPENVDB_DEPRECATED Index32 getMemUsage() const {return sizeof(*this);}
     /// Return the total number of on bits
     Index32 countOn() const
     {
@@ -613,8 +611,6 @@ public:
     NodeMask operator^(const NodeMask& other) const { NodeMask m(*this); m ^= other; return m; }
     /// Return the byte size of this NodeMask
     static Index32 memUsage() { return 1; }
-    /// Return the byte size of this NodeMask
-    OPENVDB_DEPRECATED Index32 getMemUsage() const {return sizeof(*this);}
     /// Return the total number of on bits
     Index32 countOn() const { return CountOn(mByte); }
     ///  Return the total number of on bits
@@ -796,8 +792,6 @@ public:
     NodeMask operator^(const NodeMask& other) const { NodeMask m(*this); m ^= other; return m; }
     /// Return the byte size of this NodeMask
     static Index32 memUsage() { return 8; }
-    /// Return the byte size of this NodeMask
-    OPENVDB_DEPRECATED Index32 getMemUsage() const {return sizeof(*this);}
     /// Return the total number of on bits
     Index32 countOn() const { return CountOn(mWord); }
     ///  Return the total number of on bits
@@ -946,7 +940,7 @@ public:
 
     Index getIntSize() const {return mIntSize;}
 
-    void operator = (const RootNodeMask &B) {
+    RootNodeMask& operator=(const RootNodeMask& B) {
         if (mBitSize!=B.mBitSize) {
             mBitSize=B.mBitSize;
             mIntSize=B.mIntSize;
@@ -954,6 +948,7 @@ public:
             mBits = new Index32[mIntSize];
         }
         for (Index32 i=0; i<mIntSize; ++i) mBits[i]=B.mBits[i];
+        return *this;
     }
 
     class BaseIterator
@@ -971,10 +966,11 @@ public:
         bool operator==(const BaseIterator &iter) const {return mPos == iter.mPos;}
         bool operator!=(const BaseIterator &iter) const {return mPos != iter.mPos;}
         bool operator< (const BaseIterator &iter) const {return mPos <  iter.mPos;}
-        void operator=(const BaseIterator  &iter) {
+        BaseIterator& operator=(const BaseIterator& iter) {
             mPos      = iter.mPos;
             mBitSize  = iter.mBitSize;
             mParent   = iter.mParent;
+            return *this;
         }
 
         Index32 offset() const {return mPos;}

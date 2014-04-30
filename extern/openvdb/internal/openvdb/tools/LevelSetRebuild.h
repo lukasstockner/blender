@@ -235,7 +235,7 @@ doLevelSetRebuild(const GridType& grid, typename GridType::ValueType iso,
         exBandWidth = float(exWidth),
         inBandWidth = float(inWidth);
 
-    tools::VolumeToMesh mesher(isovalue, 0.0005);
+    tools::VolumeToMesh mesher(isovalue);
     mesher(grid);
 
     math::Transform::Ptr transform = (xform != NULL) ? xform->copy() : grid.transform().copy();
@@ -268,8 +268,9 @@ doLevelSetRebuild(const GridType& grid, typename GridType::ValueType iso,
         primCpy.runParallel();
     }
 
-    MeshToVolume<GridType, InterruptT> vol(transform, 0, interrupter);
+    MeshToVolume<GridType, InterruptT> vol(transform, OUTPUT_RAW_DATA, interrupter);
     vol.convertToLevelSet(points, primitives, exBandWidth, inBandWidth);
+
     return vol.distGridPtr();
 }
 

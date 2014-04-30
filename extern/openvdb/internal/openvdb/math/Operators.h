@@ -290,9 +290,6 @@ struct ISGradientNormSqrd<HJWENO5_BIAS>
     static typename Accessor::ValueType
     result(const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType     ValueType;
-        typedef math::Vec3<ValueType>            Vec3Type;
-
         // SSE optimized
         const simd::Float4
             v1(grid.getValue(ijk.offsetBy(-2, 0, 0)) - grid.getValue(ijk.offsetBy(-3, 0, 0)),
@@ -324,9 +321,6 @@ struct ISGradientNormSqrd<HJWENO5_BIAS>
     static typename StencilT::ValueType
     result(const StencilT& s)
     {
-        typedef typename StencilT::ValueType      ValueType;
-        typedef math::Vec3<ValueType>            Vec3Type;
-
         // SSE optimized
         const simd::Float4
             v1(s.template getValue<-2, 0, 0>() - s.template getValue<-3, 0, 0>(),
@@ -539,67 +533,85 @@ struct ISCurl
 template<DDScheme DiffScheme2, DScheme DiffScheme1>
 struct ISMeanCurvature
 {
-    // random access version
+    /// @brief random access version
+    /// @return true if the gradient is none-zero, in which case the
+    /// mean curvature is computed as two parts: @c alpha is the numerator in
+    /// @f$\nabla \cdot (\nabla \phi / |\nabla \phi|)@f$, and @c beta is @f$|\nabla \phi|@f$.
     template<typename Accessor>
-    static void result(const Accessor& grid, const Coord& ijk,
+    static bool result(const Accessor& grid, const Coord& ijk,
                        typename Accessor::ValueType& alpha,
                        typename Accessor::ValueType& beta)
     {
         typedef typename Accessor::ValueType ValueType;
 
-        ValueType Dx = D1<DiffScheme1>::inX(grid, ijk);
-        ValueType Dy = D1<DiffScheme1>::inY(grid, ijk);
-        ValueType Dz = D1<DiffScheme1>::inZ(grid, ijk);
+        const ValueType Dx = D1<DiffScheme1>::inX(grid, ijk);
+        const ValueType Dy = D1<DiffScheme1>::inY(grid, ijk);
+        const ValueType Dz = D1<DiffScheme1>::inZ(grid, ijk);
 
-        ValueType Dx2 = Dx*Dx;
-        ValueType Dy2 = Dy*Dy;
-        ValueType Dz2 = Dz*Dz;
+        const ValueType Dx2 = Dx*Dx;
+        const ValueType Dy2 = Dy*Dy;
+        const ValueType Dz2 = Dz*Dz;
+        const ValueType normGrad = Dx2 + Dy2 + Dz2;
+        if (normGrad <= math::Tolerance<ValueType>::value()) {
+            alpha = beta = 0;
+            return false;
+        }
 
-        ValueType Dxx = D2<DiffScheme2>::inX(grid, ijk);
-        ValueType Dyy = D2<DiffScheme2>::inY(grid, ijk);
-        ValueType Dzz = D2<DiffScheme2>::inZ(grid, ijk);
+        const ValueType Dxx = D2<DiffScheme2>::inX(grid, ijk);
+        const ValueType Dyy = D2<DiffScheme2>::inY(grid, ijk);
+        const ValueType Dzz = D2<DiffScheme2>::inZ(grid, ijk);
 
-        ValueType Dxy = D2<DiffScheme2>::inXandY(grid, ijk);
-        ValueType Dyz = D2<DiffScheme2>::inYandZ(grid, ijk);
-        ValueType Dxz = D2<DiffScheme2>::inXandZ(grid, ijk);
+        const ValueType Dxy = D2<DiffScheme2>::inXandY(grid, ijk);
+        const ValueType Dyz = D2<DiffScheme2>::inYandZ(grid, ijk);
+        const ValueType Dxz = D2<DiffScheme2>::inXandZ(grid, ijk);
 
         // for return
         alpha = (Dx2*(Dyy+Dzz)+Dy2*(Dxx+Dzz)+Dz2*(Dxx+Dyy)-2*(Dx*(Dy*Dxy+Dz*Dxz)+Dy*Dz*Dyz));
-        beta  = ValueType(std::sqrt(double(Dx2 + Dy2 + Dz2))); // * 1/dx
+        beta  = ValueType(std::sqrt(double(normGrad))); // * 1/dx
+        return true;
     }
 
-    // stencil access version
+    /// @brief stencil access version
+    /// @return true if the gradient is none-zero, in which case the
+    /// mean curvature is computed as two parts: @c alpha is the numerator in
+    /// @f$\nabla \cdot (\nabla \phi / |\nabla \phi|)@f$, and @c beta is @f$|\nabla \phi|@f$.
     template<typename StencilT>
-    static void result(const StencilT& stencil,
+    static bool result(const StencilT& stencil,
                        typename StencilT::ValueType& alpha,
                        typename StencilT::ValueType& beta)
     {
         typedef typename StencilT::ValueType   ValueType;
-        ValueType Dx = D1<DiffScheme1>::inX(stencil);
-        ValueType Dy = D1<DiffScheme1>::inY(stencil);
-        ValueType Dz = D1<DiffScheme1>::inZ(stencil);
+        const ValueType Dx = D1<DiffScheme1>::inX(stencil);
+        const ValueType Dy = D1<DiffScheme1>::inY(stencil);
+        const ValueType Dz = D1<DiffScheme1>::inZ(stencil);
 
-        ValueType Dx2 = Dx*Dx;
-        ValueType Dy2 = Dy*Dy;
-        ValueType Dz2 = Dz*Dz;
+        const ValueType Dx2 = Dx*Dx;
+        const ValueType Dy2 = Dy*Dy;
+        const ValueType Dz2 = Dz*Dz;
+        const ValueType normGrad = Dx2 + Dy2 + Dz2;
+        if (normGrad <= math::Tolerance<ValueType>::value()) {
+            alpha = beta = 0;
+            return false;
+        }
 
-        ValueType Dxx = D2<DiffScheme2>::inX(stencil);
-        ValueType Dyy = D2<DiffScheme2>::inY(stencil);
-        ValueType Dzz = D2<DiffScheme2>::inZ(stencil);
+        const ValueType Dxx = D2<DiffScheme2>::inX(stencil);
+        const ValueType Dyy = D2<DiffScheme2>::inY(stencil);
+        const ValueType Dzz = D2<DiffScheme2>::inZ(stencil);
 
-        ValueType Dxy = D2<DiffScheme2>::inXandY(stencil);
-        ValueType Dyz = D2<DiffScheme2>::inYandZ(stencil);
-        ValueType Dxz = D2<DiffScheme2>::inXandZ(stencil);
+        const ValueType Dxy = D2<DiffScheme2>::inXandY(stencil);
+        const ValueType Dyz = D2<DiffScheme2>::inYandZ(stencil);
+        const ValueType Dxz = D2<DiffScheme2>::inXandZ(stencil);
 
         // for return
         alpha = (Dx2*(Dyy+Dzz)+Dy2*(Dxx+Dzz)+Dz2*(Dxx+Dyy)-2*(Dx*(Dy*Dxy+Dz*Dxz)+Dy*Dz*Dyz));
-        beta = ValueType(std::sqrt(double(Dx2 + Dy2 + Dz2))); // * 1/dx
+        beta = ValueType(std::sqrt(double(normGrad))); // * 1/dx
+        return true;
     }
 };
 
+////////////////////////////////////////////////////////
 
 // --- Operators defined in the Range of a given map
-
 
 //@{
 /// @brief Center difference gradient operators, defined with respect to
@@ -631,7 +643,7 @@ struct Gradient
     }
 };
 
-
+// Partial template specialization of Gradient
 // translation, any order
 template<DScheme DiffScheme>
 struct Gradient<TranslationMap, DiffScheme>
@@ -653,8 +665,8 @@ struct Gradient<TranslationMap, DiffScheme>
     }
 };
 
-
-// uniform scale, 2nd order
+/// Full template specialization of Gradient
+/// uniform scale, 2nd order
 template<>
 struct Gradient<UniformScaleMap, CD_2ND>
 {
@@ -685,8 +697,8 @@ struct Gradient<UniformScaleMap, CD_2ND>
     }
 };
 
-
-// uniform scale translate, 2nd order
+/// Full template specialization of Gradient
+/// uniform scale translate, 2nd order
 template<>
 struct Gradient<UniformScaleTranslateMap, CD_2ND>
 {
@@ -717,8 +729,8 @@ struct Gradient<UniformScaleTranslateMap, CD_2ND>
     }
 };
 
-
-// scale, 2nd order
+/// Full template specialization of Gradient
+/// scale, 2nd order
 template<>
 struct Gradient<ScaleMap, CD_2ND>
 {
@@ -751,8 +763,8 @@ struct Gradient<ScaleMap, CD_2ND>
     }
 };
 
-
-// scale translate, 2nd order
+/// Full template specialization of Gradient
+/// scale translate, 2nd order
 template<>
 struct Gradient<ScaleTranslateMap, CD_2ND>
 {
@@ -820,6 +832,9 @@ struct GradientBiased
 //@}
 
 
+////////////////////////////////////////////////////////
+
+// Computes |Grad[Phi]| using upwinding
 template<typename MapType, BiasedGradientScheme GradScheme>
 struct GradientNormSqrd
 {
@@ -845,7 +860,7 @@ struct GradientNormSqrd
     static typename StencilT::ValueType
     result(const MapType& map, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType      ValueType;
+        typedef typename StencilT::ValueType     ValueType;
         typedef math::Vec3<ValueType>            Vec3Type;
 
         Vec3Type up   = Gradient<MapType, FD>::result(map, stencil);
@@ -854,7 +869,7 @@ struct GradientNormSqrd
     }
 };
 
-
+/// Partial template specialization of GradientNormSqrd
 template<BiasedGradientScheme GradScheme>
 struct GradientNormSqrd<UniformScaleMap, GradScheme>
 {
@@ -881,6 +896,7 @@ struct GradientNormSqrd<UniformScaleMap, GradScheme>
     }
 };
 
+/// Partial template specialization of GradientNormSqrd
 template<BiasedGradientScheme GradScheme>
 struct GradientNormSqrd<UniformScaleTranslateMap, GradScheme>
 {
@@ -918,7 +934,6 @@ struct Divergence
     template<typename Accessor> static typename Accessor::ValueType::value_type
     result(const MapType& map, const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType             Vec3Type;
         typedef typename Accessor::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -935,7 +950,6 @@ struct Divergence
     template<typename StencilT> static typename StencilT::ValueType::value_type
     result(const MapType& map, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType             Vec3Type;
         typedef typename StencilT::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -949,8 +963,8 @@ struct Divergence
     }
 };
 
-
-// translation, any scheme
+/// Partial template specialization of Divergence
+/// translation, any scheme
 template<DScheme DiffScheme>
 struct Divergence<TranslationMap, DiffScheme>
 {
@@ -958,7 +972,6 @@ struct Divergence<TranslationMap, DiffScheme>
     template<typename Accessor> static typename Accessor::ValueType::value_type
     result(const TranslationMap&, const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType             Vec3Type;
         typedef typename Accessor::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -970,7 +983,6 @@ struct Divergence<TranslationMap, DiffScheme>
     template<typename StencilT> static typename StencilT::ValueType::value_type
     result(const TranslationMap&, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType             Vec3Type;
         typedef typename StencilT::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -979,8 +991,8 @@ struct Divergence<TranslationMap, DiffScheme>
     }
 };
 
-
-// uniform scale, any scheme
+/// Partial template specialization of Divergence
+/// uniform scale, any scheme
 template<DScheme DiffScheme>
 struct Divergence<UniformScaleMap, DiffScheme>
 {
@@ -988,7 +1000,6 @@ struct Divergence<UniformScaleMap, DiffScheme>
     template<typename Accessor> static typename Accessor::ValueType::value_type
     result(const UniformScaleMap& map, const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType             Vec3Type;
         typedef typename Accessor::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -1002,7 +1013,6 @@ struct Divergence<UniformScaleMap, DiffScheme>
     template<typename StencilT> static typename StencilT::ValueType::value_type
     result(const UniformScaleMap& map, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType             Vec3Type;
         typedef typename StencilT::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -1013,8 +1023,8 @@ struct Divergence<UniformScaleMap, DiffScheme>
     }
 };
 
-
-// uniform scale and translation, any scheme
+/// Partial template specialization of Divergence
+/// uniform scale and translation, any scheme
 template<DScheme DiffScheme>
 struct Divergence<UniformScaleTranslateMap, DiffScheme>
 {
@@ -1022,7 +1032,6 @@ struct Divergence<UniformScaleTranslateMap, DiffScheme>
     template<typename Accessor> static typename Accessor::ValueType::value_type
     result(const UniformScaleTranslateMap& map, const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType             Vec3Type;
         typedef typename Accessor::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -1036,7 +1045,6 @@ struct Divergence<UniformScaleTranslateMap, DiffScheme>
     template<typename StencilT> static typename StencilT::ValueType::value_type
     result(const UniformScaleTranslateMap& map, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType             Vec3Type;
         typedef typename StencilT::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -1047,8 +1055,8 @@ struct Divergence<UniformScaleTranslateMap, DiffScheme>
     }
 };
 
-
-// uniform scale 2nd order
+/// Full template specialization of Divergence
+/// uniform scale 2nd order
 template<>
 struct Divergence<UniformScaleMap, CD_2ND>
 {
@@ -1056,7 +1064,6 @@ struct Divergence<UniformScaleMap, CD_2ND>
     template<typename Accessor> static typename Accessor::ValueType::value_type
     result(const UniformScaleMap& map, const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType             Vec3Type;
         typedef typename Accessor::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -1069,7 +1076,6 @@ struct Divergence<UniformScaleMap, CD_2ND>
     template<typename StencilT> static typename StencilT::ValueType::value_type
     result(const UniformScaleMap& map, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType             Vec3Type;
         typedef typename StencilT::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -1079,8 +1085,8 @@ struct Divergence<UniformScaleMap, CD_2ND>
     }
 };
 
-
-// uniform scale translate 2nd order
+/// Full template specialization of Divergence
+/// uniform scale translate 2nd order
 template<>
 struct Divergence<UniformScaleTranslateMap, CD_2ND>
 {
@@ -1088,7 +1094,6 @@ struct Divergence<UniformScaleTranslateMap, CD_2ND>
     template<typename Accessor> static typename Accessor::ValueType::value_type
     result(const UniformScaleTranslateMap& map, const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType             Vec3Type;
         typedef typename Accessor::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -1102,7 +1107,6 @@ struct Divergence<UniformScaleTranslateMap, CD_2ND>
     template<typename StencilT> static typename StencilT::ValueType::value_type
     result(const UniformScaleTranslateMap& map, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType             Vec3Type;
         typedef typename StencilT::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -1113,8 +1117,8 @@ struct Divergence<UniformScaleTranslateMap, CD_2ND>
     }
 };
 
-
-// scale, any scheme
+/// Partial template specialization of Divergence
+/// scale, any scheme
 template<DScheme DiffScheme>
 struct Divergence<ScaleMap, DiffScheme>
 {
@@ -1122,7 +1126,6 @@ struct Divergence<ScaleMap, DiffScheme>
     template<typename Accessor> static typename Accessor::ValueType::value_type
     result(const ScaleMap& map, const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType             Vec3Type;
         typedef typename Accessor::ValueType::value_type ValueType;
 
         ValueType div = ValueType(
@@ -1136,7 +1139,6 @@ struct Divergence<ScaleMap, DiffScheme>
     template<typename StencilT> static typename StencilT::ValueType::value_type
     result(const ScaleMap& map, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType             Vec3Type;
         typedef typename StencilT::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -1148,8 +1150,8 @@ struct Divergence<ScaleMap, DiffScheme>
     }
 };
 
-
-// scale translate, any scheme
+/// Partial template specialization of Divergence
+/// scale translate, any scheme
 template<DScheme DiffScheme>
 struct Divergence<ScaleTranslateMap, DiffScheme>
 {
@@ -1157,7 +1159,6 @@ struct Divergence<ScaleTranslateMap, DiffScheme>
     template<typename Accessor> static typename Accessor::ValueType::value_type
     result(const ScaleTranslateMap& map, const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType             Vec3Type;
         typedef typename Accessor::ValueType::value_type ValueType;
 
         ValueType div = ValueType(
@@ -1171,7 +1172,6 @@ struct Divergence<ScaleTranslateMap, DiffScheme>
     template<typename StencilT> static typename StencilT::ValueType::value_type
     result(const ScaleTranslateMap& map, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType             Vec3Type;
         typedef typename StencilT::ValueType::value_type ValueType;
 
         ValueType div(0);
@@ -1183,8 +1183,8 @@ struct Divergence<ScaleTranslateMap, DiffScheme>
     }
 };
 
-
-// scale 2nd order
+/// Full template specialization Divergence
+/// scale 2nd order
 template<>
 struct Divergence<ScaleMap, CD_2ND>
 {
@@ -1192,7 +1192,6 @@ struct Divergence<ScaleMap, CD_2ND>
     template<typename Accessor> static typename Accessor::ValueType::value_type
     result(const ScaleMap& map, const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType             Vec3Type;
         typedef typename Accessor::ValueType::value_type ValueType;
 
         ValueType div = ValueType(
@@ -1206,7 +1205,6 @@ struct Divergence<ScaleMap, CD_2ND>
     template<typename StencilT> static typename StencilT::ValueType::value_type
     result(const ScaleMap& map, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType             Vec3Type;
         typedef typename StencilT::ValueType::value_type ValueType;
 
         ValueType div = ValueType(
@@ -1217,8 +1215,8 @@ struct Divergence<ScaleMap, CD_2ND>
     }
 };
 
-
-// scale and translate, 2nd order
+/// Full template specialization of Divergence
+/// scale and translate, 2nd order
 template<>
 struct Divergence<ScaleTranslateMap, CD_2ND>
 {
@@ -1226,7 +1224,6 @@ struct Divergence<ScaleTranslateMap, CD_2ND>
     template<typename Accessor> static typename Accessor::ValueType::value_type
     result(const ScaleTranslateMap& map, const Accessor& grid, const Coord& ijk)
     {
-        typedef typename Accessor::ValueType             Vec3Type;
         typedef typename Accessor::ValueType::value_type ValueType;
 
         ValueType div = ValueType(
@@ -1240,7 +1237,6 @@ struct Divergence<ScaleTranslateMap, CD_2ND>
     template<typename StencilT> static typename StencilT::ValueType::value_type
     result(const ScaleTranslateMap& map, const StencilT& stencil)
     {
-        typedef typename StencilT::ValueType             Vec3Type;
         typedef typename StencilT::ValueType::value_type ValueType;
 
         ValueType div = ValueType(
@@ -1298,7 +1294,7 @@ struct Curl
     }
 };
 
-
+/// Partial template specialization of Curl
 template<DScheme DiffScheme>
 struct Curl<UniformScaleMap, DiffScheme>
 {
@@ -1321,7 +1317,7 @@ struct Curl<UniformScaleMap, DiffScheme>
      }
 };
 
-
+/// Partial template specialization of Curl
 template<DScheme DiffScheme>
 struct Curl<UniformScaleTranslateMap, DiffScheme>
 {
@@ -1346,6 +1342,7 @@ struct Curl<UniformScaleTranslateMap, DiffScheme>
     }
 };
 
+/// Full template specialization of Curl
 template<>
 struct Curl<UniformScaleMap, CD_2ND>
 {
@@ -1370,6 +1367,7 @@ struct Curl<UniformScaleMap, CD_2ND>
     }
 };
 
+/// Full template specialization of Curl
 template<>
 struct Curl<UniformScaleTranslateMap, CD_2ND>
 {
@@ -1731,18 +1729,33 @@ struct CPT_RANGE
 template<typename MapType, DDScheme DiffScheme2, DScheme DiffScheme1>
 struct MeanCurvature
 {
-    // random access version
+    /// @brief random access version
+    /// @return true if the gradient is none-zero, in which case the
+    /// mean curvature is computed as two parts: @c alpha is the numerator in
+    /// @f$\nabla \cdot (\nabla \phi / |\nabla \phi|)@f$, and @c beta is @f$|\nabla \phi|@f$.
     template<typename Accessor>
-    static void compute(const MapType& map, const Accessor& grid, const Coord& ijk,
-                            double& alpha, double& beta)
+    static bool compute(const MapType& map, const Accessor& grid, const Coord& ijk,
+                        double& alpha, double& beta)
     {
         typedef typename Accessor::ValueType ValueType;
-        typedef Vec3<ValueType>              Vec3Type;
 
-         // compute the gradient in index space
+         // compute the gradient in index and world space
          Vec3d d1_is(D1<DiffScheme1>::inX(grid, ijk),
                      D1<DiffScheme1>::inY(grid, ijk),
-                     D1<DiffScheme1>::inZ(grid, ijk) );
+                     D1<DiffScheme1>::inZ(grid, ijk)), d1_ws;
+         if (is_linear<MapType>::value) {//resolved at compiletime
+             d1_ws = map.applyIJT(d1_is);
+         } else {
+             d1_ws = map.applyIJT(d1_is, ijk.asVec3d());
+         }
+         const double Dx2 = d1_ws(0)*d1_ws(0);
+         const double Dy2 = d1_ws(1)*d1_ws(1);
+         const double Dz2 = d1_ws(2)*d1_ws(2);
+         const double normGrad = Dx2 + Dy2 + Dz2;
+         if (normGrad <= math::Tolerance<double>::value()) {
+             alpha = beta = 0;
+             return false;
+         }
 
          // all the second derivatives in index space
          ValueType iddx  = D2<DiffScheme2>::inX(grid, ijk);
@@ -1758,28 +1771,21 @@ struct MeanCurvature
                       iddxy, iddy,  iddyz,
                       iddxz, iddyz, iddz);
 
-         // convert to range space
-         Mat3d d2_rs;
-         Vec3d d1_rs;
-         if (is_linear<MapType>::value) {
-             d2_rs = map.applyIJC(d2_is);
-             d1_rs = map.applyIJT(d1_is);
+         // convert second derivatives to world space
+         Mat3d d2_ws;
+         if (is_linear<MapType>::value) {//resolved at compiletime
+             d2_ws = map.applyIJC(d2_is);
          } else {
-             d2_rs = map.applyIJC(d2_is, d1_is, ijk.asVec3d());
-             d1_rs = map.applyIJT(d1_is, ijk.asVec3d());
+             d2_ws = map.applyIJC(d2_is, d1_is, ijk.asVec3d());
          }
 
-         // assemble the mean curvature
-         double Dx2 = d1_rs(0)*d1_rs(0);
-         double Dy2 = d1_rs(1)*d1_rs(1);
-         double Dz2 = d1_rs(2)*d1_rs(2);
-
-         // for return
-         alpha = (Dx2*(d2_rs(1,1)+d2_rs(2,2))+Dy2*(d2_rs(0,0)+d2_rs(2,2))
-                  +Dz2*(d2_rs(0,0)+d2_rs(1,1))
-                  -2*(d1_rs(0)*(d1_rs(1)*d2_rs(0,1)+d1_rs(2)*d2_rs(0,2))
-                      +d1_rs(1)*d1_rs(2)*d2_rs(1,2)));
-         beta  = std::sqrt(Dx2 + Dy2 + Dz2); // * 1/dx
+         // assemble the nominator and denominator for mean curvature
+         alpha = (Dx2*(d2_ws(1,1)+d2_ws(2,2))+Dy2*(d2_ws(0,0)+d2_ws(2,2))
+                  +Dz2*(d2_ws(0,0)+d2_ws(1,1))
+                  -2*(d1_ws(0)*(d1_ws(1)*d2_ws(0,1)+d1_ws(2)*d2_ws(0,2))
+                      +d1_ws(1)*d1_ws(2)*d2_ws(1,2)));
+         beta = std::sqrt(normGrad); // * 1/dx
+         return true;
     }
 
     template<typename Accessor>
@@ -1788,9 +1794,8 @@ struct MeanCurvature
     {
         typedef typename Accessor::ValueType ValueType;
         double alpha, beta;
-        compute(map, grid, ijk, alpha, beta);
-
-        return ValueType(alpha/(2. *math::Pow3(beta)));
+        return compute(map, grid, ijk, alpha, beta) ?
+               ValueType(alpha/(2. *math::Pow3(beta))) : 0;
     }
 
     template<typename Accessor>
@@ -1799,22 +1804,37 @@ struct MeanCurvature
     {
         typedef typename Accessor::ValueType ValueType;
         double alpha, beta;
-        compute(map, grid, ijk, alpha, beta);
-
-        return ValueType(alpha/(2. *math::Pow2(beta)));
+        return compute(map, grid, ijk, alpha, beta) ?
+               ValueType(alpha/(2. *math::Pow2(beta))) : 0;
     }
 
-    // stencil access version
+    /// @brief stencil access version
+    /// @return true if the gradient is none-zero, in which case the
+    /// mean curvature is computed as two parts: @c alpha is the numerator in
+    /// @f$\nabla \cdot (\nabla \phi / |\nabla \phi|)@f$, and @c beta is @f$|\nabla \phi|@f$.
     template<typename StencilT>
-    static void compute(const MapType& map, const StencilT& stencil, double& alpha, double& beta)
+    static bool compute(const MapType& map, const StencilT& stencil,
+                        double& alpha, double& beta)
     {
         typedef typename StencilT::ValueType  ValueType;
-        typedef Vec3<ValueType>              Vec3Type;
 
-         // compute the gradient in index space
+         // compute the gradient in index and world space
          Vec3d d1_is(D1<DiffScheme1>::inX(stencil),
                      D1<DiffScheme1>::inY(stencil),
-                     D1<DiffScheme1>::inZ(stencil) );
+                     D1<DiffScheme1>::inZ(stencil) ), d1_ws;
+         if (is_linear<MapType>::value) {//resolved at compiletime
+             d1_ws = map.applyIJT(d1_is);
+         } else {
+             d1_ws = map.applyIJT(d1_is, stencil.getCenterCoord().asVec3d());
+         }
+         const double Dx2 = d1_ws(0)*d1_ws(0);
+         const double Dy2 = d1_ws(1)*d1_ws(1);
+         const double Dz2 = d1_ws(2)*d1_ws(2);
+         const double normGrad = Dx2 + Dy2 + Dz2;
+         if (normGrad <= math::Tolerance<double>::value()) {
+             alpha = beta = 0;
+             return false;
+         }
 
          // all the second derivatives in index space
          ValueType iddx  = D2<DiffScheme2>::inX(stencil);
@@ -1830,28 +1850,21 @@ struct MeanCurvature
                       iddxy, iddy,  iddyz,
                       iddxz, iddyz, iddz);
 
-         // convert to range space
-         Mat3d d2_rs;
-         Vec3d d1_rs;
-         if (is_linear<MapType>::value) {
-             d2_rs = map.applyIJC(d2_is);
-             d1_rs = map.applyIJT(d1_is);
+         // convert second derivatives to world space
+         Mat3d d2_ws;
+         if (is_linear<MapType>::value) {//resolved at compiletime
+             d2_ws = map.applyIJC(d2_is);
          } else {
-             d2_rs = map.applyIJC(d2_is, d1_is, stencil.getCenterCoord().asVec3d());
-             d1_rs = map.applyIJT(d1_is, stencil.getCenterCoord().asVec3d());
+             d2_ws = map.applyIJC(d2_is, d1_is, stencil.getCenterCoord().asVec3d());
          }
 
-         // assemble the mean curvature
-         double Dx2 = d1_rs(0)*d1_rs(0);
-         double Dy2 = d1_rs(1)*d1_rs(1);
-         double Dz2 = d1_rs(2)*d1_rs(2);
-
          // for return
-         alpha = (Dx2*(d2_rs(1,1)+d2_rs(2,2))+Dy2*(d2_rs(0,0)+d2_rs(2,2))
-                  +Dz2*(d2_rs(0,0)+d2_rs(1,1))
-                  -2*(d1_rs(0)*(d1_rs(1)*d2_rs(0,1)+d1_rs(2)*d2_rs(0,2))
-                      +d1_rs(1)*d1_rs(2)*d2_rs(1,2)));
-         beta  = std::sqrt(Dx2 + Dy2 + Dz2); // * 1/dx
+         alpha = (Dx2*(d2_ws(1,1)+d2_ws(2,2))+Dy2*(d2_ws(0,0)+d2_ws(2,2))
+                  +Dz2*(d2_ws(0,0)+d2_ws(1,1))
+                  -2*(d1_ws(0)*(d1_ws(1)*d2_ws(0,1)+d1_ws(2)*d2_ws(0,2))
+                      +d1_ws(1)*d1_ws(2)*d2_ws(1,2)));
+         beta  = std::sqrt(normGrad); // * 1/dx
+         return true;
     }
 
     template<typename StencilT>
@@ -1860,8 +1873,8 @@ struct MeanCurvature
     {
         typedef typename StencilT::ValueType ValueType;
         double alpha, beta;
-        compute(map, stencil, alpha, beta);
-        return ValueType(alpha/(2*math::Pow3(beta)));
+        return compute(map, stencil, alpha, beta) ?
+               ValueType(alpha/(2*math::Pow3(beta))) : 0;
     }
 
     template<typename StencilT>
@@ -1869,9 +1882,8 @@ struct MeanCurvature
     {
         typedef typename StencilT::ValueType ValueType;
         double alpha, beta;
-        compute(map, stencil, alpha, beta);
-
-        return ValueType(alpha/(2*math::Pow2(beta)));
+        return compute(map, stencil, alpha, beta) ?
+               ValueType(alpha/(2*math::Pow2(beta))) : 0;
     }
 };
 
@@ -1887,9 +1899,8 @@ struct MeanCurvature<TranslationMap, DiffScheme2, DiffScheme1>
         typedef typename Accessor::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta);
-
-        return ValueType(alpha /(2*math::Pow3(beta)));
+        return ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta) ?
+               ValueType(alpha /(2*math::Pow3(beta))) : 0;
     }
 
     template<typename Accessor>
@@ -1899,9 +1910,8 @@ struct MeanCurvature<TranslationMap, DiffScheme2, DiffScheme1>
         typedef typename Accessor::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta);
-
-        return ValueType(alpha/(2*math::Pow2(beta)));
+        return ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta) ?
+               ValueType(alpha/(2*math::Pow2(beta))) : 0;
     }
 
     // stencil access version
@@ -1911,9 +1921,8 @@ struct MeanCurvature<TranslationMap, DiffScheme2, DiffScheme1>
         typedef typename StencilT::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta);
-
-        return ValueType(alpha /(2*math::Pow3(beta)));
+        return ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta) ?
+               ValueType(alpha /(2*math::Pow3(beta))) : 0;
     }
 
     template<typename StencilT>
@@ -1922,9 +1931,8 @@ struct MeanCurvature<TranslationMap, DiffScheme2, DiffScheme1>
         typedef typename StencilT::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta);
-
-        return ValueType(alpha/(2*math::Pow2(beta)));
+        return ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta) ?
+               ValueType(alpha/(2*math::Pow2(beta))) : 0;
     }
 };
 
@@ -1940,10 +1948,11 @@ struct MeanCurvature<UniformScaleMap, DiffScheme2, DiffScheme1>
         typedef typename Accessor::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta);
-        ValueType inv2dx = ValueType(map.getInvTwiceScale()[0]);
-
-        return ValueType(alpha*inv2dx/math::Pow3(beta));
+        if (ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta)) {
+            ValueType inv2dx = ValueType(map.getInvTwiceScale()[0]);
+            return ValueType(alpha*inv2dx/math::Pow3(beta));
+        }
+        return 0;
     }
 
     template<typename Accessor>
@@ -1953,10 +1962,11 @@ struct MeanCurvature<UniformScaleMap, DiffScheme2, DiffScheme1>
         typedef typename Accessor::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta);
-        ValueType invdxdx = ValueType(map.getInvScaleSqr()[0]);
-
-        return ValueType(alpha*invdxdx/(2*math::Pow2(beta)));
+        if (ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta)) {
+            ValueType invdxdx = ValueType(map.getInvScaleSqr()[0]);
+            return ValueType(alpha*invdxdx/(2*math::Pow2(beta)));
+        }
+        return 0;
     }
 
     // stencil access version
@@ -1966,10 +1976,11 @@ struct MeanCurvature<UniformScaleMap, DiffScheme2, DiffScheme1>
         typedef typename StencilT::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta);
-        ValueType inv2dx = ValueType(map.getInvTwiceScale()[0]);
-
-        return ValueType(alpha*inv2dx/math::Pow3(beta));
+        if (ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta)) {
+            ValueType inv2dx = ValueType(map.getInvTwiceScale()[0]);
+            return ValueType(alpha*inv2dx/math::Pow3(beta));
+        }
+        return 0;
     }
 
     template<typename StencilT>
@@ -1978,10 +1989,11 @@ struct MeanCurvature<UniformScaleMap, DiffScheme2, DiffScheme1>
         typedef typename StencilT::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta);
-        ValueType invdxdx = ValueType(map.getInvScaleSqr()[0]);
-
-        return ValueType(alpha*invdxdx/(2*math::Pow2(beta)));
+        if (ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta)) {
+            ValueType invdxdx = ValueType(map.getInvScaleSqr()[0]);
+            return ValueType(alpha*invdxdx/(2*math::Pow2(beta)));
+        }
+        return 0;
     }
 };
 
@@ -1996,10 +2008,11 @@ struct MeanCurvature<UniformScaleTranslateMap, DiffScheme2, DiffScheme1>
         typedef typename Accessor::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta);
-        ValueType inv2dx = ValueType(map.getInvTwiceScale()[0]);
-
-        return ValueType(alpha*inv2dx/math::Pow3(beta));
+        if (ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta)) {
+            ValueType inv2dx = ValueType(map.getInvTwiceScale()[0]);
+            return ValueType(alpha*inv2dx/math::Pow3(beta));
+        }
+        return 0;
     }
 
     template<typename Accessor> static typename Accessor::ValueType
@@ -2008,10 +2021,11 @@ struct MeanCurvature<UniformScaleTranslateMap, DiffScheme2, DiffScheme1>
         typedef typename Accessor::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta);
-        ValueType invdxdx = ValueType(map.getInvScaleSqr()[0]);
-
-        return ValueType(alpha*invdxdx/(2*math::Pow2(beta)));
+        if (ISMeanCurvature<DiffScheme2, DiffScheme1>::result(grid, ijk, alpha, beta)) {
+            ValueType invdxdx = ValueType(map.getInvScaleSqr()[0]);
+            return ValueType(alpha*invdxdx/(2*math::Pow2(beta)));
+        }
+        return 0;
     }
 
     // stencil access version
@@ -2021,10 +2035,11 @@ struct MeanCurvature<UniformScaleTranslateMap, DiffScheme2, DiffScheme1>
         typedef typename StencilT::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta);
-        ValueType inv2dx = ValueType(map.getInvTwiceScale()[0]);
-
-        return ValueType(alpha*inv2dx/math::Pow3(beta));
+        if (ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta)) {
+            ValueType inv2dx = ValueType(map.getInvTwiceScale()[0]);
+            return ValueType(alpha*inv2dx/math::Pow3(beta));
+        }
+        return 0;
     }
 
     template<typename StencilT> static typename StencilT::ValueType
@@ -2033,10 +2048,11 @@ struct MeanCurvature<UniformScaleTranslateMap, DiffScheme2, DiffScheme1>
         typedef typename StencilT::ValueType ValueType;
 
         ValueType alpha, beta;
-        ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta);
-        ValueType invdxdx = ValueType(map.getInvScaleSqr()[0]);
-
-        return ValueType(alpha*invdxdx/(2*math::Pow2(beta)));
+        if (ISMeanCurvature<DiffScheme2, DiffScheme1>::result(stencil, alpha, beta)) {
+            ValueType invdxdx = ValueType(map.getInvScaleSqr()[0]);
+            return ValueType(alpha*invdxdx/(2*math::Pow2(beta)));
+        }
+        return 0;
     }
 };
 

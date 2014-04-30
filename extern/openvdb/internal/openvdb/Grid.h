@@ -93,7 +93,7 @@ inline typename Grid<typename TreePtrType::element_type>::Ptr createGrid(TreePtr
 /// that is larger than one voxel unit, otherwise zero crossings are not guaranteed.
 template<typename GridType>
 typename GridType::Ptr createLevelSet(
-    double voxelSize = 1.0, double halfWidth = LEVEL_SET_HALF_WIDTH);
+    Real voxelSize = 1.0, Real halfWidth = LEVEL_SET_HALF_WIDTH);
 
 
 ////////////////////////////////////////
@@ -417,7 +417,7 @@ typedef boost::shared_ptr<GridCPtrSet>  GridCPtrSetPtr;
 /// @brief Predicate functor that returns @c true for grids that have a specified name
 struct OPENVDB_API GridNamePred
 {
-    GridNamePred(const Name& name): name(name) {}
+    GridNamePred(const Name& _name): name(_name) {}
     bool operator()(const GridBase::ConstPtr& g) const { return g && g->getName() == name; }
     Name name;
 };
@@ -509,6 +509,13 @@ public:
     explicit Grid(TreePtrType);
     /// Deep copy another grid's metadata, transform and tree.
     Grid(const Grid&);
+    /// @brief Deep copy the metadata, transform and tree of another grid whose tree
+    /// configuration is the same as this grid's but whose value type is different.
+    /// Cast the other grid's values to this grid's value type.
+    /// @throw TypeError if the other grid's tree configuration doesn't match this grid's
+    /// or if this grid's ValueType is not constructible from the other grid's ValueType.
+    template<typename OtherTreeType>
+    explicit Grid(const Grid<OtherTreeType>&);
     /// Deep copy another grid's metadata, but share its tree and transform.
     Grid(const Grid&, ShallowCopy);
     /// @brief Deep copy another grid's metadata and transform, but construct a new tree
@@ -618,10 +625,12 @@ public:
     /// Reduce the memory footprint of this grid by increasing its sparseness.
     virtual void pruneGrid(float tolerance = 0.0);
 
-    /// @brief Transfer active voxels from another grid to this grid
-    /// wherever those voxels coincide with inactive voxels in this grid.
-    /// @note This operation always empties the other tree.
-    void merge(Grid& other) { tree().merge(other.tree()); }
+    /// @brief Efficiently merge another grid into this grid using one of several schemes.
+    /// @details This operation is primarily intended to combine grids that are mostly
+    /// non-overlapping (for example, intermediate grids from computations that are
+    /// parallelized across disjoint regions of space).
+    /// @warning This operation always empties the other grid.
+    void merge(Grid& other, MergePolicy policy = MERGE_ACTIVE_STATES);
 
     /// @brief Union this grid's set of active values with the active values
     /// of the other grid, whose value type may be different.
@@ -630,16 +639,42 @@ public:
     /// value maps to a voxel if the corresponding value already mapped to a voxel
     /// OR if it is a voxel in the other grid. Thus, a resulting value can only
     /// map to a tile if the corresponding value already mapped to a tile
-    /// AND if it is a tile value in other grid.
+    /// AND if it is a tile value in the other grid.
     ///
     /// @note This operation modifies only active states, not values.
     /// Specifically, active tiles and voxels in this grid are not changed, and
     /// tiles or voxels that were inactive in this grid but active in the other grid
     /// are marked as active in this grid but left with their original values.
     template<typename OtherTreeType>
-    void topologyUnion(const Grid<OtherTreeType>& other) { tree().topologyUnion(other.tree()); }
-    /// @todo topologyIntersection
-    /// @todo topologyDifference
+    void topologyUnion(const Grid<OtherTreeType>& other);
+
+    /// @brief Intersect this grid's set of active values with the active values
+    /// of the other grid, whose value type may be different.
+    /// @details The resulting state of a value is active only if the corresponding
+    /// value was already active AND if it is active in the other tree. Also, a
+    /// resulting value maps to a voxel if the corresponding value
+    /// already mapped to an active voxel in either of the two grids
+    /// and it maps to an active tile or voxel in the other grid.
+    ///
+    /// @note This operation can delete branches of this grid that overlap with
+    /// inactive tiles in the other grid.  Also, because it can deactivate voxels,
+    /// it can create leaf nodes with no active values.  Thus, it is recommended
+    /// to prune this grid after calling this method.
+    template<typename OtherTreeType>
+    void topologyIntersection(const Grid<OtherTreeType>& other);
+
+    /// @brief Difference this grid's set of active values with the active values
+    /// of the other grid, whose value type may be different.
+    /// @details After this method is called, voxels in this grid will be active
+    /// only if they were active to begin with and if the corresponding voxels
+    /// in the other grid were inactive.
+    ///
+    /// @note This operation can delete branches of this grid that overlap with
+    /// active tiles in the other grid.  Also, because it can deactivate voxels,
+    /// it can create leaf nodes with no active values.  Thus, it is recommended
+    /// to prune this grid after calling this method.
+    template<typename OtherTreeType>
+    void topologyDifference(const Grid<OtherTreeType>& other);
 
     //
     // Statistics
@@ -812,6 +847,9 @@ struct TreeAdapter
     typedef typename NonConstGridType::Ptr      NonConstGridPtrType;
     typedef typename GridType::ConstPtr         ConstGridPtrType;
     typedef typename TreeType::ValueType        ValueType;
+    typedef typename tree::ValueAccessor<TreeType>         AccessorType;
+    typedef typename tree::ValueAccessor<const TreeType>   ConstAccessorType;
+    typedef typename tree::ValueAccessor<NonConstTreeType> NonConstAccessorType;
 
     static TreeType& tree(TreeType& t) { return t; }
     static TreeType& tree(GridType& g) { return g.tree(); }
@@ -839,6 +877,9 @@ struct TreeAdapter<Grid<_TreeType> >
     typedef typename NonConstGridType::Ptr      NonConstGridPtrType;
     typedef typename GridType::ConstPtr         ConstGridPtrType;
     typedef typename TreeType::ValueType        ValueType;
+    typedef typename tree::ValueAccessor<TreeType>         AccessorType;
+    typedef typename tree::ValueAccessor<const TreeType>   ConstAccessorType;
+    typedef typename tree::ValueAccessor<NonConstTreeType> NonConstAccessorType;
 
     static TreeType& tree(TreeType& t) { return t; }
     static TreeType& tree(GridType& g) { return g.tree(); }
@@ -849,6 +890,38 @@ struct TreeAdapter<Grid<_TreeType> >
     static const TreeType& constTree(const TreeType& t) { return t; }
     static const TreeType& constTree(const GridType& g) { return g.constTree(); }
 };
+
+/// Partial specialization for ValueAccessor types
+template<typename _TreeType>
+struct TreeAdapter<tree::ValueAccessor<_TreeType> >
+{
+    typedef _TreeType                           TreeType;
+    typedef typename boost::remove_const<TreeType>::type NonConstTreeType;
+    typedef typename TreeType::Ptr              TreePtrType;
+    typedef typename TreeType::ConstPtr         ConstTreePtrType;
+    typedef typename NonConstTreeType::Ptr      NonConstTreePtrType;
+    typedef Grid<TreeType>                      GridType;
+    typedef Grid<NonConstTreeType>              NonConstGridType;
+    typedef typename GridType::Ptr              GridPtrType;
+    typedef typename NonConstGridType::Ptr      NonConstGridPtrType;
+    typedef typename GridType::ConstPtr         ConstGridPtrType;
+    typedef typename TreeType::ValueType        ValueType;
+    typedef typename tree::ValueAccessor<TreeType>         AccessorType;
+    typedef typename tree::ValueAccessor<const TreeType>   ConstAccessorType;
+    typedef typename tree::ValueAccessor<NonConstTreeType> NonConstAccessorType;
+
+    static TreeType& tree(TreeType& t) { return t; }
+    static TreeType& tree(GridType& g) { return g.tree(); }
+    static TreeType& tree(AccessorType& a) { return a.tree(); }
+    static const TreeType& tree(const TreeType& t) { return t; }
+    static const TreeType& tree(const GridType& g) { return g.tree(); }
+    static const TreeType& tree(const AccessorType& a) { return a.tree(); }
+    static const TreeType& constTree(TreeType& t) { return t; }
+    static const TreeType& constTree(GridType& g) { return g.constTree(); }
+    static const TreeType& constTree(const TreeType& t) { return t; }
+    static const TreeType& constTree(const GridType& g) { return g.constTree(); }
+};
+
 //@}
 
 
@@ -935,6 +1008,15 @@ template<typename TreeT>
 inline Grid<TreeT>::Grid(const Grid& other):
     GridBase(other),
     mTree(boost::static_pointer_cast<TreeType>(other.mTree->copy()))
+{
+}
+
+
+template<typename TreeT>
+template<typename OtherTreeType>
+inline Grid<TreeT>::Grid(const Grid<OtherTreeType>& other):
+    GridBase(other),
+    mTree(new TreeType(other.constTree()))
 {
 }
 
@@ -1047,6 +1129,9 @@ Grid<TreeT>::newTree()
 }
 
 
+////////////////////////////////////////
+
+
 template<typename TreeT>
 inline void
 Grid<TreeT>::fill(const CoordBBox& bbox, const ValueType& value, bool active)
@@ -1069,6 +1154,44 @@ Grid<TreeT>::pruneGrid(float tolerance)
 {
     this->prune(ValueType(zeroVal<ValueType>() + tolerance));
 }
+
+
+template<typename TreeT>
+inline void
+Grid<TreeT>::merge(Grid& other, MergePolicy policy)
+{
+    tree().merge(other.tree(), policy);
+}
+
+
+template<typename TreeT>
+template<typename OtherTreeType>
+inline void
+Grid<TreeT>::topologyUnion(const Grid<OtherTreeType>& other)
+{
+    tree().topologyUnion(other.tree());
+}
+
+
+template<typename TreeT>
+template<typename OtherTreeType>
+inline void
+Grid<TreeT>::topologyIntersection(const Grid<OtherTreeType>& other)
+{
+    tree().topologyIntersection(other.tree());
+}
+
+
+template<typename TreeT>
+template<typename OtherTreeType>
+inline void
+Grid<TreeT>::topologyDifference(const Grid<OtherTreeType>& other)
+{
+    tree().topologyDifference(other.tree());
+}
+
+
+////////////////////////////////////////
 
 
 template<typename TreeT>
@@ -1191,7 +1314,7 @@ createGrid(TreePtrType tree)
 
 template<typename GridType>
 typename GridType::Ptr
-createLevelSet(double voxelSize, double halfWidth)
+createLevelSet(Real voxelSize, Real halfWidth)
 {
     typedef typename GridType::ValueType ValueType;
 

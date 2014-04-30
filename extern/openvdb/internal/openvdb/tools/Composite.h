@@ -83,6 +83,10 @@ inline void compSum(GridOrTreeT& a, GridOrTreeT& b);
 /// Store the result in the A grid and leave the B grid empty.
 template<typename GridOrTreeT> OPENVDB_STATIC_SPECIALIZATION
 inline void compMul(GridOrTreeT& a, GridOrTreeT& b);
+/// @brief Given grids A and B, compute a / b per voxel (using sparse traversal).
+/// Store the result in the A grid and leave the B grid empty.
+template<typename GridOrTreeT> OPENVDB_STATIC_SPECIALIZATION
+inline void compDiv(GridOrTreeT& a, GridOrTreeT& b);
 
 /// Copy the active voxels of B into A.
 template<typename GridOrTreeT> OPENVDB_STATIC_SPECIALIZATION
@@ -186,6 +190,21 @@ compMul(GridOrTreeT& aTree, GridOrTreeT& bTree)
 }
 
 
+template<typename GridOrTreeT>
+OPENVDB_STATIC_SPECIALIZATION inline void
+compDiv(GridOrTreeT& aTree, GridOrTreeT& bTree)
+{
+    typedef TreeAdapter<GridOrTreeT> Adapter;
+    typedef typename Adapter::TreeType TreeT;
+    struct Local {
+        static inline void op(CombineArgs<typename TreeT::ValueType>& args) {
+            args.setResult(args.a() / args.b());
+        }
+    };
+    Adapter::tree(aTree).combineExtended(Adapter::tree(bTree), Local::op, /*prune=*/false);
+}
+
+
 ////////////////////////////////////////
 
 
@@ -255,9 +274,9 @@ public:
 
     CsgVisitorBase(const TreeT& aTree, const TreeT& bTree):
         mAOutside(aTree.background()),
-        mAInside(negative(mAOutside)),
+        mAInside(math::negative(mAOutside)),
         mBOutside(bTree.background()),
-        mBInside(negative(mBOutside))
+        mBInside(math::negative(mBOutside))
     {
         const ValueT zero = zeroVal<ValueT>();
         if (!(mAOutside > zero)) {
@@ -492,7 +511,7 @@ struct CsgDiffVisitor: public CsgVisitorBase<TreeType>
         ValueT aValue, bValue;
         aIter.probeValue(aValue);
         bIter.probeValue(bValue);
-        bValue = negative(bValue);
+        bValue = math::negative(bValue);
         if (aValue < bValue) { // a = max(a, -b)
             aIter.setValue(bValue);
             aIter.setValueOn(bIter.isValueOn());

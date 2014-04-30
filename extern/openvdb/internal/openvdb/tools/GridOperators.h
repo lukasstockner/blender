@@ -71,7 +71,9 @@ template<typename ScalarGridType> struct ScalarToVectorConverter {
 /// @brief Compute the Closest-Point Transform (CPT) from a distance field.
 /// @return a new vector-valued grid with the same numerical precision as the input grid
 ///     (for example, if the input grid is a DoubleGrid, the output grid will be a Vec3DGrid)
-///
+/// @details When a mask grid is specified, the solution is calculated only in
+/// the intersection of the mask active topology and the input active topology
+/// independent of the transforms associated with either grid.
 /// @note The current implementation assumes all the input distance values
 /// are represented by leaf voxels and not tiles.  This is true for all
 /// narrow-band level sets, which this class was originally developed for.
@@ -79,7 +81,11 @@ template<typename ScalarGridType> struct ScalarToVectorConverter {
 template<typename GridType, typename InterruptT> inline
 typename ScalarToVectorConverter<GridType>::Type::Ptr
 cpt(const GridType& grid, bool threaded, InterruptT* interrupt);
-    
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename ScalarToVectorConverter<GridType>::Type::Ptr
+cpt(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt);
+
 template<typename GridType> inline
 typename ScalarToVectorConverter<GridType>::Type::Ptr
 cpt(const GridType& grid, bool threaded = true)
@@ -87,13 +93,27 @@ cpt(const GridType& grid, bool threaded = true)
     return cpt<GridType, util::NullInterrupter>(grid, threaded, NULL);
 }
 
+template<typename GridType, typename MaskT> inline
+typename ScalarToVectorConverter<GridType>::Type::Ptr
+cpt(const GridType& grid, const MaskT& mask, bool threaded = true)
+{
+    return cpt<GridType, MaskT, util::NullInterrupter>(grid, mask, threaded, NULL);
+}
+
 
 /// @brief Compute the curl of the given vector-valued grid.
 /// @return a new vector-valued grid
+/// @details When a mask grid is specified, the solution is calculated only in
+/// the intersection of the mask active topology and the input active topology
+/// independent of the transforms associated with either grid.
 template<typename GridType, typename InterruptT> inline
 typename GridType::Ptr
 curl(const GridType& grid, bool threaded, InterruptT* interrupt);
-    
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename GridType::Ptr
+curl(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt);
+
 template<typename GridType> inline
 typename GridType::Ptr
 curl(const GridType& grid, bool threaded = true)
@@ -101,13 +121,28 @@ curl(const GridType& grid, bool threaded = true)
     return curl<GridType, util::NullInterrupter>(grid, threaded, NULL);
 }
 
+template<typename GridType, typename MaskT> inline
+typename GridType::Ptr
+curl(const GridType& grid, const MaskT& mask, bool threaded = true)
+{
+    return curl<GridType, MaskT, util::NullInterrupter>(grid, mask, threaded, NULL);
+}
+
+
 /// @brief Compute the divergence of the given vector-valued grid.
 /// @return a new scalar-valued grid with the same numerical precision as the input grid
 ///     (for example, if the input grid is a Vec3DGrid, the output grid will be a DoubleGrid)
+/// @details When a mask grid is specified, the solution is calculated only in
+/// the intersection of the mask active topology and the input active topology
+/// independent of the transforms associated with either grid.
 template<typename GridType, typename InterruptT> inline
 typename VectorToScalarConverter<GridType>::Type::Ptr
 divergence(const GridType& grid, bool threaded, InterruptT* interrupt);
-    
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename VectorToScalarConverter<GridType>::Type::Ptr
+divergence(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt);
+
 template<typename GridType> inline
 typename VectorToScalarConverter<GridType>::Type::Ptr
 divergence(const GridType& grid, bool threaded = true)
@@ -115,12 +150,27 @@ divergence(const GridType& grid, bool threaded = true)
     return divergence<GridType, util::NullInterrupter>(grid, threaded, NULL);
 }
 
+template<typename GridType, typename MaskT> inline
+typename VectorToScalarConverter<GridType>::Type::Ptr
+divergence(const GridType& grid, const MaskT& mask, bool threaded = true)
+{
+    return divergence<GridType, MaskT, util::NullInterrupter>(grid, mask, threaded, NULL);
+}
+
+
 /// @brief Compute the gradient of the given scalar grid.
 /// @return a new vector-valued grid with the same numerical precision as the input grid
 ///     (for example, if the input grid is a DoubleGrid, the output grid will be a Vec3DGrid)
+/// @details When a mask grid is specified, the solution is calculated only in
+/// the intersection of the mask active topology and the input active topology
+/// independent of the transforms associated with either grid.
 template<typename GridType, typename InterruptT> inline
 typename ScalarToVectorConverter<GridType>::Type::Ptr
 gradient(const GridType& grid, bool threaded, InterruptT* interrupt);
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename ScalarToVectorConverter<GridType>::Type::Ptr
+gradient(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt);
 
 template<typename GridType> inline
 typename ScalarToVectorConverter<GridType>::Type::Ptr
@@ -129,12 +179,26 @@ gradient(const GridType& grid, bool threaded = true)
     return gradient<GridType, util::NullInterrupter>(grid, threaded, NULL);
 }
 
+template<typename GridType, typename MaskT> inline
+typename ScalarToVectorConverter<GridType>::Type::Ptr
+gradient(const GridType& grid, const MaskT& mask, bool threaded = true)
+{
+    return gradient<GridType, MaskT, util::NullInterrupter>(grid, mask, threaded, NULL);
+}
+
 
 /// @brief Compute the Laplacian of the given scalar grid.
 /// @return a new scalar grid
+/// @details When a mask grid is specified, the solution is calculated only in
+/// the intersection of the mask active topology and the input active topology
+/// independent of the transforms associated with either grid.
 template<typename GridType, typename InterruptT> inline
 typename GridType::Ptr
 laplacian(const GridType& grid, bool threaded, InterruptT* interrupt);
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename GridType::Ptr
+laplacian(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt);
 
 template<typename GridType> inline
 typename GridType::Ptr
@@ -142,39 +206,84 @@ laplacian(const GridType& grid, bool threaded = true)
 {
     return laplacian<GridType, util::NullInterrupter>(grid, threaded, NULL);
 }
-    
+
+template<typename GridType, typename MaskT> inline
+typename GridType::Ptr
+laplacian(const GridType& grid, const MaskT mask, bool threaded = true)
+{
+    return laplacian<GridType, MaskT, util::NullInterrupter>(grid, mask, threaded, NULL);
+}
+
+
 /// @brief Compute the mean curvature of the given grid.
 /// @return a new grid
+/// @details When a mask grid is specified, the solution is calculated only in
+/// the intersection of the mask active topology and the input active topology
+/// independent of the transforms associated with either grid.
 template<typename GridType, typename InterruptT> inline
 typename GridType::Ptr
 meanCurvature(const GridType& grid, bool threaded, InterruptT* interrupt);
 
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename GridType::Ptr
+meanCurvature(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt);
+
 template<typename GridType> inline
 typename GridType::Ptr
-meanCurvature(const GridType& grid, bool threaded = true)    
+meanCurvature(const GridType& grid, bool threaded = true)
 {
     return meanCurvature<GridType, util::NullInterrupter>(grid, threaded, NULL);
 }
 
+template<typename GridType, typename MaskT> inline
+typename GridType::Ptr
+meanCurvature(const GridType& grid, const MaskT& mask, bool threaded = true)
+{
+    return meanCurvature<GridType, MaskT, util::NullInterrupter>(grid, mask, threaded, NULL);
+}
+
+
 /// @brief Compute the magnitudes of the vectors of the given vector-valued grid.
 /// @return a new scalar-valued grid with the same numerical precision as the input grid
 ///     (for example, if the input grid is a Vec3DGrid, the output grid will be a DoubleGrid)
+/// @details When a mask grid is specified, the solution is calculated only in
+/// the intersection of the mask active topology and the input active topology
+/// independent of the transforms associated with either grid.
 template<typename GridType, typename InterruptT> inline
 typename VectorToScalarConverter<GridType>::Type::Ptr
 magnitude(const GridType& grid, bool threaded, InterruptT* interrupt);
-    
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename VectorToScalarConverter<GridType>::Type::Ptr
+magnitude(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt);
+
 template<typename GridType> inline
 typename VectorToScalarConverter<GridType>::Type::Ptr
-magnitude(const GridType& grid, bool threaded = true) 
+magnitude(const GridType& grid, bool threaded = true)
 {
     return magnitude<GridType, util::NullInterrupter>(grid, threaded, NULL);
 }
-    
+
+template<typename GridType, typename MaskT> inline
+typename VectorToScalarConverter<GridType>::Type::Ptr
+magnitude(const GridType& grid, const MaskT& mask, bool threaded = true)
+{
+    return magnitude<GridType, MaskT, util::NullInterrupter>(grid, mask, threaded, NULL);
+}
+
+
 /// @brief Normalize the vectors of the given vector-valued grid.
 /// @return a new vector-valued grid
+/// @details When a mask grid is specified, the solution is calculated only in
+/// the intersection of the mask active topology and the input active topology
+/// independent of the transforms associated with either grid.
 template<typename GridType, typename InterruptT> inline
 typename GridType::Ptr
 normalize(const GridType& grid, bool threaded, InterruptT* interrupt);
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename GridType::Ptr
+normalize(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt);
 
 template<typename GridType> inline
 typename GridType::Ptr
@@ -182,11 +291,28 @@ normalize(const GridType& grid, bool threaded = true)
 {
     return normalize<GridType, util::NullInterrupter>(grid, threaded, NULL);
 }
-    
+
+template<typename GridType, typename MaskT> inline
+typename GridType::Ptr
+normalize(const GridType& grid, const MaskT& mask, bool threaded = true)
+{
+    return normalize<GridType, MaskT, util::NullInterrupter>(grid, mask, threaded, NULL);
+}
+
+
 ////////////////////////////////////////
 
 
-namespace {
+namespace gridop {
+
+/// @brief ToBoolGrid<T>::Type is the type of a grid having the same
+/// tree hierarchy as grid type T but a value type of bool.
+/// @details For example, ToBoolGrid<FloatGrid>::Type is equivalent to BoolGrid.
+template<typename GridType>
+struct ToBoolGrid {
+    typedef Grid<typename GridType::TreeType::template ValueConverter<bool>::Type> Type;
+};
+
 
 /// @brief Apply an operator on an input grid to produce an output grid
 /// with the same topology but a possibly different value type.
@@ -197,8 +323,13 @@ namespace {
 /// @note The current implementation assumes all the input
 /// values are represented by leaf voxels and not tiles. In the
 /// future we will expand this class to also handle tile values.
-template<typename InGridT, typename OutGridT, typename MapT,
-         typename OperatorT, typename InterruptT = util::NullInterrupter>
+template<
+    typename InGridT,
+    typename MaskGridType,
+    typename OutGridT,
+    typename MapT,
+    typename OperatorT,
+    typename InterruptT = util::NullInterrupter>
 class GridOperator
 {
 public:
@@ -206,32 +337,44 @@ public:
     typedef typename OutTreeT::LeafNodeType       OutLeafT;
     typedef typename tree::LeafManager<OutTreeT>  LeafManagerT;
 
-    GridOperator(const InGridT& grid, const MapT& map, InterruptT* interrupt = NULL):
-        mAcc(grid.getConstAccessor()), mMap(map), mInterrupt(interrupt)
+    GridOperator(const InGridT& grid, const MaskGridType* mask, const MapT& map,
+        InterruptT* interrupt = NULL):
+        mAcc(grid.getConstAccessor()), mMap(map), mInterrupt(interrupt), mMask(mask)
     {
     }
+
     virtual ~GridOperator() {}
     typename OutGridT::Ptr process(bool threaded = true)
     {
         if (mInterrupt) mInterrupt->start("Processing grid");
+
         // Derive background value of the output grid
-        typename InGridT::TreeType tmp(mAcc.getTree()->background());
+        typename InGridT::TreeType tmp(mAcc.tree().background());
         typename OutGridT::ValueType backg = OperatorT::result(mMap, tmp, math::Coord(0));
+
         // output tree = topology copy of input tree!
-        typename OutTreeT::Ptr tree(new OutTreeT(*mAcc.getTree(), backg, TopologyCopy()));
+        typename OutTreeT::Ptr tree(new OutTreeT(mAcc.tree(), backg, TopologyCopy()));
+
+
         // create grid with output tree and unit transform
         typename OutGridT::Ptr result(new OutGridT(tree));
+
+        // Modify the solution area if a mask was supplied.
+        if (mMask) {
+            result->topologyIntersection(*mMask);
+        }
+
         // transform of output grid = transform of input grid
         result->setTransform(math::Transform::Ptr(new math::Transform( mMap.copy() )));
-       
+
         LeafManagerT leafManager(*tree);
-        
+
         if (threaded) {
             tbb::parallel_for(leafManager.leafRange(), *this);
         } else {
             (*this)(leafManager.leafRange());
         }
-        
+
         if (mInterrupt) mInterrupt->end();
         return result;
     }
@@ -245,7 +388,7 @@ public:
     void operator()(const typename LeafManagerT::LeafRange& range) const
     {
         if (util::wasInterrupted(mInterrupt)) tbb::task::self().cancel_group_execution();
-        
+
         for (typename LeafManagerT::LeafRange::Iterator leaf=range.begin(); leaf; ++leaf) {
             for (typename OutLeafT::ValueOnIter value=leaf->beginValueOn(); value; ++value) {
                 value.setValue(OperatorT::result(mMap, mAcc, value.getCoord()));
@@ -254,21 +397,24 @@ public:
     }
 
 protected:
-    
     typedef typename InGridT::ConstAccessor  AccessorT;
-    mutable AccessorT mAcc;
-    const MapT&       mMap;
-    InterruptT*       mInterrupt;
+    mutable AccessorT   mAcc;
+    const MapT&         mMap;
+    InterruptT*         mInterrupt;
+    const MaskGridType* mMask;
 }; // end of GridOperator class
 
-} //end of anonymous namespace
+} // namespace gridop
 
 
 ////////////////////////////////////////
 
 
 /// @brief Compute the closest-point transform of a scalar grid.
-template<typename InGridT, typename InterruptT = util::NullInterrupter>
+template<
+    typename InGridT,
+    typename MaskGridType = typename gridop::ToBoolGrid<InGridT>::Type,
+    typename InterruptT = util::NullInterrupter>
 class Cpt
 {
 public:
@@ -276,15 +422,23 @@ public:
     typedef typename ScalarToVectorConverter<InGridT>::Type OutGridType;
 
     Cpt(const InGridType& grid, InterruptT* interrupt = NULL):
-        mInputGrid(grid), mInterrupt(interrupt)
+        mInputGrid(grid), mInterrupt(interrupt), mMask(NULL)
     {
     }
+
+    Cpt(const InGridType& grid, const MaskGridType& mask, InterruptT* interrupt = NULL):
+        mInputGrid(grid), mInterrupt(interrupt), mMask(&mask)
+    {
+    }
+
     typename OutGridType::Ptr process(bool threaded = true, bool useWorldTransform = true)
     {
-        Functor functor(mInputGrid, threaded, useWorldTransform, mInterrupt);
+        Functor functor(mInputGrid, mMask, threaded, useWorldTransform, mInterrupt);
         processTypedMap(mInputGrid.transform(), functor);
+        if (functor.mOutputGrid) functor.mOutputGrid->setVectorType(VEC_CONTRAVARIANT_ABSOLUTE);
         return functor.mOutputGrid;
     }
+
 private:
     struct IsOpT
     {
@@ -306,16 +460,25 @@ private:
     };
     struct Functor
     {
-        Functor(const InGridType& grid, bool threaded, bool worldspace, InterruptT* interrupt):
-            mThreaded(threaded), mWorldSpace(worldspace), mInputGrid(grid), mInterrupt(interrupt){}
+        Functor(const InGridType& grid, const MaskGridType* mask,
+            bool threaded, bool worldspace, InterruptT* interrupt)
+        : mThreaded(threaded)
+        , mWorldSpace(worldspace)
+        , mInputGrid(grid)
+        , mInterrupt(interrupt)
+        , mMask(mask)
+        {}
+
         template<typename MapT>
         void operator()(const MapT& map)
         {
             if (mWorldSpace) {
-                GridOperator<InGridType, OutGridType, MapT, WsOpT, InterruptT> op(mInputGrid, map, mInterrupt);
+                gridop::GridOperator<InGridType, MaskGridType, OutGridType, MapT, WsOpT, InterruptT>
+                    op(mInputGrid, mMask, map, mInterrupt);
                 mOutputGrid = op.process(mThreaded); // cache the result
             } else {
-                GridOperator<InGridType, OutGridType, MapT, IsOpT, InterruptT> op(mInputGrid, map, mInterrupt);
+                gridop::GridOperator<InGridType, MaskGridType, OutGridType, MapT, IsOpT, InterruptT>
+                    op(mInputGrid, mMask, map, mInterrupt);
                 mOutputGrid = op.process(mThreaded); // cache the result
             }
         }
@@ -324,61 +487,83 @@ private:
         const InGridType&         mInputGrid;
         typename OutGridType::Ptr mOutputGrid;
         InterruptT*               mInterrupt;
+        const MaskGridType*       mMask;
     };
-    const InGridType& mInputGrid;
-    InterruptT*       mInterrupt;
+    const InGridType&   mInputGrid;
+    InterruptT*         mInterrupt;
+    const MaskGridType* mMask;
 }; // end of Cpt class
 
 
 ////////////////////////////////////////
 
 
-/// @brief Compute the curl of a scalar grid.
-template<typename GridT, typename InterruptT = util::NullInterrupter>
+/// @brief Compute the curl of a vector grid.
+template<
+    typename GridT,
+    typename MaskGridType = typename gridop::ToBoolGrid<GridT>::Type,
+    typename InterruptT = util::NullInterrupter>
 class Curl
 {
 public:
     typedef GridT  InGridType;
     typedef GridT  OutGridType;
+
     Curl(const GridT& grid, InterruptT* interrupt = NULL):
-        mInputGrid(grid), mInterrupt(interrupt)
+        mInputGrid(grid), mInterrupt(interrupt), mMask(NULL)
     {
     }
+
+    Curl(const GridT& grid, const MaskGridType& mask, InterruptT* interrupt = NULL):
+        mInputGrid(grid), mInterrupt(interrupt), mMask(&mask)
+    {
+    }
+
     typename GridT::Ptr process(bool threaded = true)
     {
-        Functor functor(mInputGrid, threaded, mInterrupt);
+        Functor functor(mInputGrid, mMask, threaded, mInterrupt);
         processTypedMap(mInputGrid.transform(), functor);
+        if (functor.mOutputGrid) functor.mOutputGrid->setVectorType(VEC_COVARIANT);
         return functor.mOutputGrid;
     }
 
 private:
     struct Functor
     {
-        Functor(const GridT& grid, bool threaded, InterruptT* interrupt):
-            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt){}
+        Functor(const GridT& grid, const MaskGridType* mask,
+                bool threaded, InterruptT* interrupt):
+            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt), mMask(mask) {}
+
         template<typename MapT>
         void operator()(const MapT& map)
         {
             typedef math::Curl<MapT, math::CD_2ND> OpT;
-            GridOperator<GridT, GridT, MapT, OpT, InterruptT> op(mInputGrid, map, mInterrupt);
+            gridop::GridOperator<GridT, MaskGridType, GridT, MapT, OpT, InterruptT>
+                op(mInputGrid, mMask, map, mInterrupt);
             mOutputGrid = op.process(mThreaded); // cache the result
         }
+
         const bool           mThreaded;
         const GridT&         mInputGrid;
         typename GridT::Ptr  mOutputGrid;
         InterruptT*          mInterrupt;
+        const MaskGridType*  mMask;
     }; // Private Functor
 
-    const GridT& mInputGrid;
-    InterruptT*  mInterrupt;
+    const GridT&         mInputGrid;
+    InterruptT*          mInterrupt;
+    const MaskGridType*  mMask;
 }; // end of Curl class
 
 
 ////////////////////////////////////////
 
 
-/// @brief Computes the Divergence of a scalar grid
-template<typename InGridT, typename InterruptT = util::NullInterrupter>
+/// @brief Compute the divergence of a vector grid.
+template<
+    typename InGridT,
+    typename MaskGridType = typename gridop::ToBoolGrid<InGridT>::Type,
+    typename InterruptT = util::NullInterrupter>
 class Divergence
 {
 public:
@@ -386,18 +571,23 @@ public:
     typedef typename VectorToScalarConverter<InGridT>::Type OutGridType;
 
     Divergence(const InGridT& grid, InterruptT* interrupt = NULL):
-        mInputGrid(grid), mInterrupt(interrupt)
+        mInputGrid(grid), mInterrupt(interrupt), mMask(NULL)
     {
     }
+
+    Divergence(const InGridT& grid, const MaskGridType& mask, InterruptT* interrupt = NULL):
+        mInputGrid(grid), mInterrupt(interrupt), mMask(&mask)
+    {
+    }
+
     typename OutGridType::Ptr process(bool threaded = true)
     {
-        if( mInputGrid.getGridClass() == GRID_STAGGERED ) {
-            Functor<math::FD_1ST> functor(mInputGrid, threaded, mInterrupt);
+        if (mInputGrid.getGridClass() == GRID_STAGGERED) {
+            Functor<math::FD_1ST> functor(mInputGrid, mMask, threaded, mInterrupt);
             processTypedMap(mInputGrid.transform(), functor);
             return functor.mOutputGrid;
-        }
-        else {
-            Functor<math::CD_2ND> functor(mInputGrid, threaded, mInterrupt);
+        } else {
+            Functor<math::CD_2ND> functor(mInputGrid, mMask, threaded, mInterrupt);
             processTypedMap(mInputGrid.transform(), functor);
             return functor.mOutputGrid;
         }
@@ -407,31 +597,40 @@ protected:
     template<math::DScheme DiffScheme>
     struct Functor
     {
-        Functor(const InGridT& grid, bool threaded, InterruptT* interrupt):
-            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt) {}
+        Functor(const InGridT& grid, const MaskGridType* mask,
+            bool threaded, InterruptT* interrupt):
+            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt), mMask(mask) {}
+
         template<typename MapT>
         void operator()(const MapT& map)
         {
             typedef math::Divergence<MapT, DiffScheme> OpT;
-            GridOperator<InGridType, OutGridType, MapT, OpT, InterruptT> op(mInputGrid, map, mInterrupt);
+            gridop::GridOperator<InGridType, MaskGridType, OutGridType, MapT, OpT, InterruptT>
+                op(mInputGrid, mMask, map, mInterrupt);
             mOutputGrid = op.process(mThreaded); // cache the result
         }
+
         const bool                 mThreaded;
         const InGridType&          mInputGrid;
         typename OutGridType::Ptr  mOutputGrid;
         InterruptT*                mInterrupt;
+        const MaskGridType*        mMask;
     }; // Private Functor
 
-    const InGridType& mInputGrid;
-    InterruptT*       mInterrupt;
+    const InGridType&    mInputGrid;
+    InterruptT*          mInterrupt;
+    const MaskGridType*  mMask;
 }; // end of Divergence class
 
 
 ////////////////////////////////////////
 
 
-/// @brief Computes the Gradient of a scalar grid
-template<typename InGridT, typename InterruptT = util::NullInterrupter>
+/// @brief Compute the gradient of a scalar grid.
+template<
+    typename InGridT,
+    typename MaskGridType = typename gridop::ToBoolGrid<InGridT>::Type,
+    typename InterruptT = util::NullInterrupter>
 class Gradient
 {
 public:
@@ -439,142 +638,196 @@ public:
     typedef typename ScalarToVectorConverter<InGridT>::Type OutGridType;
 
     Gradient(const InGridT& grid, InterruptT* interrupt = NULL):
-        mInputGrid(grid), mInterrupt(interrupt)
+        mInputGrid(grid), mInterrupt(interrupt), mMask(NULL)
     {
     }
+
+    Gradient(const InGridT& grid, const MaskGridType& mask, InterruptT* interrupt = NULL):
+        mInputGrid(grid), mInterrupt(interrupt), mMask(&mask)
+    {
+    }
+
     typename OutGridType::Ptr process(bool threaded = true)
     {
-        Functor functor(mInputGrid, threaded, mInterrupt);
+        Functor functor(mInputGrid, mMask, threaded, mInterrupt);
         processTypedMap(mInputGrid.transform(), functor);
+        if (functor.mOutputGrid) functor.mOutputGrid->setVectorType(VEC_COVARIANT);
         return functor.mOutputGrid;
     }
 
 protected:
     struct Functor
     {
-        Functor(const InGridT& grid, bool threaded, InterruptT* interrupt):
-            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt) {}
+        Functor(const InGridT& grid, const MaskGridType* mask,
+            bool threaded, InterruptT* interrupt):
+            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt), mMask(mask) {}
+
         template<typename MapT>
         void operator()(const MapT& map)
         {
             typedef math::Gradient<MapT, math::CD_2ND> OpT;
-            GridOperator<InGridType, OutGridType, MapT, OpT, InterruptT> op(mInputGrid, map, mInterrupt);
+            gridop::GridOperator<InGridType, MaskGridType, OutGridType, MapT, OpT, InterruptT>
+                op(mInputGrid, mMask, map, mInterrupt);
             mOutputGrid = op.process(mThreaded); // cache the result
         }
+
         const bool                 mThreaded;
         const InGridT&             mInputGrid;
         typename OutGridType::Ptr  mOutputGrid;
         InterruptT*                mInterrupt;
+        const MaskGridType*        mMask;
     }; // Private Functor
 
-    const InGridT& mInputGrid;
-    InterruptT*    mInterrupt;
+    const InGridT&       mInputGrid;
+    InterruptT*          mInterrupt;
+    const MaskGridType*  mMask;
 }; // end of Gradient class
 
 
 ////////////////////////////////////////
 
 
-/// @brief Computes the Laplacian of a scalar grid
-template<typename GridT, typename InterruptT = util::NullInterrupter>
+template<
+    typename GridT,
+    typename MaskGridType = typename gridop::ToBoolGrid<GridT>::Type,
+    typename InterruptT = util::NullInterrupter>
 class Laplacian
 {
 public:
     typedef GridT  InGridType;
     typedef GridT  OutGridType;
+
     Laplacian(const GridT& grid, InterruptT* interrupt = NULL):
-        mInputGrid(grid), mInterrupt(interrupt)
+        mInputGrid(grid), mInterrupt(interrupt), mMask(NULL)
     {
     }
+
+    Laplacian(const GridT& grid, const MaskGridType& mask, InterruptT* interrupt = NULL):
+        mInputGrid(grid), mInterrupt(interrupt), mMask(&mask)
+    {
+    }
+
     typename GridT::Ptr process(bool threaded = true)
     {
-        Functor functor(mInputGrid, threaded, mInterrupt);
+        Functor functor(mInputGrid, mMask, threaded, mInterrupt);
         processTypedMap(mInputGrid.transform(), functor);
+        if (functor.mOutputGrid) functor.mOutputGrid->setVectorType(VEC_COVARIANT);
         return functor.mOutputGrid;
     }
 
 protected:
     struct Functor
     {
-        Functor(const GridT& grid, bool threaded, InterruptT* interrupt):
-            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt) {}
+        Functor(const GridT& grid, const MaskGridType* mask, bool threaded, InterruptT* interrupt):
+            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt), mMask(mask) {}
+
         template<typename MapT>
         void operator()(const MapT& map)
         {
             typedef math::Laplacian<MapT, math::CD_SECOND> OpT;
-            GridOperator<GridT, GridT, MapT, OpT, InterruptT> op(mInputGrid, map);
+            gridop::GridOperator<GridT, MaskGridType, GridT, MapT, OpT, InterruptT>
+                op(mInputGrid, mMask, map);
             mOutputGrid = op.process(mThreaded); // cache the result
         }
+
         const bool           mThreaded;
         const GridT&         mInputGrid;
         typename GridT::Ptr  mOutputGrid;
         InterruptT*          mInterrupt;
+        const MaskGridType*  mMask;
     }; // Private Functor
 
-    const GridT& mInputGrid;
-    InterruptT*  mInterrupt;
+    const GridT&        mInputGrid;
+    InterruptT*         mInterrupt;
+    const MaskGridType* mMask;
 }; // end of Laplacian class
 
 
 ////////////////////////////////////////
 
 
-template<typename GridT, typename InterruptT = util::NullInterrupter>
+template<
+    typename GridT,
+    typename MaskGridType = typename gridop::ToBoolGrid<GridT>::Type,
+    typename InterruptT = util::NullInterrupter>
 class MeanCurvature
 {
 public:
     typedef GridT  InGridType;
     typedef GridT  OutGridType;
+
     MeanCurvature(const GridT& grid, InterruptT* interrupt = NULL):
-        mInputGrid(grid), mInterrupt(interrupt)
+        mInputGrid(grid), mInterrupt(interrupt), mMask(NULL)
     {
     }
+
+    MeanCurvature(const GridT& grid, const MaskGridType& mask, InterruptT* interrupt = NULL):
+        mInputGrid(grid), mInterrupt(interrupt), mMask(&mask)
+    {
+    }
+
     typename GridT::Ptr process(bool threaded = true)
     {
-        Functor functor(mInputGrid, threaded, mInterrupt);
+        Functor functor(mInputGrid, mMask, threaded, mInterrupt);
         processTypedMap(mInputGrid.transform(), functor);
+        if (functor.mOutputGrid) functor.mOutputGrid->setVectorType(VEC_COVARIANT);
         return functor.mOutputGrid;
     }
 
 protected:
     struct Functor
     {
-        Functor(const GridT& grid, bool threaded, InterruptT* interrupt):
-            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt) {}
+        Functor(const GridT& grid, const MaskGridType* mask, bool threaded, InterruptT* interrupt):
+            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt), mMask(mask) {}
+
         template<typename MapT>
         void operator()(const MapT& map)
         {
             typedef math::MeanCurvature<MapT, math::CD_SECOND, math::CD_2ND> OpT;
-            GridOperator<GridT, GridT, MapT, OpT, InterruptT> op(mInputGrid, map);
+            gridop::GridOperator<GridT, MaskGridType, GridT, MapT, OpT, InterruptT>
+                op(mInputGrid, mMask, map);
             mOutputGrid = op.process(mThreaded); // cache the result
         }
+
         const bool           mThreaded;
         const GridT&         mInputGrid;
         typename GridT::Ptr  mOutputGrid;
         InterruptT*          mInterrupt;
+        const MaskGridType*  mMask;
     }; // Private Functor
 
-    const GridT& mInputGrid;
-    InterruptT*  mInterrupt;
+    const GridT&        mInputGrid;
+    InterruptT*         mInterrupt;
+    const MaskGridType* mMask;
 }; // end of MeanCurvature class
 
 
 ////////////////////////////////////////
 
 
-template<typename InGridT, typename InterruptT = util::NullInterrupter>
+template<
+    typename InGridT,
+    typename MaskGridType = typename gridop::ToBoolGrid<InGridT>::Type,
+    typename InterruptT = util::NullInterrupter>
 class Magnitude
 {
 public:
     typedef InGridT                                         InGridType;
     typedef typename VectorToScalarConverter<InGridT>::Type OutGridType;
+
     Magnitude(const InGridType& grid, InterruptT* interrupt = NULL):
-        mInputGrid(grid), mInterrupt(interrupt)
+        mInputGrid(grid), mInterrupt(interrupt), mMask(NULL)
     {
     }
+
+    Magnitude(const InGridType& grid, const MaskGridType& mask, InterruptT* interrupt = NULL):
+        mInputGrid(grid), mInterrupt(interrupt), mMask(&mask)
+    {
+    }
+
     typename OutGridType::Ptr process(bool threaded = true)
     {
-        Functor functor(mInputGrid, threaded, mInterrupt);
+        Functor functor(mInputGrid, mMask, threaded, mInterrupt);
         processTypedMap(mInputGrid.transform(), functor);
         return functor.mOutputGrid;
     }
@@ -588,42 +841,66 @@ protected:
     };
     struct Functor
     {
-        Functor(const InGridT& grid, bool threaded, InterruptT* interrupt):
-            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt) {}
+        Functor(const InGridT& grid, const MaskGridType* mask,
+            bool threaded, InterruptT* interrupt):
+            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt), mMask(mask) {}
+
         template<typename MapT>
         void operator()(const MapT& map)
         {
-            GridOperator<InGridType, OutGridType, MapT, OpT, InterruptT> op(mInputGrid, map);
+            gridop::GridOperator<InGridType, MaskGridType, OutGridType, MapT, OpT, InterruptT>
+                op(mInputGrid, mMask, map);
             mOutputGrid = op.process(mThreaded); // cache the result
         }
+
         const bool                 mThreaded;
         const InGridType&          mInputGrid;
         typename OutGridType::Ptr  mOutputGrid;
         InterruptT*                mInterrupt;
+        const MaskGridType*        mMask;
     }; // Private Functor
 
-    const InGridType& mInputGrid;
-    InterruptT*       mInterrupt;
+    const InGridType&    mInputGrid;
+    InterruptT*          mInterrupt;
+    const MaskGridType*  mMask;
 }; // end of Magnitude class
 
 
 ////////////////////////////////////////
 
 
-template<typename GridT, typename InterruptT = util::NullInterrupter>
+template<
+    typename GridT,
+    typename MaskGridType = typename gridop::ToBoolGrid<GridT>::Type,
+    typename InterruptT = util::NullInterrupter>
 class Normalize
 {
 public:
     typedef GridT  InGridType;
     typedef GridT  OutGridType;
+
     Normalize(const GridT& grid, InterruptT* interrupt = NULL):
-        mInputGrid(grid), mInterrupt(interrupt)
+        mInputGrid(grid), mInterrupt(interrupt), mMask(NULL)
     {
     }
+
+    Normalize(const GridT& grid, const MaskGridType& mask, InterruptT* interrupt = NULL):
+        mInputGrid(grid), mInterrupt(interrupt), mMask(&mask)
+    {
+    }
+
     typename GridT::Ptr process(bool threaded = true)
     {
-        Functor functor(mInputGrid, threaded, mInterrupt);
+        Functor functor(mInputGrid, mMask, threaded, mInterrupt);
         processTypedMap(mInputGrid.transform(), functor);
+        if (typename GridT::Ptr outGrid = functor.mOutputGrid) {
+            const VecType vecType = mInputGrid.getVectorType();
+            if (vecType == VEC_COVARIANT) {
+                outGrid->setVectorType(VEC_COVARIANT_NORMALIZE);
+            } else {
+                outGrid->setVectorType(vecType);
+            }
+        }
         return functor.mOutputGrid;
     }
 
@@ -641,22 +918,27 @@ protected:
     };
     struct Functor
     {
-        Functor(const GridT& grid, bool threaded, InterruptT* interrupt):
-            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt) {}
+        Functor(const GridT& grid, const MaskGridType* mask, bool threaded, InterruptT* interrupt):
+            mThreaded(threaded), mInputGrid(grid), mInterrupt(interrupt), mMask(mask) {}
+
         template<typename MapT>
         void operator()(const MapT& map)
         {
-            GridOperator<GridT, GridT, MapT, OpT, InterruptT> op(mInputGrid, map);
+            gridop::GridOperator<GridT, MaskGridType, GridT, MapT, OpT, InterruptT>
+                op(mInputGrid, mMask,map);
             mOutputGrid = op.process(mThreaded); // cache the result
         }
+
         const bool           mThreaded;
         const GridT&         mInputGrid;
         typename GridT::Ptr  mOutputGrid;
         InterruptT*          mInterrupt;
+        const MaskGridType*  mMask;
     }; // Private Functor
 
-    const GridT& mInputGrid;
-    InterruptT*  mInterrupt;
+    const GridT&        mInputGrid;
+    InterruptT*         mInterrupt;
+    const MaskGridType* mMask;
 }; // end of Normalize class
 
 
@@ -667,7 +949,15 @@ template<typename GridType, typename InterruptT> inline
 typename ScalarToVectorConverter<GridType>::Type::Ptr
 cpt(const GridType& grid, bool threaded, InterruptT* interrupt)
 {
-    Cpt<GridType, InterruptT> op(grid, interrupt);
+    Cpt<GridType, typename gridop::ToBoolGrid<GridType>::Type, InterruptT> op(grid, interrupt);
+    return op.process(threaded);
+}
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename ScalarToVectorConverter<GridType>::Type::Ptr
+cpt(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt)
+{
+    Cpt<GridType, MaskT, InterruptT> op(grid, mask, interrupt);
     return op.process(threaded);
 }
 
@@ -675,7 +965,15 @@ template<typename GridType, typename InterruptT> inline
 typename GridType::Ptr
 curl(const GridType& grid, bool threaded, InterruptT* interrupt)
 {
-    Curl<GridType, InterruptT> op(grid, interrupt);
+    Curl<GridType, typename gridop::ToBoolGrid<GridType>::Type, InterruptT> op(grid, interrupt);
+    return op.process(threaded);
+}
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename GridType::Ptr
+curl(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt)
+{
+    Curl<GridType, MaskT, InterruptT> op(grid, mask, interrupt);
     return op.process(threaded);
 }
 
@@ -683,7 +981,16 @@ template<typename GridType, typename InterruptT> inline
 typename VectorToScalarConverter<GridType>::Type::Ptr
 divergence(const GridType& grid, bool threaded, InterruptT* interrupt)
 {
-    Divergence<GridType, InterruptT> op(grid, interrupt);
+    Divergence<GridType, typename gridop::ToBoolGrid<GridType>::Type, InterruptT>
+        op(grid, interrupt);
+    return op.process(threaded);
+}
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename VectorToScalarConverter<GridType>::Type::Ptr
+divergence(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt)
+{
+    Divergence<GridType, MaskT, InterruptT> op(grid, mask, interrupt);
     return op.process(threaded);
 }
 
@@ -691,7 +998,16 @@ template<typename GridType, typename InterruptT> inline
 typename ScalarToVectorConverter<GridType>::Type::Ptr
 gradient(const GridType& grid, bool threaded, InterruptT* interrupt)
 {
-    Gradient<GridType, InterruptT> op(grid, interrupt);
+    Gradient<GridType, typename gridop::ToBoolGrid<GridType>::Type, InterruptT>
+        op(grid, interrupt);
+    return op.process(threaded);
+}
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename ScalarToVectorConverter<GridType>::Type::Ptr
+gradient(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt)
+{
+    Gradient<GridType, MaskT, InterruptT> op(grid, mask, interrupt);
     return op.process(threaded);
 }
 
@@ -699,7 +1015,16 @@ template<typename GridType, typename InterruptT> inline
 typename GridType::Ptr
 laplacian(const GridType& grid, bool threaded, InterruptT* interrupt)
 {
-    Laplacian<GridType, InterruptT> op(grid, interrupt);
+    Laplacian<GridType, typename gridop::ToBoolGrid<GridType>::Type, InterruptT>
+        op(grid, interrupt);
+    return op.process(threaded);
+}
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename GridType::Ptr
+laplacian(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt)
+{
+    Laplacian<GridType, MaskT, InterruptT> op(grid, mask, interrupt);
     return op.process(threaded);
 }
 
@@ -707,7 +1032,16 @@ template<typename GridType, typename InterruptT> inline
 typename GridType::Ptr
 meanCurvature(const GridType& grid, bool threaded, InterruptT* interrupt)
 {
-    MeanCurvature<GridType, InterruptT> op(grid, interrupt);
+    MeanCurvature<GridType, typename gridop::ToBoolGrid<GridType>::Type, InterruptT>
+        op(grid, interrupt);
+    return op.process(threaded);
+}
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename GridType::Ptr
+meanCurvature(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt)
+{
+    MeanCurvature<GridType, MaskT, InterruptT> op(grid, mask, interrupt);
     return op.process(threaded);
 }
 
@@ -715,7 +1049,16 @@ template<typename GridType, typename InterruptT> inline
 typename VectorToScalarConverter<GridType>::Type::Ptr
 magnitude(const GridType& grid, bool threaded, InterruptT* interrupt)
 {
-    Magnitude<GridType, InterruptT> op(grid, interrupt);
+    Magnitude<GridType, typename gridop::ToBoolGrid<GridType>::Type, InterruptT>
+        op(grid, interrupt);
+    return op.process(threaded);
+}
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename VectorToScalarConverter<GridType>::Type::Ptr
+magnitude(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt)
+{
+    Magnitude<GridType, MaskT, InterruptT> op(grid, mask, interrupt);
     return op.process(threaded);
 }
 
@@ -723,7 +1066,16 @@ template<typename GridType, typename InterruptT> inline
 typename GridType::Ptr
 normalize(const GridType& grid, bool threaded, InterruptT* interrupt)
 {
-    Normalize<GridType, InterruptT> op(grid, interrupt);
+    Normalize<GridType, typename gridop::ToBoolGrid<GridType>::Type, InterruptT>
+        op(grid, interrupt);
+    return op.process(threaded);
+}
+
+template<typename GridType, typename MaskT, typename InterruptT> inline
+typename GridType::Ptr
+normalize(const GridType& grid, const MaskT& mask, bool threaded, InterruptT* interrupt)
+{
+    Normalize<GridType, MaskT, InterruptT> op(grid, mask, interrupt);
     return op.process(threaded);
 }
 

@@ -55,6 +55,31 @@
     #define OPENVDB_CHECK_GCC(MAJOR, MINOR) 0
 #endif
 
+/// Macro for determining if there are sufficient C++0x/C++11 features
+#ifdef __INTEL_COMPILER
+    #ifdef __INTEL_CXX11_MODE__
+        #define OPENVDB_HAS_CXX11 1
+    #endif
+#elif defined(__clang__)
+    #ifndef _LIBCPP_VERSION
+        #include <ciso646>
+    #endif
+    #ifdef _LIBCPP_VERSION
+        #define OPENVDB_HAS_CXX11 1
+    #endif
+#elif defined(__GXX_EXPERIMENTAL_CXX0X__) || (__cplusplus > 199711L)
+    #define OPENVDB_HAS_CXX11 1
+#elif defined(_MSC_VER)
+    #if (_MSC_VER >= 1700)
+        #define OPENVDB_HAS_CXX11 1
+    #endif
+#endif
+#if defined(__GNUC__) && !OPENVDB_CHECK_GCC(4, 4)
+    // ICC uses GCC's standard library headers, so even if the ICC version
+    // is recent enough for C++11, the GCC version might not be.
+    #undef OPENVDB_HAS_CXX11
+#endif
+
 /// For compilers that need templated function specializations to have
 /// storage qualifiers, we need to declare the specializations as static inline.
 /// Otherwise, we'll get linker errors about multiply defined symbols.
@@ -81,12 +106,15 @@
 /// In the above, <tt>NodeType::LEVEL == 0</tt> is a compile-time constant expression,
 /// so for some template instantiations, the line below it is unreachable.
 #if defined(__INTEL_COMPILER)
-    // Disable ICC remark #111 ("statement is unreachable") and
-    // remark #185 ("dynamic initialization in unreachable code").
+    // Disable ICC remarks 111 ("statement is unreachable"), 128 ("loop is not reachable"),
+    // 185 ("dynamic initialization in unreachable code"), and 280 ("selector expression
+    // is constant").
     #define OPENVDB_NO_UNREACHABLE_CODE_WARNING_BEGIN \
         _Pragma("warning (push)") \
         _Pragma("warning (disable:111)") \
-        _Pragma("warning (disable:185)")
+        _Pragma("warning (disable:128)") \
+        _Pragma("warning (disable:185)") \
+        _Pragma("warning (disable:280)")
     #define OPENVDB_NO_UNREACHABLE_CODE_WARNING_END \
         _Pragma("warning (pop)")
 #else

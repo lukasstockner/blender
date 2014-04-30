@@ -91,6 +91,9 @@ struct LeafManagerImpl
 };
 
 
+////////////////////////////////////////
+
+
 /// @brief This class manages a linear array of pointers to a given tree's
 /// leaf nodes, as well as optional auxiliary buffers (one or more per leaf)
 /// that can be swapped with the leaf nodes' voxel data buffers.
@@ -126,6 +129,10 @@ public:
             {
                 assert(this->isValid());
             }
+            Iterator& operator=(const Iterator& other)
+            {
+                mRange = other.mRange; mPos = other.mPos; return *this;
+            }
             /// Advance to the next leaf node.
             Iterator& operator++() { ++mPos; return *this; }
             /// Return a reference to the leaf node to which this iterator is pointing.
@@ -147,8 +154,6 @@ public:
             operator bool() const { return this->test(); }
             /// Return @c true if this iterator is exhausted.
             bool empty() const { return !this->test(); }
-            //bool operator<( const Iterator& other ) const { return mPos < other.mPos; }
-            void operator=( const Iterator& other) { mRange = other.mRange; mPos = other.mPos; }
             bool operator!=(const Iterator& other) const
             {
                 return (mPos != other.mPos) || (&mRange != &other.mRange);
@@ -280,8 +285,6 @@ public:
         this->removeAuxBuffers();
         this->initLeafArray();
     }
-    /// @deprecated Use rebuildLeafArray() instead.
-    OPENVDB_DEPRECATED void rebuildLeafs() { this->rebuildLeafArray(); }
 
     /// Return the total number of allocated auxiliary buffers.
     size_t auxBufferCount() const { return mAuxBufferCount; }
@@ -397,6 +400,72 @@ public:
         return true;//success
     }
 
+    /// @brief   Threaded method that applies a user-supplied functor
+    ///          to each leaf node in the LeafManager
+    ///
+    /// @param op        user-supplied functor, see examples for interface details.
+    /// @param threaded  optional toggle to disable threading, on by default.
+    /// @param grainSize optional parameter to specify the grainsize
+    ///                  for threading, one by default.
+    ///
+    /// @warning The functor object is deep-copied to create TBB tasks.
+    ///
+    /// @par Example:
+    /// @code
+    /// // Functor to offset a tree's voxel values with values from another tree.
+    /// template<typename TreeType>
+    /// struct OffsetOp
+    /// {
+    ///     typedef tree::ValueAccessor<const TreeType> Accessor;
+    ///
+    ///     OffsetOp(const TreeType& tree): mRhsTreeAcc(tree) {}
+    ///
+    ///     template <typename LeafNodeType>
+    ///     void operator()(LeafNodeType &lhsLeaf, size_t) const
+    ///     {
+    ///         const LeafNodeType * rhsLeaf = mRhsTreeAcc.probeConstLeaf(lhsLeaf.origin());
+    ///         if (rhsLeaf) {
+    ///             typename LeafNodeType::ValueOnIter iter = lhsLeaf.beginValueOn();
+    ///             for (; iter; ++iter) {
+    ///                 iter.setValue(iter.getValue() + rhsLeaf->getValue(iter.pos()));
+    ///             }
+    ///         }
+    ///     }
+    /// private:
+    ///     Accessor mRhsTreeAcc;
+    /// };
+    ///
+    /// // usage:
+    /// tree::LeafManager<FloatTree> leafNodes(lhsTree);
+    /// leafNodes.foreach(OffsetOp<FloatTree>(rhsTree));
+    ///
+    /// // A functor that performs a min operation between different auxiliary buffers.
+    /// template<typename LeafManagerType>
+    /// struct MinOp
+    /// {
+    ///     typedef typename LeafManagerType::BufferType BufferType;
+    ///
+    ///     MinOp(LeafManagerType& leafNodes): mLeafs(leafNodes) {}
+    ///
+    ///     template <typename LeafNodeType>
+    ///     void operator()(LeafNodeType &leaf, size_t leafIndex) const
+    ///     {
+    ///         // get the first buffer
+    ///         BufferType& buffer = mLeafs.getBuffer(leafIndex, 1);
+    ///
+    ///         // min ...
+    ///     }
+    /// private:
+    ///     LeafManagerType& mLeafs;
+    /// };
+    /// @endcode
+    template<typename LeafOp>
+    void foreach(const LeafOp& op, bool threaded = true, size_t grainSize=1)
+    {
+        LeafTransformer<LeafOp> transform(op);
+        transform.run(this->leafRange(grainSize), threaded);
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////
     // All methods below are for internal use only and should never be called directly
 
@@ -406,6 +475,8 @@ public:
         if (mTask) mTask(const_cast<LeafManager*>(this), r);
         else OPENVDB_THROW(ValueError, "task is undefined");
     }
+
+
 
 private:
     void initLeafArray()
@@ -483,6 +554,23 @@ private:
             for (size_t i=n*N, j=i+N; i!=j; ++i) mAuxBuffers[i] = leafBuffer;
         }
     }
+
+    /// @brief Private member class that applies a user-defined
+    /// functor to all the leaf nodes.
+    template<typename LeafOp>
+    struct LeafTransformer
+    {
+        LeafTransformer(const LeafOp& leafOp) : mLeafOp(leafOp) {}
+        void run(const LeafRange& range, bool threaded = true)
+        {
+            threaded ? tbb::parallel_for(range, *this) : (*this)(range);
+        }
+        void operator()(const LeafRange& range) const
+        {
+            for (typename LeafRange::Iterator it = range.begin(); it; ++it) mLeafOp(*it, it.pos());
+        }
+        const LeafOp mLeafOp;
+    };
 
     typedef typename boost::function<void (LeafManager*, const RangeType&)> FuncType;
 

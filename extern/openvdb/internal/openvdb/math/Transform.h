@@ -27,7 +27,7 @@
 // LIABILITY FOR ALL CLAIMS REGARDLESS OF THEIR BASIS EXCEED US$250.00.
 //
 ///////////////////////////////////////////////////////////////////////////
-#pragma once
+
 #ifndef OPENVDB_MATH_TRANSFORM_HAS_BEEN_INCLUDED
 #define OPENVDB_MATH_TRANSFORM_HAS_BEEN_INCLUDED
 

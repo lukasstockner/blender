@@ -39,7 +39,6 @@
 #include <openvdb/Grid.h>
 #include <openvdb/tree/LeafManager.h>
 #include <tbb/blocked_range.h>
-#include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
 #include <limits>
 
@@ -147,34 +146,6 @@ private:
 ////////////////////////////////////////
 
 
-/// @brief Threaded operator that applies a user-supplied functor
-/// to each leaf node in a LeafManager
-template<class TreeType, class LeafOp>
-class LeafTransformer
-{
-public:
-    typedef tree::LeafManager<TreeType> LeafArray;
-    typedef typename TreeType::ValueType ValueType;
-
-    // LeafArray = openvdb::tree::LeafManager<TreeType> leafs(myTree)
-    LeafTransformer(LeafArray&, LeafOp&);
-
-    void runParallel();
-    void runSerial();
-
-
-    inline void operator()(const tbb::blocked_range<size_t>&) const;
-    inline LeafTransformer(const LeafTransformer<TreeType, LeafOp>&);
-
-private:
-    LeafArray& mLeafArray;
-    LeafOp& mLeafOp;
-};
-
-
-////////////////////////////////////////
-
-
 // Internal utility objects and implementation details
 namespace internal {
 
@@ -223,7 +194,7 @@ public:
     template <typename LeafNodeType>
     void operator()(LeafNodeType &leaf, size_t/*leafIndex*/) const
     {
-        const Coord origin = leaf.getOrigin();
+        const Coord origin = leaf.origin();
         const typename TreeType::LeafNodeType* refLeafPt = mTree.probeConstLeaf(origin);
 
         if (refLeafPt != NULL) {
@@ -313,52 +284,6 @@ MinMaxVoxel<TreeType>::join(const MinMaxVoxel<TreeType>& rhs)
 }
 
 
-////////////////////////////////////////
-
-
-template <class TreeType, class LeafOp>
-LeafTransformer<TreeType, LeafOp>::LeafTransformer(LeafArray& leafs, LeafOp& leafOp)
-    : mLeafArray(leafs)
-    , mLeafOp(leafOp)
-{
-}
-
-
-template <class TreeType, class LeafOp>
-inline
-LeafTransformer<TreeType, LeafOp>::LeafTransformer(
-    const LeafTransformer<TreeType, LeafOp>& rhs)
-    : mLeafArray(rhs.mLeafArray)
-    , mLeafOp(rhs.mLeafOp)
-{
-}
-
-
-template <class TreeType, class LeafOp>
-void
-LeafTransformer<TreeType, LeafOp>::runParallel()
-{
-    tbb::parallel_for(mLeafArray.getRange(), *this);
-}
-
-
-template <class TreeType, class LeafOp>
-void
-LeafTransformer<TreeType, LeafOp>::runSerial()
-{
-    (*this)(mLeafArray.getRange());
-}
-
-
-template <class TreeType, class LeafOp>
-inline void
-LeafTransformer<TreeType, LeafOp>::operator()(const tbb::blocked_range<size_t>& range) const
-{
-    for (size_t n = range.begin(); n < range.end(); ++n) {
-        mLeafOp(mLeafArray.leaf(n), n);
-    }
-}
-
 
 ////////////////////////////////////////
 
@@ -385,9 +310,7 @@ sdfToFogVolume(GridType& grid, typename GridType::ValueType cutoffDistance)
             cutoffDistance = minmax.minVoxel();
         }
 
-        internal::FogVolumeOp<ValueType> op(cutoffDistance);
-        LeafTransformer<TreeType, internal::FogVolumeOp<ValueType> > transform(leafs, op);
-        transform.runParallel();
+        leafs.foreach(internal::FogVolumeOp<ValueType>(cutoffDistance));
     }
 
     // Transform all tile values (serial, but the iteration
@@ -446,11 +369,7 @@ sdfInteriorMask(const GridType& grid, typename GridType::ValueType iso)
 
         tree::LeafManager<BoolTreeType> leafs(maskTree);
 
-        typedef internal::InteriorMaskOp<typename GridType::TreeType> InteriorMaskOp;
-        InteriorMaskOp op(grid.tree(), iso);
-
-        LeafTransformer<BoolTreeType, InteriorMaskOp> transform(leafs, op);
-        transform.runParallel();
+        leafs.foreach(internal::InteriorMaskOp<typename GridType::TreeType>(grid.tree(), iso));
     }
 
     // Evaluate tile values (serial, but the iteration

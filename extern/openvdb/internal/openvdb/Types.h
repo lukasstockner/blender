@@ -44,6 +44,7 @@
 #include <openvdb/math/Mat4.h>
 #include <openvdb/math/Coord.h>
 #include <openvdb/math/Hermite.h>
+#include <boost/type_traits/is_convertible.hpp>
 
 
 namespace openvdb {
@@ -51,7 +52,6 @@ OPENVDB_USE_VERSION_NAMESPACE
 namespace OPENVDB_VERSION_NAME {
 
 // One-dimensional scalar types
-typedef uint32_t            Uint;
 typedef uint32_t            Index32;
 typedef uint64_t            Index64;
 typedef Index32             Index;
@@ -63,34 +63,35 @@ typedef unsigned char       Byte;
 typedef double              Real;
 
 // Two-dimensional vector types
-typedef math::Vec2i         Vec2i;
-typedef math::Vec2s         Vec2s;
-typedef math::Vec2d         Vec2d;
 typedef math::Vec2<Real>    Vec2R;
-typedef math::Vec2<Index>   Vec2I;
+typedef math::Vec2<Index32> Vec2I;
+typedef math::Vec2<float>   Vec2f;
 typedef math::Vec2<half>    Vec2H;
+using math::Vec2i;
+using math::Vec2s;
+using math::Vec2d;
 
 // Three-dimensional vector types
 typedef math::Vec3<Real>    Vec3R;
 typedef math::Vec3<Index32> Vec3I;
-typedef math::Vec3<Int32>   Vec3i;
 typedef math::Vec3<float>   Vec3f;
-typedef math::Vec3s         Vec3s;
-typedef math::Vec3<double>  Vec3d;
 typedef math::Vec3<half>    Vec3H;
+using math::Vec3i;
+using math::Vec3s;
+using math::Vec3d;
 
-typedef math::Coord         Coord;
-typedef math::CoordBBox     CoordBBox;
+using math::Coord;
+using math::CoordBBox;
 typedef math::BBox<Vec3d>   BBoxd;
 
 // Four-dimensional vector types
 typedef math::Vec4<Real>    Vec4R;
 typedef math::Vec4<Index32> Vec4I;
-typedef math::Vec4<Int32>   Vec4i;
 typedef math::Vec4<float>   Vec4f;
-typedef math::Vec4s         Vec4s;
-typedef math::Vec4<double>  Vec4d;
 typedef math::Vec4<half>    Vec4H;
+using math::Vec4i;
+using math::Vec4s;
+using math::Vec4d;
 
 // Three-dimensional matrix types
 typedef math::Mat3<Real>    Mat3R;
@@ -110,10 +111,54 @@ typedef math::Quat<Real>    QuatR;
 ////////////////////////////////////////
 
 
-template<typename T> struct VecTraits { static const bool IsVec = false; };
-template<typename T> struct VecTraits<math::Vec2<T> > { static const bool IsVec = true; };
-template<typename T> struct VecTraits<math::Vec3<T> > { static const bool IsVec = true; };
-template<typename T> struct VecTraits<math::Vec4<T> > { static const bool IsVec = true; };
+template<typename T> struct VecTraits {
+    static const bool IsVec = false;
+    static const int Size = 1;
+};
+template<typename T> struct VecTraits<math::Vec2<T> > {
+    static const bool IsVec = true;
+    static const int Size = 2;
+};
+template<typename T> struct VecTraits<math::Vec3<T> > {
+    static const bool IsVec = true;
+    static const int Size = 3;
+};
+template<typename T> struct VecTraits<math::Vec4<T> > {
+    static const bool IsVec = true;
+    static const int Size = 4;
+};
+
+
+////////////////////////////////////////
+
+
+/// @brief CanConvertType<FromType, ToType>::value is @c true if a value
+/// of type @a ToType can be constructed from a value of type @a FromType.
+///
+/// @note @c boost::is_convertible tests for implicit convertibility only.
+/// What we want is the equivalent of C++11's @c std::is_constructible,
+/// which allows for explicit conversions as well.  Unfortunately, not all
+/// compilers support @c std::is_constructible yet, so for now, types that
+/// can only be converted explicitly have to be indicated with specializations
+/// of this template.
+template<typename FromType, typename ToType>
+struct CanConvertType { enum { value = boost::is_convertible<FromType, ToType>::value }; };
+
+// Specializations for vector types, which can be constructed from values
+// of their own ValueTypes (or values that can be converted to their ValueTypes),
+// but only explicitly
+template<typename T> struct CanConvertType<T, math::Vec2<T> > { enum { value = true }; };
+template<typename T> struct CanConvertType<T, math::Vec3<T> > { enum { value = true }; };
+template<typename T> struct CanConvertType<T, math::Vec4<T> > { enum { value = true }; };
+template<typename T> struct CanConvertType<math::Vec2<T>, math::Vec2<T> > { enum {value = true}; };
+template<typename T> struct CanConvertType<math::Vec3<T>, math::Vec3<T> > { enum {value = true}; };
+template<typename T> struct CanConvertType<math::Vec4<T>, math::Vec4<T> > { enum {value = true}; };
+template<typename T0, typename T1>
+struct CanConvertType<T0, math::Vec2<T1> > { enum { value = CanConvertType<T0, T1>::value }; };
+template<typename T0, typename T1>
+struct CanConvertType<T0, math::Vec3<T1> > { enum { value = CanConvertType<T0, T1>::value }; };
+template<typename T0, typename T1>
+struct CanConvertType<T0, math::Vec4<T1> > { enum { value = CanConvertType<T0, T1>::value }; };
 
 
 ////////////////////////////////////////
@@ -160,6 +205,26 @@ enum VecType {
 enum { NUM_VEC_TYPES = VEC_CONTRAVARIANT_ABSOLUTE + 1 };
 
 
+/// Specify how grids should be merged during certain (typically multithreaded) operations.
+/// <dl>
+/// <dt><b>MERGE_ACTIVE_STATES</b>
+/// <dd>The output grid is active wherever any of the input grids is active.
+///
+/// <dt><b>MERGE_NODES</b>
+/// <dd>The output grid's tree has a node wherever any of the input grids' trees
+///     has a node, regardless of any active states.
+///
+/// <dt><b>MERGE_ACTIVE_STATES_AND_NODES</b>
+/// <dd>The output grid is active wherever any of the input grids is active,
+///     and its tree has a node wherever any of the input grids' trees has a node.
+/// </dl>
+enum MergePolicy {
+    MERGE_ACTIVE_STATES = 0,
+    MERGE_NODES,
+    MERGE_ACTIVE_STATES_AND_NODES
+};
+
+
 ////////////////////////////////////////
 
 
@@ -187,7 +252,7 @@ template<> inline const char* typeNameAsString<Mat4d>()       { return "mat4d"; 
 
 /// @brief This struct collects both input and output arguments to "grid combiner" functors
 /// used with the tree::TypedGrid::combineExtended() and combine2Extended() methods.
-/// ValueType is the value type of the two grids being combined.
+/// AValueType and BValueType are the value types of the two grids being combined.
 ///
 /// @see openvdb/tree/Tree.h for usage information.
 ///
@@ -196,11 +261,12 @@ template<> inline const char* typeNameAsString<Mat4d>()       { return "mat4d"; 
 ///     CombineArgs<float> args;
 ///     myCombineOp(args.setARef(aVal).setBRef(bVal).setAIsActive(true).setBIsActive(false));
 /// @endcode
-template<typename ValueType>
+template<typename AValueType, typename BValueType = AValueType>
 class CombineArgs
 {
 public:
-    typedef ValueType ValueT;
+    typedef AValueType AValueT;
+    typedef BValueType BValueT;
 
     CombineArgs():
         mAValPtr(NULL), mBValPtr(NULL), mResultValPtr(&mResultVal),
@@ -208,37 +274,37 @@ public:
         {}
 
     /// Use this constructor when the result value is stored externally.
-    CombineArgs(const ValueType& a, const ValueType& b, ValueType& result,
+    CombineArgs(const AValueType& a, const BValueType& b, AValueType& result,
         bool aOn = false, bool bOn = false):
         mAValPtr(&a), mBValPtr(&b), mResultValPtr(&result),
         mAIsActive(aOn), mBIsActive(bOn)
         { updateResultActive(); }
 
     /// Use this constructor when the result value should be stored in this struct.
-    CombineArgs(const ValueType& a, const ValueType& b, bool aOn = false, bool bOn = false):
+    CombineArgs(const AValueType& a, const BValueType& b, bool aOn = false, bool bOn = false):
         mAValPtr(&a), mBValPtr(&b), mResultValPtr(&mResultVal),
         mAIsActive(aOn), mBIsActive(bOn)
         { updateResultActive(); }
 
     /// Get the A input value.
-    const ValueType& a() const { return *mAValPtr; }
+    const AValueType& a() const { return *mAValPtr; }
     /// Get the B input value.
-    const ValueType& b() const { return *mBValPtr; }
+    const BValueType& b() const { return *mBValPtr; }
     //@{
     /// Get the output value.
-    const ValueType& result() const { return *mResultValPtr; }
-    ValueType& result() { return *mResultValPtr; }
+    const AValueType& result() const { return *mResultValPtr; }
+    AValueType& result() { return *mResultValPtr; }
     //@}
 
     /// Set the output value.
-    CombineArgs& setResult(const ValueType& val) { *mResultValPtr = val; return *this; }
+    CombineArgs& setResult(const AValueType& val) { *mResultValPtr = val; return *this; }
 
     /// Redirect the A value to a new external source.
-    CombineArgs& setARef(const ValueType& a) { mAValPtr = &a; return *this; }
+    CombineArgs& setARef(const AValueType& a) { mAValPtr = &a; return *this; }
     /// Redirect the B value to a new external source.
-    CombineArgs& setBRef(const ValueType& b) { mBValPtr = &b; return *this; }
+    CombineArgs& setBRef(const BValueType& b) { mBValPtr = &b; return *this; }
     /// Redirect the result value to a new external destination.
-    CombineArgs& setResultRef(ValueType& val) { mResultValPtr = &val; return *this; }
+    CombineArgs& setResultRef(AValueType& val) { mResultValPtr = &val; return *this; }
 
     /// @return true if the A value is active
     bool aIsActive() const { return mAIsActive; }
@@ -259,12 +325,12 @@ protected:
     /// but this behavior can be overridden by calling setResultIsActive().
     void updateResultActive() { mResultIsActive = mAIsActive || mBIsActive; }
 
-    const ValueType* mAValPtr;   // pointer to input value from A grid
-    const ValueType* mBValPtr;   // pointer to input value from B grid
-    ValueType mResultVal;        // computed output value (unused if stored externally)
-    ValueType* mResultValPtr;    // pointer to either mResultVal or an external value
-    bool mAIsActive, mBIsActive; // active states of A and B values
-    bool mResultIsActive;        // computed active state (default: A active || B active)
+    const AValueType* mAValPtr;   // pointer to input value from A grid
+    const BValueType* mBValPtr;   // pointer to input value from B grid
+    AValueType mResultVal;        // computed output value (unused if stored externally)
+    AValueType* mResultValPtr;    // pointer to either mResultVal or an external value
+    bool mAIsActive, mBIsActive;  // active states of A and B values
+    bool mResultIsActive;         // computed active state (default: A active || B active)
 };
 
 
@@ -274,7 +340,7 @@ protected:
 template<typename ValueType, typename CombineOp>
 struct SwappedCombineOp
 {
-    SwappedCombineOp(CombineOp& op): op(op) {}
+    SwappedCombineOp(CombineOp& _op): op(_op) {}
 
     void operator()(CombineArgs<ValueType>& args)
     {

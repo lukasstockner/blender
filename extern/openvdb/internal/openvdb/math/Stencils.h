@@ -54,20 +54,35 @@ template<typename _GridType, typename StencilType>
 class BaseStencil
 {
 public:
-    typedef _GridType                     GridType;
-    typedef typename GridType::TreeType   TreeType;
-    typedef typename GridType::ValueType  ValueType;
-    typedef std::vector<ValueType>        BufferType;
-    typedef typename BufferType::iterator IterType;
+    typedef _GridType                        GridType;
+    typedef typename GridType::TreeType      TreeType;
+    typedef typename GridType::ValueType     ValueType;
+    typedef std::vector<ValueType>           BufferType;
+    typedef typename BufferType::iterator    IterType;
+    typedef typename GridType::ConstAccessor AccessorType;
 
-    /// Initialize the stencil buffer with the values of voxel (x, y, z)
+    /// @brief Initialize the stencil buffer with the values of voxel (i, j, k)
     /// and its neighbors.
+    /// @param ijk Index coordinates of stencil center
     inline void moveTo(const Coord& ijk)
     {
         mCenter = ijk;
         mStencil[0] = mCache.getValue(ijk);
         static_cast<StencilType&>(*this).init(mCenter);
     }
+    
+    /// @brief Initialize the stencil buffer with the values of voxel (i, j, k)
+    /// and its neighbors. The method also takes a value of the center
+    /// element of the stencil, assuming it is already known.
+    /// @param ijk Index coordinates of stnecil center
+    /// @param centerValue Value of the center element of the stencil
+    inline void moveTo(const Coord& ijk, const ValueType& centerValue)
+    {
+        mCenter = ijk;
+        mStencil[0] = centerValue;
+        static_cast<StencilType&>(*this).init(mCenter);
+    }
+    
     /// @brief Initialize the stencil buffer with the values of voxel
     /// (x, y, z) and its neighbors.
     ///
@@ -81,34 +96,47 @@ public:
         static_cast<StencilType&>(*this).init(mCenter);
     }
 
+    /// @brief Initialize the stencil buffer with the values of voxel (x, y, z)
+    /// and its neighbors.
+    /// @param xyz Floating point voxel coordinates of stencil center
+    /// @details This method will check to see if it is necessary to
+    /// update the stencil based on the cached index coordinates of
+    /// the center point.
+    inline void moveTo(const Vec3R& xyz)
+    {
+        Coord ijk = openvdb::Coord::floor(xyz);
+        if (ijk != mCenter) this->moveTo(ijk);
+    }
+
     /// @brief Return the value from the stencil buffer with linear
-    /// offset pos.
+    /// offset pos. 
     ///
-    /// The default (@a pos = 0) corresponds to the center point of the stencil.
-    inline ValueType getValue(unsigned int pos = 0) const
+    /// @note The default (@a pos = 0) corresponds to the first element
+    /// which is typically the center point of the stencil.
+    inline const ValueType& getValue(unsigned int pos = 0) const
     {
         assert(pos < mStencil.size());
         return mStencil[pos];
     }
 
-    /// Return the value at the specified location relative to the center of the stencil
+    /// @brief Return the value at the specified location relative to the center of the stencil
     template<int i, int j, int k>
-    const ValueType& getValue() const
+    inline const ValueType& getValue() const
     {
         return mStencil[static_cast<const StencilType&>(*this).template pos<i,j,k>()];
     }
 
-    /// Set the value at the specified location relative to the center of the stencil
+    /// @brief Set the value at the specified location relative to the center of the stencil
     template<int i, int j, int k>
-    void setValue(const ValueType& value)
+    inline void setValue(const ValueType& value)
     {
         mStencil[static_cast<const StencilType&>(*this).template pos<i,j,k>()] = value;
     }
 
-    /// Return the size of the stencil buffer.
+    /// @brief Return the size of the stencil buffer.
     inline int size() { return mStencil.size(); }
 
-    /// Return the median value of the current stencil.
+    /// @brief Return the median value of the current stencil.
     inline ValueType median() const
     {
         std::vector<ValueType> tmp(mStencil);//local copy
@@ -119,38 +147,35 @@ public:
         return tmp[midpoint];
     }
 
-    /// Return the mean value of the current stencil.
+    /// @brief Return the mean value of the current stencil.
     inline ValueType mean() const
     {
-        double sum = 0.0;
+        ValueType sum = 0.0;
         for (int n=0, s=mStencil.size(); n<s; ++n) sum += mStencil[n];
-        return ValueType(sum / mStencil.size());
+        return sum / mStencil.size();
     }
 
-    /// Return the smallest value in the stencil buffer.
+    /// @brief Return the smallest value in the stencil buffer.
     inline ValueType min() const
     {
         IterType iter = std::min_element(mStencil.begin(), mStencil.end());
         return *iter;
     }
 
-    /// Return the largest value in the stencil buffer.
+    /// @brief Return the largest value in the stencil buffer.
     inline ValueType max() const
     {
         IterType iter = std::max_element(mStencil.begin(), mStencil.end());
         return *iter;
     }
 
-    /// Return the coordinates of the center point of the stencil.
+    /// @brief Return the coordinates of the center point of the stencil.
     inline const Coord& getCenterCoord() const { return mCenter; }
 
-    /// Return the value at the center of the stencil
-    inline const ValueType& getCenterValue() const
-    {
-        return this->getValue<0,0,0>();
-    }
+    /// @brief Return the value at the center of the stencil
+    inline const ValueType& getCenterValue() const { return mStencil[0]; }
 
-    /// Return true if the center of the stencil intersects the
+    /// @brief Return true if the center of the stencil intersects the
     /// iso-contour specified by the isoValue
     inline bool intersects(const ValueType &isoValue = zeroVal<ValueType>()) const
     {
@@ -163,17 +188,26 @@ public:
                (less  ^  (this->getValue< 0, 0, 1>() < isoValue))  ;
     }
 
+    /// @brief Return a const reference to the grid from which this
+    /// stencil was constructed.
+    inline const GridType& grid() const { return *mGrid; }
+
+    /// @brief Return a const reference to the ValueAccessor
+    /// associated with this Stencil.
+    inline const AccessorType& accessor() const { return mCache; }
+
 protected:
     // Constructor is protected to prevent direct instantiation.
     BaseStencil(const GridType& grid, int size):
-        mCache(grid.getConstAccessor()),
-        mStencil(size)
+        mGrid(&grid), mCache(grid.getConstAccessor()),
+        mStencil(size), mCenter(Coord::max())
     {
     }
 
-    typename GridType::ConstAccessor mCache;
-    BufferType                       mStencil;
-    Coord                            mCenter;
+    const GridType* mGrid;
+    AccessorType    mCache;
+    BufferType      mStencil;
+    Coord           mCenter;
 
 }; // class BaseStencil
 
@@ -215,8 +249,6 @@ public:
 private:
     inline void init(const Coord& ijk)
     {
-        BaseType::template setValue< 0, 0, 0>(mCache.getValue(ijk));
-
         BaseType::template setValue<-1, 0, 0>(mCache.getValue(ijk.offsetBy(-1, 0, 0)));
         BaseType::template setValue< 1, 0, 0>(mCache.getValue(ijk.offsetBy( 1, 0, 0)));
 
@@ -231,6 +263,142 @@ private:
     using BaseType::mCache;
     using BaseType::mStencil;
 };
+
+
+////////////////////////////////////////
+
+
+namespace { // anonymous namespace for stencil-layout map
+
+    // the eight point box stencil
+    template<int i, int j, int k> struct BoxPt {};
+    template<> struct BoxPt< 0, 0, 0> { enum { idx = 0 }; };
+    template<> struct BoxPt< 0, 0, 1> { enum { idx = 1 }; };
+    template<> struct BoxPt< 0, 1, 1> { enum { idx = 2 }; };
+    template<> struct BoxPt< 0, 1, 0> { enum { idx = 3 }; };
+    template<> struct BoxPt< 1, 0, 0> { enum { idx = 4 }; };
+    template<> struct BoxPt< 1, 0, 1> { enum { idx = 5 }; };
+    template<> struct BoxPt< 1, 1, 1> { enum { idx = 6 }; };
+    template<> struct BoxPt< 1, 1, 0> { enum { idx = 7 }; };
+}
+
+template<typename GridType>
+class BoxStencil: public BaseStencil<GridType, BoxStencil<GridType> >
+{
+public:
+    typedef BaseStencil<GridType, BoxStencil<GridType> > BaseType;
+    typedef typename BaseType::BufferType   BufferType;
+    typedef typename GridType::ValueType    ValueType;
+    typedef math::Vec3<ValueType>           Vec3Type;
+    static const int SIZE = 8;
+
+    BoxStencil(const GridType& grid): BaseType(grid, SIZE) {}
+
+    /// Return linear offset for the specified stencil point relative to its center
+    template<int i, int j, int k>
+    unsigned int pos() const { return BoxPt<i,j,k>::idx; }
+
+     /// @brief Return true if the center of the stencil intersects the
+    /// iso-contour specified by the isoValue
+    inline bool intersects(const ValueType &isoValue = zeroVal<ValueType>()) const
+    {
+        const bool less = mStencil[0] < isoValue;
+        return (less  ^  (mStencil[1] < isoValue)) ||
+               (less  ^  (mStencil[2] < isoValue)) ||
+               (less  ^  (mStencil[3] < isoValue)) ||
+               (less  ^  (mStencil[4] < isoValue)) ||
+               (less  ^  (mStencil[5] < isoValue)) ||
+               (less  ^  (mStencil[6] < isoValue)) ||
+               (less  ^  (mStencil[7] < isoValue))  ;
+    }
+
+    /// @brief Return the trilinear interpolation at the normalized position.
+    /// @param xyz Floating point coordinate position.
+    /// @warning It is assumed that the stencil has already been moved
+    /// to the relevant voxel position, e.g. using moveTo(xyz).
+    /// @note Trilinear interpolation kernal reads as:
+    ///       v000 (1-u)(1-v)(1-w) + v001 (1-u)(1-v)w + v010 (1-u)v(1-w) + v011 (1-u)vw
+    ///     + v100 u(1-v)(1-w)     + v101 u(1-v)w     + v110 uv(1-w)     + v111 uvw
+    inline ValueType interpolation(const Vec3Type& xyz) const
+    {
+        const Real u = xyz[0] - BaseType::mCenter[0]; assert(u>=0 && u<=1);
+        const Real v = xyz[1] - BaseType::mCenter[1]; assert(v>=0 && v<=1);
+        const Real w = xyz[2] - BaseType::mCenter[2]; assert(w>=0 && w<=1);
+        
+        ValueType V = BaseType::template getValue<0,0,0>();
+        ValueType A = V + (BaseType::template getValue<0,0,1>() - V) * w;
+        V = BaseType::template getValue< 0, 1, 0>();
+        ValueType B = V + (BaseType::template getValue<0,1,1>() - V) * w;
+        ValueType C = A + (B - A) * v;
+
+        V = BaseType::template getValue<1,0,0>();
+        A = V + (BaseType::template getValue<1,0,1>() - V) * w;
+        V = BaseType::template getValue<1,1,0>();
+        B = V + (BaseType::template getValue<1,1,1>() - V) * w;
+        ValueType D = A + (B - A) * v;
+        
+        return C + (D - C) * u;
+    }
+
+    /// @brief Return the gradient in world space of the trilinear interpolation kernel.
+    /// @param xyz Floating point coordinate position.
+    /// @warning It is assumed that the stencil has already been moved
+    /// to the relevant voxel position, e.g. using moveTo(xyz).
+    /// @note Computed as partial derivatives of the trilinear interpolation kernel:
+    ///       v000 (1-u)(1-v)(1-w) + v001 (1-u)(1-v)w + v010 (1-u)v(1-w) + v011 (1-u)vw
+    ///     + v100 u(1-v)(1-w)     + v101 u(1-v)w     + v110 uv(1-w)     + v111 uvw
+    inline Vec3Type gradient(const Vec3Type& xyz) const
+    {
+        const Real u = xyz[0] - BaseType::mCenter[0]; assert(u>=0 && u<=1);
+        const Real v = xyz[1] - BaseType::mCenter[1]; assert(v>=0 && v<=1);
+        const Real w = xyz[2] - BaseType::mCenter[2]; assert(w>=0 && w<=1);
+        
+        ValueType D[4]={BaseType::template getValue<0,0,1>()-BaseType::template getValue<0,0,0>(),
+                        BaseType::template getValue<0,1,1>()-BaseType::template getValue<0,1,0>(),
+                        BaseType::template getValue<1,0,1>()-BaseType::template getValue<1,0,0>(),
+                        BaseType::template getValue<1,1,1>()-BaseType::template getValue<1,1,0>()};
+
+        // Z component
+        ValueType A = D[0] + (D[1]- D[0]) * v;
+        ValueType B = D[2] + (D[3]- D[2]) * v;
+        Vec3Type grad(zeroVal<ValueType>(), zeroVal<ValueType>(), A + (B - A) * u);
+
+        D[0] = BaseType::template getValue<0,0,0>() + D[0] * w;
+        D[1] = BaseType::template getValue<0,1,0>() + D[1] * w;
+        D[2] = BaseType::template getValue<1,0,0>() + D[2] * w;
+        D[3] = BaseType::template getValue<1,1,0>() + D[3] * w;
+
+        // X component
+        A = D[0] + (D[1] - D[0]) * v;
+        B = D[2] + (D[3] - D[2]) * v;
+
+        grad[0] = B - A;
+
+        // Y component
+        A = D[1] - D[0];
+        B = D[3] - D[2];
+
+        grad[1] = A + (B - A) * u;
+
+        return BaseType::mGrid->transform().baseMap()->applyIJT(grad, xyz);
+    }
+
+private:
+    inline void init(const Coord& ijk)
+    {
+        BaseType::template setValue< 0, 0, 1>(mCache.getValue(ijk.offsetBy( 0, 0, 1)));
+        BaseType::template setValue< 0, 1, 1>(mCache.getValue(ijk.offsetBy( 0, 1, 1)));
+        BaseType::template setValue< 0, 1, 0>(mCache.getValue(ijk.offsetBy( 0, 1, 0)));
+        BaseType::template setValue< 1, 0, 0>(mCache.getValue(ijk.offsetBy( 1, 0, 0)));
+        BaseType::template setValue< 1, 0, 1>(mCache.getValue(ijk.offsetBy( 1, 0, 1)));
+        BaseType::template setValue< 1, 1, 1>(mCache.getValue(ijk.offsetBy( 1, 1, 1)));
+        BaseType::template setValue< 1, 1, 0>(mCache.getValue(ijk.offsetBy( 1, 1, 0)));
+    }
+
+    template<typename, typename> friend class BaseStencil; // allow base class to call init()
+    using BaseType::mCache;
+    using BaseType::mStencil;
+};    
 
 
 ////////////////////////////////////////
@@ -289,8 +457,6 @@ public:
 private:
     inline void init(const Coord& ijk)
     {
-        mStencil[DensePt< 0, 0, 0>::idx] = mCache.getValue(ijk.offsetBy( 0,  0,  0));
-
         mStencil[DensePt< 1, 0, 0>::idx] = mCache.getValue(ijk.offsetBy( 1,  0,  0));
         mStencil[DensePt< 0, 1, 0>::idx] = mCache.getValue(ijk.offsetBy( 0,  1,  0));
         mStencil[DensePt< 0, 0, 1>::idx] = mCache.getValue(ijk.offsetBy( 0,  0,  1));
@@ -369,8 +535,6 @@ public:
 private:
     inline void init(const Coord& ijk)
     {
-        mStencil[ThirteenPt< 0, 0, 0>::idx] = mCache.getValue(ijk.offsetBy( 0,  0,  0));
-
         mStencil[ThirteenPt< 2, 0, 0>::idx] = mCache.getValue(ijk.offsetBy( 2,  0,  0));
         mStencil[ThirteenPt< 1, 0, 0>::idx] = mCache.getValue(ijk.offsetBy( 1,  0,  0));
         mStencil[ThirteenPt<-1, 0, 0>::idx] = mCache.getValue(ijk.offsetBy(-1,  0,  0));
@@ -500,8 +664,6 @@ public:
 private:
     inline void init(const Coord& ijk)
     {
-        mStencil[FourthDensePt< 0, 0, 0>::idx] = mCache.getValue(ijk);
-
         mStencil[FourthDensePt<-2, 2, 0>::idx] = mCache.getValue(ijk.offsetBy(-2, 2, 0));
         mStencil[FourthDensePt<-1, 2, 0>::idx] = mCache.getValue(ijk.offsetBy(-1, 2, 0));
         mStencil[FourthDensePt< 0, 2, 0>::idx] = mCache.getValue(ijk.offsetBy( 0, 2, 0));
@@ -652,7 +814,6 @@ private:
         mStencil[NineteenPt< 0,-1, 0>::idx] = mCache.getValue(ijk.offsetBy( 0, -1,  0));
         mStencil[NineteenPt< 0,-2, 0>::idx] = mCache.getValue(ijk.offsetBy( 0, -2,  0));
         mStencil[NineteenPt< 0,-3, 0>::idx] = mCache.getValue(ijk.offsetBy( 0, -3,  0));
-
 
         mStencil[NineteenPt< 0, 0, 3>::idx] = mCache.getValue(ijk.offsetBy( 0,  0,  3));
         mStencil[NineteenPt< 0, 0, 2>::idx] = mCache.getValue(ijk.offsetBy( 0,  0,  2));
@@ -854,8 +1015,6 @@ public:
 private:
     inline void init(const Coord& ijk)
     {
-        mStencil[SixthDensePt< 0, 0, 0>::idx] = mCache.getValue(ijk);
-
         mStencil[SixthDensePt<-3, 3, 0>::idx] = mCache.getValue(ijk.offsetBy(-3, 3, 0));
         mStencil[SixthDensePt<-2, 3, 0>::idx] = mCache.getValue(ijk.offsetBy(-2, 3, 0));
         mStencil[SixthDensePt<-1, 3, 0>::idx] = mCache.getValue(ijk.offsetBy(-1, 3, 0));
@@ -1115,6 +1274,7 @@ public:
     }
 
 private:
+    
     inline void init(const Coord& ijk)
     {
         mStencil[1] = mCache.getValue(ijk.offsetBy(-1,  0,  0));
@@ -1126,7 +1286,7 @@ private:
         mStencil[5] = mCache.getValue(ijk.offsetBy( 0,  0, -1));
         mStencil[6] = mCache.getValue(ijk.offsetBy( 0,  0,  1));
     }
-
+    
     template<typename, typename> friend class BaseStencil; // allow base class to call init()
     using BaseType::mCache;
     using BaseType::mStencil;
@@ -1318,8 +1478,7 @@ public:
     inline ValueType meanCurvature()
     {
         Real alpha, beta;
-        this->meanCurvature(alpha, beta);
-        return ValueType(alpha*mInv2Dx/math::Pow3(beta));
+        return this->meanCurvature(alpha, beta) ? ValueType(alpha*mInv2Dx/math::Pow3(beta)) : 0;
     }
 
     /// Return the mean curvature multiplied by the norm of the
@@ -1331,8 +1490,7 @@ public:
     inline ValueType meanCurvatureNormGrad()
     {
         Real alpha, beta;
-        this->meanCurvature(alpha, beta);
-        return ValueType(alpha*mInvDx2/(2*math::Pow2(beta)));
+        return this->meanCurvature(alpha, beta) ? ValueType(alpha*mInvDx2/(2*math::Pow2(beta))) : 0;
     }
 
     /// Return the Laplacian computed at the previously buffered
@@ -1389,7 +1547,7 @@ private:
         mStencil[18] = mCache.getValue(ijk.offsetBy( 0,  1,  1));
     }
 
-    inline void meanCurvature(Real& alpha, Real& beta) const
+    inline bool meanCurvature(Real& alpha, Real& beta) const
     {
         // For performance all finite differences are unscaled wrt dx
         const Real
@@ -1397,6 +1555,12 @@ private:
             Dx  = Half * (mStencil[2] - mStencil[1]), Dx2 = Dx * Dx, // * 1/dx
             Dy  = Half * (mStencil[4] - mStencil[3]), Dy2 = Dy * Dy, // * 1/dx
             Dz  = Half * (mStencil[6] - mStencil[5]), Dz2 = Dz * Dz, // * 1/dx
+            normGrad = Dx2 + Dy2 + Dz2;
+        if (normGrad <= math::Tolerance<Real>::value()) {
+             alpha = beta = 0;
+             return false;
+        }
+        const Real
             Dxx = mStencil[2] - 2 * mStencil[0] + mStencil[1], // * 1/dx2
             Dyy = mStencil[4] - 2 * mStencil[0] + mStencil[3], // * 1/dx2
             Dzz = mStencil[6] - 2 * mStencil[0] + mStencil[5], // * 1/dx2
@@ -1404,7 +1568,8 @@ private:
             Dxz = Quarter * (mStencil[14] - mStencil[12] + mStencil[11] - mStencil[13]), // * 1/dx2
             Dyz = Quarter * (mStencil[18] - mStencil[16] + mStencil[15] - mStencil[17]); // * 1/dx2
         alpha = (Dx2*(Dyy+Dzz)+Dy2*(Dxx+Dzz)+Dz2*(Dxx+Dyy)-2*(Dx*(Dy*Dxy+Dz*Dxz)+Dy*Dz*Dyz));
-        beta  = std::sqrt(Dx2 + Dy2 + Dz2); // * 1/dx
+        beta  = std::sqrt(normGrad); // * 1/dx
+        return true;
     }
 
     template<typename, typename> friend class BaseStencil; // allow base class to call init()
@@ -1429,20 +1594,37 @@ public:
         BaseType(grid, /*size=*/math::Pow3(2 * halfWidth + 1)),
         mHalfWidth(halfWidth)
     {
-        //assert(halfWidth>0);//should this be allowed?
+        assert(halfWidth>0);
+    }
+
+    inline const ValueType& getCenterValue() const { return mStencil[(mStencil.size()-1)>>1]; }
+
+    /// @brief Initialize the stencil buffer with the values of voxel (x, y, z)
+    /// and its neighbors.
+    inline void moveTo(const Coord& ijk)
+    {
+        BaseType::mCenter = ijk;
+        this->init(ijk);
+    }
+    /// @brief Initialize the stencil buffer with the values of voxel
+    /// (x, y, z) and its neighbors.
+    template<typename IterType>
+    inline void moveTo(const IterType& iter)
+    {
+        BaseType::mCenter = iter.getCoord();
+        this->init(BaseType::mCenter);
     }
 
 private:
-    /// Initialize the stencil buffer centered at (x, y, z).
+    /// Initialize the stencil buffer centered at (i, j, k).
+    /// @warning The center point is NOT at mStencil[0] for this DenseStencil!
     inline void init(const Coord& ijk)
     {
-        for (int n=0, i=ijk[0]-mHalfWidth, ie = ijk[0]+mHalfWidth; i <= ie; ++i) {
-            Coord sample_ijk(i,0,0);
-            for (int j = ijk[1]-mHalfWidth, je = ijk[1]+mHalfWidth; j <= je; ++j) {
-                sample_ijk.setY(j);
-                for (int k = ijk[2]-mHalfWidth, ke = ijk[2] + mHalfWidth; k <= ke; ++k) {
-                    sample_ijk.setZ(k);
-                    mStencil[n++] = mCache.getValue(sample_ijk);
+        int n = 0;
+        for (Coord p=ijk.offsetBy(-mHalfWidth), q=ijk.offsetBy(mHalfWidth); p[0] <= q[0]; ++p[0]) {
+            for (p[1] = ijk[1]-mHalfWidth; p[1] <= q[1]; ++p[1]) {
+                for (p[2] = ijk[2]-mHalfWidth; p[2] <= q[2]; ++p[2]) {
+                    mStencil[n++] = mCache.getValue(p);
                 }
             }
         }

@@ -29,6 +29,7 @@
 ///////////////////////////////////////////////////////////////////////////
 //
 /// @file GridTransformer.h
+/// @author Peter Cucka
 
 #ifndef OPENVDB_TOOLS_GRIDTRANSFORMER_HAS_BEEN_INCLUDED
 #define OPENVDB_TOOLS_GRIDTRANSFORMER_HAS_BEEN_INCLUDED
@@ -742,7 +743,7 @@ public:
         for ( ; r; ++r) {
             if (interrupt()) break;
             LeafIterT i = r.iterator();
-            CoordBBox bbox(i->getOrigin(), i->getOrigin() + Coord(i->dim()));
+            CoordBBox bbox(i->origin(), i->origin() + Coord(i->dim()));
             if (!mBBox.empty()) {
                 // Intersect the leaf node's bounding box with mBBox.
                 bbox = CoordBBox(
@@ -884,7 +885,6 @@ GridResampler::transformBBox(
     const Sampler& sampler)
 {
     typedef typename OutTreeT::ValueType ValueT;
-    typedef math::Vec4<Real> Vec4R;
 
     // Transform the corners of the input tree's bounding box
     // and compute the enclosing bounding box in the output tree.

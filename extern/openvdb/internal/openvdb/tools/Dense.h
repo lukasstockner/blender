@@ -38,28 +38,27 @@
 
 #include <openvdb/Types.h>
 #include <openvdb/Grid.h>
+#include <openvdb/tree/ValueAccessor.h>
 #include <openvdb/Exceptions.h>
 #include <tbb/parallel_for.h>
+#include <boost/scoped_array.hpp> 
+#include <boost/scoped_ptr.hpp>
 
 namespace openvdb {
 OPENVDB_USE_VERSION_NAMESPACE
 namespace OPENVDB_VERSION_NAME {
 namespace tools {
 
-// Forward declaration (see definition below)
-template<typename ValueT> class Dense;
-
-
 /// @brief Populate a dense grid with the values of voxels from a sparse grid,
 /// where the sparse grid intersects the dense grid.
 /// @param sparse  an OpenVDB grid or tree from which to copy values
 /// @param dense   the dense grid into which to copy values
 /// @param serial  if false, process voxels in parallel
-template<typename GridOrTreeT>
+template<typename DenseT, typename GridOrTreeT>
 void
 copyToDense(
     const GridOrTreeT& sparse,
-    Dense<typename GridOrTreeT::ValueType>& dense,
+    DenseT& dense,
     bool serial = false);
 
 
@@ -69,10 +68,10 @@ copyToDense(
 /// @param tolerance  values in the dense grid that are within this tolerance of the sparse
 ///     grid's background value become inactive background voxels or tiles in the sparse grid
 /// @param serial     if false, process voxels in parallel
-template<typename GridOrTreeT>
+template<typename DenseT, typename GridOrTreeT>
 void
 copyFromDense(
-    const Dense<typename GridOrTreeT::ValueType>& dense,
+    const DenseT& dense,
     GridOrTreeT& sparse,
     const typename GridOrTreeT::ValueType& tolerance,
     bool serial = false);
@@ -80,33 +79,121 @@ copyFromDense(
 
 ////////////////////////////////////////
 
+/// We currently support the following two 3D memory layouts for dense
+/// volumes: XYZ, i.e. x is the fastest moving index, and ZYX, i.e. z
+/// is the fastest moving index. The ZYX memory layout leads to nested
+/// for-loops of the order x, y, z, which we find to be the most
+/// intuitive. Hence, ZYX is the layout used throughout VDB. However,
+/// other data structures, e.g. Houdini and Maya, employ the XYZ
+/// layout. Clearly a dense volume with the ZYX layout converts more
+/// efficiently to a VDB, but we support both for convenience.     
+enum MemoryLayout { LayoutXYZ, LayoutZYX };     
+    
+/// @brief Base class for Dense which is defined below.
+/// @note The constructor of this class is protected to prevent direct
+/// instantiation.     
+template<typename ValueT, MemoryLayout Layout> class DenseBase;
 
+/// @brief Partial template specialization of DenseBase.
+/// @note ZYX is the memory-layout in VDB. It leads to nested
+/// for-loops of the order x, y, z which we find to be the most intuitive.
+template<typename ValueT>
+class DenseBase<ValueT, LayoutZYX>
+{
+public:
+    /// @brief Return the linear offset into this grid's value array given by
+    /// unsigned coordinates (i, j, k), i.e., coordinates relative to
+    /// the origin of this grid's bounding box.
+    inline size_t coordToOffset(size_t i, size_t j, size_t k) const { return i*mX + j*mY + k; }
+    
+    /// @brief Return the stride of the array in the x direction ( = dimY*dimZ).
+    /// @note This method is required by both CopyToDense and CopyFromDense.
+    inline size_t xStride() const { return mX; }
+
+    /// @brief Return the stride of the array in the y direction ( = dimZ).
+    /// @note This method is required by both CopyToDense and CopyFromDense.
+    inline size_t yStride() const { return mY; }
+
+    /// @brief Return the stride of the array in the z direction ( = 1).
+    /// @note This method is required by both CopyToDense and CopyFromDense.
+    static size_t zStride() { return 1; }
+    
+protected:
+    /// Protected constructor so as to prevent direct instantiation
+    DenseBase(const CoordBBox& bbox) : mBBox(bbox), mY(bbox.dim()[2]), mX(mY*bbox.dim()[1]) {}
+
+    const CoordBBox mBBox;//signed coordinates of the domain represented by the grid
+    const size_t mY, mX;//strides in the y and x direction
+};// end of DenseBase<ValueT, LayoutZYX>
+
+/// @brief Partial template specialization of DenseBase.
+/// @note This is the memory-layout emplayed in Houdini and Maya. It leads
+/// to nested for-loops of the order z, y, x.    
+template<typename ValueT>
+class DenseBase<ValueT, LayoutXYZ>
+{
+public:
+    /// @brief Return the linear offset into this grid's value array given by
+    /// unsigned coordinates (i, j, k), i.e., coordinates relative to
+    /// the origin of this grid's bounding box.
+    inline size_t coordToOffset(size_t i, size_t j, size_t k) const { return i + j*mY + k*mZ; }
+    
+    /// @brief Return the stride of the array in the x direction ( = 1).
+    /// @note This method is required by both CopyToDense and CopyFromDense.
+    static size_t xStride() { return 1; }
+
+    /// @brief Return the stride of the array in the y direction ( = dimX).
+    /// @note This method is required by both CopyToDense and CopyFromDense.
+    inline size_t yStride() const { return mY; }
+
+    /// @brief Return the stride of the array in the y direction ( = dimX*dimY).
+    /// @note This method is required by both CopyToDense and CopyFromDense.
+    inline size_t zStride() const { return mZ; }
+    
+protected:
+    /// Protected constructor so as to prevent direct instantiation
+    DenseBase(const CoordBBox& bbox) : mBBox(bbox), mY(bbox.dim()[0]), mZ(mY*bbox.dim()[1]) {}
+
+    const CoordBBox mBBox;//signed coordinates of the domain represented by the grid
+    const size_t mY, mZ;//strides in the y and z direction
+};// end of DenseBase<ValueT, LayoutXYZ>
+    
 /// @brief Dense is a simple dense grid API used by the CopyToDense and
 /// CopyFromDense classes defined below.
 /// @details Use the Dense class to efficiently produce a dense in-memory
 /// representation of an OpenVDB grid.  However, be aware that a dense grid
 /// could have a memory footprint that is orders of magnitude larger than
-/// the corresponding sparse grid from which it originates.
+/// the sparse grid from which it originates.
 ///
 /// @note This class can be used as a simple wrapper for existing dense grid
 /// classes if they provide access to the raw data array.
-/// @note This implementation assumes a data layout where @e z is the
-/// fastest-changing index (because that is the layout used by OpenVDB grids).
-template<typename ValueT>
-class Dense
+/// @note This implementation allows for the 3D memory layout to be
+/// defined by the MemoryLayout template parameter (see above for definition).
+/// The default memory layout is ZYX since that's the layout used by OpenVDB grids.
+template<typename ValueT, MemoryLayout Layout = LayoutZYX>
+class Dense : public DenseBase<ValueT, Layout>
 {
 public:
+    typedef ValueT ValueType;
+    typedef DenseBase<ValueT, Layout> BaseT;
+
     /// @brief Construct a dense grid with a given range of coordinates.
     ///
     /// @param bbox  the bounding box of the (signed) coordinate range of this grid
     /// @throw ValueError if the bounding box is empty.
-    Dense(const CoordBBox& bbox)
-        : mBBox(bbox), mArray(new ValueT[bbox.volume()]), mData(mArray.get()),
-          mY(bbox.dim()[2]), mX(mY*bbox.dim()[1])
+    /// @note The min and max coordinates of the bounding box are inclusive.
+    Dense(const CoordBBox& bbox) : BaseT(bbox) { this->init(); }    
+
+    /// @brief Construct a dense grid with a given range of coordinates and initial value
+    ///
+    /// @param bbox  the bounding box of the (signed) coordinate range of this grid
+    /// @param value the initial value of the grid.
+    /// @throw ValueError if the bounding box is empty.
+    /// @note The min and max coordinates of the bounding box are inclusive.
+    Dense(const CoordBBox& bbox, const ValueT& value) : BaseT(bbox)
     {
-        if (bbox.empty()) {
-            OPENVDB_THROW(ValueError, "can't construct a dense grid with an empty bounding box");
-        }
+        this->init();
+        this->fill(value);
     }
 
     /// @brief Construct a dense grid that wraps an external array.
@@ -117,109 +204,87 @@ public:
     ///
     /// @note The data array is assumed to have a stride of one in the @e z direction.
     /// @throw ValueError if the bounding box is empty.
-    Dense(const CoordBBox& bbox, ValueT* data)
-        : mBBox(bbox), mData(data), mY(mBBox.dim()[2]), mX(mY*mBBox.dim()[1])
+    /// @note The min and max coordinates of the bounding box are inclusive.
+    Dense(const CoordBBox& bbox, ValueT* data) : BaseT(bbox), mData(data)
     {
-        if (mBBox.empty()) {
+        if (BaseT::mBBox.empty()) {
             OPENVDB_THROW(ValueError, "can't construct a dense grid with an empty bounding box");
         }
-    }
+    }    
 
     /// @brief Construct a dense grid with a given origin and dimensions.
     ///
     /// @param dim  the desired dimensions of the grid
     /// @param min  the signed coordinates of the first voxel in the dense grid
     /// @throw ValueError if any of the dimensions are zero.
+    /// @note The @a min coordinate is inclusive, and the max coordinate will be
+    /// @a min + @a dim - 1.
     Dense(const Coord& dim, const Coord& min = Coord(0))
-        : mBBox(min, min+dim.offsetBy(-1)), mArray(new ValueT[mBBox.volume()]),
-          mData(mArray.get()), mY(mBBox.dim()[2]), mX(mY*mBBox.dim()[1])
+        : BaseT(CoordBBox(min, min+dim.offsetBy(-1)))
     {
-        if (mBBox.empty()) {
-            OPENVDB_THROW(ValueError, "can't construct a dense grid of size zero");
-        }
+        this->init();
     }
 
-    /// @brief Return a raw pointer to this grid's value array.
-    ///
-    /// @note This method is required by CopyToDense.
-    ValueT* data() { return mData; }
+    /// @brief Return the memory layout for this grid (see above for definitions).
+    static MemoryLayout memoryLayout() { return Layout; }
 
     /// @brief Return a raw pointer to this grid's value array.
-    ///
+    /// @note This method is required by CopyToDense.
+    inline ValueT* data() { return mData; }
+
+    /// @brief Return a raw pointer to this grid's value array.
     /// @note This method is required by CopyFromDense.
-    const ValueT* data() const { return mData; }
+    inline const ValueT* data() const { return mData; }
 
     /// @brief Return the bounding box of the signed index domain of this grid.
-    ///
     /// @note This method is required by both CopyToDense and CopyFromDense.
-    const CoordBBox& bbox() const { return mBBox; }
-
-    /// @brief Return the stride of the array in the x direction ( = dimY*dimZ).
-    ///
-    /// @note This method is required by both CopyToDense and CopyFromDense.
-    size_t xStride() const { return mX; }
-
-    /// @brief Return the stride of the array in the y direction ( = dimZ).
-    ///
-    /// @note This method is required by both CopyToDense and CopyFromDense.
-    size_t yStride() const { return mY; }
+    inline const CoordBBox& bbox() const { return BaseT::mBBox; }
 
     /// @brief Return the number of voxels contained in this grid.
-    size_t valueCount() const { return mBBox.volume(); }
+    inline Index64 valueCount() const { return BaseT::mBBox.volume(); }
 
     /// @brief Set the value of the voxel at the given array offset.
-    void setValue(size_t offset, const ValueT& value) { mData[offset] = value; }
+    inline void setValue(size_t offset, const ValueT& value) { mData[offset] = value; }
 
     /// @brief Return the value of the voxel at the given array offset.
     const ValueT& getValue(size_t offset) const { return mData[offset]; }
 
     /// @brief Set the value of the voxel at unsigned index coordinates (i, j, k).
     /// @note This is somewhat slower than using an array offset.
-    void setValue(size_t i, size_t j, size_t k, const ValueT& value)
+    inline void setValue(size_t i, size_t j, size_t k, const ValueT& value)
     {
-        mData[this->coordToOffset(i,j,k)] = value;
+        mData[BaseT::coordToOffset(i,j,k)] = value;
     }
-    
+
     /// @brief Return the value of the voxel at unsigned index coordinates (i, j, k).
     /// @note This is somewhat slower than using an array offset.
-    const ValueT& getValue(size_t i, size_t j, size_t k) const
+    inline const ValueT& getValue(size_t i, size_t j, size_t k) const
     {
-        return mData[this->coordToOffset(i,j,k)];
+        return mData[BaseT::coordToOffset(i,j,k)];
     }
-    
+
     /// @brief Set the value of the voxel at the given signed coordinates.
     /// @note This is slower than using either an array offset or unsigned index coordinates.
-    void setValue(const Coord& xyz, const ValueT& value)
+    inline void setValue(const Coord& xyz, const ValueT& value)
     {
         mData[this->coordToOffset(xyz)] = value;
     }
-    
+
     /// @brief Return the value of the voxel at the given signed coordinates.
     /// @note This is slower than using either an array offset or unsigned index coordinates.
-    const ValueT& getValue(const Coord& xyz) const
+    inline const ValueT& getValue(const Coord& xyz) const
     {
         return mData[this->coordToOffset(xyz)];
     }
-    
+
     /// @brief Fill this grid with a constant value.
-    void fill(const ValueT& value)
+    inline void fill(const ValueT& value)
     {
         size_t size = this->valueCount();
         ValueT* a = mData;
         while(size--) *a++ = value;
     }
-    
-    /// @brief Return the linear offset into this grid's value array given by
-    /// unsigned coordinates (i, j, k), i.e., coordinates relative to
-    /// the origin of this grid's bounding box.
-    ///
-    /// @note This method reflects the fact that we assume the same layout
-    /// of values as an OpenVDB grid, i.e., the fastest coordinate is @e k.
-    inline size_t coordToOffset(size_t i, size_t j, size_t k) const
-    {
-        return k + j*mY + i*mX;
-    }
-    
+
     /// @brief Return the linear offset into this grid's value array given by
     /// the specified signed coordinates, i.e., coordinates in the space of
     /// this grid's bounding box.
@@ -228,66 +293,84 @@ public:
     /// layout of values as an OpenVDB grid, i.e., the fastest coordinate is @e z.
     inline size_t coordToOffset(Coord xyz) const
     {
-        assert(mBBox.isInside(xyz));
-        return this->coordToOffset(size_t(xyz[0]-mBBox.min()[0]),
-                                   size_t(xyz[1]-mBBox.min()[1]),
-                                   size_t(xyz[2]-mBBox.min()[2]));
+        assert(BaseT::mBBox.isInside(xyz));
+        return BaseT::coordToOffset(size_t(xyz[0]-BaseT::mBBox.min()[0]),
+                                    size_t(xyz[1]-BaseT::mBBox.min()[1]),
+                                    size_t(xyz[2]-BaseT::mBBox.min()[2]));
+    }
+
+    /// @brief Return the memory footprint of this Dense grid in bytes.
+    inline Index64 memUsage() const
+    {
+        return sizeof(*this) + BaseT::mBBox.volume() * sizeof(ValueType);
+    }
+
+private:
+
+    /// @brief Private method to initialize the dense value array.
+    void init()
+    {
+        if (BaseT::mBBox.empty()) {
+            OPENVDB_THROW(ValueError, "can't construct a dense grid with an empty bounding box");
+        }
+        mArray.reset(new ValueT[BaseT::mBBox.volume()]);
+        mData = mArray.get();
     }
     
-private:
-    const CoordBBox mBBox;//signed coordinates of the domain represented by the grid
-    boost::shared_array<ValueT> mArray;
-    ValueT*         mData;//raw c-style pointer to values
-    const size_t    mY, mX;//strides in x and y (by design it's 1 in z)
-};// end of Dense
-
+    boost::scoped_array<ValueT> mArray;
+    ValueT* mData;//raw c-style pointer to values
+};// end of Dense    
 
 ////////////////////////////////////////
 
 
 /// @brief Copy an OpenVDB tree into an existing dense grid.
 ///
-/// @note Only the voxels enclosed by the existing dense grid are copied
-/// from the OpenVDB tree.
-template<typename TreeT>
+/// @note Only voxels that intersect the dense grid's bounding box are copied
+/// from the OpenVDB tree.  But both active and inactive voxels are copied,
+/// so all existing values in the dense grid are overwritten, regardless of
+/// the OpenVDB tree's tolopogy.
+template<typename _TreeT, typename _DenseT = Dense<typename _TreeT::ValueType> >
 class CopyToDense
 {
 public:
+    typedef _DenseT                      DenseT;
+    typedef _TreeT                       TreeT;
     typedef typename TreeT::ValueType    ValueT;
 
-    CopyToDense(const TreeT& tree, Dense<ValueT> &dense)
-        : mRoot(tree.root()), mDense(dense) {}
+    CopyToDense(const TreeT& tree, DenseT& dense)
+        : mRoot(&(tree.root())), mDense(&dense) {}
 
     void copy(bool serial = false) const
     {
         if (serial) {
-            mRoot.copyToDense(mDense.bbox(), mDense);
+            mRoot->copyToDense(mDense->bbox(), *mDense);
         } else {
-            tbb::parallel_for(mDense.bbox(), *this);
+            tbb::parallel_for(mDense->bbox(), *this);
         }
     }
 
     /// @brief Public method called by tbb::parallel_for
     void operator()(const CoordBBox& bbox) const
     {
-        mRoot.copyToDense(bbox, mDense);
+        mRoot->copyToDense(bbox, *mDense);
     }
 
 private:
-    const typename TreeT::RootNodeType &mRoot;
-    Dense<ValueT>                      &mDense;
+    const typename TreeT::RootNodeType* mRoot;
+    DenseT* mDense;
 };// CopyToDense
 
 
 // Convenient wrapper function for the CopyToDense class
-template<typename GridOrTreeT>
+template<typename DenseT, typename GridOrTreeT>
 void
-copyToDense(const GridOrTreeT& sparse, Dense<typename GridOrTreeT::ValueType>& dense, bool serial)
+copyToDense(const GridOrTreeT& sparse, DenseT& dense, bool serial)
 {
     typedef TreeAdapter<GridOrTreeT> Adapter;
     typedef typename Adapter::TreeType TreeT;
 
-    CopyToDense<TreeT> op(Adapter::constTree(sparse), dense);
+    CopyToDense<TreeT, DenseT> op(Adapter::constTree(sparse), dense);
     op.copy(serial);
 }
 
@@ -304,75 +387,106 @@ copyToDense(const GridOrTreeT& sparse, Dense<typename GridOrTreeT::ValueType>& d
 /// @note Since this class allocates leaf nodes concurrently it is recommended
 /// to use a scalable implementation of @c new like the one provided by TBB,
 /// rather than the mutex-protected standard library @c new.
-template<typename TreeT>
+template<typename _TreeT, typename _DenseT = Dense<typename _TreeT::ValueType> >
 class CopyFromDense
 {
 public:
+    typedef _DenseT                      DenseT;
+    typedef _TreeT                       TreeT;
     typedef typename TreeT::ValueType    ValueT;
     typedef typename TreeT::LeafNodeType LeafT;
+    typedef tree::ValueAccessor<TreeT>   AccessorT;
 
-    CopyFromDense(const Dense<ValueT>& dense, TreeT& tree, const ValueT& tolerance)
-        : mDense(dense), mTree(tree), mBlocks(NULL), mTolerance(tolerance)
+    CopyFromDense(const DenseT& dense, TreeT& tree, const ValueT& tolerance)
+        : mDense(&dense),
+          mTree(&tree),
+          mBlocks(NULL),
+          mTolerance(tolerance),
+          mAccessor(tree.empty() ? NULL : new AccessorT(tree))
+    {
+    }
+    CopyFromDense(const CopyFromDense& other)
+        : mDense(other.mDense),
+          mTree(other.mTree),
+          mBlocks(other.mBlocks),
+          mTolerance(other.mTolerance),
+          mAccessor(other.mAccessor.get() == NULL ? NULL : new AccessorT(*mTree))
     {
     }
 
     /// @brief Copy values from the dense grid to the sparse tree.
     void copy(bool serial = false)
     {
-        std::vector<Block> blocks;
-        mBlocks = &blocks;
-        const CoordBBox& bbox = mDense.bbox();
+        mBlocks = new std::vector<Block>();
+        const CoordBBox& bbox = mDense->bbox();
         // Pre-process: Construct a list of blocks alligned with (potential) leaf nodes
         for (CoordBBox sub=bbox; sub.min()[0] <= bbox.max()[0]; sub.min()[0] = sub.max()[0] + 1) {
             for (sub.min()[1] = bbox.min()[1]; sub.min()[1] <= bbox.max()[1];
-                sub.min()[1] = sub.max()[1] + 1)
+                 sub.min()[1] = sub.max()[1] + 1)
             {
                 for (sub.min()[2] = bbox.min()[2]; sub.min()[2] <= bbox.max()[2];
-                    sub.min()[2] = sub.max()[2] + 1)
+                     sub.min()[2] = sub.max()[2] + 1)
                 {
                     sub.max() = Coord::minComponent(bbox.max(),
                         (sub.min()&(~(LeafT::DIM-1u))).offsetBy(LeafT::DIM-1u));
-                    blocks.push_back(Block(sub));
+                    mBlocks->push_back(Block(sub));
                 }
             }
         }
+
         // Multi-threaded process: Convert dense grid into leaf nodes and tiles
         if (serial) {
-            (*this)(tbb::blocked_range<size_t>(0, blocks.size()));
+            (*this)(tbb::blocked_range<size_t>(0, mBlocks->size()));
         } else {
-            tbb::parallel_for(tbb::blocked_range<size_t>(0, blocks.size()), *this);
+            tbb::parallel_for(tbb::blocked_range<size_t>(0, mBlocks->size()), *this);
         }
+
         // Post-process: Insert leaf nodes and tiles into the tree, and prune the tiles only!
-        tree::ValueAccessor<TreeT> acc(mTree);
-        for (size_t m=0, size = blocks.size(); m<size; ++m) {
-            Block& block = blocks[m];
+        tree::ValueAccessor<TreeT> acc(*mTree);
+        for (size_t m=0, size = mBlocks->size(); m<size; ++m) {
+            Block& block = (*mBlocks)[m];
             if (block.leaf) {
                 acc.addLeaf(block.leaf);
             } else if (block.tile.second) {//only background tiles are inactive
                 acc.addTile(1, block.bbox.min(), block.tile.first, true);//leaf tile
             }
         }
-        mTree.root().pruneTiles(mTolerance);
+        delete mBlocks;
+        mBlocks = NULL;
+
+        mTree->root().pruneTiles(mTolerance);
     }
 
     /// @brief Public method called by tbb::parallel_for
+    /// @warning Never call this method directly!
     void operator()(const tbb::blocked_range<size_t> &r) const
     {
-        LeafT* leaf = NULL;
+        assert(mBlocks);
+        LeafT* leaf = new LeafT();
 
         for (size_t m=r.begin(), n=0, end = r.end(); m != end; ++m, ++n) {
-
-            if (leaf == NULL) leaf = new LeafT();
 
             Block& block = (*mBlocks)[m];
             const CoordBBox &bbox = block.bbox;
 
-            leaf->copyFromDense(bbox, mDense, mTree.background(), mTolerance);
+            if (mAccessor.get() == NULL) {//i.e. empty target tree
+                leaf->fill(mTree->background(), false);
+            } else {//account for existing leaf nodes in the target tree
+                if (const LeafT* target = mAccessor->probeConstLeaf(bbox.min())) {
+                    (*leaf) = (*target);
+                } else {
+                    ValueT value = zeroVal<ValueT>();
+                    bool state = mAccessor->probeValue(bbox.min(), value);
+                    leaf->fill(value, state);
+                }
+            }
+
+            leaf->copyFromDense(bbox, *mDense, mTree->background(), mTolerance);
 
             if (!leaf->isConstant(block.tile.first, block.tile.second, mTolerance)) {
-                leaf->setOrigin(bbox.min());
+                leaf->setOrigin(bbox.min() & (~(LeafT::DIM - 1)));
                 block.leaf = leaf;
-                leaf = NULL;
+                leaf = new LeafT();
             }
         }// loop over blocks
 
@@ -387,23 +501,24 @@ private:
         Block(const CoordBBox& b) : bbox(b), leaf(NULL) {}
     };
 
-    const Dense<ValueT>& mDense;
-    TreeT&               mTree;
-    std::vector<Block>*  mBlocks;
-    ValueT               mTolerance;
+    const DenseT*                mDense;
+    TreeT*                       mTree;
+    std::vector<Block>*          mBlocks;
+    ValueT                       mTolerance;
+    boost::scoped_ptr<AccessorT> mAccessor;
 };// CopyFromDense
 
 
 // Convenient wrapper function for the CopyFromDense class
-template<typename GridOrTreeT>
+template<typename DenseT, typename GridOrTreeT>
 void
-copyFromDense(const Dense<typename GridOrTreeT::ValueType>& dense, GridOrTreeT& sparse,
+copyFromDense(const DenseT& dense, GridOrTreeT& sparse,
     const typename GridOrTreeT::ValueType& tolerance, bool serial)
 {
     typedef TreeAdapter<GridOrTreeT> Adapter;
     typedef typename Adapter::TreeType TreeT;
 
-    CopyFromDense<TreeT> op(dense, Adapter::tree(sparse), tolerance);
+    CopyFromDense<TreeT, DenseT> op(dense, Adapter::tree(sparse), tolerance);
     op.copy(serial);
 }
 

@@ -40,6 +40,7 @@ set(SRC
 	internal/openvdb/io/Compression.cc
 	internal/openvdb/io/File.cc
 	internal/openvdb/io/GridDescriptor.cc
+	internal/openvdb/io/Queue.cc
 	internal/openvdb/io/Stream.cc
 	internal/openvdb/math/Hermite.cc
 	internal/openvdb/math/Maps.cc
@@ -59,9 +60,11 @@ set(SRC
 	internal/openvdb/io/Compression.h
 	internal/openvdb/io/File.h
 	internal/openvdb/io/GridDescriptor.h
+	internal/openvdb/io/Queue.h
 	internal/openvdb/io/Stream.h
 	internal/openvdb/math/BBox.h
 	internal/openvdb/math/Coord.h
+	internal/openvdb/math/DDA.h
 	internal/openvdb/math/FiniteDifference.h
 	internal/openvdb/math/Hermite.h
 	internal/openvdb/math/LegacyFrustum.h
@@ -74,6 +77,7 @@ set(SRC
 	internal/openvdb/math/Proximity.h
 	internal/openvdb/math/QuantizedUnitVec.h
 	internal/openvdb/math/Quat.h
+	internal/openvdb/math/Ray.h
 	internal/openvdb/math/Stats.h
 	internal/openvdb/math/Stencils.h
 	internal/openvdb/math/Transform.h
@@ -90,6 +94,7 @@ set(SRC
 	internal/openvdb/PlatformConfig.h
 	internal/openvdb/tools/Composite.h
 	internal/openvdb/tools/Dense.h
+	internal/openvdb/tools/DenseSparseTools.h
 	internal/openvdb/tools/Filter.h
 	internal/openvdb/tools/GridOperators.h
 	internal/openvdb/tools/GridTransformer.h
@@ -97,6 +102,8 @@ set(SRC
 	internal/openvdb/tools/LevelSetAdvect.h
 	internal/openvdb/tools/LevelSetFilter.h
 	internal/openvdb/tools/LevelSetFracture.h
+	internal/openvdb/tools/LevelSetMeasure.h
+    internal/openvdb/tools/LevelSetMorph.h
 	internal/openvdb/tools/LevelSetRebuild.h
 	internal/openvdb/tools/LevelSetSphere.h
 	internal/openvdb/tools/LevelSetTracker.h
@@ -106,9 +113,13 @@ set(SRC
 	internal/openvdb/tools/ParticlesToLevelSet.h
 	internal/openvdb/tools/PointAdvect.h
 	internal/openvdb/tools/PointScatter.h
+	internal/openvdb/tools/RayIntersector.h
+    internal/openvdb/tools/RayTracer.h
 	internal/openvdb/tools/Statistics.h
 	internal/openvdb/tools/ValueTransformer.h
+	internal/openvdb/tools/VectorTransformer.h 
 	internal/openvdb/tools/VolumeToMesh.h
+	internal/openvdb/tools/VolumeToSpheres.h
 	internal/openvdb/tree/InternalNode.h
 	internal/openvdb/tree/Iterator.h
 	internal/openvdb/tree/LeafManager.h

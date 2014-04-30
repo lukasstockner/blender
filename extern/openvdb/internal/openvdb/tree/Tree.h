@@ -72,12 +72,12 @@ public:
 
     /// Return the name of this tree's type.
     virtual const Name& type() const = 0;
+
     /// Return the name of the type of a voxel's value (e.g., "float" or "vec3d").
     virtual Name valueType() const = 0;
 
     /// Return a pointer to a deep copy of this tree
     virtual TreeBase::Ptr copy() const = 0;
-
 
     //
     // Tree methods
@@ -86,10 +86,15 @@ public:
     /// @note Query the metadata object for the value's type.
     virtual Metadata::Ptr getBackgroundValue() const { return Metadata::Ptr(); }
 
-    /// @brief Return in @a bbox the axis-aligned bounding box of all leaf nodes.
+    /// @brief Return in @a bbox the axis-aligned bounding box of all
+    /// leaf nodes and active tiles.
+    /// @details This is faster then calling evalActiveVoxelBoundingBox,
+    /// which visits the individual active voxels, and hence
+    /// evalLeafBoundingBox produces a less tight, i.e. approximate, bbox.
     /// @return @c false if the bounding box is empty (in which case
     /// the bbox is set to its default value).
     virtual bool evalLeafBoundingBox(CoordBBox& bbox) const = 0;
+
     /// @brief Return in @a dim the dimensions of the axis-aligned bounding box
     /// of all leaf nodes.
     /// @return @c false if the bounding box is empty.
@@ -97,10 +102,13 @@ public:
 
     /// @brief Return in @a bbox the axis-aligned bounding box of all
     /// active voxels and tiles.
-    /// This is a tighter bounding box than the leaf node bounding box.
+    /// @details This method produces a more accurate, i.e. tighter,
+    /// bounding box than evalLeafBoundingBox which is approximate but
+    /// faster.
     /// @return @c false if the bounding box is empty (in which case
     /// the bbox is set to its default value).
     virtual bool evalActiveVoxelBoundingBox(CoordBBox& bbox) const = 0;
+
     /// @brief Return in @a dim the dimensions of the axis-aligned bounding box of all
     /// active voxels.  This is a tighter bounding box than the leaf node bounding box.
     /// @return @c false if the bounding box is empty.
@@ -191,10 +199,21 @@ public:
     };
 
 
-    Tree(){}
+    Tree() {}
 
     /// Deep copy constructor
     Tree(const Tree& other): TreeBase(other), mRoot(other.mRoot)
+    {
+    }
+
+    /// @brief Value conversion deep copy constructor
+    ///
+    /// Deep copy a tree of the same configuration as this tree type but a different
+    /// ValueType, casting the other tree's values to this tree's ValueType.
+    /// @throw TypeError if the other tree's configuration doesn't match this tree's
+    /// or if this tree's ValueType is not constructible from the other tree's ValueType.
+    template<typename OtherRootType>
+    explicit Tree(const Tree<OtherRootType>& other): TreeBase(other), mRoot(other.root())
     {
     }
 
@@ -207,13 +226,14 @@ public:
     /// @param inactiveValue  background value for this tree, and the value to which
     ///                       all inactive tiles and voxels are initialized
     /// @param activeValue    value to which active tiles and voxels are initialized
+    /// @throw TypeError if the other tree's configuration doesn't match this tree's.
     template<typename OtherTreeType>
     Tree(const OtherTreeType& other,
         const ValueType& inactiveValue,
         const ValueType& activeValue,
         TopologyCopy):
         TreeBase(other),
-        mRoot(other.getRootNode(), inactiveValue, activeValue, TopologyCopy())
+        mRoot(other.root(), inactiveValue, activeValue, TopologyCopy())
     {
     }
 
@@ -227,10 +247,11 @@ public:
     /// Instead, initialize tiles and voxels with the given background value.
     /// @param other        a tree having (possibly) a different ValueType
     /// @param background   the value to which tiles and voxels are initialized
+    /// @throw TypeError if the other tree's configuration doesn't match this tree's.
     template<typename OtherTreeType>
     Tree(const OtherTreeType& other, const ValueType& background, TopologyCopy):
         TreeBase(other),
-        mRoot(other.getRootNode(), background, TopologyCopy())
+        mRoot(other.root(), background, TopologyCopy())
     {
     }
 
@@ -248,7 +269,7 @@ public:
     /// Return the name of this type of tree.
     static const Name& treeType();
     /// Return the name of this type of tree.
-    virtual const Name& type() const { return treeType(); }
+    virtual const Name& type() const { return this->treeType(); }
 
     bool operator==(const Tree&) const { OPENVDB_THROW(NotImplementedError, ""); }
     bool operator!=(const Tree&) const { OPENVDB_THROW(NotImplementedError, ""); }
@@ -257,9 +278,12 @@ public:
     /// Return this tree's root node.
     RootNodeType& root() { return mRoot; }
     const RootNodeType& root() const { return mRoot; }
-    // Deprecate the methods below
-    RootNodeType& getRootNode() { return mRoot; }
-    const RootNodeType& getRootNode() const { return mRoot; }
+    //@}
+    //@{
+    /// @brief Return this tree's root node.
+    /// @deprecated Use root() instead.
+    OPENVDB_DEPRECATED RootNodeType& getRootNode() { return mRoot; }
+    OPENVDB_DEPRECATED const RootNodeType& getRootNode() const { return mRoot; }
     //@}
 
 
@@ -267,7 +291,7 @@ public:
     // Tree methods
     //
     /// @brief Return @c true if the given tree has the same node and active value
-    /// topology as this tree (but possibly a different @c ValueType).
+    /// topology as this tree, whether or not it has the same @c ValueType.
     template<typename OtherRootNodeType>
     bool hasSameTopology(const Tree<OtherRootNodeType>& other) const;
 
@@ -321,6 +345,10 @@ public:
     /// Return the number of inactive voxels within the bounding box of all active voxels.
     virtual Index64 inactiveVoxelCount() const;
 
+    /// Return the total number of active tiles.
+    /// @note This method is not virtual so as to not change the ABI.
+    Index64 activeTileCount() const { return mRoot.onTileCount(); }
+
     /// Return the minimum and maximum active values in this tree.
     void evalMinMax(ValueType &min, ValueType &max) const;
 
@@ -337,39 +365,70 @@ public:
     template<typename AccessT> const ValueType& getValue(const Coord& xyz, AccessT&) const;
 
     /// @brief Return the tree depth (0 = root) at which the value of voxel (x, y, z) resides.
-    ///
-    /// If (x, y, z) isn't explicitly represented in the tree (i.e., it is implicitly
-    /// a background voxel), return -1.
+    /// @details If (x, y, z) isn't explicitly represented in the tree (i.e., it is
+    /// implicitly a background voxel), return -1.
     int getValueDepth(const Coord& xyz) const;
 
-    /// Set the value of the voxel at the given coordinates and mark the voxel as active.
-    void setValue(const Coord& xyz, const ValueType& value);
-    /// Set the value of the voxel at the given coordinates but preserve it active state.
+    /// Set the active state of the voxel at the given coordinates but don't change its value.
+    void setActiveState(const Coord& xyz, bool on);
+    /// Set the value of the voxel at the given coordinates but don't change its active state.
     void setValueOnly(const Coord& xyz, const ValueType& value);
-    /// @brief Set the value of the voxel at the given coordinates, mark the voxel as active,
-    /// and update the given accessor's node cache.
-    template<typename AccessT> void setValue(const Coord& xyz, const ValueType& value, AccessT&);
-    /// Mark the voxel at the given coordinates as active, but don't change its value.
+    /// Mark the voxel at the given coordinates as active but don't change its value.
     void setValueOn(const Coord& xyz);
     /// Set the value of the voxel at the given coordinates and mark the voxel as active.
     void setValueOn(const Coord& xyz, const ValueType& value);
-    /// @brief Set the value of the voxel at the given coordinates to the minimum
-    /// of its current value and the given value, and mark the voxel as active.
-    void setValueOnMin(const Coord& xyz, const ValueType& value);
-    /// @brief Set the value of the voxel at the given coordinates to the maximum
-    /// of its current value and the given value, and mark the voxel as active.
-    void setValueOnMax(const Coord& xyz, const ValueType& value);
-    /// @brief Set the value of the voxel at the given coordinates to the sum
-    /// of its current value and the given value, and mark the voxel as active.
-    void setValueOnSum(const Coord& xyz, const ValueType& value);
-
-    /// Mark the voxel at the given coordinates as inactive, but don't change its value.
+    /// Set the value of the voxel at the given coordinates and mark the voxel as active.
+    void setValue(const Coord& xyz, const ValueType& value);
+    /// @brief Set the value of the voxel at the given coordinates, mark the voxel as active,
+    /// and update the given accessor's node cache.
+    template<typename AccessT> void setValue(const Coord& xyz, const ValueType& value, AccessT&);
+    /// Mark the voxel at the given coordinates as inactive but don't change its value.
     void setValueOff(const Coord& xyz);
-    /// Change the value of the voxel at the given coordinates and mark the voxel as inactive.
+    /// Set the value of the voxel at the given coordinates and mark the voxel as inactive.
     void setValueOff(const Coord& xyz, const ValueType& value);
 
-    /// Set the active state of the voxel at the given coordinates, but don't change its value.
-    void setActiveState(const Coord& xyz, bool on);
+    /// @brief Apply a functor to the value of the voxel at the given coordinates
+    /// and mark the voxel as active.
+    /// @details Provided that the functor can be inlined, this is typically
+    /// significantly faster than calling getValue() followed by setValueOn().
+    /// @param xyz  the coordinates of a voxel whose value is to be modified
+    /// @param op   a functor of the form <tt>void op(ValueType&) const</tt> that modifies
+    ///             its argument in place
+    /// @par Example:
+    /// @code
+    /// Coord xyz(1, 0, -2);
+    /// // Multiply the value of a voxel by a constant and mark the voxel as active.
+    /// floatTree.modifyValue(xyz, [](float& f) { f *= 0.25; }); // C++11
+    /// // Set the value of a voxel to the maximum of its current value and 0.25,
+    /// // and mark the voxel as active.
+    /// floatTree.modifyValue(xyz, [](float& f) { f = std::max(f, 0.25f); }); // C++11
+    /// @endcode
+    /// @note The functor is not guaranteed to be called only once.
+    /// @see tools::foreach()
+    template<typename ModifyOp>
+    void modifyValue(const Coord& xyz, const ModifyOp& op);
+
+    /// @brief Apply a functor to the voxel at the given coordinates.
+    /// @details Provided that the functor can be inlined, this is typically
+    /// significantly faster than calling getValue() followed by setValue().
+    /// @param xyz  the coordinates of a voxel to be modified
+    /// @param op   a functor of the form <tt>void op(ValueType&, bool&) const</tt> that
+    ///             modifies its arguments, a voxel's value and active state, in place
+    /// @par Example:
+    /// @code
+    /// Coord xyz(1, 0, -2);
+    /// // Multiply the value of a voxel by a constant and mark the voxel as inactive.
+    /// floatTree.modifyValueAndActiveState(xyz,
+    ///     [](float& f, bool& b) { f *= 0.25; b = false; }); // C++11
+    /// // Set the value of a voxel to the maximum of its current value and 0.25,
+    /// // but don't change the voxel's active state.
+    /// floatTree.modifyValueAndActiveState(xyz,
+    ///     [](float& f, bool&) { f = std::max(f, 0.25f); }); // C++11
+    /// @endcode
+    /// @note The functor is not guaranteed to be called only once.
+    /// @see tools::foreach()
+    template<typename ModifyOp>
+    void modifyValueAndActiveState(const Coord& xyz, const ModifyOp& op);
 
     /// @brief Get the value of the voxel at the given coordinates.
     /// @return @c true if the value is active.
@@ -393,7 +452,7 @@ public:
     /// operation for optimal sparseness.
     void fill(const CoordBBox& bbox, const ValueType& value, bool active = true);
 
-    /// Call the @c PruneOp functor for each non-root node in the tree.
+    /// @brief Call the @c PruneOp functor for each non-root node in the tree.
     /// If the functor returns @c true, prune the node and replace it with a tile.
     ///
     /// This method is used to implement all of the various pruning algorithms
@@ -414,13 +473,12 @@ public:
     /// background tiles any nodes whose values are all inactive.
     void pruneInactive();
 
-    /// @brief Prune any descendants whose values are all inactive and replace them
-    /// with inactive tiles having a values equal to the first value
-    /// encountered in the (inactive) child.
-    ///
-    /// @note This method is faster then tolerance based prune and
+    /// @brief Reduce the memory footprint of this tree by replacing nodes
+    /// whose values are all inactive with inactive tiles having a value equal to
+    /// the first value encountered in the (inactive) child.
+    /// @details This method is faster than tolerance-based prune and
     /// useful for narrow-band level set applications where inactive
-    /// values are limited to either an inside or outside value.
+    /// values are limited to either an inside or an outside value.
     void pruneLevelSet();
 
     /// @brief Add the given leaf node to this tree, creating a new branch if necessary.
@@ -430,8 +488,7 @@ public:
     /// @brief Add a tile containing voxel (x, y, z) at the specified tree level,
     /// creating a new branch if necessary.  Delete any existing lower-level nodes
     /// that contain (x, y, z).
-    /// @note @c Level must be greater than zero (i.e., the level of leaf nodes)
-    /// and less than this tree's depth.
+    /// @note @a level must be less than this tree's depth.
     void addTile(Index level, const Coord& xyz, const ValueType& value, bool active);
 
     /// @brief Return a pointer to the node of type @c NodeT that contains voxel (x, y, z)
@@ -441,22 +498,29 @@ public:
     template<typename NodeT>
     NodeT* stealNode(const Coord& xyz, const ValueType& value, bool active);
 
-    /// @brief @return the leaf node that contains voxel (x, y, z) and
-    /// if it doesn't exist, create it, but preserve the values and
+    /// @brief Return a pointer to the leaf node that contains voxel (x, y, z).
+    /// If no such node exists, create one that preserves the values and
     /// active states of all voxels.
-    ///
-    /// Use this method to preallocate a static tree topology over which to
+    /// @details Use this method to preallocate a static tree topology over which to
     /// safely perform multithreaded processing.
     LeafNodeType* touchLeaf(const Coord& xyz);
 
-    /// @brief @return a pointer to the leaf node that contains
-    /// voxel (x, y, z) and if it doesn't exist, return NULL.
-    LeafNodeType* probeLeaf(const Coord& xyz);
+    //@{
+    /// @brief Return a pointer to the node of type @c NodeType that contains
+    /// voxel (x, y, z).  If no such node exists, return NULL.
+    template<typename NodeType> NodeType* probeNode(const Coord& xyz);
+    template<typename NodeType> const NodeType* probeConstNode(const Coord& xyz) const;
+    template<typename NodeType> const NodeType* probeNode(const Coord& xyz) const;
+    //@}
 
-    /// @brief @return a const pointer to the leaf node that contains
-    /// voxel (x, y, z) and if it doesn't exist, return NULL.
+    //@{
+    /// @brief Return a pointer to the leaf node that contains voxel (x, y, z).
+    /// If no such node exists, return NULL.
+    LeafNodeType* probeLeaf(const Coord& xyz);
     const LeafNodeType* probeConstLeaf(const Coord& xyz) const;
     const LeafNodeType* probeLeaf(const Coord& xyz) const { return this->probeConstLeaf(xyz); }
+    //@}
+
 
     //
     // Aux methods
@@ -489,8 +553,6 @@ public:
 
     /// Return this tree's background value.
     const ValueType& background() const { return mRoot.background(); }
-    /// @deprecated Use background()
-    OPENVDB_DEPRECATED ValueType getBackground() const { return mRoot.background(); }
     /// Replace this tree's background value.
     void setBackground(const ValueType& background) { mRoot.setBackground(background); }
 
@@ -500,27 +562,27 @@ public:
     /// @brief Set the values of all inactive voxels and tiles of a narrow-band
     /// level set from the signs of the active voxels, setting outside values to
     /// +background and inside values to -background.
-    ///
-    /// @note This method should only be used on closed, narrow-band level sets!
+    /// @warning This method should only be used on closed, narrow-band level sets.
     void signedFloodFill() { mRoot.signedFloodFill(); }
 
     /// @brief Set the values of all inactive voxels and tiles of a narrow-band
     /// level set from the signs of the active voxels, setting exterior values to
     /// @a outside and interior values to @a inside.  Set the background value
     /// of this tree to @a outside.
-    ///
-    /// @note This method should only be used on closed, narrow-band level sets!
+    /// @warning This method should only be used on closed, narrow-band level sets.
     void signedFloodFill(const ValueType& outside, const ValueType& inside);
 
-    /// Move child nodes from the other tree into this tree wherever those nodes
-    /// correspond to constant-value tiles in this tree, and replace leaf-level
-    /// inactive voxels in this tree with corresponding voxels in the other tree
-    /// that are active.
-    /// @note This operation always empties the other tree.
-    void merge(Tree& other);
-
-    /// Turns active tiles into dense voxels, i.e. active leaf nodes
+    /// Densify active tiles, i.e., replace them with leaf-level active voxels.
     void voxelizeActiveTiles();
+
+    /// @brief Efficiently merge another tree into this tree using one of several schemes.
+    /// @details This operation is primarily intended to combine trees that are mostly
+    /// non-overlapping (for example, intermediate trees from computations that are
+    /// parallelized across disjoint regions of space).
+    /// @note This operation is not guaranteed to produce an optimally sparse tree.
+    /// Follow merge() with prune() for optimal sparseness.
+    /// @warning This operation always empties the other tree.
+    void merge(Tree& other, MergePolicy = MERGE_ACTIVE_STATES);
 
     /// @brief Union this tree's set of active values with the active values
     /// of the other tree, whose @c ValueType may be different.
@@ -538,51 +600,79 @@ public:
     template<typename OtherRootNodeType>
     void topologyUnion(const Tree<OtherRootNodeType>& other);
 
-    /*! For a given function @c f, use sparse traversal to compute <tt>f(this, other)</tt>
-     *  over all corresponding pairs of values (tile or voxel) of this tree and the other tree
-     *  and store the result in this tree.
-     *  This method is typically more space-efficient than the two-tree combine2(),
-     *  since it moves rather than copies nodes from the other tree into this tree.
-     *  @note This operation always empties the other tree.
-     *  @param other  a tree of the same type as this tree
-     *  @param op     a functor of the form <tt>void op(const T& a, const T& b, T& result)</tt>,
-     *                where @c T is this tree's @c ValueType, that computes
-     *                <tt>result = f(a, b)</tt>
-     *  @param prune  if true, prune the resulting tree one branch at a time (this is usually
-     *                more space-efficient than pruning the entire tree in one pass)
-     *
-     *  @par Example:
-     *      Compute the per-voxel difference between two floating-point trees,
-     *      @c aTree and @c bTree, and store the result in @c aTree (leaving @c bTree empty).
-     *  @code
-     *  {
-     *      struct Local {
-     *          static inline void diff(const float& a, const float& b, float& result) {
-     *              result = a - b;
-     *          }
-     *      };
-     *      aTree.combine(bTree, Local::diff);
-     *  }
-     *  @endcode
-     *
-     *  @par Example:
-     *      Compute <tt>f * a + (1 - f) * b</tt> over all voxels of two floating-point trees,
-     *      @c aTree and @c bTree, and store the result in @c aTree (leaving @c bTree empty).
-     *  @code
-     *  namespace {
-     *      struct Blend {
-     *          Blend(float f): frac(f) {}
-     *          inline void operator()(const float& a, const float& b, float& result) const {
-     *              result = frac * a + (1.0 - frac) * b;
-     *          }
-     *          float frac;
-     *      };
-     *  }
-     *  {
-     *      aTree.combine(bTree, Blend(0.25)); // 0.25 * a + 0.75 * b
-     *  }
-     *  @endcode
-     */
+    /// @brief Intersects this tree's set of active values with the active values
+    /// of the other tree, whose @c ValueType may be different.
+    /// @details The resulting state of a value is active only if the corresponding
+    /// value was already active AND if it is active in the other tree. Also, a
+    /// resulting value maps to a voxel if the corresponding value
+    /// already mapped to an active voxel in either of the two grids
+    /// and it maps to an active tile or voxel in the other grid.
+    ///
+    /// @note This operation can delete branches in this grid if they
+    /// overlap with inactive tiles in the other grid. Likewise active
+    /// voxels can be turned into unactive voxels resulting in leaf
+    /// nodes with no active values. Thus, it is recommended to
+    /// subsequently call prune.
+    template<typename OtherRootNodeType>
+    void topologyIntersection(const Tree<OtherRootNodeType>& other);
+
+    /// @brief Difference this tree's set of active values with the active values
+    /// of the other tree, whose @c ValueType may be different. So a
+    /// resulting voxel will be active only if the original voxel is
+    /// active in this tree and inactive in the other tree.
+    ///
+    /// @note This operation can delete branches in this grid if they
+    /// overlap with active tiles in the other grid. Likewise active
+    /// voxels can be turned into inactive voxels resulting in leaf
+    /// nodes with no active values. Thus, it is recommended to
+    /// subsequently call prune.
+    template<typename OtherRootNodeType>
+    void topologyDifference(const Tree<OtherRootNodeType>& other);
+
+    /// For a given function @c f, use sparse traversal to compute <tt>f(this, other)</tt>
+    /// over all corresponding pairs of values (tile or voxel) of this tree and the other tree
+    /// and store the result in this tree.
+    /// This method is typically more space-efficient than the two-tree combine2(),
+    /// since it moves rather than copies nodes from the other tree into this tree.
+    /// @note This operation always empties the other tree.
+    /// @param other  a tree of the same type as this tree
+    /// @param op     a functor of the form <tt>void op(const T& a, const T& b, T& result)</tt>,
+    ///               where @c T is this tree's @c ValueType, that computes
+    ///               <tt>result = f(a, b)</tt>
+    /// @param prune  if true, prune the resulting tree one branch at a time (this is usually
+    ///               more space-efficient than pruning the entire tree in one pass)
+    ///
+    /// @par Example:
+    ///     Compute the per-voxel difference between two floating-point trees,
+    ///     @c aTree and @c bTree, and store the result in @c aTree (leaving @c bTree empty).
+    /// @code
+    /// {
+    ///     struct Local {
+    ///         static inline void diff(const float& a, const float& b, float& result) {
+    ///             result = a - b;
+    ///         }
+    ///     };
+    ///     aTree.combine(bTree, Local::diff);
+    /// }
+    /// @endcode
+    ///
+    /// @par Example:
+    ///     Compute <tt>f * a + (1 - f) * b</tt> over all voxels of two floating-point trees,
+    ///     @c aTree and @c bTree, and store the result in @c aTree (leaving @c bTree empty).
+    /// @code
+    /// namespace {
+    ///     struct Blend {
+    ///         Blend(float f): frac(f) {}
+    ///         inline void operator()(const float& a, const float& b, float& result) const {
+    ///             result = frac * a + (1.0 - frac) * b;
+    ///         }
+    ///         float frac;
+    ///     };
+    /// }
+    /// {
+    ///     aTree.combine(bTree, Blend(0.25)); // 0.25 * a + 0.75 * b
+    /// }
+    /// @endcode
     template<typename CombineOp>
     void combine(Tree& other, CombineOp& op, bool prune = false);
 #ifndef _MSC_VER
@@ -590,45 +680,44 @@ public:
     void combine(Tree& other, const CombineOp& op, bool prune = false);
 #endif
 
-    /*! Like combine(), but with
-     *  @param other  a tree of the same type as this tree
-     *  @param op     a functor of the form <tt>void op(CombineArgs<ValueType>& args)</tt> that
-     *                computes <tt>args.setResult(f(args.a(), args.b()))</tt> and, optionally,
-     *                <tt>args.setResultIsActive(g(args.aIsActive(), args.bIsActive()))</tt>
-     *                for some functions @c f and @c g
-     *  @param prune  if true, prune the resulting tree one branch at a time (this is usually
-     *                more space-efficient than pruning the entire tree in one pass)
-     *
-     *  This variant passes not only the @em a and @em b values but also the active states
-     *  of the @em a and @em b values to the functor, which may then return, by calling
-     *  @c args.setResultIsActive(), a computed active state for the result value.
-     *  By default, the result is active if either the @em a or the @em b value is active.
-     *
-     *  @see openvdb/Types.h for the definition of the CombineArgs struct.
-     *
-     *  @par Example:
-     *      Replace voxel values in floating-point @c aTree with corresponding values
-     *      from floating-point @c bTree (leaving @c bTree empty) wherever the @c bTree
-     *      values are larger.  Also, preserve the active states of any transferred values.
-     *  @code
-     *  {
-     *      struct Local {
-     *          static inline void max(CombineArgs<float>& args) {
-     *              if (args.b() > args.a()) {
-     *                  // Transfer the B value and its active state.
-     *                  args.setResult(args.b());
-     *                  args.setResultIsActive(args.bIsActive());
-     *              } else {
-     *                  // Preserve the A value and its active state.
-     *                  args.setResult(args.a());
-     *                  args.setResultIsActive(args.aIsActive());
-     *              }
-     *          }
-     *      };
-     *      aTree.combineExtended(bTree, Local::max);
-     *  }
-     *  @endcode
-     */
+    /// Like combine(), but with
+    /// @param other  a tree of the same type as this tree
+    /// @param op     a functor of the form <tt>void op(CombineArgs<ValueType>& args)</tt> that
+    ///               computes <tt>args.setResult(f(args.a(), args.b()))</tt> and, optionally,
+    ///               <tt>args.setResultIsActive(g(args.aIsActive(), args.bIsActive()))</tt>
+    ///               for some functions @c f and @c g
+    /// @param prune  if true, prune the resulting tree one branch at a time (this is usually
+    ///               more space-efficient than pruning the entire tree in one pass)
+    ///
+    /// This variant passes not only the @em a and @em b values but also the active states
+    /// of the @em a and @em b values to the functor, which may then return, by calling
+    /// @c args.setResultIsActive(), a computed active state for the result value.
+    /// By default, the result is active if either the @em a or the @em b value is active.
+    ///
+    /// @see openvdb/Types.h for the definition of the CombineArgs struct.
+    ///
+    /// @par Example:
+    ///     Replace voxel values in floating-point @c aTree with corresponding values
+    ///     from floating-point @c bTree (leaving @c bTree empty) wherever the @c bTree
+    ///     values are larger.  Also, preserve the active states of any transferred values.
+    /// @code
+    /// {
+    ///     struct Local {
+    ///         static inline void max(CombineArgs<float>& args) {
+    ///             if (args.b() > args.a()) {
+    ///                 // Transfer the B value and its active state.
+    ///                 args.setResult(args.b());
+    ///                 args.setResultIsActive(args.bIsActive());
+    ///             } else {
+    ///                 // Preserve the A value and its active state.
+    ///                 args.setResult(args.a());
+    ///                 args.setResultIsActive(args.aIsActive());
+    ///             }
+    ///         }
+    ///     };
+    ///     aTree.combineExtended(bTree, Local::max);
+    /// }
+    /// @endcode
     template<typename ExtendedCombineOp>
     void combineExtended(Tree& other, ExtendedCombineOp& op, bool prune = false);
 #ifndef _MSC_VER
@@ -636,188 +725,218 @@ public:
     void combineExtended(Tree& other, const ExtendedCombineOp& op, bool prune = false);
 #endif
 
-    /*! For a given function @c f, use sparse traversal to compute <tt>f(a, b)</tt> over all
-     *  corresponding pairs of values (tile or voxel) of trees A and B and store the result
-     *  in this tree.
-     *  @param a,b    two trees of the same type
-     *  @param op     a functor of the form <tt>void op(const T& a, const T& b, T& result)</tt>,
-     *                where @c T is this tree's @c ValueType, that computes
-     *                <tt>result = f(a, b)</tt>
-     *  @param prune  if true, prune the resulting tree one branch at a time (this is usually
-     *                more space-efficient than pruning the entire tree in one pass)
-     *
-     *  @par Example:
-     *      Compute the per-voxel difference between two floating-point trees,
-     *      @c aTree and @c bTree, and store the result in a third tree.
-     *  @code
-     *  {
-     *      struct Local {
-     *          static inline void diff(const float& a, const float& b, float& result) {
-     *              result = a - b;
-     *          }
-     *      };
-     *      FloatTree resultTree;
-     *      resultTree.combine2(aTree, bTree, Local::diff);
-     *  }
-     *  @endcode
-     */
-    template<typename CombineOp>
-    void combine2(const Tree& a, const Tree& b, CombineOp& op, bool prune = false);
+    /// For a given function @c f, use sparse traversal to compute <tt>f(a, b)</tt> over all
+    /// corresponding pairs of values (tile or voxel) of trees A and B and store the result
+    /// in this tree.
+    /// @param a,b    two trees with the same configuration (levels and node dimensions)
+    ///               as this tree but with the B tree possibly having a different value type
+    /// @param op     a functor of the form <tt>void op(const T1& a, const T2& b, T1& result)</tt>,
+    ///               where @c T1 is this tree's and the A tree's @c ValueType and @c T2 is the
+    ///               B tree's @c ValueType, that computes <tt>result = f(a, b)</tt>
+    /// @param prune  if true, prune the resulting tree one branch at a time (this is usually
+    ///               more space-efficient than pruning the entire tree in one pass)
+    ///
+    /// @throw TypeError if the B tree's configuration doesn't match this tree's
+    /// or if this tree's ValueType is not constructible from the B tree's ValueType.
+    ///
+    /// @par Example:
+    ///     Compute the per-voxel difference between two floating-point trees,
+    ///     @c aTree and @c bTree, and store the result in a third tree.
+    /// @code
+    /// {
+    ///     struct Local {
+    ///         static inline void diff(const float& a, const float& b, float& result) {
+    ///             result = a - b;
+    ///         }
+    ///     };
+    ///     FloatTree resultTree;
+    ///     resultTree.combine2(aTree, bTree, Local::diff);
+    /// }
+    /// @endcode
+    template<typename CombineOp, typename OtherTreeType /*= Tree*/>
+    void combine2(const Tree& a, const OtherTreeType& b, CombineOp& op, bool prune = false);
 #ifndef _MSC_VER
-    template<typename CombineOp>
-    void combine2(const Tree& a, const Tree& b, const CombineOp& op, bool prune = false);
+    template<typename CombineOp, typename OtherTreeType /*= Tree*/>
+    void combine2(const Tree& a, const OtherTreeType& b, const CombineOp& op, bool prune = false);
 #endif
 
-    /*! Like combine2(), but with
-     *  @param a,b    two trees of the same type
-     *  @param op     a functor of the form <tt>void op(CombineArgs<ValueType>& args)</tt> that
-     *                computes <tt>args.setResult(f(args.a(), args.b()))</tt> and, optionally,
-     *                <tt>args.setResultIsActive(g(args.aIsActive(), args.bIsActive()))</tt>
-     *                for some functions @c f and @c g
-     *  @param prune  if true, prune the resulting tree one branch at a time (this is usually
-     *                more space-efficient than pruning the entire tree in one pass)
-     *  This variant passes not only the @em a and @em b values but also the active states
-     *  of the @em a and @em b values to the functor, which may then return, by calling
-     *  <tt>args.setResultIsActive()</tt>, a computed active state for the result value.
-     *  By default, the result is active if either the @em a or the @em b value is active.
-     *
-     *  @see openvdb/Types.h for the definition of the CombineArgs struct.
-     *
-     *  @par Example:
-     *      Compute the per-voxel maximum values of two floating-point trees, @c aTree
-     *      and @c bTree, and store the result in a third tree.  Set the active state
-     *      of each output value to that of the larger of the two input values.
-     *  @code
-     *  {
-     *      struct Local {
-     *          static inline void max(CombineArgs<float>& args) {
-     *              if (args.b() > args.a()) {
-     *                  // Transfer the B value and its active state.
-     *                  args.setResult(args.b());
-     *                  args.setResultIsActive(args.bIsActive());
-     *              } else {
-     *                  // Preserve the A value and its active state.
-     *                  args.setResult(args.a());
-     *                  args.setResultIsActive(args.aIsActive());
-     *              }
-     *          }
-     *      };
-     *      FloatTree resultTree;
-     *      resultTree.combine2Extended(aTree, bTree, Local::max);
-     *  }
-     *  @endcode
-     */
-    template<typename ExtendedCombineOp>
-    void combine2Extended(const Tree& a, const Tree& b, ExtendedCombineOp& op,
+    /// Like combine2(), but with
+    /// @param a,b    two trees with the same configuration (levels and node dimensions)
+    ///               as this tree but with the B tree possibly having a different value type
+    /// @param op     a functor of the form <tt>void op(CombineArgs<T1, T2>& args)</tt>, where
+    ///               @c T1 is this tree's and the A tree's @c ValueType and @c T2 is the B tree's
+    ///               @c ValueType, that computes <tt>args.setResult(f(args.a(), args.b()))</tt>
+    ///               and, optionally,
+    ///               <tt>args.setResultIsActive(g(args.aIsActive(), args.bIsActive()))</tt>
+    ///               for some functions @c f and @c g
+    /// @param prune  if true, prune the resulting tree one branch at a time (this is usually
+    ///               more space-efficient than pruning the entire tree in one pass)
+    /// This variant passes not only the @em a and @em b values but also the active states
+    /// of the @em a and @em b values to the functor, which may then return, by calling
+    /// <tt>args.setResultIsActive()</tt>, a computed active state for the result value.
+    /// By default, the result is active if either the @em a or the @em b value is active.
+    ///
+    /// @throw TypeError if the B tree's configuration doesn't match this tree's
+    /// or if this tree's ValueType is not constructible from the B tree's ValueType.
+    ///
+    /// @see openvdb/Types.h for the definition of the CombineArgs struct.
+    ///
+    /// @par Example:
+    ///     Compute the per-voxel maximum values of two single-precision floating-point trees,
+    ///     @c aTree and @c bTree, and store the result in a third tree.  Set the active state
+    ///     of each output value to that of the larger of the two input values.
+    /// @code
+    /// {
+    ///     struct Local {
+    ///         static inline void max(CombineArgs<float>& args) {
+    ///             if (args.b() > args.a()) {
+    ///                 // Transfer the B value and its active state.
+    ///                 args.setResult(args.b());
+    ///                 args.setResultIsActive(args.bIsActive());
+    ///             } else {
+    ///                 // Preserve the A value and its active state.
+    ///                 args.setResult(args.a());
+    ///                 args.setResultIsActive(args.aIsActive());
+    ///             }
+    ///         }
+    ///     };
+    ///     FloatTree aTree = ...;
+    ///     FloatTree bTree = ...;
+    ///     FloatTree resultTree;
+    ///     resultTree.combine2Extended(aTree, bTree, Local::max);
+    /// }
+    /// @endcode
+    ///
+    /// @par Example:
+    ///     Compute the per-voxel maximum values of a double-precision and a single-precision
+    ///     floating-point tree, @c aTree and @c bTree, and store the result in a third,
+    ///     double-precision tree.  Set the active state of each output value to that of
+    ///     the larger of the two input values.
+    /// @code
+    /// {
+    ///     struct Local {
+    ///         static inline void max(CombineArgs<double, float>& args) {
+    ///             if (args.b() > args.a()) {
+    ///                 // Transfer the B value and its active state.
+    ///                 args.setResult(args.b());
+    ///                 args.setResultIsActive(args.bIsActive());
+    ///             } else {
+    ///                 // Preserve the A value and its active state.
+    ///                 args.setResult(args.a());
+    ///                 args.setResultIsActive(args.aIsActive());
+    ///             }
+    ///         }
+    ///     };
+    ///     DoubleTree aTree = ...;
+    ///     FloatTree bTree = ...;
+    ///     DoubleTree resultTree;
+    ///     resultTree.combine2Extended(aTree, bTree, Local::max);
+    /// }
+    /// @endcode
+    template<typename ExtendedCombineOp, typename OtherTreeType /*= Tree*/>
+    void combine2Extended(const Tree& a, const OtherTreeType& b, ExtendedCombineOp& op,
         bool prune = false);
 #ifndef _MSC_VER
-    template<typename ExtendedCombineOp>
-    void combine2Extended(const Tree& a, const Tree& b, const ExtendedCombineOp&,
+    template<typename ExtendedCombineOp, typename OtherTreeType /*= Tree*/>
+    void combine2Extended(const Tree& a, const OtherTreeType& b, const ExtendedCombineOp&,
         bool prune = false);
 #endif
 
-    /*! For a given function use sparse traversal to call it with
-     *  bounding box information for all active tiles and leaf nodes
-     *  or active voxels in the tree.
-     *
-     *  @note The bounding boxes are guarenteed to be non-overlapping.
-     *  @param op     a template functor of the form
-     *                <tt>template<Index LEVEL> void op(const
-     *                CoordBBox&  bbox)</tt>, where <tt>bbox</tt>
-     *                defines the bbox of an active tile if <tt>LEVEL>0</tt>,
-     *                and else a LeafNode or active voxel. The functor
-     *                must also provide a template method of the form
-     *                <tt>template<Index LEVEL> bool descent()</tt>
-     *                that returns false if no bboxes
-     *                are to be derived below the templated tree level. In
-     *                such cases of early tree termination a bbox is
-     *                instead derived from each terminating child node.
-     *
-     *
-     *  @par Example:
-     *      Render all active tiles and leaf nodes in a tree. Note in
-     *      this example descent returns false if LEVEL==0 which means
-     *      the functor will never descent to the active voxels. In
-     *      other words the smallest BBoxes correspond to LeafNodes or
-     *      active tiles at LEVEL=1!
-     *  @code
-     *  {
-     *      struct RenderTilesAndLeafs {
-     *          template<Index LEVEL>
-     *          inline bool descent() { return LEVEL>0; }//only descent to leaf nodes
-     *          //inline bool descent() { return true; }//use this to decent to voxels
-     *
-     *          template<Index LEVEL>
-     *          inline void operator()(const CoordBBox &bbox) {
-     *            if (LEVEL>0) {
-     *               // code to render active tile
-     *            } else {
-     *               // code to render leaf node
-     *            }
-     *          }
-     *      };
-     *      RenderTilesAndLeafs op;
-     *      aTree.visitActiveBBox(op);
-     *  }
-     *  @endcode
-     *  @see openvdb/unittest/TestTree.cc for another example.
-     */
+    /// @brief Use sparse traversal to call the given functor with bounding box
+    /// information for all active tiles and leaf nodes or active voxels in the tree.
+    ///
+    /// @note The bounding boxes are guaranteed to be non-overlapping.
+    /// @param op  a functor with a templated call operator of the form
+    ///     <tt>template<Index LEVEL> void operator()(const CoordBBox& bbox)</tt>,
+    ///     where <tt>bbox</tt> is the bounding box of either an active tile
+    ///     (if @c LEVEL > 0), a leaf node or an active voxel.
+    ///     The functor must also provide a templated method of the form
+    ///     <tt>template<Index LEVEL> bool descent()</tt> that returns @c false
+    ///     if bounding boxes below the specified tree level are not to be visited.
+    ///     In such cases of early tree termination, a bounding box is instead
+    ///     derived from each terminating child node.
+    ///
+    /// @par Example:
+    ///     Visit and process all active tiles and leaf nodes in a tree, but don't
+    ///     descend to the active voxels.  The smallest bounding boxes that will be
+    ///     visited are those of leaf nodes or level-1 active tiles.
+    /// @code
+    /// {
+    ///     struct ProcessTilesAndLeafNodes {
+    ///         // Descend to leaf nodes, but no further.
+    ///         template<Index LEVEL> inline bool descent() { return LEVEL > 0; }
+    ///         // Use this version to descend to voxels:
+    ///         //template<Index LEVEL> inline bool descent() { return true; }
+    ///
+    ///         template<Index LEVEL>
+    ///         inline void operator()(const CoordBBox &bbox) {
+    ///             if (LEVEL > 0) {
+    ///                 // code to process an active tile
+    ///             } else {
+    ///                 // code to process a leaf node
+    ///             }
+    ///         }
+    ///     };
+    ///     ProcessTilesAndLeafNodes op;
+    ///     aTree.visitActiveBBox(op);
+    /// }
+    /// @endcode
+    /// @see openvdb/unittest/TestTree.cc for another example.
     template<typename BBoxOp> void visitActiveBBox(BBoxOp& op) const { mRoot.visitActiveBBox(op); }
 
-    /*! Traverse this tree in depth-first order, and at each node call the given functor
-     *  with a @c DenseIterator (see Iterator.h) that points to either a child node or a
-     *  tile value.  If the iterator points to a child node and the functor returns true,
-     *  do not descend to the child node; instead, continue the traversal at the next
-     *  iterator position.
-     *  @param op  a functor of the form <tt>template<typename IterT> bool op(IterT&)</tt>,
-     *             where @c IterT is either a RootNode::ChildAllIter,
-     *             an InternalNode::ChildAllIter or a LeafNode::ChildAllIter
-     *
-     *  @note There is no iterator that points to a RootNode, so to visit the root node,
-     *  retrieve the @c parent() of a RootNode::ChildAllIter.
-     *
-     *  @par Example:
-     *      Print information about the nodes and tiles of a tree, but not individual voxels.
-     *  @code
-     *  namespace {
-     *      template<typename TreeT>
-     *      struct PrintTreeVisitor
-     *      {
-     *          typedef typename TreeT::RootNodeType RootT;
-     *          bool visitedRoot;
-     *
-     *          PrintTreeVisitor(): visitedRoot(false) {}
-     *
-     *          template<typename IterT>
-     *          inline bool operator()(IterT& iter)
-     *          {
-     *              if (!visitedRoot && iter.parent().getLevel() == RootT::LEVEL) {
-     *                  visitedRoot = true;
-     *                  std::cout << "Level-" << RootT::LEVEL << " node" << std::endl;
-     *              }
-     *              typename IterT::NonConstValueType value;
-     *              typename IterT::ChildNodeType* child = iter.probeChild(value);
-     *              if (child == NULL) {
-     *                  std::cout << "Tile with value " << value << std::endl;
-     *                  return true; // no child to visit, so stop descending
-     *              }
-     *              std::cout << "Level-" << child->getLevel() << " node" << std::endl;
-     *              return (child->getLevel() == 0); // don't visit leaf nodes
-     *          }
-     *
-     *          // The generic method, above, calls iter.probeChild(), which is not defined
-     *          // for LeafNode::ChildAllIter.  These overloads ensure that the generic
-     *          // method template doesn't get instantiated for LeafNode iterators.
-     *          bool operator()(typename TreeT::LeafNodeType::ChildAllIter&) { return true; }
-     *          bool operator()(typename TreeT::LeafNodeType::ChildAllCIter&) { return true; }
-     *      };
-     *  }
-     *  {
-     *      PrintTreeVisitor visitor;
-     *      tree.visit(visitor);
-     *  }
-     *  @endcode
-     */
+    /// Traverse this tree in depth-first order, and at each node call the given functor
+    /// with a @c DenseIterator (see Iterator.h) that points to either a child node or a
+    /// tile value.  If the iterator points to a child node and the functor returns true,
+    /// do not descend to the child node; instead, continue the traversal at the next
+    /// iterator position.
+    /// @param op  a functor of the form <tt>template<typename IterT> bool op(IterT&)</tt>,
+    ///            where @c IterT is either a RootNode::ChildAllIter,
+    ///            an InternalNode::ChildAllIter or a LeafNode::ChildAllIter
+    ///
+    /// @note There is no iterator that points to a RootNode, so to visit the root node,
+    /// retrieve the @c parent() of a RootNode::ChildAllIter.
+    ///
+    /// @par Example:
+    ///     Print information about the nodes and tiles of a tree, but not individual voxels.
+    /// @code
+    /// namespace {
+    ///     template<typename TreeT>
+    ///     struct PrintTreeVisitor
+    ///     {
+    ///         typedef typename TreeT::RootNodeType RootT;
+    ///         bool visitedRoot;
+    ///
+    ///         PrintTreeVisitor(): visitedRoot(false) {}
+    ///
+    ///         template<typename IterT>
+    ///         inline bool operator()(IterT& iter)
+    ///         {
+    ///             if (!visitedRoot && iter.parent().getLevel() == RootT::LEVEL) {
+    ///                 visitedRoot = true;
+    ///                 std::cout << "Level-" << RootT::LEVEL << " node" << std::endl;
+    ///             }
+    ///             typename IterT::NonConstValueType value;
+    ///             typename IterT::ChildNodeType* child = iter.probeChild(value);
+    ///             if (child == NULL) {
+    ///                 std::cout << "Tile with value " << value << std::endl;
+    ///                 return true; // no child to visit, so stop descending
+    ///             }
+    ///             std::cout << "Level-" << child->getLevel() << " node" << std::endl;
+    ///             return (child->getLevel() == 0); // don't visit leaf nodes
+    ///         }
+    ///
+    ///         // The generic method, above, calls iter.probeChild(), which is not defined
+    ///         // for LeafNode::ChildAllIter.  These overloads ensure that the generic
+    ///         // method template doesn't get instantiated for LeafNode iterators.
+    ///         bool operator()(typename TreeT::LeafNodeType::ChildAllIter&) { return true; }
+    ///         bool operator()(typename TreeT::LeafNodeType::ChildAllCIter&) { return true; }
+    ///     };
+    /// }
+    /// {
+    ///     PrintTreeVisitor visitor;
+    ///     tree.visit(visitor);
+    /// }
+    /// @endcode
     template<typename VisitorOp> void visit(VisitorOp& op);
     template<typename VisitorOp> void visit(const VisitorOp& op);
 
@@ -828,54 +947,53 @@ public:
     template<typename VisitorOp> void visit(VisitorOp& op) const;
     template<typename VisitorOp> void visit(const VisitorOp& op) const;
 
-    /*! Traverse this tree and another tree in depth-first order, and for corresponding
-     *  subregions of index space call the given functor with two @c DenseIterators
-     *  (see Iterator.h), each of which points to either a child node or a tile value
-     *  of this tree and the other tree.  If the A iterator points to a child node
-     *  and the functor returns a nonzero value with bit 0 set (e.g., 1), do not descend
-     *  to the child node; instead, continue the traversal at the next A iterator position.
-     *  Similarly, if the B iterator points to a child node and the functor returns a value
-     *  with bit 1 set (e.g., 2), continue the traversal at the next B iterator position.
-     *  @note The other tree must have the same index space and fan-out factors as
-     *  this tree, but it may have a different @c ValueType and a different topology.
-     *  @param other  a tree of the same type as this tree
-     *  @param op     a functor of the form
-     *                <tt>template<class AIterT, class BIterT> int op(AIterT&, BIterT&)</tt>,
-     *                where @c AIterT and @c BIterT are any combination of a
-     *                RootNode::ChildAllIter, an InternalNode::ChildAllIter or a
-     *                LeafNode::ChildAllIter with an @c OtherTreeType::RootNode::ChildAllIter,
-     *                an @c OtherTreeType::InternalNode::ChildAllIter
-     *                or an @c OtherTreeType::LeafNode::ChildAllIter
-     *
-     *  @par Example:
-     *      Given two trees of the same type, @c aTree and @c bTree, replace leaf nodes of
-     *      @c aTree with corresponding leaf nodes of @c bTree, leaving @c bTree partially empty.
-     *  @code
-     *  namespace {
-     *      template<typename AIterT, typename BIterT>
-     *      inline int stealLeafNodes(AIterT& aIter, BIterT& bIter)
-     *      {
-     *          typename AIterT::NonConstValueType aValue;
-     *          typename AIterT::ChildNodeType* aChild = aIter.probeChild(aValue);
-     *          typename BIterT::NonConstValueType bValue;
-     *          typename BIterT::ChildNodeType* bChild = bIter.probeChild(bValue);
-     *
-     *          const Index aLevel = aChild->getLevel(), bLevel = bChild->getLevel();
-     *          if (aChild && bChild && aLevel == 0 && bLevel == 0) { // both are leaf nodes
-     *              aIter.setChild(bChild); // give B's child to A
-     *              bIter.setValue(bValue); // replace B's child with a constant tile value
-     *          }
-     *          // Don't iterate over leaf node voxels of either A or B.
-     *          int skipBranch = (aLevel == 0) ? 1 : 0;
-     *          if (bLevel == 0) skipBranch = skipBranch | 2;
-     *          return skipBranch;
-     *      }
-     *  }
-     *  {
-     *      aTree.visit2(bTree, stealLeafNodes);
-     *  }
-     *  @endcode
-     */
+    /// Traverse this tree and another tree in depth-first order, and for corresponding
+    /// subregions of index space call the given functor with two @c DenseIterators
+    /// (see Iterator.h), each of which points to either a child node or a tile value
+    /// of this tree and the other tree.  If the A iterator points to a child node
+    /// and the functor returns a nonzero value with bit 0 set (e.g., 1), do not descend
+    /// to the child node; instead, continue the traversal at the next A iterator position.
+    /// Similarly, if the B iterator points to a child node and the functor returns a value
+    /// with bit 1 set (e.g., 2), continue the traversal at the next B iterator position.
+    /// @note The other tree must have the same index space and fan-out factors as
+    /// this tree, but it may have a different @c ValueType and a different topology.
+    /// @param other  a tree of the same type as this tree
+    /// @param op     a functor of the form
+    ///               <tt>template<class AIterT, class BIterT> int op(AIterT&, BIterT&)</tt>,
+    ///               where @c AIterT and @c BIterT are any combination of a
+    ///               RootNode::ChildAllIter, an InternalNode::ChildAllIter or a
+    ///               LeafNode::ChildAllIter with an @c OtherTreeType::RootNode::ChildAllIter,
+    ///               an @c OtherTreeType::InternalNode::ChildAllIter
+    ///               or an @c OtherTreeType::LeafNode::ChildAllIter
+    ///
+    /// @par Example:
+    ///     Given two trees of the same type, @c aTree and @c bTree, replace leaf nodes of
+    ///     @c aTree with corresponding leaf nodes of @c bTree, leaving @c bTree partially empty.
+    /// @code
+    /// namespace {
+    ///     template<typename AIterT, typename BIterT>
+    ///     inline int stealLeafNodes(AIterT& aIter, BIterT& bIter)
+    ///     {
+    ///         typename AIterT::NonConstValueType aValue;
+    ///         typename AIterT::ChildNodeType* aChild = aIter.probeChild(aValue);
+    ///         typename BIterT::NonConstValueType bValue;
+    ///         typename BIterT::ChildNodeType* bChild = bIter.probeChild(bValue);
+    ///
+    ///         const Index aLevel = aChild->getLevel(), bLevel = bChild->getLevel();
+    ///         if (aChild && bChild && aLevel == 0 && bLevel == 0) { // both are leaf nodes
+    ///             aIter.setChild(bChild); // give B's child to A
+    ///             bIter.setValue(bValue); // replace B's child with a constant tile value
+    ///         }
+    ///         // Don't iterate over leaf node voxels of either A or B.
+    ///         int skipBranch = (aLevel == 0) ? 1 : 0;
+    ///         if (bLevel == 0) skipBranch = skipBranch | 2;
+    ///         return skipBranch;
+    ///     }
+    /// }
+    /// {
+    ///     aTree.visit2(bTree, stealLeafNodes);
+    /// }
+    /// @endcode
     template<typename OtherTreeType, typename VisitorOp>
     void visit2(OtherTreeType& other, VisitorOp& op);
     template<typename OtherTreeType, typename VisitorOp>
@@ -1003,13 +1121,34 @@ protected:
 }; // end of Tree class
 
 
-/// Tree4<T, N1, N2, N3>::Type is the type of a four-level tree
+/// @brief Tree3<T, N1, N2>::Type is the type of a three-level tree
+/// (Root, Internal, Leaf) with value type T and
+/// internal and leaf node log dimensions N1 and N2, respectively.
+/// @note This is NOT the standard tree configuration (Tree4 is).
+template<typename T, Index N1, Index N2>
+struct Tree3 {
+    typedef Tree<RootNode<InternalNode<LeafNode<T, N2>, N1> > > Type;
+};
+
+
+/// @brief Tree4<T, N1, N2, N3>::Type is the type of a four-level tree
 /// (Root, Internal, Internal, Leaf) with value type T and
 /// internal and leaf node log dimensions N1, N2 and N3, respectively.
-/// This is the standard tree configuration.
+/// @note This is the standard tree configuration.
 template<typename T, Index N1, Index N2, Index N3>
 struct Tree4 {
     typedef Tree<RootNode<InternalNode<InternalNode<LeafNode<T, N3>, N2>, N1> > > Type;
+};
+
+
+/// @brief Tree5<T, N1, N2, N3, N4>::Type is the type of a five-level tree
+/// (Root, Internal, Internal, Internal, Leaf) with value type T and
+/// internal and leaf node log dimensions N1, N2, N3 and N4, respectively.
+/// @note This is NOT the standard tree configuration (Tree4 is).
+template<typename T, Index N1, Index N2, Index N3, Index N4>
+struct Tree5 {
+    typedef Tree<RootNode<InternalNode<InternalNode<InternalNode<LeafNode<T, N4>, N3>, N2>, N1> > >
+        Type;
 };
 
 
@@ -1358,26 +1497,20 @@ Tree<RootNodeType>::setValueOn(const Coord& xyz, const ValueType& value)
 
 
 template<typename RootNodeType>
+template<typename ModifyOp>
 inline void
-Tree<RootNodeType>::setValueOnMin(const Coord& xyz, const ValueType& value)
+Tree<RootNodeType>::modifyValue(const Coord& xyz, const ModifyOp& op)
 {
-    mRoot.setValueOnMin(xyz, value);
+    mRoot.modifyValue(xyz, op);
 }
 
 
 template<typename RootNodeType>
+template<typename ModifyOp>
 inline void
-Tree<RootNodeType>::setValueOnMax(const Coord& xyz, const ValueType& value)
+Tree<RootNodeType>::modifyValueAndActiveState(const Coord& xyz, const ModifyOp& op)
 {
-    mRoot.setValueOnMax(xyz, value);
-}
-
-
-template<typename RootNodeType>
-inline void
-Tree<RootNodeType>::setValueOnSum(const Coord& xyz, const ValueType& value)
-{
-    mRoot.setValueOnSum(xyz, value);
+    mRoot.modifyValueAndActiveState(xyz, op);
 }
 
 
@@ -1445,6 +1578,7 @@ Tree<RootNodeType>::addTile(Index level, const Coord& xyz,
     mRoot.addTile(level, xyz, value, active);
 }
 
+
 template<typename RootNodeType>
 template<typename NodeT>
 inline NodeT*
@@ -1453,6 +1587,7 @@ Tree<RootNodeType>::stealNode(const Coord& xyz, const ValueType& value, bool act
     this->clearAllAccessors();
     return mRoot.template stealNode<NodeT>(xyz, value, active);
 }
+
 
 template<typename RootNodeType>
 inline typename RootNodeType::LeafNodeType*
@@ -1475,6 +1610,33 @@ inline const typename RootNodeType::LeafNodeType*
 Tree<RootNodeType>::probeConstLeaf(const Coord& xyz) const
 {
     return mRoot.probeConstLeaf(xyz);
+}
+
+
+template<typename RootNodeType>
+template<typename NodeType>
+inline NodeType*
+Tree<RootNodeType>::probeNode(const Coord& xyz)
+{
+    return mRoot.template probeNode<NodeType>(xyz);
+}
+
+
+template<typename RootNodeType>
+template<typename NodeType>
+inline const NodeType*
+Tree<RootNodeType>::probeNode(const Coord& xyz) const
+{
+    return this->template probeConstNode<NodeType>(xyz);
+}
+
+
+template<typename RootNodeType>
+template<typename NodeType>
+inline const NodeType*
+Tree<RootNodeType>::probeConstNode(const Coord& xyz) const
+{
+    return mRoot.template probeConstNode<NodeType>(xyz);
 }
 
 
@@ -1519,20 +1681,27 @@ Tree<RootNodeType>::getBackgroundValue() const
 
 template<typename RootNodeType>
 inline void
-Tree<RootNodeType>::merge(Tree& other)
+Tree<RootNodeType>::voxelizeActiveTiles()
 {
     this->clearAllAccessors();
-    other.clearAllAccessors();
-    mRoot.merge(other.mRoot);
+    mRoot.voxelizeActiveTiles();
 }
 
 
 template<typename RootNodeType>
 inline void
-Tree<RootNodeType>::voxelizeActiveTiles()
+Tree<RootNodeType>::merge(Tree& other, MergePolicy policy)
 {
     this->clearAllAccessors();
-    mRoot.voxelizeActiveTiles();
+    other.clearAllAccessors();
+    switch (policy) {
+        case MERGE_ACTIVE_STATES:
+            mRoot.template merge<MERGE_ACTIVE_STATES>(other.mRoot); break;
+        case MERGE_NODES:
+            mRoot.template merge<MERGE_NODES>(other.mRoot); break;
+        case MERGE_ACTIVE_STATES_AND_NODES:
+            mRoot.template merge<MERGE_ACTIVE_STATES_AND_NODES>(other.mRoot); break;
+    }
 }
 
 
@@ -1542,21 +1711,38 @@ inline void
 Tree<RootNodeType>::topologyUnion(const Tree<OtherRootNodeType>& other)
 {
     this->clearAllAccessors();
-    mRoot.topologyUnion(other.getRootNode());
+    mRoot.topologyUnion(other.root());
 }
 
+template<typename RootNodeType>
+template<typename OtherRootNodeType>
+inline void
+Tree<RootNodeType>::topologyIntersection(const Tree<OtherRootNodeType>& other)
+{
+    this->clearAllAccessors();
+    mRoot.topologyIntersection(other.root());
+}
+
+template<typename RootNodeType>
+template<typename OtherRootNodeType>
+inline void
+Tree<RootNodeType>::topologyDifference(const Tree<OtherRootNodeType>& other)
+{
+    this->clearAllAccessors();
+    mRoot.topologyDifference(other.root());
+}
 
 ////////////////////////////////////////
 
 
 /// @brief Helper class to adapt a three-argument (a, b, result) CombineOp functor
 /// into a single-argument functor that accepts a CombineArgs struct
-template<typename ValueT, typename CombineOp>
+template<typename AValueT, typename CombineOp, typename BValueT = AValueT>
 struct CombineOpAdapter
 {
-    CombineOpAdapter(CombineOp& op): op(op) {}
+    CombineOpAdapter(CombineOp& _op): op(_op) {}
 
-    void operator()(CombineArgs<ValueT>& args) const {
+    void operator()(CombineArgs<AValueT, BValueT>& args) const {
         op(args.a(), args.b(), args.result());
     }
 
@@ -1594,7 +1780,7 @@ inline void
 Tree<RootNodeType>::combineExtended(Tree& other, ExtendedCombineOp& op, bool prune)
 {
     this->clearAllAccessors();
-    mRoot.combine(other.getRootNode(), op, prune);
+    mRoot.combine(other.root(), op, prune);
 }
 
 
@@ -1613,11 +1799,11 @@ Tree<RootNodeType>::combineExtended(Tree& other, const ExtendedCombineOp& op, bo
 
 
 template<typename RootNodeType>
-template<typename CombineOp>
+template<typename CombineOp, typename OtherTreeType>
 inline void
-Tree<RootNodeType>::combine2(const Tree& a, const Tree& b, CombineOp& op, bool prune)
+Tree<RootNodeType>::combine2(const Tree& a, const OtherTreeType& b, CombineOp& op, bool prune)
 {
-    CombineOpAdapter<ValueType, CombineOp> extendedOp(op);
+    CombineOpAdapter<ValueType, CombineOp, typename OtherTreeType::ValueType> extendedOp(op);
     this->combine2Extended(a, b, extendedOp, prune);
 }
 
@@ -1626,38 +1812,39 @@ Tree<RootNodeType>::combine2(const Tree& a, const Tree& b, CombineOp& op, bool p
 /// code like this: <tt>tree.combine2(aTree, bTree, MyCombineOp(...))</tt>.
 #ifndef _MSC_VER
 template<typename RootNodeType>
-template<typename CombineOp>
+template<typename CombineOp, typename OtherTreeType>
 inline void
-Tree<RootNodeType>::combine2(const Tree& a, const Tree& b, const CombineOp& op, bool prune)
+Tree<RootNodeType>::combine2(const Tree& a, const OtherTreeType& b, const CombineOp& op, bool prune)
 {
-    CombineOpAdapter<ValueType, const CombineOp> extendedOp(op);
+    CombineOpAdapter<ValueType, const CombineOp, typename OtherTreeType::ValueType> extendedOp(op);
     this->combine2Extended(a, b, extendedOp, prune);
 }
 #endif
 
 
 template<typename RootNodeType>
-template<typename ExtendedCombineOp>
+template<typename ExtendedCombineOp, typename OtherTreeType>
 inline void
-Tree<RootNodeType>::combine2Extended(const Tree& a, const Tree& b,
+Tree<RootNodeType>::combine2Extended(const Tree& a, const OtherTreeType& b,
     ExtendedCombineOp& op, bool prune)
 {
     this->clearAllAccessors();
-    mRoot.combine2(a.mRoot, b.mRoot, op, prune);
+    mRoot.combine2(a.root(), b.root(), op, prune);
 }
 
 
 /// @internal This overload is needed (for ICC and GCC, but not for VC) to disambiguate
-/// code like this: <tt>tree.combine2Extended(aTree, bTree, MyCombineOp(...))</tt>.
+/// code like the following, where the functor argument is a temporary:
+/// <tt>tree.combine2Extended(aTree, bTree, MyCombineOp(...))</tt>.
 #ifndef _MSC_VER
 template<typename RootNodeType>
-template<typename ExtendedCombineOp>
+template<typename ExtendedCombineOp, typename OtherTreeType>
 inline void
-Tree<RootNodeType>::combine2Extended(const Tree& a, const Tree& b,
+Tree<RootNodeType>::combine2Extended(const Tree& a, const OtherTreeType& b,
     const ExtendedCombineOp& op, bool prune)
 {
     this->clearAllAccessors();
-    mRoot.template combine2<const ExtendedCombineOp>(a.mRoot, b.mRoot, op, prune);
+    mRoot.template combine2<const ExtendedCombineOp>(a.root(), b.root(), op, prune);
 }
 #endif
 
@@ -1717,7 +1904,7 @@ Tree<RootNodeType>::visit2(OtherTreeType& other, VisitorOp& op)
 {
     this->clearAllAccessors();
     typedef typename OtherTreeType::RootNodeType OtherRootNodeType;
-    mRoot.template visit2<OtherRootNodeType, VisitorOp>(other.getRootNode(), op);
+    mRoot.template visit2<OtherRootNodeType, VisitorOp>(other.root(), op);
 }
 
 
@@ -1727,7 +1914,7 @@ inline void
 Tree<RootNodeType>::visit2(OtherTreeType& other, VisitorOp& op) const
 {
     typedef typename OtherTreeType::RootNodeType OtherRootNodeType;
-    mRoot.template visit2<OtherRootNodeType, VisitorOp>(other.getRootNode(), op);
+    mRoot.template visit2<OtherRootNodeType, VisitorOp>(other.root(), op);
 }
 
 
@@ -1740,7 +1927,7 @@ Tree<RootNodeType>::visit2(OtherTreeType& other, const VisitorOp& op)
 {
     this->clearAllAccessors();
     typedef typename OtherTreeType::RootNodeType OtherRootNodeType;
-    mRoot.template visit2<OtherRootNodeType, const VisitorOp>(other.getRootNode(), op);
+    mRoot.template visit2<OtherRootNodeType, const VisitorOp>(other.root(), op);
 }
 
 
@@ -1752,7 +1939,7 @@ inline void
 Tree<RootNodeType>::visit2(OtherTreeType& other, const VisitorOp& op) const
 {
     typedef typename OtherTreeType::RootNodeType OtherRootNodeType;
-    mRoot.template visit2<OtherRootNodeType, const VisitorOp>(other.getRootNode(), op);
+    mRoot.template visit2<OtherRootNodeType, const VisitorOp>(other.root(), op);
 }
 
 
@@ -1773,8 +1960,7 @@ Tree<RootNodeType>::treeType()
             ostr << "_" << dims[i];
         }
         Name* s = new Name(ostr.str());
-        sTypeName.compare_and_swap(s, NULL);
-        if (sTypeName != s) delete s;
+        if (sTypeName.compare_and_swap(s, NULL) != NULL) delete s;
     }
     return *sTypeName;
 }
@@ -1785,7 +1971,7 @@ template<typename OtherRootNodeType>
 inline bool
 Tree<RootNodeType>::hasSameTopology(const Tree<OtherRootNodeType>& other) const
 {
-    return mRoot.hasSameTopology(other.getRootNode());
+    return mRoot.hasSameTopology(other.root());
 }
 
 
@@ -1807,31 +1993,24 @@ template<typename RootNodeType>
 inline bool
 Tree<RootNodeType>::evalLeafBoundingBox(CoordBBox& bbox) const
 {
-    if (this->empty()) {
-        bbox = CoordBBox(); // return default bbox
-        return false;// empty
-    }
+    bbox.reset(); // default invalid bbox
 
-    bbox.min() =  Coord::max();
-    bbox.max() = -Coord::max();
+    if (this->empty()) return false;  // empty
 
-    Coord ijk;
-    for (LeafCIter bIter(*this); bIter; ++bIter) {
-        bIter->getOrigin(ijk);
-        bbox.expand(ijk);
-    }
-    bbox.max() += Coord(LeafNodeType::dim()-1);
-    return true; // not empty
+    mRoot.evalActiveBoundingBox(bbox, false);
+
+    return true;// not empty
 }
 
 template<typename RootNodeType>
 inline bool
 Tree<RootNodeType>::evalActiveVoxelBoundingBox(CoordBBox& bbox) const
 {
-    bbox = CoordBBox(); // default invalid bbox
+    bbox.reset(); // default invalid bbox
+
     if (this->empty()) return false;  // empty
 
-    mRoot.evalActiveVoxelBoundingBox(bbox);
+    mRoot.evalActiveBoundingBox(bbox, true);
 
     return true;// not empty
 }
@@ -1893,7 +2072,7 @@ Tree<RootNodeType>::print(std::ostream& os, int verboseLevel) const
     struct OnExit {
         std::ostream& os;
         std::streamsize savedPrecision;
-        OnExit(std::ostream& os): os(os), savedPrecision(os.precision()) {}
+        OnExit(std::ostream& _os): os(_os), savedPrecision(os.precision()) {}
         ~OnExit() { os.precision(savedPrecision); }
     };
     OnExit restorePrecision(os);
