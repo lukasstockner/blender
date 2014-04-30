@@ -641,6 +641,16 @@ void ANIM_keyingset_infos_exit(void)
 	BKE_keyingsets_free(&builtin_keyingsets);
 }
 
+/* Check if the ID appears in the paths specified by the KeyingSet */
+bool ANIM_keyingset_find_id(KeyingSet *ks, ID *id)
+{
+	/* sanity checks */
+	if (ELEM(NULL, ks, id))
+		return false;
+
+	return BLI_findptr(&ks->paths, id, offsetof(KS_Path, id)) != NULL;
+}
+
 /* ******************************************* */
 /* KEYING SETS API (for UI) */
 
@@ -916,7 +926,7 @@ int ANIM_apply_keyingset(bContext *C, ListBase *dsources, bAction *act, KeyingSe
 	ReportList *reports = CTX_wm_reports(C);
 	KS_Path *ksp;
 	int kflag = 0, success = 0;
-	char *groupname = NULL;
+	const char *groupname = NULL;
 	
 	/* sanity checks */
 	if (ks == NULL)

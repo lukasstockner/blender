@@ -6340,7 +6340,7 @@ static bool ui_is_but_interactive(const uiBut *but, const bool labeledit)
 		return false;
 	if (but->flag & UI_SCROLLED)
 		return false;
-	if ((but->type == TEX) && (but->dt & UI_EMBOSSN) && !labeledit)
+	if ((but->type == TEX) && (but->dt == UI_EMBOSSN) && !labeledit)
 		return false;
 	if ((but->type == LISTROW) && labeledit)
 		return false;
@@ -7293,7 +7293,7 @@ static int ui_handle_list_event(bContext *C, const wmEvent *event, ARegion *ar)
 			if (dyn_data->items_filter_neworder || dyn_data->items_filter_flags) {
 				/* If we have a display order different from collection order, we have some work! */
 				int *org_order = MEM_mallocN(dyn_data->items_shown * sizeof(int), __func__);
-				int *new_order = dyn_data->items_filter_neworder;
+				const int *new_order = dyn_data->items_filter_neworder;
 				int i, org_idx = -1, len = dyn_data->items_len;
 				int current_idx = -1;
 				int filter_exclude = ui_list->filter_flag & UILST_FLT_EXCLUDE;

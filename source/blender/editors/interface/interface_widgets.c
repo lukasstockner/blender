@@ -851,7 +851,9 @@ static void widget_draw_icon(const uiBut *but, BIFIconID icon, float alpha, cons
 	float aspect, height;
 	
 	if (but->flag & UI_ICON_PREVIEW) {
+		glEnable(GL_BLEND);
 		widget_draw_preview(icon, alpha, rect);
+		glDisable(GL_BLEND);
 		return;
 	}
 	
@@ -921,7 +923,7 @@ static void widget_draw_icon(const uiBut *but, BIFIconID icon, float alpha, cons
 
 static void ui_text_clip_give_prev_off(uiBut *but)
 {
-	char *prev_utf8 = BLI_str_find_prev_char_utf8(but->drawstr, but->drawstr + but->ofs);
+	const char *prev_utf8 = BLI_str_find_prev_char_utf8(but->drawstr, but->drawstr + but->ofs);
 	int bytes = but->drawstr + but->ofs - prev_utf8;
 
 	but->ofs -= bytes;
@@ -929,7 +931,7 @@ static void ui_text_clip_give_prev_off(uiBut *but)
 
 static void ui_text_clip_give_next_off(uiBut *but)
 {
-	char *next_utf8 = BLI_str_find_next_char_utf8(but->drawstr + but->ofs, NULL);
+	const char *next_utf8 = BLI_str_find_next_char_utf8(but->drawstr + but->ofs, NULL);
 	int bytes = next_utf8 - (but->drawstr + but->ofs);
 
 	but->ofs += bytes;
@@ -1138,7 +1140,7 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 	const int okwidth = max_ii(BLI_rcti_size_x(rect) - border, 0);
 	char *cpoin = NULL;
 	int drawstr_len = strlen(but->drawstr);
-	char *cpend = but->drawstr + drawstr_len;
+	const char *cpend = but->drawstr + drawstr_len;
 	
 	/* need to set this first */
 	uiStyleFontSet(fstyle);
@@ -1164,7 +1166,7 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 		
 		/* chop off the leading text, starting from the right */
 		while (but->strwidth > okwidth && cp2 > but->drawstr) {
-			char *prev_utf8 = BLI_str_find_prev_char_utf8(but->drawstr, cp2);
+			const char *prev_utf8 = BLI_str_find_prev_char_utf8(but->drawstr, cp2);
 			int bytes = cp2 - prev_utf8;
 
 			/* shift the text after and including cp2 back by 1 char, +1 to include null terminator */
@@ -1325,7 +1327,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 		if (but->menu_key != '\0') {
 			char fixedbuf[128];
-			char *str;
+			const char *str;
 
 			BLI_strncpy(fixedbuf, drawstr + but->ofs, min_ii(sizeof(fixedbuf), drawstr_left_len));
 
@@ -2322,7 +2324,7 @@ static void ui_draw_but_HSVCUBE(uiBut *but, const rcti *rect)
 {
 	float rgb[3];
 	float x = 0.0f, y = 0.0f;
-	float *hsv = ui_block_hsv_get(but->block);
+	const float *hsv = ui_block_hsv_get(but->block);
 	float hsv_n[3];
 	bool use_display_colorspace = ui_color_picker_use_display_colorspace(but);
 	
@@ -3753,6 +3755,7 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 	wt->state(wt, state);
 	wt->draw(&wt->wcol, rect, 0, 0);
 	
+	glEnable(GL_BLEND);
 	widget_draw_preview(iconid, 1.0f, rect);
 	
 	BLF_width_and_height(fstyle->uifont_id, name, BLF_DRAW_STR_DUMMY_MAX, &font_dims[0], &font_dims[1]);
@@ -3775,7 +3778,6 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 		bg_rect.xmax = rect->xmax - PREVIEW_PAD;
 
 	glColor4ubv((unsigned char *)wt->wcol_theme->inner_sel);
-	glEnable(GL_BLEND);
 	glRecti(bg_rect.xmin, bg_rect.ymin, bg_rect.xmax, bg_rect.ymax);
 	glDisable(GL_BLEND);
 

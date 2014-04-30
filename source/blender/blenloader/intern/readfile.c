@@ -537,7 +537,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 //	printf("blo_find_main: converted to %s\n", name1);
 	
 	for (m = mainlist->first; m; m = m->next) {
-		char *libname = (m->curlib) ? m->curlib->filepath : m->name;
+		const char *libname = (m->curlib) ? m->curlib->filepath : m->name;
 		
 		if (BLI_path_cmp(name1, libname) == 0) {
 			if (G.debug & G_DEBUG) printf("blo_find_main: found library %s\n", libname);
@@ -3052,7 +3052,7 @@ static void lib_link_key(FileData *fd, Main *main)
 static void switch_endian_keyblock(Key *key, KeyBlock *kb)
 {
 	int elemsize, a, b;
-	char *data, *poin, *cp;
+	const char *data, *poin, *cp;
 	
 	elemsize = key->elemsize;
 	data = kb->data;
@@ -4333,7 +4333,7 @@ static void lib_link_object(FileData *fd, Main *main)
 			/* When the object is local and the data is library its possible
 			 * the material list size gets out of sync. [#22663] */
 			if (ob->data && ob->id.lib != ((ID *)ob->data)->lib) {
-				short *totcol_data = give_totcolp(ob);
+				const short *totcol_data = give_totcolp(ob);
 				/* Only expand so as not to loose any object materials that might be set. */
 				if (totcol_data && (*totcol_data > ob->totcol)) {
 					/* printf("'%s' %d -> %d\n", ob->id.name, ob->totcol, *totcol_data); */
@@ -8489,6 +8489,8 @@ static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 		{
 			if (seq->scene) expand_doit(fd, mainvar, seq->scene);
 			if (seq->scene_camera) expand_doit(fd, mainvar, seq->scene_camera);
+			if (seq->clip) expand_doit(fd, mainvar, seq->clip);
+			if (seq->mask) expand_doit(fd, mainvar, seq->mask);
 			if (seq->sound) expand_doit(fd, mainvar, seq->sound);
 		}
 		SEQ_END

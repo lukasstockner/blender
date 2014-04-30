@@ -1420,12 +1420,9 @@ void texture_rgb_blend(float in[3], const float tex[3], const float out[3], floa
 		fact*= facg;
 		facm= 1.0f-fact;
 		
-		col= tex[0]+((1-tex[0])*facm);
-		if (col < out[0]) in[0]= col; else in[0]= out[0];
-		col= tex[1]+((1-tex[1])*facm);
-		if (col < out[1]) in[1]= col; else in[1]= out[1];
-		col= tex[2]+((1-tex[2])*facm);
-		if (col < out[2]) in[2]= col; else in[2]= out[2];
+		in[0] = min_ff(out[0], tex[0])*fact + out[0]*facm;
+		in[1] = min_ff(out[1], tex[1])*fact + out[1]*facm;
+		in[2] = min_ff(out[2], tex[2])*fact + out[2]*facm;
 		break;
 
 	case MTEX_LIGHT:
@@ -1522,8 +1519,7 @@ float texture_value_blend(float tex, float out, float fact, float facg, int blen
 		break;
 
 	case MTEX_DARK:
-		col= fact*tex;
-		if (col < out) in= col; else in= out;
+		in = min_ff(out, tex)*fact + out*facm;
 		break;
 
 	case MTEX_LIGHT:
@@ -1683,7 +1679,7 @@ static void compatible_bump_uv_derivs(CompatibleBump *compat_bump, ShadeInput *s
 			}
 
 			if (tf) {
-				float *uv1 = tf->uv[j1], *uv2 = tf->uv[j2], *uv3 = tf->uv[j3];
+				const float *uv1 = tf->uv[j1], *uv2 = tf->uv[j2], *uv3 = tf->uv[j3];
 				const float an[3] = {fabsf(compat_bump->nn[0]), fabsf(compat_bump->nn[1]), fabsf(compat_bump->nn[2])};
 				const int a1 = (an[0] > an[1] && an[0] > an[2]) ? 1 : 0;
 				const int a2 = (an[2] > an[0] && an[2] > an[1]) ? 1 : 2;
@@ -3713,7 +3709,7 @@ void RE_sample_material_color(Material *mat, float color[3], float *alpha, const
 			/* for every uv map set coords and name */
 			for (i=0; i<layers; i++) {
 				if (layer_index >= 0) {
-					float *uv1, *uv2, *uv3;
+					const float *uv1, *uv2, *uv3;
 					float l;
 					CustomData *data = &orcoDm->faceData;
 					MTFace *tface = (MTFace *) data->layers[layer_index+i].data;

@@ -2323,7 +2323,7 @@ void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
 	
 	if (ob->parent) {
 		Object *par = ob->parent;
-		float slowmat[4][4] = MAT4_UNITY;
+		float slowmat[4][4];
 		
 		/* calculate parent matrix */
 		solve_parenting(scene, ob, par, ob->obmat, slowmat, r_originmat, true);
@@ -2369,9 +2369,10 @@ void BKE_object_where_is_calc_time(Scene *scene, Object *ob, float ctime)
  * used for bundles orientation in 3d space relative to parented blender camera */
 void BKE_object_where_is_calc_mat4(Scene *scene, Object *ob, float obmat[4][4])
 {
-	float slowmat[4][4] = MAT4_UNITY;
 
 	if (ob->parent) {
+		float slowmat[4][4];
+
 		Object *par = ob->parent;
 		
 		solve_parenting(scene, ob, par, obmat, slowmat, NULL, false);
@@ -2724,7 +2725,7 @@ void BKE_object_foreach_display_point(
 		DispList *dl;
 
 		for (dl = ob->curve_cache->disp.first; dl; dl = dl->next) {
-			float *v3 = dl->verts;
+			const float *v3 = dl->verts;
 			int totvert = dl->nr;
 			int i;
 
@@ -3656,7 +3657,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 			unsigned int i;
 
 			DerivedMesh *dm = ob->derivedDeform ? ob->derivedDeform : ob->derivedFinal;
-			int *index;
+			const int *index;
 
 			if (dm && (index = CustomData_get_layer(&dm->vertData, CD_ORIGINDEX))) {
 				MVert *mvert = dm->getVertArray(dm);

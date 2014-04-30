@@ -1135,7 +1135,7 @@ void EDBM_verts_mirror_cache_begin(BMEditMesh *em, const int axis,
 
 BMVert *EDBM_verts_mirror_get(BMEditMesh *em, BMVert *v)
 {
-	int *mirr = CustomData_bmesh_get_layer_n(&em->bm->vdata, v->head.data, em->mirror_cdlayer);
+	const int *mirr = CustomData_bmesh_get_layer_n(&em->bm->vdata, v->head.data, em->mirror_cdlayer);
 
 	BLI_assert(em->mirror_cdlayer != -1); /* invalid use */
 
@@ -1261,9 +1261,11 @@ void EDBM_mesh_reveal(BMEditMesh *em)
 	                            BM_EDGES_OF_MESH,
 	                            BM_FACES_OF_MESH};
 
-	int sels[3] = {(em->selectmode & SCE_SELECT_VERTEX),
-	               (em->selectmode & SCE_SELECT_EDGE),
-	               (em->selectmode & SCE_SELECT_FACE), };
+	const bool sels[3] = {
+	    (em->selectmode & SCE_SELECT_VERTEX) != 0,
+	    (em->selectmode & SCE_SELECT_EDGE) != 0,
+	    (em->selectmode & SCE_SELECT_FACE) != 0,
+	};
 	int i;
 
 	/* Use tag flag to remember what was hidden before all is revealed.

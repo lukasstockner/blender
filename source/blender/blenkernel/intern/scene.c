@@ -638,9 +638,6 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 
 	sce->gm.exitkey = 218; // Blender key code for ESC
 
-	sce->omp_threads_mode = SCE_OMP_AUTO;
-	sce->omp_threads = 1;
-
 	sound_create_scene(sce);
 
 	/* color management */
@@ -1574,10 +1571,10 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 			BKE_animsys_evaluate_animdata(scene, &scene->id, adt, ctime, 0);
 	}
 
-	/* Extra call here to recalc aterial animation.
+	/* Extra call here to recalc material animation.
 	 *
 	 * Need to do this so changing material settings from the graph/dopesheet
-	 * will update suff in the viewport.
+	 * will update stuff in the viewport.
 	 */
 	if (DAG_id_type_tagged(bmain, ID_MA)) {
 		Material *material;
@@ -1882,12 +1879,4 @@ int BKE_render_num_threads(const RenderData *rd)
 int BKE_scene_num_threads(const Scene *scene)
 {
 	return BKE_render_num_threads(&scene->r);
-}
-
-int BKE_scene_num_omp_threads(const struct Scene *scene)
-{
-	if (scene->omp_threads_mode == SCE_OMP_AUTO)
-		return BLI_system_thread_count_omp();
-	else
-		return scene->omp_threads;
 }
