@@ -2366,27 +2366,6 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 	return openSubdiv_finishEvaluatorDescr(ss->osd_evaluator, ss->subdivLevels) != 0;
 }
 
-static int opensubdiv_countBaseVerts(CCGSubSurf *ss)
-{
-	int i, num_basis_verts = ss->vMap->numEntries;
-	/* For every NGon and triangle we add a vertex to the
-	 * face median point and subdivide each of face edges.
-	 *
-	 * TODO(sergey): re-use additional vertices when having
-	 * two adjacent tris or ngons.
-	 */
-	for (i = 0; i < ss->fMap->curSize; i++) {
-		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
-		for (; face; face = face->next) {
-			if (face->numVerts != 4) {
-				num_basis_verts += 1 + face->numVerts;
-			}
-		}
-	}
-	return num_basis_verts;
-}
-
-
 static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 {
 	bool evaluator_needs_init = false;
@@ -2407,7 +2386,7 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 		ss->osd_evaluator = NULL;
 	}
 	if (ss->osd_evaluator == NULL) {
-		int num_basis_verts = opensubdiv_countBaseVerts(ss);
+		int num_basis_verts = ss->vMap->numEntries;
 		OSD_LOG("Allocating new evaluator, %d verts\n", num_basis_verts);
 		ss->osd_evaluator =
 			openSubdiv_createEvaluatorDescr(num_basis_verts);
@@ -2425,11 +2404,7 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 {
 	float (*positions)[3];
 	int vertDataSize = ss->meshIFC.vertDataSize;
-	/* TODO(sergey): De-duplicate this call with evaluator init routines.
-	 * No actual need to re-calculate ngons/tris count here, we just need
-	 * to cache this value somewhere.
-	 */
-	int num_basis_verts = opensubdiv_countBaseVerts(ss);
+	int num_basis_verts = ss->vMap->numEntries;
 	int i;
 
 	positions = MEM_mallocN(3 * sizeof(float) * num_basis_verts, "OpenSubdiv coarse points");
@@ -2441,43 +2416,6 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 			OSD_LOG("Point %d has value %f %f %f\n",
 			        v->osd_index, co[0], co[1], co[2]);
 			copy_v3_v3(positions[v->osd_index], co);
-		}
-	}
-
-	/* Only iterate faces if we've got tris and/or ngons. */
-	if (num_basis_verts != ss->vMap->numEntries) {
-		int index = ss->vMap->numEntries;
-		for (i = 0; i < ss->fMap->curSize; i++) {
-			CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
-			for (; face; face = face->next) {
-				if (face->numVerts != 4) {
-					CCGVert **all_verts = FACE_getVerts(face);
-					int S;
-					/* Calculate median point of the face. */
-					float median_acc[3] = {0.0f, 0.0f, 0.0f};
-					for (S = 0; S < face->numVerts; S++) {
-						add_v3_v3(median_acc, VERT_getCo(all_verts[S], 0));
-					}
-					mul_v3_v3fl(positions[index++], median_acc, 1.0f / (float) face->numVerts);
-					OSD_LOG("Point %d (face median) has value %f %f %f\n",
-					        index - 1,
-					        positions[index - 1][0],
-					        positions[index - 1][1],
-					        positions[index - 1][2]);
-					/* Calculate median points of all edges. */
-					for (S = 0; S < face->numVerts; S++) {
-						interp_v3_v3v3(positions[index++],
-						               positions[all_verts[S]->osd_index],
-						               positions[all_verts[(S + 1) % face->numVerts]->osd_index],
-						               0.5f);
-						OSD_LOG("Point %d (edge %d median) has value %f %f %f\n",
-						        index - 1, S,
-						        positions[index - 1][0],
-						        positions[index - 1][1],
-						        positions[index - 1][2]);
-					}
-				}
-			}
 		}
 	}
 
