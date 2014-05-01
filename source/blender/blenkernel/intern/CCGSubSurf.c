@@ -2669,6 +2669,7 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 	for (S = 0; S < face->numVerts; S++) {
 		CCGEdge *edge = FACE_getEdges(face)[S];
 		int x, S0, S1;
+		bool flip;
 
 		for (x = 0; x < face->numVerts; ++x) {
 			if (all_verts[x] == edge->v0) {
@@ -2678,15 +2679,33 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 				S1 = x;
 			}
 		}
+		if (S == face->numVerts - 1) {
+			flip = S0 > S1;
+		}
+		else {
+			flip = S0 < S1;
+		}
 
 		for (x = 0; x <= edgeSize / 2; x++) {
 			float *edge_co = EDGE_getCo(edge, subdivLevels, x);
-			float *face_edge_co = FACE_getIFCo(face, subdivLevels, S0, gridSize - 1, gridSize - 1 - x);
+			float *face_edge_co;
+			if (flip) {
+				face_edge_co = FACE_getIFCo(face, subdivLevels, S0, gridSize - 1, gridSize - 1 - x);
+			}
+			else {
+				face_edge_co = FACE_getIFCo(face, subdivLevels, S0, gridSize - 1 - x, gridSize - 1);
+			}
 			VertDataCopy(edge_co, face_edge_co, ss);
 		}
 		for (x = edgeSize / 2 + 1; x < edgeSize; x++) {
 			float *edge_co = EDGE_getCo(edge, subdivLevels, x);
-			float *face_edge_co = FACE_getIFCo(face, subdivLevels, S1, x - edgeSize / 2, gridSize - 1);
+			float *face_edge_co;
+			if (flip) {
+				face_edge_co = FACE_getIFCo(face, subdivLevels, S1, x - edgeSize / 2, gridSize - 1);
+			}
+			else {
+				face_edge_co = FACE_getIFCo(face, subdivLevels, S1, gridSize - 1, x - edgeSize / 2);
+			}
 			VertDataCopy(edge_co, face_edge_co, ss);
 		}
 	}
