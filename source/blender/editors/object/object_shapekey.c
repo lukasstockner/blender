@@ -491,15 +491,38 @@ static int shape_key_move_poll(bContext *C)
 }
 
 
+static EnumPropertyItem slot_move[] = {
+	{ -2, "TOP", 0, "Top of the list", "" },
+	{ -1, "UP", 0, "Up", "" },
+	{ 1, "DOWN", 0, "Down", "" },
+	{ 2, "BOTTOM", 0, "Bottom of the list", "" },
+	{ 0, NULL, 0, NULL, NULL }
+};
+
 static int shape_key_move_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 
-	int steps = RNA_int_get(op->ptr, "steps");
+	int type = RNA_enum_get(op->ptr, "type");
 	int act_index = ob->shapenr - 1;
+	int new_index;
 	Key *key = BKE_key_from_object(ob);
+	KeyBlock *kb = BKE_keyblock_from_object(ob);
 
-	BKE_key_move(ob, BKE_keyblock_from_object(ob), act_index + steps); 
+	if (IN_RANGE_INCL(type, -1, 1)){
+		new_index = act_index + type;
+	}
+	else if (type == 2) {
+		new_index = key->totkey - 1;
+	}
+	else if (type == -2) {
+		if (act_index == 1 || act_index == 0)
+			new_index = 0; /* replace the ref key only if we're at the top already */
+		else
+			new_index = 1;
+	}
+
+	BKE_keyblock_move(ob, kb, new_index);
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -521,39 +544,5 @@ void OBJECT_OT_shape_key_move(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	//RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
-	RNA_def_int(ot->srna, "steps", 1, -INT_MAX, INT_MAX, "Direction", "Move the shape key up or down?", -1, 1);
-}
-
-
-static int shape_key_place_exec(bContext *C, wmOperator *op)
-{
-	Object *ob = ED_object_context(C);
-	int act_index = ob->shapenr - 1;
-	int new_index = RNA_int_get(op->ptr, "index");
-	Key *key = BKE_key_from_object(ob);
-
-	BKE_key_move(ob, BLI_findlink(&key->block, act_index), RNA_int_get(op->ptr, "index"));
-
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
-
-	return OPERATOR_FINISHED;
-}
-
-void OBJECT_OT_shape_key_place_at_index(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Place Shape Key At Index";
-	ot->idname = "OBJECT_OT_shape_key_place_at_index";
-	ot->description = "Place a shape key at a given position in the list";
-
-	/* api callbacks */
-	ot->poll = shape_key_move_poll;
-	ot->exec = shape_key_place_exec;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
-	RNA_def_int(ot->srna, "index", 1, -INT_MAX, INT_MAX, "New Shape Index", "The desired position of the shape key", 0, INT_MAX);
+	RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
 }

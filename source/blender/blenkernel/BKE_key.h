@@ -99,15 +99,16 @@ void    BKE_key_convert_from_vertcos(Object *ob, KeyBlock *kb, float (*vertCos)[
 void    BKE_key_convert_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3]);
 
 /* other management */
-/* moves a shape key to new_index. safe, clamps index to key->totkey, updates reference keys and active shape */
-void	BKE_key_move(Object *ob, KeyBlock *key_block, int new_index);
+/* moves a shape key to new_index. safe, clamps index to key->totkey, updates reference keys and 
+ * the object's active shape index */
+void	BKE_keyblock_move(Object *ob, KeyBlock *key_block, int new_index);
 
 /* basic key math */
-float (*BKE_key_math_deltas(KeyBlock *a, KeyBlock *basis))[3];
-float (*BKE_key_math_deltas_mult(KeyBlock *a, KeyBlock *basis, float mult))[3]; 
+float	(*BKE_keyblock_math_deltas(KeyBlock *a, KeyBlock *basis))[3];
+float	(*BKE_keyblock_math_deltas_mult(KeyBlock *a, KeyBlock *basis, float mult))[3];
 
-void	BKE_key_math_add(KeyBlock *r, KeyBlock *a, KeyBlock* basis, float mult);
-void	BKE_key_math_interp(KeyBlock *r, KeyBlock *a, float mult);
+void	BKE_keyblock_math_add(KeyBlock *r, KeyBlock *a, KeyBlock* basis, float mult);
+void	BKE_keyblock_math_interp(KeyBlock *r, KeyBlock *a, float mult);
 
 
 /* key.c */

@@ -2042,7 +2042,7 @@ void BKE_key_convert_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3])
 	}
 }
 
-void BKE_key_move(Object *ob, KeyBlock *key_block, int new_index) 
+void BKE_keyblock_move(Object *ob, KeyBlock *key_block, int new_index) 
 {
 	Key *key = BKE_key_from_object(ob);
 	KeyBlock *kb;
