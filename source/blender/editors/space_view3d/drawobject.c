@@ -46,7 +46,6 @@
 #include "BLI_listbase.h"
 #include "BLI_link_utils.h"
 #include "BLI_string.h"
-#include "BLI_rect.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
 
@@ -1218,7 +1217,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		short axis;
 		
 		/* setup a 45 degree rotation matrix */
-		axis_angle_normalized_to_mat3(mat, imat[2], (float)M_PI / 4.0f);
+		axis_angle_normalized_to_mat3_ex(mat, imat[2], M_SQRT1_2, M_SQRT1_2);
 
 		/* vectors */
 		mul_v3_v3fl(v1, imat[0], circrad * 1.2f);
@@ -1258,7 +1257,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 
 		copy_v3_fl3(lvec, 0.0f, 0.0f, 1.0f);
 		copy_v3_fl3(vvec, rv3d->persmat[0][2], rv3d->persmat[1][2], rv3d->persmat[2][2]);
-		mul_mat3_m4_v3(ob->obmat, vvec);
+		mul_transposed_mat3_m4_v3(ob->obmat, vvec);
 
 		x = -la->dist;
 		y = cosf(la->spotsize * 0.5f);

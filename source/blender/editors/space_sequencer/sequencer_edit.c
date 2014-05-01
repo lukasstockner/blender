@@ -44,12 +44,10 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_threads.h"
 
 #include "BLF_translation.h"
 
 #include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -57,7 +55,6 @@
 #include "BKE_sequencer.h"
 #include "BKE_report.h"
 #include "BKE_sound.h"
-#include "BKE_movieclip.h"
 
 #include "IMB_imbuf.h"
 
@@ -219,7 +216,7 @@ static void seq_proxy_build_job(const bContext *C)
 		WM_jobs_start(CTX_wm_manager(C), wm_job);
 	}
 
-	ED_area_tag_redraw(CTX_wm_area(C));
+	ED_area_tag_redraw(sa);
 }
 
 /* ********************************************************************** */

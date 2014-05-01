@@ -40,7 +40,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -59,7 +58,6 @@
 #include "BKE_armature.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
-#include "BKE_main.h"
 #include "BKE_idcode.h"
 #include "BKE_nla.h"
 #include "BKE_global.h"
@@ -1273,7 +1271,7 @@ static int modify_key_op_poll(bContext *C)
 static int insert_key_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Object *ob = CTX_data_active_object(C);
+	Object *obedit = CTX_data_edit_object(C);
 	bool ob_edit_mode = false;
 	KeyingSet *ks = NULL;
 	int type = RNA_enum_get(op->ptr, "type");
@@ -1301,7 +1299,7 @@ static int insert_key_exec(bContext *C, wmOperator *op)
 	/* exit the edit mode to make sure that those object data properties that have been
 	 * updated since the last switching to the edit mode will be keyframed correctly
 	 */
-	if (ob && (ob->mode & OB_MODE_EDIT) != 0 && ANIM_keyingset_find_id(ks, (ID *)ob->data)) {
+	if (obedit && ANIM_keyingset_find_id(ks, (ID *)obedit->data)) {
 		ED_object_toggle_modes(C, OB_MODE_EDIT);
 		ob_edit_mode = true;
 	}

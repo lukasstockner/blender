@@ -56,44 +56,36 @@
 #include "IMB_imbuf_types.h"
 
 #include "DNA_brush_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_brush.h"
 #include "BKE_camera.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_idprop.h"
-#include "BKE_brush.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
-#include "BKE_node.h"
-#include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_texture.h"
 
-#include "BKE_editmesh.h"
-
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
-
 #include "UI_view2d.h"
 #include "UI_interface.h"
 
-#include "ED_image.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
-#include "ED_mesh.h"
 
 #include "GPU_extensions.h"
 
@@ -4700,7 +4692,7 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 	if (w > maxsize) w = maxsize;
 	if (h > maxsize) h = maxsize;
 
-	ibuf = ED_view3d_draw_offscreen_imbuf(CTX_data_scene(C), CTX_wm_view3d(C), CTX_wm_region(C), w, h, IB_rect, false, R_ALPHAPREMUL, err_out);
+	ibuf = ED_view3d_draw_offscreen_imbuf(scene, CTX_wm_view3d(C), CTX_wm_region(C), w, h, IB_rect, false, R_ALPHAPREMUL, err_out);
 	if (!ibuf) {
 		/* Mostly happens when OpenGL offscreen buffer was failed to create, */
 		/* but could be other reasons. Should be handled in the future. nazgul */

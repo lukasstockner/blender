@@ -91,7 +91,6 @@
 
 #include "ED_screen.h"
 #include "ED_util.h"
-#include "ED_object.h"
 #include "ED_view3d.h"
 
 #include "RNA_access.h"
@@ -340,7 +339,7 @@ static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
 						}
 					}
 
-					WM_cursor_grab_enable(CTX_wm_window(C), wrap, false, bounds);
+					WM_cursor_grab_enable(win, wrap, false, bounds);
 				}
 			}
 		}
@@ -1589,6 +1588,14 @@ static int wm_operator_props_popup_ex(bContext *C, wmOperator *op,
 		return OPERATOR_CANCELLED;
 	}
 
+	if (do_redo) {
+		if ((op->type->flag & OPTYPE_UNDO) == 0) {
+			BKE_reportf(op->reports, RPT_ERROR,
+			            "Operator '%s' does not have undo enabled, incorrect invoke function", op->type->idname);
+			return OPERATOR_CANCELLED;
+		}
+	}
+
 	/* if we don't have global undo, we can't do undo push for automatic redo,
 	 * so we require manual OK clicking in this popup */
 	if (!do_redo || !(U.uiflag & USER_GLOBALUNDO))
@@ -2563,7 +2570,7 @@ static void WM_OT_link_append(wmOperatorType *ot)
 	/* better not save _any_ settings for this operator */
 	/* properties */
 	prop = RNA_def_boolean(ot->srna, "link", 1, "Link", "Link the objects or datablocks rather than appending");
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 	prop = RNA_def_boolean(ot->srna, "autoselect", 1, "Select", "Select the linked objects");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 	prop = RNA_def_boolean(ot->srna, "active_layer", 1, "Active Layer", "Put the linked objects on the active layer");

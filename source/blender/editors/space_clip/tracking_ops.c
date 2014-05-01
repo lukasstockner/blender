@@ -34,7 +34,6 @@
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_gpencil_types.h"
-#include "DNA_mask_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_object_types.h"   /* SELECT */
 #include "DNA_scene_types.h"
@@ -54,10 +53,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_object.h"
 #include "BKE_report.h"
-#include "BKE_scene.h"
 #include "BKE_library.h"
-#include "BKE_mask.h"
-#include "BKE_node.h"
 #include "BKE_sound.h"
 
 #include "WM_api.h"
@@ -65,7 +61,6 @@
 
 #include "ED_screen.h"
 #include "ED_clip.h"
-#include "ED_keyframing.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -1440,7 +1435,7 @@ static int track_markers_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
 	clip = ED_space_clip_get_clip(sc);
 	framenr = ED_space_clip_get_clip_frame_number(sc);
 
-	if (WM_jobs_test(CTX_wm_manager(C), CTX_wm_area(C), WM_JOB_TYPE_ANY)) {
+	if (WM_jobs_test(CTX_wm_manager(C), sa, WM_JOB_TYPE_ANY)) {
 		/* only one tracking is allowed at a time */
 		return OPERATOR_CANCELLED;
 	}
@@ -1716,7 +1711,7 @@ static int solve_camera_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSE
 	wmJob *wm_job;
 	char error_msg[256] = "\0";
 
-	if (WM_jobs_test(CTX_wm_manager(C), CTX_wm_area(C), WM_JOB_TYPE_ANY)) {
+	if (WM_jobs_test(CTX_wm_manager(C), sa, WM_JOB_TYPE_ANY)) {
 		/* only one solve is allowed at a time */
 		return OPERATOR_CANCELLED;
 	}
@@ -3062,7 +3057,7 @@ static int frame_jump_exec(bContext *C, wmOperator *op)
 
 	if (CFRA != sc->user.framenr) {
 		CFRA = sc->user.framenr;
-		sound_seek_scene(CTX_data_main(C), CTX_data_scene(C));
+		sound_seek_scene(CTX_data_main(C), scene);
 
 		WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 	}
