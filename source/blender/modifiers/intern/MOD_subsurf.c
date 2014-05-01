@@ -35,13 +35,11 @@
 
 #include <stddef.h>
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_math.h"
+
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_scene.h"
@@ -136,6 +134,7 @@ static DerivedMesh *applyModifierEM(ModifierData *md, Object *UNUSED(ob),
 
 	return result;
 }
+
 
 ModifierTypeInfo modifierType_Subsurf = {
 	/* name */              "Subsurf",
