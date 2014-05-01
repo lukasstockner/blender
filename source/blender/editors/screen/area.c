@@ -39,7 +39,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_alloca.h"
 #include "BLI_linklist_stack.h"
 
 #include "BLF_translation.h"
@@ -58,8 +57,6 @@
 #include "ED_screen.h"
 #include "ED_screen_types.h"
 #include "ED_space_api.h"
-#include "ED_types.h"
-#include "ED_fileselect.h" 
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -70,6 +67,10 @@
 #include "UI_view2d.h"
 
 #include "screen_intern.h"
+
+#ifdef WIN32
+#  include "BLI_alloca.h"
+#endif
 
 extern void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3); /* xxx temp */
 

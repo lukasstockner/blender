@@ -31,7 +31,9 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_path_util.h"
-#include "BLI_string.h"
+#ifdef WIN32
+#  include "BLI_string.h"  /* BLI_strcasecmp */
+#endif
 
 #include "bpy_traceback.h"
 

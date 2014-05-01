@@ -55,7 +55,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_alloca.h"
+
+#ifdef WIN32
+#  include "BLI_alloca.h"
+#endif
 
 #include "BLI_smallhash.h"
 

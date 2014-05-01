@@ -49,7 +49,6 @@
 #include "BLI_path_util.h"
 #include "BLI_math.h"
 #include "BLI_mempool.h"
-#include "BLI_alloca.h"
 
 #include "BLF_translation.h"
 
@@ -63,6 +62,10 @@
 
 #include <math.h>
 #include <string.h>
+
+#ifdef WIN32
+#  include "BLI_alloca.h"
+#endif
 
 /* number of layers to add when growing a CustomData object */
 #define CUSTOMDATA_GROW 5

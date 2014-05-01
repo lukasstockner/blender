@@ -41,12 +41,10 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
-#include "BLI_dynstr.h"
 #include "BLI_ghash.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
-#include "BKE_idcode.h"
 #include "BKE_report.h"
 #include "BKE_global.h"
 
@@ -769,7 +767,7 @@ bool ui_searchbox_apply(uiBut *but, ARegion *ar)
 	
 	if (data->active != -1) {
 		const char *name = data->items.names[data->active];
-		const char *name_sep = data->use_sep ? strchr(name, UI_SEP_CHAR) : NULL;
+		const char *name_sep = data->use_sep ? strrchr(name, UI_SEP_CHAR) : NULL;
 
 		BLI_strncpy(but->editstr, name, name_sep ? (name_sep - name) : data->items.maxstrlen);
 		
@@ -875,7 +873,7 @@ void ui_searchbox_update(bContext *C, ARegion *ar, uiBut *but, const bool reset)
 		
 		for (a = 0; a < data->items.totitem; a++) {
 			const char *name = data->items.names[a];
-			const char *name_sep = data->use_sep ? strchr(name, UI_SEP_CHAR) : NULL;
+			const char *name_sep = data->use_sep ? strrchr(name, UI_SEP_CHAR) : NULL;
 			if (STREQLEN(but->editstr, name, name_sep ? (name_sep - name) : data->items.maxstrlen)) {
 				data->active = a;
 				break;
@@ -2088,7 +2086,7 @@ static unsigned int ui_popup_string_hash(const char *str)
 {
 	/* sometimes button contains hotkey, sometimes not, strip for proper compare */
 	int hash;
-	const char *delimit = strchr(str, UI_SEP_CHAR);
+	const char *delimit = strrchr(str, UI_SEP_CHAR);
 
 	if (delimit) {
 		hash = BLI_ghashutil_strhash_n(str, delimit - str);
