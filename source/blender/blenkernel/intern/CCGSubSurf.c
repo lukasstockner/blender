@@ -2327,9 +2327,12 @@ static void opensubdiv_initEvaluatorFace(CCGSubSurf *ss,
 		indices = MEM_mallocN(sizeof(int) * face->numVerts, "subsurf hbr tmp vertices");
 	}
 
+	OSD_LOG("Adding face (");
 	for (S = 0; S < face->numVerts; S++) {
 		indices[S] = FACE_getVerts(face)[S]->osd_index;
+		OSD_LOG("%d, ", indices[S]);
 	}
+	OSD_LOG(")\n");
 
 	openSubdiv_createEvaluatorDescrFace(ss->osd_evaluator,
 	                                    face->numVerts,
