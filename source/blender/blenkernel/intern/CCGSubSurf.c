@@ -2718,7 +2718,8 @@ static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 }
 
 #  undef OSD_LOG
-#else  /* WITH_OPENSUBDIV */
+#endif  /* WITH_OPENSUBDIV */
+
 static void ccgSubSurf__syncLegacy(CCGSubSurf *ss)
 {
 	CCGVert **effectedV;
@@ -2999,12 +3000,17 @@ static void ccgSubSurf__syncLegacy(CCGSubSurf *ss)
 	MEM_freeN(effectedE);
 	MEM_freeN(effectedV);
 }
-#endif  /* WITH_OPENSUBDIV */
 
 static void ccgSubSurf__sync(CCGSubSurf *ss)
 {
 #ifdef WITH_OPENSUBDIV
-	ccgSubSurf__syncOpenSubdiv(ss);
+	if (ss->meshIFC.simpleSubdiv) {
+		/* Somple subdivisions we currently fallback to legacy code. */
+		ccgSubSurf__syncLegacy(ss);
+	}
+	else {
+		ccgSubSurf__syncOpenSubdiv(ss);
+	}
 #else
 	ccgSubSurf__syncLegacy(ss);
 #endif
