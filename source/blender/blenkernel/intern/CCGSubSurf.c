@@ -2407,15 +2407,27 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 	int num_basis_verts = ss->vMap->numEntries;
 	int i;
 
-	positions = MEM_mallocN(3 * sizeof(float) * num_basis_verts, "OpenSubdiv coarse points");
+	if (ss->meshIFC.numLayers == 3) {
+		/* If all the components are to be initialized, no need to memset the
+		 * new memory block.
+		 */
+		positions = MEM_mallocN(3 * sizeof(float) * num_basis_verts, "OpenSubdiv coarse points");
+	}
+	else {
+		/* Calloc in order to have z component initialized to 0 for Uvs */
+		positions = MEM_callocN(3 * sizeof(float) * num_basis_verts, "OpenSubdiv coarse points");
+	}
 	for (i = 0; i < ss->vMap->curSize; i++) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
 			float *co = VERT_getCo(v, 0);
 			BLI_assert(v->osd_index < ss->vMap->numEntries);
+			VertDataCopy(positions[v->osd_index], co, ss);
 			OSD_LOG("Point %d has value %f %f %f\n",
-			        v->osd_index, co[0], co[1], co[2]);
-			copy_v3_v3(positions[v->osd_index], co);
+			        v->osd_index,
+			        positions[v->osd_index][0],
+			        positions[v->osd_index][1],
+			        positions[v->osd_index][2]);
 		}
 	}
 
@@ -2436,6 +2448,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 	int edgeSize = ccg_edgesize(subdivLevels);
 	int vertDataSize = ss->meshIFC.vertDataSize;
 	int S;
+	bool do_normals = ss->meshIFC.numLayers == 3;
 
 #pragma omp parallel for
 	for (S = 0; S < face->numVerts; S++) {
@@ -2454,24 +2467,32 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 
 				ccgSubSurf__mapGridToFace(S, grid_u, grid_v, &face_u, &face_v);
 
-				openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index, face_u, face_v, P, dPdu, dPdv);
+				openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index,
+				                         face_u, face_v,
+				                         P,
+				                         do_normals ? dPdu : NULL,
+				                         do_normals ? dPdv : NULL);
 
 				OSD_LOG("face=%d, corner=%d, grid_u=%f, grid_v=%f, face_u=%f, face_v=%f, P=(%f, %f, %f)\n",
 				        osd_face_index, S, grid_u, grid_v, face_u, face_v, P[0], P[1], P[2]);
 
-				copy_v3_v3(co, P);
-				cross_v3_v3v3(no, dPdu, dPdv);
-				normalize_v3(no);
+				VertDataCopy(co, P, ss);
+				if (do_normals) {
+					cross_v3_v3v3(no, dPdu, dPdv);
+					normalize_v3(no);
+				}
 
 				if (x == gridSize - 1 && y == gridSize - 1) {
 					float *vert_co = VERT_getCo(FACE_getVerts(face)[S], subdivLevels);
 					float *vert_no = VERT_getNo(FACE_getVerts(face)[S], subdivLevels);
-					copy_v3_v3(vert_co, co);
-					copy_v3_v3(vert_no, no);
+					VertDataCopy(vert_co, co, ss);
+					if (do_normals) {
+						VertDataCopy(vert_no, no, ss);
+					}
 				}
 				if (S == 0 && x == 0 && y == 0) {
 					float *center_co = (float *)FACE_getCenterData(face);
-					copy_v3_v3(center_co, co);
+					VertDataCopy(center_co, co, ss);
 				}
 			}
 		}
@@ -2516,7 +2537,7 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 			 * let's just re-evaluate for simplicity.
 			 */
 			openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index, u, v, P, dPdu, dPdv);
-			copy_v3_v3(co, P);
+			VertDataCopy(co, P, ss);
 			cross_v3_v3v3(no, dPdu, dPdv);
 			normalize_v3(no);
 		}
@@ -2534,6 +2555,7 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 	int edgeSize = ccg_edgesize(subdivLevels);
 	int vertDataSize = ss->meshIFC.vertDataSize;
 	int S;
+	bool do_normals = ss->meshIFC.numLayers == 3;
 
 	/* Note about handling non-quad faces.
 	 *
@@ -2580,20 +2602,24 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 				OSD_LOG("face=%d, corner=%d, u=%f, v=%f, P=(%f, %f, %f)\n",
 				        osd_face_index + S, S, u, v, P[0], P[1], P[2]);
 
-				copy_v3_v3(co, P);
-				cross_v3_v3v3(no, dPdu, dPdv);
-				normalize_v3(no);
+				VertDataCopy(co, P, ss);
+				if (do_normals) {
+					cross_v3_v3v3(no, dPdu, dPdv);
+					normalize_v3(no);
+				}
 
 				/* TODO(sergey): De-dpuplicate with the quad case. */
 				if (x == gridSize - 1 && y == gridSize - 1) {
 					float *vert_co = VERT_getCo(FACE_getVerts(face)[S], subdivLevels);
 					float *vert_no = VERT_getNo(FACE_getVerts(face)[S], subdivLevels);
-					copy_v3_v3(vert_co, co);
-					copy_v3_v3(vert_no, no);
+					VertDataCopy(vert_co, co, ss);
+					if (do_normals) {
+						VertDataCopy(vert_no, no, ss);
+					}
 				}
 				if (S == 0 && x == 0 && y == 0) {
 					float *center_co = (float *)FACE_getCenterData(face);
-					copy_v3_v3(center_co, co);
+					VertDataCopy(center_co, co, ss);
 				}
 			}
 		}
@@ -2676,6 +2702,8 @@ static void opensubdiv_evaluateGrids(CCGSubSurf *ss)
 
 static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 {
+	BLI_assert(ss->meshIFC.numLayers == 2 || ss->meshIFC.numLayers == 3);
+
 	/* Make sure OSD evaluator is up-to-date. */
 	if (opensubdiv_ensureEvaluator(ss)) {
 		/* Update coarse points in the OpenSubdiv evaluator. */
