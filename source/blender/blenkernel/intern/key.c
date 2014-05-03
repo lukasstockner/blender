@@ -122,7 +122,7 @@ Key *BKE_key_add(ID *id)    /* common function */
 			el[1] = IPO_FLOAT;
 			el[2] = 0;
 
-			key->elemsize = 12;
+			key->elemsize = 3 * sizeof(float);
 
 			break;
 		case ID_LT:
@@ -132,7 +132,7 @@ Key *BKE_key_add(ID *id)    /* common function */
 			el[1] = IPO_FLOAT;
 			el[2] = 0;
 
-			key->elemsize = 12;
+			key->elemsize = 3 * sizeof(float);
 
 			break;
 		case ID_CU:
@@ -142,7 +142,7 @@ Key *BKE_key_add(ID *id)    /* common function */
 			el[1] = IPO_BPOINT;
 			el[2] = 0;
 
-			key->elemsize = 16;
+			key->elemsize = 4 * sizeof(float);
 
 			break;
 	}
