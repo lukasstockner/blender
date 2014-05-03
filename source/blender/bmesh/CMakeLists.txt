@@ -118,6 +118,8 @@ set(SRC
 	intern/bmesh_walkers.h
 	intern/bmesh_walkers_impl.c
 	intern/bmesh_walkers_private.h
+	intern/bmesh_pe.h
+	intern/bmesh_pe.c
 
 	intern/bmesh_operator_api.h
 	intern/bmesh_error.h

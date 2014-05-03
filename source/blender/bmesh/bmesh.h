@@ -258,7 +258,7 @@ extern "C" {
 #include "intern/bmesh_polygon.h"
 #include "intern/bmesh_queries.h"
 #include "intern/bmesh_walkers.h"
-
+#include "intern/bmesh_pe.h"
 #include "intern/bmesh_inline.h"
 
 #ifdef __cplusplus
