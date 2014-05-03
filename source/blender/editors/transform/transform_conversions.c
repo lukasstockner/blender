@@ -210,34 +210,11 @@ static void sort_trans_data(TransInfo *t)
  * warning; this is loops inside loop, has minor N^2 issues, but by sorting list it is OK */
 static void set_prop_dist(TransInfo *t, const bool with_dist)
 {
-
 	TransData *tob;
 	int a;
 
 	float _proj_vec[3];
 	const float *proj_vec = NULL;
-
-	float *dists = MEM_mallocN(t->total * sizeof(float), __func__);
-
-	/* FIXME REVERT THIS THIS IS FOR TESTING */
-	if (t->obedit->type == OB_MESH) {
-		Mesh *me = t->obedit->data;
-		if (t->flag & T_PROP_PROJECTED) {
-			if (t->spacetype == SPACE_VIEW3D && t->ar && t->ar->regiontype == RGN_TYPE_WINDOW) {
-				RegionView3D *rv3d = t->ar->regiondata;
-				normalize_v3_v3(_proj_vec, rv3d->viewinv[2]);
-				proj_vec = _proj_vec;
-			}
-		} 
-		tob = t->data;
-		BM_prop_dist_calc(me->edit_btmesh->bm, tob->mtx, proj_vec, dists);
-		
-		for (a = 0; a < t->total; ++a, ++tob) {
-			tob->dist = tob->rdist = dists[a];
-		}
-	}
-
-#if 0
 
 	if (t->flag & T_PROP_PROJECTED) {
 		if (t->spacetype == SPACE_VIEW3D && t->ar && t->ar->regiontype == RGN_TYPE_WINDOW) {
@@ -264,7 +241,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 					mul_m3_v3(tob->mtx, vec);
 
 					if (proj_vec) {
-						float vec_p[3];	
+						float vec_p[3];
 						project_v3_v3v3(vec_p, vec, proj_vec);
 						sub_v3_v3(vec, vec_p);
 					}
@@ -283,7 +260,6 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 			}
 		}
 	}
-#endif
 }
 
 /* ************************** CONVERSIONS ************************* */
@@ -2239,7 +2215,7 @@ static void createTransEditVerts(TransInfo *t)
 	pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
 	if (propmode & T_PROP_CONNECTED) {
-		BM_prop_dist_calc_connected(em->bm, mtx, dists);
+		editmesh_set_connectivity_distance(em->bm, mtx, dists);
 	}
 
 	if (t->around == V3D_LOCAL) {
@@ -7076,10 +7052,9 @@ void createTransData(bContext *C, TransInfo *t)
 
 		if (t->data && t->flag & T_PROP_EDIT) {
 			if (ELEM(t->obedit->type, OB_CURVE, OB_MESH)) {
-				/* FIXME UNCOMMENT AFTER TEST */
-				//sort_trans_data(t); // makes selected become first in array
+				sort_trans_data(t); // makes selected become first in array
 				set_prop_dist(t, 0);
-				//sort_trans_data_dist(t);
+				sort_trans_data_dist(t);
 			}
 			else {
 				sort_trans_data(t); // makes selected become first in array
