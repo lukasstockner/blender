@@ -205,7 +205,7 @@ void BM_prop_dist_calc(BMesh *bm, float loc_to_world_mtx[3][3], float proj_plane
 	int *vindexes;
 
 	if (bm->totvertsel == bm->totvert) {
-		memset(dists, 0.0f, sizeof(float)* bm->totvert);
+		memset(dists, 0.0f, sizeof(float) * bm->totvert);
 		return;
 	}
 

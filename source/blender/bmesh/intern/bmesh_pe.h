@@ -23,7 +23,12 @@
 
 typedef struct BMesh BMesh;
 
+/* both of these calculate distances to closest selected vertices - after any kind of transform defined by the matrix */
+
+/* the distance is calculated along the surface from the selected vertices */
 void BM_prop_dist_calc_connected(BMesh *bm, float loc_to_world_mtx[3][3], float *dists);
 
+/* the distance is calculated either by a bounding sphere or a cicle 
+ * in the projection plane from the closest selected vertex */
 void BM_prop_dist_calc(BMesh *bm, float loc_to_world_mtx[3][3], float proj_plane_n[3], float dists[]);
 
