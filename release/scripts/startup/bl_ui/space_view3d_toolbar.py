@@ -1117,8 +1117,10 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
         ob = context.active_object
         col = layout.column()
 
-        col.label("Materials")
-        col.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
+        if len(ob.material_slots) > 1:
+            col.label("Materials")
+            col.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
+
         mat = ob.active_material
         if mat:
             col.label("Available Paint Slots")
