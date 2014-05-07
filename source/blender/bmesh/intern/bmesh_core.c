@@ -29,7 +29,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_listbase.h"
 #include "BLI_array.h"
 #include "BLI_alloca.h"
 #include "BLI_smallhash.h"
@@ -211,6 +210,8 @@ static BMLoop *bm_loop_create(BMesh *bm, BMVert *v, BMEdge *e, BMFace *f,
 	l->prev = NULL;
 	/* --- done --- */
 
+	/* may add to middle of the pool */
+	bm->elem_index_dirty |= BM_LOOP;
 
 	bm->totloop++;
 
@@ -675,6 +676,7 @@ static void bm_kill_only_face(BMesh *bm, BMFace *f)
 static void bm_kill_only_loop(BMesh *bm, BMLoop *l)
 {
 	bm->totloop--;
+	bm->elem_index_dirty |= BM_LOOP;
 	if (l->head.data)
 		CustomData_bmesh_free_block(&bm->ldata, &l->head.data);
 

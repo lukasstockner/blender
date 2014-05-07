@@ -39,7 +39,7 @@ extern "C" {
 
 namespace Freestyle {
 
-class LIB_STROKE_EXPORT BlenderStrokeRenderer : public StrokeRenderer
+class BlenderStrokeRenderer : public StrokeRenderer
 {
 public:
 	BlenderStrokeRenderer(Render *re, int render_count);
@@ -57,7 +57,6 @@ protected:
 	Main *freestyle_bmain;
 	Scene *old_scene;
 	Scene *freestyle_scene;
-	Material *material;
 	float _width, _height;
 	float _z, _z_delta;
 	unsigned int _mesh_id;

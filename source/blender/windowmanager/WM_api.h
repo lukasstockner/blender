@@ -252,6 +252,7 @@ void		WM_operator_properties_free(struct PointerRNA *ptr);
 void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter, short type, short action, short flag, short display);
 void        WM_operator_properties_border(struct wmOperatorType *ot);
 void        WM_operator_properties_border_to_rcti(struct wmOperator *op, struct rcti *rect);
+void        WM_operator_properties_border_to_rctf(struct wmOperator *op, rctf *rect);
 void		WM_operator_properties_gesture_border(struct wmOperatorType *ot, bool extend);
 void        WM_operator_properties_mouse_select(struct wmOperatorType *ot);
 void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, int cursor);
@@ -373,6 +374,7 @@ enum {
 	WM_JOB_TYPE_COMPOSITE,
 	WM_JOB_TYPE_RENDER,
 	WM_JOB_TYPE_RENDER_PREVIEW,  /* UI preview */
+	WM_JOB_TYPE_RENDER_BAKE,
 	WM_JOB_TYPE_SCREENCAST,
 	WM_JOB_TYPE_OBJECT_SIM_OCEAN,
 	WM_JOB_TYPE_OBJECT_SIM_FLUID,

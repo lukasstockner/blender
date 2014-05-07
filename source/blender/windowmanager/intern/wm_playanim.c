@@ -53,15 +53,12 @@
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
-#include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
-#include "BKE_blender.h"
 #include "BKE_depsgraph.h"
-#include "BKE_global.h"
 #include "BKE_image.h"
 
 #include "DEG_depsgraph.h"
@@ -101,6 +98,8 @@ typedef struct PlayState {
 	bool  wait2;
 	bool  stopped;
 	bool  go;
+	/* waiting for images to load */
+	bool  loading;
 	
 	int fstep;
 
@@ -208,7 +207,7 @@ typedef struct PlayAnimPict {
 	struct PlayAnimPict *next, *prev;
 	char *mem;
 	int size;
-	char *name;
+	const char *name;
 	struct ImBuf *ibuf;
 	struct anim *anim;
 	int frame;
@@ -308,7 +307,7 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 	GHOST_SwapWindowBuffers(g_WS.ghost_window);
 }
 
-static void build_pict_list(PlayState *ps, char *first, int totframes, int fstep, int fontid)
+static void build_pict_list_ex(PlayState *ps, const char *first, int totframes, int fstep, int fontid)
 {
 	char *mem, filepath[FILE_MAX];
 //	short val;
@@ -362,6 +361,7 @@ static void build_pict_list(PlayState *ps, char *first, int totframes, int fstep
 		 */
 
 		while (IMB_ispic(filepath) && totframes) {
+			bool hasevent;
 			size_t size;
 			int file;
 
@@ -436,19 +436,26 @@ static void build_pict_list(PlayState *ps, char *first, int totframes, int fstep
 
 			BLI_newname(filepath, +fstep);
 
-#if 0 // XXX25
-			while (qtest()) {
-				switch (qreadN(&val)) {
-					case ESCKEY:
-						if (val) return;
-						break;
+			while ((hasevent = GHOST_ProcessEvents(g_WS.ghost_system, 0))) {
+				if (hasevent) {
+					GHOST_DispatchEvents(g_WS.ghost_system);
+				}
+				if (ps->loading == false) {
+					return;
 				}
 			}
-#endif
+
 			totframes--;
 		}
 	}
 	return;
+}
+
+static void build_pict_list(PlayState *ps, const char *first, int totframes, int fstep, int fontid)
+{
+	ps->loading = true;
+	build_pict_list_ex(ps, first, totframes, fstep, fontid);
+	ps->loading = false;
 }
 
 static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
@@ -463,6 +470,31 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 
 	/* convert ghost event into value keyboard or mouse */
 	val = ELEM(type, GHOST_kEventKeyDown, GHOST_kEventButtonDown);
+
+
+	/* first check if we're busy loading files */
+	if (ps->loading) {
+		switch (type) {
+			case GHOST_kEventKeyDown:
+			case GHOST_kEventKeyUp:
+			{
+				GHOST_TEventKeyData *key_data;
+
+				key_data = (GHOST_TEventKeyData *)GHOST_GetEventData(evt);
+				switch (key_data->key) {
+					case GHOST_kKeyEsc:
+						ps->loading = false;
+						break;
+					default:
+						break;
+				}
+			}
+			default:
+				break;
+		}
+		return 1;
+	}
+
 
 	if (ps->wait2 && ps->stopped) {
 		ps->stopped = false;
@@ -855,6 +887,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	ps.sstep     = false;
 	ps.wait2     = false;
 	ps.stopped   = false;
+	ps.loading   = false;
 	ps.picture   = NULL;
 	ps.dropped_file[0] = 0;
 	ps.zoom      = 1.0f;
@@ -1226,7 +1259,7 @@ void WM_main_playanim(int argc, const char **argv)
 	bool looping = true;
 
 	while (looping) {
-		char *filepath = wm_main_playanim_intern(argc, argv);
+		const char *filepath = wm_main_playanim_intern(argc, argv);
 
 		if (filepath) {	/* use simple args */
 			argv[1] = "-a";

@@ -49,13 +49,14 @@ void cent_quad_v3(float r[3], const float a[3], const float b[3], const float c[
 
 float normal_tri_v3(float r[3], const float a[3], const float b[3], const float c[3]);
 float normal_quad_v3(float r[3], const float a[3], const float b[3], const float c[3], const float d[3]);
+float normal_poly_v3(float r[3], const float verts[][3], unsigned int nr);
 
 MINLINE float area_tri_v2(const float a[2], const float b[2], const float c[2]);
 MINLINE float area_tri_signed_v2(const float v1[2], const float v2[2], const float v3[2]);
 float area_tri_v3(const float a[3], const float b[3], const float c[3]);
 float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3], const float normal[3]);
 float area_quad_v3(const float a[3], const float b[3], const float c[3], const float d[3]);
-float area_poly_v3(const float verts[][3], unsigned int nr, const float normal[3]);
+float area_poly_v3(const float verts[][3], unsigned int nr);
 float area_poly_v2(const float verts[][2], unsigned int nr);
 float cotangent_tri_weight_v3(const float v1[3], const float v2[3], const float v3[3]);
 
@@ -214,6 +215,8 @@ void barycentric_transform(float pt_tar[3], float const pt_src[3],
 
 void barycentric_weights_v2(const float v1[2], const float v2[2], const float v3[2],
                             const float co[2], float w[3]);
+void barycentric_weights_v2_persp(const float v1[4], const float v2[4], const float v3[4],
+                                  const float co[2], float w[3]);
 void barycentric_weights_v2_quad(const float v1[2], const float v2[2], const float v3[2], const float v4[2],
                                  const float co[2], float w[4]);
 
@@ -302,7 +305,7 @@ bool form_factor_visible_quad(const float p[3], const float n[3],
 float form_factor_hemi_poly(float p[3], float n[3],
                             float v1[3], float v2[3], float v3[3], float v4[3]);
 
-bool  axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3]);
+void  axis_dominant_v3_to_m3(float r_mat[3][3], const float normal[3]);
 
 MINLINE void  axis_dominant_v3(int *r_axis_a, int *r_axis_b, const float axis[3]);
 MINLINE float axis_dominant_v3_max(int *r_axis_a, int *r_axis_b, const float axis[3]) ATTR_WARN_UNUSED_RESULT;
@@ -312,6 +315,12 @@ MINLINE int max_axis_v3(const float vec[3]);
 MINLINE int min_axis_v3(const float vec[3]);
 
 MINLINE int poly_to_tri_count(const int poly_count, const int corner_count);
+
+MINLINE float shell_angle_to_dist(const float angle);
+MINLINE float shell_v3v3_normalized_to_dist(const float a[3], const float b[3]);
+MINLINE float shell_v2v2_normalized_to_dist(const float a[2], const float b[2]);
+MINLINE float shell_v3v3_mid_normalized_to_dist(const float a[3], const float b[3]);
+MINLINE float shell_v2v2_mid_normalized_to_dist(const float a[2], const float b[2]);
 
 /**************************** Inline Definitions ******************************/
 

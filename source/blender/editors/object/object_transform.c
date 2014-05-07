@@ -566,8 +566,14 @@ static int apply_objects_internal(bContext *C, ReportList *reports, bool apply_l
 			 *    and is something that many users would be willing to
 			 *    sacrifice for having an easy way to do this.
 			 */
-			 float max_scale = MAX3(ob->size[0], ob->size[1], ob->size[2]);
-			 ob->empty_drawsize *= max_scale;
+
+			if ((apply_loc == false) &&
+			    (apply_rot == false) &&
+			    (apply_scale == true))
+			{
+				float max_scale = max_fff(fabsf(ob->size[0]), fabsf(ob->size[1]), fabsf(ob->size[2]));
+				ob->empty_drawsize *= max_scale;
+			}
 		}
 		else {
 			continue;
@@ -881,7 +887,7 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 
 				Curve *cu = ob->data;
 
-				if (cu->bb == NULL && (centermode != ORIGIN_TO_CURSOR)) {
+				if (ob->bb == NULL && (centermode != ORIGIN_TO_CURSOR)) {
 					/* do nothing*/
 				}
 				else {
@@ -889,8 +895,9 @@ static int object_origin_set_exec(bContext *C, wmOperator *op)
 						/* done */
 					}
 					else {
-						cent[0] = 0.5f * (cu->bb->vec[4][0] + cu->bb->vec[0][0]);
-						cent[1] = 0.5f * (cu->bb->vec[0][1] + cu->bb->vec[2][1]) - 0.5f;    /* extra 0.5 is the height o above line */
+						/* extra 0.5 is the height o above line */
+						cent[0] = 0.5f * (ob->bb->vec[4][0] + ob->bb->vec[0][0]);
+						cent[1] = 0.5f * (ob->bb->vec[0][1] + ob->bb->vec[2][1]);
 					}
 
 					cent[2] = 0.0f;

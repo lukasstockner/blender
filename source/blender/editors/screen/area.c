@@ -39,7 +39,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_alloca.h"
 #include "BLI_linklist_stack.h"
 
 #include "BLF_translation.h"
@@ -58,8 +57,6 @@
 #include "ED_screen.h"
 #include "ED_screen_types.h"
 #include "ED_space_api.h"
-#include "ED_types.h"
-#include "ED_fileselect.h" 
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -1925,8 +1922,8 @@ void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)
 	/* the image is located inside (0, 0), (1, 1) as set by view2d */
 	UI_ThemeColorShade(TH_BACK, 20);
 
-	UI_view2d_to_region_no_clip(&ar->v2d, 0.0f, 0.0f, &x1, &y1);
-	UI_view2d_to_region_no_clip(&ar->v2d, 1.0f, 1.0f, &x2, &y2);
+	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x1, &y1);
+	UI_view2d_view_to_region(&ar->v2d, 1.0f, 1.0f, &x2, &y2);
 	glRectf(x1, y1, x2, y2);
 
 	/* gridsize adapted to zoom level */

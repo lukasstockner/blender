@@ -38,7 +38,6 @@
 #include "BKE_brush.h"
 #include "BKE_colortools.h"
 #include "BKE_global.h"
-#include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_paint.h"
@@ -634,15 +633,9 @@ float BKE_brush_sample_tex_3D(const Scene *scene, Brush *br,
 		rgba[2] = intensity;
 		rgba[3] = 1.0f;
 	}
-	else {
-		if (br->mtex.tex->type == TEX_IMAGE && br->mtex.tex->ima) {
-			ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(br->mtex.tex->ima, &br->mtex.tex->iuser, pool);
-			/* For consistency, sampling always returns color in linear space */
-			if (tex_ibuf && tex_ibuf->rect_float == NULL) {
-				IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, tex_ibuf->rect_colorspace);
-			}
-			BKE_image_pool_release_ibuf(br->mtex.tex->ima, tex_ibuf, pool);
-		}
+	/* For consistency, sampling always returns color in linear space */
+	else if (ups->do_linear_conversion) {
+		IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, ups->colorspace);
 	}
 
 	return intensity;

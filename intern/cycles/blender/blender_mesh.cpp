@@ -248,6 +248,7 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 	int numverts = b_mesh.vertices.length();
 	int numfaces = b_mesh.tessfaces.length();
 	int numtris = 0;
+	bool use_loop_normals = b_mesh.use_auto_smooth();
 
 	BL::Mesh::vertices_iterator v;
 	BL::Mesh::tessfaces_iterator f;
@@ -270,6 +271,21 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 
 	for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v, ++N)
 		*N = get_float3(v->normal());
+	N = attr_N->data_float3();
+
+	/* create generated coordinates from undeformed coordinates */
+	if(mesh->need_attribute(scene, ATTR_STD_GENERATED)) {
+		Attribute *attr = mesh->attributes.add(ATTR_STD_GENERATED);
+
+		float3 loc, size;
+		mesh_texture_space(b_mesh, loc, size);
+
+		float3 *generated = attr->data_float3();
+		size_t i = 0;
+
+		for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v)
+			generated[i++] = get_float3(v->undeformed_co())*size - loc;
+	}
 
 	/* create faces */
 	vector<int> nverts(numfaces);
@@ -282,9 +298,32 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 		int shader = used_shaders[mi];
 		bool smooth = f->use_smooth();
 
+		/* split vertices if normal is different
+		 *
+		 * note all vertex attributes must have been set here so we can split
+		 * and copy attributes in split_vertex without remapping later */
+		if(use_loop_normals) {
+			BL::Array<float, 12> loop_normals = f->split_normals();
+
+			for(int i = 0; i < n; i++) {
+				float3 loop_N = make_float3(loop_normals[i * 3], loop_normals[i * 3 + 1], loop_normals[i * 3 + 2]);
+
+				if(N[vi[i]] != loop_N) {
+					int new_vi = mesh->split_vertex(vi[i]);
+
+					/* set new normal and vertex index */
+					N = attr_N->data_float3();
+					N[new_vi] = loop_N;
+					vi[i] = new_vi;
+				}
+			}
+		}
+
+		/* create triangles */
 		if(n == 4) {
 			if(is_zero(cross(mesh->verts[vi[1]] - mesh->verts[vi[0]], mesh->verts[vi[2]] - mesh->verts[vi[0]])) ||
-				is_zero(cross(mesh->verts[vi[2]] - mesh->verts[vi[0]], mesh->verts[vi[3]] - mesh->verts[vi[0]]))) {
+			   is_zero(cross(mesh->verts[vi[2]] - mesh->verts[vi[0]], mesh->verts[vi[3]] - mesh->verts[vi[0]])))
+			{
 				mesh->set_triangle(ti++, vi[0], vi[1], vi[3], shader, smooth);
 				mesh->set_triangle(ti++, vi[2], vi[3], vi[1], shader, smooth);
 			}
@@ -380,20 +419,6 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 				mikk_compute_tangents(b_mesh, *l, mesh, nverts, need_sign, active_render);
 			}
 		}
-	}
-
-	/* create generated coordinates from undeformed coordinates */
-	if(mesh->need_attribute(scene, ATTR_STD_GENERATED)) {
-		Attribute *attr = mesh->attributes.add(ATTR_STD_GENERATED);
-
-		float3 loc, size;
-		mesh_texture_space(b_mesh, loc, size);
-
-		float3 *generated = attr->data_float3();
-		size_t i = 0;
-
-		for(b_mesh.vertices.begin(v); v != b_mesh.vertices.end(); ++v)
-			generated[i++] = get_float3(v->undeformed_co())*size - loc;
 	}
 
 	/* for volume objects, create a matrix to transform from object space to
@@ -623,20 +648,53 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion
 			return;
 	}
 
-	/* skip objects without deforming modifiers. this is not totally reliable,
-	 * would need a more extensive check to see which objects are animated */
+	/* skip empty meshes */
 	size_t numverts = mesh->verts.size();
 	size_t numkeys = mesh->curve_keys.size();
 
-	if((!numverts && !numkeys) || !ccl::BKE_object_is_deform_modified(b_ob, b_scene, preview))
+	if(!numverts && !numkeys)
 		return;
 	
-	/* get derived mesh */
-	BL::Mesh b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !preview, false);
+	/* skip objects without deforming modifiers. this is not totally reliable,
+	 * would need a more extensive check to see which objects are animated */
+	BL::Mesh b_mesh(PointerRNA_NULL);
 
-	if(!b_mesh)
+	if(ccl::BKE_object_is_deform_modified(b_ob, b_scene, preview)) {
+		/* get derived mesh */
+		b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !preview, false);
+	}
+
+	if(!b_mesh) {
+		/* if we have no motion blur on this frame, but on other frames, copy */
+		if(numverts) {
+			/* triangles */
+			Attribute *attr_mP = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+
+			if(attr_mP) {
+				Attribute *attr_mN = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_NORMAL);
+				Attribute *attr_N = mesh->attributes.find(ATTR_STD_VERTEX_NORMAL);
+				float3 *P = &mesh->verts[0];
+				float3 *N = (attr_N)? attr_N->data_float3(): NULL;
+
+				memcpy(attr_mP->data_float3() + time_index*numverts, P, sizeof(float3)*numverts);
+				if(attr_mN)
+					memcpy(attr_mN->data_float3() + time_index*numverts, N, sizeof(float3)*numverts);
+			}
+		}
+
+		if(numkeys) {
+			/* curves */
+			Attribute *attr_mP = mesh->curve_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+
+			if(attr_mP) {
+				float4 *keys = &mesh->curve_keys[0];
+				memcpy(attr_mP->data_float4() + time_index*numkeys, keys, sizeof(float4)*numkeys);
+			}
+		}
+
 		return;
-	
+	}
+
 	if(numverts) {
 		/* find attributes */
 		Attribute *attr_mP = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
@@ -682,7 +740,8 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion
 
 				for(int step = 0; step < time_index; step++) {
 					memcpy(attr_mP->data_float3() + step*numverts, P, sizeof(float3)*numverts);
-					memcpy(attr_mN->data_float3() + step*numverts, N, sizeof(float3)*numverts);
+					if(attr_mN)
+						memcpy(attr_mN->data_float3() + step*numverts, N, sizeof(float3)*numverts);
 				}
 			}
 		}

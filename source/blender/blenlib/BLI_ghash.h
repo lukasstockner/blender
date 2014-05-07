@@ -66,6 +66,7 @@ void   BLI_ghash_free(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfre
 void   BLI_ghash_insert(GHash *gh, void *key, void *val);
 bool   BLI_ghash_reinsert(GHash *gh, void *key, void *val, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp);
 void  *BLI_ghash_lookup(GHash *gh, const void *key) ATTR_WARN_UNUSED_RESULT;
+void  *BLI_ghash_lookup_default(GHash *gh, const void *key, void *val_default) ATTR_WARN_UNUSED_RESULT;
 void **BLI_ghash_lookup_p(GHash *gh, const void *key) ATTR_WARN_UNUSED_RESULT;
 bool   BLI_ghash_remove(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp);
 void   BLI_ghash_clear(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp);
@@ -112,16 +113,36 @@ BLI_INLINE bool   BLI_ghashIterator_done(GHashIterator *ghi)       { return !ghi
 	     BLI_ghashIterator_done(&gh_iter_) == false;                          \
 	     BLI_ghashIterator_step(&gh_iter_), i_++)
 
-/* *** */
+/** \name Callbacks for GHash
+ *
+ * \note '_p' suffix denotes void pointer arg,
+ * so we can have functions that take correctly typed args too.
+ * \{ */
 
 unsigned int    BLI_ghashutil_ptrhash(const void *key);
 int             BLI_ghashutil_ptrcmp(const void *a, const void *b);
 
-unsigned int    BLI_ghashutil_strhash(const void *key);
+unsigned int    BLI_ghashutil_strhash_n(const char *key, size_t n);
+#define         BLI_ghashutil_strhash(key) ( \
+                CHECK_TYPE_INLINE(key, char *), \
+                BLI_ghashutil_strhash_p(key))
+unsigned int    BLI_ghashutil_strhash_p(const void *key);
 int             BLI_ghashutil_strcmp(const void *a, const void *b);
 
-unsigned int    BLI_ghashutil_inthash(const void *ptr);
+#define         BLI_ghashutil_inthash(key) ( \
+                CHECK_TYPE_INLINE(key, int), \
+                BLI_ghashutil_uinthash((unsigned int)key))
+unsigned int    BLI_ghashutil_uinthash(unsigned int key);
+#define         BLI_ghashutil_inthash_v4(key) ( \
+                CHECK_TYPE_INLINE(key, int *), \
+                BLI_ghashutil_uinthash_v4((const unsigned int *)key))
+unsigned int    BLI_ghashutil_uinthash_v4(const unsigned int key[4]);
+#define         BLI_ghashutil_inthash_v4_p \
+   ((GSetHashFP)BLI_ghashutil_uinthash_v4)
+unsigned int    BLI_ghashutil_inthash_p(const void *ptr);
 int             BLI_ghashutil_intcmp(const void *a, const void *b);
+
+/** \} */
 
 GHash          *BLI_ghash_ptr_new_ex(const char *info,
                                      const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;

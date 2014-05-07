@@ -134,6 +134,22 @@ void Mesh::clear()
 	transform_normal = transform_identity();
 }
 
+int Mesh::split_vertex(int vertex)
+{
+	/* copy vertex location and vertex attributes */
+	verts.push_back(verts[vertex]);
+
+	foreach(Attribute& attr, attributes.attributes) {
+		if(attr.element == ATTR_ELEMENT_VERTEX) {
+			vector<char> tmp(attr.data_sizeof());
+			memcpy(&tmp[0], attr.data() + tmp.size()*vertex, tmp.size());
+			attr.add(&tmp[0]);
+		}
+	}
+
+	return verts.size() - 1;
+}
+
 void Mesh::set_triangle(int i, int v0, int v1, int v2, int shader_, bool smooth_)
 {
 	Triangle tri;
@@ -538,7 +554,7 @@ bool Mesh::has_motion_blur() const
 {
 	return (use_motion_blur &&
 	        (attributes.find(ATTR_STD_MOTION_VERTEX_POSITION) ||
-			 curve_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)));
+	         curve_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)));
 }
 
 /* Mesh Manager */

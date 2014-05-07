@@ -1367,7 +1367,7 @@ char *txt_to_buf(Text *text)
 int txt_find_string(Text *text, const char *findstr, int wrap, int match_case)
 {
 	TextLine *tl, *startl;
-	char *s = NULL;
+	const char *s = NULL;
 
 	if (!text || !text->curl || !text->sell) return 0;
 	
@@ -2537,7 +2537,7 @@ void txt_backspace_char(Text *text)
 	}
 	else { /* Just backspacing a char */
 		size_t c_len = 0;
-		char *prev = BLI_str_prev_char_utf8(text->curl->line + text->curc);
+		const char *prev = BLI_str_prev_char_utf8(text->curl->line + text->curc);
 		c = BLI_str_utf8_as_unicode_and_size(prev, &c_len);
 		
 		/* source and destination overlap, don't use memcpy() */
@@ -2574,7 +2574,7 @@ static void txt_convert_tab_to_spaces(Text *text)
 	 * is added so that the indention of the line is the right width (i.e. aligned
 	 * to multiples of TXT_TABSIZE)
 	 */
-	char *sb = &tab_to_spaces[text->curc % TXT_TABSIZE];
+	const char *sb = &tab_to_spaces[text->curc % TXT_TABSIZE];
 	txt_insert_buf(text, sb);
 }
 
@@ -2775,23 +2775,21 @@ void txt_unindent(Text *text)
 	}
 
 	while (true) {
-		int i = 0;
-		
-		if (BLI_strncasecmp(text->curl->line, remove, indentlen) == 0) {
+		bool changed = false;
+		if (strncmp(text->curl->line, remove, indentlen) == 0) {
 			if (num == 0)
 				unindented_first = true;
-			while (i < text->curl->len) {
-				text->curl->line[i] = text->curl->line[i + indentlen];
-				i++;
-			}
 			text->curl->len -= indentlen;
+			memmove(text->curl->line, text->curl->line + indentlen, text->curl->len + 1);
+			changed = true;
 		}
 	
 		txt_make_dirty(text);
 		txt_clean_text(text);
 		
 		if (text->curl == text->sell) {
-			if (i > 0) text->selc = MAX2(text->selc - indentlen, 0);
+			if (changed)
+				text->selc = MAX2(text->selc - indentlen, 0);
 			break;
 		}
 		else {
@@ -2801,7 +2799,8 @@ void txt_unindent(Text *text)
 		
 	}
 
-	if (unindented_first) text->curc = MAX2(text->curc - indentlen, 0);
+	if (unindented_first)
+		text->curc = MAX2(text->curc - indentlen, 0);
 
 	while (num > 0) {
 		text->curl = text->curl->prev;

@@ -351,10 +351,6 @@ FCurve *rna_get_fcurve(PointerRNA *ptr, PropertyRNA *prop, int rnaindex, bAction
 
 /* ----------------- Finding Keyframes/Extents -------------------------- */
 
-/* threshold for binary-searching keyframes - threshold here should be good enough for now, but should become userpref */
-#define BEZT_BINARYSEARCH_THRESH   0.01f /* was 0.00001, but giving errors */
-
-
 /* Binary search algorithm for finding where to insert BezTriple, with optional argument for precision required.
  * Returns the index to insert at (data already at that index will be offset if replace is 0)
  */
@@ -1932,6 +1928,7 @@ static void berekenx(float *f, float *o, int b)
 /* Calculate F-Curve value for 'evaltime' using BezTriple keyframes */
 static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime)
 {
+	const float eps = 1.e-8f;
 	BezTriple *bezt, *prevbezt, *lastbezt;
 	float v1[2], v2[2], v3[2], v4[2], opl[32], dx, fac;
 	unsigned int a;
@@ -2077,7 +2074,7 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 		if (exact) {
 			cvalue = prevbezt->vec[1][1];
 		}
-		else if (fabsf(bezt->vec[1][0] - evaltime) < SMALL_NUMBER) {
+		else if (fabsf(bezt->vec[1][0] - evaltime) < eps) {
 			cvalue = bezt->vec[1][1];
 		}
 		/* evaltime occurs within the interval defined by these two keyframes */
@@ -2086,7 +2083,7 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 			const float change = bezt->vec[1][1] - prevbezt->vec[1][1];
 			const float duration = bezt->vec[1][0] - prevbezt->vec[1][0];
 			const float time = evaltime - prevbezt->vec[1][0];
-			const float amplitude = prevbezt->amplitude + fabsf(change);  /* see T39405 */
+			const float amplitude = prevbezt->amplitude;
 			const float period = prevbezt->period;
 			
 			/* value depends on interpolation mode */
@@ -2142,6 +2139,10 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 							case BEZT_IPO_EASE_IN_OUT:
 								cvalue = BLI_easing_back_ease_in_out(time, begin, change, duration, prevbezt->back);
 								break;
+								
+							default: /* default/auto: same as ease out */
+								cvalue = BLI_easing_back_ease_out(time, begin, change, duration, prevbezt->back);
+								break;
 						}
 						break;
 					
@@ -2155,6 +2156,10 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 								break;
 							case BEZT_IPO_EASE_IN_OUT:
 								cvalue = BLI_easing_bounce_ease_in_out(time, begin, change, duration);
+								break;
+								
+							default: /* default/auto: same as ease out */
+								cvalue = BLI_easing_bounce_ease_out(time, begin, change, duration);
 								break;
 						}
 						break;
@@ -2170,6 +2175,10 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 							case BEZT_IPO_EASE_IN_OUT:
 								cvalue = BLI_easing_circ_ease_in_out(time, begin, change, duration);
 								break;
+								
+							default: /* default/auto: same as ease in */
+								cvalue = BLI_easing_circ_ease_in(time, begin, change, duration);
+								break;
 						}
 						break;
 
@@ -2183,6 +2192,10 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 								break;
 							case BEZT_IPO_EASE_IN_OUT:
 								cvalue = BLI_easing_cubic_ease_in_out(time, begin, change, duration);
+								break;
+								
+							default: /* default/auto: same as ease in */
+								cvalue = BLI_easing_cubic_ease_in(time, begin, change, duration);
 								break;
 						}
 						break;
@@ -2198,6 +2211,10 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 							case BEZT_IPO_EASE_IN_OUT:
 								cvalue = BLI_easing_elastic_ease_in_out(time, begin, change, duration, amplitude, period);
 								break;
+								
+							default: /* default/auto: same as ease out */
+								cvalue = BLI_easing_elastic_ease_out(time, begin, change, duration, amplitude, period);
+								break;
 						}
 						break;
 					
@@ -2211,6 +2228,10 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 								break;
 							case BEZT_IPO_EASE_IN_OUT:
 								cvalue = BLI_easing_expo_ease_in_out(time, begin, change, duration);
+								break;
+								
+							default: /* default/auto: same as ease in */
+								cvalue = BLI_easing_expo_ease_in(time, begin, change, duration);
 								break;
 						}
 						break;
@@ -2226,6 +2247,10 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 							case BEZT_IPO_EASE_IN_OUT:
 								cvalue = BLI_easing_quad_ease_in_out(time, begin, change, duration);
 								break;
+							
+							default: /* default/auto: same as ease in */
+								cvalue = BLI_easing_quad_ease_in(time, begin, change, duration);
+								break;
 						}
 						break;
 					
@@ -2239,6 +2264,10 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 								break;
 							case BEZT_IPO_EASE_IN_OUT:
 								cvalue = BLI_easing_quart_ease_in_out(time, begin, change, duration);
+								break;
+								
+							default: /* default/auto: same as ease in */
+								cvalue = BLI_easing_quart_ease_in(time, begin, change, duration);
 								break;
 						}
 						break;
@@ -2254,6 +2283,10 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 							case BEZT_IPO_EASE_IN_OUT:
 								cvalue = BLI_easing_quint_ease_in_out(time, begin, change, duration);
 								break;
+								
+							default: /* default/auto: same as ease in */
+								cvalue = BLI_easing_quint_ease_in(time, begin, change, duration);
+								break;
 						}
 						break;
 					
@@ -2267,6 +2300,10 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 								break;
 							case BEZT_IPO_EASE_IN_OUT:
 								cvalue = BLI_easing_sine_ease_in_out(time, begin, change, duration);
+								break;
+								
+							default: /* default/auto: same as ease in */
+								cvalue = BLI_easing_sine_ease_in(time, begin, change, duration);
 								break;
 						}
 						break;
