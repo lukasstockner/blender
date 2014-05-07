@@ -56,6 +56,8 @@ struct SubgraphDepsNode;
 struct ComponentDepsNode;
 struct OperationDepsNode;
 
+struct OperationBuilder;
+
 
 /* ************************************* */
 /* Relationships Between Nodes */
@@ -139,6 +141,8 @@ struct Depsgraph {
 	DepsRelation *add_new_relation(OperationDepsNode *from, OperationDepsNode *to,
 	                               eDepsRelation_Type type, 
 	                               const string &description);
+	
+	void build_operations(const OperationBuilder &builder) const;
 	
 	/* Ensure that all implicit constraints between nodes are satisfied 
 	 * (e.g. components are only allowed to be executed in a certain order)

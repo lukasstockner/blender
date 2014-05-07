@@ -51,6 +51,7 @@ struct World;
 
 struct Depsgraph;
 struct DepsNode;
+struct DepsNodeHandle;
 struct RootDepsNode;
 struct SubgraphDepsNode;
 struct IDDepsNode;
@@ -99,6 +100,17 @@ struct DepsgraphNodeBuilder {
 	
 private:
 	Main *m_bmain;
+	Depsgraph *m_graph;
+};
+
+struct OperationBuilder {
+	OperationBuilder(Depsgraph *graph);
+	
+	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node, eDepsNode_Type type, eDepsOperation_Type optype,
+	                                      DepsEvalOperationCb op, const string &description,
+	                                      PointerRNA ptr);
+	
+private:
 	Depsgraph *m_graph;
 };
 

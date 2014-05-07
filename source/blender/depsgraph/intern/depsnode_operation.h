@@ -72,6 +72,9 @@ struct OperationDepsNode : public DepsNode {
 	OperationDepsNode();
 	~OperationDepsNode();
 	
+	/* XXX should not be necessary once operations are separated from nodes */
+	void build_operations(const OperationBuilder &builder) const {}
+	
 	void tag_update(Depsgraph *graph);
 	
 	ComponentDepsNode *owner;     /* component that contains the operation */

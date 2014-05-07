@@ -37,6 +37,7 @@ extern "C" {
 #include "depsnode_component.h" /* own include */
 #include "depsnode_operation.h"
 #include "depsgraph_intern.h"
+#include "depsgraph_build.h"
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
@@ -141,35 +142,70 @@ void ComponentDepsNode::tag_update(Depsgraph *graph)
 
 /* Parameter Component Defines ============================ */
 
+void ParametersComponentDepsNode::build_operations(const OperationBuilder &builder) const
+{
+	/* XXX TODO */
+}
+
 DEG_DEPSNODE_DEFINE(ParametersComponentDepsNode, DEPSNODE_TYPE_PARAMETERS, "Parameters Component");
 static DepsNodeFactoryImpl<ParametersComponentDepsNode> DNTI_PARAMETERS;
 
 /* Animation Component Defines ============================ */
+
+void AnimationComponentDepsNode::build_operations(const OperationBuilder &builder) const
+{
+	/* XXX TODO */
+}
 
 DEG_DEPSNODE_DEFINE(AnimationComponentDepsNode, DEPSNODE_TYPE_ANIMATION, "Animation Component");
 static DepsNodeFactoryImpl<AnimationComponentDepsNode> DNTI_ANIMATION;
 
 /* Transform Component Defines ============================ */
 
+void TransformComponentDepsNode::build_operations(const OperationBuilder &builder) const
+{
+	/* XXX TODO */
+}
+
 DEG_DEPSNODE_DEFINE(TransformComponentDepsNode, DEPSNODE_TYPE_TRANSFORM, "Transform Component");
 static DepsNodeFactoryImpl<TransformComponentDepsNode> DNTI_TRANSFORM;
 
 /* Proxy Component Defines ================================ */
+
+void ProxyComponentDepsNode::build_operations(const OperationBuilder &builder) const
+{
+	/* XXX TODO */
+}
 
 DEG_DEPSNODE_DEFINE(ProxyComponentDepsNode, DEPSNODE_TYPE_PROXY, "Proxy Component");
 static DepsNodeFactoryImpl<ProxyComponentDepsNode> DNTI_PROXY;
 
 /* Geometry Component Defines ============================= */
 
+void GeometryComponentDepsNode::build_operations(const OperationBuilder &builder) const
+{
+	/* XXX TODO */
+}
+
 DEG_DEPSNODE_DEFINE(GeometryComponentDepsNode, DEPSNODE_TYPE_GEOMETRY, "Geometry Component");
 static DepsNodeFactoryImpl<GeometryComponentDepsNode> DNTI_GEOMETRY;
 
 /* Sequencer Component Defines ============================ */
 
+void SequencerComponentDepsNode::build_operations(const OperationBuilder &builder) const
+{
+	/* XXX TODO */
+}
+
 DEG_DEPSNODE_DEFINE(SequencerComponentDepsNode, DEPSNODE_TYPE_SEQUENCER, "Sequencer Component");
 static DepsNodeFactoryImpl<SequencerComponentDepsNode> DNTI_SEQUENCER;
 
 /* Pose Component ========================================= */
+
+void PoseComponentDepsNode::build_operations(const OperationBuilder &builder) const
+{
+	/* XXX TODO */
+}
 
 BoneComponentDepsNode *PoseComponentDepsNode::find_bone_component(const string &name) const
 {
@@ -289,6 +325,11 @@ DEG_DEPSNODE_DEFINE(PoseComponentDepsNode, DEPSNODE_TYPE_EVAL_POSE, "Pose Eval C
 static DepsNodeFactoryImpl<PoseComponentDepsNode> DNTI_EVAL_POSE;
 
 /* Bone Component ========================================= */
+
+void BoneComponentDepsNode::build_operations(const OperationBuilder &builder) const
+{
+	/* XXX TODO */
+}
 
 /* Initialise 'bone component' node - from pointer data given */
 void BoneComponentDepsNode::init(const ID *id, const string &subdata)
