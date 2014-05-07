@@ -62,13 +62,24 @@ typedef struct KeyBlock {
 	void  *data;       /* array of shape key values, size is (Key->elemsize * KeyBlock->totelem) */
 	char   name[64];   /* MAX_NAME (unique name, user assigned) */
 	char   vgroup[64]; /* MAX_VGROUP_NAME (optional vertex group), array gets allocated into 'weights' when set */
+	
+	float mixval;	   /* animation-independent mix influence (Key->type == KEY_RELATIVE only) */
 
 	/* ranges, for RNA and UI only to clamp 'curval' */
 	float slidermin;
 	float slidermax;
 
+	char pad[4];
 } KeyBlock;
 
+#
+#
+typedef struct ScratchKeyBlock {
+	/* array of values, size Key->elemsize * KeyBlock->totelem */
+	void		*data;
+	/* where this scratch has come from, all other setting are read from there */
+	KeyBlock	*origin;
+} ScratchKeyBlock;
 
 typedef struct Key {
 	ID id;
@@ -78,13 +89,18 @@ typedef struct Key {
 	 * Looks like this is  _always_ 'key->block.first',
 	 * perhaps later on it could be defined as some other KeyBlock - campbell */
 	KeyBlock *refkey;
+	
+	/* Runtime KeyBlock where the 'real' data editing happens. Gets committed to its origin. */
+	ScratchKeyBlock *scratch;
 
 	/* this is not a regular string, although it is \0 terminated
 	 * this is an array of (element_array_size, element_type) pairs
 	 * (each one char) used for calculating shape key-blocks */
 	char elemstr[32];
 	int elemsize;  /* size of each element in #KeyBlock.data, use for allocation and stride */
-	int pad;
+	short pad;
+	short mix_mode; /* Key->type == KEY_RELATIVE only; defines whether the mix will be from the animation or
+					 * from the temporary user values */
 	
 	ListBase block;  /* list of KeyBlock's */
 	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
@@ -113,6 +129,12 @@ enum {
 
 	/* States to blend between (default) */
 	KEY_RELATIVE    = 1
+};
+
+/* Key->mix_mode */
+enum {
+	KEY_MIX_FROM_ANIMDATA	= 0,
+	KEY_MIX_FROM_TEMPVALUES = 1
 };
 
 /* Key->flag */

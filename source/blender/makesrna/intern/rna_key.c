@@ -665,6 +665,13 @@ static void rna_def_key(BlenderRNA *brna)
 	                         "otherwise play through shapes as a sequence using the evaluation time");
 	RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
+	prop = RNA_def_property(srna, "mix_from_animation", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mix_mode", KEY_MIX_FROM_TEMPVALUES);
+	RNA_def_property_ui_text(prop, "Mix From Animation", "Make animation curves define the shape mix, "
+															"or use an animation-independent mix");
+	RNA_def_property_update(prop, 0, "rna_Key_update_data");
+
+
 	prop = RNA_def_property(srna, "eval_time", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "ctime");
 	RNA_def_property_range(prop, MINFRAME, MAXFRAME);
