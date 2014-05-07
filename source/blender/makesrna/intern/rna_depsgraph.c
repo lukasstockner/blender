@@ -61,9 +61,10 @@ typedef struct DepsgraphEvalDebugInfo {
 static void rna_Depsgraph_debug_simulate_cb(DepsgraphEvalDebugInfo *info, const char *message)
 {
 	char filename[FILE_MAX];
+	FILE *f;
 	
 	BLI_snprintf(filename, sizeof(filename), "%s_%04d", info->filename, info->step);
-	FILE *f = fopen(filename, "w");
+	f = fopen(filename, "w");
 	if (f == NULL)
 		return;
 	

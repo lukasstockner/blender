@@ -1553,9 +1553,10 @@ static void rna_Scene_depsgraph_debug(SceneDepsgraphDebugInfo *info, void *UNUSE
 {
 	char filename[FILE_MAX];
 	char label[256];
+	FILE *f;
 	
 	BLI_snprintf(filename, sizeof(filename), "%s_%04d", info->filename, info->step);
-	FILE *f = fopen(filename, "w");
+	f = fopen(filename, "w");
 	if (f == NULL)
 		return;
 	
