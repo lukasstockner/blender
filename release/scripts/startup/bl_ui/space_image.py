@@ -727,7 +727,9 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                     else:
                         row = col.row(align=True)
                         row.prop(brush, "color", text="")
-                        if brush.image_tool != 'FILL':
+                        if brush.image_tool == 'FILL':
+                            col.prop(brush, "fill_threshold")
+                        else:
                             row.prop(brush, "secondary_color", text="")
                             row.separator()
                             row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
@@ -749,9 +751,6 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                 col.prop(brush, "clone_image", text="Image")
                 col.prop(brush, "clone_alpha", text="Alpha")
                 
-            elif brush.image_tool == 'FILL':
-                 col.prop(brush, "fill_threshold")
-
             col.separator()
 			
             if capabilities.has_radius:
