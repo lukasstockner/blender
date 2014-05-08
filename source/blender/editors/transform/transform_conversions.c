@@ -29,12 +29,6 @@
  *  \ingroup edtransform
  */
 
-
-#ifndef WIN32
-#include <unistd.h>
-#else
-#include <io.h>
-#endif
 #include <string.h>
 #include <math.h>
 
@@ -71,6 +65,7 @@
 #include "BKE_armature.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
+#include "BKE_crazyspace.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
@@ -112,7 +107,6 @@
 #include "ED_uvedit.h"
 #include "ED_clip.h"
 #include "ED_mask.h"
-#include "ED_util.h"  /* for crazyspace correction */
 
 #include "WM_api.h"  /* for WM_event_add_notifier to deal with stabilization nodes */
 #include "WM_types.h"
@@ -2255,9 +2249,9 @@ static void createTransEditVerts(TransInfo *t)
 		if (totleft > 0)
 #endif
 		{
-			mappedcos = crazyspace_get_mapped_editverts(t->scene, t->obedit);
+			mappedcos = BKE_crazyspace_get_mapped_editverts(t->scene, t->obedit);
 			quats = MEM_mallocN(em->bm->totvert * sizeof(*quats), "crazy quats");
-			crazyspace_set_quats_editmesh(em, defcos, mappedcos, quats, !propmode);
+			BKE_crazyspace_set_quats_editmesh(em, defcos, mappedcos, quats, !propmode);
 			if (mappedcos)
 				MEM_freeN(mappedcos);
 		}

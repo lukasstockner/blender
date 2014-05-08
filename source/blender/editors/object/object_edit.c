@@ -1127,8 +1127,7 @@ static int forcefield_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 
 	if (ob->pd == NULL)
 		ob->pd = object_add_collision_fields(PFIELD_FORCE);
-
-	if (ob->pd->forcefield == 0)
+	else if (ob->pd->forcefield == 0)
 		ob->pd->forcefield = PFIELD_FORCE;
 	else
 		ob->pd->forcefield = 0;
@@ -1864,7 +1863,7 @@ void OBJECT_OT_game_property_copy(wmOperatorType *ot)
 
 	RNA_def_enum(ot->srna, "operation", game_properties_copy_operations, 3, "Operation", "");
 	prop = RNA_def_enum(ot->srna, "property", DummyRNA_NULL_items, 0, "Property", "Properties to copy");
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_ENUM_NO_TRANSLATE);
 	RNA_def_enum_funcs(prop, gameprops_itemf);
 	ot->prop = prop;
 }

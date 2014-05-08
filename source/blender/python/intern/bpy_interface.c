@@ -257,11 +257,7 @@ void BPY_python_start(int argc, const char **argv)
 	 * an error, this is highly annoying, another stumbling block for devs,
 	 * so use a more relaxed error handler and enforce utf-8 since the rest of
 	 * blender is utf-8 too - campbell */
-
-	/* XXX, update: this is unreliable! 'PYTHONIOENCODING' is ignored in MS-Windows
-	 * when dynamically linked, see: [#31555] for details.
-	 * Python doesn't expose a good way to set this. */
-	BLI_setenv("PYTHONIOENCODING", "utf-8:surrogateescape");
+	Py_SetStandardStreamEncoding("utf-8", "surrogateescape");
 
 	/* Update, Py3.3 resolves attempting to parse non-existing header */
 #if 0
@@ -276,24 +272,6 @@ void BPY_python_start(int argc, const char **argv)
 	Py_FrozenFlag = 1;
 
 	Py_Initialize();
-
-	/* THIS IS BAD: see http://bugs.python.org/issue16129 */
-	/* this clobbers the stdout on exit (no 'MEM_printmemlist_stats') */
-#if 0
-	/* until python provides a reliable way to set the env var */
-	PyRun_SimpleString("import sys, io\n"
-	                   "sys.__backup_stdio__ = sys.__stdout__, sys.__stderr__\n"  /* else we loose the FD's [#32720] */
-	                   "sys.__stdout__ = sys.stdout = io.TextIOWrapper(io.open(sys.stdout.fileno(), 'wb', -1), "
-	                   "encoding='utf-8', errors='surrogateescape', newline='\\n', line_buffering=True)\n"
-	                   "sys.__stderr__ = sys.stderr = io.TextIOWrapper(io.open(sys.stderr.fileno(), 'wb', -1), "
-	                   "encoding='utf-8', errors='surrogateescape', newline='\\n', line_buffering=True)\n");
-	if (PyErr_Occurred()) {
-		PyErr_Print();
-		PyErr_Clear();
-	}
-#endif
-	/* end the baddness */
-
 
 	// PySys_SetArgv(argc, argv);  /* broken in py3, not a huge deal */
 	/* sigh, why do python guys not have a (char **) version anymore? */

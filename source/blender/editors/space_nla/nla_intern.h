@@ -41,6 +41,8 @@
 
 ARegion *nla_has_buttons_region(ScrArea *sa);
 
+bool nla_panel_context(const bContext *C, PointerRNA *adt_ptr, PointerRNA *nlt_ptr, PointerRNA *strip_ptr);
+
 void nla_buttons_register(ARegionType *art);
 void NLA_OT_properties(wmOperatorType *ot);
 
@@ -133,6 +135,8 @@ bool nlaedit_add_tracks_empty(bAnimContext *ac);
 /* --- */
 
 void NLA_OT_channels_click(wmOperatorType *ot);
+
+void NLA_OT_action_pushdown(wmOperatorType *ot);
 
 void NLA_OT_tracks_add(wmOperatorType *ot);
 void NLA_OT_tracks_delete(wmOperatorType *ot);
