@@ -4441,8 +4441,9 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 
 	ps->do_stencil_brush = ps->brush->imagepaint_tool == PAINT_TOOL_MASK;
 	/* deactivate stenciling for the stencil brush :) */
-	ps->do_layer_stencil = ((settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) && !(ps->do_stencil_brush)) ? 1 : 0;
-	ps->do_layer_stencil_inv = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV) ? 1 : 0;
+	ps->do_layer_stencil = ((settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) &&
+							!(ps->do_stencil_brush) && ps->stencil_ima);
+	ps->do_layer_stencil_inv = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV);
 
 
 #ifndef PROJ_DEBUG_NOSEAMBLEED
