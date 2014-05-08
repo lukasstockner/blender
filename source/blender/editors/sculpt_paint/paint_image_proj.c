@@ -216,6 +216,7 @@ typedef struct ProjPaintState {
 	MTFace         *dm_mtface_stencil;
 
 	Image *stencil_ima;
+	float stencil_value;
 
 	/* projection painting only */
 	MemArena *arena_mt[BLENDER_MAX_THREADS]; /* for multithreading, the first item is sometimes used for non threaded cases too */
@@ -3875,7 +3876,7 @@ static void do_projectpaint_draw_f(ProjPaintState *ps, ProjPixel *projPixel, con
 static void do_projectpaint_mask(ProjPaintState *ps, ProjPixel *projPixel, float mask)
 {
 	unsigned char rgba_ub[4];
-	rgba_ub[0] = rgba_ub[1] = rgba_ub[2] = ps->brush->weight * 255.0;
+	rgba_ub[0] = rgba_ub[1] = rgba_ub[2] = ps->stencil_value * 255.0;
 	rgba_ub[3] = f_to_char(mask);
 
 	if (ps->do_masking) {
@@ -3889,7 +3890,7 @@ static void do_projectpaint_mask(ProjPaintState *ps, ProjPixel *projPixel, float
 static void do_projectpaint_mask_f(ProjPaintState *ps, ProjPixel *projPixel, float mask)
 {
 	float rgba[4];
-	rgba[0] = rgba[1] = rgba[2] = ps->brush->weight;
+	rgba[0] = rgba[1] = rgba[2] = ps->stencil_value;
 	rgba[3] = mask;
 
 	if (ps->do_masking) {
@@ -4371,6 +4372,11 @@ void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], co
 	{
 		copy_v3_v3(ps->paint_color, brush->rgb);
 		srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
+	}
+	else if (ps->tool == PAINT_TOOL_MASK) {
+		ps->stencil_value = brush->weight;
+		if (ps->mode == BRUSH_STROKE_INVERT)
+			ps->stencil_value = 1.0 - ps->stencil_value;
 	}
 
 	/* continue adding to existing partial redraw rects until redraw */
