@@ -600,6 +600,8 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->text);
 	lb[a++] = &(main->sound);
 	lb[a++] = &(main->group);
+	lb[a++] = &(main->palettes);
+	lb[a++] = &(main->paintcurves);
 	lb[a++] = &(main->brush);
 	lb[a++] = &(main->script);
 	lb[a++] = &(main->particle);
@@ -614,8 +616,6 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->wm);
 	lb[a++] = &(main->movieclip);
 	lb[a++] = &(main->mask);
-	lb[a++] = &(main->palettes);
-	lb[a++] = &(main->paintcurves);
 	
 	lb[a] = NULL;
 

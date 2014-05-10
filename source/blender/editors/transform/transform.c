@@ -368,7 +368,6 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
 		else if (t->options & CTX_PAINT_CURVE){
 			adr[0] = vec[0];
 			adr[1] = vec[1];
-			adr[2] = 0.0;
 		}
 		else {
 			float aspx, aspy, v[2];
