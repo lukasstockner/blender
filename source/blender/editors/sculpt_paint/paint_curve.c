@@ -25,6 +25,8 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_space_types.h"
+#include "DNA_view3d_types.h"
 
 #include "BKE_context.h"
 #include "BKE_main.h"
@@ -50,10 +52,21 @@
 int paintcurve_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
-	Paint *p = BKE_paint_get_active_from_context(C);
+	Paint *p;
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	SpaceImage *sima;
 
-	if (ob && (ob->mode & OB_MODE_ALL_PAINT) &&
-		p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
+	if (rv3d && !ob && (ob->mode & OB_MODE_ALL_PAINT))
+		return false;
+
+	sima = CTX_wm_space_image(C);
+
+	if (sima && sima->mode != SI_MODE_PAINT)
+		return false;
+
+	p = BKE_paint_get_active_from_context(C);
+
+	if (p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
 		return true;
 	}
 
