@@ -1386,22 +1386,25 @@ void paint_proj_mesh_data_ensure(bContext *C, Object *ob, wmOperator *op)
 	}
 
 	/* Make sure we have a stencil to paint on! */
-	if ((br->imagepaint_tool == PAINT_TOOL_MASK) && (imapaint->stencil == NULL)) {
-		int width;
-		int height;
-		Main *bmain = CTX_data_main(C);
-		float color[4] = {0.0, 0.0, 0.0, 1.0};
-
-		/* should not be allowed, but just in case */
-		if (imapaint->slot_xresolution_default == 0)
-			imapaint->slot_xresolution_default = 1024;
-		if (imapaint->slot_yresolution_default == 0)
-			imapaint->slot_yresolution_default = 1024;
-
-		width = imapaint->slot_xresolution_default;
-		height = imapaint->slot_yresolution_default;
-		imapaint->stencil = BKE_image_add_generated(bmain, width, height, "Stencil", 32, false, IMA_GENTYPE_BLANK, color);
+	if (br->imagepaint_tool == PAINT_TOOL_MASK) {
 		imapaint->flag |= IMAGEPAINT_PROJECT_LAYER_STENCIL;
+
+		if (imapaint->stencil == NULL) {
+			int width;
+			int height;
+			Main *bmain = CTX_data_main(C);
+			float color[4] = {0.0, 0.0, 0.0, 1.0};
+
+			/* should not be allowed, but just in case */
+			if (imapaint->slot_xresolution_default == 0)
+				imapaint->slot_xresolution_default = 1024;
+			if (imapaint->slot_yresolution_default == 0)
+				imapaint->slot_yresolution_default = 1024;
+
+			width = imapaint->slot_xresolution_default;
+			height = imapaint->slot_yresolution_default;
+			imapaint->stencil = BKE_image_add_generated(bmain, width, height, "Stencil", 32, false, IMA_GENTYPE_BLANK, color);
+		}
 	}
 }
 

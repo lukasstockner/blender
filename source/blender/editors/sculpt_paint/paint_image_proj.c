@@ -4342,13 +4342,13 @@ void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], co
 {
 	ProjPaintState *ps = pps;
 	Brush *brush = ps->brush;
+	Scene *scene = ps->scene;
 	int a;
 
 	ps->brush_size = size;
 
 	/* clone gets special treatment here to avoid going through image initialization */
 	if (ps->tool == PAINT_TOOL_CLONE && ps->mode == BRUSH_STROKE_INVERT) {
-		Scene *scene = ps->scene;
 		View3D *v3d = ps->v3d;
 		float *cursor = ED_view3d_cursor3d_get(scene, v3d);
 		int mval_i[2] = {(int)pos[0], (int)pos[1]};
@@ -4375,8 +4375,12 @@ void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], co
 	}
 	else if (ps->tool == PAINT_TOOL_MASK) {
 		ps->stencil_value = brush->weight;
-		if (ps->mode == BRUSH_STROKE_INVERT)
+
+		if ((ps->mode == BRUSH_STROKE_INVERT) ^
+			((scene->toolsettings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV) != 0))
+		{
 			ps->stencil_value = 1.0 - ps->stencil_value;
+		}
 	}
 
 	/* continue adding to existing partial redraw rects until redraw */
