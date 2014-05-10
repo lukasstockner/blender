@@ -83,11 +83,9 @@ ccl_device bool BVH_FUNCTION_NAME
 
 	/* traversal loop */
 	do {
-		do
-		{
+		do {
 			/* traverse internal nodes */
-			while(nodeAddr >= 0 && nodeAddr != ENTRYPOINT_SENTINEL)
-			{
+			while(nodeAddr >= 0 && nodeAddr != ENTRYPOINT_SENTINEL) {
 				bool traverseChild0, traverseChild1;
 				int nodeAddrChild1;
 
@@ -253,12 +251,13 @@ ccl_device bool BVH_FUNCTION_NAME
 							int shader = 0;
 
 #ifdef __HAIR__
-							if(kernel_tex_fetch(__prim_type, isect_array->prim) & PRIMITIVE_ALL_TRIANGLE) {
+							if(kernel_tex_fetch(__prim_type, isect_array->prim) & PRIMITIVE_ALL_TRIANGLE)
 #endif
+							{
 								float4 Ns = kernel_tex_fetch(__tri_normal, prim);
 								shader = __float_as_int(Ns.w);
-#ifdef __HAIR__
 							}
+#ifdef __HAIR__
 							else {
 								float4 str = kernel_tex_fetch(__curves, prim);
 								shader = __float_as_int(str.z);

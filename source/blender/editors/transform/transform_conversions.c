@@ -29,12 +29,6 @@
  *  \ingroup edtransform
  */
 
-
-#ifndef WIN32
-#include <unistd.h>
-#else
-#include <io.h>
-#endif
 #include <string.h>
 #include <math.h>
 
@@ -70,6 +64,7 @@
 #include "BKE_armature.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
+#include "BKE_crazyspace.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
@@ -110,7 +105,6 @@
 #include "ED_uvedit.h"
 #include "ED_clip.h"
 #include "ED_mask.h"
-#include "ED_util.h"  /* for crazyspace correction */
 
 #include "WM_api.h"  /* for WM_event_add_notifier to deal with stabilization nodes */
 #include "WM_types.h"
@@ -1618,7 +1612,7 @@ static void createTransLatticeVerts(TransInfo *t)
 {
 	Lattice *latt = ((Lattice *)t->obedit->data)->editlatt->latt;
 	TransData *td = NULL;
-	BPoint *bp, *actbp = BKE_lattice_active_point_get(latt);
+	BPoint *bp;
 	float mtx[3][3], smtx[3][3];
 	int a;
 	int count = 0, countsel = 0;
@@ -1655,7 +1649,6 @@ static void createTransLatticeVerts(TransInfo *t)
 				copy_v3_v3(td->center, td->loc);
 				if (bp->f1 & SELECT) {
 					td->flag = TD_SELECTED;
-					if (actbp && bp == actbp) td->flag |= TD_ACTIVE;
 				}
 				else td->flag = 0;
 				copy_m3_m3(td->smtx, smtx);
@@ -2144,7 +2137,6 @@ static void createTransEditVerts(TransInfo *t)
 	BMesh *bm = em->bm;
 	BMVert *eve;
 	BMIter iter;
-	BMVert *eve_act = NULL;
 	float (*mappedcos)[3] = NULL, (*quats)[4] = NULL;
 	float mtx[3][3], smtx[3][3], (*defmats)[3][3] = NULL, (*defcos)[3] = NULL;
 	float *dists = NULL;
@@ -2183,10 +2175,6 @@ static void createTransEditVerts(TransInfo *t)
 	else {
 		BLI_assert(0);
 	}
-
-
-	/* check active */
-	eve_act = BM_mesh_active_vert_get(bm);
 
 	if (t->mode == TFM_BWEIGHT) {
 		BM_mesh_cd_flag_ensure(bm, BKE_mesh_from_object(t->obedit), ME_CDFLAG_VERT_BWEIGHT);
@@ -2253,9 +2241,9 @@ static void createTransEditVerts(TransInfo *t)
 		if (totleft > 0)
 #endif
 		{
-			mappedcos = crazyspace_get_mapped_editverts(t->scene, t->obedit);
+			mappedcos = BKE_crazyspace_get_mapped_editverts(t->scene, t->obedit);
 			quats = MEM_mallocN(em->bm->totvert * sizeof(*quats), "crazy quats");
-			crazyspace_set_quats_editmesh(em, defcos, mappedcos, quats, !propmode);
+			BKE_crazyspace_set_quats_editmesh(em, defcos, mappedcos, quats, !propmode);
 			if (mappedcos)
 				MEM_freeN(mappedcos);
 		}
@@ -2292,9 +2280,6 @@ static void createTransEditVerts(TransInfo *t)
 				/* selected */
 				if (BM_elem_flag_test(eve, BM_ELEM_SELECT))
 					tob->flag |= TD_SELECTED;
-
-				/* active */
-				if (eve == eve_act) tob->flag |= TD_ACTIVE;
 
 				if (propmode) {
 					if (propmode & T_PROP_CONNECTED) {
@@ -4732,8 +4717,7 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 }
 
 /* transcribe given object into TransData for Transforming */
-static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob,
-                              const Object *ob_act)
+static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 {
 	Scene *scene = t->scene;
 	bool constinv;
@@ -4856,11 +4840,6 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob,
 		/* no conversion to/from dataspace */
 		unit_m3(td->smtx);
 		unit_m3(td->mtx);
-	}
-
-	/* set active flag */
-	if (ob == ob_act) {
-		td->flag |= TD_ACTIVE;
 	}
 }
 
@@ -5869,7 +5848,6 @@ int special_transform_moving(TransInfo *t)
 static void createTransObject(bContext *C, TransInfo *t)
 {
 	Scene *scene = t->scene;
-	const Object *ob_act = OBACT;
 
 	TransData *td = NULL;
 	TransDataExtension *tx;
@@ -5912,7 +5890,7 @@ static void createTransObject(bContext *C, TransInfo *t)
 			td->flag |= TD_SKIP;
 		}
 		
-		ObjectToTransData(t, td, ob, ob_act);
+		ObjectToTransData(t, td, ob);
 		td->val = NULL;
 		td++;
 		tx++;
@@ -5934,7 +5912,7 @@ static void createTransObject(bContext *C, TransInfo *t)
 				td->ext = tx;
 				td->ext->rotOrder = ob->rotmode;
 				
-				ObjectToTransData(t, td, ob, ob_act);
+				ObjectToTransData(t, td, ob);
 				td->val = NULL;
 				td++;
 				tx++;

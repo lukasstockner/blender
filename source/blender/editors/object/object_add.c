@@ -795,6 +795,8 @@ void OBJECT_OT_empty_add(wmOperatorType *ot)
 
 static int empty_drop_named_image_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	Scene *scene = CTX_data_scene(C);
+
 	Base *base = NULL;
 	Image *ima = NULL;
 	Object *ob = NULL;
@@ -823,7 +825,7 @@ static int empty_drop_named_image_invoke(bContext *C, wmOperator *op, const wmEv
 	/* if empty under cursor, then set object */
 	if (base && base->object->type == OB_EMPTY) {
 		ob = base->object;
-		WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, CTX_data_scene(C));
+		WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
 	}
 	else {
 		/* add new empty */
@@ -840,8 +842,11 @@ static int empty_drop_named_image_invoke(bContext *C, wmOperator *op, const wmEv
 		ED_view3d_cursor3d_position(C, ob->loc, event->mval);
 	}
 
-	ob->empty_drawtype = OB_EMPTY_IMAGE;
+	BKE_object_empty_draw_type_set(ob, OB_EMPTY_IMAGE);
+
+	id_us_min(ob->data);
 	ob->data = ima;
+	id_us_plus(ob->data);
 
 	return OPERATOR_FINISHED;
 }
@@ -984,6 +989,8 @@ static int group_instance_add_exec(bContext *C, wmOperator *op)
 /* only used as menu */
 void OBJECT_OT_group_instance_add(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "Add Group Instance";
 	ot->description = "Add a dupligroup instance";
@@ -999,8 +1006,10 @@ void OBJECT_OT_group_instance_add(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_string(ot->srna, "name", "Group", MAX_ID_NAME - 2, "Name", "Group name to add");
-	ot->prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "");
-	RNA_def_enum_funcs(ot->prop, RNA_group_itemf);
+	prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "");
+	RNA_def_enum_funcs(prop, RNA_group_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
+	ot->prop = prop;
 	ED_object_add_generic_props(ot, false);
 }
 

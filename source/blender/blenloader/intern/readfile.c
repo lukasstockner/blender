@@ -2380,6 +2380,7 @@ static bNodeTree *nodetree_from_id(ID *id)
 		case ID_WO: return ((World *)id)->nodetree;
 		case ID_LA: return ((Lamp *)id)->nodetree;
 		case ID_TE: return ((Tex *)id)->nodetree;
+		case ID_LS: return ((FreestyleLineStyle *)id)->nodetree;
 	}
 	return NULL;
 }
@@ -5968,7 +5969,10 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 				else if (sl->spacetype == SPACE_BUTS) {
 					SpaceButs *sbuts = (SpaceButs *)sl;
 					sbuts->pinid = restore_pointer_by_name(newmain, sbuts->pinid, USER_IGNORE);
-					//XXX if (sbuts->ri) sbuts->ri->curtile = 0;
+
+					/* TODO: restore path pointers: T40046
+					 * (complicated because this contains data pointers too, not just ID)*/
+					MEM_SAFE_FREE(sbuts->path);
 				}
 				else if (sl->spacetype == SPACE_FILE) {
 					SpaceFile *sfile = (SpaceFile *)sl;
@@ -6910,6 +6914,8 @@ static void lib_link_linestyle(FileData *fd, Main *main)
 {
 	FreestyleLineStyle *linestyle;
 	LineStyleModifier *m;
+	MTex *mtex;
+	int a;
 
 	linestyle = main->linestyle.first;
 	while (linestyle) {
@@ -6949,6 +6955,17 @@ static void lib_link_linestyle(FileData *fd, Main *main)
 					}
 					break;
 				}
+			}
+			for (a=0; a < MAX_MTEX; a++) {
+				mtex = linestyle->mtex[a];
+				if (mtex) {
+					mtex->tex = newlibadr_us(fd, linestyle->id.lib, mtex->tex);
+					mtex->object = newlibadr(fd, linestyle->id.lib, mtex->object);
+				}
+			}
+			if (linestyle->nodetree) {
+				lib_link_ntree(fd, &linestyle->id, linestyle->nodetree);
+				linestyle->nodetree->id.lib = linestyle->id.lib;
 			}
 		}
 		linestyle = linestyle->id.next;
@@ -7059,6 +7076,7 @@ static void direct_link_linestyle_geometry_modifier(FileData *UNUSED(fd), LineSt
 
 static void direct_link_linestyle(FileData *fd, FreestyleLineStyle *linestyle)
 {
+	int a;
 	LineStyleModifier *modifier;
 
 	linestyle->adt= newdataadr(fd, linestyle->adt);
@@ -7075,6 +7093,14 @@ static void direct_link_linestyle(FileData *fd, FreestyleLineStyle *linestyle)
 	link_list(fd, &linestyle->geometry_modifiers);
 	for (modifier = linestyle->geometry_modifiers.first; modifier; modifier = modifier->next)
 		direct_link_linestyle_geometry_modifier(fd, modifier);
+	for (a = 0; a < MAX_MTEX; a++) {
+		linestyle->mtex[a] = newdataadr(fd, linestyle->mtex[a]);
+	}
+	linestyle->nodetree = newdataadr(fd, linestyle->nodetree);
+	if (linestyle->nodetree) {
+		direct_link_id(fd, &linestyle->nodetree->id);
+		direct_link_nodetree(fd, linestyle->nodetree);
+	}
 }
 
 /* ************** GENERAL & MAIN ******************** */
@@ -8562,7 +8588,17 @@ static void expand_mask(FileData *fd, Main *mainvar, Mask *mask)
 
 static void expand_linestyle(FileData *fd, Main *mainvar, FreestyleLineStyle *linestyle)
 {
+	int a;
 	LineStyleModifier *m;
+
+	for (a = 0; a < MAX_MTEX; a++) {
+		if (linestyle->mtex[a]) {
+			expand_doit(fd, mainvar, linestyle->mtex[a]->tex);
+			expand_doit(fd, mainvar, linestyle->mtex[a]->object);
+		}
+	}
+	if (linestyle->nodetree)
+		expand_nodetree(fd, mainvar, linestyle->nodetree);
 
 	if (linestyle->adt)
 		expand_animdata(fd, mainvar, linestyle->adt);

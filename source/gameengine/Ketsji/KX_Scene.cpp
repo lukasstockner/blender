@@ -1636,6 +1636,9 @@ static void update_anim_thread_func(TaskPool *pool, void *taskdata, int UNUSED(t
 		gameobj->UpdateActionManager(curtime);
 		children = gameobj->GetChildren();
 
+		if (gameobj->GetDeformer())
+			gameobj->GetDeformer()->Update();
+
 		for (int j=0; j<children->GetCount(); ++j) {
 			child = (KX_GameObject*)children->GetValue(j);
 
@@ -1658,6 +1661,10 @@ void KX_Scene::UpdateAnimations(double curtime)
 
 	BLI_task_pool_work_and_wait(pool);
 	BLI_task_pool_free(pool);
+
+	for (int i=0; i<m_animatedlist->GetCount(); ++i) {
+		((KX_GameObject*)m_animatedlist->GetValue(i))->UpdateActionIPOs();
+	}
 }
 
 void KX_Scene::LogicUpdateFrame(double curtime, bool frame)
@@ -1864,7 +1871,7 @@ short KX_Scene::GetAnimationFPS()
 	return m_blenderScene->r.frs_sec;
 }
 
-static void MergeScene_LogicBrick(SCA_ILogicBrick* brick, KX_Scene *to)
+static void MergeScene_LogicBrick(SCA_ILogicBrick* brick, KX_Scene *from, KX_Scene *to)
 {
 	SCA_LogicManager *logicmgr= to->GetLogicManager();
 
@@ -1874,7 +1881,10 @@ static void MergeScene_LogicBrick(SCA_ILogicBrick* brick, KX_Scene *to)
 	/* near sensors have physics controllers */
 	KX_TouchSensor *touch_sensor = dynamic_cast<class KX_TouchSensor *>(brick);
 	if (touch_sensor) {
+		KX_TouchEventManager *tmgr = (KX_TouchEventManager*)from->GetLogicManager()->FindEventManager(SCA_EventManager::TOUCH_EVENTMGR);
+		touch_sensor->UnregisterSumo(tmgr);
 		touch_sensor->GetPhysicsController()->SetPhysicsEnvironment(to->GetPhysicsEnvironment());
+		touch_sensor->RegisterSumo(tmgr);
 	}
 
 	// If we end up replacing a KX_TouchEventManager, we need to make sure
@@ -1912,7 +1922,7 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 
 		for (ita = actuators.begin(); !(ita==actuators.end()); ++ita)
 		{
-			MergeScene_LogicBrick(*ita, to);
+			MergeScene_LogicBrick(*ita, from, to);
 		}
 	}
 
@@ -1923,7 +1933,7 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 
 		for (its = sensors.begin(); !(its==sensors.end()); ++its)
 		{
-			MergeScene_LogicBrick(*its, to);
+			MergeScene_LogicBrick(*its, from, to);
 		}
 	}
 
@@ -1934,17 +1944,17 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 		for (itc = controllers.begin(); !(itc==controllers.end()); ++itc)
 		{
 			SCA_IController *cont= *itc;
-			MergeScene_LogicBrick(cont, to);
+			MergeScene_LogicBrick(cont, from, to);
 
 			vector<SCA_ISensor*> linkedsensors = cont->GetLinkedSensors();
 			vector<SCA_IActuator*> linkedactuators = cont->GetLinkedActuators();
 
 			for (vector<SCA_IActuator*>::iterator ita = linkedactuators.begin();!(ita==linkedactuators.end());++ita) {
-				MergeScene_LogicBrick(*ita, to);
+				MergeScene_LogicBrick(*ita, from, to);
 			}
 
 			for (vector<SCA_ISensor*>::iterator its = linkedsensors.begin();!(its==linkedsensors.end());++its) {
-				MergeScene_LogicBrick(*its, to);
+				MergeScene_LogicBrick(*its, from, to);
 			}
 		}
 	}

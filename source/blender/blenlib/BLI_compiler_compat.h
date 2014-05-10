@@ -18,38 +18,18 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BLENDERTEXTUREMANAGER_H__
-#define __BLENDERTEXTUREMANAGER_H__
+#ifndef __BLI_COMPILER_COMPAT_H__
+#define __BLI_COMPILER_COMPAT_H__
 
-/** \file blender/freestyle/intern/blender_interface/BlenderTextureManager.h
- *  \ingroup freestyle
+/** \file BLI_compiler_compat.h
+ *  \ingroup bli
+ *
+ * Use to help with cross platform portability.
  */
 
-# include "../stroke/StrokeRenderer.h"
-# include "../stroke/StrokeRep.h"
-# include "../system/FreestyleConfig.h"
-
-namespace Freestyle {
-
-/*! Class to load textures */
-class BlenderTextureManager : public TextureManager
-{
-public:
-	BlenderTextureManager();
-	virtual ~BlenderTextureManager();
-
-protected:
-	virtual unsigned int loadBrush(string fileName, Stroke::MediumType=Stroke::OPAQUE_MEDIUM);
-
-protected:
-	virtual void loadStandardBrushes();
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("Freestyle:BlenderTextureManager")
+#if defined(_MSC_VER)
+#  define __func__ __FUNCTION__
+#  define alloca _alloca
 #endif
 
-};
-
-} /* namespace Freestyle */
-
-#endif // __BLENDERTEXTUREMANAGER_H__
+#endif  /* __BLI_COMPILER_COMPAT_H__ */

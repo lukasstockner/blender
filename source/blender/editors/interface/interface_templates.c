@@ -54,6 +54,7 @@
 #include "BKE_global.h"
 #include "BKE_idcode.h"
 #include "BKE_library.h"
+#include "BKE_linestyle.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -306,6 +307,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 					Scene *scene = CTX_data_scene(C);
 					ED_object_single_user(bmain, scene, (struct Object *)id);
 					WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+					DAG_relations_tag_update(bmain);
 				}
 				else {
 					if (id) {
@@ -445,7 +447,7 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	/* text button with name */
 	if (id) {
 		char name[UI_MAX_NAME_STR];
-		const short user_alert = (id->us <= 0);
+		const bool user_alert = (id->us <= 0);
 
 		//text_idbutton(id, name);
 		name[0] = '\0';
@@ -1302,8 +1304,8 @@ void uiTemplatePreview(uiLayout *layout, bContext *C, ID *id, int show_buttons, 
 
 	char _preview_id[UI_MAX_NAME_STR];
 
-	if (id && !ELEM4(GS(id->name), ID_MA, ID_TE, ID_WO, ID_LA)) {
-		RNA_warning("Expected ID of type material, texture, lamp or world");
+	if (id && !ELEM5(GS(id->name), ID_MA, ID_TE, ID_WO, ID_LA, ID_LS)) {
+		RNA_warning("Expected ID of type material, texture, lamp, world or line style");
 		return;
 	}
 
@@ -1318,6 +1320,8 @@ void uiTemplatePreview(uiLayout *layout, bContext *C, ID *id, int show_buttons, 
 			pr_texture = &((World *)parent)->pr_texture;
 		else if (parent && (GS(parent->name) == ID_LA))
 			pr_texture = &((Lamp *)parent)->pr_texture;
+		else if (parent && (GS(parent->name) == ID_LS))
+			pr_texture = &((FreestyleLineStyle *)parent)->pr_texture;
 
 		if (pr_texture) {
 			if (*pr_texture == TEX_PR_OTHER)
@@ -1396,6 +1400,10 @@ void uiTemplatePreview(uiLayout *layout, bContext *C, ID *id, int show_buttons, 
 			}
 			else if (GS(parent->name) == ID_WO) {
 				uiDefButS(block, ROW, B_MATPRV, IFACE_("World"),  0, 0, UI_UNIT_X * 10, UI_UNIT_Y,
+				          pr_texture, 10, TEX_PR_OTHER, 0, 0, "");
+			}
+			else if (GS(parent->name) == ID_LS) {
+				uiDefButS(block, ROW, B_MATPRV, IFACE_("Line Style"),  0, 0, UI_UNIT_X * 10, UI_UNIT_Y,
 				          pr_texture, 10, TEX_PR_OTHER, 0, 0, "");
 			}
 			uiDefButS(block, ROW, B_MATPRV, IFACE_("Both"),  0, 0, UI_UNIT_X * 10, UI_UNIT_Y,
@@ -3282,7 +3290,9 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 				handle_event = B_STOPCOMPO;
 				break;
 			}
-			else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE)) {
+			else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE) ||
+			         WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE))
+			{
 				/* Skip bake jobs in compositor to avoid compo header displaying
 				 * progress bar which is not being updated (bake jobs only need
 				 * to update NC_IMAGE context.
