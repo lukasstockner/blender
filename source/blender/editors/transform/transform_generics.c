@@ -1206,8 +1206,10 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
 		if (ob && ob->mode & OB_MODE_ALL_PAINT) {
 			Paint *p = BKE_paint_get_active_from_context(C);
-			if (p && p->brush && (p->brush->flag & BRUSH_CURVE))
+			if (p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
 				t->options |= CTX_PAINT_CURVE;
+				t->around = V3D_CENTER;
+			}
 		}
 
 		/* initialize UV transform from */
@@ -1240,6 +1242,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		}
 		else if (sima->mode == SI_MODE_PAINT){
 			t->options |= CTX_PAINT_CURVE;
+			t->around = V3D_CENTER;
 			/* image not in uv edit, nor in mask mode, can happen for some tools */
 		}
 	}
