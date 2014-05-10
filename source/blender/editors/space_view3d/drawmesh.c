@@ -389,7 +389,7 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	/* load the stencil texture here */
 	if ((ob->mode == OB_MODE_TEXTURE_PAINT) && (Gtexdraw.stencil != NULL)) {
 		glActiveTexture(GL_TEXTURE1);
-		if (GPU_verify_image(Gtexdraw.stencil, NULL, 0, 1, 0, false)) {
+		if (GPU_verify_image(Gtexdraw.stencil, NULL, false, false, false, false)) {
 			glEnable(GL_TEXTURE_2D);
 			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
 			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_INTERPOLATE);
@@ -400,6 +400,9 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 			glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, Gtexdraw.stencil_col);
 			if (!Gtexdraw.stencil_invert) {
 				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_ONE_MINUS_SRC_COLOR);
+			}
+			else {
+				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND2_RGB, GL_SRC_COLOR);
 			}
 		}
 		glActiveTexture(GL_TEXTURE0);
