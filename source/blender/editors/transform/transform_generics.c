@@ -1240,11 +1240,14 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		else if (sima->mode == SI_MODE_MASK) {
 			t->options |= CTX_MASK;
 		}
-		else if (sima->mode == SI_MODE_PAINT){
-			t->options |= CTX_PAINT_CURVE;
-			t->around = V3D_CENTER;
-			/* image not in uv edit, nor in mask mode, can happen for some tools */
+		else if (sima->mode == SI_MODE_PAINT) {
+			Paint *p = &sce->toolsettings->imapaint;
+			if (p->brush && (p->brush->flag & BRUSH_CURVE)) {
+				t->options |= CTX_PAINT_CURVE;
+				t->around = V3D_CENTER;
+			}
 		}
+		/* image not in uv edit, nor in mask mode, can happen for some tools */
 	}
 	else if (t->spacetype == SPACE_NODE) {
 		// XXX for now, get View2D from the active region
