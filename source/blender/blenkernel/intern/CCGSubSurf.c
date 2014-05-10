@@ -2369,24 +2369,82 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 	return openSubdiv_finishEvaluatorDescr(ss->osd_evaluator, ss->subdivLevels) != 0;
 }
 
+static bool check_topology_changed(CCGSubSurf *ss)
+{
+	int num_vertices,
+	    refinement_level,
+	    num_indices,
+	    num_nverts;
+	int *indices, *nverts;
+	int i, index, osd_vert_index, osd_face_index;
+
+	BLI_assert(ss->osd_evaluator != NULL);
+
+	/* Set an osd_index member in each one so we have consistent indexing.
+	 *
+	 * TODO(sergey): Currently here's a duplicated logic happens, make it
+	 * so osd_indices are only calculated once.
+	 */
+	for (i = 0, osd_vert_index = 0; i < ss->vMap->curSize; ++i) {
+		CCGVert *vert = (CCGVert *) ss->vMap->buckets[i];
+		for (; vert; vert = vert->next, ++osd_vert_index) {
+			vert->osd_index = osd_vert_index;
+		}
+	}
+
+	/* Get the topology from existing evaluator. */
+	openSubdiv_getEvaluatorTopology(ss->osd_evaluator,
+	                                &num_vertices,
+	                                &refinement_level,
+	                                &num_indices,
+	                                &indices,
+	                                &num_nverts,
+	                                &nverts);
+
+	/* Quick tests based on the number of subdiv level, verts and facces. */
+	if (refinement_level != ss->subdivLevels ||
+	    num_vertices != ss->vMap->numEntries ||
+	    num_nverts != ss->fMap->numEntries)
+	{
+		return true;
+	}
+
+	/* Rather slow check for faces topology change. */
+	for (i = 0, osd_face_index = 0, index = 0;
+	     i < ss->fMap->curSize;
+	     i++)
+	{
+		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
+		for (; face; face = face->next, ++osd_face_index) {
+			int S;
+
+			if (face->numVerts != nverts[osd_face_index]) {
+				return true;
+			}
+
+			for (S = 0; S < face->numVerts; ++S) {
+				if (FACE_getVerts(face)[S]->osd_index != indices[index++]) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 {
 	bool evaluator_needs_init = false;
 
 	if (ss->osd_evaluator != NULL) {
-		/* TODO(dirk, sergey): Need to check that the existing evaluator has matching:
-		 * - Number of vertices
-		 * - Face topology
-		 *  - Subdivision level
-		 *
-		 * If not we need to blow away and recreate the evaluator.
-		 *
-		 * For now we always re-create the evaluator to be sure edit mode works all
-		 * fine and no topology changes caused by the previous modifiers are screwing
-		 * us up.
-		 */
-		openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
-		ss->osd_evaluator = NULL;
+		if (check_topology_changed(ss)) {
+			/* If topology changes then we are to re-create evaluator
+			 * from the very scratch.
+			 */
+			openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
+			ss->osd_evaluator = NULL;
+		}
 	}
 	if (ss->osd_evaluator == NULL) {
 		int num_basis_verts = ss->vMap->numEntries;

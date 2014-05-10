@@ -3918,16 +3918,31 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 		}
 		else {
 			CCGFlags ccg_flags = useSimple | CCG_USE_ARENA | CCG_CALC_NORMALS;
-			
+			CCGSubSurf *prevSS = NULL;
+
 			if (smd->mCache && (flags & SUBSURF_IS_FINAL_CALC)) {
+#ifdef WITH_OPENSUBDIV
+				/* With OpenSubdiv enabled we always tries to re-use previos
+				 * subsurf structure in order to save computation time since
+				 * re-creation is rather a complicated business.
+				 *
+				 * TODO(sergey): There was a good eason why final calculation
+				 * used to free entirely cached subsurf structure. reason of
+				 * this is to be investiated still to be sure we don't have
+				 * regressions here.
+				 */
+				prevSS = smd->mCache;
+#else
 				ccgSubSurf_free(smd->mCache);
 				smd->mCache = NULL;
+#endif
 			}
+
 
 			if (flags & SUBSURF_ALLOC_PAINT_MASK)
 				ccg_flags |= CCG_ALLOC_MASK;
 
-			ss = _getSubSurf(NULL, levels, 3, ccg_flags);
+			ss = _getSubSurf(prevSS, levels, 3, ccg_flags);
 			ss_sync_from_derivedmesh(ss, dm, vertCos, useSimple);
 
 			result = getCCGDerivedMesh(ss, drawInteriorEdges, useSubsurfUv, dm);
