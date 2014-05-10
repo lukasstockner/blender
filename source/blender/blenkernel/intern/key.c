@@ -73,25 +73,9 @@
 #define IPO_BEZTRIPLE   100
 #define IPO_BPOINT      101
 
-#define ELEMSIZE_MESH		(sizeof(float) * 3)
-#define ELEMSIZE_LATTICE	(sizeof(float) * 3)
-#define ELEMSIZE_CURVE		(sizeof(float) * 4)
-
-int get_elemsize(Object *ob)
-{
-	switch (ob->type) {
-	case OB_MESH:
-		return ELEMSIZE_MESH;
-	case OB_LATTICE:
-		return ELEMSIZE_LATTICE;
-	case OB_CURVE:
-		return ELEMSIZE_CURVE;
-	}
-	return 0;
-}
-
 /* extern, not threadsafe */
 int slurph_opt = 1;
+
 
 void BKE_key_free(Key *key)
 {
@@ -138,6 +122,8 @@ Key *BKE_key_add(ID *id)    /* common function */
 			el[1] = IPO_FLOAT;
 			el[2] = 0;
 
+			key->elemsize = 3 * sizeof(float);
+
 			break;
 		case ID_LT:
 			el = key->elemstr;
@@ -145,6 +131,8 @@ Key *BKE_key_add(ID *id)    /* common function */
 			el[0] = 3;
 			el[1] = IPO_FLOAT;
 			el[2] = 0;
+
+			key->elemsize = 3 * sizeof(float);
 
 			break;
 		case ID_CU:
@@ -154,11 +142,11 @@ Key *BKE_key_add(ID *id)    /* common function */
 			el[1] = IPO_BPOINT;
 			el[2] = 0;
 
+			key->elemsize = 4 * sizeof(float);
+
 			break;
 	}
-
-	key->elemsize = get_elemsize(id->);
-
+	
 	return key;
 }
 
