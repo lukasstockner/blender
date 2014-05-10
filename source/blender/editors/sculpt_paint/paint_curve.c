@@ -313,7 +313,10 @@ static int paintcurve_delete_point_exec(bContext *C, wmOperator *op)
 	if (tot_del > 0) {
 		int j = 0;
 		int new_tot = pc->tot_points - tot_del;
-		PaintCurvePoint *points_new = MEM_mallocN(new_tot * sizeof(PaintCurvePoint), "PaintCurvePoint");
+		PaintCurvePoint *points_new = NULL;
+		if (new_tot > 0)
+			points_new = MEM_mallocN(new_tot * sizeof(PaintCurvePoint), "PaintCurvePoint");
+
 		for (i = 0, pcp = pc->points; i < pc->tot_points; i++, pcp++) {
 			if (!(pcp->bez.f2 & DELETE_TAG)) {
 				points_new[j] = pc->points[i];
