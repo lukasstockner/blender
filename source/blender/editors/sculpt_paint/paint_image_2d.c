@@ -299,10 +299,10 @@ static void brush_painter_mask_imbuf_partial_update(BrushPainter *painter, const
 		maskibuf_old.y = cache->tex_mask_old_h;
 
 		srcx = srcy = 0;
-		destx = (int)painter->lastpaintpos[0] - (int)pos[0];
-		desty = (int)painter->lastpaintpos[1] - (int)pos[1];
 		w = cache->tex_mask_old_w;
 		h = cache->tex_mask_old_h;
+		destx = (int)painter->lastpaintpos[0] - (int)pos[0]  + (diameter/2 - w/2);
+		desty = (int)painter->lastpaintpos[1] - (int)pos[1]  + (diameter/2 - h/2);
 
 		/* hack, use temporary rects so that clipping works */
 		IMB_rectclip(&maskibuf, &maskibuf_old, &destx, &desty, &srcx, &srcy, &w, &h);
@@ -567,10 +567,10 @@ static void brush_painter_imbuf_partial_update(BrushPainter *painter, const floa
 
 	if (oldtexibuf) {
 		srcx = srcy = 0;
-		destx = (int)painter->lastpaintpos[0] - (int)pos[0];
-		desty = (int)painter->lastpaintpos[1] - (int)pos[1];
 		w = oldtexibuf->x;
 		h = oldtexibuf->y;
+		destx = (int)painter->lastpaintpos[0] - (int)pos[0] + (diameter/2 - w/2);
+		desty = (int)painter->lastpaintpos[1] - (int)pos[1] + (diameter/2 - h/2);
 
 		IMB_rectclip(cache->texibuf, oldtexibuf, &destx, &desty, &srcx, &srcy, &w, &h);
 	}
