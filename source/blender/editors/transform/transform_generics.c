@@ -1241,7 +1241,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			t->options |= CTX_MASK;
 		}
 		else if (sima->mode == SI_MODE_PAINT) {
-			Paint *p = &sce->toolsettings->imapaint;
+			Paint *p = &sce->toolsettings->imapaint.paint;
 			if (p->brush && (p->brush->flag & BRUSH_CURVE)) {
 				t->options |= CTX_PAINT_CURVE;
 				t->around = V3D_CENTER;

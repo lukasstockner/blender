@@ -56,7 +56,7 @@ int paintcurve_poll(bContext *C)
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	SpaceImage *sima;
 
-	if (rv3d && !ob && (ob->mode & OB_MODE_ALL_PAINT))
+	if (rv3d && !(ob && (ob->mode & OB_MODE_ALL_PAINT)))
 		return false;
 
 	sima = CTX_wm_space_image(C);
