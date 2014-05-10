@@ -49,9 +49,11 @@
 
 int paintcurve_poll(bContext *C)
 {
+	Object *ob = CTX_data_active_object(C);
 	Paint *p = BKE_paint_get_active_from_context(C);
 
-	if (p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
+	if (ob && (ob->mode & OB_MODE_ALL_PAINT) &&
+		p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
 		return true;
 	}
 
