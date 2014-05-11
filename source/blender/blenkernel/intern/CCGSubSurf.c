@@ -2902,6 +2902,11 @@ static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 {
 	BLI_assert(ss->meshIFC.numLayers == 2 || ss->meshIFC.numLayers == 3);
 
+	/* TODO(sergey): Apparently it's not supported by OpenSubdiv. */
+	if (ss->fMap->numEntries == 0) {
+		return;
+	}
+
 	/* Make sure OSD evaluator is up-to-date. */
 	if (opensubdiv_ensureEvaluator(ss)) {
 		if (ss->skip_grids == false) {
