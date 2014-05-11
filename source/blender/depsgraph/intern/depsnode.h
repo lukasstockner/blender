@@ -47,6 +47,7 @@ struct Scene;
 struct Depsgraph;
 struct DepsRelation;
 struct DepsgraphCopyContext;
+struct OperationDepsNode;
 
 /* ************************************* */
 /* Base-Defines for Nodes in Depsgraph */
@@ -83,22 +84,13 @@ struct DepsNode {
 		eDepsNode_Type component_type; /*< associated component type for operations */
 	};
 	
-	typedef unordered_set<DepsRelation *> Relations;
-	
 	string name;                /* identifier - mainly for debugging purposes... */
-	
-	Relations inlinks;          /* nodes which this one depends on */
-	Relations outlinks;         /* nodes which depend on this one */
 	
 	eDepsNode_Type type;        /* structural type of node */
 	eDepsNode_Class tclass;     /* type of data/behaviour represented by node... */
 	
-	eDepsNode_Color color;      /* stuff for tagging nodes (for algorithmic purposes) */
 	short flag;                 /* (eDepsNode_Flag) dirty/visited tags */
 	
-	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
-	int lasttime;               /* for keeping track of whether node has been evaluated yet, without performing full purge of flags first */
-
 public:
 	DepsNode();
 	virtual ~DepsNode();
@@ -109,6 +101,11 @@ public:
 	/* Recursively ensure that all implicit/builtin link rules have been applied */
 	/* i.e. init()/cleanup() callbacks as last items for components + component ordering rules obeyed */
 	virtual void validate_links(Depsgraph *graph) {}
+	
+	virtual OperationDepsNode *find_entry_operation() const { return NULL; }
+	virtual OperationDepsNode *find_exit_operation() const { return NULL; }
+	
+	virtual void tag_update(Depsgraph *graph) {}
 	
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
@@ -160,6 +157,8 @@ struct IDDepsNode : public DepsNode {
 	void clear_components();
 	
 	void validate_links(Depsgraph *graph);
+	
+	void tag_update(Depsgraph *graph);
 	
 	struct ID *id;                  /* ID Block referenced */
 	ComponentMap components;        /* hash to make it faster to look up components */

@@ -44,6 +44,33 @@ extern "C" {
 /* ******************************************************** */
 /* Inner Nodes */
 
+OperationDepsNode::OperationDepsNode()
+{
+}
+
+OperationDepsNode::~OperationDepsNode()
+{
+	/* free links
+	 * note: deleting relations will remove them from the node relations set,
+	 * but only touch the same position as we are using here, which is safe.
+	 */
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
+		delete rel;
+	DEPSNODE_RELATIONS_ITER_END;
+	
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
+		delete rel;
+	DEPSNODE_RELATIONS_ITER_END;
+}
+
+void OperationDepsNode::tag_update(Depsgraph *graph)
+{
+	/* tag for update, but also not that this was the source of an update */
+	flag |= (DEPSNODE_FLAG_NEEDS_UPDATE | DEPSNODE_FLAG_DIRECTLY_MODIFIED);
+	
+	graph->add_entry_tag(this);
+}
+
 /* Parameter Operation ==================================== */
 
 DEG_DEPSNODE_OP_DEFINE(ParametersOperationDepsNode, DEPSNODE_TYPE_OP_PARAMETER, DEPSNODE_TYPE_PARAMETERS, "Parameters Operation");

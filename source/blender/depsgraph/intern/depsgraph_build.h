@@ -199,8 +199,10 @@ protected:
 	OperationDepsNode *find_node(const OperationKey &key) const;
 	DepsNode *find_node(const RNAPathKey &key) const;
 	
+	void add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
+	                            eDepsRelation_Type type, const string &description);
 	void add_node_relation(DepsNode *node_from, DepsNode *node_to,
-	                  eDepsRelation_Type type, const string &description);
+	                       eDepsRelation_Type type, const string &description);
 	
 	template <typename KeyType>
 	DepsNodeHandle create_node_handle(const KeyType &key, const string &default_name = "");

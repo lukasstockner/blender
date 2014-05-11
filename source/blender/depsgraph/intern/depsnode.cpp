@@ -64,17 +64,6 @@ DepsNode::DepsNode()
 
 DepsNode::~DepsNode()
 {
-	/* free links
-	 * note: deleting relations will remove them from the node relations set,
-	 * but only touch the same position as we are using here, which is safe.
-	 */
-	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
-		delete rel;
-	DEPSNODE_RELATIONS_ITER_END;
-	
-	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
-		delete rel;
-	DEPSNODE_RELATIONS_ITER_END;
 }
 
 
@@ -246,6 +235,14 @@ void IDDepsNode::validate_links(Depsgraph *graph)
 	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin(); it != this->components.end(); ++it) {
 		DepsNode *component = it->second;
 		component->validate_links(graph);
+	}
+}
+
+void IDDepsNode::tag_update(Depsgraph *graph)
+{
+	for (ComponentMap::const_iterator it = components.begin(); it != components.end(); ++it) {
+		ComponentDepsNode *comp_node = it->second;
+		comp_node->tag_update(graph);
 	}
 }
 

@@ -51,14 +51,26 @@ struct DepsgraphCopyContext;
 
 /* Atomic Operation - Base type for all operations */
 struct OperationDepsNode : public DepsNode {
+	typedef unordered_set<DepsRelation *> Relations;
+	
+	OperationDepsNode();
+	~OperationDepsNode();
+	
+	void tag_update(Depsgraph *graph);
+	
 	ComponentDepsNode *owner;     /* component that contains the operation */
 	
 	DepsEvalOperationCb evaluate; /* callback for operation */
 	
 	PointerRNA ptr;               /* item that operation is to be performed on (optional) */
 	
+	Relations inlinks;          /* nodes which this one depends on */
+	Relations outlinks;         /* nodes which depend on this one */
+	
 	double start_time;            /* (secs) last timestamp (in seconds) when operation was started */
 	double last_time;             /* (seconds) time in seconds that last evaluation took */
+	
+	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
 	
 	short optype;                 /* (eDepsOperation_Type) stage of evaluation */
 	short flag;                   /* (eDepsOperation_Flag) extra settings affecting evaluation */

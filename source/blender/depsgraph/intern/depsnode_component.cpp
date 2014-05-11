@@ -131,6 +131,14 @@ void ComponentDepsNode::clear_operations()
 	operations.clear();
 }
 
+void ComponentDepsNode::tag_update(Depsgraph *graph)
+{
+	for (OperationMap::const_iterator it = operations.begin(); it != operations.end(); ++it) {
+		OperationDepsNode *op_node = it->second;
+		op_node->tag_update(graph);
+	}
+}
+
 /* Parameter Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(ParametersComponentDepsNode, DEPSNODE_TYPE_PARAMETERS, "Parameters Component");
@@ -304,18 +312,19 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)this->owner;
 	bPoseChannel *pchan = this->pchan;
 	
-	DepsNode *btrans_op = this->find_operation("Bone Transforms");
-	DepsNode *final_op = NULL;  /* normal final-evaluation operation */
-	DepsNode *ik_op = NULL;     /* IK Solver operation */
+	OperationDepsNode *btrans_op = this->find_operation("Bone Transforms");
+	OperationDepsNode *final_op = NULL;  /* normal final-evaluation operation */
+	OperationDepsNode *ik_op = NULL;     /* IK Solver operation */
 	
 	BLI_assert(btrans_op != NULL);
 	
 	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
 	if (pchan->parent == NULL) {
-		DepsNode *pinit_op = pcomp->find_operation("Init Pose Eval");
+		OperationDepsNode *pinit_op = pcomp->find_operation("Init Pose Eval");
 		graph->add_new_relation(pinit_op, btrans_op, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
 	}
 	
+#if 0 /* XXX TODO this should happen by translating links on components directly to operation links! */
 	/* inlinks destination should all go to the "Bone Transforms" operation */
 	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
 	{
@@ -323,7 +332,6 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 		graph->add_new_relation(rel->from, btrans_op, rel->type, rel->name);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
-	
 	
 	/* outlink source target depends on what we might have:
 	 * 1) Transform only - No constraints at all
@@ -384,6 +392,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 		DepsNode *ppost_op = this->find_operation("Cleanup Pose Eval");
 		graph->add_new_relation(final_op, ppost_op, DEPSREL_TYPE_OPERATION, "PoseEval Sink-Bone Link");
 	}
+#endif
 }
 
 DEG_DEPSNODE_DEFINE(BoneComponentDepsNode, DEPSNODE_TYPE_BONE, "Bone Component");

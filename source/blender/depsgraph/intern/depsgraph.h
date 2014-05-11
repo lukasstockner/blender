@@ -74,8 +74,8 @@ typedef enum eDepsRelation_Flag {
 /* B depends on A (A -> B) */
 struct DepsRelation {
 	/* the nodes in the relationship (since this is shared between the nodes) */
-	DepsNode *from;               /* A */
-	DepsNode *to;                 /* B */
+	OperationDepsNode *from;      /* A */
+	OperationDepsNode *to;        /* B */
 	
 	/* relationship attributes */
 	string name;                  /* label for debugging */
@@ -83,7 +83,7 @@ struct DepsRelation {
 	eDepsRelation_Type type;      /* type */
 	int flag;                     /* (eDepsRelation_Flag) */
 	
-	DepsRelation(DepsNode *from, DepsNode *to, eDepsRelation_Type type, const string &description);
+	DepsRelation(OperationDepsNode *from, OperationDepsNode *to, eDepsRelation_Type type, const string &description);
 	~DepsRelation();
 	
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -98,8 +98,8 @@ struct DepsRelation {
 struct Depsgraph {
 	typedef unordered_map<const ID *, IDDepsNode *> IDNodeMap;
 	typedef unordered_set<SubgraphDepsNode *> Subgraphs;
-	typedef unordered_set<DepsNode *> EntryTags;
-	typedef vector<DepsNode *> OperationNodes;
+	typedef unordered_set<OperationDepsNode *> EntryTags;
+	typedef vector<OperationDepsNode *> OperationNodes;
 	
 	Depsgraph();
 	~Depsgraph();
@@ -136,7 +136,7 @@ struct Depsgraph {
 	void clear_id_nodes();
 	
 	/* Add new relationship between two nodes */
-	DepsRelation *add_new_relation(DepsNode *from, DepsNode *to,
+	DepsRelation *add_new_relation(OperationDepsNode *from, OperationDepsNode *to,
 	                               eDepsRelation_Type type, 
 	                               const string &description);
 	
@@ -151,7 +151,7 @@ struct Depsgraph {
 	void sort();
 	
 	/* Tag a specific node as needing updates */
-	void tag_update(DepsNode *node);
+	void add_entry_tag(OperationDepsNode *node);
 	
 	
 	/* Core Graph Functionality ........... */
@@ -184,7 +184,7 @@ struct Depsgraph {
  */
 #define DEPSNODE_RELATIONS_ITER_BEGIN(relations_set_, relation_)                          \
 	{                                                                                \
-		DepsNode::Relations::const_iterator __rel_iter = relations_set_.begin();     \
+		OperationDepsNode::Relations::const_iterator __rel_iter = relations_set_.begin();     \
 		while (__rel_iter != relations_set_.end()) {                                 \
 			DepsRelation *relation_ = *__rel_iter;                                   \
 			++__rel_iter;

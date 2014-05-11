@@ -71,7 +71,7 @@ void DEG_graph_traverse_begin(Depsgraph *graph)
 
 /* Perform a traversal of graph from given starting node (in execution order) */
 // TODO: additional flags for controlling the process?
-void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
+void DEG_graph_traverse_from_node(Depsgraph *graph, OperationDepsNode *start_node,
                                   DEG_FilterPredicate filter, void *filter_data,
                                   DEG_NodeOperation op, void *operation_data)
 {
@@ -91,7 +91,7 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 	do {
 		/* grab item at front of queue */
 		// XXX: in practice, we may need to wait until one becomes available...
-		DepsNode *node = (DepsNode *)DEG_queue_pop(q);
+		OperationDepsNode *node = (OperationDepsNode *)DEG_queue_pop(q);
 		
 		/* perform operation on node */
 		op(graph, node, operation_data);
@@ -102,7 +102,7 @@ void DEG_graph_traverse_from_node(Depsgraph *graph, DepsNode *start_node,
 			/* ensure that relationship is not tagged for ignoring (i.e. cyclic, etc.) */
 			// TODO: cyclic refs should probably all get clustered towards the end, so that we can just stop on the first one
 			if ((rel->flag & DEPSREL_FLAG_CYCLIC) == 0) {
-				DepsNode *child_node = rel->to;
+				OperationDepsNode *child_node = rel->to;
 				
 				/* only visit node if the filtering function agrees */
 				if ((filter == NULL) || filter(graph, child_node, filter_data)) {			
@@ -174,6 +174,7 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	/* add this node-pair to the hash... */
 	BLI_ghash_insert(dcc->nodes_hash, (DepsNode *)src, dst);
 	
+#if 0 /* XXX TODO */
 	/* now, fix up any links in standard "node header" (i.e. DepsNode struct, that all 
 	 * all others are derived from) that are now corrupt 
 	 */
@@ -194,6 +195,7 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	
 	/* fix links */
 	// XXX...
+#endif
 	
 	/* return copied node */
 	return dst;

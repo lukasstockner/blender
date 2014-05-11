@@ -197,7 +197,7 @@ void Depsgraph::clear_id_nodes()
 }
 
 /* Add new relationship between two nodes */
-DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to, 
+DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from, OperationDepsNode *to, 
                                           eDepsRelation_Type type, 
                                           const string &description)
 {
@@ -247,7 +247,7 @@ void Depsgraph::sort()
 /* ************************************************** */
 /* Relationships Management */
 
-DepsRelation::DepsRelation(DepsNode *from, DepsNode *to, eDepsRelation_Type type, const string &description)
+DepsRelation::DepsRelation(OperationDepsNode *from, OperationDepsNode *to, eDepsRelation_Type type, const string &description)
 {
 	this->from = from;
 	this->to = to;
@@ -271,14 +271,11 @@ DepsRelation::~DepsRelation()
 /* Low level tagging -------------------------------------- */
 
 /* Tag a specific node as needing updates */
-void Depsgraph::tag_update(DepsNode *node)
+void Depsgraph::add_entry_tag(OperationDepsNode *node)
 {
 	/* sanity check */
 	if (!node)
 		return;
-	
-	/* tag for update, but also not that this was the source of an update */
-	node->flag |= (DEPSNODE_FLAG_NEEDS_UPDATE | DEPSNODE_FLAG_DIRECTLY_MODIFIED);
 	
 	/* add to graph-level set of directly modified nodes to start searching from
 	 * NOTE: this is necessary since we have several thousand nodes to play with...

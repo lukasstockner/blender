@@ -48,6 +48,7 @@ extern "C" {
 #include "depsgraph.h"
 #include "depsnode.h"
 #include "depsnode_component.h"
+#include "depsnode_operation.h"
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
@@ -61,29 +62,29 @@ extern "C" {
  */
 void DEG_id_tag_update(Depsgraph *graph, const ID *id)
 {
-	DepsNode *node = graph->find_node(id, "", DEPSNODE_TYPE_ID_REF, "");
-	graph->tag_update(node);
+	IDDepsNode *node = graph->find_id_node(id);
+	node->tag_update(graph);
 }
 
 /* Tag nodes related to a specific piece of data */
 void DEG_data_tag_update(Depsgraph *graph, const PointerRNA *ptr)
 {
 	DepsNode *node = graph->find_node_from_pointer(ptr, NULL);
-	graph->tag_update(node);
+	node->tag_update(graph);
 }
 
 /* Tag nodes related to a specific property */
 void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
 {
 	DepsNode *node = graph->find_node_from_pointer(ptr, prop);
-	graph->tag_update(node);
+	node->tag_update(graph);
 }
 
 /* Update Flushing ---------------------------------- */
 
 /* FIFO queue for tagged nodes that need flushing */
 /* XXX This may get a dedicated implementation later if needed - lukas */
-typedef std::queue<DepsNode*> FlushQueue;
+typedef std::queue<OperationDepsNode*> FlushQueue;
 
 /* Flush updates from tagged nodes outwards until all affected nodes are tagged */
 void DEG_graph_flush_updates(Depsgraph *graph)
@@ -99,14 +100,15 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done
 	// NOTE: count how many nodes we need to handle - entry nodes may be component nodes which don't count for this purpose!
 	for (Depsgraph::EntryTags::const_iterator it = graph->entry_tags.begin(); it != graph->entry_tags.end(); ++it) {
-		DepsNode *node = *it;
+		OperationDepsNode *node = *it;
 		queue.push(node);
 	}
 	
 	while (!queue.empty()) {
-		DepsNode *node = queue.front();
+		OperationDepsNode *node = queue.front();
 		queue.pop();
 		
+#if 0 /* XXX This should not be necessary, since operations are only directly connected to each other (?) */
 		/* flush to sub-nodes... */
 		// NOTE: if flushing to subnodes, we should then proceed to remove tag(s) from self, as only the subnode tags matter
 		bool flushed_subnodes = false;
@@ -131,12 +133,13 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 		
 		if (flushed_subnodes)
 			DEG_debug_eval_step(string_format("Flush Components: %s", node->name.c_str()).c_str());
+#endif
 		
 		/* flush to nodes along links... */
 		bool flushed_relations = false;
-		for (DepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
+		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
 			DepsRelation *rel = *it;
-			DepsNode *to_node = rel->to;
+			OperationDepsNode *to_node = rel->to;
 			
 			if (!(to_node->flag & DEPSNODE_FLAG_NEEDS_UPDATE)) {
 				to_node->flag |= DEPSNODE_FLAG_NEEDS_UPDATE;
@@ -161,7 +164,7 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 {
 	/* go over all operation nodes, clearing tags */
 	for (Depsgraph::OperationNodes::const_iterator it = graph->all_opnodes.begin(); it != graph->all_opnodes.end(); ++it) {
-		DepsNode *node = *it;
+		OperationDepsNode *node = *it;
 		
 		/* clear node's "pending update" settings */
 		node->flag &= ~(DEPSNODE_FLAG_DIRECTLY_MODIFIED | DEPSNODE_FLAG_NEEDS_UPDATE);

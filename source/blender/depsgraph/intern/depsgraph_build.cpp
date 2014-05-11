@@ -313,10 +313,23 @@ DepsNode *DepsgraphRelationBuilder::find_node(const RNAPathKey &key) const
 	return m_graph->find_node_from_pointer(&key.ptr, key.prop);
 }
 
-void DepsgraphRelationBuilder::add_node_relation(DepsNode *node_from, DepsNode *node_to,
-                                            eDepsRelation_Type type, const string &description)
+void DepsgraphRelationBuilder::add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
+                                                      eDepsRelation_Type type, const string &description)
 {
 	m_graph->add_new_relation(node_from, node_to, type, description);
+}
+
+void DepsgraphRelationBuilder::add_node_relation(DepsNode *node_from, DepsNode *node_to,
+                                                 eDepsRelation_Type type, const string &description)
+{
+	OperationDepsNode *op_from = node_from->find_exit_operation();
+	OperationDepsNode *op_to = node_to->find_entry_operation();
+	if (op_from && op_to) {
+		add_operation_relation(op_from, op_to, type, description);
+	}
+	else {
+		/* XXX error handling necessary? */
+	}
 }
 
 /* -------------------------------------------------- */

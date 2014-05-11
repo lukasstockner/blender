@@ -482,7 +482,7 @@ static bool deg_debug_graphviz_is_owner(const DepsNode *node, const DepsNode *ot
 	return false;
 }
 
-static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const DepsNode *node)
+static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const OperationDepsNode *node)
 {
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks, rel)
 	{
@@ -512,6 +512,7 @@ static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const Dep
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 
+#if 0
 	if (node->tclass == DEPSNODE_CLASS_COMPONENT) {
 		const ComponentDepsNode *comp_node = (const ComponentDepsNode *)node;
 		for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->operations.begin(); it != comp_node->operations.end(); ++it) {
@@ -532,6 +533,7 @@ static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const Dep
 			deg_debug_graphviz_graph_relations(ctx, sub_node->graph);
 		}
 	}
+#endif
 }
 
 static void deg_debug_graphviz_graph_nodes(const DebugContext &ctx, const Depsgraph *graph)
@@ -546,12 +548,19 @@ static void deg_debug_graphviz_graph_nodes(const DebugContext &ctx, const Depsgr
 
 static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const Depsgraph *graph)
 {
+#if 0
 	if (graph->root_node)
 		deg_debug_graphviz_node_relations(ctx, graph->root_node);
 	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
-		DepsNode *node = it->second;
-		deg_debug_graphviz_node_relations(ctx, node);
+		DepsNode *id_node = it->second;
+		deg_debug_graphviz_node_relations(ctx, id_node);
 	}
+#else
+	for (Depsgraph::OperationNodes::const_iterator it = graph->all_opnodes.begin(); it != graph->all_opnodes.end(); ++it) {
+		OperationDepsNode *op_node = *it;
+		deg_debug_graphviz_node_relations(ctx, op_node);
+	}
+#endif
 }
 
 void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, const char *label, bool show_tags)
