@@ -39,6 +39,7 @@ struct OpenSubdiv_GLMeshDescr;
 typedef struct OpenSubdiv_GLMesh {
 	int controller_type;
 	OpenSubdiv_GLMeshDescr *descriptor;
+	int level;
 } OpenSubdiv_GLMesh;
 #endif
 
@@ -78,4 +79,4 @@ void openSubdiv_cleanup(void);
 }
 #endif
 
-#endif  /* __OPENSUBDIV_CAPI_H__ */
+#endif  // __OPENSUBDIV_CAPI_H__

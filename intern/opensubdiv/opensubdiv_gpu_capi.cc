@@ -39,7 +39,7 @@
 #include <opensubdiv/osd/cudaGLVertexBuffer.h>
 #include <opensubdiv/osd/glDrawRegistry.h>
 
-/* **************** Types declaration **************** */
+// **************** Types declaration ****************
 
 using OpenSubdiv::OsdDrawContext;
 using OpenSubdiv::OsdGLDrawRegistry;
@@ -54,9 +54,8 @@ protected:
 	virtual SourceConfigType *_CreateDrawSourceConfig(DescType const &desc);
 };
 
-/* TODO(sergey): Fine for tests, but ideally need to be stored
- * in some sort of object draw context.
- */
+// TODO(sergey): Fine for tests, but ideally need to be stored
+// in some sort of object draw context.
 static GLuint g_transformUB = 0,
               g_transformBinding = 0,
               g_tessellationUB = 0,
@@ -203,7 +202,7 @@ EffectDrawRegistry::_CreateDrawSourceConfig(DescType const &desc)
 		sconfig->fragmentShader.AddDefine("PRIM_TRI");
     }
 
-	/* TODO(sergey): Currently unsupported, but good to have for the reference. */
+	// TODO(sergey): Currently unsupported, but good to have for the reference.
 #if 0
 	if (screenSpaceTess) {
 		sconfig->commonShader.AddDefine("OSD_ENABLE_SCREENSPACE_TESSELLATION");
@@ -271,7 +270,8 @@ EffectDrawRegistry::_CreateDrawConfig(DescType const &desc,
 }
 
 static GLuint bindProgram(OsdGLMeshInterface *mesh,
-                          OsdDrawContext::PatchArray const &patch)
+                          OsdDrawContext::PatchArray const &patch,
+                          int level)
 {
 	EffectDrawRegistry::ConfigType *config =
 		g_effectRegistry.GetDrawConfig(patch.GetDescriptor());
@@ -298,7 +298,7 @@ static GLuint bindProgram(OsdGLMeshInterface *mesh,
 		float TessLevel;
 	} tessellationData;
 
-	tessellationData.TessLevel = static_cast<float>(1 << /*g_tessLevel*/1);
+	tessellationData.TessLevel = static_cast<float>(1 << level);
 
 	if (! g_tessellationUB) {
 		glGenBuffers(1, &g_tessellationUB);
@@ -427,7 +427,7 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh)
 				glPatchParameteri(GL_PATCH_VERTICES, desc.GetNumControlVertices());
 		}
 
-		GLuint program = bindProgram(mesh, patch);
+		GLuint program = bindProgram(mesh, patch, gl_mesh->level);
 		GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
 
 		glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);

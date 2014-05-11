@@ -462,6 +462,7 @@ struct CCGSubSurf {
 #ifdef WITH_OPENSUBDIV
 	struct OpenSubdiv_EvaluatorDescr *osd_evaluator;
 	struct OpenSubdiv_GLMesh *osd_mesh;
+	bool osd_mesh_invalid;
 	unsigned int osd_vao;
 	bool skip_grids;
 	short osd_compute;
@@ -922,6 +923,7 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 #ifdef WITH_OPENSUBDIV
 		ss->osd_evaluator = NULL;
 		ss->osd_mesh = NULL;
+		ss->osd_mesh_invalid = false;
 		ss->osd_vao = 0;
 		ss->skip_grids = false;
 		ss->osd_compute = 0;
@@ -940,6 +942,7 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 		openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
 	}
 	if (ss->osd_mesh != NULL) {
+		/* TODO(sergey): Make sure free happens form the main thread! */
 		openSubdiv_deleteOsdGLMesh(ss->osd_mesh);
 	}
 	if (ss->osd_vao != 0) {
@@ -2327,6 +2330,12 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 		glGenVertexArrays(1, &ss->osd_vao);
 	}
 
+	if (ss->osd_mesh_invalid) {
+		openSubdiv_deleteOsdGLMesh(ss->osd_mesh);
+		ss->osd_mesh = NULL;
+		ss->osd_mesh_invalid = false;
+	}
+
 	if (ss->osd_mesh == NULL) {
 		ss->osd_mesh = openSubdiv_createOsdGLMeshFromEvaluator(
 			ss->osd_evaluator,
@@ -2558,10 +2567,11 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 
 			/* We would also need to re-create gl mesh from sratch
 			 * if the topology changes.
+			 * Here we only tag for free, actual free should happen
+			 * from the main thread.
 			 */
 			if (ss->osd_mesh) {
-				openSubdiv_deleteOsdGLMesh(ss->osd_mesh);
-				ss->osd_mesh = NULL;
+				ss->osd_mesh_invalid = true;
 			}
 		}
 	}

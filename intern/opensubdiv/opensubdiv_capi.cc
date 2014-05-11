@@ -69,7 +69,7 @@
 
 #include "MEM_guardedalloc.h"
 
-/* **************** Types declaration **************** */
+// **************** Types declaration ****************
 
 struct OpenSubdiv_ComputeControllerDescr;
 
@@ -258,8 +258,7 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	int num_vertex_elements = 3;
 	int num_varying_elements = 0;
 
-	/* Trick to avoid passing multi-argument template to a macro. */
-	OsdGLMeshInterface *mesh;
+	OsdGLMeshInterface *mesh = NULL;
 
 	switch (controller_type) {
 #define CHECK_CONTROLLER_TYPE(type, class, controller_class) \
@@ -313,10 +312,15 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 #undef CHECK_CONTROLLER_TYPE
 	}
 
+	if (mesh == NULL) {
+		return NULL;
+	}
+
 	OpenSubdiv_GLMesh *gl_mesh =
 		(OpenSubdiv_GLMesh *) OBJECT_GUARDED_NEW(OpenSubdiv_GLMesh);
 	gl_mesh->controller_type = controller_type;
 	gl_mesh->descriptor = (OpenSubdiv_GLMeshDescr *) mesh;
+	gl_mesh->level = level;
 
 	return gl_mesh;
 }
