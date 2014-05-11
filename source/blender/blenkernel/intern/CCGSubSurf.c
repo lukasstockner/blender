@@ -2341,6 +2341,12 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 			ss->osd_evaluator,
 			compute_type,
 			ss->subdivLevels);
+
+		if (UNLIKELY(ss->osd_mesh == NULL)) {
+			/* Most likely compute device is not available. */
+			return;
+		}
+
 		ccgSubSurf__updateGLMeshCoords(ss);
 
 		openSubdiv_osdGLMeshRefine(ss->osd_mesh);
@@ -2371,11 +2377,13 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 
 void ccgSubSurf_drawGLMesh(CCGSubSurf *ss)
 {
-	openSubdiv_osdGLMeshBindvertexBuffer(ss->osd_mesh);
-	glBindVertexArray(ss->osd_vao);
-	openSubdiv_osdGLMeshDisplay(ss->osd_mesh);
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	if (LIKELY(ss->osd_mesh != NULL)) {
+		openSubdiv_osdGLMeshBindvertexBuffer(ss->osd_mesh);
+		glBindVertexArray(ss->osd_vao);
+		openSubdiv_osdGLMeshDisplay(ss->osd_mesh);
+		glBindVertexArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
 }
 
 void ccgSubSurf_setSkipGrids(CCGSubSurf *ss, bool skip_grids)
