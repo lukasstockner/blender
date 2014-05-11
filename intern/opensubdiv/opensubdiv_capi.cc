@@ -393,6 +393,33 @@ void openSubdiv_osdGLMeshBindvertexBuffer(OpenSubdiv_GLMesh *gl_mesh)
 	((OsdGLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
 }
 
+int openSubdiv_getAvailableControllers(void)
+{
+	int flags = OPENSUBDIV_CONTROLLER_CPU;
+
+#ifdef OPENSUBDIV_HAS_OPENMP
+	flags |= OPENSUBDIV_CONTROLLER_OPENMP;
+#endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+	flags |= OPENSUBDIV_CONTROLLER_OPENCL;
+#endif
+
+#ifdef OPENSUBDIV_HAS_CUDA
+	flags |= OPENSUBDIV_CONTROLLER_CUDA;
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+	flags |= OPENSUBDIV_CONTROLLER_GLSL_TRANSFORM_FEEDBACK;
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+	flags |= OPENSUBDIV_CONTROLLER_GLSL_COMPUTE;
+#endif
+
+	return flags;
+}
+
 void openSubdiv_cleanup(void)
 {
 #define DELETE_DESCRIPTOR(var, class) \

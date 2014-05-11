@@ -36,6 +36,10 @@
 #include "CCGSubSurf.h"
 #include "BKE_subsurf.h"
 
+#include "BKE_subsurf.h"
+
+#include "DNA_userdef_types.h"
+
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_capi.h"
 #  include <opensubdiv/osdutil/evaluator_capi.h>
@@ -460,6 +464,7 @@ struct CCGSubSurf {
 	struct OpenSubdiv_GLMesh *osd_mesh;
 	unsigned int osd_vao;
 	bool skip_grids;
+	short osd_compute;
 #endif
 };
 
@@ -919,6 +924,7 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 		ss->osd_mesh = NULL;
 		ss->osd_vao = 0;
 		ss->skip_grids = false;
+		ss->osd_compute = 0;
 #endif
 
 		return ss;
@@ -2301,6 +2307,22 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 
 void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 {
+	int compute_type;
+
+	switch (U.opensubdiv_compute_type) {
+#define CHECK_COMPUTE_TYPE(type) \
+		case USER_OPENSUBDIV_COMPUTE_ ## type: \
+			compute_type = OPENSUBDIV_CONTROLLER_ ## type; \
+			break;
+		CHECK_COMPUTE_TYPE(CPU)
+		CHECK_COMPUTE_TYPE(OPENMP)
+		CHECK_COMPUTE_TYPE(OPENCL)
+		CHECK_COMPUTE_TYPE(CUDA)
+		CHECK_COMPUTE_TYPE(GLSL_TRANSFORM_FEEDBACK)
+		CHECK_COMPUTE_TYPE(GLSL_COMPUTE)
+#undef CHECK_COMPUTE_TYPE
+	}
+
 	if (ss->osd_vao == 0) {
 		glGenVertexArrays(1, &ss->osd_vao);
 	}
@@ -2308,7 +2330,7 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 	if (ss->osd_mesh == NULL) {
 		ss->osd_mesh = openSubdiv_createOsdGLMeshFromEvaluator(
 			ss->osd_evaluator,
-			OPENSUBDIV_CONTROLLER_CUDA,
+			compute_type,
 			ss->subdivLevels);
 		ccgSubSurf__updateGLMeshCoords(ss);
 
@@ -2328,6 +2350,8 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 		glDisableVertexAttribArray(1);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindVertexArray(0);
+
+		ss->osd_compute = U.opensubdiv_compute_type;
 	}
 	else {
 		ccgSubSurf__updateGLMeshCoords(ss);
@@ -2468,6 +2492,14 @@ static bool check_topology_changed(CCGSubSurf *ss)
 	    num_nverts;
 	int *indices, *nverts;
 	int i, index, osd_face_index;
+
+	/* If compute type changes, need to re-create GL Mesh.
+	 * For now let's do evaluator as well, will optimize
+	 * later.
+	 */
+	if (ss->osd_compute != U.opensubdiv_compute_type) {
+		return true;
+	}
 
 	BLI_assert(ss->osd_evaluator != NULL);
 

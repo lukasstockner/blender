@@ -65,12 +65,12 @@ void openSubdiv_osdGLMeshUpdateVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh,
                                             const float *vertex_data,
                                             int start_vertex,
                                             int num_verts);
-void openSubdiv_osdGLMeshUpdateVertexBufferFromDescr(struct OpenSubdiv_GLMesh *gl_mesh,
-                                                     struct OpenSubdiv_MeshDescr *mesh_descr);
 void openSubdiv_osdGLMeshRefine(struct OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLMeshSynchronize(struct OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLMeshDisplay(struct OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLMeshBindvertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh);
+
+int openSubdiv_getAvailableControllers(void);
 
 void openSubdiv_cleanup(void);
 

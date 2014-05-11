@@ -528,6 +528,9 @@ typedef struct UserDef {
 	float pixelsize;			/* private, set by GHOST, to multiply DPI with */
 
 	struct WalkNavigation walk_navigation;
+
+	short opensubdiv_compute_type;
+	char pad3[6];
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */
@@ -829,6 +832,15 @@ typedef enum eImageDrawMethod {
 	IMAGE_DRAW_METHOD_2DTEXTURE = 2,
 	IMAGE_DRAW_METHOD_DRAWPIXELS = 3,
 } eImageDrawMethod;
+
+typedef enum eOpensubdiv_Computee_Type {
+	USER_OPENSUBDIV_COMPUTE_CPU = 0,
+	USER_OPENSUBDIV_COMPUTE_OPENMP = 1,
+	USER_OPENSUBDIV_COMPUTE_OPENCL = 2,
+	USER_OPENSUBDIV_COMPUTE_CUDA = 3,
+	USER_OPENSUBDIV_COMPUTE_GLSL_TRANSFORM_FEEDBACK = 4,
+	USER_OPENSUBDIV_COMPUTE_GLSL_COMPUTE = 5,
+} eOpensubdiv_Computee_Type;
 
 #ifdef __cplusplus
 }

@@ -264,6 +264,13 @@ if(WITH_BULLET)
 	add_definitions(-DWITH_BULLET)
 endif()
 
+if(WITH_OPENSUBDIV)
+	list(APPEND INC
+		../../../../intern/opensubdiv
+	)
+	add_definitions(-DWITH_OPENSUBDIV)
+endif()
+
 # Build makesrna executable
 blender_include_dirs(
 	.
