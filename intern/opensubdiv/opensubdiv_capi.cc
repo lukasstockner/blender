@@ -37,16 +37,46 @@
 #include <opensubdiv/osd/cpuComputeContext.h>
 #include <opensubdiv/osd/cpuComputeController.h>
 
-// CUDA backend
-#include <opensubdiv/osd/cudaGLVertexBuffer.h>
-#include <opensubdiv/osd/cudaComputeContext.h>
-#include <opensubdiv/osd/cudaComputeController.h>
+#ifdef OPENSUBDIV_HAS_OPENMP
+#  include <opensubdiv/osd/ompComputeController.h>
+#endif
 
-#include "cudaInit.h"
+#ifdef OPENSUBDIV_HAS_OPENCL
+#  include <opensubdiv/osd/clGLVertexBuffer.h>
+#  include <opensubdiv/osd/clComputeContext.h>
+#  include <opensubdiv/osd/clComputeController.h>
+#  include "clInit.h"
+#endif
+
+#ifdef OPENSUBDIV_HAS_CUDA
+#  include <opensubdiv/osd/cudaGLVertexBuffer.h>
+#  include <opensubdiv/osd/cudaComputeContext.h>
+#  include <opensubdiv/osd/cudaComputeController.h>
+#  include "cudaInit.h"
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+#  include <opensubdiv/osd/glslTransformFeedbackComputeContext.h>
+#  include <opensubdiv/osd/glslTransformFeedbackComputeController.h>
+#  include <opensubdiv/osd/glVertexBuffer.h>
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+#  include <opensubdiv/osd/glslComputeContext.h>
+#  include <opensubdiv/osd/glslComputeController.h>
+#  include <opensubdiv/osd/glVertexBuffer.h>
+#endif
 
 #include "MEM_guardedalloc.h"
 
 /* **************** Types declaration **************** */
+
+struct OpenSubdiv_ComputeControllerDescr;
+
+typedef struct OpenSubdiv_ComputeController {
+	int type;
+	OpenSubdiv_ComputeControllerDescr *descriptor;
+} OpenSubdiv_ComputeController;
 
 using OpenSubdiv::OsdCpuComputeController;
 using OpenSubdiv::OsdGLDrawContext;
@@ -56,67 +86,159 @@ using OpenSubdiv::OsdMeshBitset;
 using OpenSubdiv::OsdUtilSubdivTopology;
 using OpenSubdiv::OsdVertex;
 
+typedef OpenSubdiv::HbrMesh<OsdVertex> OsdHbrMesh;
+
+using OpenSubdiv::OsdGLVertexBuffer;
+using OpenSubdiv::OsdGLDrawContext;
+
 // CPU backend
 using OpenSubdiv::OsdCpuGLVertexBuffer;
 using OpenSubdiv::OsdCpuComputeController;
+static OpenSubdiv_ComputeController *g_cpuComputeController = NULL;
+typedef OsdMesh<OsdCpuGLVertexBuffer,
+                OsdCpuComputeController,
+                OsdGLDrawContext> OsdCpuMesh;
 
-// CUDA backend
+#ifdef OPENSUBDIV_HAS_OPENMP
+using OpenSubdiv::OsdOmpComputeController;
+static OpenSubdiv_ComputeController *g_ompComputeController = NULL;
+typedef OsdMesh<OsdCpuGLVertexBuffer,
+                OsdOmpComputeController,
+                OsdGLDrawContext> OsdOmpMesh;
+#endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+using OpenSubdiv::OsdCLGLVertexBuffer;
+using OpenSubdiv::OsdCLComputeController;
+typedef OsdMesh<OsdCLGLVertexBuffer,
+                OsdCLComputeController,
+                OsdGLDrawContext> OsdCLMesh;
+static OpenSubdiv_ComputeController *g_clComputeController = NULL;
+static cl_context g_clContext;
+static cl_command_queue g_clQueue;
+#endif
+
+#ifdef OPENSUBDIV_HAS_CUDA
 using OpenSubdiv::OsdCudaComputeController;
 using OpenSubdiv::OsdCudaGLVertexBuffer;
-
-typedef OpenSubdiv::HbrMesh<OsdVertex> OsdHbrMesh;
 typedef OsdMesh<OsdCudaGLVertexBuffer,
                 OsdCudaComputeController,
-                OsdGLDrawContext> OsdCPUGLMesh;
+                OsdGLDrawContext> OsdCudaMesh;
+static OpenSubdiv_ComputeController *g_cudaComputeController = NULL;
+static bool g_cudaInitialized = false;
+#endif
 
-/* **************** CPU Compute Controller **************** */
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+using OpenSubdiv::OsdGLSLTransformFeedbackComputeController;
+typedef OsdMesh<OsdGLVertexBuffer,
+                OsdGLSLTransformFeedbackComputeController,
+                OsdGLDrawContext> OsdGLSLTransformFeedbackMesh;
+static OpenSubdiv_ComputeController *g_glslTransformFeedbackComputeController = NULL;
+#endif
 
-struct OpenSubdiv_CPUComputeController *openSubdiv_createCPUComputeController(void)
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+using OpenSubdiv::OsdGLSLComputeController;
+typedef OsdMesh<OsdGLVertexBuffer,
+                OsdGLSLComputeController,
+                OsdGLDrawContext> OsdGLSLComputeMesh;
+static OpenSubdiv_ComputeController *g_glslOComputeComputeController = NULL;
+#endif
+
+static OpenSubdiv_ComputeController *alloc_controller(int controller_type)
 {
-	return (struct OpenSubdiv_CPUComputeController *) OBJECT_GUARDED_NEW(OsdCpuComputeController);
+	OpenSubdiv_ComputeController *controller =
+		(OpenSubdiv_ComputeController *) OBJECT_GUARDED_NEW(
+			OpenSubdiv_ComputeController);
+	controller->type = controller_type;
+	return controller;
 }
 
-void openSubdiv_deleteCPUComputeController(struct OpenSubdiv_CPUComputeController *controller)
+static OpenSubdiv_ComputeController *openSubdiv_getController(
+	int controller_type)
 {
-	OBJECT_GUARDED_DELETE(controller, OsdCpuComputeController);
-}
+#ifdef OPENSUBDIV_HAS_OPENCL
+	if (controller_type == OPENSUBDIV_CONTROLLER_OPENCL &&
+	    g_clContext == NULL)
+	{
+		if (initCL(&g_clContext, &g_clQueue) == false) {
+			printf("Error in initializing OpenCL\n");
+		}
+	}
+#endif
 
-/* **************** GLSL Compute Controller **************** */
-/*
-struct OpenSubdiv_GLSLComputeController *openSubdiv_createGLSLComputeController(void)
-{
-	return (struct OpenSubdiv_GLSLComputeController *) OBJECT_GUARDED_NEW(OsdGLSLComputeController);
-}
+#ifdef OPENSUBDIV_HAS_CUDA
+	if (controller_type == OPENSUBDIV_CONTROLLER_CUDA &&
+	    g_cudaInitialized == false)
+	{
+		g_cudaInitialized = true;
+		cudaGLSetGLDevice(cutGetMaxGflopsDeviceId());
+	}
+#endif
 
-void openSubdiv_deleteGLSLComputeController(struct OpenSubdiv_GLSLComputeController *controller)
-{
-	OBJECT_GUARDED_DELETE(controller, OsdGLSLComputeController);
-}
-*/
-/* **************** CUDA Compute Controller **************** */
-struct OpenSubdiv_CUDAComputeController *openSubdiv_createCUDAComputeController(void)
-{
-	static bool cudaInitialized = false;
-	if (cudaInitialized == false) {
-		cudaInitialized = true;
-		cudaGLSetGLDevice( cutGetMaxGflopsDeviceId() );
+	switch (controller_type) {
+#define CHECK_CONTROLLER_TYPR(type, var, class) \
+	case OPENSUBDIV_CONTROLLER_ ## type: \
+		if (var == NULL) { \
+			var = alloc_controller(controller_type); \
+			var->descriptor = \
+				(OpenSubdiv_ComputeControllerDescr *) new class(); \
+		} \
+		return var;
+
+		CHECK_CONTROLLER_TYPR(CPU,
+		                      g_cpuComputeController,
+		                      OsdCpuComputeController);
+
+#ifdef OPENSUBDIV_HAS_OPENMP
+		CHECK_CONTROLLER_TYPR(OPENMP,
+		                      g_ompComputeController,
+		                      OsdOmpComputeController);
+#endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+	case OPENSUBDIV_CONTROLLER_OPENCL:
+		if (g_clComputeController == NULL) {
+			g_clComputeController = alloc_controller(controller_type);
+			g_clComputeController->descriptor =
+				(OpenSubdiv_ComputeControllerDescr *)
+					new OsdCLComputeController(g_clContext, g_clQueue);
+		}
+		return g_clComputeController;
+#endif
+
+#ifdef OPENSUBDIV_HAS_CUDA
+		CHECK_CONTROLLER_TYPR(CUDA,
+		                      g_cudaComputeController,
+		                      OsdCudaComputeController);
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+		CHECK_CONTROLLER_TYPR(GLSL_TRANSFORM_FEEDBACK,
+		                      g_glslTransformFeedbackComputeController,
+		                      OsdGLSLTransformFeedbackComputeController);
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+		CHECK_CONTROLLER_TYPR(GLSL_COMPUTE,
+		                      g_glslComputeController,
+		                      OsdGLSLComputeController);
+#endif
 	}
 
-	return (struct OpenSubdiv_CUDAComputeController *) OBJECT_GUARDED_NEW(OsdCudaComputeController);
+	return NULL;
 }
-
-void openSubdiv_deleteCUDAComputeController(struct OpenSubdiv_CUDAComputeController *controller)
-{
-	OBJECT_GUARDED_DELETE(controller, OsdCudaComputeController);
-}
-
-/* **************** OpenSubdiv GL Mesh **************** */
 
 struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     OpenSubdiv_EvaluatorDescr *evaluator_descr,
-    OpenSubdiv_CUDAComputeController *controller,
+    int controller_type,
     int level)
 {
+	OpenSubdiv_ComputeController *controller =
+		openSubdiv_getController(controller_type);
+	if (controller == NULL) {
+		return NULL;
+	}
+
 	OsdUtilSubdivTopology *topology;
 	OpenSubdiv::OsdUtilMesh<OsdVertex> util_mesh;
 
@@ -137,31 +259,113 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	int num_varying_elements = 0;
 
 	/* Trick to avoid passing multi-argument template to a macro. */
-	OsdGLMeshInterface *gl_mesh =
-		OBJECT_GUARDED_NEW(OsdCPUGLMesh,
-		                   (OsdCudaComputeController *) controller,
-		                   hmesh,
-		                   num_vertex_elements,
-		                   num_varying_elements,
-		                   level,
-		                   bits);
+	OsdGLMeshInterface *mesh;
 
-	return (OpenSubdiv_GLMesh*) gl_mesh;
+	switch (controller_type) {
+#define CHECK_CONTROLLER_TYPE(type, class, controller_class) \
+		case OPENSUBDIV_CONTROLLER_ ## type: \
+			mesh = (OsdGLMeshInterface *) \
+				new class( \
+					(controller_class *) controller->descriptor, \
+					hmesh, \
+					num_vertex_elements, \
+					num_varying_elements, \
+					level, \
+					bits); \
+			break;
+		CHECK_CONTROLLER_TYPE(CPU, OsdCpuMesh, OsdCpuComputeController)
+
+#ifdef OPENSUBDIV_HAS_OPENMP
+		CHECK_CONTROLLER_TYPE(OPENMP, OsdOmpMesh, OsdOmpComputeController)
+#endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+		case OPENSUBDIV_CONTROLLER_OPENCL:
+			mesh = (OsdGLMeshInterface *)
+				new OsdCLMesh(
+					(OsdCLComputeController *) controller->descriptor,
+					hmesh,
+					num_vertex_elements,
+					num_varying_elements,
+					level,
+					bits,
+					g_clContext,
+					g_clQueue);
+			break;
+#endif
+
+#ifdef OPENSUBDIV_HAS_CUDA
+		CHECK_CONTROLLER_TYPE(CUDA, OsdCudaMesh, OsdCudaComputeController)
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+		CHECK_CONTROLLER_TYPE(GLSL_TRANSFORM_FEEDBACK,
+		                      OsdGLSLTransformFeedbackMesh,
+		                      OsdGLSLTransformFeedbackComputeController)
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+		CHECK_CONTROLLER_TYPE(GLSL_COMPUTE,
+		                      OsdGLSLComputeMesh,
+		                      OsdGLSLComputeController)
+#endif
+
+#undef CHECK_CONTROLLER_TYPE
+	}
+
+	OpenSubdiv_GLMesh *gl_mesh =
+		(OpenSubdiv_GLMesh *) OBJECT_GUARDED_NEW(OpenSubdiv_GLMesh);
+	gl_mesh->controller_type = controller_type;
+	gl_mesh->descriptor = (OpenSubdiv_GLMeshDescr *) mesh;
+
+	return gl_mesh;
 }
 
 void openSubdiv_deleteOsdGLMesh(struct OpenSubdiv_GLMesh *gl_mesh)
 {
-	OBJECT_GUARDED_DELETE(gl_mesh, OsdCPUGLMesh);
+	switch (gl_mesh->controller_type) {
+#define CHECK_CONTROLLER_TYPE(type, class) \
+		case OPENSUBDIV_CONTROLLER_ ## type: \
+			delete (class *) gl_mesh->descriptor; \
+			break;
+
+		CHECK_CONTROLLER_TYPE(CPU, OsdCpuMesh)
+
+#ifdef OPENSUBDIV_HAS_OPENMP
+		CHECK_CONTROLLER_TYPE(OPENMP, OsdOmpMesh)
+#endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+		CHECK_CONTROLLER_TYPE(OPENCL, OsdCLMesh)
+#endif
+
+#ifdef OPENSUBDIV_HAS_CUDA
+		CHECK_CONTROLLER_TYPE(CUDA, OsdCudaMesh)
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+		CHECK_CONTROLLER_TYPE(GLSL_TRANSFORM_FEEDBACK,
+		                      OsdGLSLTransformFeedbackMesh)
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+		CHECK_CONTROLLER_TYPE(GLSL_COMPUTE, OsdGLSLComputeMesh)
+#endif
+
+#undef CHECK_CONTROLLER_TYPE
+	}
+
+	OBJECT_GUARDED_DELETE(gl_mesh, OpenSubdiv_GLMesh);
 }
 
 unsigned int openSubdiv_getOsdGLMeshPatchIndexBuffer(struct OpenSubdiv_GLMesh *gl_mesh)
 {
-	return ((OsdGLMeshInterface *)gl_mesh)->GetDrawContext()->GetPatchIndexBuffer();
+	return ((OsdGLMeshInterface *)gl_mesh->descriptor)->GetDrawContext()->GetPatchIndexBuffer();
 }
 
 unsigned int openSubdiv_bindOsdGLMeshVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh)
 {
-	return ((OsdGLMeshInterface *)gl_mesh)->BindVertexBuffer();
+	return ((OsdGLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
 }
 
 void openSubdiv_osdGLMeshUpdateVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh,
@@ -169,22 +373,63 @@ void openSubdiv_osdGLMeshUpdateVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh,
                                             int start_vertex,
                                             int num_verts)
 {
-	((OsdGLMeshInterface *)gl_mesh)->UpdateVertexBuffer(vertex_data,
-	                                                    start_vertex,
-	                                                    num_verts);
+	((OsdGLMeshInterface *)gl_mesh->descriptor)->UpdateVertexBuffer(vertex_data,
+	                                                                start_vertex,
+	                                                                num_verts);
 }
 
 void openSubdiv_osdGLMeshRefine(struct OpenSubdiv_GLMesh *gl_mesh)
 {
-	((OsdGLMeshInterface *)gl_mesh)->Refine();
+	((OsdGLMeshInterface *)gl_mesh->descriptor)->Refine();
 }
 
 void openSubdiv_osdGLMeshSynchronize(struct OpenSubdiv_GLMesh *gl_mesh)
 {
-	((OsdGLMeshInterface *)gl_mesh)->Synchronize();
+	((OsdGLMeshInterface *)gl_mesh->descriptor)->Synchronize();
 }
 
 void openSubdiv_osdGLMeshBindvertexBuffer(OpenSubdiv_GLMesh *gl_mesh)
 {
-	((OsdGLMeshInterface *)gl_mesh)->BindVertexBuffer();
+	((OsdGLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
+}
+
+void openSubdiv_cleanup(void)
+{
+#define DELETE_DESCRIPTOR(var, class) \
+	if (var != NULL) { \
+		delete (class*) var->descriptor; \
+		OBJECT_GUARDED_DELETE(var, OpenSubdiv_ComputeController); \
+	}
+
+	DELETE_DESCRIPTOR(g_cpuComputeController,
+	                  OsdCpuComputeController);
+
+#ifdef OPENSUBDIV_HAS_OPENMP
+	DELETE_DESCRIPTOR(g_ompComputeController,
+	                  OsdOmpComputeController);
+#endif
+
+#ifdef OPENSUBDIV_HAS_OPENCL
+	DELETE_DESCRIPTOR(g_clComputeController,
+	                  OsdCLComputeController);
+    uninitCL(g_clContext, g_clQueue);
+#endif
+
+#ifdef OPENSUBDIV_HAS_CUDA
+	DELETE_DESCRIPTOR(g_cudaComputeController,
+	                  OsdCudaComputeController);
+    cudaDeviceReset();
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
+	DELETE_DESCRIPTOR(g_glslTransformFeedbackComputeController,
+	                  OsdGLSLTransformFeedbackComputeController);
+#endif
+
+#ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
+	DELETE_DESCRIPTOR(g_glslComputeController,
+	                  OsdGLSLComputeController);
+#endif
+
+#undef DELETE_DESCRIPTOR
 }

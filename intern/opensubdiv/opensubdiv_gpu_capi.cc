@@ -391,7 +391,7 @@ inline void multMatrix(float *d, const float *a, const float *b) {
 void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh)
 {
 	static bool need_init = true;
-	OsdGLMeshInterface *mesh = (OsdGLMeshInterface *) gl_mesh;
+	OsdGLMeshInterface *mesh = (OsdGLMeshInterface *) gl_mesh->descriptor;
 
 	if (need_init) {
 		linkDefaultProgram();

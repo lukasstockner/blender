@@ -30,29 +30,32 @@
 extern "C" {
 #endif
 
-/* Types declaration. */
-struct OpenSubdiv_CPUComputeController;
-struct OpenSubdiv_CUDAComputeController;
-struct OpenSubdiv_GLSLComputeController;
+// Types declaration.
 struct OpenSubdiv_EvaluatorDescr;
 struct OpenSubdiv_GLMesh;
 
-/* CPU Compute Controller functions */
-struct OpenSubdiv_CPUComputeController *openSubdiv_createCPUComputeController(void);
-void openSubdiv_deleteCPUComputeController(struct OpenSubdiv_CPUComputeController *controller);
+#ifdef __cplusplus
+struct OpenSubdiv_GLMeshDescr;
+typedef struct OpenSubdiv_GLMesh {
+	int controller_type;
+	OpenSubdiv_GLMeshDescr *descriptor;
+} OpenSubdiv_GLMesh;
+#endif
 
-/* GLSL Compute Controller functions */
-//struct OpenSubdiv_GLSLComputeController *openSubdiv_createGLSLComputeController(void);
-//void openSubdiv_deleteGLSLComputeController(struct OpenSubdiv_GLSLComputeController *controller);
+// Keep this a bitmask os it's possible to pass vailable
+// controllers to Blender.
+enum {
+	OPENSUBDIV_CONTROLLER_CPU                      = (1 << 0),
+	OPENSUBDIV_CONTROLLER_OPENMP                   = (1 << 1),
+	OPENSUBDIV_CONTROLLER_OPENCL                   = (1 << 2),
+	OPENSUBDIV_CONTROLLER_CUDA                     = (1 << 3),
+	OPENSUBDIV_CONTROLLER_GLSL_TRANSFORM_FEEDBACK  = (1 << 4),
+	OPENSUBDIV_CONTROLLER_GLSL_COMPUTE             = (1 << 5),
+};
 
-/* CUDA Compute Controller functions. */
-struct OpenSubdiv_CUDAComputeController *openSubdiv_createCUDAComputeController(void);
-void openSubdiv_deleteCUDAComputeController(struct OpenSubdiv_CUDAComputeController *controller);
-
-/* OpenSubdiv GL Mesh functions */
 struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     struct OpenSubdiv_EvaluatorDescr *evaluator_descr,
-    struct OpenSubdiv_CUDAComputeController *controller,
+    int controller_type,
     int level);
 
 void openSubdiv_deleteOsdGLMesh(struct OpenSubdiv_GLMesh *gl_mesh);
@@ -68,6 +71,8 @@ void openSubdiv_osdGLMeshRefine(struct OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLMeshSynchronize(struct OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLMeshDisplay(struct OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLMeshBindvertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh);
+
+void openSubdiv_cleanup(void);
 
 #ifdef __cplusplus
 }

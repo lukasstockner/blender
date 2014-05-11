@@ -66,6 +66,17 @@ FOREACH(COMPONENT ${_opensubdiv_FIND_COMPONENTS})
   LIST(APPEND _opensubdiv_LIBRARIES "${OPENSUBDIV_${UPPERCOMPONENT}_LIBRARY}")
 ENDFOREACH()
 
+MACRO(OPENSUBDIV_CHECK_CONTROLLER
+      controller_include_file
+      variable_name)
+  IF(EXISTS "${OPENSUBDIV_INCLUDE_DIR}/opensubdiv/osd/${controller_include_file}")
+    SET(${variable_name} TRUE)
+  ELSE()
+    SET(${variable_name} FALSE)
+  ENDIF()
+ENDMACRO()
+
+
 # handle the QUIETLY and REQUIRED arguments and set OPENSUBDIV_FOUND to TRUE if
 # all listed variables are TRUE
 INCLUDE(FindPackageHandleStandardArgs)
@@ -76,14 +87,39 @@ IF(OPENSUBDIV_FOUND)
   SET(OPENSUBDIV_LIBRARIES ${_opensubdiv_LIBRARIES})
   SET(OPENSUBDIV_INCLUDE_DIRS ${OPENSUBDIV_INCLUDE_DIR})
 
-  # TODO(sergey): Ideally we do linking to CUDA n runtime, not compile time,
-  # so this way we can have Blender running on the systems which don't have
-  # NVidia or don't have CUDA runtime libraries.
-  #
-  # Or we'll just use GLSL backend on all the systems.
-  FIND_PACKAGE(CUDA)
-  IF(CUDA_FOUND)
-    LIST(APPEND OPENSUBDIV_LIBRARIES ${CUDA_CUDART_LIBRARY})
+  # Find available compute controllers.
+
+  FIND_PACKAGE(OpenMP)
+  IF(OPENMP_FOUND)
+    SET(OPENSUBDIV_HAS_OPENMP TRUE)
+  ELSE()
+    SET(OPENSUBDIV_HAS_OPENMP FALSE)
+  ENDIF()
+
+  OPENSUBDIV_CHECK_CONTROLLER("tbbComputeController.h" OPENSUBDIV_HAS_TBB)
+  OPENSUBDIV_CHECK_CONTROLLER("gcdComputeController.h" OPENSUBDIV_HAS_GCD)
+  OPENSUBDIV_CHECK_CONTROLLER("clComputeController.h" OPENSUBDIV_HAS_OPENCL)
+  OPENSUBDIV_CHECK_CONTROLLER("cudaComputeController.h" OPENSUBDIV_HAS_CUDA)
+  OPENSUBDIV_CHECK_CONTROLLER("glslTransformFeedbackComputeController.h" OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK)
+  OPENSUBDIV_CHECK_CONTROLLER("osd/glslComputeController.h" OPENSUBDIV_HAS_GLSL_COMPUTE)
+
+  IF(OPENSUBDIV_HAS_CUDA)
+    # TODO(sergey): Ideally we do linking to CUDA runtime, not compile time,
+    # so this way we can have Blender running on the systems which don't have
+   # NVidia or don't have CUDA runtime libraries.
+     #
+    # Or we'll just use GLSL backend on all the systems.
+    FIND_PACKAGE(CUDA)
+    IF(CUDA_FOUND)
+      LIST(APPEND OPENSUBDIV_LIBRARIES ${CUDA_CUDART_LIBRARY})
+    ENDIF()
+  ENDIF()
+
+  IF(OPENSUBDIV_HAS_OPENCL)
+    # TODO(sergey): Exactly the same reason as above.
+    # TODO(sergey): There's no OpenCL finder in CMake
+    #FIND_PACKAGE(OpenCL)
+    LIST(APPEND OPENSUBDIV_LIBRARIES "OpenCL")
   ENDIF()
 ENDIF(OPENSUBDIV_FOUND)
 

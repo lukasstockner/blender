@@ -128,6 +128,13 @@ if(WITH_BUILDINFO)
 	add_definitions(-DWITH_BUILDINFO)
 endif()
 
+if(WITH_OPENSUBDIV)
+	add_definitions(-DWITH_OPENSUBDIV)
+	list(APPEND INC
+		../../../intern/opensubdiv
+	)
+endif()
+
 if(WIN322)
 	list(APPEND INC
 		../../../intern/utfconv

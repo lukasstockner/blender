@@ -115,6 +115,10 @@
 #include "BKE_sound.h"
 #include "COM_compositor.h"
 
+#ifdef WITH_OPENSUBDIV
+#  include "opensubdiv_capi.h"
+#endif
+
 static void wm_init_reports(bContext *C)
 {
 	BKE_reports_init(CTX_wm_reports(C), RPT_STORE);
@@ -488,6 +492,10 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	}
 #else
 	(void)do_python;
+#endif
+
+#ifdef WITH_OPENSUBDIV
+	openSubdiv_cleanup();
 #endif
 
 	GPU_global_buffer_pool_free();

@@ -458,7 +458,6 @@ struct CCGSubSurf {
 #ifdef WITH_OPENSUBDIV
 	struct OpenSubdiv_EvaluatorDescr *osd_evaluator;
 	struct OpenSubdiv_GLMesh *osd_mesh;
-	struct OpenSubdiv_CUDAComputeController *osd_controller;
 	unsigned int osd_vao;
 	bool skip_grids;
 #endif
@@ -918,7 +917,6 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 #ifdef WITH_OPENSUBDIV
 		ss->osd_evaluator = NULL;
 		ss->osd_mesh = NULL;
-		ss->osd_controller = NULL;
 		ss->osd_vao = 0;
 		ss->skip_grids = false;
 #endif
@@ -931,16 +929,12 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 {
 	CCGAllocatorIFC allocatorIFC = ss->allocatorIFC;
 	CCGAllocatorHDL allocator = ss->allocator;
-
 #ifdef WITH_OPENSUBDIV
 	if (ss->osd_evaluator != NULL) {
 		openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
 	}
 	if (ss->osd_mesh != NULL) {
 		openSubdiv_deleteOsdGLMesh(ss->osd_mesh);
-	}
-	if (ss->osd_controller != NULL) {
-		openSubdiv_deleteCUDAComputeController(ss->osd_controller);
 	}
 	if (ss->osd_vao != 0) {
 		glDeleteVertexArrays(1, &ss->osd_vao);
@@ -2307,11 +2301,6 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 
 void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 {
-	/* TODO(sergey): We actually want a single controller for all meshes. */
-	if (ss->osd_controller == NULL) {
-		ss->osd_controller = openSubdiv_createCUDAComputeController();
-	}
-
 	if (ss->osd_vao == 0) {
 		glGenVertexArrays(1, &ss->osd_vao);
 	}
@@ -2319,9 +2308,8 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 	if (ss->osd_mesh == NULL) {
 		ss->osd_mesh = openSubdiv_createOsdGLMeshFromEvaluator(
 			ss->osd_evaluator,
-			ss->osd_controller,
+			OPENSUBDIV_CONTROLLER_CUDA,
 			ss->subdivLevels);
-
 		ccgSubSurf__updateGLMeshCoords(ss);
 
 		openSubdiv_osdGLMeshRefine(ss->osd_mesh);

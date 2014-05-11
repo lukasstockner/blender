@@ -35,8 +35,22 @@ set(INC_SYS
 set(SRC
 	opensubdiv_capi.cc
 	opensubdiv_gpu_capi.cc
+	clInit.h
+	cudaInit.h
 	opensubdiv_capi.h
 )
+
+MACRO(OPENSUBDIV_DEFINE_COMPONENT component)
+	if(${component})
+		add_definitions(-D${component})
+	endif()
+ENDMACRO()
+
+OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENMP)
+OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENCL)
+OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_CUDA)
+OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK)
+OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_COMPUTE)
 
 data_to_c_simple(gpu_shader_opensubd_display.glsl SRC)
 
