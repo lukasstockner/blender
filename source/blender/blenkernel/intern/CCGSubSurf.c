@@ -37,8 +37,11 @@
 #include "BKE_subsurf.h"
 
 #ifdef WITH_OPENSUBDIV
+#  include "opensubdiv_capi.h"
 #  include <opensubdiv/osdutil/evaluator_capi.h>
 #endif
+
+#include "GL/glew.h"
 
 /* Define this to see dump of the grids after the subsurf applied. */
 #undef DUMP_RESULT_GRIDS
@@ -455,6 +458,9 @@ struct CCGSubSurf {
 
 #ifdef WITH_OPENSUBDIV
 	struct OpenSubdiv_EvaluatorDescr *osd_evaluator;
+	struct OpenSubdiv_GLMesh *osd_mesh;
+	struct OpenSubdiv_CUDAComputeController *osd_controller;
+	unsigned int osd_vao;
 #endif
 };
 
@@ -911,6 +917,9 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 
 #ifdef WITH_OPENSUBDIV
 		ss->osd_evaluator = NULL;
+		ss->osd_mesh = NULL;
+		ss->osd_controller = NULL;
+		ss->osd_vao = 0;
 #endif
 
 		return ss;
@@ -923,8 +932,17 @@ void ccgSubSurf_free(CCGSubSurf *ss)
 	CCGAllocatorHDL allocator = ss->allocator;
 
 #ifdef WITH_OPENSUBDIV
-	if (ss->osd_evaluator) {
+	if (ss->osd_evaluator != NULL) {
 		openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
+	}
+	if (ss->osd_mesh != NULL) {
+		openSubdiv_deleteOsdGLMesh(ss->osd_mesh);
+	}
+	if (ss->osd_controller != NULL) {
+		openSubdiv_deleteCUDAComputeController(ss->osd_controller);
+	}
+	if (ss->osd_vao != 0) {
+		glDeleteVertexArrays(1, &ss->osd_vao);
 	}
 #endif
 
@@ -2251,6 +2269,90 @@ static void ccgSubSurf__dumpCoords(CCGSubSurf *ss)
 
 #  define OSD_LOG if (false) printf
 
+static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
+{
+	/* TODO(sergey): This is rather a duplicated work to gather all
+	 * the basis coordinates in an array. It also needed to update
+	 * evaluator and we somehow should optimize this to positions
+	 * are not being packed into an array at draw time.
+	 */
+	float (*positions)[3];
+	int vertDataSize = ss->meshIFC.vertDataSize;
+	int num_basis_verts = ss->vMap->numEntries;
+	int i;
+
+	BLI_assert(ss->meshIFC.numLayers == 3);
+
+	positions = MEM_mallocN(3 * sizeof(float) * num_basis_verts, "OpenSubdiv coarse points");
+	for (i = 0; i < ss->vMap->curSize; i++) {
+		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
+		for (; v; v = v->next) {
+			float *co = VERT_getCo(v, 0);
+			BLI_assert(v->osd_index < ss->vMap->numEntries);
+			VertDataCopy(positions[v->osd_index], co, ss);
+		}
+	}
+
+	openSubdiv_osdGLMeshUpdateVertexBuffer(ss->osd_mesh,
+	                                       (float *) positions,
+	                                       0,
+	                                       num_basis_verts);
+
+	MEM_freeN(positions);
+}
+
+void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
+{
+	/* TODO(sergey): We actually want a single controller for all meshes. */
+	if (ss->osd_controller == NULL) {
+		ss->osd_controller = openSubdiv_createCUDAComputeController();
+	}
+
+	if (ss->osd_vao == 0) {
+		glGenVertexArrays(1, &ss->osd_vao);
+	}
+
+	if (ss->osd_mesh == NULL) {
+		ss->osd_mesh = openSubdiv_createOsdGLMeshFromEvaluator(
+			ss->osd_evaluator,
+			ss->osd_controller,
+			ss->subdivLevels);
+
+		ccgSubSurf__updateGLMeshCoords(ss);
+
+		openSubdiv_osdGLMeshRefine(ss->osd_mesh);
+		openSubdiv_osdGLMeshSynchronize(ss->osd_mesh);
+
+		glBindVertexArray(ss->osd_vao);
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+		             openSubdiv_getOsdGLMeshPatchIndexBuffer(ss->osd_mesh));
+		glBindBuffer(GL_ARRAY_BUFFER,
+		             openSubdiv_bindOsdGLMeshVertexBuffer(ss->osd_mesh));
+
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
+
+		glDisableVertexAttribArray(1);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+	}
+	else {
+		ccgSubSurf__updateGLMeshCoords(ss);
+		openSubdiv_osdGLMeshRefine(ss->osd_mesh);
+		openSubdiv_osdGLMeshSynchronize(ss->osd_mesh);
+	}
+}
+
+void ccgSubSurf_drawGLMesh(CCGSubSurf *ss)
+{
+	openSubdiv_osdGLMeshBindvertexBuffer(ss->osd_mesh);
+	glBindVertexArray(ss->osd_vao);
+	openSubdiv_osdGLMeshDisplay(ss->osd_mesh);
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 BLI_INLINE void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
                                           float *face_u, float *face_v)
 {
@@ -2444,6 +2546,14 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 			 */
 			openSubdiv_deleteEvaluatorDescr(ss->osd_evaluator);
 			ss->osd_evaluator = NULL;
+
+			/* We would also need to re-create gl mesh from sratch
+			 * if the topology changes.
+			 */
+			if (ss->osd_mesh) {
+				openSubdiv_deleteOsdGLMesh(ss->osd_mesh);
+				ss->osd_mesh = NULL;
+			}
 		}
 	}
 	if (ss->osd_evaluator == NULL) {
@@ -2767,11 +2877,13 @@ static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 
 	/* Make sure OSD evaluator is up-to-date. */
 	if (opensubdiv_ensureEvaluator(ss)) {
-		/* Update coarse points in the OpenSubdiv evaluator. */
-		opensubdiv_updateCoarsePositions(ss);
+		if (false) {
+			/* Update coarse points in the OpenSubdiv evaluator. */
+			opensubdiv_updateCoarsePositions(ss);
 
-		/* Evaluate opensubdiv mesh into the CCG grids. */
-		opensubdiv_evaluateGrids(ss);
+			/* Evaluate opensubdiv mesh into the CCG grids. */
+			opensubdiv_evaluateGrids(ss);
+		}
 	}
 	else {
 		BLI_assert(!"OpenSubdiv initializetion failed, should not happen.");

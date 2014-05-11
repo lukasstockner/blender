@@ -186,4 +186,9 @@ int					ccgFaceIterator_isStopped	(CCGFaceIterator *fi);
 void				ccgFaceIterator_next		(CCGFaceIterator *fi);
 void				ccgFaceIterator_free		(CCGFaceIterator *fi);
 
+#ifdef WITH_OPENSUBDIV
+void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss);
+void ccgSubSurf_drawGLMesh(CCGSubSurf *ss);
+#endif
+
 #endif  /* __CCGSUBSURF_H__ */

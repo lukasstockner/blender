@@ -75,6 +75,16 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS(OpenSubdiv DEFAULT_MSG
 IF(OPENSUBDIV_FOUND)
   SET(OPENSUBDIV_LIBRARIES ${_opensubdiv_LIBRARIES})
   SET(OPENSUBDIV_INCLUDE_DIRS ${OPENSUBDIV_INCLUDE_DIR})
+
+  # TODO(sergey): Ideally we do linking to CUDA n runtime, not compile time,
+  # so this way we can have Blender running on the systems which don't have
+  # NVidia or don't have CUDA runtime libraries.
+  #
+  # Or we'll just use GLSL backend on all the systems.
+  FIND_PACKAGE(CUDA)
+  IF(CUDA_FOUND)
+    LIST(APPEND OPENSUBDIV_LIBRARIES ${CUDA_CUDART_LIBRARY})
+  ENDIF()
 ENDIF(OPENSUBDIV_FOUND)
 
 MARK_AS_ADVANCED(

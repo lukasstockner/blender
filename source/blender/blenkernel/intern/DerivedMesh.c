@@ -2997,9 +2997,15 @@ void DM_set_object_boundbox(Object *ob, DerivedMesh *dm)
 {
 	float min[3], max[3];
 
-	INIT_MINMAX(min, max);
-
-	dm->getMinMax(dm, min, max);
+	/* TODO(sergey): Currently no way to access bounding box from hi-res mesh. */
+	if (dm->type == DM_TYPE_CCGDM) {
+		copy_v3_fl3(min, -1.0f, -1.0f, -1.0f);
+		copy_v3_fl3(max, 1.0f, 1.0f, 1.0f);
+	}
+	else {
+		INIT_MINMAX(min, max);
+		dm->getMinMax(dm, min, max);
+	}
 
 	if (!ob->bb)
 		ob->bb = MEM_callocN(sizeof(BoundBox), "DM-BoundBox");

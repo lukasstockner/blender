@@ -1650,6 +1650,12 @@ static void ccgdm_pbvh_update(CCGDerivedMesh *ccgdm)
 
 static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdges)
 {
+#ifdef WITH_OPENSUBDIV
+	/* TODO(sergey): Support edge drawing. */
+	(void) dm;
+	(void) drawLooseEdges;
+	(void) drawAllEdges;
+#else
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGKey key;
@@ -1719,6 +1725,7 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 			}
 		}
 	}
+#endif
 }
 
 static void ccgDM_drawLooseEdges(DerivedMesh *dm)
@@ -1765,6 +1772,16 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
+
+#ifdef WITH_OPENSUBDIV
+	/* TODO(sergey): This optiosn are totally ignored for now. */
+	(void) partial_redraw_planes;
+	(void) fast;
+	(void) setMaterial;
+
+	ccgSubSurf_prepareGLMesh(ss);
+	ccgSubSurf_drawGLMesh(ss);
+#else
 	CCGKey key;
 	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	int gridSize = ccgSubSurf_getGridSize(ss);
@@ -1885,6 +1902,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 			}
 		}
 	}
+#endif
 }
 
 static void ccgdm_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert)
