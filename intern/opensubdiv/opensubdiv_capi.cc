@@ -26,17 +26,21 @@
 
 #include "opensubdiv_capi.h"
 
-#include <opensubdiv/osd/cpuComputeController.h>
 #include <opensubdiv/osd/glMesh.h>
-
-#include <opensubdiv/osd/cudaGLVertexBuffer.h>
-#include <opensubdiv/osd/cudaComputeContext.h>
-#include <opensubdiv/osd/cudaComputeController.h>
 #include <opensubdiv/osd/glDrawRegistry.h>
-
 #include <opensubdiv/osdutil/evaluator_capi.h>
 #include <opensubdiv/osdutil/topology.h>
 #include <opensubdiv/osdutil/mesh.h>
+
+// CPU Backend
+#include <opensubdiv/osd/cpuGLVertexBuffer.h>
+#include <opensubdiv/osd/cpuComputeContext.h>
+#include <opensubdiv/osd/cpuComputeController.h>
+
+// CUDA backend
+#include <opensubdiv/osd/cudaGLVertexBuffer.h>
+#include <opensubdiv/osd/cudaComputeContext.h>
+#include <opensubdiv/osd/cudaComputeController.h>
 
 #include "cudaInit.h"
 
@@ -52,6 +56,11 @@ using OpenSubdiv::OsdMeshBitset;
 using OpenSubdiv::OsdUtilSubdivTopology;
 using OpenSubdiv::OsdVertex;
 
+// CPU backend
+using OpenSubdiv::OsdCpuGLVertexBuffer;
+using OpenSubdiv::OsdCpuComputeController;
+
+// CUDA backend
 using OpenSubdiv::OsdCudaComputeController;
 using OpenSubdiv::OsdCudaGLVertexBuffer;
 

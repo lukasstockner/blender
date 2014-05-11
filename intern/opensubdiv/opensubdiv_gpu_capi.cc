@@ -226,6 +226,7 @@ EffectDrawRegistry::_CreateDrawConfig(DescType const &desc,
                                       SourceConfigType const *sconfig)
 {
 	ConfigType *config = BaseRegistry::_CreateDrawConfig(desc, sconfig);
+	delete sconfig;
 	assert(config);
 
 	GLuint uboIndex;
