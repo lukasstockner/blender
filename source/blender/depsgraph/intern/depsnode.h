@@ -52,13 +52,6 @@ struct OperationDepsNode;
 /* ************************************* */
 /* Base-Defines for Nodes in Depsgraph */
 
-/* "Colors" for use in depsgraph topology algorithms */
-typedef enum eDepsNode_Color {
-	DEPSNODE_WHITE = 0,
-	DEPSNODE_GRAY  = 1,
-	DEPSNODE_BLACK = 2
-} eDepsNode_Color;
-
 /* All nodes in Depsgraph are descended from this */
 struct DepsNode {
 	/* Helper class for static typeinfo in subclasses */
