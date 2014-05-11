@@ -345,8 +345,7 @@ struct CCGVert {
 	CCGVert     *next;  /* EHData.next */
 	CCGVertHDL vHDL;    /* EHData.key */
 
-	short numEdges, numFaces, flags, pad;
-	int tag;
+	short numEdges, numFaces, flags;
 	int osd_index;  /* Index of the vertex in the map, used by OSD. */
 
 	CCGEdge **edges;
@@ -1245,6 +1244,9 @@ CCGError ccgSubSurf_syncVert(CCGSubSurf *ss, CCGVertHDL vHDL, const void *vertDa
 			_ehash_insert(ss->vMap, (EHEntry *) v);
 			v->flags = 0;
 		}
+#ifdef WITH_OPENSUBDIV
+		v->osd_index = ss->vMap->numEntries - 1;
+#endif
 	}
 
 	if (v_r) *v_r = v;
@@ -2448,15 +2450,7 @@ static void opensubdiv_initEvaluatorFace(CCGSubSurf *ss,
 
 static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 {
-	int i, osd_vert_index;
-
-	/* Set an osd_index member in each one so we have consistent indexing. */
-	for (i = 0, osd_vert_index = 0; i < ss->vMap->curSize; ++i) {
-		CCGVert *vert = (CCGVert *) ss->vMap->buckets[i];
-		for (; vert; vert = vert->next, ++osd_vert_index) {
-			vert->osd_index = osd_vert_index;
-		}
-	}
+	int i;
 
 	for (i = 0; i < ss->fMap->curSize; i++) {
 		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
@@ -2478,21 +2472,9 @@ static bool check_topology_changed(CCGSubSurf *ss)
 	    num_indices,
 	    num_nverts;
 	int *indices, *nverts;
-	int i, index, osd_vert_index, osd_face_index;
+	int i, index, osd_face_index;
 
 	BLI_assert(ss->osd_evaluator != NULL);
-
-	/* Set an osd_index member in each one so we have consistent indexing.
-	 *
-	 * TODO(sergey): Currently here's a duplicated logic happens, make it
-	 * so osd_indices are only calculated once.
-	 */
-	for (i = 0, osd_vert_index = 0; i < ss->vMap->curSize; ++i) {
-		CCGVert *vert = (CCGVert *) ss->vMap->buckets[i];
-		for (; vert; vert = vert->next, ++osd_vert_index) {
-			vert->osd_index = osd_vert_index;
-		}
-	}
 
 	/* Get the topology from existing evaluator. */
 	openSubdiv_getEvaluatorTopology(ss->osd_evaluator,
