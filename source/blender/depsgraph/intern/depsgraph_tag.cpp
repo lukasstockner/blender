@@ -141,8 +141,8 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 			DepsRelation *rel = *it;
 			OperationDepsNode *to_node = rel->to;
 			
-			if (!(to_node->flag & DEPSNODE_FLAG_NEEDS_UPDATE)) {
-				to_node->flag |= DEPSNODE_FLAG_NEEDS_UPDATE;
+			if (!(to_node->flag & DEPSOP_FLAG_NEEDS_UPDATE)) {
+				to_node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
 				queue.push(to_node);
 				
 				flushed_relations = true;
@@ -167,7 +167,7 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 		OperationDepsNode *node = *it;
 		
 		/* clear node's "pending update" settings */
-		node->flag &= ~(DEPSNODE_FLAG_DIRECTLY_MODIFIED | DEPSNODE_FLAG_NEEDS_UPDATE);
+		node->flag &= ~(DEPSOP_FLAG_DIRECTLY_MODIFIED | DEPSOP_FLAG_NEEDS_UPDATE);
 		node->num_links_pending = 0; /* reset so that it can be bumped up again */
 	}
 	

@@ -59,19 +59,6 @@ typedef enum eDepsNode_Color {
 	DEPSNODE_BLACK = 2
 } eDepsNode_Color;
 
-/* Flags for Depsgraph Nodes */
-typedef enum eDepsNode_Flag {
-	/* node needs to be updated */
-	DEPSNODE_FLAG_NEEDS_UPDATE       = (1 << 0),
-	
-	/* node was directly modified, causing need for update */
-	/* XXX: intention is to make it easier to tell when we just need to take subgraphs */
-	DEPSNODE_FLAG_DIRECTLY_MODIFIED  = (1 << 1),
-	
-	/* node was visited/handled already in traversal... */
-	DEPSNODE_FLAG_TEMP_TAG           = (1 << 2),
-} eDepsNode_Flag;
-
 /* All nodes in Depsgraph are descended from this */
 struct DepsNode {
 	/* Helper class for static typeinfo in subclasses */
@@ -88,8 +75,6 @@ struct DepsNode {
 	
 	eDepsNode_Type type;        /* structural type of node */
 	eDepsNode_Class tclass;     /* type of data/behaviour represented by node... */
-	
-	short flag;                 /* (eDepsNode_Flag) dirty/visited tags */
 	
 public:
 	DepsNode();

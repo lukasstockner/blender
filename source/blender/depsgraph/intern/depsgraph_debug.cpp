@@ -194,10 +194,13 @@ static void deg_debug_graphviz_node_color(const DebugContext &ctx, const DepsNod
 	
 	const char *color = color_default;
 	if (ctx.show_tags) {
-		if (node->flag & DEPSNODE_FLAG_DIRECTLY_MODIFIED)
-			color = color_modified;
-		else if (node->flag & DEPSNODE_FLAG_NEEDS_UPDATE)
-			color = color_update;
+		if (node->tclass == DEPSNODE_CLASS_OPERATION) {
+			OperationDepsNode *op_node = (OperationDepsNode *)node;
+			if (op_node->flag & DEPSOP_FLAG_DIRECTLY_MODIFIED)
+				color = color_modified;
+			else if (op_node->flag & DEPSOP_FLAG_NEEDS_UPDATE)
+				color = color_update;
+		}
 	}
 	
 	deg_debug_printf(ctx, "\"%s\"", color);
@@ -211,10 +214,13 @@ static void deg_debug_graphviz_node_penwidth(const DebugContext &ctx, const Deps
 	
 	float penwidth = penwidth_default;
 	if (ctx.show_tags) {
-		if (node->flag & DEPSNODE_FLAG_DIRECTLY_MODIFIED)
-			penwidth = penwidth_modified;
-		else if (node->flag & DEPSNODE_FLAG_NEEDS_UPDATE)
-			penwidth = penwidth_update;
+		if (node->tclass == DEPSNODE_CLASS_OPERATION) {
+			OperationDepsNode *op_node = (OperationDepsNode *)node;
+			if (op_node->flag & DEPSOP_FLAG_DIRECTLY_MODIFIED)
+				penwidth = penwidth_modified;
+			else if (op_node->flag & DEPSOP_FLAG_NEEDS_UPDATE)
+				penwidth = penwidth_update;
+		}
 	}
 	
 	deg_debug_printf(ctx, "\"%f\"", penwidth);
@@ -274,9 +280,12 @@ static void deg_debug_graphviz_relation_color(const DebugContext &ctx, const Dep
 static void deg_debug_graphviz_node_style(const DebugContext &ctx, const DepsNode *node)
 {
 	const char *base_style = "filled"; /* default style */
-	if (ctx.show_tags &&
-	    (node->flag & (DEPSNODE_FLAG_DIRECTLY_MODIFIED | DEPSNODE_FLAG_NEEDS_UPDATE))) {
-		base_style = "striped";
+	if (ctx.show_tags) {
+		if (node->tclass == DEPSNODE_CLASS_OPERATION) {
+			OperationDepsNode *op_node = (OperationDepsNode *)node;
+			if (op_node->flag & (DEPSOP_FLAG_DIRECTLY_MODIFIED | DEPSOP_FLAG_NEEDS_UPDATE))
+				base_style = "striped";
+		}
 	}
 	
 	switch (node->tclass) {

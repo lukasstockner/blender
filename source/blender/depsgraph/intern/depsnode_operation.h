@@ -49,6 +49,22 @@ struct ID;
 struct Depsgraph;
 struct DepsgraphCopyContext;
 
+/* Flags for Depsgraph Nodes */
+typedef enum eDepsOperation_Flag {
+	/* node needs to be updated */
+	DEPSOP_FLAG_NEEDS_UPDATE       = (1 << 0),
+	
+	/* node was directly modified, causing need for update */
+	/* XXX: intention is to make it easier to tell when we just need to take subgraphs */
+	DEPSOP_FLAG_DIRECTLY_MODIFIED  = (1 << 1),
+
+	/* Operation is evaluated using CPython; has GIL and security implications... */
+	DEPSOP_FLAG_USES_PYTHON   = (1 << 2),
+	
+	/* node was visited/handled already in traversal... */
+	DEPSOP_FLAG_TEMP_TAG           = (1 << 3),
+} eDepsOperation_Flag;
+
 /* Atomic Operation - Base type for all operations */
 struct OperationDepsNode : public DepsNode {
 	typedef unordered_set<DepsRelation *> Relations;
@@ -79,11 +95,6 @@ struct OperationDepsNode : public DepsNode {
 /* Macros for common static typeinfo */
 #define DEG_DEPSNODE_OP_DEFINE(NodeType, type_, comp_type_, tname_) \
 	const DepsNode::TypeInfo NodeType::typeinfo = DepsNode::TypeInfo(type_, tname_, comp_type_)
-
-/* Extra flags affecting operations */
-typedef enum eDepsOperation_Flag {
-	DEPSOP_FLAG_USES_PYTHON   = (1 << 0),  /* Operation is evaluated using CPython; has GIL and security implications... */      
-} eDepsOperation_Flag;
 
 struct ParametersOperationDepsNode : public OperationDepsNode {
 	DEG_DEPSNODE_DECLARE;
