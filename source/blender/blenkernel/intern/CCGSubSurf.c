@@ -460,6 +460,7 @@ struct CCGSubSurf {
 	struct OpenSubdiv_GLMesh *osd_mesh;
 	struct OpenSubdiv_CUDAComputeController *osd_controller;
 	unsigned int osd_vao;
+	bool skip_grids;
 #endif
 };
 
@@ -919,6 +920,7 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 		ss->osd_mesh = NULL;
 		ss->osd_controller = NULL;
 		ss->osd_vao = 0;
+		ss->skip_grids = false;
 #endif
 
 		return ss;
@@ -2355,6 +2357,11 @@ void ccgSubSurf_drawGLMesh(CCGSubSurf *ss)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
+void ccgSubSurf_setSkipGrids(CCGSubSurf *ss, bool skip_grids)
+{
+	ss->skip_grids = skip_grids;
+}
+
 BLI_INLINE void ccgSubSurf__mapGridToFace(int S, float grid_u, float grid_v,
                                           float *face_u, float *face_v)
 {
@@ -2859,7 +2866,7 @@ static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 
 	/* Make sure OSD evaluator is up-to-date. */
 	if (opensubdiv_ensureEvaluator(ss)) {
-		if (false) {
+		if (ss->skip_grids == false) {
 			/* Update coarse points in the OpenSubdiv evaluator. */
 			opensubdiv_updateCoarsePositions(ss);
 

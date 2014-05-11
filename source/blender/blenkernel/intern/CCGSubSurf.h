@@ -189,6 +189,7 @@ void				ccgFaceIterator_free		(CCGFaceIterator *fi);
 #ifdef WITH_OPENSUBDIV
 void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss);
 void ccgSubSurf_drawGLMesh(CCGSubSurf *ss);
+void ccgSubSurf_setSkipGrids(CCGSubSurf *ss, bool skip_grids);
 #endif
 
 #endif  /* __CCGSUBSURF_H__ */
