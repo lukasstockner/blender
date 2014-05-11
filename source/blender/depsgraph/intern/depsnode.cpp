@@ -82,7 +82,7 @@ TimeSourceDepsNode *RootDepsNode::add_time_source(const string &name)
 	return time_source;
 }
 
-void RootDepsNode::build_operations(const OperationBuilder &builder) const
+void RootDepsNode::build_operations(const OperationBuilder &builder)
 {
 	if (time_source)
 		time_source->build_operations(builder);
@@ -93,7 +93,7 @@ static DepsNodeFactoryImpl<RootDepsNode> DNTI_ROOT;
 
 /* Time Source Node ======================================= */
 
-void TimeSourceDepsNode::build_operations(const OperationBuilder &builder) const
+void TimeSourceDepsNode::build_operations(const OperationBuilder &builder)
 {
 	/* TODO */
 }
@@ -182,78 +182,11 @@ void IDDepsNode::clear_components()
 	components.clear();
 }
 
-void IDDepsNode::build_operations(const OperationBuilder &builder) const
+void IDDepsNode::build_operations(const OperationBuilder &builder)
 {
 	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin(); it != this->components.end(); ++it) {
 		DepsNode *component = it->second;
 		component->build_operations(builder);
-	}
-}
-
-/* Validate links between components */
-void IDDepsNode::validate_links(Depsgraph *graph)
-{
-#if 0
-	/* XXX WARNING: using ListBase is dangerous for virtual C++ classes,
-	 * loses vtable info!
-	 * Disabled for now due to unclear purpose, later use a std::vector or similar here
-	 */
-	
-	ListBase dummy_list = {NULL, NULL}; // XXX: perhaps this should live in the node?
-	
-	/* get our components ......................................................................... */
-	ComponentDepsNode *params = find_component(DEPSNODE_TYPE_PARAMETERS);
-	ComponentDepsNode *anim = find_component(DEPSNODE_TYPE_ANIMATION);
-	ComponentDepsNode *trans = find_component(DEPSNODE_TYPE_TRANSFORM);
-	ComponentDepsNode *geom = find_component(DEPSNODE_TYPE_GEOMETRY);
-	ComponentDepsNode *proxy = find_component(DEPSNODE_TYPE_PROXY);
-	ComponentDepsNode *pose = find_component(DEPSNODE_TYPE_EVAL_POSE);
-	ComponentDepsNode *psys = find_component(DEPSNODE_TYPE_EVAL_PARTICLES);
-	ComponentDepsNode *seq = find_component(DEPSNODE_TYPE_SEQUENCER);
-	
-	/* enforce (gross) ordering of these components................................................. */
-	// TODO: create relationships to do this...
-	
-	/* parameters should always exist... */
-	#pragma message("DEPSGRAPH PORTING XXX: params not always created, assert disabled for now")
-//	BLI_assert(params != NULL);
-	BLI_addhead(&dummy_list, params);
-	
-	/* anim before params */
-	if (anim && params) {
-		BLI_addhead(&dummy_list, anim);
-	}
-	
-	/* proxy before anim (or params) */
-	if (proxy) {
-		BLI_addhead(&dummy_list, proxy);
-	}
-	
-	/* transform after params */
-	if (trans) {
-		BLI_addtail(&dummy_list, trans);
-	}
-	
-	/* geometry after transform */
-	if (geom) {
-		BLI_addtail(&dummy_list, geom);
-	}
-	
-	/* pose eval after transform */
-	if (pose) {
-		BLI_addtail(&dummy_list, pose);
-	}
-#endif
-	
-	/* for each component, validate it's internal nodes ............................................ */
-	
-	/* NOTE: this is done after the component-level restrictions are done,
-	 * so that we can take those restrictions as a guide for our low-level
-	 * component restrictions...
-	 */
-	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin(); it != this->components.end(); ++it) {
-		DepsNode *component = it->second;
-		component->validate_links(graph);
 	}
 }
 
@@ -302,16 +235,10 @@ void SubgraphDepsNode::copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *s
 	/* for now, subgraph itself isn't copied... */
 }
 
-void SubgraphDepsNode::build_operations(const OperationBuilder &builder) const
+void SubgraphDepsNode::build_operations(const OperationBuilder &builder)
 {
 	if (graph)
 		graph->build_operations(builder);
-}
-
-/* Validate subgraph links... */
-void SubgraphDepsNode::validate_links(Depsgraph *graph)
-{
-	
 }
 
 DEG_DEPSNODE_DEFINE(SubgraphDepsNode, DEPSNODE_TYPE_SUBGRAPH, "Subgraph Node");

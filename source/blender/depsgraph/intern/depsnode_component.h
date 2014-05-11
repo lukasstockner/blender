@@ -100,37 +100,37 @@ struct ComponentDepsNode : public DepsNode {
 /* ---------------------------------------- */
 
 struct ParametersComponentDepsNode : public ComponentDepsNode {
-	void build_operations(const OperationBuilder &builder) const;
+	void build_operations(const OperationBuilder &builder);
 	
 	DEG_DEPSNODE_DECLARE;
 };
 
 struct AnimationComponentDepsNode : public ComponentDepsNode {
-	void build_operations(const OperationBuilder &builder) const;
+	void build_operations(const OperationBuilder &builder);
 	
 	DEG_DEPSNODE_DECLARE;
 };
 
 struct TransformComponentDepsNode : public ComponentDepsNode {
-	void build_operations(const OperationBuilder &builder) const;
+	void build_operations(const OperationBuilder &builder);
 	
 	DEG_DEPSNODE_DECLARE;
 };
 
 struct ProxyComponentDepsNode : public ComponentDepsNode {
-	void build_operations(const OperationBuilder &builder) const;
+	void build_operations(const OperationBuilder &builder);
 	
 	DEG_DEPSNODE_DECLARE;
 };
 
 struct GeometryComponentDepsNode : public ComponentDepsNode {
-	void build_operations(const OperationBuilder &builder) const;
+	void build_operations(const OperationBuilder &builder);
 	
 	DEG_DEPSNODE_DECLARE;
 };
 
 struct SequencerComponentDepsNode : public ComponentDepsNode {
-	void build_operations(const OperationBuilder &builder) const;
+	void build_operations(const OperationBuilder &builder);
 	
 	DEG_DEPSNODE_DECLARE;
 };
@@ -148,9 +148,7 @@ struct PoseComponentDepsNode : public ComponentDepsNode {
 	void copy(DepsgraphCopyContext *dcc, const PoseComponentDepsNode *src);
 	~PoseComponentDepsNode();
 	
-	void build_operations(const OperationBuilder &builder) const;
-	
-	void validate_links(Depsgraph *graph);
+	void build_operations(const OperationBuilder &builder);
 	
 	BoneComponentMap bone_hash; /* hash for quickly finding bone components */
 	
@@ -161,9 +159,7 @@ struct PoseComponentDepsNode : public ComponentDepsNode {
 struct BoneComponentDepsNode : public ComponentDepsNode {
 	void init(const ID *id, const string &subdata);
 	
-	void build_operations(const OperationBuilder &builder) const;
-	
-	void validate_links(Depsgraph *graph);
+	void build_operations(const OperationBuilder &builder);
 	
 	PoseComponentDepsNode *pose_owner;
 	struct bPoseChannel *pchan;     /* the bone that this component represents */

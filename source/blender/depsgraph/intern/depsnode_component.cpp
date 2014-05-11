@@ -142,7 +142,7 @@ void ComponentDepsNode::tag_update(Depsgraph *graph)
 
 /* Parameter Component Defines ============================ */
 
-void ParametersComponentDepsNode::build_operations(const OperationBuilder &builder) const
+void ParametersComponentDepsNode::build_operations(const OperationBuilder &builder)
 {
 	/* XXX TODO */
 }
@@ -152,7 +152,7 @@ static DepsNodeFactoryImpl<ParametersComponentDepsNode> DNTI_PARAMETERS;
 
 /* Animation Component Defines ============================ */
 
-void AnimationComponentDepsNode::build_operations(const OperationBuilder &builder) const
+void AnimationComponentDepsNode::build_operations(const OperationBuilder &builder)
 {
 	/* XXX TODO */
 }
@@ -162,7 +162,7 @@ static DepsNodeFactoryImpl<AnimationComponentDepsNode> DNTI_ANIMATION;
 
 /* Transform Component Defines ============================ */
 
-void TransformComponentDepsNode::build_operations(const OperationBuilder &builder) const
+void TransformComponentDepsNode::build_operations(const OperationBuilder &builder)
 {
 	/* XXX TODO */
 }
@@ -172,7 +172,7 @@ static DepsNodeFactoryImpl<TransformComponentDepsNode> DNTI_TRANSFORM;
 
 /* Proxy Component Defines ================================ */
 
-void ProxyComponentDepsNode::build_operations(const OperationBuilder &builder) const
+void ProxyComponentDepsNode::build_operations(const OperationBuilder &builder)
 {
 	/* XXX TODO */
 }
@@ -182,7 +182,7 @@ static DepsNodeFactoryImpl<ProxyComponentDepsNode> DNTI_PROXY;
 
 /* Geometry Component Defines ============================= */
 
-void GeometryComponentDepsNode::build_operations(const OperationBuilder &builder) const
+void GeometryComponentDepsNode::build_operations(const OperationBuilder &builder)
 {
 	/* XXX TODO */
 }
@@ -192,7 +192,7 @@ static DepsNodeFactoryImpl<GeometryComponentDepsNode> DNTI_GEOMETRY;
 
 /* Sequencer Component Defines ============================ */
 
-void SequencerComponentDepsNode::build_operations(const OperationBuilder &builder) const
+void SequencerComponentDepsNode::build_operations(const OperationBuilder &builder)
 {
 	/* XXX TODO */
 }
@@ -201,11 +201,6 @@ DEG_DEPSNODE_DEFINE(SequencerComponentDepsNode, DEPSNODE_TYPE_SEQUENCER, "Sequen
 static DepsNodeFactoryImpl<SequencerComponentDepsNode> DNTI_SEQUENCER;
 
 /* Pose Component ========================================= */
-
-void PoseComponentDepsNode::build_operations(const OperationBuilder &builder) const
-{
-	/* XXX TODO */
-}
 
 BoneComponentDepsNode *PoseComponentDepsNode::find_bone_component(const string &name) const
 {
@@ -272,12 +267,10 @@ PoseComponentDepsNode::~PoseComponentDepsNode()
 	clear_bone_components();
 }
 
-/* Validate links for pose evaluation */
-void PoseComponentDepsNode::validate_links(Depsgraph *graph)
+void PoseComponentDepsNode::build_operations(const OperationBuilder &builder)
 {
 	/* create our core operations... */
-	if (!this->bone_hash.empty() || !this->operations.empty()) {
-		OperationDepsNode *rebuild_op, *init_op, *cleanup_op;
+	if (!this->bone_hash.empty()) {
 		IDDepsNode *owner_node = (IDDepsNode *)this->owner;
 		Object *ob;
 		ID *id;
@@ -289,35 +282,30 @@ void PoseComponentDepsNode::validate_links(Depsgraph *graph)
 		ob = (Object *)id;
 		
 		/* create standard pose evaluation start/end hooks */
-		rebuild_op = add_operation(DEPSNODE_TYPE_OP_POSE,
-		                           DEPSOP_TYPE_REBUILD, BKE_pose_rebuild_op,
-		                           "Rebuild Pose");
-		RNA_pointer_create(id, &RNA_Pose, ob->pose, &rebuild_op->ptr);
+		OperationDepsNode *rebuild_op = builder.add_operation_node(this, DEPSNODE_TYPE_OP_POSE,
+		                                                           DEPSOP_TYPE_REBUILD, BKE_pose_rebuild_op, "Rebuild Pose",
+		                                                           make_rna_pointer(id, &RNA_Pose, ob->pose));
 		
-		init_op = add_operation(DEPSNODE_TYPE_OP_POSE,
-		                        DEPSOP_TYPE_INIT, BKE_pose_eval_init,
-		                        "Init Pose Eval");
-		RNA_pointer_create(id, &RNA_Pose, ob->pose, &init_op->ptr);
+		OperationDepsNode *init_op = builder.add_operation_node(this, DEPSNODE_TYPE_OP_POSE,
+		                                                           DEPSOP_TYPE_INIT, BKE_pose_eval_init, "Init Pose Eval",
+		                                                           make_rna_pointer(id, &RNA_Pose, ob->pose));
 		
-		cleanup_op = add_operation(DEPSNODE_TYPE_OP_POSE,
-		                           DEPSOP_TYPE_POST, BKE_pose_eval_flush,
-		                           "Flush Pose Eval");
-		RNA_pointer_create(id, &RNA_Pose, ob->pose, &cleanup_op->ptr);
-		
+		OperationDepsNode *cleanup_op = builder.add_operation_node(this, DEPSNODE_TYPE_OP_POSE,
+		                                                           DEPSOP_TYPE_POST, BKE_pose_eval_flush, "Flush Pose Eval",
+		                                                           make_rna_pointer(id, &RNA_Pose, ob->pose));
 		
 		/* attach links between these operations */
-		graph->add_new_relation(rebuild_op, init_op,    DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
-		graph->add_new_relation(init_op,    cleanup_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
+		builder.add_relation(rebuild_op, init_op,    DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
+		builder.add_relation(init_op,    cleanup_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
 		
 		/* NOTE: bones will attach themselves to these endpoints */
 	}
 	
-	/* ensure that each bone has been validated... */
+	/* ensure that bone operations are generated */
 	for (PoseComponentDepsNode::BoneComponentMap::const_iterator it = this->bone_hash.begin(); it != this->bone_hash.end(); ++it) {
 		DepsNode *bone_comp = it->second;
-		/* recursively validate the links within bone component */
 		// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
-		bone_comp->validate_links(graph);
+		bone_comp->build_operations(builder);
 	}
 }
 
@@ -325,11 +313,6 @@ DEG_DEPSNODE_DEFINE(PoseComponentDepsNode, DEPSNODE_TYPE_EVAL_POSE, "Pose Eval C
 static DepsNodeFactoryImpl<PoseComponentDepsNode> DNTI_EVAL_POSE;
 
 /* Bone Component ========================================= */
-
-void BoneComponentDepsNode::build_operations(const OperationBuilder &builder) const
-{
-	/* XXX TODO */
-}
 
 /* Initialise 'bone component' node - from pointer data given */
 void BoneComponentDepsNode::init(const ID *id, const string &subdata)
@@ -345,6 +328,24 @@ void BoneComponentDepsNode::init(const ID *id, const string &subdata)
 	this->pchan = BKE_pose_channel_find_name(ob->pose, subdata.c_str());
 }
 
+void BoneComponentDepsNode::build_operations(const OperationBuilder &builder)
+{
+	bPoseChannel *pchan = this->pchan;
+	
+	OperationDepsNode *btrans_op = this->find_operation("Bone Transforms");
+	OperationDepsNode *final_op = NULL;  /* normal final-evaluation operation */
+	OperationDepsNode *ik_op = NULL;     /* IK Solver operation */
+	
+	BLI_assert(btrans_op != NULL);
+	
+	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
+	if (pchan->parent == NULL) {
+		OperationDepsNode *pinit_op = pose_owner->find_operation("Init Pose Eval");
+		builder.add_relation(pinit_op, btrans_op, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
+	}
+}
+
+#if 0 /* XXX unused, remove after porting to build_operations */
 /* Validate 'bone component' links... 
  * - Re-route all component-level relationships to the nodes 
  */
@@ -365,7 +366,7 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 		graph->add_new_relation(pinit_op, btrans_op, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
 	}
 	
-#if 0 /* XXX TODO this should happen by translating links on components directly to operation links! */
+	/* XXX TODO this should happen by translating links on components directly to operation links! */
 	/* inlinks destination should all go to the "Bone Transforms" operation */
 	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
 	{
@@ -433,8 +434,8 @@ void BoneComponentDepsNode::validate_links(Depsgraph *graph)
 		DepsNode *ppost_op = this->find_operation("Cleanup Pose Eval");
 		graph->add_new_relation(final_op, ppost_op, DEPSREL_TYPE_OPERATION, "PoseEval Sink-Bone Link");
 	}
-#endif
 }
+#endif
 
 DEG_DEPSNODE_DEFINE(BoneComponentDepsNode, DEPSNODE_TYPE_BONE, "Bone Component");
 static DepsNodeFactoryImpl<BoneComponentDepsNode> DNTI_BONE;

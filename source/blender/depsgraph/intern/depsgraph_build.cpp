@@ -245,11 +245,17 @@ OperationBuilder::OperationBuilder(Depsgraph *graph) :
 
 OperationDepsNode *OperationBuilder::add_operation_node(ComponentDepsNode *comp_node, eDepsNode_Type type, eDepsOperation_Type optype,
                                                         DepsEvalOperationCb op, const string &description,
-                                                        PointerRNA ptr)
+                                                        PointerRNA ptr) const
 {
 	OperationDepsNode *op_node = comp_node->add_operation(type, optype, op, description);
 	op_node->ptr = ptr;
 	return op_node;
+}
+
+void OperationBuilder::add_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
+                                    eDepsRelation_Type type, const string &description) const
+{
+	m_graph->add_new_relation(node_from, node_to, type, description);
 }
 
 
@@ -383,9 +389,6 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	graph->build_operations(op_builder);
 	
 #if 0
-	/* ensure that all implicit constraints between nodes are satisfied */
-	DEG_graph_validate_links(graph);
-	
 	/* sort nodes to determine evaluation order (in most cases) */
 	DEG_graph_sort(graph);
 #endif

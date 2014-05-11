@@ -144,11 +144,6 @@ struct Depsgraph {
 	
 	void build_operations(const OperationBuilder &builder) const;
 	
-	/* Ensure that all implicit constraints between nodes are satisfied 
-	 * (e.g. components are only allowed to be executed in a certain order)
-	 */
-	void validate_links();
-	
 	/* Sort nodes to determine evaluation order for operation nodes
 	 * where dependency relationships won't get violated.
 	 */

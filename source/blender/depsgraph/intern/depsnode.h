@@ -78,11 +78,8 @@ public:
 	virtual void init(const ID *id, const string &subdata) {}
 	virtual void copy(DepsgraphCopyContext *dcc, const DepsNode *src) {}
 	
-	virtual void build_operations(const OperationBuilder &builder) const = 0;
-	
-	/* Recursively ensure that all implicit/builtin link rules have been applied */
-	/* i.e. init()/cleanup() callbacks as last items for components + component ordering rules obeyed */
-	virtual void validate_links(Depsgraph *graph) {}
+	/* Generate inner nodes */
+	virtual void build_operations(const OperationBuilder &builder) = 0;
 	
 	virtual OperationDepsNode *find_entry_operation() const { return NULL; }
 	virtual OperationDepsNode *find_exit_operation() const { return NULL; }
@@ -109,7 +106,7 @@ struct ComponentDepsNode;
 struct TimeSourceDepsNode : public DepsNode {
 	// XXX: how do we keep track of the chain of time sources for propagation of delays?
 	
-	void build_operations(const OperationBuilder &builder) const;
+	void build_operations(const OperationBuilder &builder);
 	
 	double cfra;                    /* new "current time" */
 	double offset;                  /* time-offset relative to the "official" time source that this one has */
@@ -121,7 +118,7 @@ struct TimeSourceDepsNode : public DepsNode {
 struct RootDepsNode : public DepsNode {
 	TimeSourceDepsNode *add_time_source(const string &name = "");
 	
-	void build_operations(const OperationBuilder &builder) const;
+	void build_operations(const OperationBuilder &builder);
 	
 	struct Scene *scene;             /* scene that this corresponds to */
 	TimeSourceDepsNode *time_source; /* entrypoint node for time-changed */
@@ -142,9 +139,7 @@ struct IDDepsNode : public DepsNode {
 	void remove_component(eDepsNode_Type type);
 	void clear_components();
 	
-	void build_operations(const OperationBuilder &builder) const;
-	
-	void validate_links(Depsgraph *graph);
+	void build_operations(const OperationBuilder &builder);
 	
 	void tag_update(Depsgraph *graph);
 	
@@ -160,9 +155,7 @@ struct SubgraphDepsNode : public DepsNode {
 	void copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src);
 	~SubgraphDepsNode();
 	
-	void build_operations(const OperationBuilder &builder) const;
-	
-	void validate_links(Depsgraph *graph);
+	void build_operations(const OperationBuilder &builder);
 	
 	Depsgraph *graph;        /* instanced graph */
 	struct ID *root_id;      /* ID-block at root of subgraph (if applicable) */
