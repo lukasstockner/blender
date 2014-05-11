@@ -673,6 +673,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	MCol *mcol;
 	int i, orig;
 	int colType, startFace = 0;
+	bool use_tface = uvflag & DM_DRAW_USE_ACTIVE_UV;
 
 	/* double lookup */
 	const int *index_mf_to_mpoly = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);
@@ -751,7 +752,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			tf_stencil = tf_stencil_base ? tf_stencil_base + i : NULL;
 
 			if (drawParams) {
-				draw_option = drawParams(tf, (mcol != NULL), mf->mat_nr);
+				draw_option = drawParams(use_tface ? tf : NULL, (mcol != NULL), mf->mat_nr);
 			}
 			else {
 				if (index_mf_to_mpoly) {
@@ -870,7 +871,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 					next_actualFace = dm->drawObject->triangle_to_mface[i + 1];
 
 				if (drawParams) {
-					draw_option = drawParams(tf ? &tf[actualFace] : NULL, (mcol != NULL), mf[actualFace].mat_nr);
+					draw_option = drawParams(use_tface && tf ? &tf[actualFace] : NULL, (mcol != NULL), mf[actualFace].mat_nr);
 				}
 				else {
 					if (index_mf_to_mpoly) {
