@@ -430,7 +430,7 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh)
 		GLuint program = bindProgram(mesh, patch, gl_mesh->level);
 		GLuint diffuseColor = glGetUniformLocation(program, "diffuseColor");
 
-		glProgramUniform4f(program, diffuseColor, 0.4f, 0.4f, 0.8f, 1);
+		glProgramUniform4f(program, diffuseColor, 0.8f, 0.8f, 0.8f, 1);
 
 		GLuint uniformGregoryQuadOffsetBase =
 			glGetUniformLocation(program, "GregoryQuadOffsetBase");
