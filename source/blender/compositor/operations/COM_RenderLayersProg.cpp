@@ -89,7 +89,6 @@ void RenderLayersBaseProg::doInterpolation(float output[4], float x, float y, Pi
 				else
 					zero_v4(output);
 				break;
-				
 			}
 
 			offset = (iy * width + ix) * this->m_elementsize;
@@ -139,15 +138,15 @@ void RenderLayersBaseProg::executePixelSampled(float output[4], float x, float y
 #endif
 
 	if (this->m_inputBuffer == NULL) {
-        int elemsize = this->m_elementsize;
-        if (elemsize == 1) {
-            output[0] = 0.0f;
-        }
-        else if (elemsize == 3) {
-                zero_v3(output);
-        } else {
-            zero_v4(output);
-        }
+		int elemsize = this->m_elementsize;
+		if (elemsize == 1) {
+			output[0] = 0.0f;
+		}
+		else if (elemsize == 3) {
+			zero_v3(output);
+		} else {
+			zero_v4(output);
+		}
 	}
 	else {
 		doInterpolation(output, ix, iy, sampler);
