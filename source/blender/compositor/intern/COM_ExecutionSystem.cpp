@@ -98,7 +98,7 @@ ExecutionSystem::ExecutionSystem(RenderData *rd, Scene *scene, bNodeTree *editin
 		}
 	}
 
-//	DebugInfo::graphviz(this);
+    DebugInfo::graphviz(this);
 }
 
 ExecutionSystem::~ExecutionSystem()

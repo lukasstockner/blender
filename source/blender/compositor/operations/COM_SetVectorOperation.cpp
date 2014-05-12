@@ -33,7 +33,7 @@ void SetVectorOperation::executePixelSampled(float output[4], float x, float y, 
 	output[0] = this->m_x;
 	output[1] = this->m_y;
 	output[2] = this->m_z;
-	output[3] = this->m_w;
+//	output[3] = this->m_w; not supported anymore?
 }
 
 void SetVectorOperation::determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2])

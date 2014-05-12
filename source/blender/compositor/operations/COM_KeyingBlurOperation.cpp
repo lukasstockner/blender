@@ -63,7 +63,7 @@ void KeyingBlurOperation::executePixel(float output[4], int x, int y, void *data
 			int cx = x + i;
 
 			if (cx >= 0 && cx < bufferWidth) {
-				int bufferIndex = (y * bufferWidth + cx) * 4;
+                int bufferIndex = (y * bufferWidth + cx);
 
 				average += buffer[bufferIndex];
 				count++;
@@ -75,7 +75,7 @@ void KeyingBlurOperation::executePixel(float output[4], int x, int y, void *data
 			int cy = y + i;
 
 			if (cy >= 0 && cy < bufferHeight) {
-				int bufferIndex = (cy * bufferWidth + x) * 4;
+                int bufferIndex = (cy * bufferWidth + x);
 
 				average += buffer[bufferIndex];
 				count++;

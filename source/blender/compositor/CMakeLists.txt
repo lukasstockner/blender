@@ -74,6 +74,12 @@ set(SRC
 	intern/COM_MemoryProxy.h
 	intern/COM_MemoryBuffer.cpp
 	intern/COM_MemoryBuffer.h
+	intern/COM_MemoryBufferColor.cpp
+	intern/COM_MemoryBufferColor.h
+	intern/COM_MemoryBufferVector.cpp
+	intern/COM_MemoryBufferVector.h
+	intern/COM_MemoryBufferValue.cpp
+	intern/COM_MemoryBufferValue.h
 	intern/COM_WorkScheduler.cpp
 	intern/COM_WorkScheduler.h
 	intern/COM_WorkPackage.cpp
@@ -90,8 +96,6 @@ set(SRC
 	intern/COM_OpenCLDevice.h
 	intern/COM_CompositorContext.cpp
 	intern/COM_CompositorContext.h
-	intern/COM_ChannelInfo.cpp
-	intern/COM_ChannelInfo.h
 	intern/COM_SingleThreadedOperation.cpp
 	intern/COM_SingleThreadedOperation.h
 	intern/COM_Debug.cpp

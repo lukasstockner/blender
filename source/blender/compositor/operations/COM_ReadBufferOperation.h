@@ -33,7 +33,7 @@ private:
 	unsigned int m_offset;
 	MemoryBuffer *m_buffer;
 public:
-	ReadBufferOperation();
+    ReadBufferOperation(DataType type);
 	void setMemoryProxy(MemoryProxy *memoryProxy) { this->m_memoryProxy = memoryProxy; }
 	MemoryProxy *getMemoryProxy() { return this->m_memoryProxy; }
 	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);

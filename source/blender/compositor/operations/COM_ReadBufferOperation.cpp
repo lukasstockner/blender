@@ -24,9 +24,9 @@
 #include "COM_WriteBufferOperation.h"
 #include "COM_defines.h"
 
-ReadBufferOperation::ReadBufferOperation() : NodeOperation()
+ReadBufferOperation::ReadBufferOperation(DataType type) : NodeOperation()
 {
-	this->addOutputSocket(COM_DT_COLOR);
+    this->addOutputSocket(type);
 	this->m_single_value = false;
 	this->m_offset = 0;
 	this->m_buffer = NULL;

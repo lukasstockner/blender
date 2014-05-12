@@ -104,7 +104,7 @@ void *NormalizeOperation::initializeTileData(rcti *rect)
 			if ((value < minv) && (value >= -BLENDER_ZMAX)) {
 				minv = value;
 			}
-			bc += 4;
+            bc += COM_NO_CHANNELS_VALUE;
 		}
 
 		minmult->x = minv;
