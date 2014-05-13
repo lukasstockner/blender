@@ -63,21 +63,24 @@ extern "C" {
 void DEG_id_tag_update(Depsgraph *graph, const ID *id)
 {
 	IDDepsNode *node = graph->find_id_node(id);
-	node->tag_update(graph);
+	if (node)
+		node->tag_update(graph);
 }
 
 /* Tag nodes related to a specific piece of data */
 void DEG_data_tag_update(Depsgraph *graph, const PointerRNA *ptr)
 {
 	DepsNode *node = graph->find_node_from_pointer(ptr, NULL);
-	node->tag_update(graph);
+	if (node)
+		node->tag_update(graph);
 }
 
 /* Tag nodes related to a specific property */
 void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
 {
 	DepsNode *node = graph->find_node_from_pointer(ptr, prop);
-	node->tag_update(graph);
+	if (node)
+		node->tag_update(graph);
 }
 
 /* Update Flushing ---------------------------------- */
