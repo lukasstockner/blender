@@ -37,7 +37,6 @@ extern "C" {
 #include "depsnode_component.h" /* own include */
 #include "depsnode_operation.h"
 #include "depsgraph_intern.h"
-#include "depsgraph_build.h"
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
@@ -142,60 +141,30 @@ void ComponentDepsNode::tag_update(Depsgraph *graph)
 
 /* Parameter Component Defines ============================ */
 
-void ParametersComponentDepsNode::build_operations(const OperationBuilder &builder)
-{
-	/* XXX TODO */
-}
-
 DEG_DEPSNODE_DEFINE(ParametersComponentDepsNode, DEPSNODE_TYPE_PARAMETERS, "Parameters Component");
 static DepsNodeFactoryImpl<ParametersComponentDepsNode> DNTI_PARAMETERS;
 
 /* Animation Component Defines ============================ */
-
-void AnimationComponentDepsNode::build_operations(const OperationBuilder &builder)
-{
-	/* XXX TODO */
-}
 
 DEG_DEPSNODE_DEFINE(AnimationComponentDepsNode, DEPSNODE_TYPE_ANIMATION, "Animation Component");
 static DepsNodeFactoryImpl<AnimationComponentDepsNode> DNTI_ANIMATION;
 
 /* Transform Component Defines ============================ */
 
-void TransformComponentDepsNode::build_operations(const OperationBuilder &builder)
-{
-	/* XXX TODO */
-}
-
 DEG_DEPSNODE_DEFINE(TransformComponentDepsNode, DEPSNODE_TYPE_TRANSFORM, "Transform Component");
 static DepsNodeFactoryImpl<TransformComponentDepsNode> DNTI_TRANSFORM;
 
 /* Proxy Component Defines ================================ */
-
-void ProxyComponentDepsNode::build_operations(const OperationBuilder &builder)
-{
-	/* XXX TODO */
-}
 
 DEG_DEPSNODE_DEFINE(ProxyComponentDepsNode, DEPSNODE_TYPE_PROXY, "Proxy Component");
 static DepsNodeFactoryImpl<ProxyComponentDepsNode> DNTI_PROXY;
 
 /* Geometry Component Defines ============================= */
 
-void GeometryComponentDepsNode::build_operations(const OperationBuilder &builder)
-{
-	/* XXX TODO */
-}
-
 DEG_DEPSNODE_DEFINE(GeometryComponentDepsNode, DEPSNODE_TYPE_GEOMETRY, "Geometry Component");
 static DepsNodeFactoryImpl<GeometryComponentDepsNode> DNTI_GEOMETRY;
 
 /* Sequencer Component Defines ============================ */
-
-void SequencerComponentDepsNode::build_operations(const OperationBuilder &builder)
-{
-	/* XXX TODO */
-}
 
 DEG_DEPSNODE_DEFINE(SequencerComponentDepsNode, DEPSNODE_TYPE_SEQUENCER, "Sequencer Component");
 static DepsNodeFactoryImpl<SequencerComponentDepsNode> DNTI_SEQUENCER;
@@ -267,48 +236,6 @@ PoseComponentDepsNode::~PoseComponentDepsNode()
 	clear_bone_components();
 }
 
-void PoseComponentDepsNode::build_operations(const OperationBuilder &builder)
-{
-	/* create our core operations... */
-	if (!this->bone_hash.empty()) {
-		IDDepsNode *owner_node = (IDDepsNode *)this->owner;
-		Object *ob;
-		ID *id;
-		
-		/* get ID-block that pose-component belongs to */
-		BLI_assert(owner_node && owner_node->id);
-		
-		id = owner_node->id;
-		ob = (Object *)id;
-		
-		/* create standard pose evaluation start/end hooks */
-		OperationDepsNode *rebuild_op = builder.add_operation_node(this, DEPSNODE_TYPE_OP_POSE,
-		                                                           DEPSOP_TYPE_REBUILD, BKE_pose_rebuild_op, "Rebuild Pose",
-		                                                           make_rna_pointer(id, &RNA_Pose, ob->pose));
-		
-		OperationDepsNode *init_op = builder.add_operation_node(this, DEPSNODE_TYPE_OP_POSE,
-		                                                           DEPSOP_TYPE_INIT, BKE_pose_eval_init, "Init Pose Eval",
-		                                                           make_rna_pointer(id, &RNA_Pose, ob->pose));
-		
-		OperationDepsNode *cleanup_op = builder.add_operation_node(this, DEPSNODE_TYPE_OP_POSE,
-		                                                           DEPSOP_TYPE_POST, BKE_pose_eval_flush, "Flush Pose Eval",
-		                                                           make_rna_pointer(id, &RNA_Pose, ob->pose));
-		
-		/* attach links between these operations */
-		builder.add_relation(rebuild_op, init_op,    DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
-		builder.add_relation(init_op,    cleanup_op, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
-		
-		/* NOTE: bones will attach themselves to these endpoints */
-	}
-	
-	/* ensure that bone operations are generated */
-	for (PoseComponentDepsNode::BoneComponentMap::const_iterator it = this->bone_hash.begin(); it != this->bone_hash.end(); ++it) {
-		DepsNode *bone_comp = it->second;
-		// NOTE: this ends up hooking up the IK Solver(s) here to the relevant final bone operations...
-		bone_comp->build_operations(builder);
-	}
-}
-
 DEG_DEPSNODE_DEFINE(PoseComponentDepsNode, DEPSNODE_TYPE_EVAL_POSE, "Pose Eval Component");
 static DepsNodeFactoryImpl<PoseComponentDepsNode> DNTI_EVAL_POSE;
 
@@ -327,115 +254,6 @@ void BoneComponentDepsNode::init(const ID *id, const string &subdata)
 	Object *ob = (Object *)id;
 	this->pchan = BKE_pose_channel_find_name(ob->pose, subdata.c_str());
 }
-
-void BoneComponentDepsNode::build_operations(const OperationBuilder &builder)
-{
-	bPoseChannel *pchan = this->pchan;
-	
-	OperationDepsNode *btrans_op = this->find_operation("Bone Transforms");
-	OperationDepsNode *final_op = NULL;  /* normal final-evaluation operation */
-	OperationDepsNode *ik_op = NULL;     /* IK Solver operation */
-	
-	BLI_assert(btrans_op != NULL);
-	
-	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
-	if (pchan->parent == NULL) {
-		OperationDepsNode *pinit_op = pose_owner->find_operation("Init Pose Eval");
-		builder.add_relation(pinit_op, btrans_op, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
-	}
-}
-
-#if 0 /* XXX unused, remove after porting to build_operations */
-/* Validate 'bone component' links... 
- * - Re-route all component-level relationships to the nodes 
- */
-void BoneComponentDepsNode::validate_links(Depsgraph *graph)
-{
-	PoseComponentDepsNode *pcomp = (PoseComponentDepsNode *)this->owner;
-	bPoseChannel *pchan = this->pchan;
-	
-	OperationDepsNode *btrans_op = this->find_operation("Bone Transforms");
-	OperationDepsNode *final_op = NULL;  /* normal final-evaluation operation */
-	OperationDepsNode *ik_op = NULL;     /* IK Solver operation */
-	
-	BLI_assert(btrans_op != NULL);
-	
-	/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
-	if (pchan->parent == NULL) {
-		OperationDepsNode *pinit_op = pcomp->find_operation("Init Pose Eval");
-		graph->add_new_relation(pinit_op, btrans_op, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
-	}
-	
-	/* XXX TODO this should happen by translating links on components directly to operation links! */
-	/* inlinks destination should all go to the "Bone Transforms" operation */
-	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
-	{
-		/* add equivalent relation to the bone transform operation */
-		graph->add_new_relation(rel->from, btrans_op, rel->type, rel->name);
-	}
-	DEPSNODE_RELATIONS_ITER_END;
-	
-	/* outlink source target depends on what we might have:
-	 * 1) Transform only - No constraints at all
-	 * 2) Constraints node - Just plain old constraints
-	 * 3) IK Solver node - If part of IK chain...
-	 */
-	if (pchan->constraints.first) {
-		/* find constraint stack operation */
-		final_op = this->find_operation("Constraint Stack");
-	}
-	else {
-		/* just normal transforms */
-		final_op = btrans_op;
-	}
-	
-	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
-	{
-		/* Technically, the last evaluation operation on these
-		 * should be IK if present. Since, this link is actually
-		 * present in the form of one or more of the ops, we'll
-		 * take the first one that comes (during a first pass)
-		 * (XXX: there's potential here for problems with forked trees) 
-		 */
-		if (rel->name == "IK Solver Update") {
-			ik_op = rel->to;
-			break;
-		}
-	}
-	DEPSNODE_RELATIONS_ITER_END;
-	
-	/* fix up outlink refs */
-	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
-	{
-		if (ik_op) {
-			/* bone is part of IK Chain... */
-			if (rel->to == ik_op) {
-				/* can't have ik to ik, so use final "normal" bone transform 
-				 * as indicator to IK Solver that it is ready to run 
-				 */
-				graph->add_new_relation(final_op, rel->to, rel->type, rel->name);
-			}
-			else {
-				/* everything which depends on result of this bone needs to know 
-				 * about the IK result too!
-				 */
-				graph->add_new_relation(ik_op, rel->to, rel->type, rel->name);
-			}
-		}
-		else {
-			/* bone is not part of IK Chains... */
-			graph->add_new_relation(final_op, rel->to, rel->type, rel->name);
-		}
-	}
-	DEPSNODE_RELATIONS_ITER_END;
-	
-	/* link bone/component to pose "sinks" as final link, unless it has obvious quirks */
-	{
-		DepsNode *ppost_op = this->find_operation("Cleanup Pose Eval");
-		graph->add_new_relation(final_op, ppost_op, DEPSREL_TYPE_OPERATION, "PoseEval Sink-Bone Link");
-	}
-}
-#endif
 
 DEG_DEPSNODE_DEFINE(BoneComponentDepsNode, DEPSNODE_TYPE_BONE, "Bone Component");
 static DepsNodeFactoryImpl<BoneComponentDepsNode> DNTI_BONE;

@@ -585,10 +585,20 @@ void DepsgraphNodeBuilder::build_rig(IDDepsNode *ob_node, Object *ob)
 	 */
 	// TODO: rest pose/editmode handling!
 	
-	/* pose eval context 
-	 * NOTE: init/cleanup steps for this are handled as part of the node's code
-	 */
-	/*PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)*/add_component_node(ob_node, DEPSNODE_TYPE_EVAL_POSE);
+	/* pose eval context */
+	PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)add_component_node(ob_node, DEPSNODE_TYPE_EVAL_POSE);
+	
+	add_operation_node(pose_node, DEPSNODE_TYPE_OP_POSE,
+	                   DEPSOP_TYPE_REBUILD, BKE_pose_rebuild_op, deg_op_name_pose_rebuild,
+	                   make_rna_pointer(ob, &RNA_Pose, ob->pose));
+	
+	add_operation_node(pose_node, DEPSNODE_TYPE_OP_POSE,
+	                   DEPSOP_TYPE_INIT, BKE_pose_eval_init, deg_op_name_pose_eval_init,
+	                   make_rna_pointer(ob, &RNA_Pose, ob->pose));
+	
+	add_operation_node(pose_node, DEPSNODE_TYPE_OP_POSE,
+	                   DEPSOP_TYPE_POST, BKE_pose_eval_flush, deg_op_name_pose_eval_flush,
+	                   make_rna_pointer(ob, &RNA_Pose, ob->pose));
 	
 	/* bones */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {

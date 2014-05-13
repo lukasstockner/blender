@@ -103,20 +103,6 @@ private:
 	Depsgraph *m_graph;
 };
 
-struct OperationBuilder {
-	OperationBuilder(Depsgraph *graph);
-	
-	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node, eDepsNode_Type type, eDepsOperation_Type optype,
-	                                      DepsEvalOperationCb op, const string &description,
-	                                      PointerRNA ptr) const;
-	
-	void add_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
-	                  eDepsRelation_Type type, const string &description) const;
-	
-private:
-	Depsgraph *m_graph;
-};
-
 struct RootKey
 {
 	RootKey() {}

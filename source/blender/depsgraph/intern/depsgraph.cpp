@@ -209,14 +209,6 @@ DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from, OperationDeps
 	return rel;
 }
 
-void Depsgraph::build_operations(const OperationBuilder &builder) const
-{
-	for (Depsgraph::IDNodeMap::const_iterator it = this->id_hash.begin(); it != this->id_hash.end(); ++it) {
-		DepsNode *node = it->second;
-		node->build_operations(builder);
-	}
-}
-
 /* Sort nodes to determine evaluation order for operation nodes
  * where dependency relationships won't get violated.
  */

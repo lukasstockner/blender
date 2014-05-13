@@ -236,30 +236,6 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(IDDepsNode *id_node,
 
 
 /* ************************************************* */
-/* Operation Builder */
-
-OperationBuilder::OperationBuilder(Depsgraph *graph) :
-    m_graph(graph)
-{
-}
-
-OperationDepsNode *OperationBuilder::add_operation_node(ComponentDepsNode *comp_node, eDepsNode_Type type, eDepsOperation_Type optype,
-                                                        DepsEvalOperationCb op, const string &description,
-                                                        PointerRNA ptr) const
-{
-	OperationDepsNode *op_node = comp_node->add_operation(type, optype, op, description);
-	op_node->ptr = ptr;
-	return op_node;
-}
-
-void OperationBuilder::add_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
-                                    eDepsRelation_Type type, const string &description) const
-{
-	m_graph->add_new_relation(node_from, node_to, type, description);
-}
-
-
-/* ************************************************* */
 /* Relations Builder */
 
 RNAPathKey::RNAPathKey(IDPtr id, const string &path) :
@@ -383,10 +359,6 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	/* hook scene up to the root node as entrypoint to graph */
 	relation_builder.add_relation(RootKey(), IDKey(scene), DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
 	relation_builder.build_scene(scene);
-	
-	/* add internal nodes (operations) for all components */
-	OperationBuilder op_builder(graph);
-	graph->build_operations(op_builder);
 	
 #if 0
 	/* sort nodes to determine evaluation order (in most cases) */

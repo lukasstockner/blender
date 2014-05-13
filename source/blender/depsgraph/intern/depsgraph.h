@@ -56,8 +56,6 @@ struct SubgraphDepsNode;
 struct ComponentDepsNode;
 struct OperationDepsNode;
 
-struct OperationBuilder;
-
 
 /* ************************************* */
 /* Relationships Between Nodes */
@@ -141,8 +139,6 @@ struct Depsgraph {
 	DepsRelation *add_new_relation(OperationDepsNode *from, OperationDepsNode *to,
 	                               eDepsRelation_Type type, 
 	                               const string &description);
-	
-	void build_operations(const OperationBuilder &builder) const;
 	
 	/* Sort nodes to determine evaluation order for operation nodes
 	 * where dependency relationships won't get violated.

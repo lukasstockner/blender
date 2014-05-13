@@ -82,21 +82,10 @@ TimeSourceDepsNode *RootDepsNode::add_time_source(const string &name)
 	return time_source;
 }
 
-void RootDepsNode::build_operations(const OperationBuilder &builder)
-{
-	if (time_source)
-		time_source->build_operations(builder);
-}
-
 DEG_DEPSNODE_DEFINE(RootDepsNode, DEPSNODE_TYPE_ROOT, "Root DepsNode");
 static DepsNodeFactoryImpl<RootDepsNode> DNTI_ROOT;
 
 /* Time Source Node ======================================= */
-
-void TimeSourceDepsNode::build_operations(const OperationBuilder &builder)
-{
-	/* TODO */
-}
 
 DEG_DEPSNODE_DEFINE(TimeSourceDepsNode, DEPSNODE_TYPE_TIMESOURCE, "Time Source");
 static DepsNodeFactoryImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
@@ -182,14 +171,6 @@ void IDDepsNode::clear_components()
 	components.clear();
 }
 
-void IDDepsNode::build_operations(const OperationBuilder &builder)
-{
-	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin(); it != this->components.end(); ++it) {
-		DepsNode *component = it->second;
-		component->build_operations(builder);
-	}
-}
-
 void IDDepsNode::tag_update(Depsgraph *graph)
 {
 	for (ComponentMap::const_iterator it = components.begin(); it != components.end(); ++it) {
@@ -233,12 +214,6 @@ void SubgraphDepsNode::copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *s
 	//SubgraphDepsNode *dst_node       = (SubgraphDepsNode *)dst;
 	
 	/* for now, subgraph itself isn't copied... */
-}
-
-void SubgraphDepsNode::build_operations(const OperationBuilder &builder)
-{
-	if (graph)
-		graph->build_operations(builder);
 }
 
 DEG_DEPSNODE_DEFINE(SubgraphDepsNode, DEPSNODE_TYPE_SUBGRAPH, "Subgraph Node");

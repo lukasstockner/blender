@@ -714,6 +714,14 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	// TODO: we need a bit of an exception here to redirect drivers to posebones?
 	build_animdata(arm);
 	
+	/* attach links between base operations */
+	OperationKey rebuild_key(ob, DEPSNODE_TYPE_EVAL_POSE, deg_op_name_pose_rebuild);
+	OperationKey init_key(ob, DEPSNODE_TYPE_EVAL_POSE, deg_op_name_pose_eval_init);
+	OperationKey flush_key(ob, DEPSNODE_TYPE_EVAL_POSE, deg_op_name_pose_eval_flush);
+	
+	add_relation(rebuild_key, init_key, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
+	add_relation(init_key, flush_key, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
+	
 	/* bones */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		ComponentKey bone_key(ob, DEPSNODE_TYPE_BONE, pchan->name);
@@ -722,6 +730,10 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		if (pchan->parent) {
 			ComponentKey parent_key(ob, DEPSNODE_TYPE_BONE, pchan->parent->name);
 			add_relation(parent_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+		}
+		else {
+			/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
+			add_relation(init_key, bone_key, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
 		}
 		
 		/* constraints */
