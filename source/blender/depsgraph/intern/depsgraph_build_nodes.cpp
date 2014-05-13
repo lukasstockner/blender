@@ -221,7 +221,7 @@ IDDepsNode *DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 	IDDepsNode *ob_node = add_id_node(ob);
 	
 	/* standard components */
-	/*ComponentDepsNode *params_node =*/ add_component_node(ob_node, DEPSNODE_TYPE_OP_PARAMETER);
+	/*ComponentDepsNode *params_node =*/ add_component_node(ob_node, DEPSNODE_TYPE_PARAMETERS);
 	ComponentDepsNode *trans_node = build_object_transform(ob, ob_node);
 	
 	/* AnimData */

@@ -76,9 +76,6 @@ public:
 	virtual void init(const ID *id, const string &subdata) {}
 	virtual void copy(DepsgraphCopyContext *dcc, const DepsNode *src) {}
 	
-	virtual OperationDepsNode *find_entry_operation() const { return NULL; }
-	virtual OperationDepsNode *find_exit_operation() const { return NULL; }
-	
 	virtual void tag_update(Depsgraph *graph) {}
 	
 #ifdef WITH_CXX_GUARDEDALLOC

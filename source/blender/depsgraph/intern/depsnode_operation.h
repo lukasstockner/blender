@@ -96,6 +96,10 @@ struct OperationDepsNode : public DepsNode {
 #define DEG_DEPSNODE_OP_DEFINE(NodeType, type_, comp_type_, tname_) \
 	const DepsNode::TypeInfo NodeType::typeinfo = DepsNode::TypeInfo(type_, tname_, comp_type_)
 
+struct NoopDepsNode : public OperationDepsNode {
+	DEG_DEPSNODE_DECLARE;
+};
+
 struct ParametersOperationDepsNode : public OperationDepsNode {
 	DEG_DEPSNODE_DECLARE;
 };

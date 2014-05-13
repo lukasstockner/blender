@@ -71,6 +71,11 @@ void OperationDepsNode::tag_update(Depsgraph *graph)
 	graph->add_entry_tag(this);
 }
 
+/* No-Op ================================================== */
+
+DEG_DEPSNODE_OP_DEFINE(NoopDepsNode, DEPSNODE_TYPE_OP_NOOP, DEPSNODE_TYPE_UNDEFINED, "NoOp Operation");
+static DepsNodeFactoryImpl<NoopDepsNode> DNTI_OP_NOOP;
+
 /* Parameter Operation ==================================== */
 
 DEG_DEPSNODE_OP_DEFINE(ParametersOperationDepsNode, DEPSNODE_TYPE_OP_PARAMETER, DEPSNODE_TYPE_PARAMETERS, "Parameters Operation");
@@ -149,6 +154,8 @@ static DepsNodeFactoryImpl<RigidBodyOperationDepsNode> DNTI_OP_RIGIDBODY;
 
 void DEG_register_operation_depsnodes()
 {
+	DEG_register_node_typeinfo(&DNTI_OP_NOOP);
+	
 	DEG_register_node_typeinfo(&DNTI_OP_PARAMETERS);
 	DEG_register_node_typeinfo(&DNTI_OP_PROXY);
 	DEG_register_node_typeinfo(&DNTI_OP_ANIMATION);

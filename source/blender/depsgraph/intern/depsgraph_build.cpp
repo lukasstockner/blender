@@ -112,6 +112,7 @@ static eDepsNode_Type deg_build_scene_component_type(eDepsSceneComponentType com
 		case DEG_SCENE_COMP_ANIMATION:      return DEPSNODE_TYPE_ANIMATION;
 		case DEG_SCENE_COMP_SEQUENCER:      return DEPSNODE_TYPE_SEQUENCER;
 	}
+	return DEPSNODE_TYPE_UNDEFINED;
 }
 
 static eDepsNode_Type deg_build_object_component_type(eDepsObjectComponentType component)
@@ -126,6 +127,7 @@ static eDepsNode_Type deg_build_object_component_type(eDepsObjectComponentType c
 		case DEG_OB_COMP_BONE:              return DEPSNODE_TYPE_BONE;
 		case DEG_OB_COMP_EVAL_PARTICLES:    return DEPSNODE_TYPE_EVAL_PARTICLES;
 	}
+	return DEPSNODE_TYPE_UNDEFINED;
 }
 
 void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSceneComponentType component, const char *description)
@@ -234,6 +236,65 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(IDDepsNode *id_node,
 	return op_node;
 }
 
+void DepsgraphNodeBuilder::verify_entry_exit_operations(ComponentDepsNode *node)
+{
+	typedef std::vector<OperationDepsNode*> OperationsVector;
+	
+	/* cache these in a vector, so we don't invalidate the iterators
+	 * by adding operations inside the loop
+	 */
+	OperationsVector entry_ops, exit_ops;
+	
+	for (ComponentDepsNode::OperationMap::const_iterator it = node->operations.begin(); it != node->operations.end(); ++it) {
+		OperationDepsNode *op_node = it->second;
+		
+		/* entry node? */
+		if (op_node->inlinks.empty())
+			entry_ops.push_back(op_node);
+		
+		/* exit node? */
+		if (op_node->outlinks.empty())
+			exit_ops.push_back(op_node);
+	}
+	
+	if (entry_ops.size() == 1) {
+		/* single entry op, just use this directly */
+		node->entry_operation = entry_ops.front();
+	}
+	else if (entry_ops.size() > 1) {
+		/* multiple entry ops, add a barrier node as a single entry point */
+		node->entry_operation = node->add_operation(DEPSNODE_TYPE_OP_NOOP, DEPSOP_TYPE_INIT, NULL, "Entry");
+		for (OperationsVector::const_iterator it = entry_ops.begin(); it != entry_ops.end(); ++it) {
+			OperationDepsNode *op_node = *it;
+			m_graph->add_new_relation(node->entry_operation, op_node, DEPSREL_TYPE_OPERATION, "Component entry relation");
+		}
+	}
+	
+	if (exit_ops.size() == 1) {
+		/* single exit op, just use this directly */
+		node->exit_operation = exit_ops.front();
+	}
+	else if (exit_ops.size() > 1) {
+		/* multiple exit ops, add a barrier node as a single exit point */
+		node->exit_operation = node->add_operation(DEPSNODE_TYPE_OP_NOOP, DEPSOP_TYPE_OUT, NULL, "Exit");
+		for (OperationsVector::const_iterator it = exit_ops.begin(); it != exit_ops.end(); ++it) {
+			OperationDepsNode *op_node = *it;
+			m_graph->add_new_relation(op_node, node->exit_operation, DEPSREL_TYPE_OPERATION, "Component exit relation");
+		}
+	}
+}
+
+void DepsgraphNodeBuilder::verify_entry_exit_operations()
+{
+	for (Depsgraph::IDNodeMap::const_iterator it_id = m_graph->id_hash.begin(); it_id != m_graph->id_hash.end(); ++it_id) {
+		IDDepsNode *id_node = it_id->second;
+		for (IDDepsNode::ComponentMap::const_iterator it_comp = id_node->components.begin(); it_comp != id_node->components.end(); ++it_comp) {
+			ComponentDepsNode *comp_node = it_comp->second;
+			verify_entry_exit_operations(comp_node);
+		}
+	}
+}
+
 
 /* ************************************************* */
 /* Relations Builder */
@@ -320,19 +381,6 @@ void DepsgraphRelationBuilder::add_operation_relation(OperationDepsNode *node_fr
 	m_graph->add_new_relation(node_from, node_to, type, description);
 }
 
-void DepsgraphRelationBuilder::add_node_relation(DepsNode *node_from, DepsNode *node_to,
-                                                 eDepsRelation_Type type, const string &description)
-{
-	OperationDepsNode *op_from = node_from->find_exit_operation();
-	OperationDepsNode *op_to = node_to->find_entry_operation();
-	if (op_from && op_to) {
-		add_operation_relation(op_from, op_to, type, description);
-	}
-	else {
-		/* XXX error handling necessary? */
-	}
-}
-
 /* -------------------------------------------------- */
 
 /* Build depsgraph for the given scene, and dump results in given graph container */
@@ -354,7 +402,9 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	 */
 	node_builder.add_root_node();
 	node_builder.build_scene(scene);
-
+	
+	node_builder.verify_entry_exit_operations();
+	
 	DepsgraphRelationBuilder relation_builder(graph);
 	/* hook scene up to the root node as entrypoint to graph */
 	relation_builder.add_relation(RootKey(), IDKey(scene), DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");

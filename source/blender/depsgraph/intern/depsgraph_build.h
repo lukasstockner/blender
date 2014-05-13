@@ -74,6 +74,8 @@ struct DepsgraphNodeBuilder {
 	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description,
 	                                      PointerRNA ptr);
 	
+	void verify_entry_exit_operations();
+	
 	IDDepsNode *build_scene(Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
 	void build_group(Group *group);
@@ -97,6 +99,9 @@ struct DepsgraphNodeBuilder {
 	void build_texture_stack(DepsNode *owner_node, MTex **texture_stack);
 	void build_world(World *world);
 	void build_compositor(IDDepsNode *scene_node, Scene *scene);
+	
+protected:
+	void verify_entry_exit_operations(ComponentDepsNode *node);
 	
 private:
 	Main *m_bmain;
@@ -202,8 +207,6 @@ protected:
 	
 	void add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
 	                            eDepsRelation_Type type, const string &description);
-	void add_node_relation(DepsNode *node_from, DepsNode *node_to,
-	                       eDepsRelation_Type type, const string &description);
 	
 	template <typename KeyType>
 	DepsNodeHandle create_node_handle(const KeyType &key, const string &default_name = "");
@@ -213,33 +216,55 @@ private:
 };
 
 struct DepsNodeHandle {
-	DepsNodeHandle(DepsgraphRelationBuilder *builder, DepsNode *node, const string &default_name = "") :
+	DepsNodeHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
 	    builder(builder),
 	    node(node),
 	    default_name(default_name)
 	{}
 	
 	DepsgraphRelationBuilder *builder;
-	DepsNode *node;
+	OperationDepsNode *node;
 	const string &default_name;
 };
 
 /* Inline Function Templates -------------------------------------------------- */
 
+#include "depsnode_component.h"
+
+template <class NodeType>
+static OperationDepsNode *get_entry_operation(NodeType *node)
+{ return NULL; }
+
+template <class NodeType>
+static OperationDepsNode *get_exit_operation(NodeType *node)
+{ return NULL; }
+
+template <> OperationDepsNode *get_entry_operation(OperationDepsNode *node)
+{ return node; }
+
+template <> OperationDepsNode *get_exit_operation(OperationDepsNode *node)
+{ return node; }
+
+template <> OperationDepsNode *get_entry_operation(ComponentDepsNode *node)
+{ return node ? node->entry_operation : NULL; }
+
+template <> OperationDepsNode *get_exit_operation(ComponentDepsNode *node)
+{ return node ? node->exit_operation : NULL; }
+
 template <typename KeyFrom, typename KeyTo>
 void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo &key_to,
                                             eDepsRelation_Type type, const string &description)
 {
-	DepsNode *node_from = find_node(key_from);
-	DepsNode *node_to = find_node(key_to);
-	if (node_from && node_to) {
-		add_node_relation(node_from, node_to, type, description);
+	OperationDepsNode *op_from = get_exit_operation(find_node(key_from));
+	OperationDepsNode *op_to = get_entry_operation(find_node(key_to));
+	if (op_from && op_to) {
+		add_operation_relation(op_from, op_to, type, description);
 	}
 	else {
-		if (!node_from) {
+		if (!op_from) {
 			/* XXX TODO handle as error or report if needed */
 		}
-		if (!node_to) {
+		if (!op_to) {
 			/* XXX TODO handle as error or report if needed */
 		}
 	}
@@ -249,16 +274,16 @@ template <typename KeyType>
 void DepsgraphRelationBuilder::add_node_handle_relation(const KeyType &key_from, const DepsNodeHandle *handle,
                                                         eDepsRelation_Type type, const string &description)
 {
-	DepsNode *node_from = find_node(key_from);
-	DepsNode *node_to = handle->node;
-	if (node_from && node_to) {
-		add_node_relation(node_from, node_to, type, description);
+	OperationDepsNode *op_from = get_exit_operation(find_node(key_from));
+	OperationDepsNode *op_to = get_entry_operation(handle->node);
+	if (op_from && op_to) {
+		add_operation_relation(op_from, op_to, type, description);
 	}
 	else {
-		if (!node_from) {
+		if (!op_from) {
 			/* XXX TODO handle as error or report if needed */
 		}
-		if (!node_to) {
+		if (!op_to) {
 			/* XXX TODO handle as error or report if needed */
 		}
 	}
