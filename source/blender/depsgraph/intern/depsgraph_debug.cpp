@@ -565,9 +565,20 @@ static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const De
 		deg_debug_graphviz_node_relations(ctx, id_node);
 	}
 #else
-	for (Depsgraph::OperationNodes::const_iterator it = graph->all_opnodes.begin(); it != graph->all_opnodes.end(); ++it) {
-		OperationDepsNode *op_node = *it;
-		deg_debug_graphviz_node_relations(ctx, op_node);
+	/* XXX not in use yet */
+//	for (Depsgraph::OperationNodes::const_iterator it = graph->all_opnodes.begin(); it != graph->all_opnodes.end(); ++it) {
+//		OperationDepsNode *op_node = *it;
+//		deg_debug_graphviz_node_relations(ctx, op_node);
+//	}
+	for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
+		IDDepsNode *id_node = it->second;
+		for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin(); it != id_node->components.end(); ++it) {
+			ComponentDepsNode *comp_node = it->second;
+			for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->operations.begin(); it != comp_node->operations.end(); ++it) {
+				OperationDepsNode *op_node = it->second;
+				deg_debug_graphviz_node_relations(ctx, op_node);
+			}
+		}
 	}
 #endif
 }
