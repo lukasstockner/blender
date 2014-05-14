@@ -3979,7 +3979,9 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 			 * only need this in cases when topology changes.
 			 */
 			ss = _getSubSurf(prevSS, levels, 3, ccg_flags);
+#ifdef WITH_OPENSUBDIV
 			ccgSubSurf_setSkipGrids(ss, use_gpu_backend);
+#endif
 			ss_sync_from_derivedmesh(ss, dm, vertCos, useSimple);
 
 			result = getCCGDerivedMesh(ss, drawInteriorEdges, useSubsurfUv, dm, use_gpu_backend);

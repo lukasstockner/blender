@@ -88,7 +88,11 @@ using OpenSubdiv::OsdVertex;
 
 typedef OpenSubdiv::HbrMesh<OsdVertex> OsdHbrMesh;
 
+#if defined(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK) || \
+    defined(OPENSUBDIV_HAS_GLSL_COMPUTE)
 using OpenSubdiv::OsdGLVertexBuffer;
+#endif
+
 using OpenSubdiv::OsdGLDrawContext;
 
 // CPU backend

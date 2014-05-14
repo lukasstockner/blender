@@ -25,6 +25,8 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
+import os
+
 Import('env')
 
 sources = env.Glob('*.cc')
@@ -34,8 +36,29 @@ defs = []
 incs = '. ../guardedalloc'
 incs += ' ' + env['BF_OPENSUBDIV_INC']
 
+def checkOpenSubdivHeaderDefine(header, define):
+    include_path = Dir(env.subst(env['BF_OPENSUBDIV_INC'])).abspath
+    header_path = os.path.join(include_path, 'opensubdiv', 'osd', header)
+    if os.path.exists(header_path):
+        defs.append(define)
+        return True
+    return False
+
+checkOpenSubdivHeaderDefine("tbbComputeController.h", 'OPENSUBDIV_HAS_TBB')
+checkOpenSubdivHeaderDefine("gcdComputeController.h", 'OPENSUBDIV_HAS_GCD')
+
+# XXX: Ugly hack in order to link against cudart and opencl
+# Ideally it should be late-linking on runtime in order to make
+# portable builds.
+if checkOpenSubdivHeaderDefine("clComputeController.h", 'OPENSUBDIV_HAS_OPENCL'):
+    env['BF_OPENSUBDIV_LIB'] += ' OpenCL'
+if checkOpenSubdivHeaderDefine("cudaComputeController.h", 'OPENSUBDIV_HAS_CUDA'):
+    env['BF_OPENSUBDIV_LIB'] += ' cudart'
+
+checkOpenSubdivHeaderDefine("glslTransformFeedbackComputeController.h", 'OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK')
+checkOpenSubdivHeaderDefine("osd/glslComputeController.h", 'OPENSUBDIV_HAS_GLSL_COMPUTE')
+
 # generated data files
-import os
 sources.extend((
     os.path.join(env['DATA_SOURCES'], "gpu_shader_opensubd_display.glsl.c"),
 ))

@@ -126,6 +126,10 @@ if env['WITH_BF_OPENAL']:
 if env['WITH_BF_JACK']:
     defs.append('WITH_JACK')
 
+if env['WITH_BF_OPENSUBDIV']:
+    incs += ' #/intern/opensubdiv'
+    defs.append('WITH_OPENSUBDIV')
+
 if env['OURPLATFORM'] == 'linux':
     cflags='-pthread'
 
