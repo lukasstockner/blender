@@ -145,13 +145,21 @@ ccl_device_inline const __m128 blend(const __m128& mask, const __m128& a, const 
 /* calculate a*b+c (replacement for fused multiply-add on SSE CPUs) */
 ccl_device_inline const __m128 fma(const __m128& a, const __m128& b, const __m128& c)
 {
+#ifdef __KERNEL_AVX2__
+	return _mm_fmadd_ps(a, b, c);
+#else
 	return _mm_add_ps(_mm_mul_ps(a, b), c);
+#endif
 }
 
 /* calculate a*b-c (replacement for fused multiply-subtract on SSE CPUs) */
 ccl_device_inline const __m128 fms(const __m128& a, const __m128& b, const __m128& c)
 {
+#ifdef __KERNEL_AVX2__
+	return _mm_fmsub_ps(a, b, c);
+#else
 	return _mm_sub_ps(_mm_mul_ps(a, b), c);
+#endif
 }
 
 /* calculate -a*b+c (replacement for fused negated-multiply-subtract on SSE CPUs) */

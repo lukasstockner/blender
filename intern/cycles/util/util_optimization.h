@@ -123,6 +123,10 @@
 #include <smmintrin.h> /* SSE 4.1 */
 #endif
 
+#ifdef __KERNEL_AVX__
+#include <immintrin.h> /* AVX(2) */
+#endif
+
 #else
 
 /* MinGW64 has conflicting declarations for these SSE headers in <windows.h>.

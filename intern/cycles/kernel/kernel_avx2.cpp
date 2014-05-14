@@ -24,6 +24,8 @@
 #define __KERNEL_SSE3__
 #define __KERNEL_SSSE3__
 #define __KERNEL_SSE41__
+#define __KERNEL_AVX__
+#define __KERNEL_AVX2__
 #endif
  
 #include "util_optimization.h"

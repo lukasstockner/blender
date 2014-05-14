@@ -155,9 +155,15 @@ ccl_device bool BVH_FUNCTION_NAME
 				const float4 cnodes = ((float4*)bvh_nodes)[3];
 
 				/* intersect ray against child nodes */
+#ifdef __KERNEL_AVX2__
+				const __m128 tminmaxx = fms(shuffle_swap(bvh_nodes[0], shufflexyz[0]), idirsplat[0], _mm_mul_ps(Psplat[0], idirsplat[0]));
+				const __m128 tminmaxy = fms(shuffle_swap(bvh_nodes[1], shufflexyz[1]), idirsplat[1], _mm_mul_ps(Psplat[1], idirsplat[1]));
+				const __m128 tminmaxz = fms(shuffle_swap(bvh_nodes[2], shufflexyz[2]), idirsplat[2], _mm_mul_ps(Psplat[2], idirsplat[2]));
+#else
 				const __m128 tminmaxx = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[0], shufflexyz[0]), Psplat[0]), idirsplat[0]);
 				const __m128 tminmaxy = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[1], shufflexyz[1]), Psplat[1]), idirsplat[1]);
 				const __m128 tminmaxz = _mm_mul_ps(_mm_sub_ps(shuffle_swap(bvh_nodes[2], shufflexyz[2]), Psplat[2]), idirsplat[2]);
+#endif
 
 				/* calculate { c0min, c1min, -c0max, -c1max} */
 				__m128 minmax = _mm_max_ps(_mm_max_ps(tminmaxx, tminmaxy), _mm_max_ps(tminmaxz, tsplat));
