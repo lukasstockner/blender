@@ -246,3 +246,102 @@ void BKE_editmesh_color_ensure(BMEditMesh *em, const char htype)
 			break;
 	}
 }
+
+
+/* ==================== topology hashing ======================= */
+
+unsigned int x17_hash(const char *data, unsigned int len, unsigned int seed)
+{
+	unsigned int hash = seed + len;
+	for (; len & ~1; len -= 2, data += 2)
+		hash = (((hash * 17) + (data[0] - ' ')) * 17) + (data[1] - ' ');
+
+	if (len & 1)
+		hash = (hash * 17) + (data[0] - ' ');
+	return hash;
+}
+
+int hashfunc(void *data, int len)
+{
+	return (int) x17_hash(data, len, 0x27127127);
+}
+
+int hashloop_topo(BMLoop *l)
+{
+	/* skip header, don't track customdata */
+	return hashfunc(((char *)l) + sizeof(BMHeader), sizeof(BMLoop) - sizeof(BMHeader));
+}
+
+int hashface_topo(BMFace *f)
+{
+	/* skip header & flags & face normals and material */
+	int a = f->len + (int)f->l_first;
+	return hashfunc(&a, sizeof(int));
+}
+
+/* TODO better hashing */
+int bmesh_topohash(BMesh *bm)
+{
+	BMIter iter;
+	BMLoop *l;
+	BMFace *f;
+	BMEdge *e;
+	int i;
+	int j;
+	int hash = bm->totedge + bm->totvert + bm->totloop + bm->totface;
+
+	if (!hash) {
+		return 0;
+	}
+
+	if (bm->totface)
+	{
+		BM_ITER_MESH_INDEX(f, &iter, bm, BM_FACES_OF_MESH, i) {
+			hash += i * hashface_topo(f);
+			l = f->l_first;
+			int len3 = f->len * f->len * f->len;
+			for (j = 0; j < f->len; ++j) {
+				hash += (len3 + i - j) * hashloop_topo(l);
+				l = l->next;
+			}
+		}
+		/* this next cycle is to counter weird meshes like one face, one million wire edges*/
+		BM_ITER_MESH_INDEX(e, &iter, bm, BM_EDGES_OF_MESH, i) {
+			j = (int)e->v1 + (int)e->v2;
+			hash += hashfunc(&j, sizeof(int));
+		}
+	}
+	else {
+		if (bm->totedge == 0) {
+			/* cloud mesh */
+			return hashfunc(&bm->totvert, sizeof(int));
+		}
+		else {
+			/* wire mesh */
+			BM_ITER_MESH_INDEX(e, &iter, bm, BM_EDGES_OF_MESH, i) {
+				j = (int)e->v1 + (int)e->v2;
+				hash += hashfunc(&j, sizeof(int));
+			}
+		}
+	}
+	return hash;
+}
+
+void BKE_editmesh_topochange_calc(BMEditMesh *em)
+{
+	em->topochange.topohash = bmesh_topohash(em->bm);
+	memcpy(&em->topochange.totvert, &em->bm->totvert, sizeof(int) * 4);
+}
+
+
+bool BKE_editmesh_topo_has_changed(BMEditMesh *em)
+{
+	/* fast way to compare em->bm->totvert/totface/totetc with topochange */
+	if (!memcmp(&em->bm->totvert, &em->topochange.totvert, sizeof(int) * 4)) {
+		int hash = bmesh_topohash(em->bm);
+		if (hash == em->topochange.topohash)
+			return false;
+		else return true;
+	}
+	return true;
+}
