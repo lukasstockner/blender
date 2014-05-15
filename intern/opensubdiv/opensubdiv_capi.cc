@@ -26,6 +26,10 @@
 
 #include "opensubdiv_capi.h"
 
+#ifdef _MSC_VER
+#  include "iso646.h"
+#endif
+
 #include <opensubdiv/osd/glMesh.h>
 #include <opensubdiv/osd/glDrawRegistry.h>
 #include <opensubdiv/osdutil/evaluator_capi.h>

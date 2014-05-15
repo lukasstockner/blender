@@ -882,7 +882,6 @@ if(UNIX AND NOT APPLE)
 
 		set(OPENSUBDIV_LIBRARIES ${OPENSUBDIV_LIBRARIES})
 		set(OPENSUBDIV_LIBPATH)  # TODO, remove and reference the absolute path everywhere
-		set(OPENSUBDIV_DEFINITIONS)
 
 		if(NOT OPENSUBDIV_FOUND)
 			set(WITH_OPENSUBDIV OFF)
@@ -1336,6 +1335,13 @@ elseif(WIN32)
 				${LIBDIR}/lapack/lib/clapack_nowrap.lib
 				${LIBDIR}/lapack/lib/BLAS_nowrap.lib
 			)
+		endif()
+
+		if(WITH_OPENSUBDIV)
+			set(OPENSUBDIV_INCLUDE_DIR ${LIBDIR}/opensubdiv/include)
+			set(OPENSUBDIV_LIBRARIES "osdutil osdCPU osdGPU")
+			set(OPENSUBDIV_LIBPATH ${LIBDIR}/opensubdiv/lib)
+			find_package(OpenSubdiv)
 		endif()
 
 		# used in many places so include globally, like OpenGL

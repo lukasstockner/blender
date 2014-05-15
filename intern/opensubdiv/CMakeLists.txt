@@ -30,6 +30,7 @@ set(INC
 
 set(INC_SYS
 	${OPENSUBDIV_INCLUDE_DIR}
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -41,7 +42,7 @@ set(SRC
 )
 
 MACRO(OPENSUBDIV_DEFINE_COMPONENT component)
-	if(${component})
+	if(${${component}})
 		add_definitions(-D${component})
 	endif()
 ENDMACRO()
@@ -53,5 +54,7 @@ OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK)
 OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_COMPUTE)
 
 data_to_c_simple(gpu_shader_opensubd_display.glsl SRC)
+
+add_definitions(-DGLEW_STATIC)
 
 blender_add_lib(bf_intern_opensubdiv "${SRC}" "${INC}" "${INC_SYS}")

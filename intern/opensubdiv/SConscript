@@ -31,10 +31,11 @@ Import('env')
 
 sources = env.Glob('*.cc')
 
-defs = []
+defs = [ 'GLEW_STATIC' ]
 
 incs = '. ../guardedalloc'
 incs += ' ' + env['BF_OPENSUBDIV_INC']
+incs += ' #/extern/glew/include'
 
 def checkOpenSubdivHeaderDefine(header, define):
     include_path = Dir(env.subst(env['BF_OPENSUBDIV_INC'])).abspath

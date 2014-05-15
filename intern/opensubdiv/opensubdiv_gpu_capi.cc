@@ -31,12 +31,18 @@
 
 #include "opensubdiv_capi.h"
 
+#ifdef _MSC_VER
+#  include "iso646.h"
+#endif
+
 #include <GL/glew.h>
 #include <vector>
 
 #include <opensubdiv/osd/glMesh.h>
 
-#include <opensubdiv/osd/cudaGLVertexBuffer.h>
+#ifdef OPENSUBDIV_HAS_CUDA
+#  include <opensubdiv/osd/cudaGLVertexBuffer.h>
+#endif
 #include <opensubdiv/osd/glDrawRegistry.h>
 
 // **************** Types declaration ****************

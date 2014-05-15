@@ -353,7 +353,10 @@ def setup_syslibs(lenv):
 
     if lenv['WITH_BF_OPENSUBDIV']:
         if not lenv['WITH_BF_STATICOPENSUBDIV']:
-            syslibs += Split(lenv['BF_OPENSUBDIV_LIB'])
+            if lenv['BF_DEBUG'] and lenv['OURPLATFORM'] in ('win32-vc', 'win64-vc', 'win32-mingw', 'win64-mingw'):
+                syslibs += [osdlib+'_d' for osdlib in Split(lenv['BF_OPENSUBDIV_LIB'])]
+            else:
+                syslibs += Split(lenv['BF_OPENSUBDIV_LIB'])
 
     syslibs += lenv['LLIBS']
 
