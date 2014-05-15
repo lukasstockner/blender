@@ -1597,7 +1597,8 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 				kb= kb->next;
 			}
 		}
-
+		if (key->scratch.data)
+			writedata(wd, DATA, key->scratch.origin->totelem * key->elemsize, key->scratch.data);
 		key= key->id.next;
 	}
 	/* flush helps the compression for undo-save */

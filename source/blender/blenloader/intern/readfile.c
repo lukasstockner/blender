@@ -3075,7 +3075,10 @@ static void direct_link_key(FileData *fd, Key *key)
 	direct_link_animdata(fd, key->adt);
 		
 	key->refkey= newdataadr(fd, key->refkey);
-	
+
+	key->scratch.origin = newdataadr(fd, key->scratch.origin);
+	key->scratch.data = newdataadr(fd, key->scratch.data);
+
 	for (kb = key->block.first; kb; kb = kb->next) {
 		kb->data = newdataadr(fd, kb->data);
 		

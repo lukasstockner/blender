@@ -149,6 +149,9 @@ static bool ED_object_shape_key_remove(Main *bmain, Object *ob)
 		if (kb->data) MEM_freeN(kb->data);
 		MEM_freeN(kb);
 
+		if (key->scratch.origin == kb)
+			key->scratch.origin = key->refkey;
+
 		if (ob->shapenr > 1) {
 			ob->shapenr--;
 		}

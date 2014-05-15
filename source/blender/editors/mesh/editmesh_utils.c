@@ -33,9 +33,12 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
+#include "DNA_key_types.h"
 
 #include "BLI_math.h"
 #include "BLI_alloca.h"
+#include "BLI_listbase.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
@@ -59,7 +62,13 @@
 #include "ED_util.h"
 #include "ED_view3d.h"
 
+#include "bmesh.h"
+
 #include "mesh_intern.h"  /* own include */
+
+
+
+/* ======================================================================== */
 
 /* mesh backup implementation. This would greatly benefit from some sort of binary diffing
  * just as the undo stack would. So leaving this as an interface for further work */
@@ -374,6 +383,8 @@ void EDBM_mesh_make(ToolSettings *ts, Object *ob)
 
 	/* we need to flush selection because the mode may have changed from when last in editmode */
 	EDBM_selectmode_flush(me->edit_btmesh);
+
+	BKE_editmesh_topochange_calc(me->edit_btmesh);
 }
 
 void EDBM_mesh_load(Object *ob)
@@ -474,6 +485,232 @@ void EDBM_flag_enable_all(BMEditMesh *em, const char hflag)
 	BM_mesh_elem_hflag_enable_all(em->bm, BM_VERT | BM_EDGE | BM_FACE, hflag, true);
 }
 
+/* ===================== BMesh & Mesh syncronization stuff =============================================== */
+/*
+* When working with shape keys, the 95% of all edits are deform-only. This calls for a more efficient data
+* syncronization than just recalculating the RealMesh and BMesh every time the active shape key is changed.
+* The idea: detect if topology hadn't changed. If it had, run the heavy-duty tools from bmesh_mesh_conv.c.
+*/
+
+void update_bmesh_shapes(Object *ob)
+{
+	Key *key = BKE_key_from_object(ob);
+
+	if (key) {
+		BMesh *bm = BKE_editmesh_from_object(ob)->bm;
+		BMVert *v;
+		BMIter iter;
+		CustomData *vdata = &bm->vdata;
+		KeyBlock *kb;
+		int i, j, index;
+		float(*kbco)[3] = NULL;
+		float *cdco = NULL;
+
+		LISTBASE_ITER_FWD_INDEX(key->block, kb, i) {
+			/* find any keyblocks that don't have a correspoing CD_SHAPEKEY */
+			index = CustomData_get_named_layer_index(vdata, CD_SHAPEKEY, kb->name);
+			if (index == -1) {
+				/* this code can hardly ever be ran, but theoretically, if there's a new keyblock somehow... */
+				CustomData_add_layer_named(vdata, CD_SHAPEKEY, CD_ASSIGN, NULL, kb->totelem, kb->name);
+				index = CustomData_get_named_layer_index(vdata, CD_SHAPEKEY, kb->name);
+			}
+			vdata->layers[index].uid = kb->uid;
+
+			kbco = kb->data;
+			BM_ITER_MESH_INDEX(v, &iter, bm, BM_VERTS_OF_MESH, j) {
+				int data_offset = vdata->layers[index].offset;
+				cdco = (float *)(((char *)v->head.data) + data_offset);
+				copy_v3_v3(cdco, kbco[j]);
+			}
+		}
+	}
+}
+
+void recalc_keyblocks_from_scratch(Object *ob)
+{
+	Key *k = BKE_key_from_object(ob);
+	Mesh *me = ob->data;
+
+	ScratchKeyBlock *skb = &k->scratch;
+	KeyBlock *old_active = skb->origin,
+		*kb = BKE_keyblock_from_object(ob);
+
+	ListBase kbs = k->block;
+
+	int old_index = BLI_findindex(&kbs, old_active);
+	int a, b;
+
+	float (*offsets_co)[3] = NULL;
+	float (*skb_co)[3] = skb->data;
+	float (*kb_co)[3];
+
+	if (k->type == KEY_RELATIVE) {
+		/* find all keyblocks that are the basis for the active keyblock */
+		LISTBASE_ITER_FWD_INDEX(kbs, kb, a) {
+
+			if (kb != k->refkey)
+				BLI_assert(kb->relative != a);
+			/* kb can't be relative to itself (except for refkey, it can trigger strange asserts and doesn't matter) */
+
+			/* refkey can't have a basis, don't update it */
+			if (kb->relative == old_index && kb != k->refkey) {
+				/* need to propagate the offsets */
+				if (!offsets_co) {
+					/* calculate them if we haven't already */
+					offsets_co = MEM_mallocN(sizeof(float)* 3 * old_active->totelem, __func__);
+					kb_co = old_active->data;
+					for (b = 0; b < old_active->totelem; ++b)
+						sub_v3_v3v3(offsets_co[b], skb_co[b], kb_co[b]);
+				}
+
+				kb_co = kb->data;
+				for (b = 0; b < old_active->totelem; ++b)
+					add_v3_v3(kb_co[b], offsets_co[b]);
+			}
+		}
+	}
+	/* scratch -> 'real' keyblock */
+	memcpy(old_active->data, skb->data, sizeof(float) * 3 * old_active->totelem);
+
+	/* patch me->co */
+	kb_co = k->refkey->data;
+	for (b = 0; b < old_active->totelem; ++b)
+		copy_v3_v3(me->mvert[b].co, kb_co[b]);
+
+	if (offsets_co)
+		MEM_freeN(offsets_co);
+}
+
+
+void EDBM_commit_scratch_to_active(Object *ob, Scene *s)
+{
+	BMEditMesh *em = BKE_editmesh_from_object(ob);
+	Key *key = BKE_key_from_object(ob);
+	bool topo_changed = BKE_editmesh_topo_has_changed(em);
+
+	if (topo_changed) {
+		/* move editdata to the scratch key.*/
+		BKE_key_editdata_to_scratch(ob, false);
+		EDBM_mesh_load(em->ob);
+		EDBM_mesh_make(s->toolsettings, ob);
+		/* after mesh_make, old em is now invalidated */
+		em = BKE_editmesh_from_object(ob);
+		EDBM_mesh_normals_update(em);
+		BKE_editmesh_tessface_calc(em);
+	}
+	else {
+		/* update scratch from editdata */
+		BKE_key_editdata_to_scratch(ob, true);
+		/* faster keyblock recalc */
+		recalc_keyblocks_from_scratch(ob);
+		/* update shapes customdata on bmesh from recalced keyblocks */
+		update_bmesh_shapes(ob);	
+	}
+}
+
+void EDBM_update_scratch_from_active(Object *ob)
+{
+	Key *k = BKE_key_from_object(ob);
+	KeyBlock *oldorigin = k->scratch.origin;
+	KeyBlock *neworigin = BKE_keyblock_from_object(ob);
+
+	BLI_assert(oldorigin != neworigin);
+
+	k->scratch.origin = neworigin;
+	if (oldorigin->totelem != neworigin->totelem) {
+		if (k->scratch.data) {
+			MEM_freeN(k->scratch.data);
+			MEM_mallocN(sizeof(float)* 3 * neworigin->totelem, "scratch keyblock data");
+		}
+	}
+	/* neworigin -> scratch */
+	BLI_assert(neworigin->totelem == BKE_editmesh_from_object(ob)->bm->totvert);
+	memcpy(k->scratch.data, neworigin->data, sizeof(float)* 3 * neworigin->totelem);
+}
+
+void EDBM_editmesh_from_mesh(Object *ob, Scene *scene)
+{
+	BMEditMesh *em;
+
+	scene->obedit = ob;  /* context sees this */
+
+	EDBM_mesh_make(scene->toolsettings, ob);
+
+	em = BKE_editmesh_from_object(ob);
+	if (LIKELY(em)) {
+		/* order doesn't matter */
+		EDBM_mesh_normals_update(em);
+		BKE_editmesh_tessface_calc(em);
+		BM_mesh_select_mode_flush(em->bm);
+	}
+	/* XXX for meshes only YET */
+	BKE_key_init_scratch(ob);
+}
+
+bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
+{
+	Mesh *me = obedit->data;
+	BMEditMesh *em = me->edit_btmesh;
+
+	if (me->edit_btmesh->bm->totvert > MESH_MAX_VERTS) {
+		return false;
+	}
+
+	if (me->key) {
+		if (BKE_editmesh_topo_has_changed(em)) {
+			BKE_key_editdata_to_scratch(obedit, false);
+		}
+		else {
+			BKE_key_editdata_to_scratch(obedit, true);
+			recalc_keyblocks_from_scratch(obedit);
+			update_bmesh_shapes(obedit);
+		}
+	}
+
+	EDBM_mesh_load(obedit);
+	EDBM_mesh_normals_update(em);
+	BKE_editmesh_tessface_calc(em);
+
+	if (do_free) {
+		EDBM_mesh_free(me->edit_btmesh);
+		MEM_freeN(me->edit_btmesh);
+		me->edit_btmesh = NULL;
+	}
+	if (obedit->restore_mode & OB_MODE_WEIGHT_PAINT) {
+		ED_mesh_mirror_spatial_table(NULL, NULL, NULL, 'e');
+		ED_mesh_mirror_topo_table(NULL, 'e');
+	}
+
+	return true;
+}
+
+void EDBM_handle_active_shape_update(Object *ob, Scene *s)
+{
+	Mesh *me = ob->data;
+	BMEditMesh *em = me->edit_btmesh;
+	Key *key = BKE_key_from_object(ob);
+	KeyBlock *kb = BKE_keyblock_from_object(ob);
+
+	/* update shape number on bmesh */
+	em->bm->shapenr = ob->shapenr;
+
+	/* check the active keyblock is really a new one */
+	if (kb == key->scratch.origin)
+		return;
+
+	/* handle auto-committing */
+	if (s->toolsettings->kb_auto_commit) {
+		EDBM_commit_scratch_to_active(ob, s);
+		EDBM_update_scratch_from_active(ob);
+		em = BKE_editmesh_from_object(ob);
+		BKE_key_eval_editmesh_rel(em, true /*ob->shapeflag*/);
+		EDBM_update_generic(em, false, false);
+	}  
+	/* if there's no auto-committing, don't do anything */
+}
+
+
+
 /**************-------------- Undo ------------*****************/
 
 /* for callbacks */
@@ -515,7 +752,6 @@ static void *editbtMesh_to_undoMesh(void *emv, void *obdata)
 	um->me.key = obme->key ? BKE_key_copy_nolib(obme->key) : NULL;
 
 	/* BM_mesh_validate(em->bm); */ /* for troubleshooting */
-
 	BM_mesh_bm_to_me(em->bm, &um->me, false);
 
 	um->selectmode = em->selectmode;

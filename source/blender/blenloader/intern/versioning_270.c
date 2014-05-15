@@ -251,7 +251,17 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
-	if (!DNA_struct_elem_find(fd->filesdna, "Material", "int", "mode2")) {
+	if (!MAIN_VERSION_ATLEAST(main, 270, 295)) {
+		/* XXX insert appropriate version later!*/
+		Scene *sc;
+
+		/* Enable auto-committing shape keys! */
+		for (sc = main->scene.first; sc; sc = sc->id.next) {
+			sc->toolsettings->kb_auto_commit = true;
+		}
+	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "Material", "int", "mode2")) { /* will be replaced with version check when other new flag is added to mode2 */
 		Material *ma;
 
 		for (ma = main->mat.first; ma; ma = ma->id.next)

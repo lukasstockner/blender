@@ -237,6 +237,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
         ob = context.object
         key = ob.data.shape_keys
         kb = ob.active_shape_key
+        ts = context.scene.tool_settings
 
         enable_edit = ob.mode != 'EDIT'
         enable_edit_value = False
@@ -273,16 +274,16 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             row = split.row()
             row.enabled = enable_edit
             row.prop(key, "use_relative")
-
             row = split.row()
+            if ob.mode == 'EDIT':    
+                row.prop(ts, "kb_auto_commit", text = "Auto-commit")
             row.alignment = 'RIGHT'
-
             sub = row.row(align=True)
             sub.label()  # XXX, for alignment only
             subsub = sub.row(align=True)
-            subsub.active = enable_edit_value
+            #subsub.active = enable_edit_value
             subsub.prop(ob, "show_only_shape_key", text="")
-            sub.prop(ob, "use_shape_key_edit_mode", text="")
+
 
             sub = row.row()
             if key.use_relative:

@@ -73,9 +73,12 @@
 #define IPO_BEZTRIPLE   100
 #define IPO_BPOINT      101
 
+#define ELEMSIZE_MESH		(sizeof(float) * 3)
+#define ELEMSIZE_LATTICE	(sizeof(float) * 3)
+#define ELEMSIZE_CURVE		(sizeof(float) * 4)
+
 /* extern, not threadsafe */
 int slurph_opt = 1;
-
 
 void BKE_key_free(Key *key)
 {
@@ -88,6 +91,9 @@ void BKE_key_free(Key *key)
 			MEM_freeN(kb->data);
 		MEM_freeN(kb);
 	}
+
+	if (key->scratch.data)
+		MEM_freeN(key->scratch.data);
 }
 
 void BKE_key_free_nolib(Key *key)
@@ -99,6 +105,9 @@ void BKE_key_free_nolib(Key *key)
 			MEM_freeN(kb->data);
 		MEM_freeN(kb);
 	}
+
+	if (key->scratch.data)
+		MEM_freeN(key->scratch.data);
 }
 
 Key *BKE_key_add(ID *id)    /* common function */
@@ -146,7 +155,6 @@ Key *BKE_key_add(ID *id)    /* common function */
 
 			break;
 	}
-	
 	return key;
 }
 
@@ -172,6 +180,9 @@ Key *BKE_key_copy(Key *key)
 		kb = kb->next;
 	}
 	
+	if (key->scratch.data)
+		keyn->scratch.data = MEM_dupallocN(key->scratch.data);
+
 	return keyn;
 }
 
@@ -196,10 +207,14 @@ Key *BKE_key_copy_nolib(Key *key)
 		
 		if (kbn->data) kbn->data = MEM_dupallocN(kbn->data);
 		if (kb == key->refkey) keyn->refkey = kbn;
+		if (kb == key->scratch.origin) keyn->scratch.origin = kbn;
 		
 		kbn = kbn->next;
 		kb = kb->next;
 	}
+
+	if (key->scratch.data)
+		keyn->scratch.data = MEM_dupallocN(key->scratch.data);
 	
 	return keyn;
 }
@@ -724,6 +739,7 @@ static void cp_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock *kb, const 
 		}
 	}
 }
+
 
 void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
                                float **per_keyblock_weights, const int mode)
@@ -1519,6 +1535,7 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
 	kb->type = KEY_CARDINAL;
 	
 	tot = BLI_countlist(&key->block);
+
 	if (name) {
 		BLI_strncpy(kb->name, name, sizeof(kb->name));
 	}
@@ -1692,6 +1709,7 @@ void BKE_key_convert_to_lattice(KeyBlock *kb, Lattice *lt)
 		copy_v3_v3(bp->vec, fp);
 	}
 }
+
 
 /************************* Curve ************************/
 void BKE_key_convert_from_curve(Curve *cu, KeyBlock *kb, ListBase *nurb)
@@ -2041,6 +2059,213 @@ void BKE_key_convert_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3])
 		}
 	}
 }
+/* ================== Scratch stuff ======================  */
+
+void BKE_key_init_scratch(Object *ob) 
+{
+	Key *key = BKE_key_from_object(ob);
+	KeyBlock *kb = BKE_keyblock_from_object(ob);
+	if (key && kb && key->totkey > 0) {
+		key->scratch.origin = kb;
+		if (!key->scratch.data) {
+			key->scratch.data = MEM_mallocN(key->elemsize * kb->totelem, "scratch keyblock data");
+			memcpy(key->scratch.data, kb->data, key->elemsize * kb->totelem);
+		}
+	}
+}
+
+void BKE_key_editdata_to_scratch(Object *ob, bool indeces_in_sync)
+{
+	BLI_assert(ELEM3(ob->type, OB_MESH, OB_LATTICE, OB_CURVE));
+	BLI_assert(ob->mode == OB_MODE_EDIT);
+	
+	Key *k = BKE_key_from_object(ob);
+	ScratchKeyBlock *skb = &k->scratch;
+	
+	if (ob->type == OB_MESH) {
+		Mesh *m = ob->data;
+		BMesh *bm = m->edit_btmesh->bm;
+		BMVert *v;
+		BMIter iter;
+		int a;
+		float(*co)[3] = skb->data;
+
+		if (indeces_in_sync) {
+			BM_ITER_MESH_INDEX(v, &iter, bm, BM_VERTS_OF_MESH, a) {
+				copy_v3_v3(co[a], v->co);
+			}
+		}
+		else {
+			/* note how we don't adjust the skb->data length here,
+			 * this is for preserving the indeces for bm_to_me     */
+			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+				a = *(int *) CustomData_bmesh_get(&bm->vdata, v->head.data, CD_SHAPE_KEYINDEX);
+				BLI_assert(a < bm->totvert);
+				if (a != ORIGINDEX_NONE) {
+					copy_v3_v3(co[a], v->co);
+				}
+			}
+		}
+	}
+	else if (ob->type == OB_LATTICE) {
+		BLI_assert(0); /* not done yet */
+	}
+	else if (ob->type == OB_CURVE) {
+		BLI_assert(0); /* not done yet */
+	}
+}
+
+void BKE_key_editdata_from_scratch(Object *ob)
+{
+	BLI_assert(ELEM3(ob->type, OB_MESH, OB_LATTICE, OB_CURVE));
+	BLI_assert(ob->mode == OB_MODE_EDIT);
+
+	ScratchKeyBlock *skb = &BKE_key_from_object(ob)->scratch;
+
+	if (ob->type == OB_MESH) {
+		Mesh *m = ob->data;
+		BMesh *bm = m->edit_btmesh->bm;
+		BMVert *v;
+		BMIter iter;
+		int a;
+		float(*co)[3] = skb->data;
+
+		BLI_assert(bm->totvert == skb->origin->totelem);
+
+		BM_ITER_MESH_INDEX(v, &iter, bm, BM_VERTS_OF_MESH, a) {
+			copy_v3_v3(v->co, co[a]);
+		}
+	}
+	else if (ob->type == OB_LATTICE) {
+		BLI_assert(0); /* not done yet */
+	}
+	else if (ob->type == OB_CURVE) {
+		BLI_assert(0); /* not done yet */
+	}
+}
+
+/*============ editmode mesh keyblock eval tools ===========*/
+
+#define KB_FOR_EACH_CO(kb, indexvar) \
+for ((indexvar) = 0; (indexvar) < (kb)->totelem; ++(indexvar))
+
+void key_block_mesh_get_deltas(Key *key, KeyBlock *kb, float (*out_deltas)[3])
+{
+	int a;
+	KeyBlock *basis = BLI_findlink(&key->block, kb->relative);
+	float (*basis_cos)[3];
+	float (*kb_cos)[3];
+	
+	BLI_assert(basis && basis->totelem == kb->totelem);
+
+	basis_cos = basis->data;
+	kb_cos = kb->data;
+
+	KB_FOR_EACH_CO(kb, a)
+		sub_v3_v3v3(out_deltas[a], kb_cos[a], basis_cos[a]);
+}
+
+void key_block_mesh_eval_rel(Object *ob, Key *key, KeyBlock *kb, bool use_vgroup, float (*out_offsets)[3])
+{
+	int a;
+	float *per_vertex_weights = NULL;
+
+	float influence = key->mix_mode == KEY_MIX_FROM_ANIMDATA ? kb->curval : kb->mixval;
+	
+	if (use_vgroup)
+		per_vertex_weights = get_weights_array(ob, kb->vgroup, NULL);
+
+	key_block_mesh_get_deltas(key, kb, out_offsets);
+
+	if (per_vertex_weights)
+	{
+		KB_FOR_EACH_CO(kb, a) {
+			mul_v3_fl(out_offsets[a], influence);
+			mul_v3_fl(out_offsets[a], per_vertex_weights[a]);
+		}
+	}
+	else {
+		KB_FOR_EACH_CO(kb, a) {
+			mul_v3_fl(out_offsets[a], influence);
+		}
+	}	
+}
+
+void key_block_mesh_eval_scratch(Object *ob, Key *key, float (*out_offsets)[3])
+{
+	/* we need to eval the regular key, but with scratch's data */
+	ScratchKeyBlock *skb = &key->scratch;
+	KeyBlock bogus; 
+	bogus.data = skb->data;
+
+	BKE_keyblock_copy_settings(&bogus, skb->origin);
+
+	key_block_mesh_eval_rel(ob, key, &bogus, false, out_offsets);
+}
+
+void BKE_key_eval_editmesh_rel(BMEditMesh *edbm, bool pinned) 
+{
+	/* the process is apparent from this picture											*/
+	/* http://wiki.blender.org/index.php/File:Dev-gsoc-shapes-shape-eval-in-editmode.png	*/
+
+	int act_shape_index = edbm->bm->shapenr - 1;
+
+	Mesh *me = edbm->ob->data;
+	Key *key = me->key;
+
+	BMesh *bm = edbm->bm;
+	BMVert *mv;
+	BMIter iter;
+
+	KeyBlock *refkb = key->refkey;
+	ScratchKeyBlock *scratchkb = &key->scratch;
+	ListBase kblist = key->block;
+	int a, b;
+
+	float (*out_vcos)[3] = MEM_mallocN(bm->totvert * key->elemsize, __func__);
+	int kbdata_size = key->elemsize * refkb->totelem;
+	float (*kb_offsets_cos)[3] = MEM_callocN(kbdata_size, __func__);
+
+	if (pinned) {
+		/* if the key is pinned, we need only the scratch with weight = 1.0 */
+		memcpy(out_vcos, scratchkb->data, key->elemsize * scratchkb->origin->totelem);
+	}
+	else {
+		KeyBlock *kb;
+
+		/* add in the refkey */
+		memcpy(out_vcos, refkb->data, key->elemsize * refkb->totelem);
+
+		/* add in other keys */
+		LISTBASE_ITER_FWD_INDEX(kblist, kb, a) {
+			if (a == 0 || a == act_shape_index)
+				continue;
+			
+			key_block_mesh_eval_rel(edbm->ob, key, kb, true, kb_offsets_cos);
+
+			KB_FOR_EACH_CO(kb, b) {
+				add_v3_v3(out_vcos[b], kb_offsets_cos[b]);
+			}
+		}
+
+		/* eval the scratch key */
+		key_block_mesh_eval_scratch(edbm->ob, key,  kb_offsets_cos);
+		/* one last time */
+		KB_FOR_EACH_CO(refkb, b) {
+			add_v3_v3(out_vcos[b], kb_offsets_cos[b]);
+		}
+	}
+	/* to bmesh! */
+	BM_ITER_MESH_INDEX(mv, &iter, bm, BM_VERTS_OF_MESH, a) {
+		copy_v3_v3(mv->co, out_vcos[a]);
+	}
+
+	MEM_freeN(kb_offsets_cos);
+	MEM_freeN(out_vcos);
+}
+
+
+/* ==========================================================*/
 
 void BKE_keyblock_move(Object *ob, KeyBlock *key_block, int new_index) 
 {

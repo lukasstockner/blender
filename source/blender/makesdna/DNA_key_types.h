@@ -72,8 +72,6 @@ typedef struct KeyBlock {
 	char pad[4];
 } KeyBlock;
 
-#
-#
 typedef struct ScratchKeyBlock {
 	/* array of values, size Key->elemsize * KeyBlock->totelem */
 	void		*data;
@@ -91,7 +89,7 @@ typedef struct Key {
 	KeyBlock *refkey;
 	
 	/* Runtime KeyBlock where the 'real' data editing happens. Gets committed to its origin. */
-	ScratchKeyBlock *scratch;
+	ScratchKeyBlock scratch;
 
 	/* this is not a regular string, although it is \0 terminated
 	 * this is an array of (element_array_size, element_type) pairs

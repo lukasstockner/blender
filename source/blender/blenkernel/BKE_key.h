@@ -43,6 +43,8 @@ typedef struct Scene Scene;
 typedef struct Lattice Lattice;
 typedef struct Mesh Mesh;
 typedef struct WeightsArrayCache WeightsArrayCache;
+typedef struct BMEditMesh BMEditMesh;
+typedef struct ScratchKeyBlock ScratchKeyBlock;
 
 /* Kernel prototypes */
 #ifdef __cplusplus
@@ -73,8 +75,25 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name);
 KeyBlock *BKE_keyblock_add_ctime(Key *key, const char *name, const bool do_force);
 KeyBlock *BKE_keyblock_from_key(Key *key, int index);
 KeyBlock *BKE_keyblock_find_name(Key *key, const char name[]);
-void             BKE_keyblock_copy_settings(KeyBlock *kb_dst, const KeyBlock *kb_src);
-char            *BKE_keyblock_curval_rnapath_get(Key *key, KeyBlock *kb);
+void      BKE_keyblock_copy_settings(KeyBlock *kb_dst, const KeyBlock *kb_src);
+char     *BKE_keyblock_curval_rnapath_get(Key *key, KeyBlock *kb);
+
+/* ==== scratch keyblock ==== */
+
+/* performs a first-time setup of the scratch. if it's already inited 
+ * (e. g. existed in a mainfile), does nothing. */
+void BKE_key_init_scratch(Object *ob);
+
+/* moves current edit data to and from the scratch shape */
+void BKE_key_editdata_to_scratch(Object *ob, bool shapedata_indeces_in_sync);
+
+/* populates the current editdata from scratch shapekey */
+void BKE_key_editdata_from_scratch(Object *ob);
+
+/* evaluates the current shape key situation and puts it into the editmesh coordinates */
+void BKE_key_eval_editmesh_rel(BMEditMesh *edbm, bool pinned);
+
+/* ========================= */
 
 // needed for the GE
 typedef struct WeightsArrayCache {
@@ -98,17 +117,18 @@ float (*BKE_key_convert_to_vertcos(Object *ob, KeyBlock *kb))[3];
 void    BKE_key_convert_from_vertcos(Object *ob, KeyBlock *kb, float (*vertCos)[3]);
 void    BKE_key_convert_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3]);
 
+
 /* other management */
 /* moves a shape key to new_index. safe, clamps index to key->totkey, updates reference keys and 
  * the object's active shape index */
 void	BKE_keyblock_move(Object *ob, KeyBlock *key_block, int new_index);
 
 /* basic key math */
-float	(*BKE_keyblock_math_deltas(KeyBlock *a, KeyBlock *basis))[3];
-float	(*BKE_keyblock_math_deltas_mult(KeyBlock *a, KeyBlock *basis, float mult))[3];
+float	(*BKE_keyblock_math_deltas(Object *ob, KeyBlock *a, KeyBlock *basis))[3];
+float	(*BKE_keyblock_math_deltas_mult(Object *ob, KeyBlock *a, KeyBlock *basis, float mult, float dists[]))[3];
 
-void	BKE_keyblock_math_add(KeyBlock *r, KeyBlock *a, KeyBlock* basis, float mult);
-void	BKE_keyblock_math_interp(KeyBlock *r, KeyBlock *a, float mult);
+void	BKE_keyblock_math_add(Object *ob, KeyBlock *r, KeyBlock *a, KeyBlock* basis, float mult);
+void	BKE_keyblock_math_interp(Object *ob, KeyBlock *r, KeyBlock *a, float mult);
 
 
 /* key.c */

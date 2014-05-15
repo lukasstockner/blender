@@ -77,6 +77,7 @@
 #include "BKE_modifier.h"
 #include "BKE_editmesh.h"
 #include "BKE_report.h"
+#include "BKE_key.h"
 
 #include "ED_armature.h"
 #include "ED_curve.h"
@@ -320,24 +321,7 @@ static bool ED_object_editmode_load_ex(Object *obedit, const bool freedata)
 	}
 
 	if (obedit->type == OB_MESH) {
-		Mesh *me = obedit->data;
-
-		if (me->edit_btmesh->bm->totvert > MESH_MAX_VERTS) {
-			error("Too many vertices");
-			return false;
-		}
-
-		EDBM_mesh_load(obedit);
-
-		if (freedata) {
-			EDBM_mesh_free(me->edit_btmesh);
-			MEM_freeN(me->edit_btmesh);
-			me->edit_btmesh = NULL;
-		}
-		if (obedit->restore_mode & OB_MODE_WEIGHT_PAINT) {
-			ED_mesh_mirror_spatial_table(NULL, NULL, NULL, 'e');
-			ED_mesh_mirror_topo_table(NULL, 'e');
-		}
+		EDBM_mesh_from_editmesh(obedit, freedata);
 	}
 	else if (obedit->type == OB_ARMATURE) {
 		ED_armature_from_edit(obedit->data);
@@ -472,21 +456,8 @@ void ED_object_editmode_enter(bContext *C, int flag)
 	ob->mode = OB_MODE_EDIT;
 
 	if (ob->type == OB_MESH) {
-		BMEditMesh *em;
+		EDBM_editmesh_from_mesh(ob, scene);
 		ok = 1;
-		scene->obedit = ob;  /* context sees this */
-
-		EDBM_mesh_make(scene->toolsettings, ob);
-
-		em = BKE_editmesh_from_object(ob);
-		if (LIKELY(em)) {
-			/* order doesn't matter */
-			EDBM_mesh_normals_update(em);
-			BKE_editmesh_tessface_calc(em);
-
-			BM_mesh_select_mode_flush(em->bm);
-		}
-
 		WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_EDITMODE_MESH, scene);
 	}
 	else if (ob->type == OB_ARMATURE) {

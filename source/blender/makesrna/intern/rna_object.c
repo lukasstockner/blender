@@ -274,10 +274,7 @@ static void rna_Object_active_shape_update(Main *bmain, Scene *scene, PointerRNA
 		/* exit/enter editmode to get new shape */
 		switch (ob->type) {
 			case OB_MESH:
-				EDBM_mesh_load(ob);
-				EDBM_mesh_make(scene->toolsettings, ob);
-				EDBM_mesh_normals_update(((Mesh *)ob->data)->edit_btmesh);
-				BKE_editmesh_tessface_calc(((Mesh *)ob->data)->edit_btmesh);
+				EDBM_handle_active_shape_update(ob, scene);
 				break;
 			case OB_CURVE:
 			case OB_SURF:

@@ -1042,6 +1042,11 @@ typedef struct MeshStatVis {
 /* *************************************************************** */
 /* Tool Settings */
 
+enum {
+	KB_AUTO_COMMIT = 1,
+	KB_DO_NOT_AUTO_COMMIT = 0
+};
+
 typedef struct ToolSettings {
 	VPaint *vpaint;		/* vertex paint */
 	VPaint *wpaint;		/* weight paint */
@@ -1073,7 +1078,10 @@ typedef struct ToolSettings {
 	/* Grease Pencil */
 	char gpencil_flags;
 
-	char pad[5];
+	char pad[4];
+
+	/* auto-commit editcos to keyblocks */
+	char kb_auto_commit;
 
 	/* Image Paint (8 byttse aligned please!) */
 	struct ImagePaintSettings imapaint;

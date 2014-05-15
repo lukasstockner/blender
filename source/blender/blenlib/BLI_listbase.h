@@ -93,10 +93,17 @@ struct LinkData *BLI_genericNodeN(void *data);
 /* Loops through the whole list fwd or bwd */
 
 #define LISTBASE_ITER_FWD(lb, lb_iter) \
-	for (lb_iter = lb.first; lb_iter; lb_iter = lb_iter->next)
+	for ((lb_iter) = (lb).first; (lb_iter); (lb_iter) = (lb_iter)->next)
 
 #define LISTBASE_ITER_BWD(lb, lb_iter) \
-	for (lb_iter = lb.last; lb_iter; lb_iter = lb_iter->prev)
+	for ((lb_iter) = (lb).last; (lb_iter); (lb_iter) = (lb_iter)->prev)
+
+#define LISTBASE_ITER_FWD_INDEX(lb, lb_iter, indexvar) \
+for ((lb_iter) = (lb).first, (indexvar) = 0; (lb_iter); (lb_iter) = (lb_iter)->next, ++(indexvar))
+
+#define LISTBASE_ITER_BWD_INDEX(lb, lb_iter, indexvar) \
+for ((lb_iter) = (lb).first, (indexvar) = BLI_countlist(lb); (lb_iter); (lb_iter) = (lb_iter)->prev; --(indexvar))
+
 
 /**
  * Does a full loop on the list, with any value acting as first
