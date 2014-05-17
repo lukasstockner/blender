@@ -254,9 +254,8 @@ void BKE_editmesh_color_ensure(BMEditMesh *em, const char htype)
 		const unsigned int m = 0x5bd1e995;
 		char r = 24;
 		unsigned int h = len + seed;
-		char * data = (char *) key;
-		for (; len >= 4; len -= 4, data += 4) {
-			unsigned int k = *(unsigned int *) data * m;
+		for (; len >= 4; len -= 4, key += 4) {
+			unsigned int k = *(unsigned int *) key * m;
 			k ^= k >> r;
 			k *= m;
 			h = (h * m) ^ k;
@@ -265,11 +264,11 @@ void BKE_editmesh_color_ensure(BMEditMesh *em, const char htype)
 		switch (len) {
 			/* everything fall-through */
 			case 3: 
-				h ^= data[2] << 16;
+				h ^= key[2] << 16;
 			case 2: 
-				h ^= data[1] << 8;
+				h ^= key[1] << 8;
 			case 1: 
-				h ^= data[0];
+				h ^= key[0];
 				h *= m;
 			default: /* do nothing */;
 		}
