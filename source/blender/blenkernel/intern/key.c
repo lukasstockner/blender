@@ -2103,11 +2103,8 @@ void BKE_key_editdata_to_scratch(Object *ob, bool indeces_in_sync)
 				co = skb->data;
 			}
 
-			skb->origin->totelem = bm->totvert;
-
 			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 				a = *(int *) CustomData_bmesh_get(&bm->vdata, v->head.data, CD_SHAPE_KEYINDEX);
-				BLI_assert(a < bm->totvert);
 				if (a != ORIGINDEX_NONE) {
 					copy_v3_v3(co[a], v->co);
 				}
