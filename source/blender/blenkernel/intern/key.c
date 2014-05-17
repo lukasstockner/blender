@@ -2088,7 +2088,7 @@ void BKE_key_editdata_to_scratch(Object *ob, bool indeces_in_sync)
 		BMVert *v;
 		BMIter iter;
 		int a;
-		float(*co)[3] = skb->data;
+		float (*co)[3] = skb->data;
 
 		if (indeces_in_sync) {
 			BM_ITER_MESH_INDEX(v, &iter, bm, BM_VERTS_OF_MESH, a) {
@@ -2096,8 +2096,15 @@ void BKE_key_editdata_to_scratch(Object *ob, bool indeces_in_sync)
 			}
 		}
 		else {
-			/* note how we don't adjust the skb->data length here,
-			 * this is for preserving the indeces for bm_to_me     */
+			/* don't shrink the memory here, only grow. If it's shrinked to new bm->totvert, 
+			 * the CD_SHAPE_KEYINDEX can potentially be out of bounds. */
+			if (bm->totvert > skb->origin->totelem) {
+				skb->data = MEM_reallocN(skb->data, bm->totvert * ELEMSIZE_MESH);
+				co = skb->data;
+			}
+
+			skb->origin->totelem = bm->totvert;
+
 			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
 				a = *(int *) CustomData_bmesh_get(&bm->vdata, v->head.data, CD_SHAPE_KEYINDEX);
 				BLI_assert(a < bm->totvert);
