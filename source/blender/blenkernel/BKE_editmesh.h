@@ -41,6 +41,7 @@ struct MeshStatVis;
 /* struct for storing data to determine if the mesh's topology has changed */
 typedef struct {
 	int totvert, totedge, totloop, totface;
+	/* note the layout of totvert..totface is the same as in a BMesh so we can bulk copy/compare them */
 	int topohash;
 } EMTopoChangeData;
 

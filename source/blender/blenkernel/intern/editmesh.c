@@ -250,80 +250,90 @@ void BKE_editmesh_color_ensure(BMEditMesh *em, const char htype)
 
 /* ==================== topology hashing ======================= */
 
-unsigned int x17_hash(const char *data, unsigned int len, unsigned int seed)
-{
-	unsigned int hash = seed + len;
-	for (; len & ~1; len -= 2, data += 2)
-		hash = (((hash * 17) + (data[0] - ' ')) * 17) + (data[1] - ' ');
+ unsigned int mm2_hash(char *key, unsigned int len, unsigned int seed) {
+		const unsigned int m = 0x5bd1e995;
+		char r = 24;
+		unsigned int h = len + seed;
+		char * data = (char *) key;
+		for (; len >= 4; len -= 4, data += 4) {
+			unsigned int k = *(unsigned int *) data * m;
+			k ^= k >> r;
+			k *= m;
+			h = (h * m) ^ k;
+		}
 
-	if (len & 1)
-		hash = (hash * 17) + (data[0] - ' ');
-	return hash;
+		switch (len) {
+			/* everything fall-through */
+			case 3: 
+				h ^= data[2] << 16;
+			case 2: 
+				h ^= data[1] << 8;
+			case 1: 
+				h ^= data[0];
+				h *= m;
+			default: /* do nothing */;
+		}
+		h ^= h >> 13;
+		h *= m;
+		h ^= h >> 15;
+		return h;
 }
 
-int hashfunc(void *data, int len)
+
+int hashfunc(void *data, int len, int oldhash)
 {
-	return (int) x17_hash(data, len, 0x27127127);
+	return (int) mm2_hash(data, len, oldhash);
 }
 
-int hashloop_topo(BMLoop *l)
+int hashloop_topo(BMLoop *l, int oldhash)
 {
 	/* skip header, don't track customdata */
-	return hashfunc(((char *)l) + sizeof(BMHeader), sizeof(BMLoop) - sizeof(BMHeader));
+	return hashfunc(((char *)l) + sizeof(BMHeader), sizeof(BMLoop) - sizeof(BMHeader), oldhash);
 }
 
-int hashface_topo(BMFace *f)
+int hashface_topo(BMFace *f, int oldhash)
 {
 	/* skip header & flags & face normals and material */
 	int a = f->len + (int)f->l_first;
-	return hashfunc(&a, sizeof(int));
+	return hashfunc(&a, sizeof(int), oldhash);
 }
 
 /* TODO better hashing */
 int bmesh_topohash(BMesh *bm)
 {
 	BMIter iter;
-	BMLoop *l;
 	BMFace *f;
-	BMEdge *e;
-	int i;
-	int j;
+	BMVert *v;
+
 	int hash = bm->totedge + bm->totvert + bm->totloop + bm->totface;
 
 	if (!hash) {
 		return 0;
 	}
 
-	if (bm->totface)
-	{
-		BM_ITER_MESH_INDEX(f, &iter, bm, BM_FACES_OF_MESH, i) {
-			hash += i * hashface_topo(f);
-			l = f->l_first;
-			int len3 = f->len * f->len * f->len;
-			for (j = 0; j < f->len; ++j) {
-				hash += (len3 + i - j) * hashloop_topo(l);
-				l = l->next;
-			}
+	if (bm->totedge == 0 && bm->totface == 0) {
+		/* cloud mesh */
+		return hashfunc(&bm->totvert, sizeof(int), hash);
+	}
+
+	BM_ITER_MESH(f, &iter, bm, BM_FACES_OF_MESH) {
+		BM_elem_flag_set(f, BM_ELEM_TAG, false);
+	}
+
+	BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+		if (v->e && v->e->l) {
+			hash += hashloop_topo(v->e->l, hash);
 		}
-		/* this next cycle is to counter weird meshes like one face, one million wire edges*/
-		BM_ITER_MESH_INDEX(e, &iter, bm, BM_EDGES_OF_MESH, i) {
-			j = (int)e->v1 + (int)e->v2;
-			hash += hashfunc(&j, sizeof(int));
+		if (v->e->l->f && !BM_elem_flag_test_bool(v->e->l->f, BM_ELEM_TAG)) {
+			hash += hashface_topo(v->e->l->f, hash);
+			BM_elem_flag_set(v->e->l->f, BM_ELEM_TAG, true);
 		}
 	}
-	else {
-		if (bm->totedge == 0) {
-			/* cloud mesh */
-			return hashfunc(&bm->totvert, sizeof(int));
-		}
-		else {
-			/* wire mesh */
-			BM_ITER_MESH_INDEX(e, &iter, bm, BM_EDGES_OF_MESH, i) {
-				j = (int)e->v1 + (int)e->v2;
-				hash += hashfunc(&j, sizeof(int));
-			}
-		}
+
+	BM_ITER_MESH(f, &iter, bm, BM_FACES_OF_MESH) {
+		BM_elem_flag_set(f, BM_ELEM_TAG, false);
 	}
+
 	return hash;
 }
 
