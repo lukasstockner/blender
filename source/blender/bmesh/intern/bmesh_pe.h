@@ -20,6 +20,8 @@
 * ***** END GPL LICENSE BLOCK *****
 */
 
+#ifndef __BMESH_PE_H__
+#define __BMESH_PE_H__
 
 typedef struct BMesh BMesh;
 
@@ -32,3 +34,4 @@ void BM_prop_dist_calc_connected(BMesh *bm, float loc_to_world_mtx[3][3], float 
  * in the projection plane from the closest selected vertex */
 void BM_prop_dist_calc(BMesh *bm, float loc_to_world_mtx[3][3], float proj_plane_n[3], float dists[]);
 
+#endif
