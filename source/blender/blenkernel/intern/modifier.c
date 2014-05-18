@@ -48,6 +48,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_key_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_path_util.h"
@@ -516,10 +517,11 @@ ModifierData *modifiers_getVirtualModifierList(Object *ob, VirtualModifierData *
 			md = &virtualModifierData->lmd.modifier;
 		}
 	}
+	Key* key = BKE_key_from_object(ob);
 
 	/* shape key modifier, not yet for curves */
-	if (ELEM(ob->type, OB_MESH, OB_LATTICE) && BKE_key_from_object(ob)) {
-		if (ob->type == OB_MESH && (ob->shapeflag & OB_SHAPE_EDIT_MODE))
+	if (ELEM(ob->type, OB_MESH, OB_LATTICE) && key) {
+		if (ob->type == OB_MESH && key->pin)
 			virtualModifierData->smd.modifier.mode |= eModifierMode_Editmode | eModifierMode_OnCage;
 		else
 			virtualModifierData->smd.modifier.mode &= ~eModifierMode_Editmode | eModifierMode_OnCage;

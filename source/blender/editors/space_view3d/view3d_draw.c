@@ -905,7 +905,7 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 				if (kb) {
 					s += BLI_strcpy_rlen(s, msg_sep);
 					s += BLI_strcpy_rlen(s, kb->name);
-					if (ob->shapeflag & OB_SHAPE_LOCK) {
+					if (key->pin) {
 						s += BLI_strcpy_rlen(s, IFACE_(msg_pin));
 					}
 				}

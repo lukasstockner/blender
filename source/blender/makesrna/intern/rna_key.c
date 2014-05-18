@@ -33,6 +33,9 @@
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 
+#include "BKE_key.h"
+#include "BKE_editmesh.h"
+
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -99,11 +102,17 @@ static void rna_ShapeKey_value_set(PointerRNA *ptr, float value)
 	data->curval = value;
 }
 
+static void rna_ShapeKey_mixvalue_set(PointerRNA *ptr, float value)
+{
+	KeyBlock *data = (KeyBlock *)ptr->data;
+	CLAMP(value, data->slidermin, data->slidermax);
+	data->mixval = value;
+}
+
 static void rna_ShapeKey_value_range(PointerRNA *ptr, float *min, float *max,
                                      float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	KeyBlock *data = (KeyBlock *)ptr->data;
-
 	*min = data->slidermin;
 	*max = data->slidermax;
 }
@@ -585,6 +594,14 @@ static void rna_def_keyblock(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Value", "Value of shape key at the current frame");
 	RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
+	prop = RNA_def_property(srna, "edit_mix_value", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "mixval");
+	RNA_def_property_float_funcs(prop, NULL, "rna_ShapeKey_mixvalue_set", "rna_ShapeKey_value_range");
+	RNA_def_property_ui_range(prop, -10.0f, 10.0f, 10, 3);
+	RNA_def_property_ui_text(prop, "Value", "Animation-independent value of shape key at the current frame");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE); /* don't make this animatable, this would be considered abuse */
+	RNA_def_property_update(prop, 0, "rna_Key_update_data");
+
 	prop = RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "type");
 	RNA_def_property_enum_items(prop, keyblock_type_items);
@@ -669,6 +686,13 @@ static void rna_def_key(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "mix_mode", KEY_MIX_FROM_TEMPVALUES);
 	RNA_def_property_ui_text(prop, "Mix From Animation", "Make animation curves define the shape mix, "
 															"or use an animation-independent mix");
+	RNA_def_property_update(prop, 0, "rna_Key_update_data");
+	RNA_def_property_ui_icon(prop, ICON_IPO_BEZIER, 0);
+
+	prop = RNA_def_property(srna, "show_only_shape_key", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pin", 0);
+	RNA_def_property_ui_text(prop, "Shape Key Lock", "Always show the current Shape for this Key");
+	RNA_def_property_ui_icon(prop, ICON_UNPINNED, 1);
 	RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
 

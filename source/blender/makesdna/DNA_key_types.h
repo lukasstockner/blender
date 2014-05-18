@@ -41,6 +41,7 @@
 
 struct AnimData;
 struct Ipo;
+typedef struct Key;
 
 typedef struct KeyBlock {
 	struct KeyBlock *next, *prev;
@@ -96,7 +97,7 @@ typedef struct Key {
 	 * (each one char) used for calculating shape key-blocks */
 	char elemstr[32];
 	int elemsize;  /* size of each element in #KeyBlock.data, use for allocation and stride */
-	short pad;
+	short pin;
 	short mix_mode; /* Key->type == KEY_RELATIVE only; defines whether the mix will be from the animation or
 					 * from the temporary user values */
 	

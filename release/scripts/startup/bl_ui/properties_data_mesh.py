@@ -72,6 +72,16 @@ class MESH_UL_vgroups(UIList):
             layout.label(text="", icon_value=icon)
 
 
+def draw_shape_value(ob, kb, layout, emboss=False, text=""):
+    key = ob.data.shape_keys
+    if (ob.mode == 'EDIT'):
+        if (key.mix_from_animation):
+            layout.prop(kb, "value", emboss=emboss, text=text)
+        else:
+            layout.prop(kb, "edit_mix_value", emboss=emboss, text='Temp ' + text)
+    else:
+        layout.prop(kb, "value", emboss=emboss, text=text)
+
 class MESH_UL_shape_keys(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.ShapeKey)
@@ -82,10 +92,10 @@ class MESH_UL_shape_keys(UIList):
             split = layout.split(0.66, False)
             split.prop(key_block, "name", text="", emboss=False, icon_value=icon)
             row = split.row(align=True)
-            if key_block.mute or (obj.mode == 'EDIT' and not (obj.use_shape_key_edit_mode and obj.type == 'MESH')):
+            if key_block.mute:
                 row.active = False
             if not item.relative_key or index > 0:
-                row.prop(key_block, "value", text="", emboss=False)
+                draw_shape_value(obj, key_block, row)
             else:
                 row.label(text="")
             row.prop(key_block, "mute", text="", emboss=False)
@@ -220,7 +230,6 @@ class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):
 
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
 
-
 class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
     bl_label = "Shape Keys"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
@@ -240,11 +249,6 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
         ts = context.scene.tool_settings
 
         enable_edit = ob.mode != 'EDIT'
-        enable_edit_value = False
-
-        if ob.show_only_shape_key is False:
-            if enable_edit or (ob.type == 'MESH' and ob.use_shape_key_edit_mode):
-                enable_edit_value = True
 
         row = layout.row()
 
@@ -275,16 +279,16 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             row.enabled = enable_edit
             row.prop(key, "use_relative")
             row = split.row()
-            if ob.mode == 'EDIT':    
+            if ob.mode == 'ED   IT':    
                 row.prop(ts, "kb_auto_commit", text = "Auto-commit")
             row.alignment = 'RIGHT'
             sub = row.row(align=True)
             sub.label()  # XXX, for alignment only
             subsub = sub.row(align=True)
-            #subsub.active = enable_edit_value
-            subsub.prop(ob, "show_only_shape_key", text="")
-
-
+            if not enable_edit:
+                subsub.prop(key, "mix_from_animation", text="")
+            subsub.prop(key, "show_only_shape_key", text="")
+            
             sub = row.row()
             if key.use_relative:
                 sub.operator("object.shape_key_clear", icon='X', text="")
@@ -294,19 +298,18 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             if key.use_relative:
                 if ob.active_shape_key_index != 0:
                     row = layout.row()
-                    row.active = enable_edit_value
-                    row.prop(kb, "value")
+                    draw_shape_value(ob, kb, row, emboss=True, text="Value")
 
                     split = layout.split()
 
                     col = split.column(align=True)
-                    col.active = enable_edit_value
+                    col.active = ob.mode != 'EDIT'
                     col.label(text="Range:")
                     col.prop(kb, "slider_min", text="Min")
                     col.prop(kb, "slider_max", text="Max")
 
                     col = split.column(align=True)
-                    col.active = enable_edit_value
+                    col.active = ob.mode != 'EDIT'
                     col.label(text="Blend:")
                     col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="")
                     col.prop_search(kb, "relative_key", key, "key_blocks", text="")
@@ -388,3 +391,5 @@ class DATA_PT_custom_props_mesh(MeshButtonsPanel, PropertyPanel, Panel):
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)
+
+

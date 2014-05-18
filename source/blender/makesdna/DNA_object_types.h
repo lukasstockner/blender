@@ -264,7 +264,7 @@ typedef struct Object {
 	struct Group *dup_group;	/* object duplicator for group */
 
 	char  body_type;			/* for now used to temporarily holds the type of collision object */
-	char  shapeflag;			/* flag for pinning */
+	char  shapeflag DNA_DEPRECATED;			/* flag for pinning, moved over to Key->pin */
 	short shapenr;				/* current shape key for menu or pinned */
 	float smoothresh;			/* smoothresh is phong interpolation ray_shadow correction in render */
 
@@ -622,12 +622,6 @@ enum {
 	OB_RESTRICT_RENDER  = 1 << 2,
 };
 
-/* ob->shapeflag */
-enum {
-	OB_SHAPE_LOCK       = 1 << 0,
-	// OB_SHAPE_TEMPLOCK   = 1 << 1,  /* deprecated */
-	OB_SHAPE_EDIT_MODE  = 1 << 2,
-};
 
 /* ob->nlaflag */
 enum {

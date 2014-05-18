@@ -41,6 +41,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_space_types.h"
+#include "DNA_key_types.h"
 
 #include "BLI_bitmap.h"
 #include "BLI_utildefines.h"
@@ -546,12 +547,12 @@ static bool sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
 	Mesh *me = (Mesh *)ob->data;
 	MultiresModifierData *mmd = BKE_sculpt_multires_active(scene, ob);
 	VirtualModifierData virtualModifierData;
-
+	Key *key = BKE_key_from_object(ob);
 	if (mmd || ob->sculpt->bm)
 		return 0;
 
 	/* non-locked shape keys could be handled in the same way as deformed mesh */
-	if ((ob->shapeflag & OB_SHAPE_LOCK) == 0 && me->key && ob->shapenr)
+	if (me->key && key->pin && ob->shapenr)
 		return 1;
 
 	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);

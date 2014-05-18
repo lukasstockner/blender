@@ -703,7 +703,7 @@ void EDBM_handle_active_shape_update(Object *ob, Scene *s)
 		EDBM_commit_scratch_to_active(ob, s);
 		EDBM_update_scratch_from_active(ob);
 		em = BKE_editmesh_from_object(ob);
-		BKE_key_eval_editmesh_rel(em, true /*ob->shapeflag*/);
+		BKE_key_eval_editmesh_rel(em, key->pin);
 		EDBM_update_generic(em, false, false);
 	}  
 	/* if there's no auto-committing, don't do anything */
