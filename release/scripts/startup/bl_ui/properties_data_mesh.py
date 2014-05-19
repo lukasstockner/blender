@@ -95,9 +95,10 @@ class MESH_UL_shape_keys(UIList):
             if key_block.mute:
                 row.active = False
 
-            if not item.relative_key or index > 0:
+            if not item.id_data.use_relative:
+				row.prop(key_block, "frame", text="", emboss=False)
+			elif index > 0:
                 draw_shape_value(obj, key_block, row)
-
             else:
                 row.label(text="")
             row.prop(key_block, "mute", text="", emboss=False)
