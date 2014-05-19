@@ -687,6 +687,10 @@ void DEG_debug_build_node_added(const DepsNode *node) {}
 void DEG_debug_build_relation_added(const DepsRelation *rel) {}
 void DEG_debug_build_end(void) {}
 
+void DEG_debug_eval_init(void *userdata, DEG_DebugEvalCb cb) {}
+void DEG_debug_eval_end(void) {}
+void DEG_debug_eval_step(const char *message) {}
+
 #endif /* DEG_DEBUG_BUILD */
 
 /* ************************************************ */
