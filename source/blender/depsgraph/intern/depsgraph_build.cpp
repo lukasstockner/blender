@@ -389,6 +389,73 @@ void DepsgraphRelationBuilder::add_operation_relation(OperationDepsNode *node_fr
 
 /* -------------------------------------------------- */
 
+/* performs a transitive reduction to remove redundant relations
+ * http://en.wikipedia.org/wiki/Transitive_reduction
+ * 
+ * XXX The current implementation is somewhat naive and has O(V*E) worst case runtime.
+ * A more optimized algorithm can be implemented later, e.g.
+ * 
+ * http://www.sciencedirect.com/science/article/pii/0304397588900321/pdf?md5=3391e309b708b6f9cdedcd08f84f4afc&pid=1-s2.0-0304397588900321-main.pdf
+ * 
+ * Care has to be taken to make sure the algorithm can handle the cyclic case too!
+ * (unless we can to prevent this case early on)
+ */
+
+enum {
+	OP_VISITED = 1,
+	OP_REACHABLE = 2,
+};
+
+static void deg_graph_tag_paths_recursive(OperationDepsNode *node)
+{
+	if (node->done & OP_VISITED)
+		return;
+	node->done |= OP_VISITED;
+	
+	for (OperationDepsNode::Relations::const_iterator it = node->inlinks.begin(); it != node->inlinks.end(); ++it) {
+		DepsRelation *rel = *it;
+		
+		deg_graph_tag_paths_recursive(rel->from);
+		/* do this only in inlinks loop, so the target node does not get flagged! */
+		rel->from->done |= OP_REACHABLE;
+	}
+}
+
+static void deg_graph_transitive_reduction(Depsgraph *graph)
+{
+	for (Depsgraph::OperationNodes::const_iterator it_target = graph->operations.begin(); it_target != graph->operations.end(); ++it_target) {
+		OperationDepsNode *target = *it_target;
+		
+		/* clear tags */
+		for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
+			OperationDepsNode *node = *it;
+			node->done = 0;
+		}
+		
+		/* mark nodes from which we can reach the target
+		 * start with children, so the target node and direct children are not flagged
+		 */
+		target->done |= OP_VISITED;
+		for (OperationDepsNode::Relations::const_iterator it = target->inlinks.begin(); it != target->inlinks.end(); ++it) {
+			DepsRelation *rel = *it;
+			
+			deg_graph_tag_paths_recursive(rel->from);
+		}
+		
+		/* remove redundant paths to the target */
+		for (OperationDepsNode::Relations::const_iterator it_rel = target->inlinks.begin(); it_rel != target->inlinks.end();) {
+			DepsRelation *rel = *it_rel;
+			++it_rel; /* increment in advance, so we can safely remove the relation */
+			
+			if (rel->from->done & OP_REACHABLE) {
+				delete rel;
+			}
+		}
+	}
+}
+
+/* -------------------------------------------------- */
+
 /* Build depsgraph for the given scene, and dump results in given graph container */
 // XXX: assume that this is called from outside, given the current scene as the "main" scene 
 void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
@@ -420,6 +487,8 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	/* sort nodes to determine evaluation order (in most cases) */
 	DEG_graph_sort(graph);
 #endif
+	
+	deg_graph_transitive_reduction(graph);
 }
 
 /* ************************************************* */

@@ -60,9 +60,6 @@ typedef enum eDepsOperation_Flag {
 
 	/* Operation is evaluated using CPython; has GIL and security implications... */
 	DEPSOP_FLAG_USES_PYTHON   = (1 << 2),
-	
-	/* node was visited/handled already in traversal... */
-	DEPSOP_FLAG_TEMP_TAG           = (1 << 3),
 } eDepsOperation_Flag;
 
 /* Atomic Operation - Base type for all operations */
@@ -90,6 +87,7 @@ struct OperationDepsNode : public DepsNode {
 	
 	short optype;                 /* (eDepsOperation_Type) stage of evaluation */
 	short flag;                   /* (eDepsOperation_Flag) extra settings affecting evaluation */
+	short done;                   /* generic tag for traversal algorithms */
 };
 
 /* Macros for common static typeinfo */
