@@ -266,7 +266,9 @@ static void imapaint_tri_weights(float matrix[4][4], GLint view[4],
 static void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, const int xy[2], float uv[2])
 {
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
-	MTFace *tface = dm->getTessFaceDataArray(dm, CD_MTFACE), *tf;
+	MTFace *tf_base, *tf;
+	Material *ma;
+	TexPaintSlot *slot;
 	int numfaces = dm->getNumTessFaces(dm), a, findex;
 	float p[2], w[3], absw, minabsw;
 	MFace mf;
@@ -301,13 +303,19 @@ static void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, c
 		if (findex == faceindex) {
 			dm->getTessFace(dm, a, &mf);
 
+			ma = dm->mat[mf.mat_nr];
+			slot = &ma->texpaintslot[ma->paint_active_slot];
+
 			dm->getVert(dm, mf.v1, &mv[0]);
 			dm->getVert(dm, mf.v2, &mv[1]);
 			dm->getVert(dm, mf.v3, &mv[2]);
 			if (mf.v4)
 				dm->getVert(dm, mf.v4, &mv[3]);
 
-			tf = &tface[a];
+			if (!slot->uvname[0] || !(tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE, slot->uvname)))
+				tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+
+			tf = &tf_base[a];
 
 			p[0] = xy[0];
 			p[1] = xy[1];
@@ -365,21 +373,12 @@ static int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *
 }
 
 
-static Image *imapaint_face_image(DerivedMesh *dm, Scene *scene, Object *ob, int face_index)
+static Image *imapaint_face_image(DerivedMesh *dm, int face_index)
 {
 	Image *ima;
-
-	MFace *dm_mface = dm->getTessFaceArray(dm);
-
-	if (BKE_scene_use_new_shading_nodes(scene)) {
-		MFace *mf = &dm_mface[face_index];
-		ED_object_get_active_image(ob, mf->mat_nr + 1, &ima, NULL, NULL);
-	}
-	else {
-		MFace *mf = dm_mface + face_index;
-		Material *ma = give_current_material(ob, mf->mat_nr + 1);
-		ima = ma->texpaintslot[ma->paint_active_slot].ima;
-	}
+	MFace *mf = dm->getTessFaceArray(dm) + face_index;
+	Material *ma = dm->mat[mf->mat_nr];
+	ima = ma->texpaintslot[ma->paint_active_slot].ima;
 
 	return ima;
 }
@@ -439,13 +438,15 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 			unsigned int totface = dm->getNumTessFaces(dm);
 			MTFace *dm_mtface = dm->getTessFaceDataArray(dm, CD_MTFACE);
 
+			DM_update_materials(dm, ob);
+
 			if (dm_mtface) {
 				view3d_set_viewcontext(C, &vc);
 
 				view3d_operator_needs_opengl(C);
 
 				if(imapaint_pick_face(&vc, mval, &faceindex, totface)) {
-					Image *image = imapaint_face_image(dm, scene, ob, faceindex);
+					Image *image = imapaint_face_image(dm, faceindex);
 
 					ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
 					if (ibuf && ibuf->rect) {
