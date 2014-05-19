@@ -222,7 +222,7 @@ static void create_mesh_volume_attribute(BL::Object b_ob, Mesh *mesh, ImageManag
 
 	volume_data->manager = image_manager;
 	volume_data->slot = image_manager->add_image(Attribute::standard_name(std),
-		b_ob.ptr.data, animated, is_float, is_linear, INTERPOLATION_LINEAR);
+		b_ob.ptr.data, animated, is_float, is_linear, INTERPOLATION_LINEAR, true);
 }
 
 static void create_mesh_volume_attributes(Scene *scene, BL::Object b_ob, Mesh *mesh)
@@ -615,6 +615,11 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion
 		return;
 
 	mesh_motion_synced.insert(mesh);
+
+	/* ensure we only motion sync meshes that also had mesh synced, to avoid
+	 * unnecessary work and to ensure that its attributes were clear */
+	if(mesh_synced.find(mesh) == mesh_synced.end())
+		return;
 
 	/* for motion pass always compute, for motion blur it can be disabled */
 	int time_index = 0;

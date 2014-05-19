@@ -1612,7 +1612,7 @@ static void createTransLatticeVerts(TransInfo *t)
 {
 	Lattice *latt = ((Lattice *)t->obedit->data)->editlatt->latt;
 	TransData *td = NULL;
-	BPoint *bp, *actbp = BKE_lattice_active_point_get(latt);
+	BPoint *bp;
 	float mtx[3][3], smtx[3][3];
 	int a;
 	int count = 0, countsel = 0;
@@ -1649,7 +1649,6 @@ static void createTransLatticeVerts(TransInfo *t)
 				copy_v3_v3(td->center, td->loc);
 				if (bp->f1 & SELECT) {
 					td->flag = TD_SELECTED;
-					if (actbp && bp == actbp) td->flag |= TD_ACTIVE;
 				}
 				else td->flag = 0;
 				copy_m3_m3(td->smtx, smtx);
@@ -2138,7 +2137,6 @@ static void createTransEditVerts(TransInfo *t)
 	BMesh *bm = em->bm;
 	BMVert *eve;
 	BMIter iter;
-	BMVert *eve_act = NULL;
 	float (*mappedcos)[3] = NULL, (*quats)[4] = NULL;
 	float mtx[3][3], smtx[3][3], (*defmats)[3][3] = NULL, (*defcos)[3] = NULL;
 	float *dists = NULL;
@@ -2177,10 +2175,6 @@ static void createTransEditVerts(TransInfo *t)
 	else {
 		BLI_assert(0);
 	}
-
-
-	/* check active */
-	eve_act = BM_mesh_active_vert_get(bm);
 
 	if (t->mode == TFM_BWEIGHT) {
 		BM_mesh_cd_flag_ensure(bm, BKE_mesh_from_object(t->obedit), ME_CDFLAG_VERT_BWEIGHT);
@@ -2286,9 +2280,6 @@ static void createTransEditVerts(TransInfo *t)
 				/* selected */
 				if (BM_elem_flag_test(eve, BM_ELEM_SELECT))
 					tob->flag |= TD_SELECTED;
-
-				/* active */
-				if (eve == eve_act) tob->flag |= TD_ACTIVE;
 
 				if (propmode) {
 					if (propmode & T_PROP_CONNECTED) {
@@ -2870,7 +2861,7 @@ static void createTransNlaData(bContext *C, TransInfo *t)
 		}
 		
 		/* cleanup temp list */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 		return;
 	}
 	
@@ -3003,7 +2994,7 @@ static void createTransNlaData(bContext *C, TransInfo *t)
 	}
 	
 	/* cleanup temp list */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ********************* ACTION EDITOR ****************** */
@@ -3192,7 +3183,7 @@ static void posttrans_action_clean(bAnimContext *ac, bAction *act)
 	}
 
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ----------------------------- */
@@ -3467,7 +3458,7 @@ static void createTransActionData(bContext *C, TransInfo *t)
 	/* stop if trying to build list if nothing selected */
 	if (count == 0) {
 		/* cleanup temp list */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 		return;
 	}
 	
@@ -3556,7 +3547,7 @@ static void createTransActionData(bContext *C, TransInfo *t)
 	}
 
 	/* cleanup temp list */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ********************* GRAPH EDITOR ************************* */
@@ -3747,7 +3738,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	/* stop if trying to build list if nothing selected */
 	if (count == 0) {
 		/* cleanup temp list */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 		return;
 	}
 	
@@ -3879,7 +3870,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	}
 	
 	/* cleanup temp list */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 
@@ -4726,8 +4717,7 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 }
 
 /* transcribe given object into TransData for Transforming */
-static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob,
-                              const Object *ob_act)
+static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 {
 	Scene *scene = t->scene;
 	bool constinv;
@@ -4850,11 +4840,6 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob,
 		/* no conversion to/from dataspace */
 		unit_m3(td->smtx);
 		unit_m3(td->mtx);
-	}
-
-	/* set active flag */
-	if (ob == ob_act) {
-		td->flag |= TD_ACTIVE;
 	}
 }
 
@@ -5547,7 +5532,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			}
 			
 			/* free temp memory */
-			BLI_freelistN(&anim_data);
+			ANIM_animdata_freelist(&anim_data);
 		}
 		else if (ac.datatype == ANIMCONT_ACTION) { // TODO: just integrate into the above...
 			/* Depending on the lock status, draw necessary views */
@@ -5679,7 +5664,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			}
 			
 			/* free temp memory */
-			BLI_freelistN(&anim_data);
+			ANIM_animdata_freelist(&anim_data);
 		}
 		
 		/* Make sure all F-Curves are set correctly, but not if transform was
@@ -5716,7 +5701,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			}
 			
 			/* free temp memory */
-			BLI_freelistN(&anim_data);
+			ANIM_animdata_freelist(&anim_data);
 			
 			/* perform after-transfrom validation */
 			ED_nla_postop_refresh(&ac);
@@ -5863,7 +5848,6 @@ int special_transform_moving(TransInfo *t)
 static void createTransObject(bContext *C, TransInfo *t)
 {
 	Scene *scene = t->scene;
-	const Object *ob_act = OBACT;
 
 	TransData *td = NULL;
 	TransDataExtension *tx;
@@ -5906,7 +5890,7 @@ static void createTransObject(bContext *C, TransInfo *t)
 			td->flag |= TD_SKIP;
 		}
 		
-		ObjectToTransData(t, td, ob, ob_act);
+		ObjectToTransData(t, td, ob);
 		td->val = NULL;
 		td++;
 		tx++;
@@ -5928,7 +5912,7 @@ static void createTransObject(bContext *C, TransInfo *t)
 				td->ext = tx;
 				td->ext->rotOrder = ob->rotmode;
 				
-				ObjectToTransData(t, td, ob, ob_act);
+				ObjectToTransData(t, td, ob);
 				td->val = NULL;
 				td++;
 				tx++;

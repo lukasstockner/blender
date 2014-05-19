@@ -174,7 +174,7 @@ static void node_set_typeinfo(const struct bContext *C, bNodeTree *ntree, bNode 
 {
 	/* for nodes saved in older versions storage can get lost, make undefined then */
 	if (node->flag & NODE_INIT) {
-		if (typeinfo->storagename[0] && !node->storage)
+		if (typeinfo && typeinfo->storagename[0] && !node->storage)
 			typeinfo = NULL;
 	}
 	
@@ -1123,7 +1123,7 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool do_
 		newtree = BKE_libblock_copy(&ntree->id);
 	}
 	else {
-		newtree = BKE_libblock_copy_nolib(&ntree->id);
+		newtree = BKE_libblock_copy_nolib(&ntree->id, true);
 		newtree->id.lib = NULL;	/* same as owning datablock id.lib */
 	}
 

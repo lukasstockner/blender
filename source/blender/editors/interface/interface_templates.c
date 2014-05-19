@@ -1957,6 +1957,7 @@ static void curvemap_tools_dofunc(bContext *C, void *cumap_v, int event)
 			curvemapping_changed(cumap, false);
 			break;
 	}
+	ED_undo_push(C, "CurveMap tools");
 	ED_region_tag_redraw(CTX_wm_region(C));
 }
 
@@ -3290,7 +3291,9 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 				handle_event = B_STOPCOMPO;
 				break;
 			}
-			else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE)) {
+			else if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE_TEXTURE) ||
+			         WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_BAKE))
+			{
 				/* Skip bake jobs in compositor to avoid compo header displaying
 				 * progress bar which is not being updated (bake jobs only need
 				 * to update NC_IMAGE context.

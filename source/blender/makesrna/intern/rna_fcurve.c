@@ -61,7 +61,7 @@ EnumPropertyItem fmodifier_type_items[] = {
 	{FMODIFIER_TYPE_NOISE, "NOISE", 0, "Noise",
 	                       "Add pseudo-random noise on top of F-Curves"},
 	/*{FMODIFIER_TYPE_FILTER, "FILTER", 0, "Filter", ""},*/ /* FIXME: not implemented yet! */
-	/*{FMODIFIER_TYPE_PYTHON, "PYTHON", 0, "Python", ""},	 *//* FIXME: not implemented yet! */
+	{FMODIFIER_TYPE_PYTHON, "PYTHON", 0, "Python", ""},
 	{FMODIFIER_TYPE_LIMITS, "LIMITS", 0, "Limits",
 	                        "Restrict maximum and minimum values of F-Curve"},
 	{FMODIFIER_TYPE_STEPPED, "STEPPED", 0, "Stepped Interpolation",
@@ -144,7 +144,11 @@ static void rna_ChannelDriver_update_data(Main *bmain, Scene *scene, PointerRNA 
 static void rna_ChannelDriver_update_expr(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	ChannelDriver *driver = ptr->data;
+	
+	/* tag driver as needing to be recompiled */
 	driver->flag |= DRIVER_FLAG_RECOMPILE;
+	
+	/* update_data() clears invalid flag and schedules for updates */
 	rna_ChannelDriver_update_data(bmain, scene, ptr);
 }
 
@@ -453,7 +457,7 @@ static void rna_FCurve_range(FCurve *fcu, float range[2])
 static void rna_FCurve_update_data_ex(FCurve *fcu)
 {
 	sort_time_fcurve(fcu);
-	testhandles_fcurve(fcu, true);
+	calchandles_fcurve(fcu);
 }
 
 /* RNA update callback for F-Curves after curve shape changes */

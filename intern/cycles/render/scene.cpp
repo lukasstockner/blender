@@ -63,8 +63,8 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 	else
 		shader_manager = ShaderManager::create(this, SceneParams::SVM);
 
-	if (device_info_.type == DEVICE_CPU)
-		image_manager->set_extended_image_limits();
+	/* Extended image limits for CPU and GPUs */
+	image_manager->set_extended_image_limits(device_info_);
 }
 
 Scene::~Scene()
@@ -236,9 +236,9 @@ bool Scene::need_global_attribute(AttributeStandard std)
 {
 	if(std == ATTR_STD_UV)
 		return Pass::contains(film->passes, PASS_UV);
-	if(std == ATTR_STD_MOTION_VERTEX_POSITION)
+	else if(std == ATTR_STD_MOTION_VERTEX_POSITION)
 		return need_motion() != MOTION_NONE;
-	if(std == ATTR_STD_MOTION_VERTEX_NORMAL)
+	else if(std == ATTR_STD_MOTION_VERTEX_NORMAL)
 		return need_motion() == MOTION_BLUR;
 	
 	return false;

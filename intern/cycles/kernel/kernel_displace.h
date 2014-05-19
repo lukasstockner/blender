@@ -16,7 +16,8 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device void compute_light_pass(KernelGlobals *kg, ShaderData *sd, PathRadiance *L, RNG rng, bool is_ao)
+ccl_device void compute_light_pass(KernelGlobals *kg, ShaderData *sd, PathRadiance *L, RNG rng,
+                                   bool is_combined, bool is_ao, bool is_sss)
 {
 	int samples = kernel_data.integrator.aa_samples;
 
@@ -45,22 +46,32 @@ ccl_device void compute_light_pass(KernelGlobals *kg, ShaderData *sd, PathRadian
 		/* TODO, disable the closures we won't need */
 
 		/* sample ambient occlusion */
-		if(is_ao) {
+		if(is_combined || is_ao) {
 			kernel_path_ao(kg, sd, &L_sample, &state, &rng, throughput);
 		}
 
-		/* sample light and BSDF */
-		else if(kernel_path_integrate_lighting(kg, &rng, sd, &throughput, &state, &L_sample, &ray)) {
-#ifdef __LAMP_MIS__
-			state.ray_t = 0.0f;
+		/* sample subsurface scattering */
+		if((is_combined || is_sss) && (sd->flag & SD_BSSRDF)) {
+#ifdef __SUBSURFACE__
+			/* when mixing BSSRDF and BSDF closures we should skip BSDF lighting if scattering was successful */
+			if (kernel_path_subsurface_scatter(kg, sd, &L_sample, &state, &rng, &ray, &throughput))
+				is_sss = true;
 #endif
+		}
 
-			/* compute indirect light */
-			kernel_path_indirect(kg, &rng, ray, throughput, state.num_samples, state, &L_sample);
+		/* sample light and BSDF */
+		if((!is_sss) && (!is_ao)) {
+			if(kernel_path_integrate_lighting(kg, &rng, sd, &throughput, &state, &L_sample, &ray)) {
+#ifdef __LAMP_MIS__
+				state.ray_t = 0.0f;
+#endif
+				/* compute indirect light */
+				kernel_path_indirect(kg, &rng, ray, throughput, state.num_samples, state, &L_sample);
 
-			/* sum and reset indirect light pass variables for the next samples */
-			path_radiance_sum_indirect(&L_sample);
-			path_radiance_reset_indirect(&L_sample);
+				/* sum and reset indirect light pass variables for the next samples */
+				path_radiance_sum_indirect(&L_sample);
+				path_radiance_reset_indirect(&L_sample);
+			}
 		}
 
 		/* accumulate into master L */
@@ -91,7 +102,9 @@ ccl_device bool is_light_pass(ShaderEvalType type)
 ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input, ccl_global float4 *output, ShaderEvalType type, int i)
 {
 	ShaderData sd;
-	uint4 in = input[i];
+	uint4 in = input[i * 2];
+	uint4 diff = input[i * 2 + 1];
+
 	float3 out;
 
 	int object = in.x;
@@ -102,6 +115,11 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 
 	float u = __uint_as_float(in.z);
 	float v = __uint_as_float(in.w);
+
+	float dudx = __uint_as_float(diff.x);
+	float dudy = __uint_as_float(diff.y);
+	float dvdx = __uint_as_float(diff.z);
+	float dvdy = __uint_as_float(diff.w);
 
 	int shader;
 	float3 P, Ng;
@@ -121,9 +139,20 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 	shader_setup_from_sample(kg, &sd, P, Ng, I, shader, object, prim, u, v, t, time, bounce, transparent_bounce);
 	sd.I = sd.N;
 
+	/* update differentials */
+	sd.dP.dx = sd.dPdu * dudx + sd.dPdv * dvdx;
+	sd.dP.dy = sd.dPdu * dudy + sd.dPdv * dvdy;
+	sd.du.dx = dudx;
+	sd.du.dy = dudy;
+	sd.dv.dx = dvdx;
+	sd.dv.dy = dvdy;
+
 	if(is_light_pass(type)) {
 		RNG rng = cmj_hash(i, 0);
-		compute_light_pass(kg, &sd, &L, rng, (type == SHADER_EVAL_AO));
+		compute_light_pass(kg, &sd, &L, rng, (type == SHADER_EVAL_COMBINED),
+		                                     (type == SHADER_EVAL_AO),
+		                                     (type == SHADER_EVAL_SUBSURFACE_DIRECT ||
+		                                      type == SHADER_EVAL_SUBSURFACE_INDIRECT));
 	}
 
 	switch (type) {
@@ -172,6 +201,7 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 			break;
 		}
 
+#ifdef __PASSES__
 		/* light passes */
 		case SHADER_EVAL_AO:
 		{
@@ -240,6 +270,7 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 #endif
 			break;
 		}
+#endif
 
 		/* extra */
 		case SHADER_EVAL_ENVIRONMENT:

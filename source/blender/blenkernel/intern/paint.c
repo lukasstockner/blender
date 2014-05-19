@@ -560,7 +560,7 @@ static bool sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
 	for (; md; md = md->next) {
 		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 		if (!modifier_isEnabled(scene, md, eModifierMode_Realtime)) continue;
-		if (md->type == eModifierType_ShapeKey) continue;
+		if (ELEM(md->type, eModifierType_ShapeKey, eModifierType_Multires)) continue;
 
 		if (mti->type == eModifierTypeType_OnlyDeform) return 1;
 		else if ((sd->flags & SCULPT_ONLY_DEFORM) == 0) return 1;
@@ -573,7 +573,7 @@ static bool sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
  * \param need_mask So the DerivedMesh thats returned has mask data
  */
 void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
-								 bool need_pmap, bool need_mask)
+                                     bool need_pmap, bool need_mask)
 {
 	DerivedMesh *dm;
 	SculptSession *ss = ob->sculpt;
@@ -658,14 +658,28 @@ void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 		BKE_free_sculptsession_deformMats(ss);
 	}
 
-	/* if pbvh is deformed, key block is already applied to it */
-	if (ss->kb && !BKE_pbvh_isDeformed(ss->pbvh)) {
-		float (*vertCos)[3] = BKE_key_convert_to_vertcos(ob, ss->kb);
+	if (ss->kb != NULL && ss->deform_cos == NULL) {
+		ss->deform_cos = BKE_key_convert_to_vertcos(ob, ss->kb);
+	}
 
-		if (vertCos) {
-			/* apply shape keys coordinates to PBVH */
-			BKE_pbvh_apply_vertCos(ss->pbvh, vertCos);
-			MEM_freeN(vertCos);
+	/* if pbvh is deformed, key block is already applied to it */
+	if (ss->kb) {
+		bool pbvh_deformd = BKE_pbvh_isDeformed(ss->pbvh);
+		if (!pbvh_deformd || ss->deform_cos == NULL) {
+			float (*vertCos)[3] = BKE_key_convert_to_vertcos(ob, ss->kb);
+
+			if (vertCos) {
+				if (!pbvh_deformd) {
+					/* apply shape keys coordinates to PBVH */
+					BKE_pbvh_apply_vertCos(ss->pbvh, vertCos);
+				}
+				if (ss->deform_cos == NULL) {
+					ss->deform_cos = vertCos;
+				}
+				if (vertCos != ss->deform_cos) {
+					MEM_freeN(vertCos);
+				}
+			}
 		}
 	}
 }
@@ -688,14 +702,14 @@ int BKE_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)
 		int i, j;
 
 		gmask = CustomData_add_layer(&me->ldata, CD_GRID_PAINT_MASK,
-									 CD_CALLOC, NULL, me->totloop);
+		                             CD_CALLOC, NULL, me->totloop);
 
 		for (i = 0; i < me->totloop; i++) {
 			GridPaintMask *gpm = &gmask[i];
 
 			gpm->level = level;
 			gpm->data = MEM_callocN(sizeof(float) * gridarea,
-									"GridPaintMask.data");
+			                        "GridPaintMask.data");
 		}
 
 		/* if vertices already have mask, copy into multires data */
@@ -720,9 +734,9 @@ int BKE_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)
 
 					gpm->data[0] = avg;
 					gpm->data[1] = (paint_mask[l->v] +
-									paint_mask[next->v]) * 0.5f;
+					                paint_mask[next->v]) * 0.5f;
 					gpm->data[2] = (paint_mask[l->v] +
-									paint_mask[prev->v]) * 0.5f;
+					                paint_mask[prev->v]) * 0.5f;
 					gpm->data[3] = paint_mask[l->v];
 				}
 			}
@@ -734,7 +748,7 @@ int BKE_sculpt_mask_layers_ensure(Object *ob, MultiresModifierData *mmd)
 	/* create vertex paint mask layer if there isn't one already */
 	if (!paint_mask) {
 		CustomData_add_layer(&me->vdata, CD_PAINT_MASK,
-							 CD_CALLOC, NULL, me->totvert);
+		                     CD_CALLOC, NULL, me->totvert);
 		ret |= SCULPT_MASK_LAYER_CALC_VERT;
 	}
 

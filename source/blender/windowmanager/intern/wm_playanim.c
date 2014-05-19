@@ -488,6 +488,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					default:
 						break;
 				}
+				break;
 			}
 			default:
 				break;

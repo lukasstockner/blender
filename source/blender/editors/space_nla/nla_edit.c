@@ -93,7 +93,7 @@ void ED_nla_postop_refresh(bAnimContext *ac)
 	}
 	
 	/* free temp memory */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* *********************************************** */
@@ -136,7 +136,7 @@ static int nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* if we managed to enter tweakmode on at least one AnimData block, 
 	 * set the flag for this in the active scene and send notifiers
@@ -162,7 +162,7 @@ void NLA_OT_tweakmode_enter(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Enter Tweak Mode";
 	ot->idname = "NLA_OT_tweakmode_enter";
-	ot->description = "Enter tweaking mode for the action referenced by the active strip";
+	ot->description = "Enter tweaking mode for the action referenced by the active strip to edit its keyframes";
 	
 	/* api callbacks */
 	ot->exec = nlaedit_enable_tweakmode_exec;
@@ -200,7 +200,7 @@ bool nlaedit_disable_tweakmode(bAnimContext *ac)
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* if we managed to enter tweakmode on at least one AnimData block, 
 	 * set the flag for this in the active scene and send notifiers
@@ -293,7 +293,7 @@ static void get_nlastrip_extents(bAnimContext *ac, float *min, float *max, const
 		}
 		
 		/* free memory */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 	}
 	
 	/* set default range if nothing happened */
@@ -356,7 +356,62 @@ void NLA_OT_previewrange_set(wmOperatorType *ot)
 
 /* ****************** View-All Operator ****************** */
 
-static int nlaedit_viewall(bContext *C, const bool onlySel)
+/* Find the extents of the active channel
+ * > min: (float) bottom y-extent of channel
+ * > max: (float) top y-extent of channel
+ * > returns: success of finding a selected channel
+ */
+static bool nla_channels_get_selected_extents(bAnimContext *ac, float *min, float *max)
+{
+	ListBase anim_data = {NULL, NULL};
+	bAnimListElem *ale;
+	int filter;
+	
+	SpaceNla *snla = (SpaceNla *)ac->sl;
+	const float half_height = NLACHANNEL_HEIGHT_HALF(snla);
+	short found = 0; /* NOTE: not bool, since we want prioritise individual channels over expanders */
+	float y;
+	
+	/* get all items - we need to do it this way */
+	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
+	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+	
+	/* loop through all channels, finding the first one that's selected */
+	y = (float)NLACHANNEL_FIRST;
+	
+	for (ale = anim_data.first; ale; ale = ale->next) {
+		bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
+		
+		/* must be selected... */
+		if (acf && acf->has_setting(ac, ale, ACHANNEL_SETTING_SELECT) && 
+		    ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_SELECT))
+		{
+			/* update best estimate */
+			*min = (float)(y - half_height);
+			*max = (float)(y + half_height);
+			
+			/* is this high enough priority yet? */
+			found = acf->channel_role;
+			
+			/* only stop our search when we've found an actual channel
+			 * - datablock expanders get less priority so that we don't abort prematurely
+			 */
+			if (found == ACHANNEL_ROLE_CHANNEL) {
+				break;
+			}
+		}
+		
+		/* adjust y-position for next one */
+		y -= NLACHANNEL_STEP(snla);
+	}
+	
+	/* free all temp data */
+	ANIM_animdata_freelist(&anim_data);
+	
+	return (found != 0);
+}
+
+static int nlaedit_viewall(bContext *C, const bool only_sel)
 {
 	bAnimContext ac;
 	View2D *v2d;
@@ -368,15 +423,32 @@ static int nlaedit_viewall(bContext *C, const bool onlySel)
 	v2d = &ac.ar->v2d;
 	
 	/* set the horizontal range, with an extra offset so that the extreme keys will be in view */
-	get_nlastrip_extents(&ac, &v2d->cur.xmin, &v2d->cur.xmax, onlySel);
+	get_nlastrip_extents(&ac, &v2d->cur.xmin, &v2d->cur.xmax, only_sel);
 	
 	extra = 0.1f * BLI_rctf_size_x(&v2d->cur);
 	v2d->cur.xmin -= extra;
 	v2d->cur.xmax += extra;
 	
 	/* set vertical range */
-	v2d->cur.ymax = 0.0f;
-	v2d->cur.ymin = (float)-BLI_rcti_size_y(&v2d->mask);
+	if (only_sel == false) {
+		/* view all -> the summary channel is usually the shows everything, and resides right at the top... */
+		v2d->cur.ymax = 0.0f;
+		v2d->cur.ymin = (float)-BLI_rcti_size_y(&v2d->mask);
+	}
+	else {
+		/* locate first selected channel (or the active one), and frame those */
+		float ymin = v2d->cur.ymin;
+		float ymax = v2d->cur.ymax;
+		
+		if (nla_channels_get_selected_extents(&ac, &ymin, &ymax)) {
+			/* recenter the view so that this range is in the middle */
+			float ymid = (ymax - ymin) / 2.0f + ymin;
+			float x_center;
+			
+			UI_view2d_center_get(v2d, &x_center, NULL);
+			UI_view2d_center_set(v2d, x_center, ymid);
+		}
+	}
 	
 	/* do View2D syncing */
 	UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
@@ -530,7 +602,7 @@ static int nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* refresh auto strip properties */
 	ED_nla_postop_refresh(&ac);
@@ -651,7 +723,7 @@ static int nlaedit_add_transition_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* was anything added? */
 	if (done) {
@@ -743,7 +815,7 @@ static int nlaedit_add_sound_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* refresh auto strip properties */
 	ED_nla_postop_refresh(&ac);
@@ -808,7 +880,7 @@ static int nlaedit_add_meta_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* set notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, NULL);
@@ -860,7 +932,7 @@ static int nlaedit_remove_meta_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* set notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, NULL);
@@ -947,7 +1019,7 @@ static int nlaedit_duplicate_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	if (done) {
 		/* refresh auto strip properties */
@@ -1039,7 +1111,7 @@ static int nlaedit_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* refresh auto strip properties */
 	ED_nla_postop_refresh(&ac);
@@ -1184,7 +1256,7 @@ static int nlaedit_split_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* refresh auto strip properties */
 	ED_nla_postop_refresh(&ac);
@@ -1237,7 +1309,7 @@ static int nlaedit_bake_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* refresh auto strip properties */
 	ED_nla_postop_refresh(&ac);
@@ -1303,7 +1375,7 @@ static int nlaedit_toggle_mute_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* set notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, NULL);
@@ -1457,7 +1529,7 @@ static int nlaedit_swap_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* refresh auto strip properties */
 	ED_nla_postop_refresh(&ac);
@@ -1531,7 +1603,7 @@ static int nlaedit_move_up_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* refresh auto strip properties */
 	ED_nla_postop_refresh(&ac);
@@ -1605,7 +1677,7 @@ static int nlaedit_move_down_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* refresh auto strip properties */
 	ED_nla_postop_refresh(&ac);
@@ -1684,7 +1756,7 @@ static int nlaedit_sync_actlen_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* set notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, NULL);
@@ -1760,7 +1832,7 @@ static int nlaedit_make_single_user_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* set notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, NULL);
@@ -1856,7 +1928,7 @@ static int nlaedit_apply_scale_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* set notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, NULL);
@@ -1916,7 +1988,7 @@ static int nlaedit_clear_scale_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* refresh auto strip properties */
 	ED_nla_postop_refresh(&ac);
@@ -2057,7 +2129,7 @@ static int nlaedit_snap_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* refresh auto strip properties */
 	ED_nla_postop_refresh(&ac);
@@ -2180,7 +2252,7 @@ static int nla_fmodifier_add_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* set notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, NULL);
@@ -2303,7 +2375,7 @@ static int nla_fmodifier_paste_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* clean up */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	
 	/* successful or not? */
 	if (ok) {

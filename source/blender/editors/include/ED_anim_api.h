@@ -115,6 +115,7 @@ typedef struct bAnimListElem {
 	int     flag;           /* copy of elem's flags for quick access */
 	int     index;          /* for un-named data, the index of the data in it's collection */
 	
+	short   update;         /* tag the element for updating (eAnim_Update_Flags) */
 	short   datatype;       /* type of motion data to expect */
 	void   *key_data;       /* motion data - mostly F-Curves, but can be other types too */
 	
@@ -123,6 +124,15 @@ typedef struct bAnimListElem {
 	struct AnimData *adt;   /* source of the animation data attached to ID block (for convenience) */
 } bAnimListElem;
 
+typedef enum eAnim_Update_Flags {
+	ANIM_UPDATE_DEPS        = (1 << 0),  /* referenced data and dependencies get refreshed */
+	ANIM_UPDATE_ORDER       = (1 << 1),  /* keyframes need to be sorted */
+	ANIM_UPDATE_HANDLES     = (1 << 2),  /* recalculate handles */
+} eAnim_Update_Flags;
+
+/* used for most tools which change keyframes (flushed by ANIM_animdata_update) */
+#define ANIM_UPDATE_DEFAULT (ANIM_UPDATE_DEPS | ANIM_UPDATE_ORDER | ANIM_UPDATE_HANDLES)
+#define ANIM_UPDATE_DEFAULT_NOHANDLES (ANIM_UPDATE_DEFAULT & ~ANIM_UPDATE_HANDLES)
 
 /* Some types for easier type-testing 
  * NOTE: need to keep the order of these synchronized with the channels define code
@@ -163,7 +173,7 @@ typedef enum eAnim_ChannelType {
 	
 	ANIMTYPE_GPDATABLOCK,
 	ANIMTYPE_GPLAYER,
-
+	
 	ANIMTYPE_MASKDATABLOCK,
 	ANIMTYPE_MASKLAYER,
 	
@@ -356,11 +366,23 @@ bool ANIM_animdata_get_context(const struct bContext *C, bAnimContext *ac);
  */
 bool ANIM_animdata_context_getdata(bAnimContext *ac);
 
+/* Acts on bAnimListElem eAnim_Update_Flags */
+void ANIM_animdata_update(bAnimContext *ac, ListBase *anim_data);
+
+void ANIM_animdata_freelist(ListBase *anim_data);
+
 /* ************************************************ */
 /* ANIMATION CHANNELS LIST */
 /* anim_channels_*.c */
 
 /* ------------------------ Drawing TypeInfo -------------------------- */
+
+/* role or level of animchannel in the hierarchy */
+typedef enum eAnimChannel_Role {
+	ACHANNEL_ROLE_EXPANDER = -1,    /* datablock expander - a "composite" channel type */
+	ACHANNEL_ROLE_SPECIAL  = 0,     /* special purposes - not generally for hierarchy processing */
+	ACHANNEL_ROLE_CHANNEL  = 1      /* data channel - a channel representing one of the actual building blocks of channels */
+} eAnimChannel_Role;
 
 /* flag-setting behavior */
 typedef enum eAnimChannels_SetFlag {
@@ -384,11 +406,13 @@ typedef enum eAnimChannel_Settings {
 
 /* Drawing, mouse handling, and flag setting behavior... */
 typedef struct bAnimChannelType {
-	/* type data */
+	/* -- Type data -- */
 	/* name of the channel type, for debugging */
 	const char *channel_type_name;
+	/* "level" or role in hierarchy - for finding the active channel */
+	eAnimChannel_Role channel_role;
 	
-	/* drawing */
+	/* -- Drawing -- */
 	/* get RGB color that is used to draw the majority of the backdrop */
 	void (*get_backdrop_color)(bAnimContext *ac, bAnimListElem *ale, float r_color[3]);
 	/* draw backdrop strip for channel */
@@ -405,7 +429,7 @@ typedef struct bAnimChannelType {
 	/* get icon (for channel lists) */
 	int (*icon)(bAnimListElem *ale);
 	
-	/* settings */
+	/* -- Settings -- */
 	/* check if the given setting is valid in the current context */
 	bool (*has_setting)(bAnimContext *ac, bAnimListElem *ale, eAnimChannel_Settings setting);
 	/* get the flag used for this setting */

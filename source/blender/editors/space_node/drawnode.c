@@ -335,7 +335,7 @@ static void node_draw_frame_prepare(const bContext *UNUSED(C), bNodeTree *ntree,
 {
 	const float margin = 1.5f * U.widget_unit;
 	NodeFrame *data = (NodeFrame *)node->storage;
-	int bbinit;
+	bool bbinit;
 	bNode *tnode;
 	rctf rect, noderect;
 	float xmax, ymax;
@@ -3100,7 +3100,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				IMB_display_buffer_release(cache_handle);
 		}
 		
-		/** @note draw selected info on backdrop */
+		/** \note draw selected info on backdrop */
 		if (snode->edittree) {
 			bNode *node = snode->edittree->nodes.first;
 			rctf *viewer_border = &snode->nodetree->viewer_border;

@@ -650,7 +650,14 @@ public:
 
 	/*! Returns the texture used at given index to simulate the marks system for this Stroke */
 	inline MTex *getMTex(int idx) {
-		return _mtex[idx];}
+		return _mtex[idx];
+	}
+
+	/*! Returns true if this Stroke has textures assigned, false otherwise. */
+	inline bool hasTex() const
+	{
+		return _mtex[0] != NULL;
+	}
 
 	/*! Returns true if this Stroke uses a texture with tips, false otherwise. */
 	inline bool hasTips() const
@@ -754,7 +761,6 @@ public:
 		for (int a = 0; a < MAX_MTEX; a++) {
 			if (!_mtex[a]) {
 				_mtex[a] = mtex;
-
 				return 0;
 			}
 		}
