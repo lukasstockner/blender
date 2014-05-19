@@ -160,7 +160,7 @@ struct Depsgraph {
 	
 	/* Convenience Data ................... */
 	/* XXX: should be collected after building (if actually needed?) */
-	OperationNodes all_opnodes; /* all operation nodes, sorted in order of single-thread traversal order */
+	OperationNodes operations; /* all operation nodes, sorted in order of single-thread traversal order */
 	
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
 	

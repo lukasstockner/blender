@@ -166,7 +166,7 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 void DEG_graph_clear_tags(Depsgraph *graph)
 {
 	/* go over all operation nodes, clearing tags */
-	for (Depsgraph::OperationNodes::const_iterator it = graph->all_opnodes.begin(); it != graph->all_opnodes.end(); ++it) {
+	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
 		OperationDepsNode *node = *it;
 		
 		/* clear node's "pending update" settings */
