@@ -317,8 +317,14 @@ void BKE_paint_curve_set(Brush *br, PaintCurve *pc)
 void BKE_palette_remove_color(Palette *palette, PaletteColor *colour)
 {
 	BLI_remlink(&palette->colors, colour);
-	MEM_freeN(colour);
+	BLI_addhead(&palette->deleted, colour);
 }
+
+void BKE_palette_cleanup(Palette *palette)
+{
+	BLI_freelistN(&palette->deleted);
+}
+
 
 Palette *BKE_palette_add(Main *bmain, const char *name)
 {

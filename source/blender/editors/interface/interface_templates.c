@@ -61,6 +61,7 @@
 #include "BKE_object.h"
 #include "BKE_packedFile.h"
 #include "BKE_particle.h"
+#include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_sca.h"
 #include "BKE_screen.h"
@@ -2362,6 +2363,10 @@ void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, 
 	block = uiLayoutGetBlock(layout);
 
 	palette = cptr.data;
+
+	/* first delete any pending colors */
+	BKE_palette_cleanup(palette);
+
 	color = palette->colors.first;
 
 	col = uiLayoutColumn(layout, true);
