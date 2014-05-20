@@ -85,6 +85,8 @@
 
 #include "readfile.h"
 
+#include <stddef.h> // for offsetof
+
 static void do_versions_nodetree_image_default_alpha_output(bNodeTree *ntree)
 {
 	bNode *node;
