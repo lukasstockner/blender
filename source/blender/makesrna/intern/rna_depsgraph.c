@@ -34,9 +34,10 @@
 
 #include "rna_internal.h"
 
+#include "DEG_depsgraph.h"
+
 #ifdef RNA_RUNTIME
 
-#include "DEG_depsgraph.h"
 #include "DEG_depsgraph_debug.h"
 
 
@@ -75,7 +76,7 @@ static void rna_Depsgraph_debug_simulate_cb(DepsgraphEvalDebugInfo *info, const 
 	++info->step;
 }
 
-static void rna_Depsgraph_debug_simulate(Depsgraph *graph, const char *filename)
+static void rna_Depsgraph_debug_simulate(Depsgraph *graph, const char *filename, int context_type)
 {
 	DepsgraphEvalDebugInfo debug_info;
 	debug_info.filename = filename;
@@ -86,6 +87,7 @@ static void rna_Depsgraph_debug_simulate(Depsgraph *graph, const char *filename)
 	                    (DEG_DebugEvalCb)rna_Depsgraph_debug_simulate_cb);
 	
 	DEG_graph_flush_updates(graph);
+	DEG_evaluate_on_refresh(graph, (eEvaluationContextType)context_type);
 	
 	DEG_debug_eval_end();
 }
@@ -97,6 +99,13 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	StructRNA *srna;
 	FunctionRNA *func;
 	PropertyRNA *parm;
+	
+	static EnumPropertyItem context_type_items[] = {
+		{DEG_EVALUATION_CONTEXT_VIEWPORT, "VIEWPORT", 0, "Viewport", "Viewport Display"},
+		{DEG_EVALUATION_CONTEXT_RENDER, "RENDER", 0, "Render", "Render Engine DB Conversion"},
+		{DEG_EVALUATION_CONTEXT_BAKE, "BAKE", 0, "Bake", "Background baking operation"},
+		{0, NULL, 0, NULL, NULL}
+	};
 	
 	srna = RNA_def_struct(brna, "Depsgraph", NULL);
 	RNA_def_struct_ui_text(srna, "Dependency Graph", "");
@@ -110,6 +119,7 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "File in which to store graphviz debug output");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_enum(func, "context_type", context_type_items, DEG_EVALUATION_CONTEXT_VIEWPORT, "Context Type", "");
 }
 
 void RNA_def_depsgraph(BlenderRNA *brna)

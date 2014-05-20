@@ -117,6 +117,7 @@ static int deg_debug_node_type_color_index(eDepsNode_Type type)
 struct DebugContext {
 	FILE *file;
 	bool show_tags;
+	bool show_eval_priority;
 };
 
 static void deg_debug_printf(const DebugContext &ctx, const char *fmt, ...)
@@ -305,12 +306,18 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx, const DepsNo
 {
 	const char *shape = "box";
 	const char *name = node->name.c_str();
+	float priority = -1.0f;
+	if (ctx.show_eval_priority && node->tclass == DEPSNODE_CLASS_OPERATION)
+		priority = ((OperationDepsNode *)node)->eval_priority;
 	
 	deg_debug_printf(ctx, "// %s\n", name);
 	deg_debug_printf(ctx, "\"node_%p\"", node);
 	deg_debug_printf(ctx, "[");
 //	deg_debug_printf(ctx, "label=<<B>%s</B>>", name);
-	deg_debug_printf(ctx, "label=<%s>", name);
+	if (priority >= 0.0f)
+		deg_debug_printf(ctx, "label=<%s (<I>%f</I>)>", name, priority);
+	else
+		deg_debug_printf(ctx, "label=<%s>", name);
 	deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 	deg_debug_printf(ctx, ",fontsize=%f", deg_debug_graphviz_node_label_size);
 	deg_debug_printf(ctx, ",shape=%s", shape);
@@ -583,7 +590,7 @@ static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const De
 #endif
 }
 
-void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, const char *label, bool show_tags)
+void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, const char *label, bool show_eval)
 {
 #if 0 /* generate shaded color set */
 	static char colors[][3] = {{0xa6, 0xce, 0xe3},{0x1f, 0x78, 0xb4},{0xb2, 0xdf, 0x8a},{0x33, 0xa0, 0x2c},
@@ -600,7 +607,8 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, const char *label, bool
 	
 	DebugContext ctx;
 	ctx.file = f;
-	ctx.show_tags = show_tags;
+	ctx.show_tags = show_eval;
+	ctx.show_eval_priority = show_eval;
 	
 	deg_debug_printf(ctx, "digraph depgraph {" NL);
 	deg_debug_printf(ctx, "rankdir=LR;" NL);

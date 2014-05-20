@@ -65,6 +65,7 @@ extern "C" {
 #include "depsgraph_eval.h"
 #include "depsgraph_queue.h"
 #include "depsgraph_intern.h"
+#include "depsgraph_util_priority_queue.h"
 
 /* *************************************************** */
 /* Multi-Threaded Evaluation Internals */
@@ -126,6 +127,35 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node, eEvaluationContextTy
 /* *************************************************** */
 /* Evaluation Entrypoints */
 
+struct CompareOperationNode {
+	bool operator() (OperationDepsNode *a, OperationDepsNode *b)
+	{
+		return a->eval_priority < b->eval_priority;
+	}
+};
+
+typedef priority_queue<OperationDepsNode *, vector<OperationDepsNode *>, CompareOperationNode> EvalQueue;
+
+static void calculate_eval_priority(OperationDepsNode *node)
+{
+	if (node->done)
+		return;
+	node->done = 1;
+	
+	if (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
+		node->eval_priority = 1.0f;
+		
+		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
+			DepsRelation *rel = *it;
+			calculate_eval_priority(rel->to);
+			
+			node->eval_priority += rel->to->eval_priority;
+		}
+	}
+	else
+		node->eval_priority = 0.0f;
+}
+
 /* Evaluate all nodes tagged for updating 
  * ! This is usually done as part of main loop, but may also be 
  *   called from frame-change update
@@ -135,9 +165,22 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 	/* generate base evaluation context, upon which all the others are derived... */
 	// TODO: this needs both main and scene access...
 	
+	/* clear tags */
+	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
+		OperationDepsNode *node = *it;
+		node->done = 0;
+	}
+	
+	/* calculate values (priority) for operation nodes */
+	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
+		OperationDepsNode *node = *it;
+		calculate_eval_priority(node);
+	}
+	
+	DEG_debug_eval_step("Eval Priority Calculation");
+	
 	/* from the root node, start queuing up nodes to evaluate */
 	// ... start scheduler, etc.
-	
 	// ...
 	
 	/* clear any uncleared tags - just in case */

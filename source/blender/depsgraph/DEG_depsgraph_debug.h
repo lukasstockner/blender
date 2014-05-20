@@ -40,7 +40,7 @@ extern "C" {
 /* ************************************************ */
 /* Graphviz Debugging */
 
-void DEG_debug_graphviz(const struct Depsgraph *graph, FILE *stream, const char *label, bool show_tags);
+void DEG_debug_graphviz(const struct Depsgraph *graph, FILE *stream, const char *label, bool show_eval);
 
 typedef void (*DEG_DebugBuildCb_NodeAdded)(void *userdata, const struct DepsNode *node);
 typedef void (*DEG_DebugBuildCb_RelationAdded)(void *userdata, const struct DepsRelation *rel);

@@ -44,7 +44,8 @@ extern "C" {
 /* ******************************************************** */
 /* Inner Nodes */
 
-OperationDepsNode::OperationDepsNode()
+OperationDepsNode::OperationDepsNode() :
+    eval_priority(0.0f)
 {
 }
 
