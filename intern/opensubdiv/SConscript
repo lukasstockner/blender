@@ -52,7 +52,10 @@ checkOpenSubdivHeaderDefine("gcdComputeController.h", 'OPENSUBDIV_HAS_GCD')
 # Ideally it should be late-linking on runtime in order to make
 # portable builds.
 if checkOpenSubdivHeaderDefine("clComputeController.h", 'OPENSUBDIV_HAS_OPENCL'):
-    env['BF_OPENSUBDIV_LIB'] += ' OpenCL'
+    if env['OURPLATFORM'] == ('darwin'):
+        env['PLATFORM_LINKFLAGS'] = env['PLATFORM_LINKFLAGS']+['-framework','OpenCl'] # link to OpenCl framework
+    else:
+        env['BF_OPENSUBDIV_LIB'] += ' OpenCL'
 if checkOpenSubdivHeaderDefine("cudaComputeController.h", 'OPENSUBDIV_HAS_CUDA'):
     env['BF_OPENSUBDIV_LIB'] += ' cudart'
 
