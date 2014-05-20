@@ -129,8 +129,15 @@ static void clewExit(void)
 //! \return CLEW_ERROR_OPEN_FAILED if the library could not be opened
 //! CLEW_ERROR_ATEXIT_FAILED if atexit(clewExit) failed
 //! CLEW_SUCCESS when the library was succesfully loaded
-int clewInit(const char* path)
+int clewInit()
 {
+#ifdef _WIN32
+    const char *path = "OpenCL.dll";
+#elif defined(__APPLE__)
+    const char *path = "/Library/Frameworks/OpenCL.framework/OpenCL";
+#else
+    const char *path = "libOpenCL.so";
+#endif
     int error = 0;
 
     //  Check if already initialized

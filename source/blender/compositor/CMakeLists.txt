@@ -39,7 +39,7 @@ set(INC
 	../nodes/intern
 	../render/extern/include
 	../render/intern/include
-	../../../intern/opencl
+	../../../extern/libclew/include
 	../../../intern/guardedalloc
 )
 

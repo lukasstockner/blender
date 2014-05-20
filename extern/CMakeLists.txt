@@ -70,6 +70,10 @@ if(WITH_LZMA)
 	add_subdirectory(lzma)
 endif()
 
+if(WITH_COMPOSITOR)
+    add_subdirectory(libclew)
+endif()
+
 if(WITH_MOD_BOOLEAN)
 	add_subdirectory(carve)
 endif()

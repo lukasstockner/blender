@@ -25,6 +25,7 @@
 
 set(INC
 	.
+	include
 )
 
 set(INC_SYS
@@ -32,11 +33,9 @@ set(INC_SYS
 )
 
 set(SRC
-	OCL_opencl.h
-	intern/clew.h
-	intern/clew.c
-	intern/OCL_opencl.c
+	include/clew.h
+	src/clew.c
 )
 
 
-blender_add_lib(bf_intern_opencl "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(extern_libclew "${SRC}" "${INC}" "${INC_SYS}")

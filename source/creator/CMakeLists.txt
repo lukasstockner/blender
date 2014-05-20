@@ -1053,7 +1053,7 @@ endif()
 	if(WITH_COMPOSITOR)
 		# added for opencl compositor
 		list_insert_before(BLENDER_SORTED_LIBS "bf_blenkernel" "bf_compositor")
-		list_insert_after(BLENDER_SORTED_LIBS "bf_compositor" "bf_intern_opencl")
+		list_insert_after(BLENDER_SORTED_LIBS "bf_compositor" "extern_libclew")
 	endif()
 
 	if(WITH_LIBMV)
