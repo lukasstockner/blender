@@ -498,10 +498,10 @@ static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const Ope
 		const DepsNode *tail = rel->to; /* same as node */
 		const DepsNode *head = rel->from;
 		
-		deg_debug_printf(ctx, "// %s -> %s\n", tail->name.c_str(), head->name.c_str());
-		deg_debug_printf(ctx, "\"node_%p\"", tail);
-		deg_debug_printf(ctx, " -> ");
+		deg_debug_printf(ctx, "// %s -> %s\n", head->name.c_str(), tail->name.c_str());
 		deg_debug_printf(ctx, "\"node_%p\"", head);
+		deg_debug_printf(ctx, " -> ");
+		deg_debug_printf(ctx, "\"node_%p\"", tail);
 
 		deg_debug_printf(ctx, "[");
 		deg_debug_printf(ctx, "label=\"%s\"", rel->name.c_str());
