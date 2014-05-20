@@ -206,7 +206,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 
 void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 {
-    ComponentKey ob_key(ob, DEPSNODE_TYPE_TRANSFORM);
+	ComponentKey ob_key(ob, DEPSNODE_TYPE_TRANSFORM);
 	
 	/* type-specific links */
 	switch (ob->partype) {
