@@ -1258,7 +1258,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 	}
 
 	/* and back to viewspace */
-	glPushMatrix();
+	gpuPushMatrix();
 	gpuLoadMatrix(rv3d->viewmat[0]);
 	copy_v3_v3(vec, ob->obmat[3]);
 
@@ -1303,7 +1303,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
 		gpuColor3ubv(ob_wire_col);
 	}
 	/* and finally back to org object space! */
-	glPopMatrix();
+	gpuPopMatrix();
 
 	GPU_raster_end();
 }
@@ -2248,7 +2248,7 @@ static void draw_dm_edges_sel(BMEditMesh *em, DerivedMesh *dm, unsigned char *ba
 	data.eed_act = eed_act;
 
 	gpuImmediateFormat_C4_V3();
-	dm->drawMappedEdges(dm, draw_dm_edges_sel__setDrawOptions, &data);
+	dm->drawMappedEdges(dm, (DMSetDrawOptions)draw_dm_edges_sel__setDrawOptions, &data);
 	gpuImmediateUnformat();
 }
 
@@ -2555,7 +2555,7 @@ static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
 			gpuImmediateFormat_C4_V3();
 			GPU_sprite_size(UI_GetThemeValuef(TH_VERTEX_SIZE) + 2);
 			GPU_sprite_begin();
-			dm->foreachMappedVert(dm, draw_dm_bweights__mapFunc, &data, DM_FOREACH_NOP);
+			dm->foreachMappedVert(dm, (DMForEachMappedVert)draw_dm_bweights__mapFunc, &data, DM_FOREACH_NOP);
 			GPU_sprite_end();
 			GPU_sprite_size(1);
 			gpuImmediateUnformat();
@@ -2570,7 +2570,7 @@ static void draw_dm_bweights(BMEditMesh *em, Scene *scene, DerivedMesh *dm)
 		if (data.cd_layer_offset != -1) {
 			gpuImmediateFormat_C4_V3();
 			gpuLineWidth(3.0);
-			dm->drawMappedEdges(dm, draw_dm_bweights__setDrawOptions, &data);
+			dm->drawMappedEdges(dm, (DMSetDrawOptions)draw_dm_bweights__setDrawOptions, &data);
 			gpuLineWidth(1.0);
 			gpuImmediateUnformat();
 		}
@@ -3167,7 +3167,7 @@ static void draw_em_fancy(Scene *scene, ARegion *ar, View3D *v3d,
 			draw_mesh_paint_weight_faces(finalDM, true, draw_em_fancy__setFaceOpts, me->edit_btmesh);
 
 			ED_view3d_polygon_offset(rv3d, 1.0);
-			glDepthMask(0);
+			gpuDepthMask(GL_FALSE);
 		}
 		else {
 			glEnable(GL_DEPTH_TEST);
@@ -7846,8 +7846,8 @@ static void bbs_mesh_verts(BMEditMesh *em, DerivedMesh *dm, int offset)
 }
 
 typedef struct mesh_wire_options {
-	BMEditMesh* bm; /* correct this type */
-	size_t      offset;
+	BMesh* bm;
+	size_t  offset;
 } mesh_wire_options;
 
 static DMDrawOption bbs_mesh_wire__setDrawOptions(mesh_wire_options *opts, int index)
@@ -7871,7 +7871,7 @@ static void bbs_mesh_wire(BMEditMesh *em, DerivedMesh *dm, size_t offset)
 	opts.offset = offset;
 
 	gpuImmediateFormat_C4_V3();
-	dm->drawMappedEdges(dm, bbs_mesh_wire__setDrawOptions, &opts);
+	dm->drawMappedEdges(dm, (DMSetDrawOptions)bbs_mesh_wire__setDrawOptions, &opts);
 	gpuImmediateUnformat();
 }
 
@@ -7925,7 +7925,7 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
 
 	dm->drawMappedFaces(
 		dm,
-		bbs_mesh_solid__setSolidDrawOptions,
+		(DMSetDrawOptions)bbs_mesh_solid__setSolidDrawOptions,
 		GPU_enable_material,
 		NULL,
 		&opts,
@@ -7940,7 +7940,7 @@ static void bbs_mesh_solid_EM(BMEditMesh *em, Scene *scene, View3D *v3d,
 		GPU_sprite_size(UI_GetThemeValuef(TH_FACEDOT_SIZE));
 
 		GPU_sprite_begin();
-		dm->foreachMappedFaceCenter(dm, bbs_mesh_solid__drawCenter, &opts, DM_FOREACH_NOP);
+		dm->foreachMappedFaceCenter(dm, (DMForEachMappedFaceCenter)bbs_mesh_solid__drawCenter, &opts, DM_FOREACH_NOP);
 		GPU_sprite_end();
 
 		GPU_sprite_size(1);
@@ -7983,7 +7983,7 @@ static void bbs_mesh_solid_verts(Scene *scene, Object *ob)
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 	gpuColor3P(CPACK_BLACK);
 
-	dm->drawMappedFaces(dm, bbs_mesh_solid_hide2__setDrawOpts, GPU_enable_material, NULL, me, 0);
+	dm->drawMappedFaces(dm, (DMSetDrawOptions)bbs_mesh_solid_hide2__setDrawOpts, GPU_enable_material, NULL, me, 0);
 
 	bbs_obmode_mesh_verts(ob, dm, 1);
 	bm_vertoffs = me->totvert + 1;
@@ -7998,7 +7998,7 @@ static void bbs_mesh_solid_faces(Scene *scene, Object *ob)
 	gpuImmediateFormat_C4_V3();
 
 	if ((me->editflag & ME_EDIT_PAINT_FACE_SEL))
-		dm->drawMappedFaces(dm, bbs_mesh_solid_hide__setDrawOpts, GPU_enable_material, NULL, me, 0);
+		dm->drawMappedFaces(dm, (DMSetDrawOptions)bbs_mesh_solid_hide__setDrawOpts, GPU_enable_material, NULL, me, 0);
 	else
 		dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, GPU_enable_material, NULL, me, 0);
 

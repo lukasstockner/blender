@@ -633,4 +633,14 @@
 #undef glClipPlane
 #define glClipPlane DO_NOT_USE_glClipPlane
 
+#undef glPointSize
+#define glPointSize DO_NOT_USE_glPointSize
+
+#undef glLineStipple
+#define glLineStipple DO_NOT_USE_glLineStipple
+#undef glPolygonStipple
+#define glPolygonStipple DO_NOT_USE_glPolygonStipple
+#undef glLineWidth
+#define glLineWidth DO_NOT_USE_glLineWidth
+
 #endif /* _GPU_DEPRECATED_H_ */

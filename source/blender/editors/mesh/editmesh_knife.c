@@ -952,21 +952,21 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 	}
 
 	if (kcd->prev.vert) {
-		glColor3ubv(kcd->colors.point);
-		glPointSize(11);
+		gpuColor3ubv(kcd->colors.point);
+		GPU_point_size(11);
 
-		glBegin(GL_POINTS);
-		glVertex3fv(kcd->prev.cage);
-		glEnd();
+		gpuBegin(GL_POINTS);
+		gpuVertex3fv(kcd->prev.cage);
+		gpuEnd();
 	}
 
 	if (kcd->prev.bmface) {
-		glColor3ubv(kcd->colors.curpoint);
-		glPointSize(9);
+		gpuColor3ubv(kcd->colors.curpoint);
+		GPU_point_size(9);
 
-		glBegin(GL_POINTS);
-		glVertex3fv(kcd->prev.cage);
-		glEnd();
+		gpuBegin(GL_POINTS);
+		gpuVertex3fv(kcd->prev.cage);
+		gpuEnd();
 	}
 
 	if (kcd->curr.edge) {

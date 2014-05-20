@@ -835,7 +835,7 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 			gpuImmediateFormat_C4_V3();
 			dm->drawMappedFaces(
 				dm,
-				wpaint__setSolidDrawOptions_facemask,
+				(DMSetDrawOptions)wpaint__setSolidDrawOptions_facemask,
 				GPU_enable_material,
 				NULL,
 				me,
@@ -1183,7 +1183,7 @@ void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
 
 	/* hide faces in face select mode */
 	if (me->editflag & (ME_EDIT_PAINT_VERT_SEL | ME_EDIT_PAINT_FACE_SEL))
-		facemask = wpaint__setSolidDrawOptions_facemask;
+		facemask = (DMSetDrawOptions)wpaint__setSolidDrawOptions_facemask;
 
 	if (ob->mode & OB_MODE_WEIGHT_PAINT) {
 		if (use_light) {

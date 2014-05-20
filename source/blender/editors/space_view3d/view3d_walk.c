@@ -59,6 +59,9 @@
 
 #include "view3d_intern.h"  /* own include */
 
+#include "GPU_colors.h"
+#include "GPU_immediate.h"
+
 #define EARTH_GRAVITY 9.80668f /* m/s2 */
 
 /* prototypes */
@@ -315,25 +318,29 @@ static void drawWalkPixel(const struct bContext *UNUSED(C), ARegion *ar, void *a
 		yoff = walk->ar->winy / 2;
 	}
 
-	cpack(0);
+	gpuImmediateFormat_V2();
 
-	glBegin(GL_LINES);
+	gpuColor3P(CPACK_BLACK);
+
+	gpuBegin(GL_LINES);
 	/* North */
-	glVertex2i(xoff, yoff + inner_length);
-	glVertex2i(xoff, yoff + outter_length);
+	gpuVertex2i(xoff, yoff + inner_length);
+	gpuVertex2i(xoff, yoff + outter_length);
 
 	/* East */
-	glVertex2i(xoff + inner_length, yoff);
-	glVertex2i(xoff + outter_length, yoff);
+	gpuVertex2i(xoff + inner_length, yoff);
+	gpuVertex2i(xoff + outter_length, yoff);
 
 	/* South */
-	glVertex2i(xoff, yoff - inner_length);
-	glVertex2i(xoff, yoff - outter_length);
+	gpuVertex2i(xoff, yoff - inner_length);
+	gpuVertex2i(xoff, yoff - outter_length);
 
 	/* West */
-	glVertex2i(xoff - inner_length, yoff);
-	glVertex2i(xoff - outter_length, yoff);
-	glEnd();
+	gpuVertex2i(xoff - inner_length, yoff);
+	gpuVertex2i(xoff - outter_length, yoff);
+	gpuEnd();
+
+	gpuImmediateUnformat();
 }
 
 static void walk_update_header(bContext *C, WalkInfo *walk)

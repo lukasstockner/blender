@@ -1126,7 +1126,7 @@ static void draw_b_bone_boxes(const short dt, bPoseChannel *pchan, float xwidth,
 
 		for (a = 0; a < segments; a++) {
 			gpuPushMatrix();
-			gpuMultMatrix(bbone[a].mat);
+			gpuMultMatrix(bbone[a].mat[0]);
 			gpuScale(xwidth, dlen, zwidth);
 
 			if (dt == OB_SOLID) {

@@ -51,6 +51,7 @@
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
+#include "GPU_basic.h"
 #include "GPU_blender_aspect.h"
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
@@ -618,8 +619,8 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	{
 		glEnable(GL_BLEND);
 		UI_icon_draw_aspect(headrect.xmax - ((PNL_ICON * 2.2f) / block->aspect), headrect.ymin + (5.0f / block->aspect),
-		                    (panel->flag & PNL_PIN) ? ICON_PINNED : ICON_UNPINNED,
-		                    (block->aspect / UI_DPI_FAC), 1.0f);
+							(panel->flag & PNL_PIN) ? ICON_PINNED : ICON_UNPINNED,
+							(block->aspect / UI_DPI_FAC), 1.0f);
 		glDisable(GL_BLEND);
 	}
 
@@ -1338,15 +1339,15 @@ void UI_panel_category_clear_all(ARegion *ar)
 
 /* based on uiDrawBox, check on making a version which allows us to skip some sides */
 static void ui_panel_category_draw_tab(int mode, float minx, float miny, float maxx, float maxy, float rad,
-                                       int roundboxtype,
-                                       const bool use_highlight, const bool use_shadow,
-                                       const unsigned char highlight_fade[3])
+									   int roundboxtype,
+									   const bool use_highlight, const bool use_shadow,
+									   const unsigned char highlight_fade[3])
 {
 	float vec[4][2] = {
-	    {0.195, 0.02},
-	    {0.55, 0.169},
-	    {0.831, 0.45},
-	    {0.98, 0.805}};
+		{0.195, 0.02},
+		{0.55, 0.169},
+		{0.831, 0.45},
+		{0.98, 0.805}};
 	int a;
 
 	/* mult */
@@ -1357,69 +1358,73 @@ static void ui_panel_category_draw_tab(int mode, float minx, float miny, float m
 	(void)use_shadow;
 	(void)use_highlight;
 
-	glBegin(mode);
+	gpuImmediateFormat_V2();
+
+	gpuBegin(mode);
 
 	/* start with corner right-top */
 	if (use_highlight) {
 		if (roundboxtype & UI_CNR_TOP_RIGHT) {
-			glVertex2f(maxx, maxy - rad);
+			gpuVertex2f(maxx, maxy - rad);
 			for (a = 0; a < 4; a++) {
-				glVertex2f(maxx - vec[a][1], maxy - rad + vec[a][0]);
+				gpuVertex2f(maxx - vec[a][1], maxy - rad + vec[a][0]);
 			}
-			glVertex2f(maxx - rad, maxy);
+			gpuVertex2f(maxx - rad, maxy);
 		}
 		else {
-			glVertex2f(maxx, maxy);
+			gpuVertex2f(maxx, maxy);
 		}
 
 		/* corner left-top */
 		if (roundboxtype & UI_CNR_TOP_LEFT) {
-			glVertex2f(minx + rad, maxy);
+			gpuVertex2f(minx + rad, maxy);
 			for (a = 0; a < 4; a++) {
-				glVertex2f(minx + rad - vec[a][0], maxy - vec[a][1]);
+				gpuVertex2f(minx + rad - vec[a][0], maxy - vec[a][1]);
 			}
-			glVertex2f(minx, maxy - rad);
+			gpuVertex2f(minx, maxy - rad);
 		}
 		else {
-			glVertex2f(minx, maxy);
+			gpuVertex2f(minx, maxy);
 		}
 	}
 
 	if (use_highlight && !use_shadow) {
 		if (highlight_fade) {
-			glColor3ubv(highlight_fade);
+			gpuColor3ubv(highlight_fade);
 		}
-		glVertex2f(minx, miny + rad);
-		glEnd();
+		gpuVertex2f(minx, miny + rad);
+		gpuEnd();
 		return;
 	}
 
 	/* corner left-bottom */
 	if (roundboxtype & UI_CNR_BOTTOM_LEFT) {
-		glVertex2f(minx, miny + rad);
+		gpuVertex2f(minx, miny + rad);
 		for (a = 0; a < 4; a++) {
-			glVertex2f(minx + vec[a][1], miny + rad - vec[a][0]);
+			gpuVertex2f(minx + vec[a][1], miny + rad - vec[a][0]);
 		}
-		glVertex2f(minx + rad, miny);
+		gpuVertex2f(minx + rad, miny);
 	}
 	else {
-		glVertex2f(minx, miny);
+		gpuVertex2f(minx, miny);
 	}
 
 	/* corner right-bottom */
 
 	if (roundboxtype & UI_CNR_BOTTOM_RIGHT) {
-		glVertex2f(maxx - rad, miny);
+		gpuVertex2f(maxx - rad, miny);
 		for (a = 0; a < 4; a++) {
-			glVertex2f(maxx - rad + vec[a][0], miny + vec[a][1]);
+			gpuVertex2f(maxx - rad + vec[a][0], miny + vec[a][1]);
 		}
-		glVertex2f(maxx, miny + rad);
+		gpuVertex2f(maxx, miny + rad);
 	}
 	else {
-		glVertex2f(maxx, miny);
+		gpuVertex2f(maxx, miny);
 	}
 
-	glEnd();
+	gpuEnd();
+
+	gpuImmediateUnformat();
 }
 
 
@@ -1545,13 +1550,13 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 	/* draw the background */
 	if (is_alpha) {
 		glEnable(GL_BLEND);
-		glColor4ubv(theme_col_tab_bg);
+		gpuColor4ubv(theme_col_tab_bg);
 	}
 	else {
-		glColor3ubv(theme_col_tab_bg);
+		gpuColor3ubv(theme_col_tab_bg);
 	}
 
-	glRecti(v2d->mask.xmin, v2d->mask.ymin, v2d->mask.xmin + category_tabs_width, v2d->mask.ymax);
+	gpuSingleFilledRecti(v2d->mask.xmin, v2d->mask.ymin, v2d->mask.xmin + category_tabs_width, v2d->mask.ymax);
 
 	if (is_alpha) {
 		glDisable(GL_BLEND);
@@ -1573,38 +1578,35 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 		if (is_active)
 #endif
 		{
-			glColor3ubv(is_active ? theme_col_tab_active : theme_col_tab_inactive);
+			gpuColor3ubv(is_active ? theme_col_tab_active : theme_col_tab_inactive);
 			ui_panel_category_draw_tab(GL_POLYGON, rct->xmin, rct->ymin, rct->xmax, rct->ymax,
-			                           tab_curve_radius - px, roundboxtype, true, true, NULL);
+									   tab_curve_radius - px, roundboxtype, true, true, NULL);
 
 			/* tab outline */
-			glColor3ubv(theme_col_tab_outline);
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			gpuColor3ubv(theme_col_tab_outline);
 			ui_panel_category_draw_tab(GL_LINE_STRIP, rct->xmin - px, rct->ymin - px, rct->xmax - px, rct->ymax + px,
-			                           tab_curve_radius, roundboxtype, true, true, NULL);
+									   tab_curve_radius, roundboxtype, true, true, NULL);
 			/* tab highlight (3d look) */
-			glShadeModel(GL_SMOOTH);
-			glColor3ubv(is_active ? theme_col_tab_highlight : theme_col_tab_highlight_inactive);
+			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
+			gpuColor3ubv(is_active ? theme_col_tab_highlight : theme_col_tab_highlight_inactive);
 			ui_panel_category_draw_tab(GL_LINE_STRIP, rct->xmin, rct->ymin, rct->xmax, rct->ymax,
-			                           tab_curve_radius, roundboxtype, true, false,
-			                           is_active ? theme_col_back : theme_col_tab_inactive);
-			glShadeModel(GL_FLAT);
-
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+									   tab_curve_radius, roundboxtype, true, false,
+									   is_active ? theme_col_back : theme_col_tab_inactive);
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		}
 
 		/* tab blackline */
 		if (!is_active) {
-			glColor3ubv(theme_col_tab_divider);
-			glRecti(v2d->mask.xmin + category_tabs_width - px,
-			        rct->ymin - tab_v_pad,
-			        v2d->mask.xmin + category_tabs_width,
-			        rct->ymax + tab_v_pad);
+			gpuColor3ubv(theme_col_tab_divider);
+			gpuSingleFilledRecti(v2d->mask.xmin + category_tabs_width - px,
+					rct->ymin - tab_v_pad,
+					v2d->mask.xmin + category_tabs_width,
+					rct->ymax + tab_v_pad);
 		}
 
 		if (do_scaletabs) {
 			category_draw_len = BLF_width_to_strlen(fontid, category_id_draw, category_draw_len,
-			                                        category_width, NULL);
+													category_width, NULL);
 		}
 
 		BLF_position(fontid, rct->xmax - text_v_ofs, rct->ymin + tab_v_pad_text, 0.0f);
@@ -1612,7 +1614,7 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 		/* tab titles */
 
 		/* draw white shadow to give text more depth */
-		glColor3ubv(theme_col_text);
+		gpuColor3ubv(theme_col_text);
 
 		/* main tab title */
 		BLF_draw(fontid, category_id_draw, category_draw_len);
@@ -1621,28 +1623,28 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 
 		/* tab blackline remaining (last tab) */
 		if (pc_dyn->prev == NULL) {
-			glColor3ubv(theme_col_tab_divider);
-			glRecti(v2d->mask.xmin + category_tabs_width - px,
-			        rct->ymax + px,
-			        v2d->mask.xmin + category_tabs_width,
-			        v2d->mask.ymax);
+			gpuColor3ubv(theme_col_tab_divider);
+			gpuSingleFilledRecti(v2d->mask.xmin + category_tabs_width - px,
+								 rct->ymax + px,
+								 v2d->mask.xmin + category_tabs_width,
+								 v2d->mask.ymax);
 		}
 		if (pc_dyn->next == NULL) {
-			glColor3ubv(theme_col_tab_divider);
-			glRecti(v2d->mask.xmin + category_tabs_width - px,
-			        0,
-			        v2d->mask.xmin + category_tabs_width,
-			        rct->ymin);
+			gpuColor3ubv(theme_col_tab_divider);
+			gpuSingleFilledRecti(v2d->mask.xmin + category_tabs_width - px,
+								 0,
+								 v2d->mask.xmin + category_tabs_width,
+								 rct->ymin);
 		}
 
 #ifdef USE_FLAT_INACTIVE
 		/* draw line between inactive tabs */
 		if (is_active == false && is_active_prev == false && pc_dyn->prev) {
-			glColor3ubv(theme_col_tab_divider);
-			glRecti(v2d->mask.xmin + (category_tabs_width / 5),
-			        rct->ymax + px,
-			        (v2d->mask.xmin + category_tabs_width) - (category_tabs_width / 5),
-			        rct->ymax + (px * 3));
+			gpuColor3ubv(theme_col_tab_divider);
+			gpuSingleFilledRecti(v2d->mask.xmin + (category_tabs_width / 5),
+					rct->ymax + px,
+					(v2d->mask.xmin + category_tabs_width) - (category_tabs_width / 5),
+					rct->ymax + (px * 3));
 		}
 
 		is_active_prev = is_active;

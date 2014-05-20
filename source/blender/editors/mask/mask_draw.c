@@ -693,7 +693,7 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 		int format;
 
 		if (overlay_mode == MASK_OVERLAY_ALPHACHANNEL) {
-			glColor3f(1.0f, 1.0f, 1.0f);
+			gpuColor3P(CPACK_WHITE);
 			format = GL_LUMINANCE;
 		}
 		else {
@@ -703,14 +703,14 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 			format = GL_ALPHA;
 		}
 
-		glPushMatrix();
-		glTranslatef(x, y, 0);
-		glScalef(zoomx, zoomy, 0);
+		gpuPushMatrix();
+		gpuTranslate(x, y, 0);
+		gpuScale(zoomx, zoomy, 0);
 		if (stabmat) {
-			glMultMatrixf(stabmat);
+			gpuMultMatrix(stabmat[0]);
 		}
 		glaDrawPixelsTex(0.0f, 0.0f, width, height, format, GL_FLOAT, GL_NEAREST, buffer);
-		glPopMatrix();
+		gpuPopMatrix();
 
 		if (overlay_mode != MASK_OVERLAY_ALPHACHANNEL) {
 			glDisable(GL_BLEND);

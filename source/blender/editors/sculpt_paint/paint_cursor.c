@@ -774,12 +774,12 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		gpuImmediateUnformat();
 
 		if (do_pop)
-			glPopMatrix();
+			gpuPopMatrix();
 			
 		// SSS Disable Texturing
 		GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_TEXTURE_2D);
 
-		gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
+		gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */ // XXX jwilkins: shouldn't bother to do this with texture binding
 	}
 }
 

@@ -360,7 +360,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, int color_manage, int use_def
 		glDisable(GL_BLEND);
 	}
 	else {
-		glColor3fv(finalcol);
+		gpuColor3fv(finalcol);
 		gpuSingleFilledRecti(color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
 	}
 

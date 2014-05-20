@@ -1082,7 +1082,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	}
 
 	/* without this colors can flicker from previous opengl state */
-	glColor4ub(255, 255, 255, 255);
+	gpuColor3P(CPACK_WHITE);
 
 	UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
 	UI_view2d_curRect_validate(v2d);

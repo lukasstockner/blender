@@ -223,7 +223,7 @@ static void tracking_error_segment_point_cb(void *userdata,
 		sub_v2_v2v2(delta, reprojected_position, marker_position);
 		reprojection_error = len_v2(delta) * weight;
 
-		glVertex2f(scene_framenr, reprojection_error);
+		gpuVertex2f(scene_framenr, reprojection_error);
 	}
 }
 
@@ -235,24 +235,24 @@ static void tracking_error_segment_start_cb(void *userdata, MovieTrackingTrack *
 
 		if (track == data->active_track) {
 			col[3] = 1.0f;
-			glLineWidth(2.0f);
+			gpuLineWidth(2.0f);
 		}
 		else {
 			col[3] = 0.5f;
-			glLineWidth(1.0f);
+			gpuLineWidth(1.0f);
 		}
 
-		glColor4fv(col);
+		gpuColor4fv(col);
 
-		glBegin(GL_LINE_STRIP);
+		gpuBegin(GL_LINE_STRIP);
 	}
 }
 
 static void tracking_error_segment_end_cb(void *UNUSED(userdata), int coord)
 {
 	if (coord == 1) {
-		glEnd();
-		glLineWidth(1.0f);
+		gpuEnd();
+		gpuLineWidth(1.0f);
 	}
 }
 
@@ -328,6 +328,8 @@ void clip_draw_graph(SpaceClip *sc, ARegion *ar, Scene *scene)
 	UI_view2d_grid_draw(v2d, grid, V2D_GRIDLINES_ALL);
 	UI_view2d_grid_free(grid);
 
+	GPU_raster_begin();
+
 	if (clip) {
 		if (sc->flag & SC_SHOW_GRAPH_TRACKS_MOTION)
 			draw_tracks_motion_curves(v2d, sc);
@@ -338,6 +340,8 @@ void clip_draw_graph(SpaceClip *sc, ARegion *ar, Scene *scene)
 		if (sc->flag & SC_SHOW_GRAPH_FRAMES)
 			draw_frame_curves(sc);
 	}
+
+	GPU_raster_end();
 
 	/* frame range */
 	clip_draw_sfra_efra(v2d, scene);

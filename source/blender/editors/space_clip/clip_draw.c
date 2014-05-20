@@ -65,6 +65,7 @@
 #include "GPU_primitives.h"
 #include "GPU_raster.h"
 #include "GPU_sprite.h"
+#include "GPU_state_latch.h"
 
 #include "BIF_glutil.h"
 
@@ -1155,17 +1156,15 @@ static void draw_plane_marker_image(Scene *scene,
 			if (plane_track->image_opacity != 1.0f || ibuf->planes == 32) {
 				transparent = true;
 				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
 			}
 
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			glColor4f(1.0, 1.0, 1.0, plane_track->image_opacity);
+			gpuColor4P(CPACK_WHITE, plane_track->image_opacity);
 
-			last_texid = glaGetOneInteger(GL_TEXTURE_2D);
+			last_texid = gpuGetTextureBinding2D(); // XXX jwilkins: don't bother
 			glEnable(GL_TEXTURE_2D);
 			glGenTextures(1, (GLuint *)&texid);
 
-			glBindTexture(GL_TEXTURE_2D, texid);
+			gpuBindTexture(GL_TEXTURE_2D, texid);
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -1173,19 +1172,19 @@ static void draw_plane_marker_image(Scene *scene,
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, GL_RGBA,
 			             GL_UNSIGNED_BYTE, display_buffer);
 
-			glPushMatrix();
-			glMultMatrixf(gl_matrix);
+			gpuPushMatrix();
+			gpuMultMatrix(gl_matrix[0]);
 
-			glBegin(GL_QUADS);
-			glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 0.0f);
-			glTexCoord2f(1.0f, 0.0f); glVertex2f(1.0f, 0.0f);
-			glTexCoord2f(1.0f, 1.0f); glVertex2f(1.0f, 1.0f);
-			glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f, 1.0f);
-			glEnd();
+			gpuBegin(GL_TRIANGLE_STRIP);
+			gpuTexCoord2f(0.0f, 0.0f); gpuVertex2f(0.0f, 0.0f);
+			gpuTexCoord2f(1.0f, 0.0f); gpuVertex2f(1.0f, 0.0f);
+			gpuTexCoord2f(1.0f, 1.0f); gpuVertex2f(1.0f, 1.0f);
+			gpuTexCoord2f(0.0f, 1.0f); gpuVertex2f(0.0f, 1.0f);
+			gpuEnd();
 
-			glPopMatrix();
+			gpuPopMatrix();
 
-			glBindTexture(GL_TEXTURE_2D, last_texid);
+			gpuBindTexture(GL_TEXTURE_2D, last_texid); // XXX jwilkins: not needed
 			glDisable(GL_TEXTURE_2D);
 
 			if (transparent) {
@@ -1215,10 +1214,10 @@ static void draw_plane_marker_ex(SpaceClip *sc, Scene *scene, MovieTrackingPlane
 		float color[3], selected_color[3];
 		plane_track_colors(is_active_track, color, selected_color);
 		if (is_selected_track) {
-			glColor3fv(selected_color);
+			gpuColor3fv(selected_color);
 		}
 		else {
-			glColor3fv(color);
+			gpuColor3fv(color);
 		}
 	}
 
@@ -1230,45 +1229,47 @@ static void draw_plane_marker_ex(SpaceClip *sc, Scene *scene, MovieTrackingPlane
 		draw_plane_marker_image(scene, plane_track, plane_marker);
 	}
 
+	GPU_raster_begin();
+
 	if (draw_outline) {
 		if (!tiny) {
-			glLineWidth(3.0f);
+			gpuLineWidth(3.0f);
 		}
 	}
 	else if (tiny) {
-		glLineStipple(3, 0xaaaa);
-		glEnable(GL_LINE_STIPPLE);
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+		gpuLineStipple(3, 0xaaaa);
 	}
 
 	if (draw_plane_quad) {
 		/* Draw rectangle itself. */
-		glBegin(GL_LINE_LOOP);
-		glVertex2fv(plane_marker->corners[0]);
-		glVertex2fv(plane_marker->corners[1]);
-		glVertex2fv(plane_marker->corners[2]);
-		glVertex2fv(plane_marker->corners[3]);
-		glEnd();
+		gpuBegin(GL_LINE_LOOP);
+		gpuVertex2fv(plane_marker->corners[0]);
+		gpuVertex2fv(plane_marker->corners[1]);
+		gpuVertex2fv(plane_marker->corners[2]);
+		gpuVertex2fv(plane_marker->corners[3]);
+		gpuEnd();
 
 		/* Draw axis. */
 		if (!draw_outline) {
 			float end_point[2];
-			glPushAttrib(GL_COLOR_BUFFER_BIT | GL_CURRENT_BIT);
+			glPushAttrib(GL_COLOR_BUFFER_BIT | GL_CURRENT_BIT); // XXX jwilkins: arg...
 
 			getArrowEndPoint(width, height, sc->zoom, plane_marker->corners[0], plane_marker->corners[1], end_point);
-			glColor3f(1.0, 0.0, 0.0f);
-			glBegin(GL_LINES);
-			glVertex2fv(plane_marker->corners[0]);
-			glVertex2fv(end_point);
-			glEnd();
+			gpuColor3P(CPACK_RED); // XXX jwilkins: shouldn't this be a theme color?
+			gpuBegin(GL_LINES);
+			gpuVertex2fv(plane_marker->corners[0]);
+			gpuVertex2fv(end_point);
+			gpuEnd();
 
 			getArrowEndPoint(width, height, sc->zoom, plane_marker->corners[0], plane_marker->corners[3], end_point);
-			glColor3f(0.0, 1.0, 0.0f);
-			glBegin(GL_LINES);
-			glVertex2fv(plane_marker->corners[0]);
-			glVertex2fv(end_point);
-			glEnd();
+			gpuColor3P(CPACK_GREEN); // XXX jwilkins: shouldn't this be a theme color?
+			gpuBegin(GL_LINES);
+			gpuVertex2fv(plane_marker->corners[0]);
+			gpuVertex2fv(end_point);
+			gpuEnd();
 
-			glPopAttrib();
+			glPopAttrib(); // XXX jwilkins: /sigh
 		}
 	}
 
@@ -1283,12 +1284,14 @@ static void draw_plane_marker_ex(SpaceClip *sc, Scene *scene, MovieTrackingPlane
 
 	if (draw_outline) {
 		if (!tiny) {
-			glLineWidth(1.0f);
+			gpuLineWidth(1.0f);
 		}
 	}
 	else if (tiny) {
-		glDisable(GL_LINE_STIPPLE);
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
 	}
+
+	GPU_raster_end();
 }
 
 static void draw_plane_marker_outline(SpaceClip *sc, Scene *scene, MovieTrackingPlaneTrack *plane_track,

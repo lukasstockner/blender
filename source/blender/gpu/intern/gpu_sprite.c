@@ -29,6 +29,8 @@
  *  \ingroup gpu
  */
 
+#define GPU_MANGLE_DEPRECATED 0
+
 /* my interface */
 #include "intern/gpu_sprite_intern.h"
 

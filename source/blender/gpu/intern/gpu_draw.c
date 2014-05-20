@@ -1102,7 +1102,7 @@ static bool GPU_check_scaled_image(ImBuf *ibuf, Image *ima, float *frect, int x,
 			float *fscalerect = MEM_mallocN(rectw*recth*sizeof(*fscalerect)*4, "fscalerect");
 			gluScaleImage(GL_RGBA, w, h, GL_FLOAT, frect, rectw, recth, GL_FLOAT, fscalerect);
 
-			glBindTexture(GL_TEXTURE_2D, ima->bindcode);
+			gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 			glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, rectw, recth, GL_RGBA,
 			                GL_FLOAT, fscalerect);
 
@@ -1122,7 +1122,7 @@ static bool GPU_check_scaled_image(ImBuf *ibuf, Image *ima, float *frect, int x,
 					bilinear_interpolation_color_wrap(ibuf, (unsigned char *)(p + i + j * (rectw)), NULL, u, v);
 				}
 			}
-			glBindTexture(GL_TEXTURE_2D, ima->bindcode);
+			gpuBindTexture(GL_TEXTURE_2D, ima->bindcode);
 			glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, rectw, recth, GL_RGBA,
 			                GL_UNSIGNED_BYTE, scalerect);
 

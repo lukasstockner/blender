@@ -616,7 +616,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 	}
 	
 	gpuEnd();
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 /* helper func - draw one repeat of an F-Curve */
@@ -773,7 +773,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 	}
 	
 	gpuEnd();
-	glPopMatrix();
+	gpuPopMatrix();
 } 
 
 /* Debugging -------------------------------- */
@@ -1051,8 +1051,8 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 				short mapping_flag = ANIM_get_normalization_flags(ac);
 				float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag);
 
-				glPushMatrix();
-				glScalef(1.0f, unit_scale, 1.0f);
+				gpuPushMatrix();
+				gpuScale(1.0f, unit_scale, 1.0f);
 
 				if (fcu->bezt) {
 					int do_handles = draw_fcurve_handles_check(sipo, fcu);
@@ -1071,7 +1071,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 					draw_fcurve_samples(sipo, ar, fcu);
 				}
 
-				glPopMatrix();
+				gpuPopMatrix();
 			}
 		}
 		

@@ -462,7 +462,7 @@ static void draw_uvs_looptri(BMEditMesh *em, unsigned int *r_loop_index, const i
 		unsigned int j;
 		for (j = 0; j < 3; j++) {
 			MLoopUV *luv = BM_ELEM_CD_GET_VOID_P(em->looptris[i][j], cd_loop_uv_offset);
-			glVertex2fv(luv->uv);
+			gpuVertex2fv(luv->uv);
 		}
 		i++;
 	} while (i != em->tottri && (f == em->looptris[i][0]->f));
@@ -557,20 +557,20 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 
 					if (tf == activetf) {
 						/* only once */
-						glEnable(GL_POLYGON_STIPPLE);
-						glPolygonStipple(GPU_stipple_quarttone);
+						GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
+						gpuPolygonStipple(GPU_stipple_quarttone);
 						UI_ThemeColor4(TH_EDITMESH_ACTIVE);
 					}
 					else {
-						glColor4ubv((GLubyte *)(is_select ? col2 : col1));
+						gpuColor4ubv((GLubyte *)(is_select ? col2 : col1));
 					}
 
-					glBegin(GL_TRIANGLES);
+					gpuBegin(GL_TRIANGLES);
 					draw_uvs_looptri(em, &i, cd_loop_uv_offset);
-					glEnd();
+					gpuEnd();
 
 					if (tf == activetf) {
-						glDisable(GL_POLYGON_STIPPLE);
+						GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_STIPPLE);
 					}
 				}
 				else {

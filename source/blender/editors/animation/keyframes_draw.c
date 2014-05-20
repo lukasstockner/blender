@@ -599,7 +599,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		 * greying out protected/muted channels doesn't work correctly! 
 		 */
 		inner_col[3] *= alpha;
-		glColor4fv(inner_col);
+		gpuColor4fv(inner_col);
 
 		/* draw the "filled in" interior poly now */
 		gpuBegin(GL_QUADS);
@@ -623,7 +623,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		else  UI_GetThemeColor4fv(TH_KEYBORDER, border_col);
 		
 		border_col[3] *= alpha;
-		glColor4fv(border_col);
+		gpuColor4fv(border_col);
 
 		gpuBegin(GL_LINE_LOOP);
 		gpuVertex2fv(_unit_diamond_shape[0]);
@@ -671,7 +671,7 @@ static void draw_keylist(View2D *v2d, DLRBT_Tree *keys, DLRBT_Tree *blocks, floa
 					UI_GetThemeColor4fv(TH_STRIP, color);
 					
 				color[3] *= alpha;
-				glColor4fv(color);
+				gpuColor4fv(color);
 				
 				gpuSingleFilledRectf(ab->start, ypos - iconsize, ab->end, ypos + iconsize);
 			}
