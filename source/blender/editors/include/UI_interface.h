@@ -652,15 +652,13 @@ void uiButSetFocusOnEnter(struct wmWindow *win, uiBut *but);
  * Call begin once, then multiple times do_name with all possibilities,
  * and finally end to finish and get the completed name. */
 
-typedef struct AutoComplete AutoComplete;
-
 #define AUTOCOMPLETE_NO_MATCH 0
 #define AUTOCOMPLETE_FULL_MATCH 1
 #define AUTOCOMPLETE_PARTIAL_MATCH 2
 
 struct AutoComplete *autocomplete_begin(const char *startname, size_t maxlen);
-void autocomplete_do_name(AutoComplete *autocpl, const char *name);
-int autocomplete_end(AutoComplete *autocpl, char *autoname);
+void autocomplete_do_name(struct AutoComplete *autocpl, const char *name);
+int autocomplete_end(struct AutoComplete *autocpl, char *autoname);
 
 
 
