@@ -121,14 +121,6 @@ struct TimeSourceKey
 	IDPtr id;
 };
 
-struct IDKey
-{
-	IDKey() : id(NULL) {}
-	IDKey(IDPtr id) : id(id) {}
-	
-	IDPtr id;
-};
-
 struct ComponentKey
 {
 	ComponentKey() : id(NULL), type(DEPSNODE_TYPE_UNDEFINED), subdata("") {}
@@ -200,7 +192,6 @@ struct DepsgraphRelationBuilder {
 protected:
 	RootDepsNode *find_node(const RootKey &key) const;
 	TimeSourceDepsNode *find_node(const TimeSourceKey &key) const;
-	IDDepsNode *find_node(const IDKey &key) const;
 	ComponentDepsNode *find_node(const ComponentKey &key) const;
 	OperationDepsNode *find_node(const OperationKey &key) const;
 	DepsNode *find_node(const RNAPathKey &key) const;

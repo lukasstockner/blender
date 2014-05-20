@@ -345,12 +345,6 @@ TimeSourceDepsNode *DepsgraphRelationBuilder::find_node(const TimeSourceKey &key
 	}
 }
 
-IDDepsNode *DepsgraphRelationBuilder::find_node(const IDKey &key) const
-{
-	IDDepsNode *node = m_graph->find_id_node(key.id);
-	return node;
-}
-
 ComponentDepsNode *DepsgraphRelationBuilder::find_node(const ComponentKey &key) const
 {
 	IDDepsNode *id_node = m_graph->find_id_node(key.id);
@@ -480,7 +474,10 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	
 	DepsgraphRelationBuilder relation_builder(graph);
 	/* hook scene up to the root node as entrypoint to graph */
-	relation_builder.add_relation(RootKey(), IDKey(scene), DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
+    /* XXX what does this relation actually mean?
+     * it doesnt add any operations anyway and is not clear what part of the scene is to be connected.
+     */
+    //relation_builder.add_relation(RootKey(), IDKey(scene), DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
 	relation_builder.build_scene(scene);
 	
 #if 0
