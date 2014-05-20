@@ -111,33 +111,6 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 		OperationDepsNode *node = queue.front();
 		queue.pop();
 		
-#if 0 /* XXX This should not be necessary, since operations are only directly connected to each other (?) */
-		/* flush to sub-nodes... */
-		// NOTE: if flushing to subnodes, we should then proceed to remove tag(s) from self, as only the subnode tags matter
-		bool flushed_subnodes = false;
-		switch (node->type) {
-			case DEPSNODE_TYPE_ID_REF: {
-				IDDepsNode *id_node = (IDDepsNode *)node;
-				for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin(); it != id_node->components.end(); ++it) {
-					ComponentDepsNode *comp_node = it->second;
-					
-					if (!(comp_node->flag & DEPSNODE_FLAG_NEEDS_UPDATE)) {
-						comp_node->flag |= DEPSNODE_FLAG_NEEDS_UPDATE;
-						queue.push(comp_node);
-						
-						flushed_subnodes = true;
-					}
-				}
-				break;
-			}
-			
-			default: break;
-		}
-		
-		if (flushed_subnodes)
-			DEG_debug_eval_step(string_format("Flush Components: %s", node->name.c_str()).c_str());
-#endif
-		
 		/* flush to nodes along links... */
 		bool flushed_relations = false;
 		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
