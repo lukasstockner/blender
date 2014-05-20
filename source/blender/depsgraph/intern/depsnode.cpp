@@ -49,7 +49,7 @@ DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type, const string &tname, eDepsNode
 	this->type = type;
 	if (type < DEPSNODE_TYPE_PARAMETERS)
 		this->tclass = DEPSNODE_CLASS_GENERIC;
-	else if (type < DEPSNODE_TYPE_OP_PARAMETER)
+    else if (type < DEPSNODE_TYPE_OP_NOOP)
 		this->tclass = DEPSNODE_CLASS_COMPONENT;
 	else
 		this->tclass = DEPSNODE_CLASS_OPERATION;
