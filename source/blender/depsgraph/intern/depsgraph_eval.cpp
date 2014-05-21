@@ -58,6 +58,7 @@ extern "C" {
 #include "RNA_types.h"
 } /* extern "C" */
 
+#include "depsgraph.h"
 #include "depsnode.h"
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
@@ -65,7 +66,6 @@ extern "C" {
 #include "depsgraph_eval.h"
 #include "depsgraph_queue.h"
 #include "depsgraph_intern.h"
-#include "depsgraph_util_priority_queue.h"
 
 /* *************************************************** */
 /* Multi-Threaded Evaluation Internals */
@@ -124,17 +124,50 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node, eEvaluationContextTy
 	/* NOTE: "generic" nodes cannot be executed, but will still end up calling this */
 }
 
+Scheduler::Scheduler()
+{
+}
+
+Scheduler::~Scheduler()
+{
+}
+
+static bool is_node_ready(OperationDepsNode *node)
+{
+	return (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) && node->num_links_pending == 0;
+}
+
+void Scheduler::schedule_graph(Depsgraph *graph)
+{
+	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
+		OperationDepsNode *node = *it;
+		
+		if (is_node_ready(node))
+			queue.push(node);
+	}
+}
+
+OperationDepsNode *Scheduler::retrieve_node()
+{
+	OperationDepsNode *node = queue.top();
+	queue.pop();
+	return node;
+}
+
+void Scheduler::finish_node(OperationDepsNode *node)
+{
+	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
+		DepsRelation *rel = *it;
+		
+		BLI_assert(rel->to->num_links_pending > 0);
+		--rel->to->num_links_pending;
+		if (rel->to->num_links_pending == 0)
+			queue.push(node);
+	}
+}
+
 /* *************************************************** */
 /* Evaluation Entrypoints */
-
-struct CompareOperationNode {
-	bool operator() (OperationDepsNode *a, OperationDepsNode *b)
-	{
-		return a->eval_priority < b->eval_priority;
-	}
-};
-
-typedef priority_queue<OperationDepsNode *, vector<OperationDepsNode *>, CompareOperationNode> EvalQueue;
 
 static void calculate_eval_priority(OperationDepsNode *node)
 {
@@ -155,6 +188,8 @@ static void calculate_eval_priority(OperationDepsNode *node)
 	else
 		node->eval_priority = 0.0f;
 }
+
+
 
 /* Evaluate all nodes tagged for updating 
  * ! This is usually done as part of main loop, but may also be 
@@ -178,6 +213,9 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 	}
 	
 	DEG_debug_eval_step("Eval Priority Calculation");
+	
+	EvalQueue queue;
+	
 	
 	/* from the root node, start queuing up nodes to evaluate */
 	// ... start scheduler, etc.

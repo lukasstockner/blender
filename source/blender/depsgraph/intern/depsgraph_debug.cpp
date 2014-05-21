@@ -315,7 +315,7 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx, const DepsNo
 	deg_debug_printf(ctx, "[");
 //	deg_debug_printf(ctx, "label=<<B>%s</B>>", name);
 	if (priority >= 0.0f)
-		deg_debug_printf(ctx, "label=<%s (<I>%f</I>)>", name, priority);
+		deg_debug_printf(ctx, "label=<%s<BR/>(<I>%.2f</I>)>", name, priority);
 	else
 		deg_debug_printf(ctx, "label=<%s>", name);
 	deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);

@@ -26,7 +26,9 @@
 #define __DEPSGRAPH_UTIL_PRIORITY_QUEUE_H__
 
 #include <queue>
+#include <vector>
 
 using std::priority_queue;
+using std::vector;
 
 #endif /* __DEPSGRAPH_UTIL_PRIORITY_QUEUE_H__ */

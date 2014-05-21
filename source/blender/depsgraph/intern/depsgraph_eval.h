@@ -33,8 +33,10 @@
 #ifndef __DEPSGRAPH_EVAL_TYPES_H__
 #define __DEPSGRAPH_EVAL_TYPES_H__
 
+#include "depsgraph_util_priority_queue.h"
+
 struct Depsgraph;
-struct DepsNode;
+struct OperationDepsNode;
 
 /* ****************************************** */
 /* Operation Contexts */
@@ -121,6 +123,31 @@ typedef struct DEG_PoseContext {
 	struct Object *ob;              /* object that pose resides on */
 	struct bPose *pose;             /* pose object that is being "solved" */
 } DEG_PoseContext;
+
+/* ****************************************** */
+
+
+struct CompareOperationNode {
+	bool operator() (OperationDepsNode *a, OperationDepsNode *b)
+	{
+		return a->eval_priority < b->eval_priority;
+	}
+};
+
+typedef priority_queue<OperationDepsNode *, vector<OperationDepsNode *>, CompareOperationNode> EvalQueue;
+
+class Scheduler {
+public:
+	Scheduler();
+	~Scheduler();
+	
+	void schedule_graph(Depsgraph *graph);
+	OperationDepsNode *retrieve_node();
+	void finish_node(OperationDepsNode *node);
+	
+private:
+	EvalQueue queue;
+};
 
 /* ****************************************** */
 
