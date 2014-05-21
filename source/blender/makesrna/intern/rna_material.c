@@ -2094,7 +2094,7 @@ void RNA_def_material(BlenderRNA *brna)
 	rna_def_animdata_common(srna);
 	rna_def_mtex_common(brna, srna, "rna_Material_mtex_begin", "rna_Material_active_texture_get",
 	                    "rna_Material_active_texture_set", "rna_Material_active_texture_editable",
-	                    "MaterialTextureSlot", "MaterialTextureSlots", "rna_Material_update");
+	                    "MaterialTextureSlot", "MaterialTextureSlots", "rna_Material_update", "rna_Material_update");
 
 	rna_def_mtex_texpaint(srna);
 
@@ -2158,7 +2158,7 @@ static void rna_def_texture_slots(BlenderRNA *brna, PropertyRNA *cprop, const ch
 
 void rna_def_mtex_common(BlenderRNA *brna, StructRNA *srna, const char *begin,
                          const char *activeget, const char *activeset, const char *activeeditable,
-                         const char *structname, const char *structname_slots, const char *update)
+                         const char *structname, const char *structname_slots, const char *update, const char *update_index)
 {
 	PropertyRNA *prop;
 
@@ -2183,7 +2183,7 @@ void rna_def_mtex_common(BlenderRNA *brna, StructRNA *srna, const char *begin,
 	RNA_def_property_int_sdna(prop, NULL, "texact");
 	RNA_def_property_range(prop, 0, MAX_MTEX - 1);
 	RNA_def_property_ui_text(prop, "Active Texture Index", "Index of active texture slot");
-	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, update);
+	RNA_def_property_update(prop, NC_MATERIAL | ND_SHADING_LINKS, update_index);
 }
 
 void rna_def_mtex_texpaint(StructRNA *srna)

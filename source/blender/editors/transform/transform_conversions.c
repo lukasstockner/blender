@@ -2863,7 +2863,7 @@ static void createTransNlaData(bContext *C, TransInfo *t)
 		}
 		
 		/* cleanup temp list */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 		return;
 	}
 	
@@ -2996,7 +2996,7 @@ static void createTransNlaData(bContext *C, TransInfo *t)
 	}
 	
 	/* cleanup temp list */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ********************* ACTION EDITOR ****************** */
@@ -3185,7 +3185,7 @@ static void posttrans_action_clean(bAnimContext *ac, bAction *act)
 	}
 
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ----------------------------- */
@@ -3460,7 +3460,7 @@ static void createTransActionData(bContext *C, TransInfo *t)
 	/* stop if trying to build list if nothing selected */
 	if (count == 0) {
 		/* cleanup temp list */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 		return;
 	}
 	
@@ -3549,7 +3549,7 @@ static void createTransActionData(bContext *C, TransInfo *t)
 	}
 
 	/* cleanup temp list */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ********************* GRAPH EDITOR ************************* */
@@ -3740,7 +3740,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	/* stop if trying to build list if nothing selected */
 	if (count == 0) {
 		/* cleanup temp list */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 		return;
 	}
 	
@@ -3872,7 +3872,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	}
 	
 	/* cleanup temp list */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 
@@ -5534,7 +5534,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			}
 			
 			/* free temp memory */
-			BLI_freelistN(&anim_data);
+			ANIM_animdata_freelist(&anim_data);
 		}
 		else if (ac.datatype == ANIMCONT_ACTION) { // TODO: just integrate into the above...
 			/* Depending on the lock status, draw necessary views */
@@ -5666,7 +5666,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			}
 			
 			/* free temp memory */
-			BLI_freelistN(&anim_data);
+			ANIM_animdata_freelist(&anim_data);
 		}
 		
 		/* Make sure all F-Curves are set correctly, but not if transform was
@@ -5703,7 +5703,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			}
 			
 			/* free temp memory */
-			BLI_freelistN(&anim_data);
+			ANIM_animdata_freelist(&anim_data);
 			
 			/* perform after-transfrom validation */
 			ED_nla_postop_refresh(&ac);

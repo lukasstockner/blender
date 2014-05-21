@@ -576,11 +576,16 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 			new_glmode = mface->v4 ? GL_QUADS : GL_TRIANGLES;
 			new_matnr = mface->mat_nr + 1;
 			new_shademodel = (lnors || (mface->flag & ME_SMOOTH)) ? GL_SMOOTH : GL_FLAT;
-			
-			if (new_glmode != glmode || new_matnr != matnr || new_shademodel != shademodel) {
+
+
+			if ((new_glmode != glmode) || (new_shademodel != shademodel) ||
+			    (setMaterial && (new_matnr != matnr)))
+			{
 				glEnd();
 
-				drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
+				if (setMaterial) {
+					drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
+				}
 
 				glShadeModel(shademodel = new_shademodel);
 				glBegin(glmode = new_glmode);
@@ -598,7 +603,6 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 						glNormal3sv((const GLshort *)lnors[0][3]);
 						glVertex3fv(mvert[mface->v4].co);
 					}
-					lnors++;
 				}
 				else if (shademodel == GL_FLAT) {
 					if (nors) {
@@ -636,7 +640,10 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 				}
 			}
 
-			if (nors) nors += 3;
+			if (nors)
+				nors += 3;
+			if (lnors)
+				lnors++;
 		}
 		glEnd();
 	}
@@ -838,11 +845,13 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 					else if (mf->flag & ME_SMOOTH) glNormal3sv(mvert->no);
 					glVertex3fv(mvert->co);
 				}
-				if (lnors) lnors++;
 				glEnd();
 			}
 			
-			if (nors) nors += 3;
+			if (nors)
+				nors += 3;
+			if (lnors)
+				lnors++;
 		}
 	}
 	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
@@ -1015,7 +1024,6 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 						glNormal3sv((const GLshort *)lnors[0][3]);
 						glVertex3fv(mv[mf->v4].co);
 					}
-					lnors++;
 				}
 				else if (!drawSmooth) {
 					if (nors) {
@@ -1066,7 +1074,10 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 					glDisable(GL_POLYGON_STIPPLE);
 			}
 			
-			if (nors) nors += 3;
+			if (nors)
+				nors += 3;
+			if (lnors)
+				lnors++;
 		}
 	}
 	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */

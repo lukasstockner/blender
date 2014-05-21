@@ -754,7 +754,7 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, const flo
 
 	settings->imapaint.flag |= IMAGEPAINT_DRAWING;
 	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
-	                      ED_image_undo_restore, ED_image_undo_free);
+	                         ED_image_undo_restore, ED_image_undo_free);
 
 	return pop;
 }
