@@ -25,23 +25,23 @@
 #ifndef OSD_EXAMPLE_CL_INIT_H
 #define OSD_EXAMPLE_CL_INIT_H
 
+#include <clew.h>
+
 #if defined(_WIN32)
-    #include <windows.h>
-    #include <CL/opencl.h>
+#  include <windows.h>
 #elif defined(__APPLE__)
-    #include <OpenGL/OpenGL.h>
-    #include <OpenCL/opencl.h>
+#  include <OpenGL/OpenGL.h>
 #else
-    #include <GL/glx.h>
-    #include <CL/opencl.h>
+#  include <GL/glx.h>
 #endif
 
 #include <cstdio>
 
 static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
 {
-    cl_int ciErrNum;
+    clewInit();
 
+    cl_int ciErrNum;
     cl_platform_id cpPlatform = 0;
     cl_uint num_platforms;
     ciErrNum = clGetPlatformIDs(0, NULL, &num_platforms);

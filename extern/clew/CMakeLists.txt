@@ -38,4 +38,4 @@ set(SRC
 )
 
 
-blender_add_lib(extern_libclew "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(extern_clew "${SRC}" "${INC}" "${INC_SYS}")

@@ -37,7 +37,7 @@ incs = [
     'intern',
     'nodes',
     'operations',
-    '#/extern/libclew/include',
+    '#/extern/clew/include',
     '../blenkernel',
     '../blenlib',
     '../imbuf',

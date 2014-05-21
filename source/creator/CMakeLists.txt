@@ -1053,7 +1053,6 @@ endif()
 	if(WITH_COMPOSITOR)
 		# added for opencl compositor
 		list_insert_before(BLENDER_SORTED_LIBS "bf_blenkernel" "bf_compositor")
-		list_insert_after(BLENDER_SORTED_LIBS "bf_compositor" "extern_libclew")
 	endif()
 
 	if(WITH_LIBMV)
@@ -1122,6 +1121,10 @@ endif()
 
 	if(WITH_OPENSUBDIV)
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_opensubdiv)
+	endif()
+
+	if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
+		list(APPEND BLENDER_SORTED_LIBS "extern_clew")
 	endif()
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})

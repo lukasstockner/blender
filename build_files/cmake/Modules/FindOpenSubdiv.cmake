@@ -29,8 +29,8 @@ ENDIF()
 
 SET(_opensubdiv_FIND_COMPONENTS
   osdutil
-  osdCPU
   osdGPU
+  osdCPU
 )
 
 SET(_opensubdiv_SEARCH_DIRS
@@ -113,13 +113,6 @@ IF(OPENSUBDIV_FOUND)
     IF(CUDA_FOUND)
       LIST(APPEND OPENSUBDIV_LIBRARIES ${CUDA_CUDART_LIBRARY})
     ENDIF()
-  ENDIF()
-
-  IF(OPENSUBDIV_HAS_OPENCL)
-    # TODO(sergey): Exactly the same reason as above.
-    # TODO(sergey): There's no OpenCL finder in CMake
-    #FIND_PACKAGE(OpenCL)
-    LIST(APPEND OPENSUBDIV_LIBRARIES "OpenCL")
   ENDIF()
 ENDIF(OPENSUBDIV_FOUND)
 

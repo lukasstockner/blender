@@ -70,8 +70,8 @@ if(WITH_LZMA)
 	add_subdirectory(lzma)
 endif()
 
-if(WITH_COMPOSITOR)
-    add_subdirectory(libclew)
+if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
+    add_subdirectory(clew)
 endif()
 
 if(WITH_MOD_BOOLEAN)

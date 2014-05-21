@@ -344,7 +344,7 @@ macro(setup_liblinks
 			target_link_libraries_optimized(${target} "${OPENSUBDIV_LIBRARIES}")
 			unset(OPENSUBDIV_LIBRARIES_DEBUG)
 		else()
-			target_link_libraries(${target} "${OPENSUBDIV_LIBRARIES}")
+			target_link_libraries(${target} ${OPENSUBDIV_LIBRARIES})
 		endif()
 	endif()
 	if(WITH_BOOST)

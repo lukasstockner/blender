@@ -41,11 +41,11 @@ set(SRC
 	opensubdiv_capi.h
 )
 
-MACRO(OPENSUBDIV_DEFINE_COMPONENT component)
+macro(OPENSUBDIV_DEFINE_COMPONENT component)
 	if(${${component}})
 		add_definitions(-D${component})
 	endif()
-ENDMACRO()
+endmacro()
 
 OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENMP)
 OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_OPENCL)
@@ -56,5 +56,12 @@ OPENSUBDIV_DEFINE_COMPONENT(OPENSUBDIV_HAS_GLSL_COMPUTE)
 data_to_c_simple(gpu_shader_opensubd_display.glsl SRC)
 
 add_definitions(-DGLEW_STATIC)
+
+if(OPENSUBDIV_HAS_OPENCL)
+	list(APPEND INC
+		../../extern/clew/include
+	)
+	add_definitions(-DOPENSUBDIV_HAS_CLEW)
+endif()
 
 blender_add_lib(bf_intern_opensubdiv "${SRC}" "${INC}" "${INC_SYS}")

@@ -39,7 +39,7 @@ set(INC
 	../nodes/intern
 	../render/extern/include
 	../render/intern/include
-	../../../extern/libclew/include
+	../../../extern/clew/include
 	../../../intern/guardedalloc
 )
 
