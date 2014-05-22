@@ -891,6 +891,12 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	DagForest *dag;
 	DagAdjList *itA;
 
+	/********* new depsgraph *********/
+	if (sce->depsgraph)
+		DEG_graph_free(sce->depsgraph);
+	sce->depsgraph = DEG_graph_new();
+	/******************/
+	
 	dag = sce->theDag;
 	if (dag)
 		free_forest(dag);
@@ -1368,6 +1374,13 @@ static void dag_scene_free(Scene *sce)
 		MEM_freeN(sce->theDag);
 		sce->theDag = NULL;
 	}
+	
+	/********* new depsgraph *********/
+	if (sce->depsgraph) {
+		DEG_graph_free(sce->depsgraph);
+		sce->depsgraph = NULL;
+	}
+	/******************/
 }
 
 /* Chech whether object data needs to be evaluated before it
