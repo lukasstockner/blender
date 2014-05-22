@@ -17,6 +17,7 @@
 #include <stdlib.h>
 
 #include "background.h"
+#include "bake.h"
 #include "camera.h"
 #include "curves.h"
 #include "device.h"
@@ -54,6 +55,7 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 	image_manager = new ImageManager();
 	particle_system_manager = new ParticleSystemManager();
 	curve_system_manager = new CurveSystemManager();
+	bake_manager = new BakeManager();
 
 	/* OSL only works on the CPU */
 	if(device_info_.type == DEVICE_CPU)
@@ -61,8 +63,8 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 	else
 		shader_manager = ShaderManager::create(this, SceneParams::SVM);
 
-	if (device_info_.type == DEVICE_CPU)
-		image_manager->set_extended_image_limits();
+	/* Extended image limits for CPU and GPUs */
+	image_manager->set_extended_image_limits(device_info_);
 }
 
 Scene::~Scene()
@@ -103,6 +105,8 @@ void Scene::free_memory(bool final)
 		particle_system_manager->device_free(device, &dscene);
 		curve_system_manager->device_free(device, &dscene);
 
+		bake_manager->device_free(device, &dscene);
+
 		if(!params.persistent_data || final)
 			image_manager->device_free(device, &dscene);
 
@@ -122,6 +126,7 @@ void Scene::free_memory(bool final)
 		delete particle_system_manager;
 		delete curve_system_manager;
 		delete image_manager;
+		delete bake_manager;
 	}
 }
 
@@ -137,6 +142,8 @@ void Scene::device_update(Device *device_, Progress& progress)
 	 * - Camera may be used for adapative subdivison.
 	 * - Displacement shader must have all shader data available.
 	 * - Light manager needs lookup tables and final mesh data to compute emission CDF.
+	 * - Film needs light manager to run for use_light_visibility
+	 * - Lookup tables are done a second time to handle film tables
 	 */
 	
 	image_manager->set_pack_images(device->info.pack_images);
@@ -171,11 +178,6 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel()) return;
 
-	progress.set_status("Updating Film");
-	film->device_update(device, &dscene, this);
-
-	if(progress.get_cancel()) return;
-
 	progress.set_status("Updating Lookup Tables");
 	lookup_tables->device_update(device, &dscene);
 
@@ -196,8 +198,23 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel()) return;
 
+	progress.set_status("Updating Film");
+	film->device_update(device, &dscene, this);
+
+	if(progress.get_cancel()) return;
+
 	progress.set_status("Updating Integrator");
 	integrator->device_update(device, &dscene, this);
+
+	if(progress.get_cancel()) return;
+
+	progress.set_status("Updating Lookup Tables");
+	lookup_tables->device_update(device, &dscene);
+
+	if(progress.get_cancel()) return;
+
+	progress.set_status("Updating Baking");
+	bake_manager->device_update(device, &dscene, this, progress);
 
 	if(progress.get_cancel()) return;
 
@@ -219,8 +236,10 @@ bool Scene::need_global_attribute(AttributeStandard std)
 {
 	if(std == ATTR_STD_UV)
 		return Pass::contains(film->passes, PASS_UV);
-	if(std == ATTR_STD_MOTION_PRE || std == ATTR_STD_MOTION_POST)
-		return need_motion() == MOTION_PASS;
+	else if(std == ATTR_STD_MOTION_VERTEX_POSITION)
+		return need_motion() != MOTION_NONE;
+	else if(std == ATTR_STD_MOTION_VERTEX_NORMAL)
+		return need_motion() == MOTION_BLUR;
 	
 	return false;
 }
@@ -249,7 +268,8 @@ bool Scene::need_reset()
 		|| integrator->need_update
 		|| shader_manager->need_update
 		|| particle_system_manager->need_update
-		|| curve_system_manager->need_update);
+		|| curve_system_manager->need_update
+		|| bake_manager->need_update);
 }
 
 void Scene::reset()

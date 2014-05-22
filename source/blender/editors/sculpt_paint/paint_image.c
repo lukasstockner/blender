@@ -43,9 +43,6 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
-#include "BLI_linklist.h"
-#include "BLI_memarena.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "PIL_time.h"
@@ -58,22 +55,14 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_idprop.h"
 #include "BKE_brush.h"
 #include "BKE_image.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_node.h"
-#include "BKE_object.h"
 #include "BKE_paint.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_colortools.h"
 
 #include "BKE_editmesh.h"
 
@@ -82,17 +71,13 @@
 #include "GPU_matrix.h"
 #include "GPU_raster.h"
 
-#include "BIF_glutil.h"
-
 #include "UI_view2d.h"
 
 #include "ED_image.h"
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
-#include "ED_uvedit.h"
 #include "ED_view3d.h"
-#include "ED_mesh.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -691,7 +676,7 @@ void PAINT_OT_image_paint(wmOperatorType *ot)
 	ot->cancel = paint_stroke_cancel;
 
 	/* flags */
-	ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
+	ot->flag = OPTYPE_BLOCKING;
 
 	RNA_def_enum(ot->srna, "mode", stroke_mode_items, BRUSH_STROKE_NORMAL,
 	             "Paint Stroke Mode",
@@ -723,78 +708,6 @@ int get_imapaint_zoom(bContext *C, float *zoomx, float *zoomy)
 
 /************************ cursor drawing *******************************/
 
-void brush_drawcursor_texpaint_uvsculpt(bContext *C, int x, int y, void *UNUSED(customdata))
-{
-#define PX_SIZE_FADE_MAX 12.0f
-#define PX_SIZE_FADE_MIN 4.0f
-
-	Scene *scene = CTX_data_scene(C);
-	//Brush *brush = image_paint_brush(C);
-	Paint *paint = BKE_paint_get_active_from_context(C);
-	Brush *brush = BKE_paint_brush(paint);
-
-	if (paint && brush && paint->flags & PAINT_SHOW_BRUSH) {
-		float zoomx, zoomy;
-		const float size = (float)BKE_brush_size_get(scene, brush);
-		short use_zoom;
-		float pixel_size;
-		float alpha = 0.5f;
-
-		use_zoom = get_imapaint_zoom(C, &zoomx, &zoomy);
-
-		if (use_zoom) {
-			pixel_size = size * max_ff(zoomx, zoomy);
-		}
-		else {
-			pixel_size = size;
-		}
-
-		/* fade out the brush (cheap trick to work around brush interfering with sampling [#])*/
-		if (pixel_size < PX_SIZE_FADE_MIN) {
-			return;
-		}
-		else if (pixel_size < PX_SIZE_FADE_MAX) {
-			alpha *= (pixel_size - PX_SIZE_FADE_MIN) / (PX_SIZE_FADE_MAX - PX_SIZE_FADE_MIN);
-		}
-
-		gpuPushMatrix();
-
-		gpuTranslate((float)x, (float)y, 0.0f);
-
-		/* No need to scale for uv sculpting, on the contrary it might be useful to keep un-scaled */
-		if (use_zoom)
-			gpuScale(zoomx, zoomy, 1.0f);
-
-		gpuColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
-
-		GPU_raster_begin();
-
-		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
-
-		glEnable(GL_BLEND);
-		{
-			UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
-			/* hrmf, duplicate paint_draw_cursor logic here */
-			if (ups->stroke_active && BKE_brush_use_size_pressure(scene, brush)) {
-				/* inner at full alpha */
-				gpuSingleCircle(0, 0, size * ups->pressure_value, 40);
-				/* outer at half alpha */
-				gpuColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha * 0.5f);
-			}
-		}
-		gpuSingleCircle(0, 0, size, 40);
-		glDisable(GL_BLEND);
-
-		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
-
-		GPU_raster_end();
-
-		gpuPopMatrix();
-	}
-#undef PX_SIZE_FADE_MAX
-#undef PX_SIZE_FADE_MIN
-}
-
 static void toggle_paint_cursor(bContext *C, int enable)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
@@ -820,13 +733,13 @@ void ED_space_image_paint_update(wmWindowManager *wm, ToolSettings *settings)
 	wmWindow *win;
 	ScrArea *sa;
 	ImagePaintSettings *imapaint = &settings->imapaint;
-	int enabled = FALSE;
+	bool enabled = false;
 
 	for (win = wm->windows.first; win; win = win->next)
 		for (sa = win->screen->areabase.first; sa; sa = sa->next)
 			if (sa->spacetype == SPACE_IMAGE)
 				if (((SpaceImage *)sa->spacedata.first)->mode == SI_MODE_PAINT)
-					enabled = TRUE;
+					enabled = true;
 
 	if (enabled) {
 		BKE_paint_init(&imapaint->paint, PAINT_CURSOR_TEXTURE_PAINT);
@@ -972,6 +885,7 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Paint *paint = BKE_paint_get_active_from_context(C);
+	Brush *brush = BKE_paint_brush(paint);
 	SampleColorData *data = MEM_mallocN(sizeof(SampleColorData), "sample color custom data");
 	ARegion *ar = CTX_wm_region(C);
 	wmWindow *win = CTX_wm_window(C);
@@ -987,8 +901,10 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 	RNA_int_set_array(op->ptr, "location", event->mval);
 	paint_sample_color(C, ar, event->mval[0], event->mval[1]);
+	WM_cursor_modal_set(win, BC_EYEDROPPER_CURSOR);
 
 	WM_event_add_modal_handler(C, op);
+	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
 
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -1004,6 +920,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			paint->flags |= PAINT_SHOW_BRUSH;
 		}
 
+		WM_cursor_modal_restore(CTX_wm_window(C));
 		MEM_freeN(data);
 		return OPERATOR_FINISHED;
 	}
@@ -1140,16 +1057,16 @@ int image_texture_paint_poll(bContext *C)
 
 int facemask_paint_poll(bContext *C)
 {
-	return paint_facesel_test(CTX_data_active_object(C));
+	return BKE_paint_select_face_test(CTX_data_active_object(C));
 }
 
 int vert_paint_poll(bContext *C)
 {
-	return paint_vertsel_test(CTX_data_active_object(C));
+	return BKE_paint_select_vert_test(CTX_data_active_object(C));
 }
 
 int mask_paint_poll(bContext *C)
 {
-	return paint_facesel_test(CTX_data_active_object(C)) || paint_vertsel_test(CTX_data_active_object(C));
+	return BKE_paint_select_elem_test(CTX_data_active_object(C));
 }
 

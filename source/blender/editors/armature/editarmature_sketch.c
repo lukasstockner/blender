@@ -169,6 +169,7 @@ void BIF_makeListTemplates(const bContext *C)
 	}
 }
 
+#if 0  /* UNUSED */
 const char *BIF_listTemplates(const bContext *UNUSED(C))
 {
 	GHashIterator ghi;
@@ -198,6 +199,7 @@ const char *BIF_listTemplates(const bContext *UNUSED(C))
 
 	return TEMPLATES_MENU;
 }
+#endif
 
 int   BIF_currentTemplate(const bContext *C)
 {
@@ -933,7 +935,6 @@ static void sk_projectDrawPoint(bContext *C, float vec[3], SK_Stroke *stk, SK_Dr
 
 	zfac = ED_view3d_calc_zfac(ar->regiondata, fp, NULL);
 
-	/* method taken from editview.c - mouse_cursor() */
 	if (ED_view3d_project_short_global(ar, fp, cval, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 		VECSUB2D(mval_f, cval, dd->mval);
 		ED_view3d_win_to_delta(ar, mval_f, dvec, zfac);

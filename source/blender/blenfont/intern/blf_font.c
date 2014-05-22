@@ -54,8 +54,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_threads.h"
 #include "BLI_alloca.h"
-#include "BLI_linklist.h"  /* linknode */
-#include "BLI_strict_flags.h"
 
 #include "BLF_api.h"
 
@@ -63,6 +61,8 @@
 
 #include "blf_internal_types.h"
 #include "blf_internal.h"
+
+#include "BLI_strict_flags.h"
 
 #include "GPU_immediate.h"
 #include "GPU_state_latch.h"
@@ -151,10 +151,10 @@ static void blf_font_ensure_ascii_table(FontBLF *font)
 
 
 #define BLF_KERNING_VARS(_font, _has_kerning, _kern_mode)                        \
-	const short _has_kerning = FT_HAS_KERNING((_font)->face);                    \
+	const bool _has_kerning = FT_HAS_KERNING((_font)->face);                     \
 	const FT_UInt _kern_mode = (_has_kerning == 0) ? 0 :                         \
 	                         (((_font)->flags & BLF_KERNING_DEFAULT) ?           \
-	                          ft_kerning_default : FT_KERNING_UNFITTED)          \
+	                          ft_kerning_default : (FT_UInt)FT_KERNING_UNFITTED) \
 
 
 #define BLF_KERNING_STEP(_font, _kern_mode, _g_prev, _g, _delta, _pen_x)         \

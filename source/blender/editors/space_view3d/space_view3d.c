@@ -49,10 +49,8 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 
-#include "ED_render.h"
 #include "ED_space_api.h"
 #include "ED_screen.h"
-#include "ED_object.h"
 
 #include "GPU_glew.h"
 #include "GPU_extensions.h"
@@ -320,7 +318,7 @@ static SpaceLink *view3d_new(const bContext *C)
 		v3d->lay = v3d->layact = scene->lay;
 		v3d->camera = scene->camera;
 	}
-	v3d->scenelock = TRUE;
+	v3d->scenelock = true;
 	v3d->grid = 1.0f;
 	v3d->gridlines = 16;
 	v3d->gridsubdiv = 10;
@@ -708,7 +706,6 @@ static void *view3d_main_area_duplicate(void *poin)
 		new->gpuoffscreen = NULL;
 		new->ri = NULL;
 		new->render_engine = NULL;
-		new->gpd = NULL;
 		new->sms = NULL;
 		new->smooth_timer = NULL;
 		

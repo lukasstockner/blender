@@ -428,7 +428,7 @@ static PyObject *Buffer_slice(Buffer *self, int begin, int end)
 	if (begin < 0) begin = 0;
 	if (end > self->dimensions[0]) end = self->dimensions[0];
 	if (begin > end) begin = end;
-	  
+
 	list = PyList_New(end - begin);
 
 	for (count = begin; count < end; count++) {
@@ -2334,7 +2334,7 @@ PyObject *BPyInit_bgles2(void)
 static PyObject *Method_ShaderSource(PyObject *UNUSED(self), PyObject *args)
 {
 	unsigned int shader;
-	char *source;
+	const char *source;
 
 	if (!PyArg_ParseTuple(args, "Is", &shader, &source))
 		return NULL;

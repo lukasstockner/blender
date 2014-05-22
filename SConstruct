@@ -293,8 +293,14 @@ if env['OURPLATFORM']=='darwin':
     frontend = re.search(r'gcc', line) or re.search(r'clang', line) or re.search(r'llvm-gcc', line)  or re.search(r'icc', line)
     if frontend:
         env['C_COMPILER_ID'] = frontend.group(0)
+		
+    vendor = re.search(r'Apple', line)
+    if vendor:
+        C_VENDOR = vendor.group(0)
+    else:
+        C_VENDOR = 'Open Source'
 
-    print B.bc.OKGREEN + "Using Compiler: " + B.bc.ENDC + env['C_COMPILER_ID'] + '-' + env['CCVERSION']
+    print B.bc.OKGREEN + "Using Compiler: " + B.bc.ENDC  +  env['C_COMPILER_ID'] + '-' + env['CCVERSION'] + ' ( ' + C_VENDOR + ' )'
 
     cmd = 'sw_vers -productVersion'
     MAC_CUR_VER=cmd_res=commands.getoutput(cmd)
@@ -410,9 +416,13 @@ if env['OURPLATFORM']=='darwin':
     #Defaults openMP to true if compiler handles it ( only gcc 4.6.1 and newer )
     # if your compiler does not have accurate suffix you may have to enable it by hand !
     if env['WITH_BF_OPENMP'] == 1:
-        if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.6.1' or env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.4':
+        if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.6.1' or env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.4' and C_VENDOR != 'Apple':
             env['WITH_BF_OPENMP'] = 1  # multithreading for fluids, cloth, sculpt and smoke
             print B.bc.OKGREEN + "Using OpenMP"
+            if env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.4':
+                OSX_OMP_LIBPATH = Dir(env.subst(env['LCGDIR'])).abspath
+                env.Append(BF_PROGRAM_LINKFLAGS=['-L'+OSX_OMP_LIBPATH+'/openmp/lib','-liomp5'])
+                env['CCFLAGS'].append('-I'+OSX_OMP_LIBPATH+'/openmp/include') # include for omp.h
         else:
             env['WITH_BF_OPENMP'] = 0
             print B.bc.OKGREEN + "Disabled OpenMP, not supported by compiler"
@@ -495,7 +505,6 @@ else:
 env['CPPFLAGS'].append('-DWITH_AUDASPACE')
 env['CPPFLAGS'].append('-DWITH_AVI')
 env['CPPFLAGS'].append('-DWITH_OPENNL')
-env['CPPFLAGS'].append('-DWITH_BOOL_COMPAT')
 if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '11.0':
     env['CPPFLAGS'].append('-D_ALLOW_KEYWORD_MACROS')
 
@@ -684,6 +693,7 @@ if B.targets != ['cudakernels']:
     data_to_c_simple("release/datafiles/bmonofont.ttf")
 
     data_to_c_simple("release/datafiles/splash.png")
+    data_to_c_simple("release/datafiles/splash_2x.png")
 
     # data_to_c_simple("release/datafiles/blender_icons16.png")
     # data_to_c_simple("release/datafiles/blender_icons32.png")
@@ -885,6 +895,7 @@ if env['OURPLATFORM']!='darwin':
             source.remove('CMakeLists.txt')
             source.remove('svm')
             source.remove('closure')
+            source.remove('geom')
             source.remove('shaders')
             source.remove('osl')
             source=['intern/cycles/kernel/'+s for s in source]
@@ -905,6 +916,12 @@ if env['OURPLATFORM']!='darwin':
             source=os.listdir('intern/cycles/kernel/closure')
             if '__pycache__' in source: source.remove('__pycache__')
             source=['intern/cycles/kernel/closure/'+s for s in source]
+            scriptinstall.append(env.Install(dir=dir,source=source))
+            # geom
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel', 'geom')
+            source=os.listdir('intern/cycles/kernel/geom')
+            if '__pycache__' in source: source.remove('__pycache__')
+            source=['intern/cycles/kernel/geom/'+s for s in source]
             scriptinstall.append(env.Install(dir=dir,source=source))
 
             # licenses

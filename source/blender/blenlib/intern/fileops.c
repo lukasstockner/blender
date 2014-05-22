@@ -61,7 +61,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_path_util.h"
 #include "BLI_fileops.h"
@@ -86,7 +85,7 @@ int BLI_file_gzip(const char *from, const char *to)
 	if (gzfile == NULL)
 		return -1;
 	file = BLI_open(from, O_BINARY | O_RDONLY, 0);
-	if (file < 0)
+	if (file == -1)
 		return -2;
 
 	while (1) {
@@ -116,7 +115,7 @@ int BLI_file_gzip(const char *from, const char *to)
 /* gzip the file in from_file and write it to memory to_mem, at most size bytes.
  * return the unziped size
  */
-char *BLI_file_ungzip_to_mem(const char *from_file, bli_off_t *size_r)
+char *BLI_file_ungzip_to_mem(const char *from_file, bli_off_t *r_size)
 {
 	gzFile gzfile;
 	int readsize, size, alloc_size = 0;
@@ -154,7 +153,7 @@ char *BLI_file_ungzip_to_mem(const char *from_file, bli_off_t *size_r)
 	else if (alloc_size != size)
 		mem = MEM_reallocN(mem, size);
 
-	*size_r = size;
+	*r_size = size;
 
 	return mem;
 }
@@ -360,7 +359,7 @@ int BLI_copy(const char *file, const char *to)
 
 	UTF16_ENCODE(file);
 	UTF16_ENCODE(str);
-	err = !CopyFileW(file_16, str_16, FALSE);
+	err = !CopyFileW(file_16, str_16, false);
 	UTF16_UN_ENCODE(str);
 	UTF16_UN_ENCODE(file);
 

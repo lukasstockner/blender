@@ -41,11 +41,8 @@
 
 #include "GPU_colors.h"
 #include "GPU_primitives.h"
-#include "BIF_glutil.h"
 
 #include "BKE_text.h"
-
-#include "ED_datafiles.h"
 
 #include "textview.h"
 
@@ -65,7 +62,7 @@ typedef struct ConsoleDrawContext {
 	int *xy; // [2]
 	int *sel; // [2]
 	int *pos_pick; // bottom of view == 0, top of file == combine chars, end of line is lower then start. 
-	int *mval; // [2]
+	const int *mval; // [2]
 	int draw;
 } ConsoleDrawContext;
 
@@ -294,7 +291,9 @@ int textview_draw(TextViewContext *tvc, const int draw, int mval[2], void **mous
 	cdc.lofs = -BLF_descender(mono);
 	/* note, scroll bar must be already subtracted () */
 	cdc.console_width = (tvc->winx - (CONSOLE_DRAW_MARGIN * 2) ) / cdc.cwidth;
-	CLAMP(cdc.console_width, 1, INT_MAX); /* avoid divide by zero on small windows */
+	/* avoid divide by zero on small windows */
+	if (cdc.console_width < 1)
+		cdc.console_width = 1;
 	cdc.winx = tvc->winx - CONSOLE_DRAW_MARGIN;
 	cdc.ymin = tvc->ymin;
 	cdc.ymax = tvc->ymax;

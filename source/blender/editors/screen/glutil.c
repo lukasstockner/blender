@@ -32,9 +32,6 @@
 
 /* extern */
 
-#include "BKE_blender.h"
-#include "BKE_global.h"
-#include "BKE_colortools.h"
 #include "BKE_context.h"
 
 #include "BLI_rect.h"
@@ -57,16 +54,6 @@
 #include "GPU_primitives.h"
 #include "GPU_raster.h"
 #include "GPU_state_latch.h"
-const GLubyte stipple_checker_8px[128] = {
-	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-	255,  0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
-	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
-	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
-	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255};
-
 
 #include "MEM_guardedalloc.h"
 
@@ -99,6 +86,8 @@ void fdrawcheckerboard(float x1, float y1, float x2, float y2)
 	GPU_raster_end();
 }
 
+/* UNUSED */
+#if 0
 /*
  *     x1,y2
  *     |  \
@@ -131,6 +120,7 @@ void sdrawtrifill(short x1, short y1, short x2, short y2)
 	sdrawtripoints(x1, y1, x2, y2);
 	gpuEnd();
 }
+#endif
 
 
 /* ******************************************** */
@@ -155,6 +145,8 @@ void set_inverted_drawing(int enable)
 	GL_TOGGLE(GL_DITHER, !enable);
 }
 
+/* UNUSED */
+#if 0
 void sdrawXORline(int x0, int y0, int x1, int y1)
 {
 	if (x0 == x1 && y0 == y1) return;
@@ -222,6 +214,8 @@ void fdrawXORellipse(float xofs, float yofs, float hw, float hh)
 	set_inverted_drawing(0);
 }
 
+#endif
+
 void fdrawXORcirc(float xofs, float yofs, float rad)
 {
 	set_inverted_drawing(1);
@@ -245,7 +239,7 @@ float glaGetOneFloat(int param)
 
 // XXX jwilkins: it seems like this probably doesn't work like it is supposed to
 
-static int get_cached_work_texture(int *w_r, int *h_r)
+static int get_cached_work_texture(int *r_w, int *r_h)
 {
 	static GLint texid = -1;
 	int tex_w = 1024;//GPU_max_texture_size();//256;
@@ -269,8 +263,8 @@ static int get_cached_work_texture(int *w_r, int *h_r)
 		//gpuBindTexture(GL_TEXTURE_2D, ltexid); /* restore default */
 	}
 
-	*w_r = tex_w;
-	*h_r = tex_h;
+	*r_w = tex_w;
+	*r_h = tex_h;
 
 	return texid;
 }
@@ -638,10 +632,10 @@ gla2DDrawInfo *glaBegin2DDraw(rcti *screen_rect, rctf *world_rect)
 /**
  * Translate the (\a wo_x, \a wo_y) point from world coordinates into screen space.
  */
-void gla2DDrawTranslatePt(gla2DDrawInfo *di, float wo_x, float wo_y, int *sc_x_r, int *sc_y_r)
+void gla2DDrawTranslatePt(gla2DDrawInfo *di, float wo_x, float wo_y, int *r_sc_x, int *r_sc_y)
 {
-	*sc_x_r = (wo_x - di->world_rect.xmin) * di->wo_to_sc[0];
-	*sc_y_r = (wo_y - di->world_rect.ymin) * di->wo_to_sc[1];
+	*r_sc_x = (wo_x - di->world_rect.xmin) * di->wo_to_sc[0];
+	*r_sc_y = (wo_y - di->world_rect.ymin) * di->wo_to_sc[1];
 }
 
 /**

@@ -46,8 +46,6 @@
 #include "BIF_glutil.h"
 
 #include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_screen.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -743,10 +741,10 @@ static bool wm_draw_update_test_window(wmWindow *win)
 	for (ar = win->screen->regionbase.first; ar; ar = ar->next) {
 		if (ar->do_draw_overlay) {
 			wm_tag_redraw_overlay(win, ar);
-			ar->do_draw_overlay = FALSE;
+			ar->do_draw_overlay = false;
 		}
 		if (ar->swinid && ar->do_draw)
-			do_draw = TRUE;
+			do_draw = true;
 	}
 
 	for (sa = win->screen->areabase.first; sa; sa = sa->next) {
@@ -754,7 +752,7 @@ static bool wm_draw_update_test_window(wmWindow *win)
 			wm_region_test_render_do_draw(win->screen, sa, ar);
 
 			if (ar->swinid && ar->do_draw)
-				do_draw = TRUE;
+				do_draw = true;
 		}
 	}
 
@@ -824,13 +822,13 @@ void wm_tag_redraw_overlay(wmWindow *win, ARegion *ar)
 	if (ar && win) {
 		if (wm_automatic_draw_method(win) != USER_DRAW_TRIPLE)
 			ED_region_tag_redraw(ar);
-		win->screen->do_draw_paintcursor = TRUE;
+		win->screen->do_draw_paintcursor = true;
 	}
 }
 
 void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion *ar)
 {
-	win->screen->do_draw_paintcursor = TRUE;
+	win->screen->do_draw_paintcursor = true;
 	wm_tag_redraw_overlay(win, ar);
 }
 
@@ -883,9 +881,9 @@ void wm_draw_update(bContext *C)
 			else // if (drawmethod == USER_DRAW_TRIPLE)
 				wm_method_draw_triple(C, win);
 
-			win->screen->do_draw_gesture = FALSE;
-			win->screen->do_draw_paintcursor = FALSE;
-			win->screen->do_draw_drag = FALSE;
+			win->screen->do_draw_gesture = false;
+			win->screen->do_draw_paintcursor = false;
+			win->screen->do_draw_drag = false;
 		
 			wm_window_swap_buffers(win);
 
@@ -921,7 +919,7 @@ void wm_draw_region_clear(wmWindow *win, ARegion *ar)
 	if (ELEM(drawmethod, USER_DRAW_OVERLAP, USER_DRAW_OVERLAP_FLIP))
 		wm_flush_regions_down(win->screen, &ar->winrct);
 
-	win->screen->do_draw = TRUE;
+	win->screen->do_draw = true;
 }
 
 void WM_redraw_windows(bContext *C)

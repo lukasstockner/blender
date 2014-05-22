@@ -30,24 +30,18 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
 
-#include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_customdata.h"
 #include "BKE_image.h"
-#include "BKE_mesh.h"
 #include "BKE_node.h"
 #include "BKE_screen.h"
 
@@ -57,7 +51,6 @@
 #include "IMB_imbuf_types.h"
 
 #include "ED_gpencil.h"
-#include "ED_image.h"
 #include "ED_screen.h"
 
 #include "RNA_access.h"
@@ -179,7 +172,7 @@ void image_preview_event(int event)
 		
 		ntreeCompositTagGenerators(G.scene->nodetree);
 
-		G.is_break = FALSE;
+		G.is_break = false;
 		G.scene->nodetree->timecursor = set_timecursor;
 		G.scene->nodetree->test_break = blender_test_break;
 		
@@ -330,7 +323,7 @@ static void ui_imageuser_layer_menu(bContext *UNUSED(C), uiLayout *layout, void 
 	RenderResult *rr = rnd_data[0];
 	ImageUser *iuser = rnd_data[1];
 	RenderLayer *rl;
-	RenderLayer rl_fake = {0};
+	RenderLayer rl_fake = {NULL};
 	const char *fake_name;
 	int nr;
 
@@ -382,7 +375,7 @@ static void ui_imageuser_pass_menu(bContext *UNUSED(C), uiLayout *layout, void *
 	ImageUser *iuser = ptrpair[1];
 	/* rl==NULL means composite result */
 	RenderLayer *rl = ptrpair[2];
-	RenderPass rpass_fake = {0};
+	RenderPass rpass_fake = {NULL};
 	RenderPass *rpass;
 	const char *fake_name;
 	int nr;
@@ -509,7 +502,7 @@ static void uiblock_layer_pass_buttons(uiLayout *layout, RenderResult *rr, Image
 	const char *fake_name;
 	const char *display_name;
 
-	uiLayoutRow(layout, TRUE);
+	uiLayoutRow(layout, true);
 
 	/* layer menu is 1/3 larger than pass */
 	wmenu1 = (2 * w) / 5;
@@ -561,7 +554,7 @@ static void uiblock_layer_pass_arrow_buttons(uiLayout *layout, RenderResult *rr,
 	uiBut *but;
 	const float dpi_fac = UI_DPI_FAC;
 	
-	row = uiLayoutRow(layout, TRUE);
+	row = uiLayoutRow(layout, true);
 
 	if (rr == NULL || iuser == NULL)
 		return;
@@ -706,13 +699,13 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 			uiItemR(layout, &imaptr, "source", 0, NULL, ICON_NONE);
 
 			if (ima->source != IMA_SRC_GENERATED) {
-				row = uiLayoutRow(layout, TRUE);
+				row = uiLayoutRow(layout, true);
 				if (ima->packedfile)
 					uiItemO(row, "", ICON_PACKAGE, "image.unpack");
 				else
 					uiItemO(row, "", ICON_UGLYPACKAGE, "image.pack");
 				
-				row = uiLayoutRow(row, TRUE);
+				row = uiLayoutRow(row, true);
 				uiLayoutSetEnabled(row, ima->packedfile == NULL);
 				uiItemR(row, &imaptr, "filepath", 0, "", ICON_NONE);
 				uiItemO(row, "", ICON_FILE_REFRESH, "image.reload");
@@ -742,7 +735,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 				}
 			}
 
-			col = uiLayoutColumn(layout, FALSE);
+			col = uiLayoutColumn(layout, false);
 			uiTemplateColorspaceSettings(col, &imaptr, "colorspace_settings");
 			uiItemR(col, &imaptr, "use_view_as_render", 0, NULL, ICON_NONE);
 
@@ -753,7 +746,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 
 					if (ibuf) {
 						int imtype = BKE_ftype_to_imtype(ibuf->ftype);
-						char valid_channels = BKE_imtype_valid_channels(imtype);
+						char valid_channels = BKE_imtype_valid_channels(imtype, false);
 
 						has_alpha = (valid_channels & IMA_CHAN_FLAG_ALPHA) != 0;
 
@@ -761,29 +754,29 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 					}
 
 					if (has_alpha) {
-						col = uiLayoutColumn(layout, FALSE);
+						col = uiLayoutColumn(layout, false);
 						uiItemR(col, &imaptr, "use_alpha", 0, NULL, ICON_NONE);
-						uiItemR(col, &imaptr, "alpha_mode", 0, "Alpha", ICON_NONE);
+						uiItemR(col, &imaptr, "alpha_mode", 0, IFACE_("Alpha"), ICON_NONE);
 					}
 
 					uiItemS(layout);
 
-					split = uiLayoutSplit(layout, 0.0f, FALSE);
+					split = uiLayoutSplit(layout, 0.0f, false);
 
-					col = uiLayoutColumn(split, FALSE);
+					col = uiLayoutColumn(split, false);
 					/* XXX Why only display fields_per_frame only for video image types?
 					 *     And why allow fields for non-video image types at all??? */
 					if (BKE_image_is_animated(ima)) {
-						uiLayout *subsplit = uiLayoutSplit(col, 0.0f, FALSE);
-						uiLayout *subcol = uiLayoutColumn(subsplit, FALSE);
+						uiLayout *subsplit = uiLayoutSplit(col, 0.0f, false);
+						uiLayout *subcol = uiLayoutColumn(subsplit, false);
 						uiItemR(subcol, &imaptr, "use_fields", 0, NULL, ICON_NONE);
-						subcol = uiLayoutColumn(subsplit, FALSE);
+						subcol = uiLayoutColumn(subsplit, false);
 						uiLayoutSetActive(subcol, RNA_boolean_get(&imaptr, "use_fields"));
 						uiItemR(subcol, userptr, "fields_per_frame", 0, IFACE_("Fields"), ICON_NONE);
 					}
 					else
 						uiItemR(col, &imaptr, "use_fields", 0, NULL, ICON_NONE);
-					row = uiLayoutRow(col, FALSE);
+					row = uiLayoutRow(col, false);
 					uiLayoutSetActive(row, RNA_boolean_get(&imaptr, "use_fields"));
 					uiItemR(row, &imaptr, "field_order", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 				}
@@ -792,24 +785,24 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 			if (BKE_image_is_animated(ima)) {
 				uiItemS(layout);
 
-				split = uiLayoutSplit(layout, 0.0f, FALSE);
+				split = uiLayoutSplit(layout, 0.0f, false);
 
-				col = uiLayoutColumn(split, FALSE);
+				col = uiLayoutColumn(split, false);
 
 				BLI_snprintf(str, sizeof(str), IFACE_("(%d) Frames"), iuser->framenr);
 				uiItemR(col, userptr, "frame_duration", 0, str, ICON_NONE);
 				uiItemR(col, userptr, "frame_start", 0, IFACE_("Start"), ICON_NONE);
 				uiItemR(col, userptr, "frame_offset", 0, NULL, ICON_NONE);
 
-				col = uiLayoutColumn(split, FALSE);
+				col = uiLayoutColumn(split, false);
 				uiItemO(col, NULL, ICON_NONE, "IMAGE_OT_match_movie_length");
 				uiItemR(col, userptr, "use_auto_refresh", 0, NULL, ICON_NONE);
 				uiItemR(col, userptr, "use_cyclic", 0, NULL, ICON_NONE);
 			}
 			else if (ima->source == IMA_SRC_GENERATED) {
-				split = uiLayoutSplit(layout, 0.0f, FALSE);
+				split = uiLayoutSplit(layout, 0.0f, false);
 
-				col = uiLayoutColumn(split, TRUE);
+				col = uiLayoutColumn(split, true);
 				uiItemR(col, &imaptr, "generated_width", 0, "X", ICON_NONE);
 				uiItemR(col, &imaptr, "generated_height", 0, "Y", ICON_NONE);
 				
@@ -839,14 +832,14 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, int color_man
 	const bool is_render_out = (id && GS(id->name) == ID_SCE);
 
 	uiLayout *col, *row, *split, *sub;
-	int show_preview = FALSE;
+	bool show_preview = false;
 
-	col = uiLayoutColumn(layout, FALSE);
+	col = uiLayoutColumn(layout, false);
 
-	split = uiLayoutSplit(col, 0.5f, FALSE);
+	split = uiLayoutSplit(col, 0.5f, false);
 	
 	uiItemR(split, imfptr, "file_format", 0, "", ICON_NONE);
-	sub = uiLayoutRow(split, FALSE);
+	sub = uiLayoutRow(split, false);
 	uiItemR(sub, imfptr, "color_mode", UI_ITEM_R_EXPAND, IFACE_("Color"), ICON_NONE);
 
 	/* only display depth setting if multiple depths can be used */
@@ -859,7 +852,7 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, int color_man
 	           R_IMF_CHAN_DEPTH_24,
 	           R_IMF_CHAN_DEPTH_32)) == 0)
 	{
-		row = uiLayoutRow(col, FALSE);
+		row = uiLayoutRow(col, false);
 
 		uiItemL(row, IFACE_("Color Depth:"), ICON_NONE);
 		uiItemR(row, imfptr, "color_depth", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
@@ -877,20 +870,20 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, int color_man
 		uiItemR(col, imfptr, "exr_codec", 0, NULL, ICON_NONE);
 	}
 	
-	row = uiLayoutRow(col, FALSE);
+	row = uiLayoutRow(col, false);
 	if (BKE_imtype_supports_zbuf(imf->imtype)) {
 		uiItemR(row, imfptr, "use_zbuffer", 0, NULL, ICON_NONE);
 	}
 
 	if (is_render_out && (imf->imtype == R_IMF_IMTYPE_OPENEXR)) {
-		show_preview = TRUE;
+		show_preview = true;
 		uiItemR(row, imfptr, "use_preview", 0, NULL, ICON_NONE);
 	}
 
 	if (imf->imtype == R_IMF_IMTYPE_JP2) {
 		uiItemR(col, imfptr, "jpeg2k_codec", 0, NULL, ICON_NONE);
 
-		row = uiLayoutRow(col, FALSE);
+		row = uiLayoutRow(col, false);
 		uiItemR(row, imfptr, "use_jpeg2k_cinema_preset", 0, NULL, ICON_NONE);
 		uiItemR(row, imfptr, "use_jpeg2k_cinema_48", 0, NULL, ICON_NONE);
 		
@@ -920,7 +913,7 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, int color_man
 		prop = RNA_struct_find_property(imfptr, "display_settings");
 		display_settings_ptr = RNA_property_pointer_get(imfptr, prop);
 
-		col = uiLayoutColumn(layout, FALSE);
+		col = uiLayoutColumn(layout, false);
 		uiItemL(col, IFACE_("Color Management"), ICON_NONE);
 
 		uiItemR(col, &display_settings_ptr, "display_device", 0, NULL, ICON_NONE);
@@ -948,6 +941,7 @@ void uiTemplateImageLayers(uiLayout *layout, bContext *C, Image *ima, ImageUser 
 void image_buttons_register(ARegionType *art)
 {
 	PanelType *pt;
+	const char *category = "Grease Pencil";
 
 	pt = MEM_callocN(sizeof(PanelType), "spacetype image panel gpencil");
 	strcpy(pt->idname, "IMAGE_PT_gpencil");
@@ -955,6 +949,7 @@ void image_buttons_register(ARegionType *art)
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw_header = gpencil_panel_standard_header;
 	pt->draw = gpencil_panel_standard;
+	BLI_strncpy(pt->category, category, BLI_strlen_utf8(category));
 	BLI_addtail(&art->paneltypes, pt);
 }
 
@@ -985,7 +980,7 @@ void IMAGE_OT_properties(wmOperatorType *ot)
 static int image_scopes_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = image_has_scope_region(sa);
+	ARegion *ar = image_has_tools_region(sa);
 	
 	if (ar)
 		ED_region_toggle_hidden(C, ar);
@@ -993,12 +988,12 @@ static int image_scopes_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
-void IMAGE_OT_scopes(wmOperatorType *ot)
+void IMAGE_OT_toolshelf(wmOperatorType *ot)
 {
-	ot->name = "Scopes";
-	ot->idname = "IMAGE_OT_scopes";
-	ot->description = "Toggle display scopes panel";
-	
+	ot->name = "Tool Shelf";
+	ot->idname = "IMAGE_OT_toolshelf";
+	ot->description = "Toggles tool shelf display";
+
 	ot->exec = image_scopes_toggle_exec;
 	ot->poll = ED_operator_image_active;
 	

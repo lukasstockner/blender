@@ -21,6 +21,7 @@
 import bpy
 from bpy.types import Panel, Header, Menu, UIList
 from bpy.app.translations import pgettext_iface as iface_
+from bl_ui.properties_grease_pencil_common import GreasePencilPanel
 
 
 class CLIP_UL_tracking_objects(UIList):
@@ -122,19 +123,20 @@ class CLIP_HT_header(Header):
         row = layout.row()
         row.template_ID(sc, "clip", open="clip.open")
 
-        layout.prop(sc, "mode", text="")
+        if clip:
+            layout.prop(sc, "mode", text="")
 
-        row = layout.row()
-        row.template_ID(sc, "mask", new="mask.new")
+            row = layout.row()
+            row.template_ID(sc, "mask", new="mask.new")
 
-        layout.prop(sc, "pivot_point", text="", icon_only=True)
+            layout.prop(sc, "pivot_point", text="", icon_only=True)
 
-        row = layout.row(align=True)
-        row.prop(toolsettings, "use_proportional_edit_mask",
-                 text="", icon_only=True)
-        if toolsettings.use_proportional_edit_mask:
-            row.prop(toolsettings, "proportional_edit_falloff",
+            row = layout.row(align=True)
+            row.prop(toolsettings, "use_proportional_edit_mask",
                      text="", icon_only=True)
+            if toolsettings.use_proportional_edit_mask:
+                row.prop(toolsettings, "proportional_edit_falloff",
+                         text="", icon_only=True)
 
     def draw(self, context):
         layout = self.layout
@@ -260,7 +262,6 @@ class CLIP_PT_tools_marker(CLIP_PT_tracking_panel, Panel):
 
         sc = context.space_data
         clip = sc.clip
-        settings = clip.tracking.settings
 
         col = layout.column(align=True)
         row = col.row(align=True)
@@ -334,6 +335,9 @@ class CLIP_PT_tracking_settings(CLIP_PT_tracking_panel, Panel):
             sub.prop(settings, "default_frames_limit")
             sub.prop(settings, "default_margin")
 
+            col = box.column()
+            col.prop(settings, "default_weight")
+
 
 class CLIP_PT_tools_tracking(CLIP_PT_tracking_panel, Panel):
     bl_space_type = 'CLIP_EDITOR'
@@ -366,10 +370,10 @@ class CLIP_PT_tools_tracking(CLIP_PT_tracking_panel, Panel):
         row.label(text="Clear:")
         row.scale_x = 2.0
 
-        props = row.operator("clip.clear_track_path", icon="BACK", text="")
+        props = row.operator("clip.clear_track_path", text="", icon='BACK')
         props.action = 'UPTO'
 
-        props = row.operator("clip.clear_track_path", icon="FORWARD", text="")
+        props = row.operator("clip.clear_track_path", text="", icon='FORWARD')
         props.action = 'REMAINED'
 
         col = layout.column()
@@ -377,10 +381,10 @@ class CLIP_PT_tools_tracking(CLIP_PT_tracking_panel, Panel):
         row.label(text="Refine:")
         row.scale_x = 2.0
 
-        props = row.operator("clip.refine_markers", icon='LOOP_BACK', text="")
+        props = row.operator("clip.refine_markers", text="", icon='LOOP_BACK')
         props.backwards = True
 
-        props = row.operator("clip.refine_markers", icon='LOOP_FORWARDS', text="")
+        props = row.operator("clip.refine_markers", text="", icon='LOOP_FORWARDS')
         props.backwards = False
 
         col = layout.column(align=True)
@@ -636,7 +640,6 @@ class CLIP_PT_plane_track(CLIP_PT_tracking_panel, Panel):
     def draw(self, context):
         layout = self.layout
 
-        sc = context.space_data
         clip = context.space_data.clip
         active_track = clip.tracking.plane_tracks.active
 
@@ -764,11 +767,19 @@ class CLIP_PT_tracking_lens(Panel):
             sub.prop(clip.tracking.camera, "focal_length_pixels")
         sub.prop(clip.tracking.camera, "units", text="")
 
-        col = layout.column(align=True)
+        col = layout.column()
         col.label(text="Lens Distortion:")
-        col.prop(clip.tracking.camera, "k1")
-        col.prop(clip.tracking.camera, "k2")
-        col.prop(clip.tracking.camera, "k3")
+        camera = clip.tracking.camera
+        col.prop(camera, "distortion_model", text="")
+        if camera.distortion_model == 'POLYNOMIAL':
+            col = layout.column(align=True)
+            col.prop(camera, "k1")
+            col.prop(camera, "k2")
+            col.prop(camera, "k3")
+        elif camera.distortion_model == 'DIVISION':
+            col = layout.column(align=True)
+            col.prop(camera, "division_k1")
+            col.prop(camera, "division_k2")
 
 
 class CLIP_PT_display(CLIP_PT_clip_view_panel, Panel):
@@ -789,7 +800,7 @@ class CLIP_PT_display(CLIP_PT_clip_view_panel, Panel):
         row.separator()
         row.prop(sc, "use_grayscale_preview", text="B/W", toggle=True)
         row.separator()
-        row.prop(sc, "use_mute_footage", text="", icon="VISIBLE_IPO_ON", toggle=True)
+        row.prop(sc, "use_mute_footage", text="", icon='VISIBLE_IPO_ON', toggle=True)
 
         col = layout.column(align=True)
         col.prop(sc.clip_user, "use_render_undistorted", text="Render Undistorted")
@@ -1039,27 +1050,10 @@ class CLIP_PT_tools_mask(MASK_PT_tools, Panel):
 # --- end mask ---
 
 
-class CLIP_PT_tools_grease_pencil(Panel):
+class CLIP_PT_tools_grease_pencil(GreasePencilPanel, Panel):
     bl_space_type = 'CLIP_EDITOR'
     bl_region_type = 'TOOLS'
-    bl_label = "Grease Pencil"
     bl_category = "Grease Pencil"
-
-    def draw(self, context):
-        layout = self.layout
-
-        col = layout.column(align=True)
-
-        row = col.row(align=True)
-        row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
-        row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
-
-        row = col.row(align=True)
-        row.operator("gpencil.draw", text="Poly").mode = 'DRAW_POLY'
-        row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
-
-        row = col.row(align=True)
-        row.prop(context.tool_settings, "use_grease_pencil_sessions")
 
 
 class CLIP_PT_footage(CLIP_PT_clip_view_panel, Panel):
@@ -1090,7 +1084,6 @@ class CLIP_PT_footage_info(CLIP_PT_clip_view_panel, Panel):
         layout = self.layout
 
         sc = context.space_data
-        clip = sc.clip
 
         col = layout.column()
         col.template_movieclip_information(sc, "clip", sc.clip_user)
@@ -1154,6 +1147,7 @@ class CLIP_MT_view(Menu):
                 layout.operator_context = 'INVOKE_DEFAULT'
 
             layout.prop(sc, "show_seconds")
+            layout.prop(sc, "show_locked_time")
             layout.separator()
 
         layout.separator()
@@ -1342,17 +1336,6 @@ class CLIP_MT_tracking_specials(Menu):
 
         layout.operator("clip.lock_tracks",
                         text="Unlock Tracks").action = 'UNLOCK'
-
-
-class CLIP_MT_select_mode(Menu):
-    bl_label = "Select Mode"
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.operator_context = 'INVOKE_REGION_WIN'
-
-        layout.operator_enum("clip.mode_set", "mode")
 
 
 class CLIP_MT_camera_presets(Menu):

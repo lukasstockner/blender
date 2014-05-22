@@ -31,8 +31,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_object_types.h"
-
 #include "BLI_math.h"
 #include "BLI_kdopbvh.h"
 
@@ -217,11 +215,8 @@ static void bmbvh_ray_cast_cb(void *userdata, int index, const BVHTreeRay *ray, 
 
 		copy_v3_v3(hit->no, ltri[0]->f->no);
 
-		copy_v3_v3(hit->co, ray->direction);
-		normalize_v3(hit->co);
-		mul_v3_fl(hit->co, dist);
-		add_v3_v3(hit->co, ray->origin);
-		
+		madd_v3_v3v3fl(hit->co, ray->origin, ray->direction, dist);
+
 		copy_v2_v2(bmcb_data->uv, uv);
 	}
 }
@@ -310,10 +305,7 @@ static void bmbvh_find_face_segment_cb(void *userdata, int index, const BVHTreeR
 
 		copy_v3_v3(hit->no, ltri[0]->f->no);
 
-		copy_v3_v3(hit->co, ray->direction);
-		normalize_v3(hit->co);
-		mul_v3_fl(hit->co, dist);
-		add_v3_v3(hit->co, ray->origin);
+		madd_v3_v3v3fl(hit->co, ray->origin, ray->direction, dist);
 
 		copy_v2_v2(bmcb_data->uv, uv);
 	}

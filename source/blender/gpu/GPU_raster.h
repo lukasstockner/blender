@@ -47,6 +47,7 @@ extern const GLubyte GPU_stipple_halftone        [128];
 extern const GLubyte GPU_stipple_quarttone       [128];
 extern const GLubyte GPU_stipple_diag_stripes_pos[128];
 extern const GLubyte GPU_stipple_diag_stripes_neg[128];
+extern const GLubyte stipple_checker_8px         [128];
 
 
 

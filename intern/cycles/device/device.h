@@ -54,6 +54,7 @@ public:
 	bool display_device;
 	bool advanced_shading;
 	bool pack_images;
+	bool extended_images; /* flag for GPU and Multi device */
 	vector<DeviceInfo> multi_devices;
 
 	DeviceInfo()
@@ -64,10 +65,16 @@ public:
 		display_device = false;
 		advanced_shading = true;
 		pack_images = false;
+		extended_images = false;
 	}
 };
 
 /* Device */
+
+struct DeviceDrawParams {
+	boost::function<void(void)> bind_display_space_shader_cb;
+	boost::function<void(void)> unbind_display_space_shader_cb;
+};
 
 class Device {
 protected:
@@ -100,7 +107,7 @@ public:
 
 	/* texture memory */
 	virtual void tex_alloc(const char *name, device_memory& mem,
-		bool interpolation = false, bool periodic = false) {};
+		InterpolationType interpolation = INTERPOLATION_NONE, bool periodic = false) {};
 	virtual void tex_free(device_memory& mem) {};
 
 	/* pixel memory */
@@ -121,7 +128,8 @@ public:
 	
 	/* opengl drawing */
 	virtual void draw_pixels(device_memory& mem, int y, int w, int h,
-		int dy, int width, int height, bool transparent);
+		int dy, int width, int height, bool transparent,
+		const DeviceDrawParams &draw_params);
 
 #ifdef WITH_NETWORK
 	/* networking */

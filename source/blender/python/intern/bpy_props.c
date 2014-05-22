@@ -1881,7 +1881,7 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
 		PropertyRNA *prop;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -1967,7 +1967,7 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
 		PyObject *pydef = NULL;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2062,7 +2062,7 @@ static PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw)
 		PropertyRNA *prop;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2154,7 +2154,7 @@ static PyObject *BPy_IntVectorProperty(PyObject *self, PyObject *args, PyObject 
 		PyObject *pydef = NULL;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2259,9 +2259,9 @@ static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
 		PropertyRNA *prop;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
-		char *pyunit = NULL;
+		const char *pyunit = NULL;
 		int unit = PROP_UNIT_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2365,9 +2365,9 @@ static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObjec
 		PyObject *pydef = NULL;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
-		char *pyunit = NULL;
+		const char *pyunit = NULL;
 		int unit = PROP_UNIT_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2468,7 +2468,7 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
 		PropertyRNA *prop;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2542,8 +2542,8 @@ BPY_PROPDEF_OPTIONS_ENUM_DOC
 "      For dynamic values a callback can be passed which returns a list in\n"
 "      the same format as the static list.\n"
 "      This function must take 2 arguments (self, context)\n"
-"      WARNING: Do not use generators here (they will work the first time, but will lead to empty values\n"
-"      in some unload/reload scenarii)!\n"
+"      WARNING: There is a known bug with using a callback,\n"
+"      Python must keep a reference to the strings returned or Blender will crash.\n"
 "   :type items: sequence of string tuples or a function\n"
 BPY_PROPDEF_UPDATE_DOC
 );
@@ -2847,7 +2847,7 @@ static PyObject *BPy_RemoveProperty(PyObject *self, PyObject *args, PyObject *kw
 	else {
 		static const char *kwlist[] = {"attr", NULL};
 		
-		char *id = NULL;
+		const char *id = NULL;
 
 		if (!PyArg_ParseTupleAndKeywords(args, kw,
 		                                 "s:RemoveProperty",

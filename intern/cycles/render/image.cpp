@@ -59,11 +59,16 @@ void ImageManager::set_osl_texture_system(void *texture_system)
 	osl_texture_system = texture_system;
 }
 
-void ImageManager::set_extended_image_limits(void)
+void ImageManager::set_extended_image_limits(const DeviceInfo& info)
 {
-	tex_num_images = TEX_EXTENDED_NUM_IMAGES;
-	tex_num_float_images = TEX_EXTENDED_NUM_FLOAT_IMAGES;
-	tex_image_byte_start = TEX_EXTENDED_IMAGE_BYTE_START;
+	if(info.type == DEVICE_CPU) {
+		tex_num_images = TEX_EXTENDED_NUM_IMAGES_CPU;
+		tex_num_float_images = TEX_EXTENDED_NUM_FLOAT_IMAGES;
+		tex_image_byte_start = TEX_EXTENDED_IMAGE_BYTE_START;
+	}
+	else if((info.type == DEVICE_CUDA || info.type == DEVICE_MULTI) && info.extended_images) {
+		tex_num_images = TEX_EXTENDED_NUM_IMAGES_GPU;
+	}
 }
 
 bool ImageManager::set_animation_frame_update(int frame)
@@ -90,8 +95,8 @@ bool ImageManager::is_float_image(const string& filename, void *builtin_data, bo
 
 	if(builtin_data) {
 		if(builtin_image_info_cb) {
-			int width, height, channels;
-			builtin_image_info_cb(filename, builtin_data, is_float, width, height, channels);
+			int width, height, depth, channels;
+			builtin_image_info_cb(filename, builtin_data, is_float, width, height, depth, channels);
 		}
 
 		if(is_float)
@@ -145,7 +150,14 @@ bool ImageManager::is_float_image(const string& filename, void *builtin_data, bo
 	return is_float;
 }
 
-int ImageManager::add_image(const string& filename, void *builtin_data, bool animated, bool& is_float, bool& is_linear)
+static bool image_equals(ImageManager::Image *image, const string& filename, void *builtin_data, InterpolationType interpolation)
+{
+	return image->filename == filename &&
+	       image->builtin_data == builtin_data &&
+	       image->interpolation == interpolation;
+}
+
+int ImageManager::add_image(const string& filename, void *builtin_data, bool animated, bool& is_float, bool& is_linear, InterpolationType interpolation, bool use_alpha)
 {
 	Image *img;
 	size_t slot;
@@ -156,7 +168,7 @@ int ImageManager::add_image(const string& filename, void *builtin_data, bool ani
 	if(is_float) {
 		/* find existing image */
 		for(slot = 0; slot < float_images.size(); slot++) {
-			if(float_images[slot] && float_images[slot]->filename == filename) {
+			if(float_images[slot] && image_equals(float_images[slot], filename, builtin_data, interpolation)) {
 				float_images[slot]->users++;
 				return slot;
 			}
@@ -185,13 +197,15 @@ int ImageManager::add_image(const string& filename, void *builtin_data, bool ani
 		img->builtin_data = builtin_data;
 		img->need_load = true;
 		img->animated = animated;
+		img->interpolation = interpolation;
 		img->users = 1;
+		img->use_alpha = use_alpha;
 
 		float_images[slot] = img;
 	}
 	else {
 		for(slot = 0; slot < images.size(); slot++) {
-			if(images[slot] && images[slot]->filename == filename) {
+			if(images[slot] && image_equals(images[slot], filename, builtin_data, interpolation)) {
 				images[slot]->users++;
 				return slot+tex_image_byte_start;
 			}
@@ -220,7 +234,9 @@ int ImageManager::add_image(const string& filename, void *builtin_data, bool ani
 		img->builtin_data = builtin_data;
 		img->need_load = true;
 		img->animated = animated;
+		img->interpolation = interpolation;
 		img->users = 1;
+		img->use_alpha = use_alpha;
 
 		images[slot] = img;
 
@@ -231,22 +247,43 @@ int ImageManager::add_image(const string& filename, void *builtin_data, bool ani
 	return slot;
 }
 
-void ImageManager::remove_image(const string& filename, void *builtin_data)
+void ImageManager::remove_image(int slot)
+{
+	if(slot >= tex_image_byte_start) {
+		slot -= tex_image_byte_start;
+
+		assert(images[slot] != NULL);
+
+		/* decrement user count */
+		images[slot]->users--;
+		assert(images[slot]->users >= 0);
+
+		/* don't remove immediately, rather do it all together later on. one of
+		 * the reasons for this is that on shader changes we add and remove nodes
+		 * that use them, but we do not want to reload the image all the time. */
+		if(images[slot]->users == 0)
+			need_update = true;
+	}
+	else {
+		/* decrement user count */
+		float_images[slot]->users--;
+		assert(float_images[slot]->users >= 0);
+
+		/* don't remove immediately, rather do it all together later on. one of
+		 * the reasons for this is that on shader changes we add and remove nodes
+		 * that use them, but we do not want to reload the image all the time. */
+		if(float_images[slot]->users == 0)
+			need_update = true;
+	}
+}
+
+void ImageManager::remove_image(const string& filename, void *builtin_data, InterpolationType interpolation)
 {
 	size_t slot;
 
 	for(slot = 0; slot < images.size(); slot++) {
-		if(images[slot] && images[slot]->filename == filename && images[slot]->builtin_data == builtin_data) {
-			/* decrement user count */
-			images[slot]->users--;
-			assert(images[slot]->users >= 0);
-
-			/* don't remove immediately, rather do it all together later on. one of
-			 * the reasons for this is that on shader changes we add and remove nodes
-			 * that use them, but we do not want to reload the image all the time. */
-			if(images[slot]->users == 0)
-				need_update = true;
-
+		if(images[slot] && image_equals(images[slot], filename, builtin_data, interpolation)) {
+			remove_image(slot+tex_image_byte_start);
 			break;
 		}
 	}
@@ -254,17 +291,8 @@ void ImageManager::remove_image(const string& filename, void *builtin_data)
 	if(slot == images.size()) {
 		/* see if it's in a float texture slot */
 		for(slot = 0; slot < float_images.size(); slot++) {
-			if(float_images[slot] && float_images[slot]->filename == filename && float_images[slot]->builtin_data == builtin_data) {
-				/* decrement user count */
-				float_images[slot]->users--;
-				assert(float_images[slot]->users >= 0);
-
-				/* don't remove immediately, rather do it all together later on. one of
-				 * the reasons for this is that on shader changes we add and remove nodes
-				 * that use them, but we do not want to reload the image all the time. */
-				if(float_images[slot]->users == 0)
-					need_update = true;
-
+			if(float_images[slot] && image_equals(float_images[slot], filename, builtin_data, interpolation)) {
+				remove_image(slot);
 				break;
 			}
 		}
@@ -277,7 +305,7 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 		return false;
 
 	ImageInput *in = NULL;
-	int width, height, components;
+	int width, height, depth, components;
 
 	if(!img->builtin_data) {
 		/* load image from file through OIIO */
@@ -286,15 +314,20 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 		if(!in)
 			return false;
 
-		ImageSpec spec;
+		ImageSpec spec = ImageSpec();
+		ImageSpec config = ImageSpec();
 
-		if(!in->open(img->filename, spec)) {
+		if(img->use_alpha == false)
+			config.attribute("oiio:UnassociatedAlpha", 1);
+
+		if(!in->open(img->filename, spec, config)) {
 			delete in;
 			return false;
 		}
 
 		width = spec.width;
 		height = spec.height;
+		depth = spec.depth;
 		components = spec.nchannels;
 	}
 	else {
@@ -303,7 +336,7 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 			return false;
 
 		bool is_float;
-		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, components);
+		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, depth, components);
 	}
 
 	/* we only handle certain number of components */
@@ -317,15 +350,21 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 	}
 
 	/* read RGBA pixels */
-	uchar *pixels = (uchar*)tex_img.resize(width, height);
-	int scanlinesize = width*components*sizeof(uchar);
+	uchar *pixels = (uchar*)tex_img.resize(width, height, depth);
 
 	if(in) {
-		in->read_image(TypeDesc::UINT8,
-			(uchar*)pixels + (height-1)*scanlinesize,
-			AutoStride,
-			-scanlinesize,
-			AutoStride);
+		if(depth <= 1) {
+			int scanlinesize = width*components*sizeof(uchar);
+
+			in->read_image(TypeDesc::UINT8,
+				(uchar*)pixels + (height-1)*scanlinesize,
+				AutoStride,
+				-scanlinesize,
+				AutoStride);
+		}
+		else {
+			in->read_image(TypeDesc::UINT8, (uchar*)pixels);
+		}
 
 		in->close();
 		delete in;
@@ -335,7 +374,7 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 	}
 
 	if(components == 2) {
-		for(int i = width*height-1; i >= 0; i--) {
+		for(int i = width*height*depth-1; i >= 0; i--) {
 			pixels[i*4+3] = pixels[i*2+1];
 			pixels[i*4+2] = pixels[i*2+0];
 			pixels[i*4+1] = pixels[i*2+0];
@@ -343,7 +382,7 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 		}
 	}
 	else if(components == 3) {
-		for(int i = width*height-1; i >= 0; i--) {
+		for(int i = width*height*depth-1; i >= 0; i--) {
 			pixels[i*4+3] = 255;
 			pixels[i*4+2] = pixels[i*3+2];
 			pixels[i*4+1] = pixels[i*3+1];
@@ -351,11 +390,17 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 		}
 	}
 	else if(components == 1) {
-		for(int i = width*height-1; i >= 0; i--) {
+		for(int i = width*height*depth-1; i >= 0; i--) {
 			pixels[i*4+3] = 255;
 			pixels[i*4+2] = pixels[i];
 			pixels[i*4+1] = pixels[i];
 			pixels[i*4+0] = pixels[i];
+		}
+	}
+
+	if(img->use_alpha == false) {
+		for(int i = width*height*depth-1; i >= 0; i--) {
+			pixels[i*4+3] = 255;
 		}
 	}
 
@@ -368,7 +413,7 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 		return false;
 
 	ImageInput *in = NULL;
-	int width, height, components;
+	int width, height, depth, components;
 
 	if(!img->builtin_data) {
 		/* load image from file through OIIO */
@@ -377,9 +422,13 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 		if(!in)
 			return false;
 
-		ImageSpec spec;
+		ImageSpec spec = ImageSpec();
+		ImageSpec config = ImageSpec();
 
-		if(!in->open(img->filename, spec)) {
+		if(img->use_alpha == false)
+			config.attribute("oiio:UnassociatedAlpha",1);
+
+		if(!in->open(img->filename, spec, config)) {
 			delete in;
 			return false;
 		}
@@ -387,6 +436,7 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 		/* we only handle certain number of components */
 		width = spec.width;
 		height = spec.height;
+		depth = spec.depth;
 		components = spec.nchannels;
 	}
 	else {
@@ -395,7 +445,7 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 			return false;
 
 		bool is_float;
-		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, components);
+		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, depth, components);
 	}
 
 	if(!(components >= 1 && components <= 4)) {
@@ -407,15 +457,21 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 	}
 
 	/* read RGBA pixels */
-	float *pixels = (float*)tex_img.resize(width, height);
-	int scanlinesize = width*components*sizeof(float);
+	float *pixels = (float*)tex_img.resize(width, height, depth);
 
 	if(in) {
-		in->read_image(TypeDesc::FLOAT,
-			(uchar*)pixels + (height-1)*scanlinesize,
-			AutoStride,
-			-scanlinesize,
-			AutoStride);
+		if(depth <= 1) {
+			int scanlinesize = width*components*sizeof(float);
+
+			in->read_image(TypeDesc::FLOAT,
+				(uchar*)pixels + (height-1)*scanlinesize,
+				AutoStride,
+				-scanlinesize,
+				AutoStride);
+		}
+		else {
+			in->read_image(TypeDesc::FLOAT, (uchar*)pixels);
+		}
 
 		in->close();
 		delete in;
@@ -425,7 +481,7 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 	}
 
 	if(components == 2) {
-		for(int i = width*height-1; i >= 0; i--) {
+		for(int i = width*height*depth-1; i >= 0; i--) {
 			pixels[i*4+3] = pixels[i*2+1];
 			pixels[i*4+2] = pixels[i*2+0];
 			pixels[i*4+1] = pixels[i*2+0];
@@ -433,7 +489,7 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 		}
 	}
 	else if(components == 3) {
-		for(int i = width*height-1; i >= 0; i--) {
+		for(int i = width*height*depth-1; i >= 0; i--) {
 			pixels[i*4+3] = 1.0f;
 			pixels[i*4+2] = pixels[i*3+2];
 			pixels[i*4+1] = pixels[i*3+1];
@@ -441,11 +497,17 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 		}
 	}
 	else if(components == 1) {
-		for(int i = width*height-1; i >= 0; i--) {
+		for(int i = width*height*depth-1; i >= 0; i--) {
 			pixels[i*4+3] = 1.0f;
 			pixels[i*4+2] = pixels[i];
 			pixels[i*4+1] = pixels[i];
 			pixels[i*4+0] = pixels[i];
+		}
+	}
+
+	if(img->use_alpha == false) {
+		for(int i = width*height*depth-1; i >= 0; i--) {
+			pixels[i*4+3] = 1.0f;
 		}
 	}
 
@@ -456,9 +518,7 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, int sl
 {
 	if(progress->get_cancel())
 		return;
-	if(osl_texture_system)
-		return;
-
+	
 	Image *img;
 	bool is_float;
 
@@ -470,6 +530,9 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, int sl
 		img = float_images[slot];
 		is_float = true;
 	}
+
+	if(osl_texture_system && !img->builtin_data)
+		return;
 
 	if(is_float) {
 		string filename = path_filename(float_images[slot]->filename);
@@ -499,7 +562,7 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, int sl
 
 		if(!pack_images) {
 			thread_scoped_lock device_lock(device_mutex);
-			device->tex_alloc(name.c_str(), tex_img, true, true);
+			device->tex_alloc(name.c_str(), tex_img, img->interpolation, true);
 		}
 	}
 	else {
@@ -530,7 +593,7 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, int sl
 
 		if(!pack_images) {
 			thread_scoped_lock device_lock(device_mutex);
-			device->tex_alloc(name.c_str(), tex_img, true, true);
+			device->tex_alloc(name.c_str(), tex_img, img->interpolation, true);
 		}
 	}
 
@@ -552,7 +615,7 @@ void ImageManager::device_free_image(Device *device, DeviceScene *dscene, int sl
 	}
 
 	if(img) {
-		if(osl_texture_system) {
+		if(osl_texture_system && !img->builtin_data) {
 #ifdef WITH_OSL
 			ustring filename(images[slot]->filename);
 			((OSL::TextureSystem*)osl_texture_system)->invalidate(filename);
@@ -602,7 +665,7 @@ void ImageManager::device_update(Device *device, DeviceScene *dscene, Progress& 
 			device_free_image(device, dscene, slot + tex_image_byte_start);
 		}
 		else if(images[slot]->need_load) {
-			if(!osl_texture_system) 
+			if(!osl_texture_system || images[slot]->builtin_data) 
 				pool.push(function_bind(&ImageManager::device_load_image, this, device, dscene, slot + tex_image_byte_start, &progress));
 		}
 	}
@@ -615,7 +678,7 @@ void ImageManager::device_update(Device *device, DeviceScene *dscene, Progress& 
 			device_free_image(device, dscene, slot);
 		}
 		else if(float_images[slot]->need_load) {
-			if(!osl_texture_system) 
+			if(!osl_texture_system || float_images[slot]->builtin_data) 
 				pool.push(function_bind(&ImageManager::device_load_image, this, device, dscene, slot, &progress));
 		}
 	}
@@ -653,16 +716,32 @@ void ImageManager::device_pack_images(Device *device, DeviceScene *dscene, Progr
 
 		device_vector<uchar4>& tex_img = dscene->tex_image[slot];
 
-		info[slot] = make_uint4(tex_img.data_width, tex_img.data_height, offset, 1);
+		/* todo: support 3D textures, only CPU for now */
+
+		/* The image options are packed
+		   bit 0 -> periodic
+		   bit 1 + 2 -> interpolation type */
+		uint8_t interpolation = (images[slot]->interpolation << 1) + 1;
+		info[slot] = make_uint4(tex_img.data_width, tex_img.data_height, offset, interpolation);
 
 		memcpy(pixels+offset, (void*)tex_img.data_pointer, tex_img.memory_size());
 		offset += tex_img.size();
 	}
 
-	if(dscene->tex_image_packed.size())
+	if(dscene->tex_image_packed.size()) {
+		if(dscene->tex_image_packed.device_pointer) {
+			thread_scoped_lock device_lock(device_mutex);
+			device->tex_free(dscene->tex_image_packed);
+		}
 		device->tex_alloc("__tex_image_packed", dscene->tex_image_packed);
-	if(dscene->tex_image_packed_info.size())
+	}
+	if(dscene->tex_image_packed_info.size()) {
+		if(dscene->tex_image_packed_info.device_pointer) {
+			thread_scoped_lock device_lock(device_mutex);
+			device->tex_free(dscene->tex_image_packed_info);
+		}
 		device->tex_alloc("__tex_image_packed_info", dscene->tex_image_packed_info);
+	}
 }
 
 void ImageManager::device_free(Device *device, DeviceScene *dscene)

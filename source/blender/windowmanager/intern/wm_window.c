@@ -255,8 +255,8 @@ wmWindow *wm_window_copy(bContext *C, wmWindow *winorig)
 	BLI_strncpy(win->screenname, win->screen->id.name + 2, sizeof(win->screenname));
 	win->screen->winid = win->winid;
 
-	win->screen->do_refresh = TRUE;
-	win->screen->do_draw = TRUE;
+	win->screen->do_refresh = true;
+	win->screen->do_draw = true;
 
 	win->drawmethod = U.wmdrawmethod;
 	win->drawdata = NULL;
@@ -373,9 +373,21 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 		if (win->eventstate == NULL)
 			win->eventstate = MEM_callocN(sizeof(wmEvent), "window event state");
 
-		/* set the state */
+#ifdef __APPLE__
+		/* set the state here, else OSX would not recognize changed screen resolution */
+		/* we agreed to not set any fullscreen or iconized state on startup */
+		GHOST_SetWindowState(ghostwin, GHOST_kWindowStateNormal);
+#endif
+		/* store actual window size in blender window */
+		bounds = GHOST_GetClientBounds(win->ghostwin);
+		win->sizex = GHOST_GetWidthRectangle(bounds);
+		win->sizey = GHOST_GetHeightRectangle(bounds);
+		GHOST_DisposeRectangle(bounds);
+		
+#ifndef __APPLE__
+		/* set the state here, so minimized state comes up correct on windows */
 		GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
-
+#endif
 		/* until screens get drawn, make it nice gray */
 		glClearColor(0.55, 0.55, 0.55, 0.0);
 		/* Crash on OSS ATI: bugs.launchpad.net/ubuntu/+source/mesa/+bug/656100 */
@@ -387,12 +399,6 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 		/* needed here, because it's used before it reads userdef */
 		U.pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
 		BKE_userdef_state();
-
-		/* store actual window size in blender window */
-		bounds = GHOST_GetClientBounds(win->ghostwin);
-		win->sizex = GHOST_GetWidthRectangle(bounds);
-		win->sizey = GHOST_GetHeightRectangle(bounds);
-		GHOST_DisposeRectangle(bounds);
 
 		wm_window_swap_buffers(win);
 
@@ -825,7 +831,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 
 				/* stop screencast if resize */
 				if (type == GHOST_kEventWindowSize) {
-					WM_jobs_stop(CTX_wm_manager(C), win->screen, NULL);
+					WM_jobs_stop(wm, win->screen, NULL);
 				}
 				
 				/* win32: gives undefined window size when minimized */
@@ -912,7 +918,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 			{
 				PointerRNA props_ptr;
 				wmWindow *oldWindow;
-				char *path = GHOST_GetEventData(evt);
+				const char *path = GHOST_GetEventData(evt);
 				
 				if (path) {
 					/* operator needs a valid window in context, ensures
@@ -1440,3 +1446,9 @@ int WM_window_pixels_y(wmWindow *win)
 	return (int)(f * (float)win->sizey);
 	
 }
+
+bool WM_window_is_fullscreen(wmWindow *win)
+{
+	return win->windowstate == GHOST_kWindowStateFullScreen;
+}
+

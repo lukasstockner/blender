@@ -573,6 +573,11 @@ static void rna_def_actuator(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Expanded", "Set actuator expanded in the user interface");
 	RNA_def_property_ui_icon(prop, ICON_TRIA_RIGHT, 1);
 
+	prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", ACT_DEACTIVATE);
+	RNA_def_property_ui_text(prop, "Active", "Set the active state of the actuator");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
 	RNA_api_actuator(srna);
 }
 
@@ -656,7 +661,7 @@ static void rna_def_action_actuator(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "layer", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 0, 7); /* This should match BL_ActionManager::MAX_ACTION_LAYERS - 1 */
+	RNA_def_property_range(prop, 0, 32766); /* This should match BL_ActionManager::MAX_ACTION_LAYERS - 1 */
 	RNA_def_property_ui_text(prop, "Layer", "The animation layer to play the action on");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
@@ -1479,10 +1484,10 @@ static void rna_def_scene_actuator(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, prop_type_items);
 	RNA_def_property_ui_text(prop, "Mode", "");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
-	
-	/*XXX filter only camera objects */
+
 	prop = RNA_def_property(srna, "camera", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Camera_object_poll");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Camera Object", "Set this Camera (leave empty to refer to self object)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);

@@ -38,6 +38,11 @@
 extern "C" {
 #endif
 
+struct FreestyleConfig;
+struct FreestyleSettings;
+struct FreestyleLineSet;
+struct FreestyleModuleConfig;
+
 /* FreestyleConfig */
 void BKE_freestyle_config_init(FreestyleConfig *config);
 void BKE_freestyle_config_free(FreestyleConfig *config);
@@ -50,7 +55,8 @@ void BKE_freestyle_module_move_up(FreestyleConfig *config, FreestyleModuleConfig
 void BKE_freestyle_module_move_down(FreestyleConfig *config, FreestyleModuleConfig *module_conf);
 
 /* FreestyleConfig.linesets */
-FreestyleLineSet *BKE_freestyle_lineset_add(FreestyleConfig *config);
+FreestyleLineSet *BKE_freestyle_lineset_add(FreestyleConfig *config, const char *name);
+bool BKE_freestyle_lineset_delete(FreestyleConfig *config, FreestyleLineSet *lineset);
 FreestyleLineSet *BKE_freestyle_lineset_get_active(FreestyleConfig *config);
 short BKE_freestyle_lineset_get_active_index(FreestyleConfig *config);
 void BKE_freestyle_lineset_set_active_index(FreestyleConfig *config, short index);

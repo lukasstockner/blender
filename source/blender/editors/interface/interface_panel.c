@@ -41,7 +41,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_math_color_blend.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -66,6 +65,7 @@
 
 #include "ED_screen.h"
 
+#include "UI_view2d.h"
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 #include "UI_resources.h"
@@ -176,21 +176,24 @@ static int panels_re_align(ScrArea *sa, ARegion *ar, Panel **r_pa)
 
 /****************************** panels ******************************/
 
-static void panels_collapse_all(ScrArea *sa, ARegion *ar, Panel *from_pa)
+static void panels_collapse_all(ScrArea *sa, ARegion *ar, const Panel *from_pa)
 {
+	const bool has_category_tabs = UI_panel_category_is_visible(ar);
+	const char *category = has_category_tabs ? UI_panel_category_active_get(ar, false) : NULL;
+	const int flag = ((panel_aligned(sa, ar) == BUT_HORIZONTAL) ? PNL_CLOSEDX : PNL_CLOSEDY);
+	const PanelType *from_pt = from_pa->type;
 	Panel *pa;
-	PanelType *pt, *from_pt;
-	int flag = ((panel_aligned(sa, ar) == BUT_HORIZONTAL) ? PNL_CLOSEDX : PNL_CLOSEDY);
 
 	for (pa = ar->panels.first; pa; pa = pa->next) {
-		pt = pa->type;
-		from_pt = from_pa->type;
+		PanelType *pt = pa->type;
 
 		/* close panels with headers in the same context */
 		if (pt && from_pt && !(pt->flag & PNL_NO_HEADER)) {
-			if (!pt->context[0] || strcmp(pt->context, from_pt->context) == 0) {
-				pa->flag &= ~PNL_CLOSED;
-				pa->flag |= flag;
+			if (!pt->context[0] || !from_pt->context[0] || STREQ(pt->context, from_pt->context)) {
+				if ((pa->flag & PNL_PIN) || !category || !pt->category[0] || STREQ(pt->category, category)) {
+					pa->flag &= ~PNL_CLOSED;
+					pa->flag |= flag;
+				}
 			}
 		}
 	}
@@ -213,8 +216,8 @@ Panel *uiPanelFindByType(ARegion *ar, PanelType *pt)
 	const char *tabname = pt->idname;
 
 	for (pa = ar->panels.first; pa; pa = pa->next) {
-		if (STREQLEN(pa->panelname, idname, UI_MAX_NAME_STR)) {
-			if (STREQLEN(pa->tabname, tabname, UI_MAX_NAME_STR)) {
+		if (STREQLEN(pa->panelname, idname, sizeof(pa->panelname))) {
+			if (STREQLEN(pa->tabname, tabname, sizeof(pa->panelname))) {
 				return pa;
 			}
 		}
@@ -230,9 +233,9 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Pan
 {
 	Panel *patab, *palast, *panext;
 	const char *drawname = CTX_IFACE_(pt->translation_context, pt->label);
-	char *idname = pt->idname;
-	char *tabname = pt->idname;
-	char *hookname = NULL;
+	const char *idname = pt->idname;
+	const char *tabname = pt->idname;
+	const char *hookname = NULL;
 	const bool newpanel = (pa == NULL);
 	int align = panel_aligned(sa, ar);
 
@@ -243,8 +246,8 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Pan
 		/* new panel */
 		pa = MEM_callocN(sizeof(Panel), "new panel");
 		pa->type = pt;
-		BLI_strncpy(pa->panelname, idname, UI_MAX_NAME_STR);
-		BLI_strncpy(pa->tabname, tabname, UI_MAX_NAME_STR);
+		BLI_strncpy(pa->panelname, idname, sizeof(pa->panelname));
+		BLI_strncpy(pa->tabname, tabname, sizeof(pa->tabname));
 
 		if (pt->flag & PNL_DEFAULT_CLOSED) {
 			if (align == BUT_VERTICAL)
@@ -265,8 +268,8 @@ Panel *uiBeginPanel(ScrArea *sa, ARegion *ar, uiBlock *block, PanelType *pt, Pan
 		if (hookname) {
 			for (patab = ar->panels.first; patab; patab = patab->next) {
 				if ((patab->runtime_flag & PNL_ACTIVE) && patab->paneltab == NULL) {
-					if (strncmp(hookname, patab->panelname, UI_MAX_NAME_STR) == 0) {
-						if (strncmp(tabname, patab->tabname, UI_MAX_NAME_STR) == 0) {
+					if (STREQLEN(hookname, patab->panelname, sizeof(patab->panelname))) {
+						if (STREQLEN(tabname, patab->tabname, sizeof(patab->tabname))) {
 							pa->paneltab = patab;
 							ui_panel_copy_offset(pa, patab);
 							break;
@@ -932,7 +935,7 @@ static void ui_do_animate(const bContext *C, Panel *panel)
 	float fac;
 
 	fac = (PIL_check_seconds_timer() - data->starttime) / ANIMATION_TIME;
-	fac = min_ff(sqrt(fac), 1.0f);
+	fac = min_ff(sqrtf(fac), 1.0f);
 
 	/* for max 1 second, interpolate positions */
 	if (uiAlignPanelStep(sa, ar, fac, false)) {
@@ -1355,9 +1358,6 @@ static void ui_panel_category_draw_tab(int mode, float minx, float miny, float m
 		mul_v2_fl(vec[a], rad);
 	}
 
-	(void)use_shadow;
-	(void)use_highlight;
-
 	gpuImmediateFormat_V2();
 
 	gpuBegin(mode);
@@ -1686,6 +1686,31 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 				if (pc_dyn) {
 					UI_panel_category_active_set(ar, pc_dyn->idname);
 					ED_region_tag_redraw(ar);
+
+					/* reset scroll to the top [#38348] */
+					UI_view2d_offset(&ar->v2d, -1.0f, 1.0f);
+
+					retval = WM_UI_HANDLER_BREAK;
+				}
+			}
+			else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE)) {
+				/* mouse wheel cycle tabs */
+
+				/* first check if the mouse is in the tab region */
+				if (event->ctrl || (event->mval[0] < ((PanelCategoryDyn *)ar->panels_category.first)->rect.xmax)) {
+					const char *category = UI_panel_category_active_get(ar, false);
+					if (LIKELY(category)) {
+						PanelCategoryDyn *pc_dyn = UI_panel_category_find(ar, category);
+						if (LIKELY(pc_dyn)) {
+							pc_dyn = (event->type == WHEELDOWNMOUSE) ? pc_dyn->next : pc_dyn->prev;
+							if (pc_dyn) {
+								/* intentionally don't reset scroll in this case,
+								 * this allows for quick browsing between tabs */
+								UI_panel_category_active_set(ar, pc_dyn->idname);
+								ED_region_tag_redraw(ar);
+							}
+						}
+					}
 					retval = WM_UI_HANDLER_BREAK;
 				}
 			}

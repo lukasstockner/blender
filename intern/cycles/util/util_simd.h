@@ -71,7 +71,7 @@ ccl_device_inline const __m128 shuffle_swap(const __m128& a, shuffle_swap_t shuf
 
 #ifdef __KERNEL_SSE41__
 ccl_device_inline void gen_idirsplat_swap(const __m128 &pn, const shuffle_swap_t &shuf_identity, const shuffle_swap_t &shuf_swap,
-										  const float3& idir, __m128 idirsplat[3], shuffle_swap_t shufflexyz[3])
+                                          const float3& idir, __m128 idirsplat[3], shuffle_swap_t shufflexyz[3])
 {
 	const __m128 idirsplat_raw[] = { _mm_set_ps1(idir.x), _mm_set_ps1(idir.y), _mm_set_ps1(idir.z) };
 	idirsplat[0] = _mm_xor_ps(idirsplat_raw[0], pn);
@@ -87,7 +87,7 @@ ccl_device_inline void gen_idirsplat_swap(const __m128 &pn, const shuffle_swap_t
 }
 #else
 ccl_device_inline void gen_idirsplat_swap(const __m128 &pn, const shuffle_swap_t &shuf_identity, const shuffle_swap_t &shuf_swap,
-										  const float3& idir, __m128 idirsplat[3], shuffle_swap_t shufflexyz[3])
+                                          const float3& idir, __m128 idirsplat[3], shuffle_swap_t shufflexyz[3])
 {
 	idirsplat[0] = _mm_xor_ps(_mm_set_ps1(idir.x), pn);
 	idirsplat[1] = _mm_xor_ps(_mm_set_ps1(idir.y), pn);
@@ -154,6 +154,12 @@ ccl_device_inline const __m128 fms(const __m128& a, const __m128& b, const __m12
 	return _mm_sub_ps(_mm_mul_ps(a, b), c);
 }
 
+/* calculate -a*b+c (replacement for fused negated-multiply-subtract on SSE CPUs) */
+ccl_device_inline const __m128 fnma(const __m128& a, const __m128& b, const __m128& c)
+{
+	return _mm_sub_ps(c, _mm_mul_ps(a, b));
+}
+
 template<size_t N> ccl_device_inline const __m128 broadcast(const __m128& a)
 {
 	return _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(a), _MM_SHUFFLE(N, N, N, N)));
@@ -178,6 +184,88 @@ template<size_t S1, size_t S2, size_t S3, size_t S4>
 ccl_device_inline const __m128 set_sign_bit(const __m128 &a)
 {
 	return _mm_xor_ps(a, _mm_castsi128_ps(_mm_setr_epi32(S1 << 31, S2 << 31, S3 << 31, S4 << 31)));
+}
+
+#ifdef __KERNEL_WITH_SSE_ALIGN__
+ccl_device_inline const __m128 load_m128(const float4 &vec)
+{
+	return _mm_load_ps(&vec.x);
+}
+
+ccl_device_inline const __m128 load_m128(const float3 &vec)
+{
+	return _mm_load_ps(&vec.x);
+}
+
+#else
+
+ccl_device_inline const __m128 load_m128(const float4 &vec)
+{
+	return _mm_loadu_ps(&vec.x);
+}
+
+ccl_device_inline const __m128 load_m128(const float3 &vec)
+{
+	return _mm_loadu_ps(&vec.x);
+}
+#endif /* __KERNEL_WITH_SSE_ALIGN__ */
+
+ccl_device_inline const __m128 dot3_splat(const __m128& a, const __m128& b)
+{
+#ifdef __KERNEL_SSE41__
+	return _mm_dp_ps(a, b, 0x7f);
+#else
+	__m128 t = _mm_mul_ps(a, b);
+	return _mm_set1_ps(((float*)&t)[0] + ((float*)&t)[1] + ((float*)&t)[2]);
+#endif
+}
+
+/* squared length taking only specified axes into account */
+template<size_t X, size_t Y, size_t Z, size_t W>
+ccl_device_inline float len_squared(const __m128& a)
+{
+#ifndef __KERNEL_SSE41__
+	float4& t = (float4 &)a;
+	return (X ? t.x * t.x : 0.0f) + (Y ? t.y * t.y : 0.0f) + (Z ? t.z * t.z : 0.0f) + (W ? t.w * t.w : 0.0f);
+#else
+	return _mm_cvtss_f32(_mm_dp_ps(a, a, (X << 4) | (Y << 5) | (Z << 6) | (W << 7) | 0xf));
+#endif
+}
+
+ccl_device_inline float dot3(const __m128& a, const __m128& b)
+{
+#ifdef __KERNEL_SSE41__
+	return _mm_cvtss_f32(_mm_dp_ps(a, b, 0x7f));
+#else
+	__m128 t = _mm_mul_ps(a, b);
+	return ((float*)&t)[0] + ((float*)&t)[1] + ((float*)&t)[2];
+#endif
+}
+
+ccl_device_inline const __m128 len3_squared_splat(const __m128& a)
+{
+	return dot3_splat(a, a);
+}
+
+ccl_device_inline float len3_squared(const __m128& a)
+{
+	return dot3(a, a);
+}
+
+ccl_device_inline float len3(const __m128& a)
+{
+	return _mm_cvtss_f32(_mm_sqrt_ss(dot3_splat(a, a)));
+}
+
+/* calculate shuffled cross product, useful when order of components does not matter */
+ccl_device_inline const __m128 cross_zxy(const __m128& a, const __m128& b)
+{
+	return fms(a, shuffle<1, 2, 0, 3>(b), _mm_mul_ps(b, shuffle<1, 2, 0, 3>(a)));
+}
+
+ccl_device_inline const __m128 cross(const __m128& a, const __m128& b)
+{
+	return shuffle<1, 2, 0, 3>(cross_zxy(a, b));
 }
 
 #endif /* __KERNEL_SSE2__ */

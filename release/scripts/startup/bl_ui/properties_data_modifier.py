@@ -237,10 +237,10 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
             col.prop(md, "use_transform")
 
     def CLOTH(self, layout, ob, md):
-        layout.label(text="Settings can be found inside the Physics context")
+        layout.label(text="Settings are inside the Physics tab")
 
     def COLLISION(self, layout, ob, md):
-        layout.label(text="Settings can be found inside the Physics context")
+        layout.label(text="Settings are inside the Physics tab")
 
     def CURVE(self, layout, ob, md):
         split = layout.split()
@@ -283,29 +283,28 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
     def DISPLACE(self, layout, ob, md):
         has_texture = (md.texture is not None)
 
-        split = layout.split()
-
-        col = split.column()
+        col = layout.column(align=True)
         col.label(text="Texture:")
         col.template_ID(md, "texture", new="texture.new")
+
+        split = layout.split()
+
+        col = split.column(align=True)
+        col.label(text="Direction:")
+        col.prop(md, "direction", text="")
         col.label(text="Vertex Group:")
         col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
 
-        col = split.column()
-        col.label(text="Direction:")
-        col.prop(md, "direction", text="")
-        colsub = col.column()
-        colsub.active = has_texture
-        colsub.label(text="Texture Coordinates:")
-        colsub.prop(md, "texture_coords", text="")
+        col = split.column(align=True)
+        col.active = has_texture
+        col.label(text="Texture Coordinates:")
+        col.prop(md, "texture_coords", text="")
         if md.texture_coords == 'OBJECT':
-            row = layout.row()
-            row.active = has_texture
-            row.prop(md, "texture_coords_object", text="Object")
+            col.label(text="Object:")
+            col.prop(md, "texture_coords_object", text="")
         elif md.texture_coords == 'UV' and ob.type == 'MESH':
-            row = layout.row()
-            row.active = has_texture
-            row.prop_search(md, "uv_layer", ob.data, "uv_textures")
+            col.label(text="UV Map:")
+            col.prop_search(md, "uv_layer", ob.data, "uv_textures", text="")
 
         layout.separator()
 
@@ -314,7 +313,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row.prop(md, "strength")
 
     def DYNAMIC_PAINT(self, layout, ob, md):
-        layout.label(text="Settings can be found inside the Physics context")
+        layout.label(text="Settings are inside the Physics tab")
 
     def EDGE_SPLIT(self, layout, ob, md):
         split = layout.split()
@@ -349,7 +348,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.operator("object.explode_refresh", text="Refresh")
 
     def FLUID_SIMULATION(self, layout, ob, md):
-        layout.label(text="Settings can be found inside the Physics context")
+        layout.label(text="Settings are inside the Physics tab")
 
     def HOOK(self, layout, ob, md):
         split = layout.split()
@@ -766,7 +765,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "limits", slider=True)
 
     def SMOKE(self, layout, ob, md):
-        layout.label(text="Settings can be found inside the Physics context")
+        layout.label(text="Settings are inside the Physics tab")
 
     def SMOOTH(self, layout, ob, md):
         split = layout.split(percentage=0.25)
@@ -784,7 +783,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
 
     def SOFT_BODY(self, layout, ob, md):
-        layout.label(text="Settings can be found inside the Physics context")
+        layout.label(text="Settings are inside the Physics tab")
 
     def SOLIDIFY(self, layout, ob, md):
         split = layout.split()
@@ -845,7 +844,7 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "show_only_control_edges")
 
     def SURFACE(self, layout, ob, md):
-        layout.label(text="Settings can be found inside the Physics context")
+        layout.label(text="Settings are inside the Physics tab")
 
     def UV_PROJECT(self, layout, ob, md):
         split = layout.split()

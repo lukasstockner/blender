@@ -207,16 +207,18 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
         obj_type = obj.type
         is_geometry = (obj_type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT'})
         is_empty_image = (obj_type == 'EMPTY' and obj.empty_draw_type == 'IMAGE')
+        is_dupli = (obj.dupli_type != 'NONE')
 
         split = layout.split()
 
         col = split.column()
         col.prop(obj, "show_name", text="Name")
         col.prop(obj, "show_axis", text="Axis")
-        if is_geometry:
-            # Makes no sense for cameras, armatures, etc.!
+        # Makes no sense for cameras, armatures, etc.!
+        # but these settings do apply to dupli instances
+        if is_geometry or is_dupli:
             col.prop(obj, "show_wire", text="Wire")
-        if obj_type == 'MESH':
+        if obj_type == 'MESH' or is_dupli:
             col.prop(obj, "show_all_edges")
 
         col = split.column()
@@ -322,7 +324,7 @@ class OBJECT_PT_motion_paths(MotionPathButtonsPanel, Panel):
         return (context.object)
 
     def draw(self, context):
-        layout = self.layout
+        # layout = self.layout
 
         ob = context.object
         avs = ob.animation_visualization

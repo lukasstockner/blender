@@ -32,10 +32,8 @@
 
 /* my library */
 
-#include "ED_util.h"
 #include "ED_image.h"
 #include "ED_mesh.h"
-
 #include "UI_resources.h"
 #include "UI_interface.h"
 #include "UI_view2d.h"
@@ -48,7 +46,6 @@
 #include "BIF_glutil.h"
 
 #include "BKE_DerivedMesh.h"
-#include "BKE_mesh.h"
 #include "BKE_editmesh.h"
 
 #include "BLI_math.h"
@@ -88,7 +85,7 @@ void draw_image_cursor(ARegion *ar, const float cursor[2])
 {
 	float zoom[2], x_fac, y_fac;
 
-	UI_view2d_getscale_inverse(&ar->v2d, &zoom[0], &zoom[1]);
+	UI_view2d_scale_get_inverse(&ar->v2d, &zoom[0], &zoom[1]);
 
 	mul_v2_fl(zoom, 256.0f * UI_DPI_FAC);
 	x_fac = zoom[0];
@@ -230,7 +227,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 				uv_poly_copy_aspect(tf_uvorig, tf_uv, aspx, aspy, efa->len);
 
 				totarea += BM_face_calc_area(efa);
-				totuvarea += area_poly_v2(efa->len, tf_uv);
+				totuvarea += area_poly_v2((const float (*)[2])tf_uv, efa->len);
 				
 				if (uvedit_face_visible_test(scene, ima, efa, tf)) {
 					BM_elem_flag_enable(efa, BM_ELEM_TAG);
@@ -273,7 +270,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 
 						uv_poly_copy_aspect(tf_uvorig, tf_uv, aspx, aspy, efa->len);
 
-						uvarea = area_poly_v2(efa->len, tf_uv) / totuvarea;
+						uvarea = area_poly_v2((const float (*)[2])tf_uv, efa->len) / totuvarea;
 						
 						if (area < FLT_EPSILON || uvarea < FLT_EPSILON)
 							areadiff = 1.0f;
@@ -494,11 +491,12 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	const int cd_loop_uv_offset  = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&bm->pdata, CD_MTEXPOLY);
 
+	activetf = EDBM_mtexpoly_active_get(em, &efa_act, false, false); /* will be set to NULL if hidden */
+	
 	gpuImmediateFormat_C4_V2();
 
-	activetf = EDBM_mtexpoly_active_get(em, &efa_act, FALSE, FALSE); /* will be set to NULL if hidden */
 #ifndef USE_EDBM_LOOPTRIS
-	activef = BM_mesh_active_face_get(bm, FALSE, FALSE);
+	activef = BM_mesh_active_face_get(bm, false, false);
 #endif
 	ts = scene->toolsettings;
 
@@ -518,6 +516,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	/* 1. draw shadow mesh */
 	
 	if (sima->flag & SI_DRAWSHADOW) {
+		DM_update_materials(em->derivedFinal, obedit);
 		/* first try existing derivedmesh */
 		if (!draw_uvs_dm_shadow(em->derivedFinal)) {
 			/* create one if it does not exist */

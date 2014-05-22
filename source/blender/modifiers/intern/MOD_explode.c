@@ -37,18 +37,17 @@
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 
+#include "BLI_utildefines.h"
 #include "BLI_kdtree.h"
 #include "BLI_rand.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_deform.h"
 #include "BKE_lattice.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
-#include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
 
@@ -150,7 +149,7 @@ static void createFacepa(ExplodeModifierData *emd,
 	tree = BLI_kdtree_new(totpart);
 	for (p = 0, pa = psys->particles; p < totpart; p++, pa++) {
 		psys_particle_on_emitter(psmd, psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, NULL, NULL, NULL, NULL, NULL);
-		BLI_kdtree_insert(tree, p, co, NULL);
+		BLI_kdtree_insert(tree, p, co);
 	}
 	BLI_kdtree_balance(tree);
 
@@ -165,7 +164,7 @@ static void createFacepa(ExplodeModifierData *emd,
 		else
 			mul_v3_fl(center, 1.0f / 3.0f);
 
-		p = BLI_kdtree_find_nearest(tree, center, NULL, NULL);
+		p = BLI_kdtree_find_nearest(tree, center, NULL);
 
 		v1 = vertpa[fa->v1];
 		v2 = vertpa[fa->v2];
@@ -801,7 +800,7 @@ static DerivedMesh *explodeMesh(ExplodeModifierData *emd,
 	float rot[4];
 	float cfra;
 	/* float timestep; */
-	int *facepa = emd->facepa;
+	const int *facepa = emd->facepa;
 	int totdup = 0, totvert = 0, totface = 0, totpart = 0, delface = 0;
 	int i, v, u;
 	unsigned int ed_v1, ed_v2, mindex = 0;

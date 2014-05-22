@@ -37,7 +37,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_object_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 
@@ -50,7 +49,6 @@
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
-#include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_editmesh.h"
 
@@ -638,7 +636,7 @@ static void state_delete(StitchState *state)
 static void stitch_uv_edge_generate_linked_edges(GHash *edge_hash, StitchState *state)
 {
 	UvEdge *edges = state->edges;
-	int *map = state->map;
+	const int *map = state->map;
 	UvElementMap *element_map = state->element_map;
 	UvElement *first_element = element_map->buf;
 	int i;
@@ -673,26 +671,30 @@ static void stitch_uv_edge_generate_linked_edges(GHash *edge_hash, StitchState *
 				if (iter2) {
 					int index1 = map[iter1 - first_element];
 					int index2 = map[iter2 - first_element];
+					UvEdge edgetmp;
+					UvEdge *edge2, *eiter;
+					bool valid = true;
 
-					/* make certain we do not have the same edge! */
-					if (state->uvs[index2] != element2 && state->uvs[index1] != element1) {
-						UvEdge edgetmp;
-						UvEdge *edge2;
+					/* make sure the indices are well behaved */
+					if (index1 > index2) {
+						SWAP(int, index1, index2);
+					}
 
+					edgetmp.uv1 = index1;
+					edgetmp.uv2 = index2;
 
-						/* make sure the indices are well behaved */
-						if (index1 < index2) {
-							edgetmp.uv1 = index1;
-							edgetmp.uv2 = index2;
+					/* get the edge from the hash */
+					edge2 = BLI_ghash_lookup(edge_hash, &edgetmp);
+
+					/* more iteration to make sure non-manifold case is handled nicely */
+					for (eiter = edge; eiter; eiter = eiter->next) {
+						if (edge2 == eiter) {
+							valid = false;
+							break;
 						}
-						else {
-							edgetmp.uv1 = index2;
-							edgetmp.uv2 = index1;
-						}
+					}
 
-						/* get the edge from the hash */
-						edge2 = BLI_ghash_lookup(edge_hash, &edgetmp);
-
+					if (valid) {
 						/* here I am taking care of non manifold case, assuming more than two matching edges.
 						 * I am not too sure we want this though */
 						last_set->next = edge2;
@@ -882,7 +884,7 @@ static void stitch_propagate_uv_final_position(Scene *scene,
 			}
 
 			/* end of calculations, keep only the selection flag */
-			if ( (!state->snap_islands) || ((!state->midpoints) && (element_iter->island == state->static_island))) {
+			if ((!state->snap_islands) || ((!state->midpoints) && (element_iter->island == state->static_island))) {
 				element_iter->flag &= STITCH_SELECTED;
 			}
 
@@ -1257,7 +1259,7 @@ static int stitch_process_data(StitchState *state, Scene *scene, int final)
 				UvEdge *edge = state->edges + i;
 				if ((edge->flag & STITCH_BOUNDARY) && (state->uvs[edge->uv1]->flag & STITCH_STITCHABLE) && (state->uvs[edge->uv2]->flag & STITCH_STITCHABLE)) {
 					stitch_island_calculate_edge_rotation(edge, state, final_position, uvfinal_map, island_stitch_data);
-					island_stitch_data[state->uvs[edge->uv1]->island].use_edge_rotation = TRUE;
+					island_stitch_data[state->uvs[edge->uv1]->island].use_edge_rotation = true;
 				}
 			}
 
@@ -1305,7 +1307,7 @@ static int stitch_process_data(StitchState *state, Scene *scene, int final)
 
 				if (edge->flag & STITCH_STITCHABLE) {
 					stitch_island_calculate_edge_rotation(edge, state, final_position, NULL, island_stitch_data);
-					island_stitch_data[state->uvs[edge->uv1]->island].use_edge_rotation = TRUE;
+					island_stitch_data[state->uvs[edge->uv1]->island].use_edge_rotation = true;
 				}
 			}
 
@@ -1358,8 +1360,8 @@ static unsigned int uv_edge_hash(const void *key)
 {
 	UvEdge *edge = (UvEdge *)key;
 	return
-	        BLI_ghashutil_inthash(SET_INT_IN_POINTER(edge->uv2)) +
-	        BLI_ghashutil_inthash(SET_INT_IN_POINTER(edge->uv1));
+	        BLI_ghashutil_uinthash(edge->uv2) +
+	        BLI_ghashutil_uinthash(edge->uv1);
 }
 
 static int uv_edge_compare(const void *a, const void *b)
@@ -1456,7 +1458,7 @@ static void stitch_switch_selection_mode(StitchState *state)
 			UvElement *element2 = state->uvs[edge->uv2];
 
 			if ((element1->flag & STITCH_SELECTED) && (element2->flag & STITCH_SELECTED))
-				stitch_select_edge(edge, state, TRUE);
+				stitch_select_edge(edge, state, true);
 		}
 
 		/* unselect selected uvelements */
@@ -1477,8 +1479,8 @@ static void stitch_switch_selection_mode(StitchState *state)
 			UvElement *element1 = state->uvs[edge->uv1];
 			UvElement *element2 = state->uvs[edge->uv2];
 
-			stitch_select_uv(element1, state, TRUE);
-			stitch_select_uv(element2, state, TRUE);
+			stitch_select_uv(element1, state, true);
+			stitch_select_uv(element2, state, true);
 
 			edge->flag &= ~STITCH_SELECTED;
 		}
@@ -1878,7 +1880,7 @@ static int stitch_init(bContext *C, wmOperator *op)
 
 				edge = BLI_ghash_lookup(edge_hash, &tmp_edge);
 
-				stitch_select_edge(edge, state, TRUE);
+				stitch_select_edge(edge, state, true);
 			}
 			RNA_END;
 		}
@@ -1914,11 +1916,11 @@ static int stitch_init(bContext *C, wmOperator *op)
 				if (!(ts->uv_flag & UV_SYNC_SELECTION) && ((BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) || !BM_elem_flag_test(efa, BM_ELEM_SELECT)))
 					continue;
 
-				BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
+				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 					if (uvedit_edge_select_test(scene, l, cd_loop_uv_offset)) {
 						UvEdge *edge = uv_edge_get(l, state);
 						if (edge) {
-							stitch_select_edge(edge, state, TRUE);
+							stitch_select_edge(edge, state, true);
 						}
 					}
 				}
@@ -1942,7 +1944,7 @@ static int stitch_init(bContext *C, wmOperator *op)
 		}
 	}
 
-	if (!stitch_process_data(state, scene, FALSE)) {
+	if (!stitch_process_data(state, scene, false)) {
 
 		state_delete(state);
 		return 0;
@@ -2064,7 +2066,7 @@ static void stitch_select(bContext *C, Scene *scene, const wmEvent *event, Stitc
 
 			/* This works due to setting of tmp in find nearest uv vert */
 			UvElement *element = BM_uv_element_get(state->element_map, hit.efa, hit.l);
-			stitch_select_uv(element, state, FALSE);
+			stitch_select_uv(element, state, false);
 
 		}
 	}
@@ -2073,7 +2075,7 @@ static void stitch_select(bContext *C, Scene *scene, const wmEvent *event, Stitc
 
 		if (hit.efa) {
 			UvEdge *edge = uv_edge_get(hit.l, state);
-			stitch_select_edge(edge, state, FALSE);
+			stitch_select_edge(edge, state, false);
 		}
 	}
 }
@@ -2099,7 +2101,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				if (event->val == KM_PRESS) {
 					stitch_select(C, scene, event, state);
 
-					if (!stitch_process_data(state, scene, FALSE)) {
+					if (!stitch_process_data(state, scene, false)) {
 						stitch_cancel(C, op);
 						return OPERATOR_CANCELLED;
 					}
@@ -2109,7 +2111,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		case PADENTER:
 		case RETKEY:
 			if (event->val == KM_PRESS) {
-				if (stitch_process_data(state, scene, TRUE)) {
+				if (stitch_process_data(state, scene, true)) {
 					stitch_exit(C, op, 1);
 					return OPERATOR_FINISHED;
 				}
@@ -2126,7 +2128,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		case WHEELUPMOUSE:
 			if (event->val == KM_PRESS && event->alt) {
 				state->limit_dist += 0.01f;
-				if (!stitch_process_data(state, scene, FALSE)) {
+				if (!stitch_process_data(state, scene, false)) {
 					stitch_cancel(C, op);
 					return OPERATOR_CANCELLED;
 				}
@@ -2141,7 +2143,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (event->val == KM_PRESS && event->alt) {
 				state->limit_dist -= 0.01f;
 				state->limit_dist = MAX2(0.01f, state->limit_dist);
-				if (!stitch_process_data(state, scene, FALSE)) {
+				if (!stitch_process_data(state, scene, false)) {
 					stitch_cancel(C, op);
 					return OPERATOR_CANCELLED;
 				}
@@ -2155,7 +2157,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		case LKEY:
 			if (event->val == KM_PRESS) {
 				state->use_limit = !state->use_limit;
-				if (!stitch_process_data(state, scene, FALSE)) {
+				if (!stitch_process_data(state, scene, false)) {
 					stitch_cancel(C, op);
 					return OPERATOR_CANCELLED;
 				}
@@ -2168,7 +2170,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				state->static_island++;
 				state->static_island %= state->element_map->totalIslands;
 
-				if (!stitch_process_data(state, scene, FALSE)) {
+				if (!stitch_process_data(state, scene, false)) {
 					stitch_cancel(C, op);
 					return OPERATOR_CANCELLED;
 				}
@@ -2179,7 +2181,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		case MKEY:
 			if (event->val == KM_PRESS) {
 				state->midpoints = !state->midpoints;
-				if (!stitch_process_data(state, scene, FALSE)) {
+				if (!stitch_process_data(state, scene, false)) {
 					stitch_cancel(C, op);
 					return OPERATOR_CANCELLED;
 				}
@@ -2195,7 +2197,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (event->val == KM_PRESS && !(U.flag & USER_LMOUSESELECT)) {
 				stitch_select(C, scene, event, state);
 
-				if (!stitch_process_data(state, scene, FALSE)) {
+				if (!stitch_process_data(state, scene, false)) {
 					stitch_cancel(C, op);
 					return OPERATOR_CANCELLED;
 				}
@@ -2207,7 +2209,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		case SKEY:
 			if (event->val == KM_PRESS) {
 				state->snap_islands = !state->snap_islands;
-				if (!stitch_process_data(state, scene, FALSE)) {
+				if (!stitch_process_data(state, scene, false)) {
 					stitch_cancel(C, op);
 					return OPERATOR_CANCELLED;
 				}
@@ -2222,7 +2224,7 @@ static int stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (event->val == KM_PRESS) {
 				stitch_switch_selection_mode(state);
 
-				if (!stitch_process_data(state, scene, FALSE)) {
+				if (!stitch_process_data(state, scene, false)) {
 					stitch_cancel(C, op);
 					return OPERATOR_CANCELLED;
 				}

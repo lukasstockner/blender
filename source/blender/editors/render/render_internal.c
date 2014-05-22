@@ -35,7 +35,6 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "PIL_time.h"
@@ -51,15 +50,12 @@
 #include "BKE_context.h"
 #include "BKE_colortools.h"
 #include "BKE_depsgraph.h"
-#include "BKE_freestyle.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
-#include "BKE_multires.h"
 #include "BKE_object.h"
-#include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
 #include "BKE_screen.h"
@@ -101,12 +97,13 @@ static int render_break(void *rjv);
 typedef struct RenderJob {
 	Main *main;
 	Scene *scene;
+	Scene *current_scene;
 	Render *re;
 	SceneRenderLayer *srl;
 	struct Object *camera_override;
 	int lay_override;
 	bool v3d_override;
-	short anim, write_still;
+	bool anim, write_still;
 	Image *image;
 	ImageUser iuser;
 	bool image_outdated;
@@ -126,14 +123,19 @@ typedef struct RenderJob {
 static void image_buffer_rect_update(RenderJob *rj, RenderResult *rr, ImBuf *ibuf, ImageUser *iuser, volatile rcti *renrect)
 {
 	Scene *scene = rj->scene;
-	float *rectf = NULL;
+	const float *rectf = NULL;
 	int ymin, ymax, xmin, xmax;
 	int rymin, rxmin;
 	int linear_stride, linear_offset_x, linear_offset_y;
 	ColorManagedViewSettings *view_settings;
 	ColorManagedDisplaySettings *display_settings;
 
-	if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID) {
+	/* Exception for exr tiles -- display buffer conversion happens here,
+	 * NOT in the color management pipeline.
+	 */
+	if (ibuf->userflags & IB_DISPLAY_BUFFER_INVALID &&
+	    rr->do_exr_tile == false)
+	{
 		/* The whole image buffer it so be color managed again anyway. */
 		return;
 	}
@@ -301,7 +303,7 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 	re = RE_NewRender(scene->id.name);
 	lay_override = (v3d && v3d->lay != scene->lay) ? v3d->lay : 0;
 
-	G.is_break = FALSE;
+	G.is_break = false;
 	RE_test_break_cb(re, NULL, render_break);
 
 	ima = BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result");
@@ -441,7 +443,7 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
 	RE_ReleaseResult(rj->re);
 
 	/* make jobs timer to send notifier */
-	*(rj->do_update) = TRUE;
+	*(rj->do_update) = true;
 
 }
 
@@ -453,7 +455,7 @@ static void render_progress_update(void *rjv, float progress)
 		*rj->progress = progress;
 
 		/* make jobs timer to send notifier */
-		*(rj->do_update) = TRUE;
+		*(rj->do_update) = true;
 	}
 }
 
@@ -475,7 +477,8 @@ static void render_image_update_pass_and_layer(RenderJob *rj, RenderResult *rr, 
 			for (sa = win->screen->areabase.first; sa; sa = sa->next) {
 				if (sa->spacetype == SPACE_IMAGE) {
 					SpaceImage *sima = sa->spacedata.first;
-					if (sima->image == rj->image) {
+					// sa->spacedata might be empty when toggling fullscreen mode.
+					if (sima != NULL && sima->image == rj->image) {
 						if (first_sa == NULL) {
 							first_sa = sa;
 						}
@@ -531,10 +534,13 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 		/* update entire render */
 		rj->image_outdated = false;
 		BKE_image_signal(ima, NULL, IMA_SIGNAL_COLORMANAGE);
-		*(rj->do_update) = TRUE;
+		*(rj->do_update) = true;
 		return;
 	}
-
+	
+	if (rr == NULL)
+		return;
+	
 	/* update part of render */
 	render_image_update_pass_and_layer(rj, rr, &rj->iuser);
 	ibuf = BKE_image_acquire_ibuf(ima, &rj->iuser, &lock);
@@ -552,11 +558,18 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 		{
 			image_buffer_rect_update(rj, rr, ibuf, &rj->iuser, renrect);
 		}
-
+		
 		/* make jobs timer to send notifier */
-		*(rj->do_update) = TRUE;
+		*(rj->do_update) = true;
 	}
 	BKE_image_release_ibuf(ima, ibuf, lock);
+}
+
+static void current_scene_update(void *rjv, Scene *scene)
+{
+	RenderJob *rj = rjv;
+	rj->current_scene = scene;
+	rj->iuser.scene = scene;
 }
 
 static void render_startjob(void *rjv, short *stop, short *do_update, float *progress)
@@ -634,7 +647,7 @@ static void render_endjob(void *rjv)
 	}
 
 	/* XXX render stability hack */
-	G.is_rendering = FALSE;
+	G.is_rendering = false;
 	WM_main_add_notifier(NC_SCENE | ND_RENDER_RESULT, NULL);
 
 	/* Partial render result will always update display buffer
@@ -738,7 +751,6 @@ static int screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event
 	switch (event->type) {
 		case ESCKEY:
 			return OPERATOR_RUNNING_MODAL;
-			break;
 	}
 	return OPERATOR_PASS_THROUGH;
 }
@@ -806,6 +818,9 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER))
 		return OPERATOR_CANCELLED;
 
+	if (RE_force_single_renderlayer(scene))
+		WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, NULL);
+
 	if (!RE_is_rendering_allowed(scene, camera_override, op->reports)) {
 		return OPERATOR_CANCELLED;
 	}
@@ -861,6 +876,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	rj = MEM_callocN(sizeof(RenderJob), "render job");
 	rj->main = mainp;
 	rj->scene = scene;
+	rj->current_scene = rj->scene;
 	rj->srl = srl;
 	rj->camera_override = camera_override;
 	rj->lay_override = 0;
@@ -933,11 +949,12 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	RE_test_break_cb(re, rj, render_breakjob);
 	RE_draw_lock_cb(re, rj, render_drawlock);
 	RE_display_update_cb(re, rj, image_rect_update);
+	RE_current_scene_update_cb(re, rj, current_scene_update);
 	RE_stats_draw_cb(re, rj, image_renderinfo_cb);
 	RE_progress_cb(re, rj, render_progress_update);
 
 	rj->re = re;
-	G.is_break = FALSE;
+	G.is_break = false;
 
 	/* store actual owner of job, so modal operator could check for it,
 	 * the reason of this is that active scene could change when rendering
@@ -953,7 +970,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *even
 	/* we set G.is_rendering here already instead of only in the job, this ensure
 	 * main loop or other scene updates are disabled in time, since they may
 	 * have started before the job thread */
-	G.is_rendering = TRUE;
+	G.is_rendering = true;
 
 	/* add modal handler for ESC */
 	WM_event_add_modal_handler(C, op);
@@ -1087,7 +1104,7 @@ static void render_view3d_display_update(void *rpv, RenderResult *UNUSED(rr), vo
 {
 	RenderPreview *rp = rpv;
 	
-	*(rp->do_update) = TRUE;
+	*(rp->do_update) = true;
 }
 
 static void render_view3d_renderinfo_cb(void *rjp, RenderStats *rs)
@@ -1102,7 +1119,7 @@ static void render_view3d_renderinfo_cb(void *rjp, RenderStats *rs)
 		make_renderinfo_string(rs, rp->scene, false, rp->engine->text);
 	
 		/* make jobs timer to send notifier */
-		*(rp->do_update) = TRUE;
+		*(rp->do_update) = true;
 	}
 }
 
@@ -1125,7 +1142,7 @@ static void render_view3d_startjob(void *customdata, short *stop, short *do_upda
 
 	//printf("ma %d res %d view %d db %d\n", update_flag & PR_UPDATE_MATERIAL, update_flag & PR_UPDATE_RENDERSIZE, update_flag & PR_UPDATE_VIEW, update_flag & PR_UPDATE_DATABASE);
 
-	G.is_break = FALSE;
+	G.is_break = false;
 	
 	if (false == render_view3d_get_rects(rp->ar, rp->v3d, rp->rv3d, &viewplane, rp->engine, &clipsta, &clipend, &pixsize, &orth))
 		return;
@@ -1476,7 +1493,7 @@ Scene *ED_render_job_get_scene(const bContext *C)
 	RenderJob *rj = (RenderJob *)WM_jobs_customdata_from_type(wm, WM_JOB_TYPE_RENDER);
 	
 	if (rj)
-		return rj->scene;
+		return rj->current_scene;
 	
 	return NULL;
 }

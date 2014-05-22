@@ -35,21 +35,16 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_strict_flags.h"
 #include "BLI_ghash.h"
 
 #include "BLI_scanfill.h"  /* own include */
 
+#include "BLI_strict_flags.h"
 
 typedef struct PolyInfo {
 	ScanFillEdge *edge_first, *edge_last;
 	ScanFillVert *vert_outer;
 } PolyInfo;
-
-typedef struct PolySort {
-	float area;
-	unsigned short poly_nr;
-} PolySort;
 
 typedef struct ScanFillIsect {
 	struct ScanFillIsect *next, *prev;
@@ -166,14 +161,14 @@ static ScanFillEdge *edge_step(PolyInfo *poly_info,
 
 	eed = (e_curr->next && e_curr != poly_info[poly_nr].edge_last) ? e_curr->next : poly_info[poly_nr].edge_first;
 	if ((v_curr == eed->v1 || v_curr == eed->v2) == true &&
-		(v_prev == eed->v1 || v_prev == eed->v2) == false)
+	    (v_prev == eed->v1 || v_prev == eed->v2) == false)
 	{
 		return eed;
 	}
 
 	eed = (e_curr->prev && e_curr != poly_info[poly_nr].edge_first) ? e_curr->prev : poly_info[poly_nr].edge_last;
 	if ((v_curr == eed->v1 || v_curr == eed->v2) == true &&
-		(v_prev == eed->v1 || v_prev == eed->v2) == false)
+	    (v_prev == eed->v1 || v_prev == eed->v2) == false)
 	{
 		return eed;
 	}
@@ -258,6 +253,12 @@ static bool scanfill_preprocess_self_isect(
 
 				LinkData *isect_link;
 
+				if (UNLIKELY(e_ls == NULL)) {
+					/* only happens in very rare cases (entirely overlapping splines).
+					 * in this case se can't do much useful. but at least don't crash */
+					continue;
+				}
+
 				/* maintain coorect terminating edge */
 				if (pi->edge_last == eed) {
 					pi->edge_last = NULL;
@@ -318,7 +319,7 @@ static bool scanfill_preprocess_self_isect(
 		ScanFillVert *v_prev;
 		ScanFillVert *v_curr;
 
-		int inside = false;
+		bool inside = false;
 
 		/* first vert */
 #if 0
@@ -404,7 +405,13 @@ bool BLI_scanfill_calc_self_isect(
 	int totvert_new = 0;
 	bool changed = false;
 
-	PolyInfo *poly_info = MEM_callocN(sizeof(*poly_info) * poly_tot, __func__);
+	PolyInfo *poly_info;
+
+	if (UNLIKELY(sf_ctx->poly_nr == SF_POLY_UNSET)) {
+		return false;
+	}
+
+	poly_info = MEM_callocN(sizeof(*poly_info) * poly_tot, __func__);
 
 	/* get the polygon span */
 	if (sf_ctx->poly_nr == 0) {

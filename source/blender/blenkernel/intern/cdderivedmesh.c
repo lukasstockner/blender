@@ -91,7 +91,7 @@ typedef struct {
 
 	/* Cached */
 	struct PBVH *pbvh;
-	int pbvh_draw;
+	bool pbvh_draw;
 
 	/* Mesh connectivity */
 	MeshElemMap *pmap;
@@ -131,90 +131,90 @@ static int cdDM_getNumPolys(DerivedMesh *dm)
 	return dm->numPolyData;
 }
 
-static void cdDM_getVert(DerivedMesh *dm, int index, MVert *vert_r)
+static void cdDM_getVert(DerivedMesh *dm, int index, MVert *r_vert)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	*vert_r = cddm->mvert[index];
+	*r_vert = cddm->mvert[index];
 }
 
-static void cdDM_getEdge(DerivedMesh *dm, int index, MEdge *edge_r)
+static void cdDM_getEdge(DerivedMesh *dm, int index, MEdge *r_edge)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	*edge_r = cddm->medge[index];
+	*r_edge = cddm->medge[index];
 }
 
-static void cdDM_getTessFace(DerivedMesh *dm, int index, MFace *face_r)
+static void cdDM_getTessFace(DerivedMesh *dm, int index, MFace *r_face)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	*face_r = cddm->mface[index];
+	*r_face = cddm->mface[index];
 }
 
-static void cdDM_copyVertArray(DerivedMesh *dm, MVert *vert_r)
+static void cdDM_copyVertArray(DerivedMesh *dm, MVert *r_vert)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	memcpy(vert_r, cddm->mvert, sizeof(*vert_r) * dm->numVertData);
+	memcpy(r_vert, cddm->mvert, sizeof(*r_vert) * dm->numVertData);
 }
 
-static void cdDM_copyEdgeArray(DerivedMesh *dm, MEdge *edge_r)
+static void cdDM_copyEdgeArray(DerivedMesh *dm, MEdge *r_edge)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	memcpy(edge_r, cddm->medge, sizeof(*edge_r) * dm->numEdgeData);
+	memcpy(r_edge, cddm->medge, sizeof(*r_edge) * dm->numEdgeData);
 }
 
-static void cdDM_copyTessFaceArray(DerivedMesh *dm, MFace *face_r)
+static void cdDM_copyTessFaceArray(DerivedMesh *dm, MFace *r_face)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	memcpy(face_r, cddm->mface, sizeof(*face_r) * dm->numTessFaceData);
+	memcpy(r_face, cddm->mface, sizeof(*r_face) * dm->numTessFaceData);
 }
 
-static void cdDM_copyLoopArray(DerivedMesh *dm, MLoop *loop_r)
+static void cdDM_copyLoopArray(DerivedMesh *dm, MLoop *r_loop)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	memcpy(loop_r, cddm->mloop, sizeof(*loop_r) * dm->numLoopData);
+	memcpy(r_loop, cddm->mloop, sizeof(*r_loop) * dm->numLoopData);
 }
 
-static void cdDM_copyPolyArray(DerivedMesh *dm, MPoly *poly_r)
+static void cdDM_copyPolyArray(DerivedMesh *dm, MPoly *r_poly)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
-	memcpy(poly_r, cddm->mpoly, sizeof(*poly_r) * dm->numPolyData);
+	memcpy(r_poly, cddm->mpoly, sizeof(*r_poly) * dm->numPolyData);
 }
 
-static void cdDM_getMinMax(DerivedMesh *dm, float min_r[3], float max_r[3])
+static void cdDM_getMinMax(DerivedMesh *dm, float r_min[3], float r_max[3])
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	int i;
 
 	if (dm->numVertData) {
 		for (i = 0; i < dm->numVertData; i++) {
-			minmax_v3v3_v3(min_r, max_r, cddm->mvert[i].co);
+			minmax_v3v3_v3(r_min, r_max, cddm->mvert[i].co);
 		}
 	}
 	else {
-		zero_v3(min_r);
-		zero_v3(max_r);
+		zero_v3(r_min);
+		zero_v3(r_max);
 	}
 }
 
-static void cdDM_getVertCo(DerivedMesh *dm, int index, float co_r[3])
+static void cdDM_getVertCo(DerivedMesh *dm, int index, float r_co[3])
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 
-	copy_v3_v3(co_r, cddm->mvert[index].co);
+	copy_v3_v3(r_co, cddm->mvert[index].co);
 }
 
-static void cdDM_getVertCos(DerivedMesh *dm, float (*cos_r)[3])
+static void cdDM_getVertCos(DerivedMesh *dm, float (*r_cos)[3])
 {
 	MVert *mv = CDDM_get_verts(dm);
 	int i;
 
 	for (i = 0; i < dm->numVertData; i++, mv++)
-		copy_v3_v3(cos_r[i], mv->co);
+		copy_v3_v3(r_cos[i], mv->co);
 }
 
-static void cdDM_getVertNo(DerivedMesh *dm, int index, float no_r[3])
+static void cdDM_getVertNo(DerivedMesh *dm, int index, float r_no[3])
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
-	normal_short_to_float_v3(no_r, cddm->mvert[index].no);
+	normal_short_to_float_v3(r_no, cddm->mvert[index].no);
 }
 
 static const MeshElemMap *cdDM_getPolyMap(Object *ob, DerivedMesh *dm)
@@ -232,24 +232,39 @@ static const MeshElemMap *cdDM_getPolyMap(Object *ob, DerivedMesh *dm)
 	return cddm->pmap;
 }
 
-static int can_pbvh_draw(Object *ob, DerivedMesh *dm)
+static bool check_sculpt_object_deformed(Object *object, bool for_construction)
+{
+	bool deformed = false;
+
+	/* Active modifiers means extra deformation, which can't be handled correct
+	 * on birth of PBVH and sculpt "layer" levels, so use PBVH only for internal brush
+	 * stuff and show final DerivedMesh so user would see actual object shape.
+	 */
+	deformed |= object->sculpt->modifiers_active;
+
+	if (for_construction) {
+		deformed |= object->sculpt->kb != NULL;
+	}
+	else {
+		/* As in case with modifiers, we can't synchronize deformation made against
+		 * PBVH and non-locked keyblock, so also use PBVH only for brushes and
+		 * final DM to give final result to user.
+		 */
+		deformed |= object->sculpt->kb && (object->shapeflag & OB_SHAPE_LOCK) == 0;
+	}
+
+	return deformed;
+}
+
+static bool can_pbvh_draw(Object *ob, DerivedMesh *dm)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	Mesh *me = ob->data;
-	int deformed = 0;
+	bool deformed = check_sculpt_object_deformed(ob, false);
 
-	/* active modifiers means extra deformation, which can't be handled correct
-	 * on birth of PBVH and sculpt "layer" levels, so use PBVH only for internal brush
-	 * stuff and show final DerivedMesh so user would see actual object shape */
-	deformed |= ob->sculpt->modifiers_active;
-
-	/* as in case with modifiers, we can't synchronize deformation made against
-	 * PBVH and non-locked keyblock, so also use PBVH only for brushes and
-	 * final DM to give final result to user */
-	deformed |= ob->sculpt->kb && (ob->shapeflag & OB_SHAPE_LOCK) == 0;
-
-	if (deformed)
-		return 0;
+	if (deformed) {
+		return false;
+	}
 
 	return cddm->mvert == me->mvert || ob->sculpt->kb;
 }
@@ -274,11 +289,14 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 	/* Sculpting on a BMesh (dynamic-topology) gets a special PBVH */
 	if (!cddm->pbvh && ob->sculpt->bm) {
 		cddm->pbvh = BKE_pbvh_new();
-		cddm->pbvh_draw = TRUE;
+		cddm->pbvh_draw = true;
 
 		BKE_pbvh_build_bmesh(cddm->pbvh, ob->sculpt->bm,
 		                     ob->sculpt->bm_smooth_shading,
-		                     ob->sculpt->bm_log);
+		                     ob->sculpt->bm_log, ob->sculpt->cd_vert_node_offset,
+		                     ob->sculpt->cd_face_node_offset);
+
+		pbvh_show_diffuse_color_set(cddm->pbvh, ob->sculpt->show_diffuse_color);
 	}
 		
 
@@ -286,21 +304,20 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 	 * this derivedmesh is just original mesh. it's the multires subsurf dm
 	 * that this is actually for, to support a pbvh on a modified mesh */
 	if (!cddm->pbvh && ob->type == OB_MESH) {
-		SculptSession *ss = ob->sculpt;
 		Mesh *me = ob->data;
-		int deformed = 0;
+		bool deformed;
 
 		cddm->pbvh = BKE_pbvh_new();
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
-
-		pbvh_show_diffuse_color_set(cddm->pbvh, ob->sculpt->show_diffuse_color);
 
 		BKE_mesh_tessface_ensure(me);
 		
 		BKE_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
 		                    me->totface, me->totvert, &me->vdata);
 
-		deformed = ss->modifiers_active || me->key;
+		pbvh_show_diffuse_color_set(cddm->pbvh, ob->sculpt->show_diffuse_color);
+
+		deformed = check_sculpt_object_deformed(ob, true);
 
 		if (deformed && ob->derivedDeform) {
 			DerivedMesh *deformdm = ob->derivedDeform;
@@ -308,7 +325,7 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 			int totvert;
 
 			totvert = deformdm->getNumVerts(deformdm);
-			vertCos = MEM_callocN(3 * totvert * sizeof(float), "cdDM_getPBVH vertCos");
+			vertCos = MEM_mallocN(totvert * sizeof(float[3]), "cdDM_getPBVH vertCos");
 			deformdm->getVertCos(deformdm, vertCos);
 			BKE_pbvh_apply_vertCos(cddm->pbvh, vertCos);
 			MEM_freeN(vertCos);
@@ -437,7 +454,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 	}
 }
 
-static void cdDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdges)
+static void cdDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdges)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	MVert *mvert = cddm->mvert;
@@ -484,7 +501,7 @@ static void cdDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdges
 	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		int prevstart = 0;
 		int prevdraw = 1;
-		int draw = TRUE;
+		bool draw = true;
 
 		GPU_edge_setup(dm);
 		if (!GPU_buffer_legacy(dm)) {
@@ -492,10 +509,10 @@ static void cdDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdges
 				if ((drawAllEdges || (medge->flag & ME_EDGEDRAW)) &&
 				    (drawLooseEdges || !(medge->flag & ME_LOOSEEDGE)))
 				{
-					draw = TRUE;
+					draw = true;
 				}
 				else {
-					draw = FALSE;
+					draw = false;
 				}
 				if (prevdraw != draw) {
 					if (prevdraw > 0 && (i - prevstart) > 0) {
@@ -565,27 +582,22 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 
 static void cdDM_drawFacesSolid(DerivedMesh *dm,
                                 float (*partial_redraw_planes)[4],
-                                int UNUSED(fast), DMSetMaterial setMaterial)
+                                bool UNUSED(fast), DMSetMaterial setMaterial)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	MVert *mvert = cddm->mvert;
 	MFace *mface = cddm->mface;
-	float *nors = dm->getTessFaceDataArray(dm, CD_NORMAL);
+	const float *nors = dm->getTessFaceDataArray(dm, CD_NORMAL);
+	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	int a, glmode = -1, shademodel = -1, matnr = -1, drawCurrentMat = 1;
-
-#define PASSVERT(index) {						\
-	if (shademodel == GL_SMOOTH) {				\
-		short *no = mvert[index].no;			\
-		gpuNormal3sv(no);						\
-	}											\
-	gpuVertex3fv(mvert[index].co);				\
-} (void)0
 
 	if (cddm->pbvh && cddm->pbvh_draw) {
 		if (dm->numTessFaceData) {
 			float (*face_nors)[3] = (float(*)[3])CustomData_get_layer(&dm->faceData, CD_NORMAL);
 
-			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, setMaterial, false);
+			BKE_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors,
+			              setMaterial, false);
+			GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 		}
 
 		return;
@@ -600,8 +612,8 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 
 			new_glmode = mface->v4 ? GL_QUADS : GL_TRIANGLES;
 			new_matnr = mface->mat_nr + 1;
-			new_shademodel = (mface->flag & ME_SMOOTH) ? GL_SMOOTH : GL_FLAT;
-
+			new_shademodel = (lnors || (mface->flag & ME_SMOOTH)) ? GL_SMOOTH : GL_FLAT;
+			
 			if (new_glmode != glmode || new_matnr != matnr || new_shademodel != shademodel) {
 				gpuEnd();
 
@@ -618,7 +630,20 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 			}
 			
 			if (drawCurrentMat) {
-				if (shademodel == GL_FLAT) {
+				if (lnors) {
+					gpuNormal3sv((const GLshort *)lnors[0][0]);
+					gpuVertex3fv(mvert[mface->v1].co);
+					gpuNormal3sv((const GLshort *)lnors[0][1]);
+					gpuVertex3fv(mvert[mface->v2].co);
+					gpuNormal3sv((const GLshort *)lnors[0][2]);
+					gpuVertex3fv(mvert[mface->v3].co);
+					if (mface->v4) {
+						gpuNormal3sv((const GLshort *)lnors[0][3]);
+						gpuVertex3fv(mvert[mface->v4].co);
+					}
+					lnors++;
+				}
+				else if (shademodel == GL_FLAT) {
 					if (nors) {
 						gpuNormal3fv(nors);
 					}
@@ -633,13 +658,24 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 						}
 						gpuNormal3fv(nor);
 					}
+					gpuVertex3fv(mvert[mface->v1].co);
+					gpuVertex3fv(mvert[mface->v2].co);
+					gpuVertex3fv(mvert[mface->v3].co);
+					if (mface->v4) {
+						gpuVertex3fv(mvert[mface->v4].co);
+					}
 				}
-
-				PASSVERT(mface->v1);
-				PASSVERT(mface->v2);
-				PASSVERT(mface->v3);
-				if (mface->v4) {
-					PASSVERT(mface->v4);
+				else {  /* shademodel == GL_SMOOTH */
+					gpuNormal3sv(mvert[mface->v1].no);
+					gpuVertex3fv(mvert[mface->v1].co);
+					gpuNormal3sv(mvert[mface->v2].no);
+					gpuVertex3fv(mvert[mface->v2].co);
+					gpuNormal3sv(mvert[mface->v3].no);
+					gpuVertex3fv(mvert[mface->v3].co);
+					if (mface->v4) {
+						gpuNormal3sv(mvert[mface->v4].no);
+						gpuVertex3fv(mvert[mface->v4].co);
+					}
 				}
 			}
 
@@ -661,7 +697,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 			GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
 			for (a = 0; a < dm->drawObject->totmaterial; a++) {
-				if (setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
+				if (!setMaterial || setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
 					glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start,
 					             dm->drawObject->materials[a].totpoint);
 				}
@@ -673,7 +709,8 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 		GPU_buffer_unbind();
 	}
 
-#undef PASSVERT
+	// SSS Disable Smooth
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH); // XXX jwilkins: why would this be needed?
 }
 
 static void cdDM_drawFacesTex_common(DerivedMesh *dm,
@@ -685,7 +722,8 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	MVert *mv = cddm->mvert;
 	MFace *mf = DM_get_tessface_data_layer(dm, CD_MFACE);
-	float *nors = dm->getTessFaceDataArray(dm, CD_NORMAL);
+	const float *nors = dm->getTessFaceDataArray(dm, CD_NORMAL);
+	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
 	MCol *mcol;
 	int i, orig;
@@ -778,7 +816,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				if (draw_option != DM_DRAW_OPTION_NO_MCOL && mcol)
 					cp = (unsigned char *) &mcol[i * 4];
 
-				if (!(mf->flag & ME_SMOOTH)) {
+				if (!(lnors || (mf->flag & ME_SMOOTH))) {
 					if (nors) {
 						gpuNormal3fv(nors);
 					}
@@ -799,28 +837,33 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				if (tf) gpuTexCoord2fv(tf[i].uv[0]);
 				if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
 				mvert = &mv[mf->v1];
-				if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
+				if (lnors) gpuNormal3sv((const GLshort *)lnors[0][0]);
+				else if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
 				gpuVertex3fv(mvert->co);
-					
+
 				if (tf) gpuTexCoord2fv(tf[i].uv[1]);
 				if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
 				mvert = &mv[mf->v2];
-				if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
+				if (lnors) gpuNormal3sv((const GLshort *)lnors[0][1]);
+				else if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
 				gpuVertex3fv(mvert->co);
 
 				if (tf) gpuTexCoord2fv(tf[i].uv[2]);
 				if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
 				mvert = &mv[mf->v3];
-				if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
+				if (lnors) gpuNormal3sv((const GLshort *)lnors[0][2]);
+				else if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
 				gpuVertex3fv(mvert->co);
 
 				if (mf->v4) {
 					if (tf) gpuTexCoord2fv(tf[i].uv[3]);
 					if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
 					mvert = &mv[mf->v4];
-					if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
+					if (lnors) gpuNormal3sv((const GLshort *)lnors[0][3]);
+					else if (mf->flag & ME_SMOOTH) gpuNormal3sv(mvert->no);
 					gpuVertex3fv(mvert->co);
 				}
+				if (lnors) lnors++;
 				gpuEnd();
 			}
 			
@@ -928,8 +971,9 @@ static void cdDM_drawMappedFaces(
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
 	MVert *mv = cddm->mvert;
 	MFace *mf = cddm->mface;
-	float *nors;
 	MCol *mcol;
+	const float *nors = DM_get_tessface_data_layer(dm, CD_NORMAL);
+	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	int *index;
     int colType;
 	int useColors = flag & DM_DRAW_USE_COLORS;
@@ -989,9 +1033,10 @@ static void cdDM_drawMappedFaces(
 		// SSS Enable Smooth
 		GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 
+		// XXX jwilkins: This look is really bad since it does so many state changes
 		for (i = 0; i < dm->numTessFaceData; i++, mf++) {
-			int drawSmooth = (flag & DM_DRAW_ALWAYS_SMOOTH) ? 1 : (mf->flag & ME_SMOOTH);
-			DMDrawOption draw_option;
+			int drawSmooth = ((flag & DM_DRAW_ALWAYS_SMOOTH) || lnors) ? 1 : (mf->flag & ME_SMOOTH);
+			DMDrawOption draw_option = DM_DRAW_OPTION_NORMALLY;
 
 			orig = (index_mf_to_mpoly) ? DM_origindex_mface_mpoly(index_mf_to_mpoly, index_mp_to_orig, i) : i;
 			
@@ -1014,16 +1059,33 @@ static void cdDM_drawMappedFaces(
 				}
 				else {
 					// SSS Enable Smooth
+					/* normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
 					GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 				}
 
 				if (useColors && mcol)
 					cp = (unsigned char *)&mcol[i * 4];
 
-				/* normals are used to change shading, so choose smooth so smooth shading will work (XXX jwilkins: rewrote to say what I think was meant */
-
 				gpuBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
-				if (!drawSmooth) {
+
+				if (lnors) {
+					if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
+					gpuNormal3sv((const GLshort *)lnors[0][0]);
+					gpuVertex3fv(mv[mf->v1].co);
+					if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
+					gpuNormal3sv((const GLshort *)lnors[0][1]);
+					gpuVertex3fv(mv[mf->v2].co);
+					if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
+					gpuNormal3sv((const GLshort *)lnors[0][2]);
+					gpuVertex3fv(mv[mf->v3].co);
+					if (mf->v4) {
+						if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
+						gpuNormal3sv((const GLshort *)lnors[0][3]);
+						gpuVertex3fv(mv[mf->v4].co);
+					}
+					lnors++;
+				}
+				else if (!drawSmooth) {
 					if (nors) {
 						gpuNormal3fv(nors);
 					}
@@ -1275,7 +1337,8 @@ static void cddm_unformat_attrib_vertex(void)
 	gpuImmediateUnlock();
 }
 
-static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int a, int index, int vert, int smoothnormal)
+static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int a, int index, int vert,
+                                    short (*lnor)[3], int smoothnormal)
 {
 	const float zero[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	int b;
@@ -1334,9 +1397,13 @@ static void cddm_draw_attrib_vertex(DMVertexAttribs *attribs, MVert *mvert, int 
 	}
 
 	/* vertex normal */
-	if (smoothnormal)
+	if (lnor) {
+		gpuNormal3sv((const GLshort *)lnor);
+	}
+	else if (smoothnormal) {
 		gpuNormal3sv(mvert[index].no);
-	
+	}
+
 	/* vertex coordinate */
 	gpuVertex3fv(mvert[index].co);
 }
@@ -1353,7 +1420,9 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	MFace *mface = cddm->mface;
 	/* MTFace *tf = dm->getTessFaceDataArray(dm, CD_MTFACE); */ /* UNUSED */
 	float (*nors)[3] = dm->getTessFaceDataArray(dm, CD_NORMAL);
-	int a, b, do_draw, matnr, new_matnr;
+	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
+	int a, b, matnr, new_matnr;
+	bool do_draw;
 	int orig;
 
 	/* double lookup */
@@ -1379,7 +1448,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	cdDM_update_normals_from_pbvh(dm);
 
 	matnr = -1;
-	do_draw = FALSE;
+	do_draw = false;
 
 	// SSS Enable Smooth
 	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
@@ -1392,7 +1461,8 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		gpuBegin(GL_QUADS);
 
 		for (a = 0; a < dm->numTessFaceData; a++, mface++) {
-			const int smoothnormal = (mface->flag & ME_SMOOTH);
+			const int smoothnormal = lnors || (mface->flag & ME_SMOOTH);
+			short (*ln1)[3] = NULL, (*ln2)[3] = NULL, (*ln3)[3] = NULL, (*ln4)[3] = NULL;
 			new_matnr = mface->mat_nr + 1;
 
 			if (new_matnr != matnr) {
@@ -1440,21 +1510,29 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				}
 			}
 
-			cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v1, 0, smoothnormal);
-			cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v2, 1, smoothnormal);
-			cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v3, 2, smoothnormal);
+			if (lnors) {
+				ln1 = &lnors[0][0];
+				ln2 = &lnors[0][1];
+				ln3 = &lnors[0][2];
+				ln4 = &lnors[0][3];
+				lnors++;
+			}
+
+			cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v1, 0, ln1, smoothnormal);
+			cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v2, 1, ln2, smoothnormal);
+			cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v3, 2, ln3, smoothnormal);
 
 			if (mface->v4)
-				cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v4, 3, smoothnormal);
+				cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v4, 3, ln4, smoothnormal);
 			else
-				cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v3, 2, smoothnormal);
+				cddm_draw_attrib_vertex(&attribs, mvert, a, mface->v3, 2, ln3, smoothnormal);
 		}
 		gpuEnd();
 		cddm_unformat_attrib_vertex();
 	}
 	else {
 		GPUBuffer *buffer = NULL;
-		char *varray = NULL;
+		const char *varray = NULL;
 		int numdata = 0, elementsize = 0, offset;
 		int start = 0, numfaces = 0 /* , prevdraw = 0 */ /* UNUSED */, curface = 0;
 		int i;
@@ -1559,6 +1637,52 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						}
 					}
 
+				if (do_draw && numdata != 0) {
+					offset = 0;
+					if (attribs.totorco && attribs.orco.array) {
+						copy_v3_v3((float *)&varray[elementsize * curface * 3], (float *)attribs.orco.array[mface->v1]);
+						copy_v3_v3((float *)&varray[elementsize * curface * 3 + elementsize], (float *)attribs.orco.array[mface->v2]);
+						copy_v3_v3((float *)&varray[elementsize * curface * 3 + elementsize * 2], (float *)attribs.orco.array[mface->v3]);
+						offset += sizeof(float) * 3;
+					}
+					for (b = 0; b < attribs.tottface; b++) {
+						if (attribs.tface[b].array) {
+							MTFace *tf = &attribs.tface[b].array[a];
+							copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset], tf->uv[0]);
+							copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset + elementsize], tf->uv[1]);
+
+							copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset + elementsize * 2], tf->uv[2]);
+							offset += sizeof(float) * 2;
+						}
+					}
+					for (b = 0; b < attribs.totmcol; b++) {
+						if (attribs.mcol[b].array) {
+							MCol *cp = &attribs.mcol[b].array[a * 4 + 0];
+							GLubyte col[4];
+							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+							copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset], (char *)col);
+							cp = &attribs.mcol[b].array[a * 4 + 1];
+							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+							copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset + elementsize], (char *)col);
+							cp = &attribs.mcol[b].array[a * 4 + 2];
+							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+							copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset + elementsize * 2], (char *)col);
+							offset += sizeof(unsigned char) * 4;
+						}
+					}
+					if (attribs.tottang && attribs.tang.array) {
+						const float *tang = attribs.tang.array[a * 4 + 0];
+						copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset], tang);
+						tang = attribs.tang.array[a * 4 + 1];
+						copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset + elementsize], tang);
+						tang = attribs.tang.array[a * 4 + 2];
+						copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset + elementsize * 2], tang);
+						offset += sizeof(float) * 4;
+					}
+					(void)offset;
+				}
+				curface++;
+				if (mface->v4) {
 					if (do_draw && numdata != 0) {
 						offset = 0;
 						if (attribs.totorco && attribs.orco.array) {
@@ -1593,7 +1717,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 							}
 						}
 						if (attribs.tottang && attribs.tang.array) {
-							float *tang = attribs.tang.array[a * 4 + 0];
+							const float *tang = attribs.tang.array[a * 4 + 2];
 							copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset], tang);
 							tang = attribs.tang.array[a * 4 + 1];
 							copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset + elementsize], tang);
@@ -1680,7 +1804,7 @@ static void cdDM_drawFacesGLSL(DerivedMesh *dm, DMSetMaterial setMaterial)
 }
 
 static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
-                                    void (*setMaterial)(void *userData, int, void *attribs),
+                                    void (*setMaterial)(void *userData, int matnr, void *attribs),
                                     bool (*setFace)(void *userData, int index), void *userData)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
@@ -1689,6 +1813,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 	MVert *mvert = cddm->mvert;
 	MFace *mf = cddm->mface;
 	float (*nors)[3] = dm->getTessFaceDataArray(dm, CD_NORMAL);
+	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	int a, matnr, new_matnr;
 	int orig;
 
@@ -1725,7 +1850,8 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 	gpuBegin(GL_QUADS);
 
 	for (a = 0; a < dm->numTessFaceData; a++, mf++) {
-		const int smoothnormal = (mf->flag & ME_SMOOTH);
+		const int smoothnormal = lnors || (mf->flag & ME_SMOOTH);
+		short (*ln1)[3] = NULL, (*ln2)[3] = NULL, (*ln3)[3] = NULL, (*ln4)[3] = NULL;
 
 		/* material */
 		new_matnr = mf->mat_nr + 1;
@@ -1767,15 +1893,23 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 			}
 		}
 
+		if (lnors) {
+			ln1 = &lnors[0][0];
+			ln2 = &lnors[0][1];
+			ln3 = &lnors[0][2];
+			ln4 = &lnors[0][3];
+			lnors++;
+		}
+
 		/* vertices */
-		cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v1, 0, smoothnormal);
-		cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v2, 1, smoothnormal);
-		cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v3, 2, smoothnormal);
+		cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v1, 0, ln1, smoothnormal);
+		cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v2, 1, ln2, smoothnormal);
+		cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v3, 2, ln3, smoothnormal);
 
 		if (mf->v4)
-			cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v4, 3, smoothnormal);
+			cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v4, 3, ln4, smoothnormal);
 		else
-			cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v3, 2, smoothnormal);
+			cddm_draw_attrib_vertex(&attribs, mvert, a, mf->v3, 2, ln3, smoothnormal);
 	}
 	gpuEnd();
 	cddm_unformat_attrib_vertex();
@@ -1819,7 +1953,7 @@ static void cdDM_foreachMappedVert(
         DMForeachFlag flag)
 {
 	MVert *mv = CDDM_get_verts(dm);
-	int *index = DM_get_vert_data_layer(dm, CD_ORIGINDEX);
+	const int *index = DM_get_vert_data_layer(dm, CD_ORIGINDEX);
 	int i;
 
 	if (index) {
@@ -1856,6 +1990,35 @@ static void cdDM_foreachMappedEdge(
 		}
 		else
 			func(userData, i, mv[med->v1].co, mv[med->v2].co);
+	}
+}
+
+static void cdDM_foreachMappedLoop(
+        DerivedMesh *dm,
+        void (*func)(void *userData, int vertex_index, int face_index, const float co[3], const float no[3]),
+        void *userData,
+        DMForeachFlag flag)
+{
+	/* We can't use dm->getLoopDataLayout(dm) here, we want to always access dm->loopData, EditDerivedBMesh would
+	 * return loop data from bmesh itself. */
+	const float (*lnors)[3] = (flag & DM_FOREACH_USE_NORMAL) ? DM_get_loop_data_layer(dm, CD_NORMAL) : NULL;
+
+	const MVert *mv = CDDM_get_verts(dm);
+	const MLoop *ml = CDDM_get_loops(dm);
+	const MPoly *mp = CDDM_get_polys(dm);
+	const int *v_index = DM_get_vert_data_layer(dm, CD_ORIGINDEX);
+	const int *f_index = DM_get_poly_data_layer(dm, CD_ORIGINDEX);
+	int p_idx, i;
+
+	for (p_idx = 0; p_idx < dm->numPolyData; ++p_idx, ++mp) {
+		for (i = 0; i < mp->totloop; ++i, ++ml) {
+			const int v_idx = v_index ? v_index[ml->v] : ml->v;
+			const int f_idx = f_index ? f_index[p_idx] : p_idx;
+			const float *no = lnors ? *lnors++ : NULL;
+			if (!ELEM(ORIGINDEX_NONE, v_idx, f_idx)) {
+				func(userData, v_idx, f_idx, mv[ml->v].co, no);
+			}
+		}
 	}
 }
 
@@ -1972,6 +2135,7 @@ static CDDerivedMesh *cdDM_create(const char *desc)
 	dm->getTessFaceDataArray = DM_get_tessface_data_layer;
 
 	dm->calcNormals = CDDM_calc_normals;
+	dm->calcLoopNormals = CDDM_calc_loop_normals;
 	dm->recalcTessellation = CDDM_recalc_tessellation;
 
 	dm->getVertCos = cdDM_getVertCos;
@@ -1998,6 +2162,7 @@ static CDDerivedMesh *cdDM_create(const char *desc)
 
 	dm->foreachMappedVert = cdDM_foreachMappedVert;
 	dm->foreachMappedEdge = cdDM_foreachMappedEdge;
+	dm->foreachMappedLoop = cdDM_foreachMappedLoop;
 	dm->foreachMappedFaceCenter = cdDM_foreachMappedFaceCenter;
 
 	dm->release = cdDM_release;
@@ -2330,6 +2495,8 @@ static DerivedMesh *cddm_from_bmesh_ex(struct BMesh *bm, const bool use_mdisps,
 			mloop->e = BM_elem_index_get(l_iter->e);
 			CustomData_from_bmesh_block(&bm->ldata, &dm->loopData, l_iter->head.data, j);
 
+			BM_elem_index_set(l_iter, j); /* set_inline */
+
 			j++;
 			mloop++;
 		} while ((l_iter = l_iter->next) != l_first);
@@ -2338,7 +2505,7 @@ static DerivedMesh *cddm_from_bmesh_ex(struct BMesh *bm, const bool use_mdisps,
 
 		if (add_orig) *index++ = i;
 	}
-	bm->elem_index_dirty &= ~BM_FACE;
+	bm->elem_index_dirty &= ~(BM_FACE | BM_LOOP);
 
 	dm->cd_flag = BM_mesh_cd_flag_from_bmesh(bm);
 
@@ -2523,8 +2690,7 @@ void CDDM_calc_normals_mapping_ex(DerivedMesh *dm, const bool only_face_normals)
 		CustomData_free_layers(&dm->faceData, CD_NORMAL, dm->numTessFaceData);
 	}
 
-
-	face_nors = MEM_mallocN(sizeof(float) * 3 * dm->numTessFaceData, "face_nors");
+	face_nors = MEM_mallocN(sizeof(*face_nors) * dm->numTessFaceData, "face_nors");
 
 	/* calculate face normals */
 	BKE_mesh_calc_normals_mapping_ex(cddm->mvert, dm->numVertData, CDDM_get_loops(dm), CDDM_get_polys(dm),
@@ -2532,8 +2698,7 @@ void CDDM_calc_normals_mapping_ex(DerivedMesh *dm, const bool only_face_normals)
 	                                 CustomData_get_layer(&dm->faceData, CD_ORIGINDEX), face_nors,
 	                                 only_face_normals);
 
-	CustomData_add_layer(&dm->faceData, CD_NORMAL, CD_ASSIGN,
-	                     face_nors, dm->numTessFaceData);
+	CustomData_add_layer(&dm->faceData, CD_NORMAL, CD_ASSIGN, face_nors, dm->numTessFaceData);
 
 	cddm->dm.dirty &= ~DM_DIRTY_NORMALS;
 }
@@ -2586,6 +2751,48 @@ void CDDM_calc_normals(DerivedMesh *dm)
 }
 
 #endif
+
+void CDDM_calc_loop_normals(DerivedMesh *dm, const float split_angle)
+{
+	MVert *mverts = dm->getVertArray(dm);
+	MEdge *medges = dm->getEdgeArray(dm);
+	MLoop *mloops = dm->getLoopArray(dm);
+	MPoly *mpolys = dm->getPolyArray(dm);
+
+	CustomData *ldata, *pdata;
+
+	float (*lnors)[3];
+	float (*pnors)[3];
+
+	const int numVerts = dm->getNumVerts(dm);
+	const int numEdges = dm->getNumEdges(dm);
+	const int numLoops = dm->getNumLoops(dm);
+	const int numPolys = dm->getNumPolys(dm);
+
+	ldata = dm->getLoopDataLayout(dm);
+	if (CustomData_has_layer(ldata, CD_NORMAL)) {
+		lnors = CustomData_get_layer(ldata, CD_NORMAL);
+	}
+	else {
+		lnors = CustomData_add_layer(ldata, CD_NORMAL, CD_CALLOC, NULL, numLoops);
+	}
+
+	/* Compute poly (always needed) and vert normals. */
+	/* Note we can't use DM_ensure_normals, since it won't keep computed poly nors... */
+	pdata = dm->getPolyDataLayout(dm);
+	pnors = CustomData_get_layer(pdata, CD_NORMAL);
+	if (!pnors) {
+		pnors = CustomData_add_layer(pdata, CD_NORMAL, CD_CALLOC, NULL, numPolys);
+	}
+	BKE_mesh_calc_normals_poly(mverts, numVerts, mloops, mpolys, numLoops, numPolys, pnors,
+	                           (dm->dirty & DM_DIRTY_NORMALS) ? false : true);
+
+	dm->dirty &= ~DM_DIRTY_NORMALS;
+
+	BKE_mesh_normals_loop_split(mverts, numVerts, medges, numEdges, mloops, lnors, numLoops,
+	                            mpolys, pnors, numPolys, split_angle);
+}
+
 
 void CDDM_calc_normals_tessface(DerivedMesh *dm)
 {
@@ -2743,11 +2950,11 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 
 		/* skip faces with all vertices merged */
 		{
-			int all_vertices_merged = TRUE;
+			bool all_vertices_merged = true;
 
 			for (j = 0; j < mp->totloop; j++, ml++) {
 				if (vtargetmap[ml->v] == -1) {
-					all_vertices_merged = FALSE;
+					all_vertices_merged = false;
 					break;
 				}
 			}
@@ -2867,33 +3074,28 @@ void CDDM_calc_edges_tessface(DerivedMesh *dm)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *)dm;
 	CustomData edgeData;
-	EdgeHashIterator *ehi;
+	EdgeSetIterator *ehi;
 	MFace *mf = cddm->mface;
 	MEdge *med;
-	EdgeHash *eh;
+	EdgeSet *eh;
 	int i, *index, numEdges, numFaces = dm->numTessFaceData;
 
-	eh = BLI_edgehash_new_ex(__func__, BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(numFaces));
+	eh = BLI_edgeset_new_ex(__func__, BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(numFaces));
 
 	for (i = 0; i < numFaces; i++, mf++) {
-		if (!BLI_edgehash_haskey(eh, mf->v1, mf->v2))
-			BLI_edgehash_insert(eh, mf->v1, mf->v2, NULL);
-		if (!BLI_edgehash_haskey(eh, mf->v2, mf->v3))
-			BLI_edgehash_insert(eh, mf->v2, mf->v3, NULL);
+		BLI_edgeset_reinsert(eh, mf->v1, mf->v2);
+		BLI_edgeset_reinsert(eh, mf->v2, mf->v3);
 		
 		if (mf->v4) {
-			if (!BLI_edgehash_haskey(eh, mf->v3, mf->v4))
-				BLI_edgehash_insert(eh, mf->v3, mf->v4, NULL);
-			if (!BLI_edgehash_haskey(eh, mf->v4, mf->v1))
-				BLI_edgehash_insert(eh, mf->v4, mf->v1, NULL);
+			BLI_edgeset_reinsert(eh, mf->v3, mf->v4);
+			BLI_edgeset_reinsert(eh, mf->v4, mf->v1);
 		}
 		else {
-			if (!BLI_edgehash_haskey(eh, mf->v3, mf->v1))
-				BLI_edgehash_insert(eh, mf->v3, mf->v1, NULL);
+			BLI_edgeset_reinsert(eh, mf->v3, mf->v1);
 		}
 	}
 
-	numEdges = BLI_edgehash_size(eh);
+	numEdges = BLI_edgeset_size(eh);
 
 	/* write new edges into a temporary CustomData */
 	CustomData_reset(&edgeData);
@@ -2903,16 +3105,16 @@ void CDDM_calc_edges_tessface(DerivedMesh *dm)
 	med = CustomData_get_layer(&edgeData, CD_MEDGE);
 	index = CustomData_get_layer(&edgeData, CD_ORIGINDEX);
 
-	for (ehi = BLI_edgehashIterator_new(eh), i = 0;
-	     BLI_edgehashIterator_isDone(ehi) == FALSE;
-	     BLI_edgehashIterator_step(ehi), i++, med++, index++)
+	for (ehi = BLI_edgesetIterator_new(eh), i = 0;
+	     BLI_edgesetIterator_isDone(ehi) == false;
+	     BLI_edgesetIterator_step(ehi), i++, med++, index++)
 	{
-		BLI_edgehashIterator_getKey(ehi, &med->v1, &med->v2);
+		BLI_edgesetIterator_getKey(ehi, &med->v1, &med->v2);
 
 		med->flag = ME_EDGEDRAW | ME_EDGERENDER;
 		*index = ORIGINDEX_NONE;
 	}
-	BLI_edgehashIterator_free(ehi);
+	BLI_edgesetIterator_free(ehi);
 
 	/* free old CustomData and assign new one */
 	CustomData_free(&dm->edgeData, dm->numEdgeData);
@@ -2921,7 +3123,7 @@ void CDDM_calc_edges_tessface(DerivedMesh *dm)
 
 	cddm->medge = CustomData_get_layer(&dm->edgeData, CD_MEDGE);
 
-	BLI_edgehash_free(eh, NULL);
+	BLI_edgeset_free(eh);
 }
 
 /* warning, this uses existing edges but CDDM_calc_edges_tessface() doesn't */
@@ -2936,7 +3138,7 @@ void CDDM_calc_edges(DerivedMesh *dm)
 	EdgeHash *eh;
 	unsigned int eh_reserve;
 	int v1, v2;
-	int *eindex;
+	const int *eindex;
 	int i, j, *index;
 	const int numFaces = dm->numPolyData;
 	const int numLoops = dm->numLoopData;
@@ -2958,9 +3160,7 @@ void CDDM_calc_edges(DerivedMesh *dm)
 		for (j = 0; j < mp->totloop; j++, ml++) {
 			v1 = ml->v;
 			v2 = ME_POLY_LOOP_NEXT(cddm->mloop, mp, j)->v;
-			if (!BLI_edgehash_haskey(eh, v1, v2)) {
-				BLI_edgehash_insert(eh, v1, v2, NULL);
-			}
+			BLI_edgehash_reinsert(eh, v1, v2, NULL);
 		}
 	}
 
@@ -2976,7 +3176,7 @@ void CDDM_calc_edges(DerivedMesh *dm)
 	index = CustomData_get_layer(&edgeData, CD_ORIGINDEX);
 
 	for (ehi = BLI_edgehashIterator_new(eh), i = 0;
-	     BLI_edgehashIterator_isDone(ehi) == FALSE;
+	     BLI_edgehashIterator_isDone(ehi) == false;
 	     BLI_edgehashIterator_step(ehi), ++i, ++med, ++index)
 	{
 		BLI_edgehashIterator_getKey(ehi, &med->v1, &med->v2);

@@ -135,7 +135,6 @@ typedef struct SubDPattern {
  * edge subdivision */
 static BMEdge *connect_smallest_face(BMesh *bm, BMVert *v_a, BMVert *v_b, BMFace **r_f_new)
 {
-	BMLoop *l_new;
 	BMLoop *l_a, *l_b;
 	BMFace *f;
 
@@ -146,6 +145,7 @@ static BMEdge *connect_smallest_face(BMesh *bm, BMVert *v_a, BMVert *v_b, BMFace
 
 	if (f) {
 		BMFace *f_new;
+		BMLoop *l_new;
 
 		f_new = BM_face_split(bm, f, l_a, l_b, &l_new, NULL, false);
 		
@@ -1002,7 +1002,7 @@ void bmo_subdivide_edges_exec(BMesh *bm, BMOperator *op)
 
 	/* copy original-geometry displacements to current coordinates */
 	BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-		float *co = BM_ELEM_CD_GET_VOID_P(v, params.shape_info.cd_vert_shape_offset_tmp);
+		const float *co = BM_ELEM_CD_GET_VOID_P(v, params.shape_info.cd_vert_shape_offset_tmp);
 		copy_v3_v3(v->co, co);
 	}
 
@@ -1147,7 +1147,7 @@ void bmo_subdivide_edges_exec(BMesh *bm, BMOperator *op)
 
 	/* copy original-geometry displacements to current coordinates */
 	BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-		float *co = BM_ELEM_CD_GET_VOID_P(v, params.shape_info.cd_vert_shape_offset_tmp);
+		const float *co = BM_ELEM_CD_GET_VOID_P(v, params.shape_info.cd_vert_shape_offset_tmp);
 		copy_v3_v3(v->co, co);
 	}
 

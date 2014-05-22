@@ -32,7 +32,6 @@
 #include "DNA_camera_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
-#include "DNA_lamp_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -52,7 +51,6 @@
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
 
 #include "BIF_glutil.h"
 
@@ -170,14 +168,14 @@ static void view3d_smooth_view_state_restore(const struct SmoothView3DState *sms
 
 /* will start timer if appropriate */
 /* the arguments are the desired situation */
-void ED_view3d_smooth_view(bContext *C, View3D *v3d, ARegion *ar, Object *oldcamera, Object *camera,
-                           float *ofs, float *quat, float *dist, float *lens,
-                           const int smooth_viewtx)
-{
-	wmWindowManager *wm = CTX_wm_manager(C);
-	wmWindow *win = CTX_wm_window(C);
-	ScrArea *sa = CTX_wm_area(C);
+void ED_view3d_smooth_view_ex(
+        /* avoid passing in the context */
+        wmWindowManager *wm, wmWindow *win, ScrArea *sa,
 
+        View3D *v3d, ARegion *ar, Object *oldcamera, Object *camera,
+        const float *ofs, const float *quat, const float *dist, const float *lens,
+        const int smooth_viewtx)
+{
 	RegionView3D *rv3d = ar->regiondata;
 	struct SmoothView3DStore sms = {{0}};
 	bool ok = false;
@@ -272,7 +270,11 @@ void ED_view3d_smooth_view(bContext *C, View3D *v3d, ARegion *ar, Object *oldcam
 
 			/* ensure it shows correct */
 			if (sms.to_camera) {
-				rv3d->persp = RV3D_PERSP;
+				/* use ortho if we move from an ortho view to an ortho camera */
+				rv3d->persp = (((rv3d->is_persp == false) &&
+				                (camera->type == OB_CAMERA) &&
+				                (((Camera *)camera->data)->type == CAM_ORTHO)) ?
+				                RV3D_ORTHO : RV3D_PERSP);
 			}
 
 			rv3d->rflag |= RV3D_NAVIGATING;
@@ -313,6 +315,22 @@ void ED_view3d_smooth_view(bContext *C, View3D *v3d, ARegion *ar, Object *oldcam
 
 		ED_region_tag_redraw(ar);
 	}
+}
+
+void ED_view3d_smooth_view(
+        bContext *C,
+        View3D *v3d, ARegion *ar, Object *oldcamera, Object *camera,
+        const float *ofs, const float *quat, const float *dist, const float *lens,
+        const int smooth_viewtx)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+	ScrArea *sa = CTX_wm_area(C);
+
+	ED_view3d_smooth_view_ex(
+	        wm, win, sa,
+	        v3d, ar, oldcamera, camera,
+	        ofs, quat, dist, lens, smooth_viewtx);
 }
 
 /* only meant for timer usage */
@@ -411,15 +429,16 @@ void VIEW3D_OT_smoothview(wmOperatorType *ot)
 
 static int view3d_camera_to_view_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	View3D *v3d = CTX_wm_view3d(C);
-	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	View3D *v3d;
+	ARegion *ar;
+	RegionView3D *rv3d;
+
 	ObjectTfmProtectedChannels obtfm;
 
-	copy_qt_qt(rv3d->lviewquat, rv3d->viewquat);
-	rv3d->lview = rv3d->view;
-	if (rv3d->persp != RV3D_CAMOB) {
-		rv3d->lpersp = rv3d->persp;
-	}
+	ED_view3d_context_user_region(C, &v3d, &ar);
+	rv3d = ar->regiondata;
+
+	ED_view3d_lastview_store(rv3d);
 
 	BKE_object_tfm_protected_backup(v3d->camera, &obtfm);
 
@@ -438,11 +457,17 @@ static int view3d_camera_to_view_exec(bContext *C, wmOperator *UNUSED(op))
 
 static int view3d_camera_to_view_poll(bContext *C)
 {
-	View3D *v3d = CTX_wm_view3d(C);
-	if (v3d && v3d->camera && v3d->camera->id.lib == NULL) {
-		RegionView3D *rv3d = CTX_wm_region_view3d(C);
-		if (rv3d && (rv3d->viewlock & RV3D_LOCKED) == 0) {
-			return 1;
+	View3D *v3d;
+	ARegion *ar;
+
+	if (ED_view3d_context_user_region(C, &v3d, &ar)) {
+		RegionView3D *rv3d = ar->regiondata;
+		if (v3d && v3d->camera && v3d->camera->id.lib == NULL) {
+			if (rv3d && (rv3d->viewlock & RV3D_LOCKED) == 0) {
+				if (rv3d->persp != RV3D_CAMOB) {
+					return 1;
+				}
+			}
 		}
 	}
 
@@ -549,7 +574,10 @@ static int view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
 		if (v3d->scenelock)
 			scene->camera = ob;
 
-		if (camera_old != ob) {  /* unlikely but looks like a glitch when set to the same */
+		/* unlikely but looks like a glitch when set to the same */
+		if (camera_old != ob) {
+			ED_view3d_lastview_store(rv3d);
+
 			ED_view3d_smooth_view(C, v3d, ar, camera_old, v3d->camera,
 			                      rv3d->ofs, rv3d->viewquat, &rv3d->dist, &v3d->lens,
 			                      smooth_viewtx);
@@ -637,24 +665,15 @@ void ED_view3d_clipping_calc(BoundBox *bb, float planes[4][4], bglMats *mats, co
 	}
 }
 
-
-bool ED_view3d_boundbox_clip(RegionView3D *rv3d, float obmat[4][4], const BoundBox *bb)
+static bool view3d_boundbox_clip_m4(const BoundBox *bb, float persmatob[4][4])
 {
-	/* return 1: draw */
-
-	float mat[4][4];
-	float vec[4], min, max;
 	int a, flag = -1, fl;
 
-	if (bb == NULL) return true;
-	if (bb->flag & BOUNDBOX_DISABLED) return true;
-
-	mul_m4_m4m4(mat, rv3d->persmat, obmat);
-
 	for (a = 0; a < 8; a++) {
+		float vec[4], min, max;
 		copy_v3_v3(vec, bb->vec[a]);
 		vec[3] = 1.0;
-		mul_m4_v4(mat, vec);
+		mul_m4_v4(persmatob, vec);
 		max = vec[3];
 		min = -vec[3];
 
@@ -671,6 +690,28 @@ bool ED_view3d_boundbox_clip(RegionView3D *rv3d, float obmat[4][4], const BoundB
 	}
 
 	return false;
+}
+
+bool ED_view3d_boundbox_clip_ex(RegionView3D *rv3d, const BoundBox *bb, float obmat[4][4])
+{
+	/* return 1: draw */
+
+	float persmatob[4][4];
+
+	if (bb == NULL) return true;
+	if (bb->flag & BOUNDBOX_DISABLED) return true;
+
+	mul_m4_m4m4(persmatob, rv3d->persmat, obmat);
+
+	return view3d_boundbox_clip_m4(bb, persmatob);
+}
+
+bool ED_view3d_boundbox_clip(RegionView3D *rv3d, const BoundBox *bb)
+{
+	if (bb == NULL) return true;
+	if (bb->flag & BOUNDBOX_DISABLED) return true;
+
+	return view3d_boundbox_clip_m4(bb, rv3d->persmatob);
 }
 
 float ED_view3d_depth_read_cached(ViewContext *vc, int x, int y)
@@ -750,10 +791,10 @@ void ED_view3d_polygon_offset(const RegionView3D *rv3d, const float dist)
 	bglPolygonOffset(viewdist, dist);
 }
 
-/*!
- * \param rect for picking, NULL not to use.
+/**
+ * \param rect, optional for picking (can be NULL).
  */
-void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect)
+void view3d_winmatrix_set(ARegion *ar, View3D *v3d, rctf *rect)
 {
 	RegionView3D *rv3d = ar->regiondata;
 	rctf viewplane;
@@ -813,39 +854,40 @@ static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)
 	mat3_to_quat(rv3d->viewquat, tmat);
 }
 
+static float view3d_quat_axis[6][4] = {
+	{M_SQRT1_2, -M_SQRT1_2, 0.0f, 0.0f},    /* RV3D_VIEW_FRONT */
+	{0.0f, 0.0f, -M_SQRT1_2, -M_SQRT1_2},   /* RV3D_VIEW_BACK */
+	{0.5f, -0.5f, 0.5f, 0.5f},              /* RV3D_VIEW_LEFT */
+	{0.5f, -0.5f, -0.5f, -0.5f},            /* RV3D_VIEW_RIGHT */
+	{1.0f, 0.0f, 0.0f, 0.0f},               /* RV3D_VIEW_TOP */
+	{0.0f, -1.0f, 0.0f, 0.0f},              /* RV3D_VIEW_BOTTOM */
+};
+
+
 bool ED_view3d_quat_from_axis_view(const char view, float quat[4])
+{
+	if (RV3D_VIEW_IS_AXIS(view)) {
+		copy_qt_qt(quat, view3d_quat_axis[view - RV3D_VIEW_FRONT]);
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+char ED_view3d_quat_to_axis_view(const float quat[4], const float epsilon)
 {
 	/* quat values are all unit length */
 
-	switch (view) {
-		case RV3D_VIEW_BOTTOM:
-			copy_v4_fl4(quat, 0.0, -1.0, 0.0, 0.0);
-			break;
+	char view;
 
-		case RV3D_VIEW_BACK:
-			copy_v4_fl4(quat, 0.0, 0.0, -M_SQRT1_2, -M_SQRT1_2);
-			break;
-
-		case RV3D_VIEW_LEFT:
-			copy_v4_fl4(quat, 0.5, -0.5, 0.5, 0.5);
-			break;
-
-		case RV3D_VIEW_TOP:
-			copy_v4_fl4(quat, 1.0, 0.0, 0.0, 0.0);
-			break;
-
-		case RV3D_VIEW_FRONT:
-			copy_v4_fl4(quat, M_SQRT1_2, -M_SQRT1_2, 0.0, 0.0);
-			break;
-
-		case RV3D_VIEW_RIGHT:
-			copy_v4_fl4(quat, 0.5, -0.5, -0.5, -0.5);
-			break;
-		default:
-			return false;
+	for (view = RV3D_VIEW_FRONT; view <= RV3D_VIEW_BOTTOM; view++) {
+		if (angle_qtqt(quat, view3d_quat_axis[view - RV3D_VIEW_FRONT]) < epsilon) {
+			return view;
+		}
 	}
 
-	return true;
+	return RV3D_VIEW_USER;
 }
 
 char ED_view3d_lock_view_from_index(int index)
@@ -865,7 +907,7 @@ bool ED_view3d_lock(RegionView3D *rv3d)
 }
 
 /* don't set windows active in here, is used by renderwin too */
-void setviewmatrixview3d(Scene *scene, View3D *v3d, RegionView3D *rv3d)
+void view3d_viewmatrix_set(Scene *scene, View3D *v3d, RegionView3D *rv3d)
 {
 	if (rv3d->persp == RV3D_CAMOB) {      /* obs/camera */
 		if (v3d->camera) {
@@ -962,11 +1004,11 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 		BLI_rctf_rcti_copy(&rect, input);
 	}
 	
-	setwinmatrixview3d(ar, v3d, &rect);
+	view3d_winmatrix_set(ar, v3d, &rect);
 	mul_m4_m4m4(vc->rv3d->persmat, vc->rv3d->winmat, vc->rv3d->viewmat);
 	
 	if (v3d->drawtype > OB_WIRE) {
-		v3d->zbuf = TRUE;
+		v3d->zbuf = true;
 		glEnable(GL_DEPTH_TEST);
 	}
 	
@@ -995,7 +1037,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	else {
 		Base *base;
 		
-		v3d->xray = TRUE;  /* otherwise it postpones drawing */
+		v3d->xray = true;  /* otherwise it postpones drawing */
 		for (base = scene->base.first; base; base = base->next) {
 			if (base->lay & v3d->lay) {
 				
@@ -1055,7 +1097,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL); /* restarting in render mode (assuming was basic aspect before) */
 
 	G.f &= ~G_PICKSEL;
-	setwinmatrixview3d(ar, v3d, NULL);
+	view3d_winmatrix_set(ar, v3d, NULL);
 	mul_m4_m4m4(vc->rv3d->persmat, vc->rv3d->winmat, vc->rv3d->viewmat);
 	
 	if (v3d->drawtype > OB_WIRE) {
@@ -1146,11 +1188,14 @@ int ED_view3d_scene_layer_set(int lay, const int *values, int *active)
 	return lay;
 }
 
-static bool view3d_localview_init(Main *bmain, Scene *scene, ScrArea *sa, ReportList *reports)
+static bool view3d_localview_init(
+        wmWindowManager *wm, wmWindow *win,
+        Main *bmain, Scene *scene, ScrArea *sa, const int smooth_viewtx,
+        ReportList *reports)
 {
 	View3D *v3d = sa->spacedata.first;
 	Base *base;
-	float min[3], max[3], box[3];
+	float min[3], max[3], box[3], mid[3];
 	float size = 0.0f, size_persp = 0.0f, size_ortho = 0.0f;
 	unsigned int locallay;
 	bool ok = false;
@@ -1205,34 +1250,48 @@ static bool view3d_localview_init(Main *bmain, Scene *scene, ScrArea *sa, Report
 		
 		memcpy(v3d->localvd, v3d, sizeof(View3D));
 
+		mid_v3_v3v3(mid, min, max);
+
+		copy_v3_v3(v3d->cursor, mid);
+
 		for (ar = sa->regionbase.first; ar; ar = ar->next) {
 			if (ar->regiontype == RGN_TYPE_WINDOW) {
 				RegionView3D *rv3d = ar->regiondata;
 
+				/* new view values */
+				Object *camera_old = NULL;
+				float dist_new, ofs_new[3];
+
 				rv3d->localvd = MEM_mallocN(sizeof(RegionView3D), "localview region");
 				memcpy(rv3d->localvd, rv3d, sizeof(RegionView3D));
-				
-				mid_v3_v3v3(v3d->cursor, min, max);
-				negate_v3_v3(rv3d->ofs, v3d->cursor);
+
+				negate_v3_v3(ofs_new, mid);
 
 				if (rv3d->persp == RV3D_CAMOB) {
 					rv3d->persp = RV3D_PERSP;
+					camera_old = v3d->camera;
 				}
 
 				/* perspective should be a bit farther away to look nice */
 				if (rv3d->persp != RV3D_ORTHO) {
-					rv3d->dist = size_persp;
+					dist_new = size_persp;
 				}
 				else {
-					rv3d->dist = size_ortho;
+					dist_new = size_ortho;
 				}
 
 				/* correction for window aspect ratio */
 				if (ar->winy > 2 && ar->winx > 2) {
 					float asp = (float)ar->winx / (float)ar->winy;
 					if (asp < 1.0f) asp = 1.0f / asp;
-					rv3d->dist *= asp;
+					dist_new *= asp;
 				}
+
+				ED_view3d_smooth_view_ex(
+				        wm, win, sa,
+				        v3d, ar, camera_old, NULL,
+				        ofs_new, NULL, &dist_new, NULL,
+				        smooth_viewtx);
 			}
 		}
 		
@@ -1253,13 +1312,18 @@ static bool view3d_localview_init(Main *bmain, Scene *scene, ScrArea *sa, Report
 	return ok;
 }
 
-static void restore_localviewdata(Main *bmain, ScrArea *sa, int free)
+static void restore_localviewdata(wmWindowManager *wm, wmWindow *win, Main *bmain, ScrArea *sa, const int smooth_viewtx)
 {
+	const bool free = true;
 	ARegion *ar;
 	View3D *v3d = sa->spacedata.first;
+	Object *camera_old, *camera_new;
 	
 	if (v3d->localvd == NULL) return;
 	
+	camera_old = v3d->camera;
+	camera_new = v3d->localvd->camera;
+
 	v3d->near = v3d->localvd->near;
 	v3d->far = v3d->localvd->far;
 	v3d->lay = v3d->localvd->lay;
@@ -1277,12 +1341,20 @@ static void restore_localviewdata(Main *bmain, ScrArea *sa, int free)
 			RegionView3D *rv3d = ar->regiondata;
 			
 			if (rv3d->localvd) {
-				rv3d->dist = rv3d->localvd->dist;
-				copy_v3_v3(rv3d->ofs, rv3d->localvd->ofs);
-				copy_qt_qt(rv3d->viewquat, rv3d->localvd->viewquat);
+				Object *camera_old_rv3d, *camera_new_rv3d;
+
+				camera_old_rv3d = (rv3d->persp          == RV3D_CAMOB) ? camera_old : NULL;
+				camera_new_rv3d = (rv3d->localvd->persp == RV3D_CAMOB) ? camera_new : NULL;
+
 				rv3d->view = rv3d->localvd->view;
 				rv3d->persp = rv3d->localvd->persp;
 				rv3d->camzoom = rv3d->localvd->camzoom;
+
+				ED_view3d_smooth_view_ex(
+				        wm, win, sa,
+				        v3d, ar, camera_old_rv3d, camera_new_rv3d,
+				        rv3d->localvd->ofs, rv3d->localvd->viewquat, &rv3d->localvd->dist, NULL,
+				        smooth_viewtx);
 
 				if (free) {
 					MEM_freeN(rv3d->localvd);
@@ -1295,7 +1367,9 @@ static void restore_localviewdata(Main *bmain, ScrArea *sa, int free)
 	}
 }
 
-static bool view3d_localview_exit(Main *bmain, Scene *scene, ScrArea *sa)
+static bool view3d_localview_exit(
+        wmWindowManager *wm, wmWindow *win,
+        Main *bmain, Scene *scene, ScrArea *sa, const int smooth_viewtx)
 {
 	View3D *v3d = sa->spacedata.first;
 	struct Base *base;
@@ -1304,8 +1378,8 @@ static bool view3d_localview_exit(Main *bmain, Scene *scene, ScrArea *sa)
 	if (v3d->localvd) {
 		
 		locallay = v3d->lay & 0xFF000000;
-		
-		restore_localviewdata(bmain, sa, 1); /* 1 = free */
+
+		restore_localviewdata(wm, win, bmain, sa, smooth_viewtx);
 
 		/* for when in other window the layers have changed */
 		if (v3d->scenelock) v3d->lay = scene->lay;
@@ -1333,6 +1407,9 @@ static bool view3d_localview_exit(Main *bmain, Scene *scene, ScrArea *sa)
 
 static int localview_exec(bContext *C, wmOperator *op)
 {
+	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	ScrArea *sa = CTX_wm_area(C);
@@ -1340,15 +1417,20 @@ static int localview_exec(bContext *C, wmOperator *op)
 	bool changed;
 	
 	if (v3d->localvd) {
-		changed = view3d_localview_exit(bmain, scene, sa);
+		changed = view3d_localview_exit(wm, win, bmain, scene, sa, smooth_viewtx);
 	}
 	else {
-		changed = view3d_localview_init(bmain, scene, sa, op->reports);
+		changed = view3d_localview_init(wm, win, bmain, scene, sa, smooth_viewtx, op->reports);
 	}
 
 	if (changed) {
 		DAG_id_type_tag(bmain, ID_OB);
-		ED_area_tag_redraw(CTX_wm_area(C));
+		ED_area_tag_redraw(sa);
+
+		/* unselected objects become selected when exiting */
+		if (v3d->localvd == NULL) {
+			WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+		}
 
 		return OPERATOR_FINISHED;
 	}

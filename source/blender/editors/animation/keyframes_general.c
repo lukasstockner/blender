@@ -36,7 +36,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -359,7 +358,7 @@ void smooth_fcurve(FCurve *fcu)
 		/* round 2: apply new values */
 		tsb = tarray;
 		for (i = 0; i < totSel; i++, tsb++) {
-			/* don't touch end points, as their values were't touched above */
+			/* don't touch end points, as their values weren't touched above */
 			if (ELEM(i, 0, (totSel - 1)) == 0) {
 				/* y2 takes the average of the 2 points */
 				*tsb->h2 = tsb->y2;

@@ -108,8 +108,8 @@ class MASK_PT_layers:
             layout.prop(active_layer, "falloff")
 
             row = layout.row(align=True)
-            layout.prop(active_layer, "use_fill_overlap")
-            layout.prop(active_layer, "use_fill_holes")
+            row.prop(active_layer, "use_fill_overlap", text="Overlap")
+            row.prop(active_layer, "use_fill_holes", text="Holes")
 
 
 class MASK_PT_spline():
@@ -171,9 +171,6 @@ class MASK_PT_point():
         mask = sc.mask
         point = mask.layers.active.splines.active_point
         parent = point.parent
-
-        col = layout.column()
-        col.prop(point, "handle_type")
 
         col = layout.column()
         # Currently only parenting yo movie clip is allowed, so do not
@@ -286,8 +283,8 @@ class MASK_PT_tools():
         col = layout.column(align=True)
         col.label(text="Animation:")
         row = col.row(align=True)
-        row.operator("mask.shape_key_clear", text="Insert Key")
-        row.operator("mask.shape_key_insert", text="Clear Key")
+        row.operator("mask.shape_key_insert", text="Insert Key")
+        row.operator("mask.shape_key_clear", text="Clear Key")
         col.operator("mask.shape_key_feather_reset", text="Reset Feather Animation")
         col.operator("mask.shape_key_rekey", text="Re-Key Shape Points")
 
@@ -308,8 +305,8 @@ class MASK_PT_add():
         layout = self.layout
 
         col = layout.column(align=True)
-        col.operator("mask.primitive_circle_add", icon="MESH_CIRCLE")
-        col.operator("mask.primitive_square_add", icon="MESH_PLANE")
+        col.operator("mask.primitive_circle_add", icon='MESH_CIRCLE')
+        col.operator("mask.primitive_square_add", icon='MESH_PLANE')
 
 
 class MASK_MT_mask(Menu):
@@ -329,6 +326,10 @@ class MASK_MT_mask(Menu):
         layout.separator()
         layout.operator("mask.parent_clear")
         layout.operator("mask.parent_set")
+
+        layout.separator()
+        layout.operator("mask.copy_splines")
+        layout.operator("mask.paste_splines")
 
         layout.separator()
         layout.menu("MASK_MT_visibility")
@@ -376,7 +377,6 @@ class MASK_MT_select(Menu):
 
     def draw(self, context):
         layout = self.layout
-        sc = context.space_data
 
         layout.operator("mask.select_border")
         layout.operator("mask.select_circle")

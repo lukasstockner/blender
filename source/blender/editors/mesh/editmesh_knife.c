@@ -82,7 +82,7 @@
 
 #define KNIFE_FLT_EPS          0.00001f
 #define KNIFE_FLT_EPS_SQUARED  (KNIFE_FLT_EPS * KNIFE_FLT_EPS)
-#define KNIFE_FLT_EPSBIG       0.001f
+#define KNIFE_FLT_EPSBIG       0.0005f
 
 typedef struct KnifeColors {
 	unsigned char line[3];
@@ -658,7 +658,7 @@ static void knife_add_single_cut(KnifeTool_OpData *kcd, KnifeLineHit *lh1, Knife
 	}
 
 	/* Check if edge actually lies within face (might not, if this face is concave) */
-	if (lh1->v && lh2->v) {
+	if ((lh1->v && !lh1->kfe) && (lh2->v && !lh2->kfe)) {
 		if (!knife_verts_edge_in_face(lh1->v, lh2->v, f)) {
 			return;
 		}
@@ -1158,7 +1158,7 @@ static void calc_ortho_extent(KnifeTool_OpData *kcd)
 
 	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 		for (i = 0; i < 3; i++)
-			max_xyz = max_ff(max_xyz, fabs(v->co[i]));
+			max_xyz = max_ff(max_xyz, fabsf(v->co[i]));
 	}
 	kcd->ortho_extent = max_xyz;
 }
@@ -1167,25 +1167,30 @@ static void calc_ortho_extent(KnifeTool_OpData *kcd)
  * s in screen projection of p. */
 static bool point_is_visible(KnifeTool_OpData *kcd, const float p[3], const float s[2], bglMats *mats)
 {
-	float p1[3], no[3], view[3];
 	BMFace *f_hit;
 
 	/* If not cutting through, make sure no face is in front of p */
 	if (!kcd->cut_through) {
+		float dist;
+		float view[3], p_ofs[3];
+
 		/* TODO: I think there's a simpler way to get the required raycast ray */
 		ED_view3d_unproject(mats, view, s[0], s[1], 0.0f);
+
 		mul_m4_v3(kcd->ob->imat, view);
 
-		/* make p1 a little towards view, so ray doesn't hit p's face. */
-		copy_v3_v3(p1, p);
-		sub_v3_v3(view, p1);
-		normalize_v3(view);
-		copy_v3_v3(no, view);
-		mul_v3_fl(no, 3.0f * KNIFE_FLT_EPSBIG);
-		add_v3_v3(p1, no);
+		/* make p_ofs a little towards view, so ray doesn't hit p's face. */
+		sub_v3_v3(view, p);
+		dist = normalize_v3(view);
+		madd_v3_v3v3fl(p_ofs, p, view, KNIFE_FLT_EPSBIG * 3.0f);
+
+		/* avoid projecting behind the viewpoint */
+		if (kcd->is_ortho) {
+			dist = FLT_MAX;
+		}
 
 		/* see if there's a face hit between p1 and the view */
-		f_hit = BKE_bmbvh_ray_cast(kcd->bmbvh, p1, no, KNIFE_FLT_EPS, NULL, NULL, NULL);
+		f_hit = BKE_bmbvh_ray_cast(kcd->bmbvh, p_ofs, view, KNIFE_FLT_EPS, &dist, NULL, NULL);
 		if (f_hit)
 			return false;
 	}
@@ -1400,12 +1405,18 @@ static void knife_find_line_hits(KnifeTool_OpData *kcd)
 			if (!(d1 <= vert_tol || d2 <= vert_tol || fabsf(d1 - d2) <= vert_tol)) {
 				lambda = d1 / d2;
 				/* Can't just interpolate between ends of kfe because
-				* that doesn't work with perspective transformation.
-				* Need to find 3d intersection of ray through sint */
+				 * that doesn't work with perspective transformation.
+				 * Need to find 3d intersection of ray through sint */
 				knife_input_ray_segment(kcd, sint, 1.0f, r1, r2);
 				isect_kind = isect_line_line_v3(kfe->v1->cageco, kfe->v2->cageco, r1, r2, p, p2);
 				if (isect_kind >= 1 && point_is_visible(kcd, p, sint, &mats)) {
 					memset(&hit, 0, sizeof(hit));
+					if (kcd->snap_midpoints) {
+						/* choose intermediate point snap too */
+						mid_v3_v3v3(p, kfe->v1->cageco, kfe->v2->cageco);
+						mid_v2_v2v2(sint, se1, se2);
+						lambda = 0.5f;
+					}
 					hit.kfe = kfe;
 					copy_v3_v3(hit.hit, p);
 					copy_v3_v3(hit.cagehit, p);
@@ -1808,6 +1819,10 @@ static int knife_update_active(KnifeTool_OpData *kcd)
 {
 	knife_pos_data_clear(&kcd->curr);
 	copy_v2_v2(kcd->curr.mval, kcd->mval);
+
+	/* view matrix may have changed, reproject */
+	knife_project_v2(kcd, kcd->prev.co, kcd->prev.mval);
+
 	if (kcd->angle_snapping != ANGLE_FREE && kcd->mode == MODE_DRAGGING)
 		knife_snap_angle(kcd);
 
@@ -2625,9 +2640,9 @@ static void knifetool_init(bContext *C, KnifeTool_OpData *kcd,
 
 	ED_region_tag_redraw(kcd->ar);
 
-	kcd->refs = BLI_mempool_create(sizeof(Ref), 1, 2048, 0);
-	kcd->kverts = BLI_mempool_create(sizeof(KnifeVert), 1, 512, BLI_MEMPOOL_ALLOW_ITER);
-	kcd->kedges = BLI_mempool_create(sizeof(KnifeEdge), 1, 512, BLI_MEMPOOL_ALLOW_ITER);
+	kcd->refs = BLI_mempool_create(sizeof(Ref), 0, 2048, 0);
+	kcd->kverts = BLI_mempool_create(sizeof(KnifeVert), 0, 512, BLI_MEMPOOL_ALLOW_ITER);
+	kcd->kedges = BLI_mempool_create(sizeof(KnifeEdge), 0, 512, BLI_MEMPOOL_ALLOW_ITER);
 
 	kcd->origedgemap = BLI_ghash_ptr_new("knife origedgemap");
 	kcd->origvertmap = BLI_ghash_ptr_new("knife origvertmap");
@@ -2868,7 +2883,6 @@ static int knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 				ED_region_tag_redraw(kcd->ar);
 				return OPERATOR_PASS_THROUGH;
-				break;
 		}
 	}
 	else { /* non-modal-mapped events */
@@ -2936,7 +2950,7 @@ static void edvm_mesh_knife_face_point(BMFace *f, float r_cent[3])
 	unsigned int  (*index)[3] = BLI_array_alloca(index, tottri);
 	int j;
 
-	float const *best_co[3] = {NULL};
+	const float *best_co[3] = {NULL};
 	float best_area  = -1.0f;
 	bool ok = false;
 

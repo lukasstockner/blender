@@ -758,7 +758,9 @@ void BL_ConvertActuators(const char* maggiename,
 					mode = KX_SceneActuator::KX_SCENE_SET_CAMERA;
 					if (sceneact->camera)
 					{
-						cam = (KX_Camera*) converter->FindGameObject(sceneact->camera);
+						KX_GameObject *tmp = converter->FindGameObject(sceneact->camera);
+						if (tmp && tmp->GetGameObjectType() == SCA_IObject::OBJ_CAMERA)
+							cam = (KX_Camera*)tmp;
 					}
 					break;
 				case ACT_SCENE_RESTART:
@@ -1104,7 +1106,7 @@ void BL_ConvertActuators(const char* maggiename,
 			; /* generate some error */
 		}
 		
-		if (baseact)
+		if (baseact && !(bact->flag & ACT_DEACTIVATE))
 		{
 			baseact->SetExecutePriority(executePriority++);
 			uniquename += "#ACT#";
@@ -1120,6 +1122,8 @@ void BL_ConvertActuators(const char* maggiename,
 			// done with baseact, release it
 			baseact->Release();
 		}
+		else if (baseact)
+			baseact->Release();
 		
 		bact = bact->next;
 	}

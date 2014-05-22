@@ -35,13 +35,11 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
-#include "BLI_dlrbTree.h"
 #include "BLI_utildefines.h"
 #include "BLI_jitter.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
-#include "DNA_world_types.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -57,7 +55,6 @@
 
 #include "ED_screen.h"
 #include "ED_view3d.h"
-#include "ED_image.h"
 
 #include "RE_pipeline.h"
 #include "IMB_imbuf_types.h"
@@ -66,8 +63,6 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
-
-#include "BIF_glutil.h"
 
 #include "GPU_glew.h"
 #include "GPU_extensions.h"
@@ -210,7 +205,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			int *accum_buffer = MEM_mallocN(sizex * sizey * sizeof(int) * 4, "accum1");
 			int i, j;
 
-			BLI_jitter_init(jit_ofs[0], scene->r.osa);
+			BLI_jitter_init(jit_ofs, scene->r.osa);
 
 			/* first sample buffer, also initializes 'rv3d->persmat' */
 			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat, draw_bgpic, draw_sky);
@@ -245,7 +240,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 		/* shouldnt suddenly give errors mid-render but possible */
 		char err_out[256] = "unknown";
 		ImBuf *ibuf_view = ED_view3d_draw_offscreen_imbuf_simple(scene, scene->camera, oglrender->sizex, oglrender->sizey,
-		                                                         IB_rect, OB_SOLID, FALSE, TRUE,
+		                                                         IB_rect, OB_SOLID, false, true,
 		                                                         (draw_sky) ? R_ADDSKY : R_ALPHAPREMUL, err_out);
 		camera = scene->camera;
 
@@ -306,8 +301,9 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 				IMB_color_to_bw(ibuf);
 			}
 
-			BKE_makepicstring(name, scene->r.pic, oglrender->bmain->name, scene->r.cfra, &scene->r.im_format, scene->r.scemode & R_EXTENSION, FALSE);
-			ok = BKE_imbuf_write_as(ibuf, name, &scene->r.im_format, TRUE); /* no need to stamp here */
+			BKE_makepicstring(name, scene->r.pic, oglrender->bmain->name, scene->r.cfra,
+			                  &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, false);
+			ok = BKE_imbuf_write_as(ibuf, name, &scene->r.im_format, true); /* no need to stamp here */
 			if (ok) printf("OpenGL Render written to '%s'\n", name);
 			else printf("OpenGL Render failed to write '%s'\n", name);
 		}
@@ -346,7 +342,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 	/* ensure we have a 3d view */
 
 	if (!ED_view3d_context_activate(C)) {
-		RNA_boolean_set(op->ptr, "view_context", FALSE);
+		RNA_boolean_set(op->ptr, "view_context", false);
 		is_view_context = false;
 	}
 
@@ -509,8 +505,8 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	ImBuf *ibuf, *ibuf_save = NULL;
 	void *lock;
 	char name[FILE_MAX];
-	int ok = 0;
-	const short view_context = (oglrender->v3d != NULL);
+	bool ok = false;
+	const bool view_context = (oglrender->v3d != NULL);
 	Object *camera = NULL;
 	bool is_movie;
 
@@ -530,7 +526,8 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
 
 	if (!is_movie) {
-		BKE_makepicstring(name, scene->r.pic, oglrender->bmain->name, scene->r.cfra, &scene->r.im_format, scene->r.scemode & R_EXTENSION, TRUE);
+		BKE_makepicstring(name, scene->r.pic, oglrender->bmain->name, scene->r.cfra,
+		                  &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, true);
 
 		if ((scene->r.mode & R_NO_OVERWRITE) && BLI_exists(name)) {
 			BKE_reportf(op->reports, RPT_INFO, "Skipping existing frame \"%s\"", name);
@@ -567,7 +564,7 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 	ibuf = BKE_image_acquire_ibuf(oglrender->ima, &oglrender->iuser, &lock);
 
 	if (ibuf) {
-		int needs_free = FALSE;
+		bool needs_free = false;
 
 		ibuf_save = ibuf;
 
@@ -575,7 +572,7 @@ static bool screen_opengl_render_anim_step(bContext *C, wmOperator *op)
 			ibuf_save = IMB_colormanagement_imbuf_for_write(ibuf, true, true, &scene->view_settings,
 			                                                &scene->display_settings, &scene->r.im_format);
 
-			needs_free = TRUE;
+			needs_free = true;
 		}
 
 		/* color -> grayscale */

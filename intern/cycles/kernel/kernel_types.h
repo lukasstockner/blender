@@ -46,7 +46,10 @@ CCL_NAMESPACE_BEGIN
 
 #define TEX_NUM_FLOAT_IMAGES	5
 
-#define SHADER_NO_ID			-1
+#define SHADER_NONE				(~0)
+#define OBJECT_NONE				(~0)
+#define PRIM_NONE				(~0)
+#define LAMP_NONE				(~0)
 
 #define VOLUME_STACK_SIZE		16
 
@@ -61,13 +64,17 @@ CCL_NAMESPACE_BEGIN
 #define __SUBSURFACE__
 #define __CMJ__
 #define __VOLUME__
+#define __SHADOW_RECORD_ALL__
 #endif
 
 #ifdef __KERNEL_CUDA__
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
 #define __BRANCHED_PATH__
+
+/* Experimental on GPU */
 //#define __VOLUME__
+//#define __SUBSURFACE__
 #endif
 
 #ifdef __KERNEL_OPENCL__
@@ -85,26 +92,24 @@ CCL_NAMESPACE_BEGIN
 #endif
 
 #ifdef __KERNEL_OPENCL_AMD__
-#define __SVM__
-#define __EMISSION__
-#define __IMAGE_TEXTURES__
-#define __PROCEDURAL_TEXTURES__
-#define __EXTRA_NODES__
-#define __HOLDOUT__
-#define __NORMAL_MAP__
-//#define __BACKGROUND_MIS__
-//#define __LAMP_MIS__
-//#define __AO__
-//#define __ANISOTROPIC__
+#define __CL_USE_NATIVE__
+#define __KERNEL_SHADING__
+//__KERNEL_ADV_SHADING__
+#define __MULTI_CLOSURE__
+#define __TRANSPARENT_SHADOWS__
+#define __PASSES__
+#define __BACKGROUND_MIS__
+#define __LAMP_MIS__
+#define __AO__
+#define __ANISOTROPIC__
 //#define __CAMERA_MOTION__
 //#define __OBJECT_MOTION__
 //#define __HAIR__
-//#define __MULTI_CLOSURE__
-//#define __TRANSPARENT_SHADOWS__
-//#define __PASSES__
+//end __KERNEL_ADV_SHADING__
 #endif
 
 #ifdef __KERNEL_OPENCL_INTEL_CPU__
+#define __CL_USE_NATIVE__
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
 #endif
@@ -147,12 +152,6 @@ CCL_NAMESPACE_BEGIN
 #define __HAIR__
 #endif
 
-/* Sanity check */
-
-#if defined(__KERNEL_OPENCL_NEED_ADVANCED_SHADING__) && !defined(__MULTI_CLOSURE__)
-#error "OpenCL: mismatch between advanced shading flags in device_opencl.cpp and kernel_types.h"
-#endif
-
 /* Random Numbers */
 
 typedef uint RNG;
@@ -161,7 +160,35 @@ typedef uint RNG;
 
 typedef enum ShaderEvalType {
 	SHADER_EVAL_DISPLACE,
-	SHADER_EVAL_BACKGROUND
+	SHADER_EVAL_BACKGROUND,
+	/* bake types */
+	SHADER_EVAL_BAKE, /* no real shade, it's used in the code to
+	                   * differentiate the type of shader eval from the above
+	                   */
+	/* data passes */
+	SHADER_EVAL_NORMAL,
+	SHADER_EVAL_UV,
+	SHADER_EVAL_DIFFUSE_COLOR,
+	SHADER_EVAL_GLOSSY_COLOR,
+	SHADER_EVAL_TRANSMISSION_COLOR,
+	SHADER_EVAL_SUBSURFACE_COLOR,
+	SHADER_EVAL_EMISSION,
+
+	/* light passes */
+	SHADER_EVAL_AO,
+	SHADER_EVAL_COMBINED,
+	SHADER_EVAL_SHADOW,
+	SHADER_EVAL_DIFFUSE_DIRECT,
+	SHADER_EVAL_GLOSSY_DIRECT,
+	SHADER_EVAL_TRANSMISSION_DIRECT,
+	SHADER_EVAL_SUBSURFACE_DIRECT,
+	SHADER_EVAL_DIFFUSE_INDIRECT,
+	SHADER_EVAL_GLOSSY_INDIRECT,
+	SHADER_EVAL_TRANSMISSION_INDIRECT,
+	SHADER_EVAL_SUBSURFACE_INDIRECT,
+
+	/* extra */
+	SHADER_EVAL_ENVIRONMENT,
 } ShaderEvalType;
 
 /* Path Tracing
@@ -177,10 +204,8 @@ enum PathTraceDimension {
 	PRNG_UNUSED_0 = 5,
 	PRNG_UNUSED_1 = 6,	/* for some reason (6, 7) is a bad sobol pattern */
 	PRNG_UNUSED_2 = 7,  /* with a low number of samples (< 64) */
-	PRNG_BASE_NUM = 8,
-#else
-	PRNG_BASE_NUM = 4,
 #endif
+	PRNG_BASE_NUM = 8,
 
 	PRNG_BSDF_U = 0,
 	PRNG_BSDF_V = 1,
@@ -188,7 +213,7 @@ enum PathTraceDimension {
 	PRNG_LIGHT = 3,
 	PRNG_LIGHT_U = 4,
 	PRNG_LIGHT_V = 5,
-	PRNG_LIGHT_F = 6,
+	PRNG_UNUSED_3 = 6,
 	PRNG_TERMINATE = 7,
 
 #ifdef __VOLUME__
@@ -220,7 +245,6 @@ enum PathRayFlag {
 	PATH_RAY_GLOSSY = 16,
 	PATH_RAY_SINGULAR = 32,
 	PATH_RAY_TRANSPARENT = 64,
-	PATH_RAY_VOLUME_SCATTER = 128,
 
 	PATH_RAY_SHADOW_OPAQUE = 128,
 	PATH_RAY_SHADOW_TRANSPARENT = 256,
@@ -228,16 +252,17 @@ enum PathRayFlag {
 
 	PATH_RAY_CURVE = 512, /* visibility flag to define curve segments*/
 
+	/* note that these can use maximum 12 bits, the other are for layers */
 	PATH_RAY_ALL_VISIBILITY = (1|2|4|8|16|32|64|128|256|512),
 
 	PATH_RAY_MIS_SKIP = 1024,
 	PATH_RAY_DIFFUSE_ANCESTOR = 2048,
 	PATH_RAY_GLOSSY_ANCESTOR = 4096,
 	PATH_RAY_BSSRDF_ANCESTOR = 8192,
-	PATH_RAY_SINGLE_PASS_DONE = 8192,
+	PATH_RAY_SINGLE_PASS_DONE = 16384,
+	PATH_RAY_VOLUME_SCATTER = 32768,
 
-	/* this gives collisions with localview bits
-	 * see: blender_util.h, grr - Campbell */
+	/* we need layer member flags to be the 20 upper bits */
 	PATH_RAY_LAYER_SHIFT = (32-20)
 };
 
@@ -282,7 +307,8 @@ typedef enum PassType {
 	PASS_MIST = 2097152,
 	PASS_SUBSURFACE_DIRECT = 4194304,
 	PASS_SUBSURFACE_INDIRECT = 8388608,
-	PASS_SUBSURFACE_COLOR = 16777216
+	PASS_SUBSURFACE_COLOR = 16777216,
+	PASS_LIGHT = 33554432, /* no real pass, used to force use_light_pass */
 } PassType;
 
 #define PASS_ALL (~0)
@@ -418,8 +444,26 @@ typedef struct Intersection {
 	float t, u, v;
 	int prim;
 	int object;
-	int segment;
+	int type;
 } Intersection;
+
+/* Primitives */
+
+typedef enum PrimitiveType {
+	PRIMITIVE_NONE = 0,
+	PRIMITIVE_TRIANGLE = 1,
+	PRIMITIVE_MOTION_TRIANGLE = 2,
+	PRIMITIVE_CURVE = 4,
+	PRIMITIVE_MOTION_CURVE = 8,
+
+	PRIMITIVE_ALL_TRIANGLE = (PRIMITIVE_TRIANGLE|PRIMITIVE_MOTION_TRIANGLE),
+	PRIMITIVE_ALL_CURVE = (PRIMITIVE_CURVE|PRIMITIVE_MOTION_CURVE),
+	PRIMITIVE_ALL_MOTION = (PRIMITIVE_MOTION_TRIANGLE|PRIMITIVE_MOTION_CURVE),
+	PRIMITIVE_ALL = (PRIMITIVE_ALL_TRIANGLE|PRIMITIVE_ALL_CURVE)
+} PrimitiveType;
+
+#define PRIMITIVE_PACK_SEGMENT(type, segment) ((segment << 16) | type)
+#define PRIMITIVE_UNPACK_SEGMENT(type) (type >> 16)
 
 /* Attributes */
 
@@ -432,9 +476,12 @@ typedef enum AttributeElement {
 	ATTR_ELEMENT_MESH,
 	ATTR_ELEMENT_FACE,
 	ATTR_ELEMENT_VERTEX,
+	ATTR_ELEMENT_VERTEX_MOTION,
 	ATTR_ELEMENT_CORNER,
 	ATTR_ELEMENT_CURVE,
-	ATTR_ELEMENT_CURVE_KEY
+	ATTR_ELEMENT_CURVE_KEY,
+	ATTR_ELEMENT_CURVE_KEY_MOTION,
+	ATTR_ELEMENT_VOXEL
 } AttributeElement;
 
 typedef enum AttributeStandard {
@@ -448,12 +495,17 @@ typedef enum AttributeStandard {
 	ATTR_STD_GENERATED_TRANSFORM,
 	ATTR_STD_POSITION_UNDEFORMED,
 	ATTR_STD_POSITION_UNDISPLACED,
-	ATTR_STD_MOTION_PRE,
-	ATTR_STD_MOTION_POST,
+	ATTR_STD_MOTION_VERTEX_POSITION,
+	ATTR_STD_MOTION_VERTEX_NORMAL,
 	ATTR_STD_PARTICLE,
 	ATTR_STD_CURVE_INTERCEPT,
 	ATTR_STD_PTEX_FACE_ID,
 	ATTR_STD_PTEX_UV,
+	ATTR_STD_VOLUME_DENSITY,
+	ATTR_STD_VOLUME_COLOR,
+	ATTR_STD_VOLUME_FLAME,
+	ATTR_STD_VOLUME_HEAT,
+	ATTR_STD_VOLUME_VELOCITY,
 	ATTR_STD_NUM,
 
 	ATTR_STD_NOT_FOUND = ~0
@@ -461,15 +513,17 @@ typedef enum AttributeStandard {
 
 /* Closure data */
 
+#ifdef __MULTI_CLOSURE__
 #define MAX_CLOSURE 64
+#else
+#define MAX_CLOSURE 1
+#endif
 
 typedef struct ShaderClosure {
 	ClosureType type;
 	float3 weight;
 
-#ifdef __MULTI_CLOSURE__
 	float sample_weight;
-#endif
 
 	float data0;
 	float data1;
@@ -561,13 +615,9 @@ typedef struct ShaderData {
 	/* primitive id if there is one, ~0 otherwise */
 	int prim;
 
-#ifdef __HAIR__
-	/* for curves, segment number in curve, ~0 for triangles */
-	int segment;
-	/* variables for minimum hair width using transparency bsdf */
-	/*float curve_transparency; */
-	/*float curve_radius; */
-#endif
+	/* combined type and curve segment for hair */
+	int type;
+
 	/* parametric coordinates
 	 * - barycentric weights for triangles */
 	float u, v;
@@ -582,6 +632,9 @@ typedef struct ShaderData {
 	
 	/* ray bounce depth */
 	int ray_depth;
+
+	/* ray transparent depth */
+	int transparent_depth;
 
 #ifdef __RAY_DIFFERENTIALS__
 	/* differential of P. these are orthogonal to Ng, not N */
@@ -605,15 +658,10 @@ typedef struct ShaderData {
 	Transform ob_itfm;
 #endif
 
-#ifdef __MULTI_CLOSURE__
 	/* Closure data, we store a fixed array of closures */
 	ShaderClosure closure[MAX_CLOSURE];
 	int num_closure;
 	float randb_closure;
-#else
-	/* Closure data, with a single sampled closure for low memory usage */
-	ShaderClosure closure;
-#endif
 
 	/* ray start position, only set for backgrounds */
 	float3 ray_P;
@@ -824,25 +872,27 @@ typedef struct KernelIntegrator {
 	/* clamp */
 	float sample_clamp_direct;
 	float sample_clamp_indirect;
-	float pad1, pad2, pad3;
 
 	/* branched path */
 	int branched;
-	int aa_samples;
 	int diffuse_samples;
 	int glossy_samples;
 	int transmission_samples;
 	int ao_samples;
 	int mesh_light_samples;
 	int subsurface_samples;
-	
+	int sample_all_lights_direct;
+	int sample_all_lights_indirect;
+
 	/* mis */
 	int use_lamp_mis;
 
 	/* sampler */
 	int sampling_pattern;
+	int aa_samples;
 
 	/* volume render */
+	int volume_homogeneous_sampling;
 	int use_volumes;
 	int volume_max_steps;
 	float volume_step_size;

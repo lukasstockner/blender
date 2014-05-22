@@ -52,23 +52,18 @@ struct Sculpt;
 struct SculptStroke;
 struct SculptUndoNode;
 
-/* Interface */
-struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct Object *ob);
-
 int sculpt_mode_poll(struct bContext *C);
 int sculpt_mode_poll_view3d(struct bContext *C);
 /* checks for a brush, not just sculpt mode */
 int sculpt_poll(struct bContext *C);
 int sculpt_poll_view3d(struct bContext *C);
-void sculpt_update_mesh_elements(struct Scene *scene, struct Sculpt *sd, struct Object *ob,
-                                 int need_pmap, int need_mask);
 
 /* Stroke */
 bool sculpt_stroke_get_location(struct bContext *C, float out[3], const float mouse[2]);
 
 /* Dynamic topology */
 void sculpt_pbvh_clear(struct Object *ob);
-void sculpt_update_after_dynamic_topology_toggle(struct bContext *C);
+void sculpt_dyntopo_node_layers_add(struct SculptSession *ss);
 void sculpt_dynamic_topology_enable(struct bContext *C);
 void sculpt_dynamic_topology_disable(struct bContext *C,
                                      struct SculptUndoNode *unode);
@@ -112,7 +107,7 @@ typedef struct SculptUndoNode {
 
 	/* bmesh */
 	struct BMLogEntry *bm_entry;
-	int applied;
+	bool applied;
 	CustomData bm_enter_vdata;
 	CustomData bm_enter_edata;
 	CustomData bm_enter_ldata;

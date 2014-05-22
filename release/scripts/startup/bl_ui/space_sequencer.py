@@ -160,7 +160,16 @@ class SEQUENCER_MT_view(Menu):
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
             layout.operator("sequencer.view_all_preview", text="Fit preview in window")
-            layout.operator("sequencer.view_zoom_ratio", text="Show preview 1:1").ratio = 1.0
+            
+            layout.separator()
+            
+            ratios = ((1, 8), (1, 4), (1, 2), (1, 1), (2, 1), (4, 1), (8, 1))
+
+            for a, b in ratios:
+                layout.operator("sequencer.view_zoom_ratio", text=iface_("Zoom %d:%d") % (a, b), translate=False).ratio = a / b
+            
+            layout.separator()
+
             layout.operator_context = 'INVOKE_DEFAULT'
 
             # # XXX, invokes in the header view
@@ -486,7 +495,6 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
-        sequencer = context.scene.sequence_editor
         strip = act_strip(context)
 
         if strip.input_count > 0:
@@ -954,7 +962,10 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                 row.prop(mod, "input_mask_type", expand=True)
 
                 if mod.input_mask_type == 'STRIP':
-                    box.prop_search(mod, "input_mask_strip", sequencer, "sequences", text="Mask")
+                    sequences_object = sequencer
+                    if sequencer.meta_stack:
+                        sequences_object = sequencer.meta_stack[-1]
+                    box.prop_search(mod, "input_mask_strip", sequences_object, "sequences", text="Mask")
                 else:
                     box.prop(mod, "input_mask_id")
 

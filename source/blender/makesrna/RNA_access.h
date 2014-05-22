@@ -331,6 +331,7 @@ extern StructRNA RNA_LineStyleGeometryModifier_SinusDisplacement;
 extern StructRNA RNA_LineStyleGeometryModifier_SpatialNoise;
 extern StructRNA RNA_LineStyleGeometryModifier_TipRemover;
 extern StructRNA RNA_LineStyleModifier;
+extern StructRNA RNA_LineStyleTextureSlot;
 extern StructRNA RNA_LineStyleThicknessModifier;
 extern StructRNA RNA_LineStyleThicknessModifier_AlongStroke;
 extern StructRNA RNA_LineStyleThicknessModifier_Calligraphy;
@@ -692,22 +693,22 @@ extern const PointerRNA PointerRNA_NULL;
 
 StructRNA *RNA_struct_find(const char *identifier);
 
-const char *RNA_struct_identifier(StructRNA *type);
-const char *RNA_struct_ui_name(StructRNA *type);
-const char *RNA_struct_ui_name_raw(StructRNA *type);
-const char *RNA_struct_ui_description(StructRNA *type);
-const char *RNA_struct_ui_description_raw(StructRNA *type);
-const char *RNA_struct_translation_context(StructRNA *type);
-int RNA_struct_ui_icon(StructRNA *type);
+const char *RNA_struct_identifier(const StructRNA *type);
+const char *RNA_struct_ui_name(const StructRNA *type);
+const char *RNA_struct_ui_name_raw(const StructRNA *type);
+const char *RNA_struct_ui_description(const StructRNA *type);
+const char *RNA_struct_ui_description_raw(const StructRNA *type);
+const char *RNA_struct_translation_context(const StructRNA *type);
+int RNA_struct_ui_icon(const StructRNA *type);
 
 PropertyRNA *RNA_struct_name_property(StructRNA *type);
 PropertyRNA *RNA_struct_iterator_property(StructRNA *type);
 StructRNA *RNA_struct_base(StructRNA *type);
 
-bool RNA_struct_is_ID(StructRNA *type);
-bool RNA_struct_is_a(StructRNA *type, StructRNA *srna);
+bool RNA_struct_is_ID(const StructRNA *type);
+bool RNA_struct_is_a(const StructRNA *type, const StructRNA *srna);
 
-bool RNA_struct_undo_check(StructRNA *type);
+bool RNA_struct_undo_check(const StructRNA *type);
 
 StructRegisterFunc RNA_struct_register(StructRNA *type);
 StructUnregisterFunc RNA_struct_unregister(StructRNA *type);
@@ -721,7 +722,7 @@ void RNA_struct_blender_type_set(StructRNA *srna, void *blender_type);
 
 struct IDProperty *RNA_struct_idprops(PointerRNA *ptr, bool create);
 bool RNA_struct_idprops_check(StructRNA *srna);
-bool RNA_struct_idprops_register_check(StructRNA *type);
+bool RNA_struct_idprops_register_check(const StructRNA *type);
 bool RNA_struct_idprops_unset(PointerRNA *ptr, const char *identifier);
 
 PropertyRNA *RNA_struct_find_property(PointerRNA *ptr, const char *identifier);
@@ -786,13 +787,14 @@ bool RNA_enum_description(EnumPropertyItem *item, const int value, const char **
 int  RNA_enum_from_value(EnumPropertyItem *item, const int value);
 int  RNA_enum_from_identifier(EnumPropertyItem *item, const char *identifier);
 
-void RNA_property_enum_items(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item,
-                             int *r_totitem, bool *r_free);
-void RNA_property_enum_items_gettexted(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item,
-                                       int *r_totitem, bool *r_free);
+void RNA_property_enum_items(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop,
+                             EnumPropertyItem **item, int *r_totitem, bool *r_free);
+void RNA_property_enum_items_gettexted(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop,
+                                       EnumPropertyItem **r_item, int *r_totitem, bool *r_free);
 bool RNA_property_enum_value(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const char *identifier, int *r_value);
 bool RNA_property_enum_identifier(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **identifier);
 bool RNA_property_enum_name(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **name);
+bool RNA_property_enum_name_gettexted(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **name);
 int RNA_property_enum_bitflag_identifiers(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **identifier);
 
 StructRNA *RNA_property_pointer_type(PointerRNA *ptr, PropertyRNA *prop);
@@ -913,14 +915,14 @@ bool RNA_path_resolve(PointerRNA *ptr, const char *path,
                      PointerRNA *r_ptr, PropertyRNA **r_prop);
 
 bool RNA_path_resolve_full(PointerRNA *ptr, const char *path,
-                          PointerRNA *r_ptr, PropertyRNA **r_prop, int *index);
-						  
+                           PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index);
+
 /* path_resolve_property() variants ensure that pointer + property both exist */
 bool RNA_path_resolve_property(PointerRNA *ptr, const char *path,
-                     PointerRNA *r_ptr, PropertyRNA **r_prop);
+                               PointerRNA *r_ptr, PropertyRNA **r_prop);
 
 bool RNA_path_resolve_property_full(PointerRNA *ptr, const char *path,
-                          PointerRNA *r_ptr, PropertyRNA **r_prop, int *index);
+                                    PointerRNA *r_ptr, PropertyRNA **r_prop, int *r_index);
 
 char *RNA_path_from_ID_to_struct(PointerRNA *ptr);
 char *RNA_path_from_ID_to_property(PointerRNA *ptr, PropertyRNA *prop);

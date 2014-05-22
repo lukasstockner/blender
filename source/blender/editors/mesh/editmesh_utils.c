@@ -50,7 +50,6 @@
 #include "BKE_editmesh_bvh.h"
 
 #include "BKE_object.h"  /* XXX. only for EDBM_mesh_ensure_valid_dm_hack() which will be removed */
-#include "BKE_scene.h"  /* XXX, only for eval_ctx used in EDBM_mesh_ensure_valid_dm_hack */
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -132,16 +131,7 @@ void EDBM_mesh_clear(BMEditMesh *em)
 	BM_mesh_clear(em->bm);
 	
 	/* free derived meshes */
-	if (em->derivedCage) {
-		em->derivedCage->needsFree = 1;
-		em->derivedCage->release(em->derivedCage);
-	}
-	if (em->derivedFinal && em->derivedFinal != em->derivedCage) {
-		em->derivedFinal->needsFree = 1;
-		em->derivedFinal->release(em->derivedFinal);
-	}
-	
-	em->derivedCage = em->derivedFinal = NULL;
+	BKE_editmesh_free_derivedmesh(em);
 	
 	/* free tessellation data */
 	em->tottri = 0;
@@ -411,8 +401,8 @@ void EDBM_mesh_free(BMEditMesh *em)
 	/* These tables aren't used yet, so it's not strictly necessary
 	 * to 'end' them (with 'e' param) but if someone tries to start
 	 * using them, having these in place will save a lot of pain */
-	mesh_octree_table(NULL, NULL, NULL, 'e');
-	mesh_mirrtopo_table(NULL, 'e');
+	ED_mesh_mirror_spatial_table(NULL, NULL, NULL, 'e');
+	ED_mesh_mirror_topo_table(NULL, 'e');
 
 	BKE_editmesh_free(em);
 }
@@ -1144,7 +1134,7 @@ void EDBM_verts_mirror_cache_begin(BMEditMesh *em, const int axis,
 
 BMVert *EDBM_verts_mirror_get(BMEditMesh *em, BMVert *v)
 {
-	int *mirr = CustomData_bmesh_get_layer_n(&em->bm->vdata, v->head.data, em->mirror_cdlayer);
+	const int *mirr = CustomData_bmesh_get_layer_n(&em->bm->vdata, v->head.data, em->mirror_cdlayer);
 
 	BLI_assert(em->mirror_cdlayer != -1); /* invalid use */
 
@@ -1270,9 +1260,11 @@ void EDBM_mesh_reveal(BMEditMesh *em)
 	                            BM_EDGES_OF_MESH,
 	                            BM_FACES_OF_MESH};
 
-	int sels[3] = {(em->selectmode & SCE_SELECT_VERTEX),
-	               (em->selectmode & SCE_SELECT_EDGE),
-	               (em->selectmode & SCE_SELECT_FACE), };
+	const bool sels[3] = {
+	    (em->selectmode & SCE_SELECT_VERTEX) != 0,
+	    (em->selectmode & SCE_SELECT_EDGE) != 0,
+	    (em->selectmode & SCE_SELECT_FACE) != 0,
+	};
 	int i;
 
 	/* Use tag flag to remember what was hidden before all is revealed.
@@ -1333,6 +1325,9 @@ void EDBM_update_generic(BMEditMesh *em, const bool do_tessface, const bool is_d
 		/* in debug mode double check we didn't need to recalculate */
 		BLI_assert(BM_mesh_elem_table_check(em->bm) == true);
 	}
+
+	/* don't keep stale derivedMesh data around, see: [#38872] */
+	BKE_editmesh_free_derivedmesh(em);
 }
 
 /* poll call for mesh operators requiring a view3d context */

@@ -52,12 +52,12 @@
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_lattice_types.h"
+#include "DNA_linestyle_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_mask_types.h"
-#include "DNA_nla_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -69,7 +69,6 @@
 #include "DNA_world_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -89,7 +88,6 @@
 #include "BKE_group.h"
 #include "BKE_gpencil.h"
 #include "BKE_idprop.h"
-#include "BKE_icons.h"
 #include "BKE_image.h"
 #include "BKE_ipo.h"
 #include "BKE_key.h"
@@ -134,7 +132,7 @@
  * also note that the id _must_ have a library - campbell */
 void BKE_id_lib_local_paths(Main *bmain, Library *lib, ID *id)
 {
-	char *bpath_user_data[2] = {bmain->name, lib->filepath};
+	const char *bpath_user_data[2] = {bmain->name, lib->filepath};
 
 	BKE_bpath_traverse_id(bmain, id,
 	                      BKE_bpath_relocate_visitor,
@@ -283,7 +281,7 @@ bool id_make_local(ID *id, bool test)
 		case ID_GD:
 			return false; /* not implemented */
 		case ID_LS:
-			return 0; /* not implemented */
+			return false; /* not implemented */
 	}
 
 	return false;
@@ -384,7 +382,7 @@ bool id_copy(ID *id, ID **newid, bool test)
 			return true;
 		case ID_LS:
 			if (!test) *newid = (ID *)BKE_copy_linestyle((FreestyleLineStyle *)id);
-			return 1;
+			return true;
 	}
 	
 	return false;
@@ -808,6 +806,32 @@ void *BKE_libblock_copy_ex(Main *bmain, ID *id)
 	return idn;
 }
 
+void *BKE_libblock_copy_nolib(ID *id, const bool do_action)
+{
+	ID *idn;
+	size_t idn_len;
+
+	idn = alloc_libblock_notest(GS(id->name));
+	assert(idn != NULL);
+
+	BLI_strncpy(idn->name, id->name, sizeof(idn->name));
+
+	idn_len = MEM_allocN_len(idn);
+	if ((int)idn_len - (int)sizeof(ID) > 0) { /* signed to allow neg result */
+		const char *cp = (const char *)id;
+		char *cpn = (char *)idn;
+
+		memcpy(cpn + sizeof(ID), cp + sizeof(ID), idn_len - sizeof(ID));
+	}
+
+	id->newid = idn;
+	idn->flag |= LIB_NEW;
+
+	BKE_libblock_copy_data(idn, id, do_action);
+
+	return idn;
+}
+
 void *BKE_libblock_copy(ID *id)
 {
 	return BKE_libblock_copy_ex(G.main, id);
@@ -1096,135 +1120,6 @@ ID *BKE_libblock_find_name(const short type, const char *name)      /* type: "OB
 	return BLI_findstring(lb, name, offsetof(ID, name) + 2);
 }
 
-#if 0 /* UNUSED */
-#define MAX_IDPUP  60  /* was 24 */
-
-static void get_flags_for_id(ID *id, char *buf) 
-{
-	int isfake = id->flag & LIB_FAKEUSER;
-	int isnode = 0;
-	/* Writeout the flags for the entry, note there
-	 * is a small hack that writes 5 spaces instead
-	 * of 4 if no flags are displayed... this makes
-	 * things usually line up ok - better would be
-	 * to have that explicit, oh well - zr
-	 */
-
-	if (GS(id->name) == ID_MA)
-		isnode = ((Material *)id)->use_nodes;
-	if (GS(id->name) == ID_TE)
-		isnode = ((Tex *)id)->use_nodes;
-	
-	if (id->us < 0)
-		strcpy(buf, "-1W ");
-	else if (!id->lib && !isfake && id->us && !isnode)
-		strcpy(buf, "     ");
-	else if (isnode)
-		sprintf(buf, "%c%cN%c ", id->lib ? 'L' : ' ', isfake ? 'F' : ' ', (id->us == 0) ? 'O' : ' ');
-	else
-		sprintf(buf, "%c%c%c ", id->lib ? 'L' : ' ', isfake ? 'F' : ' ', (id->us == 0) ? 'O' : ' ');
-}
-
-#define IDPUP_NO_VIEWER 1
-
-static void IDnames_to_dyn_pupstring(DynStr *pupds, ListBase *lb, ID *link, short *nr, int hideflag)
-{
-	int i, nids = BLI_countlist(lb);
-		
-	if (nr) *nr = -1;
-	
-	if (nr && nids > MAX_IDPUP) {
-		BLI_dynstr_append(pupds, "DataBrowse %x-2");
-		*nr = -2;
-	}
-	else {
-		ID *id;
-		
-		for (i = 0, id = lb->first; id; id = id->next, i++) {
-			char numstr[32];
-			
-			if (nr && id == link) *nr = i + 1;
-
-			if (U.uiflag & USER_HIDE_DOT && id->name[2] == '.')
-				continue;
-			if (hideflag & IDPUP_NO_VIEWER)
-				if (GS(id->name) == ID_IM)
-					if ( ((Image *)id)->source == IMA_SRC_VIEWER)
-						continue;
-			
-			get_flags_for_id(id, numstr);
-				
-			BLI_dynstr_append(pupds, numstr);
-			BLI_dynstr_append(pupds, id->name + 2);
-			BLI_snprintf(numstr, sizeof(numstr), "%%x%d", i + 1);
-			BLI_dynstr_append(pupds, numstr);
-			
-			/* icon */
-			switch (GS(id->name)) {
-				case ID_MA: /* fall through */
-				case ID_TE: /* fall through */
-				case ID_IM: /* fall through */
-				case ID_WO: /* fall through */
-				case ID_LA: /* fall through */
-					BLI_snprintf(numstr, sizeof(numstr), "%%i%d", BKE_icon_getid(id));
-					BLI_dynstr_append(pupds, numstr);
-					break;
-				default:
-					break;
-			}
-			
-			if (id->next)
-				BLI_dynstr_append(pupds, "|");
-		}
-	}
-}
-
-/* used by headerbuttons.c buttons.c editobject.c editseq.c */
-/* if (nr == NULL) no MAX_IDPUP, this for non-header browsing */
-void IDnames_to_pupstring(const char **str, const char *title, const char *extraops, ListBase *lb, ID *link, short *nr)
-{
-	DynStr *pupds = BLI_dynstr_new();
-
-	if (title) {
-		BLI_dynstr_append(pupds, title);
-		BLI_dynstr_append(pupds, "%t|");
-	}
-	
-	if (extraops) {
-		BLI_dynstr_append(pupds, extraops);
-		if (BLI_dynstr_get_len(pupds))
-			BLI_dynstr_append(pupds, "|");
-	}
-
-	IDnames_to_dyn_pupstring(pupds, lb, link, nr, 0);
-	
-	*str = BLI_dynstr_get_cstring(pupds);
-	BLI_dynstr_free(pupds);
-}
-
-/* skips viewer images */
-void IMAnames_to_pupstring(const char **str, const char *title, const char *extraops, ListBase *lb, ID *link, short *nr)
-{
-	DynStr *pupds = BLI_dynstr_new();
-	
-	if (title) {
-		BLI_dynstr_append(pupds, title);
-		BLI_dynstr_append(pupds, "%t|");
-	}
-	
-	if (extraops) {
-		BLI_dynstr_append(pupds, extraops);
-		if (BLI_dynstr_get_len(pupds))
-			BLI_dynstr_append(pupds, "|");
-	}
-	
-	IDnames_to_dyn_pupstring(pupds, lb, link, nr, IDPUP_NO_VIEWER);
-	
-	*str = BLI_dynstr_get_cstring(pupds);
-	BLI_dynstr_free(pupds);
-}
-#endif
-
 void id_sort_by_name(ListBase *lb, ID *id)
 {
 	ID *idtest;
@@ -1452,6 +1347,11 @@ void id_clear_lib_data(Main *bmain, ID *id)
 
 	BKE_id_lib_local_paths(bmain, id->lib, id);
 
+	if (id->flag & LIB_FAKEUSER) {
+		id->us--;
+		id->flag &= ~LIB_FAKEUSER;
+	}
+
 	id->lib = NULL;
 	id->flag = LIB_LOCAL;
 	new_id(which_libbase(bmain, GS(id->name)), id, NULL);
@@ -1465,6 +1365,7 @@ void id_clear_lib_data(Main *bmain, ID *id)
 		case ID_LA:		ntree = ((Lamp *)id)->nodetree;			break;
 		case ID_WO:		ntree = ((World *)id)->nodetree;		break;
 		case ID_TE:		ntree = ((Tex *)id)->nodetree;			break;
+		case ID_LS:		ntree = ((FreestyleLineStyle *)id)->nodetree; break;
 	}
 	if (ntree)
 		ntree->id.lib = NULL;

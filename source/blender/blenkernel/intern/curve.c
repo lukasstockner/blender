@@ -51,7 +51,6 @@
 #include "DNA_object_types.h"
 
 #include "BKE_animsys.h"
-#include "BKE_anim.h"
 #include "BKE_curve.h"
 #include "BKE_displist.h"
 #include "BKE_font.h"
@@ -182,6 +181,8 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
 	cu->type = type;
 	cu->bevfac1 = 0.0f;
 	cu->bevfac2 = 1.0f;
+	cu->bevfac1_mapping = CU_BEVFAC_MAP_RESOLU;
+	cu->bevfac2_mapping = CU_BEVFAC_MAP_RESOLU;
 
 	cu->bb = BKE_boundbox_alloc_unit();
 
@@ -254,7 +255,7 @@ void BKE_curve_make_local(Curve *cu)
 {
 	Main *bmain = G.main;
 	Object *ob;
-	int is_local = FALSE, is_lib = FALSE;
+	bool is_local = false, is_lib = false;
 
 	/* - when there are only lib users: don't do
 	 * - when there are only local users: set flag
@@ -272,12 +273,12 @@ void BKE_curve_make_local(Curve *cu)
 
 	for (ob = bmain->object.first; ob && ELEM(0, is_lib, is_local); ob = ob->id.next) {
 		if (ob->data == cu) {
-			if (ob->id.lib) is_lib = TRUE;
-			else is_local = TRUE;
+			if (ob->id.lib) is_lib = true;
+			else is_local = true;
 		}
 	}
 
-	if (is_local && is_lib == FALSE) {
+	if (is_local && is_lib == false) {
 		id_clear_lib_data(bmain, &cu->id);
 		extern_local_curve(cu);
 	}
@@ -435,7 +436,7 @@ void BKE_curve_texspace_get(Curve *cu, float r_loc[3], float r_rot[3], float r_s
 	if (r_size) copy_v3_v3(r_size, cu->size);
 }
 
-int BKE_nurbList_index_get_co(ListBase *nurb, const int index, float r_co[3])
+bool BKE_nurbList_index_get_co(ListBase *nurb, const int index, float r_co[3])
 {
 	Nurb *nu;
 	int tot = 0;
@@ -446,20 +447,20 @@ int BKE_nurbList_index_get_co(ListBase *nurb, const int index, float r_co[3])
 			tot_nu = nu->pntsu;
 			if (index - tot < tot_nu) {
 				copy_v3_v3(r_co, nu->bezt[index - tot].vec[1]);
-				return TRUE;
+				return true;
 			}
 		}
 		else {
 			tot_nu = nu->pntsu * nu->pntsv;
 			if (index - tot < tot_nu) {
 				copy_v3_v3(r_co, nu->bp[index - tot].vec);
-				return TRUE;
+				return true;
 			}
 		}
 		tot += tot_nu;
 	}
 
-	return FALSE;
+	return false;
 }
 
 int BKE_nurbList_verts_count(ListBase *nurb)
@@ -699,19 +700,13 @@ void BKE_nurb_minmax(Nurb *nu, bool use_radius, float min[3], float max[3])
 /* be sure to call makeknots after this */
 void BKE_nurb_points_add(Nurb *nu, int number)
 {
-	BPoint *tmp = nu->bp;
+	BPoint *bp;
 	int i;
-	nu->bp = (BPoint *)MEM_mallocN((nu->pntsu + number) * sizeof(BPoint), "rna_Curve_spline_points_add");
 
-	if (tmp) {
-		memmove(nu->bp, tmp, nu->pntsu * sizeof(BPoint));
-		MEM_freeN(tmp);
-	}
+	nu->bp = MEM_recallocN(nu->bp, (nu->pntsu + number) * sizeof(BPoint));
 
-	memset(nu->bp + nu->pntsu, 0, number * sizeof(BPoint));
-
-	for (i = 0, tmp = nu->bp + nu->pntsu; i < number; i++, tmp++) {
-		tmp->radius = 1.0f;
+	for (i = 0, bp = &nu->bp[nu->pntsu]; i < number; i++, bp++) {
+		bp->radius = 1.0f;
 	}
 
 	nu->pntsu += number;
@@ -719,19 +714,13 @@ void BKE_nurb_points_add(Nurb *nu, int number)
 
 void BKE_nurb_bezierPoints_add(Nurb *nu, int number)
 {
-	BezTriple *tmp = nu->bezt;
+	BezTriple *bezt;
 	int i;
-	nu->bezt = (BezTriple *)MEM_mallocN((nu->pntsu + number) * sizeof(BezTriple), "rna_Curve_spline_points_add");
 
-	if (tmp) {
-		memmove(nu->bezt, tmp, nu->pntsu * sizeof(BezTriple));
-		MEM_freeN(tmp);
-	}
+	nu->bezt = MEM_recallocN(nu->bp, (nu->pntsu + number) * sizeof(BezTriple));
 
-	memset(nu->bezt + nu->pntsu, 0, number * sizeof(BezTriple));
-
-	for (i = 0, tmp = nu->bezt + nu->pntsu; i < number; i++, tmp++) {
-		tmp->radius = 1.0f;
+	for (i = 0, bezt = &nu->bezt[nu->pntsu]; i < number; i++, bezt++) {
+		bezt->radius = 1.0f;
 	}
 
 	nu->pntsu += number;
@@ -1492,12 +1481,12 @@ float *BKE_curve_surf_make_orco(Object *ob)
 				for (b = 0; b < sizeu; b++) {
 					int use_b = b;
 					if (b == sizeu - 1 && (nu->flagu & CU_NURB_CYCLIC))
-						use_b = FALSE;
+						use_b = false;
 
 					for (a = 0; a < sizev; a++) {
 						int use_a = a;
 						if (a == sizev - 1 && (nu->flagv & CU_NURB_CYCLIC))
-							use_a = FALSE;
+							use_a = false;
 
 						tdata = _tdata + 3 * (use_b * (nu->pntsv * resolv) + use_a);
 
@@ -1596,7 +1585,7 @@ float *BKE_curve_make_orco(Scene *scene, Object *ob, int *r_numVerts)
 						fp[2] = 0.0;
 					}
 					else {
-						float *vert;
+						const float *vert;
 						int realv = v % dl->nr;
 						int realu = u % dl->parts;
 
@@ -1620,7 +1609,8 @@ float *BKE_curve_make_orco(Scene *scene, Object *ob, int *r_numVerts)
 
 /* ***************** BEVEL ****************** */
 
-void BKE_curve_bevel_make(Scene *scene, Object *ob, ListBase *disp, int forRender, int renderResolution)
+void BKE_curve_bevel_make(Scene *scene, Object *ob, ListBase *disp,
+                          const bool for_render, const bool use_render_resolution)
 {
 	DispList *dl, *dlnew;
 	Curve *bevcu, *cu;
@@ -1643,13 +1633,16 @@ void BKE_curve_bevel_make(Scene *scene, Object *ob, ListBase *disp, int forRende
 			facx = cu->bevobj->size[0];
 			facy = cu->bevobj->size[1];
 
-			if (forRender) {
-				BKE_displist_make_curveTypes_forRender(scene, cu->bevobj, &bevdisp, NULL, 0, renderResolution);
+			if (for_render) {
+				BKE_displist_make_curveTypes_forRender(scene, cu->bevobj, &bevdisp, NULL, false, use_render_resolution);
 				dl = bevdisp.first;
+			}
+			else if (cu->bevobj->curve_cache) {
+				dl = cu->bevobj->curve_cache->disp.first;
 			}
 			else {
 				BLI_assert(cu->bevobj->curve_cache != NULL);
-				dl = cu->bevobj->curve_cache->disp.first;
+				dl = NULL;
 			}
 
 			while (dl) {
@@ -1923,12 +1916,13 @@ static int vergxcobev(const void *a1, const void *a2)
 
 /* this function cannot be replaced with atan2, but why? */
 
-static void calc_bevel_sin_cos(float x1, float y1, float x2, float y2, float *sina, float *cosa)
+static void calc_bevel_sin_cos(float x1, float y1, float x2, float y2,
+                               float *r_sina, float *r_cosa)
 {
 	float t01, t02, x3, y3;
 
-	t01 = (float)sqrt(x1 * x1 + y1 * y1);
-	t02 = (float)sqrt(x2 * x2 + y2 * y2);
+	t01 = sqrtf(x1 * x1 + y1 * y1);
+	t02 = sqrtf(x2 * x2 + y2 * y2);
 	if (t01 == 0.0f)
 		t01 = 1.0f;
 	if (t02 == 0.0f)
@@ -1956,13 +1950,13 @@ static void calc_bevel_sin_cos(float x1, float y1, float x2, float y2, float *si
 		y3 = -x1;
 	}
 	else {
-		t01 = (float)sqrt(x3 * x3 + y3 * y3);
+		t01 = sqrtf(x3 * x3 + y3 * y3);
 		x3 /= t01;
 		y3 /= t01;
 	}
 
-	*sina = -y3 / t02;
-	*cosa = x3 / t02;
+	*r_sina = -y3 / t02;
+	*r_cosa =  x3 / t02;
 
 }
 
@@ -2523,7 +2517,7 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 	float min, inp;
 	struct BevelSort *sortdata, *sd, *sd1;
 	int a, b, nr, poly, resolu = 0, len = 0;
-	int do_tilt, do_radius, do_weight;
+	bool do_tilt, do_radius, do_weight;
 	bool is_editmode = false;
 	ListBase *bev;
 
@@ -2551,7 +2545,7 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 		/* check if we will calculate tilt data */
 		do_tilt = CU_DO_TILT(cu, nu);
 		do_radius = CU_DO_RADIUS(cu, nu); /* normal display uses the radius, better just to calculate them */
-		do_weight = TRUE;
+		do_weight = true;
 
 		/* check we are a single point? also check we are not a surface and that the orderu is sane,
 		 * enforced in the UI but can go wrong possibly */
@@ -2584,7 +2578,7 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 					bevp->alfa = bp->alfa;
 					bevp->radius = bp->radius;
 					bevp->weight = bp->weight;
-					bevp->split_tag = TRUE;
+					bevp->split_tag = true;
 					bevp++;
 					bp++;
 				}
@@ -2624,8 +2618,8 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 						bevp->alfa = prevbezt->alfa;
 						bevp->radius = prevbezt->radius;
 						bevp->weight = prevbezt->weight;
-						bevp->split_tag = TRUE;
-						bevp->dupe_tag = FALSE;
+						bevp->split_tag = true;
+						bevp->dupe_tag = false;
 						bevp++;
 						bl->nr++;
 						bl->dupe_nr = 1;
@@ -2658,13 +2652,13 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 						/* indicate with handlecodes double points */
 						if (prevbezt->h1 == prevbezt->h2) {
 							if (prevbezt->h1 == 0 || prevbezt->h1 == HD_VECT)
-								bevp->split_tag = TRUE;
+								bevp->split_tag = true;
 						}
 						else {
 							if (prevbezt->h1 == 0 || prevbezt->h1 == HD_VECT)
-								bevp->split_tag = TRUE;
+								bevp->split_tag = true;
 							else if (prevbezt->h2 == 0 || prevbezt->h2 == HD_VECT)
-								bevp->split_tag = TRUE;
+								bevp->split_tag = true;
 						}
 						bl->nr += resolu;
 						bevp += resolu;
@@ -2730,7 +2724,7 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 				if (fabsf(bevp0->vec[0] - bevp1->vec[0]) < 0.00001f) {
 					if (fabsf(bevp0->vec[1] - bevp1->vec[1]) < 0.00001f) {
 						if (fabsf(bevp0->vec[2] - bevp1->vec[2]) < 0.00001f) {
-							bevp0->dupe_tag = TRUE;
+							bevp0->dupe_tag = true;
 							bl->dupe_nr++;
 						}
 					}
@@ -2865,7 +2859,8 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 		/* 2D Curves */
 		for (bl = bev->first; bl; bl = bl->next) {
 			if (bl->nr < 2) {
-				/* do nothing */
+				BevPoint *bevp = (BevPoint *)(bl + 1);
+				unit_qt(bevp->quat);
 			}
 			else if (bl->nr == 2) {   /* 2 pnt, treat separate */
 				make_bevel_list_segment_2D(bl);
@@ -2879,7 +2874,8 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 		/* 3D Curves */
 		for (bl = bev->first; bl; bl = bl->next) {
 			if (bl->nr < 2) {
-				/* do nothing */
+				BevPoint *bevp = (BevPoint *)(bl + 1);
+				unit_qt(bevp->quat);
 			}
 			else if (bl->nr == 2) {   /* 2 pnt, treat separate */
 				make_bevel_list_segment_3D(bl);
@@ -2893,17 +2889,17 @@ void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
 
 /* ****************** HANDLES ************** */
 
-/*
- *   handlecodes:
- *		0: nothing,  1:auto,  2:vector,  3:aligned
- */
-
-/* mode: is not zero when FCurve, is 2 when forced horizontal for autohandles */
-static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *next, int mode, int skip_align)
+static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *next,
+                                  bool is_fcurve, bool skip_align)
 {
+	/* defines to avoid confusion */
+#define p2_h1 (p2 - 3)
+#define p2_h2 (p2 + 3)
+
 	float *p1, *p2, *p3, pt[3];
 	float dvec_a[3], dvec_b[3];
 	float len, len_a, len_b;
+	float len_ratio;
 	const float eps = 1e-5;
 
 	if (bezt->h1 == 0 && bezt->h2 == 0) {
@@ -2936,7 +2932,7 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 	sub_v3_v3v3(dvec_a, p2, p1);
 	sub_v3_v3v3(dvec_b, p3, p2);
 
-	if (mode != 0) {
+	if (is_fcurve) {
 		len_a = dvec_a[0];
 		len_b = dvec_b[0];
 	}
@@ -2948,16 +2944,25 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 	if (len_a == 0.0f) len_a = 1.0f;
 	if (len_b == 0.0f) len_b = 1.0f;
 
+	len_ratio = len_a / len_b;
 
 	if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM) || ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM)) {    /* auto */
 		float tvec[3];
 		tvec[0] = dvec_b[0] / len_b + dvec_a[0] / len_a;
 		tvec[1] = dvec_b[1] / len_b + dvec_a[1] / len_a;
 		tvec[2] = dvec_b[2] / len_b + dvec_a[2] / len_a;
-		len = len_v3(tvec) * 2.5614f;
+
+		if (is_fcurve) {
+			len = tvec[0];
+		}
+		else {
+			len = len_v3(tvec);
+		}
+		len *=  2.5614f;
 
 		if (len != 0.0f) {
-			int leftviolate = 0, rightviolate = 0;  /* for mode==2 */
+			/* only for fcurves */
+			bool leftviolate = false, rightviolate = false;
 
 			if (len_a > 5.0f * len_b)
 				len_a = 5.0f * len_b;
@@ -2966,7 +2971,7 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 
 			if (ELEM(bezt->h1, HD_AUTO, HD_AUTO_ANIM)) {
 				len_a /= len;
-				madd_v3_v3v3fl(p2 - 3, p2, tvec, -len_a);
+				madd_v3_v3v3fl(p2_h1, p2, tvec, -len_a);
 
 				if ((bezt->h1 == HD_AUTO_ANIM) && next && prev) { /* keep horizontal if extrema */
 					float ydiff1 = prev->vec[1][1] - bezt->vec[1][1];
@@ -2992,7 +2997,7 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 			}
 			if (ELEM(bezt->h2, HD_AUTO, HD_AUTO_ANIM)) {
 				len_b /= len;
-				madd_v3_v3v3fl(p2 + 3, p2, tvec,  len_b);
+				madd_v3_v3v3fl(p2_h2, p2, tvec,  len_b);
 
 				if ((bezt->h2 == HD_AUTO_ANIM) && next && prev) { /* keep horizontal if extrema */
 					float ydiff1 = prev->vec[1][1] - bezt->vec[1][1];
@@ -3000,7 +3005,7 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 					if ( (ydiff1 <= 0.0f && ydiff2 <= 0.0f) || (ydiff1 >= 0.0f && ydiff2 >= 0.0f) ) {
 						bezt->vec[2][1] = bezt->vec[1][1];
 					}
-					else { /* andles should not be beyond y coord of two others */
+					else { /* handles should not be beyond y coord of two others */
 						if (ydiff1 <= 0.0f) {
 							if (next->vec[1][1] < bezt->vec[2][1]) {
 								bezt->vec[2][1] = next->vec[1][1];
@@ -3017,89 +3022,115 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 				}
 			}
 			if (leftviolate || rightviolate) { /* align left handle */
-				float h1[3], h2[3];
-				float dot;
+				BLI_assert(is_fcurve);
+#if 0
+				if (is_fcurve)
+#endif
+				{
+					/* simple 2d calculation */
+					float h1_x = p2_h1[0] - p2[0];
+					float h2_x = p2[0] - p2_h2[0];
 
-				sub_v3_v3v3(h1, p2 - 3, p2);
-				sub_v3_v3v3(h2, p2, p2 + 3);
-
-				len_a = normalize_v3(h1);
-				len_b = normalize_v3(h2);
-
-				dot = dot_v3v3(h1, h2);
-
-				if (leftviolate) {
-					mul_v3_fl(h1, dot * len_b);
-					sub_v3_v3v3(p2 + 3, p2, h1);
+					if (leftviolate) {
+						p2_h2[1] = p2[1] + ((p2[1] - p2_h1[1]) / h1_x) * h2_x;
+					}
+					else {
+						p2_h1[1] = p2[1] + ((p2[1] - p2_h2[1]) / h2_x) * h1_x;
+					}
 				}
+#if 0
 				else {
-					mul_v3_fl(h2, dot * len_a);
-					add_v3_v3v3(p2 - 3, p2, h2);
+					float h1[3], h2[3];
+					float dot;
+
+					sub_v3_v3v3(h1, p2_h1, p2);
+					sub_v3_v3v3(h2, p2, p2_h2);
+
+					len_a = normalize_v3(h1);
+					len_b = normalize_v3(h2);
+
+					dot = dot_v3v3(h1, h2);
+
+					if (leftviolate) {
+						mul_v3_fl(h1, dot * len_b);
+						sub_v3_v3v3(p2_h2, p2, h1);
+					}
+					else {
+						mul_v3_fl(h2, dot * len_a);
+						add_v3_v3v3(p2_h1, p2, h2);
+					}
 				}
+#endif
 			}
 		}
 	}
 
 	if (bezt->h1 == HD_VECT) {    /* vector */
-		madd_v3_v3v3fl(p2 - 3, p2, dvec_a, -1.0f / 3.0f);
+		madd_v3_v3v3fl(p2_h1, p2, dvec_a, -1.0f / 3.0f);
 	}
 	if (bezt->h2 == HD_VECT) {
-		madd_v3_v3v3fl(p2 + 3, p2, dvec_b,  1.0f / 3.0f);
+		madd_v3_v3v3fl(p2_h2, p2, dvec_b,  1.0f / 3.0f);
 	}
 
-	if (skip_align) {
+	if (skip_align || (!ELEM(HD_ALIGN, bezt->h1, bezt->h2) && !ELEM(HD_ALIGN_DOUBLESIDE, bezt->h1, bezt->h2))) {
 		/* handles need to be updated during animation and applying stuff like hooks,
 		 * but in such situations it's quite difficult to distinguish in which order
 		 * align handles should be aligned so skip them for now */
 		return;
 	}
 
-	len_b = len_v3v3(p2, p2 + 3);
-	len_a = len_v3v3(p2, p2 - 3);
-	if (len_a == 0.0f)
-		len_a = 1.0f;
-	if (len_b == 0.0f)
-		len_b = 1.0f;
+	len_a = len_v3v3(p2, p2_h1);
+	len_b = len_v3v3(p2, p2_h2);
+	if (is_fcurve == false) {
+		if (len_a == 0.0f)
+			len_a = 1.0f;
+		if (len_b == 0.0f)
+			len_b = 1.0f;
+		len_ratio = len_a / len_b;
+	}
 
 	if (bezt->f1 & SELECT) { /* order of calculation */
-		if (bezt->h2 == HD_ALIGN) { /* aligned */
+		if (ELEM(bezt->h2, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) { /* aligned */
 			if (len_a > eps) {
-				len = len_b / len_a;
-				p2[3] = p2[0] + len * (p2[0] - p2[-3]);
-				p2[4] = p2[1] + len * (p2[1] - p2[-2]);
-				p2[5] = p2[2] + len * (p2[2] - p2[-1]);
+				len = 1.0f / len_ratio;
+				p2_h2[0] = p2[0] + len * (p2[0] - p2_h1[0]);
+				p2_h2[1] = p2[1] + len * (p2[1] - p2_h1[1]);
+				p2_h2[2] = p2[2] + len * (p2[2] - p2_h1[2]);
 			}
 		}
-		if (bezt->h1 == HD_ALIGN) {
+		if (ELEM(bezt->h1, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) {
 			if (len_b > eps) {
-				len = len_a / len_b;
-				p2[-3] = p2[0] + len * (p2[0] - p2[3]);
-				p2[-2] = p2[1] + len * (p2[1] - p2[4]);
-				p2[-1] = p2[2] + len * (p2[2] - p2[5]);
+				len = len_ratio;
+				p2_h1[0] = p2[0] + len * (p2[0] - p2_h2[0]);
+				p2_h1[1] = p2[1] + len * (p2[1] - p2_h2[1]);
+				p2_h1[2] = p2[2] + len * (p2[2] - p2_h2[2]);
 			}
 		}
 	}
 	else {
-		if (bezt->h1 == HD_ALIGN) {
+		if (ELEM(bezt->h1, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) {
 			if (len_b > eps) {
-				len = len_a / len_b;
-				p2[-3] = p2[0] + len * (p2[0] - p2[3]);
-				p2[-2] = p2[1] + len * (p2[1] - p2[4]);
-				p2[-1] = p2[2] + len * (p2[2] - p2[5]);
+				len = len_ratio;
+				p2_h1[0] = p2[0] + len * (p2[0] - p2_h2[0]);
+				p2_h1[1] = p2[1] + len * (p2[1] - p2_h2[1]);
+				p2_h1[2] = p2[2] + len * (p2[2] - p2_h2[2]);
 			}
 		}
-		if (bezt->h2 == HD_ALIGN) {   /* aligned */
+		if (ELEM(bezt->h2, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) {   /* aligned */
 			if (len_a > eps) {
-				len = len_b / len_a;
-				p2[3] = p2[0] + len * (p2[0] - p2[-3]);
-				p2[4] = p2[1] + len * (p2[1] - p2[-2]);
-				p2[5] = p2[2] + len * (p2[2] - p2[-1]);
+				len = 1.0f / len_ratio;
+				p2_h2[0] = p2[0] + len * (p2[0] - p2_h1[0]);
+				p2_h2[1] = p2[1] + len * (p2[1] - p2_h1[1]);
+				p2_h2[2] = p2[2] + len * (p2[2] - p2_h1[2]);
 			}
 		}
 	}
+
+#undef p2_h1
+#undef p2_h2
 }
 
-static void calchandlesNurb_intern(Nurb *nu, int skip_align)
+static void calchandlesNurb_intern(Nurb *nu, bool skip_align)
 {
 	BezTriple *bezt, *prev, *next;
 	int a;
@@ -3131,14 +3162,14 @@ static void calchandlesNurb_intern(Nurb *nu, int skip_align)
 	}
 }
 
-void BKE_nurb_handle_calc(BezTriple *bezt, BezTriple *prev, BezTriple *next, int mode)
+void BKE_nurb_handle_calc(BezTriple *bezt, BezTriple *prev, BezTriple *next, const bool is_fcurve)
 {
-	calchandleNurb_intern(bezt, prev, next, mode, FALSE);
+	calchandleNurb_intern(bezt, prev, next, is_fcurve, false);
 }
 
 void BKE_nurb_handles_calc(Nurb *nu) /* first, if needed, set handle flags */
 {
-	calchandlesNurb_intern(nu, FALSE);
+	calchandlesNurb_intern(nu, false);
 }
 
 /* similar to BKE_nurb_handle_calc but for curves and
@@ -3305,7 +3336,7 @@ void BKE_nurbList_handles_autocalc(ListBase *editnurb, int flag)
 	}
 }
 
-void BKE_nurbList_handles_set(ListBase *editnurb, short code)
+void BKE_nurbList_handles_set(ListBase *editnurb, const char code)
 {
 	/* code==1: set autohandle */
 	/* code==2: set vectorhandle */
@@ -3316,9 +3347,8 @@ void BKE_nurbList_handles_set(ListBase *editnurb, short code)
 	Nurb *nu;
 	BezTriple *bezt;
 	int a;
-	short ok = 0;
 
-	if (code == 1 || code == 2) {
+	if (ELEM(code, HD_AUTO, HD_VECT)) {
 		nu = editnurb->first;
 		while (nu) {
 			if (nu->type == CU_BEZIER) {
@@ -3345,46 +3375,46 @@ void BKE_nurbList_handles_set(ListBase *editnurb, short code)
 		}
 	}
 	else {
+		char h_new = HD_FREE;
+
 		/* there is 1 handle not FREE: FREE it all, else make ALIGNED  */
-		nu = editnurb->first;
 		if (code == 5) {
-			ok = HD_ALIGN;
+			h_new = HD_ALIGN;
 		}
 		else if (code == 6) {
-			ok = HD_FREE;
+			h_new = HD_FREE;
 		}
 		else {
 			/* Toggle */
-			while (nu) {
+			for (nu = editnurb->first; nu; nu = nu->next) {
 				if (nu->type == CU_BEZIER) {
 					bezt = nu->bezt;
 					a = nu->pntsu;
 					while (a--) {
-						if ((bezt->f1 & SELECT) && bezt->h1) ok = 1;
-						if ((bezt->f3 & SELECT) && bezt->h2) ok = 1;
-						if (ok) break;
+						if (((bezt->f1 & SELECT) && bezt->h1 != HD_FREE) ||
+						    ((bezt->f3 & SELECT) && bezt->h2 != HD_FREE))
+						{
+							h_new = HD_AUTO;
+							break;
+						}
 						bezt++;
 					}
 				}
-				nu = nu->next;
 			}
-			if (ok) ok = HD_FREE;
-			else ok = HD_ALIGN;
+			h_new = (h_new == HD_FREE) ? HD_ALIGN : HD_FREE;
 		}
-		nu = editnurb->first;
-		while (nu) {
+		for (nu = editnurb->first; nu; nu = nu->next) {
 			if (nu->type == CU_BEZIER) {
 				bezt = nu->bezt;
 				a = nu->pntsu;
 				while (a--) {
-					if (bezt->f1 & SELECT) bezt->h1 = ok;
-					if (bezt->f3 & SELECT) bezt->h2 = ok;
+					if (bezt->f1 & SELECT) bezt->h1 = h_new;
+					if (bezt->f3 & SELECT) bezt->h2 = h_new;
 
 					bezt++;
 				}
 				BKE_nurb_handles_calc(nu);
 			}
-			nu = nu->next;
 		}
 	}
 }
@@ -3564,8 +3594,10 @@ void BKE_nurb_direction_switch(Nurb *nu)
 				a = KNOTSU(nu);
 				fp1 = nu->knotsu;
 				fp2 = tempf = MEM_mallocN(sizeof(float) * a, "switchdirect");
+				a--;
+				fp2[a] = fp1[a];
 				while (a--) {
-					fp2[0] = fabs(fp1[1] - fp1[0]);
+					fp2[0] = fabsf(fp1[1] - fp1[0]);
 					fp1++;
 					fp2++;
 				}
@@ -3602,9 +3634,9 @@ void BKE_nurb_direction_switch(Nurb *nu)
 }
 
 
-float (*BKE_curve_nurbs_vertexCos_get(ListBase *lb, int *numVerts_r))[3]
+float (*BKE_curve_nurbs_vertexCos_get(ListBase *lb, int *r_numVerts))[3]
 {
-	int i, numVerts = *numVerts_r = BKE_nurbList_verts_count(lb);
+	int i, numVerts = *r_numVerts = BKE_nurbList_verts_count(lb);
 	float *co, (*cos)[3] = MEM_mallocN(sizeof(*cos) * numVerts, "cu_vcos");
 	Nurb *nu;
 
@@ -3633,7 +3665,7 @@ float (*BKE_curve_nurbs_vertexCos_get(ListBase *lb, int *numVerts_r))[3]
 
 void BK_curve_nurbs_vertexCos_apply(ListBase *lb, float (*vertexCos)[3])
 {
-	float *co = vertexCos[0];
+	const float *co = vertexCos[0];
 	Nurb *nu;
 	int i;
 
@@ -3655,7 +3687,7 @@ void BK_curve_nurbs_vertexCos_apply(ListBase *lb, float (*vertexCos)[3])
 			}
 		}
 
-		calchandlesNurb_intern(nu, TRUE);
+		calchandlesNurb_intern(nu, true);
 	}
 }
 
@@ -3719,8 +3751,6 @@ void BKE_curve_nurbs_keyVertexTilts_apply(ListBase *lb, float *key)
 
 bool BKE_nurb_check_valid_u(struct Nurb *nu)
 {
-	if (nu == NULL)
-		return false;
 	if (nu->pntsu <= 1)
 		return false;
 	if (nu->type != CU_NURBS)
@@ -3741,8 +3771,6 @@ bool BKE_nurb_check_valid_u(struct Nurb *nu)
 }
 bool BKE_nurb_check_valid_v(struct Nurb *nu)
 {
-	if (nu == NULL)
-		return false;
 	if (nu->pntsv <= 1)
 		return false;
 	if (nu->type != CU_NURBS)
@@ -3763,11 +3791,21 @@ bool BKE_nurb_check_valid_v(struct Nurb *nu)
 	return true;
 }
 
+bool BKE_nurb_check_valid_uv(struct Nurb *nu)
+{
+	if (!BKE_nurb_check_valid_u(nu))
+		return false;
+	if ((nu->pntsv > 1) && !BKE_nurb_check_valid_v(nu))
+		return false;
+
+	return true;
+}
+
 bool BKE_nurb_order_clamp_u(struct Nurb *nu)
 {
 	bool changed = false;
 	if (nu->pntsu < nu->orderu) {
-		nu->orderu = nu->pntsu;
+		nu->orderu = max_ii(2, nu->pntsu);
 		changed = true;
 	}
 	if (((nu->flagu & CU_NURB_CYCLIC) == 0) && (nu->flagu & CU_NURB_BEZIER)) {
@@ -3781,7 +3819,7 @@ bool BKE_nurb_order_clamp_v(struct Nurb *nu)
 {
 	bool changed = false;
 	if (nu->pntsv < nu->orderv) {
-		nu->orderv = nu->pntsv;
+		nu->orderv = max_ii(2, nu->pntsv);
 		changed = true;
 	}
 	if (((nu->flagv & CU_NURB_CYCLIC) == 0) && (nu->flagv & CU_NURB_BEZIER)) {
@@ -3851,7 +3889,7 @@ bool BKE_nurb_type_convert(Nurb *nu, const short type, const bool use_handles)
 					bp++;
 				}
 				else {
-					char *f = &bezt->f1;
+					const char *f = &bezt->f1;
 					for (c = 0; c < 3; c++, f++) {
 						copy_v3_v3(bp->vec, bezt->vec[c]);
 						bp->vec[3] = 1.0;
@@ -4186,4 +4224,13 @@ void BKE_curve_material_index_clear(Curve *cu)
 			}
 		}
 	}
+}
+
+void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *tb, struct rctf *r_rect)
+{
+	r_rect->xmin = (cu->xof * cu->fsize) + tb->x;
+	r_rect->ymax = (cu->yof * cu->fsize) + tb->y + cu->fsize;
+
+	r_rect->xmax = r_rect->xmin + tb->w;
+	r_rect->ymin = r_rect->ymax - tb->h;
 }

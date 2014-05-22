@@ -260,7 +260,7 @@ void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track)
 	WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
 	if (update_stab) {
-		tracking->stabilization.ok = FALSE;
+		tracking->stabilization.ok = false;
 		WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, clip);
 	}
 
@@ -314,10 +314,10 @@ void clip_draw_cfra(SpaceClip *sc, ARegion *ar, Scene *scene)
 	UI_view2d_view_orthoSpecial(ar, v2d, 1);
 
 	/* because the frame number text is subject to the same scaling as the contents of the view */
-	UI_view2d_getscale(v2d, &xscale, &yscale);
+	UI_view2d_scale_get(v2d, &xscale, &yscale);
 	gpuScale(1.0f / xscale, 1.0f, 1.0f);
 
-	clip_draw_curfra_label(sc->user.framenr, (float)sc->user.framenr * xscale, 18);
+	ED_region_cache_draw_curfra_label(sc->user.framenr, (float)sc->user.framenr * xscale, 18);
 
 	/* restore view transform */
 	gpuScale(xscale, 1.0, 1.0);

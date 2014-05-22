@@ -32,7 +32,6 @@
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_string.h"
 #include "BLI_rand.h"
 
 #include "DNA_mesh_types.h"
@@ -43,7 +42,6 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_deform.h"
 #include "BKE_library.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_shrinkwrap.h"       /* For SpaceTransform stuff. */
 #include "BKE_texture.h"          /* Texture masking. */
@@ -465,7 +463,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 
 		if (use_trgt_verts || use_trgt_edges || use_trgt_faces) {
 			DerivedMesh *target_dm = obr->derivedFinal;
-			short free_target_dm = FALSE;
+			bool free_target_dm = false;
 			if (!target_dm) {
 				if (ELEM3(obr->type, OB_CURVE, OB_SURF, OB_FONT))
 					target_dm = CDDM_from_curve(obr);
@@ -476,7 +474,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 					else
 						target_dm = CDDM_from_mesh(me);
 				}
-				free_target_dm = TRUE;
+				free_target_dm = true;
 			}
 
 			/* We must check that we do have a valid target_dm! */
@@ -521,7 +519,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	                 wmd->mask_tex_map_obj, wmd->mask_tex_uvlayer_name);
 
 	/* Update vgroup. Note we never add nor remove vertices from vgroup here. */
-	weightvg_update_vg(dvert, defgrp_index, dw, numIdx, indices, org_w, FALSE, 0.0f, FALSE, 0.0f);
+	weightvg_update_vg(dvert, defgrp_index, dw, numIdx, indices, org_w, false, 0.0f, false, 0.0f);
 
 	/* If weight preview enabled... */
 #if 0 /* XXX Currently done in mod stack :/ */

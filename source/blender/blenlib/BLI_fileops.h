@@ -89,7 +89,7 @@ bool   BLI_file_is_writable(const char *file);
 bool   BLI_file_touch(const char *file);
 
 int    BLI_file_gzip(const char *from, const char *to);
-char  *BLI_file_ungzip_to_mem(const char *from_file, bli_off_t *size_r); /* assumes unzipped files are less than 2GiB */
+char  *BLI_file_ungzip_to_mem(const char *from_file, bli_off_t *r_size); /* assumes unzipped files are less than 2GiB */
 
 bli_off_t BLI_file_descriptor_size(int file);
 bli_off_t BLI_file_size(const char *file);

@@ -164,6 +164,10 @@ source_group("Internal Header Files" FILES ${INTERN_INC})
 source_group("Generated Files"       FILES ${GEN_SRC})
 source_group("Shader Files"          FILES ${GLSL_SRC})
 
+if(WITH_GAMEENGINE)
+	add_definitions(-DWITH_GAMEENGINE)
+endif()
+
 if(WITH_MOD_SMOKE)
 	add_definitions(-DWITH_SMOKE)
 endif()

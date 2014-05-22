@@ -46,7 +46,8 @@ struct Options {
 	int width, height;
 	SceneParams scene_params;
 	SessionParams session_params;
-	bool quiet, show_help, interactive;
+	bool quiet;
+	bool show_help, interactive, pause;
 } options;
 
 static void session_print(const string& str)
@@ -114,15 +115,25 @@ static void session_init()
 	options.scene = NULL;
 }
 
-static void scene_init(int width, int height)
+static void scene_init()
 {
 	options.scene = new Scene(options.scene_params, options.session_params.device);
+
+	/* Read XML */
 	xml_read_file(options.scene, options.filepath.c_str());
 
-	if (width == 0 || height == 0) {
+	/* Camera width/height override? */
+	if (!(options.width == 0 || options.height == 0)) {
+		options.scene->camera->width = options.width;
+		options.scene->camera->height = options.height;
+	}
+	else {
 		options.width = options.scene->camera->width;
 		options.height = options.scene->camera->height;
 	}
+
+	/* Calculate Viewplane */
+	options.scene->camera->compute_auto_viewplane();
 }
 
 static void session_exit()
@@ -166,8 +177,14 @@ static void display_info(Progress& progress)
 
 	interactive = options.interactive? "On":"Off";
 
-	str = string_printf("%s        Time: %.2f        Latency: %.4f        Sample: %d        Average: %.4f        Interactive: %s",
-						status.c_str(), total_time, latency, sample, sample_time, interactive.c_str());
+	str = string_printf(
+	        "%s"
+	        "        Time: %.2f"
+	        "        Latency: %.4f"
+	        "        Sample: %d"
+	        "        Average: %.4f"
+	        "        Interactive: %s",
+	        status.c_str(), total_time, latency, sample, sample_time, interactive.c_str());
 
 	view_display_info(str.c_str());
 
@@ -177,7 +194,9 @@ static void display_info(Progress& progress)
 
 static void display()
 {
-	options.session->draw(session_buffer_params());
+	static DeviceDrawParams draw_params = DeviceDrawParams();
+
+	options.session->draw(session_buffer_params(), draw_params);
 
 	display_info(options.session->progress);
 }
@@ -195,11 +214,11 @@ static void motion(int x, int y, int button)
 
 		/* Rotate */
 		else if(button == 2) {
-			float4 r1= make_float4(x * 0.1f, 0.0f, 1.0f, 0.0f);
-			matrix = matrix * transform_rotate(r1.x * M_PI/180.0f, make_float3(r1.y, r1.z, r1.w));
+			float4 r1 = make_float4((float)x * 0.1f, 0.0f, 1.0f, 0.0f);
+			matrix = matrix * transform_rotate(DEG2RADF(r1.x), make_float3(r1.y, r1.z, r1.w));
 
-			float4 r2 = make_float4(y * 0.1, 1.0f, 0.0f, 0.0f);
-			matrix = matrix * transform_rotate(r2.x * M_PI/180.0f, make_float3(r2.y, r2.z, r2.w));
+			float4 r2 = make_float4(y * 0.1f, 1.0f, 0.0f, 0.0f);
+			matrix = matrix * transform_rotate(DEG2RADF(r2.x), make_float3(r2.y, r2.z, r2.w));
 		}
 
 		/* Update and Reset */
@@ -216,20 +235,64 @@ static void resize(int width, int height)
 	options.width = width;
 	options.height = height;
 
-	if(options.session)
+	if(options.session) {
+		/* Update camera */
+		options.session->scene->camera->width = width;
+		options.session->scene->camera->height = height;
+		options.session->scene->camera->compute_auto_viewplane();
+		options.session->scene->camera->need_update = true;
+		options.session->scene->camera->need_device_update = true;
+
 		options.session->reset(session_buffer_params(), options.session_params.samples);
+	}
 }
 
 static void keyboard(unsigned char key)
 {
-	if(key == 'r')
-		options.session->reset(session_buffer_params(), options.session_params.samples);
-	else if(key == 'h')
+	/* Toggle help */
+	if(key == 'h')
 		options.show_help = !(options.show_help);
-	else if(key == 'i')
-		options.interactive = !(options.interactive);
+
+	/* Reset */
+	else if(key == 'r')
+		options.session->reset(session_buffer_params(), options.session_params.samples);
+
+	/* Cancel */
 	else if(key == 27) // escape
 		options.session->progress.set_cancel("Canceled");
+
+	/* Pause */
+	else if(key == 'p') {
+		options.pause = !options.pause;
+		options.session->set_pause(options.pause);
+	}
+
+	/* Interactive Mode */
+	else if(key == 'i')
+		options.interactive = !(options.interactive);
+
+	else if(options.interactive && (key == 'w' || key == 'a' || key == 's' || key == 'd')) {
+		Transform matrix = options.session->scene->camera->matrix;
+		float3 translate;
+
+		if(key == 'w')
+			translate = make_float3(0.0f, 0.0f, 0.1f);
+		else if(key == 's')
+			translate = make_float3(0.0f, 0.0f, -0.1f);
+		else if(key == 'a')
+			translate = make_float3(-0.1f, 0.0f, 0.0f);
+		else if(key == 'd')
+			translate = make_float3(0.1f, 0.0f, 0.0f);
+
+		matrix = matrix * transform_translate(translate);
+
+		/* Update and Reset */
+		options.session->scene->camera->matrix = matrix;
+		options.session->scene->camera->need_update = true;
+		options.session->scene->camera->need_device_update = true;
+
+		options.session->reset(session_buffer_params(), options.session_params.samples);
+	}
 }
 #endif
 
@@ -314,14 +377,12 @@ static void options_parse(int argc, const char **argv)
 	else if(ssname == "svm")
 		options.scene_params.shadingsystem = SceneParams::SVM;
 
-#ifdef WITH_CYCLES_STANDALONE_GUI
-	/* Progressive rendering for GUI */
-	if(!options.session_params.background)
-		options.session_params.progressive = true;
-#else
-	/* When building without GUI, set background */
+#ifndef WITH_CYCLES_STANDALONE_GUI
 	options.session_params.background = true;
 #endif
+
+	/* Use progressive rendering */
+	options.session_params.progressive = true;
 
 	/* find matching device */
 	DeviceType device_type = Device::type_from_string(devicename.c_str());
@@ -360,12 +421,12 @@ static void options_parse(int argc, const char **argv)
 		fprintf(stderr, "No file path specified\n");
 		exit(EXIT_FAILURE);
 	}
-	
+
 	/* For smoother Viewport */
 	options.session_params.start_resolution = 64;
 
 	/* load scene */
-	scene_init(options.width, options.height);
+	scene_init();
 }
 
 CCL_NAMESPACE_END

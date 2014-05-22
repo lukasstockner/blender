@@ -65,6 +65,7 @@ struct wmDrag;
 struct ImBuf;
 struct ImageFormatData;
 struct ARegion;
+struct wmNDOFMotionData;
 
 typedef struct wmJob wmJob;
 
@@ -91,6 +92,7 @@ struct wmWindow	*WM_window_open	(struct bContext *C, const struct rcti *rect);
 
 int			WM_window_pixels_x		(struct wmWindow *win);
 int			WM_window_pixels_y		(struct wmWindow *win);
+bool		WM_window_is_fullscreen	(struct wmWindow *win);
 
 /* defines for 'type' WM_window_open_temp */
 #define WM_WINDOW_RENDER		0
@@ -250,6 +252,7 @@ void		WM_operator_properties_free(struct PointerRNA *ptr);
 void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter, short type, short action, short flag, short display);
 void        WM_operator_properties_border(struct wmOperatorType *ot);
 void        WM_operator_properties_border_to_rcti(struct wmOperator *op, struct rcti *rect);
+void        WM_operator_properties_border_to_rctf(struct wmOperator *op, rctf *rect);
 void		WM_operator_properties_gesture_border(struct wmOperatorType *ot, bool extend);
 void        WM_operator_properties_mouse_select(struct wmOperatorType *ot);
 void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, int cursor);
@@ -376,6 +379,7 @@ enum {
 	WM_JOB_TYPE_OBJECT_SIM_OCEAN,
 	WM_JOB_TYPE_OBJECT_SIM_FLUID,
 	WM_JOB_TYPE_OBJECT_BAKE_TEXTURE,
+	WM_JOB_TYPE_OBJECT_BAKE,
 	WM_JOB_TYPE_FILESEL_THUMBNAIL,
 	WM_JOB_TYPE_CLIP_BUILD_PROXY,
 	WM_JOB_TYPE_CLIP_TRACK_MARKERS,
@@ -435,6 +439,12 @@ bool write_crash_blend(void);
 
 			/* Lock the interface for any communication */
 void        WM_set_locked_interface(struct wmWindowManager *wm, bool lock);
+
+void        WM_event_ndof_pan_get(const struct wmNDOFMotionData *ndof, float r_pan[3], const bool use_zoom);
+void        WM_event_ndof_rotate_get(const struct wmNDOFMotionData *ndof, float r_rot[3]);
+
+float       WM_event_ndof_to_axis_angle(const struct wmNDOFMotionData *ndof, float axis[3]);
+void        WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4]);
 
 #ifdef __cplusplus
 }

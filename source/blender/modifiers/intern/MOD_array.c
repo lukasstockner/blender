@@ -39,9 +39,7 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_string.h"
 #include "BLI_ghash.h"
-#include "BLI_edgehash.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_meshdata_types.h"
@@ -51,9 +49,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_displist.h"
 #include "BKE_curve.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
-#include "BKE_object.h"
 
 #include "MOD_util.h"
 
@@ -64,6 +60,12 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* Due to cyclic dependencies it's possible that curve used for
+ * deformation here is not evaluated at the time of evaluating
+ * this modifier.
+ */
+#define CYCLIC_DEPENDENCY_WORKAROUND
 
 static void initData(ModifierData *md)
 {
@@ -185,7 +187,7 @@ static int *find_doubles_index_map(BMesh *bm, BMOperator *dupe_op,
 	}
 	/* above loops over all, so set all to dirty, if this is somehow
 	 * setting valid values, this line can be removed - campbell */
-	bm->elem_index_dirty |= BM_VERT | BM_EDGE | BM_FACE;
+	bm->elem_index_dirty |= BM_ALL;
 
 	(*index_map_length) = i;
 	index_map = MEM_callocN(sizeof(int) * (*index_map_length), "index_map");
@@ -322,7 +324,7 @@ static void merge_first_last(BMesh *bm,
 }
 
 static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
-                                          Object *ob, DerivedMesh *dm,
+                                          Scene *scene, Object *ob, DerivedMesh *dm,
                                           ModifierApplyFlag flag)
 {
 	DerivedMesh *result;
@@ -377,7 +379,13 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 	if (amd->fit_type == MOD_ARR_FITCURVE && amd->curve_ob) {
 		Curve *cu = amd->curve_ob->data;
 		if (cu) {
-			if (amd->curve_ob->curve_cache->path) {
+#ifdef CYCLIC_DEPENDENCY_WORKAROUND
+			if (amd->curve_ob->curve_cache == NULL) {
+				BKE_displist_make_curveTypes(scene, amd->curve_ob, false);
+			}
+#endif
+
+			if (amd->curve_ob->curve_cache && amd->curve_ob->curve_cache->path) {
 				float scale = mat4_to_scale(amd->curve_ob->obmat);
 				length = scale * amd->curve_ob->curve_cache->path->totdist;
 			}
@@ -516,7 +524,7 @@ static DerivedMesh *arrayModifier_doArray(ArrayModifierData *amd,
 
 	/* start capping */
 	if (start_cap || end_cap) {
-		BM_mesh_elem_hflag_enable_all(bm, BM_VERT, BM_ELEM_TAG, FALSE);
+		BM_mesh_elem_hflag_enable_all(bm, BM_VERT, BM_ELEM_TAG, false);
 
 		if (start_cap) {
 			float startoffset[4][4];
@@ -575,7 +583,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	DerivedMesh *result;
 	ArrayModifierData *amd = (ArrayModifierData *) md;
 
-	result = arrayModifier_doArray(amd, ob, dm, flag);
+	result = arrayModifier_doArray(amd, md->scene, ob, dm, flag);
 
 	return result;
 }
