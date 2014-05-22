@@ -169,6 +169,24 @@ void Scheduler::finish_node(OperationDepsNode *node)
 /* *************************************************** */
 /* Evaluation Entrypoints */
 
+static void calculate_pending_parents(Depsgraph *graph)
+{
+	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin(); it_op != graph->operations.end(); ++it_op) {
+		OperationDepsNode *node = *it_op;
+		
+		node->num_links_pending = 0;
+		
+		/* count number of inputs that need updates */
+		if (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
+			for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin(); it_rel != node->inlinks.end(); ++it_rel) {
+				DepsRelation *rel = *it;
+				if (rel->from->flag & DEPSOP_FLAG_NEEDS_UPDATE)
+					++node->num_links_pending;
+			}
+		}
+	}
+}
+
 static void calculate_eval_priority(OperationDepsNode *node)
 {
 	if (node->done)
@@ -206,7 +224,9 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 		node->done = 0;
 	}
 	
-	/* calculate values (priority) for operation nodes */
+	calculate_pending_parents(graph);
+	
+	/* calculate priority for operation nodes */
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
 		OperationDepsNode *node = *it;
 		calculate_eval_priority(node);
@@ -214,8 +234,8 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 	
 	DEG_debug_eval_step("Eval Priority Calculation");
 	
-	EvalQueue queue;
-	
+	Scheduler scheduler;
+	scheduler.schedule_graph(graph);
 	
 	/* from the root node, start queuing up nodes to evaluate */
 	// ... start scheduler, etc.
