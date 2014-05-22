@@ -22,12 +22,6 @@
  * Contributor(s): None Yet
  *
  * ***** END GPL LICENSE BLOCK *****
- *
- * Datatypes for internal use in the Depsgraph
- * 
- * All of these datatypes are only really used within the "core" depsgraph.
- * In particular, node types declared here form the structure of operations
- * in the graph.
  */
 
 #ifndef __DEPSNODE_H__

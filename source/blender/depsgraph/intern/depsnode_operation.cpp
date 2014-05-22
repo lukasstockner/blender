@@ -22,8 +22,6 @@
  * Contributor(s): None Yet
  *
  * ***** END GPL LICENSE BLOCK *****
- *
- * Core routines for how the Depsgraph works
  */
 
 extern "C" {

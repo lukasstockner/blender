@@ -76,6 +76,7 @@ set(SRC
 	util/depsgraph_util_rna.h
 	util/depsgraph_util_set.h
 	util/depsgraph_util_string.h
+	util/depsgraph_util_thread.h
 	util/depsgraph_util_type_traits.h
 )
 

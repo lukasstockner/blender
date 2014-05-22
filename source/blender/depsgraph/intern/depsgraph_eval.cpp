@@ -70,20 +70,16 @@ extern "C" {
 /* *************************************************** */
 /* Multi-Threaded Evaluation Internals */
 
-/* Internal - Lock shared between depsgraph internals for various critical activities */
-// XXX: need to review the access modifiers here, as other files within depsgraph may need to access
-static SpinLock threaded_update_lock;
-
 /* Initialise threading lock - called during application startup */
 void DEG_threaded_init(void)
 {
-	BLI_spin_init(&threaded_update_lock);
+	Scheduler::init();
 }
 
 /* Free threading lock - called during application shutdown */
 void DEG_threaded_exit(void)
 {
-	BLI_spin_end(&threaded_update_lock);
+	Scheduler::exit();
 }
 
 /* *************************************************** */
@@ -124,12 +120,85 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node, eEvaluationContextTy
 	/* NOTE: "generic" nodes cannot be executed, but will still end up calling this */
 }
 
-Scheduler::Scheduler()
+EvalQueue Scheduler::queue;
+ThreadMutex Scheduler::queue_mutex;
+ThreadCondition Scheduler::queue_cond;
+ThreadMutex Scheduler::mutex;
+Scheduler::Threads Scheduler::threads;
+bool Scheduler::do_exit;
+
+void Scheduler::init(int num_threads)
 {
+	BLI_mutex_init(&mutex);
+	BLI_mutex_init(&queue_mutex);
+	BLI_condition_init(&queue_cond);
+	
+	do_exit = false;
+	
+	if(num_threads == 0) {
+		/* automatic number of threads */
+		num_threads = BLI_system_thread_count();
+	}
+	
+	/* launch threads that will be waiting for work */
+	threads.resize(num_threads);
+	
+	for(size_t i = 0; i < threads.size(); i++)
+		threads[i] = new Thread((Thread::run_cb_t)Scheduler::thread_run, i);
 }
 
-Scheduler::~Scheduler()
+void Scheduler::exit()
 {
+	/* stop all waiting threads */
+	do_exit = true;
+	BLI_condition_notify_all(&queue_cond);
+	
+	/* delete threads */
+	for (Threads::const_iterator it = threads.begin(); it != threads.end(); ++it) {
+		Thread *t = *it;
+		t->join();
+		delete t;
+	}
+	threads.clear();
+	
+	BLI_mutex_end(&mutex);
+	BLI_mutex_end(&queue_mutex);
+	BLI_condition_end(&queue_cond);
+}
+
+bool Scheduler::thread_wait_pop(DepsgraphTask &task)
+{
+	BLI_mutex_lock(&queue_mutex);
+
+	while(queue.empty() && !do_exit)
+		BLI_condition_wait(&queue_cond, &queue_mutex);
+
+	if(queue.empty()) {
+		BLI_assert(do_exit);
+		return false;
+	}
+	
+	task = queue.top();
+	queue.pop();
+	
+	BLI_mutex_unlock(&queue_mutex);
+	
+	return true;
+}
+
+void Scheduler::thread_run(Thread *thread)
+{
+	DepsgraphTask task;
+
+	/* keep popping off tasks */
+	while(thread_wait_pop(task)) {
+		/* run task */
+		
+		deg_exec_node(task.graph, task.node, task.context_type);
+		
+		/* notify pool task was done */
+		finish_node(task.graph, task.context_type, task.node);
+	}
 }
 
 static bool is_node_ready(OperationDepsNode *node)
@@ -137,33 +206,42 @@ static bool is_node_ready(OperationDepsNode *node)
 	return (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) && node->num_links_pending == 0;
 }
 
-void Scheduler::schedule_graph(Depsgraph *graph)
+void Scheduler::schedule_graph(Depsgraph *graph, eEvaluationContextType context_type)
 {
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
 		OperationDepsNode *node = *it;
 		
-		if (is_node_ready(node))
-			queue.push(node);
+		if (is_node_ready(node)) {
+			schedule_node(graph, context_type, node);
+		}
 	}
 }
 
-OperationDepsNode *Scheduler::retrieve_node()
+void Scheduler::schedule_node(Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node)
 {
-	OperationDepsNode *node = queue.top();
-	queue.pop();
-	return node;
+	DepsgraphTask task;
+	task.graph = graph;
+	task.node = node;
+	task.context_type = context_type;
+	
+	queue.push(task);
 }
 
-void Scheduler::finish_node(OperationDepsNode *node)
+void Scheduler::finish_node(Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node)
 {
+	bool notify = false;
 	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
 		DepsRelation *rel = *it;
 		
 		BLI_assert(rel->to->num_links_pending > 0);
 		--rel->to->num_links_pending;
-		if (rel->to->num_links_pending == 0)
-			queue.push(node);
+		if (rel->to->num_links_pending == 0) {
+			schedule_node(graph, context_type, rel->to);
+			notify = true;
+		}
 	}
+	if (notify)
+		BLI_condition_notify_all(&queue_cond);
 }
 
 /* *************************************************** */
@@ -179,7 +257,7 @@ static void calculate_pending_parents(Depsgraph *graph)
 		/* count number of inputs that need updates */
 		if (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
 			for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin(); it_rel != node->inlinks.end(); ++it_rel) {
-				DepsRelation *rel = *it;
+				DepsRelation *rel = *it_rel;
 				if (rel->from->flag & DEPSOP_FLAG_NEEDS_UPDATE)
 					++node->num_links_pending;
 			}
@@ -234,8 +312,7 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 	
 	DEG_debug_eval_step("Eval Priority Calculation");
 	
-	Scheduler scheduler;
-	scheduler.schedule_graph(graph);
+	Scheduler::schedule_graph(graph, context_type);
 	
 	/* from the root node, start queuing up nodes to evaluate */
 	// ... start scheduler, etc.
