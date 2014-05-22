@@ -1550,6 +1550,11 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 {
 	Scene *sce_iter;
 	
+	/********* new depsgraph *********/\
+	if (scene->depsgraph)
+		DEG_evaluate_on_refresh(scene->depsgraph, eval_ctx->for_render ? DEG_EVALUATION_CONTEXT_RENDER : DEG_EVALUATION_CONTEXT_VIEWPORT);
+	/******************/
+	
 	/* keep this first */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
 
@@ -1639,6 +1644,11 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 #ifdef DETAILED_ANALYSIS_OUTPUT
 	double start_time = PIL_check_seconds_timer();
 #endif
+
+	/********* new depsgraph *********/
+	if (sce->depsgraph)
+		DEG_evaluate_on_framechange(sce->depsgraph, eval_ctx->for_render ? DEG_EVALUATION_CONTEXT_RENDER : DEG_EVALUATION_CONTEXT_VIEWPORT, ctime);
+	/******************/
 
 	/* keep this first */
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_PRE);
