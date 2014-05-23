@@ -413,6 +413,15 @@ typedef struct WalkNavigation {
 	short pad[3];
 } WalkNavigation;
 
+typedef struct DepsgraphSettings {
+	int flag;
+	int pad;
+} DepsgraphSettings;
+
+typedef enum eDepsgraphSettings_Flag {
+	USER_DEG_STATS				= (1 << 0),	/* enable statistics */
+} eDepsgraphSettings_Flag;
+
 typedef struct UserDef {
 	/* UserDef has separate do-version handling, and can be read from other files */
 	int versionfile, subversionfile;
@@ -528,6 +537,8 @@ typedef struct UserDef {
 	float pixelsize;			/* private, set by GHOST, to multiply DPI with */
 
 	struct WalkNavigation walk_navigation;
+
+	struct DepsgraphSettings depsgraph_settings;
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */

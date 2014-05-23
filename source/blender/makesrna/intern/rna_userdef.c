@@ -3565,6 +3565,11 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_duplicate_particle", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "dupflag", USER_DUP_PSYS);
 	RNA_def_property_ui_text(prop, "Duplicate Particle", "Causes particle systems to be duplicated with the object");
+
+	prop = RNA_def_property(srna, "depsgraph_settings", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "DepsgraphSettings");
+	RNA_def_property_ui_text(prop, "Dependency Graph", "Settings for the dependency graph");
 }
 
 static void rna_def_userdef_system(BlenderRNA *brna)
@@ -4368,6 +4373,23 @@ static void rna_def_userdef_autoexec_path_collection(BlenderRNA *brna, PropertyR
 	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
 }
 
+static void rna_def_userdef_depsgraph_settings(BlenderRNA *brna)
+{
+	PropertyRNA *prop;
+	StructRNA *srna;
+
+	srna = RNA_def_struct(brna, "DepsgraphSettings", NULL);
+	RNA_def_struct_sdna(srna, "DepsgraphSettings");
+	RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
+	RNA_def_struct_ui_text(srna, "Dependency Graph Settings", "");
+
+	/* Statistics */
+	
+	prop = RNA_def_property(srna, "use_statistics", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_DEG_STATS);
+	RNA_def_property_ui_text(prop, "Statistics", "Record dependency graph performance statistics");
+}
+
 void RNA_def_userdef(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -4461,7 +4483,7 @@ void RNA_def_userdef(BlenderRNA *brna)
 	rna_def_userdef_addon(brna);
 	rna_def_userdef_addon_pref(brna);
 	rna_def_userdef_pathcompare(brna);
-	
+	rna_def_userdef_depsgraph_settings(brna);
 }
 
 #endif

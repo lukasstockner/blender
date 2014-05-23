@@ -267,6 +267,14 @@ class USERPREF_PT_edit(Panel):
         col.prop(edit, "undo_steps", text="Steps")
         col.prop(edit, "undo_memory_limit", text="Memory Limit")
 
+        col.separator()
+        col.separator()
+        col.separator()
+
+        depsgraph = edit.depsgraph_settings
+        col.label(text="Dependency Graph:")
+        col.prop(depsgraph, "use_statistics")
+
         row.separator()
         row.separator()
 
