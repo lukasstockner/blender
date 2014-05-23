@@ -208,6 +208,8 @@ static bool is_node_ready(OperationDepsNode *node)
 
 void Scheduler::schedule_graph(Depsgraph *graph, eEvaluationContextType context_type)
 {
+	BLI_mutex_lock(&queue_mutex);
+	
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
 		OperationDepsNode *node = *it;
 		
@@ -215,6 +217,8 @@ void Scheduler::schedule_graph(Depsgraph *graph, eEvaluationContextType context_
 			schedule_node(graph, context_type, node);
 		}
 	}
+	
+	BLI_mutex_unlock(&queue_mutex);
 }
 
 void Scheduler::schedule_node(Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node)
@@ -230,6 +234,9 @@ void Scheduler::schedule_node(Depsgraph *graph, eEvaluationContextType context_t
 void Scheduler::finish_node(Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node)
 {
 	bool notify = false;
+	
+	BLI_mutex_lock(&queue_mutex);
+	
 	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
 		DepsRelation *rel = *it;
 		
@@ -240,6 +247,9 @@ void Scheduler::finish_node(Depsgraph *graph, eEvaluationContextType context_typ
 			notify = true;
 		}
 	}
+	
+	BLI_mutex_unlock(&queue_mutex);
+	
 	if (notify)
 		BLI_condition_notify_all(&queue_cond);
 }
