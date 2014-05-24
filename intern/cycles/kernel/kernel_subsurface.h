@@ -255,8 +255,10 @@ ccl_device int subsurface_scatter_multi_step(KernelGlobals *kg, ShaderData *sd, 
 	float disk_height;
 
 	bssrdf_sample(sc, disk_r, &disk_r, &disk_height);
-
-	float3 disk_P = (disk_r*cosf(phi)) * disk_T + (disk_r*sinf(phi)) * disk_B;
+	
+	float sin_phi, cos_phi;
+	sincos(phi, &sin_phi, &cos_phi);
+	float3 disk_P = (disk_r*cos_phi) * disk_T + (disk_r*sin_phi) * disk_B;
 
 	/* create ray */
 	Ray ray;
@@ -354,8 +356,11 @@ ccl_device void subsurface_scatter_step(KernelGlobals *kg, ShaderData *sd,
 	float disk_height;
 
 	bssrdf_sample(sc, disk_r, &disk_r, &disk_height);
+	
+	float sin_phi, cos_phi;
+	sincos(phi, &sin_phi, &cos_phi);
 
-	float3 disk_P = (disk_r*cosf(phi)) * disk_T + (disk_r*sinf(phi)) * disk_B;
+	float3 disk_P = (disk_r*cos_phi) * disk_T + (disk_r*sin_phi) * disk_B;
 
 	/* create ray */
 	Ray ray;

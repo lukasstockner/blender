@@ -41,8 +41,10 @@ ccl_device void to_unit_disk(float *x, float *y)
 	float phi = M_2PI_F * (*x);
 	float r = sqrtf(*y);
 
-	*x = r * cosf(phi);
-	*y = r * sinf(phi);
+	float sin_phi, cos_phi;
+	sincos(phi, &sin_phi, &cos_phi);
+	*x = r * cos_phi;
+	*y = r * sin_phi;
 }
 
 /* return an orthogonal tangent and bitangent given a normal and tangent that
@@ -73,8 +75,11 @@ ccl_device_inline void sample_uniform_hemisphere(const float3 N,
 	float z = randu;
 	float r = sqrtf(max(0.0f, 1.0f - z*z));
 	float phi = M_2PI_F * randv;
-	float x = r * cosf(phi);
-	float y = r * sinf(phi);
+	
+	float sin_phi, cos_phi;
+	sincos(phi, &sin_phi, &cos_phi);
+	float x = r * cos_phi;
+	float y = r * sin_phi;
 
 	float3 T, B;
 	make_orthonormals (N, &T, &B);
@@ -90,8 +95,11 @@ ccl_device_inline void sample_uniform_cone(const float3 N, float angle,
 	float z = cosf(angle*randu);
 	float r = sqrtf(max(0.0f, 1.0f - z*z));
 	float phi = M_2PI_F * randv;
-	float x = r * cosf(phi);
-	float y = r * sinf(phi);
+	
+	float sin_phi, cos_phi;
+	sincos(phi, &sin_phi, &cos_phi);	
+	float x = r * cos_phi;
+	float y = r * sin_phi;
 
 	float3 T, B;
 	make_orthonormals (N, &T, &B);
@@ -105,8 +113,11 @@ ccl_device float3 sample_uniform_sphere(float u1, float u2)
 	float z = 1.0f - 2.0f*u1;
 	float r = sqrtf(fmaxf(0.0f, 1.0f - z*z));
 	float phi = M_2PI_F*u2;
-	float x = r*cosf(phi);
-	float y = r*sinf(phi);
+	
+	float sin_phi, cos_phi;
+	sincos(phi, &sin_phi, &cos_phi);	
+	float x = r * cos_phi;
+	float y = r * sin_phi;
 
 	return make_float3(x, y, z);
 }

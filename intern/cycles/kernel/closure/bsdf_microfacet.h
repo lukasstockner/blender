@@ -382,8 +382,11 @@ ccl_device int bsdf_microfacet_beckmann_sample(const ShaderClosure *sc, float3 N
 
 		float sinThetaM = cosThetaM * tanThetaM;
 		float phiM = M_2PI_F * randv;
-		float3 m = (cosf(phiM) * sinThetaM) * X +
-		           (sinf(phiM) * sinThetaM) * Y +
+		
+		float sin_phiM, cos_phiM;
+		sincos(phiM, &sin_phiM, &cos_phiM);
+		float3 m = (cos_phiM * sinThetaM) * X +
+		           (sin_phiM * sinThetaM) * Y +
 		           (             cosThetaM) * Z;
 
 		if(!m_refractive) {

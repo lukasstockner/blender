@@ -189,6 +189,15 @@ ccl_device_inline float nonzerof(float f, float eps)
 		return f;
 }
 
+ccl_device_inline void sincos(float theta, float *sin, float *cos) {
+#if defined(__GNUC__) && !defined(__clang__)
+	sincosf(theta, sin, cos);
+#else
+	*sin = sinf(theta);
+	*cos = cosf(theta);
+#endif
+}
+
 ccl_device_inline float smoothstepf(float f)
 {
 	float ff = f*f;
@@ -622,11 +631,7 @@ ccl_device_inline bool is_zero(const float3 a)
 
 ccl_device_inline float reduce_add(const float3 a)
 {
-#ifdef __KERNEL_SSE__
 	return (a.x + a.y + a.z);
-#else
-	return (a.x + a.y + a.z);
-#endif
 }
 
 ccl_device_inline float average(const float3 a)

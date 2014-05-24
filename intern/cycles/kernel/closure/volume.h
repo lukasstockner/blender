@@ -72,8 +72,7 @@ ccl_device int volume_henyey_greenstein_sample(const ShaderClosure *sc, float3 I
 	float sin_theta = safe_sqrtf(1.0f - cos_theta * cos_theta);
 
 	float phi = M_2PI_F * randv;
-	cos_phi = cosf(phi);
-	sin_phi = sinf(phi);
+	sincos(phi, &sin_phi, &cos_phi);
 
 	/* note that I points towards the viewer and so is used negated */
 	float3 T, B;
