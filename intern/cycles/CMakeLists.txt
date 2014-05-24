@@ -20,7 +20,7 @@ if(WIN32 AND MSVC)
 	# /arch:AVX for VC2012 and above
 	if(NOT MSVC_VERSION LESS 1700)
 		set(CYCLES_AVX_ARCH_FLAGS "/arch:AVX")
-		set(CYCLES_AVX2_ARCH_FLAGS "/arch:AVX /arch:AVX2“)
+		set(CYCLES_AVX2_ARCH_FLAGS "/arch:AVX /arch:AVX2")
 	elseif(NOT CMAKE_CL_64)
 		set(CYCLES_AVX_ARCH_FLAGS "/arch:SSE2")
 		set(CYCLES_AVX2_ARCH_FLAGS "/arch:SSE2")
