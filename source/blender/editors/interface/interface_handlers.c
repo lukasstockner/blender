@@ -61,6 +61,7 @@
 #include "PIL_time.h"
 
 #include "BKE_blender.h"
+#include "BKE_brush.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_idprop.h"
@@ -4302,6 +4303,7 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 
 		if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
 			if ((int)(but->a1) == UI_COLOR_PALETTE && !event->ctrl) {
+				float color[3];
 				Scene *scene = CTX_data_scene(C);
 				Paint *paint = BKE_paint_get_active(scene);
 				Brush *brush = BKE_paint_brush(paint);
@@ -4310,7 +4312,6 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 					float *target = &brush->gradient->data[brush->gradient->cur].r;
 
 					if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-						float color[3];
 						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
 						srgb_to_linearrgb_v3_v3(target, color);
 					} else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
@@ -4319,16 +4320,20 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 				}
 				else {
 					if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, brush->rgb);
-					} else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
+						BKE_brush_color_set(scene, brush, color);
+					}
+					else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
 						float color[3];
 						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
-						linearrgb_to_srgb_v3_v3(brush->rgb, color);
+						linearrgb_to_srgb_v3_v3(color, color);
+						BKE_brush_color_set(scene, brush, color);
 					}
 				}
 
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
-			} else {
+			}
+			else {
 				button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
 			}
 			return WM_UI_HANDLER_BREAK;

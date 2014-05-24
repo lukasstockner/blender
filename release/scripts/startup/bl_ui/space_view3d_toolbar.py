@@ -962,7 +962,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             if brush.image_tool in {'DRAW', 'FILL'}:
                 if brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'}:
                     if not brush.use_gradient:
-                        col.template_color_picker(brush, "color", value_slider=True)
+                        self.prop_unified_color_picker(col, context, brush, "color", value_slider=True)
 
                     if settings.palette:
                         col.template_palette(settings, "palette", color=True)
@@ -974,7 +974,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                         if brush.image_tool != 'FILL':
                             col.label("Background Color")
                             row = col.row(align=True)
-                            row.prop(brush, "secondary_color", text="")
+                            self.prop_unified_color(row, context, brush, "secondary_color", text="")
 
                         if brush.image_tool == 'DRAW':
                             col.prop(brush, "gradient_stroke_mode", text="Mode")
@@ -984,9 +984,9 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                             col.prop(brush, "gradient_fill_mode")
                     else:
                         row = col.row(align=True)
-                        row.prop(brush, "color", text="")
+                        self.prop_unified_color(row, context, brush, "color", text="")
                         if brush.image_tool != 'FILL':
-                            row.prop(brush, "secondary_color", text="")
+                            self.prop_unified_color(row, context, brush, "secondary_color", text="")
                             row.separator()
                             row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
 
@@ -1059,10 +1059,10 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
         # Vertex Paint Mode #
         elif context.vertex_paint_object and brush:
             col = layout.column()
-            col.template_color_picker(brush, "color", value_slider=True)
+            self.prop_unified_color_picker(col, context, brush, "color", value_slider=True)
             if settings.palette:
                 col.template_palette(settings, "palette", color=True)
-            col.prop(brush, "color", text="")
+            self.prop_unified_color(col, context, brush, "color", text="")
 
             col.separator()			
             row = col.row(align=True)
@@ -1625,7 +1625,7 @@ class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
 # ********** default tools for texture-paint ****************
 
 
-class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
+class VIEW3D_PT_tools_projectpaint(View3DPaintPanel, Panel):
     bl_category = "Options"
     bl_context = "imagepaint"
     bl_label = "Project Paint"
@@ -1683,7 +1683,7 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
         #col.menu("VIEW3D_MT_tools_projectpaint_clone", text=clone_text, translate=False)
 
         layout.prop(ipaint, "seam_bleed")
-
+        
         col = layout.column()
         col.label(text="External Editing:")
 
@@ -1695,6 +1695,8 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
 
         col.operator("paint.project_image", text="Apply Camera Image")
         col.operator("image.save_dirty", text="Save All Edited")
+
+        self.unified_paint_settings(col, context)
 
 
 class VIEW3D_PT_imagepaint_options(View3DPaintPanel):

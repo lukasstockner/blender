@@ -50,6 +50,10 @@ class UnifiedPaintPanel():
         row.prop(ups, "use_unified_strength", text="Strength")
         if context.weight_paint_object:
             parent.prop(ups, "use_unified_weight", text="Weight")
+        elif context.vertex_paint_object or context.image_paint_object:
+            parent.prop(ups, "use_unified_color", text="Color")
+        else:
+            parent.prop(ups, "use_unified_color", text="Color")
 
     @staticmethod
     def prop_unified_size(parent, context, brush, prop_name, icon='NONE', text="", slider=False):
@@ -69,6 +73,17 @@ class UnifiedPaintPanel():
         ptr = ups if ups.use_unified_weight else brush
         parent.prop(ptr, prop_name, icon=icon, text=text, slider=slider)
 
+    @staticmethod
+    def prop_unified_color(parent, context, brush, prop_name, text=""):
+        ups = context.tool_settings.unified_paint_settings
+        ptr = ups if ups.use_unified_color else brush
+        parent.prop(ptr, prop_name, text=text)
+
+    @staticmethod
+    def prop_unified_color_picker(parent, context, brush, prop_name, value_slider=True):
+        ups = context.tool_settings.unified_paint_settings
+        ptr = ups if ups.use_unified_color else brush
+        parent.template_color_picker(ptr, prop_name, value_slider=value_slider)
 
 # Used in both the View3D toolbar and texture properties
 def brush_texture_settings(layout, brush, sculpt):

@@ -642,11 +642,11 @@ bool paint_use_opacity_masking(Brush *brush)
 	            false : true;
 }
 
-void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert, float distance,
+void paint_brush_color_get(struct Scene *scene, struct Brush *br, bool color_correction, bool invert, float distance,
                            float pressure, float color[3], struct ColorManagedDisplay *display)
 {
 	if (invert)
-		copy_v3_v3(color, br->secondary_rgb);
+		copy_v3_v3(color, BKE_brush_secondary_color_get(scene, br));
 	else {
 		if (br->flag & BRUSH_USE_GRADIENT) {
 			switch (br->gradient_stroke_mode) {
@@ -667,7 +667,7 @@ void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert,
 			}
 		}
 		else
-			copy_v3_v3(color, br->rgb);
+			copy_v3_v3(color, BKE_brush_color_get(scene, br));
 	}
 	if (color_correction)
 		IMB_colormanagement_display_to_scene_linear_v3(color, display);
@@ -858,7 +858,7 @@ static void paint_stroke_done(const bContext *C, struct PaintStroke *stroke)
 			if (pop->mode == PAINT_MODE_2D) {
 				float color[3];
 
-				srgb_to_linearrgb_v3_v3(color, brush->rgb);
+				srgb_to_linearrgb_v3_v3(color, BKE_brush_color_get(scene, brush));
 				paint_2d_bucket_fill(C, color, brush, pop->prevmouse, pop->custom_paint);
 			}
 			else {
@@ -1212,6 +1212,7 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 
 static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	Scene *scene = CTX_data_scene(C);
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
@@ -1221,7 +1222,7 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 	data->event_type = event->type;
 	data->show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
-	copy_v3_v3(data->initcolor, brush->rgb);
+	copy_v3_v3(data->initcolor, BKE_brush_color_get(scene, brush));
 	data->sample_palette = false;
 	op->customdata = data;
 	paint->flags &= ~PAINT_SHOW_BRUSH;
@@ -1246,6 +1247,7 @@ static int sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event
 
 static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	Scene *scene = CTX_data_scene(C);
 	SampleColorData *data = op->customdata;
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Brush *brush = BKE_paint_brush(paint);
@@ -1259,7 +1261,7 @@ static int sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		}
 
 		if (data->sample_palette) {
-			copy_v3_v3(brush->rgb, data->initcolor);
+			BKE_brush_color_set(scene, brush, data->initcolor);
 			RNA_boolean_set(op->ptr, "palette", true);
 		}
 		WM_cursor_modal_restore(CTX_wm_window(C));
@@ -1473,9 +1475,14 @@ void PAINT_OT_texture_paint_toggle(wmOperatorType *ot)
 
 static int brush_colors_flip_exec(bContext *C, wmOperator *UNUSED(op))
 {
+	UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
 	Brush *br = image_paint_brush(C);
-	swap_v3_v3(br->rgb, br->secondary_rgb);
-
+	if (ups->flag & UNIFIED_PAINT_COLOR) {
+		swap_v3_v3(ups->rgb, ups->secondary_rgb);
+	}
+	else if (br) {
+		swap_v3_v3(br->rgb, br->secondary_rgb);
+	}
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, br);
 
 	return OPERATOR_FINISHED;
@@ -1485,7 +1492,7 @@ static int brush_colors_flip_poll(bContext *C)
 {
 	if (image_paint_poll(C)) {
 		Brush *br = image_paint_brush(C);
-		if(br->imagepaint_tool == PAINT_TOOL_DRAW)
+		if (br->imagepaint_tool == PAINT_TOOL_DRAW)
 			return 1;
 	}
 

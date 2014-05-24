@@ -403,6 +403,7 @@ void flip_v3_v3(float out[3], const float in[3], const char symm)
 /* used for both 3d view and image window */
 void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_proj, bool use_palette)
 {
+	Scene *scene = CTX_data_scene(C);
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Palette *palette = BKE_paint_palette(paint);
 	PaletteColor *color;
@@ -425,7 +426,6 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 
 	if (CTX_wm_view3d(C) && texpaint_proj) {
 		/* first try getting a colour directly from the mesh faces if possible */
-		Scene *scene = CTX_data_scene(C);
 		Object *ob = OBACT;
 		bool sample_success = false;
 
@@ -465,28 +465,33 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 						v = v * ibuf->y - 0.5f;
 
 						if (ibuf->rect_float) {
-							float rgba_fp[4];
-							bilinear_interpolation_color_wrap(ibuf, NULL, rgba_fp, u, v);
-							straight_to_premul_v4(rgba_fp);
+							float rgba_f[4];
+							bilinear_interpolation_color_wrap(ibuf, NULL, rgba_f, u, v);
+							straight_to_premul_v4(rgba_f);
 							if (use_palette)
-								linearrgb_to_srgb_v3_v3(color->rgb, rgba_fp);
-							else if (br)
-								linearrgb_to_srgb_v3_v3(br->rgb, rgba_fp);
+								linearrgb_to_srgb_v3_v3(color->rgb, rgba_f);
+							else {
+								linearrgb_to_srgb_v3_v3(rgba_f, rgba_f);
+								BKE_brush_color_set(scene, br, rgba_f);
+							}
 						}
 						else {
 							unsigned char rgba[4];
 							bilinear_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
 							if (use_palette)
 								rgb_uchar_to_float(color->rgb, rgba);
-							else if (br)
-								rgb_uchar_to_float(br->rgb, rgba);
+							else {
+								float rgba_f[3];
+								rgb_uchar_to_float(rgba_f, rgba);
+								BKE_brush_color_set(scene, br, rgba_f);
+							}
 						}
 					}
 
 					BKE_image_release_ibuf(image, ibuf, NULL);
 				}
-				dm->release(dm);
 			}
+			dm->release(dm);
 		}
 
 		if (!sample_success) {
@@ -506,8 +511,11 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 	
 	if (use_palette)
 		rgb_uchar_to_float(color->rgb, cp);
-	else if (br)
-		rgb_uchar_to_float(br->rgb, cp);
+	else {
+		float rgba_f[3];
+		rgb_uchar_to_float(rgba_f, cp);
+		BKE_brush_color_set(scene, br, rgba_f);
+	}
 }
 
 static int brush_curve_preset_exec(bContext *C, wmOperator *op)

@@ -31,14 +31,12 @@ from bpy.app.translations import pgettext_iface as iface_
 class ImagePaintPanel(UnifiedPaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'TOOLS'
-    bl_category = "Tools"
 
 
-class BrushButtonsPanel:
+class BrushButtonsPanel(UnifiedPaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'TOOLS'
-    bl_category = "Tools"
-
+ 
     @classmethod
     def poll(cls, context):
         sima = context.space_data
@@ -679,13 +677,9 @@ class IMAGE_PT_tools_transform_uvs(Panel, UVToolsPanel):
         col.operator("transform.shear")
 
 
-class IMAGE_PT_paint(Panel, ImagePaintPanel):
+class IMAGE_PT_paint(Panel, BrushButtonsPanel):
     bl_label = "Paint"
-
-    @classmethod
-    def poll(cls, context):
-        sima = context.space_data
-        return sima.show_paint
+    bl_category = "Tools"
 
     def draw(self, context):
         layout = self.layout
@@ -704,7 +698,7 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
             if brush.image_tool in {'DRAW', 'FILL'}:
                 if brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'}:
                     if not brush.use_gradient:
-                        col.template_color_picker(brush, "color", value_slider=True)
+                        self.prop_unified_color_picker(col, context, brush, "color", value_slider=True)
 
                     if settings.palette:
                         col.template_palette(settings, "palette", color=True)
@@ -716,7 +710,7 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                         if brush.image_tool != 'FILL':
                             col.label("Background Color")
                             row = col.row(align=True)
-                            row.prop(brush, "secondary_color", text="")
+                            self.prop_unified_color(row, context, brush, "secondary_color", text="")
 
                         if brush.image_tool == 'DRAW':
                             col.prop(brush, "gradient_stroke_mode", text="Mode")
@@ -726,11 +720,11 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
                             col.prop(brush, "gradient_fill_mode")
                     else:
                         row = col.row(align=True)
-                        row.prop(brush, "color", text="")
+                        self.prop_unified_color(row, context, brush, "color", text="")
                         if brush.image_tool == 'FILL':
                             col.prop(brush, "fill_threshold")
                         else:
-                            row.prop(brush, "secondary_color", text="")
+                            self.prop_unified_color(row, context, brush, "secondary_color", text="")
                             row.separator()
                             row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
 
@@ -787,6 +781,7 @@ class IMAGE_PT_paint(Panel, ImagePaintPanel):
 class IMAGE_PT_tools_brush_overlay(BrushButtonsPanel, Panel):
     bl_label = "Overlay"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_category = "Options"
 
     def draw(self, context):
         layout = self.layout
@@ -840,6 +835,7 @@ class IMAGE_PT_tools_brush_overlay(BrushButtonsPanel, Panel):
 class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
     bl_label = "Texture"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_category = "Tools"
 
     def draw(self, context):
         layout = self.layout
@@ -856,6 +852,7 @@ class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, Panel):
 class IMAGE_PT_tools_mask_texture(BrushButtonsPanel, Panel):
     bl_label = "Texture Mask"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_category = "Tools"
 
     def draw(self, context):
         layout = self.layout
@@ -872,6 +869,7 @@ class IMAGE_PT_tools_mask_texture(BrushButtonsPanel, Panel):
 class IMAGE_PT_tools_brush_tool(BrushButtonsPanel, Panel):
     bl_label = "Tool"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_category = "Options"
 
     def draw(self, context):
         layout = self.layout
@@ -890,6 +888,7 @@ class IMAGE_PT_tools_brush_tool(BrushButtonsPanel, Panel):
 class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
     bl_label = "Paint Stroke"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_category = "Tools"
 
     def draw(self, context):
         layout = self.layout
@@ -961,6 +960,7 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
 class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel):
     bl_label = "Paint Curve"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_category = "Tools"
 
     def draw(self, context):
         layout = self.layout
@@ -983,6 +983,7 @@ class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel):
 class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
     bl_label = "Appearance"
     bl_options = {'DEFAULT_CLOSED'}
+    bl_category = "Options"
 
     def draw(self, context):
         layout = self.layout

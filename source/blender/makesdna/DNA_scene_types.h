@@ -972,6 +972,13 @@ typedef struct UnifiedPaintSettings {
 	/* unified brush weight, [0, 1] */
 	float weight;
 
+	/* unified brush color */
+	float rgb[3];
+	float pad;
+	/* unified brush secondary color */
+	float secondary_rgb[3];
+	float pad2;
+
 	/* user preferences for sculpt and paint */
 	int flag;
 
@@ -989,7 +996,7 @@ typedef struct UnifiedPaintSettings {
 	int anchored_size;
 
 	int draw_inverted;
-	int pad;
+	int pad3;
 
 	float overlap_factor; /* normalization factor due to accumulated value of curve along spacing.
 	                       * Calculated when brush spacing changes to dampen strength of stroke
@@ -1015,13 +1022,14 @@ typedef struct UnifiedPaintSettings {
 	/* radius of brush, premultiplied with pressure.
 	 * In case of anchored brushes contains the anchored radius */
 	float pixel_radius;
-	int pad2;
+	int pad4;
 } UnifiedPaintSettings;
 
 typedef enum {
 	UNIFIED_PAINT_SIZE  = (1 << 0),
 	UNIFIED_PAINT_ALPHA = (1 << 1),
 	UNIFIED_PAINT_WEIGHT = (1 << 5),
+	UNIFIED_PAINT_COLOR = (1 << 6),
 
 	/* only used if unified size is enabled, mirrors the brush flags
 	 * BRUSH_LOCK_SIZE and BRUSH_SIZE_PRESSURE */

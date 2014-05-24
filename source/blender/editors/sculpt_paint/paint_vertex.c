@@ -197,11 +197,11 @@ static int *get_indexarray(Mesh *me)
 	return MEM_mallocN(sizeof(int) * (me->totpoly + 1), "vertexpaint");
 }
 
-unsigned int vpaint_get_current_col(VPaint *vp)
+unsigned int vpaint_get_current_col(Scene *scene, VPaint *vp)
 {
 	Brush *brush = BKE_paint_brush(&vp->paint);
 	unsigned char col[4];
-	rgb_float_to_uchar(col, brush->rgb);
+	rgb_float_to_uchar(col, BKE_brush_color_get(scene, brush));
 	col[3] = 255; /* alpha isn't used, could even be removed to speedup paint a little */
 	return *(unsigned int *)col;
 }
@@ -2781,7 +2781,8 @@ static void vpaint_build_poly_facemap(struct VPaintData *vd, Mesh *me)
 
 static bool vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const float UNUSED(mouse[2]))
 {
-	ToolSettings *ts = CTX_data_tool_settings(C);
+	Scene *scene = CTX_data_scene(C);
+	ToolSettings *ts = scene->toolsettings;
 	struct PaintStroke *stroke = op->customdata;
 	VPaint *vp = ts->vpaint;
 	Brush *brush = BKE_paint_brush(&vp->paint);
@@ -2813,7 +2814,7 @@ static bool vpaint_stroke_test_start(bContext *C, struct wmOperator *op, const f
 	vpd->vp_handle = ED_vpaint_proj_handle_create(vpd->vc.scene, ob, &vpd->vertexcosnos);
 
 	vpd->indexar = get_indexarray(me);
-	vpd->paintcol = vpaint_get_current_col(vp);
+	vpd->paintcol = vpaint_get_current_col(scene, vp);
 
 	vpd->is_texbrush = !(brush->vertexpaint_tool == PAINT_BLEND_BLUR) &&
 	                   brush->mtex.tex;

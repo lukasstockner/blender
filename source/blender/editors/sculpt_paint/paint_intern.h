@@ -120,7 +120,7 @@ void PAINT_OT_weight_gradient(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint(struct wmOperatorType *ot);
 
-unsigned int vpaint_get_current_col(struct VPaint *vp);
+unsigned int vpaint_get_current_col(struct Scene *scene, struct VPaint *vp);
 
 
 /* paint_vertex_proj.c */
@@ -168,7 +168,7 @@ void paint_proj_stroke_done(void *ps);
 void paint_proj_mesh_data_ensure(bContext *C, struct Object *ob, struct wmOperator *op);
 bool proj_paint_add_slot(bContext *C, int type, struct Material *ma);
 
-void paint_brush_color_get(struct Brush *br, bool color_correction, bool invert, float distance, float pressure, float color[3], struct ColorManagedDisplay *display);
+void paint_brush_color_get(struct Scene *scene, struct Brush *br, bool color_correction, bool invert, float distance, float pressure, float color[3], struct ColorManagedDisplay *display);
 bool paint_use_opacity_masking(struct Brush *brush);
 void paint_brush_init_tex(struct Brush *brush);
 void paint_brush_exit_tex(struct Brush *brush);

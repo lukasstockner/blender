@@ -772,7 +772,7 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
 	return intensity;
 }
 
-/* Unified Size and Strength */
+/* Unified Size / Strength / Color */
 
 /* XXX: be careful about setting size and unprojected radius
  * because they depend on one another
@@ -786,6 +786,29 @@ float BKE_brush_sample_masktex(const Scene *scene, Brush *br,
  * radius.  Not completely convinced that is correct.
  * In any case, a better solution is needed to prevent
  * inconsistency. */
+
+
+float *BKE_brush_color_get(const struct Scene *scene, struct Brush *brush)
+{
+	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+	return (ups->flag & UNIFIED_PAINT_COLOR) ? ups->rgb : brush->rgb;
+}
+
+float *BKE_brush_secondary_color_get(const struct Scene *scene, struct Brush *brush)
+{
+	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+	return (ups->flag & UNIFIED_PAINT_COLOR) ? ups->secondary_rgb : brush->secondary_rgb;
+}
+
+void BKE_brush_color_set(struct Scene *scene, struct Brush *brush, float color[3])
+{
+	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+
+	if (ups->flag & UNIFIED_PAINT_COLOR)
+		copy_v3_v3(ups->rgb, color);
+	else
+		copy_v3_v3(brush->rgb, color);
+}
 
 void BKE_brush_size_set(Scene *scene, Brush *brush, int size)
 {

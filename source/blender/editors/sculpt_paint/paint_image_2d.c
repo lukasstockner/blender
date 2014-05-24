@@ -391,7 +391,7 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 
 	/* get brush color */
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
-		paint_brush_color_get(brush, use_color_correction, painter->cache.invert, distance, pressure, brush_rgb, display);
+		paint_brush_color_get(scene, brush, use_color_correction, painter->cache.invert, distance, pressure, brush_rgb, display);
 	}
 	else {
 		brush_rgb[0] = 1.0f;
@@ -464,7 +464,7 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 
 	/* get brush color */
 	if (brush->imagepaint_tool == PAINT_TOOL_DRAW) {
-		paint_brush_color_get(brush, use_color_correction, painter->cache.invert, 0.0, 1.0, brush_rgb, display);
+		paint_brush_color_get(scene, brush, use_color_correction, painter->cache.invert, 0.0, 1.0, brush_rgb, display);
 	}
 	else {
 		brush_rgb[0] = 1.0f;

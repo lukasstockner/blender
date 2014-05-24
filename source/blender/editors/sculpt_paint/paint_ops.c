@@ -179,7 +179,7 @@ static void PALETTE_OT_new(wmOperatorType *ot)
 
 static int palette_color_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	/*int type = RNA_enum_get(op->ptr, "type");*/
+	Scene *scene = CTX_data_scene(C);
 	Paint *paint = BKE_paint_get_active_from_context(C);
 	Brush *brush = paint->brush;
 	PaintMode mode = BKE_paintmode_get_active_from_context(C);
@@ -187,7 +187,7 @@ static int palette_color_add_exec(bContext *C, wmOperator *UNUSED(op))
 	PaletteColor *color = BKE_palette_color_add(palette);
 
 	if (ELEM3(mode, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D, PAINT_VERTEX)) {
-		copy_v3_v3(color->rgb, brush->rgb);
+		copy_v3_v3(color->rgb, BKE_brush_color_get(scene, brush));
 		color->value = 0.0;
 	}
 	else if (mode == PAINT_WEIGHT) {
@@ -227,7 +227,7 @@ static int vertex_color_set_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *obact = CTX_data_active_object(C);
-	unsigned int paintcol = vpaint_get_current_col(scene->toolsettings->vpaint);
+	unsigned int paintcol = vpaint_get_current_col(scene, scene->toolsettings->vpaint);
 
 	if (ED_vpaint_fill(obact, paintcol)) {
 		ED_region_tag_redraw(CTX_wm_region(C)); // XXX - should redraw all 3D views
