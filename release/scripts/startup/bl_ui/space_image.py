@@ -952,11 +952,6 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
 
         col.prop(toolsettings, "input_samples")
 
-        col.separator()
-
-        col.prop(brush, "use_wrap")
-
-
 class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel):
     bl_label = "Paint Curve"
     bl_options = {'DEFAULT_CLOSED'}
@@ -1008,6 +1003,29 @@ class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
         sub = col.column()
         sub.active = brush.use_custom_icon
         sub.prop(brush, "icon_filepath", text="")
+
+class IMAGE_PT_tools_paint_options(BrushButtonsPanel, Panel):
+    bl_label = "Image Paint"
+    bl_category = "Options"
+
+    def draw(self, context):
+        layout = self.layout
+
+        toolsettings = context.tool_settings
+        brush = toolsettings.image_paint.brush
+
+        ups = toolsettings.unified_paint_settings
+
+        col = layout.column(align=True)
+
+        col.prop(brush, "use_wrap")
+        col.separator()
+
+        col.label(text="Unified Settings:")
+        row = col.row()
+        row.prop(ups, "use_unified_size", text="Size")
+        row.prop(ups, "use_unified_strength", text="Strength")
+        col.prop(ups, "use_unified_color", text="Color")
 
 
 class IMAGE_UV_sculpt_curve(Panel):
