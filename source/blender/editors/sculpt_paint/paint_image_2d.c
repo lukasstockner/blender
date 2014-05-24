@@ -1444,8 +1444,9 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 			while (!BLI_gsqueue_is_empty(stack)) {
 				BLI_gsqueue_pop(stack, &coordinate);
 
-				blend_color_mix_float(ibuf->rect_float + 4 * (coordinate),
-					                      ibuf->rect_float + 4 * (coordinate), color_f);
+				IMB_blend_color_float(ibuf->rect_float + 4 * (coordinate),
+				                      ibuf->rect_float + 4 * (coordinate),
+				                      color_f, br->blend);
 
 				/* reconstruct the coordinates here */
 				i = coordinate % width;
@@ -1474,8 +1475,9 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 			while (!BLI_gsqueue_is_empty(stack)) {
 				BLI_gsqueue_pop(stack, &coordinate);
 
-				blend_color_mix_byte((unsigned char *)(ibuf->rect + coordinate),
-					                     (unsigned char *)(ibuf->rect + coordinate), (unsigned char *)&color_b);
+				IMB_blend_color_byte((unsigned char *)(ibuf->rect + coordinate),
+				                     (unsigned char *)(ibuf->rect + coordinate),
+				                     (unsigned char *)&color_b, br->blend);
 
 				/* reconstruct the coordinates here */
 				i = coordinate % width;
@@ -1579,9 +1581,9 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 				/* convert to premultiplied */
 				mul_v3_fl(color_f, color_f[3]);
 				color_f[3] *= br->alpha;
-				blend_color_mix_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
+				IMB_blend_color_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
 				                      ibuf->rect_float + 4 * (j * ibuf->x + i),
-				                      color_f);
+				                      color_f, br->blend);
 			}
 		}
 	}
@@ -1607,9 +1609,9 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 				do_colorband(br->gradient, f, color_f);
 				rgba_float_to_uchar((unsigned char *)&color_b, color_f);
 				((unsigned char *)&color_b)[3] *= br->alpha;
-				blend_color_mix_byte((unsigned char *)(ibuf->rect + j * ibuf->x + i),
+				IMB_blend_color_byte((unsigned char *)(ibuf->rect + j * ibuf->x + i),
 				                     (unsigned char *)(ibuf->rect + j * ibuf->x + i),
-				                     (unsigned char *)&color_b);
+				                     (unsigned char *)&color_b, br->blend);
 			}
 		}
 	}

@@ -4030,13 +4030,13 @@ static void *do_projectpaint_thread(void *ph_v)
 						if (is_floatbuf) {
 							/* convert to premultipied */
 							mul_v3_fl(color_f, color_f[3]);
-							blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
-							                      color_f);
+							IMB_blend_color_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
+							                      color_f, ps->blend);
 						}
 						else {
 							rgba_float_to_uchar(projPixel->newColor.ch, color_f);
-							blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
-							                     projPixel->newColor.ch);
+							IMB_blend_color_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
+							                     projPixel->newColor.ch, ps->blend);
 						}
 					}
 					else {
@@ -4045,16 +4045,16 @@ static void *do_projectpaint_thread(void *ph_v)
 							newColor_f[3] = ((float)projPixel->mask) * (1.0f / 65535.0f) * brush->alpha;
 							copy_v3_v3(newColor_f, ps->paint_color_linear);
 
-							blend_color_mix_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
-							                      newColor_f);
+							IMB_blend_color_float(projPixel->pixel.f_pt,  projPixel->origColor.f_pt,
+							                      newColor_f, ps->blend);
 						}
 						else {
 							float mask = ((float)projPixel->mask) * (1.0f / 65535.0f);
 							projPixel->newColor.ch[3] = mask * 255 * brush->alpha;
 
 							rgb_float_to_uchar(projPixel->newColor.ch, ps->paint_color);
-							blend_color_mix_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
-							                     projPixel->newColor.ch);
+							IMB_blend_color_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
+							                     projPixel->newColor.ch, ps->blend);
 						}
 					}
 
