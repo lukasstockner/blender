@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -45,6 +46,7 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_editmesh.h"
+#include "BKE_material.h"
 
 #include "BLI_buffer.h"
 
@@ -396,28 +398,35 @@ static void draw_uvs_texpaint(SpaceImage *sima, Scene *scene, Object *ob)
 {
 	Mesh *me = ob->data;
 	Image *curimage = ED_space_image(sima);
+	Material *ma;
 
 	if (sima->flag & SI_DRAW_OTHER)
 		draw_uvs_other(scene, ob, curimage);
 
 	UI_ThemeColor(TH_UV_SHADOW);
 
+	ma = give_current_material(ob, ob->actcol);
+
 	if (me->mtpoly) {
 		MPoly *mpoly = me->mpoly;
-		MTexPoly *tface = me->mtpoly;
-		MLoopUV *mloopuv;
+		MLoopUV *mloopuv, *mloopuv_base;
 		int a, b;
+		if (!(ma && ma->texpaintslot[ma->paint_active_slot].uvname[0] &&
+		      (mloopuv = CustomData_get_layer_named(&me->ldata, CD_MLOOPUV, ma->texpaintslot[ma->paint_active_slot].uvname))))
+		{
+			mloopuv = me->mloopuv;
+		}
 
-		for (a = me->totpoly; a > 0; a--, tface++, mpoly++) {
-			if (tface->tpage == curimage) {
-				glBegin(GL_LINE_LOOP);
+		mloopuv_base = mloopuv;
 
-				mloopuv = me->mloopuv + mpoly->loopstart;
-				for (b = 0; b < mpoly->totloop; b++, mloopuv++) {
-					glVertex2fv(mloopuv->uv);
-				}
-				glEnd();
+		for (a = me->totpoly; a > 0; a--, mpoly++) {
+			glBegin(GL_LINE_LOOP);
+
+			mloopuv = mloopuv_base + mpoly->loopstart;
+			for (b = 0; b < mpoly->totloop; b++, mloopuv++) {
+				glVertex2fv(mloopuv->uv);
 			}
+			glEnd();
 		}
 	}
 }
