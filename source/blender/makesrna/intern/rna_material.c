@@ -204,8 +204,8 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *s
 			SpaceLink *sl;
 			for (sl = sa->spacedata.first; sl; sl = sl->next) {
 				if (sl->spacetype == SPACE_IMAGE) {
-						SpaceImage *sima = (SpaceImage *)sl;
-						ED_space_image_set(sima, scene, scene->obedit, ma->texpaintslot[ma->paint_active_slot].ima);
+					SpaceImage *sima = (SpaceImage *)sl;
+					ED_space_image_set(sima, scene, scene->obedit, ma->texpaintslot[ma->paint_active_slot].ima);
 				}
 			}
 		}

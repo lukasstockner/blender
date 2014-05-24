@@ -1433,12 +1433,32 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 		toggle_paint_cursor(C, 0);
 	}
 	else {
+		bScreen *sc;
+		Main *bmain = CTX_data_main(C);
+		Material *ma;
+
 		bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
 		/* This has to stay here to regenerate the texture paint
 		 * cache in case we are loading a file */
 		refresh_object_texpaint_images(ob, use_nodes);
 
 		paint_proj_mesh_data_ensure(C, ob, op);
+
+		/* set the current material active paint slot on image editor */
+		ma = give_current_material(ob, ob->actcol);
+
+		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_IMAGE) {
+						SpaceImage *sima = (SpaceImage *)sl;
+						ED_space_image_set(sima, scene, scene->obedit, ma->texpaintslot[ma->paint_active_slot].ima);
+					}
+				}
+			}
+		}
 
 		ob->mode |= mode_flag;
 
