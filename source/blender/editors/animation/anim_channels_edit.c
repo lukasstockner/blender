@@ -880,9 +880,24 @@ static void rearrange_animchannel_flatten_islands(ListBase *islands, ListBase *s
 
 static void rearrange_animchannels_filter_visible(ListBase *anim_data_visible, bAnimContext *ac, short type)
 {
+	ListBase anim_data = {NULL, NULL};
+	bAnimListElem *ale, *ale_next;
     int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
-
-    ANIM_animdata_filter(ac, anim_data_visible, filter, ac->data, type);
+	
+	/* get all visible channels */
+    ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+	
+	/* now, only keep the ones that are of the types we are interested in */
+	for (ale = anim_data.first; ale; ale = ale_next) {
+		ale_next = ale->next;
+		
+		if (ale->type != type) {
+			BLI_freelinkN(&anim_data, ale);
+		}
+	}
+	
+	/* return cleaned up list */
+	*anim_data_visible = anim_data;
 }
 
 /* performing rearranging of channels using islands */
@@ -949,10 +964,6 @@ static void rearrange_nla_channels(bAnimContext *ac, AnimData *adt, short mode)
 	rearrange_func = rearrange_get_mode_func(mode);
 	if (rearrange_func == NULL)
 		return;
-	
-	/* only consider NLA data if it's accessible */
-	//if (EXPANDED_DRVD(adt) == 0)
-	//	return;
 	
 	/* Filter visible data. */
 	rearrange_animchannels_filter_visible(&anim_data_visible, ac, ANIMTYPE_NLATRACK);
@@ -1035,6 +1046,13 @@ static void split_groups_action_temp(bAction *act, bActionGroup *tgrp)
 		fcu->next = NULL;
 		tgrp->channels.last = fcu;
 		act->curves.last = NULL;
+		
+		/* ensure that all of these get their group set to this temp group 
+		 * (so that visibility filtering works)
+		 */
+		for (fcu = tgrp->channels.first; fcu; fcu = fcu->next) {
+			fcu->grp = tgrp;
+		}
 	}
 	
 	/* Add temp-group to list */
@@ -1057,8 +1075,17 @@ static void join_groups_action_temp(bAction *act)
 		/* clear moved flag */
 		agrp->flag &= ~AGRP_MOVED;
 		
-		/* if temp-group... remove from list (but don't free as it's on the stack!) */
+		/* if group was temporary one:
+		 * - unassign all FCurves which were temporarily added to it
+		 * - remove from list (but don't free as it's on the stack!)
+		 */
 		if (agrp->flag & AGRP_TEMP) {
+			FCurve *fcu;
+			
+			for (fcu = agrp->channels.first; fcu; fcu = fcu->next) {
+				fcu->grp = NULL;
+			}
+			
 			BLI_remlink(&act->groups, agrp);
 			break;
 		}

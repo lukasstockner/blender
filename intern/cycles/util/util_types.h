@@ -456,7 +456,6 @@ enum InterpolationType {
 	INTERPOLATION_SMART = 3,
 };
 
-
 /* macros */
 
 /* hints for branch prediction, only use in code that runs a _lot_ */
