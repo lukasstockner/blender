@@ -33,12 +33,9 @@
 #ifndef __DEPSGRAPH_EVAL_TYPES_H__
 #define __DEPSGRAPH_EVAL_TYPES_H__
 
-#include <vector>
-
 #include "DEG_depsgraph.h"
 
-#include "depsgraph_util_priority_queue.h"
-#include "depsgraph_util_thread.h"
+#include "depsgraph_util_task.h"
 
 struct Depsgraph;
 struct OperationDepsNode;
@@ -128,54 +125,6 @@ typedef struct DEG_PoseContext {
 	struct Object *ob;              /* object that pose resides on */
 	struct bPose *pose;             /* pose object that is being "solved" */
 } DEG_PoseContext;
-
-/* ****************************************** */
-
-struct DepsgraphTask {
-	Depsgraph *graph;
-	OperationDepsNode *node;
-	eEvaluationContextType context_type;
-};
-
-struct CompareDepsgraphTask {
-	bool operator() (const DepsgraphTask &a, const DepsgraphTask &b)
-	{
-		return a.node->eval_priority < b.node->eval_priority;
-	}
-};
-
-typedef priority_queue<DepsgraphTask, vector<DepsgraphTask>, CompareDepsgraphTask> EvalQueue;
-
-class Scheduler {
-public:
-	typedef std::vector<Thread*> Threads;
-	
-	static void init(int num_threads = 0);
-	static void exit();
-	
-	/* number of threads that can work on task */
-	static int num_threads() { return threads.size(); }
-	
-	static void schedule_graph(Depsgraph *graph, eEvaluationContextType context_type);
-	static void schedule_node(Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node);
-	static void finish_node(Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node);
-	
-	static EvalQueue queue;
-	static ThreadMutex queue_mutex;
-	static ThreadCondition queue_cond;
-	/* XXX consider using spin lock here */
-	
-	static void thread_run(Thread *thread);
-	static bool thread_wait_pop(DepsgraphTask &task);
-	
-	//static void push(Entry& entry, bool front);
-	//static void clear(TaskPool *pool);
-	
-private:
-	static ThreadMutex mutex;
-	static Threads threads;
-	static bool do_exit;
-};
 
 /* ****************************************** */
 

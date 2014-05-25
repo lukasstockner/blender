@@ -73,13 +73,13 @@ extern "C" {
 /* Initialise threading lock - called during application startup */
 void DEG_threaded_init(void)
 {
-	Scheduler::init();
+	DepsgraphTaskScheduler::init();
 }
 
 /* Free threading lock - called during application shutdown */
 void DEG_threaded_exit(void)
 {
-	Scheduler::exit();
+	DepsgraphTaskScheduler::exit();
 }
 
 /* *************************************************** */
@@ -118,140 +118,6 @@ static void deg_exec_node(Depsgraph *graph, DepsNode *node, eEvaluationContextTy
 		op->last_time = PIL_check_seconds_timer() - op->start_time;
 	}
 	/* NOTE: "generic" nodes cannot be executed, but will still end up calling this */
-}
-
-EvalQueue Scheduler::queue;
-ThreadMutex Scheduler::queue_mutex;
-ThreadCondition Scheduler::queue_cond;
-ThreadMutex Scheduler::mutex;
-Scheduler::Threads Scheduler::threads;
-bool Scheduler::do_exit;
-
-void Scheduler::init(int num_threads)
-{
-	BLI_mutex_init(&mutex);
-	BLI_mutex_init(&queue_mutex);
-	BLI_condition_init(&queue_cond);
-	
-	do_exit = false;
-	
-	if(num_threads == 0) {
-		/* automatic number of threads */
-		num_threads = BLI_system_thread_count();
-	}
-	
-	/* launch threads that will be waiting for work */
-	threads.resize(num_threads);
-	
-	for(size_t i = 0; i < threads.size(); i++)
-		threads[i] = new Thread((Thread::run_cb_t)Scheduler::thread_run, i);
-}
-
-void Scheduler::exit()
-{
-	/* stop all waiting threads */
-	do_exit = true;
-	BLI_condition_notify_all(&queue_cond);
-	
-	/* delete threads */
-	for (Threads::const_iterator it = threads.begin(); it != threads.end(); ++it) {
-		Thread *t = *it;
-		t->join();
-		delete t;
-	}
-	threads.clear();
-	
-	BLI_mutex_end(&mutex);
-	BLI_mutex_end(&queue_mutex);
-	BLI_condition_end(&queue_cond);
-}
-
-bool Scheduler::thread_wait_pop(DepsgraphTask &task)
-{
-	BLI_mutex_lock(&queue_mutex);
-
-	while(queue.empty() && !do_exit)
-		BLI_condition_wait(&queue_cond, &queue_mutex);
-
-	if(queue.empty()) {
-		BLI_assert(do_exit);
-		return false;
-	}
-	
-	task = queue.top();
-	queue.pop();
-	
-	BLI_mutex_unlock(&queue_mutex);
-	
-	return true;
-}
-
-void Scheduler::thread_run(Thread *thread)
-{
-	DepsgraphTask task;
-
-	/* keep popping off tasks */
-	while(thread_wait_pop(task)) {
-		/* run task */
-		
-		deg_exec_node(task.graph, task.node, task.context_type);
-		
-		/* notify pool task was done */
-		finish_node(task.graph, task.context_type, task.node);
-	}
-}
-
-static bool is_node_ready(OperationDepsNode *node)
-{
-	return (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) && node->num_links_pending == 0;
-}
-
-void Scheduler::schedule_graph(Depsgraph *graph, eEvaluationContextType context_type)
-{
-	BLI_mutex_lock(&queue_mutex);
-	
-	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
-		OperationDepsNode *node = *it;
-		
-		if (is_node_ready(node)) {
-			schedule_node(graph, context_type, node);
-		}
-	}
-	
-	BLI_mutex_unlock(&queue_mutex);
-}
-
-void Scheduler::schedule_node(Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node)
-{
-	DepsgraphTask task;
-	task.graph = graph;
-	task.node = node;
-	task.context_type = context_type;
-	
-	queue.push(task);
-}
-
-void Scheduler::finish_node(Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node)
-{
-	bool notify = false;
-	
-	BLI_mutex_lock(&queue_mutex);
-	
-	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
-		DepsRelation *rel = *it;
-		
-		BLI_assert(rel->to->num_links_pending > 0);
-		--rel->to->num_links_pending;
-		if (rel->to->num_links_pending == 0) {
-			schedule_node(graph, context_type, rel->to);
-			notify = true;
-		}
-	}
-	
-	BLI_mutex_unlock(&queue_mutex);
-	
-	if (notify)
-		BLI_condition_notify_all(&queue_cond);
 }
 
 /* *************************************************** */
@@ -295,6 +161,23 @@ static void calculate_eval_priority(OperationDepsNode *node)
 		node->eval_priority = 0.0f;
 }
 
+static bool is_node_ready(OperationDepsNode *node)
+{
+	return (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) && node->num_links_pending == 0;
+}
+
+static void schedule_graph(DepsgraphTaskPool &pool, Depsgraph *graph, eEvaluationContextType context_type)
+{
+	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
+		OperationDepsNode *node = *it;
+		
+		if (is_node_ready(node)) {
+			/* XXX TODO */
+//			pool.push();
+//			schedule_node(graph, context_type, node);
+		}
+	}
+}
 
 
 /* Evaluate all nodes tagged for updating 
@@ -305,6 +188,9 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 {
 	/* generate base evaluation context, upon which all the others are derived... */
 	// TODO: this needs both main and scene access...
+	
+	/* XXX could use a separate pool for each eval context */
+	static DepsgraphTaskPool task_pool = DepsgraphTaskPool();
 	
 	/* clear tags */
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
@@ -322,7 +208,7 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 	
 	DEG_debug_eval_step("Eval Priority Calculation");
 	
-	Scheduler::schedule_graph(graph, context_type);
+	schedule_graph(task_pool, graph, context_type);
 	
 	/* from the root node, start queuing up nodes to evaluate */
 	// ... start scheduler, etc.

@@ -31,7 +31,7 @@
 
 class Thread {
 public:
-	typedef void (*run_cb_t)(void *arg);
+	typedef void (*run_cb_t)(int id);
 	
 	Thread(run_cb_t run_cb_, int id_)
 	{
@@ -49,7 +49,8 @@ public:
 
 	static void *run(void *arg)
 	{
-		((Thread*)arg)->run_cb(arg);
+		Thread *t = (Thread *)arg;
+		t->run_cb(t->id);
 		return NULL;
 	}
 

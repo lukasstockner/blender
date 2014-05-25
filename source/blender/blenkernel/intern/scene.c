@@ -1550,7 +1550,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 {
 	Scene *sce_iter;
 	
-	/********* new depsgraph *********/\
+	/********* new depsgraph *********/
 	if (scene->depsgraph)
 		DEG_evaluate_on_refresh(scene->depsgraph, eval_ctx->for_render ? DEG_EVALUATION_CONTEXT_RENDER : DEG_EVALUATION_CONTEXT_VIEWPORT);
 	/******************/
