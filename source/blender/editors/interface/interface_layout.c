@@ -2246,7 +2246,7 @@ static void ui_litem_layout_radial(uiLayout *litem)
 				bitem->but->rect.xmax += UI_UNIT_X;
 				ui_item_size(item, &itemw, &itemh);
 
-				ui_item_position(item, x + vec[0] * pie_radius - itemw/2, y + vec[1] * pie_radius - itemh/2, itemw, itemh);
+				ui_item_position(item, x + vec[0] * pie_radius - itemw / 2, y + vec[1] * pie_radius - itemh / 2, itemw, itemh);
 
 				minx = min_ii(minx, x + vec[0] * pie_radius - itemw/2);
 				maxx = max_ii(maxx, x + vec[0] * pie_radius + itemw/2);

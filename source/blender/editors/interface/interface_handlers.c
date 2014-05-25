@@ -6228,6 +6228,11 @@ static bool ui_but_contains_pt(uiBut *but, float mx, float my)
 	return BLI_rctf_isect_pt(&but->rect, mx, my);
 }
 
+static bool ui_but_contains_seg(uiBut *but, const float s1[2], const float s2[2])
+{
+	return BLI_rctf_isect_segment(&but->rect, s1, s2);
+}
+
 static uiBut *ui_but_find_activated(ARegion *ar)
 {
 	uiBlock *block;
@@ -6382,7 +6387,10 @@ static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, c
 {
 	uiBlock *block;
 	uiBut *but, *butover = NULL;
+
 	float mx, my;
+	float seg1[2];
+	float seg2[2];
 
 //	if (!win->active)
 //		return NULL;
@@ -6394,9 +6402,32 @@ static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, c
 		my = y;
 		ui_window_to_block_fl(ar, block, &mx, &my);
 
+		if (block->flag & UI_BLOCK_RADIAL) {
+			int centerpixels = 10;
+
+			seg1[0] = 0.5 * (block->rect.xmax - block->rect.xmin);
+			seg1[1] = 0.5 * (block->rect.ymax - block->rect.ymin);
+
+			seg2[0] = mx - seg1[0];
+			seg2[1] = my - seg1[1];
+			normalize_v2(seg2);
+
+			/* make a big enough segment for intersection */
+			seg1[0] = centerpixels * seg2[0] + seg1[0];
+			seg1[1] = centerpixels * seg2[1] + seg1[1];
+			seg2[0] = 10000.0 * seg2[0] + seg1[0];
+			seg2[1] = 10000.0 * seg2[1] + seg1[1];
+		}
+
 		for (but = block->buttons.last; but; but = but->prev) {
 			if (ui_is_but_interactive(but, labeledit)) {
-				if (ui_but_contains_pt(but, mx, my)) {
+				if (but->dt == UI_EMBOSSR) {
+					if (ui_but_contains_seg(but, seg1, seg2)) {
+						butover = but;
+						break;
+					}
+				}
+				else if (ui_but_contains_pt(but, mx, my)) {
 					butover = but;
 					break;
 				}
