@@ -163,7 +163,7 @@ void DepsgraphTaskPool::stop()
 	BLI_assert(num == 0);
 }
 
-bool DepsgraphTaskPool::canceled()
+bool DepsgraphTaskPool::canceled() const
 {
 	return do_cancel;
 }
@@ -197,8 +197,6 @@ void DepsgraphTaskPool::num_increase()
 
 /* Task Scheduler */
 
-ThreadMutex DepsgraphTaskScheduler::mutex;
-int DepsgraphTaskScheduler::users = 0;
 DepsgraphTaskScheduler::Threads DepsgraphTaskScheduler::threads;
 bool DepsgraphTaskScheduler::do_exit = false;
 
@@ -208,52 +206,33 @@ ThreadCondition DepsgraphTaskScheduler::queue_cond;
 
 void DepsgraphTaskScheduler::init(int num_threads)
 {
-	BLI_mutex_lock(&mutex);
+	do_exit = false;
 	
-	/* multiple cycles instances can use this task scheduler, sharing the same
-	 * threads, so we keep track of the number of users. */
-	if(users == 0) {
-		do_exit = false;
-		
-		if(num_threads == 0) {
-			/* automatic number of threads */
-			num_threads = BLI_system_thread_count();
-		}
-		
-		/* launch threads that will be waiting for work */
-		threads.resize(num_threads);
-		
-		for(size_t i = 0; i < threads.size(); i++)
-			threads[i] = new Thread(&DepsgraphTaskScheduler::thread_run, i);
+	if(num_threads == 0) {
+		/* automatic number of threads */
+		num_threads = BLI_system_thread_count();
 	}
 	
-	users++;
+	/* launch threads that will be waiting for work */
+	threads.resize(num_threads);
 	
-	BLI_mutex_unlock(&mutex);
+	for(size_t i = 0; i < threads.size(); i++)
+		threads[i] = new Thread(&DepsgraphTaskScheduler::thread_run, i);
 }
 
 void DepsgraphTaskScheduler::exit()
 {
-	BLI_mutex_lock(&mutex);
+	/* stop all waiting threads */
+	do_exit = true;
+	BLI_condition_notify_all(&queue_cond);
 	
-	BLI_assert(users > 0);
-	users--;
-	
-	if(users == 0) {
-		/* stop all waiting threads */
-		do_exit = true;
-		BLI_condition_notify_all(&queue_cond);
-		
-		/* delete threads */
-		for (Threads::const_iterator it = threads.begin(); it != threads.end(); ++it) {
-			Thread *t = *it;
-			t->join();
-			delete t;
-		}
-		threads.clear();
+	/* delete threads */
+	for (Threads::const_iterator it = threads.begin(); it != threads.end(); ++it) {
+		Thread *t = *it;
+		t->join();
+		delete t;
 	}
-	
-	BLI_mutex_unlock(&mutex);
+	threads.clear();
 }
 
 bool DepsgraphTaskScheduler::thread_wait_pop(Entry& entry)

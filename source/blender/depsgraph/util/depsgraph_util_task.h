@@ -78,13 +78,13 @@ public:
 	 * instead can just put the calling thread to sleep
 	 * and let the scheduler handle tasks
 	 */
-	void wait_work();	/* work and wait until all tasks are done */
+	void wait_work();		/* work and wait until all tasks are done */
 #endif
-	void wait();		/* wait until all tasks are done */
-	void cancel();		/* cancel all tasks, keep worker threads running */
-	void stop();		/* stop all worker threads */
+	void wait();			/* wait until all tasks are done */
+	void cancel();			/* cancel all tasks, keep worker threads running */
+	void stop();			/* stop all worker threads */
 	
-	bool canceled();	/* for worker threads, test if canceled */
+	bool canceled() const;	/* for worker threads, test if canceled */
 	
 protected:
 	friend class DepsgraphTaskScheduler;
@@ -112,9 +112,6 @@ public:
 	/* number of threads that can work on task */
 	static int num_threads() { return threads.size(); }
 	
-	/* test if any session is using the scheduler */
-	static bool active() { return users != 0; }
-
 protected:
 	friend class DepsgraphTaskPool;
 
@@ -141,8 +138,6 @@ protected:
 	};
 	typedef priority_queue<Entry, std::vector<Entry>, cmp_entry> Queue;
 	
-	static ThreadMutex mutex;           /* mutex for creating/freeing task pools */
-	static int users;                   /* number of active task pools using the scheduler */
 	static Threads threads;             /* worker threads */
 	static bool do_exit;
 
