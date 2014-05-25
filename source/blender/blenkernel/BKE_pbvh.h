@@ -128,6 +128,10 @@ void BKE_pbvh_bounding_box(const PBVH *bvh, float min[3], float max[3]);
 /* multires hidden data, only valid for type == PBVH_GRIDS */
 unsigned int **BKE_pbvh_grid_hidden(const PBVH *bvh);
 
+int BKE_pbvh_count_grid_quads(BLI_bitmap **grid_hidden,
+                              int *grid_indices, int totgrid,
+                              int gridsize);
+
 /* multires level, only valid for type == PBVH_GRIDS */
 void BKE_pbvh_get_grid_key(const PBVH *pbvh, struct CCGKey *key);
 
@@ -193,7 +197,7 @@ void BKE_pbvh_bmesh_after_stroke(PBVH *bvh);
 
 void BKE_pbvh_update(PBVH *bvh, int flags, float (*face_nors)[3]);
 void BKE_pbvh_redraw_BB(PBVH *bvh, float bb_min[3], float bb_max[3]);
-void BKE_pbvh_get_grid_updates(PBVH *bvh, int clear, void ***gridfaces, int *totface);
+void BKE_pbvh_get_grid_updates(PBVH *bvh, int clear, void ***r_gridfaces, int *r_totface);
 void BKE_pbvh_grids_update(PBVH *bvh, struct CCGElem **grid_elems,
                            struct DMGridAdjacency *gridadj, void **gridfaces,
                            struct DMFlagMat *flagmats, unsigned int **grid_hidden);

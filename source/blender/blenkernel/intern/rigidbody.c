@@ -46,26 +46,20 @@
 #  include "RBI_api.h"
 #endif
 
-#include "DNA_anim_types.h"
 #include "DNA_group_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_animsys.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
-#include "BKE_group.h"
 #include "BKE_library.h"
-#include "BKE_mesh.h"
 #include "BKE_object.h"
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
-#include "BKE_utildefines.h"
 
 #include "RNA_access.h"
 
@@ -941,10 +935,7 @@ void BKE_rigidbody_remove_object(Scene *scene, Object *ob)
 				Object *obt = go->ob;
 				if (obt && obt->rigidbody_constraint) {
 					rbc = obt->rigidbody_constraint;
-					if (rbc->ob1 == ob) {
-						BKE_rigidbody_remove_constraint(scene, obt);
-					}
-					if (rbc->ob2 == ob) {
+					if (ELEM(ob, rbc->ob1, rbc->ob2)) {
 						BKE_rigidbody_remove_constraint(scene, obt);
 					}
 				}
@@ -1114,6 +1105,26 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 		BKE_rigidbody_validate_sim_world(scene, rbw, true);
 	rigidbody_update_sim_world(scene, rbw);
 
+	/* XXX TODO For rebuild: remove all constraints first.
+	 * Otherwise we can end up deleting objects that are still
+	 * referenced by constraints, corrupting bullet's internal list.
+	 * 
+	 * Memory management needs redesign here, this is just a dirty workaround.
+	 */
+	if (rebuild && rbw->constraints) {
+		for (go = rbw->constraints->gobject.first; go; go = go->next) {
+			Object *ob = go->ob;
+			if (ob) {
+				RigidBodyCon *rbc = ob->rigidbody_constraint;
+				if (rbc && rbc->physics_constraint) {
+					RB_dworld_remove_constraint(rbw->physics_world, rbc->physics_constraint);
+					RB_constraint_delete(rbc->physics_constraint);
+					rbc->physics_constraint = NULL;
+				}
+			}
+		}
+	}
+
 	/* update objects */
 	for (go = rbw->group->gobject.first; go; go = go->next) {
 		Object *ob = go->ob;
@@ -1159,6 +1170,7 @@ static void rigidbody_update_simulation(Scene *scene, RigidBodyWorld *rbw, bool 
 			rigidbody_update_sim_ob(scene, rbw, ob, rbo);
 		}
 	}
+	
 	/* update constraints */
 	if (rbw->constraints == NULL) /* no constraints, move on */
 		return;

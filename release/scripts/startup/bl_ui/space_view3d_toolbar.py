@@ -186,6 +186,7 @@ class VIEW3D_PT_tools_add_object(View3DPanel, Panel):
         layout.operator("object.armature_add", text="Armature", icon='OUTLINER_OB_ARMATURE')
         layout.operator("object.add", text="Lattice", icon='OUTLINER_OB_LATTICE').type = 'LATTICE'
         layout.operator("object.empty_add", text="Empty", icon='OUTLINER_OB_EMPTY').type = 'PLAIN_AXES'
+        layout.operator("object.speaker_add", text="Speaker", icon='OUTLINER_OB_SPEAKER')
         layout.operator("object.camera_add", text="Camera", icon='OUTLINER_OB_CAMERA')
 
     def draw(self, context):
@@ -1100,7 +1101,6 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
 
         settings = self.paint_settings(context)
         brush = settings.brush
-        tex_slot = brush.texture_slot
 
         col = layout.column()
 
@@ -1124,7 +1124,6 @@ class VIEW3D_PT_tools_mask_texture(View3DPanel, Panel):
         layout = self.layout
 
         brush = context.tool_settings.image_paint.brush
-        tex_slot_alpha = brush.mask_texture_slot
 
         col = layout.column()
 
@@ -1315,14 +1314,6 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         col.label(text="Gravity:")
         col.prop(sculpt, "gravity", slider=True, text="Factor")
         col.prop(sculpt, "gravity_object")
-        col.separator()
-
-        col = layout.column(align=True)
-        col.label(text="Threads:")
-        col.row(align=True).prop(scene, "omp_threads_mode", expand=True)
-        sub = col.column(align=True)
-        sub.enabled = (scene.omp_threads_mode != 'AUTO')
-        sub.prop(scene, "omp_threads")
         col.separator()
 
         layout.prop(sculpt, "use_threaded", text="Threaded Sculpt")

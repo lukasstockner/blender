@@ -61,7 +61,7 @@ class RENDER_PT_freestyle(RenderFreestyleButtonsPanel, Panel):
 
         row = layout.row()
         row.label(text="Line style settings are in the Render Layers tab")
-        row.operator("wm.properties_context_change", text="", icon='BUTS').context = 'RENDER_LAYER'
+        row.operator("wm.properties_context_change", text="", icon='RENDERLAYERS').context = 'RENDER_LAYER'
 
 
 # Render layer properties
@@ -654,9 +654,11 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             row = col.row()
             row.label(text="Base Thickness:")
             row.prop(linestyle, "thickness")
-            row = col.row()
+            subcol = col.column()
+            subcol.active = linestyle.chaining == 'PLAIN' and linestyle.use_same_object
+            row = subcol.row()
             row.prop(linestyle, "thickness_position", expand=True)
-            row = col.row()
+            row = subcol.row()
             row.prop(linestyle, "thickness_ratio")
             row.active = (linestyle.thickness_position == 'RELATIVE')
             col = layout.column()
@@ -671,6 +673,19 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             col.operator_menu_enum("scene.freestyle_geometry_modifier_add", "type", text="Add Modifier")
             for modifier in linestyle.geometry_modifiers:
                 self.draw_geometry_modifier(context, modifier)
+
+        elif linestyle.panel == 'TEXTURE':
+            layout.separator()
+
+            row = layout.row()
+            row.prop(linestyle, "use_texture")
+            row.prop(linestyle, "texture_spacing", text="Spacing Along Stroke")
+
+            row = layout.row()
+            op = row.operator("wm.properties_context_change",
+                         text="Go to Linestyle Textures Properties",
+                         icon='TEXTURE')
+            op.context = 'TEXTURE'
 
         elif linestyle.panel == 'MISC':
             pass

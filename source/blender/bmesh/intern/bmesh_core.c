@@ -29,7 +29,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_vector.h"
-#include "BLI_listbase.h"
 #include "BLI_array.h"
 #include "BLI_alloca.h"
 #include "BLI_smallhash.h"
@@ -133,7 +132,10 @@ BMEdge *BM_edge_create(BMesh *bm, BMVert *v1, BMVert *v2,
                        const BMEdge *e_example, const eBMCreateFlag create_flag)
 {
 	BMEdge *e;
-	
+
+	BLI_assert(v1 != v2);
+	BLI_assert(v1->head.htype == BM_VERT && v2->head.htype == BM_VERT);
+
 	if ((create_flag & BM_CREATE_NO_DOUBLE) && (e = BM_edge_exists(v1, v2)))
 		return e;
 	
@@ -196,7 +198,13 @@ static BMLoop *bm_loop_create(BMesh *bm, BMVert *v, BMEdge *e, BMFace *f,
 
 	/* --- assign all members --- */
 	l->head.data = NULL;
-	BM_elem_index_set(l, 0); /* set_loop */
+
+#ifdef USE_DEBUG_INDEX_MEMCHECK
+	DEBUG_MEMCHECK_INDEX_INVALIDATE(l)
+#else
+	BM_elem_index_set(l, -1); /* set_ok_invalid */
+#endif
+
 	l->head.hflag = 0;
 	l->head.htype = BM_LOOP;
 	l->head.api_flag = 0;
@@ -1925,7 +1933,7 @@ BMFace *bmesh_jfke(BMesh *bm, BMFace *f1, BMFace *f2, BMEdge *e)
 	BLI_mempool_free(bm->fpool, f2);
 	bm->totface--;
 	/* account for both above */
-	bm->elem_index_dirty |= BM_EDGE | BM_FACE;
+	bm->elem_index_dirty |= BM_EDGE | BM_LOOP | BM_FACE;
 
 	BM_CHECK_ELEMENT(f1);
 

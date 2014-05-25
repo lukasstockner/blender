@@ -46,7 +46,6 @@
 #include "BLI_listbase.h"
 #include "BLI_link_utils.h"
 #include "BLI_string.h"
-#include "BLI_rect.h"
 #include "BLI_math.h"
 #include "BLI_memarena.h"
 
@@ -157,8 +156,8 @@ typedef struct drawDMFacesSel_userData {
 	BMesh *bm;
 
 	BMFace *efa_act;
-	int *orig_index_mf_to_mpoly;
-	int *orig_index_mp_to_orig;
+	const int *orig_index_mf_to_mpoly;
+	const int *orig_index_mp_to_orig;
 } drawDMFacesSel_userData;
 
 typedef struct drawDMNormal_userData {
@@ -1218,7 +1217,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		short axis;
 		
 		/* setup a 45 degree rotation matrix */
-		axis_angle_normalized_to_mat3(mat, imat[2], (float)M_PI / 4.0f);
+		axis_angle_normalized_to_mat3_ex(mat, imat[2], M_SQRT1_2, M_SQRT1_2);
 
 		/* vectors */
 		mul_v3_v3fl(v1, imat[0], circrad * 1.2f);
@@ -1258,7 +1257,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 
 		copy_v3_fl3(lvec, 0.0f, 0.0f, 1.0f);
 		copy_v3_fl3(vvec, rv3d->persmat[0][2], rv3d->persmat[1][2], rv3d->persmat[2][2]);
-		mul_mat3_m4_v3(ob->obmat, vvec);
+		mul_transposed_mat3_m4_v3(ob->obmat, vvec);
 
 		x = -la->dist;
 		y = cosf(la->spotsize * 0.5f);
@@ -1302,7 +1301,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 
 		/* draw the circle/square representing spotbl */
 		if (la->type == LA_SPOT) {
-			float spotblcirc = fabs(z) * (1 - pow(la->spotblend, 2));
+			float spotblcirc = fabsf(z) * (1.0f - powf(la->spotblend, 2));
 			/* hide line if it is zero size or overlaps with outer border,
 			 * previously it adjusted to always to show it but that seems
 			 * confusing because it doesn't show the actual blend size */
@@ -1883,7 +1882,7 @@ static void drawspeaker(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D 
 static void lattice_draw_verts(Lattice *lt, DispList *dl, BPoint *actbp, short sel)
 {
 	BPoint *bp = lt->def;
-	float *co = dl ? dl->verts : NULL;
+	const float *co = dl ? dl->verts : NULL;
 	int u, v, w;
 
 	const int color = sel ? TH_VERTEX_SELECT : TH_VERTEX;
@@ -2433,45 +2432,44 @@ static int draw_dm_test_freestyle_face_mark(BMesh *bm, BMFace *efa)
 #endif
 
 /* Draw loop normals. */
-static void draw_dm_loop_normals(BMEditMesh *em, Scene *scene, Object *ob, DerivedMesh *dm)
+static void draw_dm_loop_normals__mapFunc(void *userData, int vertex_index, int face_index,
+                                          const float co[3], const float no[3])
 {
-	/* XXX Would it be worth adding a dm->foreachMappedLoop func just for this? I doubt it... */
+	if (no) {
+		const drawDMNormal_userData *data = userData;
+		const BMVert *eve = BM_vert_at_index(data->bm, vertex_index);
+		const BMFace *efa = BM_face_at_index(data->bm, face_index);
+		float vec[3];
 
-	/* We can't use dm->getLoopDataLayout(dm) here, we want to always access dm->loopData, EditDerivedBMesh would
-	 * return loop data from bmesh itself. */
-	float (*lnors)[3] = DM_get_loop_data_layer(dm, CD_NORMAL);
-
-	if (lnors) {
-		drawDMNormal_userData data;
-		const MLoop *mloops = dm->getLoopArray(dm);
-		const MVert *mverts = dm->getVertArray(dm);
-		int i, totloops = dm->getNumLoops(dm);
-
-		data.bm = em->bm;
-		data.normalsize = scene->toolsettings->normalsize;
-
-		calcDrawDMNormalScale(ob, &data);
-
-		glBegin(GL_LINES);
-		for (i = 0; i < totloops; i++, mloops++, lnors++) {
-			float no[3];
-			const float *co = mverts[mloops->v].co;
-
-			if (!data.uniform_scale) {
-				mul_v3_m3v3(no, data.tmat, (float *)lnors);
-				normalize_v3(no);
-				mul_m3_v3(data.imat, no);
+		if (!(BM_elem_flag_test(eve, BM_ELEM_HIDDEN) || BM_elem_flag_test(efa, BM_ELEM_HIDDEN))) {
+			if (!data->uniform_scale) {
+				mul_v3_m3v3(vec, (float(*)[3])data->tmat, no);
+				normalize_v3(vec);
+				mul_m3_v3((float(*)[3])data->imat, vec);
 			}
 			else {
-				copy_v3_v3(no, (float *)lnors);
+				copy_v3_v3(vec, no);
 			}
-			mul_v3_fl(no, data.normalsize);
-			add_v3_v3(no, co);
+			mul_v3_fl(vec, data->normalsize);
+			add_v3_v3(vec, co);
 			glVertex3fv(co);
-			glVertex3fv(no);
+			glVertex3fv(vec);
 		}
-		glEnd();
 	}
+}
+
+static void draw_dm_loop_normals(BMEditMesh *em, Scene *scene, Object *ob, DerivedMesh *dm)
+{
+	drawDMNormal_userData data;
+
+	data.bm = em->bm;
+	data.normalsize = scene->toolsettings->normalsize;
+
+	calcDrawDMNormalScale(ob, &data);
+
+	glBegin(GL_LINES);
+	dm->foreachMappedLoop(dm, draw_dm_loop_normals__mapFunc, &data, DM_FOREACH_USE_NORMAL);
+	glEnd();
 }
 
 /* Draw faces with color set based on selection
@@ -3768,7 +3766,7 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 	if (v3d->flag2 & V3D_RENDER_SHADOW) {
 		for (i = 0; i < ob->totcol; ++i) {
 			Material *ma = give_current_material(ob, i);
-			if (ma && !(ma->mode & MA_SHADBUF)) {
+			if (ma && !(ma->mode2 & MA_CASTSHADOW)) {
 				return true;
 			}
 		}
@@ -3864,7 +3862,7 @@ static bool drawDispListwire(ListBase *dlbase)
 {
 	DispList *dl;
 	int parts, nr;
-	float *data;
+	const float *data;
 
 	if (dlbase == NULL) return 1;
 	
@@ -3958,8 +3956,8 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 {
 	DispList *dl;
 	GPUVertexAttribs gattribs;
-	float *data;
-	float *ndata;
+	const float *data;
+	const float *ndata;
 	
 	if (lb == NULL) return;
 
@@ -5429,7 +5427,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 static void drawhandlesN(Nurb *nu, const char sel, const bool hide_handles)
 {
 	BezTriple *bezt;
-	float *fp;
+	const float *fp;
 	int a;
 
 	if (nu->hide || hide_handles) return;
@@ -5489,7 +5487,7 @@ static void drawhandlesN(Nurb *nu, const char sel, const bool hide_handles)
 static void drawhandlesN_active(Nurb *nu)
 {
 	BezTriple *bezt;
-	float *fp;
+	const float *fp;
 	int a;
 
 	if (nu->hide) return;
@@ -6945,7 +6943,11 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	}
 
 	/* matcap check - only when not painting color */
-	if ((v3d->flag2 & V3D_SOLID_MATCAP) && (dt == OB_SOLID) && (is_paint == false && is_picking == false)) {
+	if ((v3d->flag2 & V3D_SOLID_MATCAP) &&
+	    (dt == OB_SOLID) &&
+	    (is_paint == false && is_picking == false) &&
+	    ((v3d->flag2 & V3D_RENDER_SHADOW) == 0))
+	{
 		draw_object_matcap_check(v3d, ob);
 	}
 
@@ -6972,7 +6974,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		switch (ob->type) {
 			case OB_MESH:
 				empty_object = draw_mesh_object(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
-				if (dflag != DRAW_CONSTCOLOR) dtx &= ~OB_DRAWWIRE;  // mesh draws wire itself
+				if ((dflag & DRAW_CONSTCOLOR) == 0) {
+					/* mesh draws wire itself */
+					dtx &= ~OB_DRAWWIRE;
+				}
 
 				break;
 			case OB_FONT:
@@ -7012,8 +7017,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					for (i = 0; i < cu->totbox; i++) {
 						if (cu->tb[i].w != 0.0f) {
 							UI_ThemeColor(i == (cu->actbox - 1) ? TH_ACTIVE : TH_WIRE);
-							vec1[0] = (cu->xof * cu->fsize) + cu->tb[i].x;
-							vec1[1] = (cu->yof * cu->fsize) + cu->tb[i].y + cu->fsize;
+							vec1[0] = cu->xof + cu->tb[i].x;
+							vec1[1] = cu->yof + cu->tb[i].y + cu->fsize;
 							vec1[2] = 0.001;
 							glBegin(GL_LINE_STRIP);
 							glVertex3fv(vec1);
@@ -7636,8 +7641,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			setlinestyle(0);
 		}
 	}
-
-	free_old_images();
 
 	ED_view3d_clear_mats_rv3d(rv3d);
 }

@@ -172,8 +172,8 @@ static void mesh_calc_normals_poly_accum(MPoly *mp, MLoop *ml,
 	/* inline version of #BKE_mesh_calc_poly_normal, also does edge-vectors */
 	{
 		int i_prev = nverts - 1;
-		float const *v_prev = mvert[ml[i_prev].v].co;
-		float const *v_curr;
+		const float *v_prev = mvert[ml[i_prev].v].co;
+		const float *v_curr;
 
 		zero_v3(polyno);
 		/* Newell's Method */
@@ -287,7 +287,7 @@ void BKE_mesh_calc_normals_tessface(MVert *mverts, int numVerts, MFace *mfaces, 
 		MFace *mf = &mfaces[i];
 		float *f_no = fnors[i];
 		float *n4 = (mf->v4) ? tnorms[mf->v4] : NULL;
-		float *c4 = (mf->v4) ? mverts[mf->v4].co : NULL;
+		const float *c4 = (mf->v4) ? mverts[mf->v4].co : NULL;
 
 		if (mf->v4)
 			normal_quad_v3(f_no, mverts[mf->v1].co, mverts[mf->v2].co, mverts[mf->v3].co, mverts[mf->v4].co);
@@ -738,8 +738,8 @@ static void mesh_calc_ngon_normal(MPoly *mpoly, MLoop *loopstart,
                                   MVert *mvert, float normal[3])
 {
 	const int nverts = mpoly->totloop;
-	float const *v_prev = mvert[loopstart[nverts - 1].v].co;
-	float const *v_curr;
+	const float *v_prev = mvert[loopstart[nverts - 1].v].co;
+	const float *v_curr;
 	int i;
 
 	zero_v3(normal);
@@ -788,8 +788,8 @@ static void mesh_calc_ngon_normal_coords(MPoly *mpoly, MLoop *loopstart,
                                          const float (*vertex_coords)[3], float normal[3])
 {
 	const int nverts = mpoly->totloop;
-	float const *v_prev = vertex_coords[loopstart[nverts - 1].v];
-	float const *v_curr;
+	const float *v_prev = vertex_coords[loopstart[nverts - 1].v];
+	const float *v_curr;
 	int i;
 
 	zero_v3(normal);
@@ -1161,9 +1161,9 @@ void BKE_mesh_loops_to_mface_corners(
 /**
  * Convert all CD layers from loop/poly to tessface data.
  *
- * @loopindices is an array of an int[4] per tessface, mapping tessface's verts to loops indices.
+ * \param loopindices is an array of an int[4] per tessface, mapping tessface's verts to loops indices.
  *
- * Note when mface is not NULL, mface[face_index].v4 is used to test quads, else, loopindices[face_index][3] is used.
+ * \note when mface is not NULL, mface[face_index].v4 is used to test quads, else, loopindices[face_index][3] is used.
  */
 void BKE_mesh_loops_to_tessdata(CustomData *fdata, CustomData *ldata, CustomData *pdata, MFace *mface,
                                 int *polyindices, unsigned int (*loopindices)[4], const int num_faces)
@@ -1178,7 +1178,7 @@ void BKE_mesh_loops_to_tessdata(CustomData *fdata, CustomData *ldata, CustomData
 	const bool hasOrigSpace = CustomData_has_layer(ldata, CD_ORIGSPACE_MLOOP);
 	const bool hasLoopNormal = CustomData_has_layer(ldata, CD_NORMAL);
 	int findex, i, j;
-	int *pidx;
+	const int *pidx;
 	unsigned int (*lidx)[4];
 
 	for (i = 0; i < numTex; i++) {
@@ -1246,7 +1246,7 @@ void BKE_mesh_loops_to_tessdata(CustomData *fdata, CustomData *ldata, CustomData
 /**
  * Recreate tessellation.
  *
- * @do_face_nor_copy controls whether the normals from the poly are copied to the tessellated faces.
+ * \param do_face_nor_copy controls whether the normals from the poly are copied to the tessellated faces.
  *
  * \return number of tessellation faces.
  */

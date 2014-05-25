@@ -40,7 +40,6 @@
 #include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"  /* Temporary, for snapping to other unselected meshes */
 #include "DNA_node_types.h"
 #include "DNA_space_types.h"
@@ -61,7 +60,6 @@
 #include "BKE_context.h"
 #include "BKE_editmesh.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
 #include "BKE_tracking.h"
 
 #include "RNA_access.h"
@@ -70,7 +68,6 @@
 
 #include "ED_armature.h"
 #include "ED_image.h"
-#include "ED_mesh.h"
 #include "ED_node.h"
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
@@ -904,7 +901,7 @@ static void CalcSnapGeometry(TransInfo *t, float *UNUSED(vec))
 		if (t->tsnap.mode == SCE_SNAP_MODE_VOLUME) {
 			ListBase depth_peels;
 			DepthPeel *p1, *p2;
-			float *last_p = NULL;
+			const float *last_p = NULL;
 			float max_dist = FLT_MAX;
 			float p[3] = {0.0f, 0.0f, 0.0f};
 			
@@ -1011,7 +1008,7 @@ static void CalcSnapGeometry(TransInfo *t, float *UNUSED(vec))
 		Image *ima = ED_space_image(t->sa->spacedata.first);
 		float aspx, aspy, co[2];
 		
-		UI_view2d_region_to_view(&t->ar->v2d, t->mval[0], t->mval[1], co, co + 1);
+		UI_view2d_region_to_view(&t->ar->v2d, t->mval[0], t->mval[1], &co[0], &co[1]);
 
 		if (ED_uvedit_nearest_uv(t->scene, t->obedit, ima, co, t->tsnap.snapPoint)) {
 			ED_space_image_get_uv_aspect(t->sa->spacedata.first, &aspx, &aspy);
@@ -1094,27 +1091,14 @@ static void TargetSnapActive(TransInfo *t)
 {
 	/* Only need to calculate once */
 	if ((t->tsnap.status & TARGET_INIT) == 0) {
-		TransData *td = NULL;
-		TransData *active_td = NULL;
-		int i;
-
-		for (td = t->data, i = 0; i < t->total && td->flag & TD_SELECTED; i++, td++) {
-			if (td->flag & TD_ACTIVE) {
-				active_td = td;
-				break;
-			}
-		}
-
-		if (active_td) {
-			copy_v3_v3(t->tsnap.snapTarget, active_td->center);
-			
+		if (calculateCenterActive(t, true, t->tsnap.snapTarget)) {
 			if (t->flag & (T_EDIT | T_POSE)) {
 				Object *ob = t->obedit ? t->obedit : t->poseobj;
 				mul_m4_v3(ob->obmat, t->tsnap.snapTarget);
 			}
-			
-			TargetSnapOffset(t, active_td);
-			
+
+			TargetSnapOffset(t, NULL);
+
 			t->tsnap.status |= TARGET_INIT;
 		}
 		/* No active, default to median */
@@ -1411,8 +1395,8 @@ static bool snapArmature(short snap_mode, ARegion *ar, Object *ob, bArmature *ar
 			bone = pchan->bone;
 			/* skip hidden bones */
 			if (bone && !(bone->flag & (BONE_HIDDEN_P | BONE_HIDDEN_PG))) {
-				float *head_vec = pchan->pose_head;
-				float *tail_vec = pchan->pose_tail;
+				const float *head_vec = pchan->pose_head;
+				const float *tail_vec = pchan->pose_tail;
 				
 				switch (snap_mode) {
 					case SCE_SNAP_MODE_VERTEX:
@@ -1596,7 +1580,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 			case SCE_SNAP_MODE_VERTEX:
 			{
 				MVert *verts = dm->getVertArray(dm);
-				int *index_array = NULL;
+				const int *index_array = NULL;
 				int index = 0;
 				int i;
 
@@ -1645,7 +1629,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 				MVert *verts = dm->getVertArray(dm);
 				MEdge *edges = dm->getEdgeArray(dm);
 				int totedge = dm->getNumEdges(dm);
-				int *index_array = NULL;
+				const int *index_array = NULL;
 				int index = 0;
 				int i;
 
@@ -2268,8 +2252,7 @@ static bool snapNode(ToolSettings *ts, SpaceNode *UNUSED(snode), ARegion *ar, bN
 	rcti totr;
 	int new_dist;
 	
-	UI_view2d_to_region_no_clip(v2d, node->totr.xmin, node->totr.ymin, &totr.xmin, &totr.ymin);
-	UI_view2d_to_region_no_clip(v2d, node->totr.xmax, node->totr.ymax, &totr.xmax, &totr.ymax);
+	UI_view2d_view_to_region_rcti(v2d, &node->totr, &totr);
 	
 	if (border & NODE_LEFT) {
 		new_dist = abs(totr.xmin - mval[0]);

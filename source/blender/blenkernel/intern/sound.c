@@ -53,10 +53,8 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_sound.h"
-#include "BKE_context.h"
 #include "BKE_library.h"
 #include "BKE_packedFile.h"
-#include "BKE_animsys.h"
 #include "BKE_sequencer.h"
 #include "BKE_scene.h"
 
@@ -70,7 +68,7 @@ bSound *sound_new_file(struct Main *bmain, const char *filename)
 	bSound *sound = NULL;
 
 	char str[FILE_MAX];
-	char *path;
+	const char *path;
 
 	size_t len;
 
@@ -729,7 +727,7 @@ void sound_update_scene(Main *bmain, struct Scene *scene)
 
 					if (AUD_removeSet(scene->speaker_handles, strip->speaker_handle)) {
 						if (speaker->sound) {
-							AUD_moveSequence(strip->speaker_handle, (double)strip->start / FPS, -1, 0);
+							AUD_moveSequence(strip->speaker_handle, (double)strip->start / FPS, FLT_MAX, 0);
 						}
 						else {
 							AUD_removeSequence(scene->sound_scene, strip->speaker_handle);
@@ -740,7 +738,7 @@ void sound_update_scene(Main *bmain, struct Scene *scene)
 						if (speaker->sound) {
 							strip->speaker_handle = AUD_addSequence(scene->sound_scene,
 							                                        speaker->sound->playback_handle,
-							                                        (double)strip->start / FPS, -1, 0);
+							                                        (double)strip->start / FPS, FLT_MAX, 0);
 							AUD_setRelativeSequence(strip->speaker_handle, 0);
 						}
 					}

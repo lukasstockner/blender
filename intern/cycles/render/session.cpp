@@ -23,6 +23,7 @@
 #include "integrator.h"
 #include "scene.h"
 #include "session.h"
+#include "bake.h"
 
 #include "util_foreach.h"
 #include "util_function.h"
@@ -591,9 +592,10 @@ void Session::run_cpu()
 		update_progressive_refine(true);
 }
 
-void Session::run()
+void Session::load_kernels()
 {
-	/* load kernels */
+	thread_scoped_lock scene_lock(scene->mutex);
+
 	if(!kernels_loaded) {
 		progress.set_status("Loading render kernels (may take a few minutes the first time)");
 
@@ -602,6 +604,7 @@ void Session::run()
 			if(message.empty())
 				message = "Failed loading render kernel, see console for errors";
 
+			progress.set_cancel(message);
 			progress.set_status("Error", message);
 			progress.set_update();
 			return;
@@ -609,6 +612,12 @@ void Session::run()
 
 		kernels_loaded = true;
 	}
+}
+
+void Session::run()
+{
+	/* load kernels */
+	load_kernels();
 
 	/* session thread loop */
 	progress.set_status("Waiting for render to start");
@@ -733,10 +742,14 @@ void Session::update_scene()
 		cam->tag_update();
 	}
 
-	/* number of samples is needed by multi jittered sampling pattern */
+	/* number of samples is needed by multi jittered
+	 * sampling pattern and by baking */
 	Integrator *integrator = scene->integrator;
+	BakeManager *bake_manager = scene->bake_manager;
 
-	if(integrator->sampling_pattern == SAMPLING_PATTERN_CMJ) {
+	if(integrator->sampling_pattern == SAMPLING_PATTERN_CMJ ||
+	   bake_manager->get_baking())
+	{
 		int aa_samples = tile_manager.num_samples;
 
 		if(aa_samples != integrator->aa_samples) {

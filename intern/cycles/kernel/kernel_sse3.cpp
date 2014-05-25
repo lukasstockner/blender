@@ -36,7 +36,7 @@
 #include "kernel_globals.h"
 #include "kernel_film.h"
 #include "kernel_path.h"
-#include "kernel_displace.h"
+#include "kernel_bake.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -76,6 +76,6 @@ CCL_NAMESPACE_END
 
 /* needed for some linkers in combination with scons making empty compilation unit in a library */
 void __dummy_function_cycles_sse3(void);
-void __dummy_function_cycles_sse3(void){}
+void __dummy_function_cycles_sse3(void) {}
 
 #endif

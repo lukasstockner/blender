@@ -30,7 +30,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_scene_types.h"
 
 #include "BLI_math.h"
 #include "BLI_quadric.h"
@@ -146,8 +145,8 @@ static bool bm_edge_collapse_is_degenerate_flip(BMEdge *e, const float optimize_
 
 		BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
 			if (l->e != e && l->prev->e != e) {
-				float *co_prev = l->prev->v->co;
-				float *co_next = l->next->v->co;
+				const float *co_prev = l->prev->v->co;
+				const float *co_next = l->next->v->co;
 				float cross_exist[3];
 				float cross_optim[3];
 
@@ -313,11 +312,13 @@ static bool bm_decim_triangulate_begin(BMesh *bm)
 
 		l_iter = l_first = BM_FACE_FIRST_LOOP(f);
 		do {
-			BM_elem_index_set(l_iter, -1);
+			BM_elem_index_set(l_iter, -1);  /* set_dirty */
 		} while ((l_iter = l_iter->next) != l_first);
 
 		// has_quad |= (f->len == 4)
 	}
+
+	bm->elem_index_dirty |= BM_LOOP;
 
 	/* adding new faces as we loop over faces
 	 * is normally best avoided, however in this case its not so bad because any face touched twice
@@ -367,8 +368,8 @@ static bool bm_decim_triangulate_begin(BMesh *bm)
 					/* since we just split theres only ever 2 loops */
 					BLI_assert(BM_edge_is_manifold(l_new->e));
 
-					BM_elem_index_set(l_new, f_index);
-					BM_elem_index_set(l_new->radial_next, f_index);
+					BM_elem_index_set(l_new, f_index);  /* set_dirty */
+					BM_elem_index_set(l_new->radial_next, f_index);  /* set_dirty */
 
 					BM_face_normal_update(f);
 					BM_face_normal_update(f_new);

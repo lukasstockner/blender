@@ -23,7 +23,7 @@
 #include "kernel_globals.h"
 #include "kernel_film.h"
 #include "kernel_path.h"
-#include "kernel_displace.h"
+#include "kernel_bake.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -61,9 +61,7 @@ void kernel_tex_copy(KernelGlobals *kg, const char *name, device_ptr mem, size_t
 
 		if(tex) {
 			tex->data = (float4*)mem;
-			tex->width = width;
-			tex->height = height;
-			tex->depth = depth;
+			tex->dimensions_set(width, height, depth);
 			tex->interpolation = interpolation;
 		}
 	}
@@ -78,9 +76,7 @@ void kernel_tex_copy(KernelGlobals *kg, const char *name, device_ptr mem, size_t
 
 		if(tex) {
 			tex->data = (uchar4*)mem;
-			tex->width = width;
-			tex->height = height;
-			tex->depth = depth;
+			tex->dimensions_set(width, height, depth);
 			tex->interpolation = interpolation;
 		}
 	}

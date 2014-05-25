@@ -31,8 +31,6 @@
 #include <string.h>
 #include <math.h>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -63,7 +61,6 @@
 #include "ED_markers.h"
 #include "ED_mask.h"
 #include "ED_sequencer.h"
-#include "ED_types.h"
 #include "ED_space_api.h"
 
 #include "UI_interface.h"
@@ -71,7 +68,6 @@
 #include "UI_view2d.h"
 
 #include "WM_api.h"
-#include "WM_types.h"
 
 /* own include */
 #include "sequencer_intern.h"
@@ -625,7 +621,7 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 	rect.xmax = x2;
 	rect.ymax = y2;
 
-	UI_view2d_text_cache_rectf(v2d, &rect, str, str_len, col);
+	UI_view2d_text_cache_add_rectf(v2d, &rect, str, str_len, col);
 }
 
 /* draws a shaded strip, made from gradient + flat color + gradient */
@@ -837,6 +833,9 @@ ImBuf *sequencer_ibuf_get(struct Main *bmain, Scene *scene, SpaceSeq *sseq, int 
 	short is_break = G.is_break;
 
 	render_size = sseq->render_size;
+	if (render_size == 99) {
+		render_size = 100;
+	}
 	if (render_size == 0) {
 		render_size = scene->r.size;
 	}

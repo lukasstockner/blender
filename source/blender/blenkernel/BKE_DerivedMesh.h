@@ -156,7 +156,7 @@ typedef enum DMDrawFlag {
 
 typedef enum DMForeachFlag {
 	DM_FOREACH_NOP = 0,
-	DM_FOREACH_USE_NORMAL = (1 << 0),  /* foreachMappedVert, foreachMappedFaceCenter */
+	DM_FOREACH_USE_NORMAL = (1 << 0),  /* foreachMappedVert, foreachMappedLoop, foreachMappedFaceCenter */
 } DMForeachFlag;
 
 typedef enum DMDirtyFlag {
@@ -308,6 +308,15 @@ struct DerivedMesh {
 	                          void (*func)(void *userData, int index,
 	                                       const float v0co[3], const float v1co[3]),
 	                          void *userData);
+
+	/** Iterate over each mapped loop in the derived mesh, calling the given function
+	 * with the original loop index and the mapped loops's new coordinate and normal.
+	 */
+	void (*foreachMappedLoop)(DerivedMesh *dm,
+	                          void (*func)(void *userData, int vertex_index, int face_index,
+	                                       const float co[3], const float no[3]),
+	                          void *userData,
+	                          DMForeachFlag flag);
 
 	/** Iterate over each mapped face in the derived mesh, calling the
 	 * given function with the original face and the mapped face's (or
@@ -752,5 +761,11 @@ BLI_INLINE int DM_origindex_mface_mpoly(const int *index_mf_to_mpoly, const int 
 	const int j = index_mf_to_mpoly[i];
 	return (j != ORIGINDEX_NONE) ? (index_mp_to_orig ? index_mp_to_orig[j] : j) : ORIGINDEX_NONE;
 }
+
+struct MVert *DM_get_vert_array(struct DerivedMesh *dm, bool *allocated);
+struct MEdge *DM_get_edge_array(struct DerivedMesh *dm, bool *allocated);
+struct MLoop *DM_get_loop_array(struct DerivedMesh *dm, bool *allocated);
+struct MPoly *DM_get_poly_array(struct DerivedMesh *dm, bool *allocated);
+struct MFace *DM_get_tessface_array(struct DerivedMesh *dm, bool *allocated);
 
 #endif  /* __BKE_DERIVEDMESH_H__ */

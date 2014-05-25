@@ -30,7 +30,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
-#include "BLI_memarena.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_strict_flags.h"
@@ -95,8 +94,8 @@ float normal_quad_v3(float n[3], const float v1[3], const float v2[3], const flo
  */
 float normal_poly_v3(float n[3], const float verts[][3], unsigned int nr)
 {
-	float const *v_prev = verts[nr - 1];
-	float const *v_curr = verts[0];
+	const float *v_prev = verts[nr - 1];
+	const float *v_curr = verts[0];
 	unsigned int i;
 
 	zero_v3(n);
@@ -2272,8 +2271,9 @@ bool barycentric_coords_v2(const float v1[2], const float v2[2], const float v3[
 	return false;
 }
 
-/* used by projection painting
- * note: using area_tri_signed_v2 means locations outside the triangle are correctly weighted */
+/**
+ * \note: using #area_tri_signed_v2 means locations outside the triangle are correctly weighted
+ */
 void barycentric_weights_v2(const float v1[2], const float v2[2], const float v3[2], const float co[2], float w[3])
 {
 	float wtot;
@@ -2289,6 +2289,26 @@ void barycentric_weights_v2(const float v1[2], const float v2[2], const float v3
 	else { /* dummy values for zero area face */
 		copy_v3_fl(w, 1.0f / 3.0f);
 	}
+}
+
+/**
+ * still use 2D X,Y space but this works for verts transformed by a perspective matrix,
+ * using their 4th component as a weight
+ */
+void barycentric_weights_v2_persp(const float v1[4], const float v2[4], const float v3[4], const float co[2], float w[3])
+{
+	float wtot;
+
+	w[0] = area_tri_signed_v2(v2, v3, co) / v1[3];
+	w[1] = area_tri_signed_v2(v3, v1, co) / v2[3];
+	w[2] = area_tri_signed_v2(v1, v2, co) / v3[3];
+	wtot = w[0] + w[1] + w[2];
+
+	if (wtot != 0.0f) {
+		mul_v3_fl(w, 1.0f / wtot);
+	}
+	else /* dummy values for zero area face */
+		w[0] = w[1] = w[2] = 1.0f / 3.0f;
 }
 
 /* same as #barycentric_weights_v2 but works with a quad,
@@ -2336,7 +2356,7 @@ void barycentric_weights_v2_quad(const float v1[2], const float v2[2], const flo
 #endif
 
 		/* inline mean_value_half_tan four times here */
-		float t[4] = {
+		const float t[4] = {
 			MEAN_VALUE_HALF_TAN_V2(area, 0, 1),
 			MEAN_VALUE_HALF_TAN_V2(area, 1, 2),
 			MEAN_VALUE_HALF_TAN_V2(area, 2, 3),
@@ -2533,7 +2553,7 @@ void interp_weights_poly_v3(float *w, float v[][3], const int n, const float co[
 {
 	const float eps = 0.00001f;  /* take care, low values cause [#36105] */
 	const float eps_sq = eps * eps;
-	float *v_curr, *v_next;
+	const float *v_curr, *v_next;
 	float ht_prev, ht;  /* half tangents */
 	float totweight = 0.0f;
 	int i = 0;
@@ -2602,7 +2622,7 @@ void interp_weights_poly_v2(float *w, float v[][2], const int n, const float co[
 {
 	const float eps = 0.00001f;  /* take care, low values cause [#36105] */
 	const float eps_sq = eps * eps;
-	float *v_curr, *v_next;
+	const float *v_curr, *v_next;
 	float ht_prev, ht;  /* half tangents */
 	float totweight = 0.0f;
 	int i = 0;
@@ -2975,9 +2995,10 @@ void polarview_m4(float Vm[4][4], float dist, float azimuth, float incidence, fl
 void lookat_m4(float mat[4][4], float vx, float vy, float vz, float px, float py, float pz, float twist)
 {
 	float sine, cosine, hyp, hyp1, dx, dy, dz;
-	float mat1[4][4] = MAT4_UNITY;
+	float mat1[4][4];
 
 	unit_m4(mat);
+	unit_m4(mat1);
 
 	rotate_m4(mat, 'Z', -twist);
 
