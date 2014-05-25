@@ -3054,7 +3054,10 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 		}
 	}
 
-	if ((block->flag & UI_BLOCK_LOOP) ||
+	if ((block->flag & UI_BLOCK_RADIAL)) {
+		but->drawflag |= UI_BUT_ICON_LEFT;
+	}
+	else if ((block->flag & UI_BLOCK_LOOP) ||
 	    ELEM8(but->type, MENU, TEX, LABEL, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR, SEARCH_MENU_UNLINK))
 	{
 		but->drawflag |= (UI_BUT_TEXT_LEFT | UI_BUT_ICON_LEFT);

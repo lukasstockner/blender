@@ -2435,8 +2435,6 @@ static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void 
 
 	uiBlockLayoutResolve(block, &width, &height);
 
-	uiBlockSetFlag(block, UI_BLOCK_MOVEMOUSE_QUIT);
-
 	uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_NUMSELECT);
 	uiBlockSetDirection(block, direction);
 
@@ -2462,7 +2460,9 @@ static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void 
 	}
 
 	block->minbounds = minwidth;
-	uiMenuPopupBoundsBlock(block, 1, offset[0], offset[1]);
+	block->bounds = 1;
+	block->mx = offset[0];
+	block->my = offset[1];
 	block->bounds_type = UI_BLOCK_BOUNDS_PIE_CENTER;
 
 	/* pies: useful for later, but keep it basic for now
@@ -2499,7 +2499,6 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 		}
 		else {
 			but = uiDefBut(pie->block, LABEL, 0, title, 0, 0, 200, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
-			but->drawflag = UI_BUT_TEXT_LEFT;
 			/* hack, draw label with default transparent style */
 			but->dt = UI_EMBOSSP;
 		}

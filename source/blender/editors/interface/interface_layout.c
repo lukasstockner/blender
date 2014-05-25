@@ -2192,7 +2192,7 @@ static void ui_get_radialbut_vec(float *vec, short itemnum, short totitems)
 		angle += aligncorrect/17;	/* 17 == magic number, works nicely */
 	}
 
-	angle = angle/180.0 * M_PI;
+	angle = angle / 180.0f * M_PI;
 
 	vec[0] = sin(angle);
 	vec[1] = cos(angle);
@@ -2220,7 +2220,7 @@ static void ui_litem_layout_radial(uiLayout *litem)
 	 * also the old code at http://developer.blender.org/T5103
 	 */
 
-#define PIE_RADIUS 150
+	int pie_radius = 150;
 
 	x = litem->x;
 	y = litem->y;
@@ -2242,16 +2242,16 @@ static void ui_litem_layout_radial(uiLayout *litem)
 				ui_get_radialbut_vec(vec, itemnum, totitems);
 				/* scale the buttons */
 				bitem->but->rect.ymax *= 1.5;
-				/* XXX Add to avoid clipping of text by icons. There may be a better way to handle this? */
+				/* add a little bit more here */
 				bitem->but->rect.xmax += UI_UNIT_X;
 				ui_item_size(item, &itemw, &itemh);
 
-				ui_item_position(item, x + vec[0] * PIE_RADIUS - itemw/2, y + vec[1] * PIE_RADIUS - itemh/2, itemw, itemh);
+				ui_item_position(item, x + vec[0] * pie_radius - itemw/2, y + vec[1] * pie_radius - itemh/2, itemw, itemh);
 
-				minx = min_ii(minx, x + vec[0] * PIE_RADIUS - itemw/2);
-				maxx = max_ii(maxx, x + vec[0] * PIE_RADIUS + itemw/2);
-				miny = min_ii(miny, y + vec[1] * PIE_RADIUS - itemh/2);
-				maxy = max_ii(maxy, y + vec[1] * PIE_RADIUS + itemh/2);
+				minx = min_ii(minx, x + vec[0] * pie_radius - itemw/2);
+				maxx = max_ii(maxx, x + vec[0] * pie_radius + itemw/2);
+				miny = min_ii(miny, y + vec[1] * pie_radius - itemh/2);
+				maxy = max_ii(maxy, y + vec[1] * pie_radius + itemh/2);
 			}
 		}
 	}
