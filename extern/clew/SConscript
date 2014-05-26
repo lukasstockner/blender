@@ -30,5 +30,6 @@ Import ('env')
 sources = env.Glob('src/clew.c')
 
 incs = 'include'
+defs = [CL_USE_DEPRECATED_OPENCL_1_1_APIS]
 
-env.BlenderLib ( 'clew', sources, Split(incs), libtype=['core','player'], priority = [192,192] )
+env.BlenderLib ( 'clew', sources, Split(incs), defines=defs, libtype=['core','player'], priority = [192,192] )

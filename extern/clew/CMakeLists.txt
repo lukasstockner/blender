@@ -37,5 +37,6 @@ set(SRC
 	src/clew.c
 )
 
+add_definitions(-DCL_USE_DEPRECATED_OPENCL_1_1_APIS)
 
 blender_add_lib(extern_clew "${SRC}" "${INC}" "${INC_SYS}")

@@ -535,4 +535,6 @@ list(APPEND INC
 data_to_c(${CMAKE_CURRENT_SOURCE_DIR}/operations/COM_OpenCLKernels.cl
           ${CMAKE_CURRENT_BINARY_DIR}/operations/COM_OpenCLKernels.cl.h SRC)
 
+add_definitions(-DCL_USE_DEPRECATED_OPENCL_1_1_APIS)
+
 blender_add_lib(bf_compositor "${SRC}" "${INC}" "${INC_SYS}")
