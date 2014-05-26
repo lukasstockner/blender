@@ -518,7 +518,7 @@ void DepsgraphNodeBuilder::build_ik_pose(ComponentDepsNode *bone_node, Object *o
 	}
 	
 	/* operation node for evaluating/running IK Solver */
-	add_operation_node(bone_node, DEPSNODE_TYPE_OP_POSE,
+	add_operation_node(bone_node, DEPSNODE_TYPE_OP_BONE,
 	                   DEPSOP_TYPE_SIM, BKE_pose_iktree_evaluate, 
 	                   deg_op_name_ik_solver, make_rna_pointer(ob, &RNA_PoseBone, rootchan));
 }
