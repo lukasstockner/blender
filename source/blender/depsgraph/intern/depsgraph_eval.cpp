@@ -111,7 +111,10 @@ static void calculate_eval_priority(OperationDepsNode *node)
 	node->done = 1;
 	
 	if (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
-		node->eval_priority = 1.0f;
+		/* XXX standard cost of a node, could be estimated somewhat later on */
+		const float cost = 1.0f;
+		/* NOOP nodes have no cost */
+		node->eval_priority = node->is_noop() ? cost : 0.0f;
 		
 		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
 			DepsRelation *rel = *it;
