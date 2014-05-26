@@ -172,7 +172,7 @@ void DepsgraphTaskPool::num_decrease(int done)
 {
 	BLI_mutex_lock(&num_mutex);
 	
-	BLI_assert(num > 0);
+	BLI_assert(num >= done);
 	num -= done;
 	
 	if(num == 0) {
