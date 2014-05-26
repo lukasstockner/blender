@@ -3676,11 +3676,21 @@ void ui_draw_pie_center(uiBlock *block)
 	float cy = BLI_rctf_cent_y(&block->rect);
 
 	float pie_radius_internal = block->pie_center_width;
-	glColor4ubv(btheme->tui.wcol_menu_back.inner);
+
 	glPushMatrix();
 	glTranslatef(cx, cy, 0.0);
+
+	glColor4ub(btheme->tui.wcol_menu_back.inner[0], btheme->tui.wcol_menu_back.inner[1], btheme->tui.wcol_menu_back.inner[2], btheme->tui.wcol_menu_back.inner[3]);
 	glEnable(GL_BLEND);
 	glutil_draw_filled_arc(0.0, (float)(M_PI * 2.0), pie_radius_internal, 40);
+
+	glColor4ub(255, 255, 0, btheme->tui.wcol_menu_back.inner[3]);
+	glBegin(GL_TRIANGLES);
+	glVertex2f(block->pie_dir[0] * pie_radius_internal + block->pie_dir[1] * 5.0, block->pie_dir[1] * pie_radius_internal - block->pie_dir[0] * 5.0);
+	glVertex2f(block->pie_dir[0] * pie_radius_internal - block->pie_dir[1] * 5.0, block->pie_dir[1] * pie_radius_internal + block->pie_dir[0] * 5.0);
+	glVertex2f(block->pie_dir[0] * (pie_radius_internal + 10.0f), block->pie_dir[1] * (pie_radius_internal + 10.0f));
+	glEnd();
+
 	glDisable(GL_BLEND);
 	glPopMatrix();
 }

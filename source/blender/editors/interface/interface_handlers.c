@@ -6379,7 +6379,7 @@ static bool ui_mouse_inside_region(ARegion *ar, int x, int y)
 	return true;
 }
 
-static void ui_block_calculate_pie_segment(const float mx, const float my, float seg2[2], const uiBlock *block)
+static void ui_block_calculate_pie_segment(const float mx, const float my, float seg2[2], uiBlock *block)
 {
 	float seg1[2];
 
@@ -6389,6 +6389,8 @@ static void ui_block_calculate_pie_segment(const float mx, const float my, float
 	seg2[0] = mx - seg1[0];
 	seg2[1] = my - seg1[1];
 	normalize_v2(seg2);
+
+	copy_v2_v2(block->pie_dir, seg2);
 }
 
 
