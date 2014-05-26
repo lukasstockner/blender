@@ -172,9 +172,7 @@ static void schedule_graph(DepsgraphTaskPool &pool, Depsgraph *graph, eEvaluatio
 		OperationDepsNode *node = *it;
 		
 		if (is_node_ready(node)) {
-			/* XXX TODO */
-//			pool.push();
-//			schedule_node(graph, context_type, node);
+			pool.push(graph, node, context_type);
 		}
 	}
 }
@@ -210,9 +208,7 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 	
 	schedule_graph(task_pool, graph, context_type);
 	
-	/* from the root node, start queuing up nodes to evaluate */
-	// ... start scheduler, etc.
-	// ...
+	task_pool.wait();
 	
 	/* clear any uncleared tags - just in case */
 	DEG_graph_clear_tags(graph);
