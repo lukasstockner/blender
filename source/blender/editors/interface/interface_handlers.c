@@ -6379,18 +6379,43 @@ static bool ui_mouse_inside_region(ARegion *ar, int x, int y)
 	return true;
 }
 
+static void ui_block_calculate_pie_segment(const float mx, const float my, float seg2[2], const uiBlock *block)
+{
+	float seg1[2];
+
+	seg1[0] = BLI_rctf_cent_x(&block->rect);
+	seg1[1] = BLI_rctf_cent_y(&block->rect);
+
+	seg2[0] = mx - seg1[0];
+	seg2[1] = my - seg1[1];
+	normalize_v2(seg2);
+}
+
+
 static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y)
 {
+	uiBlock *block = but->block;
 	float mx, my;
+	float seg[2];
+
 	if (!ui_mouse_inside_region(ar, x, y))
 		return false;
 
 	mx = x;
 	my = y;
 
-	ui_window_to_block_fl(ar, but->block, &mx, &my);
+	ui_window_to_block_fl(ar, block, &mx, &my);
 
-	if (!ui_but_contains_pt(but, mx, my))
+	if (block->flag & UI_BLOCK_RADIAL) {
+		ui_block_calculate_pie_segment(mx, my, seg, block);
+	}
+
+	if (but->dt == UI_EMBOSSR) {
+		if (!ui_but_isect_pie_seg(block, but, seg)) {
+			return false;
+		}
+	}
+	else if (!ui_but_contains_pt(but, mx, my))
 		return false;
 	
 	return true;
@@ -6424,18 +6449,6 @@ bool ui_is_but_search_unlink_visible(const uiBut *but)
 	BLI_assert(but->type == SEARCH_MENU_UNLINK);
 	return ((but->editstr == NULL) &&
 	        (but->drawstr[0] != '\0'));
-}
-
-static void ui_block_calculate_pie_segment(const float mx, const float my, float seg2[2], const uiBlock *block)
-{
-	float seg1[2];
-
-	seg1[0] = BLI_rctf_cent_x(&block->rect);
-	seg1[1] = BLI_rctf_cent_y(&block->rect);
-
-	seg2[0] = mx - seg1[0];
-	seg2[1] = my - seg1[1];
-	normalize_v2(seg2);
 }
 
 /* x and y are only used in case event is NULL... */

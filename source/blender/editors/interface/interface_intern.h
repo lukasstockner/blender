@@ -371,6 +371,7 @@ struct uiBlock {
 	                          */
 	int num_pie_items; /* number of pie items, useful to determine collision based on how pie items are distributed */
 	float pie_center_width; /* width of the central text of the pie menu */
+	float pie_dir[2];
 };
 
 typedef struct uiSafetyRct {
