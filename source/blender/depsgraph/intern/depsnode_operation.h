@@ -76,9 +76,6 @@ struct OperationDepsNode : public DepsNode {
 	Relations inlinks;          /* nodes which this one depends on */
 	Relations outlinks;         /* nodes which depend on this one */
 	
-	double start_time;            /* (secs) last timestamp (in seconds) when operation was started */
-	double last_time;             /* (seconds) time in seconds that last evaluation took */
-	
 	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
 	float eval_priority;
 	

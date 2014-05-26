@@ -27,6 +27,9 @@
 #include <stdlib.h>
 #include "BLI_utildefines.h"
 
+#include "PIL_time.h"
+
+#include "depsgraph_debug.h"
 #include "depsnode_component.h"
 
 #include "depsgraph_util_task.h"
@@ -56,7 +59,8 @@ void DepsgraphTask::run()
 	void *item = &node->ptr;
 	
 	/* take note of current time */
-//	node->start_time = PIL_check_seconds_timer();
+	double start_time = PIL_check_seconds_timer();
+	DepsgraphDebug::task_started(*this);
 	
 	/* should only be the case for NOOPs, which never get to this point */
 	BLI_assert(node->evaluate);
@@ -64,7 +68,8 @@ void DepsgraphTask::run()
 	node->evaluate(context, item);
 	
 	/* note how long this took */
-//	node->last_time = PIL_check_seconds_timer() - node->start_time;
+	double end_time = PIL_check_seconds_timer();
+	DepsgraphDebug::task_completed(*this, end_time - start_time);
 }
 
 void DepsgraphTask::schedule_children(DepsgraphTaskPool *pool)

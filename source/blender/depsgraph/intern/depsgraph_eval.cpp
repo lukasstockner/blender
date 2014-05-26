@@ -38,8 +38,6 @@ extern "C" {
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "PIL_time.h"
-
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"

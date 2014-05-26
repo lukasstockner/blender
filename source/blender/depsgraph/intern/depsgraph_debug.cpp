@@ -41,6 +41,8 @@ extern "C" {
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "BKE_idcode.h"
+
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_debug.h"
 
@@ -48,12 +50,14 @@ extern "C" {
 #include "RNA_types.h"
 } /* extern "C" */
 
+#include "depsgraph_debug.h"
 #include "depsnode.h"
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 #include "depsgraph_queue.h"
+#include "depsgraph_util_task.h"
 
 /* ************************************************ */
 /* Graphviz Debugging */
@@ -731,5 +735,30 @@ void DEG_debug_eval_end(void) {}
 void DEG_debug_eval_step(const char *message) {}
 
 #endif /* DEG_DEBUG_BUILD */
+
+/* ************************************************ */
+
+void DepsgraphDebug::eval_begin(eEvaluationContextType context_type)
+{
+	
+}
+
+void DepsgraphDebug::eval_end(eEvaluationContextType context_type, double time)
+{
+	
+}
+
+void DepsgraphDebug::task_started(const DepsgraphTask &task)
+{
+	
+}
+
+void DepsgraphDebug::task_completed(const DepsgraphTask &task, double time)
+{
+	OperationDepsNode *node = task.node;
+	ComponentDepsNode *comp = node->owner;
+	ID *id = comp->owner->id;
+	printf("%s %s : %s took %f ms\n", BKE_idcode_to_name(GS(id->name)), id->name+2, comp->name.c_str(), time);
+}
 
 /* ************************************************ */
