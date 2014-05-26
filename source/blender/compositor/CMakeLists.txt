@@ -84,6 +84,8 @@ set(SRC
 	intern/COM_WorkScheduler.h
 	intern/COM_WorkPackage.cpp
 	intern/COM_WorkPackage.h
+	intern/COM_Tile.cpp
+	intern/COM_Tile.h
 	intern/COM_ChunkOrder.cpp
 	intern/COM_ChunkOrder.h
 	intern/COM_ChunkOrderHotspot.cpp

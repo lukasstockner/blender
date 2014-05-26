@@ -125,11 +125,14 @@ void CompositorOperation::deinitExecution()
 }
 
 
-void CompositorOperation::executeRegion(rcti *rect, unsigned int tileNumber)
+void CompositorOperation::executeRegion(Tile* tile)
 {
+	rcti * rect;
 	float color[8]; // 7 is enough
 	float *buffer = this->m_outputBuffer;
 	float *zbuffer = this->m_depthBuffer;
+
+	rect = tile->get_rect();
 
 	if (!buffer) return;
 	int x1 = rect->xmin;

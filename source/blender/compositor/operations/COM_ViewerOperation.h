@@ -52,7 +52,7 @@ public:
 	ViewerOperation();
 	void initExecution();
 	void deinitExecution();
-	void executeRegion(rcti *rect, unsigned int tileNumber);
+	void executeRegion(Tile* tile);
 	bool isOutputOperation(bool rendering) const { if (G.background) return false; return isActiveViewerOutput(); }
 	void setImage(Image *image) { this->m_image = image; }
 	void setImageUser(ImageUser *imageUser) { this->m_imageUser = imageUser; }

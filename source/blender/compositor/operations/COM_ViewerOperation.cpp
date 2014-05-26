@@ -80,8 +80,9 @@ void ViewerOperation::deinitExecution()
 	this->m_outputBuffer = NULL;
 }
 
-void ViewerOperation::executeRegion(rcti *rect, unsigned int tileNumber)
+void ViewerOperation::executeRegion(Tile* tile)
 {
+	rcti *rect = tile->get_rect();
 	float *buffer = this->m_outputBuffer;
 	float *depthbuffer = this->m_depthBuffer;
 	if (!buffer) return;

@@ -152,12 +152,12 @@ int COM_isHighlightedbNode(bNode *bnode)
 void *WorkScheduler::thread_execute_cpu(void *data)
 {
 	Device *device = (Device *)data;
-	WorkPackage *work;
+	Tile *tile;
 	
-	while ((work = (WorkPackage *)BLI_thread_queue_pop(g_cpuqueue))) {
-		HIGHLIGHT(work);
-		device->execute(work);
-		delete work;
+	while ((tile = (Tile *)BLI_thread_queue_pop(g_cpuqueue))) {
+		HIGHLIGHT(tile);
+		device->execute(tile);
+		delete tile;
 	}
 	
 	return NULL;
@@ -166,12 +166,12 @@ void *WorkScheduler::thread_execute_cpu(void *data)
 void *WorkScheduler::thread_execute_gpu(void *data)
 {
 	Device *device = (Device *)data;
-	WorkPackage *work;
+	Tile *tile;
 	
-	while ((work = (WorkPackage *)BLI_thread_queue_pop(g_gpuqueue))) {
-		HIGHLIGHT(work);
-		device->execute(work);
-		delete work;
+	while ((tile = (Tile*)BLI_thread_queue_pop(g_gpuqueue))) {
+		HIGHLIGHT(tile);
+		device->execute(tile);
+		delete tile;
 	}
 	
 	return NULL;
@@ -180,23 +180,22 @@ void *WorkScheduler::thread_execute_gpu(void *data)
 
 
 
-void WorkScheduler::schedule(ExecutionGroup *group, int chunkNumber)
+void WorkScheduler::schedule(Tile *tile)
 {
-	WorkPackage *package = new WorkPackage(group, chunkNumber);
 #if COM_CURRENT_THREADING_MODEL == COM_TM_NOTHREAD
 	CPUDevice device;
-	device.execute(package);
-	delete package;
+	device.execute(tile);
+	delete tile;
 #elif COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
 #ifdef COM_OPENCL_ENABLED
-	if (group->isOpenCL() && g_openclActive) {
-		BLI_thread_queue_push(g_gpuqueue, package);
+	if (tile->getExecutionGroup()->isOpenCL() && g_openclActive) {
+		BLI_thread_queue_push(g_gpuqueue, tile);
 	}
 	else {
-		BLI_thread_queue_push(g_cpuqueue, package);
+		BLI_thread_queue_push(g_cpuqueue, tile);
 	}
 #else
-	BLI_thread_queue_push(cpuqueue, package);
+	BLI_thread_queue_push(g_cpuqueue, tile);
 #endif
 #endif
 }
@@ -239,7 +238,7 @@ void WorkScheduler::finish()
 		BLI_thread_queue_wait_finish(g_cpuqueue);
 	}
 #else
-	BLI_thread_queue_wait_finish(cpuqueue);
+	BLI_thread_queue_wait_finish(g_cpuqueue);
 #endif
 #endif
 }

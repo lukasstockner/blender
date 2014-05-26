@@ -22,16 +22,11 @@
 
 #include "COM_CPUDevice.h"
 
-void CPUDevice::execute(WorkPackage *work)
+void CPUDevice::execute(Tile *tile)
 {
-	const unsigned int chunkNumber = work->getChunkNumber();
-	ExecutionGroup *executionGroup = work->getExecutionGroup();
-	rcti rect;
-
-	executionGroup->determineChunkRect(&rect, chunkNumber);
-
-	executionGroup->getOutputOperation()->executeRegion(&rect, chunkNumber);
-
-	executionGroup->finalizeChunkExecution(chunkNumber, NULL);
+	ExecutionGroup *executionGroup = tile->getExecutionGroup();
+	NodeOperation * operation = executionGroup->getOutputOperation();
+	operation->executeRegion(tile);
+	executionGroup->finalizeChunkExecution(tile->get_tile_number(), NULL);
 }
 

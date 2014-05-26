@@ -57,8 +57,9 @@ void WriteBufferOperation::deinitExecution()
 	this->m_memoryProxy->free();
 }
 
-void WriteBufferOperation::executeRegion(rcti *rect, unsigned int tileNumber)
+void WriteBufferOperation::executeRegion(Tile *tile)
 {
+	rcti *rect = tile->get_rect();
 	MemoryBuffer *memoryBuffer = this->m_memoryProxy->getBuffer();
 	float *buffer = memoryBuffer->getBuffer();
 	const int no_channels = memoryBuffer->get_no_channels();

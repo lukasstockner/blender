@@ -92,7 +92,7 @@ public:
 	 * @brief execute a WorkPackage
 	 * @param work the WorkPackage to execute
 	 */
-	void execute(WorkPackage *work);
+	void execute(Tile *work);
 
 	/**
 	 * @brief determine an image format

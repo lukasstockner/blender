@@ -20,44 +20,33 @@
  *		Monique Dewanchand
  */
 
-#ifndef _COM_Device_h
-#define _COM_Device_h
-
 #include "COM_Tile.h"
+#include "COM_WorkScheduler.h"
 
-/**
- * @brief Abstract class for device implementations to be used by the Compositor.
- * devices are queried, initialized and used by the WorkScheduler.
- * work are packaged as a WorkPackage instance.
- */
-class Device {
+Tile::Tile(ExecutionGroup *group, rcti *rect, unsigned int tile_number)
+{
+	this->m_executionGroup = group;
+	this->m_rect = rect;
+	this->m_state = CREATED;
+	this->m_tile_number = tile_number;
+}
 
-public:
-	/**
-	 * @brief Declaration of the virtual destructor 
-	 * @note resolve warning gcc 4.7
-	 */
-	virtual ~Device() {}
-	
-	/**
-	 * @brief initialize the device
-	 */
-	virtual bool initialize() { return true; }
+Tile::~Tile() {
+	delete this->m_rect;
+}
 
-	/**
-	 * @brief deinitialize the device
-	 */
-	virtual void deinitialize() {}
+void Tile::schedule() {
+	/// @TODO: Still needs implementation
+}
 
-	/**
-	 * @brief execute a WorkPackage
-	 * @param work the WorkPackage to execute
-	 */
-	virtual void execute(Tile *work) = 0;
+void Tile::add_dependent(Tile *tile) {
+	/// @TODO: Still needs implementation
+}
 
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("COM:Device")
-#endif
-};
+void Tile::add_depends_on(Tile *tile) {
+	/// @TODO: Still needs implementation
+}
 
-#endif
+void Tile::execute() {
+	/// @TODO: Still needs implementation
+}

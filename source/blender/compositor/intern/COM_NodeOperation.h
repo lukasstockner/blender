@@ -47,6 +47,7 @@ using std::max;
 class OpenCLDevice;
 class ReadBufferOperation;
 class WriteBufferOperation;
+class Tile;
 
 class NodeOperationInput;
 class NodeOperationOutput;
@@ -175,7 +176,7 @@ public:
 	 * @param chunkNumber the chunkNumber to be calculated
 	 * @param memoryBuffers all input MemoryBuffer's needed
 	 */
-	virtual void executeRegion(rcti *rect, unsigned int chunkNumber) {}
+	virtual void executeRegion(Tile* tile) {}
 
 	/**
 	 * @brief when a chunk is executed by an OpenCLDevice, this method is called

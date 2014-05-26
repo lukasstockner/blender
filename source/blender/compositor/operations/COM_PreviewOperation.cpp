@@ -85,8 +85,9 @@ void PreviewOperation::deinitExecution()
 	this->m_input = NULL;
 }
 
-void PreviewOperation::executeRegion(rcti *rect, unsigned int tileNumber)
+void PreviewOperation::executeRegion(Tile* tile)
 {
+	rcti *rect = tile->get_rect();
 	int offset;
 	float color[4];
 	struct ColormanageProcessor *cm_processor;

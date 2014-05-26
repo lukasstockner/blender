@@ -35,7 +35,7 @@ public:
 	 * @brief execute a WorkPackage
 	 * @param work the WorkPackage to execute
 	 */
-	void execute(WorkPackage *work);
+	void execute(Tile *work);
 };
 
 #endif

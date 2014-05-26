@@ -118,9 +118,9 @@ void OutputSingleLayerOperation::initExecution()
 	this->m_outputBuffer = init_buffer(this->getWidth(), this->getHeight(), this->m_datatype);
 }
 
-void OutputSingleLayerOperation::executeRegion(rcti *rect, unsigned int tileNumber)
+void OutputSingleLayerOperation::executeRegion(Tile * tile)
 {
-	write_buffer_rect(rect, this->m_tree, this->m_imageInput, this->m_outputBuffer, this->getWidth(), this->m_datatype);
+	write_buffer_rect(tile->get_rect(), this->m_tree, this->m_imageInput, this->m_outputBuffer, this->getWidth(), this->m_datatype);
 }
 
 void OutputSingleLayerOperation::deinitExecution()
@@ -193,8 +193,9 @@ void OutputOpenExrMultiLayerOperation::initExecution()
 	}
 }
 
-void OutputOpenExrMultiLayerOperation::executeRegion(rcti *rect, unsigned int tileNumber)
+void OutputOpenExrMultiLayerOperation::executeRegion(Tile* tile)
 {
+	rcti *rect = tile->get_rect();
 	for (unsigned int i = 0; i < this->m_layers.size(); ++i) {
 		OutputOpenExrLayer &layer = this->m_layers[i];
 		if (layer.imageInput)

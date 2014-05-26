@@ -64,7 +64,7 @@ public:
 	 * @param group the execution group
 	 * @param chunkNumber the number of the chunk in the group to be executed
 	 */
-	static void schedule(ExecutionGroup *group, int chunkNumber);
+	static void schedule(Tile* tile);
 
 	/**
 	 * @brief initialize the WorkScheduler

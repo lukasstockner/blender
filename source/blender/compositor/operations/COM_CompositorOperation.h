@@ -78,7 +78,7 @@ private:
 public:
 	CompositorOperation();
 	const bool isActiveCompositorOutput() const { return this->m_active; }
-	void executeRegion(rcti *rect, unsigned int tileNumber);
+	void executeRegion(Tile* tile);
 	void setSceneName(const char *sceneName) { BLI_strncpy(this->m_sceneName, sceneName, sizeof(this->m_sceneName)); }
 	void setRenderData(const RenderData *rd) { this->m_rd = rd; }
 	bool isOutputOperation(bool rendering) const { return this->isActiveCompositorOutput(); }

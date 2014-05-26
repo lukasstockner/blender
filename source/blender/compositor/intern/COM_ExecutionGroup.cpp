@@ -510,7 +510,10 @@ bool ExecutionGroup::scheduleChunk(unsigned int chunkNumber)
 {
 	if (this->m_chunkExecutionStates[chunkNumber] == COM_ES_NOT_SCHEDULED) {
 		this->m_chunkExecutionStates[chunkNumber] = COM_ES_SCHEDULED;
-		WorkScheduler::schedule(this, chunkNumber);
+		rcti *rect = new rcti();
+		this->determineChunkRect(rect, chunkNumber);
+		Tile * tile = new Tile(this, rect, chunkNumber);
+		WorkScheduler::schedule(tile);
 		return true;
 	}
 	return false;

@@ -51,7 +51,7 @@ public:
 	OutputSingleLayerOperation(const RenderData *rd, const bNodeTree *tree, DataType datatype, ImageFormatData *format, const char *path,
 	                           const ColorManagedViewSettings *viewSettings, const ColorManagedDisplaySettings *displaySettings);
 	
-	void executeRegion(rcti *rect, unsigned int tileNumber);
+	void executeRegion(Tile *tile);
 	bool isOutputOperation(bool rendering) const { return true; }
 	void initExecution();
 	void deinitExecution();
@@ -90,7 +90,7 @@ public:
 	
 	void add_layer(const char *name, DataType datatype, bool use_layer);
 	
-	void executeRegion(rcti *rect, unsigned int tileNumber);
+	void executeRegion(Tile* tile);
 	bool isOutputOperation(bool rendering) const { return true; }
 	void initExecution();
 	void deinitExecution();
