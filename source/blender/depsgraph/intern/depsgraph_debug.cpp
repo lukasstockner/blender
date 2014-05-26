@@ -448,29 +448,16 @@ static void deg_debug_graphviz_node(const DebugContext &ctx, const DepsNode *nod
 		case DEPSNODE_TYPE_TRANSFORM:
 		case DEPSNODE_TYPE_PROXY:
 		case DEPSNODE_TYPE_GEOMETRY:
-		case DEPSNODE_TYPE_SEQUENCER: {
+		case DEPSNODE_TYPE_SEQUENCER:
+		case DEPSNODE_TYPE_EVAL_POSE:
+		case DEPSNODE_TYPE_BONE:
+		{
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
 			if (!comp_node->operations.empty()) {
 				deg_debug_graphviz_node_cluster_begin(ctx, node);
 				for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->operations.begin(); it != comp_node->operations.end(); ++it) {
 					const DepsNode *op_node = it->second;
 					deg_debug_graphviz_node(ctx, op_node);
-				}
-				deg_debug_graphviz_node_cluster_end(ctx);
-			}
-			else {
-				deg_debug_graphviz_node_single(ctx, node);
-			}
-			break;
-		}
-		
-		case DEPSNODE_TYPE_EVAL_POSE: {
-			PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)node;
-			if (!pose_node->bone_hash.empty()) {
-				deg_debug_graphviz_node_cluster_begin(ctx, node);
-				for (PoseComponentDepsNode::BoneComponentMap::const_iterator it = pose_node->bone_hash.begin(); it != pose_node->bone_hash.end(); ++it) {
-					const DepsNode *bone_comp = it->second;
-					deg_debug_graphviz_node(ctx, bone_comp);
 				}
 				deg_debug_graphviz_node_cluster_end(ctx);
 			}
@@ -504,14 +491,12 @@ static bool deg_debug_graphviz_is_cluster(const DepsNode *node)
 		case DEPSNODE_TYPE_TRANSFORM:
 		case DEPSNODE_TYPE_PROXY:
 		case DEPSNODE_TYPE_GEOMETRY:
-		case DEPSNODE_TYPE_SEQUENCER: {
+		case DEPSNODE_TYPE_SEQUENCER:
+		case DEPSNODE_TYPE_EVAL_POSE:
+		case DEPSNODE_TYPE_BONE:
+		{
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
 			return !comp_node->operations.empty();
-		}
-		
-		case DEPSNODE_TYPE_EVAL_POSE: {
-			PoseComponentDepsNode *pose_node = (PoseComponentDepsNode *)node;
-			return !pose_node->bone_hash.empty();
 		}
 		
 		default:

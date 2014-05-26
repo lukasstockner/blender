@@ -119,21 +119,7 @@ struct SequencerComponentDepsNode : public ComponentDepsNode {
 	DEG_DEPSNODE_DECLARE;
 };
 
-/* Pose Evaluation - Sub-data needed */
 struct PoseComponentDepsNode : public ComponentDepsNode {
-	typedef unordered_map<string, BoneComponentDepsNode *> BoneComponentMap;
-	
-	BoneComponentDepsNode *find_bone_component(const string &name) const;
-	BoneComponentDepsNode *add_bone_component(const string &name);
-	void remove_bone_component(const string &name);
-	void clear_bone_components();
-	
-	void init(const ID *id, const string &subdata);
-	void copy(DepsgraphCopyContext *dcc, const PoseComponentDepsNode *src);
-	~PoseComponentDepsNode();
-	
-	BoneComponentMap bone_hash; /* hash for quickly finding bone components */
-	
 	DEG_DEPSNODE_DECLARE;
 };
 
@@ -141,7 +127,6 @@ struct PoseComponentDepsNode : public ComponentDepsNode {
 struct BoneComponentDepsNode : public ComponentDepsNode {
 	void init(const ID *id, const string &subdata);
 	
-	PoseComponentDepsNode *pose_owner;
 	struct bPoseChannel *pchan;     /* the bone that this component represents */
 	
 	DEG_DEPSNODE_DECLARE;

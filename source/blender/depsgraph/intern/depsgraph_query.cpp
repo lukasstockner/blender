@@ -236,31 +236,6 @@ static DepsNode *deg_find_inner_node(Depsgraph *graph, const ID *id, const strin
 	return NULL;
 }
 
-/* helper for finding bone component nodes by their names */
-static DepsNode *deg_find_bone_node(Depsgraph *graph, const ID *id, const string &subdata,
-                                    eDepsNode_Type type, const string &name)
-{
-	PoseComponentDepsNode *pose_comp;
-	
-	pose_comp = (PoseComponentDepsNode *)graph->find_node(id, "", DEPSNODE_TYPE_EVAL_POSE, "");
-	if (pose_comp)  {
-		/* lookup bone component with matching name */
-		BoneComponentDepsNode *bone_node = pose_comp->find_bone_component(subdata);
-		
-		if (type == DEPSNODE_TYPE_BONE) {
-			/* bone component is what we want */
-			return (DepsNode *)bone_node;
-		}
-		else if (type == DEPSNODE_TYPE_OP_BONE) {
-			/* now lookup relevant operation node */
-			return bone_node->find_operation(name);
-		}
-	}
-	
-	/* no match */
-	return NULL;
-}
-
 /* Find matching node */
 DepsNode *Depsgraph::find_node(const ID *id, const string &subdata, eDepsNode_Type type, const string &name)
 {
@@ -311,21 +286,15 @@ DepsNode *Depsgraph::find_node(const ID *id, const string &subdata, eDepsNode_Ty
 		case DEPSNODE_TYPE_GEOMETRY:
 		case DEPSNODE_TYPE_SEQUENCER:
 		case DEPSNODE_TYPE_EVAL_POSE:
+		case DEPSNODE_TYPE_BONE:
 		case DEPSNODE_TYPE_EVAL_PARTICLES:
 		{
 			/* Each ID-Node knows the set of components that are associated with it */
 			IDDepsNode *id_node = this->find_id_node(id);
 			
 			if (id_node) {
-				result = id_node->find_component(type);
+				result = id_node->find_component(type, subdata);
 			}
-		}
-			break;
-			
-		case DEPSNODE_TYPE_BONE:       /* Bone Component */
-		{
-			/* this will find the bone component */
-			result = deg_find_bone_node(this, id, subdata, type, name);
 		}
 			break;
 		
@@ -361,7 +330,7 @@ DepsNode *Depsgraph::find_node(const ID *id, const string &subdata, eDepsNode_Ty
 			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_EVAL_POSE, type, name);
 			break;
 		case DEPSNODE_TYPE_OP_BONE:       /* Bone */
-			result = deg_find_bone_node(this, id, subdata, type, name);
+			result = deg_find_inner_node(this, id, subdata, DEPSNODE_TYPE_BONE, type, name);
 			break;
 			
 		case DEPSNODE_TYPE_OP_PARTICLE:  /* Particle System/Step */
