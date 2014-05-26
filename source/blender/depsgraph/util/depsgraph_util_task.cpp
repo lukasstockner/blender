@@ -42,23 +42,23 @@ DepsgraphTask::DepsgraphTask(Depsgraph *graph_, OperationDepsNode *node_, eEvalu
 
 void DepsgraphTask::run()
 {
-	/* get context and dispatch */
-	ComponentDepsNode *comp = node->owner; 
-	void *context = NULL, *item = NULL;
+	if (node->is_noop())
+		return;
 	
 	/* get context */
 	// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
+	ComponentDepsNode *comp = node->owner; 
 	BLI_assert(comp != NULL);
-	context = comp->contexts[context_type];
+	void *context = comp->contexts[context_type];
 	
 	/* get "item" */
 	// XXX: not everything will use this - some may want something else!
-	item = &node->ptr;
+	void *item = &node->ptr;
 	
 	/* take note of current time */
 //	node->start_time = PIL_check_seconds_timer();
 	
-	/* NOOPs should not be evaluated */
+	/* should only be the case for NOOPs, which never get to this point */
 	BLI_assert(node->evaluate);
 	/* perform operation */
 	node->evaluate(context, item);
