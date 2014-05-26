@@ -73,6 +73,14 @@ static const char *deg_debug_colors[] = {"#a6cee3","#1f78b4","#b2df8a","#33a02c"
 static const char *deg_debug_colors_light[] = {"#8dd3c7","#ffffb3","#bebada","#fb8072",
                                                "#80b1d3","#fdb462","#b3de69","#fccde5",
                                                "#d9d9d9","#bc80bd","#ccebc5","#ffed6f"};
+
+/* only one should be enabled, defines whether graphviz nodes
+ * get colored by individual types or classes.
+ */
+#define COLOR_SCHEME_NODE_CLASS 1
+//#define COLOR_SCHEME_NODE_TYPE  2
+
+#ifdef COLOR_SCHEME_NODE_TYPE
 static const int deg_debug_node_type_color_map[][2] = {
     {DEPSNODE_TYPE_ROOT,         0},
     {DEPSNODE_TYPE_TIMESOURCE,   1},
@@ -88,7 +96,9 @@ static const int deg_debug_node_type_color_map[][2] = {
     {DEPSNODE_TYPE_SEQUENCER,    9},
     {-1,                         0}
 };
+#endif
 
+#if 0 /* unused */
 static const int deg_debug_relation_type_color_map[][2] = {
     {DEPSREL_TYPE_STANDARD,         0},
     {DEPSREL_TYPE_ROOT_TO_ACTIVE,   1},
@@ -104,14 +114,39 @@ static const int deg_debug_relation_type_color_map[][2] = {
     {DEPSREL_TYPE_UPDATE_UI,        11},
     {-1,                            0}
 };
+#endif
 
-static int deg_debug_node_type_color_index(eDepsNode_Type type)
+static int deg_debug_node_color_index(const DepsNode *node)
 {
+#ifdef COLOR_SCHEME_NODE_CLASS
+	/* some special types */
+	switch (node->type) {
+		case DEPSNODE_TYPE_ID_REF:
+			return 5;
+		case DEPSNODE_TYPE_OP_NOOP:
+			return 8;
+		
+		default:
+			break;
+	}
+	/* do others based on class */
+	switch (node->tclass) {
+		case DEPSNODE_CLASS_OPERATION:
+			return 4;
+		case DEPSNODE_CLASS_COMPONENT:
+			return 1;
+		default:
+			return 9;
+	}
+#endif
+	
+#ifdef COLOR_SCHEME_NODE_TYPE
 	const int (*pair)[2];
 	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair)
-		if ((*pair)[0] == type)
+		if ((*pair)[0] == node->type)
 			return (*pair)[1];
 	return -1;
+#endif
 }
 
 struct DebugContext {
@@ -158,18 +193,27 @@ static void deg_debug_graphviz_legend_cluster(const DebugContext &ctx, const cha
 
 static void deg_debug_graphviz_legend(const DebugContext &ctx)
 {
-	const int (*pair)[2];
-	
 	deg_debug_printf(ctx, "{" NL);
 	deg_debug_printf(ctx, "rank = sink;" NL);
 	deg_debug_printf(ctx, "Legend [shape=none, margin=0, label=<" NL);
 	deg_debug_printf(ctx, "  <TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">" NL);
 	deg_debug_printf(ctx, "<TR><TD COLSPAN=\"2\"><B>Legend</B></TD></TR>" NL);
 	
+#ifdef COLOR_SCHEME_NODE_CLASS
+	const char **colors = deg_debug_colors_light;
+	deg_debug_graphviz_legend_color(ctx, "Operation", colors[4]);
+	deg_debug_graphviz_legend_color(ctx, "Component", colors[1]);
+	deg_debug_graphviz_legend_color(ctx, "ID Node", colors[5]);
+	deg_debug_graphviz_legend_color(ctx, "NOOP", colors[8]);
+#endif
+	
+#ifdef COLOR_SCHEME_NODE_TYPE
+	const int (*pair)[2];
 	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
 		DepsNodeFactory *nti = DEG_get_node_factory((eDepsNode_Type)(*pair)[0]);
 		deg_debug_graphviz_legend_color(ctx, nti->tname().c_str(), deg_debug_colors_light[(*pair)[1] % deg_debug_max_colors]);
 	}
+#endif
 	
 	deg_debug_printf(ctx, "</TABLE>" NL);
 	deg_debug_printf(ctx, ">" NL);
@@ -178,6 +222,7 @@ static void deg_debug_graphviz_legend(const DebugContext &ctx)
 	deg_debug_printf(ctx, "}" NL);
 }
 
+#if 0 /* unused */
 static int deg_debug_relation_type_color_index(eDepsRelation_Type type)
 {
 	const int (*pair)[2];
@@ -186,6 +231,7 @@ static int deg_debug_relation_type_color_index(eDepsRelation_Type type)
 			return (*pair)[1];
 	return -1;
 }
+#endif
 
 static void deg_debug_graphviz_node_color(const DebugContext &ctx, const DepsNode *node)
 {
@@ -231,7 +277,7 @@ static void deg_debug_graphviz_node_fillcolor(const DebugContext &ctx, const Dep
 {
 	const char *defaultcolor = "gainsboro";
 	
-	int color_index = deg_debug_node_type_color_index(node->type);
+	int color_index = deg_debug_node_color_index(node);
 	const char *fillcolor = color_index < 0 ? defaultcolor : deg_debug_colors_light[color_index % deg_debug_max_colors];
 	
 	deg_debug_printf(ctx, "\"%s\"", fillcolor);
@@ -244,7 +290,7 @@ static void deg_debug_graphviz_node_fillcolor(const DebugContext &ctx, const Dep
 	const char *color_needs_update = "orange";
 	const int num_stripes = 10;
 	
-	int color_index = deg_debug_node_type_color_index(node->type);
+	int color_index = deg_debug_node_color_index(node);
 	const char *base_color = color_index < 0 ? defaultcolor : deg_debug_colors_light[color_index % deg_debug_max_colors];
 	
 	if (ctx.show_tags &&
