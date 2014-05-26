@@ -3079,9 +3079,10 @@ static void calchandleNurb_intern(BezTriple *bezt, BezTriple *prev, BezTriple *n
 		return;
 	}
 
-	len_a = len_v3v3(p2, p2_h1);
-	len_b = len_v3v3(p2, p2_h2);
 	if (is_fcurve == false) {
+		len_a = len_v3v3(p2, p2_h1);
+		len_b = len_v3v3(p2, p2_h2);
+
 		if (len_a == 0.0f)
 			len_a = 1.0f;
 		if (len_b == 0.0f)
@@ -3829,6 +3830,9 @@ bool BKE_nurb_order_clamp_v(struct Nurb *nu)
 	return changed;
 }
 
+/**
+ * \note caller must ensure active vertex remains valid.
+ */
 bool BKE_nurb_type_convert(Nurb *nu, const short type, const bool use_handles)
 {
 	BezTriple *bezt;
@@ -3980,7 +3984,7 @@ ListBase *BKE_curve_nurbs_get(Curve *cu)
 void BKE_curve_nurb_active_set(Curve *cu, Nurb *nu)
 {
 	if (nu == NULL) {
-		cu->actnu = -1;
+		cu->actnu = CU_ACT_NONE;
 	}
 	else {
 		ListBase *nurbs = BKE_curve_editNurbs_get(cu);
@@ -4010,13 +4014,18 @@ void BKE_curve_nurb_vert_active_set(Curve *cu, Nurb *nu, void *vert)
 	if (nu) {
 		BKE_curve_nurb_active_set(cu, nu);
 
-		if (nu->type == CU_BEZIER) {
-			BLI_assert(ARRAY_HAS_ITEM((BezTriple *)vert, nu->bezt, nu->pntsu));
-			cu->actvert = (BezTriple *)vert - nu->bezt;
+		if (vert) {
+			if (nu->type == CU_BEZIER) {
+				BLI_assert(ARRAY_HAS_ITEM((BezTriple *)vert, nu->bezt, nu->pntsu));
+				cu->actvert = (BezTriple *)vert - nu->bezt;
+			}
+			else {
+				BLI_assert(ARRAY_HAS_ITEM((BPoint *)vert, nu->bp, nu->pntsu * nu->pntsv));
+				cu->actvert = (BPoint *)vert - nu->bp;
+			}
 		}
 		else {
-			BLI_assert(ARRAY_HAS_ITEM((BPoint *)vert, nu->bp, nu->pntsu * nu->pntsv));
-			cu->actvert = (BPoint *)vert - nu->bp;
+			cu->actvert = CU_ACT_NONE;
 		}
 	}
 	else {
@@ -4228,8 +4237,8 @@ void BKE_curve_material_index_clear(Curve *cu)
 
 void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *tb, struct rctf *r_rect)
 {
-	r_rect->xmin = (cu->xof * cu->fsize) + tb->x;
-	r_rect->ymax = (cu->yof * cu->fsize) + tb->y + cu->fsize;
+	r_rect->xmin = cu->xof + tb->x;
+	r_rect->ymax = cu->yof + tb->y + cu->fsize;
 
 	r_rect->xmax = r_rect->xmin + tb->w;
 	r_rect->ymin = r_rect->ymax - tb->h;
