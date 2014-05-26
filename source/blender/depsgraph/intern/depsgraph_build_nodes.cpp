@@ -604,7 +604,6 @@ void DepsgraphNodeBuilder::build_rig(IDDepsNode *ob_node, Object *ob)
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		/* component for hosting bone operations */
 		BoneComponentDepsNode *bone_node = (BoneComponentDepsNode *)add_component_node(ob_node, DEPSNODE_TYPE_BONE, pchan->name);
-		bone_node->pchan = pchan;
 		
 		/* node for bone eval */
 		add_operation_node(bone_node, DEPSNODE_TYPE_OP_BONE, 
