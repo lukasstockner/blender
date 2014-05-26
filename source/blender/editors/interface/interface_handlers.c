@@ -7849,6 +7849,11 @@ static int ui_handle_menu_event(
 			if (block->flag & UI_BLOCK_MOVEMOUSE_QUIT) {
 				ui_mouse_motion_towards_init(menu, &event->x);
 			}
+
+			/* mouse move should always refresh the area for pie menus */
+			if (block->flag & UI_BLOCK_RADIAL) {
+				ED_region_tag_redraw(ar);
+			}
 			
 			/* add menu scroll timer, if needed */
 			if (ui_menu_scroll_test(block, my))
