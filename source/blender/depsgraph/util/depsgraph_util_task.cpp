@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include "BLI_utildefines.h"
 
+#include "depsnode_component.h"
+
 #include "depsgraph_util_task.h"
 
 /* Task */
@@ -40,7 +42,29 @@ DepsgraphTask::DepsgraphTask(Depsgraph *graph_, OperationDepsNode *node_, eEvalu
 
 void DepsgraphTask::run()
 {
-	/* XXX TODO */
+	/* get context and dispatch */
+	ComponentDepsNode *comp = node->owner; 
+	void *context = NULL, *item = NULL;
+	
+	/* get context */
+	// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
+	BLI_assert(comp != NULL);
+	context = comp->contexts[context_type];
+	
+	/* get "item" */
+	// XXX: not everything will use this - some may want something else!
+	item = &node->ptr;
+	
+	/* take note of current time */
+//	node->start_time = PIL_check_seconds_timer();
+	
+	/* NOOPs should not be evaluated */
+	BLI_assert(node->evaluate);
+	/* perform operation */
+	node->evaluate(context, item);
+	
+	/* note how long this took */
+//	node->last_time = PIL_check_seconds_timer() - node->start_time;
 }
 
 void DepsgraphTask::schedule_children(DepsgraphTaskPool *pool)
