@@ -1447,14 +1447,16 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 		/* set the current material active paint slot on image editor */
 		ma = give_current_material(ob, ob->actcol);
 
-		for (sc = bmain->screen.first; sc; sc = sc->id.next) {
-			ScrArea *sa;
-			for (sa = sc->areabase.first; sa; sa = sa->next) {
-				SpaceLink *sl;
-				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_IMAGE) {
-						SpaceImage *sima = (SpaceImage *)sl;
-						ED_space_image_set(sima, scene, scene->obedit, ma->texpaintslot[ma->paint_active_slot].ima);
+		if (ma->tot_slots > 0) {
+			for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+				ScrArea *sa;
+				for (sa = sc->areabase.first; sa; sa = sa->next) {
+					SpaceLink *sl;
+					for (sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_IMAGE) {
+							SpaceImage *sima = (SpaceImage *)sl;
+							ED_space_image_set(sima, scene, scene->obedit, ma->texpaintslot[ma->paint_active_slot].ima);
+						}
 					}
 				}
 			}
