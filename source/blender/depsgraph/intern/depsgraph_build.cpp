@@ -209,9 +209,9 @@ TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(IDPtr id)
 	return NULL;
 }
 
-ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &subdata)
+ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &comp_name)
 {
-	ComponentDepsNode *comp_node = id_node->add_component(comp_type);
+	ComponentDepsNode *comp_node = id_node->add_component(comp_type, comp_name);
 	comp_node->owner = id_node;
 	return comp_node;
 }
@@ -351,7 +351,7 @@ ComponentDepsNode *DepsgraphRelationBuilder::find_node(const ComponentKey &key) 
 	if (!id_node)
 		return NULL;
 	
-	ComponentDepsNode *node = id_node->find_component(key.type);
+	ComponentDepsNode *node = id_node->find_component(key.type, key.name);
 	return node;
 }
 
@@ -362,7 +362,7 @@ OperationDepsNode *DepsgraphRelationBuilder::find_node(const OperationKey &key) 
 		return NULL;
 	
 	DepsNodeFactory *factory = DEG_get_node_factory(key.type);
-	ComponentDepsNode *comp_node = id_node->find_component(factory->component_type());
+	ComponentDepsNode *comp_node = id_node->find_component(factory->component_type(), key.component_name);
 	if (!comp_node)
 		return NULL;
 	

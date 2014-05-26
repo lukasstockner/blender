@@ -66,7 +66,7 @@ struct DepsgraphNodeBuilder {
 	RootDepsNode *add_root_node();
 	IDDepsNode *add_id_node(IDPtr id);
 	TimeSourceDepsNode *add_time_source(IDPtr id);
-	ComponentDepsNode *add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &subdata = "");
+	ComponentDepsNode *add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &comp_name = "");
 	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node, eDepsNode_Type type,
 	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description,
 	                                      PointerRNA ptr);
@@ -123,26 +123,26 @@ struct TimeSourceKey
 
 struct ComponentKey
 {
-	ComponentKey() : id(NULL), type(DEPSNODE_TYPE_UNDEFINED), subdata("") {}
-	ComponentKey(IDPtr id, eDepsNode_Type type, const string &subdata = "") : id(id), type(type), subdata(subdata) {}
+	ComponentKey() : id(NULL), type(DEPSNODE_TYPE_UNDEFINED), name("") {}
+	ComponentKey(IDPtr id, eDepsNode_Type type, const string &name = "") : id(id), type(type), name(name) {}
 	
 	IDPtr id;
 	eDepsNode_Type type;
-	string subdata;
+	string name;
 };
 
 struct OperationKey
 {
-	OperationKey() : id(NULL), component_subdata(""), type(DEPSNODE_TYPE_UNDEFINED), name("") {}
+	OperationKey() : id(NULL), component_name(""), type(DEPSNODE_TYPE_UNDEFINED), name("") {}
 	OperationKey(IDPtr id, eDepsNode_Type type, const string &name) :
-	    id(id), component_subdata(""), type(type), name(name)
+	    id(id), component_name(""), type(type), name(name)
 	{}
-	OperationKey(IDPtr id, const string &component_subdata, eDepsNode_Type type, const string &name) :
-	    id(id), component_subdata(component_subdata), type(type), name(name)
+	OperationKey(IDPtr id, const string &component_name, eDepsNode_Type type, const string &name) :
+	    id(id), component_name(component_name), type(type), name(name)
 	{}
 	
 	IDPtr id;
-	string component_subdata;
+	string component_name;
 	eDepsNode_Type type;
 	string name;
 };

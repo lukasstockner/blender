@@ -115,46 +115,48 @@ void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 	/* iterate over items in original hash, adding them to new hash */
 	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin(); it != this->components.end(); ++it) {
 		/* get current <type : component> mapping */
-		eDepsNode_Type c_type   = it->first;
+		ComponentKey c_key      = it->first;
 		DepsNode *old_component = it->second;
 		
 		/* make a copy of component */
 		ComponentDepsNode *component     = (ComponentDepsNode *)DEG_copy_node(dcc, old_component);
 		
 		/* add new node to hash... */
-		this->components[c_type] = component;
+		this->components[c_key] = component;
 	}
 	
 	// TODO: perform a second loop to fix up links?
 }
 
-ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type, const string &subdata) const
+ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type, const string &name) const
 {
-	#pragma message("DEPSGRAPH PORTING XXX: subdata has to be handled here somehow!")
-	ComponentMap::const_iterator it = components.find(type);
+	ComponentKey key(type, name);
+	ComponentMap::const_iterator it = components.find(key);
 	return it != components.end() ? it->second : NULL;
 }
 
 ComponentDepsNode *IDDepsNode::add_component(eDepsNode_Type type, const string &name)
 {
-	ComponentDepsNode *comp_node = find_component(type);
+	ComponentKey key(type, name);
+	ComponentDepsNode *comp_node = find_component(type, name);
 	if (!comp_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(type);
 		comp_node = (ComponentDepsNode *)factory->create_node(this->id, "", name);
 		
 		/* register */
-		this->components[type] = comp_node;
+		this->components[key] = comp_node;
 		comp_node->owner = this;
 	}
 	return comp_node;
 }
 
-void IDDepsNode::remove_component(eDepsNode_Type type)
+void IDDepsNode::remove_component(eDepsNode_Type type, const string &name)
 {
-	ComponentDepsNode *comp_node = find_component(type);
+	ComponentKey key(type, name);
+	ComponentDepsNode *comp_node = find_component(type, name);
 	if (comp_node) {
 		/* unregister */
-		this->components.erase(type);
+		this->components.erase(key);
 		
 		delete comp_node;
 	}

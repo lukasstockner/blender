@@ -31,6 +31,7 @@
 
 #include "depsgraph_types.h"
 
+#include "depsgraph_util_hash.h"
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
 #include "depsgraph_util_string.h"
@@ -110,15 +111,37 @@ struct RootDepsNode : public DepsNode {
 
 /* ID-Block Reference */
 struct IDDepsNode : public DepsNode {
-	typedef unordered_map<eDepsNode_Type, ComponentDepsNode *, hash<int> > ComponentMap;
+	struct ComponentKey {
+		ComponentKey(eDepsNode_Type type_, const string &name_ = "") : type(type_), name(name_) {}
+		
+		bool operator== (const ComponentKey &other) const
+		{
+			return type == other.type && name == other.name;
+		}
+		
+		eDepsNode_Type type;
+		string name;
+	};
+	
+	/* XXX can't specialize std::hash for this purpose, because ComponentKey is a nested type ...
+	 * http://stackoverflow.com/a/951245
+	 */
+	struct component_key_hash {
+		bool operator() (const ComponentKey &key) const
+		{
+			return hash_combine(hash<int>()(key.type), hash<string>()(key.name));
+		}
+	};
+	
+	typedef unordered_map<ComponentKey, ComponentDepsNode *, component_key_hash> ComponentMap;
 	
 	void init(const ID *id, const string &subdata);
 	void copy(DepsgraphCopyContext *dcc, const IDDepsNode *src);
 	~IDDepsNode();
 	
-	ComponentDepsNode *find_component(eDepsNode_Type type, const string &subdata = "") const;
+	ComponentDepsNode *find_component(eDepsNode_Type type, const string &name = "") const;
 	ComponentDepsNode *add_component(eDepsNode_Type type, const string &name = "");
-	void remove_component(eDepsNode_Type type);
+	void remove_component(eDepsNode_Type type, const string &name = "");
 	void clear_components();
 	
 	void tag_update(Depsgraph *graph);
