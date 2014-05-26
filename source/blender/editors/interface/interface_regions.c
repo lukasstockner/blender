@@ -2176,7 +2176,7 @@ struct uiPopupMenu {
 };
 
 struct uiPieMenu {
-	uiBlock *block;
+	uiBlock *block_radial; /* radial block of the pie menu (more could be added later) */
 	uiLayout *layout;
 
 	/*center coordinates of pie menu in window space */
@@ -2424,7 +2424,7 @@ static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void 
 
 	minwidth = 50;
 	direction = UI_DOWN;
-	block = pie->block;
+	block = pie->block_radial;
 
 	/* in some cases we create the block before the region,
 	 * so we set it delayed here if necessary */
@@ -2471,7 +2471,13 @@ static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void 
 	*/
 	uiEndBlock(C, block);
 
-	return pie->block;
+	return pie->block_radial;
+}
+
+static float uiPieTitleWidth(const char *name, int icon)
+{
+	return UI_GetStringWidth(name) +
+		        (UI_UNIT_X * (1.50f + (icon ? 0.25f : 0.0f)));
 }
 
 struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, short event)
@@ -2480,28 +2486,31 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
 	uiBut *but;
 
-	pie->block = uiBeginBlock(C, NULL, __func__, UI_EMBOSSR);
-	pie->block->flag |= UI_BLOCK_POPUP_MEMORY;
-	pie->block->puphash = ui_popup_menu_hash(title);
-	pie->block->flag |= UI_BLOCK_RADIAL;
+	pie->block_radial = uiBeginBlock(C, NULL, __func__, UI_EMBOSSR);
+	pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY;
+	pie->block_radial->puphash = ui_popup_menu_hash(title);
+	pie->block_radial->flag |= UI_BLOCK_RADIAL;
 
-	pie->layout = uiBlockLayout(pie->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
+	pie->layout = uiBlockLayout(pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
 
 	pie->event = event;
 
 	/* create title button */
 	if (title[0]) {
 		char titlestr[256];
-
+		int w;
 		if (icon) {
 			BLI_snprintf(titlestr, sizeof(titlestr), " %s", title);
-			uiDefIconTextBut(pie->block, LABEL, 0, icon, titlestr, 0, 0, 200, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+			w = uiPieTitleWidth(titlestr, icon);
+			uiDefIconTextBut(pie->block_radial, LABEL, 0, icon, titlestr, 0, 0, w, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
 		}
 		else {
-			but = uiDefBut(pie->block, LABEL, 0, title, 0, 0, 200, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+			w = uiPieTitleWidth(title, 0);
+			but = uiDefBut(pie->block_radial, LABEL, 0, title, 0, 0, w, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
 			/* hack, draw label with default transparent style */
 			but->dt = UI_EMBOSSP;
 		}
+		pie->block_radial->pie_center_width = BLI_rctf_size_x(&but->rect)/2.0;
 	}
 
 	return pie;

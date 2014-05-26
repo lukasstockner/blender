@@ -1294,7 +1294,9 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	wmOrtho2(-0.01f, ar->winx - 0.01f, -0.01f, ar->winy - 0.01f);
 	
 	/* back */
-	if ((block->flag & UI_BLOCK_LOOP) && !(block->flag & UI_BLOCK_RADIAL))
+	if (block->flag & UI_BLOCK_RADIAL)
+		ui_draw_pie_center(block);
+	else if (block->flag & UI_BLOCK_LOOP)
 		ui_draw_menu_back(&style, block, &rect);
 	else if (block->panel)
 		ui_draw_aligned_panel(&style, block, &rect, UI_panel_category_is_visible(ar));

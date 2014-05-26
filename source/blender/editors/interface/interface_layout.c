@@ -2092,16 +2092,18 @@ static void ui_litem_layout_column(uiLayout *litem)
 
 /* calculates the angle of a specified button in a radial menu,
  * stores a float vector in unit circle */
-static void ui_get_radialbut_vec(float *vec, short itemnum, short totitems)
+static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short totitems)
 {
-	float angle=0;
+	float angle = 0.0f;
+	RadialDirection dir = UI_RADIAL_NONE;
+
 	/* this goes in a seemingly weird pattern:
 
+		4
+	 5     6
+	1       2
+	 7     8
 		3
-	 4     5
-	0       1
-	 6     7
-		2
 
 	but it's actually quite logical. It's designed to be 'upwards compatible'
 	for muscle memory so that the menu item locations are fixed and don't move
@@ -2118,37 +2120,49 @@ static void ui_get_radialbut_vec(float *vec, short itemnum, short totitems)
 	--Matt 07/2006
 	*/
 
-	if (itemnum <= 4) {
+	if (itemnum < 5) {
 		switch(itemnum) {
 			case 1:
-				angle = 270;
+				dir = UI_RADIAL_W;
+				angle = 180.0f;
 				break;
 			case 2:
-				angle = 90;
+				dir = UI_RADIAL_E;
+				angle = 0.0f;
 				break;
 			case 3:
-				angle = 180;
+				dir = UI_RADIAL_S;
+				angle = 270.0f;
 				break;
 			case 4:
-				angle = 0;
+				dir = UI_RADIAL_N;
+				angle = 90.0f;
 				break;
 		}
-	} else if (totitems <= 8) {
+	}
+	else if (totitems < 9) {
 		switch(itemnum) {
 			case 5:
-				angle = 45;
-				break;
-			case 6:
+				dir = UI_RADIAL_NW;
 				angle = 135;
 				break;
+			case 6:
+				dir = UI_RADIAL_NE;
+				angle = 45;
+				break;
 			case 7:
+				dir = UI_RADIAL_SW;
 				angle = 225;
 				break;
 			case 8:
+				dir = UI_RADIAL_SE;
 				angle = 315;
 				break;
 		}
-	} else {	/* subdivide quadrants progressively, depending on number of items */
+	}
+	else {
+#if 0
+		/* subdivide quadrants progressively, depending on number of items */
 		int anglepad, curquad, numinquad, aligncorrect=0;
 		int quaditems, overflow;
 
@@ -2190,12 +2204,15 @@ static void ui_get_radialbut_vec(float *vec, short itemnum, short totitems)
 			aligncorrect = angle - 360;
 
 		angle += aligncorrect/17;	/* 17 == magic number, works nicely */
+#endif
 	}
 
 	angle = angle / 180.0f * M_PI;
 
-	vec[0] = sin(angle);
-	vec[1] = cos(angle);
+	vec[0] = cos(angle);
+	vec[1] = sin(angle);
+
+	return dir;
 }
 
 static bool ui_item_is_radial_displayable (uiButtonItem *UNUSED(bitem))
@@ -2237,9 +2254,10 @@ static void ui_litem_layout_radial(uiLayout *litem)
 
 			/* not all button types are drawn in a radial menu, do filtering here */
 			if(ui_item_is_radial_displayable(bitem)) {
+
 				itemnum++;
 
-				ui_get_radialbut_vec(vec, itemnum, totitems);
+				bitem->but->pie_dir = ui_get_radialbut_vec(vec, itemnum, totitems);
 				/* scale the buttons */
 				bitem->but->rect.ymax *= 1.5;
 				/* add a little bit more here */
@@ -2252,6 +2270,8 @@ static void ui_litem_layout_radial(uiLayout *litem)
 				maxx = max_ii(maxx, x + vec[0] * pie_radius + itemw/2);
 				miny = min_ii(miny, y + vec[1] * pie_radius - itemh/2);
 				maxy = max_ii(maxy, y + vec[1] * pie_radius + itemh/2);
+
+				bitem->but->block->num_pie_items = totitems;
 			}
 		}
 	}

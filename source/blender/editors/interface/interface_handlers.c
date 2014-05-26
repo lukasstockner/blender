@@ -6228,9 +6228,53 @@ static bool ui_but_contains_pt(uiBut *but, float mx, float my)
 	return BLI_rctf_isect_pt(&but->rect, mx, my);
 }
 
-static bool ui_but_contains_seg(uiBut *but, const float s1[2], const float s2[2])
+static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but, const float seg[2])
 {
-	return BLI_rctf_isect_segment(&but->rect, s1, s2);
+	float angle_range = (block->num_pie_items < 5) ? M_PI_4 : M_PI_4 / 2.0f;
+	float angle_pie;
+	float vec[2];
+
+	switch (but->pie_dir) {
+		case UI_RADIAL_E:
+			angle_pie = 0.0;
+			break;
+
+		case UI_RADIAL_NE:
+			angle_pie = M_PI_4;
+			break;
+
+		case UI_RADIAL_N:
+			angle_pie = M_PI_2;
+			break;
+
+		case UI_RADIAL_NW:
+			angle_pie = M_PI_2 + M_PI_4;
+			break;
+
+		case UI_RADIAL_W:
+			angle_pie = M_PI;
+			break;
+
+		case UI_RADIAL_SW:
+			angle_pie = M_PI + M_PI_4;
+			break;
+
+		case UI_RADIAL_S:
+			angle_pie = 3 * M_PI_2;
+			break;
+
+		case UI_RADIAL_SE:
+			angle_pie = 3 * M_PI_2 + M_PI_4;
+			break;
+	}
+
+	vec[0] = cosf(angle_pie);
+	vec[1] = sinf(angle_pie);
+
+	if (saacos(dot_v2v2(vec, seg)) < angle_range)
+		return true;
+
+	return false;
 }
 
 static uiBut *ui_but_find_activated(ARegion *ar)
@@ -6382,6 +6426,18 @@ bool ui_is_but_search_unlink_visible(const uiBut *but)
 	        (but->drawstr[0] != '\0'));
 }
 
+static void ui_block_calculate_pie_segment(const float mx, const float my, float seg2[2], const uiBlock *block)
+{
+	float seg1[2];
+
+	seg1[0] = BLI_rctf_cent_x(&block->rect);
+	seg1[1] = BLI_rctf_cent_y(&block->rect);
+
+	seg2[0] = mx - seg1[0];
+	seg2[1] = my - seg1[1];
+	normalize_v2(seg2);
+}
+
 /* x and y are only used in case event is NULL... */
 static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, const bool labeledit)
 {
@@ -6389,8 +6445,7 @@ static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, c
 	uiBut *but, *butover = NULL;
 
 	float mx, my;
-	float seg1[2];
-	float seg2[2];
+	float seg[2];
 
 //	if (!win->active)
 //		return NULL;
@@ -6403,26 +6458,13 @@ static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, c
 		ui_window_to_block_fl(ar, block, &mx, &my);
 
 		if (block->flag & UI_BLOCK_RADIAL) {
-			int centerpixels = 10;
-
-			seg1[0] = 0.5 * (block->rect.xmax - block->rect.xmin);
-			seg1[1] = 0.5 * (block->rect.ymax - block->rect.ymin);
-
-			seg2[0] = mx - seg1[0];
-			seg2[1] = my - seg1[1];
-			normalize_v2(seg2);
-
-			/* make a big enough segment for intersection */
-			seg1[0] = centerpixels * seg2[0] + seg1[0];
-			seg1[1] = centerpixels * seg2[1] + seg1[1];
-			seg2[0] = 10000.0 * seg2[0] + seg1[0];
-			seg2[1] = 10000.0 * seg2[1] + seg1[1];
+			ui_block_calculate_pie_segment(mx, my, seg, block);
 		}
 
 		for (but = block->buttons.last; but; but = but->prev) {
 			if (ui_is_but_interactive(but, labeledit)) {
 				if (but->dt == UI_EMBOSSR) {
-					if (ui_but_contains_seg(but, seg1, seg2)) {
+					if (ui_but_isect_pie_seg(block, but, seg)) {
 						butover = but;
 						break;
 					}

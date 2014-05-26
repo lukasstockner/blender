@@ -122,6 +122,19 @@ enum {
 	/* warn: rest of uiBut->flag in UI_interface.h */
 };
 
+/* but->pie_dir */
+typedef enum RadialDirection {
+	UI_RADIAL_NONE = 0,
+	UI_RADIAL_N  = 1,
+	UI_RADIAL_NE = 2,
+	UI_RADIAL_E  = 3,
+	UI_RADIAL_SE = 4,
+	UI_RADIAL_S  = 5,
+	UI_RADIAL_SW = 6,
+	UI_RADIAL_W  = 7,
+	UI_RADIAL_NW = 8
+} RadialDirection;
+
 /* internal panel drawing defines */
 #define PNL_GRID    (UI_UNIT_Y / 5) /* 4 default */
 #define PNL_HEADER  (UI_UNIT_Y + 4) /* 24 default */
@@ -226,6 +239,7 @@ struct uiBut {
 	BIFIconID icon;
 	bool lock;
 	char dt; /* drawtype: UI_EMBOSS, UI_EMBOSSN ... etc, copied from the block */
+	char pie_dir; /* direction in a pie menu, used for collision detection */
 	char changed; /* could be made into a single flag */
 	unsigned char unit_type; /* so buttons can support unit systems which are not RNA */
 	short modifier_key;
@@ -355,6 +369,8 @@ struct uiBlock {
 	char display_device[64]; /* display device name used to display this block,
 	                          * used by color widgets to transform colors from/to scene linear
 	                          */
+	int num_pie_items; /* number of pie items, useful to determine collision based on how pie items are distributed */
+	float pie_center_width; /* width of the central text of the pie menu */
 };
 
 typedef struct uiSafetyRct {
@@ -549,6 +565,7 @@ uiBut *ui_but_find_new(uiBlock *block_old, const uiBut *but_new);
 void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3);
 void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float maxy, float rad, bool use_alpha);
 void ui_draw_menu_back(struct uiStyle *style, uiBlock *block, rcti *rect);
+void ui_draw_pie_center(uiBlock *block);
 uiWidgetColors *ui_tooltip_get_theme(void);
 void ui_draw_tooltip_background(uiStyle *UNUSED(style), uiBlock *block, rcti *rect);
 void ui_draw_search_back(struct uiStyle *style, uiBlock *block, rcti *rect);

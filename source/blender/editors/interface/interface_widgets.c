@@ -3669,6 +3669,20 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	}
 }
 
+void ui_draw_pie_center(uiBlock *block)
+{
+	float cx = BLI_rctf_cent_x(&block->rect);
+	float cy = BLI_rctf_cent_y(&block->rect);
+
+	float pie_radius_internal = block->pie_center_width;
+	glColor4ub(127, 127, 127, 127);
+	glPushMatrix();
+	glTranslatef(cx, cy, 0.0);
+	glutil_draw_lined_arc(0.0, (float)(M_PI * 2.0), pie_radius_internal, 40);
+	glPopMatrix();
+}
+
+
 uiWidgetColors *ui_tooltip_get_theme(void)
 {
 	uiWidgetType *wt = widget_type(UI_WTYPE_TOOLTIP);
