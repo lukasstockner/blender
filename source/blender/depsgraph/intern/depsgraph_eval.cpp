@@ -64,6 +64,7 @@ extern "C" {
 #include "depsgraph_eval.h"
 #include "depsgraph_queue.h"
 #include "depsgraph_intern.h"
+#include "depsgraph_debug.h"
 
 /* *************************************************** */
 /* Multi-Threaded Evaluation Internals */
@@ -168,7 +169,7 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 		calculate_eval_priority(node);
 	}
 	
-	DEG_debug_eval_step("Eval Priority Calculation");
+	DepsgraphDebug::eval_step(context_type, "Eval Priority Calculation");
 	
 	schedule_graph(task_pool, graph, context_type);
 	

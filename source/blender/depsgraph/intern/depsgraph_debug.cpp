@@ -671,45 +671,8 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, const char *label, bool
 
 #ifdef DEG_DEBUG_BUILD
 
-static void *deg_debug_build_userdata;
 static void *deg_debug_eval_userdata;
-DEG_DebugBuildCb_NodeAdded deg_debug_build_node_added_cb;
-DEG_DebugBuildCb_RelationAdded deg_debug_build_rel_added_cb;
 DEG_DebugEvalCb deg_debug_eval_cb;
-
-void DEG_debug_build_init(void *userdata, DEG_DebugBuildCb_NodeAdded node_added_cb, DEG_DebugBuildCb_RelationAdded rel_added_cb)
-{
-	deg_debug_build_userdata = userdata;
-	deg_debug_build_node_added_cb = node_added_cb;
-	deg_debug_build_rel_added_cb = rel_added_cb;
-}
-
-void DEG_debug_build_node_added(const DepsNode *node)
-{
-	if (deg_debug_build_node_added_cb) {
-		deg_debug_build_node_added_cb(deg_debug_build_userdata, node);
-	}
-}
-
-void DEG_debug_build_relation_added(const DepsRelation *rel)
-{
-	if (deg_debug_build_rel_added_cb) {
-		deg_debug_build_rel_added_cb(deg_debug_build_userdata, rel);
-	}
-}
-
-void DEG_debug_eval_step(const char *message)
-{
-	if (deg_debug_eval_cb)
-		deg_debug_eval_cb(deg_debug_eval_userdata, message);
-}
-
-void DEG_debug_build_end(void)
-{
-	deg_debug_build_userdata = NULL;
-	deg_debug_build_node_added_cb = NULL;
-	deg_debug_build_rel_added_cb = NULL;
-}
 
 void DEG_debug_eval_init(void *userdata, DEG_DebugEvalCb cb)
 {
@@ -725,11 +688,6 @@ void DEG_debug_eval_end(void)
 
 #else /* DEG_DEBUG_BUILD */
 
-void DEG_debug_build_init(void *userdata, DEG_DebugBuildCb_NodeAdded node_added_cb, DEG_DebugBuildCb_RelationAdded rel_added_cb) {}
-void DEG_debug_build_node_added(const DepsNode *node) {}
-void DEG_debug_build_relation_added(const DepsRelation *rel) {}
-void DEG_debug_build_end(void) {}
-
 void DEG_debug_eval_init(void *userdata, DEG_DebugEvalCb cb) {}
 void DEG_debug_eval_end(void) {}
 void DEG_debug_eval_step(const char *message) {}
@@ -740,17 +698,20 @@ void DEG_debug_eval_step(const char *message) {}
 
 void DepsgraphDebug::eval_begin(eEvaluationContextType context_type)
 {
-	
 }
 
 void DepsgraphDebug::eval_end(eEvaluationContextType context_type, double time)
 {
-	
+}
+
+void DepsgraphDebug::eval_step(eEvaluationContextType context_type, const char *message)
+{
+	if (deg_debug_eval_cb)
+		deg_debug_eval_cb(deg_debug_eval_userdata, message);
 }
 
 void DepsgraphDebug::task_started(const DepsgraphTask &task)
 {
-	
 }
 
 void DepsgraphDebug::task_completed(const DepsgraphTask &task, double time)

@@ -47,6 +47,7 @@ struct DepsgraphTask;
 struct DepsgraphDebug {
 	static void eval_begin(eEvaluationContextType context_type);
 	static void eval_end(eEvaluationContextType context_type, double time);
+	static void eval_step(eEvaluationContextType context_type, const char *message);
 	
 	static void task_started(const DepsgraphTask &task);
 	static void task_completed(const DepsgraphTask &task, double time);

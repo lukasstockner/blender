@@ -40,7 +40,7 @@ extern "C" {
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
 #include "depsgraph_intern.h"
-
+#include "depsgraph_debug.h"
 
 Depsgraph::Depsgraph()
 {
@@ -203,9 +203,6 @@ DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from, OperationDeps
 {
 	/* create new relation, and add it to the graph */
 	DepsRelation *rel = new DepsRelation(from, to, type, description);
-	
-	DEG_debug_build_relation_added(rel);
-	
 	return rel;
 }
 

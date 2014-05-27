@@ -96,8 +96,6 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 	if (graph == NULL)
 		return;
 	
-	DEG_debug_eval_step("Flush Begin");
-	
 	FlushQueue queue;
 	/* starting from the tagged "entry" nodes, flush outwards... */
 	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done
@@ -112,7 +110,6 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 		queue.pop();
 		
 		/* flush to nodes along links... */
-		bool flushed_relations = false;
 		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
 			DepsRelation *rel = *it;
 			OperationDepsNode *to_node = rel->to;
@@ -120,19 +117,12 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 			if (!(to_node->flag & DEPSOP_FLAG_NEEDS_UPDATE)) {
 				to_node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
 				queue.push(to_node);
-				
-				flushed_relations = true;
 			}
 		}
-		
-		if (flushed_relations)
-			DEG_debug_eval_step(string_format("Flush Dependencies: %s", node->name.c_str()).c_str());
 	}
 	
 	/* clear entry tags, since all tagged nodes should now be reachable from root */
 	graph->entry_tags.clear();
-	
-	DEG_debug_eval_step("Flush End");
 }
 
 /* Clear tags from all operation nodes */

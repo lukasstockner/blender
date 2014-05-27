@@ -1570,27 +1570,13 @@ static void rna_Scene_depsgraph_debug(SceneDepsgraphDebugInfo *info, void *UNUSE
 	++info->step;
 }
 
-static void rna_Scene_depsgraph_rebuild(Scene *scene, Main *bmain, const char *debug_filename)
+static void rna_Scene_depsgraph_rebuild(Scene *scene, Main *bmain)
 {
-	SceneDepsgraphDebugInfo debug_info;
-	debug_info.filename = debug_filename;
-	debug_info.step = 0;
-	
 	if (scene->depsgraph)
 		DEG_graph_free(scene->depsgraph);
 	
 	scene->depsgraph = DEG_graph_new();
-	debug_info.graph = scene->depsgraph;
-	
-	if (debug_filename && debug_filename[0])
-		DEG_debug_build_init(&debug_info,
-		                     (DEG_DebugBuildCb_NodeAdded)rna_Scene_depsgraph_debug,
-		                     (DEG_DebugBuildCb_RelationAdded)rna_Scene_depsgraph_debug);
-	
 	DEG_graph_build_from_scene(scene->depsgraph, bmain, scene);
-	
-	if (debug_filename && debug_filename[0])
-		DEG_debug_build_end();
 }
 
 /* note: without this, when Multi-Paint is activated/deactivated, the colors
@@ -5765,7 +5751,6 @@ void RNA_def_scene(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "ColorManagedSequencerColorspaceSettings");
 	RNA_def_property_ui_text(prop, "Sequencer Color Space Settings", "Settings of color space sequencer is working in");
 
-
 	/* Dependency Graph */
 	prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Depsgraph");
@@ -5774,8 +5759,7 @@ void RNA_def_scene(BlenderRNA *brna)
 	func = RNA_def_function(srna, "depsgraph_rebuild", "rna_Scene_depsgraph_rebuild");
 	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_function_ui_description(func, "Rebuild the dependency graph");
-	parm = RNA_def_string_file_path(func, "debug_filename", NULL, FILE_MAX, "Debug File Name",
-	                                "Optional file in which to store graphviz debug output");
+
 	/* Nestled Data  */
 	/* *** Non-Animated *** */
 	RNA_define_animate_sdna(false);

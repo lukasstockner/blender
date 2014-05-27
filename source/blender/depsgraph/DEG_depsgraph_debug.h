@@ -42,12 +42,6 @@ extern "C" {
 
 void DEG_debug_graphviz(const struct Depsgraph *graph, FILE *stream, const char *label, bool show_eval);
 
-typedef void (*DEG_DebugBuildCb_NodeAdded)(void *userdata, const struct DepsNode *node);
-typedef void (*DEG_DebugBuildCb_RelationAdded)(void *userdata, const struct DepsRelation *rel);
-
-void DEG_debug_build_init(void *userdata, DEG_DebugBuildCb_NodeAdded node_added_cb, DEG_DebugBuildCb_RelationAdded rel_added_cb);
-void DEG_debug_build_end(void);
-
 typedef void (*DEG_DebugEvalCb)(void *userdata, const char *message);
 
 void DEG_debug_eval_init(void *userdata, DEG_DebugEvalCb cb);
