@@ -82,6 +82,8 @@ void DEG_threaded_init(void)
 /* Free threading lock - called during application shutdown */
 void DEG_threaded_exit(void)
 {
+	DepsgraphDebug::stats_free();
+	
 	DepsgraphTaskScheduler::exit();
 	deg_simulate_eval_free();
 }
@@ -174,11 +176,13 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 		calculate_eval_priority(node);
 	}
 	
-	DepsgraphDebug::eval_step(context_type, "Eval Priority Calculation");
+	DepsgraphDebug::eval_begin(context_type);
 	
 	schedule_graph(task_pool, graph, context_type);
 	
 	task_pool.wait();
+	
+	DepsgraphDebug::eval_end(context_type);
 	
 	/* clear any uncleared tags - just in case */
 	DEG_graph_clear_tags(graph);

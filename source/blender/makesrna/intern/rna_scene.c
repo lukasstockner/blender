@@ -1541,35 +1541,7 @@ static char *rna_MeshStatVis_path(PointerRNA *UNUSED(ptr))
 	return BLI_strdup("tool_settings.statvis");
 }
 
-
 #pragma message("DEPSGRAPH PORTING XXX: The depsgraph_rebuild function in scene RNA is temporary")
-
-typedef struct SceneDepsgraphDebugInfo {
-	const char *filename;
-	int step;
-	const Depsgraph *graph;
-} SceneDepsgraphDebugInfo;
-
-/* generic debug output function */
-static void rna_Scene_depsgraph_debug(SceneDepsgraphDebugInfo *info, void *UNUSED(elem))
-{
-	char filename[FILE_MAX];
-	char label[256];
-	FILE *f;
-	
-	BLI_snprintf(filename, sizeof(filename), "%s_%04d", info->filename, info->step);
-	f = fopen(filename, "w");
-	if (f == NULL)
-		return;
-	
-	BLI_snprintf(label, sizeof(label), "Build Step #%d", info->step);
-	DEG_debug_graphviz(info->graph, f, label, false);
-	
-	fclose(f);
-	
-	++info->step;
-}
-
 static void rna_Scene_depsgraph_rebuild(Scene *scene, Main *bmain)
 {
 	if (scene->depsgraph)

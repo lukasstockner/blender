@@ -32,6 +32,7 @@
 
 extern "C" {
 #include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
 
@@ -40,6 +41,7 @@ extern "C" {
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_idcode.h"
 
@@ -696,11 +698,22 @@ void DEG_debug_eval_step(const char *message) {}
 
 /* ************************************************ */
 
-void DepsgraphDebug::eval_begin(eEvaluationContextType context_type)
+static string get_component_name(eDepsNode_Type type, const string &name = "")
 {
+	DepsNodeFactory *factory = DEG_get_node_factory(type);
+	if (name.empty())
+		return string(factory->tname());
+	else
+		return string_format("%s | %s", factory->tname().c_str(), name.c_str());
 }
 
-void DepsgraphDebug::eval_end(eEvaluationContextType context_type, double time)
+void DepsgraphDebug::eval_begin(eEvaluationContextType context_type)
+{
+	verify_stats(&U.depsgraph_settings);
+	reset_stats();
+}
+
+void DepsgraphDebug::eval_end(eEvaluationContextType context_type)
 {
 }
 
@@ -712,14 +725,132 @@ void DepsgraphDebug::eval_step(eEvaluationContextType context_type, const char *
 
 void DepsgraphDebug::task_started(const DepsgraphTask &task)
 {
+//	BLI_mutex_lock(&stats_mutex);
+//	BLI_mutex_unlock(&stats_mutex);
 }
 
 void DepsgraphDebug::task_completed(const DepsgraphTask &task, double time)
 {
+	if (!stats)
+		return;
+	
+	BLI_mutex_lock(&stats_mutex);
+	
 	OperationDepsNode *node = task.node;
 	ComponentDepsNode *comp = node->owner;
 	ID *id = comp->owner->id;
-	printf("%s %s : %s took %f ms\n", BKE_idcode_to_name(GS(id->name)), id->name+2, comp->name.c_str(), time);
+	
+//	printf("%s %s : %s took %f ms\n", BKE_idcode_to_name(GS(id->name)), id->name+2, comp->name.c_str(), time);
+	
+	DepsgraphStatsID *id_stats = get_id_stats(id, true);
+	id_stats->times.last += time;
+	
+	/* XXX TODO use something like: if (id->flag & ID_DEG_DETAILS) {...} */
+	if (0) {
+		/* XXX component name usage needs cleanup! currently mixes identifier and description strings! */
+		DepsgraphStatsComponent *comp_stats = get_component_stats(id, get_component_name(comp->type, comp->name), true);
+		comp_stats->times.last += time;
+	}
+	
+	BLI_mutex_unlock(&stats_mutex);
 }
 
 /* ************************************************ */
+/* Statistics */
+
+DepsgraphStats *DepsgraphDebug::stats = NULL;
+ThreadMutex DepsgraphDebug::stats_mutex;
+
+/* GHash callback */
+static void deg_id_stats_free(void *val)
+{
+	DepsgraphStatsID *id_stats = (DepsgraphStatsID *)val;
+
+	if (id_stats) {
+		BLI_freelistN(&id_stats->components);
+		MEM_freeN(id_stats);
+	}
+}
+
+void DepsgraphDebug::stats_init()
+{
+	if (!stats) {
+		stats = (DepsgraphStats *)MEM_callocN(sizeof(DepsgraphStats), "Depsgraph Stats");
+		stats->id_stats = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "Depsgraph ID Stats Hash");
+		
+		BLI_mutex_init(&stats_mutex);
+	}
+}
+
+void DepsgraphDebug::stats_free()
+{
+	if (stats) {
+		BLI_mutex_end(&stats_mutex);
+		
+		BLI_ghash_free(stats->id_stats, NULL, deg_id_stats_free);
+		MEM_freeN(stats);
+		stats = NULL;
+	}
+}
+
+void DepsgraphDebug::verify_stats(DepsgraphSettings *settings)
+{
+	if (settings->flag & USER_DEG_STATS) {
+		stats_init();
+	}
+	else {
+		stats_free();
+	}
+}
+
+void DepsgraphDebug::reset_stats()
+{
+	if (!stats)
+		return;
+	
+	BLI_ghash_clear(stats->id_stats, NULL, deg_id_stats_free);
+}
+
+DepsgraphStatsID *DepsgraphDebug::get_id_stats(ID *id, bool create)
+{
+	DepsgraphStatsID *id_stats = (DepsgraphStatsID *)BLI_ghash_lookup(stats->id_stats, id);
+	
+	if (!id_stats && create) {
+		id_stats = (DepsgraphStatsID *)MEM_callocN(sizeof(DepsgraphStatsID), "Depsgraph ID Stats");
+		id_stats->id = id;
+		
+		BLI_ghash_insert(stats->id_stats, id, id_stats);
+	}
+	
+	return id_stats;
+}
+
+DepsgraphStatsComponent *DepsgraphDebug::get_component_stats(DepsgraphStatsID *id_stats, const string &name, bool create)
+{
+	DepsgraphStatsComponent *comp_stats;
+	for (comp_stats = (DepsgraphStatsComponent *)id_stats->components.first; comp_stats; comp_stats = comp_stats->next) {
+		if (STREQ(comp_stats->name, name.c_str()))
+			break;
+	}
+	
+	if (!comp_stats && create) {
+		comp_stats = (DepsgraphStatsComponent *)MEM_callocN(sizeof(DepsgraphStatsComponent), "Depsgraph Component Stats");
+		BLI_strncpy(comp_stats->name, name.c_str(), sizeof(comp_stats->name));
+		
+		BLI_addtail(&id_stats->components, comp_stats);
+	}
+	
+	return comp_stats;
+}
+
+/* ------------------------------------------------ */
+
+DepsgraphStats *DEG_stats(void)
+{
+	return DepsgraphDebug::stats;
+}
+
+void DEG_stats_verify(DepsgraphSettings *settings)
+{
+	DepsgraphDebug::verify_stats(settings);
+}

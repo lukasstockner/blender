@@ -38,19 +38,44 @@ extern "C" {
 }
 
 #include "DEG_depsgraph_debug.h"
-
 #include "DEG_depsgraph.h"
+
+#include "depsgraph_util_string.h"
+#include "depsgraph_util_thread.h"
+
+struct DepsgraphStats;
+struct DepsgraphStatsID;
+struct DepsgraphStatsComponent;
+struct DepsgraphSettings;
 
 struct Depsgraph;
 struct DepsgraphTask;
 
 struct DepsgraphDebug {
+	static DepsgraphStats *stats;
+	
+	static void stats_init();
+	static void stats_free();
+	
+	static void verify_stats(DepsgraphSettings *settings);
+	static void reset_stats();
+	
 	static void eval_begin(eEvaluationContextType context_type);
-	static void eval_end(eEvaluationContextType context_type, double time);
+	static void eval_end(eEvaluationContextType context_type);
 	static void eval_step(eEvaluationContextType context_type, const char *message);
 	
 	static void task_started(const DepsgraphTask &task);
 	static void task_completed(const DepsgraphTask &task, double time);
+	
+protected:
+	static ThreadMutex stats_mutex;
+	
+	static DepsgraphStatsID *get_id_stats(ID *id, bool create);
+	static DepsgraphStatsComponent *get_component_stats(DepsgraphStatsID *id_stats, const string &name, bool create);
+	static DepsgraphStatsComponent *get_component_stats(ID *id, const string &name, bool create)
+	{
+		return get_component_stats(get_id_stats(id, create), name, create);
+	}
 };
 
 #endif // __DEPSGRAPH_DEBUG_H__
