@@ -10,6 +10,12 @@
 
 #pragma message("DEPSGRAPH PORTING XXX: There are still some undefined stubs")
 
+/* spend random time in operation functions to simulate work */
+#define DEG_SIMULATE_EVAL
+
+void deg_simulate_eval_init();
+void deg_simulate_eval_free();
+
 void BKE_animsys_eval_driver(void *context, void *item);
 
 void BKE_constraints_evaluate(void *context, void *item);

@@ -66,6 +66,9 @@ extern "C" {
 #include "depsgraph_intern.h"
 #include "depsgraph_debug.h"
 
+/* XXX for simulation, remove later */
+#include "stubs.h"
+
 /* *************************************************** */
 /* Multi-Threaded Evaluation Internals */
 
@@ -73,12 +76,14 @@ extern "C" {
 void DEG_threaded_init(void)
 {
 	DepsgraphTaskScheduler::init();
+	deg_simulate_eval_init();
 }
 
 /* Free threading lock - called during application shutdown */
 void DEG_threaded_exit(void)
 {
 	DepsgraphTaskScheduler::exit();
+	deg_simulate_eval_free();
 }
 
 
