@@ -740,16 +740,14 @@ void DepsgraphDebug::task_completed(const DepsgraphTask &task, double time)
 	ComponentDepsNode *comp = node->owner;
 	ID *id = comp->owner->id;
 	
-//	printf("%s %s : %s took %f ms\n", BKE_idcode_to_name(GS(id->name)), id->name+2, comp->name.c_str(), time);
-	
 	DepsgraphStatsID *id_stats = get_id_stats(id, true);
-	id_stats->times.last += time;
+	id_stats->times.duration_last += time;
 	
 	/* XXX TODO use something like: if (id->flag & ID_DEG_DETAILS) {...} */
 	if (0) {
 		/* XXX component name usage needs cleanup! currently mixes identifier and description strings! */
 		DepsgraphStatsComponent *comp_stats = get_component_stats(id, get_component_name(comp->type, comp->name), true);
-		comp_stats->times.last += time;
+		comp_stats->times.duration_last += time;
 	}
 	
 	BLI_mutex_unlock(&stats_mutex);
@@ -808,7 +806,12 @@ void DepsgraphDebug::reset_stats()
 	if (!stats)
 		return;
 	
-	BLI_ghash_clear(stats->id_stats, NULL, deg_id_stats_free);
+	/* XXX this doesn't work, will immediately clear all info,
+	 * since most depsgraph updates have none or very few updates to handle.
+	 *
+	 * Could consider clearing only zero-user ID blocks here
+	 */
+//	BLI_ghash_clear(stats->id_stats, NULL, deg_id_stats_free);
 }
 
 DepsgraphStatsID *DepsgraphDebug::get_id_stats(ID *id, bool create)

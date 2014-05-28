@@ -47,7 +47,7 @@ struct DepsRelation;
 /* Statistics */
 
 typedef struct DepsgraphStatsTimes {
-	float last;
+	float duration_last;
 } DepsgraphStatsTimes;
 
 typedef struct DepsgraphStatsComponent {
