@@ -290,6 +290,11 @@ int hashloop_topo(BMLoop *l, int oldhash)
 	return hashfunc(((char *)l) + sizeof(BMHeader), sizeof(BMLoop) - sizeof(BMHeader), oldhash);
 }
 
+int hashedge_topo(BMEdge *bme, int oldhash)
+{
+	return hashfunc(&bme->v1, sizeof(BMEdge) - sizeof(BMHeader) - sizeof(BMFlagLayer *), oldhash);
+}
+
 int hashface_topo(BMFace *f, int oldhash)
 {
 	/* skip header & flags & face normals and material */
@@ -297,7 +302,6 @@ int hashface_topo(BMFace *f, int oldhash)
 	return hashfunc(&a, sizeof(int), oldhash);
 }
 
-/* TODO better hashing */
 int bmesh_topohash(BMesh *bm)
 {
 	BMIter iter;
@@ -319,14 +323,17 @@ int bmesh_topohash(BMesh *bm)
 		BM_elem_flag_set(f, BM_ELEM_TAG, false);
 	}
 
+	/* todo -- have a deeper look onto how we can do this the fastest and safest way */
 	BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
-		if (v->e && v->e->l) {
-			hash += hashloop_topo(v->e->l, hash);
+		if (v->e) {
+			hash = hashedge_topo(v->e, hash);
+			if (v->e->l && !BM_elem_flag_test_bool(v->e->l->f, BM_ELEM_TAG)) {
+				hash = hashloop_topo(v->e->l, hash);
+				hash = hashface_topo(v->e->l->f, hash);
+				BM_elem_flag_set(v->e->l->f, BM_ELEM_TAG, true);
+			}
 		}
-		if (v->e->l->f && !BM_elem_flag_test_bool(v->e->l->f, BM_ELEM_TAG)) {
-			hash += hashface_topo(v->e->l->f, hash);
-			BM_elem_flag_set(v->e->l->f, BM_ELEM_TAG, true);
-		}
+
 	}
 
 	BM_ITER_MESH(f, &iter, bm, BM_FACES_OF_MESH) {
