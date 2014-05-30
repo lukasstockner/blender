@@ -1158,7 +1158,7 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		new_matnr = efa->mat_nr + 1;
 		if (new_matnr != matnr) {
 			if (matnr != -1)
-				glEnd();
+				gpuEnd();
 
 			do_draw = setMaterial(matnr = new_matnr, &gattribs);
 			if (do_draw) {
@@ -1279,7 +1279,7 @@ static void emDM_drawMappedFacesMat(DerivedMesh *dm,
 		new_matnr = efa->mat_nr + 1;
 		if (new_matnr != matnr) {
 			if (matnr != -1)
-				glEnd();
+				gpuEnd();
 
 			setMaterial(userData, matnr = new_matnr, &gattribs);
 			DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
@@ -1328,7 +1328,7 @@ static void emDM_drawMappedFacesMat(DerivedMesh *dm,
 	}
 
 	if (matnr != -1) {
-		glEnd();
+		gpuEnd();
 	}
 
 	// SSS Disable Smooth

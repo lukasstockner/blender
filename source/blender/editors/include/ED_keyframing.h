@@ -203,7 +203,7 @@ struct KeyingSet *ANIM_builtin_keyingset_get_named(struct KeyingSet *prevKS, con
 KeyingSetInfo *ANIM_keyingset_info_find_name(const char name[]);
 
 /* Find a given ID in the KeyingSet */
-bool ANIM_keyingset_find_id(struct KeyingSet *ks, ID *id);
+bool ANIM_keyingset_find_id(struct KeyingSet *ks, struct ID *id);
 
 /* for RNA type registrations... */
 void ANIM_keyingset_info_register(struct KeyingSetInfo *ksi);

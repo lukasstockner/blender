@@ -476,10 +476,11 @@ static void ui_draw_linkline(uiLinkLine *line, int highlightActiveLines, int das
 	if (dashInactiveLines)
 		UI_ThemeColor(TH_GRID);
 	else if (line->flag & UI_SELECT)
+		gpuGray3f(100.0f/255.0f);
 	else if (highlightActiveLines && ((line->from->flag & UI_ACTIVE) || (line->to->flag & UI_ACTIVE)))
 		UI_ThemeColor(TH_TEXT_HI);
 	else
-		gpuColor3P(CPACK_BLACK);
+		gpuGray3f(0);
 
 	ui_draw_link_bezier(&rect);
 }

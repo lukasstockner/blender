@@ -94,6 +94,13 @@
 
 #include "paint_intern.h"
 
+/* Defines and Structs */
+/* FTOCHAR as inline function */
+BLI_INLINE unsigned char f_to_char(const float val)
+{
+	return FTOCHAR(val);
+}
+
 /* ProjectionPaint defines */
 
 /* approx the number of buckets to have under the brush,

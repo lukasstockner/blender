@@ -180,7 +180,7 @@ void blf_font_draw(FontBLF *font, const char *str, size_t len)
 	int pen_x = 0, pen_y = 0;
 	size_t i = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
-	int needs_end = FALSE;
+	int needs_end = false;
 
 	BLF_KERNING_VARS(font, has_kerning, kern_mode);
 
@@ -219,7 +219,7 @@ void blf_font_draw_ascii(FontBLF *font, const char *str, size_t len)
 	FT_Vector delta;
 	int pen_x = 0, pen_y = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
-	int needs_end = FALSE;
+	int needs_end = false;
 
 	BLF_KERNING_VARS(font, has_kerning, kern_mode);
 
@@ -256,7 +256,7 @@ int blf_font_draw_mono(FontBLF *font, const char *str, size_t len, int cwidth)
 	int pen_x = 0, pen_y = 0;
 	size_t i = 0;
 	GlyphBLF **glyph_ascii_table = font->glyph_cache->glyph_ascii_table;
-	int needs_end = FALSE;
+	int needs_end = false;
 
 	blf_font_ensure_ascii_table(font);
 

@@ -176,7 +176,7 @@ void draw_mesh_paint_weight_faces(struct DerivedMesh *dm, const bool do_light,
 void draw_mesh_paint_vcolor_faces(struct DerivedMesh *dm, const bool use_light,
                                   void *facemask_cb, void *user_data,
                                   const struct Mesh *me);
-void draw_mesh_paint_weight_edges(RegionView3D *rv3d, struct DerivedMesh *dm,
+void draw_mesh_paint_weight_edges(struct RegionView3D *rv3d, struct DerivedMesh *dm,
                                   const bool use_depth, const bool use_alpha,
                                   void *edgemask_cb, void *user_data);
 

@@ -1556,7 +1556,7 @@ void rotate_m4_right(float mat[][4], const char axis)
 	for(i=0; i<3; i++)
 	{
 		tmpf = mat[rotmat[1]][i];
-		mat[rotmat[1]][i] = -1.0*mat[rotmat[0]][i];
+		mat[rotmat[1]][i] = -1.0f*mat[rotmat[0]][i];
 		mat[rotmat[0]][i] = tmpf;
 
 	}
@@ -2206,24 +2206,19 @@ void pseudoinverse_m4_m4(float Ainv[4][4], float A[4][4], float epsilon)
 
 void mat4_ortho_set(float m[][4], float left, float right, float bottom, float top, float nearVal, float farVal)
 {
-
-	m[0][0] = 2.0/(right-left);	m[1][0] = 0.0f;			m[2][0] = 0.0f;						m[3][0] = -((double)right+left)/(right-left);
-	m[0][1] = 0.0f;				m[1][1] = 2.0/(top-bottom);m[2][1] = 0.0f;					m[3][1] = -((double)top+bottom)/(top-bottom);
-	m[0][2] = 0.0f;				m[1][2] = 0.0f;			m[2][2] = -2.0/(farVal-nearVal);	m[3][2] = -((double)farVal+nearVal)/(farVal-nearVal);
-	m[0][3] = 0.0f;				m[1][3] = 0.0f;			m[2][3] = 0.0f;						m[3][3] = 1.0;
-
-
+    m[0][0] = 2.0f/(right-left); m[1][0] = 0.0f;              m[2][0] =  0.0f;                  m[3][0] = -(right+left)/(right-left);
+    m[0][1] = 0.0f;              m[1][1] = 2.0f/(top-bottom); m[2][1] =  0.0f;                  m[3][1] = -(top+bottom)/(top-bottom);
+    m[0][2] = 0.0f;              m[1][2] = 0.0f;              m[2][2] = -2.0f/(farVal-nearVal); m[3][2] = -(farVal+nearVal)/(farVal-nearVal);
+    m[0][3] = 0.0f;              m[1][3] = 0.0f;              m[2][3] =  0.0f;                  m[3][3] =  1.0f;
 }
 
 
 void mat4_frustum_set(float m[][4], float left, float right, float bottom, float top, float nearVal, float farVal)
 {
-
-	m[0][0] = 2.0*nearVal/(right-left);	m[1][0] = 0.0f;	m[2][0] = (right+left)/(right-left);	m[3][0] = 0.0f;
-	m[0][1] = 0.0f;	m[1][1] = 2.0*nearVal/(top-bottom);	m[2][1] = (top+bottom)/(top-bottom);	m[3][1] = 0.0f;
-	m[0][2] = 0.0f;	m[1][2] = 0.0f;			m[2][2] = -(farVal+nearVal)/(farVal-nearVal);	m[3][2] = -2.0*farVal*nearVal/(farVal-nearVal);
-	m[0][3] = 0.0f;	m[1][3] = 0.0f;			m[2][3] = - 1.0f;								m[3][3] = 0.0f;
-
+	m[0][0] = 2.0f*nearVal/(right-left);  m[1][0] = 0.0f;                      m[2][0] =  (right+left)/(right-left);         m[3][0] =  0.0f;
+	m[0][1] = 0.0f;                       m[1][1] = 2.0f*nearVal/(top-bottom); m[2][1] =  (top+bottom)/(top-bottom);         m[3][1] =  0.0f;
+	m[0][2] = 0.0f;                       m[1][2] = 0.0f;                      m[2][2] = -(farVal+nearVal)/(farVal-nearVal); m[3][2] = -2.0f*farVal*nearVal/(farVal-nearVal);
+	m[0][3] = 0.0f;                       m[1][3] = 0.0f;                      m[2][3] = -1.0f;                              m[3][3] =  0.0f;
 }
 
 /*

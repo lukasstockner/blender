@@ -2037,8 +2037,8 @@ void ED_region_visible_rect(ARegion *ar, rcti *rect)
 
 void ED_region_cache_draw_background(const ARegion *ar)
 {
-	glColor4ub(128, 128, 255, 64);
-	glRecti(0, 0, ar->winx, 8 * UI_DPI_FAC);
+	gpuColor4ub(128, 128, 255, 64);
+	gpuSingleFilledRecti(0, 0, ar->winx, 8 * UI_DPI_FAC);
 }
 
 void ED_region_cache_draw_curfra_label(const int framenr, const float x, const float y)
@@ -2054,7 +2054,7 @@ void ED_region_cache_draw_curfra_label(const int framenr, const float x, const f
 
 	BLF_width_and_height(fontid, numstr, sizeof(numstr), &font_dims[0], &font_dims[1]);
 
-	glRecti(x, y, x + font_dims[0] + 6.0f, y + font_dims[1] + 4.0f);
+	gpuSingleFilledRecti(x, y, x + font_dims[0] + 6.0f, y + font_dims[1] + 4.0f);
 
 	UI_ThemeColor(TH_TEXT);
 	BLF_position(fontid, x + 2.0f, y + 2.0f, 0.0f);
@@ -2066,7 +2066,7 @@ void ED_region_cache_draw_cached_segments(const ARegion *ar, const int num_segme
 	if (num_segments) {
 		int a;
 
-		glColor4ub(128, 128, 255, 128);
+		gpuColor4ub(128, 128, 255, 128);
 
 		for (a = 0; a < num_segments; a++) {
 			float x1, x2;
@@ -2074,7 +2074,7 @@ void ED_region_cache_draw_cached_segments(const ARegion *ar, const int num_segme
 			x1 = (float)(points[a * 2] - sfra) / (efra - sfra + 1) * ar->winx;
 			x2 = (float)(points[a * 2 + 1] - sfra + 1) / (efra - sfra + 1) * ar->winx;
 
-			glRecti(x1, 0, x2, 8 * UI_DPI_FAC);
+			gpuSingleFilledRecti(x1, 0, x2, 8 * UI_DPI_FAC);
 		}
 	}
 }

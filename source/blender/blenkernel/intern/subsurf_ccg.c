@@ -2132,7 +2132,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			CCGElem *vda, *vdb;
 
 			if (ln) {
-				glBegin(GL_QUADS);
+				gpuBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *aco = CCG_grid_elem_co(&key, faceGridData, x, y);
@@ -2141,23 +2141,23 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						float *dco = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
 
 						PASSATTRIB(0, 1, 1);
-						glNormal3sv(ln[0][1]);
-						glVertex3fv(dco);
+						gpuNormal3sv(ln[0][1]);
+						gpuVertex3fv(dco);
 						PASSATTRIB(1, 1, 2);
-						glNormal3sv(ln[0][2]);
-						glVertex3fv(cco);
+						gpuNormal3sv(ln[0][2]);
+						gpuVertex3fv(cco);
 						PASSATTRIB(1, 0, 3);
-						glNormal3sv(ln[0][3]);
-						glVertex3fv(bco);
+						gpuNormal3sv(ln[0][3]);
+						gpuVertex3fv(bco);
 						PASSATTRIB(0, 0, 0);
-						glNormal3sv(ln[0][0]);
-						glVertex3fv(aco);
+						gpuNormal3sv(ln[0][0]);
+						gpuVertex3fv(aco);
 
 						ln++;
 						a++;
 					}
 				}
-				glEnd();
+				gpuEnd();
 			}
 			else if (drawSmooth) {
 				for (y = 0; y < gridFaces; y++) {
@@ -2315,7 +2315,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 			CCGElem *vda, *vdb;
 
 			if (ln) {
-				glBegin(GL_QUADS);
+				gpuBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *aco = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2324,23 +2324,23 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 						float *dco = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
 
 						PASSATTRIB(0, 1, 1);
-						glNormal3sv(ln[0][1]);
-						glVertex3fv(dco);
+						gpuNormal3sv(ln[0][1]);
+						gpuVertex3fv(dco);
 						PASSATTRIB(1, 1, 2);
-						glNormal3sv(ln[0][2]);
-						glVertex3fv(cco);
+						gpuNormal3sv(ln[0][2]);
+						gpuVertex3fv(cco);
 						PASSATTRIB(1, 0, 3);
-						glNormal3sv(ln[0][3]);
-						glVertex3fv(bco);
+						gpuNormal3sv(ln[0][3]);
+						gpuVertex3fv(bco);
 						PASSATTRIB(0, 0, 0);
-						glNormal3sv(ln[0][0]);
-						glVertex3fv(aco);
+						gpuNormal3sv(ln[0][0]);
+						gpuVertex3fv(aco);
 
 						ln++;
 						a++;
 					}
 				}
-				glEnd();
+				gpuEnd();
 			}
 			else if (drawSmooth) {
 				for (y = 0; y < gridFaces; y++) {
@@ -2530,7 +2530,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 						ln++;
 					}
 				}
-				glEnd();
+				gpuEnd();
 			}
 			else if (drawSmooth) {
 				// SSS Enable Smooth
@@ -2758,7 +2758,7 @@ static void ccgDM_drawMappedFaces(
 					CCGElem *faceGridData = (CCGElem*)ccgSubSurf_getFaceGridDataArray(ss, f, S);
 
 					if (ln) {
-						glBegin(GL_QUADS);
+						gpuBegin(GL_QUADS);
 						for (y = 0; y < gridFaces; y++) {
 							for (x = 0; x < gridFaces; x++) {
 								float *a = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2766,24 +2766,24 @@ static void ccgDM_drawMappedFaces(
 								float *c = CCG_grid_elem_co(&key, faceGridData, x + 1, y + 1);
 								float *d = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
 
-								if (cp) glColor3ub(cp[7], cp[6], cp[5]);
-								glNormal3sv(ln[0][1]);
-								glVertex3fv(d);
-								if (cp) glColor3ub(cp[11], cp[10], cp[9]);
-								glNormal3sv(ln[0][2]);
-								glVertex3fv(c);
-								if (cp) glColor3ub(cp[15], cp[14], cp[13]);
-								glNormal3sv(ln[0][3]);
-								glVertex3fv(b);
-								if (cp) glColor3ub(cp[3], cp[2], cp[1]);
-								glNormal3sv(ln[0][0]);
-								glVertex3fv(a);
+								if (cp) gpuColor3ub(cp[7], cp[6], cp[5]);
+								gpuNormal3sv(ln[0][1]);
+								gpuVertex3fv(d);
+								if (cp) gpuColor3ub(cp[11], cp[10], cp[9]);
+								gpuNormal3sv(ln[0][2]);
+								gpuVertex3fv(c);
+								if (cp) gpuColor3ub(cp[15], cp[14], cp[13]);
+								gpuNormal3sv(ln[0][3]);
+								gpuVertex3fv(b);
+								if (cp) gpuColor3ub(cp[3], cp[2], cp[1]);
+								gpuNormal3sv(ln[0][0]);
+								gpuVertex3fv(a);
 
 								if (cp) cp += 16;
 								ln++;
 							}
 						}
-						glEnd();
+						gpuEnd();
 					}
 					else if (drawSmooth) {
 						for (y = 0; y < gridFaces; y++) {

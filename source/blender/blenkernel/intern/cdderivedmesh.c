@@ -44,6 +44,7 @@
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
 #include "BKE_curve.h"
+#include "BKE_DerivedMesh.h"
 
 /* external */
 
@@ -1637,52 +1638,6 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						}
 					}
 
-				if (do_draw && numdata != 0) {
-					offset = 0;
-					if (attribs.totorco && attribs.orco.array) {
-						copy_v3_v3((float *)&varray[elementsize * curface * 3], (float *)attribs.orco.array[mface->v1]);
-						copy_v3_v3((float *)&varray[elementsize * curface * 3 + elementsize], (float *)attribs.orco.array[mface->v2]);
-						copy_v3_v3((float *)&varray[elementsize * curface * 3 + elementsize * 2], (float *)attribs.orco.array[mface->v3]);
-						offset += sizeof(float) * 3;
-					}
-					for (b = 0; b < attribs.tottface; b++) {
-						if (attribs.tface[b].array) {
-							MTFace *tf = &attribs.tface[b].array[a];
-							copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset], tf->uv[0]);
-							copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset + elementsize], tf->uv[1]);
-
-							copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset + elementsize * 2], tf->uv[2]);
-							offset += sizeof(float) * 2;
-						}
-					}
-					for (b = 0; b < attribs.totmcol; b++) {
-						if (attribs.mcol[b].array) {
-							MCol *cp = &attribs.mcol[b].array[a * 4 + 0];
-							GLubyte col[4];
-							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-							copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset], (char *)col);
-							cp = &attribs.mcol[b].array[a * 4 + 1];
-							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-							copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset + elementsize], (char *)col);
-							cp = &attribs.mcol[b].array[a * 4 + 2];
-							col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
-							copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset + elementsize * 2], (char *)col);
-							offset += sizeof(unsigned char) * 4;
-						}
-					}
-					if (attribs.tottang && attribs.tang.array) {
-						const float *tang = attribs.tang.array[a * 4 + 0];
-						copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset], tang);
-						tang = attribs.tang.array[a * 4 + 1];
-						copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset + elementsize], tang);
-						tang = attribs.tang.array[a * 4 + 2];
-						copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset + elementsize * 2], tang);
-						offset += sizeof(float) * 4;
-					}
-					(void)offset;
-				}
-				curface++;
-				if (mface->v4) {
 					if (do_draw && numdata != 0) {
 						offset = 0;
 						if (attribs.totorco && attribs.orco.array) {
@@ -1717,7 +1672,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 							}
 						}
 						if (attribs.tottang && attribs.tang.array) {
-							const float *tang = attribs.tang.array[a * 4 + 2];
+							const float *tang = attribs.tang.array[a * 4 + 0];
 							copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset], tang);
 							tang = attribs.tang.array[a * 4 + 1];
 							copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset + elementsize], tang);
@@ -1732,71 +1687,119 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 						if (do_draw && numdata != 0) {
 							offset = 0;
 							if (attribs.totorco && attribs.orco.array) {
-								copy_v3_v3((float *)&varray[elementsize * curface * 3], (float *)attribs.orco.array[mface->v3]);
-								copy_v3_v3((float *)&varray[elementsize * curface * 3 + elementsize], (float *)attribs.orco.array[mface->v4]);
-								copy_v3_v3((float *)&varray[elementsize * curface * 3 + elementsize * 2], (float *)attribs.orco.array[mface->v1]);
+								copy_v3_v3((float *)&varray[elementsize * curface * 3], (float *)attribs.orco.array[mface->v1]);
+								copy_v3_v3((float *)&varray[elementsize * curface * 3 + elementsize], (float *)attribs.orco.array[mface->v2]);
+								copy_v3_v3((float *)&varray[elementsize * curface * 3 + elementsize * 2], (float *)attribs.orco.array[mface->v3]);
 								offset += sizeof(float) * 3;
 							}
 							for (b = 0; b < attribs.tottface; b++) {
 								if (attribs.tface[b].array) {
 									MTFace *tf = &attribs.tface[b].array[a];
-									copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset], tf->uv[2]);
-									copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset + elementsize], tf->uv[3]);
-									copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset + elementsize * 2], tf->uv[0]);
+									copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset], tf->uv[0]);
+									copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset + elementsize], tf->uv[1]);
+
+									copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset + elementsize * 2], tf->uv[2]);
 									offset += sizeof(float) * 2;
 								}
 							}
 							for (b = 0; b < attribs.totmcol; b++) {
 								if (attribs.mcol[b].array) {
-									MCol *cp = &attribs.mcol[b].array[a * 4 + 2];
+									MCol *cp = &attribs.mcol[b].array[a * 4 + 0];
 									GLubyte col[4];
 									col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
 									copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset], (char *)col);
-									cp = &attribs.mcol[b].array[a * 4 + 3];
+									cp = &attribs.mcol[b].array[a * 4 + 1];
 									col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
 									copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset + elementsize], (char *)col);
-									cp = &attribs.mcol[b].array[a * 4 + 0];
+									cp = &attribs.mcol[b].array[a * 4 + 2];
 									col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
 									copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset + elementsize * 2], (char *)col);
 									offset += sizeof(unsigned char) * 4;
 								}
 							}
 							if (attribs.tottang && attribs.tang.array) {
-								float *tang = attribs.tang.array[a * 4 + 2];
+								const float *tang = attribs.tang.array[a * 4 + 2];
 								copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset], tang);
-								tang = attribs.tang.array[a * 4 + 3];
+								tang = attribs.tang.array[a * 4 + 1];
 								copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset + elementsize], tang);
-								tang = attribs.tang.array[a * 4 + 0];
+								tang = attribs.tang.array[a * 4 + 2];
 								copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset + elementsize * 2], tang);
 								offset += sizeof(float) * 4;
 							}
 							(void)offset;
 						}
 						curface++;
-						i++;
+						if (mface->v4) {
+							if (do_draw && numdata != 0) {
+								offset = 0;
+								if (attribs.totorco && attribs.orco.array) {
+									copy_v3_v3((float *)&varray[elementsize * curface * 3], (float *)attribs.orco.array[mface->v3]);
+									copy_v3_v3((float *)&varray[elementsize * curface * 3 + elementsize], (float *)attribs.orco.array[mface->v4]);
+									copy_v3_v3((float *)&varray[elementsize * curface * 3 + elementsize * 2], (float *)attribs.orco.array[mface->v1]);
+									offset += sizeof(float) * 3;
+								}
+								for (b = 0; b < attribs.tottface; b++) {
+									if (attribs.tface[b].array) {
+										MTFace *tf = &attribs.tface[b].array[a];
+										copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset], tf->uv[2]);
+										copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset + elementsize], tf->uv[3]);
+										copy_v2_v2((float *)&varray[elementsize * curface * 3 + offset + elementsize * 2], tf->uv[0]);
+										offset += sizeof(float) * 2;
+									}
+								}
+								for (b = 0; b < attribs.totmcol; b++) {
+									if (attribs.mcol[b].array) {
+										MCol *cp = &attribs.mcol[b].array[a * 4 + 2];
+										GLubyte col[4];
+										col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+										copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset], (char *)col);
+										cp = &attribs.mcol[b].array[a * 4 + 3];
+										col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+										copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset + elementsize], (char *)col);
+										cp = &attribs.mcol[b].array[a * 4 + 0];
+										col[0] = cp->b; col[1] = cp->g; col[2] = cp->r; col[3] = cp->a;
+										copy_v4_v4_char((char *)&varray[elementsize * curface * 3 + offset + elementsize * 2], (char *)col);
+										offset += sizeof(unsigned char) * 4;
+									}
+								}
+								if (attribs.tottang && attribs.tang.array) {
+									float *tang = attribs.tang.array[a * 4 + 2];
+									copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset], tang);
+									tang = attribs.tang.array[a * 4 + 3];
+									copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset + elementsize], tang);
+									tang = attribs.tang.array[a * 4 + 0];
+									copy_v4_v4((float *)&varray[elementsize * curface * 3 + offset + elementsize * 2], tang);
+									offset += sizeof(float) * 4;
+								}
+								(void)offset;
+							}
+							curface++;
+							i++;
+						}
 					}
 				}
-			}
-			numfaces = curface - start;
-			if (numfaces > 0) {
-				if (do_draw) {
-					if (numdata != 0) {
-						GPU_buffer_unlock(buffer);
-						GPU_interleaved_attrib_setup(buffer, datatypes, numdata);
-					}
+				numfaces = curface - start;
+				if (numfaces > 0) {
+					if (do_draw) {
+						if (numdata != 0) {
+							GPU_buffer_unlock(buffer);
+							GPU_interleaved_attrib_setup(buffer, datatypes, numdata);
+						}
 
-					if (GPU_commit_aspect())
-						glDrawArrays(GL_TRIANGLES, start * 3, (curface - start) * 3);
+						if (GPU_commit_aspect())
+							glDrawArrays(GL_TRIANGLES, start * 3, (curface - start) * 3);
+					}
 				}
+				GPU_buffer_unbind();
 			}
-			GPU_buffer_unbind();
+			GPU_buffer_free(buffer);
 		}
-		GPU_buffer_free(buffer);
 	}
 
 	// SSS Disable Smooth
 	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_SMOOTH);
 }
+
 
 static void cdDM_drawFacesGLSL(DerivedMesh *dm, DMSetMaterial setMaterial)
 {

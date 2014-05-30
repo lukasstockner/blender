@@ -30,6 +30,8 @@
  *  \ingroup bli
  */
 
+#include "MEM_guardedalloc.h"
+
 typedef unsigned int BLI_bitmap;
 
 /* warning: the bitmap does not keep track of its own size or check

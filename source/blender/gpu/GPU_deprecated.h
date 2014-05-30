@@ -640,7 +640,11 @@
 #define glLineStipple DO_NOT_USE_glLineStipple
 #undef glPolygonStipple
 #define glPolygonStipple DO_NOT_USE_glPolygonStipple
+#undef glPolygonMode
+#define glPolygonMode DO_NOT_USE_glPolygonMode
 #undef glLineWidth
 #define glLineWidth DO_NOT_USE_glLineWidth
+#undef GL_LINE_SMOOTH
+#define GL_LINE_SMOOTH DO_NOT_USE_GL_LINE_SMOOTH
 
 #endif /* _GPU_DEPRECATED_H_ */

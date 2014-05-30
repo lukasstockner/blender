@@ -988,48 +988,43 @@ static void ui_draw_colorband_handle_tri_hlight(float x1, float y1, float halfwi
 {
 	float v[2];
 
-	glEnable(GL_LINE_SMOOTH);
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
-	glBegin(GL_LINE_STRIP);
+	gpuBegin(GL_LINE_STRIP);
 	copy_v2_fl2(v, x1 + halfwidth, y1);
-	glVertex2fv(v);
+	gpuVertex2fv(v);
 	copy_v2_fl2(v, x1, y1 + height);
-	glVertex2fv(v);
+	gpuVertex2fv(v);
 	copy_v2_fl2(v, x1 - halfwidth, y1);
-	glVertex2fv(v);
-	glEnd();
+	gpuVertex2fv(v);
+	gpuEnd();
 
-	glDisable(GL_LINE_SMOOTH);
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 }
 
 static void ui_draw_colorband_handle_tri(float x1, float y1, float halfwidth, float height, bool fill)
 {
 	float v[2];
 
-	if (fill) {
-		glPolygonMode(GL_FRONT, GL_FILL);
-		glEnable(GL_POLYGON_SMOOTH);
-	}
-	else {
-		glPolygonMode(GL_FRONT, GL_LINE);
-		glEnable(GL_LINE_SMOOTH);
+	if (!fill) {
+		gpuPolygonMode(GL_LINE);
 	}
 
-	glBegin(GL_TRIANGLES);
+	GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	gpuBegin(GL_TRIANGLES);
 	copy_v2_fl2(v, x1 + halfwidth, y1);
-	glVertex2fv(v);
+	gpuVertex2fv(v);
 	copy_v2_fl2(v, x1, y1 + height);
-	glVertex2fv(v);
+	gpuVertex2fv(v);
 	copy_v2_fl2(v, x1 - halfwidth, y1);
-	glVertex2fv(v);
-	glEnd();
+	gpuVertex2fv(v);
+	gpuEnd();
 
-	if (fill) {
-		glDisable(GL_POLYGON_SMOOTH);
-	}
-	else {
-		glDisable(GL_LINE_SMOOTH);
-		glPolygonMode(GL_FRONT, GL_FILL);
+	GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
+
+	if (!fill) {
+		gpuPolygonMode(GL_FILL); /* return to default */
 	}
 }
 
@@ -1037,26 +1032,23 @@ static void ui_draw_colorband_handle_box(float x1, float y1, float x2, float y2,
 {
 	float v[2];
 
-	if (fill) {
-		glPolygonMode(GL_FRONT, GL_FILL);
-	}
-	else {
-		glPolygonMode(GL_FRONT, GL_LINE);
+	if (!fill) {
+		gpuPolygonMode(GL_LINE);
 	}
 
-	glBegin(GL_QUADS);
+	gpuBegin(GL_QUADS);
 	copy_v2_fl2(v, x1, y1);
-	glVertex2fv(v);
+	gpuVertex2fv(v);
 	copy_v2_fl2(v, x1, y2);
-	glVertex2fv(v);
+	gpuVertex2fv(v);
 	copy_v2_fl2(v, x2, y2);
-	glVertex2fv(v);
+	gpuVertex2fv(v);
 	copy_v2_fl2(v, x2, y1);
-	glVertex2fv(v);
-	glEnd();
+	gpuVertex2fv(v);
+	gpuEnd();
 
 	if (!fill) {
-		glPolygonMode(GL_FRONT, GL_FILL);
+		gpuPolygonMode(GL_FILL); /* return to default */
 	}
 }
 
@@ -1081,18 +1073,18 @@ static void ui_draw_colorband_handle(
 	y1 = floorf(y1 + 0.5f);
 
 	if (active || half_width < min_width) {
-		glBegin(GL_LINES);
-		glColor3ub(0, 0, 0);
-		glVertex2f(x, y1);
-		glVertex2f(x, y2);
-		glEnd();
-		setlinestyle(active ? 2 : 1);
-		glBegin(GL_LINES);
-		glColor3ub(200, 200, 200);
-		glVertex2f(x, y1);
-		glVertex2f(x, y2);
-		glEnd();
-		setlinestyle(0);
+		gpuBegin(GL_LINES);
+		gpuColor3ub(0, 0, 0);
+		gpuVertex2f(x, y1);
+		gpuVertex2f(x, y2);
+		gpuEnd();
+		GPU_raster_set_line_style(active ? 2 : 1);
+		gpuBegin(GL_LINES);
+		gpuColor3ub(200, 200, 200);
+		gpuVertex2f(x, y1);
+		gpuVertex2f(x, y2);
+		gpuEnd();
+		GPU_raster_set_line_style(0);
 
 		/* hide handles when zoomed out too far */
 		if (half_width < min_width) {
@@ -1103,7 +1095,7 @@ static void ui_draw_colorband_handle(
 	/* shift handle down */
 	y1 = y1 - half_width;
 
-	glColor3ub(0, 0, 0);
+	gpuColor3ub(0, 0, 0);
 	ui_draw_colorband_handle_box(x - half_width, y1 - 1, x + half_width, y1 + height, false);
 
 	/* draw all triangles blended */
@@ -1112,30 +1104,30 @@ static void ui_draw_colorband_handle(
 	ui_draw_colorband_handle_tri(x, y1 + height, half_width, half_width, true);
 
 	if (active)
-		glColor3ub(196, 196, 196);
+		gpuColor3ub(196, 196, 196);
 	else
-		glColor3ub(128, 128, 128);
+		gpuColor3ub(128, 128, 128);
 	ui_draw_colorband_handle_tri(x, y1 + height, half_width, half_width, true);
 
 	if (active)
-		glColor3ub(255, 255, 255);
+		gpuColor3ub(255, 255, 255);
 	else
-		glColor3ub(196, 196, 196);
+		gpuColor3ub(196, 196, 196);
 	ui_draw_colorband_handle_tri_hlight(x, y1 + height - 1, (half_width - 1), (half_width - 1));
 
-	glColor3ub(0, 0, 0);
+	gpuColor3ub(0, 0, 0);
 	ui_draw_colorband_handle_tri_hlight(x, y1 + height, half_width, half_width);
 
 	glDisable(GL_BLEND);
 
-	glColor3ub(128, 128, 128);
+	gpuColor3ub(128, 128, 128);
 	ui_draw_colorband_handle_box(x - (half_width - 1), y1, x + (half_width - 1), y1 + height, true);
 
 	if (display) {
 		IMB_colormanagement_scene_linear_to_display_v3(colf, display);
 	}
 
-	glColor3fv(colf);
+	gpuColor3fv(colf);
 	ui_draw_colorband_handle_box(x - (half_width - 2), y1 + 1, x + (half_width - 2), y1 + height - 2, true);
 }
 
@@ -1233,14 +1225,14 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti 
 
 	/* layer: box outline */
 	gpuColor4f(0.0, 0.0, 0.0, 1.0);
-	fdrawbox(x1, y1, x1 + sizex, rect->ymax);
+	gpuDrawWireRectf(x1, y1, x1 + sizex, rect->ymax);
 	
 	/* layer: box outline */
 	glEnable(GL_BLEND);
 	gpuColor4f(0.0f, 0.0f, 0.0f, 0.5f);
-	fdrawline(x1, y1, x1 + sizex, y1);
+	gpuDrawLinef(x1, y1, x1 + sizex, y1);
 	gpuColor4f(1.0f, 1.0f, 1.0f, 0.25f);
-	fdrawline(x1, y1 - 1, x1 + sizex, y1 - 1);
+	gpuDrawLinef(x1, y1 - 1, x1 + sizex, y1 - 1);
 	glDisable(GL_BLEND);
 	
 	/* layer: draw handles */

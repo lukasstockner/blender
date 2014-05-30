@@ -177,9 +177,8 @@ typedef enum DMDirtyFlag {
 	DM_DIRTY_NORMALS = 1 << 2,
 }  DMDirtyFlag;
 
-typedef struct DerivedMesh DerivedMesh;
-struct DerivedMesh {
-	/** Private DerivedMesh data, only for internal DerivedMesh use */
+typedef struct DerivedMesh {
+	/** Private struct DerivedMesh data, only for internal struct DerivedMesh use */
 	CustomData vertData, edgeData, faceData, loopData, polyData;
 	int numVertData, numEdgeData, numTessFaceData, numLoopData, numPolyData;
 	int needsFree; /* checked on ->release, is set to 0 for cached results */
@@ -196,102 +195,102 @@ struct DerivedMesh {
 	char cd_flag;
 
 	/** Calculate vert and face normals */
-	void (*calcNormals)(DerivedMesh *dm);
+	void (*calcNormals)(struct DerivedMesh *dm);
 
 	/** Calculate loop (split) normals */
-	void (*calcLoopNormals)(DerivedMesh *dm, const float split_angle);
+	void (*calcLoopNormals)(struct DerivedMesh *dm, const float split_angle);
 
 	/** Recalculates mesh tessellation */
-	void (*recalcTessellation)(DerivedMesh *dm);
+	void (*recalcTessellation)(struct DerivedMesh *dm);
 
 	/* Misc. Queries */
 
 	/* Also called in Editmode */
-	int (*getNumVerts)(DerivedMesh *dm);
-	int (*getNumEdges)(DerivedMesh *dm);
-	int (*getNumTessFaces)(DerivedMesh *dm);
-	int (*getNumLoops)(DerivedMesh *dm);
-	int (*getNumPolys)(DerivedMesh *dm);
+	int (*getNumVerts)(struct DerivedMesh *dm);
+	int (*getNumEdges)(struct DerivedMesh *dm);
+	int (*getNumTessFaces)(struct DerivedMesh *dm);
+	int (*getNumLoops)(struct DerivedMesh *dm);
+	int (*getNumPolys)(struct DerivedMesh *dm);
 
 	/** Copy a single vert/edge/tessellated face from the derived mesh into
 	 * *{vert/edge/face}_r. note that the current implementation
 	 * of this function can be quite slow, iterating over all
 	 * elements (editmesh)
 	 */
-	void (*getVert)(DerivedMesh *dm, int index, struct MVert *r_vert);
-	void (*getEdge)(DerivedMesh *dm, int index, struct MEdge *r_edge);
-	void (*getTessFace)(DerivedMesh *dm, int index, struct MFace *r_face);
+	void (*getVert)(struct DerivedMesh *dm, int index, struct MVert *r_vert);
+	void (*getEdge)(struct DerivedMesh *dm, int index, struct MEdge *r_edge);
+	void (*getTessFace)(struct DerivedMesh *dm, int index, struct MFace *r_face);
 
 	/** Return a pointer to the entire array of verts/edges/face from the
 	 * derived mesh. if such an array does not exist yet, it will be created,
 	 * and freed on the next ->release(). consider using getVert/Edge/Face if
 	 * you are only interested in a few verts/edges/faces.
 	 */
-	struct MVert *(*getVertArray)(DerivedMesh * dm);
-	struct MEdge *(*getEdgeArray)(DerivedMesh * dm);
-	struct MFace *(*getTessFaceArray)(DerivedMesh * dm);
-	struct MLoop *(*getLoopArray)(DerivedMesh * dm);
-	struct MPoly *(*getPolyArray)(DerivedMesh * dm);
+	struct MVert *(*getVertArray)(struct DerivedMesh * dm);
+	struct MEdge *(*getEdgeArray)(struct DerivedMesh * dm);
+	struct MFace *(*getTessFaceArray)(struct DerivedMesh * dm);
+	struct MLoop *(*getLoopArray)(struct DerivedMesh * dm);
+	struct MPoly *(*getPolyArray)(struct DerivedMesh * dm);
 
 	/** Copy all verts/edges/faces from the derived mesh into
 	 * *{vert/edge/face}_r (must point to a buffer large enough)
 	 */
-	void (*copyVertArray)(DerivedMesh *dm, struct MVert *r_vert);
-	void (*copyEdgeArray)(DerivedMesh *dm, struct MEdge *r_edge);
-	void (*copyTessFaceArray)(DerivedMesh *dm, struct MFace *r_face);
-	void (*copyLoopArray)(DerivedMesh *dm, struct MLoop *r_loop);
-	void (*copyPolyArray)(DerivedMesh *dm, struct MPoly *r_poly);
+	void (*copyVertArray)(struct DerivedMesh *dm, struct MVert *r_vert);
+	void (*copyEdgeArray)(struct DerivedMesh *dm, struct MEdge *r_edge);
+	void (*copyTessFaceArray)(struct DerivedMesh *dm, struct MFace *r_face);
+	void (*copyLoopArray)(struct DerivedMesh *dm, struct MLoop *r_loop);
+	void (*copyPolyArray)(struct DerivedMesh *dm, struct MPoly *r_poly);
 
 	/** Return a copy of all verts/edges/faces from the derived mesh
 	 * it is the caller's responsibility to free the returned pointer
 	 */
-	struct MVert *(*dupVertArray)(DerivedMesh * dm);
-	struct MEdge *(*dupEdgeArray)(DerivedMesh * dm);
-	struct MFace *(*dupTessFaceArray)(DerivedMesh * dm);
-	struct MLoop *(*dupLoopArray)(DerivedMesh * dm);
-	struct MPoly *(*dupPolyArray)(DerivedMesh * dm);
+	struct MVert *(*dupVertArray)(struct DerivedMesh * dm);
+	struct MEdge *(*dupEdgeArray)(struct DerivedMesh * dm);
+	struct MFace *(*dupTessFaceArray)(struct DerivedMesh * dm);
+	struct MLoop *(*dupLoopArray)(struct DerivedMesh * dm);
+	struct MPoly *(*dupPolyArray)(struct DerivedMesh * dm);
 
 	/** Return a pointer to a single element of vert/edge/face custom data
 	 * from the derived mesh (this gives a pointer to the actual data, not
 	 * a copy)
 	 */
-	void *(*getVertData)(DerivedMesh *dm, int index, int type);
-	void *(*getEdgeData)(DerivedMesh *dm, int index, int type);
-	void *(*getTessFaceData)(DerivedMesh *dm, int index, int type);
-	void *(*getPolyData)(DerivedMesh *dm, int index, int type);
+	void *(*getVertData)(struct DerivedMesh *dm, int index, int type);
+	void *(*getEdgeData)(struct DerivedMesh *dm, int index, int type);
+	void *(*getTessFaceData)(struct DerivedMesh *dm, int index, int type);
+	void *(*getPolyData)(struct DerivedMesh *dm, int index, int type);
 
 	/** Return a pointer to the entire array of vert/edge/face custom data
 	 * from the derived mesh (this gives a pointer to the actual data, not
 	 * a copy)
 	 */
-	void *(*getVertDataArray)(DerivedMesh *dm, int type);
-	void *(*getEdgeDataArray)(DerivedMesh *dm, int type);
-	void *(*getTessFaceDataArray)(DerivedMesh *dm, int type);
-	void *(*getLoopDataArray)(DerivedMesh *dm, int type);
-	void *(*getPolyDataArray)(DerivedMesh *dm, int type);
+	void *(*getVertDataArray)(struct DerivedMesh *dm, int type);
+	void *(*getEdgeDataArray)(struct DerivedMesh *dm, int type);
+	void *(*getTessFaceDataArray)(struct DerivedMesh *dm, int type);
+	void *(*getLoopDataArray)(struct DerivedMesh *dm, int type);
+	void *(*getPolyDataArray)(struct DerivedMesh *dm, int type);
 
 	/** Retrieves the base CustomData structures for
 	 * verts/edges/tessfaces/loops/facdes*/
-	CustomData *(*getVertDataLayout)(DerivedMesh * dm);
-	CustomData *(*getEdgeDataLayout)(DerivedMesh * dm);
-	CustomData *(*getTessFaceDataLayout)(DerivedMesh * dm);
-	CustomData *(*getLoopDataLayout)(DerivedMesh * dm);
-	CustomData *(*getPolyDataLayout)(DerivedMesh * dm);
+	CustomData *(*getVertDataLayout)(struct DerivedMesh * dm);
+	CustomData *(*getEdgeDataLayout)(struct DerivedMesh * dm);
+	CustomData *(*getTessFaceDataLayout)(struct DerivedMesh * dm);
+	CustomData *(*getLoopDataLayout)(struct DerivedMesh * dm);
+	CustomData *(*getPolyDataLayout)(struct DerivedMesh * dm);
 	
 	/** Copies all customdata for an element source into dst at index dest */
-	void (*copyFromVertCData)(DerivedMesh *dm, int source, CustomData *dst, int dest);
-	void (*copyFromEdgeCData)(DerivedMesh *dm, int source, CustomData *dst, int dest);
-	void (*copyFromFaceCData)(DerivedMesh *dm, int source, CustomData *dst, int dest);
+	void (*copyFromVertCData)(struct DerivedMesh *dm, int source, CustomData *dst, int dest);
+	void (*copyFromEdgeCData)(struct DerivedMesh *dm, int source, CustomData *dst, int dest);
+	void (*copyFromFaceCData)(struct DerivedMesh *dm, int source, CustomData *dst, int dest);
 	
 	/** Optional grid access for subsurf */
-	int (*getNumGrids)(DerivedMesh *dm);
-	int (*getGridSize)(DerivedMesh *dm);
-	struct CCGElem **(*getGridData)(DerivedMesh * dm);
-	DMGridAdjacency *(*getGridAdjacency)(DerivedMesh * dm);
-	int *(*getGridOffset)(DerivedMesh * dm);
-	void (*getGridKey)(DerivedMesh *dm, struct CCGKey *key);
-	DMFlagMat *(*getGridFlagMats)(DerivedMesh * dm);
-	unsigned int **(*getGridHidden)(DerivedMesh * dm);
+	int (*getNumGrids)(struct DerivedMesh *dm);
+	int (*getGridSize)(struct DerivedMesh *dm);
+	struct CCGElem **(*getGridData)(struct DerivedMesh * dm);
+	DMGridAdjacency *(*getGridAdjacency)(struct DerivedMesh * dm);
+	int *(*getGridOffset)(struct DerivedMesh * dm);
+	void (*getGridKey)(struct DerivedMesh *dm, struct CCGKey *key);
+	DMFlagMat *(*getGridFlagMats)(struct DerivedMesh * dm);
+	unsigned int **(*getGridHidden)(struct DerivedMesh * dm);
 	
 
 	/** Iterate over each mapped vertex in the derived mesh, calling the
@@ -299,7 +298,7 @@ struct DerivedMesh {
 	 * coordinate and normal. For historical reasons the normal can be
 	 * passed as a float or short array, only one should be non-NULL.
 	 */
-	void (*foreachMappedVert)(DerivedMesh *dm,
+	void (*foreachMappedVert)(struct DerivedMesh *dm,
 	                          void (*func)(void *userData, int index, const float co[3],
 	                                       const float no_f[3], const short no_s[3]),
 	                          void *userData,
@@ -309,7 +308,7 @@ struct DerivedMesh {
 	 * given function with the original edge and the mapped edge's new
 	 * coordinates.
 	 */
-	void (*foreachMappedEdge)(DerivedMesh *dm,
+	void (*foreachMappedEdge)(struct DerivedMesh *dm,
 	                          void (*func)(void *userData, int index,
 	                                       const float v0co[3], const float v1co[3]),
 	                          void *userData);
@@ -317,7 +316,7 @@ struct DerivedMesh {
 	/** Iterate over each mapped loop in the derived mesh, calling the given function
 	 * with the original loop index and the mapped loops's new coordinate and normal.
 	 */
-	void (*foreachMappedLoop)(DerivedMesh *dm,
+	void (*foreachMappedLoop)(struct DerivedMesh *dm,
 	                          void (*func)(void *userData, int vertex_index, int face_index,
 	                                       const float co[3], const float no[3]),
 	                          void *userData,
@@ -327,7 +326,7 @@ struct DerivedMesh {
 	 * given function with the original face and the mapped face's (or
 	 * faces') center and normal.
 	 */
-	void (*foreachMappedFaceCenter)(DerivedMesh *dm,
+	void (*foreachMappedFaceCenter)(struct DerivedMesh *dm,
 	                                void (*func)(void *userData, int index,
 	                                             const float cent[3], const float no[3]),
 	                                void *userData,
@@ -337,46 +336,46 @@ struct DerivedMesh {
 	 *
 	 * Also called in Editmode
 	 */
-	void (*getMinMax)(DerivedMesh *dm, float r_min[3], float r_max[3]);
+	void (*getMinMax)(struct DerivedMesh *dm, float r_min[3], float r_max[3]);
 
 	/** Direct Access Operations
 	 * - Can be undefined
 	 * - Must be defined for modifiers that only deform however */
 
 	/** Get vertex location, undefined if index is not valid */
-	void (*getVertCo)(DerivedMesh *dm, int index, float r_co[3]);
+	void (*getVertCo)(struct DerivedMesh *dm, int index, float r_co[3]);
 
 	/** Fill the array (of length .getNumVerts()) with all vertex locations */
-	void (*getVertCos)(DerivedMesh *dm, float (*r_cos)[3]);
+	void (*getVertCos)(struct DerivedMesh *dm, float (*r_cos)[3]);
 
 	/** Get smooth vertex normal, undefined if index is not valid */
-	void (*getVertNo)(DerivedMesh *dm, int index, float r_no[3]);
-	void (*getPolyNo)(DerivedMesh *dm, int index, float r_no[3]);
+	void (*getVertNo)(struct DerivedMesh *dm, int index, float r_no[3]);
+	void (*getPolyNo)(struct DerivedMesh *dm, int index, float r_no[3]);
 
 	/** Get a map of vertices to faces
 	 */
-	const struct MeshElemMap *(*getPolyMap)(struct Object *ob, DerivedMesh *dm);
+	const struct MeshElemMap *(*getPolyMap)(struct Object *ob, struct DerivedMesh *dm);
 
 	/** Get the BVH used for paint modes
 	 */
-	struct PBVH *(*getPBVH)(struct Object *ob, DerivedMesh *dm);
+	struct PBVH *(*getPBVH)(struct Object *ob, struct DerivedMesh *dm);
 
 	/* Drawing Operations */
 
 	/** Draw all vertices as bgl points (no options) */
-	void (*drawVerts)(DerivedMesh *dm);
+	void (*drawVerts)(struct DerivedMesh *dm);
 
 	/** Draw edges in the UV mesh (if exists) */
-	void (*drawUVEdges)(DerivedMesh *dm);
+	void (*drawUVEdges)(struct DerivedMesh *dm);
 
 	/** Draw all edges as lines (no options)
 	 *
 	 * Also called for *final* editmode DerivedMeshes
 	 */
-	void (*drawEdges)(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdges);
+	void (*drawEdges)(struct DerivedMesh *dm, bool drawLooseEdges, bool drawAllEdges);
 	
 	/** Draw all loose edges (edges w/ no adjoining faces) */
-	void (*drawLooseEdges)(DerivedMesh *dm);
+	void (*drawLooseEdges)(struct DerivedMesh *dm);
 
 	/** Draw all faces
 	 *  o Set face normal or vertex normal based on inherited face flag
@@ -385,13 +384,13 @@ struct DerivedMesh {
 	 *
 	 * Also called for *final* editmode DerivedMeshes
 	 */
-	void (*drawFacesSolid)(DerivedMesh *dm, float (*partial_redraw_planes)[4],
+	void (*drawFacesSolid)(struct DerivedMesh *dm, float (*partial_redraw_planes)[4],
 	                       bool fast, DMSetMaterial setMaterial);
 
 	/** Draw all faces using MTFace
 	 * - Drawing options too complicated to enumerate, look at code.
 	 */
-	void (*drawFacesTex)(DerivedMesh *dm,
+	void (*drawFacesTex)(struct DerivedMesh *dm,
 	                     DMSetDrawOptionsTex setDrawOptions,
 	                     DMCompareDrawOptions compareDrawOptions,
 	                     void *userData);
@@ -400,7 +399,7 @@ struct DerivedMesh {
 	 *  o setMaterial is called for every different material nr
 	 *  o Only if setMaterial returns true
 	 */
-	void (*drawFacesGLSL)(DerivedMesh *dm, DMSetMaterial setMaterial);
+	void (*drawFacesGLSL)(struct DerivedMesh *dm, DMSetMaterial setMaterial);
 
 	/** Draw mapped faces (no color, or texture)
 	 * - Only if !setDrawOptions or
@@ -417,7 +416,7 @@ struct DerivedMesh {
 	 * lighting is disabled), in which case the implementation should draw as
 	 * smooth shaded.
 	 */
-	void (*drawMappedFaces)(DerivedMesh *dm,
+	void (*drawMappedFaces)(struct DerivedMesh *dm,
 	                        DMSetDrawOptions setDrawOptions,
 	                        DMSetMaterial setMaterial,
 	                        DMCompareDrawOptions compareDrawOptions,
@@ -427,7 +426,7 @@ struct DerivedMesh {
 	/** Draw mapped faces using MTFace
 	 * - Drawing options too complicated to enumerate, look at code.
 	 */
-	void (*drawMappedFacesTex)(DerivedMesh *dm,
+	void (*drawMappedFacesTex)(struct DerivedMesh *dm,
 	                           DMSetDrawOptions setDrawOptions,
 	                           DMCompareDrawOptions compareDrawOptions,
 	                           void *userData);
@@ -437,7 +436,7 @@ struct DerivedMesh {
 	 * - setDrawOptions is called for every face
 	 * - Only if setMaterial and setDrawOptions return true
 	 */
-	void (*drawMappedFacesGLSL)(DerivedMesh *dm,
+	void (*drawMappedFacesGLSL)(struct DerivedMesh *dm,
 	                            DMSetMaterial setMaterial,
 	                            DMSetDrawOptions setDrawOptions,
 	                            void *userData);
@@ -446,7 +445,7 @@ struct DerivedMesh {
 	 * - Only if !setDrawOptions or setDrawOptions(userData, mapped-edge)
 	 *   returns true
 	 */
-	void (*drawMappedEdges)(DerivedMesh *dm,
+	void (*drawMappedEdges)(struct DerivedMesh *dm,
 	                        DMSetDrawOptions setDrawOptions,
 	                        void *userData);
 
@@ -457,7 +456,7 @@ struct DerivedMesh {
 	 *
 	 * NOTE: This routine is optional!
 	 */
-	void (*drawMappedEdgesInterp)(DerivedMesh *dm, 
+	void (*drawMappedEdgesInterp)(struct DerivedMesh *dm, 
 	                              DMSetDrawOptions setDrawOptions,
 	                              DMSetDrawInterpOptions setDrawInterpOptions,
 	                              void *userData);
@@ -466,14 +465,14 @@ struct DerivedMesh {
 	 * - setMaterial is called for every different material nr
 	 * - setFace is called to verify if a face must be hidden
 	 */
-	void (*drawMappedFacesMat)(DerivedMesh *dm,
+	void (*drawMappedFacesMat)(struct DerivedMesh *dm,
 	                           void (*setMaterial)(void *userData, int matnr, void *attribs),
 	                           bool (*setFace)(void *userData, int index), void *userData);
 
-	/** Release reference to the DerivedMesh. This function decides internally
-	 * if the DerivedMesh will be freed, or cached for later use. */
-	void (*release)(DerivedMesh *dm);
-};
+	/** Release reference to the struct DerivedMesh. This function decides internally
+	 * if the struct DerivedMesh will be freed, or cached for later use. */
+	void (*release)(struct DerivedMesh *dm);
+} DerivedMesh;
 
 /** utility function to initialize a DerivedMesh's function pointers to
  * the default implementation (for those functions which have a default)

@@ -115,7 +115,7 @@ void make_unique_prop_names(bContext *C, char *str)
 	bActuator *act;
 	ID **idar;
 	short a, obcount, propcount=0, nr;
-	const char **names;
+	char **names;
 	
 	/* this function is called by a Button, and gives the current
 	 * stringpointer as an argument, this is the one that can change

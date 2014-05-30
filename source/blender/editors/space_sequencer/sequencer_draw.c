@@ -38,6 +38,7 @@
 #include "ED_sequencer.h"
 #include "ED_types.h"
 #include "ED_space_api.h"
+#include "ED_anim_api.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"

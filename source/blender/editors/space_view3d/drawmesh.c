@@ -1108,8 +1108,7 @@ static void draw_mesh_paint_light_begin(void)
 }
 static void draw_mesh_paint_light_end(void)
 {
-	glDisable(GL_COLOR_MATERIAL);
-	glDisable(GL_LIGHTING);
+	GPU_aspect_disable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 
 	GPU_disable_material();
 }
@@ -1156,7 +1155,7 @@ void draw_mesh_paint_vcolor_faces(DerivedMesh *dm, const bool use_light,
 		                    DM_DRAW_USE_COLORS | DM_DRAW_ALWAYS_SMOOTH);
 	}
 	else {
-		glColor3f(1.0f, 1.0f, 1.0f);
+		gpuColor3P(CPACK_WHITE);
 		dm->drawMappedFaces(dm, facemask_cb, GPU_enable_material, NULL, user_data,
 		                    DM_DRAW_ALWAYS_SMOOTH);
 	}

@@ -1545,7 +1545,7 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 
 
 	/* begin drawing */
-	glEnable(GL_LINE_SMOOTH);
+	//glEnable(GL_LINE_SMOOTH); // XXX jwilkins: this seems to be the only place that requires AA line drawing with the basic aspect
 
 	/* draw the background */
 	if (is_alpha) {
@@ -1654,7 +1654,7 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 		pc_dyn->rect.xmin = v2d->mask.xmin;
 	}
 
-	glDisable(GL_LINE_SMOOTH);
+	//glDisable(GL_LINE_SMOOTH);  // XXX jwilkins: this seems to be the only place that requires AA line drawing with the basic aspect
 
 	BLF_disable(fontid, BLF_ROTATION);
 

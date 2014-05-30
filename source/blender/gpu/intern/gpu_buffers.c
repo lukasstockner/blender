@@ -41,6 +41,8 @@
 #include "GPU_draw.h"
 #include "GPU_glew.h"
 #include "GPU_immediate.h"
+#include "GPU_raster.h"
+
 
 /* internal */
 #include "intern/gpu_extensions_intern.h"
@@ -2723,9 +2725,9 @@ void GPU_draw_pbvh_BB(float min[3], float max[3], bool leaf)
 	};
 
 	if (leaf)
-		glColor4f(0.0, 1.0, 0.0, 0.5);
+		gpuColor4f(0.0, 1.0, 0.0, 0.5);
 	else
-		glColor4f(1.0, 0.0, 0.0, 0.5);
+		gpuColor4f(1.0, 0.0, 0.0, 0.5);
 
 	glVertexPointer(3, GL_FLOAT, 0, &quads[0][0][0]);
 	glDrawArrays(GL_QUADS, 0, 16);
@@ -2733,19 +2735,22 @@ void GPU_draw_pbvh_BB(float min[3], float max[3], bool leaf)
 
 void GPU_init_draw_pbvh_BB(void)
 {
+	GPU_raster_begin();
+
 	glPushAttrib(GL_ENABLE_BIT);
 	glDisable(GL_CULL_FACE);
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glDisable(GL_LIGHTING);
-	glDisable(GL_COLOR_MATERIAL);
+	gpuPolygonMode(GL_LINE);
+	GPU_aspect_enable(GPU_ASPECT_BASIC, GPU_BASIC_LIGHTING);
 	glEnable(GL_BLEND);
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 }
 
 void GPU_end_draw_pbvh_BB(void)
 {
-	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	gpuPolygonMode(GL_FILL);
 	glPopAttrib();
+
+	GPU_raster_end();
 }

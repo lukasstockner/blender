@@ -2992,11 +2992,11 @@ static void acf_nlaaction_backdrop(bAnimContext *ac, bAnimListElem *ale, float y
 	
 	if (adt && (adt->flag & ADT_NLA_EDIT_ON)) {
 		/* Yes, the color vector has 4 components, BUT we only want to be using 3 of them! */
-		glColor3fv(color);
+		gpuColor3fv(color);
 	}
 	else {
 		float alpha = (adt && (adt->flag & ADT_NLA_SOLO_TRACK)) ? 0.3f : 1.0f;
-		glColor4f(color[0], color[1], color[2], alpha);
+		gpuColor4f(color[0], color[1], color[2], alpha);
 	}
 	
 	/* only on top left corner, to show that this channel sits on top of the preceding ones 

@@ -1858,7 +1858,7 @@ int GPU_enable_material(int nr, void *attribs)
 			}
 
 			if (GMS.use_matcaps)
-				glColor3f(1.0, 1.0, 1.0f);
+				gpuColor3P(CPACK_WHITE);
 		}
 		else {
 			/* or do a basic material */

@@ -1143,7 +1143,7 @@ static void draw_manipulator_rotate(
 				preOrthoFront(ortho, matt, 0);
 
 				if (is_picksel) GPU_select_load(MAN_ROT_X);
-				else manipulator_setcolor(v3d, 'X', colcode, 255);
+				else set_manipulator_color(v3d, 'X', colcode, 255);
 
 				gpuPushMatrix();
 				gpuRotateRight('Y');
@@ -1158,7 +1158,7 @@ static void draw_manipulator_rotate(
 				preOrthoFront(ortho, matt, 1);
 				
 				if (is_picksel) GPU_select_load(MAN_ROT_Y);
-				else manipulator_setcolor(v3d, 'Y', colcode, 255);
+				else set_manipulator_color(v3d, 'Y', colcode, 255);
 
 				gpuPushMatrix();
 				gpuRotateRight(-'X');
@@ -1206,7 +1206,7 @@ static void draw_manipulator_rotate(
 		/* X handle on Z axis */
 		if (drawflags & MAN_ROT_X) {
 			preOrthoFront(ortho, rv3d->twmat, 0);
-			glPushMatrix();
+			gpuPushMatrix();
 			
 			if (is_picksel) GPU_select_load(MAN_ROT_X);
 			else set_manipulator_color(v3d, 'X', colcode, 255);
@@ -1426,10 +1426,8 @@ static void draw_manipulator_translate(
 	glDisable(GL_DEPTH_TEST);
 
 	/* center circle, do not add to selection when shift is pressed (planar constraint) */
-	if (is_picksel && shift==0) {
+	if (is_picksel && shift==0) GPU_select_load(MAN_TRANS_C);
 	else set_manipulator_color(v3d, 'C', colcode, 255);
-	}
-
 
 	gpuPushMatrix();
 	size = screen_aligned(rv3d, rv3d->twmat);
@@ -1474,7 +1472,7 @@ static void draw_manipulator_translate(
 					if (is_picksel) {
 						GPU_select_load(MAN_TRANS_Z);
 					}
-					set_manipulator_color(v3d, 'Z', colcode, axisBlendAngle(rv3d->twangle[2]));
+					set_manipulator_color(v3d, 'Z', colcode, axisBlendAngle(rv3d->tw_idot[2]));
 					gpuDrawElements(GL_TRIANGLES);
 					gpuTranslate(0.0, 0.0, -dz);
 				}
@@ -1487,7 +1485,7 @@ static void draw_manipulator_translate(
 						GPU_select_load(MAN_TRANS_X);
 					}
 					gpuRotateAxis(90.0, 'Y');
-					set_manipulator_color(v3d, 'X', colcode, axisBlendAngle(rv3d->twangle[0]));
+					set_manipulator_color(v3d, 'X', colcode, axisBlendAngle(rv3d->tw_idot[0]));
 					gpuDrawElements(GL_TRIANGLES);
 					gpuRotateAxis(-90.0, 'Y');
 					gpuTranslate(-dz, 0.0, 0.0);

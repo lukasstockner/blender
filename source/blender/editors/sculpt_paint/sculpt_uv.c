@@ -65,8 +65,9 @@
 #include "paint_intern.h"
 #include "uvedit_intern.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
+#include "GPU_blender_aspect.h"
+#include "GPU_primitives.h"
+#include "GPU_raster.h"
 
 #include "UI_view2d.h"
 
@@ -207,18 +208,16 @@ static void brush_drawcursor_uvsculpt(bContext *C, int x, int y, void *UNUSED(cu
 			alpha *= (size - PX_SIZE_FADE_MIN) / (PX_SIZE_FADE_MAX - PX_SIZE_FADE_MIN);
 		}
 
-		glPushMatrix();
+		GPU_raster_begin();
 
-		glTranslatef((float)x, (float)y, 0.0f);
-
-		glColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
-		glEnable(GL_LINE_SMOOTH);
+		gpuColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 		glEnable(GL_BLEND);
-		glutil_draw_lined_arc(0, (float)(M_PI * 2.0), size, 40);
+		gpuDrawCircle(x, y, size, 40);
 		glDisable(GL_BLEND);
-		glDisable(GL_LINE_SMOOTH);
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 
-		glPopMatrix();
+		GPU_raster_end();
 	}
 #undef PX_SIZE_FADE_MAX
 #undef PX_SIZE_FADE_MIN

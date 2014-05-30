@@ -2423,8 +2423,8 @@ static void draw_dm_loop_normals__mapFunc(void *userData, int vertex_index, int 
 			}
 			mul_v3_fl(vec, data->normalsize);
 			add_v3_v3(vec, co);
-			glVertex3fv(co);
-			glVertex3fv(vec);
+			gpuVertex3fv(co);
+			gpuVertex3fv(vec);
 		}
 	}
 }
@@ -2438,9 +2438,9 @@ static void draw_dm_loop_normals(BMEditMesh *em, Scene *scene, Object *ob, Deriv
 
 	calcDrawDMNormalScale(ob, &data);
 
-	glBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	dm->foreachMappedLoop(dm, draw_dm_loop_normals__mapFunc, &data, DM_FOREACH_USE_NORMAL);
-	glEnd();
+	gpuEnd();
 }
 
 /* Draw faces with color set based on selection

@@ -56,7 +56,7 @@
 
 static struct GPUShader*  PIXELS_SHADER = NULL;
 static struct GPUcommon   PIXELS_COMMON = {0};
-static bool               PIXELS_FAILED = FALSE;
+static bool               PIXELS_FAILED = false;
 
 static GLfloat PIXELS_POS[3] = { 0, 0, 0 };
 

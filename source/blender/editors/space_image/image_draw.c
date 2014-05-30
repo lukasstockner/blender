@@ -951,7 +951,7 @@ void draw_image_cache(const bContext *C, ARegion *ar)
 	x = (cfra - sfra) / (efra - sfra + 1) * ar->winx;
 
 	UI_ThemeColor(TH_CFRAME);
-	glRecti(x, 0, x + ceilf(framelen), 8 * UI_DPI_FAC);
+	gpuSingleFilledRecti(x, 0, x + ceilf(framelen), 8 * UI_DPI_FAC);
 	ED_region_cache_draw_curfra_label(cfra, x, 8.0f * UI_DPI_FAC);
 
 	if (mask != NULL) {

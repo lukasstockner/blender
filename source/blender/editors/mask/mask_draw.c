@@ -309,7 +309,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 	MEM_freeN(feather_points);
 
 	if (is_smooth) {
-		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_ASPECT_SMOOTH);
+		GPU_aspect_enable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 		glEnable(GL_BLEND);
 	}
 
@@ -374,7 +374,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 	GPU_point_size(1);
 
 	if (is_smooth) {
-		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_SMOOTH);
+		GPU_aspect_disable(GPU_ASPECT_RASTER, GPU_RASTER_AA);
 		glDisable(GL_BLEND);
 	}
 }

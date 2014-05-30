@@ -2754,10 +2754,10 @@ static void view3d_draw_objects(
 				ED_region_pixelspace(ar);
 				drawgrid(&scene->unit, ar, v3d, grid_unit);
 				/* XXX make function? replaces persp(1) */
-				glMatrixMode(GL_PROJECTION);
-				glLoadMatrixf(rv3d->winmat);
-				glMatrixMode(GL_MODELVIEW);
-				glLoadMatrixf(rv3d->viewmat);
+				gpuMatrixMode(GL_PROJECTION);
+				gpuLoadMatrix(rv3d->winmat);
+				gpuMatrixMode(GL_MODELVIEW);
+				gpuLoadMatrix(rv3d->viewmat);
 			}
 		}
 	}

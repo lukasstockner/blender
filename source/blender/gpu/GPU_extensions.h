@@ -32,6 +32,8 @@
  *  \ingroup gpu
  */
 
+#include "BLI_sys_types.h"
+
 #include <stddef.h>
 
 #ifdef __cplusplus

@@ -420,8 +420,8 @@ void blf_glyph_render(
 
 		if (!need_begin) {
 			gpuEnd();
-			need_begin = TRUE;
-			*needs_end = FALSE;
+			need_begin = true;
+			*needs_end = false;
 		}
 
 GPU_CHECK_NO_ERROR();
@@ -489,14 +489,14 @@ GPU_CHECK_NO_ERROR();
 	if (font->tex_bind_state != g->tex) {
 		if (!need_begin) {
 			gpuEnd();
-			need_begin = TRUE;
+			need_begin = true;
 		}
 		gpuBindTexture(GL_TEXTURE_2D, (font->tex_bind_state = g->tex));
 	}
 
 	if (need_begin) {
 		gpuBegin(GL_QUADS);
-		*needs_end = TRUE;
+		*needs_end = true;
 	}
 
 	if (font->flags & BLF_SHADOW) {
