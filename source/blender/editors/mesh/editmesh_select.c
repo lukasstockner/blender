@@ -2039,7 +2039,7 @@ static int edbm_select_linked_exec(bContext *C, wmOperator *op)
 			BM_elem_flag_set(v, BM_ELEM_TAG, BM_elem_flag_test(v, BM_ELEM_SELECT));
 		}
 
-		BMW_init(&walker, em->bm, BMW_SHELL,
+		BMW_init(&walker, em->bm, BMW_VERT_SHELL,
 		         BMW_MASK_NOP, BMW_MASK_NOP, BMW_MASK_NOP,
 		         BMW_FLAG_TEST_HIDDEN,
 		         BMW_NIL_LAY);
@@ -2157,7 +2157,7 @@ static int edbm_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmE
 			eed = eve->e;
 		}
 
-		BMW_init(&walker, bm, BMW_SHELL,
+		BMW_init(&walker, bm, BMW_VERT_SHELL,
 		         BMW_MASK_NOP, BMW_MASK_NOP, BMW_MASK_NOP,
 		         BMW_FLAG_TEST_HIDDEN,
 		         BMW_NIL_LAY);
@@ -2433,6 +2433,27 @@ void MESH_OT_select_less(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/**
+ * Check if we're connected to another selected efge.
+ */
+static bool bm_edge_is_select_isolated(BMEdge *e)
+{
+	BMIter viter;
+	BMVert *v;
+
+	BM_ITER_ELEM (v, &viter, e, BM_VERTS_OF_EDGE) {
+		BMIter eiter;
+		BMEdge *e_other;
+
+		BM_ITER_ELEM (e_other, &eiter, v, BM_EDGES_OF_VERT) {
+			if ((e_other != e) && BM_elem_flag_test(e_other, BM_ELEM_SELECT)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 /* Walk all reachable elements of the same type as h_act in breadth-first
  * order, starting from h_act. Deselects elements if the depth when they
  * are reached is not a multiple of "nth". */
@@ -2460,8 +2481,10 @@ static void walker_deselect_nth(BMEditMesh *em, int nth, int offset, BMHeader *h
 			mask_vert = BMO_ELE_TAG;
 			break;
 		case BM_EDGE:
+			/* When an edge has no connected-selected edges,
+			 * use face-stepping (supports edge-rings) */
 			itertype = BM_EDGES_OF_MESH;
-			walktype = BMW_SHELL;
+			walktype = bm_edge_is_select_isolated((BMEdge *)h_act) ? BMW_FACE_SHELL : BMW_VERT_SHELL;
 			flushtype = SCE_SELECT_EDGE;
 			mask_edge = BMO_ELE_TAG;
 			break;
@@ -2600,6 +2623,8 @@ static int edbm_select_nth_exec(bContext *C, wmOperator *op)
 
 	/* so input of offset zero ends up being (nth - 1) */
 	offset = mod_i(offset, nth);
+	/* depth starts at 1, this keeps active item selected */
+	offset -= 1;
 
 	if (edbm_deselect_nth(em, nth, offset) == false) {
 		BKE_report(op->reports, RPT_ERROR, "Mesh has no active vert/edge/face");

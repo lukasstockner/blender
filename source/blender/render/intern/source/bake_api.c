@@ -235,10 +235,10 @@ static bool cast_ray_highpoly(
 		hits[i].dist = 10000.0f;
 
 		/* transform the ray from the world space to the highpoly space */
-		mul_v3_m4v3(co_high, highpoly[i].imat_high, co);
+		mul_v3_m4v3(co_high, highpoly[i].imat, co);
 
-		copy_v3_v3(dir_high, dir);
-		mul_transposed_mat3_m4_v3(highpoly[i].mat_high, dir_high);
+		/* rotates */
+		mul_v3_m4v3(dir_high, highpoly[i].rotmat, dir);
 		normalize_v3(dir_high);
 
 		/* cast ray */
@@ -248,7 +248,13 @@ static bool cast_ray_highpoly(
 			/* cull backface */
 			const float dot = dot_v3v3(dir_high, hits[i].no);
 			if (dot < 0.0f) {
-				float distance = hits[i].dist * highpoly[i].scale;
+				float distance;
+				float hit_world[3];
+
+				/* distance comparison in world space */
+				mul_v3_m4v3(hit_world, highpoly[i].obmat, hits[i].co);
+				distance = len_squared_v3v3(hit_world, co);
+
 				if (distance < hit_distance) {
 					hit_mesh = i;
 					hit_distance = distance;
@@ -389,8 +395,8 @@ void RE_bake_pixels_populate_from_objects(
 	TriTessFace **tris_high;
 
 	/* assume all lowpoly tessfaces can be quads */
-	tris_low = MEM_callocN(sizeof(TriTessFace) * (me_low->totface * 2), "MVerts Lowpoly Mesh");
-	tris_high = MEM_callocN(sizeof(TriTessFace *) * tot_highpoly, "MVerts Highpoly Mesh Array");
+	tris_low = MEM_mallocN(sizeof(TriTessFace) * (me_low->totface * 2), "MVerts Lowpoly Mesh");
+	tris_high = MEM_mallocN(sizeof(TriTessFace *) * tot_highpoly, "MVerts Highpoly Mesh Array");
 
 	/* assume all highpoly tessfaces are triangles */
 	dm_highpoly = MEM_callocN(sizeof(DerivedMesh *) * tot_highpoly, "Highpoly Derived Meshes");
@@ -401,7 +407,7 @@ void RE_bake_pixels_populate_from_objects(
 	invert_m4_m4(imat_low, mat_low);
 
 	for (i = 0; i < tot_highpoly; i++) {
-		tris_high[i] = MEM_callocN(sizeof(TriTessFace) * highpoly[i].me->totface, "MVerts Highpoly Mesh");
+		tris_high[i] = MEM_mallocN(sizeof(TriTessFace) * highpoly[i].me->totface, "MVerts Highpoly Mesh");
 		mesh_calc_tri_tessface(tris_high[i], highpoly[i].me, false, NULL);
 
 		dm_highpoly[i] = CDDM_from_mesh(highpoly[i].me);
@@ -622,7 +628,7 @@ void RE_bake_normal_world_to_tangent(
 
 	DerivedMesh *dm = CDDM_from_mesh(me);
 
-	triangles = MEM_callocN(sizeof(TriTessFace) * (me->totface * 2), "MVerts Mesh");
+	triangles = MEM_mallocN(sizeof(TriTessFace) * (me->totface * 2), "MVerts Mesh");
 	mesh_calc_tri_tessface(triangles, me, true, dm);
 
 	BLI_assert(num_pixels >= 3);
@@ -768,31 +774,25 @@ void RE_bake_normal_world_to_world(
 	}
 }
 
-void RE_bake_ibuf_clear(BakeImages *bake_images, const bool is_tangent)
+void RE_bake_ibuf_clear(Image *image, const bool is_tangent)
 {
 	ImBuf *ibuf;
 	void *lock;
-	Image *image;
-	int i;
 
 	const float vec_alpha[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	const float vec_solid[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 	const float nor_alpha[4] = {0.5f, 0.5f, 1.0f, 0.0f};
 	const float nor_solid[4] = {0.5f, 0.5f, 1.0f, 1.0f};
 
-	for (i = 0; i < bake_images->size; i ++) {
-		image = bake_images->data[i].image;
+	ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
+	BLI_assert(ibuf);
 
-		ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
-		BLI_assert(ibuf);
+	if (is_tangent)
+		IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? nor_alpha : nor_solid);
+	else
+		IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? vec_alpha : vec_solid);
 
-		if (is_tangent)
-			IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? nor_alpha : nor_solid);
-		else
-			IMB_rectfill(ibuf, (ibuf->planes == R_IMF_PLANES_RGBA) ? vec_alpha : vec_solid);
-
-		BKE_image_release_ibuf(image, ibuf, lock);
-	}
+	BKE_image_release_ibuf(image, ibuf, lock);
 }
 
 /* ************************************************************* */
