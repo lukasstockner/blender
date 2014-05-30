@@ -113,7 +113,6 @@ def create_blender_liblist(lenv = None, libtype = None):
             else:
                 target = os.path.abspath(root_build_dir + 'lib' + os.sep +lenv['LIBPREFIX'] + v + lenv['LIBSUFFIX'])
             lst.append(target)
-
     return lst
 
 ## TODO: static linking

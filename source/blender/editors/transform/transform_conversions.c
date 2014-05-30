@@ -1889,6 +1889,7 @@ static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float
 				dists[i] = 0.0f;
 			}
 		}
+		bm->elem_index_dirty &= ~BM_VERT;
 	}
 
 	do {
@@ -2861,7 +2862,7 @@ static void createTransNlaData(bContext *C, TransInfo *t)
 		}
 		
 		/* cleanup temp list */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 		return;
 	}
 	
@@ -2994,7 +2995,7 @@ static void createTransNlaData(bContext *C, TransInfo *t)
 	}
 	
 	/* cleanup temp list */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ********************* ACTION EDITOR ****************** */
@@ -3183,7 +3184,7 @@ static void posttrans_action_clean(bAnimContext *ac, bAction *act)
 	}
 
 	/* free temp data */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ----------------------------- */
@@ -3458,7 +3459,7 @@ static void createTransActionData(bContext *C, TransInfo *t)
 	/* stop if trying to build list if nothing selected */
 	if (count == 0) {
 		/* cleanup temp list */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 		return;
 	}
 	
@@ -3547,17 +3548,22 @@ static void createTransActionData(bContext *C, TransInfo *t)
 	}
 
 	/* cleanup temp list */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 /* ********************* GRAPH EDITOR ************************* */
 
+typedef struct TransDataGraph {
+	float unit_scale;
+} TransDataGraph;
+
 /* Helper function for createTransGraphEditData, which is responsible for associating
  * source data with transform data
  */
-static void bezt_to_transdata(TransData *td, TransData2D *td2d, AnimData *adt, BezTriple *bezt,
+static void bezt_to_transdata(TransData *td, TransData2D *td2d, TransDataGraph *tdg,
+                              AnimData *adt, BezTriple *bezt,
                               int bi, short selected, short ishandle, short intvals,
-                              float mtx[3][3], float smtx[3][3])
+                              float mtx[3][3], float smtx[3][3], float unit_scale)
 {
 	float *loc = bezt->vec[bi];
 	const float *cent = bezt->vec[1];
@@ -3571,25 +3577,26 @@ static void bezt_to_transdata(TransData *td, TransData2D *td2d, AnimData *adt, B
 	
 	if (adt) {
 		td2d->loc[0] = BKE_nla_tweakedit_remap(adt, loc[0], NLATIME_CONVERT_MAP);
-		td2d->loc[1] = loc[1];
+		td2d->loc[1] = loc[1] * unit_scale;
 		td2d->loc[2] = 0.0f;
 		td2d->loc2d = loc;
 		
 		td->loc = td2d->loc;
 		td->center[0] = BKE_nla_tweakedit_remap(adt, cent[0], NLATIME_CONVERT_MAP);
-		td->center[1] = cent[1];
+		td->center[1] = cent[1] * unit_scale;
 		td->center[2] = 0.0f;
 		
 		copy_v3_v3(td->iloc, td->loc);
 	}
 	else {
 		td2d->loc[0] = loc[0];
-		td2d->loc[1] = loc[1];
+		td2d->loc[1] = loc[1] * unit_scale;
 		td2d->loc[2] = 0.0f;
 		td2d->loc2d = loc;
 		
 		td->loc = td2d->loc;
 		copy_v3_v3(td->center, cent);
+		td->center[1] *= unit_scale;
 		copy_v3_v3(td->iloc, td->loc);
 	}
 
@@ -3630,6 +3637,8 @@ static void bezt_to_transdata(TransData *td, TransData2D *td2d, AnimData *adt, B
 	/* copy space-conversion matrices for dealing with non-uniform scales */
 	copy_m3_m3(td->mtx, mtx);
 	copy_m3_m3(td->smtx, smtx);
+
+	tdg->unit_scale = unit_scale;
 }
 
 static void createTransGraphEditData(bContext *C, TransInfo *t)
@@ -3641,6 +3650,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	
 	TransData *td = NULL;
 	TransData2D *td2d = NULL;
+	TransDataGraph *tdg = NULL;
 	
 	bAnimContext ac;
 	ListBase anim_data = {NULL, NULL};
@@ -3738,7 +3748,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	/* stop if trying to build list if nothing selected */
 	if (count == 0) {
 		/* cleanup temp list */
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 		return;
 	}
 	
@@ -3748,9 +3758,12 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	t->data = MEM_callocN(t->total * sizeof(TransData), "TransData (Graph Editor)");
 	/* for each 2d vert a 3d vector is allocated, so that they can be treated just as if they were 3d verts */
 	t->data2d = MEM_callocN(t->total * sizeof(TransData2D), "TransData2D (Graph Editor)");
+	t->customData = MEM_callocN(t->total * sizeof(TransDataGraph), "TransDataGraph");
+	t->flag |= T_FREE_CUSTOMDATA;
 	
 	td = t->data;
 	td2d = t->data2d;
+	tdg = t->customData;
 	
 	/* precompute space-conversion matrices for dealing with non-uniform scaling of Graph Editor */
 	unit_m3(mtx);
@@ -3777,7 +3790,6 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 		FCurve *fcu = (FCurve *)ale->key_data;
 		short intvals = (fcu->flag & FCURVE_INT_VALUES);
 		float unit_scale;
-		float scaled_mtx[3][3], scaled_smtx[3][3];
 
 		/* convert current-frame to action-time (slightly less accurate, especially under
 		 * higher scaling ratios, but is faster than converting all points)
@@ -3792,11 +3804,6 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 			continue;
 		
 		unit_scale = ANIM_unit_mapping_get_factor(ac.scene, ale->id, ale->key_data, anim_map_flag);
-
-		copy_m3_m3(scaled_mtx, mtx);
-		copy_m3_m3(scaled_smtx, smtx);
-		mul_v3_fl(scaled_mtx[1], unit_scale);
-		mul_v3_fl(scaled_smtx[1],  1.0f / unit_scale);
 
 		/* only include BezTriples whose 'keyframe' occurs on the same side of the current frame as mouse (if applicable) */
 		for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
@@ -3814,7 +3821,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 				if (!ELEM4(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE) || !(sel2)) {
 					if (sel1) {
 						hdata = initTransDataCurveHandles(td, bezt);
-						bezt_to_transdata(td++, td2d++, adt, bezt, 0, 1, 1, intvals, scaled_mtx, scaled_smtx);
+						bezt_to_transdata(td++, td2d++, tdg++, adt, bezt, 0, 1, 1, intvals, mtx, smtx, unit_scale);
 					}
 					else {
 						/* h1 = 0; */ /* UNUSED */
@@ -3823,7 +3830,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 					if (sel3) {
 						if (hdata == NULL)
 							hdata = initTransDataCurveHandles(td, bezt);
-						bezt_to_transdata(td++, td2d++, adt, bezt, 2, 1, 1, intvals, scaled_mtx, scaled_smtx);
+						bezt_to_transdata(td++, td2d++, tdg++, adt, bezt, 2, 1, 1, intvals, mtx, smtx, unit_scale);
 					}
 					else {
 						/* h2 = 0; */ /* UNUSED */
@@ -3845,7 +3852,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 							hdata = initTransDataCurveHandles(td, bezt);
 					}
 				
-					bezt_to_transdata(td++, td2d++, adt, bezt, 1, 1, 0, intvals, scaled_mtx, scaled_smtx);
+					bezt_to_transdata(td++, td2d++, tdg++, adt, bezt, 1, 1, 0, intvals, mtx, smtx, unit_scale);
 					
 				}
 				/* special hack (must be done after initTransDataCurveHandles(), as that stores handle settings to restore...):
@@ -3870,7 +3877,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	}
 	
 	/* cleanup temp list */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 }
 
 
@@ -4083,13 +4090,18 @@ void flushTransGraphData(TransInfo *t)
 	SpaceIpo *sipo = (SpaceIpo *)t->sa->spacedata.first;
 	TransData *td;
 	TransData2D *td2d;
+	TransDataGraph *tdg;
 	Scene *scene = t->scene;
 	double secf = FPS;
 	int a;
 
 	/* flush to 2d vector from internally used 3d vector */
-	for (a = 0, td = t->data, td2d = t->data2d; a < t->total; a++, td++, td2d++) {
+	for (a = 0, td = t->data, td2d = t->data2d, tdg = t->customData;
+	     a < t->total;
+	     a++, td++, td2d++, tdg++)
+	{
 		AnimData *adt = (AnimData *)td->extra; /* pointers to relevant AnimData blocks are stored in the td->extra pointers */
+		float unit_scale = tdg->unit_scale;
 		
 		/* handle snapping for time values
 		 *	- we should still be in NLA-mapping timespace
@@ -4147,7 +4159,7 @@ void flushTransGraphData(TransInfo *t)
 		if (td->flag & TD_INTVALUES)
 			td2d->loc2d[1] = floorf(td2d->loc[1] + 0.5f);
 		else
-			td2d->loc2d[1] = td2d->loc[1];
+			td2d->loc2d[1] = td2d->loc[1] / unit_scale;
 		
 		if ((td->flag & TD_MOVEHANDLE1) && td2d->h1) {
 			td2d->h1[0] = td2d->ih1[0] + td->loc[0] - td->iloc[0];
@@ -5532,7 +5544,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			}
 			
 			/* free temp memory */
-			BLI_freelistN(&anim_data);
+			ANIM_animdata_freelist(&anim_data);
 		}
 		else if (ac.datatype == ANIMCONT_ACTION) { // TODO: just integrate into the above...
 			/* Depending on the lock status, draw necessary views */
@@ -5664,7 +5676,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			}
 			
 			/* free temp memory */
-			BLI_freelistN(&anim_data);
+			ANIM_animdata_freelist(&anim_data);
 		}
 		
 		/* Make sure all F-Curves are set correctly, but not if transform was
@@ -5701,7 +5713,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			}
 			
 			/* free temp memory */
-			BLI_freelistN(&anim_data);
+			ANIM_animdata_freelist(&anim_data);
 			
 			/* perform after-transfrom validation */
 			ED_nla_postop_refresh(&ac);
@@ -6627,6 +6639,8 @@ static void MaskHandleToTransData(MaskSplinePoint *point, eMaskWhichHandle which
 	td->flag = 0;
 	td->loc = td2d->loc;
 	mul_v2_m3v2(td->center, parent_matrix, bezt->vec[1]);
+	td->center[0] *= asp[0];
+	td->center[1] *= asp[1];
 	copy_v3_v3(td->iloc, td->loc);
 
 	memset(td->axismtx, 0, sizeof(td->axismtx));
@@ -6688,6 +6702,8 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 			td->flag = 0;
 			td->loc = td2d->loc;
 			mul_v2_m3v2(td->center, parent_matrix, bezt->vec[1]);
+			td->center[0] *= asp[0];
+			td->center[1] *= asp[1];
 			copy_v3_v3(td->iloc, td->loc);
 
 			memset(td->axismtx, 0, sizeof(td->axismtx));

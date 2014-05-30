@@ -413,6 +413,9 @@ static void exporter_InitGeomArrays(ExportMeshData *export_data,
 	CustomData_merge(&dm_left->polyData, &dm->polyData, merge_mask, CD_DEFAULT, num_polys);
 	CustomData_merge(&dm_right->polyData, &dm->polyData, merge_mask, CD_DEFAULT, num_polys);
 
+	CustomData_merge(&dm_left->edgeData, &dm->edgeData, merge_mask, CD_DEFAULT, num_edges);
+	CustomData_merge(&dm_right->edgeData, &dm->edgeData, merge_mask, CD_DEFAULT, num_edges);
+
 	export_data->vert_origindex = dm->getVertDataArray(dm, CD_ORIGINDEX);
 	export_data->edge_origindex = dm->getEdgeDataArray(dm, CD_ORIGINDEX);
 	export_data->poly_origindex = dm->getPolyDataArray(dm, CD_ORIGINDEX);
@@ -433,7 +436,7 @@ static void exporter_SetVert(ExportMeshData *export_data,
 	dm_orig = which_dm(export_data, which_orig_mesh);
 	if (dm_orig) {
 		BLI_assert(orig_vert_index >= 0 && orig_vert_index < dm_orig->getNumVerts(dm_orig));
-		mvert[vert_index] = which_mvert(export_data, which_orig_mesh) [orig_vert_index];
+		mvert[vert_index] = which_mvert(export_data, which_orig_mesh)[orig_vert_index];
 		CustomData_copy_data(&dm_orig->vertData, &dm->vertData, orig_vert_index, vert_index, 1);
 	}
 
@@ -467,7 +470,7 @@ static void exporter_SetEdge(ExportMeshData *export_data,
 	if (dm_orig) {
 		BLI_assert(orig_edge_index >= 0 && orig_edge_index < dm_orig->getNumEdges(dm_orig));
 
-		*medge = which_medge(export_data, which_orig_mesh) [orig_edge_index];
+		*medge = which_medge(export_data, which_orig_mesh)[orig_edge_index];
 
 		/* Copy all edge layers, including medge. */
 		CustomData_copy_data(&dm_orig->edgeData, &dm->edgeData, orig_edge_index, edge_index, 1);
@@ -556,7 +559,7 @@ static void exporter_SetPoly(ExportMeshData *export_data,
 	BLI_assert(orig_poly_index >= 0 && orig_poly_index < dm_orig->getNumPolys(dm_orig));
 
 	/* Copy all poly layers, including mpoly. */
-	*mpoly = which_mpoly(export_data, which_orig_mesh) [orig_poly_index];
+	*mpoly = which_mpoly(export_data, which_orig_mesh)[orig_poly_index];
 	CustomData_copy_data(&dm_orig->polyData, &dm->polyData, orig_poly_index, poly_index, 1);
 
 	/* Set material of the curren poly.
@@ -625,7 +628,7 @@ static void exporter_SetLoop(ExportMeshData *export_data,
 		BLI_assert(orig_loop_index >= 0 && orig_loop_index < dm_orig->getNumLoops(dm_orig));
 
 		/* Copy all loop layers, including mloop. */
-		*mloop = which_mloop(export_data, which_orig_mesh) [orig_loop_index];
+		*mloop = which_mloop(export_data, which_orig_mesh)[orig_loop_index];
 		CustomData_copy_data(&dm_orig->loopData, &dm->loopData, orig_loop_index, loop_index, 1);
 	}
 
@@ -789,6 +792,7 @@ DerivedMesh *NewBooleanDerivedMesh(DerivedMesh *dm, struct Object *ob,
 		/* Free memory used by export mesh. */
 		BLI_ghash_free(export_data.material_hash, NULL, NULL);
 
+		output_dm->cd_flag |= dm->cd_flag | dm_select->cd_flag;
 		output_dm->dirty |= DM_DIRTY_NORMALS;
 		carve_deleteMesh(output);
 	}

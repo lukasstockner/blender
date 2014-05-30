@@ -33,7 +33,7 @@ sources = env.Glob('*.cc')
 
 defs = [ 'GLEW_STATIC' ]
 
-incs = '. ../guardedalloc'
+incs = '. ../guardedalloc #extern/clew/include/'
 incs += ' ' + env['BF_OPENSUBDIV_INC']
 incs += ' #/extern/glew/include'
 
@@ -47,15 +47,12 @@ def checkOpenSubdivHeaderDefine(header, define):
 
 checkOpenSubdivHeaderDefine("tbbComputeController.h", 'OPENSUBDIV_HAS_TBB')
 checkOpenSubdivHeaderDefine("gcdComputeController.h", 'OPENSUBDIV_HAS_GCD')
-
-# XXX: Ugly hack in order to link against cudart and opencl
-# Ideally it should be late-linking on runtime in order to make
-# portable builds.
 if checkOpenSubdivHeaderDefine("clComputeController.h", 'OPENSUBDIV_HAS_OPENCL'):
-    env['BF_OPENSUBDIV_LIB'] += ' OpenCL'
+    defs += ['OPENSUBDIV_HAS_CLEW']
+    incs += ' #/extern/clew/include'
 if checkOpenSubdivHeaderDefine("cudaComputeController.h", 'OPENSUBDIV_HAS_CUDA'):
-    env['BF_OPENSUBDIV_LIB'] += ' cudart'
-
+    defs += ['OPENSUBDIV_HAS_CUEW']
+    incs += ' #/extern/cuew/include'
 checkOpenSubdivHeaderDefine("glslTransformFeedbackComputeController.h", 'OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK')
 checkOpenSubdivHeaderDefine("osd/glslComputeController.h", 'OPENSUBDIV_HAS_GLSL_COMPUTE')
 

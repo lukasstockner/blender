@@ -648,19 +648,7 @@ elseif(WIN32)
 	endif()
 
 	if(WITH_CODEC_FFMPEG)
-		if(MSVC11)
-			install(
-				FILES
-					${LIBDIR}/ffmpeg/lib/avcodec-54.dll
-					${LIBDIR}/ffmpeg/lib/avformat-54.dll
-					${LIBDIR}/ffmpeg/lib/avdevice-54.dll
-					${LIBDIR}/ffmpeg/lib/avutil-52.dll
-					${LIBDIR}/ffmpeg/lib/avfilter-3.dll
-					${LIBDIR}/ffmpeg/lib/swresample-0.dll
-					${LIBDIR}/ffmpeg/lib/swscale-2.dll
-				DESTINATION ${TARGETDIR}
-			)
-		elseif(WITH_MINGW64)			
+		if(WITH_MINGW64)
 			install(
 				FILES
 					${LIBDIR}/ffmpeg/lib/avcodec-53.dll
@@ -693,37 +681,13 @@ elseif(WIN32)
 	endif()
 
 	if(WITH_OPENAL)
-		if(MSVC11)
-			install(
-				FILES
-					${LIBDIR}/openal/lib/OpenAL32.dll
-				DESTINATION ${TARGETDIR}
-			)
-		else()
-			install(
-				FILES
-					${LIBDIR}/openal/lib/OpenAL32.dll
-					${LIBDIR}/openal/lib/wrap_oal.dll
-				DESTINATION ${TARGETDIR}
-			)
-		endif()
+		install(
+			FILES
+				${LIBDIR}/openal/lib/OpenAL32.dll
+				${LIBDIR}/openal/lib/wrap_oal.dll
+			DESTINATION ${TARGETDIR}
+		)
 	endif()
-
-#	if(WITH_JACK AND MSVC11)
-#		if(CMAKE_CL_64)
-#			install(
-#				FILES
-#					${LIBDIR}/jack/lib/libjack64.dll
-#				DESTINATION ${TARGETDIR}
-#			)
-#		else()
-#			install(
-#				FILES
-#					${LIBDIR}/jack/lib/libjack.dll
-#				DESTINATION ${TARGETDIR}
-#			)
-#		endif()
-#	endif()
 
 	if(WITH_SDL)
 		if(NOT CMAKE_CL_64)
@@ -1053,7 +1017,6 @@ endif()
 	if(WITH_COMPOSITOR)
 		# added for opencl compositor
 		list_insert_before(BLENDER_SORTED_LIBS "bf_blenkernel" "bf_compositor")
-		list_insert_after(BLENDER_SORTED_LIBS "bf_compositor" "bf_intern_opencl")
 	endif()
 
 	if(WITH_LIBMV)
@@ -1124,6 +1087,7 @@ endif()
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_opensubdiv)
 	endif()
 
+
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})
 		set(REMLIB ${SORTLIB})
 		foreach(SEARCHLIB ${BLENDER_LINK_LIBS})
@@ -1153,3 +1117,9 @@ endif()
 #endif()
 
 setup_liblinks(blender)
+
+# We put CLEW and CUEW here because OPENSUBDIV_LIBRARIES dpeends on them..
+if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
+	target_link_libraries(blender "extern_clew")
+	target_link_libraries(blender "extern_cuew")
+endif()

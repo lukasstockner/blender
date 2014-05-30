@@ -136,7 +136,7 @@ typedef struct BoundVert {
 	Profile profile;    /* edge profile between this and next BoundVert */
 	bool any_seam;      /* are any of the edges attached here seams? */
 //	int _pad;
-} BoundVert;
+} BoundVert;	
 
 /* Mesh structure replacing a vertex */
 typedef struct VMesh {
@@ -157,12 +157,14 @@ typedef struct VMesh {
 /* Data for a vertex involved in a bevel */
 typedef struct BevVert {
 	BMVert *v;          /* original mesh vertex */
-	int edgecount;          /* total number of edges around the vertex */
+	int edgecount;          /* total number of edges around the vertex (excluding wire edges if edge beveling) */
 	int selcount;           /* number of selected edges around the vertex */
+	int wirecount;			/* count of wire edges */
 	float offset;           /* offset for this vertex, if vertex_only bevel */
 	bool any_seam;			/* any seams on attached edges? */
 	bool visited;           /* used in graph traversal */
 	EdgeHalf *edges;        /* array of size edgecount; CCW order from vertex normal side */
+	BMEdge **wire_edges;	/* array of size wirecount of wire edges */
 	VMesh *vmesh;           /* mesh structure for replacing vertex */
 } BevVert;
 
@@ -2680,6 +2682,25 @@ static void bevel_build_quadstrip(BMesh *bm, BevVert *bv)
 	}
 }
 
+/* Special case: there is no vmesh pattern because this has only two boundary verts,
+ * and there are no faces in the original mesh at the original vertex.
+ * Since there will be no rebuilt face to make the edge between the boundary verts,
+ * we have to make it here. */
+static void bevel_build_one_wire(BMesh *bm, BevVert *bv)
+{
+	VMesh *vm = bv->vmesh;
+	BMVert *v1, *v2;
+	BMEdge *e_eg;
+
+	BLI_assert(vm->count == 2);
+
+	v1 = mesh_vert(vm, 0, 0, 0)->v;
+	v2 = mesh_vert(vm, 1, 0, 0)->v;
+	e_eg = bv->edges[0].e;
+	BLI_assert(v1 != NULL && v2 != NULL && e_eg != NULL);
+	BM_edge_create(bm, v1, v2, e_eg, BM_CREATE_NO_DOUBLE);
+}
+
 /* Given that the boundary is built, now make the actual BMVerts
  * for the boundary and the interior of the vertex mesh. */
 static void build_vmesh(BevelParams *bp, BMesh *bm, BevVert *bv)
@@ -2763,7 +2784,8 @@ static void build_vmesh(BevelParams *bp, BMesh *bm, BevVert *bv)
 
 	switch (vm->mesh_kind) {
 		case M_NONE:
-			/* do nothing */
+			if  (n == 2 && BM_vert_face_count(bv->v) == 0)
+				bevel_build_one_wire(bm, bv);
 			break;
 		case M_POLY:
 			bevel_build_poly(bm, bv);
@@ -2814,6 +2836,7 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 	int i, found_shared_face, ccw_test_sum;
 	int nsel = 0;
 	int ntot = 0;
+	int nwire = 0;
 	int fcnt;
 
 	/* Gather input selected edges.
@@ -2821,13 +2844,14 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 	 * Want edges to be ordered so that they share faces.
 	 * There may be one or more chains of shared faces broken by
 	 * gaps where there are no faces.
-	 * TODO: Want to ignore wire edges completely for edge beveling.
+	 * Want to ignore wire edges completely for edge beveling.
 	 * TODO: make following work when more than one gap.
 	 */
 
 	first_bme = NULL;
 	BM_ITER_ELEM (bme, &iter, v, BM_EDGES_OF_VERT) {
 		fcnt = BM_edge_face_count(bme);
+		BM_BEVEL_EDGE_TAG_DISABLE(bme);
 		if (BM_elem_flag_test(bme, BM_ELEM_TAG) && !bp->vertex_only) {
 			BLI_assert(fcnt == 2);
 			nsel++;
@@ -2838,8 +2862,15 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 			/* good to start face chain from this edge */
 			first_bme = bme;
 		}
-		ntot++;
-		BM_BEVEL_EDGE_TAG_DISABLE(bme);
+		if (fcnt > 0 || bp->vertex_only)
+			ntot++;
+		if (BM_edge_is_wire(bme)) {
+			nwire++;
+			/* If edge beveling, exclude wire edges from edges array.
+			 * Mark this edge as "chosen" so loop below won't choose it. */
+			 if (!bp->vertex_only)
+				BM_BEVEL_EDGE_TAG_ENABLE(bme);
+		}
 	}
 	if (!first_bme)
 		first_bme = v->e;
@@ -2854,8 +2885,13 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 	bv->v = v;
 	bv->edgecount = ntot;
 	bv->selcount = nsel;
+	bv->wirecount = nwire;
 	bv->offset = bp->offset;
 	bv->edges = (EdgeHalf *)BLI_memarena_alloc(bp->mem_arena, ntot * sizeof(EdgeHalf));
+	if (nwire)
+		bv->wire_edges = (BMEdge **)BLI_memarena_alloc(bp->mem_arena, nwire * sizeof(BMEdge *));
+	else
+		bv->wire_edges = NULL;
 	bv->vmesh = (VMesh *)BLI_memarena_alloc(bp->mem_arena, sizeof(VMesh));
 	bv->vmesh->seg = bp->seg;
 
@@ -3023,6 +3059,17 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 			e->is_seam = true;
 	}
 
+	if (nwire) {
+		i = 0;
+		BM_ITER_ELEM (bme, &iter, v, BM_EDGES_OF_VERT) {
+			if (BM_edge_is_wire(bme)) {
+				BLI_assert(i < bv->wirecount);
+				bv->wire_edges[i++] = bme;
+			}
+		}
+		BLI_assert(i == bv->wirecount);
+	}
+
 	return bv;
 }
 
@@ -3035,19 +3082,24 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 	BoundVert *v, *vstart, *vend;
 	EdgeHalf *e, *eprev;
 	VMesh *vm;
-	int i, k;
+	int i, k, n;
 	bool do_rebuild = false;
 	BMVert *bmv;
+	BMEdge *bme, *bme_new, *bme_prev;
+	BMFace *f_new;
 	BMVert **vv = NULL;
 	BMVert **vv_fix = NULL;
+	BMEdge **ee = NULL;
 	BLI_array_staticdeclare(vv, BM_DEFAULT_NGON_STACK_SIZE);
 	BLI_array_staticdeclare(vv_fix, BM_DEFAULT_NGON_STACK_SIZE);
+	BLI_array_staticdeclare(ee, BM_DEFAULT_NGON_STACK_SIZE);
 
 	BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
 		if (BM_elem_flag_test(l->v, BM_ELEM_TAG)) {
 			lprev = l->prev;
 			bv = find_bevvert(bp, l->v);
 			e = find_edge_half(bv, l->e);
+			bme = e->e;
 			eprev = find_edge_half(bv, lprev->e);
 			BLI_assert(e != NULL && eprev != NULL);
 			vstart = eprev->leftv;
@@ -3058,6 +3110,7 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 			v = vstart;
 			vm = bv->vmesh;
 			BLI_array_append(vv, v->nv.v);
+			BLI_array_append(ee, bme);
 			while (v != vend) {
 				if (vm->mesh_kind == M_NONE && v->ebev && v->ebev->seg > 1 && v->ebev != e && v->ebev != eprev) {
 					/* case of 3rd face opposite a beveled edge, with no vmesh */
@@ -3066,6 +3119,7 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 					for (k = 1; k < e->seg; k++) {
 						bmv = mesh_vert(vm, i, 0, k)->v;
 						BLI_array_append(vv, bmv);
+						BLI_array_append(ee, bme);
 						/* may want to merge UVs of these later */
 						if (!e->is_seam)
 							BLI_array_append(vv_fix, bmv);
@@ -3077,23 +3131,55 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 					for (k = vm->seg - 1; k > 0; k--) {
 						bmv = mesh_vert(vm, i, 0, k)->v;
 						BLI_array_append(vv, bmv);
+						BLI_array_append(ee, bme);
 					}
 				}
 				v = v->prev;
 				BLI_array_append(vv, v->nv.v);
+				BLI_array_append(ee, bme);
 			}
 
 			do_rebuild = true;
 		}
 		else {
 			BLI_array_append(vv, l->v);
+			BLI_array_append(ee, l->e);
 		}
 	}
 	if (do_rebuild) {
-		BMFace *f_new = bev_create_ngon(bm, vv, BLI_array_count(vv), NULL, f, true);
+		n = BLI_array_count(vv);
+		f_new = bev_create_ngon(bm, vv, n, NULL, f, true);
 
 		for (k = 0; k < BLI_array_count(vv_fix); k++) {
 			bev_merge_uvs(bm, vv_fix[k]);
+		}
+
+		/* copy attributes from old edges */
+		BLI_assert(n == BLI_array_count(ee));
+		bme_prev = ee[n - 1];
+		for (k = 0; k < n; k++) {
+			bme_new = BM_edge_exists(vv[k], vv[(k + 1) % n]);
+			BLI_assert(ee[k] && bme_new);
+			if (ee[k] != bme_new) {
+				BM_elem_attrs_copy(bm, bm, ee[k], bme_new);
+				/* want to undo seam and smooth for corner segments
+				 * if those attrs aren't contiguous around face */
+				if (k < n - 1 && ee[k] == ee[k + 1]) {
+					if (BM_elem_flag_test(ee[k], BM_ELEM_SEAM) &&
+					    !BM_elem_flag_test(bme_prev, BM_ELEM_SEAM))
+					{
+						BM_elem_flag_disable(bme_new, BM_ELEM_SEAM);
+					}
+					/* actually want "sharp" to be contiguous, so reverse the test */
+					if (!BM_elem_flag_test(ee[k], BM_ELEM_SMOOTH) &&
+					    BM_elem_flag_test(bme_prev, BM_ELEM_SMOOTH))
+					{
+						BM_elem_flag_enable(bme_new, BM_ELEM_SMOOTH);
+					}
+				}
+				else
+					bme_prev = ee[k];
+			}
 		}
 
 		/* don't select newly created boundary faces... */
@@ -3103,6 +3189,8 @@ static bool bev_rebuild_polygon(BMesh *bm, BevelParams *bp, BMFace *f)
 	}
 
 	BLI_array_free(vv);
+	BLI_array_free(vv_fix);
+	BLI_array_free(ee);
 	return do_rebuild;
 }
 
@@ -3128,6 +3216,61 @@ static void bevel_rebuild_existing_polygons(BMesh *bm, BevelParams *bp, BMVert *
 	}
 }
 
+/* If there were any wire edges, they need to be reattached somewhere */
+static void bevel_reattach_wires(BMesh *bm, BevelParams *bp, BMVert *v)
+{
+	BMEdge *e;
+	BMVert *vclosest, *vother, *votherclosest;
+	BevVert *bv, *bvother;
+	BoundVert *bndv, *bndvother;
+	float d, dclosest;
+	int i;
+
+	bv = find_bevvert(bp, v);
+	if (!bv || bv->wirecount == 0 || !bv->vmesh)
+		return;
+
+	for (i = 0; i < bv->wirecount; i++) {
+		e = bv->wire_edges[i];
+		/* look for the new vertex closest to the other end of e */
+		vclosest = NULL;
+		dclosest = FLT_MAX;
+		votherclosest = NULL;
+		vother = BM_edge_other_vert(e, v);
+		bvother = NULL;
+		if (BM_elem_flag_test(vother, BM_ELEM_TAG)) {
+			bvother = find_bevvert(bp, vother);
+			if (!bvother || !bvother->vmesh)
+				return;  /* shouldn't happen */
+		}
+		bndv = bv->vmesh->boundstart;
+		do {
+			if (bvother) {
+				bndvother = bvother->vmesh->boundstart;
+				do {
+					d = len_squared_v3v3(bndvother->nv.co, bndv->nv.co);
+					if (d < dclosest) {
+						vclosest = bndv->nv.v;
+						votherclosest = bndvother->nv.v;
+						dclosest = d;
+						
+					}
+				} while ((bndvother = bndvother->next) != bvother->vmesh->boundstart);
+			}
+			else {
+				d = len_squared_v3v3(vother->co, bndv->nv.co);
+				if (d < dclosest) {
+					vclosest = bndv->nv.v;
+					votherclosest = vother;
+					dclosest = d;
+				}
+			}
+		} while ((bndv = bndv->next) != bv->vmesh->boundstart);
+		if (vclosest)
+			BM_edge_create(bm, vclosest, votherclosest, e, BM_CREATE_NO_DOUBLE);
+	}
+}
+
 static void bev_merge_end_uvs(BMesh *bm, BevVert *bv, EdgeHalf *e)
 {
 	VMesh *vm = bv->vmesh;
@@ -3139,6 +3282,70 @@ static void bev_merge_end_uvs(BMesh *bm, BevVert *bv, EdgeHalf *e)
 		bev_merge_uvs(bm, mesh_vert(vm, i, 0, k)->v);
 	}
 }
+
+/*
+ * Is this BevVert the special case of a weld (no vmesh) where there are
+ * four edges total, two are beveled, and the other two are on opposite sides?
+ */
+static bool bevvert_is_weld_cross(BevVert *bv)
+{
+	return (bv->edgecount == 4 && bv->selcount == 2 &&
+	        ((bv->edges[0].is_bev && bv->edges[2].is_bev) ||
+	         (bv->edges[1].is_bev && bv->edges[3].is_bev)));
+}
+
+/*
+ * Copy edge attribute data across the non-beveled crossing edges of a cross weld.
+ *
+ * Situation looks like this:
+ *
+ *      e->next
+ *        |
+ * -------3-------
+ * -------2-------
+ * -------1------- e
+ * -------0------
+ *        |
+ *      e->prev
+ *
+ * where e is the EdgeHalf of one of the beveled edges,
+ * e->next and e->prev are EdgeHalfs for the unbeveled edges of the cross
+ * and their attributes are to be copied to the edges 01, 12, 23.
+ * The vert i is mesh_vert(vm, vmindex, 0, i)->v
+ */
+static void weld_cross_attrs_copy(BMesh *bm, BevVert *bv, VMesh *vm, int vmindex, EdgeHalf *e)
+{
+	BMEdge *bme_prev, *bme_next, *bme;
+	int i, nseg;
+	bool disable_seam, enable_smooth;
+
+	bme_prev = bme_next = NULL;
+	for (i = 0; i < 4; i++) {
+		if (&bv->edges[i] == e) {
+			bme_prev = bv->edges[(i + 3) % 4].e;
+			bme_next = bv->edges[(i + 1) % 4].e;
+			break;
+		}
+	}
+	BLI_assert(bme_prev && bme_next);
+
+	/* want seams and sharp edges to cross only if that way on both sides */
+	disable_seam = BM_elem_flag_test(bme_prev, BM_ELEM_SEAM) != BM_elem_flag_test(bme_next, BM_ELEM_SEAM);
+	enable_smooth = BM_elem_flag_test(bme_prev, BM_ELEM_SMOOTH) != BM_elem_flag_test(bme_next, BM_ELEM_SMOOTH);
+
+	nseg = e->seg;
+	for (i = 0; i < nseg; i++) {
+		bme = BM_edge_exists(mesh_vert(vm, vmindex, 0, i)->v,
+		                     mesh_vert(vm, vmindex, 0, i + 1)->v);
+		BLI_assert(bme);
+		BM_elem_attrs_copy(bm, bm, bme_prev, bme);
+		if (disable_seam)
+			BM_elem_flag_disable(bme, BM_ELEM_SEAM);
+		if (enable_smooth)
+			BM_elem_flag_enable(bme, BM_ELEM_SMOOTH);
+	}
+}
+
 
 /*
  * Build the polygons along the selected Edge
@@ -3184,15 +3391,15 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
 
 	f1 = e1->fprev;
 	f2 = e1->fnext;
+	i1 = e1->leftv->index;
+	i2 = e2->leftv->index;
+	vm1 = bv1->vmesh;
+	vm2 = bv2->vmesh;
 
 	if (nseg == 1) {
 		bev_create_quad_straddle(bm, bmv1, bmv2, bmv3, bmv4, f1, f2, e1->is_seam);
 	}
 	else {
-		i1 = e1->leftv->index;
-		i2 = e2->leftv->index;
-		vm1 = bv1->vmesh;
-		vm2 = bv2->vmesh;
 		bmv1i = bmv1;
 		bmv2i = bmv2;
 		odd = nseg % 2;
@@ -3228,6 +3435,14 @@ static void bevel_build_edge_polygons(BMesh *bm, BevelParams *bp, BMEdge *bme)
 	BLI_assert(bme1 && bme2);
 	BM_elem_attrs_copy(bm, bm, bme, bme1);
 	BM_elem_attrs_copy(bm, bm, bme, bme2);
+
+	/* If either end is a "weld cross", want continuity of edge attributes across end edge(s) */
+	if (bevvert_is_weld_cross(bv1)) {
+		weld_cross_attrs_copy(bm, bv1, vm1, i1, e1);
+	}
+	if (bevvert_is_weld_cross(bv2)) {
+		weld_cross_attrs_copy(bm, bv2, vm2, i2, e2);
+	}
 }
 
 /* Returns the square of the length of the chord from parameter u0 to parameter u1
@@ -3504,6 +3719,7 @@ void BM_mesh_bevel(BMesh *bm, const float offset, const int offset_type,
 		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 			if (BM_elem_flag_test(v, BM_ELEM_TAG)) {
 				bevel_rebuild_existing_polygons(bm, &bp, v);
+				bevel_reattach_wires(bm, &bp, v);
 			}
 		}
 

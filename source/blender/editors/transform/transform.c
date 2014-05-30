@@ -334,7 +334,6 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
 		SpaceImage *sima = t->sa->spacedata.first;
 
 		if (t->options & CTX_MASK) {
-			/* not working quite right, TODO (see below too) */
 			float aspx, aspy;
 			float v[2];
 
@@ -346,9 +345,6 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
 			v[1] = v[1] / aspy;
 
 			BKE_mask_coord_to_image(sima->image, &sima->iuser, v, v);
-
-			v[0] = v[0] / aspx;
-			v[1] = v[1] / aspy;
 
 			ED_image_point_pos__reverse(sima, t->ar, v, v);
 
@@ -405,7 +401,6 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
 			MovieClip *clip = ED_space_clip_get_clip(sc);
 
 			if (clip) {
-				/* not working quite right, TODO (see above too) */
 				float aspx, aspy;
 				float v[2];
 
@@ -417,9 +412,6 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
 				v[1] = v[1] / aspy;
 
 				BKE_mask_coord_to_movieclip(sc->clip, &sc->user, v, v);
-
-				v[0] = v[0] / aspx;
-				v[1] = v[1] / aspy;
 
 				ED_clip_point_stable_pos__reverse(sc, t->ar, v, v);
 
@@ -994,11 +986,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				}
 				else {
 					if (t->obedit && t->obedit->type == OB_MESH) {
-						if ((t->mode == TFM_TRANSLATION) &&
-						    (t->spacetype == SPACE_VIEW3D) &&
-						    /* prevents accidental select-tweak, gkey. see: T40102 */
-						    (ISMOUSE(t->launch_event) == 0))
-						{
+						if ((t->mode == TFM_TRANSLATION) && (t->spacetype == SPACE_VIEW3D)) {
 							resetTransModal(t);
 							resetTransRestrictions(t);
 							restoreTransObjects(t);
@@ -5438,6 +5426,16 @@ static bool createEdgeSlideVerts(TransInfo *t)
 		BMLoop *l_a, *l_b;
 		BMVert *v_first;
 
+		/* If this succeeds call get_next_loop()
+		 * which calculates the direction to slide based on clever checks.
+		 *
+		 * otherwise we simply use 'e_dir' as an edge-rail.
+		 * (which is better when the attached edge is a boundary, see: T40422)
+		 */
+#define EDGESLIDE_VERT_IS_INNER(v, e_dir) \
+		((BM_edge_is_boundary(e_dir) == false) && \
+		 (BM_vert_edge_count_nonwire(v) == 2))
+
 		v = NULL;
 		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 			if (BM_elem_flag_test(v, BM_ELEM_TAG))
@@ -5486,10 +5484,12 @@ static bool createEdgeSlideVerts(TransInfo *t)
 			}
 			else {
 				BMLoop *l_tmp = BM_loop_other_edge_loop(l_a, v);
-				if (BM_vert_edge_count_nonwire(v) == 2)
+				if (EDGESLIDE_VERT_IS_INNER(v, l_tmp->e)) {
 					get_next_loop(v, l_a, e, l_tmp->e, vec_a);
-				else
+				}
+				else {
 					sub_v3_v3v3(vec_a, BM_edge_other_vert(l_tmp->e, v)->co, v->co);
+				}
 			}
 		}
 
@@ -5501,11 +5501,12 @@ static bool createEdgeSlideVerts(TransInfo *t)
 			}
 			else {
 				BMLoop *l_tmp = BM_loop_other_edge_loop(l_b, v);
-				if (BM_vert_edge_count_nonwire(v) == 2)
+				if (EDGESLIDE_VERT_IS_INNER(v, l_tmp->e)) {
 					get_next_loop(v, l_b, e, l_tmp->e, vec_b);
-				else
+				}
+				else {
 					sub_v3_v3v3(vec_b, BM_edge_other_vert(l_tmp->e, v)->co, v->co);
-
+				}
 			}
 		}
 		else {
@@ -5558,7 +5559,7 @@ static bool createEdgeSlideVerts(TransInfo *t)
 				if (l_a) {
 					BMLoop *l_tmp = BM_loop_other_edge_loop(l_a, v);
 					sv->v_a = BM_edge_other_vert(l_tmp->e, v);
-					if (BM_vert_edge_count_nonwire(v) == 2) {
+					if (EDGESLIDE_VERT_IS_INNER(v, l_tmp->e)) {
 						get_next_loop(v, l_a, e_prev, l_tmp->e, sv->dir_a);
 					}
 					else {
@@ -5569,7 +5570,7 @@ static bool createEdgeSlideVerts(TransInfo *t)
 				if (l_b) {
 					BMLoop *l_tmp = BM_loop_other_edge_loop(l_b, v);
 					sv->v_b = BM_edge_other_vert(l_tmp->e, v);
-					if (BM_vert_edge_count_nonwire(v) == 2) {
+					if (EDGESLIDE_VERT_IS_INNER(v, l_tmp->e)) {
 						get_next_loop(v, l_b, e_prev, l_tmp->e, sv->dir_b);
 					}
 					else {
@@ -5615,6 +5616,8 @@ static bool createEdgeSlideVerts(TransInfo *t)
 		} while ((e != v_first->e) && (l_a || l_b));
 
 		loop_nr++;
+
+#undef EDGESLIDE_VERT_IS_INNER
 	}
 
 	/* use for visibility checks */

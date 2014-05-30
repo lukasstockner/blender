@@ -61,7 +61,7 @@ Scene::Scene(const SceneParams& params_, const DeviceInfo& device_info_)
 	if(device_info_.type == DEVICE_CPU)
 		shader_manager = ShaderManager::create(this, params.shadingsystem);
 	else
-		shader_manager = ShaderManager::create(this, SceneParams::SVM);
+		shader_manager = ShaderManager::create(this, SHADINGSYSTEM_SVM);
 
 	/* Extended image limits for CPU and GPUs */
 	image_manager->set_extended_image_limits(device_info_);
@@ -109,6 +109,8 @@ void Scene::free_memory(bool final)
 
 		if(!params.persistent_data || final)
 			image_manager->device_free(device, &dscene);
+		else
+			image_manager->device_free_builtin(device, &dscene);
 
 		lookup_tables->device_free(device, &dscene);
 	}

@@ -70,7 +70,7 @@ quickdebug = None
 
 ##### BEGIN SETUP #####
 
-B.possible_types = ['core', 'player', 'player2', 'intern', 'extern']
+B.possible_types = ['core', 'player', 'player2', 'intern', 'extern', 'system']
 
 B.binarykind = ['blender' , 'blenderplayer']
 ##################################
@@ -517,8 +517,6 @@ else:
 env['CPPFLAGS'].append('-DWITH_AUDASPACE')
 env['CPPFLAGS'].append('-DWITH_AVI')
 env['CPPFLAGS'].append('-DWITH_OPENNL')
-if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '11.0':
-    env['CPPFLAGS'].append('-D_ALLOW_KEYWORD_MACROS')
 
 if env['OURPLATFORM'] not in ('win32-vc', 'win64-vc'):
     env['CPPFLAGS'].append('-DHAVE_STDBOOL_H')
@@ -804,7 +802,7 @@ SConscript(B.root_build_dir+'/extern/SConscript')
 # libraries to give as objects to linking phase
 mainlist = []
 for tp in B.possible_types:
-    if (not tp == 'player') and (not tp == 'player2'):
+    if (not tp == 'player') and (not tp == 'player2') and (not tp == 'system'):
         mainlist += B.create_blender_liblist(env, tp)
 
 if B.arguments.get('BF_PRIORITYLIST', '0')=='1':
@@ -814,6 +812,11 @@ dobj = B.buildinfo(env, "dynamic") + B.resources
 creob = B.creator(env)
 thestatlibs, thelibincs = B.setup_staticlibs(env)
 thesyslibs = B.setup_syslibs(env)
+
+# Hack to pass OSD libraries to linker before extern_{clew,cuew}
+for x in B.create_blender_liblist(env, 'system'):
+    thesyslibs.append(os.path.basename(x))
+    thelibincs.append(os.path.dirname(x))
 
 if 'blender' in B.targets or not env['WITH_BF_NOBLENDER']:
     env.BlenderProg(B.root_build_dir, "blender", creob + mainlist + thestatlibs + dobj, thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
@@ -1113,10 +1116,7 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
 
     if env['WITH_BF_OPENAL']:
         dllsources.append('${LCGDIR}/openal/lib/OpenAL32.dll')
-        if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '11.0':
-            pass
-        else:
-            dllsources.append('${LCGDIR}/openal/lib/wrap_oal.dll')
+        dllsources.append('${LCGDIR}/openal/lib/wrap_oal.dll')
 
     if env['WITH_BF_SNDFILE']:
         dllsources.append('${LCGDIR}/sndfile/lib/libsndfile-1.dll')
