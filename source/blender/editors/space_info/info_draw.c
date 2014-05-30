@@ -35,6 +35,7 @@
 
 #include "BLF_api.h"
 
+#include "BLI_rect.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_space_types.h"
@@ -42,6 +43,7 @@
 
 // #include "BKE_suggestions.h"
 #include "BKE_report.h"
+#include "BKE_screen.h"
 
 #include "BIF_gl.h"
 
@@ -54,6 +56,7 @@
 
 #include "info_intern.h"
 #include "../space_info/textview.h"
+#include "../space_info/depsgraphview.h"
 
 /* complicates things a bit, so leaving in old simple code */
 #define USE_INFO_NEWLINE
@@ -290,4 +293,26 @@ void info_textview_main(struct SpaceInfo *sinfo, ARegion *ar, ReportList *report
 {
 	int mval[2] = {INT_MAX, INT_MAX};
 	info_textview_main__internal(sinfo, ar, reports, 1,  mval, NULL, NULL);
+}
+
+void info_depsgraphview_main(const struct bContext *C, struct ARegion *ar)\
+{
+	View2D *v2d = &ar->v2d;
+	uiBlock *block;
+	uiLayout *layout;
+	float width, em;
+	
+	block = uiBeginBlock(C, ar, __func__, UI_EMBOSS);
+	
+	width = BLI_rctf_size_x(&v2d->cur);
+	em = (ar->type->prefsizex) ? 10 : 20; /* works out to 10*UI_UNIT_X or 20*UI_UNIT_X */
+	
+	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
+	                       0, 0, width, em, 0, UI_GetStyle());
+	
+	depsgraphview_draw(C, layout);
+	
+	uiBlockLayoutResolve(block, NULL, NULL);
+	
+	uiEndBlock(C, block);
 }

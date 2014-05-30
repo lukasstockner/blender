@@ -156,19 +156,26 @@ static void info_main_area_draw(const bContext *C, ARegion *ar)
 	UI_ThemeClearColor(TH_BACK);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	/* quick way to avoid drawing if not bug enough */
+	/* quick way to avoid drawing if not big enough */
 	if (ar->winy < 16)
 		return;
-		
-	info_textview_update_rect(C, ar);
-
-	/* worlks best with no view2d matrix set */
-	UI_view2d_view_ortho(v2d);
-
-	info_textview_main(sinfo, ar, CTX_wm_reports(C));
-
-	/* reset view matrix */
-	UI_view2d_view_restore(C);
+	
+	switch (sinfo->mode) {
+		case INFO_MODE_REPORTS:
+			info_textview_update_rect(C, ar);
+			
+			/* worlks best with no view2d matrix set */
+			UI_view2d_view_ortho(v2d);
+			
+			info_textview_main(sinfo, ar, CTX_wm_reports(C));
+			
+			/* reset view matrix */
+			UI_view2d_view_restore(C);
+			break;
+		case INFO_MODE_DEPSGRAPH:
+			info_depsgraphview_main(C, ar);
+			break;
+	}
 	
 	/* scrollers */
 	scrollers = UI_view2d_scrollers_calc(C, v2d, V2D_ARG_DUMMY, V2D_ARG_DUMMY, V2D_ARG_DUMMY, V2D_GRID_CLAMP);

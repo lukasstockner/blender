@@ -26,6 +26,7 @@ set(INC
 	../../blenloader
 	../../imbuf
 	../../bmesh
+	../../depsgraph
 	../../makesdna
 	../../makesrna
 	../../windowmanager
@@ -42,10 +43,12 @@ set(SRC
 	info_draw.c
 	info_report.c
 	textview.c
+	depsgraphview.c
 	space_info.c
 
 	info_intern.h
 	textview.h
+	depsgraphview.h
 )
 
 if(WITH_INTERNATIONAL)

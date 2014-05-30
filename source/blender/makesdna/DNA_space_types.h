@@ -102,9 +102,17 @@ typedef struct SpaceInfo {
 	float blockscale DNA_DEPRECATED;
 	short blockhandler[8]  DNA_DEPRECATED;      /* XXX make deprecated */
 	
+	short mode;
+	
 	char rpt_mask;
-	char pad[7];
+	char pad[5];
 } SpaceInfo;
+
+/* SpaceInfo.mode */
+typedef enum eSpaceInfo_Mode {
+	INFO_MODE_REPORTS       = 0,
+	INFO_MODE_DEPSGRAPH     = 1,
+} eSpaceInfo_Mode;
 
 /* SpaceInfo.rpt_mask */
 typedef enum eSpaceInfo_RptMask {

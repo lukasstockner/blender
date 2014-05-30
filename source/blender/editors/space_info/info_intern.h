@@ -33,6 +33,7 @@
 
 /* internal exports only */
 
+struct bContext;
 struct SpaceInfo;
 struct wmOperatorType;
 struct ReportList;
@@ -56,6 +57,7 @@ void INFO_OT_reports_display_update(struct wmOperatorType *ot);
 void *info_text_pick(struct SpaceInfo *sinfo, struct ARegion *ar, ReportList *reports, int mouse_y);
 int info_textview_height(struct SpaceInfo *sinfo, struct ARegion *ar, struct ReportList *reports);
 void info_textview_main(struct SpaceInfo *sinfo, struct ARegion *ar, struct ReportList *reports);
+void info_depsgraphview_main(const struct bContext *C, struct ARegion *ar);
 
 /* info_report.c */
 int info_report_mask(struct SpaceInfo *sinfo);

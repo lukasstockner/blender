@@ -3278,10 +3278,22 @@ static void rna_def_space_info(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem mode_items[] = {
+		{INFO_MODE_REPORTS, "INFO_REPORTS", ICON_INFO, "Reports", "Display report history"},
+		{INFO_MODE_DEPSGRAPH, "INFO_DEPSGRAPH", ICON_LINKED, "Depsgraph", "Display dependency graph statistics"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "SpaceInfo", "Space");
 	RNA_def_struct_sdna(srna, "SpaceInfo");
 	RNA_def_struct_ui_text(srna, "Space Info", "Info space data");
-	
+
+	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "mode");
+	RNA_def_property_enum_items(prop, mode_items);
+	RNA_def_property_ui_text(prop, "Mode", "Type of info to display");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_INFO_REPORT, NULL);
+
 	/* reporting display */
 	prop = RNA_def_property(srna, "show_report_debug", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "rpt_mask", INFO_RPT_DEBUG);
