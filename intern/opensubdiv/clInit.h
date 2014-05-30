@@ -151,8 +151,12 @@ static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
 
 static void uninitCL(cl_context clContext, cl_command_queue clQueue)
 {
-    clReleaseCommandQueue(clQueue);
-    clReleaseContext(clContext);
+    // It's possible that OpenCL wasn't used and hence wasn't initialized yet,
+    // no need to cleanup in this case.
+    if (clReleaseCommandQueue) {
+        clReleaseCommandQueue(clQueue);
+        clReleaseContext(clContext);
+    }
 }
 
 #endif // OSD_EXAMPLE_CL_INIT_H
