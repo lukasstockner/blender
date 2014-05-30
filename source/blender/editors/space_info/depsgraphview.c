@@ -30,7 +30,11 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
+
+#include "BKE_context.h"
+#include "BKE_main.h"
 
 #include "DEG_depsgraph_debug.h"
 
@@ -38,7 +42,43 @@
 
 #include "depsgraphview.h"
 
+static void draw_fields_header(uiLayout *layout)
+{
+	uiLayout *row = uiLayoutRow(layout, true);
+	
+	uiItemL(row, "Name", 0);
+	uiItemL(row, "Last Duration [ms]", 0);
+}
+
+static void draw_fields_id(uiLayout *layout, ID *id, DepsgraphStatsID *id_stats)
+{
+	uiLayout *row = uiLayoutRow(layout, true);
+	char num[256];
+	
+	uiItemL(row, id->name+2, 0);
+	
+	if (id_stats) {
+		BLI_snprintf(num, sizeof(num), "%.3f", id_stats->times.duration_last);
+		uiItemL(row, num, 0);
+	}
+	else {
+		uiItemL(row, "-", 0);
+	}
+}
+
 void depsgraphview_draw(const struct bContext *C, uiLayout *layout)
 {
+	Main *bmain = CTX_data_main(C);
+	DepsgraphStats *stats = DEG_stats();
+	uiLayout *col = uiLayoutColumn(layout, true);
+	ID *id;
 	
+	if (!stats)
+		return;
+	
+	draw_fields_header(col);
+	
+	for (id = bmain->object.first; id; id = id->next) {
+		draw_fields_id(col, id, DEG_stats_id(id));
+	}
 }

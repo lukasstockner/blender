@@ -33,6 +33,7 @@ set(INC
 	../makesdna
 	../makesrna
 	../modifiers
+	../windowmanager
 	../../../intern/guardedalloc
 )
 

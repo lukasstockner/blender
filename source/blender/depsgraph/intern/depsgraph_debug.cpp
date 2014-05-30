@@ -50,6 +50,9 @@ extern "C" {
 
 #include "RNA_access.h"
 #include "RNA_types.h"
+
+#include "WM_api.h"
+#include "WM_types.h"
 } /* extern "C" */
 
 #include "depsgraph_debug.h"
@@ -715,6 +718,7 @@ void DepsgraphDebug::eval_begin(eEvaluationContextType context_type)
 
 void DepsgraphDebug::eval_end(eEvaluationContextType context_type)
 {
+	WM_main_add_notifier(NC_SPACE | ND_SPACE_INFO_REPORT, NULL);
 }
 
 void DepsgraphDebug::eval_step(eEvaluationContextType context_type, const char *message)
@@ -856,4 +860,12 @@ DepsgraphStats *DEG_stats(void)
 void DEG_stats_verify(DepsgraphSettings *settings)
 {
 	DepsgraphDebug::verify_stats(settings);
+}
+
+DepsgraphStatsID *DEG_stats_id(ID *id)
+{
+	if (!DepsgraphDebug::stats)
+		return NULL;
+	
+	return DepsgraphDebug::get_id_stats(id, false);
 }

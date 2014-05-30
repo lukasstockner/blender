@@ -163,10 +163,9 @@ static void info_main_area_init(wmWindowManager *wm, ARegion *ar)
 	wmKeyMap *keymap;
 
 	/* force it on init, for old files, until it becomes config */
-	ar->v2d.scroll = (V2D_SCROLL_RIGHT);
+	ar->v2d.scroll = (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
 	
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
-
 	/* own keymap */
 	keymap = WM_keymap_find(wm->defaultconf, "Info Generic", SPACE_INFO, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
@@ -211,7 +210,12 @@ static void info_main_area_draw(const bContext *C, ARegion *ar)
 			UI_view2d_view_restore(C);
 			break;
 		case INFO_MODE_DEPSGRAPH:
+			UI_view2d_view_ortho(v2d);
+			
 			info_depsgraphview_main(C, ar);
+			
+			/* reset view matrix */
+			UI_view2d_view_restore(C);
 			break;
 	}
 	

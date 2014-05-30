@@ -67,15 +67,15 @@ struct DepsgraphDebug {
 	static void task_started(const DepsgraphTask &task);
 	static void task_completed(const DepsgraphTask &task, double time);
 	
-protected:
-	static ThreadMutex stats_mutex;
-	
 	static DepsgraphStatsID *get_id_stats(ID *id, bool create);
 	static DepsgraphStatsComponent *get_component_stats(DepsgraphStatsID *id_stats, const string &name, bool create);
 	static DepsgraphStatsComponent *get_component_stats(ID *id, const string &name, bool create)
 	{
 		return get_component_stats(get_id_stats(id, create), name, create);
 	}
+	
+protected:
+	static ThreadMutex stats_mutex;
 };
 
 #endif // __DEPSGRAPH_DEBUG_H__
