@@ -35,8 +35,6 @@
 #include "ceres/compressed_row_sparse_matrix.h"
 #include "ceres/crs_matrix.h"
 #include "ceres/dense_jacobian_writer.h"
-#include "ceres/dynamic_compressed_row_finalizer.h"
-#include "ceres/dynamic_compressed_row_jacobian_writer.h"
 #include "ceres/evaluator.h"
 #include "ceres/internal/port.h"
 #include "ceres/program_evaluator.h"
@@ -65,17 +63,9 @@ Evaluator* Evaluator::Create(const Evaluator::Options& options,
                                   BlockJacobianWriter>(options,
                                                        program);
     case SPARSE_NORMAL_CHOLESKY:
-      if (options.dynamic_sparsity) {
-        return new ProgramEvaluator<ScratchEvaluatePreparer,
-                                    DynamicCompressedRowJacobianWriter,
-                                    DynamicCompressedRowJacobianFinalizer>(
-                                        options, program);
-      } else {
-        return new ProgramEvaluator<ScratchEvaluatePreparer,
-                                    CompressedRowJacobianWriter>(options,
-                                                                 program);
-      }
-
+      return new ProgramEvaluator<ScratchEvaluatePreparer,
+                                  CompressedRowJacobianWriter>(options,
+                                                               program);
     default:
       *error = "Invalid Linear Solver Type. Unable to create evaluator.";
       return NULL;

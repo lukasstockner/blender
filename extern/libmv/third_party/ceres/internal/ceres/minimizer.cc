@@ -37,14 +37,13 @@ namespace internal {
 
 Minimizer::~Minimizer() {}
 
-bool Minimizer::RunCallbacks(const Minimizer::Options& options,
+bool Minimizer::RunCallbacks(const vector<IterationCallback*> callbacks,
                              const IterationSummary& iteration_summary,
                              Solver::Summary* summary) {
-  const bool is_not_silent = !options.is_silent;
   CallbackReturnType status = SOLVER_CONTINUE;
   int i = 0;
-  while (status == SOLVER_CONTINUE && i < options.callbacks.size()) {
-    status = (*options.callbacks[i])(iteration_summary);
+  while (status == SOLVER_CONTINUE && i < callbacks.size()) {
+    status = (*callbacks[i])(iteration_summary);
     ++i;
   }
   switch (status) {
@@ -52,13 +51,11 @@ bool Minimizer::RunCallbacks(const Minimizer::Options& options,
       return true;
     case SOLVER_TERMINATE_SUCCESSFULLY:
       summary->termination_type = USER_SUCCESS;
-      summary->message = "User callback returned SOLVER_TERMINATE_SUCCESSFULLY.";
-      VLOG_IF(1, is_not_silent) << "Terminating: " << summary->message;
+      VLOG(1) << "Terminating: User callback returned USER_SUCCESS.";
       return false;
     case SOLVER_ABORT:
       summary->termination_type = USER_FAILURE;
-      summary->message = "User callback returned SOLVER_ABORT.";
-      VLOG_IF(1, is_not_silent) << "Terminating: " << summary->message;
+      VLOG(1) << "Terminating: User callback returned  USER_ABORT.";
       return false;
     default:
       LOG(FATAL) << "Unknown type of user callback status";

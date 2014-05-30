@@ -60,7 +60,7 @@ namespace ceres {
 // code inheriting from this class is expected to set these two members with the
 // corresponding accessors. This information will be verified by the Problem
 // when added with AddResidualBlock().
-class CERES_EXPORT CostFunction {
+class CostFunction {
  public:
   CostFunction() : num_residuals_(0) {}
 

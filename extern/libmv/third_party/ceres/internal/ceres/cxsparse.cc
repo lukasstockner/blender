@@ -28,9 +28,6 @@
 //
 // Author: strandmark@google.com (Petter Strandmark)
 
-// This include must come before any #ifndef check on Ceres compile options.
-#include "ceres/internal/port.h"
-
 #ifndef CERES_NO_CXSPARSE
 
 #include "ceres/cxsparse.h"

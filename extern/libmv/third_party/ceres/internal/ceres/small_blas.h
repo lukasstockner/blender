@@ -35,7 +35,6 @@
 #ifndef CERES_INTERNAL_SMALL_BLAS_H_
 #define CERES_INTERNAL_SMALL_BLAS_H_
 
-#include "ceres/internal/port.h"
 #include "ceres/internal/eigen.h"
 #include "glog/logging.h"
 

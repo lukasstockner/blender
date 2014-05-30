@@ -33,8 +33,6 @@
 #ifndef CERES_INTERNAL_COLLECTIONS_PORT_H_
 #define CERES_INTERNAL_COLLECTIONS_PORT_H_
 
-#include "ceres/internal/port.h"
-
 #if defined(CERES_NO_UNORDERED_MAP)
 #  include <map>
 #  include <set>

@@ -1,10 +1,9 @@
-def FindUnorderedMap(conf):
+def test_unordered_map(conf):
     """
     Detect unordered_map availability
+    
+    Returns (True/False, namespace, include prefix)
     """
-
-    namespace = None
-    header = None
 
     if conf.CheckCXXHeader("unordered_map"):
         # Even so we've found unordered_map header file it doesn't
@@ -18,21 +17,16 @@ def FindUnorderedMap(conf):
 
         if conf.CheckType('std::unordered_map<int, int>', language = 'CXX', includes="#include <unordered_map>"):
             print("-- Found unordered_map/set in std namespace.")
-            namespace = 'std'
-            header = 'unordered_map'
+            return True, 'std', ''
         elif conf.CheckType('std::tr1::unordered_map<int, int>', language = 'CXX', includes="#include <unordered_map>"):
             print("-- Found unordered_map/set in std::tr1 namespace.")
-            namespace = 'std::tr1'
-            header = 'unordered_map'
+            return True, 'std::tr1', ''
         else:
             print("-- Found <unordered_map> but can not find neither std::unordered_map nor std::tr1::unordered_map.")
+            return False, '', ''
     elif conf.CheckCXXHeader("tr1/unordered_map"):
         print("-- Found unordered_map/set in std::tr1 namespace.")
-        namespace = 'std::tr1'
-        header = 'tr1/unordered_map'
+        return True, 'std::tr1', 'tr1/'
     else:
         print("-- Unable to find <unordered_map> or <tr1/unordered_map>. ")
-
-    conf.env['WITH_UNORDERED_MAP_SUPPORT'] = namespace and header
-    conf.env['UNORDERED_MAP_NAMESPACE'] = namespace
-    conf.env['UNORDERED_MAP_HEADER'] = header
+        return False, '', ''

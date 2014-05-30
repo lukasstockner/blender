@@ -45,6 +45,8 @@
 namespace ceres {
 namespace internal {
 
+class BlockStructureProto;
+
 typedef int32 BlockSize;
 
 struct Block {
@@ -86,6 +88,16 @@ struct CompressedColumnBlockStructure {
   vector<Block> rows;
   vector<CompressedColumn> cols;
 };
+
+// Deserialize the given block structure proto to the given block structure.
+// Destroys previous contents of block_structure.
+void ProtoToBlockStructure(const BlockStructureProto &proto,
+                           CompressedRowBlockStructure *block_structure);
+
+// Serialize the given block structure to the given proto. Destroys previous
+// contents of proto.
+void BlockStructureToProto(const CompressedRowBlockStructure &block_structure,
+                           BlockStructureProto *proto);
 
 }  // namespace internal
 }  // namespace ceres

@@ -107,7 +107,7 @@ namespace ceres {
 //
 // The class LocalParameterization defines the function Plus and its
 // Jacobian which is needed to compute the Jacobian of f w.r.t delta.
-class CERES_EXPORT LocalParameterization {
+class LocalParameterization {
  public:
   virtual ~LocalParameterization() {}
 
@@ -133,7 +133,7 @@ class CERES_EXPORT LocalParameterization {
 // Some basic parameterizations
 
 // Identity Parameterization: Plus(x, delta) = x + delta
-class CERES_EXPORT IdentityParameterization : public LocalParameterization {
+class IdentityParameterization : public LocalParameterization {
  public:
   explicit IdentityParameterization(int size);
   virtual ~IdentityParameterization() {}
@@ -150,7 +150,7 @@ class CERES_EXPORT IdentityParameterization : public LocalParameterization {
 };
 
 // Hold a subset of the parameters inside a parameter block constant.
-class CERES_EXPORT SubsetParameterization : public LocalParameterization {
+class SubsetParameterization : public LocalParameterization {
  public:
   explicit SubsetParameterization(int size,
                                   const vector<int>& constant_parameters);
@@ -160,9 +160,7 @@ class CERES_EXPORT SubsetParameterization : public LocalParameterization {
                     double* x_plus_delta) const;
   virtual bool ComputeJacobian(const double* x,
                                double* jacobian) const;
-  virtual int GlobalSize() const {
-    return static_cast<int>(constancy_mask_.size());
-  }
+  virtual int GlobalSize() const { return constancy_mask_.size(); }
   virtual int LocalSize() const { return local_size_; }
 
  private:
@@ -174,7 +172,7 @@ class CERES_EXPORT SubsetParameterization : public LocalParameterization {
 // with * being the quaternion multiplication operator. Here we assume
 // that the first element of the quaternion vector is the real (cos
 // theta) part.
-class CERES_EXPORT QuaternionParameterization : public LocalParameterization {
+class QuaternionParameterization : public LocalParameterization {
  public:
   virtual ~QuaternionParameterization() {}
   virtual bool Plus(const double* x,

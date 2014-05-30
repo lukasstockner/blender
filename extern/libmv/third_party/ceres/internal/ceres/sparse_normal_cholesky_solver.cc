@@ -28,9 +28,6 @@
 //
 // Author: sameeragarwal@google.com (Sameer Agarwal)
 
-// This include must come before any #ifndef check on Ceres compile options.
-#include "ceres/internal/port.h"
-
 #if !defined(CERES_NO_SUITESPARSE) || !defined(CERES_NO_CXSPARSE)
 
 #include "ceres/sparse_normal_cholesky_solver.h"
@@ -59,13 +56,13 @@ SparseNormalCholeskySolver::SparseNormalCholeskySolver(
       options_(options) {
 }
 
-void SparseNormalCholeskySolver::FreeFactorization() {
+SparseNormalCholeskySolver::~SparseNormalCholeskySolver() {
 #ifndef CERES_NO_SUITESPARSE
   if (factor_ != NULL) {
     ss_.Free(factor_);
     factor_ = NULL;
   }
-#endif  // CERES_NO_SUITESPARSE
+#endif
 
 #ifndef CERES_NO_CXSPARSE
   if (cxsparse_factor_ != NULL) {
@@ -73,10 +70,6 @@ void SparseNormalCholeskySolver::FreeFactorization() {
     cxsparse_factor_ = NULL;
   }
 #endif  // CERES_NO_CXSPARSE
-}
-
-SparseNormalCholeskySolver::~SparseNormalCholeskySolver() {
-  FreeFactorization();
 }
 
 LinearSolver::Summary SparseNormalCholeskySolver::SolveImpl(
@@ -157,20 +150,13 @@ LinearSolver::Summary SparseNormalCholeskySolver::SolveImplUsingCXSparse(
   event_logger.AddEvent("Setup");
 
   // Compute symbolic factorization if not available.
-  if (options_.dynamic_sparsity) {
-    FreeFactorization();
-  }
   if (cxsparse_factor_ == NULL) {
     if (options_.use_postordering) {
       cxsparse_factor_ = cxsparse_.BlockAnalyzeCholesky(AtA,
                                                         A->col_blocks(),
                                                         A->col_blocks());
     } else {
-      if (options_.dynamic_sparsity) {
-        cxsparse_factor_ = cxsparse_.AnalyzeCholesky(AtA);
-      } else {
-        cxsparse_factor_ = cxsparse_.AnalyzeCholeskyWithNaturalOrdering(AtA);
-      }
+      cxsparse_factor_ = cxsparse_.AnalyzeCholeskyWithNaturalOrdering(AtA);
     }
   }
   event_logger.AddEvent("Analysis");
@@ -183,7 +169,6 @@ LinearSolver::Summary SparseNormalCholeskySolver::SolveImplUsingCXSparse(
     summary.termination_type = LINEAR_SOLVER_FAILURE;
   }
   event_logger.AddEvent("Solve");
-
   return summary;
 }
 #else
@@ -213,9 +198,6 @@ LinearSolver::Summary SparseNormalCholeskySolver::SolveImplUsingSuiteSparse(
   cholmod_sparse lhs = ss_.CreateSparseMatrixTransposeView(A);
   event_logger.AddEvent("Setup");
 
-  if (options_.dynamic_sparsity) {
-    FreeFactorization();
-  }
   if (factor_ == NULL) {
     if (options_.use_postordering) {
       factor_ = ss_.BlockAnalyzeCholesky(&lhs,
@@ -223,11 +205,7 @@ LinearSolver::Summary SparseNormalCholeskySolver::SolveImplUsingSuiteSparse(
                                          A->row_blocks(),
                                          &summary.message);
     } else {
-      if (options_.dynamic_sparsity) {
-        factor_ = ss_.AnalyzeCholesky(&lhs, &summary.message);
-      } else {
-        factor_ = ss_.AnalyzeCholeskyWithNaturalOrdering(&lhs, &summary.message);
-      }
+      factor_ = ss_.AnalyzeCholeskyWithNaturalOrdering(&lhs, &summary.message);
     }
   }
   event_logger.AddEvent("Analysis");

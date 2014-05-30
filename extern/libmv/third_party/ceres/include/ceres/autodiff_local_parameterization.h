@@ -107,18 +107,11 @@ namespace ceres {
 template <typename Functor, int kGlobalSize, int kLocalSize>
 class AutoDiffLocalParameterization : public LocalParameterization {
  public:
-  AutoDiffLocalParameterization() :
-      functor_(new Functor()) {}
-
-  // Takes ownership of functor.
-  explicit AutoDiffLocalParameterization(Functor* functor) :
-      functor_(functor) {}
-
   virtual ~AutoDiffLocalParameterization() {}
   virtual bool Plus(const double* x,
                     const double* delta,
                     double* x_plus_delta) const {
-    return (*functor_)(x, delta, x_plus_delta);
+    return Functor()(x, delta, x_plus_delta);
   }
 
   virtual bool ComputeJacobian(const double* x, double* jacobian) const {
@@ -135,7 +128,7 @@ class AutoDiffLocalParameterization : public LocalParameterization {
     const double* parameter_ptrs[2] = {x, zero_delta};
     double* jacobian_ptrs[2] = { NULL, jacobian };
     return internal::AutoDiff<Functor, double, kGlobalSize, kLocalSize>
-        ::Differentiate(*functor_,
+        ::Differentiate(Functor(),
                         parameter_ptrs,
                         kGlobalSize,
                         x_plus_delta,
@@ -144,9 +137,6 @@ class AutoDiffLocalParameterization : public LocalParameterization {
 
   virtual int GlobalSize() const { return kGlobalSize; }
   virtual int LocalSize() const { return kLocalSize; }
-
- private:
-  internal::scoped_ptr<Functor> functor_;
 };
 
 }  // namespace ceres

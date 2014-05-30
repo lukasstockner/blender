@@ -47,7 +47,6 @@ if(WITH_LIBMV)
 		third_party/gflags
 		third_party/glog/src
 		third_party/ceres/include
-		third_party/ceres/config
 		../../intern/guardedalloc
 	)
 
@@ -228,18 +227,6 @@ if(WITH_LIBMV)
 			third_party/glog/src/symbolize.h
 			third_party/glog/src/utilities.h
 		)
-	endif()
-
-	TEST_SHARED_PTR_SUPPORT()
-	if(SHARED_PTR_FOUND)
-		if(SHARED_PTR_TR1_MEMORY_HEADER)
-			add_definitions(-DCERES_TR1_MEMORY_HEADER)
-		endif()
-		if(SHARED_PTR_TR1_NAMESPACE)
-			add_definitions(-DCERES_TR1_SHARED_PTR)
-		endif()
-	else()
-		message(FATAL_ERROR "Unable to find shared_ptr.")
 	endif()
 else()
 	list(APPEND SRC

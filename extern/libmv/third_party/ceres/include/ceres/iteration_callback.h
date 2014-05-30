@@ -41,7 +41,7 @@ namespace ceres {
 
 // This struct describes the state of the optimizer after each
 // iteration of the minimization.
-struct CERES_EXPORT IterationSummary {
+struct IterationSummary {
   IterationSummary()
       : iteration(0),
         step_is_valid(false),
@@ -211,7 +211,7 @@ struct CERES_EXPORT IterationSummary {
 //     const bool log_to_stdout_;
 //   };
 //
-class CERES_EXPORT IterationCallback {
+class IterationCallback {
  public:
   virtual ~IterationCallback() {}
   virtual CallbackReturnType operator()(const IterationSummary& summary) = 0;

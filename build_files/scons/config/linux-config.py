@@ -1,4 +1,4 @@
-from FindPython import FindPython
+from Modules.FindPython import FindPython
 
 py = FindPython()
 

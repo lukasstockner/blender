@@ -40,13 +40,11 @@ import string
 import shutil
 import re
 
-# store path to tools and modules
+# store path to tools
 toolpath=os.path.join(".", "build_files", "scons", "tools")
-modulespath=os.path.join(".", "build_files", "scons", "Modules")
 
-# needed for importing tools and modules
+# needed for importing tools
 sys.path.append(toolpath)
-sys.path.append(modulespath)
 
 import Blender
 import btools
@@ -177,16 +175,6 @@ if crossbuild and platform not in ('win32-vc', 'win64-vc'):
     platform = 'linuxcross'
 
 env['OURPLATFORM'] = platform
-
-# Put all auto configuration run-time tests here
-
-from FindSharedPtr import FindSharedPtr
-from FindUnorderedMap import FindUnorderedMap
-
-conf = Configure(env)
-FindSharedPtr(conf)
-FindUnorderedMap(conf)
-env = conf.Finish()
 
 configfile = os.path.join("build_files", "scons", "config", platform + "-config.py")
 
