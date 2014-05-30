@@ -2144,19 +2144,19 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short tot
 		switch(itemnum) {
 			case 5:
 				dir = UI_RADIAL_NW;
-				angle = 135;
+				angle = 140;
 				break;
 			case 6:
 				dir = UI_RADIAL_NE;
-				angle = 45;
+				angle = 40;
 				break;
 			case 7:
 				dir = UI_RADIAL_SW;
-				angle = 225;
+				angle = 220;
 				break;
 			case 8:
 				dir = UI_RADIAL_SE;
-				angle = 315;
+				angle = 320;
 				break;
 		}
 	}
