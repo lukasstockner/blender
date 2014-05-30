@@ -3684,8 +3684,9 @@ void ui_draw_pie_center(uiBlock *block)
 	glutil_draw_filled_arc(0.0, (float)(M_PI * 2.0), pie_radius_internal, 40);
 
 	glColor4ub(255, 255, 0, btheme->tui.wcol_menu_back.inner[3]);
-	glBegin(GL_TRIANGLES);
+	glBegin(GL_TRIANGLE_FAN);
 	glVertex2f(block->pie_dir[0] * pie_radius_internal + block->pie_dir[1] * 5.0, block->pie_dir[1] * pie_radius_internal - block->pie_dir[0] * 5.0);
+	glVertex2f(block->pie_dir[0] * (pie_radius_internal - 10.0f), block->pie_dir[1] * (pie_radius_internal - 10.0f));
 	glVertex2f(block->pie_dir[0] * pie_radius_internal - block->pie_dir[1] * 5.0, block->pie_dir[1] * pie_radius_internal + block->pie_dir[0] * 5.0);
 	glVertex2f(block->pie_dir[0] * (pie_radius_internal + 10.0f), block->pie_dir[1] * (pie_radius_internal + 10.0f));
 	glEnd();

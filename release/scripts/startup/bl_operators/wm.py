@@ -527,7 +527,7 @@ class WM_OT_context_menu_enum(Operator):
 
         context.window_manager.popup_menu(draw_func=draw_cb, title=prop.name, icon=prop.icon)
         
-        return {'PASS_THROUGH'}
+        return {'FINISHED'}
 
 class WM_OT_context_operator_pie_enum(Operator):
     bl_idname = "wm.context_operator_pie_enum"
@@ -553,7 +553,7 @@ class WM_OT_context_operator_pie_enum(Operator):
 
         context.window_manager.pie_menu(draw_func=draw_cb, title=self.title, event=event)
 
-        return {'PASS_THROUGH'}
+        return {'FINISHED'}
 
 
 class WM_OT_context_pie_enum(Operator):
