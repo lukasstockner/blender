@@ -85,6 +85,7 @@
 
 #pragma message("DEPSGRAPH PORTING XXX: only needed to hijack existing tagging functions until new depsgraph API is stabilized")
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
 
 static SpinLock threaded_update_lock;
 
@@ -891,12 +892,6 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	DagForest *dag;
 	DagAdjList *itA;
 
-	/********* new depsgraph *********/
-	if (sce->depsgraph)
-		DEG_graph_free(sce->depsgraph);
-	sce->depsgraph = DEG_graph_new();
-	/******************/
-	
 	dag = sce->theDag;
 	if (dag)
 		free_forest(dag);
@@ -956,6 +951,13 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	
 	/* cycle detection and solving */
 	// solve_cycles(dag);
+	
+	/********* new depsgraph *********/
+	if (sce->depsgraph)
+		DEG_graph_free(sce->depsgraph);
+	sce->depsgraph = DEG_graph_new();
+	DEG_graph_build_from_scene(sce->depsgraph, bmain, sce);
+	/******************/
 	
 	return dag;
 }
@@ -1632,6 +1634,13 @@ void DAG_scene_free(Scene *sce)
 		MEM_freeN(sce->theDag);
 		sce->theDag = NULL;
 	}
+	
+	/********* new depsgraph *********/
+	if (sce->depsgraph) {
+		DEG_graph_free(sce->depsgraph);
+		sce->depsgraph = NULL;
+	}
+	/******************/
 }
 
 static void lib_id_recalc_tag(Main *bmain, ID *id)
