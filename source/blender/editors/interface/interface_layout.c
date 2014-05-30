@@ -2215,10 +2215,10 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short tot
 	return dir;
 }
 
-static bool ui_item_is_radial_displayable (uiButtonItem *UNUSED(bitem))
+static bool ui_item_is_radial_displayable (uiButtonItem *bitem)
 {
-//	if (bitem->but->type == LABEL)
-//		return false;
+	if (bitem->but->type == LABEL)
+		return false;
 
 	return true;
 }
@@ -2254,7 +2254,6 @@ static void ui_litem_layout_radial(uiLayout *litem)
 
 			/* not all button types are drawn in a radial menu, do filtering here */
 			if(ui_item_is_radial_displayable(bitem)) {
-
 				itemnum++;
 
 				bitem->but->pie_dir = ui_get_radialbut_vec(vec, itemnum, totitems);
