@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -21,15 +19,22 @@
 #
 # The Original Code is: all of this file.
 #
-# Contributor(s): Nathan Letwory.
+# Contributor(s): Jacques Beaurain.
 #
 # ***** END GPL LICENSE BLOCK *****
 
-Import ('env')
+set(INC
+	.
+	include
+)
 
-sources = env.Glob('src/clew.c')
+set(INC_SYS
 
-incs = 'include'
-defs = ['CL_USE_DEPRECATED_OPENCL_1_1_APIS']
+)
 
-env.BlenderLib ('extern_clew', sources, Split(incs), defines=defs, libtype=['system'], priority = [999])
+set(SRC
+	include/cuew.h
+	src/cuew.c
+)
+
+blender_add_lib(extern_cuew "${SRC}" "${INC}" "${INC_SYS}")

@@ -102,18 +102,6 @@ IF(OPENSUBDIV_FOUND)
   OPENSUBDIV_CHECK_CONTROLLER("cudaComputeController.h" OPENSUBDIV_HAS_CUDA)
   OPENSUBDIV_CHECK_CONTROLLER("glslTransformFeedbackComputeController.h" OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK)
   OPENSUBDIV_CHECK_CONTROLLER("osd/glslComputeController.h" OPENSUBDIV_HAS_GLSL_COMPUTE)
-
-  IF(OPENSUBDIV_HAS_CUDA)
-    # TODO(sergey): Ideally we do linking to CUDA runtime, not compile time,
-    # so this way we can have Blender running on the systems which don't have
-   # NVidia or don't have CUDA runtime libraries.
-     #
-    # Or we'll just use GLSL backend on all the systems.
-    FIND_PACKAGE(CUDA)
-    IF(CUDA_FOUND)
-      LIST(APPEND OPENSUBDIV_LIBRARIES ${CUDA_CUDART_LIBRARY})
-    ENDIF()
-  ENDIF()
 ENDIF(OPENSUBDIV_FOUND)
 
 MARK_AS_ADVANCED(

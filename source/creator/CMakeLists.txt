@@ -1087,9 +1087,6 @@ endif()
 		list(APPEND BLENDER_SORTED_LIBS bf_intern_opensubdiv)
 	endif()
 
-	if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
-		list(APPEND BLENDER_SORTED_LIBS "extern_clew")
-	endif()
 
 	foreach(SORTLIB ${BLENDER_SORTED_LIBS})
 		set(REMLIB ${SORTLIB})
@@ -1120,3 +1117,9 @@ endif()
 #endif()
 
 setup_liblinks(blender)
+
+# We put CLEW and CUEW here because OPENSUBDIV_LIBRARIES dpeends on them..
+if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
+	target_link_libraries(blender "extern_clew")
+	target_link_libraries(blender "extern_cuew")
+endif()

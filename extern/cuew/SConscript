@@ -27,9 +27,9 @@
 
 Import ('env')
 
-sources = env.Glob('src/clew.c')
+sources = env.Glob('src/cuew.c')
 
 incs = 'include'
-defs = ['CL_USE_DEPRECATED_OPENCL_1_1_APIS']
+defs = []
 
-env.BlenderLib ('extern_clew', sources, Split(incs), defines=defs, libtype=['system'], priority = [999])
+env.BlenderLib ('extern_cuew', sources, Split(incs), defines=defs, libtype=['system'], priority = [0])

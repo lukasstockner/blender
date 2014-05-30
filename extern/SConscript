@@ -22,6 +22,7 @@ if env['WITH_BF_BULLET']:
 
 if env['WITH_BF_COMPOSITOR'] or env['WITH_BF_OPENSUBDIV']:
     SConscript (['clew/SConscript'])
+    SConscript (['cuew/SConscript'])
 
 if env['WITH_BF_OPENJPEG'] and env['BF_OPENJPEG_LIB'] == '':
     SConscript(['libopenjpeg/SConscript'])

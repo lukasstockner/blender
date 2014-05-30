@@ -168,18 +168,26 @@ static OpenSubdiv_ComputeController *openSubdiv_getController(
 	if (controller_type == OPENSUBDIV_CONTROLLER_OPENCL &&
 	    g_clContext == NULL)
 	{
+		if (!HAS_CL_VERSION_1_1()) {
+			printf("OpenCL is not supported on this system\n");
+			return NULL;
+		}
 		if (initCL(&g_clContext, &g_clQueue) == false) {
 			printf("Error in initializing OpenCL\n");
+			return NULL;
 		}
 	}
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
 	if (controller_type == OPENSUBDIV_CONTROLLER_CUDA &&
-	    g_cudaInitialized == false)
+	   g_cudaInitialized == false)
 	{
+		if (!HAS_CUDA_VERSION_4_0()) {
+			printf("CUDA is not supported on this system\n");
+			return NULL;
+		}
 		g_cudaInitialized = true;
-		cudaGLSetGLDevice(cutGetMaxGflopsDeviceId());
 	}
 #endif
 
@@ -414,11 +422,15 @@ int openSubdiv_getAvailableControllers(void)
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
-	flags |= OPENSUBDIV_CONTROLLER_OPENCL;
+	if (HAS_CL_VERSION_1_1()) {
+		flags |= OPENSUBDIV_CONTROLLER_OPENCL;
+	}
 #endif
 
 #ifdef OPENSUBDIV_HAS_CUDA
-	flags |= OPENSUBDIV_CONTROLLER_CUDA;
+	if (HAS_CUDA_VERSION_4_0()) {
+		flags |= OPENSUBDIV_CONTROLLER_CUDA;
+	}
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
@@ -457,7 +469,6 @@ void openSubdiv_cleanup(void)
 #ifdef OPENSUBDIV_HAS_CUDA
 	DELETE_DESCRIPTOR(g_cudaComputeController,
 	                  OsdCudaComputeController);
-    cudaDeviceReset();
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK

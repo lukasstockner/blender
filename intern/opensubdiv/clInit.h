@@ -25,23 +25,42 @@
 #ifndef OSD_EXAMPLE_CL_INIT_H
 #define OSD_EXAMPLE_CL_INIT_H
 
-#include <clew.h>
-
 #if defined(_WIN32)
-#  include <windows.h>
+    #include <windows.h>
 #elif defined(__APPLE__)
-#  include <OpenGL/OpenGL.h>
+    #include <OpenGL/OpenGL.h>
 #else
-#  include <GL/glx.h>
+    #include <GL/glx.h>
 #endif
+
+#include <opensubdiv/osd/opencl.h>
 
 #include <cstdio>
 
+static bool HAS_CL_VERSION_1_1 () {
+#ifdef OPENSUBDIV_HAS_OPENCL
+     #ifdef OPENSUBDIV_HAS_CLEW
+        static bool clewInitialized = false;
+        static bool clewLoadSuccess;
+        if (not clewInitialized) {
+            clewInitialized = true;
+            clewLoadSuccess = clewInit() == CLEW_SUCCESS;
+            if (not clewLoadSuccess) {
+                fprintf(stderr, "Loading OpenCL failed.\n");
+            }
+        }
+        return clewLoadSuccess;
+    #endif
+    return true;
+#else
+    return false;
+#endif
+}
+
 static bool initCL(cl_context *clContext, cl_command_queue *clQueue)
 {
-    clewInit();
-
     cl_int ciErrNum;
+
     cl_platform_id cpPlatform = 0;
     cl_uint num_platforms;
     ciErrNum = clGetPlatformIDs(0, NULL, &num_platforms);
