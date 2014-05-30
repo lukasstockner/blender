@@ -288,7 +288,12 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	
 	/* Objects, Regardless of Mode -------------------------------------------------- */
 	keymap = WM_keymap_find(keyconf, "Object Non-modal", 0, 0);
-	
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_operator_pie_enum", TABKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "object.mode_set.mode");
+	RNA_string_set(kmi->ptr, "title", "Object Mode");
+
+#if 0
 	/* Note: this keymap works disregarding mode */
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_mode_set", TABKEY, KM_PRESS, 0, 0);
 	RNA_enum_set(kmi->ptr, "mode", OB_MODE_EDIT);
@@ -304,9 +309,9 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_mode_set", TABKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "mode", OB_MODE_WEIGHT_PAINT);
+	RNA_boolean_set(kmi->ptr, "toggle", true);	
+#endif
 
-	RNA_boolean_set(kmi->ptr, "toggle", true);
-	
 	WM_keymap_add_item(keymap, "OBJECT_OT_origin_set", CKEY, KM_PRESS, KM_ALT | KM_SHIFT | KM_CTRL, 0);
 
 	/* Object Mode ---------------------------------------------------------------- */

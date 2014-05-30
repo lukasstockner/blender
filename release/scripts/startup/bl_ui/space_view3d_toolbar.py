@@ -1667,16 +1667,26 @@ class VIEW3D_PT_tools_grease_pencil(GreasePencilPanel, Panel):
     bl_region_type = 'TOOLS'
     bl_category = "Grease Pencil"
 
-class VIEW3D_PIE_object_mode(Menu):
-    bl_label = "Pies!"
+class VIEW3D_PIE_tests(Menu):
+    bl_label = "Testing Pie"
 
     def draw(self, context):
         layout = self.layout
 
+        toolsettings = context.tool_settings
+        sculpt = toolsettings.sculpt
+        brush = sculpt.brush
+
         pie = layout.pie()
-        pie.operator_enum("object.mode_set", "mode")
-        #pie.label("blackberry")
-        #pie.label("cheese")
+        pie.prop(sculpt, "use_symmetry_x", text="X", toggle=True)
+        pie.prop(sculpt, "use_symmetry_y", text="Y", toggle=True)
+        pie.prop(sculpt, "use_symmetry_z", text="Z", toggle=True)
+        pie.prop(brush, "strength")
+
+    @classmethod
+    def poll(cls, context):
+        return (context.sculpt_object and context.tool_settings.sculpt)
+
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)
