@@ -3674,7 +3674,7 @@ void ui_draw_pie_center(uiBlock *block)
 	float cx = BLI_rctf_cent_x(&block->rect);
 	float cy = BLI_rctf_cent_y(&block->rect);
 
-	float pie_radius_internal = block->pie_center_width;
+	float pie_radius_internal = UI_UNIT_Y;
 
 	glPushMatrix();
 	glTranslatef(cx, cy, 0.0);

@@ -2505,7 +2505,6 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 			/* hack, draw label with default transparent style */
 			but->dt = UI_EMBOSSP;
 		}
-		pie->block_radial->pie_center_width = BLI_rctf_size_x(&but->rect)/2.0;
 	}
 
 	return pie;

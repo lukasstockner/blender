@@ -370,7 +370,6 @@ struct uiBlock {
 	                          * used by color widgets to transform colors from/to scene linear
 	                          */
 	int num_pie_items; /* number of pie items, useful to determine collision based on how pie items are distributed */
-	float pie_center_width; /* width of the central text of the pie menu */
 	float pie_dir[2];
 	int event; /* initial event used to fire the pie menu, store here so we can query for release */
 };

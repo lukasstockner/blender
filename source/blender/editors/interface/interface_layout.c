@@ -2301,7 +2301,7 @@ static void ui_litem_layout_root_radial(uiLayout *litem)
 
 		ui_item_size(item, &itemw, &itemh);
 
-		ui_item_position(item, x - itemw/2, y - itemh/2, itemw, itemh);
+		ui_item_position(item, x - itemw/2, y + 2.0 * UI_UNIT_Y, itemw, itemh);
 	}
 }
 
