@@ -78,6 +78,9 @@ KeyBlock *BKE_keyblock_find_name(Key *key, const char name[]);
 void      BKE_keyblock_copy_settings(KeyBlock *kb_dst, const KeyBlock *kb_src);
 char     *BKE_keyblock_curval_rnapath_get(Key *key, KeyBlock *kb);
 
+/* returns a pointer to active shape value (mixval/anim-driven val) */
+float    *BKE_keyblock_get_active_value(Key *key, KeyBlock *kb);
+
 /* ==== scratch keyblock ==== */
 
 /* performs a first-time setup of the scratch. if it's already inited 

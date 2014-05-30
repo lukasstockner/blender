@@ -2073,6 +2073,13 @@ void BKE_key_convert_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3])
 		}
 	}
 }
+
+float    *BKE_keyblock_get_active_value(Key *key, KeyBlock *kb)
+{
+	return key->mix_mode == KEY_MIX_FROM_ANIMDATA ? &kb->curval : &kb->mixval;
+}
+
+
 /* ================== Scratch stuff ======================  */
 
 void BKE_key_init_scratch(Object *ob) 
@@ -2188,7 +2195,7 @@ void key_block_mesh_eval_rel(Object *ob, Key *key, KeyBlock *kb, bool use_vgroup
 	int a;
 	float *per_vertex_weights = NULL;
 
-	float influence = key->mix_mode == KEY_MIX_FROM_ANIMDATA ? kb->curval : kb->mixval;
+	float influence = *BKE_keyblock_get_active_value(key, kb);
 	
 	if (use_vgroup)
 		per_vertex_weights = get_weights_array(ob, kb->vgroup, NULL);

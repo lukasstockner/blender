@@ -66,7 +66,7 @@ typedef struct KeyBlock {
 	
 	float mixval;	   /* animation-independent mix influence (Key->type == KEY_RELATIVE only) */
 
-	/* ranges, for RNA and UI only to clamp 'curval' */
+	/* ranges, for RNA and UI only to clamp 'curval' and 'mixval' */
 	float slidermin;
 	float slidermax;
 
@@ -132,8 +132,8 @@ enum {
 
 /* Key->mix_mode */
 enum {
-	KEY_MIX_FROM_ANIMDATA	= 0,
-	KEY_MIX_FROM_TEMPVALUES = 1
+	KEY_MIX_FROM_TEMPVALUES = 0,
+	KEY_MIX_FROM_ANIMDATA	= 1
 };
 
 /* Key->flag */
