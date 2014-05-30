@@ -34,6 +34,9 @@
 /* internal exports only */
 
 struct bContext;
+struct ARegion;
+struct ARegionType;
+struct ScrArea;
 struct SpaceInfo;
 struct wmOperatorType;
 struct ReportList;
@@ -68,5 +71,12 @@ void INFO_OT_select_border(struct wmOperatorType *ot);
 void INFO_OT_report_replay(struct wmOperatorType *ot);
 void INFO_OT_report_delete(struct wmOperatorType *ot);
 void INFO_OT_report_copy(struct wmOperatorType *ot);
+
+/* info_toolbar.c */
+void info_toolbar_register(struct ARegionType *art);
+void INFO_OT_toolbar(struct wmOperatorType *ot);
+
+/* space_info.c */
+struct ARegion *info_has_tools_region(struct ScrArea *sa);
 
 #endif /* __INFO_INTERN_H__ */

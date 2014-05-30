@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Header, Menu
+from bpy.types import Header, Menu, Panel
 
 
 class INFO_HT_header(Header):
@@ -298,6 +298,19 @@ class INFO_MT_help(Menu):
         layout.separator()
 
         layout.operator("wm.splash", icon='BLENDER')
+
+class INFO_PT_tools(Panel):
+    bl_space_type = 'INFO'
+    bl_region_type = 'TOOLS'
+    bl_label = "Tools"
+    bl_options = {'HIDE_HEADER'}
+
+    def draw(self, context):
+        layout = self.layout
+        info = context.space_data
+
+        col = layout.column()
+        col.prop(info, "mode")
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

@@ -42,6 +42,7 @@ set(SRC
 	info_stats.c
 	info_draw.c
 	info_report.c
+	info_toolbar.c
 	textview.c
 	depsgraphview.c
 	space_info.c

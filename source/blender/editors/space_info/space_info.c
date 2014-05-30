@@ -58,6 +58,32 @@
 #include "info_intern.h"  /* own include */
 #include "BLO_readfile.h"
 
+/* ******************** manage regions ********************* */
+
+ARegion *info_has_tools_region(ScrArea *sa)
+{
+	ARegion *ar, *arnew;
+	
+	ar = BKE_area_find_region_type(sa, RGN_TYPE_TOOLS);
+	if (ar) return ar;
+	
+	/* add subdiv level; after header */
+	ar = BKE_area_find_region_type(sa, RGN_TYPE_HEADER);
+	
+	/* is error! */
+	if (ar == NULL) return NULL;
+	
+	arnew = MEM_callocN(sizeof(ARegion), "info tools");
+	
+	BLI_insertlinkafter(&sa->regionbase, ar, arnew);
+	arnew->regiontype = RGN_TYPE_TOOLS;
+	arnew->alignment = RGN_ALIGN_LEFT;
+	
+	arnew->flag = RGN_FLAG_HIDDEN;
+	
+	return arnew;
+}
+
 /* ******************** default callbacks for info space ***************** */
 
 static SpaceLink *info_new(const bContext *UNUSED(C))
@@ -82,7 +108,16 @@ static SpaceLink *info_new(const bContext *UNUSED(C))
 	
 	BLI_addtail(&sinfo->regionbase, ar);
 	ar->regiontype = RGN_TYPE_WINDOW;
+
+	/* toolbar */
+	ar = MEM_callocN(sizeof(ARegion), "tools for info");
 	
+	BLI_addtail(&sinfo->regionbase, ar);
+	ar->regiontype = RGN_TYPE_TOOLS;
+	ar->alignment = RGN_ALIGN_LEFT;
+	
+	ar->flag = RGN_FLAG_HIDDEN;
+
 	/* keep in sync with console */
 	ar->v2d.scroll |= (V2D_SCROLL_RIGHT);
 	ar->v2d.align |= V2D_ALIGN_NO_NEG_X | V2D_ALIGN_NO_NEG_Y; /* align bottom left */
@@ -133,6 +168,9 @@ static void info_main_area_init(wmWindowManager *wm, ARegion *ar)
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 
 	/* own keymap */
+	keymap = WM_keymap_find(wm->defaultconf, "Info Generic", SPACE_INFO, 0);
+	WM_event_add_keymap_handler(&ar->handlers, keymap);
+
 	keymap = WM_keymap_find(wm->defaultconf, "Info", SPACE_INFO, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
@@ -206,6 +244,9 @@ static void info_operatortypes(void)
 	WM_operatortype_append(INFO_OT_report_replay);
 	WM_operatortype_append(INFO_OT_report_delete);
 	WM_operatortype_append(INFO_OT_report_copy);
+
+	/* info_toolbar.c */
+	WM_operatortype_append(INFO_OT_toolbar);
 }
 
 static void info_keymap(struct wmKeyConfig *keyconf)
@@ -214,10 +255,15 @@ static void info_keymap(struct wmKeyConfig *keyconf)
 	
 	WM_keymap_verify_item(keymap, "INFO_OT_reports_display_update", TIMERREPORT, KM_ANY, KM_ANY, 0);
 
+	/* Entire Editor only ----------------- */
+	keymap = WM_keymap_find(keyconf, "Info Generic", SPACE_INFO, 0);
+
+	WM_keymap_add_item(keymap, "INFO_OT_toolbar", TKEY, KM_PRESS, 0, 0);
+
+
 	/* info space */
 	keymap = WM_keymap_find(keyconf, "Info", SPACE_INFO, 0);
-	
-	
+
 	/* report selection */
 	WM_keymap_add_item(keymap, "INFO_OT_select_pick", SELECTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "INFO_OT_select_all_toggle", AKEY, KM_PRESS, 0, 0);
@@ -286,6 +332,34 @@ static void info_header_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegi
 	
 }
 
+static void info_toolbar_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
+{
+	/* context changes */
+	switch (wmn->category) {
+		case NC_SPACE:
+			if (wmn->data == ND_SPACE_INFO)
+				ED_region_tag_redraw(ar);
+			break;
+	}
+}
+
+
+/* add handlers, stuff you only do once or on area/region changes */
+static void info_toolbar_area_init(wmWindowManager *wm, ARegion *ar)
+{
+	wmKeyMap *keymap;
+
+	ED_region_panels_init(wm, ar);
+
+	keymap = WM_keymap_find(wm->defaultconf, "Info Generic", SPACE_NODE, 0);
+	WM_event_add_keymap_handler(&ar->handlers, keymap);
+}
+
+static void info_toolbar_area_draw(const bContext *C, ARegion *ar)
+{
+	ED_region_panels(C, ar, 1, NULL, -1);
+}
+
 static void recent_files_menu_draw(const bContext *UNUSED(C), Menu *menu)
 {
 	struct RecentFile *recent;
@@ -337,7 +411,7 @@ void ED_spacetype_info(void)
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype info region");
 	art->regionid = RGN_TYPE_WINDOW;
-	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
+	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES;
 
 	art->init = info_main_area_init;
 	art->draw = info_main_area_draw;
@@ -358,6 +432,20 @@ void ED_spacetype_info(void)
 	BLI_addhead(&st->regiontypes, art);
 	
 	recent_files_menu_register();
+	
+	/* regions: toolbar */
+	art = MEM_callocN(sizeof(ARegionType), "spacetype info tools region");
+	art->regionid = RGN_TYPE_TOOLS;
+	art->prefsizex = 160;
+	art->prefsizey = 50;
+	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
+	art->listener = info_toolbar_listener;
+	art->init = info_toolbar_area_init;
+	art->draw = info_toolbar_area_draw;
+	
+	BLI_addhead(&st->regiontypes, art);
+	
+	info_toolbar_register(art);
 
 	BKE_spacetype_register(st);
 }
