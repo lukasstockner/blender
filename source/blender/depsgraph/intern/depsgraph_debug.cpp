@@ -710,6 +710,16 @@ static string get_component_name(eDepsNode_Type type, const string &name = "")
 		return string_format("%s | %s", factory->tname().c_str(), name.c_str());
 }
 
+static void times_clear(DepsgraphStatsTimes &times)
+{
+	times.duration_last = 0.0f;
+}
+
+static void times_add(DepsgraphStatsTimes &times, float time)
+{
+	times.duration_last += time;
+}
+
 void DepsgraphDebug::eval_begin(eEvaluationContextType context_type)
 {
 	verify_stats(&U.depsgraph_settings);
@@ -729,8 +739,23 @@ void DepsgraphDebug::eval_step(eEvaluationContextType context_type, const char *
 
 void DepsgraphDebug::task_started(const DepsgraphTask &task)
 {
-//	BLI_mutex_lock(&stats_mutex);
-//	BLI_mutex_unlock(&stats_mutex);
+	BLI_mutex_lock(&stats_mutex);
+	
+	OperationDepsNode *node = task.node;
+	ComponentDepsNode *comp = node->owner;
+	ID *id = comp->owner->id;
+	
+	DepsgraphStatsID *id_stats = get_id_stats(id, true);
+	times_clear(id_stats->times);
+	
+	/* XXX TODO use something like: if (id->flag & ID_DEG_DETAILS) {...} */
+	if (0) {
+		/* XXX component name usage needs cleanup! currently mixes identifier and description strings! */
+		DepsgraphStatsComponent *comp_stats = get_component_stats(id, get_component_name(comp->type, comp->name), true);
+		times_clear(comp_stats->times);
+	}
+	
+	BLI_mutex_unlock(&stats_mutex);
 }
 
 void DepsgraphDebug::task_completed(const DepsgraphTask &task, double time)
@@ -745,13 +770,13 @@ void DepsgraphDebug::task_completed(const DepsgraphTask &task, double time)
 	ID *id = comp->owner->id;
 	
 	DepsgraphStatsID *id_stats = get_id_stats(id, true);
-	id_stats->times.duration_last += time;
+	times_add(id_stats->times, time);
 	
 	/* XXX TODO use something like: if (id->flag & ID_DEG_DETAILS) {...} */
 	if (0) {
 		/* XXX component name usage needs cleanup! currently mixes identifier and description strings! */
 		DepsgraphStatsComponent *comp_stats = get_component_stats(id, get_component_name(comp->type, comp->name), true);
-		comp_stats->times.duration_last += time;
+		times_add(comp_stats->times, time);
 	}
 	
 	BLI_mutex_unlock(&stats_mutex);
