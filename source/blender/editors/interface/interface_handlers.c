@@ -7858,6 +7858,15 @@ static int ui_handle_menu_event(
 		if (event->customdata == menu->scrolltimer)
 			ui_menu_scroll(ar, block, my, NULL);
 	}
+	else if ((block->flag & UI_BLOCK_RADIAL) && but && (event->type == block->event) && event->val == KM_RELEASE) {
+		wmEvent local_event = *event;
+		local_event.type = RETKEY;
+		local_event.val = KM_PRESS;
+		ui_handle_menu_button(C, &local_event, menu);
+		local_event.type = RETKEY;
+		local_event.val = KM_RELEASE;
+		return ui_handle_menu_button(C, &local_event, menu);
+	}
 	else {
 		/* for ui_mouse_motion_towards_block */
 		if (event->type == MOUSEMOVE) {

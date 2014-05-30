@@ -2178,11 +2178,6 @@ struct uiPopupMenu {
 struct uiPieMenu {
 	uiBlock *block_radial; /* radial block of the pie menu (more could be added later) */
 	uiLayout *layout;
-
-	/*center coordinates of pie menu in window space */
-	int mx, my;
-	/* event that was used to fire up the pie. Used to detect when to quit */
-	short event;
 };
 
 static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, void *arg_pup)
@@ -2490,10 +2485,10 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 	pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY;
 	pie->block_radial->puphash = ui_popup_menu_hash(title);
 	pie->block_radial->flag |= UI_BLOCK_RADIAL;
+	pie->block_radial->event = event;
 
 	pie->layout = uiBlockLayout(pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
 
-	pie->event = event;
 
 	/* create title button */
 	if (title[0]) {
@@ -2520,10 +2515,6 @@ void uiPieMenuEnd(bContext *C, uiPieMenu *pie)
 {
 	wmWindow *window = CTX_wm_window(C);
 	uiPopupBlockHandle *menu;
-
-	/* initially start pie from mouse position */
-	pie->mx = window->eventstate->x;
-	pie->my = window->eventstate->y;
 
 	menu = ui_popup_block_create(C, NULL, NULL, NULL, ui_block_func_PIE, pie);
 	menu->popup = true;
