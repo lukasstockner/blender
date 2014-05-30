@@ -71,7 +71,7 @@ inline int cutGetMaxGflopsDeviceId()
     int device_count     = 0, best_SM_arch     = 0;
     int compat_major, compat_minor;
 
-    cuDeviceGetCount( &device_count );
+    cuda_assert(cuDeviceGetCount( &device_count ));
     // Find the best major SM Architecture GPU device
     while ( current_device < device_count ) {
         cuDeviceComputeCapability( &compat_major, &compat_minor, current_device );
@@ -130,6 +130,9 @@ static bool HAS_CUDA_VERSION_4_0 () {
             fprintf(stderr, "Loading CUDA failed.\n");
         }
 #    endif
+        // Need to initialize CUDA here so getting device
+        // with the maximum FPLOS works fine.
+        cuda_assert(cuInit(0));
 
         // This is to deal with cases like NVidia Optimus,
         // when there might be CUDA library installed but
