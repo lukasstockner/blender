@@ -162,14 +162,18 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 	/* XXX could use a separate pool for each eval context */
 	static DepsgraphTaskPool task_pool = DepsgraphTaskPool();
 	
+	/* recursively push updates out to all nodes dependent on this, 
+	 * until all affected are tagged and/or scheduled up for eval
+	 */
+	DEG_graph_flush_updates(graph);
+	
+	calculate_pending_parents(graph);
+	
 	/* clear tags */
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
 		OperationDepsNode *node = *it;
 		node->done = 0;
 	}
-	
-	calculate_pending_parents(graph);
-	
 	/* calculate priority for operation nodes */
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
 		OperationDepsNode *node = *it;
@@ -200,11 +204,6 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType contex
 #if 0 /* XXX TODO */
 	graph->tag_update(tsrc);
 #endif
-	
-	/* recursively push updates out to all nodes dependent on this, 
-	 * until all affected are tagged and/or scheduled up for eval
-	 */
-	DEG_graph_flush_updates(graph);
 	
 	/* perform recalculation updates */
 	DEG_evaluate_on_refresh(graph, context_type);
