@@ -198,7 +198,13 @@ static BMLoop *bm_loop_create(BMesh *bm, BMVert *v, BMEdge *e, BMFace *f,
 
 	/* --- assign all members --- */
 	l->head.data = NULL;
-	BM_elem_index_set(l, 0); /* set_loop */
+
+#ifdef USE_DEBUG_INDEX_MEMCHECK
+	DEBUG_MEMCHECK_INDEX_INVALIDATE(l)
+#else
+	BM_elem_index_set(l, -1); /* set_ok_invalid */
+#endif
+
 	l->head.hflag = 0;
 	l->head.htype = BM_LOOP;
 	l->head.api_flag = 0;
@@ -930,6 +936,9 @@ static bool bm_loop_reverse_loop(BMesh *bm, BMFace *f
 	}
 
 	BM_CHECK_ELEMENT(f);
+
+	/* Loop indices are no more valid! */
+	bm->elem_index_dirty |= BM_LOOP;
 
 	return true;
 }
@@ -1927,7 +1936,7 @@ BMFace *bmesh_jfke(BMesh *bm, BMFace *f1, BMFace *f2, BMEdge *e)
 	BLI_mempool_free(bm->fpool, f2);
 	bm->totface--;
 	/* account for both above */
-	bm->elem_index_dirty |= BM_EDGE | BM_FACE;
+	bm->elem_index_dirty |= BM_EDGE | BM_LOOP | BM_FACE;
 
 	BM_CHECK_ELEMENT(f1);
 

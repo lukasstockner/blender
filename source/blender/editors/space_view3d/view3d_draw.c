@@ -2423,7 +2423,7 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 	Scene *sce_iter;
 	Base *base;
 	Object *ob;
-	SceneRenderLayer *srl = BLI_findlink(&scene->r.layers, scene->r.actlay);
+	SceneRenderLayer *srl = v3d->scenelock ? BLI_findlink(&scene->r.layers, scene->r.actlay) : NULL;
 	
 	BLI_listbase_clear(&shadows);
 	
@@ -2460,7 +2460,7 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 		
 		v3d->drawtype = OB_SOLID;
 		v3d->lay &= GPU_lamp_shadow_layer(shadow->lamp);
-		v3d->flag2 &= ~V3D_SOLID_TEX;
+		v3d->flag2 &= ~V3D_SOLID_TEX | V3D_SHOW_SOLID_MATCAP;
 		v3d->flag2 |= V3D_RENDER_OVERRIDE | V3D_RENDER_SHADOW;
 		
 		GPU_lamp_shadow_buffer_bind(shadow->lamp, viewmat, &winsize, winmat);
@@ -2733,6 +2733,10 @@ static void view3d_draw_objects(
 	if (v3d->zbuf) {
 		v3d->zbuf = false;
 		glDisable(GL_DEPTH_TEST);
+	}
+
+	if ((v3d->flag2 & V3D_RENDER_SHADOW) == 0) {
+		GPU_free_images_old();
 	}
 }
 
