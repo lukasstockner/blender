@@ -61,9 +61,10 @@ typedef struct BakeHighPolyData {
 	struct ModifierData *tri_mod;
 	struct Mesh *me;
 	char restrict_flag;
-	float mat_high[4][4];
-	float imat_high[4][4];
-	float scale;
+
+	float obmat[4][4];
+	float imat[4][4];
+	float rotmat[4][4];
 } BakeHighPolyData;
 
 /* external_engine.c */
@@ -102,6 +103,6 @@ void RE_bake_normal_world_to_world(
         const BakePixel pixel_array[], const int num_pixels, const int depth, float result[],
         const BakeNormalSwizzle normal_swizzle[3]);
 
-void RE_bake_ibuf_clear(struct BakeImages *bake_images, const bool is_tangent);
+void RE_bake_ibuf_clear(struct Image *image, const bool is_tangent);
 
 #endif  /* __RE_BAKE_H__ */
