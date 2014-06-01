@@ -257,21 +257,16 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		/* XXX insert appropriate version later!*/
 		Scene *sc;
 		Key *k;
-		Object *ob;
+		//Object *ob;
 
 		/* Enable auto-committing shape keys! */
 		for (sc = main->scene.first; sc; sc = sc->id.next) {
 			sc->toolsettings->kb_auto_commit = true;
 		}
 
+		/* set mixing to be governed by animdata */
 		for (k = main->key.first; k; k = k->id.next) {
 			k->mix_mode = KEY_MIX_FROM_ANIMDATA;
-
-			for (ob = main->object.first; ob; ob = ob->id.next) {
-				if (BKE_key_from_object(ob) == k) {
-					k->pin = ob->shapeflag != 0;
-				}
-			}
 		}
 	}
 

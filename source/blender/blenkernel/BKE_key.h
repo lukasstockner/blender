@@ -93,8 +93,13 @@ void BKE_key_editdata_to_scratch(Object *ob, bool shapedata_indeces_in_sync);
 /* populates the current editdata from scratch shapekey */
 void BKE_key_editdata_from_scratch(Object *ob);
 
+/* ==== editmote evaluation ==== */
+
 /* evaluates the current shape key situation and puts it into the editmesh coordinates */
 void BKE_key_eval_editmesh_rel(BMEditMesh *edbm, bool pinned);
+
+/* evaluates a relative mesh keyblock and puts the resulting offsets in out_offsets */
+void BKE_key_block_mesh_eval_rel(Object *ob, Key *key, KeyBlock *kb, bool use_vgroup, float (*out_offsets)[3]);
 
 /* ========================= */
 

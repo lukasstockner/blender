@@ -492,6 +492,12 @@ void EDBM_flag_enable_all(BMEditMesh *em, const char hflag)
 * The idea: detect if topology hadn't changed. If it had, run the heavy-duty tools from bmesh_mesh_conv.c.
 */
 
+void shapekey_zero_warn(KeyBlock *kb) 
+{
+	/* TODO: raise a UI warning */
+	printf("Warning: can't commit the scratch shape key: %s->value = 0.0\n", kb->name);
+}
+
 void update_bmesh_shapes(Object *ob)
 {
 	Key *key = BKE_key_from_object(ob);
@@ -503,11 +509,11 @@ void update_bmesh_shapes(Object *ob)
 		CustomData *vdata = &bm->vdata;
 		KeyBlock *kb;
 		int i, j, index;
-		float(*kbco)[3] = NULL;
+		float (*kbco)[3] = NULL;
 		float *cdco = NULL;
 
 		LISTBASE_ITER_FWD_INDEX(key->block, kb, i) {
-			/* find any keyblocks that don't have a correspoing CD_SHAPEKEY */
+			/* find any keyblocks that don't have a corresponding CD_SHAPEKEY */
 			index = CustomData_get_named_layer_index(vdata, CD_SHAPEKEY, kb->name);
 			if (index == -1) {
 				/* this code can hardly ever be ran, but theoretically, if there's a new keyblock somehow... */
@@ -523,17 +529,25 @@ void update_bmesh_shapes(Object *ob)
 				copy_v3_v3(cdco, kbco[j]);
 			}
 		}
+
+		kb = BLI_findlink(&key->block, ob->shapenr - 1);
+		kbco = kb->data;
+		/* fix up the editcos along the CD_SHAPEKEY too */
+		BM_ITER_MESH_INDEX(v, &iter, bm, BM_VERTS_OF_MESH, j) {
+			copy_v3_v3(v->co, kbco[j]);
+		}
+
 	}
 }
 
-void recalc_keyblocks_from_scratch(Object *ob)
+void recalc_keyblocks_from_scratch(Object *ob, bool pinned)
 {
 	Key *k = BKE_key_from_object(ob);
 	Mesh *me = ob->data;
 
 	ScratchKeyBlock *skb = &k->scratch;
 	KeyBlock *old_active = skb->origin,
-		*kb = BKE_keyblock_from_object(ob);
+		*kb;
 
 	ListBase kbs = k->block;
 
@@ -542,12 +556,46 @@ void recalc_keyblocks_from_scratch(Object *ob)
 
 	float (*offsets_co)[3] = NULL;
 	float (*skb_co)[3] = skb->data;
-	float (*kb_co)[3];
+	float (*kb_co)[3] = NULL;
 
 	if (k->type == KEY_RELATIVE) {
-		/* find all keyblocks that are the basis for the active keyblock */
-		LISTBASE_ITER_FWD_INDEX(kbs, kb, a) {
 
+		if (!pinned) {
+			float scratch_val = *BKE_keyblock_get_active_value(k, old_active);
+			KeyBlock *old_kb_base = BLI_findlink(&kbs, old_active->relative);
+			float (*old_kb_baseco)[3] = old_kb_base->data;
+
+			BLI_assert(fabs(scratch_val) > 0.001f);
+
+			float (*submix_kb_offset_co)[3] = MEM_callocN(sizeof(float) * 3 * old_active->totelem, __func__);
+			/* if the key wasn't pinned, it means we have to subtract all other keys from the scratch
+				* from the mix before getting the offsets */
+			LISTBASE_ITER_FWD_INDEX(kbs, kb, a) {
+				if (a == old_index || a == 0)
+					continue;
+				BKE_key_block_mesh_eval_rel(ob, k, kb, false, submix_kb_offset_co);
+				for (b = 0; b < old_active->totelem; ++b) {
+					sub_v3_v3(skb_co[b], submix_kb_offset_co[b]);
+				}
+			}
+
+			for (b = 0; b < old_active->totelem; ++b) {
+				/* now for a less intuitive operation - weight correction.
+				 * data in keyblock should ALWAYS correspond to keyblock @ 1.0 value,
+				 * but while editing a mix, we don't necessary have 1.0 value, so let's correct for it
+				/* see http://wiki.blender.org/index.php/File:Gsoc-keys-mix-recalc-relations.png */
+				sub_v3_v3(skb_co[b], old_kb_baseco[b]);
+				/* scale the offset to 1.0 value */
+				mul_v3_fl(skb_co[b], 1.0f / scratch_val);
+				/* add the basis back */
+				add_v3_v3(skb_co[b], old_kb_baseco[b]);
+			}
+
+			MEM_freeN(submix_kb_offset_co);
+		}
+
+		LISTBASE_ITER_FWD_INDEX(kbs, kb, a) {
+			/* for all keyblocks, find their relative keyblock */
 			if (kb != k->refkey)
 				BLI_assert(kb->relative != a);
 			/* kb can't be relative to itself (except for refkey, it can trigger strange asserts and doesn't matter) */
@@ -557,7 +605,7 @@ void recalc_keyblocks_from_scratch(Object *ob)
 				/* need to propagate the offsets */
 				if (!offsets_co) {
 					/* calculate them if we haven't already */
-					offsets_co = MEM_mallocN(sizeof(float)* 3 * old_active->totelem, __func__);
+					offsets_co = MEM_mallocN(sizeof(float) * 3 * old_active->totelem, __func__);
 					kb_co = old_active->data;
 					for (b = 0; b < old_active->totelem; ++b)
 						sub_v3_v3v3(offsets_co[b], skb_co[b], kb_co[b]);
@@ -581,8 +629,7 @@ void recalc_keyblocks_from_scratch(Object *ob)
 		MEM_freeN(offsets_co);
 }
 
-
-void EDBM_commit_scratch_to_active(Object *ob, Scene *s)
+void EDBM_commit_scratch_to_active(Object *ob, Scene *s, bool key_pinned)
 {
 	BMEditMesh *em = BKE_editmesh_from_object(ob);
 	Key *key = BKE_key_from_object(ob);
@@ -601,8 +648,19 @@ void EDBM_commit_scratch_to_active(Object *ob, Scene *s)
 	else {
 		/* update scratch from editdata */
 		BKE_key_editdata_to_scratch(ob, true);
+
+		if (!key_pinned) {
+			/* assert that the keyblock's we're recalculating from has 
+			 * value != 0.0, or we can't commit/recalc */
+			KeyBlock *old_kb = key->scratch.origin;
+			float kbval = *BKE_keyblock_get_active_value(key, old_kb);
+			if (fabs(kbval) < 0.001f) {
+				shapekey_zero_warn(old_kb);
+				return;
+			}
+		}
 		/* faster keyblock recalc */
-		recalc_keyblocks_from_scratch(ob);
+		recalc_keyblocks_from_scratch(ob, key_pinned);
 		/* update shapes customdata on bmesh from recalced keyblocks */
 		update_bmesh_shapes(ob);	
 	}
@@ -620,17 +678,18 @@ void EDBM_update_scratch_from_active(Object *ob)
 	if (oldorigin->totelem != neworigin->totelem) {
 		if (k->scratch.data) {
 			MEM_freeN(k->scratch.data);
-			MEM_mallocN(sizeof(float)* 3 * neworigin->totelem, "scratch keyblock data");
+			MEM_mallocN(sizeof(float) * 3 * neworigin->totelem, "scratch keyblock data");
 		}
 	}
 	/* neworigin -> scratch */
 	BLI_assert(neworigin->totelem == BKE_editmesh_from_object(ob)->bm->totvert);
-	memcpy(k->scratch.data, neworigin->data, sizeof(float)* 3 * neworigin->totelem);
+	memcpy(k->scratch.data, neworigin->data, sizeof(float) * 3 * neworigin->totelem);
 }
 
 void EDBM_editmesh_from_mesh(Object *ob, Scene *scene)
 {
 	BMEditMesh *em;
+	Key *k = BKE_key_from_object(ob); 
 
 	scene->obedit = ob;  /* context sees this */
 
@@ -643,14 +702,19 @@ void EDBM_editmesh_from_mesh(Object *ob, Scene *scene)
 		BKE_editmesh_tessface_calc(em);
 		BM_mesh_select_mode_flush(em->bm);
 	}
-	/* XXX for meshes only YET */
-	BKE_key_init_scratch(ob);
+
+	if (k) {
+		BKE_key_init_scratch(ob);
+		BKE_key_eval_editmesh_rel(em, k->pin);
+	}
 }
 
 bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 {
 	Mesh *me = obedit->data;
 	BMEditMesh *em = me->edit_btmesh;
+
+	Key *key = BKE_key_from_object(obedit);
 
 	if (me->edit_btmesh->bm->totvert > MESH_MAX_VERTS) {
 		return false;
@@ -661,13 +725,22 @@ bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 			BKE_key_editdata_to_scratch(obedit, false);
 		}
 		else {
+			if (key->pin) {
+				KeyBlock *old_kb = key->scratch.origin;
+				float kbval = *BKE_keyblock_get_active_value(key, old_kb);
+				if (fabs(kbval) < 0.001f) {
+					shapekey_zero_warn(old_kb);
+					return true;
+				}
+			}
 			BKE_key_editdata_to_scratch(obedit, true);
-			recalc_keyblocks_from_scratch(obedit);
+			recalc_keyblocks_from_scratch(obedit, key->pin);
 			update_bmesh_shapes(obedit);
 		}
 	}
 
 	EDBM_mesh_load(obedit);
+
 	EDBM_mesh_normals_update(em);
 	BKE_editmesh_tessface_calc(em);
 
@@ -700,7 +773,7 @@ void EDBM_handle_active_shape_update(Object *ob, Scene *s)
 
 	/* handle auto-committing */
 	if (s->toolsettings->kb_auto_commit) {
-		EDBM_commit_scratch_to_active(ob, s);
+		EDBM_commit_scratch_to_active(ob, s, key->pin);
 		EDBM_update_scratch_from_active(ob);
 		em = BKE_editmesh_from_object(ob);
 		BKE_key_eval_editmesh_rel(em, key->pin);

@@ -521,11 +521,6 @@ ModifierData *modifiers_getVirtualModifierList(Object *ob, VirtualModifierData *
 
 	/* shape key modifier, not yet for curves */
 	if (ELEM(ob->type, OB_MESH, OB_LATTICE) && key) {
-		if (ob->type == OB_MESH && key->pin)
-			virtualModifierData->smd.modifier.mode |= eModifierMode_Editmode | eModifierMode_OnCage;
-		else
-			virtualModifierData->smd.modifier.mode &= ~eModifierMode_Editmode | eModifierMode_OnCage;
-
 		virtualModifierData->smd.modifier.next = md;
 		md = &virtualModifierData->smd.modifier;
 	}

@@ -43,6 +43,7 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
+#include "ED_mesh.h"
 
 #include "rna_internal.h"
 
@@ -388,12 +389,51 @@ static void rna_Key_update_data(Main *bmain, Scene *UNUSED(scene), PointerRNA *p
 	Key *key = ptr->id.data;
 	Object *ob;
 
+	bool topo_change;
+
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-		if (BKE_key_from_object(ob) == key) {
-			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-			WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+		if (BKE_key_from_object(ob) == key) 
+			break;
+	}
+
+	if (ob->mode == OB_MODE_EDIT) {
+		if (ob->type == OB_MESH) {
+			Mesh *me = (Mesh *) key->from;
+			if (key->type == KEY_RELATIVE) {
+				topo_change = BKE_editmesh_topo_has_changed(me->edit_btmesh);
+				BKE_key_editdata_to_scratch(ob, !topo_change);
+				if (!topo_change) {
+					BKE_key_eval_editmesh_rel(me->edit_btmesh, key->pin);
+				}
+				/* don't evaluate anything if the topology is changed */
+			}
 		}
 	}
+
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
+}
+
+static void rna_Key_switch_pinning(Main *bmain, Scene *scene, PointerRNA *ptr) 
+{
+	Key *key = ptr->id.data;
+	Object *ob = NULL;
+
+	for (ob = bmain->object.first; ob; ob = ob->id.next) {
+		if (BKE_key_from_object(ob) == key) 
+			break;
+	}
+
+	BLI_assert(ob);
+
+	if (ob->mode == OB_MODE_EDIT) {
+		Mesh *me = ob->data;
+		EDBM_commit_scratch_to_active(ob, scene, !key->pin);
+		BKE_key_eval_editmesh_rel(me->edit_btmesh, key->pin);
+	}
+	
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
 }
 
 static KeyBlock *rna_ShapeKeyData_find_keyblock(Key *key, float *point)
@@ -701,7 +741,7 @@ static void rna_def_key(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "pin", 0);
 	RNA_def_property_ui_text(prop, "Shape Key Lock", "Always show the current Shape for this Key");
 	RNA_def_property_ui_icon(prop, ICON_UNPINNED, 1);
-	RNA_def_property_update(prop, 0, "rna_Key_update_data");
+	RNA_def_property_update(prop, 0, "rna_Key_switch_pinning");
 
 
 	prop = RNA_def_property(srna, "eval_time", PROP_FLOAT, PROP_NONE);

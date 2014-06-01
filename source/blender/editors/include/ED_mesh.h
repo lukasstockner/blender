@@ -104,7 +104,8 @@ bool EDBM_mesh_from_editmesh(struct Object *obedit, bool do_free);
 /* updates the active shape, recalculates the key blocks */
 void EDBM_handle_active_shape_update(struct Object *ob, struct Scene *s);
 
-void EDBM_commit_scratch_to_active(struct Object *ob, struct Scene *s);
+/* commit the scratch keyblock's contents to the active keyblock, recalc the keyblocks */
+void EDBM_commit_scratch_to_active(struct Object *ob, struct Scene *s, bool key_is_pinned);
 void EDBM_update_scratch_from_active(struct Object *ob);
 
 

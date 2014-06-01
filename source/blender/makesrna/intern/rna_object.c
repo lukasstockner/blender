@@ -271,7 +271,6 @@ static void rna_Object_active_shape_update(Main *bmain, Scene *scene, PointerRNA
 	Object *ob = ptr->id.data;
 
 	if (scene->obedit == ob) {
-		/* exit/enter editmode to get new shape */
 		switch (ob->type) {
 			case OB_MESH:
 				EDBM_handle_active_shape_update(ob, scene);

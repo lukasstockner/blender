@@ -2090,8 +2090,8 @@ void BKE_key_init_scratch(Object *ob)
 		key->scratch.origin = kb;
 		if (!key->scratch.data) {
 			key->scratch.data = MEM_mallocN(key->elemsize * kb->totelem, "scratch keyblock data");
-			memcpy(key->scratch.data, kb->data, key->elemsize * kb->totelem);
 		}
+		memcpy(key->scratch.data, kb->data, key->elemsize * kb->totelem);
 	}
 }
 
@@ -2190,7 +2190,7 @@ void key_block_mesh_get_deltas(Key *key, KeyBlock *kb, float (*out_deltas)[3])
 		sub_v3_v3v3(out_deltas[a], kb_cos[a], basis_cos[a]);
 }
 
-void key_block_mesh_eval_rel(Object *ob, Key *key, KeyBlock *kb, bool use_vgroup, float (*out_offsets)[3])
+void BKE_key_block_mesh_eval_rel(Object *ob, Key *key, KeyBlock *kb, bool use_vgroup, float (*out_offsets)[3])
 {
 	int a;
 	float *per_vertex_weights = NULL;
@@ -2218,14 +2218,13 @@ void key_block_mesh_eval_rel(Object *ob, Key *key, KeyBlock *kb, bool use_vgroup
 
 void key_block_mesh_eval_scratch(Object *ob, Key *key, float (*out_offsets)[3])
 {
-	/* we need to eval the regular key, but with scratch's data */
+	/* we need to eval a regular key, but with scratch's data */
 	ScratchKeyBlock *skb = &key->scratch;
 	KeyBlock bogus; 
-	bogus.data = skb->data;
+	
+	bogus = *skb->origin;
 
-	BKE_keyblock_copy_settings(&bogus, skb->origin);
-
-	key_block_mesh_eval_rel(ob, key, &bogus, false, out_offsets);
+	BKE_key_block_mesh_eval_rel(ob, key, &bogus, false, out_offsets);
 }
 
 void BKE_key_eval_editmesh_rel(BMEditMesh *edbm, bool pinned) 
@@ -2266,7 +2265,7 @@ void BKE_key_eval_editmesh_rel(BMEditMesh *edbm, bool pinned)
 			if (a == 0 || a == act_shape_index)
 				continue;
 			
-			key_block_mesh_eval_rel(edbm->ob, key, kb, true, kb_offsets_cos);
+			BKE_key_block_mesh_eval_rel(edbm->ob, key, kb, true, kb_offsets_cos);
 
 			KB_FOR_EACH_CO(kb, b) {
 				add_v3_v3(out_vcos[b], kb_offsets_cos[b]);
