@@ -28,6 +28,7 @@ set(INC
 	../../makesrna
 	../../windowmanager
 	../../collada
+	../../../../extern/opennurbs
 )
 
 set(INC_SYS
@@ -35,9 +36,11 @@ set(INC_SYS
 )
 
 set(SRC
+	io_rhino.cpp
 	io_collada.c
 	io_ops.c
 
+	io_rhino.h
 	io_collada.h
 	io_ops.h
 )
