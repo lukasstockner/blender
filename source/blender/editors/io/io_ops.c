@@ -30,6 +30,7 @@
 
 
 #include "io_collada.h"
+#include "io_rhino.h"
 
 #include "BLI_utildefines.h"
 
@@ -45,4 +46,6 @@ void ED_operatortypes_io(void)
 	WM_operatortype_append(WM_OT_collada_export);
 	WM_operatortype_append(WM_OT_collada_import);
 #endif
+	WM_operatortype_append(WM_OT_rhino_export);
+	WM_operatortype_append(WM_OT_rhino_import);
 }

@@ -1876,6 +1876,7 @@ elseif(APPLE)
 	
 	if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
 		set(OPENMP_FOUND ON)
+		set(OPENMP_LIBRARY iomp5)
 		set(OpenMP_C_FLAGS "-fopenmp" CACHE STRING "C compiler flags for OpenMP parallization" FORCE)
 		set(OpenMP_CXX_FLAGS "-fopenmp" CACHE STRING "C++ compiler flags for OpenMP parallization" FORCE)
 		include_directories(${LIBDIR}/openmp/include)

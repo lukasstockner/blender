@@ -120,7 +120,6 @@ def modules_from_path(path, loaded_modules):
         mod = _test_import(mod_name, loaded_modules)
         if mod:
             modules.append(mod)
-
     return modules
 
 

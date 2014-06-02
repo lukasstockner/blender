@@ -158,6 +158,7 @@ class INFO_MT_file_import(Menu):
     def draw(self, context):
         if bpy.app.build_options.collada:
             self.layout.operator("wm.collada_import", text="Collada (Default) (.dae)")
+        self.layout.operator("wm.rhino_import", text="Rhino (.3dm)")
 
 
 class INFO_MT_file_export(Menu):
@@ -167,6 +168,7 @@ class INFO_MT_file_export(Menu):
     def draw(self, context):
         if bpy.app.build_options.collada:
             self.layout.operator("wm.collada_export", text="Collada (Default) (.dae)")
+        self.layout.operator("wm.rhino_export", text="Rhino (.3dm)")
 
 
 class INFO_MT_file_external_data(Menu):
