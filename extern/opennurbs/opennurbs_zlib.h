@@ -29,17 +29,18 @@
 // header files are included by opennurbs.h.
 
 
-#if !defined(Z_PREFIX)
+// Remove z_ prefix, we're using the system zlib.
+//#if !defined(Z_PREFIX)
 /* decorates zlib functions with a "z_" prefix to prevent symbol collision. */
-#define Z_PREFIX
-#endif
+//#define Z_PREFIX
+//#endif
 
 #if !defined(MY_ZCALLOC)
 /* have zlib use oncalloc() and onfree() for memory managment*/
 #define MY_ZCALLOC
 #endif
 
-#include "./zlib/zlib.h"
+#include <zlib.h>
 
 ON_BEGIN_EXTERNC
 voidpf zcalloc (voidpf, unsigned, unsigned);
