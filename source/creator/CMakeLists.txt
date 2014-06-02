@@ -1013,7 +1013,6 @@ endif()
 		extern_wcwidth
 		extern_libmv
 		extern_opennurbs
-		extern_ON_zlib
 	)
 
 	if(WITH_COMPOSITOR)
