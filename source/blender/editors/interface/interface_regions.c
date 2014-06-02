@@ -1579,14 +1579,22 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 	/* clip block with window boundary */
 	ui_popup_block_clip(window, block);
 	
-	/* the block and buttons were positioned in window space as in 2.4x, now
-	 * these menu blocks are regions so we bring it back to region space.
-	 * additionally we add some padding for the menu shadow or rounded menus */
-	ar->winrct.xmin = block->rect.xmin - width;
-	ar->winrct.xmax = block->rect.xmax + width;
-	ar->winrct.ymin = block->rect.ymin - width;
-	ar->winrct.ymax = block->rect.ymax + MENU_TOP;
-	
+	if (block->flag & UI_BLOCK_RADIAL) {
+		/* find area that spawned this menu, keep it inside */
+		ScrArea *sa = CTX_wm_area(C);
+
+		ar->winrct = sa->totrct;
+	}
+	else {
+		/* the block and buttons were positioned in window space as in 2.4x, now
+		 * these menu blocks are regions so we bring it back to region space.
+		 * additionally we add some padding for the menu shadow or rounded menus */
+		ar->winrct.xmin = block->rect.xmin - width;
+		ar->winrct.xmax = block->rect.xmax + width;
+		ar->winrct.ymin = block->rect.ymin - width;
+		ar->winrct.ymax = block->rect.ymax + MENU_TOP;
+	}
+
 	ui_block_translate(block, -ar->winrct.xmin, -ar->winrct.ymin);
 
 	/* adds subwindow */
