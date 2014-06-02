@@ -33,6 +33,8 @@
 extern "C" {
 #endif
 
+#include <stdio.h>
+
 #include "DNA_listBase.h"
 
 struct DepsgraphSettings;

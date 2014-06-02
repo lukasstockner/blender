@@ -26,7 +26,6 @@
  * Implementation of Querying and Filtering API's
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -695,7 +694,6 @@ void DEG_debug_eval_end(void)
 
 void DEG_debug_eval_init(void *userdata, DEG_DebugEvalCb cb) {}
 void DEG_debug_eval_end(void) {}
-void DEG_debug_eval_step(const char *message) {}
 
 #endif /* DEG_DEBUG_BUILD */
 
@@ -733,8 +731,10 @@ void DepsgraphDebug::eval_end(eEvaluationContextType context_type)
 
 void DepsgraphDebug::eval_step(eEvaluationContextType context_type, const char *message)
 {
+#ifdef DEG_DEBUG_BUILD
 	if (deg_debug_eval_cb)
 		deg_debug_eval_cb(deg_debug_eval_userdata, message);
+#endif
 }
 
 void DepsgraphDebug::task_started(const DepsgraphTask &task)
