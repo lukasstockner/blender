@@ -2053,7 +2053,7 @@ static int wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *e
 
 	uiPieMenuInvoke(C, idname, event->type);
 
-	return OPERATOR_CANCELLED;
+	return OPERATOR_FINISHED;
 }
 
 static void WM_OT_call_pie_menu(wmOperatorType *ot)

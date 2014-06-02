@@ -310,7 +310,7 @@ static void rna_PupMenuEnd(bContext *C, PointerRNA *handle)
 	uiPupMenuEnd(C, handle->data);
 }
 
-/* popup menu wrapper */
+/* pie menu wrapper */
 static PointerRNA rna_PieMenuBegin(bContext *C, const char *title, int icon, int type)
 {
 	PointerRNA r_ptr;

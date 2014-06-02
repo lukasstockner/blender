@@ -579,7 +579,7 @@ class WM_OT_context_pie_enum(Operator):
 
         context.window_manager.pie_menu(draw_func=draw_cb, title=prop.name, icon=prop.icon, event=event)
 
-        return {'PASS_THROUGH'}
+        return {'FINISHED'}
 
 
 class WM_OT_context_set_id(Operator):

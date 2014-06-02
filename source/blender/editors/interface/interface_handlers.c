@@ -6348,7 +6348,7 @@ static void ui_blocks_set_tooltips(ARegion *ar, const bool enable)
 static bool ui_mouse_inside_region(ARegion *ar, int x, int y)
 {
 	uiBlock *block;
-	
+
 	/* check if the mouse is in the region */
 	if (!BLI_rcti_isect_pt(&ar->winrct, x, y)) {
 		for (block = ar->uiblocks.first; block; block = block->next)
@@ -6396,9 +6396,8 @@ static void ui_block_calculate_pie_segment(const float mx, const float my, float
 
 static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y)
 {
-	uiBlock *block = but->block;
 	float mx, my;
-	float seg[2];
+	uiBlock *block = but->block;
 
 	if (!ui_mouse_inside_region(ar, x, y))
 		return false;
@@ -6408,11 +6407,11 @@ static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y)
 
 	ui_window_to_block_fl(ar, block, &mx, &my);
 
-	if (block->flag & UI_BLOCK_RADIAL) {
-		ui_block_calculate_pie_segment(mx, my, seg, block);
-	}
-
 	if (but->dt == UI_EMBOSSR) {
+		float seg[2];
+
+		ui_block_calculate_pie_segment(mx, my, seg, block);
+
 		if (!ui_but_isect_pie_seg(block, but, seg)) {
 			return false;
 		}
