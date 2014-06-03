@@ -739,47 +739,48 @@ void DepsgraphDebug::eval_step(eEvaluationContextType context_type, const char *
 
 void DepsgraphDebug::task_started(const DepsgraphTask &task)
 {
-	BLI_mutex_lock(&stats_mutex);
-	
-	OperationDepsNode *node = task.node;
-	ComponentDepsNode *comp = node->owner;
-	ID *id = comp->owner->id;
-	
-	DepsgraphStatsID *id_stats = get_id_stats(id, true);
-	times_clear(id_stats->times);
-	
-	/* XXX TODO use something like: if (id->flag & ID_DEG_DETAILS) {...} */
-	if (0) {
-		/* XXX component name usage needs cleanup! currently mixes identifier and description strings! */
-		DepsgraphStatsComponent *comp_stats = get_component_stats(id, get_component_name(comp->type, comp->name), true);
-		times_clear(comp_stats->times);
+	if (stats) {
+		BLI_mutex_lock(&stats_mutex);
+		
+		OperationDepsNode *node = task.node;
+		ComponentDepsNode *comp = node->owner;
+		ID *id = comp->owner->id;
+		
+		DepsgraphStatsID *id_stats = get_id_stats(id, true);
+		times_clear(id_stats->times);
+		
+		/* XXX TODO use something like: if (id->flag & ID_DEG_DETAILS) {...} */
+		if (0) {
+			/* XXX component name usage needs cleanup! currently mixes identifier and description strings! */
+			DepsgraphStatsComponent *comp_stats = get_component_stats(id, get_component_name(comp->type, comp->name), true);
+			times_clear(comp_stats->times);
+		}
+		
+		BLI_mutex_unlock(&stats_mutex);
 	}
-	
-	BLI_mutex_unlock(&stats_mutex);
 }
 
 void DepsgraphDebug::task_completed(const DepsgraphTask &task, double time)
 {
-	if (!stats)
-		return;
-	
-	BLI_mutex_lock(&stats_mutex);
-	
-	OperationDepsNode *node = task.node;
-	ComponentDepsNode *comp = node->owner;
-	ID *id = comp->owner->id;
-	
-	DepsgraphStatsID *id_stats = get_id_stats(id, true);
-	times_add(id_stats->times, time);
-	
-	/* XXX TODO use something like: if (id->flag & ID_DEG_DETAILS) {...} */
-	if (0) {
-		/* XXX component name usage needs cleanup! currently mixes identifier and description strings! */
-		DepsgraphStatsComponent *comp_stats = get_component_stats(id, get_component_name(comp->type, comp->name), true);
-		times_add(comp_stats->times, time);
+	if (stats) {
+		BLI_mutex_lock(&stats_mutex);
+		
+		OperationDepsNode *node = task.node;
+		ComponentDepsNode *comp = node->owner;
+		ID *id = comp->owner->id;
+		
+		DepsgraphStatsID *id_stats = get_id_stats(id, true);
+		times_add(id_stats->times, time);
+		
+		/* XXX TODO use something like: if (id->flag & ID_DEG_DETAILS) {...} */
+		if (0) {
+			/* XXX component name usage needs cleanup! currently mixes identifier and description strings! */
+			DepsgraphStatsComponent *comp_stats = get_component_stats(id, get_component_name(comp->type, comp->name), true);
+			times_add(comp_stats->times, time);
+		}
+		
+		BLI_mutex_unlock(&stats_mutex);
 	}
-	
-	BLI_mutex_unlock(&stats_mutex);
 }
 
 /* ************************************************ */

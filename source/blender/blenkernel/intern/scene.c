@@ -1548,87 +1548,89 @@ static void scene_update_tagged_recursive(EvaluationContext *eval_ctx, Main *bma
 
 void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *scene)
 {
-	Scene *sce_iter;
-	
-	/********* new depsgraph *********/
-	if (scene->depsgraph)
-		DEG_evaluate_on_refresh(scene->depsgraph, eval_ctx->for_render ? DEG_EVALUATION_CONTEXT_RENDER : DEG_EVALUATION_CONTEXT_VIEWPORT);
-	/******************/
-	
-	/* keep this first */
-	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
-
-	/* (re-)build dependency graph if needed */
-	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set)
-		DAG_scene_relations_update(bmain, sce_iter);
-
-	/* flush recalc flags to dependencies */
-	DAG_ids_flush_tagged(bmain);
-
-	/* removed calls to quick_cache, see pointcache.c */
-	
-	/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
-	 * when trying to find materials with drivers that need evaluating [#32017] 
-	 */
-	BKE_main_id_tag_idcode(bmain, ID_MA, false);
-	BKE_main_id_tag_idcode(bmain, ID_LA, false);
-
-	/* update all objects: drivers, matrices, displists, etc. flags set
-	 * by depgraph or manual, no layer check here, gets correct flushed
-	 *
-	 * in the future this should handle updates for all datablocks, not
-	 * only objects and scenes. - brecht */
-	scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
-	/* update sound system animation (TODO, move to depsgraph) */
-	sound_update_scene(bmain, scene);
-
-	/* extra call here to recalc scene animation (for sequencer) */
-	{
-		AnimData *adt = BKE_animdata_from_id(&scene->id);
-		float ctime = BKE_scene_frame_get(scene);
+	if (DEG_get_eval_mode() == DEG_EVAL_MODE_OLD) {
+		Scene *sce_iter;
 		
-		if (adt && (adt->recalc & ADT_RECALC_ANIM))
-			BKE_animsys_evaluate_animdata(scene, &scene->id, adt, ctime, 0);
-	}
-
-	/* Extra call here to recalc material animation.
-	 *
-	 * Need to do this so changing material settings from the graph/dopesheet
-	 * will update stuff in the viewport.
-	 */
-	if (DAG_id_type_tagged(bmain, ID_MA)) {
-		Material *material;
-		float ctime = BKE_scene_frame_get(scene);
-
-		for (material = bmain->mat.first;
-		     material;
-		     material = material->id.next)
+		/* keep this first */
+		BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
+	
+		/* (re-)build dependency graph if needed */
+		for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set)
+			DAG_scene_relations_update(bmain, sce_iter);
+	
+		/* flush recalc flags to dependencies */
+		DAG_ids_flush_tagged(bmain);
+	
+		/* removed calls to quick_cache, see pointcache.c */
+		
+		/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
+		 * when trying to find materials with drivers that need evaluating [#32017] 
+		 */
+		BKE_main_id_tag_idcode(bmain, ID_MA, false);
+		BKE_main_id_tag_idcode(bmain, ID_LA, false);
+	
+		/* update all objects: drivers, matrices, displists, etc. flags set
+		 * by depgraph or manual, no layer check here, gets correct flushed
+		 *
+		 * in the future this should handle updates for all datablocks, not
+		 * only objects and scenes. - brecht */
+		scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
+		/* update sound system animation (TODO, move to depsgraph) */
+		sound_update_scene(bmain, scene);
+	
+		/* extra call here to recalc scene animation (for sequencer) */
 		{
-			AnimData *adt = BKE_animdata_from_id(&material->id);
+			AnimData *adt = BKE_animdata_from_id(&scene->id);
+			float ctime = BKE_scene_frame_get(scene);
+			
 			if (adt && (adt->recalc & ADT_RECALC_ANIM))
-				BKE_animsys_evaluate_animdata(scene, &material->id, adt, ctime, 0);
+				BKE_animsys_evaluate_animdata(scene, &scene->id, adt, ctime, 0);
 		}
-	}
-
-	/* Also do the same for node trees. */
-	if (DAG_id_type_tagged(bmain, ID_NT)) {
-		float ctime = BKE_scene_frame_get(scene);
-
-		FOREACH_NODETREE(bmain, ntree, id)
-		{
-			AnimData *adt = BKE_animdata_from_id(&ntree->id);
-			if (adt && (adt->recalc & ADT_RECALC_ANIM))
-				BKE_animsys_evaluate_animdata(scene, &ntree->id, adt, ctime, 0);
+	
+		/* Extra call here to recalc material animation.
+		 *
+		 * Need to do this so changing material settings from the graph/dopesheet
+		 * will update stuff in the viewport.
+		 */
+		if (DAG_id_type_tagged(bmain, ID_MA)) {
+			Material *material;
+			float ctime = BKE_scene_frame_get(scene);
+	
+			for (material = bmain->mat.first;
+			     material;
+			     material = material->id.next)
+			{
+				AnimData *adt = BKE_animdata_from_id(&material->id);
+				if (adt && (adt->recalc & ADT_RECALC_ANIM))
+					BKE_animsys_evaluate_animdata(scene, &material->id, adt, ctime, 0);
+			}
 		}
-		FOREACH_NODETREE_END
+	
+		/* Also do the same for node trees. */
+		if (DAG_id_type_tagged(bmain, ID_NT)) {
+			float ctime = BKE_scene_frame_get(scene);
+	
+			FOREACH_NODETREE(bmain, ntree, id)
+			{
+				AnimData *adt = BKE_animdata_from_id(&ntree->id);
+				if (adt && (adt->recalc & ADT_RECALC_ANIM))
+					BKE_animsys_evaluate_animdata(scene, &ntree->id, adt, ctime, 0);
+			}
+			FOREACH_NODETREE_END
+		}
+	
+		/* notify editors and python about recalc */
+		BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_POST);
+		DAG_ids_check_recalc(bmain, scene, false);
+	
+		/* clear recalc flags */
+		DAG_ids_clear_recalc(bmain);
 	}
-
-	/* notify editors and python about recalc */
-	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_POST);
-	DAG_ids_check_recalc(bmain, scene, false);
-
-	/* clear recalc flags */
-	DAG_ids_clear_recalc(bmain);
+	else {
+		/* new depsgraph */
+		BLI_assert(scene->depsgraph);
+		DEG_evaluate_on_refresh(scene->depsgraph, eval_ctx->for_render ? DEG_EVALUATION_CONTEXT_RENDER : DEG_EVALUATION_CONTEXT_VIEWPORT);
+	}
 }
 
 /* applies changes right away, does all sets too */
@@ -1639,88 +1641,91 @@ void BKE_scene_update_for_newframe(EvaluationContext *eval_ctx, Main *bmain, Sce
 
 void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, Scene *sce, unsigned int lay, bool do_invisible_flush)
 {
-	float ctime = BKE_scene_frame_get(sce);
-	Scene *sce_iter;
+	if (DEG_get_eval_mode() == DEG_EVAL_MODE_OLD) {
+		float ctime = BKE_scene_frame_get(sce);
+		Scene *sce_iter;
 #ifdef DETAILED_ANALYSIS_OUTPUT
-	double start_time = PIL_check_seconds_timer();
+		double start_time = PIL_check_seconds_timer();
 #endif
 
-	/********* new depsgraph *********/
-	if (sce->depsgraph)
-		DEG_evaluate_on_framechange(sce->depsgraph, eval_ctx->for_render ? DEG_EVALUATION_CONTEXT_RENDER : DEG_EVALUATION_CONTEXT_VIEWPORT, ctime);
-	/******************/
-
-	/* keep this first */
-	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_PRE);
-	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
-
-	/* update animated image textures for particles, modifiers, gpu, etc,
+		/* keep this first */
+		BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_PRE);
+		BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
+		
+		/* update animated image textures for particles, modifiers, gpu, etc,
 	 * call this at the start so modifiers with textures don't lag 1 frame */
-	BKE_image_update_frame(bmain, sce->r.cfra);
-	
-	/* rebuild rigid body worlds before doing the actual frame update
+		BKE_image_update_frame(bmain, sce->r.cfra);
+		
+		/* rebuild rigid body worlds before doing the actual frame update
 	 * this needs to be done on start frame but animation playback usually starts one frame later
 	 * we need to do it here to avoid rebuilding the world on every simulation change, which can be very expensive
 	 */
-	scene_rebuild_rbw_recursive(sce, ctime);
-
-	sound_set_cfra(sce->r.cfra);
-	
-	/* clear animation overrides */
-	/* XXX TODO... */
-
-	for (sce_iter = sce; sce_iter; sce_iter = sce_iter->set)
-		DAG_scene_relations_update(bmain, sce_iter);
-
-	/* flush recalc flags to dependencies, if we were only changing a frame
+		scene_rebuild_rbw_recursive(sce, ctime);
+		
+		sound_set_cfra(sce->r.cfra);
+		
+		/* clear animation overrides */
+		/* XXX TODO... */
+		
+		for (sce_iter = sce; sce_iter; sce_iter = sce_iter->set)
+			DAG_scene_relations_update(bmain, sce_iter);
+		
+		/* flush recalc flags to dependencies, if we were only changing a frame
 	 * this would not be necessary, but if a user or a script has modified
 	 * some datablock before BKE_scene_update_tagged was called, we need the flush */
-	DAG_ids_flush_tagged(bmain);
-
-	/* Following 2 functions are recursive
+		DAG_ids_flush_tagged(bmain);
+		
+		/* Following 2 functions are recursive
 	 * so don't call within 'scene_update_tagged_recursive' */
-	DAG_scene_update_flags(bmain, sce, lay, true, do_invisible_flush);   // only stuff that moves or needs display still
-
-	BKE_mask_evaluate_all_masks(bmain, ctime, true);
-
-	/* All 'standard' (i.e. without any dependencies) animation is handled here,
+		DAG_scene_update_flags(bmain, sce, lay, true, do_invisible_flush);   // only stuff that moves or needs display still
+		
+		BKE_mask_evaluate_all_masks(bmain, ctime, true);
+		
+		/* All 'standard' (i.e. without any dependencies) animation is handled here,
 	 * with an 'local' to 'macro' order of evaluation. This should ensure that
 	 * settings stored nestled within a hierarchy (i.e. settings in a Texture block
 	 * can be overridden by settings from Scene, which owns the Texture through a hierarchy
 	 * such as Scene->World->MTex/Texture) can still get correctly overridden.
 	 */
-	BKE_animsys_evaluate_all_animation(bmain, sce, ctime);
-	/*...done with recursive funcs */
-
-	/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
+		BKE_animsys_evaluate_all_animation(bmain, sce, ctime);
+		/*...done with recursive funcs */
+		
+		/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
 	 * when trying to find materials with drivers that need evaluating [#32017] 
 	 */
-	BKE_main_id_tag_idcode(bmain, ID_MA, false);
-	BKE_main_id_tag_idcode(bmain, ID_LA, false);
-
-	/* run rigidbody sim */
-	/* NOTE: current position is so that rigidbody sim affects other objects, might change in the future */
-	scene_do_rb_simulation_recursive(sce, ctime);
-
-	/* BKE_object_handle_update() on all objects, groups and sets */
-	scene_update_tagged_recursive(eval_ctx, bmain, sce, sce);
-	/* update sound system animation (TODO, move to depsgraph) */
-	sound_update_scene(bmain, sce);
-
-	scene_depsgraph_hack(eval_ctx, sce, sce);
-
-	/* notify editors and python about recalc */
-	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_POST);
-	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_POST);
-
-	DAG_ids_check_recalc(bmain, sce, true);
-
-	/* clear recalc flags */
-	DAG_ids_clear_recalc(bmain);
-
+		BKE_main_id_tag_idcode(bmain, ID_MA, false);
+		BKE_main_id_tag_idcode(bmain, ID_LA, false);
+		
+		/* run rigidbody sim */
+		/* NOTE: current position is so that rigidbody sim affects other objects, might change in the future */
+		scene_do_rb_simulation_recursive(sce, ctime);
+		
+		/* BKE_object_handle_update() on all objects, groups and sets */
+		scene_update_tagged_recursive(eval_ctx, bmain, sce, sce);
+		/* update sound system animation (TODO, move to depsgraph) */
+		sound_update_scene(bmain, sce);
+		
+		scene_depsgraph_hack(eval_ctx, sce, sce);
+		
+		/* notify editors and python about recalc */
+		BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_POST);
+		BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_POST);
+		
+		DAG_ids_check_recalc(bmain, sce, true);
+		
+		/* clear recalc flags */
+		DAG_ids_clear_recalc(bmain);
+		
 #ifdef DETAILED_ANALYSIS_OUTPUT
-	fprintf(stderr, "frame update start_time %f duration %f\n", start_time, PIL_check_seconds_timer() - start_time);
+		fprintf(stderr, "frame update start_time %f duration %f\n", start_time, PIL_check_seconds_timer() - start_time);
 #endif
+	}
+	else {
+		float ctime = BKE_scene_frame_get(sce);
+		/* new depsgraph */
+		BLI_assert(sce->depsgraph);
+		DEG_evaluate_on_framechange(sce->depsgraph, eval_ctx->for_render ? DEG_EVALUATION_CONTEXT_RENDER : DEG_EVALUATION_CONTEXT_VIEWPORT, ctime);
+	}
 }
 
 /* return default layer, also used to patch old files */
