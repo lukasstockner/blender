@@ -1236,7 +1236,8 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 			WM_event_add_ui_handler(C, &data->window->modalhandlers,
 			                        ui_handler_region_drag_toggle,
 			                        ui_handler_region_drag_toggle_remove,
-			                        drag_info);
+			                        drag_info,
+			                        false);
 
 			CTX_wm_region_set(C, ar_prev);
 		}
@@ -6661,7 +6662,7 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
 	if (!(but->block->handle && but->block->handle->popup)) {
 		if (button_modal_state(state)) {
 			if (!button_modal_state(data->state))
-				WM_event_add_ui_handler(C, &data->window->modalhandlers, ui_handler_region_menu, NULL, data);
+				WM_event_add_ui_handler(C, &data->window->modalhandlers, ui_handler_region_menu, NULL, data, false);
 		}
 		else {
 			if (button_modal_state(data->state)) {
@@ -7783,15 +7784,10 @@ static void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const
 	seg1[0] = BLI_rctf_cent_x(&block->rect);
 	seg1[1] = BLI_rctf_cent_y(&block->rect);
 
-	print_v2("center of block", seg1);
-	printf("event: %f %f\n", mx, my);
-
 	seg2[0] = mx - seg1[0];
 	seg2[1] = my - seg1[1];
 
 	normalize_v2_v2(block->pie_dir, seg2);
-
-	print_v2("calculation", seg2);
 }
 
 static int ui_handle_menu_event(
@@ -7812,15 +7808,13 @@ static int ui_handle_menu_event(
 
 	mx = event->x;
 	my = event->y;
-	printf("event: %d %d\n", mx, my);
+
 	ui_window_to_block(ar, block, &mx, &my);
 
 	if (block->flag & UI_BLOCK_RADIAL) {
 		ui_block_calculate_pie_segment(block, mx, my);
 
-		if ((event->type == block->event) && !(event->val == KM_RELEASE)){
-			printf("initial key press\n");
-
+		if ((event->type == block->event) && !(event->val == KM_RELEASE)) {
 			ED_region_tag_redraw(ar);
 			return WM_UI_HANDLER_BREAK;
 		}
@@ -7894,7 +7888,6 @@ static int ui_handle_menu_event(
 
 			/* mouse move should always refresh the area for pie menus */
 			if (block->flag & UI_BLOCK_RADIAL) {
-				printf("refresh\n");
 				ED_region_tag_redraw(ar);
 			}
 
@@ -8591,13 +8584,19 @@ static void ui_handler_remove_popup(bContext *C, void *userdata)
 void UI_add_region_handlers(ListBase *handlers)
 {
 	WM_event_remove_ui_handler(handlers, ui_handler_region, ui_handler_remove_region, NULL, false);
-	WM_event_add_ui_handler(NULL, handlers, ui_handler_region, ui_handler_remove_region, NULL);
+	WM_event_add_ui_handler(NULL, handlers, ui_handler_region, ui_handler_remove_region, NULL, false);
 }
 
 void UI_add_popup_handlers(bContext *C, ListBase *handlers, uiPopupBlockHandle *popup)
 {
-	WM_event_add_ui_handler(C, handlers, ui_handler_popup, ui_handler_remove_popup, popup);
+	WM_event_add_ui_handler(C, handlers, ui_handler_popup, ui_handler_remove_popup, popup, false);
 }
+
+void UI_add_pie_handlers(struct bContext *C, struct ListBase *handlers, uiPopupBlockHandle *pie)
+{
+	WM_event_add_ui_handler(C, handlers, ui_handler_popup, ui_handler_remove_popup, pie, true);
+}
+
 
 void UI_remove_popup_handlers(ListBase *handlers, uiPopupBlockHandle *popup)
 {

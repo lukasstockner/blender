@@ -2523,7 +2523,7 @@ void uiPieMenuEnd(bContext *C, uiPieMenu *pie)
 	menu->popup = true;
 
 	/* change to pie version! */
-	UI_add_popup_handlers(C, &window->modalhandlers, menu);
+	UI_add_pie_handlers(C, &window->modalhandlers, menu);
 	WM_event_add_mousemove(C);
 
 	MEM_freeN(pie);

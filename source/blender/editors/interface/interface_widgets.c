@@ -3691,7 +3691,6 @@ void ui_draw_pie_center(uiBlock *block)
 	glVertex2f(block->pie_dir[0] * (pie_radius_internal + 10.0f), block->pie_dir[1] * (pie_radius_internal + 10.0f));
 	glEnd();
 
-	print_v2("direction", block->pie_dir);
 	glDisable(GL_BLEND);
 	glPopMatrix();
 }
