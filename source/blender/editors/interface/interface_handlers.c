@@ -7876,7 +7876,7 @@ static int ui_handle_menu_event(
 		}
 		else {
 			menu->menuretval = UI_RETURN_CANCEL;
-			return WM_UI_HANDLER_BREAK;
+			return WM_UI_HANDLER_CONTINUE;
 		}
 	}
 	else {

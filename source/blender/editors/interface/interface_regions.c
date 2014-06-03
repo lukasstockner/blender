@@ -1575,17 +1575,33 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 		saferct->safety = block->safety;
 		BLI_addhead(&block->saferct, saferct);
 	}
-
-	/* clip block with window boundary */
-	ui_popup_block_clip(window, block);
 	
 	if (block->flag & UI_BLOCK_RADIAL) {
 		/* find area that spawned this menu, keep it inside */
 		ScrArea *sa = CTX_wm_area(C);
+		int ar_w = BLI_rcti_size_x(&sa->totrct);
+		int ar_h = BLI_rcti_size_y(&sa->totrct);
 
 		ar->winrct = sa->totrct;
+
+		ui_block_translate(block, -ar->winrct.xmin, -ar->winrct.ymin);
+
+		/* only try translation if area is large enough */
+		if ((BLI_rctf_size_x(&block->rect) < ar_w) && (BLI_rctf_size_y(&block->rect) < ar_h)) {
+			int x_offset = 0, y_offset = 0;
+
+			if (block->rect.xmin < 0 ) x_offset -= block->rect.xmin;
+			if (block->rect.xmax > ar_w) x_offset += ar_w - block->rect.xmax;
+			if (block->rect.ymin < 0 ) y_offset -= block->rect.ymin;
+			if (block->rect.ymax > ar_h) y_offset += ar_h - block->rect.ymax;
+
+			if ((x_offset != 0) || (y_offset != 0))
+				ui_block_translate(block, x_offset, y_offset);
+		}
 	}
 	else {
+		/* clip block with window boundary */
+		ui_popup_block_clip(window, block);
 		/* the block and buttons were positioned in window space as in 2.4x, now
 		 * these menu blocks are regions so we bring it back to region space.
 		 * additionally we add some padding for the menu shadow or rounded menus */
@@ -1593,9 +1609,9 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 		ar->winrct.xmax = block->rect.xmax + width;
 		ar->winrct.ymin = block->rect.ymin - width;
 		ar->winrct.ymax = block->rect.ymax + MENU_TOP;
-	}
 
-	ui_block_translate(block, -ar->winrct.xmin, -ar->winrct.ymin);
+		ui_block_translate(block, -ar->winrct.xmin, -ar->winrct.ymin);
+	}
 
 	/* adds subwindow */
 	ED_region_init(C, ar);
@@ -2421,12 +2437,10 @@ uiLayout *uiPupMenuLayout(uiPopupMenu *pup)
 static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void *arg_pie)
 {
 	uiBlock *block;
-	uiBut *bt;
 	uiPieMenu *pie = arg_pie;
-	int offset[2], minwidth, width, height, direction;
+	int minwidth, width, height;
 
 	minwidth = 50;
-	direction = UI_DOWN;
 	block = pie->block_radial;
 
 	/* in some cases we create the block before the region,
@@ -2434,38 +2448,14 @@ static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void 
 	if (BLI_findindex(&handle->region->uiblocks, block) == -1)
 		uiBlockSetRegion(block, handle->region);
 
-	block->direction = direction;
-
 	uiBlockLayoutResolve(block, &width, &height);
 
 	uiBlockSetFlag(block, UI_BLOCK_LOOP | UI_BLOCK_REDRAW | UI_BLOCK_NUMSELECT);
-	uiBlockSetDirection(block, direction);
-
-	/* offset the mouse position, possibly based on earlier selection */
-	if ((block->flag & UI_BLOCK_POPUP_MEMORY) &&
-			(bt = ui_popup_menu_memory_get(block)))
-	{
-		/* position mouse on last clicked item, at 0.8*width of the
-			 * button, so it doesn't overlap the text too much, also note
-			 * the offset is negative because we are inverse moving the
-			 * block to be under the mouse */
-		offset[0] = -(bt->rect.xmin + 0.8f * BLI_rctf_size_x(&bt->rect));
-		offset[1] = -(bt->rect.ymin + 0.5f * UI_UNIT_Y);
-	}
-	else {
-		/* position mouse at 0.8*width of the button and below the tile
-			 * on the first item */
-		offset[0] = 0;
-		for (bt = block->buttons.first; bt; bt = bt->next)
-			offset[0] = min_ii(offset[0], -(bt->rect.xmin + 0.8f * BLI_rctf_size_x(&bt->rect)));
-
-		offset[1] = 1.5 * UI_UNIT_Y;
-	}
 
 	block->minbounds = minwidth;
 	block->bounds = 1;
-	block->mx = offset[0];
-	block->my = offset[1];
+	block->mx = 0;
+	block->my = 0;
 	block->bounds_type = UI_BLOCK_BOUNDS_PIE_CENTER;
 
 	uiEndBlock(C, block);
