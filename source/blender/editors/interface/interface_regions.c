@@ -2434,7 +2434,7 @@ static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void 
 	if (BLI_findindex(&handle->region->uiblocks, block) == -1)
 		uiBlockSetRegion(block, handle->region);
 
-	block->direction = UI_DOWN;
+	block->direction = direction;
 
 	uiBlockLayoutResolve(block, &width, &height);
 
@@ -2468,10 +2468,6 @@ static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void 
 	block->my = offset[1];
 	block->bounds_type = UI_BLOCK_BOUNDS_PIE_CENTER;
 
-	/* pies: useful for later, but keep it basic for now
-	if (pup->slideout)
-		uiBlockSetDirection(block, UI_RIGHT);
-	*/
 	uiEndBlock(C, block);
 
 	return pie->block_radial;
@@ -2490,7 +2486,7 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 	uiBut *but;
 
 	pie->block_radial = uiBeginBlock(C, NULL, __func__, UI_EMBOSSR);
-	pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY;
+	//pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY;
 	pie->block_radial->puphash = ui_popup_menu_hash(title);
 	pie->block_radial->flag |= UI_BLOCK_RADIAL;
 	pie->block_radial->event = event;

@@ -3056,7 +3056,7 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 		}
 	}
 
-	if ((block->flag & UI_BLOCK_RADIAL)) {
+	if (block->flag & UI_BLOCK_RADIAL) {
 		but->drawflag |= UI_BUT_ICON_LEFT;
 	}
 	else if ((block->flag & UI_BLOCK_LOOP) ||

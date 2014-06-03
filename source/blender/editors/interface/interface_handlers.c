@@ -6228,7 +6228,7 @@ static bool ui_but_contains_pt(uiBut *but, float mx, float my)
 	return BLI_rctf_isect_pt(&but->rect, mx, my);
 }
 
-static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but, const float seg[2])
+static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but)
 {
 	float angle_range = (block->num_pie_items < 5) ? M_PI_4 : M_PI_4 / 2.0f;
 	float angle_pie;
@@ -6271,7 +6271,7 @@ static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but, const float seg[2])
 	vec[0] = cosf(angle_pie);
 	vec[1] = sinf(angle_pie);
 
-	if (saacos(dot_v2v2(vec, seg)) < angle_range)
+	if (saacos(dot_v2v2(vec, block->pie_dir)) < angle_range)
 		return true;
 
 	return false;
@@ -6379,20 +6379,6 @@ static bool ui_mouse_inside_region(ARegion *ar, int x, int y)
 	return true;
 }
 
-static void ui_block_calculate_pie_segment(const float mx, const float my, float seg2[2], uiBlock *block)
-{
-	float seg1[2];
-
-	seg1[0] = BLI_rctf_cent_x(&block->rect);
-	seg1[1] = BLI_rctf_cent_y(&block->rect);
-
-	seg2[0] = mx - seg1[0];
-	seg2[1] = my - seg1[1];
-	normalize_v2(seg2);
-
-	copy_v2_v2(block->pie_dir, seg2);
-}
-
 
 static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y)
 {
@@ -6408,11 +6394,7 @@ static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y)
 	ui_window_to_block_fl(ar, block, &mx, &my);
 
 	if (but->dt == UI_EMBOSSR) {
-		float seg[2];
-
-		ui_block_calculate_pie_segment(mx, my, seg, block);
-
-		if (!ui_but_isect_pie_seg(block, but, seg)) {
+		if (!ui_but_isect_pie_seg(block, but)) {
 			return false;
 		}
 	}
@@ -6459,7 +6441,6 @@ static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, c
 	uiBut *but, *butover = NULL;
 
 	float mx, my;
-	float seg[2];
 
 //	if (!win->active)
 //		return NULL;
@@ -6471,14 +6452,10 @@ static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, c
 		my = y;
 		ui_window_to_block_fl(ar, block, &mx, &my);
 
-		if (block->flag & UI_BLOCK_RADIAL) {
-			ui_block_calculate_pie_segment(mx, my, seg, block);
-		}
-
 		for (but = block->buttons.last; but; but = but->prev) {
 			if (ui_is_but_interactive(but, labeledit)) {
 				if (but->dt == UI_EMBOSSR) {
-					if (ui_but_isect_pie_seg(block, but, seg)) {
+					if (ui_but_isect_pie_seg(block, but)) {
 						butover = but;
 						break;
 					}
@@ -7798,6 +7775,25 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
 	return retval;
 }
 
+static void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const float my)
+{
+	float seg1[2];
+	float seg2[2];
+
+	seg1[0] = BLI_rctf_cent_x(&block->rect);
+	seg1[1] = BLI_rctf_cent_y(&block->rect);
+
+	print_v2("center of block", seg1);
+	printf("event: %f %f\n", mx, my);
+
+	seg2[0] = mx - seg1[0];
+	seg2[1] = my - seg1[1];
+
+	normalize_v2_v2(block->pie_dir, seg2);
+
+	print_v2("calculation", seg2);
+}
+
 static int ui_handle_menu_event(
         bContext *C, const wmEvent *event, uiPopupBlockHandle *menu,
         int level, const bool is_parent_inside, const bool is_parent_menu, const bool is_floating)
@@ -7816,7 +7812,19 @@ static int ui_handle_menu_event(
 
 	mx = event->x;
 	my = event->y;
+	printf("event: %d %d\n", mx, my);
 	ui_window_to_block(ar, block, &mx, &my);
+
+	if (block->flag & UI_BLOCK_RADIAL) {
+		ui_block_calculate_pie_segment(block, mx, my);
+
+		if ((event->type == block->event) && !(event->val == KM_RELEASE)){
+			printf("initial key press\n");
+
+			ED_region_tag_redraw(ar);
+			return WM_UI_HANDLER_BREAK;
+		}
+	}
 
 	/* check if mouse is inside block */
 	inside = BLI_rctf_isect_pt(&block->rect, mx, my);
@@ -7857,15 +7865,20 @@ static int ui_handle_menu_event(
 		if (event->customdata == menu->scrolltimer)
 			ui_menu_scroll(ar, block, my, NULL);
 	}
-	else if ((block->flag & UI_BLOCK_RADIAL) && (event->type == block->event) && event->val == KM_RELEASE) {
+	else if ((block->flag & UI_BLOCK_RADIAL) &&
+		     (((event->type == block->event) && event->val == KM_RELEASE) ||
+		     ((event->type == LEFTMOUSE) && event->val == KM_PRESS)))
+	{
 		if (but) {
 			wmEvent local_event = *event;
+
 			local_event.type = RETKEY;
 			local_event.val = KM_PRESS;
-			ui_handle_menu_button(C, &local_event, menu);
+			ui_handle_button_event(C, &local_event, but);
 			local_event.type = RETKEY;
 			local_event.val = KM_RELEASE;
-			return ui_handle_menu_button(C, &local_event, menu);
+			ui_handle_button_event(C, &local_event, but);
+			return WM_UI_HANDLER_CONTINUE;
 		}
 		else {
 			menu->menuretval = UI_RETURN_CANCEL;
@@ -7881,9 +7894,10 @@ static int ui_handle_menu_event(
 
 			/* mouse move should always refresh the area for pie menus */
 			if (block->flag & UI_BLOCK_RADIAL) {
+				printf("refresh\n");
 				ED_region_tag_redraw(ar);
 			}
-			
+
 			/* add menu scroll timer, if needed */
 			if (ui_menu_scroll_test(block, my))
 				if (menu->scrolltimer == NULL)
