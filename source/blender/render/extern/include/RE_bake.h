@@ -61,7 +61,10 @@ typedef struct BakeHighPolyData {
 	struct ModifierData *tri_mod;
 	struct Mesh *me;
 	char restrict_flag;
-	float mat_lowtohigh[4][4];
+
+	float obmat[4][4];
+	float imat[4][4];
+	float rotmat[4][4];
 } BakeHighPolyData;
 
 /* external_engine.c */
@@ -80,7 +83,7 @@ bool RE_bake_internal(
 void RE_bake_pixels_populate_from_objects(
         struct Mesh *me_low, BakePixel pixel_array_from[],
         BakeHighPolyData highpoly[], const int tot_highpoly, const int num_pixels,
-        const float cage_extrusion);
+        const float cage_extrusion, float mat_low[4][4]);
 
 void RE_bake_pixels_populate(
         struct Mesh *me, struct BakePixel *pixel_array,
@@ -95,11 +98,11 @@ void RE_bake_normal_world_to_object(
         struct Object *ob, const BakeNormalSwizzle normal_swizzle[3]);
 void RE_bake_normal_world_to_tangent(
         const BakePixel pixel_array[], const int num_pixels, const int depth, float result[],
-        struct Mesh *me, const BakeNormalSwizzle normal_swizzle[3]);
+        struct Mesh *me, const BakeNormalSwizzle normal_swizzle[3], float mat[4][4]);
 void RE_bake_normal_world_to_world(
         const BakePixel pixel_array[], const int num_pixels, const int depth, float result[],
         const BakeNormalSwizzle normal_swizzle[3]);
 
-void RE_bake_ibuf_clear(struct BakeImages *bake_images, const bool is_tangent);
+void RE_bake_ibuf_clear(struct Image *image, const bool is_tangent);
 
 #endif  /* __RE_BAKE_H__ */

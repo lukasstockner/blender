@@ -1942,7 +1942,29 @@ static void drawlattice__point(Lattice *lt, DispList *dl, int u, int v, int w, i
 #ifdef SEQUENCER_DAG_WORKAROUND
 static void ensure_curve_cache(Scene *scene, Object *object)
 {
-	if (object->curve_cache == NULL) {
+	bool need_recalc = object->curve_cache == NULL;
+	/* Render thread might have freed the curve cache if the
+	 * object is not visible. If the object is also used for
+	 * particles duplication, then render thread might have
+	 * also created curve_cache with only bevel and path
+	 * filled in.
+	 *
+	 * So check for curve_cache != NULL is not fully correct
+	 * here, we also need to check whether display list is
+	 * empty or not.
+	 *
+	 * The trick below tries to optimie calls to displist
+	 * creation for cases curve is empty. Meaning, if the curve
+	 * is empty (without splies) bevel list would also be empty.
+	 * And the thing is, render thread always leaves bevel list
+	 * in a proper state. So if bevel list is here and display
+	 * list is not we need to make display list.
+	 */
+	if (need_recalc == false) {
+		need_recalc = object->curve_cache->disp.first == NULL &&
+		              object->curve_cache->bev.first != NULL;
+	}
+	if (need_recalc) {
 		switch (object->type) {
 			case OB_CURVE:
 			case OB_SURF:
@@ -6943,7 +6965,11 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	}
 
 	/* matcap check - only when not painting color */
-	if ((v3d->flag2 & V3D_SOLID_MATCAP) && (dt == OB_SOLID) && (is_paint == false && is_picking == false)) {
+	if ((v3d->flag2 & V3D_SOLID_MATCAP) &&
+	    (dt == OB_SOLID) &&
+	    (is_paint == false && is_picking == false) &&
+	    ((v3d->flag2 & V3D_RENDER_SHADOW) == 0))
+	{
 		draw_object_matcap_check(v3d, ob);
 	}
 
@@ -7637,8 +7663,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			setlinestyle(0);
 		}
 	}
-
-	free_old_images();
 
 	ED_view3d_clear_mats_rv3d(rv3d);
 }

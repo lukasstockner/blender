@@ -1185,7 +1185,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 						oldblendobj, blendobj,
 						mesh,
 						true,
-						static_cast<BL_ArmatureObject*>( parentobj )
+						static_cast<BL_ArmatureObject*>( parentobj->AddRef() )
 					);
 					modifierDeformer->LoadShapeDrivers(parentobj);
 				}
@@ -1212,7 +1212,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 						mesh,
 						true,
 						true,
-						static_cast<BL_ArmatureObject*>( parentobj )
+						static_cast<BL_ArmatureObject*>( parentobj->AddRef() )
 					);
 					shapeDeformer->LoadShapeDrivers(parentobj);
 				}
@@ -1237,7 +1237,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool u
 					mesh,
 					true,
 					true,
-					static_cast<BL_ArmatureObject*>( parentobj )
+					static_cast<BL_ArmatureObject*>( parentobj->AddRef() )
 				);
 				newobj->SetDeformer(skinDeformer);
 			}
@@ -1345,17 +1345,6 @@ void KX_Scene::SetCameraOnTop(KX_Camera* cam)
 	} else {
 		m_cameras.remove(cam);
 		m_cameras.push_back(cam);
-	}
-}
-
-
-void KX_Scene::UpdateMeshTransformations()
-{
-	// do this incrementally in the future
-	for (int i = 0; i < m_objectlist->GetCount(); i++)
-	{
-		KX_GameObject* gameobj = (KX_GameObject*)m_objectlist->GetValue(i);
-		gameobj->GetOpenGLMatrix();
 	}
 }
 

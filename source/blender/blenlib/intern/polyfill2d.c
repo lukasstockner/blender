@@ -55,6 +55,12 @@
 #define USE_CONVEX_SKIP
 // #define USE_CONVEX_SKIP_TEST
 
+// #define DEBUG_TIME
+#ifdef DEBUG_TIME
+#  include "PIL_time_utildefines.h"
+#endif
+
+
 typedef signed char eSign;
 enum {
 	CONCAVE = -1,
@@ -328,9 +334,12 @@ static bool pf_ear_tip_check(PolyFill *pf, const unsigned int index_ear_tip)
 			/* Because the polygon has clockwise winding order,
 			 * the area sign will be positive if the point is strictly inside.
 			 * It will be 0 on the edge, which we want to include as well. */
-			if ((span_tri_v2_sign(v1, v2, v) != CONCAVE) &&
-			    (span_tri_v2_sign(v2, v3, v) != CONCAVE) &&
-			    (span_tri_v2_sign(v3, v1, v) != CONCAVE))
+
+			/* note: check (v3, v1) first since it fails _far_ more often then the other 2 checks (those fail equally).
+			 * It's logical - the chance is low that points exist on the same side as the ear we're clipping off. */
+			if ((span_tri_v2_sign(v3, v1, v) != CONCAVE) &&
+			    (span_tri_v2_sign(v1, v2, v) != CONCAVE) &&
+			    (span_tri_v2_sign(v2, v3, v) != CONCAVE))
 			{
 				return false;
 			}
@@ -389,6 +398,10 @@ void BLI_polyfill_calc_ex(
 
 	unsigned int i;
 
+#ifdef DEBUG_TIME
+	TIMEIT_START(polyfill2d);
+#endif
+
 	/* assign all polyfill members here */
 	pf.indices = r_indices;
 	pf.coords = coords;
@@ -425,6 +438,10 @@ void BLI_polyfill_calc_ex(
 	}
 
 	pf_triangulate(&pf);
+
+#ifdef DEBUG_TIME
+	TIMEIT_END(polyfill2d);
+#endif
 }
 
 void BLI_polyfill_calc_arena(

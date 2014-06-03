@@ -17,7 +17,7 @@
 CCL_NAMESPACE_BEGIN
 
 ccl_device void compute_light_pass(KernelGlobals *kg, ShaderData *sd, PathRadiance *L, RNG rng,
-                                   bool is_combined, bool is_ao, bool is_sss)
+                                   const bool is_combined, const bool is_ao, const bool is_sss)
 {
 	int samples = kernel_data.integrator.aa_samples;
 
@@ -31,6 +31,7 @@ ccl_device void compute_light_pass(KernelGlobals *kg, ShaderData *sd, PathRadian
 		PathState state;
 		Ray ray;
 		float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
+		bool is_sss_sample = is_sss;
 
 		/* init radiance */
 		path_radiance_init(&L_sample, kernel_data.film.use_light_pass);
@@ -45,34 +46,76 @@ ccl_device void compute_light_pass(KernelGlobals *kg, ShaderData *sd, PathRadian
 
 		/* TODO, disable the closures we won't need */
 
-		/* sample ambient occlusion */
-		if(is_combined || is_ao) {
-			kernel_path_ao(kg, sd, &L_sample, &state, &rng, throughput);
-		}
+#ifdef __BRANCHED_PATH__
+		if(!kernel_data.integrator.branched) {
+			/* regular path tracer */
+#endif
 
-		/* sample subsurface scattering */
-		if((is_combined || is_sss) && (sd->flag & SD_BSSRDF)) {
+			/* sample ambient occlusion */
+			if(is_combined || is_ao) {
+				kernel_path_ao(kg, sd, &L_sample, &state, &rng, throughput);
+			}
+
 #ifdef __SUBSURFACE__
-			/* when mixing BSSRDF and BSDF closures we should skip BSDF lighting if scattering was successful */
-			if (kernel_path_subsurface_scatter(kg, sd, &L_sample, &state, &rng, &ray, &throughput))
-				is_sss = true;
+			/* sample subsurface scattering */
+			if((is_combined || is_sss_sample) && (sd->flag & SD_BSSRDF)) {
+				/* when mixing BSSRDF and BSDF closures we should skip BSDF lighting if scattering was successful */
+				if (kernel_path_subsurface_scatter(kg, sd, &L_sample, &state, &rng, &ray, &throughput))
+					is_sss_sample = true;
+			}
 #endif
-		}
 
-		/* sample light and BSDF */
-		if((!is_sss) && (!is_ao)) {
-			if(kernel_path_integrate_lighting(kg, &rng, sd, &throughput, &state, &L_sample, &ray)) {
+			/* sample light and BSDF */
+			if((!is_sss_sample) && (!is_ao)) {
+
+				if(sd->flag & SD_EMISSION) {
+					float3 emission = indirect_primitive_emission(kg, sd, 0.0f, state.flag, state.ray_pdf);
+					path_radiance_accum_emission(&L_sample, throughput, emission, state.bounce);
+				}
+
+				if(kernel_path_integrate_lighting(kg, &rng, sd, &throughput, &state, &L_sample, &ray)) {
 #ifdef __LAMP_MIS__
-				state.ray_t = 0.0f;
+					state.ray_t = 0.0f;
 #endif
-				/* compute indirect light */
-				kernel_path_indirect(kg, &rng, ray, throughput, state.num_samples, state, &L_sample);
+					/* compute indirect light */
+					kernel_path_indirect(kg, &rng, ray, throughput, state.num_samples, state, &L_sample);
 
-				/* sum and reset indirect light pass variables for the next samples */
-				path_radiance_sum_indirect(&L_sample);
-				path_radiance_reset_indirect(&L_sample);
+					/* sum and reset indirect light pass variables for the next samples */
+					path_radiance_sum_indirect(&L_sample);
+					path_radiance_reset_indirect(&L_sample);
+				}
+			}
+#ifdef __BRANCHED_PATH__
+		}
+		else {
+			/* branched path tracer */
+
+			/* sample ambient occlusion */
+			if(is_combined || is_ao) {
+				kernel_branched_path_ao(kg, sd, &L_sample, &state, &rng, throughput);
+			}
+
+#ifdef __SUBSURFACE__
+			/* sample subsurface scattering */
+			if((is_combined || is_sss_sample) && (sd->flag & SD_BSSRDF)) {
+				/* when mixing BSSRDF and BSDF closures we should skip BSDF lighting if scattering was successful */
+				kernel_branched_path_subsurface_scatter(kg, sd, &L_sample, &state, &rng, throughput);
+			}
+#endif
+
+			/* sample light and BSDF */
+			if((!is_sss_sample) && (!is_ao)) {
+
+				if(sd->flag & SD_EMISSION) {
+					float3 emission = indirect_primitive_emission(kg, sd, 0.0f, state.flag, state.ray_pdf);
+					path_radiance_accum_emission(&L_sample, throughput, emission, state.bounce);
+				}
+
+				kernel_branched_path_integrate_lighting(kg, &rng,
+					sd, throughput, 1.0f, &state, &L_sample);
 			}
 		}
+#endif
 
 		/* accumulate into master L */
 		path_radiance_accum_sample(L, &L_sample, samples);
@@ -313,11 +356,6 @@ ccl_device void kernel_bake_evaluate(KernelGlobals *kg, ccl_global uint4 *input,
 
 ccl_device void kernel_shader_evaluate(KernelGlobals *kg, ccl_global uint4 *input, ccl_global float4 *output, ShaderEvalType type, int i)
 {
-	if(type >= SHADER_EVAL_BAKE) {
-		kernel_bake_evaluate(kg, input, output, type, i);
-		return;
-	}
-
 	ShaderData sd;
 	uint4 in = input[i];
 	float3 out;
