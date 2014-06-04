@@ -82,6 +82,7 @@ typedef enum ModifierType {
 	eModifierType_MeshCache         = 46,
 	eModifierType_LaplacianDeform   = 47,
 	eModifierType_Wireframe         = 48,
+	eModifierType_QuadRemesh        = 49,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1362,6 +1363,17 @@ enum {
 	MOD_WIREFRAME_CREASE        = (1 << 5),
 };
 
+typedef struct QuadRemeshModifierData {
+	ModifierData modifier;
+	char anchor_grp_name[64];  /* MAX_VGROUP_NAME */
+	short flag, pad[3];
+
+} QuadRemeshModifierData;
+
+/* QuadRemesh modifier flags */
+enum {
+	MOD_QUADREMESH_BIND = 1,
+};
 
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

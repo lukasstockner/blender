@@ -75,6 +75,7 @@ EnumPropertyItem modifier_type_items[] = {
 	{eModifierType_Mirror, "MIRROR", ICON_MOD_MIRROR, "Mirror", ""},
 	{eModifierType_Multires, "MULTIRES", ICON_MOD_MULTIRES, "Multiresolution", ""},
 	{eModifierType_Remesh, "REMESH", ICON_MOD_REMESH, "Remesh", ""},
+	{eModifierType_QuadRemesh, "QUADREMESH", ICON_MOD_REMESH, "Quadrilateral Remesh", "" },
 	{eModifierType_Screw, "SCREW", ICON_MOD_SCREW, "Screw", ""},
 	{eModifierType_Skin, "SKIN", ICON_MOD_SKIN, "Skin", ""},
 	{eModifierType_Solidify, "SOLIDIFY", ICON_MOD_SOLIDIFY, "Solidify", ""},
@@ -244,6 +245,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
 			return &RNA_LaplacianDeformModifier;
 		case eModifierType_Wireframe:
 			return &RNA_WireframeModifier;
+		case eModifierType_QuadRemesh:
+			return &RNA_QuadRemeshModifier;
 		/* Default */
 		case eModifierType_None:
 		case eModifierType_ShapeKey:
@@ -332,6 +335,7 @@ RNA_MOD_VGROUP_NAME_SET(WeightVGMix, mask_defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(WeightVGProximity, defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(WeightVGProximity, mask_defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(Wireframe, defgrp_name);
+RNA_MOD_VGROUP_NAME_SET(QuadRemesh, anchor_grp_name);
 
 static void rna_ExplodeModifier_vgroup_get(PointerRNA *ptr, char *value)
 {
@@ -602,6 +606,12 @@ static int rna_LaplacianDeformModifier_is_bind_get(PointerRNA *ptr)
 {
 	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)ptr->data;
 	return ((lmd->flag & MOD_LAPLACIANDEFORM_BIND) && (lmd->cache_system != NULL));
+}
+
+static int rna_QuadRemeshModifier_is_bind_get(PointerRNA *ptr)
+{
+	QuadRemeshModifierData *qmd = (QuadRemeshModifierData *)ptr->data;
+	return (qmd->flag & MOD_QUADREMESH_BIND);
 }
 
 #else
@@ -3647,6 +3657,30 @@ static void rna_def_modifier_wireframe(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+static void rna_def_modifier_quadremesh(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "QuadRemeshModifier", "Modifier");
+	RNA_def_struct_ui_text(srna, "Quadrilateral Remesh Modifier", "Quadrilateral Remesh modifier");
+	RNA_def_struct_sdna(srna, "QuadRemeshModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_MOD_REMESH);
+
+	prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "anchor_grp_name");
+	RNA_def_property_ui_text(prop, "Vertex group for feature points",
+		"Name of Vertex Group which determines feature points");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_QuadRemeshModifier_anchor_grp_name_set");
+
+	prop = RNA_def_property(srna, "is_bind", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_QuadRemeshModifier_is_bind_get", NULL);
+	RNA_def_property_ui_text(prop, "Bound", "Whether geometry has been bound to anchors");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+}
+
 void RNA_def_modifier(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3759,6 +3793,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	rna_def_modifier_meshcache(brna);
 	rna_def_modifier_laplaciandeform(brna);
 	rna_def_modifier_wireframe(brna);
+	rna_def_modifier_quadremesh(brna);
 }
 
 #endif

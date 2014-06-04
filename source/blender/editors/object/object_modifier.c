@@ -2226,3 +2226,54 @@ void OBJECT_OT_laplaciandeform_bind(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 	edit_modifier_properties(ot);
 }
+
+
+/************************ QuadRemesh bind operator *********************/
+
+static int quadremesh_poll(bContext *C)
+{
+	return edit_modifier_poll_generic(C, &RNA_QuadRemeshModifier, 0);
+}
+
+static int quadremesh_bind_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = ED_object_active_context(C);
+	QuadRemeshModifierData *lmd = (QuadRemeshModifierData *)edit_modifier_property_get(op, ob, eModifierType_QuadRemesh);
+
+	if (!lmd)
+		return OPERATOR_CANCELLED;
+	if (lmd->flag & MOD_QUADREMESH_BIND) {
+		lmd->flag &= ~MOD_QUADREMESH_BIND;
+	}
+	else {
+		lmd->flag |= MOD_QUADREMESH_BIND;
+	}
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+	return OPERATOR_FINISHED;
+}
+
+static int quadremesh_bind_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	if (edit_modifier_invoke_properties(C, op))
+		return quadremesh_bind_exec(C, op);
+	else
+		return OPERATOR_CANCELLED;
+}
+
+void OBJECT_OT_quadremesh_bind(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Quad Remesh Bind";
+	ot->description = "Bind mesh to system in Quad Remesh modifier";
+	ot->idname = "OBJECT_OT_quadremesh_bind";
+
+	/* api callbacks */
+	ot->poll = quadremesh_poll;
+	ot->invoke = quadremesh_bind_invoke;
+	ot->exec = quadremesh_bind_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+	edit_modifier_properties(ot);
+}

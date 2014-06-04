@@ -991,6 +991,23 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row.active = md.use_remove_disconnected
         row.prop(md, "threshold")
 
+    def QUADREMESH(self, layout, ob, md):
+        is_bind = md.is_bind
+
+        row = layout.row()
+        row.active = not is_bind
+        row.label(text="Features Vertex Group:")
+
+        row = layout.row()
+        row.enabled = not is_bind
+        row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
+
+        layout.separator()
+
+        row = layout.row()
+        row.enabled = bool(md.vertex_group)
+        row.operator("object.quadremesh_bind", text="Unbind" if is_bind else "Bind")        
+
     @staticmethod
     def vertex_weight_mask(layout, ob, md):
         layout.label(text="Influence/Mask Options:")
