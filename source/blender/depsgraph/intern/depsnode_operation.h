@@ -81,8 +81,8 @@ struct OperationDepsNode : public DepsNode {
 	bool scheduled;
 	
 	short optype;                 /* (eDepsOperation_Type) stage of evaluation */
-	short flag;                   /* (eDepsOperation_Flag) extra settings affecting evaluation */
-	short done;                   /* generic tag for traversal algorithms */
+	int flag;                     /* (eDepsOperation_Flag) extra settings affecting evaluation */
+	int done;                     /* generic tag for traversal algorithms */
 };
 
 /* Macros for common static typeinfo */

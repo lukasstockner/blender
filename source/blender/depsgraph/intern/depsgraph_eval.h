@@ -56,7 +56,7 @@ typedef struct DEG_OperationsContext {
 	
 	int type;             /* (eDepsNode_Type.OuterNodes) component type <-> context type (for debug purposes) */
 	short utype;          /* (eDEG_OperationContext_UserType) evaluation user type */
-	short flag;           /* (eDEG_OperationContext_Flag) extra settings */
+	int flag;             /* (eDEG_OperationContext_Flag) extra settings */
 } DEG_OperationsContext;
 
 /* Settings */
