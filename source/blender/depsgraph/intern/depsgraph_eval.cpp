@@ -57,6 +57,8 @@ extern "C" {
 #include "RNA_types.h"
 } /* extern "C" */
 
+#include "atomic_ops.h"
+
 #include "depsgraph.h"
 #include "depsnode.h"
 #include "depsnode_component.h"
@@ -88,10 +90,13 @@ void DEG_set_eval_mode(eDEG_EvalMode mode)
 /* *************************************************** */
 /* Multi-Threaded Evaluation Internals */
 
+static SpinLock threaded_update_lock;
+
 /* Initialise threading lock - called during application startup */
 void DEG_threaded_init(void)
 {
 	DepsgraphTaskScheduler::init();
+	BLI_spin_init(&threaded_update_lock);
 }
 
 /* Free threading lock - called during application shutdown */
@@ -100,6 +105,7 @@ void DEG_threaded_exit(void)
 	DepsgraphDebug::stats_free();
 	
 	DepsgraphTaskScheduler::exit();
+	BLI_spin_end(&threaded_update_lock);
 }
 
 
@@ -112,6 +118,7 @@ static void calculate_pending_parents(Depsgraph *graph)
 		OperationDepsNode *node = *it_op;
 		
 		node->num_links_pending = 0;
+		node->scheduled = false;
 		
 		/* count number of inputs that need updates */
 		if (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
@@ -147,18 +154,40 @@ static void calculate_eval_priority(OperationDepsNode *node)
 		node->eval_priority = 0.0f;
 }
 
-static bool is_node_ready(OperationDepsNode *node)
-{
-	return (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) && node->num_links_pending == 0;
-}
 
 static void schedule_graph(DepsgraphTaskPool &pool, Depsgraph *graph, eEvaluationContextType context_type)
 {
+	BLI_spin_lock(&threaded_update_lock);
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
 		OperationDepsNode *node = *it;
 		
-		if (is_node_ready(node)) {
+		if ((node->flag & DEPSOP_FLAG_NEEDS_UPDATE) && node->num_links_pending == 0) {
 			pool.push(graph, node, context_type);
+			node->scheduled = true;
+		}
+	}
+	BLI_spin_unlock(&threaded_update_lock);
+}
+
+void deg_schedule_children(DepsgraphTaskPool &pool, Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node)
+{
+	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
+		DepsRelation *rel = *it;
+		OperationDepsNode *child = rel->to;
+		
+		if (child->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
+			BLI_assert(child->num_links_pending > 0);
+			atomic_sub_uint32(&child->num_links_pending, 1);
+			
+			if (child->num_links_pending == 0) {
+				BLI_spin_lock(&threaded_update_lock);
+				bool need_schedule = !child->scheduled;
+				child->scheduled = true;
+				BLI_spin_unlock(&threaded_update_lock);
+				
+				if (need_schedule)
+					pool.push(graph, child, context_type);
+			}
 		}
 	}
 }

@@ -33,6 +33,7 @@ extern "C" {
 }
 
 #include "depsgraph_debug.h"
+#include "depsgraph_eval.h"
 #include "depsnode_component.h"
 
 #include "depsgraph_util_task.h"
@@ -101,21 +102,9 @@ void DepsgraphTask::run()
 	DepsgraphDebug::task_completed(*this, end_time - start_time);
 }
 
-void DepsgraphTask::schedule_children(DepsgraphTaskPool *pool)
+void DepsgraphTask::finish(DepsgraphTaskPool &pool)
 {
-	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
-		DepsRelation *rel = *it;
-		OperationDepsNode *child = rel->to;
-		
-		if (child->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
-			BLI_assert(child->num_links_pending > 0);
-			--child->num_links_pending;
-			
-			if (child->num_links_pending == 0) {
-				pool->push(graph, child, context_type);
-			}
-		}
-	}
+	deg_schedule_children(pool, graph, context_type, node);
 }
 
 
@@ -125,11 +114,15 @@ DepsgraphTaskPool::DepsgraphTaskPool()
 {
 	num = 0;
 	do_cancel = false;
+	
+	BLI_mutex_init(&num_mutex);
 }
 
 DepsgraphTaskPool::~DepsgraphTaskPool()
 {
 	stop();
+	
+	BLI_mutex_end(&num_mutex);
 }
 
 void DepsgraphTaskPool::push(Depsgraph *graph, OperationDepsNode *node, eEvaluationContextType context_type)
@@ -264,6 +257,8 @@ ThreadCondition DepsgraphTaskScheduler::queue_cond;
 
 void DepsgraphTaskScheduler::init(int num_threads)
 {
+	BLI_mutex_init(&queue_mutex);
+	
 	do_exit = false;
 	
 	if(num_threads == 0) {
@@ -293,6 +288,8 @@ void DepsgraphTaskScheduler::exit()
 		delete t;
 	}
 	threads.clear();
+	
+	BLI_mutex_end(&queue_mutex);
 	
 	deg_eval_sim_free();
 }
@@ -333,7 +330,7 @@ void DepsgraphTaskScheduler::thread_run(int thread_id)
 		entry.pool->num_decrease(1);
 		
 		if (!entry.pool->canceled())
-			entry.task.schedule_children(entry.pool);
+			entry.task.finish(*entry.pool);
 	}
 }
 

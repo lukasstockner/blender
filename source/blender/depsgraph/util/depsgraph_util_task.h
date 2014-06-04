@@ -55,8 +55,7 @@ public:
 	DepsgraphTask(Depsgraph *graph_, OperationDepsNode *node_, eEvaluationContextType context_type_);
 	
 	void run();
-	
-	void schedule_children(DepsgraphTaskPool *pool);
+	void finish(DepsgraphTaskPool &pool);
 };
 
 /* Task Pool

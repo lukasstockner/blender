@@ -34,6 +34,7 @@ set(INC
 	../makesrna
 	../modifiers
 	../windowmanager
+	../../../intern/atomic
 	../../../intern/guardedalloc
 )
 

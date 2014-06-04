@@ -78,6 +78,7 @@ struct OperationDepsNode : public DepsNode {
 	
 	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
 	float eval_priority;
+	bool scheduled;
 	
 	short optype;                 /* (eDepsOperation_Type) stage of evaluation */
 	short flag;                   /* (eDepsOperation_Flag) extra settings affecting evaluation */
