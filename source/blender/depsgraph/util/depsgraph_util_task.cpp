@@ -26,8 +26,11 @@
 
 #include <stdlib.h>
 #include "BLI_utildefines.h"
-
 #include "PIL_time.h"
+
+extern "C" {
+#include "BLI_rand.h" /* XXX for eval simulation only, remove eventually */
+}
 
 #include "depsgraph_debug.h"
 #include "depsnode_component.h"
@@ -35,6 +38,21 @@
 #include "depsgraph_util_task.h"
 
 /* Task */
+
+/* **** eval simulation **** */
+static RNG *deg_eval_sim_rng = NULL;
+
+static void deg_eval_sim_init()
+{
+	deg_eval_sim_rng = BLI_rng_new((unsigned int)(PIL_check_seconds_timer() * 0x7FFFFFFF));
+}
+
+static void deg_eval_sim_free()
+{
+	BLI_rng_free(deg_eval_sim_rng);
+	deg_eval_sim_rng = NULL;
+}
+/* ******** */
 
 DepsgraphTask::DepsgraphTask(Depsgraph *graph_, OperationDepsNode *node_, eEvaluationContextType context_type_) :
     graph(graph_),
@@ -62,10 +80,21 @@ void DepsgraphTask::run()
 	double start_time = PIL_check_seconds_timer();
 	DepsgraphDebug::task_started(*this);
 	
-	/* should only be the case for NOOPs, which never get to this point */
-	BLI_assert(node->evaluate);
-	/* perform operation */
-	node->evaluate(context, item);
+	if (DEG_get_eval_mode() == DEG_EVAL_MODE_SIM) {
+		/* simulate work, but actually just take a nap here ... */
+		
+		int min = 20, max = 30; /* default siesta duration in milliseconds */
+		
+		int r = BLI_rng_get_int(deg_eval_sim_rng);
+		int ms = (int)(min) + r % ((int)(max) - (int)(min));
+		PIL_sleep_ms(ms);
+	}
+	else {
+		/* should only be the case for NOOPs, which never get to this point */
+		BLI_assert(node->evaluate);
+		/* perform operation */
+		node->evaluate(context, item);
+	}
 	
 	/* note how long this took */
 	double end_time = PIL_check_seconds_timer();
@@ -247,6 +276,8 @@ void DepsgraphTaskScheduler::init(int num_threads)
 	
 	for(size_t i = 0; i < threads.size(); i++)
 		threads[i] = new Thread(&DepsgraphTaskScheduler::thread_run, i);
+	
+	deg_eval_sim_init();
 }
 
 void DepsgraphTaskScheduler::exit()
@@ -262,6 +293,8 @@ void DepsgraphTaskScheduler::exit()
 		delete t;
 	}
 	threads.clear();
+	
+	deg_eval_sim_free();
 }
 
 bool DepsgraphTaskScheduler::thread_wait_pop(Entry& entry)

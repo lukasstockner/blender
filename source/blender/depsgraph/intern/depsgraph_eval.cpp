@@ -67,9 +67,6 @@ extern "C" {
 #include "depsgraph_intern.h"
 #include "depsgraph_debug.h"
 
-/* XXX for simulation, remove later */
-#include "stubs.h"
-
 eDEG_EvalMode DEG_get_eval_mode(void)
 {
 	switch (G.debug_value) {
@@ -95,7 +92,6 @@ void DEG_set_eval_mode(eDEG_EvalMode mode)
 void DEG_threaded_init(void)
 {
 	DepsgraphTaskScheduler::init();
-	deg_simulate_eval_init();
 }
 
 /* Free threading lock - called during application shutdown */
@@ -104,7 +100,6 @@ void DEG_threaded_exit(void)
 	DepsgraphDebug::stats_free();
 	
 	DepsgraphTaskScheduler::exit();
-	deg_simulate_eval_free();
 }
 
 
