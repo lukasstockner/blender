@@ -154,7 +154,6 @@ static void calculate_eval_priority(OperationDepsNode *node)
 		node->eval_priority = 0.0f;
 }
 
-
 static void schedule_graph(DepsgraphTaskPool &pool, Depsgraph *graph, eEvaluationContextType context_type)
 {
 	BLI_spin_lock(&threaded_update_lock);

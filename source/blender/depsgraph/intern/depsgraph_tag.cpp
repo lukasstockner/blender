@@ -135,6 +135,7 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 		/* clear node's "pending update" settings */
 		node->flag &= ~(DEPSOP_FLAG_DIRECTLY_MODIFIED | DEPSOP_FLAG_NEEDS_UPDATE);
 		node->num_links_pending = 0; /* reset so that it can be bumped up again */
+		node->scheduled = false;
 	}
 	
 	/* clear any entry tags which haven't been flushed */
