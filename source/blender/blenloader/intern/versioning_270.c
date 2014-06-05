@@ -51,7 +51,6 @@
 
 #include "BKE_main.h"
 #include "BKE_node.h"
-#include "BKE_key.h"
 
 #include "BLI_math.h"
 #include "BLI_string.h"
@@ -257,7 +256,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		/* XXX insert appropriate version later!*/
 		Scene *sc;
 		Key *k;
-		//Object *ob;
 
 		/* Enable auto-committing shape keys! */
 		for (sc = main->scene.first; sc; sc = sc->id.next) {
@@ -268,6 +266,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		for (k = main->key.first; k; k = k->id.next) {
 			k->mix_mode = KEY_MIX_FROM_ANIMDATA;
 		}
+
 	}
 
 	if (!DNA_struct_elem_find(fd->filesdna, "Material", "int", "mode2")) { /* will be replaced with version check when other new flag is added to mode2 */

@@ -72,7 +72,7 @@ static void deformMatrices(ModifierData *md, Object *ob, DerivedMesh *derivedDat
 	if (kb && kb->totelem == numVerts && kb != key->refkey) {
 		int a;
 
-		if (key->pin) scale_m3_fl(scale, 1);
+		if (ob->shapeflag & OB_SHAPE_LOCK) scale_m3_fl(scale, 1);
 		else scale_m3_fl(scale, kb->curval);
 
 		for (a = 0; a < numVerts; a++)

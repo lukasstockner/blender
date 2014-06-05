@@ -540,7 +540,7 @@ void update_bmesh_shapes(Object *ob)
 	}
 }
 
-void recalc_keyblocks_from_scratch(Object *ob, bool pinned)
+void recalc_keyblocks_from_scratch(Object *ob)
 {
 	Key *k = BKE_key_from_object(ob);
 	Mesh *me = ob->data;
@@ -559,40 +559,6 @@ void recalc_keyblocks_from_scratch(Object *ob, bool pinned)
 	float (*kb_co)[3] = NULL;
 
 	if (k->type == KEY_RELATIVE) {
-
-		if (!pinned) {
-			float scratch_val = *BKE_keyblock_get_active_value(k, old_active);
-			KeyBlock *old_kb_base = BLI_findlink(&kbs, old_active->relative);
-			float (*old_kb_baseco)[3] = old_kb_base->data;
-
-			BLI_assert(fabs(scratch_val) > 0.001f);
-
-			float (*submix_kb_offset_co)[3] = MEM_callocN(sizeof(float) * 3 * old_active->totelem, __func__);
-			/* if the key wasn't pinned, it means we have to subtract all other keys from the scratch
-				* from the mix before getting the offsets */
-			LISTBASE_ITER_FWD_INDEX(kbs, kb, a) {
-				if (a == old_index || a == 0)
-					continue;
-				BKE_key_block_mesh_eval_rel(ob, k, kb, false, submix_kb_offset_co);
-				for (b = 0; b < old_active->totelem; ++b) {
-					sub_v3_v3(skb_co[b], submix_kb_offset_co[b]);
-				}
-			}
-
-			for (b = 0; b < old_active->totelem; ++b) {
-				/* now for a less intuitive operation - weight correction.
-				 * data in keyblock should ALWAYS correspond to keyblock @ 1.0 value,
-				 * but while editing a mix, we don't necessary have 1.0 value, so let's correct for it
-				/* see http://wiki.blender.org/index.php/File:Gsoc-keys-mix-recalc-relations.png */
-				sub_v3_v3(skb_co[b], old_kb_baseco[b]);
-				/* scale the offset to 1.0 value */
-				mul_v3_fl(skb_co[b], 1.0f / scratch_val);
-				/* add the basis back */
-				add_v3_v3(skb_co[b], old_kb_baseco[b]);
-			}
-
-			MEM_freeN(submix_kb_offset_co);
-		}
 
 		LISTBASE_ITER_FWD_INDEX(kbs, kb, a) {
 			/* for all keyblocks, find their relative keyblock */
@@ -629,7 +595,7 @@ void recalc_keyblocks_from_scratch(Object *ob, bool pinned)
 		MEM_freeN(offsets_co);
 }
 
-void EDBM_commit_scratch_to_active(Object *ob, Scene *s, bool key_pinned)
+void EDBM_commit_scratch_to_active(Object *ob, Scene *s)
 {
 	BMEditMesh *em = BKE_editmesh_from_object(ob);
 	Key *key = BKE_key_from_object(ob);
@@ -648,19 +614,8 @@ void EDBM_commit_scratch_to_active(Object *ob, Scene *s, bool key_pinned)
 	else {
 		/* update scratch from editdata */
 		BKE_key_editdata_to_scratch(ob, true);
-
-		if (!key_pinned) {
-			/* assert that the keyblock's we're recalculating from has 
-			 * value != 0.0, or we can't commit/recalc */
-			KeyBlock *old_kb = key->scratch.origin;
-			float kbval = *BKE_keyblock_get_active_value(key, old_kb);
-			if (fabs(kbval) < 0.001f) {
-				shapekey_zero_warn(old_kb);
-				return;
-			}
-		}
 		/* faster keyblock recalc */
-		recalc_keyblocks_from_scratch(ob, key_pinned);
+		recalc_keyblocks_from_scratch(ob);
 		/* update shapes customdata on bmesh from recalced keyblocks */
 		update_bmesh_shapes(ob);	
 	}
@@ -705,7 +660,6 @@ void EDBM_editmesh_from_mesh(Object *ob, Scene *scene)
 
 	if (k) {
 		BKE_key_init_scratch(ob);
-		BKE_key_eval_editmesh_rel(em, k->pin);
 	}
 }
 
@@ -725,16 +679,8 @@ bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 			BKE_key_editdata_to_scratch(obedit, false);
 		}
 		else {
-			if (key->pin) {
-				KeyBlock *old_kb = key->scratch.origin;
-				float kbval = *BKE_keyblock_get_active_value(key, old_kb);
-				if (fabs(kbval) < 0.001f) {
-					shapekey_zero_warn(old_kb);
-					return true;
-				}
-			}
 			BKE_key_editdata_to_scratch(obedit, true);
-			recalc_keyblocks_from_scratch(obedit, key->pin);
+			recalc_keyblocks_from_scratch(obedit);
 			update_bmesh_shapes(obedit);
 		}
 	}
@@ -773,10 +719,9 @@ void EDBM_handle_active_shape_update(Object *ob, Scene *s)
 
 	/* handle auto-committing */
 	if (s->toolsettings->kb_auto_commit) {
-		EDBM_commit_scratch_to_active(ob, s, key->pin);
+		EDBM_commit_scratch_to_active(ob, s);
 		EDBM_update_scratch_from_active(ob);
 		em = BKE_editmesh_from_object(ob);
-		BKE_key_eval_editmesh_rel(em, key->pin);
 		EDBM_update_generic(em, false, false);
 	}  
 	/* if there's no auto-committing, don't do anything */

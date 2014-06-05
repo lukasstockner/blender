@@ -49,13 +49,11 @@
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
 #include "BKE_curve.h"
-#include "BKE_key.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_curve_types.h" /* for Curve */
-#include "DNA_key_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -226,7 +224,6 @@ static const MeshElemMap *cdDM_getPolyMap(Object *ob, DerivedMesh *dm)
 
 static bool check_sculpt_object_deformed(Object *object, bool for_construction)
 {
-	Key *key = BKE_key_from_object(object);
 	bool deformed = false;
 
 	/* Active modifiers means extra deformation, which can't be handled correct
@@ -243,7 +240,7 @@ static bool check_sculpt_object_deformed(Object *object, bool for_construction)
 		 * PBVH and non-locked keyblock, so also use PBVH only for brushes and
 		 * final DM to give final result to user.
 		 */
-		deformed |= object->sculpt->kb && (key && key->pin) == 0;
+		deformed |= object->sculpt->kb && (object->shapeflag & OB_SHAPE_LOCK) == 0;
 	}
 
 	return deformed;

@@ -79,7 +79,7 @@ void      BKE_keyblock_copy_settings(KeyBlock *kb_dst, const KeyBlock *kb_src);
 char     *BKE_keyblock_curval_rnapath_get(Key *key, KeyBlock *kb);
 
 /* returns a pointer to active shape value (mixval/anim-driven val) */
-float    *BKE_keyblock_get_active_value(Key *key, KeyBlock *kb);
+float    *BKE_keyblock_get_active_value(Object *ob, KeyBlock *kb);
 
 /* ==== scratch keyblock ==== */
 
@@ -111,7 +111,7 @@ typedef struct WeightsArrayCache {
 
 float **BKE_keyblock_get_per_block_weights(Object *ob, Key *key, WeightsArrayCache *cache);
 void BKE_keyblock_free_per_block_weights(Key *key, float **per_keyblock_weights, WeightsArrayCache *cache);
-void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
+void BKE_key_evaluate_relative(Object *ob, const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
                                float **per_keyblock_weights, const int mode);
 
 /* conversion functions */

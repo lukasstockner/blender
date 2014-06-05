@@ -33,9 +33,6 @@
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 
-#include "BKE_key.h"
-#include "BKE_editmesh.h"
-
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
@@ -109,7 +106,7 @@ static void rna_ShapeKey_value_set(PointerRNA *ptr, float value)
 	data->curval = value;
 }
 
-static void rna_ShapeKey_mixvalue_set(PointerRNA *ptr, float value)
+static void rna_ShapeKey_editmixvalue_set(PointerRNA *ptr, float value)
 {
 	KeyBlock *data = (KeyBlock *)ptr->data;
 	CLAMP(value, data->slidermin, data->slidermax);
@@ -120,6 +117,7 @@ static void rna_ShapeKey_value_range(PointerRNA *ptr, float *min, float *max,
                                      float *UNUSED(softmin), float *UNUSED(softmax))
 {
 	KeyBlock *data = (KeyBlock *)ptr->data;
+
 	*min = data->slidermin;
 	*max = data->slidermax;
 }
@@ -389,36 +387,6 @@ static void rna_Key_update_data(Main *bmain, Scene *UNUSED(scene), PointerRNA *p
 	Key *key = ptr->id.data;
 	Object *ob;
 
-	bool topo_change;
-
-	for (ob = bmain->object.first; ob; ob = ob->id.next) {
-		if (BKE_key_from_object(ob) == key) 
-			break;
-	}
-
-	if (ob->mode == OB_MODE_EDIT) {
-		if (ob->type == OB_MESH) {
-			Mesh *me = (Mesh *) key->from;
-			if (key->type == KEY_RELATIVE) {
-				topo_change = BKE_editmesh_topo_has_changed(me->edit_btmesh);
-				BKE_key_editdata_to_scratch(ob, !topo_change);
-				if (!topo_change) {
-					BKE_key_eval_editmesh_rel(me->edit_btmesh, key->pin);
-				}
-				/* don't evaluate anything if the topology is changed */
-			}
-		}
-	}
-
-	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
-	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
-}
-
-static void rna_Key_switch_pinning(Main *bmain, Scene *scene, PointerRNA *ptr) 
-{
-	Key *key = ptr->id.data;
-	Object *ob = NULL;
-
 	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		if (BKE_key_from_object(ob) == key) 
 			break;
@@ -426,15 +394,10 @@ static void rna_Key_switch_pinning(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 	BLI_assert(ob);
 
-	if (ob->mode == OB_MODE_EDIT) {
-		Mesh *me = ob->data;
-		EDBM_commit_scratch_to_active(ob, scene, !key->pin);
-		BKE_key_eval_editmesh_rel(me->edit_btmesh, key->pin);
-	}
-	
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
 }
+
 
 static KeyBlock *rna_ShapeKeyData_find_keyblock(Key *key, float *point)
 {
@@ -644,9 +607,9 @@ static void rna_def_keyblock(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "edit_mix_value", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "mixval");
-	RNA_def_property_float_funcs(prop, NULL, "rna_ShapeKey_mixvalue_set", "rna_ShapeKey_value_range");
+	RNA_def_property_float_funcs(prop, NULL, "rna_ShapeKey_editmixvalue_set", "rna_ShapeKey_value_range");
 	RNA_def_property_ui_range(prop, -10.0f, 10.0f, 10, 3);
-	RNA_def_property_ui_text(prop, "Value", "Animation-independent value of shape key at the current frame");
+	RNA_def_property_ui_text(prop, "Value", "Animation-independent value of shape key for editmode");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE); /* don't make this animatable, this would be considered abuse */
 	RNA_def_property_update(prop, 0, "rna_Key_update_data");
 
@@ -736,13 +699,6 @@ static void rna_def_key(BlenderRNA *brna)
 															"or use an animation-independent mix");
 	RNA_def_property_update(prop, 0, "rna_Key_update_data");
 	RNA_def_property_ui_icon(prop, ICON_IPO_BEZIER, 0);
-
-	prop = RNA_def_property(srna, "show_only_shape_key", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "pin", 0);
-	RNA_def_property_ui_text(prop, "Shape Key Lock", "Always show the current Shape for this Key");
-	RNA_def_property_ui_icon(prop, ICON_UNPINNED, 1);
-	RNA_def_property_update(prop, 0, "rna_Key_switch_pinning");
-
 
 	prop = RNA_def_property(srna, "eval_time", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "ctime");

@@ -61,7 +61,7 @@ class MESH_MT_shape_key_specials(Menu):
 
 class MESH_UL_vgroups(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        # assert(isinstance(item, bpy.types.VertexGroup))
+        # assert(isinstance(item, bpy.types.VertexGroup)
         vgroup = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(vgroup, "name", text="", emboss=False, icon_value=icon)
@@ -84,7 +84,7 @@ def draw_shape_value(ob, kb, layout, emboss=False, text=""):
 
 class MESH_UL_shape_keys(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        # assert(isinstance(item, bpy.types.ShapeKey))
+        # assert(isinstance(item, bpy.types.ShapeKey)
         obj = active_data
         # key = data
         key_block = item
@@ -106,7 +106,7 @@ class MESH_UL_shape_keys(UIList):
 
 class MESH_UL_uvmaps_vcols(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        # assert(isinstance(item, (bpy.types.MeshTexturePolyLayer, bpy.types.MeshLoopColorLayer)))
+        # assert(isinstance(item, (bpy.types.MeshTexturePolyLayer, bpy.types.MeshLoopColorLayer))
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(item, "name", text="", emboss=False, icon_value=icon)
             icon = 'RESTRICT_RENDER_OFF' if item.active_render else 'RESTRICT_RENDER_ON'
@@ -248,7 +248,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
         kb = ob.active_shape_key
         ts = context.scene.tool_settings
 
-        enable_edit = ob.mode != 'EDIT'
+        in_editmode = ob.mode == 'EDIT'
 
         row = layout.row()
 
@@ -276,7 +276,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
 
             split = layout.split(percentage=0.4)
             row = split.row()
-            row.enabled = enable_edit
+            row.enabled = not in_editmode
             row.prop(key, "use_relative")
             row = split.row()
             if ob.mode == 'ED   IT':    
@@ -285,10 +285,14 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             sub = row.row(align=True)
             sub.label()  # XXX, for alignment only
             subsub = sub.row(align=True)
-            if not enable_edit:
-                subsub.prop(key, "mix_from_animation", text="")
-            subsub.prop(key, "show_only_shape_key", text="")
-            
+
+            if in_editmode:
+                if ob.type == 'MESH':
+                    subsub.prop(key, "mix_from_animation", text="")
+                    subsub.prop(ob, "use_shape_key_edit_mode", text="")
+            else:
+                subsub.prop(ob, "show_only_shape_key", text="")
+                    
             sub = row.row()
             if key.use_relative:
                 sub.operator("object.shape_key_clear", icon='X', text="")
@@ -317,7 +321,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             else:
                 layout.prop(kb, "interpolation")
                 row = layout.column()
-                row.active = enable_edit_value
+                row.active = ob.mode != 'EDIT'
                 row.prop(key, "eval_time")
                 row.prop(key, "slurph")
 
@@ -391,5 +395,3 @@ class DATA_PT_custom_props_mesh(MeshButtonsPanel, PropertyPanel, Panel):
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)
-
-

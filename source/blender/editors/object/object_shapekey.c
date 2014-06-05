@@ -395,13 +395,6 @@ static int shape_key_clear_exec(bContext *C, wmOperator *UNUSED(op))
 	for (kb = key->block.first; kb; kb = kb->next)
 		kb->curval = 0.0f;
 
-	if (ob->type == OB_MESH) {
-		Mesh *me = ob->data;
-		if (!key->pin) {
-			BKE_key_eval_editmesh_rel(me->edit_btmesh, false);
-		}
-	}
-
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 	

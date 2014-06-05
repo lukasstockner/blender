@@ -2897,7 +2897,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 			
 			key = BKE_key_from_object(ob);
 			if (key && key->block.first) {
-				if (!key->pin)
+				if (!(ob->shapeflag & OB_SHAPE_LOCK))
 					BKE_animsys_evaluate_animdata(scene, &key->id, key->adt, ctime, ADT_RECALC_DRIVERS);
 			}
 

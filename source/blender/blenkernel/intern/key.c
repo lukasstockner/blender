@@ -741,7 +741,7 @@ static void cp_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock *kb, const 
 }
 
 
-void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
+void BKE_key_evaluate_relative(Object *ob, const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
                                float **per_keyblock_weights, const int mode)
 {
 	KeyBlock *kb;
@@ -770,10 +770,9 @@ void BKE_key_evaluate_relative(const int start, int end, const int tot, char *ba
 	cp_key(start, end, tot, basispoin, key, actkb, key->refkey, NULL, mode);
 	
 	/* step 2: do it */
-	
-	for (kb = key->block.first, keyblock_index = 0; kb; kb = kb->next, keyblock_index++) {
+	LISTBASE_ITER_FWD_INDEX(key->block, kb, keyblock_index) {
 		if (kb != key->refkey) {
-			float icuval = kb->curval;
+			float icuval = *BKE_keyblock_get_active_value(ob, kb);
 			
 			/* only with value, and no difference allowed */
 			if (!(kb->flag & KEYBLOCK_MUTE) && icuval != 0.0f && kb->totelem == tot) {
@@ -1219,7 +1218,7 @@ static void do_mesh_key(Scene *scene, Object *ob, Key *key, char *out, const int
 			WeightsArrayCache cache = {0, NULL};
 			float **per_keyblock_weights;
 			per_keyblock_weights = BKE_keyblock_get_per_block_weights(ob, key, &cache);
-			BKE_key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
+			BKE_key_evaluate_relative(ob, 0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
 			BKE_keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
 		}
 		else {
@@ -1255,19 +1254,20 @@ static void do_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock **k, float 
 	}
 }
 
-static void do_rel_cu_key(Curve *cu, Key *key, KeyBlock *actkb, char *out, const int tot)
+static void do_rel_cu_key(Object *ob, Key *key, KeyBlock *actkb, char *out, const int tot)
 {
+	Curve *cu = ob->data;
 	Nurb *nu;
 	int a, step;
 	
 	for (a = 0, nu = cu->nurb.first; nu; nu = nu->next, a += step) {
 		if (nu->bp) {
 			step = nu->pntsu * nu->pntsv;
-			BKE_key_evaluate_relative(a, a + step, tot, out, key, actkb, NULL, KEY_MODE_BPOINT);
+			BKE_key_evaluate_relative(ob, a, a + step, tot, out, key, actkb, NULL, KEY_MODE_BPOINT);
 		}
 		else if (nu->bezt) {
 			step = 3 * nu->pntsu;
-			BKE_key_evaluate_relative(a, a + step, tot, out, key, actkb, NULL, KEY_MODE_BEZTRIPLE);
+			BKE_key_evaluate_relative(ob, a, a + step, tot, out, key, actkb, NULL, KEY_MODE_BEZTRIPLE);
 		}
 		else {
 			step = 0;
@@ -1344,7 +1344,7 @@ static void do_curve_key(Scene *scene, Object *ob, Key *key, char *out, const in
 	}
 	else {
 		if (key->type == KEY_RELATIVE) {
-			do_rel_cu_key(cu, cu->key, actkb, out, tot);
+			do_rel_cu_key(ob, cu->key, actkb, out, tot);
 		}
 		else {
 			const float ctime_scaled = key->ctime / 100.0f;
@@ -1383,7 +1383,7 @@ static void do_latt_key(Scene *scene, Object *ob, Key *key, char *out, const int
 		if (key->type == KEY_RELATIVE) {
 			float **per_keyblock_weights;
 			per_keyblock_weights = BKE_keyblock_get_per_block_weights(ob, key, NULL);
-			BKE_key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
+			BKE_key_evaluate_relative(ob, 0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
 			BKE_keyblock_free_per_block_weights(key, per_keyblock_weights, NULL);
 		}
 		else {
@@ -1461,7 +1461,7 @@ float *BKE_key_evaluate_object_ex(Scene *scene, Object *ob, int *r_totelem,
 	/* prevent python from screwing this up? anyhoo, the from pointer could be dropped */
 	key->from = (ID *)ob->data;
 		
-	if (key->pin) {
+	if (ob->shapeflag & OB_SHAPE_LOCK) {
 		/* shape locked, copy the locked shape instead of blending */
 		KeyBlock *kb = BLI_findlink(&key->block, ob->shapenr - 1);
 		
@@ -1654,6 +1654,7 @@ void BKE_keyblock_copy_settings(KeyBlock *kb_dst, const KeyBlock *kb_src)
 {
 	kb_dst->pos        = kb_src->pos;
 	kb_dst->curval     = kb_src->curval;
+	kb_dst->mixval	   = kb_src->mixval;
 	kb_dst->type       = kb_src->type;
 	kb_dst->relative   = kb_src->relative;
 	BLI_strncpy(kb_dst->vgroup, kb_src->vgroup, sizeof(kb_dst->vgroup));
@@ -2074,9 +2075,14 @@ void BKE_key_convert_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3])
 	}
 }
 
-float    *BKE_keyblock_get_active_value(Key *key, KeyBlock *kb)
+float    *BKE_keyblock_get_active_value(Object *ob, KeyBlock *kb)
 {
-	return key->mix_mode == KEY_MIX_FROM_ANIMDATA ? &kb->curval : &kb->mixval;
+	/* in editmode, there can be the local mix value or the animation mix value */
+	Key *key = BKE_key_from_object(ob);
+	if (ob->mode == OB_MODE_EDIT) {
+		return key->mix_mode == KEY_MIX_FROM_ANIMDATA ? &kb->curval : &kb->mixval;
+	} 
+	else return &kb->curval;
 }
 
 
@@ -2171,6 +2177,8 @@ void BKE_key_editdata_from_scratch(Object *ob)
 
 /*============ editmode mesh keyblock eval tools ===========*/
 
+/* NOTE: I don't use these in editmode anymore, but they can be useful later in some key math */
+
 #define KB_FOR_EACH_CO(kb, indexvar) \
 for ((indexvar) = 0; (indexvar) < (kb)->totelem; ++(indexvar))
 
@@ -2195,7 +2203,7 @@ void BKE_key_block_mesh_eval_rel(Object *ob, Key *key, KeyBlock *kb, bool use_vg
 	int a;
 	float *per_vertex_weights = NULL;
 
-	float influence = *BKE_keyblock_get_active_value(key, kb);
+	float influence = *BKE_keyblock_get_active_value(ob, kb);
 	
 	if (use_vgroup)
 		per_vertex_weights = get_weights_array(ob, kb->vgroup, NULL);

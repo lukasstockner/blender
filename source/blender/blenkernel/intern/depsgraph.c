@@ -2039,7 +2039,6 @@ static void dag_object_time_update_flags(Main *bmain, Scene *scene, Object *ob)
 	{
 		AnimData *adt = BKE_animdata_from_id((ID *)ob->data);
 		Mesh *me;
-		Key *key = BKE_key_from_object(ob);
 		Curve *cu;
 		Lattice *lt;
 		
@@ -2047,7 +2046,7 @@ static void dag_object_time_update_flags(Main *bmain, Scene *scene, Object *ob)
 			case OB_MESH:
 				me = ob->data;
 				if (me->key) {
-					if (!key->pin) {
+					if (!(ob->shapeflag & OB_SHAPE_LOCK)) {
 						ob->recalc |= OB_RECALC_DATA;
 					}
 				}
@@ -2058,7 +2057,7 @@ static void dag_object_time_update_flags(Main *bmain, Scene *scene, Object *ob)
 			case OB_SURF:
 				cu = ob->data;
 				if (cu->key) {
-					if (!key->pin) {
+					if (!(ob->shapeflag & OB_SHAPE_LOCK)) {
 						ob->recalc |= OB_RECALC_DATA;
 					}
 				}
@@ -2071,7 +2070,7 @@ static void dag_object_time_update_flags(Main *bmain, Scene *scene, Object *ob)
 			case OB_LATTICE:
 				lt = ob->data;
 				if (lt->key) {
-					if (!key->pin) {
+					if (!(ob->shapeflag & OB_SHAPE_LOCK)) {
 						ob->recalc |= OB_RECALC_DATA;
 					}
 				}
