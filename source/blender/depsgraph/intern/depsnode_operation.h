@@ -27,9 +27,13 @@
 #ifndef __DEPSNODE_OPERATION_H__
 #define __DEPSNODE_OPERATION_H__
 
+#include <stdlib.h>
+
 #include "MEM_guardedalloc.h"
 
 extern "C" {
+#include "BLI_utildefines.h"
+
 #include "RNA_access.h"
 }
 
@@ -42,6 +46,78 @@ struct ID;
 
 struct Depsgraph;
 struct DepsgraphCopyContext;
+
+class DepsgraphOperation {
+public:
+	typedef void (*call_func)(void *data);
+	typedef void (*free_func)(void *data);
+	
+	template <typename functor_t>
+	struct MemFunWrapper {
+		MemFunWrapper(const functor_t &f) :
+		    fun(f)
+		{}
+		
+		inline static void call(void *self)
+		{
+			((MemFunWrapper<functor_t> *)self)->fun();
+		}
+		
+		inline static void free(void *self)
+		{
+			delete (MemFunWrapper<functor_t> *)self;
+		}
+		
+	private:
+		functor_t fun;
+	};
+	
+	/* default constructor creates a NOOP */
+	DepsgraphOperation()
+	{
+		m_func = NULL;
+		m_data = NULL;
+		m_data_free = NULL;
+	}
+	
+	template <typename functor_t>
+	DepsgraphOperation(const functor_t &f)
+	{
+		typedef MemFunWrapper<functor_t> wrapper_t;
+		
+		/* TODO we make a new alloc here as the actual persistent copy,
+		 * so could use efficient memory management later, and don't need to
+		 * define new/delete in every operation args type! (using placement new/delete)
+		 */
+		wrapper_t *wrapper = new wrapper_t(f);
+		m_func = &wrapper_t::call;
+		m_data = wrapper;
+		m_data_free = &wrapper_t::free;
+	}
+	
+	~DepsgraphOperation()
+	{
+		/* XXX TODO Also consider placement new/delete here (see constructor) */
+		if (m_data && m_data_free)
+			m_data_free(m_data);
+	}
+	
+	inline void operator() () const
+	{
+		BLI_assert(m_func);
+		m_func(m_data);
+	}
+	
+	bool is_noop() const
+	{
+		return m_func == NULL;
+	}
+	
+private:
+	call_func m_func;
+	void *m_data;
+	free_func m_data_free;
+};
 
 /* Flags for Depsgraph Nodes */
 typedef enum eDepsOperation_Flag {
