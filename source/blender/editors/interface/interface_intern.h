@@ -488,6 +488,9 @@ struct uiPopupBlockHandle {
 	/* menu direction */
 	int direction;
 
+	/* pie menus */
+	bool is_click_style; /* button released before timeout, this is a click style menu */
+
 /* #ifdef USE_DRAG_POPUP */
 	bool is_grab;
 	int     grab_xy_prev[2];

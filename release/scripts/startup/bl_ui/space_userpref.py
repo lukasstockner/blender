@@ -217,6 +217,10 @@ class USERPREF_PT_interface(Panel):
         sub.prop(view, "open_sublevel_delay", text="Sub Level")
 
         col.separator()
+        col.label(text="Pie Menus:")
+        col.prop(view, "pie_drag_timeout")
+        col.prop(view, "pie_initial_timeout")
+        col.separator()
         col.separator()
         col.separator()
 

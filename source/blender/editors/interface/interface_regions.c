@@ -43,6 +43,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 
+#include "PIL_time.h"
+
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_report.h"
@@ -2511,6 +2513,7 @@ void uiPieMenuEnd(bContext *C, uiPieMenu *pie)
 
 	menu = ui_popup_block_create(C, NULL, NULL, NULL, ui_block_func_PIE, pie);
 	menu->popup = true;
+	menu->towardstime = PIL_check_seconds_timer();
 
 	/* change to pie version! */
 	UI_add_pie_handlers(C, &window->modalhandlers, menu);

@@ -8291,14 +8291,28 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 }
 
 
+static void ui_pie_menu_apply (bContext *C, uiPopupBlockHandle *menu)
+{
+	uiBut *but = ui_but_find_activated(menu->region);
+
+	if (but) {
+		ui_apply_button(C, but->block, but, but->active, false);
+		button_activate_exit((bContext *)C, but, but->active, false, true);
+		menu->menuretval = UI_RETURN_OK;
+	}
+	else {
+		menu->menuretval = UI_RETURN_CANCEL;
+	}
+}
+
 /* two types of pie menus, one with operator + enum, other with regular callbacks */
 static int ui_handler_pie(bContext *C, const wmEvent *event, void *userdata)
 {
 	ARegion *ar;
 	uiBlock *block;
-	uiBut *but;
 	int mx, my;
 	uiPopupBlockHandle *menu = userdata;
+	double time_diff;
 
 	/* we block all events, this is modal interaction, except for drop events which is described below */
 	int retval = WM_UI_HANDLER_BREAK;
@@ -8319,56 +8333,54 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, void *userdata)
 
 	ui_block_calculate_pie_segment(block, mx, my);
 
-	/* add menu scroll timer, this is used to evaluate the time that is needed for
-		 * calculating collision from final/initial position or if pie menu is drag-style
-		 * or press and release style */
-	if (menu->scrolltimer == NULL)
-		menu->scrolltimer =
-		        WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_SCROLL_INTERVAL);
+	/* add menu timer, this is used to evaluate the time that is needed for
+	 * calculating collision from final/initial position or if pie menu is drag-style
+	 * or press and release style */
+	time_diff = PIL_check_seconds_timer() - menu->towardstime;
 
-	switch (event->type) {
-		case MOUSEMOVE:
-			/* mouse move should always refresh the area for pie menus */
+	if (event->type == block->pie_data.event) {
+		if (event->val != KM_RELEASE) {
 			ui_handle_menu_button(C, event, menu);
+
+			/* why redraw here? It's simple, we are getting many double click events here.
+			 * Those operate like mouse move events almost */
 			ED_region_tag_redraw(ar);
-			break;
-
-		case TIMER:
-			if (event->customdata == menu->scrolltimer) {
-				ui_menu_scroll(ar, block, my, NULL);
-			}
-			ui_handle_menu_button(C, event, menu);
-			break;
-
-		case LEFTMOUSE:
-			ui_handle_menu_button(C, event, menu);
-			menu->menuretval = 0;
-			break;
-
-		default:
-			if (event->type == block->pie_data.event) {
-				if (event->val != KM_RELEASE) {
-					ui_handle_menu_button(C, event, menu);
-
-					ED_region_tag_redraw(ar);
-				}
-				else {
-					but = ui_but_find_activated(ar);
-
-					if (but) {
-						ui_apply_button(C, but->block, but, but->active, false);
-						button_activate_exit((bContext *)C, but, but->active, false, true);
-						menu->menuretval = UI_RETURN_OK;
-					}
-					else {
-						menu->menuretval = UI_RETURN_CANCEL;
-					}
-				}
+		}
+		else {
+			if (time_diff > U.pie_drag_timeout * 0.1) {
+				ui_pie_menu_apply(C, menu);
 			}
 			else {
-				ui_handle_menu_button(C, event, menu);
+				menu->is_click_style = true;
 			}
-			break;
+		}
+	}
+	else {
+		switch (event->type) {
+			case MOUSEMOVE:
+				/* mouse move should always refresh the area for pie menus */
+				ui_handle_menu_button(C, event, menu);
+				ED_region_tag_redraw(ar);
+				break;
+
+			case LEFTMOUSE:
+				if (menu->is_click_style) {
+					ui_pie_menu_apply(C, menu);
+				}
+				else {
+					ui_handle_menu_button(C, event, menu);
+					menu->menuretval = 0;
+				}
+				break;
+
+			case RIGHTMOUSE:
+				menu->menuretval = UI_RETURN_CANCEL;
+				break;
+
+			default:
+				ui_handle_menu_button(C, event, menu);
+				break;
+		}
 	}
 
 	/* free if done, does not free handle itself */
