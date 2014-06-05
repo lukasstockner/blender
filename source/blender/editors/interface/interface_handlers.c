@@ -6231,7 +6231,7 @@ static bool ui_but_contains_pt(uiBut *but, float mx, float my)
 
 static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but)
 {
-	float angle_range = (block->num_pie_items < 5) ? M_PI_4 : M_PI_4 / 2.0f;
+	float angle_range = (block->pie_data.flags & UI_PIE_DEGREES_RANGE_LARGE) ? M_PI_4 : M_PI_4 / 2.0f;
 	float angle_pie;
 	float vec[2];
 
@@ -6272,7 +6272,7 @@ static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but)
 	vec[0] = cosf(angle_pie);
 	vec[1] = sinf(angle_pie);
 
-	if (saacos(dot_v2v2(vec, block->pie_dir)) < angle_range)
+	if (saacos(dot_v2v2(vec, block->pie_data.pie_dir)) < angle_range)
 		return true;
 
 	return false;
@@ -7787,7 +7787,7 @@ static void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const
 	seg2[0] = mx - seg1[0];
 	seg2[1] = my - seg1[1];
 
-	normalize_v2_v2(block->pie_dir, seg2);
+	normalize_v2_v2(block->pie_data.pie_dir, seg2);
 }
 
 static int ui_handle_menu_event(
@@ -7814,7 +7814,7 @@ static int ui_handle_menu_event(
 	if (block->flag & UI_BLOCK_RADIAL) {
 		ui_block_calculate_pie_segment(block, mx, my);
 
-		if ((event->type == block->event) && !(event->val == KM_RELEASE)) {
+		if ((event->type == block->pie_data.event) && !(event->val == KM_RELEASE)) {
 			ED_region_tag_redraw(ar);
 			return WM_UI_HANDLER_BREAK;
 		}
@@ -7860,7 +7860,7 @@ static int ui_handle_menu_event(
 			ui_menu_scroll(ar, block, my, NULL);
 	}
 	else if ((block->flag & UI_BLOCK_RADIAL) &&
-		     (((event->type == block->event) && event->val == KM_RELEASE) ||
+		     (((event->type == block->pie_data.event) && event->val == KM_RELEASE) ||
 		     ((event->type == LEFTMOUSE) && event->val == KM_PRESS)))
 	{
 		if (but) {

@@ -2479,7 +2479,7 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 	//pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY;
 	pie->block_radial->puphash = ui_popup_menu_hash(title);
 	pie->block_radial->flag |= UI_BLOCK_RADIAL;
-	pie->block_radial->event = event;
+	pie->block_radial->pie_data.event = event;
 
 	pie->layout = uiBlockLayout(pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
 

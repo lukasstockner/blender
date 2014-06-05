@@ -2248,6 +2248,9 @@ static void ui_litem_layout_radial(uiLayout *litem)
 	for (item = litem->items.first; item; item = item->next)
 		totitems++;
 
+	if (totitems < 5)
+		litem->root->block->pie_data.flags |= UI_PIE_DEGREES_RANGE_LARGE;
+
 	for (item = litem->items.first; item; item = item->next) {
 		if (item->type == ITEM_BUTTON) {
 			uiButtonItem *bitem = (uiButtonItem *) item;
@@ -2269,8 +2272,6 @@ static void ui_litem_layout_radial(uiLayout *litem)
 				maxx = max_ii(maxx, x + vec[0] * pie_radius + itemw/2);
 				miny = min_ii(miny, y + vec[1] * pie_radius - itemh/2);
 				maxy = max_ii(maxy, y + vec[1] * pie_radius + itemh/2);
-
-				bitem->but->block->num_pie_items = totitems;
 			}
 		}
 	}

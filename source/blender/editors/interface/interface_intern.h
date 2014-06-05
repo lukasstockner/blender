@@ -158,6 +158,10 @@ typedef enum RadialDirection {
 /* split numbuts by ':' and align l/r */
 #define USE_NUMBUTS_LR_ALIGN
 
+/* PieMenuData->flags */
+#define UI_PIE_DEGREES_RANGE_LARGE (1 << 0) /* pie menu item collision is detected at 90 degrees */
+#define UI_PIE_VALID_DIRECTION     (1 << 1) /* pie menu direction has been initialized */
+
 typedef struct uiLinkLine {  /* only for draw/edit */
 	struct uiLinkLine *next, *prev;
 	struct uiBut *from, *to;
@@ -287,6 +291,13 @@ struct uiBut {
 	uiBlock *block;
 };
 
+struct PieMenuData {
+	int num_pie_items; /* number of pie items, useful to determine collision based on how pie items are distributed */
+	float pie_dir[2];
+	int flags;
+	int event; /* initial event used to fire the pie menu, store here so we can query for release */
+};
+
 struct uiBlock {
 	uiBlock *next, *prev;
 
@@ -369,9 +380,7 @@ struct uiBlock {
 	char display_device[64]; /* display device name used to display this block,
 	                          * used by color widgets to transform colors from/to scene linear
 	                          */
-	int num_pie_items; /* number of pie items, useful to determine collision based on how pie items are distributed */
-	float pie_dir[2];
-	int event; /* initial event used to fire the pie menu, store here so we can query for release */
+	struct PieMenuData pie_data;
 };
 
 typedef struct uiSafetyRct {

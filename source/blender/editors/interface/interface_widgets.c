@@ -3676,6 +3676,7 @@ void ui_draw_pie_center(uiBlock *block)
 	bTheme *btheme = UI_GetTheme();
 	float cx = BLI_rctf_cent_x(&block->rect);
 	float cy = BLI_rctf_cent_y(&block->rect);
+	float *pie_dir = block->pie_data.pie_dir;
 
 	float pie_radius_internal = UI_UNIT_Y;
 
@@ -3688,10 +3689,10 @@ void ui_draw_pie_center(uiBlock *block)
 
 	glColor4ub(255, 255, 0, btheme->tui.wcol_menu_back.inner[3]);
 	glBegin(GL_TRIANGLE_FAN);
-	glVertex2f(block->pie_dir[0] * pie_radius_internal + block->pie_dir[1] * 5.0, block->pie_dir[1] * pie_radius_internal - block->pie_dir[0] * 5.0);
-	glVertex2f(block->pie_dir[0] * (pie_radius_internal - 10.0f), block->pie_dir[1] * (pie_radius_internal - 10.0f));
-	glVertex2f(block->pie_dir[0] * pie_radius_internal - block->pie_dir[1] * 5.0, block->pie_dir[1] * pie_radius_internal + block->pie_dir[0] * 5.0);
-	glVertex2f(block->pie_dir[0] * (pie_radius_internal + 10.0f), block->pie_dir[1] * (pie_radius_internal + 10.0f));
+	glVertex2f(pie_dir[0] * pie_radius_internal + pie_dir[1] * 5.0, pie_dir[1] * pie_radius_internal - pie_dir[0] * 5.0);
+	glVertex2f(pie_dir[0] * (pie_radius_internal - 10.0f), pie_dir[1] * (pie_radius_internal - 10.0f));
+	glVertex2f(pie_dir[0] * pie_radius_internal - pie_dir[1] * 5.0, pie_dir[1] * pie_radius_internal + pie_dir[0] * 5.0);
+	glVertex2f(pie_dir[0] * (pie_radius_internal + 10.0f), pie_dir[1] * (pie_radius_internal + 10.0f));
 	glEnd();
 
 	glDisable(GL_BLEND);
