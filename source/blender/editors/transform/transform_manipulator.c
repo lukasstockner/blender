@@ -42,6 +42,7 @@
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_modifier_types.h"
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -56,6 +57,9 @@
 #include "BKE_pointcache.h"
 #include "BKE_editmesh.h"
 #include "BKE_lattice.h"
+#include "BKE_DerivedMesh.h"
+#include "BKE_key.h"
+#include "BKE_modifier.h"
 
 #include "BIF_gl.h"
 
@@ -257,6 +261,15 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
 	return 0;
 }
 
+void calc_tw_center_dm(Scene *scene, BMVert *eve, MVert *dm_verts, int vert_index) 
+{
+	if (dm_verts) {
+		calc_tw_center(scene, dm_verts[vert_index].co);
+	} 
+	else {
+		calc_tw_center(scene, eve->co);
+	}
+}
 
 /* centroid, boundbox, of selection */
 /* returns total items selected */
@@ -271,6 +284,8 @@ int calc_manipulator_stats(const bContext *C)
 	RegionView3D *rv3d = ar->regiondata;
 	Base *base;
 	Object *ob = OBACT;
+	DerivedMesh *dm = NULL;
+	MVert *dmverts = NULL;
 	int a, totsel = 0;
 
 	/* transform widget matrix */
@@ -287,9 +302,35 @@ int calc_manipulator_stats(const bContext *C)
 		if ((ob->lay & v3d->lay) == 0) return 0;
 
 		if (obedit->type == OB_MESH) {
+			bool vertpos_deformed = false;
 			BMEditMesh *em = BKE_editmesh_from_object(obedit);
 			BMEditSelection ese;
-			float vec[3] = {0, 0, 0};
+			float vec[3] = { 0, 0, 0 };
+
+			/* check if any  deform modifiers are in there, we want to draw the manip on them */
+			ModifierData *md;
+			ModifierTypeInfo *mti;
+			for (md = ob->modifiers.first; md; md = md->next) {
+				mti = modifierType_getInfo(md->type);
+				if (mti->type == eModifierTypeType_OnlyDeform && md->mode & eModifierMode_OnCage && 
+																	md->mode & eModifierMode_Editmode) 
+				{
+					/* if the modifier is set to be on cage (and enabled in editmode), base the selection off 
+					 * the final deform derivedMesh */
+					dm = mesh_get_derived_deform(scene, ob, CD_MASK_DERIVEDMESH);
+					break;
+				}
+			}
+
+			/* if shape keys are there, use the derivedmesh too */
+			if (!dm && BKE_key_from_object(ob) && BKE_keyblock_from_object(ob) && ob->shapeflag & OB_SHAPE_EDIT_MODE) {
+				/* if no modifiers are on-cage-enabled, then use only shapekeys (so the manip is drawn 
+				 * correctly on the cage, not on the final mesh) */
+				dm = editbmesh_get_derived_cage(scene, ob, em, CD_MASK_DERIVEDMESH);
+			}
+
+			if (dm)
+				dmverts = dm->getVertArray(dm);
 
 			/* USE LAST SELECTE WITH ACTIVE */
 			if ((v3d->around == V3D_ACTIVE) && BM_select_history_active_get(em->bm, &ese)) {
@@ -298,6 +339,7 @@ int calc_manipulator_stats(const bContext *C)
 				totsel = 1;
 			}
 			else {
+				int a;
 				BMesh *bm = em->bm;
 				BMVert *eve;
 
@@ -307,11 +349,11 @@ int calc_manipulator_stats(const bContext *C)
 				 * mode. note we can't use just vertex selection flag because
 				 * it is not flush down on changes */
 				if (ts->selectmode & SCE_SELECT_VERTEX) {
-					BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+					BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, a) {
 						if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 							if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
 								totsel++;
-								calc_tw_center(scene, eve->co);
+								calc_tw_center_dm(scene, eve, dmverts, a);
 							}
 						}
 					}
@@ -319,13 +361,13 @@ int calc_manipulator_stats(const bContext *C)
 				else if (ts->selectmode & SCE_SELECT_EDGE) {
 					BMIter itersub;
 					BMEdge *eed;
-					BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+					BM_ITER_MESH_INDEX(eve, &iter, bm, BM_VERTS_OF_MESH, a) {
 						if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 							/* check the vertex has a selected edge, only add it once */
 							BM_ITER_ELEM (eed, &itersub, eve, BM_EDGES_OF_VERT) {
 								if (BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
 									totsel++;
-									calc_tw_center(scene, eve->co);
+									calc_tw_center_dm(scene, eve, dmverts, a);
 									break;
 								}
 							}
@@ -335,13 +377,13 @@ int calc_manipulator_stats(const bContext *C)
 				else {
 					BMIter itersub;
 					BMFace *efa;
-					BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+					BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, a) {
 						if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 							/* check the vertex has a selected face, only add it once */
 							BM_ITER_ELEM (efa, &itersub, eve, BM_FACES_OF_VERT) {
 								if (BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 									totsel++;
-									calc_tw_center(scene, eve->co);
+									calc_tw_center_dm(scene, eve, dmverts, a);
 									break;
 								}
 							}
