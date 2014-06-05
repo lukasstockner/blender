@@ -267,7 +267,7 @@ void wm_event_do_notifiers(bContext *C)
 					if (note->data == ND_SCREENBROWSE) {
 						/* free popup handlers only [#35434] */
 						UI_remove_popup_handlers_all(C, &win->modalhandlers);
-
+						UI_remove_pie_handlers_all(C, &win->modalhandlers);
 
 						ED_screen_set(C, note->reference);  // XXX hrms, think this over!
 						if (G.debug & G_DEBUG_EVENTS)

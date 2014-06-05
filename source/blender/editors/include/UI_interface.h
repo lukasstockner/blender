@@ -709,6 +709,8 @@ void UI_add_popup_handlers(struct bContext *C, struct ListBase *handlers, uiPopu
 void UI_add_pie_handlers(struct bContext *C, struct ListBase *handlers, uiPopupBlockHandle *popup);
 void UI_remove_popup_handlers(struct ListBase *handlers, uiPopupBlockHandle *popup);
 void UI_remove_popup_handlers_all(struct bContext *C, struct ListBase *handlers);
+void UI_remove_pie_handlers(struct ListBase *handlers, uiPopupBlockHandle *popup);
+void UI_remove_pie_handlers_all(struct bContext *C, struct ListBase *handlers);
 
 /* Module
  *

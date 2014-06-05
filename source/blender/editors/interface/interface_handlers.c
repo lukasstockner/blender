@@ -7811,15 +7811,6 @@ static int ui_handle_menu_event(
 
 	ui_window_to_block(ar, block, &mx, &my);
 
-	if (block->flag & UI_BLOCK_RADIAL) {
-		ui_block_calculate_pie_segment(block, mx, my);
-
-		if ((event->type == block->pie_data.event) && !(event->val == KM_RELEASE)) {
-			ED_region_tag_redraw(ar);
-			return WM_UI_HANDLER_BREAK;
-		}
-	}
-
 	/* check if mouse is inside block */
 	inside = BLI_rctf_isect_pt(&block->rect, mx, my);
 	inside_title = inside && ((my + (UI_UNIT_Y * 1.5f)) > block->rect.ymax);
@@ -7859,36 +7850,11 @@ static int ui_handle_menu_event(
 		if (event->customdata == menu->scrolltimer)
 			ui_menu_scroll(ar, block, my, NULL);
 	}
-	else if ((block->flag & UI_BLOCK_RADIAL) &&
-		     (((event->type == block->pie_data.event) && event->val == KM_RELEASE) ||
-		     ((event->type == LEFTMOUSE) && event->val == KM_PRESS)))
-	{
-		if (but) {
-			wmEvent local_event = *event;
-
-			local_event.type = RETKEY;
-			local_event.val = KM_PRESS;
-			ui_handle_button_event(C, &local_event, but);
-			local_event.type = RETKEY;
-			local_event.val = KM_RELEASE;
-			ui_handle_button_event(C, &local_event, but);
-			return WM_UI_HANDLER_CONTINUE;
-		}
-		else {
-			menu->menuretval = UI_RETURN_CANCEL;
-			return WM_UI_HANDLER_CONTINUE;
-		}
-	}
 	else {
 		/* for ui_mouse_motion_towards_block */
 		if (event->type == MOUSEMOVE) {
 			if (block->flag & UI_BLOCK_MOVEMOUSE_QUIT) {
 				ui_mouse_motion_towards_init(menu, &event->x);
-			}
-
-			/* mouse move should always refresh the area for pie menus */
-			if (block->flag & UI_BLOCK_RADIAL) {
-				ED_region_tag_redraw(ar);
 			}
 
 			/* add menu scroll timer, if needed */
@@ -8324,6 +8290,120 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 		return WM_UI_HANDLER_BREAK;
 }
 
+
+/* two types of pie menus, one with operator + enum, other with regular callbacks */
+static int ui_handler_pie(bContext *C, const wmEvent *event, void *userdata)
+{
+	ARegion *ar;
+	uiBlock *block;
+	uiBut *but;
+	int mx, my;
+	uiPopupBlockHandle *menu = userdata;
+
+	/* we block all events, this is modal interaction, except for drop events which is described below */
+	int retval = WM_UI_HANDLER_BREAK;
+
+	if (event->type == EVT_DROP) {
+		/* may want to leave this here for later if we support pie ovens */
+
+		retval = WM_UI_HANDLER_CONTINUE;
+	}
+
+	ar = menu->region;
+	block = ar->uiblocks.first;
+
+	mx = event->x;
+	my = event->y;
+
+	ui_window_to_block(ar, block, &mx, &my);
+
+	ui_block_calculate_pie_segment(block, mx, my);
+
+	/* add menu scroll timer, this is used to evaluate the time that is needed for
+		 * calculating collision from final/initial position or if pie menu is drag-style
+		 * or press and release style */
+	if (menu->scrolltimer == NULL)
+		menu->scrolltimer =
+		        WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_SCROLL_INTERVAL);
+
+	switch (event->type) {
+		case MOUSEMOVE:
+			/* mouse move should always refresh the area for pie menus */
+			ui_handle_menu_button(C, event, menu);
+			ED_region_tag_redraw(ar);
+			break;
+
+		case TIMER:
+			if (event->customdata == menu->scrolltimer) {
+				ui_menu_scroll(ar, block, my, NULL);
+			}
+			ui_handle_menu_button(C, event, menu);
+			break;
+
+		case LEFTMOUSE:
+			ui_handle_menu_button(C, event, menu);
+			menu->menuretval = 0;
+			break;
+
+		default:
+			if (event->type == block->pie_data.event) {
+				if (event->val != KM_RELEASE) {
+					ui_handle_menu_button(C, event, menu);
+
+					ED_region_tag_redraw(ar);
+				}
+				else {
+					but = ui_but_find_activated(ar);
+
+					if (but) {
+						ui_apply_button(C, but->block, but, but->active, false);
+						button_activate_exit((bContext *)C, but, but->active, false, true);
+						menu->menuretval = UI_RETURN_OK;
+					}
+					else {
+						menu->menuretval = UI_RETURN_CANCEL;
+					}
+				}
+			}
+			else {
+				ui_handle_menu_button(C, event, menu);
+			}
+			break;
+	}
+
+	/* free if done, does not free handle itself */
+	if (menu->menuretval) {
+		/* copy values, we have to free first (closes region) */
+		uiPopupBlockHandle temp = *menu;
+
+		ui_popup_block_free(C, menu);
+		UI_remove_pie_handlers(&CTX_wm_window(C)->modalhandlers, menu);
+
+		if ((temp.menuretval & UI_RETURN_OK) || (temp.menuretval & UI_RETURN_POPUP_OK)) {
+			if (temp.popup_func)
+				temp.popup_func(C, temp.popup_arg, temp.retvalue);
+			if (temp.optype)
+				WM_operator_name_call(C, temp.optype->idname, temp.opcontext, NULL);
+		}
+		else if (temp.cancel_func)
+			temp.cancel_func(C, temp.popup_arg);
+
+		WM_event_add_mousemove(C);
+	}
+	else {
+		/* re-enable tooltips */
+		if (event->type == MOUSEMOVE && (event->x != event->prevx || event->y != event->prevy))
+			ui_blocks_set_tooltips(menu->region, true);
+	}
+
+	/* delayed apply callbacks */
+	ui_apply_but_funcs_after(C);
+
+	return retval;
+}
+
+
+
 static int ui_handle_menus_recursive(
         bContext *C, const wmEvent *event, uiPopupBlockHandle *menu,
         int level, const bool is_parent_inside, const bool is_parent_menu, const bool is_floating)
@@ -8594,7 +8674,7 @@ void UI_add_popup_handlers(bContext *C, ListBase *handlers, uiPopupBlockHandle *
 
 void UI_add_pie_handlers(struct bContext *C, struct ListBase *handlers, uiPopupBlockHandle *pie)
 {
-	WM_event_add_ui_handler(C, handlers, ui_handler_popup, ui_handler_remove_popup, pie, true);
+	WM_event_add_ui_handler(C, handlers, ui_handler_pie, ui_handler_remove_popup, pie, true);
 }
 
 
@@ -8607,6 +8687,17 @@ void UI_remove_popup_handlers_all(bContext *C, ListBase *handlers)
 {
 	WM_event_free_ui_handler_all(C, handlers, ui_handler_popup, ui_handler_remove_popup);
 }
+
+void UI_remove_pie_handlers(ListBase *handlers, uiPopupBlockHandle *popup)
+{
+	WM_event_remove_ui_handler(handlers, ui_handler_pie, ui_handler_remove_popup, popup, false);
+}
+
+void UI_remove_pie_handlers_all(bContext *C, ListBase *handlers)
+{
+	WM_event_free_ui_handler_all(C, handlers, ui_handler_pie, ui_handler_remove_popup);
+}
+
 
 bool UI_textbutton_activate_rna(const bContext *C, ARegion *ar,
                                 const void *rna_poin_data, const char *rna_prop_id)

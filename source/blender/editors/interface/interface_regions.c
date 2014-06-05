@@ -2706,6 +2706,7 @@ void uiPupBlockClose(bContext *C, uiBlock *block)
 		/* if loading new .blend while popup is open, window will be NULL */
 		if (win) {
 			UI_remove_popup_handlers(&win->modalhandlers, block->handle);
+			UI_remove_pie_handlers(&win->modalhandlers, block->handle);
 			ui_popup_block_free(C, block->handle);
 		}
 	}
