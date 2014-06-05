@@ -37,6 +37,7 @@
 
 struct ChannelDriver;
 struct ModifierData;
+struct PointerRNA;
 
 /* Evaluation Operation for atomic operation 
  * < context: (ComponentEvalContext) context containing data necessary for performing this operation
@@ -44,7 +45,7 @@ struct ModifierData;
  * < (item): (ComponentDepsNode/PointerRNA) the specific entity involved, where applicable
  */
 // XXX: move this to another header that can be exposed?
-typedef void (*DepsEvalOperationCb)(void *context, void *item);
+typedef void (*DepsEvalOperationCb)(void *context, PointerRNA *item);
 
 /* Metatype of Nodes - The general "level" in the graph structure the node serves */
 typedef enum eDepsNode_Class {

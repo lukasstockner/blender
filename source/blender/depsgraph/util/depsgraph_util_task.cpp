@@ -75,7 +75,7 @@ void DepsgraphTask::run()
 	
 	/* get "item" */
 	// XXX: not everything will use this - some may want something else!
-	void *item = &node->ptr;
+	PointerRNA *item = &node->ptr;
 	
 	/* take note of current time */
 	double start_time = PIL_check_seconds_timer();

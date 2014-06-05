@@ -61,32 +61,32 @@ extern "C" {
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
-void BKE_animsys_eval_driver(void *context, void *item) {}
+void BKE_animsys_eval_driver(void *context, PointerRNA *item) {}
 
-void BKE_constraints_evaluate(void *context, void *item) {}
-void BKE_pose_iktree_evaluate(void *context, void *item) {}
-void BKE_pose_splineik_evaluate(void *context, void *item) {}
-void BKE_pose_eval_bone(void *context, void *item) {}
+void BKE_constraints_evaluate(void *context, PointerRNA *item) {}
+void BKE_pose_iktree_evaluate(void *context, PointerRNA *item) {}
+void BKE_pose_splineik_evaluate(void *context, PointerRNA *item) {}
+void BKE_pose_eval_bone(void *context, PointerRNA *item) {}
 
-void BKE_pose_rebuild_op(void *context, void *item) {}
-void BKE_pose_eval_init(void *context, void *item) {}
-void BKE_pose_eval_flush(void *context, void *item) {}
+void BKE_pose_rebuild_op(void *context, PointerRNA *item) {}
+void BKE_pose_eval_init(void *context, PointerRNA *item) {}
+void BKE_pose_eval_flush(void *context, PointerRNA *item) {}
 
-void BKE_particle_system_eval(void *context, void *item) {}
+void BKE_particle_system_eval(void *context, PointerRNA *item) {}
 
-void BKE_rigidbody_rebuild_sim(void *context, void *item) {}
-void BKE_rigidbody_eval_simulation(void *context, void *item) {}
-void BKE_rigidbody_object_sync_transforms(void *context, void *item) {}
+void BKE_rigidbody_rebuild_sim(void *context, PointerRNA *item) {}
+void BKE_rigidbody_eval_simulation(void *context, PointerRNA *item) {}
+void BKE_rigidbody_object_sync_transforms(void *context, PointerRNA *item) {}
 
-void BKE_object_eval_local_transform(void *context, void *item) {}
-void BKE_object_eval_parent(void *context, void *item) {}
-void BKE_object_eval_modifier(void *context, void *item) {}
+void BKE_object_eval_local_transform(void *context, PointerRNA *item) {}
+void BKE_object_eval_parent(void *context, PointerRNA *item) {}
+void BKE_object_eval_modifier(void *context, PointerRNA *item) {}
 
-void BKE_mesh_eval_geometry(void *context, void *item) {}
-void BKE_mball_eval_geometry(void *context, void *item) {}
-void BKE_curve_eval_geometry(void *context, void *item) {}
-void BKE_curve_eval_path(void *context, void *item) {}
-void BKE_lattice_eval_geometry(void *context, void *item) {}
+void BKE_mesh_eval_geometry(void *context, PointerRNA *item) {}
+void BKE_mball_eval_geometry(void *context, PointerRNA *item) {}
+void BKE_curve_eval_geometry(void *context, PointerRNA *item) {}
+void BKE_curve_eval_path(void *context, PointerRNA *item) {}
+void BKE_lattice_eval_geometry(void *context, PointerRNA *item) {}
 
 const string deg_op_name_object_parent = "BKE_object_eval_parent";
 const string deg_op_name_object_local_transform = "BKE_object_eval_local_transform";
