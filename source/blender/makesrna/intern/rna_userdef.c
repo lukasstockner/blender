@@ -3198,15 +3198,15 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	/* pie menus */
 	prop = RNA_def_property(srna, "pie_drag_timeout", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_text(prop, "Drag Timeout", "Pie Menus turn to drag style after this amount of time (in  1/10ths of sec)");
+	RNA_def_property_ui_text(prop, "Drag Timeout", "Pie menus turn to drag style after this amount of time (in  1/10ths of sec)");
 
 	prop = RNA_def_property(srna, "pie_initial_timeout", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_text(prop, "Recenter Timeout", "Pie Menus will use the mouse position as center for this amount of time (in  1/10ths of sec)");
+	RNA_def_property_ui_text(prop, "Recenter Timeout", "Pie menus will use the initial mouse position as center for this amount of time (in  1/10ths of sec)");
 
 	prop = RNA_def_property(srna, "pie_menu_radius", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 0, 1000);
-	RNA_def_property_ui_text(prop, "Radius", "Pie Menus will use the mouse position as center for this amount of time (in  1/10ths of sec)");
+	RNA_def_property_ui_text(prop, "Radius", "Pie menu size in pixels");
 
 	prop = RNA_def_property(srna, "use_quit_dialog", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_QUIT_PROMPT);
