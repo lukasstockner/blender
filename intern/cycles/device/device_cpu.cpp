@@ -445,7 +445,8 @@ public:
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_AVX
 		if(system_cpu_support_avx()) {
 			for(int x = task.shader_x; x < task.shader_x + task.shader_w; x++) {
-				kernel_cpu_avx_shader(&kg, (uint4*)task.shader_input, (float4*)task.shader_output, task.shader_eval_type, x);
+				for(int sample = 0; sample < task.num_samples; sample++)
+					kernel_cpu_avx_shader(&kg, (uint4*)task.shader_input, (float4*)task.shader_output, task.shader_eval_type, x, sample);
 
 				if(task.get_cancel() || task_pool.canceled())
 					break;
@@ -456,7 +457,8 @@ public:
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE41			
 		if(system_cpu_support_sse41()) {
 			for(int x = task.shader_x; x < task.shader_x + task.shader_w; x++) {
-				kernel_cpu_sse41_shader(&kg, (uint4*)task.shader_input, (float4*)task.shader_output, task.shader_eval_type, x);
+				for(int sample = 0; sample < task.num_samples; sample++)
+					kernel_cpu_sse41_shader(&kg, (uint4*)task.shader_input, (float4*)task.shader_output, task.shader_eval_type, x, sample);
 
 				if(task.get_cancel() || task_pool.canceled())
 					break;
@@ -467,7 +469,8 @@ public:
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE3
 		if(system_cpu_support_sse3()) {
 			for(int x = task.shader_x; x < task.shader_x + task.shader_w; x++) {
-				kernel_cpu_sse3_shader(&kg, (uint4*)task.shader_input, (float4*)task.shader_output, task.shader_eval_type, x);
+				for(int sample = 0; sample < task.num_samples; sample++)
+					kernel_cpu_sse3_shader(&kg, (uint4*)task.shader_input, (float4*)task.shader_output, task.shader_eval_type, x, sample);
 
 				if(task.get_cancel() || task_pool.canceled())
 					break;
@@ -478,7 +481,8 @@ public:
 #ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
 		if(system_cpu_support_sse2()) {
 			for(int x = task.shader_x; x < task.shader_x + task.shader_w; x++) {
-				kernel_cpu_sse2_shader(&kg, (uint4*)task.shader_input, (float4*)task.shader_output, task.shader_eval_type, x);
+				for(int sample = 0; sample < task.num_samples; sample++)
+					kernel_cpu_sse2_shader(&kg, (uint4*)task.shader_input, (float4*)task.shader_output, task.shader_eval_type, x, sample);
 
 				if(task.get_cancel() || task_pool.canceled())
 					break;
@@ -488,7 +492,8 @@ public:
 #endif
 		{
 			for(int x = task.shader_x; x < task.shader_x + task.shader_w; x++) {
-				kernel_cpu_shader(&kg, (uint4*)task.shader_input, (float4*)task.shader_output, task.shader_eval_type, x);
+				for(int sample = 0; sample < task.num_samples; sample++)
+					kernel_cpu_shader(&kg, (uint4*)task.shader_input, (float4*)task.shader_output, task.shader_eval_type, x, sample);
 
 				if(task.get_cancel() || task_pool.canceled())
 					break;
