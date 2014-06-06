@@ -1467,14 +1467,11 @@ static struct PyModuleDef GameLogic_module_def = {
 	0,  /* m_free */
 };
 
-PyObject *initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack to get gravity hook
+PyMODINIT_FUNC initGameLogicPythonBinding()
 {
 	PyObject *m;
 	PyObject *d;
 	PyObject *item; /* temp PyObject *storage */
-
-	gp_KetsjiEngine = engine;
-	gp_KetsjiScene = scene;
 
 	gUseVisibilityTemp=false;
 
@@ -2137,18 +2134,23 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene *startscene, Main *
 		dictionaryobject= initGamePythonScripting(blenderdata);
 
 	ketsjiengine->SetPyNamespace(dictionaryobject);
-	initRasterizer(ketsjiengine->GetRasterizer(), ketsjiengine->GetCanvas());
-	*gameLogic = initGameLogic(ketsjiengine, startscene);
+	gp_Canvas = ketsjiengine->GetCanvas();
+	gp_Rasterizer = ketsjiengine->GetRasterizer();
+	gp_KetsjiEngine = ketsjiengine;
+	gp_KetsjiScene = startscene;
 
-	/* is set in initGameLogic so only set here if we want it to persist between scenes */
+	initGameLogicPythonBinding();
+	initRasterizerPythonBinding();
+	initGameKeysPythonBinding();
+	initConstraintPythonBinding();
+	initVideoTexturePythonBinding();
+
+	*gameLogic = PyDict_GetItemString(PyImport_GetModuleDict(), "GameLogic");
+	/* is set in initGameLogicPythonBinding so only set here if we want it to persist between scenes */
 	if (pyGlobalDict)
 		PyDict_SetItemString(PyModule_GetDict(*gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.
 
 	*gameLogic_keys = PyDict_Keys(PyModule_GetDict(*gameLogic));
-
-	initGameKeys();
-	initPythonConstraintBinding();
-	initVideoTexture();
 
 	/* could be done a lot more nicely, but for now a quick way to get bge.* working */
 	PyRun_SimpleString("sys = __import__('sys');"
@@ -2173,7 +2175,7 @@ void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene *startscene, Main *
 }
 
 static struct PyModuleDef Rasterizer_module_def = {
-	{}, /* m_base */
+	PyModuleDef_HEAD_INIT,
 	"Rasterizer",  /* m_name */
 	Rasterizer_module_documentation,  /* m_doc */
 	0,  /* m_size */
@@ -2184,11 +2186,8 @@ static struct PyModuleDef Rasterizer_module_def = {
 	0,  /* m_free */
 };
 
-PyObject *initRasterizer(RAS_IRasterizer* rasty,RAS_ICanvas* canvas)
+PyMODINIT_FUNC initRasterizerPythonBinding()
 {
-	gp_Canvas = canvas;
-	gp_Rasterizer = rasty;
-
 	PyObject *m;
 	PyObject *d;
 	PyObject *item;
@@ -2235,7 +2234,7 @@ PyObject *initRasterizer(RAS_IRasterizer* rasty,RAS_ICanvas* canvas)
 		Py_FatalError("can't initialize module Rasterizer");
 	}
 
-	return d;
+	return m;
 }
 
 
@@ -2309,7 +2308,7 @@ static struct PyMethodDef gamekeys_methods[] = {
 };
 
 static struct PyModuleDef GameKeys_module_def = {
-	{}, /* m_base */
+	PyModuleDef_HEAD_INIT,
 	"GameKeys",  /* m_name */
 	GameKeys_module_documentation,  /* m_doc */
 	0,  /* m_size */
@@ -2320,7 +2319,7 @@ static struct PyModuleDef GameKeys_module_def = {
 	0,  /* m_free */
 };
 
-PyObject *initGameKeys()
+PyMODINIT_FUNC initGameKeysPythonBinding()
 {
 	PyObject *m;
 	PyObject *d;
@@ -2483,7 +2482,7 @@ PyObject *initGameKeys()
 		Py_FatalError("can't initialize module GameKeys");
 	}
 
-	return d;
+	return m;
 }
 
 // utility function for loading and saving the globalDict

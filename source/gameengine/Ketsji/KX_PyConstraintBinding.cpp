@@ -714,7 +714,7 @@ static struct PyMethodDef physicsconstraints_methods[] = {
 };
 
 static struct PyModuleDef PhysicsConstraints_module_def = {
-	{}, /* m_base */
+	PyModuleDef_HEAD_INIT,
 	"PhysicsConstraints",  /* m_name */
 	PhysicsConstraints_module_documentation,  /* m_doc */
 	0,  /* m_size */
@@ -725,7 +725,7 @@ static struct PyModuleDef PhysicsConstraints_module_def = {
 	0,  /* m_free */
 };
 
-PyObject *initPythonConstraintBinding()
+PyMODINIT_FUNC initConstraintPythonBinding()
 {
 
 	PyObject *ErrorObject;
@@ -783,7 +783,7 @@ PyObject *initPythonConstraintBinding()
 		Py_FatalError("can't initialize module PhysicsConstraints");
 	}
 
-	return d;
+	return m;
 }
 
 #if 0
