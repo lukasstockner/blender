@@ -171,7 +171,7 @@ ccl_device_inline __m128 improve_5throot_solution(const __m128 &old_result, cons
 	__m128 approx2 = _mm_mul_ps(old_result, old_result);
 	__m128 approx4 = _mm_mul_ps(approx2, approx2);
 	__m128 t = _mm_div_ps(x, approx4);
-	__m128 summ = _mm_add_ps(_mm_mul_ps(_mm_set1_ps(4.0f), old_result), t); /* fma */
+	__m128 summ = fma(_mm_set1_ps(4.0f), old_result, t);
 	return _mm_mul_ps(summ, _mm_set1_ps(1.0f/5.0f));
 }
 
