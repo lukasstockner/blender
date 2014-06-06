@@ -527,10 +527,12 @@ typedef struct UserDef {
 	float fcu_inactive_alpha;	/* opacity of inactive F-Curves in F-Curve Editor */
 	float pixelsize;			/* private, set by GHOST, to multiply DPI with */
 
-	int pie_drag_timeout;     /* if keeping a pie menu spawn button pressed after this time, it turns into
+	short pie_drag_timeout;     /* if keeping a pie menu spawn button pressed after this time, it turns into
 	                             * a drag/release pie menu */
-	int pie_initial_timeout;  /* direction in the pie menu will always be calculated from the initial position
+	short pie_initial_timeout;  /* direction in the pie menu will always be calculated from the initial position
 	                             * within this time limit */
+
+	int pie_menu_radius;        /* pie menu radius */
 
 	struct WalkNavigation walk_navigation;
 } UserDef;

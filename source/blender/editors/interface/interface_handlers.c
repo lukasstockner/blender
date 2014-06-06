@@ -7781,8 +7781,13 @@ static void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const
 	float seg1[2];
 	float seg2[2];
 
-	seg1[0] = BLI_rctf_cent_x(&block->rect);
-	seg1[1] = BLI_rctf_cent_y(&block->rect);
+	if (block->pie_data.flags & UI_PIE_INITIAL_DIRECTION) {
+		copy_v2_v2(seg1, block->pie_data.pie_center_init);
+	}
+	else {
+		seg1[0] = BLI_rctf_cent_x(&block->rect);
+		seg1[1] = BLI_rctf_cent_y(&block->rect);
+	}
 
 	seg2[0] = mx - seg1[0];
 	seg2[1] = my - seg1[1];
@@ -8326,17 +8331,24 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, void *userdata)
 	ar = menu->region;
 	block = ar->uiblocks.first;
 
+	/* add menu timer, this is used to evaluate the time that is needed for
+	 * calculating collision from final/initial position or if pie menu is drag-style
+	 * or press and release style */
+	time_diff = PIL_check_seconds_timer() - menu->towardstime;
+
+	/* deactivate initial direction after a while */
+	if (time_diff > 0.1 * U.pie_initial_timeout) {
+		block->pie_data.flags &= ~UI_PIE_INITIAL_DIRECTION;
+		/* force redraw */
+		ED_region_tag_redraw(ar);
+	}
+
 	mx = event->x;
 	my = event->y;
 
 	ui_window_to_block(ar, block, &mx, &my);
 
 	ui_block_calculate_pie_segment(block, mx, my);
-
-	/* add menu timer, this is used to evaluate the time that is needed for
-	 * calculating collision from final/initial position or if pie menu is drag-style
-	 * or press and release style */
-	time_diff = PIL_check_seconds_timer() - menu->towardstime;
 
 	if (event->type == block->pie_data.event) {
 		if (event->val != KM_RELEASE) {

@@ -1597,8 +1597,13 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 			if (block->rect.ymin < 0 ) y_offset -= block->rect.ymin;
 			if (block->rect.ymax > ar_h) y_offset += ar_h - block->rect.ymax;
 
-			if ((x_offset != 0) || (y_offset != 0))
+			/* if we are offsetting set up initial data for timeout functionality */
+			if ((x_offset != 0) || (y_offset != 0)) {
+				block->pie_data.pie_center_init[0] = BLI_rctf_cent_x(&block->rect);
+				block->pie_data.pie_center_init[1] = BLI_rctf_cent_y(&block->rect);
 				ui_block_translate(block, x_offset, y_offset);
+				block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
+			}
 		}
 	}
 	else {

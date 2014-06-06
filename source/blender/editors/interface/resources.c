@@ -2430,6 +2430,9 @@ void init_userdef_do_versions(void)
 		}
 	}
 
+	if (U.pie_menu_radius == 0)
+		U.pie_menu_radius = 150;
+
 	if (U.pixelsize == 0.0f)
 		U.pixelsize = 1.0f;
 	

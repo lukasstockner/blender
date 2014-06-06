@@ -3676,6 +3676,7 @@ void ui_draw_pie_center(uiBlock *block)
 	bTheme *btheme = UI_GetTheme();
 	float cx = BLI_rctf_cent_x(&block->rect);
 	float cy = BLI_rctf_cent_y(&block->rect);
+
 	float *pie_dir = block->pie_data.pie_dir;
 
 	float pie_radius_internal = UI_UNIT_Y;
