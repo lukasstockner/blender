@@ -391,5 +391,89 @@ ccl_device_inline void triangle_intersect_subsurface(KernelGlobals *kg, Intersec
 }
 #endif
 
+#ifdef __QBVH__
+ccl_device_inline void qbvh_node_intersect(KernelGlobals *kg, int *traverseChild,
+										   int nodeAddrChild[4], float3 P, float3 idir, float t, int nodeAddr)
+{
+#ifdef __KERNEL_AVX2__
+	/* X axis */
+	const __m128 idirx = _mm_set_ps1(idir.x);
+	const __m128 mulx = _mm_mul_ps(_mm_set_ps1(P.x), idirx);
+	const __m128 bminx = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+0);
+	const __m128 t0x = fms(bminx, idirx, mulx);
+	const __m128 bmaxx = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+1);
+	const __m128 t1x = fms(bmaxx, idirx, mulx);
+
+	__m128 tmin = _mm_max_ps(_mm_min_ps(t0x, t1x), _mm_setzero_ps());
+	__m128 tmax = _mm_min_ps(_mm_max_ps(t0x, t1x), _mm_set_ps1(t));
+
+	/* Y axis */
+	const __m128 idiry = _mm_set_ps1(idir.y);
+	const __m128 muly = _mm_mul_ps(_mm_set_ps1(P.y), idiry);
+	const __m128 bminy = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+2);
+	const __m128 t0y = fms(bminy, idiry, muly);
+	const __m128 bmaxy = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+3);
+	const __m128 t1y = fms(bmaxy, idiry, muly);
+
+	tmin = _mm_max_ps(_mm_min_ps(t0y, t1y), tmin);
+	tmax = _mm_min_ps(_mm_max_ps(t0y, t1y), tmax);
+
+	/* Z axis */
+	const __m128 idirz = _mm_set_ps1(idir.z);
+	const __m128 mulz = _mm_mul_ps(_mm_set_ps1(P.z), idirz);
+	const __m128 bminz = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+4);
+	const __m128 t0z = fms(bminz, idirz, mulz);
+	const __m128 bmaxz = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+5);
+	const __m128 t1z = fms(bmaxz, idirz, mulz);
+
+	tmin = _mm_max_ps(_mm_min_ps(t0z, t1z), tmin);
+	tmax = _mm_min_ps(_mm_max_ps(t0z, t1z), tmax);
+#else
+	const __m128 Px = _mm_set_ps1(P.x);
+	const __m128 idirx = _mm_set_ps1(idir.x);
+	const __m128 bminx = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+0);
+	const __m128 t0x = _mm_mul_ps(_mm_sub_ps(bminx, Px), idirx);
+	const __m128 bmaxx = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+1);
+	const __m128 t1x = _mm_mul_ps(_mm_sub_ps(bmaxx, Px), idirx);
+
+	__m128 tmin = _mm_max_ps(_mm_min_ps(t0x, t1x), _mm_setzero_ps());
+	__m128 tmax = _mm_min_ps(_mm_max_ps(t0x, t1x), _mm_set_ps1(t));
+
+	/* Y axis */
+	const __m128 Py = _mm_set_ps1(P.y);
+	const __m128 idiry = _mm_set_ps1(idir.y);
+	const __m128 bminy = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+2);
+	const __m128 t0y = _mm_mul_ps(_mm_sub_ps(bminy, Py), idiry);
+	const __m128 bmaxy = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+3);
+	const __m128 t1y = _mm_mul_ps(_mm_sub_ps(bmaxy, Py), idiry);
+
+	tmin = _mm_max_ps(_mm_min_ps(t0y, t1y), tmin);
+	tmax = _mm_min_ps(_mm_max_ps(t0y, t1y), tmax);
+
+	/* Z axis */
+	const __m128 Pz = _mm_set_ps1(P.z);
+	const __m128 idirz = _mm_set_ps1(idir.z);
+	const __m128 bminz = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+4);
+	const __m128 t0z = _mm_mul_ps(_mm_sub_ps(bminz, Pz), idirz);
+	const __m128 bmaxz = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+5);
+	const __m128 t1z = _mm_mul_ps(_mm_sub_ps(bmaxz, Pz), idirz);
+
+	tmin = _mm_max_ps(_mm_min_ps(t0z, t1z), tmin);
+	tmax = _mm_min_ps(_mm_max_ps(t0z, t1z), tmax);
+#endif
+
+	/* compare and get mask */
+	*traverseChild = _mm_movemask_ps(_mm_cmple_ps(tmin, tmax));
+
+	/* get node addresses */
+	float4 cnodes = kernel_tex_fetch(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+6);
+
+	nodeAddrChild[0] = __float_as_int(cnodes.x);
+	nodeAddrChild[1] = __float_as_int(cnodes.y);
+	nodeAddrChild[2] = __float_as_int(cnodes.z);
+	nodeAddrChild[3] = __float_as_int(cnodes.w);
+}
+#endif
+
 CCL_NAMESPACE_END
 

@@ -65,6 +65,7 @@ CCL_NAMESPACE_BEGIN
 #define __CMJ__
 #define __VOLUME__
 #define __SHADOW_RECORD_ALL__
+#define __QBVH__
 #endif
 
 #ifdef __KERNEL_CUDA__
@@ -907,8 +908,9 @@ typedef struct KernelBVH {
 	int have_motion;
 	int have_curves;
 	int have_instancing;
+	int use_qbvh;
 
-	int pad1, pad2, pad3;
+	int pad1, pad2;
 } KernelBVH;
 
 typedef enum CurveFlag {

@@ -35,6 +35,8 @@ CCL_NAMESPACE_BEGIN
 #define BVH_HAIR				4
 #define BVH_HAIR_MINIMUM_WIDTH	8
 
+/* Regular BVH */
+
 #define BVH_FUNCTION_NAME bvh_intersect
 #define BVH_FUNCTION_FEATURES 0
 #include "geom_bvh_traversal.h"
@@ -123,6 +125,35 @@ CCL_NAMESPACE_BEGIN
 #include "geom_bvh_shadow.h"
 #endif
 
+/* QBVH */
+#define BVH_FUNCTION_NAME qbvh_intersect
+#define BVH_FUNCTION_FEATURES 0
+#include "geom_qbvh_traversal.h"
+
+#if defined(__INSTANCING__)
+#define BVH_FUNCTION_NAME qbvh_intersect_instancing
+#define BVH_FUNCTION_FEATURES BVH_INSTANCING
+#include "geom_qbvh_traversal.h"
+#endif
+
+#if defined(__HAIR__)
+#define BVH_FUNCTION_NAME qbvh_intersect_hair
+#define BVH_FUNCTION_FEATURES BVH_INSTANCING|BVH_HAIR|BVH_HAIR_MINIMUM_WIDTH
+#include "geom_qbvh_traversal.h"
+#endif
+
+#if defined(__OBJECT_MOTION__)
+#define BVH_FUNCTION_NAME qbvh_intersect_motion
+#define BVH_FUNCTION_FEATURES BVH_INSTANCING|BVH_MOTION
+#include "geom_qbvh_traversal.h"
+#endif
+
+#if defined(__HAIR__) && defined(__OBJECT_MOTION__)
+#define BVH_FUNCTION_NAME qbvh_intersect_hair_motion
+#define BVH_FUNCTION_FEATURES BVH_INSTANCING|BVH_HAIR|BVH_HAIR_MINIMUM_WIDTH|BVH_MOTION
+#include "geom_qbvh_traversal.h"
+#endif
+
 /* to work around titan bug when using arrays instead of textures */
 #if !defined(__KERNEL_CUDA__) || defined(__KERNEL_CUDA_TEX_STORAGE__)
 ccl_device_inline
@@ -135,6 +166,33 @@ bool scene_intersect(KernelGlobals *kg, const Ray *ray, const uint visibility, I
 bool scene_intersect(KernelGlobals *kg, const Ray *ray, const uint visibility, Intersection *isect)
 #endif
 {
+#ifdef __QBVH__
+	if(kernel_data.bvh.use_qbvh) {
+#ifdef __OBJECT_MOTION__
+		if(kernel_data.bvh.have_motion) {
+#ifdef __HAIR__
+			if(kernel_data.bvh.have_curves)
+				return qbvh_intersect_hair_motion(kg, ray, isect, visibility, lcg_state, difl, extmax);
+#endif /* __HAIR__ */
+
+			return qbvh_intersect_motion(kg, ray, isect, visibility);
+		}
+#endif /* __OBJECT_MOTION__ */
+
+#ifdef __HAIR__
+		if(kernel_data.bvh.have_curves)
+			return qbvh_intersect_hair(kg, ray, isect, visibility, lcg_state, difl, extmax);
+#endif /* __HAIR__ */
+
+#ifdef __INSTANCING__
+		if(kernel_data.bvh.have_instancing)
+			return qbvh_intersect_instancing(kg, ray, isect, visibility);
+#endif /* __INSTANCING__ */
+
+		return qbvh_intersect(kg, ray, isect, visibility);
+	}
+#endif
+
 #ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
 #ifdef __HAIR__

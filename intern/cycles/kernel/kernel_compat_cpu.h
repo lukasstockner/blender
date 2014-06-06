@@ -43,7 +43,7 @@ template<typename T> struct texture  {
 		return data[index];
 	}
 
-#if 0
+#ifdef __KERNEL_SSE2__
 	ccl_always_inline __m128 fetch_m128(int index)
 	{
 		kernel_assert(index >= 0 && index < width);

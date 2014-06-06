@@ -134,11 +134,7 @@ public:
 		bvh_type = BVH_DYNAMIC;
 		use_bvh_cache = false;
 		use_bvh_spatial_split = false;
-#ifdef __QBVH__
-		use_qbvh = true;
-#else
 		use_qbvh = false;
-#endif
 		persistent_data = false;
 	}
 

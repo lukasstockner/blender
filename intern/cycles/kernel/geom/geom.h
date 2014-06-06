@@ -23,6 +23,9 @@
 #define BVH_NODE_SIZE 4
 #define TRI_NODE_SIZE 3
 
+/* QBVH */
+#define QBVH_NODE_SIZE 8
+
 /* silly workaround for float extended precision that happens when compiling
  * without sse support on x86, it results in different results for float ops
  * that you would otherwise expect to compare correctly */

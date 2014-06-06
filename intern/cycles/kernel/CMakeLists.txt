@@ -114,6 +114,7 @@ set(SRC_GEOM_HEADERS
 	geom/geom_bvh.h
 	geom/geom_bvh_subsurface.h
 	geom/geom_bvh_traversal.h
+	geom/geom_qbvh_traversal.h
 	geom/geom_curve.h
 	geom/geom_motion_curve.h
 	geom/geom_motion_triangle.h

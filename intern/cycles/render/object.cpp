@@ -363,6 +363,7 @@ void ObjectManager::device_update_transforms(Device *device, DeviceScene *dscene
 	dscene->data.bvh.have_motion = have_motion;
 	dscene->data.bvh.have_curves = have_curves;
 	dscene->data.bvh.have_instancing = true;
+	dscene->data.bvh.use_qbvh = scene->params.use_qbvh;
 }
 
 void ObjectManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)

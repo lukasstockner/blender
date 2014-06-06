@@ -450,6 +450,11 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
                 description="Use BVH spatial splits: longer builder time, faster render",
                 default=False,
                 )
+        cls.use_qbvh = BoolProperty(
+                name="Use QBVH",
+                description="Use Quad BVH (CPU only)",
+                default=False,
+                )
         cls.use_cache = BoolProperty(
                 name="Cache BVH",
                 description="Cache last built BVH to disk for faster re-render if no geometry changed",
