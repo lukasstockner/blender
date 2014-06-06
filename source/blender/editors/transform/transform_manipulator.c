@@ -317,7 +317,7 @@ int calc_manipulator_stats(const bContext *C)
 				{
 					/* if the modifier is set to be on cage (and enabled in editmode), base the selection off 
 					 * the final deform derivedMesh */
-					dm = mesh_get_derived_deform(scene, ob, CD_MASK_DERIVEDMESH);
+					dm = editbmesh_get_derived_cage(scene, ob, em, 0);
 					break;
 				}
 			}
@@ -326,7 +326,7 @@ int calc_manipulator_stats(const bContext *C)
 			if (!dm && BKE_key_from_object(ob) && BKE_keyblock_from_object(ob) && ob->shapeflag & OB_SHAPE_EDIT_MODE) {
 				/* if no modifiers are on-cage-enabled, then use only shapekeys (so the manip is drawn 
 				 * correctly on the cage, not on the final mesh) */
-				dm = editbmesh_get_derived_cage(scene, ob, em, CD_MASK_DERIVEDMESH);
+				dm = editbmesh_get_derived_cage(scene, ob, em, 0);
 			}
 
 			if (dm)
