@@ -141,15 +141,6 @@ typedef enum eEvaluationContextType {
 	DEG_MAX_EVALUATION_CONTEXTS
 } eEvaluationContextType;
 
-
-/* Intialise evaluation context 
- * < context_type: type of evaluation context to initialise
- */
-void DEG_evaluation_context_init(Depsgraph *graph, eEvaluationContextType context_type);
-
-/* Free evaluation context */
-void DEG_evaluation_contexts_free(Depsgraph *graph);
-
 /* ----------------------------------------------- */
 
 /* Frame changed recalculation entrypoint 

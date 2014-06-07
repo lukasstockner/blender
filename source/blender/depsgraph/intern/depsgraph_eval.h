@@ -40,6 +40,11 @@
 struct Depsgraph;
 struct OperationDepsNode;
 
+/* XXX Unused, kept around for reference for now.
+ * Using per-component "contexts" for shared data of operations (matrices, derived mesh etc)
+ * effectively prohibits parallelism and is quite clumsy
+ */
+#if 0
 /* ****************************************** */
 /* Operation Contexts */
 
@@ -125,6 +130,7 @@ typedef struct DEG_PoseContext {
 	struct Object *ob;              /* object that pose resides on */
 	struct bPose *pose;             /* pose object that is being "solved" */
 } DEG_PoseContext;
+#endif
 
 /* ****************************************** */
 

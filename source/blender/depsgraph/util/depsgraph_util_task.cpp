@@ -71,7 +71,7 @@ void DepsgraphTask::run()
 	// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
 	ComponentDepsNode *comp = node->owner; 
 	BLI_assert(comp != NULL);
-	void *context = comp->contexts[context_type];
+	void *context = NULL; /* XXX TODO */
 	
 	/* get "item" */
 	// XXX: not everything will use this - some may want something else!

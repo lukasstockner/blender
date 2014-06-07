@@ -85,11 +85,6 @@ struct ComponentDepsNode : public DepsNode {
 	OperationDepsNode *entry_operation;
 	OperationDepsNode *exit_operation;
 	
-	/* (DEG_OperationsContext) array of evaluation contexts to be passed to evaluation functions for this component. 
-	 *                         Only the requested context will be used during any particular evaluation
-	 */
-	void *contexts[DEG_MAX_EVALUATION_CONTEXTS];
-	
 	// XXX: a poll() callback to check if component's first node can be started?
 };
 
