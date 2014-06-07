@@ -271,12 +271,7 @@ void calc_tw_center_dm(Scene *scene, BMVert *eve, MVert *dm_verts, int edit_vert
 	else
 		derived_index = edit_vert_index;
 
-	if (dm_verts) {
-		calc_tw_center(scene, dm_verts[derived_index].co);
-	} 
-	else {
-		calc_tw_center(scene, eve->co);
-	}
+	calc_tw_center(scene, dm_verts[derived_index].co);
 }
 
 /* centroid, boundbox, of selection */
@@ -310,79 +305,44 @@ int calc_manipulator_stats(const bContext *C)
 		if ((ob->lay & v3d->lay) == 0) return 0;
 
 		if (obedit->type == OB_MESH) {
-			bool need_index_map = false;
-
-			/* check if there is a key 'modifier' */
-			bool has_deform_modifiers = BKE_key_from_object(ob) 
-												&& BKE_keyblock_from_object(ob) && ob->shapeflag & OB_SHAPE_EDIT_MODE;
-			
-			BMEditMesh *em = BKE_editmesh_from_object(obedit);
 			BMEditSelection ese;
+			BMEditMesh *em = BKE_editmesh_from_object(obedit);
+			DerivedMesh *dm = editbmesh_get_derived_cage(scene, ob, em, CD_ORIGINDEX);
+			dmverts = dm->getVertArray(dm);
+
 			float vec[3] = { 0, 0, 0 };
+
 			int *derived_index_map = NULL;
 
-
-			ModifierData *md;
-			ModifierTypeInfo *mti;
-			for (md = ob->modifiers.first; md; md = md->next) {
-				mti = modifierType_getInfo(md->type);
-				if (mti->type != eModifierTypeType_OnlyDeform 
-							&& md->mode & eModifierMode_OnCage && md->mode & eModifierMode_Editmode) 
-				{
-					need_index_map = true;
-				}
-				else {
-					has_deform_modifiers = true;
-				}
+			if (!DM_vertindex_sync_derived_cage(ob)) {
+				derived_index_map = DM_map_editmesh_to_derived_cage(ob, em, dm);
 			}
 
-			if (has_deform_modifiers || need_index_map) {
-				dm = editbmesh_get_derived_cage(scene, ob, em, CD_ORIGINDEX);
-			}
-
-			if (need_index_map) {
-				int totdmvert;
-				int orig_index;
-				int *p_indexlayer;
-				int totmapped = 0;
-
-				p_indexlayer = DM_get_vert_data_layer(dm, CD_ORIGINDEX);
-
-				if (p_indexlayer) {
-					totdmvert = dm->getNumVerts(dm);
-					derived_index_map = MEM_mallocN(sizeof(int) * em->bm->totvert, __func__);
-					for (a = 0; a < totdmvert; ++a) {
-						orig_index = *p_indexlayer;
-						if (orig_index != ORIGINDEX_NONE) {
-							totmapped++;
-							BLI_assert(orig_index < em->bm->totvert);
-							derived_index_map[orig_index] = a;
-						}
-						++p_indexlayer;
-					}
-					if (totmapped < em->bm->totvert) {
-						MEM_freeN(derived_index_map);
-						printf("Failed to map back!\n");
-						printf("totmapped=%d totvert=%d\n", totmapped, em->bm->totvert);
-						derived_index_map = NULL;
+			if ((v3d->around == V3D_ACTIVE) && BM_select_history_active_get(em->bm, &ese)) {
+				if (ese.htype == BM_VERT) {
+					BMVert *v = (BMVert *) ese.ele;
+					int index = BM_elem_index_get(v);
+					calc_tw_center_dm(scene, v, dmverts, BM_elem_index_get(v), derived_index_map);
+				} 
+				else if (ese.htype == BM_EDGE) {
+					BMEdge *e = (BMEdge *) ese.ele;
+					
+					calc_tw_center_dm(scene, e->v1, dmverts, BM_elem_index_get(e->v1), derived_index_map);
+					calc_tw_center_dm(scene, e->v2, dmverts, BM_elem_index_get(e->v2), derived_index_map);
+				} 
+				else if (ese.htype = BM_FACE) {
+					BMFace *f = (BMFace *) ese.ele;
+					BMVert *v;
+					BMIter iter;
+					BM_ITER_ELEM(v, &iter, f, BM_VERTS_OF_FACE) {
+						calc_tw_center_dm(scene, v, dmverts, BM_elem_index_get(v), derived_index_map);
 					}
 				}
-
-				if (derived_index_map) {
-					/* this situation means we managed to map the derived mesh back to editmesh if we needed it */
-					dmverts = dm->getVertArray(dm);
-				}
-			}
-
-			if (has_deform_modifiers && (!(need_index_map && !derived_index_map))) {
-										/* check that we didn't fail to map back */
-				dmverts = dm->getVertArray(dm);
-			}
-
-			{
+				totsel = 1;
+			} 
+			else {
 				BMesh *bm = em->bm;
 				BMVert *eve;
-
 				BMIter iter;
 
 				/* do vertices/edges/faces for center depending on selection
@@ -434,7 +394,6 @@ int calc_manipulator_stats(const bContext *C)
 		
 			if (derived_index_map)
 				MEM_freeN(derived_index_map);
-
 		} /* end editmesh */
 		else if (obedit->type == OB_ARMATURE) {
 			bArmature *arm = obedit->data;

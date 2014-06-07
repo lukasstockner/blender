@@ -3434,3 +3434,54 @@ MFace *DM_get_tessface_array(DerivedMesh *dm, bool *allocated)
 
 	return mface;
 }
+
+
+bool DM_vertindex_sync_derived_cage(Object *ob)
+{
+	ModifierData *md;
+	ModifierTypeInfo *mti;
+
+	BLI_assert(ob->type == OB_MESH);
+	for (md = ob->modifiers.first; md; md = md->next) {
+		mti = modifierType_getInfo(md->type);
+		if (mti->type != eModifierTypeType_OnlyDeform
+			&& md->mode & eModifierMode_OnCage && md->mode & eModifierMode_Editmode)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+int *DM_map_editmesh_to_derived_cage(Object *ob, BMEditMesh *em, DerivedMesh *cage_dm)
+{
+	int *derived_index_map = NULL;
+	
+	int totdmvert = cage_dm->getNumVerts(cage_dm);
+	int orig_index;
+	int *p_indexlayer;
+	int totmapped = 0;
+
+	p_indexlayer = DM_get_vert_data_layer(cage_dm, CD_ORIGINDEX);
+
+	if (p_indexlayer) {
+		int a;
+		
+		derived_index_map = MEM_mallocN(em->bm->totvert * sizeof(int), "derived index map");
+		for (a = 0; a < totdmvert; ++a) {
+			orig_index = *p_indexlayer;
+			if (orig_index != ORIGINDEX_NONE) {
+				totmapped++;
+				BLI_assert(orig_index < em->bm->totvert);
+				derived_index_map[orig_index] = a;
+			}
+			++p_indexlayer;
+		}
+		if (totmapped < em->bm->totvert) {
+			MEM_freeN(derived_index_map);
+			derived_index_map = NULL;
+		}
+	}
+	
+	return derived_index_map;
+}
