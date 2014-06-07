@@ -745,6 +745,15 @@ void DM_set_object_boundbox(struct Object *ob, DerivedMesh *dm);
 
 void DM_init_origspace(DerivedMesh *dm);
 
+/* Returns true if the object's derived cage vertex indeces can be assumed to be in sync to
+* the editdata (base) vertex indeces */
+bool DM_vertindex_sync_derived_cage(struct Object *ob);
+
+/* Maps editmesh vertex indeces to derivedmesh cage vertex indces and returns the map.
+* If returns NULL, it means that mapping failed for some reason.
+* It is the caller's responsibility to free the returned array! */
+int *DM_map_editmesh_to_derived_cage(struct Object *ob, struct BMEditMesh *em, struct DerivedMesh *cage_dm);
+
 /* debug only */
 #ifndef NDEBUG
 char *DM_debug_info(DerivedMesh *dm);
