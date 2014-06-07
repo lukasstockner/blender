@@ -1028,7 +1028,7 @@ elseif(WIN32)
 		set(CXX_WARNINGS "${_WARNINGS}")
 		unset(_WARNINGS)
 
-		set(PLATFORM_LINKFLAGS "/SUBSYSTEM:CONSOLE /STACK:2097152 /INCREMENTAL:NO /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:msvcmrt.lib /NODEFAULTLIB:msvcurt.lib /NODEFAULTLIB:msvcrtd.lib")
+		set(PLATFORM_LINKFLAGS "/SAFESEH:NO /SUBSYSTEM:CONSOLE /STACK:2097152 /INCREMENTAL:NO /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:msvcmrt.lib /NODEFAULTLIB:msvcurt.lib /NODEFAULTLIB:msvcrtd.lib")
 
 		# MSVC only, Mingw doesnt need
 		if(CMAKE_CL_64)
@@ -1071,7 +1071,11 @@ elseif(WIN32)
 		set(ZLIB_INCLUDE_DIR ${LIBDIR}/zlib/include)
 		set(ZLIB_LIBRARY ${LIBDIR}/zlib/lib/libz_st.lib)
 		set(ZLIB_DIR ${LIBDIR}/zlib)
-		find_package(zlib) # we want to find before finding things that depend on it like png
+		# XXX: Cmake bug(?) workaround for zlib and png:
+		# FindPNG.cmake calls find_package(zlib) and for some reason that redundant call causes both zlib and png to not be found properly.
+		# (Or, at least they complain, as this does not seem to cause a build error later)
+		# Since zlib will be found by find_package(png), it should be OK to not call find_package(zlib) explicitly.
+		#find_package(zlib) # we want to find before finding things that depend on it like png
 
 
 		find_package(png)
@@ -1084,7 +1088,7 @@ elseif(WIN32)
 			set(PNG_LIBPATH ${PNG}/lib) # not cmake defined
 		endif()
 
-		if(MSVC90)
+		if(MSVC)
 			set(JPEG_NAMES ${JPEG_NAMES} libjpeg)
 		endif()
 		find_package(jpeg REQUIRED)
@@ -1216,6 +1220,9 @@ elseif(WIN32)
 			if(WITH_INTERNATIONAL)
 				list(APPEND boost_extra_libs locale)
 			endif(WITH_INTERNATIONAL)
+			set(Boost_USE_STATIC_RUNTIME ON) # prefix lib
+			set(Boost_USE_MULTITHREADED  ON) # suffix -mt
+			set(Boost_USE_STATIC_LIBS    ON) # suffix -s
 			find_package(Boost COMPONENTS date_time filesystem thread regex system ${boost_extra_libs})
 			IF(NOT Boost_FOUND)
 				message(WARNING "USING HARDCODED boost locations")
