@@ -2284,6 +2284,13 @@ if(WITH_GCC_MUDFLAP)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_ERROR_MUDFLAP -Wno-error=mudflap)
 endif()
 
+# Enable C++11
+if(CMAKE_COMPILER_IS_GNUCC)
+	set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++11")
+elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+	set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++11")
+endif()
+
 # Include warnings first, so its possible to disable them with user defined flags
 # eg: -Wno-uninitialized
 set(CMAKE_C_FLAGS "${C_WARNINGS} ${CMAKE_C_FLAGS} ${PLATFORM_CFLAGS}")

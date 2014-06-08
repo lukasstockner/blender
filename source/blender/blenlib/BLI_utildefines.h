@@ -49,7 +49,7 @@
 #endif
 
 /* min/max */
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(__cplusplus)
 
 #define MIN2(a, b) __extension__ ({  \
 	typeof(a) a_ = (a); typeof(b) b_ = (b); \
@@ -135,7 +135,7 @@
 /* Causes warning:
  * incompatible types when assigning to type 'Foo' from type 'Bar'
  * ... the compiler optimizes away the temp var */
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__cplusplus)
 #define CHECK_TYPE(var, type)  {  \
 	__typeof(var) *__tmp;         \
 	__tmp = (type *)NULL;         \
@@ -276,7 +276,7 @@
 /* some misc stuff.... */
 
 /* avoid multiple access for supported compilers */
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && !defined(__cplusplus)
 
 #define ABS(a)  ({ \
 	typeof(a) a_ = (a); \
@@ -335,7 +335,7 @@
 #define STACK_POP_PTR(stack)     ((_##stack##_index) ? &((stack)[--(_##stack##_index)]) : NULL)
 #define STACK_POP_ELSE(stack, r) ((_##stack##_index) ?  ((stack)[--(_##stack##_index)]) : r)
 #define STACK_FREE(stack)      ((void)stack)
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__cplusplus)
 #define STACK_SWAP(stack_a, stack_b) { \
 	SWAP(typeof(stack_a), stack_a, stack_b); \
 	SWAP(unsigned int, _##stack_a##_index, _##stack_b##_index); \

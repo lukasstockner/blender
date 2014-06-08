@@ -161,7 +161,7 @@ static const int NAN_INT = 0x7FC00000;
  * incompatible types when assigning to type 'Foo' from type 'Bar'
  * ... the compiler optimizes away the temp var */
 #ifndef CHECK_TYPE
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(__cplusplus)
 #define CHECK_TYPE(var, type)  {  \
 	__typeof(var) *__tmp;         \
 	__tmp = (type *)NULL;         \
