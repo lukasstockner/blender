@@ -33,6 +33,7 @@
 #ifndef __DEPSGRAPH_TYPES_H__
 #define __DEPSGRAPH_TYPES_H__
 
+#include "depsgraph_util_function.h"
 #include "depsgraph_util_string.h"
 
 struct ChannelDriver;
@@ -45,7 +46,7 @@ struct PointerRNA;
  * < (item): (ComponentDepsNode/PointerRNA) the specific entity involved, where applicable
  */
 // XXX: move this to another header that can be exposed?
-typedef void (*DepsEvalOperationCb)(void *context, PointerRNA *item);
+typedef function<void(void *, PointerRNA *)> DepsEvalOperationCb;
 
 /* Metatype of Nodes - The general "level" in the graph structure the node serves */
 typedef enum eDepsNode_Class {

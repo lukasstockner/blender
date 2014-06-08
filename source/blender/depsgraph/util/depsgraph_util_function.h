@@ -29,6 +29,6 @@
 
 using std::bind;
 using std::function;
-using std::placeholders;
+using namespace std::placeholders;
 
 #endif /* __DEPSGRAPH_UTIL_SET_H__ */
