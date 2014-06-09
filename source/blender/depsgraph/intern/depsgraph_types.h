@@ -40,13 +40,9 @@ struct ChannelDriver;
 struct ModifierData;
 struct PointerRNA;
 
-/* Evaluation Operation for atomic operation 
- * < context: (ComponentEvalContext) context containing data necessary for performing this operation
- *            Results can generally be written to the context directly...
- * < (item): (ComponentDepsNode/PointerRNA) the specific entity involved, where applicable
- */
+/* Evaluation Operation for atomic operation */
 // XXX: move this to another header that can be exposed?
-typedef function<void(void *, PointerRNA *)> DepsEvalOperationCb;
+typedef function<void()> DepsEvalOperationCb;
 
 /* Metatype of Nodes - The general "level" in the graph structure the node serves */
 typedef enum eDepsNode_Class {

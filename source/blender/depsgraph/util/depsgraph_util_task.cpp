@@ -71,11 +71,6 @@ void DepsgraphTask::run()
 	// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
 	ComponentDepsNode *comp = node->owner; 
 	BLI_assert(comp != NULL);
-	void *context = NULL; /* XXX TODO */
-	
-	/* get "item" */
-	// XXX: not everything will use this - some may want something else!
-	PointerRNA *item = &node->ptr;
 	
 	/* take note of current time */
 	double start_time = PIL_check_seconds_timer();
@@ -94,7 +89,7 @@ void DepsgraphTask::run()
 		/* should only be the case for NOOPs, which never get to this point */
 		BLI_assert(node->evaluate);
 		/* perform operation */
-		node->evaluate(context, item);
+		node->evaluate();
 	}
 	
 	/* note how long this took */
