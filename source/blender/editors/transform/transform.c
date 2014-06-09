@@ -4763,7 +4763,7 @@ static void initBevelWeight(TransInfo *t)
 	t->mode = TFM_BWEIGHT;
 	t->transform = applyBevelWeight;
 
-	initMouseInputMode(t, &t->mouse, INPUT_SPRING);
+	initMouseInputMode(t, &t->mouse, INPUT_SPRING_DELTA);
 
 	t->idx_max = 0;
 	t->num.idx_max = 0;
@@ -4787,7 +4787,6 @@ static void applyBevelWeight(TransInfo *t, const int UNUSED(mval[2]))
 
 	weight = t->values[0];
 
-	weight -= 1.0f;
 	if (weight > 1.0f) weight = 1.0f;
 
 	snapGridIncrement(t, &weight);
@@ -4842,7 +4841,7 @@ static void initCrease(TransInfo *t)
 	t->mode = TFM_CREASE;
 	t->transform = applyCrease;
 
-	initMouseInputMode(t, &t->mouse, INPUT_SPRING);
+	initMouseInputMode(t, &t->mouse, INPUT_SPRING_DELTA);
 
 	t->idx_max = 0;
 	t->num.idx_max = 0;
@@ -4866,7 +4865,6 @@ static void applyCrease(TransInfo *t, const int UNUSED(mval[2]))
 
 	crease = t->values[0];
 
-	crease -= 1.0f;
 	if (crease > 1.0f) crease = 1.0f;
 
 	snapGridIncrement(t, &crease);

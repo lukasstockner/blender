@@ -299,7 +299,7 @@ static bool bake_object_check(Object *ob, ReportList *reports)
 		BKE_reportf(reports, RPT_ERROR, "Object \"%s\" is not a mesh", ob->id.name + 2);
 		return false;
 	}
-	else  {
+	else {
 		Mesh *me = (Mesh *)ob->data;
 
 		const int pidx = CustomData_get_active_layer_index(&me->pdata, CD_MTEXPOLY);
@@ -356,7 +356,7 @@ static bool bake_object_check(Object *ob, ReportList *reports)
 }
 
 /* before even getting in the bake function we check for some basic errors */
-static bool bake_objects_check(Main *bmain, Object *ob, ListBase *objects,
+static bool bake_objects_check(Main *bmain, Object *ob, ListBase *selected_objects,
                                ReportList *reports, const bool is_selected_to_active)
 {
 	CollectionPointerLink *link;
@@ -370,7 +370,7 @@ static bool bake_objects_check(Main *bmain, Object *ob, ListBase *objects,
 		if (!bake_object_check(ob, reports))
 			return false;
 
-		for (link = objects->first; link; link = link->next) {
+		for (link = selected_objects->first; link; link = link->next) {
 			Object *ob_iter = (Object *)link->ptr.data;
 
 			if (ob_iter == ob)
@@ -389,7 +389,12 @@ static bool bake_objects_check(Main *bmain, Object *ob, ListBase *objects,
 		}
 	}
 	else {
-		for (link = objects->first; link; link = link->next) {
+		if (BLI_listbase_is_empty(selected_objects)) {
+			BKE_report(reports, RPT_ERROR, "No valid selected objects");
+			return false;
+		}
+
+		for (link = selected_objects->first; link; link = link->next) {
 			if (!bake_object_check(link->ptr.data, reports))
 				return false;
 		}
@@ -408,7 +413,7 @@ static void bake_images_clear(Main *bmain, const bool is_tangent)
 	}
 }
 
-static bool build_image_lookup(Main *bmain, Object *ob, BakeImages *bake_images)
+static void build_image_lookup(Main *bmain, Object *ob, BakeImages *bake_images)
 {
 	const int tot_mat = ob->totcol;
 	int i, j;
@@ -438,7 +443,6 @@ static bool build_image_lookup(Main *bmain, Object *ob, BakeImages *bake_images)
 	}
 
 	bake_images->size = tot_images;
-	return true;
 }
 
 /*
@@ -573,8 +577,7 @@ static int bake(
 	bake_images.data = MEM_callocN(sizeof(BakeImage) * tot_materials, "bake images dimensions (width, height, offset)");
 	bake_images.lookup = MEM_callocN(sizeof(int) * tot_materials, "bake images lookup (from material to BakeImage)");
 
-	if (!build_image_lookup(bmain, ob_low, &bake_images))
-		goto cleanup;
+	build_image_lookup(bmain, ob_low, &bake_images);
 
 	if (is_save_internal) {
 		num_pixels = initialize_internal_images(&bake_images, reports);
@@ -741,8 +744,8 @@ static int bake(
 				                    depth, pass_type, result);
 			}
 			else {
-				ok = RE_bake_internal(re, highpoly[i].ob, highpoly[i].pixel_array, num_pixels,
-				                      depth, pass_type, result);
+				BKE_report(reports, RPT_ERROR, "Current render engine does not support baking");
+				goto cleanup;
 			}
 
 			if (!ok)
@@ -771,10 +774,13 @@ static int bake(
 		/* make sure low poly renders */
 		ob_low->restrictflag &= ~OB_RESTRICT_RENDER;
 
-		if (RE_bake_has_engine(re))
+		if (RE_bake_has_engine(re)) {
 			ok = RE_bake_engine(re, ob_low, pixel_array_low, num_pixels, depth, pass_type, result);
-		else
-			ok = RE_bake_internal(re, ob_low, pixel_array_low, num_pixels, depth, pass_type, result);
+		}
+		else {
+			BKE_report(reports, RPT_ERROR, "Current render engine does not support baking");
+			goto cleanup;
+		}
 	}
 
 	/* normal space conversion
@@ -1008,6 +1014,8 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 
 	bkr->reports = op->reports;
 
+	bkr->result = OPERATOR_CANCELLED;
+
 	/* XXX hack to force saving to always be internal. Whether (and how) to support
 	 * external saving will be addressed later */
 	bkr->save_mode = R_BAKE_SAVE_INTERNAL;
@@ -1015,7 +1023,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 
 static int bake_exec(bContext *C, wmOperator *op)
 {
-	int result;
+	int result = OPERATOR_CANCELLED;
 	BakeAPIRender bkr = {NULL};
 
 	bake_init_api_data(op, C, &bkr);
@@ -1038,7 +1046,7 @@ static int bake_exec(bContext *C, wmOperator *op)
 	}
 	else {
 		CollectionPointerLink *link;
-		const bool is_clear = bkr.is_clear && (BLI_countlist(&bkr.selected_objects) == 1);
+		const bool is_clear = bkr.is_clear && BLI_listbase_is_single(&bkr.selected_objects);
 		for (link = bkr.selected_objects.first; link; link = link->next) {
 			Object *ob_iter = link->ptr.data;
 			result = bake(
@@ -1078,7 +1086,7 @@ static void bake_startjob(void *bkv, short *UNUSED(stop), short *UNUSED(do_updat
 	}
 	else {
 		CollectionPointerLink *link;
-		const bool is_clear = bkr->is_clear && (BLI_countlist(&bkr->selected_objects) == 1);
+		const bool is_clear = bkr->is_clear && BLI_listbase_is_single(&bkr->selected_objects);
 		for (link = bkr->selected_objects.first; link; link = link->next) {
 			Object *ob_iter = link->ptr.data;
 			bkr->result = bake(

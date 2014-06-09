@@ -93,6 +93,12 @@ static void InputSpringFlip(TransInfo *t, MouseInput *mi, const int mval[2], flo
 	}
 }
 
+static void InputSpringDelta(TransInfo *t, MouseInput *mi, const int mval[2], float output[3])
+{
+	InputSpring(t, mi, mval, output);
+	output[0] -= 1.0f;
+}
+
 static void InputTrackBall(TransInfo *UNUSED(t), MouseInput *mi, const int mval[2], float output[3])
 {
 
@@ -330,6 +336,11 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
 		case INPUT_SPRING_FLIP:
 			calcSpringFactor(mi);
 			mi->apply = InputSpringFlip;
+			t->helpline = HLP_SPRING;
+			break;
+		case INPUT_SPRING_DELTA:
+			calcSpringFactor(mi);
+			mi->apply = InputSpringDelta;
 			t->helpline = HLP_SPRING;
 			break;
 		case INPUT_ANGLE:
