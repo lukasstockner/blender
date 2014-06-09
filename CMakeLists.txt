@@ -1169,13 +1169,15 @@ elseif(WIN32)
 			set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
 			set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
 			set(OPENEXR_LIBPATH ${OPENEXR}/lib)
+			set(_openexr_suffix "-2_1")
 			set(OPENEXR_LIBRARIES
-				${OPENEXR_LIBPATH}/Iex.lib
-				${OPENEXR_LIBPATH}/Half.lib
-				${OPENEXR_LIBPATH}/IlmImf.lib
-				${OPENEXR_LIBPATH}/Imath.lib
-				${OPENEXR_LIBPATH}/IlmThread.lib
+				${OPENEXR_LIBPATH}/Iex${_openexr_suffix}.lib
+				${OPENEXR_LIBPATH}/Half.lib # Half doesn't have a suffix?
+				${OPENEXR_LIBPATH}/IlmImf${_openexr_suffix}.lib
+				${OPENEXR_LIBPATH}/Imath${_openexr_suffix}.lib
+				${OPENEXR_LIBPATH}/IlmThread${_openexr_suffix}.lib
 			)
+			unset(_openexr_suffix)
 			endif(NOT OPENEXR_FOUND)
 		endif()
 

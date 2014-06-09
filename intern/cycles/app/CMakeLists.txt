@@ -20,7 +20,6 @@ set(LIBRARIES
 	cycles_subd
 	cycles_util
 	${BOOST_LIBRARIES}
-	${OPENEXR_LIBRARIES}
 	${OPENGL_LIBRARIES}
 	${CYCLES_GLEW_LIBRARY}
 	${OPENIMAGEIO_LIBRARIES}
@@ -53,14 +52,30 @@ if(WITH_CYCLES_STANDALONE)
 		cycles_xml.cpp
 		cycles_xml.h
 	)
+
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
+	set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} /SAFESEH:NO")
+
 	add_executable(cycles ${SRC})
+
 	list(APPEND LIBRARIES ${PLATFORM_LINKLIBS})
 	target_link_libraries(cycles ${LIBRARIES} ${CMAKE_DL_LIBS})
+
+	if(WIN32 AND NOT UNIX AND NOT CMAKE_COMPILER_IS_GNUCC)
+		file_list_suffix(OPENEXR_LIBRARIES_DEBUG "${OPENEXR_LIBRARIES}" "_d")
+		target_link_libraries_debug(cycles "${OPENEXR_LIBRARIES_DEBUG}")
+		target_link_libraries_optimized(cycles "${OPENEXR_LIBRARIES}")
+		unset(OPENEXR_LIBRARIES_DEBUG)
+	else()
+		target_link_libraries(cycles ${OPENEXR_LIBRARIES})
+	endif()
 
 	if(UNIX AND NOT APPLE)
 		set_target_properties(cycles PROPERTIES INSTALL_RPATH $ORIGIN/lib)
 	endif()
+
 	unset(SRC)
+
 endif()
 
 if(WITH_CYCLES_NETWORK)
@@ -75,4 +90,3 @@ if(WITH_CYCLES_NETWORK)
 	endif()
 	unset(SRC)
 endif()
-
