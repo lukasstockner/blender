@@ -1648,7 +1648,7 @@ class VIEW3D_PT_tools_imagepaint_external(Panel, View3DPaintPanel):
         col.operator("image.save_dirty", text="Save All Edited")
 
 
-class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
+class VIEW3D_PT_tools_projectpaint(View3DPaintPanel, Panel):
     bl_category = "Options"
     bl_context = "imagepaint"
     bl_label = "Project Paint"
@@ -1669,13 +1669,13 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
 
         col = layout.column()
 
-        col.label(text="Mirror:")
-        row = col.row(align=True)
-        row.prop(ipaint, "use_symmetry_x", text="X", toggle=True)
-        row.prop(ipaint, "use_symmetry_y", text="Y", toggle=True)
-        row.prop(ipaint, "use_symmetry_z", text="Z", toggle=True)
+#        col.label(text="Mirror:")
+#        row = col.row(align=True)
+#        row.prop(ipaint, "use_symmetry_x", text="X", toggle=True)
+#        row.prop(ipaint, "use_symmetry_y", text="Y", toggle=True)
+#        row.prop(ipaint, "use_symmetry_z", text="Z", toggle=True)
 
-        col.separator()
+#        col.separator()
         col.prop(ipaint, "use_occlude")
         col.prop(ipaint, "use_backface_culling")
 
@@ -1706,7 +1706,7 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
         #col.menu("VIEW3D_MT_tools_projectpaint_clone", text=clone_text, translate=False)
 
         layout.prop(ipaint, "seam_bleed")
-        self.unified_paint_settings(col, context)
+        self.unified_paint_settings(layout, context)
 
 
 class VIEW3D_PT_imagepaint_options(View3DPaintPanel):
