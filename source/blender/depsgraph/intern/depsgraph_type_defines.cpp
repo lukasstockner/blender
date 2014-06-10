@@ -61,32 +61,34 @@ extern "C" {
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
-void BKE_animsys_eval_driver() {}
+void BKE_animsys_eval_driver(ID *id, FCurve *fcurve) {}
 
-void BKE_constraints_evaluate() {}
-void BKE_pose_iktree_evaluate() {}
-void BKE_pose_splineik_evaluate() {}
-void BKE_pose_eval_bone() {}
+void BKE_object_constraints_evaluate(Object *ob) {}
+void BKE_pose_constraints_evaluate(Object *ob, bPoseChannel *pchan) {}
 
-void BKE_pose_rebuild_op() {}
-void BKE_pose_eval_init() {}
-void BKE_pose_eval_flush() {}
+void BKE_pose_iktree_evaluate(Object *ob, bPoseChannel *rootchan) {}
+void BKE_pose_splineik_evaluate(Object *ob, bPoseChannel *rootchan) {}
+void BKE_pose_eval_bone(Object *ob, bPoseChannel *pchan) {}
 
-void BKE_particle_system_eval() {}
+void BKE_pose_rebuild_op(Object *ob, bPose *pose) {}
+void BKE_pose_eval_init(Object *ob, bPose *pose) {}
+void BKE_pose_eval_flush(Object *ob, bPose *pose) {}
 
-void BKE_rigidbody_rebuild_sim() {}
-void BKE_rigidbody_eval_simulation() {}
-void BKE_rigidbody_object_sync_transforms() {}
+void BKE_particle_system_eval(Object *ob, ParticleSystem *psys) {}
 
-void BKE_object_eval_local_transform() {}
-void BKE_object_eval_parent() {}
-void BKE_object_eval_modifier() {}
+void BKE_rigidbody_rebuild_sim(Scene *scene) {}
+void BKE_rigidbody_eval_simulation(Scene *scene) {}
+void BKE_rigidbody_object_sync_transforms(Scene *scene, Object *ob) {}
 
-void BKE_mesh_eval_geometry() {}
-void BKE_mball_eval_geometry() {}
-void BKE_curve_eval_geometry() {}
-void BKE_curve_eval_path() {}
-void BKE_lattice_eval_geometry() {}
+void BKE_object_eval_local_transform(Object *ob) {}
+void BKE_object_eval_parent(Object *ob) {}
+void BKE_object_eval_modifier(Object *ob, ModifierData *md) {}
+
+void BKE_mesh_eval_geometry(Mesh *mesh) {}
+void BKE_mball_eval_geometry(MetaBall *mball) {}
+void BKE_curve_eval_geometry(Curve *curve) {}
+void BKE_curve_eval_path(Curve *curve) {}
+void BKE_lattice_eval_geometry(Lattice *latt) {}
 
 const string deg_op_name_object_parent = "BKE_object_eval_parent";
 const string deg_op_name_object_local_transform = "BKE_object_eval_local_transform";

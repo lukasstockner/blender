@@ -68,11 +68,9 @@ struct DepsgraphNodeBuilder {
 	TimeSourceDepsNode *add_time_source(IDPtr id);
 	ComponentDepsNode *add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &comp_name = "");
 	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node, eDepsNode_Type type,
-	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description,
-	                                      PointerRNA ptr);
+	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
 	OperationDepsNode *add_operation_node(IDDepsNode *id_node, eDepsNode_Type type,
-	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description,
-	                                      PointerRNA ptr);
+	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
 	
 	void verify_entry_exit_operations();
 	
@@ -81,7 +79,8 @@ struct DepsgraphNodeBuilder {
 	void build_group(Group *group);
 	IDDepsNode *build_object(Scene *scene, Object *ob);
 	ComponentDepsNode *build_object_transform(Object *ob, IDDepsNode *ob_node);
-	void build_constraints(ComponentDepsNode *comp_node, eDepsNode_Type constraint_op_type);
+	void build_object_constraints(Object *ob, IDDepsNode *ob_node);
+	void build_pose_constraints(Object *ob, bPoseChannel *pchan, BoneComponentDepsNode *bone_node);
 	void build_rigidbody(IDDepsNode *scene_node, Scene *scene);
 	void build_particles(IDDepsNode *ob_node, Object *ob);
 	void build_animdata(IDDepsNode *id_node);

@@ -75,8 +75,6 @@ struct OperationDepsNode : public DepsNode {
 	
 	DepsEvalOperationCb evaluate; /* callback for operation */
 	
-	PointerRNA ptr;               /* item that operation is to be performed on (optional) */
-	
 	Relations inlinks;          /* nodes which this one depends on */
 	Relations outlinks;         /* nodes which depend on this one */
 	
@@ -134,8 +132,6 @@ struct PoseOperationDepsNode : public OperationDepsNode {
 };
 
 struct BoneOperationDepsNode : public OperationDepsNode {
-	void init(const ID *id, const string &subdata);
-	
 	DEG_DEPSNODE_DECLARE;
 };
 
