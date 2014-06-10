@@ -679,6 +679,9 @@ class USERPREF_PT_theme(Panel):
             col.label(text="Menu:")
             self._theme_widget_style(col, ui.wcol_menu)
 
+            col.label(text="Pie Menu:")
+            self._theme_widget_style(col, ui.wcol_pie_menu)
+
             col.label(text="Pulldown:")
             self._theme_widget_style(col, ui.wcol_pulldown)
 

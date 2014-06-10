@@ -1610,6 +1610,21 @@ static struct uiWidgetColors wcol_menu_back = {
 	25, -20
 };
 
+/* pie menus */
+static struct uiWidgetColors wcol_pie_menu = {
+	{10, 10, 10, 200},
+	{25, 25, 25, 230},
+	{140, 140, 140, 255},
+	{45, 45, 45, 230},
+
+	{160, 160, 160, 255},
+	{255, 255, 255, 255},
+
+	1,
+	10, -10
+};
+
+
 /* tooltip color */
 static struct uiWidgetColors wcol_tooltip = {
 	{0, 0, 0, 255},
@@ -1757,6 +1772,7 @@ void ui_widget_color_init(ThemeUI *tui)
 	tui->wcol_menu = wcol_menu;
 	tui->wcol_pulldown = wcol_pulldown;
 	tui->wcol_menu_back = wcol_menu_back;
+	tui->wcol_pie_menu = wcol_pie_menu;
 	tui->wcol_tooltip = wcol_tooltip;
 	tui->wcol_menu_item = wcol_menu_item;
 	tui->wcol_box = wcol_box;
@@ -1905,11 +1921,39 @@ static void widget_state_pulldown(uiWidgetType *wt, int state)
 		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
 }
 
+/* special case, pie menu items */
+static void widget_state_pie_menu_item(uiWidgetType *wt, int state)
+{
+	wt->wcol = *(wt->wcol_theme);
+	
+	/* active and disabled (not so common) */
+	if ((state & UI_BUT_DISABLED) && (state & UI_ACTIVE)) {
+		widget_state_blend(wt->wcol.text, wt->wcol.text_sel, 0.5f);
+		/* draw the backdrop at low alpha, helps navigating with keys
+		 * when disabled items are active */
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.item);
+		wt->wcol.inner[3] = 64;
+	}
+	/* regular disabled */
+	else if (state & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
+		widget_state_blend(wt->wcol.text, wt->wcol.inner, 0.5f);
+	}
+	/* regular active */
+	else if (state & UI_SELECT) {
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
+		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+	}
+	else if (state & UI_ACTIVE) {
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.item);
+		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
+	}
+}
+
 /* special case, menu items */
 static void widget_state_menu_item(uiWidgetType *wt, int state)
 {
 	wt->wcol = *(wt->wcol_theme);
-	
+
 	/* active and disabled (not so common) */
 	if ((state & UI_BUT_DISABLED) && (state & UI_ACTIVE)) {
 		widget_state_blend(wt->wcol.text, wt->wcol.text_sel, 0.5f);
@@ -1928,7 +1972,6 @@ static void widget_state_menu_item(uiWidgetType *wt, int state)
 		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
 	}
 }
-
 
 /* ************ menu backdrop ************************* */
 
@@ -3308,9 +3351,9 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			break;
 
 		case UI_WTYPE_MENU_ITEM_RADIAL:
-			wt.wcol_theme = &btheme->tui.wcol_menu_back;
+			wt.wcol_theme = &btheme->tui.wcol_pie_menu;
 			wt.draw = widget_menu_radial_itembut;
-			wt.state = widget_state_menu_item;
+			wt.state = widget_state_pie_menu_item;
 			break;
 	}
 	
@@ -3686,11 +3729,11 @@ void ui_draw_pie_center(uiBlock *block)
 	glPushMatrix();
 	glTranslatef(cx, cy, 0.0);
 
-	glColor4ub(btheme->tui.wcol_menu_back.inner[0], btheme->tui.wcol_menu_back.inner[1], btheme->tui.wcol_menu_back.inner[2], btheme->tui.wcol_menu_back.inner[3]);
+	glColor4ub(btheme->tui.wcol_pie_menu.inner[0], btheme->tui.wcol_pie_menu.inner[1], btheme->tui.wcol_pie_menu.inner[2], btheme->tui.wcol_pie_menu.inner[3]);
 	glEnable(GL_BLEND);
 	glutil_draw_filled_arc(0.0, (float)(M_PI * 2.0), pie_radius_internal, 40);
 
-	glColor4ub(255, 255, 0, btheme->tui.wcol_menu_back.inner[3]);
+	glColor4ub(255, 255, 0, btheme->tui.wcol_pie_menu.inner[3]);
 	glBegin(GL_TRIANGLE_FAN);
 	glVertex2f(pie_dir[0] * pie_radius_internal + pie_dir[1] * 5.0, pie_dir[1] * pie_radius_internal - pie_dir[0] * 5.0);
 	glVertex2f(pie_dir[0] * (pie_radius_internal - 10.0f), pie_dir[1] * (pie_radius_internal - 10.0f));

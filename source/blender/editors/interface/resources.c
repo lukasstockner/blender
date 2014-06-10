@@ -2430,6 +2430,28 @@ void init_userdef_do_versions(void)
 		}
 	}
 
+	if (U.versionfile < 272 || (U.versionfile == 272 && U.subversionfile < 1)) {
+		bTheme *btheme;
+
+		struct uiWidgetColors wcol_pie_menu = {
+			{10, 10, 10, 200},
+			{25, 25, 25, 230},
+			{140, 140, 140, 255},
+			{45, 45, 45, 230},
+
+			{160, 160, 160, 255},
+			{255, 255, 255, 255},
+
+			1,
+			10, -10
+		};
+
+
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			btheme->tui.wcol_pie_menu = wcol_pie_menu;
+		}
+	}
+
 	if (U.pie_menu_radius == 0)
 		U.pie_menu_radius = 150;
 
