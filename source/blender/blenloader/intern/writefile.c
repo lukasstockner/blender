@@ -2946,7 +2946,7 @@ static void write_paintcurves(WriteData *wd, ListBase *idbase)
 
 	for (pc = idbase->first; pc; pc = pc->id.next) {
 		if (pc->id.us > 0 || wd->current) {
-			writestruct(wd, ID_PC, "Palette", 1, pc);
+			writestruct(wd, ID_PC, "PaintCurve", 1, pc);
 
 			writestruct(wd, DATA, "PaintCurvePoint", pc->tot_points, pc->points);
 			if (pc->id.properties) IDP_WriteProperty(pc->id.properties, wd);

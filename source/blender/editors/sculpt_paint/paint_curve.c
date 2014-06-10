@@ -142,7 +142,7 @@ static void paintcurve_undo_begin(bContext *C, wmOperator *op, PaintCurve *pc)
 
 
 	ED_undo_paint_push_begin(undo_stack_id, op->type->name,
-	                         paintcurve_undo_restore, paintcurve_undo_delete);
+	                         paintcurve_undo_restore, paintcurve_undo_delete, NULL);
 	lb = undo_paint_push_get_list(undo_stack_id);
 
 	uc = MEM_callocN(sizeof(*uc), "Undo_curve");
