@@ -3210,7 +3210,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0, 100);
 	RNA_def_property_ui_text(prop, "Recenter Timeout", "Pie menus will use the initial mouse position as center for this amount of time (in  1/10ths of sec)");
 
-	prop = RNA_def_property(srna, "pie_menu_radius", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "pie_menu_radius", PROP_INT, PROP_PIXEL);
 	RNA_def_property_range(prop, 0, 1000);
 	RNA_def_property_ui_text(prop, "Radius", "Pie menu size in pixels");
 

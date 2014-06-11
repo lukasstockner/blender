@@ -2559,7 +2559,6 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 {
 	uiStyle *style = UI_GetStyleDraw();
 	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
-	uiBut *but;
 
 	pie->block_radial = uiBeginBlock(C, NULL, __func__, UI_EMBOSS);
 	/* may be useful later to allow spawning pies
@@ -2583,9 +2582,7 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 		}
 		else {
 			w = uiPieTitleWidth(title, 0);
-			but = uiDefBut(pie->block_radial, LABEL, 0, title, 0, 0, w, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
-			/* hack, draw label with default transparent style */
-			but->dt = UI_EMBOSSP;
+			uiDefBut(pie->block_radial, LABEL, 0, title, 0, 0, w, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
 		}
 	}
 

@@ -895,13 +895,15 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 	if (prop && RNA_property_type(prop) == PROP_ENUM) {
 		EnumPropertyItem *item, *item_array = NULL;
 		bool free;
-		uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
+		uiLayout *split;
 		uiLayout *target;
 
 		if (radial)
 			target = uiLayoutRadial(layout);
-		else
+		else {
+			split = uiLayoutSplit(layout, 0.0f, false);
 			target = uiLayoutColumn(split, layout->align);
+		}
 
 		RNA_property_enum_items_gettexted(block->evil_C, &ptr, prop, &item_array, NULL, &free);
 		for (item = item_array; item->identifier; item++) {
@@ -2219,10 +2221,19 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short tot
 	return dir;
 }
 
-static bool ui_item_is_radial_displayable (uiItem *item)
+static bool ui_item_is_radial_displayable(uiItem *item)
 {
 
 	if ((item->type == ITEM_BUTTON) && (((uiButtonItem *)item)->but->type == LABEL))
+		return false;
+
+	return true;
+}
+
+static bool ui_item_is_radial_drawable(uiButtonItem *bitem)
+{
+
+	if (ELEM(bitem->but->type, SEPR, SEPRLINE))
 		return false;
 
 	return true;
@@ -2276,8 +2287,9 @@ static void ui_litem_layout_radial(uiLayout *litem)
 				bitem->but->rect.ymax *= 1.5;
 				/* add a little bit more here */
 				bitem->but->rect.xmax += UI_UNIT_X;
-				/* enable drawing as pie item */
-				bitem->but->dt = UI_EMBOSSR;
+				/* enable drawing as pie item if supported by widget */
+				if (ui_item_is_radial_drawable(bitem))
+					bitem->but->dt = UI_EMBOSSR;
 			}
 
 			ui_item_size(item, &itemw, &itemh);

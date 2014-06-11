@@ -3473,12 +3473,12 @@ void VIEW3D_OT_zoom_camera_1_to_1(wmOperatorType *ot)
 /* ********************* Changing view operator ****************** */
 
 static EnumPropertyItem prop_view_items[] = {
-	{RV3D_VIEW_FRONT, "FRONT", 0, "Front", "View From the Front"},
-	{RV3D_VIEW_BACK, "BACK", 0, "Back", "View From the Back"},
-	{RV3D_VIEW_LEFT, "LEFT", 0, "Left", "View From the Left"},
+    {RV3D_VIEW_LEFT, "LEFT", 0, "Left", "View From the Left"},
 	{RV3D_VIEW_RIGHT, "RIGHT", 0, "Right", "View From the Right"},
-	{RV3D_VIEW_TOP, "TOP", 0, "Top", "View From the Top"},
-	{RV3D_VIEW_BOTTOM, "BOTTOM", 0, "Bottom", "View From the Bottom"},
+    {RV3D_VIEW_BOTTOM, "BOTTOM", 0, "Bottom", "View From the Bottom"},
+    {RV3D_VIEW_TOP, "TOP", 0, "Top", "View From the Top"},
+    {RV3D_VIEW_FRONT, "FRONT", 0, "Front", "View From the Front"},
+	{RV3D_VIEW_BACK, "BACK", 0, "Back", "View From the Back"},
 	{RV3D_VIEW_CAMERA, "CAMERA", 0, "Camera", "View From the Active Camera"},
 	{0, NULL, 0, NULL, NULL}
 };

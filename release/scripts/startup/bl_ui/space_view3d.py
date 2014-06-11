@@ -1411,6 +1411,35 @@ class VIEW3D_MT_object_game(Menu):
         layout.operator("object.game_property_clear")
 
 
+class VIEW3D_PIE_view(Menu):
+    bl_label = "View"
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+        pie.operator_enum("VIEW3D_OT_viewnumpad", "type")
+        pie.operator("VIEW3D_OT_view_persportho")
+
+class VIEW3D_PIE_shade(Menu):
+    bl_label = "Shade"
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+        pie.prop(context.space_data, "viewport_shade", expand=True)
+        pie.separator()
+
+        if(context.active_object):
+            if(context.mode == 'EDIT_MESH'):
+                pie.operator("MESH_OT_faces_shade_smooth")
+                pie.operator("MESH_OT_faces_shade_flat")
+            else:
+                pie.operator("OBJECT_OT_shade_smooth")
+                pie.operator("OBJECT_OT_shade_flat")
+        
+
 # ********** Brush menu **********
 class VIEW3D_MT_brush(Menu):
     bl_label = "Brush"
