@@ -7797,8 +7797,7 @@ static void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const
 		copy_v2_v2(seg1, block->pie_data.pie_center_init);
 	}
 	else {
-		seg1[0] = BLI_rctf_cent_x(&block->rect);
-		seg1[1] = BLI_rctf_cent_y(&block->rect);
+		copy_v2_v2(seg1, block->pie_data.pie_center_spawned);
 	}
 
 	seg2[0] = mx - seg1[0];

@@ -1583,27 +1583,35 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 		ScrArea *sa = CTX_wm_area(C);
 		int ar_w = BLI_rcti_size_x(&sa->totrct);
 		int ar_h = BLI_rcti_size_y(&sa->totrct);
+		int x_offset = 0, y_offset = 0;
 
 		ar->winrct = sa->totrct;
 
 		ui_block_translate(block, -ar->winrct.xmin, -ar->winrct.ymin);
 
+		/* spawned coordinates still in window space, convert to screen */
+		block->pie_data.pie_center_spawned[0] -= ar->winrct.xmin;
+		block->pie_data.pie_center_spawned[1] -= ar->winrct.ymin;
+
+		copy_v2_v2(block->pie_data.pie_center_init, block->pie_data.pie_center_spawned);
+
 		/* only try translation if area is large enough */
-		if ((BLI_rctf_size_x(&block->rect) < ar_w) && (BLI_rctf_size_y(&block->rect) < ar_h)) {
-			int x_offset = 0, y_offset = 0;
-
-			if (block->rect.xmin < 0 ) x_offset -= block->rect.xmin;
+		if (BLI_rctf_size_x(&block->rect) < ar_w) {
+			if (block->rect.xmin < 0 )   x_offset -= block->rect.xmin;
 			if (block->rect.xmax > ar_w) x_offset += ar_w - block->rect.xmax;
-			if (block->rect.ymin < 0 ) y_offset -= block->rect.ymin;
-			if (block->rect.ymax > ar_h) y_offset += ar_h - block->rect.ymax;
+		}
 
-			/* if we are offsetting set up initial data for timeout functionality */
-			if ((x_offset != 0) || (y_offset != 0)) {
-				block->pie_data.pie_center_init[0] = BLI_rctf_cent_x(&block->rect);
-				block->pie_data.pie_center_init[1] = BLI_rctf_cent_y(&block->rect);
-				ui_block_translate(block, x_offset, y_offset);
-				block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
-			}
+		if (BLI_rctf_size_y(&block->rect) < ar_h) {
+			if (block->rect.ymin < 0 )   y_offset -= block->rect.ymin;
+			if (block->rect.ymax > ar_h) y_offset += ar_h - block->rect.ymax;
+		}
+		/* if we are offsetting set up initial data for timeout functionality */
+		if ((x_offset != 0) || (y_offset != 0)) {
+			block->pie_data.pie_center_spawned[0] += x_offset;
+			block->pie_data.pie_center_spawned[1] += y_offset;
+
+			ui_block_translate(block, x_offset, y_offset);
+			block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
 		}
 	}
 	else {
@@ -2209,6 +2217,7 @@ struct uiPopupMenu {
 struct uiPieMenu {
 	uiBlock *block_radial; /* radial block of the pie menu (more could be added later) */
 	uiLayout *layout;
+	int mx, my;
 };
 
 static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, void *arg_pup)
@@ -2465,6 +2474,9 @@ static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void 
 	block->my = 0;
 	block->bounds_type = UI_BLOCK_BOUNDS_PIE_CENTER;
 
+	block->pie_data.pie_center_spawned[0] = pie->mx;
+	block->pie_data.pie_center_spawned[1] = pie->my;
+
 	uiEndBlock(C, block);
 
 	return pie->block_radial;
@@ -2517,6 +2529,8 @@ void uiPieMenuEnd(bContext *C, uiPieMenu *pie)
 {
 	wmWindow *window = CTX_wm_window(C);
 	uiPopupBlockHandle *menu;
+	pie->mx = window->eventstate->x;
+	pie->my = window->eventstate->y;
 
 	menu = ui_popup_block_create(C, NULL, NULL, NULL, ui_block_func_PIE, pie);
 	menu->popup = true;

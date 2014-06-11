@@ -2251,6 +2251,9 @@ static void ui_litem_layout_radial(uiLayout *litem)
 	if (totitems < 5)
 		litem->root->block->pie_data.flags |= UI_PIE_DEGREES_RANGE_LARGE;
 
+	if (totitems == 3)
+		litem->root->block->pie_data.flags |= UI_PIE_3_ITEMS;
+
 	for (item = litem->items.first; item; item = item->next) {
 		/* not all button types are drawn in a radial menu, do filtering here */
 		if(ui_item_is_radial_displayable(item)) {

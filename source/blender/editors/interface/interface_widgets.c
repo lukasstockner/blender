@@ -3719,8 +3719,8 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 void ui_draw_pie_center(uiBlock *block)
 {
 	bTheme *btheme = UI_GetTheme();
-	float cx = BLI_rctf_cent_x(&block->rect);
-	float cy = BLI_rctf_cent_y(&block->rect);
+	float cx = block->pie_data.pie_center_spawned[0];
+	float cy = block->pie_data.pie_center_spawned[1];
 
 	float *pie_dir = block->pie_data.pie_dir;
 

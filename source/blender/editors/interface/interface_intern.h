@@ -160,7 +160,8 @@ typedef enum RadialDirection {
 
 /* PieMenuData->flags */
 #define UI_PIE_DEGREES_RANGE_LARGE (1 << 0) /* pie menu item collision is detected at 90 degrees */
-#define UI_PIE_INITIAL_DIRECTION     (1 << 1) /* use initial center of pie menu to calculate direction */
+#define UI_PIE_INITIAL_DIRECTION   (1 << 1) /* use initial center of pie menu to calculate direction */
+#define UI_PIE_3_ITEMS             (1 << 2) /* pie menu has only 3 items, careful when centering */
 
 typedef struct uiLinkLine {  /* only for draw/edit */
 	struct uiLinkLine *next, *prev;
@@ -292,9 +293,9 @@ struct uiBut {
 };
 
 struct PieMenuData {
-	int num_pie_items; /* number of pie items, useful to determine collision based on how pie items are distributed */
 	float pie_dir[2];
 	float pie_center_init[2];
+	float pie_center_spawned[2];
 	int flags;
 	int event; /* initial event used to fire the pie menu, store here so we can query for release */
 };

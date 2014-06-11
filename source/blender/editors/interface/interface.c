@@ -327,7 +327,7 @@ static void ui_centered_pie_bounds_block(const bContext *C, uiBlock *block)
 {
 	wmWindow *window = CTX_wm_window(C);
 	int x, y;
-	int startx, starty;
+	int startx;
 	int width, height;
 
 	/* note: this is used for the splash where window bounds event has not been
@@ -342,9 +342,14 @@ static void ui_centered_pie_bounds_block(const bContext *C, uiBlock *block)
 	height = BLI_rctf_size_y(&block->rect);
 
 	startx = x - (width * 0.5f);
-	starty = y - (height * 0.5f);
 
-	ui_block_translate(block, startx - block->rect.xmin, starty - block->rect.ymin);
+	/* special case, 3 items means no top, make it so we are going down the full height */
+	if (block->pie_data.flags & UI_PIE_3_ITEMS)
+		ui_block_translate(block, startx - block->rect.xmin, y);
+	else {
+		int starty = y - (height * 0.5f);
+		ui_block_translate(block, startx - block->rect.xmin, starty - block->rect.ymin);
+	}
 
 	/* now recompute bounds and safety */
 	ui_bounds_block(block);

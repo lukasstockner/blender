@@ -1700,14 +1700,6 @@ class VIEW3D_PIE_tests(Menu):
         row.prop(sculpt, "use_symmetry_y", text="Y", toggle=True)
         row.prop(sculpt, "use_symmetry_z", text="Z", toggle=True)
 
-        if context.sculpt_object.use_dynamic_topology_sculpting:
-            pie.operator("sculpt.dynamic_topology_toggle", icon='X', text="Disable Dyntopo")
-        else:
-            pie.operator("sculpt.dynamic_topology_toggle", icon='SCULPT_DYNTOPO', text="Enable Dyntopo")
-
-        col = pie.column(align=True)
-        col.label("Pie menus are so cool!")
-        col.label("No, Really!")
 
         
     @classmethod
