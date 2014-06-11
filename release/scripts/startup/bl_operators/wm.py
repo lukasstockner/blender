@@ -548,8 +548,7 @@ class WM_OT_context_operator_pie_enum(Operator):
 
         def draw_cb(self, context):
             layout = self.layout
-            pie = layout.pie()
-            pie.operator_enum(op.idname_py(), prop_string)
+            layout.operator_enum(op.idname_py(), prop_string)
 
         context.window_manager.pie_menu(draw_func=draw_cb, title=self.title, event=event)
 

@@ -873,7 +873,8 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 	PointerRNA ptr;
 	PropertyRNA *prop;
 	uiBlock *block = layout->root->block;
-	bool radial = layout->item.type == ITEM_LAYOUT_RADIAL;
+	bool radial = (layout->item.type == ITEM_LAYOUT_RADIAL) ||
+	              ((layout->item.type == ITEM_LAYOUT_ROOT) && (layout->root->type == UI_LAYOUT_PIEMENU));
 
 	if (!ot || !ot->srna) {
 		ui_item_disabled(layout, opname);
@@ -893,7 +894,12 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 		EnumPropertyItem *item, *item_array = NULL;
 		bool free;
 		uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
-		uiLayout *column = uiLayoutColumn(split, layout->align);
+		uiLayout *target;
+
+		if (radial)
+			target = uiLayoutRadial(layout);
+		else
+			target = uiLayoutColumn(split, layout->align);
 
 		RNA_property_enum_items_gettexted(block->evil_C, &ptr, prop, &item_array, NULL, &free);
 		for (item = item_array; item->identifier; item++) {
@@ -910,10 +916,7 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 				}
 				RNA_property_enum_set(&tptr, prop, item->value);
 
-				if (radial)
-					uiItemFullO_ptr(layout, ot, item->name, item->icon, tptr.data, context, flag);
-				else
-					uiItemFullO_ptr(column, ot, item->name, item->icon, tptr.data, context, flag);
+				uiItemFullO_ptr(target, ot, item->name, item->icon, tptr.data, context, flag);
 
 				ui_but_tip_from_enum_item(block->buttons.last, item);
 			}
@@ -922,17 +925,14 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 					uiBut *but;
 
 					if (item != item_array && !radial) {
-						column = uiLayoutColumn(split, layout->align);
+						target = uiLayoutColumn(split, layout->align);
 
 						/* inconsistent, but menus with labels do not look good flipped */
 						block->flag |= UI_BLOCK_NO_FLIP;
 					}
 
 					if (item->icon || radial) {
-						if (radial)
-							uiItemL(layout, item->name, item->icon);
-						else
-							uiItemL(column, item->name, item->icon);
+						uiItemL(target, item->name, item->icon);
 
 						but = block->buttons.last;
 					}
@@ -947,7 +947,7 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 					if (radial)
 						;
 					else
-						uiItemS(column);
+						uiItemS(target);
 				}
 			}
 		}
@@ -2215,9 +2215,10 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short tot
 	return dir;
 }
 
-static bool ui_item_is_radial_displayable (uiButtonItem *bitem)
+static bool ui_item_is_radial_displayable (uiItem *item)
 {
-	if (bitem->but->type == LABEL)
+
+	if ((item->type == ITEM_BUTTON) && (((uiButtonItem *)item)->but->type == LABEL))
 		return false;
 
 	return true;
@@ -2229,7 +2230,6 @@ static void ui_litem_layout_radial(uiLayout *litem)
 	int itemh, itemw, x, y;
 	int itemnum = 0;
 	int totitems = 0;
-	float vec[2];
 
 	int minx, miny, maxx, maxy;
 	/* For the radial layout we will use Matt Ebb's design
@@ -2252,27 +2252,35 @@ static void ui_litem_layout_radial(uiLayout *litem)
 		litem->root->block->pie_data.flags |= UI_PIE_DEGREES_RANGE_LARGE;
 
 	for (item = litem->items.first; item; item = item->next) {
-		if (item->type == ITEM_BUTTON) {
-			uiButtonItem *bitem = (uiButtonItem *) item;
+		/* not all button types are drawn in a radial menu, do filtering here */
+		if(ui_item_is_radial_displayable(item)) {
+			RadialDirection dir;
+			float vec[2];
 
-			/* not all button types are drawn in a radial menu, do filtering here */
-			if(ui_item_is_radial_displayable(bitem)) {
-				itemnum++;
+			itemnum++;
 
-				bitem->but->pie_dir = ui_get_radialbut_vec(vec, itemnum, totitems);
+			dir = ui_get_radialbut_vec(vec, itemnum, totitems);
+
+			if (item->type == ITEM_BUTTON) {
+				uiButtonItem *bitem = (uiButtonItem *) item;
+
+				bitem->but->pie_dir = dir;
 				/* scale the buttons */
 				bitem->but->rect.ymax *= 1.5;
 				/* add a little bit more here */
 				bitem->but->rect.xmax += UI_UNIT_X;
-				ui_item_size(item, &itemw, &itemh);
-
-				ui_item_position(item, x + vec[0] * pie_radius - itemw / 2, y + vec[1] * pie_radius - itemh / 2, itemw, itemh);
-
-				minx = min_ii(minx, x + vec[0] * pie_radius - itemw/2);
-				maxx = max_ii(maxx, x + vec[0] * pie_radius + itemw/2);
-				miny = min_ii(miny, y + vec[1] * pie_radius - itemh/2);
-				maxy = max_ii(maxy, y + vec[1] * pie_radius + itemh/2);
+				/* enable drawing as pie item */
+				bitem->but->dt = UI_EMBOSSR;
 			}
+
+			ui_item_size(item, &itemw, &itemh);
+
+			ui_item_position(item, x + vec[0] * pie_radius - itemw / 2, y + vec[1] * pie_radius - itemh / 2, itemw, itemh);
+
+			minx = min_ii(minx, x + vec[0] * pie_radius - itemw/2);
+			maxx = max_ii(maxx, x + vec[0] * pie_radius + itemw/2);
+			miny = min_ii(miny, y + vec[1] * pie_radius - itemh/2);
+			maxy = max_ii(maxy, y + vec[1] * pie_radius + itemh/2);
 		}
 	}
 

@@ -2482,8 +2482,10 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
 	uiBut *but;
 
-	pie->block_radial = uiBeginBlock(C, NULL, __func__, UI_EMBOSSR);
-	//pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY;
+	pie->block_radial = uiBeginBlock(C, NULL, __func__, UI_EMBOSS);
+	/* may be useful later to allow spawning pies
+	 * from old positions */
+	/* pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY; */
 	pie->block_radial->puphash = ui_popup_menu_hash(title);
 	pie->block_radial->flag |= UI_BLOCK_RADIAL;
 	pie->block_radial->pie_data.event = event;
@@ -2520,7 +2522,6 @@ void uiPieMenuEnd(bContext *C, uiPieMenu *pie)
 	menu->popup = true;
 	menu->towardstime = PIL_check_seconds_timer();
 
-	/* change to pie version! */
 	UI_add_pie_handlers(C, &window->modalhandlers, menu);
 	WM_event_add_mousemove(C);
 

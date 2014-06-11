@@ -3729,9 +3729,11 @@ void ui_draw_pie_center(uiBlock *block)
 	glPushMatrix();
 	glTranslatef(cx, cy, 0.0);
 
-	glColor4ub(btheme->tui.wcol_pie_menu.inner[0], btheme->tui.wcol_pie_menu.inner[1], btheme->tui.wcol_pie_menu.inner[2], btheme->tui.wcol_pie_menu.inner[3]);
+	glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.inner);
 	glEnable(GL_BLEND);
 	glutil_draw_filled_arc(0.0, (float)(M_PI * 2.0), pie_radius_internal, 40);
+	glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.outline);
+	glutil_draw_lined_arc(0.0, (float)(M_PI * 2.0), pie_radius_internal, 40);
 
 	glColor4ub(255, 255, 0, btheme->tui.wcol_pie_menu.inner[3]);
 	glBegin(GL_TRIANGLE_FAN);

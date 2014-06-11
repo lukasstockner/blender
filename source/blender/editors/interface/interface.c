@@ -1168,8 +1168,8 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 	if (block->layouts.first) {
 		uiBlockLayoutResolve(block, NULL, NULL);
 	}
-	if (!(block->flag & UI_BLOCK_RADIAL))
-		ui_block_do_align(block);
+
+	ui_block_do_align(block);
 
 	if ((block->flag & UI_BLOCK_LOOP) && (block->flag & UI_BLOCK_NUMSELECT)) {
 		ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
