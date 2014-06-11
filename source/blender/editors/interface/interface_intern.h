@@ -162,6 +162,7 @@ typedef enum RadialDirection {
 #define UI_PIE_DEGREES_RANGE_LARGE (1 << 0) /* pie menu item collision is detected at 90 degrees */
 #define UI_PIE_INITIAL_DIRECTION   (1 << 1) /* use initial center of pie menu to calculate direction */
 #define UI_PIE_3_ITEMS             (1 << 2) /* pie menu has only 3 items, careful when centering */
+#define UI_PIE_INVALID_DIR         (1 << 3) /* mouse not far enough from center position  */
 
 typedef struct uiLinkLine {  /* only for draw/edit */
 	struct uiLinkLine *next, *prev;

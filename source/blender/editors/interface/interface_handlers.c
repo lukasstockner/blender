@@ -6247,6 +6247,9 @@ static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but)
 	float angle_pie;
 	float vec[2];
 
+	if (block->pie_data.flags & UI_PIE_INVALID_DIR)
+		return false;
+
 	switch (but->pie_dir) {
 		case UI_RADIAL_E:
 			angle_pie = 0.0;
@@ -7792,6 +7795,7 @@ static void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const
 {
 	float seg1[2];
 	float seg2[2];
+	float len;
 
 	if (block->pie_data.flags & UI_PIE_INITIAL_DIRECTION) {
 		copy_v2_v2(seg1, block->pie_data.pie_center_init);
@@ -7803,7 +7807,13 @@ static void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const
 	seg2[0] = mx - seg1[0];
 	seg2[1] = my - seg1[1];
 
-	normalize_v2_v2(block->pie_data.pie_dir, seg2);
+	len = normalize_v2_v2(block->pie_data.pie_dir, seg2);
+
+	/* ten pixels for now, a bit arbitrary */
+	if (len < U.pie_menu_threshold)
+		block->pie_data.flags |= UI_PIE_INVALID_DIR;
+	else
+		block->pie_data.flags &= ~UI_PIE_INVALID_DIR;
 }
 
 static int ui_handle_menu_event(

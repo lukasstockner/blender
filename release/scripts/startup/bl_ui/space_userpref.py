@@ -222,6 +222,7 @@ class USERPREF_PT_interface(Panel):
         sub.prop(view, "pie_drag_timeout")
         sub.prop(view, "pie_initial_timeout")
         sub.prop(view, "pie_menu_radius")
+        sub.prop(view, "pie_menu_threshold")
         col.separator()
         col.separator()
         col.separator()

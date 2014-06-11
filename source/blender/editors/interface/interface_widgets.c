@@ -3735,13 +3735,15 @@ void ui_draw_pie_center(uiBlock *block)
 	glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.outline);
 	glutil_draw_lined_arc(0.0, (float)(M_PI * 2.0), pie_radius_internal, 40);
 
-	glColor4ub(255, 255, 0, btheme->tui.wcol_pie_menu.inner[3]);
-	glBegin(GL_TRIANGLE_FAN);
-	glVertex2f(pie_dir[0] * pie_radius_internal + pie_dir[1] * 5.0, pie_dir[1] * pie_radius_internal - pie_dir[0] * 5.0);
-	glVertex2f(pie_dir[0] * (pie_radius_internal - 10.0f), pie_dir[1] * (pie_radius_internal - 10.0f));
-	glVertex2f(pie_dir[0] * pie_radius_internal - pie_dir[1] * 5.0, pie_dir[1] * pie_radius_internal + pie_dir[0] * 5.0);
-	glVertex2f(pie_dir[0] * (pie_radius_internal + 10.0f), pie_dir[1] * (pie_radius_internal + 10.0f));
-	glEnd();
+	if (!(block->pie_data.flags & UI_PIE_INVALID_DIR)) {
+		glColor4ub(255, 255, 0, btheme->tui.wcol_pie_menu.inner[3]);
+		glBegin(GL_TRIANGLE_FAN);
+		glVertex2f(pie_dir[0] * pie_radius_internal + pie_dir[1] * 5.0, pie_dir[1] * pie_radius_internal - pie_dir[0] * 5.0);
+		glVertex2f(pie_dir[0] * (pie_radius_internal - 10.0f), pie_dir[1] * (pie_radius_internal - 10.0f));
+		glVertex2f(pie_dir[0] * pie_radius_internal - pie_dir[1] * 5.0, pie_dir[1] * pie_radius_internal + pie_dir[0] * 5.0);
+		glVertex2f(pie_dir[0] * (pie_radius_internal + 10.0f), pie_dir[1] * (pie_radius_internal + 10.0f));
+		glEnd();
+	}
 
 	glDisable(GL_BLEND);
 	glPopMatrix();

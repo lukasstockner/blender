@@ -2446,14 +2446,16 @@ void init_userdef_do_versions(void)
 			10, -10
 		};
 
+		if (U.pie_menu_radius == 0)
+			U.pie_menu_radius = 150;
+
+		if (U.pie_menu_threshold == 0)
+			U.pie_menu_threshold = 5;
 
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			btheme->tui.wcol_pie_menu = wcol_pie_menu;
 		}
 	}
-
-	if (U.pie_menu_radius == 0)
-		U.pie_menu_radius = 150;
 
 	if (U.pixelsize == 0.0f)
 		U.pixelsize = 1.0f;
