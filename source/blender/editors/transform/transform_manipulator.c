@@ -42,7 +42,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_modifier_types.h"
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -59,7 +58,7 @@
 #include "BKE_lattice.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_key.h"
-#include "BKE_modifier.h"
+#include "BKE_crazyspace.h"
 #include "MEM_guardedalloc.h"
 
 #include "BIF_gl.h"
@@ -307,37 +306,23 @@ int calc_manipulator_stats(const bContext *C)
 		if (obedit->type == OB_MESH) {
 			BMEditSelection ese;
 			BMEditMesh *em = BKE_editmesh_from_object(obedit);
-			DerivedMesh *dm = editbmesh_get_derived_cage(scene, ob, em, CD_ORIGINDEX);
+			DerivedMesh *dm = editbmesh_get_derived_cage(scene, ob, em, scene->customdata_mask);
 			dmverts = dm->getVertArray(dm);
 
 			float vec[3] = { 0, 0, 0 };
 
 			int *derived_index_map = NULL;
 
-			if (!DM_vertindex_sync_derived_cage(ob)) {
-				derived_index_map = DM_map_editmesh_to_derived_cage(ob, em, dm);
+			if (!BKE_crazyspace_cageindexes_in_sync(ob)) {
+				derived_index_map = BKE_crazyspace_map_em_to_cage(ob, em, dm);
 			}
 
 			if ((v3d->around == V3D_ACTIVE) && BM_select_history_active_get(em->bm, &ese)) {
-				if (ese.htype == BM_VERT) {
-					BMVert *v = (BMVert *) ese.ele;
-					int index = BM_elem_index_get(v);
-					calc_tw_center_dm(scene, v, dmverts, BM_elem_index_get(v), derived_index_map);
-				} 
-				else if (ese.htype == BM_EDGE) {
-					BMEdge *e = (BMEdge *) ese.ele;
-					
-					calc_tw_center_dm(scene, e->v1, dmverts, BM_elem_index_get(e->v1), derived_index_map);
-					calc_tw_center_dm(scene, e->v2, dmverts, BM_elem_index_get(e->v2), derived_index_map);
-				} 
-				else if (ese.htype = BM_FACE) {
-					BMFace *f = (BMFace *) ese.ele;
-					BMVert *v;
-					BMIter iter;
-					BM_ITER_ELEM(v, &iter, f, BM_VERTS_OF_FACE) {
-						calc_tw_center_dm(scene, v, dmverts, BM_elem_index_get(v), derived_index_map);
-					}
-				}
+				BKE_crazyspace_cage_active_sel_center(&ese, dm, derived_index_map, scene->twcent);
+				/* these two are to prevent anything from messing with twcent */
+				copy_v3_v3(scene->twmin, scene->twcent);
+				copy_v3_v3(scene->twmax, scene->twcent);
+
 				totsel = 1;
 			} 
 			else {

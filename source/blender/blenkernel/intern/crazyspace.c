@@ -446,3 +446,104 @@ void BKE_crazyspace_build_sculpt(Scene *scene, Object *ob, float (**deformmats)[
 			unit_m3((*deformmats)[a]);
 	}
 }
+
+void BKE_crazyspace_cage_active_sel_center(BMEditSelection *ese, DerivedMesh *cage, int *derived_index_map, float *cent)
+{
+	MVert *dm_verts = cage->getVertArray(cage);
+	int cage_index;
+
+	if (ese->htype == BM_VERT) {
+		BMVert *v = (BMVert *)ese->ele;
+		if (derived_index_map) {
+			cage_index = derived_index_map[BM_elem_index_get(v)];
+			copy_v3_v3(cent, dm_verts[cage_index].co);
+		}
+		else {
+			copy_v3_v3(cent, dm_verts[BM_elem_index_get(v)].co);
+		}
+	}
+	else if (ese->htype == BM_EDGE) {
+		BMEdge *e = (BMEdge *)ese->ele;
+		zero_v3(cent);
+		if (derived_index_map) {
+			int cage_ind_v1 = derived_index_map[BM_elem_index_get(e->v1)];
+			int cage_ind_v2 = derived_index_map[BM_elem_index_get(e->v2)];
+			add_v3_v3(cent, dm_verts[cage_ind_v1].co);
+			add_v3_v3(cent, dm_verts[cage_ind_v2].co);
+		}
+		else {
+			add_v3_v3(cent, dm_verts[BM_elem_index_get(e->v1)].co);
+			add_v3_v3(cent, dm_verts[BM_elem_index_get(e->v2)].co);
+		}
+		mul_v3_fl(cent, 0.5f);
+	}
+	else if (ese->htype = BM_FACE) {
+		BMFace *f = (BMFace *)ese->ele;
+		BMVert *v;
+		BMIter iter;
+		zero_v3(cent);
+		int total = 0, index;
+		BM_ITER_ELEM(v, &iter, f, BM_VERTS_OF_FACE) {
+			++total;
+			index = BM_elem_index_get(v);
+			if (derived_index_map) {
+				add_v3_v3(cent, dm_verts[derived_index_map[index]].co);
+			}
+			else {
+				add_v3_v3(cent, dm_verts[index].co);
+			}
+		}
+		mul_v3_fl(cent, 1.0f / total);
+	}
+}
+
+bool BKE_crazyspace_cageindexes_in_sync(Object *ob)
+{
+	ModifierData *md;
+	ModifierTypeInfo *mti;
+
+	BLI_assert(ob->type == OB_MESH);
+	for (md = ob->modifiers.first; md; md = md->next) {
+		mti = modifierType_getInfo(md->type);
+		if (mti->type != eModifierTypeType_OnlyDeform
+			&& md->mode & eModifierMode_OnCage && md->mode & eModifierMode_Editmode 
+			&& md->mode & eModifierMode_Realtime)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+int *BKE_crazyspace_map_em_to_cage(Object *ob, BMEditMesh *em, DerivedMesh *cage_dm)
+{
+	int *derived_index_map = NULL;
+
+	int totdmvert = cage_dm->getNumVerts(cage_dm);
+	int orig_index;
+	int *p_indexlayer;
+	int totmapped = 0;
+
+	p_indexlayer = DM_get_vert_data_layer(cage_dm, CD_ORIGINDEX);
+
+	if (p_indexlayer) {
+		int a;
+
+		derived_index_map = MEM_mallocN(em->bm->totvert * sizeof(int), "derived index map");
+		for (a = 0; a < totdmvert; ++a) {
+			orig_index = *p_indexlayer;
+			if (orig_index != ORIGINDEX_NONE) {
+				totmapped++;
+				BLI_assert(orig_index < em->bm->totvert);
+				derived_index_map[orig_index] = a;
+			}
+			++p_indexlayer;
+		}
+		if (totmapped < em->bm->totvert) {
+			MEM_freeN(derived_index_map);
+			derived_index_map = NULL;
+		}
+	}
+
+	return derived_index_map;
+}

@@ -2108,7 +2108,7 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 
 	td->ext = NULL;
 	td->val = NULL;
-	td->extra = NULL;
+	td->extra = eve;
 	if (t->mode == TFM_BWEIGHT) {
 		td->val  =  bweight;
 		td->ival = *bweight;

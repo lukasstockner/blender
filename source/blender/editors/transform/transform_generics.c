@@ -69,6 +69,7 @@
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_curve.h"
+#include "BKE_crazyspace.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_lattice.h"
@@ -78,6 +79,7 @@
 #include "BKE_editmesh.h"
 #include "BKE_tracking.h"
 #include "BKE_mask.h"
+#include "BKE_DerivedMesh.h"
 
 #include "ED_anim_api.h"
 #include "ED_armature.h"
@@ -1605,16 +1607,59 @@ void calculateCenterMedian(TransInfo *t, float r_center[3])
 	float partial[3] = {0.0f, 0.0f, 0.0f};
 	int total = 0;
 	int i;
-	
-	for (i = 0; i < t->total; i++) {
-		if (t->data[i].flag & TD_SELECTED) {
-			if (!(t->data[i].flag & TD_NOCENTER)) {
-				add_v3_v3(partial, t->data[i].center);
-				total++;
+	Object *ob = t->obedit;
+
+	if (ob && ob->type == OB_MESH) {
+		Mesh *me = ob->data;
+		DerivedMesh *cage = editbmesh_get_derived_cage(t->scene, ob, me->edit_btmesh, t->scene->customdata_mask);
+		int *vertexmap = NULL;
+		MVert *dmv;
+		BMVert *emv;
+
+		if (!BKE_crazyspace_cageindexes_in_sync(ob)) {
+			vertexmap = BKE_crazyspace_map_em_to_cage(ob, me->edit_btmesh, cage);
+		}
+
+		dmv = cage->getVertArray(cage);
+		
+		if (vertexmap) {
+			int dm_index;
+			for (i = 0; i < t->total; i++) {
+				if (t->data[i].flag & TD_SELECTED) {
+					if (!(t->data[i].flag & TD_NOCENTER)) {
+						emv = t->data[i].extra;
+						dm_index = vertexmap[BM_elem_index_get(emv)];
+						add_v3_v3(partial, dmv[dm_index].co);
+						total++;
+					}
+				}
+			}
+			MEM_freeN(vertexmap);
+		} 
+		else {
+			for (i = 0; i < t->total; i++) {
+				if (t->data[i].flag & TD_SELECTED) {
+					if (!(t->data[i].flag & TD_NOCENTER)) {
+						emv = t->data[i].extra;
+						add_v3_v3(partial, dmv[BM_elem_index_get(emv)].co);
+						total++;
+					}
+				}
+			}
+		}		
+	}
+	else {
+		for (i = 0; i < t->total; i++) {
+			if (t->data[i].flag & TD_SELECTED) {
+				if (!(t->data[i].flag & TD_NOCENTER)) {
+					add_v3_v3(partial, t->data[i].center);
+					total++;
+				}
 			}
 		}
 	}
-	if (i)
+
+	if (total)
 		mul_v3_fl(partial, 1.0f / total);
 	copy_v3_v3(r_center, partial);
 }
@@ -1650,13 +1695,23 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
 		switch (t->obedit->type) {
 			case OB_MESH:
 			{
+				int *derived_index_map = NULL;
 				BMEditSelection ese;
 				BMEditMesh *em = BKE_editmesh_from_object(t->obedit);
+				DerivedMesh *cage = editbmesh_get_derived_cage(t->scene, t->obedit, em, t->scene->customdata_mask);
+
+				if (!BKE_crazyspace_cageindexes_in_sync(t->obedit)) {
+					derived_index_map = BKE_crazyspace_map_em_to_cage(t->obedit, em, cage);
+				}
 
 				if (BM_select_history_active_get(em->bm, &ese)) {
-					BM_editselection_center(&ese, r_center);
+					BKE_crazyspace_cage_active_sel_center(&ese, cage, derived_index_map, r_center);
 					ok = true;
 				}
+
+				if (derived_index_map)
+					MEM_freeN(derived_index_map);
+
 				break;
 			}
 			case OB_ARMATURE:
