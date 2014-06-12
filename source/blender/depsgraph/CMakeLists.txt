@@ -76,6 +76,8 @@ set(SRC
 	util/depsgraph_util_hash.h
 	util/depsgraph_util_id.h
 	util/depsgraph_util_map.h
+	util/depsgraph_util_math.h
+	util/depsgraph_util_math.cpp
 	util/depsgraph_util_priority_queue.h
 	util/depsgraph_util_rna.h
 	util/depsgraph_util_set.h
