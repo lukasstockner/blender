@@ -213,6 +213,7 @@ void EDBM_selectmode_set(struct BMEditMesh *em) RET_NONE
 void EDBM_mesh_load(struct Object *ob) RET_NONE
 void EDBM_mesh_make(struct ToolSettings *ts, struct Object *ob) RET_NONE
 void EDBM_mesh_normals_update(struct BMEditMesh *em) RET_NONE
+void EDBM_handle_active_shape_update(struct Object *ob, struct Scene *s) RET_NONE
 void *g_system;
 
 float *RE_RenderLayerGetPass(struct RenderLayer *rl, int passtype) RET_NULL
