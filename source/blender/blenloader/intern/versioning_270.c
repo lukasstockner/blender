@@ -252,15 +252,8 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
-	if (!MAIN_VERSION_ATLEAST(main, 270, 295)) {
-		/* XXX insert appropriate version later!*/
-		Scene *sc;
+	if (!DNA_struct_elem_find(fd->filesdna, "Key", "short", "mix_mode")) {
 		Key *k;
-
-		/* Enable auto-committing shape keys! */
-		for (sc = main->scene.first; sc; sc = sc->id.next) {
-			sc->toolsettings->kb_auto_commit = true;
-		}
 
 		/* set mixing to be governed by animdata */
 		for (k = main->key.first; k; k = k->id.next) {

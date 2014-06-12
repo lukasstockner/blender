@@ -2094,13 +2094,6 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_struct_type(prop, "MeshStatVis");
 	RNA_def_property_ui_text(prop, "Mesh Statistics Visualization", NULL);
 
-	/* Auto-commit editcos */
-	prop = RNA_def_property(srna, "kb_auto_commit", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "kb_auto_commit", KB_AUTO_COMMIT);
-	RNA_def_property_ui_text(prop, "Auto-commit edited shape key", 
-									"Automatically commit the shape key when the active shape"
-									"is changed or editmode is toolged");
-
 }
 
 static void rna_def_unified_paint_settings(BlenderRNA  *brna)

@@ -1078,10 +1078,7 @@ typedef struct ToolSettings {
 	/* Grease Pencil */
 	char gpencil_flags;
 
-	char pad[4];
-
-	/* auto-commit editcos to keyblocks */
-	char kb_auto_commit;
+	char pad[5];
 
 	/* Image Paint (8 byttse aligned please!) */
 	struct ImagePaintSettings imapaint;

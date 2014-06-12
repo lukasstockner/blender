@@ -717,14 +717,11 @@ void EDBM_handle_active_shape_update(Object *ob, Scene *s)
 	if (kb == key->scratch.origin)
 		return;
 
-	/* handle auto-committing */
-	if (s->toolsettings->kb_auto_commit) {
-		EDBM_commit_scratch_to_active(ob, s);
-		EDBM_update_scratch_from_active(ob);
-		em = BKE_editmesh_from_object(ob);
-		EDBM_update_generic(em, false, false);
-	}  
-	/* if there's no auto-committing, don't do anything */
+
+	EDBM_commit_scratch_to_active(ob, s);
+	EDBM_update_scratch_from_active(ob);
+	em = BKE_editmesh_from_object(ob);
+	EDBM_update_generic(em, false, false);
 }
 
 
