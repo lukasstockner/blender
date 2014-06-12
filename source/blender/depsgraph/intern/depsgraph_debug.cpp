@@ -131,8 +131,11 @@ static int deg_debug_node_color_index(const DepsNode *node)
 	switch (node->type) {
 		case DEPSNODE_TYPE_ID_REF:
 			return 5;
-		case DEPSNODE_TYPE_OP_NOOP:
-			return 8;
+		case DEPSNODE_TYPE_OPERATION: {
+			OperationDepsNode *op_node = (OperationDepsNode *)node;
+			if (op_node->is_noop())
+				return 8;
+		}
 		
 		default:
 			break;

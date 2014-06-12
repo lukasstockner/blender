@@ -85,61 +85,7 @@ struct OperationDepsNode : public DepsNode {
 	short optype;                 /* (eDepsOperation_Type) stage of evaluation */
 	int flag;                     /* (eDepsOperation_Flag) extra settings affecting evaluation */
 	int done;                     /* generic tag for traversal algorithms */
-};
-
-/* Macros for common static typeinfo */
-#define DEG_DEPSNODE_OP_DEFINE(NodeType, type_, comp_type_, tname_) \
-	const DepsNode::TypeInfo NodeType::typeinfo = DepsNode::TypeInfo(type_, tname_, comp_type_)
-
-struct NoopDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct ParametersOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct AnimationOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct ProxyOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct TransformOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct GeometryOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct SequencerOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct UpdateOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct DriverOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct PoseOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct BoneOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct ParticlesOperationDepsNode : public OperationDepsNode {
-	DEG_DEPSNODE_DECLARE;
-};
-
-struct RigidBodyOperationDepsNode : public OperationDepsNode {
+	
 	DEG_DEPSNODE_DECLARE;
 };
 

@@ -160,7 +160,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	
 	/* object constraints */
 	if (ob->constraints.first) {
-		build_constraints(scene, ob, "", DEPSNODE_TYPE_OP_TRANSFORM, &ob->constraints);
+		build_constraints(scene, ob, DEPSNODE_TYPE_TRANSFORM, "", &ob->constraints);
 	}
 	
 	/* object data */
@@ -272,10 +272,10 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 	}
 }
 
-void DepsgraphRelationBuilder::build_constraints(Scene *scene, IDPtr id, const string &component_subdata,
-                                                 eDepsNode_Type constraint_op_type, ListBase *constraints)
+void DepsgraphRelationBuilder::build_constraints(Scene *scene, IDPtr id, eDepsNode_Type component_type, const string &component_subdata,
+                                                 ListBase *constraints)
 {
-	OperationKey constraint_op_key(id, component_subdata, constraint_op_type, deg_op_name_constraint_stack);
+	OperationKey constraint_op_key(id, component_type, component_subdata, deg_op_name_constraint_stack);
 	
 	/* add dependencies for each constraint in turn */
 	for (bConstraint *con = (bConstraint *)constraints->first; con; con = con->next) {
@@ -379,7 +379,7 @@ void DepsgraphRelationBuilder::build_animdata(IDPtr id)
 	
 	/* drivers */
 	for (FCurve *fcurve = (FCurve *)adt->drivers.first; fcurve; fcurve = fcurve->next) {
-		OperationKey driver_key(id, DEPSNODE_TYPE_OP_DRIVER, deg_op_name_driver(fcurve->driver));
+		OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, deg_op_name_driver(fcurve->driver));
 		
 		/* hook up update callback associated with F-Curve */
 		// ...
@@ -396,7 +396,7 @@ void DepsgraphRelationBuilder::build_animdata(IDPtr id)
 void DepsgraphRelationBuilder::build_driver(IDPtr id, FCurve *fcurve)
 {
 	ChannelDriver *driver = fcurve->driver;
-	OperationKey driver_key(id, DEPSNODE_TYPE_OP_DRIVER, deg_op_name_driver(driver));
+	OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, deg_op_name_driver(driver));
 	
 	/* create dependency between driver and data affected by it */
 	// XXX: this should return a parameter context for dealing with this...
@@ -464,8 +464,8 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 {
 	RigidBodyWorld *rbw = scene->rigidbody_world;
 	
-	OperationKey init_key(scene, DEPSNODE_TYPE_OP_RIGIDBODY, deg_op_name_rigidbody_world_rebuild);
-	OperationKey sim_key(scene, DEPSNODE_TYPE_OP_RIGIDBODY, deg_op_name_rigidbody_world_simulate);
+	OperationKey init_key(scene, DEPSNODE_TYPE_TRANSFORM, deg_op_name_rigidbody_world_rebuild);
+	OperationKey sim_key(scene, DEPSNODE_TYPE_TRANSFORM, deg_op_name_rigidbody_world_simulate);
 	
 	/* rel between the two sim-nodes */
 	add_relation(init_key, sim_key, DEPSREL_TYPE_OPERATION, "Rigidbody [Init -> SimStep]");
@@ -492,15 +492,15 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 			 *    XXX: there's probably a difference between passive and active 
 			 *         - passive don't change, so may need to know full transform...
 			 */
-			OperationKey rbo_key(ob, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
+			OperationKey rbo_key(ob, DEPSNODE_TYPE_TRANSFORM, deg_op_name_rigidbody_object_sync);
 			
 			const string &trans_op_name = ob->parent ? deg_op_name_object_parent : deg_op_name_object_local_transform;
-			OperationKey trans_op(ob, DEPSNODE_TYPE_OP_TRANSFORM, trans_op_name);
+			OperationKey trans_op(ob, DEPSNODE_TYPE_TRANSFORM, trans_op_name);
 			
 			add_relation(trans_op, rbo_key, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
 			add_relation(sim_key, rbo_key, DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
 			
-			OperationKey constraint_key(ob, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_constraint_stack);
+			OperationKey constraint_key(ob, DEPSNODE_TYPE_TRANSFORM, deg_op_name_constraint_stack);
 			add_relation(rbo_key, constraint_key, DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Ob Constraints");
 			
 			/* needed to get correct base values */
@@ -521,8 +521,8 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 			 * constraint affects the physics sim for these objects 
 			 */
 			ComponentKey trans_key(ob, DEPSNODE_TYPE_TRANSFORM);
-			OperationKey ob1_key(rbc->ob1, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
-			OperationKey ob2_key(rbc->ob2, DEPSNODE_TYPE_OP_TRANSFORM, deg_op_name_rigidbody_object_sync);
+			OperationKey ob1_key(rbc->ob1, DEPSNODE_TYPE_TRANSFORM, deg_op_name_rigidbody_object_sync);
+			OperationKey ob2_key(rbc->ob2, DEPSNODE_TYPE_TRANSFORM, deg_op_name_rigidbody_object_sync);
 			
 			/* - constrained-objects sync depends on the constraint-holder */
 			add_relation(trans_key, ob1_key, DEPSREL_TYPE_TRANSFORM, "RigidBodyConstraint -> RBC.Object_1");
@@ -544,7 +544,7 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 		build_animdata(part);
 		
 		/* this particle system */
-		OperationKey psys_key(ob, DEPSNODE_TYPE_OP_PARTICLE, deg_op_name_psys_eval);
+		OperationKey psys_key(ob, DEPSNODE_TYPE_EVAL_PARTICLES, deg_op_name_psys_eval);
 		
 		/* XXX: if particle system is later re-enabled, we must do full rebuild? */
 		if (!psys_check_enabled(ob, psys))
@@ -631,7 +631,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 	 * - see notes on direction of rel below...
 	 */
 	ComponentKey bone_key(ob, DEPSNODE_TYPE_BONE, pchan->name);
-	OperationKey solver_key(ob, pchan->name, DEPSNODE_TYPE_OP_POSE, deg_op_name_spline_ik_solver);
+	OperationKey solver_key(ob, DEPSNODE_TYPE_EVAL_POSE, pchan->name, deg_op_name_spline_ik_solver);
 	add_relation(bone_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
 	
 	bPoseChannel *parchan = pchan;
@@ -667,7 +667,7 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob, bPoseChannel *pch
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
 	
 	ComponentKey bone_key(ob, DEPSNODE_TYPE_BONE, pchan->name);
-	OperationKey solver_key(ob, pchan->name, DEPSNODE_TYPE_OP_POSE, deg_op_name_spline_ik_solver);
+	OperationKey solver_key(ob, DEPSNODE_TYPE_EVAL_POSE, pchan->name, deg_op_name_spline_ik_solver);
 	
 	/* attach owner to IK Solver too 
 	 * - assume that owner is always part of chain 
@@ -737,7 +737,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		}
 		
 		/* constraints */
-		build_constraints(scene, ob, pchan->name, DEPSNODE_TYPE_OP_BONE, &pchan->constraints);
+		build_constraints(scene, ob, DEPSNODE_TYPE_BONE, pchan->name, &pchan->constraints);
 	}
 	
 	/* IK Solvers...
@@ -857,7 +857,7 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		
 		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
 			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
-			OperationKey mod_key(ob, DEPSNODE_TYPE_OP_GEOMETRY, deg_op_name_modifier(md));
+			OperationKey mod_key(ob, DEPSNODE_TYPE_GEOMETRY, deg_op_name_modifier(md));
 			
 			/* stack relation: modifier depends on previous modifier in the stack */
 			if (md->prev)

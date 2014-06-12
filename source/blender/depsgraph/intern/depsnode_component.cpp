@@ -91,16 +91,11 @@ OperationDepsNode *ComponentDepsNode::find_operation(const string &name) const
 	return it != this->operations.end() ? it->second : NULL;
 }
 
-OperationDepsNode *ComponentDepsNode::add_operation(eDepsNode_Type type, eDepsOperation_Type optype, 
-                                                    DepsEvalOperationCb op, const string &name)
+OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, const string &name)
 {
-	DepsNodeFactory *factory = DEG_get_node_factory(type);
-	eDepsNode_Type factory_type = factory->component_type();
-	/* make sure only valid operations are added to this component */
-	BLI_assert(factory_type == DEPSNODE_TYPE_UNDEFINED || factory_type == this->type);
-	
 	OperationDepsNode *op_node = find_operation(name);
 	if (!op_node) {
+		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_OPERATION);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
 		
 		/* register */

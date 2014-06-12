@@ -63,8 +63,7 @@ struct ComponentDepsNode : public DepsNode {
 	 * < op: The operation to perform
 	 * < name: Identifier for operation - used to find/locate it again
 	 */
-	OperationDepsNode *add_operation(eDepsNode_Type type, eDepsOperation_Type optype, 
-	                                 DepsEvalOperationCb op, const string &name);
+	OperationDepsNode *add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, const string &name);
 	void remove_operation(const string &name);
 	void clear_operations();
 	

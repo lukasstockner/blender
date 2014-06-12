@@ -67,9 +67,9 @@ struct DepsgraphNodeBuilder {
 	IDDepsNode *add_id_node(IDPtr id);
 	TimeSourceDepsNode *add_time_source(IDPtr id);
 	ComponentDepsNode *add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &comp_name = "");
-	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node, eDepsNode_Type type,
+	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node,
 	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
-	OperationDepsNode *add_operation_node(IDDepsNode *id_node, eDepsNode_Type type,
+	OperationDepsNode *add_operation_node(IDDepsNode *id_node, eDepsNode_Type comp_type,
 	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
 	
 	void verify_entry_exit_operations();
@@ -132,17 +132,17 @@ struct ComponentKey
 
 struct OperationKey
 {
-	OperationKey() : id(NULL), component_name(""), type(DEPSNODE_TYPE_UNDEFINED), name("") {}
-	OperationKey(IDPtr id, eDepsNode_Type type, const string &name) :
-	    id(id), component_name(""), type(type), name(name)
+	OperationKey() : id(NULL), component_type(DEPSNODE_TYPE_UNDEFINED), component_name(""), name("") {}
+	OperationKey(IDPtr id, eDepsNode_Type component_type, const string &name) :
+	    id(id), component_type(component_type), component_name(""), name(name)
 	{}
-	OperationKey(IDPtr id, const string &component_name, eDepsNode_Type type, const string &name) :
-	    id(id), component_name(component_name), type(type), name(name)
+	OperationKey(IDPtr id, eDepsNode_Type component_type, const string &component_name, const string &name) :
+	    id(id), component_type(component_type), component_name(component_name), name(name)
 	{}
 	
 	IDPtr id;
+	eDepsNode_Type component_type;
 	string component_name;
-	eDepsNode_Type type;
 	string name;
 };
 
@@ -169,7 +169,7 @@ struct DepsgraphRelationBuilder {
 	void build_scene(Scene *scene);
 	void build_object(Scene *scene, Object *ob);
 	void build_object_parent(Object *ob);
-	void build_constraints(Scene *scene, IDPtr id, const string &component_subdata, eDepsNode_Type constraint_op_type, ListBase *constraints);
+	void build_constraints(Scene *scene, IDPtr id, eDepsNode_Type component_type, const string &component_subdata, ListBase *constraints);
 	void build_animdata(IDPtr id);
 	void build_driver(IDPtr id, FCurve *fcurve);
 	void build_world(Scene *scene, World *world);

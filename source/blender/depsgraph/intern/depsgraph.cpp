@@ -60,55 +60,73 @@ Depsgraph::~Depsgraph()
 
 /* Query Conditions from RNA ----------------------- */
 
-/* Determine node-querying criteria for finding a suitable node,
- * given a RNA Pointer (and optionally, a property too)
- */
-static void find_node_criteria_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop,
-                                            ID **id, string *subdata,
-                                            eDepsNode_Type *type, string *name)
+static bool pointer_to_id_node_criteria(const PointerRNA *ptr, const PropertyRNA *prop,
+                                        ID **id)
+{
+	if (!prop) {
+		if (RNA_struct_is_ID(ptr->type)) {
+			*id = (ID *)ptr->data;
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+static bool pointer_to_component_node_criteria(const PointerRNA *ptr, const PropertyRNA *prop,
+                                               ID **id,
+                                               eDepsNode_Type *type, string *subdata)
 {
 	/* set default values for returns */
-	*id       = (ID *)ptr->id.data;        /* for obvious reasons... */
-	*subdata  = "";                        /* default to no subdata (e.g. bone) name lookup in most cases */
-	*type     = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
-	*name     = "";                        /* default to no name to lookup in most cases */
+	*id        = (ID *)ptr->id.data;        /* for obvious reasons... */
+	*subdata   = "";                        /* default to no subdata (e.g. bone) name lookup in most cases */
 	
 	/* handling of commonly known scenarios... */
 	if (ptr->type == &RNA_PoseBone) {
 		bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-		
 		/* bone - generally, we just want the bone component... */
 		*type = DEPSNODE_TYPE_BONE;
 		*subdata = pchan->name;
+		return true;
 	}
 	else if (ptr->type == &RNA_Object) {
 		Object *ob = (Object *)ptr->data;
-		
 		/* transforms props? */
 		// ...
 	}
 	else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
 		Sequence *seq = (Sequence *)ptr->data;
-		
 		/* sequencer strip */
 		*type = DEPSNODE_TYPE_SEQUENCER;
 		*subdata = seq->name; // xxx?
+		return true;
 	}
+	else if (prop) {
+		*type = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
+		return true;
+	}
+	
+	return false;
 }
 
 /* Convenience wrapper to find node given just pointer + property */
-DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop)
+DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop) const
 {
 	ID *id;
 	eDepsNode_Type type;
-	string subdata;
 	string name;
 	
 	/* get querying conditions */
-	find_node_criteria_from_pointer(ptr, prop, &id, &subdata, &type, &name);
+	if (pointer_to_id_node_criteria(ptr, prop, &id)) {
+		return find_id_node(id);
+	}
+	else if (pointer_to_component_node_criteria(ptr, prop, &id, &type, &name)) {
+		IDDepsNode *id_node = find_id_node(id);
+		if (id_node)
+			return id_node->find_component(type, name);
+	}
 	
-	/* use standard node finding code... */
-	return find_node(id, subdata, type, name);
+	return NULL;
 }
 
 /* Node Management ---------------------------- */
@@ -120,6 +138,28 @@ RootDepsNode *Depsgraph::add_root_node()
 		root_node = (RootDepsNode *)factory->create_node(NULL, "", "Root (Scene)");
 	}
 	return root_node;
+}
+
+TimeSourceDepsNode *Depsgraph::find_time_source(const ID *id) const
+{
+	/* search for one attached to a particular ID? */
+	if (id) {
+		/* check if it was added as a component 
+		 * (as may be done for subgraphs needing timeoffset) 
+		 */
+		IDDepsNode *id_node = find_id_node(id);
+		
+		if (id_node) {
+			// XXX: review this
+//			return id_node->find_component(DEPSNODE_TYPE_TIMESOURCE);
+		}
+	}
+	else {
+		/* use "official" timesource */
+		return root_node->time_source;
+	}
+	
+	return NULL;
 }
 
 SubgraphDepsNode *Depsgraph::add_subgraph_node(const ID *id)

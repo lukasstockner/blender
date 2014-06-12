@@ -237,10 +237,8 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 /* Frame-change happened for root scene that graph belongs to */
 void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType context_type, double ctime)
 {
-	TimeSourceDepsNode *tsrc;
-	
 	/* update time on primary timesource */
-	tsrc = (TimeSourceDepsNode *)graph->find_node(NULL, "", DEPSNODE_TYPE_TIMESOURCE, "");
+	TimeSourceDepsNode *tsrc = graph->find_time_source();
 	tsrc->cfra = ctime;
 	
 #if 0 /* XXX TODO */

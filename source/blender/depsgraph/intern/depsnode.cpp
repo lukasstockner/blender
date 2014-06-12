@@ -42,17 +42,16 @@ extern "C" {
 
 /* Add ------------------------------------------------ */
 
-DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type, const string &tname, eDepsNode_Type component_type)
+DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type, const string &tname)
 {
 	this->type = type;
-	if (type < DEPSNODE_TYPE_PARAMETERS)
-		this->tclass = DEPSNODE_CLASS_GENERIC;
-    else if (type < DEPSNODE_TYPE_OP_NOOP)
-		this->tclass = DEPSNODE_CLASS_COMPONENT;
-	else
+	if (type == DEPSNODE_TYPE_OPERATION)
 		this->tclass = DEPSNODE_CLASS_OPERATION;
+	else if (type < DEPSNODE_TYPE_PARAMETERS)
+		this->tclass = DEPSNODE_CLASS_GENERIC;
+	else
+		this->tclass = DEPSNODE_CLASS_COMPONENT;
 	this->tname = tname;
-	this->component_type = component_type;
 }
 
 DepsNode::DepsNode()

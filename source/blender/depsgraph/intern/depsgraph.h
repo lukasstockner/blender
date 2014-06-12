@@ -114,7 +114,7 @@ struct Depsgraph {
 	 * > returns: A node matching the required characteristics if it exists
 	 *            OR NULL if no such node exists in the graph
 	 */
-	DepsNode *find_node(const ID *id, const string &subdata, eDepsNode_Type type, const string &name);
+	DepsNode *find_node(const ID *id, eDepsNode_Type type, const string &subdata, const string &name);
 	/* Convenience wrapper to find node given just pointer + property
 	 * < ptr: pointer to the data that node will represent
 	 * < (prop): optional property affected - providing this effectively results in inner nodes being returned
@@ -122,9 +122,11 @@ struct Depsgraph {
 	 * > returns: A node matching the required characteristics if it exists
 	 *            OR NULL if no such node exists in the graph
 	 */
-	DepsNode *find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop);
+	DepsNode *find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop) const;
 	
 	RootDepsNode *add_root_node();
+	
+	TimeSourceDepsNode *find_time_source(const ID *id = NULL) const;
 	
 	SubgraphDepsNode *add_subgraph_node(const ID *id);
 	void remove_subgraph_node(SubgraphDepsNode *subgraph_node);

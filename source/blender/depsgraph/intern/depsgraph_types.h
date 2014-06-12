@@ -56,45 +56,28 @@ typedef enum eDepsNode_Class {
 typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_UNDEFINED        = -1,       /* fallback type for invalid return value */
 	
-	/* Generic Types */
-	DEPSNODE_TYPE_ROOT             = 0,        /* "Current Scene" - basically whatever kicks off the evaluation process */
-	DEPSNODE_TYPE_TIMESOURCE       = 1,        /* Time-Source */
+	DEPSNODE_TYPE_OPERATION        = 0,        /* Inner Node (Operation) */
 	
-	DEPSNODE_TYPE_ID_REF           = 2,        /* ID-Block reference - used as landmarks/collection point for components, but not usually part of main graph */
-	DEPSNODE_TYPE_SUBGRAPH         = 3,        /* Isolated sub-graph - used for keeping instanced data separate from instances using them */
+	/* Generic Types */
+	DEPSNODE_TYPE_ROOT             = 1,        /* "Current Scene" - basically whatever kicks off the evaluation process */
+	DEPSNODE_TYPE_TIMESOURCE       = 2,        /* Time-Source */
+	
+	DEPSNODE_TYPE_ID_REF           = 3,        /* ID-Block reference - used as landmarks/collection point for components, but not usually part of main graph */
+	DEPSNODE_TYPE_SUBGRAPH         = 4,        /* Isolated sub-graph - used for keeping instanced data separate from instances using them */
 	
 	/* Outer Types */
-	DEPSNODE_TYPE_PARAMETERS       = 10,       /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
-	DEPSNODE_TYPE_PROXY            = 11,       /* Generic "Proxy-Inherit" Component */   // XXX: Also for instancing of subgraphs?
-	DEPSNODE_TYPE_ANIMATION        = 12,       /* Animation Component */                 // XXX: merge in with parameters?
-	DEPSNODE_TYPE_TRANSFORM        = 13,       /* Transform Component (Parenting/Constraints) */
-	DEPSNODE_TYPE_GEOMETRY         = 14,       /* Geometry Component (DerivedMesh/Displist) */
-	DEPSNODE_TYPE_SEQUENCER        = 15,       /* Sequencer Component (Scene Only) */
+	DEPSNODE_TYPE_PARAMETERS       = 11,       /* Parameters Component - Default when nothing else fits (i.e. just SDNA property setting) */
+	DEPSNODE_TYPE_PROXY            = 12,       /* Generic "Proxy-Inherit" Component */   // XXX: Also for instancing of subgraphs?
+	DEPSNODE_TYPE_ANIMATION        = 13,       /* Animation Component */                 // XXX: merge in with parameters?
+	DEPSNODE_TYPE_TRANSFORM        = 14,       /* Transform Component (Parenting/Constraints) */
+	DEPSNODE_TYPE_GEOMETRY         = 15,       /* Geometry Component (DerivedMesh/Displist) */
+	DEPSNODE_TYPE_SEQUENCER        = 16,       /* Sequencer Component (Scene Only) */
 	
 	/* Evaluation-Related Outer Types (with Subdata) */
-	DEPSNODE_TYPE_EVAL_POSE        = 20,       /* Pose Component - Owner/Container of Bones Eval */
-	DEPSNODE_TYPE_BONE             = 21,       /* Bone Component - Child/Subcomponent of Pose */
+	DEPSNODE_TYPE_EVAL_POSE        = 21,       /* Pose Component - Owner/Container of Bones Eval */
+	DEPSNODE_TYPE_BONE             = 22,       /* Bone Component - Child/Subcomponent of Pose */
 	
-	DEPSNODE_TYPE_EVAL_PARTICLES   = 22,       /* Particle Systems Component */
-	
-	
-	/* Inner Types */
-	DEPSNODE_TYPE_OP_NOOP          = 100,      /* Empty (no-op) barrier node for reducing relations */
-	DEPSNODE_TYPE_OP_PARAMETER     = 101,      /* Parameter Evaluation Operation */
-	DEPSNODE_TYPE_OP_PROXY         = 102,      /* Proxy Evaluation Operation */
-	DEPSNODE_TYPE_OP_ANIMATION     = 103,      /* Animation Evaluation Operation */
-	DEPSNODE_TYPE_OP_TRANSFORM     = 104,      /* Transform Evaluation Operation (incl. constraints, parenting, anim-to-matrix) */
-	DEPSNODE_TYPE_OP_GEOMETRY      = 105,      /* Geometry Evaluation Operation (incl. modifiers) */
-	DEPSNODE_TYPE_OP_SEQUENCER     = 106,      /* Sequencer Evaluation Operation */
-	
-	DEPSNODE_TYPE_OP_UPDATE        = 110,      /* Property Update Evaluation Operation [Parameter] */
-	DEPSNODE_TYPE_OP_DRIVER        = 112,      /* Driver Evaluation Operation [Parameter] */
-	
-	DEPSNODE_TYPE_OP_POSE          = 115,      /* Pose Evaluation (incl. setup/cleanup IK trees, IK Solvers) [Pose] */
-	DEPSNODE_TYPE_OP_BONE          = 116,      /* Bone Evaluation [Bone] */
-	
-	DEPSNODE_TYPE_OP_PARTICLE      = 120,      /* Particles Evaluation [Particle] */
-	DEPSNODE_TYPE_OP_RIGIDBODY     = 121,      /* Rigidbody Sim (Step) Evaluation */
+	DEPSNODE_TYPE_EVAL_PARTICLES   = 23,       /* Particle Systems Component */
 } eDepsNode_Type;
 
 /* Standard operation names */
