@@ -383,8 +383,9 @@ void EDBM_mesh_make(ToolSettings *ts, Object *ob)
 
 	/* we need to flush selection because the mode may have changed from when last in editmode */
 	EDBM_selectmode_flush(me->edit_btmesh);
-
-	BKE_editmesh_topochange_calc(me->edit_btmesh);
+	
+	if (BKE_key_from_object(ob) && BKE_keyblock_from_object(ob))
+		BKE_editmesh_topochange_calc(me->edit_btmesh);
 }
 
 void EDBM_mesh_load(Object *ob)
@@ -674,7 +675,7 @@ bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 		return false;
 	}
 
-	if (me->key) {
+	if (BKE_key_from_object(obedit) && BKE_keyblock_from_object(obedit)) {
 		if (BKE_editmesh_topo_has_changed(em)) {
 			BKE_key_editdata_to_scratch(obedit, false);
 		}
