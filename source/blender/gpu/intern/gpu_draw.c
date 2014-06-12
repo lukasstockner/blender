@@ -38,8 +38,6 @@
 
 #include <string.h>
 
-#include "GL/glew.h"
-
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
@@ -74,6 +72,7 @@
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_glew.h"
 #include "GPU_material.h"
 
 #include "PIL_time.h"

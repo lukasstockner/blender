@@ -36,7 +36,7 @@
 #  include <windows.h>
 #endif
 
-#include "GL/glew.h"
+#include "glew-mx.h"
 #include "GPU_extensions.h"
 
 #include "GPG_Application.h"

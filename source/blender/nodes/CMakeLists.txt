@@ -38,6 +38,7 @@ set(INC
 	../makesrna
 	../render/extern/include
 	../../../intern/guardedalloc
+	../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -274,5 +275,7 @@ if(WITH_COMPOSITOR)
 	)
 	add_definitions(-DWITH_COMPOSITOR)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")

@@ -26,7 +26,8 @@
 
 #include "GHOST_WindowSDL.h"
 #include "SDL_mouse.h"
-#include <GL/glew.h>
+#include "glew-mx.h"
+
 #include <assert.h>
 
 static SDL_GLContext s_firstContext = NULL;

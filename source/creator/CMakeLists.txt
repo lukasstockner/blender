@@ -27,6 +27,7 @@ setup_libdirs()
 
 blender_include_dirs(
 	../../intern/guardedalloc
+	../../intern/glew-mx
 	../blender/blenlib
 	../blender/blenkernel
 	../blender/blenloader
@@ -38,6 +39,9 @@ blender_include_dirs(
 	../blender/gpu
 	../blender/windowmanager
 )
+
+add_definitions(${GL_DEFINITIONS})
+blender_include_dirs(${GLEW_INCLUDE_PATH})
 
 if(WIN32)
 	blender_include_dirs(../../intern/utfconv)
@@ -616,6 +620,18 @@ elseif(WIN32)
 		unset(_PYTHON_VERSION_NO_DOTS)
 	endif()
 
+	# OpenGL ES Runtime Components
+	if(WITH_GL_CONTEXT_EMBEDDED)
+		if(WIN32)
+			install(FILES "${OPENGLES_DLL}"     DESTINATION ${TARGETDIR})
+			install(FILES "${OPENGLES_EGL_DLL}" DESTINATION ${TARGETDIR})
+
+			if(WITH_ANGLE)
+				install(FILES "${D3DCOMPILER_DLL}" DESTINATION ${TARGETDIR})
+			endif()
+		endif()
+	endif()
+
 	if(MSVC)
 		install(
 			FILES ${LIBDIR}/pthreads/lib/pthreadVC2.dll
@@ -1029,7 +1045,7 @@ endif()
 	endif()
 
 	if(NOT WITH_SYSTEM_GLEW)
-		list(APPEND BLENDER_SORTED_LIBS extern_glew)
+		list(APPEND BLENDER_SORTED_LIBS ${BLENDER_GLEW_LIBRARIES})
 	endif()
 
 	if(WITH_BINRELOC)

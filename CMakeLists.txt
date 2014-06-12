@@ -160,12 +160,15 @@ option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" 
 if(UNIX AND NOT APPLE)
 	option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)"	ON)
 	option(WITH_X11_XF86VMODE "Enable X11 video mode switching"	ON)
+
 	option(WITH_SYSTEM_GLEW "Use GLEW OpenGL wrapper library provided by the operating system" ON)
+	option(WITH_SYSTEM_GLES "Use OpenGL ES library provided by the operating system"           ON)
 
 	option(WITH_GHOST_XDND   "Enable drag'n'drop support on X11 using XDND protocol" ON)
 else()
 	# not an option for other OS's
 	set(WITH_SYSTEM_GLEW OFF)
+	set(WITH_SYSTEM_GLES OFF)
 endif()
 
 
@@ -294,6 +297,35 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	option(WITH_GCC_MUDFLAP			"Enable mudflap" OFF)
 	mark_as_advanced(WITH_GCC_MUDFLAP)
 endif()
+
+# OpenGL
+
+option(WITH_GLEW_MX             "Support multiple GLEW contexts (experimental)"                                                                                ON )
+option(WITH_GLEW_ES             "Switches to experimental copy of GLEW that has support for OpenGL ES. (temporary option for development purposes)"            OFF)
+option(WITH_GLU                 "Provide the GL Utility Library (GLU). Only works with the 'compatibiity' profile. (deprecated)"                               ON )
+option(WITH_GL_CONTEXT_DESKTOP  "Support using the AGL/WGL/XGL system library to initialize OpenGL. Can access 3.2+ core, compatibility, and 2.0 ES profiles." ON )
+option(WITH_GL_CONTEXT_EMBEDDED "Support using the EGL system library to initialize OpenGL ES."                                                                OFF)
+option(WITH_GL_PROFILE_COMPAT   "Support using the OpenGL 'compatibility' profile. (deprecated)"                                                               ON )
+option(WITH_GL_PROFILE_CORE     "Support using the OpenGL 3.2+ 'core' profile."                                                                                OFF)
+option(WITH_GL_PROFILE_ES20     "Support using OpenGL ES 2.0. (thru either EGL or the AGL/WGL/XGL 'es20' profile)"                                             OFF)
+
+mark_as_advanced(
+	WITH_GLEW_MX
+	WITH_GLEW_ES
+	WITH_GLU
+	WITH_GL_CONTEXT_DESKTOP
+	WITH_GL_CONTEXT_EMBEDDED
+	WITH_GL_PROFILE_COMPAT
+	WITH_GL_PROFILE_CORE
+	WITH_GL_PROFILE_ES20
+)
+
+if(WIN32)
+	option(WITH_ANGLE "Link with the ANGLE library, an OpenGL ES 2.0 implementation based on Direct3D, instead of the system OpenGL library." OFF)
+	mark_as_advanced(WITH_ANGLE)
+endif()
+
+# Apple
 
 if(APPLE)
 	cmake_minimum_required(VERSION 2.8.8)
@@ -2014,10 +2046,110 @@ endif()
 
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
-find_package(OpenGL)
-blender_include_dirs_sys("${OPENGL_INCLUDE_DIR}")
-# unset(OPENGL_LIBRARIES CACHE) # not compat with older cmake
-# unset(OPENGL_xmesa_INCLUDE_DIR CACHE) # not compat with older cmake
+
+if(WITH_GL_CONTEXT_DESKTOP OR (WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI))
+	find_package(OpenGL)
+endif()
+
+if(WITH_GL_CONTEXT_DESKTOP)
+	set(BLENDER_GL_LIBRARIES "${OPENGL_gl_LIBRARY}")
+
+	if(WITH_GLU)
+		list(APPEND BLENDER_GL_LIBRARIES "${OPENGL_glu_LIBRARY}")
+
+		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GLU")
+
+	endif()
+
+elseif(WITH_GL_CONTEXT_EMBEDDED)
+	if(WITH_SYSTEM_GLES)
+		find_package_wrapper(OpenGLES)
+
+		if(OPENGLES_FOUND)
+			set(BLENDER_GL_LIBRARIES OPENGLES_LIBRARIES)
+		else()
+			message(FATAL_ERROR "Unable to find OpenGL ES libraries.  Install them or disable WITH_SYSTEM_GLES.")
+		endif()
+
+	else()
+		set(OPENGLES_LIBRARY     "" CACHE FILEPATH "OpenGL ES 2.0 library file")
+		set(OPENGLES_EGL_LIBRARY "" CACHE FILEPATH "EGL library file")
+
+		mark_as_advanced(
+			OPENGLES_LIBRARY
+			OPENGLES_EGL_LIBRARY
+		)
+
+		list(APPEND BLENDER_GL_LIBRARIES "${OPENGLES_LIBRARY}" "${OPENGLES_EGL_LIBRARY}")
+
+		if (OPENGLES_LIBRARY STREQUAL "")
+			message(FATAL_ERROR "To compile WITH_GL_CONTEXT_EMBEDDED you need to set OPENGLES_LIBRARY to the file path of an OpenGL ES 2.0 library.")
+		endif()
+
+		if (OPENGLES_EGL_LIBRARY STREQUAL "")
+			message(FATAL_ERROR "To compile WITH_GL_CONTEXT_EMBEDDED you need to set OPENGLES_EGL_LIBRARY to the file path of an EGL library.")
+		endif()
+
+	endif()
+
+	if(WIN32)
+		# Setup paths to files needed to install and redistribute Windows Blender with OpenGL ES
+
+		set(OPENGLES_DLL     "" CACHE FILEPATH "OpenGL ES 2.0 redistributable DLL file")
+		set(OPENGLES_EGL_DLL "" CACHE FILEPATH "EGL redistributable DLL file")
+
+		mark_as_advanced(
+			OPENGLES_DLL
+			OPENGLES_EGL_DLL
+		)
+
+		if (OPENGLES_DLL STREQUAL "")
+			message(FATAL_ERROR "To compile WITH_GL_CONTEXT_EMBEDDED you need to set OPENGLES_DLL to the file path of an OpenGL ES runtime dynamic link library (DLL).")
+		endif()
+
+		if (OPENGLES_EGL_DLL STREQUAL "")
+			message(FATAL_ERROR "To compile WITH_GL_CONTEXT_EMBEDDED you need to set OPENGLES_EGL_DLL to the file path of an EGL runtime dynamic link library (DLL).")
+		endif()
+
+		if(WITH_ANGLE)
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_ANGLE")
+
+			set(D3DCOMPILER_DLL "" CACHE FILEPATH "Direct3D Compiler redistributable DLL file (needed by ANGLE)")
+
+			get_filename_component(D3DCOMPILER_FILENAME "${D3DCOMPILER_DLL}" NAME)
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DD3DCOMPILER=\"\\\"${D3DCOMPILER_FILENAME}\\\"\"")
+
+			mark_as_advanced(D3DCOMPILER_DLL)
+
+			if (D3DCOMPILER_DLL STREQUAL "")
+				message(FATAL_ERROR "To compile WITH_ANGLE you need to set D3DCOMPILER_DLL to the file path of a copy of the DirectX redistributable DLL file: D3DCompiler_46.dll")
+			endif()
+
+		endif()
+
+	endif()
+
+endif()
+
+if(WITH_GL_PROFILE_COMPAT)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_COMPAT")
+endif()
+
+if(WITH_GL_PROFILE_CORE)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_CORE")
+endif()
+
+if(WITH_GL_PROFILE_ES20)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_PROFILE_ES20")
+endif()
+
+if(WITH_GL_CONTEXT_DESKTOP)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_CONTEXT_DESKTOP")
+endif()
+
+if(WITH_GL_CONTEXT_EMBEDDED)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DWITH_GL_CONTEXT_EMBEDDED")
+endif()
 
 #-----------------------------------------------------------------------------
 # Configure OpenMP.
@@ -2043,22 +2175,84 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure GLEW
 
+if(WITH_GLEW_MX)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_MX")
+endif()
+
 if(WITH_SYSTEM_GLEW)
 	find_package(GLEW)
 
+	# Note: There is an assumption here that the system GLEW is not a static library.
+
 	if(NOT GLEW_FOUND)
-		message(FATAL_ERROR "GLEW is required to build blender, install it or disable WITH_SYSTEM_GLEW")
+		message(FATAL_ERROR "GLEW is required to build Blender.  Install it or disable WITH_SYSTEM_GLEW.")
 	endif()
 
 	mark_as_advanced(
 		GLEW_LIBRARY
 		GLEW_INCLUDE_PATH
 	)
+
+	set(BLENDER_GLEW_LIBRARIES ${GLEW_LIBRARY})
+
 else()
-	# set(GLEW_LIBRARY "")  # unused
-	set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
+	if(WITH_GLEW_ES)
+		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew-es/include")
+
+		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_STATIC -DWITH_GLEW_ES")
+
+		# These definitions remove APIs from glew.h, making GLEW smaller, and catching unguarded API usage
+		if(NOT WITH_GL_PROFILE_ES20)
+			# No ES functions are needed
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_NO_ES")
+		elseif(NOT (WITH_GL_PROFILE_CORE OR WITH_GL_PROFILE_COMPAT))
+			# ES is enabled, but the other functions are all disabled
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_ES_ONLY")
+		endif()
+
+		if(WITH_GL_PROFILE_ES20)
+			if(WITH_GL_CONTEXT_EMBEDDED)
+				set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_USE_LIB_ES20")
+			endif()
+
+			# XXX: This is an experiment to eliminate ES 1 symbols,
+			# GLEW doesn't really properly provide this level of control
+			# (for example, without modification it eliminates too many symbols)
+			# so there are lots of modifications to GLEW to make this work,
+			# and no attempt to make it work beyond Blender at this point.
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_1_0=0")
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_CL_1_1=0")
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGL_ES_VERSION_CM_1_1=0")
+		endif()
+
+		if(WITH_GL_CONTEXT_EMBEDDED)
+			set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_INC_EGL")
+		endif()
+
+		set(BLENDER_GLEW_LIBRARIES extern_glew_es bf_intern_glew_mx)
+
+	else()
+		set(GLEW_INCLUDE_PATH "${CMAKE_SOURCE_DIR}/extern/glew/include")
+
+		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_STATIC")
+
+		# This won't affect the non-experimental glew library, 
+		# but is used for conditional compilation elsewhere.
+		set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_NO_ES")
+
+		set(BLENDER_GLEW_LIBRARIES extern_glew)
+
+	endif()
+
 endif()
 
+if(WITH_GLEW_MX)
+	list(APPEND BLENDER_GLEW_LIBRARIES bf_intern_glew_mx)
+endif()
+
+if(NOT WITH_GLU)
+	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_NO_GLU")
+endif()
 
 #-----------------------------------------------------------------------------
 # Configure Bullet
@@ -2455,6 +2649,18 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_MOD_REMESH)
 	info_cfg_option(WITH_MOD_FLUID)
 	info_cfg_option(WITH_MOD_OCEANSIM)
+
+	info_cfg_text("OpenGL:")
+	info_cfg_option(WITH_GLEW_ES)
+	info_cfg_option(WITH_GLU)
+	info_cfg_option(WITH_GL_CONTEXT_DESKTOP)
+	info_cfg_option(WITH_GL_CONTEXT_EMBEDDED)
+	info_cfg_option(WITH_GL_PROFILE_COMPAT)
+	info_cfg_option(WITH_GL_PROFILE_CORE)
+	info_cfg_option(WITH_GL_PROFILE_ES20)
+	if(WIN32)
+		info_cfg_option(WITH_ANGLE)
+	endif()
 
 	info_cfg_text("Other:")
 	info_cfg_option(WITH_OPENNL)

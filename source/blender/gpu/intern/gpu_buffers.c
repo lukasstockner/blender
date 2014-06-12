@@ -36,8 +36,6 @@
 #include <stddef.h>
 #include <string.h>
 
-#include "GL/glew.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
@@ -57,6 +55,7 @@
 
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
+#include "GPU_glew.h"
 
 #include "bmesh.h"
 

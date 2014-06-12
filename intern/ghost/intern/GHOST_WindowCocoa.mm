@@ -20,11 +20,25 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s):	Maarten Gribnau 05/2001
-					Damien Plisson 10/2009
+ * Contributor(s): Maarten Gribnau 05/2001
+ *                 Damien Plisson  10/2009
+ *                 Jason Wilkins   02/2014
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+#include "GHOST_WindowCocoa.h"
+#include "GHOST_SystemCocoa.h"
+#include "GHOST_ContextNone.h"
+#include "GHOST_Debug.h"
+
+#if defined(WITH_GL_SYSTEM_DESKTOP)
+#include "GHOST_ContextCGL.h"
+#endif
+
+#if defined(WITH_GL_SYSTEM_EMBEDDED)
+#include "GHOST_ContextEGL.h"
+#endif
 
 #include <Cocoa/Cocoa.h>
 
@@ -33,17 +47,14 @@
 #include <Carbon/Carbon.h>
 #endif
 
-#include <OpenGL/gl.h>
-#include <OpenGL/CGLRenderers.h>
+//#include <OpenGL/gl.h>
+//#include <OpenGL/CGLRenderers.h>
 /***** Multithreaded opengl code : uncomment for enabling
 #include <OpenGL/OpenGL.h>
 */
 
- 
-#include "GHOST_WindowCocoa.h"
-#include "GHOST_SystemCocoa.h"
-#include "GHOST_Debug.h"
 
+ 
 #include <sys/sysctl.h>
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
@@ -548,7 +559,7 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	GHOST_TDrawingContextType type,
 	const bool stereoVisual, const GHOST_TUns16 numOfAASamples
 ) :
-	GHOST_Window(width, height, state, GHOST_kDrawingContextTypeNone, stereoVisual, false, numOfAASamples),
+	GHOST_Window(width, height, state, stereoVisual, false, numOfAASamples),
 	m_customCursor(0)
 {
 	NSOpenGLPixelFormatAttribute pixelFormatAttrsWindow[40];
@@ -598,9 +609,13 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	pixelFormatAttrsWindow[i++] = NSOpenGLPFABackingStore; 
 	
 	// Force software OpenGL, for debugging
-	if (getenv("BLENDER_SOFTWAREGL")) {
+	if (getenv("BLENDER_SOFTWAREGL")) { // XXX jwilkins: fixed this to work on Intel macs? useful feature for Windows and Linux too?  Maybe a command line flag is better...
 		pixelFormatAttrsWindow[i++] = NSOpenGLPFARendererID;
+#if defined(__ppc__) || defined(__ppc64__)
 		pixelFormatAttrsWindow[i++] = kCGLRendererAppleSWID;
+#else
+		pixelFormatAttrsWindow[i++] = kCGLRendererGenericFloatID;
+#endif
 	}
 	else
 		pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccelerated;
@@ -631,7 +646,8 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	pixelFormatAttrsWindow[i] = (NSOpenGLPixelFormatAttribute) 0;
 	
 	pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:pixelFormatAttrsWindow];
-	
+
+	// XXX jwilkins: this code seems to have a lot of duplication from above?
 	
 	//Fall back to no multisampling if Antialiasing init failed
 	if (pixelFormat == nil) {
@@ -643,9 +659,13 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 		pixelFormatAttrsWindow[i++] = NSOpenGLPFABackingStore;
 		
 		// Force software OpenGL, for debugging
-		if (getenv("BLENDER_SOFTWAREGL")) {
+		if (getenv("BLENDER_SOFTWAREGL")) {// XXX jwilkins: fixed this to work on Intel macs? useful feature for Windows and Linux too?  Maybe a command line flag is better...
 			pixelFormatAttrsWindow[i++] = NSOpenGLPFARendererID;
+#if defined(__ppc__) || defined(__ppc64__)
 			pixelFormatAttrsWindow[i++] = kCGLRendererAppleSWID;
+#else
+			pixelFormatAttrsWindow[i++] = kCGLRendererGenericFloatID;
+#endif
 		}
 		else
 			pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccelerated;
@@ -1310,7 +1330,7 @@ GHOST_TSuccess GHOST_WindowCocoa::activateDrawingContext()
 	return GHOST_kFailure;
 }
 
-
+#if 0
 GHOST_TSuccess GHOST_WindowCocoa::installDrawingContext(GHOST_TDrawingContextType type)
 {
 	GHOST_TSuccess success = GHOST_kFailure;
@@ -1390,6 +1410,51 @@ GHOST_TSuccess GHOST_WindowCocoa::removeDrawingContext()
 			return GHOST_kFailure;
 	}
 }
+#endif
+
+
+
+GHOST_Context* GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType type)
+{
+	if (type == GHOST_kDrawingContextTypeOpenGL) {
+#if defined(WITH_GL_SYSTEM_DESKTOP)
+
+#if defined(WITH_GL_PROFILE_CORE)
+		// XXX jwilkins: some implementations will only give you 3.2 even if later compatible versions are available
+		GHOST_Context* context = new GHOST_ContextCGL(WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 3, 2);
+#elif defined(WITH_GL_PROFILE_ES20)
+		GHOST_Context* context = new GHOST_ContextCGL(WGL_CONTEXT_ES2_PROFILE_BIT_EXT, 2, 0);
+#elif defined(WITH_GL_PROFILE_COMPAT)
+		GHOST_Context* context = new GHOST_ContextCGL();
+#else
+#error
+#endif
+
+#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+
+#if defined(WITH_GL_PROFILE_CORE)
+		// XXX jwilkins: not sure yet how to request a core context from EGL
+		GHOST_Context* context = new GHOST_ContextEGL(m_hWnd, m_hDC, EGL_OPENGL_API);
+#elif defined(WITH_GL_PROFILE_ES20)
+		GHOST_Context* context = new GHOST_ContextEGL(m_hWnd, m_hDC, EGL_OPENGL_ES_API, 2);
+#elif defined(WITH_GL_PROFILE_COMPAT)
+		GHOST_Context* context = new GHOST_ContextEGL(m_hWnd, m_hDC, EGL_OPENGL_API);
+#else
+#error
+#endif
+
+#else
+#error
+#endif
+		if (context->initializeDrawingContext(m_stereoVisual, m_numOfAASamples))
+			return context;
+		else
+			delete context;
+	}
+
+	return NULL;
+}
+
 
 
 GHOST_TSuccess GHOST_WindowCocoa::invalidate()

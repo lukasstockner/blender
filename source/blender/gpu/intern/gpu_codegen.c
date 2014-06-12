@@ -31,8 +31,6 @@
  * Convert material node-trees to GLSL.
  */
 
-#include "GL/glew.h"
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_customdata_types.h"
@@ -44,8 +42,9 @@
 #include "BLI_dynstr.h"
 #include "BLI_ghash.h"
 
-#include "GPU_material.h"
 #include "GPU_extensions.h"
+#include "GPU_material.h"
+#include "GPU_glew.h"
 
 #include "BLI_sys_types.h" // for intptr_t support
 

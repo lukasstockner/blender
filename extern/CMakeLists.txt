@@ -47,7 +47,14 @@ if(WITH_BINRELOC)
 endif()
 
 if(NOT WITH_SYSTEM_GLEW)
-	add_subdirectory(glew)
+	if((NOT WITH_GLEW_ES) OR (WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI))
+		add_subdirectory(glew)
+	endif()
+
+	if(WITH_GLEW_ES)
+		add_subdirectory(glew-es)
+	endif()
+
 endif()
 
 if(WITH_GAMEENGINE)

@@ -25,6 +25,7 @@
 
 set(INC
 	.
+	../glew-mx
 	../string
 	../../source/blender/imbuf
 	../../source/blender/makesdna
@@ -38,6 +39,8 @@ set(SRC
 	intern/GHOST_Buttons.cpp
 	intern/GHOST_C-api.cpp
 	intern/GHOST_CallbackEventConsumer.cpp
+	intern/GHOST_Context.cpp
+	intern/GHOST_ContextNone.cpp
 	intern/GHOST_DisplayManager.cpp
 	intern/GHOST_EventManager.cpp
 	intern/GHOST_ISystem.cpp
@@ -63,6 +66,8 @@ set(SRC
 
 	intern/GHOST_Buttons.h
 	intern/GHOST_CallbackEventConsumer.h
+	intern/GHOST_Context.h
+	intern/GHOST_ContextNone.h
 	intern/GHOST_Debug.h
 	intern/GHOST_DisplayManager.h
 	intern/GHOST_Event.h
@@ -128,7 +133,6 @@ if(WITH_HEADLESS OR WITH_GHOST_SDL)
 		add_definitions(-DWITH_GHOST_SDL)
 	endif()
 
-
 	# ack, this is still system dependant
 	if(APPLE)
 		list(APPEND SRC
@@ -149,7 +153,6 @@ if(WITH_HEADLESS OR WITH_GHOST_SDL)
 	elseif(WIN32)
 		list(APPEND SRC
 			intern/GHOST_SystemPathsWin32.cpp
-
 			intern/GHOST_SystemPathsWin32.h
 		)
 
@@ -177,11 +180,21 @@ elseif(APPLE)
 		intern/GHOST_WindowCocoa.h
 	)
 
+	if (WITH_GL_CONTEXT_DESKTOP)
+		list(APPEND SRC
+			intern/GHOST_ContextCGL.mm
+
+			intern/GHOST_ContextCGL.h
+		)
+	endif()
+
 	if(WITH_INPUT_NDOF)
 		list(APPEND SRC
 			intern/GHOST_NDOFManagerCocoa.mm
+
 			intern/GHOST_NDOFManagerCocoa.h
 		)
+
 		list(APPEND SRC_NDOF3DCONNEXION
 			intern/GHOST_NDOFManager3Dconnexion.c
 			intern/GHOST_NDOFManager3Dconnexion.h
@@ -193,7 +206,6 @@ elseif(APPLE)
 	endif()
 
 elseif(UNIX)
-
 	list(APPEND INC_SYS
 		${X11_X11_INCLUDE_PATH}
 	)
@@ -209,6 +221,14 @@ elseif(UNIX)
 		intern/GHOST_SystemPathsX11.h
 		intern/GHOST_WindowX11.h
 	)
+
+	if (WITH_GL_CONTEXT_DESKTOP)
+		list(APPEND SRC
+			intern/GHOST_ContextXGL.cpp
+
+			intern/GHOST_ContextXGL.h
+		)
+	endif()
 
 	if(WITH_GHOST_XDND)
 		add_definitions(-DWITH_XDND)
@@ -286,6 +306,14 @@ elseif(WIN32)
 		intern/GHOST_TaskbarWin32.h
 	)
 
+	if (WITH_GL_CONTEXT_DESKTOP)
+		list(APPEND SRC
+			intern/GHOST_ContextWGL.cpp
+				
+			intern/GHOST_ContextWGL.h
+		)
+	endif()
+
 	if(WITH_INPUT_NDOF)
 		list(APPEND SRC
 			intern/GHOST_NDOFManagerWin32.cpp
@@ -296,7 +324,15 @@ elseif(WIN32)
 
 endif()
 
-add_definitions(-DGLEW_STATIC)
+if(WITH_GL_CONTEXT_EMBEDDED AND NOT (WITH_HEADLESS OR WITH_GHOST_SDL))
+	list(APPEND SRC
+		intern/GHOST_ContextEGL.cpp
+			
+		intern/GHOST_ContextEGL.h
+	)
+endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_intern_ghost "${SRC}" "${INC}" "${INC_SYS}")
 

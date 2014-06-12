@@ -40,7 +40,7 @@
 #  pragma warning (disable:4786)
 #endif
 
-#include "GL/glew.h"
+#include "glew-mx.h"
 
 #include "KX_BlenderCanvas.h"
 #include "KX_BlenderKeyboardDevice.h"

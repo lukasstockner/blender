@@ -40,12 +40,12 @@ set(INC
 	../../gameengine/BlenderRoutines
 	../../../intern/ghost
 	../../../intern/guardedalloc
+	../../../intern/glew-mx
 	../../../intern/memutil
 )
 
 set(INC_SYS
 	${ZLIB_INCLUDE_DIRS}
-	${OPENGL_INCLUDE_DIR}
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -78,7 +78,7 @@ set(SRC
 	wm_window.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
