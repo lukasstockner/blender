@@ -101,14 +101,26 @@ public:
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
+	/**
+	 * Sets the swap interval for swapBuffers.
+	 * \param interval The swap interval to use.
+	 * \return A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess setSwapInterval(int interval);
+
+	/**
+	 * Gets the current swap interval for swapBuffers.
+	 * \return An integer.
+	 */
+	virtual int getSwapInterval();
+
 protected:
-	void activateEGLEW() const
-	{
+	void activateEGLEW() const {
 		eglewContext = m_eglewContext;
 	}
 
 private:
-	void initContextEGLEW();
+	void initContextEGLEW(EGLDisplay display);
 
 	EGLNativeDisplayType m_nativeDisplay;
 	EGLNativeWindowType  m_nativeWindow;
@@ -116,9 +128,11 @@ private:
 	const EGLenum m_api;
 	const EGLint  m_contextProfileMask;
 	const EGLint  m_contextMajorVersion;
-	const EGLint  m_contextMajorVersion;
+	const EGLint  m_contextMinorVersion;
 	const EGLint  m_contextFlags;
 	const EGLint  m_contextResetNotificationStrategy;
+
+	EGLint m_swap_interval;
 
 	EGLContext m_context;
 	EGLSurface m_surface;

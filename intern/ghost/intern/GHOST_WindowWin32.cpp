@@ -578,21 +578,6 @@ GHOST_TSuccess GHOST_WindowWin32::setOrder(GHOST_TWindowOrder order)
 }
 
 
-GHOST_TSuccess GHOST_WindowWin32::setSwapInterval(int interval)
-{
-	if (!WGL_EXT_swap_control)
-		return GHOST_kFailure;
-	return wglSwapIntervalEXT(interval) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
-}
-
-int GHOST_WindowWin32::getSwapInterval()
-{
-	if (WGL_EXT_swap_control)
-		return wglGetSwapIntervalEXT();
-
-	return 0;
-}
-
 GHOST_TSuccess GHOST_WindowWin32::invalidate()
 {
 	GHOST_TSuccess success;
@@ -624,7 +609,7 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 		GHOST_Context* context = new GHOST_ContextWGL(
 			m_hWnd,
 			m_hDC,
-			0,
+			WGL_CONTEXT_ES2_PROFILE_BIT_EXT,
 			2, 0,
 			GHOST_OPENGL_WGL_CONTEXT_FLAGS,
 			GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
@@ -665,6 +650,7 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 			m_hWnd,
 			m_hDC,
 			EGL_OPENGL_API,
+			0,
 			0, 0,
 			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
 			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY);

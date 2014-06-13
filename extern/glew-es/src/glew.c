@@ -30,33 +30,22 @@
 */
 
 #include <GL/glew.h>
-#if defined(GLEW_USE_LIB_ES)
-#  if defined(GLEW_INC_EGL)
-#    include <GL/eglew.h>
-#  endif
+#if defined(GLEW_INC_EGL)
+#  include <GL/eglew.h>
 #elif defined(_WIN32)
 #  include <GL/wglew.h>
 #elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX)
 #  include <GL/glxew.h>
 #endif
 
-/* Invalid build macro combination error checking. can be moved to makefile */
-
-//This check is not valid because it is possible to use WGL to init ES
-//#if defined(GLEW_ES_ONLY) && !defined(GLEW_USE_LIB_ES)
-//#error either GLEW_ES_ONLY(for pure ES) or GLEW_NO_ES(for pure desktop OpenGL) should be present  (XXX: jwilkins - this message seems incorrect)
-//#endif
+/* Invalid build macro combination error checking */
 
 #if defined(GLEW_ES_ONLY) && defined(GLEW_NO_ES)
-#error GLEW_ES_ONLY(for pure ES) and GLEW_NO_ES(for pure desktop OpenGL) are mutually exclusive
+#error GLEW_ES_ONLY (pure ES) and GLEW_NO_ES (pure desktop OpenGL) are mutually exclusive
 #endif
 
-#if defined(GLEW_NO_ES) && defined(GLEW_USE_LIB_ES)
-#error GLEW_USE_LIB_ES(ES lib is linked) and GLEW_NO_ES(pure desktop OpenGL) are mutually exclusive
-#endif
-
-#if defined(GLEW_INC_EGL) && !defined(GLEW_USE_LIB_ES)
-#error GLEW_INC_EGL(include EGL header) and GLEW_USE_LIB_ES(ES lib is linked) must be used together
+#if defined(GLEW_USE_LIB_ES) && defined(GLEW_NO_ES)
+#error GLEW_NO_ES (pure desktop OpenGL) and GLEW_USE_LIB_ES (ES lib is linked) are mutually exclusive
 #endif
 
 /*
@@ -67,31 +56,28 @@
 #  ifdef _WIN32
 #    define GLEW_CONTEXT_ARG_DEF_INIT GLEWContext* ctx
 #    define GLEW_CONTEXT_ARG_VAR_INIT ctx
-#    if defined(GLEW_USE_LIB_ES)
-#     	if defined(GLEW_INC_EGL)
-#         define eglewGetContext() ctx
-#      	  define EGLEW_CONTEXT_ARG_DEF_INIT EGLEWContext* ctx
-#      	  define EGLEW_CONTEXT_ARG_DEF_LIST EGLEWContext* ctx
-#      endif /* GLEW_INC_EGL */
+#    if defined(GLEW_INC_EGL)
+#      define eglewGetContext() ctx
+#      define EGLEW_CONTEXT_ARG_DEF_INIT EGLEWContext* ctx
+#      define EGLEW_CONTEXT_ARG_DEF_LIST EGLDisplay display, EGLEWContext* ctx
 #    else
 #      define wglewGetContext() ctx
 #      define WGLEW_CONTEXT_ARG_DEF_INIT WGLEWContext* ctx
 #      define WGLEW_CONTEXT_ARG_DEF_LIST WGLEWContext* ctx
-#   endif
+#    endif
 #  else /* _WIN32 */
 #      define GLEW_CONTEXT_ARG_DEF_INIT void
 #      define GLEW_CONTEXT_ARG_VAR_INIT
-#  	 if defined(GLEW_USE_LIB_ES)
-#      if defined(GLEW_INC_EGL)
+#    if defined(GLEW_INC_EGL)
 #        define eglewGetContext() ctx
 #        define EGLEW_CONTEXT_ARG_DEF_INIT void
 #        define EGLEW_CONTEXT_ARG_DEF_LIST EGLEWContext* ctx
-#      endif /* GLEW_INC_EGL */
-#    else
+#    endif /* GLEW_INC_EGL */
+#    if !defined(GLEW_EGL_ONLY)
 #      define glxewGetContext() ctx
 #      define GLXEW_CONTEXT_ARG_DEF_INIT void
 #      define GLXEW_CONTEXT_ARG_DEF_LIST GLXEWContext* ctx
-#    endif
+#    endif /* GLEW_EGL_ONLY */
 #  endif /* _WIN32 */
 #  define GLEW_CONTEXT_ARG_DEF_LIST GLEWContext* ctx
 #else /* GLEW_MX */
@@ -103,15 +89,15 @@
 #  define GLXEW_CONTEXT_ARG_DEF_INIT void
 #  define GLXEW_CONTEXT_ARG_DEF_LIST void
 #  define EGLEW_CONTEXT_ARG_DEF_INIT void
-#  define EGLEW_CONTEXT_ARG_DEF_LIST void
+#  define EGLEW_CONTEXT_ARG_DEF_LIST EGLDisplay display
 #endif /* GLEW_MX */
 
-#if defined(GLEW_USE_LIB_ES)
+#if defined(GLEW_INC_EGL)
 
 #ifdef linux
 
 #include <dlfcn.h>
-//to do ?? properly set the lib paths depending on openGL version.
+//XXX jwilkins: to do ?? properly set the lib paths depending on openGL version.
 #if defined(GLEW_USE_LIB_ES20)
 #define GLEW_OPENGLES_LIB_PATH  "/usr/lib/libGLESv2.so"
 #elif defined(GLEW_USE_LIB_ES11)
@@ -241,7 +227,7 @@ void* NSGLGetProcAddress (const GLubyte *name)
 /*
  * Define glewGetProcAddress.
  */
-#if defined(GLEW_USE_LIB_ES)
+#if defined(GLEW_INC_EGL)
 #if linux
 #  define glewGetProcAddress(name) esGetProcAddress(name)
 #else
@@ -13885,11 +13871,18 @@ GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
   return GLEW_OK;
 }
 
-#if defined (GLEW_USE_LIB_ES)
-
 #if defined (GLEW_INC_EGL) 
 
 #if !defined(_WIN32) || !defined(GLEW_MX)
+
+PFNCREATESYNC                  __eglewCreateSync                  = NULL;
+PFNDESTROYSYNC                 __eglewDestroySync                 = NULL;
+PFNCLIENTWAITSYNC              __eglewClientWaitSync              = NULL;
+PFNGETSYNCATTRIB               __eglewGetSyncAttrib               = NULL;
+PFNGETPLATFORMDISPLAY          __eglewGetPlatformDisplay          = NULL;
+PFNCREATEPLATFORMWINDOWSURFACE __eglewCreatePlatformWindowSurface = NULL;
+PFNCREATEPLATFORMPIXMAPSURFACE __eglewCreatePlatformPixmapSurface = NULL;
+PFNWAITSYNC                    __eglewWaitSync                    = NULL;
 
 PFNEGLBINDAPIPROC __eglewBindAPI = NULL;
 PFNEGLCREATEPBUFFERFROMCLIENTBUFFERPROC __eglewCreatePbufferFromClientBuffer = NULL;
@@ -13953,6 +13946,7 @@ GLboolean __EGLEW_VERSION_1_1 = GL_FALSE;
 GLboolean __EGLEW_VERSION_1_2 = GL_FALSE;
 GLboolean __EGLEW_VERSION_1_3 = GL_FALSE;
 GLboolean __EGLEW_VERSION_1_4 = GL_FALSE;
+GLboolean __EGLEW_VERSION_1_5 = GL_FALSE;
 GLboolean __EGLEW_ANDROID_blob_cache = GL_FALSE;
 GLboolean __EGLEW_ANDROID_framebuffer_target = GL_FALSE;
 GLboolean __EGLEW_ANDROID_image_native_buffer = GL_FALSE;
@@ -14037,6 +14031,26 @@ static GLboolean _glewInit_EGL_ANDROID_blob_cache (EGLEW_CONTEXT_ARG_DEF_INIT)
 
   return r;
 }
+
+#ifdef EGL_VERSION_1_5
+
+static GLboolean _glewInit_EGL_VERSION_1_5 (EGLEW_CONTEXT_ARG_DEF_INIT)
+{
+  GLboolean r = GL_FALSE;
+
+  r = ((eglCreateSync                  = (PFNCREATESYNC                 )glewGetProcAddress((const GLubyte*)"eglCreateSync"                 )) == NULL) || r;
+  r = ((eglDestroySync                 = (PFNDESTROYSYNC                )glewGetProcAddress((const GLubyte*)"eglDestroySync"                )) == NULL) || r;
+  r = ((eglClientWaitSync              = (PFNCLIENTWAITSYNC             )glewGetProcAddress((const GLubyte*)"eglClientWaitSync"             )) == NULL) || r;
+  r = ((eglGetSyncAttrib               = (PFNGETSYNCATTRIB              )glewGetProcAddress((const GLubyte*)"eglGetSyncAttrib"              )) == NULL) || r;
+  r = ((eglGetPlatformDisplay          = (PFNGETPLATFORMDISPLAY         )glewGetProcAddress((const GLubyte*)"eglGetPlatformDisplay"         )) == NULL) || r;
+  r = ((eglCreatePlatformWindowSurface = (PFNCREATEPLATFORMWINDOWSURFACE)glewGetProcAddress((const GLubyte*)"eglCreatePlatformWindowSurface")) == NULL) || r;
+  r = ((eglCreatePlatformPixmapSurface = (PFNCREATEPLATFORMPIXMAPSURFACE)glewGetProcAddress((const GLubyte*)"eglCreatePlatformPixmapSurface")) == NULL) || r;
+  r = ((eglWaitSync                    = (PFNWAITSYNC                   )glewGetProcAddress((const GLubyte*)"eglWaitSync"                   )) == NULL) || r;
+
+return r;
+}
+
+#endif /* EGL_VERSION_1_5 */
 
 #endif /* EGL_ANDROID_blob_cache */
 
@@ -14393,7 +14407,6 @@ GLenum eglewContextInit (EGLEW_CONTEXT_ARG_DEF_LIST)
   GLint major, minor;
   const GLubyte* extStart;
   const GLubyte* extEnd;
-  EGLDisplay display = eglGetCurrentDisplay();
   s = (GLubyte*)eglQueryString(display , EGL_VERSION);
   dot = _glewStrCLen(s, '.');
   if (dot == 0)
@@ -14414,16 +14427,17 @@ GLenum eglewContextInit (EGLEW_CONTEXT_ARG_DEF_LIST)
   }
   else
   {
-    CONST_CAST(EGLEW_VERSION_1_4) = ( major > 2 )    || ( major == 1 && minor >= 4 ) ? GL_TRUE :GL_FALSE;
-    CONST_CAST(EGLEW_VERSION_1_3) = EGLEW_VERSION_1_4 == GL_TRUE || ( major == 1 && minor >= 3 ) ? GL_TRUE :GL_FALSE; 
-    CONST_CAST(EGLEW_VERSION_1_2) = EGLEW_VERSION_1_3 == GL_TRUE || ( major == 1 && minor >= 2 ) ? GL_TRUE : GL_FALSE; 
-    CONST_CAST(EGLEW_VERSION_1_1) = EGLEW_VERSION_1_2 == GL_TRUE || ( major == 1 && minor >= 1 ) ? GL_TRUE : GL_FALSE; 
+    CONST_CAST(EGLEW_VERSION_1_5) = ( major > 1 )                || ( major == 1 && minor >= 5 ) ? GL_TRUE : GL_FALSE;
+    CONST_CAST(EGLEW_VERSION_1_4) = EGLEW_VERSION_1_5            || ( major == 1 && minor >= 4 ) ? GL_TRUE : GL_FALSE;
+    CONST_CAST(EGLEW_VERSION_1_3) = EGLEW_VERSION_1_4 == GL_TRUE || ( major == 1 && minor >= 3 ) ? GL_TRUE : GL_FALSE;
+    CONST_CAST(EGLEW_VERSION_1_2) = EGLEW_VERSION_1_3 == GL_TRUE || ( major == 1 && minor >= 2 ) ? GL_TRUE : GL_FALSE;
+    CONST_CAST(EGLEW_VERSION_1_1) = EGLEW_VERSION_1_2 == GL_TRUE || ( major == 1 && minor >= 1 ) ? GL_TRUE : GL_FALSE;
   }
  
   /* query opengl extensions string */
   extStart = (GLubyte*)eglQueryString( eglGetCurrentDisplay() , EGL_EXTENSIONS);
   if (extStart == 0)
-  extStart = (const GLubyte*)"";
+    extStart = (const GLubyte*)"";
   extEnd = extStart + _glewStrLen(extStart);
   
   /* initialize extensions */
@@ -14435,6 +14449,9 @@ GLenum eglewContextInit (EGLEW_CONTEXT_ARG_DEF_LIST)
 #endif /* EGL_VERSION_1_3 */
 #ifdef EGL_VERSION_1_4
 #endif /* EGL_VERSION_1_4 */
+#ifdef EGL_VERSION_1_5
+  if (glewExperimental || EGLEW_VERSION_1_5) CONST_CAST(EGLEW_VERSION_1_5) = !_glewInit_EGL_VERSION_1_5(GLEW_CONTEXT_ARG_VAR_INIT);
+#endif /* EGL_VERSION_1_5 */
 #ifdef EGL_ANDROID_blob_cache
   CONST_CAST(EGLEW_ANDROID_blob_cache) = _glewSearchExtension("EGL_ANDROID_blob_cache", extStart, extEnd);
   if (glewExperimental || EGLEW_ANDROID_blob_cache) CONST_CAST(EGLEW_ANDROID_blob_cache) = !_glewInit_EGL_ANDROID_blob_cache(GLEW_CONTEXT_ARG_VAR_INIT);
@@ -14592,8 +14609,6 @@ GLenum eglewContextInit (EGLEW_CONTEXT_ARG_DEF_LIST)
 
   return GLEW_OK;
 }
-
-#endif /* GLEW_INC_EGL */
 
 #elif defined(_WIN32)
 
@@ -21080,7 +21095,6 @@ GLboolean glewIsSupported (const char* name)
   return ret;
 }
 
-#if defined(GLEW_USE_LIB_ES)
 #if defined(GLEW_INC_EGL)
 
 #if defined(GLEW_MX)
@@ -21471,7 +21485,6 @@ GLboolean eglewIsSupported (const char* name)
   }
   return ret;
 }
-#endif  /* GLEW_INC_EGL */
 
 #elif defined(_WIN32)
 

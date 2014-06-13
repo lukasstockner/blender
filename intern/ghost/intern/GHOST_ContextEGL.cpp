@@ -32,9 +32,12 @@
 
 #include "GHOST_ContextEGL.h"
 
+#include <set>
+#include <sstream>
+#include <vector>
+
 #include <cassert>
 #include <cstdio>
-#include <vector>
 
 
 
@@ -189,10 +192,12 @@ static bool egl_chk(bool result, const char* file = NULL, int line = 0, const ch
 
 
 
-static inline void bindAPI(EGLenum api)
+static inline bool bindAPI(EGLenum api)
 {
 	if (eglewContext != NULL && EGLEW_VERSION_1_2)
-		EGL_CHK(eglBindAPI(api));
+		return EGL_CHK(eglBindAPI(api)) == EGL_TRUE;
+	else
+		return false;
 }
 
 
@@ -250,6 +255,7 @@ GHOST_ContextEGL::GHOST_ContextEGL(
 	, m_contextMinorVersion             (contextMinorVersion)
 	, m_contextFlags                    (contextFlags)
 	, m_contextResetNotificationStrategy(contextResetNotificationStrategy)
+	, m_swap_interval(1)
 	, m_display(EGL_NO_DISPLAY)
 	, m_surface(EGL_NO_SURFACE)
 	, m_context(EGL_NO_CONTEXT)
@@ -265,32 +271,34 @@ GHOST_ContextEGL::GHOST_ContextEGL(
 
 GHOST_ContextEGL::~GHOST_ContextEGL()
 {
-	activateEGLEW();
+	if (m_display != EGL_NO_DISPLAY) {
+		activateEGLEW();
 
-	bindAPI(m_api);
+		bindAPI(m_api);
 
-	if (m_context != EGL_NO_CONTEXT) {
-		if (m_context == ::eglGetCurrentContext())
-			EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+		if (m_context != EGL_NO_CONTEXT) {
+			if (m_context == ::eglGetCurrentContext())
+				EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
 
-		if (m_context != m_sharedContext || m_sharedCount == 1) {
-			assert(m_sharedCount > 0);
+			if (m_context != m_sharedContext || m_sharedCount == 1) {
+				assert(m_sharedCount > 0);
 
-			m_sharedCount--;
+				m_sharedCount--;
 
-			if (m_sharedCount == 0)
-				m_sharedContext = EGL_NO_CONTEXT;
+				if (m_sharedCount == 0)
+					m_sharedContext = EGL_NO_CONTEXT;
 
-			EGL_CHK(::eglDestroyContext(m_display, m_context));
+				EGL_CHK(::eglDestroyContext(m_display, m_context));
+			}
 		}
+
+		if (m_surface != EGL_NO_SURFACE)
+			EGL_CHK(::eglDestroySurface(m_display, m_surface));
+
+		EGL_CHK(::eglTerminate(m_display));
+
+		delete m_eglewContext;
 	}
-
-	if (m_surface != EGL_NO_SURFACE)
-		EGL_CHK(::eglDestroySurface(m_display, m_surface));
-
-	EGL_CHK(::eglTerminate(m_display));
-
-	delete m_eglewContext;
 }
 
 
@@ -302,19 +310,50 @@ GHOST_TSuccess GHOST_ContextEGL::swapBuffers()
 
 
 
-GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
+GHOST_TSuccess GHOST_ContextEGL::setSwapInterval(int interval)
 {
-	activateEGLEW();
-	activateGLEW();
+	if (EGLEW_VERSION_1_1) {
+		if (EGL_CHK(::eglSwapInterval(m_display, interval))) {
+			m_swap_interval = interval;
 
-	bindAPI(m_api);
-
-	return EGL_CHK(::eglMakeCurrent(m_display, m_surface, m_surface, m_context)) ? GHOST_kSuccess : GHOST_kFailure;
+			return  GHOST_kSuccess;
+		}
+		else {
+			return GHOST_kFailure;
+		}
+	}
+	else {
+		return GHOST_kFailure;
+	}
 }
 
 
 
-void GHOST_ContextEGL::initContextEGLEW()
+int GHOST_ContextEGL::getSwapInterval()
+{
+	return m_swap_interval;
+}
+
+
+
+GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
+{
+	if (m_display) {
+		activateEGLEW();
+		activateGLEW();
+
+		bindAPI(m_api);
+
+		return EGL_CHK(::eglMakeCurrent(m_display, m_surface, m_surface, m_context)) ? GHOST_kSuccess : GHOST_kFailure;
+	}
+	else {
+		return GHOST_kFailure;
+	}
+}
+
+
+
+void GHOST_ContextEGL::initContextEGLEW(EGLDisplay display)
 {
 	eglewContext = new EGLEWContext;
 	memset(eglewContext, 0, sizeof(EGLEWContext));
@@ -322,7 +361,7 @@ void GHOST_ContextEGL::initContextEGLEW()
 	delete m_eglewContext;
 	m_eglewContext = eglewContext;
 
-	GLEW_CHK(eglewInit());
+	GLEW_CHK(eglewInit(display));
 }
 
 
@@ -341,13 +380,18 @@ static std::set<std::string> split(const std::string s, char delim = ' ')
 
 
 
-static const char* api_string(EGLenum api)
+static const std::string& api_string(EGLenum api)
 {
-	choose_api(api, "OpenGL", "OpenGL ES", "OpenVG");
+	static const std::string a("OpenGL"   );
+	static const std::string b("OpenGL ES");
+	static const std::string c("OpenVG"   );
+
+	return choose_api(api, a, b, c);
 }
 
 GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHOST_TUns16 numOfAASamples)
 {
+	// objects have to be declared here due to the use of goto
 	std::vector<EGLint> attrib_list;
 
 	if (stereoVisual)
@@ -385,29 +429,17 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 	if (!EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)))
 		goto error;
 
-	initContextEGLEW(); // XXX jwilkins: The ARM Mali ES emulator (on Windows) fails here due to a bug in eglGetCurrentDisplay(), 
-	                    // so we actually cannot use EGLEW until later :-(
+	initContextEGLEW(m_display);
 
-	bindAPI(m_api);
-
-
-	// XXX jwilkins: have to parse extension string ourselves due to Mali bug
-
-	const char* extension_string = eglQueryString(m_display, EGL_EXTENSIONS);
-
-	if (!EGL_CHK(extension_string != NULL))
+	if (!bindAPI(m_api))
 		goto error;
-
-	std::vector<std::string> extensions = split(extension_string);
-
-	bool has_create_context_ext = extensions.find("EGL_KHR_create_context") != extension.end();
 
 
 	// build attribute list
 
 	attrib_list.reserve(20);
 
-	if ((egl_major == 1 && egl_minor >= 2 || egl_major > 1) && m_api == EGL_OPENGL_ES_API) {
+	if (m_api == EGL_OPENGL_ES_API && EGLEW_VERSION_1_2) {
 		// According to the spec it seems that you are required to set EGL_RENDERABLE_TYPE,
 		// but some implementations (ANGLE) do not seem to care.
 
@@ -428,9 +460,9 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 		}
 
 		if (!((m_contextMajorVersion == 1) ||
-		      (m_contextMajorVersion == 2 && (egl_major == 1 && egl_minor >= 3 || egl_major > 1)) ||
-		      (m_contextMajorVersion == 3 && (egl_major == 1 && egl_minor >= 4 || egl_major > 1) && has_create_context_ext) ||
-		      (m_contextMajorVersion == 3 && (egl_major == 1 && egl_minor >= 5 || egl_major > 1)))
+		      (m_contextMajorVersion == 2 &&   EGLEW_VERSION_1_3) ||
+		      (m_contextMajorVersion == 3 && /*EGLEW_VERSION_1_4 &&*/ EGLEW_KHR_create_context) ||
+		      (m_contextMajorVersion == 3 &&   EGLEW_VERSION_1_5)))
 		{
 			fprintf(
 				stderr,
@@ -491,7 +523,7 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 
 	attrib_list.clear();
 
-	if (has_create_context_ext || (egl_major == 1 && egl_minor >= 5 || egl_major > 1)) {
+	if (EGLEW_VERSION_1_5 || EGLEW_KHR_create_context) {
 		if (m_api == EGL_OPENGL_API || m_api == EGL_OPENGL_ES_API) {
 			if (m_contextMajorVersion != 0) {
 				attrib_list.push_back(EGL_CONTEXT_MAJOR_VERSION_KHR);
@@ -527,10 +559,10 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 				fprintf(stderr, "Warning! Cannot select profile for %s contexts.", api_string(m_api));
 		}
 
-		if (m_api == EGL_OPENGL_API || (m_api == EGL_OPENGL_ES_API && (egl_major == 1 && egl_minor >= 5 || egl_major > 1))) {
-			if (m_contextResetNotificationMask != 0) {
+		if (m_api == EGL_OPENGL_API || EGLEW_VERSION_1_5) {
+			if (m_contextResetNotificationStrategy != 0) {
 				attrib_list.push_back(EGL_CONTEXT_OPENGL_RESET_NOTIFICATION_STRATEGY_KHR);
-				attrib_list.push_back(m_contextResetNotificationMask);
+				attrib_list.push_back(m_contextResetNotificationStrategy);
 			}
 		}
 		else {
@@ -575,15 +607,13 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 	if (!EGL_CHK(::eglMakeCurrent(m_display, m_surface, m_surface, m_context)))
 		goto error;
 
-	// XXX jwilkins: do this again here for Mali, since eglGetCurrentDisplay will now work
-	initContextEGLEW();
-
 	initContextGLEW();
 
 	return GHOST_kSuccess;
 
 error:
-	EGL_CHK(eglMakeCurrent(prev_display, prev_draw, prev_read, prev_context));
+	if (prev_display != EGL_NO_DISPLAY)
+		EGL_CHK(eglMakeCurrent(prev_display, prev_draw, prev_read, prev_context));
 
 	return GHOST_kFailure;
 }

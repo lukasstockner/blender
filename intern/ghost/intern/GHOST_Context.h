@@ -54,8 +54,7 @@ public:
 	/**
 	 * Destructor.
 	 */
-	virtual ~GHOST_Context()
-	{
+	virtual ~GHOST_Context() {
 		glewDestroyContext(m_glewContext);
 	}
 
@@ -85,11 +84,27 @@ public:
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles() = 0;
 
+	/**
+	 * Sets the swap interval for swapBuffers.
+	 * \param interval The swap interval to use.
+	 * \return A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess setSwapInterval(int interval) {
+		return GHOST_kFailure;
+	}
+
+	/**
+	 * Gets the current swap interval for swapBuffers.
+	 * \return An integer.
+	 */
+	virtual int getSwapInterval() {
+		return 1;
+	}
+
 protected:
 	void initContextGLEW();
 
-	void activateGLEW() const
-	{
+	void activateGLEW() const {
 		glewSetContext(m_glewContext);
 	}
 

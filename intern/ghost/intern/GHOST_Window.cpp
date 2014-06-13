@@ -116,26 +116,30 @@ GHOST_TSuccess GHOST_Window::setDrawingContextType(GHOST_TDrawingContextType typ
 	}
 }
 
-
-
 GHOST_TSuccess GHOST_Window::swapBuffers()
 {
 	return m_context->swapBuffers();
 }
 
+GHOST_TSuccess GHOST_Window::setSwapInterval(int interval)
+{
+	return m_context->setSwapInterval(interval);
+}
 
+int GHOST_Window::getSwapInterval()
+{
+	return m_context->getSwapInterval();
+}
 
 GHOST_TSuccess GHOST_Window::activateDrawingContext()
 {
 	return m_context->activateDrawingContext();
 }
 
-
 GHOST_TSuccess GHOST_Window::releaseNativeHandles()
 {
 	return m_context->releaseNativeHandles();
 }
-
 
 GHOST_TSuccess GHOST_Window::setCursorVisibility(bool visible)
 {

@@ -415,7 +415,7 @@ EGLAPI EGLBoolean EGLAPIENTRY eglWaitNative (EGLint engine);
 EGLAPI EGLBoolean EGLAPIENTRY eglSwapBuffers (EGLDisplay dpy, EGLSurface draw);
 EGLAPI EGLBoolean EGLAPIENTRY eglCopyBuffers (EGLDisplay dpy, EGLSurface surface, NativePixmapType target);
 
-#define EGLEW_VERSION_1_1 GLEW_GET_VAR(__EGLEW_VERSION_1_1)
+#define EGLEW_VERSION_1_1 EGLEW_GET_VAR(__EGLEW_VERSION_1_1)
 
 #endif /* EGL_VERSION_1_1 */
 
@@ -512,6 +512,78 @@ typedef void (*__eglMustCastToProperFunctionPointerType)(void);
 #define EGLEW_VERSION_1_4 EGLEW_GET_VAR(__EGLEW_VERSION_1_4)
 
 #endif /* !EGL_VERSION_1_4 */
+
+/* ---------------------------- EGL_VERSION_1_5 ---------------------------- */
+
+#if !defined(EGL_VERSION_1_5) 
+#define EGL_VERSION_1_5 1
+
+typedef void *EGLSync;
+typedef intptr_t EGLAttrib;
+typedef khronos_utime_nanoseconds_t EGLTime;
+#define EGL_CONTEXT_MAJOR_VERSION         0x3098
+#define EGL_CONTEXT_MINOR_VERSION         0x30FB
+#define EGL_CONTEXT_OPENGL_PROFILE_MASK   0x30FD
+#define EGL_CONTEXT_OPENGL_RESET_NOTIFICATION_STRATEGY 0x31BD
+#define EGL_NO_RESET_NOTIFICATION         0x31BE
+#define EGL_LOSE_CONTEXT_ON_RESET         0x31BF
+#define EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT 0x00000001
+#define EGL_CONTEXT_OPENGL_COMPATIBILITY_PROFILE_BIT 0x00000002
+#define EGL_CONTEXT_OPENGL_DEBUG          0x31B0
+#define EGL_CONTEXT_OPENGL_FORWARD_COMPATIBLE 0x31B1
+#define EGL_CONTEXT_OPENGL_ROBUST_ACCESS  0x31B2
+#define EGL_OPENGL_ES3_BIT                0x00000040
+#define EGL_CL_EVENT_HANDLE               0x309C
+#define EGL_SYNC_CL_EVENT                 0x30FE
+#define EGL_SYNC_CL_EVENT_COMPLETE        0x30FF
+#define EGL_SYNC_PRIOR_COMMANDS_COMPLETE  0x30F0
+#define EGL_SYNC_TYPE                     0x30F7
+#define EGL_SYNC_STATUS                   0x30F1
+#define EGL_SYNC_CONDITION                0x30F8
+#define EGL_SIGNALED                      0x30F2
+#define EGL_UNSIGNALED                    0x30F3
+#define EGL_SYNC_FLUSH_COMMANDS_BIT       0x0001
+#define EGL_FOREVER                       0xFFFFFFFFFFFFFFFFull
+#define EGL_TIMEOUT_EXPIRED               0x30F5
+#define EGL_CONDITION_SATISFIED           0x30F6
+#define EGL_NO_SYNC                       ((EGLSync)0)
+#define EGL_SYNC_FENCE                    0x30F9
+#define EGL_GL_COLORSPACE                 0x309D
+#define EGL_GL_COLORSPACE_SRGB            0x3089
+#define EGL_GL_COLORSPACE_LINEAR          0x308A
+#define EGL_GL_RENDERBUFFER               0x30B9
+#define EGL_GL_TEXTURE_2D                 0x30B1
+#define EGL_GL_TEXTURE_LEVEL              0x30BC
+#define EGL_GL_TEXTURE_3D                 0x30B2
+#define EGL_GL_TEXTURE_ZOFFSET            0x30BD
+#define EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_X 0x30B3
+#define EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_X 0x30B4
+#define EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_Y 0x30B5
+#define EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Y 0x30B6
+#define EGL_GL_TEXTURE_CUBE_MAP_POSITIVE_Z 0x30B7
+#define EGL_GL_TEXTURE_CUBE_MAP_NEGATIVE_Z 0x30B8
+
+typedef EGLSync    (EGLAPIENTRY * PFNCREATESYNC                 ) (EGLDisplay dpy, EGLenum type, const EGLAttrib *attrib_list);
+typedef EGLBoolean (EGLAPIENTRY * PFNDESTROYSYNC                ) (EGLDisplay dpy, EGLSync sync);
+typedef EGLint     (EGLAPIENTRY * PFNCLIENTWAITSYNC             ) (EGLDisplay dpy, EGLSync sync, EGLint flags, EGLTime timeout);
+typedef EGLBoolean (EGLAPIENTRY * PFNGETSYNCATTRIB              ) (EGLDisplay dpy, EGLSync sync, EGLint attribute, EGLAttrib *value);
+typedef EGLDisplay (EGLAPIENTRY * PFNGETPLATFORMDISPLAY         ) (EGLenum platform, void *native_display, const EGLAttrib *attrib_list);
+typedef EGLSurface (EGLAPIENTRY * PFNCREATEPLATFORMWINDOWSURFACE) (EGLDisplay dpy, EGLConfig config, void *native_window, const EGLAttrib *attrib_list);
+typedef EGLSurface (EGLAPIENTRY * PFNCREATEPLATFORMPIXMAPSURFACE) (EGLDisplay dpy, EGLConfig config, void *native_pixmap, const EGLAttrib *attrib_list);
+typedef EGLBoolean (EGLAPIENTRY * PFNWAITSYNC                   ) (EGLDisplay dpy, EGLSync sync, EGLint flags);
+
+#define eglCreateSync                  EGLEW_GET_FUN(__eglewCreateSync                 )
+#define eglDestroySync                 EGLEW_GET_FUN(__eglewDestroySync                )
+#define eglClientWaitSync              EGLEW_GET_FUN(__eglewClientWaitSync             )
+#define eglGetSyncAttrib               EGLEW_GET_FUN(__eglewGetSyncAttrib              )
+#define eglGetPlatformDisplay          EGLEW_GET_FUN(__eglewGetPlatformDisplay         )
+#define eglCreatePlatformWindowSurface EGLEW_GET_FUN(__eglewCreatePlatformWindowSurface)
+#define eglCreatePlatformPixmapSurface EGLEW_GET_FUN(__eglewCreatePlatformPixmapSurface)
+#define eglWaitSync                    EGLEW_GET_FUN(__eglewWaitSync                   )
+
+#define EGLEW_VERSION_1_5 EGLEW_GET_VAR(__EGLEW_VERSION_1_5)
+
+#endif /* !EGL_VERSION_1_5 */
 
 /* ------------------------- EGL_ANDROID_blob_cache ------------------------ */
 
@@ -1229,6 +1301,15 @@ struct EGLEWContextStruct
 {
 #endif /* GLEW_MX */
 
+EGLEW_FUN_EXPORT PFNCREATESYNC                  __eglewCreateSync;
+EGLEW_FUN_EXPORT PFNDESTROYSYNC                 __eglewDestroySync;
+EGLEW_FUN_EXPORT PFNCLIENTWAITSYNC              __eglewClientWaitSync;
+EGLEW_FUN_EXPORT PFNGETSYNCATTRIB               __eglewGetSyncAttrib;
+EGLEW_FUN_EXPORT PFNGETPLATFORMDISPLAY          __eglewGetPlatformDisplay;
+EGLEW_FUN_EXPORT PFNCREATEPLATFORMWINDOWSURFACE __eglewCreatePlatformWindowSurface;
+EGLEW_FUN_EXPORT PFNCREATEPLATFORMPIXMAPSURFACE __eglewCreatePlatformPixmapSurface;
+EGLEW_FUN_EXPORT PFNWAITSYNC                    __eglewWaitSync;
+
 EGLEW_FUN_EXPORT PFNEGLBINDAPIPROC __eglewBindAPI;
 EGLEW_FUN_EXPORT PFNEGLCREATEPBUFFERFROMCLIENTBUFFERPROC __eglewCreatePbufferFromClientBuffer;
 EGLEW_FUN_EXPORT PFNEGLQUERYAPIPROC __eglewQueryAPI;
@@ -1292,6 +1373,7 @@ EGLEW_VAR_EXPORT GLboolean __EGLEW_VERSION_1_1;
 EGLEW_VAR_EXPORT GLboolean __EGLEW_VERSION_1_2;
 EGLEW_VAR_EXPORT GLboolean __EGLEW_VERSION_1_3;
 EGLEW_VAR_EXPORT GLboolean __EGLEW_VERSION_1_4;
+EGLEW_VAR_EXPORT GLboolean __EGLEW_VERSION_1_5;
 EGLEW_VAR_EXPORT GLboolean __EGLEW_ANDROID_blob_cache;
 EGLEW_VAR_EXPORT GLboolean __EGLEW_ANDROID_framebuffer_target;
 EGLEW_VAR_EXPORT GLboolean __EGLEW_ANDROID_image_native_buffer;
@@ -1348,10 +1430,10 @@ EGLEW_VAR_EXPORT GLboolean __EGLEW_NV_system_time;
 #ifdef GLEW_MX
 
 typedef struct EGLEWContextStruct EGLEWContext;
-extern GLenum eglewContextInit (EGLEWContext* ctx);
+extern GLenum eglewContextInit (EGLDisplay display, EGLEWContext* ctx);
 extern GLboolean eglewContextIsSupported (const EGLEWContext* ctx, const char* name);
 
-#define eglewInit() eglewContextInit(eglewGetContext())
+#define eglewInit(display) eglewContextInit(display, eglewGetContext())
 #define eglewIsSupported(x) eglewContextIsSupported(eglewGetContext(), x)
 
 #define EGLEW_GET_VAR(x) (*(const GLboolean*)&(eglewGetContext()->x))
@@ -1366,7 +1448,7 @@ extern GLboolean eglewContextIsSupported (const EGLEWContext* ctx, const char* n
 #define EGLEW_GET_VAR(x) (*(const GLboolean*)&x)
 #define EGLEW_GET_FUN(x) x
 
-extern GLenum eglewContextInit(); // XXX jwilkins: context handling not really written yet?
+extern GLenum eglewContextInit(EGLDisplay display); // XXX jwilkins: context handling not really written yet?
 #define eglewInit eglewContextInit // XXX jwilkins:  context handling not really written yet?
 
 extern GLboolean eglewIsSupported (const char* name);

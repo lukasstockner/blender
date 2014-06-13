@@ -190,18 +190,14 @@ public:
 	 * \param interval The swap interval to use.
 	 * \return A boolean success indicator.
 	 */
-	virtual GHOST_TSuccess setSwapInterval(int interval) {
-		return GHOST_kFailure;
-	}
-	
+	virtual GHOST_TSuccess setSwapInterval(int interval);
+
 	/**
 	 * Gets the current swap interval for swapBuffers.
 	 * \return An integer.
 	 */
-	virtual int getSwapInterval() {
-		return 0;
-	}
-	
+	virtual int getSwapInterval();
+
 	/**
 	 * Tells if the ongoing drag'n'drop object can be accepted upon mouse drop
 	 */

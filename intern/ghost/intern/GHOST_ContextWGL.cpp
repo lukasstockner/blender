@@ -225,6 +225,23 @@ GHOST_TSuccess GHOST_ContextWGL::swapBuffers()
 
 
 
+GHOST_TSuccess GHOST_ContextWGL::setSwapInterval(int interval)
+{
+	if (WGLEW_WGL_EXT_swap_control)
+		return WIN32_CHK(::wglSwapIntervalEXT(interval)) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
+	else
+		return GHOST_kFailure;
+}
+
+
+
+int GHOST_ContextWGL::getSwapInterval()
+{
+	return WGLEW_WGL_EXT_swap_control ? ::wglGetSwapIntervalEXT() : 1;
+}
+
+
+
 GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
 {
 	activateGLEW();
