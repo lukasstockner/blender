@@ -3036,6 +3036,33 @@ static void lib_link_key(FileData *fd, Main *main)
 	}
 }
 
+void uncompress_kb(Key * key, KeyBlock *kb) 
+{
+	int a, index;
+	float(*kbco)[3];
+
+	KeyBlock *rk = key->refkey;
+	KB_ComprMeshDataEnt *kbcde = kb->data; 
+
+	/* allocate space for uncompressed data */
+	kb->data = MEM_mallocN(sizeof(float) * 3 * rk->totelem, "KeyBlock");
+	kbco = kb->data;
+
+	/* step one: init with ref values */
+	memcpy(kb->data, rk->data, sizeof(float) * 3 * rk->totelem);
+	
+	/* step two: overwrite the saved vertices */
+	for (a = 0; a < kb->totelem; ++a) {
+		index = kbcde[a].vertex_index;
+		copy_v3_v3(kbco[index], kbcde[a].co);
+	}
+
+	kb->totelem = rk->totelem;
+
+	/* free compressed data */
+	MEM_freeN(kbcde);
+}
+
 static void switch_endian_keyblock(Key *key, KeyBlock *kb)
 {
 	int elemsize, a, b;
@@ -3081,9 +3108,17 @@ static void direct_link_key(FileData *fd, Key *key)
 
 	for (kb = key->block.first; kb; kb = kb->next) {
 		kb->data = newdataadr(fd, kb->data);
+
+		if (kb->compressed && key->refkey != kb) {
+			uncompress_kb(key, kb);
+			printf("Unpacked kb %s\n", kb->name);
+		}
 		
-		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN)
+		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
+			BLI_assert(0); /* not supported with compressing yet */
 			switch_endian_keyblock(key, kb);
+		}
+
 	}
 }
 

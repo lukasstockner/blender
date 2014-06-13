@@ -144,6 +144,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_mempool.h"
+#include "BLI_math.h"		// shape key compression
 
 #include "BKE_action.h"
 #include "BKE_blender.h"
@@ -161,6 +162,7 @@
 #include "BKE_fcurve.h"
 #include "BKE_pointcache.h"
 #include "BKE_mesh.h"
+#include "BKE_key.h" // shape key compression
 
 #ifdef USE_NODE_COMPAT_CUSTOMNODES
 #include "NOD_common.h"
@@ -1575,12 +1577,68 @@ static void write_vfonts(WriteData *wd, ListBase *idbase)
 }
 
 
+/* ========================== shape keys =============================== */
+
+void compress_kb(KeyBlock *kb, Key *key_owner)
+{
+	/* the idea: we can get a space win by storing only the vertices with changed positions */
+	int a, changed_verts;
+	float diff[3];
+	KeyBlock *rk = key_owner->refkey;
+	float (*kbco)[3] = kb->data;
+	float (*rkbco)[3] = rk->data;
+
+	KB_ComprMeshDataEnt *kbcde = MEM_callocN(sizeof(KB_ComprMeshDataEnt) * rk->totelem, __func__);
+
+	BLI_assert(kb->data); /* should not happen at any time! */
+
+	changed_verts = 0; /* counts CompMeshDataEntries as well */
+	for (a = 0; a < rk->totelem; ++a) {
+		sub_v3_v3v3(diff, rkbco[a], kbco[a]);
+		if (len_squared_v3(diff) > 0.0001f) {
+			/* this vert's pos has changed from the base */
+			copy_v3_v3(kbcde[changed_verts].co, kbco[a]);
+			kbcde[changed_verts].vertex_index = a;
+			++changed_verts;
+		}
+	}
+
+	/* time to decide if we're going to win space by saving to compressed format */
+	if (changed_verts * sizeof(KB_ComprMeshDataEnt) < rk->totelem * sizeof(float) * 3) {
+		/*       size we get with compress      */   /* size we get without compress */
+		kb->compressed = 1;
+		kb->totelem = changed_verts;
+
+		MEM_freeN(kb->data);
+		kb->data = kbcde;
+
+		printf("Packed keyblock %s to %d verts\n", kb->name, changed_verts);
+	}
+	else {
+		MEM_freeN(kbcde);
+		/* just ensure */
+		kb->compressed = 0;
+	}
+}
+
+static void compress_keyblocks(Key *k)
+{
+	KeyBlock *kb = k->block.first;
+	while (kb) {
+		if (kb != k->refkey) {
+			compress_kb(kb, k);
+		}
+		kb = kb->next;
+	}
+}
+
 static void write_keys(WriteData *wd, ListBase *idbase)
 {
 	Key *key;
 	KeyBlock *kb;
 
-	key= idbase->first;
+	key = idbase->first;
+
 	while (key) {
 		if (key->id.us>0 || wd->current) {
 			/* write LibData */
@@ -1588,18 +1646,40 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 			if (key->id.properties) IDP_WriteProperty(key->id.properties, wd);
 			
 			if (key->adt) write_animdata(wd, key->adt);
-			
+
 			/* direct data */
-			kb= key->block.first;
-			while (kb) {
-				writestruct(wd, DATA, "KeyBlock", 1, kb);
-				if (kb->data) writedata(wd, DATA, kb->totelem*key->elemsize, kb->data);
-				kb= kb->next;
+			if (GS(key->from->name) == ID_ME && !(U.flag & USER_LEGACY_KEYBLOCKS_FMT)) {
+				/* if mesh keys, save a compressed copy */
+				Key *dupe = BKE_key_copy_nolib(key);
+				compress_keyblocks(dupe);
+
+				kb = dupe->block.first;
+				while (kb) {
+					writestruct(wd, DATA, "KeyBlock", 1, kb);
+					if (kb->compressed) 
+						writedata(wd, DATA, sizeof(KB_ComprMeshDataEnt) * kb->totelem, kb->data);
+					else
+						writedata(wd, DATA, kb->totelem * key->elemsize, kb->data);
+					kb = kb->next;
+				}
+
+				BKE_key_free_nolib(dupe);
+				MEM_freeN(dupe);
+			}
+			else
+			{
+				kb = key->block.first;
+				while (kb) {
+					writestruct(wd, DATA, "KeyBlock", 1, kb);
+					if (kb->data) writedata(wd, DATA, kb->totelem * key->elemsize, kb->data);
+					kb = kb->next;
+				}
 			}
 		}
+
 		if (key->scratch.data)
 			writedata(wd, DATA, key->scratch.origin->totelem * key->elemsize, key->scratch.data);
-		key= key->id.next;
+		key = key->id.next;
 	}
 	/* flush helps the compression for undo-save */
 	mywrite(wd, MYWRITE_FLUSH, 0);

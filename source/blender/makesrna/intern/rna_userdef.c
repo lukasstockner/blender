@@ -4227,6 +4227,10 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_FILECOMPRESS);
 	RNA_def_property_ui_text(prop, "Compress File", "Enable file compression when saving .blend files");
 
+	prop = RNA_def_property(srna, "legacy_keyblocks", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_LEGACY_KEYBLOCKS_FMT);
+	RNA_def_property_ui_text(prop, "Legacy Keyblocks", "Don't compress keyblocks so previous Blender versions will be able to open the file");
+
 	prop = RNA_def_property(srna, "use_load_ui", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", USER_FILENOUI);
 	RNA_def_property_ui_text(prop, "Load UI", "Load user interface setup when loading .blend files");

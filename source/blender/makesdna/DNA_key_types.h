@@ -42,6 +42,13 @@
 struct AnimData;
 struct Ipo;
 
+#
+#
+typedef struct KB_ComprMeshDataEnt {
+	int vertex_index;
+	float co[3];
+} KB_ComprMeshDataEnt;
+
 typedef struct KeyBlock {
 	struct KeyBlock *next, *prev;
 
@@ -51,7 +58,10 @@ typedef struct KeyBlock {
 	float curval;      /* influence (typically [0 - 1] but can be more), (Key->type == KEY_RELATIVE) only.*/
 
 	short type;        /* interpolation type (Key->type == KEY_NORMAL) only. */
-	short pad1;
+	short compressed;  /* for disk save; if 1, then they key's data is laid out as an array of
+					    * KB_ComprMeshDataEnt structs (total totelem).
+						* Mesh only. Does not do anything at 
+						* runtime */
 
 	short relative;    /* relative == 0 means first key is reference, otherwise the index of Key->blocks */
 	short flag;
