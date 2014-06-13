@@ -110,7 +110,6 @@ static void deleteLaplacianSystem(LaplacianSystem *sys)
 }
 
 
-
 static void initLaplacianMatrix(LaplacianSystem *sys)
 {
 	float v1[3], v2[3], v3[3], v4[3], no[3];
@@ -118,8 +117,6 @@ static void initLaplacianMatrix(LaplacianSystem *sys)
 	int i, j, fi;
 	bool has_4_vert;
 	unsigned int idv1, idv2, idv3, idv4;
-
-	printf("initLaplacianMatrix 0 \n");
 
 	for (fi = 0; fi < sys->total_faces; fi++) {
 		const unsigned int *vidf = sys->faces[fi];
@@ -172,47 +169,19 @@ static void initLaplacianMatrix(LaplacianSystem *sys)
 
 		}
 	}
-	printf("initLaplacianMatrix 1 \n");
 	
 }
 
 static void laplacianDeformPreview(LaplacianSystem *sys)
 {
 	int vid, i, j, n, na;
-	if (sys) {
-		printf("laplacianDeformPreview NOT NULL\n");
-	} 
-	else {
-		printf("laplacianDeformPreview NULL \n");
-	}
-	printf("laplacianDeformPreview -4\n");
-	printf("sys->total_verts test\n");
-	if (sys->total_verts) {
-		printf("sys->total_verts NOT NULL\n");
-	}
-	else {
-		printf("sys->total_verts NULL\n");
-	}
-
-
-	printf("%f,  %f", sys->total_verts, sys->total_features);
-	
-
-
 	n = sys->total_verts;
 	na = sys->total_features;
 
-	printf("laplacianDeformPreview -3\n");
-
 #ifdef OPENNL_THREADING_HACK
-	printf("laplacianDeformPreview -2\n");
 	modifier_opennl_lock();
-	printf("laplacianDeformPreview -1\n");
 #endif
-
-	printf("laplacianDeformPreview 0\n");
 	if (!sys->is_matrix_computed) {
-		printf("laplacianDeformPreview 1\n");
 		nlNewContext();
 		sys->context = nlGetCurrent();
 
@@ -222,27 +191,22 @@ static void laplacianDeformPreview(LaplacianSystem *sys)
 		nlSolverParameteri(NL_NB_ROWS, n);
 		nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 1);
 		nlBegin(NL_SYSTEM);
-		printf("laplacianDeformPreview 2\n");
 		for (i = 0; i < n; i++) {
 			nlSetVariable(0, i, 0);
 		}
 		
-		printf("laplacianDeformPreview 3\n");
 		nlBegin(NL_MATRIX);
 
 		initLaplacianMatrix(sys);
-		printf("laplacianDeformPreview 4\n");
 
 		for (i = 0; i < n; i++) {
 			if (sys->constraints[i] == 1) {
-				//printf("i: %d, w:%f \n", i, sys->weights[i]);
 				nlRightHandSideSet(0, i, sys->weights[i]);
 			}
 			else {
 				nlRightHandSideSet(0, i, 0);
 			}
 		}
-		printf("laplacianDeformPreview 6\n");
 		nlEnd(NL_MATRIX);
 		nlEnd(NL_SYSTEM);
 		if (nlSolveAdvanced(NULL, NL_TRUE)) {
@@ -250,13 +214,9 @@ static void laplacianDeformPreview(LaplacianSystem *sys)
 
 			for (vid = 0; vid < sys->total_verts; vid++) {
 				sys->U_field[vid] = nlGetVariable(0, vid);
-			}
-			printf("Solution found.\n");
-			
-			
+			}	
 		}
 		else {
-			printf("Solution not found.\n");
 			sys->has_solution = false;
 		}
 		sys->is_matrix_computed = true;
@@ -269,89 +229,11 @@ static void laplacianDeformPreview(LaplacianSystem *sys)
 #endif
 }
 
-static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
+static void QuadRemeshModifier_do(
+	QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
 	float(*vertexCos)[3], int numVerts)
 {
-	int i, j;
-	int defgrp_index;
-	int total_features;
-	float wpaint;
-	MDeformVert *dvert = NULL;
-	MDeformVert *dv = NULL;
-	LaplacianSystem *sys = NULL;
-
-	
-	int *constraints = MEM_mallocN(sizeof(int)* numVerts, __func__);  
-	float *weights = MEM_mallocN(sizeof(float)* numVerts, __func__);  
-	MFace *tessface;
-
-	printf("initSystem\n");
-
-	modifier_get_vgroup(ob, dm, qmd->anchor_grp_name, &dvert, &defgrp_index);
-	BLI_assert(dvert != NULL);
-	dv = dvert;
-	j = 0;
-	printf("initSystem 0\n");
-	for (i = 0; i < numVerts; i++) {
-		wpaint = defvert_find_weight(dv, defgrp_index);
-		dv++;
-
-		if (wpaint < 0.19 || wpaint > 0.89) {
-			constraints[i] = 1;
-			weights[i] = -1.0f + wpaint * 2.0f;
-			//printf("\t %f", weights[j]);
-			j++;
-		}
-		else {
-			constraints[i] = 0;
-		}
-	}
-
-	total_features = j;
-
-	printf("initSystem 1\n");
-
-	DM_ensure_tessface(dm);
-	sys = initLaplacianSystem(numVerts, dm->getNumEdges(dm), dm->getNumTessFaces(dm), total_features, qmd->anchor_grp_name);
-
-	
-	printf("initSystem 1.1\n");
-	printf("initSystem 1.2\n");
-	memcpy(sys->co, vertexCos, sizeof(float[3]) * numVerts);
-	printf("initSystem 1.3\n");
-	memcpy(sys->constraints, constraints, sizeof(int) * numVerts);
-	printf("initSystem 1.4\n");
-	memcpy(sys->weights, weights, sizeof(float)* numVerts);
-	printf("initSystem 1.5\n");
-	
-
-	printf("initSystem 1.6\n");
-	printf("initSystem 1.7\n");
-	MEM_freeN(weights);
-	printf("initSystem 1.8\n");
-	MEM_freeN(constraints);
-	printf("initSystem 1.9\n");
-
-	printf("initSystem 2\n");
-
-	tessface = dm->getTessFaceArray(dm);
-
-	for (i = 0; i < sys->total_faces; i++) {
-		memcpy(&sys->faces[i], &tessface[i].v1, sizeof(*sys->faces));
-	}
-
-	printf("Total vertsss %f\n", sys->total_verts);
-
-	printf("initSystem 3\n");
-	return sys;
-	
-}
-
-static void QuadRemeshModifier_do(
-        QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
-        float (*vertexCos)[3], int numVerts)
-{
-	float (*filevertexCos)[3];
+	float(*filevertexCos)[3];
 	int sysdif, i;
 	LaplacianSystem *sys = NULL;
 	int defgrp_index;
@@ -361,15 +243,9 @@ static void QuadRemeshModifier_do(
 	float y;
 
 	if (numVerts == 0) return;
-	printf("numVerts %d\n", numVerts);
-
-	printf("QuadRemeshModifier_do 0\n");
 	if (strlen(qmd->anchor_grp_name) < 3) return;
-	printf("QuadRemeshModifier_do 2\n");
 	sys = initSystem(qmd, ob, dm, vertexCos, numVerts);
-	printf("QuadRemeshModifier_do 3\n");
 	laplacianDeformPreview(sys);
-	printf("QuadRemeshModifier_do 4\n");
 
 	if (!defgroup_find_name(ob, "QuadRemeshGroup")) {
 		BKE_defgroup_new(ob, "QuadRemeshGroup");
@@ -388,13 +264,60 @@ static void QuadRemeshModifier_do(
 		}
 
 	}
-	
-	//deleteLaplacianSystem(sys);
-	
-	
-	
-
 }
+
+static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
+	float(*vertexCos)[3], int numVerts)
+{
+	int i, j;
+	int defgrp_index;
+	int total_features;
+	float wpaint;
+	MDeformVert *dvert = NULL;
+	MDeformVert *dv = NULL;
+	LaplacianSystem *sys = NULL;
+
+	
+	int *constraints = MEM_mallocN(sizeof(int)* numVerts, __func__);  
+	float *weights = MEM_mallocN(sizeof(float)* numVerts, __func__);  
+	MFace *tessface;
+
+	modifier_get_vgroup(ob, dm, qmd->anchor_grp_name, &dvert, &defgrp_index);
+	BLI_assert(dvert != NULL);
+	dv = dvert;
+	j = 0;
+	for (i = 0; i < numVerts; i++) {
+		wpaint = defvert_find_weight(dv, defgrp_index);
+		dv++;
+
+		if (wpaint < 0.19 || wpaint > 0.89) {
+			constraints[i] = 1;
+			weights[i] = -1.0f + wpaint * 2.0f;
+			j++;
+		}
+		else {
+			constraints[i] = 0;
+		}
+	}
+
+	total_features = j;
+	DM_ensure_tessface(dm);
+	sys = initLaplacianSystem(numVerts, dm->getNumEdges(dm), dm->getNumTessFaces(dm), total_features, qmd->anchor_grp_name);
+
+	memcpy(sys->co, vertexCos, sizeof(float[3]) * numVerts);
+	memcpy(sys->constraints, constraints, sizeof(int) * numVerts);
+	memcpy(sys->weights, weights, sizeof(float)* numVerts);
+	MEM_freeN(weights);
+	MEM_freeN(constraints);
+	tessface = dm->getTessFaceArray(dm);
+
+	for (i = 0; i < sys->total_faces; i++) {
+		memcpy(&sys->faces[i], &tessface[i].v1, sizeof(*sys->faces));
+	}
+	return sys;
+	
+}
+
 
 #else  /* WITH_OPENNL */
 static void QuadRemeshModifier_do(
