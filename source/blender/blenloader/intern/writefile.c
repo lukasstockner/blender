@@ -1612,7 +1612,10 @@ void compress_kb(KeyBlock *kb, Key *key_owner)
 		MEM_freeN(kb->data);
 		kb->data = kbcde;
 
-		printf("Packed keyblock %s to %d verts\n", kb->name, changed_verts);
+		if (G.debug_value == 1) {
+			printf("Compressed Shape Key %s, %.2f times smaller \n",
+					(rk->totelem * sizeof(float) * 3) / changed_verts * sizeof(KB_ComprMeshDataEnt));
+		}
 	}
 	else {
 		MEM_freeN(kbcde);
@@ -1640,20 +1643,32 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 	key = idbase->first;
 
 	while (key) {
-		if (key->id.us>0 || wd->current) {
-			/* write LibData */
-			writestruct(wd, ID_KE, "Key", 1, key);
-			if (key->id.properties) IDP_WriteProperty(key->id.properties, wd);
-			
-			if (key->adt) write_animdata(wd, key->adt);
-
+		if (key->id.us > 0 || wd->current) {
 			/* direct data */
 			if (GS(key->from->name) == ID_ME && !(U.flag & USER_LEGACY_KEYBLOCKS_FMT)) {
+				ListBase lb = key->block;
+
 				/* if mesh keys, save a compressed copy */
 				Key *dupe = BKE_key_copy_nolib(key);
+
+				/* restore these later - we need to write the current key struct,
+				 * or linkage will fail later on file read */
+				key->block = dupe->block;
+				key->refkey = dupe->refkey;
+
+				/* write LibData */
+				writestruct(wd, ID_KE, "Key", 1, key);
+				if (key->id.properties)
+					IDP_WriteProperty(dupe->id.properties, wd);
+
+				if (key->adt)
+					write_animdata(wd, key->adt);
+
 				compress_keyblocks(dupe);
 
-				kb = dupe->block.first;
+				/* direct */
+				kb = key->block.first;
+
 				while (kb) {
 					writestruct(wd, DATA, "KeyBlock", 1, kb);
 					if (kb->compressed) 
@@ -1663,11 +1678,23 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 					kb = kb->next;
 				}
 
+				/* restore key data */
+				key->block = lb;
+				key->refkey = lb.first; /* reference kb always is basis */
+
 				BKE_key_free_nolib(dupe);
 				MEM_freeN(dupe);
 			}
-			else
-			{
+			else {
+				/* lib */
+				writestruct(wd, ID_KE, "Key", 1, key);
+				if (key->id.properties)
+					IDP_WriteProperty(key->id.properties, wd);
+
+				if (key->adt)
+					write_animdata(wd, key->adt);
+
+				/* direct */
 				kb = key->block.first;
 				while (kb) {
 					writestruct(wd, DATA, "KeyBlock", 1, kb);

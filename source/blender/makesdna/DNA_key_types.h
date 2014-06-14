@@ -58,10 +58,9 @@ typedef struct KeyBlock {
 	float curval;      /* influence (typically [0 - 1] but can be more), (Key->type == KEY_RELATIVE) only.*/
 
 	short type;        /* interpolation type (Key->type == KEY_NORMAL) only. */
-	short compressed;  /* for disk save; if 1, then they key's data is laid out as an array of
+	short compressed;  /* for disk write/read; if 1, then they key's data is laid out as an array of
 					    * KB_ComprMeshDataEnt structs (total totelem).
-						* Mesh only. Does not do anything at 
-						* runtime */
+						* Mesh only. Does not do anything useful at runtime */
 
 	short relative;    /* relative == 0 means first key is reference, otherwise the index of Key->blocks */
 	short flag;

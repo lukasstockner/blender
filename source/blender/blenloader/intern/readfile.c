@@ -3060,35 +3060,47 @@ void uncompress_kb(Key * key, KeyBlock *kb)
 	kb->totelem = rk->totelem;
 
 	/* free compressed data */
-	MEM_freeN(kbcde);
+	if (kbcde) {
+		/* compressed data may be NULL when a kb doesn't have any differences from the basis */
+		MEM_freeN(kbcde);
+	}
 }
 
 static void switch_endian_keyblock(Key *key, KeyBlock *kb)
 {
 	int elemsize, a, b;
 	const char *data, *poin, *cp;
-	
-	elemsize = key->elemsize;
 	data = kb->data;
-	
-	for (a = 0; a < kb->totelem; a++) {
-		cp = key->elemstr;
-		poin = data;
-		
-		while (cp[0]) {  /* cp[0] == amount */
-			switch (cp[1]) {  /* cp[1] = type */
+
+	if (kb->compressed) {
+		KB_ComprMeshDataEnt *kbcde = data;
+		for (a = 0; a < kb->totelem; ++a) {
+			BLI_endian_switch_int32(&kbcde[a].vertex_index);
+			BLI_endian_switch_float_array((float *) &kbcde[a].co, 3);
+		}
+	} 
+	else {
+		elemsize = key->elemsize;
+		for (a = 0; a < kb->totelem; a++) {
+			cp = key->elemstr;
+			poin = data;
+
+			while (cp[0]) {  /* cp[0] == amount */
+				switch (cp[1]) {  /* cp[1] = type */
 				case IPO_FLOAT:
 				case IPO_BPOINT:
 				case IPO_BEZTRIPLE:
 					b = cp[0];
 					BLI_endian_switch_float_array((float *)poin, b);
-					poin += sizeof(float) * b;
+					poin += sizeof(float)* b;
 					break;
+				}
+
+				cp += 2;
 			}
-			
-			cp += 2;
+			data += elemsize;
 		}
-		data += elemsize;
+
 	}
 }
 
@@ -3109,17 +3121,15 @@ static void direct_link_key(FileData *fd, Key *key)
 	for (kb = key->block.first; kb; kb = kb->next) {
 		kb->data = newdataadr(fd, kb->data);
 
-		if (kb->compressed && key->refkey != kb) {
-			uncompress_kb(key, kb);
-			printf("Unpacked kb %s\n", kb->name);
-		}
-		
 		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
-			BLI_assert(0); /* not supported with compressing yet */
 			switch_endian_keyblock(key, kb);
 		}
 
+		if (kb->compressed && key->refkey != kb) {
+			uncompress_kb(key, kb);
+		}
 	}
+
 }
 
 /* ************ READ mball ***************** */
