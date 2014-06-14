@@ -63,6 +63,9 @@ Depsgraph::~Depsgraph()
 static bool pointer_to_id_node_criteria(const PointerRNA *ptr, const PropertyRNA *prop,
                                         ID **id)
 {
+	if (!ptr->type)
+		return false;
+	
 	if (!prop) {
 		if (RNA_struct_is_ID(ptr->type)) {
 			*id = (ID *)ptr->data;
@@ -77,6 +80,9 @@ static bool pointer_to_component_node_criteria(const PointerRNA *ptr, const Prop
                                                ID **id,
                                                eDepsNode_Type *type, string *subdata)
 {
+	if (!ptr->type)
+		return false;
+	
 	/* set default values for returns */
 	*id        = (ID *)ptr->id.data;        /* for obvious reasons... */
 	*subdata   = "";                        /* default to no subdata (e.g. bone) name lookup in most cases */
