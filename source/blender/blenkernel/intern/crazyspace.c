@@ -481,8 +481,10 @@ void BKE_crazyspace_cage_active_sel_center(BMEditSelection *ese, DerivedMesh *ca
 		BMFace *f = (BMFace *)ese->ele;
 		BMVert *v;
 		BMIter iter;
-		zero_v3(cent);
 		int total = 0, index;
+
+		zero_v3(cent);
+
 		BM_ITER_ELEM(v, &iter, f, BM_VERTS_OF_FACE) {
 			++total;
 			index = BM_elem_index_get(v);

@@ -57,7 +57,6 @@
 #include "BKE_editmesh.h"
 #include "BKE_lattice.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_key.h"
 #include "BKE_crazyspace.h"
 #include "MEM_guardedalloc.h"
 
@@ -261,7 +260,7 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
 	return 0;
 }
 
-void calc_tw_center_dm(Scene *scene, BMVert *eve, MVert *dm_verts, int edit_vert_index, int *index_map) 
+static void calc_tw_center_dm(Scene *scene, BMVert *eve, MVert *dm_verts, int edit_vert_index, int *index_map) 
 {
 	int derived_index;
 
@@ -307,11 +306,10 @@ int calc_manipulator_stats(const bContext *C)
 			BMEditSelection ese;
 			BMEditMesh *em = BKE_editmesh_from_object(obedit);
 			DerivedMesh *dm = editbmesh_get_derived_cage(scene, ob, em, scene->customdata_mask);
-			dmverts = dm->getVertArray(dm);
-
 			float vec[3] = { 0, 0, 0 };
-
 			int *derived_index_map = NULL;
+
+			dmverts = dm->getVertArray(dm);
 
 			if (!BKE_crazyspace_cageindexes_in_sync(ob)) {
 				derived_index_map = BKE_crazyspace_map_em_to_cage(ob, em, dm);

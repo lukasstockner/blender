@@ -34,10 +34,13 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 struct Scene;
 struct Object;
 struct BMEditMesh;
 struct Mesh;
+struct BMEditSelection;
+struct DerivedMesh;
 
 /* crazyspace.c */
 float (*BKE_crazyspace_get_mapped_editverts(struct Scene *scene, struct Object *obedit))[3];
