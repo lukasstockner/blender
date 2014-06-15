@@ -290,7 +290,8 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	keymap = WM_keymap_find(keyconf, "Object Non-modal", 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_operator_pie_enum", TABKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "object.mode_set.mode");
+	RNA_string_set(kmi->ptr, "name", "OBJECT_OT_mode_set");
+	RNA_string_set(kmi->ptr, "property", "mode");
 	RNA_string_set(kmi->ptr, "title", "Object Mode");
 
 #if 0

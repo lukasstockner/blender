@@ -533,7 +533,12 @@ class WM_OT_context_operator_pie_enum(Operator):
     bl_idname = "wm.context_operator_pie_enum"
     bl_label = "Operator Enum Pie"
     bl_options = {'UNDO', 'INTERNAL'}
-    data_path = rna_path_prop
+    name = StringProperty(
+            "Operator Name",
+            )
+    property = StringProperty(
+            "Property Name",
+            )
     title = StringProperty(
             name="Title",
             description="Pie Menu Title",
@@ -541,14 +546,12 @@ class WM_OT_context_operator_pie_enum(Operator):
             )
 
     def invoke(self, context, event):
-        data_path = self.data_path
-
-        value_path, prop_string = data_path.rsplit(".", 1)
-        op = eval("bpy.ops.%s" % value_path)
+        op_idname = self.name
+        property = self.property
 
         def draw_cb(self, context):
             layout = self.layout
-            layout.operator_enum(op.idname_py(), prop_string)
+            layout.operator_enum(op_idname, property)
 
         context.window_manager.pie_menu(draw_func=draw_cb, title=self.title, event=event)
 
