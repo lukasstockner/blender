@@ -738,9 +738,12 @@ static int bake(
 		ob_low->restrictflag |= OB_RESTRICT_RENDER;
 
 		/* populate the pixel arrays with the corresponding face data for each high poly object */
-		RE_bake_pixels_populate_from_objects(
-		        me_low, pixel_array_low, highpoly, tot_highpoly, num_pixels, ob_cage != NULL,
-		        cage_extrusion, ob_low->obmat, (ob_cage ? ob_cage->obmat : ob_low->obmat), me_cage);
+		if (!RE_bake_pixels_populate_from_objects(
+		            me_low, pixel_array_low, highpoly, tot_highpoly, num_pixels, ob_cage != NULL,
+		            cage_extrusion, ob_low->obmat, (ob_cage ? ob_cage->obmat : ob_low->obmat), me_cage)) {
+			BKE_report(reports, RPT_ERROR, "Error handling selected objects");
+			goto cleanup;
+		}
 
 		/* the baking itself */
 		for (i = 0; i < tot_highpoly; i++) {
@@ -1006,7 +1009,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 	bkr->height = RNA_int_get(op->ptr, "height");
 	bkr->identifier = "";
 
-	RNA_string_get(op->ptr, "cage", bkr->custom_cage);
+	RNA_string_get(op->ptr, "cage_object", bkr->custom_cage);
 
 	if ((!is_save_internal) && bkr->is_automatic_name) {
 		PropertyRNA *prop = RNA_struct_find_property(op->ptr, "type");
@@ -1150,7 +1153,7 @@ static void bake_set_props(wmOperator *op, Scene *scene)
 		RNA_property_float_set(op->ptr, prop, bake->cage_extrusion);
 	}
 
-	prop = RNA_struct_find_property(op->ptr, "cage");
+	prop = RNA_struct_find_property(op->ptr, "cage_object");
 	if (!RNA_property_is_set(op->ptr, prop)) {
 		RNA_property_string_set(op->ptr, prop, bake->cage);
 	}
@@ -1264,9 +1267,9 @@ void OBJECT_OT_bake(wmOperatorType *ot)
 	            "Extends the baked result as a post process filter", 0, 64);
 	RNA_def_boolean(ot->srna, "use_selected_to_active", false, "Selected to Active",
 	                "Bake shading on the surface of selected objects to the active object");
-	RNA_def_float(ot->srna, "cage_extrusion", 0.0, 0.0, 1.0, "Cage Extrusion",
-	              "Distance to use for the inward ray cast when using selected to active", 0.0, 1.0);
-	RNA_def_string(ot->srna, "cage", NULL, MAX_NAME, "Custom Cage",
+	RNA_def_float(ot->srna, "cage_extrusion", 0.0f, 0.0f, FLT_MAX, "Cage Extrusion",
+	              "Distance to use for the inward ray cast when using selected to active", 0.0f, 1.0f);
+	RNA_def_string(ot->srna, "cage_object", NULL, MAX_NAME, "Cage Object",
 	               "Object to use as cage, instead of calculating the cage from the active object with cage extrusion");
 	RNA_def_enum(ot->srna, "normal_space", normal_space_items, R_BAKE_SPACE_TANGENT, "Normal Space",
 	             "Choose normal space for baking");

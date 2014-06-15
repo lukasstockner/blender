@@ -408,10 +408,10 @@ ccl_device_inline void qbvh_node_intersect(KernelGlobals *kg, int *traverseChild
 	/* X axis */
 	const __m128 idirx = _mm_set_ps1(idir.x);
 	const __m128 mulx = _mm_mul_ps(_mm_set_ps1(P.x), idirx);
-	const __m128 bminx = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+0);
-	const __m128 t0x = fms(bminx, idirx, mulx);
-	const __m128 bmaxx = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+1);
-	const __m128 t1x = fms(bmaxx, idirx, mulx);
+	const __m128 bminx = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+0);
+	const __m128 t0x = msub(bminx, idirx, mulx);
+	const __m128 bmaxx = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+1);
+	const __m128 t1x = msub(bmaxx, idirx, mulx);
 
 	__m128 tmin = _mm_max_ps(_mm_min_ps(t0x, t1x), _mm_setzero_ps());
 	__m128 tmax = _mm_min_ps(_mm_max_ps(t0x, t1x), _mm_set_ps1(t));
@@ -419,10 +419,10 @@ ccl_device_inline void qbvh_node_intersect(KernelGlobals *kg, int *traverseChild
 	/* Y axis */
 	const __m128 idiry = _mm_set_ps1(idir.y);
 	const __m128 muly = _mm_mul_ps(_mm_set_ps1(P.y), idiry);
-	const __m128 bminy = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+2);
-	const __m128 t0y = fms(bminy, idiry, muly);
-	const __m128 bmaxy = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+3);
-	const __m128 t1y = fms(bmaxy, idiry, muly);
+	const __m128 bminy = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+2);
+	const __m128 t0y = msub(bminy, idiry, muly);
+	const __m128 bmaxy = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+3);
+	const __m128 t1y = msub(bmaxy, idiry, muly);
 
 	tmin = _mm_max_ps(_mm_min_ps(t0y, t1y), tmin);
 	tmax = _mm_min_ps(_mm_max_ps(t0y, t1y), tmax);
@@ -430,19 +430,19 @@ ccl_device_inline void qbvh_node_intersect(KernelGlobals *kg, int *traverseChild
 	/* Z axis */
 	const __m128 idirz = _mm_set_ps1(idir.z);
 	const __m128 mulz = _mm_mul_ps(_mm_set_ps1(P.z), idirz);
-	const __m128 bminz = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+4);
-	const __m128 t0z = fms(bminz, idirz, mulz);
-	const __m128 bmaxz = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+5);
-	const __m128 t1z = fms(bmaxz, idirz, mulz);
+	const __m128 bminz = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+4);
+	const __m128 t0z = msub(bminz, idirz, mulz);
+	const __m128 bmaxz = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+5);
+	const __m128 t1z = msub(bmaxz, idirz, mulz);
 
 	tmin = _mm_max_ps(_mm_min_ps(t0z, t1z), tmin);
 	tmax = _mm_min_ps(_mm_max_ps(t0z, t1z), tmax);
 #else
 	const __m128 Px = _mm_set_ps1(P.x);
 	const __m128 idirx = _mm_set_ps1(idir.x);
-	const __m128 bminx = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+0);
+	const __m128 bminx = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+0);
 	const __m128 t0x = _mm_mul_ps(_mm_sub_ps(bminx, Px), idirx);
-	const __m128 bmaxx = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+1);
+	const __m128 bmaxx = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+1);
 	const __m128 t1x = _mm_mul_ps(_mm_sub_ps(bmaxx, Px), idirx);
 
 	__m128 tmin = _mm_max_ps(_mm_min_ps(t0x, t1x), _mm_setzero_ps());
@@ -451,9 +451,9 @@ ccl_device_inline void qbvh_node_intersect(KernelGlobals *kg, int *traverseChild
 	/* Y axis */
 	const __m128 Py = _mm_set_ps1(P.y);
 	const __m128 idiry = _mm_set_ps1(idir.y);
-	const __m128 bminy = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+2);
+	const __m128 bminy = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+2);
 	const __m128 t0y = _mm_mul_ps(_mm_sub_ps(bminy, Py), idiry);
-	const __m128 bmaxy = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+3);
+	const __m128 bmaxy = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+3);
 	const __m128 t1y = _mm_mul_ps(_mm_sub_ps(bmaxy, Py), idiry);
 
 	tmin = _mm_max_ps(_mm_min_ps(t0y, t1y), tmin);
@@ -462,9 +462,9 @@ ccl_device_inline void qbvh_node_intersect(KernelGlobals *kg, int *traverseChild
 	/* Z axis */
 	const __m128 Pz = _mm_set_ps1(P.z);
 	const __m128 idirz = _mm_set_ps1(idir.z);
-	const __m128 bminz = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+4);
+	const __m128 bminz = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+4);
 	const __m128 t0z = _mm_mul_ps(_mm_sub_ps(bminz, Pz), idirz);
-	const __m128 bmaxz = kernel_tex_fetch_m128(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+5);
+	const __m128 bmaxz = kernel_tex_fetch_ssef(__bvh_nodes, nodeAddr*QBVH_NODE_SIZE+5);
 	const __m128 t1z = _mm_mul_ps(_mm_sub_ps(bmaxz, Pz), idirz);
 
 	tmin = _mm_max_ps(_mm_min_ps(t0z, t1z), tmin);

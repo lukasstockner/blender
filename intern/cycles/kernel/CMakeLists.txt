@@ -35,6 +35,8 @@ set(SRC_HEADERS
 	kernel_passes.h
 	kernel_path.h
 	kernel_path_state.h
+	kernel_path_surface.h
+	kernel_path_volume.h
 	kernel_projection.h
 	kernel_random.h
 	kernel_shader.h
@@ -58,7 +60,7 @@ set(SRC_CLOSURE_HEADERS
 	closure/bsdf_toon.h
 	closure/bsdf_transparent.h
 	closure/bsdf_util.h
-	closure/bsdf_ward.h
+	closure/bsdf_ashikhmin_shirley.h
 	closure/bsdf_westin.h
 	closure/bsdf_hair.h
 	closure/bssrdf.h
@@ -95,9 +97,8 @@ set(SRC_SVM_HEADERS
 	svm/svm_noisetex.h
 	svm/svm_normal.h
 	svm/svm_ramp.h
-	svm/svm_sepcomb_rgb.h
 	svm/svm_sepcomb_hsv.h
-	svm/svm_sepcomb_xyz.h
+	svm/svm_sepcomb_vector.h
 	svm/svm_sky.h
 	svm/svm_tex_coord.h
 	svm/svm_texture.h
