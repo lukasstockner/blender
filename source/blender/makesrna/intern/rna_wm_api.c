@@ -490,7 +490,7 @@ void RNA_api_wm(StructRNA *srna)
 	parm = RNA_def_property(func, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(parm, event_type_items);
 	/* return */
-	parm = RNA_def_pointer(func, "pie", "UIPieMenu", "", "");
+	parm = RNA_def_pointer(func, "menu_pie", "UIPieMenu", "", "");
 	RNA_def_property_flag(parm, PROP_RNAPTR | PROP_NEVER_NULL);
 	RNA_def_function_return(func, parm);
 

@@ -1703,7 +1703,7 @@ class VIEW3D_PIE_tests(Menu):
         sculpt = toolsettings.sculpt
         brush = sculpt.brush
 
-        pie = layout.pie()
+        pie = layout.menu_pie()
         pie.prop(sculpt, "use_symmetry_feather", toggle=True)
         pie.prop(brush, "strength")
 

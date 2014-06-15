@@ -553,7 +553,7 @@ class WM_OT_context_operator_pie_enum(Operator):
             layout = self.layout
             layout.operator_enum(op_idname, property)
 
-        context.window_manager.pie_menu(draw_func=draw_cb, title=self.title, event=event)
+        context.window_manager.menu_pie(draw_func=draw_cb, title=self.title, event=event)
 
         return {'FINISHED'}
 
@@ -579,7 +579,7 @@ class WM_OT_context_pie_enum(Operator):
             layout = self.layout
             layout.prop(value_base, prop_string, expand=True)
 
-        context.window_manager.pie_menu(draw_func=draw_cb, title=prop.name, icon=prop.icon, event=event)
+        context.window_manager.menu_pie(draw_func=draw_cb, title=prop.name, icon=prop.icon, event=event)
 
         return {'FINISHED'}
 

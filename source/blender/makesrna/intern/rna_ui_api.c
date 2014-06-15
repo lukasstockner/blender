@@ -463,7 +463,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_boolean(func, "align", false, "", "Align buttons to each other");
 
 	/* radial/pie layout */
-	func = RNA_def_function(srna, "pie", "uiLayoutRadial");
+	func = RNA_def_function(srna, "menu_pie", "uiLayoutRadial");
 	parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
 	RNA_def_function_return(func, parm);
 	RNA_def_function_ui_description(func, "Sublayout. Items placed in this sublayout are placed "
