@@ -94,7 +94,7 @@ bool ui_block_is_menu(const uiBlock *block)
 {
 	return (((block->flag & UI_BLOCK_LOOP) != 0) &&
 	        /* non-menu popups use keep-open, so check this is off */
-			((block->flag & UI_BLOCK_KEEP_OPEN) == 0));
+	        ((block->flag & UI_BLOCK_KEEP_OPEN) == 0));
 }
 
 static bool ui_is_but_unit_radians_ex(UnitSettings *unit, const int unit_type)
@@ -3071,7 +3071,7 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 		but->drawflag |= UI_BUT_ICON_LEFT;
 	}
 	else if ((block->flag & UI_BLOCK_LOOP) ||
-	    ELEM8(but->type, MENU, TEX, LABEL, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR, SEARCH_MENU_UNLINK))
+	         ELEM8(but->type, MENU, TEX, LABEL, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR, SEARCH_MENU_UNLINK))
 	{
 		but->drawflag |= (UI_BUT_TEXT_LEFT | UI_BUT_ICON_LEFT);
 	}

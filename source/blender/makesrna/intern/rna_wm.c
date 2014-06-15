@@ -1709,7 +1709,7 @@ static void rna_def_piemenu(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "layout", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "UILayout");
 	RNA_def_property_pointer_funcs(prop, "rna_PieMenu_layout_get",
-								   NULL, NULL, NULL);
+	                               NULL, NULL, NULL);
 
 	RNA_define_verify_sdna(1); /* not in sdna */
 }

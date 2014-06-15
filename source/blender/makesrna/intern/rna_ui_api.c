@@ -467,7 +467,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
 	RNA_def_function_return(func, parm);
 	RNA_def_function_ui_description(func, "Sublayout. Items placed in this sublayout are placed "
-									"in a radial fashion around the menu center)");
+	                                "in a radial fashion around the menu center)");
 
 	/* Icon of a rna pointer */
 	func = RNA_def_function(srna, "icon", "rna_ui_get_rnaptr_icon");
