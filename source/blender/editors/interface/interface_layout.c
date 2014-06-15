@@ -219,7 +219,9 @@ static int ui_item_fit(int item, int pos, int all, int available, int last, int 
 
 static int ui_layout_vary_direction(uiLayout *layout)
 {
-	return (ELEM(layout->root->type, UI_LAYOUT_HEADER, UI_LAYOUT_PIEMENU) || layout->alignment != UI_LAYOUT_ALIGN_EXPAND) ? UI_ITEM_VARY_X : UI_ITEM_VARY_Y;
+	return ((ELEM(layout->root->type, UI_LAYOUT_HEADER, UI_LAYOUT_PIEMENU) ||
+	        (layout->alignment != UI_LAYOUT_ALIGN_EXPAND)) ?
+	        UI_ITEM_VARY_X : UI_ITEM_VARY_Y);
 }
 
 /* estimated size of text + icon */
@@ -944,10 +946,12 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 					ui_but_tip_from_enum_item(but, item);
 				}
 				else {  /* XXX bug here, colums draw bottom item badly */
-					if (radial)
-						;
-					else
+					if (radial) {
+						/* pass */
+					}
+					else {
 						uiItemS(target);
+					}
 				}
 			}
 		}
@@ -2098,27 +2102,27 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short tot
 	RadialDirection dir = UI_RADIAL_NONE;
 
 	/* this goes in a seemingly weird pattern:
+	 *
+	 *     4
+	 *  5     6
+	 * 1       2
+	 *  7     8
+	 *     3
+	 *
+	 * but it's actually quite logical. It's designed to be 'upwards compatible'
+	 * for muscle memory so that the menu item locations are fixed and don't move
+	 * as new items are added to the menu later on. It also optimises efficiency -
+	 * a radial menu is best kept symmetrical, with as large an angle between
+	 * items as possible, so that the gestural mouse movements can be fast and inexact.
 
-		4
-	 5     6
-	1       2
-	 7     8
-		3
-
-	but it's actually quite logical. It's designed to be 'upwards compatible'
-	for muscle memory so that the menu item locations are fixed and don't move
-	as new items are added to the menu later on. It also optimises efficiency -
-	a radial menu is best kept symmetrical, with as large an angle between
-	items as possible, so that the gestural mouse movements can be fast and inexact.
-
-	It starts off with two opposite sides for the first two items
-	then joined by the one below for the third (this way, even with three items,
-	the menu seems to still be 'in order' reading left to right). Then the fourth is
-	added to complete the compass directions. From here, it's just a matter of
-	subdividing the rest of the angles for the last 4 items.
-
-	--Matt 07/2006
-	*/
+	 * It starts off with two opposite sides for the first two items
+	 * then joined by the one below for the third (this way, even with three items,
+	 * the menu seems to still be 'in order' reading left to right). Then the fourth is
+	 * added to complete the compass directions. From here, it's just a matter of
+	 * subdividing the rest of the angles for the last 4 items.
+	 *
+	 * --Matt 07/2006
+	 */
 
 	if (itemnum < 5) {
 		switch (itemnum) {
@@ -2207,10 +2211,10 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short tot
 #endif
 	}
 
-	angle = angle / 180.0f * M_PI;
+	angle = DEG2RADF(angle);
 
-	vec[0] = cos(angle);
-	vec[1] = sin(angle);
+	vec[0] = cosf(angle);
+	vec[1] = sinf(angle);
 
 	return dir;
 }

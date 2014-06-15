@@ -6362,7 +6362,7 @@ static void ui_blocks_set_tooltips(ARegion *ar, const bool enable)
 static bool ui_mouse_inside_region(ARegion *ar, int x, int y)
 {
 	uiBlock *block;
-
+	
 	/* check if the mouse is in the region */
 	if (!BLI_rcti_isect_pt(&ar->winrct, x, y)) {
 		for (block = ar->uiblocks.first; block; block = block->next)
@@ -6393,11 +6393,10 @@ static bool ui_mouse_inside_region(ARegion *ar, int x, int y)
 	return true;
 }
 
-
 static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y)
 {
-	float mx, my;
 	uiBlock *block = but->block;
+	float mx, my;
 
 	if (!ui_mouse_inside_region(ar, x, y))
 		return false;
@@ -6412,8 +6411,9 @@ static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y)
 			return false;
 		}
 	}
-	else if (!ui_but_contains_pt(but, mx, my))
+	else if (!ui_but_contains_pt(but, mx, my)) {
 		return false;
+	}
 	
 	return true;
 }
@@ -6453,7 +6453,6 @@ static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, c
 {
 	uiBlock *block;
 	uiBut *but, *butover = NULL;
-
 	float mx, my;
 
 //	if (!win->active)
@@ -7832,7 +7831,6 @@ static int ui_handle_menu_event(
 
 	mx = event->x;
 	my = event->y;
-
 	ui_window_to_block(ar, block, &mx, &my);
 
 	/* check if mouse is inside block */
@@ -7882,7 +7880,7 @@ static int ui_handle_menu_event(
 			if (block->flag & UI_BLOCK_MOVEMOUSE_QUIT) {
 				ui_mouse_motion_towards_init(menu, &event->x);
 			}
-
+			
 			/* add menu scroll timer, if needed */
 			if (ui_menu_scroll_test(block, my))
 				if (menu->scrolltimer == NULL)
@@ -8317,7 +8315,7 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 }
 
 
-static void ui_pie_menu_apply (bContext *C, uiPopupBlockHandle *menu)
+static void ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu)
 {
 	uiBut *but = ui_but_find_activated(menu->region);
 

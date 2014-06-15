@@ -2729,6 +2729,7 @@ bool uiPupMenuInvoke(bContext *C, const char *idname, ReportList *reports)
 	return true;
 }
 
+
 /*************************** Popup Block API **************************/
 
 void uiPupBlockO(bContext *C, uiBlockCreateFunc func, void *arg, const char *opname, int opcontext)
