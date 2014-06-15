@@ -302,11 +302,7 @@ static bool bake_object_check(Object *ob, ReportList *reports)
 	else {
 		Mesh *me = (Mesh *)ob->data;
 
-		const int pidx = CustomData_get_active_layer_index(&me->pdata, CD_MTEXPOLY);
-		const int lidx = CustomData_get_active_layer_index(&me->ldata, CD_MLOOPUV);
-		const int fidx = CustomData_get_active_layer_index(&me->fdata, CD_MTFACE);
-
-		if ((pidx == -1) && (lidx == -1) && (fidx == -1)) {
+		if (CustomData_get_active_layer_index(&me->ldata, CD_MLOOPUV) == -1) {
 			BKE_reportf(reports, RPT_ERROR,
 			            "No active UV layer found in the object \"%s\"", ob->id.name + 2);
 			return false;
@@ -493,6 +489,7 @@ typedef struct BakeAPIRender {
 	bool is_split_materials;
 	bool is_automatic_name;
 	bool is_selected_to_active;
+	bool is_cage;
 
 	float cage_extrusion;
 	int normal_space;
@@ -516,7 +513,7 @@ static int bake(
         Main *bmain, Scene *scene, Object *ob_low, ListBase *selected_objects, ReportList *reports,
         const ScenePassType pass_type, const int margin,
         const BakeSaveMode save_mode, const bool is_clear, const bool is_split_materials,
-        const bool is_automatic_name, const bool is_selected_to_active,
+        const bool is_automatic_name, const bool is_selected_to_active, const bool is_cage,
         const float cage_extrusion, const int normal_space, const BakeNormalSwizzle normal_swizzle[],
         const char *custom_cage, const char *filepath, const int width, const int height,
         const char *identifier, ScrArea *sa)
@@ -533,6 +530,7 @@ static int bake(
 	char restrict_flag_cage;
 
 	Mesh *me_low = NULL;
+	Mesh *me_cage = NULL;
 	Render *re;
 
 	float *result = NULL;
@@ -618,14 +616,11 @@ static int bake(
 			tot_highpoly ++;
 		}
 
-		if (custom_cage[0] != '\0') {
+		if (is_cage && custom_cage[0] != '\0') {
 			ob_cage = BLI_findstring(&bmain->object, custom_cage, offsetof(ID, name) + 2);
 
-			/* TODO check if cage object has the same topology (num of triangles and a valid UV) */
 			if (ob_cage == NULL || ob_cage->type != OB_MESH) {
 				BKE_report(reports, RPT_ERROR, "No valid cage object");
-				op_result = OPERATOR_CANCELLED;
-
 				goto cleanup;
 			}
 			else {
@@ -644,20 +639,31 @@ static int bake(
 	pixel_array_low = MEM_callocN(sizeof(BakePixel) * num_pixels, "bake pixels low poly");
 	result = MEM_callocN(sizeof(float) * depth * num_pixels, "bake return pixels");
 
+	/* get the mesh as it arrives in the renderer */
+	me_low = BKE_mesh_new_from_object(bmain, scene, ob_low, 1, 2, 1, 0);
+
+	/* populate the pixel array with the face data */
+	if ((is_selected_to_active && (ob_cage == NULL) && is_cage) == false)
+		RE_bake_pixels_populate(me_low, pixel_array_low, num_pixels, &bake_images);
+	/* else populate the pixel array with the 'cage' mesh (the smooth version of the mesh)  */
+
 	if (is_selected_to_active) {
 		CollectionPointerLink *link;
 		ModifierData *md, *nmd;
 		ListBase modifiers_tmp, modifiers_original;
-		float mat_low[4][4];
 		int i = 0;
-		highpoly = MEM_callocN(sizeof(BakeHighPolyData) * tot_highpoly, "bake high poly objects");
 
 		/* prepare cage mesh */
 		if (ob_cage) {
-			me_low = BKE_mesh_new_from_object(bmain, scene, ob_cage, 1, 2, 1, 0);
-			copy_m4_m4(mat_low, ob_cage->obmat);
+			me_cage = BKE_mesh_new_from_object(bmain, scene, ob_cage, 1, 2, 1, 0);
+			if (me_low->totface != me_cage->totface) {
+				BKE_report(reports, RPT_ERROR,
+				           "Invalid cage object, the cage mesh must have the same number "
+				           "of faces as the active object");
+				goto cleanup;
+			}
 		}
-		else {
+		else if (is_cage) {
 			modifiers_original = ob_low->modifiers;
 			BLI_listbase_clear(&modifiers_tmp);
 
@@ -681,9 +687,11 @@ static int bake(
 			ob_low->modifiers = modifiers_tmp;
 
 			/* get the cage mesh as it arrives in the renderer */
-			me_low = BKE_mesh_new_from_object(bmain, scene, ob_low, 1, 2, 1, 0);
-			copy_m4_m4(mat_low, ob_low->obmat);
+			me_cage = BKE_mesh_new_from_object(bmain, scene, ob_low, 1, 2, 1, 0);
+			RE_bake_pixels_populate(me_cage, pixel_array_low, num_pixels, &bake_images);
 		}
+
+		highpoly = MEM_callocN(sizeof(BakeHighPolyData) * tot_highpoly, "bake high poly objects");
 
 		/* populate highpoly array */
 		for (link = selected_objects->first; link; link = link->next) {
@@ -727,15 +735,15 @@ static int bake(
 
 		BLI_assert(i == tot_highpoly);
 
-		/* populate the pixel array with the face data */
-		RE_bake_pixels_populate(me_low, pixel_array_low, num_pixels, &bake_images);
-
 		ob_low->restrictflag |= OB_RESTRICT_RENDER;
 
 		/* populate the pixel arrays with the corresponding face data for each high poly object */
-		RE_bake_pixels_populate_from_objects(
-		        me_low, pixel_array_low, highpoly, tot_highpoly,
-		        num_pixels, cage_extrusion, mat_low);
+		if (!RE_bake_pixels_populate_from_objects(
+		            me_low, pixel_array_low, highpoly, tot_highpoly, num_pixels, ob_cage != NULL,
+		            cage_extrusion, ob_low->obmat, (ob_cage ? ob_cage->obmat : ob_low->obmat), me_cage)) {
+			BKE_report(reports, RPT_ERROR, "Error handling selected objects");
+			goto cleanup;
+		}
 
 		/* the baking itself */
 		for (i = 0; i < tot_highpoly; i++) {
@@ -756,7 +764,7 @@ static int bake(
 		if (ob_cage) {
 			ob_cage->restrictflag |= OB_RESTRICT_RENDER;
 		}
-		else {
+		else if (is_cage) {
 			ob_low->modifiers = modifiers_original;
 
 			while ((md = BLI_pophead(&modifiers_tmp))) {
@@ -765,12 +773,6 @@ static int bake(
 		}
 	}
 	else {
-		/* get the mesh as it arrives in the renderer */
-		me_low = BKE_mesh_new_from_object(bmain, scene, ob_low, 1, 2, 1, 0);
-
-		/* populate the pixel array with the face data */
-		RE_bake_pixels_populate(me_low, pixel_array_low, num_pixels, &bake_images);
-
 		/* make sure low poly renders */
 		ob_low->restrictflag &= ~OB_RESTRICT_RENDER;
 
@@ -969,6 +971,9 @@ cleanup:
 	if (me_low)
 		BKE_libblock_free(bmain, me_low);
 
+	if (me_cage)
+		BKE_libblock_free(bmain, me_cage);
+
 	return op_result;
 }
 
@@ -992,6 +997,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 	bkr->is_split_materials = (!is_save_internal) && RNA_boolean_get(op->ptr, "use_split_materials");
 	bkr->is_automatic_name = RNA_boolean_get(op->ptr, "use_automatic_name");
 	bkr->is_selected_to_active = RNA_boolean_get(op->ptr, "use_selected_to_active");
+	bkr->is_cage = RNA_boolean_get(op->ptr, "use_cage");
 	bkr->cage_extrusion = RNA_float_get(op->ptr, "cage_extrusion");
 
 	bkr->normal_space = RNA_enum_get(op->ptr, "normal_space");
@@ -1003,7 +1009,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 	bkr->height = RNA_int_get(op->ptr, "height");
 	bkr->identifier = "";
 
-	RNA_string_get(op->ptr, "cage", bkr->custom_cage);
+	RNA_string_get(op->ptr, "cage_object", bkr->custom_cage);
 
 	if ((!is_save_internal) && bkr->is_automatic_name) {
 		PropertyRNA *prop = RNA_struct_find_property(op->ptr, "type");
@@ -1040,7 +1046,7 @@ static int bake_exec(bContext *C, wmOperator *op)
 		result = bake(
 		        bkr.main, bkr.scene, bkr.ob, &bkr.selected_objects, bkr.reports,
 		        bkr.pass_type, bkr.margin, bkr.save_mode,
-		        bkr.is_clear, bkr.is_split_materials, bkr.is_automatic_name, true,
+		        bkr.is_clear, bkr.is_split_materials, bkr.is_automatic_name, true, bkr.is_cage,
 		        bkr.cage_extrusion, bkr.normal_space, bkr.normal_swizzle,
 		        bkr.custom_cage, bkr.filepath, bkr.width, bkr.height, bkr.identifier, bkr.sa);
 	}
@@ -1052,7 +1058,7 @@ static int bake_exec(bContext *C, wmOperator *op)
 			result = bake(
 			        bkr.main, bkr.scene, ob_iter, NULL, bkr.reports,
 			        bkr.pass_type, bkr.margin, bkr.save_mode,
-			        is_clear, bkr.is_split_materials, bkr.is_automatic_name, false,
+			        is_clear, bkr.is_split_materials, bkr.is_automatic_name, false, bkr.is_cage,
 			        bkr.cage_extrusion, bkr.normal_space, bkr.normal_swizzle,
 			        bkr.custom_cage, bkr.filepath, bkr.width, bkr.height, bkr.identifier, bkr.sa);
 		}
@@ -1080,7 +1086,7 @@ static void bake_startjob(void *bkv, short *UNUSED(stop), short *UNUSED(do_updat
 		bkr->result = bake(
 		        bkr->main, bkr->scene, bkr->ob, &bkr->selected_objects, bkr->reports,
 		        bkr->pass_type, bkr->margin, bkr->save_mode,
-		        bkr->is_clear, bkr->is_split_materials, bkr->is_automatic_name, true,
+		        bkr->is_clear, bkr->is_split_materials, bkr->is_automatic_name, true, bkr->is_cage,
 		        bkr->cage_extrusion, bkr->normal_space, bkr->normal_swizzle,
 		        bkr->custom_cage, bkr->filepath, bkr->width, bkr->height, bkr->identifier, bkr->sa);
 	}
@@ -1092,7 +1098,7 @@ static void bake_startjob(void *bkv, short *UNUSED(stop), short *UNUSED(do_updat
 			bkr->result = bake(
 			        bkr->main, bkr->scene, ob_iter, NULL, bkr->reports,
 			        bkr->pass_type, bkr->margin, bkr->save_mode,
-			        is_clear, bkr->is_split_materials, bkr->is_automatic_name, false,
+			        is_clear, bkr->is_split_materials, bkr->is_automatic_name, false, bkr->is_cage,
 			        bkr->cage_extrusion, bkr->normal_space, bkr->normal_swizzle,
 			        bkr->custom_cage, bkr->filepath, bkr->width, bkr->height, bkr->identifier, bkr->sa);
 
@@ -1147,7 +1153,7 @@ static void bake_set_props(wmOperator *op, Scene *scene)
 		RNA_property_float_set(op->ptr, prop, bake->cage_extrusion);
 	}
 
-	prop = RNA_struct_find_property(op->ptr, "cage");
+	prop = RNA_struct_find_property(op->ptr, "cage_object");
 	if (!RNA_property_is_set(op->ptr, prop)) {
 		RNA_property_string_set(op->ptr, prop, bake->cage);
 	}
@@ -1180,6 +1186,11 @@ static void bake_set_props(wmOperator *op, Scene *scene)
 	prop = RNA_struct_find_property(op->ptr, "use_clear");
 	if (!RNA_property_is_set(op->ptr, prop)) {
 		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_CLEAR));
+	}
+
+	prop = RNA_struct_find_property(op->ptr, "use_cage");
+	if (!RNA_property_is_set(op->ptr, prop)) {
+		RNA_property_boolean_set(op->ptr, prop, (bake->flag & R_BAKE_CAGE));
 	}
 
 	prop = RNA_struct_find_property(op->ptr, "use_split_materials");
@@ -1256,10 +1267,10 @@ void OBJECT_OT_bake(wmOperatorType *ot)
 	            "Extends the baked result as a post process filter", 0, 64);
 	RNA_def_boolean(ot->srna, "use_selected_to_active", false, "Selected to Active",
 	                "Bake shading on the surface of selected objects to the active object");
-	RNA_def_float(ot->srna, "cage_extrusion", 0.0, 0.0, 1.0, "Cage Extrusion",
-	              "Distance to use for the inward ray cast when using selected to active", 0.0, 1.0);
-	RNA_def_string(ot->srna, "cage", NULL, MAX_NAME, "Cage",
-	               "Object to use as cage");
+	RNA_def_float(ot->srna, "cage_extrusion", 0.0f, 0.0f, FLT_MAX, "Cage Extrusion",
+	              "Distance to use for the inward ray cast when using selected to active", 0.0f, 1.0f);
+	RNA_def_string(ot->srna, "cage_object", NULL, MAX_NAME, "Cage Object",
+	               "Object to use as cage, instead of calculating the cage from the active object with cage extrusion");
 	RNA_def_enum(ot->srna, "normal_space", normal_space_items, R_BAKE_SPACE_TANGENT, "Normal Space",
 	             "Choose normal space for baking");
 	RNA_def_enum(ot->srna, "normal_r", normal_swizzle_items, R_BAKE_POSX, "R", "Axis to bake in red channel");
@@ -1269,6 +1280,8 @@ void OBJECT_OT_bake(wmOperatorType *ot)
 	             "Choose how to save the baking map");
 	RNA_def_boolean(ot->srna, "use_clear", false, "Clear",
 	                "Clear Images before baking (only for internal saving)");
+	RNA_def_boolean(ot->srna, "use_cage", false, "Cage",
+	                "Cast rays to active object from a cage");
 	RNA_def_boolean(ot->srna, "use_split_materials", false, "Split Materials",
 	                "Split baked maps per material, using material name in output file (external only)");
 	RNA_def_boolean(ot->srna, "use_automatic_name", false, "Automatic Name",

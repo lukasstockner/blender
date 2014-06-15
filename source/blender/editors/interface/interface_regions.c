@@ -1423,6 +1423,15 @@ static void ui_block_region_draw(const bContext *C, ARegion *ar)
 {
 	uiBlock *block;
 
+	if (ar->do_draw & RGN_DRAW_REFRESH_UI) {
+		uiBlock *block_next;
+		ar->do_draw &= ~RGN_DRAW_REFRESH_UI;
+		for (block = ar->uiblocks.first; block; block = block_next) {
+			block_next = block->next;
+			ui_popup_block_refresh((bContext *)C, block->handle, NULL, NULL);
+		}
+	}
+
 	for (block = ar->uiblocks.first; block; block = block->next)
 		uiDrawBlock(C, block);
 }
@@ -1504,42 +1513,50 @@ void ui_popup_block_scrolltest(uiBlock *block)
 	}
 }
 
-uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut *but,
-                                          uiBlockCreateFunc create_func, uiBlockHandleCreateFunc handle_create_func,
-                                          void *arg)
+static void ui_popup_block_remove(bContext *C, uiPopupBlockHandle *handle)
 {
+	ui_remove_temporary_region(C, CTX_wm_screen(C), handle->region);
+
+	if (handle->scrolltimer)
+		WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), handle->scrolltimer);
+}
+
+/**
+ * Called for creatign new popups and refreshing existing ones.
+ */
+uiBlock *ui_popup_block_refresh(
+        bContext *C, uiPopupBlockHandle *handle,
+        ARegion *butregion, uiBut *but)
+{
+	const int width = UI_ThemeMenuShadowWidth();
 	wmWindow *window = CTX_wm_window(C);
-	static ARegionType type;
-	ARegion *ar;
+	ARegion *ar = handle->region;
+
+	uiBlockCreateFunc create_func = handle->popup_create_vars.create_func;
+	uiBlockHandleCreateFunc handle_create_func = handle->popup_create_vars.handle_create_func;
+	void *arg = handle->popup_create_vars.arg;
+
+	uiBlock *block_old = ar->uiblocks.first;
 	uiBlock *block;
-	uiPopupBlockHandle *handle;
-	uiSafetyRct *saferct;
-	int width = UI_ThemeMenuShadowWidth();
 
-	/* create handle */
-	handle = MEM_callocN(sizeof(uiPopupBlockHandle), "uiPopupBlockHandle");
-
-	/* store context for operator */
-	handle->ctx_area = CTX_wm_area(C);
-	handle->ctx_region = CTX_wm_region(C);
-	
-	/* create area region */
-	ar = ui_add_temporary_region(CTX_wm_screen(C));
-	handle->region = ar;
-
-	memset(&type, 0, sizeof(ARegionType));
-	type.draw = ui_block_region_draw;
-	type.regionid = RGN_TYPE_TEMPORARY;
-	ar->type = &type;
-
-	UI_add_region_handlers(&ar->handlers);
+#ifdef DEBUG
+	wmEvent *event_back = window->eventstate;
+#endif
 
 	/* create ui block */
 	if (create_func)
-		block = create_func(C, handle->region, arg);
+		block = create_func(C, ar, arg);
 	else
 		block = handle_create_func(C, handle, arg);
 	
+	/* callbacks _must_ leave this for us, otherwise we can't call uiBlockUpdateFromOld */
+	BLI_assert(!block->endblock);
+
+	/* ensure we don't use mouse coords here! */
+#ifdef DEBUG
+	window->eventstate = NULL;
+#endif
+
 	if (block->handle) {
 		memcpy(block->handle, handle, sizeof(uiPopupBlockHandle));
 		MEM_freeN(handle);
@@ -1562,8 +1579,11 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 
 	block->flag |= UI_BLOCK_LOOP;
 
+	/* defer this until blocks are translated (below) */
+	block->oldblock = NULL;
+
 	if (!block->endblock)
-		uiEndBlock(C, block);
+		uiEndBlock_ex(C, block, handle->popup_create_vars.event_xy);
 
 	/* if this is being created from a button */
 	if (but) {
@@ -1572,6 +1592,7 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 		handle->direction = block->direction;
 	}
 	else {
+		uiSafetyRct *saferct;
 		/* keep a list of these, needed for pulldown menus */
 		saferct = MEM_callocN(sizeof(uiSafetyRct), "uiSafetyRct");
 		saferct->safety = block->safety;
@@ -1628,12 +1649,18 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 		ui_block_translate(block, -ar->winrct.xmin, -ar->winrct.ymin);
 	}
 
-	/* adds subwindow */
-	ED_region_init(C, ar);
+	if (block_old) {
+		block->oldblock = block_old;
+		uiBlockUpdateFromOld(C, block);
+		uiFreeInactiveBlocks(C, &ar->uiblocks);
+	}
 
 	/* checks which buttons are visible, sets flags to prevent draw (do after region init) */
 	ui_popup_block_scrolltest(block);
 	
+	/* adds subwindow */
+	ED_region_init(C, ar);
+
 	/* get winmat now that we actually have the subwindow */
 	wmSubWindowSet(window, ar->swinid);
 	
@@ -1642,15 +1669,59 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut
 	/* notify change and redraw */
 	ED_region_tag_redraw(ar);
 
+	ED_region_update_rect(C, ar);
+
+#ifdef DEBUG
+	window->eventstate = event_back;
+#endif
+
+	return block;
+}
+
+uiPopupBlockHandle *ui_popup_block_create(bContext *C, ARegion *butregion, uiBut *but,
+                                          uiBlockCreateFunc create_func, uiBlockHandleCreateFunc handle_create_func,
+                                          void *arg)
+{
+	wmWindow *window = CTX_wm_window(C);
+	static ARegionType type;
+	ARegion *ar;
+	uiBlock *block;
+	uiPopupBlockHandle *handle;
+
+	/* create handle */
+	handle = MEM_callocN(sizeof(uiPopupBlockHandle), "uiPopupBlockHandle");
+
+	/* store context for operator */
+	handle->ctx_area = CTX_wm_area(C);
+	handle->ctx_region = CTX_wm_region(C);
+
+	/* store vars to refresh popup (RGN_DRAW_REFRESH_UI) */
+	handle->popup_create_vars.create_func = create_func;
+	handle->popup_create_vars.handle_create_func = handle_create_func;
+	handle->popup_create_vars.arg = arg;
+	handle->popup_create_vars.butregion = but ? butregion : NULL;
+	copy_v2_v2_int(handle->popup_create_vars.event_xy, &window->eventstate->x);
+
+	/* create area region */
+	ar = ui_add_temporary_region(CTX_wm_screen(C));
+	handle->region = ar;
+
+	memset(&type, 0, sizeof(ARegionType));
+	type.draw = ui_block_region_draw;
+	type.regionid = RGN_TYPE_TEMPORARY;
+	ar->type = &type;
+
+	UI_add_region_handlers(&ar->handlers);
+
+	block = ui_popup_block_refresh(C, handle, butregion, but);
+	handle = block->handle;
+
 	return handle;
 }
 
 void ui_popup_block_free(bContext *C, uiPopupBlockHandle *handle)
 {
-	ui_remove_temporary_region(C, CTX_wm_screen(C), handle->region);
-	
-	if (handle->scrolltimer)
-		WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), handle->scrolltimer);
+	ui_popup_block_remove(C, handle);
 	
 	MEM_freeN(handle);
 }
@@ -2323,8 +2394,6 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 	if (pup->slideout)
 		uiBlockSetDirection(block, UI_RIGHT);
 
-	uiEndBlock(C, block);
-
 	return pup->block;
 }
 
@@ -2450,7 +2519,7 @@ uiLayout *uiPupMenuLayout(uiPopupMenu *pup)
 }
 
 /*************************** Pie Menus ***************************************/
-static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void *arg_pie)
+static uiBlock *ui_block_func_PIE(bContext *UNUSED(C), uiPopupBlockHandle *handle, void *arg_pie)
 {
 	uiBlock *block;
 	uiPieMenu *pie = arg_pie;
@@ -2476,8 +2545,6 @@ static uiBlock *ui_block_func_PIE(bContext *C, uiPopupBlockHandle *handle, void 
 
 	block->pie_data.pie_center_spawned[0] = pie->mx;
 	block->pie_data.pie_center_spawned[1] = pie->my;
-
-	uiEndBlock(C, block);
 
 	return pie->block_radial;
 }

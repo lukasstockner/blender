@@ -295,9 +295,8 @@ void ui_bounds_block(uiBlock *block)
 	block->safety.ymax = block->rect.ymax + xof;
 }
 
-static void ui_centered_bounds_block(const bContext *C, uiBlock *block)
+static void ui_centered_bounds_block(wmWindow *window, uiBlock *block)
 {
-	wmWindow *window = CTX_wm_window(C);
 	int xmax, ymax;
 	int startx, starty;
 	int width, height;
@@ -323,9 +322,8 @@ static void ui_centered_bounds_block(const bContext *C, uiBlock *block)
 	
 }
 
-static void ui_centered_pie_bounds_block(const bContext *C, uiBlock *block)
+static void ui_centered_pie_bounds_block(uiBlock *block, const int xy[2])
 {
-	wmWindow *window = CTX_wm_window(C);
 	int x, y;
 	int startx;
 	int width, height;
@@ -333,8 +331,8 @@ static void ui_centered_pie_bounds_block(const bContext *C, uiBlock *block)
 	/* note: this is used for the splash where window bounds event has not been
 	 * updated by ghost, get the window bounds from ghost directly */
 
-	x = window->eventstate->x;
-	y = window->eventstate->y;
+	x = xy[0];
+	y = xy[1];
 
 	ui_bounds_block(block);
 
@@ -355,10 +353,9 @@ static void ui_centered_pie_bounds_block(const bContext *C, uiBlock *block)
 	ui_bounds_block(block);
 }
 
-
-static void ui_popup_bounds_block(const bContext *C, uiBlock *block, eBlockBoundsCalc bounds_calc)
+static void ui_popup_bounds_block(wmWindow *window, uiBlock *block,
+                                  eBlockBoundsCalc bounds_calc, const int xy[2])
 {
-	wmWindow *window = CTX_wm_window(C);
 	int startx, starty, endx, endy, width, height, oldwidth, oldheight;
 	int oldbounds, xmax, ymax;
 	const int margin = UI_SCREEN_MARGIN;
@@ -396,8 +393,8 @@ static void ui_popup_bounds_block(const bContext *C, uiBlock *block, eBlockBound
 
 	/* offset block based on mouse position, user offset is scaled
 	 * along in case we resized the block in ui_text_bounds_block */
-	startx = window->eventstate->x + block->rect.xmin + (block->mx * width) / oldwidth;
-	starty = window->eventstate->y + block->rect.ymin + (block->my * height) / oldheight;
+	startx = xy[0] + block->rect.xmin + (block->mx * width) / oldwidth;
+	starty = xy[1] + block->rect.ymin + (block->my * height) / oldheight;
 
 	if (startx < margin)
 		startx = margin;
@@ -1117,29 +1114,50 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 	}
 }
 
-void uiEndBlock(const bContext *C, uiBlock *block)
+void uiBlockUpdateFromOld(const bContext *C, uiBlock *block)
 {
-	const bool has_old = (block->oldblock != NULL);
-	/* avoid searches when old/new lists align */
-	uiBut *but_old = has_old ? block->oldblock->buttons.first : NULL;
-
+	uiBut *but_old;
 	uiBut *but;
-	Scene *scene = CTX_data_scene(C);
 
+	if (!block->oldblock)
+		return;
 
-	if (has_old && BLI_listbase_is_empty(&block->oldblock->butstore) == false) {
+	but_old = block->oldblock->buttons.first;
+
+	if (BLI_listbase_is_empty(&block->oldblock->butstore) == false) {
 		UI_butstore_update(block);
 	}
+
+	for (but = block->buttons.first; but; but = but->next) {
+		if (ui_but_update_from_old_block(C, block, &but, &but_old)) {
+			ui_check_but(but);
+		}
+	}
+
+	block->auto_open = block->oldblock->auto_open;
+	block->auto_open_last = block->oldblock->auto_open_last;
+	block->tooltipdisabled = block->oldblock->tooltipdisabled;
+	copy_v3_v3(ui_block_hsv_get(block),
+	           ui_block_hsv_get(block->oldblock));
+
+	block->oldblock = NULL;
+}
+
+void uiEndBlock_ex(const bContext *C, uiBlock *block, const int xy[2])
+{
+	wmWindow *window = CTX_wm_window(C);
+	Scene *scene = CTX_data_scene(C);
+	uiBut *but;
+
+	BLI_assert(block->active);
+
+	uiBlockUpdateFromOld(C, block);
 
 	/* inherit flags from 'old' buttons that was drawn here previous, based
 	 * on matching buttons, we need this to make button event handling non
 	 * blocking, while still allowing buttons to be remade each redraw as it
 	 * is expected by blender code */
 	for (but = block->buttons.first; but; but = but->next) {
-		if (has_old && ui_but_update_from_old_block(C, block, &but, &but_old)) {
-			ui_check_but(but);
-		}
-		
 		/* temp? Proper check for graying out */
 		if (but->optype) {
 			wmOperatorType *ot = but->optype;
@@ -1159,15 +1177,7 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 		ui_but_anim_flag(but, (scene) ? scene->r.cfra : 0.0f);
 	}
 
-	if (block->oldblock) {
-		block->auto_open = block->oldblock->auto_open;
-		block->auto_open_last = block->oldblock->auto_open_last;
-		block->tooltipdisabled = block->oldblock->tooltipdisabled;
-		copy_v3_v3(ui_block_hsv_get(block),
-		           ui_block_hsv_get(block->oldblock));
 
-		block->oldblock = NULL;
-	}
 
 	/* handle pending stuff */
 	if (block->layouts.first) {
@@ -1195,16 +1205,16 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 			ui_text_bounds_block(block, 0.0f);
 			break;
 		case UI_BLOCK_BOUNDS_POPUP_CENTER:
-			ui_centered_bounds_block(C, block);
+			ui_centered_bounds_block(window, block);
 			break;
 		case UI_BLOCK_BOUNDS_PIE_CENTER:
-			ui_centered_pie_bounds_block(C, block);
+			ui_centered_pie_bounds_block(block, xy);
 			break;
 
 			/* fallback */
 		case UI_BLOCK_BOUNDS_POPUP_MOUSE:
 		case UI_BLOCK_BOUNDS_POPUP_MENU:
-			ui_popup_bounds_block(C, block, block->bounds_type);
+			ui_popup_bounds_block(window, block, block->bounds_type, xy);
 			break;
 	}
 
@@ -1216,6 +1226,13 @@ void uiEndBlock(const bContext *C, uiBlock *block)
 	}
 
 	block->endblock = 1;
+}
+
+void uiEndBlock(const bContext *C, uiBlock *block)
+{
+	wmWindow *window = CTX_wm_window(C);
+
+	uiEndBlock_ex(C, block, &window->eventstate->x);
 }
 
 /* ************** BLOCK DRAWING FUNCTION ************* */
@@ -1837,18 +1854,7 @@ void ui_set_but_val(uiBut *but, double value)
 			value = (char)floor(value + 0.5);
 		}
 		else if (but->pointype == UI_BUT_POIN_SHORT) {
-			/* gcc 3.2.1 seems to have problems
-			 * casting a double like 32772.0 to
-			 * a short so we cast to an int, then
-			 * to a short.
-			 *
-			 * Update: even in gcc.4.6 using intermediate int cast gives -32764,
-			 * where as a direct cast from double to short gives -32768,
-			 * if this difference isn't important we could remove this hack,
-			 * since we dont support gcc3 anymore - Campbell */
-			int gcckludge;
-			gcckludge = (int) floor(value + 0.5);
-			value = (short)gcckludge;
+			value = (short)floor(value + 0.5);
 		}
 		else if (but->pointype == UI_BUT_POIN_INT)
 			value = (int)floor(value + 0.5);
@@ -1934,8 +1940,7 @@ void ui_convert_to_unit_alt_name(uiBut *but, char *str, size_t maxlen)
 		int unit_type = uiButGetUnitType(but);
 		char *orig_str;
 		
-		orig_str = MEM_callocN(sizeof(char) * maxlen + 1, "textedit sub str");
-		memcpy(orig_str, str, maxlen);
+		orig_str = BLI_strdup(str);
 		
 		bUnit_ToUnitAltName(str, maxlen, orig_str, unit->system, RNA_SUBTYPE_UNIT_VALUE(unit_type));
 		
@@ -2471,6 +2476,7 @@ void uiBlockSetRegion(uiBlock *block, ARegion *region)
 		if (oldblock) {
 			oldblock->active = 0;
 			oldblock->panel = NULL;
+			oldblock->handle = NULL;
 		}
 
 		/* at the beginning of the list! for dynamical menus/blocks */
@@ -3214,12 +3220,12 @@ static void ui_def_but_rna__menu(bContext *UNUSED(C), uiLayout *layout, void *bu
 		}
 		else {
 			if (item->icon) {
-				uiDefIconTextButF(block, BUTM, B_NOP, item->icon, item->name, 0, 0,
-				                  UI_UNIT_X * 5, UI_UNIT_Y, &handle->retvalue, (float) item->value, 0.0, 0, -1, item->description);
+				uiDefIconTextButI(block, BUTM, B_NOP, item->icon, item->name, 0, 0,
+				                  UI_UNIT_X * 5, UI_UNIT_Y, &handle->retvalue, item->value, 0.0, 0, -1, item->description);
 			}
 			else {
-				uiDefButF(block, BUTM, B_NOP, item->name, 0, 0,
-				          UI_UNIT_X * 5, UI_UNIT_X, &handle->retvalue, (float) item->value, 0.0, 0, -1, item->description);
+				uiDefButI(block, BUTM, B_NOP, item->name, 0, 0,
+				          UI_UNIT_X * 5, UI_UNIT_X, &handle->retvalue, item->value, 0.0, 0, -1, item->description);
 			}
 		}
 	}
