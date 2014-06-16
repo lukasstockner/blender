@@ -77,6 +77,7 @@
 #include "ED_view3d.h"
 #include "ED_sculpt.h"
 
+#include "UI_resources.h"
 
 #include "PIL_time.h" /* smoothview */
 
@@ -3479,7 +3480,7 @@ static EnumPropertyItem prop_view_items[] = {
     {RV3D_VIEW_TOP, "TOP", 0, "Top", "View From the Top"},
     {RV3D_VIEW_FRONT, "FRONT", 0, "Front", "View From the Front"},
 	{RV3D_VIEW_BACK, "BACK", 0, "Back", "View From the Back"},
-	{RV3D_VIEW_CAMERA, "CAMERA", 0, "Camera", "View From the Active Camera"},
+	{RV3D_VIEW_CAMERA, "CAMERA", ICON_CAMERA_DATA, "Camera", "View From the Active Camera"},
 	{0, NULL, 0, NULL, NULL}
 };
 
