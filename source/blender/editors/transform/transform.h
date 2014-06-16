@@ -38,6 +38,7 @@
 #include "ED_view3d.h"
 
 #include "DNA_listBase.h"
+#include "DNA_object_types.h"
 
 #include "BLI_smallhash.h"
 #include "BKE_editmesh.h"
@@ -98,6 +99,7 @@ typedef struct TransSnap {
 	void  (*targetSnap)(struct TransInfo *);
 	/* Get the transform distance between two points (used by Closest snap) */
 	float  (*distance)(struct TransInfo *, const float p1[3], const float p2[3]);
+	struct BoundBox BB_init;
 } TransSnap;
 
 typedef struct TransCon {
@@ -600,6 +602,7 @@ typedef enum {
 	INPUT_VECTOR,
 	INPUT_SPRING,
 	INPUT_SPRING_FLIP,
+	INPUT_SPRING_DELTA,
 	INPUT_ANGLE,
 	INPUT_ANGLE_SPRING,
 	INPUT_TRACKBALL,
@@ -608,7 +611,7 @@ typedef enum {
 	INPUT_VERTICAL_RATIO,
 	INPUT_VERTICAL_ABSOLUTE,
 	INPUT_CUSTOM_RATIO,
-	INPUT_CUSTOM_RATIO_FLIP
+	INPUT_CUSTOM_RATIO_FLIP,
 } MouseInputMode;
 
 void initMouseInput(TransInfo *t, MouseInput *mi, const float center[2], const int mval[2]);

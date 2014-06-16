@@ -475,6 +475,9 @@ def buildinfo(lenv, build_type):
                 unpushed_log = os.popen('git log --oneline @{u}..').read().strip()
                 has_local_changes = unpushed_log != ''
 
+            if build_branch.startswith('blender-v'):
+                build_branch = 'master'
+
             if has_local_changes:
                 build_branch += ' (modified)'
     else:
@@ -785,6 +788,8 @@ def AppIt(target=None, source=None, env=None):
     cmd = 'find %s/%s.app -name .DS_Store -exec rm -rf {} \;'%(installdir, binary)
     commands.getoutput(cmd)
     cmd = 'find %s/%s.app -name __MACOSX -exec rm -rf {} \;'%(installdir, binary)
+    commands.getoutput(cmd)
+    cmd = 'SetFile -d "%s)" -m "%s)" %s/%s.app'%(time.strftime("%m/%d/%Y %H:%M"),time.strftime("%m/%d/%Y %H:%M"),installdir,binary) # give the bundles actual creation/modification date
     commands.getoutput(cmd)
     if env['WITH_BF_OPENMP']:
         if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.6.1': # for correct errorhandling with gcc >= 4.6.1 we need the gcc.dylib and gomp.dylib to link, thus distribute in app-bundle

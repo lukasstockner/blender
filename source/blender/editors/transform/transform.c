@@ -1718,7 +1718,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			{
 				float dx = t->mval[0] - cent[0], dy = t->mval[1] - cent[1];
 				float angle = atan2f(dy, dx);
-				float dist = sqrtf(dx * dx + dy * dy);
+				float dist = hypotf(dx, dy);
 				float delta_angle = min_ff(15.0f / dist, (float)M_PI / 4.0f);
 				float spacing_angle = min_ff(5.0f / dist, (float)M_PI / 12.0f);
 				UI_ThemeColor(TH_VIEW_OVERLAY);
@@ -4730,7 +4730,7 @@ static void initBevelWeight(TransInfo *t)
 	t->mode = TFM_BWEIGHT;
 	t->transform = applyBevelWeight;
 
-	initMouseInputMode(t, &t->mouse, INPUT_SPRING);
+	initMouseInputMode(t, &t->mouse, INPUT_SPRING_DELTA);
 
 	t->idx_max = 0;
 	t->num.idx_max = 0;
@@ -4754,7 +4754,6 @@ static void applyBevelWeight(TransInfo *t, const int UNUSED(mval[2]))
 
 	weight = t->values[0];
 
-	weight -= 1.0f;
 	if (weight > 1.0f) weight = 1.0f;
 
 	snapGridIncrement(t, &weight);
@@ -4809,7 +4808,7 @@ static void initCrease(TransInfo *t)
 	t->mode = TFM_CREASE;
 	t->transform = applyCrease;
 
-	initMouseInputMode(t, &t->mouse, INPUT_SPRING);
+	initMouseInputMode(t, &t->mouse, INPUT_SPRING_DELTA);
 
 	t->idx_max = 0;
 	t->num.idx_max = 0;
@@ -4833,7 +4832,6 @@ static void applyCrease(TransInfo *t, const int UNUSED(mval[2]))
 
 	crease = t->values[0];
 
-	crease -= 1.0f;
 	if (crease > 1.0f) crease = 1.0f;
 
 	snapGridIncrement(t, &crease);
@@ -5424,8 +5422,8 @@ static bool createEdgeSlideVerts(TransInfo *t)
 	while (1) {
 		float vec_a[3], vec_b[3];
 		BMLoop *l_a, *l_b;
+		BMLoop *l_a_prev, *l_b_prev;
 		BMVert *v_first;
-
 		/* If this succeeds call get_next_loop()
 		 * which calculates the direction to slide based on clever checks.
 		 *
@@ -5455,15 +5453,12 @@ static bool createEdgeSlideVerts(TransInfo *t)
 		e = v->e;
 
 		/*first, rewind*/
-		numsel = 0;
 		do {
 			e = get_other_edge(v, e);
 			if (!e) {
 				e = v->e;
 				break;
 			}
-
-			numsel += 1;
 
 			if (!BM_elem_flag_test(BM_edge_other_vert(e, v), BM_ELEM_TAG))
 				break;
@@ -5513,6 +5508,9 @@ static bool createEdgeSlideVerts(TransInfo *t)
 			l_b = NULL;
 		}
 
+		l_a_prev = NULL;
+		l_b_prev = NULL;
+
 		/*iterate over the loop*/
 		v_first = v;
 		do {
@@ -5530,14 +5528,14 @@ static bool createEdgeSlideVerts(TransInfo *t)
 			copy_v3_v3(sv->v_co_orig, v->co);
 			sv->loop_nr = loop_nr;
 
-			if (l_a) {
-				BMLoop *l_tmp = BM_loop_other_edge_loop(l_a, v);
+			if (l_a || l_a_prev) {
+				BMLoop *l_tmp = BM_loop_other_edge_loop(l_a ? l_a : l_a_prev, v);
 				sv->v_a = BM_edge_other_vert(l_tmp->e, v);
 				copy_v3_v3(sv->dir_a, vec_a);
 			}
 
-			if (l_b) {
-				BMLoop *l_tmp = BM_loop_other_edge_loop(l_b, v);
+			if (l_b || l_b_prev) {
+				BMLoop *l_tmp = BM_loop_other_edge_loop(l_b ? l_b : l_b_prev, v);
 				sv->v_b = BM_edge_other_vert(l_tmp->e, v);
 				copy_v3_v3(sv->dir_b, vec_b);
 			}
@@ -5586,28 +5584,53 @@ static bool createEdgeSlideVerts(TransInfo *t)
 			l_a_ok_prev = (l_a != NULL);
 			l_b_ok_prev = (l_b != NULL);
 
-			l_a = l_a ? get_next_loop(v, l_a, e_prev, e, vec_a) : NULL;
-			l_b = l_b ? get_next_loop(v, l_b, e_prev, e, vec_b) : NULL;
+			l_a_prev = l_a;
+			l_b_prev = l_b;
 
-			/* find the opposite loop if it was missing previously */
-			if      (l_a == NULL && l_b && (l_b->radial_next != l_b)) l_a = l_b->radial_next;
-			else if (l_b == NULL && l_a && (l_a->radial_next != l_a)) l_b = l_a->radial_next;
+			if (l_a) {
+				l_a = get_next_loop(v, l_a, e_prev, e, vec_a);
+			}
+			else {
+				zero_v3(vec_a);
+			}
 
-			/* if there are non-contiguous faces, we can still recover the loops of the new edges faces */
-			/* note!, the behavior in this case means edges may move in opposite directions,
-			 * this could be made to work more usefully. */
-			if (!(l_a && l_b) && (e->l != NULL)) {
-				if (l_a_ok_prev) {
-					l_a = e->l;
-					if (l_a->radial_next != l_a) {
-						l_b = l_a->radial_next;
+			if (l_b) {
+				l_b = get_next_loop(v, l_b, e_prev, e, vec_b);
+			}
+			else {
+				zero_v3(vec_b);
+			}
+
+
+			if (l_a && l_b) {
+				/* pass */
+			}
+			else {
+				if (l_a || l_b) {
+					/* find the opposite loop if it was missing previously */
+					if      (l_a == NULL && l_b && (l_b->radial_next != l_b)) l_a = l_b->radial_next;
+					else if (l_b == NULL && l_a && (l_a->radial_next != l_a)) l_b = l_a->radial_next;
+				}
+				else if (e->l != NULL) {
+					/* if there are non-contiguous faces, we can still recover the loops of the new edges faces */
+					/* note!, the behavior in this case means edges may move in opposite directions,
+					 * this could be made to work more usefully. */
+
+					if (l_a_ok_prev) {
+						l_a = e->l;
+						l_b = (l_a->radial_next != l_a) ? l_a->radial_next : NULL;
+					}
+					else if (l_b_ok_prev) {
+						l_b = e->l;
+						l_a = (l_b->radial_next != l_b) ? l_b->radial_next : NULL;
 					}
 				}
-				else if (l_b_ok_prev) {
-					l_b = e->l;
-					if (l_b->radial_next != l_b) {
-						l_a = l_b->radial_next;
-					}
+
+				if (!l_a_ok_prev && l_a) {
+					get_next_loop(v, l_a, e, e_prev, vec_a);
+				}
+				if (!l_b_ok_prev && l_b) {
+					get_next_loop(v, l_b, e, e_prev, vec_b);
 				}
 			}
 
@@ -7319,13 +7342,17 @@ static void headerTimeTranslate(TransInfo *t, char str[MAX_INFO_LEN])
 			/* second step */
 			val = floorf((double)val / secf + 0.5);
 		}
-		else {
-			/* nearest frame/second/marker */
+		else if (autosnap == SACTSNAP_SECOND) {
+			/* nearest second */
 			val = (float)((double)val / secf);
 		}
 		
 		if (autosnap == SACTSNAP_FRAME)
 			BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%d.00 (%.4f)", (int)val, val);
+		else if (autosnap == SACTSNAP_SECOND)
+			BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%d.00 sec (%.4f)", (int)val, val);
+		else if (autosnap == SACTSNAP_TSTEP)
+			BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f sec", val);
 		else
 			BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", val);
 	}

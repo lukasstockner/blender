@@ -151,10 +151,16 @@ static PyObject *Stroke_resample(BPy_Stroke *self, PyObject *args, PyObject *kwd
 	float f;
 
 	if (PyArg_ParseTupleAndKeywords(args, kwds, "i", (char **)kwlist_1, &i)) {
-		self->s->Resample(i);
+		if (self->s->Resample(i) < 0) {
+			PyErr_SetString(PyExc_RuntimeError, "Stroke resampling (by vertex count) failed");
+			return NULL;
+		}
 	}
 	else if (PyErr_Clear(), PyArg_ParseTupleAndKeywords(args, kwds, "f", (char **)kwlist_2, &f)) {
-		self->s->Resample(f);
+		if (self->s->Resample(f) < 0) {
+			PyErr_SetString(PyExc_RuntimeError, "Stroke resampling (by vertex interval) failed");
+			return NULL;
+		}
 	}
 	else {
 		PyErr_SetString(PyExc_TypeError, "invalid argument");
@@ -245,7 +251,7 @@ PyDoc_STRVAR(Stroke_stroke_vertices_begin_doc,
 ".. method:: stroke_vertices_begin(t=0.0)\n"
 "\n"
 "   Returns a StrokeVertexIterator pointing on the first StrokeVertex of\n"
-"   the Stroke. O ne can specify a sampling value to resample the Stroke\n"
+"   the Stroke. One can specify a sampling value to resample the Stroke\n"
 "   on the fly if needed.\n"
 "\n"
 "   :arg t: The resampling value with which we want our Stroke to be\n"
@@ -262,7 +268,7 @@ static PyObject *Stroke_stroke_vertices_begin(BPy_Stroke *self, PyObject *args, 
 	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|f", (char **)kwlist, &f))
 		return NULL;
 	StrokeInternal::StrokeVertexIterator sv_it(self->s->strokeVerticesBegin(f));
-	return BPy_StrokeVertexIterator_from_StrokeVertexIterator(sv_it, 0);
+	return BPy_StrokeVertexIterator_from_StrokeVertexIterator(sv_it, false);
 }
 
 PyDoc_STRVAR(Stroke_stroke_vertices_end_doc,
@@ -277,7 +283,22 @@ PyDoc_STRVAR(Stroke_stroke_vertices_end_doc,
 static PyObject *Stroke_stroke_vertices_end(BPy_Stroke *self)
 {
 	StrokeInternal::StrokeVertexIterator sv_it(self->s->strokeVerticesEnd());
-	return BPy_StrokeVertexIterator_from_StrokeVertexIterator(sv_it, 1);
+	return BPy_StrokeVertexIterator_from_StrokeVertexIterator(sv_it, true);
+}
+
+PyDoc_STRVAR(Stroke_reversed_doc,
+".. method:: __reversed__()\n"
+"\n"
+"   Returns a StrokeVertexIterator iterating over the vertices of the Stroke\n"
+"   in the reversed order (from the last to the first).\n"
+"\n"
+"   :return: A StrokeVertexIterator pointing after the last StrokeVertex.\n"
+"   :rtype: :class:`StrokeVertexIterator`");
+
+static PyObject *Stroke_reversed(BPy_Stroke *self)
+{
+	StrokeInternal::StrokeVertexIterator sv_it(self->s->strokeVerticesEnd());
+	return BPy_StrokeVertexIterator_from_StrokeVertexIterator(sv_it, true);
 }
 
 PyDoc_STRVAR(Stroke_stroke_vertices_size_doc,
@@ -304,6 +325,7 @@ static PyMethodDef BPy_Stroke_methods[] = {
 	{"stroke_vertices_begin", (PyCFunction)Stroke_stroke_vertices_begin, METH_VARARGS | METH_KEYWORDS,
 	                          Stroke_stroke_vertices_begin_doc},
 	{"stroke_vertices_end", (PyCFunction)Stroke_stroke_vertices_end, METH_NOARGS, Stroke_stroke_vertices_end_doc},
+	{"__reversed__", (PyCFunction)Stroke_reversed, METH_NOARGS, Stroke_reversed_doc},
 	{"stroke_vertices_size", (PyCFunction)Stroke_stroke_vertices_size, METH_NOARGS, Stroke_stroke_vertices_size_doc},
 	{NULL, NULL, 0, NULL}
 };

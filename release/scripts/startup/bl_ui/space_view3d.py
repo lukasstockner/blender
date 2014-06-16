@@ -2160,6 +2160,7 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.operator("mesh.merge")
         layout.operator("mesh.rip_move")
         layout.operator("mesh.rip_move_fill")
+        layout.operator("mesh.rip_edge_move")
         layout.operator("mesh.split")
         layout.operator_menu_enum("mesh.separate", "type")
         layout.operator("mesh.vert_connect", text="Connect")
@@ -3223,10 +3224,12 @@ class VIEW3D_PT_context_properties(Panel):
 
     @classmethod
     def poll(cls, context):
+        import rna_prop_ui
         member = cls._active_context_member(context)
+
         if member:
-            context_member = getattr(context, member)
-            return context_member and context_member.keys()
+            context_member, member = rna_prop_ui.rna_idprop_context_value(context, member, object)
+            return context_member and rna_prop_ui.rna_idprop_has_properties(context_member)
 
         return False
 

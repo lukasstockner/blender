@@ -841,7 +841,7 @@ static void rearrange_animchannel_add_to_islands(ListBase *islands, ListBase *sr
 	    (is_sel == 0) ||
 	    /* 4) hidden status changes */
 	    ((island->flag & REORDER_ISLAND_HIDDEN) != is_hidden)
-	   )
+	    )
 	{
 		/* create a new island now */
 		island = MEM_callocN(sizeof(tReorderChannelIsland), "tReorderChannelIsland");
@@ -2862,6 +2862,7 @@ void ED_keymap_animchannels(wmKeyConfig *keyconf)
 
 	/* rename */
 	WM_keymap_add_item(keymap, "ANIM_OT_channels_rename", LEFTMOUSE, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "ANIM_OT_channels_rename", LEFTMOUSE, KM_DBL_CLICK, 0, 0);
 	
 	/* deselect all */
 	WM_keymap_add_item(keymap, "ANIM_OT_channels_select_all_toggle", AKEY, KM_PRESS, 0, 0);
