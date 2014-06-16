@@ -27,20 +27,18 @@ float intersect_check_tol = .001; //Maximum Euclidean dist between intersect pts
 #include "poly.cpp"
 
 /***************************** DEFAULT SCENE *****************************/
-//int clip_n = 2;
-//float clip_verts[] = {0,0, 0.5,0.5};
-//int subj_n = 2;
-//float subj_verts[] = {-.5,-.5, .5,-.5};
 bool clip_cyclic = true; // Required for initialization
-bool subj_cyclic = true;
 std::vector<float> clip_verts = {-0.460000,-0.004000, 0.360000,-0.072000, 0.388000,-0.744000, -0.440000,-0.720000};
-std::vector<float> subj_verts = {-0.500000,-0.500000, 0.500000,-0.500000};
-std::vector<float> inout_pts = {};
+bool subj_cyclic = true;
+std::vector<float> subj0 = {-0.500000,-0.500000, 0.500000,-0.500000};
+std::vector<float> subj1 = {-0.500000,-0.000000, 0.500000,-0.000000};
+std::vector<std::vector<float>> subj_polys = {subj0,subj1};
+std::vector<float> inout_pts;
 
 
 
-GreinerV2f *clip;
-GreinerV2f *subj;
+GreinerV2f *clip = nullptr;
+GreinerV2f *subj = nullptr; // Uses the linked list param nextPoly!
 
 int win_width = 500;
 int win_height = 500;
@@ -53,9 +51,9 @@ void glut_coords_2_scene(float gx, float gy, float* sx, float* sy) {
 }
 
 void init_default_scene() {
+	// Import the clip polygon into the linked-list datastructure
 	GreinerV2f *last = nullptr;
 	size_t clip_n = clip_verts.size()/2;
-	size_t subj_n = subj_verts.size()/2;
 	for (int i=0; i<clip_n; i++) {
 		GreinerV2f *v = new GreinerV2f();
 		v->x = clip_verts[2*i+0];
@@ -69,19 +67,40 @@ void init_default_scene() {
 		clip->prev = last;
 		last->next = clip;
 	}
+	clip->isBackbone = true;
+	// Import the subject polygons into the linked list datastructure
 	last = nullptr;
-	for (int i=0; i<subj_n; i++) {
-		GreinerV2f *v = new GreinerV2f();
-		v->x = subj_verts[2*i+0];
-		v->y = subj_verts[2*i+1];
-		v->prev = last;
-		if (last) last->next = v;
-		else      subj = v;
-		last = v;
-	}
-	if (subj_cyclic) {
-		subj->prev = last;
-		last->next = subj;
+	for (std::vector<float> poly_verts : subj_polys) {
+		// Different subject polygons are stored in
+		// subj, subj->nextPoly, subj->nextPoly->nextPoly etc
+		GreinerV2f *newpoly_first_vert = new GreinerV2f();
+		newpoly_first_vert -> isBackbone = true;
+		if (!subj) {
+			subj = newpoly_first_vert;
+		} else {
+			last->nextPoly = newpoly_first_vert;
+		}
+		last = newpoly_first_vert;
+		// Fill in the vertices of the polygon we just finished hooking up
+		// to the polygon list
+		GreinerV2f *last_inner = nullptr;
+		for (size_t i=0,l=poly_verts.size()/2; i<l; i++) {
+			GreinerV2f *v;
+			if (i==0) {
+				v = newpoly_first_vert;
+			} else {
+				v = new GreinerV2f();
+			}
+			v->x = poly_verts[2*i+0];
+			v->y = poly_verts[2*i+1];
+			v->prev = last_inner;
+			if (last_inner) last_inner->next = v;
+			last_inner = v;
+		}
+		if (subj_cyclic) {
+			newpoly_first_vert->prev = last_inner;
+			last_inner->next = newpoly_first_vert;
+		}
 	}
 }
 
@@ -131,30 +150,38 @@ void GLUT_display(){
 
 	// Draw Subject polygon lines
 	glBegin(GL_LINES);
-	is_outside = true;
-	last_x=subj->x, last_y=subj->y;
-	if (clip_cyclic) is_outside = point_in_polygon(last_x, last_y, subj);
-	for (GreinerV2f *v=subj->next; v; v=v->next) {
-		float x=v->x, y=v->y;
-		if (is_outside) glColor3f(0,.8,0);
-		else glColor3f(.8,1,.8);
-		glVertex2f(last_x,last_y);
-		glVertex2f(x,y);
-		last_x=x; last_y=y;
-		if (v==subj) break;
-		if (v->isIntersection) is_outside = !is_outside;
+	for (GreinerV2f *curpoly=subj; curpoly; curpoly=curpoly->nextPoly) {
+		is_outside = true;
+		last_x=curpoly->x, last_y=curpoly->y;
+		if (clip_cyclic) is_outside = point_in_polygon(last_x, last_y, curpoly);
+		for (GreinerV2f *v=curpoly->next; v; v=v->next) {
+			float x=v->x, y=v->y;
+			if (is_outside) glColor3f(0,.8,0);
+			else glColor3f(.8,1,.8);
+			glVertex2f(last_x,last_y);
+			glVertex2f(x,y);
+			last_x=x; last_y=y;
+			if (v==curpoly) break;
+			if (v->isIntersection) is_outside = !is_outside;
+		}
 	}
 	glEnd();
 
-	// Draw Subject polygon lines
+	// Draw Subject polygon verts
 	glPointSize(3);
 	glBegin(GL_POINTS);
 	glColor3f(0,1,0);
-	first_iter = true;
-	for (GreinerV2f *v=subj; v; v=v->next) {
-		glVertex2f(v->x,v->y);
-		if (!first_iter && v==subj) break;
-		first_iter = false;
+	for (GreinerV2f *curpoly=subj; curpoly; curpoly=curpoly->nextPoly) {
+		last_x=curpoly->x, last_y=curpoly->y;
+		for (GreinerV2f *v=curpoly->next; v; v=v->next) {
+			float x=v->x, y=v->y;
+			if (!v->isBackbone) glColor3f(0,.8,0);
+			else glColor3f(1,1,0);
+			glVertex2f(x,y);
+			last_x=x; last_y=y;
+			if (v==curpoly) break;
+			if (v->isIntersection) is_outside = !is_outside;
+		}
 	}
 	glEnd();
 	
@@ -204,10 +231,18 @@ void dump_polys_to_stdout() {
 		printf((v->next&&v->next!=clip)?"%f,%f, ":"%f,%f};\n",v->x,v->y);
 		if (v->next==clip) break;
 	}
-	printf("std::vector<float> subj_verts = {");
-	for (GreinerV2f *v=subj; v; v=v->next) {
-		printf((v->next&&v->next!=subj)?"%f,%f, ":"%f,%f};\n",v->x,v->y);
-		if (v->next==subj) break;
+	int subj_poly_num = 0;
+	for (GreinerV2f *subj_poly=subj; subj_poly; subj_poly=subj->nextPoly) {
+		printf("std::vector<float> subj%i = {", subj_poly_num);
+		for (GreinerV2f *v=subj_poly; v; v=v->next) {
+			printf((v->next&&v->next!=subj)?"%f,%f, ":"%f,%f};\n",v->x,v->y);
+			if (v->next==subj_poly) break;
+		}
+		subj_poly_num++;
+	}
+	printf("std::vector<std::vector<float>> subj_polys = {");
+	for (int i=0; i<subj_poly_num; i++) {
+		printf((i!=subj_poly_num-1)?"subj%i,":"subj%i};\n",i);
 	}
 	printf("std::vector<float> inout_pts = {");
 	for (size_t i=0,l=inout_pts.size()/2; i<l; i++) {
@@ -215,21 +250,44 @@ void dump_polys_to_stdout() {
 	}
 }
 void toggle_cyclic(GreinerV2f *curve) {
-	if (curve->prev) { // is cyclic
-		curve->prev->next = nullptr;
-		curve->prev = nullptr;
-	} else {
-		GreinerV2f *last = curve;
-		while (last->next) last = last->next;
-		last->next = curve;
-		curve->prev = last;
+	for (; curve; curve=curve->nextPoly) {
+		if (curve->prev) { // is cyclic
+			curve->prev->next = nullptr;
+			curve->prev = nullptr;
+		} else {
+			GreinerV2f *last = curve;
+			while (last->next) last = last->next;
+			last->next = curve;
+			curve->prev = last;
+		}
 	}
 	clip_cyclic = bool(clip->prev);
 	subj_cyclic = bool(subj->prev);
 	glutPostRedisplay();
 }
 void delete_last_selected_vert() {
-	if (!grabbed_vert || grabbed_vert==clip || grabbed_vert==subj) return;
+	// Don't allow #subj verts or #clip verts -> 0
+	if (!grabbed_vert || grabbed_vert==clip) return;
+	if (grabbed_vert==subj) {
+		if (grabbed_vert->nextPoly) {
+			subj = grabbed_vert->nextPoly;
+			delete grabbed_vert;
+			glutPostRedisplay();
+			return;
+		}
+		else return;
+	}
+	// Did we grab a vert along the subject polygon backbone?
+	for (GreinerV2f *v = subj; v->nextPoly; v=v->nextPoly) {
+		if (grabbed_vert==v->nextPoly) {
+			v->nextPoly = grabbed_vert->nextPoly;
+			delete grabbed_vert;
+			glutPostRedisplay();
+			return;
+		}
+	}
+	// Otherwise we just have to worry about the doubly-linked-list of intra-polygon
+	// verts
 	GreinerV2f *next=grabbed_vert->next, *prev=grabbed_vert->prev;
 	if (next && prev) {
 		prev->next = next;
@@ -285,12 +343,8 @@ void GLUT_specialkey(int ch, int x, int y) {
 void create_pt(float sx, float sy) {
 	if (!grabbed_vert) return;
 	GreinerV2f *last_vert = grabbed_vert;
-	while (last_vert->next && last_vert->next!=clip && last_vert->next!=subj)
+	while (last_vert->next && !last_vert->isBackbone)
 		last_vert = last_vert->next;
-	GreinerV2f *clip_last = clip;
-	while (clip_last->next && clip_last->next!=clip) clip_last = clip_last->next;
-	GreinerV2f *subj_last = subj;
-	while (subj_last->next && subj_last->next!=subj) subj_last = subj_last->next;
 	GreinerV2f *v = new GreinerV2f();
 	v->x = sx;
 	v->y = sy;
@@ -320,15 +374,17 @@ void initiate_pt_drag_if_near_pt(float sx, float sy) {
 		}
 		if (v->next==clip) break;
 	}
-	for (GreinerV2f *v=subj; v; v=v->next) {
-		float dx = v->x - sx;
-		float dy = v->y - sy;
-		float dist = sqrt(dx*dx + dy*dy);
-		if (dist<closest_dist) {
-			closest_dist = dist;
-			closest_vert = v;
+	for (GreinerV2f *poly=subj; poly; poly=poly->nextPoly) {
+		for (GreinerV2f *v=poly; v; v=v->next) {
+			float dx = v->x - sx;
+			float dy = v->y - sy;
+			float dist = sqrt(dx*dx + dy*dy);
+			if (dist<closest_dist) {
+				closest_dist = dist;
+				closest_vert = v;
+			}
+			if (v->next==poly) break;
 		}
-		if (v->next==subj) break;
 	}
 	if (debug) printf("Nearest point to mousedown (%f)\n",closest_dist);
 	grabbed_vert = (closest_dist<.025) ? closest_vert : nullptr;

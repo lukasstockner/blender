@@ -6,9 +6,12 @@ struct GreinerV2f {
 	struct GreinerV2f *nextPoly;   // First vertex of the *next* polygon
 	bool isIntersection; // True if this vertex was added at an intersection
 	bool isEntry; // True if proceeding along this poly with ->next->next will enter the other polygon when this vertex is passed
+	bool isBackbone;
 	struct GreinerV2f *neighbour; // Corresp. vertex at same {x,y} in different polygon
 	float alpha; // If this vertex came from an affine comb, this is the mixing factor
-	GreinerV2f() : next(nullptr), prev(nullptr), nextPoly(nullptr), neighbour(nullptr), isIntersection(false) {};
+	GreinerV2f() : next(nullptr), prev(nullptr),
+	               nextPoly(nullptr), neighbour(nullptr),
+	               isIntersection(false), isBackbone(false) {};
 };
 
 GreinerV2f* insert_vert_at_intersect(GreinerV2f* poly1left,
