@@ -53,11 +53,11 @@ class SG_Spatial : public SG_IObject
 
 protected:
 	MT_Point3		m_localPosition;
-	MT_Matrix3x3		m_localRotation;
+	MT_Matrix3x3	m_localRotation;
 	MT_Vector3		m_localScaling;
 
 	MT_Point3		m_worldPosition;
-	MT_Matrix3x3		m_worldRotation;
+	MT_Matrix3x3	m_worldRotation;
 	MT_Vector3		m_worldScaling;
 	
 	SG_ParentRelation *	m_parent_relation;
@@ -82,7 +82,8 @@ public:
 	{
 		m_ogldirty = false;
 	}
-	/** 
+
+	/**
 	 * Define the relationship this node has with it's parent
 	 * node. You should pass an unshared instance of an SG_ParentRelation
 	 * allocated on the heap to this method. Ownership of this
@@ -95,12 +96,7 @@ public:
 	 * The relation is activated only if no controllers of this object
 	 * updated the coordinates of the child.
 	 */
-
-		void
-	SetParentRelation(
-		SG_ParentRelation *relation
-	);
-	
+	void SetParentRelation(SG_ParentRelation *relation);
 	SG_ParentRelation * GetParentRelation()
 	{
 		return m_parent_relation;
@@ -118,12 +114,7 @@ public:
 	 * exists otherwise if there is no parent set it to NULL
 	 */ 
 
-		void
-	RelativeTranslate(
-		const MT_Vector3& trans,
-		const SG_Spatial *parent,
-		bool local
-	);
+	void RelativeTranslate(const MT_Vector3& trans, const SG_Spatial *parent, bool local);
 
 	void SetLocalPosition(const MT_Point3& trans)
 	{
@@ -136,12 +127,7 @@ public:
 		m_worldPosition = trans;
 	}
 
-	
-		void
-	RelativeRotate(
-		const MT_Matrix3x3& rot,
-		bool local
-	);
+	void RelativeRotate(const MT_Matrix3x3& rot, bool local);
 
 	void SetLocalOrientation(const MT_Matrix3x3& rot)
 	{
@@ -242,7 +228,7 @@ public:
 	bool inside(const MT_Point3 &point) const;
 	void getBBox(MT_Point3 *box) const;
 	void getAABBox(MT_Point3 *box) const;
-	
+
 	MT_Scalar Radius() const { return m_radius; }
 	void SetRadius(MT_Scalar radius) { m_radius = radius; }
 	bool IsModified() { return m_modified; }
@@ -260,16 +246,8 @@ protected:
 	 * designed for direct instantiation
 	 */
 
-	SG_Spatial(
-		void* clientobj,
-		void* clientinfo,
-		SG_Callbacks& callbacks
-	);
-
-	SG_Spatial(
-		const SG_Spatial& other
-	);
-
+	SG_Spatial(void* clientobj, void* clientinfo, SG_Callbacks& callbacks);
+	SG_Spatial(const SG_Spatial& other);
 
 	virtual ~SG_Spatial();
 
@@ -278,12 +256,7 @@ protected:
 	 * any controllers to update this object. 
 	 */ 
 
-		bool 
-	UpdateSpatialData(
-		const SG_Spatial *parent,
-		double time,
-		bool& parentUpdated
-	);
+	bool UpdateSpatialData(const SG_Spatial *parent, double time, bool& parentUpdated);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

@@ -66,17 +66,13 @@ public :
 	 * world coordinates.
 	 */ 
 	
-	virtual
-		bool
-	UpdateChildCoordinates(
+	virtual bool UpdateChildCoordinates(
 		SG_Spatial * child,
 		const SG_Spatial * parent,
 		bool& parentUpdated
 	) = 0;
 
-	virtual 
-	~SG_ParentRelation(
-	) {};
+	virtual ~SG_ParentRelation() {}
 
 	/** 
 	 * You must provide a way of duplicating an
@@ -85,55 +81,42 @@ public :
 	 * on the heap. Responsibility for deleting the
 	 * duplicate resides with the caller of this method.
 	 */
-
-	virtual 
-		SG_ParentRelation *
-	NewCopy(
-	) = 0;
+	virtual SG_ParentRelation* NewCopy() = 0;
 
 	/**
 	 * Vertex Parent Relation are special: they don't propagate rotation
 	 */
-	virtual
-		bool
-	IsVertexRelation(
-	) { 
+	virtual bool IsVertexRelation()
+	{
 		return false;
 	}
-	
+
 	/**
 	 * Need this to see if we are able to adjust time-offset from the python api
 	 */
-	virtual
-		bool
-	IsSlowRelation(
-	) { 
+	virtual bool IsSlowRelation()
+	{
 		return false;
 	}
+
 protected :
 
 	/** 
 	 * Protected constructors 
 	 * this class is not meant to be instantiated.
 	 */
-
-	SG_ParentRelation(
-	) {
-	};
+	SG_ParentRelation() {}
 
 	/**
 	 * Copy construction should not be implemented
 	 */
+	SG_ParentRelation(const SG_ParentRelation &);
 
-	SG_ParentRelation(
-		const SG_ParentRelation &
-	); 
-	
-	
+
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_ParentRelation")
 #endif
 };
 
-#endif
+#endif /* __SG_PARENTRELATION_H__ */
 

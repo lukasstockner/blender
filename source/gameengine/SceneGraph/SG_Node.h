@@ -43,18 +43,10 @@ typedef std::vector<SG_Node*> NodeList;
 class SG_Node : public SG_Spatial
 {
 public:
-	SG_Node(
-		void* clientobj,
-		void* clientinfo,
-		SG_Callbacks& callbacks
-	);
-
-	SG_Node(
-		const SG_Node & other
-	);
+	SG_Node(void* clientobj, void* clientinfo, SG_Callbacks& callbacks);
+	SG_Node(const SG_Node & other);
 
 	virtual ~SG_Node();
-
 
 	/**
 	 * Add a child to this object. This also informs the child of
@@ -63,10 +55,7 @@ public:
 	 * make a deep copy.
 	 */
 
-		void
-	AddChild(
-		SG_Node* child
-	);
+	void AddChild(SG_Node* child);
 
 	/** 
 	 * Remove a child node from this object. This just removes the child
@@ -74,26 +63,19 @@ public:
 	 * This does not inform the child that this node is no longer it's parent.
 	 * If the node was not a child of this object no action is performed.
 	 */
-
-		void
-	RemoveChild(
-		SG_Node* child
-	);
+	void RemoveChild(SG_Node* child);
 
 	/**
 	 * Return true if the node is the ancestor of child
 	 */
-		bool
-	IsAncessor(
-		const SG_Node* child
-	) const;
+	bool IsAncessor(const SG_Node* child) const;
+
 	/** 
 	 * Get the current list of children. Do not use this interface for
 	 * adding or removing children please use the methods of this class for
 	 * that.
 	 * \return a reference to the list of children of this node.
 	 */
-	
 	NodeList& GetSGChildren()
 	{
 		return this->m_children;
@@ -103,7 +85,6 @@ public:
 	 * Get the current list of children.
 	 * \return a const reference to the current list of children of this node.
 	 */
-
 	const NodeList& GetSGChildren() const
 	{
 		return this->m_children;
@@ -112,7 +93,6 @@ public:
 	/** 
 	 * Clear the list of children associated with this node
 	 */
-
 	void ClearSGChildren()
 	{
 		m_children.clear();
@@ -130,7 +110,6 @@ public:
 	/**
 	 * Set the parent of this node. 
 	 */
-
 	void SetSGParent(SG_Node* parent)
 	{
 		m_SGparent = parent;
@@ -139,19 +118,12 @@ public:
 	/**
 	 * Return the top node in this node's Scene graph hierarchy
 	 */
-	
-	const 
-		SG_Node* 
-	GetRootSGParent(
-	) const;
+	const SG_Node* GetRootSGParent() const;
 
 	/**
 	 * Disconnect this node from it's parent
 	 */
-
-		void
-	DisconnectFromParent(
-	);
+	void DisconnectFromParent();
 
 	/**
 	 * Return vertex parent status.
@@ -165,11 +137,9 @@ public:
 		return false;
 	}
 
-
 	/**
 	 * Return slow parent status.
 	 */
-
 	bool IsSlowParent()
 	{
 		if (m_parent_relation)
@@ -180,29 +150,17 @@ public:
 	}
 
 
-
-
 	/**
 	 * Update the spatial data of this node. Iterate through
 	 * the children of this node and update their world data.
 	 */
-
-		void
-	UpdateWorldData(
-		double time,
-		bool parentUpdated=false
-	);
+	void UpdateWorldData(double time, bool parentUpdated=false);
 
 	/**
 	 * Update the simulation time of this node. Iterate through
 	 * the children nodes and update their simulated time.
 	 */
-
-		void
-	SetSimulatedTime(
-		double time,
-		bool recurse
-	);
+	void SetSimulatedTime(double time, bool recurse);
 
 	/**
 	 * Schedule this node for update by placing it in head queue
@@ -243,21 +201,12 @@ public:
 	/**
 	 * Node replication functions.
 	 */
+	SG_Node* GetSGReplica();
 
-		SG_Node*
-	GetSGReplica(
-	);
+	void Destruct();
 
-		void
-	Destruct(
-	);
-	
 private:
-
-		void
-	ProcessSGReplica(
-		SG_Node** replica
-	);
+	void ProcessSGReplica(SG_Node** replica);
 
 	/**
 	 * The list of children of this node.

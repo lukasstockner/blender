@@ -40,45 +40,24 @@
 /**
  * A scenegraph controller
  */
-class SG_Controller 
+class SG_Controller
 {
 public:
-	SG_Controller(
-	) :
-		m_pObject(NULL) {
-	}
+	SG_Controller():
+		m_pObject(NULL)
+	{}
 
-	virtual 
-	~SG_Controller(
-	) {};
+	virtual ~SG_Controller() {}
 
-	virtual 
-		bool
-	Update(
-		double time
-	)=0;
+	virtual bool Update(double time)=0;
 
-	virtual 
-		void 
-	SetObject (
-		SG_IObject* object
-	);
+	virtual void SetObject (SG_IObject* object);
 
-		void
-	ClearObject(
-	);
+	void ClearObject();
 
-	virtual 
-		void
-	SetSimulatedTime(
-		double time
-	)=0;
+	virtual void SetSimulatedTime(double time)=0;
 
-	virtual
-		SG_Controller*
-	GetReplica(
-		class SG_Node* destnode
-	)=0;
+	virtual SG_Controller* GetReplica(class SG_Node* destnode)=0;
 
 	/**
 	 * Hacky way of passing options to specific controllers
@@ -89,12 +68,7 @@ public:
 	 * \attention necessary because the identity of the controller
 	 * \attention is lost on the way here.
 	 */
-	virtual
-		void
-	SetOption(
-		int option,
-		int value
-	)=0;
+	virtual void SetOption(int option, int value)=0;
 
 	/**
 	 * Option-identifiers: SG_CONTR_<controller-type>_<option>. 
@@ -114,7 +88,7 @@ public:
 	};
 
 protected:
-	SG_IObject*		m_pObject;
+	SG_IObject* m_pObject;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_Controller")

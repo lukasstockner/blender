@@ -63,7 +63,6 @@ inline void SG_SetActiveStage(SG_Stage stage)
 {
 	gSG_Stage = stage;
 }
-	
 
 
 class SG_Controller;
@@ -173,21 +172,14 @@ public:
 	 * responsibility of this class. It will be deleted when
 	 * this object is deleted.
 	 */
-	
-		void
-	AddSGController(
-		SG_Controller* cont
-	);
+	void AddSGController(SG_Controller* cont);
 
 	/**
 	 * Remove a pointer to a controller from this node.
 	 * This does not delete the controller itself! Be careful to
 	 * avoid memory leaks.
 	 */
-		void
-	RemoveSGController(
-		SG_Controller* cont
-	);
+	void RemoveSGController(SG_Controller* cont);
 
 	/** 
 	 * Clear the array of pointers to controllers associated with 
@@ -195,10 +187,7 @@ public:
 	 * This should be used very carefully to avoid memory
 	 * leaks.
 	 */
-	
-		void
-	RemoveAllControllers(
-	); 
+	void RemoveAllControllers();
 
 	/// Needed for replication
 
@@ -279,17 +268,10 @@ public:
  
 	void SetControllerTime(double time);
 	
-	virtual 
-		void
-	Destruct(
-	) = 0;
+	virtual void Destruct() = 0;
 
 protected :
-
-		bool
-	ActivateReplicationCallback(
-		SG_IObject *replica
-	)
+	bool ActivateReplicationCallback(SG_IObject *replica)
 	{
 		if (m_callbacks.m_replicafunc)
 		{
@@ -301,9 +283,7 @@ protected :
 	}
 
 
-		void
-	ActivateDestructionCallback(
-	)
+	void ActivateDestructionCallback()
 	{
 		if (m_callbacks.m_destructionfunc)
 		{
@@ -317,9 +297,7 @@ protected :
 		}
 	}
 	
-		void
-	ActivateUpdateTransformCallback(
-	)
+	void ActivateUpdateTransformCallback()
 	{
 		if (m_callbacks.m_updatefunc)
 		{
@@ -328,9 +306,7 @@ protected :
 		}
 	}
 
-		bool
-	ActivateScheduleUpdateCallback(
-	)
+	bool ActivateScheduleUpdateCallback()
 	{
 		// HACK, this check assumes that the scheduled nodes are put on a DList (see SG_Node.h)
 		// The early check on Empty() allows up to avoid calling the callback function
@@ -343,9 +319,7 @@ protected :
 		return false;
 	}
 
-		void
-	ActivateRecheduleUpdateCallback(
-	)
+	void ActivateRecheduleUpdateCallback()
 	{
 		if (m_callbacks.m_reschedulefunc)
 		{

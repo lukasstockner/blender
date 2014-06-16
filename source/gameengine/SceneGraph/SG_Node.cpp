@@ -37,21 +37,14 @@
 using namespace std;
 
 
-SG_Node::SG_Node(
-	void* clientobj,
-	void* clientinfo,
-	SG_Callbacks& callbacks
-
-)
-	: SG_Spatial(clientobj,clientinfo,callbacks),
+SG_Node::SG_Node(void* clientobj, void* clientinfo, SG_Callbacks& callbacks):
+	SG_Spatial(clientobj,clientinfo,callbacks),
 	m_SGparent(NULL)
 {
 	m_modified = true;
 }
 
-SG_Node::SG_Node(
-	const SG_Node & other
-) :
+SG_Node::SG_Node(const SG_Node & other):
 	SG_Spatial(other),
 	m_children(other.m_children),
 	m_SGparent(other.m_SGparent)
@@ -74,11 +67,8 @@ SG_Node* SG_Node::GetSGReplica()
 	return replica;
 }
 
-	void 
-SG_Node::
-ProcessSGReplica(
-	SG_Node** replica
-) {
+void SG_Node::ProcessSGReplica(SG_Node** replica)
+{
 	// Apply the replication call back function.
 	if (!ActivateReplicationCallback(*replica)) 
 	{
@@ -115,10 +105,7 @@ ProcessSGReplica(
 	}
 }
 
-
-	void 
-SG_Node::
-Destruct()
+void SG_Node::Destruct()
 {
 	// Not entirely sure what Destruct() expects to happen.
 	// I think it probably means just to call the DestructionCallback
@@ -142,11 +129,8 @@ Destruct()
 	ActivateDestructionCallback();
 }
 
-const 
-	SG_Node *
-SG_Node::
-GetRootSGParent(
-) const {
+const SG_Node* SG_Node::GetRootSGParent() const
+{
 	return (m_SGparent ? (const SG_Node*) m_SGparent->GetRootSGParent() : (const SG_Node*) this);
 }
 
@@ -156,10 +140,8 @@ bool SG_Node::IsAncessor(const SG_Node* child) const
 		(child->m_SGparent == this) ? true : IsAncessor(child->m_SGparent);
 }
 
-	void 
-SG_Node::
-DisconnectFromParent(
-) {
+void SG_Node::DisconnectFromParent()
+{
 	if (m_SGparent)
 	{
 		m_SGparent->RemoveChild(this);
@@ -209,7 +191,6 @@ void SG_Node::UpdateWorldData(double time, bool parentUpdated)
 
 void SG_Node::SetSimulatedTime(double time,bool recurse)
 {
-
 	// update the controllers of this node.
 	SetControllerTime(time);
 
@@ -222,6 +203,4 @@ void SG_Node::SetSimulatedTime(double time,bool recurse)
 		}
 	}
 }
-
-
 
