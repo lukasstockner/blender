@@ -173,13 +173,13 @@ void GLUT_display(){
 	glColor3f(0,1,0);
 	for (GreinerV2f *curpoly=subj; curpoly; curpoly=curpoly->nextPoly) {
 		last_x=curpoly->x, last_y=curpoly->y;
-		for (GreinerV2f *v=curpoly->next; v; v=v->next) {
+		for (GreinerV2f *v=curpoly; v; v=v->next) {
 			float x=v->x, y=v->y;
 			if (!v->isBackbone) glColor3f(0,.8,0);
 			else glColor3f(1,1,0);
 			glVertex2f(x,y);
 			last_x=x; last_y=y;
-			if (v==curpoly) break;
+			if (v->next==curpoly) break;
 			if (v->isIntersection) is_outside = !is_outside;
 		}
 	}
@@ -236,7 +236,7 @@ void dump_polys_to_stdout() {
 		printf("std::vector<float> subj%i = {", subj_poly_num);
 		for (GreinerV2f *v=subj_poly; v; v=v->next) {
 			printf((v->next&&v->next!=subj)?"%f,%f, ":"%f,%f};\n",v->x,v->y);
-			if (v->next==subj_poly) break;
+			if (v->next==subj_poly || v->next->isBackbone) break;
 		}
 		subj_poly_num++;
 	}
@@ -250,6 +250,8 @@ void dump_polys_to_stdout() {
 	}
 }
 void toggle_cyclic(GreinerV2f *curve) {
+	GreinerV2f *backbone = curve;
+	while (!backbone->isBackbone) backbone=backbone->prev;
 	for (; curve; curve=curve->nextPoly) {
 		if (curve->prev) { // is cyclic
 			curve->prev->next = nullptr;
@@ -340,6 +342,14 @@ void GLUT_specialkey(int ch, int x, int y) {
 		printf("GLUT_specialkey x:%d y:%d ch:%x(%s)\n",x,y,ch,ch_str);
 	}
 }
+void create_new_poly(float sx, float sy) {
+	GreinerV2f *last_backbone = subj;
+	while (last_backbone->nextPoly) last_backbone = last_backbone->nextPoly;
+	GreinerV2f *newpoly = new GreinerV2f();
+	newpoly->x = sx; newpoly->y = sy;
+	last_backbone->nextPoly = newpoly;
+	glutPostRedisplay();
+}
 void create_pt(float sx, float sy) {
 	if (!grabbed_vert) return;
 	GreinerV2f *last_vert = grabbed_vert;
@@ -408,7 +418,9 @@ void GLUT_mouse( int button, int state, int x, int y) {
 			   x,y,button,button_str,state,state_str);
 	}
 	if (state==GLUT_DOWN && button==GLUT_LEFT_BUTTON) {
-		if (m&GLUT_ACTIVE_CTRL)
+		if (m&GLUT_ACTIVE_CTRL && m&GLUT_ACTIVE_SHIFT)
+			create_new_poly(sx,sy);
+		else if (m&GLUT_ACTIVE_CTRL)
 			create_pt(sx,sy);
 		else
 			initiate_pt_drag_if_near_pt(sx,sy);
