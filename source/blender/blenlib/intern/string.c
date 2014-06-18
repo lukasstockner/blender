@@ -295,11 +295,21 @@ char *BLI_str_quoted_substrN(const char *__restrict str, const char *__restrict 
 	startMatch = strstr(str, prefix) + prefixLen + 1;
 	if (startMatch) {
 		/* get the end point (i.e. where the next occurance of " is after the starting point) */
-		endMatch = strchr(startMatch, '"'); /* "  NOTE: this comment here is just so that my text editor still shows the functions ok... */
-		
-		if (endMatch)
+
+		endMatch = startMatch;
+		while ((endMatch = strchr(endMatch, '"'))) {
+			if (LIKELY(*(endMatch - 1) != '\\')) {
+				break;
+			}
+			else {
+				endMatch++;
+			}
+		}
+
+		if (endMatch) {
 			/* return the slice indicated */
 			return BLI_strdupn(startMatch, (size_t)(endMatch - startMatch));
+		}
 	}
 	return BLI_strdupn("", 0);
 }
@@ -629,3 +639,45 @@ int BLI_str_rstrip_float_zero(char *str, const char pad)
 
 	return totstrip;
 }
+
+/**
+ * Return index of a string in a string array.
+ *
+ * \param str The string to find.
+ * \param str_array Array of strings.
+ * \param str_array_len The length of the array, or -1 for a NULL-terminated array.
+ * \return The index of str in str_array or -1.
+ */
+int BLI_str_index_in_array_n(const char *str, const char **str_array, const int str_array_len)
+{
+	int index;
+	const char **str_iter = str_array;
+
+	for (index = 0; index < str_array_len; str_iter++, index++) {
+		if (STREQ(str, *str_iter)) {
+			return index;
+		}
+	}
+	return -1;
+}
+
+/**
+ * Return index of a string in a string array.
+ *
+ * \param str The string to find.
+ * \param str_array Array of strings, (must be NULL-terminated).
+ * \return The index of str in str_array or -1.
+ */
+int BLI_str_index_in_array(const char *str, const char **str_array)
+{
+	int index;
+	const char **str_iter = str_array;
+
+	for (index = 0; *str_iter; str_iter++, index++) {
+		if (STREQ(str, *str_iter)) {
+			return index;
+		}
+	}
+	return -1;
+}
+

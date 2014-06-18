@@ -1542,6 +1542,8 @@ PyMODINIT_FUNC initGameLogicPythonBinding()
 	KX_MACRO_addTypesToDict(d, KX_PROPSENSOR_INTERVAL,   SCA_PropertySensor::KX_PROPSENSOR_INTERVAL);
 	KX_MACRO_addTypesToDict(d, KX_PROPSENSOR_CHANGED,    SCA_PropertySensor::KX_PROPSENSOR_CHANGED);
 	KX_MACRO_addTypesToDict(d, KX_PROPSENSOR_EXPRESSION, SCA_PropertySensor::KX_PROPSENSOR_EXPRESSION);
+	KX_MACRO_addTypesToDict(d, KX_PROPSENSOR_LESSTHAN,   SCA_PropertySensor::KX_PROPSENSOR_LESSTHAN);
+	KX_MACRO_addTypesToDict(d, KX_PROPSENSOR_GREATERTHAN, SCA_PropertySensor::KX_PROPSENSOR_GREATERTHAN);
 
 	/* 3. Constraint actuator                                                  */
 	KX_MACRO_addTypesToDict(d, KX_CONSTRAINTACT_LOCX, KX_ConstraintActuator::KX_ACT_CONSTRAINT_LOCX);

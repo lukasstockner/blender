@@ -472,6 +472,7 @@ void ED_region_tag_redraw(ARegion *ar)
 	 * but python scripts can cause this to happen indirectly */
 	if (ar && !(ar->do_draw & RGN_DRAWING)) {
 		/* zero region means full region redraw */
+		ar->do_draw &= ~RGN_DRAW_PARTIAL;  /* just incase */
 		ar->do_draw = RGN_DRAW;
 		memset(&ar->drawrct, 0, sizeof(ar->drawrct));
 	}
@@ -481,6 +482,13 @@ void ED_region_tag_redraw_overlay(ARegion *ar)
 {
 	if (ar)
 		ar->do_draw_overlay = RGN_DRAW;
+}
+
+void ED_region_tag_refresh_ui(ARegion *ar)
+{
+	if (ar) {
+		ar->do_draw |= RGN_DRAW_REFRESH_UI;
+	}
 }
 
 void ED_region_tag_redraw_partial(ARegion *ar, rcti *rct)
@@ -1339,10 +1347,6 @@ void ED_region_init(bContext *C, ARegion *ar)
 	region_subwindow(CTX_wm_window(C), ar);
 	
 	region_update_rect(ar);
-
-	/* UI convention */
-	wmOrtho2(-0.01f, ar->winx - 0.01f, -0.01f, ar->winy - 0.01f);
-	glLoadIdentity();
 }
 
 /* for quick toggle, can skip fades */

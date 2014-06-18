@@ -1154,7 +1154,7 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 
 	/* hardcoded preview .blend for cycles/internal, this should be solved
 	 * once with custom preview .blend path for external engines */
-	if (BKE_scene_use_new_shading_nodes(scene) && method != PR_NODE_RENDER)
+	if ((method != PR_NODE_RENDER) && BKE_scene_use_new_shading_nodes(scene))
 		sp->pr_main = G_pr_main_cycles;
 	else
 		sp->pr_main = G_pr_main;
