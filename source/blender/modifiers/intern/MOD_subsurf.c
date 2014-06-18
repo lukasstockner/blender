@@ -100,6 +100,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	DerivedMesh *result;
 	const bool useRenderParams = (flag & MOD_APPLY_RENDER) != 0;
 	const bool isFinalCalc = (flag & MOD_APPLY_USECACHE) != 0;
+	const bool allow_gpu = (flag & MOD_APPLY_ALLOW_GPU) != 0;
 
 	if (useRenderParams)
 		subsurf_flags |= SUBSURF_USE_RENDER_PARAMS;
@@ -109,7 +110,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		subsurf_flags |= SUBSURF_IN_EDIT_MODE;
 
 	/* TODO(sergey): Not entirely correct, only good for purposes of test. */
-	if (md->next == NULL && useRenderParams == false) {
+	if (md->next == NULL && allow_gpu) {
 		subsurf_flags |= SUBSURF_USE_GPU_BACKEND;
 	}
 
