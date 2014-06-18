@@ -40,8 +40,9 @@
 /* only for BLI_strncpy_wchar_from_utf8, should replace with py funcs but too late in release now */
 #include "BLI_string_utf8.h"
 
-#ifdef _WIN32 /* BLI_setenv */
-#include "BLI_path_util.h"
+#ifdef _WIN32
+#include "BLI_path_util.h"  /* BLI_setenv() */
+#include "BLI_math_base.h"  /* finite() */
 #endif
 
 /* array utility function */
@@ -606,8 +607,7 @@ void PyC_SetHomePath(const char *py_path_bundle)
 		/* cant use this, on linux gives bug: #23018, TODO: try LANG="en_US.UTF-8" /usr/bin/blender, suggested 22008 */
 		/* mbstowcs(py_path_bundle_wchar, py_path_bundle, FILE_MAXDIR); */
 
-		BLI_strncpy_wchar_from_utf8(py_path_bundle_wchar, py_path_bundle,
-		                            sizeof(py_path_bundle_wchar) / sizeof(wchar_t));
+		BLI_strncpy_wchar_from_utf8(py_path_bundle_wchar, py_path_bundle, ARRAY_SIZE(py_path_bundle_wchar));
 
 		Py_SetPythonHome(py_path_bundle_wchar);
 		// printf("found python (wchar_t) '%ls'\n", py_path_bundle_wchar);
@@ -904,4 +904,74 @@ PyObject *PyC_FlagSet_FromBitfield(PyC_FlagSet *items, int flag)
 	}
 
 	return ret;
+}
+
+
+/**
+ * \return -1 on error, else 0
+ *
+ * \note it is caller's responsibility to acquire & release GIL!
+ */
+int PyC_RunString_AsNumber(const char *expr, double *value, const char *filename)
+{
+	PyObject *py_dict, *mod, *retval;
+	int error_ret = 0;
+	PyObject *main_mod = NULL;
+
+	PyC_MainModule_Backup(&main_mod);
+
+	py_dict = PyC_DefaultNameSpace(filename);
+
+	mod = PyImport_ImportModule("math");
+	if (mod) {
+		PyDict_Merge(py_dict, PyModule_GetDict(mod), 0); /* 0 - don't overwrite existing values */
+		Py_DECREF(mod);
+	}
+	else { /* highly unlikely but possibly */
+		PyErr_Print();
+		PyErr_Clear();
+	}
+
+	retval = PyRun_String(expr, Py_eval_input, py_dict, py_dict);
+
+	if (retval == NULL) {
+		error_ret = -1;
+	}
+	else {
+		double val;
+
+		if (PyTuple_Check(retval)) {
+			/* Users my have typed in 10km, 2m
+			 * add up all values */
+			int i;
+			val = 0.0;
+
+			for (i = 0; i < PyTuple_GET_SIZE(retval); i++) {
+				const double val_item = PyFloat_AsDouble(PyTuple_GET_ITEM(retval, i));
+				if (val_item == -1 && PyErr_Occurred()) {
+					val = -1;
+					break;
+				}
+				val += val_item;
+			}
+		}
+		else {
+			val = PyFloat_AsDouble(retval);
+		}
+		Py_DECREF(retval);
+
+		if (val == -1 && PyErr_Occurred()) {
+			error_ret = -1;
+		}
+		else if (!finite(val)) {
+			*value = 0.0;
+		}
+		else {
+			*value = val;
+		}
+	}
+
+	PyC_MainModule_Restore(main_mod);
+
+	return error_ret;
 }

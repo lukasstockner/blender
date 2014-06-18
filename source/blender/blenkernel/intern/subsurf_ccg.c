@@ -1458,6 +1458,7 @@ static void ccgdm_getVertCos(DerivedMesh *dm, float (*cos)[3])
 
 		edgeMap2[GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(e))] = e;
 	}
+	ccgEdgeIterator_free(ei);
 
 	totface = ccgSubSurf_getNumFaces(ss);
 	faceMap2 = MEM_mallocN(totface * sizeof(*faceMap2), "facemap");
@@ -3566,6 +3567,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 
 		ccgdm->edgeMap[GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(e))].edge = e;
 	}
+	ccgEdgeIterator_free(ei);
 
 	totface = ccgSubSurf_getNumFaces(ss);
 	ccgdm->faceMap = MEM_mallocN(totface * sizeof(*ccgdm->faceMap), "faceMap");
