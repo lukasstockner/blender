@@ -1895,7 +1895,7 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf, bool save_as_render, boo
 	 * so much useful to just ignore alpha -- it leads to bad
 	 * artifacts especially when saving byte images.
 	 *
-	 * What we do here is we're overing our image on top of
+	 * What we do here is we're overlaying our image on top of
 	 * background color (which is currently black).
 	 *
 	 * This is quite much the same as what Gimp does and it
@@ -2809,7 +2809,7 @@ void IMB_partial_display_buffer_update(ImBuf *ibuf, const float *linear_buffer, 
 		int y;
 		for (y = ymin; y < ymax; y++) {
 			int index = y * buffer_width * 4;
-			memcpy(ibuf->rect + index, display_buffer + index, (xmax - xmin) * 4);
+			memcpy((unsigned char *)ibuf->rect + index, display_buffer + index, (xmax - xmin) * 4);
 		}
 	}
 }

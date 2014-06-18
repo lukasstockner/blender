@@ -1718,7 +1718,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			{
 				float dx = t->mval[0] - cent[0], dy = t->mval[1] - cent[1];
 				float angle = atan2f(dy, dx);
-				float dist = sqrtf(dx * dx + dy * dy);
+				float dist = hypotf(dx, dy);
 				float delta_angle = min_ff(15.0f / dist, (float)M_PI / 4.0f);
 				float spacing_angle = min_ff(5.0f / dist, (float)M_PI / 12.0f);
 				UI_ThemeColor(TH_VIEW_OVERLAY);
@@ -4730,7 +4730,7 @@ static void initBevelWeight(TransInfo *t)
 	t->mode = TFM_BWEIGHT;
 	t->transform = applyBevelWeight;
 
-	initMouseInputMode(t, &t->mouse, INPUT_SPRING);
+	initMouseInputMode(t, &t->mouse, INPUT_SPRING_DELTA);
 
 	t->idx_max = 0;
 	t->num.idx_max = 0;
@@ -4754,7 +4754,6 @@ static void applyBevelWeight(TransInfo *t, const int UNUSED(mval[2]))
 
 	weight = t->values[0];
 
-	weight -= 1.0f;
 	if (weight > 1.0f) weight = 1.0f;
 
 	snapGridIncrement(t, &weight);
@@ -4809,7 +4808,7 @@ static void initCrease(TransInfo *t)
 	t->mode = TFM_CREASE;
 	t->transform = applyCrease;
 
-	initMouseInputMode(t, &t->mouse, INPUT_SPRING);
+	initMouseInputMode(t, &t->mouse, INPUT_SPRING_DELTA);
 
 	t->idx_max = 0;
 	t->num.idx_max = 0;
@@ -4833,7 +4832,6 @@ static void applyCrease(TransInfo *t, const int UNUSED(mval[2]))
 
 	crease = t->values[0];
 
-	crease -= 1.0f;
 	if (crease > 1.0f) crease = 1.0f;
 
 	snapGridIncrement(t, &crease);
@@ -7344,13 +7342,17 @@ static void headerTimeTranslate(TransInfo *t, char str[MAX_INFO_LEN])
 			/* second step */
 			val = floorf((double)val / secf + 0.5);
 		}
-		else {
-			/* nearest frame/second/marker */
+		else if (autosnap == SACTSNAP_SECOND) {
+			/* nearest second */
 			val = (float)((double)val / secf);
 		}
 		
 		if (autosnap == SACTSNAP_FRAME)
 			BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%d.00 (%.4f)", (int)val, val);
+		else if (autosnap == SACTSNAP_SECOND)
+			BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%d.00 sec (%.4f)", (int)val, val);
+		else if (autosnap == SACTSNAP_TSTEP)
+			BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f sec", val);
 		else
 			BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", val);
 	}

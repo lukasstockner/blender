@@ -752,6 +752,18 @@ void combine_rgb(float r, float g, float b, out vec4 col)
 	col = vec4(r, g, b, 1.0);
 }
 
+void separate_xyz(vec3 vec, out float x, out float y, out float z)
+{
+	x = vec.r;
+	y = vec.g;
+	z = vec.b;
+}
+
+void combine_xyz(float x, float y, float z, out vec3 vec)
+{
+	vec = vec3(x, y, z);
+}
+
 void separate_hsv(vec4 col, out float h, out float s, out float v)
 {
 	vec4 hsv;
@@ -2197,8 +2209,11 @@ void node_add_shader(vec4 shader1, vec4 shader2, out vec4 shader)
 
 void node_fresnel(float ior, vec3 N, vec3 I, out float result)
 {
+	/* handle perspective/orthographic */
+	vec3 I_view = (gl_ProjectionMatrix[3][3] == 0.0)? normalize(I): vec3(0.0, 0.0, -1.0);
+
 	float eta = max(ior, 0.00001);
-	result = fresnel_dielectric(normalize(I), N, (gl_FrontFacing)? eta: 1.0/eta);
+	result = fresnel_dielectric(I_view, N, (gl_FrontFacing)? eta: 1.0/eta);
 }
 
 /* layer_weight */
@@ -2248,10 +2263,14 @@ void node_geometry(vec3 I, vec3 N, mat4 toworld,
 	out float backfacing)
 {
 	position = (toworld*vec4(I, 1.0)).xyz;
-	normal = N;
+	normal = (toworld*vec4(N, 0.0)).xyz;
 	tangent = vec3(0.0);
-	true_normal = N;
-	incoming = I;
+	true_normal = normal;
+
+	/* handle perspective/orthographic */
+	vec3 I_view = (gl_ProjectionMatrix[3][3] == 0.0)? normalize(I): vec3(0.0, 0.0, -1.0);
+	incoming = -(toworld*vec4(I_view, 0.0)).xyz;
+
 	parametric = vec3(0.0);
 	backfacing = (gl_FrontFacing)? 0.0: 1.0;
 }
