@@ -1307,7 +1307,7 @@ static void paint_2d_fill_add_pixel_byte(int i, int j, ImBuf *ibuf, GSQueue *sta
 	if (i >= ibuf->x || i < 0 || j >= ibuf->y || j < 0)
 		return;
 
-	if (!BLI_BITMAP_GET(touched, coordinate)) {
+	if (!BLI_BITMAP_TEST(touched, coordinate)) {
 		float color_f[4];
 		unsigned char *color_b = (unsigned char *)(ibuf->rect + coordinate);
 		float luminance;
@@ -1319,7 +1319,7 @@ static void paint_2d_fill_add_pixel_byte(int i, int j, ImBuf *ibuf, GSQueue *sta
 		if (luminance < threshold) {
 			BLI_gsqueue_push(stack, &coordinate);
 		}
-		BLI_BITMAP_SET(touched, coordinate);
+		BLI_BITMAP_SET(touched, coordinate, true);
 	}
 }
 
@@ -1330,7 +1330,7 @@ static void paint_2d_fill_add_pixel_float(int i, int j, ImBuf *ibuf, GSQueue *st
 	if (i >= ibuf->x || i < 0 || j >= ibuf->y || j < 0)
 		return;
 
-	if (!BLI_BITMAP_GET(touched, coordinate)) {
+	if (!BLI_BITMAP_TEST(touched, coordinate)) {
 		float color_f[4];
 		float luminance;
 		sub_v3_v3v3(color_f, ibuf->rect_float + 4 * coordinate, color);
@@ -1339,7 +1339,7 @@ static void paint_2d_fill_add_pixel_float(int i, int j, ImBuf *ibuf, GSQueue *st
 		if (luminance < threshold) {
 			BLI_gsqueue_push(stack, &coordinate);
 		}
-		BLI_BITMAP_SET(touched, coordinate);
+		BLI_BITMAP_SET(touched, coordinate, true);
 	}
 }
 
@@ -1438,7 +1438,7 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 		}
 
 		BLI_gsqueue_push(stack, &coordinate);
-		BLI_BITMAP_SET(touched, coordinate);
+		BLI_BITMAP_SET(touched, coordinate, true);
 
 		if (do_float) {
 			while (!BLI_gsqueue_is_empty(stack)) {

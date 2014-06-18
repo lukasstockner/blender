@@ -213,7 +213,7 @@ static float event_tablet_data(const wmEvent *event, int *pen_flip)
 
 
 /* Initialize the stroke cache variants from operator properties */
-static void paint_brush_update(bContext *C,
+static bool paint_brush_update(bContext *C,
                                Brush *brush,
                                PaintMode mode,
                                struct PaintStroke *stroke,
@@ -224,6 +224,7 @@ static void paint_brush_update(bContext *C,
 	Scene *scene = CTX_data_scene(C);
 	UnifiedPaintSettings *ups = stroke->ups;
 	bool location_sampled = false;
+	bool location_success = false;
 	/* XXX: Use pressure value from first brush step for brushes which don't
 	 *      support strokes (grab, thumb). They depends on initial state and
 	 *      brush coord/pressure/etc.
@@ -314,6 +315,7 @@ static void paint_brush_update(bContext *C,
 				if (stroke->get_location(C, location, halfway)) {
 					hit = true;
 					location_sampled = true;
+					location_success = true;
 				}
 			}
 			else {
@@ -347,11 +349,17 @@ static void paint_brush_update(bContext *C,
 	}
 
 	if (!location_sampled) {
-		if (stroke->get_location)
-			stroke->get_location(C, location, mouse);
-		else
+		if (stroke->get_location) {
+			if (stroke->get_location(C, location, mouse))
+				location_success = true;
+		}
+		else {
 			zero_v3(location);
+			location_success = true;
+		}
 	}
+
+	return location_success;
 }
 
 
@@ -408,7 +416,9 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float
 		}
 	}
 
-	paint_brush_update(C, brush, mode, stroke, mouse_in, mouse_out, pressure, location);
+	if (!paint_brush_update(C, brush, mode, stroke, mouse_in, mouse_out, pressure, location)) {
+		return;
+	}
 
 	/* Add to stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
@@ -1079,7 +1089,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		if (redraw && stroke->redraw)
 			stroke->redraw(C, stroke, false);
 	}
-	
+
 	return OPERATOR_RUNNING_MODAL;
 }
 

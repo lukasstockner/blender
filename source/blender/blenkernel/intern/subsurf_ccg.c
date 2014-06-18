@@ -361,7 +361,7 @@ static int ss_sync_from_uv(CCGSubSurf *ss, CCGSubSurf *origss, DerivedMesh *dm, 
 			MVert *mv0 = mvert + (ml[j_next].v);
 			MVert *mv1 = mvert + (ml[j].v);
 
-			if (BLI_edgeset_reinsert(eset, v0, v1)) {
+			if (BLI_edgeset_add(eset, v0, v1)) {
 				CCGEdge *e, *orige = ccgSubSurf_getFaceEdge(origf, j_next);
 				CCGEdgeHDL ehdl = SET_INT_IN_POINTER(mp->loopstart + j_next);
 				float crease;
@@ -1078,7 +1078,7 @@ void subsurf_copy_grid_hidden(DerivedMesh *dm, const MPoly *mpoly,
 					
 					vndx = getFaceIndex(ss, f, j, x, y, edgeSize, gridSize);
 					offset = (y * factor) * hidden_gridsize + (x * factor);
-					if (BLI_BITMAP_GET(md->hidden, offset))
+					if (BLI_BITMAP_TEST(md->hidden, offset))
 						mvert[vndx].flag |= ME_HIDE;
 				}
 			}
@@ -1458,6 +1458,7 @@ static void ccgdm_getVertCos(DerivedMesh *dm, float (*cos)[3])
 
 		edgeMap2[GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(e))] = e;
 	}
+	ccgEdgeIterator_free(ei);
 
 	totface = ccgSubSurf_getNumFaces(ss);
 	faceMap2 = MEM_mallocN(totface * sizeof(*faceMap2), "facemap");
@@ -3593,6 +3594,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 
 		ccgdm->edgeMap[GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(e))].edge = e;
 	}
+	ccgEdgeIterator_free(ei);
 
 	totface = ccgSubSurf_getNumFaces(ss);
 	ccgdm->faceMap = MEM_mallocN(totface * sizeof(*ccgdm->faceMap), "faceMap");

@@ -1522,7 +1522,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 				int index;
 
 				if (gh) {
-					if (BLI_BITMAP_GET(gh, y * gridsize + x))
+					if (BLI_BITMAP_TEST(gh, y * gridsize + x))
 						continue;
 				}
 

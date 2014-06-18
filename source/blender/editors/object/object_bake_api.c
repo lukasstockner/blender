@@ -495,6 +495,7 @@ typedef struct BakeAPIRender {
 	int normal_space;
 	BakeNormalSwizzle normal_swizzle[3];
 
+	char uv_layer[MAX_CUSTOMDATA_LAYER_NAME];
 	char custom_cage[MAX_NAME];
 	char filepath[FILE_MAX];
 
@@ -516,7 +517,7 @@ static int bake(
         const bool is_automatic_name, const bool is_selected_to_active, const bool is_cage,
         const float cage_extrusion, const int normal_space, const BakeNormalSwizzle normal_swizzle[],
         const char *custom_cage, const char *filepath, const int width, const int height,
-        const char *identifier, ScrArea *sa)
+        const char *identifier, ScrArea *sa, const char *uv_layer)
 {
 	int op_result = OPERATOR_CANCELLED;
 	bool ok = false;
@@ -551,6 +552,15 @@ static int bake(
 	RE_SetReports(re, NULL);
 
 	tot_materials = ob_low->totcol;
+
+	if (uv_layer && uv_layer[0] != '\0') {
+		Mesh *me = (Mesh *)ob_low->data;
+		if (CustomData_get_named_layer(&me->ldata, CD_MLOOPUV, uv_layer) == -1) {
+			BKE_reportf(reports, RPT_ERROR,
+			            "No UV layer named \"%s\" found in the object \"%s\"", uv_layer, ob_low->id.name + 2);
+			goto cleanup;
+		}
+	}
 
 	if (tot_materials == 0) {
 		if (is_save_internal) {
@@ -644,7 +654,7 @@ static int bake(
 
 	/* populate the pixel array with the face data */
 	if ((is_selected_to_active && (ob_cage == NULL) && is_cage) == false)
-		RE_bake_pixels_populate(me_low, pixel_array_low, num_pixels, &bake_images);
+		RE_bake_pixels_populate(me_low, pixel_array_low, num_pixels, &bake_images, uv_layer);
 	/* else populate the pixel array with the 'cage' mesh (the smooth version of the mesh)  */
 
 	if (is_selected_to_active) {
@@ -688,7 +698,7 @@ static int bake(
 
 			/* get the cage mesh as it arrives in the renderer */
 			me_cage = BKE_mesh_new_from_object(bmain, scene, ob_low, 1, 2, 1, 0);
-			RE_bake_pixels_populate(me_cage, pixel_array_low, num_pixels, &bake_images);
+			RE_bake_pixels_populate(me_cage, pixel_array_low, num_pixels, &bake_images, uv_layer);
 		}
 
 		highpoly = MEM_callocN(sizeof(BakeHighPolyData) * tot_highpoly, "bake high poly objects");
@@ -738,9 +748,12 @@ static int bake(
 		ob_low->restrictflag |= OB_RESTRICT_RENDER;
 
 		/* populate the pixel arrays with the corresponding face data for each high poly object */
-		RE_bake_pixels_populate_from_objects(
-		        me_low, pixel_array_low, highpoly, tot_highpoly, num_pixels, ob_cage != NULL,
-		        cage_extrusion, ob_low->obmat, (ob_cage ? ob_cage->obmat : ob_low->obmat), me_cage);
+		if (!RE_bake_pixels_populate_from_objects(
+		            me_low, pixel_array_low, highpoly, tot_highpoly, num_pixels, ob_cage != NULL,
+		            cage_extrusion, ob_low->obmat, (ob_cage ? ob_cage->obmat : ob_low->obmat), me_cage)) {
+			BKE_report(reports, RPT_ERROR, "Error handling selected objects");
+			goto cleanup;
+		}
 
 		/* the baking itself */
 		for (i = 0; i < tot_highpoly; i++) {
@@ -824,7 +837,7 @@ static int bake(
 					}
 
 					me_nores = BKE_mesh_new_from_object(bmain, scene, ob_low, 1, 2, 1, 0);
-					RE_bake_pixels_populate(me_nores, pixel_array_low, num_pixels, &bake_images);
+					RE_bake_pixels_populate(me_nores, pixel_array_low, num_pixels, &bake_images, uv_layer);
 
 					RE_bake_normal_world_to_tangent(pixel_array_low, num_pixels, depth, result, me_nores, normal_swizzle, ob_low->obmat);
 					BKE_libblock_free(bmain, me_nores);
@@ -1006,6 +1019,8 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 	bkr->height = RNA_int_get(op->ptr, "height");
 	bkr->identifier = "";
 
+	RNA_string_get(op->ptr, "uv_layer", bkr->uv_layer);
+
 	RNA_string_get(op->ptr, "cage_object", bkr->custom_cage);
 
 	if ((!is_save_internal) && bkr->is_automatic_name) {
@@ -1045,7 +1060,8 @@ static int bake_exec(bContext *C, wmOperator *op)
 		        bkr.pass_type, bkr.margin, bkr.save_mode,
 		        bkr.is_clear, bkr.is_split_materials, bkr.is_automatic_name, true, bkr.is_cage,
 		        bkr.cage_extrusion, bkr.normal_space, bkr.normal_swizzle,
-		        bkr.custom_cage, bkr.filepath, bkr.width, bkr.height, bkr.identifier, bkr.sa);
+		        bkr.custom_cage, bkr.filepath, bkr.width, bkr.height, bkr.identifier, bkr.sa,
+		        bkr.uv_layer);
 	}
 	else {
 		CollectionPointerLink *link;
@@ -1057,7 +1073,8 @@ static int bake_exec(bContext *C, wmOperator *op)
 			        bkr.pass_type, bkr.margin, bkr.save_mode,
 			        is_clear, bkr.is_split_materials, bkr.is_automatic_name, false, bkr.is_cage,
 			        bkr.cage_extrusion, bkr.normal_space, bkr.normal_swizzle,
-			        bkr.custom_cage, bkr.filepath, bkr.width, bkr.height, bkr.identifier, bkr.sa);
+			        bkr.custom_cage, bkr.filepath, bkr.width, bkr.height, bkr.identifier, bkr.sa,
+			        bkr.uv_layer);
 		}
 	}
 
@@ -1085,7 +1102,8 @@ static void bake_startjob(void *bkv, short *UNUSED(stop), short *UNUSED(do_updat
 		        bkr->pass_type, bkr->margin, bkr->save_mode,
 		        bkr->is_clear, bkr->is_split_materials, bkr->is_automatic_name, true, bkr->is_cage,
 		        bkr->cage_extrusion, bkr->normal_space, bkr->normal_swizzle,
-		        bkr->custom_cage, bkr->filepath, bkr->width, bkr->height, bkr->identifier, bkr->sa);
+		        bkr->custom_cage, bkr->filepath, bkr->width, bkr->height, bkr->identifier, bkr->sa,
+		        bkr->uv_layer);
 	}
 	else {
 		CollectionPointerLink *link;
@@ -1097,7 +1115,8 @@ static void bake_startjob(void *bkv, short *UNUSED(stop), short *UNUSED(do_updat
 			        bkr->pass_type, bkr->margin, bkr->save_mode,
 			        is_clear, bkr->is_split_materials, bkr->is_automatic_name, false, bkr->is_cage,
 			        bkr->cage_extrusion, bkr->normal_space, bkr->normal_swizzle,
-			        bkr->custom_cage, bkr->filepath, bkr->width, bkr->height, bkr->identifier, bkr->sa);
+			        bkr->custom_cage, bkr->filepath, bkr->width, bkr->height, bkr->identifier, bkr->sa,
+			        bkr->uv_layer);
 
 			if (bkr->result == OPERATOR_CANCELLED)
 				return;
@@ -1264,8 +1283,8 @@ void OBJECT_OT_bake(wmOperatorType *ot)
 	            "Extends the baked result as a post process filter", 0, 64);
 	RNA_def_boolean(ot->srna, "use_selected_to_active", false, "Selected to Active",
 	                "Bake shading on the surface of selected objects to the active object");
-	RNA_def_float(ot->srna, "cage_extrusion", 0.0, 0.0, 1.0, "Cage Extrusion",
-	              "Distance to use for the inward ray cast when using selected to active", 0.0, 1.0);
+	RNA_def_float(ot->srna, "cage_extrusion", 0.0f, 0.0f, FLT_MAX, "Cage Extrusion",
+	              "Distance to use for the inward ray cast when using selected to active", 0.0f, 1.0f);
 	RNA_def_string(ot->srna, "cage_object", NULL, MAX_NAME, "Cage Object",
 	               "Object to use as cage, instead of calculating the cage from the active object with cage extrusion");
 	RNA_def_enum(ot->srna, "normal_space", normal_space_items, R_BAKE_SPACE_TANGENT, "Normal Space",
@@ -1283,4 +1302,5 @@ void OBJECT_OT_bake(wmOperatorType *ot)
 	                "Split baked maps per material, using material name in output file (external only)");
 	RNA_def_boolean(ot->srna, "use_automatic_name", false, "Automatic Name",
 	                "Automatically name the output file with the pass type");
+	RNA_def_string(ot->srna, "uv_layer", NULL, MAX_CUSTOMDATA_LAYER_NAME, "UV Layer", "UV layer to override active");
 }

@@ -37,6 +37,7 @@
 #include "DNA_customdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_group_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_scene_types.h"
@@ -2262,7 +2263,7 @@ void draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 	glEnable(GL_DEPTH_TEST);
 
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {
-		draw_gpencil_view3d(scene, v3d, ar, true);
+		ED_gpencil_draw_view3d(scene, v3d, ar, true);
 	}
 	
 	v3d->zbuf = zbuf;
@@ -2614,10 +2615,23 @@ static void view3d_draw_objects(
 	/* set zbuffer after we draw clipping region */
 	if (v3d->drawtype > OB_WIRE) {
 		v3d->zbuf = true;
-		glEnable(GL_DEPTH_TEST);
 	}
 	else {
 		v3d->zbuf = false;
+	}
+
+	/* special case (depth for wire color) */
+	if (v3d->drawtype <= OB_WIRE) {
+		if (scene->obedit && scene->obedit->type == OB_MESH) {
+			Mesh *me = scene->obedit->data;
+			if (me->drawflag & ME_DRAWEIGHT) {
+				v3d->zbuf = true;
+			}
+		}
+	}
+
+	if (v3d->zbuf) {
+		glEnable(GL_DEPTH_TEST);
 	}
 
 	if (!draw_offscreen) {
@@ -2721,7 +2735,7 @@ static void view3d_draw_objects(
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {
 		/* must be before xray draw which clears the depth buffer */
 		if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
-		draw_gpencil_view3d(scene, v3d, ar, true);
+		ED_gpencil_draw_view3d(scene, v3d, ar, true);
 		if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 	}
 
@@ -2841,7 +2855,7 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, 
 
 		if (v3d->flag2 & V3D_SHOW_GPENCIL) {
 			/* draw grease-pencil stuff - needed to get paint-buffer shown too (since it's 2D) */
-			draw_gpencil_view3d(scene, v3d, ar, false);
+			ED_gpencil_draw_view3d(scene, v3d, ar, false);
 		}
 
 		/* freeing the images again here could be done after the operator runs, leaving for now */
@@ -3456,7 +3470,7 @@ static void view3d_main_area_draw_info(const bContext *C, Scene *scene,
 
 	if (v3d->flag2 & V3D_SHOW_GPENCIL) {
 		/* draw grease-pencil stuff - needed to get paint-buffer shown too (since it's 2D) */
-		draw_gpencil_view3d(scene, v3d, ar, false);
+		ED_gpencil_draw_view3d(scene, v3d, ar, false);
 	}
 
 	if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {

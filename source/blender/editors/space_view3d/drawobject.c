@@ -152,6 +152,17 @@ typedef struct drawDMEdgesSelInterp_userData {
 	unsigned char *lastCol;
 } drawDMEdgesSelInterp_userData;
 
+typedef struct drawDMEdgesWeightInterp_userData {
+	BMesh *bm;
+
+	int cd_dvert_offset;
+	int defgroup_tot;
+	int vgroup_index;
+	char weight_user;
+	float alert_color[3];
+
+} drawDMEdgesWeightInterp_userData;
+
 typedef struct drawDMFacesSel_userData {
 #ifdef WITH_FREESTYLE
 	unsigned char *cols[4];
@@ -763,8 +774,10 @@ typedef struct ViewCachedString {
 	short sco[2];
 	short xoffs;
 	short flag;
-	int str_len, pad;
+	int str_len;
+
 	/* str is allocated past the end */
+	char str[0];
 } ViewCachedString;
 
 /* one arena for all 3 string lists */
@@ -789,7 +802,6 @@ void view3d_cached_text_draw_add(const float co[3],
                                  const unsigned char col[4])
 {
 	int alloc_len = str_len + 1;
-	/* TODO, replace with more efficient malloc, perhaps memarena per draw? */
 	ViewCachedString *vos;
 
 	BLI_assert(str_len == strlen(str));
@@ -809,7 +821,7 @@ void view3d_cached_text_draw_add(const float co[3],
 	vos->str_len = str_len;
 
 	/* allocate past the end */
-	memcpy(vos + 1, str, alloc_len);
+	memcpy(vos->str, str, alloc_len);
 }
 
 void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, float mat[4][4])
@@ -868,8 +880,6 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 		
 		for (vos = g_v3d_strings[g_v3d_string_level]; vos; vos = vos->next) {
 			if (vos->sco[0] != IS_CLIPPED) {
-				const char *str = (char *)(vos + 1);
-
 				if (col_pack_prev != vos->col.pack) {
 					glColor3ubv(vos->col.ub);
 					col_pack_prev = vos->col.pack;
@@ -878,10 +888,10 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 				((vos->flag & V3D_CACHE_TEXT_ASCII) ?
 				 BLF_draw_default_ascii :
 				 BLF_draw_default
-				)( (float)vos->sco[0] + vos->xoffs,
-				   (float)vos->sco[1],
+				 )((float)(vos->sco[0] + vos->xoffs),
+				   (float)(vos->sco[1]),
 				   (depth_write) ? 0.0f : 2.0f,
-				   str,
+				   vos->str,
 				   vos->str_len);
 			}
 		}
@@ -2421,6 +2431,80 @@ static void draw_dm_edges_sel_interp(BMEditMesh *em, DerivedMesh *dm, unsigned c
 	dm->drawMappedEdgesInterp(dm, draw_dm_edges_sel_interp__setDrawOptions, draw_dm_edges_sel_interp__setDrawInterpOptions, &data);
 }
 
+static void bm_color_from_weight(float col[3], BMVert *vert, drawDMEdgesWeightInterp_userData *data)
+{
+	MDeformVert *dvert = BM_ELEM_CD_GET_VOID_P(vert, data->cd_dvert_offset);
+	float weight = defvert_find_weight(dvert, data->vgroup_index);
+
+	if ((weight == 0.0f) &&
+	    ((data->weight_user == OB_DRAW_GROUPUSER_ACTIVE) ||
+	     ((data->weight_user == OB_DRAW_GROUPUSER_ALL) && defvert_is_weight_zero(dvert, data->defgroup_tot))))
+	{
+		copy_v3_v3(col, data->alert_color);
+	}
+	else {
+		weight_to_rgb(col, weight);
+	}
+}
+
+static void draw_dm_edges_weight_interp__setDrawInterpOptions(void *userData, int index, float t)
+{
+	drawDMEdgesWeightInterp_userData *data = userData;
+	BMEdge *eed = BM_edge_at_index(data->bm, index);
+	float col[3];
+
+	if (t == 0.0f) {
+		bm_color_from_weight(col, eed->v1, data);
+	}
+	else if (t == 1.0f) {
+		bm_color_from_weight(col, eed->v2, data);
+	}
+	else {
+		float col_v1[3];
+		float col_v2[3];
+
+		bm_color_from_weight(col_v1, eed->v1, data);
+		bm_color_from_weight(col_v2, eed->v2, data);
+		interp_v3_v3v3(col, col_v1, col_v2, t);
+	}
+
+	glColor3fv(col);
+}
+
+static void draw_dm_edges_weight_interp(BMEditMesh *em, DerivedMesh *dm, const char weight_user)
+{
+	drawDMEdgesWeightInterp_userData data;
+	Object *ob = em->ob;
+
+	data.bm = em->bm;
+	data.cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
+	data.defgroup_tot = BLI_countlist(&ob->defbase);
+	data.vgroup_index = ob->actdef - 1;
+	data.weight_user = weight_user;
+	UI_GetThemeColor3fv(TH_VERTEX_UNREFERENCED, data.alert_color);
+
+	glEnable(GL_BLEND);
+	dm->drawMappedEdgesInterp(dm, draw_dm_edges_sel_interp__setDrawOptions, draw_dm_edges_weight_interp__setDrawInterpOptions, &data);
+	glDisable(GL_BLEND);
+}
+
+static bool draw_dm_edges_weight_check(Mesh *me, BMEditMesh *em, View3D *v3d)
+{
+	if ((me->drawflag & ME_DRAWEIGHT) &&
+	    (em->ob->actdef) &&
+	    (CustomData_has_layer(&em->bm->vdata, CD_MDEFORMVERT)))
+	{
+		if ((v3d->drawtype == OB_WIRE) ||
+		    (v3d->flag2 & V3D_SOLID_MATCAP) ||
+		    ((v3d->flag2 & V3D_OCCLUDE_WIRE) && (v3d->drawtype > OB_WIRE)))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /* Draw only seam edges */
 static DMDrawOption draw_dm_edges_seams__setDrawOptions(void *userData, int index)
 {
@@ -2833,9 +2917,16 @@ static void draw_em_fancy_edges(BMEditMesh *em, Scene *scene, View3D *v3d,
 			draw_dm_edges_sel(em, cageDM, wireCol, selCol, actCol, eed_act);
 		}
 		else if ((me->drawflag & ME_DRAWEDGES) || (ts->selectmode & SCE_SELECT_EDGE)) {
-			if (cageDM->drawMappedEdgesInterp && (ts->selectmode & SCE_SELECT_VERTEX)) {
+			if (cageDM->drawMappedEdgesInterp &&
+			    ((ts->selectmode & SCE_SELECT_VERTEX) || (me->drawflag & ME_DRAWEIGHT)))
+			{
 				glShadeModel(GL_SMOOTH);
-				draw_dm_edges_sel_interp(em, cageDM, wireCol, selCol);
+				if (draw_dm_edges_weight_check(me, em, v3d)) {
+					draw_dm_edges_weight_interp(em, cageDM, ts->weightuser);
+				}
+				else {
+					draw_dm_edges_sel_interp(em, cageDM, wireCol, selCol);
+				}
 				glShadeModel(GL_FLAT);
 			}
 			else {
@@ -3870,12 +3961,14 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 	else {
 		/* ob->bb was set by derived mesh system, do NULL check just to be sure */
 		if (me->totpoly <= 4 || (!ob->bb || ED_view3d_boundbox_clip(rv3d, ob->bb))) {
-			const bool glsl = draw_glsl_material(scene, ob, v3d, dt);
-			const bool check_alpha = check_alpha_pass(base);
+			if (dt > OB_WIRE) {
+				const bool glsl = draw_glsl_material(scene, ob, v3d, dt);
 
-			if (dt == OB_SOLID || glsl) {
-				GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl,
-				                           (check_alpha) ? &do_alpha_after : NULL);
+				if (dt == OB_SOLID || glsl) {
+					const bool check_alpha = check_alpha_pass(base);
+					GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl,
+					                           (check_alpha) ? &do_alpha_after : NULL);
+				}
 			}
 
 			draw_mesh_fancy(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
@@ -5914,7 +6007,7 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 
 		UI_ThemeColor(TH_WIRE_EDIT);
 		for (bl = ob->curve_cache->bev.first, nu = nurb; nu && bl; bl = bl->next, nu = nu->next) {
-			BevPoint *bevp = (BevPoint *)(bl + 1);
+			BevPoint *bevp = bl->bevpoints;
 			int nr = bl->nr;
 			int skip = nu->resolu / 16;
 			
@@ -5958,6 +6051,149 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	}
 	
 	if (v3d->zbuf) glDepthFunc(GL_LEQUAL);
+}
+
+static void draw_editfont_textcurs(RegionView3D *rv3d, float textcurs[4][2])
+{
+	cpack(0);
+	ED_view3d_polygon_offset(rv3d, -1.0);
+	set_inverted_drawing(1);
+	glBegin(GL_QUADS);
+	glVertex2fv(textcurs[0]);
+	glVertex2fv(textcurs[1]);
+	glVertex2fv(textcurs[2]);
+	glVertex2fv(textcurs[3]);
+	glEnd();
+	set_inverted_drawing(0);
+	ED_view3d_polygon_offset(rv3d, 0.0);
+}
+
+static void draw_editfont(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
+                          const char dt, const short dflag, const unsigned char ob_wire_col[4])
+{
+	Object *ob = base->object;
+	Curve *cu = ob->data;
+	EditFont *ef = cu->editfont;
+	float vec1[3], vec2[3];
+	int i, selstart, selend;
+
+	draw_editfont_textcurs(rv3d, ef->textcurs);
+
+	if (cu->flag & CU_FAST) {
+		cpack(0xFFFFFF);
+		set_inverted_drawing(1);
+		drawDispList(scene, v3d, rv3d, base, OB_WIRE, dflag, ob_wire_col);
+		set_inverted_drawing(0);
+	}
+	else {
+		drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
+	}
+
+	if (cu->linewidth != 0.0f) {
+		UI_ThemeColor(TH_WIRE_EDIT);
+		copy_v3_v3(vec1, ob->orig);
+		copy_v3_v3(vec2, ob->orig);
+		vec1[0] += cu->linewidth;
+		vec2[0] += cu->linewidth;
+		vec1[1] += cu->linedist * cu->fsize;
+		vec2[1] -= cu->lines * cu->linedist * cu->fsize;
+		setlinestyle(3);
+		glBegin(GL_LINE_STRIP);
+		glVertex2fv(vec1);
+		glVertex2fv(vec2);
+		glEnd();
+		setlinestyle(0);
+	}
+
+	setlinestyle(3);
+	for (i = 0; i < cu->totbox; i++) {
+		if (cu->tb[i].w != 0.0f) {
+			UI_ThemeColor(i == (cu->actbox - 1) ? TH_ACTIVE : TH_WIRE);
+			vec1[0] = cu->xof + cu->tb[i].x;
+			vec1[1] = cu->yof + cu->tb[i].y + cu->fsize;
+			vec1[2] = 0.001;
+			glBegin(GL_LINE_STRIP);
+			glVertex3fv(vec1);
+			vec1[0] += cu->tb[i].w;
+			glVertex3fv(vec1);
+			vec1[1] -= cu->tb[i].h;
+			glVertex3fv(vec1);
+			vec1[0] -= cu->tb[i].w;
+			glVertex3fv(vec1);
+			vec1[1] += cu->tb[i].h;
+			glVertex3fv(vec1);
+			glEnd();
+		}
+	}
+	setlinestyle(0);
+
+
+	if (BKE_vfont_select_get(ob, &selstart, &selend) && ef->selboxes) {
+		const int seltot = selend - selstart;
+		float selboxw;
+
+		cpack(0xffffff);
+		set_inverted_drawing(1);
+		for (i = 0; i <= seltot; i++) {
+			EditFontSelBox *sb = &ef->selboxes[i];
+			float tvec[3];
+
+			if (i != seltot) {
+				if (ef->selboxes[i + 1].y == sb->y)
+					selboxw = ef->selboxes[i + 1].x - sb->x;
+				else
+					selboxw = sb->w;
+			}
+			else {
+				selboxw = sb->w;
+			}
+
+			/* fill in xy below */
+			tvec[2] = 0.001;
+
+			glBegin(GL_QUADS);
+
+			if (sb->rot == 0.0f) {
+				copy_v2_fl2(tvec, sb->x, sb->y);
+				glVertex3fv(tvec);
+
+				copy_v2_fl2(tvec, sb->x + selboxw, sb->y);
+				glVertex3fv(tvec);
+
+				copy_v2_fl2(tvec, sb->x + selboxw, sb->y + sb->h);
+				glVertex3fv(tvec);
+
+				copy_v2_fl2(tvec, sb->x, sb->y + sb->h);
+				glVertex3fv(tvec);
+			}
+			else {
+				float mat[2][2];
+
+				angle_to_mat2(mat, sb->rot);
+
+				copy_v2_fl2(tvec, sb->x, sb->y);
+				glVertex3fv(tvec);
+
+				copy_v2_fl2(tvec, selboxw, 0.0f);
+				mul_m2v2(mat, tvec);
+				add_v2_v2(tvec, &sb->x);
+				glVertex3fv(tvec);
+
+				copy_v2_fl2(tvec, selboxw, sb->h);
+				mul_m2v2(mat, tvec);
+				add_v2_v2(tvec, &sb->x);
+				glVertex3fv(tvec);
+
+				copy_v2_fl2(tvec, 0.0f, sb->h);
+				mul_m2v2(mat, tvec);
+				add_v2_v2(tvec, &sb->x);
+				glVertex3fv(tvec);
+			}
+
+			glEnd();
+		}
+		set_inverted_drawing(0);
+	}
 }
 
 /* draw a sphere for use as an empty drawtype */
@@ -6014,21 +6250,6 @@ static void draw_empty_cone(float size)
 	glPopMatrix();
 	
 	gluDeleteQuadric(qobj);
-}
-
-static void draw_textcurs(RegionView3D *rv3d, float textcurs[4][2])
-{
-	cpack(0);
-	ED_view3d_polygon_offset(rv3d, -1.0);
-	set_inverted_drawing(1);
-	glBegin(GL_QUADS);
-	glVertex2fv(textcurs[0]);
-	glVertex2fv(textcurs[1]);
-	glVertex2fv(textcurs[2]);
-	glVertex2fv(textcurs[3]);
-	glEnd();
-	set_inverted_drawing(0);
-	ED_view3d_polygon_offset(rv3d, 0.0);
 }
 
 static void drawspiral(const float cent[3], float rad, float tmat[4][4], int start)
@@ -6904,21 +7125,16 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	Object *ob = base->object;
 	Curve *cu;
 	RegionView3D *rv3d = ar->regiondata;
-	float vec1[3], vec2[3];
 	unsigned int col = 0;
 	unsigned char _ob_wire_col[4];            /* dont initialize this */
 	const unsigned char *ob_wire_col = NULL;  /* dont initialize this, use NULL crashes as a way to find invalid use */
-	int i, selstart, selend, empty_object = 0;
 	short dtx;
 	char  dt;
-	bool zbufoff = false, is_paint = false;
+	bool zbufoff = false, is_paint = false, empty_object = false;
 	const bool is_obact = (ob == OBACT);
 	const bool render_override = (v3d->flag2 & V3D_RENDER_OVERRIDE) != 0;
 	const bool is_picking = (G.f & G_PICKSEL) != 0;
 	bool particle_skip_object = false;  /* Draw particles but not their emitter object. */
-
-	/* only once set now, will be removed too, should become a global standard */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	if (ob != scene->obedit) {
 		if (ob->restrictflag & OB_RESTRICT_VIEW) {
@@ -6971,7 +7187,13 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		}
 	}
 
+
+	/* -------------------------------------------------------------------- */
 	/* no return after this point, otherwise leaks */
+
+	/* only once set now, will be removed too, should become a global standard */
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	view3d_cached_text_draw_begin();
 	
 	/* draw motion paths (in view space) */
@@ -7071,125 +7293,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			case OB_FONT:
 				cu = ob->data;
 				if (cu->editfont) {
-					EditFont *ef = cu->editfont;
-
-					draw_textcurs(rv3d, ef->textcurs);
-
-					if (cu->flag & CU_FAST) {
-						cpack(0xFFFFFF);
-						set_inverted_drawing(1);
-						drawDispList(scene, v3d, rv3d, base, OB_WIRE, dflag, ob_wire_col);
-						set_inverted_drawing(0);
-					}
-					else {
-						drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
-					}
-
-					if (cu->linewidth != 0.0f) {
-						UI_ThemeColor(TH_WIRE_EDIT);
-						copy_v3_v3(vec1, ob->orig);
-						copy_v3_v3(vec2, ob->orig);
-						vec1[0] += cu->linewidth;
-						vec2[0] += cu->linewidth;
-						vec1[1] += cu->linedist * cu->fsize;
-						vec2[1] -= cu->lines * cu->linedist * cu->fsize;
-						setlinestyle(3);
-						glBegin(GL_LINE_STRIP);
-						glVertex2fv(vec1);
-						glVertex2fv(vec2);
-						glEnd();
-						setlinestyle(0);
-					}
-
-					setlinestyle(3);
-					for (i = 0; i < cu->totbox; i++) {
-						if (cu->tb[i].w != 0.0f) {
-							UI_ThemeColor(i == (cu->actbox - 1) ? TH_ACTIVE : TH_WIRE);
-							vec1[0] = cu->xof + cu->tb[i].x;
-							vec1[1] = cu->yof + cu->tb[i].y + cu->fsize;
-							vec1[2] = 0.001;
-							glBegin(GL_LINE_STRIP);
-							glVertex3fv(vec1);
-							vec1[0] += cu->tb[i].w;
-							glVertex3fv(vec1);
-							vec1[1] -= cu->tb[i].h;
-							glVertex3fv(vec1);
-							vec1[0] -= cu->tb[i].w;
-							glVertex3fv(vec1);
-							vec1[1] += cu->tb[i].h;
-							glVertex3fv(vec1);
-							glEnd();
-						}
-					}
-					setlinestyle(0);
-
-
-					if (BKE_vfont_select_get(ob, &selstart, &selend) && ef->selboxes) {
-						const int seltot = selend - selstart;
-						float selboxw;
-
-						cpack(0xffffff);
-						set_inverted_drawing(1);
-						for (i = 0; i <= seltot; i++) {
-							EditFontSelBox *sb = &ef->selboxes[i];
-							float tvec[3];
-
-							if (i != seltot) {
-								if (ef->selboxes[i + 1].y == sb->y)
-									selboxw = ef->selboxes[i + 1].x - sb->x;
-								else
-									selboxw = sb->w;
-							}
-							else {
-								selboxw = sb->w;
-							}
-
-							/* fill in xy below */
-							tvec[2] = 0.001;
-
-							glBegin(GL_QUADS);
-
-							if (sb->rot == 0.0f) {
-								copy_v2_fl2(tvec, sb->x, sb->y);
-								glVertex3fv(tvec);
-
-								copy_v2_fl2(tvec, sb->x + selboxw, sb->y);
-								glVertex3fv(tvec);
-
-								copy_v2_fl2(tvec, sb->x + selboxw, sb->y + sb->h);
-								glVertex3fv(tvec);
-
-								copy_v2_fl2(tvec, sb->x, sb->y + sb->h);
-								glVertex3fv(tvec);
-							}
-							else {
-								float mat[2][2];
-
-								angle_to_mat2(mat, sb->rot);
-
-								copy_v2_fl2(tvec, sb->x, sb->y);
-								glVertex3fv(tvec);
-
-								copy_v2_fl2(tvec, selboxw, 0.0f);
-								mul_m2v2(mat, tvec);
-								add_v2_v2(tvec, &sb->x);
-								glVertex3fv(tvec);
-
-								copy_v2_fl2(tvec, selboxw, sb->h);
-								mul_m2v2(mat, tvec);
-								add_v2_v2(tvec, &sb->x);
-								glVertex3fv(tvec);
-
-								copy_v2_fl2(tvec, 0.0f, sb->h);
-								mul_m2v2(mat, tvec);
-								add_v2_v2(tvec, &sb->x);
-								glVertex3fv(tvec);
-							}
-
-							glEnd();
-						}
-						set_inverted_drawing(0);
-					}
+					draw_editfont(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
 				}
 				else if (dt == OB_BOUNDBOX) {
 					if ((render_override && v3d->drawtype >= OB_WIRE) == 0) {
