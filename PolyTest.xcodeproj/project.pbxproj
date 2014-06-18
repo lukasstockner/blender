@@ -10,10 +10,22 @@
 		FC35456E194BDF2300F3D236 /* poly_demo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC35456D194BDF2300F3D236 /* poly_demo.cpp */; };
 		FC354571194BDF7300F3D236 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354570194BDF7300F3D236 /* OpenGL.framework */; };
 		FC354573194BDF7E00F3D236 /* GLUT.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354572194BDF7E00F3D236 /* GLUT.framework */; };
+		FC67C07A19514DE10077AB72 /* rast_demo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC67C07919514DE10077AB72 /* rast_demo.cpp */; };
+		FC67C08019515CBB0077AB72 /* GLUT.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354572194BDF7E00F3D236 /* GLUT.framework */; };
+		FC67C08119515CBF0077AB72 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354570194BDF7300F3D236 /* OpenGL.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		FC35455F194BDED000F3D236 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		FC67C07519514DE00077AB72 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -27,9 +39,11 @@
 /* Begin PBXFileReference section */
 		FC354561194BDED000F3D236 /* PolyTest */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = PolyTest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC35456D194BDF2300F3D236 /* poly_demo.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = poly_demo.cpp; sourceTree = "<group>"; };
-		FC35456F194BDF3700F3D236 /* poly.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = poly.cpp; sourceTree = "<group>"; };
+		FC35456F194BDF3700F3D236 /* poly.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = poly.h; sourceTree = "<group>"; };
 		FC354570194BDF7300F3D236 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		FC354572194BDF7E00F3D236 /* GLUT.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GLUT.framework; path = System/Library/Frameworks/GLUT.framework; sourceTree = SDKROOT; };
+		FC67C07719514DE10077AB72 /* rast_demo */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = rast_demo; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC67C07919514DE10077AB72 /* rast_demo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = rast_demo.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -39,6 +53,15 @@
 			files = (
 				FC354573194BDF7E00F3D236 /* GLUT.framework in Frameworks */,
 				FC354571194BDF7300F3D236 /* OpenGL.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC67C07419514DE00077AB72 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FC67C08119515CBF0077AB72 /* OpenGL.framework in Frameworks */,
+				FC67C08019515CBB0077AB72 /* GLUT.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,6 +82,7 @@
 			isa = PBXGroup;
 			children = (
 				FC354561194BDED000F3D236 /* PolyTest */,
+				FC67C07719514DE10077AB72 /* rast_demo */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -66,8 +90,9 @@
 		FC354563194BDED000F3D236 /* PolyTest */ = {
 			isa = PBXGroup;
 			children = (
-				FC35456F194BDF3700F3D236 /* poly.cpp */,
+				FC35456F194BDF3700F3D236 /* poly.h */,
 				FC35456D194BDF2300F3D236 /* poly_demo.cpp */,
+				FC67C07919514DE10077AB72 /* rast_demo.cpp */,
 			);
 			path = PolyTest;
 			sourceTree = "<group>";
@@ -92,6 +117,23 @@
 			productReference = FC354561194BDED000F3D236 /* PolyTest */;
 			productType = "com.apple.product-type.tool";
 		};
+		FC67C07619514DE00077AB72 /* rast_demo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FC67C07F19514DE10077AB72 /* Build configuration list for PBXNativeTarget "rast_demo" */;
+			buildPhases = (
+				FC67C07319514DE00077AB72 /* Sources */,
+				FC67C07419514DE00077AB72 /* Frameworks */,
+				FC67C07519514DE00077AB72 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = rast_demo;
+			productName = rast_demo;
+			productReference = FC67C07719514DE10077AB72 /* rast_demo */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -114,6 +156,7 @@
 			projectRoot = "";
 			targets = (
 				FC354560194BDED000F3D236 /* PolyTest */,
+				FC67C07619514DE00077AB72 /* rast_demo */,
 			);
 		};
 /* End PBXProject section */
@@ -124,6 +167,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				FC35456E194BDF2300F3D236 /* poly_demo.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC67C07319514DE00077AB72 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FC67C07A19514DE10077AB72 /* rast_demo.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -222,6 +273,24 @@
 			};
 			name = Release;
 		};
+		FC67C07D19514DE10077AB72 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		FC67C07E19514DE10077AB72 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -239,6 +308,15 @@
 			buildConfigurations = (
 				FC35456B194BDED000F3D236 /* Debug */,
 				FC35456C194BDED000F3D236 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FC67C07F19514DE10077AB72 /* Build configuration list for PBXNativeTarget "rast_demo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC67C07D19514DE10077AB72 /* Debug */,
+				FC67C07E19514DE10077AB72 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 		};

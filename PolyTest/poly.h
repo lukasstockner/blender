@@ -5,13 +5,15 @@ struct GreinerV2f {
 	struct GreinerV2f *next, *prev; // Prev,next verts in the *same* polygon
 	struct GreinerV2f *nextPoly;   // First vertex of the *next* polygon
 	bool isIntersection; // True if this vertex was added at an intersection
-	bool isEntry; // True if proceeding along this poly with ->next->next will enter the other polygon when this vertex is passed
-	bool isBackbone;
+	bool isEntry; // True if proceeding along this poly with ->next->next->next etc will enter the other polygon when this vertex is passed
+	bool isInterior;
+	bool isBackbone; // True if nextPoly!=nullptr || exists prevPoly s.t. prevPoly->nextPoly == this
 	struct GreinerV2f *neighbour; // Corresp. vertex at same {x,y} in different polygon
 	float alpha; // If this vertex came from an affine comb, this is the mixing factor
 	GreinerV2f() : next(nullptr), prev(nullptr),
 	               nextPoly(nullptr), neighbour(nullptr),
-	               isIntersection(false), isBackbone(false) {};
+	               isIntersection(false), isBackbone(false),
+	               isEntry(false) {};
 };
 
 GreinerV2f* insert_vert_at_intersect(GreinerV2f* poly1left,
@@ -182,4 +184,140 @@ bool point_in_polygon(float x, float y, GreinerV2f* poly) {
 	}
 	// Note: return is_even to exclude self-intersecting regions
 	return ccw!=0;
+}
+
+// Polygon clip (subj1\clip + subj2\clip + ...)
+// Fills isEntry for all verts
+// Fills isInterior. isInterior=true on the boundary.
+// Assumes isIntersection has been correctly filled
+void label_entry_exit(GreinerV2f *subj, GreinerV2f *clip) {
+	for (GreinerV2f *poly=subj; poly; poly = poly->nextPoly) {
+		bool interior = point_in_polygon(poly->x, poly->y, clip);
+		poly->isInterior = interior;
+		for (GreinerV2f *vert=poly; vert; vert = vert->next) {
+			if (vert->isIntersection) {
+				vert->isInterior = true;
+				if (interior) vert->isEntry = false;
+				else          vert->isEntry = true;
+				interior = !interior;
+			} else {
+				vert->isInterior = interior;
+			}
+			if (vert->next) {if (vert->next->isBackbone) break;}
+		}
+	}
+}
+
+void next_intersection(GreinerV2f *poly) {
+	
+}
+
+// Fast float->int, courtesy of http://stereopsis.com/sree/fpu2006.html
+// 5x faster on x86. It's not in the hot loop anymore so it probably
+// doesn't really matter. Todo: test and see.
+const double _xs_doublemagic             = 6755399441055744.0;               //2^52 * 1.5,  uses limited precisicion to floor
+const double _xs_doublemagicdelta        = (1.5e-8);                         //almost .5f = .5f + 1e^(number of exp bit)
+const double _xs_doublemagicroundeps     = (.5f-_xs_doublemagicdelta);       //almost .5f = .5f - 1e^(number of exp bit)
+inline static int xs_CRoundToInt(double val) {
+    val = val + _xs_doublemagic;
+    return ((int*)&val)[0]; // 0 for little endian (ok), 1 for big endian (?)
+//    return int32(floor(val+.5)); //Alternative implementation if the trick is buggy
+}
+inline static int xs_FloorToInt(double val) {
+    //return xs_CRoundToInt(val-_xs_doublemagicroundeps);
+	return floor(val); //Alternative implementation if the trick is buggy
+}
+
+//Assumptions: upper right quadrant (default int cast behavior is round-towards-zero)
+std::vector<std::pair<int,int>>
+find_integer_cells_intersecting_line(double x0, double y0, double x1, double y1) {
+	std::vector<std::pair<int,int>> ret;
+	if (x0>x1) { // Ensure order is left to right
+		std::swap(x0,x1);
+		std::swap(y0,y1);
+	}
+	int cx0=xs_FloorToInt(x0), cy0=xs_FloorToInt(y0), cx1=xs_FloorToInt(x1), cy1=xs_FloorToInt(y1);
+	// Line segments smaller than a cell should always hit these trivial cases
+	if (cy0==cy1) { //Horizontal or single-cell
+		for (; cx0<=cx1; cx0++)
+			ret.push_back(std::make_pair(cx0,cy0));
+		return ret;
+	} else if (cx0==cx1) { // Vertical
+		if (cy0<cy1) for (; cy0<=cy1; cy0++) ret.push_back(std::make_pair(cx0,cy0));
+		else         for (; cy1<=cy0; cy1++) ret.push_back(std::make_pair(cx1,cy1));
+		return ret;
+	}
+	// Line segments larger than a cell make us think :)
+	double m = (y1-y0)/(x1-x0);
+	double cy0f=cy0;
+	double residue_x=(cx0+1)-x0;
+	double rhy = y0+residue_x*m; // y coord at the right edge of the cell
+	if (cy1>cy0) { //Upwards and to the right
+		for (; cx0<=cx1; cx0++) {
+			if (cx0==cx1) rhy = y1;
+			ret.push_back(std::make_pair(cx0,cy0));
+			while (cy0f+1<rhy) {
+				cy0+=1; cy0f+=1.0;
+				ret.push_back(std::make_pair(cx0,cy0));
+			}
+			rhy += m;
+		}
+	} else { //Downwards and to the right
+		for (; cx0<=cx1; cx0++) {
+			if (cx0==cx1) rhy = y1;
+			ret.push_back(std::make_pair(cx0,cy0));
+			while (cy0f>rhy) {
+				cy0-=1; cy0f-=1.0;
+				ret.push_back(std::make_pair(cx0,cy0));
+			}
+			rhy += m;
+		}
+	}
+	return ret;
+}
+
+void find_integer_cell_edges_intersecting_line(float x0, float y0, float x1, float y1,
+											   std::vector<std::pair<int,int>>& bottom_edges,
+											   std::vector<std::pair<int,int>>& left_edges) {
+	if (x0>x1) { // Ensure order is left to right
+		std::swap(x0,x1);
+		std::swap(y0,y1);
+	}
+	int cx0=xs_FloorToInt(x0), cy0=xs_FloorToInt(y0), cx1=xs_FloorToInt(x1), cy1=xs_FloorToInt(y1);
+	// Line segments smaller than a cell's minimum dimension should always hit these trivial cases
+	if (cy0==cy1) { //Horizontal or single-cell
+		for (cx0++; cx0<=cx1; cx0++)
+			left_edges.push_back(std::make_pair(cx0,cy0));
+		return;
+	} else if (cx0==cx1) { // Vertical
+		if (cy0<cy1) for (cy0++; cy0<=cy1; cy0++) bottom_edges.push_back(std::make_pair(cx0,cy0));
+		else         for (cy1++; cy1<=cy0; cy1++) bottom_edges.push_back(std::make_pair(cx1,cy1));
+		return;
+	}
+	// Line segments larger than a cell make us think :)
+	double m = (y1-y0)/(x1-x0);
+	double cy0f=cy0;
+	double residue_x=(cx0+1)-x0;
+	double rhy = y0+residue_x*m; // y coord at the right edge of the cell
+	if (cy1>cy0) { //Upwards and to the right
+		for (; cx0<=cx1; cx0++) {
+			if (cx0==cx1) rhy = y1;
+			while (cy0f+1<rhy) {
+				cy0+=1; cy0f+=1.0;
+				bottom_edges.push_back(std::make_pair(cx0,cy0));
+			}
+			if (cx0!=cx1) left_edges.push_back(std::make_pair(cx0+1, cy0));
+			rhy += m;
+		}
+	} else { //Downwards and to the right
+		for (; cx0<=cx1; cx0++) {
+			if (cx0==cx1) rhy = y1;
+			while (cy0f>rhy) {
+				bottom_edges.push_back(std::make_pair(cx0,cy0));
+				cy0-=1; cy0f-=1.0;
+			}
+			if (cx0!=cx1) left_edges.push_back(std::make_pair(cx0+1, cy0));
+			rhy += m;
+		}
+	}
 }

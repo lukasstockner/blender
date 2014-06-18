@@ -41,8 +41,8 @@ int win_height = 500;
 void glut_coords_2_scene(float gx, float gy, float* sx, float* sy) {
 	gx /= win_width;
 	gy /= win_height;
-	*sx = 2*gx-1;
-	*sy = 2*(1-gy)-1;
+	*sx =-1.0*(1-gx) + 11.0*gx;
+	*sy =11.0*(1-gy) + -1.0*gy;
 }
 
 void init_default_scene() {
@@ -104,7 +104,7 @@ void GLUT_init(){
     glMatrixMode(GL_PROJECTION);
 	// Defines the view box
 	// left,right,bottom,top
-    gluOrtho2D(-1,1,-1,1);
+    gluOrtho2D(-1,11,-1,11);
 	init_default_scene();
 }
 
@@ -130,7 +130,7 @@ void GLUT_display(){
 		if (v->isIntersection) is_outside = !is_outside;
 	}
 	glEnd();
-
+	
 	//Draw Clip polygon verts
 	glPointSize(5);
 	glBegin(GL_POINTS);
@@ -142,7 +142,7 @@ void GLUT_display(){
 		first_iter = false;
 	}
 	glEnd();
-
+	
 	// Draw Subject polygon lines
 	glBegin(GL_LINES);
 	for (GreinerV2f *curpoly=subj; curpoly; curpoly=curpoly->nextPoly) {
@@ -161,7 +161,7 @@ void GLUT_display(){
 		}
 	}
 	glEnd();
-
+	
 	// Draw Subject polygon verts
 	glPointSize(3);
 	glBegin(GL_POINTS);
@@ -188,7 +188,7 @@ void GLUT_display(){
 		glVertex2f(intersect_pt->x, intersect_pt->y);
 		glEnd();
 	}
-
+	
 	// Draw inclusion/exclusion test points
 	if (clip_cyclic) {
 		glPointSize(5);
@@ -202,8 +202,50 @@ void GLUT_display(){
 		}
 		glEnd();
 	}
+	
+	// Draw Grid (with x,y offsets)
+	float xo = 1*(12.0/win_width);
+	float yo = 1*(12.0/win_height);
+	glBegin(GL_LINES);
+	glColor3f(0, 1, 0);
+	for (int x=0; x<10; x++) {
+		for (int y=0; y<10; y++) {
+			glVertex2f(x+xo,y+yo); glVertex2f(x+1-xo,y+yo);
+			glVertex2f(x+1-xo,y+yo); glVertex2f(x+1-xo,y+1-yo);
+			glVertex2f(x+1-xo,y+1-yo); glVertex2f(x+xo,y+1-yo);
+			glVertex2f(x+xo,y+1-yo); glVertex2f(x+xo,y+yo);
+		}
+	}
+	
+	//Draw purple grid boxes on cells intersected by subj's first line segment
+	glColor3f(.5, 0, .5);
+	for (std::pair<int,int> xy : find_integer_cells_intersecting_line(clip->x,clip->y,clip->next->x,clip->next->y)) {
+		int x=xy.first, y=xy.second;
+		glVertex2f(x+xo,y+yo); glVertex2f(x+1-xo,y+yo);
+		glVertex2f(x+1-xo,y+yo); glVertex2f(x+1-xo,y+1-yo);
+		glVertex2f(x+1-xo,y+1-yo); glVertex2f(x+xo,y+1-yo);
+		glVertex2f(x+xo,y+1-yo); glVertex2f(x+xo,y+yo);
+	}
+	glEnd();
 
+	//Draw magenta lines on cell edges intersected by subj's first line segment
+	glBegin(GL_LINES);
+	glColor3f(1, 0, 1);
+	xo=0; yo=0;
+	std::vector<std::pair<int,int>> bottom_edges;
+	std::vector<std::pair<int,int>> left_edges;
+	find_integer_cell_edges_intersecting_line(clip->x,clip->y,clip->next->x,clip->next->y, bottom_edges, left_edges);
+	for (std::pair<int,int> xy : bottom_edges) {
+		int x=xy.first, y=xy.second;
+		glVertex2f(x+xo,y+yo); glVertex2f(x+1-xo,y+yo);
+	}
+	for (std::pair<int,int> xy : left_edges) {
+		int x=xy.first, y=xy.second;
+		glVertex2f(x+xo,y+1-yo); glVertex2f(x+xo,y+yo);
+	}
+	glEnd();
 
+	
 	glFlush();
 }
 
@@ -365,7 +407,7 @@ void create_pt(float sx, float sy) {
 	if (!grabbed_vert) return;
 	GreinerV2f *last_vert = grabbed_vert;
 	while (last_vert->next && !last_vert->isBackbone)
-		last_vert = last_vert->next;
+	last_vert = last_vert->next;
 	GreinerV2f *v = new GreinerV2f();
 	v->x = sx;
 	v->y = sy;
@@ -408,7 +450,7 @@ void initiate_pt_drag_if_near_pt(float sx, float sy) {
 		}
 	}
 	if (debug) printf("Nearest point to mousedown (%f)\n",closest_dist);
-	grabbed_vert = (closest_dist<.025) ? closest_vert : nullptr;
+	grabbed_vert = (closest_dist<.1) ? closest_vert : nullptr;
 }
 void terminate_pt_drag() {
 	//grabbed_vert = nullptr;
@@ -430,11 +472,11 @@ void GLUT_mouse( int button, int state, int x, int y) {
 	}
 	if (state==GLUT_DOWN && button==GLUT_LEFT_BUTTON) {
 		if (m&GLUT_ACTIVE_CTRL && m&GLUT_ACTIVE_SHIFT)
-			create_new_poly(sx,sy);
+		create_new_poly(sx,sy);
 		else if (m&GLUT_ACTIVE_CTRL)
-			create_pt(sx,sy);
+		create_pt(sx,sy);
 		else
-			initiate_pt_drag_if_near_pt(sx,sy);
+		initiate_pt_drag_if_near_pt(sx,sy);
 	}
 	if (state==GLUT_DOWN && button==GLUT_RIGHT_BUTTON) {
 		inout_pts.push_back(sx);
@@ -470,7 +512,7 @@ void GLUT_motion(int x, int y) {
 
 
 /***************************** MAIN *****************************/
-int main(int argc, char **argv){ 	
+int main(int argc, char **argv){
     glutInit(& argc, argv);
     glutInitDisplayMode(GLUT_SINGLE|GLUT_RGB);
     glutInitWindowSize(win_width,win_height);
