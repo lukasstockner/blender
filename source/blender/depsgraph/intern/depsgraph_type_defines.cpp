@@ -80,7 +80,7 @@ void BKE_rigidbody_rebuild_sim(Scene *scene) {}
 void BKE_rigidbody_eval_simulation(Scene *scene) {}
 void BKE_rigidbody_object_sync_transforms(Scene *scene, Object *ob) {}
 
-void BKE_object_eval_local_transform(Object *ob) {}
+void BKE_object_eval_local_transform(Object *ob, int a, int b, int c) { printf("BKE_object_eval_local_transform on %s (%d, %d, %d)\n", ob->id.name, a, b, c); }
 void BKE_object_eval_parent(Object *ob) {}
 void BKE_object_eval_modifier(Object *ob, ModifierData *md) {}
 
