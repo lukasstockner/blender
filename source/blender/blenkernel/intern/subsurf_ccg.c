@@ -3831,27 +3831,33 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 			for (i = 0; i < numlayer && i < dmnumlayer; i++)
 				set_subsurf_uv(ss, dm, &ccgdm->dm, i);
 		}
-	}
 
-	for (index = 0; index < totvert; ++index) {
-		CCGVert *v = ccgdm->vertMap[index].vert;
-		int mapIndex = ccgDM_getVertMapIndex(ccgdm->ss, v);
-		int vertIdx;
+		for (index = 0; index < totvert; ++index) {
+			CCGVert *v = ccgdm->vertMap[index].vert;
+			int mapIndex = ccgDM_getVertMapIndex(ccgdm->ss, v);
+			int vertIdx;
 
-		vertIdx = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v));
+			vertIdx = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v));
 
-		ccgdm->vertMap[index].startVert = vertNum;
+			ccgdm->vertMap[index].startVert = vertNum;
 
-		/* set the vert base vert */
-		*((int *) ccgSubSurf_getVertUserData(ss, v)) = vertNum;
+			/* set the vert base vert */
+			*((int *) ccgSubSurf_getVertUserData(ss, v)) = vertNum;
 
-		DM_copy_vert_data(dm, &ccgdm->dm, vertIdx, vertNum, 1);
+			DM_copy_vert_data(dm, &ccgdm->dm, vertIdx, vertNum, 1);
 
-		if (vertOrigIndex) {
-			*vertOrigIndex = mapIndex;
-			vertOrigIndex++;
+			if (vertOrigIndex) {
+				*vertOrigIndex = mapIndex;
+				vertOrigIndex++;
+			}
+			vertNum++;
 		}
-		vertNum++;
+	}
+	else {
+		vertNum = ccgSubSurf_getNumFinalVerts(ss);
+		edgeNum = ccgSubSurf_getNumFinalEdges(ss);
+		loopindex2 = ccgSubSurf_getNumFinalFaces(ss) * 4;
+		faceNum = ccgSubSurf_getNumFinalFaces(ss);
 	}
 
 	ccgdm->dm.numVertData = vertNum;

@@ -102,6 +102,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	const bool isFinalCalc = (flag & MOD_APPLY_USECACHE) != 0;
 	const bool allow_gpu = (flag & MOD_APPLY_ALLOW_GPU) != 0;
 
+	/* TODO(sergey): Investigate whether we still need this. */
+	const bool do_cddm_convert = useRenderParams || !isFinalCalc;
+
 	if (useRenderParams)
 		subsurf_flags |= SUBSURF_USE_RENDER_PARAMS;
 	if (isFinalCalc)
@@ -110,14 +113,14 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		subsurf_flags |= SUBSURF_IN_EDIT_MODE;
 
 	/* TODO(sergey): Not entirely correct, only good for purposes of test. */
-	if (md->next == NULL && allow_gpu) {
+	if (md->next == NULL && allow_gpu && do_cddm_convert == false) {
 		subsurf_flags |= SUBSURF_USE_GPU_BACKEND;
 	}
 
 	result = subsurf_make_derived_from_derived(derivedData, smd, NULL, subsurf_flags);
 	result->cd_flag = derivedData->cd_flag;
 
-	if (useRenderParams || !isFinalCalc) {
+	if (do_cddm_convert) {
 		DerivedMesh *cddm = CDDM_copy(result);
 		result->release(result);
 		result = cddm;
