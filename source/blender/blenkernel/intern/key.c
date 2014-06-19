@@ -2103,12 +2103,12 @@ void BKE_key_init_scratch(Object *ob)
 
 void BKE_key_editdata_to_scratch(Object *ob, bool indeces_in_sync)
 {
-	BLI_assert(ELEM3(ob->type, OB_MESH, OB_LATTICE, OB_CURVE));
-	BLI_assert(ob->mode == OB_MODE_EDIT);
-	
 	Key *k = BKE_key_from_object(ob);
 	ScratchKeyBlock *skb = &k->scratch;
-	
+
+	BLI_assert(ELEM3(ob->type, OB_MESH, OB_LATTICE, OB_CURVE));
+	BLI_assert(ob->mode == OB_MODE_EDIT);
+
 	if (ob->type == OB_MESH) {
 		Mesh *m = ob->data;
 		BMesh *bm = m->edit_btmesh->bm;
@@ -2148,10 +2148,10 @@ void BKE_key_editdata_to_scratch(Object *ob, bool indeces_in_sync)
 
 void BKE_key_editdata_from_scratch(Object *ob)
 {
+	ScratchKeyBlock *skb = &BKE_key_from_object(ob)->scratch;
+
 	BLI_assert(ELEM3(ob->type, OB_MESH, OB_LATTICE, OB_CURVE));
 	BLI_assert(ob->mode == OB_MODE_EDIT);
-
-	ScratchKeyBlock *skb = &BKE_key_from_object(ob)->scratch;
 
 	if (ob->type == OB_MESH) {
 		Mesh *m = ob->data;
