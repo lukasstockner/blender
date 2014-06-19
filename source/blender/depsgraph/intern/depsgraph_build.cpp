@@ -209,8 +209,9 @@ TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(IDPtr id)
 	return NULL;
 }
 
-ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &comp_name)
+ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(IDPtr id, eDepsNode_Type comp_type, const string &comp_name)
 {
+	IDDepsNode *id_node = add_id_node(id);
 	ComponentDepsNode *comp_node = id_node->add_component(comp_type, comp_name);
 	comp_node->owner = id_node;
 	return comp_node;
@@ -224,12 +225,12 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ComponentDepsNode *c
 	return op_node;
 }
 
-OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(IDDepsNode *id_node, eDepsNode_Type comp_type,
+OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(IDPtr id, eDepsNode_Type comp_type, const string &comp_name,
                                                             eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description)
 {
-	ComponentDepsNode *comp_node = id_node->add_component(comp_type);
-	OperationDepsNode *op_node = comp_node->add_operation(optype, op, description);
+	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
 	
+	OperationDepsNode *op_node = comp_node->add_operation(optype, op, description);
 	m_graph->operations.push_back(op_node);
 	
 	return op_node;

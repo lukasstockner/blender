@@ -109,38 +109,45 @@ struct DepsgraphNodeBuilder {
 	RootDepsNode *add_root_node();
 	IDDepsNode *add_id_node(IDPtr id);
 	TimeSourceDepsNode *add_time_source(IDPtr id);
-	ComponentDepsNode *add_component_node(IDDepsNode *id_node, eDepsNode_Type comp_type, const string &comp_name = "");
+	
+	ComponentDepsNode *add_component_node(IDPtr id, eDepsNode_Type comp_type, const string &comp_name = "");
+	
 	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node,
 	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
-	OperationDepsNode *add_operation_node(IDDepsNode *id_node, eDepsNode_Type comp_type,
+	OperationDepsNode *add_operation_node(IDPtr id, eDepsNode_Type comp_type, const string &comp_name,
 	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
+	OperationDepsNode *add_operation_node(IDPtr id, eDepsNode_Type comp_type,
+	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description)
+	{
+		return add_operation_node(id, comp_type, "", optype, op, description);
+	}
 	
 	void verify_entry_exit_operations();
 	
-	IDDepsNode *build_scene(Scene *scene);
+	void build_scene(Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
 	void build_group(Group *group);
-	IDDepsNode *build_object(Scene *scene, Object *ob);
-	ComponentDepsNode *build_object_transform(Object *ob, IDDepsNode *ob_node);
-	void build_object_constraints(Object *ob, IDDepsNode *ob_node);
-	void build_pose_constraints(Object *ob, bPoseChannel *pchan, BoneComponentDepsNode *bone_node);
-	void build_rigidbody(IDDepsNode *scene_node, Scene *scene);
-	void build_particles(IDDepsNode *ob_node, Object *ob);
-	void build_animdata(IDDepsNode *id_node);
-	OperationDepsNode *build_driver(IDDepsNode *id_node, FCurve *fcurve);
-	void build_ik_pose(ComponentDepsNode *bone_node, Object *ob, bPoseChannel *pchan, bConstraint *con);
-	void build_splineik_pose(ComponentDepsNode *bone_node, Object *ob, bPoseChannel *pchan, bConstraint *con);
-	void build_rig(IDDepsNode *ob_node, Object *ob);
+	void build_object(Scene *scene, Object *ob);
+	void build_object_transform(Object *ob);
+	void build_object_constraints(Object *ob);
+	void build_pose_constraints(Object *ob, bPoseChannel *pchan);
+	void build_rigidbody(Scene *scene);
+	void build_particles(Object *ob);
+	void build_animdata(IDPtr id);
+	OperationDepsNode *build_driver(IDPtr id, FCurve *fcurve);
+	void build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
+	void build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
+	void build_rig(Object *ob);
 	void build_shapekeys(Key *key);
-	void build_obdata_geom(IDDepsNode *ob_node, IDDepsNode *obdata_node, Scene *scene, Object *ob);
-	void build_camera(IDDepsNode *ob_node, IDDepsNode *obdata_node, Object *ob);
-	void build_lamp(IDDepsNode *ob_node, IDDepsNode *obdata_node, Object *ob);
+	void build_obdata_geom(Scene *scene, Object *ob);
+	void build_camera(Object *ob);
+	void build_lamp(Object *ob);
 	void build_nodetree(DepsNode *owner_node, bNodeTree *ntree);
 	void build_material(DepsNode *owner_node, Material *ma);
 	void build_texture(DepsNode *owner_node, Tex *tex);
 	void build_texture_stack(DepsNode *owner_node, MTex **texture_stack);
 	void build_world(World *world);
-	void build_compositor(IDDepsNode *scene_node, Scene *scene);
+	void build_compositor(Scene *scene);
 	
 protected:
 	void verify_entry_exit_operations(ComponentDepsNode *node);
