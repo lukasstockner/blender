@@ -640,7 +640,6 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 		parchan = pchan->parent;
 	
 	/* Walk to the chain's root */
-	bPoseChannel *rootchan = pchan;
 	size_t segcount = 0;
 	while (parchan) {
 		/* Make IK-solver dependent on this bone's result,
@@ -656,7 +655,6 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 		segcount++;
 		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
 		
-		rootchan = parchan;
 		parchan  = parchan->parent;
 	}
 }
@@ -682,12 +680,8 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob, bPoseChannel *pch
 	}
 	
 	/* Walk to the chain's root */
-	bPoseChannel *rootchan = pchan;
 	size_t segcount = 0;
-	for (bPoseChannel *parchan = pchan->parent;
-	     parchan;
-	     rootchan = parchan,  parchan = parchan->parent)
-	{
+	for (bPoseChannel *parchan = pchan->parent; parchan; parchan = parchan->parent) {
 		/* Make Spline IK solver dependent on this bone's result,
 		 * since it can only run after the standard results 
 		 * of the bone are know. Validate links step on the 
