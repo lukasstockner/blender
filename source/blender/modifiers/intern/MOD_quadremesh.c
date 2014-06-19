@@ -229,6 +229,58 @@ static void laplacianDeformPreview(LaplacianSystem *sys)
 #endif
 }
 
+static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
+	float(*vertexCos)[3], int numVerts)
+{
+	int i, j;
+	int defgrp_index;
+	int total_features;
+	float wpaint;
+	MDeformVert *dvert = NULL;
+	MDeformVert *dv = NULL;
+	LaplacianSystem *sys = NULL;
+
+
+	int *constraints = MEM_mallocN(sizeof(int)* numVerts, __func__);
+	float *weights = MEM_mallocN(sizeof(float)* numVerts, __func__);
+	MFace *tessface;
+
+	modifier_get_vgroup(ob, dm, qmd->anchor_grp_name, &dvert, &defgrp_index);
+	BLI_assert(dvert != NULL);
+	dv = dvert;
+	j = 0;
+	for (i = 0; i < numVerts; i++) {
+		wpaint = defvert_find_weight(dv, defgrp_index);
+		dv++;
+
+		if (wpaint < 0.19 || wpaint > 0.89) {
+			constraints[i] = 1;
+			weights[i] = -1.0f + wpaint * 2.0f;
+			j++;
+		}
+		else {
+			constraints[i] = 0;
+		}
+	}
+
+	total_features = j;
+	DM_ensure_tessface(dm);
+	sys = initLaplacianSystem(numVerts, dm->getNumEdges(dm), dm->getNumTessFaces(dm), total_features, qmd->anchor_grp_name);
+
+	memcpy(sys->co, vertexCos, sizeof(float[3]) * numVerts);
+	memcpy(sys->constraints, constraints, sizeof(int)* numVerts);
+	memcpy(sys->weights, weights, sizeof(float)* numVerts);
+	MEM_freeN(weights);
+	MEM_freeN(constraints);
+	tessface = dm->getTessFaceArray(dm);
+
+	for (i = 0; i < sys->total_faces; i++) {
+		memcpy(&sys->faces[i], &tessface[i].v1, sizeof(*sys->faces));
+	}
+	return sys;
+
+}
+
 static void QuadRemeshModifier_do(
 	QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
 	float(*vertexCos)[3], int numVerts)
@@ -264,58 +316,6 @@ static void QuadRemeshModifier_do(
 		}
 
 	}
-}
-
-static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
-	float(*vertexCos)[3], int numVerts)
-{
-	int i, j;
-	int defgrp_index;
-	int total_features;
-	float wpaint;
-	MDeformVert *dvert = NULL;
-	MDeformVert *dv = NULL;
-	LaplacianSystem *sys = NULL;
-
-	
-	int *constraints = MEM_mallocN(sizeof(int)* numVerts, __func__);  
-	float *weights = MEM_mallocN(sizeof(float)* numVerts, __func__);  
-	MFace *tessface;
-
-	modifier_get_vgroup(ob, dm, qmd->anchor_grp_name, &dvert, &defgrp_index);
-	BLI_assert(dvert != NULL);
-	dv = dvert;
-	j = 0;
-	for (i = 0; i < numVerts; i++) {
-		wpaint = defvert_find_weight(dv, defgrp_index);
-		dv++;
-
-		if (wpaint < 0.19 || wpaint > 0.89) {
-			constraints[i] = 1;
-			weights[i] = -1.0f + wpaint * 2.0f;
-			j++;
-		}
-		else {
-			constraints[i] = 0;
-		}
-	}
-
-	total_features = j;
-	DM_ensure_tessface(dm);
-	sys = initLaplacianSystem(numVerts, dm->getNumEdges(dm), dm->getNumTessFaces(dm), total_features, qmd->anchor_grp_name);
-
-	memcpy(sys->co, vertexCos, sizeof(float[3]) * numVerts);
-	memcpy(sys->constraints, constraints, sizeof(int) * numVerts);
-	memcpy(sys->weights, weights, sizeof(float)* numVerts);
-	MEM_freeN(weights);
-	MEM_freeN(constraints);
-	tessface = dm->getTessFaceArray(dm);
-
-	for (i = 0; i < sys->total_faces; i++) {
-		memcpy(&sys->faces[i], &tessface[i].v1, sizeof(*sys->faces));
-	}
-	return sys;
-	
 }
 
 
