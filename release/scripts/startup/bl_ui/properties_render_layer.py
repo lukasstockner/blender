@@ -56,6 +56,10 @@ class RENDERLAYER_PT_layers(RenderLayerButtonsPanel, Panel):
         scene = context.scene
         rd = scene.render
 
+        if rd.engine == 'BLENDER_GAME':
+            layout.label("Not available in the Game Engine")
+            return
+
         row = layout.row()
         col = row.column()
         col.template_list("RENDERLAYER_UL_renderlayers", "", rd, "layers", rd.layers, "active_index", rows=2)
