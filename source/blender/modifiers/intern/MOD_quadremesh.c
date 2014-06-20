@@ -53,6 +53,8 @@ typedef struct LaplacianSystem {
 	int total_features;
 	char features_grp_name[64];	/* Vertex Group name */
 	float(*co)[3];				/* Original vertex coordinates */
+	float(*no)[3];				/* Original vertex normal */
+	float(*gf1)[3];				/* Gradient Field g1 */
 	int *constraints;			/* Feature points constraints*/
 	float *weights;				/* Feature points weights*/
 	float *U_field;				/* Initial scalar field*/
@@ -90,6 +92,8 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 	BLI_strncpy(sys->features_grp_name, defgrpName, sizeof(sys->features_grp_name));
 	sys->faces = MEM_mallocN(sizeof(int[4]) * totalFaces, "QuadRemeshFaces");
 	sys->co = MEM_mallocN(sizeof(float[3]) * totalVerts, "QuadRemeshCoordinates");
+	sys->no = MEM_callocN(sizeof(float[3]) * totalVerts, "DeformNormals");
+	sys->gf1 = MEM_mallocN(sizeof(float[3]) * totalVerts, "QuadRemeshGradientField1");
 	sys->constraints = MEM_mallocN(sizeof(int) * totalVerts, "QuadRemeshConstraints");
 	sys->weights = MEM_mallocN(sizeof(float)* (totalVerts), "QuadRemeshWeights");
 	sys->U_field = MEM_mallocN(sizeof(float)* (totalVerts), "QuadRemeshUField");
@@ -100,9 +104,11 @@ static void deleteLaplacianSystem(LaplacianSystem *sys)
 {
 	MEM_SAFE_FREE(sys->faces);
 	MEM_SAFE_FREE(sys->co);
+	MEM_SAFE_FREE(sys->no);
 	MEM_SAFE_FREE(sys->constraints);
 	MEM_SAFE_FREE(sys->weights);
 	MEM_SAFE_FREE(sys->U_field);
+	MEM_SAFE_FREE(sys->gf1);
 	if (sys->context) {
 		nlDeleteContext(sys->context);
 	}
@@ -128,6 +134,20 @@ static void initLaplacianMatrix(LaplacianSystem *sys)
 
 		has_4_vert = vidf[3] ? 1 : 0;
 		i = has_4_vert ? 4 : 3;
+
+		if (has_4_vert) {
+			normal_quad_v3(no, sys->co[idv1], sys->co[idv2], sys->co[idv3], sys->co[idv4]);
+			add_v3_v3(sys->no[idv4], no);
+			i = 4;
+		}
+		else {
+			normal_tri_v3(no, sys->co[idv1], sys->co[idv2], sys->co[idv3]);
+			i = 3;
+		}
+		add_v3_v3(sys->no[idv1], no);
+		add_v3_v3(sys->no[idv2], no);
+		add_v3_v3(sys->no[idv3], no);
+
 		for (j = 0; j < i; j++) {
 
 			idv1 = vidf[j];
@@ -227,6 +247,17 @@ static void laplacianDeformPreview(LaplacianSystem *sys)
 #ifdef OPENNL_THREADING_HACK
 	modifier_opennl_unlock();
 #endif
+}
+
+static computeGradientFieldU1(LaplacianSystem * sys){
+	float(*AG)[3];				/* Gradient Field g1 */
+	float v1[3], v2[3], v3[3], v4[3], no[3];
+	float w2, w3, w4;
+	int i, j, fi;
+	bool has_4_vert;
+	unsigned int idv1, idv2, idv3, idv4;
+	AG = MEM_mallocN(sizeof(float[3]) * sys->total_faces * 3, "QuadRemeshAG");
+	
 }
 
 static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
