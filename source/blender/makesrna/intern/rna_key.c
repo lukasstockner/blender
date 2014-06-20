@@ -205,7 +205,7 @@ static void rna_ShapeKey_relative_key_set(PointerRNA *ptr, PointerRNA value)
 	if (kb != basis_can)
 		kb->relative = rna_object_shapekey_index_set(ptr->id.data, value, kb->relative);
 	else
-		printf("RNA warning: can't make a shape key %s to be relative to itself.\n");
+		printf("RNA warning: can't make a shape key %s to be relative to itself.\n", kb->name);
 }
 
 static void rna_ShapeKeyPoint_co_get(PointerRNA *ptr, float *values)

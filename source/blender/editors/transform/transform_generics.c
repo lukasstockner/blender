@@ -1617,7 +1617,7 @@ void calculateCenterMedian(TransInfo *t, float r_center[3])
 		BMVert *emv;
 
 		if (!BKE_crazyspace_cageindexes_in_sync(ob)) {
-			vertexmap = BKE_crazyspace_map_em_to_cage(ob, me->edit_btmesh, cage);
+			vertexmap = BKE_crazyspace_map_em_to_cage(me->edit_btmesh, cage);
 		}
 
 		dmv = cage->getVertArray(cage);
@@ -1701,7 +1701,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
 				DerivedMesh *cage = editbmesh_get_derived_cage(t->scene, t->obedit, em, t->scene->customdata_mask);
 
 				if (!BKE_crazyspace_cageindexes_in_sync(t->obedit)) {
-					derived_index_map = BKE_crazyspace_map_em_to_cage(t->obedit, em, cage);
+					derived_index_map = BKE_crazyspace_map_em_to_cage(em, cage);
 				}
 
 				if (BM_select_history_active_get(em->bm, &ese)) {

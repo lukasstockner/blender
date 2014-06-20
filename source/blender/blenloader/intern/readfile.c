@@ -3036,13 +3036,13 @@ static void lib_link_key(FileData *fd, Main *main)
 	}
 }
 
-void uncompress_kb(Key * key, KeyBlock *kb) 
+static void uncompress_kb(Key * key, KeyBlock *kb) 
 {
 	int a, index;
 	float(*kbco)[3];
 
 	KeyBlock *rk = key->refkey;
-	KB_ComprMeshDataEnt *kbcde = kb->data; 
+	KB_ComprMeshDataEnt *kbcde = (KB_ComprMeshDataEnt *)kb->data;
 
 	/* allocate space for uncompressed data */
 	kb->data = MEM_mallocN(sizeof(float) * 3 * rk->totelem, "KeyBlock");
@@ -3073,7 +3073,7 @@ static void switch_endian_keyblock(Key *key, KeyBlock *kb)
 	data = kb->data;
 
 	if (kb->compressed) {
-		KB_ComprMeshDataEnt *kbcde = data;
+		KB_ComprMeshDataEnt *kbcde = (KB_ComprMeshDataEnt *)data;
 		for (a = 0; a < kb->totelem; ++a) {
 			BLI_endian_switch_int32(&kbcde[a].vertex_index);
 			BLI_endian_switch_float_array((float *) &kbcde[a].co, 3);

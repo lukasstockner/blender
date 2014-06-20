@@ -102,7 +102,6 @@
 #include "object_intern.h"  // own include
 
 /* ************* XXX **************** */
-static void error(const char *UNUSED(arg)) {}
 static void waitcursor(int UNUSED(val)) {}
 static int pupmenu(const char *UNUSED(msg)) { return 0; }
 

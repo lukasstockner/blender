@@ -250,7 +250,7 @@ void BKE_editmesh_color_ensure(BMEditMesh *em, const char htype)
 
 /* ==================== topology hashing ======================= */
 
- unsigned int mm2_hash(char *key, unsigned int len, unsigned int seed) {
+ static unsigned int mm2_hash(char *key, unsigned int len, unsigned int seed) {
 		const unsigned int m = 0x5bd1e995;
 		char r = 24;
 		unsigned int h = len + seed;
@@ -279,30 +279,30 @@ void BKE_editmesh_color_ensure(BMEditMesh *em, const char htype)
 }
 
 
-int hashfunc(void *data, int len, int oldhash)
+ static int hashfunc(void *data, int len, int oldhash)
 {
 	return (int) mm2_hash(data, len, oldhash);
 }
 
-int hashloop_topo(BMLoop *l, int oldhash)
+ static int hashloop_topo(BMLoop *l, int oldhash)
 {
 	/* skip header, don't track customdata */
 	return hashfunc(((char *)l) + sizeof(BMHeader), sizeof(BMLoop) - sizeof(BMHeader), oldhash);
 }
 
-int hashedge_topo(BMEdge *bme, int oldhash)
+ static int hashedge_topo(BMEdge *bme, int oldhash)
 {
 	return hashfunc(&bme->v1, sizeof(BMEdge) - sizeof(BMHeader) - sizeof(BMFlagLayer *), oldhash);
 }
 
-int hashface_topo(BMFace *f, int oldhash)
+ static int hashface_topo(BMFace *f, int oldhash)
 {
 	/* skip header & flags & face normals and material */
 	int a = f->len + (int)f->l_first;
 	return hashfunc(&a, sizeof(int), oldhash);
 }
 
-int bmesh_topohash(BMesh *bm)
+ static int bmesh_topohash(BMesh *bm)
 {
 	BMIter iter;
 	BMFace *f;

@@ -58,7 +58,7 @@ bool BKE_crazyspace_cageindexes_in_sync(struct Object *ob);
 /* Maps editmesh vertex indeces to derivedmesh cage vertex indces and returns the map.
 * If returns NULL, it means that mapping failed for some reason (modifier failing to set CD_ORIGINDEX, etc).
 * It is the caller's responsibility to free the returned array! */
-int *BKE_crazyspace_map_em_to_cage(struct Object *ob, struct BMEditMesh *em, struct DerivedMesh *cage_dm);
+int *BKE_crazyspace_map_em_to_cage(struct BMEditMesh *em, struct DerivedMesh *cage_dm);
 
 /* Calculates editmesh active element selection center in global space on derived cage 
  * (used in calculating visual manipulator and transform constraint centers) */

@@ -148,7 +148,7 @@ void BM_prop_dist_calc_connected(BMesh *bm, float loc_to_world_mtx[3][3], float 
 	MEM_freeN(dists_prev);
 }
 
-void move_selected_verts_to_top(BMesh *bm, int *indexes)
+static void move_selected_verts_to_top(BMesh *bm, int *indexes)
 {
 	BMVert *v;
 	BMIter viter;
@@ -171,7 +171,7 @@ void move_selected_verts_to_top(BMesh *bm, int *indexes)
 	}
 }
 
-float dist_proj_sq(float a[3], float b[3], float loc_to_world_mtx[3][3], float proj_plane_n[3])
+static float dist_proj_sq(float a[3], float b[3], float loc_to_world_mtx[3][3], float proj_plane_n[3])
 {
 	float v[3], v1[3];
 	sub_v3_v3v3(v, a, b);
@@ -181,14 +181,14 @@ float dist_proj_sq(float a[3], float b[3], float loc_to_world_mtx[3][3], float p
 	return len_squared_v3(v);
 }
 
-float dist_sq(float a[3], float b[3])
+static float dist_sq(float a[3], float b[3])
 {
 	float v[3];
 	sub_v3_v3v3(v, a, b);
 	return len_squared_v3(v);
 }
 
-float dist_transform(float a[3], float b[3], float loc_to_world_mtx[3][3]) 
+static float dist_transform(float a[3], float b[3], float loc_to_world_mtx[3][3])
 {
 	float v[3];
 	sub_v3_v3v3(v, a, b);
@@ -200,7 +200,10 @@ float dist_transform(float a[3], float b[3], float loc_to_world_mtx[3][3])
 void BM_prop_dist_calc(BMesh *bm, float loc_to_world_mtx[3][3], float proj_plane_n[3], float dists[])
 {
 	int a, b;
-	BMVert *unsel_vert, *sel_vert, *decision_vert;
+	BMVert 
+		*unsel_vert, 
+		*sel_vert, 
+		*decision_vert;
 	float dist, dist_max;
 	int *vindexes;
 
@@ -211,7 +214,8 @@ void BM_prop_dist_calc(BMesh *bm, float loc_to_world_mtx[3][3], float proj_plane
 
 	vindexes = MEM_mallocN(sizeof(int) * bm->totvert, __func__);
 
-	memset(dists, FLT_MAX, sizeof(float) * bm->totvert);
+	for (a = 0; a < bm->totvert; ++a)
+		dists[a] = FLT_MAX;
 	
 	move_selected_verts_to_top(bm, vindexes);
 	/* we have to loop over all vertices for each vertex, ahh n^2 
@@ -248,6 +252,7 @@ void BM_prop_dist_calc(BMesh *bm, float loc_to_world_mtx[3][3], float proj_plane
 				continue;
 
 			dist_max = FLT_MAX;
+			decision_vert = NULL;
 
 			for (b = 0; b < bm->totvertsel; ++b) {
 				/* all selected verts are at the beginning */

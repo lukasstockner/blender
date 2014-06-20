@@ -1579,7 +1579,7 @@ static void write_vfonts(WriteData *wd, ListBase *idbase)
 
 /* ========================== shape keys =============================== */
 
-void compress_kb(KeyBlock *kb, Key *key_owner)
+static void compress_kb(KeyBlock *kb, Key *key_owner)
 {
 	/* the idea: we can get a space win by storing only the vertices with changed positions */
 	int a, changed_verts;
@@ -1613,7 +1613,7 @@ void compress_kb(KeyBlock *kb, Key *key_owner)
 		kb->data = kbcde;
 
 		if (G.debug_value == 1) {
-			printf("Compressed Shape Key %s, %.2f times smaller \n",
+			printf("Compressed Shape Key %s, %.2f times smaller\n", kb->name,
 					(rk->totelem * sizeof(float) * 3) / changed_verts * sizeof(KB_ComprMeshDataEnt));
 		}
 	}

@@ -477,8 +477,8 @@ void BKE_crazyspace_cage_active_sel_center(BMEditSelection *ese, DerivedMesh *ca
 		}
 		mul_v3_fl(cent, 0.5f);
 	}
-	else if (ese->htype = BM_FACE) {
-		BMFace *f = (BMFace *)ese->ele;
+	else if (ese->htype == BM_FACE) {
+		BMFace *f = (BMFace *) ese->ele;
 		BMVert *v;
 		BMIter iter;
 		int total = 0, index;
@@ -517,7 +517,7 @@ bool BKE_crazyspace_cageindexes_in_sync(Object *ob)
 	return true;
 }
 
-int *BKE_crazyspace_map_em_to_cage(Object *ob, BMEditMesh *em, DerivedMesh *cage_dm)
+int *BKE_crazyspace_map_em_to_cage(BMEditMesh *em, DerivedMesh *cage_dm)
 {
 	int *derived_index_map = NULL;
 

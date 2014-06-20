@@ -508,11 +508,11 @@ static int shape_key_move_exec(bContext *C, wmOperator *op)
 
 	int type = RNA_enum_get(op->ptr, "type");
 	int act_index = ob->shapenr - 1;
-	int new_index;
+	int new_index = act_index;
 	Key *key = BKE_key_from_object(ob);
 	KeyBlock *kb = BKE_keyblock_from_object(ob);
 
-	if (IN_RANGE_INCL(type, -1, 1)){
+	if (type >= -1 && type <= 1) {
 		new_index = act_index + type;
 	}
 	else if (type == 2) {

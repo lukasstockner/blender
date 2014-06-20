@@ -2182,7 +2182,7 @@ void BKE_key_editdata_from_scratch(Object *ob)
 #define KB_FOR_EACH_CO(kb, indexvar) \
 for ((indexvar) = 0; (indexvar) < (kb)->totelem; ++(indexvar))
 
-void key_block_mesh_get_deltas(Key *key, KeyBlock *kb, float (*out_deltas)[3])
+static void key_block_mesh_get_deltas(Key *key, KeyBlock *kb, float (*out_deltas)[3])
 {
 	int a;
 	KeyBlock *basis = BLI_findlink(&key->block, kb->relative);
@@ -2224,7 +2224,7 @@ void BKE_key_block_mesh_eval_rel(Object *ob, Key *key, KeyBlock *kb, bool use_vg
 	}	
 }
 
-void key_block_mesh_eval_scratch(Object *ob, Key *key, float (*out_offsets)[3])
+static void key_block_mesh_eval_scratch(Object *ob, Key *key, float(*out_offsets)[3])
 {
 	/* we need to eval a regular key, but with scratch's data */
 	ScratchKeyBlock *skb = &key->scratch;

@@ -260,7 +260,7 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
 	return 0;
 }
 
-static void calc_tw_center_dm(Scene *scene, BMVert *eve, MVert *dm_verts, int edit_vert_index, int *index_map) 
+static void calc_tw_center_dm(Scene *scene, MVert *dm_verts, int edit_vert_index, int *index_map) 
 {
 	int derived_index;
 
@@ -285,7 +285,6 @@ int calc_manipulator_stats(const bContext *C)
 	RegionView3D *rv3d = ar->regiondata;
 	Base *base;
 	Object *ob = OBACT;
-	DerivedMesh *dm = NULL;
 	MVert *dmverts = NULL;
 	int a, totsel = 0;
 
@@ -306,13 +305,12 @@ int calc_manipulator_stats(const bContext *C)
 			BMEditSelection ese;
 			BMEditMesh *em = BKE_editmesh_from_object(obedit);
 			DerivedMesh *dm = editbmesh_get_derived_cage(scene, ob, em, scene->customdata_mask);
-			float vec[3] = { 0, 0, 0 };
 			int *derived_index_map = NULL;
 
 			dmverts = dm->getVertArray(dm);
 
 			if (!BKE_crazyspace_cageindexes_in_sync(ob)) {
-				derived_index_map = BKE_crazyspace_map_em_to_cage(ob, em, dm);
+				derived_index_map = BKE_crazyspace_map_em_to_cage(em, dm);
 			}
 
 			if ((v3d->around == V3D_ACTIVE) && BM_select_history_active_get(em->bm, &ese)) {
@@ -336,7 +334,7 @@ int calc_manipulator_stats(const bContext *C)
 						if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
 							if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
 								totsel++;
-								calc_tw_center_dm(scene, eve, dmverts, a, derived_index_map);
+								calc_tw_center_dm(scene, dmverts, a, derived_index_map);
 							}
 						}
 					}
@@ -350,7 +348,7 @@ int calc_manipulator_stats(const bContext *C)
 							BM_ITER_ELEM (eed, &itersub, eve, BM_EDGES_OF_VERT) {
 								if (BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
 									totsel++;
-									calc_tw_center_dm(scene, eve, dmverts, a, derived_index_map);
+									calc_tw_center_dm(scene, dmverts, a, derived_index_map);
 									break;
 								}
 							}
@@ -366,7 +364,7 @@ int calc_manipulator_stats(const bContext *C)
 							BM_ITER_ELEM (efa, &itersub, eve, BM_FACES_OF_VERT) {
 								if (BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
 									totsel++;
-									calc_tw_center_dm(scene, eve, dmverts, a, derived_index_map);
+									calc_tw_center_dm(scene, dmverts, a, derived_index_map);
 									break;
 								}
 							}

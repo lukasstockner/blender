@@ -493,13 +493,13 @@ void EDBM_flag_enable_all(BMEditMesh *em, const char hflag)
 * The idea: detect if topology hadn't changed. If it had, run the heavy-duty tools from bmesh_mesh_conv.c.
 */
 
-void shapekey_zero_warn(KeyBlock *kb) 
+static void shapekey_zero_warn(KeyBlock *kb) 
 {
 	/* TODO: raise a UI warning */
 	printf("Warning: can't commit the scratch shape key: %s->value = 0.0\n", kb->name);
 }
 
-void update_bmesh_shapes(Object *ob)
+static void update_bmesh_shapes(Object *ob)
 {
 	Key *key = BKE_key_from_object(ob);
 
@@ -541,7 +541,7 @@ void update_bmesh_shapes(Object *ob)
 	}
 }
 
-void recalc_keyblocks_from_scratch(Object *ob)
+static void recalc_keyblocks_from_scratch(Object *ob)
 {
 	Key *k = BKE_key_from_object(ob);
 	Mesh *me = ob->data;
@@ -599,7 +599,6 @@ void recalc_keyblocks_from_scratch(Object *ob)
 void EDBM_commit_scratch_to_active(Object *ob, Scene *s)
 {
 	BMEditMesh *em = BKE_editmesh_from_object(ob);
-	Key *key = BKE_key_from_object(ob);
 	bool topo_changed = BKE_editmesh_topo_has_changed(em);
 
 	if (topo_changed) {
@@ -634,7 +633,7 @@ void EDBM_update_scratch_from_active(Object *ob)
 	if (oldorigin->totelem != neworigin->totelem) {
 		if (k->scratch.data) {
 			MEM_freeN(k->scratch.data);
-			MEM_mallocN(sizeof(float) * 3 * neworigin->totelem, "scratch keyblock data");
+			k->scratch.data = MEM_mallocN(sizeof(float) * 3 * neworigin->totelem, "scratch keyblock data");
 		}
 	}
 	/* neworigin -> scratch */
@@ -668,8 +667,6 @@ bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 {
 	Mesh *me = obedit->data;
 	BMEditMesh *em = me->edit_btmesh;
-
-	Key *key = BKE_key_from_object(obedit);
 
 	if (me->edit_btmesh->bm->totvert > MESH_MAX_VERTS) {
 		return false;
