@@ -102,20 +102,22 @@ typedef bool (*SG_RescheduleUpdateCallback)(
 
 
 /**
- * SG_Callbacks hold 2 call backs to the outside world.
- * The first is meant to be called when objects are replicated.
+ * SG_ReplicationNewCallback is meant to be called when objects are replicated.
  * And allows the outside world to synchronize external objects
  * with replicated nodes and their children.
- * The second is called when a node is destroyed and again
- * is their for synchronization purposes
- * These callbacks may both be NULL. 
- * The efficacy of this approach has not been proved some 
- * alternatives might be to perform all replication and destruction
- * externally. 
- * To define a class interface rather than a simple function
- * call back so that replication information can be transmitted from 
+ *
+ * SG_DestructionNewCallback is called when a node is destroyed and again
+ * is for synchronization purposes
+ *
+ * These callbacks may be NULL.
+ * The efficacy of this approach has not been proved.
+ * Some alternatives might be
+ * 1 - to perform all replication and destruction externally.
+ * 2 - to define a class interface rather than a simple function
+ * callback so that replication information can be transmitted from
  * parent->child. 
  */
+
 struct	SG_Callbacks
 {
 	SG_Callbacks(

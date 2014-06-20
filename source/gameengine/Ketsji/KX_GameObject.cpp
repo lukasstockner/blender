@@ -155,8 +155,7 @@ KX_GameObject::~KX_GameObject()
 	//if (m_sumoObj)
 	//	delete m_sumoObj;
 	delete m_pClient_info;
-	//if (m_pSGNode)
-	//	delete m_pSGNode;
+
 	if (m_pSGNode)
 	{
 		// must go through controllers and make sure they will not use us anymore
