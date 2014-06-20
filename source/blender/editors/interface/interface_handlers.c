@@ -8308,9 +8308,15 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 		ui_mouse_motion_towards_reinit(menu, &event->x);
 	}
 
-	if (menu->menuretval)
+	if (menu->menuretval) {
+		/* pie menus should not close but wait for release instead */
+		if (block->flag & UI_BLOCK_RADIAL) {
+			menu->menuretval = 0;
+			block->pie_data.flags |= UI_PIE_CANCELLED;
+		}
+
 		return WM_UI_HANDLER_CONTINUE;
-	else
+	} else
 		return WM_UI_HANDLER_BREAK;
 }
 
@@ -8394,6 +8400,14 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 	ui_window_to_block(ar, block, &mx, &my);
 
 	ui_block_calculate_pie_segment(block, mx, my);
+
+	if (block->pie_data.flags & UI_PIE_CANCELLED) {
+		if (event->type == block->pie_data.event && event->val == KM_RELEASE) {
+			menu->menuretval = UI_RETURN_OK;
+		}
+
+		return WM_UI_HANDLER_BREAK;
+	}
 
 	if (event->type == block->pie_data.event) {
 		if (event->val != KM_RELEASE) {

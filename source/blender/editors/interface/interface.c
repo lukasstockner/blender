@@ -1278,6 +1278,10 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	rcti rect;
 	int multisample_enabled;
 	
+	/* early exit if cancelled */
+	if (block->flag & UI_BLOCK_RADIAL && block->pie_data.flags & UI_PIE_CANCELLED)
+		return;
+
 	/* get menu region or area region */
 	ar = CTX_wm_menu(C);
 	if (!ar)
