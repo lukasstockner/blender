@@ -493,12 +493,6 @@ void EDBM_flag_enable_all(BMEditMesh *em, const char hflag)
 * The idea: detect if topology hadn't changed. If it had, run the heavy-duty tools from bmesh_mesh_conv.c.
 */
 
-static void shapekey_zero_warn(KeyBlock *kb) 
-{
-	/* TODO: raise a UI warning */
-	printf("Warning: can't commit the scratch shape key: %s->value = 0.0\n", kb->name);
-}
-
 static void update_bmesh_shapes(Object *ob)
 {
 	Key *key = BKE_key_from_object(ob);

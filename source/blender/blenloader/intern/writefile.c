@@ -1614,7 +1614,7 @@ static void compress_kb(KeyBlock *kb, Key *key_owner)
 
 		if (G.debug_value == 1) {
 			printf("Compressed Shape Key %s, %.2f times smaller\n", kb->name,
-					(rk->totelem * sizeof(float) * 3) / changed_verts * sizeof(KB_ComprMeshDataEnt));
+					(rk->totelem * sizeof(float) * 3.0f) / (changed_verts * sizeof(KB_ComprMeshDataEnt)));
 		}
 	}
 	else {
