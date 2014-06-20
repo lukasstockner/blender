@@ -2445,7 +2445,7 @@ uiPopupBlockHandle *ui_popup_menu_create(bContext *C, ARegion *butregion, uiBut 
 	if (!but) {
 		handle->popup = true;
 
-		UI_add_popup_handlers(C, &window->modalhandlers, handle);
+		UI_add_popup_handlers(C, &window->modalhandlers, handle, false);
 		WM_event_add_mousemove(C);
 	}
 	
@@ -2507,7 +2507,7 @@ void uiPupMenuEnd(bContext *C, uiPopupMenu *pup)
 	menu = ui_popup_block_create(C, NULL, NULL, NULL, ui_block_func_POPUP, pup);
 	menu->popup = true;
 	
-	UI_add_popup_handlers(C, &window->modalhandlers, menu);
+	UI_add_popup_handlers(C, &window->modalhandlers, menu, false);
 	WM_event_add_mousemove(C);
 	
 	MEM_freeN(pup);
@@ -2600,7 +2600,7 @@ void uiPieMenuEnd(bContext *C, uiPieMenu *pie)
 	menu->popup = true;
 	menu->towardstime = PIL_check_seconds_timer();
 
-	UI_add_pie_handlers(C, &window->modalhandlers, menu);
+	UI_add_popup_handlers(C, &window->modalhandlers, menu, true);
 	WM_event_add_mousemove(C);
 
 	MEM_freeN(pie);
@@ -2739,7 +2739,7 @@ void uiPupBlockO(bContext *C, uiBlockCreateFunc func, void *arg, const char *opn
 	handle->optype = (opname) ? WM_operatortype_find(opname, 0) : NULL;
 	handle->opcontext = opcontext;
 	
-	UI_add_popup_handlers(C, &window->modalhandlers, handle);
+	UI_add_popup_handlers(C, &window->modalhandlers, handle, false);
 	WM_event_add_mousemove(C);
 }
 
@@ -2762,7 +2762,7 @@ void uiPupBlockEx(bContext *C, uiBlockCreateFunc func, uiBlockHandleFunc popup_f
 	handle->cancel_func = cancel_func;
 	// handle->opcontext = opcontext;
 	
-	UI_add_popup_handlers(C, &window->modalhandlers, handle);
+	UI_add_popup_handlers(C, &window->modalhandlers, handle, false);
 	WM_event_add_mousemove(C);
 }
 
@@ -2794,7 +2794,6 @@ void uiPupBlockClose(bContext *C, uiBlock *block)
 		/* if loading new .blend while popup is open, window will be NULL */
 		if (win) {
 			UI_remove_popup_handlers(&win->modalhandlers, block->handle);
-			UI_remove_pie_handlers(&win->modalhandlers, block->handle);
 			ui_popup_block_free(C, block->handle);
 		}
 	}

@@ -8314,28 +8314,54 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 		return WM_UI_HANDLER_BREAK;
 }
 
+static bool ui_pie_menu_supported_apply(uiBut *but) {
+	if (but->type == NUMSLI)
+		return false;
 
-static void ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu)
+	return true;
+}
+
+
+static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, const wmEvent *event, bool force)
 {
+	int retval = WM_UI_HANDLER_BREAK;
+
 	uiBut *but = ui_but_find_activated(menu->region);
 
-	if (but) {
-		ui_apply_button(C, but->block, but, but->active, false);
-		button_activate_exit((bContext *)C, but, but->active, false, true);
-		menu->menuretval = UI_RETURN_OK;
+	if (but && ui_pie_menu_supported_apply(but)) {
+		if (but->type == MENU) {
+			/* forcing the pie menu to close will not handle menus */
+			if (!force) {
+				wmEvent e = *event;
+				e.type = LEFTMOUSE;
+				e.val = KM_PRESS;
+
+				retval = ui_handle_menu_button(C, &e, menu);
+			}
+			else {
+				menu->menuretval = UI_RETURN_CANCEL;
+			}
+		}
+		else {
+			ui_apply_button(C, but->block, but, but->active, false);
+			button_activate_exit((bContext *)C, but, but->active, false, true);
+
+			menu->menuretval = UI_RETURN_OK;
+		}
 	}
 	else {
 		menu->menuretval = UI_RETURN_CANCEL;
 	}
+
+	return retval;
 }
 
 /* two types of pie menus, one with operator + enum, other with regular callbacks */
-static int ui_handler_pie(bContext *C, const wmEvent *event, void *userdata)
+static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu)
 {
 	ARegion *ar;
 	uiBlock *block;
 	int mx, my;
-	uiPopupBlockHandle *menu = userdata;
 	double time_diff;
 
 	/* we block all events, this is modal interaction, except for drop events which is described below */
@@ -8379,10 +8405,10 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, void *userdata)
 		}
 		else {
 			if (time_diff > U.pie_drag_timeout * 0.1) {
-				ui_pie_menu_apply(C, menu);
+				retval = ui_pie_menu_apply(C, menu, event, true);
 			}
 			else {
-				menu->is_click_style = true;
+				block->pie_data.flags |= UI_PIE_CLICK_STYLE;
 			}
 		}
 	}
@@ -8395,12 +8421,13 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, void *userdata)
 				break;
 
 			case LEFTMOUSE:
-				if (menu->is_click_style) {
-					ui_pie_menu_apply(C, menu);
-				}
-				else {
-					ui_handle_menu_button(C, event, menu);
-					menu->menuretval = 0;
+				if (event->val == KM_PRESS) {
+					if (block->pie_data.flags & UI_PIE_CLICK_STYLE) {
+						retval = ui_pie_menu_apply(C, menu, event, false);
+					}
+					else {
+						retval = ui_handle_menu_button(C, event, menu);
+					}
 				}
 				break;
 
@@ -8409,38 +8436,10 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, void *userdata)
 				break;
 
 			default:
-				ui_handle_menu_button(C, event, menu);
+				retval = ui_handle_menu_button(C, event, menu);
 				break;
 		}
 	}
-
-	/* free if done, does not free handle itself */
-	if (menu->menuretval) {
-		/* copy values, we have to free first (closes region) */
-		uiPopupBlockHandle temp = *menu;
-
-		ui_popup_block_free(C, menu);
-		UI_remove_pie_handlers(&CTX_wm_window(C)->modalhandlers, menu);
-
-		if ((temp.menuretval & UI_RETURN_OK) || (temp.menuretval & UI_RETURN_POPUP_OK)) {
-			if (temp.popup_func)
-				temp.popup_func(C, temp.popup_arg, temp.retvalue);
-			if (temp.optype)
-				WM_operator_name_call(C, temp.optype->idname, temp.opcontext, NULL);
-		}
-		else if (temp.cancel_func)
-			temp.cancel_func(C, temp.popup_arg);
-
-		WM_event_add_mousemove(C);
-	}
-	else {
-		/* re-enable tooltips */
-		if (event->type == MOUSEMOVE && (event->x != event->prevx || event->y != event->prevy))
-			ui_blocks_set_tooltips(menu->region, true);
-	}
-
-	/* delayed apply callbacks */
-	ui_apply_but_funcs_after(C);
 
 	return retval;
 }
@@ -8466,17 +8465,21 @@ static int ui_handle_menus_recursive(
 		uiBlock *block = menu->region->uiblocks.first;
 		const bool is_menu = ui_block_is_menu(block);
 		bool inside = false;
+		/* root pie menus accept the key that spawned them as double click to improve responsiveness */
+		bool do_recursion = (!(block->flag & UI_BLOCK_RADIAL) || event->type != block->pie_data.event);
 
-		if (is_parent_inside == false) {
-			int mx, my;
+		if (do_recursion) {
+			if (is_parent_inside == false) {
+				int mx, my;
 
-			mx = event->x;
-			my = event->y;
-			ui_window_to_block(menu->region, block, &mx, &my);
-			inside = BLI_rctf_isect_pt(&block->rect, mx, my);
+				mx = event->x;
+				my = event->y;
+				ui_window_to_block(menu->region, block, &mx, &my);
+				inside = BLI_rctf_isect_pt(&block->rect, mx, my);
+			}
+
+			retval = ui_handle_menus_recursive(C, event, submenu, level + 1, is_parent_inside || inside, is_menu, false);
 		}
-
-		retval = ui_handle_menus_recursive(C, event, submenu, level + 1, is_parent_inside || inside, is_menu, false);
 	}
 
 	/* now handle events for our own menu */
@@ -8509,7 +8512,12 @@ static int ui_handle_menus_recursive(
 			}
 		}
 		else {
-			retval = ui_handle_menu_event(C, event, menu, level, is_parent_inside, is_parent_menu, is_floating);
+			uiBlock *block = menu->region->uiblocks.first;
+
+			if (block->flag & UI_BLOCK_RADIAL)
+				retval = ui_handler_pie(C, event, menu);
+			else if (event->type == LEFTMOUSE || event->val != KM_DBL_CLICK)
+				retval = ui_handle_menu_event(C, event, menu, level, is_parent_inside, is_parent_menu, is_floating);
 		}
 	}
 
@@ -8715,14 +8723,9 @@ void UI_add_region_handlers(ListBase *handlers)
 	WM_event_add_ui_handler(NULL, handlers, ui_handler_region, ui_handler_remove_region, NULL, false);
 }
 
-void UI_add_popup_handlers(bContext *C, ListBase *handlers, uiPopupBlockHandle *popup)
+void UI_add_popup_handlers(bContext *C, ListBase *handlers, uiPopupBlockHandle *popup, bool accept_dbl_click)
 {
-	WM_event_add_ui_handler(C, handlers, ui_handler_popup, ui_handler_remove_popup, popup, false);
-}
-
-void UI_add_pie_handlers(struct bContext *C, struct ListBase *handlers, uiPopupBlockHandle *pie)
-{
-	WM_event_add_ui_handler(C, handlers, ui_handler_pie, ui_handler_remove_popup, pie, true);
+	WM_event_add_ui_handler(C, handlers, ui_handler_popup, ui_handler_remove_popup, popup, accept_dbl_click);
 }
 
 
@@ -8735,17 +8738,6 @@ void UI_remove_popup_handlers_all(bContext *C, ListBase *handlers)
 {
 	WM_event_free_ui_handler_all(C, handlers, ui_handler_popup, ui_handler_remove_popup);
 }
-
-void UI_remove_pie_handlers(ListBase *handlers, uiPopupBlockHandle *popup)
-{
-	WM_event_remove_ui_handler(handlers, ui_handler_pie, ui_handler_remove_popup, popup, false);
-}
-
-void UI_remove_pie_handlers_all(bContext *C, ListBase *handlers)
-{
-	WM_event_free_ui_handler_all(C, handlers, ui_handler_pie, ui_handler_remove_popup);
-}
-
 
 bool UI_textbutton_activate_rna(const bContext *C, ARegion *ar,
                                 const void *rna_poin_data, const char *rna_prop_id)

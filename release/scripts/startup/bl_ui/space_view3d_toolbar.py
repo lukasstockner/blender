@@ -1714,6 +1714,8 @@ class VIEW3D_PIE_tests(Menu):
         row.prop(sculpt, "use_symmetry_x", text="X", toggle=True)
         row.prop(sculpt, "use_symmetry_y", text="Y", toggle=True)
         row.prop(sculpt, "use_symmetry_z", text="Z", toggle=True)
+        col.prop(sculpt, "detail_refine_method", text="")
+        col.prop(sculpt, "detail_type_method", text="")
 
 
         

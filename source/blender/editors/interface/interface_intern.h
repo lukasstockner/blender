@@ -163,6 +163,8 @@ typedef enum RadialDirection {
 #define UI_PIE_INITIAL_DIRECTION   (1 << 1) /* use initial center of pie menu to calculate direction */
 #define UI_PIE_3_ITEMS             (1 << 2) /* pie menu has only 3 items, careful when centering */
 #define UI_PIE_INVALID_DIR         (1 << 3) /* mouse not far enough from center position  */
+#define UI_PIE_CANCELLED           (1 << 4) /* pie menu cancelled but we still wait for a release event  */
+#define UI_PIE_CLICK_STYLE         (1 << 5) /* pie menu changed to click style, click to confirm  */
 
 typedef struct uiLinkLine {  /* only for draw/edit */
 	struct uiLinkLine *next, *prev;
@@ -506,9 +508,6 @@ struct uiPopupBlockHandle {
 
 	/* menu direction */
 	int direction;
-
-	/* pie menus */
-	bool is_click_style; /* button released before timeout, this is a click style menu */
 
 /* #ifdef USE_DRAG_POPUP */
 	bool is_grab;
