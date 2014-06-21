@@ -260,15 +260,9 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
 	return 0;
 }
 
-static void calc_tw_center_dm(Scene *scene, MVert *dm_verts, int edit_vert_index, int *index_map) 
+static void calc_tw_center_dm(Scene *scene, MVert *dm_verts, int edit_vert_index, int *derived_index_map) 
 {
-	int derived_index;
-
-	if (index_map)
-		derived_index = index_map[edit_vert_index];
-	else
-		derived_index = edit_vert_index;
-
+	int derived_index = derived_index_map ? derived_index_map[edit_vert_index] : edit_vert_index;
 	calc_tw_center(scene, dm_verts[derived_index].co);
 }
 

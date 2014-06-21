@@ -34,7 +34,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 struct Scene;
 struct Object;
 struct BMEditMesh;
@@ -51,11 +50,11 @@ void BKE_crazyspace_set_quats_mesh(struct Mesh *me, float (*origcos)[3], float (
 int BKE_sculpt_get_first_deform_matrices(struct Scene *scene, struct Object *ob, float (**deformmats)[3][3], float (**deformcos)[3]);
 void BKE_crazyspace_build_sculpt(struct Scene *scene, struct Object *ob, float (**deformmats)[3][3], float (**deformcos)[3]);
 
-/* Returns true if the object's derived cage vertex indeces can be assumed to be in sync to
-* the editdata (base) vertex indeces */
+/* Returns true if the object's derived cage vertex indexes can be assumed to be in sync to
+* the editdata (base) vertex indexes */
 bool BKE_crazyspace_cageindexes_in_sync(struct Object *ob);
 
-/* Maps editmesh vertex indeces to derivedmesh cage vertex indces and returns the map.
+/* Maps editmesh vertex indexes to derivedmesh cage vertex indexes and returns the map.
 * If returns NULL, it means that mapping failed for some reason (modifier failing to set CD_ORIGINDEX, etc).
 * It is the caller's responsibility to free the returned array! */
 int *BKE_crazyspace_map_em_to_cage(struct BMEditMesh *em, struct DerivedMesh *cage_dm);

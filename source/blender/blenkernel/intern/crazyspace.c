@@ -450,50 +450,33 @@ void BKE_crazyspace_build_sculpt(Scene *scene, Object *ob, float (**deformmats)[
 void BKE_crazyspace_cage_active_sel_center(BMEditSelection *ese, DerivedMesh *cage, int *derived_index_map, float *cent)
 {
 	MVert *dm_verts = cage->getVertArray(cage);
-	int cage_index;
 
 	if (ese->htype == BM_VERT) {
 		BMVert *v = (BMVert *)ese->ele;
-		if (derived_index_map) {
-			cage_index = derived_index_map[BM_elem_index_get(v)];
-			copy_v3_v3(cent, dm_verts[cage_index].co);
-		}
-		else {
-			copy_v3_v3(cent, dm_verts[BM_elem_index_get(v)].co);
-		}
+		int cage_index = derived_index_map ? derived_index_map[BM_elem_index_get(v)] : BM_elem_index_get(v);
+		copy_v3_v3(cent, dm_verts[cage_index].co);
 	}
 	else if (ese->htype == BM_EDGE) {
 		BMEdge *e = (BMEdge *)ese->ele;
+		int cage_ind_v1 = derived_index_map ? derived_index_map[BM_elem_index_get(e->v1)] : BM_elem_index_get(e->v1);
+		int cage_ind_v2 = derived_index_map ? derived_index_map[BM_elem_index_get(e->v2)] : BM_elem_index_get(e->v2);
+
 		zero_v3(cent);
-		if (derived_index_map) {
-			int cage_ind_v1 = derived_index_map[BM_elem_index_get(e->v1)];
-			int cage_ind_v2 = derived_index_map[BM_elem_index_get(e->v2)];
-			add_v3_v3(cent, dm_verts[cage_ind_v1].co);
-			add_v3_v3(cent, dm_verts[cage_ind_v2].co);
-		}
-		else {
-			add_v3_v3(cent, dm_verts[BM_elem_index_get(e->v1)].co);
-			add_v3_v3(cent, dm_verts[BM_elem_index_get(e->v2)].co);
-		}
+		add_v3_v3(cent, dm_verts[cage_ind_v1].co);
+		add_v3_v3(cent, dm_verts[cage_ind_v2].co);
 		mul_v3_fl(cent, 0.5f);
 	}
 	else if (ese->htype == BM_FACE) {
 		BMFace *f = (BMFace *) ese->ele;
 		BMVert *v;
 		BMIter iter;
-		int total = 0, index;
+		int total = 0, cage_index;
 
 		zero_v3(cent);
-
 		BM_ITER_ELEM(v, &iter, f, BM_VERTS_OF_FACE) {
 			++total;
-			index = BM_elem_index_get(v);
-			if (derived_index_map) {
-				add_v3_v3(cent, dm_verts[derived_index_map[index]].co);
-			}
-			else {
-				add_v3_v3(cent, dm_verts[index].co);
-			}
+			cage_index = derived_index_map ? derived_index_map[BM_elem_index_get(v)] : BM_elem_index_get(v);
+			add_v3_v3(cent, dm_verts[cage_index].co);
 		}
 		mul_v3_fl(cent, 1.0f / total);
 	}
@@ -507,9 +490,8 @@ bool BKE_crazyspace_cageindexes_in_sync(Object *ob)
 	BLI_assert(ob->type == OB_MESH);
 	for (md = ob->modifiers.first; md; md = md->next) {
 		mti = modifierType_getInfo(md->type);
-		if (mti->type != eModifierTypeType_OnlyDeform
-			&& md->mode & eModifierMode_OnCage && md->mode & eModifierMode_Editmode 
-			&& md->mode & eModifierMode_Realtime)
+		if (mti->type != eModifierTypeType_OnlyDeform && md->mode & eModifierMode_OnCage 
+				&& md->mode & eModifierMode_Editmode && md->mode & eModifierMode_Realtime)
 		{
 			return false;
 		}

@@ -1612,29 +1612,29 @@ void calculateCenterMedian(TransInfo *t, float r_center[3])
 	if (ob && ob->type == OB_MESH) {
 		Mesh *me = ob->data;
 		DerivedMesh *cage = editbmesh_get_derived_cage(t->scene, ob, me->edit_btmesh, t->scene->customdata_mask);
-		int *vertexmap = NULL;
+		int *derived_index_map = NULL;
 		MVert *dmv;
 		BMVert *emv;
 
 		if (!BKE_crazyspace_cageindexes_in_sync(ob)) {
-			vertexmap = BKE_crazyspace_map_em_to_cage(me->edit_btmesh, cage);
+			derived_index_map = BKE_crazyspace_map_em_to_cage(me->edit_btmesh, cage);
 		}
 
 		dmv = cage->getVertArray(cage);
 		
-		if (vertexmap) {
+		if (derived_index_map) {
 			int dm_index;
 			for (i = 0; i < t->total; i++) {
 				if (t->data[i].flag & TD_SELECTED) {
 					if (!(t->data[i].flag & TD_NOCENTER)) {
 						emv = t->data[i].extra;
-						dm_index = vertexmap[BM_elem_index_get(emv)];
+						dm_index = derived_index_map[BM_elem_index_get(emv)];
 						add_v3_v3(partial, dmv[dm_index].co);
 						total++;
 					}
 				}
 			}
-			MEM_freeN(vertexmap);
+			MEM_freeN(derived_index_map);
 		} 
 		else {
 			for (i = 0; i < t->total; i++) {
