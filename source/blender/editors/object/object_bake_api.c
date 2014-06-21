@@ -372,8 +372,8 @@ static bool bake_objects_check(Main *bmain, Object *ob, ListBase *selected_objec
 			if (ob_iter == ob)
 				continue;
 
-			if (ob_iter->type != OB_MESH) {
-				BKE_reportf(reports, RPT_ERROR, "Object \"%s\" is not a mesh", ob_iter->id.name + 2);
+			if (ELEM5(ob_iter->type, OB_MESH, OB_FONT, OB_CURVE, OB_SURF, OB_MBALL) == false) {
+				BKE_reportf(reports, RPT_ERROR, "Object \"%s\" is not a mesh or can't be converted to a mesh (Curve, Text, Surface or Metaball)", ob_iter->id.name + 2);
 				return false;
 			}
 			tot_objects += 1;
@@ -495,6 +495,7 @@ typedef struct BakeAPIRender {
 	int normal_space;
 	BakeNormalSwizzle normal_swizzle[3];
 
+	char uv_layer[MAX_CUSTOMDATA_LAYER_NAME];
 	char custom_cage[MAX_NAME];
 	char filepath[FILE_MAX];
 
@@ -516,7 +517,7 @@ static int bake(
         const bool is_automatic_name, const bool is_selected_to_active, const bool is_cage,
         const float cage_extrusion, const int normal_space, const BakeNormalSwizzle normal_swizzle[],
         const char *custom_cage, const char *filepath, const int width, const int height,
-        const char *identifier, ScrArea *sa)
+        const char *identifier, ScrArea *sa, const char *uv_layer)
 {
 	int op_result = OPERATOR_CANCELLED;
 	bool ok = false;
@@ -550,7 +551,23 @@ static int bake(
 	re = RE_NewRender(scene->id.name);
 	RE_SetReports(re, NULL);
 
+	RE_bake_engine_set_engine_parameters(re, bmain, scene);
+
+	if (!RE_bake_has_engine(re)) {
+		BKE_report(reports, RPT_ERROR, "Current render engine does not support baking");
+		goto cleanup;
+	}
+
 	tot_materials = ob_low->totcol;
+
+	if (uv_layer && uv_layer[0] != '\0') {
+		Mesh *me = (Mesh *)ob_low->data;
+		if (CustomData_get_named_layer(&me->ldata, CD_MLOOPUV, uv_layer) == -1) {
+			BKE_reportf(reports, RPT_ERROR,
+			            "No UV layer named \"%s\" found in the object \"%s\"", uv_layer, ob_low->id.name + 2);
+			goto cleanup;
+		}
+	}
 
 	if (tot_materials == 0) {
 		if (is_save_internal) {
@@ -625,11 +642,10 @@ static int bake(
 			}
 			else {
 				restrict_flag_cage = ob_cage->restrictflag;
+				ob_cage->restrictflag |= OB_RESTRICT_RENDER;
 			}
 		}
 	}
-
-	RE_bake_engine_set_engine_parameters(re, bmain, scene);
 
 	/* blender_test_break uses this global */
 	G.is_break = false;
@@ -644,7 +660,7 @@ static int bake(
 
 	/* populate the pixel array with the face data */
 	if ((is_selected_to_active && (ob_cage == NULL) && is_cage) == false)
-		RE_bake_pixels_populate(me_low, pixel_array_low, num_pixels, &bake_images);
+		RE_bake_pixels_populate(me_low, pixel_array_low, num_pixels, &bake_images, uv_layer);
 	/* else populate the pixel array with the 'cage' mesh (the smooth version of the mesh)  */
 
 	if (is_selected_to_active) {
@@ -688,7 +704,7 @@ static int bake(
 
 			/* get the cage mesh as it arrives in the renderer */
 			me_cage = BKE_mesh_new_from_object(bmain, scene, ob_low, 1, 2, 1, 0);
-			RE_bake_pixels_populate(me_cage, pixel_array_low, num_pixels, &bake_images);
+			RE_bake_pixels_populate(me_cage, pixel_array_low, num_pixels, &bake_images, uv_layer);
 		}
 
 		highpoly = MEM_callocN(sizeof(BakeHighPolyData) * tot_highpoly, "bake high poly objects");
@@ -742,34 +758,31 @@ static int bake(
 		            me_low, pixel_array_low, highpoly, tot_highpoly, num_pixels, ob_cage != NULL,
 		            cage_extrusion, ob_low->obmat, (ob_cage ? ob_cage->obmat : ob_low->obmat), me_cage)) {
 			BKE_report(reports, RPT_ERROR, "Error handling selected objects");
-			goto cleanup;
+			goto cage_cleanup;
 		}
 
 		/* the baking itself */
 		for (i = 0; i < tot_highpoly; i++) {
-			if (RE_bake_has_engine(re)) {
-				ok = RE_bake_engine(re, highpoly[i].ob, highpoly[i].pixel_array, num_pixels,
-				                    depth, pass_type, result);
+			ok = RE_bake_engine(re, highpoly[i].ob, highpoly[i].pixel_array, num_pixels,
+			                    depth, pass_type, result);
+			if (!ok) {
+				BKE_reportf(reports, RPT_ERROR, "Error baking from object \"%s\"", highpoly[i].ob->id.name + 2);
+				goto cage_cleanup;
 			}
-			else {
-				BKE_report(reports, RPT_ERROR, "Current render engine does not support baking");
-				goto cleanup;
-			}
-
-			if (!ok)
-				break;
 		}
 
+cage_cleanup:
 		/* reverting data back */
-		if (ob_cage) {
-			ob_cage->restrictflag |= OB_RESTRICT_RENDER;
-		}
-		else if (is_cage) {
+		if ((ob_cage == NULL) && is_cage) {
 			ob_low->modifiers = modifiers_original;
 
 			while ((md = BLI_pophead(&modifiers_tmp))) {
 				modifier_free(md);
 			}
+		}
+
+		if (!ok) {
+			goto cleanup;
 		}
 	}
 	else {
@@ -827,7 +840,7 @@ static int bake(
 					}
 
 					me_nores = BKE_mesh_new_from_object(bmain, scene, ob_low, 1, 2, 1, 0);
-					RE_bake_pixels_populate(me_nores, pixel_array_low, num_pixels, &bake_images);
+					RE_bake_pixels_populate(me_nores, pixel_array_low, num_pixels, &bake_images, uv_layer);
 
 					RE_bake_normal_world_to_tangent(pixel_array_low, num_pixels, depth, result, me_nores, normal_swizzle, ob_low->obmat);
 					BKE_libblock_free(bmain, me_nores);
@@ -1009,6 +1022,8 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 	bkr->height = RNA_int_get(op->ptr, "height");
 	bkr->identifier = "";
 
+	RNA_string_get(op->ptr, "uv_layer", bkr->uv_layer);
+
 	RNA_string_get(op->ptr, "cage_object", bkr->custom_cage);
 
 	if ((!is_save_internal) && bkr->is_automatic_name) {
@@ -1048,7 +1063,8 @@ static int bake_exec(bContext *C, wmOperator *op)
 		        bkr.pass_type, bkr.margin, bkr.save_mode,
 		        bkr.is_clear, bkr.is_split_materials, bkr.is_automatic_name, true, bkr.is_cage,
 		        bkr.cage_extrusion, bkr.normal_space, bkr.normal_swizzle,
-		        bkr.custom_cage, bkr.filepath, bkr.width, bkr.height, bkr.identifier, bkr.sa);
+		        bkr.custom_cage, bkr.filepath, bkr.width, bkr.height, bkr.identifier, bkr.sa,
+		        bkr.uv_layer);
 	}
 	else {
 		CollectionPointerLink *link;
@@ -1060,7 +1076,8 @@ static int bake_exec(bContext *C, wmOperator *op)
 			        bkr.pass_type, bkr.margin, bkr.save_mode,
 			        is_clear, bkr.is_split_materials, bkr.is_automatic_name, false, bkr.is_cage,
 			        bkr.cage_extrusion, bkr.normal_space, bkr.normal_swizzle,
-			        bkr.custom_cage, bkr.filepath, bkr.width, bkr.height, bkr.identifier, bkr.sa);
+			        bkr.custom_cage, bkr.filepath, bkr.width, bkr.height, bkr.identifier, bkr.sa,
+			        bkr.uv_layer);
 		}
 	}
 
@@ -1088,7 +1105,8 @@ static void bake_startjob(void *bkv, short *UNUSED(stop), short *UNUSED(do_updat
 		        bkr->pass_type, bkr->margin, bkr->save_mode,
 		        bkr->is_clear, bkr->is_split_materials, bkr->is_automatic_name, true, bkr->is_cage,
 		        bkr->cage_extrusion, bkr->normal_space, bkr->normal_swizzle,
-		        bkr->custom_cage, bkr->filepath, bkr->width, bkr->height, bkr->identifier, bkr->sa);
+		        bkr->custom_cage, bkr->filepath, bkr->width, bkr->height, bkr->identifier, bkr->sa,
+		        bkr->uv_layer);
 	}
 	else {
 		CollectionPointerLink *link;
@@ -1100,7 +1118,8 @@ static void bake_startjob(void *bkv, short *UNUSED(stop), short *UNUSED(do_updat
 			        bkr->pass_type, bkr->margin, bkr->save_mode,
 			        is_clear, bkr->is_split_materials, bkr->is_automatic_name, false, bkr->is_cage,
 			        bkr->cage_extrusion, bkr->normal_space, bkr->normal_swizzle,
-			        bkr->custom_cage, bkr->filepath, bkr->width, bkr->height, bkr->identifier, bkr->sa);
+			        bkr->custom_cage, bkr->filepath, bkr->width, bkr->height, bkr->identifier, bkr->sa,
+			        bkr->uv_layer);
 
 			if (bkr->result == OPERATOR_CANCELLED)
 				return;
@@ -1286,4 +1305,5 @@ void OBJECT_OT_bake(wmOperatorType *ot)
 	                "Split baked maps per material, using material name in output file (external only)");
 	RNA_def_boolean(ot->srna, "use_automatic_name", false, "Automatic Name",
 	                "Automatically name the output file with the pass type");
+	RNA_def_string(ot->srna, "uv_layer", NULL, MAX_CUSTOMDATA_LAYER_NAME, "UV Layer", "UV layer to override active");
 }
