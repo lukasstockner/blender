@@ -15,6 +15,9 @@
  * limitations under the License
  */
 
+#ifdef WITH_KERNEL_SSE2
+
+#define __KERNEL_SSE2__
 #include "util_simd.h"
 
 CCL_NAMESPACE_BEGIN
@@ -38,5 +41,7 @@ const __m128 _mm_lookupmask_ps[16] = {
 	_mm_castsi128_ps(_mm_set_epi32(-1,-1,-1,-1))
 };
 
+
 CCL_NAMESPACE_END
 
+#endif  // WITH_KERNEL_SSE2
