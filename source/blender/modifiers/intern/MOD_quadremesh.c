@@ -250,14 +250,39 @@ static void laplacianDeformPreview(LaplacianSystem *sys)
 }
 
 static computeGradientFieldU1(LaplacianSystem * sys){
-	float(*AG)[3];				/* Gradient Field g1 */
+	float(*AG)[3];
+	float *UG;
 	float v1[3], v2[3], v3[3], v4[3], no[3];
-	float w2, w3, w4;
+	float xi[3], xj[3], xk[3];
+	float w2, w3, w4, ui, uj ,uk;
 	int i, j, fi;
 	bool has_4_vert;
 	unsigned int idv1, idv2, idv3, idv4;
 	AG = MEM_mallocN(sizeof(float[3]) * sys->total_faces * 3, "QuadRemeshAG");
-	
+	UG = MEM_mallocN(sizeof(float) * sys->total_faces * 3, "QuadRemeshUG");
+
+	for (fi = 0; fi < sys->total_faces; fi++) {
+		const unsigned int *vidf = sys->faces[fi];
+
+		idv1 = vidf[0];
+		idv2 = vidf[1];
+		idv3 = vidf[2];
+		idv4 = vidf[3];
+
+		copy_v3_v3(xi, sys->co[idv1]);
+		copy_v3_v3(xj, sys->co[idv2]);
+		copy_v3_v3(xk, sys->co[idv3]);
+		copy_v3_v3(no, sys->no[idv1]);
+		sub_v3_v3v3(AG[fi*3 + 1], xj, xi);
+		sub_v3_v3v3(AG[fi*2 + 2], xk, xj);
+		copy_v3_v3(AG[fi * 2 + 2], sys->no[idv1]);
+
+		ui = sys->U_field[idv1];
+		uj = sys->U_field[idv2];
+		uk = sys->U_field[idv3];
+		UG[fi * 3] = uj - ui;
+		UG[fi * 3] = uk - uj;
+	}
 }
 
 static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
