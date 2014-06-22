@@ -627,7 +627,9 @@ static void blender_crash_handler(int signum)
 #ifndef WIN32
 	kill(getpid(), signum);
 #else
+#ifndef DEBUG
 	TerminateProcess(GetCurrentProcess(), signum);
+#endif
 #endif
 }
 
