@@ -333,7 +333,6 @@ void BKE_editmesh_color_ensure(BMEditMesh *em, const char htype)
 				BM_elem_flag_set(v->e->l->f, BM_ELEM_TAG, true);
 			}
 		}
-
 	}
 
 	BM_ITER_MESH(f, &iter, bm, BM_FACES_OF_MESH) {
