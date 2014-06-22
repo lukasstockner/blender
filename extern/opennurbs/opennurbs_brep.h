@@ -1567,7 +1567,7 @@ private:
   ON_Brep* m_brep;
 };
 
-class ON_CLASS ON_Brep : public ON_Geometry 
+class ON_CLASS ON_Brep : public ON_Geometry
 {
   ON_OBJECT_DECLARE(ON_Brep);
 

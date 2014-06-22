@@ -24,12 +24,16 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __IO_RHINO_H__
-#define __IO_RHINO_H__
+#ifndef __IO_RHINO_IMPORT_H__
+#define __IO_RHINO_IMPORT_H__
+
+#include "BKE_context.h"
 
 struct wmOperatorType;
+struct wmOperator;
+typedef struct wmOperator wmOperator;
 
-void WM_OT_rhino_export(struct wmOperatorType *ot);
 void WM_OT_rhino_import(struct wmOperatorType *ot);
+int rhino_import(bContext *C, wmOperator *op);
 
 #endif

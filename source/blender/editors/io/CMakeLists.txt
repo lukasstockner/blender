@@ -29,6 +29,7 @@ set(INC
 	../../windowmanager
 	../../collada
 	../../../../extern/opennurbs
+	../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -36,11 +37,13 @@ set(INC_SYS
 )
 
 set(SRC
-	io_rhino.cpp
+	io_rhino_export.cpp
+	io_rhino_import.cpp
 	io_collada.c
 	io_ops.c
 
-	io_rhino.h
+	io_rhino_export.h
+	io_rhino_import.h
 	io_collada.h
 	io_ops.h
 )

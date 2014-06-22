@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2008 Blender Foundation.
+ * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
  *
  * 
@@ -24,29 +24,17 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/io/io_ops.c
- *  \ingroup collada
- */
+#ifndef __IO_RHINO_EXPORT_H__
+#define __IO_RHINO_EXPORT_H__
 
+#include "BKE_context.h"
 
-#include "io_collada.h"
-#include "io_rhino_import.h"
-#include "io_rhino_export.h"
+struct wmOperatorType;
+struct wmOperator;
+struct wmEvent;
+typedef struct wmOperator wmOperator;
 
-#include "BLI_utildefines.h"
+void WM_OT_rhino_export(struct wmOperatorType *ot);
+int wm_rhino_export_invoke(bContext *C, wmOperator *op, const struct wmEvent *evt);
 
-#include "WM_types.h"
-#include "WM_api.h"
-
-#include "io_ops.h"  /* own include */
-
-void ED_operatortypes_io(void) 
-{
-#ifdef WITH_COLLADA
-	/* Collada operators: */
-	WM_operatortype_append(WM_OT_collada_export);
-	WM_operatortype_append(WM_OT_collada_import);
 #endif
-	WM_operatortype_append(WM_OT_rhino_export);
-	WM_operatortype_append(WM_OT_rhino_import);
-}
