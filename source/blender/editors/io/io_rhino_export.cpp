@@ -46,23 +46,7 @@ extern "C" {
 	// #include "BLI_utildefines.h"
 	bool BLI_replace_extension(char *path, size_t maxlen, const char *ext);
 
-	#include "io_rhino.h"
-}
-
-static int rhino_import(bContext *C, wmOperator *op) {
-	char filename[FILE_MAX];
-	FILE *f;
-
-	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
-		BKE_report(op->reports, RPT_ERROR, "No filename given");
-		return OPERATOR_CANCELLED;
-	}
-	RNA_string_get(op->ptr, "filepath", filename);
-
-	f = ON::OpenFile(filename, "rb");
-	ON::CloseFile(f);
-
-	return OPERATOR_FINISHED; //OPERATOR_CANCELLED
+	#include "io_rhino_export.h"
 }
 
 static int rhino_export(bContext *C, wmOperator *op) {
@@ -84,7 +68,7 @@ static int rhino_export(bContext *C, wmOperator *op) {
 
 /*--- Operator Registration ---*/
 
-static int wm_rhino_export_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+int wm_rhino_export_invoke(bContext *C, wmOperator *op, const struct wmEvent *evt)
 {
 	if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
 		char filepath[FILE_MAX];
@@ -123,23 +107,5 @@ void WM_OT_rhino_export(struct wmOperatorType *ot) {
 	                          "Rhino File Extension", "Rhino File Extension");
 
 	WM_operator_properties_filesel(ot, FOLDERFILE, FILE_BLENDER, FILE_SAVE,
-	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
-}
-
-void WM_OT_rhino_import(struct wmOperatorType *ot) {
-	ot->name = "Import Rhino 3DM";
-	ot->description = "Load a Rhino-compatible .3dm file";
-	ot->idname = "WM_OT_rhino_import";
-	
-	ot->invoke = WM_operator_filesel;
-	ot->exec = rhino_import;
-	ot->poll = WM_operator_winactive;
-	
-	RNA_def_string(ot->srna, "filter_glob", "*.3dm", 16,
-	                          "Glob Filter", "Rhino Extension Glob Filter");
-	RNA_def_string(ot->srna, "filename_ext", ".3dm", 16,
-	                          "Rhino File Extension", "Rhino File Extension");
-	
-	WM_operator_properties_filesel(ot, FOLDERFILE , FILE_BLENDER, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 }
