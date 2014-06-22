@@ -2094,9 +2094,7 @@ void BKE_key_init_scratch(Object *ob)
 	KeyBlock *kb = BKE_keyblock_from_object(ob);
 	if (key && kb && key->totkey > 0) {
 		key->scratch.origin = kb;
-		if (!key->scratch.data) {
-			key->scratch.data = MEM_mallocN(key->elemsize * kb->totelem, "scratch keyblock data");
-		}
+		key->scratch.data = MEM_mallocN(key->elemsize * kb->totelem, "scratch keyblock data");
 		memcpy(key->scratch.data, kb->data, key->elemsize * kb->totelem);
 	}
 }

@@ -661,12 +661,13 @@ bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 {
 	Mesh *me = obedit->data;
 	BMEditMesh *em = me->edit_btmesh;
+	Key *k = me->key;
 
 	if (me->edit_btmesh->bm->totvert > MESH_MAX_VERTS) {
 		return false;
 	}
 
-	if (BKE_key_from_object(obedit) && BKE_keyblock_from_object(obedit)) {
+	if (me->key && BKE_keyblock_from_object(obedit)) {
 		if (BKE_editmesh_topo_has_changed(em)) {
 			BKE_key_editdata_to_scratch(obedit, false);
 		}
@@ -674,6 +675,11 @@ bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 			BKE_key_editdata_to_scratch(obedit, true);
 			recalc_keyblocks_from_scratch(obedit);
 			update_bmesh_shapes(obedit);
+		}
+
+		if (do_free) {
+			MEM_freeN(k->scratch.data);
+			k->scratch.data = NULL;
 		}
 	}
 
