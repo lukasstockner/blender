@@ -10,6 +10,7 @@
 		FC35456E194BDF2300F3D236 /* poly_demo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC35456D194BDF2300F3D236 /* poly_demo.cpp */; };
 		FC354571194BDF7300F3D236 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354570194BDF7300F3D236 /* OpenGL.framework */; };
 		FC354573194BDF7E00F3D236 /* GLUT.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354572194BDF7E00F3D236 /* GLUT.framework */; };
+		FC458BC71953F95A00E260AC /* GridMesh.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC458BC51953F95A00E260AC /* GridMesh.cpp */; };
 		FC67C07A19514DE10077AB72 /* rast_demo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC67C07919514DE10077AB72 /* rast_demo.cpp */; };
 		FC67C08019515CBB0077AB72 /* GLUT.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354572194BDF7E00F3D236 /* GLUT.framework */; };
 		FC67C08119515CBF0077AB72 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354570194BDF7300F3D236 /* OpenGL.framework */; };
@@ -42,6 +43,8 @@
 		FC35456F194BDF3700F3D236 /* poly.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = poly.h; sourceTree = "<group>"; };
 		FC354570194BDF7300F3D236 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		FC354572194BDF7E00F3D236 /* GLUT.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GLUT.framework; path = System/Library/Frameworks/GLUT.framework; sourceTree = SDKROOT; };
+		FC458BC51953F95A00E260AC /* GridMesh.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GridMesh.cpp; sourceTree = "<group>"; };
+		FC458BC61953F95A00E260AC /* GridMesh.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GridMesh.h; sourceTree = "<group>"; };
 		FC67C07719514DE10077AB72 /* rast_demo */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = rast_demo; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC67C07919514DE10077AB72 /* rast_demo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = rast_demo.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -93,6 +96,8 @@
 				FC35456F194BDF3700F3D236 /* poly.h */,
 				FC35456D194BDF2300F3D236 /* poly_demo.cpp */,
 				FC67C07919514DE10077AB72 /* rast_demo.cpp */,
+				FC458BC51953F95A00E260AC /* GridMesh.cpp */,
+				FC458BC61953F95A00E260AC /* GridMesh.h */,
 			);
 			path = PolyTest;
 			sourceTree = "<group>";
@@ -174,6 +179,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FC458BC71953F95A00E260AC /* GridMesh.cpp in Sources */,
 				FC67C07A19514DE10077AB72 /* rast_demo.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -319,6 +325,7 @@
 				FC67C07E19514DE10077AB72 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

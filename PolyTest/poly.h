@@ -4,16 +4,15 @@ struct GreinerV2f {
 	float x,y;
 	struct GreinerV2f *next, *prev; // Prev,next verts in the *same* polygon
 	struct GreinerV2f *nextPoly;   // First vertex of the *next* polygon
+	float alpha; // If this vertex came from an affine comb, this is the mixing factor
 	bool isIntersection; // True if this vertex was added at an intersection
-	bool isEntry; // True if proceeding along this poly with ->next->next->next etc will enter the other polygon when this vertex is passed
 	bool isInterior;
 	bool isBackbone; // True if nextPoly!=nullptr || exists prevPoly s.t. prevPoly->nextPoly == this
-	struct GreinerV2f *neighbour; // Corresp. vertex at same {x,y} in different polygon
-	float alpha; // If this vertex came from an affine comb, this is the mixing factor
+	struct GreinerV2f *entryNeighbor; // Corresp. vertex at same {x,y} in different polygon
+	struct GreinerV2f *exitNeighbor;  // Exit = ->next->next->next along this polygon *exits* other polygon
 	GreinerV2f() : next(nullptr), prev(nullptr),
-	               nextPoly(nullptr), neighbour(nullptr),
-	               isIntersection(false), isBackbone(false),
-	               isEntry(false) {};
+	               nextPoly(nullptr), entryNeighbor(nullptr), exitNeighbor(nullptr),
+	               isIntersection(false), isBackbone(false) {};
 };
 
 GreinerV2f* insert_vert_at_intersect(GreinerV2f* poly1left,
@@ -67,8 +66,8 @@ GreinerV2f* insert_vert_at_intersect(GreinerV2f* poly1left,
 	newv2->prev = poly2left;
 	
 	// Tell the intersection vertices that they're stacked on top of one another
-	newv1->neighbour = newv2;
-	newv2->neighbour = newv1;
+	newv1->entryNeighbor = newv1->exitNeighbor = newv2;
+	newv2->entryNeighbor = newv2->exitNeighbor = newv1;
 	
 	return newv1;
 }
