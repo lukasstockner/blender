@@ -113,14 +113,11 @@ void wm_event_free(wmEvent *event)
 			/* note: pointer to listbase struct elsewhere */
 			if (event->custom == EVT_DATA_DRAGDROP) {
 				ListBase *lb = event->customdata;
-				wmDrag *drag;
-				while ((drag = lb->first)) {
-					BLI_remlink(lb, drag);
-					WM_drag_free(drag);
-				}
+				WM_drag_free_list(lb);
 			}
-			else
+			else {
 				MEM_freeN(event->customdata);
+			}
 		}
 	}
 
@@ -1943,10 +1940,7 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 									drop->copy(drag, drop);
 									
 									/* free the drags before calling operator */
-									while ((drag = lb->first)) {
-										BLI_remlink(lb, drag);
-										WM_drag_free(drag);
-									}
+									WM_drag_free_list(lb);
 
 									event->customdata = NULL;
 									event->custom = 0;
@@ -2149,14 +2143,11 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 		return;
 	}
 	
-	if (event->type == MOUSEMOVE || ISKEYMODIFIER(event->type))
+	if (event->type == MOUSEMOVE || ISKEYMODIFIER(event->type)) {
 		win->screen->do_draw_drag = true;
+	}
 	else if (event->type == ESCKEY) {
-		wmDrag *drag;
-		while ((drag = wm->drags.first)) {
-			BLI_remlink(&wm->drags, drag);
-			WM_drag_free(drag);
-		}
+		WM_drag_free_list(&wm->drags);
 
 		win->screen->do_draw_drag = true;
 	}

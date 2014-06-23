@@ -153,7 +153,7 @@ typedef enum DMDrawFlag {
 	DM_DRAW_USE_COLORS          = (1 << 0),
 	DM_DRAW_ALWAYS_SMOOTH       = (1 << 1),
 	DM_DRAW_USE_ACTIVE_UV       = (1 << 2),
-	DM_DRAW_USE_TEXPAINT_UV     = (1 << 4),
+	DM_DRAW_USE_TEXPAINT_UV     = (1 << 3),
 } DMDrawFlag;
 
 typedef enum DMForeachFlag {

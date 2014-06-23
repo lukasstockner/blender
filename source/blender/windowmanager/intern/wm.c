@@ -441,7 +441,6 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 	wmWindow *win;
 	wmOperator *op;
 	wmKeyConfig *keyconf;
-	wmDrag *drag;
 
 	if (wm->autosavetimer)
 		wm_autosave_timer_ended(wm);
@@ -464,10 +463,7 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 	
 	BLI_freelistN(&wm->paintcursors);
 
-	while ((drag = wm->drags.first)) {
-		BLI_remlink(&wm->drags, drag);
-		WM_drag_free(drag);
-	}
+	WM_drag_free_list(&wm->drags);
 	
 	wm_reports_free(wm);
 	

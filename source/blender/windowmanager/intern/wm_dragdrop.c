@@ -181,6 +181,14 @@ void WM_drag_free(wmDrag *drag)
 	MEM_freeN(drag);
 }
 
+void WM_drag_free_list(struct ListBase *lb)
+{
+	wmDrag *drag;
+	while ((drag = BLI_pophead(lb))) {
+		WM_drag_free(drag);
+	}
+}
+
 static const char *dropbox_active(bContext *C, ListBase *handlers, wmDrag *drag, wmEvent *event)
 {
 	wmEventHandler *handler = handlers->first;
