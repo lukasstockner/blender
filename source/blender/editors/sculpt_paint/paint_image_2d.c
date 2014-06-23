@@ -1328,7 +1328,7 @@ static void paint_2d_fill_add_pixel_byte(int i, int j, ImBuf *ibuf, GSQueue *sta
 	}
 }
 
-static void paint_2d_fill_add_pixel_float(int i, int j, ImBuf *ibuf, GSQueue *stack, BLI_bitmap *touched, float color[4], float threshold)
+static void paint_2d_fill_add_pixel_float(int i, int j, ImBuf *ibuf, GSQueue *stack, BLI_bitmap *touched, const float color[4], float threshold)
 {
 	int coordinate = j * ibuf->x + i;
 
@@ -1349,7 +1349,7 @@ static void paint_2d_fill_add_pixel_float(int i, int j, ImBuf *ibuf, GSQueue *st
 }
 
 /* this function expects linear space color values */
-void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float mouse_init[2], void *ps)
+void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, float mouse_init[2], void *ps)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Image *ima = sima->image;

@@ -4295,7 +4295,7 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			Palette *palette = BKE_paint_palette(paint);
 			PaletteColor *color = but->rnapoin.data;
 
-			BKE_palette_remove_color(palette, color);
+			BKE_palette_color_remove(palette, color);
 
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
 			return WM_UI_HANDLER_BREAK;

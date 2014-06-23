@@ -1537,7 +1537,7 @@ void PAINT_OT_brush_colors_flip(wmOperatorType *ot)
 }
 
 
-void paint_bucket_fill(struct bContext *C, float color[3], wmOperator *op)
+void ED_imapaint_bucket_fill(struct bContext *C, float color[3], wmOperator *op)
 {
 	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
 	                      ED_image_undo_restore, ED_image_undo_free, NULL);

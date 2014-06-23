@@ -313,7 +313,7 @@ void BKE_paint_curve_set(Brush *br, PaintCurve *pc)
 }
 
 /* remove colour from palette. Must be certain colour is inside the palette! */
-void BKE_palette_remove_color(Palette *palette, PaletteColor *colour)
+void BKE_palette_color_remove(Palette *palette, PaletteColor *colour)
 {
 	BLI_remlink(&palette->colors, colour);
 	BLI_addhead(&palette->deleted, colour);
@@ -337,7 +337,7 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 	return palette;
 }
 
-void BKE_free_palette (Palette *palette)
+void BKE_palette_free(Palette *palette)
 {
 	BLI_freelistN(&palette->colors);
 }

@@ -73,8 +73,10 @@ void ED_undo_paint_push_end(int type);
 /* image painting specific undo */
 void ED_image_undo_restore(struct bContext *C, struct ListBase *lb);
 void ED_image_undo_free(struct ListBase *lb);
+
+struct wmOperator;
 void ED_imapaint_clear_partial_redraw(void);
 void ED_imapaint_dirty_region(struct Image *ima, struct ImBuf *ibuf, int x, int y, int w, int h);
-
+void ED_imapaint_bucket_fill(struct bContext *C, float color[3], struct wmOperator *op);
 
 #endif

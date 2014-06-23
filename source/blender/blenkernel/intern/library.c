@@ -1019,7 +1019,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_free_linestyle((FreestyleLineStyle *)id);
 			break;
 		case ID_PAL:
-			BKE_free_palette((Palette *)id);
+			BKE_palette_free((Palette *)id);
 			break;
 		case ID_PC:
 			BKE_free_paint_curve((PaintCurve *)id);

@@ -97,13 +97,13 @@ void BKE_paint_reset_overlay_invalid(OverlayControlFlags flag);
 void BKE_paint_set_overlay_override(enum OverlayFlags flag);
 
 /* palettes */
-void BKE_free_palette(struct Palette *palette);
-struct Palette *BKE_palette_add(struct Main *bmain, const char *name);
+void                 BKE_palette_free(struct Palette *palette);
+struct Palette      *BKE_palette_add(struct Main *bmain, const char *name);
 struct PaletteColor *BKE_palette_color_add(struct Palette *palette);
 struct PaletteColor *BKE_palette_color_get_last(struct Palette *palette);
-bool BKE_palette_is_empty(const struct Palette *palette);
-void BKE_palette_remove_color (struct Palette *palette, struct PaletteColor *colour);
-void BKE_palette_cleanup (struct Palette *palette);
+bool                 BKE_palette_is_empty(const struct Palette *palette);
+void                 BKE_palette_color_remove(struct Palette *palette, struct PaletteColor *colour);
+void                 BKE_palette_cleanup(struct Palette *palette);
 
 /* paint curves */
 struct PaintCurve *BKE_paint_curve_add(struct Main *bmain, const char *name);
@@ -141,8 +141,6 @@ float paint_grid_paint_mask(const struct GridPaintMask *gpm, unsigned level,
 
 /* stroke related */
 void paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, const float mouse_pos[2]);
-
-void paint_bucket_fill(struct bContext *C, float color[3], struct wmOperator *op);
 
 /* Session data (mode-specific) */
 

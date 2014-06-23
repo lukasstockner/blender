@@ -57,6 +57,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "ED_sculpt.h"
+
 /* only for UI_OT_editsource */
 #include "ED_screen.h"
 #include "BKE_main.h"
@@ -874,7 +876,7 @@ static int drop_color_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 			srgb_to_linearrgb_v3_v3(color, color);
 		}
 
-		paint_bucket_fill(C, color, op);
+		ED_imapaint_bucket_fill(C, color, op);
 	}
 
 	ED_region_tag_redraw(ar);
