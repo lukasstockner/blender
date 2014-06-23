@@ -80,6 +80,86 @@ static void import_ON_str(char *dest, ON_wString& onstr, size_t n) {
 	wcstombs(dest, curve_name_unmanaged, n);
 }
 
+// Note: ignores first and last knots for Rhino compatibility. Returns:
+//             (uniform)    0 <---| can't tell these two apart by knots alone.
+// #define CU_NURB_CYCLIC	1 <---| "periodic" is the hint that disambiguates them.
+// #define CU_NURB_ENDPOINT	2
+// #define CU_NURB_BEZIER	4
+static int analyze_knots(float *knots, int num_knots, int order, bool periodic, float tol=.001) {
+	float first = knots[1];
+	float last = knots[num_knots-2];
+	
+	bool start_clamped = true;
+	for (int i=2; i<order; i++) {
+		if (abs(knots[i]-first)>tol) {start_clamped = false; break;}
+	}
+	bool end_clamped = true;
+	for (int i=num_knots-3; i>=num_knots-order; i--) {
+		if (abs(knots[i]-last)>tol) {end_clamped = false; break;}
+	}
+	bool bezier = start_clamped && end_clamped;
+	bool unif_bezier = bezier;
+	if (bezier) {
+		float jump = knots[order]-knots[order-1];
+		for (int i=order; i<num_knots-order; i+=2) {
+			if (abs(knots[i]-knots[i+1])>tol) {
+				bezier = false;
+				unif_bezier = false;
+				break;
+			}
+			if (abs(knots[i]-knots[i-1]-jump)>tol) {
+				unif_bezier = false;
+			}
+		}
+	}
+	bool unif = !start_clamped && !end_clamped && !bezier;
+	if (unif) {
+		float jump = knots[1] - knots[0];
+		for (int i=2; i<num_knots; i++) {
+			if (abs(knots[i]-knots[i-1]-jump)>tol) {
+				unif = false;
+				break;
+			}
+		}
+	}
+	bool unif_clamped = !unif && !bezier && start_clamped && end_clamped;
+	if (unif_clamped) {
+		float jump = knots[order]-knots[order-1];
+		for (int i=order; i<=num_knots-order; i++) {
+			if (abs(knots[i]-knots[i-1]-jump)>tol) {
+				unif_clamped = false;
+				break;
+			}
+		}
+	}
+	
+	if (bezier) {
+		BLI_assert(unif_bezier);
+		return CU_NURB_BEZIER;
+	}
+	if (unif) {
+		return periodic? CU_NURB_CYCLIC : 0;
+	}
+	if (unif_clamped) {
+		return CU_NURB_ENDPOINT;
+	}
+	BLI_assert(false /* Can't tell curve type from knots */ );
+	return 0;
+}
+
+static void normalize_knots(float *knots, int num_knots) {
+	float tol = .001;
+	int i=0;
+	for (; i<num_knots; i++) {
+		if (abs(knots[i]-0)>tol) break;
+	}
+	if (i==num_knots) return;
+	float mult = 1.0 / knots[i];
+	for (; i<num_knots; i++) {
+		knots[i] *= mult;
+	}
+}
+
 /****************************** Curve Import *********************************/
 static float null_loc[] = {0,0,0};
 static float null_rot[] = {0,0,0};
@@ -161,10 +241,6 @@ static void rhino_import_nurbscurve(bContext *C, ON_NurbsCurve *nc, ON_Object *o
 	nu->pntsv = 1;
 	nu->orderu = nc->Order();
 	nu->orderv = 1;
-	if (nc->IsPeriodic())
-		nu->flagu = CU_NURB_CYCLIC;
-	if (nc->IsClamped())
-		nu->flagu = CU_NURB_ENDPOINT;
 	BLI_assert(nu->pntsu + nu->orderu - 2 == nc->KnotCount());
 	bp = nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * ((nu->pntsu) * 1), "rhino_imported_NURBS_curve_points");
 	nu->knotsu = (float *)MEM_callocN(sizeof(float) * ((nu->pntsu+nu->orderu) * 1), "rhino_imported_NURBS_curve_points");
@@ -183,6 +259,8 @@ static void rhino_import_nurbscurve(bContext *C, ON_NurbsCurve *nc, ON_Object *o
 		nu->knotsu[i] = nc->Knot(i-1);
 	}
 	nu->knotsu[i] = nu->knotsu[i-1];
+	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, nc->IsPeriodic());
+	normalize_knots(nu->knotsu, nu->pntsu+nu->orderu);
 	
 	editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
@@ -472,12 +550,6 @@ static void rhino_import_nurbs_surf(bContext *C,
 	nu->pntsv = surf->CVCount(1);
 	nu->orderu = surf->Order(0);
 	nu->orderv = surf->Order(1);
-	if (surf->IsPeriodic(0))
-		nu->flagu |= CU_NURB_CYCLIC;
-	if (surf->IsPeriodic(1))
-		nu->flagv |= CU_NURB_CYCLIC;
-	nu->flagu |= CU_NURB_ENDPOINT;
-	nu->flagv |= CU_NURB_ENDPOINT;
 	bp = nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * (nu->pntsu * nu->pntsv), "rhino_imported_NURBS_surf_points");
 	nu->knotsu = (float *)MEM_callocN(sizeof(float) * ((nu->pntsu+nu->orderu) * 1), "rhino_imported_NURBS_surf_points");
 	nu->knotsv = (float *)MEM_callocN(sizeof(float) * ((nu->pntsv+nu->orderv) * 1), "rhino_imported_NURBS_surf_points");
@@ -503,9 +575,13 @@ static void rhino_import_nurbs_surf(bContext *C,
 		nu->knotsv[i] = surf->Knot(1,i-1);
 		printf("v knot %i:%f\n",i,surf->Knot(1,i-1));
 	}
-	nu->knotsu[i] = nu->knotsu[i-1];
-	BKE_nurb_knot_calc_u(nu);
-	BKE_nurb_knot_calc_v(nu);
+	nu->knotsv[i] = nu->knotsv[i-1];
+	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, surf->IsPeriodic(0));
+	normalize_knots(nu->knotsu, nu->pntsu+nu->orderu);
+	nu->flagv = analyze_knots(nu->knotsv, nu->pntsv+nu->orderv, nu->orderv, surf->IsPeriodic(1));
+	normalize_knots(nu->knotsv, nu->pntsv+nu->orderv);
+	//BKE_nurb_knot_calc_u(nu);
+	//BKE_nurb_knot_calc_v(nu);
 	
 	editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
