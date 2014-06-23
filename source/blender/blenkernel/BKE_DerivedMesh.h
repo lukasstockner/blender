@@ -150,10 +150,10 @@ typedef DMDrawOption (*DMSetDrawOptions)(void *userData, int index);
 typedef DMDrawOption (*DMSetDrawOptionsTex)(struct MTFace *tface, const bool has_vcol, int matnr);
 
 typedef enum DMDrawFlag {
-	DM_DRAW_USE_COLORS = 1,
-	DM_DRAW_ALWAYS_SMOOTH = 2,
-	DM_DRAW_USE_ACTIVE_UV = 3,
-	DM_DRAW_USE_TEXPAINT_UV = 4
+	DM_DRAW_USE_COLORS          = (1 << 0),
+	DM_DRAW_ALWAYS_SMOOTH       = (1 << 1),
+	DM_DRAW_USE_ACTIVE_UV       = (1 << 2),
+	DM_DRAW_USE_TEXPAINT_UV     = (1 << 4),
 } DMDrawFlag;
 
 typedef enum DMForeachFlag {

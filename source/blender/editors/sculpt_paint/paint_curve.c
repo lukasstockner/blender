@@ -18,12 +18,17 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/editors/sculpt_paint/paint_curve.c
+ *  \ingroup edsculpt
+ */
+
+#include <string.h>
+#include <limits.h>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_brush_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
@@ -38,7 +43,6 @@
 #include "ED_paint.h"
 
 #include "WM_api.h"
-#include "WM_keymap.h"
 #include "WM_types.h"
 
 #include "RNA_access.h"
@@ -46,8 +50,6 @@
 
 #include "paint_intern.h"
 
-#include <string.h>
-#include <limits.h>
 
 int paintcurve_poll(bContext *C)
 {
