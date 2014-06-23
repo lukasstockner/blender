@@ -1402,7 +1402,7 @@ static ProjPixel *project_paint_uvpixel_init(
 	projPixel = (ProjPixel *)BLI_memarena_alloc(arena, ps->pixel_sizeof);
 
 	/* calculate the undo tile offset of the pixel, used to store the original
-	 * pixel colour and acculmuated mask if any */
+	 * pixel color and accumulated mask if any */
 	x_tile =  x_px >> IMAPAINT_TILE_BITS;
 	y_tile =  y_px >> IMAPAINT_TILE_BITS;
 

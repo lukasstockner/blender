@@ -1368,7 +1368,7 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 		return;
 
 	do_float = (ibuf->rect_float != NULL);
-	/* first check if our image is float. If it is not we should correct the colour to
+	/* first check if our image is float. If it is not we should correct the color to
 	 * be in gamma space. strictly speaking this is not correct, but blender does not paint
 	 * byte images in linear space */
 	if (!do_float) {
