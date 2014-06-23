@@ -445,7 +445,7 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 
 				view3d_operator_needs_opengl(C);
 
-				if(imapaint_pick_face(&vc, mval, &faceindex, totface)) {
+				if (imapaint_pick_face(&vc, mval, &faceindex, totface)) {
 					Image *image = imapaint_face_image(dm, faceindex);
 
 					ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);

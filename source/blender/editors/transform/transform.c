@@ -192,7 +192,7 @@ static bool transdata_check_local_center(TransInfo *t, short around)
 	            (t->flag & (T_OBJECT | T_POSE)) ||
 	            (t->obedit && ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE)) ||
 	            (t->spacetype == SPACE_IPO) ||
-				(t->options & (CTX_MOVIECLIP | CTX_MASK | CTX_PAINT_CURVE)))
+	            (t->options & (CTX_MOVIECLIP | CTX_MASK | CTX_PAINT_CURVE)))
 	        );
 }
 
@@ -361,7 +361,7 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
 			adr[0] = v[0];
 			adr[1] = v[1];
 		}
-		else if (t->options & CTX_PAINT_CURVE){
+		else if (t->options & CTX_PAINT_CURVE) {
 			adr[0] = vec[0];
 			adr[1] = vec[1];
 		}
@@ -3623,7 +3623,8 @@ static void initRotation(TransInfo *t)
 		t->axis[0] = 0.0;
 		t->axis[1] = 0.0;
 		t->axis[2] = -1.0;
-	} else {
+	}
+	else {
 		negate_v3_v3(t->axis, t->viewinv[2]);
 		normalize_v3(t->axis);
 	}

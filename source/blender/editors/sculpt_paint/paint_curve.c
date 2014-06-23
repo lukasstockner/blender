@@ -280,7 +280,7 @@ void PAINTCURVE_OT_add_point(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, SHRT_MAX,
-						 "Location", "Location of vertex in area space", 0, SHRT_MAX);
+	                   "Location", "Location of vertex in area space", 0, SHRT_MAX);
 }
 
 static int paintcurve_delete_point_exec(bContext *C, wmOperator *op)
@@ -406,8 +406,8 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 		for (i = 0; i < pc->tot_points; i++, pcp++) {
 			/* shift means constrained editing so exclude center handles from collision detection */
 			if (!handle) {
-				if ((fabs(loc[0] - pcp->bez.vec[1][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
-						(fabs(loc[1] - pcp->bez.vec[1][1]) < PAINT_CURVE_SELECT_THRESHOLD))
+				if ((fabsf(loc[0] - pcp->bez.vec[1][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
+				    (fabsf(loc[1] - pcp->bez.vec[1][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 				{
 					pcp->bez.f2 ^= SELECT;
 					pc->add_index = i + 1;
@@ -415,8 +415,8 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 				}
 			}
 
-			if ((fabs(loc[0] - pcp->bez.vec[0][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
-					(fabs(loc[1] - pcp->bez.vec[0][1]) < PAINT_CURVE_SELECT_THRESHOLD))
+			if ((fabsf(loc[0] - pcp->bez.vec[0][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
+			    (fabsf(loc[1] - pcp->bez.vec[0][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 			{
 				pcp->bez.f1 ^= SELECT;
 				pc->add_index = i + 1;
@@ -425,8 +425,8 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 				break;
 			}
 
-			if ((fabs(loc[0] - pcp->bez.vec[2][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
-					(fabs(loc[1] - pcp->bez.vec[2][1]) < PAINT_CURVE_SELECT_THRESHOLD))
+			if ((fabsf(loc[0] - pcp->bez.vec[2][0]) < PAINT_CURVE_SELECT_THRESHOLD) &&
+			    (fabsf(loc[1] - pcp->bez.vec[2][1]) < PAINT_CURVE_SELECT_THRESHOLD))
 			{
 				pcp->bez.f3 ^= SELECT;
 				pc->add_index = i + 1;
@@ -487,7 +487,7 @@ void PAINTCURVE_OT_select(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, SHRT_MAX,
-						 "Location", "Location of vertex in area space", 0, SHRT_MAX);
+	                   "Location", "Location of vertex in area space", 0, SHRT_MAX);
 	prop = RNA_def_boolean(ot->srna, "toggle", false, "Toggle", "Select/Deselect all");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 	prop = RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend selection");

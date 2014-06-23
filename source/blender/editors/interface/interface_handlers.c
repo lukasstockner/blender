@@ -1252,14 +1252,17 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 				RNA_property_float_get_array(&but->rnapoin, but->rnaprop, drag_info->color);
 				drag_info->gamma_corrected = true;
 				valid = true;
-			} else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+			}
+			else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
 				RNA_property_float_get_array(&but->rnapoin, but->rnaprop, drag_info->color);
 				drag_info->gamma_corrected = false;
 				valid = true;
-			} else if (but->pointype == UI_BUT_POIN_FLOAT) {
+			}
+			else if (but->pointype == UI_BUT_POIN_FLOAT) {
 				copy_v3_v3(drag_info->color, (float *)but->poin);
 				valid = true;
-			} else if (but->pointype == UI_BUT_POIN_CHAR) {
+			}
+			else if (but->pointype == UI_BUT_POIN_CHAR) {
 				rgba_uchar_to_float(drag_info->color, (unsigned char *)but->poin);
 				valid = true;
 			}
@@ -4083,8 +4086,7 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			}
 		}
 #ifdef USE_DRAG_TOGGLE
-		if (event->type == LEFTMOUSE && event->val == KM_PRESS
-		    && (ui_is_but_drag_toggle(but)))
+		if (event->type == LEFTMOUSE && event->val == KM_PRESS && (ui_is_but_drag_toggle(but)))
 		{
 			button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
 			data->dragstartx = event->x;
@@ -4249,8 +4251,7 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			}
 		}
 #ifdef USE_DRAG_TOGGLE
-		if (event->type == LEFTMOUSE && event->val == KM_PRESS)
-		{
+		if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
 			button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
 			data->dragstartx = event->x;
 			data->dragstarty = event->y;
@@ -4326,7 +4327,8 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 					if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
 						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
 						srgb_to_linearrgb_v3_v3(target, color);
-					} else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+					}
+					else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
 						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
 					}
 				}

@@ -144,7 +144,7 @@ static void paint_draw_smooth_cursor(bContext *C, int x, int y, void *customdata
 
 BLI_INLINE void draw_tri_point(float *co, float width)
 {
-	float w = width/2.0;
+	float w = width / 2.0f;
 	glColor4f(1.0, 0.5, 0.5, 0.5);
 	glLineWidth(3.0);
 
@@ -527,7 +527,7 @@ static float paint_stroke_integrate_overlap(Brush *br, float factor)
 			max = overlap;
 	}
 
-	return 1.0/max;
+	return 1.0f / max;
 }
 
 static float paint_space_stroke_spacing_variable(const Scene *scene, PaintStroke *stroke, float pressure, float dpressure, float length)
@@ -584,7 +584,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, const float final_mou
 			mouse[1] = stroke->last_mouse_position[1] + dmouse[1] * spacing;
 			pressure = stroke->last_pressure + (spacing / length) * dpressure;
 
-			ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing/no_pressure_spacing);
+			ups->overlap_factor = paint_stroke_integrate_overlap(stroke->brush, spacing / no_pressure_spacing);
 
 			stroke->stroke_distance += spacing / stroke->zoom_2d;
 			paint_brush_stroke_add_step(C, op, mouse, pressure);
@@ -606,7 +606,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, const float final_mou
 /**** Public API ****/
 
 PaintStroke *paint_stroke_new(bContext *C,
-							  wmOperator *op,
+                              wmOperator *op,
                               StrokeGetLocation get_location,
                               StrokeTestStart test_start,
                               StrokeUpdateStep update_step,
@@ -634,8 +634,9 @@ PaintStroke *paint_stroke_new(bContext *C,
 	get_imapaint_zoom(C, &zoomx, &zoomy);
 	stroke->zoom_2d = max_ff(zoomx, zoomy);
 
-	if ((br->flag & BRUSH_CURVE)
-		&& RNA_struct_property_is_set(op->ptr, "mode")) {
+	if ((br->flag & BRUSH_CURVE) &&
+	    RNA_struct_property_is_set(op->ptr, "mode"))
+	{
 		RNA_enum_set(op->ptr, "mode", BRUSH_STROKE_NORMAL);
 	}
 	/* initialize here */
@@ -724,7 +725,9 @@ bool paint_supports_dynamic_size(Brush *br, PaintMode mode)
 		case PAINT_TEXTURE_PROJECTIVE:
 			if ((br->imagepaint_tool == PAINT_TOOL_FILL) &&
 			    (br->flag & BRUSH_USE_GRADIENT))
+			{
 				return false;
+			}
 			break;
 
 		default:
@@ -736,7 +739,7 @@ bool paint_supports_dynamic_size(Brush *br, PaintMode mode)
 bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 {
 	if (!(br->flag & BRUSH_SMOOTH_STROKE) ||
-		 (br->flag & (BRUSH_ANCHORED | BRUSH_DRAG_DOT | BRUSH_LINE)))
+	    (br->flag & (BRUSH_ANCHORED | BRUSH_DRAG_DOT | BRUSH_LINE)))
 	{
 		return false;
 	}
@@ -843,8 +846,13 @@ static void paint_stroke_sample_average(const PaintStroke *stroke,
 	/*printf("avg=(%f, %f), num=%d\n", average->mouse[0], average->mouse[1], stroke->num_samples);*/
 }
 
-/* slightly different version of spacing for line/curve strokes, makes sure the dabs stay on the line path */
-static void paint_line_strokes_spacing(bContext *C, wmOperator *op, PaintStroke *stroke, float spacing, float *length_residue, float old_pos[2], float new_pos[2])
+/**
+ * Slightly different version of spacing for line/curve strokes,
+ * makes sure the dabs stay on the line path.
+ */
+static void paint_line_strokes_spacing(
+        bContext *C, wmOperator *op, PaintStroke *stroke, float spacing, float *length_residue,
+        const float old_pos[2], const float new_pos[2])
 {
 	UnifiedPaintSettings *ups = stroke->ups;
 
@@ -856,9 +864,9 @@ static void paint_line_strokes_spacing(bContext *C, wmOperator *op, PaintStroke 
 
 	length = normalize_v2(dmouse);
 
-	BLI_assert(length >= 0.0);
+	BLI_assert(length >= 0.0f);
 
-	if (length == 0.0)
+	if (length == 0.0f)
 		return;
 
 	while (length > 0.0f) {
@@ -921,11 +929,12 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 			PaintCurvePoint *pcp_next = pcp + 1;
 
 			for (j = 0; j < 2; j++)
-				BKE_curve_forward_diff_bezier(pcp->bez.vec[1][j],
-											  pcp->bez.vec[2][j],
-											  pcp_next->bez.vec[0][j],
-											  pcp_next->bez.vec[1][j],
-											  data + j, PAINT_CURVE_NUM_SEGMENTS, 2 * sizeof(float));
+				BKE_curve_forward_diff_bezier(
+				        pcp->bez.vec[1][j],
+				        pcp->bez.vec[2][j],
+				        pcp_next->bez.vec[0][j],
+				        pcp_next->bez.vec[1][j],
+				        data + j, PAINT_CURVE_NUM_SEGMENTS, sizeof(float[2]));
 
 
 			for (j = 0; j < PAINT_CURVE_NUM_SEGMENTS; j++) {
@@ -939,8 +948,9 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 						paint_line_strokes_spacing(C, op, stroke, spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
 					}
 				}
-				else
+				else {
 					paint_line_strokes_spacing(C, op, stroke, spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
+				}
 			}
 		}
 
@@ -966,7 +976,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	float pressure;
 
 	/* see if tablet affects event. Line, anchored and drag dot strokes do not support pressure */
-	pressure = (br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0 : event_tablet_data(event, &stroke->pen_flip);
+	pressure = (br->flag & (BRUSH_LINE | BRUSH_ANCHORED | BRUSH_DRAG_DOT)) ? 1.0f : event_tablet_data(event, &stroke->pen_flip);
 
 	paint_stroke_add_sample(p, stroke, event->mval[0], event->mval[1], pressure);
 	paint_stroke_sample_average(stroke, &sample_average);
@@ -1035,7 +1045,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		return OPERATOR_FINISHED;
 	}
 	else if ((br->flag & BRUSH_LINE) && stroke->stroke_started &&
-			 (first_modal || (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))))
+	         (first_modal || (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))))
 	{
 		if (br->flag & BRUSH_RAKE) {
 			copy_v2_v2(stroke->ups->last_rake, stroke->last_mouse_position);
@@ -1043,7 +1053,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		}
 	}
 	else if (first_modal ||
-			 /* regular dabs */
+	         /* regular dabs */
 	         (!(br->flag & (BRUSH_AIRBRUSH)) && (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE))) ||
 	         /* airbrush */
 	         ((br->flag & BRUSH_AIRBRUSH) && event->type == TIMER && event->customdata == stroke->timer))

@@ -1194,14 +1194,14 @@ static int brush_needs_sculpt_normal(const Brush *brush)
 	         ((brush->normal_weight > 0) ||
 	          (brush->flag & BRUSH_FRONTFACE))) ||
 
-			ELEM7(brush->sculpt_tool,
+	        ELEM7(brush->sculpt_tool,
 	              SCULPT_TOOL_BLOB,
 	              SCULPT_TOOL_CREASE,
 	              SCULPT_TOOL_DRAW,
 	              SCULPT_TOOL_LAYER,
 	              SCULPT_TOOL_NUDGE,
 	              SCULPT_TOOL_ROTATE,
-				  SCULPT_TOOL_THUMB) ||
+	              SCULPT_TOOL_THUMB) ||
 
 	        (brush->mtex.brush_map_mode == MTEX_MAP_MODE_AREA));
 }
@@ -3814,7 +3814,7 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 	if (ELEM9(brush->sculpt_tool,
 	          SCULPT_TOOL_DRAW, SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB,
 	          SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY,
-			  SCULPT_TOOL_CLAY_STRIPS, SCULPT_TOOL_ROTATE, SCULPT_TOOL_FLATTEN))
+	          SCULPT_TOOL_CLAY_STRIPS, SCULPT_TOOL_ROTATE, SCULPT_TOOL_FLATTEN))
 	{
 		if (!(brush->flag & BRUSH_ACCUMULATE)) {
 			cache->original = 1;

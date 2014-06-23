@@ -814,7 +814,7 @@ int UI_drop_color_poll(struct bContext *C, wmDrag *drag, const wmEvent *UNUSED(e
 {
 	/* should only return true for regions that include buttons, for now
 	 * return true always */
-	if (drag->type == WM_DRAG_COLOR){
+	if (drag->type == WM_DRAG_COLOR) {
 		SpaceImage *sima = CTX_wm_space_image(C);
 		ARegion *ar = CTX_wm_region(C);
 
@@ -823,9 +823,11 @@ int UI_drop_color_poll(struct bContext *C, wmDrag *drag, const wmEvent *UNUSED(e
 
 		/* should only return true for regions that include buttons, for now
 		 * return true always */
-		if (sima && (sima->mode == SI_MODE_PAINT)
-		    && sima->image && (ar && ar->regiontype == RGN_TYPE_WINDOW))
+		if (sima && (sima->mode == SI_MODE_PAINT) &&
+		    sima->image && (ar && ar->regiontype == RGN_TYPE_WINDOW))
+		{
 			return 1;
+		}
 	}
 
 	return 0;
@@ -868,8 +870,9 @@ static int drop_color_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(
 		}
 	}
 	else {
-		if(gamma)
+		if (gamma) {
 			srgb_to_linearrgb_v3_v3(color, color);
+		}
 
 		paint_bucket_fill(C, color, op);
 	}

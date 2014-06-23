@@ -229,8 +229,9 @@ static unsigned short *brush_painter_mask_ibuf_new(BrushPainter *painter, int si
 }
 
 /* update rectangular section of the brush image */
-static void brush_painter_mask_imbuf_update(BrushPainter *painter, unsigned short *tex_mask_old,
-									   int origx, int origy, int w, int h, int xt, int yt, int diameter)
+static void brush_painter_mask_imbuf_update(
+        BrushPainter *painter, unsigned short *tex_mask_old,
+        int origx, int origy, int w, int h, int xt, int yt, int diameter)
 {
 	Scene *scene = painter->scene;
 	Brush *brush = painter->brush;
@@ -274,9 +275,11 @@ static void brush_painter_mask_imbuf_update(BrushPainter *painter, unsigned shor
 }
 
 
-/* update the brush mask image by trying to reuse the cached texture result. this
- * can be considerably faster for brushes that change size due to pressure or
- * textures that stick to the surface where only part of the pixels are new */
+/**
+ * Update the brush mask image by trying to reuse the cached texture result.
+ * This can be considerably faster for brushes that change size due to pressure or
+ * textures that stick to the surface where only part of the pixels are new
+ */
 static void brush_painter_mask_imbuf_partial_update(BrushPainter *painter, const float pos[2], int diameter)
 {
 	BrushPainterCache *cache = &painter->cache;
@@ -301,8 +304,8 @@ static void brush_painter_mask_imbuf_partial_update(BrushPainter *painter, const
 		srcx = srcy = 0;
 		w = cache->tex_mask_old_w;
 		h = cache->tex_mask_old_h;
-		destx = (int)painter->lastpaintpos[0] - (int)pos[0]  + (diameter/2 - w/2);
-		desty = (int)painter->lastpaintpos[1] - (int)pos[1]  + (diameter/2 - h/2);
+		destx = (int)painter->lastpaintpos[0] - (int)pos[0]  + (diameter / 2 - w / 2);
+		desty = (int)painter->lastpaintpos[1] - (int)pos[1]  + (diameter / 2 - h / 2);
 
 		/* hack, use temporary rects so that clipping works */
 		IMB_rectclip(&maskibuf, &maskibuf_old, &destx, &desty, &srcx, &srcy, &w, &h);
@@ -569,8 +572,8 @@ static void brush_painter_imbuf_partial_update(BrushPainter *painter, const floa
 		srcx = srcy = 0;
 		w = oldtexibuf->x;
 		h = oldtexibuf->y;
-		destx = (int)painter->lastpaintpos[0] - (int)pos[0] + (diameter/2 - w/2);
-		desty = (int)painter->lastpaintpos[1] - (int)pos[1] + (diameter/2 - h/2);
+		destx = (int)painter->lastpaintpos[0] - (int)pos[0] + (diameter / 2 - w / 2);
+		desty = (int)painter->lastpaintpos[1] - (int)pos[1] + (diameter / 2 - h / 2);
 
 		IMB_rectclip(cache->texibuf, oldtexibuf, &destx, &desty, &srcx, &srcy, &w, &h);
 	}
@@ -658,8 +661,10 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	bool do_random = false;
 	bool do_partial_update = false;
 	bool update_color = (brush->flag & BRUSH_USE_GRADIENT) &&
-	                    ((ELEM(brush->gradient_stroke_mode, BRUSH_GRADIENT_SPACING_REPEAT, BRUSH_GRADIENT_SPACING_CLAMP))
-	                     || (cache->last_pressure != pressure));
+	                    ((ELEM(brush->gradient_stroke_mode,
+	                           BRUSH_GRADIENT_SPACING_REPEAT,
+	                           BRUSH_GRADIENT_SPACING_CLAMP)) ||
+	                     (cache->last_pressure != pressure));
 	float tex_rotation = -brush->mtex.rot;
 	float mask_rotation = -brush->mask_mtex.rot;
 
@@ -689,7 +694,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 		else if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
 			renew_maxmask = true;
 		}
-		else if (!(brush->flag & BRUSH_ANCHORED)){
+		else if (!(brush->flag & BRUSH_ANCHORED)) {
 			do_partial_update_mask = true;
 			renew_maxmask = true;
 		}
@@ -699,9 +704,9 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 			renew_maxmask = true;
 		}
 
-		if (diameter != cache->lastdiameter ||
-			mask_rotation != cache->last_mask_rotation ||
-			renew_maxmask)
+		if ((diameter != cache->lastdiameter) ||
+		    (mask_rotation != cache->last_mask_rotation) ||
+		    renew_maxmask)
 		{
 			if (cache->tex_mask) {
 				MEM_freeN(cache->tex_mask);
@@ -709,7 +714,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 			}
 
 			brush_painter_2d_tex_mapping(s, diameter, painter->startpaintpos, pos, mouse,
-										 brush->mask_mtex.brush_map_mode, &painter->mask_mapping);
+			                             brush->mask_mtex.brush_map_mode, &painter->mask_mapping);
 
 			if (do_partial_update_mask)
 				brush_painter_mask_imbuf_partial_update(painter, pos, diameter);
@@ -730,8 +735,8 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s, BrushPainter *pai
 	}
 
 	/* detect if we need to recreate image brush buffer */
-	if (diameter != cache->lastdiameter ||
-		tex_rotation != cache->last_tex_rotation ||
+	if ((diameter != cache->lastdiameter) ||
+	    (tex_rotation != cache->last_tex_rotation) ||
 	    do_random ||
 	    update_color)
 	{
@@ -878,7 +883,7 @@ static void paint_2d_lift_soften(ImagePaintState *s, ImBuf *ibuf, ImBuf *ibufb, 
 				}
 			}
 
-			if (count > 0.0) {
+			if (count > 0.0f) {
 				mul_v4_fl(outrgb, 1.0f / (float)count);
 
 				if (sharpen) {
@@ -886,9 +891,9 @@ static void paint_2d_lift_soften(ImagePaintState *s, ImBuf *ibuf, ImBuf *ibufb, 
 					sub_v3_v3v3(outrgb, rgba, outrgb);
 
 					/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
-			         * colored speckles appearing in final image, and also to check for threshhold */
+					 * colored speckles appearing in final image, and also to check for threshhold */
 					outrgb[0] = outrgb[1] = outrgb[2] = rgb_to_grayscale(outrgb);
-					if (fabs(outrgb[0]) > threshold) {
+					if (fabsf(outrgb[0]) > threshold) {
 						float mask = BKE_brush_alpha_get(s->scene, s->brush);
 						float alpha = rgba[3];
 						rgba[3] = outrgb[3] = mask;
@@ -1073,11 +1078,11 @@ static int paint_2d_op(void *state, ImBuf *ibufb, unsigned short *curveb, unsign
 						tmpbuf->rect = image_undo_find_tile(s->image, s->canvas, tx, ty, &mask, false);
 
 					IMB_rectblend(s->canvas, tmpbuf, frombuf, mask,
-								  curveb, texmaskb, mask_max,
-								  region[a].destx, region[a].desty,
-								  origx, origy,
-								  region[a].srcx, region[a].srcy,
-								  region[a].width, region[a].height, blend, ((s->brush->flag & BRUSH_ACCUMULATE) != 0));
+					              curveb, texmaskb, mask_max,
+					              region[a].destx, region[a].desty,
+					              origx, origy,
+					              region[a].srcx, region[a].srcy,
+					              region[a].width, region[a].height, blend, ((s->brush->flag & BRUSH_ACCUMULATE) != 0));
 				}
 			}
 
@@ -1315,7 +1320,7 @@ static void paint_2d_fill_add_pixel_byte(int i, int j, ImBuf *ibuf, GSQueue *sta
 
 		sub_v3_v3(color_f, color);
 
-		luminance = (fabs(color_f[0]) + fabs(color_f[0]) + fabs(color_f[0]))/3.0;
+		luminance = (fabsf(color_f[0]) + fabsf(color_f[0]) + fabsf(color_f[0])) / 3.0f;
 		if (luminance < threshold) {
 			BLI_gsqueue_push(stack, &coordinate);
 		}
@@ -1335,7 +1340,7 @@ static void paint_2d_fill_add_pixel_float(int i, int j, ImBuf *ibuf, GSQueue *st
 		float luminance;
 		sub_v3_v3v3(color_f, ibuf->rect_float + 4 * coordinate, color);
 
-		luminance = (fabs(color_f[0]) + fabs(color_f[0]) + fabs(color_f[0]))/3.0;
+		luminance = (fabsf(color_f[0]) + fabsf(color_f[0]) + fabsf(color_f[0])) / 3.0f;
 		if (luminance < threshold) {
 			BLI_gsqueue_push(stack, &coordinate);
 		}
@@ -1355,7 +1360,7 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 	int i = 0, j = 0;
 	unsigned int color_b;
 	float color_f[4];
-	float strength = br ? br->alpha : 1.0;
+	float strength = br ? br->alpha : 1.0f;
 
 	bool do_float;
 
@@ -1374,7 +1379,8 @@ void paint_2d_bucket_fill (const bContext *C, float color[3], Brush *br, float m
 	if (!do_float) {
 		linearrgb_to_srgb_uchar3((unsigned char *)&color_b, color);
 		*(((char *)&color_b) + 3) = strength * 255;
-	} else {
+	}
+	else {
 		copy_v3_v3(color_f, color);
 		color_f[3] = strength;
 	}
@@ -1551,7 +1557,7 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 	/* some math to get needed gradient variables */
 	sub_v2_v2v2(tangent, image_final, image_init);
 	line_len = len_squared_v2(tangent);
-	line_len_sq_inv = 1.0/line_len;
+	line_len_sq_inv = 1.0f / line_len;
 	line_len = sqrt(line_len);
 
 	do_float = (ibuf->rect_float != NULL);
@@ -1568,12 +1574,12 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 				switch (br->gradient_fill_mode) {
 					case BRUSH_GRADIENT_LINEAR:
 					{
-						f = dot_v2v2(p, tangent)*line_len_sq_inv;
+						f = dot_v2v2(p, tangent) * line_len_sq_inv;
 						break;
 					}
 					case BRUSH_GRADIENT_RADIAL:
 					{
-						f = len_v2(p)/line_len;
+						f = len_v2(p) / line_len;
 						break;
 					}
 				}
@@ -1596,12 +1602,12 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 				switch (br->gradient_fill_mode) {
 					case BRUSH_GRADIENT_LINEAR:
 					{
-						f = dot_v2v2(p, tangent)*line_len_sq_inv;
+						f = dot_v2v2(p, tangent) * line_len_sq_inv;
 						break;
 					}
 					case BRUSH_GRADIENT_RADIAL:
 					{
-						f = len_v2(p)/line_len;
+						f = len_v2(p) / line_len;
 						break;
 					}
 				}

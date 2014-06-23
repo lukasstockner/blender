@@ -35,6 +35,10 @@
 #ifndef __MATH_COLOR_BLEND_INLINE_C__
 #define __MATH_COLOR_BLEND_INLINE_C__
 
+/* don't add any saturation to a completly black and white image */
+#define EPS_SATURATION 0.0005f
+#define EPS_ALPHA 0.0005f
+
 /***************************** Color Blending ********************************
  *
  * - byte colors are assumed to be straight alpha
@@ -779,8 +783,9 @@ MINLINE void blend_color_saturation_byte(unsigned char dst[4], unsigned const ch
 		rgb_to_hsv(src1[0] / 255.0f, src1[1] / 255.0f, src1[2] / 255.0f, &h1, &s1, &v1);
 		rgb_to_hsv(src2[0] / 255.0f, src2[1] / 255.0f, src2[2] / 255.0f, &h2, &s2, &v2);
 
-		if (s1 > 0.0005) // don't add any saturation to a completly black and white image
+		if (s1 > EPS_SATURATION) {
 			s1 = s2;
+		}
 
 		hsv_to_rgb(h1, s1, v1, &r, &g, &b);
 
@@ -983,8 +988,9 @@ MINLINE void blend_color_erase_alpha_float(float dst[4], const float src1[4], co
 		float alpha = max_ff(src1[3] - src2[3], 0.0f);
 		float map_alpha;
 
-		if (alpha <= 0.0005f)
+		if (alpha <= EPS_ALPHA) {
 			alpha = 0.0f;
+		}
 
 		map_alpha = alpha / src1[3];
 
@@ -1009,8 +1015,9 @@ MINLINE void blend_color_add_alpha_float(float dst[4], const float src1[4], cons
 		float alpha = min_ff(src1[3] + src2[3], 1.0f);
 		float map_alpha;
 
-		if (alpha >= 1.0f - 0.0005f)
+		if (alpha >= 1.0f - EPS_ALPHA) {
 			alpha = 1.0f;
+		}
 
 		map_alpha = (src1[3] > 0.0f) ? alpha / src1[3] : 1.0f;
 
@@ -1562,8 +1569,9 @@ MINLINE void blend_color_saturation_float(float dst[3], const float src1[3], con
 		rgb_to_hsv(src1[0], src1[1], src1[2], &h1, &s1, &v1);
 		rgb_to_hsv(src2[0], src2[1], src2[2], &h2, &s2, &v2);
 
-		if (s1 > 0.0005) // don't add any saturation to a completly black and white image
+		if (s1 > EPS_SATURATION) {
 			s1 = s2;
+		}
 		hsv_to_rgb(h1, s1, v1, &r, &g, &b);
 
 		dst[0] = (r * fac + src1[0] * mfac);
@@ -1618,5 +1626,7 @@ MINLINE void blend_color_interpolate_float(float dst[4], const float src1[4], co
 	dst[2] = mt * src1[2] + t * src2[2];
 	dst[3] = mt * src1[3] + t * src2[3];
 }
+
+#undef EPS_SATURATION
 
 #endif /* __MATH_COLOR_BLEND_INLINE_C__ */

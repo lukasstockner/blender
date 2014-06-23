@@ -1308,9 +1308,9 @@ bool object_remove_material_slot(Object *ob)
 
 bool get_mtex_slot_valid_texpaint(struct MTex *mtex)
 {
-		return mtex && (mtex->texco == TEXCO_UV) &&
-		       mtex->tex && (mtex->tex->type == TEX_IMAGE) &&
-		       mtex->tex->ima;
+	return (mtex && (mtex->texco == TEXCO_UV) &&
+	        mtex->tex && (mtex->tex->type == TEX_IMAGE) &&
+	        mtex->tex->ima);
 }
 
 
@@ -1359,7 +1359,7 @@ void refresh_texpaint_image_cache(Material *ma, bool use_nodes)
 		}
 	}
 	else {
-		for(mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
+		for (mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
 			if (get_mtex_slot_valid_texpaint(*mtex)) {
 				count++;
 			}
@@ -1374,7 +1374,7 @@ void refresh_texpaint_image_cache(Material *ma, bool use_nodes)
 
 		ma->texpaintslot = MEM_callocN(sizeof(*ma->texpaintslot) * count, "texpaint_slots");
 
-		for(mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
+		for (mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
 			if (get_mtex_slot_valid_texpaint(*mtex)) {
 				ma->texpaintslot[index].ima = (*mtex)->tex->ima;
 				BLI_strncpy(ma->texpaintslot[index++].uvname, (*mtex)->uvname, 64);
@@ -1413,7 +1413,7 @@ struct MTex *give_current_texpaint_slot(Material *ma)
 
 	short index = 0, i = 0;
 
-	for(mtex = ma->mtex; i < MAX_MTEX; i++, mtex++) {
+	for (mtex = ma->mtex; i < MAX_MTEX; i++, mtex++) {
 		if (get_mtex_slot_valid_texpaint(*mtex)) {
 			if (index++ == ma->paint_active_slot)
 				return (*mtex);

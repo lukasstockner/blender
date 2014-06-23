@@ -253,7 +253,7 @@ static void undo_stack_free(UndoStack *stack)
 
 /* Exported Functions */
 
-void ED_undo_paint_push_begin(int type, const char *name, UndoRestoreCb restore, UndoFreeCb free , UndoCleanupCb cleanup)
+void ED_undo_paint_push_begin(int type, const char *name, UndoRestoreCb restore, UndoFreeCb free, UndoCleanupCb cleanup)
 {
 	if (type == UNDO_PAINT_IMAGE)
 		undo_stack_push_begin(&ImageUndoStack, name, restore, free, cleanup);
@@ -264,12 +264,14 @@ void ED_undo_paint_push_begin(int type, const char *name, UndoRestoreCb restore,
 ListBase *undo_paint_push_get_list(int type)
 {
 	if (type == UNDO_PAINT_IMAGE) {
-		if (ImageUndoStack.current)
+		if (ImageUndoStack.current) {
 			return &ImageUndoStack.current->elems;
+		}
 	}
 	else if (type == UNDO_PAINT_MESH) {
-		if (MeshUndoStack.current)
+		if (MeshUndoStack.current) {
 			return &MeshUndoStack.current->elems;
+		}
 	}
 	
 	return NULL;

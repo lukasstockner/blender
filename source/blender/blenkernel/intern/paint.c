@@ -338,7 +338,8 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 	return palette;
 }
 
-void BKE_free_palette (Palette *palette) {
+void BKE_free_palette (Palette *palette)
+{
 	BLI_freelistN(&palette->colors);
 }
 

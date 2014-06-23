@@ -299,7 +299,7 @@ typedef void (*IMB_blend_func_float)(float *dst, const float *src1, const float 
 
 
 void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask, unsigned short *curvemask,
-				   unsigned short *texmask, float mask_max,
+                   unsigned short *texmask, float mask_max,
                    int destx,  int desty, int origx, int origy, int srcx, int srcy, int width, int height,
                    IMB_BlendMode mode, bool accumulate)
 {
@@ -584,7 +584,7 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 
 							mask = min_ff(mask, 65535.0);
 
-							if (src[3] && (mask > 0.0)) {
+							if (src[3] && (mask > 0.0f)) {
 								unsigned char mask_src[4];
 
 								mask_src[0] = src[0];
@@ -627,7 +627,7 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 					/* destination mask present, do max alpha masking */
 					if (dmaskrect) {
 						dmr = dmaskrect;
-						for (x = width; x > 0; x--, drf +=4 , orf += 4, srf += 4, dmr++, cmr++) {
+						for (x = width; x > 0; x--, drf += 4, orf += 4, srf += 4, dmr++, cmr++) {
 							float mask_lim = mask_max * (*cmr);
 
 							if (texmaskrect)
@@ -665,7 +665,7 @@ void IMB_rectblend(ImBuf *dbuf, ImBuf *obuf, ImBuf *sbuf, unsigned short *dmask,
 
 							mask = min_ff(mask, 65535.0);
 
-							if (srf[3] && (mask > 0.0)) {
+							if (srf[3] && (mask > 0.0f)) {
 								float mask_srf[4];
 
 								mul_v4_v4fl(mask_srf, srf, mask / 65535.0f);

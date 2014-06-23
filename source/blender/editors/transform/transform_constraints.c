@@ -759,7 +759,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 			else if (t->options & CTX_PAINT_CURVE) {
 				aspx = aspy = 1.0;
 			}
-			else{
+			else {
 				ED_space_image_get_uv_aspect(t->sa->spacedata.first, &aspx, &aspy);
 			}
 			glScalef(1.0f / aspx, 1.0f / aspy, 1.0);

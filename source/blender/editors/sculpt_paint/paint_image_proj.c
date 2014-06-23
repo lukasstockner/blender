@@ -2239,12 +2239,13 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 	LinkNode *bucketFaceNodes = ps->bucketFaces[bucket_index];
 
 	TileInfo tinf = {
-	                 (ps->thread_tot > 1),
-	                 ps->do_masking,
-	                 IMAPAINT_TILE_NUMBER(ibuf->x),
-                     tmpibuf,
-                     ps->projImages + image_index
-	                };
+		(ps->thread_tot > 1),
+		ps->do_masking,
+		IMAPAINT_TILE_NUMBER(ibuf->x),
+		tmpibuf,
+		ps->projImages + image_index
+	};
+
 	const MFace *mf = ps->dm_mface + face_index;
 	const MTFace *tf = ps->dm_mtface[face_index];
 
@@ -2958,7 +2959,7 @@ static void project_paint_begin(ProjPaintState *ps)
 
 	ps->dm_mvert = ps->dm->getVertArray(ps->dm);
 	ps->dm_mface = ps->dm->getTessFaceArray(ps->dm);
-	ps->dm_mtface = MEM_mallocN(ps->dm_totface * sizeof (MTFace *), "proj_paint_mtfaces");
+	ps->dm_mtface = MEM_mallocN(ps->dm_totface * sizeof(MTFace *), "proj_paint_mtfaces");
 
 	if (ps->do_face_sel) {
 		index_mf_to_mpoly = ps->dm->getTessFaceDataArray(ps->dm, CD_ORIGINDEX);
@@ -2976,7 +2977,7 @@ static void project_paint_begin(ProjPaintState *ps)
 
 	/* use clone mtface? */
 	if (ps->do_layer_clone) {
-		ps->dm_mtface_clone = MEM_mallocN(ps->dm_totface * sizeof (MTFace *), "proj_paint_mtfaces");
+		ps->dm_mtface_clone = MEM_mallocN(ps->dm_totface * sizeof(MTFace *), "proj_paint_mtfaces");
 	}
 
 	if (ps->do_layer_stencil || ps->do_stencil_brush) {
@@ -3760,7 +3761,7 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
 			 * colored speckles appearing in final image, and also to check for threshhold */
 			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
-			if (fabs(rgba[0]) > ps->brush->sharp_threshold) {
+			if (fabsf(rgba[0]) > ps->brush->sharp_threshold) {
 				float alpha = projPixel->pixel.f_pt[3];
 				projPixel->pixel.f_pt[3] = rgba[3] = mask;
 
@@ -3770,7 +3771,8 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 			}
 			else
 				return;
-		} else {
+		}
+		else {
 			blend_color_interpolate_float(rgba, rgba, projPixel->pixel.f_pt, mask);
 		}
 
@@ -3820,7 +3822,7 @@ static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, flo
 			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
 			 * colored speckles appearing in final image, and also to check for threshhold */
 			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
-			if (fabs(rgba[0]) > ps->brush->sharp_threshold) {
+			if (fabsf(rgba[0]) > ps->brush->sharp_threshold) {
 				float alpha = rgba_pixel[3];
 				rgba[3] = rgba_pixel[3] = mask;
 
@@ -3888,7 +3890,7 @@ static void do_projectpaint_draw_f(ProjPaintState *ps, ProjPixel *projPixel, con
 static void do_projectpaint_mask(ProjPaintState *ps, ProjPixel *projPixel, float mask)
 {
 	unsigned char rgba_ub[4];
-	rgba_ub[0] = rgba_ub[1] = rgba_ub[2] = ps->stencil_value * 255.0;
+	rgba_ub[0] = rgba_ub[1] = rgba_ub[2] = ps->stencil_value * 255.0f;
 	rgba_ub[3] = f_to_char(mask);
 
 	if (ps->do_masking) {
@@ -4009,18 +4011,18 @@ static void *do_projectpaint_thread(void *ph_v)
 
 						sub_v2_v2v2(tangent, pos, lastpos);
 						line_len = len_squared_v2(tangent);
-						line_len_sq_inv = 1.0/line_len;
+						line_len_sq_inv = 1.0f / line_len;
 						line_len = sqrt(line_len);
 
 						switch (brush->gradient_fill_mode) {
 							case BRUSH_GRADIENT_LINEAR:
 							{
-								f = dot_v2v2(p, tangent)*line_len_sq_inv;
+								f = dot_v2v2(p, tangent) * line_len_sq_inv;
 								break;
 							}
 							case BRUSH_GRADIENT_RADIAL:
 							{
-								f = len_v2(p)/line_len;
+								f = len_v2(p) / line_len;
 								break;
 							}
 						}
@@ -4380,8 +4382,7 @@ void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], co
 		paint_brush_color_get(scene, brush, false, ps->mode == BRUSH_STROKE_INVERT, distance, pressure,  ps->paint_color, NULL);
 		srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
 	}
-	else if (ps->tool == PAINT_TOOL_FILL)
-	{
+	else if (ps->tool == PAINT_TOOL_FILL) {
 		copy_v3_v3(ps->paint_color, BKE_brush_color_get(scene, brush));
 		srgb_to_linearrgb_v3_v3(ps->paint_color_linear, ps->paint_color);
 	}
@@ -4389,9 +4390,9 @@ void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], co
 		ps->stencil_value = brush->weight;
 
 		if ((ps->mode == BRUSH_STROKE_INVERT) ^
-			((scene->toolsettings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV) != 0))
+		    ((scene->toolsettings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV) != 0))
 		{
-			ps->stencil_value = 1.0 - ps->stencil_value;
+			ps->stencil_value = 1.0f - ps->stencil_value;
 		}
 	}
 
@@ -4430,7 +4431,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		/* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
 		ps->do_masking = paint_use_opacity_masking(brush);
 		ps->is_texbrush = (brush->mtex.tex && brush->imagepaint_tool == PAINT_TOOL_DRAW) ? true : false;
-		ps->is_maskbrush = (brush->mask_mtex.tex)? true : false;
+		ps->is_maskbrush = (brush->mask_mtex.tex) ? true : false;
 	}
 	else {
 		/* brush may be NULL*/
@@ -4464,7 +4465,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	ps->do_stencil_brush = ps->brush->imagepaint_tool == PAINT_TOOL_MASK;
 	/* deactivate stenciling for the stencil brush :) */
 	ps->do_layer_stencil = ((settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) &&
-							!(ps->do_stencil_brush) && ps->stencil_ima);
+	                        !(ps->do_stencil_brush) && ps->stencil_ima);
 	ps->do_layer_stencil_inv = ((settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV) != 0);
 
 

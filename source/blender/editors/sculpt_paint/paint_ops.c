@@ -1009,7 +1009,7 @@ void ED_operatormacros_paint(void)
 	wmOperatorTypeMacro *otmacro;
 
 	ot = WM_operatortype_append_macro("PAINTCURVE_OT_add_point_slide", "Add Curve Point and Slide",
-									  "Add new curve point and slide it", OPTYPE_UNDO | OPTYPE_REGISTER);
+	                                  "Add new curve point and slide it", OPTYPE_UNDO | OPTYPE_REGISTER);
 	ot->description = "Add new curve point and slide it";
 	WM_operatortype_macro_define(ot, "PAINTCURVE_OT_add_point");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");

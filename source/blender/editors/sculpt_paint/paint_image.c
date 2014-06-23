@@ -698,7 +698,8 @@ void paint_brush_exit_tex(Brush *brush)
 	}
 }
 
-static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customdata) {
+static void gradient_draw_line(bContext *UNUSED(C), int x, int y, void *customdata)
+{
 	PaintOperation *pop = (PaintOperation *)customdata;
 
 	if (pop) {
@@ -775,7 +776,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 	UnifiedPaintSettings *ups = &toolsettings->unified_paint_settings;
 	Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
 
-	float alphafac = (brush->flag & BRUSH_ACCUMULATE)? ups->overlap_factor : 1.0;
+	float alphafac = (brush->flag & BRUSH_ACCUMULATE) ? ups->overlap_factor : 1.0f;
 
 	/* initial brush values. Maybe it should be considered moving these to stroke system */
 	float startalpha = BKE_brush_alpha_get(scene, brush);
@@ -1162,23 +1163,23 @@ typedef struct {
 }	SampleColorData;
 
 
-#define HEADER_LENGTH 150
 static void sample_color_update_header(SampleColorData *data, bContext *C)
 {
-	static char str[] = "Sample color for %s";
-
+#define HEADER_LENGTH 150
 	char msg[HEADER_LENGTH];
 	ScrArea *sa = CTX_wm_area(C);
 
 	if (sa) {
-		BLI_snprintf(msg, HEADER_LENGTH, str,
-		             !data->sample_palette?
-		             "brush. Use Left Click to sample for palette instead" :
-		             "palette. Use Left Click to sample more colors");
+		BLI_snprintf(msg, HEADER_LENGTH,
+		             "Sample color for %s",
+		             !data->sample_palette ?
+		             "Brush. Use Left Click to sample for palette instead" :
+		             "Palette. Use Left Click to sample more colors");
 		ED_area_headerprint(sa, msg);
 	}
-}
+
 #undef HEADER_LENGTH
+}
 
 static int sample_color_exec(bContext *C, wmOperator *op)
 {

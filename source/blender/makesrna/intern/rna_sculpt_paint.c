@@ -405,7 +405,7 @@ static void rna_def_paint(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_symmetry_feather", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "symmetry_flags", PAINT_SYMMETRY_FEATHER);
 	RNA_def_property_ui_text(prop, "Symmetry Feathering",
-							 "Reduce the strength of the brush where it overlaps symmetrical daubs");
+	                         "Reduce the strength of the brush where it overlaps symmetrical daubs");
 	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL);
 }
 

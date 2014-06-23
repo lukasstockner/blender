@@ -174,8 +174,9 @@ void WM_event_drag_image(wmDrag *drag, ImBuf *imb, float scale, int sx, int sy)
 
 void WM_drag_free(wmDrag *drag)
 {
-	if((drag->flags & WM_DRAG_FREE_DATA) && drag->poin)
+	if ((drag->flags & WM_DRAG_FREE_DATA) && drag->poin) {
 		MEM_freeN(drag->poin);
+	}
 
 	MEM_freeN(drag);
 }

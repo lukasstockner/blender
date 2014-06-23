@@ -795,7 +795,7 @@ static void paint_draw_alpha_overlay(UnifiedPaintSettings *ups, Brush *brush,
 
 BLI_INLINE void draw_tri_point(float *co, float width, bool selected)
 {
-	float w = width/2.0;
+	float w = width / 2.0f;
 	if (selected)
 		glColor4f(1.0, 1.0, 0.5, 0.5);
 	else
@@ -821,7 +821,7 @@ BLI_INLINE void draw_tri_point(float *co, float width, bool selected)
 
 BLI_INLINE void draw_rect_point(float *co, float width, bool selected)
 {
-	float w = width/2.0;
+	float w = width / 2.0f;
 	if (selected)
 		glColor4f(1.0, 1.0, 0.5, 0.5);
 	else
@@ -882,11 +882,12 @@ static void paint_draw_curve_cursor(Brush *brush)
 			draw_rect_point(&cp->bez.vec[2][0], 8.0, cp->bez.f3);
 
 			for (j = 0; j < 2; j++)
-				BKE_curve_forward_diff_bezier(cp->bez.vec[1][j],
-						cp->bez.vec[2][j],
-						cp_next->bez.vec[0][j],
-						cp_next->bez.vec[1][j],
-						data + j, PAINT_CURVE_NUM_SEGMENTS, 2 * sizeof(float));
+				BKE_curve_forward_diff_bezier(
+				        cp->bez.vec[1][j],
+				        cp->bez.vec[2][j],
+				        cp_next->bez.vec[0][j],
+				        cp_next->bez.vec[1][j],
+				        data + j, PAINT_CURVE_NUM_SEGMENTS, sizeof(float[2]));
 
 			glVertexPointer(2, GL_FLOAT, 0, data);
 			glLineWidth(3.0);
