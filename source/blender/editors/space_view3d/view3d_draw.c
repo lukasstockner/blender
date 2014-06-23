@@ -50,7 +50,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_endian_switch.h"
 
-#include "BKE_main.h"
 #include "BKE_anim.h"
 #include "BKE_camera.h"
 #include "BKE_context.h"
@@ -1290,7 +1289,7 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 	}
 	/* texture paint mode sampling */
 	else if (base && (base->object->mode & OB_MODE_TEXTURE_PAINT) &&
-	             v3d->drawtype > OB_WIRE)
+	         (v3d->drawtype > OB_WIRE))
 	{
 		/* do nothing */
 	}

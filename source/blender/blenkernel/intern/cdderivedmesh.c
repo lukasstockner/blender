@@ -680,7 +680,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	MCol *mcol;
 	int i, orig;
 	int colType, startFace = 0;
-	bool use_tface = uvflag & DM_DRAW_USE_ACTIVE_UV;
+	bool use_tface = (uvflag & DM_DRAW_USE_ACTIVE_UV) != 0;
 
 	/* double lookup */
 	const int *index_mf_to_mpoly = dm->getTessFaceDataArray(dm, CD_ORIGINDEX);

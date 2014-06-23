@@ -2255,6 +2255,7 @@ void uiTemplateColorPicker(uiLayout *layout, PointerRNA *ptr, const char *propna
 		RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
 		return;
 	}
+
 	RNA_property_float_ui_range(ptr, prop, &softmin, &softmax, &step, &precision);
 
 	col = uiLayoutColumn(layout, true);

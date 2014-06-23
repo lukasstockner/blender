@@ -122,7 +122,6 @@ void BKE_paint_set_overlay_override(OverlayFlags flags)
 	}
 }
 
-
 void BKE_paint_reset_overlay_invalid(OverlayControlFlags flag)
 {
 	overlay_flags &= ~(flag);
@@ -401,7 +400,6 @@ void BKE_paint_init(Paint *p, const char col[3])
 	brush = BKE_paint_brush(p);
 	if (brush == NULL)
 		brush = BKE_brush_add(G.main, "Brush");
-
 	BKE_paint_brush_set(p, brush);
 
 	memcpy(p->paint_cursor_col, col, 3);

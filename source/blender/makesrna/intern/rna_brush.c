@@ -54,7 +54,7 @@ static EnumPropertyItem sculpt_stroke_method_items[] = {
 	{BRUSH_DRAG_DOT, "DRAG_DOT", 0, "Drag Dot", "Allows a single dot to be carefully positioned"},
 	{BRUSH_SPACE, "SPACE", 0, "Space", "Limit brush application to the distance specified by spacing"},
 	{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", "Keep applying paint effect while holding mouse (spray)"},
-    {BRUSH_ANCHORED, "ANCHORED", 0, "Anchored", "Keep the brush anchored to the initial location"},
+	{BRUSH_ANCHORED, "ANCHORED", 0, "Anchored", "Keep the brush anchored to the initial location"},
 	{BRUSH_LINE, "LINE", 0, "Line", "Draw a line with dabs separated according to spacing"},
 	{BRUSH_CURVE, "CURVE", 0, "Curve", "Define the stroke curve with a bezier curve. Dabs are separated according to spacing"},
 	{0, NULL, 0, NULL, NULL}
@@ -102,7 +102,7 @@ EnumPropertyItem brush_image_tool_items[] = {
 	{PAINT_TOOL_SMEAR, "SMEAR", ICON_BRUSH_SMEAR, "Smear", ""},
 	{PAINT_TOOL_CLONE, "CLONE", ICON_BRUSH_CLONE, "Clone", ""},
 	{PAINT_TOOL_FILL, "FILL", ICON_BRUSH_TEXFILL, "Fill", ""},
-    {PAINT_TOOL_MASK, "MASK", ICON_BRUSH_TEXMASK, "Mask", ""},
+	{PAINT_TOOL_MASK, "MASK", ICON_BRUSH_TEXMASK, "Mask", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -239,8 +239,7 @@ static int rna_BrushCapabilities_has_smooth_stroke_get(PointerRNA *ptr)
 	return (!(br->flag & BRUSH_ANCHORED) &&
 	        !(br->flag & BRUSH_DRAG_DOT) &&
 	        !(br->flag & BRUSH_LINE) &&
-	        !(br->flag & BRUSH_CURVE)
-	        );
+	        !(br->flag & BRUSH_CURVE));
 }
 
 static int rna_SculptToolCapabilities_has_space_attenuation_get(PointerRNA *ptr)
@@ -560,7 +559,6 @@ static EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA *ptr,
 
 		default:
 			return prop_default_items;
-
 	}
 }
 
@@ -780,7 +778,7 @@ static void rna_def_brush(BlenderRNA *brna)
 		{IMB_BLEND_COLOR, "COLOR", 0, "Color", "Use color blending mode while painting"},
 		{0, NULL, 0, NULL, NULL}
 	};
-
+	
 	static EnumPropertyItem texture_angle_source_items[] = {
 		{0, "USER", 0, "User", "Rotate the brush texture by given angle"},
 		{BRUSH_RAKE, "RAKE", 0, "Rake", "Rotate the brush texture to match the stroke direction"},
@@ -956,7 +954,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 0.01f, 1.0f, 1, 3);
 	RNA_def_property_ui_text(prop, "Rate", "Interval between paints for Airbrush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
+	
 	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_range(prop, 0.0, 1.0);
 	RNA_def_property_float_sdna(prop, NULL, "rgb");
@@ -1092,7 +1090,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_AIRBRUSH);
 	RNA_def_property_ui_text(prop, "Airbrush", "Keep applying paint effect while holding mouse (spray)");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
+	
 	prop = RNA_def_property(srna, "use_original_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ORIGINAL_NORMAL);
 	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, true);

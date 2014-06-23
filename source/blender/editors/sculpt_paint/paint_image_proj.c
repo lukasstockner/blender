@@ -61,13 +61,13 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 
-#include "BKE_brush.h"
 #include "BKE_camera.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_idprop.h"
+#include "BKE_brush.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -960,6 +960,7 @@ static bool check_seam(const ProjPaintState *ps,
 
 					// printf("SEAM (NONE)\n");
 					return 0;
+
 				}
 				else {
 					// printf("SEAM (UV GAP)\n");
@@ -2356,6 +2357,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 #endif
 
 		if (pixel_bounds_array(uv_clip, &bounds_px, ibuf->x, ibuf->y, uv_clip_tot)) {
+
 			if (clamp_u) {
 				CLAMP(bounds_px.xmin, 0, ibuf->x);
 				CLAMP(bounds_px.xmax, 0, ibuf->x);
@@ -2714,6 +2716,7 @@ static void project_bucket_init(const ProjPaintState *ps, const int thread_index
 		}
 	}
 	else {
+
 		/* More complicated loop, switch between images */
 		for (node = ps->bucketFaces[bucket_index]; node; node = node->next) {
 			face_index = GET_INT_FROM_POINTER(node->link);

@@ -50,7 +50,6 @@
 #include "BKE_texture.h"
 
 #include "ED_node.h"
-#include "ED_view3d.h"
 #include "WM_api.h"
 #include "WM_types.h"
 

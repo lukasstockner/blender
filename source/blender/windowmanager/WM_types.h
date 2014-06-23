@@ -600,7 +600,8 @@ typedef struct wmReport {
 #define WM_DRAG_COLOR	5
 
 typedef enum wmDragFlags {
-	WM_DRAG_FREE_DATA = 1
+	WM_DRAG_NOP         = 0,
+	WM_DRAG_FREE_DATA   = 1,
 } wmDragFlags;
 
 /* note: structs need not exported? */

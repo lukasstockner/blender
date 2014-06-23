@@ -75,7 +75,7 @@ typedef struct Brush {
 	float weight;       /* brush weight */
 	int size;           /* brush diameter */
 	int flag;           /* general purpose flag */
-	int mask_pressure;	/* pressure influence for mask */
+	int mask_pressure;  /* pressure influence for mask */
 	float jitter;       /* jitter the position of the brush */
 	int jitter_absolute;	/* absolute jitter in pixels */
 	int overlay_flags;
@@ -87,7 +87,7 @@ typedef struct Brush {
 	float rgb[3];           /* color */
 	float alpha;            /* opacity */
 
-	float secondary_rgb[3];	/* background color */
+	float secondary_rgb[3]; /* background color */
 
 	int sculpt_plane;       /* the direction of movement for sculpt vertices */
 

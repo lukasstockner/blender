@@ -258,6 +258,7 @@ static bool paint_brush_update(bContext *C,
 	}
 
 	/* Truly temporary data that isn't stored in properties */
+
 	ups->stroke_active = true;
 	ups->size_pressure_value = stroke->cached_size_pressure;
 
@@ -697,7 +698,7 @@ static void stroke_done(struct bContext *C, struct wmOperator *op)
 /* Returns zero if the stroke dots should not be spaced, non-zero otherwise */
 bool paint_space_stroke_enabled(Brush *br, PaintMode mode)
 {
-	return (br->flag & (BRUSH_SPACE)) && paint_supports_dynamic_size(br, mode);
+	return (br->flag & BRUSH_SPACE) && paint_supports_dynamic_size(br, mode);
 }
 
 static bool sculpt_is_grab_tool(Brush *br)

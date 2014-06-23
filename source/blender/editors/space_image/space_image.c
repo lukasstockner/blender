@@ -67,7 +67,6 @@
 #include "UI_resources.h"
 #include "UI_interface.h"
 #include "UI_view2d.h"
-#include "UI_interface.h"
 
 #include "image_intern.h"
 
@@ -208,6 +207,7 @@ static void image_init(struct wmWindowManager *UNUSED(wm), ScrArea *sa)
 
 	/* add drop boxes */
 	WM_event_add_dropbox_handler(&sa->handlers, lb);
+	
 }
 
 static SpaceLink *image_duplicate(SpaceLink *sl)
@@ -621,7 +621,7 @@ static void image_main_area_set_view2d(SpaceImage *sima, ARegion *ar)
 static void image_main_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
-
+	
 	// image space manages own v2d
 	// UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_STANDARD, ar->winx, ar->winy);
 
@@ -647,6 +647,7 @@ static void image_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 	keymap = WM_keymap_find(wm->defaultconf, "Image", SPACE_IMAGE, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
+
 }
 
 static void image_main_area_draw(const bContext *C, ARegion *ar)

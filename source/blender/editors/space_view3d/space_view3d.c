@@ -66,7 +66,6 @@
 #include "RNA_access.h"
 
 #include "UI_resources.h"
-#include "UI_interface.h"
 
 #ifdef WITH_PYTHON
 #  include "BPY_extern.h"
@@ -845,9 +844,10 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 			switch (wmn->data) {
 				case ND_SHADING:
 				case ND_NODES:
+				{
+					Object *ob = OBACT;
 					if ((v3d->drawtype == OB_MATERIAL) ||
-					    (scene->basact && scene->basact->object &&
-					    (scene->basact->object->mode == OB_MODE_TEXTURE_PAINT)) ||
+					    (ob && (ob->mode == OB_MODE_TEXTURE_PAINT)) ||
 					    (v3d->drawtype == OB_TEXTURE &&
 					     (scene->gm.matmode == GAME_MAT_GLSL ||
 					      BKE_scene_use_new_shading_nodes(scene))))
@@ -855,6 +855,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 						ED_region_tag_redraw(ar);
 					}
 					break;
+				}
 				case ND_SHADING_DRAW:
 				case ND_SHADING_LINKS:
 					ED_region_tag_redraw(ar);

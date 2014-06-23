@@ -69,12 +69,12 @@
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
-#include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
 #include "BKE_lattice.h"
 #include "BKE_nla.h"
+#include "BKE_context.h"
 #include "BKE_paint.h"
 #include "BKE_sequencer.h"
 #include "BKE_editmesh.h"
@@ -1567,7 +1567,7 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
 	
 	if (t->spacetype == SPACE_IMAGE) {
 		SpaceImage *sima = (SpaceImage *)t->sa->spacedata.first;
-		if (t->options & (CTX_MASK)) {
+		if (t->options & CTX_MASK) {
 			ED_space_image_get_aspect(sima, &aspx, &aspy);
 		}
 		else {

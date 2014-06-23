@@ -274,6 +274,7 @@ void image_undo_remove_masks(void)
 {
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_IMAGE);
 	UndoImageTile *tile;
+
 	for (tile = lb->first; tile; tile = tile->next) {
 		if (tile->mask) {
 			MEM_freeN(tile->mask);
@@ -794,8 +795,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 
 	/* stroking with fill tool only acts on stroke end */
 	if (brush->imagepaint_tool == PAINT_TOOL_FILL) {
-		pop->prevmouse[0] = mouse[0];
-		pop->prevmouse[1] = mouse[1];
+		copy_v2_v2(pop->prevmouse, mouse);
 		return;
 	}
 
@@ -815,8 +815,7 @@ static void paint_stroke_update_step(bContext *C, struct PaintStroke *stroke, Po
 		paint_2d_stroke(pop->custom_paint, pop->prevmouse, mouse, eraser, pressure, distance, size);
 	}
 
-	pop->prevmouse[0] = mouse[0];
-	pop->prevmouse[1] = mouse[1];
+	copy_v2_v2(pop->prevmouse, mouse);
 
 	/* restore brush values */
 	BKE_brush_alpha_set(scene, brush, startalpha);
@@ -1207,7 +1206,7 @@ static int sample_color_exec(bContext *C, wmOperator *op)
 	}
 
 	WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
-
+	
 	return OPERATOR_FINISHED;
 }
 
@@ -1577,3 +1576,4 @@ int mask_paint_poll(bContext *C)
 {
 	return BKE_paint_select_elem_test(CTX_data_active_object(C));
 }
+

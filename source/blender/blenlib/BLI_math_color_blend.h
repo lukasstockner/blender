@@ -69,7 +69,6 @@ MINLINE void blend_color_luminosity_byte(unsigned char dst[4], unsigned const ch
 
 MINLINE void blend_color_interpolate_byte(unsigned char dst[4], const unsigned char src1[4], const unsigned char src2[4], float t);
 
-
 MINLINE void blend_color_mix_float(float dst[4], const float src1[4], const float src2[4]);
 MINLINE void blend_color_add_float(float dst[4], const float src1[4], const float src2[4]);
 MINLINE void blend_color_sub_float(float dst[4], const float src1[4], const float src2[4]);

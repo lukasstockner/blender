@@ -40,12 +40,15 @@ struct CurveMapping;
 struct MDisps;
 struct MeshElemMap;
 struct GridPaintMask;
+struct Main;
 struct MFace;
 struct MultireModifierData;
 struct MVert;
 struct Object;
 struct Paint;
 struct PaintCurve;
+struct Palette;
+struct PaletteColor;
 struct PBVH;
 struct Scene;
 struct Sculpt;
@@ -53,9 +56,6 @@ struct StrokeCache;
 struct Tex;
 struct ImagePool;
 struct UnifiedPaintSettings;
-struct Palette;
-struct PaletteColor;
-struct Main;
 struct wmOperator;
 
 enum OverlayFlags;
@@ -145,6 +145,7 @@ void paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, const float
 void paint_bucket_fill(struct bContext *C, float color[3], struct wmOperator *op);
 
 /* Session data (mode-specific) */
+
 typedef struct SculptSession {
 	/* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */
 	struct MultiresModifierData *multires; /* Special handling for multires meshes */

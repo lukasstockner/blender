@@ -2356,11 +2356,13 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 						tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE,
 						                                     dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname);
 					}
-					else
+					else {
 						tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+					}
 				}
-				else
+				else {
 					tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+				}
 
 				mat_nr_cache = mat_nr;
 			}

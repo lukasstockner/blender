@@ -2256,7 +2256,7 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float UN
 	if (me->editflag & ME_EDIT_MIRROR_X) {
 		wpd->vgroup_mirror = wpaint_mirror_vgroup_ensure(ob, wpd->vgroup_active);
 	}
-
+	
 	return true;
 }
 

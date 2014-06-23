@@ -443,7 +443,6 @@ void    uiButSetDragImage(uiBut *but, const char *path, int icon, struct ImBuf *
 
 bool    UI_but_active_drop_name(struct bContext *C);
 bool    UI_but_active_drop_color(struct bContext *C);
-struct uiBut  *ui_but_find_mouse_over(struct ARegion *ar, const struct wmEvent *event);
 
 void    uiButSetFlag(uiBut *but, int flag);
 void    uiButClearFlag(uiBut *but, int flag);

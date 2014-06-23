@@ -414,6 +414,7 @@ extern int  ui_is_but_push(uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern void ui_bounds_block(uiBlock *block);
 extern void ui_block_translate(uiBlock *block, int x, int y);
 extern void ui_block_do_align(uiBlock *block);
+
 extern struct ColorManagedDisplay *ui_block_display_get(uiBlock *block);
 void ui_block_to_display_space_v3(uiBlock *block, float pixel[3]);
 void ui_block_to_scene_linear_v3(uiBlock *block, float pixel[3]);
@@ -618,6 +619,7 @@ bool ui_but_anim_expression_get(uiBut *but, char *str, size_t maxlen);
 bool ui_but_anim_expression_set(uiBut *but, const char *str);
 bool ui_but_anim_expression_create(uiBut *but, const char *str);
 void ui_but_anim_autokey(struct bContext *C, uiBut *but, struct Scene *scene, float cfra);
+
 /* interface_eyedropper.c */
 void UI_OT_eyedropper_color(struct wmOperatorType *ot);
 void UI_OT_eyedropper_id(struct wmOperatorType *ot);

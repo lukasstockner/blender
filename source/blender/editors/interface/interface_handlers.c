@@ -314,6 +314,7 @@ static bool ui_is_but_interactive(const uiBut *but, const bool labeledit);
 static bool ui_but_contains_pt(uiBut *but, float mx, float my);
 static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y);
 static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, const bool labeledit);
+static uiBut *ui_but_find_mouse_over(ARegion *ar, const wmEvent *event);
 static void button_activate_init(bContext *C, ARegion *ar, uiBut *but, uiButtonActivateType type);
 static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState state);
 static void button_activate_exit(bContext *C, uiBut *but, uiHandleButtonData *data,
@@ -1278,7 +1279,7 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 		else {
 			wmDrag *drag;
 
-			drag = WM_event_start_drag(C, but->icon, but->dragtype, but->dragpoin, ui_get_but_val(but), 0);
+			drag = WM_event_start_drag(C, but->icon, but->dragtype, but->dragpoin, ui_get_but_val(but), WM_DRAG_NOP);
 			if (but->imb)
 				WM_event_drag_image(drag, but->imb, but->imb_scale, BLI_rctf_size_x(&but->rect), BLI_rctf_size_y(&but->rect));
 		}
@@ -4145,11 +4146,12 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			data->cancel = true;
 			return WM_UI_HANDLER_BREAK;
 		}
-
+		
 		if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
 			button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
 			return WM_UI_HANDLER_BREAK;
 		}
+
 	}
 
 	return WM_UI_HANDLER_CONTINUE;
@@ -4238,7 +4240,6 @@ static bool ui_numedit_but_NORMAL(uiBut *but, uiHandleButtonData *data,
 
 static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
-
 	if (data->state == BUTTON_STATE_HIGHLIGHT) {
 
 		/* first handle click on icondrag type button */
@@ -6556,7 +6557,7 @@ static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, c
 	return butover;
 }
 
-uiBut *ui_but_find_mouse_over(ARegion *ar, const wmEvent *event)
+static uiBut *ui_but_find_mouse_over(ARegion *ar, const wmEvent *event)
 {
 	return ui_but_find_mouse_over_ex(ar, event->x, event->y, event->ctrl != 0);
 }

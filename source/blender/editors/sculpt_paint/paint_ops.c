@@ -56,6 +56,7 @@
 #include "sculpt_intern.h"
 
 #include <string.h>
+//#include <stdio.h>
 #include <stddef.h>
 
 /* Brush operators */
@@ -89,6 +90,7 @@ static void BRUSH_OT_add(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
 
 static int brush_scale_size_exec(bContext *C, wmOperator *op)
 {
@@ -1421,6 +1423,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "PAINT_OT_brush_colors_flip", XKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_grab_clone", RIGHTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_sample_color", SKEY, KM_PRESS, 0, 0);
+
 	ed_keymap_paint_brush_switch(keymap, "image_paint");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.image_paint.brush.size");
 	ed_keymap_paint_brush_radial_control(keymap, "image_paint", RC_COLOR | RC_ZOOM | RC_ROTATION | RC_SECONDARY_ROTATION);

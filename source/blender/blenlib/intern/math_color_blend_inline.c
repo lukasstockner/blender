@@ -944,9 +944,9 @@ MINLINE void blend_color_lighten_float(float dst[4], const float src1[4], const 
 		const float mt = 1.0f - t;
 		const float map_alpha = src1[3] / src2[3];
 
-		dst[0] = mt * src1[0] + t *max_ff(src1[0], src2[0] *map_alpha);
-		dst[1] = mt * src1[1] + t *max_ff(src1[1], src2[1] *map_alpha);
-		dst[2] = mt * src1[2] + t *max_ff(src1[2], src2[2] *map_alpha);
+		dst[0] = mt * src1[0] + t * max_ff(src1[0], src2[0] * map_alpha);
+		dst[1] = mt * src1[1] + t * max_ff(src1[1], src2[1] * map_alpha);
+		dst[2] = mt * src1[2] + t * max_ff(src1[2], src2[2] * map_alpha);
 		dst[3] = src1[3];
 	}
 	else {
@@ -967,9 +967,9 @@ MINLINE void blend_color_darken_float(float dst[4], const float src1[4], const f
 		const float mt = 1.0f - t;
 		const float map_alpha = src1[3] / src2[3];
 
-		dst[0] = mt * src1[0] + t *min_ff(src1[0], src2[0] *map_alpha);
-		dst[1] = mt * src1[1] + t *min_ff(src1[1], src2[1] *map_alpha);
-		dst[2] = mt * src1[2] + t *min_ff(src1[2], src2[2] *map_alpha);
+		dst[0] = mt * src1[0] + t * min_ff(src1[0], src2[0] * map_alpha);
+		dst[1] = mt * src1[1] + t * min_ff(src1[1], src2[1] * map_alpha);
+		dst[2] = mt * src1[2] + t * min_ff(src1[2], src2[2] * map_alpha);
 		dst[3] = src1[3];
 	}
 	else {
@@ -1628,5 +1628,6 @@ MINLINE void blend_color_interpolate_float(float dst[4], const float src1[4], co
 }
 
 #undef EPS_SATURATION
+#undef EPS_ALPHA
 
 #endif /* __MATH_COLOR_BLEND_INLINE_C__ */

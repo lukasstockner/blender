@@ -90,9 +90,7 @@ static void brush_defaults(Brush *brush)
 	brush->rgb[1] = 1.0f;
 	brush->rgb[2] = 1.0f;
 
-	brush->secondary_rgb[0] = 0.0f;
-	brush->secondary_rgb[1] = 0.0f;
-	brush->secondary_rgb[2] = 0.0f;
+	zero_v3(brush->secondary_rgb);
 
 	/* BRUSH STROKE SETTINGS */
 	brush->flag |= (BRUSH_SPACE | BRUSH_SPACE_ATTEN);
@@ -800,7 +798,7 @@ float *BKE_brush_secondary_color_get(const struct Scene *scene, struct Brush *br
 	return (ups->flag & UNIFIED_PAINT_COLOR) ? ups->secondary_rgb : brush->secondary_rgb;
 }
 
-void BKE_brush_color_set(struct Scene *scene, struct Brush *brush, float color[3])
+void BKE_brush_color_set(struct Scene *scene, struct Brush *brush, const float color[3])
 {
 	UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
 

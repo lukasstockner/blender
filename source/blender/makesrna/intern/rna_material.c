@@ -29,17 +29,11 @@
 
 #include "DNA_material_types.h"
 #include "DNA_texture_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
-#include "BKE_scene.h"
-
 #include "rna_internal.h"
-
-#include "ED_image.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -88,6 +82,8 @@ EnumPropertyItem ramp_blend_items[] = {
 
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
@@ -98,6 +94,8 @@ EnumPropertyItem ramp_blend_items[] = {
 #include "BKE_paint.h"
 
 #include "ED_node.h"
+#include "ED_image.h"
+#include "BKE_scene.h"
 
 static void rna_Material_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
@@ -879,7 +877,6 @@ static void rna_def_material_gamesettings(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", GEMAT_NOPHYSICS); /* use bitflags */
 	RNA_def_property_ui_text(prop, "Physics", "Use physics properties of materials ");
 }
-
 
 static void rna_def_material_colors(StructRNA *srna)
 {
@@ -1747,7 +1744,6 @@ static void rna_def_material_physics(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0, 1);
 	RNA_def_property_ui_text(prop, "Damping", "Damping of the spring force, when inside the physics distance area");
 }
-
 
 void RNA_def_material(BlenderRNA *brna)
 {

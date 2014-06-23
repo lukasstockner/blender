@@ -5785,7 +5785,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 
 	}
 	else if (t->options & CTX_PAINT_CURVE) {
-
+		/* pass */
 	}
 	else if ((t->scene->basact) &&
 	         (ob = t->scene->basact->object) &&

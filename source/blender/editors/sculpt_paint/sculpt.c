@@ -2895,7 +2895,6 @@ static void do_gravity(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode, fl
 
 	float offset[3]/*, an[3]*/;
 	int n;
-
 	float gravity_vector[3];
 
 	mul_v3_v3fl(gravity_vector, ss->cache->gravity_direction, -ss->cache->radius_squared);
@@ -2917,7 +2916,6 @@ static void do_gravity(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode, fl
 
 		BKE_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if (sculpt_brush_test_sq(&test, vd.co)) {
-
 				const float fade = tex_strength(ss, brush, vd.co, sqrt(test.dist),
 				                                ss->cache->sculpt_normal_symm, vd.no,
 				                                vd.fno, vd.mask ? *vd.mask : 0.0f);
@@ -2931,6 +2929,7 @@ static void do_gravity(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode, fl
 		BKE_pbvh_vertex_iter_end;
 	}
 }
+
 
 void sculpt_vertcos_to_key(Object *ob, KeyBlock *kb, float (*vertCos)[3])
 {
@@ -3415,7 +3414,6 @@ static void do_symmetrical_brush_actions(Sculpt *sd, Object *ob,
 	SculptSession *ss = ob->sculpt;
 	StrokeCache *cache = ss->cache;
 	const char symm = sd->paint.symmetry_flags & PAINT_SYMM_AXIS_ALL;
-
 	int i;
 
 	float feather = calc_symmetry_feather(sd, ss->cache);
@@ -4497,7 +4495,7 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, const wmEvent
 
 	OPERATOR_RETVAL_CHECK(retval);
 	BLI_assert(retval == OPERATOR_RUNNING_MODAL);
-
+	
 	return OPERATOR_RUNNING_MODAL;
 }
 
