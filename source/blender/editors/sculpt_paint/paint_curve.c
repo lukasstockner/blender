@@ -35,7 +35,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "ED_sculpt.h"
+#include "ED_paint.h"
 
 #include "WM_api.h"
 #include "WM_keymap.h"

@@ -57,7 +57,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "ED_sculpt.h"
+#include "ED_paint.h"
 
 /* only for UI_OT_editsource */
 #include "ED_screen.h"

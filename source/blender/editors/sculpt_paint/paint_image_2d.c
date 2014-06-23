@@ -53,8 +53,8 @@
 #include "BKE_report.h"
 #include "BKE_texture.h"
 
+#include "ED_paint.h"
 #include "ED_screen.h"
-#include "ED_sculpt.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
