@@ -1394,7 +1394,6 @@ static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	if (parent && (parent->gameflag & (OB_DYNAMIC | OB_COLLISION))) {
 		
 		if (parent && (parent->gameflag & (OB_DYNAMIC | OB_COLLISION)) && !(parent->gameflag & OB_SOFT_BODY)) {
-		{
 			isCompoundChild = true;
 		}
 	}
