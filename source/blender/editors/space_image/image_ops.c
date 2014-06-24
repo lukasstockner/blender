@@ -1954,7 +1954,7 @@ static int image_new_exec(bContext *C, wmOperator *op)
 			tex->ima = ima;
 			ED_area_tag_redraw(CTX_wm_area(C));
 		}
-		else if (ob->mode == OB_MODE_TEXTURE_PAINT) {
+		else if (ob && ob->mode == OB_MODE_TEXTURE_PAINT) {
 			ImagePaintSettings *imapaint = &(CTX_data_tool_settings(C)->imapaint);
 
 			if (imapaint->stencil)

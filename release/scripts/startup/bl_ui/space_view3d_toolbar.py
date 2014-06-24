@@ -23,6 +23,7 @@ from bl_ui.properties_grease_pencil_common import GreasePencilPanel
 from bl_ui.properties_paint_common import (
         UnifiedPaintPanel,
         brush_texture_settings,
+        brush_texpaint_common,
         brush_mask_texture_settings,
         )
 
@@ -979,84 +980,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
         # Texture Paint Mode #
 
         elif context.image_paint_object and brush:
-            capabilities = brush.imapaint_capabilities
-
-            col = layout.column()
-
-            if brush.image_tool in {'DRAW', 'FILL'}:
-                if brush.blend not in {'ERASE_ALPHA', 'ADD_ALPHA'}:
-                    if not brush.use_gradient:
-                        self.prop_unified_color_picker(col, context, brush, "color", value_slider=True)
-
-                    if settings.palette:
-                        col.template_palette(settings, "palette", color=True)
-						
-                    if brush.use_gradient:
-                        col.label("Gradient Colors")
-                        col.template_color_ramp(brush, "gradient", expand=True)
-
-                        if brush.image_tool != 'FILL':
-                            col.label("Background Color")
-                            row = col.row(align=True)
-                            self.prop_unified_color(row, context, brush, "secondary_color", text="")
-
-                        if brush.image_tool == 'DRAW':
-                            col.prop(brush, "gradient_stroke_mode", text="Mode")
-                            if brush.gradient_stroke_mode in {'SPACING_REPEAT', 'SPACING_CLAMP'}:
-                                col.prop(brush, "grad_spacing")
-                        elif brush.image_tool == 'FILL':
-                            col.prop(brush, "gradient_fill_mode")
-                    else:
-                        row = col.row(align=True)
-                        self.prop_unified_color(row, context, brush, "color", text="")
-                        if brush.image_tool != 'FILL':
-                            self.prop_unified_color(row, context, brush, "secondary_color", text="")
-                            row.separator()
-                            row.operator("paint.brush_colors_flip", icon='FILE_REFRESH', text="")
-
-            elif brush.image_tool == 'SOFTEN':
-                col = layout.column(align=True)
-                col.row().prop(brush, "direction", expand=True)
-                col.separator()
-                col.prop(brush, "sharp_threshold")
-                col.prop(brush, "blur_kernel_radius")
-                col.separator()
-                col.prop(brush, "blur_mode")
-
-            elif brush.image_tool == 'MASK':
-                col.prop(brush, "weight", text="Mask Value", slider=True)
-
-            col.separator()
-			
-            if capabilities.has_radius:
-                row = col.row(align=True)
-                self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
-                self.prop_unified_size(row, context, brush, "use_pressure_size")
-
-            row = col.row(align=True)
-
-            if capabilities.has_space_attenuation:
-                row.prop(brush, "use_space_attenuation", toggle=True, icon_only=True)
-
-            self.prop_unified_strength(row, context, brush, "strength", text="Strength")
-            self.prop_unified_strength(row, context, brush, "use_pressure_strength")
-
-            if brush.image_tool in {'DRAW', 'FILL'}:
-                col.separator()
-                col.prop(brush, "blend", text="Blend")
-
-            col.separator()
-
-            # use_accumulate
-            if capabilities.has_accumulate:
-                col = layout.column(align=True)
-                col.prop(brush, "use_accumulate")
-
-            col.prop(brush, "use_alpha")
-            col.prop(brush, "use_gradient")
-			
-            col.separator()
-            col.template_ID(settings, "palette", new="palette.new")
+            brush_texpaint_common(self, context, layout, brush, settings)
 
         # Weight Paint Mode #
         elif context.weight_paint_object and brush:

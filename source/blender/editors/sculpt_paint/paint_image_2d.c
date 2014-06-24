@@ -1315,13 +1315,9 @@ static void paint_2d_fill_add_pixel_byte(int i, int j, ImBuf *ibuf, GSQueue *sta
 	if (!BLI_BITMAP_TEST(touched, coordinate)) {
 		float color_f[4];
 		unsigned char *color_b = (unsigned char *)(ibuf->rect + coordinate);
-		float luminance;
 		rgba_uchar_to_float(color_f, color_b);
 
-		sub_v3_v3(color_f, color);
-
-		luminance = (fabsf(color_f[0]) + fabsf(color_f[0]) + fabsf(color_f[0])) / 3.0f;
-		if (luminance < threshold) {
+		if (compare_len_v3v3_squared(color_f, color, threshold)) {
 			BLI_gsqueue_push(stack, &coordinate);
 		}
 		BLI_BITMAP_SET(touched, coordinate, true);
@@ -1336,12 +1332,7 @@ static void paint_2d_fill_add_pixel_float(int i, int j, ImBuf *ibuf, GSQueue *st
 		return;
 
 	if (!BLI_BITMAP_TEST(touched, coordinate)) {
-		float color_f[4];
-		float luminance;
-		sub_v3_v3v3(color_f, ibuf->rect_float + 4 * coordinate, color);
-
-		luminance = (fabsf(color_f[0]) + fabsf(color_f[0]) + fabsf(color_f[0])) / 3.0f;
-		if (luminance < threshold) {
+		if (compare_len_v3v3_squared(ibuf->rect_float + 4 * coordinate, color, threshold)) {
 			BLI_gsqueue_push(stack, &coordinate);
 		}
 		BLI_BITMAP_SET(touched, coordinate, true);
@@ -1416,6 +1407,7 @@ void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, fl
 		float image_init[2];
 		int minx = ibuf->x, miny = ibuf->y, maxx = 0, maxy = 0;
 		float pixel_color[4];
+		float threshold_sq = br->fill_threshold * br->fill_threshold;
 
 		UI_view2d_region_to_view(s->v2d, mouse_init[0], mouse_init[1], &image_init[0], &image_init[1]);
 
@@ -1458,14 +1450,14 @@ void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, fl
 				i = coordinate % width;
 				j = coordinate / width;
 
-				paint_2d_fill_add_pixel_float(i - 1, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_float(i - 1, j, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_float(i - 1, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_float(i, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_float(i, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_float(i + 1, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_float(i + 1, j, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_float(i + 1, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_float(i - 1, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(i - 1, j, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(i - 1, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(i, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(i, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(i + 1, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(i + 1, j, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(i + 1, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
 
 				if (i > maxx)
 					maxx = i;
@@ -1489,14 +1481,14 @@ void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, fl
 				i = coordinate % width;
 				j = coordinate / width;
 
-				paint_2d_fill_add_pixel_byte(i - 1, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_byte(i - 1, j, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_byte(i - 1, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_byte(i, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_byte(i, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_byte(i + 1, j - 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_byte(i + 1, j, ibuf, stack, touched, pixel_color, br->fill_threshold);
-				paint_2d_fill_add_pixel_byte(i + 1, j + 1, ibuf, stack, touched, pixel_color, br->fill_threshold);
+				paint_2d_fill_add_pixel_byte(i - 1, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(i - 1, j, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(i - 1, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(i, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(i, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(i + 1, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(i + 1, j, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(i + 1, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
 
 				if (i > maxx)
 					maxx = i;
