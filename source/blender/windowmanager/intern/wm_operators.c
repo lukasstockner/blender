@@ -2108,7 +2108,7 @@ static int wm_call_pie_menu_timer_modal(bContext *C, wmOperator *op, const wmEve
 	}
 
 	if (event->type == TIMER) {
-		if (data->timer->duration > U.pie_drag_timeout) {
+		if (data->timer->duration > U.pie_drag_timeout / 10.0f) {
 			char idname[BKE_ST_MAXNAME];
 			RNA_string_get(op->ptr, "name", idname);
 

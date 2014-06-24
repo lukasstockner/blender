@@ -271,7 +271,19 @@ void ED_operatormacros_object(void)
 		otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 		RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
 	}
-	
+
+	ot = WM_operatortype_append_macro("OBJECT_OT_pie_mode_set", "Set Mode",
+	                                  "Set the mode of interaction for the selected object", OPTYPE_UNDO | OPTYPE_REGISTER);
+
+	if (ot) {
+		otmacro = WM_operatortype_macro_define(ot, "WM_OT_call_pie_menu_timer");
+		RNA_string_set(otmacro->ptr, "name", "VIEW3D_PIE_object");
+		otmacro = WM_operatortype_macro_define(ot, "OBJECT_OT_mode_set");
+		RNA_enum_set(otmacro->ptr, "mode", OB_MODE_EDIT);
+		RNA_boolean_set(otmacro->ptr, "toggle", true);
+
+	}
+
 }
 
 static int object_mode_poll(bContext *C)
@@ -289,10 +301,7 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	/* Objects, Regardless of Mode -------------------------------------------------- */
 	keymap = WM_keymap_find(keyconf, "Object Non-modal", 0, 0);
 
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_operator_pie_enum", TABKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "name", "OBJECT_OT_mode_set");
-	RNA_string_set(kmi->ptr, "property", "mode");
-	RNA_string_set(kmi->ptr, "title", "Object Mode");
+	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_pie_mode_set", TABKEY, KM_PRESS, 0, 0);
 
 #if 0
 	/* Note: this keymap works disregarding mode */
