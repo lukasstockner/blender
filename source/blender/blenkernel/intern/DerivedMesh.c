@@ -501,8 +501,11 @@ void DM_update_materials(DerivedMesh *dm, Object *ob)
 
 	dm->mat = MEM_callocN(totmat * sizeof(*dm->mat), "DerivedMesh.mat");
 
-	for (i = 1; i < totmat; i++) {
-		dm->mat[i] = give_current_material(ob, i);
+	/* we leave last material as empty - rationale here is being able to index
+	 * the materials by using the mf->mat_nr directly and leaving the last
+	 * material as NULL in case no materials exist on mesh, so indexing will not fail */
+	for (i = 0; i < totmat - 1; i++) {
+		dm->mat[i] = give_current_material(ob, i + 1);
 	}
 }
 
