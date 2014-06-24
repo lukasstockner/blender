@@ -1440,7 +1440,7 @@ static int texture_paint_toggle_exec(bContext *C, wmOperator *op)
 		bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
 		/* This has to stay here to regenerate the texture paint
 		 * cache in case we are loading a file */
-		refresh_object_texpaint_images(ob, use_nodes);
+		refresh_object_texpaint_slots(ob, use_nodes);
 
 		paint_proj_mesh_data_ensure(C, ob, op);
 

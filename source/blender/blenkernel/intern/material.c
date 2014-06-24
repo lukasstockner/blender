@@ -1306,15 +1306,27 @@ bool object_remove_material_slot(Object *ob)
 	return true;
 }
 
-bool get_mtex_slot_valid_texpaint(struct MTex *mtex)
+void clear_texpaint_slots(struct Material *ma)
+{
+
+	if (ma->texpaintslot) {
+		MEM_freeN(ma->texpaintslot);
+		ma->texpaintslot = NULL;
+	}
+	ma->tot_slots = 0;
+	ma->paint_active_slot = 0;
+	ma->paint_clone_slot = 0;
+}
+
+
+static bool get_mtex_slot_valid_texpaint(struct MTex *mtex)
 {
 	return (mtex && (mtex->texco == TEXCO_UV) &&
 	        mtex->tex && (mtex->tex->type == TEX_IMAGE) &&
 	        mtex->tex->ima);
 }
 
-
-void refresh_texpaint_image_cache(Material *ma, bool use_nodes)
+void refresh_texpaint_slot_cache(Material *ma, bool use_nodes)
 {
 	MTex **mtex;
 	short count = 0;
@@ -1393,7 +1405,7 @@ void refresh_texpaint_image_cache(Material *ma, bool use_nodes)
 	return;
 }
 
-void refresh_object_texpaint_images(struct Object *ob, bool use_nodes)
+void refresh_object_texpaint_slots(struct Object *ob, bool use_nodes)
 {
 	int i;
 
@@ -1402,7 +1414,7 @@ void refresh_object_texpaint_images(struct Object *ob, bool use_nodes)
 
 	for (i = 1; i < ob->totcol + 1; i++) {
 		Material *ma = give_current_material(ob, i);
-		refresh_texpaint_image_cache(ma, use_nodes);
+		refresh_texpaint_slot_cache(ma, use_nodes);
 	}
 }
 
