@@ -8310,7 +8310,7 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 
 	if (menu->menuretval) {
 		/* pie menus should not close but wait for release instead */
-		if (block->flag & UI_BLOCK_RADIAL) {
+		if ((block->flag & UI_BLOCK_RADIAL) && !(block->pie_data.flags & UI_PIE_CLICK_STYLE)) {
 			menu->menuretval = 0;
 			block->pie_data.flags |= UI_PIE_CANCELLED;
 		}
