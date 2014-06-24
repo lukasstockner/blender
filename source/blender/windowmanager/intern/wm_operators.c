@@ -2057,7 +2057,7 @@ static int wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *e
 
 	uiPieMenuInvoke(C, idname, event->type);
 
-	return OPERATOR_FINISHED;
+	return OPERATOR_CANCELLED;
 }
 
 static void WM_OT_call_pie_menu(wmOperatorType *ot)
@@ -2073,6 +2073,73 @@ static void WM_OT_call_pie_menu(wmOperatorType *ot)
 
 	RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
 }
+
+typedef struct PieTimerData {
+	wmTimer *timer;
+	wmEvent event;
+} PieTimerData;
+
+
+static int wm_call_pie_menu_timer_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+	PieTimerData *data = MEM_callocN(sizeof(PieTimerData), "pie timer");
+
+	data->timer = WM_event_add_timer(wm, win, TIMER, 0.05);
+	/* copy event, it will be used to spawn pie menu */
+	data->event = *event;
+
+	op->customdata = data;
+
+	WM_event_add_modal_handler(C, op);
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int wm_call_pie_menu_timer_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	PieTimerData *data = op->customdata;
+
+	if (event->type == data->event.type && event->val == KM_RELEASE) {
+		WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), data->timer);
+		MEM_freeN(data);
+		return OPERATOR_FINISHED;
+	}
+
+	if (event->type == TIMER) {
+		if (data->timer->duration > U.pie_drag_timeout) {
+			char idname[BKE_ST_MAXNAME];
+			RNA_string_get(op->ptr, "name", idname);
+
+			uiPieMenuInvoke(C, idname, data->event.type);
+
+			WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), data->timer);
+			MEM_freeN(data);
+
+			return OPERATOR_CANCELLED;
+		}
+	}
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static void WM_OT_call_pie_menu_timer(wmOperatorType *ot)
+{
+	ot->name = "Call Pie Menu";
+	ot->idname = "WM_OT_call_pie_menu_timer";
+	ot->description = "Call (draw) a pre-defined pie menu or cancel";
+
+	ot->invoke = wm_call_pie_menu_timer_invoke;
+	ot->modal = wm_call_pie_menu_timer_modal;
+	ot->poll = WM_operator_winactive;
+
+	ot->flag = OPTYPE_INTERNAL;
+
+	RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
+}
+
+
 
 /* ************ window / screen operator definitions ************** */
 
@@ -4464,6 +4531,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_search_menu);
 	WM_operatortype_append(WM_OT_call_menu);
 	WM_operatortype_append(WM_OT_call_pie_menu);
+	WM_operatortype_append(WM_OT_call_pie_menu_timer);
 	WM_operatortype_append(WM_OT_radial_control);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
