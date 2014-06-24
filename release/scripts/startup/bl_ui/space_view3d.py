@@ -1431,7 +1431,7 @@ class VIEW3D_PIE_shade(Menu):
         pie.prop(context.space_data, "viewport_shade", expand=True)
         pie.separator()
 
-        if(context.active_object):
+        if context.active_object:
             if(context.mode == 'EDIT_MESH'):
                 pie.operator("MESH_OT_faces_shade_smooth")
                 pie.operator("MESH_OT_faces_shade_flat")

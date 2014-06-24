@@ -2457,7 +2457,7 @@ void init_userdef_do_versions(void)
 			U.pie_menu_radius = 150;
 
 		if (U.pie_menu_threshold == 0)
-			U.pie_menu_threshold = 5;
+			U.pie_menu_threshold = 12;
 
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			btheme->tui.wcol_pie_menu = wcol_pie_menu;

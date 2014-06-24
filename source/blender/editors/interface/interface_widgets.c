@@ -3702,6 +3702,68 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	}
 }
 
+static void draw_disk_shaded(float start, float angle, float radius_int, float radius_ext, int subd, char col1[4], char col2[4], bool shaded)
+{
+	int i;
+
+	float a;
+	float s, c;
+	float y1, y2;
+	float fac;
+	unsigned char r_col[4];
+
+	glBegin(GL_TRIANGLE_STRIP);
+
+	s = sin(start);
+	c = cos(start);
+
+	y1 = s * radius_int;
+	y2 = s * radius_ext;
+
+	if (shaded) {
+		fac = (y1 + radius_ext) / (float) (2.0f * radius_ext);
+		round_box_shade_col4_r(r_col, col1, col2, fac);
+
+		glColor4ubv(r_col);
+	}
+
+	glVertex2f(c * radius_int, s * radius_int);
+
+	if (shaded) {
+		fac = (y2 + radius_ext) / (float) (2.0f * radius_ext);
+		round_box_shade_col4_r(r_col, col1, col2, fac);
+
+		glColor4ubv(r_col);
+	}
+	glVertex2f(c * radius_ext, s * radius_ext);
+
+	for (i = 1; i < subd; i++) {
+		a = start + ((i) / (float)(subd - 1)) * angle;
+		s = sin(a);
+		c = cos(a);
+		y1 = s * radius_int;
+		y2 = s * radius_ext;
+
+		if (shaded) {
+			fac = (y1 + radius_ext) / (float) (2.0f * radius_ext);
+			round_box_shade_col4_r(r_col, col1, col2, fac);
+
+			glColor4ubv(r_col);
+		}
+		glVertex2f(c * radius_int, s * radius_int);
+
+		if (shaded) {
+			fac = (y2 + radius_ext) / (float) (2.0f * radius_ext);
+			round_box_shade_col4_r(r_col, col1, col2, fac);
+
+			glColor4ubv(r_col);
+		}
+		glVertex2f(c * radius_ext, s * radius_ext);
+	}
+	glEnd();
+
+}
+
 void ui_draw_pie_center(uiBlock *block)
 {
 	bTheme *btheme = UI_GetTheme();
@@ -3710,26 +3772,43 @@ void ui_draw_pie_center(uiBlock *block)
 
 	float *pie_dir = block->pie_data.pie_dir;
 
-	float pie_radius_internal = UI_UNIT_Y;
+	float pie_radius_internal = U.pie_menu_threshold;
+	float pie_radius_external = U.pie_menu_threshold + 7.0;
+
+	int subd = 40;
+
+	float angle = atan2(pie_dir[1], pie_dir[0]);
+	float range = (block->pie_data.flags & UI_PIE_DEGREES_RANGE_LARGE) ? ((float)M_PI / 2.0f) : ((float)M_PI / 4.0f);
 
 	glPushMatrix();
-	glTranslatef(cx, cy, 0.0);
+	glTranslatef(cx, cy, 0.0f);
 
-	glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.inner);
 	glEnable(GL_BLEND);
-	glutil_draw_filled_arc(0.0, (float)(M_PI * 2.0), pie_radius_internal, 40);
-	glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.outline);
-	glutil_draw_lined_arc(0.0, (float)(M_PI * 2.0), pie_radius_internal, 40);
+	if (btheme->tui.wcol_pie_menu.shaded) {
+		char col1[4], col2[4];
+		shadecolors4(col1, col2, btheme->tui.wcol_pie_menu.inner, btheme->tui.wcol_pie_menu.shadetop, btheme->tui.wcol_pie_menu.shadedown);
+		draw_disk_shaded(0.0f, (float)(M_PI * 2.0f), pie_radius_internal, pie_radius_external, subd, col1, col2, true);
+	}
+	else {
+		glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.inner);
+		draw_disk_shaded(0.0f, (float)(M_PI * 2.0f), pie_radius_internal, pie_radius_external, subd, NULL, NULL, false);
+	}
 
 	if (!(block->pie_data.flags & UI_PIE_INVALID_DIR)) {
-		glColor4ub(255, 255, 0, btheme->tui.wcol_pie_menu.inner[3]);
-		glBegin(GL_TRIANGLE_FAN);
-		glVertex2f(pie_dir[0] * pie_radius_internal + pie_dir[1] * 5.0, pie_dir[1] * pie_radius_internal - pie_dir[0] * 5.0);
-		glVertex2f(pie_dir[0] * (pie_radius_internal - 10.0f), pie_dir[1] * (pie_radius_internal - 10.0f));
-		glVertex2f(pie_dir[0] * pie_radius_internal - pie_dir[1] * 5.0, pie_dir[1] * pie_radius_internal + pie_dir[0] * 5.0);
-		glVertex2f(pie_dir[0] * (pie_radius_internal + 10.0f), pie_dir[1] * (pie_radius_internal + 10.0f));
-		glEnd();
+		if (btheme->tui.wcol_pie_menu.shaded) {
+			char col1[4], col2[4];
+			shadecolors4(col1, col2, btheme->tui.wcol_pie_menu.inner_sel, btheme->tui.wcol_pie_menu.shadetop, btheme->tui.wcol_pie_menu.shadedown);
+			draw_disk_shaded(angle - range / 2.0f, range, pie_radius_internal, pie_radius_external, subd, col1, col2, true);
+		}
+		else {
+			glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.inner_sel);
+			draw_disk_shaded(angle - range / 2.0f, range, pie_radius_internal, pie_radius_external, subd, NULL, NULL, false);
+		}
 	}
+
+	glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.outline);
+	glutil_draw_lined_arc(0.0f, (float)M_PI * 2.0f, pie_radius_internal, subd);
+	glutil_draw_lined_arc(0.0f, (float)M_PI * 2.0f, pie_radius_external, subd);
 
 	glDisable(GL_BLEND);
 	glPopMatrix();
