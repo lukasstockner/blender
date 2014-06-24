@@ -411,3 +411,13 @@ TEST(polyfill2d, TestIssue1407_pt)
 	    {3.914329f, 1.9008259f}, {4.414321f, 1.903619f}, {4.8973203f, 1.9063174f}, {5.4979978f, 1.9096732f}, {4, 4},};
 	TEST_POLYFILL_TEMPLATE_STATIC(poly, false);
 }
+
+/* Simplified from Blender bug T40777 */
+TEST(polyfill2d, TestIssueT40777_colinear)
+{
+	float poly[][2] = {
+	    {0.7, 0.37}, {0.7, 0}, {0.76, 0}, {0.76, 0.4}, {0.83, 0.4}, {0.83, 0}, {0.88, 0}, {0.88, 0.4},
+	    {0.94, 0.4}, {0.94, 0}, {1, 0}, {1, 0.4}, {0.03, 0.62}, {0.03, 0.89}, {0.59, 0.89}, {0.03, 1},
+	    {0, 1}, {0, 0}, {0.03, 0}, {0.03, 0.37}};
+	TEST_POLYFILL_TEMPLATE_STATIC(poly, false);
+}
