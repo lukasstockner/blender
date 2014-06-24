@@ -5,7 +5,11 @@
 /* Use to write out OBJ files, handy for checking output */
 // #define USE_OBJ_PREVIEW
 
+/* test every possible offset and reverse */
+#define USE_COMBINATIONS_ALL
+
 extern "C" {
+#include "BLI_array.h"
 #include "BLI_polyfill2d.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
@@ -15,6 +19,11 @@ extern "C" {
 #  include "BLI_string.h"
 #endif
 }
+
+static void polyfill_to_obj(
+        const char *id,
+        const float poly[][2], const unsigned int poly_tot,
+        const unsigned int tris[][3], const unsigned int tris_tot);
 
 /* -------------------------------------------------------------------- */
 /* test utility functions */
@@ -139,26 +148,90 @@ static void test_polyfill_area(
 	EXPECT_NEAR(area_tot, area_tot_tris, eps);
 }
 
+
+/* -------------------------------------------------------------------- */
+/* Macro and helpers to manage checking */
 /**
  * Main template for polyfill testing.
  */
+static void test_polyfill_template_check(
+        const char *id, bool is_degenerate,
+        const float poly[][2], const unsigned int poly_tot,
+        const unsigned int tris[][3], const unsigned int tris_tot)
+{
+	test_polyfill_simple(poly, poly_tot, tris, tris_tot);
+	test_polyfill_topology(poly, poly_tot, tris, tris_tot);
+	if (!is_degenerate) {
+		test_polyfill_winding(poly, poly_tot, tris, tris_tot);
+
+		test_polyfill_area(poly, poly_tot, tris, tris_tot);
+	}
+	polyfill_to_obj(id, poly, poly_tot, tris, tris_tot);
+}
+
+static void test_polyfill_template(
+        const char *id, bool is_degenerate,
+        const float poly[][2], const unsigned int poly_tot,
+        unsigned int tris[][3], const unsigned int tris_tot)
+{
+	test_valid_polyfill_prepare(tris, tris_tot);
+	BLI_polyfill_calc(poly, poly_tot, 0, tris);
+
+	/* check all went well */
+	test_polyfill_template_check(id, is_degenerate, poly, poly_tot, tris, tris_tot);
+}
+
+#ifdef USE_COMBINATIONS_ALL
+static void test_polyfill_template_main(
+        const char *id, bool is_degenerate,
+        const float poly[][2], const unsigned int poly_tot,
+        unsigned int tris[][3], const unsigned int tris_tot)
+{
+	/* overkill? - try at _every_ offset & reverse */
+	unsigned int poly_reverse;
+	float (*poly_copy)[2] = (float (*)[2])MEM_mallocN(sizeof(float[2]) * poly_tot, id);
+	float tmp[2];
+
+	memcpy(poly_copy, poly, sizeof(float[2]) * poly_tot);
+
+	for (poly_reverse = 0; poly_reverse < 2; poly_reverse++) {
+		unsigned int poly_cycle;
+
+		if (poly_reverse) {
+			BLI_array_reverse(poly_copy, poly_tot);
+		}
+
+		for (poly_cycle = 0; poly_cycle < poly_tot; poly_cycle++) {
+			// printf("polytest %s ofs=%d, reverse=%d\n", id, poly_cycle, poly_reverse);
+			test_polyfill_template(id, is_degenerate, poly, poly_tot, tris, tris_tot);
+
+			/* cycle */
+			copy_v2_v2(tmp, poly_copy[0]);
+			memmove(&poly_copy[0], &poly_copy[1], (poly_tot - 1) * sizeof(float[2]));
+			copy_v2_v2(poly_copy[poly_tot - 1], tmp);
+		}
+	}
+
+	MEM_freeN(poly_copy);
+}
+#else  /* USE_COMBINATIONS_ALL */
+static void test_polyfill_template_main(
+        const char *id, bool is_degenerate,
+        const float poly[][2], const unsigned int poly_tot,
+        unsigned int tris[][3], const unsigned int tris_tot)
+{
+	test_polyfill_template(id, is_degenerate, poly, poly_tot, tris, tris_tot);
+}
+#endif  /* USE_COMBINATIONS_ALL */
+
 #define TEST_POLYFILL_TEMPLATE_STATIC(poly, is_degenerate) \
 { \
 	unsigned int tris[POLY_TRI_COUNT(ARRAY_SIZE(poly))][3]; \
 	const unsigned int poly_tot = ARRAY_SIZE(poly); \
 	const unsigned int tris_tot = ARRAY_SIZE(tris); \
-	test_valid_polyfill_prepare(tris, tris_tot); \
+	const char *id = typeid(*this).name(); \
 	\
-	BLI_polyfill_calc(poly, poly_tot, 0, tris); \
-	\
-	test_polyfill_simple(poly, poly_tot, (const unsigned int (*)[3])tris, tris_tot); \
-	test_polyfill_topology(poly, poly_tot, (const unsigned int (*)[3])tris, tris_tot); \
-	if (!is_degenerate) { \
-		test_polyfill_winding(poly, poly_tot, (const unsigned int (*)[3])tris, tris_tot); \
-		\
-		test_polyfill_area(poly, poly_tot, (const unsigned int (*)[3])tris, tris_tot); \
-	} \
-	polyfill_to_obj(typeid(*this).name(), poly, poly_tot, (const unsigned int (*)[3])tris, tris_tot); \
+	test_polyfill_template_main(id, is_degenerate, poly, poly_tot, tris, tris_tot); \
 } (void)0
 
 /* -------------------------------------------------------------------- */
