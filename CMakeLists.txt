@@ -2059,14 +2059,14 @@ if(WITH_GLU)
 endif()
 
 if(WITH_GL_CONTEXT_DESKTOP)
-	set(BLENDER_GL_LIBRARIES "${OPENGL_gl_LIBRARY}")
+	list(APPEND BLENDER_GL_LIBRARIES "${OPENGL_gl_LIBRARY}")
 
 elseif(WITH_GL_CONTEXT_EMBEDDED)
 	if(WITH_SYSTEM_GLES)
 		find_package_wrapper(OpenGLES)
 
 		if(OPENGLES_FOUND)
-			set(BLENDER_GL_LIBRARIES OPENGLES_LIBRARIES)
+			list(APPEND BLENDER_GL_LIBRARIES OPENGLES_LIBRARIES)
 		else()
 			message(FATAL_ERROR "Unable to find OpenGL ES libraries.  Install them or disable WITH_SYSTEM_GLES.")
 		endif()
