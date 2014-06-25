@@ -234,14 +234,36 @@
 		(v1)[2] = FTOCHAR((v2[2]));                                           \
 		(v1)[3] = FTOCHAR((v2[3]));                                           \
 } (void)0
-#define VECCOPY(v1, v2) {                                                     \
-		*(v1) =   *(v2);                                                      \
-		*(v1 + 1) = *(v2 + 1);                                                \
-		*(v1 + 2) = *(v2 + 2);                                                \
+#define VEC2D(v1, x, y) {                                                     \
+		*((v1) + 0) = x;                                                      \
+		*((v1) + 1) = y;                                                      \
+} (void)0
+#define VEC3D(v1, x, y, z) {                                                  \
+		*((v1) + 0) = x;                                                      \
+		*((v1) + 1) = y;                                                      \
+		*((v1) + 2) = z;                                                      \
+} (void)0
+#define VEC4D(v1, x, y, z, w) {                                               \
+		*((v1) + 0) = x;                                                      \
+		*((v1) + 1) = y;                                                      \
+		*((v1) + 2) = z;                                                      \
+		*((v1) + 3) = w;                                                      \
 } (void)0
 #define VECCOPY2D(v1, v2) {                                                   \
 		*(v1) =   *(v2);                                                      \
 		*(v1 + 1) = *(v2 + 1);                                                \
+} (void)0
+#define VECCOPY3D(v1, v2) {                                                   \
+		*(v1) =   *(v2);                                                      \
+		*(v1 + 1) = *(v2 + 1);                                                \
+		*(v1 + 2) = *(v2 + 2);                                                \
+} (void)0
+#define VECCOPY(v1, v2) VECCOPY3D(v1, v2)
+#define VECCOPY4D(v1, v2) {                                                   \
+		*(v1 + 0) = *(v2 + 0);                                                \
+		*(v1 + 1) = *(v2 + 1);                                                \
+		*(v1 + 2) = *(v2 + 2);                                                \
+		*(v1 + 3) = *(v2 + 3);                                                \
 } (void)0
 #define VECADD(v1, v2, v3) {                                                  \
 		*(v1) =   *(v2)   + *(v3);                                            \
