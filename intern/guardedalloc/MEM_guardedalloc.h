@@ -66,6 +66,14 @@
 #include "../../source/blender/blenlib/BLI_sys_types.h"
 #include "../../source/blender/blenlib/BLI_compiler_attrs.h"
 
+
+
+#if defined(_MSC_VER) && !defined(__func__)
+#  define __func__ __FUNCTION__
+#endif
+
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
