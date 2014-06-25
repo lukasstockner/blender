@@ -58,6 +58,8 @@ public:
 	 * Constructor.
 	 */
 	GHOST_ContextEGL(
+		bool                 stereoVisual,
+		GHOST_TUns16         numOfAASamples,
 		EGLNativeWindowType  nativeWindow,
 		EGLNativeDisplayType nativeDisplay,
 		EGLenum              api,
@@ -91,7 +93,7 @@ public:
 	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
 	 * \return Indication as to whether installation has succeeded.
 	 */
-	virtual GHOST_TSuccess initializeDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
+	virtual GHOST_TSuccess initializeDrawingContext();
 
 	/**
 	 * Removes references to native handles from this context and then returns

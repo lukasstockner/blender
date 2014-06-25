@@ -238,6 +238,8 @@ T& choose_api(EGLenum api, T& a, T& b, T& c)
 
 
 GHOST_ContextEGL::GHOST_ContextEGL(
+	bool                 stereoVisual,
+	GHOST_TUns16         numOfAASamples,
 	EGLNativeWindowType  nativeWindow,
 	EGLNativeDisplayType nativeDisplay,
 	EGLenum              api,
@@ -247,7 +249,8 @@ GHOST_ContextEGL::GHOST_ContextEGL(
 	EGLint               contextFlags,
 	EGLint               contextResetNotificationStrategy
 )
-	: m_nativeWindow (nativeWindow)
+	: GHOST_Context(stereoVisual, numOfAASamples)
+	, m_nativeWindow (nativeWindow)
 	, m_nativeDisplay(nativeDisplay)
 	, m_api(api)
 	, m_contextProfileMask              (contextProfileMask)
@@ -389,13 +392,15 @@ static const std::string& api_string(EGLenum api)
 	return choose_api(api, a, b, c);
 }
 
-GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHOST_TUns16 numOfAASamples)
+GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 {
 	// objects have to be declared here due to the use of goto
 	std::vector<EGLint> attrib_list;
 
-	if (stereoVisual)
+	if (m_stereoVisual)
 		fprintf(stderr, "Warning! Stereo OpenGL ES contexts are not supported.\n");
+
+	m_stereoVisual = false; // It doesn't matter what the Window wants.
 
 #if defined(WITH_ANGLE)
 	// d3dcompiler_XX.dll needs to be loaded before ANGLE will work
@@ -496,12 +501,12 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 	attrib_list.push_back(8);
 #endif
 
-	if (numOfAASamples > 0) {
+	if (m_numOfAASamples > 0) {
 		attrib_list.push_back(EGL_SAMPLE_BUFFERS);
 		attrib_list.push_back(1);
 
 		attrib_list.push_back(EGL_SAMPLES);
-		attrib_list.push_back(numOfAASamples);
+		attrib_list.push_back(m_numOfAASamples);
 	}
 
 	attrib_list.push_back(EGL_NONE);
@@ -512,9 +517,26 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext(bool stereoVisual, GHO
 	if (!EGL_CHK(::eglChooseConfig(m_display, &(attrib_list[0]), &config, 1, &num_config)))
 		goto error;
 
-	// common error is to assume that ChooseConfig worked because it returned EGL_TRUE
+	// A common error is to assume that ChooseConfig worked because it returned EGL_TRUE
 	if (num_config != 1) // num_config should be exactly 1
 		goto error;
+
+	if (m_numOfAASamples > 0) {
+		EGLint actualSamples;
+
+		if (!EGL_CHK(::eglGetConfigAttrib(m_display, config, EGL_SAMPLE_BUFFERS, &actualSamples)))
+			goto error;
+
+		if (m_numOfAASamples != actualSamples) {
+			fprintf(
+				stderr,
+				"Warning! Unable to find a multisample pixel format that supports exactly %d samples. Substituting one that uses %d samples.\n",
+				m_numOfAASamples,
+				actualSamples);
+
+			m_numOfAASamples = (GHOST_TUns16)actualSamples;
+		}
+	}
 
 	m_surface = ::eglCreateWindowSurface(m_display, config, m_nativeWindow, NULL);
 

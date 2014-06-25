@@ -68,9 +68,9 @@ public:
 	    GHOST_TUns32 width,
 	    GHOST_TUns32 height,
 	    GHOST_TWindowState state,
-	    const bool stereoVisual = false,
+	    const bool wantStereoVisual = false,
 	    const bool exclusive = false,
-	    const GHOST_TUns16 numOfAASamples = 0);
+	    const GHOST_TUns16 wantNumOfAASamples = 0);
 
 	/**
 	 * \section Interface inherited from GHOST_IWindow left for derived class
@@ -100,6 +100,14 @@ public:
 	 * Closes the window and disposes resources allocated.
 	 */
 	virtual ~GHOST_Window();
+
+	/**
+	 * Returns indication as to whether the window is valid.
+	 * \return The validity of the window.
+	 */
+	virtual bool getValid() const { 
+		return m_context != 0;
+	}
 
 	/**
 	 * Returns the associated OS object/handle
@@ -250,6 +258,13 @@ public:
 	virtual GHOST_TSuccess activateDrawingContext();
 
 	/**
+	 * Updates the drawing context of this window. Needed
+	 * whenever the window is changed.
+	 * \return Indication of success.
+	 */
+	virtual GHOST_TSuccess updateDrawingContext();
+
+	/**
 	 * Returns the window user data.
 	 * \return The window user data.
 	 */
@@ -351,14 +366,11 @@ protected:
 	/** Stores whether this is a full screen window. */
 	bool m_fullScreen;
 
-	/** Stereo visual created. Only necessary for 'real' stereo support,
-	 *  ie quad buffered stereo. This is not always possible, depends on
-	 *  the graphics h/w
-	 */
-	bool m_stereoVisual;
-	
-	/** Number of samples used in anti-aliasing, set to 0 if no AA **/
-	GHOST_TUns16 m_numOfAASamples;
+	/** Whether to attempt to initialize a context with a stereo framebuffer. */
+	bool m_wantStereoVisual;
+
+	/** Attempt to initialize a context with this many samples. */
+	GHOST_TUns16 m_wantNumOfAASamples;
 
 	/** Full-screen width */
 	GHOST_TUns32 m_fullScreenWidth;

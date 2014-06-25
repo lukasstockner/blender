@@ -46,9 +46,13 @@ class GHOST_Context
 public:
 	/**
 	 * Constructor.
+	 * \param stereoVisual		Stereo visual for quad buffered stereo.
+	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
 	 */
-	GHOST_Context()
-		: m_glewContext(NULL)
+	GHOST_Context(bool stereoVisual, GHOST_TUns16 numOfAASamples)
+		: m_stereoVisual  (stereoVisual)
+		, m_numOfAASamples(numOfAASamples)
+		, m_glewContext(NULL)
 	{}
 
 	/**
@@ -72,11 +76,18 @@ public:
 
 	/**
 	 * Call immediately after new to initialize.  If this fails then immediately delete the object.
-	 * \param stereoVisual		Stereo visual for quad buffered stereo.
-	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
 	 * \return Indication as to whether initialization has succeeded.
 	 */
-	virtual GHOST_TSuccess initializeDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0) = 0;
+	virtual GHOST_TSuccess initializeDrawingContext() = 0;
+
+	/**
+	 * Updates the drawing context of this window. Needed
+	 * whenever the window is changed.
+	 * \return Indication of success.
+	 */
+	virtual GHOST_TSuccess updateDrawingContext() {
+		return GHOST_kFailure;
+	}
 
 	/**
 	 * Checks if it is OK for a remove the native display
@@ -101,6 +112,19 @@ public:
 		return 1;
 	}
 
+	/** Stereo visual created. Only necessary for 'real' stereo support,
+	 *  ie quad buffered stereo. This is not always possible, depends on
+	 *  the graphics h/w
+	 */
+	inline bool isStereoVisual() const {
+		return m_stereoVisual;
+	}
+
+	/** Number of samples used in anti-aliasing, set to 0 if no AA **/
+	inline GHOST_TUns16 getNumOfAASamples() const {
+		return m_numOfAASamples;
+	}
+
 protected:
 	void initContextGLEW();
 
@@ -108,8 +132,13 @@ protected:
 		glewSetContext(m_glewContext);
 	}
 
+	bool m_stereoVisual;
+	
+	GHOST_TUns16 m_numOfAASamples;
+
 private:
 	GLEWContext* m_glewContext;
+
 };
 
 

@@ -159,15 +159,18 @@ bool win32_chk(bool result, const char* file = NULL, int line = 0, const char* t
 
 
 GHOST_ContextWGL::GHOST_ContextWGL(
-	HWND hWnd,
-	HDC  hDC,
-	int  contextProfileMask,
-	int  contextMajorVersion,
-	int  contextMinorVersion,
-	int  contextFlags,
-	int  contextResetNotificationStrategy
+	bool         stereoVisual,
+	GHOST_TUns16 numOfAASamples,
+	HWND         hWnd,
+	HDC          hDC,
+	int          contextProfileMask,
+	int          contextMajorVersion,
+	int          contextMinorVersion,
+	int          contextFlags,
+	int          contextResetNotificationStrategy
 )
-	: m_hWnd(hWnd)
+	: GHOST_Context(stereoVisual, numOfAASamples)
+	, m_hWnd(hWnd)
 	, m_hDC (hDC)
 	, m_contextProfileMask              (contextProfileMask)
 	, m_contextMajorVersion             (contextMajorVersion)
@@ -227,7 +230,7 @@ GHOST_TSuccess GHOST_ContextWGL::swapBuffers()
 
 GHOST_TSuccess GHOST_ContextWGL::setSwapInterval(int interval)
 {
-	if (WGLEW_WGL_EXT_swap_control)
+	if (WGLEW_EXT_swap_control)
 		return WIN32_CHK(::wglSwapIntervalEXT(interval)) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
 	else
 		return GHOST_kFailure;
@@ -237,16 +240,20 @@ GHOST_TSuccess GHOST_ContextWGL::setSwapInterval(int interval)
 
 int GHOST_ContextWGL::getSwapInterval()
 {
-	return WGLEW_WGL_EXT_swap_control ? ::wglGetSwapIntervalEXT() : 1;
+	return WGLEW_EXT_swap_control ? ::wglGetSwapIntervalEXT() : 1;
 }
 
 
 
 GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
 {
-	activateGLEW();
-
-	return WIN32_CHK(::wglMakeCurrent(m_hDC, m_hGLRC)) ? GHOST_kSuccess : GHOST_kFailure;
+	if (WIN32_CHK(::wglMakeCurrent(m_hDC, m_hGLRC))) {
+		activateGLEW();
+		return GHOST_kSuccess;
+	}
+	else {
+		return GHOST_kFailure;
+	}
 }
 
 
@@ -619,9 +626,11 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_2(
 		if (actualSamples != numOfAASamples) {
 			fprintf(
 				stderr,
-				"Warning! Unable to find a multisample pixel format that supports %d samples. Substituting one that uses %d samples.\n",
+				"Warning! Unable to find a multisample pixel format that supports exactly %d samples. Substituting one that uses %d samples.\n",
 				numOfAASamples,
 				actualSamples);
+
+			m_numOfAASamples = actualSamples; // set context property to actual value
 		}
 	}
 
@@ -640,17 +649,17 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_1(
 {
 	int iPixelFormat;
 
-	swapMethodOut   = WGL_SWAP_COPY_ARB;
-	iPixelFormat = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
+	swapMethodOut = WGL_SWAP_COPY_ARB;
+	iPixelFormat  = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
 
 	if (iPixelFormat == 0) {
 		swapMethodOut = WGL_SWAP_UNDEFINED_ARB;
-		iPixelFormat = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
+		iPixelFormat  = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
 	}
 
 	if (iPixelFormat == 0) {
-		swapMethodOut   = WGL_SWAP_EXCHANGE_ARB;
-		iPixelFormat = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
+		swapMethodOut = WGL_SWAP_EXCHANGE_ARB;
+		iPixelFormat  = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
 	}
 
 	return iPixelFormat;
@@ -688,6 +697,8 @@ int GHOST_ContextWGL::choose_pixel_format_arb(
 				needStencil,
 				sRGB,
 				swapMethodOut);
+
+		m_stereoVisual = false;  // set context property to actual value
 	}
 
 	if (swapMethodOut != WGL_SWAP_COPY_ARB) {
@@ -769,7 +780,7 @@ static void reportContextString(const char* name, const char* dummy, const char*
 
 
 
-GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHOST_TUns16 numOfAASamples)
+GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 {
 	SetLastError(NO_ERROR);
 
@@ -779,26 +790,26 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext(bool stereoVisual, GHO
 	HDC   prevHDC   = ::wglGetCurrentDC();
 	WIN32_CHK(GetLastError() == NO_ERROR);
 
-#if GHOST_OPENGL_ALPHA
+#ifdef GHOST_OPENGL_ALPHA
 	static const bool needAlpha   = true;
 #else
 	static const bool needAlpha   = false;
 #endif
 
-#if GHOST_OPENGL_STENCIL
+#ifdef GHOST_OPENGL_STENCIL
 	static const bool needStencil = true;
 #else
 	static const bool needStencil = false;
 #endif
 
-#if GHOST_OPENGL_SRGB
+#ifdef GHOST_OPENGL_SRGB
 	static const bool sRGB        = true;
 #else
 	static const bool sRGB        = false;
 #endif
 
 	if (m_needSetPixelFormat) {
-		int iPixelFormat = choose_pixel_format(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB);
+		int iPixelFormat = choose_pixel_format(m_stereoVisual, m_numOfAASamples, needAlpha, needStencil, sRGB);
 
 		if (iPixelFormat == 0)
 			goto error;

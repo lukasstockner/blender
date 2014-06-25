@@ -217,7 +217,7 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(
 		const STR_String& title,
 		GHOST_TInt32 left, GHOST_TInt32 top, GHOST_TUns32 width, GHOST_TUns32 height,
 		GHOST_TWindowState state, GHOST_TDrawingContextType type,
-		bool stereoVisual, const bool exclusive, const GHOST_TUns16 numOfAASamples, const GHOST_TEmbedderWindowID parentWindow)
+		bool wantStereoVisual, const bool exclusive, const GHOST_TUns16 wantNumOfAASamples, const GHOST_TEmbedderWindowID parentWindow)
 {
 	GHOST_Window *window =
 		new GHOST_WindowWin32(
@@ -229,16 +229,21 @@ GHOST_IWindow *GHOST_SystemWin32::createWindow(
 		        height,
 		        state,
 		        type,
-		        stereoVisual,
-		        numOfAASamples,
+		        wantStereoVisual,
+		        wantNumOfAASamples,
 		        parentWindow);
 
-	if (window && window->getValid()) {
+	if (window->getValid()) {
 		// Store the pointer to the window
 		//if (state != GHOST_kWindowStateFullScreen) {
 			m_windowManager->addWindow(window);
 			m_windowManager->setActiveWindow(window);
 		//}
+	}
+	else {
+		GHOST_PRINT("GHOST_SystemWin32::createWindow(): window invalid\n");
+		delete window;
+		window = 0;
 	}
 
 	return window;

@@ -58,13 +58,15 @@ public:
 	 * Constructor.
 	 */
 	GHOST_ContextWGL(
-		HWND hWnd,
-		HDC  hDC,
-		int  contextProfileMask,
-		int  contextMajorVersion,
-		int  contextMinorVersion,
-		int  contextFlags,
-		int  contextResetNotificationStrategy
+		bool         stereoVisual,
+		GHOST_TUns16 numOfAASamples,
+		HWND         hWnd,
+		HDC          hDC,
+		int          contextProfileMask,
+		int          contextMajorVersion,
+		int          contextMinorVersion,
+		int          contextFlags,
+		int          contextResetNotificationStrategy
 	);
 
 	/**
@@ -86,17 +88,28 @@ public:
 
 	/**
 	 * Call immediately after new to initialize.  If this fails then immediately delete the object.
-	 * \param stereoVisual		Stereo visual for quad buffered stereo.
-	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
 	 * \return Indication as to whether initialization has succeeded.
 	 */
-	virtual GHOST_TSuccess initializeDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
+	virtual GHOST_TSuccess initializeDrawingContext();
 
 	/**
 	 * Checks if it is OK for a remove the native display
 	 * \return Indication as to whether removal has succeeded.
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
+
+	/**
+	 * Sets the swap interval for swapBuffers.
+	 * \param interval The swap interval to use.
+	 * \return A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess setSwapInterval(int interval);
+
+	/**
+	 * Gets the current swap interval for swapBuffers.
+	 * \return An integer.
+	 */
+	virtual int getSwapInterval();
 
 protected:
 	void activateWGLEW() const

@@ -72,13 +72,11 @@ GHOST_WindowWin32::GHOST_WindowWin32(
     GHOST_TUns32 height,
     GHOST_TWindowState state,
     GHOST_TDrawingContextType type,
-    const bool stereoVisual,
-    const GHOST_TUns16 numOfAASamples,
+    bool wantStereoVisual,
+    GHOST_TUns16 wantNumOfAASamples,
     GHOST_TEmbedderWindowID parentwindowhwnd
-    //GHOST_TSuccess msEnabled,
-    //int msPixelFormat
 )
-	: GHOST_Window(width, height, state, stereoVisual, false, numOfAASamples),
+	: GHOST_Window(width, height, state, wantStereoVisual, false, wantNumOfAASamples),
 	m_inLiveResize(false),
 	m_system(system),
 	m_hDC(0),
@@ -370,7 +368,7 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 
 bool GHOST_WindowWin32::getValid() const
 {
-	return m_hWnd != 0;
+	return GHOST_Window::getValid() && m_hWnd != 0 && m_hDC != 0;
 }
 
 HWND GHOST_WindowWin32::getHWND() const
@@ -599,6 +597,8 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 
 #if defined(WITH_GL_PROFILE_CORE)
 		GHOST_Context* context = new GHOST_ContextWGL(
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
 			m_hWnd,
 			m_hDC,
 			WGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
@@ -607,6 +607,8 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 			GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_ES20)
 		GHOST_Context* context = new GHOST_ContextWGL(
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
 			m_hWnd,
 			m_hDC,
 			WGL_CONTEXT_ES2_PROFILE_BIT_EXT,
@@ -615,6 +617,8 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 			GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_COMPAT)
 		GHOST_Context* context = new GHOST_ContextWGL(
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
 			m_hWnd,
 			m_hDC,
 			0,
@@ -629,6 +633,8 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 
 #if defined(WITH_GL_PROFILE_CORE)
 		GHOST_Context* context = new GHOST_ContextEGL(
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
 			m_hWnd,
 			m_hDC,
 			EGL_OPENGL_API,
@@ -638,6 +644,8 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_ES20)
 		GHOST_Context* context = new GHOST_ContextEGL(
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
 			m_hWnd,
 			m_hDC,
 			EGL_OPENGL_ES_API,
@@ -647,6 +655,8 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_COMPAT)
 		GHOST_Context* context = new GHOST_ContextEGL(
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
 			m_hWnd,
 			m_hDC,
 			EGL_OPENGL_API,
@@ -661,7 +671,7 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 #else
 #error
 #endif
-		if (context->initializeDrawingContext(m_stereoVisual, m_numOfAASamples))
+		if (context->initializeDrawingContext())
 			return context;
 		else
 			delete context;
