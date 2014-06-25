@@ -126,9 +126,9 @@ GHOST_TSuccess GHOST_Window::setSwapInterval(int interval)
 	return m_context->setSwapInterval(interval);
 }
 
-int GHOST_Window::getSwapInterval()
+GHOST_TSuccess GHOST_Window::getSwapInterval(int& intervalOut)
 {
-	return m_context->getSwapInterval();
+	return m_context->getSwapInterval(intervalOut);
 }
 
 GHOST_TSuccess GHOST_Window::activateDrawingContext()

@@ -128,17 +128,19 @@ GHOST_TSuccess GHOST_ContextCGL::setSwapInterval(int interval)
 
 
 
-int GHOST_ContextCGL::getSwapInterval()
+GHOST_TSuccess GHOST_ContextCGL::getSwapInterval(int& intervalOut)
 {
 	if (m_openGLContext != nil) {
-		GLint interval = 1;
+		GLint interval;
 		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 		[m_openGLContext setValues:&interval forParameter:NSOpenGLCPSwapInterval];
 		[pool drain];
-		return interval;
+
+		intervalOut = (int)interval;
+		return GHOST_kSuccess;
 	}
 	else {
-		return 1; // XXX jwilkins: negative numbers are valid, large numbers could have unintended consequences
+		return GHOST_kFailure;
 	}
 }
 

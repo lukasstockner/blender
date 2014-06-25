@@ -676,7 +676,7 @@ extern GHOST_TSuccess GHOST_SetSwapInterval(GHOST_WindowHandle windowhandle, int
  * Gets the current swap interval for swapBuffers.
  * \return An integer.
  */
-extern int GHOST_GetSwapInterval(GHOST_WindowHandle windowhandle);
+extern GHOST_TSuccess GHOST_GetSwapInterval(GHOST_WindowHandle windowhandle, int* intervalOut);
 
 /**
  * Activates the drawing context of this window.

@@ -88,10 +88,10 @@ public:
 	 * virtual GHOST_TWindowState getState() const = 0;
 	 * virtual GHOST_TSuccess setState(GHOST_TWindowState state) = 0;
 	 * virtual GHOST_TSuccess setOrder(GHOST_TWindowOrder order) = 0;
-	 * virtual GHOST_TSuccess swapBuffers() = 0; // XXX: should be implemented in context?
-	 * virtual GHOST_TSuccess setSwapInterval() = 0; // XXX: should be implemented in context?
-	 * virtual int getSwapInterval() = 0; // XXX: should be implemented in context?
-	 * virtual GHOST_TSuccess activateDrawingContext() = 0; // XXX: should be implemented in context?
+	 * virtual GHOST_TSuccess swapBuffers() = 0;
+	 * virtual GHOST_TSuccess setSwapInterval() = 0;
+	 * virtual GHOST_TSuccess getSwapInterval(int& intervalOut) = 0;
+	 * virtual GHOST_TSuccess activateDrawingContext() = 0;
 	 * virtual GHOST_TSuccess invalidate() = 0;
 	 */
 
@@ -204,7 +204,7 @@ public:
 	 * Gets the current swap interval for swapBuffers.
 	 * \return An integer.
 	 */
-	virtual int getSwapInterval();
+	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
 
 	/**
 	 * Tells if the ongoing drag'n'drop object can be accepted upon mouse drop

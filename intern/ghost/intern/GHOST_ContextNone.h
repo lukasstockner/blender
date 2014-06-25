@@ -84,9 +84,10 @@ public:
 
 	/**
 	 * Dummy function
-	 * \return Whatever was set by setSwapInterval
+	 * \param intervalOut Gets whatever was set by setSwapInterval
+	 * \return Always succeeds
 	 */
-	virtual int getSwapInterval();
+	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
 
 private:
 	int m_swapInterval;

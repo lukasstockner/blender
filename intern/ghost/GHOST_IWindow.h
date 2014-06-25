@@ -213,9 +213,10 @@ public:
 
 	/**
 	 * Gets the current swap interval for swapBuffers.
-	 * \return An integer.
+	 * \param intervalOut Variable to store the swap interval if it can be read.
+	 * \return Whether the swap interval can be read.
 	 */
-	virtual int getSwapInterval() = 0;
+	virtual GHOST_TSuccess getSwapInterval(int& intervalOut) = 0;
 
 	/**
 	 * Activates the drawing context of this window.

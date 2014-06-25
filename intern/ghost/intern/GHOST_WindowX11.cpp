@@ -1570,9 +1570,9 @@ static int QueryDrawable_ApplicationIOErrorHandler(Display *display)
 }
 #endif  // SWAP_INTERVALS_WORKAROUND
 
-int
+GHOST_TSuccess
 GHOST_WindowX11::
-getSwapInterval() {
+getSwapInterval(int& intervalOut) {
 	if (GLX_EXT_swap_control) {
 #ifdef SWAP_INTERVALS_WORKAROUND
 		/* XXX: Current MESA driver will give GLXBadDrawable for all
@@ -1596,7 +1596,11 @@ getSwapInterval() {
 		(void) XSetIOErrorHandler(old_handler_io);
 #endif  // SWAP_INTERVALS_WORKAROUND
 
-		return (int)value;
+		intervalOut = (int)value;
+
+		return GHOST_kSuccess;
 	}
-	return 0;
+	else {
+		return GHOST_kFailure;
+	}
 }

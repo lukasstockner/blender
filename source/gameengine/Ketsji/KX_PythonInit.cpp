@@ -1385,7 +1385,9 @@ static PyObject *gPySetVsync(PyObject *, PyObject *args)
 
 static PyObject *gPyGetVsync(PyObject *)
 {
-	return PyLong_FromLong(gp_Canvas->GetSwapInterval());
+	int interval = 0;
+	gp_Canvas->GetSwapInterval(interval);
+	return PyLong_FromLong(interval);
 }
 
 static struct PyMethodDef rasterizer_methods[] = {

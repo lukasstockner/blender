@@ -332,9 +332,10 @@ GHOST_TSuccess GHOST_ContextEGL::setSwapInterval(int interval)
 
 
 
-int GHOST_ContextEGL::getSwapInterval()
+GHOST_TSuccess GHOST_ContextEGL::getSwapInterval(int& intervalOut)
 {
-	return m_swap_interval;
+	intervalOut = m_swap_interval;
+	return GHOST_kSuccess;
 }
 
 

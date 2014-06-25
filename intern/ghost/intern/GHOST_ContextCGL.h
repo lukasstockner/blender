@@ -120,9 +120,10 @@ public:
 
 	/**
 	 * Gets the current swap interval for swapBuffers.
-	 * \return An integer.
+	 * \param intervalOut Variable to store the swap interval if it can be read.
+	 * \return Whether the swap interval can be read.
 	 */
-	virtual int getSwapInterval();
+	virtual GHOST_TSuccess getSwapInterval(int&);
 
 private:
 

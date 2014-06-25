@@ -647,8 +647,9 @@ GHOST_WindowSDL::setSwapInterval(int interval)
 	return GHOST_kSuccess;
 }
 
-int
-GHOST_WindowSDL::getSwapInterval()
+GHOST_TSuccess
+GHOST_WindowSDL::getSwapInterval(int& intervalOut)
 {
-	return SDL_GL_GetSwapInterval();
+	intervalOut = SDL_GL_GetSwapInterval();
+	return GHOST_kSuccess;
 }

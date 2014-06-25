@@ -246,7 +246,7 @@ public:
 	 * Gets the current swap interval for swapBuffers.
 	 * \return An integer.
 	 */
-	virtual int getSwapInterval();
+	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
 
 protected:
 	/**

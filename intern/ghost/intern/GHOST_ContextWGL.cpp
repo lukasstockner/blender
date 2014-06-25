@@ -238,9 +238,15 @@ GHOST_TSuccess GHOST_ContextWGL::setSwapInterval(int interval)
 
 
 
-int GHOST_ContextWGL::getSwapInterval()
+GHOST_TSuccess GHOST_ContextWGL::getSwapInterval(int& intervalOut)
 {
-	return WGLEW_EXT_swap_control ? ::wglGetSwapIntervalEXT() : 1;
+	if (WGLEW_EXT_swap_control) {
+		intervalOut = ::wglGetSwapIntervalEXT();
+		return GHOST_kSuccess;
+	}
+	else {
+		return GHOST_kFailure;
+	}
 }
 
 
