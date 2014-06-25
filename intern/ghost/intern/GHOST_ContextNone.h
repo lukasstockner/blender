@@ -40,6 +40,12 @@
 class GHOST_ContextNone : public GHOST_Context
 {
 public:
+
+	GHOST_ContextNone(bool stereoVisual, GHOST_TUns16 numOfAASamples)
+		: GHOST_Context(stereoVisual, numOfAASamples)
+		, m_swapInterval(1)
+	{}
+
 	/**
 	 * Dummy function
 	 * \return  Always succeeds
@@ -54,17 +60,36 @@ public:
 
 	/**
 	 * Dummy function
-	 * \param stereoVisual		ignored
-	 * \param numOfAASamples	ignored
 	 * \return Always succeeds
 	 */
-	virtual GHOST_TSuccess initializeDrawingContext(bool = false, GHOST_TUns16 = 0);
+	virtual GHOST_TSuccess updateDrawingContext();
 
 	/**
 	 * Dummy function
 	 * \return Always succeeds
 	 */
-	GHOST_TSuccess releaseNativeHandles();
+	virtual GHOST_TSuccess initializeDrawingContext();
+
+	/**
+	 * Dummy function
+	 * \return Always succeeds
+	 */
+	virtual GHOST_TSuccess releaseNativeHandles();
+
+	/**
+	 * Dummy function
+	 * \return Always succeeds
+	 */
+	virtual GHOST_TSuccess setSwapInterval(int interval);
+
+	/**
+	 * Dummy function
+	 * \return Whatever was set by setSwapInterval
+	 */
+	virtual int getSwapInterval();
+
+private:
+	int m_swapInterval;
 };
 
 
