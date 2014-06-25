@@ -38,8 +38,18 @@
 
 
 
+@class NSWindow;
+@class NSOpenGLView;
+@class NSOpenGLContext;
+
+
+
 #ifndef GHOST_OPENGL_CGL_CONTEXT_FLAGS
 #define GHOST_OPENGL_CGL_CONTEXT_FLAGS 0
+#endif
+
+#ifndef GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY
+#define GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY 0
 #endif
 
 
@@ -51,10 +61,17 @@ public:
 	 * Constructor.
 	 */
 	GHOST_ContextCGL(
-		int  contextProfileMask  = 0,
-		int  contextMajorVersion = 0,
-		int  contextMinorVersion = 0,
-		int  contextFlags        = GHOST_OPENGL_CGL_CONTEXT_FLAGS);
+		bool          stereoVisual,
+		GHOST_TUns16  numOfAASamples,
+		NSWindow     *window,
+		NSOpenGLView *openGLView,
+		int           contextProfileMask,
+		int           contextMajorVersion,
+		int           contextMinorVersion,
+		int           contextFlags,
+		int           contextResetNotificationStrategy
+	);
+
 
 	/**
 	 * Destructor.
@@ -82,12 +99,53 @@ public:
 	virtual GHOST_TSuccess initializeDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
 
 	/**
+	 * Updates the drawing context of this window. Needed
+	 * whenever the window is changed.
+	 * \return Indication of success.
+	 */
+	virtual GHOST_TSuccess updateDrawingContext();
+
+	/**
 	 * Checks if it is OK for a remove the native display
 	 * \return Indication as to whether removal has succeeded.
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
-};
 
+	/**
+	 * Sets the swap interval for swapBuffers.
+	 * \param interval The swap interval to use.
+	 * \return A boolean success indicator.
+	 */
+	virtual GHOST_TSuccess setSwapInterval(int interval);
+
+	/**
+	 * Gets the current swap interval for swapBuffers.
+	 * \return An integer.
+	 */
+	virtual int getSwapInterval();
+
+private:
+
+	/** The window containing the OpenGL view */
+	NSWindow *m_window;
+	
+	/** The openGL view */
+	NSOpenGLView *m_openGLView; 
+
+	int m_contextProfileMask;
+	int m_contextMajorVersion;
+	int m_contextMinorVersion;
+	int m_contextFlags;
+	int m_contextResetNotificationStrategy;
+
+	/** The opgnGL drawing context */
+	NSOpenGLContext *m_openGLContext;
+	
+	/** The first created OpenGL context (for sharing display lists) */
+	static NSOpenGLContext *s_sharedOpenGLContext;	
+	static int              s_sharedCount;
+
+};
 
 
 

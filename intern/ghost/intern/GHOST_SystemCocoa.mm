@@ -566,25 +566,21 @@ GHOST_IWindow* GHOST_SystemCocoa::createWindow(
 
 	window = new GHOST_WindowCocoa (this, title, left, bottom, width, height, state, type, stereoVisual, numOfAASamples);
 
-	if (window) {
-		if (window->getValid()) {
-			// Store the pointer to the window
-			GHOST_ASSERT(m_windowManager, "m_windowManager not initialized");
-			m_windowManager->addWindow(window);
-			m_windowManager->setActiveWindow(window);
-			//Need to tell window manager the new window is the active one (Cocoa does not send the event activate upon window creation)
-			pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowActivate, window));
-			pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window));
-		}
-		else {
-			GHOST_PRINT("GHOST_SystemCocoa::createWindow(): window invalid\n");
-			delete window;
-			window = 0;
-		}
+	if (window->getValid()) {
+		// Store the pointer to the window
+		GHOST_ASSERT(m_windowManager, "m_windowManager not initialized");
+		m_windowManager->addWindow(window);
+		m_windowManager->setActiveWindow(window);
+		//Need to tell window manager the new window is the active one (Cocoa does not send the event activate upon window creation)
+		pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowActivate, window));
+		pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window));
 	}
 	else {
-		GHOST_PRINT("GHOST_SystemCocoa::createWindow(): could not create window\n");
+		GHOST_PRINT("GHOST_SystemCocoa::createWindow(): window invalid\n");
+		delete window;
+		window = 0;
 	}
+	
 	[pool drain];
 	return window;
 }

@@ -32,11 +32,11 @@
 #include "GHOST_ContextNone.h"
 #include "GHOST_Debug.h"
 
-#if defined(WITH_GL_SYSTEM_DESKTOP)
+#if defined(WITH_GL_CONTEXT_DESKTOP)
 #include "GHOST_ContextCGL.h"
 #endif
 
-#if defined(WITH_GL_SYSTEM_EMBEDDED)
+#if defined(WITH_GL_CONTEXT_EMBEDDED)
 #include "GHOST_ContextEGL.h"
 #endif
 
@@ -46,12 +46,6 @@
 //Use of the SetSystemUIMode function (64bit compatible)
 #include <Carbon/Carbon.h>
 #endif
-
-//#include <OpenGL/gl.h>
-//#include <OpenGL/CGLRenderers.h>
-/***** Multithreaded opengl code : uncomment for enabling
-#include <OpenGL/OpenGL.h>
-*/
 
 
  
@@ -546,8 +540,6 @@ enum {
 @end
 #endif
 
-NSOpenGLContext* GHOST_WindowCocoa::s_firstOpenGLcontext = nil;
-
 GHOST_WindowCocoa::GHOST_WindowCocoa(
 	GHOST_SystemCocoa *systemCocoa,
 	const STR_String& title,
@@ -557,194 +549,92 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	GHOST_TUns32 height,
 	GHOST_TWindowState state,
 	GHOST_TDrawingContextType type,
-	const bool stereoVisual, const GHOST_TUns16 numOfAASamples
+	const bool stereoVisual,
+	const GHOST_TUns16 numOfAASamples
 ) :
 	GHOST_Window(width, height, state, stereoVisual, false, numOfAASamples),
 	m_customCursor(0)
 {
-	NSOpenGLPixelFormatAttribute pixelFormatAttrsWindow[40];
-	NSOpenGLPixelFormat *pixelFormat = nil;
-	int i;
-		
 	m_systemCocoa = systemCocoa;
 	m_fullScreen = false;
 	m_immediateDraw = false;
 	m_lionStyleFullScreen = false;
 
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	
+
 	//Creates the window
 	NSRect rect;
 	NSSize	minSize;
-	
+
 	rect.origin.x = left;
 	rect.origin.y = bottom;
 	rect.size.width = width;
 	rect.size.height = height;
-	
+
 	m_window = [[CocoaWindow alloc] initWithContentRect:rect
-										   styleMask:NSTitledWindowMask | NSClosableWindowMask | NSResizableWindowMask | NSMiniaturizableWindowMask
-											 backing:NSBackingStoreBuffered defer:NO];
+	                                styleMask:NSTitledWindowMask | NSClosableWindowMask | NSResizableWindowMask | NSMiniaturizableWindowMask
+	                                backing:NSBackingStoreBuffered defer:NO];
+
 	if (m_window == nil) {
 		[pool drain];
 		return;
 	}
-	
+
 	[m_window setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
-	
+
 	//Forbid to resize the window below the blender defined minimum one
 	minSize.width = 320;
 	minSize.height = 240;
 	[m_window setContentMinSize:minSize];
-	
+
 	setTitle(title);
-	
-	
-	// Pixel Format Attributes for the windowed NSOpenGLContext
-	i=0;
-	pixelFormatAttrsWindow[i++] = NSOpenGLPFADoubleBuffer;
-	
-	// Guarantees the back buffer contents to be valid after a call to NSOpenGLContext object's flushBuffer
-	// needed for 'Draw Overlap' drawing method
-	pixelFormatAttrsWindow[i++] = NSOpenGLPFABackingStore; 
-	
-	// Force software OpenGL, for debugging
-	if (getenv("BLENDER_SOFTWAREGL")) { // XXX jwilkins: fixed this to work on Intel macs? useful feature for Windows and Linux too?  Maybe a command line flag is better...
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFARendererID;
-#if defined(__ppc__) || defined(__ppc64__)
-		pixelFormatAttrsWindow[i++] = kCGLRendererAppleSWID;
-#else
-		pixelFormatAttrsWindow[i++] = kCGLRendererGenericFloatID;
-#endif
-	}
-	else
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccelerated;
 
-	//pixelFormatAttrsWindow[i++] = NSOpenGLPFAAllowOfflineRenderers,;   // Removed to allow 10.4 builds, and 2 GPUs rendering is not used anyway
-
-	pixelFormatAttrsWindow[i++] = NSOpenGLPFADepthSize;
-	pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 32;
-	
-	pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccumSize;
-	pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 32;
-	
-	if (stereoVisual) pixelFormatAttrsWindow[i++] = NSOpenGLPFAStereo;
-	
-	if (numOfAASamples > 0) {
-		// Multisample anti-aliasing
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFAMultisample;
-		
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFASampleBuffers;
-		pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 1;
-		
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFASamples;
-		pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) numOfAASamples;
-		
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFANoRecovery;
-	}
-	
-	pixelFormatAttrsWindow[i] = (NSOpenGLPixelFormatAttribute) 0;
-	
-	pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:pixelFormatAttrsWindow];
-
-	// XXX jwilkins: this code seems to have a lot of duplication from above?
-	
-	//Fall back to no multisampling if Antialiasing init failed
-	if (pixelFormat == nil) {
-		i=0;
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFADoubleBuffer;
-		
-		// Guarantees the back buffer contents to be valid after a call to NSOpenGLContext object's flushBuffer
-		// needed for 'Draw Overlap' drawing method
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFABackingStore;
-		
-		// Force software OpenGL, for debugging
-		if (getenv("BLENDER_SOFTWAREGL")) {// XXX jwilkins: fixed this to work on Intel macs? useful feature for Windows and Linux too?  Maybe a command line flag is better...
-			pixelFormatAttrsWindow[i++] = NSOpenGLPFARendererID;
-#if defined(__ppc__) || defined(__ppc64__)
-			pixelFormatAttrsWindow[i++] = kCGLRendererAppleSWID;
-#else
-			pixelFormatAttrsWindow[i++] = kCGLRendererGenericFloatID;
-#endif
-		}
-		else
-			pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccelerated;
-
-		//pixelFormatAttrsWindow[i++] = NSOpenGLPFAAllowOfflineRenderers,;   // Removed to allow 10.4 builds, and 2 GPUs rendering is not used anyway
-		
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFADepthSize;
-		pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 32;
-
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccumSize;
-		pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 32;
-		
-		if (stereoVisual) pixelFormatAttrsWindow[i++] = NSOpenGLPFAStereo;
-		
-		pixelFormatAttrsWindow[i] = (NSOpenGLPixelFormatAttribute) 0;
-		
-		pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:pixelFormatAttrsWindow];
-		
-	}
-	
-	if (numOfAASamples > 0) { //Set m_numOfAASamples to the actual value
-		GLint gli;
-		[pixelFormat getValues:&gli forAttribute:NSOpenGLPFASamples forVirtualScreen:0];
-		if (m_numOfAASamples != (GHOST_TUns16)gli) {
-			m_numOfAASamples = (GHOST_TUns16)gli;
-			printf("GHOST_Window could be created with anti-aliasing of only %i samples\n",m_numOfAASamples);
-		}
-	}
-		
 	//Creates the OpenGL View inside the window
-	m_openGLView = [[CocoaOpenGLView alloc] initWithFrame:rect
-												 pixelFormat:pixelFormat];
+	m_openGLView = [[CocoaOpenGLView alloc] initWithFrame:rect];
 
 	[m_openGLView setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
-	
-	[pixelFormat release];
-	
-	m_openGLContext = [m_openGLView openGLContext]; //This context will be replaced by the proper one just after
-	
+
 	[m_window setContentView:m_openGLView];
 	[m_window setInitialFirstResponder:m_openGLView];
-	
+
 	[m_window makeKeyAndOrderFront:nil];
-	
+
 	setDrawingContextType(type);
 	updateDrawingContext();
 	activateDrawingContext();
 
+	// XXX jwilkins: This seems like it belongs in GHOST_ContextCGL, but probably not GHOST_ContextEGL
 	if (m_systemCocoa->m_nativePixel) {
 		if ([m_openGLView respondsToSelector:@selector(setWantsBestResolutionOpenGLSurface:)]) {
 			[m_openGLView setWantsBestResolutionOpenGLSurface:YES];
-		
+
 			NSRect backingBounds = [m_openGLView convertRectToBacking:[m_openGLView bounds]];
 			m_nativePixelSize = (float)backingBounds.size.width / (float)rect.size.width;
 		}
 	}
-	
+
 	m_tablet.Active = GHOST_kTabletModeNone;
-	
+
 	CocoaWindowDelegate *windowDelegate = [[CocoaWindowDelegate alloc] init];
 	[windowDelegate setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
 	[m_window setDelegate:windowDelegate];
-	
+
 	[m_window setAcceptsMouseMovedEvents:YES];
-	
+
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 	NSView *view = [m_window contentView];
 	[view setAcceptsTouchEvents:YES];
 #endif
-	
+
 	[m_window registerForDraggedTypes:[NSArray arrayWithObjects:NSFilenamesPboardType,
 										  NSStringPboardType, NSTIFFPboardType, nil]];
-	
+
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 	if (state != GHOST_kWindowStateFullScreen) {
 		[m_window setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
 	}
 #endif
-	
+
 	if (state == GHOST_kWindowStateFullScreen)
 		setState(GHOST_kWindowStateFullScreen);
 
@@ -756,7 +646,7 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	if(darwin_ver[0] == '1' && darwin_ver[1] <= '3') {
 		m_lionStyleFullScreen = true;
 	}
-	
+
 	[pool drain];
 }
 
@@ -770,12 +660,14 @@ GHOST_WindowCocoa::~GHOST_WindowCocoa()
 		m_customCursor = nil;
 	}
 
+	releaseNativeHandles();
+
 	[m_openGLView release];
-	
+
 	if (m_window) {
 		[m_window close];
 	}
-	
+
 	// Check for other blender opened windows and make the frontmost key
 	// Note: for some reason the closed window is still in the list
 	NSArray *windowsList = [NSApp orderedWindows];
@@ -794,7 +686,7 @@ GHOST_WindowCocoa::~GHOST_WindowCocoa()
 
 bool GHOST_WindowCocoa::getValid() const
 {
-	return (m_window != 0);
+	return GHOST_Window::getValid() && m_window != 0 && m_openGLView != 0;
 }
 
 void* GHOST_WindowCocoa::getOSWindow() const
@@ -1286,159 +1178,80 @@ GHOST_TSuccess GHOST_WindowCocoa::setOrder(GHOST_TWindowOrder order)
 
 #pragma mark Drawing context
 
-/*#define  WAIT_FOR_VSYNC 1*/
-
-GHOST_TSuccess GHOST_WindowCocoa::swapBuffers()
-{
-	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
-		if (m_openGLContext != nil) {
-			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-			[m_openGLContext flushBuffer];
-			[pool drain];
-			return GHOST_kSuccess;
-		}
-	}
-	return GHOST_kFailure;
-}
-
-GHOST_TSuccess GHOST_WindowCocoa::updateDrawingContext()
-{
-	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
-		if (m_openGLContext != nil) {
-			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-			[m_openGLContext update];
-			[pool drain];
-			return GHOST_kSuccess;
-		}
-	}
-	return GHOST_kFailure;
-}
-
-GHOST_TSuccess GHOST_WindowCocoa::activateDrawingContext()
-{
-	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
-		if (m_openGLContext != nil) {
-			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-			[m_openGLContext makeCurrentContext];
-			
-			// Disable AA by default
-			if (m_numOfAASamples > 0) glDisable(GL_MULTISAMPLE_ARB);
-			[pool drain];
-			return GHOST_kSuccess;
-		}
-	}
-	return GHOST_kFailure;
-}
-
-#if 0
-GHOST_TSuccess GHOST_WindowCocoa::installDrawingContext(GHOST_TDrawingContextType type)
-{
-	GHOST_TSuccess success = GHOST_kFailure;
-	
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	
-	NSOpenGLPixelFormat *pixelFormat;
-	NSOpenGLContext *tmpOpenGLContext;
-	
-	/***** Multithreaded opengl code : uncomment for enabling
-	CGLContextObj cglCtx;
-	*/
-	 
-	switch (type) {
-		case GHOST_kDrawingContextTypeOpenGL:
-			if (!getValid()) break;
-
-			pixelFormat = [m_openGLView pixelFormat];
-			tmpOpenGLContext = [[NSOpenGLContext alloc] initWithFormat:pixelFormat
-															  shareContext:s_firstOpenGLcontext];
-			if (tmpOpenGLContext == nil) {
-				success = GHOST_kFailure;
-				break;
-			}
-			
-			//Switch openGL to multhreaded mode
-			/******* Multithreaded opengl code : uncomment for enabling
-			cglCtx = (CGLContextObj)[tmpOpenGLContext CGLContextObj];
-			if (CGLEnable(cglCtx, kCGLCEMPEngine) == kCGLNoError)
-				printf("\nSwitched openGL to multithreaded mode\n");
-			 */
-			
-			if (!s_firstOpenGLcontext) s_firstOpenGLcontext = tmpOpenGLContext;
-#ifdef WAIT_FOR_VSYNC
-			{
-				GLint swapInt = 1;
-				/* wait for vsync, to avoid tearing artifacts */
-				[tmpOpenGLContext setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
-			}
-#endif
-			[m_openGLView setOpenGLContext:tmpOpenGLContext];
-			[tmpOpenGLContext setView:m_openGLView];
-			
-			m_openGLContext = tmpOpenGLContext;
-			break;
-	
-		case GHOST_kDrawingContextTypeNone:
-			success = GHOST_kSuccess;
-			break;
-		
-		default:
-			break;
-	}
-	[pool drain];
-	return success;
-}
-
-
-GHOST_TSuccess GHOST_WindowCocoa::removeDrawingContext()
-{
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	switch (m_drawingContextType) {
-		case GHOST_kDrawingContextTypeOpenGL:
-			if (m_openGLContext) {
-				[m_openGLView clearGLContext];
-				if (s_firstOpenGLcontext == m_openGLContext) s_firstOpenGLcontext = nil;
-				m_openGLContext = nil;
-			}
-			[pool drain];
-			return GHOST_kSuccess;
-		case GHOST_kDrawingContextTypeNone:
-			[pool drain];
-			return GHOST_kSuccess;
-			break;
-		default:
-			[pool drain];
-			return GHOST_kFailure;
-	}
-}
-#endif
-
-
-
 GHOST_Context* GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType type)
 {
 	if (type == GHOST_kDrawingContextTypeOpenGL) {
-#if defined(WITH_GL_SYSTEM_DESKTOP)
+#if defined(WITH_GL_CONTEXT_DESKTOP)
 
 #if defined(WITH_GL_PROFILE_CORE)
-		// XXX jwilkins: some implementations will only give you 3.2 even if later compatible versions are available
-		GHOST_Context* context = new GHOST_ContextCGL(WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 3, 2);
+		GHOST_Context* context = new GHOST_ContextCGL(
+			m_initStereoVisual,
+			m_initNumOfAASamples,
+			m_window,
+			m_openGLView,
+			CGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
+			3, 2,
+			GHOST_OPENGL_CGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_ES20)
-		GHOST_Context* context = new GHOST_ContextCGL(WGL_CONTEXT_ES2_PROFILE_BIT_EXT, 2, 0);
+		GHOST_Context* context = new GHOST_ContextCGL(
+			m_initStereoVisual,
+			m_initNumOfAASamples,
+			m_window,
+			m_openGLView,
+			CGL_CONTEXT_ES2_PROFILE_BIT_EXT,
+			2, 0,
+			GHOST_OPENGL_CGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_COMPAT)
-		GHOST_Context* context = new GHOST_ContextCGL();
+		GHOST_Context* context = new GHOST_ContextCGL(
+			m_initStereoVisual,
+			m_initNumOfAASamples,
+			m_window,
+			m_openGLView,
+			0,
+			0, 0,
+			GHOST_OPENGL_CGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY);
 #else
 #error
 #endif
 
-#elif defined(WITH_GL_SYSTEM_EMBEDDED)
+#elif defined(WITH_GL_CONTEXT_EMBEDDED)
 
 #if defined(WITH_GL_PROFILE_CORE)
-		// XXX jwilkins: not sure yet how to request a core context from EGL
-		GHOST_Context* context = new GHOST_ContextEGL(m_hWnd, m_hDC, EGL_OPENGL_API);
+		GHOST_Context* context = new GHOST_ContextEGL(
+			m_initStereoVisual,
+			m_initNumOfAASamples,
+			m_window,
+			m_openGLView,
+			EGL_OPENGL_API,
+			EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
+			3, 2,
+			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_ES20)
-		GHOST_Context* context = new GHOST_ContextEGL(m_hWnd, m_hDC, EGL_OPENGL_ES_API, 2);
+		GHOST_Context* context = new GHOST_ContextEGL(
+			m_initStereoVisual,
+			m_initNumOfAASamples,
+			m_window,
+			m_openGLView,
+			EGL_OPENGL_ES_API,
+			0,
+			2, 0,
+			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_COMPAT)
-		GHOST_Context* context = new GHOST_ContextEGL(m_hWnd, m_hDC, EGL_OPENGL_API);
+		GHOST_Context* context = new GHOST_ContextEGL(
+			m_initStereoVisual,
+			m_initNumOfAASamples,
+			m_window,
+			m_openGLView,
+			EGL_OPENGL_API,
+			0,
+			0, 0,
+			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY);
 #else
 #error
 #endif
@@ -1446,7 +1259,7 @@ GHOST_Context* GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 #else
 #error
 #endif
-		if (context->initializeDrawingContext(m_stereoVisual, m_numOfAASamples))
+		if (context->initializeDrawingContext())
 			return context;
 		else
 			delete context;
@@ -1455,7 +1268,7 @@ GHOST_Context* GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 	return NULL;
 }
 
-
+#pragma mark invalidate
 
 GHOST_TSuccess GHOST_WindowCocoa::invalidate()
 {

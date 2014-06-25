@@ -43,7 +43,6 @@
 @class CocoaWindow;
 @class CocoaOpenGLView;
 @class NSCursor;
-@class NSOpenGLContext;
 @class NSScreen;
 
 class GHOST_SystemCocoa;
@@ -56,6 +55,7 @@ class GHOST_SystemCocoa;
  * which is called the gutter.
  * When OpenGL contexts are active, GHOST will use AGL_BUFFER_RECT to prevent
  * OpenGL drawing outside the reduced client rectangle.
+ * XXX jwilkins: This comment seems out of date since we neither use Carbon nor AGL
  * \author	Maarten Gribnau
  * \date	May 23, 2001
  */
@@ -223,28 +223,8 @@ public:
 	 */
 	virtual GHOST_TSuccess setOrder(GHOST_TWindowOrder order);
 
-	/**
-	 * Swaps front and back buffers of a window.
-	 * \return	A boolean success indicator.
-	 */
-	virtual GHOST_TSuccess swapBuffers();
-
-	/**
-	 * Updates the drawing context of this window. Needed
-	 * whenever the window is changed.
-	 * \return Indication of success.
-	 */
-	GHOST_TSuccess updateDrawingContext();
-
-	/**
-	 * Activates the drawing context of this window.
-	 * \return	A boolean success indicator.
-	 */
-	virtual GHOST_TSuccess activateDrawingContext();
-
 	virtual void loadCursor(bool visible, GHOST_TStandardCursor cursor) const;
     
-
 	const GHOST_TabletData *GetTabletData()
 	{
 		return &m_tablet;
@@ -327,15 +307,9 @@ protected:
 	/** The openGL view */
 	CocoaOpenGLView *m_openGLView; 
 
-	/** The opgnGL drawing context */
-	NSOpenGLContext *m_openGLContext;
-	
 	/** The mother SystemCocoa class to send events */
 	GHOST_SystemCocoa *m_systemCocoa;
-			
-	/** The first created OpenGL context (for sharing display lists) */
-	static NSOpenGLContext *s_firstOpenGLcontext;
-	
+
 	NSCursor *m_customCursor;
 
 	GHOST_TabletData m_tablet;
@@ -346,4 +320,3 @@ protected:
 };
 
 #endif // __GHOST_WINDOWCOCOA_H__
-
