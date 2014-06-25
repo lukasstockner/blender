@@ -11,13 +11,26 @@
 		FC354571194BDF7300F3D236 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354570194BDF7300F3D236 /* OpenGL.framework */; };
 		FC354573194BDF7E00F3D236 /* GLUT.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354572194BDF7E00F3D236 /* GLUT.framework */; };
 		FC458BC71953F95A00E260AC /* GridMesh.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC458BC51953F95A00E260AC /* GridMesh.cpp */; };
+		FC4C01831959FA25005025E0 /* GridMesh_demo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC4C01821959FA25005025E0 /* GridMesh_demo.cpp */; };
 		FC67C07A19514DE10077AB72 /* rast_demo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC67C07919514DE10077AB72 /* rast_demo.cpp */; };
 		FC67C08019515CBB0077AB72 /* GLUT.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354572194BDF7E00F3D236 /* GLUT.framework */; };
 		FC67C08119515CBF0077AB72 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354570194BDF7300F3D236 /* OpenGL.framework */; };
+		FCCF3BC7195A205400CCA487 /* GridMesh.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC458BC51953F95A00E260AC /* GridMesh.cpp */; };
+		FCCF3BC8195A207E00CCA487 /* GLUT.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354572194BDF7E00F3D236 /* GLUT.framework */; };
+		FCCF3BC9195A208200CCA487 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FC354570194BDF7300F3D236 /* OpenGL.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		FC35455F194BDED000F3D236 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		FC4C017E1959FA25005025E0 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -45,6 +58,8 @@
 		FC354572194BDF7E00F3D236 /* GLUT.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GLUT.framework; path = System/Library/Frameworks/GLUT.framework; sourceTree = SDKROOT; };
 		FC458BC51953F95A00E260AC /* GridMesh.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GridMesh.cpp; sourceTree = "<group>"; };
 		FC458BC61953F95A00E260AC /* GridMesh.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GridMesh.h; sourceTree = "<group>"; };
+		FC4C01801959FA25005025E0 /* GridMesh_demo */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = GridMesh_demo; sourceTree = BUILT_PRODUCTS_DIR; };
+		FC4C01821959FA25005025E0 /* GridMesh_demo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GridMesh_demo.cpp; sourceTree = "<group>"; };
 		FC67C07719514DE10077AB72 /* rast_demo */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = rast_demo; sourceTree = BUILT_PRODUCTS_DIR; };
 		FC67C07919514DE10077AB72 /* rast_demo.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = rast_demo.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -56,6 +71,15 @@
 			files = (
 				FC354573194BDF7E00F3D236 /* GLUT.framework in Frameworks */,
 				FC354571194BDF7300F3D236 /* OpenGL.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC4C017D1959FA25005025E0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FCCF3BC9195A208200CCA487 /* OpenGL.framework in Frameworks */,
+				FCCF3BC8195A207E00CCA487 /* GLUT.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -86,6 +110,7 @@
 			children = (
 				FC354561194BDED000F3D236 /* PolyTest */,
 				FC67C07719514DE10077AB72 /* rast_demo */,
+				FC4C01801959FA25005025E0 /* GridMesh_demo */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -96,6 +121,7 @@
 				FC35456F194BDF3700F3D236 /* poly.h */,
 				FC35456D194BDF2300F3D236 /* poly_demo.cpp */,
 				FC67C07919514DE10077AB72 /* rast_demo.cpp */,
+				FC4C01821959FA25005025E0 /* GridMesh_demo.cpp */,
 				FC458BC51953F95A00E260AC /* GridMesh.cpp */,
 				FC458BC61953F95A00E260AC /* GridMesh.h */,
 			);
@@ -120,6 +146,23 @@
 			name = PolyTest;
 			productName = PolyTest;
 			productReference = FC354561194BDED000F3D236 /* PolyTest */;
+			productType = "com.apple.product-type.tool";
+		};
+		FC4C017F1959FA25005025E0 /* GridMesh_demo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FC4C01881959FA25005025E0 /* Build configuration list for PBXNativeTarget "GridMesh_demo" */;
+			buildPhases = (
+				FC4C017C1959FA25005025E0 /* Sources */,
+				FC4C017D1959FA25005025E0 /* Frameworks */,
+				FC4C017E1959FA25005025E0 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GridMesh_demo;
+			productName = GridMesh_demo;
+			productReference = FC4C01801959FA25005025E0 /* GridMesh_demo */;
 			productType = "com.apple.product-type.tool";
 		};
 		FC67C07619514DE00077AB72 /* rast_demo */ = {
@@ -162,6 +205,7 @@
 			targets = (
 				FC354560194BDED000F3D236 /* PolyTest */,
 				FC67C07619514DE00077AB72 /* rast_demo */,
+				FC4C017F1959FA25005025E0 /* GridMesh_demo */,
 			);
 		};
 /* End PBXProject section */
@@ -172,6 +216,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				FC35456E194BDF2300F3D236 /* poly_demo.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FC4C017C1959FA25005025E0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FCCF3BC7195A205400CCA487 /* GridMesh.cpp in Sources */,
+				FC4C01831959FA25005025E0 /* GridMesh_demo.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -279,6 +332,24 @@
 			};
 			name = Release;
 		};
+		FC4C01861959FA25005025E0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		FC4C01871959FA25005025E0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		FC67C07D19514DE10077AB72 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -314,6 +385,15 @@
 			buildConfigurations = (
 				FC35456B194BDED000F3D236 /* Debug */,
 				FC35456C194BDED000F3D236 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FC4C01881959FA25005025E0 /* Build configuration list for PBXNativeTarget "GridMesh_demo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC4C01861959FA25005025E0 /* Debug */,
+				FC4C01871959FA25005025E0 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

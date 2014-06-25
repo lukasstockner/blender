@@ -9,8 +9,13 @@
 #ifndef __PolyTest__GridMesh__
 #define __PolyTest__GridMesh__
 
+#define ENABLE_GLUT_DEMO
+
 #include <iostream>
 #include <vector>
+#if defined(ENABLE_GLUT_DEMO)
+#include <GLUT/glut.h>
+#endif
 
 struct GreinerV2f {
 	float x,y;
@@ -34,20 +39,23 @@ struct GridMesh {
 	GreinerV2f *v;
 	long v_capacity;
 	long v_count; // Includes the "bad" vertex #0
-	float llx, lly, urx, ury; // Coordinates of lower left and upper right grid corners
-	float dx, dy; // Width of a cell in the x, y directions
-	float inv_dx, inv_dy; // 1/(width of a cell), 1/(height of a cell)
+	double llx, lly, urx, ury; // Coordinates of lower left and upper right grid corners
+	double dx, dy; // Width of a cell in the x, y directions
+	double inv_dx, inv_dy; // 1/(width of a cell), 1/(height of a cell)
 	int nx, ny; // Number of cells in the x and y directions
 	
-	GridMesh(float lowerleft_x, float lowerleft_y,
-			 float upperright_x, float upperright_y,
+	GridMesh(double lowerleft_x, double lowerleft_y,
+			 double upperright_x, double upperright_y,
 			 int num_x_cells, int num_y_cells);
+	void set_ll_ur(double lowerleft_x, double lowerleft_y,
+				   double upperright_x, double upperright_y);
 	
-	void add_verts_at_intersections(GreinerV2f *mpoly);
-	
+	// Basic vertex and polygon manipulation
 	GreinerV2f *vert_new();
 	GreinerV2f *vert_new(GreinerV2f *prev, GreinerV2f *next); // Make a new vert in the middle of an existing poly
-	int vert_id(GreinerV2f *vert) {return int(vert-v);}
+	int vert_id(GreinerV2f *vert) {return vert?int(vert-v):0;}
+	GreinerV2f *vert_neighbor_on_poly(GreinerV2f *vert, GreinerV2f *poly);
+	void vert_add_neighbor(GreinerV2f *vert, GreinerV2f *new_neighbor);
 	GreinerV2f *poly_for_cell(int x, int y);
 	GreinerV2f *poly_for_cell(float x, float y);
 	GreinerV2f *poly_first_vert(GreinerV2f *anyvert);
@@ -58,18 +66,42 @@ struct GridMesh {
 	void poly_set_cyclic(GreinerV2f *poly, bool cyclic);
 	int poly_num_edges(GreinerV2f *poly);
 	
-	GreinerV2f* insert_vert_at_intersect(GreinerV2f* poly1left,
-										 GreinerV2f* poly1right,
-										 float alpha1,
-										 GreinerV2f* poly2left,
-										 GreinerV2f* poly2right,
-										 float alpha2
-										 );
+	// Intersection
+	bool point_in_polygon(float x, float y, GreinerV2f* poly);
+	int insert_vert_poly_gridmesh(GreinerV2f *poly);
+	int insert_vert_edge_poly(GreinerV2f *e, GreinerV2f *p);
+	int insert_vert_if_line_line(GreinerV2f *e1, GreinerV2f *e2);
+	GreinerV2f* insert_vert_line_line(GreinerV2f* poly1left,
+									  GreinerV2f* poly1right,
+									  float alpha1,
+									  GreinerV2f* poly2left,
+									  GreinerV2f* poly2right,
+									  float alpha2
+									  );
+	void find_cell_line_intersections(double x0, double y0, double x1, double y1,
+									  std::vector<std::pair<int,int>> *bottom_edges,
+									  std::vector<std::pair<int,int>> *left_edges,
+									  std::vector<std::pair<int,int>> *integer_cells);
+#if defined(ENABLE_GLUT_DEMO)
+	// Draw
+	void poly_center(GreinerV2f *poly, float *cx, float *cy);
+	void poly_draw(GreinerV2f *poly, float shrinkby);
+#endif
 };
 
-void find_integer_cell_line_intersections(float x0, float y0, float x1, float y1,
+// Backend
+void find_integer_cell_line_intersections(double x0, double y0, double x1, double y1,
 										  std::vector<std::pair<int,int>> *bottom_edges,
 										  std::vector<std::pair<int,int>> *left_edges,
 										  std::vector<std::pair<int,int>> *integer_cells);
+
+bool get_line_seg_intersection(GreinerV2f* poly1left,
+							   GreinerV2f* poly1right,
+							   float* alpha1,
+							   GreinerV2f* poly2left,
+							   GreinerV2f* poly2right,
+							   float* alpha2
+							   );
+
 
 #endif

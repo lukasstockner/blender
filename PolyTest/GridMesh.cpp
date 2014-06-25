@@ -7,52 +7,32 @@
 //
 
 #include <cmath>
+#include <cstdlib>
+#include <map>
 #include "GridMesh.h"
 
 static bool debug = 1;
 float GridMesh::tolerance = 1e-5;
 
-
-/*struct GridMesh {
-	// Vertex storage. Example: "int prev" in a GreinerV2f refers to v[prev].
-	// v[0] is defined to be invalid and filled with the telltale location (-42,-42)
-	GreinerV2f *v;
-	float llx, lly, urx, ury; // Coordinates of lower left and upper right grid corners
-	float inv_dx, inv_dy; // 1/(width of a cell), 1/(height of a cell)
-	int nx, ny; // Number of cells in the x and y directions
-	
-	GridMesh(float lowerleft_x, float lowerleft_y,
-			 float upperright_x, float upperright_y,
-			 int num_x_cells, int num_y_cells);
-	
-	void merge_poly(GreinerV2f *mpoly);
-	
-	GreinerV2f *vert_new();
-	int vert_id(GreinerV2f *vert) {return int(vert-v);}
-	GreinerV2f *poly_for_cell(int x, int y, bool *isTrivial);
-	GreinerV2f *poly_for_cell(float x, float y, bool *isTrivial);
-	GreinerV2f *poly_first_vert(GreinerV2f *anyvert);
-	GreinerV2f *poly_last_vert(GreinerV2f *anyvert);
-	bool poly_is_cyclic(GreinerV2f *poly);
-	bool poly_set_cyclic(GreinerV2f *poly);
-};*/
-
-
-
-GridMesh::GridMesh(float lowerleft_x, float lowerleft_y,
-				   float upperright_x, float upperright_y,
-				   int num_x_cells, int num_y_cells) {
+void GridMesh::set_ll_ur(double lowerleft_x, double lowerleft_y,
+						 double upperright_x, double upperright_y) {
 	llx = lowerleft_x; lly = lowerleft_y;
 	urx = upperright_x; ury = upperright_y;
-	nx = num_x_cells; ny = num_y_cells;
 	double Dx = urx-llx;
 	double Dy = ury-lly;
 	dx = Dx/nx;
 	dy = Dy/ny;
 	inv_dx = 1.0/dx;
 	inv_dy = 1.0/dy;
+}
+
+GridMesh::GridMesh(double lowerleft_x, double lowerleft_y,
+				   double upperright_x, double upperright_y,
+				   int num_x_cells, int num_y_cells) {
+	nx = num_x_cells; ny = num_y_cells;
+	set_ll_ur(lowerleft_x, lowerleft_y, upperright_x, upperright_y);
 	v_capacity = nx*ny*4 + 256;
-	v_count = nx*ny*4;
+	v_count = nx*ny*4+1;
 	v = (GreinerV2f*)malloc(sizeof(GreinerV2f)*v_capacity);
 	new (v) GreinerV2f();
 	v->x = v->y = -1234;
@@ -67,9 +47,9 @@ GridMesh::GridMesh(float lowerleft_x, float lowerleft_y,
 			GreinerV2f *v3 = v1+2;
 			GreinerV2f *v4 = v1+3;
 			new (v1) GreinerV2f(); v1->x=l; v1->y=b;
-			new (v2) GreinerV2f(); v1->x=r; v1->y=b;
-			new (v3) GreinerV2f(); v1->x=r; v1->y=t;
-			new (v4) GreinerV2f(); v1->x=l; v1->y=t;
+			new (v2) GreinerV2f(); v2->x=r; v2->y=b;
+			new (v3) GreinerV2f(); v3->x=r; v3->y=t;
+			new (v4) GreinerV2f(); v4->x=l; v4->y=t;
 			int iv1 = vert_id(v1);
 			int iv2 = iv1+1;
 			int iv3 = iv1+2;
@@ -155,8 +135,8 @@ GreinerV2f *GridMesh::poly_for_cell(int x, int y) {
 }
 
 GreinerV2f *GridMesh::poly_for_cell(float fx, float fy) {
-	int x = (fx-llx)*inv_dx;
-	int y = (fy-lly)*inv_dy;
+	int x = floor((fx-llx)*inv_dx);
+	int y = floor((fy-lly)*inv_dy);
 	return &v[1+4*(y*nx+x)];
 }
 
@@ -179,17 +159,60 @@ GreinerV2f *GridMesh::poly_vert_at(GreinerV2f *anyvert, float x, float y) {
 		if (first_iter) {
 			first_iter = false;
 		} else {
-			if (vert->is_backbone) break;
+			if (vert->first==vert_id(vert)) break;
 		}
 	}
 	return nullptr;
 }
 
-void GridMesh::add_verts_at_intersections(GreinerV2f *mpoly) {
+GreinerV2f *GridMesh::vert_neighbor_on_poly(GreinerV2f *vert, GreinerV2f *poly) {
+	int id_poly = vert_id(poly);
+	int id_vert = vert_id(vert);
+	GreinerV2f *cur_vert = vert;
+	int id_cur_vert = id_vert;
+	while (id_cur_vert) {
+		if (cur_vert->first==id_poly) return cur_vert;
+		cur_vert = &v[cur_vert->neighbor];
+		if (cur_vert==vert) break;
+		id_cur_vert = vert_id(cur_vert);
+	}
+	return nullptr;
+}
+
+void GridMesh::vert_add_neighbor(GreinerV2f *v1, GreinerV2f *v2) {
+	if (!v1->neighbor && !v2->neighbor) {
+		v1->neighbor = vert_id(v2);
+		v2->neighbor = vert_id(v1);
+		return;
+	}
+	if (!v1->neighbor && v2->neighbor) std::swap(v1,v2);
+	// v1 has a neighbor, v2 might have a neighbor
+	int id_v1 = vert_id(v1);
+	GreinerV2f *v1_last_neighbor = v1;
+	while (v1_last_neighbor->neighbor && v1_last_neighbor->neighbor != id_v1) {
+		v1_last_neighbor = &v[v1_last_neighbor->neighbor];
+	}
+	if (v1->neighbor && v2->neighbor) {
+		int id_v2 = vert_id(v2);
+		GreinerV2f *v2_last_neighbor = v2;
+		while (v2_last_neighbor->neighbor && v2_last_neighbor->neighbor != id_v2) {
+			v2_last_neighbor = &v[v2_last_neighbor->neighbor];
+		}
+		v1_last_neighbor->neighbor = vert_id(v2);
+		v2_last_neighbor->neighbor = vert_id(v1);
+	} else { // v1 has a neighbor, v2 does not
+		v1_last_neighbor->neighbor = vert_id(v2);
+		v2->neighbor = vert_id(v1);
+	}
+}
+
+
+int GridMesh::insert_vert_poly_gridmesh(GreinerV2f *mpoly) {
 	std::vector<std::pair<int,int>> bottom_edges, left_edges, integer_cells;
 	mpoly = poly_first_vert(mpoly);
 	GreinerV2f *v1 = mpoly;
 	float v1x=v1->x, v1y=v1->y;
+	int verts_added = 0;
 	while (v1->next) {
 		GreinerV2f *v2 = &v[mpoly->next];
 		float v2x=v2->x, v2y=v2->y;
@@ -197,24 +220,72 @@ void GridMesh::add_verts_at_intersections(GreinerV2f *mpoly) {
 		left_edges.clear();
 		integer_cells.clear();
 		find_integer_cell_line_intersections(v1x,v1y,v2x,v2y,&bottom_edges,&left_edges,&integer_cells);
-		bool intersects_grid_edges = bottom_edges.size()+left_edges.size()>0;
-		bool trivial = true;
-		for (std::pair<int,int> i : integer_cells) {
-			trivial = poly_for_cell(i.first, i.second)->is_trivial;
-			if (!trivial) break;
-		}
-		if (trivial) {
-			if (intersects_grid_edges) {
-				//Loop through left edges, insert
-				//Loop through bottom edges, insert
-			}
-		} else {
-			//All pairs, baby!
+		for (std::pair<int,int> j : integer_cells) {
+			GreinerV2f *cell_poly = poly_for_cell(j.first, j.second);
+			verts_added += insert_vert_edge_poly(v1, cell_poly);
 		}
 		v1=v2; v1x=v2x; v1y=v2y;
-		if (v1->is_backbone) break;
+		if (v1==mpoly) break;
 	}
+	return verts_added;
 }
+
+#if defined(ENABLE_GLUT_DEMO)
+void GridMesh::poly_center(GreinerV2f *poly, float *cx, float *cy) {
+	GreinerV2f *vert = poly;
+	double sum_x=0, sum_y=0;
+	int n=0;
+	do {
+		sum_x += vert->x;
+		sum_y += vert->y;
+		n += 1;
+		vert = &v[vert->next];
+	} while (vert!=poly && vert_id(vert));
+	*cx = sum_x/n;
+	*cy = sum_y/n;
+}
+
+struct rgbcolor {unsigned char r,g,b;};
+void GridMesh::poly_draw(GreinerV2f *poly, float shrinkby) {
+	// Generate a random but consistent color for each polygon
+	rgbcolor color = {0,0,0};
+	static std::map<GreinerV2f*,rgbcolor> colormap;
+	std::map<GreinerV2f*,rgbcolor>::iterator it = colormap.find(poly);
+	if (it==colormap.end()) {
+		while (color.r<50) {color.r=rand();}
+		while (color.g<50) {color.g=rand();}
+		while (color.b<50) {color.b=rand();}
+		colormap[poly] = color;
+	} else {
+		color = it->second;
+	}
+	// Find the center so that we can shrink towards it
+	float cx,cy;
+	poly_center(poly, &cx, &cy);
+	// Draw the polygon
+	glBegin(GL_LINES);
+	glColor3ub(color.r, color.g, color.b);
+	GreinerV2f *v1 = poly;
+	do {
+		GreinerV2f *v2 = &v[v1->next];
+		glVertex2f((1-shrinkby)*v1->x+shrinkby*cx, (1-shrinkby)*v1->y+shrinkby*cy);
+		glVertex2f((1-shrinkby)*v2->x+shrinkby*cx, (1-shrinkby)*v2->y+shrinkby*cy);
+		v1 = v2;
+	} while (v1 != poly);
+	glEnd();
+	// Draw the polygon verts
+//	glPointSize(3);
+//	glBegin(GL_POINTS);
+//	glColor3b(color.r, color.g, color.b);
+//	v1 = poly;
+//	do {
+//		glVertex2f(v1->x, v1->y);
+//		v1 = &v[v1->next];
+//	} while (v1 != poly);
+//	glEnd();
+}
+#endif
+
 
 
 // Fast float->int, courtesy of http://stereopsis.com/sree/fpu2006.html
@@ -229,11 +300,20 @@ inline static int xs_CRoundToInt(double val) {
 	//    return int32(floor(val+.5)); //Alternative implementation if the trick is buggy
 }
 inline static int xs_FloorToInt(double val) {
-    //return xs_CRoundToInt(val-_xs_doublemagicroundeps);
-	return floor(val); //Alternative implementation if the trick is buggy
+    return xs_CRoundToInt(val-_xs_doublemagicroundeps);
+	//return floor(val); //Alternative implementation if the trick is buggy
 }
 
-void find_integer_cell_line_intersections(float x0, float y0, float x1, float y1,
+void GridMesh::find_cell_line_intersections(double x0, double y0, double x1, double y1,
+											std::vector<std::pair<int,int>> *bottom_edges,
+											std::vector<std::pair<int,int>> *left_edges,
+											std::vector<std::pair<int,int>> *integer_cells) {
+	find_integer_cell_line_intersections((x0-llx)*inv_dx,(y0-lly)*inv_dy,
+										 (x1-llx)*inv_dx,(y1-lly)*inv_dy,
+										 bottom_edges,left_edges,integer_cells);
+}
+
+void find_integer_cell_line_intersections(double x0, double y0, double x1, double y1,
 											   std::vector<std::pair<int,int>> *bottom_edges,
 											   std::vector<std::pair<int,int>> *left_edges,
 											   std::vector<std::pair<int,int>> *integer_cells) {
@@ -304,19 +384,44 @@ void find_integer_cell_line_intersections(float x0, float y0, float x1, float y1
 				j-=1; jf-=1.0;
 				if (integer_cells) integer_cells->push_back(std::make_pair(i,j));
 			}
-			if (i!=cx1 && left_edges) left_edges->push_back(std::make_pair(i+1, cy0));
+			if (i!=cx1 && left_edges) left_edges->push_back(std::make_pair(i+1, j));
 			rhy += m;
 		}
 	}
 }
 
-GreinerV2f* GridMesh::insert_vert_at_intersect(GreinerV2f* poly1left,
-											   GreinerV2f* poly1right,
-											   float alpha1,
-											   GreinerV2f* poly2left,
-											   GreinerV2f* poly2right,
-											   float alpha2
-											   ) {
+int GridMesh::insert_vert_edge_poly(GreinerV2f *e, GreinerV2f *p) {
+	GreinerV2f *e1=e, *e2=p;
+	int total_verts_added = 0;
+	do {
+		total_verts_added += insert_vert_if_line_line(e1, e2);
+		e2 = &v[e2->next];
+		if (vert_id(e2)==0) break;
+	} while (e2!=p);
+	return total_verts_added;
+}
+
+
+int GridMesh::insert_vert_if_line_line(GreinerV2f *e1, GreinerV2f *e2) {
+	GreinerV2f *e1l = e1;
+	GreinerV2f *e1r = &v[e1->next];
+	GreinerV2f *e2l = e2;
+	GreinerV2f *e2r = &v[e2->next];
+	float a1, a2;
+	if (get_line_seg_intersection(e1l, e1r, &a1, e2l, e2r, &a2)) {
+		insert_vert_line_line(e1l, e1r, a1, e2l, e2r, a2);
+		return 1;
+	}
+	return 0;
+}
+
+GreinerV2f* GridMesh::insert_vert_line_line(GreinerV2f* poly1left,
+											GreinerV2f* poly1right,
+											float alpha1,
+											GreinerV2f* poly2left,
+											GreinerV2f* poly2right,
+											float alpha2
+											) {
 	// Interpolate beteen poly1left, poly1right according to alpha
 	// to find the location at which we are going to add the intersection
 	// vertices (1 for each polygon, each at the same spatial position)
@@ -353,8 +458,7 @@ GreinerV2f* GridMesh::insert_vert_at_intersect(GreinerV2f* poly1left,
 	newv2->is_intersection = true;
 	
 	// Tell the intersection vertices that they're stacked on top of one another
-	newv1->entry_neighbor = newv1->exit_neighbor = vert_id(newv2);
-	newv2->entry_neighbor = newv2->exit_neighbor = vert_id(newv1);
+	vert_add_neighbor(newv1, newv2);
 	
 	return newv1;
 }
@@ -399,26 +503,51 @@ bool get_line_seg_intersection(GreinerV2f* poly1left,
 	return true;
 }
 
-// Yeah, the pairwise intersection test is O(n*m) instead of O(N*ln(N)), but
-// does it really matter if m==4 almost all the time? The sweepline algo has
-// many edge cases but this one is simpler. We can always move to sweepline
-// if this is too slow (maybe if someone tries to cut a speaker with 10,000 holes)?
-double min_dist = 1e-5;
-int add_verts_at_intersections(GreinerV2f* poly1, GreinerV2f* poly2) {
-	int added_pt_count = 0;
-	for (GreinerV2f* v1=poly1; v1->next; v1=v1->next) {
-		for (GreinerV2f* v2=poly2; v2->next; v2=v2->next) {
-			float a1, a2;
-			bool does_intersect = get_line_seg_intersection(v1,v1->next,&a1, v2,v2->next,&a2);
-			bool misses_v1 = fmin(a1,1-a1)>min_dist;
-			bool misses_v2 = fmin(a2,1-a2)>min_dist;
-			if (does_intersect && misses_v1 && misses_v2) {
-				insert_vert_at_intersect(v1,v1->next,a1, v2,v2->next,a2);
-				added_pt_count++;
-			}
-			if (v2->next==poly2) break;
+// 1   0
+//   v
+// 2   3
+inline int quadrant(float x, float y, float vx, float vy) {
+	if (y>vy) { // Upper half-plane is easy
+		return int(x<=vx);
+	} else {
+		if (y<vy) { // So is lower half-plane
+			return 2+int(x>=vx);
+		} else { //y==0
+			if (x>vx) return 0;
+			else if (x<vx) return 0;
+			return 99; // x==vx, y==vy
 		}
-		if (v1->next==poly1) break;
 	}
-	return added_pt_count;
+}
+
+bool GridMesh::point_in_polygon(float x, float y, GreinerV2f* poly) {
+	bool contains_boundary = true;
+	float last_x=poly->x, last_y=poly->y;
+	int last_quadrant = quadrant(last_x,last_y,x,y);
+	if (last_quadrant==99) return contains_boundary;
+	int ccw = 0; // Number of counter-clockwise quarter turns around pt
+	for (GreinerV2f* vert=&v[poly->next]; vert; vert=&v[vert->next]) {
+		float next_x=vert->x, next_y=vert->y;
+		int next_quadrant = quadrant(next_x, next_y, x, y);
+		if (next_quadrant==99) return contains_boundary;
+		int delta = next_quadrant-last_quadrant;
+		if (delta==1 || delta==-3) {
+			ccw += 1;
+		} else if (delta==-1 || delta==3) {
+			ccw -= 1;
+		} else if (delta==2 || delta==-2) {
+			double a11 = last_x-x;
+			double a12 = next_x-x;
+			double a21 = last_y-y;
+			double a22 = next_y-y;
+			double det = a11*a22-a12*a21;
+			if (fabs(det)<1e-5) return contains_boundary;
+			ccw += (det>0)? 2 : -2;
+		}
+		last_quadrant = next_quadrant;
+		last_x=next_x; last_y=next_y;
+		if (vert==poly) break;
+	}
+	// Note: return is_even to exclude self-intersecting regions
+	return ccw!=0;
 }
