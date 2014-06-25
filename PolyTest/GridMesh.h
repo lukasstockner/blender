@@ -51,41 +51,41 @@ struct GridMesh {
 				   double upperright_x, double upperright_y);
 	
 	// Basic vertex and polygon manipulation
-	GreinerV2f *vert_new();
-	GreinerV2f *vert_new(GreinerV2f *prev, GreinerV2f *next); // Make a new vert in the middle of an existing poly
+	int vert_new();
+	int vert_new(int prev, int next); // Make a new vert in the middle of an existing poly
 	int vert_id(GreinerV2f *vert) {return vert?int(vert-v):0;}
-	GreinerV2f *vert_neighbor_on_poly(GreinerV2f *vert, GreinerV2f *poly);
-	void vert_add_neighbor(GreinerV2f *vert, GreinerV2f *new_neighbor);
-	GreinerV2f *poly_for_cell(int x, int y);
-	GreinerV2f *poly_for_cell(float x, float y);
-	GreinerV2f *poly_first_vert(GreinerV2f *anyvert);
-	GreinerV2f *poly_last_vert(GreinerV2f *anyvert);
-	GreinerV2f *poly_next(GreinerV2f *anyvert);
-	GreinerV2f *poly_vert_at(GreinerV2f *anyvert, float x, float y);
-	bool poly_is_cyclic(GreinerV2f *poly);
-	void poly_set_cyclic(GreinerV2f *poly, bool cyclic);
-	int poly_num_edges(GreinerV2f *poly);
+	int vert_neighbor_on_poly(int vert, int poly);
+	void vert_add_neighbor(int vert, int new_neighbor);
+	int poly_for_cell(int x, int y);
+	int poly_for_cell(float x, float y);
+	int poly_first_vert(int anyvert);
+	int poly_last_vert(int anyvert);
+	int poly_next(int anyvert);
+	int poly_vert_at(int anyvert, float x, float y);
+	int poly_num_edges(int poly);
+	bool poly_is_cyclic(int poly);
+	void poly_set_cyclic(int poly, bool cyclic);
 	
 	// Intersection
-	bool point_in_polygon(float x, float y, GreinerV2f* poly);
-	int insert_vert_poly_gridmesh(GreinerV2f *poly);
-	int insert_vert_edge_poly(GreinerV2f *e, GreinerV2f *p);
-	int insert_vert_if_line_line(GreinerV2f *e1, GreinerV2f *e2);
-	GreinerV2f* insert_vert_line_line(GreinerV2f* poly1left,
-									  GreinerV2f* poly1right,
-									  float alpha1,
-									  GreinerV2f* poly2left,
-									  GreinerV2f* poly2right,
-									  float alpha2
-									  );
+	bool point_in_polygon(float x, float y, int poly);
+	int insert_vert_poly_gridmesh(int poly); // Returns # of vertices inserted.
+	int insert_vert_edge_poly(int e, int p); // Returns # of vertices inserted.
+	int insert_vert_if_line_line(int e1, int e2); // Returns # of vertices inserted.
+	int insert_vert_line_line(int poly1left,
+							  int poly1right,
+							  float alpha1,
+							  int poly2left,
+							  int poly2right,
+							  float alpha2
+							  );
 	void find_cell_line_intersections(double x0, double y0, double x1, double y1,
 									  std::vector<std::pair<int,int>> *bottom_edges,
 									  std::vector<std::pair<int,int>> *left_edges,
 									  std::vector<std::pair<int,int>> *integer_cells);
 #if defined(ENABLE_GLUT_DEMO)
 	// Draw
-	void poly_center(GreinerV2f *poly, float *cx, float *cy);
-	void poly_draw(GreinerV2f *poly, float shrinkby);
+	void poly_center(int poly, float *cx, float *cy);
+	void poly_draw(int poly, float shrinkby);
 #endif
 };
 

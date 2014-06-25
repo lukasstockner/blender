@@ -27,9 +27,7 @@ std::vector<float> clip_verts = {-0.460000,-0.004000, 0.360000,-0.072000, 0.3880
 GridMesh *gm;
 std::vector<float> inout_pts;
 
-
-
-GreinerV2f *clip = nullptr;
+int clip = 0; // Vertex index of the first vertex of the clip polygon
 
 int win_width = 500;
 int win_height = 500;
@@ -45,19 +43,19 @@ void init_default_scene() {
 	// Create the gridmesh
 	gm = new GridMesh(0,0,10,10,11,11);
 	// Import the clip polygon into the linked-list datastructure
-	GreinerV2f *last = nullptr;
+	int last = 0;
 	size_t clip_n = clip_verts.size()/2;
 	for (int i=0; i<clip_n; i++) {
-		GreinerV2f *v = gm->vert_new(last,nullptr);
+		int v = gm->vert_new(last,0);
 		if (!clip) clip = v;
-		v->first = gm->vert_id(clip);
-		v->x = clip_verts[2*i+0];
-		v->y = clip_verts[2*i+1];
+		gm->v[v].first = clip;
+		gm->v[v].x = clip_verts[2*i+0];
+		gm->v[v].y = clip_verts[2*i+1];
 		last = v;
 	}
 	if (clip_cyclic) {
-		clip->prev = gm->vert_id(last);
-		last->next = gm->vert_id(clip);
+		gm->v[clip].prev = last;
+		gm->v[last].next = clip;
 	}
 }
 
@@ -72,16 +70,16 @@ void GLUT_init(){
 
 
 /***************************** DRAW *****************************/
-#define next(vrt) (&gm->v[(vrt)->next])
 void GLUT_display(){
+	GreinerV2f *v = gm->v;
 	glClear(GL_COLOR_BUFFER_BIT);
 	// Draw Clip polygon lines
 	glLineWidth(1);
 	glBegin(GL_LINES);
 	glColor3f(.8,0,0);
-	float last_x=clip->x, last_y=clip->y;
-	for (GreinerV2f *vert=next(clip); vert; vert=next(vert)) {
-		float x=vert->x, y=vert->y;
+	float last_x=v[clip].x, last_y=v[clip].y;
+	for (int vert=v[clip].next; vert; vert=v[vert].next) {
+		float x=v[vert].x, y=v[vert].y;
 		glVertex2f(last_x,last_y);
 		glVertex2f(x,y);
 		last_x=x; last_y=y;
@@ -94,9 +92,9 @@ void GLUT_display(){
 	glBegin(GL_POINTS);
 	glColor3f(1,0,0);
 	bool first_iter = true;
-	for (GreinerV2f *v=clip; v; v=next(v)) {
-		glVertex2f(v->x,v->y);
-		if (!first_iter && v==clip) break;
+	for (int vert=clip; vert; vert=v[vert].next) {
+		glVertex2f(v[vert].x,v[vert].y);
+		if (!first_iter && vert==clip) break;
 		first_iter = false;
 	}
 	glEnd();
@@ -130,8 +128,8 @@ void GLUT_display(){
 	//Draw purple grid boxes on cells intersected by subj's first line segment
 	glColor3f(.5, 0, .5);
 	std::vector<std::pair<int,int>> bottom_edges, left_edges, integer_cells;
-	gm->find_cell_line_intersections(clip->x, clip->y,
-									 gm->v[clip->next].x, gm->v[clip->next].y,
+	gm->find_cell_line_intersections(v[clip].x, v[clip].y,
+									 v[v[clip].next].x, v[v[clip].next].y,
 									 &bottom_edges, &left_edges, &integer_cells);
 	glPointSize(10);
 	glBegin(GL_POINTS);
@@ -164,7 +162,7 @@ void GLUT_display(){
 }
 
 /***************************** INTERACTION *****************************/
-GreinerV2f *grabbed_vert = nullptr;
+int grabbed_vert = 0;
 
 void GLUT_reshape(int w, int h){
 	glViewport(0,0,w,h);
@@ -175,18 +173,19 @@ void GLUT_reshape(int w, int h){
 	}
 }
 void dump_polys_to_stdout() {
+	GreinerV2f *v = gm->v;
 	printf("bool clip_cyclic = %s; // Required for initialization\n",clip_cyclic?"true":"false");
 	printf("std::vector<float> clip_verts = {");
-	for (GreinerV2f *v=clip; gm->vert_id(v)&&v!=clip; v=&gm->v[v->next]) {
-		printf((v->next&&&gm->v[v->next]!=clip)?"%f,%f, ":"%f,%f};\n",v->x,v->y);
-		if (&gm->v[v->next]==clip) break;
+	for (int vert=clip; vert && vert!=clip; vert=v[vert].next) {
+		printf((v[vert].next && v[vert].next!=clip)?"%f,%f, ":"%f,%f};\n",v[vert].x,v[vert].y);
+		if (v[vert].next==clip) break;
 	}
 	printf("std::vector<float> inout_pts = {");
 	for (size_t i=0,l=inout_pts.size()/2; i<l; i++) {
 		printf((i!=l-1)?"%f,%f, ":"%f,%f};\n",inout_pts[2*i+0],inout_pts[2*i+1]);
 	}
 }
-void toggle_cyclic(GreinerV2f *curve) {
+void toggle_cyclic(int curve) {
 	bool iscyc = gm->poly_is_cyclic(curve);
 	gm->poly_set_cyclic(curve, !iscyc);
 	glutPostRedisplay();
@@ -194,12 +193,10 @@ void toggle_cyclic(GreinerV2f *curve) {
 void delete_last_selected_vert() {
 	// Don't allow #subj verts or #clip verts -> 0
 	if (!grabbed_vert || grabbed_vert==clip) return;
-	GreinerV2f *next = &gm->v[grabbed_vert->next];
-	GreinerV2f *prev = &gm->v[grabbed_vert->next];
-	int next_id = gm->vert_id(next);
-	int prev_id = gm->vert_id(prev);
-	prev->next = next_id;
-	next->prev = prev_id;
+	int next = gm->v[grabbed_vert].next;
+	int prev = gm->v[grabbed_vert].next;
+	gm->v[prev].next = next;
+	gm->v[next].prev = prev;
 	glutPostRedisplay();
 }
 #define GLUT_KEY_ESC 27
@@ -242,28 +239,29 @@ void GLUT_specialkey(int ch, int x, int y) {
 }
 void create_pt(float sx, float sy) {
 	if (!grabbed_vert) return;
-	GreinerV2f *last_vert = gm->poly_last_vert(grabbed_vert);
-	GreinerV2f *v = gm->vert_new(last_vert, &gm->v[last_vert->next]);
-	v->x = sx;
-	v->y = sy;
+	int last_vert = gm->poly_last_vert(grabbed_vert);
+	int v = gm->vert_new(last_vert, gm->v[last_vert].next);
+	gm->v[v].x = sx;
+	gm->v[v].y = sy;
 	grabbed_vert = v; // Let's drag the new vert we just made
 	glutPostRedisplay();
 }
 void initiate_pt_drag_if_near_pt(float sx, float sy) {
+	GreinerV2f *v = gm->v; // Vertex info array
 	float closest_dist = 1e50;
-	GreinerV2f *closest_vert = nullptr;
-	for (GreinerV2f *v=clip; v; v=&gm->v[v->next]) {
-		float dx = v->x - sx;
-		float dy = v->y - sy;
+	int closest_vert = 0;
+	for (int vert=clip; vert; vert=v[vert].next) {
+		float dx = v[vert].x - sx;
+		float dy = v[vert].y - sy;
 		float dist = sqrt(dx*dx + dy*dy);
 		if (dist<closest_dist) {
 			closest_dist = dist;
-			closest_vert = v;
+			closest_vert = vert;
 		}
-		if (&gm->v[v->next]==clip) break;
+		if (v[vert].next==clip) break;
 	}
 	if (debug) printf("Nearest point to mousedown (%f)\n",closest_dist);
-	grabbed_vert = (closest_dist<.1) ? closest_vert : nullptr;
+	grabbed_vert = (closest_dist<.1) ? closest_vert : 0;
 }
 void terminate_pt_drag() {
 	//grabbed_vert = nullptr;
@@ -302,8 +300,8 @@ void GLUT_motion(int x, int y) {
 	float sx,sy;
 	glut_coords_2_scene(x,y,&sx,&sy);
 	if (grabbed_vert) {
-		grabbed_vert->x = sx;
-		grabbed_vert->y = sy;
+		gm->v[grabbed_vert].x = sx;
+		gm->v[grabbed_vert].y = sy;
 		glutPostRedisplay();
 	}
 }
