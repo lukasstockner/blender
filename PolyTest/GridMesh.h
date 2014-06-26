@@ -36,9 +36,6 @@ struct IntersectingEdge {
 	double x,y,alpha1;
 	int e2; // e2 and v[e2].next make up the intersecting edge
 	IntersectingEdge(double x_, double y_, double a_, int v_) : x(x_), y(y_), alpha1(a_), e2(v_) {}
-	bool operator<(const IntersectingEdge& other) const {
-		return alpha1<other.alpha1;
-	}
 };
 
 struct GridMesh {

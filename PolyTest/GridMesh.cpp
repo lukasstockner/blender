@@ -390,6 +390,9 @@ int GridMesh::insert_vert(int poly1left,
 	return newv1;
 }
 
+static bool intersection_edge_order(const IntersectingEdge& e1, const IntersectingEdge& e2) {
+	return e1.alpha1 < e2.alpha1;
+}
 int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 	std::vector<std::pair<int,int>> bottom_edges, left_edges, integer_cells;
 	std::vector<std::vector<IntersectingEdge>> intersections;
@@ -410,6 +413,7 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 			std::vector<IntersectingEdge> isect_tmp = edge_poly_intersections(v1, cell_poly);
 			isect.insert(isect.end(),isect_tmp.begin(),isect_tmp.end());
 		}
+		std::sort(isect.begin(),isect.end(),intersection_edge_order);
 		intersections.push_back(isect);
 		verts_added += isect.size();
 		v1=v2; v1x=v2x; v1y=v2y;
@@ -449,7 +453,6 @@ std::vector<IntersectingEdge> GridMesh::edge_poly_intersections(int e1, int p) {
 		}
 		first_iter = false;
 	}
-	std::sort(ret.begin(),ret.end());
 	return ret;
 }
 
