@@ -84,8 +84,6 @@ int freestyle_viewport[4];
 // current scene
 Scene *freestyle_scene;
 
-static string default_module_path;
-
 static void load_post_callback(struct Main *main, struct ID *id, void *arg)
 {
 	lineset_copied = false;
@@ -114,9 +112,6 @@ void FRS_initialize()
 	controller->Clear();
 	freestyle_scene = NULL;
 	lineset_copied = false;
-
-	default_module_path = pathconfig->getProjectDir() + Config::DIR_SEP + "style_modules" +
-	                      Config::DIR_SEP + "contour.py";
 
 	BLI_callback_add(&load_post_callback_funcstore, BLI_CB_EVT_LOAD_POST);
 
