@@ -222,6 +222,10 @@ void GLUT_keyboard(unsigned char ch, int x, int y ) {
 		gm->insert_vert_poly_gridmesh(clip);
 		glutPostRedisplay();
 	}
+	if (ch=='t') {
+		gm->label_interior(clip);
+		glutPostRedisplay();
+	}
 	if (ch=='1') toggle_cyclic(clip);
 	if (ch==GLUT_KEY_DELETE) delete_last_selected_vert();
 }

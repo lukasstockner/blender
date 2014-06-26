@@ -55,10 +55,10 @@ GridMesh::GridMesh(double lowerleft_x, double lowerleft_y,
 			int iv2 = iv1+1;
 			int iv3 = iv1+2;
 			int iv4 = iv1+3;
-			v1->next = iv2; v2->prev = iv1; v1->first = iv1;
-			v2->next = iv3; v3->prev = iv2; v2->first = iv1;
-			v3->next = iv4; v4->prev = iv3; v3->first = iv1;
-			v4->next = iv1; v1->prev = iv4; v4->first = iv1;
+			v1->next = iv2; v2->prev = iv1; v1->first = iv1; v1->corner = 1;
+			v2->next = iv3; v3->prev = iv2; v2->first = iv1; v2->corner = 2;
+			v3->next = iv4; v4->prev = iv3; v3->first = iv1; v3->corner = 3;
+			v4->next = iv1; v1->prev = iv4; v4->first = iv1; v4->corner = 4;
 		}
 	}
 }
@@ -250,9 +250,14 @@ void GridMesh::poly_draw(int poly, float shrinkby) {
 	// Draw the polygon verts
 	glPointSize(3);
 	glBegin(GL_POINTS);
-	glColor3b(color.r, color.g, color.b);
+	glColor3ub(color.r, color.g, color.b);
 	v1 = poly;
 	do {
+		if (v[v1].is_interior) {
+			glColor3ub(255,255,0);
+		} else {
+			glColor3ub(0,0,255);
+		}
 		glVertex2f(v[v1].x, v[v1].y);
 		v1 = v[v1].next;
 	} while (v1 != poly);
@@ -371,14 +376,12 @@ int GridMesh::insert_vert(int poly1left,
 						  double x1, double y1
 						  ) {
 	// Insert an intersection vertex into polygon 1
-	printf("Insert vert into poly1: %i %i\n",poly1left,poly1right);
 	int newv1 = vert_new(poly1left,poly1right);
 	v[newv1].x = x1;
 	v[newv1].y = y1;
 	v[newv1].is_intersection = true;
 	
 	// Insert an intersection vertex into polygon 2
-	printf("Insert vert into poly2: %i %i\n",poly2left,poly2right);
 	int newv2 = vert_new(poly2left,poly2right);
 	v[newv2].x = x1;
 	v[newv2].y = y1;
@@ -436,6 +439,34 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 		if (v1==mpoly) break;
 	}
 	return verts_added;
+}
+
+void GridMesh::label_interior_cell(int x, int y, int poly, bool ll, bool *lr, bool*ul) {
+	int cell = poly_for_cell(x,y);
+	bool interior = ll;
+	bool first_is_interior = interior;
+	int vert = cell;
+	do {
+		v[vert].is_interior = interior;
+		if (v[vert].corner==2&&lr) *lr = interior;
+		if (v[vert].corner==4&&ul) *ul = interior;
+		if (v[vert].is_intersection) interior = !interior;
+		vert = v[vert].next;
+	} while (vert!=cell);
+	if (!interior==first_is_interior&&debug) {
+		printf("inconsistent interior call!\n");
+	}
+}
+
+void GridMesh::label_interior(int poly) {
+	bool ll_next_row = point_in_polygon(0, 0, poly);
+	for (int j=0; j<ny; j++) {
+		bool ll;
+		label_interior_cell(0, j, poly, ll_next_row, &ll, &ll_next_row);
+		for (int i=1; i<nx; i++) {
+			label_interior_cell(i, j, poly, ll, &ll, nullptr);
+		}
+	}
 }
 
 std::vector<IntersectingEdge> GridMesh::edge_poly_intersections(int e1, int p) {

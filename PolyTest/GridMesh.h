@@ -25,11 +25,12 @@ struct GreinerV2f {
 	bool is_intersection; // True if this vertex was added at an intersection
 	bool is_interior;
 	bool is_trivial; // True if this polygon has four vertices corresponding precisely to its cell bounds
+	char corner; // 1=ll, 2=lr, 3=ur, 4=ul, 0 = none
 	int neighbor; // Corresp. vertex at same {x,y} in different polygon
 	
 	GreinerV2f() :	next(0), prev(0),
 					next_poly(0), neighbor(0), first(0),
-					is_intersection(false) {};
+					is_intersection(false), corner(0) {};
 };
 
 struct IntersectingEdge {
@@ -75,6 +76,8 @@ struct GridMesh {
 	// Intersection
 	bool point_in_polygon(double x, double y, int poly);
 	int insert_vert_poly_gridmesh(int poly); // Returns # of vertices inserted.
+	void label_interior(int poly);
+	void label_interior_cell(int x, int y, int poly, bool ll, bool *lr, bool*ul);
 	std::vector<IntersectingEdge> edge_poly_intersections(int e1, int p);
 	int insert_vert(int poly1left,
 					int poly1right,
