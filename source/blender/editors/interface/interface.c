@@ -2031,7 +2031,7 @@ void ui_get_but_string_ex(uiBut *but, char *str, const size_t maxlen, const int 
 		}
 		else if (buf && buf != str) {
 			/* string was too long, we have to truncate */
-			memcpy(str, buf, MIN2(maxlen, (size_t)buf_len + 1));
+			memcpy(str, buf, MIN2(maxlen, (size_t)(buf_len + 1)));
 			MEM_freeN((void *)buf);
 		}
 	}
@@ -3834,8 +3834,7 @@ void uiBlockSetDirection(uiBlock *block, char direction)
 /* this call escapes if there's alignment flags */
 void uiBlockFlipOrder(uiBlock *block)
 {
-	ListBase lb;
-	uiBut *but, *next;
+	uiBut *but;
 	float centy, miny = 10000, maxy = -10000;
 
 	if (U.uiflag & USER_MENUFIXEDORDER)
@@ -3857,15 +3856,7 @@ void uiBlockFlipOrder(uiBlock *block)
 	}
 	
 	/* also flip order in block itself, for example for arrowkey */
-	BLI_listbase_clear(&lb);
-	but = block->buttons.first;
-	while (but) {
-		next = but->next;
-		BLI_remlink(&block->buttons, but);
-		BLI_addtail(&lb, but);
-		but = next;
-	}
-	block->buttons = lb;
+	BLI_listbase_reverse(&block->buttons);
 }
 
 

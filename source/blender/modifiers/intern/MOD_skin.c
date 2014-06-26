@@ -1705,6 +1705,11 @@ static BMesh *build_skin(SkinNode *skin_nodes,
 	so.bm = BM_mesh_create(&bm_mesh_allocsize_default);
 	so.mat_nr = 0;
 	
+	/* BMESH_TODO: bumping up the stack level (see MOD_array.c) */
+	BM_mesh_elem_toolflags_ensure(so.bm);
+	BMO_push(so.bm, NULL);
+	bmesh_edit_begin(so.bm, 0);
+
 	if (input_dvert)
 		BM_data_layer_add(so.bm, &so.bm->vdata, CD_MDEFORMVERT);
 
@@ -1752,13 +1757,12 @@ static BMesh *build_skin(SkinNode *skin_nodes,
 
 static void skin_set_orig_indices(DerivedMesh *dm)
 {
-	int *orig, totpoly, i;
+	int *orig, totpoly;
 
 	totpoly = dm->getNumPolys(dm);
 	orig = CustomData_add_layer(&dm->polyData, CD_ORIGINDEX,
 	                            CD_CALLOC, NULL, totpoly);
-	for (i = 0; i < totpoly; i++)
-		orig[i] = ORIGINDEX_NONE;
+	fill_vn_i(orig, totpoly, ORIGINDEX_NONE);
 }
 
 /*
