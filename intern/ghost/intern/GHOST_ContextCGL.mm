@@ -247,7 +247,7 @@ static void makeAttribList(
 
 
 
-GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext(bool stereoVisual, GHOST_TUns16 numOfAASamples)
+GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext()
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
@@ -268,35 +268,35 @@ GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext(bool stereoVisual, GHO
 	static const bool needStencil = false;
 #endif
 
-	makeAttribList(attribs, stereoVisual, numOfAASamples, needAlpha, needStencil);
+	makeAttribList(attribs, m_stereoVisual, m_numOfAASamples, needAlpha, needStencil);
 
 	NSOpenGLPixelFormat *pixelFormat;
 
 	pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:&attribs[0]];
 
 	// Fall back to no multisampling if Antialiasing init failed
-	if (numOfAASamples > 0 && pixelFormat == nil) {
+	if (m_numOfAASamples > 0 && pixelFormat == nil) {
 		// XXX jwilkins: Does CGL only succeed when it makes an exact match on the number of samples?
 		// Does this need to explicitly try for a lesser match before giving up?
 		// (Now that I think about it, does WGL really require the code that it has for finding a lesser match?)
 
 		attribs.clear();
-		makeAttribList(attribs, stereoVisual, 0, needAlpha, needStencil);
+		makeAttribList(attribs, m_stereoVisual, 0, needAlpha, needStencil);
 		pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:&attribs[0]];
 	}
 
 	if (pixelFormat == nil)
 		goto error;
 
-	if (numOfAASamples > 0) { //Set m_numOfAASamples to the actual value
+	if (m_numOfAASamples > 0) { //Set m_numOfAASamples to the actual value
 		GLint actualSamples;
 		[pixelFormat getValues:&actualSamples forAttribute:NSOpenGLPFASamples forVirtualScreen:0];
 
-		if (numOfAASamples != (GHOST_TUns16)actualSamples) {
+		if (m_numOfAASamples != (GHOST_TUns16)actualSamples) {
 			fprintf(
 				stderr,
 				"Warning! Unable to find a multisample pixel format that supports exactly %d samples. Substituting one that uses %d samples.\n",
-				numOfAASamples,
+				m_numOfAASamples,
 				actualSamples);
 
 			m_numOfAASamples = (GHOST_TUns16)actualSamples;

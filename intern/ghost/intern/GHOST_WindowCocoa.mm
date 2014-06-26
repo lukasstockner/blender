@@ -1205,8 +1205,8 @@ GHOST_Context* GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 			GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_COMPAT)
 		GHOST_Context* context = new GHOST_ContextCGL(
-			m_initStereoVisual,
-			m_initNumOfAASamples,
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
 			m_window,
 			m_openGLView,
 			0,
@@ -1221,8 +1221,8 @@ GHOST_Context* GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 
 #if defined(WITH_GL_PROFILE_CORE)
 		GHOST_Context* context = new GHOST_ContextEGL(
-			m_initStereoVisual,
-			m_initNumOfAASamples,
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
 			m_window,
 			m_openGLView,
 			EGL_OPENGL_API,
@@ -1232,8 +1232,8 @@ GHOST_Context* GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_ES20)
 		GHOST_Context* context = new GHOST_ContextEGL(
-			m_initStereoVisual,
-			m_initNumOfAASamples,
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
 			m_window,
 			m_openGLView,
 			EGL_OPENGL_ES_API,
@@ -1243,8 +1243,8 @@ GHOST_Context* GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType ty
 			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_COMPAT)
 		GHOST_Context* context = new GHOST_ContextEGL(
-			m_initStereoVisual,
-			m_initNumOfAASamples,
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
 			m_window,
 			m_openGLView,
 			EGL_OPENGL_API,
