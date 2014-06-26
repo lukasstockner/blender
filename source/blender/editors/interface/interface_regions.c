@@ -2651,7 +2651,7 @@ static float uiPieTitleWidth(const char *name, int icon)
 		        (UI_UNIT_X * (1.50f + (icon ? 0.25f : 0.0f)));
 }
 
-struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, short event)
+struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const wmEvent *event)
 {
 	uiStyle *style = UI_GetStyleDraw();
 	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
@@ -2662,10 +2662,11 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 	/* pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY; */
 	pie->block_radial->puphash = ui_popup_menu_hash(title);
 	pie->block_radial->flag |= UI_BLOCK_RADIAL;
-	pie->block_radial->pie_data.event = event;
+	pie->block_radial->pie_data.event = event->type;
 
 	pie->layout = uiBlockLayout(pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
-
+	pie->mx = event->x;
+	pie->my = event->y;
 
 	/* create title button */
 	if (title[0]) {
@@ -2689,8 +2690,6 @@ void uiPieMenuEnd(bContext *C, uiPieMenu *pie)
 {
 	wmWindow *window = CTX_wm_window(C);
 	uiPopupBlockHandle *menu;
-	pie->mx = window->eventstate->x;
-	pie->my = window->eventstate->y;
 
 	menu = ui_popup_block_create(C, NULL, NULL, NULL, ui_block_func_PIE, pie);
 	menu->popup = true;
@@ -2708,7 +2707,7 @@ uiLayout *uiPieMenuLayout(uiPieMenu *pie)
 	return pie->layout;
 }
 
-void uiPieMenuInvoke(struct bContext *C, const char *idname, short event)
+void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *event)
 {
 	uiPieMenu *pie;
 	uiLayout *layout;

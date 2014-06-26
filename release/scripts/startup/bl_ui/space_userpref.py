@@ -220,6 +220,7 @@ class USERPREF_PT_interface(Panel):
         col.label(text="Pie Menus:")
         sub = col.column(align=True)
         sub.prop(view, "pie_drag_timeout")
+        sub.prop(view, "pie_operator_timeout")
         sub.prop(view, "pie_initial_timeout")
         sub.prop(view, "pie_menu_radius")
         sub.prop(view, "pie_menu_threshold")

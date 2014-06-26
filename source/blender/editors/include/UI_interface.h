@@ -358,8 +358,8 @@ bool uiPupMenuInvoke(struct bContext *C, const char *idname, struct ReportList *
 /* Pie menus */
 typedef struct uiPieMenu uiPieMenu;
 
-void uiPieMenuInvoke(struct bContext *C, const char *idname, short event);
-uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, short event) ATTR_NONNULL();
+void uiPieMenuInvoke(struct bContext *C, const char *idname, const struct wmEvent *event);
+uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const struct wmEvent *event) ATTR_NONNULL();
 void uiPieMenuEnd(struct bContext *C, uiPieMenu *pie);
 struct uiLayout *uiPieMenuLayout(struct uiPieMenu *pie);
 /* Popup Blocks

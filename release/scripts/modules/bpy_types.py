@@ -142,7 +142,7 @@ class WindowManager(bpy_types.ID):
 
     def menu_pie(self, event, draw_func, title="", icon='NONE'):
         import bpy
-        pie = self.piemenu_begin__internal(title, icon, event.type)
+        pie = self.piemenu_begin__internal(title, icon, event)
 
         try:
             draw_func(pie, bpy.context)

@@ -2055,7 +2055,7 @@ static int wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *e
 	char idname[BKE_ST_MAXNAME];
 	RNA_string_get(op->ptr, "name", idname);
 
-	uiPieMenuInvoke(C, idname, event->type);
+	uiPieMenuInvoke(C, idname, event);
 
 	return OPERATOR_CANCELLED;
 }
@@ -2108,11 +2108,11 @@ static int wm_call_pie_menu_timer_modal(bContext *C, wmOperator *op, const wmEve
 	}
 
 	if (event->type == TIMER) {
-		if (data->timer->duration > U.pie_drag_timeout / 10.0f) {
+		if (data->timer->duration > U.pie_operator_timeout / 100.0f) {
 			char idname[BKE_ST_MAXNAME];
 			RNA_string_get(op->ptr, "name", idname);
 
-			uiPieMenuInvoke(C, idname, data->event.type);
+			uiPieMenuInvoke(C, idname, &data->event);
 
 			WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), data->timer);
 			MEM_freeN(data);

@@ -3203,12 +3203,16 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 
 	/* pie menus */
 	prop = RNA_def_property(srna, "pie_drag_timeout", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_text(prop, "Drag Timeout", "Pie menus turn to drag style after this amount of time (in  1/10ths of sec)");
+	RNA_def_property_range(prop, 0, 1000);
+	RNA_def_property_ui_text(prop, "Drag Timeout", "Pie menus turn to drag style after this amount of time (in 1/100ths of sec)");
 
 	prop = RNA_def_property(srna, "pie_initial_timeout", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 0, 100);
-	RNA_def_property_ui_text(prop, "Recenter Timeout", "Pie menus will use the initial mouse position as center for this amount of time (in  1/10ths of sec)");
+	RNA_def_property_range(prop, 0, 1000);
+	RNA_def_property_ui_text(prop, "Recenter Timeout", "Pie menus will use the initial mouse position as center for this amount of time (in 1/100ths of sec)");
+
+	prop = RNA_def_property(srna, "pie_operator_timeout", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 0, 1000);
+	RNA_def_property_ui_text(prop, "Operator Timeout", "Pie menus will spawn a pie menu if button is released before this amount of time (in 1/100ths of sec)");
 
 	prop = RNA_def_property(srna, "pie_menu_radius", PROP_INT, PROP_PIXEL);
 	RNA_def_property_range(prop, 0, 1000);

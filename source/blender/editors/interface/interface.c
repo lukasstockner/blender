@@ -322,11 +322,15 @@ static void ui_centered_bounds_block(wmWindow *window, uiBlock *block)
 	
 }
 
-static void ui_centered_pie_bounds_block(uiBlock *block, const int xy[2])
+static void ui_centered_pie_bounds_block(uiBlock *block)
 {
 	int startx;
 	int width, height;
 
+	const int xy[2] = {
+	    block->pie_data.pie_center_spawned[0],
+	    block->pie_data.pie_center_spawned[1]
+	};
 	/* note: this is used for the splash where window bounds event has not been
 	 * updated by ghost, get the window bounds from ghost directly */
 
@@ -1205,7 +1209,7 @@ void uiEndBlock_ex(const bContext *C, uiBlock *block, const int xy[2])
 			ui_centered_bounds_block(window, block);
 			break;
 		case UI_BLOCK_BOUNDS_PIE_CENTER:
-			ui_centered_pie_bounds_block(block, xy);
+			ui_centered_pie_bounds_block(block);
 			break;
 
 			/* fallback */

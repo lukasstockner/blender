@@ -2459,6 +2459,9 @@ void init_userdef_do_versions(void)
 		if (U.pie_menu_threshold == 0)
 			U.pie_menu_threshold = 12;
 
+		if (U.pie_operator_timeout == 0)
+			U.pie_operator_timeout = 20;
+
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			btheme->tui.wcol_pie_menu = wcol_pie_menu;
 		}

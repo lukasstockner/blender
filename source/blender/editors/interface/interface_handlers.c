@@ -8400,7 +8400,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 	time_diff = PIL_check_seconds_timer() - menu->towardstime;
 
 	/* deactivate initial direction after a while */
-	if (time_diff > 0.1 * U.pie_initial_timeout) {
+	if (time_diff > 0.01 * U.pie_initial_timeout) {
 		block->pie_data.flags &= ~UI_PIE_INITIAL_DIRECTION;
 		/* force redraw */
 		ED_region_tag_redraw(ar);
@@ -8414,7 +8414,10 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 	ui_block_calculate_pie_segment(block, mx, my);
 
 	if (block->pie_data.flags & UI_PIE_CANCELLED) {
-		if (event->type == block->pie_data.event && event->val == KM_RELEASE) {
+		if ((event->type == block->pie_data.event && event->val == KM_RELEASE) ||
+		    event->type == RIGHTMOUSE ||
+		    event->type == ESCKEY)
+		{
 			menu->menuretval = UI_RETURN_OK;
 		}
 
@@ -8430,7 +8433,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			ED_region_tag_redraw(ar);
 		}
 		else {
-			if (time_diff > U.pie_drag_timeout * 0.1) {
+			if (time_diff > U.pie_drag_timeout * 0.01) {
 				retval = ui_pie_menu_apply(C, menu, event, true);
 			}
 			else {
@@ -8457,6 +8460,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				}
 				break;
 
+			case ESCKEY:
 			case RIGHTMOUSE:
 				menu->menuretval = UI_RETURN_CANCEL;
 				break;

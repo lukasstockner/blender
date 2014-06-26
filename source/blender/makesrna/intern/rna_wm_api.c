@@ -311,12 +311,12 @@ static void rna_PupMenuEnd(bContext *C, PointerRNA *handle)
 }
 
 /* pie menu wrapper */
-static PointerRNA rna_PieMenuBegin(bContext *C, const char *title, int icon, int type)
+static PointerRNA rna_PieMenuBegin(bContext *C, const char *title, int icon, PointerRNA *event)
 {
 	PointerRNA r_ptr;
 	void *data;
 
-	data = (void *)uiPieMenuBegin(C, title, icon, type);
+	data = (void *)uiPieMenuBegin(C, title, icon, event->data);
 
 	RNA_pointer_create(NULL, &RNA_UIPieMenu, data, &r_ptr);
 
@@ -487,8 +487,8 @@ void RNA_api_wm(StructRNA *srna)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_property(func, "icon", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(parm, icon_items);
-	parm = RNA_def_property(func, "type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_items(parm, event_type_items);
+	parm = RNA_def_pointer(func, "event", "Event", "", "");
+	RNA_def_property_flag(parm, PROP_RNAPTR | PROP_NEVER_NULL);
 	/* return */
 	parm = RNA_def_pointer(func, "menu_pie", "UIPieMenu", "", "");
 	RNA_def_property_flag(parm, PROP_RNAPTR | PROP_NEVER_NULL);
