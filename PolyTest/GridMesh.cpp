@@ -258,7 +258,11 @@ void GridMesh::poly_draw(int poly, float shrinkby) {
 		} else {
 			glColor3ub(0,0,255);
 		}
-		glVertex2f(v[v1].x, v[v1].y);
+		float x=v[v1].x, y=v[v1].y;
+		float cx, cy; poly_center(v[v1].first, &cx, &cy);
+		x = (1.0-shrinkby)*x + shrinkby*cx;
+		y = (1.0-shrinkby)*y + shrinkby*cy;
+		glVertex2f(x,y);
 		v1 = v[v1].next;
 	} while (v1 != poly);
 	glEnd();
@@ -296,7 +300,9 @@ void find_integer_cell_line_intersections(double x0, double y0, double x1, doubl
 											   std::vector<std::pair<int,int>> *bottom_edges,
 											   std::vector<std::pair<int,int>> *left_edges,
 											   std::vector<std::pair<int,int>> *integer_cells) {
+	bool flipped_left_right = false;
 	if (x0>x1) { // Ensure order is left to right
+		flipped_left_right = true;
 		std::swap(x0,x1);
 		std::swap(y0,y1);
 	}
@@ -367,6 +373,11 @@ void find_integer_cell_line_intersections(double x0, double y0, double x1, doubl
 			rhy += m;
 		}
 	}
+	if (flipped_left_right) {
+		if (integer_cells) std::reverse(integer_cells->begin(), integer_cells->end());
+		if (bottom_edges) std::reverse(bottom_edges->begin(), bottom_edges->end());
+		if (left_edges) std::reverse(left_edges->begin(), left_edges->end());
+	}
 }
 
 int GridMesh::insert_vert(int poly1left,
@@ -408,7 +419,7 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 		int v2 = v[v1].next;
 		float v2x=v[v2].x, v2y=v[v2].y;
 		integer_cells.clear();
-		find_integer_cell_line_intersections(v1x,v1y,v2x,v2y,nullptr,nullptr,&integer_cells);
+		find_cell_line_intersections(v1x,v1y,v2x,v2y,nullptr,nullptr,&integer_cells);
 		std::vector<IntersectingEdge> isect;
 		for (std::pair<int,int> j : integer_cells) {
 			int cell_poly = poly_for_cell(j.first, j.second);

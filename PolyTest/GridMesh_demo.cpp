@@ -71,6 +71,7 @@ void GLUT_init(){
 
 /***************************** DRAW *****************************/
 void GLUT_display(){
+	float contraction = .2; // Move polygon edges and verts closer to their center
 	GreinerV2f *v = gm->v;
 	glClear(GL_COLOR_BUFFER_BIT);
 	// Draw Clip polygon lines
@@ -80,6 +81,12 @@ void GLUT_display(){
 	float last_x=v[clip].x, last_y=v[clip].y;
 	for (int vert=v[clip].next; vert; vert=v[vert].next) {
 		float x=v[vert].x, y=v[vert].y;
+		if (v[vert].is_intersection) {
+			float cx, cy;
+			gm->poly_center(v[v[vert].neighbor].first, &cx, &cy);
+			x = (1.0-contraction)*x + contraction*cx;
+			y = (1.0-contraction)*y + contraction*cy;
+		}
 		glVertex2f(last_x,last_y);
 		glVertex2f(x,y);
 		last_x=x; last_y=y;
@@ -93,7 +100,14 @@ void GLUT_display(){
 	glColor3f(1,0,0);
 	bool first_iter = true;
 	for (int vert=clip; vert; vert=v[vert].next) {
-		glVertex2f(v[vert].x,v[vert].y);
+		float x=v[vert].x, y=v[vert].y;
+		if (v[vert].is_intersection) {
+			float cx, cy;
+			gm->poly_center(v[v[vert].neighbor].first, &cx, &cy);
+			x = (1.0-contraction)*x + contraction*cx;
+			y = (1.0-contraction)*y + contraction*cy;
+		}
+		glVertex2f(x,y);
 		if (!first_iter && vert==clip) break;
 		first_iter = false;
 	}
@@ -102,7 +116,7 @@ void GLUT_display(){
 	// Draw Subject polygon lines & verts
 	for (int i=0; i<gm->nx; i++) {
 		for (int j=0; j<gm->ny; j++) {
-			gm->poly_draw(gm->poly_for_cell(i,j), .04);
+			gm->poly_draw(gm->poly_for_cell(i,j), contraction);
 		}
 	}
 	
