@@ -32,6 +32,15 @@ struct GreinerV2f {
 					is_intersection(false) {};
 };
 
+struct IntersectingEdge {
+	double x,y,alpha1;
+	int e2; // e2 and v[e2].next make up the intersecting edge
+	IntersectingEdge(double x_, double y_, double a_, int v_) : x(x_), y(y_), alpha1(a_), e2(v_) {}
+	bool operator<(const IntersectingEdge& other) const {
+		return alpha1<other.alpha1;
+	}
+};
+
 struct GridMesh {
 	static float tolerance;
 	// Vertex storage. Example: "int prev" in a GreinerV2f refers to v[prev].
@@ -67,17 +76,15 @@ struct GridMesh {
 	void poly_set_cyclic(int poly, bool cyclic);
 	
 	// Intersection
-	bool point_in_polygon(float x, float y, int poly);
+	bool point_in_polygon(double x, double y, int poly);
 	int insert_vert_poly_gridmesh(int poly); // Returns # of vertices inserted.
-	int insert_vert_edge_poly(int e, int p); // Returns # of vertices inserted.
-	int insert_vert_if_line_line(int e1, int e2); // Returns # of vertices inserted.
-	int insert_vert_line_line(int poly1left,
-							  int poly1right,
-							  float alpha1,
-							  int poly2left,
-							  int poly2right,
-							  float alpha2
-							  );
+	std::vector<IntersectingEdge> edge_poly_intersections(int e1, int p);
+	int insert_vert(int poly1left,
+					int poly1right,
+					int poly2left,
+					int poly2right,
+					double x1, double y1
+					);
 	void find_cell_line_intersections(double x0, double y0, double x1, double y1,
 									  std::vector<std::pair<int,int>> *bottom_edges,
 									  std::vector<std::pair<int,int>> *left_edges,
@@ -95,13 +102,13 @@ void find_integer_cell_line_intersections(double x0, double y0, double x1, doubl
 										  std::vector<std::pair<int,int>> *left_edges,
 										  std::vector<std::pair<int,int>> *integer_cells);
 
-bool get_line_seg_intersection(GreinerV2f* poly1left,
-							   GreinerV2f* poly1right,
-							   float* alpha1,
-							   GreinerV2f* poly2left,
-							   GreinerV2f* poly2right,
-							   float* alpha2
-							   );
+int line_line_intersection(double ax, double ay, // Line 1, vert 1 A
+						   double bx, double by, // Line 1, vert 2 B
+						   double cx, double cy, // Line 2, vert 1 C
+						   double dx, double dy, // Line 2, vert 2 D
+						   double *ix, double *iy, // Intersection point
+						   double *alpha1
+						   );
 
 
 #endif

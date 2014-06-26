@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <map>
+#include <algorithm>
 #include "GridMesh.h"
 
 static bool debug = 1;
@@ -130,12 +131,16 @@ void GridMesh::poly_set_cyclic(int poly, bool cyc) {
 }
 
 int GridMesh::poly_for_cell(int x, int y) {
+	if (x<0||x>=nx) return 0;
+	if (y<0||y>=nx) return 0;
 	return 1+4*(y*nx+x);
 }
 
 int GridMesh::poly_for_cell(float fx, float fy) {
 	int x = floor((fx-llx)*inv_dx);
+	if (x<0||x>=nx) return 0;
 	int y = floor((fy-lly)*inv_dy);
+	if (y<0||y>=nx) return 0;
 	return 1+4*(y*nx+x);
 }
 
@@ -199,30 +204,6 @@ void GridMesh::vert_add_neighbor(int v1, int v2) {
 	}
 }
 
-
-int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
-	std::vector<std::pair<int,int>> bottom_edges, left_edges, integer_cells;
-	mpoly = poly_first_vert(mpoly);
-	int v1 = mpoly;
-	float v1x=v[v1].x, v1y=v[v1].y;
-	int verts_added = 0;
-	while (v[v1].next) {
-		int v2 = v[mpoly].next;
-		float v2x=v[v2].x, v2y=v[v2].y;
-		bottom_edges.clear();
-		left_edges.clear();
-		integer_cells.clear();
-		find_integer_cell_line_intersections(v1x,v1y,v2x,v2y,&bottom_edges,&left_edges,&integer_cells);
-		for (std::pair<int,int> j : integer_cells) {
-			int cell_poly = poly_for_cell(j.first, j.second);
-			verts_added += insert_vert_edge_poly(v1, cell_poly);
-		}
-		v1=v2; v1x=v2x; v1y=v2y;
-		if (v1==mpoly) break;
-	}
-	return verts_added;
-}
-
 #if defined(ENABLE_GLUT_DEMO)
 void GridMesh::poly_center(int poly, float *cx, float *cy) {
 	int vert = poly;
@@ -267,15 +248,15 @@ void GridMesh::poly_draw(int poly, float shrinkby) {
 	} while (v1 != poly);
 	glEnd();
 	// Draw the polygon verts
-//	glPointSize(3);
-//	glBegin(GL_POINTS);
-//	glColor3b(color.r, color.g, color.b);
-//	v1 = poly;
-//	do {
-//		glVertex2f(v1->x, v1->y);
-//		v1 = &v[v1->next];
-//	} while (v1 != poly);
-//	glEnd();
+	glPointSize(3);
+	glBegin(GL_POINTS);
+	glColor3b(color.r, color.g, color.b);
+	v1 = poly;
+	do {
+		glVertex2f(v[v1].x, v[v1].y);
+		v1 = v[v1].next;
+	} while (v1 != poly);
+	glEnd();
 }
 #endif
 
@@ -383,68 +364,21 @@ void find_integer_cell_line_intersections(double x0, double y0, double x1, doubl
 	}
 }
 
-int GridMesh::insert_vert_edge_poly(int e, int p) {
-	int e1=e, e2=p;
-	int total_verts_added = 0;
-	do {
-		total_verts_added += insert_vert_if_line_line(e1, e2);
-		e2 = v[e2].next;
-		if (e2==0) break;
-	} while (e2!=p);
-	return total_verts_added;
-}
-
-
-int GridMesh::insert_vert_if_line_line(int e1, int e2) {
-	int e1l = e1;
-	int e1r = v[e1].next;
-	int e2l = e2;
-	int e2r = v[e2].next;
-	float a1, a2;
-	if (get_line_seg_intersection(&v[e1l], &v[e1r], &a1, &v[e2l], &v[e2r], &a2)) {
-		insert_vert_line_line(e1l, e1r, a1, e2l, e2r, a2);
-		return 1;
-	}
-	return 0;
-}
-
-int GridMesh::insert_vert_line_line(int poly1left,
-									int poly1right,
-									float alpha1,
-									int poly2left,
-									int poly2right,
-									float alpha2
-									) {
-	// Interpolate beteen poly1left, poly1right according to alpha
-	// to find the location at which we are going to add the intersection
-	// vertices (1 for each polygon, each at the same spatial position)
-	float x1 = (1-alpha1)*v[poly1left].x + alpha1*v[poly1right].x;
-	float y1 = (1-alpha1)*v[poly1left].y + alpha1*v[poly1right].y;
-	if (debug) {
-		// If this really is an intersection, we should get the same position
-		// by interpolating the poly1 edge as we do by interpolating the poly2
-		// edge. If debug==true, check!
-		float x2 = (1-alpha2)*v[poly2left].x + alpha2*v[poly2right].x;
-		float y2 = (1-alpha2)*v[poly2left].y + alpha2*v[poly2right].y;
-		float xdiff = x1-x2;
-		float ydiff = y1-y2;
-		if (sqrt(xdiff*xdiff+ydiff*ydiff)>GridMesh::tolerance) {
-			printf("WARNING: bad intersection\n!");
-		}
-		// "Left" vertices should always come before "right" vertices in the
-		// corresponding linked lists
-		if (v[poly1left].next!=poly1right || v[poly1right].prev!=poly1left)
-			printf("WARNING: 'left', 'right' vertices in wrong order\n");
-		if (v[poly2left].next!=poly2right || v[poly2right].prev!=poly2left)
-			printf("WARNING: 'left', 'right' vertices in wrong order\n");
-	}
+int GridMesh::insert_vert(int poly1left,
+						  int poly1right,
+						  int poly2left,
+						  int poly2right,
+						  double x1, double y1
+						  ) {
 	// Insert an intersection vertex into polygon 1
+	printf("Insert vert into poly1: %i %i\n",poly1left,poly1right);
 	int newv1 = vert_new(poly1left,poly1right);
 	v[newv1].x = x1;
 	v[newv1].y = y1;
 	v[newv1].is_intersection = true;
 	
 	// Insert an intersection vertex into polygon 2
+	printf("Insert vert into poly2: %i %i\n",poly2left,poly2right);
 	int newv2 = vert_new(poly2left,poly2right);
 	v[newv2].x = x1;
 	v[newv2].y = y1;
@@ -456,43 +390,112 @@ int GridMesh::insert_vert_line_line(int poly1left,
 	return newv1;
 }
 
+int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
+	std::vector<std::pair<int,int>> bottom_edges, left_edges, integer_cells;
+	std::vector<std::vector<IntersectingEdge>> intersections;
+	mpoly = poly_first_vert(mpoly);
+	// Step 1: find all the intersections
+	int v1 = mpoly;
+	float v1x=v[v1].x, v1y=v[v1].y;
+	int verts_added = 0;
+	while (v[v1].next) {
+		int v2 = v[v1].next;
+		float v2x=v[v2].x, v2y=v[v2].y;
+		integer_cells.clear();
+		find_integer_cell_line_intersections(v1x,v1y,v2x,v2y,nullptr,nullptr,&integer_cells);
+		std::vector<IntersectingEdge> isect;
+		for (std::pair<int,int> j : integer_cells) {
+			int cell_poly = poly_for_cell(j.first, j.second);
+			if (!cell_poly) continue;
+			std::vector<IntersectingEdge> isect_tmp = edge_poly_intersections(v1, cell_poly);
+			isect.insert(isect.end(),isect_tmp.begin(),isect_tmp.end());
+		}
+		intersections.push_back(isect);
+		verts_added += isect.size();
+		v1=v2; v1x=v2x; v1y=v2y;
+		if (v1==mpoly) break;
+	}
+	// Step 2: insert them
+	v1 = mpoly;
+	v1x=v[v1].x; v1y=v[v1].y;
+	std::vector<std::vector<IntersectingEdge>>::iterator it = intersections.begin();
+	while (v[v1].next) {
+		int v2 = v[v1].next;
+		float v2x=v[v2].x, v2y=v[v2].y;
+		integer_cells.clear();
+		find_integer_cell_line_intersections(v1x,v1y,v2x,v2y,nullptr,nullptr,&integer_cells);
+		std::vector<IntersectingEdge>& isect = *it++;
+		for (IntersectingEdge ie : isect) {
+			v1 = insert_vert(v1, v2, ie.e2, v[ie.e2].next, ie.x, ie.y);
+		}
+		v1=v2; v1x=v2x; v1y=v2y;
+		if (v1==mpoly) break;
+	}
+	return verts_added;
+}
+
+std::vector<IntersectingEdge> GridMesh::edge_poly_intersections(int e1, int p) {
+	std::vector<IntersectingEdge> ret;
+	bool first_iter = true;
+	for (int e2=p; e2!=p||first_iter; e2=v[e2].next) {
+		double ax=v[e1].x, ay=v[e1].y;
+		double bx=v[v[e1].next].x, by=v[v[e1].next].y;
+		double cx=v[e2].x, cy=v[e2].y;
+		double dx=v[v[e2].next].x, dy=v[v[e2].next].y;
+		double ix, iy, alpha1; // Intersection info
+		int isect = line_line_intersection(ax, ay, bx, by, cx, cy, dx, dy, &ix, &iy, &alpha1);
+		if (isect) {
+			ret.push_back(IntersectingEdge(ix,iy,alpha1,e2));
+		}
+		first_iter = false;
+	}
+	std::sort(ret.begin(),ret.end());
+	return ret;
+}
+
 // Returns true if p1,p2,p3 form a tripple that is in counter-clockwise
 // orientation. In other words, if ((p2-p1)x(p3-p2)).z >0
-inline bool points_ccw(GreinerV2f* p1, GreinerV2f* p2, GreinerV2f* p3) {
-	float x1=p1->x, x2=p2->x, x3=p3->x;
-	float y1=p1->y, y2=p2->y, y3=p3->y;
-	float z = x1*(y2-y3) + x2*(y3-y1) + x3*(y1-y2);
+inline bool points_ccw(double x1, double y1, double x2, double y2, double x3, double y3) {
+	double z = x1*(y2-y3) + x2*(y3-y1) + x3*(y1-y2);
 	return z>0;
 }
 
-bool get_line_seg_intersection(GreinerV2f* poly1left,
-							   GreinerV2f* poly1right,
-							   float* alpha1,
-							   GreinerV2f* poly2left,
-							   GreinerV2f* poly2right,
-							   float* alpha2
-							   ) {
-	// poly1left--------poly1right
-	//   poly2left------------poly2right
+int line_line_intersection(double ax, double ay, // Line 1, vert 1 A
+						   double bx, double by, // Line 1, vert 2 B
+						   double cx, double cy, // Line 2, vert 1 C
+						   double dx, double dy, // Line 2, vert 2 D
+						   double *ix, double *iy, // Intersection point
+						   double *alpha1
+) {
+	// (ax,ay)--------(bx,by)
+	//   (cx,cy)------------(dx,dy)
 	// Do they intersect? If so, return true and fill alpha{1,2} with the
 	// affine interpolation params necessary to find the intersection.
-	bool ccw_acd = points_ccw(poly1left, poly2left, poly2right);
-	bool ccw_bcd = points_ccw(poly1right, poly2left, poly2right);
+	bool ccw_acd = points_ccw(ax,ay, cx,cy, dx,dy); // could reformulate to extract point-line distances
+	bool ccw_bcd = points_ccw(bx,by, cx,cy, dx,dy);
 	if (ccw_acd==ccw_bcd) return false;
-	bool ccw_abc = points_ccw(poly1left, poly1right, poly2left);
-	bool ccw_abd = points_ccw(poly1left, poly1right, poly2right);
+	bool ccw_abc = points_ccw(ax,ay, bx,by, cx,cy);
+	bool ccw_abd = points_ccw(ax,ay, bx,by, dx,dy);
 	if (ccw_abc==ccw_abd) return false;
-	double a11 = poly1right->x - poly1left->x;
-	double a12 = poly2left->x - poly2right->x;
-	double a21 = poly1right->y - poly1left->y;
-	double a22 = poly2left->y - poly2right->y;
-	double idet = 1/(a11*a22-a12*a21);
-	double b1 = poly2left->x-poly1left->x;
-	double b2 = poly2left->y-poly1left->y;
-	double x1 = (+b1*a22 -b2*a12)*idet;
-	double x2 = (-b1*a21 +b2*a11)*idet;
-	if (alpha1) *alpha1 = x1;
-	if (alpha2) *alpha2 = x2;
+	double a11 = bx - ax;
+	double a12 = cx - dx;
+	double a21 = by - ay;
+	double a22 = cy - dy;
+	double det = a11*a22-a12*a21; //~=0 iff colinear
+	double idet = 1/det;
+	double b1 = cx-ax;
+	double b2 = cy-ay;
+	double x1 = (+b1*a22 -b2*a12)*idet; // alpha1
+	double x2 = (-b1*a21 +b2*a11)*idet; // alpha2
+	*ix = (1.0-x1)*ax + x1*bx;
+	*iy = (1.0-x1)*ay + x1*by;
+	*alpha1 = x1;
+	if (debug) {
+		double ix2 = (1.0-x2)*cx + x2*dx;
+		double iy2 = (1.0-x2)*cy + x2*dy;
+		if (fabs(*ix-ix2)>.001) printf("Bug detected in intersection math.\n");
+		if (fabs(*iy-iy2)>.001) printf("Bug detected in intersection math.\n");
+	}
 	return true;
 }
 
@@ -513,7 +516,7 @@ inline int quadrant(float x, float y, float vx, float vy) {
 	}
 }
 
-bool GridMesh::point_in_polygon(float x, float y, int poly) {
+bool GridMesh::point_in_polygon(double x, double y, int poly) {
 	bool contains_boundary = true;
 	float last_x=v[poly].x, last_y=v[poly].y;
 	int last_quadrant = quadrant(last_x,last_y,x,y);
