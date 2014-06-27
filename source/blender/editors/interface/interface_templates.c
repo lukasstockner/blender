@@ -209,7 +209,6 @@ static uiBlock *id_search_menu(bContext *C, ARegion *ar, void *arg_litem)
 	
 	uiBoundsBlock(block, 0.3f * U.widget_unit);
 	uiBlockSetDirection(block, UI_DOWN);
-	uiEndBlock(C, block);
 	
 	/* give search-field focus */
 	uiButSetFocusOnEnter(win, but);
@@ -340,7 +339,7 @@ static const char *template_id_browse_tip(StructRNA *type)
 			case ID_LA:  return N_("Browse Lamp Data to be linked");
 			case ID_CA:  return N_("Browse Camera Data to be linked");
 			case ID_WO:  return N_("Browse World Settings to be linked");
-			case ID_SCR: return N_("Choose Screen lay-out");
+			case ID_SCR: return N_("Choose Screen layout");
 			case ID_TXT: return N_("Browse Text to be linked");
 			case ID_SPK: return N_("Browse Speaker Data to be linked");
 			case ID_SO:  return N_("Browse Sound to be linked");
@@ -418,11 +417,9 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 
 		but = uiDefBlockButN(block, id_search_menu, MEM_dupallocN(template), "", 0, 0, UI_UNIT_X * 6, UI_UNIT_Y * 6,
 		                     TIP_(template_id_browse_tip(type)));
-		if (type) {
-			but->icon = RNA_struct_ui_icon(type);
-			if (id) but->icon = ui_id_icon_get(C, id, true);
-			uiButSetFlag(but, UI_HAS_ICON | UI_ICON_PREVIEW);
-		}
+		but->icon = id ? ui_id_icon_get(C, id, true) : RNA_struct_ui_icon(type);
+		uiButSetFlag(but, UI_HAS_ICON | UI_ICON_PREVIEW);
+
 		if ((idfrom && idfrom->lib) || !editable)
 			uiButSetFlag(but, UI_BUT_DISABLED);
 		
@@ -431,14 +428,11 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	else if (flag & UI_ID_BROWSE) {
 		but = uiDefBlockButN(block, id_search_menu, MEM_dupallocN(template), "", 0, 0, UI_UNIT_X * 1.6, UI_UNIT_Y,
 		                     TIP_(template_id_browse_tip(type)));
-
-		if (type) {
-			but->icon = RNA_struct_ui_icon(type);
-			/* default dragging of icon for id browse buttons */
-			uiButSetDragID(but, id);
-			uiButSetFlag(but, UI_HAS_ICON);
-			uiButSetDrawFlag(but, UI_BUT_ICON_LEFT);
-		}
+		but->icon = RNA_struct_ui_icon(type);
+		/* default dragging of icon for id browse buttons */
+		uiButSetDragID(but, id);
+		uiButSetFlag(but, UI_HAS_ICON);
+		uiButSetDrawFlag(but, UI_BUT_ICON_LEFT);
 
 		if ((idfrom && idfrom->lib) || !editable)
 			uiButSetFlag(but, UI_BUT_DISABLED);
@@ -1656,8 +1650,7 @@ static uiBlock *icon_view_menu(bContext *C, ARegion *ar, void *arg_litem)
 
 	uiBoundsBlock(block, 0.3f * U.widget_unit);
 	uiBlockSetDirection(block, UI_TOP);
-	uiEndBlock(C, block);
-		
+
 	if (free) {
 		MEM_freeN(item);
 	}
@@ -3552,8 +3545,7 @@ static uiBlock *component_menu(bContext *C, ARegion *ar, void *args_v)
 	uiItemR(layout, &args->ptr, args->propname, UI_ITEM_R_EXPAND, "", ICON_NONE);
 	
 	uiBoundsBlock(block, 6);
-	uiBlockSetDirection(block, UI_DOWN);	
-	uiEndBlock(C, block);
+	uiBlockSetDirection(block, UI_DOWN);
 	
 	return block;
 }

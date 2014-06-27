@@ -93,6 +93,9 @@ static struct GPUGlobal {
 	GPUOSType os;
 	GPUDriverType driver;
 	GPUShaders shaders;
+	GPUTexture *invalid_tex_1D; /* texture used in place of invalid textures (not loaded correctly, missing) */
+	GPUTexture *invalid_tex_2D;
+	GPUTexture *invalid_tex_3D;
 } GG = {1, 0};
 
 /* GPU Types */
@@ -222,6 +225,8 @@ void GPU_extensions_init(void)
 	GG.os = GPU_OS_UNIX;
 #endif
 
+
+	GPU_invalid_tex_init();
 	GPU_simple_shaders_init();
 }
 
@@ -230,6 +235,7 @@ void GPU_extensions_exit(void)
 	gpu_extensions_init = 0;
 	GPU_codegen_exit();
 	GPU_simple_shaders_exit();
+	GPU_invalid_tex_free();
 }
 
 int GPU_glsl_support(void)
@@ -571,11 +577,6 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, bool is_data,
 		return ima->gputexture;
 	}
 
-	if (!bindcode) {
-		glBindTexture(GL_TEXTURE_2D, lastbindcode);
-		return NULL;
-	}
-
 	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->bindcode = bindcode;
 	tex->number = -1;
@@ -586,7 +587,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, bool is_data,
 	ima->gputexture= tex;
 
 	if (!glIsTexture(tex->bindcode)) {
-		GPU_print_error("Blender Texture");
+		GPU_print_error("Blender Texture Not Loaded");
 	}
 	else {
 		glBindTexture(GL_TEXTURE_2D, tex->bindcode);
@@ -624,12 +625,6 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 		return tex;
 	}
 
-	/* error binding anything */
-	if (!bindcode) {
-		glBindTexture(GL_TEXTURE_2D, lastbindcode);
-		return NULL;
-	}
-	
 	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->bindcode = bindcode;
 	tex->number = -1;
@@ -639,7 +634,7 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 	prv->gputexture[0]= tex;
 	
 	if (!glIsTexture(tex->bindcode)) {
-		GPU_print_error("Blender Texture");
+		GPU_print_error("Blender Texture Not Loaded");
 	}
 	else {
 		glBindTexture(GL_TEXTURE_2D, tex->bindcode);
@@ -705,6 +700,37 @@ GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256])
 	return tex;
 }
 
+void GPU_invalid_tex_init(void)
+{
+	float color[4] = {1.0f, 0.0f, 1.0f, 1.0};
+	GG.invalid_tex_1D = GPU_texture_create_1D(1, color, NULL);
+	GG.invalid_tex_2D = GPU_texture_create_2D(1, 1, color, NULL);
+	GG.invalid_tex_3D = GPU_texture_create_3D(1, 1, 1, 4, color);
+}
+
+void GPU_invalid_tex_bind(int mode)
+{
+	switch (mode) {
+		case GL_TEXTURE_1D:
+			glBindTexture(GL_TEXTURE_1D, GG.invalid_tex_1D->bindcode);
+			break;
+		case GL_TEXTURE_2D:
+			glBindTexture(GL_TEXTURE_2D, GG.invalid_tex_2D->bindcode);
+			break;
+		case GL_TEXTURE_3D:
+			glBindTexture(GL_TEXTURE_3D, GG.invalid_tex_3D->bindcode);
+			break;
+	}
+}
+
+void GPU_invalid_tex_free(void)
+{
+	GPU_texture_free(GG.invalid_tex_1D);
+	GPU_texture_free(GG.invalid_tex_2D);
+	GPU_texture_free(GG.invalid_tex_3D);
+}
+
+
 void GPU_texture_bind(GPUTexture *tex, int number)
 {
 	GLenum arbnumber;
@@ -721,7 +747,11 @@ void GPU_texture_bind(GPUTexture *tex, int number)
 
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + number);
 	if (number != 0) glActiveTextureARB(arbnumber);
-	glBindTexture(tex->target, tex->bindcode);
+	if (tex->bindcode != 0) {
+		glBindTexture(tex->target, tex->bindcode);
+	}
+	else
+		GPU_invalid_tex_bind(tex->target);
 	glEnable(tex->target);
 	if (number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
 
@@ -1396,7 +1426,10 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
 
 	if (tex->number != 0) glActiveTextureARB(arbnumber);
-	glBindTexture(tex->target, tex->bindcode);
+	if (tex->bindcode != 0)
+		glBindTexture(tex->target, tex->bindcode);
+	else
+		GPU_invalid_tex_bind(tex->target);
 	glUniform1iARB(location, tex->number);
 	glEnable(tex->target);
 	if (tex->number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);

@@ -38,6 +38,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_edgehash.h"
 #include "BLI_utildefines.h"
+#include "BLI_stackdefines.h"
 
 #include "BKE_pbvh.h"
 #include "BKE_cdderivedmesh.h"
@@ -2769,17 +2770,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	MEM_freeN(oldv);
 	MEM_freeN(olde);
 	MEM_freeN(oldl);
-	MEM_freeN(oldp);
-
-	STACK_FREE(oldv);
-	STACK_FREE(olde);
-	STACK_FREE(oldl);
-	STACK_FREE(oldp);
-
-	STACK_FREE(mvert);
-	STACK_FREE(medge);
-	STACK_FREE(mloop);
-	STACK_FREE(mpoly);
+	MEM_freeN(oldp);;
 
 	BLI_edgehash_free(ehash, NULL);
 
@@ -2804,15 +2795,15 @@ void CDDM_calc_edges_tessface(DerivedMesh *dm)
 	eh = BLI_edgeset_new_ex(__func__, BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(numFaces));
 
 	for (i = 0; i < numFaces; i++, mf++) {
-		BLI_edgeset_reinsert(eh, mf->v1, mf->v2);
-		BLI_edgeset_reinsert(eh, mf->v2, mf->v3);
+		BLI_edgeset_add(eh, mf->v1, mf->v2);
+		BLI_edgeset_add(eh, mf->v2, mf->v3);
 		
 		if (mf->v4) {
-			BLI_edgeset_reinsert(eh, mf->v3, mf->v4);
-			BLI_edgeset_reinsert(eh, mf->v4, mf->v1);
+			BLI_edgeset_add(eh, mf->v3, mf->v4);
+			BLI_edgeset_add(eh, mf->v4, mf->v1);
 		}
 		else {
-			BLI_edgeset_reinsert(eh, mf->v3, mf->v1);
+			BLI_edgeset_add(eh, mf->v3, mf->v1);
 		}
 	}
 

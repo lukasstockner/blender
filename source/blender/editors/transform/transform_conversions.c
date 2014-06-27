@@ -1899,37 +1899,45 @@ static void editmesh_set_connectivity_distance(BMesh *bm, float mtx[3][3], float
 		memcpy(dists_prev, dists, sizeof(float) * bm->totvert);
 
 		while ((v = BLI_LINKSTACK_POP(queue))) {
-			BMIter iter;
-			BMEdge *e;
-			BMLoop *l;
+			/* quick checks */
+			bool has_edges = (v->e != NULL);
+			bool has_faces = false;
 
 			/* connected edge-verts */
-			BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
-				if (BM_elem_flag_test(e, BM_ELEM_HIDDEN) == 0) {
-					BMVert *v_other = BM_edge_other_vert(e, v);
-					if (bmesh_test_dist_add(v, v_other, dists, dists_prev, mtx)) {
-						if (BM_elem_flag_test(v_other, BM_ELEM_TAG) == 0) {
-							BM_elem_flag_enable(v_other, BM_ELEM_TAG);
-							BLI_LINKSTACK_PUSH(queue_next, v_other);
-						}
-					}
-				}
-			}
-			
-			/* connected face-verts (excluding adjacent verts) */
-			BM_ITER_ELEM (l, &iter, v, BM_LOOPS_OF_VERT) {
-				if ((BM_elem_flag_test(l->f, BM_ELEM_HIDDEN) == 0) && (l->f->len > 3)) {
-					BMLoop *l_end = l->prev;
-					l = l->next->next;
-					do {
-						BMVert *v_other = l->v;
+			if (has_edges) {
+				BMIter iter;
+				BMEdge *e;
+
+				BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
+					has_faces |= (BM_edge_is_wire(e) == false);
+
+					if (BM_elem_flag_test(e, BM_ELEM_HIDDEN) == 0) {
+						BMVert *v_other = BM_edge_other_vert(e, v);
 						if (bmesh_test_dist_add(v, v_other, dists, dists_prev, mtx)) {
 							if (BM_elem_flag_test(v_other, BM_ELEM_TAG) == 0) {
 								BM_elem_flag_enable(v_other, BM_ELEM_TAG);
 								BLI_LINKSTACK_PUSH(queue_next, v_other);
 							}
 						}
-					} while ((l = l->next) != l_end);
+					}
+				}
+			}
+			
+			/* imaginary edge diagonally across quad */
+			if (has_faces) {
+				BMIter iter;
+				BMLoop *l;
+
+				BM_ITER_ELEM (l, &iter, v, BM_LOOPS_OF_VERT) {
+					if ((BM_elem_flag_test(l->f, BM_ELEM_HIDDEN) == 0) && (l->f->len == 4)) {
+						BMVert *v_other = l->next->next->v;
+						if (bmesh_test_dist_add(v, v_other, dists, dists_prev, mtx)) {
+							if (BM_elem_flag_test(v_other, BM_ELEM_TAG) == 0) {
+								BM_elem_flag_enable(v_other, BM_ELEM_TAG);
+								BLI_LINKSTACK_PUSH(queue_next, v_other);
+							}
+						}
+					}
 				}
 			}
 		}
@@ -2623,7 +2631,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
 
 				if (propconnected) {
 					UvElement *element = BM_uv_element_get(elementmap, efa, l);
-					BLI_BITMAP_SET(island_enabled, element->island);
+					BLI_BITMAP_ENABLE(island_enabled, element->island);
 				}
 
 			}
@@ -2664,7 +2672,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
 
 			if (propconnected) {
 				UvElement *element = BM_uv_element_get(elementmap, efa, l);
-				if (!BLI_BITMAP_GET(island_enabled, element->island)) {
+				if (!BLI_BITMAP_TEST(island_enabled, element->island)) {
 					count_rejected++;
 					continue;
 				}
@@ -4101,8 +4109,8 @@ void flushTransGraphData(TransInfo *t)
 	     a++, td++, td2d++, tdg++)
 	{
 		AnimData *adt = (AnimData *)td->extra; /* pointers to relevant AnimData blocks are stored in the td->extra pointers */
-		float unit_scale = tdg->unit_scale;
-		
+		float inv_unit_scale = 1.0f / tdg->unit_scale;
+
 		/* handle snapping for time values
 		 *	- we should still be in NLA-mapping timespace
 		 *	- only apply to keyframes (but never to handles)
@@ -4159,16 +4167,16 @@ void flushTransGraphData(TransInfo *t)
 		if (td->flag & TD_INTVALUES)
 			td2d->loc2d[1] = floorf(td2d->loc[1] + 0.5f);
 		else
-			td2d->loc2d[1] = td2d->loc[1] / unit_scale;
+			td2d->loc2d[1] = td2d->loc[1] * inv_unit_scale;
 		
 		if ((td->flag & TD_MOVEHANDLE1) && td2d->h1) {
 			td2d->h1[0] = td2d->ih1[0] + td->loc[0] - td->iloc[0];
-			td2d->h1[1] = td2d->ih1[1] + td->loc[1] - td->iloc[1];
+			td2d->h1[1] = td2d->ih1[1] + (td->loc[1] - td->iloc[1]) * inv_unit_scale;
 		}
 		
 		if ((td->flag & TD_MOVEHANDLE2) && td2d->h2) {
 			td2d->h2[0] = td2d->ih2[0] + td->loc[0] - td->iloc[0];
-			td2d->h2[1] = td2d->ih2[1] + td->loc[1] - td->iloc[1];
+			td2d->h2[1] = td2d->ih2[1] + (td->loc[1] - td->iloc[1]) * inv_unit_scale;
 		}
 	}
 }

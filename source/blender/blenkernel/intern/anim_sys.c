@@ -986,8 +986,8 @@ void BKE_all_animdata_fix_paths_rename(ID *ref_id, const char *prefix, const cha
 		AnimData *adt = BKE_animdata_from_id(id); \
 		NtId_Type *ntp = (NtId_Type *)id; \
 		if (ntp->nodetree) { \
-			AnimData *adt2 = BKE_animdata_from_id((ID *)ntp); \
-			BKE_animdata_fix_paths_rename((ID *)ntp, adt2, ref_id, prefix, oldName, newName, 0, 0, 1); \
+			AnimData *adt2 = BKE_animdata_from_id((ID *)ntp->nodetree); \
+			BKE_animdata_fix_paths_rename((ID *)ntp->nodetree, adt2, ref_id, prefix, oldName, newName, 0, 0, 1); \
 		} \
 		BKE_animdata_fix_paths_rename(id, adt, ref_id, prefix, oldName, newName, 0, 0, 1); \
 	} (void)0
@@ -1168,7 +1168,7 @@ KS_Path *BKE_keyingset_add_path(KeyingSet *ks, ID *id, const char group_name[], 
 	
 	/* just copy path info */
 	/* TODO: should array index be checked too? */
-	ksp->rna_path = BLI_strdupn(rna_path, strlen(rna_path));
+	ksp->rna_path = BLI_strdup(rna_path);
 	ksp->array_index = array_index;
 	
 	/* store flags */

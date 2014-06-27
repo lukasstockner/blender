@@ -558,7 +558,7 @@ static bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
 		 */
 		if (ob->mode & OB_MODE_SCULPT) {
 			float stroke[3];
-			ED_sculpt_get_average_stroke(ob, stroke);
+			ED_sculpt_stroke_get_average(ob, stroke);
 			copy_v3_v3(lastofs, stroke);
 		}
 		else {
@@ -3276,7 +3276,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 
 	/* Get Z Depths, needed for perspective, nice for ortho */
 	bgl_get_mats(&mats);
-	draw_depth(scene, ar, v3d, NULL, true);
+	ED_view3d_draw_depth(scene, ar, v3d, true);
 	
 	{
 		/* avoid allocating the whole depth buffer */
@@ -4511,7 +4511,7 @@ bool ED_view3d_autodist(Scene *scene, ARegion *ar, View3D *v3d,
 
 	/* Get Z Depths, needed for perspective, nice for ortho */
 	bgl_get_mats(&mats);
-	draw_depth(scene, ar, v3d, NULL, alphaoverride);
+	ED_view3d_draw_depth(scene, ar, v3d, alphaoverride);
 
 	depth_close = view_autodist_depth_margin(ar, mval, 4);
 
@@ -4543,10 +4543,10 @@ void ED_view3d_autodist_init(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 	/* Get Z Depths, needed for perspective, nice for ortho */
 	switch (mode) {
 		case 0:
-			draw_depth(scene, ar, v3d, NULL, true);
+			ED_view3d_draw_depth(scene, ar, v3d, true);
 			break;
 		case 1:
-			draw_depth_gpencil(scene, ar, v3d);
+			ED_view3d_draw_depth_gpencil(scene, ar, v3d);
 			break;
 	}
 }

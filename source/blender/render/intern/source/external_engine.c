@@ -60,6 +60,7 @@
 #include "RE_bake.h"
 
 #include "initrender.h"
+#include "renderpipeline.h"
 #include "render_types.h"
 #include "render_result.h"
 
@@ -411,8 +412,8 @@ void RE_bake_engine_set_engine_parameters(Render *re, Main *bmain, Scene *scene)
 	re->r = scene->r;
 
 	/* prevent crash when freeing the scene
-	 but it potentially leaves unfreed memory blocks
-	 not sure how to fix this yet -- dfelinto */
+	 * but it potentially leaves unfreed memory blocks
+	 * not sure how to fix this yet -- dfelinto */
 	BLI_listbase_clear(&re->r.layers);
 }
 
@@ -575,6 +576,7 @@ int RE_engine_render(Render *re, int do_all)
 		}
 
 		BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene, lay);
+		render_update_anim_renderdata(re, &re->scene->r);
 	}
 
 	/* create render result */

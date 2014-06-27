@@ -27,6 +27,9 @@
 
 #include "glew-mx.h"
 
+#include <stdio.h>
+
+
 #include "RAS_OpenGLLight.h"
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_ICanvas.h"

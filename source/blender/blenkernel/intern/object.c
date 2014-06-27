@@ -1083,6 +1083,9 @@ void BKE_object_lod_sort(Object *ob)
 bool BKE_object_lod_remove(Object *ob, int level)
 {
 	LodLevel *rem;
+	
+	if (ob == NULL)
+		return false;
 
 	if (level < 1 || level > BLI_countlist(&ob->lodlevels) - 1)
 		return false;
@@ -1479,7 +1482,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 	defgroup_copy_list(&obn->defbase, &ob->defbase);
 	BKE_constraints_copy(&obn->constraints, &ob->constraints, true);
 
-	obn->mode = 0;
+	obn->mode = OB_MODE_OBJECT;
 	obn->sculpt = NULL;
 
 	/* increase user numbers */
@@ -2975,7 +2978,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 				lamp_drivers_update(scene, ob->data, ctime);
 			
 			/* particles */
-			if (ob->particlesystem.first) {
+			if (ob != scene->obedit && ob->particlesystem.first) {
 				ParticleSystem *tpsys, *psys;
 				DerivedMesh *dm;
 				ob->transflag &= ~OB_DUPLIPARTS;

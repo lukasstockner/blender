@@ -477,7 +477,7 @@ class VIEW3D_MT_view_align(Menu):
 
 
 class VIEW3D_MT_view_align_selected(Menu):
-    bl_label = "Align View to Selected"
+    bl_label = "Align View to Active"
 
     def draw(self, context):
         layout = self.layout
@@ -2160,6 +2160,7 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.operator("mesh.merge")
         layout.operator("mesh.rip_move")
         layout.operator("mesh.rip_move_fill")
+        layout.operator("mesh.rip_edge_move")
         layout.operator("mesh.split")
         layout.operator_menu_enum("mesh.separate", "type")
         layout.operator("mesh.vert_connect", text="Connect")
