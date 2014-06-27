@@ -109,7 +109,7 @@ void GLUT_init(){
 
 /***************************** DRAW *****************************/
 void GLUT_display(){
-	float contraction = .2; // Move polygon edges and verts closer to their center
+	float contraction = .04; // Move polygon edges and verts closer to their center
 	GreinerV2f *v = gm->v;
 	glClear(GL_COLOR_BUFFER_BIT);
 	// Draw Clip polygon lines
@@ -319,6 +319,9 @@ void GLUT_keyboard(unsigned char ch, int x, int y ) {
 	}
 	if (ch=='i') {
 		gm->insert_vert_poly_gridmesh(clip);
+		for (int poly=subj; poly; poly=gm->v[poly].next_poly) {
+			gm->insert_vert_poly_gridmesh(poly);
+		}
 		glutPostRedisplay();
 	}
 	if (ch=='t') {
