@@ -1717,6 +1717,11 @@ class VIEW3D_PIE_tests(Menu):
         col.prop(sculpt, "detail_refine_method", text="")
         col.prop(sculpt, "detail_type_method", text="")
 
+        if context.sculpt_object.use_dynamic_topology_sculpting:
+            pie.operator("sculpt.dynamic_topology_toggle", icon='X', text="Disable Dyntopo")
+        else:
+            pie.operator("sculpt.dynamic_topology_toggle", icon='SCULPT_DYNTOPO', text="Enable Dyntopo")
+
 
         
     @classmethod
