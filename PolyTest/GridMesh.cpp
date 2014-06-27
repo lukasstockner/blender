@@ -301,29 +301,35 @@ void find_integer_cell_line_intersections(double x0, double y0, double x1, doubl
 											   std::vector<std::pair<int,int>> *left_edges,
 											   std::vector<std::pair<int,int>> *integer_cells) {
 	bool flipped_left_right = false;
-	if (x0>x1) { // Ensure order is left to right
-		flipped_left_right = true;
-		std::swap(x0,x1);
-		std::swap(y0,y1);
-	}
 	int cx0=xs_FloorToInt(x0), cy0=xs_FloorToInt(y0), cx1=xs_FloorToInt(x1), cy1=xs_FloorToInt(y1);
 	// Line segments smaller than a cell's minimum dimension should always hit these trivial cases
 	if (cy0==cy1) { //Horizontal or single-cell
 		if (integer_cells) {
-			for (int i=cx0; i<=cx1; i++)
-				integer_cells->push_back(std::make_pair(i,cy0));
+			if (cx0<cx1) {
+				for (int i=cx0; i<=cx1; i++)
+					integer_cells->push_back(std::make_pair(i,cy0));
+			} else {
+				for (int i=cx0; i>=cx1; i--)
+					integer_cells->push_back(std::make_pair(i,cy0));
+			}
 		}
 		if (left_edges) {
-			for (int i=cx0+1; i<=cx1; i++)
-				left_edges->push_back(std::make_pair(i,cy0));
+			if (cx0<cx1) {
+				for (int i=cx0+1; i<=cx1; i++)
+					left_edges->push_back(std::make_pair(i,cy0));
+			} else {
+				for (int i=cx0; i>cx1; i++)
+					left_edges->push_back(std::make_pair(i,cy0));
+			}
 		}
+		return;
 	} else if (cx0==cx1) { // Vertical
 		if (integer_cells) {
 			if (cy0<cy1) {
 				for (int i=cy0; i<=cy1; i++)
 					integer_cells->push_back(std::make_pair(cx0,i));
 			} else {
-				for (int i=cy1; i<=cy0; i++)
+				for (int i=cy0; i>=cy1; i--)
 					integer_cells->push_back(std::make_pair(cx1,i));
 			}
 		}
@@ -331,14 +337,20 @@ void find_integer_cell_line_intersections(double x0, double y0, double x1, doubl
 			if (cy0<cy1) {
 				for (int i=cy0+1; i<=cy1; i++)
 					bottom_edges->push_back(std::make_pair(cx0,i));
-			}
-			else {
-				for (int i=cy1+1; i<=cy0; i++)
+			} else {
+				for (int i=cy0; i>cy1; i--)
 					bottom_edges->push_back(std::make_pair(cx1,i));
 			}
 		}
-	} else {
-		// Line segments that make us think :)
+		return;
+	} else { // Line segments that make us think :)
+		if (x0>x1) { // Reduce 4 cases (up and left, up and right, down and left, down and right) to 2
+			flipped_left_right = true;
+			std::swap(x0,x1);
+			std::swap(y0,y1);
+			std::swap(cx0,cx1);
+			std::swap(cy0,cy1);
+		}
 		double m = (y1-y0)/(x1-x0);
 		double residue_x=(cx0+1)-x0;
 		double rhy = y0+residue_x*m; // y coord at the right edge of the cell
@@ -371,11 +383,11 @@ void find_integer_cell_line_intersections(double x0, double y0, double x1, doubl
 				rhy += m;
 			}
 		}
-	}
-	if (flipped_left_right) {
-		if (integer_cells) std::reverse(integer_cells->begin(), integer_cells->end());
-		if (bottom_edges) std::reverse(bottom_edges->begin(), bottom_edges->end());
-		if (left_edges) std::reverse(left_edges->begin(), left_edges->end());
+		if (flipped_left_right) {
+			if (integer_cells) std::reverse(integer_cells->begin(), integer_cells->end());
+			if (bottom_edges) std::reverse(bottom_edges->begin(), bottom_edges->end());
+			if (left_edges) std::reverse(left_edges->begin(), left_edges->end());
+		}
 	}
 }
 
@@ -421,7 +433,7 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 	while (v[v1].next) {
 		int v2 = v[v1].next;
 		float v2x=v[v2].x, v2y=v[v2].y;
-		printf("(%f,%f)---line--(%f,%f)\n",v1x,v1y,v2x,v2y);
+		//printf("(%f,%f)---line--(%f,%f)\n",v1x,v1y,v2x,v2y);
 		integer_cells.clear();
 		find_cell_line_intersections(v1x,v1y,v2x,v2y,nullptr,nullptr,&integer_cells);
 		std::vector<IntersectingEdge> isect;
@@ -431,10 +443,10 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 			if (!cell_poly) continue;
 			std::vector<IntersectingEdge> isect_tmp = edge_poly_intersections(v1, cell_poly);
 			for (IntersectingEdge& e : isect_tmp) {
-				printf("(%i,%i)",j.first,j.second);
+				//printf("(%i,%i)",j.first,j.second);
 				e.cellidx = int(i);
 			}
-			printf("\n");
+			//printf("\n");
 			isect.insert(isect.end(),isect_tmp.begin(),isect_tmp.end());
 		}
 		std::stable_sort(isect.begin(),isect.end(),intersection_edge_order);
