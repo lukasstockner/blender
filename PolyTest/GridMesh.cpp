@@ -318,7 +318,7 @@ void find_integer_cell_line_intersections(double x0, double y0, double x1, doubl
 				for (int i=cx0+1; i<=cx1; i++)
 					left_edges->push_back(std::make_pair(i,cy0));
 			} else {
-				for (int i=cx0; i>cx1; i++)
+				for (int i=cx0; i>cx1; i--)
 					left_edges->push_back(std::make_pair(i,cy0));
 			}
 		}

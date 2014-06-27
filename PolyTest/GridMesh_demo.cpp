@@ -22,12 +22,17 @@ float intersect_check_tol = .001; //Maximum Euclidean dist between intersect pts
 #include "GridMesh.h"
 
 /***************************** DEFAULT SCENE *****************************/
+GridMesh *gm;
 bool clip_cyclic = true; // Required for initialization
 std::vector<float> clip_verts = {-0.460000,-0.004000, 0.360000,-0.072000, 0.388000,-0.744000, -0.440000,-0.720000};
-GridMesh *gm;
+bool subj_cyclic = true;
+std::vector<float> subj0 = {-0.500000,-0.500000, 0.500000,-0.500000};
+std::vector<float> subj1 = {-0.500000,-0.000000, 0.500000,-0.000000};
+std::vector<std::vector<float>> subj_polys = {subj0,subj1};
 std::vector<float> inout_pts;
 
 int clip = 0; // Vertex index of the first vertex of the clip polygon
+int subj = 0;
 
 int win_width = 500;
 int win_height = 500;
@@ -56,6 +61,38 @@ void init_default_scene() {
 	if (clip_cyclic) {
 		gm->v[clip].prev = last;
 		gm->v[last].next = clip;
+	}
+	// Import the subject polygons into the linked list datastructure
+	GreinerV2f *v = gm->v;
+	last = 0;
+	for (std::vector<float> poly_verts : subj_polys) {
+		// Different subject polygons are stored in
+		// subj, subj->nextPoly, subj->nextPoly->nextPoly etc
+		int newpoly_first_vert = gm->vert_new();
+		v[newpoly_first_vert].first = newpoly_first_vert;
+		if (!subj) {
+			subj = newpoly_first_vert;
+		} else {
+			v[last].next_poly = newpoly_first_vert;
+		}
+		last = newpoly_first_vert;
+		// Fill in the vertices of the polygon we just finished hooking up
+		// to the polygon list
+		int last_inner = 0;
+		for (size_t i=0,l=poly_verts.size()/2; i<l; i++) {
+			int vert;
+			if (i==0) {
+				vert = newpoly_first_vert;
+			} else {
+				vert = gm->vert_new();
+			}
+			v[vert].x = poly_verts[2*i+0];
+			v[vert].y = poly_verts[2*i+1];
+			v[vert].prev = last_inner;
+			if (last_inner) v[last_inner].next = vert;
+			last_inner = vert;
+		}
+		gm->poly_set_cyclic(newpoly_first_vert, subj_cyclic);
 	}
 }
 
@@ -113,7 +150,38 @@ void GLUT_display(){
 	}
 	glEnd();
 	
-	// Draw Subject polygon lines & verts
+	// Draw Subject polygon lines
+	glBegin(GL_LINES);
+	for (int curpoly=subj; curpoly; curpoly=v[curpoly].next_poly) {
+		last_x=v[curpoly].x, last_y=v[curpoly].y;
+		for (int vert=v[curpoly].next; vert; vert=v[vert].next) {
+			float x=v[vert].x, y=v[vert].y;
+			glColor3f(0,.8,0);
+			glVertex2f(last_x,last_y);
+			glVertex2f(x,y);
+			last_x=x; last_y=y;
+			if (vert==curpoly) break;
+		}
+	}
+	glEnd();
+	
+	// Draw Subject polygon verts
+	glPointSize(3);
+	glBegin(GL_POINTS);
+	glColor3f(0,1,0);
+	for (int curpoly=subj; curpoly; curpoly=v[curpoly].next_poly) {
+		last_x=v[curpoly].x, last_y=v[curpoly].y;
+		for (int vert=v[curpoly].next; vert; vert=v[vert].next) {
+			float x=v[vert].x, y=v[vert].y;
+			glColor3f(0,.8,0);
+			glVertex2f(x,y);
+			last_x=x; last_y=y;
+			if (vert==curpoly) break;
+		}
+	}
+	glEnd();
+	
+	// Draw Grid polygon lines & verts
 	for (int i=0; i<gm->nx; i++) {
 		for (int j=0; j<gm->ny; j++) {
 			gm->poly_draw(gm->poly_for_cell(i,j), contraction);
@@ -134,7 +202,7 @@ void GLUT_display(){
 		glEnd();
 	}
 	
-	// Draw Grid (with x,y offsets)
+	// Vestigal grid variables
 	float xo = 1*(12.0/win_width);
 	float yo = 1*(12.0/win_height);
 	xo=0; yo=0;
@@ -189,10 +257,24 @@ void GLUT_reshape(int w, int h){
 void dump_polys_to_stdout() {
 	GreinerV2f *v = gm->v;
 	printf("bool clip_cyclic = %s; // Required for initialization\n",clip_cyclic?"true":"false");
+	printf("bool subj_cyclic = %s;\n",subj_cyclic?"true":"false");
 	printf("std::vector<float> clip_verts = {");
-	for (int vert=clip; vert && vert!=clip; vert=v[vert].next) {
-		printf((v[vert].next && v[vert].next!=clip)?"%f,%f, ":"%f,%f};\n",v[vert].x,v[vert].y);
+	for (int vert=clip; vert; vert=v[vert].next) {
+		printf((v[vert].next&&v[vert].next!=clip)?"%f,%f, ":"%f,%f};\n",v[vert].x,v[vert].y);
 		if (v[vert].next==clip) break;
+	}
+	int subj_poly_num = 0;
+	for (int subj_poly=subj; subj_poly; subj_poly=v[subj].next_poly) {
+		printf("std::vector<float> subj%i = {", subj_poly_num);
+		for (int vert=subj_poly; vert; vert=v[vert].next) {
+			printf((v[vert].next&&v[vert].next!=subj)?"%f,%f, ":"%f,%f};\n",v[vert].x,v[vert].y);
+			if (v[vert].next==subj_poly || v[v[vert].next].first==v[vert].next) break;
+		}
+		subj_poly_num++;
+	}
+	printf("std::vector<std::vector<float>> subj_polys = {");
+	for (int i=0; i<subj_poly_num; i++) {
+		printf((i!=subj_poly_num-1)?"subj%i,":"subj%i};\n",i);
 	}
 	printf("std::vector<float> inout_pts = {");
 	for (size_t i=0,l=inout_pts.size()/2; i<l; i++) {
