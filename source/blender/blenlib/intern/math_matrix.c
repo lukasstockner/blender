@@ -62,18 +62,18 @@ void unit_m4(float m[4][4])
 	m[3][0] = m[3][1] = m[3][2] = 0.0;
 }
 
-void copy_m3_m3(float m1[3][3], const float m2[3][3])
+void copy_m3_m3(float m1[3][3], float m2[3][3])
 {
 	/* destination comes first: */
 	memcpy(&m1[0], &m2[0], 9 * sizeof(float));
 }
 
-void copy_m4_m4(float m1[4][4], const float m2[4][4])
+void copy_m4_m4(float m1[4][4], float m2[4][4])
 {
 	memcpy(m1, m2, 4 * 4 * sizeof(float));
 }
 
-void copy_m3_m4(float m1[3][3], const float m2[4][4])
+void copy_m3_m4(float m1[3][3], float m2[4][4])
 {
 	m1[0][0] = m2[0][0];
 	m1[0][1] = m2[0][1];
@@ -88,7 +88,7 @@ void copy_m3_m4(float m1[3][3], const float m2[4][4])
 	m1[2][2] = m2[2][2];
 }
 
-void copy_m4_m3(float m1[4][4], const float m2[3][3]) /* no clear */
+void copy_m4_m3(float m1[4][4], float m2[3][3]) /* no clear */
 {
 	m1[0][0] = m2[0][0];
 	m1[0][1] = m2[0][1];
@@ -160,7 +160,7 @@ void swap_m4m4(float m1[4][4], float m2[4][4])
 
 /******************************** Arithmetic *********************************/
 
-void mul_m4_m4m4(float m1[4][4], const float m3_[4][4], const float m2_[4][4])
+void mul_m4_m4m4(float m1[4][4], float m3_[4][4], float m2_[4][4])
 {
 	float m2[4][4], m3[4][4];
 
@@ -169,10 +169,10 @@ void mul_m4_m4m4(float m1[4][4], const float m3_[4][4], const float m2_[4][4])
 	copy_m4_m4(m3, m3_);
 
 	/* matrix product: m1[j][k] = m2[j][i].m3[i][k] */
-	mult_m4_m4m4_q(m1, m3, m2);
+	mul_m4_m4m4_q(m1, m3, m2);
 }
 
-void mul_m3_m3m3(float m1[3][3], const float m3_[3][3], const float m2_[3][3])
+void mul_m3_m3m3(float m1[3][3], float m3_[3][3], float m2_[3][3])
 {
 	float m2[3][3], m3[3][3];
 
@@ -194,7 +194,7 @@ void mul_m3_m3m3(float m1[3][3], const float m3_[3][3], const float m2_[3][3])
 	m1[2][2] = m2[2][0] * m3[0][2] + m2[2][1] * m3[1][2] + m2[2][2] * m3[2][2];
 }
 
-void mul_m4_m4m3(float m1[4][4], const float m3_[4][4], const float m2_[3][3])
+void mul_m4_m4m3(float m1[4][4], float m3_[4][4], float m2_[3][3])
 {
 	float m2[3][3], m3[4][4];
 
@@ -214,7 +214,7 @@ void mul_m4_m4m3(float m1[4][4], const float m3_[4][4], const float m2_[3][3])
 }
 
 /* m1 = m2 * m3, ignore the elements on the 4th row/column of m3 */
-void mul_m3_m3m4(float m1[3][3], const float m3_[4][4], const float m2_[3][3])
+void mul_m3_m3m4(float m1[3][3], float m3_[4][4], float m2_[3][3])
 {
 	float m2[3][3], m3[4][4];
 
@@ -236,7 +236,7 @@ void mul_m3_m3m4(float m1[3][3], const float m3_[4][4], const float m2_[3][3])
 	m1[2][2] = m2[2][0] * m3[0][2] + m2[2][1] * m3[1][2] + m2[2][2] * m3[2][2];
 }
 
-void mul_m4_m3m4(float m1[4][4], const float m3_[3][3], const float m2_[4][4])
+void mul_m4_m3m4(float m1[4][4], float m3_[3][3], float m2_[4][4])
 {
 	float m2[4][4], m3[3][3];
 
@@ -255,7 +255,7 @@ void mul_m4_m3m4(float m1[4][4], const float m3_[3][3], const float m2_[4][4])
 	m1[2][2] = m2[2][0] * m3[0][2] + m2[2][1] * m3[1][2] + m2[2][2] * m3[2][2];
 }
 
-void mult_m4_m4m4_q(float m1[4][4], const float m3[4][4], const float m2[4][4])
+void mul_m4_m4m4_q(float m1[4][4], float m3[4][4], float m2[4][4])
 {
 	/* matrix product: m1[j][k] = m2[j][i].m3[i][k] */
 	m1[0][0] = m2[0][0] * m3[0][0] + m2[0][1] * m3[1][0] + m2[0][2] * m3[2][0] + m2[0][3] * m3[3][0];
@@ -279,7 +279,7 @@ void mult_m4_m4m4_q(float m1[4][4], const float m3[4][4], const float m2[4][4])
 	m1[3][3] = m2[3][0] * m3[0][3] + m2[3][1] * m3[1][3] + m2[3][2] * m3[2][3] + m2[3][3] * m3[3][3];
 }
 
-void mult_m4_m3m4_q(float m1[4][4], const float m3[4][4], const float m2[3][3])
+void mul_m4_m3m4_q(float m1[4][4], float m3[4][4], float m2[3][3])
 {
 	/* matrix product: m1[j][k] = m2[j][i].m3[i][k] */
 	m1[0][0] = m2[0][0] * m3[0][0] + m2[0][1] * m3[1][0] + m2[0][2] * m3[2][0];
@@ -434,7 +434,7 @@ void mul_m2v2(float mat[2][2], float vec[2])
 	mul_v2_m2v2(vec, mat, vec);
 }
 
-void mul_v4_m4v3(float out[4], const float mat[][4], const float vec[3])
+void mul_v4_m4v3(float out[4], float mat[][4], const float vec[3])
 {
 	out[0] = vec[0] * mat[0][0] + vec[1] * mat[1][0] + mat[2][0] * vec[2] + mat[3][0];
 	out[1] = vec[0] * mat[0][1] + vec[1] * mat[1][1] + mat[2][1] * vec[2] + mat[3][1];
@@ -481,7 +481,7 @@ void mul_v2_project_m4_v3(float r[2], float mat[4][4], const float vec[3])
 	r[1] /= w;
 }
 
-void mul_v4_m4v4(float r[4], const float mat[4][4], const float v[4])
+void mul_v4_m4v4(float r[4], float mat[4][4], const float v[4])
 {
 	float x, y, z;
 
@@ -495,7 +495,7 @@ void mul_v4_m4v4(float r[4], const float mat[4][4], const float v[4])
 	r[3] = x * mat[0][3] + y * mat[1][3] + z * mat[2][3] + mat[3][3] * v[3];
 }
 
-void mul_m4_v4(const float mat[4][4], float r[4])
+void mul_m4_v4(float mat[4][4], float r[4])
 {
 	mul_v4_m4v4(r, mat, r);
 }
@@ -760,7 +760,7 @@ bool invert_m4(float m[4][4])
  *					Mark Segal - 1992
  */
 
-bool invert_m4_m4(float inverse[4][4], const float mat[4][4])
+bool invert_m4_m4(float inverse[4][4], float mat[4][4])
 {
 	int i, j, k;
 	double temp;
@@ -2227,63 +2227,25 @@ void pseudoinverse_m4_m4(float Ainv[4][4], float A[4][4], float epsilon)
 	mul_serie_m4(Ainv, U, Wm, V, NULL, NULL, NULL, NULL, NULL);
 }
 
-
 void mat4_ortho_set(float m[][4], float left, float right, float bottom, float top, float nearVal, float farVal)
 {
-    m[0][0] = 2.0f/(right-left); m[1][0] = 0.0f;              m[2][0] =  0.0f;                  m[3][0] = -(right+left)/(right-left);
-    m[0][1] = 0.0f;              m[1][1] = 2.0f/(top-bottom); m[2][1] =  0.0f;                  m[3][1] = -(top+bottom)/(top-bottom);
-    m[0][2] = 0.0f;              m[1][2] = 0.0f;              m[2][2] = -2.0f/(farVal-nearVal); m[3][2] = -(farVal+nearVal)/(farVal-nearVal);
-    m[0][3] = 0.0f;              m[1][3] = 0.0f;              m[2][3] =  0.0f;                  m[3][3] =  1.0f;
+    m[0][0] = 2/(right-left); m[1][0] = 0;              m[2][0] =  0;                  m[3][0] = -(right+left)/(right-left);
+    m[0][1] = 0;              m[1][1] = 2/(top-bottom); m[2][1] =  0;                  m[3][1] = -(top+bottom)/(top-bottom);
+    m[0][2] = 0;              m[1][2] = 0;              m[2][2] = -2/(farVal-nearVal); m[3][2] = -(farVal+nearVal)/(farVal-nearVal);
+    m[0][3] = 0;              m[1][3] = 0;              m[2][3] =  0;                  m[3][3] =  1;
 }
-
 
 void mat4_frustum_set(float m[][4], float left, float right, float bottom, float top, float nearVal, float farVal)
 {
-	m[0][0] = 2.0f*nearVal/(right-left);  m[1][0] = 0.0f;                      m[2][0] =  (right+left)/(right-left);         m[3][0] =  0.0f;
-	m[0][1] = 0.0f;                       m[1][1] = 2.0f*nearVal/(top-bottom); m[2][1] =  (top+bottom)/(top-bottom);         m[3][1] =  0.0f;
-	m[0][2] = 0.0f;                       m[1][2] = 0.0f;                      m[2][2] = -(farVal+nearVal)/(farVal-nearVal); m[3][2] = -2.0f*farVal*nearVal/(farVal-nearVal);
-	m[0][3] = 0.0f;                       m[1][3] = 0.0f;                      m[2][3] = -1.0f;                              m[3][3] =  0.0f;
+	m[0][0] = 2*nearVal/(right-left);  m[1][0] = 0;                      m[2][0] =  (right+left)/(right-left);         m[3][0] =  0;
+	m[0][1] = 0;                       m[1][1] = 2*nearVal/(top-bottom); m[2][1] =  (top+bottom)/(top-bottom);         m[3][1] =  0;
+	m[0][2] = 0;                       m[1][2] = 0;                      m[2][2] = -(farVal+nearVal)/(farVal-nearVal); m[3][2] = -2*farVal*nearVal/(farVal-nearVal);
+	m[0][3] = 0;                       m[1][3] = 0;                      m[2][3] = -1;                                 m[3][3] =  0;
 }
 
-/*
-
-  Following functions are loosly base on Mesa implementation:
-	mat4_look_from_origin -> gluLookAt
-
- *
- * SGI FREE SOFTWARE LICENSE B (Version 2.0, Sept. 18, 2008)
- * Copyright (C) 1991-2000 Silicon Graphics, Inc. All Rights Reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice including the dates of first publication and
- * either this permission notice or a reference to
- * http://oss.sgi.com/projects/FreeB/
- * shall be included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * SILICON GRAPHICS, INC. BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
- * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- * Except as contained in this notice, the name of Silicon Graphics, Inc.
- * shall not be used in advertising or otherwise to promote the sale, use or
- * other dealings in this Software without prior written authorization from
- * Silicon Graphics, Inc.
- */
-
-
+/* Loosly based on Mesa implementation of gluLookAt */
 void mat4_look_from_origin(float m[4][4], float lookdir[3], float camup[3])
 {
-
 	float side[3];
 
 	normalize_v3(lookdir);
@@ -2294,12 +2256,10 @@ void mat4_look_from_origin(float m[4][4], float lookdir[3], float camup[3])
 
 	cross_v3_v3v3(camup, side, lookdir);
 
-	m[0][0] = side[0];		m[1][0] = side[1];		m[2][0] = side[2];		m[3][0] = 0.0f;
-	m[0][1] = camup[0];		m[1][1] = camup[1];		m[2][1] = camup[2];		m[3][1] = 0.0f;
-	m[0][2] = -lookdir[0];	m[1][2] = -lookdir[1];	m[2][2] = -lookdir[2];	m[3][2] = 0.0f;
-	m[0][3] = 0.0f;			m[1][3] = 0.0f;			m[2][3] = 0.0f;			m[3][3] = 1.0f;
-
-
+	m[0][0] =  side   [0]; m[1][0] =  side   [1]; m[2][0] =  side   [2]; m[3][0] = 0;
+	m[0][1] =  camup  [0]; m[1][1] =  camup  [1]; m[2][1] =  camup  [2]; m[3][1] = 0;
+	m[0][2] = -lookdir[0]; m[1][2] = -lookdir[1]; m[2][2] = -lookdir[2]; m[3][2] = 0;
+	m[0][3] =  0;          m[1][3] =  0;          m[2][3] =  0;          m[3][3] = 1;
 }
 
 void pseudoinverse_m3_m3(float Ainv[3][3], float A[3][3], float epsilon)
