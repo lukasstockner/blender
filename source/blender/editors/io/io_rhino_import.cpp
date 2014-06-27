@@ -80,6 +80,7 @@ static void import_ON_str(char *dest, ON_wString& onstr, size_t n) {
 	wcstombs(dest, curve_name_unmanaged, n);
 }
 
+<<<<<<< HEAD
 // Note: ignores first and last knots for Rhino compatibility. Returns:
 //             (uniform)    0 <---| can't tell these two apart by knots alone.
 // #define CU_NURB_CYCLIC	1 <---| "periodic" is the hint that disambiguates them.
@@ -160,6 +161,8 @@ static void normalize_knots(float *knots, int num_knots) {
 	}
 }
 
+=======
+>>>>>>> 8c8a5a6dc4a958732fc5035fcf073879bb871e22
 /****************************** Curve Import *********************************/
 static float null_loc[] = {0,0,0};
 static float null_rot[] = {0,0,0};
@@ -241,6 +244,13 @@ static void rhino_import_nurbscurve(bContext *C, ON_NurbsCurve *nc, ON_Object *o
 	nu->pntsv = 1;
 	nu->orderu = nc->Order();
 	nu->orderv = 1;
+<<<<<<< HEAD
+=======
+	if (nc->IsPeriodic())
+		nu->flagu = CU_NURB_CYCLIC;
+	if (nc->IsClamped())
+		nu->flagu = CU_NURB_ENDPOINT;
+>>>>>>> 8c8a5a6dc4a958732fc5035fcf073879bb871e22
 	BLI_assert(nu->pntsu + nu->orderu - 2 == nc->KnotCount());
 	bp = nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * ((nu->pntsu) * 1), "rhino_imported_NURBS_curve_points");
 	nu->knotsu = (float *)MEM_callocN(sizeof(float) * ((nu->pntsu+nu->orderu) * 1), "rhino_imported_NURBS_curve_points");
@@ -259,8 +269,11 @@ static void rhino_import_nurbscurve(bContext *C, ON_NurbsCurve *nc, ON_Object *o
 		nu->knotsu[i] = nc->Knot(i-1);
 	}
 	nu->knotsu[i] = nu->knotsu[i-1];
+<<<<<<< HEAD
 	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, nc->IsPeriodic());
 	normalize_knots(nu->knotsu, nu->pntsu+nu->orderu);
+=======
+>>>>>>> 8c8a5a6dc4a958732fc5035fcf073879bb871e22
 	
 	editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
@@ -550,6 +563,12 @@ static void rhino_import_nurbs_surf(bContext *C,
 	nu->pntsv = surf->CVCount(1);
 	nu->orderu = surf->Order(0);
 	nu->orderv = surf->Order(1);
+	if (surf->IsPeriodic(0))
+		nu->flagu |= CU_NURB_CYCLIC;
+	if (surf->IsPeriodic(1))
+		nu->flagv |= CU_NURB_CYCLIC;
+	nu->flagu |= CU_NURB_ENDPOINT;
+	nu->flagv |= CU_NURB_ENDPOINT;
 	bp = nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * (nu->pntsu * nu->pntsv), "rhino_imported_NURBS_surf_points");
 	nu->knotsu = (float *)MEM_callocN(sizeof(float) * ((nu->pntsu+nu->orderu) * 1), "rhino_imported_NURBS_surf_points");
 	nu->knotsv = (float *)MEM_callocN(sizeof(float) * ((nu->pntsv+nu->orderv) * 1), "rhino_imported_NURBS_surf_points");
@@ -617,8 +636,7 @@ static void rhino_import_surface(bContext *C,
 	}
 	if (!did_handle) {
 		char surf_name[MAX_ID_NAME];
-		
-		printf("couldn't handle ")
+		printf("couldn't handle ");
 	}
 }
 
