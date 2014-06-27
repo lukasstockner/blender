@@ -92,11 +92,9 @@ public:
 
 	/**
 	 * Call immediately after new to initialize.  If this fails then immediately delete the object.
-	 * \param stereoVisual		Stereo visual for quad buffered stereo.
-	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
 	 * \return Indication as to whether initialization has succeeded.
 	 */
-	virtual GHOST_TSuccess initializeDrawingContext(bool stereoVisual = false, GHOST_TUns16 numOfAASamples = 0);
+	virtual GHOST_TSuccess initializeDrawingContext();
 
 	/**
 	 * Updates the drawing context of this window. Needed
