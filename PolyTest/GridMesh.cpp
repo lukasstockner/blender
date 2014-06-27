@@ -100,11 +100,7 @@ int GridMesh::poly_first_vert(int vert) {
 
 int GridMesh::poly_last_vert(int vert) {
 	int v2 = vert;
-	while (v[v2].next) {
-		int next = v[v2].next;
-		if (v[v2].first==v2) return v2;
-		v2 = next;
-	}
+	while (v[v2].next && v[v2].next!=v[v2].first) {v2 = v[v2].next;}
 	return v2;
 }
 

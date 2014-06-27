@@ -24,12 +24,12 @@ float intersect_check_tol = .001; //Maximum Euclidean dist between intersect pts
 /***************************** DEFAULT SCENE *****************************/
 GridMesh *gm;
 bool clip_cyclic = true; // Required for initialization
-std::vector<float> clip_verts = {-0.460000,-0.004000, 0.360000,-0.072000, 0.388000,-0.744000, -0.440000,-0.720000};
 bool subj_cyclic = true;
-std::vector<float> subj0 = {-0.500000,-0.500000, 0.500000,-0.500000};
-std::vector<float> subj1 = {-0.500000,-0.000000, 0.500000,-0.000000};
+std::vector<float> clip_verts = {2.360000,8.648000, 3.176000,5.888000, 0.200000,5.000000, 1.304000,0.416000, 4.208000,2.096000, 8.600000,0.536000, 9.632000,4.736000, 5.960000,5.936000, 6.896000,8.696000};
+std::vector<float> subj0 = {2.816000,4.784000, 5.024000,5.000000, 5.672000,4.808001, 5.720000,4.160000, 5.384000,3.248000, 4.496000,2.840000, 4.832000,2.456000, 5.696000,3.056000, 6.104000,3.896000, 6.104000,5.024000, 5.072000,5.672000};
+std::vector<float> subj1 = {3.992000,3.344000, 5.048000,3.320000, 5.264000,3.896000, 5.120000,4.160000, 4.832000,4.232000, 4.472000,4.256001, 4.160000,4.256001, 3.896000,4.160000};
 std::vector<std::vector<float>> subj_polys = {subj0,subj1};
-std::vector<float> inout_pts;
+std::vector<float> inout_pts = {};
 
 int clip = 0; // Vertex index of the first vertex of the clip polygon
 int subj = 0;
@@ -89,6 +89,7 @@ void init_default_scene() {
 			v[vert].x = poly_verts[2*i+0];
 			v[vert].y = poly_verts[2*i+1];
 			v[vert].prev = last_inner;
+			v[vert].first = last;
 			if (last_inner) v[last_inner].next = vert;
 			last_inner = vert;
 		}
@@ -264,11 +265,12 @@ void dump_polys_to_stdout() {
 		if (v[vert].next==clip) break;
 	}
 	int subj_poly_num = 0;
-	for (int subj_poly=subj; subj_poly; subj_poly=v[subj].next_poly) {
+	for (int subj_poly=subj; subj_poly; subj_poly=v[subj_poly].next_poly) {
 		printf("std::vector<float> subj%i = {", subj_poly_num);
 		for (int vert=subj_poly; vert; vert=v[vert].next) {
-			printf((v[vert].next&&v[vert].next!=subj)?"%f,%f, ":"%f,%f};\n",v[vert].x,v[vert].y);
-			if (v[vert].next==subj_poly || v[v[vert].next].first==v[vert].next) break;
+			bool is_last_vert = !v[vert].next || v[vert].next==subj_poly;
+			printf((!is_last_vert)?"%f,%f, ":"%f,%f};\n",v[vert].x,v[vert].y);
+			if (is_last_vert) break;
 		}
 		subj_poly_num++;
 	}
@@ -278,8 +280,9 @@ void dump_polys_to_stdout() {
 	}
 	printf("std::vector<float> inout_pts = {");
 	for (size_t i=0,l=inout_pts.size()/2; i<l; i++) {
-		printf((i!=l-1)?"%f,%f, ":"%f,%f};\n",inout_pts[2*i+0],inout_pts[2*i+1]);
+		printf((i!=l-1)?"%f,%f, ":"%f,%f",inout_pts[2*i+0],inout_pts[2*i+1]);
 	}
+	puts("};\n");
 }
 void toggle_cyclic(int curve) {
 	bool iscyc = gm->poly_is_cyclic(curve);
@@ -337,6 +340,15 @@ void GLUT_specialkey(int ch, int x, int y) {
 		printf("GLUT_specialkey x:%d y:%d ch:%x(%s)\n",x,y,ch,ch_str);
 	}
 }
+void create_new_poly(float sx, float sy) {
+	GreinerV2f *v = gm->v;
+	int last_backbone = subj;
+	while (v[last_backbone].next_poly) last_backbone = v[last_backbone].next_poly;
+	int newpoly = gm->vert_new();
+	v[newpoly].x = sx; v[newpoly].y = sy;
+	v[last_backbone].next_poly = newpoly;
+	glutPostRedisplay();
+}
 void create_pt(float sx, float sy) {
 	if (!grabbed_vert) return;
 	int last_vert = gm->poly_last_vert(grabbed_vert);
@@ -360,6 +372,18 @@ void initiate_pt_drag_if_near_pt(float sx, float sy) {
 		}
 		if (v[vert].next==clip) break;
 	}
+	for (int poly=subj; poly; poly=v[poly].next_poly) {
+		for (int vert=poly; vert; vert=v[vert].next) {
+			float dx = v[vert].x - sx;
+			float dy = v[vert].y - sy;
+			float dist = sqrt(dx*dx + dy*dy);
+			if (dist<closest_dist) {
+				closest_dist = dist;
+				closest_vert = vert;
+			}
+			if (v[vert].next==poly) break;
+		}
+	}
 	if (debug) printf("Nearest point to mousedown (%f)\n",closest_dist);
 	grabbed_vert = (closest_dist<.1) ? closest_vert : 0;
 }
@@ -382,7 +406,9 @@ void GLUT_mouse( int button, int state, int x, int y) {
 			   x,y,button,button_str,state,state_str);
 	}
 	if (state==GLUT_DOWN && button==GLUT_LEFT_BUTTON) {
-		if (m&GLUT_ACTIVE_CTRL)
+		if (m&GLUT_ACTIVE_CTRL && m&GLUT_ACTIVE_SHIFT)
+			create_new_poly(sx,sy);
+		else if (m&GLUT_ACTIVE_CTRL)
 			create_pt(sx,sy);
 		else
 			initiate_pt_drag_if_near_pt(sx,sy);
