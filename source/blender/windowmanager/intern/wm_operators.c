@@ -2086,7 +2086,7 @@ static int wm_call_pie_menu_timer_invoke(bContext *C, wmOperator *op, const wmEv
 	wmWindow *win = CTX_wm_window(C);
 	PieTimerData *data = MEM_callocN(sizeof(PieTimerData), "pie timer");
 
-	data->timer = WM_event_add_timer(wm, win, TIMER, 0.05);
+	data->timer = WM_event_add_timer(wm, win, TIMER, 0.01);
 	/* copy event, it will be used to spawn pie menu */
 	data->event = *event;
 
