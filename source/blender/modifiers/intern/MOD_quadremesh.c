@@ -53,12 +53,17 @@ typedef struct LaplacianSystem {
 	int total_features;
 	char features_grp_name[64];	/* Vertex Group name */
 	float(*co)[3];				/* Original vertex coordinates */
-	float(*no)[3];				/* Original vertex normal */
+	float(*no)[3];				/* Original face normal */
 	float(*gf1)[3];				/* Gradient Field g1 */
-	int *constraints;			/* Feature points constraints*/
+	float(*gf2)[3];				/* Gradient Field g2 */
 	float *weights;				/* Feature points weights*/
 	float *U_field;				/* Initial scalar field*/
+	int *constraints;			/* Feature points constraints*/
+	int *ringf_indices;			/* Indices of faces per vertex */
+	int *ringv_indices;			/* Indices of neighbors(vertex) per vertex */
 	unsigned int(*faces)[4];	/* Copy of MFace (tessface) v1-v4 */
+	MeshElemMap *ringf_map;		/* Map of faces per vertex */
+	MeshElemMap *ringv_map;		/* Map of vertex per vertex */
 	NLContext *context;			/* System for solve general implicit rotations */
 } LaplacianSystem;
 
@@ -66,7 +71,6 @@ static LaplacianSystem *newLaplacianSystem(void)
 {
 	LaplacianSystem *sys;
 	sys = MEM_callocN(sizeof(LaplacianSystem), "QuadRemeshCache");
-
 	sys->is_matrix_computed = false;
 	sys->has_solution = false;
 	sys->total_verts = 0;
@@ -92,8 +96,9 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 	BLI_strncpy(sys->features_grp_name, defgrpName, sizeof(sys->features_grp_name));
 	sys->faces = MEM_mallocN(sizeof(int[4]) * totalFaces, "QuadRemeshFaces");
 	sys->co = MEM_mallocN(sizeof(float[3]) * totalVerts, "QuadRemeshCoordinates");
-	sys->no = MEM_callocN(sizeof(float[3]) * totalVerts, "DeformNormals");
-	sys->gf1 = MEM_mallocN(sizeof(float[3]) * totalVerts, "QuadRemeshGradientField1");
+	sys->no = MEM_callocN(sizeof(float[3]) * totalFaces, "QuadRemeshNormals");
+	sys->gf1 = MEM_mallocN(sizeof(float[3]) * totalFaces, "QuadRemeshGradientField1");
+	sys->gf2 = MEM_mallocN(sizeof(float[3]) * totalFaces, "QuadRemeshGradientField2");
 	sys->constraints = MEM_mallocN(sizeof(int) * totalVerts, "QuadRemeshConstraints");
 	sys->weights = MEM_mallocN(sizeof(float)* (totalVerts), "QuadRemeshWeights");
 	sys->U_field = MEM_mallocN(sizeof(float)* (totalVerts), "QuadRemeshUField");
@@ -109,6 +114,11 @@ static void deleteLaplacianSystem(LaplacianSystem *sys)
 	MEM_SAFE_FREE(sys->weights);
 	MEM_SAFE_FREE(sys->U_field);
 	MEM_SAFE_FREE(sys->gf1);
+	MEM_SAFE_FREE(sys->gf2);
+	MEM_SAFE_FREE(sys->ringf_indices);
+	MEM_SAFE_FREE(sys->ringv_indices);
+	MEM_SAFE_FREE(sys->ringf_map);
+	MEM_SAFE_FREE(sys->ringv_map);
 	if (sys->context) {
 		nlDeleteContext(sys->context);
 	}
@@ -133,20 +143,15 @@ static void initLaplacianMatrix(LaplacianSystem *sys)
 		idv4 = vidf[3];
 
 		has_4_vert = vidf[3] ? 1 : 0;
-		i = has_4_vert ? 4 : 3;
-
 		if (has_4_vert) {
 			normal_quad_v3(no, sys->co[idv1], sys->co[idv2], sys->co[idv3], sys->co[idv4]);
-			add_v3_v3(sys->no[idv4], no);
 			i = 4;
 		}
 		else {
 			normal_tri_v3(no, sys->co[idv1], sys->co[idv2], sys->co[idv3]);
 			i = 3;
 		}
-		add_v3_v3(sys->no[idv1], no);
-		add_v3_v3(sys->no[idv2], no);
-		add_v3_v3(sys->no[idv3], no);
+		copy_v3_v3(sys->no[fi], no);
 
 		for (j = 0; j < i; j++) {
 
@@ -192,9 +197,9 @@ static void initLaplacianMatrix(LaplacianSystem *sys)
 	
 }
 
-static void laplacianDeformPreview(LaplacianSystem *sys)
+static void computeScalarField(LaplacianSystem *sys)
 {
-	int vid, i, j, n, na;
+	int vid, i, n, na;
 	n = sys->total_verts;
 	na = sys->total_features;
 
@@ -249,41 +254,42 @@ static void laplacianDeformPreview(LaplacianSystem *sys)
 #endif
 }
 
-static computeGradientFieldU1(LaplacianSystem * sys){
-	float(*AG)[3];
-	float *UG;
-	float v1[3], v2[3], v3[3], v4[3], no[3];
-	float xi[3], xj[3], xk[3];
-	float w2, w3, w4, ui, uj ,uk;
-	int i, j, fi;
-	bool has_4_vert;
-	unsigned int idv1, idv2, idv3, idv4;
-	AG = MEM_mallocN(sizeof(float[3]) * sys->total_faces * 3, "QuadRemeshAG");
-	UG = MEM_mallocN(sizeof(float) * sys->total_faces * 3, "QuadRemeshUG");
-
+/** 
+ * Compute the gradiente fields
+ * 
+ * xi, xj, xk, are the vertices of the face
+ * ui, uj, uk, are the values of scalar fields for every vertex of the face
+ * n is the normal of the face.
+ * gf1 is the unknown field gradient 1.
+ * gf2 is the unknown field gradient 2.
+ *
+ * |xj - xi|         |uj - ui|
+ * |xk - xj| * gf1 = |uk - uj|
+ * |   nf  |         |   0   |
+ *
+ * gf2 = cross(n, gf1)
+*/
+static void computeGradientFields(LaplacianSystem * sys)
+{
+	int fi, i, j, k;
+	float a[3][3], u[3], inv_a[3][3];
 	for (fi = 0; fi < sys->total_faces; fi++) {
 		const unsigned int *vidf = sys->faces[fi];
-
-		idv1 = vidf[0];
-		idv2 = vidf[1];
-		idv3 = vidf[2];
-		idv4 = vidf[3];
-
-		copy_v3_v3(xi, sys->co[idv1]);
-		copy_v3_v3(xj, sys->co[idv2]);
-		copy_v3_v3(xk, sys->co[idv3]);
-		copy_v3_v3(no, sys->no[idv1]);
-		sub_v3_v3v3(AG[fi*3 + 1], xj, xi);
-		sub_v3_v3v3(AG[fi*2 + 2], xk, xj);
-		copy_v3_v3(AG[fi * 2 + 2], sys->no[idv1]);
-
-		ui = sys->U_field[idv1];
-		uj = sys->U_field[idv2];
-		uk = sys->U_field[idv3];
-		UG[fi * 3] = uj - ui;
-		UG[fi * 3] = uk - uj;
+		i = vidf[0];
+		j = vidf[1];
+		k = vidf[2];
+		sub_v3_v3v3(a[0], sys->co[j], sys->co[i]);
+		sub_v3_v3v3(a[1], sys->co[k], sys->co[j]);
+		copy_v3_v3 (a[2], sys->no[fi]);
+		u[0] = sys->U_field[j] - sys->U_field[i];
+		u[1] = sys->U_field[k] - sys->U_field[j];
+		u[2] = 0;
+		invert_m3_m3(inv_a, a);
+		mul_v3_m3v3(sys->gf1[fi], inv_a, u);
+		cross_v3_v3v3(sys->gf2[fi], sys->no[fi], sys->gf1[fi]);
 	}
 }
+
 
 static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
 	float(*vertexCos)[3], int numVerts)
@@ -337,23 +343,44 @@ static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, Der
 
 }
 
+static float RGBtoH(float r, float g, float b)
+{
+	float mmin, mmax, delta, h;
+	mmin = min(r,min( g, b));
+	mmax = max(r, max( g, b));
+
+	delta = mmax - mmin;
+	if (r == mmax)
+		h = (g - b) / delta;		// between yellow & magenta
+	else if (g == mmax)
+		h = 2 + (b - r) / delta;	// between cyan & yellow
+	else
+		h = 4 + (r - g) / delta;	// between magenta & cyan
+	h *= 60;				// degrees
+	if (h < 0)
+		h += 360;
+	return h / 360.0;
+}
+
 static void QuadRemeshModifier_do(
 	QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
 	float(*vertexCos)[3], int numVerts)
 {
 	float(*filevertexCos)[3];
-	int sysdif, i;
+	int sysdif, i, fi;
 	LaplacianSystem *sys = NULL;
 	int defgrp_index;
 	MDeformVert *dvert = NULL;
 	MDeformVert *dv = NULL;
 	float mmin = 1000, mmax = 0;
 	float y;
+	int x;
 
 	if (numVerts == 0) return;
 	if (strlen(qmd->anchor_grp_name) < 3) return;
 	sys = initSystem(qmd, ob, dm, vertexCos, numVerts);
-	laplacianDeformPreview(sys);
+	computeScalarField(sys);
+	computeGradientFields(sys);
 
 	if (!defgroup_find_name(ob, "QuadRemeshGroup")) {
 		BKE_defgroup_new(ob, "QuadRemeshGroup");
@@ -367,6 +394,8 @@ static void QuadRemeshModifier_do(
 
 		for (i = 0; i < numVerts; i++) {
 			y = (sys->U_field[i] - mmin) / (mmax - mmin);
+			x = y * 30;
+			y = (x % 2 == 0 ? 0.1 : 0.9);
 			defvert_add_index_notest(dv, defgrp_index, y);
 			dv++;
 		}
