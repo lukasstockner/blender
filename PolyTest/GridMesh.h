@@ -36,7 +36,8 @@ struct GreinerV2f {
 struct IntersectingEdge {
 	double x,y,alpha1;
 	int e2; // e2 and v[e2].next make up the intersecting edge
-	IntersectingEdge(double x_, double y_, double a_, int v_) : x(x_), y(y_), alpha1(a_), e2(v_) {}
+	int cellidx; // index of cell along the
+	IntersectingEdge(double x_, double y_, double a_, int v_, int ci_) : x(x_), y(y_), alpha1(a_), e2(v_), cellidx(ci_) {}
 };
 
 struct GridMesh {

@@ -317,7 +317,6 @@ void find_integer_cell_line_intersections(double x0, double y0, double x1, doubl
 			for (int i=cx0+1; i<=cx1; i++)
 				left_edges->push_back(std::make_pair(i,cy0));
 		}
-		return;
 	} else if (cx0==cx1) { // Vertical
 		if (integer_cells) {
 			if (cy0<cy1) {
@@ -338,39 +337,39 @@ void find_integer_cell_line_intersections(double x0, double y0, double x1, doubl
 					bottom_edges->push_back(std::make_pair(cx1,i));
 			}
 		}
-		return;
-	}
-	// Line segments that make us think :)
-	double m = (y1-y0)/(x1-x0);
-	double residue_x=(cx0+1)-x0;
-	double rhy = y0+residue_x*m; // y coord at the right edge of the cell
-	if (cy1>cy0) { //Upwards and to the right
-		int j; float jf;
-		j=cy0; jf=cy0;
-		for (int i=cx0; i<=cx1; i++) {
-			if (i==cx1) rhy = y1;
-			if (integer_cells) integer_cells->push_back(std::make_pair(i,j));
-			while (jf+1<rhy) {
-				j+=1; jf+=1.0;
+	} else {
+		// Line segments that make us think :)
+		double m = (y1-y0)/(x1-x0);
+		double residue_x=(cx0+1)-x0;
+		double rhy = y0+residue_x*m; // y coord at the right edge of the cell
+		if (cy1>cy0) { //Upwards and to the right
+			int j; float jf;
+			j=cy0; jf=cy0;
+			for (int i=cx0; i<=cx1; i++) {
+				if (i==cx1) rhy = y1;
 				if (integer_cells) integer_cells->push_back(std::make_pair(i,j));
-				if (bottom_edges) bottom_edges->push_back(std::make_pair(i,j));
+				while (jf+1<rhy) {
+					j+=1; jf+=1.0;
+					if (integer_cells) integer_cells->push_back(std::make_pair(i,j));
+					if (bottom_edges) bottom_edges->push_back(std::make_pair(i,j));
+				}
+				if (i!=cx1 && left_edges) left_edges->push_back(std::make_pair(i+1, j));
+				rhy += m;
 			}
-			if (i!=cx1 && left_edges) left_edges->push_back(std::make_pair(i+1, j));
-			rhy += m;
-		}
-	} else { //Downwards and to the right
-		int j; float jf;
-		j=cy0; jf=cy0;
-		for (int i=cx0; i<=cx1; i++) {
-			if (i==cx1) rhy = y1;
-			if (integer_cells) integer_cells->push_back(std::make_pair(i,j));
-			while (jf>rhy) {
-				if (bottom_edges) bottom_edges->push_back(std::make_pair(i,j));
-				j-=1; jf-=1.0;
+		} else { //Downwards and to the right
+			int j; float jf;
+			j=cy0; jf=cy0;
+			for (int i=cx0; i<=cx1; i++) {
+				if (i==cx1) rhy = y1;
 				if (integer_cells) integer_cells->push_back(std::make_pair(i,j));
+				while (jf>rhy) {
+					if (bottom_edges) bottom_edges->push_back(std::make_pair(i,j));
+					j-=1; jf-=1.0;
+					if (integer_cells) integer_cells->push_back(std::make_pair(i,j));
+				}
+				if (i!=cx1 && left_edges) left_edges->push_back(std::make_pair(i+1, j));
+				rhy += m;
 			}
-			if (i!=cx1 && left_edges) left_edges->push_back(std::make_pair(i+1, j));
-			rhy += m;
 		}
 	}
 	if (flipped_left_right) {
@@ -405,7 +404,11 @@ int GridMesh::insert_vert(int poly1left,
 }
 
 static bool intersection_edge_order(const IntersectingEdge& e1, const IntersectingEdge& e2) {
-	return e1.alpha1 < e2.alpha1;
+	double diff = e1.alpha1-e2.alpha1;
+	if (abs(diff)<1e-5 && e1.cellidx!=e2.cellidx) {
+		return e1.cellidx < e2.cellidx;
+	}
+	return diff<0;
 }
 int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 	std::vector<std::pair<int,int>> bottom_edges, left_edges, integer_cells;
@@ -418,16 +421,23 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 	while (v[v1].next) {
 		int v2 = v[v1].next;
 		float v2x=v[v2].x, v2y=v[v2].y;
+		printf("(%f,%f)---line--(%f,%f)\n",v1x,v1y,v2x,v2y);
 		integer_cells.clear();
 		find_cell_line_intersections(v1x,v1y,v2x,v2y,nullptr,nullptr,&integer_cells);
 		std::vector<IntersectingEdge> isect;
-		for (std::pair<int,int> j : integer_cells) {
+		for (size_t i=0,l=integer_cells.size(); i<l; i++) {
+			std::pair<int,int> j = integer_cells[i];
 			int cell_poly = poly_for_cell(j.first, j.second);
 			if (!cell_poly) continue;
 			std::vector<IntersectingEdge> isect_tmp = edge_poly_intersections(v1, cell_poly);
+			for (IntersectingEdge& e : isect_tmp) {
+				printf("(%i,%i)",j.first,j.second);
+				e.cellidx = int(i);
+			}
+			printf("\n");
 			isect.insert(isect.end(),isect_tmp.begin(),isect_tmp.end());
 		}
-		std::sort(isect.begin(),isect.end(),intersection_edge_order);
+		std::stable_sort(isect.begin(),isect.end(),intersection_edge_order);
 		intersections.push_back(isect);
 		verts_added += isect.size();
 		v1=v2; v1x=v2x; v1y=v2y;
@@ -491,7 +501,7 @@ std::vector<IntersectingEdge> GridMesh::edge_poly_intersections(int e1, int p) {
 		double ix, iy, alpha1; // Intersection info
 		int isect = line_line_intersection(ax, ay, bx, by, cx, cy, dx, dy, &ix, &iy, &alpha1);
 		if (isect) {
-			ret.push_back(IntersectingEdge(ix,iy,alpha1,e2));
+			ret.push_back(IntersectingEdge(ix,iy,alpha1,e2,0));
 		}
 		first_iter = false;
 	}
