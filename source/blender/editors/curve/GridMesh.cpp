@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <map>
+#include <set>
 #include <algorithm>
 #include "GridMesh.h"
 
@@ -200,6 +201,14 @@ void GridMesh::vert_add_neighbor(int v1, int v2) {
 	}
 }
 
+std::pair<int,int> GridMesh::vert_grid_cell(int vert) {
+	// vert = 1+4*(y*nx+x)
+	int ynx_plus_x = (vert-1)/4;
+	int y = ynx_plus_x/nx;
+	int x = ynx_plus_x%nx;
+	return std::make_pair(x,y);
+}
+
 #if defined(ENABLE_GLUT_DEMO)
 void GridMesh::poly_center(int poly, float *cx, float *cy) {
 	int vert = poly;
@@ -210,7 +219,7 @@ void GridMesh::poly_center(int poly, float *cx, float *cy) {
 		sum_y += v[vert].y;
 		n += 1;
 		vert = v[vert].next;
-	} while (vert && vert!=poly);
+	} while (vert && vert!=poly && vert!=v[poly].first);
 	*cx = sum_x/n;
 	*cy = sum_y/n;
 }
@@ -229,39 +238,42 @@ void GridMesh::poly_draw(int poly, float shrinkby) {
 	} else {
 		color = it->second;
 	}
-	// Find the center so that we can shrink towards it
-	float cx,cy;
-	poly_center(poly, &cx, &cy);
-	// Draw the polygon
-	glBegin(GL_LINES);
-	glColor3ub(color.r, color.g, color.b);
-	int v1 = poly;
-	do {
-		int v2 = v[v1].next;
-		glVertex2f((1-shrinkby)*v[v1].x+shrinkby*cx, (1-shrinkby)*v[v1].y+shrinkby*cy);
-		glVertex2f((1-shrinkby)*v[v2].x+shrinkby*cx, (1-shrinkby)*v[v2].y+shrinkby*cy);
-		v1 = v2;
-	} while (v1 != poly);
-	glEnd();
-	// Draw the polygon verts
-	glPointSize(3);
-	glBegin(GL_POINTS);
-	glColor3ub(color.r, color.g, color.b);
-	v1 = poly;
-	do {
-		if (v[v1].is_interior) {
-			glColor3ub(255,255,0);
-		} else {
-			glColor3ub(0,0,255);
-		}
-		float x=v[v1].x, y=v[v1].y;
-		float cx, cy; poly_center(v[v1].first, &cx, &cy);
-		x = (1.0-shrinkby)*x + shrinkby*cx;
-		y = (1.0-shrinkby)*y + shrinkby*cy;
-		glVertex2f(x,y);
-		v1 = v[v1].next;
-	} while (v1 != poly);
-	glEnd();
+	for (; poly; poly=v[poly].next_poly) {
+		if (v[poly].next==0) continue;
+		// Find the center so that we can shrink towards it
+		float cx,cy;
+		poly_center(poly, &cx, &cy);
+		// Draw the polygon
+		glBegin(GL_LINES);
+		glColor3ub(color.r, color.g, color.b);
+		int v1 = poly;
+		do {
+			int v2 = v[v1].next;
+			glVertex2f((1-shrinkby)*v[v1].x+shrinkby*cx, (1-shrinkby)*v[v1].y+shrinkby*cy);
+			glVertex2f((1-shrinkby)*v[v2].x+shrinkby*cx, (1-shrinkby)*v[v2].y+shrinkby*cy);
+			v1 = v2;
+		} while (v1!=poly && v1!=v[v1].first);
+		glEnd();
+		// Draw the polygon verts
+		glPointSize(3);
+		glBegin(GL_POINTS);
+		glColor3ub(color.r, color.g, color.b);
+		v1 = poly;
+		do {
+			if (v[v1].is_interior) {
+				glColor3ub(255,255,0);
+			} else {
+				glColor3ub(0,0,255);
+			}
+			float x=v[v1].x, y=v[v1].y;
+			float cx, cy; poly_center(v[v1].first, &cx, &cy);
+			x = (1.0-shrinkby)*x + shrinkby*cx;
+			y = (1.0-shrinkby)*y + shrinkby*cy;
+			glVertex2f(x,y);
+			v1 = v[v1].next;
+		} while (v1!=poly && v1!=v[v1].first);
+		glEnd();
+	}
 }
 #endif
 
@@ -470,7 +482,7 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 	return verts_added;
 }
 
-void GridMesh::label_interior_cell(int x, int y, int poly, bool ll, bool *lr, bool*ul) {
+void GridMesh::label_interior_cell(int x, int y, bool ll, bool *lr, bool*ul) {
 	int cell = poly_for_cell(x,y);
 	bool interior = ll;
 	bool first_is_interior = interior;
@@ -479,7 +491,10 @@ void GridMesh::label_interior_cell(int x, int y, int poly, bool ll, bool *lr, bo
 		v[vert].is_interior = interior;
 		if (v[vert].corner==2&&lr) *lr = interior;
 		if (v[vert].corner==4&&ul) *ul = interior;
-		if (v[vert].is_intersection) interior = !interior;
+		if (v[vert].is_intersection) {
+			interior = !interior;
+			v[vert].is_entry = interior; // If we were in the interior, this isn't an entry point
+		}
 		vert = v[vert].next;
 	} while (vert!=cell);
 	if (!interior==first_is_interior&&debug) {
@@ -487,14 +502,170 @@ void GridMesh::label_interior_cell(int x, int y, int poly, bool ll, bool *lr, bo
 	}
 }
 
-void GridMesh::label_interior(int poly) {
-	bool ll_next_row = point_in_polygon(0, 0, poly);
+void GridMesh::trim_to_odd() {
+	for (int i=0; i<nx; i++) {
+		for (int j=0; j<ny; j++) {
+			trim_to_odd(poly_for_cell(i,j));
+		}
+	}
+}
+
+void GridMesh::trim_to_odd(int poly) {
+	int first_trace_poly = 0;
+	int latest_trace_poly = 0;
+	std::vector<int> trace_origins;
+	trace_origins.push_back(poly);
+	while (trace_origins.size()) {
+		int vert = *trace_origins.rbegin(); trace_origins.pop_back();
+		GreinerV2f *vvert = &v[vert];
+		// Move until vert = valid starting vertex
+		bool bail=false;
+		while (!(    (vvert->is_intersection  && !vvert->is_entry)
+				  || (!vvert->is_intersection && vvert->is_interior))) {
+			vvert->is_used = true;
+			vert = vvert->next;
+			vvert->next = 0;
+			vvert->prev = 0;
+			vvert = &v[vert];
+			if (vvert->is_used) {
+				bail = true;
+				break;
+			}
+		}
+		if (bail) continue; // No valid starting vertex? Bail!
+		// Hook up the polygon backbone
+		if (latest_trace_poly) v[latest_trace_poly].next_poly = vert;
+		latest_trace_poly = vert;
+		if (!first_trace_poly) {
+			first_trace_poly = vert;
+			if (poly!=vert) {
+				v[poly].next_poly = vert;
+				v[poly].next = poly;
+				v[poly].prev = poly;
+			}
+		}
+		// Now trace out the active boundary, leaving behind
+		//  .is_used=1
+		//  .first = latest_trace_poly
+		//  .prev/.next connecting the boundary
+		// and spinning out trace_origins every time we exit poly
+		while (vert != latest_trace_poly) {
+			vvert->is_used = 1;
+			vvert->first = latest_trace_poly;
+			if (vvert->is_intersection) {
+				int last = vert;
+				int escape_island=v[vert].neighbor, reentry_island=0;
+				trace_origins.push_back(vvert->next);
+				if (v[escape_island].is_entry) { // next next next along foreign edge
+					int fvert = v[escape_island].next;
+					v[last].next = fvert;
+					v[fvert].prev = last;
+					while (true) {
+						v[fvert].is_used = true;
+						v[fvert].first = latest_trace_poly;
+						reentry_island = v[fvert].neighbor;
+						if (reentry_island) {
+							if (v[reentry_island].first==poly) break;
+						}
+						last = fvert;
+						fvert = v[fvert].next;
+						// v[last].next = fvert;
+						// v[fvert].prev = last;
+					}
+					vert = v[reentry_island].next;
+					vvert = &v[vert];
+					vvert->prev = fvert;
+					v[fvert].next = vert;
+				} else { // prev prev prev along foreign edge
+					int fvert = v[escape_island].prev;
+					v[last].next = fvert;
+					v[fvert].prev = last;
+					while (true) {
+						v[fvert].is_used = true;
+						v[fvert].first = latest_trace_poly;
+						reentry_island = v[fvert].neighbor;
+						if (reentry_island) {
+							if (v[reentry_island].first==poly) break;
+						}
+						int next_fvert = v[fvert].prev;
+						v[last].next = fvert;
+						v[fvert].prev = last;
+						last = fvert;
+						fvert = next_fvert;
+					}
+					vert = v[reentry_island].next;
+					vvert = &v[vert];
+					vvert->prev = fvert;
+					v[fvert].next = vert;
+				}
+			} else { // !vvert->is_intersection
+				vert = vvert->next;
+				vvert = &v[vert];
+			}
+		} // end while (vert != latest_trace_poly)
+	}
+}
+
+
+void GridMesh::label_interior_freepoly(int poly) {
+	float x=v[poly].x, y=v[poly].y;
+	int over_poly = poly_for_cell(x,y);
+	std::set<int> inside; // The set of polygons we are currently inside
+	for (int p=over_poly; p; p=v[p].next_poly) {
+		if (inside.count(p)) {
+			inside.erase(p);
+		} else {
+			inside.insert(p);
+		}
+	}
+	for (int vert=poly; vert; vert=v[vert].next) {
+		if (v[vert].is_intersection) {
+			int neighbor = v[vert].neighbor;
+			if (inside.count(neighbor)) {
+				v[vert].is_entry = false;
+				inside.erase(neighbor);
+			} else {
+				v[vert].is_entry = true;
+				inside.insert(neighbor);
+			}
+		}
+		if (v[vert].next==poly) break;
+	}
+}
+
+// Adds is_interior and is_entry labels as appropriate to all grid
+// vertices with odd winding number between all polygons
+// {poly1, poly1.next, poly1.next.next, ..., poly2, poly2.next, poly2.next.next, ...}
+// and all vertices of said polygons with the same labels with respect to
+// each vertex's neighbor. E.G. if grid vert 09 and poly2's vert 27 are neighbors,
+// then labeling vert 27 is_entry unambiguously declares that poly2 enters the
+// grid square of vert 09 at that point.
+void GridMesh::label_interior(int poly1, int poly2) {
+	// Winding number changes by +-1 on every polygon entry/exit
+	// BUT that leaves the problem of finding the initial winding number!
+	// We do it the slow way for the vert at (llx,lly)
+	int wind=0;
+	for (int poly=poly1; poly; poly=v[poly].next_poly) {
+		wind += int(point_in_polygon(llx, lly, poly));
+	}
+	for (int poly=poly2; poly; poly=v[poly].next_poly) {
+		wind += int(point_in_polygon(llx, lly, poly));
+	}
+	// Now we use the +-1 rule to propagate the inside/outside info everywhere else
+	bool ll_next_row = wind%2;
 	for (int j=0; j<ny; j++) {
 		bool ll;
-		label_interior_cell(0, j, poly, ll_next_row, &ll, &ll_next_row);
+		label_interior_cell(0, j, ll_next_row, &ll, &ll_next_row);
 		for (int i=1; i<nx; i++) {
-			label_interior_cell(i, j, poly, ll, &ll, nullptr);
+			label_interior_cell(i, j, ll, &ll, nullptr);
 		}
+	}
+	// It's not just the grid polygons that need is_entry and is_interior info!
+	for (int poly=poly1; poly; poly=v[poly].next_poly) {
+		label_interior_freepoly(poly);
+	}
+	for (int poly=poly2; poly; poly=v[poly].next_poly) {
+		label_interior_freepoly(poly);
 	}
 }
 

@@ -324,8 +324,14 @@ void GLUT_keyboard(unsigned char ch, int x, int y ) {
 		}
 		glutPostRedisplay();
 	}
+	if (ch=='l') {
+		gm->label_interior(clip,subj);
+		glutPostRedisplay();
+	}
 	if (ch=='t') {
-		gm->label_interior(clip);
+		gm->trim_to_odd();
+		subj = 0; // Subject and clip were destroyed in trimming process
+		clip = 0;
 		glutPostRedisplay();
 	}
 	if (ch=='1') toggle_cyclic(clip);

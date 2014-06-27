@@ -22,15 +22,17 @@ struct GreinerV2f {
 	int first, prev, next; // First,prev,next verts in the *same* polygon
 	int next_poly;   // First vertex of the *next* polygon
 	float alpha; // If this vertex came from an affine comb, this is the mixing factor
-	bool is_intersection; // True if this vertex was added at an intersection
-	bool is_interior;
-	bool is_trivial; // True if this polygon has four vertices corresponding precisely to its cell bounds
+	bool is_intersection:1; // True if this vertex was added at an intersection
+	bool is_interior:1;
+	bool is_entry:1;
+	bool is_used:1;
 	char corner; // 1=ll, 2=lr, 3=ur, 4=ul, 0 = none
 	int neighbor; // Corresp. vertex at same {x,y} in different polygon
 	
 	GreinerV2f() :	next(0), prev(0),
 					next_poly(0), neighbor(0), first(0),
-					is_intersection(false), corner(0) {};
+					is_intersection(false), is_interior(false), is_entry(false),
+					is_used(false), corner(0) {};
 };
 
 struct IntersectingEdge {
@@ -64,6 +66,7 @@ struct GridMesh {
 	int vert_id(GreinerV2f *vert) {return vert?int(vert-v):0;}
 	int vert_neighbor_on_poly(int vert, int poly);
 	void vert_add_neighbor(int vert, int new_neighbor);
+	std::pair<int,int> vert_grid_cell(int vert);
 	int poly_for_cell(int x, int y);
 	int poly_for_cell(float x, float y);
 	int poly_first_vert(int anyvert);
@@ -74,11 +77,8 @@ struct GridMesh {
 	bool poly_is_cyclic(int poly);
 	void poly_set_cyclic(int poly, bool cyclic);
 	
-	// Intersection
+	// Trimming
 	bool point_in_polygon(double x, double y, int poly);
-	int insert_vert_poly_gridmesh(int poly); // Returns # of vertices inserted.
-	void label_interior(int poly);
-	void label_interior_cell(int x, int y, int poly, bool ll, bool *lr, bool*ul);
 	std::vector<IntersectingEdge> edge_poly_intersections(int e1, int p);
 	int insert_vert(int poly1left,
 					int poly1right,
@@ -90,6 +90,15 @@ struct GridMesh {
 									  std::vector<std::pair<int,int>> *bottom_edges,
 									  std::vector<std::pair<int,int>> *left_edges,
 									  std::vector<std::pair<int,int>> *integer_cells);
+	// Step 1: insert verts at intersections
+	int insert_vert_poly_gridmesh(int poly); // Returns # of vertices inserted.
+	// Step 2: find mutual entry/exit points
+	void label_interior(int poly1, int poly2); // is_interior for pts with odd winding num
+	void label_interior_cell(int x, int y, bool ll, bool *lr, bool*ul);
+	void label_interior_freepoly(int poly);
+	// Step 3: perform the actual trim
+	void trim_to_odd();
+	void trim_to_odd(int poly); // Trim one grid poly, leaving behind parts w/odd winding# in .next_poly linked list
 #if defined(ENABLE_GLUT_DEMO)
 	// Draw
 	void poly_center(int poly, float *cx, float *cy);
