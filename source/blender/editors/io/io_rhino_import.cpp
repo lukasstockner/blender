@@ -613,6 +613,12 @@ static void rhino_import_surface(bContext *C,
 			rhino_import_nurbs_surf(C, ns, obj, attrs, newobj);
 			delete ns;
 		}
+		did_handle = true;
+	}
+	if (!did_handle) {
+		char surf_name[MAX_ID_NAME];
+		
+		printf("couldn't handle ")
 	}
 }
 
