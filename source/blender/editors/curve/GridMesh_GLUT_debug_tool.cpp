@@ -25,10 +25,9 @@ float intersect_check_tol = .001; //Maximum Euclidean dist between intersect pts
 GridMesh *gm;
 bool clip_cyclic = true; // Required for initialization
 bool subj_cyclic = true;
-std::vector<float> clip_verts = {2.360000,8.648000, 3.176000,5.888000, 0.200000,5.000000, 1.304000,0.416000, 4.208000,2.096000, 8.600000,0.536000, 9.632000,4.736000, 5.960000,5.936000, 6.896000,8.696000};
-std::vector<float> subj0 = {2.816000,4.784000, 5.024000,5.000000, 5.672000,4.808001, 5.720000,4.160000, 5.384000,3.248000, 4.496000,2.840000, 4.832000,2.456000, 5.696000,3.056000, 6.104000,3.896000, 6.104000,5.024000, 5.072000,5.672000};
-std::vector<float> subj1 = {3.992000,3.344000, 5.048000,3.320000, 5.264000,3.896000, 5.120000,4.160000, 4.832000,4.232000, 4.472000,4.256001, 4.160000,4.256001, 3.896000,4.160000};
-std::vector<std::vector<float>> subj_polys = {subj0,subj1};
+std::vector<float> clip_verts = {.2,.2,  1.8,.2,  1.8,1.8,  .2,1.8};
+std::vector<float> subj0 = {.8,.8,  1.2,.8,  1.2,1.2,  .8,1.2};
+std::vector<std::vector<float>> subj_polys = {subj0};
 std::vector<float> inout_pts = {};
 
 int clip = 0; // Vertex index of the first vertex of the clip polygon
@@ -40,13 +39,13 @@ int win_height = 500;
 void glut_coords_2_scene(float gx, float gy, float* sx, float* sy) {
 	gx /= win_width;
 	gy /= win_height;
-	*sx =-1.0*(1-gx) + 11.0*gx;
-	*sy =11.0*(1-gy) + -1.0*gy;
+	*sx =-1.0*(1-gx) + 03.0*gx;
+	*sy =03.0*(1-gy) + -1.0*gy;
 }
 
 void init_default_scene() {
 	// Create the gridmesh
-	gm = new GridMesh(0,0,10,10,11,11);
+	gm = new GridMesh(0,0,2,2,2,2); // x,y x,y nx,ny
 	// Import the clip polygon into the linked-list datastructure
 	int last = 0;
 	size_t clip_n = clip_verts.size()/2;
@@ -102,7 +101,7 @@ void GLUT_init(){
     glMatrixMode(GL_PROJECTION);
 	// Defines the view box
 	// left,right,bottom,top
-    gluOrtho2D(-1,11,-1,11);
+    gluOrtho2D(-1,03,-1,03);
 	init_default_scene();
 }
 
@@ -251,9 +250,6 @@ void GLUT_reshape(int w, int h){
 	glViewport(0,0,w,h);
 	win_width = w;
 	win_height = h;
-	if (debug){
-		printf("GLUT_reshape w:%d h:%d\n",w,h);
-	}
 }
 void dump_polys_to_stdout() {
 	GreinerV2f *v = gm->v;
@@ -367,17 +363,17 @@ void create_pt(float sx, float sy) {
 	grabbed_vert = v; // Let's drag the new vert we just made
 	glutPostRedisplay();
 }
-void initiate_pt_drag_if_near_pt(float sx, float sy) {
-	GreinerV2f *v = gm->v; // Vertex info array
+int closest_vert(float sx, float sy, float *dist) {
+	GreinerV2f *v = gm->v;
 	float closest_dist = 1e50;
-	int closest_vert = 0;
+	int nearest_v = 0;
 	for (int vert=clip; vert; vert=v[vert].next) {
 		float dx = v[vert].x - sx;
 		float dy = v[vert].y - sy;
 		float dist = sqrt(dx*dx + dy*dy);
 		if (dist<closest_dist) {
 			closest_dist = dist;
-			closest_vert = vert;
+			nearest_v = vert;
 		}
 		if (v[vert].next==clip) break;
 	}
@@ -388,13 +384,18 @@ void initiate_pt_drag_if_near_pt(float sx, float sy) {
 			float dist = sqrt(dx*dx + dy*dy);
 			if (dist<closest_dist) {
 				closest_dist = dist;
-				closest_vert = vert;
+				nearest_v = vert;
 			}
 			if (v[vert].next==poly) break;
 		}
 	}
-	if (debug) printf("Nearest point to mousedown (%f)\n",closest_dist);
-	grabbed_vert = (closest_dist<.1) ? closest_vert : 0;
+	if (dist) *dist = closest_dist;
+	return nearest_v;
+}
+void initiate_pt_drag_if_near_pt(float sx, float sy) {
+	float dist;
+	int v = closest_vert(sx,sy,&dist);
+	grabbed_vert = (dist<.1) ? v : 0;
 }
 void terminate_pt_drag() {
 	//grabbed_vert = nullptr;
@@ -440,6 +441,12 @@ void GLUT_motion(int x, int y) {
 		glutPostRedisplay();
 	}
 }
+void GLUT_passive(int x, int y) {
+	float sx,sy,dist;
+	glut_coords_2_scene(x,y,&sx,&sy);
+	int v = closest_vert(sx,sy,&dist);
+	if (dist<.1) printf("Vertex near cursor: %i\n",v);
+}
 
 
 /***************************** MAIN *****************************/
@@ -453,7 +460,7 @@ int main(int argc, char **argv){
 	glutReshapeFunc(GLUT_reshape);
 	glutMouseFunc(GLUT_mouse);
 	glutMotionFunc(GLUT_motion); // Mouse is dragged. Callback args: (int x, int y)
-	glutPassiveMotionFunc(NULL); // Mouse is moved. Callback args: (int x, int y)
+	glutPassiveMotionFunc(GLUT_passive); // Mouse is moved. Callback args: (int x, int y)
 	glutKeyboardFunc(GLUT_keyboard);
 	glutSpecialFunc(GLUT_specialkey);
     GLUT_init();

@@ -520,7 +520,7 @@ void GridMesh::trim_to_odd(int poly) {
 		GreinerV2f *vvert = &v[vert];
 		// Move until vert = valid starting vertex
 		bool bail=false;
-		while (!(    (vvert->is_intersection  && !vvert->is_entry)
+		while (!(    (vvert->is_intersection)
 				  || (!vvert->is_intersection && vvert->is_interior))) {
 			vvert->is_used = true;
 			vert = vvert->next;
@@ -540,16 +540,23 @@ void GridMesh::trim_to_odd(int poly) {
 			first_trace_poly = vert;
 			if (poly!=vert) {
 				v[poly].next_poly = vert;
-				v[poly].next = poly;
-				v[poly].prev = poly;
+				v[poly].next = 0;
+				v[poly].prev = 0;
+				v[poly].is_used = 1;
 			}
+		}
+		// The do-while loop assumes is_intersection => needs to jump off
+		if (vvert->is_intersection) {
+			vvert->is_used = 1;
+			vert = vvert->next;
+			vvert = &v[vert];
 		}
 		// Now trace out the active boundary, leaving behind
 		//  .is_used=1
 		//  .first = latest_trace_poly
 		//  .prev/.next connecting the boundary
 		// and spinning out trace_origins every time we exit poly
-		while (vert != latest_trace_poly) {
+		do { // do while (vert != latest_trace_poly)
 			vvert->is_used = 1;
 			vvert->first = latest_trace_poly;
 			if (vvert->is_intersection) {
@@ -572,37 +579,46 @@ void GridMesh::trim_to_odd(int poly) {
 						// v[last].next = fvert;
 						// v[fvert].prev = last;
 					}
-					vert = v[reentry_island].next;
-					vvert = &v[vert];
-					vvert->prev = fvert;
-					v[fvert].next = vert;
+					if (v[reentry_island].is_used) {
+						v[last].next = reentry_island;
+						v[reentry_island].prev = last;
+					} else { // Hop past the reentry island -- it's not our destination
+						vert = v[reentry_island].next;
+						vvert = &v[vert];
+						vvert->prev = fvert;
+						v[fvert].next = vert;
+					}
 				} else { // prev prev prev along foreign edge
 					int fvert = v[escape_island].prev;
-					v[last].next = fvert;
-					v[fvert].prev = last;
+					int fvert_prev;
 					while (true) {
+						fvert_prev = v[fvert].prev;
+						v[last].next = fvert;
+						v[fvert].prev = last;
 						v[fvert].is_used = true;
 						v[fvert].first = latest_trace_poly;
 						reentry_island = v[fvert].neighbor;
 						if (reentry_island) {
 							if (v[reentry_island].first==poly) break;
 						}
-						int next_fvert = v[fvert].prev;
-						v[last].next = fvert;
-						v[fvert].prev = last;
 						last = fvert;
-						fvert = next_fvert;
+						fvert = fvert_prev;
 					}
-					vert = v[reentry_island].next;
-					vvert = &v[vert];
-					vvert->prev = fvert;
-					v[fvert].next = vert;
+					if (v[reentry_island].is_used) {
+						v[last].next = reentry_island;
+						v[reentry_island].prev = last;
+					} else {
+						vert = v[reentry_island].next;
+						vvert = &v[vert];
+						vvert->prev = fvert;
+						v[fvert].next = vert;
+					}
 				}
 			} else { // !vvert->is_intersection
 				vert = vvert->next;
 				vvert = &v[vert];
 			}
-		} // end while (vert != latest_trace_poly)
+		} while (vert && vert!=latest_trace_poly);
 	}
 }
 
@@ -620,13 +636,13 @@ void GridMesh::label_interior_freepoly(int poly) {
 	}
 	for (int vert=poly; vert; vert=v[vert].next) {
 		if (v[vert].is_intersection) {
-			int neighbor = v[vert].neighbor;
-			if (inside.count(neighbor)) {
+			int neighbor_poly = v[v[vert].neighbor].first;
+			if (inside.count(neighbor_poly)) {
 				v[vert].is_entry = false;
-				inside.erase(neighbor);
+				inside.erase(neighbor_poly);
 			} else {
 				v[vert].is_entry = true;
-				inside.insert(neighbor);
+				inside.insert(neighbor_poly);
 			}
 		}
 		if (v[vert].next==poly) break;
