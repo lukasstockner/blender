@@ -46,7 +46,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
-#include "GPU_simple_shader.h"
+
 #include "gpu_codegen.h"
 
 #include <stdlib.h>
@@ -107,8 +107,6 @@ int GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver)
 
 /* GPU Extensions */
 
-static int gpu_extensions_init = 0;
-
 void GPU_extensions_disable(void)
 {
 	GG.extdisabled = 1;
@@ -119,17 +117,12 @@ int GPU_max_texture_size(void)
 	return GG.maxtexsize;
 }
 
-void GPU_extensions_init(void)
+void gpu_extensions_init(void)
 {
 	GLint r, g, b;
 	const char *vendor, *renderer;
 
-	/* can't avoid calling this multiple times, see wm_window_add_ghostwindow */
-	if (gpu_extensions_init) return;
-	gpu_extensions_init= 1;
-
-	glewInit();
-	GPU_codegen_init();
+	gpu_codegen_init();
 
 	/* glewIsSupported("GL_VERSION_2_0") */
 
@@ -227,14 +220,11 @@ void GPU_extensions_init(void)
 
 
 	GPU_invalid_tex_init();
-	GPU_simple_shaders_init();
 }
 
-void GPU_extensions_exit(void)
+void gpu_extensions_exit(void)
 {
-	gpu_extensions_init = 0;
-	GPU_codegen_exit();
-	GPU_simple_shaders_exit();
+	gpu_codegen_exit();
 	GPU_invalid_tex_free();
 }
 
@@ -822,7 +812,7 @@ int GPU_texture_opengl_height(GPUTexture *tex)
 	return tex->h;
 }
 
-int GPU_texture_opengl_bindcode(GPUTexture *tex)
+int GPU_texture_opengl_bindcode(const GPUTexture *tex)
 {
 	return tex->bindcode;
 }
@@ -830,6 +820,33 @@ int GPU_texture_opengl_bindcode(GPUTexture *tex)
 GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex)
 {
 	return tex->fb;
+}
+
+unsigned char* GPU_texture_dup_pixels(const GPUTexture *tex, size_t* count)
+{
+	unsigned char* texpixels;
+
+#if !defined(GLEW_NO_ES)
+	*count = tex->pixels_w * tex->pixels_h;
+#else
+	*count = tex->w * tex->h;
+#endif
+
+	texpixels = (unsigned char*)MEM_mallocN(4*(*count), "RGBApixels");
+
+#if !defined(GLEW_NO_ES)
+	memcpy(texpixels, tex->pixels, 4*(*count));
+#else
+	{
+	//gpuBindTexture(GL_TEXTURE_2D, GPU_texture_opengl_bindcode(tex));
+	glBindTexture(GL_TEXTURE_2D, GPU_texture_opengl_bindcode(tex));
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, texpixels); 
+	//gpuBindTexture(GL_TEXTURE_2D, 0); /* restore default */
+	glBindTexture(GL_TEXTURE_2D, 0); /* restore default */
+	}
+#endif
+
+	return texpixels;
 }
 
 /* GPUFrameBuffer */

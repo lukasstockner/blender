@@ -55,7 +55,6 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 
-#include "BIF_gl.h"
 
 #include "RNA_access.h"
 
@@ -74,6 +73,8 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_init_exit.h"
+#include "GPU_glew.h"
 
 #include "UI_interface.h"
 
@@ -319,8 +320,7 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
 		/* nothing to do for 'temp' windows,
 		 * because WM_window_open_temp always sets window title  */
 	}
-	else {
-		
+	else if (win->ghostwin) {
 		/* this is set to 1 if you don't have startup.blend open */
 		if (G.save_over && G.main->name[0]) {
 			char str[sizeof(G.main->name) + 24];
@@ -345,34 +345,34 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 	GHOST_WindowHandle ghostwin;
 	static int multisamples = -1;
 	int scr_w, scr_h, posy;
-	
+
 	/* force setting multisamples only once, it requires restart - and you cannot 
 	 * mix it, either all windows have it, or none (tested in OSX opengl) */
 	if (multisamples == -1)
 		multisamples = U.ogl_multisamples;
-	
+
 	wm_get_screensize(&scr_w, &scr_h);
 	posy = (scr_h - win->posy - win->sizey);
-	
+
 	ghostwin = GHOST_CreateWindow(g_system, title,
 	                              win->posx, posy, win->sizex, win->sizey,
 	                              (GHOST_TWindowState)win->windowstate,
 	                              GHOST_kDrawingContextTypeOpenGL,
 	                              0 /* no stereo */,
 	                              multisamples /* AA */);
-	
+
 	if (ghostwin) {
 		GHOST_RectangleHandle bounds;
-		
+
 		/* needed so we can detect the graphics card below */
-		GPU_extensions_init();
-		
+		GPU_init();
+
 		win->ghostwin = ghostwin;
 		GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
-		
+
 		if (win->eventstate == NULL)
 			win->eventstate = MEM_callocN(sizeof(wmEvent), "window event state");
-		
+
 #ifdef __APPLE__
 		/* set the state here, else OSX would not recognize changed screen resolution */
 		/* we agreed to not set any fullscreen or iconized state on startup */
@@ -394,16 +394,16 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 		if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
 			glClear(GL_COLOR_BUFFER_BIT);
 		}
-		
+
 		/* displays with larger native pixels, like Macbook. Used to scale dpi with */
 		/* needed here, because it's used before it reads userdef */
 		U.pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
 		BKE_userdef_state();
-		
+
 		wm_window_swap_buffers(win);
-		
+
 		//GHOST_SetWindowState(ghostwin, GHOST_kWindowStateModified);
-		
+
 		/* standard state vars for window */
 		glEnable(GL_SCISSOR_TEST);
 		GPU_state_init();

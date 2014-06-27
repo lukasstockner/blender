@@ -20,17 +20,21 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): Brecht Van Lommel.
+ * Contributor(s): Brecht Van Lommel, Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file GPU_extensions.h
+/** \file source/blender/gpu/GPU_extensions.h
  *  \ingroup gpu
  */
 
-#ifndef __GPU_EXTENSIONS_H__
-#define __GPU_EXTENSIONS_H__
+#ifndef _GPU_EXTENSIONS_H_
+#define _GPU_EXTENSIONS_H_
+
+#include "BLI_sys_types.h"
+
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,7 +43,7 @@ extern "C" {
 struct Image;
 struct ImageUser;
 struct PreviewImage;
-	
+
 struct GPUTexture;
 typedef struct GPUTexture GPUTexture;
 
@@ -55,8 +59,6 @@ typedef struct GPUShader GPUShader;
 /* GPU extensions support */
 
 void GPU_extensions_disable(void);
-void GPU_extensions_init(void); /* call this before running any of the functions below */
-void GPU_extensions_exit(void);
 int GPU_print_error(const char *str);
 
 int GPU_glsl_support(void);
@@ -101,7 +103,7 @@ int GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver);
  *   graphics card capabilities the texture may actually be stored in a
  *   larger texture with power of two dimensions. the actual dimensions
  *   may be queried with GPU_texture_opengl_width/height. GPU_texture_coord_2f
- *   calls glTexCoord2f with the coordinates adjusted for this.
+ *   calls TexCoord2f with the coordinates adjusted for this.
  * - can use reference counting:
  *     - reference counter after GPU_texture_create is 1
  *     - GPU_texture_ref increases by one
@@ -133,7 +135,9 @@ GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex);
 int GPU_texture_target(GPUTexture *tex);
 int GPU_texture_opengl_width(GPUTexture *tex);
 int GPU_texture_opengl_height(GPUTexture *tex);
-int GPU_texture_opengl_bindcode(GPUTexture *tex);
+int GPU_texture_opengl_bindcode(const GPUTexture *tex);
+
+unsigned char *GPU_texture_dup_pixels(const GPUTexture *tex, size_t *count_out);
 
 /* GPU Framebuffer
  * - this is a wrapper for an OpenGL framebuffer object (FBO). in practice
@@ -174,6 +178,7 @@ void GPU_shader_free(GPUShader *shader);
 void GPU_shader_bind(GPUShader *shader);
 void GPU_shader_unbind(void);
 
+int GPU_shader_get_attrib(GPUShader *shader, const char *name);
 int GPU_shader_get_uniform(GPUShader *shader, const char *name);
 void GPU_shader_uniform_vector(GPUShader *shader, int location, int length,
 	int arraysize, float *value);
@@ -206,6 +211,8 @@ typedef struct GPUVertexAttribs {
 
 	int totlayer;
 } GPUVertexAttribs;
+
+int GPU_max_textures(void);
 
 #ifdef __cplusplus
 }

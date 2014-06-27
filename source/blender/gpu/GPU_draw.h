@@ -29,21 +29,32 @@
  *  \ingroup gpu
  */
 
-#ifndef __GPU_DRAW_H__
-#define __GPU_DRAW_H__
+#ifndef _GPU_DRAW_H_
+#define _GPU_DRAW_H_
+
+#include "BLI_sys_types.h"
+
+#include "GPU_glew.h"
+
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+
+
+struct MTFace;
 struct Image;
 struct ImageUser;
-struct MTFace;
+struct ImBuf;
+struct SmokeModifierData;
+struct RegionView3D;
 struct Object;
 struct Scene;
 struct View3D;
-struct RegionView3D;
-struct SmokeModifierData;
+
+
 
 /* OpenGL drawing functions related to shading. These are also
  * shared with the game engine, where there were previously
@@ -120,6 +131,8 @@ float GPU_get_anisotropic(void);
 /* enable gpu mipmapping */
 void GPU_set_gpu_mipmapping(int gpu_mipmap);
 
+GLenum GPU_mipmap_2D(GLboolean genmip, GLenum internalFormat, int w, int h, GLenum type, void* data);
+
 /* Image updates and free
  * - these deal with images bound as opengl textures */
 
@@ -148,4 +161,3 @@ void GPU_free_unused_buffers(void);
 #endif
 
 #endif
-

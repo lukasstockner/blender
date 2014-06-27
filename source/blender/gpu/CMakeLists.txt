@@ -45,31 +45,125 @@ set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
-set(SRC
-	intern/gpu_buffers.c
-	intern/gpu_codegen.c
-	intern/gpu_draw.c
-	intern/gpu_extensions.c
-	intern/gpu_material.c
-	intern/gpu_simple_shader.c
-
-	GPU_buffers.h
-	GPU_draw.h
-	GPU_extensions.h
-	GPU_glew.h
-	GPU_material.h
-	GPU_simple_shader.h
+set(INTERN_INC
+	intern/gpu_aspect_intern.h
+	intern/gpu_basic_intern.h
+	intern/gpu_blender_aspect_intern.h
+	intern/gpu_clipping_intern.h
+	intern/gpu_common_intern.h
 	intern/gpu_codegen.h
+	intern/gpu_extensions_intern.h
+	intern/gpu_immediate_intern.h
+	intern/gpu_lighting_intern.h
+	intern/gpu_pixels_intern.h
+	intern/gpu_primitives_inline.h
+	intern/gpu_profile.h
+	intern/gpu_raster_intern.h
+    intern/gpu_select_intern.h
+	intern/gpu_sprite_intern.h
+	intern/gpu_state_latch_intern.h
 )
 
-data_to_c_simple(shaders/gpu_shader_material.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_frag.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_vert.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_simple_frag.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_simple_vert.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_vertex.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_vsm_store_frag.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_vsm_store_vert.glsl SRC)
+set(GLSL_SRC
+    shaders/gpu_shader_vertex.glsl
+    shaders/gpu_shader_material.glsl
+
+    shaders/gpu_shader_sep_gaussian_blur_frag.glsl
+    shaders/gpu_shader_sep_gaussian_blur_vert.glsl
+
+    shaders/gpu_shader_vsm_store_frag.glsl
+    shaders/gpu_shader_vsm_store_vert.glsl
+
+    shaders/gpu_shader_common_attribs.glsl
+    shaders/gpu_shader_common_constants.glsl
+    shaders/gpu_shader_common_uniforms.glsl
+
+    shaders/gpu_shader_font_frag.glsl
+    shaders/gpu_shader_font_vert.glsl
+
+    shaders/gpu_shader_pixels_uniforms.glsl
+    shaders/gpu_shader_pixels_frag.glsl
+    shaders/gpu_shader_pixels_vert.glsl
+
+    shaders/gpu_shader_basic_frag.glsl
+    shaders/gpu_shader_basic_vert.glsl
+
+    shaders/gpu_shader_raster_frag.glsl
+    shaders/gpu_shader_raster_uniforms.glsl
+    shaders/gpu_shader_raster_vert.glsl
+)
+
+set(SRC
+	intern/gpu_aspect.c
+	intern/gpu_basic.c
+	intern/gpu_blender_aspect.c
+	intern/gpu_buffers.c
+	intern/gpu_clipping.c
+	intern/gpu_codegen.c
+	intern/gpu_common.c
+	intern/gpu_debug.c
+	intern/gpu_draw.c
+	intern/gpu_extensions.c
+	intern/gpu_font.c
+	intern/gpu_immediate.c
+	intern/gpu_immediate_gl.c
+	intern/gpu_init_exit.c
+	intern/gpu_lighting.c
+	intern/gpu_material.c
+	intern/gpu_matrix.c
+	intern/gpu_pixels.c
+	intern/gpu_primitives.c
+	intern/gpu_raster.c
+	intern/gpu_select.c
+	intern/gpu_sprite.c
+	intern/gpu_state_latch.c
+	intern/gpu_utility.c
+
+	GPU_aspect.h
+	GPU_basic.h
+	GPU_blender_aspect.h
+	GPU_buffers.h
+	GPU_clipping.h
+	GPU_colors.h
+	GPU_common.h
+	GPU_deprecated.h
+	GPU_draw.h
+	GPU_extensions.h
+	GPU_font.h
+	GPU_glew.h
+	GPU_init_exit.h
+	GPU_immediate.h
+	GPU_lighting.h
+	GPU_material.h
+	GPU_matrix.h
+	GPU_pixels.h
+	GPU_primitives.h
+	GPU_raster.h
+	GPU_safety.h
+    GPU_select.h
+	GPU_sprite.h
+	GPU_state_latch.h
+	GPU_utility.h
+
+    ${INTERN_INC}
+    
+    ${GLSL_SRC}
+)
+
+if(WITH_GPU_SAFETY)
+	list(APPEND SRC
+		intern/gpu_safety.c
+	)
+endif()
+
+foreach(GLSL_FILE ${GLSL_SRC})
+    data_to_c_simple(${GLSL_FILE} SRC)
+    list(APPEND GEN_SRC "${CMAKE_CURRENT_BINARY_DIR}/${GLSL_FILE}.c")
+endforeach()
+
+source_group("Internal Header Files" FILES ${INTERN_INC})
+source_group("Generated Files"       FILES ${GEN_SRC})
+source_group("Shader Files"          FILES ${GLSL_SRC})
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
@@ -78,8 +172,6 @@ endif()
 if(WITH_MOD_SMOKE)
 	add_definitions(-DWITH_SMOKE)
 endif()
-
-add_definitions(-DGLEW_STATIC)
 
 if(WITH_IMAGE_DDS)
 	add_definitions(-DWITH_DDS)
