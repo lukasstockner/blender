@@ -3005,14 +3005,23 @@ static void widget_menu_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(sta
 	widgetbase_draw(&wtb, wcol);
 }
 
-static void widget_menu_radial_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+static void widget_menu_radial_itembut(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	uiWidgetBase wtb;
 	float rad;
+	float fac = but->block->pie_data.alphafac;
+
 	widget_init(&wtb);
 
 	rad = 0.5f * BLI_rcti_size_y(rect);
 	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
+
+	wcol->inner[3] *= fac;
+	wcol->inner_sel[3] *= fac;
+	wcol->item[3] *= fac;
+	wcol->text[3] *= fac;
+	wcol->text_sel[3] *= fac;
+	wcol->outline[3] *= fac;
 
 	widgetbase_draw(&wtb, wcol);
 }
@@ -3338,7 +3347,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
 		case UI_WTYPE_MENU_ITEM_RADIAL:
 			wt.wcol_theme = &btheme->tui.wcol_pie_menu;
-			wt.draw = widget_menu_radial_itembut;
+			wt.custom = widget_menu_radial_itembut;
 			wt.state = widget_state_pie_menu_item;
 			break;
 	}

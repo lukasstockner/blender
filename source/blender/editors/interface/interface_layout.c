@@ -2098,7 +2098,7 @@ static void ui_litem_layout_column(uiLayout *litem)
 
 /* calculates the angle of a specified button in a radial menu,
  * stores a float vector in unit circle */
-static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short totitems)
+static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum)
 {
 	float angle = 0.0f;
 	RadialDirection dir = UI_RADIAL_NONE;
@@ -2126,7 +2126,7 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short tot
 	 * --Matt 07/2006
 	 */
 
-	if (itemnum < 5) {
+	/* if (itemnum < 5) { */
 		switch (itemnum) {
 			case 1:
 				dir = UI_RADIAL_W;
@@ -2144,10 +2144,11 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short tot
 				dir = UI_RADIAL_N;
 				angle = 90.0f;
 				break;
-		}
+/*		}
 	}
 	else if (totitems < 9) {
 		switch (itemnum) {
+			*/
 			case 5:
 				dir = UI_RADIAL_NW;
 				angle = 140;
@@ -2164,10 +2165,13 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short tot
 				dir = UI_RADIAL_SE;
 				angle = 320;
 				break;
+
+			default:
+				break;
 		}
+#if 0
 	}
 	else {
-#if 0
 		/* subdivide quadrants progressively, depending on number of items */
 		int anglepad, curquad, numinquad, aligncorrect=0;
 		int quaditems, overflow;
@@ -2210,8 +2214,8 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum, short tot
 			aligncorrect = angle - 360;
 
 		angle += aligncorrect/17;	/* 17 == magic number, works nicely */
-#endif
 	}
+#endif
 
 	angle = DEG2RADF(angle);
 
@@ -2277,7 +2281,7 @@ static void ui_litem_layout_radial(uiLayout *litem)
 
 			itemnum++;
 
-			dir = ui_get_radialbut_vec(vec, itemnum, totitems);
+			dir = ui_get_radialbut_vec(vec, itemnum);
 
 			if (item->type == ITEM_BUTTON) {
 				uiButtonItem *bitem = (uiButtonItem *) item;

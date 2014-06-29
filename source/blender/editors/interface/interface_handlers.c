@@ -114,6 +114,7 @@ static bool ui_mouse_motion_keynav_test(struct uiKeyNavLock *keynav, const wmEve
 #define BUTTON_TOOLTIP_DELAY        0.500
 #define BUTTON_FLASH_DELAY          0.020
 #define MENU_SCROLL_INTERVAL        0.1
+#define PIE_MENU_INTERVAL           0.01
 #define BUTTON_AUTO_OPEN_THRESH     0.3
 #define BUTTON_MOUSE_TOWARDS_THRESH 1.0
 /* pixels to move the cursor to get out of keyboard navigation */
@@ -6251,6 +6252,44 @@ static bool ui_but_contains_pt(uiBut *but, float mx, float my)
 	return BLI_rctf_isect_pt(&but->rect, mx, my);
 }
 
+static void ui_but_pie_visual_dir(RadialDirection dir, float vec[2]) {
+	float angle;
+
+	switch (dir) {
+		case UI_RADIAL_W:
+			angle = 180.0f;
+			break;
+		case UI_RADIAL_E:
+			angle = 0.0f;
+			break;
+		case UI_RADIAL_S:
+			angle = 270.0f;
+			break;
+		case UI_RADIAL_N:
+			angle = 90.0f;
+			break;
+		case UI_RADIAL_NW:
+			angle = 140.0f;
+			break;
+		case UI_RADIAL_NE:
+			angle = 40.0f;
+			break;
+		case UI_RADIAL_SW:
+			angle = 220.0f;
+			break;
+		case UI_RADIAL_SE:
+			angle = 320.0f;
+			break;
+		default:
+			angle = 0.0f;
+			break;
+	}
+
+	angle = angle / 180.0f * M_PI;
+	vec[0] = cos(angle);
+	vec[1] = sin(angle);
+}
+
 static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but)
 {
 	float angle_range = (block->pie_data.flags & UI_PIE_DEGREES_RANGE_LARGE) ? M_PI_4 : M_PI_4 / 2.0f;
@@ -8380,7 +8419,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 	ARegion *ar;
 	uiBlock *block;
 	int mx, my;
-	double time_diff;
+	double duration;
 
 	/* we block all events, this is modal interaction, except for drop events which is described below */
 	int retval = WM_UI_HANDLER_BREAK;
@@ -8394,16 +8433,48 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 	ar = menu->region;
 	block = ar->uiblocks.first;
 
-	/* add menu timer, this is used to evaluate the time that is needed for
-	 * calculating collision from final/initial position or if pie menu is drag-style
-	 * or press and release style */
-	time_diff = PIL_check_seconds_timer() - menu->towardstime;
+	if (menu->scrolltimer == NULL) {
+		menu->scrolltimer =
+		    WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, PIE_MENU_INTERVAL);
+		menu->scrolltimer->duration = 0.0;
+	}
 
-	/* deactivate initial direction after a while */
-	if (time_diff > 0.01 * U.pie_initial_timeout) {
-		block->pie_data.flags &= ~UI_PIE_INITIAL_DIRECTION;
-		/* force redraw */
-		ED_region_tag_redraw(ar);
+	duration = menu->scrolltimer->duration;
+
+	if (event->type == TIMER) {
+		if (event->customdata == menu->scrolltimer) {
+			/* deactivate initial direction after a while */
+			if (duration > 0.01 * U.pie_initial_timeout) {
+				block->pie_data.flags &= ~UI_PIE_INITIAL_DIRECTION;
+			}
+
+			/* handle animation */
+			if (!(block->pie_data.flags & UI_PIE_ANIMATION_FINISHED)) {
+				uiBut *but;
+				double final_time = 0.08;
+				float fac = duration / final_time;
+
+				if (fac > 1.0f) {
+					fac = 1.0f;
+					block->pie_data.flags |= UI_PIE_ANIMATION_FINISHED;
+				}
+
+				for (but = block->buttons.first; but; but = but->next) {
+					if (but->pie_dir) {
+						float dir[2];
+
+						ui_but_pie_visual_dir(but->pie_dir, dir);
+
+						mul_v2_fl(dir, fac * U.pie_menu_radius);
+						add_v2_v2(dir, block->pie_data.pie_center_spawned);
+						BLI_rctf_recenter(&but->rect, dir[0], dir[1]);
+					}
+				}
+				block->pie_data.alphafac = fac;
+
+				ED_region_tag_redraw(ar);
+			}
+		}
 	}
 
 	mx = event->x;
@@ -8433,7 +8504,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			ED_region_tag_redraw(ar);
 		}
 		else {
-			if (time_diff > U.pie_drag_timeout * 0.01) {
+			if (duration > U.pie_drag_timeout * 0.01) {
 				retval = ui_pie_menu_apply(C, menu, event, true);
 			}
 			else {

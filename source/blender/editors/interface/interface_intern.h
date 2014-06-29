@@ -165,6 +165,7 @@ typedef enum RadialDirection {
 #define UI_PIE_INVALID_DIR         (1 << 3) /* mouse not far enough from center position  */
 #define UI_PIE_CANCELLED           (1 << 4) /* pie menu cancelled but we still wait for a release event  */
 #define UI_PIE_CLICK_STYLE         (1 << 5) /* pie menu changed to click style, click to confirm  */
+#define UI_PIE_ANIMATION_FINISHED  (1 << 6) /* pie animation finished, do not calculate any more motio  */
 
 typedef struct uiLinkLine {  /* only for draw/edit */
 	struct uiLinkLine *next, *prev;
@@ -301,6 +302,7 @@ struct PieMenuData {
 	float pie_center_spawned[2];
 	int flags;
 	int event; /* initial event used to fire the pie menu, store here so we can query for release */
+	float alphafac;
 };
 
 struct uiBlock {
