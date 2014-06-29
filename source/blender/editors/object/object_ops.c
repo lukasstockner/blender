@@ -253,7 +253,8 @@ void ED_operatormacros_object(void)
 {
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
-	
+	PointerRNA *ptr;
+
 	ot = WM_operatortype_append_macro("OBJECT_OT_duplicate_move", "Duplicate Objects",
 	                                  "Duplicate selected objects and move them", OPTYPE_UNDO | OPTYPE_REGISTER);
 	if (ot) {
@@ -272,18 +273,14 @@ void ED_operatormacros_object(void)
 		RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
 	}
 
-	ot = WM_operatortype_append_macro("OBJECT_OT_pie_mode_set", "Set Mode",
-	                                  "Set the mode of interaction for the selected object", OPTYPE_UNDO | OPTYPE_REGISTER);
+	ptr = WM_operator_pie_macro("OBJECT_OT_pie_mode_set", "Set Mode",
+	                            "Set the mode of interaction for the selected object",
+	                            OPTYPE_UNDO | OPTYPE_REGISTER, "OBJECT_OT_mode_set", "VIEW3D_PIE_object");
 
-	if (ot) {
-		otmacro = WM_operatortype_macro_define(ot, "WM_OT_call_pie_menu_timer");
-		RNA_string_set(otmacro->ptr, "name", "VIEW3D_PIE_object");
-		otmacro = WM_operatortype_macro_define(ot, "OBJECT_OT_mode_set");
-		RNA_enum_set(otmacro->ptr, "mode", OB_MODE_EDIT);
-		RNA_boolean_set(otmacro->ptr, "toggle", true);
-
+	if (ptr) {
+		RNA_enum_set(ptr, "mode", OB_MODE_EDIT);
+		RNA_boolean_set(ptr, "toggle", true);
 	}
-
 }
 
 static int object_mode_poll(bContext *C)
@@ -303,12 +300,6 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_pie_mode_set", TABKEY, KM_PRESS, 0, 0);
 
-#if 0
-	/* Note: this keymap works disregarding mode */
-	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_mode_set", TABKEY, KM_PRESS, 0, 0);
-	RNA_enum_set(kmi->ptr, "mode", OB_MODE_EDIT);
-	RNA_boolean_set(kmi->ptr, "toggle", true);
-
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_mode_set", TABKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "mode", OB_MODE_POSE);
 	RNA_boolean_set(kmi->ptr, "toggle", true);
@@ -320,7 +311,6 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_mode_set", TABKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "mode", OB_MODE_WEIGHT_PAINT);
 	RNA_boolean_set(kmi->ptr, "toggle", true);	
-#endif
 
 	WM_keymap_add_item(keymap, "OBJECT_OT_origin_set", CKEY, KM_PRESS, KM_ALT | KM_SHIFT | KM_CTRL, 0);
 

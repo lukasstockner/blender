@@ -3399,4 +3399,23 @@ void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
 	axis_angle_to_quat(q, axis, angle);
 }
 
+PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const char *description,
+                                         int flag, const char *opname, const char *piename)
+{
+	wmOperatorType *ot;
+	wmOperatorTypeMacro *otmacro;
+
+	ot = WM_operatortype_append_macro(idname, name,
+                                  description, flag);
+
+	if (ot) {
+		otmacro = WM_operatortype_macro_define(ot, "WM_OT_call_pie_menu_timer");
+		RNA_string_set(otmacro->ptr, "name", piename);
+		otmacro = WM_operatortype_macro_define(ot, opname);
+		return otmacro->ptr;
+	}
+	return NULL;
+}
+
+
 /** \} */

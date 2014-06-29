@@ -132,8 +132,23 @@ static void VIEW3D_OT_pastebuffer(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* ************************** registration **********************************/
+void ED_operatormacros_screen(void)
+{
+	PointerRNA *ptr;
 
+	ptr = WM_operator_pie_macro("VIEW3D_PIE_shade_macro", "Shade Mode",
+	                            "Set the shading mode for the 3D viewport",
+	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_toggle_enum", "VIEW3D_PIE_shade");
+
+	if (ptr) {
+		RNA_string_set(ptr, "data_path", "space_data.viewport_shade");
+		RNA_string_set(ptr, "value_1", "SOLID");
+		RNA_string_set(ptr, "value_2", "WIREFRAME");
+	}
+}
+
+
+/* ************************** registration **********************************/
 void view3d_operatortypes(void)
 {
 	WM_operatortype_append(VIEW3D_OT_rotate);
@@ -383,15 +398,8 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	RNA_int_set(WM_keymap_add_item(keymap, "VIEW3D_OT_layers", ZEROKEY, KM_PRESS, KM_ANY, 0)->ptr, "nr", 10);
 	
 	/* drawtype */
+	kmi = WM_keymap_add_item(keymap, "VIEW3D_PIE_shade_macro", ZKEY, KM_PRESS, 0, 0);
 
-	kmi = WM_keymap_add_pie_menu(keymap, "VIEW3D_PIE_shade", ZKEY, KM_PRESS, 0, 0);
-
-	/*
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle_enum", ZKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "space_data.viewport_shade");
-	RNA_string_set(kmi->ptr, "value_1", "SOLID");
-	RNA_string_set(kmi->ptr, "value_2", "WIREFRAME");
-	*/
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle_enum", ZKEY, KM_PRESS, KM_ALT, 0);
 	RNA_string_set(kmi->ptr, "data_path", "space_data.viewport_shade");
 	RNA_string_set(kmi->ptr, "value_1", "SOLID");

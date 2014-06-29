@@ -269,6 +269,9 @@ wmOperator *WM_operator_last_redo(const struct bContext *C);
 bool        WM_operator_last_properties_init(struct wmOperator *op);
 bool        WM_operator_last_properties_store(struct wmOperator *op);
 
+struct PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const char *description,
+                                         int flag, const char *opname, const char *piename);
+
 /* MOVE THIS SOMEWHERE ELSE */
 #define	SEL_TOGGLE		0
 #define	SEL_SELECT		1

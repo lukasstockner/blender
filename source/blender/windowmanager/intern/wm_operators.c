@@ -2126,6 +2126,8 @@ static int wm_call_pie_menu_timer_modal(bContext *C, wmOperator *op, const wmEve
 
 static void WM_OT_call_pie_menu_timer(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	ot->name = "Call Pie Menu";
 	ot->idname = "WM_OT_call_pie_menu_timer";
 	ot->description = "Call (draw) a pre-defined pie menu or cancel";
@@ -2136,7 +2138,9 @@ static void WM_OT_call_pie_menu_timer(wmOperatorType *ot)
 
 	ot->flag = OPTYPE_INTERNAL;
 
-	RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
+	prop = RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
+
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 
