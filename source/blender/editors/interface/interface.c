@@ -324,31 +324,12 @@ static void ui_centered_bounds_block(wmWindow *window, uiBlock *block)
 
 static void ui_centered_pie_bounds_block(uiBlock *block)
 {
-	int startx;
-	int width, height;
-
 	const int xy[2] = {
 	    block->pie_data.pie_center_spawned[0],
 	    block->pie_data.pie_center_spawned[1]
 	};
-	/* note: this is used for the splash where window bounds event has not been
-	 * updated by ghost, get the window bounds from ghost directly */
 
-	ui_bounds_block(block);
-
-	width  = BLI_rctf_size_x(&block->rect);
-	height = BLI_rctf_size_y(&block->rect);
-
-	startx = xy[0] - (width * 0.5f);
-
-	/* special case, 3 items means no top, make it so we are going down the full height */
-	if (block->pie_data.flags & UI_PIE_3_ITEMS) {
-		ui_block_translate(block, startx - block->rect.xmin, xy[1]);
-	}
-	else {
-		int starty = xy[1] - (height * 0.5f);
-		ui_block_translate(block, startx - block->rect.xmin, starty - block->rect.ymin);
-	}
+	ui_block_translate(block, xy[0], xy[1]);
 
 	/* now recompute bounds and safety */
 	ui_bounds_block(block);
