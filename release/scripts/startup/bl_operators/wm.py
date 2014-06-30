@@ -529,34 +529,6 @@ class WM_OT_context_menu_enum(Operator):
         
         return {'FINISHED'}
 
-class WM_OT_context_operator_pie_enum(Operator):
-    bl_idname = "wm.context_operator_pie_enum"
-    bl_label = "Operator Enum Pie"
-    bl_options = {'UNDO', 'INTERNAL'}
-    name = StringProperty(
-            "Operator Name",
-            )
-    property = StringProperty(
-            "Property Name",
-            )
-    title = StringProperty(
-            name="Title",
-            description="Pie Menu Title",
-            maxlen=1024,
-            )
-
-    def invoke(self, context, event):
-        op_idname = self.name
-        property = self.property
-
-        def draw_cb(self, context):
-            layout = self.layout
-            layout.operator_enum(op_idname, property)
-
-        context.window_manager.menu_pie(draw_func=draw_cb, title=self.title, event=event)
-
-        return {'FINISHED'}
-
 
 class WM_OT_context_pie_enum(Operator):
     bl_idname = "wm.context_pie_enum"

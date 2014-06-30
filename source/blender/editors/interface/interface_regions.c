@@ -2661,7 +2661,7 @@ static float uiPieTitleWidth(const char *name, int icon)
 		        (UI_UNIT_X * (1.50f + (icon ? 0.25f : 0.0f)));
 }
 
-struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const wmEvent *event)
+struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const wmEvent *event, bool force_hold)
 {
 	uiStyle *style = UI_GetStyleDraw();
 	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
@@ -2673,6 +2673,8 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 	pie->block_radial->puphash = ui_popup_menu_hash(title);
 	pie->block_radial->flag |= UI_BLOCK_RADIAL;
 	pie->block_radial->pie_data.event = event->type;
+	if (force_hold)
+		pie->block_radial->pie_data.flags |= UI_PIE_FORCE_HOLD_STYLE;
 
 	pie->layout = uiBlockLayout(pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
 	pie->mx = event->x;
@@ -2717,7 +2719,7 @@ uiLayout *uiPieMenuLayout(uiPieMenu *pie)
 	return pie->layout;
 }
 
-void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *event)
+void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *event, bool force_hold)
 {
 	uiPieMenu *pie;
 	uiLayout *layout;
@@ -2732,7 +2734,7 @@ void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *even
 	if (mt->poll && mt->poll(C, mt) == 0)
 		return;
 
-	pie = uiPieMenuBegin(C, IFACE_(mt->label), ICON_NONE, event);
+	pie = uiPieMenuBegin(C, IFACE_(mt->label), ICON_NONE, event, force_hold);
 	layout = uiPieMenuLayout(pie);
 
 	menu.layout = layout;
@@ -2747,6 +2749,21 @@ void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *even
 	uiPieMenuEnd(C, pie);
 }
 
+
+void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *opname,
+                             const char *propname, const wmEvent *event, bool force_hold)
+{
+	uiPieMenu *pie;
+	uiLayout *layout;
+
+	pie = uiPieMenuBegin(C, IFACE_(title), ICON_NONE, event, force_hold);
+	layout = uiPieMenuLayout(pie);
+
+	layout = uiLayoutRadial(layout);
+	uiItemsEnumO(layout, opname, propname);
+
+	uiPieMenuEnd(C, pie);
+}
 
 /*************************** Standard Popup Menus ****************************/
 

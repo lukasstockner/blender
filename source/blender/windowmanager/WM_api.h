@@ -271,6 +271,8 @@ bool        WM_operator_last_properties_store(struct wmOperator *op);
 
 struct PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const char *description,
                                          int flag, const char *opname, const char *piename);
+struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *name, const char *description,
+                                              int flag, const char *piename, const char *opname, const char *propname);
 
 /* MOVE THIS SOMEWHERE ELSE */
 #define	SEL_TOGGLE		0

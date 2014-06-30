@@ -165,7 +165,8 @@ typedef enum RadialDirection {
 #define UI_PIE_INVALID_DIR         (1 << 3) /* mouse not far enough from center position  */
 #define UI_PIE_CANCELLED           (1 << 4) /* pie menu cancelled but we still wait for a release event  */
 #define UI_PIE_CLICK_STYLE         (1 << 5) /* pie menu changed to click style, click to confirm  */
-#define UI_PIE_ANIMATION_FINISHED  (1 << 6) /* pie animation finished, do not calculate any more motio  */
+#define UI_PIE_FORCE_HOLD_STYLE    (1 << 6) /* pie menu forced to hold style. Usually for operators  */
+#define UI_PIE_ANIMATION_FINISHED  (1 << 7) /* pie animation finished, do not calculate any more motio  */
 
 typedef struct uiLinkLine {  /* only for draw/edit */
 	struct uiLinkLine *next, *prev;

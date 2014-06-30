@@ -2049,13 +2049,12 @@ static void WM_OT_call_menu(wmOperatorType *ot)
 	RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the menu");
 }
 
-
 static int wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	char idname[BKE_ST_MAXNAME];
 	RNA_string_get(op->ptr, "name", idname);
 
-	uiPieMenuInvoke(C, idname, event);
+	uiPieMenuInvoke(C, idname, event, false);
 
 	return OPERATOR_CANCELLED;
 }
@@ -2109,10 +2108,24 @@ static int wm_call_pie_menu_timer_modal(bContext *C, wmOperator *op, const wmEve
 
 	if (event->type == TIMER) {
 		if (data->timer->duration > U.pie_operator_timeout / 100.0f) {
-			char idname[BKE_ST_MAXNAME];
-			RNA_string_get(op->ptr, "name", idname);
+			bool use_property = RNA_boolean_get(op->ptr, "use_property");
 
-			uiPieMenuInvoke(C, idname, &data->event);
+			if (use_property) {
+				char op_name[BKE_ST_MAXNAME];
+				char prop_name[BKE_ST_MAXNAME];
+				char pie_name[BKE_ST_MAXNAME];
+				RNA_string_get(op->ptr, "op_name", op_name);
+				RNA_string_get(op->ptr, "prop_name", prop_name);
+				RNA_string_get(op->ptr, "name", pie_name);
+
+				uiPieOperatorEnumInvoke(C, pie_name, op_name, prop_name, &data->event, true);
+			}
+			else {
+				char idname[BKE_ST_MAXNAME];
+				RNA_string_get(op->ptr, "name", idname);
+
+				uiPieMenuInvoke(C, idname, &data->event, true);
+			}
 
 			WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), data->timer);
 			MEM_freeN(data);
@@ -2139,7 +2152,12 @@ static void WM_OT_call_pie_menu_timer(wmOperatorType *ot)
 	ot->flag = OPTYPE_INTERNAL;
 
 	prop = RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
-
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	prop = RNA_def_string(ot->srna, "op_name", NULL, BKE_ST_MAXNAME, "Operator Name", "Name of the operator for  the pie menu");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	prop = RNA_def_string(ot->srna, "prop_name", NULL, BKE_ST_MAXNAME, "Property Name", "Name of the operator property for  the pie menu");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	prop = RNA_def_boolean(ot->srna, "use_property", false, "Use Enum Property", "Use an operator property instead");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 

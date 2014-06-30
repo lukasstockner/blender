@@ -3418,4 +3418,26 @@ PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const ch
 }
 
 
+struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *name, const char *description,
+                                              int flag, const char *piename, const char *opname, const char *propname)
+{
+	wmOperatorType *ot;
+	wmOperatorTypeMacro *otmacro;
+
+	ot = WM_operatortype_append_macro(idname, name,
+                                  description, flag);
+
+	if (ot) {
+		otmacro = WM_operatortype_macro_define(ot, "WM_OT_call_pie_menu_timer");
+		RNA_string_set(otmacro->ptr, "name", piename);
+		RNA_string_set(otmacro->ptr, "op_name", opname);
+		RNA_string_set(otmacro->ptr, "prop_name", propname);
+		RNA_boolean_set(otmacro->ptr, "use_property", true);
+		otmacro = WM_operatortype_macro_define(ot, opname);
+		return otmacro->ptr;
+	}
+	return NULL;
+}
+
+
 /** \} */

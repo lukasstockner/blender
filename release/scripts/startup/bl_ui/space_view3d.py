@@ -1421,15 +1421,6 @@ class VIEW3D_PIE_view(Menu):
         pie.operator_enum("VIEW3D_OT_viewnumpad", "type")
         pie.operator("VIEW3D_OT_view_persportho", text="Persp/Ortho", icon='RESTRICT_VIEW_OFF')
 
-class VIEW3D_PIE_object(Menu):
-    bl_label = "Mode"
-
-    def draw(self, context):
-        layout = self.layout
-
-        pie = layout.menu_pie()
-        pie.operator_enum("OBJECT_OT_mode_set", "mode")
-
 
 class VIEW3D_PIE_shade(Menu):
     bl_label = "Shade"

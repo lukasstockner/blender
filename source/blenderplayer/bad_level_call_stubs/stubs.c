@@ -620,10 +620,12 @@ struct uiPopupMenu *uiPupMenuBegin(struct bContext *C, const char *title, int ic
 void uiPupMenuEnd(struct bContext *C, struct uiPopupMenu *head) RET_NONE
 struct uiLayout *uiPupMenuLayout(struct uiPopupMenu *head) RET_NULL
 struct uiLayout *uiPieMenuLayout(struct uiPieMenu *pie) RET_NULL
-void uiPieMenuInvoke(struct bContext *C, const char *idname, const struct wmEvent *event) RET_NONE
-struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const struct wmEvent *event) RET_NULL
+void uiPieMenuInvoke(struct bContext *C, const char *idname, const struct wmEvent *event, bool force_hold) RET_NONE
+struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const struct wmEvent *event, bool force_hold) RET_NULL
 void uiPieMenuEnd(struct bContext *C, uiPieMenu *pie) RET_NONE
 struct uiLayout *uiLayoutRadial(struct uiLayout *layout) RET_NULL
+void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *opname,
+                             const char *propname, const struct wmEvent *event, bool force_hold) RET_NONE
 
 /* RNA COLLADA dependency */
 int collada_export(struct Scene *sce,

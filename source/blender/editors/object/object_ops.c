@@ -273,9 +273,10 @@ void ED_operatormacros_object(void)
 		RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
 	}
 
-	ptr = WM_operator_pie_macro("OBJECT_OT_pie_mode_set", "Set Mode",
-	                            "Set the mode of interaction for the selected object",
-	                            OPTYPE_UNDO | OPTYPE_REGISTER, "OBJECT_OT_mode_set", "VIEW3D_PIE_object");
+	ptr = WM_operator_enum_pie_macro("OBJECT_OT_pie_mode_set", "Set Mode",
+	                                 "Set the mode of interaction for the selected object",
+	                                  OPTYPE_UNDO | OPTYPE_REGISTER, "Interaction Mode",
+	                                 "OBJECT_OT_mode_set", "mode");
 
 	if (ptr) {
 		RNA_enum_set(ptr, "mode", OB_MODE_EDIT);
