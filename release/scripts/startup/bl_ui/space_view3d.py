@@ -1439,7 +1439,6 @@ class VIEW3D_PIE_shade(Menu):
 
         pie = layout.menu_pie()
         pie.prop(context.space_data, "viewport_shade", expand=True)
-        pie.separator()
 
         if context.active_object:
             if(context.mode == 'EDIT_MESH'):
