@@ -469,10 +469,10 @@ processEvents(
 	 * ghost events and call base class pushEvent() method. */
 	
 	bool anyProcessed = false;
-	
+
 	do {
 		GHOST_TimerManager *timerMgr = getTimerManager();
-		
+
 		if (waitForEvent && m_dirty_windows.empty() && !XPending(m_display)) {
 			GHOST_TUns64 next = timerMgr->nextFireTime();
 			
@@ -486,11 +486,11 @@ processEvents(
 					SleepTillEvent(m_display, next - getMilliSeconds());
 			}
 		}
-		
+
 		if (timerMgr->fireTimers(getMilliSeconds())) {
 			anyProcessed = true;
 		}
-		
+
 		while (XPending(m_display)) {
 			XEvent xevent;
 			XNextEvent(m_display, &xevent);
@@ -773,6 +773,21 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 			
 			GHOST_TKey gkey;
 
+			/* first, determine if we have a valid event. Sometimes, X11 fires fake events on key release, see
+			 * for instance http://en.sfml-dev.org/forums/index.php?topic=10156.0 */
+			if (xke->keycode < 256)
+			{
+				char keys[32];
+				XQueryKeymap(m_display, keys);
+				bool down = (keys[xke->keycode / 8] & (1 << (xke->keycode % 8))) != 0;
+
+				if (down && xe->type == KeyRelease)
+					break;
+
+				if (!down && xe->type == KeyPress)
+					break;
+			}
+
 			/* In keyboards like latin ones,
 			 * numbers needs a 'Shift' to be accessed but key_sym
 			 * is unmodified (or anyone swapping the keys with xmodmap).
@@ -794,7 +809,7 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 
 			gkey = convertXKey(key_sym);
 
-			GHOST_TEventType type = (xke->type == KeyPress) ? 
+			GHOST_TEventType type = (xke->type == KeyPress) ?
 			                        GHOST_kEventKeyDown : GHOST_kEventKeyUp;
 			
 			if (!XLookupString(xke, &ascii, 1, NULL, NULL)) {
