@@ -3013,6 +3013,8 @@ static void widget_menu_radial_itembut(uiBut *but, uiWidgetColors *wcol, rcti *r
 
 	widget_init(&wtb);
 
+	wtb.emboss = 0;
+
 	rad = 0.5f * BLI_rcti_size_y(rect);
 	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
 
