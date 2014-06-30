@@ -23,12 +23,43 @@ float intersect_check_tol = .001; //Maximum Euclidean dist between intersect pts
 
 /***************************** DEFAULT SCENE *****************************/
 GridMesh *gm;
+int max_drawn_edges=0; // Number of edges to draw per poly (for figuring out order). 0 disables.
+#define GRIDMESH_GEOM_TEST_3
+
+
+#if defined(GRIDMESH_GEOM_TEST_1)
+// Look for GRIDMESH_GEOM_TEST_1.pdf for a vertex id map
 bool clip_cyclic = true; // Required for initialization
 bool subj_cyclic = true;
 std::vector<float> clip_verts = {.2,.2,  1.8,.2,  1.8,1.8,  .2,1.8};
 std::vector<float> subj0 = {.8,.8,  1.2,.8,  1.2,1.2,  .8,1.2};
 std::vector<std::vector<float>> subj_polys = {subj0};
 std::vector<float> inout_pts = {};
+float gm_llx=0,gm_lly=0,gm_urx=2,gm_ury=2; // GridMesh params
+int gm_nx=2, gm_ny=2;
+#endif
+
+#if defined(GRIDMESH_GEOM_TEST_2)
+bool clip_cyclic = true; // Required for initialization
+bool subj_cyclic = true;
+std::vector<float> clip_verts = {.2,.2,  1.8,.2,  1.8,1.8,  .2,1.8};
+std::vector<float> subj0 = {.8,.7,  1.2,.7,  1.2,.9,  .8,.9};
+std::vector<std::vector<float>> subj_polys = {subj0};
+std::vector<float> inout_pts = {};
+float gm_llx=0,gm_lly=0,gm_urx=2,gm_ury=2; // GridMesh params
+int gm_nx=2, gm_ny=2;
+#endif
+
+#if defined(GRIDMESH_GEOM_TEST_3)
+bool clip_cyclic = true; // Required for initialization
+bool subj_cyclic = true;
+std::vector<float> clip_verts = {.2,.2,  1.8,.2,  1.8,1.8,  .2,1.8};
+std::vector<float> subj0 = {.8,.8,  1.2,.8,  1.2,1.2,  .8,1.2};
+std::vector<std::vector<float>> subj_polys = {subj0};
+std::vector<float> inout_pts = {};
+float gm_llx=0,gm_lly=0,gm_urx=4,gm_ury=4; // GridMesh params
+int gm_nx=3, gm_ny=3;
+#endif
 
 int clip = 0; // Vertex index of the first vertex of the clip polygon
 int subj = 0;
@@ -39,13 +70,13 @@ int win_height = 500;
 void glut_coords_2_scene(float gx, float gy, float* sx, float* sy) {
 	gx /= win_width;
 	gy /= win_height;
-	*sx =-1.0*(1-gx) + 03.0*gx;
-	*sy =03.0*(1-gy) + -1.0*gy;
+	*sx =(gm_llx-1)*(1-gx) + (gm_urx+1)*gx;
+	*sy =(gm_ury+1)*(1-gy) + (gm_lly-1)*gy;
 }
 
 void init_default_scene() {
 	// Create the gridmesh
-	gm = new GridMesh(0,0,2,2,2,2); // x,y x,y nx,ny
+	gm = new GridMesh(gm_llx,gm_lly,gm_urx,gm_ury,gm_nx,gm_ny);
 	// Import the clip polygon into the linked-list datastructure
 	int last = 0;
 	size_t clip_n = clip_verts.size()/2;
@@ -101,7 +132,7 @@ void GLUT_init(){
     glMatrixMode(GL_PROJECTION);
 	// Defines the view box
 	// left,right,bottom,top
-    gluOrtho2D(-1,03,-1,03);
+    gluOrtho2D(gm_llx-1,gm_urx+1,gm_lly-1,gm_ury+1);
 	init_default_scene();
 }
 
@@ -184,7 +215,7 @@ void GLUT_display(){
 	// Draw Grid polygon lines & verts
 	for (int i=0; i<gm->nx; i++) {
 		for (int j=0; j<gm->ny; j++) {
-			gm->poly_draw(gm->poly_for_cell(i,j), contraction);
+			gm->poly_draw(gm->poly_for_cell(i,j), contraction, max_drawn_edges);
 		}
 	}
 	
@@ -344,6 +375,14 @@ void GLUT_specialkey(int ch, int x, int y) {
 		if (ch==GLUT_KEY_DOWN) ch_str = "GLUT_KEY_DOWN";
 		printf("GLUT_specialkey x:%d y:%d ch:%x(%s)\n",x,y,ch,ch_str);
 	}
+	if (ch==GLUT_KEY_UP) {
+		max_drawn_edges++;
+		glutPostRedisplay();
+	}
+	if (ch==GLUT_KEY_DOWN) {
+		max_drawn_edges--;
+		glutPostRedisplay();
+	}
 }
 void create_new_poly(float sx, float sy) {
 	GreinerV2f *v = gm->v;
@@ -395,7 +434,7 @@ int closest_vert(float sx, float sy, float *dist) {
 void initiate_pt_drag_if_near_pt(float sx, float sy) {
 	float dist;
 	int v = closest_vert(sx,sy,&dist);
-	grabbed_vert = (dist<.1) ? v : 0;
+	grabbed_vert = (dist<.3) ? v : 0;
 }
 void terminate_pt_drag() {
 	//grabbed_vert = nullptr;

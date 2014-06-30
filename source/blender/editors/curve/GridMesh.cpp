@@ -225,7 +225,7 @@ void GridMesh::poly_center(int poly, float *cx, float *cy) {
 }
 
 struct rgbcolor {unsigned char r,g,b;};
-void GridMesh::poly_draw(int poly, float shrinkby) {
+void GridMesh::poly_draw(int poly, float shrinkby, int maxedges) {
 	// Generate a random but consistent color for each polygon
 	rgbcolor color = {0,0,0};
 	static std::map<int,rgbcolor> colormap;
@@ -240,6 +240,7 @@ void GridMesh::poly_draw(int poly, float shrinkby) {
 	}
 	for (; poly; poly=v[poly].next_poly) {
 		if (v[poly].next==0) continue;
+		printf("Poly %i: ",poly);
 		// Find the center so that we can shrink towards it
 		float cx,cy;
 		poly_center(poly, &cx, &cy);
@@ -247,12 +248,18 @@ void GridMesh::poly_draw(int poly, float shrinkby) {
 		glBegin(GL_LINES);
 		glColor3ub(color.r, color.g, color.b);
 		int v1 = poly;
+		int num_drawn_edges = 0;
 		do {
 			int v2 = v[v1].next;
+			printf("%i-%i, ",v1,v2);
 			glVertex2f((1-shrinkby)*v[v1].x+shrinkby*cx, (1-shrinkby)*v[v1].y+shrinkby*cy);
 			glVertex2f((1-shrinkby)*v[v2].x+shrinkby*cx, (1-shrinkby)*v[v2].y+shrinkby*cy);
+			++num_drawn_edges;
+			if (maxedges && num_drawn_edges>=maxedges)
+				break;
 			v1 = v2;
 		} while (v1!=poly && v1!=v[v1].first);
+		puts("");
 		glEnd();
 		// Draw the polygon verts
 		glPointSize(3);
@@ -432,14 +439,13 @@ static bool intersection_edge_order(const IntersectingEdge& e1, const Intersecti
 }
 int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 	std::vector<std::pair<int,int>> bottom_edges, left_edges, integer_cells;
-	std::vector<std::vector<IntersectingEdge>> intersections;
 	mpoly = poly_first_vert(mpoly);
-	// Step 1: find all the intersections
 	int v1 = mpoly;
 	float v1x=v[v1].x, v1y=v[v1].y;
 	int verts_added = 0;
 	while (v[v1].next) {
 		int v2 = v[v1].next;
+		// Step 1: find all intersections of the edge v1,v2
 		float v2x=v[v2].x, v2y=v[v2].y;
 		//printf("(%f,%f)---line--(%f,%f)\n",v1x,v1y,v2x,v2y);
 		integer_cells.clear();
@@ -458,24 +464,11 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 			isect.insert(isect.end(),isect_tmp.begin(),isect_tmp.end());
 		}
 		std::stable_sort(isect.begin(),isect.end(),intersection_edge_order);
-		intersections.push_back(isect);
-		verts_added += isect.size();
-		v1=v2; v1x=v2x; v1y=v2y;
-		if (v1==mpoly) break;
-	}
-	// Step 2: insert them
-	v1 = mpoly;
-	v1x=v[v1].x; v1y=v[v1].y;
-	std::vector<std::vector<IntersectingEdge>>::iterator it = intersections.begin();
-	while (v[v1].next) {
-		int v2 = v[v1].next;
-		float v2x=v[v2].x, v2y=v[v2].y;
-		integer_cells.clear();
-		find_integer_cell_line_intersections(v1x,v1y,v2x,v2y,nullptr,nullptr,&integer_cells);
-		std::vector<IntersectingEdge>& isect = *it++;
+		// Step 2: insert them
 		for (IntersectingEdge ie : isect) {
 			v1 = insert_vert(v1, v2, ie.e2, v[ie.e2].next, ie.x, ie.y);
 		}
+		verts_added += isect.size();
 		v1=v2; v1x=v2x; v1y=v2y;
 		if (v1==mpoly) break;
 	}
@@ -511,114 +504,105 @@ void GridMesh::trim_to_odd() {
 }
 
 void GridMesh::trim_to_odd(int poly) {
-	int first_trace_poly = 0;
-	int latest_trace_poly = 0;
+	int previous_trace_poly = 0;
+	int this_trace_poly = 0;
 	std::vector<int> trace_origins;
+	std::vector<int> trace; // Holds verts of the polygon being traced
+	trace.reserve(256);
 	trace_origins.push_back(poly);
 	while (trace_origins.size()) {
+		trace.clear();
 		int vert = *trace_origins.rbegin(); trace_origins.pop_back();
 		GreinerV2f *vvert = &v[vert];
 		// Move until vert = valid starting vertex
 		bool bail=false;
 		while (!(    (vvert->is_intersection)
-				  || (!vvert->is_intersection && vvert->is_interior))) {
-			vvert->is_used = true;
-			vert = vvert->next;
-			vvert->next = 0;
-			vvert->prev = 0;
-			vvert = &v[vert];
+				 || (!vvert->is_intersection && vvert->is_interior))) {
 			if (vvert->is_used) {
 				bail = true;
 				break;
 			}
-		}
-		if (bail) continue; // No valid starting vertex? Bail!
-		// Hook up the polygon backbone
-		if (latest_trace_poly) v[latest_trace_poly].next_poly = vert;
-		latest_trace_poly = vert;
-		if (!first_trace_poly) {
-			first_trace_poly = vert;
-			if (poly!=vert) {
-				v[poly].next_poly = vert;
-				v[poly].next = 0;
-				v[poly].prev = 0;
-				v[poly].is_used = 1;
-			}
-		}
-		// The do-while loop assumes is_intersection => needs to jump off
-		if (vvert->is_intersection) {
-			vvert->is_used = 1;
+			vvert->is_used = true;
 			vert = vvert->next;
+			vvert->next = 0; // Trail of destruction: no polygons should be
+			vvert->prev = 0; // generated in the excluded region
 			vvert = &v[vert];
 		}
-		// Now trace out the active boundary, leaving behind
-		//  .is_used=1
-		//  .first = latest_trace_poly
-		//  .prev/.next connecting the boundary
-		// and spinning out trace_origins every time we exit poly
-		do { // do while (vert != latest_trace_poly)
-			vvert->is_used = 1;
-			vvert->first = latest_trace_poly;
-			if (vvert->is_intersection) {
-				int last = vert;
-				int escape_island=v[vert].neighbor, reentry_island=0;
-				trace_origins.push_back(vvert->next);
-				if (v[escape_island].is_entry) { // next next next along foreign edge
-					int fvert = v[escape_island].next;
-					v[last].next = fvert;
-					v[fvert].prev = last;
-					while (true) {
-						v[fvert].is_used = true;
-						v[fvert].first = latest_trace_poly;
-						reentry_island = v[fvert].neighbor;
-						if (reentry_island) {
-							if (v[reentry_island].first==poly) break;
-						}
-						last = fvert;
-						fvert = v[fvert].next;
-						// v[last].next = fvert;
-						// v[fvert].prev = last;
-					}
-					if (v[reentry_island].is_used) {
-						v[last].next = reentry_island;
-						v[reentry_island].prev = last;
-					} else { // Hop past the reentry island -- it's not our destination
-						vert = v[reentry_island].next;
-						vvert = &v[vert];
-						vvert->prev = fvert;
-						v[fvert].next = vert;
-					}
-				} else { // prev prev prev along foreign edge
-					int fvert = v[escape_island].prev;
-					int fvert_prev;
-					while (true) {
-						fvert_prev = v[fvert].prev;
-						v[last].next = fvert;
-						v[fvert].prev = last;
-						v[fvert].is_used = true;
-						v[fvert].first = latest_trace_poly;
-						reentry_island = v[fvert].neighbor;
-						if (reentry_island) {
-							if (v[reentry_island].first==poly) break;
-						}
-						last = fvert;
-						fvert = fvert_prev;
-					}
-					if (v[reentry_island].is_used) {
-						v[last].next = reentry_island;
-						v[reentry_island].prev = last;
-					} else {
-						vert = v[reentry_island].next;
-						vvert = &v[vert];
-						vvert->prev = fvert;
-						v[fvert].next = vert;
-					}
+		if (bail) continue; // No valid starting vertex? Bail!
+
+		// We're still sitting at the first valid vertex.
+		// Overview: follow its edge, record points into trace,
+		// record branches into trace_origins
+		bool traverse_foreward = true;
+		bool can_next_step_branch = false;
+		this_trace_poly = vert;
+		while (vert && !v[vert].is_used) {
+			trace.push_back(vert);
+			int next;
+			int neighbor = v[vert].neighbor;
+			if (v[vert].first==poly) { // We are tracing an edge of the parent poly
+				if (neighbor && can_next_step_branch) {
+					trace_origins.push_back(v[vert].next);
+					next = neighbor;
+					traverse_foreward = v[neighbor].is_entry;
+					can_next_step_branch = false;
+				} else {
+					next = v[vert].next;
+					can_next_step_branch = true;
 				}
-			} else { // !vvert->is_intersection
-				vert = vvert->next;
-				vvert = &v[vert];
+			} else { // We are tracing an edge of a cutting poly
+				if (v[neighbor].first==poly && can_next_step_branch) {
+					next = neighbor;
+					traverse_foreward = true;
+					can_next_step_branch = false;
+				} else {
+					next = (traverse_foreward)? v[vert].next : v[vert].prev;
+					can_next_step_branch = true;
+				}
 			}
-		} while (vert && vert!=latest_trace_poly);
+			v[vert].is_used = true;
+			vert = next;
+		}
+		printf("Poly %i.%i: ",poly,this_trace_poly);
+		for (int v : trace) {printf(",%i",v);}
+		puts("");
+		
+		if (trace.size()) {
+			// Link the vertices
+			// Handle the case of an initial/final double vertex specially
+			int first_neighbor=v[*trace.begin()].neighbor, lastv=*trace.rbegin();
+			if (first_neighbor==lastv)
+				trace.pop_back();
+			// Link all but the endpoints, skipping doubles
+			for (int i=1,l=int(trace.size()); i<l; i++) {
+				int left=trace[i-1], right=trace[i];
+				if (v[left].neighbor==right && i+1<l) {
+					i += 1;
+					int rright = trace[i];
+					v[left].next = rright;
+					v[rright].prev = left;
+				} else {
+					v[left].next = right;
+					v[right].prev = left;
+				}
+			}
+			for (int i : trace) {
+				v[i].first = trace[0];
+			}
+			// Link the endpoints. Doubles skipped via pop_back
+			int first=trace[0], last=trace[trace.size()-1];
+			v[first].prev = last;
+			v[last].next = first;
+			// Hook up the backbone
+			if (!previous_trace_poly) {
+				v[poly].next_poly = this_trace_poly;
+			} else {
+				if (previous_trace_poly==this_trace_poly) printf("Poly-list assembly failed.");
+				v[previous_trace_poly].next_poly = this_trace_poly;
+			}
+			v[this_trace_poly].next_poly = 0;
+			previous_trace_poly = this_trace_poly;
+		}
 	}
 }
 

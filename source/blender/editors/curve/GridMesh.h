@@ -102,7 +102,7 @@ struct GridMesh {
 #if defined(ENABLE_GLUT_DEMO)
 	// Draw
 	void poly_center(int poly, float *cx, float *cy);
-	void poly_draw(int poly, float shrinkby);
+	void poly_draw(int poly, float shrinkby, int maxedges=false);
 #endif
 };
 
