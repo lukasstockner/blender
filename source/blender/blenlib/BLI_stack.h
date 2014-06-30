@@ -28,27 +28,20 @@
  *  \ingroup bli
  */
 
+#include "BLI_compiler_attrs.h"
+
 typedef struct BLI_Stack BLI_Stack;
 
-/* Create a new homogeneous stack with elements of 'elem_size' bytes */
-BLI_Stack *BLI_stack_new(size_t elem_size, const char *description);
+BLI_Stack *BLI_stack_new_ex(const size_t elem_size, const char *description,
+                            const size_t chunk_size);
+BLI_Stack *BLI_stack_new(const size_t elem_size, const char *description);
 
-/* Free the stack's data and the stack itself */
 void BLI_stack_free(BLI_Stack *stack);
 
-/* Copies the source value onto the stack (note that it copies
- * elem_size bytes from 'src', the pointer itself is not stored) */
-void BLI_stack_push(BLI_Stack *stack, void *src);
+void BLI_stack_push(BLI_Stack *stack, const void *src) ATTR_NONNULL();
 
-/* Retrieves and removes the top element from the stack. The value is
- * copies to 'dst', which must be at least elem_size bytes.
- *
- * Does not reduce amount of allocated memory.
- *
- * If stack is empty, 'dst' will not be modified. */
-void BLI_stack_pop(BLI_Stack *stack, void *dst);
+void BLI_stack_pop(BLI_Stack *stack, void *dst) ATTR_NONNULL();
 
-/* Returns true if the stack is empty, false otherwise */
 bool BLI_stack_is_empty(const BLI_Stack *stack);
 
 #endif
