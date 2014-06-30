@@ -40,11 +40,13 @@ import string
 import shutil
 import re
 
-# store path to tools
+# store path to tools and modules
 toolpath=os.path.join(".", "build_files", "scons", "tools")
+modulespath=os.path.join(".", "build_files", "scons", "Modules")
 
-# needed for importing tools
+# needed for importing tools and modules
 sys.path.append(toolpath)
+sys.path.append(modulespath)
 
 import Blender
 import btools
@@ -592,6 +594,16 @@ if not os.path.isdir ( B.root_build_dir):
 # # Docs not working with epy anymore
 # if not os.path.isdir(B.doc_build_dir) and env['WITH_BF_DOCS']:
 #     os.makedirs ( B.doc_build_dir )
+
+# Put all auto configuration run-time tests here
+
+from FindSharedPtr import FindSharedPtr
+from FindUnorderedMap import FindUnorderedMap
+
+conf = Configure(env)
+FindSharedPtr(conf)
+FindUnorderedMap(conf)
+env = conf.Finish()
 
 ###################################
 # Ensure all data files are valid #
