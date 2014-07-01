@@ -69,8 +69,8 @@
 
 #include "ED_image.h"
 #include "ED_object.h"
+#include "ED_paint.h"
 #include "ED_screen.h"
-#include "ED_sculpt.h"
 #include "ED_view3d.h"
 
 #include "WM_api.h"
@@ -491,7 +491,7 @@ static PaintOperation *texture_paint_init(bContext *C, wmOperator *op, float mou
 
 	settings->imapaint.flag |= IMAGEPAINT_DRAWING;
 	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
-	                      ED_image_undo_restore, ED_image_undo_free);
+	                         ED_image_undo_restore, ED_image_undo_free);
 
 	{
 		UnifiedPaintSettings *ups = &settings->unified_paint_settings;

@@ -192,14 +192,14 @@ static void partialvis_update_grids(Object *ob,
 				/* skip grid element if not in the effected area */
 				if (is_effected(area, planes, co, mask)) {
 					/* set or clear the hide flag */
-					BLI_BITMAP_MODIFY(gh, y * key.grid_size + x,
+					BLI_BITMAP_SET(gh, y * key.grid_size + x,
 					                  action == PARTIALVIS_HIDE);
 
 					any_changed = true;
 				}
 
 				/* keep track of whether any elements are still hidden */
-				if (BLI_BITMAP_GET(gh, y * key.grid_size + x))
+				if (BLI_BITMAP_TEST(gh, y * key.grid_size + x))
 					any_hidden = true;
 				else
 					any_visible = true;
@@ -329,7 +329,7 @@ static void clip_planes_from_rect(bContext *C,
 	view3d_set_viewcontext(C, &vc);
 	view3d_get_transformation(vc.ar, vc.rv3d, vc.obact, &mats);
 	ED_view3d_clipping_calc(&bb, clip_planes, &mats, rect);
-	mul_m4_fl(clip_planes, -1.0f);
+	negate_m4(clip_planes);
 }
 
 /* If mode is inside, get all PBVH nodes that lie at least partially

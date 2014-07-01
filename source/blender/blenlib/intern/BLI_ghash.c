@@ -742,7 +742,7 @@ int BLI_ghashutil_intcmp(const void *a, const void *b)
  * This function implements the widely used "djb" hash apparently posted
  * by Daniel Bernstein to comp.lang.c some time ago.  The 32 bit
  * unsigned hash value starts at 5381 and for each byte 'c' in the
- * string, is updated: <literal>hash = hash * 33 + c</literal>.  This
+ * string, is updated: ``hash = hash * 33 + c``.  This
  * function uses the signed value of each byte.
  *
  * note: this is the same hash method that glib 2.34.0 uses.
@@ -898,6 +898,25 @@ void BLI_gset_insert(GSet *gs, void *key)
 {
 	const unsigned int hash = ghash_keyhash((GHash *)gs, key);
 	ghash_insert_ex_keyonly((GHash *)gs, key, hash);
+}
+
+/**
+ * A version of BLI_gset_insert which checks first if the key is in the set.
+ * \returns true if a new key has been added.
+ *
+ * \note GHash has no equivalent to this because typically the value would be different.
+ */
+bool BLI_gset_add(GSet *gs, void *key)
+{
+	const unsigned int hash = ghash_keyhash((GHash *)gs, key);
+	Entry *e = ghash_lookup_entry_ex((GHash *)gs, key, hash);
+	if (e) {
+		return false;
+	}
+	else {
+		ghash_insert_ex_keyonly((GHash *)gs, key, hash);
+		return true;
+	}
 }
 
 /**

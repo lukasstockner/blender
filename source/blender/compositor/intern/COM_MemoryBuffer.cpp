@@ -92,7 +92,7 @@ MemoryBuffer::MemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, r
 	BLI_rcti_init(&this->m_rect, rect->xmin, rect->xmax, rect->ymin, rect->ymax);
 	this->m_memoryProxy = memoryProxy;
 	this->m_chunkNumber = chunkNumber;
-	this->m_buffer = (float *)MEM_mallocN(sizeof(float) * determineBufferSize() * no_channels, "COM_MemoryBuffer");
+	this->m_buffer = (float *)MEM_mallocN_aligned(sizeof(float) * determineBufferSize() * no_channels, 16, "COM_MemoryBuffer");
 	this->m_state = COM_MB_ALLOCATED;
 	this->m_chunkWidth = this->m_rect.xmax - this->m_rect.xmin;
 	this->m_no_channels = no_channels;
@@ -103,7 +103,7 @@ MemoryBuffer::MemoryBuffer(MemoryProxy *memoryProxy, rcti *rect, unsigned int no
 	BLI_rcti_init(&this->m_rect, rect->xmin, rect->xmax, rect->ymin, rect->ymax);
 	this->m_memoryProxy = memoryProxy;
 	this->m_chunkNumber = -1;
-	this->m_buffer = (float *)MEM_mallocN(sizeof(float) * determineBufferSize() * no_channels, "COM_MemoryBuffer");
+	this->m_buffer = (float *)MEM_mallocN_aligned(sizeof(float) * determineBufferSize() * no_channels, 16, "COM_MemoryBuffer");
 	this->m_state = COM_MB_TEMPORARILY;
 	this->m_chunkWidth = this->m_rect.xmax - this->m_rect.xmin;
 	this->m_no_channels = no_channels;
@@ -113,7 +113,7 @@ MemoryBuffer::MemoryBuffer(DataType datatype, rcti *rect, unsigned int no_channe
 	BLI_rcti_init(&this->m_rect, rect->xmin, rect->xmax, rect->ymin, rect->ymax);
 	this->m_memoryProxy = NULL;
 	this->m_chunkNumber = -1;
-	this->m_buffer = (float *)MEM_mallocN(sizeof(float) * determineBufferSize() * no_channels, "COM_MemoryBuffer");
+	this->m_buffer = (float *)MEM_mallocN_aligned(sizeof(float) * determineBufferSize() * no_channels, 16, "COM_MemoryBuffer");
 	this->m_state = COM_MB_TEMPORARILY;
 	this->m_chunkWidth = this->m_rect.xmax - this->m_rect.xmin;
 	this->m_no_channels = no_channels;

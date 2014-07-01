@@ -2635,7 +2635,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 	Material **matar;
 	float *data, *fp, *orco=NULL;
 	float n[3], mat[4][4], nmat[4][4];
-	int nr, startvert, a, b;
+	int nr, startvert, a, b, negative_scale;
 	bool need_orco = false;
 	int totmat;
 
@@ -2649,6 +2649,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 	
 	mul_m4_m4m4(mat, re->viewmat, ob->obmat);
 	invert_m4_m4(ob->imat, mat);
+	negative_scale = is_negative_m4(mat);
 
 	/* local object -> world space transform for normals */
 	copy_m4_m4(nmat, mat);
@@ -2718,7 +2719,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 					zero_v3(n);
 					index= dl->index;
 					for (a=0; a<dl->parts; a++, index+=3) {
-						int v1 = index[0], v2 = index[1], v3 = index[2];
+						int v1 = index[0], v2 = index[2], v3 = index[1];
 						float *co1 = &dl->verts[v1 * 3],
 						      *co2 = &dl->verts[v2 * 3],
 						      *co3 = &dl->verts[v3 * 3];
@@ -2731,7 +2732,10 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 
 						/* to prevent float accuracy issues, we calculate normal in local object space (not world) */
 						if (area_tri_v3(co3, co2, co1)>FLT_EPSILON) {
-							normal_tri_v3(tmp, co3, co2, co1);
+							if (negative_scale)
+								normal_tri_v3(tmp, co1, co2, co3);
+							else
+								normal_tri_v3(tmp, co3, co2, co1);
 							add_v3_v3(n, tmp);
 						}
 
@@ -3059,36 +3063,21 @@ static void add_volume(Render *re, ObjectRen *obr, Material *ma)
 }
 
 #ifdef WITH_FREESTYLE
-static EdgeHash *make_freestyle_edge_mark_hash(Mesh *me, DerivedMesh *dm)
+static EdgeHash *make_freestyle_edge_mark_hash(DerivedMesh *dm)
 {
 	EdgeHash *edge_hash= NULL;
 	FreestyleEdge *fed;
 	MEdge *medge;
 	int totedge, a;
-	const int *index;
 
 	medge = dm->getEdgeArray(dm);
 	totedge = dm->getNumEdges(dm);
-	index = dm->getEdgeDataArray(dm, CD_ORIGINDEX);
-	fed = CustomData_get_layer(&me->edata, CD_FREESTYLE_EDGE);
+	fed = dm->getEdgeDataArray(dm, CD_FREESTYLE_EDGE);
 	if (fed) {
 		edge_hash = BLI_edgehash_new(__func__);
-		if (!index) {
-			if (me->totedge == totedge) {
-				for (a = 0; a < me->totedge; a++) {
-					if (fed[a].flag & FREESTYLE_EDGE_MARK) {
-						BLI_edgehash_insert(edge_hash, medge[a].v1, medge[a].v2, medge + a);
-					}
-				}
-			}
-		}
-		else {
-			for (a = 0; a < totedge; a++) {
-				if (index[a] == ORIGINDEX_NONE)
-					continue;
-				if (fed[index[a]].flag & FREESTYLE_EDGE_MARK)
-					BLI_edgehash_insert(edge_hash, medge[a].v1, medge[a].v2, medge+a);
-			}
+		for (a = 0; a < totedge; a++) {
+			if (fed[a].flag & FREESTYLE_EDGE_MARK)
+				BLI_edgehash_insert(edge_hash, medge[a].v1, medge[a].v2, medge+a);
 		}
 	}
 	return edge_hash;
@@ -3268,7 +3257,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 			EdgeHash *edge_hash;
 
 			/* create a hash table of Freestyle edge marks */
-			edge_hash = make_freestyle_edge_mark_hash(me, dm);
+			edge_hash = make_freestyle_edge_mark_hash(dm);
 #endif
 
 			/* store customdata names, because DerivedMesh is freed */
@@ -5157,8 +5146,10 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 		lay &= 0xFF000000;
 	
 	/* applies changes fully */
-	if ((re->r.scemode & (R_NO_FRAME_UPDATE|R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))==0)
+	if ((re->r.scemode & (R_NO_FRAME_UPDATE|R_BUTS_PREVIEW|R_VIEWPORT_PREVIEW))==0) {
 		BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene, lay);
+		render_update_anim_renderdata(re, &re->scene->r);
+	}
 	
 	/* if no camera, viewmat should have been set! */
 	if (use_camera_view && camera) {

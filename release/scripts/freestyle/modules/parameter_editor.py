@@ -464,7 +464,7 @@ def iter_material_value(stroke, material_attribute):
         material = func(Interface0DIterator(it))
         if material_attribute == 'DIFF':
             r, g, b = material.diffuse[0:3]
-            t = 0.35 * r + 0.45 * r + 0.2 * b
+            t = 0.35 * r + 0.45 * g + 0.2 * b
         elif material_attribute == 'DIFF_R':
             t = material.diffuse[0]
         elif material_attribute == 'DIFF_G':
@@ -473,7 +473,7 @@ def iter_material_value(stroke, material_attribute):
             t = material.diffuse[2]
         elif material_attribute == 'SPEC':
             r, g, b = material.specular[0:3]
-            t = 0.35 * r + 0.45 * r + 0.2 * b
+            t = 0.35 * r + 0.45 * g + 0.2 * b
         elif material_attribute == 'SPEC_R':
             t = material.specular[0]
         elif material_attribute == 'SPEC_G':
@@ -1122,54 +1122,6 @@ class Seed:
 _seed = Seed()
 
 
-### T.K. 07-Aug-2013 Temporary fix for unexpected line gaps
-
-def iter_three_segments(stroke):
-    n = stroke.stroke_vertices_size()
-    if n >= 4:
-        it1 = stroke.stroke_vertices_begin()
-        it2 = stroke.stroke_vertices_begin()
-        it2.increment()
-        it3 = stroke.stroke_vertices_begin()
-        it3.increment()
-        it3.increment()
-        it4 = stroke.stroke_vertices_begin()
-        it4.increment()
-        it4.increment()
-        it4.increment()
-        while not it4.is_end:
-            yield (it1.object, it2.object, it3.object, it4.object)
-            it1.increment()
-            it2.increment()
-            it3.increment()
-            it4.increment()
-
-
-def is_tvertex(svertex):
-    return type(svertex.viewvertex) is TVertex
-
-
-class StrokeCleaner(StrokeShader):
-    def shade(self, stroke):
-        for sv1, sv2, sv3, sv4 in iter_three_segments(stroke):
-            seg1 = sv2.point - sv1.point
-            seg2 = sv3.point - sv2.point
-            seg3 = sv4.point - sv3.point
-            if not ((is_tvertex(sv2.first_svertex) and is_tvertex(sv2.second_svertex)) or
-                    (is_tvertex(sv3.first_svertex) and is_tvertex(sv3.second_svertex))):
-                continue
-            if seg1.dot(seg2) < 0.0 and seg2.dot(seg3) < 0.0 and seg2.length < 0.01:
-                #print(sv2.first_svertex.viewvertex)
-                #print(sv2.second_svertex.viewvertex)
-                #print(sv3.first_svertex.viewvertex)
-                #print(sv3.second_svertex.viewvertex)
-                p2 = mathutils.Vector(sv2.point)
-                p3 = mathutils.Vector(sv3.point)
-                sv2.point = p3
-                sv3.point = p2
-        stroke.update_length()
-
-
 integration_types = {
     'MEAN': IntegrationType.MEAN,
     'MIN': IntegrationType.MIN,
@@ -1318,9 +1270,6 @@ def process(layer_name, lineset_name):
         Operators.sort(bpred)
     # prepare a list of stroke shaders
     shaders_list = []
-    ###
-    shaders_list.append(StrokeCleaner())
-    ###
     for m in linestyle.geometry_modifiers:
         if not m.use:
             continue

@@ -833,6 +833,9 @@ ImBuf *sequencer_ibuf_get(struct Main *bmain, Scene *scene, SpaceSeq *sseq, int 
 	short is_break = G.is_break;
 
 	render_size = sseq->render_size;
+	if (render_size == 99) {
+		render_size = 100;
+	}
 	if (render_size == 0) {
 		render_size = scene->r.size;
 	}
@@ -1233,7 +1236,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	if (sseq->flag & SEQ_SHOW_GPENCIL) {
 		if (is_imbuf) {
 			/* draw grease-pencil (image aligned) */
-			draw_gpencil_2dimage(C);
+			ED_gpencil_draw_2dimage(C);
 		}
 	}
 
@@ -1246,7 +1249,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	if (sseq->flag & SEQ_SHOW_GPENCIL) {
 		if (is_imbuf) {
 			/* draw grease-pencil (screen aligned) */
-			draw_gpencil_view2d(C, 0);
+			ED_gpencil_draw_view2d(C, 0);
 		}
 	}
 

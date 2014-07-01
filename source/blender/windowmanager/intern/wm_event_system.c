@@ -759,7 +759,7 @@ static int wm_operator_exec_notest(bContext *C, wmOperator *op)
 /**
  * for running operators with frozen context (modal handlers, menus)
  *
- * \param store, Store settings for re-use.
+ * \param store Store settings for re-use.
  *
  * warning: do not use this within an operator to call its self! [#29537] */
 int WM_operator_call_ex(bContext *C, wmOperator *op,
@@ -1721,10 +1721,6 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 				if (handler->op->type->flag & OPTYPE_UNDO && CTX_wm_manager(C) == wm)
 					wm->op_undo_depth--;
 
-				if (retval & OPERATOR_FINISHED)
-					if (G.debug & G_DEBUG_WM)
-						wm_operator_print(C, handler->op);
-
 				/* XXX check this carefully, CTX_wm_manager(C) == wm is a bit hackish */
 				if (CTX_wm_manager(C) == wm && wm->op_undo_depth == 0)
 					if (handler->op->type->flag & OPTYPE_UNDO)
@@ -1753,6 +1749,9 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 					CTX_wm_area_set(C, area_prev);
 					CTX_wm_region_set(C, ar_prev);
 				}
+
+				/* for WM_operator_pystring only, custom report handling is done above */
+				wm_operator_reports(C, handler->op, retval, true);
 
 				if (retval & OPERATOR_FINISHED) {
 					WM_operator_last_properties_store(handler->op);
@@ -2141,7 +2140,7 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 		return;
 	}
 	
-	if (event->type == MOUSEMOVE)
+	if (event->type == MOUSEMOVE || ISKEYMODIFIER(event->type))
 		win->screen->do_draw_drag = true;
 	else if (event->type == ESCKEY) {
 		BLI_freelistN(&wm->drags);
@@ -2290,10 +2289,12 @@ void wm_event_do_handlers(bContext *C)
 									/* call even on non mouse events, since the */
 									wm_region_mouse_co(C, event);
 
-									/* does polls for drop regions and checks uibuts */
-									/* need to be here to make sure region context is true */
-									if (ELEM(event->type, MOUSEMOVE, EVT_DROP)) {
-										wm_drags_check_ops(C, event);
+									if (!BLI_listbase_is_empty(&wm->drags)) {
+										/* does polls for drop regions and checks uibuts */
+										/* need to be here to make sure region context is true */
+										if (ELEM(event->type, MOUSEMOVE, EVT_DROP) || ISKEYMODIFIER(event->type)) {
+											wm_drags_check_ops(C, event);
+										}
 									}
 									
 									action |= wm_handlers_do(C, event, &ar->handlers);
@@ -2548,12 +2549,14 @@ void WM_event_remove_keymap_handler(ListBase *handlers, wmKeyMap *keymap)
 	}
 }
 
-wmEventHandler *WM_event_add_ui_handler(const bContext *C, ListBase *handlers,
-                                        wmUIHandlerFunc func, wmUIHandlerRemoveFunc remove, void *userdata)
+wmEventHandler *WM_event_add_ui_handler(
+        const bContext *C, ListBase *handlers,
+        wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
+        void *userdata)
 {
 	wmEventHandler *handler = MEM_callocN(sizeof(wmEventHandler), "event ui handler");
-	handler->ui_handle = func;
-	handler->ui_remove = remove;
+	handler->ui_handle = ui_handle;
+	handler->ui_remove = ui_remove;
 	handler->ui_userdata = userdata;
 	if (C) {
 		handler->ui_area    = CTX_wm_area(C);
@@ -2573,13 +2576,18 @@ wmEventHandler *WM_event_add_ui_handler(const bContext *C, ListBase *handlers,
 }
 
 /* set "postpone" for win->modalhandlers, this is in a running for () loop in wm_handlers_do() */
-void WM_event_remove_ui_handler(ListBase *handlers,
-                                wmUIHandlerFunc func, wmUIHandlerRemoveFunc remove, void *userdata, const bool postpone)
+void WM_event_remove_ui_handler(
+        ListBase *handlers,
+        wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
+        void *userdata, const bool postpone)
 {
 	wmEventHandler *handler;
 	
 	for (handler = handlers->first; handler; handler = handler->next) {
-		if (handler->ui_handle == func && handler->ui_remove == remove && handler->ui_userdata == userdata) {
+		if ((handler->ui_handle == ui_handle) &&
+		    (handler->ui_remove == ui_remove) &&
+		    (handler->ui_userdata == userdata))
+		{
 			/* handlers will be freed in wm_handlers_do() */
 			if (postpone) {
 				handler->flag |= WM_HANDLER_DO_FREE;
@@ -2593,15 +2601,18 @@ void WM_event_remove_ui_handler(ListBase *handlers,
 	}
 }
 
-void WM_event_free_ui_handler_all(bContext *C, ListBase *handlers,
-                                  wmUIHandlerFunc func, wmUIHandlerRemoveFunc remove)
+void WM_event_free_ui_handler_all(
+        bContext *C, ListBase *handlers,
+        wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove)
 {
 	wmEventHandler *handler, *handler_next;
 
 	for (handler = handlers->first; handler; handler = handler_next) {
 		handler_next = handler->next;
-		if (handler->ui_handle == func && handler->ui_remove == remove) {
-			remove(C, handler->ui_userdata);
+		if ((handler->ui_handle == ui_handle) &&
+		    (handler->ui_remove == ui_remove))
+		{
+			ui_remove(C, handler->ui_userdata);
 			BLI_remlink(handlers, handler);
 			wm_event_free_handler(handler);
 		}
@@ -3338,7 +3349,7 @@ void WM_set_locked_interface(wmWindowManager *wm, bool lock)
 	 *
 	 * TODO(sergey): Make it different locked states, so different jobs
 	 *               could lock different areas of blender and allow
-	 *               interation with others?
+	 *               interaction with others?
 	 */
 	BKE_spacedata_draw_locks(lock);
 }

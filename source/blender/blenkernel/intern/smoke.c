@@ -205,7 +205,7 @@ void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[
 	/* smoke_turbulence_init uses non-threadsafe functions from fftw3 lib (like fftw_plan & co). */
 	BLI_lock_thread(LOCK_FFTW);
 
-	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BLI_temporary_dir(), use_fire, use_colors);
+	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BLI_temp_dir_session(), use_fire, use_colors);
 
 	BLI_unlock_thread(LOCK_FFTW);
 
@@ -1552,8 +1552,7 @@ static void sample_derivedmesh(
 
 static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, SmokeFlowSettings *sfs, EmissionMap *em, float dt)
 {
-	if (!sfs->dm) return;
-	{
+	if (sfs->dm) {
 		DerivedMesh *dm;
 		int defgrp_index = sfs->vgroup_density - 1;
 		MDeformVert *dvert = NULL;
@@ -1684,10 +1683,16 @@ static void emit_from_derivedmesh(Object *flow_ob, SmokeDomainSettings *sds, Smo
 		free_bvhtree_from_mesh(&treeData);
 		/* restore original mverts */
 		CustomData_set_layer(&dm->vertData, CD_MVERT, mvert_orig);
-		if (mvert)
-			MEM_freeN(mvert);
 
-		if (vert_vel) MEM_freeN(vert_vel);
+		if (mvert) {
+			MEM_freeN(mvert);
+		}
+		if (vert_vel) {
+			MEM_freeN(vert_vel);
+		}
+
+		dm->needsFree = 1;
+		dm->release(dm);
 	}
 }
 

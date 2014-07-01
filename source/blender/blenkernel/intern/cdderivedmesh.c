@@ -40,6 +40,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_edgehash.h"
 #include "BLI_utildefines.h"
+#include "BLI_stackdefines.h"
 
 #include "BKE_pbvh.h"
 #include "BKE_cdderivedmesh.h"
@@ -575,11 +576,16 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 			new_glmode = mface->v4 ? GL_QUADS : GL_TRIANGLES;
 			new_matnr = mface->mat_nr + 1;
 			new_shademodel = (lnors || (mface->flag & ME_SMOOTH)) ? GL_SMOOTH : GL_FLAT;
-			
-			if (new_glmode != glmode || new_matnr != matnr || new_shademodel != shademodel) {
+
+
+			if ((new_glmode != glmode) || (new_shademodel != shademodel) ||
+			    (setMaterial && (new_matnr != matnr)))
+			{
 				glEnd();
 
-				drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
+				if (setMaterial) {
+					drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
+				}
 
 				glShadeModel(shademodel = new_shademodel);
 				glBegin(glmode = new_glmode);
@@ -2596,15 +2602,15 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 
 	int i, j, c;
 	
-	STACK_INIT(oldv);
-	STACK_INIT(olde);
-	STACK_INIT(oldl);
-	STACK_INIT(oldp);
+	STACK_INIT(oldv, totvert_final);
+	STACK_INIT(olde, totedge);
+	STACK_INIT(oldl, totloop);
+	STACK_INIT(oldp, totpoly);
 
-	STACK_INIT(mvert);
-	STACK_INIT(medge);
-	STACK_INIT(mloop);
-	STACK_INIT(mpoly);
+	STACK_INIT(mvert, totvert_final);
+	STACK_INIT(medge, totedge);
+	STACK_INIT(mloop, totloop);
+	STACK_INIT(mpoly, totpoly);
 
 	/* fill newl with destination vertex indices */
 	mv = cddm->mvert;
@@ -2765,17 +2771,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	MEM_freeN(oldv);
 	MEM_freeN(olde);
 	MEM_freeN(oldl);
-	MEM_freeN(oldp);
-
-	STACK_FREE(oldv);
-	STACK_FREE(olde);
-	STACK_FREE(oldl);
-	STACK_FREE(oldp);
-
-	STACK_FREE(mvert);
-	STACK_FREE(medge);
-	STACK_FREE(mloop);
-	STACK_FREE(mpoly);
+	MEM_freeN(oldp);;
 
 	BLI_edgehash_free(ehash, NULL);
 
@@ -2800,15 +2796,15 @@ void CDDM_calc_edges_tessface(DerivedMesh *dm)
 	eh = BLI_edgeset_new_ex(__func__, BLI_EDGEHASH_SIZE_GUESS_FROM_POLYS(numFaces));
 
 	for (i = 0; i < numFaces; i++, mf++) {
-		BLI_edgeset_reinsert(eh, mf->v1, mf->v2);
-		BLI_edgeset_reinsert(eh, mf->v2, mf->v3);
+		BLI_edgeset_add(eh, mf->v1, mf->v2);
+		BLI_edgeset_add(eh, mf->v2, mf->v3);
 		
 		if (mf->v4) {
-			BLI_edgeset_reinsert(eh, mf->v3, mf->v4);
-			BLI_edgeset_reinsert(eh, mf->v4, mf->v1);
+			BLI_edgeset_add(eh, mf->v3, mf->v4);
+			BLI_edgeset_add(eh, mf->v4, mf->v1);
 		}
 		else {
-			BLI_edgeset_reinsert(eh, mf->v3, mf->v1);
+			BLI_edgeset_add(eh, mf->v3, mf->v1);
 		}
 	}
 

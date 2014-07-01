@@ -40,11 +40,13 @@ import string
 import shutil
 import re
 
-# store path to tools
+# store path to tools and modules
 toolpath=os.path.join(".", "build_files", "scons", "tools")
+modulespath=os.path.join(".", "build_files", "scons", "Modules")
 
-# needed for importing tools
+# needed for importing tools and modules
 sys.path.append(toolpath)
+sys.path.append(modulespath)
 
 import Blender
 import btools
@@ -285,8 +287,7 @@ if env['OURPLATFORM']=='darwin':
     import subprocess
 
     command = ["%s"%env['CC'], "--version"]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=None, shell=False)
-    line = process.communicate()[0]
+    line = btools.get_command_output(command)
     ver = re.search(r'[0-9]+(\.[0-9]+[svn]+)+', line) or re.search(r'[0-9]+(\.[0-9]+)+', line) # read the "based on LLVM x.xsvn" version here, not the Apple version
     if ver:
         env['CCVERSION'] = ver.group(0).strip('svn')
@@ -505,8 +506,6 @@ else:
 env['CPPFLAGS'].append('-DWITH_AUDASPACE')
 env['CPPFLAGS'].append('-DWITH_AVI')
 env['CPPFLAGS'].append('-DWITH_OPENNL')
-if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '11.0':
-    env['CPPFLAGS'].append('-D_ALLOW_KEYWORD_MACROS')
 
 if env['OURPLATFORM'] not in ('win32-vc', 'win64-vc'):
     env['CPPFLAGS'].append('-DHAVE_STDBOOL_H')
@@ -595,6 +594,16 @@ if not os.path.isdir ( B.root_build_dir):
 # # Docs not working with epy anymore
 # if not os.path.isdir(B.doc_build_dir) and env['WITH_BF_DOCS']:
 #     os.makedirs ( B.doc_build_dir )
+
+# Put all auto configuration run-time tests here
+
+from FindSharedPtr import FindSharedPtr
+from FindUnorderedMap import FindUnorderedMap
+
+conf = Configure(env)
+FindSharedPtr(conf)
+FindUnorderedMap(conf)
+env = conf.Finish()
 
 ###################################
 # Ensure all data files are valid #
@@ -1100,10 +1109,7 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
 
     if env['WITH_BF_OPENAL']:
         dllsources.append('${LCGDIR}/openal/lib/OpenAL32.dll')
-        if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '11.0':
-            pass
-        else:
-            dllsources.append('${LCGDIR}/openal/lib/wrap_oal.dll')
+        dllsources.append('${LCGDIR}/openal/lib/wrap_oal.dll')
 
     if env['WITH_BF_SNDFILE']:
         dllsources.append('${LCGDIR}/sndfile/lib/libsndfile-1.dll')

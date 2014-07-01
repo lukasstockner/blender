@@ -74,6 +74,12 @@ private:
 	 */
 	TileExecutionState m_state;
 
+	/**
+	 * @brief m_tile_number this is the tile number/chunk number of the old scheduling system.
+	 * It is used during coding and will be removed when the new planning system will be activated.
+	 *
+	 * @deprecated
+	 */
 	unsigned int m_tile_number;
 public:
 	/**
@@ -109,6 +115,10 @@ public:
 	 */
 	rcti* get_rect() { return this->m_rect; }
 
+	/**
+	 * @brief get_tile_number
+	 * @return return the chunk number of this tile
+	 */
 	unsigned int get_tile_number() { return this->m_tile_number; }
 
 private:

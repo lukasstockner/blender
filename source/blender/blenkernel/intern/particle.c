@@ -1907,7 +1907,7 @@ void psys_particle_on_emitter(ParticleSystemModifierData *psmd, int from, int in
                               float fuv[4], float foffset, float vec[3], float nor[3], float utan[3], float vtan[3],
                               float orco[3], float ornor[3])
 {
-	if (psmd) {
+	if (psmd && psmd->dm) {
 		if (psmd->psys->part->distr == PART_DISTR_GRID && psmd->psys->part->from != PART_FROM_VERT) {
 			if (vec)
 				copy_v3_v3(vec, fuv);
@@ -2666,6 +2666,9 @@ static void psys_thread_create_path(ParticleThread *thread, struct ChildParticle
 		/* get the original coordinates (orco) for texture usage */
 		cpa_from = part->from;
 		cpa_num = pa->num;
+		/* XXX hack to avoid messed up particle num and subsequent crash (#40733) */
+		if (cpa_num > ctx->sim.psmd->dm->getNumTessFaces(ctx->sim.psmd->dm))
+			cpa_num = 0;
 		cpa_fuv = pa->fuv;
 
 		psys_particle_on_emitter(ctx->sim.psmd, cpa_from, cpa_num, DMCACHE_ISCHILD, cpa_fuv, pa->foffset, co, ornor, 0, 0, orco, 0);

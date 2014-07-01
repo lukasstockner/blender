@@ -58,7 +58,7 @@ namespace Freestyle {
 
 BlenderStrokeRenderer::BlenderStrokeRenderer(Render *re, int render_count) : StrokeRenderer()
 {
-	freestyle_bmain = &re->freestyle_bmain;
+	freestyle_bmain = re->freestyle_bmain;
 
 	// for stroke mesh generation
 	_width = re->winx;
@@ -535,10 +535,6 @@ void BlenderStrokeRenderer::RenderStrokeRepBasic(StrokeRep *iStrokeRep) const
 
 							loopsuv[L][2].uv[0] = svRep[0]->texCoord(L).x();
 							loopsuv[L][2].uv[1] = svRep[0]->texCoord(L).y();
-						}
-						/* freestyle tex-origin is upside-down */
-						for (int i = 0; i < 3; i++) {
-							loopsuv[L][i].uv[1] *= -1;
 						}
 						loopsuv[L] += 3;
 					}
