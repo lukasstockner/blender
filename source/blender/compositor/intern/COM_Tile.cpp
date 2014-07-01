@@ -27,26 +27,9 @@ Tile::Tile(ExecutionGroup *group, rcti *rect, unsigned int tile_number)
 {
 	this->m_executionGroup = group;
 	this->m_rect = rect;
-	this->m_state = CREATED;
 	this->m_tile_number = tile_number;
 }
 
 Tile::~Tile() {
 	delete this->m_rect;
-}
-
-void Tile::schedule() {
-	/// @TODO: Still needs implementation
-}
-
-void Tile::add_dependent(Tile *tile) {
-	/// @TODO: Still needs implementation
-}
-
-void Tile::add_depends_on(Tile *tile) {
-	/// @TODO: Still needs implementation
-}
-
-void Tile::execute() {
-	/// @TODO: Still needs implementation
 }

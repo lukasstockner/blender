@@ -29,18 +29,16 @@ class ExecutionGroup;
 class WorkScheduler;
 #include <vector>
 
-typedef std::vector<Tile*> Tiles;
-
-typedef enum TileExecutionState{
-	CREATED = 0,
-	SCHEDULED = 1,
-	FINISHED = 2
-} TileExecutionState;
-
 /**
  * @brief A tile is the work that can be scheduled.
  *
+ * The scheduling is triggered in the ExecutionGroup and it will be executed by the CPUDevice or OpenCLDevice.
+ * The scheduling is implemented in the WorkScheduler
+ *
+ * @see ExecutionGroup
  * @see WorkScheduler
+ * @see CPUDevice
+ * @see OpenCLDevice
  */
 class Tile {
 private:
@@ -55,59 +53,26 @@ private:
 	rcti *m_rect;
 
 	/**
-	 * @brief a list of tiles that needs to be calculated, before this tile can be scheduled
-	 */
-	Tiles m_depends_on;
-
-	/**
-	 * @brief Number of unfinished tiles in the m_depends_on.
-	 */
-	int m_no_unfinished_tiles;
-
-	/**
-	 * @brief a list of tiles that are waiting for me to be finished
-	 */
-	Tiles m_dependents;
-
-	/**
-	 * @brief m_state execution state of this tile.
-	 */
-	TileExecutionState m_state;
-
-	/**
 	 * @brief m_tile_number this is the tile number/chunk number of the old scheduling system.
-	 * It is used during coding and will be removed when the new planning system will be activated.
-	 *
-	 * @deprecated
+	 * It is currently used as interface data towards the ExecutionGroup. This interface will be changed
+	 * in the future and thereby will make this data unneeded.
 	 */
 	unsigned int m_tile_number;
 public:
 	/**
-	 * constructor
+	 * @brief constructor
 	 */
 	Tile(ExecutionGroup *group, rcti *rect, unsigned int tile_number);
+
+	/**
+	  * @brief descructor
+	  */
 	~Tile();
+
 	/**
 	 * @brief get the ExecutionGroup
 	 */
 	ExecutionGroup *getExecutionGroup() const { return this->m_executionGroup; }
-
-	/**
-	 * @brief schedule Schedule this tile for execution into the scheduler.
-	 */
-	void schedule();
-
-	/**
-	 * @brief add_dependent adds a tile to the list of tiles that depends on this tile
-	 * @param tile
-	 */
-	void add_dependent(Tile* tile);
-
-	/**
-	 * @brief add_depends_on adds a tile to the list of tiles that this tile depends on
-	 * @param tile
-	 */
-	void add_depends_on(Tile* tile);
 
 	/**
 	 * @brief get_rect get the rectangle of this tile
@@ -122,11 +87,6 @@ public:
 	unsigned int get_tile_number() { return this->m_tile_number; }
 
 private:
-	/**
-	 * @brief execute function called from the workscheduler to execute this tile.
-	 */
-	void execute();
-
 	friend class ExecutionGroup;
 	friend class WorkScheduler;
 #ifdef WITH_CXX_GUARDEDALLOC
