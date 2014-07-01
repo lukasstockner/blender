@@ -205,7 +205,12 @@ void RenderLayersAlphaProg::executePixelSampled(float output[4], float x, float 
 		output[0] = 0.0f;
 	}
 	else {
-		doInterpolation(output, x, y, sampler);
+		float temp[4];
+		doInterpolation(temp, x, y, sampler);
+		output[0] = temp[3];
+		output[1] = 0.0f;
+		output[2] = 0.0f;
+		output[3] = 0.0f;
 	}
 }
 
