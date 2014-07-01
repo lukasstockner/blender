@@ -35,6 +35,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_stackdefines.h"
 #include "BLI_bitmap.h"
 #include "BLI_math.h"
 
@@ -273,8 +274,8 @@ static DerivedMesh *applyModifier(
 		            face_nors, true);
 	}
 
-	STACK_INIT(new_vert_arr);
-	STACK_INIT(new_edge_arr);
+	STACK_INIT(new_vert_arr, numVerts * 2);
+	STACK_INIT(new_edge_arr, numEdges * 2);
 
 	if (smd->flag & MOD_SOLIDIFY_RIM) {
 		BLI_bitmap *orig_mvert_tag = BLI_BITMAP_NEW(numVerts, __func__);
@@ -812,9 +813,6 @@ static DerivedMesh *applyModifier(
 		MEM_freeN(edge_users);
 		MEM_freeN(edge_order);
 	}
-
-	STACK_FREE(new_vert_arr);
-	STACK_FREE(new_edge_arr);
 
 	if (old_vert_arr)
 		MEM_freeN(old_vert_arr);
