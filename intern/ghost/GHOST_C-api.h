@@ -674,7 +674,8 @@ extern GHOST_TSuccess GHOST_SetSwapInterval(GHOST_WindowHandle windowhandle, int
 
 /**
  * Gets the current swap interval for swapBuffers.
- * \return An integer.
+ * \param pointer to location to store the swap interval if successful
+ * \return Whether the swap interval was successfully read.
  */
 extern GHOST_TSuccess GHOST_GetSwapInterval(GHOST_WindowHandle windowhandle, int* intervalOut);
 
