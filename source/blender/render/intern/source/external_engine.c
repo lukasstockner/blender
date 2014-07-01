@@ -60,6 +60,7 @@
 #include "RE_bake.h"
 
 #include "initrender.h"
+#include "renderpipeline.h"
 #include "render_types.h"
 #include "render_result.h"
 
@@ -575,6 +576,7 @@ int RE_engine_render(Render *re, int do_all)
 		}
 
 		BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene, lay);
+		render_update_anim_renderdata(re, &re->scene->r);
 	}
 
 	/* create render result */
@@ -659,6 +661,12 @@ int RE_engine_render(Render *re, int do_all)
 	if (re->result->do_exr_tile) {
 		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 		render_result_exr_file_end(re);
+		BLI_rw_mutex_unlock(&re->resultmutex);
+	}
+
+	if (re->r.scemode & R_EXR_CACHE_FILE) {
+		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+		render_result_exr_file_cache_write(re);
 		BLI_rw_mutex_unlock(&re->resultmutex);
 	}
 

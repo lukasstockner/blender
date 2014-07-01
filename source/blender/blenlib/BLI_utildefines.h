@@ -332,29 +332,6 @@
 #define UNPACK3OP(op, a)  op((a)[0]), op((a)[1]), op((a)[2])
 #define UNPACK4OP(op, a)  op((a)[0]), op((a)[1]), op((a)[2]), op((a)[3])
 
-/* simple stack */
-#define STACK_DECLARE(stack)   unsigned int _##stack##_index
-#define STACK_INIT(stack)      ((void)stack, (void)((_##stack##_index) = 0))
-#define STACK_SIZE(stack)      ((void)stack, (_##stack##_index))
-#define STACK_PUSH(stack, val)  (void)((stack)[(_##stack##_index)++] = val)
-#define STACK_PUSH_RET(stack)  ((void)stack, ((stack)[(_##stack##_index)++]))
-#define STACK_PUSH_RET_PTR(stack)  ((void)stack, &((stack)[(_##stack##_index)++]))
-#define STACK_POP(stack)            ((_##stack##_index) ?  ((stack)[--(_##stack##_index)]) : NULL)
-#define STACK_POP_PTR(stack)        ((_##stack##_index) ? &((stack)[--(_##stack##_index)]) : NULL)
-#define STACK_POP_DEFAULT(stack, r) ((_##stack##_index) ?  ((stack)[--(_##stack##_index)]) : r)
-#define STACK_FREE(stack)      ((void)stack)
-#ifdef __GNUC__
-#define STACK_SWAP(stack_a, stack_b) { \
-	SWAP(typeof(stack_a), stack_a, stack_b); \
-	SWAP(unsigned int, _##stack_a##_index, _##stack_b##_index); \
-	} (void)0
-#else
-#define STACK_SWAP(stack_a, stack_b) { \
-	SWAP(void *, stack_a, stack_b); \
-	SWAP(unsigned int, _##stack_a##_index, _##stack_b##_index); \
-	} (void)0
-#endif
-
 /* array helpers */
 #define ARRAY_LAST_ITEM(arr_start, arr_dtype, tot) \
 	(arr_dtype *)((char *)arr_start + (sizeof(*((arr_dtype *)NULL)) * (size_t)(tot - 1)))
@@ -378,6 +355,21 @@
 #else
 #  define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(*(arr)))
 #endif
+
+/* Like offsetof(typeof(), member), for non-gcc compilers */
+#define OFFSETOF_STRUCT(_struct, _member) \
+	((((char *)&((_struct)->_member)) - ((char *)(_struct))) + sizeof((_struct)->_member))
+
+/* memcpy, skipping the first part of a struct,
+ * ensures 'struct_dst' isn't const and that the offset can be computed at compile time */
+#define MEMCPY_STRUCT_OFS(struct_dst, struct_src, member)  { \
+	void *_not_const = struct_dst; \
+	(void)_not_const; \
+	((void)(struct_dst == struct_src), \
+	 memcpy((char *)(struct_dst)  + OFFSETOF_STRUCT(struct_dst, member), \
+	        (char *)(struct_src)  + OFFSETOF_STRUCT(struct_dst, member), \
+	        sizeof(*(struct_dst)) - OFFSETOF_STRUCT(struct_dst, member))); \
+} (void)0
 
 /* Warning-free macros for storing ints in pointers. Use these _only_
  * for storing an int in a pointer, not a pointer in an int (64bit)! */
