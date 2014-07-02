@@ -29,125 +29,131 @@
 #include <cstdio>
 #include <opensubdiv/osd/cuda.h>
 
-// From "NVIDIA GPU Computing SDK 4.2/C/common/inc/cutil_inline_runtime.h":
+/* From "NVIDIA GPU Computing SDK 4.2/C/common/inc/cutil_inline_runtime.h": */
 
-// Beginning of GPU Architecture definitions
+/* Beginning of GPU Architecture definitions */
 inline int _ConvertSMVer2Cores_local(int major, int minor)
 {
-    // Defines for GPU Architecture types (using the SM version to determine the # of cores per SM
-    typedef struct {
-        int SM; // 0xMm (hexidecimal notation), M = SM Major version, and m = SM minor version
-        int Cores;
-    } sSMtoCores;
+	/* Defines for GPU Architecture types (using the SM version to determine
+	 * the # of cores per SM
+	 */
+	typedef struct {
+		int SM; /* 0xMm (hexidecimal notation),
+		         * M = SM Major version,
+		         * and m = SM minor version
+		         */
+		int Cores;
+	} sSMtoCores;
 
-    sSMtoCores nGpuArchCoresPerSM[] =
-    { { 0x10,  8 }, // Tesla Generation (SM 1.0) G80 class
-      { 0x11,  8 }, // Tesla Generation (SM 1.1) G8x class
-      { 0x12,  8 }, // Tesla Generation (SM 1.2) G9x class
-      { 0x13,  8 }, // Tesla Generation (SM 1.3) GT200 class
-      { 0x20, 32 }, // Fermi Generation (SM 2.0) GF100 class
-      { 0x21, 48 }, // Fermi Generation (SM 2.1) GF10x class
-      { 0x30, 192}, // Fermi Generation (SM 3.0) GK10x class
-      {   -1, -1 }
-    };
+	sSMtoCores nGpuArchCoresPerSM[] =
+		{ { 0x10,  8 },  /* Tesla Generation (SM 1.0) G80 class */
+		  { 0x11,  8 },  /* Tesla Generation (SM 1.1) G8x class */
+		  { 0x12,  8 },  /* Tesla Generation (SM 1.2) G9x class */
+		  { 0x13,  8 },  /* Tesla Generation (SM 1.3) GT200 class */
+		  { 0x20, 32 },  /* Fermi Generation (SM 2.0) GF100 class */
+		  { 0x21, 48 },  /* Fermi Generation (SM 2.1) GF10x class */
+		  { 0x30, 192},  /* Fermi Generation (SM 3.0) GK10x class */
+		  {   -1, -1 }
+		};
 
-    int index = 0;
-    while (nGpuArchCoresPerSM[index].SM != -1) {
-        if (nGpuArchCoresPerSM[index].SM == ((major << 4) + minor) ) {
-            return nGpuArchCoresPerSM[index].Cores;
-        }
-        index++;
-    }
-    printf("MapSMtoCores undefined SMversion %d.%d!\n", major, minor);
-    return -1;
+	int index = 0;
+	while (nGpuArchCoresPerSM[index].SM != -1) {
+		if (nGpuArchCoresPerSM[index].SM == ((major << 4) + minor)) {
+			return nGpuArchCoresPerSM[index].Cores;
+		}
+		index++;
+	}
+	printf("MapSMtoCores undefined SMversion %d.%d!\n", major, minor);
+	return -1;
 }
-// end of GPU Architecture definitions
+/* End of GPU Architecture definitions. */
 
-// This function returns the best GPU (with maximum GFLOPS)
+/* This function returns the best GPU (with maximum GFLOPS) */
 inline int cutGetMaxGflopsDeviceId()
 {
-    int current_device   = 0, sm_per_multiproc = 0;
-    int max_compute_perf = 0, max_perf_device  = -1;
-    int device_count     = 0, best_SM_arch     = 0;
-    int compat_major, compat_minor;
+	int current_device   = 0, sm_per_multiproc = 0;
+	int max_compute_perf = 0, max_perf_device  = -1;
+	int device_count     = 0, best_SM_arch     = 0;
+	int compat_major, compat_minor;
 
-    cuda_assert(cuDeviceGetCount( &device_count ));
-    // Find the best major SM Architecture GPU device
-    while ( current_device < device_count ) {
-        cuDeviceComputeCapability( &compat_major, &compat_minor, current_device );
-        if (compat_major > 0 && compat_major < 9999) {
-            best_SM_arch = std::max(best_SM_arch, compat_major);
-        }
-        current_device++;
-    }
+	cuda_assert(cuDeviceGetCount(&device_count));
+	/* Find the best major SM Architecture GPU device. */
+	while (current_device < device_count) {
+		cuDeviceComputeCapability(&compat_major, &compat_minor, current_device);
+		if (compat_major > 0 && compat_major < 9999) {
+			best_SM_arch = std::max(best_SM_arch, compat_major);
+		}
+		current_device++;
+	}
 
-    // Find the best CUDA capable GPU device
-    current_device = 0;
-    while( current_device < device_count ) {
-        cuDeviceComputeCapability( &compat_major, &compat_minor, current_device );
-        if (compat_major == 9999 && compat_minor == 9999) {
-            sm_per_multiproc = 1;
-        } else {
-            sm_per_multiproc = _ConvertSMVer2Cores_local(compat_major, compat_minor);
-        }
-        int multi_processor_count;
-        cuDeviceGetAttribute(&multi_processor_count,
-                             CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT,
-                             current_device);
-        int clock_rate;
-        cuDeviceGetAttribute(&clock_rate,
-                             CU_DEVICE_ATTRIBUTE_CLOCK_RATE,
-                             current_device);
-        int compute_perf  = multi_processor_count * sm_per_multiproc * clock_rate;
-        if( compute_perf  > max_compute_perf ) {
-            // If we find GPU with SM major > 2, search only these
-            if ( best_SM_arch > 2 ) {
-                // If our device==dest_SM_arch, choose this, or else pass
-                if (compat_major == best_SM_arch) {
-                    max_compute_perf  = compute_perf;
-                    max_perf_device   = current_device;
-                }
-            } else {
-                max_compute_perf  = compute_perf;
-                max_perf_device   = current_device;
-            }
-        }
-        ++current_device;
-    }
-    return max_perf_device;
+	/* Find the best CUDA capable GPU device. */
+	current_device = 0;
+	while (current_device < device_count) {
+		cuDeviceComputeCapability(&compat_major, &compat_minor, current_device);
+		if (compat_major == 9999 && compat_minor == 9999) {
+			sm_per_multiproc = 1;
+		} else {
+			sm_per_multiproc = _ConvertSMVer2Cores_local(compat_major,
+			                                             compat_minor);
+		}
+		int multi_processor_count;
+		cuDeviceGetAttribute(&multi_processor_count,
+		                     CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT,
+		                     current_device);
+		int clock_rate;
+		cuDeviceGetAttribute(&clock_rate,
+		                     CU_DEVICE_ATTRIBUTE_CLOCK_RATE,
+		                     current_device);
+		int compute_perf = multi_processor_count * sm_per_multiproc * clock_rate;
+		if (compute_perf > max_compute_perf) {
+			/* If we find GPU with SM major > 2, search only these */
+			if (best_SM_arch > 2) {
+				/* If our device==dest_SM_arch, choose this, or else pass. */
+				if (compat_major == best_SM_arch) {
+					max_compute_perf = compute_perf;
+					max_perf_device = current_device;
+				}
+			} else {
+				max_compute_perf = compute_perf;
+				max_perf_device = current_device;
+			}
+		}
+		++current_device;
+	}
+	return max_perf_device;
 }
 
-static bool HAS_CUDA_VERSION_4_0 () {
+static bool HAS_CUDA_VERSION_4_0() {
 #ifdef OPENSUBDIV_HAS_CUDA
-    static bool cudaInitialized = false;
-    static bool cudaLoadSuccess = true;
-    if (not cudaInitialized) {
-        cudaInitialized = true;
+	static bool cudaInitialized = false;
+	static bool cudaLoadSuccess = true;
+	if (!cudaInitialized) {
+		cudaInitialized = true;
 
-#    ifdef OPENSUBDIV_HAS_CUEW
-        cudaLoadSuccess = cuewInit() != 0;
-        if (not cudaLoadSuccess) {
-            fprintf(stderr, "Loading CUDA failed.\n");
-        }
-#    endif
-        // Need to initialize CUDA here so getting device
-        // with the maximum FPLOS works fine.
-        if (cuInit(0) == CUDA_SUCCESS) {
-            // This is to deal with cases like NVidia Optimus,
-            // when there might be CUDA library installed but
-            // NVidia card is not being active.
-            if (cutGetMaxGflopsDeviceId() < 0) {
-                cudaLoadSuccess = false;
-            }
-        }
-        else {
-            cudaLoadSuccess = false;
-        }
-    }
-    return cudaLoadSuccess;
+#  ifdef OPENSUBDIV_HAS_CUEW
+		cudaLoadSuccess = cuewInit() != 0;
+		if (!cudaLoadSuccess) {
+			fprintf(stderr, "Loading CUDA failed.\n");
+		}
+#  endif
+		// Need to initialize CUDA here so getting device
+		// with the maximum FPLOS works fine.
+		if (cuInit(0) == CUDA_SUCCESS) {
+			// This is to deal with cases like NVidia Optimus,
+			// when there might be CUDA library installed but
+			// NVidia card is not being active.
+			if (cutGetMaxGflopsDeviceId() < 0) {
+				cudaLoadSuccess = false;
+			}
+		}
+		else {
+			cudaLoadSuccess = false;
+		}
+	}
+	return cudaLoadSuccess;
 #else
-    return false;
+	return false;
 #endif
 }
 
-#endif //OSD_CUDA_INIT_H
+#endif  /* OSD_CUDA_INIT_H */
