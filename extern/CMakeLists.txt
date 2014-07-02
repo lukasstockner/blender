@@ -84,3 +84,7 @@ if(WITH_GHOST_XDND)
 		add_subdirectory(xdnd)
 	endif()
 endif()
+
+if(WITH_GTESTS)
+	add_subdirectory(gtest)
+endif()

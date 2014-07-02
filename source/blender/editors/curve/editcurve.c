@@ -1042,7 +1042,7 @@ static void curve_rename_fcurves(Curve *cu, ListBase *orig_curves)
 {
 	int nu_index = 0, a, pt_index;
 	EditNurb *editnurb = cu->editnurb;
-	Nurb *nu = editnurb->nurbs.first;
+	Nurb *nu;
 	CVKeyIndex *keyIndex;
 	char rna_path[64], orig_rna_path[64];
 	AnimData *adt = BKE_animdata_from_id(&cu->id);
@@ -5240,7 +5240,7 @@ static int add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 			const float mval[2] = {UNPACK2(event->mval)};
 			float no_dummy[3];
 			float dist_px_dummy;
-			snapObjectsContext(C, mval, &dist_px_dummy, location, no_dummy, SNAP_NOT_OBEDIT, NULL);
+			snapObjectsContext(C, mval, &dist_px_dummy, location, no_dummy, SNAP_NOT_OBEDIT);
 		}
 
 		RNA_float_set_array(op->ptr, "location", location);
