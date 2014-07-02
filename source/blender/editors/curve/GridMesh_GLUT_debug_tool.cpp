@@ -346,19 +346,19 @@ void GLUT_keyboard(unsigned char ch, int x, int y ) {
 	}
 	if (ch=='i') {
 		gm->insert_vert_poly_gridmesh(clip);
-		for (int poly=subj; poly; poly=gm->v[poly].next_poly) {
-			gm->insert_vert_poly_gridmesh(poly);
-		}
+//		for (int poly=subj; poly; poly=gm->v[poly].next_poly) {
+//			gm->insert_vert_poly_gridmesh(poly);
+//		}
 		glutPostRedisplay();
 	}
 	if (ch=='l') {
-		gm->label_interior(clip,subj);
+		gm->label_interior_AND(clip);
+		gm->label_interior_freepoly(clip);
 		glutPostRedisplay();
 	}
 	if (ch=='t') {
 		gm->trim_to_odd();
-		subj = 0; // Subject and clip were destroyed in trimming process
-		clip = 0;
+		subj = 0; // Subject was destroyed in trimming process
 		glutPostRedisplay();
 	}
 	if (ch=='1') toggle_cyclic(clip);

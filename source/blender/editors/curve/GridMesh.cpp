@@ -11,10 +11,29 @@
 #include <map>
 #include <set>
 #include <algorithm>
+#include <limits>
 #include "GridMesh.h"
 
 static bool debug = 1;
 float GridMesh::tolerance = 1e-5;
+
+
+// Fast float->int, courtesy of http://stereopsis.com/sree/fpu2006.html
+// 5x faster on x86. It's not in the hot loop anymore so it probably
+// doesn't really matter. Todo: test and see.
+const double _xs_doublemagic             = 6755399441055744.0;               //2^52 * 1.5,  uses limited precisicion to floor
+const double _xs_doublemagicdelta        = (1.5e-8);                         //almost .5f = .5f + 1e^(number of exp bit)
+const double _xs_doublemagicroundeps     = (.5f-_xs_doublemagicdelta);       //almost .5f = .5f - 1e^(number of exp bit)
+inline static int xs_CRoundToInt(double val) {
+    val = val + _xs_doublemagic;
+    return ((int*)&val)[0]; // 0 for little endian (ok), 1 for big endian (?)
+	//    return int32(floor(val+.5)); //Alternative implementation if the trick is buggy
+}
+inline static int xs_FloorToInt(double val) {
+    return xs_CRoundToInt(val-_xs_doublemagicroundeps);
+	//return floor(val); //Alternative implementation if the trick is buggy
+}
+
 
 void GridMesh::set_ll_ur(double lowerleft_x, double lowerleft_y,
 						 double upperright_x, double upperright_y) {
@@ -54,12 +73,12 @@ GridMesh::GridMesh(double lowerleft_x, double lowerleft_y,
 			new (v4) GreinerV2f(); v4->x=l; v4->y=t;
 			int iv1 = vert_id(v1);
 			int iv2 = iv1+1;
-			int iv3 = iv1+2;
-			int iv4 = iv1+3;
+			int iv3 = iv1+2;                                 // 13   + 1
+			int iv4 = iv1+3;                                 // 02
 			v1->next = iv2; v2->prev = iv1; v1->first = iv1; v1->corner = 1;
-			v2->next = iv3; v3->prev = iv2; v2->first = iv1; v2->corner = 2;
-			v3->next = iv4; v4->prev = iv3; v3->first = iv1; v3->corner = 3;
-			v4->next = iv1; v1->prev = iv4; v4->first = iv1; v4->corner = 4;
+			v2->next = iv3; v3->prev = iv2; v2->first = iv1; v2->corner = 3;
+			v3->next = iv4; v4->prev = iv3; v3->first = iv1; v3->corner = 4;
+			v4->next = iv1; v1->prev = iv4; v4->first = iv1; v4->corner = 2;
 		}
 	}
 }
@@ -209,6 +228,39 @@ std::pair<int,int> GridMesh::vert_grid_cell(int vert) {
 	return std::make_pair(x,y);
 }
 
+void GridMesh::poly_grid_BB(int poly, int *bb) { //int bb[4] = {minx,maxx,miny,maxy}
+	int first = poly_first_vert(poly);
+	int vert = first;
+	float minx=std::numeric_limits<float>::max(), maxx=std::numeric_limits<float>::min();
+	float miny=std::numeric_limits<float>::max(), maxy=std::numeric_limits<float>::min();
+	do {
+		GreinerV2f& g = v[vert];
+		minx = fmin(g.x,minx);
+		maxx = fmax(g.x,maxx);
+		miny = fmin(g.y,miny);
+		maxy = fmax(g.y,maxy);
+		vert = g.next;
+	} while (vert && vert!=first);
+	bb[0] = xs_FloorToInt(minx);
+	bb[1] = xs_FloorToInt(maxx);
+	bb[2] = xs_FloorToInt(miny);
+	bb[3] = xs_FloorToInt(maxy);
+}
+
+// Sets is_interior flag of all vertices of poly and all vertices
+// of polygons connected to poly's next_poly linked list
+void GridMesh::poly_set_interior(int poly, bool interior) {
+	poly = poly_first_vert(poly);
+	for (; poly; poly=v[poly].next_poly) {
+		int first = poly_first_vert(poly);
+		int vert=first;
+		do {
+			v[vert].is_interior = interior;
+			vert = v[vert].next;
+		} while (vert&&vert!=first);
+	}
+}
+
 #if defined(ENABLE_GLUT_DEMO)
 void GridMesh::poly_center(int poly, float *cx, float *cy) {
 	int vert = poly;
@@ -284,23 +336,6 @@ void GridMesh::poly_draw(int poly, float shrinkby, int maxedges) {
 }
 #endif
 
-
-
-// Fast float->int, courtesy of http://stereopsis.com/sree/fpu2006.html
-// 5x faster on x86. It's not in the hot loop anymore so it probably
-// doesn't really matter. Todo: test and see.
-const double _xs_doublemagic             = 6755399441055744.0;               //2^52 * 1.5,  uses limited precisicion to floor
-const double _xs_doublemagicdelta        = (1.5e-8);                         //almost .5f = .5f + 1e^(number of exp bit)
-const double _xs_doublemagicroundeps     = (.5f-_xs_doublemagicdelta);       //almost .5f = .5f - 1e^(number of exp bit)
-inline static int xs_CRoundToInt(double val) {
-    val = val + _xs_doublemagic;
-    return ((int*)&val)[0]; // 0 for little endian (ok), 1 for big endian (?)
-	//    return int32(floor(val+.5)); //Alternative implementation if the trick is buggy
-}
-inline static int xs_FloorToInt(double val) {
-    return xs_CRoundToInt(val-_xs_doublemagicroundeps);
-	//return floor(val); //Alternative implementation if the trick is buggy
-}
 
 void GridMesh::find_cell_line_intersections(double x0, double y0, double x1, double y1,
 											std::vector<std::pair<int,int>> *bottom_edges,
@@ -475,24 +510,110 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 	return verts_added;
 }
 
-void GridMesh::label_interior_cell(int x, int y, bool ll, bool *lr, bool*ul) {
-	int cell = poly_for_cell(x,y);
-	bool interior = ll;
-	bool first_is_interior = interior;
-	int vert = cell;
-	do {
-		v[vert].is_interior = interior;
-		if (v[vert].corner==2&&lr) *lr = interior;
-		if (v[vert].corner==4&&ul) *ul = interior;
-		if (v[vert].is_intersection) {
-			interior = !interior;
-			v[vert].is_entry = interior; // If we were in the interior, this isn't an entry point
+void GridMesh::label_interior_AND(int poly2, bool invert_poly2) {
+	int bb[4];
+	poly_grid_BB(poly2, bb);
+	int minx=bb[0], maxx=bb[1], miny=bb[2], maxy=bb[3];
+	if (!invert_poly2)
+		label_exterior_cells(poly2, false, bb);
+	known_corner_t known_verts_x0=0, known_verts_xsweep;
+	for (int y=miny; y<=maxy; y++) {
+		known_verts_x0 = KNOWN_CORNER_NEXTY(known_verts_x0);
+		known_verts_x0 = label_interior_cell(poly_for_cell(minx, y),
+											 poly2,
+											 invert_poly2,
+											 known_verts_x0);
+		known_verts_xsweep = known_verts_x0;
+		for (int x=minx+1; x<=maxx; x++) {
+			known_verts_xsweep = KNOWN_CORNER_NEXTX(known_verts_xsweep);
+			known_verts_xsweep = label_interior_cell(poly_for_cell(x, y),
+													 poly2,
+													 invert_poly2,
+													 known_verts_xsweep);
 		}
-		vert = v[vert].next;
-	} while (vert!=cell);
-	if (!interior==first_is_interior&&debug) {
-		printf("inconsistent interior call!\n");
 	}
+}
+
+void GridMesh::label_interior_SUB(int poly2) {
+	label_interior_AND(poly2, true);
+}
+
+void GridMesh::label_exterior_cells(int poly, bool interior_lbl, int* bb) {
+	int bb_local[4]; //int bb[4] = {minx,maxx,miny,maxy}
+	if (!bb) {
+		bb = bb_local;
+		poly_grid_BB(poly, bb);
+	}
+	int minx=bb[0], maxx=bb[1], miny=bb[2], maxy=bb[3];
+	for (int y=0; y<ny; y++) { // Left of poly
+		for (int x=0,xlim=std::min(nx,minx); x<xlim; x++) {
+			poly_set_interior(poly_for_cell(x, y), interior_lbl);
+		}
+	}
+	for (int y=0; y<ny; y++) { // Right of poly
+		for (int x=maxx+1; x<nx; x++) {
+			poly_set_interior(poly_for_cell(x, y), interior_lbl);
+		}
+	}
+	for (int y=0; y<miny; y++) { // Bottom of poly
+		for (int x=minx; x<=maxx; x++) {
+			poly_set_interior(poly_for_cell(x, y), interior_lbl);
+		}
+	}
+	for (int y=maxy+1; y<ny; y++) { // Top of poly
+		for (int x=minx; x<=maxx; x++) {
+			poly_set_interior(poly_for_cell(x, y), interior_lbl);
+		}
+	}
+
+}
+
+// lr,ul = {0=unknown, 1=known_exterior, 2=known_interior}
+known_corner_t GridMesh::label_interior_cell(int cell, int poly2, bool bool_SUB, known_corner_t kin) {
+	//printf("%i kin:%i\n",cell,int(kin));
+	bool interior = false;
+	known_corner_t ret=0;
+	for (int poly=cell; poly; poly=v[poly].next_poly) {
+		if (v[poly].next==0) continue; // Skip degenerate polys
+		// First, try to find a known corner
+		bool found_known_corner = false;
+		if (kin) {
+			int vert = cell;
+			do {
+				char k = v[vert].corner;
+				if (k && kin|KNOWN_CORNER(k-1)) {
+					found_known_corner = true;
+					interior = !(kin&KNOWN_CORNER_EXTERIOR(k-1));
+					break;
+				}
+				vert = v[vert].next;
+			} while (vert && vert!=cell);
+		}
+		// If using a known corner didn't work, use the slow PIP test
+		if (!found_known_corner) {
+			interior = point_in_polygon(v[poly].x, v[poly].y, poly2);
+			//printf("  pip:%i\n",int(interior));
+			if (bool_SUB) interior = !interior;
+		}
+		// One way or another, (bool)interior is good now.
+		int vert = cell;
+		do {
+			if (v[vert].is_intersection) {
+				v[vert].is_interior = true;
+				interior = !interior;
+				v[vert].is_entry = interior; // If we were in the interior, this isn't an entry point
+			} else {
+				v[vert].is_interior = interior;
+				char k = v[vert].corner;
+				if (k) {
+					ret |= KNOWN_CORNER(k-1);
+					if (!interior) ret |= KNOWN_CORNER_EXTERIOR(k-1);
+				}
+			}
+			vert = v[vert].next;
+		} while (vert && vert!=cell);
+	}
+	return ret;
 }
 
 void GridMesh::trim_to_odd() {
@@ -503,105 +624,107 @@ void GridMesh::trim_to_odd() {
 	}
 }
 
-void GridMesh::trim_to_odd(int poly) {
+void GridMesh::trim_to_odd(int poly0) {
 	int previous_trace_poly = 0;
 	int this_trace_poly = 0;
 	std::vector<int> trace_origins;
 	std::vector<int> trace; // Holds verts of the polygon being traced
 	trace.reserve(256);
-	trace_origins.push_back(poly);
-	while (trace_origins.size()) {
-		trace.clear();
-		int vert = *trace_origins.rbegin(); trace_origins.pop_back();
-		GreinerV2f *vvert = &v[vert];
-		// Move until vert = valid starting vertex
-		bool bail=false;
-		while (!(    (vvert->is_intersection)
-				 || (!vvert->is_intersection && vvert->is_interior))) {
-			if (vvert->is_used) {
-				bail = true;
-				break;
-			}
-			vvert->is_used = true;
-			vert = vvert->next;
-			vvert->next = 0; // Trail of destruction: no polygons should be
-			vvert->prev = 0; // generated in the excluded region
-			vvert = &v[vert];
-		}
-		if (bail) continue; // No valid starting vertex? Bail!
-
-		// We're still sitting at the first valid vertex.
-		// Overview: follow its edge, record points into trace,
-		// record branches into trace_origins
-		bool traverse_foreward = true;
-		bool can_next_step_branch = false;
-		this_trace_poly = vert;
-		while (vert && !v[vert].is_used) {
-			trace.push_back(vert);
-			int next;
-			int neighbor = v[vert].neighbor;
-			if (v[vert].first==poly) { // We are tracing an edge of the parent poly
-				if (neighbor && can_next_step_branch) {
-					trace_origins.push_back(v[vert].next);
-					next = neighbor;
-					traverse_foreward = v[neighbor].is_entry;
-					can_next_step_branch = false;
-				} else {
-					next = v[vert].next;
-					can_next_step_branch = true;
+	for (int poly=poly0; poly; poly=v[poly].next_poly) {
+		trace_origins.push_back(poly);
+		while (trace_origins.size()) {
+			trace.clear();
+			int vert = *trace_origins.rbegin(); trace_origins.pop_back();
+			GreinerV2f *vvert = &v[vert];
+			// Move until vert = valid starting vertex
+			bool bail=false;
+			while (!(    (vvert->is_intersection)
+					 || (!vvert->is_intersection && vvert->is_interior))) {
+				if (vvert->is_used) {
+					bail = true;
+					break;
 				}
-			} else { // We are tracing an edge of a cutting poly
-				if (v[neighbor].first==poly && can_next_step_branch) {
-					next = neighbor;
-					traverse_foreward = true;
-					can_next_step_branch = false;
-				} else {
-					next = (traverse_foreward)? v[vert].next : v[vert].prev;
-					can_next_step_branch = true;
+				vvert->is_used = true;
+				vert = vvert->next;
+				vvert->next = 0; // Trail of destruction: no polygons should be
+				vvert->prev = 0; // generated in the excluded region
+				vvert = &v[vert];
+			}
+			if (bail) continue; // No valid starting vertex? Bail!
+			
+			// We're still sitting at the first valid vertex.
+			// Overview: follow its edge, record points into trace,
+			// record branches into trace_origins
+			bool traverse_foreward = true;
+			bool can_next_step_branch = false;
+			this_trace_poly = vert;
+			while (vert && !v[vert].is_used) {
+				trace.push_back(vert);
+				int next;
+				int neighbor = v[vert].neighbor;
+				if (v[vert].first==poly) { // We are tracing an edge of the parent poly
+					if (neighbor && can_next_step_branch) {
+						trace_origins.push_back(v[vert].next);
+						next = neighbor;
+						traverse_foreward = v[neighbor].is_entry;
+						can_next_step_branch = false;
+					} else {
+						next = v[vert].next;
+						can_next_step_branch = true;
+					}
+				} else { // We are tracing an edge of a cutting poly
+					if (v[neighbor].first==poly && can_next_step_branch) {
+						next = neighbor;
+						traverse_foreward = true;
+						can_next_step_branch = false;
+					} else {
+						next = (traverse_foreward)? v[vert].next : v[vert].prev;
+						can_next_step_branch = true;
+					}
 				}
+				v[vert].is_used = true;
+				vert = next;
 			}
-			v[vert].is_used = true;
-			vert = next;
-		}
-		printf("Poly %i.%i: ",poly,this_trace_poly);
-		for (int v : trace) {printf(",%i",v);}
-		puts("");
-		
-		if (trace.size()) {
-			// Link the vertices
-			// Handle the case of an initial/final double vertex specially
-			int first_neighbor=v[*trace.begin()].neighbor, lastv=*trace.rbegin();
-			if (first_neighbor==lastv)
-				trace.pop_back();
-			// Link all but the endpoints, skipping doubles
-			for (int i=1,l=int(trace.size()); i<l; i++) {
-				int left=trace[i-1], right=trace[i];
-				if (v[left].neighbor==right && i+1<l) {
-					i += 1;
-					int rright = trace[i];
-					v[left].next = rright;
-					v[rright].prev = left;
-				} else {
-					v[left].next = right;
-					v[right].prev = left;
+			printf("Poly %i.%i: ",poly,this_trace_poly);
+			for (int v : trace) {printf(",%i",v);}
+			puts("");
+			
+			if (trace.size()) {
+				// Link the vertices
+				// Handle the case of an initial/final double vertex specially
+				int first_neighbor=v[*trace.begin()].neighbor, lastv=*trace.rbegin();
+				if (first_neighbor==lastv)
+					trace.pop_back();
+				// Link all but the endpoints, skipping doubles
+				for (int i=1,l=int(trace.size()); i<l; i++) {
+					int left=trace[i-1], right=trace[i];
+					if (v[left].neighbor==right && i+1<l) {
+						i += 1;
+						int rright = trace[i];
+						v[left].next = rright;
+						v[rright].prev = left;
+					} else {
+						v[left].next = right;
+						v[right].prev = left;
+					}
 				}
+				for (int i : trace) {
+					v[i].first = trace[0];
+				}
+				// Link the endpoints. Doubles skipped via pop_back
+				int first=trace[0], last=trace[trace.size()-1];
+				v[first].prev = last;
+				v[last].next = first;
+				// Hook up the backbone
+				if (!previous_trace_poly) {
+					v[poly0].next_poly = this_trace_poly;
+				} else {
+					if (previous_trace_poly==this_trace_poly) printf("Poly-list assembly failed.");
+					v[previous_trace_poly].next_poly = this_trace_poly;
+				}
+				v[this_trace_poly].next_poly = 0;
+				previous_trace_poly = this_trace_poly;
 			}
-			for (int i : trace) {
-				v[i].first = trace[0];
-			}
-			// Link the endpoints. Doubles skipped via pop_back
-			int first=trace[0], last=trace[trace.size()-1];
-			v[first].prev = last;
-			v[last].next = first;
-			// Hook up the backbone
-			if (!previous_trace_poly) {
-				v[poly].next_poly = this_trace_poly;
-			} else {
-				if (previous_trace_poly==this_trace_poly) printf("Poly-list assembly failed.");
-				v[previous_trace_poly].next_poly = this_trace_poly;
-			}
-			v[this_trace_poly].next_poly = 0;
-			previous_trace_poly = this_trace_poly;
 		}
 	}
 }
@@ -630,42 +753,6 @@ void GridMesh::label_interior_freepoly(int poly) {
 			}
 		}
 		if (v[vert].next==poly) break;
-	}
-}
-
-// Adds is_interior and is_entry labels as appropriate to all grid
-// vertices with odd winding number between all polygons
-// {poly1, poly1.next, poly1.next.next, ..., poly2, poly2.next, poly2.next.next, ...}
-// and all vertices of said polygons with the same labels with respect to
-// each vertex's neighbor. E.G. if grid vert 09 and poly2's vert 27 are neighbors,
-// then labeling vert 27 is_entry unambiguously declares that poly2 enters the
-// grid square of vert 09 at that point.
-void GridMesh::label_interior(int poly1, int poly2) {
-	// Winding number changes by +-1 on every polygon entry/exit
-	// BUT that leaves the problem of finding the initial winding number!
-	// We do it the slow way for the vert at (llx,lly)
-	int wind=0;
-	for (int poly=poly1; poly; poly=v[poly].next_poly) {
-		wind += int(point_in_polygon(llx, lly, poly));
-	}
-	for (int poly=poly2; poly; poly=v[poly].next_poly) {
-		wind += int(point_in_polygon(llx, lly, poly));
-	}
-	// Now we use the +-1 rule to propagate the inside/outside info everywhere else
-	bool ll_next_row = wind%2;
-	for (int j=0; j<ny; j++) {
-		bool ll;
-		label_interior_cell(0, j, ll_next_row, &ll, &ll_next_row);
-		for (int i=1; i<nx; i++) {
-			label_interior_cell(i, j, ll, &ll, nullptr);
-		}
-	}
-	// It's not just the grid polygons that need is_entry and is_interior info!
-	for (int poly=poly1; poly; poly=v[poly].next_poly) {
-		label_interior_freepoly(poly);
-	}
-	for (int poly=poly2; poly; poly=v[poly].next_poly) {
-		label_interior_freepoly(poly);
 	}
 }
 
