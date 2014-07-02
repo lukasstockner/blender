@@ -1,213 +1,102 @@
-//
-//   Copyright 2013 Pixar
-//
-//   Licensed under the Apache License, Version 2.0 (the "Apache License")
-//   with the following modification; you may not use this file except in
-//   compliance with the Apache License and the following modification to it:
-//   Section 6. Trademarks. is deleted and replaced with:
-//
-//   6. Trademarks. This License does not grant permission to use the trade
-//      names, trademarks, service marks, or product names of the Licensor
-//      and its affiliates, except as required to comply with Section 4(c) of
-//      the License and to reproduce the content of the NOTICE file.
-//
-//   You may obtain a copy of the Apache License at
-//
-//       http://www.apache.org/licenses/LICENSE-2.0
-//
-//   Unless required by applicable law or agreed to in writing, software
-//   distributed under the Apache License with the above modification is
-//   distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-//   KIND, either express or implied. See the Apache License for the specific
-//   language governing permissions and limitations under the Apache License.
-//
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2014 Blender Foundation.
+ * All rights reserved.
+ *
+ * Contributor(s): Sergey Sharybin
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
-//#version 330
+/* ***** Vertex shader ***** */
 
-//--------------------------------------------------------------
-// Vertex Shader
-//--------------------------------------------------------------
 #ifdef VERTEX_SHADER
 
-layout (location=0) in vec3 position;
-layout (location=1) in vec3 normal;
-
-out vec3 vPosition;
-out vec3 vNormal;
-out vec4 vColor;
+varying vec3 varying_normal;
+varying vec3 varying_position;
 
 void main()
 {
-    vPosition = position;
-    vNormal = normal;
-    vColor = vec4(1, 1, 1, 1);
+	vec4 co = gl_ModelViewMatrix * gl_Vertex;
+
+	varying_normal = normalize(gl_NormalMatrix * gl_Normal);
+	varying_position = co.xyz;
+
+	gl_Position = gl_ProjectionMatrix * co;
+
+#ifdef GPU_NVIDIA
+	/* Setting gl_ClipVertex is necessary to get glClipPlane working on NVIDIA
+	 * graphic cards, while on ATI it can cause a software fallback.
+	 */
+	gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;
+#endif
 }
 
-#endif
+#endif  /* VERTEX_SHADER */
 
-//--------------------------------------------------------------
-// Geometry Shader
-//--------------------------------------------------------------
-#ifdef GEOMETRY_SHADER
-
-#ifdef PRIM_QUAD
-
-layout(lines_adjacency) in;
-
-#ifdef GEOMETRY_OUT_FILL
-layout(triangle_strip, max_vertices = 4) out;
-#endif
-
-#ifdef GEOMETRY_OUT_LINE
-layout(line_strip, max_vertices = 5) out;
-#endif
-
-in vec3 vPosition[4];
-in vec3 vNormal[4];
-
-#else // PRIM_TRI
-
-layout(triangles) in;
-
-#ifdef GEOMETRY_OUT_FILL
-layout(triangle_strip, max_vertices = 3) out;
-#endif
-
-#ifdef GEOMETRY_OUT_LINE
-layout(line_strip, max_vertices = 4) out;
-#endif
-
-in vec3 vPosition[3];
-in vec3 vNormal[3];
-
-#endif // PRIM_TRI/QUAD
-
-
-uniform mat4 objectToClipMatrix;
-uniform mat4 objectToEyeMatrix;
-
-flat out vec3 gFacetNormal;
-out vec3 Peye;
-out vec3 Neye;
-out vec4 Cout;
-
-void emit(int index)
-{
-    Peye = vPosition[index];
-    gl_Position = objectToClipMatrix * vec4(vPosition[index], 1);
-    Neye = (objectToEyeMatrix * vec4(vNormal[index], 0)).xyz;
-    EmitVertex();
-}
-
-void main()
-{
-    gl_PrimitiveID = gl_PrimitiveIDIn;
-    
-#ifdef PRIM_QUAD
-#ifdef GEOMETRY_OUT_FILL
-    vec3 A = vPosition[0] - vPosition[1];
-    vec3 B = vPosition[3] - vPosition[1];
-    vec3 C = vPosition[2] - vPosition[1];
-
-    gFacetNormal = (objectToEyeMatrix*vec4(normalize(cross(B, A)), 0)).xyz;
-    emit(0);
-    emit(1);
-    emit(3);
-//    gFacetNormal = (objectToEyeMatrix*vec4(normalize(cross(C, B)), 0)).xyz;
-    emit(2);
-#else  // GEOMETRY_OUT_LINE
-    emit(0);
-    emit(1);
-    emit(2);
-    emit(3);
-    emit(0);
-#endif
-#endif // PRIM_QUAD
-
-#ifdef PRIM_TRI
-    vec3 A = vPosition[1] - vPosition[0];
-    vec3 B = vPosition[2] - vPosition[0];
-    gFacetNormal = (objectToEyeMatrix*vec4(normalize(cross(B, A)), 0)).xyz;
-
-    emit(0);
-    emit(1);
-    emit(2);
-#ifdef GEOMETRY_OUT_LINE
-    emit(0);
-#endif //GEOMETRY_OUT_LINE
-#endif // PRIM_TRI
-
-    EndPrimitive();
-}
-
-#endif
-
-//--------------------------------------------------------------
-// Fragment Shader
-//--------------------------------------------------------------
+/* ***** Fragment shader ***** */
 #ifdef FRAGMENT_SHADER
 
-layout (location=0) out vec4 FragColor;
-flat in vec3 gFacetNormal;
-in vec3 Neye;
-in vec3 Peye;
-in vec4 Cout;
+#define NUM_SOLID_LIGHTS 3
 
-#define NUM_LIGHTS 2
+varying vec3 varying_normal;
+varying vec3 varying_position;
+varying vec4 varying_vertex_color;
 
-struct LightSource {
-    vec4 position;
-    vec4 ambient;
-    vec4 diffuse;
-    vec4 specular;
-};
-
-uniform LightSource lightSource[NUM_LIGHTS];
-
-vec4
-lighting(vec3 Peye, vec3 Neye)
+void main()
 {
-    vec4 color = vec4(0);
-    vec4 material = vec4(0.4, 0.4, 0.8, 1);
+	/* Compute normal. */
+	vec3 N = normalize(cross(dFdx(varying_position),
+	                         dFdy(varying_position)));
 
-    for (int i = 0; i < NUM_LIGHTS; ++i) {
+	/* Compute diffuse and specular lighting. */
+	vec3 L_diffuse = vec3(0.0);
+	vec3 L_specular = vec3(0.0);
 
-        vec4 Plight = lightSource[i].position;
+	/* Assume NUM_SOLID_LIGHTS directional lights. */
+	for (int i = 0; i < NUM_SOLID_LIGHTS; i++) {
+		vec3 light_direction = gl_LightSource[i].position.xyz;
 
-        vec3 l = (Plight.w == 0.0)
-                    ? normalize(Plight.xyz) : normalize(Plight.xyz - Peye);
+		/* Diffuse light. */
+		vec3 light_diffuse = gl_LightSource[i].diffuse.rgb;
+		float diffuse_bsdf = max(dot(N, light_direction), 0.0);
+		L_diffuse += light_diffuse*diffuse_bsdf;
 
-        vec3 n = normalize(Neye);
-        vec3 h = normalize(l + vec3(0,0,1));    // directional viewer
+		/* Specular light. */
+		vec3 light_specular = gl_LightSource[i].specular.rgb;
+		vec3 H = gl_LightSource[i].halfVector.xyz;
 
-        float d = max(0.0, dot(n, l));
-        float s = pow(max(0.0, dot(n, h)), 500.0f);
+		float specular_bsdf = pow(max(dot(N, H), 0.0),
+		                          gl_FrontMaterial.shininess);
+		L_specular += light_specular*specular_bsdf;
+	}
 
-        color += lightSource[i].ambient * material
-            + d * lightSource[i].diffuse * material
-            + s * lightSource[i].specular;
-    }
+	/* Compute diffuse color. */
+	float alpha;
+	L_diffuse *= gl_FrontMaterial.diffuse.rgb;
+	alpha = gl_FrontMaterial.diffuse.a;
 
-    color.a = 1;
-    return color;
+	/* Sum lighting. */
+	vec3 L = gl_FrontLightModelProduct.sceneColor.rgb + L_diffuse;
+	L += L_specular*gl_FrontMaterial.specular.rgb;
+
+	/* Write out fragment color. */
+	gl_FragColor = vec4(L, alpha);
 }
 
-#ifdef GEOMETRY_OUT_LINE
-uniform vec4 fragColor;
-void
-main()
-{
-    FragColor = fragColor;
-}
-
-#else
-
-void
-main()
-{
-    vec3 N = (gl_FrontFacing ? gFacetNormal : -gFacetNormal);
-    FragColor = lighting(Peye, N);
-}
-#endif // GEOMETRY_OUT_LINE
-
-#endif
+#endif  // FRAGMENT_SHADER

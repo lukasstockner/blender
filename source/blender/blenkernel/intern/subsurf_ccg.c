@@ -1790,10 +1790,16 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 	if (!ccgSubSurf_getSimpleSubdiv(ss)) {
 		(void) partial_redraw_planes;
 		(void) fast;
-		(void) setMaterial;
+
+		/* TODO(sergey): Currently we only set first material,
+		 * in the future we need to set per-patch material.
+		 */
+		setMaterial(1, NULL);
 
 		ccgSubSurf_prepareGLMesh(ss);
 		ccgSubSurf_drawGLMesh(ss);
+
+		/* We're done with drawing if drawing happens using OpenSubdiv. */
 		return;
 	}
 #endif

@@ -30,6 +30,8 @@
 #  include "iso646.h"
 #endif
 
+#include <GL/glew.h>
+
 #include <opensubdiv/osd/glMesh.h>
 #include <opensubdiv/osd/glDrawRegistry.h>
 #include <opensubdiv/osdutil/evaluator_capi.h>
@@ -434,7 +436,9 @@ int openSubdiv_getAvailableControllers(void)
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-	flags |= OPENSUBDIV_CONTROLLER_GLSL_TRANSFORM_FEEDBACK;
+	if (GLEW_ARB_texture_buffer_object) {
+		flags |= OPENSUBDIV_CONTROLLER_GLSL_TRANSFORM_FEEDBACK;
+	}
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
@@ -472,8 +476,10 @@ void openSubdiv_cleanup(void)
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
-	DELETE_DESCRIPTOR(g_glslTransformFeedbackComputeController,
-	                  OsdGLSLTransformFeedbackComputeController);
+	if (GLEW_ARB_texture_buffer_object) {
+		DELETE_DESCRIPTOR(g_glslTransformFeedbackComputeController,
+		                  OsdGLSLTransformFeedbackComputeController);
+	}
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
