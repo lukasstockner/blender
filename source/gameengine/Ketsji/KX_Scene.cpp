@@ -1036,6 +1036,7 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 		 !(itc==controllers.end());itc++)
 	{
 		m_logicmgr->RemoveController(*itc);
+		(*itc)->ReParent(NULL);
 	}
 
 	SCA_ActuatorList& actuators = newobj->GetActuators();
