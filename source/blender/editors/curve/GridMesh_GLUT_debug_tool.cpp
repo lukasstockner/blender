@@ -500,8 +500,12 @@ void GLUT_motion(int x, int y) {
 void GLUT_passive(int x, int y) {
 	float sx,sy,dist;
 	glut_coords_2_scene(x,y,&sx,&sy);
-	int v = closest_vert(sx,sy,&dist);
-	if (dist<.1) printf("Vertex near cursor: %i\n",v);
+	int vert = closest_vert(sx,sy,&dist);
+	if (dist<.1) {
+		GreinerV2f &v = gm->v[vert];
+		int ie=v.is_entry, ir=v.is_interior, is=v.is_intersection;
+		printf("Hover vert: %i is_entry:%i is_interior:%i is_intersection:%i\n",vert,ie,ir,is);
+	}
 }
 
 

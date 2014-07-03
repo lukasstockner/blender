@@ -797,6 +797,7 @@ void GridMesh::label_interior_freepoly(int poly) {
 	int over_poly = poly_for_cell(x,y);
 	std::set<int> inside; // The set of polygons we are currently inside
 	for (int p=over_poly; p; p=v[p].next_poly) {
+		if (!point_in_polygon(x, y, p)) continue;
 		if (inside.count(p)) {
 			inside.erase(p);
 		} else {
