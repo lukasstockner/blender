@@ -4087,8 +4087,7 @@ static int ui_do_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			}
 		}
 #ifdef USE_DRAG_TOGGLE
-		if (event->type == LEFTMOUSE && event->val == KM_PRESS && (ui_is_but_drag_toggle(but)))
-		{
+		if (event->type == LEFTMOUSE && event->val == KM_PRESS && (ui_is_but_drag_toggle(but))) {
 			button_activate_state(C, but, BUTTON_STATE_WAIT_DRAG);
 			data->dragstartx = event->x;
 			data->dragstarty = event->y;
@@ -4326,8 +4325,8 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 					float *target = &brush->gradient->data[brush->gradient->cur].r;
 
 					if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
-						srgb_to_linearrgb_v3_v3(target, color);
+						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
+						ui_block_to_scene_linear_v3(but->block, target);
 					}
 					else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
 						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
@@ -4339,9 +4338,8 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 						BKE_brush_color_set(scene, brush, color);
 					}
 					else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
-						float color[3];
 						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
-						linearrgb_to_srgb_v3_v3(color, color);
+						ui_block_to_display_space_v3(but->block, color);
 						BKE_brush_color_set(scene, brush, color);
 					}
 				}
