@@ -778,16 +778,17 @@ static void *editbtMesh_to_undoMesh(void *emv, void *obdata)
 	return um;
 }
 
-static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *UNUSED(obdata))
+static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *obdata)
 {
 	BMEditMesh *em = em_v, *em_tmp;
 	Object *ob = em->ob;
 	UndoMesh *um = umv;
 	BMesh *bm;
+	Key *k = ((Mesh *)obdata)->key;
 
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(&um->me);
 
-	ob->shapenr = em->bm->shapenr = um->shapenr;
+	em->bm->shapenr = um->shapenr;
 
 	EDBM_mesh_free(em);
 
@@ -797,12 +798,57 @@ static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *UNUSED(obdata))
 
 	em_tmp = BKE_editmesh_create(bm, true);
 	*em = *em_tmp;
-	
-	BKE_key_init_scratch(ob);
 
 	em->selectmode = um->selectmode;
 	bm->selectmode = um->selectmode;
 	em->ob = ob;
+
+	/* T35170: restore the active key on the RealMesh; otherwise 'fake' offset propagation
+	* happens if the active is a basis for any other. */
+	if (k && k->type == KEY_RELATIVE) {
+		float (*kbco)[3];
+		BMIter iter;
+		BMVert *v;
+		int *key_v_index;
+		bool is_basis = false;
+		KeyBlock *act_kb = BLI_findlink(&k->block, ob->shapenr - 1),
+			*kb;
+		/* since we can't add or remove or reorder keyblocks in editmode
+		* it's safe to assume shapenr from restored bmesh and keyblock indeces
+		* are in sync. */
+
+		/* check if active key is a base to any other */
+		LISTBASE_ITER_FWD(k->block, kb) {
+			if (kb == act_kb) /* it's the current key */
+				continue;
+			/* ob->shapenr points to the current key atm*/
+			if (kb->relative == ob->shapenr - 1) {
+				is_basis = true;
+				break;
+			}
+		}
+
+		/* if it is, let's patch the current mesh key block to its restored value. Otherwise,
+		* the offsets won't be calculated and it won't matter */
+		if (is_basis) {
+			if (act_kb->totelem != bm->totvert) {
+				/* the current mesh has some extra/missing verts compared to the undo, adjust */
+				MEM_freeN(act_kb->data);
+				act_kb->data = MEM_mallocN(sizeof(float) * 3 * bm->totvert, "shape key coords");
+				act_kb->totelem = bm->totvert;
+			}
+
+			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+				key_v_index = CustomData_bmesh_get(&bm->vdata, v->head.data, CD_SHAPE_KEYINDEX);
+				kbco = act_kb->data;
+				copy_v3_v3(kbco[*key_v_index], v->co);
+			}
+		}
+	}
+
+	ob->shapenr = um->shapenr;
+
+	BKE_key_init_scratch(ob);
 
 	MEM_freeN(em_tmp);
 }
