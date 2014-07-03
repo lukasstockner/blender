@@ -621,7 +621,6 @@ known_corner_t GridMesh::label_interior_cell(int cell, int poly2, bool bool_SUB,
 				if (k && kin&KNOWN_CORNER(k-1)) {
 					found_known_corner = true;
 					interior = !(kin&KNOWN_CORNER_EXTERIOR(k-1));
-					if (bool_SUB) interior = !interior;
 					printf("   %i k_propagate->%i.interior:%i sub:%i\n",poly, kc_vert, int(interior),int(bool_SUB));
 					break;
 				}

@@ -349,12 +349,17 @@ void GLUT_keyboard(unsigned char ch, int x, int y ) {
 		clip = 0;
 		glutPostRedisplay();
 	}
+	if (subj && ch=='k') {
+		gm->bool_SUB(subj);
+		subj = gm->v[subj].next_poly; // Subject was destroyed in trimming process
+		glutPostRedisplay();
+	}
 	if (subj && ch=='i') {
 		gm->insert_vert_poly_gridmesh(subj);
 		glutPostRedisplay();
 	}
 	if (subj && ch=='l') {
-		gm->label_interior_AND(subj);
+		gm->label_interior_SUB(subj);
 		gm->label_interior_freepoly(subj);
 		glutPostRedisplay();
 	}
