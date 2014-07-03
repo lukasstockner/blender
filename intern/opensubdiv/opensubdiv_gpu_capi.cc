@@ -125,7 +125,6 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh)
 
 	const OsdDrawContext::PatchArrayVector &patches = mesh->GetDrawContext()->patchArrays;
 
-	glShadeModel(GL_FLAT);
 	for (int i = 0; i < (int)patches.size(); ++i) {
 		OpenSubdiv::OsdDrawContext::PatchArray const &patch = patches[i];
 		OpenSubdiv::OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
