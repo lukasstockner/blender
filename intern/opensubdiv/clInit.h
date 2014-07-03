@@ -48,6 +48,12 @@ static bool HAS_CL_VERSION_1_1() {
 		if (!clewLoadSuccess) {
 			fprintf(stderr, "Loading OpenCL failed.\n");
 		}
+		else {
+			cl_uint num_platforms;
+			if (clGetPlatformIDs(0, NULL, &num_platforms) != CL_SUCCESS) {
+				clewLoadSuccess = false;
+			}
+		}
 	}
 	return clewLoadSuccess;
 #  endif
