@@ -506,6 +506,7 @@ static void update_bmesh_shapes(Object *ob)
 		int i, j, index;
 		float (*kbco)[3] = NULL;
 		float *cdco = NULL;
+		int cd_origindex_offset = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
 
 		LISTBASE_ITER_FWD_INDEX(key->block, kb, i) {
 			/* find any keyblocks that don't have a corresponding CD_SHAPEKEY */
@@ -518,6 +519,7 @@ static void update_bmesh_shapes(Object *ob)
 			vdata->layers[index].uid = kb->uid;
 
 			kbco = kb->data;
+
 			BM_ITER_MESH_INDEX(v, &iter, bm, BM_VERTS_OF_MESH, j) {
 				int data_offset = vdata->layers[index].offset;
 				cdco = (float *)(((char *)v->head.data) + data_offset);
@@ -528,10 +530,12 @@ static void update_bmesh_shapes(Object *ob)
 		kb = BLI_findlink(&key->block, ob->shapenr - 1);
 		kbco = kb->data;
 		/* fix up the editcos along the CD_SHAPEKEY too */
-		BM_ITER_MESH_INDEX(v, &iter, bm, BM_VERTS_OF_MESH, j) {
-			copy_v3_v3(v->co, kbco[j]);
+		BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+			index = BM_ELEM_CD_GET_INT(v, cd_origindex_offset);
+			if (index != ORIGINDEX_NONE) {
+				copy_v3_v3(v->co, kbco[index]);
+			}
 		}
-
 	}
 }
 
@@ -596,8 +600,6 @@ void EDBM_commit_scratch_to_active(Object *ob, Scene *s)
 	bool topo_changed = BKE_editmesh_topo_has_changed(em);
 
 	if (topo_changed) {
-		/* move editdata to the scratch key.*/
-		BKE_key_editdata_to_scratch(ob, false);
 		EDBM_mesh_load(em->ob);
 		EDBM_mesh_make(s->toolsettings, ob);
 		/* after mesh_make, old em is now invalidated */
@@ -668,22 +670,20 @@ bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 	}
 
 	if (me->key && BKE_keyblock_from_object(obedit)) {
-		if (BKE_editmesh_topo_has_changed(em)) {
-			BKE_key_editdata_to_scratch(obedit, false);
-		}
-		else {
+		if (!BKE_editmesh_topo_has_changed(em)) {
 			BKE_key_editdata_to_scratch(obedit, true);
 			recalc_keyblocks_from_scratch(obedit);
 			update_bmesh_shapes(obedit);
 		}
+
+		EDBM_mesh_load(obedit);
 
 		if (do_free) {
 			MEM_freeN(k->scratch.data);
 			k->scratch.data = NULL;
 		}
 	}
-
-	EDBM_mesh_load(obedit);
+	
 
 	EDBM_mesh_normals_update(em);
 	BKE_editmesh_tessface_calc(em);
@@ -708,18 +708,17 @@ void EDBM_handle_active_shape_update(Object *ob, Scene *s)
 	Key *key = BKE_key_from_object(ob);
 	KeyBlock *kb = BKE_keyblock_from_object(ob);
 
-	/* update shape number on bmesh */
-	em->bm->shapenr = ob->shapenr;
-
 	/* check the active keyblock is really a new one */
 	if (kb == key->scratch.origin)
 		return;
-
 
 	EDBM_commit_scratch_to_active(ob, s);
 	EDBM_update_scratch_from_active(ob);
 	em = BKE_editmesh_from_object(ob);
 	EDBM_update_generic(em, false, false);
+
+	/* update shape number on bmesh */
+	em->bm->shapenr = ob->shapenr;
 }
 
 
@@ -764,6 +763,12 @@ static void *editbtMesh_to_undoMesh(void *emv, void *obdata)
 	/* make sure shape keys work */
 	um->me.key = obme->key ? BKE_key_copy_nolib(obme->key) : NULL;
 
+	if (um->me.key && um->me.key->scratch.data) {
+		/* don't store scratch data */
+		MEM_freeN(um->me.key->scratch.data);
+		um->me.key->scratch.data = NULL;
+	}
+
 	/* BM_mesh_validate(em->bm); */ /* for troubleshooting */
 	BM_mesh_bm_to_me(em->bm, &um->me, false);
 
@@ -793,6 +798,8 @@ static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *UNUSED(obdata))
 	em_tmp = BKE_editmesh_create(bm, true);
 	*em = *em_tmp;
 	
+	BKE_key_init_scratch(ob);
+
 	em->selectmode = um->selectmode;
 	bm->selectmode = um->selectmode;
 	em->ob = ob;
