@@ -270,6 +270,9 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	OsdHbrMesh *hmesh = util_mesh.GetHbrMesh();
 
 	OsdMeshBitset bits;
+	/* TODO(sergey): Adaptive subdivisions are not currently
+	 * possible because of the lack of tessellation shadet.
+	 */
 	bits.set(OpenSubdiv::MeshAdaptive, 0);
 	bits.set(OpenSubdiv::MeshFVarData, 1);
 
