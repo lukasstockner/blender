@@ -1788,13 +1788,25 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 
 #ifdef WITH_OPENSUBDIV
 	if (!ccgSubSurf_getSimpleSubdiv(ss)) {
-		(void) partial_redraw_planes;
-		(void) fast;
+		int matnr, shademodel;
+
+		/* TODO(sergey): This is just for the purposes of tests. */
+		if (faceFlags) {
+			shademodel = (lnors || (faceFlags[0].flag & ME_SMOOTH))
+				? GL_SMOOTH
+				: GL_FLAT;
+			matnr = faceFlags[0].mat_nr;
+		}
+		else {
+			shademodel = GL_SMOOTH;
+			matnr = 0;
+		}
 
 		/* TODO(sergey): Currently we only set first material,
 		 * in the future we need to set per-patch material.
 		 */
-		setMaterial(1, NULL);
+		setMaterial(matnr + 1, NULL);
+		glShadeModel(shademodel);
 
 		ccgSubSurf_prepareGLMesh(ss);
 		ccgSubSurf_drawGLMesh(ss);
@@ -3860,6 +3872,12 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 		}
 	}
 	else {
+		/* TODO(sergey): This is just for the purposes of tests. */
+		if (mpoly) {
+			faceFlags->flag = mpoly[0].flag;
+			faceFlags->mat_nr = mpoly[0].mat_nr;
+		}
+
 		vertNum = ccgSubSurf_getNumFinalVerts(ss);
 		edgeNum = ccgSubSurf_getNumFinalEdges(ss);
 		loopindex2 = ccgSubSurf_getNumFinalFaces(ss) * 4;

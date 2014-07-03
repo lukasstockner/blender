@@ -26,6 +26,8 @@
 #ifndef __OPENSUBDIV_CAPI_H__
 #define __OPENSUBDIV_CAPI_H__
 
+#define OPENSUBDIV_LEGACY_DRAW
+
 #ifdef __cplusplus
 extern "C" {
 #endif

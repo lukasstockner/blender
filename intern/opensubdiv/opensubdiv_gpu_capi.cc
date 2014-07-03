@@ -45,6 +45,7 @@
 
 using OpenSubdiv::OsdGLMeshInterface;
 
+#ifndef OPENSUBDIV_LEGACY_DRAW
 extern "C" char datatoc_gpu_shader_opensubd_display_glsl[];
 
 static GLuint compileShader(GLenum shaderType,
@@ -108,22 +109,30 @@ static GLuint linkProgram(const char *define)
 
 	return program;
 }
+#endif  /* OPENSUBDIV_LEGACY_DRAW */
 
 void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh)
 {
+#ifndef OPENSUBDIV_LEGACY_DRAW
 	static GLuint quad_fill_program = 0;
 	static bool need_init = true;
-	OsdGLMeshInterface *mesh = (OsdGLMeshInterface *) gl_mesh->descriptor;
 
 	if (need_init) {
 		quad_fill_program = linkProgram("");
 		need_init = false;
 	}
+#endif
+
+	OsdGLMeshInterface *mesh = (OsdGLMeshInterface *) gl_mesh->descriptor;
 
 	using OpenSubdiv::OsdDrawContext;
 	using OpenSubdiv::FarPatchTables;
 
 	const OsdDrawContext::PatchArrayVector &patches = mesh->GetDrawContext()->patchArrays;
+
+#ifndef OPENSUBDIV_LEGACY_DRAW
+	glUseProgram(quad_fill_program);
+#endif
 
 	for (int i = 0; i < (int)patches.size(); ++i) {
 		OpenSubdiv::OsdDrawContext::PatchArray const &patch = patches[i];
@@ -131,7 +140,6 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh)
 		OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
 
 		if (patchType == OpenSubdiv::FarPatchTables::QUADS) {
-			glUseProgram(quad_fill_program);
 			glDrawElements(GL_QUADS,
 			               patch.GetNumIndices(),
 			               GL_UNSIGNED_INT,
