@@ -2285,18 +2285,22 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 	 */
 	float (*positions)[3];
 	int vertDataSize = ss->meshIFC.vertDataSize;
+	int normalDataOffset = ss->normalDataOffset;
 	int num_basis_verts = ss->vMap->numEntries;
 	int i;
 
 	BLI_assert(ss->meshIFC.numLayers == 3);
 
-	positions = MEM_mallocN(3 * sizeof(float) * num_basis_verts, "OpenSubdiv coarse points");
+	positions = MEM_callocN(2 * sizeof(*positions) * num_basis_verts,
+	                        "OpenSubdiv coarse points");
 	for (i = 0; i < ss->vMap->curSize; i++) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
 			float *co = VERT_getCo(v, 0);
+			float *no = VERT_getNo(v, 0);
 			BLI_assert(v->osd_index < ss->vMap->numEntries);
-			VertDataCopy(positions[v->osd_index], co, ss);
+			VertDataCopy(positions[v->osd_index * 2], co, ss);
+			VertDataCopy(positions[v->osd_index * 2 + 1], no, ss);
 		}
 	}
 
@@ -2353,18 +2357,17 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 		openSubdiv_osdGLMeshSynchronize(ss->osd_mesh);
 
 		glBindVertexArray(ss->osd_vao);
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-		             openSubdiv_getOsdGLMeshPatchIndexBuffer(ss->osd_mesh));
 		glBindBuffer(GL_ARRAY_BUFFER,
 		             openSubdiv_bindOsdGLMeshVertexBuffer(ss->osd_mesh));
-
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof (GLfloat) * 3, 0);
-
-		glDisableVertexAttribArray(1);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+		                      sizeof (GLfloat) * 6, 0);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
+		                      sizeof (GLfloat) * 6, (float*)12);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+		             openSubdiv_getOsdGLMeshPatchIndexBuffer(ss->osd_mesh));
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
 
 		ss->osd_compute = U.opensubdiv_compute_type;
 	}
@@ -2634,6 +2637,57 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 	                                       num_basis_verts);
 
 	MEM_freeN(positions);
+}
+
+static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
+{
+	int i;
+	int normalDataOffset = ss->normalDataOffset;
+	int vertDataSize = ss->meshIFC.vertDataSize;
+
+	if (ss->meshIFC.numLayers != 3) {
+		return;
+	}
+
+	for (i = 0; i < ss->vMap->curSize; ++i) {
+		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
+		for (; v; v = v->next) {
+			float *no = VERT_getNo(v, 0);
+			zero_v3(no);
+		}
+	}
+
+	for (i = 0; i < ss->fMap->curSize; ++i) {
+		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
+		for (; f; f = f->next) {
+			int S;
+			float face_no[3] = {0.0f, 0.0f, 0.0f};
+			CCGVert *v_prev = FACE_getVerts(f)[f->numVerts - 1];
+			float *co_prev = VERT_getCo(v_prev, 0);
+			for (S = 0; S < f->numVerts; S++) {
+				CCGVert *v_curr = FACE_getVerts(f)[S];
+				float *co_curr = VERT_getCo(v_curr, 0);
+				add_newell_cross_v3_v3v3(face_no, co_prev, co_curr);
+				co_prev = co_curr;
+			}
+			if (UNLIKELY(normalize_v3(face_no) == 0.0f)) {
+				face_no[2] = 1.0f; /* other axis set to 0.0 */
+			}
+			for (S = 0; S < f->numVerts; S++) {
+				CCGVert *v = FACE_getVerts(f)[S];
+				float *no = VERT_getNo(v, 0);
+				add_v3_v3(no, face_no);
+			}
+		}
+	}
+
+	for (i = 0; i < ss->vMap->curSize; ++i) {
+		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
+		for (; v; v = v->next) {
+			float *no = VERT_getNo(v, 0);
+			normalize_v3(no);
+		}
+	}
 }
 
 static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
@@ -2915,6 +2969,9 @@ static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 
 			/* Evaluate opensubdiv mesh into the CCG grids. */
 			opensubdiv_evaluateGrids(ss);
+		}
+		else {
+			opensubdiv_updateCoarseNormals(ss);
 		}
 	}
 	else {

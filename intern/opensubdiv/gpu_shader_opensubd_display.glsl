@@ -25,16 +25,21 @@
 
 /* ***** Vertex shader ***** */
 
+#version 130
+
 #ifdef VERTEX_SHADER
 
-varying vec3 varying_normal;
-varying vec3 varying_position;
+in vec3 normal;
+in vec3 position;
+
+out vec3 varying_normal;
+out vec3 varying_position;
 
 void main()
 {
-	vec4 co = gl_ModelViewMatrix * gl_Vertex;
+	vec4 co = gl_ModelViewMatrix * vec4(position, 1.0);
 
-	varying_normal = normalize(gl_NormalMatrix * gl_Normal);
+	varying_normal = normalize(gl_NormalMatrix * normal);
 	varying_position = co.xyz;
 
 	gl_Position = gl_ProjectionMatrix * co;
@@ -54,15 +59,16 @@ void main()
 
 #define NUM_SOLID_LIGHTS 3
 
-varying vec3 varying_normal;
-varying vec3 varying_position;
-varying vec4 varying_vertex_color;
+in vec3 varying_normal;
+in vec3 varying_position;
 
 void main()
 {
 	/* Compute normal. */
-	vec3 N = normalize(cross(dFdx(varying_position),
-	                         dFdy(varying_position)));
+	vec3 N = varying_normal;
+
+	if (!gl_FrontFacing)
+		N = -N;
 
 	/* Compute diffuse and specular lighting. */
 	vec3 L_diffuse = vec3(0.0);

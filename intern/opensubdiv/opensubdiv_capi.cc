@@ -276,7 +276,7 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	bits.set(OpenSubdiv::MeshAdaptive, 0);
 	bits.set(OpenSubdiv::MeshFVarData, 1);
 
-	int num_vertex_elements = 3;
+	int num_vertex_elements = 6;
 	int num_varying_elements = 0;
 
 	OsdGLMeshInterface *mesh = NULL;
