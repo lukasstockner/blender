@@ -34,6 +34,16 @@ inline static int xs_FloorToInt(double val) {
 	//return floor(val); //Alternative implementation if the trick is buggy
 }
 
+static void print_kc(known_corner_t kc) {
+	if (kc&KNOWN_CORNER_LL)
+		printf("LL%c",(kc&KNOWN_CORNER_LL_EXTERIOR)?'e':'i');
+	if (kc&KNOWN_CORNER_UL)
+		printf("UL%c",(kc&KNOWN_CORNER_UL_EXTERIOR)?'e':'i');
+	if (kc&KNOWN_CORNER_LR)
+		printf("LR%c",(kc&KNOWN_CORNER_LR_EXTERIOR)?'e':'i');
+	if (kc&KNOWN_CORNER_UR)
+		printf("UR%c",(kc&KNOWN_CORNER_UR_EXTERIOR)?'e':'i');
+}
 
 void GridMesh::set_ll_ur(double lowerleft_x, double lowerleft_y,
 						 double upperright_x, double upperright_y) {
@@ -241,10 +251,10 @@ void GridMesh::poly_grid_BB(int poly, int *bb) { //int bb[4] = {minx,maxx,miny,m
 		maxy = fmax(g.y,maxy);
 		vert = g.next;
 	} while (vert && vert!=first);
-	bb[0] = xs_FloorToInt(minx);
-	bb[1] = xs_FloorToInt(maxx);
-	bb[2] = xs_FloorToInt(miny);
-	bb[3] = xs_FloorToInt(maxy);
+	bb[0] = xs_FloorToInt((minx-llx)*inv_dx);
+	bb[1] = xs_FloorToInt((maxx-llx)*inv_dx);
+	bb[2] = xs_FloorToInt((miny-lly)*inv_dy);
+	bb[3] = xs_FloorToInt((maxy-lly)*inv_dy);
 }
 
 // Sets is_interior flag of all vertices of poly and all vertices
@@ -465,6 +475,26 @@ int GridMesh::insert_vert(int poly1left,
 	return newv1;
 }
 
+// gridmesh -> gridmesh (intersection) poly2
+void GridMesh::bool_AND(int poly2) {
+	int bb[4];
+	poly_grid_BB(poly2, bb);
+	insert_vert_poly_gridmesh(poly2);
+	label_interior_freepoly(poly2);
+	label_interior_AND(poly2,false,bb);
+	trim_to_odd();
+}
+
+// gridmesh -> gridmesh (intersection) ~poly2
+void GridMesh::bool_SUB(int poly2) {
+	int bb[4];
+	poly_grid_BB(poly2, bb);
+	insert_vert_poly_gridmesh(poly2);
+	label_interior_freepoly(poly2);
+	label_interior_AND(poly2,true,bb);
+	trim_to_odd(bb);
+}
+
 static bool intersection_edge_order(const IntersectingEdge& e1, const IntersectingEdge& e2) {
 	double diff = e1.alpha1-e2.alpha1;
 	if (abs(diff)<1e-5 && e1.cellidx!=e2.cellidx) {
@@ -488,15 +518,17 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 		std::vector<IntersectingEdge> isect;
 		for (size_t i=0,l=integer_cells.size(); i<l; i++) {
 			std::pair<int,int> j = integer_cells[i];
-			int cell_poly = poly_for_cell(j.first, j.second);
-			if (!cell_poly) continue;
-			std::vector<IntersectingEdge> isect_tmp = edge_poly_intersections(v1, cell_poly);
-			for (IntersectingEdge& e : isect_tmp) {
-				//printf("(%i,%i)",j.first,j.second);
-				e.cellidx = int(i);
+			int cell_polys = poly_for_cell(j.first, j.second);
+			for (int cell_poly=cell_polys; cell_poly; cell_poly=v[cell_poly].next_poly) {
+				if (!cell_poly || !v[cell_poly].next) continue;
+				std::vector<IntersectingEdge> isect_tmp = edge_poly_intersections(v1, cell_poly);
+				for (IntersectingEdge& e : isect_tmp) {
+					//printf("(%i,%i)",j.first,j.second);
+					e.cellidx = int(i);
+				}
+				//printf("\n");
+				isect.insert(isect.end(),isect_tmp.begin(),isect_tmp.end());
 			}
-			//printf("\n");
-			isect.insert(isect.end(),isect_tmp.begin(),isect_tmp.end());
 		}
 		std::stable_sort(isect.begin(),isect.end(),intersection_edge_order);
 		// Step 2: insert them
@@ -510,9 +542,12 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 	return verts_added;
 }
 
-void GridMesh::label_interior_AND(int poly2, bool invert_poly2) {
-	int bb[4];
-	poly_grid_BB(poly2, bb);
+void GridMesh::label_interior_AND(int poly2, bool invert_poly2, int *bb) {
+	int bb_local[4];
+	if (!bb) {
+		bb = bb_local;
+		poly_grid_BB(poly2, bb);
+	}
 	int minx=bb[0], maxx=bb[1], miny=bb[2], maxy=bb[3];
 	if (!invert_poly2)
 		label_exterior_cells(poly2, false, bb);
@@ -534,8 +569,8 @@ void GridMesh::label_interior_AND(int poly2, bool invert_poly2) {
 	}
 }
 
-void GridMesh::label_interior_SUB(int poly2) {
-	label_interior_AND(poly2, true);
+void GridMesh::label_interior_SUB(int poly2, int *bb) {
+	label_interior_AND(poly2, true, bb);
 }
 
 void GridMesh::label_exterior_cells(int poly, bool interior_lbl, int* bb) {
@@ -568,35 +603,39 @@ void GridMesh::label_exterior_cells(int poly, bool interior_lbl, int* bb) {
 
 }
 
-// lr,ul = {0=unknown, 1=known_exterior, 2=known_interior}
+// cell's next_poly list is considered
+// poly2's next_poly list is ignored
 known_corner_t GridMesh::label_interior_cell(int cell, int poly2, bool bool_SUB, known_corner_t kin) {
-	//printf("%i kin:%i\n",cell,int(kin));
+	printf("%i kin:%i=",cell,int(kin)); print_kc(kin); puts("");
 	bool interior = false;
 	known_corner_t ret=0;
 	for (int poly=cell; poly; poly=v[poly].next_poly) {
+		printf("   subpoly:%i DEG=%i\n",poly,int(v[poly].next==0));
 		if (v[poly].next==0) continue; // Skip degenerate polys
 		// First, try to find a known corner
 		bool found_known_corner = false;
+		int kc_vert=poly;
 		if (kin) {
-			int vert = cell;
 			do {
-				char k = v[vert].corner;
-				if (k && kin|KNOWN_CORNER(k-1)) {
+				char k = v[kc_vert].corner;
+				if (k && kin&KNOWN_CORNER(k-1)) {
 					found_known_corner = true;
 					interior = !(kin&KNOWN_CORNER_EXTERIOR(k-1));
+					if (bool_SUB) interior = !interior;
+					printf("   %i k_propagate->%i.interior:%i sub:%i\n",poly, kc_vert, int(interior),int(bool_SUB));
 					break;
 				}
-				vert = v[vert].next;
-			} while (vert && vert!=cell);
+				kc_vert = v[kc_vert].next;
+			} while (kc_vert && kc_vert!=poly);
 		}
-		// If using a known corner didn't work, use the slow PIP test
+		// If using a known corner didn't work, use the slow PIP test to find a known corner
 		if (!found_known_corner) {
 			interior = point_in_polygon(v[poly].x, v[poly].y, poly2);
-			//printf("  pip:%i\n",int(interior));
 			if (bool_SUB) interior = !interior;
+			printf("   %i pip->%i.interior:%i sub:%i\n",poly, poly, int(interior),int(bool_SUB));
 		}
 		// One way or another, (bool)interior is good now.
-		int vert = cell;
+		int vert = kc_vert;
 		do {
 			if (v[vert].is_intersection) {
 				v[vert].is_interior = true;
@@ -610,15 +649,22 @@ known_corner_t GridMesh::label_interior_cell(int cell, int poly2, bool bool_SUB,
 					if (!interior) ret |= KNOWN_CORNER_EXTERIOR(k-1);
 				}
 			}
+			printf("   %i is_interior:%i is_intersection:%i next:%i\n",vert,int(v[vert].is_interior),int(v[vert].is_intersection),v[vert].next);
 			vert = v[vert].next;
-		} while (vert && vert!=cell);
+		} while (vert && vert!=kc_vert);
 	}
 	return ret;
 }
 
-void GridMesh::trim_to_odd() {
-	for (int i=0; i<nx; i++) {
-		for (int j=0; j<ny; j++) {
+void GridMesh::trim_to_odd(int *bb) {
+	//int bb[] = {minx,maxx,miny,maxy}
+	int minx=0, maxx=nx-1, miny=0, maxy=ny-1;
+	if (bb) {
+		minx=bb[0]; maxx=bb[1]; miny=bb[2]; maxy=bb[3];
+	}
+	for (int j=miny; j<=maxy; j++) {
+		for (int i=minx; i<=maxx; i++) {
+			printf("tto %i,%i\n",i,j);
 			trim_to_odd(poly_for_cell(i,j));
 		}
 	}
@@ -630,7 +676,11 @@ void GridMesh::trim_to_odd(int poly0) {
 	std::vector<int> trace_origins;
 	std::vector<int> trace; // Holds verts of the polygon being traced
 	trace.reserve(256);
-	for (int poly=poly0; poly; poly=v[poly].next_poly) {
+	for (int poly=poly0, next_poly=v[poly0].next_poly;
+		 poly;
+		 poly=next_poly, next_poly=v[poly].next_poly) {
+		if (!v[poly].next) continue;
+		printf("   poly %i\n",poly);
 		trace_origins.push_back(poly);
 		while (trace_origins.size()) {
 			trace.clear();
@@ -685,36 +735,37 @@ void GridMesh::trim_to_odd(int poly0) {
 				v[vert].is_used = true;
 				vert = next;
 			}
-			printf("Poly %i.%i: ",poly,this_trace_poly);
-			for (int v : trace) {printf(",%i",v);}
-			puts("");
 			
-			if (trace.size()) {
-				// Link the vertices
-				// Handle the case of an initial/final double vertex specially
-				int first_neighbor=v[*trace.begin()].neighbor, lastv=*trace.rbegin();
-				if (first_neighbor==lastv)
-					trace.pop_back();
+			size_t trace_sz = trace.size();
+			if (trace_sz) {
+				int first = trace[0];
+				printf("   0poly %i.%i: ",poly,this_trace_poly);
+				for (int i : trace) {printf(",%i",i);}; puts("");
 				// Link all but the endpoints, skipping doubles
 				for (int i=1,l=int(trace.size()); i<l; i++) {
 					int left=trace[i-1], right=trace[i];
-					if (v[left].neighbor==right && i+1<l) {
-						i += 1;
-						int rright = trace[i];
-						v[left].next = rright;
-						v[rright].prev = left;
-					} else {
-						v[left].next = right;
-						v[right].prev = left;
+					if (v[left].neighbor==right) {
+						if (i==l-1) {
+							trace.pop_back();
+						} else {
+							right = trace[(++i)];
+						}
 					}
+					v[left].next = right;
+					v[right].prev = left;
 				}
-				for (int i : trace) {
-					v[i].first = trace[0];
+				int last = *trace.rbegin();
+				if (v[last].neighbor==first) {
+					last = v[last].prev;
 				}
-				// Link the endpoints. Doubles skipped via pop_back
-				int first=trace[0], last=trace[trace.size()-1];
-				v[first].prev = last;
 				v[last].next = first;
+				v[first].prev = last;
+				printf("   2poly %i.%i: ",poly,this_trace_poly);
+				vert=first; do {
+					printf(",%i",vert);
+					vert = v[vert].next;
+				} while (vert!=first);
+				puts("");
 				// Hook up the backbone
 				if (!previous_trace_poly) {
 					v[poly0].next_poly = this_trace_poly;
@@ -726,6 +777,18 @@ void GridMesh::trim_to_odd(int poly0) {
 				previous_trace_poly = this_trace_poly;
 			}
 		}
+		printf("   poly@end:%i\n",poly);
+	}
+	for (int poly=poly0; poly; poly=v[poly].next_poly) {
+		int vert = poly;
+		do {
+			v[vert].first = poly;
+			v[vert].is_intersection = false;
+			v[vert].is_interior = true;
+			v[vert].is_used = false;
+			v[vert].neighbor = 0;
+			vert = v[vert].next;
+		} while (vert && vert!=poly);
 	}
 }
 

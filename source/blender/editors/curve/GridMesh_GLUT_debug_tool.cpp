@@ -53,8 +53,8 @@ int gm_nx=2, gm_ny=2;
 #if defined(GRIDMESH_GEOM_TEST_3)
 bool clip_cyclic = true; // Required for initialization
 bool subj_cyclic = true;
-std::vector<float> clip_verts = {.2,.2,  1.8,.2,  1.8,1.8,  .2,1.8};
-std::vector<float> subj0 = {.8,.8,  1.2,.8,  1.2,1.2,  .8,1.2};
+std::vector<float> clip_verts = {0.200000,0.200000, 4.436000,-0.268000, 4.460000,3.356000, 0.284000,4.292000};
+std::vector<float> subj0 = {0.800000,0.800000, 1.200000,0.800000, 1.200000,1.200000, 0.800000,1.200000};
 std::vector<std::vector<float>> subj_polys = {subj0};
 std::vector<float> inout_pts = {};
 float gm_llx=0,gm_lly=0,gm_urx=4,gm_ury=4; // GridMesh params
@@ -344,21 +344,23 @@ void GLUT_keyboard(unsigned char ch, int x, int y ) {
 	if (ch==GLUT_KEY_RETURN) {
 		dump_polys_to_stdout();
 	}
-	if (ch=='i') {
-		gm->insert_vert_poly_gridmesh(clip);
-//		for (int poly=subj; poly; poly=gm->v[poly].next_poly) {
-//			gm->insert_vert_poly_gridmesh(poly);
-//		}
+	if (clip && ch=='o') {
+		gm->bool_AND(clip);
+		clip = 0;
 		glutPostRedisplay();
 	}
-	if (ch=='l') {
-		gm->label_interior_AND(clip);
-		gm->label_interior_freepoly(clip);
+	if (subj && ch=='i') {
+		gm->insert_vert_poly_gridmesh(subj);
 		glutPostRedisplay();
 	}
-	if (ch=='t') {
+	if (subj && ch=='l') {
+		gm->label_interior_AND(subj);
+		gm->label_interior_freepoly(subj);
+		glutPostRedisplay();
+	}
+	if (subj && ch=='t') {
 		gm->trim_to_odd();
-		subj = 0; // Subject was destroyed in trimming process
+		subj = gm->v[subj].next_poly; // Subject was destroyed in trimming process
 		glutPostRedisplay();
 	}
 	if (ch=='1') toggle_cyclic(clip);
@@ -386,11 +388,21 @@ void GLUT_specialkey(int ch, int x, int y) {
 }
 void create_new_poly(float sx, float sy) {
 	GreinerV2f *v = gm->v;
-	int last_backbone = subj;
-	while (v[last_backbone].next_poly) last_backbone = v[last_backbone].next_poly;
 	int newpoly = gm->vert_new();
 	v[newpoly].x = sx; v[newpoly].y = sy;
-	v[last_backbone].next_poly = newpoly;
+	v[newpoly].first = newpoly;
+	v[newpoly].next = newpoly; v[newpoly].prev = newpoly;
+	if (subj) {
+		int last_backbone = subj;
+		while (v[last_backbone].next_poly) last_backbone = v[last_backbone].next_poly;
+		v[last_backbone].next_poly = newpoly;
+	} else {
+		subj = newpoly;
+	}
+	grabbed_vert = newpoly;
+	printf("Added subj vert. subj = ");
+	for (int vert=subj; vert; vert=v[vert].next_poly) printf(",%i",vert);
+	puts("");
 	glutPostRedisplay();
 }
 void create_pt(float sx, float sy) {

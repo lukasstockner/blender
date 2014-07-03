@@ -117,13 +117,13 @@ struct GridMesh {
 	// Step 1: insert verts at intersections
 	int insert_vert_poly_gridmesh(int poly); // Returns # of vertices inserted.
 	// Step 2: find mutual entry/exit points
-	void label_interior_AND(int poly2, bool invert_poly2=false);
-	void label_interior_SUB(int poly2);
+	void label_interior_AND(int poly2, bool invert_poly2=false, int *bb=NULL);
+	void label_interior_SUB(int poly2, int *bb=NULL);
 	void label_exterior_cells(int poly, bool interior_lbl, int* bb=NULL);
 	known_corner_t label_interior_cell(int cell, int poly2, bool bool_SUB, known_corner_t kin);
 	void label_interior_freepoly(int poly);
 	// Step 3: perform the actual trim
-	void trim_to_odd();
+	void trim_to_odd(int *bb=NULL);
 	void trim_to_odd(int poly); // Trim one grid poly, leaving behind parts w/odd winding# in .next_poly linked list
 #if defined(ENABLE_GLUT_DEMO)
 	// Draw
