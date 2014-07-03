@@ -178,7 +178,7 @@ void ED_render_engine_changed(Main *bmain)
 
 	/* reset texture painting */
 	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
-		clear_texpaint_slots(ma);
+		BKE_clear_texpaint_slots(ma);
 	}
 }
 

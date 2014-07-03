@@ -1034,12 +1034,10 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
 class TEXTURE_UL_texpaintslots(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        # assert(isinstance(item, bpy.types.MaterialTextureSlot)
         ma = data
         ima = item
 
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            # layout.label(text=tex.image.name, translate=False)
             layout.label(text=ima.name, translate=False, icon_value=icon)
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
@@ -1608,13 +1606,6 @@ class VIEW3D_PT_tools_projectpaint(View3DPaintPanel, Panel):
 
         col = layout.column()
 
-#        col.label(text="Mirror:")
-#        row = col.row(align=True)
-#        row.prop(ipaint, "use_symmetry_x", text="X", toggle=True)
-#        row.prop(ipaint, "use_symmetry_y", text="Y", toggle=True)
-#        row.prop(ipaint, "use_symmetry_z", text="Z", toggle=True)
-
-#        col.separator()
         col.prop(ipaint, "use_occlude")
         col.prop(ipaint, "use_backface_culling")
 
@@ -1641,8 +1632,6 @@ class VIEW3D_PT_tools_projectpaint(View3DPaintPanel, Panel):
         col = layout.column()
         col.active = (settings.brush.image_tool == 'CLONE')
         col.prop(ipaint, "use_clone_layer", text="Clone from paint slot")
-        #clone_text = mesh.uv_texture_clone.name if mesh.uv_texture_clone else ""
-        #col.menu("VIEW3D_MT_tools_projectpaint_clone", text=clone_text, translate=False)
 
         layout.prop(ipaint, "seam_bleed")
         self.unified_paint_settings(layout, context)

@@ -111,10 +111,8 @@ void BKE_material_free_ex(Material *ma, bool do_id_user)
 		MEM_freeN(ma->nodetree);
 	}
 
-	if (ma->texpaintslot) {
+	if (ma->texpaintslot)
 		MEM_freeN(ma->texpaintslot);
-		ma->tot_slots = 0;
-	}
 
 	if (ma->gpumaterial.first)
 		GPU_material_free(ma);
@@ -1306,7 +1304,7 @@ bool object_remove_material_slot(Object *ob)
 	return true;
 }
 
-void clear_texpaint_slots(struct Material *ma)
+void BKE_clear_texpaint_slots(struct Material *ma)
 {
 
 	if (ma->texpaintslot) {
@@ -1326,7 +1324,7 @@ static bool get_mtex_slot_valid_texpaint(struct MTex *mtex)
 	        mtex->tex->ima);
 }
 
-void refresh_texpaint_slot_cache(Material *ma, bool use_nodes)
+void BKE_refresh_texpaint_slot_cache(Material *ma, bool use_nodes)
 {
 	MTex **mtex;
 	short count = 0;
@@ -1337,7 +1335,7 @@ void refresh_texpaint_slot_cache(Material *ma, bool use_nodes)
 
 	/* blender internal  calculation goes here */
 	if (ma->texpaintslot) {
-		MEM_freeN (ma->texpaintslot);
+		MEM_freeN(ma->texpaintslot);
 		ma->texpaintslot = NULL;
 	}
 
@@ -1405,7 +1403,7 @@ void refresh_texpaint_slot_cache(Material *ma, bool use_nodes)
 	return;
 }
 
-void refresh_object_texpaint_slots(struct Object *ob, bool use_nodes)
+void BKE_refresh_object_texpaint_slots(struct Object *ob, bool use_nodes)
 {
 	int i;
 
@@ -1414,33 +1412,10 @@ void refresh_object_texpaint_slots(struct Object *ob, bool use_nodes)
 
 	for (i = 1; i < ob->totcol + 1; i++) {
 		Material *ma = give_current_material(ob, i);
-		refresh_texpaint_slot_cache(ma, use_nodes);
+		BKE_refresh_texpaint_slot_cache(ma, use_nodes);
 	}
 }
 
-/* no caching - slow, but not as useful as image */
-struct MTex *give_current_texpaint_slot(Material *ma)
-{
-	MTex **mtex, *validmtex = NULL;
-
-	short index = 0, i = 0;
-
-	for (mtex = ma->mtex; i < MAX_MTEX; i++, mtex++) {
-		if (get_mtex_slot_valid_texpaint(*mtex)) {
-			if (index++ == ma->paint_active_slot)
-				return (*mtex);
-
-			validmtex = *mtex;
-		}
-	}
-
-	/* possible to not have selected anything as active texture. Just set to a valid index */
-	if (index > 0) {
-		ma->paint_active_slot = index;
-	}
-
-	return validmtex;
-}
 
 /* r_col = current value, col = new value, (fac == 0) is no change */
 void ramp_blend(int type, float r_col[3], const float fac, const float col[3])

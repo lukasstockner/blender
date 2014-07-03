@@ -87,7 +87,7 @@ class UnifiedPaintPanel():
 
 
 def brush_texpaint_common(panel, context, layout, brush, settings):
-    capabilities = brush.imapaint_capabilities
+    capabilities = brush.image_paint_capabilities
 
     col = layout.column()
 
@@ -236,7 +236,6 @@ def brush_mask_texture_settings(layout, brush):
         if brush.mask_texture and brush.mask_texture.type == 'IMAGE':
             layout.operator("brush.stencil_fit_image_aspect").mask = True
         layout.operator("brush.stencil_reset_transform").mask = True
-
 
     col = layout.column()
     col.prop(brush, "use_pressure_masking", text="");

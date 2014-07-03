@@ -30,6 +30,7 @@
 #include "BLI_math_base.h"
 #include "BLI_math_color.h"
 #include "BLI_math_color_blend.h"
+#include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
 #ifndef __MATH_COLOR_BLEND_INLINE_C__
@@ -71,10 +72,7 @@ MINLINE void blend_color_mix_byte(unsigned char dst[4], const unsigned char src1
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -96,10 +94,7 @@ MINLINE void blend_color_add_byte(unsigned char dst[4], const unsigned char src1
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -121,10 +116,7 @@ MINLINE void blend_color_sub_byte(unsigned char dst[4], const unsigned char src1
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -147,10 +139,7 @@ MINLINE void blend_color_mul_byte(unsigned char dst[4], const unsigned char src1
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -173,10 +162,7 @@ MINLINE void blend_color_lighten_byte(unsigned char dst[4], const unsigned char 
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -199,10 +185,7 @@ MINLINE void blend_color_darken_byte(unsigned char dst[4], const unsigned char s
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -219,10 +202,7 @@ MINLINE void blend_color_erase_alpha_byte(unsigned char dst[4], const unsigned c
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -239,10 +219,7 @@ MINLINE void blend_color_add_alpha_byte(unsigned char dst[4], const unsigned cha
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -285,10 +262,7 @@ MINLINE void blend_color_overlay_byte(unsigned char dst[4], unsigned const char 
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -325,10 +299,7 @@ MINLINE void blend_color_hardlight_byte(unsigned char dst[4], unsigned const cha
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -370,10 +341,7 @@ MINLINE void blend_color_burn_byte(unsigned char dst[4], unsigned const char src
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -399,10 +367,7 @@ MINLINE void blend_color_linearburn_byte(unsigned char dst[4], unsigned const ch
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -431,10 +396,7 @@ MINLINE void blend_color_dodge_byte(unsigned char dst[4], unsigned const char sr
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -459,10 +421,7 @@ MINLINE void blend_color_screen_byte(unsigned char dst[4], unsigned const char s
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -485,10 +444,7 @@ MINLINE void blend_color_softlight_byte(unsigned char dst[4], unsigned const cha
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -538,10 +494,7 @@ MINLINE void blend_color_pinlight_byte(unsigned char dst[4], unsigned const char
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -588,10 +541,7 @@ MINLINE void blend_color_linearlight_byte(unsigned char dst[4], unsigned const c
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -650,10 +600,7 @@ MINLINE void blend_color_vividlight_byte(unsigned char dst[4], unsigned const ch
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -680,10 +627,7 @@ MINLINE void blend_color_difference_byte(unsigned char dst[4], unsigned const ch
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -705,10 +649,7 @@ MINLINE void blend_color_exclusion_byte(unsigned char dst[4], unsigned const cha
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -735,10 +676,7 @@ MINLINE void blend_color_color_byte(unsigned char dst[4], unsigned const char sr
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -764,10 +702,7 @@ MINLINE void blend_color_hue_byte(unsigned char dst[4], unsigned const char src1
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 
 }
@@ -795,10 +730,7 @@ MINLINE void blend_color_saturation_byte(unsigned char dst[4], unsigned const ch
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -825,10 +757,7 @@ MINLINE void blend_color_luminosity_byte(unsigned char dst[4], unsigned const ch
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 
 }
@@ -848,10 +777,7 @@ MINLINE void blend_color_interpolate_byte(unsigned char dst[4], const unsigned c
 		dst[3] = (unsigned char)divide_round_i(tmp, 255);
 	}
 	else {
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4_uchar(dst, src1);
 	}
 }
 
@@ -871,10 +797,7 @@ MINLINE void blend_color_mix_float(float dst[4], const float src1[4], const floa
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -889,10 +812,7 @@ MINLINE void blend_color_add_float(float dst[4], const float src1[4], const floa
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -907,10 +827,7 @@ MINLINE void blend_color_sub_float(float dst[4], const float src1[4], const floa
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -928,10 +845,7 @@ MINLINE void blend_color_mul_float(float dst[4], const float src1[4], const floa
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -951,10 +865,7 @@ MINLINE void blend_color_lighten_float(float dst[4], const float src1[4], const 
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -974,10 +885,7 @@ MINLINE void blend_color_darken_float(float dst[4], const float src1[4], const f
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1001,10 +909,7 @@ MINLINE void blend_color_erase_alpha_float(float dst[4], const float src1[4], co
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1028,10 +933,7 @@ MINLINE void blend_color_add_alpha_float(float dst[4], const float src1[4], cons
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1077,10 +979,7 @@ MINLINE void blend_color_overlay_float(float dst[3], const float src1[3], const 
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1119,10 +1018,7 @@ MINLINE void blend_color_hardlight_float(float dst[4], const float src1[4], cons
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1159,10 +1055,7 @@ MINLINE void blend_color_burn_float(float dst[3], const float src1[3], const flo
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1188,10 +1081,7 @@ MINLINE void blend_color_linearburn_float(float dst[3], const float src1[3], con
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1220,10 +1110,7 @@ MINLINE void blend_color_dodge_float(float dst[3], const float src1[3], const fl
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1248,10 +1135,7 @@ MINLINE void blend_color_screen_float(float dst[3], const float src1[3], const f
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1273,10 +1157,7 @@ MINLINE void blend_color_softlight_float(float dst[3], const float src1[3], cons
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1325,10 +1206,7 @@ MINLINE void blend_color_pinlight_float(float dst[3], const float src1[3], const
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1375,10 +1253,7 @@ MINLINE void blend_color_linearlight_float(float dst[3], const float src1[3], co
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1437,10 +1312,7 @@ MINLINE void blend_color_vividlight_float(float dst[3], const float src1[3], con
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1465,10 +1337,7 @@ MINLINE void blend_color_difference_float(float dst[3], const float src1[3], con
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1490,10 +1359,7 @@ MINLINE void blend_color_exclusion_float(float dst[3], const float src1[3], cons
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 
 }
@@ -1521,10 +1387,7 @@ MINLINE void blend_color_color_float(float dst[3], const float src1[3], const fl
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1551,10 +1414,7 @@ MINLINE void blend_color_hue_float(float dst[3], const float src1[3], const floa
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1580,10 +1440,7 @@ MINLINE void blend_color_saturation_float(float dst[3], const float src1[3], con
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 
@@ -1608,10 +1465,7 @@ MINLINE void blend_color_luminosity_float(float dst[3], const float src1[3], con
 	}
 	else {
 		/* no op */
-		dst[0] = src1[0];
-		dst[1] = src1[1];
-		dst[2] = src1[2];
-		dst[3] = src1[3];
+		copy_v4_v4(dst, src1);
 	}
 }
 

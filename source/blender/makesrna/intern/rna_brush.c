@@ -719,7 +719,7 @@ static void rna_def_brush_capabilities(BlenderRNA *brna)
 #undef BRUSH_CAPABILITY
 }
 
-static void rna_def_imapaint_capabilities(BlenderRNA *brna)
+static void rna_def_image_paint_capabilities(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
@@ -1421,7 +1421,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, "rna_Sculpt_tool_capabilities_get", NULL, NULL, NULL);
 	RNA_def_property_ui_text(prop, "Sculpt Capabilities", "Brush's capabilities in sculpt mode");
 
-	prop = RNA_def_property(srna, "imapaint_capabilities", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "image_paint_capabilities", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_struct_type(prop, "ImapaintToolCapabilities");
 	RNA_def_property_pointer_funcs(prop, "rna_Imapaint_tool_capabilities_get", NULL, NULL, NULL);
@@ -1493,7 +1493,7 @@ void RNA_def_brush(BlenderRNA *brna)
 	rna_def_brush(brna);
 	rna_def_brush_capabilities(brna);
 	rna_def_sculpt_capabilities(brna);
-	rna_def_imapaint_capabilities(brna);
+	rna_def_image_paint_capabilities(brna);
 	rna_def_brush_texture_slot(brna);
 	rna_def_operator_stroke_element(brna);
 }
