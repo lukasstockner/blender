@@ -2507,6 +2507,9 @@ static void opensubdiv_initEvaluatorFace(CCGSubSurf *ss,
 static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 {
 	int i;
+	OsdScheme scheme = ss->meshIFC.simpleSubdiv
+		? OSD_SCHEME_BILINEAR
+		: OSD_SCHEME_CATMARK;
 
 	for (i = 0; i < ss->fMap->curSize; i++) {
 		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
@@ -2518,7 +2521,9 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 	/* Do feature adaptive refinement and get ready to update
 	 * coarse points and evaluate.
 	 */
-	return openSubdiv_finishEvaluatorDescr(ss->osd_evaluator, ss->subdivLevels) != 0;
+	return openSubdiv_finishEvaluatorDescr(ss->osd_evaluator,
+	                                       ss->subdivLevels,
+	                                       scheme) != 0;
 }
 
 static bool check_topology_changed(CCGSubSurf *ss)
