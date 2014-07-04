@@ -1008,9 +1008,11 @@ public:
 				draw_params.unbind_display_space_shader_cb();
 			}
 
-			if(transparent)
+			if (transparent) {
 				glDisable(GL_BLEND);
-			
+				glBlendFunc(GL_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			}
+
 			glBindTexture(GL_TEXTURE_2D, 0);
 			glDisable(GL_TEXTURE_2D);
 

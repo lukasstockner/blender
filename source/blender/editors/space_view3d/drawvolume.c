@@ -489,6 +489,11 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 		n++;
 	}
 
+	if (GLEW_VERSION_1_4)
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+	//else
+		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 #ifdef DEBUG_DRAW_TIME
 	printf("Draw Time: %f\n", (float)TIMEIT_VALUE(draw));
 	TIMEIT_END(draw);

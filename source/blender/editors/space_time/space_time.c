@@ -70,7 +70,6 @@ static void time_draw_sfra_efra(Scene *scene, View2D *v2d)
 	/* draw darkened area outside of active timeline 
 	 * frame range used is preview range or scene range 
 	 */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 		

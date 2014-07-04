@@ -370,6 +370,14 @@ static void gpu_make_repbind(Image *ima)
 	BKE_image_release_ibuf(ima, ibuf, NULL);
 }
 
+static void blend_func_state_init(void)
+{
+	if (GLEW_VERSION_1_4)
+		glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+	else
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
 static void gpu_clear_tpage(void)
 {
 	if (GTS.lasttface==NULL)
@@ -393,6 +401,8 @@ static void gpu_clear_tpage(void)
 	glDisable(GL_TEXTURE_GEN_S);
 	glDisable(GL_TEXTURE_GEN_T);
 	glDisable(GL_ALPHA_TEST);
+
+	blend_func_state_init();
 }
 
 static void gpu_set_alpha_blend(GPUBlendMode alphablend)
@@ -400,7 +410,7 @@ static void gpu_set_alpha_blend(GPUBlendMode alphablend)
 	if (alphablend == GPU_BLEND_SOLID) {
 		glDisable(GL_BLEND);
 		glDisable(GL_ALPHA_TEST);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		blend_func_state_init();
 	}
 	else if (alphablend==GPU_BLEND_ADD) {
 		glEnable(GL_BLEND);
@@ -1890,6 +1900,8 @@ void GPU_state_init(void)
 	int a, x, y;
 	GLubyte pat[32*32];
 	const GLubyte *patc= pat;
+
+	blend_func_state_init();
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);

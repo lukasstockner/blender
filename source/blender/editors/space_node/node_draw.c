@@ -706,7 +706,6 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 	node_draw_preview_background(BLI_rctf_size_x(prv) / 10.0f, &draw_rect);
 	
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  /* premul graphics */
 	
 	glColor4f(1.0, 1.0, 1.0, 1.0);
 	glPixelZoom(scale, scale);
@@ -1271,7 +1270,6 @@ void drawnodespace(const bContext *C, ARegion *ar)
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
 
 	/* only set once */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_MAP1_VERTEX_3);
 	
 	/* nodes */

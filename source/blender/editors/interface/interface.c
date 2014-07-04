@@ -1257,9 +1257,6 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	if (multisample_enabled)
 		glDisable(GL_MULTISAMPLE_ARB);
 
-	/* we set this only once */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
 	/* scale fonts */
 	ui_fontscale(&style.paneltitle.points, block->aspect);
 	ui_fontscale(&style.grouplabel.points, block->aspect);

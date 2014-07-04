@@ -514,7 +514,6 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 
 	glEnable(GL_BLEND);
 	glEnable(GL_TEXTURE_2D);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	/* Save the current matrix mode. */
 	glGetIntegerv(GL_MATRIX_MODE, mode);

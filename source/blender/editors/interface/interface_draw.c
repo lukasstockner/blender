@@ -446,8 +446,6 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 	/* restore scissortest */
 	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
 	/* outline */
 	glColor4f(0.f, 0.f, 0.f, 0.5f);
 	uiSetRoundBox(UI_CNR_ALL);
@@ -460,14 +458,13 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 	int i;
 	
 	if (is_line) {
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
 		glLineWidth(1.5);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		glColor4f(r, g, b, alpha);
 
 		/* curve outline */
 
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		glEnable(GL_LINE_SMOOTH);
 		glBegin(GL_LINE_STRIP);
 		for (i = 0; i < res; i++) {
@@ -477,14 +474,19 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		glEnd();
 		glDisable(GL_LINE_SMOOTH);
 
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 		glLineWidth(1.0);
 	}
 	else {
 		/* under the curve */
+
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
 		glColor4f(r, g, b, alpha);
 
 		glShadeModel(GL_FLAT);
+
 		glBegin(GL_QUAD_STRIP);
 		glVertex2f(x, y);
 		glVertex2f(x, y + (data[0] * h));
@@ -496,9 +498,11 @@ static void histogram_draw_one(float r, float g, float b, float alpha,
 		glEnd();
 
 		/* curve outline */
+
 		glColor4f(0.f, 0.f, 0.f, 0.25f);
 
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 		glEnable(GL_LINE_SMOOTH);
 		glBegin(GL_LINE_STRIP);
 		for (i = 0; i < res; i++) {
@@ -532,7 +536,6 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	h = BLI_rctf_size_y(&rect) * hist->ymax;
 	
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	glColor4f(0.f, 0.f, 0.f, 0.3f);
 	uiSetRoundBox(UI_CNR_ALL);
@@ -619,8 +622,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	}
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
+
 	glColor4f(0.f, 0.f, 0.f, 0.3f);
 	uiSetRoundBox(UI_CNR_ALL);
 	uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
@@ -642,7 +644,6 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 		BLF_draw_default(rect.xmin + 1, yofs - 5 + (i / 5.f) * h, 0, str, sizeof(str) - 1);
 		/* in the loop because blf_draw reset it */
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	/* 3 vertical separation */
 	if (scopes->wavefrm_mode != SCOPES_WAVEFRM_LUMA) {
@@ -665,15 +666,14 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	if (scopes->wavefrm_mode == SCOPES_WAVEFRM_LUMA)
 		fdrawline(rect.xmin, yofs + h * 0.075f, rect.xmax + 1, yofs + h * 0.075f);
 
+	glBlendFunc(GL_ONE, GL_ONE);
+
 	if (scopes->ok && scopes->waveform_1 != NULL) {
 		
 		/* LUMA (1 channel) */
-		glBlendFunc(GL_ONE, GL_ONE);
 		glColor3f(alpha, alpha, alpha);
 		if (scopes->wavefrm_mode == SCOPES_WAVEFRM_LUMA) {
 
-			glBlendFunc(GL_ONE, GL_ONE);
-			
 			glPushMatrix();
 			glEnableClientState(GL_VERTEX_ARRAY);
 			
@@ -702,9 +702,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 		               SCOPES_WAVEFRM_YCC_JPEG))
 		{
 			int rgb = (scopes->wavefrm_mode == SCOPES_WAVEFRM_RGB);
-			
-			glBlendFunc(GL_ONE, GL_ONE);
-			
+
 			glPushMatrix();
 			glEnableClientState(GL_VERTEX_ARRAY);
 			
@@ -743,7 +741,9 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 			}
 		}
 	}
-	
+
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	/* outline */
 	draw_scope_end(&rect, scissor);
 }
@@ -838,7 +838,6 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	alpha = scopes->vecscope_alpha * scopes->vecscope_alpha * scopes->vecscope_alpha;
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	glColor4f(0.f, 0.f, 0.f, 0.3f);
 	uiSetRoundBox(UI_CNR_ALL);
@@ -890,6 +889,8 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 		
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glPopMatrix();
+
+		glBlendFunc(GL_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
 	/* outline */
@@ -1334,7 +1335,6 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 
 		/* grid, hsv uses different grid */
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glColor4ub(0, 0, 0, 48);
 		ui_draw_but_curve_grid(rect, zoomx, zoomy, offsx, offsy, 0.1666666f);
 		glDisable(GL_BLEND);
@@ -1498,7 +1498,6 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 	height = BLI_rctf_size_y(&rect);
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	/* need scissor test, preview image can draw outside of boundary */
 	glGetIntegerv(GL_VIEWPORT, scissor);

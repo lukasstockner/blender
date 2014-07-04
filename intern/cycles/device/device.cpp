@@ -127,8 +127,10 @@ void Device::draw_pixels(device_memory& rgba, int y, int w, int h, int dy, int w
 		glPixelZoom(1.0f, 1.0f);
 	}
 
-	if(transparent)
+	if (transparent) {
 		glDisable(GL_BLEND);
+		glBlendFunc(GL_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
 }
 
 Device *Device::create(DeviceInfo& info, Stats &stats, bool background)

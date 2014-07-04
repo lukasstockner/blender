@@ -1661,7 +1661,6 @@ void BIF_draw_manipulator(const bContext *C)
 
 	if (v3d->twflag & V3D_DRAW_MANIPULATOR) {
 
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		if (v3d->twtype & V3D_MANIP_ROTATE) {
 

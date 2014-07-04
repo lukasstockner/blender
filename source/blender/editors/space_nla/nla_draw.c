@@ -285,7 +285,6 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 	 */
 	if ((strip->extendmode != NLASTRIP_EXTEND_NOTHING) && (nonSolo == 0)) {
 		/* enable transparency... */
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		
 		switch (strip->extendmode) {
@@ -574,7 +573,6 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					/* just draw a semi-shaded rect spanning the width of the viewable area if there's data,
 					 * and a second darker rect within which we draw keyframe indicator dots if there's data
 					 */
-					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 					glEnable(GL_BLEND);
 						
 					/* get colors for drawing */
@@ -676,7 +674,6 @@ void draw_nla_channel_list(bContext *C, bAnimContext *ac, ARegion *ar)
 		y = (float)(-NLACHANNEL_HEIGHT(snla));
 		
 		/* set blending again, as may not be set in previous step */
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		
 		/* loop through channels, and set up drawing depending on their type  */

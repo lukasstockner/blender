@@ -75,25 +75,24 @@ extern void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, 
 static void region_draw_emboss(ARegion *ar, rcti *scirct)
 {
 	rcti rect;
-	
+
 	/* translate scissor rect to region space */
 	rect.xmin = scirct->xmin - ar->winrct.xmin;
 	rect.ymin = scirct->ymin - ar->winrct.ymin;
 	rect.xmax = scirct->xmax - ar->winrct.xmin;
 	rect.ymax = scirct->ymax - ar->winrct.ymin;
-	
+
 	/* set transp line */
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
+
 	/* right  */
 	glColor4ub(0, 0, 0, 30);
 	sdrawline(rect.xmax, rect.ymin, rect.xmax, rect.ymax);
-	
+
 	/* bottom  */
 	glColor4ub(0, 0, 0, 30);
 	sdrawline(rect.xmin, rect.ymin, rect.xmax, rect.ymin);
-	
+
 	/* top  */
 	glColor4ub(255, 255, 255, 30);
 	sdrawline(rect.xmin, rect.ymax, rect.xmax, rect.ymax);
@@ -101,7 +100,7 @@ static void region_draw_emboss(ARegion *ar, rcti *scirct)
 	/* left  */
 	glColor4ub(255, 255, 255, 30);
 	sdrawline(rect.xmin, rect.ymin, rect.xmin, rect.ymax);
-	
+
 	glDisable(GL_BLEND);
 }
 
@@ -338,7 +337,6 @@ static void region_draw_azones(ScrArea *sa, ARegion *ar)
 		return;
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glPushMatrix();
 	glTranslatef(-ar->winrct.xmin, -ar->winrct.ymin, 0.0f);
@@ -1901,7 +1899,6 @@ void ED_region_info_draw(ARegion *ar, const char *text, int block, float fill_co
 	          BLI_rcti_size_x(&rect) + 1, BLI_rcti_size_y(&rect) + 1);
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glColor4fv(fill_color);
 	glRecti(rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1);
 	glDisable(GL_BLEND);

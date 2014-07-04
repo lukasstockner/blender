@@ -659,7 +659,6 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 		int zoomfilter = (U.gameflags & USER_DISABLE_MIPMAP ) ? GL_NEAREST : GL_LINEAR;
 		/* Setup GL params */
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
 
 		if (use_clip) {
 			glEnable(GL_ALPHA_TEST);
@@ -7234,9 +7233,6 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 	/* -------------------------------------------------------------------- */
 	/* no return after this point, otherwise leaks */
-
-	/* only once set now, will be removed too, should become a global standard */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	view3d_cached_text_draw_begin();
 	

@@ -298,7 +298,6 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 	if (is_smooth) {
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
 	/* control points */
@@ -467,7 +466,6 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 
 			if (is_smooth == false && is_feather) {
 				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			}
 
 			mask_color_active_tint(rgb_tmp, rgb_tmp, is_active);
@@ -518,7 +516,6 @@ static void draw_spline_curve(const bContext *C, MaskLayer *masklay, MaskSpline 
 	if (is_smooth) {
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 
 	feather_points = BKE_mask_spline_feather_differentiated_points_with_resolution(spline, &tot_feather_point, resol, (is_fill != false));
@@ -795,6 +792,7 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 		glPopMatrix();
 
 		if (overlay_mode != MASK_OVERLAY_ALPHACHANNEL) {
+			glBlendFunc(GL_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glDisable(GL_BLEND);
 		}
 

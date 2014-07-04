@@ -990,7 +990,6 @@ static void draw_join_shape(ScrArea *sa, char dir)
 /* draw screen area darker with arrow (visualization of future joining) */
 static void scrarea_draw_shape_dark(ScrArea *sa, char dir)
 {
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 	glColor4ub(0, 0, 0, 50);
 	draw_join_shape(sa, dir);
@@ -1006,6 +1005,7 @@ static void scrarea_draw_shape_light(ScrArea *sa, char UNUSED(dir))
 	glColor4ub(255, 255, 255, 50);
 	/* draw_join_shape(sa, dir); */
 	glRecti(sa->v1->vec.x, sa->v1->vec.y, sa->v3->vec.x, sa->v3->vec.y);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glDisable(GL_BLEND);
 }
 

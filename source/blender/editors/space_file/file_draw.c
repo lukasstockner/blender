@@ -358,8 +358,6 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		xco = sx + (int)dx;
 		yco = sy - layout->prv_h + (int)dy;
 		
-		glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
-		
 		/* shadow */
 		if (dropshadow)
 			uiDrawBoxShadow(220, (float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));

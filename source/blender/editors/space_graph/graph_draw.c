@@ -1115,7 +1115,6 @@ void graph_draw_channel_names(bContext *C, bAnimContext *ac, ARegion *ar)
 		y = (float)ACHANNEL_FIRST;
 		
 		/* set blending again, as may not be set in previous step */
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		
 		for (ale = anim_data.first, i = 0; ale; ale = ale->next, i++) {
