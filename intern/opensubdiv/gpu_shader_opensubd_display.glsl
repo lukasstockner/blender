@@ -50,6 +50,10 @@ void main()
 	 */
 	gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;
 #endif
+
+#ifdef WIREFRAME
+	gl_FrontColor = gl_Color;
+#endif
 }
 
 #endif  /* VERTEX_SHADER */
@@ -64,8 +68,16 @@ in vec3 varying_position;
 
 void main()
 {
+#ifdef WIREFRAME
+	gl_FragColor = gl_Color;
+#else
 	/* Compute normal. */
+#ifdef SMOOTH_SHADING
 	vec3 N = varying_normal;
+#else
+	vec3 N = normalize(cross(dFdx(varying_position),
+	                         dFdy(varying_position)));
+#endif
 
 	if (!gl_FrontFacing)
 		N = -N;
@@ -103,6 +115,7 @@ void main()
 
 	/* Write out fragment color. */
 	gl_FragColor = vec4(L, alpha);
+#endif
 }
 
 #endif  // FRAGMENT_SHADER

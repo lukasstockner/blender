@@ -56,10 +56,17 @@ enum {
 	OPENSUBDIV_CONTROLLER_GLSL_COMPUTE             = (1 << 5),
 };
 
+enum {
+	OPENSUBDIV_SCHEME_CATMARK,
+	OPENSUBDIV_SCHEME_BILINEAR,
+	OPENSUBDIV_SCHEME_LOOP,
+};
+
 struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     struct OpenSubdiv_EvaluatorDescr *evaluator_descr,
     int controller_type,
-    int level);
+    int level,
+    int scheme);
 
 void openSubdiv_deleteOsdGLMesh(struct OpenSubdiv_GLMesh *gl_mesh);
 unsigned int openSubdiv_getOsdGLMeshPatchIndexBuffer(struct OpenSubdiv_GLMesh *gl_mesh);

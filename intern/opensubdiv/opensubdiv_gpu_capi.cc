@@ -45,7 +45,6 @@
 
 using OpenSubdiv::OsdGLMeshInterface;
 
-#ifndef OPENSUBDIV_LEGACY_DRAW
 extern "C" char datatoc_gpu_shader_opensubd_display_glsl[];
 
 static GLuint compileShader(GLenum shaderType,
@@ -109,33 +108,50 @@ static GLuint linkProgram(const char *define)
 
 	return program;
 }
-#endif  /* OPENSUBDIV_LEGACY_DRAW */
 
 void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
 {
+	static GLuint flat_fill_program;
 #ifndef OPENSUBDIV_LEGACY_DRAW
-	static GLuint quad_fill_program = 0;
+	static GLuint smooth_fill_program;
+	static GLuint wireframe_program;
+#endif
 	static bool need_init = true;
 
 	if (need_init) {
-		quad_fill_program = linkProgram("");
+		flat_fill_program = linkProgram("#define FLAT_SHADING\n");
+#ifndef OPENSUBDIV_LEGACY_DRAW
+		smooth_fill_program = linkProgram("#define SMOOTH_SHADING\n");
+		wireframe_program = linkProgram("#define WIREFRAME\n");
+#endif
 		need_init = false;
 	}
-#endif
 
 	OsdGLMeshInterface *mesh = (OsdGLMeshInterface *) gl_mesh->descriptor;
 
 	using OpenSubdiv::OsdDrawContext;
 	using OpenSubdiv::FarPatchTables;
 
-	const OsdDrawContext::PatchArrayVector &patches = mesh->GetDrawContext()->patchArrays;
-
-#ifndef OPENSUBDIV_LEGACY_DRAW
-	glUseProgram(quad_fill_program);
-#endif
+	const OsdDrawContext::PatchArrayVector &patches =
+		mesh->GetDrawContext()->patchArrays;
 
 	if (!fill_quads) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+#ifndef OPENSUBDIV_LEGACY_DRAW
+		glUseProgram(wireframe_program);
+#endif
+	}
+	else {
+		int model;
+		glGetIntegerv(GL_SHADE_MODEL, &model);
+		if (model == GL_FLAT) {
+			glUseProgram(flat_fill_program);
+		}
+#ifndef OPENSUBDIV_LEGACY_DRAW
+		else {
+			glUseProgram(smooth_fill_program);
+		}
+#endif
 	}
 
 	for (int i = 0; i < (int)patches.size(); ++i) {
@@ -156,8 +172,6 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 	glBindVertexArray(0);
-#ifndef OPENSUBDIV_LEGACY_DRAW
 	/* TODO(sergey): Store previously used program and roll back to it? */
 	glUseProgram(0);
-#endif
 }

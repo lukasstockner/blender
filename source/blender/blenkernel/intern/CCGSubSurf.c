@@ -671,6 +671,7 @@ static int _edge_isBoundary(const CCGEdge *e)
 	return e->numFaces < 2;
 }
 
+#ifndef WITH_OPENSUBDIV
 static CCGVert *_edge_getOtherVert(CCGEdge *e, CCGVert *vQ)
 {
 	if (vQ == e->v0) {
@@ -680,6 +681,7 @@ static CCGVert *_edge_getOtherVert(CCGEdge *e, CCGVert *vQ)
 		return e->v0;
 	}
 }
+#endif
 
 static void *_edge_getCo(CCGEdge *e, int lvl, int x, int dataSize)
 {
@@ -2341,10 +2343,15 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 	}
 
 	if (ss->osd_mesh == NULL) {
+		int scheme = ss->meshIFC.simpleSubdiv
+		             ? OPENSUBDIV_SCHEME_BILINEAR
+		             : OPENSUBDIV_SCHEME_CATMARK;
+
 		ss->osd_mesh = openSubdiv_createOsdGLMeshFromEvaluator(
 			ss->osd_evaluator,
 			compute_type,
-			ss->subdivLevels);
+			ss->subdivLevels,
+			scheme);
 
 		if (UNLIKELY(ss->osd_mesh == NULL)) {
 			/* Most likely compute device is not available. */
@@ -2962,7 +2969,7 @@ static void opensubdiv_evaluateGrids(CCGSubSurf *ss)
 	}
 }
 
-static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
+static void ccgSubSurf__sync(CCGSubSurf *ss)
 {
 	BLI_assert(ss->meshIFC.numLayers == 2 || ss->meshIFC.numLayers == 3);
 
@@ -2987,12 +2994,15 @@ static void ccgSubSurf__syncOpenSubdiv(CCGSubSurf *ss)
 	else {
 		BLI_assert(!"OpenSubdiv initializetion failed, should not happen.");
 	}
+
+#ifdef DUMP_RESULT_GRIDS
+	ccgSubSurf__dumpCoords(ss);
+#endif
 }
 
 #  undef OSD_LOG
-#endif  /* WITH_OPENSUBDIV */
-
-static void ccgSubSurf__syncLegacy(CCGSubSurf *ss)
+#else  /* WITH_OPENSUBDIV */
+static void ccgSubSurf__sync(CCGSubSurf *ss)
 {
 	CCGVert **effectedV;
 	CCGEdge **effectedE;
@@ -3271,26 +3281,12 @@ static void ccgSubSurf__syncLegacy(CCGSubSurf *ss)
 	MEM_freeN(effectedF);
 	MEM_freeN(effectedE);
 	MEM_freeN(effectedV);
-}
-
-static void ccgSubSurf__sync(CCGSubSurf *ss)
-{
-#ifdef WITH_OPENSUBDIV
-	if (ss->meshIFC.simpleSubdiv) {
-		/* Somple subdivisions we currently fallback to legacy code. */
-		ccgSubSurf__syncLegacy(ss);
-	}
-	else {
-		ccgSubSurf__syncOpenSubdiv(ss);
-	}
-#else
-	ccgSubSurf__syncLegacy(ss);
-#endif
 
 #ifdef DUMP_RESULT_GRIDS
-		ccgSubSurf__dumpCoords(ss);
+	ccgSubSurf__dumpCoords(ss);
 #endif
 }
+#endif  /* WITH_OPENSUBDIV */
 
 static void ccgSubSurf__allFaces(CCGSubSurf *ss, CCGFace ***faces, int *numFaces, int *freeFaces)
 {

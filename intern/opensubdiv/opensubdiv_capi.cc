@@ -246,10 +246,25 @@ static OpenSubdiv_ComputeController *openSubdiv_getController(
 	return NULL;
 }
 
+static OpenSubdiv::OsdUtilMesh<OsdVertex>::Scheme get_osd_scheme(int scheme)
+{
+	switch (scheme) {
+		case OPENSUBDIV_SCHEME_CATMARK:
+			return OpenSubdiv::OsdUtilMesh<OsdVertex>::SCHEME_CATMARK;
+		case OPENSUBDIV_SCHEME_BILINEAR:
+			return OpenSubdiv::OsdUtilMesh<OsdVertex>::SCHEME_BILINEAR;
+		case OPENSUBDIV_SCHEME_LOOP:
+			return OpenSubdiv::OsdUtilMesh<OsdVertex>::SCHEME_LOOP;
+		default:
+			assert(!"Wrong subdivision scheme");
+	}
+}
+
 struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     OpenSubdiv_EvaluatorDescr *evaluator_descr,
     int controller_type,
-    int level)
+    int level,
+    int scheme)
 {
 	OpenSubdiv_ComputeController *controller =
 		openSubdiv_getController(controller_type);
@@ -263,7 +278,9 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	topology = (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
 		evaluator_descr);
 
-	if (util_mesh.Initialize(*topology) == false) {
+	if (util_mesh.Initialize(*topology,
+	                         NULL,
+	                         get_osd_scheme(scheme)) == false) {
 		return NULL;
 	}
 

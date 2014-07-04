@@ -1661,7 +1661,7 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 	int useAging;
 
 #ifdef WITH_OPENSUBDIV
-	if (!ccgSubSurf_getSimpleSubdiv(ss)) {
+	{
 		/* TODO(sergey): We currently only support all edges drawing. */
 		ccgSubSurf_prepareGLMesh(ss);
 		ccgSubSurf_drawGLMesh(ss, false);
@@ -1786,7 +1786,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 	int drawcurrent = 0, matnr = -1, shademodel = -1;
 
 #ifdef WITH_OPENSUBDIV
-	if (!ccgSubSurf_getSimpleSubdiv(ss)) {
+	{
 		int matnr, shademodel;
 
 		/* TODO(sergey): This is just for the purposes of tests. */
@@ -3980,9 +3980,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 			bool use_gpu_backend = false;
 
 #ifdef WITH_OPENSUBDIV
-			if (!useSimple) {
-				use_gpu_backend = (flags & SUBSURF_USE_GPU_BACKEND) != 0;
-			}
+			use_gpu_backend = (flags & SUBSURF_USE_GPU_BACKEND) != 0;
 #endif
 
 			if (smd->mCache && (flags & SUBSURF_IS_FINAL_CALC)) {
