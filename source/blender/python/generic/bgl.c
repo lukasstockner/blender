@@ -30,6 +30,8 @@
  * This module is very similar to 'PyOpenGL' which could replace 'bgl' one day.
  */
 
+#define GPU_MANGLE_DEPRECATED 0
+
 #include <Python.h>
 
 #include "bgl.h" /*This must come first */

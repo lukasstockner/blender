@@ -32,6 +32,7 @@
  *  \ingroup gpu
  */
 
+#if 0
 #undef glBegin
 #define glBegin DO_NOT_USE_glBegin
 #undef glEnd
@@ -646,5 +647,6 @@
 #define glLineWidth DO_NOT_USE_glLineWidth
 #undef GL_LINE_SMOOTH
 #define GL_LINE_SMOOTH DO_NOT_USE_GL_LINE_SMOOTH
+#endif
 
 #endif /* _GPU_DEPRECATED_H_ */
