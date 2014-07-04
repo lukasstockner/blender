@@ -563,7 +563,7 @@ void gpu_unlock_buffer_gl(void)
 	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
 
 	if (bufferData->vao != 0)
-		glBindVertexArray(0);
+		gpu_glBindVertexArray(0);
 	else
 		unsetup();
 }
@@ -719,7 +719,7 @@ void gpu_commit_samplers(void)
 	if (common) {
 		GPU_CHECK_NO_ERROR();
 
-		glUniform1iv(
+		gpu_glUniform1iv(
 			common->sampler[0],
 			GPU_IMMEDIATE->format.samplerCount,
 			GPU_IMMEDIATE->format.samplerMap);

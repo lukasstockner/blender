@@ -36,7 +36,28 @@
  * and abstract them away from the rest a bit.
  */
 
-#include <string.h>
+/* my interface */
+#include "GPU_draw.h"
+
+/* internal */
+#include "intern/gpu_profile.h"
+#include "intern/gpu_extensions_intern.h"
+//#include "intern/gpu_raster_intern.h"
+
+/* my library */
+//#include "GPU_colors.h"
+//#include "GPU_common.h"
+#include "GPU_buffers.h"
+#include "GPU_extensions.h"
+//#include "GPU_lighting.h"
+#include "GPU_material.h"
+//#include "GPU_basic.h"
+//#include "GPU_immediate.h"
+//#include "GPU_matrix.h"
+//#include "GPU_state_latch.h"
+//#include "GPU_blender_aspect.h"
+
+/* external */
 
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
@@ -69,15 +90,14 @@
 #include "BKE_scene.h"
 #include "BKE_DerivedMesh.h"
 
-#include "GPU_buffers.h"
-#include "GPU_draw.h"
-#include "GPU_extensions.h"
-#include "GPU_glew.h"
-#include "GPU_material.h"
-
 #include "PIL_time.h"
 
 #include "smoke_API.h"
+
+/* standard */
+
+#include <string.h>
+
 
 extern Material defmaterial; /* from material.c */
 
@@ -258,25 +278,6 @@ void GPU_set_gpu_mipmapping(int gpu_mipmap)
 	if (old_value != GTS.gpu_mipmap) {
 		GPU_free_images();
 	}
-}
-
-static void gpu_generate_mipmap(GLenum target)
-{
-	const bool is_ati = GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY);
-	int target_enabled = 0;
-
-	/* work around bug in ATI driver, need to have GL_TEXTURE_2D enabled
-	 * http://www.opengl.org/wiki/Common_Mistakes#Automatic_mipmap_generation */
-	if (is_ati) {
-		target_enabled = glIsEnabled(target);
-		if (!target_enabled)
-			glEnable(target);
-	}
-
-	glGenerateMipmapEXT(target);
-
-	if (is_ati && !target_enabled)
-		glDisable(target);
 }
 
 void GPU_set_mipmap(int mipmap)
@@ -733,7 +734,7 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float *frect, int 
 			else
 				glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA,  rectw, recth, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
 
-			gpu_generate_mipmap(GL_TEXTURE_2D);
+			gpu_glGenerateMipmap(GL_TEXTURE_2D);
 		}
 		else {
 			if (use_high_bit_depth)
@@ -1005,7 +1006,7 @@ static bool GPU_check_scaled_image(ImBuf *ibuf, Image *ima, float *frect, int x,
 		}
 
 		if (GPU_get_mipmap()) {
-			gpu_generate_mipmap(GL_TEXTURE_2D);
+			gpu_glGenerateMipmap(GL_TEXTURE_2D);
 		}
 		else {
 			ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
@@ -1062,7 +1063,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 			/* we have already accounted for the case where GTS.gpu_mipmap is false
 			 * so we will be using GPU mipmap generation here */
 			if (GPU_get_mipmap()) {
-				gpu_generate_mipmap(GL_TEXTURE_2D);
+				gpu_glGenerateMipmap(GL_TEXTURE_2D);
 			}
 			else {
 				ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
@@ -1095,7 +1096,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 
 		/* see comment above as to why we are using gpu mipmap generation here */
 		if (GPU_get_mipmap()) {
-			gpu_generate_mipmap(GL_TEXTURE_2D);
+			gpu_glGenerateMipmap(GL_TEXTURE_2D);
 		}
 		else {
 			ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
@@ -1889,14 +1890,14 @@ void GPU_state_init(void)
 	int a, x, y;
 	GLubyte pat[32*32];
 	const GLubyte *patc= pat;
-	
+
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
 	glMateriali(GL_FRONT_AND_BACK, GL_SHININESS, 35);
 
 	GPU_default_lights();
-	
+
 	glDepthFunc(GL_LEQUAL);
 	/* scaling matrices */
 	glEnable(GL_NORMALIZE);
@@ -1940,7 +1941,7 @@ void GPU_state_init(void)
 			else pat[a++]= 0x22;
 		}
 	}
-	
+
 	glPolygonStipple(patc);
 
 	glMatrixMode(GL_TEXTURE);
@@ -1951,7 +1952,26 @@ void GPU_state_init(void)
 	glCullFace(GL_BACK);
 	glDisable(GL_CULL_FACE);
 
-	/* calling this makes drawing very slow when AA is not set up in ghost
-	 * on Linux/NVIDIA. */
-	// glDisable(GL_MULTISAMPLE);
+	/* MULTISAMPLE is enabled by GL by default, but Blender needs to disable it by default
+	   it will be enabled only by drawing code that needs it
+	   apparently however, doing that makes drawing very slow when AA is not set up in GHOST on Linux/NVIDIA
+	   so, let's check for that and leave it enabled in that case */
+	if (GLEW_VERSION_1_3 || GLEW_ARB_multisample) {
+		bool disable_ok = true;
+
+		if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_UNIX, GPU_DRIVER_ANY)) {
+			int samples = 0;
+			glGetIntegerv(GL_SAMPLES, &samples);
+
+			if (samples == 0)
+				disable_ok = false; // AA not set up, so it isn't OK to disable
+		}
+
+		if (disable_ok)
+			glDisable(GL_MULTISAMPLE);
+	}
+
+	/* make sure double side isn't used by default and only getting enabled in places where it's
+	 * really needed to prevent different unexpected behaviors like with intel gme965 card (sergey) */
+	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 }

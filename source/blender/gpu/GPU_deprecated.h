@@ -32,6 +32,231 @@
  *  \ingroup gpu
  */
 
+#undef glAttachShader
+#define glAttachShader USE_SHIM_gpu_glAttachShader
+#undef glCompileShader
+#define glCompileShader USE_SHIM_gpu_glCompileShader
+#undef glCreateProgram
+#define glCreateProgram USE_SHIM_gpu_glCreateProgram
+#undef glCreateShader
+#define glCreateShader USE_SHIM_gpu_glCreateShader
+#undef glDeleteShader
+#define glDeleteShader USE_SHIM_gpu_glDeleteShader
+#undef glGetProgramInfoLog
+#define glGetProgramInfoLog USE_SHIM_gpu_glGetProgramInfoLog
+#undef glGetShaderiv
+#define glGetShaderiv USE_SHIM_gpu_glGetShaderiv
+#undef glGetShaderInfoLog
+#define glGetShaderInfoLog USE_SHIM_gpu_glGetShaderInfoLog
+#undef glGetUniformLocation
+#define glGetUniformLocation USE_SHIM_gpu_glGetUniformLocation
+#undef glLinkProgram
+#define glLinkProgram USE_SHIM_gpu_glLinkProgram
+#undef glShaderSource
+#define glShaderSource USE_SHIM_gpu_glShaderSource
+#undef glUniform1i
+#define glUniform1i USE_SHIM_gpu_glUniform1i
+#undef glUniform1f
+#define glUniform1f USE_SHIM_gpu_glUniform1f
+#undef glUniform1iv
+#define glUniform1iv USE_SHIM_gpu_glUniform1iv
+#undef glUniform2iv
+#define glUniform2iv USE_SHIM_gpu_glUniform2iv
+#undef glUniform3iv
+#define glUniform3iv USE_SHIM_gpu_glUniform3iv
+#undef glUniform4iv
+#define glUniform4iv USE_SHIM_gpu_glUniform4iv
+#undef glUniform1fv
+#define glUniform1fv USE_SHIM_gpu_glUniform1fv
+#undef glUniform2fv
+#define glUniform2fv USE_SHIM_gpu_glUniform2fv
+#undef glUniform3fv
+#define glUniform3fv USE_SHIM_gpu_glUniform3fv
+#undef glUniform4fv
+#define glUniform4fv USE_SHIM_gpu_glUniform4fv
+#undef glUniformMatrix3fv
+#define glUniformMatrix3fv USE_SHIM_gpu_glUniformMatrix3fv
+#undef glUniformMatrix4fv
+#define glUniformMatrix4fv USE_SHIM_gpu_glUniformMatrix4fv
+#undef glUseProgram
+#define glUseProgram USE_SHIM_gpu_glUseProgram
+#undef glValidateProgram
+#define glValidateProgram USE_SHIM_gpu_glValidateProgram
+
+#undef glAttachObjectARB
+#define glAttachObjectARB USE_SHIM_gpu_glAttachObject
+#undef glCompileShader
+#define glCompileShader USE_SHIM_gpu_glCompileShader
+#undef glCreateProgramObjectARB
+#define glCreateProgramObjectARB USE_SHIM_gpu_glCreateProgram
+#undef glCreateShaderObjectARB
+#define glCreateShaderObjectARB USE_SHIM_gpu_glCreateShader
+#undef glDeleteObjectARB
+#define glDeleteObjectARB USE_SHIM_gpu_glDeleteShader_or_gpu_glDeleteProgram
+#undef glGetInfoLogARB
+#define glGetInfoLogARB USE_SHIM_gpu_glGetProgramInfoLog_or_gpu_glGetShaderInfoLog
+#undef glGetObjectParameterivARB
+#define glGetObjectParameterivARB USE_SHIM_gpu_glGetShaderiv
+#undef glGetUniformLocationARB
+#define glGetUniformLocationARB USE_SHIM_gpu_glGetUniformLocation
+#undef glLinkProgramARB
+#define glLinkProgramARB USE_SHIM_gpu_glLinkProgram
+#undef glShaderSourceARB
+#define glShaderSourceARB USE_SHIM_gpu_glShaderSource
+#undef glUniform1iARB
+#define glUniform1iARB USE_SHIM_gpu_glUniform1i
+#undef glUniform1fARB
+#define glUniform1fARB USE_SHIM_gpu_glUniform1f
+#undef glUniform1ivARB
+#define glUniform1ivARB USE_SHIM_gpu_glUniform1iv
+#undef glUniform2ivARB
+#define glUniform2ivARB USE_SHIM_gpu_glUniform2iv
+#undef glUniform3ivARB
+#define glUniform3ivARB USE_SHIM_gpu_glUniform3iv
+#undef glUniform4ivARB
+#define glUniform4ivARB USE_SHIM_gpu_glUniform4iv
+#undef glUniform1fvARB
+#define glUniform1fvARB USE_SHIM_gpu_glUniform1fv
+#undef glUniform2fvARB
+#define glUniform2fvARB USE_SHIM_gpu_glUniform2fv
+#undef glUniform3fvARB
+#define glUniform3fvARB USE_SHIM_gpu_glUniform3fv
+#undef glUniform4fvARB
+#define glUniform4fvARB USE_SHIM_gpu_glUniform4fv
+#undef glUniformMatrix3fvARB
+#define glUniformMatrix3fvARB USE_SHIM_gpu_glUniformMatrix3fv
+#undef glUniformMatrix4fvARB
+#define glUniformMatrix4fvARB USE_SHIM_gpu_glUniformMatrix4fv
+#undef glUseProgramObjectARB
+#define glUseProgramObjectARB USE_SHIM_gpu_glUseProgram
+#undef glValidateProgramARB
+#define glValidateProgramARB USE_SHIM_gpu_glValidateProgram
+
+#undef glBindAttribLocation
+#define glBindAttribLocation USE_SHIM_gpu_glBindAttribLocation
+#undef glGetAttribLocation
+#define glGetAttribLocation USE_SHIM_gpu_glGetAttribLocation
+
+#undef glBindAttribLocationARB
+#define glBindAttribLocationARB USE_SHIM_gpu_glBindAttribLocation
+#undef glGetAttribLocationARB
+#define glGetAttribLocationARB USE_SHIM_gpu_glGetAttribLocation
+
+#undef glDeleteProgram
+#define glDeleteProgram USE_SHIM_gpu_glDeleteProgram
+#undef glDisableVertexAttribArray
+#define glDisableVertexAttribArray USE_SHIM_gpu_glDisableVertexAttribArray
+#undef glEnableVertexAttribArray
+#define glEnableVertexAttribArray USE_SHIM_gpu_glEnableVertexAttribArray
+#undef glGetProgramiv
+#define glGetProgramiv USE_SHIM_gpu_glGetProgramiv
+#undef glVertexAttribPointer
+#define glVertexAttribPointer USE_SHIM_gpu_glVertexAttribPointer
+
+//#undef glDeleteObjectARB
+//#define glDeleteObjectARB USE_SHIM_gpu_glDeleteShader_or_gpu_glDeleteProgram
+#undef glDisableVertexAttribArrayARB
+#define glDisableVertexAttribArrayARB USE_SHIM_gpu_glDisableVertexAttribArray
+#undef glEnableVertexAttribArrayARB
+#define glEnableVertexAttribArrayARB USE_SHIM_gpu_glEnableVertexAttribArray
+#undef glGetProgramivARB
+#define glGetProgramiv USE_SHIM_gpu_glGetProgramiv
+#undef glVertexAttribPointerARB
+#define glVertexAttribPointerARB USE_SHIM_gpu_glVertexAttribPointer
+
+#undef glBindBuffer
+#define glBindBuffer USE_SHIM_gpu_glBindBuffer
+#undef glBufferData
+#define glBufferData USE_SHIM_gpu_glBufferData
+#undef glBufferSubData
+#define glBufferSubData USE_SHIM_gpu_glBufferSubData
+#undef glDeleteBuffers
+#define glDeleteBuffers USE_SHIM_gpu_glDeleteBuffers
+#undef glGenBuffers
+#define glGenBuffers USE_SHIM_gpu_glGenBuffers
+
+#undef glBindBufferARB
+#define glBindBufferARB USE_SHIM_gpu_glBindBuffer
+#undef glBufferDataARB
+#define glBufferDataARB USE_SHIM_gpu_glBufferData
+#undef glBufferSubDataARB
+#define glBufferSubDataARB USE_SHIM_gpu_glBufferSubData
+#undef glDeleteBuffersARB
+#define glDeleteBuffersARB USE_SHIM_gpu_glDeleteBuffers
+#undef glGenBuffersARB
+#define glGenBuffersARB USE_SHIM_gpu_glGenBuffers
+
+#undef glMapBuffer
+#define glMapBuffer USE_SHIM_gpu_glMapBuffer
+#undef glUnmapBuffer
+#define glUnmapBuffer USE_SHIM_gpu_glUnmapBuffer
+
+#undef glMapBufferARB
+#define glMapBufferARB USE_SHIM_gpu_glMapBuffer
+#undef glUnmapBufferARB
+#define glUnmapBufferARB USE_SHIM_gpu_glUnmapBuffer
+
+#undef glMapBufferOES
+#define glMapBufferOES USE_SHIM_gpu_glMapBuffer
+#undef glUnmapBufferOES
+#define glUnmapBufferOES USE_SHIM_gpu_glUnmapBuffer
+
+#undef glBindFramebuffer
+#define glBindFramebuffer USE_SHIM_gpu_glBindFramebuffer
+#undef glCheckFramebufferStatus
+#define glCheckFramebufferStatus USE_SHIM_gpu_glCheckFramebufferStatus
+#undef glDeleteFramebuffers
+#define glDeleteFramebuffers USE_SHIM_gpu_glDeleteFramebuffers
+#undef glFramebufferTexture2D
+#define glFramebufferTexture2D USE_SHIM_gpu_glFramebufferTexture2D
+#undef glGenFramebuffers
+#define glGenFramebuffers USE_SHIM_gpu_glGenFramebuffers
+
+#undef glBindFramebufferEXT
+#define glBindFramebufferEXT USE_SHIM_gpu_glBindFramebuffer
+#undef glCheckFramebufferStatusEXT
+#define glCheckFramebufferStatusEXT USE_SHIM_gpu_glCheckFramebufferStatus
+#undef glDeleteFramebuffersEXT
+#define glDeleteFramebuffersEXT USE_SHIM_gpu_glDeleteFramebuffers
+#undef glFramebufferTexture2DEXT
+#define glFramebufferTexture2DEXT USE_SHIM_gpu_glFramebufferTexture2D
+#undef glGenFramebuffersEXT
+#define glGenFramebuffersEXT USE_SHIM_gpu_glGenFramebuffers
+
+#undef glBindFramebufferOES
+#define glBindFramebufferOES USE_SHIM_gpu_glBindFramebuffer
+#undef glCheckFramebufferStatusOES
+#define glCheckFramebufferStatusOES USE_SHIM_gpu_glCheckFramebufferStatus
+#undef glDeleteFramebuffersOES
+#define glDeleteFramebuffersOES USE_SHIM_gpu_glDeleteFramebuffers
+#undef glFramebufferTexture2DOES
+#define glFramebufferTexture2DOES USE_SHIM_gpu_glFramebufferTexture2D
+#undef glGenFramebuffersOES
+#define glGenFramebuffersOES USE_SHIM_gpu_glGenFramebuffers
+
+#undef glBindVertexArray
+#define glBindVertexArray USE_SHIM_gpu_glBindVertexArray
+#undef glDeleteVertexArrays
+#define glDeleteVertexArrays USE_SHIM_gpu_glDeleteVertexArrays
+#undef glGenVertexArrays
+#define glGenVertexArrays USE_SHIM_gpu_glGenVertexArrays
+
+#undef glBindVertexArrayOES
+#define glBindVertexArrayOES USE_SHIM_gpu_glBindVertexArray
+#undef glDeleteVertexArraysOES
+#define glDeleteVertexArraysOES USE_SHIM_gpu_glDeleteVertexArrays
+#undef glGenVertexArraysOES
+#define glGenVertexArraysOES USE_SHIM_gpu_glGenVertexArrays
+
+#undef glGenerateMipmap
+#define glGenerateMipmap USE_SHIM_gpu_glGenerateMipmap
+
+#undef glGenerateMipmapEXT
+#define glGenerateMipmapEXT USE_SHIM_gpu_glGenerateMipmapEXT
+
+#undef glGenerateMipmapOES
+#define glGenerateMipmapOES USE_SHIM_gpu_glGenerateMipmapOES
+
 #if 0
 #undef glBegin
 #define glBegin DO_NOT_USE_glBegin

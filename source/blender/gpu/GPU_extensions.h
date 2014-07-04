@@ -59,7 +59,7 @@ typedef struct GPUShader GPUShader;
 /* GPU extensions support */
 
 void GPU_extensions_disable(void);
-int GPU_print_error(const char *str);
+bool GPU_print_error(const char *str);
 
 int GPU_glsl_support(void);
 int GPU_non_power_of_two_support(void);
@@ -147,7 +147,7 @@ unsigned char *GPU_texture_dup_pixels(const GPUTexture *tex, size_t *count_out);
  *   be called before rendering to the window framebuffer again */
 
 GPUFrameBuffer *GPU_framebuffer_create(void);
-int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err_out[256]);
+bool GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err_out[256]);
 void GPU_framebuffer_texture_detach(GPUFrameBuffer *fb, GPUTexture *tex);
 void GPU_framebuffer_texture_bind(GPUFrameBuffer *fb, GPUTexture *tex, int w, int h);
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *fb, GPUTexture *tex);
@@ -172,13 +172,13 @@ int GPU_offscreen_height(GPUOffScreen *ofs);
  * - only for fragment shaders now
  * - must call texture bind before setting a texture as uniform! */
 
-GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *libcode, const char *defines);
+GPUShader *GPU_shader_create(const char* nickname, const char *vertexcode, const char *fragcode, const char *libcode, const char *defines);
+
 void GPU_shader_free(GPUShader *shader);
 
 void GPU_shader_bind(GPUShader *shader);
 void GPU_shader_unbind(void);
 
-int GPU_shader_get_attrib(GPUShader *shader, const char *name);
 int GPU_shader_get_uniform(GPUShader *shader, const char *name);
 void GPU_shader_uniform_vector(GPUShader *shader, int location, int length,
 	int arraysize, float *value);

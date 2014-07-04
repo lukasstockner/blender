@@ -119,9 +119,9 @@ void gpu_common_get_symbols(GPUcommon* common, GPUShader* gpushader)
 	int i;
 
 	/* Attributes */
-	common->vertex = GPU_shader_get_attrib(gpushader, "b_Vertex");
-	common->color  = GPU_shader_get_attrib(gpushader, "b_Color");
-	common->normal = GPU_shader_get_attrib(gpushader, "b_Normal");
+	common->vertex = GPU_shader_get_attribute(gpushader, "b_Vertex");
+	common->color  = GPU_shader_get_attribute(gpushader, "b_Color");
+	common->normal = GPU_shader_get_attribute(gpushader, "b_Normal");
 
 	/* Transformation */
 	common->modelview_matrix            = GPU_shader_get_uniform(gpushader, "b_ModelViewMatrix");
@@ -135,7 +135,7 @@ void gpu_common_get_symbols(GPUcommon* common, GPUShader* gpushader)
 		char symbol[100];
 
 		sprintf(symbol, "b_MultiTexCoord%d", i);
-		common->multi_texcoord[i] = GPU_shader_get_attrib(gpushader, symbol);
+		common->multi_texcoord[i] = GPU_shader_get_attribute(gpushader, symbol);
 
 		sprintf(symbol, "b_TextureMatrix[%d]", i);
 		common->texture_matrix[i] = GPU_shader_get_uniform(gpushader, symbol);

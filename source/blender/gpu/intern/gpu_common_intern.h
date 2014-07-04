@@ -49,11 +49,11 @@ struct DynStr;
 /* GPUShader */
 
 struct GPUShader {
-	unsigned int object;   /* handle for full shader     */
-	unsigned int vertex;   /* handle for vertex shader   */
-	unsigned int fragment; /* handle for fragment shader */
-	unsigned int lib;      /* handle for library shader  */
-	int totattrib;         /* total number of attributes */
+	GLuint object;   /* handle for full shader     */
+	GLuint vertex;   /* handle for vertex shader   */
+	GLuint fragment; /* handle for fragment shader */
+	GLuint lib;      /* handle for library shader  */
+	int totattrib;   /* total number of attributes */
 };
 
 

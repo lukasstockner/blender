@@ -80,7 +80,9 @@ void GPU_init(void)
 	gpu_basic_init();
 	gpu_blender_aspect_init();
 	gpu_clipping_init();
+#endif
 	gpu_codegen_init();
+#if 0
 	gpu_common_init();
 	gpu_font_init();
 	gpu_immediate_init();
@@ -129,7 +131,9 @@ void GPU_exit(void)
 	gpu_immediate_exit();
 	gpu_font_exit();
 	gpu_common_exit();
+#endif
 	gpu_codegen_exit();
+#if 0
 	gpu_clipping_exit();
 	gpu_blender_aspect_exit();
 	gpu_basic_exit();

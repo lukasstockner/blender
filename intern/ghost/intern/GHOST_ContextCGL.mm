@@ -154,11 +154,6 @@ GHOST_TSuccess GHOST_ContextCGL::activateDrawingContext()
 
 		activateGLEW();
 
-		// Disable AA by default
-		// XXX jwilkins: shouldn't this be somewhere else?
-		if (m_numOfAASamples > 0)
-			glDisable(GL_MULTISAMPLE_ARB);
-
 		[pool drain];
 		return GHOST_kSuccess;
 	}
