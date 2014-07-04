@@ -207,6 +207,12 @@ public:
 	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
 
 	/**
+	 * Gets the current swap interval for swapBuffers.
+	 * \return Number of AA Samples (0 if there is no multisample buffer)
+	 */
+	virtual GHOST_TUns16 getNumOfAASamples();
+
+	/**
 	 * Tells if the ongoing drag'n'drop object can be accepted upon mouse drop
 	 */
 	virtual void setAcceptDragOperation(bool canAccept);

@@ -131,6 +131,11 @@ GHOST_TSuccess GHOST_Window::getSwapInterval(int& intervalOut)
 	return m_context->getSwapInterval(intervalOut);
 }
 
+GHOST_TUns16 GHOST_Window::getNumOfAASamples()
+{
+	return m_context->getNumOfAASamples();
+}
+
 GHOST_TSuccess GHOST_Window::activateDrawingContext()
 {
 	return m_context->activateDrawingContext();
