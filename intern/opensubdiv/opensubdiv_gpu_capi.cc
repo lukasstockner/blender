@@ -138,6 +138,10 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
 	if (!fill_quads) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 #ifndef OPENSUBDIV_LEGACY_DRAW
+		/* TODO(sergey): For some reason this doesn't work on
+		 * my Intel card and gives random color instead of the
+		 * one set by glColor().
+		 */
 		glUseProgram(wireframe_program);
 #endif
 	}
@@ -145,6 +149,11 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
 		int model;
 		glGetIntegerv(GL_SHADE_MODEL, &model);
 		if (model == GL_FLAT) {
+			/* TODO(sergey): This is rather just to make stuff committable,
+			 * for sure either we'll find a proper solution for flat shading
+			 * without using GLSL or we'll always use GLSL and try to hook it
+			 * up to the GPU_material pipeline.
+			 */
 			glUseProgram(flat_fill_program);
 		}
 #ifndef OPENSUBDIV_LEGACY_DRAW
