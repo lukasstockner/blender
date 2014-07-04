@@ -70,7 +70,7 @@ void openSubdiv_osdGLMeshUpdateVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh,
                                             int num_verts);
 void openSubdiv_osdGLMeshRefine(struct OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLMeshSynchronize(struct OpenSubdiv_GLMesh *gl_mesh);
-void openSubdiv_osdGLMeshDisplay(struct OpenSubdiv_GLMesh *gl_mesh);
+void openSubdiv_osdGLMeshDisplay(struct OpenSubdiv_GLMesh *gl_mesh, int fill_quads);
 void openSubdiv_osdGLMeshBindvertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh);
 
 int openSubdiv_getAvailableControllers(void);

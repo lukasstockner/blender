@@ -1662,10 +1662,9 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 
 #ifdef WITH_OPENSUBDIV
 	if (!ccgSubSurf_getSimpleSubdiv(ss)) {
-		/* TODO(sergey): Support edge drawing. */
-		(void) dm;
-		(void) drawLooseEdges;
-		(void) drawAllEdges;
+		/* TODO(sergey): We currently only support all edges drawing. */
+		ccgSubSurf_prepareGLMesh(ss);
+		ccgSubSurf_drawGLMesh(ss, false);
 		return;
 	}
 #endif
@@ -1809,7 +1808,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		glShadeModel(shademodel);
 
 		ccgSubSurf_prepareGLMesh(ss);
-		ccgSubSurf_drawGLMesh(ss);
+		ccgSubSurf_drawGLMesh(ss, true);
 
 		/* We're done with drawing if drawing happens using OpenSubdiv. */
 		return;

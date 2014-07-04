@@ -111,7 +111,7 @@ static GLuint linkProgram(const char *define)
 }
 #endif  /* OPENSUBDIV_LEGACY_DRAW */
 
-void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh)
+void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
 {
 #ifndef OPENSUBDIV_LEGACY_DRAW
 	static GLuint quad_fill_program = 0;
@@ -134,6 +134,10 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh)
 	glUseProgram(quad_fill_program);
 #endif
 
+	if (!fill_quads) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
+
 	for (int i = 0; i < (int)patches.size(); ++i) {
 		OpenSubdiv::OsdDrawContext::PatchArray const &patch = patches[i];
 		OpenSubdiv::OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
@@ -146,6 +150,14 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh)
 			               NULL);
 		}
 	}
+
+	/* Restore state. */
+	if (!fill_quads) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
 	glBindVertexArray(0);
+#ifndef OPENSUBDIV_LEGACY_DRAW
+	/* TODO(sergey): Store previously used program and roll back to it? */
 	glUseProgram(0);
+#endif
 }
