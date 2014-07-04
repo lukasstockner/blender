@@ -1258,7 +1258,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	int i;
 	
 	keymap = WM_keymap_find(keyconf, "Curve", 0, 0);
-	keymap->poll = paintcurve_poll;
+	keymap->poll = paint_curve_poll;
 
 	paint_keymap_curve(keymap);
 

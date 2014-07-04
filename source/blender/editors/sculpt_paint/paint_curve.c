@@ -51,14 +51,14 @@
 #include "paint_intern.h"
 
 
-int paintcurve_poll(bContext *C)
+int paint_curve_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 	Paint *p;
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	SpaceImage *sima;
 
-	if (rv3d && !(ob && (ob->mode & OB_MODE_ALL_PAINT)))
+	if (rv3d && !(ob && ((ob->mode & OB_MODE_ALL_PAINT) != 0)))
 		return false;
 
 	sima = CTX_wm_space_image(C);
@@ -185,7 +185,7 @@ void PAINTCURVE_OT_new(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = paintcurve_new_exec;
-	ot->poll = paintcurve_poll;
+	ot->poll = paint_curve_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -275,7 +275,7 @@ void PAINTCURVE_OT_add_point(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = paintcurve_add_point_invoke;
 	ot->exec = paintcurve_add_point_exec;
-	ot->poll = paintcurve_poll;
+	ot->poll = paint_curve_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
@@ -356,7 +356,7 @@ void PAINTCURVE_OT_delete_point(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = paintcurve_delete_point_exec;
-	ot->poll = paintcurve_poll;
+	ot->poll = paint_curve_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
@@ -478,7 +478,7 @@ void PAINTCURVE_OT_select(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = paintcurve_select_point_invoke;
 	ot->exec = paintcurve_select_point_exec;
-	ot->poll = paintcurve_poll;
+	ot->poll = paint_curve_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
@@ -530,7 +530,7 @@ void PAINTCURVE_OT_draw(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = paintcurve_draw_exec;
-	ot->poll = paintcurve_poll;
+	ot->poll = paint_curve_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_UNDO;

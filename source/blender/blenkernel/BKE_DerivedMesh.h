@@ -595,6 +595,8 @@ void DM_ensure_tessface(DerivedMesh *dm);
 void DM_update_tessface_data(DerivedMesh *dm);
 
 void DM_update_materials(DerivedMesh *dm, struct Object *ob);
+struct MTFace *DM_active_paint_uvlayer(DerivedMesh *dm, int mat_nr);
+
 /** interpolates vertex data from the vertices indexed by src_indices in the
  * source mesh using the given weights and stores the result in the vertex
  * indexed by dest_index in the dest mesh

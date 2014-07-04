@@ -974,10 +974,8 @@ typedef struct UnifiedPaintSettings {
 
 	/* unified brush color */
 	float rgb[3];
-	float pad;
 	/* unified brush secondary color */
 	float secondary_rgb[3];
-	float pad2;
 
 	/* user preferences for sculpt and paint */
 	int flag;

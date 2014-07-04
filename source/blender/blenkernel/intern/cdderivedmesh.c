@@ -737,19 +737,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 			if (uvflag & DM_DRAW_USE_TEXPAINT_UV) {
 				if (mf->mat_nr != mat_nr_cache) {
-					if (dm->totmat > 1) {
-						int mat_i = mf->mat_nr;
-						if (dm->mat[mat_i] && dm->mat[mat_i]->texpaintslot &&
-						    dm->mat[mat_i]->texpaintslot[dm->mat[mat_i]->paint_active_slot].uvname[0])
-						{
-							tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE,
-							                                     dm->mat[mat_i]->texpaintslot[dm->mat[mat_i]->paint_active_slot].uvname);
-						}
-						else
-							tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
-					}
-					else
-						tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+					tf_base = DM_active_paint_uvlayer(dm, mf->mat_nr);
 
 					mat_nr_cache = mf->mat_nr;
 				}

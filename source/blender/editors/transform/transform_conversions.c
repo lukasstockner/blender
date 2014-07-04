@@ -6802,7 +6802,6 @@ static void MaskPointToTransData(Scene *scene, MaskSplinePoint *point,
 	}
 }
 
-
 static void createTransMaskingData(bContext *C, TransInfo *t)
 {
 	Scene *scene = CTX_data_scene(C);

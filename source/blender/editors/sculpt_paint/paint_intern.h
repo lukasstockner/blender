@@ -223,8 +223,10 @@ void PAINT_OT_face_select_reveal(struct wmOperatorType *ot);
 
 void PAINT_OT_vert_select_all(struct wmOperatorType *ot);
 void PAINT_OT_vert_select_ungrouped(struct wmOperatorType *ot);
+
 int vert_paint_poll(struct bContext *C);
 int mask_paint_poll(struct bContext *C);
+int paint_curve_poll(struct bContext *C);
 
 int facemask_paint_poll(struct bContext *C);
 void flip_v3_v3(float out[3], const float in[3], const char symm);
@@ -267,7 +269,6 @@ void PAINT_OT_mask_flood_fill(struct wmOperatorType *ot);
 void PAINT_OT_mask_lasso_gesture(struct wmOperatorType *ot);
 
 /* paint_curve.c */
-int paintcurve_poll(struct bContext *C);
 void PAINTCURVE_OT_new(struct wmOperatorType *ot);
 void PAINTCURVE_OT_add_point(struct wmOperatorType *ot);
 void PAINTCURVE_OT_delete_point(struct wmOperatorType *ot);

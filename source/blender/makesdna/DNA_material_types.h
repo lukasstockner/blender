@@ -85,7 +85,7 @@ typedef struct GameSettings {
 
 typedef struct TexPaintSlot {
 	struct Image *ima; /* image to be painted on */
-	char uvname[64]; /* customdata index for uv layer */
+	char uvname[64]; /* customdata index for uv layer, MAX_NAME*/
 } TexPaintSlot;
 
 typedef struct Material {
@@ -142,13 +142,6 @@ typedef struct Material {
 	/* mapping */
 	char mapflag, pad;
 
-	/* texture painting */
-	short paint_active_slot;
-	short paint_clone_slot;
-	int tot_slots;
-	struct TexPaintSlot *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
-	                                    * with refresh_texpaint_image_cache */
-
 	/* shaders */
 	short diff_shader, spec_shader;
 	float roughness, refrac;
@@ -192,8 +185,13 @@ typedef struct Material {
 	short index;            /* custom index for render passes */
 
 	short vcol_alpha;
-	short pad4[3];
 
+	/* texture painting */
+	short paint_active_slot;
+	short paint_clone_slot;
+	short tot_slots;
+	struct TexPaintSlot *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
+	                                    * with refresh_texpaint_image_cache */
 	ListBase gpumaterial;		/* runtime */
 } Material;
 

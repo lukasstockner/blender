@@ -37,6 +37,7 @@
 
 #include "DNA_cloth_types.h"
 #include "DNA_key_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -509,6 +510,28 @@ void DM_update_materials(DerivedMesh *dm, Object *ob)
 	}
 }
 
+MTFace *DM_active_paint_uvlayer(DerivedMesh *dm, int mat_nr)
+{
+	MTFace *tf_base;
+
+	BLI_assert(mat_nr < dm->totmat);
+
+	if (dm->mat[mat_nr] && dm->mat[mat_nr]->texpaintslot &&
+	    dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname[0])
+	{
+		tf_base = CustomData_get_layer_named(&dm->faceData, CD_MTFACE,
+		                                     dm->mat[mat_nr]->texpaintslot[dm->mat[mat_nr]->paint_active_slot].uvname);
+		/* This can fail if we have changed the name in the UV layer list and have assigned the old name in the material
+			 * texture slot.*/
+		if (!tf_base)
+			tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+	}
+	else {
+		tf_base = CustomData_get_layer(&dm->faceData, CD_MTFACE);
+	}
+
+	return tf_base;
+}
 
 void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 {
