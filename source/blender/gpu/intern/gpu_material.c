@@ -212,10 +212,10 @@ static bool GPU_material_construct_end(GPUMaterial *material)
 			&material->attribs, &material->builtins, material->ma->id.name);
 
 		if (!material->pass)
-			return 0;
+			return false;
 
 		gpu_material_set_attrib_id(material);
-		
+
 		shader = GPU_pass_shader(material->pass);
 
 		if (material->builtins & GPU_VIEW_MATRIX)
@@ -230,6 +230,8 @@ static bool GPU_material_construct_end(GPUMaterial *material)
 			material->obcolloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_OBCOLOR));
 		if (material->builtins & GPU_AUTO_BUMPSCALE)
 			material->obautobumpscaleloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_AUTO_BUMPSCALE));
+
+		return true;
 	}
 	else {
 		return false;
