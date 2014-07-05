@@ -525,6 +525,13 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	if (MEM_get_memory_blocks_in_use() != 0) {
 		printf("Error: Not freed memory blocks: %d\n", MEM_get_memory_blocks_in_use());
 		MEM_printmemlist();
+#ifdef DEBUG
+#ifdef WIN32
+		system("pause");
+#else
+		system("read -p \"Press any key to continue ...\" -n 1");
+#endif
+#endif
 	}
 	wm_autosave_delete();
 
