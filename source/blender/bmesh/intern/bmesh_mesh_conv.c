@@ -566,7 +566,7 @@ BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
 	}
 }
 
-void BM_mesh_bm_to_me(BMesh *bm, Mesh *me, bool do_tessface)
+void BM_mesh_bm_to_me(BMesh *bm, Mesh *me, bool do_tessface, bool do_keys)
 {
 	MLoop *mloop;
 	MPoly *mpoly;
@@ -814,7 +814,7 @@ void BM_mesh_bm_to_me(BMesh *bm, Mesh *me, bool do_tessface)
 
 	/* see comment below, this logic is in twice */
 
-	if (me->key) {
+	if (me->key && do_keys) {
 		const int cd_shape_keyindex_offset = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
 
 		KeyBlock *currkey;

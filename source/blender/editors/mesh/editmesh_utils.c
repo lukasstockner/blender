@@ -393,7 +393,7 @@ void EDBM_mesh_load(Object *ob)
 	Mesh *me = ob->data;
 	BMesh *bm = me->edit_btmesh->bm;
 
-	BM_mesh_bm_to_me(bm, me, false);
+	BM_mesh_bm_to_me(bm, me, false, true);
 
 #ifdef USE_TESSFACE_DEFAULT
 	BKE_mesh_tessface_calc(me);
@@ -608,7 +608,7 @@ void EDBM_commit_scratch_to_active(Object *ob, Scene *s)
 		BKE_editmesh_tessface_calc(em);
 	}
 	else {
-		/* update scratch from editdata */
+		/* update scratch from editdata */ 
 		BKE_key_editdata_to_scratch(ob, true);
 		/* faster keyblock recalc */
 		recalc_keyblocks_from_scratch(ob);
@@ -623,13 +623,11 @@ void EDBM_update_scratch_from_active(Object *ob)
 	KeyBlock *oldorigin = k->scratch.origin;
 	KeyBlock *neworigin = BKE_keyblock_from_object(ob);
 
-	BLI_assert(oldorigin != neworigin);
-
 	k->scratch.origin = neworigin;
 	if (oldorigin->totelem != neworigin->totelem) {
 		if (k->scratch.data) {
 			MEM_freeN(k->scratch.data);
-			k->scratch.data = MEM_mallocN(sizeof(float) * 3 * neworigin->totelem, "scratch keyblock data");
+			k->scratch.data = MEM_mallocN(sizeof(float) * 3 * neworigin->totelem, __func__);
 		}
 	}
 	/* neworigin -> scratch */
@@ -678,7 +676,7 @@ bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 
 		EDBM_mesh_load(obedit);
 
-		if (do_free) {
+		if (do_free && k->scratch.data) {
 			MEM_freeN(k->scratch.data);
 			k->scratch.data = NULL;
 		}
@@ -720,7 +718,6 @@ void EDBM_handle_active_shape_update(Object *ob, Scene *s)
 	/* update shape number on bmesh */
 	em->bm->shapenr = ob->shapenr;
 }
-
 
 
 /**************-------------- Undo ------------*****************/
@@ -770,12 +767,12 @@ static void *editbtMesh_to_undoMesh(void *emv, void *obdata)
 	}
 
 	/* BM_mesh_validate(em->bm); */ /* for troubleshooting */
-	BM_mesh_bm_to_me(em->bm, &um->me, false);
+	BM_mesh_bm_to_me(em->bm, &um->me, false, false);
 
 	um->selectmode = em->selectmode;
 	um->shapenr = em->bm->shapenr;
 
-	return um;
+ 	return um;
 }
 
 static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *obdata)
@@ -784,11 +781,12 @@ static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *obdata)
 	Object *ob = em->ob;
 	UndoMesh *um = umv;
 	BMesh *bm;
-	Key *k = ((Mesh *)obdata)->key;
+	Mesh *me = obdata;
+	Key *k = me->key;
 
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(&um->me);
 
-	em->bm->shapenr = um->shapenr;
+	ob->shapenr = em->bm->shapenr = um->shapenr;
 
 	EDBM_mesh_free(em);
 
@@ -803,53 +801,13 @@ static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *obdata)
 	bm->selectmode = um->selectmode;
 	em->ob = ob;
 
-	/* T35170: restore the active key on the RealMesh; otherwise 'fake' offset propagation
-	* happens if the active is a basis for any other. */
-	if (k && k->type == KEY_RELATIVE) {
-		float (*kbco)[3];
-		BMIter iter;
-		BMVert *v;
-		int *key_v_index;
-		bool is_basis = false;
-		KeyBlock *act_kb = BLI_findlink(&k->block, ob->shapenr - 1),
-			*kb;
-		/* since we can't add or remove or reorder keyblocks in editmode
-		* it's safe to assume shapenr from restored bmesh and keyblock indeces
-		* are in sync. */
-
-		/* check if active key is a base to any other */
-		LISTBASE_ITER_FWD(k->block, kb) {
-			if (kb == act_kb) /* it's the current key */
-				continue;
-			/* ob->shapenr points to the current key atm*/
-			if (kb->relative == ob->shapenr - 1) {
-				is_basis = true;
-				break;
-			}
-		}
-
-		/* if it is, let's patch the current mesh key block to its restored value. Otherwise,
-		* the offsets won't be calculated and it won't matter */
-		if (is_basis) {
-			if (act_kb->totelem != bm->totvert) {
-				/* the current mesh has some extra/missing verts compared to the undo, adjust */
-				MEM_freeN(act_kb->data);
-				act_kb->data = MEM_mallocN(sizeof(float) * 3 * bm->totvert, "shape key coords");
-				act_kb->totelem = bm->totvert;
-			}
-
-			BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
-				key_v_index = CustomData_bmesh_get(&bm->vdata, v->head.data, CD_SHAPE_KEYINDEX);
-				kbco = act_kb->data;
-				copy_v3_v3(kbco[*key_v_index], v->co);
-			}
-		}
+	/* restore realmesh keyblocks */
+	if (um->me.key) {
+		BKE_key_overwrite_data(um->me.key, me->key);
+		BKE_key_init_scratch(ob);
+		EDBM_update_scratch_from_active(ob);
 	}
-
-	ob->shapenr = um->shapenr;
-
-	BKE_key_init_scratch(ob);
-
+	
 	MEM_freeN(em_tmp);
 }
 

@@ -186,6 +186,48 @@ Key *BKE_key_copy(Key *key)
 	return keyn;
 }
 
+void BKE_key_overwrite_data(Key *from, Key *to)
+{
+	KeyBlock *kbt, *kbf;
+
+	LISTBASE_ITER_FWD(to->block, kbt) {
+		if (kbt->data)
+			MEM_freeN(kbt->data);
+	}
+
+	if (to->scratch.data) {
+		MEM_freeN(to->scratch.data);
+		to->scratch.data = NULL;
+	}
+
+	if (from->scratch.data) {
+		to->scratch.data = MEM_dupallocN(from->scratch.data);
+	}
+
+	BLI_freelistN(&to->block);
+	BLI_duplicatelist(&to->block, &from->block);
+
+	kbf = from->block.first;
+	kbt = to->block.first;
+
+	while (kbf) {
+		if (kbf->data) {
+			kbt->data = MEM_dupallocN(kbf->data);
+		}
+		if (kbf == from->refkey) to->refkey = kbt;
+		if (kbf == from->scratch.origin) to->scratch.origin = kbt;
+
+		kbf = kbf->next;
+		kbt = kbt->next;
+	}
+
+	to->mix_mode = from->mix_mode;
+	to->type = from->type;
+	to->slurph = from->slurph;
+	to->ctime = from->ctime;
+	to->uidgen = from->uidgen;
+}
+
 
 Key *BKE_key_copy_nolib(Key *key)
 {
@@ -2085,7 +2127,6 @@ float    *BKE_keyblock_get_active_value(Object *ob, KeyBlock *kb)
 	else return &kb->curval;
 }
 
-
 /* ================== Scratch stuff ======================  */
 
 void BKE_key_init_scratch(Object *ob) 
@@ -2094,7 +2135,7 @@ void BKE_key_init_scratch(Object *ob)
 	KeyBlock *kb = BKE_keyblock_from_object(ob);
 	if (key && kb && key->totkey > 0) {
 		key->scratch.origin = kb;
-		key->scratch.data = MEM_mallocN(key->elemsize * kb->totelem, "scratch keyblock data");
+		key->scratch.data = MEM_mallocN(key->elemsize * kb->totelem, __func__);
 		memcpy(key->scratch.data, kb->data, key->elemsize * kb->totelem);
 	}
 }

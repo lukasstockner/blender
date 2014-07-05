@@ -41,6 +41,6 @@ char BM_mesh_cd_flag_from_bmesh(BMesh *bm);
 
 void BM_mesh_bm_from_me(BMesh *bm, struct Mesh *me,
                         const bool calc_face_normal, const bool set_key, int act_key_nr);
-void BM_mesh_bm_to_me(BMesh *bm, struct Mesh *me, bool do_tessface);
+void BM_mesh_bm_to_me(BMesh *bm, struct Mesh *me, bool do_tessface, bool do_shapes);
 
 #endif /* __BMESH_MESH_CONV_H__ */

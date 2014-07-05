@@ -54,6 +54,7 @@
 #include "BKE_texture.h"
 #include "BKE_main.h"
 #include "BKE_editmesh.h"
+#include "BKE_key.h"
 
 #include "BLF_translation.h"
 
@@ -2091,32 +2092,22 @@ static int edbm_blend_from_shape_exec(bContext *C, wmOperator *op)
 static EnumPropertyItem *shape_itemf(bContext *C, PointerRNA *UNUSED(ptr),  PropertyRNA *UNUSED(prop), bool *r_free)
 {	
 	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em;
 	EnumPropertyItem *item = NULL;
-	int totitem = 0;
+	Key *k = BKE_key_from_object(obedit);
+	KeyBlock *kb;
+	int totitem = 0, i;
 
-	if ((obedit && obedit->type == OB_MESH) &&
-	    (em = BKE_editmesh_from_object(obedit)) &&
-	    CustomData_has_layer(&em->bm->vdata, CD_SHAPEKEY))
-	{
-		EnumPropertyItem tmp = {0, "", 0, "", ""};
-		int a;
+	if (obedit && obedit->type == OB_MESH && BKE_keyblock_from_object(obedit)) {
+		EnumPropertyItem tmp = { 0, "", 0, "", "" };
 
-		for (a = 0; a < em->bm->vdata.totlayer; a++) {
-			if (em->bm->vdata.layers[a].type != CD_SHAPEKEY)
-				continue;
-
-			tmp.value = totitem;
-			tmp.identifier = em->bm->vdata.layers[a].name;
-			tmp.name = em->bm->vdata.layers[a].name;
-			/* RNA_enum_item_add sets totitem itself! */
+		LISTBASE_ITER_FWD_INDEX(k->block, kb, i) {
+			tmp.value = i;
+			tmp.identifier = tmp.name = kb->name;
 			RNA_enum_item_add(&item, &totitem, &tmp);
 		}
 	}
-
 	RNA_enum_item_end(&item, &totitem);
 	*r_free = true;
-
 	return item;
 }
 
@@ -2214,6 +2205,65 @@ void MESH_OT_solidify(wmOperatorType *ot)
 
 	prop = RNA_def_float(ot->srna, "thickness", 0.01f, -FLT_MAX, FLT_MAX, "thickness", "", -10.0f, 10.0f);
 	RNA_def_property_ui_range(prop, -10, 10, 0.1, 4);
+}
+
+static int shape_key_commit_to_another_poll(bContext *C)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	Key *key = BKE_key_from_object(obedit);
+	return (ED_operator_editmesh(C) && key && BLI_countlist(&key->block) > 1);
+}
+
+static int shape_key_commit_to_another_exec(bContext *C, wmOperator *op)
+{
+
+	Object *obedit = CTX_data_edit_object(C);
+
+	Mesh *_debugme = obedit->data;
+	Key *k = BKE_key_from_object(obedit);
+	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	KeyBlock *act_kb = BKE_keyblock_from_object(obedit);
+	int tgt_shape_idx = RNA_enum_get(op->ptr, "shape");
+	int totkey = BLI_countlist(&k->block);
+	KeyBlock *tgt_kb = BLI_findlink(&k->block, tgt_shape_idx);
+	
+	if (tgt_shape_idx == obedit->shapenr - 1)
+		return OPERATOR_FINISHED;
+
+	BLI_assert(totkey > 1);
+
+	/* forbid if some of the sizes are different */
+	if (act_kb->totelem != tgt_kb->totelem || tgt_kb->totelem != em->bm->totvert || act_kb->totelem != em->bm->totvert) {
+		BKE_report(op->reports, RPT_ERROR, "Cannot commit to another shape - edit data topology has changed!");
+		return OPERATOR_CANCELLED;
+	}
+
+	/* don't really 'commit', just force switch to another shape without recalc --
+	 * will look all the same from the user side */
+	em->bm->shapenr = obedit->shapenr = tgt_shape_idx + 1;
+	EDBM_update_scratch_from_active(obedit);
+	EDBM_update_generic(em, false, false);
+
+	return OPERATOR_FINISHED;
+}
+
+void MESH_OT_shape_key_commit_to_another(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Commit To Another Shape";
+	ot->idname = "OBJECT_OT_shape_key_commit_to_another";
+	ot->description = "Commit the edited shape into another shape. Resets the current shape.";
+
+	/* api callbacks */
+	ot->poll = shape_key_commit_to_another_poll;
+	ot->exec = shape_key_commit_to_another_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	PropertyRNA* prop = RNA_def_enum(ot->srna, "shape", DummyRNA_NULL_items, 0, "Shape", "Shape key to commit to");
+	RNA_def_enum_funcs(prop, shape_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
 
 /* ******************************************************************** */
@@ -2586,7 +2636,7 @@ static Base *mesh_separate_tagged(Main *bmain, Scene *scene, Base *base_old, BMe
 
 	BM_mesh_normals_update(bm_new);
 
-	BM_mesh_bm_to_me(bm_new, base_new->object->data, false);
+	BM_mesh_bm_to_me(bm_new, base_new->object->data, false, true);
 
 	BM_mesh_free(bm_new);
 	((Mesh *)base_new->object->data)->edit_btmesh = NULL;
@@ -2866,7 +2916,7 @@ static int edbm_separate_exec(bContext *C, wmOperator *op)
 					else                BLI_assert(0);
 
 					if (retval_iter) {
-						BM_mesh_bm_to_me(bm_old, me, false);
+						BM_mesh_bm_to_me(bm_old, me, false, true);
 
 						DAG_id_tag_update(&me->id, OB_RECALC_DATA);
 						WM_event_add_notifier(C, NC_GEOM | ND_DATA, me);

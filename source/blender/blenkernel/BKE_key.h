@@ -57,6 +57,9 @@ Key		   *BKE_key_add(ID *id);
 Key		   *BKE_key_copy(Key *key);
 Key		   *BKE_key_copy_nolib(Key *key);
 void        BKE_key_make_local(Key *key);
+/* overwrites data in 'to' with data in 'from', frees old 'to' data. 
+ * does not touch any library data, animation data and ID and from */
+void		BKE_key_overwrite_data(Key *from, Key *to);
 void        BKE_key_sort(Key *key);
 
 void key_curve_position_weights(float t, float data[4], int type);
