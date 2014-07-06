@@ -83,6 +83,10 @@ static void ED_object_shape_key_add(bContext *C, Scene *scene, Object *ob, const
 		/* for absolute shape keys, new keys may not be added last */
 		ob->shapenr = BLI_findindex(&key->block, kb) + 1;
 
+		/* in sculpt mode, set weight to 1 */
+		if (ob->mode == OB_MODE_SCULPT) 
+			kb->curval = kb->mixval = 1;
+		
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 	}
 }
