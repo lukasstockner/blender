@@ -288,7 +288,7 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 
 	OsdMeshBitset bits;
 	/* TODO(sergey): Adaptive subdivisions are not currently
-	 * possible because of the lack of tessellation shadet.
+	 * possible because of the lack of tessellation shader.
 	 */
 	bits.set(OpenSubdiv::MeshAdaptive, 0);
 	bits.set(OpenSubdiv::MeshFVarData, 1);
@@ -405,7 +405,7 @@ unsigned int openSubdiv_getOsdGLMeshPatchIndexBuffer(struct OpenSubdiv_GLMesh *g
 	return ((OsdGLMeshInterface *)gl_mesh->descriptor)->GetDrawContext()->GetPatchIndexBuffer();
 }
 
-unsigned int openSubdiv_bindOsdGLMeshVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh)
+unsigned int openSubdiv_getOsdGLMeshVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh)
 {
 	return ((OsdGLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
 }
@@ -430,7 +430,7 @@ void openSubdiv_osdGLMeshSynchronize(struct OpenSubdiv_GLMesh *gl_mesh)
 	((OsdGLMeshInterface *)gl_mesh->descriptor)->Synchronize();
 }
 
-void openSubdiv_osdGLMeshBindvertexBuffer(OpenSubdiv_GLMesh *gl_mesh)
+void openSubdiv_osdGLMeshBindVertexBuffer(OpenSubdiv_GLMesh *gl_mesh)
 {
 	((OsdGLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
 }
