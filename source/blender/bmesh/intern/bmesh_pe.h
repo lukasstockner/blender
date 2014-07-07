@@ -34,4 +34,10 @@ void BM_prop_dist_calc_connected(BMesh *bm, float loc_to_world_mtx[3][3], float 
  * in the projection plane from the closest selected vertex */
 void BM_prop_dist_calc(BMesh *bm, float loc_to_world_mtx[3][3], float proj_plane_n[3], float dists[]);
 
+/* get the PE factor for a given distance 
+ * mode is one of the following: 
+ * PROP_SMOOTH, PROP_SPHERE, PROP_ROOT, PROP_SHARP, PROP_LIN, PROP_CONST, PROP_RANDOM  
+ * from DNA_scene_types.h */
+float BM_prop_factor_distance(float dist, float maxdist, int mode);
+
 #endif

@@ -26,7 +26,11 @@
 #include "BLI_utildefines.h"
 #include "BLI_linklist_stack.h"
 #include "BLI_math.h"
+#include "BLI_rand.h"
+
 #include "MEM_guardedalloc.h"
+
+#include "DNA_scene_types.h"
 
 #include "bmesh.h"
 
@@ -275,4 +279,50 @@ void BM_prop_dist_calc(BMesh *bm, float loc_to_world_mtx[3][3], float proj_plane
 		dists[vindexes[b]] = 0.0f;
 
 	MEM_freeN(vindexes);
+}
+
+
+float BM_prop_factor_distance(float dist, float maxdist, int mode)
+{
+	float factor;
+
+	if (dist == 0.0f) /* signal for selected */
+		return 1.0f;
+
+	if (dist < 0.0f)
+		dist = 0.0f;
+
+	if (dist > maxdist)
+		return 0.0f;
+
+	dist = dist / maxdist;
+
+	CLAMP(dist, 0.0f, maxdist);
+
+	switch (mode) {
+		case PROP_SHARP:
+			factor = dist * dist;
+			break;
+		case PROP_SMOOTH: /* bell-ish hermite spline h_0_0 */
+			factor = 3.0f * dist * dist - 2.0f * dist * dist * dist;
+			break;
+		case PROP_ROOT:
+			factor = sqrtf(dist);
+			break;
+		case PROP_LIN:
+			factor = dist;
+			break;
+		case PROP_SPHERE:
+			factor = sqrtf(2 * dist - dist * dist);
+			break;
+		case PROP_RANDOM:
+			factor = BLI_frand() * dist;
+			break;
+		case PROP_CONST: /* fall-through */
+		default:
+			factor = 1.0f;
+			break;
+	}
+
+	return 1.0f - factor;
 }
