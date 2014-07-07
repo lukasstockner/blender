@@ -674,14 +674,13 @@ bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 			update_bmesh_shapes(obedit);
 		}
 
-		EDBM_mesh_load(obedit);
-
 		if (do_free && k->scratch.data) {
 			MEM_freeN(k->scratch.data);
 			k->scratch.data = NULL;
 		}
 	}
 	
+	EDBM_mesh_load(obedit);
 
 	EDBM_mesh_normals_update(em);
 	BKE_editmesh_tessface_calc(em);
