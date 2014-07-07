@@ -47,6 +47,7 @@ using OpenSubdiv::OsdGLMeshInterface;
 
 extern "C" char datatoc_gpu_shader_opensubd_display_glsl[];
 
+#ifndef OPENSUBDIV_LEGACY_DRAW
 static GLuint compileShader(GLenum shaderType,
                             const char *section,
                             const char *define)
@@ -80,8 +81,12 @@ static GLuint compileShader(GLenum shaderType,
 
 static GLuint linkProgram(const char *define)
 {
-	GLuint vertexShader = compileShader(GL_VERTEX_SHADER, "VERTEX_SHADER", define);
-	GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER, "FRAGMENT_SHADER", define);
+	GLuint vertexShader = compileShader(GL_VERTEX_SHADER,
+	                                    "VERTEX_SHADER",
+	                                    define);
+	GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER,
+	                                      "FRAGMENT_SHADER",
+	                                      define);
 
 	GLuint program = glCreateProgram();
 
@@ -108,24 +113,23 @@ static GLuint linkProgram(const char *define)
 
 	return program;
 }
+#endif
 
 void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
 {
-	static GLuint flat_fill_program;
 #ifndef OPENSUBDIV_LEGACY_DRAW
+	static GLuint flat_fill_program;
 	static GLuint smooth_fill_program;
 	static GLuint wireframe_program;
-#endif
 	static bool need_init = true;
 
 	if (need_init) {
 		flat_fill_program = linkProgram("#define FLAT_SHADING\n");
-#ifndef OPENSUBDIV_LEGACY_DRAW
 		smooth_fill_program = linkProgram("#define SMOOTH_SHADING\n");
 		wireframe_program = linkProgram("#define WIREFRAME\n");
-#endif
 		need_init = false;
 	}
+#endif
 
 	OsdGLMeshInterface *mesh = (OsdGLMeshInterface *) gl_mesh->descriptor;
 
@@ -135,33 +139,30 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
 	const OsdDrawContext::PatchArrayVector &patches =
 		mesh->GetDrawContext()->patchArrays;
 
-	if (!fill_quads) {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 #ifndef OPENSUBDIV_LEGACY_DRAW
+	if (fill_quads) {
+		int model;
+		glGetIntegerv(GL_SHADE_MODEL, &model);
+		if (model == GL_FLAT) {
+			glUseProgram(flat_fill_program);
+		}
+		else {
+			glUseProgram(smooth_fill_program);
+		}
+	}
+	else {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		/* TODO(sergey): For some reason this doesn't work on
 		 * my Intel card and gives random color instead of the
 		 * one set by glColor().
 		 */
 		glUseProgram(wireframe_program);
-#endif
 	}
-	else {
-		int model;
-		glGetIntegerv(GL_SHADE_MODEL, &model);
-		if (model == GL_FLAT) {
-			/* TODO(sergey): This is rather just to make stuff committable,
-			 * for sure either we'll find a proper solution for flat shading
-			 * without using GLSL or we'll always use GLSL and try to hook it
-			 * up to the GPU_material pipeline.
-			 */
-			glUseProgram(flat_fill_program);
-		}
-#ifndef OPENSUBDIV_LEGACY_DRAW
-		else {
-			glUseProgram(smooth_fill_program);
-		}
-#endif
+#else
+	if (!fill_quads) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	}
+#endif
 
 	for (int i = 0; i < (int)patches.size(); ++i) {
 		OpenSubdiv::OsdDrawContext::PatchArray const &patch = patches[i];
