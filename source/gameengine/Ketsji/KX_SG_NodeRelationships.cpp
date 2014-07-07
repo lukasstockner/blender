@@ -32,28 +32,18 @@
 
 #include "KX_SG_NodeRelationships.h"
 
-/**
- * Implementation of classes defined in KX_SG_NodeRelationships.h
- */
 
 /** 
- * first of all KX_NormalParentRelation
+ * KX_NormalParentRelation - a regular parent/child relation, the child's coordinates are relative to the parent
  */
 
-	KX_NormalParentRelation *
-KX_NormalParentRelation::
-New(
-) {
+KX_NormalParentRelation* KX_NormalParentRelation::New()
+{
 	return new KX_NormalParentRelation();
 }
 
-	bool
-KX_NormalParentRelation::
-UpdateChildCoordinates(
-	SG_Spatial * child,
-	const SG_Spatial * parent,
-	bool& parentUpdated
-) {
+bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Spatial *child, const SG_Spatial *parent, bool &parentUpdated)
+{
 	MT_assert(child != NULL);
 
 	if (!parentUpdated && !child->IsModified())
@@ -80,25 +70,23 @@ UpdateChildCoordinates(
 	}
 }
 
-	SG_ParentRelation *
-KX_NormalParentRelation::
-NewCopy(
-) {
+SG_ParentRelation* KX_NormalParentRelation::NewCopy()
+{
 	return new KX_NormalParentRelation();
 }
 
-KX_NormalParentRelation::
-~KX_NormalParentRelation(
-) {
+KX_NormalParentRelation::~KX_NormalParentRelation()
+{
 	//nothing to do
 }
 
-
-KX_NormalParentRelation::
-KX_NormalParentRelation(
-) {
+KX_NormalParentRelation::KX_NormalParentRelation()
+{
 	// nothing to do
 }
+
+
+
 
 /** 
  * Next KX_VertexParentRelation

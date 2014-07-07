@@ -28,15 +28,15 @@
  
 /** \file KX_SG_NodeRelationships.h
  *  \ingroup ketsji
- *  \section KX_SG_NodeRelationships   
- * This file provides common concrete implementations of 
+ *  \section KX_SG_NodeRelationships
+ * This file provides common concrete implementations of
  * SG_ParentRelation used by the game engine. These are
  * KX_SlowParentRelation a slow parent relationship.
- * KX_NormalParentRelation a normal parent relationship where 
+ * KX_NormalParentRelation a normal parent relationship where
  * orientation and position are inherited from the parent by
  * the child.
- * KX_VertexParentRelation only location information is 
- * inherited by the child. 
+ * KX_VertexParentRelation only location information is
+ * inherited by the child.
  */
 
 #ifndef __KX_SG_NODERELATIONSHIPS_H__
@@ -53,38 +53,23 @@ public :
 	 * Allocate and construct a new KX_NormalParentRelation
 	 * on the heap.
 	 */
-
-	static 
-		KX_NormalParentRelation *
-	New(
-	);
+	static KX_NormalParentRelation* New();
 
 	/** 
 	 * Method inherited from KX_ParentRelation
 	 */
-
-		bool
-	UpdateChildCoordinates(
-		SG_Spatial * child,
-		const SG_Spatial * parent,
-		bool& parentUpdated
-	);
+	bool UpdateChildCoordinates(SG_Spatial *child, const SG_Spatial *parent, bool &parentUpdated);
 
 	/** 
 	 * Method inherited from KX_ParentRelation
 	 */
-	
-		SG_ParentRelation *
-	NewCopy(
-	);
+	SG_ParentRelation* NewCopy();
 
-	~KX_NormalParentRelation(
-	);
+	~KX_NormalParentRelation();
 
 private :
 
-	KX_NormalParentRelation(
-	);
+	KX_NormalParentRelation();
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
@@ -228,4 +213,4 @@ private :
 #endif
 };
 
-#endif
+#endif * __KX_SG_NODERELATIONSHIPS_H__ */
