@@ -928,6 +928,27 @@ KX_GameObject::SetVisible(
 	}
 }
 
+bool KX_GameObject::GetCulled()
+{
+	// If we're set to not cull, double-check with
+	// the mesh slots first. This is kind of nasty, but
+	// it allows us to get proper culling information.
+	if (!m_bCulled)
+	{
+		SG_QList::iterator<RAS_MeshSlot> mit(m_meshSlots);
+		for (mit.begin(); !mit.end(); ++mit)
+		{
+			if ((*mit)->m_bCulled)
+			{
+				m_bCulled = true;
+				break;
+			}
+		}
+	}
+
+	return m_bCulled;
+}
+
 static void setOccluder_recursive(SG_Node* node, bool v)
 {
 	NodeList& children = node->GetSGChildren();
@@ -2167,8 +2188,14 @@ int KX_GameObject::pyattr_set_collisionCallbacks(void *self_v, const KX_PYATTRIB
 		return PY_SET_ATTR_FAIL;
 	}
 
-	Py_XDECREF(self->m_collisionCallbacks);
+	if (self->m_collisionCallbacks == NULL) {
+		self->RegisterCollisionCallbacks();
+	} else {
+		Py_DECREF(self->m_collisionCallbacks);
+	}
+
 	Py_INCREF(value);
+
 
 	self->m_collisionCallbacks = value;
 
@@ -3007,19 +3034,20 @@ PyObject *KX_GameObject::PyApplyImpulse(PyObject *args)
 {
 	PyObject *pyattach;
 	PyObject *pyimpulse;
+	int local = 0;
 	
 	if (!m_pPhysicsController)	{
 		PyErr_SetString(PyExc_RuntimeError, "This object has no physics controller");
 		return NULL;
 	}
 	
-	if (PyArg_ParseTuple(args, "OO:applyImpulse", &pyattach, &pyimpulse))
+	if (PyArg_ParseTuple(args, "OO|i:applyImpulse", &pyattach, &pyimpulse, &local))
 	{
 		MT_Point3  attach;
 		MT_Vector3 impulse;
 		if (PyVecTo(pyattach, attach) && PyVecTo(pyimpulse, impulse))
 		{
-			m_pPhysicsController->ApplyImpulse(attach, impulse);
+			m_pPhysicsController->ApplyImpulse(attach, impulse, (local!=0));
 			Py_RETURN_NONE;
 		}
 
