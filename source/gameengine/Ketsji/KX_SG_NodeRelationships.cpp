@@ -46,25 +46,32 @@ bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Spatial *child, const SG
 {
 	MT_assert(child != NULL);
 
+	/* If nothing changed in the parent or child, there is nothing to do here */
 	if (!parentUpdated && !child->IsModified())
 		return false;
 
-	parentUpdated = true;
+	parentUpdated = true;  //XXX why??
 
-	if (parent==NULL) { /* Simple case */
+	/* The child has no parent, it is a root object.
+	 * The world and local coordinates should be the same and applied directly. */
+	if (parent==NULL) {
 		child->SetWorldFromLocalTransform();
 		child->ClearModified();
-		return true; //false;
+		return true;
 	}
+	/* The child has a parent. The child's coordinates are defined relative to the parent's.
+	 * The parent's coordinates should be applied to the child's local ones to calculate the real world position. */
 	else {
-		// the childs world locations which we will update.
 		const MT_Vector3 & p_world_scale = parent->GetWorldScaling();
 		const MT_Point3 & p_world_pos = parent->GetWorldPosition();
-		const MT_Matrix3x3 & p_world_rotation = parent->GetWorldOrientation();
+		const MT_Matrix3x3 & p_world_orientation = parent->GetWorldOrientation();
+		const MT_Vector3 & local_scale = child->GetLocalScale();
+		const MT_Point3 & local_pos = child->GetLocalPosition();
+		const MT_Matrix3x3 & local_orientation = child->GetLocalOrientation();
 
-		child->SetWorldScale(p_world_scale * child->GetLocalScale());
-		child->SetWorldOrientation(p_world_rotation * child->GetLocalOrientation());
-		child->SetWorldPosition(p_world_pos + p_world_scale * (p_world_rotation * child->GetLocalPosition()));
+		child->SetWorldScale(p_world_scale * local_scale);
+		child->SetWorldOrientation(p_world_orientation * local_orientation);
+		child->SetWorldPosition(p_world_pos + p_world_scale * local_scale * (p_world_orientation * local_orientation * local_pos));
 		child->ClearModified();
 		return true;
 	}
