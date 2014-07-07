@@ -3428,75 +3428,8 @@ static void ccgDM_calcNormals(DerivedMesh *dm)
 	dm->dirty &= ~DM_DIRTY_NORMALS;
 }
 
-static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
-                                         int drawInteriorEdges,
-                                         int useSubsurfUv,
-                                         DerivedMesh *dm,
-                                         bool use_gpu_backend)
+static void set_default_ccgdm_callbacks(CCGDerivedMesh *ccgdm)
 {
-	CCGDerivedMesh *ccgdm = MEM_callocN(sizeof(*ccgdm), "ccgdm");
-	CCGVertIterator *vi;
-	CCGEdgeIterator *ei;
-	CCGFaceIterator *fi;
-	int index, totvert, totedge, totface;
-	int i;
-	int vertNum, edgeNum, faceNum;
-	int *vertOrigIndex, *faceOrigIndex, *polyOrigIndex, *base_polyOrigIndex, *edgeOrigIndex;
-	short *edgeFlags;
-	DMFlagMat *faceFlags;
-	int *polyidx = NULL;
-#ifndef USE_DYNSIZE
-	int *loopidx = NULL, *vertidx = NULL;
-	BLI_array_declare(loopidx);
-	BLI_array_declare(vertidx);
-#endif
-	int loopindex, loopindex2;
-	int edgeSize;
-	int gridSize;
-	int gridFaces, gridCuts;
-	/*int gridSideVerts;*/
-	int gridSideEdges;
-	int numTex, numCol;
-	int hasPCol, hasOrigSpace;
-	int gridInternalEdges;
-	WeightTable wtable = {NULL};
-	/* MCol *mcol; */ /* UNUSED */
-	MEdge *medge = NULL;
-	/* MFace *mface = NULL; */
-	MPoly *mpoly = NULL;
-	bool has_edge_cd;
-
-	DM_from_template(&ccgdm->dm, dm, DM_TYPE_CCGDM,
-	                 ccgSubSurf_getNumFinalVerts(ss),
-	                 ccgSubSurf_getNumFinalEdges(ss),
-	                 ccgSubSurf_getNumFinalFaces(ss),
-	                 ccgSubSurf_getNumFinalFaces(ss) * 4,
-	                 ccgSubSurf_getNumFinalFaces(ss));
-
-	CustomData_free_layer_active(&ccgdm->dm.polyData, CD_NORMAL,
-	                             ccgdm->dm.numPolyData);
-	
-	numTex = CustomData_number_of_layers(&ccgdm->dm.loopData, CD_MLOOPUV);
-	numCol = CustomData_number_of_layers(&ccgdm->dm.loopData, CD_MLOOPCOL);
-	hasPCol = CustomData_has_layer(&ccgdm->dm.loopData, CD_PREVIEW_MLOOPCOL);
-	hasOrigSpace = CustomData_has_layer(&ccgdm->dm.loopData, CD_ORIGSPACE_MLOOP);
-	
-	if (
-	    (numTex && CustomData_number_of_layers(&ccgdm->dm.faceData, CD_MTFACE) != numTex)  ||
-	    (numCol && CustomData_number_of_layers(&ccgdm->dm.faceData, CD_MCOL) != numCol)    ||
-	    (hasPCol && !CustomData_has_layer(&ccgdm->dm.faceData, CD_PREVIEW_MCOL))            ||
-	    (hasOrigSpace && !CustomData_has_layer(&ccgdm->dm.faceData, CD_ORIGSPACE)) )
-	{
-		CustomData_from_bmeshpoly(&ccgdm->dm.faceData,
-		                          &ccgdm->dm.polyData,
-		                          &ccgdm->dm.loopData,
-		                          ccgSubSurf_getNumFinalFaces(ss));
-	}
-
-	/* We absolutely need that layer, else it's no valid tessellated data! */
-	polyidx = CustomData_add_layer(&ccgdm->dm.faceData, CD_ORIGINDEX, CD_CALLOC,
-	                               NULL, ccgSubSurf_getNumFinalFaces(ss));
-
 	ccgdm->dm.getMinMax = ccgDM_getMinMax;
 	ccgdm->dm.getNumVerts = ccgDM_getNumVerts;
 	ccgdm->dm.getNumEdges = ccgDM_getNumEdges;
@@ -3546,7 +3479,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	ccgdm->dm.foreachMappedEdge = ccgDM_foreachMappedEdge;
 	ccgdm->dm.foreachMappedLoop = ccgDM_foreachMappedLoop;
 	ccgdm->dm.foreachMappedFaceCenter = ccgDM_foreachMappedFaceCenter;
-	
+
 	ccgdm->dm.drawVerts = ccgDM_drawVerts;
 	ccgdm->dm.drawEdges = ccgDM_drawEdges;
 	ccgdm->dm.drawLooseEdges = ccgDM_drawLooseEdges;
@@ -3561,16 +3494,24 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 
 	ccgdm->dm.drawMappedEdgesInterp = ccgDM_drawMappedEdgesInterp;
 	ccgdm->dm.drawMappedEdges = ccgDM_drawMappedEdges;
-	
+
 	ccgdm->dm.release = ccgDM_release;
-	
-	ccgdm->ss = ss;
-	ccgdm->drawInteriorEdges = drawInteriorEdges;
-	ccgdm->useSubsurfUv = useSubsurfUv;
+}
+
+static void create_ccgdm_maps(CCGDerivedMesh *ccgdm,
+                              CCGSubSurf *ss)
+{
+	CCGVertIterator *vi;
+	CCGEdgeIterator *ei;
+	CCGFaceIterator *fi;
+	int totvert, totedge, totface;
 
 	totvert = ccgSubSurf_getNumVerts(ss);
 	ccgdm->vertMap = MEM_mallocN(totvert * sizeof(*ccgdm->vertMap), "vertMap");
-	for (vi = ccgSubSurf_getVertIterator(ss); !ccgVertIterator_isStopped(vi); ccgVertIterator_next(vi)) {
+	for (vi = ccgSubSurf_getVertIterator(ss);
+	     !ccgVertIterator_isStopped(vi);
+	     ccgVertIterator_next(vi))
+	{
 		CCGVert *v = ccgVertIterator_getCurrent(vi);
 
 		ccgdm->vertMap[GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v))].vert = v;
@@ -3579,7 +3520,10 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 
 	totedge = ccgSubSurf_getNumEdges(ss);
 	ccgdm->edgeMap = MEM_mallocN(totedge * sizeof(*ccgdm->edgeMap), "edgeMap");
-	for (ei = ccgSubSurf_getEdgeIterator(ss); !ccgEdgeIterator_isStopped(ei); ccgEdgeIterator_next(ei)) {
+	for (ei = ccgSubSurf_getEdgeIterator(ss);
+	     !ccgEdgeIterator_isStopped(ei);
+	     ccgEdgeIterator_next(ei))
+	{
 		CCGEdge *e = ccgEdgeIterator_getCurrent(ei);
 
 		ccgdm->edgeMap[GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(e))].edge = e;
@@ -3588,14 +3532,61 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 
 	totface = ccgSubSurf_getNumFaces(ss);
 	ccgdm->faceMap = MEM_mallocN(totface * sizeof(*ccgdm->faceMap), "faceMap");
-	for (fi = ccgSubSurf_getFaceIterator(ss); !ccgFaceIterator_isStopped(fi); ccgFaceIterator_next(fi)) {
+	for (fi = ccgSubSurf_getFaceIterator(ss);
+	     !ccgFaceIterator_isStopped(fi);
+	     ccgFaceIterator_next(fi))
+	{
 		CCGFace *f = ccgFaceIterator_getCurrent(fi);
 
 		ccgdm->faceMap[GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f))].face = f;
 	}
 	ccgFaceIterator_free(fi);
+}
 
-	ccgdm->reverseFaceMap = MEM_callocN(sizeof(int) * ccgSubSurf_getNumFinalFaces(ss), "reverseFaceMap");
+/* Fill in all geometry arrays making it possible to access any
+ * hires data from the CPU.
+ */
+static void set_ccgdm_all_geometry(CCGDerivedMesh *ccgdm,
+                                   CCGSubSurf *ss,
+                                   DerivedMesh *dm,
+                                   bool useSubsurfUv)
+{
+	const int totvert = ccgSubSurf_getNumVerts(ss);
+	const int totedge = ccgSubSurf_getNumEdges(ss);
+	const int totface = ccgSubSurf_getNumFaces(ss);
+	int index;
+	int i;
+	int vertNum = 0, edgeNum = 0, faceNum = 0;
+	int *vertOrigIndex, *faceOrigIndex, *polyOrigIndex, *base_polyOrigIndex, *edgeOrigIndex;
+	short *edgeFlags = ccgdm->edgeFlags;
+	DMFlagMat *faceFlags = ccgdm->faceFlags;
+	int *polyidx = NULL;
+#ifndef USE_DYNSIZE
+	int *loopidx = NULL, *vertidx = NULL;
+	BLI_array_declare(loopidx);
+	BLI_array_declare(vertidx);
+#endif
+	int loopindex, loopindex2;
+	int edgeSize;
+	int gridSize;
+	int gridFaces, gridCuts;
+	int gridSideEdges;
+	int numTex, numCol;
+	int hasPCol, hasOrigSpace;
+	int gridInternalEdges;
+	WeightTable wtable = {NULL};
+	MEdge *medge = NULL;
+	MPoly *mpoly = NULL;
+	bool has_edge_cd;
+
+	numTex = CustomData_number_of_layers(&ccgdm->dm.loopData, CD_MLOOPUV);
+	numCol = CustomData_number_of_layers(&ccgdm->dm.loopData, CD_MLOOPCOL);
+	hasPCol = CustomData_has_layer(&ccgdm->dm.loopData, CD_PREVIEW_MLOOPCOL);
+	hasOrigSpace = CustomData_has_layer(&ccgdm->dm.loopData, CD_ORIGSPACE_MLOOP);
+
+	/* We absolutely need that layer, else it's no valid tessellated data! */
+	polyidx = CustomData_add_layer(&ccgdm->dm.faceData, CD_ORIGINDEX, CD_CALLOC,
+	                               NULL, ccgSubSurf_getNumFinalFaces(ss));
 
 	edgeSize = ccgSubSurf_getEdgeSize(ss);
 	gridSize = ccgSubSurf_getGridSize(ss);
@@ -3603,11 +3594,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	gridCuts = gridSize - 2;
 	/*gridInternalVerts = gridSideVerts * gridSideVerts; - as yet, unused */
 	gridSideEdges = gridSize - 1;
-	gridInternalEdges = (gridSideEdges - 1) * gridSideEdges * 2; 
-
-	vertNum = 0;
-	edgeNum = 0;
-	faceNum = 0;
+	gridInternalEdges = (gridSideEdges - 1) * gridSideEdges * 2;
 
 	/* mvert = dm->getVertArray(dm); */ /* UNUSED */
 	medge = dm->getEdgeArray(dm);
@@ -3615,10 +3602,6 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 
 	mpoly = CustomData_get_layer(&dm->polyData, CD_MPOLY);
 	base_polyOrigIndex = CustomData_get_layer(&dm->polyData, CD_ORIGINDEX);
-	
-	/*CDDM hack*/
-	edgeFlags = ccgdm->edgeFlags = MEM_callocN(sizeof(short) * totedge, "edgeFlags");
-	faceFlags = ccgdm->faceFlags = MEM_callocN(sizeof(DMFlagMat) * totface, "faceFlags");
 
 	vertOrigIndex = DM_get_vert_data_layer(&ccgdm->dm, CD_ORIGINDEX);
 	edgeOrigIndex = DM_get_edge_data_layer(&ccgdm->dm, CD_ORIGINDEX);
@@ -3637,65 +3620,79 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 #endif
 
 	loopindex = loopindex2 = 0; /* current loop index */
-	/* TODO(sergey): This is only for purposes of test. */
-	if (use_gpu_backend == false) {
-		for (index = 0; index < totface; index++) {
-			CCGFace *f = ccgdm->faceMap[index].face;
-			int numVerts = ccgSubSurf_getFaceNumVerts(f);
-			int numFinalEdges = numVerts * (gridSideEdges + gridInternalEdges);
-			int origIndex = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
-			int g2_wid = gridCuts + 2;
-			float *w, *w2;
-			int s, x, y;
+	for (index = 0; index < totface; index++) {
+		CCGFace *f = ccgdm->faceMap[index].face;
+		int numVerts = ccgSubSurf_getFaceNumVerts(f);
+		int numFinalEdges = numVerts * (gridSideEdges + gridInternalEdges);
+		int origIndex = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
+		int g2_wid = gridCuts + 2;
+		float *w, *w2;
+		int s, x, y;
 #ifdef USE_DYNSIZE
-			int loopidx[numVerts], vertidx[numVerts];
+		int loopidx[numVerts], vertidx[numVerts];
 #endif
+		w = get_ss_weights(&wtable, gridCuts, numVerts);
 
-			w = get_ss_weights(&wtable, gridCuts, numVerts);
+		ccgdm->faceMap[index].startVert = vertNum;
+		ccgdm->faceMap[index].startEdge = edgeNum;
+		ccgdm->faceMap[index].startFace = faceNum;
 
-			ccgdm->faceMap[index].startVert = vertNum;
-			ccgdm->faceMap[index].startEdge = edgeNum;
-			ccgdm->faceMap[index].startFace = faceNum;
+		faceFlags->flag = mpoly ?  mpoly[origIndex].flag : 0;
+		faceFlags->mat_nr = mpoly ? mpoly[origIndex].mat_nr : 0;
+		faceFlags++;
 
-			faceFlags->flag = mpoly ?  mpoly[origIndex].flag : 0;
-			faceFlags->mat_nr = mpoly ? mpoly[origIndex].mat_nr : 0;
-			faceFlags++;
-
-			/* set the face base vert */
-			*((int *)ccgSubSurf_getFaceUserData(ss, f)) = vertNum;
+		/* set the face base vert */
+		*((int *)ccgSubSurf_getFaceUserData(ss, f)) = vertNum;
 
 #ifndef USE_DYNSIZE
-			BLI_array_empty(loopidx);
-			BLI_array_grow_items(loopidx, numVerts);
+		BLI_array_empty(loopidx);
+		BLI_array_grow_items(loopidx, numVerts);
 #endif
-			for (s = 0; s < numVerts; s++) {
-				loopidx[s] = loopindex++;
-			}
+		for (s = 0; s < numVerts; s++) {
+			loopidx[s] = loopindex++;
+		}
 
 #ifndef USE_DYNSIZE
-			BLI_array_empty(vertidx);
-			BLI_array_grow_items(vertidx, numVerts);
+		BLI_array_empty(vertidx);
+		BLI_array_grow_items(vertidx, numVerts);
 #endif
-			for (s = 0; s < numVerts; s++) {
-				CCGVert *v = ccgSubSurf_getFaceVert(f, s);
-				vertidx[s] = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v));
+		for (s = 0; s < numVerts; s++) {
+			CCGVert *v = ccgSubSurf_getFaceVert(f, s);
+			vertidx[s] = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v));
+		}
+
+		/*I think this is for interpolating the center vert?*/
+		w2 = w; // + numVerts*(g2_wid-1) * (g2_wid-1); //numVerts*((g2_wid-1) * g2_wid+g2_wid-1);
+		DM_interp_vert_data(dm, &ccgdm->dm, vertidx, w2,
+		                    numVerts, vertNum);
+		if (vertOrigIndex) {
+			*vertOrigIndex = ORIGINDEX_NONE;
+			vertOrigIndex++;
+		}
+
+		vertNum++;
+
+		/*interpolate per-vert data*/
+		for (s = 0; s < numVerts; s++) {
+			for (x = 1; x < gridFaces; x++) {
+				w2 = w + s * numVerts * g2_wid * g2_wid + x * numVerts;
+				DM_interp_vert_data(dm, &ccgdm->dm, vertidx, w2,
+				                    numVerts, vertNum);
+
+				if (vertOrigIndex) {
+					*vertOrigIndex = ORIGINDEX_NONE;
+					vertOrigIndex++;
+				}
+
+				vertNum++;
 			}
+		}
 
-			/*I think this is for interpolating the center vert?*/
-			w2 = w; // + numVerts*(g2_wid-1) * (g2_wid-1); //numVerts*((g2_wid-1) * g2_wid+g2_wid-1);
-			DM_interp_vert_data(dm, &ccgdm->dm, vertidx, w2,
-			                    numVerts, vertNum);
-			if (vertOrigIndex) {
-				*vertOrigIndex = ORIGINDEX_NONE;
-				vertOrigIndex++;
-			}
-
-			vertNum++;
-
-			/*interpolate per-vert data*/
-			for (s = 0; s < numVerts; s++) {
+		/*interpolate per-vert data*/
+		for (s = 0; s < numVerts; s++) {
+			for (y = 1; y < gridFaces; y++) {
 				for (x = 1; x < gridFaces; x++) {
-					w2 = w + s * numVerts * g2_wid * g2_wid + x * numVerts;
+					w2 = w + s * numVerts * g2_wid * g2_wid + (y * g2_wid + x) * numVerts;
 					DM_interp_vert_data(dm, &ccgdm->dm, vertidx, w2,
 					                    numVerts, vertNum);
 
@@ -3707,196 +3704,255 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 					vertNum++;
 				}
 			}
+		}
 
-			/*interpolate per-vert data*/
-			for (s = 0; s < numVerts; s++) {
-				for (y = 1; y < gridFaces; y++) {
-					for (x = 1; x < gridFaces; x++) {
-						w2 = w + s * numVerts * g2_wid * g2_wid + (y * g2_wid + x) * numVerts;
-						DM_interp_vert_data(dm, &ccgdm->dm, vertidx, w2,
-						                    numVerts, vertNum);
+		if (edgeOrigIndex) {
+			for (i = 0; i < numFinalEdges; ++i) {
+				edgeOrigIndex[edgeNum + i] = ORIGINDEX_NONE;
+			}
+		}
 
-						if (vertOrigIndex) {
-							*vertOrigIndex = ORIGINDEX_NONE;
-							vertOrigIndex++;
-						}
+		for (s = 0; s < numVerts; s++) {
+			/*interpolate per-face data*/
+			for (y = 0; y < gridFaces; y++) {
+				for (x = 0; x < gridFaces; x++) {
+					w2 = w + s * numVerts * g2_wid * g2_wid + (y * g2_wid + x) * numVerts;
+					CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
+					                  loopidx, w2, NULL, numVerts, loopindex2);
+					loopindex2++;
 
-						vertNum++;
+					w2 = w + s * numVerts * g2_wid * g2_wid + ((y + 1) * g2_wid + (x)) * numVerts;
+					CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
+					                  loopidx, w2, NULL, numVerts, loopindex2);
+					loopindex2++;
+
+					w2 = w + s * numVerts * g2_wid * g2_wid + ((y + 1) * g2_wid + (x + 1)) * numVerts;
+					CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
+					                  loopidx, w2, NULL, numVerts, loopindex2);
+					loopindex2++;
+
+					w2 = w + s * numVerts * g2_wid * g2_wid + ((y) * g2_wid + (x + 1)) * numVerts;
+					CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
+					                  loopidx, w2, NULL, numVerts, loopindex2);
+					loopindex2++;
+
+					/*copy over poly data, e.g. mtexpoly*/
+					CustomData_copy_data(&dm->polyData, &ccgdm->dm.polyData, origIndex, faceNum, 1);
+
+					/*generate tessellated face data used for drawing*/
+					ccg_loops_to_corners(&ccgdm->dm.faceData, &ccgdm->dm.loopData,
+					                     &ccgdm->dm.polyData, loopindex2 - 4, faceNum, faceNum,
+					                     numTex, numCol, hasPCol, hasOrigSpace);
+
+					/*set original index data*/
+					if (faceOrigIndex) {
+						/* reference the index in 'polyOrigIndex' */
+						*faceOrigIndex = faceNum;
+						faceOrigIndex++;
 					}
-				}
-			}
-
-			if (edgeOrigIndex) {
-				for (i = 0; i < numFinalEdges; ++i) {
-					edgeOrigIndex[edgeNum + i] = ORIGINDEX_NONE;
-				}
-			}
-
-			for (s = 0; s < numVerts; s++) {
-				/*interpolate per-face data*/
-				for (y = 0; y < gridFaces; y++) {
-					for (x = 0; x < gridFaces; x++) {
-						w2 = w + s * numVerts * g2_wid * g2_wid + (y * g2_wid + x) * numVerts;
-						CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
-						                  loopidx, w2, NULL, numVerts, loopindex2);
-						loopindex2++;
-
-						w2 = w + s * numVerts * g2_wid * g2_wid + ((y + 1) * g2_wid + (x)) * numVerts;
-						CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
-						                  loopidx, w2, NULL, numVerts, loopindex2);
-						loopindex2++;
-
-						w2 = w + s * numVerts * g2_wid * g2_wid + ((y + 1) * g2_wid + (x + 1)) * numVerts;
-						CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
-						                  loopidx, w2, NULL, numVerts, loopindex2);
-						loopindex2++;
-
-						w2 = w + s * numVerts * g2_wid * g2_wid + ((y) * g2_wid + (x + 1)) * numVerts;
-						CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
-						                  loopidx, w2, NULL, numVerts, loopindex2);
-						loopindex2++;
-
-						/*copy over poly data, e.g. mtexpoly*/
-						CustomData_copy_data(&dm->polyData, &ccgdm->dm.polyData, origIndex, faceNum, 1);
-
-						/*generate tessellated face data used for drawing*/
-						ccg_loops_to_corners(&ccgdm->dm.faceData, &ccgdm->dm.loopData,
-						                     &ccgdm->dm.polyData, loopindex2 - 4, faceNum, faceNum,
-						                     numTex, numCol, hasPCol, hasOrigSpace);
-
-						/*set original index data*/
-						if (faceOrigIndex) {
-							/* reference the index in 'polyOrigIndex' */
-							*faceOrigIndex = faceNum;
-							faceOrigIndex++;
-						}
-						if (polyOrigIndex) {
-							*polyOrigIndex = base_polyOrigIndex ? base_polyOrigIndex[origIndex] : origIndex;
-							polyOrigIndex++;
-						}
-
-						ccgdm->reverseFaceMap[faceNum] = index;
-
-						/* This is a simple one to one mapping, here... */
-						polyidx[faceNum] = faceNum;
-
-						faceNum++;
+					if (polyOrigIndex) {
+						*polyOrigIndex = base_polyOrigIndex ? base_polyOrigIndex[origIndex] : origIndex;
+						polyOrigIndex++;
 					}
+
+					ccgdm->reverseFaceMap[faceNum] = index;
+
+					/* This is a simple one to one mapping, here... */
+					polyidx[faceNum] = faceNum;
+
+					faceNum++;
 				}
 			}
-
-			edgeNum += numFinalEdges;
 		}
 
-		for (index = 0; index < totedge; ++index) {
-			CCGEdge *e = ccgdm->edgeMap[index].edge;
-			int numFinalEdges = edgeSize - 1;
-			int mapIndex = ccgDM_getEdgeMapIndex(ss, e);
-			int x;
-			int vertIdx[2];
-			int edgeIdx = GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(e));
+		edgeNum += numFinalEdges;
+	}
 
-			CCGVert *v;
-			v = ccgSubSurf_getEdgeVert0(e);
-			vertIdx[0] = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v));
-			v = ccgSubSurf_getEdgeVert1(e);
-			vertIdx[1] = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v));
+	for (index = 0; index < totedge; ++index) {
+		CCGEdge *e = ccgdm->edgeMap[index].edge;
+		int numFinalEdges = edgeSize - 1;
+		int mapIndex = ccgDM_getEdgeMapIndex(ss, e);
+		int x;
+		int vertIdx[2];
+		int edgeIdx = GET_INT_FROM_POINTER(ccgSubSurf_getEdgeEdgeHandle(e));
 
-			ccgdm->edgeMap[index].startVert = vertNum;
-			ccgdm->edgeMap[index].startEdge = edgeNum;
+		CCGVert *v;
+		v = ccgSubSurf_getEdgeVert0(e);
+		vertIdx[0] = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v));
+		v = ccgSubSurf_getEdgeVert1(e);
+		vertIdx[1] = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v));
 
-			if (edgeIdx >= 0 && edgeFlags)
-				edgeFlags[edgeIdx] = medge[edgeIdx].flag;
+		ccgdm->edgeMap[index].startVert = vertNum;
+		ccgdm->edgeMap[index].startEdge = edgeNum;
 
-			/* set the edge base vert */
-			*((int *)ccgSubSurf_getEdgeUserData(ss, e)) = vertNum;
+		if (edgeIdx >= 0 && edgeFlags)
+			edgeFlags[edgeIdx] = medge[edgeIdx].flag;
 
-			for (x = 1; x < edgeSize - 1; x++) {
-				float w[2];
-				w[1] = (float) x / (edgeSize - 1);
-				w[0] = 1 - w[1];
-				DM_interp_vert_data(dm, &ccgdm->dm, vertIdx, w, 2, vertNum);
-				if (vertOrigIndex) {
-					*vertOrigIndex = ORIGINDEX_NONE;
-					vertOrigIndex++;
-				}
-				vertNum++;
-			}
+		/* set the edge base vert */
+		*((int *)ccgSubSurf_getEdgeUserData(ss, e)) = vertNum;
 
-			if (has_edge_cd) {
-				BLI_assert(edgeIdx >= 0 && edgeIdx < dm->getNumEdges(dm));
-				for (i = 0; i < numFinalEdges; ++i) {
-					CustomData_copy_data(&dm->edgeData, &ccgdm->dm.edgeData, edgeIdx, edgeNum + i, 1);
-				}
-			}
-
-			if (edgeOrigIndex) {
-				for (i = 0; i < numFinalEdges; ++i) {
-					edgeOrigIndex[edgeNum + i] = mapIndex;
-				}
-			}
-
-			edgeNum += numFinalEdges;
-		}
-
-		if (useSubsurfUv) {
-			CustomData *ldata = &ccgdm->dm.loopData;
-			CustomData *dmldata = &dm->loopData;
-			int numlayer = CustomData_number_of_layers(ldata, CD_MLOOPUV);
-			int dmnumlayer = CustomData_number_of_layers(dmldata, CD_MLOOPUV);
-
-			for (i = 0; i < numlayer && i < dmnumlayer; i++)
-				set_subsurf_uv(ss, dm, &ccgdm->dm, i);
-		}
-
-		for (index = 0; index < totvert; ++index) {
-			CCGVert *v = ccgdm->vertMap[index].vert;
-			int mapIndex = ccgDM_getVertMapIndex(ccgdm->ss, v);
-			int vertIdx;
-
-			vertIdx = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v));
-
-			ccgdm->vertMap[index].startVert = vertNum;
-
-			/* set the vert base vert */
-			*((int *) ccgSubSurf_getVertUserData(ss, v)) = vertNum;
-
-			DM_copy_vert_data(dm, &ccgdm->dm, vertIdx, vertNum, 1);
-
+		for (x = 1; x < edgeSize - 1; x++) {
+			float w[2];
+			w[1] = (float) x / (edgeSize - 1);
+			w[0] = 1 - w[1];
+			DM_interp_vert_data(dm, &ccgdm->dm, vertIdx, w, 2, vertNum);
 			if (vertOrigIndex) {
-				*vertOrigIndex = mapIndex;
+				*vertOrigIndex = ORIGINDEX_NONE;
 				vertOrigIndex++;
 			}
 			vertNum++;
 		}
-	}
-	else {
-		/* TODO(sergey): This is just for the purposes of tests. */
-		if (mpoly) {
-			faceFlags->flag = mpoly[0].flag;
-			faceFlags->mat_nr = mpoly[0].mat_nr;
+
+		if (has_edge_cd) {
+			BLI_assert(edgeIdx >= 0 && edgeIdx < dm->getNumEdges(dm));
+			for (i = 0; i < numFinalEdges; ++i) {
+				CustomData_copy_data(&dm->edgeData, &ccgdm->dm.edgeData, edgeIdx, edgeNum + i, 1);
+			}
 		}
 
-		vertNum = ccgSubSurf_getNumFinalVerts(ss);
-		edgeNum = ccgSubSurf_getNumFinalEdges(ss);
-		loopindex2 = ccgSubSurf_getNumFinalFaces(ss) * 4;
-		faceNum = ccgSubSurf_getNumFinalFaces(ss);
+		if (edgeOrigIndex) {
+			for (i = 0; i < numFinalEdges; ++i) {
+				edgeOrigIndex[edgeNum + i] = mapIndex;
+			}
+		}
+
+		edgeNum += numFinalEdges;
 	}
 
-	ccgdm->dm.numVertData = vertNum;
-	ccgdm->dm.numEdgeData = edgeNum;
-	ccgdm->dm.numTessFaceData = faceNum;
-	ccgdm->dm.numLoopData = loopindex2;
-	ccgdm->dm.numPolyData = faceNum;
+	if (useSubsurfUv) {
+		CustomData *ldata = &ccgdm->dm.loopData;
+		CustomData *dmldata = &dm->loopData;
+		int numlayer = CustomData_number_of_layers(ldata, CD_MLOOPUV);
+		int dmnumlayer = CustomData_number_of_layers(dmldata, CD_MLOOPUV);
 
-	/* All tessellated CD layers were updated! */
-	ccgdm->dm.dirty &= ~DM_DIRTY_TESS_CDLAYERS;
+		for (i = 0; i < numlayer && i < dmnumlayer; i++)
+			set_subsurf_uv(ss, dm, &ccgdm->dm, i);
+	}
+
+	for (index = 0; index < totvert; ++index) {
+		CCGVert *v = ccgdm->vertMap[index].vert;
+		int mapIndex = ccgDM_getVertMapIndex(ccgdm->ss, v);
+		int vertIdx;
+
+		vertIdx = GET_INT_FROM_POINTER(ccgSubSurf_getVertVertHandle(v));
+
+		ccgdm->vertMap[index].startVert = vertNum;
+
+		/* set the vert base vert */
+		*((int *) ccgSubSurf_getVertUserData(ss, v)) = vertNum;
+
+		DM_copy_vert_data(dm, &ccgdm->dm, vertIdx, vertNum, 1);
+
+		if (vertOrigIndex) {
+			*vertOrigIndex = mapIndex;
+			vertOrigIndex++;
+		}
+		vertNum++;
+	}
 
 #ifndef USE_DYNSIZE
 	BLI_array_free(vertidx);
 	BLI_array_free(loopidx);
 #endif
 	free_ss_weights(&wtable);
+
+	BLI_assert(vertNum == ccgSubSurf_getNumFinalVerts(ss));
+	BLI_assert(edgeNum == ccgSubSurf_getNumFinalEdges(ss));
+	BLI_assert(loopindex2 == ccgSubSurf_getNumFinalFaces(ss) * 4);
+	BLI_assert(faceNum == ccgSubSurf_getNumFinalFaces(ss));
+
+}
+
+/* Fill in only geometry arrays needed for the GPU tessellation. */
+static void set_ccgdm_gpu_geometry(CCGDerivedMesh *ccgdm,
+                                   CCGSubSurf *ss,
+                                   DerivedMesh *dm)
+{
+	const int totface = ccgSubSurf_getNumFaces(ss);
+	MPoly *mpoly = CustomData_get_layer(&dm->polyData, CD_MPOLY);
+	int index;
+	DMFlagMat *faceFlags = ccgdm->faceFlags;
+
+	for (index = 0; index < totface; index++) {
+		CCGFace *f = ccgdm->faceMap[index].face;
+		int origIndex = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
+
+		faceFlags->flag = mpoly ?  mpoly[origIndex].flag : 0;
+		faceFlags->mat_nr = mpoly ? mpoly[origIndex].mat_nr : 0;
+		faceFlags++;
+	}
+
+	/* TODO(sergey): Fill in edge flags. */
+}
+
+static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
+                                         int drawInteriorEdges,
+                                         int useSubsurfUv,
+                                         DerivedMesh *dm,
+                                         bool use_gpu_backend)
+{
+	const int totedge = ccgSubSurf_getNumEdges(ss);
+	const int totface = ccgSubSurf_getNumFaces(ss);
+	CCGDerivedMesh *ccgdm = MEM_callocN(sizeof(*ccgdm), "ccgdm");
+	int numTex, numCol;
+	int hasPCol, hasOrigSpace;
+
+	DM_from_template(&ccgdm->dm, dm, DM_TYPE_CCGDM,
+	                 ccgSubSurf_getNumFinalVerts(ss),
+	                 ccgSubSurf_getNumFinalEdges(ss),
+	                 ccgSubSurf_getNumFinalFaces(ss),
+	                 ccgSubSurf_getNumFinalFaces(ss) * 4,
+	                 ccgSubSurf_getNumFinalFaces(ss));
+
+	CustomData_free_layer_active(&ccgdm->dm.polyData, CD_NORMAL,
+	                             ccgdm->dm.numPolyData);
+
+	numTex = CustomData_number_of_layers(&ccgdm->dm.loopData, CD_MLOOPUV);
+	numCol = CustomData_number_of_layers(&ccgdm->dm.loopData, CD_MLOOPCOL);
+	hasPCol = CustomData_has_layer(&ccgdm->dm.loopData, CD_PREVIEW_MLOOPCOL);
+	hasOrigSpace = CustomData_has_layer(&ccgdm->dm.loopData, CD_ORIGSPACE_MLOOP);
+
+	if (
+	    (numTex && CustomData_number_of_layers(&ccgdm->dm.faceData, CD_MTFACE) != numTex)  ||
+	    (numCol && CustomData_number_of_layers(&ccgdm->dm.faceData, CD_MCOL) != numCol)    ||
+	    (hasPCol && !CustomData_has_layer(&ccgdm->dm.faceData, CD_PREVIEW_MCOL))            ||
+	    (hasOrigSpace && !CustomData_has_layer(&ccgdm->dm.faceData, CD_ORIGSPACE)) )
+	{
+		CustomData_from_bmeshpoly(&ccgdm->dm.faceData,
+		                          &ccgdm->dm.polyData,
+		                          &ccgdm->dm.loopData,
+		                          ccgSubSurf_getNumFinalFaces(ss));
+	}
+
+	set_default_ccgdm_callbacks(ccgdm);
+
+	ccgdm->ss = ss;
+	ccgdm->drawInteriorEdges = drawInteriorEdges;
+	ccgdm->useSubsurfUv = useSubsurfUv;
+
+	create_ccgdm_maps(ccgdm, ss);
+
+	ccgdm->reverseFaceMap = MEM_callocN(sizeof(int) * ccgSubSurf_getNumFinalFaces(ss), "reverseFaceMap");
+
+	/*CDDM hack*/
+	ccgdm->edgeFlags = MEM_callocN(sizeof(short) * totedge, "edgeFlags");
+	ccgdm->faceFlags = MEM_callocN(sizeof(DMFlagMat) * totface, "faceFlags");
+
+	if (use_gpu_backend == false) {
+		set_ccgdm_all_geometry(ccgdm, ss, dm, useSubsurfUv != 0);
+	}
+	else {
+		set_ccgdm_gpu_geometry(ccgdm, ss, dm);
+	}
+
+	ccgdm->dm.numVertData = ccgSubSurf_getNumFinalVerts(ss);
+	ccgdm->dm.numEdgeData = ccgSubSurf_getNumFinalEdges(ss);
+	ccgdm->dm.numTessFaceData = ccgSubSurf_getNumFinalFaces(ss);
+	ccgdm->dm.numLoopData = ccgdm->dm.numTessFaceData * 4;
+	ccgdm->dm.numPolyData = ccgdm->dm.numTessFaceData;
+
+	/* All tessellated CD layers were updated! */
+	ccgdm->dm.dirty &= ~DM_DIRTY_TESS_CDLAYERS;
 
 	return ccgdm;
 }
