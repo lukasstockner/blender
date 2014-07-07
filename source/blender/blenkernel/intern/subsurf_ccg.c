@@ -3897,44 +3897,59 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	int numTex, numCol;
 	int hasPCol, hasOrigSpace;
 
-	DM_from_template(&ccgdm->dm, dm, DM_TYPE_CCGDM,
-	                 ccgSubSurf_getNumFinalVerts(ss),
-	                 ccgSubSurf_getNumFinalEdges(ss),
-	                 ccgSubSurf_getNumFinalFaces(ss),
-	                 ccgSubSurf_getNumFinalFaces(ss) * 4,
-	                 ccgSubSurf_getNumFinalFaces(ss));
+	if (use_gpu_backend == false) {
+		DM_from_template(&ccgdm->dm, dm, DM_TYPE_CCGDM,
+		                 ccgSubSurf_getNumFinalVerts(ss),
+		                 ccgSubSurf_getNumFinalEdges(ss),
+		                 ccgSubSurf_getNumFinalFaces(ss),
+		                 ccgSubSurf_getNumFinalFaces(ss) * 4,
+		                 ccgSubSurf_getNumFinalFaces(ss));
 
-	CustomData_free_layer_active(&ccgdm->dm.polyData, CD_NORMAL,
-	                             ccgdm->dm.numPolyData);
+		numTex = CustomData_number_of_layers(&ccgdm->dm.loopData,
+		                                     CD_MLOOPUV);
+		numCol = CustomData_number_of_layers(&ccgdm->dm.loopData,
+		                                     CD_MLOOPCOL);
+		hasPCol = CustomData_has_layer(&ccgdm->dm.loopData,
+		                               CD_PREVIEW_MLOOPCOL);
+		hasOrigSpace = CustomData_has_layer(&ccgdm->dm.loopData,
+		                                    CD_ORIGSPACE_MLOOP);
 
-	numTex = CustomData_number_of_layers(&ccgdm->dm.loopData, CD_MLOOPUV);
-	numCol = CustomData_number_of_layers(&ccgdm->dm.loopData, CD_MLOOPCOL);
-	hasPCol = CustomData_has_layer(&ccgdm->dm.loopData, CD_PREVIEW_MLOOPCOL);
-	hasOrigSpace = CustomData_has_layer(&ccgdm->dm.loopData, CD_ORIGSPACE_MLOOP);
+		if (
+		    (numTex && CustomData_number_of_layers(&ccgdm->dm.faceData,
+		                                           CD_MTFACE) != numTex)  ||
+		    (numCol && CustomData_number_of_layers(&ccgdm->dm.faceData,
+		                                           CD_MCOL) != numCol)    ||
+		    (hasPCol && !CustomData_has_layer(&ccgdm->dm.faceData,
+		                                      CD_PREVIEW_MCOL))           ||
+		    (hasOrigSpace && !CustomData_has_layer(&ccgdm->dm.faceData,
+		                                           CD_ORIGSPACE)) )
+		{
+			CustomData_from_bmeshpoly(&ccgdm->dm.faceData,
+			                          &ccgdm->dm.polyData,
+			                          &ccgdm->dm.loopData,
+			                          ccgSubSurf_getNumFinalFaces(ss));
+		}
 
-	if (
-	    (numTex && CustomData_number_of_layers(&ccgdm->dm.faceData, CD_MTFACE) != numTex)  ||
-	    (numCol && CustomData_number_of_layers(&ccgdm->dm.faceData, CD_MCOL) != numCol)    ||
-	    (hasPCol && !CustomData_has_layer(&ccgdm->dm.faceData, CD_PREVIEW_MCOL))            ||
-	    (hasOrigSpace && !CustomData_has_layer(&ccgdm->dm.faceData, CD_ORIGSPACE)) )
-	{
-		CustomData_from_bmeshpoly(&ccgdm->dm.faceData,
-		                          &ccgdm->dm.polyData,
-		                          &ccgdm->dm.loopData,
-		                          ccgSubSurf_getNumFinalFaces(ss));
+		CustomData_free_layer_active(&ccgdm->dm.polyData, CD_NORMAL,
+		                             ccgdm->dm.numPolyData);
+
+		ccgdm->reverseFaceMap =
+			MEM_callocN(sizeof(int) * ccgSubSurf_getNumFinalFaces(ss),
+			            "reverseFaceMap");
+	}
+	else {
+		DM_from_template(&ccgdm->dm, dm, DM_TYPE_CCGDM,
+		                 0, 0, 0, 0, 0);
 	}
 
 	set_default_ccgdm_callbacks(ccgdm);
+	create_ccgdm_maps(ccgdm, ss);
 
 	ccgdm->ss = ss;
 	ccgdm->drawInteriorEdges = drawInteriorEdges;
 	ccgdm->useSubsurfUv = useSubsurfUv;
 
-	create_ccgdm_maps(ccgdm, ss);
-
-	ccgdm->reverseFaceMap = MEM_callocN(sizeof(int) * ccgSubSurf_getNumFinalFaces(ss), "reverseFaceMap");
-
-	/*CDDM hack*/
+	/* CDDM hack. */
 	ccgdm->edgeFlags = MEM_callocN(sizeof(short) * totedge, "edgeFlags");
 	ccgdm->faceFlags = MEM_callocN(sizeof(DMFlagMat) * totface, "faceFlags");
 
