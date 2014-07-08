@@ -496,12 +496,6 @@ void ED_keymap_proportional_editmode(struct wmKeyConfig *UNUSED(keyconf), struct
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_proportional_mode_sticky", OKEY, KM_PRESS, 0, 0);
 
-	/*
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.proportional_edit");
-	RNA_string_set(kmi->ptr, "value_1", "DISABLED");
-	RNA_string_set(kmi->ptr, "value_2", "ENABLED");
-	*/
-
 	/* for modes/object types that allow 'connected' mode, add the Alt O key */
 	if (do_connected) {
 		kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle_enum", OKEY, KM_PRESS, KM_ALT, 0);

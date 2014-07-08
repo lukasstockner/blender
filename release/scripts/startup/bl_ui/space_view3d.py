@@ -2154,6 +2154,8 @@ class VIEW3D_MT_edit_mesh_extrude(Menu):
             layout.operator("view3d.edit_mesh_extrude_move_normal", text="Region"),
         'REGION_VERT_NORMAL': lambda layout:
             layout.operator("view3d.edit_mesh_extrude_move_shrink_fatten", text="Region (Vertex Normals)"),
+        'NULL': lambda layout:
+            layout.separator(),
     }
 
     @staticmethod
@@ -2164,10 +2166,16 @@ class VIEW3D_MT_edit_mesh_extrude(Menu):
         menu = []
         if mesh.total_face_sel:
             menu += ['REGION', 'REGION_VERT_NORMAL', 'FACE']
+        else:
+            menu += ['NULL', 'NULL', 'NULL']
         if mesh.total_edge_sel and (select_mode[0] or select_mode[1]):
             menu += ['EDGE']
+        else:
+            menu += ['NULL']
         if mesh.total_vert_sel and select_mode[0]:
             menu += ['VERT']
+        else:
+            menu += ['NULL']
 
         # should never get here
         return menu
@@ -2175,9 +2183,10 @@ class VIEW3D_MT_edit_mesh_extrude(Menu):
     def draw(self, context):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
+        pie = layout.menu_pie()
 
         for menu_id in self.extrude_options(context):
-            self._extrude_funcs[menu_id](layout)
+            self._extrude_funcs[menu_id](pie)
 
 
 class VIEW3D_MT_edit_mesh_vertices(Menu):
