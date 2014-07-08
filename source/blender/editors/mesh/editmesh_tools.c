@@ -2037,17 +2037,18 @@ void MESH_OT_shape_propagate_to_all(wmOperatorType *ot)
 /* ================================== Blend From Shape ===================================== */
 
 typedef struct bfs_customdata {
-	KeyBlock *opkb;
-	float   *add_shape_co;  /* argument co minus basis co, float triplets */
+	KeyBlock *opkb;			/* kb on which we operate */
 
-	float	*origcos;
+	float   *add_shape_co;  /* argument co minus basis co, float tripletsm, for add mode */
+
+	float	*origcos;		/* original editmesh coords */
 
 	float	*distances,	    /* proportional falloff distances */
 			*factors;       /* proportional falloff factors (why not cache?) */
 
 	float	amount;		    /* blending intensity */
 
-	float   basedistance;   /* */
+	short	ww, wh;			/* area width and height */
 	float	distance;	    /* PE falloff distance */
 
 	int		origx, origy;	/* mouse coords at previous state */
@@ -2055,8 +2056,7 @@ typedef struct bfs_customdata {
 
 	int		blend_mode;		/* 0 = interp, 1 = add */
 
-	int		prop_mode;		/* from DNA_scene_types.h, PE falloff interpolator mode, if -1 consider
-							 * no PE */
+	int		prop_mode;		/* from DNA_scene_types.h, PE falloff interpolator mode */
 	int		prop_type;		/* simple/connected/projected */
 
 	BMEditMesh *em;			/* editmesh */
@@ -2072,10 +2072,13 @@ static void bfs_freedata(bfs_customdata *mem)
 {
 	if (mem->distances)
 		MEM_freeN(mem->distances);
+
 	if (mem->factors)
 		MEM_freeN(mem->factors);
+
 	if (mem->add_shape_co)
 		MEM_freeN(mem->add_shape_co);
+
 	if (mem->origcos)
 		MEM_freeN(mem->origcos);
 
@@ -2209,13 +2212,11 @@ static int edbm_blend_from_shape_invoke(bContext *C, wmOperator *op, const wmEve
 	op->customdata = MEM_callocN(sizeof(bfs_customdata), "blend from shape modal data");
 	state = op->customdata;
 
-	//if (ts->proportional)
-		state->distances = MEM_callocN(sizeof(float)* em->bm->totvert, "blend from shape distances");
-
+	state->distances = MEM_callocN(sizeof(float)* em->bm->totvert, "blend from shape distances");
 	state->factors = MEM_callocN(sizeof(float) * em->bm->totvert, "blend from shape factors");
 	state->origcos = MEM_callocN(sizeof(float) * em->bm->totvert * 3, "blend from shape origcos");
 
-	state->blend_mode = BFS_MODE_INTERP; /* figure this one out in the modal */
+	state->blend_mode = BFS_MODE_INTERP; 
 	state->origx = event->x;
 	state->origy = event->y;
 	state->em = em;
@@ -2223,6 +2224,8 @@ static int edbm_blend_from_shape_invoke(bContext *C, wmOperator *op, const wmEve
 	state->prop_type = PROP_EDIT_CONNECTED; // ts->proportional; /* simple/cnct/proj */
 	state->prop_mode = ts->prop_mode;				/* falloffs */
 	state->opkb = BKE_keyblock_from_object(obedit); /* TODO */
+	state->wh = ar->winy;
+	state->ww = ar->winx;
 
 	{
 		float(*origshapeco)[3] = (float(*)[3]) state->origcos;
@@ -2241,11 +2244,6 @@ static int edbm_blend_from_shape_invoke(bContext *C, wmOperator *op, const wmEve
 		sub_v3_v3(bbox_diag, obedit->bb->vec[6]);
 		mul_m3_v3(obmat3, bbox_diag);
 		state->yscale = 2.0f * len_v3(bbox_diag) / ar->winy;
-
-		//printf("BB diag len = %.3f\n", len_v3(bbox_diag));
-
-		/* initial falloff distance to 1/4 bbox_diag */
-		state->distance = 0.25 * len_v3(bbox_diag);
 
 		/* 2.0f blending amount per entire view3d width, simple*/
 		state->xscale = 2.0f / ar->winx;
@@ -2285,11 +2283,23 @@ static int edbm_blend_from_shape_invoke(bContext *C, wmOperator *op, const wmEve
 
 static void edbm_blend_from_shape_handle_mousemove(short mx, short my, bfs_customdata *state)
 {
+#define EXPSWITCHLEVEL state->wh * 0.8f
+#define STEEPNESS state->yscale / 50.0f
 	state->amount = -1.0f + mx * state->xscale;
-	state->distance = my * state->yscale;
+
+	if (my < EXPSWITCHLEVEL)
+		state->distance = my * state->yscale;
+	else
+		/* go exponential here */
+		state->distance = EXPSWITCHLEVEL * state->yscale /*         constant part      */
+		/*               exp part             */ + exp((my - EXPSWITCHLEVEL) / ((state->wh - EXPSWITCHLEVEL)) / STEEPNESS) - 1.0f;
+
+	/* TODO: make this follow some nice spline */
 
 	CLAMP(state->amount, -1.0f, 1.0f);
 	CLAMP(state->distance, 0.0f, FLT_MAX);
+#undef EXPSWITCHLEVEL
+#undef STEEPNESS
 }
 
 static void edbm_blend_from_shape_recalc_factors(bfs_customdata *state) {
@@ -2335,7 +2345,7 @@ static void edbm_blend_from_shape_recalc_shapes(bfs_customdata *state)
 			BM_ITER_MESH_INDEX(v, &iter, state->em->bm, BM_VERTS_OF_MESH, a) {
 				copy_v3_v3(vec, addshapeco[a]);
 				mul_v3_fl(vec, state->amount * state->factors[a]);
-				add_v3_v3(v->co, vec);
+				add_v3_v3v3(v->co, origshapeco[a], vec);
 			}
 			break;
 
@@ -2344,19 +2354,57 @@ static void edbm_blend_from_shape_recalc_shapes(bfs_customdata *state)
 	}
 }
 
+static char *edbm_bfs_mode_to_string(int mode)
+{
+	if (mode == BFS_MODE_ADD)
+		return IFACE_("ADD");
+	if (mode == BFS_MODE_INTERP)
+		return IFACE_("BLEND");
+	return "ERR";
+}
+
+static char *edbm_bfs_falloff_to_string(int type) 
+{
+	switch (type) {
+		case PROP_SHARP:
+			return IFACE_("Sharp");
+		
+		case PROP_SMOOTH:
+			return IFACE_("Smooth");
+		
+		case PROP_ROOT:
+			return IFACE_("Root");
+		
+		case PROP_LIN:
+			return IFACE_("Linear");
+		
+		case PROP_SPHERE:
+			return IFACE_("Sphere");
+		
+		case PROP_RANDOM:
+			return IFACE_("Random");
+		
+		case PROP_CONST: /* fall-through */
+			return IFACE_("Constant");
+		default:
+			return "ERR";
+	}
+}
+
+
 /* print some info in header like Knife */
 static void edbm_draw_blend_from_shape_info(bContext *C, bfs_customdata *state)
 {
 #define BUFFER 1024 /* long keyblock names are a reality :\ */
 	char header[BUFFER];
 
-	BLI_snprintf(header, BUFFER, "Mousewheel: From (%s). LMB/RMB: Confirm, Mouse Left-Right: Intensity (%.3f), " 
-									"Mouse Up/Down: Falloff Distance (%.3f), MMB: Add/Blend (%s), PgUp/PgDwn: Falloff Type (%s).",
+	BLI_snprintf(header, BUFFER, "Mousewheel: From (%s). LMB/RMB: Confirm. Mouse Left-Right: Intensity (%.3f). " 
+									"Mouse Up/Down: Falloff Distance (%.3f). MMB: Add/Blend (%s), O: Cycle Falloff Type (%s).",
 										state->opkb->name,
 										state->amount,
 										state->distance,
-										"TODO",
-										"TODO");
+										edbm_bfs_mode_to_string(state->blend_mode),
+										edbm_bfs_falloff_to_string(state->prop_mode));
 
 	ED_area_headerprint(CTX_wm_area(C), header);
 #undef BUFFER
@@ -2378,21 +2426,28 @@ static int edbm_blend_from_shape_modal(bContext *C, wmOperator *op, const wmEven
 			break;
 
 		case OKEY:
-			/* cycle PE */
+			if (event->val == KM_RELEASE)
+				break;
+			if (event->shift) {
+				/* cycle PE */
+				state->prop_type++;
+				if (state->prop_type> PROP_EDIT_PROJECTED)
+					state->prop_type = 0;
+				break;
+			}
+			state->prop_mode++;
+			if (state->prop_mode == PROP_MODE_MAX)
+				state->prop_mode = 0;
 			break;
 
 		case MIDDLEMOUSE:
-			/* switch add/interp */
+			if (event->val == KM_RELEASE)
+				break;
+			if (state->blend_mode == BFS_MODE_INTERP) 
+				state->blend_mode = BFS_MODE_ADD;
+			else
+				state->blend_mode = BFS_MODE_INTERP;
 			return OPERATOR_PASS_THROUGH;
-			break;
-
-		case PAGEUPKEY:
-			/* cycle falloff type fwd */
-			break;
-
-		case PAGEDOWNKEY:
-			/* cycle falloff type bwd */
-			break;
 
 		case LEFTMOUSE:   /* fall-through */
 		case RIGHTMOUSE: 
@@ -2412,8 +2467,11 @@ static int edbm_blend_from_shape_modal(bContext *C, wmOperator *op, const wmEven
 						kb = kb->prev;
 				}
 				state->opkb = kb;
-			} 
-			
+			} 	
+			if (state->add_shape_co) {
+				MEM_freeN(state->add_shape_co);
+				state->add_shape_co = NULL;
+			}
 			break;
 
 		case WHEELUPMOUSE:
@@ -2427,6 +2485,10 @@ static int edbm_blend_from_shape_modal(bContext *C, wmOperator *op, const wmEven
 						kb = kb->next;
 				}
 				state->opkb = kb;
+			}
+			if (state->add_shape_co) {
+				MEM_freeN(state->add_shape_co);
+				state->add_shape_co = NULL;
 			}
 			break;
 		}

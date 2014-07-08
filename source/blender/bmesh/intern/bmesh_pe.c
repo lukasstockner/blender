@@ -320,7 +320,7 @@ float BM_prop_factor_distance(float dist, float maxdist, int mode)
 			break;
 		case PROP_CONST: /* fall-through */
 		default:
-			factor = 1.0f;
+			factor = 0.0f;
 			break;
 	}
 
