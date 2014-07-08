@@ -1197,7 +1197,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", SKEY, KM_PRESS, KM_SHIFT, 0);
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush.use_smooth_stroke");
 
-	WM_keymap_add_pie_menu(keymap, "VIEW3D_PIE_tests", QKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_pie_menu(keymap, "VIEW3D_PIE_tests", QKEY, KM_PRESS, 0, 0, false);
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_menu_enum", RKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.brush.texture_angle_source_random");

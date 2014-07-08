@@ -8422,6 +8422,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 	uiBlock *block;
 	int mx, my;
 	double duration;
+	bool is_click_style;
 
 	/* we block all events, this is modal interaction, except for drop events which is described below */
 	int retval = WM_UI_HANDLER_BREAK;
@@ -8434,6 +8435,8 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 	ar = menu->region;
 	block = ar->uiblocks.first;
+
+	is_click_style = (U.pie_interaction_type == USER_UI_PIE_CLICK) || (block->pie_data.flags & UI_PIE_CLICK_STYLE);
 
 	if (menu->scrolltimer == NULL) {
 		menu->scrolltimer =
@@ -8506,7 +8509,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			ED_region_tag_redraw(ar);
 		}
 		else {
-			if (U.pie_interaction_type == USER_UI_PIE_DRAG) {
+			if (!is_click_style) {
 				retval = ui_pie_menu_apply(C, menu, event, true);
 			}
 		}
@@ -8521,7 +8524,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 			case LEFTMOUSE:
 				if (event->val == KM_PRESS) {
-					if ((U.pie_interaction_type == USER_UI_PIE_CLICK) || (block->pie_data.flags & UI_PIE_CLICK_STYLE)) {
+					if (is_click_style) {
 						retval = ui_pie_menu_apply(C, menu, event, false);
 					}
 					else {

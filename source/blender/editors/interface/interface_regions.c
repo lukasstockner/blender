@@ -2675,7 +2675,7 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 	pie->block_radial->flag |= UI_BLOCK_RADIAL;
 	pie->block_radial->pie_data.event = event->type;
 	if (force_hold)
-		pie->block_radial->pie_data.flags |= UI_PIE_FORCE_HOLD_STYLE;
+		pie->block_radial->pie_data.flags |= UI_PIE_CLICK_STYLE;
 
 	pie->layout = uiBlockLayout(pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
 	pie->mx = event->x;
@@ -2720,7 +2720,7 @@ uiLayout *uiPieMenuLayout(uiPieMenu *pie)
 	return pie->layout;
 }
 
-void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *event, bool force_hold)
+void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *event, bool force_click)
 {
 	uiPieMenu *pie;
 	uiLayout *layout;
@@ -2735,7 +2735,7 @@ void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *even
 	if (mt->poll && mt->poll(C, mt) == 0)
 		return;
 
-	pie = uiPieMenuBegin(C, IFACE_(mt->label), ICON_NONE, event, force_hold);
+	pie = uiPieMenuBegin(C, IFACE_(mt->label), ICON_NONE, event, force_click);
 	layout = uiPieMenuLayout(pie);
 
 	menu.layout = layout;
@@ -2752,12 +2752,12 @@ void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *even
 
 
 void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *opname,
-                             const char *propname, const wmEvent *event, bool force_hold)
+                             const char *propname, const wmEvent *event, bool force_click)
 {
 	uiPieMenu *pie;
 	uiLayout *layout;
 
-	pie = uiPieMenuBegin(C, IFACE_(title), ICON_NONE, event, force_hold);
+	pie = uiPieMenuBegin(C, IFACE_(title), ICON_NONE, event, force_click);
 	layout = uiPieMenuLayout(pie);
 
 	layout = uiLayoutRadial(layout);
