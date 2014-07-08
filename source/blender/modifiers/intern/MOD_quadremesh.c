@@ -105,7 +105,7 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 	return sys;
 }
 
-static void deleteLaplacianSystem(LaplacianSystem *sys)
+static void UNUSED_FUNCTION(deleteLaplacianSystem)(LaplacianSystem *sys)
 {
 	MEM_SAFE_FREE(sys->faces);
 	MEM_SAFE_FREE(sys->co);
@@ -199,9 +199,8 @@ static void initLaplacianMatrix(LaplacianSystem *sys)
 
 static void computeScalarField(LaplacianSystem *sys)
 {
-	int vid, i, n, na;
+	int vid, i, n;
 	n = sys->total_verts;
-	na = sys->total_features;
 
 #ifdef OPENNL_THREADING_HACK
 	modifier_opennl_lock();
@@ -343,31 +342,11 @@ static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, Der
 
 }
 
-static float RGBtoH(float r, float g, float b)
-{
-	float mmin, mmax, delta, h;
-	mmin = min(r,min( g, b));
-	mmax = max(r, max( g, b));
-
-	delta = mmax - mmin;
-	if (r == mmax)
-		h = (g - b) / delta;		// between yellow & magenta
-	else if (g == mmax)
-		h = 2 + (b - r) / delta;	// between cyan & yellow
-	else
-		h = 4 + (r - g) / delta;	// between magenta & cyan
-	h *= 60;				// degrees
-	if (h < 0)
-		h += 360;
-	return h / 360.0;
-}
-
 static void QuadRemeshModifier_do(
 	QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
 	float(*vertexCos)[3], int numVerts)
 {
-	float(*filevertexCos)[3];
-	int sysdif, i, fi;
+	int i;
 	LaplacianSystem *sys = NULL;
 	int defgrp_index;
 	MDeformVert *dvert = NULL;
@@ -422,8 +401,6 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
-	QuadRemeshModifierData *lmd = (QuadRemeshModifierData *)md;
-	QuadRemeshModifierData *tlmd = (QuadRemeshModifierData *)target;
 
 	modifier_copyData_generic(md, target);
 
@@ -467,9 +444,8 @@ static void deformVertsEM(
 	}
 }
 
-static void freeData(ModifierData *md)
+static void freeData(ModifierData *UNUSED(md))
 {
-	QuadRemeshModifierData *lmd = (QuadRemeshModifierData *)md;
 #ifdef WITH_OPENNL
 	/*LaplacianSystem *sys = (LaplacianSystem *)lmd->cache_system;
 	if (sys) {
