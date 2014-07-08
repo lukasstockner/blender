@@ -1664,7 +1664,7 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 	{
 		/* TODO(sergey): We currently only support all edges drawing. */
 		ccgSubSurf_prepareGLMesh(ss);
-		ccgSubSurf_drawGLMesh(ss, false);
+		ccgSubSurf_drawGLMesh(ss, false, -1);
 		return;
 	}
 #endif
@@ -1787,28 +1787,42 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 
 #ifdef WITH_OPENSUBDIV
 	{
-		int matnr, shademodel;
-
-		/* TODO(sergey): This is just for the purposes of tests. */
-		if (faceFlags) {
-			shademodel = (lnors || (faceFlags[0].flag & ME_SMOOTH))
-				? GL_SMOOTH
-				: GL_FLAT;
-			matnr = faceFlags[0].mat_nr;
-		}
-		else {
-			shademodel = GL_SMOOTH;
-			matnr = 0;
-		}
-
-		/* TODO(sergey): Currently we only set first material,
-		 * in the future we need to set per-patch material.
-		 */
-		setMaterial(matnr + 1, NULL);
-		glShadeModel(shademodel);
-
+		int i, matnr = -1, shademodel = -1;
+		CCGFaceIterator *fi;
 		ccgSubSurf_prepareGLMesh(ss);
-		ccgSubSurf_drawGLMesh(ss, true);
+
+		for (fi = ccgSubSurf_getFaceIterator(ss), i = 0;
+		     !ccgFaceIterator_isStopped(fi);
+		     ccgFaceIterator_next(fi), ++i)
+		{
+			CCGFace *f = ccgFaceIterator_getCurrent(fi);
+			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
+			int new_matnr, new_shademodel;
+
+			if (faceFlags) {
+				new_shademodel = (lnors || (faceFlags[index].flag & ME_SMOOTH))
+					? GL_SMOOTH
+					: GL_FLAT;
+				new_matnr = faceFlags[index].mat_nr;
+			}
+			else {
+				new_shademodel = GL_SMOOTH;
+				new_matnr = 0;
+			}
+
+			if (new_shademodel != shademodel) {
+				glShadeModel(new_shademodel);
+				shademodel = new_shademodel;
+			}
+
+			if (new_matnr != matnr) {
+				setMaterial(new_matnr + 1, NULL);
+				matnr = new_matnr;
+			}
+
+			ccgSubSurf_drawGLMesh(ss, true, i);
+		}
+		ccgFaceIterator_free(fi);
 
 		/* We're done with drawing if drawing happens using OpenSubdiv. */
 		return;

@@ -73,6 +73,10 @@
 #  include <opensubdiv/osd/glVertexBuffer.h>
 #endif
 
+#include <opensubdiv/osdutil/patchPartitioner.h>
+
+#include "opensubdiv_partitioned.h"
+
 #include "MEM_guardedalloc.h"
 
 // **************** Types declaration ****************
@@ -93,6 +97,7 @@ using OpenSubdiv::OsdUtilSubdivTopology;
 using OpenSubdiv::OsdVertex;
 
 typedef OpenSubdiv::HbrMesh<OsdVertex> OsdHbrMesh;
+typedef OpenSubdiv::HbrFace<OpenSubdiv::OsdVertex> OsdHbrFace;
 
 #if defined(OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK) || \
     defined(OPENSUBDIV_HAS_GLSL_COMPUTE)
@@ -100,29 +105,30 @@ using OpenSubdiv::OsdGLVertexBuffer;
 #endif
 
 using OpenSubdiv::OsdGLDrawContext;
+using OpenSubdiv::PartitionedMesh;
 
 // CPU backend
 using OpenSubdiv::OsdCpuGLVertexBuffer;
 using OpenSubdiv::OsdCpuComputeController;
 static OpenSubdiv_ComputeController *g_cpuComputeController = NULL;
-typedef OsdMesh<OsdCpuGLVertexBuffer,
-                OsdCpuComputeController,
-                OsdGLDrawContext> OsdCpuMesh;
+typedef PartitionedMesh<OsdCpuGLVertexBuffer,
+                        OsdCpuComputeController,
+                        OsdGLDrawContext> OsdCpuMesh;
 
 #ifdef OPENSUBDIV_HAS_OPENMP
 using OpenSubdiv::OsdOmpComputeController;
 static OpenSubdiv_ComputeController *g_ompComputeController = NULL;
-typedef OsdMesh<OsdCpuGLVertexBuffer,
-                OsdOmpComputeController,
-                OsdGLDrawContext> OsdOmpMesh;
+typedef PartitionedMesh<OsdCpuGLVertexBuffer,
+                        OsdOmpComputeController,
+                        OsdGLDrawContext> OsdOmpMesh;
 #endif
 
 #ifdef OPENSUBDIV_HAS_OPENCL
 using OpenSubdiv::OsdCLGLVertexBuffer;
 using OpenSubdiv::OsdCLComputeController;
-typedef OsdMesh<OsdCLGLVertexBuffer,
-                OsdCLComputeController,
-                OsdGLDrawContext> OsdCLMesh;
+typedef PartitionedMesh<OsdCLGLVertexBuffer,
+                        OsdCLComputeController,
+                        OsdGLDrawContext> OsdCLMesh;
 static OpenSubdiv_ComputeController *g_clComputeController = NULL;
 static cl_context g_clContext;
 static cl_command_queue g_clQueue;
@@ -131,26 +137,26 @@ static cl_command_queue g_clQueue;
 #ifdef OPENSUBDIV_HAS_CUDA
 using OpenSubdiv::OsdCudaComputeController;
 using OpenSubdiv::OsdCudaGLVertexBuffer;
-typedef OsdMesh<OsdCudaGLVertexBuffer,
-                OsdCudaComputeController,
-                OsdGLDrawContext> OsdCudaMesh;
+typedef PartitionedMesh<OsdCudaGLVertexBuffer,
+                        OsdCudaComputeController,
+                        OsdGLDrawContext> OsdCudaMesh;
 static OpenSubdiv_ComputeController *g_cudaComputeController = NULL;
 static bool g_cudaInitialized = false;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_TRANSFORM_FEEDBACK
 using OpenSubdiv::OsdGLSLTransformFeedbackComputeController;
-typedef OsdMesh<OsdGLVertexBuffer,
-                OsdGLSLTransformFeedbackComputeController,
-                OsdGLDrawContext> OsdGLSLTransformFeedbackMesh;
+typedef PartitionedMesh<OsdGLVertexBuffer,
+                        OsdGLSLTransformFeedbackComputeController,
+                        OsdGLDrawContext> OsdGLSLTransformFeedbackMesh;
 static OpenSubdiv_ComputeController *g_glslTransformFeedbackComputeController = NULL;
 #endif
 
 #ifdef OPENSUBDIV_HAS_GLSL_COMPUTE
 using OpenSubdiv::OsdGLSLComputeController;
-typedef OsdMesh<OsdGLVertexBuffer,
-                OsdGLSLComputeController,
-                OsdGLDrawContext> OsdGLSLComputeMesh;
+typedef PartitionedMesh<OsdGLVertexBuffer,
+                        OsdGLSLComputeController,
+                        OsdGLDrawContext> OsdGLSLComputeMesh;
 static OpenSubdiv_ComputeController *g_glslOComputeComputeController = NULL;
 #endif
 
@@ -260,6 +266,54 @@ static OpenSubdiv::OsdUtilMesh<OsdVertex>::Scheme get_osd_scheme(int scheme)
 	}
 }
 
+/* TODO(sergey): Currently we use single coarse face per partition,
+ * which allows to have per-face material assignment but which also
+ * increases number of glDrawElements() calls.
+ *
+ * Ideally here we need to partition like this, but do some conjunction
+ * at draw time, so adjacent faces with the same material are displayed
+ * in a single chunk.
+ */
+static void get_partition_per_face(OsdHbrMesh &hmesh,
+                                   std::vector<int> *idsOnPtexFaces)
+{
+	int numFaces = hmesh.GetNumCoarseFaces();
+
+	// First, assign partition ID to each coarse face.
+	std::vector<int> idsOnCoarseFaces;
+	for (int i = 0; i < numFaces; ++i) {
+		int partitionID = i;
+		idsOnCoarseFaces.push_back(partitionID);
+	}
+
+	// Create ptex index to coarse face index mapping.
+	OsdHbrFace *lastFace = hmesh.GetFace(numFaces - 1);
+	int numPtexFaces = lastFace->GetPtexIndex();
+	numPtexFaces += (hmesh.GetSubdivision()->FaceIsExtraordinary(&hmesh,
+	                                                             lastFace) ?
+	                 lastFace->GetNumVertices() : 1);
+
+	// TODO(sergey): Duplicated logic to simpleHbr.
+	std::vector<int> ptexIndexToFaceMapping(numPtexFaces);
+	int ptexIndex = 0;
+	for (int i = 0; i < numFaces; ++i) {
+		OsdHbrFace *f = hmesh.GetFace(i);
+		ptexIndexToFaceMapping[ptexIndex++] = i;
+		int numVerts = f->GetNumVertices();
+		if (numVerts != 4 ) {
+			for (int j = 0; j < numVerts-1; ++j) {
+				ptexIndexToFaceMapping[ptexIndex++] = i;
+			}
+		}
+	}
+	assert((int)ptexIndexToFaceMapping.size() == numPtexFaces);
+
+	// Convert ID array from coarse face index space to ptex index space.
+	for (int i = 0; i < numPtexFaces; ++i) {
+		idsOnPtexFaces->push_back(idsOnCoarseFaces[ptexIndexToFaceMapping[i]]);
+	}
+}
+
 struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     OpenSubdiv_EvaluatorDescr *evaluator_descr,
     int controller_type,
@@ -286,6 +340,9 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 
 	OsdHbrMesh *hmesh = util_mesh.GetHbrMesh();
 
+	std::vector<int> idsOnPtexFaces;
+	get_partition_per_face(*hmesh, &idsOnPtexFaces);
+
 	OsdMeshBitset bits;
 	/* TODO(sergey): Adaptive subdivisions are not currently
 	 * possible because of the lack of tessellation shader.
@@ -308,7 +365,8 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 					num_vertex_elements, \
 					num_varying_elements, \
 					level, \
-					bits); \
+					bits, \
+					idsOnPtexFaces); \
 			break;
 		CHECK_CONTROLLER_TYPE(CPU, OsdCpuMesh, OsdCpuComputeController)
 
@@ -327,7 +385,8 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 					level,
 					bits,
 					g_clContext,
-					g_clQueue);
+					g_clQueue,
+					idsOnPtexFaces);
 			break;
 #endif
 

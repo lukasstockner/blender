@@ -43,6 +43,12 @@
 #  include <opensubdiv/osd/cudaGLVertexBuffer.h>
 #endif
 
+#include <opensubdiv/osd/cpuGLVertexBuffer.h>
+#include <opensubdiv/osd/cpuComputeContext.h>
+#include <opensubdiv/osd/cpuComputeController.h>
+
+#include "opensubdiv_partitioned.h"
+
 using OpenSubdiv::OsdGLMeshInterface;
 
 extern "C" char datatoc_gpu_shader_opensubd_display_glsl[];
@@ -115,14 +121,15 @@ static GLuint linkProgram(const char *define)
 }
 #endif
 
-void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
+void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
+                                 int fill_quads,
+                                 int material)
 {
 #ifndef OPENSUBDIV_LEGACY_DRAW
 	static GLuint flat_fill_program;
 	static GLuint smooth_fill_program;
 	static GLuint wireframe_program;
 	static bool need_init = true;
-
 	if (need_init) {
 		flat_fill_program = linkProgram("#define FLAT_SHADING\n");
 		smooth_fill_program = linkProgram("#define SMOOTH_SHADING\n");
@@ -130,14 +137,17 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
 		need_init = false;
 	}
 #endif
-
-	OsdGLMeshInterface *mesh = (OsdGLMeshInterface *) gl_mesh->descriptor;
-
+	using OpenSubdiv::PartitionedGLMeshInterface;
 	using OpenSubdiv::OsdDrawContext;
 	using OpenSubdiv::FarPatchTables;
 
-	const OsdDrawContext::PatchArrayVector &patches =
-		mesh->GetDrawContext()->patchArrays;
+	PartitionedGLMeshInterface *mesh =
+		(PartitionedGLMeshInterface *)(gl_mesh->descriptor);
+
+	OsdDrawContext::PatchArrayVector const &patches =
+	        material >= 0
+	            ? mesh->GetPatchArrays(material)
+	            : mesh->GetDrawContext()->patchArrays;
 
 #ifndef OPENSUBDIV_LEGACY_DRAW
 	if (fill_quads) {
@@ -173,7 +183,8 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
 			glDrawElements(GL_QUADS,
 			               patch.GetNumIndices(),
 			               GL_UNSIGNED_INT,
-			               NULL);
+			               (void *)(patch.GetVertIndex() *
+			                        sizeof(unsigned int)));
 		}
 	}
 
@@ -182,6 +193,8 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh, int fill_quads)
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 	glBindVertexArray(0);
+#ifndef OPENSUBDIV_LEGACY_DRAW
 	/* TODO(sergey): Store previously used program and roll back to it? */
 	glUseProgram(0);
+#endif
 }

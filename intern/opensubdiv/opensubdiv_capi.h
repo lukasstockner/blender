@@ -36,6 +36,9 @@ extern "C" {
 struct OpenSubdiv_EvaluatorDescr;
 struct OpenSubdiv_GLMesh;
 
+typedef struct OpenSubdiv_EvaluatorDescr OpenSubdiv_EvaluatorDescr;
+typedef struct OpenSubdiv_GLMesh OpenSubdiv_GLMesh;
+
 #ifdef __cplusplus
 struct OpenSubdiv_GLMeshDescr;
 typedef struct OpenSubdiv_GLMesh {
@@ -62,23 +65,26 @@ enum {
 	OPENSUBDIV_SCHEME_LOOP,
 };
 
-struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
-    struct OpenSubdiv_EvaluatorDescr *evaluator_descr,
+OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
+    OpenSubdiv_EvaluatorDescr *evaluator_descr,
     int controller_type,
     int level,
     int scheme);
 
-void openSubdiv_deleteOsdGLMesh(struct OpenSubdiv_GLMesh *gl_mesh);
-unsigned int openSubdiv_getOsdGLMeshPatchIndexBuffer(struct OpenSubdiv_GLMesh *gl_mesh);
-unsigned int openSubdiv_getOsdGLMeshVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh);
-void openSubdiv_osdGLMeshUpdateVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh,
+void openSubdiv_deleteOsdGLMesh(OpenSubdiv_GLMesh *gl_mesh);
+unsigned int openSubdiv_getOsdGLMeshPatchIndexBuffer(
+        OpenSubdiv_GLMesh *gl_mesh);
+unsigned int openSubdiv_getOsdGLMeshVertexBuffer(OpenSubdiv_GLMesh *gl_mesh);
+void openSubdiv_osdGLMeshUpdateVertexBuffer(OpenSubdiv_GLMesh *gl_mesh,
                                             const float *vertex_data,
                                             int start_vertex,
                                             int num_verts);
-void openSubdiv_osdGLMeshRefine(struct OpenSubdiv_GLMesh *gl_mesh);
-void openSubdiv_osdGLMeshSynchronize(struct OpenSubdiv_GLMesh *gl_mesh);
-void openSubdiv_osdGLMeshDisplay(struct OpenSubdiv_GLMesh *gl_mesh, int fill_quads);
-void openSubdiv_osdGLMeshBindVertexBuffer(struct OpenSubdiv_GLMesh *gl_mesh);
+void openSubdiv_osdGLMeshRefine(OpenSubdiv_GLMesh *gl_mesh);
+void openSubdiv_osdGLMeshSynchronize(OpenSubdiv_GLMesh *gl_mesh);
+void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
+                                 int fill_quads,
+                                 int material);
+void openSubdiv_osdGLMeshBindVertexBuffer(OpenSubdiv_GLMesh *gl_mesh);
 
 int openSubdiv_getAvailableControllers(void);
 

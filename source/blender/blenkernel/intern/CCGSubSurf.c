@@ -2395,12 +2395,12 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 	}
 }
 
-void ccgSubSurf_drawGLMesh(CCGSubSurf *ss, bool fill_quads)
+void ccgSubSurf_drawGLMesh(CCGSubSurf *ss, bool fill_quads, int material)
 {
 	if (LIKELY(ss->osd_mesh != NULL)) {
 		openSubdiv_osdGLMeshBindVertexBuffer(ss->osd_mesh);
 		glBindVertexArray(ss->osd_vao);
-		openSubdiv_osdGLMeshDisplay(ss->osd_mesh, fill_quads);
+		openSubdiv_osdGLMeshDisplay(ss->osd_mesh, fill_quads, material);
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
