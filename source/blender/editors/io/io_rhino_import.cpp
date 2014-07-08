@@ -80,7 +80,6 @@ static void import_ON_str(char *dest, ON_wString& onstr, size_t n) {
 	wcstombs(dest, curve_name_unmanaged, n);
 }
 
-<<<<<<< HEAD
 // Note: ignores first and last knots for Rhino compatibility. Returns:
 //             (uniform)    0 <---| can't tell these two apart by knots alone.
 // #define CU_NURB_CYCLIC	1 <---| "periodic" is the hint that disambiguates them.
@@ -161,8 +160,6 @@ static void normalize_knots(float *knots, int num_knots) {
 	}
 }
 
-=======
->>>>>>> 8c8a5a6dc4a958732fc5035fcf073879bb871e22
 /****************************** Curve Import *********************************/
 static float null_loc[] = {0,0,0};
 static float null_rot[] = {0,0,0};
@@ -244,13 +241,6 @@ static void rhino_import_nurbscurve(bContext *C, ON_NurbsCurve *nc, ON_Object *o
 	nu->pntsv = 1;
 	nu->orderu = nc->Order();
 	nu->orderv = 1;
-<<<<<<< HEAD
-=======
-	if (nc->IsPeriodic())
-		nu->flagu = CU_NURB_CYCLIC;
-	if (nc->IsClamped())
-		nu->flagu = CU_NURB_ENDPOINT;
->>>>>>> 8c8a5a6dc4a958732fc5035fcf073879bb871e22
 	BLI_assert(nu->pntsu + nu->orderu - 2 == nc->KnotCount());
 	bp = nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * ((nu->pntsu) * 1), "rhino_imported_NURBS_curve_points");
 	nu->knotsu = (float *)MEM_callocN(sizeof(float) * ((nu->pntsu+nu->orderu) * 1), "rhino_imported_NURBS_curve_points");
@@ -269,11 +259,8 @@ static void rhino_import_nurbscurve(bContext *C, ON_NurbsCurve *nc, ON_Object *o
 		nu->knotsu[i] = nc->Knot(i-1);
 	}
 	nu->knotsu[i] = nu->knotsu[i-1];
-<<<<<<< HEAD
 	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, nc->IsPeriodic());
 	normalize_knots(nu->knotsu, nu->pntsu+nu->orderu);
-=======
->>>>>>> 8c8a5a6dc4a958732fc5035fcf073879bb871e22
 	
 	editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
@@ -522,39 +509,52 @@ static void rhino_import_mesh(bContext *C,
 }
 
 /****************************** Surfaces *******************************/
-static void rhino_import_nurbs_surf(bContext *C,
-									ON_NurbsSurface *surf,
+static Curve* rhino_import_nurbs_surf_start(bContext *C,
+										   ON_Object *obj,
+										   ON_3dmObjectAttributes *attrs) {
+	char curve_name[MAX_ID_NAME];
+	Object *obedit = CTX_data_edit_object(C);
+	int layer = attrs->m_layer_index;
+	if (layer==0) layer = 1;
+	import_ON_str(curve_name,attrs->m_name,MAX_ID_NAME);
+	if (obedit) {
+		ED_object_editmode_load(obedit);
+		BLI_assert(!CTX_data_edit_object(C));
+	}
+	obedit = ED_object_add_type(C, OB_SURF, null_loc, null_rot, true, layer);
+	rename_id((ID *)obedit, curve_name);
+	rename_id((ID *)obedit->data, curve_name);
+	Curve *cu = (Curve*)obedit->data;
+	cu->resolu = 5;
+	cu->resolv = 5;
+	return cu;
+}
+
+static void rhino_import_nurbs_surf_end(bContext *C) {
+	ED_object_editmode_exit(C, EM_FREEDATA);
+	printf("nurbscurve done\n");
+}
+
+
+static Nurb* rhino_import_nurbs_surf(bContext *C,
+									ON_Surface *raw_surf,
 									ON_Object *obj,
 									ON_3dmObjectAttributes *attrs,
 									bool newobj) {
-	char curve_name[MAX_ID_NAME];
-	Curve *cu;
-	Nurb *nu = NULL;
-	ListBase *editnurb;
-	BPoint *bp;
-	int on_dim;
-	
-	Object *obedit = CTX_data_edit_object(C);
-	int layer = attrs->m_layer_index;
-	if (newobj) {
-		import_ON_str(curve_name,attrs->m_name,MAX_ID_NAME);
-		if (layer==0) layer = 1;
-		//Exit editmode if we're in it
-		if (obedit) {
-			ED_object_editmode_load(obedit);
-			BLI_assert(!CTX_data_edit_object(C));
+	ON_NurbsSurface *surf = ON_NurbsSurface::Cast(raw_surf);
+	bool surf_needs_delete = false;
+	if (!surf) {
+		surf = ON_NurbsSurface::New();
+		surf_needs_delete = true;
+		int success = surf->GetNurbForm(*surf);
+		if (!success) {
+			delete surf;
+			return NULL;
 		}
-		obedit = ED_object_add_type(C, OB_SURF, null_loc, null_rot, true, layer);
-		rename_id((ID *)obedit, curve_name);
-		rename_id((ID *)obedit->data, curve_name);
-		cu = (Curve*)obedit->data;
-		cu->resolu = 5;
-		cu->resolv = 5;
-	} else {
-		cu = (Curve*)obedit->data;
 	}
-	
-	nu = (Nurb *)MEM_callocN(sizeof(Nurb), "rhino_imported_NURBS_surf");
+	Object *obedit = CTX_data_edit_object(C);
+	Curve *cu = (Curve*)obedit->data;
+	Nurb *nu = (Nurb *)MEM_callocN(sizeof(Nurb), "rhino_imported_NURBS_surf");
 	nu->flag = CU_3D;
 	nu->type = CU_NURBS;
 	nu->resolu = cu->resolu;
@@ -569,10 +569,10 @@ static void rhino_import_nurbs_surf(bContext *C,
 		nu->flagv |= CU_NURB_CYCLIC;
 	nu->flagu |= CU_NURB_ENDPOINT;
 	nu->flagv |= CU_NURB_ENDPOINT;
-	bp = nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * (nu->pntsu * nu->pntsv), "rhino_imported_NURBS_surf_points");
+	BPoint *bp = nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * (nu->pntsu * nu->pntsv), "rhino_imported_NURBS_surf_points");
 	nu->knotsu = (float *)MEM_callocN(sizeof(float) * ((nu->pntsu+nu->orderu) * 1), "rhino_imported_NURBS_surf_points");
 	nu->knotsv = (float *)MEM_callocN(sizeof(float) * ((nu->pntsv+nu->orderv) * 1), "rhino_imported_NURBS_surf_points");
-	on_dim = surf->Dimension();
+	//int on_dim = surf->Dimension();
 	for (int j=0; j<nu->pntsv; j++) {
 		for (int i=0; i<nu->pntsu; i++) {
 			ON_4dPoint control_vert;
@@ -602,10 +602,10 @@ static void rhino_import_nurbs_surf(bContext *C,
 	//BKE_nurb_knot_calc_u(nu);
 	//BKE_nurb_knot_calc_v(nu);
 	
-	editnurb = object_editcurve_get(obedit);
+	ListBase *editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
-	ED_object_editmode_exit(C, EM_FREEDATA);
-	printf("nurbscurve done\n");
+	if (surf_needs_delete) delete surf;
+	return nu;
 }
 
 
@@ -622,22 +622,68 @@ static void rhino_import_surface(bContext *C,
 	//ON_SurfaceProxy *sp = ON_SurfaceProxy::Cast(surf);
 	bool did_handle = false;
 	if (ns) {
+		rhino_import_nurbs_surf_start(C, obj, attrs);
 		rhino_import_nurbs_surf(C, ns, obj, attrs, newobj);
+		rhino_import_nurbs_surf_end(C);
 		did_handle = true;
 	}
 	if (!did_handle && surf->HasNurbForm()) {
-		ns = ON_NurbsSurface::New();
-		int success = surf->GetNurbForm(*ns);
-		if (success) {
-			rhino_import_nurbs_surf(C, ns, obj, attrs, newobj);
-			delete ns;
-		}
+		rhino_import_nurbs_surf_start(C, obj, attrs);
+		rhino_import_nurbs_surf(C, surf, obj, attrs, newobj);
+		rhino_import_nurbs_surf_end(C);
 		did_handle = true;
 	}
 	if (!did_handle) {
 		char surf_name[MAX_ID_NAME];
-		printf("couldn't handle ");
+		import_ON_str(surf_name,attrs->m_name,MAX_ID_NAME);
+		printf("couldn't handle %s\n",surf_name);
 	}
+}
+
+static void rhino_import_brep(bContext *C,
+							  ON_Brep *brep,
+							  ON_Object *obj,
+							  ON_3dmObjectAttributes *attrs) {
+	rhino_import_nurbs_surf_start(C, obj, attrs);
+	ON_ObjectArray<ON_BrepFace>& brep_f = brep->m_F;
+	int num_faces = brep_f.Count();
+	bool havent_created_surf = true;
+	for (int facenum=0; facenum<num_faces; facenum++) {
+		ON_BrepFace *face = &brep_f[facenum];
+		ON_BrepSurface *surf = const_cast<ON_BrepSurface*>(face->ProxySurface());
+		rhino_import_brep_face(C, face, Object, &Attributes);
+		if (havent_created_surf) havent_created_surf = false;
+	}
+	rhino_import_nurbs_surf_end(C);
+
+	
+	ON_Surface *face_surf = const_cast<ON_Surface*>(face->ProxySurface());
+	ON_NurbsSurface *ns = ON_NurbsSurface::Cast(face_surf);
+	bool should_destroy_ns = false;
+	if (!ns) {
+		ns = ON_NurbsSurface::New();
+		int success = face_surf->GetNurbForm(*ns);
+		if (!success) {
+			delete ns;
+			return;
+		}
+		should_destroy_ns = true;
+	}
+	Nurb *nu = rhino_import_nurbs_surf(C, ns, obj, attrs, newobj);
+	
+	ON_BrepLoop *outer_loop = face->OuterLoop();
+	int loop_count = face->LoopCount();
+	printf("   outer_loop: 0x%lx\n",long(outer_loop));
+	for (int loopnum=0; loopnum<loop_count; loopnum++) {
+		ON_BrepLoop *loop = face->Loop(loopnum);
+		int trim_count = loop->TrimCount();
+		printf("   loop: 0x%lx\n",long(loop));
+		for (int trimnum=0; trimnum<trim_count; trimnum++) {
+			ON_BrepTrim *trim = loop->Trim(trimnum);
+			printf("      trim: 0x%lx %s\n",long(trim),trim->ClassId()->ClassName());
+		}
+	}
+	if (should_destroy_ns) delete ns;
 }
 
 
@@ -772,12 +818,7 @@ int rhino_import(bContext *C, wmOperator *op) {
 			if (ON_Brep::Cast(Geometry)) {
 				printf("--- BREP->%s \"%s\" ---\n",Object->ClassId()->ClassName(),obj_name);
 				ON_Brep *brep = ON_Brep::Cast(Geometry);
-				ON_ObjectArray<ON_BrepFace>& brep_f = brep->m_F;
-				int num_faces = brep_f.Count();
-				for (int i=0; i<num_faces; i++) {
-					const ON_Surface *face_surf = brep_f[i].ProxySurface();
-					printf("surface %i: %s\n",i,face_surf->ClassId()->ClassName());
-				}
+				rhino_import_brep(C, brep, Object, &Attributes);
 				did_decode = true;
 				// For now each surface, create a new one in Nurbana
 				//        for (i= 0; i < ON_Brep::Cast(Geometry) -> m_F.Count(); i++)

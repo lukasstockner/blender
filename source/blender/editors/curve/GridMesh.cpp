@@ -14,7 +14,13 @@
 #include <limits>
 #include "GridMesh.h"
 
-static bool debug = 1;
+//#define NURBS_TESS_DEBUG
+#if defined(NURBS_TESS_DEBUG)
+#define NURBS_TESS_PRINTF(...) printf(__VA_ARGS__)
+#else
+#define NURBS_TESS_PRINTF(...)
+#endif
+
 float GridMesh::tolerance = 1e-5;
 
 
@@ -36,13 +42,13 @@ inline static int xs_FloorToInt(double val) {
 
 static void print_kc(known_corner_t kc) {
 	if (kc&KNOWN_CORNER_LL)
-		printf("LL%c",(kc&KNOWN_CORNER_LL_EXTERIOR)?'e':'i');
+		NURBS_TESS_PRINTF("LL%c",(kc&KNOWN_CORNER_LL_EXTERIOR)?'e':'i');
 	if (kc&KNOWN_CORNER_UL)
-		printf("UL%c",(kc&KNOWN_CORNER_UL_EXTERIOR)?'e':'i');
+		NURBS_TESS_PRINTF("UL%c",(kc&KNOWN_CORNER_UL_EXTERIOR)?'e':'i');
 	if (kc&KNOWN_CORNER_LR)
-		printf("LR%c",(kc&KNOWN_CORNER_LR_EXTERIOR)?'e':'i');
+		NURBS_TESS_PRINTF("LR%c",(kc&KNOWN_CORNER_LR_EXTERIOR)?'e':'i');
 	if (kc&KNOWN_CORNER_UR)
-		printf("UR%c",(kc&KNOWN_CORNER_UR_EXTERIOR)?'e':'i');
+		NURBS_TESS_PRINTF("UR%c",(kc&KNOWN_CORNER_UR_EXTERIOR)?'e':'i');
 }
 
 void GridMesh::set_ll_ur(double lowerleft_x, double lowerleft_y,
@@ -158,7 +164,7 @@ void GridMesh::poly_set_cyclic(int poly, bool cyc) {
 
 int GridMesh::poly_for_cell(int x, int y) {
 	if (x<0||x>=nx) return 0;
-	if (y<0||y>=nx) return 0;
+	if (y<0||y>=ny) return 0;
 	return 1+4*(y*nx+x);
 }
 
@@ -166,7 +172,7 @@ int GridMesh::poly_for_cell(float fx, float fy) {
 	int x = floor((fx-llx)*inv_dx);
 	if (x<0||x>=nx) return 0;
 	int y = floor((fy-lly)*inv_dy);
-	if (y<0||y>=nx) return 0;
+	if (y<0||y>=ny) return 0;
 	return 1+4*(y*nx+x);
 }
 
@@ -302,7 +308,7 @@ void GridMesh::poly_draw(int poly, float shrinkby, int maxedges) {
 	}
 	for (; poly; poly=v[poly].next_poly) {
 		if (v[poly].next==0) continue;
-		printf("Poly %i: ",poly);
+		NURBS_TESS_PRINTF("Poly %i: ",poly);
 		// Find the center so that we can shrink towards it
 		float cx,cy;
 		poly_center(poly, &cx, &cy);
@@ -313,7 +319,7 @@ void GridMesh::poly_draw(int poly, float shrinkby, int maxedges) {
 		int num_drawn_edges = 0;
 		do {
 			int v2 = v[v1].next;
-			printf("%i-%i, ",v1,v2);
+			NURBS_TESS_PRINTF("%i-%i, ",v1,v2);
 			glVertex2f((1-shrinkby)*v[v1].x+shrinkby*cx, (1-shrinkby)*v[v1].y+shrinkby*cy);
 			glVertex2f((1-shrinkby)*v[v2].x+shrinkby*cx, (1-shrinkby)*v[v2].y+shrinkby*cy);
 			++num_drawn_edges;
@@ -321,7 +327,7 @@ void GridMesh::poly_draw(int poly, float shrinkby, int maxedges) {
 				break;
 			v1 = v2;
 		} while (v1!=poly && v1!=v[v1].first);
-		puts("");
+		NURBS_TESS_PRINTF("\n");
 		glEnd();
 		// Draw the polygon verts
 		glPointSize(3);
@@ -479,21 +485,134 @@ int GridMesh::insert_vert(int poly1left,
 void GridMesh::bool_AND(int poly2) {
 	int bb[4];
 	poly_grid_BB(poly2, bb);
-	insert_vert_poly_gridmesh(poly2);
+	int num_v, num_e; insert_vert_poly_gridmesh(poly2, &num_v, &num_e);
+	bool add_poly_after_end = false;
+	if (num_v==0 && num_e==0) {
+		int p = poly_for_cell(v[poly2].x, v[poly2].y);
+		if (p) {
+			double p2x=v[poly2].x, p2y=v[poly2].y;
+			for (int subpoly=p; subpoly; subpoly=v[subpoly].next_poly) {
+				if (point_in_polygon(p2x, p2y, subpoly)) {
+					add_poly_after_end = true;
+					break;
+				}
+			}
+		}
+	}
+	// If we found intersections, the chalk-cart algo suffices
 	label_interior_freepoly(poly2);
 	label_interior_AND(poly2,false,bb);
 	trim_to_odd();
+	if (add_poly_after_end) {
+		int p = poly_for_cell(v[poly2].x, v[poly2].y);
+		v[p].next_poly = poly2;
+	}
 }
 
 // gridmesh -> gridmesh (intersection) ~poly2
 void GridMesh::bool_SUB(int poly2) {
 	int bb[4];
 	poly_grid_BB(poly2, bb);
-	insert_vert_poly_gridmesh(poly2);
-	label_interior_freepoly(poly2);
-	label_interior_AND(poly2,true,bb);
-	trim_to_odd(bb);
+	int num_v, num_e; insert_vert_poly_gridmesh(poly2, &num_v, &num_e);
+	if (num_v==0 && num_e==0) {
+		int p = poly_for_cell(v[poly2].x, v[poly2].y);
+		double p2x=v[poly2].x, p2y=v[poly2].y;
+		for (int containing_poly=p; containing_poly; containing_poly=v[containing_poly].next_poly) {
+			if (point_in_polygon(p2x, p2y, containing_poly)) {
+				// We were in a polygon after all.
+				punch_hole(containing_poly, poly2);
+				break;
+			}
+		}
+	} else {
+		label_interior_freepoly(poly2);
+		label_interior_AND(poly2,true,bb);
+		trim_to_odd(bb);
+	}
 }
+
+void GridMesh::poly_translate(int poly, double x, double y) {
+	int vert=poly; do {
+		v[vert].x += x;
+		v[vert].y += y;
+		vert = v[vert].next;
+	} while (vert!=poly);
+}
+
+double GridMesh::poly_signed_area(int poly) {
+	double a=0;
+	int v0=poly;
+	double v0x=v[v0].x, v0y=v[v0].y;
+	int v1=v[poly].next;
+	double v1x=v[v1].x, v1y=v[v1].y;
+	int v2=v[v1].next;
+	double v2x=v[v2].x, v2y=v[v2].y;
+	while (v2 && v2!=poly) {
+		double v01x=v1x-v0x, v01y=v1y-v0y;
+		double v02x=v2x-v0x, v02y=v2y-v0y;
+		a += v01x*v02y - v02x*v01y;
+		v1=v2; v1x=v2x; v1y=v2y;
+		v2=v[v2].next;
+		v2x=v[v2].x; v2y=v[v2].y;
+	}
+	return a*0.5;
+}
+
+void GridMesh::poly_flip_winding_direction(int poly) {
+	int vert=poly;
+	do {
+		int old_prev=v[vert].prev, old_next=v[vert].next;
+		v[vert].prev=old_next;
+		v[vert].next=old_prev;
+		vert = old_next;
+	} while (vert!=poly);
+}
+
+
+void GridMesh::punch_hole(int exterior, int hole) {
+	double a_ext=poly_signed_area(exterior), a_int=poly_signed_area(hole);
+	if ((a_ext>0&&a_int>0)  ||  (a_ext<0&&a_int<0)) {
+		poly_flip_winding_direction(hole);
+	}
+	int v1=exterior, v2=hole;
+	bool v1v2_intersection_free;
+	while (!v1v2_intersection_free) {
+		double v1x=v[v1].x, v1y=v[v1].y;
+		double v2x=v[v2].x, v2y=v[v2].y;
+		v1v2_intersection_free = true;
+		std::vector<IntersectingEdge> isect_ext = edge_poly_intersections(v1x,v1y,v2x,v2y, exterior);
+		for (IntersectingEdge& ie : isect_ext) {
+			if (ie.alpha1>tolerance && ie.alpha1<(1-tolerance)) {
+				v1v2_intersection_free = false;
+				v1 = ie.e2;
+				break;
+			}
+		}
+		if (!v1v2_intersection_free) continue;
+		std::vector<IntersectingEdge> isect_hole = edge_poly_intersections(v1x,v1y,v2x,v2y, hole);
+		for (IntersectingEdge& ie : isect_hole) {
+			if (ie.alpha1>tolerance && ie.alpha1<(1-tolerance)) {
+				v1v2_intersection_free = false;
+				v2 = ie.e2;
+				break;
+			}
+		}
+	}
+	int int_l=v[v2].prev, int_c=v2, int_r=v[v2].next;
+	int ext_l=v[v1].prev, ext_c=v1, ext_r=v[v1].next;
+	int int_cc=vert_new(), ext_cc=vert_new();
+	v[int_cc]=v[int_c]; v[ext_cc]=v[ext_c];
+	v[int_c].next=ext_cc; v[ext_cc].prev=int_c;
+	v[ext_cc].next=ext_r; v[ext_r].prev=ext_cc;
+	v[ext_c].next=int_cc; v[int_cc].prev=ext_c;
+	v[int_cc].next=int_r; v[int_r].prev=int_cc;
+	int first = v[ext_c].first;
+	int vert = ext_c; do {
+		v[vert].first = first;
+		vert = v[vert].next;
+	} while (vert!=ext_c);
+}
+
 
 static bool intersection_edge_order(const IntersectingEdge& e1, const IntersectingEdge& e2) {
 	double diff = e1.alpha1-e2.alpha1;
@@ -502,19 +621,24 @@ static bool intersection_edge_order(const IntersectingEdge& e1, const Intersecti
 	}
 	return diff<0;
 }
-int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
+void GridMesh::insert_vert_poly_gridmesh(int mpoly, int *verts_added, int *edges_intersected) {
 	std::vector<std::pair<int,int>> bottom_edges, left_edges, integer_cells;
 	mpoly = poly_first_vert(mpoly);
 	int v1 = mpoly;
 	float v1x=v[v1].x, v1y=v[v1].y;
-	int verts_added = 0;
+	int verts_added_local = 0;
+	int edges_intersected_local = 0;
 	while (v[v1].next) {
 		int v2 = v[v1].next;
 		// Step 1: find all intersections of the edge v1,v2
 		float v2x=v[v2].x, v2y=v[v2].y;
-		//printf("(%f,%f)---line--(%f,%f)\n",v1x,v1y,v2x,v2y);
+		//NURBS_TESS_PRINTF("(%f,%f)---line--(%f,%f)\n",v1x,v1y,v2x,v2y);
 		integer_cells.clear();
-		find_cell_line_intersections(v1x,v1y,v2x,v2y,nullptr,nullptr,&integer_cells);
+		bottom_edges.clear();
+		left_edges.clear();
+		find_cell_line_intersections(v1x,v1y,v2x,v2y,
+									 &bottom_edges,&left_edges,&integer_cells);
+		edges_intersected_local += int(bottom_edges.size() + left_edges.size());
 		std::vector<IntersectingEdge> isect;
 		for (size_t i=0,l=integer_cells.size(); i<l; i++) {
 			std::pair<int,int> j = integer_cells[i];
@@ -523,10 +647,10 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 				if (!cell_poly || !v[cell_poly].next) continue;
 				std::vector<IntersectingEdge> isect_tmp = edge_poly_intersections(v1, cell_poly);
 				for (IntersectingEdge& e : isect_tmp) {
-					//printf("(%i,%i)",j.first,j.second);
+					//NURBS_TESS_PRINTF("(%i,%i)",j.first,j.second);
 					e.cellidx = int(i);
 				}
-				//printf("\n");
+				//NURBS_TESS_PRINTF("\n");
 				isect.insert(isect.end(),isect_tmp.begin(),isect_tmp.end());
 			}
 		}
@@ -535,11 +659,12 @@ int GridMesh::insert_vert_poly_gridmesh(int mpoly) {
 		for (IntersectingEdge ie : isect) {
 			v1 = insert_vert(v1, v2, ie.e2, v[ie.e2].next, ie.x, ie.y);
 		}
-		verts_added += isect.size();
+		verts_added_local += isect.size();
 		v1=v2; v1x=v2x; v1y=v2y;
 		if (v1==mpoly) break;
 	}
-	return verts_added;
+	if (verts_added) *verts_added = verts_added_local;
+	if (edges_intersected) *edges_intersected = edges_intersected_local;
 }
 
 void GridMesh::label_interior_AND(int poly2, bool invert_poly2, int *bb) {
@@ -606,11 +731,12 @@ void GridMesh::label_exterior_cells(int poly, bool interior_lbl, int* bb) {
 // cell's next_poly list is considered
 // poly2's next_poly list is ignored
 known_corner_t GridMesh::label_interior_cell(int cell, int poly2, bool bool_SUB, known_corner_t kin) {
-	printf("%i kin:%i=",cell,int(kin)); print_kc(kin); puts("");
+	NURBS_TESS_PRINTF("%i kin:%i=",cell,int(kin)); print_kc(kin);
+	NURBS_TESS_PRINTF("\n");
 	bool interior = false;
 	known_corner_t ret=0;
 	for (int poly=cell; poly; poly=v[poly].next_poly) {
-		printf("   subpoly:%i DEG=%i\n",poly,int(v[poly].next==0));
+		NURBS_TESS_PRINTF("   subpoly:%i DEG=%i\n",poly,int(v[poly].next==0));
 		if (v[poly].next==0) continue; // Skip degenerate polys
 		// First, try to find a known corner
 		bool found_known_corner = false;
@@ -621,7 +747,7 @@ known_corner_t GridMesh::label_interior_cell(int cell, int poly2, bool bool_SUB,
 				if (k && kin&KNOWN_CORNER(k-1)) {
 					found_known_corner = true;
 					interior = !(kin&KNOWN_CORNER_EXTERIOR(k-1));
-					printf("   %i k_propagate->%i.interior:%i sub:%i\n",poly, kc_vert, int(interior),int(bool_SUB));
+					NURBS_TESS_PRINTF("   %i k_propagate->%i.interior:%i sub:%i\n",poly, kc_vert, int(interior),int(bool_SUB));
 					break;
 				}
 				kc_vert = v[kc_vert].next;
@@ -631,7 +757,7 @@ known_corner_t GridMesh::label_interior_cell(int cell, int poly2, bool bool_SUB,
 		if (!found_known_corner) {
 			interior = point_in_polygon(v[poly].x, v[poly].y, poly2);
 			if (bool_SUB) interior = !interior;
-			printf("   %i pip->%i.interior:%i sub:%i\n",poly, poly, int(interior),int(bool_SUB));
+			NURBS_TESS_PRINTF("   %i pip->%i.interior:%i sub:%i\n",poly, poly, int(interior),int(bool_SUB));
 		}
 		// One way or another, (bool)interior is good now.
 		int vert = kc_vert;
@@ -648,7 +774,7 @@ known_corner_t GridMesh::label_interior_cell(int cell, int poly2, bool bool_SUB,
 					if (!interior) ret |= KNOWN_CORNER_EXTERIOR(k-1);
 				}
 			}
-			printf("   %i is_interior:%i is_intersection:%i next:%i\n",vert,int(v[vert].is_interior),int(v[vert].is_intersection),v[vert].next);
+			NURBS_TESS_PRINTF("   %i is_interior:%i is_intersection:%i next:%i\n",vert,int(v[vert].is_interior),int(v[vert].is_intersection),v[vert].next);
 			vert = v[vert].next;
 		} while (vert && vert!=kc_vert);
 	}
@@ -663,7 +789,7 @@ void GridMesh::trim_to_odd(int *bb) {
 	}
 	for (int j=miny; j<=maxy; j++) {
 		for (int i=minx; i<=maxx; i++) {
-			printf("tto %i,%i\n",i,j);
+			NURBS_TESS_PRINTF("tto %i,%i\n",i,j);
 			trim_to_odd(poly_for_cell(i,j));
 		}
 	}
@@ -679,7 +805,7 @@ void GridMesh::trim_to_odd(int poly0) {
 		 poly;
 		 poly=next_poly, next_poly=v[poly].next_poly) {
 		if (!v[poly].next) continue;
-		printf("   poly %i\n",poly);
+		NURBS_TESS_PRINTF("   poly %i\n",poly);
 		trace_origins.push_back(poly);
 		while (trace_origins.size()) {
 			trace.clear();
@@ -738,8 +864,8 @@ void GridMesh::trim_to_odd(int poly0) {
 			size_t trace_sz = trace.size();
 			if (trace_sz) {
 				int first = trace[0];
-				printf("   0poly %i.%i: ",poly,this_trace_poly);
-				for (int i : trace) {printf(",%i",i);}; puts("");
+				NURBS_TESS_PRINTF("   0poly %i.%i: ",poly,this_trace_poly);
+				for (int i : trace) {NURBS_TESS_PRINTF(",%i",i);}; NURBS_TESS_PRINTF("\n");
 				// Link all but the endpoints, skipping doubles
 				for (int i=1,l=int(trace.size()); i<l; i++) {
 					int left=trace[i-1], right=trace[i];
@@ -759,24 +885,26 @@ void GridMesh::trim_to_odd(int poly0) {
 				}
 				v[last].next = first;
 				v[first].prev = last;
-				printf("   2poly %i.%i: ",poly,this_trace_poly);
+#if defined(NURBS_TESS_DEBUG)
+				NURBS_TESS_PRINTF("   2poly %i.%i: ",poly,this_trace_poly);
 				vert=first; do {
-					printf(",%i",vert);
+					NURBS_TESS_PRINTF(",%i",vert);
 					vert = v[vert].next;
 				} while (vert!=first);
-				puts("");
+				NURBS_TESS_PRINTF("\n");
+#endif
 				// Hook up the backbone
 				if (!previous_trace_poly) {
 					v[poly0].next_poly = this_trace_poly;
 				} else {
-					if (previous_trace_poly==this_trace_poly) printf("Poly-list assembly failed.");
+					if (previous_trace_poly==this_trace_poly) NURBS_TESS_PRINTF("Poly-list assembly failed.");
 					v[previous_trace_poly].next_poly = this_trace_poly;
 				}
 				v[this_trace_poly].next_poly = 0;
 				previous_trace_poly = this_trace_poly;
 			}
 		}
-		printf("   poly@end:%i\n",poly);
+		NURBS_TESS_PRINTF("   poly@end:%i\n",poly);
 	}
 	for (int poly=poly0; poly; poly=v[poly].next_poly) {
 		int vert = poly;
@@ -837,6 +965,22 @@ std::vector<IntersectingEdge> GridMesh::edge_poly_intersections(int e1, int p) {
 	return ret;
 }
 
+std::vector<IntersectingEdge> GridMesh::edge_poly_intersections(double ax, double ay, double bx, double by, int p) {
+	std::vector<IntersectingEdge> ret;
+	bool first_iter = true;
+	for (int e2=p; e2!=p||first_iter; e2=v[e2].next) {
+		double cx=v[e2].x, cy=v[e2].y;
+		double dx=v[v[e2].next].x, dy=v[v[e2].next].y;
+		double ix, iy, alpha1; // Intersection info
+		int isect = line_line_intersection(ax, ay, bx, by, cx, cy, dx, dy, &ix, &iy, &alpha1);
+		if (isect) {
+			ret.push_back(IntersectingEdge(ix,iy,alpha1,e2,0));
+		}
+		first_iter = false;
+	}
+	return ret;
+}
+
 // Returns true if p1,p2,p3 form a tripple that is in counter-clockwise
 // orientation. In other words, if ((p2-p1)x(p3-p2)).z >0
 inline bool points_ccw(double x1, double y1, double x2, double y2, double x3, double y3) {
@@ -874,12 +1018,12 @@ int line_line_intersection(double ax, double ay, // Line 1, vert 1 A
 	*ix = (1.0-x1)*ax + x1*bx;
 	*iy = (1.0-x1)*ay + x1*by;
 	*alpha1 = x1;
-	if (debug) {
-		double ix2 = (1.0-x2)*cx + x2*dx;
-		double iy2 = (1.0-x2)*cy + x2*dy;
-		if (fabs(*ix-ix2)>.001) printf("Bug detected in intersection math.\n");
-		if (fabs(*iy-iy2)>.001) printf("Bug detected in intersection math.\n");
-	}
+#if defined(NURBS_TESS_DEBUG)
+	double ix2 = (1.0-x2)*cx + x2*dx;
+	double iy2 = (1.0-x2)*cy + x2*dy;
+	if (fabs(*ix-ix2)>.001) printf("Bug detected in intersection math.\n");
+	if (fabs(*iy-iy2)>.001) printf("Bug detected in intersection math.\n");
+#endif
 	return true;
 }
 

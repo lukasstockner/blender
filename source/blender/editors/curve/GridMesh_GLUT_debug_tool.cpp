@@ -24,8 +24,8 @@ float intersect_check_tol = .001; //Maximum Euclidean dist between intersect pts
 /***************************** DEFAULT SCENE *****************************/
 GridMesh *gm;
 int max_drawn_edges=0; // Number of edges to draw per poly (for figuring out order). 0 disables.
-#define GRIDMESH_GEOM_TEST_3
-
+#define GRIDMESH_GEOM_TEST_4
+//#define RASTER_VIZ
 
 #if defined(GRIDMESH_GEOM_TEST_1)
 // Look for GRIDMESH_GEOM_TEST_1.pdf for a vertex id map
@@ -59,6 +59,16 @@ std::vector<std::vector<float>> subj_polys = {subj0};
 std::vector<float> inout_pts = {};
 float gm_llx=0,gm_lly=0,gm_urx=4,gm_ury=4; // GridMesh params
 int gm_nx=3, gm_ny=3;
+#endif
+
+#if defined(GRIDMESH_GEOM_TEST_4)
+bool clip_cyclic = true; // Required for initialization
+bool subj_cyclic = true;
+std::vector<float> clip_verts = {0.200000,0.200000, 4.436000,-0.268000, 4.460000,3.356000, 0.284000,4.292000};
+std::vector<std::vector<float>> subj_polys = {};
+std::vector<float> inout_pts = {};
+float gm_llx=0,gm_lly=0,gm_urx=4,gm_ury=4; // GridMesh params
+int gm_nx=20, gm_ny=30;
 #endif
 
 int clip = 0; // Vertex index of the first vertex of the clip polygon
@@ -225,7 +235,7 @@ void GLUT_display(){
 		glBegin(GL_POINTS);
 		for (size_t i=0,l=inout_pts.size()/2; i<l; i++) {
 			float x=inout_pts[i*2+0], y=inout_pts[i*2+1];
-			bool pip = gm->point_in_polygon(x,y,clip);
+			bool pip = gm->point_in_polygon(x,y,1);
 			if (pip) glColor3f(1,1,0);
 			else glColor3f(0, 0, 1);
 			glVertex2f(x,y);
@@ -237,7 +247,8 @@ void GLUT_display(){
 	float xo = 1*(12.0/win_width);
 	float yo = 1*(12.0/win_height);
 	xo=0; yo=0;
-	
+
+#if defined(RASTER_VIZ)
 	//Draw purple grid boxes on cells intersected by subj's first line segment
 	glColor3f(.5, 0, .5);
 	std::vector<std::pair<int,int>> bottom_edges, left_edges, integer_cells;
@@ -269,7 +280,7 @@ void GLUT_display(){
 		glVertex2f(x+xo,y+gm->dy-yo); glVertex2f(x+xo,y+yo);
 	}
 	glEnd();
-	
+#endif
 	
 	glFlush();
 }

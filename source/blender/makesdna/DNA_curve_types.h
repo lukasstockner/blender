@@ -157,6 +157,9 @@ typedef struct Nurb {
 	short radius_interp;
 	
 	int charidx;
+	
+	ListBase outer_trim;
+	ListBase inner_trim;
 } Nurb;
 
 typedef struct CharInfo {

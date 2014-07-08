@@ -95,11 +95,16 @@ struct GridMesh {
 	bool poly_is_cyclic(int poly);
 	void poly_set_cyclic(int poly, bool cyclic);
 	void poly_set_interior(int poly, bool interior);
-	void poly_grid_BB(int poly, int *bb);  //int bb[] = {minx,maxx,miny,maxy}
+	void poly_grid_BB(int poly, int *bb);  // int bb[] = {minx,maxx,miny,maxy}
+	void poly_translate(int poly, double x, double y);
+	double poly_signed_area(int poly); // ccw is positive
+	void poly_flip_winding_direction(int poly);
+	void punch_hole(int exterior, int hole);
 	
 	// Trimming
 	bool point_in_polygon(double x, double y, int poly);
 	std::vector<IntersectingEdge> edge_poly_intersections(int e1, int p);
+	std::vector<IntersectingEdge> edge_poly_intersections(double ax, double ay, double bx, double by, int p);
 	int insert_vert(int poly1left,
 					int poly1right,
 					int poly2left,
@@ -115,7 +120,9 @@ struct GridMesh {
 	void bool_SUB(int poly2); // gridmesh -> gridmesh (intersection) ~poly2
 	// Low level boolean support algorithms
 	// Step 1: insert verts at intersections
-	int insert_vert_poly_gridmesh(int poly); // Returns # of vertices inserted.
+	void insert_vert_poly_gridmesh(int poly,
+								   int *verts_added=NULL,
+								   int *edges_intersected=NULL);
 	// Step 2: find mutual entry/exit points
 	void label_interior_AND(int poly2, bool invert_poly2=false, int *bb=NULL);
 	void label_interior_SUB(int poly2, int *bb=NULL);

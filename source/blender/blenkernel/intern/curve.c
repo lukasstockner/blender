@@ -992,6 +992,10 @@ void BKE_nurb_knot_calc_v(Nurb *nu)
 	makeknots(nu, 2);
 }
 
+/* Fills <basis> with <pnts> weights corresponding to the curve evaluated
+ * at point t. <start> is the index of the first nz basis function at t, <end>
+ * is the index of the last nz basis function at t.
+ */
 static void basisNurb(float t, short order, int pnts, float *knots, float *basis, int *start, int *end)
 {
 	float d, e;
