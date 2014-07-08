@@ -8361,7 +8361,9 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 
 	if (menu->menuretval) {
 		/* pie menus should not close but wait for release instead */
-		if ((block->flag & UI_BLOCK_RADIAL) && !(block->pie_data.flags & UI_PIE_CLICK_STYLE)) {
+		if ((block->flag & UI_BLOCK_RADIAL) &&
+		    !((block->pie_data.flags & UI_PIE_CLICK_STYLE) || U.pie_interaction_type == USER_UI_PIE_CLICK))
+		{
 			menu->menuretval = 0;
 			block->pie_data.flags |= UI_PIE_CANCELLED;
 		}
@@ -8504,11 +8506,8 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			ED_region_tag_redraw(ar);
 		}
 		else {
-			if (duration > U.pie_drag_timeout * 0.01) {
+			if (U.pie_interaction_type == USER_UI_PIE_DRAG) {
 				retval = ui_pie_menu_apply(C, menu, event, true);
-			}
-			else {
-				block->pie_data.flags |= UI_PIE_CLICK_STYLE;
 			}
 		}
 	}
@@ -8522,7 +8521,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 			case LEFTMOUSE:
 				if (event->val == KM_PRESS) {
-					if (block->pie_data.flags & UI_PIE_CLICK_STYLE) {
+					if ((U.pie_interaction_type == USER_UI_PIE_CLICK) || (block->pie_data.flags & UI_PIE_CLICK_STYLE)) {
 						retval = ui_pie_menu_apply(C, menu, event, false);
 					}
 					else {

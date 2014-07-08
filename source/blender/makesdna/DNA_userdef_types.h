@@ -531,7 +531,7 @@ typedef struct UserDef {
 	float fcu_inactive_alpha;	/* opacity of inactive F-Curves in F-Curve Editor */
 	float pixelsize;			/* private, set by GHOST, to multiply DPI with */
 
-	short pie_drag_timeout;     /* if keeping a pie menu spawn button pressed after this time, it turns into
+	short pie_interaction_type;     /* if keeping a pie menu spawn button pressed after this time, it turns into
 	                             * a drag/release pie menu */
 	short pie_initial_timeout;  /* direction in the pie menu will always be calculated from the initial position
 	                             * within this time limit */
@@ -842,6 +842,11 @@ typedef enum eImageDrawMethod {
 	IMAGE_DRAW_METHOD_2DTEXTURE = 2,
 	IMAGE_DRAW_METHOD_DRAWPIXELS = 3,
 } eImageDrawMethod;
+
+typedef enum eUIInteraction {
+	USER_UI_PIE_DRAG = 0,
+	USER_UI_PIE_CLICK = 1
+} eUIInteraction;
 
 #ifdef __cplusplus
 }
