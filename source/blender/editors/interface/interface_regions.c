@@ -2766,6 +2766,35 @@ void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *
 	uiPieMenuEnd(C, pie);
 }
 
+void uiPieEnumInvoke(struct bContext *C, const char *title, const char *path,
+                     const wmEvent *event, bool force_click)
+{
+	PointerRNA ctx_ptr;
+	PointerRNA r_ptr;
+	PropertyRNA *r_prop;
+	uiPieMenu *pie;
+	uiLayout *layout;
+
+	RNA_pointer_create(NULL, &RNA_Context, C, &ctx_ptr);
+
+	if (!RNA_path_resolve(&ctx_ptr, path, &r_ptr, &r_prop)) {
+		return;
+	}
+
+	/* invalid property, only accept enums */
+	if (RNA_property_type(r_prop) != PROP_ENUM)
+		return;
+
+	pie = uiPieMenuBegin(C, IFACE_(title), ICON_NONE, event, force_click);
+	layout = uiPieMenuLayout(pie);
+
+	layout = uiLayoutRadial(layout);
+	uiItemFullR(layout, &r_ptr, r_prop, RNA_NO_INDEX, 0, UI_ITEM_R_EXPAND, NULL, 0);
+
+	uiPieMenuEnd(C, pie);
+}
+
+
 /*************************** Standard Popup Menus ****************************/
 
 void uiPupMenuReports(bContext *C, ReportList *reports)

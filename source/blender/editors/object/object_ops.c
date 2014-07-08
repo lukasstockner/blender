@@ -273,7 +273,7 @@ void ED_operatormacros_object(void)
 		RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
 	}
 
-	ptr = WM_operator_enum_pie_macro("OBJECT_OT_pie_mode_set", "Set Mode",
+	ptr = WM_operator_property_pie_macro("OBJECT_OT_pie_mode_set", "Set Mode",
 	                                 "Set the mode of interaction for the selected object",
 	                                  OPTYPE_UNDO | OPTYPE_REGISTER, "Interaction Mode",
 	                                 "OBJECT_OT_mode_set", "mode");
@@ -281,6 +281,17 @@ void ED_operatormacros_object(void)
 	if (ptr) {
 		RNA_enum_set(ptr, "mode", OB_MODE_EDIT);
 		RNA_boolean_set(ptr, "toggle", true);
+	}
+
+	ptr = WM_operator_enum_pie_macro("WM_OT_proportional_mode_sticky", "Proportional Mode Sticky",
+	                                 "Set the mode of interaction for the proportional editing",
+	                                  OPTYPE_UNDO | OPTYPE_REGISTER, "Proportional Mode",
+	                                 "WM_OT_context_toggle_enum", "tool_settings.proportional_edit");
+
+	if (ptr) {
+		RNA_string_set(ptr, "data_path", "tool_settings.proportional_edit");
+		RNA_string_set(ptr, "value_1", "DISABLED");
+		RNA_string_set(ptr, "value_2", "ENABLED");
 	}
 }
 
@@ -483,10 +494,13 @@ void ED_keymap_proportional_editmode(struct wmKeyConfig *UNUSED(keyconf), struct
 {
 	wmKeyMapItem *kmi;
 
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle_enum", OKEY, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "WM_OT_proportional_mode_sticky", OKEY, KM_PRESS, 0, 0);
+
+	/*
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.proportional_edit");
 	RNA_string_set(kmi->ptr, "value_1", "DISABLED");
 	RNA_string_set(kmi->ptr, "value_2", "ENABLED");
+	*/
 
 	/* for modes/object types that allow 'connected' mode, add the Alt O key */
 	if (do_connected) {

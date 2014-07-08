@@ -3409,7 +3409,7 @@ PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const ch
                                   description, flag);
 
 	if (ot) {
-		otmacro = WM_operatortype_macro_define(ot, "WM_OT_call_pie_menu_timer");
+		otmacro = WM_operatortype_macro_define(ot, "WM_OT_sticky_pie_menu");
 		RNA_string_set(otmacro->ptr, "name", piename);
 		otmacro = WM_operatortype_macro_define(ot, opname);
 		return otmacro->ptr;
@@ -3418,7 +3418,7 @@ PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const ch
 }
 
 
-struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *name, const char *description,
+struct PointerRNA *WM_operator_property_pie_macro(const char *idname, const char *name, const char *description,
                                               int flag, const char *piename, const char *opname, const char *propname)
 {
 	wmOperatorType *ot;
@@ -3428,11 +3428,33 @@ struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *na
                                   description, flag);
 
 	if (ot) {
-		otmacro = WM_operatortype_macro_define(ot, "WM_OT_call_pie_menu_timer");
+		otmacro = WM_operatortype_macro_define(ot, "WM_OT_sticky_pie_menu");
 		RNA_string_set(otmacro->ptr, "name", piename);
 		RNA_string_set(otmacro->ptr, "op_name", opname);
 		RNA_string_set(otmacro->ptr, "prop_name", propname);
-		RNA_boolean_set(otmacro->ptr, "use_property", true);
+		RNA_enum_set(otmacro->ptr, "mode", STICKY_PIE_PROPERTY);
+		otmacro = WM_operatortype_macro_define(ot, opname);
+		return otmacro->ptr;
+	}
+	return NULL;
+}
+
+
+/* call operator or call pie menu from expanded enum path property */
+struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *name, const char *description,
+                                              int flag, const char *piename, const char *opname, const char *path)
+{
+	wmOperatorType *ot;
+	wmOperatorTypeMacro *otmacro;
+
+	ot = WM_operatortype_append_macro(idname, name,
+                                  description, flag);
+
+	if (ot) {
+		otmacro = WM_operatortype_macro_define(ot, "WM_OT_sticky_pie_menu");
+		RNA_string_set(otmacro->ptr, "name", piename);
+		RNA_string_set(otmacro->ptr, "data_path", path);
+		RNA_enum_set(otmacro->ptr, "mode", STICKY_PIE_PATH);
 		otmacro = WM_operatortype_macro_define(ot, opname);
 		return otmacro->ptr;
 	}

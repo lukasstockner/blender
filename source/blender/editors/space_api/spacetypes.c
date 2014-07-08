@@ -130,8 +130,21 @@ void ED_spacetypes_init(void)
 			type->operatortypes();
 	}
 
-	/* Macros's must go last since they reference other operators
-	 * maybe we'll need to have them go after python operators too? */
+	/* register dropboxes (can use macros) */
+	spacetypes = BKE_spacetypes_list();
+	for (type = spacetypes->first; type; type = type->next) {
+		if (type->dropboxes)
+			type->dropboxes();
+	}
+	
+	/* register internal render callbacks */
+	ED_render_internal_init();
+}
+
+void ED_spacemacros_init(void)
+{
+	/* Macros's must go last since they reference other operators.
+	 * We need to have them go after python operators too */
 	ED_operatormacros_armature();
 	ED_operatormacros_mesh();
 	ED_operatormacros_metaball();
@@ -144,16 +157,7 @@ void ED_spacetypes_init(void)
 	ED_operatormacros_curve();
 	ED_operatormacros_mask();
 	ED_operatormacros_sequencer();
-
-	/* register dropboxes (can use macros) */
-	spacetypes = BKE_spacetypes_list();
-	for (type = spacetypes->first; type; type = type->next) {
-		if (type->dropboxes)
-			type->dropboxes();
-	}
-	
-	/* register internal render callbacks */
-	ED_render_internal_init();
+	ED_operatormacros_screen();
 }
 
 /* called in wm.c */
