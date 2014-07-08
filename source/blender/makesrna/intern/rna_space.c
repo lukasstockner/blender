@@ -134,6 +134,15 @@ EnumPropertyItem viewport_shade_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+EnumPropertyItem viewport_shade_items_pie[] = {
+    {OB_SOLID, "SOLID", ICON_SOLID, "Solid", "Display the object solid, lit with default OpenGL lights"},
+    {OB_WIRE, "WIREFRAME", ICON_WIRE, "Wireframe", "Display the object as wire edges"},
+    {OB_TEXTURE, "TEXTURED", ICON_POTATO, "Texture", "Display the object solid, with a texture"},
+    {OB_MATERIAL, "MATERIAL", ICON_MATERIAL_DATA, "Material", "Display objects solid, with GLSL material"},
+	{OB_BOUNDBOX, "BOUNDBOX", ICON_BBOX, "Bounding Box", "Display the object's local bounding boxes only"},
+	{OB_RENDER, "RENDERED", ICON_SMOOTH, "Rendered", "Display render preview"},
+	{0, NULL, 0, NULL, NULL}
+};
 
 EnumPropertyItem clip_editor_mode_items[] = {
 	{SC_MODE_TRACKING, "TRACKING", ICON_ANIM_DATA, "Tracking", "Show tracking and solving tools"},
@@ -643,6 +652,33 @@ static EnumPropertyItem *rna_SpaceView3D_viewport_shade_itemf(bContext *UNUSED(C
 	
 	if (type && type->view_draw)
 		RNA_enum_items_add_value(&item, &totitem, viewport_shade_items, OB_RENDER);
+
+	RNA_enum_item_end(&item, &totitem);
+	*r_free = true;
+
+	return item;
+}
+
+static EnumPropertyItem *rna_SpaceView3D_viewport_shade_pie_itemf(bContext *UNUSED(C), PointerRNA *ptr,
+                                                              PropertyRNA *UNUSED(prop), bool *r_free)
+{
+	Scene *scene = ((bScreen *)ptr->id.data)->scene;
+	RenderEngineType *type = RE_engines_find(scene->r.engine);
+
+	EnumPropertyItem *item = NULL;
+	int totitem = 0;
+
+	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_SOLID);
+	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_WIRE);
+	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_TEXTURE);
+
+	if (BKE_scene_use_new_shading_nodes(scene))
+		RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_MATERIAL);
+
+	if (type && type->view_draw)
+		RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_RENDER);
+
+	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_BOUNDBOX);
 
 	RNA_enum_item_end(&item, &totitem);
 	*r_free = true;
@@ -1885,6 +1921,14 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, viewport_shade_items);
 	RNA_def_property_enum_funcs(prop, "rna_SpaceView3D_viewport_shade_get", NULL,
 	                            "rna_SpaceView3D_viewport_shade_itemf");
+	RNA_def_property_ui_text(prop, "Viewport Shading", "Method to display/shade objects in the 3D View");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
+
+	prop = RNA_def_property(srna, "viewport_shade_pie", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "drawtype");
+	RNA_def_property_enum_items(prop, viewport_shade_items_pie);
+	RNA_def_property_enum_funcs(prop, "rna_SpaceView3D_viewport_shade_get", NULL,
+	                            "rna_SpaceView3D_viewport_shade_pie_itemf");
 	RNA_def_property_ui_text(prop, "Viewport Shading", "Method to display/shade objects in the 3D View");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
 

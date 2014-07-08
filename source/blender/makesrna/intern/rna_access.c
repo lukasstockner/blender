@@ -1356,8 +1356,6 @@ void RNA_property_enum_items_gettexted_all(bContext *C, PointerRNA *ptr, Propert
 			}
 		}
 
-		fflush(stdout);
-
 		if (free)
 			MEM_freeN(item);
 	}
