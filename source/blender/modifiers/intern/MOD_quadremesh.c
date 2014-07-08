@@ -367,8 +367,8 @@ static void QuadRemeshModifier_do(
 		BLI_assert(dvert != NULL);
 		dv = dvert;
 		for (i = 0; i < numVerts; i++) {
-			mmin = min(mmin, sys->U_field[i]);
-			mmax = max(mmax, sys->U_field[i]);
+			mmin = min_ff(mmin, sys->U_field[i]);
+			mmax = max_ff(mmax, sys->U_field[i]);
 		}
 
 		for (i = 0; i < numVerts; i++) {
