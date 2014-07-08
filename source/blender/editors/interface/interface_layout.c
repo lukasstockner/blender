@@ -560,11 +560,15 @@ static void ui_item_enum_expand(uiLayout *layout, uiBlock *block, PointerRNA *pt
 	const char *name;
 	int itemw, icon, value;
 	bool free;
+	bool radial = (layout->root->type == UI_LAYOUT_PIEMENU);
 
-	RNA_property_enum_items_gettexted(block->evil_C, ptr, prop, &item_array, NULL, &free);
+	if (radial)
+		RNA_property_enum_items_gettexted_all(block->evil_C, ptr, prop, &item_array, NULL, &free);
+	else
+		RNA_property_enum_items_gettexted(block->evil_C, ptr, prop, &item_array, NULL, &free);
 
 	/* we dont want nested rows, cols in menus */
-	if (layout->root->type == UI_LAYOUT_PIEMENU) {
+	if (radial) {
 		uiBlockSetCurLayout(block, uiLayoutRadial(layout));
 	}
 	else if (layout->root->type != UI_LAYOUT_MENU) {
@@ -575,8 +579,11 @@ static void ui_item_enum_expand(uiLayout *layout, uiBlock *block, PointerRNA *pt
 	}
 
 	for (item = item_array; item->identifier; item++) {
-		if (!item->identifier[0])
+		if (!item->identifier[0]) {
+			if (radial)
+				uiItemS(layout);
 			continue;
+		}
 
 		name = (!uiname || uiname[0]) ? item->name : "";
 		icon = item->icon;
@@ -905,7 +912,11 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 			target = uiLayoutColumn(split, layout->align);
 		}
 
-		RNA_property_enum_items_gettexted(block->evil_C, &ptr, prop, &item_array, NULL, &free);
+		if (radial)
+			RNA_property_enum_items_gettexted_all(block->evil_C, &ptr, prop, &item_array, NULL, &free);
+		else
+			RNA_property_enum_items_gettexted(block->evil_C, &ptr, prop, &item_array, NULL, &free);
+
 		for (item = item_array; item->identifier; item++) {
 			if (item->identifier[0]) {
 				PointerRNA tptr;
@@ -947,11 +958,12 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 					}
 					ui_but_tip_from_enum_item(but, item);
 				}
-				else {  /* XXX bug here, colums draw bottom item badly */
+				else {
 					if (radial) {
-						/* pass */
+						uiItemS(target);
 					}
 					else {
+						/* XXX bug here, colums draw bottom item badly */
 						uiItemS(target);
 					}
 				}

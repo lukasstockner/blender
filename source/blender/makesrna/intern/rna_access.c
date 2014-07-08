@@ -1249,12 +1249,9 @@ void RNA_property_enum_items(bContext *C, PointerRNA *ptr, PropertyRNA *prop, En
 	}
 }
 
-void RNA_property_enum_items_gettexted(bContext *C, PointerRNA *ptr, PropertyRNA *prop,
-                                       EnumPropertyItem **r_item, int *r_totitem, bool *r_free)
-{
-	RNA_property_enum_items(C, ptr, prop, r_item, r_totitem, r_free);
-
 #ifdef WITH_INTERNATIONAL
+static void property_enum_translate(PropertyRNA *prop, EnumPropertyItem **r_item, int *r_totitem, bool *r_free)
+{
 	if (!(prop->flag & PROP_ENUM_NO_TRANSLATE)) {
 		int i;
 
@@ -1300,9 +1297,75 @@ void RNA_property_enum_items_gettexted(bContext *C, PointerRNA *ptr, PropertyRNA
 
 		*r_item = nitem;
 	}
+}
+#endif
+
+void RNA_property_enum_items_gettexted(bContext *C, PointerRNA *ptr, PropertyRNA *prop,
+                                       EnumPropertyItem **r_item, int *r_totitem, bool *r_free)
+{
+	RNA_property_enum_items(C, ptr, prop, r_item, r_totitem, r_free);
+
+#ifdef WITH_INTERNATIONAL
+	property_enum_translate(prop, r_item, r_totitem, r_free);
 #endif
 }
 
+void RNA_property_enum_items_gettexted_all(bContext *C, PointerRNA *ptr, PropertyRNA *prop,
+                                       EnumPropertyItem **r_item, int *r_totitem, bool *r_free)
+{
+	EnumPropertyRNA *eprop = (EnumPropertyRNA *)rna_ensure_property(prop);
+	int mem_size = sizeof(EnumPropertyItem) * (eprop->totitem + 1);
+	/* first return all items */
+	*r_free = true;
+	*r_item = MEM_mallocN(mem_size, "enum_gettext_all");
+	 memcpy(*r_item, eprop->item, mem_size);
+
+	if (r_totitem)
+		*r_totitem = eprop->totitem;
+
+	if (eprop->itemf && (C != NULL || (prop->flag & PROP_ENUM_NO_CONTEXT))) {
+		EnumPropertyItem *item;
+		int i, i_fixed;
+		bool free;
+
+		if (prop->flag & PROP_ENUM_NO_CONTEXT)
+			item = eprop->itemf(NULL, ptr, prop, &free);
+		else
+			item = eprop->itemf(C, ptr, prop, &free);
+
+		/* any callbacks returning NULL should be fixed */
+		BLI_assert(item != NULL);
+
+		for (i = 0, i_fixed = 0; i < eprop->totitem; i++, i_fixed++) {
+			/* ran out ouf valid entries, NULL out the rest*/
+			if (!item[i_fixed].identifier) {
+				while (i < eprop->totitem) {
+					(*r_item)[i].name = NULL;
+					(*r_item)[i].identifier = "";
+					i++;
+				}
+				break;
+			}
+
+			/* items that do not exist on list are returned, but have their names/identifiers NULLed out */
+			while ((strcmp(item[i_fixed].identifier, (*r_item)[i].identifier) != 0) && i < eprop->totitem)
+			{
+				(*r_item)[i].name = NULL;
+				(*r_item)[i].identifier = "";
+				i++;
+			}
+		}
+
+		fflush(stdout);
+
+		if (free)
+			MEM_freeN(item);
+	}
+
+#ifdef WITH_INTERNATIONAL
+	property_enum_translate(prop, r_item, r_totitem, r_free);
+#endif
+}
 
 bool RNA_property_enum_value(bContext *C, PointerRNA *ptr, PropertyRNA *prop, const char *identifier, int *r_value)
 {

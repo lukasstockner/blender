@@ -792,6 +792,8 @@ void RNA_property_enum_items(struct bContext *C, PointerRNA *ptr, PropertyRNA *p
                              EnumPropertyItem **item, int *r_totitem, bool *r_free);
 void RNA_property_enum_items_gettexted(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop,
                                        EnumPropertyItem **r_item, int *r_totitem, bool *r_free);
+void RNA_property_enum_items_gettexted_all(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop,
+                                       EnumPropertyItem **r_item, int *r_totitem, bool *r_free);
 bool RNA_property_enum_value(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const char *identifier, int *r_value);
 bool RNA_property_enum_identifier(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **identifier);
 bool RNA_property_enum_name(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, const int value, const char **name);
