@@ -109,7 +109,6 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
 
 				/* scattering */
 				VolumeIntegrateResult result = VOLUME_PATH_ATTENUATED;
-				bool scatter = false;
 
 				if(volume_segment.closure_flag & SD_SCATTER) {
 					bool all = kernel_data.integrator.sample_all_lights_indirect;
@@ -127,16 +126,16 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
 					result = kernel_volume_decoupled_scatter(kg,
 						&state, &volume_ray, &volume_sd, &throughput,
 						rphase, rscatter, &volume_segment, NULL, true);
-
-					if(result == VOLUME_PATH_SCATTERED)
-						scatter = kernel_path_volume_bounce(kg, rng, &volume_sd, &throughput, &state, L, &ray, 1.0f);
 				}
+
+				if(result != VOLUME_PATH_SCATTERED)
+					throughput *= volume_segment.accum_transmittance;
 
 				/* free cached steps */
 				kernel_volume_decoupled_free(kg, &volume_segment);
 
 				if(result == VOLUME_PATH_SCATTERED) {
-					if(scatter)
+					if(kernel_path_volume_bounce(kg, rng, &volume_sd, &throughput, &state, L, &ray, 1.0f))
 						continue;
 					else
 						break;
@@ -491,7 +490,6 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 
 				/* scattering */
 				VolumeIntegrateResult result = VOLUME_PATH_ATTENUATED;
-				bool scatter = false;
 
 				if(volume_segment.closure_flag & SD_SCATTER) {
 					bool all = false;
@@ -509,16 +507,16 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 					result = kernel_volume_decoupled_scatter(kg,
 						&state, &volume_ray, &volume_sd, &throughput,
 						rphase, rscatter, &volume_segment, NULL, true);
-
-					if(result == VOLUME_PATH_SCATTERED)
-						scatter = kernel_path_volume_bounce(kg, rng, &volume_sd, &throughput, &state, &L, &ray, 1.0f);
 				}
+
+				if(result != VOLUME_PATH_SCATTERED)
+					throughput *= volume_segment.accum_transmittance;
 
 				/* free cached steps */
 				kernel_volume_decoupled_free(kg, &volume_segment);
 
 				if(result == VOLUME_PATH_SCATTERED) {
-					if(scatter)
+					if(kernel_path_volume_bounce(kg, rng, &volume_sd, &throughput, &state, &L, &ray, 1.0f))
 						continue;
 					else
 						break;
@@ -896,7 +894,7 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 				if(result == VOLUME_PATH_SCATTERED) {
 					/* todo: support equiangular, MIS and all light sampling.
 					 * alternatively get decoupled ray marching working on the GPU */
-					kernel_path_volume_connect_light(kg, rng, &volume_sd, &volume_ray, throughput, &state, &L, num_samples_inv);
+					kernel_path_volume_connect_light(kg, rng, &volume_sd, throughput, &state, &L, num_samples_inv);
 
 					if(kernel_path_volume_bounce(kg, rng, &volume_sd, &tp, &ps, &L, &pray, num_samples_inv)) {
 						kernel_path_indirect(kg, rng, pray, tp*num_samples_inv, num_samples, ps, &L);

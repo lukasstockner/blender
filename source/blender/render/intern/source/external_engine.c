@@ -624,6 +624,7 @@ int RE_engine_render(Render *re, int do_all)
 	if (re->r.scemode & R_BUTS_PREVIEW)
 		engine->flag |= RE_ENGINE_PREVIEW;
 	engine->camera_override = re->camera_override;
+	engine->layer_override = re->layer_override;
 
 	engine->resolution_x = re->winx;
 	engine->resolution_y = re->winy;
@@ -661,6 +662,12 @@ int RE_engine_render(Render *re, int do_all)
 	if (re->result->do_exr_tile) {
 		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 		render_result_exr_file_end(re);
+		BLI_rw_mutex_unlock(&re->resultmutex);
+	}
+
+	if (re->r.scemode & R_EXR_CACHE_FILE) {
+		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+		render_result_exr_file_cache_write(re);
 		BLI_rw_mutex_unlock(&re->resultmutex);
 	}
 

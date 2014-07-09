@@ -184,12 +184,17 @@ typedef struct Material {
 	short shadowonly_flag;  /* "shadowsonly" type */
 	short index;            /* custom index for render passes */
 
+	/* Freestyle line settings */
+	float line_col[4];
+	short line_priority;
 	short vcol_alpha;
 
 	/* texture painting */
 	short paint_active_slot;
 	short paint_clone_slot;
 	short tot_slots;
+	short pad4[3];
+
 	struct TexPaintSlot *texpaintslot; /* cached slot for painting. Make sure to recalculate before use
 	                                    * with refresh_texpaint_image_cache */
 	ListBase gpumaterial;		/* runtime */

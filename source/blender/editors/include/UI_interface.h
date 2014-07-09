@@ -850,7 +850,8 @@ void uiTemplateIconView(uiLayout *layout, struct PointerRNA *ptr, const char *pr
 void uiTemplateHistogram(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateWaveform(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
 void uiTemplateVectorscope(uiLayout *layout, struct PointerRNA *ptr, const char *propname);
-void uiTemplateCurveMapping(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int type, int levels, int brush);
+void uiTemplateCurveMapping(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int type,
+                            int levels, int brush, int neg_slope);
 void uiTemplateColorPicker(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int value_slider, int lock, int lock_luminosity, int cubic);
 void uiTemplatePalette(uiLayout *layout, struct PointerRNA *ptr, const char *propname, int color);
 void uiTemplateLayers(uiLayout *layout, struct PointerRNA *ptr, const char *propname,

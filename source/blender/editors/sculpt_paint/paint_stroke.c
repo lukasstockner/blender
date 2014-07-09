@@ -211,6 +211,24 @@ static float event_tablet_data(const wmEvent *event, int *pen_flip)
 	return pressure;
 }
 
+static bool paint_tool_require_location(Brush *brush, PaintMode mode)
+{
+	switch (mode) {
+		case PAINT_SCULPT:
+			if (ELEM4(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
+			                              SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB))
+			{
+				return false;
+			}
+			else {
+				return true;
+			}
+		default:
+			break;
+	}
+
+	return true;
+}
 
 /* Initialize the stroke cache variants from operator properties */
 static bool paint_brush_update(bContext *C,
@@ -318,6 +336,9 @@ static bool paint_brush_update(bContext *C,
 					location_sampled = true;
 					location_success = true;
 				}
+				else if (!paint_tool_require_location(brush, mode)) {
+					hit = true;
+				}
 			}
 			else {
 				hit = true;
@@ -352,6 +373,8 @@ static bool paint_brush_update(bContext *C,
 	if (!location_sampled) {
 		if (stroke->get_location) {
 			if (stroke->get_location(C, location, mouse))
+				location_success = true;
+			else if (!paint_tool_require_location(brush, mode))
 				location_success = true;
 		}
 		else {

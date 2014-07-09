@@ -1054,18 +1054,43 @@ static void createTransPose(TransInfo *t, Object *ob)
 	if (ik_on) transform_autoik_update(t, 0);
 }
 
-/* ********************* armature ************** */
+void restoreBones(TransInfo *t)
+{
+	BoneInitData *bid = t->customData;
+	EditBone *ebo;
 
+	while (bid->bone) {
+		ebo = bid->bone;
+		ebo->dist = bid->dist;
+		ebo->rad_tail = bid->rad_tail;
+		ebo->roll = bid->roll;
+		ebo->xwidth = bid->xwidth;
+		ebo->zwidth = bid->zwidth;
+		copy_v3_v3(ebo->head, bid->head);
+		copy_v3_v3(ebo->tail, bid->tail);
+
+		bid++;
+	}
+}
+
+
+/* ********************* armature ************** */
 static void createTransArmatureVerts(TransInfo *t)
 {
-	EditBone *ebo;
+	EditBone *ebo, *eboflip;
 	bArmature *arm = t->obedit->data;
 	ListBase *edbo = arm->edbo;
-	TransData *td;
+	TransData *td, *td_old;
 	float mtx[3][3], smtx[3][3], bonemat[3][3];
+	bool mirror = ((arm->flag & ARM_MIRROR_EDIT) != 0);
+	int total_mirrored = 0, i;
+	int oldtot;
+	BoneInitData *bid;
 	
 	t->total = 0;
 	for (ebo = edbo->first; ebo; ebo = ebo->next) {
+		oldtot = t->total;
+
 		if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
 			if (t->mode == TFM_BONESIZE) {
 				if (ebo->flag & BONE_SELECTED)
@@ -1082,6 +1107,12 @@ static void createTransArmatureVerts(TransInfo *t)
 					t->total++;
 			}
 		}
+
+		if (mirror && (oldtot < t->total)) {
+			eboflip = ED_armature_bone_get_mirrored(arm->edbo, ebo);
+			if (eboflip)
+				total_mirrored++;
+		}
 	}
 
 	if (!t->total) return;
@@ -1093,7 +1124,15 @@ static void createTransArmatureVerts(TransInfo *t)
 
 	td = t->data = MEM_callocN(t->total * sizeof(TransData), "TransEditBone");
 
+	if (mirror) {
+		t->customData = bid = MEM_mallocN((total_mirrored + 1) * sizeof(BoneInitData), "BoneInitData");
+		t->flag |= T_FREE_CUSTOMDATA;
+	}
+
+	i = 0;
+
 	for (ebo = edbo->first; ebo; ebo = ebo->next) {
+		td_old = td;
 		ebo->oldlength = ebo->length;   // length==0.0 on extrude, used for scaling radius of bone points
 
 		if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
@@ -1225,6 +1264,26 @@ static void createTransArmatureVerts(TransInfo *t)
 				}
 			}
 		}
+
+		if (mirror && (td_old != td)) {
+			eboflip = ED_armature_bone_get_mirrored(arm->edbo, ebo);
+			if (eboflip) {
+				bid[i].bone = eboflip;
+				bid[i].dist = eboflip->dist;
+				bid[i].rad_tail = eboflip->rad_tail;
+				bid[i].roll = eboflip->roll;
+				bid[i].xwidth = eboflip->xwidth;
+				bid[i].zwidth = eboflip->zwidth;
+				copy_v3_v3(bid[i].head, eboflip->head);
+				copy_v3_v3(bid[i].tail, eboflip->tail);
+				i++;
+			}
+		}
+	}
+
+	if (mirror && total_mirrored) {
+		/* trick to terminate iteration */
+		bid[total_mirrored].bone = NULL;
 	}
 }
 
@@ -3572,7 +3631,7 @@ typedef struct TransDataGraph {
  */
 static void bezt_to_transdata(TransData *td, TransData2D *td2d, TransDataGraph *tdg,
                               AnimData *adt, BezTriple *bezt,
-                              int bi, short selected, short ishandle, short intvals,
+                              int bi, bool selected, bool ishandle, bool intvals,
                               float mtx[3][3], float smtx[3][3], float unit_scale)
 {
 	float *loc = bezt->vec[bi];
@@ -3610,19 +3669,16 @@ static void bezt_to_transdata(TransData *td, TransData2D *td2d, TransDataGraph *
 		copy_v3_v3(td->iloc, td->loc);
 	}
 
-	if (td->flag & TD_MOVEHANDLE1) {
+	if (!ishandle) {
 		td2d->h1 = bezt->vec[0];
-		copy_v2_v2(td2d->ih1, td2d->h1);
-	}
-	else
-		td2d->h1 = NULL;
-
-	if (td->flag & TD_MOVEHANDLE2) {
 		td2d->h2 = bezt->vec[2];
+		copy_v2_v2(td2d->ih1, td2d->h1);
 		copy_v2_v2(td2d->ih2, td2d->h2);
 	}
-	else 
+	else {
+		td2d->h1 = NULL;
 		td2d->h2 = NULL;
+	}
 
 	memset(td->axismtx, 0, sizeof(td->axismtx));
 	td->axismtx[2][2] = 1.0f;
@@ -3651,6 +3707,16 @@ static void bezt_to_transdata(TransData *td, TransData2D *td2d, TransDataGraph *
 	tdg->unit_scale = unit_scale;
 }
 
+static bool graph_edit_is_translation_mode(TransInfo *t)
+{
+	return ELEM4(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE);
+}
+
+static bool graph_edit_use_local_center(TransInfo *t)
+{
+	return (t->around == V3D_LOCAL) && !graph_edit_is_translation_mode(t);
+}
+
 static void createTransGraphEditData(bContext *C, TransInfo *t)
 {
 	SpaceIpo *sipo = (SpaceIpo *)t->sa->spacedata.first;
@@ -3671,8 +3737,9 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	int count = 0, i;
 	float cfra;
 	float mtx[3][3], smtx[3][3];
+	const bool is_translation_mode = graph_edit_is_translation_mode(t);
 	const bool use_handle = !(sipo->flag & SIPO_NOHANDLES);
-	const bool use_local_center = checkUseLocalCenter_GraphEdit(t);
+	const bool use_local_center = graph_edit_use_local_center(t);
 	short anim_map_flag = ANIM_UNITCONV_ONLYSEL | ANIM_UNITCONV_SELVERTS;
 	
 	/* determine what type of data we are operating on */
@@ -3719,11 +3786,11 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 		/* only include BezTriples whose 'keyframe' occurs on the same side of the current frame as mouse */
 		for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
 			if (FrameOnMouseSide(t->frame_side, bezt->vec[1][0], cfra)) {
-				const char sel2 = bezt->f2 & SELECT;
-				const char sel1 = use_handle ? bezt->f1 & SELECT : sel2;
-				const char sel3 = use_handle ? bezt->f3 & SELECT : sel2;
+				const bool sel2 = bezt->f2 & SELECT;
+				const bool sel1 = use_handle ? bezt->f1 & SELECT : sel2;
+				const bool sel3 = use_handle ? bezt->f3 & SELECT : sel2;
 
-				if (ELEM4(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE)) {
+				if (is_translation_mode) {
 					/* for 'normal' pivots - just include anything that is selected.
 					 * this works a bit differently in translation modes */
 					if (sel2) {
@@ -3734,9 +3801,9 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 						if (sel3) count++;
 					}
 				}
-				else if (sipo->around == V3D_LOCAL) {
-					/* for local-pivot we only need to count the number of selected handles only, so that centerpoints don't
-					 * don't get moved wrong
+				else if (use_local_center) {
+					/* for local-pivot we only need to count the number of selected handles only,
+					 * so that centerpoints don't get moved wrong
 					 */
 					if (bezt->ipo == BEZT_IPO_BEZ) {
 						if (sel1) count++;
@@ -3798,7 +3865,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 	for (ale = anim_data.first; ale; ale = ale->next) {
 		AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
 		FCurve *fcu = (FCurve *)ale->key_data;
-		short intvals = (fcu->flag & FCURVE_INT_VALUES);
+		bool intvals = (fcu->flag & FCURVE_INT_VALUES);
 		float unit_scale;
 
 		/* convert current-frame to action-time (slightly less accurate, especially under
@@ -3818,9 +3885,9 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 		/* only include BezTriples whose 'keyframe' occurs on the same side of the current frame as mouse (if applicable) */
 		for (i = 0, bezt = fcu->bezt; i < fcu->totvert; i++, bezt++) {
 			if (FrameOnMouseSide(t->frame_side, bezt->vec[1][0], cfra)) {
-				const char sel2 = bezt->f2 & SELECT;
-				const char sel1 = use_handle ? bezt->f1 & SELECT : sel2;
-				const char sel3 = use_handle ? bezt->f3 & SELECT : sel2;
+				const bool sel2 = bezt->f2 & SELECT;
+				const bool sel1 = use_handle ? bezt->f1 & SELECT : sel2;
+				const bool sel3 = use_handle ? bezt->f3 & SELECT : sel2;
 
 				TransDataCurveHandleFlags *hdata = NULL;
 				/* short h1=1, h2=1; */ /* UNUSED */
@@ -3828,10 +3895,10 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 				/* only include handles if selected, irrespective of the interpolation modes.
 				 * also, only treat handles specially if the center point isn't selected. 
 				 */
-				if (!ELEM4(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE) || !(sel2)) {
+				if (!is_translation_mode || !(sel2)) {
 					if (sel1) {
 						hdata = initTransDataCurveHandles(td, bezt);
-						bezt_to_transdata(td++, td2d++, tdg++, adt, bezt, 0, 1, 1, intvals, mtx, smtx, unit_scale);
+						bezt_to_transdata(td++, td2d++, tdg++, adt, bezt, 0, sel1, true, intvals, mtx, smtx, unit_scale);
 					}
 					else {
 						/* h1 = 0; */ /* UNUSED */
@@ -3840,7 +3907,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 					if (sel3) {
 						if (hdata == NULL)
 							hdata = initTransDataCurveHandles(td, bezt);
-						bezt_to_transdata(td++, td2d++, tdg++, adt, bezt, 2, 1, 1, intvals, mtx, smtx, unit_scale);
+						bezt_to_transdata(td++, td2d++, tdg++, adt, bezt, 2, sel3, true, intvals, mtx, smtx, unit_scale);
 					}
 					else {
 						/* h2 = 0; */ /* UNUSED */
@@ -3848,10 +3915,9 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 				}
 				
 				/* only include main vert if selected */
-				if (sel2 && (use_local_center == false)) {
-
+				if (sel2 && !use_local_center) {
 					/* move handles relative to center */
-					if (ELEM4(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE)) {
+					if (is_translation_mode) {
 						if (sel1) td->flag |= TD_MOVEHANDLE1;
 						if (sel3) td->flag |= TD_MOVEHANDLE2;
 					}
@@ -3861,8 +3927,8 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 						if (hdata == NULL)
 							hdata = initTransDataCurveHandles(td, bezt);
 					}
-				
-					bezt_to_transdata(td++, td2d++, tdg++, adt, bezt, 1, 1, 0, intvals, mtx, smtx, unit_scale);
+					
+					bezt_to_transdata(td++, td2d++, tdg++, adt, bezt, 1, sel2, false, intvals, mtx, smtx, unit_scale);
 					
 				}
 				/* special hack (must be done after initTransDataCurveHandles(), as that stores handle settings to restore...):

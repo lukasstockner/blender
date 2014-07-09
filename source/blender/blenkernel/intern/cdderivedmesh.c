@@ -40,6 +40,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_edgehash.h"
 #include "BLI_utildefines.h"
+#include "BLI_stackdefines.h"
 
 #include "BKE_pbvh.h"
 #include "BKE_cdderivedmesh.h"
@@ -2631,15 +2632,15 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 
 	int i, j, c;
 	
-	STACK_INIT(oldv);
-	STACK_INIT(olde);
-	STACK_INIT(oldl);
-	STACK_INIT(oldp);
+	STACK_INIT(oldv, totvert_final);
+	STACK_INIT(olde, totedge);
+	STACK_INIT(oldl, totloop);
+	STACK_INIT(oldp, totpoly);
 
-	STACK_INIT(mvert);
-	STACK_INIT(medge);
-	STACK_INIT(mloop);
-	STACK_INIT(mpoly);
+	STACK_INIT(mvert, totvert_final);
+	STACK_INIT(medge, totedge);
+	STACK_INIT(mloop, totloop);
+	STACK_INIT(mpoly, totpoly);
 
 	/* fill newl with destination vertex indices */
 	mv = cddm->mvert;
@@ -2800,17 +2801,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 	MEM_freeN(oldv);
 	MEM_freeN(olde);
 	MEM_freeN(oldl);
-	MEM_freeN(oldp);
-
-	STACK_FREE(oldv);
-	STACK_FREE(olde);
-	STACK_FREE(oldl);
-	STACK_FREE(oldp);
-
-	STACK_FREE(mvert);
-	STACK_FREE(medge);
-	STACK_FREE(mloop);
-	STACK_FREE(mpoly);
+	MEM_freeN(oldp);;
 
 	BLI_edgehash_free(ehash, NULL);
 

@@ -113,6 +113,7 @@ set(SRC_GEOM_HEADERS
 	geom/geom.h
 	geom/geom_attribute.h
 	geom/geom_bvh.h
+	geom/geom_bvh_shadow.h
 	geom/geom_bvh_subsurface.h
 	geom/geom_bvh_traversal.h
 	geom/geom_curve.h
@@ -167,8 +168,6 @@ if(WITH_CYCLES_CUDA_BINARIES)
 
 		if(CUDA_VERSION LESS 60 AND ${arch} MATCHES "sm_50")
 			message(WARNING "Can't build kernel for CUDA sm_50 architecture, skipping")
-		elseif(CUDA_VERSION LESS 50 AND ${arch} MATCHES "sm_35")
-			message(WARNING "Can't build kernel for CUDA sm_35 architecture, skipping")
 		else()
 			add_custom_command(
 				OUTPUT ${cuda_cubin}

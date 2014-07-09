@@ -52,7 +52,6 @@
 #  include "utf_winfunc.h"
 #  include "utfconv.h"
 #else
-#  include <unistd.h> // for read close
 #  include <sys/param.h>
 #  include <dirent.h>
 #  include <unistd.h>
@@ -313,14 +312,14 @@ static bool delete_recursive(const char *dir)
 
 	i = nbr = BLI_dir_contents(dir, &filelist);
 	fl = filelist;
-	while(i--) {
+	while (i--) {
 		char file[8];
 		BLI_split_file_part(fl->path, file, sizeof(file));
 		if (STREQ(file, ".") || STREQ(file, "..")) {
 			/* Skip! */
 		}
 		else if (S_ISDIR(fl->type)) {
-			if (delete_recursive(fl->path) {
+			if (delete_recursive(fl->path)) {
 				err = true;
 			}
 		}

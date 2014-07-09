@@ -582,11 +582,7 @@ typedef struct VolumeStep {
 } VolumeStep;
 
 typedef struct VolumeSegment {
-#ifdef __KERNEL_CPU__
 	VolumeStep *steps;			/* recorded steps */
-#else
-	VolumeStep steps[1];		/* recorded steps */
-#endif
 	int numsteps;				/* number of steps */
 	int closure_flag;			/* accumulated closure flags from all steps */
 
@@ -601,7 +597,7 @@ typedef struct VolumeSegment {
  * it would be nice if we could only record up to the point that we need to scatter,
  * but the entire segment is needed to do always scattering, rather than probalistically
  * hitting or missing the volume. if we don't know the transmittance at the end of the
- * volume we can't generate stratitied distance samples up to that transmittance */
+ * volume we can't generate stratified distance samples up to that transmittance */
 ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *state,
 	Ray *ray, ShaderData *sd, VolumeSegment *segment, bool heterogeneous)
 {
@@ -633,11 +629,8 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 
 	segment->closure_flag = 0;
 	segment->numsteps = 0;
-#ifdef __KERNEL_CPU__
+
 	segment->steps = (VolumeStep*)malloc(sizeof(VolumeStep)*max_steps);
-#else
-	kernel_assert(max_steps == 1);
-#endif
 
 	VolumeStep *step = segment->steps;
 
@@ -723,9 +716,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 
 ccl_device void kernel_volume_decoupled_free(KernelGlobals *kg, VolumeSegment *segment)
 {
-#ifdef __KERNEL_CPU__
 	free(segment->steps);
-#endif
 }
 
 /* scattering for homogeneous and heterogeneous volumes, using decoupled ray
@@ -740,8 +731,6 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(
 	const VolumeSegment *segment, const float3 *light_P, bool probalistic_scatter)
 {
 	int closure_flag = segment->closure_flag;
-
-	/* XXX add probalistic scattering! */
 
 	if(!(closure_flag & SD_SCATTER))
 		return VOLUME_PATH_MISSED;
@@ -760,8 +749,10 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(
 			/* rescale random number so we can reuse it */
 			xi = 1.0f - (1.0f - xi - sample_transmittance)/(1.0f - sample_transmittance);
 		}
-		else
+		else {
+			*throughput /= sample_transmittance;
 			return VOLUME_PATH_MISSED;
+		}
 	}
 
 	VolumeStep *step;
