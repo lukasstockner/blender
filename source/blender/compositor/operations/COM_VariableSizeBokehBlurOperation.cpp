@@ -137,34 +137,34 @@ void VariableSizeBokehBlurOperation::executePixel(float output[4], int x, int y,
 		copy_v4_fl(multiplier_accum, 1.0f);
 		float size_center = tempSize[0] * scalar;
 		
-        const int addXStepValue = QualityStepHelper::getStep();
-        const int addYStepValue = addXStepValue;
-        const int addXStepColor = addXStepValue * COM_NUM_CHANNELS_COLOR;
+		const int addXStepValue = QualityStepHelper::getStep();
+		const int addYStepValue = addXStepValue;
+		const int addXStepColor = addXStepValue * COM_NUM_CHANNELS_COLOR;
 
 		if (size_center > this->m_threshold) {
-            for (int ny = miny; ny < maxy; ny += addYStepValue) {
+			for (int ny = miny; ny < maxy; ny += addYStepValue) {
 				float dy = ny - y;
-                int offsetValueNy = ny * inputSizeBuffer->getWidth();
-                int offsetValueNxNy = offsetValueNy + (minx);
-                int offsetColorNxNy = offsetValueNxNy * COM_NUM_CHANNELS_COLOR;
-                for (int nx = minx; nx < maxx; nx += addXStepValue) {
+				int offsetValueNy = ny * inputSizeBuffer->getWidth();
+				int offsetValueNxNy = offsetValueNy + (minx);
+				int offsetColorNxNy = offsetValueNxNy * COM_NUM_CHANNELS_COLOR;
+				for (int nx = minx; nx < maxx; nx += addXStepValue) {
 					if (nx != x || ny != y) {
-                        float size = min(inputSizeFloatBuffer[offsetValueNxNy] * scalar, size_center);
+						float size = min(inputSizeFloatBuffer[offsetValueNxNy] * scalar, size_center);
 						if (size > this->m_threshold) {
 							float dx = nx - x;
 							if (size > fabsf(dx) && size > fabsf(dy)) {
 								float uv[2] = {
-								    (float)(COM_BLUR_BOKEH_PIXELS / 2) + (dx / size) * (float)((COM_BLUR_BOKEH_PIXELS / 2) - 1),
-								    (float)(COM_BLUR_BOKEH_PIXELS / 2) + (dy / size) * (float)((COM_BLUR_BOKEH_PIXELS / 2) - 1)};
+									(float)(COM_BLUR_BOKEH_PIXELS / 2) + (dx / size) * (float)((COM_BLUR_BOKEH_PIXELS / 2) - 1),
+									(float)(COM_BLUR_BOKEH_PIXELS / 2) + (dy / size) * (float)((COM_BLUR_BOKEH_PIXELS / 2) - 1)};
 								inputBokehBuffer->readNoCheck(bokeh, uv[0], uv[1]);
-                                madd_v4_v4v4(color_accum, bokeh, &inputProgramFloatBuffer[offsetColorNxNy]);
+								madd_v4_v4v4(color_accum, bokeh, &inputProgramFloatBuffer[offsetColorNxNy]);
 								add_v4_v4(multiplier_accum, bokeh);
 							}
 						}
 					}
-                    offsetColorNxNy += addXStepColor;
-                    offsetValueNxNy += addXStepValue;
-                }
+					offsetColorNxNy += addXStepColor;
+					offsetValueNxNy += addXStepValue;
+				}
 			}
 		}
 
