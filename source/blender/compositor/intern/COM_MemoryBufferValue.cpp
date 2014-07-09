@@ -22,7 +22,7 @@
 
 #include "COM_MemoryBufferValue.h"
 
-#define NUMBER_OF_CHANNELS COM_NO_CHANNELS_VALUE
+#define NUMBER_OF_CHANNELS COM_NUM_CHANNELS_VALUE
 
 MemoryBufferValue::MemoryBufferValue(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect):
 	MemoryBuffer(memoryProxy, chunkNumber, rect, NUMBER_OF_CHANNELS)

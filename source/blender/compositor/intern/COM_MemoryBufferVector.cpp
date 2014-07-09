@@ -22,7 +22,7 @@
 
 #include "COM_MemoryBufferVector.h"
 
-#define NUMBER_OF_CHANNELS COM_NO_CHANNELS_VECTOR
+#define NUMBER_OF_CHANNELS COM_NUM_CHANNELS_VECTOR
 
 MemoryBufferVector::MemoryBufferVector(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect): 
 	MemoryBuffer(memoryProxy, chunkNumber, rect, NUMBER_OF_CHANNELS)

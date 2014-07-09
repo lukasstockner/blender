@@ -75,7 +75,7 @@ private:
 	/**
 	 * @brief the number of channels that form a single pixel in this buffer
 	 */
-	unsigned int m_no_channels;
+	unsigned int m_num_channels;
 	
 
 protected:
@@ -102,23 +102,23 @@ protected:
 	/**
 	 * @brief construct new MemoryBuffer for a chunk
 	 *
-	 * @param no_channels Number of channels that must be allocated for every pixel
+	 * @param num_channels Number of channels that must be allocated for every pixel
 	 */
-	MemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect, unsigned int no_channels);
+	MemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect, unsigned int num_channels);
 	
 	/**
 	 * @brief construct new temporarily MemoryBuffer for an area
 	 *
-	 * @param no_channels Number of channels that must be allocated for every pixel
+	 * @param num_channels Number of channels that must be allocated for every pixel
 	 */
-	MemoryBuffer(MemoryProxy *memoryProxy, rcti *rect, unsigned int no_channels);
+	MemoryBuffer(MemoryProxy *memoryProxy, rcti *rect, unsigned int num_channels);
 
     /**
      * @brief construct new temporarily MemoryBuffer for an area
      *
-     * @param no_channels Number of channels that must be allocated for every pixel
+     * @param num_channels Number of channels that must be allocated for every pixel
      */
-    MemoryBuffer(DataType datatype, rcti *rect, unsigned int no_channels);
+    MemoryBuffer(DataType datatype, rcti *rect, unsigned int num_channels);
 public:
 	/**
 	 * @brief factory method for the constructor, selecting the right subclass
@@ -257,7 +257,7 @@ public:
 	 * Vector= 3
 	 * Color = 4
 	 */
-	const int get_no_channels() const;
+	const int get_num_channels() const;
 
 protected:
     unsigned int determineBufferSize() const;

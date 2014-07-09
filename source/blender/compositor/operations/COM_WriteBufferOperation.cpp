@@ -62,7 +62,7 @@ void WriteBufferOperation::executeRegion(Tile *tile)
 	rcti *rect = tile->get_rect();
 	MemoryBuffer *memoryBuffer = this->m_memoryProxy->getBuffer();
 	float *buffer = memoryBuffer->getBuffer();
-	const int no_channels = memoryBuffer->get_no_channels();
+	const int num_channels = memoryBuffer->get_num_channels();
 	if (this->m_input->isComplex()) {
 		void *data = this->m_input->initializeTileData(rect);
 		int x1 = rect->xmin;
@@ -73,10 +73,10 @@ void WriteBufferOperation::executeRegion(Tile *tile)
 		int y;
 		bool breaked = false;
 		for (y = y1; y < y2 && (!breaked); y++) {
-			int offset4 = (y * memoryBuffer->getWidth() + x1) * no_channels;
+			int offset4 = (y * memoryBuffer->getWidth() + x1) * num_channels;
 			for (x = x1; x < x2; x++) {
 				this->m_input->read(&(buffer[offset4]), x, y, data);
-				offset4 += no_channels;
+				offset4 += num_channels;
 			}
 			if (isBreaked()) {
 				breaked = true;
@@ -98,10 +98,10 @@ void WriteBufferOperation::executeRegion(Tile *tile)
 		int y;
 		bool breaked = false;
 		for (y = y1; y < y2 && (!breaked); y++) {
-			int offset4 = (y * memoryBuffer->getWidth() + x1) * no_channels;
+			int offset4 = (y * memoryBuffer->getWidth() + x1) * num_channels;
 			for (x = x1; x < x2; x++) {
 				this->m_input->readSampled(&(buffer[offset4]), x, y, COM_PS_NEAREST);
-				offset4 += no_channels;
+				offset4 += num_channels;
 			}
 			if (isBreaked()) {
 				breaked = true;

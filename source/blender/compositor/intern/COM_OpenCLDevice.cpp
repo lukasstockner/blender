@@ -85,10 +85,10 @@ cl_mem OpenCLDevice::COM_clAttachMemoryBufferToKernelParameter(cl_kernel kernel,
 const cl_image_format* OpenCLDevice::determineImageFormat(MemoryBuffer *memoryBuffer)
 {
 	const cl_image_format *imageFormat;
-	int no_channels = memoryBuffer->get_no_channels();
-	if (no_channels == 1) {
+	int num_channels = memoryBuffer->get_num_channels();
+	if (num_channels == 1) {
 		imageFormat = &IMAGE_FORMAT_VALUE;
-	} else if (no_channels == 3) {
+	} else if (num_channels == 3) {
 		imageFormat = &IMAGE_FORMAT_VECTOR;
 	} else {
 		imageFormat = &IMAGE_FORMAT_COLOR;

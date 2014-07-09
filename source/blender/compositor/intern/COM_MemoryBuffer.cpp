@@ -87,41 +87,41 @@ MemoryBuffer* MemoryBuffer::create(DataType datatype, rcti *rect) {
 	}
 }
 
-MemoryBuffer::MemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect, unsigned int no_channels)
+MemoryBuffer::MemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect, unsigned int num_channels)
 {
 	BLI_rcti_init(&this->m_rect, rect->xmin, rect->xmax, rect->ymin, rect->ymax);
 	this->m_memoryProxy = memoryProxy;
 	this->m_chunkNumber = chunkNumber;
-	this->m_buffer = (float *)MEM_mallocN_aligned(sizeof(float) * determineBufferSize() * no_channels, 16, "COM_MemoryBuffer");
+	this->m_buffer = (float *)MEM_mallocN_aligned(sizeof(float) * determineBufferSize() * num_channels, 16, "COM_MemoryBuffer");
 	this->m_state = COM_MB_ALLOCATED;
 	this->m_chunkWidth = this->m_rect.xmax - this->m_rect.xmin;
-	this->m_no_channels = no_channels;
+	this->m_num_channels = num_channels;
 }
 
-MemoryBuffer::MemoryBuffer(MemoryProxy *memoryProxy, rcti *rect, unsigned int no_channels)
+MemoryBuffer::MemoryBuffer(MemoryProxy *memoryProxy, rcti *rect, unsigned int num_channels)
 {
 	BLI_rcti_init(&this->m_rect, rect->xmin, rect->xmax, rect->ymin, rect->ymax);
 	this->m_memoryProxy = memoryProxy;
 	this->m_chunkNumber = -1;
-	this->m_buffer = (float *)MEM_mallocN_aligned(sizeof(float) * determineBufferSize() * no_channels, 16, "COM_MemoryBuffer");
+	this->m_buffer = (float *)MEM_mallocN_aligned(sizeof(float) * determineBufferSize() * num_channels, 16, "COM_MemoryBuffer");
 	this->m_state = COM_MB_TEMPORARILY;
 	this->m_chunkWidth = this->m_rect.xmax - this->m_rect.xmin;
-	this->m_no_channels = no_channels;
+	this->m_num_channels = num_channels;
 }
 
-MemoryBuffer::MemoryBuffer(DataType datatype, rcti *rect, unsigned int no_channels) {
+MemoryBuffer::MemoryBuffer(DataType datatype, rcti *rect, unsigned int num_channels) {
 	BLI_rcti_init(&this->m_rect, rect->xmin, rect->xmax, rect->ymin, rect->ymax);
 	this->m_memoryProxy = NULL;
 	this->m_chunkNumber = -1;
-	this->m_buffer = (float *)MEM_mallocN_aligned(sizeof(float) * determineBufferSize() * no_channels, 16, "COM_MemoryBuffer");
+	this->m_buffer = (float *)MEM_mallocN_aligned(sizeof(float) * determineBufferSize() * num_channels, 16, "COM_MemoryBuffer");
 	this->m_state = COM_MB_TEMPORARILY;
 	this->m_chunkWidth = this->m_rect.xmax - this->m_rect.xmin;
-	this->m_no_channels = no_channels;
+	this->m_num_channels = num_channels;
 }
 
 void MemoryBuffer::clear()
 {
-	memset(this->m_buffer, 0, this->determineBufferSize() * this->m_no_channels * sizeof(float));
+	memset(this->m_buffer, 0, this->determineBufferSize() * this->m_num_channels * sizeof(float));
 }
 
 void MemoryBuffer::copyContentFrom(MemoryBuffer *otherBuffer)
@@ -140,9 +140,9 @@ void MemoryBuffer::copyContentFrom(MemoryBuffer *otherBuffer)
 
 
 	for (otherY = minY; otherY < maxY; otherY++) {
-		otherOffset = ((otherY - otherBuffer->m_rect.ymin) * otherBuffer->m_chunkWidth + minX - otherBuffer->m_rect.xmin) * this->m_no_channels;
-		offset = ((otherY - this->m_rect.ymin) * this->m_chunkWidth + minX - this->m_rect.xmin) * this->m_no_channels;
-		memcpy(&this->m_buffer[offset], &otherBuffer->m_buffer[otherOffset], (maxX - minX) * this->m_no_channels * sizeof(float));
+		otherOffset = ((otherY - otherBuffer->m_rect.ymin) * otherBuffer->m_chunkWidth + minX - otherBuffer->m_rect.xmin) * this->m_num_channels;
+		offset = ((otherY - this->m_rect.ymin) * this->m_chunkWidth + minX - this->m_rect.xmin) * this->m_num_channels;
+		memcpy(&this->m_buffer[offset], &otherBuffer->m_buffer[otherOffset], (maxX - minX) * this->m_num_channels * sizeof(float));
 	}
 }
 
@@ -158,7 +158,7 @@ float *MemoryBuffer::convertToValueBuffer()
 	const float *fp_src = this->m_buffer;
 	float       *fp_dst = result;
 
-    for (i = 0; i < size; i++, fp_dst++, fp_src += COM_NO_CHANNELS_COLOR) {
+	for (i = 0; i < size; i++, fp_dst++, fp_src += COM_NUM_CHANNELS_COLOR) {
 		*fp_dst = *fp_src;
 	}
 
@@ -198,6 +198,6 @@ MemoryBuffer::~MemoryBuffer()
 	}
 }
 
-const int MemoryBuffer::get_no_channels() const {
-	return this->m_no_channels;
+const int MemoryBuffer::get_num_channels() const {
+	return this->m_num_channels;
 }
