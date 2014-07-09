@@ -208,13 +208,13 @@ HMODULE GHOST_ContextEGL::s_d3dcompiler = NULL;
 
 
 
-EGLContext GHOST_ContextEGL::s_gl_sharedContext   = NULL;
+EGLContext GHOST_ContextEGL::s_gl_sharedContext   = EGL_NO_CONTEXT;
 EGLint     GHOST_ContextEGL::s_gl_sharedCount     = 0;
 
-EGLContext GHOST_ContextEGL::s_gles_sharedContext = NULL;
+EGLContext GHOST_ContextEGL::s_gles_sharedContext = EGL_NO_CONTEXT;
 EGLint     GHOST_ContextEGL::s_gles_sharedCount   = 0;
 
-EGLContext GHOST_ContextEGL::s_vg_sharedContext   = NULL;
+EGLContext GHOST_ContextEGL::s_vg_sharedContext   = EGL_NO_CONTEXT;
 EGLint     GHOST_ContextEGL::s_vg_sharedCount     = 0;
 
 
@@ -242,22 +242,22 @@ GHOST_ContextEGL::GHOST_ContextEGL(
 	GHOST_TUns16         numOfAASamples,
 	EGLNativeWindowType  nativeWindow,
 	EGLNativeDisplayType nativeDisplay,
-	EGLenum              api,
 	EGLint               contextProfileMask,
 	EGLint               contextMajorVersion,
 	EGLint               contextMinorVersion,
 	EGLint               contextFlags,
-	EGLint               contextResetNotificationStrategy
+	EGLint               contextResetNotificationStrategy,
+	EGLenum              api
 )
 	: GHOST_Context(stereoVisual, numOfAASamples)
 	, m_nativeWindow (nativeWindow)
 	, m_nativeDisplay(nativeDisplay)
-	, m_api(api)
 	, m_contextProfileMask              (contextProfileMask)
 	, m_contextMajorVersion             (contextMajorVersion)
 	, m_contextMinorVersion             (contextMinorVersion)
 	, m_contextFlags                    (contextFlags)
 	, m_contextResetNotificationStrategy(contextResetNotificationStrategy)
+	, m_api(api)
 	, m_swap_interval(1)
 	, m_display(EGL_NO_DISPLAY)
 	, m_surface(EGL_NO_SURFACE)
@@ -334,7 +334,8 @@ GHOST_TSuccess GHOST_ContextEGL::setSwapInterval(int interval)
 
 GHOST_TSuccess GHOST_ContextEGL::getSwapInterval(int& intervalOut)
 {
-	intervalOut = m_swap_interval;
+	intervalOut = m_swap_interval; // XXX jwilkins: make sure there is no way to query this?
+
 	return GHOST_kSuccess;
 }
 
@@ -357,7 +358,7 @@ GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 
 
 
-void GHOST_ContextEGL::initContextEGLEW(EGLDisplay display)
+void GHOST_ContextEGL::initContextEGLEW()
 {
 	eglewContext = new EGLEWContext;
 	memset(eglewContext, 0, sizeof(EGLEWContext));
@@ -365,7 +366,7 @@ void GHOST_ContextEGL::initContextEGLEW(EGLDisplay display)
 	delete m_eglewContext;
 	m_eglewContext = eglewContext;
 
-	GLEW_CHK(eglewInit(display));
+	GLEW_CHK(eglewInit(m_display));
 }
 
 
@@ -435,7 +436,7 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 	if (!EGL_CHK(::eglMakeCurrent(m_display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT)))
 		goto error;
 
-	initContextEGLEW(m_display);
+	initContextEGLEW();
 
 	if (!bindAPI(m_api))
 		goto error;
@@ -631,6 +632,10 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 		goto error;
 
 	initContextGLEW();
+
+	glClearColor(0.447, 0.447, 0.447, 0.000);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glClearColor(0.000, 0.000, 0.000, 0.000);
 
 	return GHOST_kSuccess;
 

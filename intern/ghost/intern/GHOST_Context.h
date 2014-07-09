@@ -129,7 +129,7 @@ public:
 protected:
 	void initContextGLEW();
 
-	void activateGLEW() const {
+	inline void activateGLEW() const {
 		glewSetContext(m_glewContext);
 	}
 

@@ -30,8 +30,8 @@
  * Declaration of GHOST_ContextWGL class.
  */
 
-#ifndef __GHOST_CONTEXTWGL_H__
-#define __GHOST_CONTEXTWGL_H__
+#ifndef _GHOST_CONTEXTWGL_H_
+#define _GHOST_CONTEXTWGL_H_
 
 #include "GHOST_Context.h"
 
@@ -93,8 +93,8 @@ public:
 	virtual GHOST_TSuccess initializeDrawingContext();
 
 	/**
-	 * Checks if it is OK for a remove the native display
-	 * \return Indication as to whether removal has succeeded.
+	 * Removes references to native handles from this context and then returns
+	 * \return GHOST_kSuccess if it is OK for the parent to release the handles and GHOST_kFailure if releasing the handles will interfere with sharing
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
@@ -113,8 +113,7 @@ public:
 	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
 
 protected:
-	void activateWGLEW() const
-	{
+	inline void activateWGLEW() const {
 		wglewContext = m_wglewContext;
 	}
 
@@ -154,15 +153,13 @@ private:
 	HDC  m_hDC;
 	HWND m_hWnd;
 
-	int m_contextProfileMask;
-	int m_contextMajorVersion;
-	int m_contextMinorVersion;
-	int m_contextFlags;
-	int m_contextResetNotificationStrategy;
+	const int m_contextProfileMask;
+	const int m_contextMajorVersion;
+	const int m_contextMinorVersion;
+	const int m_contextFlags;
+	const int m_contextResetNotificationStrategy;
 
 	HGLRC m_hGLRC;
-
-	bool m_needSetPixelFormat;
 
 	WGLEWContext* m_wglewContext;
 
@@ -180,4 +177,4 @@ private:
 
 
 
-#endif // __GHOST_CONTEXTWGL_H__
+#endif // _GHOST_CONTEXTWGL_H_

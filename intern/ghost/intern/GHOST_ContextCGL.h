@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
+ * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
@@ -30,17 +30,14 @@
  * Declaration of GHOST_ContextCGL class.
  */
 
-#ifndef __GHOST_CONTEXTCGL_H__
-#define __GHOST_CONTEXTCGL_H__
-
+#ifndef _GHOST_CONTEXTCGL_H_
+#define _GHOST_CONTEXTCGL_H_
 
 #include "GHOST_Context.h"
 
-
-
-@class NSWindow;
-@class NSOpenGLView;
-@class NSOpenGLContext;
+//#define cglewGetContext() cglewContext
+//#include <GL/cglew.h>
+//extern "C" CGLEWContext* cglewContext;
 
 
 
@@ -51,6 +48,12 @@
 #ifndef GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY
 #define GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY 0
 #endif
+
+
+
+@class NSWindow;
+@class NSOpenGLView;
+@class NSOpenGLContext;
 
 
 
@@ -97,15 +100,8 @@ public:
 	virtual GHOST_TSuccess initializeDrawingContext();
 
 	/**
-	 * Updates the drawing context of this window. Needed
-	 * whenever the window is changed.
-	 * \return Indication of success.
-	 */
-	virtual GHOST_TSuccess updateDrawingContext();
-
-	/**
-	 * Checks if it is OK for a remove the native display
-	 * \return Indication as to whether removal has succeeded.
+	 * Removes references to native handles from this context and then returns
+	 * \return GHOST_kSuccess if it is OK for the parent to release the handles and GHOST_kFailure if releasing the handles will interfere with sharing
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
@@ -123,7 +119,20 @@ public:
 	 */
 	virtual GHOST_TSuccess getSwapInterval(int&);
 
+	/**
+	 * Updates the drawing context of this window.
+	 * Needed whenever the window is changed.
+	 * \return Indication of success.
+	 */
+	virtual GHOST_TSuccess updateDrawingContext();
+
+//protected:
+//	inline void activateCGLEW() const {
+//		cglewContext = m_cglewContext;
+//	}
+
 private:
+	//void initContextCGLEW()
 
 	/** The window containing the OpenGL view */
 	NSWindow *m_window;
@@ -131,21 +140,22 @@ private:
 	/** The openGL view */
 	NSOpenGLView *m_openGLView; 
 
-	int m_contextProfileMask;
-	int m_contextMajorVersion;
-	int m_contextMinorVersion;
-	int m_contextFlags;
-	int m_contextResetNotificationStrategy;
+	const int m_contextProfileMask;
+	const int m_contextMajorVersion;
+	const int m_contextMinorVersion;
+	const int m_contextFlags;
+	const int m_contextResetNotificationStrategy;
 
 	/** The opgnGL drawing context */
 	NSOpenGLContext *m_openGLContext;
 	
+	//static CGLEWContext* s_cglewContext;
+
 	/** The first created OpenGL context (for sharing display lists) */
 	static NSOpenGLContext *s_sharedOpenGLContext;	
 	static int              s_sharedCount;
-
 };
 
 
 
-#endif // __GHOST_CONTEXTCGL_H__
+#endif // _GHOST_CONTEXTCGL_H_

@@ -132,11 +132,15 @@ GHOST_TSuccess GHOST_ContextCGL::getSwapInterval(int& intervalOut)
 {
 	if (m_openGLContext != nil) {
 		GLint interval;
+
 		NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+
 		[m_openGLContext setValues:&interval forParameter:NSOpenGLCPSwapInterval];
+
 		[pool drain];
 
-		intervalOut = (int)interval;
+		intervalOut = static_cast<int>(interval);
+
 		return GHOST_kSuccess;
 	}
 	else {
@@ -334,6 +338,10 @@ GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext()
 	[m_openGLContext setView:m_openGLView];
 
 	initContextGLEW();
+
+	glClearColor(0.447, 0.447, 0.447, 0.000);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glClearColor(0.000, 0.000, 0.000, 0.000);
 
 	[pool drain];
 

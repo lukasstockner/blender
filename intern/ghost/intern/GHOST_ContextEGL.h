@@ -30,8 +30,8 @@
  * Declaration of GHOST_ContextEGL class.
  */
 
-#ifndef __GHOST_CONTEXTEGL_H__
-#define __GHOST_CONTEXTEGL_H__
+#ifndef _GHOST_CONTEXTEGL_H_
+#define _GHOST_CONTEXTEGL_H_
 
 #include "GHOST_Context.h"
 
@@ -62,12 +62,12 @@ public:
 		GHOST_TUns16         numOfAASamples,
 		EGLNativeWindowType  nativeWindow,
 		EGLNativeDisplayType nativeDisplay,
-		EGLenum              api,
 		EGLint               contextProfileMask,
 		EGLint               contextMajorVersion,
 		EGLint               contextMinorVersion,
 		EGLint               contextFlags,
-		EGLint               contextResetNotificationStrategy
+		EGLint               contextResetNotificationStrategy,
+		EGLenum              api
 	);
 
 	/**
@@ -88,18 +88,14 @@ public:
 	virtual GHOST_TSuccess activateDrawingContext();
 
 	/**
-	 * Tries to install a rendering context in this window.
-	 * \param stereoVisual		Stereo visual for quad buffered stereo.
-	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
-	 * \return Indication as to whether installation has succeeded.
+	 * Call immediately after new to initialize.  If this fails then immediately delete the object.
+	 * \return Indication as to whether initialization has succeeded.
 	 */
 	virtual GHOST_TSuccess initializeDrawingContext();
 
 	/**
 	 * Removes references to native handles from this context and then returns
-	 * GHOST_kSuccess if it is OK for the parent to release the handles
-	 * and GHOST_kFailure if releasing the handles will interfere with sharing
-	 * \return Indication as to whether removal has succeeded.
+	 * \return GHOST_kSuccess if it is OK for the parent to release the handles and GHOST_kFailure if releasing the handles will interfere with sharing
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
@@ -115,36 +111,37 @@ public:
 	 * \param intervalOut Variable to store the swap interval if it can be read.
 	 * \return Whether the swap interval can be read.
 	 */
-	GHOST_TSuccess getSwapInterval(int& intervalOut)
+	GHOST_TSuccess getSwapInterval(int& intervalOut);
 
 protected:
-	void activateEGLEW() const {
+	inline void activateEGLEW() const {
 		eglewContext = m_eglewContext;
 	}
 
 private:
-	void initContextEGLEW(EGLDisplay display);
+	void initContextEGLEW();
 
 	EGLNativeDisplayType m_nativeDisplay;
 	EGLNativeWindowType  m_nativeWindow;
 
-	const EGLenum m_api;
-	const EGLint  m_contextProfileMask;
-	const EGLint  m_contextMajorVersion;
-	const EGLint  m_contextMinorVersion;
-	const EGLint  m_contextFlags;
-	const EGLint  m_contextResetNotificationStrategy;
+	const EGLint m_contextProfileMask;
+	const EGLint m_contextMajorVersion;
+	const EGLint m_contextMinorVersion;
+	const EGLint m_contextFlags;
+	const EGLint m_contextResetNotificationStrategy;
 
-	EGLint m_swap_interval;
+	const EGLenum m_api;
 
 	EGLContext m_context;
 	EGLSurface m_surface;
 	EGLDisplay m_display;
 
-	EGLContext& m_sharedContext;
-	EGLint&     m_sharedCount;
+	EGLint m_swap_interval;
 
 	EGLEWContext* m_eglewContext;
+
+	EGLContext& m_sharedContext;
+	EGLint&     m_sharedCount;
 
 	static EGLContext s_gl_sharedContext;
 	static EGLint     s_gl_sharedCount;
@@ -162,4 +159,4 @@ private:
 
 
 
-#endif // __GHOST_CONTEXTEGL_H__
+#endif // _GHOST_CONTEXTEGL_H_

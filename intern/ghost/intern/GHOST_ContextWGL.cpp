@@ -178,7 +178,6 @@ GHOST_ContextWGL::GHOST_ContextWGL(
 	, m_contextFlags                    (contextFlags)
 	, m_contextResetNotificationStrategy(contextResetNotificationStrategy)
 	, m_hGLRC(NULL)
-	, m_needSetPixelFormat(true)
 	, m_wglewContext(NULL)
 #ifndef NDEBUG
 	, m_dummyVendor  (NULL)
@@ -814,30 +813,26 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 	static const bool sRGB        = false;
 #endif
 
-	if (m_needSetPixelFormat) {
-		int iPixelFormat = choose_pixel_format(m_stereoVisual, m_numOfAASamples, needAlpha, needStencil, sRGB);
+	int iPixelFormat = choose_pixel_format(m_stereoVisual, m_numOfAASamples, needAlpha, needStencil, sRGB);
 
-		if (iPixelFormat == 0)
-			goto error;
+	if (iPixelFormat == 0)
+		goto error;
 
-		PIXELFORMATDESCRIPTOR chosenPFD;
+	PIXELFORMATDESCRIPTOR chosenPFD;
 
-		int lastPFD = ::DescribePixelFormat(m_hDC, iPixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &chosenPFD);
+	int lastPFD = ::DescribePixelFormat(m_hDC, iPixelFormat, sizeof(PIXELFORMATDESCRIPTOR), &chosenPFD);
 
-		if (!WIN32_CHK(lastPFD != 0))
-			goto error;
+	if (!WIN32_CHK(lastPFD != 0))
+		goto error;
 
-		if (needAlpha && chosenPFD.cAlphaBits == 0)
-			fprintf(stderr, "Warning! Unable to find a pixel format with an alpha channel.\n");
+	if (needAlpha && chosenPFD.cAlphaBits == 0)
+		fprintf(stderr, "Warning! Unable to find a pixel format with an alpha channel.\n");
 
-		if (needStencil && chosenPFD.cStencilBits == 0)
-			fprintf(stderr, "Warning! Unable to find a pixel format with a stencil buffer.\n");
+	if (needStencil && chosenPFD.cStencilBits == 0)
+		fprintf(stderr, "Warning! Unable to find a pixel format with a stencil buffer.\n");
 
-		if (!WIN32_CHK(::SetPixelFormat(m_hDC, iPixelFormat, &chosenPFD)))
-			goto error;
-
-		m_needSetPixelFormat = false;
-	}
+	if (!WIN32_CHK(::SetPixelFormat(m_hDC, iPixelFormat, &chosenPFD)))
+		goto error;
 
 	activateWGLEW();
 
@@ -949,6 +944,10 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		goto error;
 
 	initContextGLEW();
+
+	glClearColor(0.447, 0.447, 0.447, 0.000);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glClearColor(0.000, 0.000, 0.000, 0.000);
 
 #ifndef NDEBUG
 	reportContextString("Vendor",   m_dummyVendor,   reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
