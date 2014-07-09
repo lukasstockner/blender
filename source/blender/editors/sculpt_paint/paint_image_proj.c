@@ -295,6 +295,8 @@ typedef struct ProjPaintState {
 	bool need_redraw;
 
 	BlurKernel *blurkernel;
+
+	SpinLock *tile_lock;
 } ProjPaintState;
 
 typedef union pixelPointer {
@@ -340,7 +342,7 @@ typedef struct ProjPixelClone {
 
 /* undo tile pushing */
 typedef struct {
-	bool threaded;
+	SpinLock *lock;
 	bool masked;
 	unsigned short tile_width;
 	ImBuf **tmpibuf;
@@ -1343,14 +1345,14 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 
 	/* double check lock to avoid locking */
 	if (UNLIKELY(!pjIma->undoRect[tile_index])) {
-		if (tinf->threaded)
-			BLI_lock_thread(LOCK_CUSTOM1);
+		if (tinf->lock)
+			BLI_spin_lock(tinf->lock);
 		if (LIKELY(!pjIma->undoRect[tile_index])) {
 			pjIma->undoRect[tile_index] = TILE_PENDING;
 			generate_tile = true;
 		}
-		if (tinf->threaded)
-			BLI_unlock_thread(LOCK_CUSTOM1);
+		if (tinf->lock)
+			BLI_spin_unlock(tinf->lock);
 	}
 
 
@@ -1365,7 +1367,12 @@ static int project_paint_undo_subtiles(const TileInfo *tinf, int tx, int ty)
 
 		pjIma->ibuf->userflags |= IB_BITMAPDIRTY;
 		/* tile ready, publish */
+		if (tinf->lock)
+			BLI_spin_lock(tinf->lock);
 		pjIma->undoRect[tile_index] = undorect;
+		if (tinf->lock)
+			BLI_spin_unlock(tinf->lock);
+
 	}
 
 	return tile_index;
@@ -2238,9 +2245,10 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 	MemArena *arena = ps->arena_mt[thread_index];
 	LinkNode **bucketPixelNodes = ps->bucketRect + bucket_index;
 	LinkNode *bucketFaceNodes = ps->bucketFaces[bucket_index];
+	bool threaded = (ps->thread_tot > 1);
 
 	TileInfo tinf = {
-		(ps->thread_tot > 1),
+		ps->tile_lock,
 		ps->do_masking,
 		IMAPAINT_TILE_NUMBER(ibuf->x),
 		tmpibuf,
@@ -2267,7 +2275,6 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 	float pixelScreenCo[4];
 	bool do_3d_mapping = ps->brush->mtex.brush_map_mode == MTEX_MAP_MODE_3D;
 
-	bool threaded = (ps->thread_tot > 1);
 	rcti bounds_px; /* ispace bounds */
 	/* vars for getting uvspace bounds */
 
@@ -3210,6 +3217,13 @@ static void project_paint_begin(ProjPaintState *ps)
 	if (reset_threads)
 		ps->thread_tot = 1;
 
+	if (ps->thread_tot > 1) {
+		ps->tile_lock = MEM_mallocN(sizeof(SpinLock), "projpaint_tile_lock");
+		BLI_spin_init(ps->tile_lock);
+	}
+
+	image_undo_init_locks();
+
 	for (a = 0; a < ps->thread_tot; a++) {
 		ps->arena_mt[a] = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "project paint arena");
 	}
@@ -3464,6 +3478,11 @@ static void project_paint_end(ProjPaintState *ps)
 	MEM_freeN(ps->dm_mtface);
 	if (ps->do_layer_clone)
 		MEM_freeN(ps->dm_mtface_clone);
+	if (ps->thread_tot > 1) {
+		BLI_spin_end(ps->tile_lock);
+		MEM_freeN((void *)ps->tile_lock);
+	}
+	image_undo_end_locks();
 
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 	if (ps->seam_bleed_px > 0.0f) {

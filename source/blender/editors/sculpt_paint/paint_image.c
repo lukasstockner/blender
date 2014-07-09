@@ -122,6 +122,17 @@ typedef struct UndoImageTile {
  * Maybe it should be exposed as part of the
  * paint operation, but for now just give a public interface */
 static ImagePaintPartialRedraw imapaintpartial = {0, 0, 0, 0, 0};
+static SpinLock undolock;
+
+void image_undo_init_locks()
+{
+	BLI_spin_init(&undolock);
+}
+
+void image_undo_end_locks()
+{
+	BLI_spin_end(&undolock);
+}
 
 ImagePaintPartialRedraw *get_imapaintpartial(void)
 {
@@ -259,13 +270,13 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 	undo_copy_tile(tile, *tmpibuf, ibuf, COPY);
 
 	if (proj)
-		BLI_lock_thread(LOCK_CUSTOM1);
+		BLI_spin_lock(&undolock);
 
 	undo_paint_push_count_alloc(UNDO_PAINT_IMAGE, allocsize);
 	BLI_addtail(lb, tile);
 
 	if (proj)
-		BLI_unlock_thread(LOCK_CUSTOM1);
+		BLI_spin_unlock(&undolock);
 
 	return tile->rect.pt;
 }
