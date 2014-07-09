@@ -254,27 +254,6 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction)
 }
 
 
-#pragma mark defines for 10.6 api not documented in 10.5
-
-#pragma mark Utility functions
-
-#define FIRSTFILEBUFLG 512
-static bool g_hasFirstFile = false;
-static char g_firstFileBuf[512];
-
-//TODO:Need to investigate this. Function called too early in creator.c to have g_hasFirstFile == true
-extern "C" int GHOST_HACK_getFirstFile(char buf[FIRSTFILEBUFLG])
-{
-	if (g_hasFirstFile) {
-		strncpy(buf, g_firstFileBuf, FIRSTFILEBUFLG - 1);
-		buf[FIRSTFILEBUFLG - 1] = '\0';
-		return 1;
-	}
-	else {
-		return 0; 
-	}
-}
-
 #pragma mark Cocoa objects
 
 /**
@@ -338,8 +317,6 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[FIRSTFILEBUFLG])
 
 #pragma mark initialization/finalization
 
-char GHOST_user_locale[128]; // Global current user locale
-
 GHOST_SystemCocoa::GHOST_SystemCocoa()
 {
 	int mib[2];
@@ -377,15 +354,6 @@ GHOST_SystemCocoa::GHOST_SystemCocoa()
 	rstring = NULL;
 	
 	m_ignoreWindowSizedMessages = false;
-	
-	//Get current locale
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	CFLocaleRef myCFLocale = CFLocaleCopyCurrent();
-	NSLocale * myNSLocale = (NSLocale *) myCFLocale;
-	[myNSLocale autorelease];
-	NSString *nsIdentifier = [myNSLocale localeIdentifier];
-	strncpy(GHOST_user_locale, [nsIdentifier UTF8String], sizeof(GHOST_user_locale) - 1);
-	[pool drain];
 }
 
 GHOST_SystemCocoa::~GHOST_SystemCocoa()
