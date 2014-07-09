@@ -143,7 +143,6 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
           (i.e. if there is no available and satisfactory package)!
         * If the “force-rebuilt” library is a dependency of others, it will force the rebuild
           of those libraries too (e.g. --force-boost will also rebuild oiio and osl...).
-        * Do not forget --with-osl if you built it and still want it!
 
     --skip-python
         Unconditionally skip Python installation/building.
@@ -1320,8 +1319,9 @@ compile_LLVM() {
       tar -C $SRC --transform "s,([^/]*/?)llvm-[^/]*(.*),\1LLVM-$LLVM_VERSION\2,x" \
           -xf $_src.tar.gz
       INFO "Unpacking CLANG-$LLVM_VERSION to $_src/tools/clang"
+      # Stupid clang guys renamed 'clang' to 'cfe' for now handle both cases... :(
       tar -C $_src/tools \
-          --transform "s,([^/]*/?)clang-[^/]*(.*),\1clang\2,x" \
+          --transform "s,([^/]*/?)(clang|cfe)-[^/]*(.*),\1clang\3,x" \
           -xf $_src_clang.tar.gz
 
       cd $_src
