@@ -81,10 +81,8 @@ if(WITH_MOD_BOOLEAN)
 	add_subdirectory(carve)
 endif()
 
-if(WITH_GHOST_XDND)
-	if(UNIX AND NOT APPLE)
-		add_subdirectory(xdnd)
-	endif()
+if(WITH_X11 AND WITH_GHOST_XDND)
+	add_subdirectory(xdnd)
 endif()
 
 if(WITH_GTESTS)

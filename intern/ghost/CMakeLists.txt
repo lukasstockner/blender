@@ -133,50 +133,20 @@ if(WITH_HEADLESS OR WITH_GHOST_SDL)
 		add_definitions(-DWITH_GHOST_SDL)
 	endif()
 
-	# ack, this is still system dependant
-	if(APPLE)
-		list(APPEND SRC
-			intern/GHOST_SystemPathsCocoa.mm
-			intern/GHOST_SystemPathsCocoa.h
-		)
-
-	elseif(UNIX)
-		list(APPEND SRC
-			intern/GHOST_SystemPathsX11.cpp
-			intern/GHOST_SystemPathsX11.h
-		)
-
-		if(NOT WITH_INSTALL_PORTABLE)
-			add_definitions(-DPREFIX="${CMAKE_INSTALL_PREFIX}")
-		endif()
-
-	elseif(WIN32)
-		list(APPEND SRC
-			intern/GHOST_SystemPathsWin32.cpp
-			intern/GHOST_SystemPathsWin32.h
-		)
-
-		list(APPEND INC
-			../utfconv
-		)
-	endif()
-
 	if(NOT WITH_HEADLESS)
 		list(APPEND INC_SYS
 			${SDL_INCLUDE_DIR}
 		)
 	endif()
 
-elseif(APPLE)
+elseif(APPLE AND NOT WITH_X11)
 	list(APPEND SRC
 		intern/GHOST_DisplayManagerCocoa.mm
 		intern/GHOST_SystemCocoa.mm
-		intern/GHOST_SystemPathsCocoa.mm
 		intern/GHOST_WindowCocoa.mm
 
 		intern/GHOST_DisplayManagerCocoa.h
 		intern/GHOST_SystemCocoa.h
-		intern/GHOST_SystemPathsCocoa.h
 		intern/GHOST_WindowCocoa.h
 	)
 
@@ -205,7 +175,7 @@ elseif(APPLE)
 		add_definitions(-DWITH_QUICKTIME)
 	endif()
 
-elseif(UNIX)
+elseif(WITH_X11)
 	list(APPEND INC_SYS
 		${X11_X11_INCLUDE_PATH}
 	)
@@ -213,20 +183,18 @@ elseif(UNIX)
 	list(APPEND SRC
 		intern/GHOST_DisplayManagerX11.cpp
 		intern/GHOST_SystemX11.cpp
-		intern/GHOST_SystemPathsX11.cpp
 		intern/GHOST_WindowX11.cpp
 
 		intern/GHOST_DisplayManagerX11.h
 		intern/GHOST_SystemX11.h
-		intern/GHOST_SystemPathsX11.h
 		intern/GHOST_WindowX11.h
 	)
 
 	if (WITH_GL_CONTEXT_DESKTOP)
 		list(APPEND SRC
-			intern/GHOST_ContextXGL.cpp
+			intern/GHOST_ContextGLX.cpp
 
-			intern/GHOST_ContextXGL.h
+			intern/GHOST_ContextGLX.h
 		)
 	endif()
 
@@ -277,6 +245,8 @@ elseif(UNIX)
 		)
 	endif()
 
+	add_definitions(-DWITH_X11)
+
 elseif(WIN32)
 	## Warnings as errors, this is too strict!
 	#if(MSVC)
@@ -294,14 +264,12 @@ elseif(WIN32)
 	list(APPEND SRC
 		intern/GHOST_DisplayManagerWin32.cpp
 		intern/GHOST_SystemWin32.cpp
-		intern/GHOST_SystemPathsWin32.cpp
 		intern/GHOST_WindowWin32.cpp
 		intern/GHOST_DropTargetWin32.cpp
 
 		intern/GHOST_DisplayManagerWin32.h
 		intern/GHOST_DropTargetWin32.h
 		intern/GHOST_SystemWin32.h
-		intern/GHOST_SystemPathsWin32.h
 		intern/GHOST_WindowWin32.h
 		intern/GHOST_TaskbarWin32.h
 	)
@@ -329,6 +297,33 @@ if(WITH_GL_CONTEXT_EMBEDDED AND NOT (WITH_HEADLESS OR WITH_GHOST_SDL))
 		intern/GHOST_ContextEGL.cpp
 			
 		intern/GHOST_ContextEGL.h
+	)
+endif()
+
+if(APPLE)
+	list(APPEND SRC
+		intern/GHOST_SystemPathsCocoa.mm
+		intern/GHOST_SystemPathsCocoa.h
+	)
+
+elseif(UNIX)
+	list(APPEND SRC
+		intern/GHOST_SystemPathsX11.cpp
+		intern/GHOST_SystemPathsX11.h
+	)
+
+	if(NOT WITH_INSTALL_PORTABLE)
+		add_definitions(-DPREFIX="${CMAKE_INSTALL_PREFIX}")
+	endif()
+
+elseif(WIN32)
+	list(APPEND SRC
+		intern/GHOST_SystemPathsWin32.cpp
+		intern/GHOST_SystemPathsWin32.h
+	)
+
+	list(APPEND INC
+		../utfconv
 	)
 endif()
 

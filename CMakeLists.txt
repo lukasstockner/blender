@@ -151,26 +151,47 @@ option(WITH_COMPOSITOR    "Enable the tile based nodal compositor" ON)
 option(WITH_GHOST_DEBUG   "Enable debugging output for the GHOST library" OFF)
 mark_as_advanced(WITH_GHOST_DEBUG)
 
-option(WITH_GHOST_SDL    "Enable building blender against SDL for windowing rather then the native APIs" OFF)
+option(WITH_GHOST_SDL     "Enable building blender against SDL for windowing rather then the native APIs" OFF)
 mark_as_advanced(WITH_GHOST_SDL)
 
 # Misc...
 option(WITH_HEADLESS      "Build without graphical support (renderfarm, server mode only)" OFF)
 mark_as_advanced(WITH_HEADLESS)
 
-option(WITH_AUDASPACE    "Build with blenders audio library (only disable if you know what you're doing!)" ON)
+option(WITH_AUDASPACE     "Build with blenders audio library (only disable if you know what you're doing!)" ON)
 mark_as_advanced(WITH_AUDASPACE)
 
 option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" ON)
 
 if(UNIX AND NOT APPLE)
-	option(WITH_X11_XINPUT "Enable X11 Xinput (tablet support and unicode input)"	ON)
-	option(WITH_X11_XF86VMODE "Enable X11 video mode switching"	ON)
+	set(_WITH_X11 ON)
+else()
+	set(_WITH_X11 OFF)
+endif()
 
+option(WITH_X11 "Use X11 library (on any non-unix system this is for development purposes only)" ${_WITH_X11})
+unset(_WITH_X11)
+mark_as_advanced(WITH_X11)
+
+if(WITH_X11)
+	if(APPLE)
+		set(_X11_EXTRAS OFF)
+	else()
+		set(_X11_EXTRAS ON)
+	endif()
+
+	option(WITH_X11_XINPUT    "Enable X11 Xinput (tablet support and unicode input)"  _X11_EXTRAS)
+	option(WITH_X11_XF86VMODE "Enable X11 video mode switching"                       _X11_EXTRAS)
+
+	unset(_X11_EXTRAS)
+
+	option(WITH_GHOST_XDND    "Enable drag'n'drop support on X11 using XDND protocol" ON)
+
+endif()
+
+if(UNIX AND NOT_APPLE)
 	option(WITH_SYSTEM_GLEW "Use GLEW OpenGL wrapper library provided by the operating system" ON)
 	option(WITH_SYSTEM_GLES "Use OpenGL ES library provided by the operating system"           ON)
-
-	option(WITH_GHOST_XDND   "Enable drag'n'drop support on X11 using XDND protocol" ON)
 else()
 	# not an option for other OS's
 	set(WITH_SYSTEM_GLEW OFF)
@@ -528,9 +549,10 @@ if(WITH_INSTALL_PORTABLE)
 endif()
 
 if(WITH_GHOST_SDL OR WITH_HEADLESS)
-	set(WITH_GHOST_XDND OFF)
+	set(WITH_X11           OFF)
+	set(WITH_X11_XINPUT    OFF)
 	set(WITH_X11_XF86VMODE OFF)
-	set(WITH_X11_XINPUT OFF)
+	set(WITH_GHOST_XDND    OFF)
 endif()
 
 TEST_SSE_SUPPORT(COMPILER_SSE_FLAG COMPILER_SSE2_FLAG)
@@ -611,6 +633,35 @@ set(PLATFORM_LINKFLAGS_DEBUG "")
 
 #-----------------------------------------------------------------------------
 #Platform specifics
+
+if(WITH_X11)
+	find_package(X11 REQUIRED)
+
+	find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
+	mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)
+
+	list(APPEND PLATFORM_LINKLIBS "${X11_X11_LIB}")
+
+	if(WITH_X11_XINPUT)
+		if(X11_Xinput_LIB)
+			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_Xinput_LIB}")
+		else()
+			set(WITH_X11_XINPUT OFF)
+		endif()
+	endif()
+
+	if(WITH_X11_XF86VMODE)
+		# XXX, why dont cmake make this available?
+		FIND_LIBRARY(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
+		mark_as_advanced(X11_Xxf86vmode_LIB)
+		if(X11_Xxf86vmode_LIB)
+			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_Xxf86vmode_LIB}")
+		else()
+			set(WITH_X11_XF86VMODE OFF)
+		endif()
+	endif()
+
+endif()
 
 if(UNIX AND NOT APPLE)
 	macro(find_package_wrapper)
@@ -918,34 +969,7 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
-	set(PLATFORM_LINKLIBS "-lutil -lc -lm -lpthread")
-
-	if((NOT WITH_HEADLESS) AND (NOT WITH_GHOST_SDL))
-		find_package(X11 REQUIRED)
-		find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
-		mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)
-
-		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_X11_LIB}")
-
-		if(WITH_X11_XINPUT)
-			if(X11_Xinput_LIB)
-				set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_Xinput_LIB}")
-			else()
-				set(WITH_X11_XINPUT OFF)
-			endif()
-		endif()
-
-		if(WITH_X11_XF86VMODE)
-			# XXX, why dont cmake make this available?
-			FIND_LIBRARY(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
-			mark_as_advanced(X11_Xxf86vmode_LIB)
-			if(X11_Xxf86vmode_LIB)
-				set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_Xxf86vmode_LIB}")
-			else()
-				set(WITH_X11_XF86VMODE OFF)
-			endif()
-		endif()
-	endif()
+	list(APPEND PLATFORM_LINKLIBS -lutil -lc -lm -lpthread)
 
 	if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		if(NOT WITH_PYTHON_MODULE)
@@ -1002,7 +1026,7 @@ elseif(WIN32)
 
 	if(MSVC)
 
-		set(PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi)
+		list(APPEND PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi)
 
 		add_definitions(
 			-D_CRT_NONSTDC_NO_DEPRECATE
@@ -1386,7 +1410,7 @@ elseif(WIN32)
 			endif()
 		endif()
 		
-		set(PLATFORM_LINKLIBS "-lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi")
+		list(APPEND PLATFORM_LINKLIBS -lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi)
 		set(PLATFORM_CFLAGS "-pipe -funsigned-char -fno-strict-aliasing")
 
 		if(WITH_MINGW64)
@@ -1749,9 +1773,9 @@ elseif(APPLE)
 	)
 	mark_as_advanced(SYSTEMSTUBS_LIBRARY)
 	if(SYSTEMSTUBS_LIBRARY)
-		set(PLATFORM_LINKLIBS stdc++ SystemStubs)
+		list(APPEND PLATFORM_LINKLIBS stdc++ SystemStubs)
 	else()
-		set(PLATFORM_LINKLIBS stdc++)
+		list(APPEND PLATFORM_LINKLIBS stdc++)
 	endif()
 
 	set(PLATFORM_CFLAGS "-pipe -funsigned-char")
@@ -2056,7 +2080,10 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
 
-if(WITH_GL_CONTEXT_DESKTOP OR WITH_GLU OR (WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI))
+if(APPLE AND WITH_X11)
+	set(OPENGL_gl_LIBRARY  "/usr/X11R6/lib/libGL.dylib")
+	set(OPENGL_glu_LIBRARY "/usr/X11R6/lib/libGLU.dylib")
+elseif(WITH_GL_CONTEXT_DESKTOP OR WITH_GLU OR (WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI))
 	find_package(OpenGL)
 endif()
 
@@ -2186,6 +2213,10 @@ endif()
 
 if(WITH_GLEW_MX)
 	set(GL_DEFINITIONS "${GL_DEFINITIONS} -DGLEW_MX")
+endif()
+
+if(APPLE AND WITH_X11)
+	list(APPEND GL_DEFINITIONS -DGLEW_APPLE_GLX)
 endif()
 
 if(WITH_SYSTEM_GLEW)
