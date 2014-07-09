@@ -188,9 +188,9 @@ void NodeInput::getEditorValueVector(float *value)
  ********************/
 
 NodeOutput::NodeOutput(Node *node, bNodeSocket *b_socket, DataType datatype) :
-    m_node(node),
-    m_editorSocket(b_socket),
-    m_datatype(datatype)
+	m_node(node),
+	m_editorSocket(b_socket),
+	m_datatype(datatype)
 {
 }
 

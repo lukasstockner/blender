@@ -33,36 +33,36 @@ protected:
 	/**
 	 * @brief construct new MemoryBuffer for a chunk
 	 */
-    MemoryBufferValue(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect);
+	MemoryBufferValue(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect);
 	
 	/**
 	 * @brief construct new temporarily MemoryBuffer for an area
 	 */
-    MemoryBufferValue(MemoryProxy *memoryProxy, rcti *rect);
-    MemoryBufferValue(DataType datatype, rcti *rect);
+	MemoryBufferValue(MemoryProxy *memoryProxy, rcti *rect);
+	MemoryBufferValue(DataType datatype, rcti *rect);
 
 public:
 	void writePixel(int x, int y, const float *color);
 	void addPixel(int x, int y, const float *color);
 	void read(float *result, int x, int y,
-	                 MemoryBufferExtend extend_x = COM_MB_CLIP,
-	                 MemoryBufferExtend extend_y = COM_MB_CLIP);
+				MemoryBufferExtend extend_x = COM_MB_CLIP,
+				MemoryBufferExtend extend_y = COM_MB_CLIP);
 
 	void readNoCheck(float *result, int x, int y,
-	                        MemoryBufferExtend extend_x = COM_MB_CLIP,
-	                        MemoryBufferExtend extend_y = COM_MB_CLIP);
+					MemoryBufferExtend extend_x = COM_MB_CLIP,
+					MemoryBufferExtend extend_y = COM_MB_CLIP);
 
 	void readBilinear(float *result, float x, float y,
-	                         MemoryBufferExtend extend_x = COM_MB_CLIP,
-	                         MemoryBufferExtend extend_y = COM_MB_CLIP);
+					 MemoryBufferExtend extend_x = COM_MB_CLIP,
+					 MemoryBufferExtend extend_y = COM_MB_CLIP);
 
-    float getMaximumValue() const;
+	float getMaximumValue() const;
 	MemoryBuffer *duplicate();
 
 	friend class MemoryBuffer;
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-    MEM_CXX_CLASS_ALLOC_FUNCS("COM:MemoryBufferValue")
+	MEM_CXX_CLASS_ALLOC_FUNCS("COM:MemoryBufferValue")
 #endif
 };
 #endif

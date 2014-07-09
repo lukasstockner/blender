@@ -39,22 +39,22 @@ protected:
 	 * @brief construct new temporarily MemoryBuffer for an area
 	 */
 	MemoryBufferVector(MemoryProxy *memoryProxy, rcti *rect);
-    MemoryBufferVector(DataType datatype, rcti *rect);
+	MemoryBufferVector(DataType datatype, rcti *rect);
 
 public:
 	void writePixel(int x, int y, const float *color);
 	void addPixel(int x, int y, const float *color);
 	void read(float *result, int x, int y,
-	                 MemoryBufferExtend extend_x = COM_MB_CLIP,
-	                 MemoryBufferExtend extend_y = COM_MB_CLIP);
+			  MemoryBufferExtend extend_x = COM_MB_CLIP,
+			  MemoryBufferExtend extend_y = COM_MB_CLIP);
 
 	void readNoCheck(float *result, int x, int y,
-	                        MemoryBufferExtend extend_x = COM_MB_CLIP,
-	                        MemoryBufferExtend extend_y = COM_MB_CLIP);
+					 MemoryBufferExtend extend_x = COM_MB_CLIP,
+					 MemoryBufferExtend extend_y = COM_MB_CLIP);
 
 	void readBilinear(float *result, float x, float y,
-	                         MemoryBufferExtend extend_x = COM_MB_CLIP,
-	                         MemoryBufferExtend extend_y = COM_MB_CLIP);
+					  MemoryBufferExtend extend_x = COM_MB_CLIP,
+					  MemoryBufferExtend extend_y = COM_MB_CLIP);
 
 	MemoryBuffer *duplicate();
 

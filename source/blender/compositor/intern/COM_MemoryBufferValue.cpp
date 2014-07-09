@@ -35,12 +35,12 @@ MemoryBufferValue::MemoryBufferValue(MemoryProxy *memoryProxy, rcti *rect) :
 }
 
 MemoryBufferValue::MemoryBufferValue(DataType datatype, rcti *rect) :
-    MemoryBuffer(datatype, rect, NUMBER_OF_CHANNELS) {
+	MemoryBuffer(datatype, rect, NUMBER_OF_CHANNELS) {
 }
 
 MemoryBuffer *MemoryBufferValue::duplicate()
 {
-    MemoryBufferValue *result = new MemoryBufferValue(this->m_memoryProxy, &this->m_rect);
+	MemoryBufferValue *result = new MemoryBufferValue(this->m_memoryProxy, &this->m_rect);
 	memcpy(result->getBuffer(), this->getBuffer(), this->determineBufferSize() * NUMBER_OF_CHANNELS * sizeof(float));
 	return result;
 }
@@ -50,7 +50,7 @@ MemoryBuffer *MemoryBufferValue::duplicate()
 void MemoryBufferValue::writePixel(int x, int y, const float *color)
 {
 	if (x >= this->m_rect.xmin && x < this->m_rect.xmax &&
-	    y >= this->m_rect.ymin && y < this->m_rect.ymax)
+		y >= this->m_rect.ymin && y < this->m_rect.ymax)
 	{
 		const int offset = (this->m_chunkWidth * (y - this->m_rect.ymin) + x - this->m_rect.xmin) * NUMBER_OF_CHANNELS;
 		copy_v4_v4(&this->m_buffer[offset], color);
@@ -60,17 +60,17 @@ void MemoryBufferValue::writePixel(int x, int y, const float *color)
 void MemoryBufferValue::addPixel(int x, int y, const float *color)
 {
 	if (x >= this->m_rect.xmin && x < this->m_rect.xmax &&
-	    y >= this->m_rect.ymin && y < this->m_rect.ymax)
+		y >= this->m_rect.ymin && y < this->m_rect.ymax)
 	{
 		const int offset = (this->m_chunkWidth * (y - this->m_rect.ymin) + x - this->m_rect.xmin) * NUMBER_OF_CHANNELS;
-        this->m_buffer[offset] = color[0];
+		this->m_buffer[offset] = color[0];
 	}
 }
 
 // --- SAMPLERS ---
 inline void MemoryBufferValue::read(float *result, int x, int y,
-	                 MemoryBufferExtend extend_x,
-	                 MemoryBufferExtend extend_y)
+									MemoryBufferExtend extend_x,
+									MemoryBufferExtend extend_y)
 {
 	bool clip_x = (extend_x == COM_MB_CLIP && (x < m_rect.xmin || x >= m_rect.xmax));
 	bool clip_y = (extend_y == COM_MB_CLIP && (y < m_rect.ymin || y >= m_rect.ymax));
@@ -82,13 +82,13 @@ inline void MemoryBufferValue::read(float *result, int x, int y,
 	{
 		wrap_pixel(x, y, extend_x, extend_y);
 		const int offset = (this->m_chunkWidth * y + x) * NUMBER_OF_CHANNELS;
-        result[0] = this->m_buffer[offset];
+		result[0] = this->m_buffer[offset];
 	}
 }
 
 inline void MemoryBufferValue::readNoCheck(float *result, int x, int y,
-	                        MemoryBufferExtend extend_x,
-	                        MemoryBufferExtend extend_y)
+										   MemoryBufferExtend extend_x,
+										   MemoryBufferExtend extend_y)
 {
 
 	wrap_pixel(x, y, extend_x, extend_y);
@@ -97,14 +97,14 @@ inline void MemoryBufferValue::readNoCheck(float *result, int x, int y,
 	BLI_assert(offset >= 0);
 	BLI_assert(offset < this->determineBufferSize() * NUMBER_OF_CHANNELS);
 	BLI_assert(!(extend_x == COM_MB_CLIP && (x < m_rect.xmin || x >= m_rect.xmax)) &&
-		   !(extend_y == COM_MB_CLIP && (y < m_rect.ymin || y >= m_rect.ymax)));
+			   !(extend_y == COM_MB_CLIP && (y < m_rect.ymin || y >= m_rect.ymax)));
 
-    result[0] = this->m_buffer[offset];
+	result[0] = this->m_buffer[offset];
 }
 
 inline void MemoryBufferValue::readBilinear(float *result, float x, float y,
-			 MemoryBufferExtend extend_x,
-			 MemoryBufferExtend extend_y)
+											MemoryBufferExtend extend_x,
+											MemoryBufferExtend extend_y)
 {
 	int x1 = floor(x);
 	int y1 = floor(y);
@@ -118,35 +118,35 @@ inline void MemoryBufferValue::readBilinear(float *result, float x, float y,
 	float mvaluex = 1.0f - valuex;
 	float mvaluey = 1.0f - valuey;
 
-    float value1;
-    float value2;
-    float value3;
-    float value4;
+	float value1;
+	float value2;
+	float value3;
+	float value4;
 
-    read(&value1, x1, y1);
-    read(&value2, x1, y2);
-    read(&value3, x2, y1);
-    read(&value4, x2, y2);
+	read(&value1, x1, y1);
+	read(&value2, x1, y2);
+	read(&value3, x2, y1);
+	read(&value4, x2, y2);
 
-    value1 = value1 * mvaluey + value2 * valuey;
-    value3 = value3 * mvaluey + value4 * valuey;
-    result[0] = value1 * mvaluex + value3 * valuex;
+	value1 = value1 * mvaluey + value2 * valuey;
+	value3 = value3 * mvaluey + value4 * valuey;
+	result[0] = value1 * mvaluex + value3 * valuex;
 }
 
 float MemoryBufferValue::getMaximumValue() const
 {
-    float result = this->m_buffer[0];
-    const unsigned int size = this->determineBufferSize();
-    unsigned int i;
+	float result = this->m_buffer[0];
+	const unsigned int size = this->determineBufferSize();
+	unsigned int i;
 
-    const float *fp_src = this->m_buffer;
+	const float *fp_src = this->m_buffer;
 
-    for (i = 0; i < size; i++, fp_src += NUMBER_OF_CHANNELS) {
-        float value = *fp_src;
-        if (value > result) {
-            result = value;
-        }
-    }
+	for (i = 0; i < size; i++, fp_src += NUMBER_OF_CHANNELS) {
+		float value = *fp_src;
+		if (value > result) {
+			result = value;
+		}
+	}
 
-    return result;
+	return result;
 }
