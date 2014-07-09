@@ -182,7 +182,7 @@ static void rna_Material_active_paint_texture_index_update(Main *bmain, Scene *s
 	Material *ma = ptr->id.data;
 
 
-	if (BKE_scene_use_new_shading_nodes(scene) && ma->use_nodes && ma->nodetree) {
+	if (ma->use_nodes && ma->nodetree && BKE_scene_use_new_shading_nodes(scene)) {
 		struct bNode *node;
 		int index = 0;
 		for (node = ma->nodetree->nodes.first; node; node = node->next) {

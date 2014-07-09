@@ -182,7 +182,7 @@ typedef struct ProjPaintImage {
 	Image *ima;
 	ImBuf *ibuf;
 	ImagePaintPartialRedraw *partRedrawRect;
-	volatile void **undoRect; /* only used to build undo tiles after painting */
+	volatile void **undoRect; /* only used to build undo tiles during painting */
 	unsigned short **maskRect; /* the mask accumulation must happen on canvas, not on space screen bucket.
 	                  * Here we store the mask rectangle */
 	bool **valid; /* store flag to enforce validation of undo rectangle */
@@ -197,7 +197,7 @@ typedef struct ProjPaintState {
 	Scene *scene;
 	int source; /* PROJ_SRC_**** */
 
-	/* the paint color. It can change depending of interted mode or not */
+	/* the paint color. It can change depending of inverted mode or not */
 	float paint_color[3];
 	float paint_color_linear[3];
 

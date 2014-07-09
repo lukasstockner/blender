@@ -823,8 +823,6 @@ int UI_drop_color_poll(struct bContext *C, wmDrag *drag, const wmEvent *UNUSED(e
 		if (UI_but_active_drop_color(C))
 			return 1;
 
-		/* should only return true for regions that include buttons, for now
-		 * return true always */
 		if (sima && (sima->mode == SI_MODE_PAINT) &&
 		    sima->image && (ar && ar->regiontype == RGN_TYPE_WINDOW))
 		{

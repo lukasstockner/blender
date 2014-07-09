@@ -500,7 +500,6 @@ void imapaint_image_update(SpaceImage *sima, Image *image, ImBuf *ibuf, short te
 }
 
 /* paint blur kernels */
-
 BlurKernel *paint_new_blur_kernel(Brush *br)
 {
 	int i, j;
@@ -1339,7 +1338,7 @@ static int texture_paint_toggle_poll(bContext *C)
 }
 
 
-/* Make sure that active object has a material, and assign UVs and image layers (TODO) if they do not exist */
+/* Make sure that active object has a material, and assign UVs and image layers if they do not exist */
 void paint_proj_mesh_data_ensure(bContext *C, Object *ob, wmOperator *op)
 {
 	Mesh *me;

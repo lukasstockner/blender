@@ -1333,7 +1333,6 @@ void BKE_refresh_texpaint_slot_cache(Material *ma, bool use_nodes)
 	if (!ma)
 		return;
 
-	/* blender internal  calculation goes here */
 	if (ma->texpaintslot) {
 		MEM_freeN(ma->texpaintslot);
 		ma->texpaintslot = NULL;

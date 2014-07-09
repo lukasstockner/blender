@@ -2334,7 +2334,6 @@ void uiTemplateColorPicker(uiLayout *layout, PointerRNA *ptr, const char *propna
 	}
 }
 
-/* This template now follows User Preference for type - name is not correct anymore... */
 void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, int UNUSED(colors))
 {
 	PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
