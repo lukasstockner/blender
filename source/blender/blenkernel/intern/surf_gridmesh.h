@@ -69,8 +69,13 @@ struct GridMesh {
 	static float tolerance;
 	
 	// 3D coordinate storage (all trimming functions ignore the 3rd coord)
-	// coords[0] is defined to be invalid
-	std::vector<GridMeshCoord> coords;
+	// coords[0] is defined to be invalid.
+	// manually managed memory to avoid copy during handoff to C code
+	GridMeshCoord *coords;
+	int coords_len, coords_reserved_len;
+	void coords_reserve(int new_reserved_len);
+	void coords_import(GridMeshCoord *c, int len); // Transfers ownership to this
+	GridMeshCoord *coords_export(int *len); // Transfers ownership to the caller
 	
 	// Vertex storage. Example: "int prev" in a GridMeshVert refers to v[prev].
 	// v[0] is defined to be invalid and filled with the telltale location (-1234,-1234)
@@ -91,11 +96,11 @@ struct GridMesh {
 	double inv_dx, inv_dy; // 1/(width of a cell), 1/(height of a cell)
 	int nx, ny; // Number of cells in the x and y directions
 	
-	GridMesh(double lowerleft_x, double lowerleft_y,
-			 double upperright_x, double upperright_y,
-			 int num_x_cells, int num_y_cells);
+	GridMesh();
 	void set_ll_ur(double lowerleft_x, double lowerleft_y,
 				   double upperright_x, double upperright_y);
+	void init_grid(int num_x_cells, int num_y_cells);
+	~GridMesh();
 	
 	// Vert manipulation
 	int vert_new();

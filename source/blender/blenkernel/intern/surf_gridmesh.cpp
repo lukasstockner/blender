@@ -51,6 +51,45 @@ static void print_kc(known_corner_t kc) {
 		NURBS_TESS_PRINTF("UR%c",(kc&KNOWN_CORNER_UR_EXTERIOR)?'e':'i');
 }
 
+GridMeshVert::GridMeshVert() :	next(0), prev(0),
+								next_poly(0), neighbor(0), first(0),
+								is_intersection(false), is_interior(true), is_entry(false),
+								is_used(false), corner(0), tmp(0), is_pristine(0),
+								owns_coords(0), coord_idx(0)
+{}
+
+GridMesh::GridMesh() {
+	coords = NULL;
+	coords_len = coords_reserved_len = 0;
+}
+
+GridMesh::~GridMesh() {
+	if (coords) free(coords);
+}
+
+void GridMesh::coords_reserve(int new_reserved_len) {
+	if (coords_reserved_len>=new_reserved_len) return;
+	if (!coords) {
+		coords = (GridMeshCoord*)malloc(sizeof(*coords)*new_reserved_len);
+		coords_reserved_len = new_reserved_len;
+	} else if (coords_reserved_len<new_reserved_len){
+		coords = (GridMeshCoord*)realloc(coords, sizeof(*coords)*new_reserved_len);
+	}
+}
+
+void GridMesh::coords_import(GridMeshCoord *c, int len) {
+	if (coords) printf("WARNING: coords should be imported *before* init\n");
+	coords = c;
+	coords_len = len;
+}
+
+GridMeshCoord *GridMesh::coords_export(int *len) {
+	GridMeshCoord *ret = coords;
+	if (len) *len = coords_len;
+	coords = NULL;
+	return ret;
+}
+
 void GridMesh::set_ll_ur(double lowerleft_x, double lowerleft_y,
 						 double upperright_x, double upperright_y) {
 	llx = lowerleft_x; lly = lowerleft_y;
@@ -63,19 +102,10 @@ void GridMesh::set_ll_ur(double lowerleft_x, double lowerleft_y,
 	inv_dy = 1.0/dy;
 }
 
-GridMeshVert::GridMeshVert() :	next(0), prev(0),
-								next_poly(0), neighbor(0), first(0),
-								is_intersection(false), is_interior(true), is_entry(false),
-								is_used(false), corner(0), tmp(0), is_pristine(0),
-								owns_coords(0), coord_idx(0)
-{}
-
-GridMesh::GridMesh(double lowerleft_x, double lowerleft_y,
-				   double upperright_x, double upperright_y,
-				   int num_x_cells, int num_y_cells) {
+void GridMesh::init_grid(int num_x_cells, int num_y_cells) {
 	nx = num_x_cells; ny = num_y_cells;
-	set_ll_ur(lowerleft_x, lowerleft_y, upperright_x, upperright_y);
-	coords.resize((nx+1)*(ny+1)*2);
+	int num_coords = (nx+1)*(ny+1)*2+1;
+	coords_reserve(num_coords);
 	for (int j=0; j<ny+1; j++) {
 		for (int i=0; i<nx+1; i++) {
 			GridMeshCoord& c = coords[gridpt_for_cell(i,j)];
@@ -144,8 +174,11 @@ void GridMesh::vert_set_coord(int vert, double x, double y, double z) {
 		xyz.x=x; xyz.y=y; xyz.z=z;
 		return;
 	}
-	coords.push_back(GridMeshCoord(x,y,z));
-	v[vert].coord_idx = int(coords.size()-1);
+	int idx = coords_len;
+	coords_reserve(coords_len++);
+	GridMeshCoord& xyz = coords[idx];
+	xyz.x=x; xyz.y=y; xyz.z=z;
+	v[vert].coord_idx = idx;
 	v[vert].owns_coords = 1;
 }
 

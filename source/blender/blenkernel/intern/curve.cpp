@@ -40,6 +40,7 @@ extern "C" {
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
+#include "BLI_polyfill2d.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_material_types.h"
@@ -65,6 +66,7 @@ extern "C" {
 #include <CoreServices/CoreServices.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
+#include "surf_gridmesh.h"
 
 /* globals */
 
@@ -4250,6 +4252,79 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 	r_rect->ymin = r_rect->ymax - tb->h;
 }
 
-void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
+void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl, int totu, int totv) {
+	dl->col = nu->mat_nr;
+	dl->charidx = nu->charidx;
+	dl->rt = nu->flag & ~CU_2D;
+
+	// Figure out the domain
+	float ustart = nu->knotsu[nu->orderu - 1];
+	float uend;
+	if (nu->flagu & CU_NURB_CYCLIC)
+		uend = nu->knotsu[nu->pntsu + nu->orderu - 1];
+	else
+		uend = nu->knotsu[nu->pntsu];
+	float vstart = nu->knotsv[nu->orderv - 1];
+	float vend;
+	if (nu->flagv & CU_NURB_CYCLIC)
+		vend = nu->knotsv[nu->pntsv + nu->orderv - 1];
+	else
+		vend = nu->knotsv[nu->pntsv];
 	
+	// Trim the uniform grid in 2D UV space
+	GridMesh *gm = new GridMesh();
+	int coords_len = (totu+1)*(totv+1)*2;
+	float *coords = (float*)MEM_mallocN(coords_len * sizeof(float[3]), "dlcoords");
+	gm->coords_import((GridMeshCoord*)coords, coords_len);
+	gm->set_ll_ur(ustart,vstart,uend,vend);
+	gm->init_grid(totu,totv);
+	
+	// Extract the results
+	dl->verts = coords = (float*)gm->coords_export(NULL);
+	int idxs_len = 2 * 6*sizeof(int)*totu*totv;
+	int *idxs = (int*)MEM_mallocN(idxs_len, "index array nurbs");
+	int ii=0; // Index index
+#define TESS_MAX_POLY_VERTS 32
+	float *coords_tmp[TESS_MAX_POLY_VERTS];
+	int *idx_tmp[TESS_MAX_POLY_VERTS];
+	for (int j=0; j<totv; j++) {
+		for (int i=0; i<totu; i++) {
+			int cell = gm->poly_for_cell(i, j);
+			GridMeshVert *v = &gm->v[0];
+			for (int poly=cell; poly; poly=v[poly].next_poly) {
+				if (!v[poly].next) continue;
+				if (v[poly].is_pristine) {
+					int ll_gp = gm->gridpt_for_cell(i, j);
+					idxs[ii++] = ll_gp;
+					idxs[ii++] = ll_gp+1;
+					idxs[ii++] = ll_gp+(totu+1)+1;
+					idxs[ii++] = ll_gp+(totu+1)+1;
+					idxs[ii++] = ll_gp+(totu+1);
+					idxs[ii++] = ll_gp;
+				} else {
+					int coords_tot=0;
+					for (int vert=poly; vert!=poly; vert=v[poly].next) {
+						coords_tmp[coords_tot] = &coords[v[poly].coord_idx];
+						idx_tmp[coords_tot] = &idxs[ii];
+						ii += 3;
+						coords_tot++;
+					}
+					ii-=6; // n vert polygon has n-2 tris in triangulation
+					BLI_polyfill_calc((float(*)[2])coords_tmp,
+									  coords_tot,
+									  0, // tell polyfill to do concave check
+									  (unsigned int(*)[3])idx_tmp);
+				}
+			}
+		}
+	}
+	dl->verts = coords;
+	dl->index = idxs;
+	dl->type = DL_INDEX3;
+	dl->parts = ii/3;
+	
+	// Pushforward through the NURBS map
+	//gm->pushforward(nu);
+	
+	delete gm;
 }
