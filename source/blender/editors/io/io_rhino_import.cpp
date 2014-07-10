@@ -27,6 +27,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include <time.h>
 
 extern "C" {
 	#include "DNA_scene_types.h"
@@ -643,14 +644,14 @@ static void rhino_import_surface(bContext *C,
 static void rhino_import_brep(bContext *C,
 							  ON_Brep *brep,
 							  ON_Object *obj,
-							  ON_3dmObjectAttributes *attrs) {
+							  ON_3dmObjectAttributes *attrs) {/*
 	rhino_import_nurbs_surf_start(C, obj, attrs);
 	ON_ObjectArray<ON_BrepFace>& brep_f = brep->m_F;
 	int num_faces = brep_f.Count();
 	bool havent_created_surf = true;
 	for (int facenum=0; facenum<num_faces; facenum++) {
 		ON_BrepFace *face = &brep_f[facenum];
-		ON_BrepSurface *surf = const_cast<ON_BrepSurface*>(face->ProxySurface());
+		ON_Surface *surf = const_cast<ON_Surface*>(face->ProxySurface());
 		rhino_import_brep_face(C, face, Object, &Attributes);
 		if (havent_created_surf) havent_created_surf = false;
 	}
@@ -684,7 +685,7 @@ static void rhino_import_brep(bContext *C,
 		}
 	}
 	if (should_destroy_ns) delete ns;
-}
+*/}
 
 
 

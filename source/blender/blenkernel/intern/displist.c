@@ -63,6 +63,10 @@
 
 #include "BLI_sys_types.h" // for intptr_t support
 
+#include <CoreServices/CoreServices.h>
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+
 static void boundbox_displist_object(Object *ob);
 
 void BKE_displist_elem_free(DispList *dl)
@@ -1197,6 +1201,7 @@ void BKE_displist_make_surf(Scene *scene, Object *ob, ListBase *dispbase,
 	DispList *dl;
 	float *data;
 	int len;
+	uint64_t timer_start = mach_absolute_time();
 
 	if (!for_render && cu->editnurb) {
 		BKE_nurbList_duplicate(&nubase, BKE_curve_editNurbs_get(cu));
@@ -1246,7 +1251,7 @@ void BKE_displist_make_surf(Scene *scene, Object *ob, ListBase *dispbase,
 
 				dl = MEM_callocN(sizeof(DispList), "makeDispListsurf");
 				dl->verts = MEM_mallocN(len * sizeof(float[3]), "dlverts");
-				BLI_addtail(dispbase, dl);
+				BLI_addtail(dispbase, dl); // <----- WHERE MESH GETS OUTPUTTED TO CALLER
 
 				dl->col = nu->mat_nr;
 				dl->charidx = nu->charidx;
@@ -1276,6 +1281,10 @@ void BKE_displist_make_surf(Scene *scene, Object *ob, ListBase *dispbase,
 		                          for_render, use_render_resolution);
 	}
 
+	uint64_t timer_stop = mach_absolute_time();
+	int t = timer_stop-timer_start;
+	nu = nubase.first;
+	printf("%i %i %i %i\n",len,nu->pntsu*nu->resolu,nu->pntsv*nu->resolv,t);
 	BKE_nurbList_free(&nubase);
 }
 

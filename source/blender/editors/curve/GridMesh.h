@@ -17,8 +17,14 @@
 #include <GLUT/glut.h>
 #endif
 
-struct GreinerV2f {
-	float x,y;
+struct GridMeshCoord {
+	float x,y,z;
+	GridMeshCoord() {}
+	GridMeshCoord(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
+};
+
+struct GridMeshVert {
+	int coord_idx; // Index into coordinate array.
 	int first, prev, next; // First,prev,next verts in the *same* polygon
 	int next_poly;   // First vertex of the *next* polygon
 	float alpha; // If this vertex came from an affine comb, this is the mixing factor
@@ -26,14 +32,13 @@ struct GreinerV2f {
 	bool is_interior:1;
 	bool is_entry:1;
 	bool is_used:1;
+	bool is_pristine:1;
+	bool owns_coords;
 	char corner; // 1=ll, 2=lr, 3=ur, 4=ul, 0 = none
 	short tmp;
 	int neighbor; // Corresp. vertex at same {x,y} in different polygon
 	
-	GreinerV2f() :	next(0), prev(0),
-					next_poly(0), neighbor(0), first(0),
-					is_intersection(false), is_interior(true), is_entry(false),
-					is_used(false), corner(0), tmp(0) {};
+	GridMeshVert();
 };
 
 struct IntersectingEdge {
@@ -51,7 +56,7 @@ struct IntersectingEdge {
 #define KNOWN_CORNER_LL (1<<0)
 #define KNOWN_CORNER_LL_EXTERIOR (1<<1)
 #define KNOWN_CORNER_UL (1<<2)
-#define KNOWN_CORNER_UL_EXTERIOR (1<<3)
+#define KNOWN_CORNER_ULe_EXTERIOR (1<<3)
 #define KNOWN_CORNER_LR (1<<4)
 #define KNOWN_CORNER_LR_EXTERIOR (1<<5)
 #define KNOWN_CORNER_UR (1<<6)
@@ -62,11 +67,25 @@ typedef unsigned char known_corner_t;
 
 struct GridMesh {
 	static float tolerance;
-	// Vertex storage. Example: "int prev" in a GreinerV2f refers to v[prev].
+	
+	// 3D coordinate storage (all trimming functions ignore the 3rd coord)
+	// coords[0] is defined to be invalid
+	std::vector<GridMeshCoord> coords;
+	
+	// Vertex storage. Example: "int prev" in a GridMeshVert refers to v[prev].
 	// v[0] is defined to be invalid and filled with the telltale location (-1234,-1234)
-	GreinerV2f *v;
-	long v_capacity;
-	long v_count; // Includes the "bad" vertex #0
+	std::vector<GridMeshVert> v;
+	
+	// Interior/Exterior calls are cheap at grid points due to information
+	// from the raster process. If i<ie_grid.size() (i.e. if i is a coord_idx of
+	// a grid point) then the grid position coords[i] corresponds to
+	//    ie_grid[i]
+	//    ie_isect_right[i]  <-> odd # intersections of edge right of ie_grid[i]
+	//    ie_isect_up[i]     <-> odd # intersections of edge above ie_grid[i]
+	std::vector<bool> ie_grid;
+	std::vector<bool> ie_isect_right;
+	std::vector<bool> ie_isect_up;
+	
 	double llx, lly, urx, ury; // Coordinates of lower left and upper right grid corners
 	double dx, dy; // Width of a cell in the x, y directions
 	double inv_dx, inv_dy; // 1/(width of a cell), 1/(height of a cell)
@@ -78,13 +97,20 @@ struct GridMesh {
 	void set_ll_ur(double lowerleft_x, double lowerleft_y,
 				   double upperright_x, double upperright_y);
 	
-	// Basic vertex and polygon manipulation
+	// Vert manipulation
 	int vert_new();
 	int vert_new(int prev, int next); // Make a new vert in the middle of an existing poly
-	int vert_id(GreinerV2f *vert) {return vert?int(vert-v):0;}
+	int vert_dup(int vert);
+	void vert_set_coord(int vert, double x, double y, double z);
+	void vert_get_coord(int vert, double* xyz);
+	int vert_id(GridMeshVert *vert) {return vert?int(vert-&v[0]):0;}
 	int vert_neighbor_on_poly(int vert, int poly);
 	void vert_add_neighbor(int vert, int new_neighbor);
 	std::pair<int,int> vert_grid_cell(int vert);
+	int gridpt_for_cell(int x, int y);
+	
+	// Poly manipulation
+	int poly_new(const std::vector<float>& packed_coords);
 	int poly_for_cell(int x, int y);
 	int poly_for_cell(float x, float y);
 	int poly_first_vert(int anyvert);
