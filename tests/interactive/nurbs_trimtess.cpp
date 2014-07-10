@@ -20,7 +20,7 @@ float intersect_check_tol = .001; //Maximum Euclidean dist between intersect pts
 
 
 /***************************** MATH *****************************/
-#include "GridMesh.h"
+#include "surf_gridmesh.h"
 
 /***************************** DEFAULT SCENE *****************************/
 GridMesh *gm;

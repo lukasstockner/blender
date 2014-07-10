@@ -138,9 +138,9 @@ struct GridMesh {
 					double x1, double y1
 					);
 	void find_cell_line_intersections(double x0, double y0, double x1, double y1,
-									  std::vector<std::pair<int,int>> *bottom_edges,
-									  std::vector<std::pair<int,int>> *left_edges,
-									  std::vector<std::pair<int,int>> *integer_cells);
+									  std::vector<std::pair<int,int> > *bottom_edges,
+									  std::vector<std::pair<int,int> > *left_edges,
+									  std::vector<std::pair<int,int> > *integer_cells);
 	// High level booleans
 	void bool_AND(int poly2); // gridmesh -> gridmesh (intersection) poly2
 	void bool_SUB(int poly2); // gridmesh -> gridmesh (intersection) ~poly2
@@ -167,9 +167,9 @@ struct GridMesh {
 
 // Backend
 void find_integer_cell_line_intersections(double x0, double y0, double x1, double y1,
-										  std::vector<std::pair<int,int>> *bottom_edges,
-										  std::vector<std::pair<int,int>> *left_edges,
-										  std::vector<std::pair<int,int>> *integer_cells);
+										  std::vector<std::pair<int,int> > *bottom_edges,
+										  std::vector<std::pair<int,int> > *left_edges,
+										  std::vector<std::pair<int,int> > *integer_cells);
 
 int line_line_intersection(double ax, double ay, // Line 1, vert 1 A
 						   double bx, double by, // Line 1, vert 2 B

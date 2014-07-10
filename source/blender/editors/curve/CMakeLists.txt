@@ -39,10 +39,8 @@ set(SRC
 	editcurve_add.c
 	editfont.c
 	lorem.c
-	surf_tess.cpp
 
 	curve_intern.h
-	surf_tess.h
 )
 
 if(WITH_INTERNATIONAL)

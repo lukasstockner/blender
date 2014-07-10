@@ -12,7 +12,7 @@
 #include <set>
 #include <algorithm>
 #include <limits>
-#include "GridMesh.h"
+#include "surf_gridmesh.h"
 
 //#define NURBS_TESS_DEBUG
 #if defined(NURBS_TESS_DEBUG)
@@ -410,18 +410,18 @@ void GridMesh::poly_draw(int poly, float shrinkby, int maxedges) {
 
 
 void GridMesh::find_cell_line_intersections(double x0, double y0, double x1, double y1,
-											std::vector<std::pair<int,int>> *bottom_edges,
-											std::vector<std::pair<int,int>> *left_edges,
-											std::vector<std::pair<int,int>> *integer_cells) {
+											std::vector<std::pair<int,int> > *bottom_edges,
+											std::vector<std::pair<int,int> > *left_edges,
+											std::vector<std::pair<int,int> > *integer_cells) {
 	find_integer_cell_line_intersections((x0-llx)*inv_dx,(y0-lly)*inv_dy,
 										 (x1-llx)*inv_dx,(y1-lly)*inv_dy,
 										 bottom_edges,left_edges,integer_cells);
 }
 
 void find_integer_cell_line_intersections(double x0, double y0, double x1, double y1,
-											   std::vector<std::pair<int,int>> *bottom_edges,
-											   std::vector<std::pair<int,int>> *left_edges,
-											   std::vector<std::pair<int,int>> *integer_cells) {
+											   std::vector<std::pair<int,int> > *bottom_edges,
+											   std::vector<std::pair<int,int> > *left_edges,
+											   std::vector<std::pair<int,int> > *integer_cells) {
 	bool flipped_left_right = false;
 	int cx0=xs_FloorToInt(x0), cy0=xs_FloorToInt(y0), cx1=xs_FloorToInt(x1), cy1=xs_FloorToInt(y1);
 	// Line segments smaller than a cell's minimum dimension should always hit these trivial cases
@@ -675,7 +675,7 @@ static bool intersection_edge_order(const IntersectingEdge& e1, const Intersecti
 	return diff<0;
 }
 void GridMesh::insert_vert_poly_gridmesh(int mpoly, int *verts_added, int *edges_intersected) {
-	std::vector<std::pair<int,int>> bottom_edges, left_edges, integer_cells;
+	std::vector<std::pair<int,int> > bottom_edges, left_edges, integer_cells;
 	mpoly = poly_first_vert(mpoly);
 	int v1 = mpoly;
 	double v1xyz[3]; vert_get_coord(v1, v1xyz);

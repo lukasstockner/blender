@@ -177,4 +177,9 @@ void BKE_nurb_handles_autocalc(struct Nurb *nu, int flag);
 void BKE_nurb_bezt_handle_test(struct BezTriple *bezt, const bool use_handle);
 void BKE_nurb_handles_test(struct Nurb *nu, const bool use_handles);
 
+/* Does not traverse nu's linked list. Fills dl with a mesh corresponding to
+ * the single surface nu, performing trim if necessary.
+ */
+void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl);
+
 #endif  /* __BKE_CURVE_H__ */
