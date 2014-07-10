@@ -1077,6 +1077,8 @@ GHOST_WindowX11::
 	delete m_dropTarget;
 #endif
 
+	releaseNativeHandles();
+
 	XDestroyWindow(m_display, m_window);
 }
 

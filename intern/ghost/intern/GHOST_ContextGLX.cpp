@@ -79,21 +79,23 @@ GHOST_ContextGLX::GHOST_ContextGLX(
 
 GHOST_ContextGLX::~GHOST_ContextGLX()
 {
-	if (m_context != NULL) {
+	if (m_display != NULL) {
 		activateGLXEW();
 
-		if (m_context == ::glXGetCurrentContext())
-			::glXMakeCurrent(m_display, m_window, NULL);
+		if (m_context != None) {
+			if (m_window != 0 && m_context == ::glXGetCurrentContext())
+				::glXMakeCurrent(m_display, m_window, NULL);
 
-		if (m_context != s_sharedContext || s_sharedCount == 1) {
-			assert(s_sharedCount > 0);
+			if (m_context != s_sharedContext || s_sharedCount == 1) {
+				assert(s_sharedCount > 0);
 
-			s_sharedCount--;
+				s_sharedCount--;
 
-			if (s_sharedCount == 0)
-				s_sharedContext = NULL;
+				if (s_sharedCount == 0)
+					s_sharedContext = NULL;
 
-			::glXDestroyContext(m_display, m_context);
+				::glXDestroyContext(m_display, m_context);
+			}
 		}
 
 		delete m_glxewContext;
@@ -297,8 +299,7 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 
 GHOST_TSuccess GHOST_ContextGLX::releaseNativeHandles()
 {
-	m_window  = 0;
-	m_display = NULL;
+	m_window = 0;
 
 	return GHOST_kSuccess;
 }
