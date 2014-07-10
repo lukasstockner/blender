@@ -110,6 +110,7 @@
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
 #include "GPU_draw.h"
+#include "GPU_init_exit.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
@@ -135,11 +136,11 @@ bool wm_start_with_console = false; /* used in creator.c */
 /* only called once, for startup */
 void WM_init(bContext *C, int argc, const char **argv)
 {
-	
 	if (!G.background) {
 		wm_ghost_init(C);   /* note: it assigns C to ghost! */
 		wm_init_cursor_data();
 	}
+
 	GHOST_CreateSystemPaths();
 
 	BKE_addon_pref_type_init();
@@ -193,7 +194,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 	wm_init_reports(C); /* reports cant be initialized before the wm */
 
 	if (!G.background) {
-		GPU_extensions_init();
+		GPU_init();
+		
 		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
 		GPU_set_anisotropic(U.anisotropic_filter);
 		GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
@@ -204,8 +206,6 @@ void WM_init(bContext *C, int argc, const char **argv)
 	clear_matcopybuf();
 	ED_render_clear_mtex_copybuf();
 
-	// glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
 	ED_preview_init_dbase();
 	
 	wm_read_history();
@@ -499,9 +499,8 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	if (!G.background) {
 		GPU_global_buffer_pool_free();
 		GPU_free_unused_buffers();
-		GPU_extensions_exit();
+		GPU_exit();
 	}
-
 	BKE_reset_undo(); 
 	
 	ED_file_exit(); /* for fsmenu */

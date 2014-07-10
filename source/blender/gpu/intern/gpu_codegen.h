@@ -33,17 +33,11 @@
 #ifndef __GPU_CODEGEN_H__
 #define __GPU_CODEGEN_H__
 
-#include "DNA_listBase.h"
 #include "GPU_material.h"
-#include "GPU_glew.h"
 
-struct ListBase;
+#include "DNA_listBase.h"
+
 struct GPUShader;
-struct GPUOutput;
-struct GPUNode;
-struct GPUVertexAttribs;
-struct GPUFrameBuffer;
-struct PreviewImage;
 
 #define MAX_FUNCTION_NAME	64
 #define MAX_PARAMETER		32
@@ -87,7 +81,7 @@ struct GPUNode {
 };
 
 struct GPUNodeLink {
-	GPUNodeStack *socket;
+	struct GPUNodeStack *socket;
 
 	int attribtype;
 	const char *attribname;
@@ -106,7 +100,7 @@ struct GPUNodeLink {
 	int type;
 	int users;
 
-	GPUTexture *dynamictex;
+	struct GPUTexture *dynamictex;
 
 	GPUBuiltin builtin;
 	GPUOpenGLBuiltin oglbuiltin;
@@ -117,16 +111,16 @@ struct GPUNodeLink {
 typedef struct GPUOutput {
 	struct GPUOutput *next, *prev;
 
-	GPUNode *node;
+	struct GPUNode *node;
 	int type;				/* data type = length of vector/matrix */
-	GPUNodeLink *link;		/* output link */
+	struct GPUNodeLink *link;		/* output link */
 	int id;					/* unique id as created by code generator */
 } GPUOutput;
 
 typedef struct GPUInput {
 	struct GPUInput *next, *prev;
 
-	GPUNode *node;
+	struct GPUNode *node;
 
 	int type;				/* datatype */
 	int source;				/* data source */
@@ -136,7 +130,7 @@ typedef struct GPUInput {
 	int attribid;			/* id for vertex attributes */
 	int bindtex;			/* input is responsible for binding the texture? */
 	int definetex;			/* input is responsible for defining the pixel? */
-	int textarget;			/* GL_TEXTURE_* */
+	int textarget;			/* GL texture enum */
 	int textype;			/* datatype */
 
 	struct Image *ima;		/* image */
@@ -146,17 +140,17 @@ typedef struct GPUInput {
 	float *dynamicvec;		/* vector data in case it is dynamic */
 	int dynamictype;		/* origin of the dynamic uniform (GPUDynamicType) */
 	void *dynamicdata;		/* data source of the dynamic uniform */
-	GPUTexture *tex;		/* input texture, only set at runtime */
+	struct GPUTexture *tex;		/* input texture, only set at runtime */
 	int shaderloc;			/* id from opengl */
 	char shadername[32];	/* name in shader */
 
 	float vec[16];			/* vector data */
-	GPUNodeLink *link;
+	struct GPUNodeLink *link;
 	int dynamictex;			/* dynamic? */
 	int attribtype;			/* attribute type */
 	char attribname[32];	/* attribute name */
 	int attribfirst;		/* this is the first one that is bound */
-	GPUBuiltin builtin;		/* builtin uniform */
+	GPUBuiltin builtin; /* builtin uniform */
 	GPUOpenGLBuiltin oglbuiltin; /* opengl built in varying */
 } GPUInput;
 
@@ -185,8 +179,8 @@ void GPU_pass_unbind(GPUPass *pass);
 
 void GPU_pass_free(GPUPass *pass);
 
-void GPU_codegen_init(void);
-void GPU_codegen_exit(void);
+void gpu_codegen_init(void);
+void gpu_codegen_exit(void);
 
 /* Material calls */
 

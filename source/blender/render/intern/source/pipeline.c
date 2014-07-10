@@ -61,6 +61,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
@@ -1229,7 +1230,13 @@ static void threaded_tile_processor(Render *re)
 		render_result_exr_file_end(re);
 		BLI_rw_mutex_unlock(&re->resultmutex);
 	}
-	
+
+	if (re->r.scemode & R_EXR_CACHE_FILE) {
+		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+		render_result_exr_file_cache_write(re);
+		BLI_rw_mutex_unlock(&re->resultmutex);
+	}
+
 	/* unset threadsafety */
 	g_break = 0;
 	
@@ -1662,7 +1669,10 @@ static void render_scene(Render *re, Scene *sce, int cfra)
 	
 	/* initial setup */
 	RE_InitState(resc, re, &sce->r, NULL, winx, winy, &re->disprect);
-	
+
+	/* We still want to use 'rendercache' setting from org (main) scene... */
+	resc->r.scemode = (resc->r.scemode & ~R_EXR_CACHE_FILE) | (re->r.scemode & R_EXR_CACHE_FILE);
+
 	/* still unsure entity this... */
 	resc->main = re->main;
 	resc->scene = sce;
@@ -1813,11 +1823,13 @@ static void tag_scenes_for_render(Render *re)
 	}
 	
 #ifdef WITH_FREESTYLE
-	for (sce = re->freestyle_bmain.scene.first; sce; sce = sce->id.next) {
-		sce->id.flag &= ~LIB_DOIT;
+	if (re->freestyle_bmain) {
+		for (sce = re->freestyle_bmain->scene.first; sce; sce = sce->id.next) {
+			sce->id.flag &= ~LIB_DOIT;
 #ifdef DEPSGRAPH_WORKAROUND_HACK
-		tag_dependend_objects_for_render(sce, renderlay);
+			tag_dependend_objects_for_render(sce, renderlay);
 #endif
+		}
 	}
 #endif
 
@@ -1919,6 +1931,8 @@ static void add_freestyle(Render *re, int render)
 
 	actsrl = BLI_findlink(&re->r.layers, re->r.actlay);
 
+	re->freestyle_bmain = BKE_main_new();
+
 	/* We use the same window manager for freestyle bmain as
 	 * real bmain uses. This is needed because freestyle's
 	 * bmain could be used to tag scenes for update, which
@@ -1926,7 +1940,7 @@ static void add_freestyle(Render *re, int render)
 	 * and that function requires proper window manager
 	 * to present (sergey)
 	 */
-	re->freestyle_bmain.wm = re->main->wm;
+	re->freestyle_bmain->wm = re->main->wm;
 
 	FRS_init_stroke_rendering(re);
 
@@ -1967,7 +1981,7 @@ static void composite_freestyle_renders(Render *re, int sample)
 
 			/* may be NULL in case of empty render layer */
 			if (freestyle_render) {
-				render_result_exr_file_read(freestyle_render, sample);
+				render_result_exr_file_read_sample(freestyle_render, sample);
 				FRS_composite_result(re, srl, freestyle_render);
 				RE_FreeRenderResult(freestyle_render->result);
 				freestyle_render->result = NULL;
@@ -1991,10 +2005,20 @@ static void free_all_freestyle_renders(void)
 			if (freestyle_render) {
 				freestyle_scene = freestyle_render->scene;
 				RE_FreeRender(freestyle_render);
-				BKE_scene_unlink(&re1->freestyle_bmain, freestyle_scene, NULL);
+				BKE_scene_unlink(re1->freestyle_bmain, freestyle_scene, NULL);
 			}
 		}
 		BLI_freelistN(&re1->freestyle_renders);
+
+		if (re1->freestyle_bmain) {
+			/* detach the window manager from freestyle bmain (see comments
+			 * in add_freestyle() for more detail)
+			 */
+			re1->freestyle_bmain->wm.first = re1->freestyle_bmain->wm.last = NULL;
+
+			BKE_main_free(re1->freestyle_bmain);
+			re1->freestyle_bmain = NULL;
+		}
 	}
 }
 #endif
@@ -2041,7 +2065,7 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 				if (re1 && (re1->r.scemode & R_FULL_SAMPLE)) {
 					if (sample) {
 						BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-						render_result_exr_file_read(re1, sample);
+						render_result_exr_file_read_sample(re1, sample);
 #ifdef WITH_FREESTYLE
 						if (re1->r.mode & R_EDGE_FRS)
 							composite_freestyle_renders(re1, sample);
@@ -2145,8 +2169,10 @@ void RE_MergeFullSample(Render *re, Main *bmain, Scene *sce, bNodeTree *ntree)
 		scene->id.flag |= LIB_DOIT;
 	
 #ifdef WITH_FREESTYLE
-	for (scene = re->freestyle_bmain.scene.first; scene; scene = scene->id.next)
-		scene->id.flag &= ~LIB_DOIT;
+	if (re->freestyle_bmain) {
+		for (scene = re->freestyle_bmain->scene.first; scene; scene = scene->id.next)
+			scene->id.flag &= ~LIB_DOIT;
+	}
 #endif
 
 	for (node = ntree->nodes.first; node; node = node->next) {
@@ -2674,6 +2700,7 @@ static int render_initialize_from_main(Render *re, RenderData *rd, Main *bmain, 
 	re->scene_color_manage = BKE_scene_check_color_management_enabled(scene);
 	re->camera_override = camera_override;
 	re->lay = lay_override ? lay_override : scene->lay;
+	re->layer_override = lay_override;
 	re->i.localview = (re->lay & 0xFF000000) != 0;
 	
 	/* not too nice, but it survives anim-border render */
@@ -3108,7 +3135,7 @@ bool RE_ReadRenderResult(Scene *scene, Scene *scenode)
 	re->scene_color_manage = BKE_scene_check_color_management_enabled(scene);
 	
 	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-	success = render_result_exr_file_read(re, 0);
+	success = render_result_exr_file_cache_read(re);
 	BLI_rw_mutex_unlock(&re->resultmutex);
 
 	return success;

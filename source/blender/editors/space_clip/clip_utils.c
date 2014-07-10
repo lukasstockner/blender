@@ -330,7 +330,6 @@ void clip_draw_sfra_efra(View2D *v2d, Scene *scene)
 	UI_view2d_view_ortho(v2d);
 
 	/* currently clip editor supposes that editing clip length is equal to scene frame range */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 

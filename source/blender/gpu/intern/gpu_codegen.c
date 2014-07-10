@@ -31,6 +31,17 @@
  * Convert material node-trees to GLSL.
  */
 
+/* my interface */
+#include "intern/gpu_codegen.h"
+/* internal */
+#include "intern/gpu_common_intern.h"
+
+/* my library */
+#include "GPU_material.h"
+#include "GPU_extensions.h"
+
+/* external */
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_customdata_types.h"
@@ -38,28 +49,26 @@
 #include "DNA_material_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
 #include "BLI_dynstr.h"
 #include "BLI_ghash.h"
-
-#include "GPU_extensions.h"
-#include "GPU_material.h"
-#include "GPU_glew.h"
-
-#include "BLI_sys_types.h" // for intptr_t support
-
-#include "gpu_codegen.h"
+#include "BLI_sys_types.h" /* for intptr_t */
+#include "BLI_utildefines.h"
 
 #include "node_util.h" /* For muting node stuff... */
 
+/* standard */
 #include <string.h>
 #include <stdarg.h>
 
-extern char datatoc_gpu_shader_material_glsl[];
-extern char datatoc_gpu_shader_vertex_glsl[];
+
+
+extern const char datatoc_gpu_shader_material_glsl[];
+extern const char datatoc_gpu_shader_vertex_glsl  [];
+
 
 
 static char *glsl_material_library = NULL;
+
 
 
 /* structs and defines */
@@ -241,12 +250,12 @@ GPUFunction *GPU_lookup_function(const char *name)
 	return (GPUFunction*)BLI_ghash_lookup(FUNCTION_HASH, (void *)name);
 }
 
-void GPU_codegen_init(void)
+void gpu_codegen_init(void)
 {
 	GPU_code_generate_glsl_lib();
 }
 
-void GPU_codegen_exit(void)
+void gpu_codegen_exit(void)
 {
 	extern Material defmaterial;    // render module abuse...
 
@@ -710,7 +719,6 @@ void GPU_code_generate_glsl_lib(void)
 	ds = BLI_dynstr_new();
 
 	BLI_dynstr_append(ds, datatoc_gpu_shader_material_glsl);
-
 
 	glsl_material_library = BLI_dynstr_get_cstring(ds);
 
@@ -1405,7 +1413,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	/* generate code and compile with opengl */
 	fragmentcode = code_generate_fragment(nodes, outlink->output, name);
 	vertexcode = code_generate_vertex(nodes);
-	shader = GPU_shader_create(vertexcode, fragmentcode, glsl_material_library, NULL);
+	shader = GPU_shader_create(__func__, vertexcode, fragmentcode, glsl_material_library, NULL);
 
 	/* failed? */
 	if (!shader) {
@@ -1416,7 +1424,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	}
 	
 	/* create pass */
-	pass = MEM_callocN(sizeof(GPUPass), "GPUPass");
+	pass = (GPUPass*)MEM_callocN(sizeof(GPUPass), __func__);
 
 	pass->output = outlink->output;
 	pass->shader = shader;

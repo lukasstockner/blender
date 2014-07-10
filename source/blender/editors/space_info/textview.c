@@ -79,7 +79,6 @@ static void console_draw_sel(const char *str, const int sel[2], const int xy[2],
 		const int end = txt_utf8_offset_to_column(str, min_ii(sel[1], str_len_draw));
 
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glColor4ubv(bg_sel);
 
 		glRecti(xy[0] + (cwidth * sta), xy[1] - 2 + lheight, xy[0] + (cwidth * end), xy[1] - 2);

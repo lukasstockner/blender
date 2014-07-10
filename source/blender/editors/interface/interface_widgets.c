@@ -667,9 +667,6 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 				glDisable(GL_POLYGON_STIPPLE);
 
-				/* alpha fill */
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
 				glColor4ubv((unsigned char *)wcol->inner);
 
 				for (a = 0; a < wtb->totvert; a++) {

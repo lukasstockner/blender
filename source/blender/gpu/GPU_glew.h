@@ -35,7 +35,7 @@
 #include "glew-mx.h"
 
 
-/*
+
 #ifndef GPU_MANGLE_DEPRECATED
 #define GPU_MANGLE_DEPRECATED 1
 #endif
@@ -43,7 +43,7 @@
 #if GPU_MANGLE_DEPRECATED
 #include "GPU_deprecated.h"
 #endif
-*/
+
 
 
 

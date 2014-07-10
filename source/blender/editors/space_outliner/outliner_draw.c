@@ -1508,8 +1508,6 @@ static void outliner_draw_tree(bContext *C, uiBlock *block, Scene *scene, ARegio
 	TreeElement *te;
 	int starty, startx;
 	float col[3];
-		
-	glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA); // only once
 	
 	if (ELEM(soops->outlinevis, SO_DATABLOCKS, SO_USERDEF)) {
 		/* struct marks */

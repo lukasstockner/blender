@@ -582,7 +582,6 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		/* draw transparent faces */
 		UI_GetThemeColor4ubv(TH_FACE, col1);
 		UI_GetThemeColor4ubv(TH_FACE_SELECT, col2);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glEnable(GL_BLEND);
 		
 #ifdef USE_EDBM_LOOPTRIS
@@ -670,7 +669,6 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 		tf = BM_ELEM_CD_GET_VOID_P(activef, cd_poly_tex_offset);
 		if (uvedit_face_visible_test(scene, ima, activef, tf)) {
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			UI_ThemeColor4(TH_EDITMESH_ACTIVE);
 
 			glEnable(GL_POLYGON_STIPPLE);
@@ -694,7 +692,6 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	if (sima->flag & SI_SMOOTH_UV) {
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
 	
 	switch (sima->dt_uv) {

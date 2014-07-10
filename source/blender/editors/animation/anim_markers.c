@@ -330,7 +330,6 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 	glScalef(1.0f / xscale, 1.0f, 1.0f);
 	
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	/* vertical line - dotted */
 #ifdef DURIAN_CAMERA_SWITCH
@@ -846,7 +845,7 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *even
 			applyNumInput(&mm->num, &value);
 
 			if (hasNumInput(&mm->num)) {
-				outputNumInput(&mm->num, str_tx);
+				outputNumInput(&mm->num, str_tx, scene->unit.scale_length);
 			}
 			else {
 				BLI_snprintf(str_tx, sizeof(str_tx), "%d", (int)value);

@@ -1657,7 +1657,8 @@ BMVert *bmesh_semv(BMesh *bm, BMVert *tv, BMEdge *e, BMEdge **r_e)
  * faces with just 2 edges. It is up to the caller to decide what to do with
  * these faces.
  */
-BMEdge *bmesh_jekv(BMesh *bm, BMEdge *e_kill, BMVert *v_kill, const bool check_edge_double)
+BMEdge *bmesh_jekv(BMesh *bm, BMEdge *e_kill, BMVert *v_kill,
+                   const bool do_del, const bool check_edge_double)
 {
 	BMEdge *e_old;
 	BMVert *v_old, *tv;
@@ -1667,6 +1668,8 @@ BMEdge *bmesh_jekv(BMesh *bm, BMEdge *e_kill, BMVert *v_kill, const bool check_e
 #ifndef NDEBUG
 	bool edok;
 #endif
+
+	BLI_assert(BM_vert_in_edge(e_kill, v_kill));
 
 	if (BM_vert_in_edge(e_kill, v_kill) == 0) {
 		return NULL;
@@ -1759,7 +1762,12 @@ BMEdge *bmesh_jekv(BMesh *bm, BMEdge *e_kill, BMVert *v_kill, const bool check_e
 			bm_kill_only_edge(bm, e_kill);
 
 			/* deallocate vertex */
-			bm_kill_only_vert(bm, v_kill);
+			if (do_del) {
+				bm_kill_only_vert(bm, v_kill);
+			}
+			else {
+				v_kill->e = NULL;
+			}
 
 #ifndef NDEBUG
 			/* Validate disk cycle lengths of v_old, tv are unchanged */
@@ -2030,7 +2038,7 @@ void bmesh_vert_separate(BMesh *bm, BMVert *v, BMVert ***r_vout, int *r_vout_len
 
 	BLI_smallhash_init_ex(&visithash, v_edgetot);
 
-	STACK_INIT(stack);
+	STACK_INIT(stack, v_edgetot);
 
 	maxindex = 0;
 	BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
@@ -2101,7 +2109,7 @@ void bmesh_vert_separate(BMesh *bm, BMVert *v, BMVert ***r_vout, int *r_vout_len
 	 * by modifying data it loops over [#30632], this re-uses the 'stack' variable which is a bit
 	 * bad practice but save alloc'ing a new array - note, the comment above is useful, keep it
 	 * if you are tidying up code - campbell */
-	STACK_INIT(stack);
+	STACK_INIT(stack, v_edgetot);
 	BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
 		if (l->v == v) {
 			STACK_PUSH(stack, (BMEdge *)l);

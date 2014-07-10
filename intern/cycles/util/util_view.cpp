@@ -66,7 +66,6 @@ void view_display_info(const char *info)
 	const int height = 20;
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glColor4f(0.1f, 0.1f, 0.1f, 0.8f);
 	glRectf(0.0f, V.height - height, V.width, V.height);
 	glDisable(GL_BLEND);
@@ -90,7 +89,6 @@ void view_display_help()
 	const int y2 = y1 + h;
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glColor4f(0.5f, 0.5f, 0.5f, 0.8f);
 	glRectf(x1, y1, x2, y2);
 	glDisable(GL_BLEND);
@@ -252,6 +250,8 @@ void view_main_loop(const char *title, int width, int height,
 	glewInit();
 
 	view_reshape(width, height);
+
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glutDisplayFunc(view_display);
 	glutIdleFunc(view_idle);

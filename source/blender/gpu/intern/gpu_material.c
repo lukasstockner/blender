@@ -31,9 +31,17 @@
  * Manages materials, lights and textures.
  */
 
+/* my interface */
+#include "GPU_material.h"
 
-#include <math.h>
-#include <string.h>
+/* my library */
+#include "GPU_extensions.h"
+#include "GPU_glew.h"
+
+/* internal */
+#include "intern/gpu_codegen.h"
+
+/* external */
 
 #include "MEM_guardedalloc.h"
 
@@ -60,13 +68,11 @@
 
 #include "IMB_imbuf_types.h"
 
-#include "GPU_extensions.h"
-#include "GPU_material.h"
-#include "GPU_glew.h"
-
-#include "gpu_codegen.h"
-
+/* standard */
+#include <math.h>
 #include <string.h>
+
+
 
 /* Structs */
 
@@ -195,7 +201,7 @@ static void gpu_material_set_attrib_id(GPUMaterial *material)
 	attribs->totlayer = b;
 }
 
-static int GPU_material_construct_end(GPUMaterial *material)
+static bool GPU_material_construct_end(GPUMaterial *material)
 {
 	if (material->outlink) {
 		GPUNodeLink *outlink;
@@ -206,10 +212,10 @@ static int GPU_material_construct_end(GPUMaterial *material)
 			&material->attribs, &material->builtins, material->ma->id.name);
 
 		if (!material->pass)
-			return 0;
+			return false;
 
 		gpu_material_set_attrib_id(material);
-		
+
 		shader = GPU_pass_shader(material->pass);
 
 		if (material->builtins & GPU_VIEW_MATRIX)
@@ -224,10 +230,12 @@ static int GPU_material_construct_end(GPUMaterial *material)
 			material->obcolloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_OBCOLOR));
 		if (material->builtins & GPU_AUTO_BUMPSCALE)
 			material->obautobumpscaleloc = GPU_shader_get_uniform(shader, GPU_builtin_name(GPU_AUTO_BUMPSCALE));
-		return 1;
-	}
 
-	return 0;
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 
 void GPU_material_free(Material *ma)
@@ -414,6 +422,11 @@ bool GPU_material_do_color_management(GPUMaterial *mat)
 		return false;
 
 	return !((mat->scene->gm.flag & GAME_GLSL_NO_COLOR_MANAGEMENT));
+}
+
+bool GPU_material_use_new_shading_nodes(GPUMaterial *mat)
+{
+	return BKE_scene_use_new_shading_nodes(mat->scene);
 }
 
 static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **lv, GPUNodeLink **dist)
@@ -1039,10 +1052,10 @@ static void do_material_tex(GPUShadeInput *shi)
 				texco= shi->ref;
 			}
 			else if (mtex->texco==TEXCO_UV) {
-				if (1) { //!(texco_uv && strcmp(mtex->uvname, lastuvname) == 0)) {
+				//if (!(texco_uv && strcmp(mtex->uvname, lastuvname) == 0)) {
 					GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
 					/*lastuvname = mtex->uvname;*/ /*UNUSED*/
-				}
+				//}
 				texco= texco_uv;
 			}
 			else
@@ -2063,7 +2076,6 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 	GPUMaterial *mat;
 	GPUInputUniform *uniform;
 	GPUInputAttribute *attribute;
-	GLint lastbindcode;
 	int i, liblen, fraglen;
 
 	if (!GPU_glsl_support())
@@ -2100,12 +2112,7 @@ GPUShaderExport *GPU_shader_export(struct Scene *scene, struct Material *ma)
 				case GPU_TEX2D:
 					if (GPU_texture_opengl_bindcode(input->tex)) {
 						uniform->type = GPU_DYNAMIC_SAMPLER_2DBUFFER;
-						glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastbindcode);
-						glBindTexture(GL_TEXTURE_2D, GPU_texture_opengl_bindcode(input->tex));
-						uniform->texsize = GPU_texture_opengl_width(input->tex) * GPU_texture_opengl_height(input->tex);
-						uniform->texpixels = MEM_mallocN(uniform->texsize*4, "RGBApixels");
-						glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, uniform->texpixels); 
-						glBindTexture(GL_TEXTURE_2D, lastbindcode);
+						uniform->texpixels = GPU_texture_dup_pixels(input->tex, &(uniform->texsize));
 					}
 					break;
 				}
@@ -2223,4 +2230,3 @@ void GPU_free_shader_export(GPUShaderExport *shader)
 
 	MEM_freeN(shader);
 }
-

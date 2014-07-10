@@ -1146,8 +1146,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			x2 = x1 + ar->winx;
 
 			glColor4ub(255, 255, 255, 32);
-			
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 			glEnable(GL_BLEND);
 			glRecti(x1 - 4, y1, x2, y2);
 			glDisable(GL_BLEND);

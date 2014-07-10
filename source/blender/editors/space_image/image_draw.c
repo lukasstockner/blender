@@ -119,39 +119,7 @@ static void draw_render_info(Scene *scene, Image *ima, ARegion *ar, float zoomx,
 			UI_ThemeColor(TH_FACE_SELECT);
 
 			for (i = 0, tile = tiles; i < total_tiles; i++, tile++) {
-				float delta_x = 4.0f * UI_DPI_FAC / zoomx;
-				float delta_y = 4.0f * UI_DPI_FAC / zoomy;
-
-				delta_x = min_ff(delta_x, tile->xmax - tile->xmin);
-				delta_y = min_ff(delta_y, tile->ymax - tile->ymin);
-
-				/* left bottom corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmin, tile->ymin + delta_y);
-				glVertex2f(tile->xmin, tile->ymin);
-				glVertex2f(tile->xmin + delta_x, tile->ymin);
-				glEnd();
-
-				/* left top corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmin, tile->ymax - delta_y);
-				glVertex2f(tile->xmin, tile->ymax);
-				glVertex2f(tile->xmin + delta_x, tile->ymax);
-				glEnd();
-
-				/* right bottom corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmax - delta_x, tile->ymin);
-				glVertex2f(tile->xmax, tile->ymin);
-				glVertex2f(tile->xmax, tile->ymin + delta_y);
-				glEnd();
-
-				/* right top corner */
-				glBegin(GL_LINE_STRIP);
-				glVertex2f(tile->xmax - delta_x, tile->ymax);
-				glVertex2f(tile->xmax, tile->ymax);
-				glVertex2f(tile->xmax, tile->ymax - delta_y);
-				glEnd();
+				glaDrawBorderCorners(tile, zoomx, zoomy);
 			}
 
 			MEM_freeN(tiles);
@@ -183,7 +151,6 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, bool color_manage, bool use_d
 	float hue = 0, sat = 0, val = 0, lum = 0, u = 0, v = 0;
 	float col[4], finalcol[4];
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
 	/* noisy, high contrast make impossible to read if lower alpha is used. */
@@ -344,7 +311,6 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, bool color_manage, bool use_d
 		glRecti(color_rect_half.xmin, color_rect_half.ymin, color_quater_x, color_quater_y);
 
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glColor4f(UNPACK3(finalcol), fp ? fp[3] : (cp[3] / 255.0f));
 		glRecti(color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
 		glDisable(GL_BLEND);
@@ -526,7 +492,6 @@ static void draw_image_buffer(const bContext *C, SpaceImage *sima, ARegion *ar, 
 	else {
 		if (sima->flag & SI_USE_ALPHA) {
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			fdrawcheckerboard(x, y, x + ibuf->x * zoomx, y + ibuf->y * zoomy);
 		}
@@ -781,7 +746,6 @@ static void draw_image_paint_helpers(const bContext *C, ARegion *ar, Scene *scen
 			glPixelZoom(zoomx, zoomy);
 
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glaDrawPixelsSafe(x, y, w, h, w, GL_RGBA, GL_UNSIGNED_BYTE, clonerect);
 			glDisable(GL_BLEND);
 
@@ -913,7 +877,6 @@ void draw_image_cache(const bContext *C, ARegion *ar)
 	}
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	/* Draw cache background. */
 	ED_region_cache_draw_background(ar);

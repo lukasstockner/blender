@@ -178,7 +178,6 @@ void draw_mesh_face_select(RegionView3D *rv3d, Mesh *me, DerivedMesh *dm)
 	/* Draw Selected Faces */
 	if (me->drawflag & ME_DRAWFACES) {
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		/* dull unselected faces so as not to get in the way of seeing color */
 		glColor4ub(96, 96, 96, 64);
 		dm->drawMappedFaces(dm, draw_mesh_face_select__drawFaceOptsInv, NULL, NULL, (void *)me, 0);
@@ -236,6 +235,12 @@ static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *
 	int lit = 0;
 	int has_texface = texface != NULL;
 	bool need_set_tpage = false;
+
+	if (ma != NULL) {
+		if (ma->mode & MA_TRANSP) {
+			alphablend = GPU_BLEND_ALPHA;
+		}
+	}
 
 	if (clearcache) {
 		c_textured = c_lit = c_backculled = -1;
@@ -830,9 +835,6 @@ static void draw_mesh_textured_old(Scene *scene, View3D *v3d, RegionView3D *rv3d
 
 	/* reset from negative scale correction */
 	glFrontFace(GL_CCW);
-	
-	/* in editmode, the blend mode needs to be set in case it was ADD */
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 /************************** NEW SHADING NODES ********************************/

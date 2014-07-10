@@ -272,7 +272,6 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 	float draw_height;
 
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	if (seqm->flag & SEQ_MUTE)
 		drawmeta_stipple(1);
@@ -374,8 +373,6 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 	{
 		glEnable(GL_BLEND);
 		
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
 		if (seq->flag & whichsel) glColor4ub(0, 0, 0, 80);
 		else if (seq->flag & SELECT) glColor4ub(255, 255, 255, 30);
 		else glColor4ub(0, 0, 0, 22);
@@ -435,7 +432,6 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 
 	if (seq->startofs) {
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		
 		get_seq_color3ubv(scene, seq, col);
 		
@@ -459,7 +455,6 @@ static void draw_seq_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 	}
 	if (seq->endofs) {
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		
 		get_seq_color3ubv(scene, seq, col);
 		
@@ -1056,7 +1051,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
 		if (sseq->flag & SEQ_USE_ALPHA) {
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			fdrawcheckerboard(v2d->tot.xmin, v2d->tot.ymin, v2d->tot.xmax, v2d->tot.ymax);
 			glColor4f(1.0, 1.0, 1.0, 1.0);
