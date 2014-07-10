@@ -387,7 +387,7 @@ Render *RE_NewRender(const char *name)
 		BLI_strncpy(re->name, name, RE_MAXNAME);
 		BLI_rw_mutex_init(&re->resultmutex);
 		re->eval_ctx = MEM_callocN(sizeof(EvaluationContext), "re->eval_ctx");
-		re->eval_ctx->for_render = true;
+		re->eval_ctx->mode = DAG_EVAL_RENDER;
 	}
 	
 	RE_InitRenderCB(re);
@@ -661,6 +661,11 @@ void RE_InitState(Render *re, Render *source, RenderData *rd,
 		re->result->recty = re->recty;
 	}
 	
+	if (re->r.scemode & R_VIEWPORT_PREVIEW)
+		re->eval_ctx->mode = DAG_EVAL_PREVIEW;
+	else
+		re->eval_ctx->mode = DAG_EVAL_RENDER;
+	
 	/* ensure renderdatabase can use part settings correct */
 	RE_parts_clamp(re);
 
@@ -724,9 +729,11 @@ void RE_ChangeResolution(Render *re, int winx, int winy, rcti *disprect)
 {
 	re_init_resolution(re, NULL, winx, winy, disprect);
 
-	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-	render_result_rescale(re);
-	BLI_rw_mutex_unlock(&re->resultmutex);
+	if (re->result) {
+		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+		render_result_rescale(re);
+		BLI_rw_mutex_unlock(&re->resultmutex);
+	}
 }
 
 /* update some variables that can be animated, and otherwise wouldn't be due to
