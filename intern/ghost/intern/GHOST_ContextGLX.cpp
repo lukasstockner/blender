@@ -85,13 +85,13 @@ GHOST_ContextGLX::~GHOST_ContextGLX()
 		if (m_context == ::glXGetCurrentContext())
 			::glXMakeCurrent(m_display, m_window, NULL);
 
-		if (m_context != m_sharedContext || m_sharedCount == 1) {
-			assert(m_sharedCount > 0);
+		if (m_context != s_sharedContext || s_sharedCount == 1) {
+			assert(s_sharedCount > 0);
 
-			m_sharedCount--;
+			s_sharedCount--;
 
-			if (m_sharedCount == 0)
-				m_sharedContext = NULL;
+			if (s_sharedCount == 0)
+				s_sharedContext = NULL;
 
 			::glXDestroyContext(m_display, m_context);
 		}

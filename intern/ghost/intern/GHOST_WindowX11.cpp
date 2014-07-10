@@ -189,12 +189,12 @@ GHOST_WindowX11(
 	XSetWindowAttributes xattributes;
 	memset(&xattributes, 0, sizeof(xattributes));
 
-	xattributes_valuemask |= CBorderPixel;
+	xattributes_valuemask |= CWBorderPixel;
 	xattributes.border_pixel = 0;
 
 	/* Specify which events we are interested in hearing. */
 
-	xattribute_valuemask |= CWEventMask;
+	xattributes_valuemask |= CWEventMask;
 	xattributes.event_mask =
 	        ExposureMask       | StructureNotifyMask |
 	        KeyPressMask       | KeyReleaseMask      |
