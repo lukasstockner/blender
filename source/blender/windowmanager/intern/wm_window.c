@@ -425,14 +425,13 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 	if (wm_init_state.size_x == 0) {
 		wm_get_screensize(&wm_init_state.size_x, &wm_init_state.size_y);
 		
-	/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
-	 * we'd need a wm_get_screensize like function that gives offset,
-	 * in practice the window manager will likely move to the correct monitor */
-	wm_init_state.start_x = 0;
-	wm_init_state.start_y = 0;
+		/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
+		 * we'd need a wm_get_screensize like function that gives offset,
+		 * in practice the window manager will likely move to the correct monitor */
+		wm_init_state.start_x = 0;
+		wm_init_state.start_y = 0;
 
-
-#if !defined(__APPLE__) && !defined(WIN32)  /* X11 */
+#if WITH_X11 /* X11 */
 		/* X11, start maximized but use default sane size */
 		wm_init_state.size_x = min_ii(wm_init_state.size_x, WM_WIN_INIT_SIZE_X);
 		wm_init_state.size_y = min_ii(wm_init_state.size_y, WM_WIN_INIT_SIZE_Y);
