@@ -109,7 +109,6 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
 
 				/* scattering */
 				VolumeIntegrateResult result = VOLUME_PATH_ATTENUATED;
-				bool scatter = false;
 
 				if(volume_segment.closure_flag & SD_SCATTER) {
 					bool all = kernel_data.integrator.sample_all_lights_indirect;
@@ -127,9 +126,6 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
 					result = kernel_volume_decoupled_scatter(kg,
 						&state, &volume_ray, &volume_sd, &throughput,
 						rphase, rscatter, &volume_segment, NULL, true);
-
-					if(result == VOLUME_PATH_SCATTERED)
-						scatter = kernel_path_volume_bounce(kg, rng, &volume_sd, &throughput, &state, L, &ray, 1.0f);
 				}
 
 				if(result != VOLUME_PATH_SCATTERED)
@@ -139,7 +135,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
 				kernel_volume_decoupled_free(kg, &volume_segment);
 
 				if(result == VOLUME_PATH_SCATTERED) {
-					if(scatter)
+					if(kernel_path_volume_bounce(kg, rng, &volume_sd, &throughput, &state, L, &ray, 1.0f))
 						continue;
 					else
 						break;
@@ -494,7 +490,6 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 
 				/* scattering */
 				VolumeIntegrateResult result = VOLUME_PATH_ATTENUATED;
-				bool scatter = false;
 
 				if(volume_segment.closure_flag & SD_SCATTER) {
 					bool all = false;
@@ -512,9 +507,6 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 					result = kernel_volume_decoupled_scatter(kg,
 						&state, &volume_ray, &volume_sd, &throughput,
 						rphase, rscatter, &volume_segment, NULL, true);
-
-					if(result == VOLUME_PATH_SCATTERED)
-						scatter = kernel_path_volume_bounce(kg, rng, &volume_sd, &throughput, &state, &L, &ray, 1.0f);
 				}
 
 				if(result != VOLUME_PATH_SCATTERED)
@@ -524,7 +516,7 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 				kernel_volume_decoupled_free(kg, &volume_segment);
 
 				if(result == VOLUME_PATH_SCATTERED) {
-					if(scatter)
+					if(kernel_path_volume_bounce(kg, rng, &volume_sd, &throughput, &state, &L, &ray, 1.0f))
 						continue;
 					else
 						break;
@@ -1058,11 +1050,8 @@ ccl_device_inline void kernel_path_trace_setup(KernelGlobals *kg, ccl_global uin
 {
 	float filter_u;
 	float filter_v;
-#ifdef __CMJ__
+
 	int num_samples = kernel_data.integrator.aa_samples;
-#else
-	int num_samples = 0;
-#endif
 
 	path_rng_init(kg, rng_state, sample, num_samples, rng, x, y, &filter_u, &filter_v);
 
