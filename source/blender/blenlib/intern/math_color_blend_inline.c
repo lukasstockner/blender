@@ -72,7 +72,7 @@ MINLINE void blend_color_mix_byte(unsigned char dst[4], const unsigned char src1
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -94,7 +94,7 @@ MINLINE void blend_color_add_byte(unsigned char dst[4], const unsigned char src1
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -116,7 +116,7 @@ MINLINE void blend_color_sub_byte(unsigned char dst[4], const unsigned char src1
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -139,7 +139,7 @@ MINLINE void blend_color_mul_byte(unsigned char dst[4], const unsigned char src1
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -162,7 +162,7 @@ MINLINE void blend_color_lighten_byte(unsigned char dst[4], const unsigned char 
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -185,7 +185,7 @@ MINLINE void blend_color_darken_byte(unsigned char dst[4], const unsigned char s
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -202,7 +202,7 @@ MINLINE void blend_color_erase_alpha_byte(unsigned char dst[4], const unsigned c
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -219,7 +219,7 @@ MINLINE void blend_color_add_alpha_byte(unsigned char dst[4], const unsigned cha
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -262,7 +262,7 @@ MINLINE void blend_color_overlay_byte(unsigned char dst[4], unsigned const char 
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -299,7 +299,7 @@ MINLINE void blend_color_hardlight_byte(unsigned char dst[4], unsigned const cha
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -341,7 +341,7 @@ MINLINE void blend_color_burn_byte(unsigned char dst[4], unsigned const char src
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -367,7 +367,7 @@ MINLINE void blend_color_linearburn_byte(unsigned char dst[4], unsigned const ch
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -396,7 +396,7 @@ MINLINE void blend_color_dodge_byte(unsigned char dst[4], unsigned const char sr
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -421,7 +421,7 @@ MINLINE void blend_color_screen_byte(unsigned char dst[4], unsigned const char s
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -444,7 +444,7 @@ MINLINE void blend_color_softlight_byte(unsigned char dst[4], unsigned const cha
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -494,7 +494,7 @@ MINLINE void blend_color_pinlight_byte(unsigned char dst[4], unsigned const char
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -541,7 +541,7 @@ MINLINE void blend_color_linearlight_byte(unsigned char dst[4], unsigned const c
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -600,7 +600,7 @@ MINLINE void blend_color_vividlight_byte(unsigned char dst[4], unsigned const ch
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -627,7 +627,7 @@ MINLINE void blend_color_difference_byte(unsigned char dst[4], unsigned const ch
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -649,7 +649,7 @@ MINLINE void blend_color_exclusion_byte(unsigned char dst[4], unsigned const cha
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -676,7 +676,7 @@ MINLINE void blend_color_color_byte(unsigned char dst[4], unsigned const char sr
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -702,7 +702,7 @@ MINLINE void blend_color_hue_byte(unsigned char dst[4], unsigned const char src1
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 
 }
@@ -730,7 +730,7 @@ MINLINE void blend_color_saturation_byte(unsigned char dst[4], unsigned const ch
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 
@@ -757,7 +757,7 @@ MINLINE void blend_color_luminosity_byte(unsigned char dst[4], unsigned const ch
 	}
 	else {
 		/* no op */
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 
 }
@@ -777,7 +777,7 @@ MINLINE void blend_color_interpolate_byte(unsigned char dst[4], const unsigned c
 		dst[3] = (unsigned char)divide_round_i(tmp, 255);
 	}
 	else {
-		copy_v4_v4_uchar(dst, src1);
+		copy_v4_v4_char((char *)dst, (char *)src1);
 	}
 }
 

@@ -308,6 +308,13 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				mat->line_col[3] = mat->alpha;
 			}
 		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "int", "preview_start_resolution")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->r.preview_start_resolution = 64;
+			}
+		}
 	}
 
 	if (!MAIN_VERSION_ATLEAST(main, 271, 2)) {
@@ -315,13 +322,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		for (sce = main->scene.first; sce; sce = sce->id.next) {
 			sce->toolsettings->imapaint.slot_xresolution_default = 1024;
 			sce->toolsettings->imapaint.slot_yresolution_default = 1024;
-		}
-	}
-
-	if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "int", "preview_start_resolution")) {
-		Scene *scene;
-		for (scene = main->scene.first; scene; scene = scene->id.next) {
-			scene->r.preview_start_resolution = 64;
 		}
 	}
 }

@@ -65,7 +65,6 @@ MINLINE void swap_v4_v4(float a[4], float b[4]);
 MINLINE void copy_v2_v2_char(char r[2], const char a[2]);
 MINLINE void copy_v3_v3_char(char r[3], const char a[3]);
 MINLINE void copy_v4_v4_char(char r[4], const char a[4]);
-MINLINE void copy_v4_v4_uchar(unsigned char r[4], const unsigned char a[4]);
 
 /* short */
 MINLINE void copy_v2_v2_short(short r[2], const short a[2]);

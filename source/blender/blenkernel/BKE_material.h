@@ -43,8 +43,6 @@ struct Object;
 struct Mesh;
 struct MTFace;
 struct Scene;
-struct Image;
-struct MTex;
 
 /* materials */
 
