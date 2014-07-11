@@ -264,6 +264,7 @@ static OpenSubdiv::OsdUtilMesh<OsdVertex>::Scheme get_osd_scheme(int scheme)
 		default:
 			assert(!"Wrong subdivision scheme");
 	}
+	return OpenSubdiv::OsdUtilMesh<OsdVertex>::SCHEME_BILINEAR;
 }
 
 /* TODO(sergey): Currently we use single coarse face per partition,
