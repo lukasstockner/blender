@@ -61,6 +61,8 @@ GridMeshVert::GridMeshVert() :	next(0), prev(0),
 GridMesh::GridMesh() {
 	coords = NULL;
 	coords_len = coords_reserved_len = 0;
+	mallocN = NULL;
+	reallocN = NULL;
 }
 
 GridMesh::~GridMesh() {
@@ -69,12 +71,19 @@ GridMesh::~GridMesh() {
 
 void GridMesh::coords_reserve(int new_reserved_len) {
 	if (coords_reserved_len>=new_reserved_len) return;
+	new_reserved_len *= 2;
 	if (!coords) {
-		coords = (GridMeshCoord*)malloc(sizeof(*coords)*new_reserved_len);
-		coords_reserved_len = new_reserved_len;
+		if (mallocN)
+			coords = (GridMeshCoord*)mallocN(sizeof(*coords)*new_reserved_len,"NURBS_gridmesh");
+		else
+			coords = (GridMeshCoord*)malloc(sizeof(*coords)*new_reserved_len);
 	} else if (coords_reserved_len<new_reserved_len){
-		coords = (GridMeshCoord*)realloc(coords, sizeof(*coords)*new_reserved_len);
+		if (reallocN)
+			coords = (GridMeshCoord*)reallocN(coords, sizeof(*coords)*new_reserved_len, "NURBS_gridmesh");
+		else
+			coords = (GridMeshCoord*)realloc(coords, sizeof(*coords)*new_reserved_len);
 	}
+	coords_reserved_len = new_reserved_len;
 }
 
 void GridMesh::coords_import(GridMeshCoord *c, int len) {
@@ -94,26 +103,28 @@ void GridMesh::set_ll_ur(double lowerleft_x, double lowerleft_y,
 						 double upperright_x, double upperright_y) {
 	llx = lowerleft_x; lly = lowerleft_y;
 	urx = upperright_x; ury = upperright_y;
+}
+
+void GridMesh::init_grid(int num_x_cells, int num_y_cells) {
+	nx = num_x_cells; ny = num_y_cells;
 	double Dx = urx-llx;
 	double Dy = ury-lly;
 	dx = Dx/nx;
 	dy = Dy/ny;
 	inv_dx = 1.0/dx;
 	inv_dy = 1.0/dy;
-}
 
-void GridMesh::init_grid(int num_x_cells, int num_y_cells) {
-	nx = num_x_cells; ny = num_y_cells;
 	int num_coords = (nx+1)*(ny+1)*2+1;
 	coords_reserve(num_coords);
-	for (int j=0; j<ny+1; j++) {
-		for (int i=0; i<nx+1; i++) {
+	for (int j=0; j<=ny; j++) {
+		for (int i=0; i<=nx; i++) {
 			GridMeshCoord& c = coords[gridpt_for_cell(i,j)];
 			c.x = llx + i*dx;
 			c.y = lly + j*dy;
 			c.z = 0;
 		}
 	}
+	coords_len = (1+nx)*(1+ny)+1;
 	v.resize(nx*ny*4*2);
 	ie_grid.resize(nx*ny+1,false);
 	ie_isect_right.resize(nx*ny+1,false);
@@ -175,9 +186,9 @@ void GridMesh::vert_set_coord(int vert, double x, double y, double z) {
 		return;
 	}
 	int idx = coords_len;
-	coords_reserve(coords_len++);
-	GridMeshCoord& xyz = coords[idx];
-	xyz.x=x; xyz.y=y; xyz.z=z;
+	coords_reserve(++coords_len);
+	GridMeshCoord *xyz = &coords[idx];
+	xyz->x=x; xyz->y=y; xyz->z=z;
 	v[vert].coord_idx = idx;
 	v[vert].owns_coords = 1;
 }
@@ -190,8 +201,9 @@ void GridMesh::vert_get_coord(int vert, double* xyz) {
 }
 
 
-int GridMesh::poly_new(const std::vector<float>& packed_coords) {
-	size_t num_verts = packed_coords.size()/2;
+int GridMesh::poly_new(const float* packed_coords, int len) {
+	size_t num_verts = len/2;
+	if (!num_verts) return 0;
 	int last=0, first=0;
 	for (int i=0; i<num_verts; i++) {
 		int vert = vert_new(last,0);
@@ -200,6 +212,8 @@ int GridMesh::poly_new(const std::vector<float>& packed_coords) {
 		vert_set_coord(vert, packed_coords[2*i+0], packed_coords[2*i+1], 0);
 		last = vert;
 	}
+	v[first].prev = last;
+	v[last].next = first;
 	return first;
 }
 
@@ -221,6 +235,12 @@ int GridMesh::poly_last_vert(int vert) {
 int GridMesh::poly_next(int anyvert) {
 	return v[poly_first_vert(anyvert)].next_poly;
 }
+
+int GridMesh::poly_last(int poly) {
+	while (v[poly].next_poly) poly = v[poly].next_poly;
+	return poly;
+}
+
 
 bool GridMesh::poly_is_cyclic(int poly) {
 	if (!v[poly].next) return false;
@@ -1124,18 +1144,18 @@ int line_line_intersection(double ax, double ay, // Line 1, vert 1 A
 	return true;
 }
 
-// 1   0
-//   v
-// 2   3
+//  pi/2<=theta<pi     1   0   0<=theta<pi/2
+//                       v
+//  pi<=theta<3pi/2    2   3   3pi/2<=theta<2pi
 inline int quadrant(float x, float y, float vx, float vy) {
 	if (y>vy) { // Upper half-plane is easy
-		return int(x<=vx);
-	} else {
+		return x<=vx ? 1 : 0;
+	} else { // y<=vy
 		if (y<vy) { // So is lower half-plane
 			return 2+int(x>=vx);
-		} else { //y==0
+		} else { // y==0
 			if (x>vx) return 0;
-			else if (x<vx) return 0;
+			else if (x<vx) return 2;
 			return 99; // x==vx, y==vy
 		}
 	}

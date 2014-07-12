@@ -4252,12 +4252,14 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 	r_rect->ymin = r_rect->ymax - tb->h;
 }
 
-void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl, int totu, int totv) {
+float subj0[] = {0.512000,0.938000, 0.374000,0.950000, 0.248000,0.908000, 0.170000,0.866000, 0.092000,0.740000, 0.092000,0.602000, 0.092000,0.440000, 0.116000,0.260000, 0.254000,0.110000, 0.476000,0.074000, 0.746000,0.092000, 0.836000,0.206000, 0.848000,0.422000, 0.812000,0.644000, 0.716000,0.686000, 0.614000,0.734000, 0.488000,0.728000, 0.386000,0.710000, 0.260000,0.626000, 0.272000,0.476000, 0.350000,0.338000, 0.482000,0.278000, 0.632000,0.308000, 0.644000,0.404000, 0.638000,0.494000, 0.590000,0.572000, 0.494000,0.584000, 0.422000,0.518000, 0.458000,0.392000, 0.548000,0.398000, 0.506000,0.506000, 0.572000,0.506000, 0.596000,0.386000, 0.566000,0.338000, 0.470000,0.338000, 0.368000,0.434000, 0.374000,0.608000, 0.578000,0.656000, 0.680000,0.644000, 0.740000,0.554000, 0.782000,0.308000, 0.758000,0.224000, 0.548000,0.164000, 0.338000,0.224000, 0.212000,0.374000, 0.170000,0.626000, 0.236000,0.764000, 0.368000,0.824000, 0.524000,0.836000, 1.184000,0.848000}; int subj0_nv=50;
+void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	dl->col = nu->mat_nr;
 	dl->charidx = nu->charidx;
 	dl->rt = nu->flag & ~CU_2D;
 
 	// Figure out the domain
+	int totu=(nu->pntsu-nu->orderu+1)*nu->resolu, totv=(nu->pntsv-nu->orderv+1)*nu->resolv;
 	float ustart = nu->knotsu[nu->orderu - 1];
 	float uend;
 	if (nu->flagu & CU_NURB_CYCLIC)
@@ -4274,19 +4276,24 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl, int totu, int 
 	// Trim the uniform grid in 2D UV space
 	GridMesh *gm = new GridMesh();
 	int coords_len = (totu+1)*(totv+1)*2;
-	float *coords = (float*)MEM_mallocN(coords_len * sizeof(float[3]), "dlcoords");
-	gm->coords_import((GridMeshCoord*)coords, coords_len);
+	GridMeshCoord *coords = (GridMeshCoord*)MEM_mallocN(coords_len * sizeof(GridMeshCoord), "NURBS_tess_1");
+	gm->mallocN = MEM_mallocN;
+	gm->reallocN = MEM_reallocN_id;
+	gm->coords_import(coords, coords_len);
 	gm->set_ll_ur(ustart,vstart,uend,vend);
 	gm->init_grid(totu,totv);
+	int s0poly = gm->poly_new(subj0, subj0_nv*2);
+	gm->bool_SUB(s0poly);
 	
 	// Extract the results
-	dl->verts = coords = (float*)gm->coords_export(NULL);
-	int idxs_len = 2 * 6*sizeof(int)*totu*totv;
-	int *idxs = (int*)MEM_mallocN(idxs_len, "index array nurbs");
+	coords = gm->coords_export(&coords_len);
+	int idxs_len = 4 * 3*sizeof(int)*totu*totv;
+	int *idxs = (int*)MEM_mallocN(sizeof(int)*idxs_len, "NURBS_tess_2.0");
 	int ii=0; // Index index
 #define TESS_MAX_POLY_VERTS 32
-	float *coords_tmp[TESS_MAX_POLY_VERTS];
-	int *idx_tmp[TESS_MAX_POLY_VERTS];
+	float (*coords_tmp)[2] = (float(*)[2])MEM_mallocN(sizeof(*coords_tmp)*TESS_MAX_POLY_VERTS,"NURBS_tess_3");
+	int reindex_tmp[TESS_MAX_POLY_VERTS];
+	unsigned (*idx_tmp)[3] = (unsigned(*)[3])MEM_mallocN(sizeof(*idx_tmp)*TESS_MAX_POLY_VERTS,"NURBS_tess_4");
 	for (int j=0; j<totv; j++) {
 		for (int i=0; i<totu; i++) {
 			int cell = gm->poly_for_cell(i, j);
@@ -4295,6 +4302,11 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl, int totu, int 
 				if (!v[poly].next) continue;
 				if (v[poly].is_pristine) {
 					int ll_gp = gm->gridpt_for_cell(i, j);
+					if (ii+6>=idxs_len) {
+						//printf("1Growing idxs %i to %i\n",idxs_len,idxs_len*2);
+						idxs_len *= 2;
+						idxs = (int*)MEM_reallocN_id(idxs, sizeof(int)*idxs_len, "NURBS_tess_2.1");
+					}
 					idxs[ii++] = ll_gp;
 					idxs[ii++] = ll_gp+1;
 					idxs[ii++] = ll_gp+(totu+1)+1;
@@ -4302,29 +4314,79 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl, int totu, int 
 					idxs[ii++] = ll_gp+(totu+1);
 					idxs[ii++] = ll_gp;
 				} else {
-					int coords_tot=0;
-					for (int vert=poly; vert!=poly; vert=v[poly].next) {
-						coords_tmp[coords_tot] = &coords[v[poly].coord_idx];
-						idx_tmp[coords_tot] = &idxs[ii];
-						ii += 3;
-						coords_tot++;
-					}
-					ii-=6; // n vert polygon has n-2 tris in triangulation
-					BLI_polyfill_calc((float(*)[2])coords_tmp,
-									  coords_tot,
+					int num_verts=0; int vert=poly;
+					do {
+						int idx = v[vert].coord_idx;
+						GridMeshCoord& crd = coords[idx];
+						coords_tmp[num_verts][0] = crd.x;
+						coords_tmp[num_verts][1] = crd.y;
+						reindex_tmp[num_verts] = idx;
+						num_verts++;
+						vert=v[vert].next;
+						if (num_verts>=TESS_MAX_POLY_VERTS) {
+							printf("WARNING: maximum tessellation polygon verts (%i) exceeded. %i<-%i->%i\n",TESS_MAX_POLY_VERTS,v[vert].prev,vert,v[vert].next);
+							break;
+						}
+					} while (vert!=poly);
+					BLI_polyfill_calc(coords_tmp,
+									  num_verts,
 									  0, // tell polyfill to do concave check
-									  (unsigned int(*)[3])idx_tmp);
+									  idx_tmp);
+					if (ii+(num_verts-2)*3>=idxs_len) {
+						int new_idxlen = idxs_len*2 + (num_verts-2)*3;
+						//printf("2Growing idxs %i to %i\n",idxs_len,new_idxlen);
+						idxs = (int*)MEM_reallocN_id(idxs, sizeof(int)*new_idxlen, "NURBS_tess_2.2");
+						idxs_len = new_idxlen;
+					}
+					for (int z=0; z<num_verts-2; z++) {
+						idxs[ii++] = reindex_tmp[idx_tmp[z][0]];
+						idxs[ii++] = reindex_tmp[idx_tmp[z][1]];
+						idxs[ii++] = reindex_tmp[idx_tmp[z][2]];
+					}
 				}
 			}
 		}
 	}
-	dl->verts = coords;
+	dl->verts = (float*)coords;
 	dl->index = idxs;
+	dl->nors = NULL;
 	dl->type = DL_INDEX3;
 	dl->parts = ii/3;
+	dl->nr = ii;
 	
 	// Pushforward through the NURBS map
-	//gm->pushforward(nu);
+	int NknotU=KNOTSU(nu), NknotV=KNOTSV(nu);
+	float *basisu = (float*)MEM_mallocN(sizeof(float)*(NknotU+NknotV),"NURBS_tess_5");
+	float *basisv = basisu+NknotU;
+	int startu,endu, startv,endv;
+	int orderu=nu->orderu, orderv=nu->orderv, pntsu=nu->pntsu, pntsv=nu->pntsv;
+	float *knotsu=nu->knotsu, *knotsv=nu->knotsv;
+	int coord=1;
+	float cached_v=0.0/0.0;
+	for (; coord<coords_len; coord++) {
+		float *xyz = (float*)&coords[coord];
+		// Right now xyz = {u,v,0.0}. Apply the NURBS map to transform it to {x,y,z}
+		if (xyz[1]!=cached_v) {
+			basisNurb(xyz[1], orderv, pntsv, knotsv, basisv, &startv, &endv);
+			cached_v = xyz[1];
+		}
+		basisNurb(xyz[0], orderu, pntsu, knotsu, basisu, &startu, &endu);
+		float accum[3] = {0,0,0};
+		for (int vi=startv; vi<=endv; vi++) {
+			for (int ui=startu; ui<=endu; ui++) {
+				float uweight=basisu[ui], vweight=basisv[vi];
+				float wcp[3]; mul_v3_v3fl(wcp, nu->bp[ui+pntsu*vi].vec, uweight*vweight);
+				add_v3_v3(accum, wcp);
+			}
+		}
+		copy_v3_v3(xyz,accum);
+	}
 	
+	// Cleanup
+	//MEM_freeN(coords);
+	//MEM_freeN(idxs);
+	MEM_freeN(coords_tmp);
+	MEM_freeN(idx_tmp);
+	MEM_freeN(basisu);
 	delete gm;
 }

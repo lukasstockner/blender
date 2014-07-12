@@ -91,6 +91,10 @@ struct GridMesh {
 	std::vector<bool> ie_isect_right;
 	std::vector<bool> ie_isect_up;
 	
+	// Permit usage of blender's memory management system
+	void* (*mallocN)(size_t sz, const char *name);
+	void* (*reallocN)(void *old, size_t sz, const char *name);
+	
 	double llx, lly, urx, ury; // Coordinates of lower left and upper right grid corners
 	double dx, dy; // Width of a cell in the x, y directions
 	double inv_dx, inv_dy; // 1/(width of a cell), 1/(height of a cell)
@@ -115,7 +119,7 @@ struct GridMesh {
 	int gridpt_for_cell(int x, int y);
 	
 	// Poly manipulation
-	int poly_new(const std::vector<float>& packed_coords);
+	int poly_new(const float* packed_coords, int len);
 	int poly_for_cell(int x, int y);
 	int poly_for_cell(float x, float y);
 	int poly_first_vert(int anyvert);
@@ -123,6 +127,7 @@ struct GridMesh {
 	int poly_next(int anyvert);
 	int poly_vert_at(int anyvert, float x, float y);
 	int poly_num_edges(int poly);
+	int poly_last(int poly);
 	bool poly_is_cyclic(int poly);
 	void poly_set_cyclic(int poly, bool cyclic);
 	void poly_set_interior(int poly, bool interior);

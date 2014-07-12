@@ -68,11 +68,22 @@ bool subj_cyclic = true;
 std::vector<float> clip_verts = {0.201000,0.201000, 4.436000,-0.268000, 4.460000,3.356000, 0.284000,4.292000};
 std::vector<std::vector<float>> subj_polys = {};
 std::vector<float> inout_pts = {};
-float gm_llx=0,gm_lly=0,gm_urx=4,gm_ury=4; // GridMesh params
-int gm_nx=20, gm_ny=30;
+float gm_llx=0,gm_lly=0,gm_urx=1,gm_ury=1; // GridMesh params
+int gm_nx=4, gm_ny=4;
 #endif
 
 #if defined(GRIDMESH_GEOM_TEST_5)
+bool clip_cyclic = true; // Required for initialization
+bool subj_cyclic = true;
+std::vector<float> clip_verts = {0.201000,0.201000, 4.436000,-0.268000, 4.460000,3.356000, 0.284000,4.292000};
+std::vector<float> subj0 = {0.512000,0.938000, 0.374000,0.950000, 0.248000,0.908000, 0.170000,0.866000, 0.092000,0.740000, 0.092000,0.602000, 0.092000,0.440000, 0.116000,0.260000, 0.254000,0.110000, 0.476000,0.074000, 0.746000,0.092000, 0.836000,0.206000, 0.848000,0.422000, 0.812000,0.644000, 0.716000,0.686000, 0.614000,0.734000, 0.488000,0.728000, 0.386000,0.710000, 0.260000,0.626000, 0.272000,0.476000, 0.350000,0.338000, 0.482000,0.278000, 0.632000,0.308000, 0.644000,0.404000, 0.638000,0.494000, 0.590000,0.572000, 0.494000,0.584000, 0.422000,0.518000, 0.458000,0.392000, 0.548000,0.398000, 0.506000,0.506000, 0.572000,0.506000, 0.596000,0.386000, 0.566000,0.338000, 0.470000,0.338000, 0.368000,0.434000, 0.374000,0.608000, 0.578000,0.656000, 0.680000,0.644000, 0.740000,0.554000, 0.782000,0.308000, 0.758000,0.224000, 0.548000,0.164000, 0.338000,0.224000, 0.212000,0.374000, 0.170000,0.626000, 0.236000,0.764000, 0.368000,0.824000, 0.524000,0.836000, 1.184000,0.848000};
+std::vector<std::vector<float>> subj_polys = {subj0};
+std::vector<float> inout_pts = {};
+float gm_llx=0,gm_lly=0,gm_urx=1,gm_ury=1; // GridMesh params
+int gm_nx=4, gm_ny=4;
+#endif
+
+#if defined(GRIDMESH_TIME_TEST)
 // Use this for timing runs
 bool clip_cyclic = true; // Required for initialization
 bool subj_cyclic = true;
@@ -108,52 +119,20 @@ void glut_coords_2_scene(float gx, float gy, float* sx, float* sy) {
 
 void init_default_scene() {
 	// Create the gridmesh
-	gm = new GridMesh(gm_llx,gm_lly,gm_urx,gm_ury,gm_nx,gm_ny);
+	gm = new GridMesh();
+	gm->set_ll_ur(gm_llx,gm_lly,gm_urx,gm_ury);
+	gm->init_grid(gm_nx,gm_ny);
 	// Import the clip polygon into the linked-list datastructure
-	int last = 0;
-	size_t clip_n = clip_verts.size()/2;
-	for (int i=0; i<clip_n; i++) {
-		int v = gm->vert_new(last,0);
-		if (!clip) clip = v;
-		gm->v[v].first = clip;
-		gm->vert_set_coord(v, clip_verts[2*i+0], clip_verts[2*i+1], 0);
-		last = v;
-	}
-	if (clip_cyclic) {
-		gm->v[clip].prev = last;
-		gm->v[last].next = clip;
-	}
+	clip = gm->poly_new(&clip_verts[0], int(clip_verts.size()));
 	// Import the subject polygons into the linked list datastructure
-	GridMeshVert *v = &gm->v[0];
-	last = 0;
+	int last = 0;
 	for (std::vector<float> poly_verts : subj_polys) {
-		// Different subject polygons are stored in
-		// subj, subj->nextPoly, subj->nextPoly->nextPoly etc
-		int newpoly_first_vert = gm->vert_new();
-		v[newpoly_first_vert].first = newpoly_first_vert;
-		if (!subj) {
-			subj = newpoly_first_vert;
-		} else {
-			v[last].next_poly = newpoly_first_vert;
-		}
-		last = newpoly_first_vert;
-		// Fill in the vertices of the polygon we just finished hooking up
-		// to the polygon list
-		int last_inner = 0;
-		for (size_t i=0,l=poly_verts.size()/2; i<l; i++) {
-			int vert;
-			if (i==0) {
-				vert = newpoly_first_vert;
-			} else {
-				vert = gm->vert_new();
-			}
-			gm->vert_set_coord(vert, poly_verts[2*i+0], poly_verts[2*i+1], 0);
-			v[vert].prev = last_inner;
-			v[vert].first = last;
-			if (last_inner) v[last_inner].next = vert;
-			last_inner = vert;
-		}
-		gm->poly_set_cyclic(newpoly_first_vert, subj_cyclic);
+		int np = gm->poly_new(&subj0[0], int(subj0.size()));
+		if (last)
+			gm->v[last].next_poly = np;
+		else
+			subj = np;
+		last = np;
 	}
 }
 
@@ -548,6 +527,7 @@ void GLUT_passive(int x, int y) {
 	}
 }
 
+#if defined(GRIDMESH_TIME_TEST)
 void time_start() {
 	time_noclip = fopen("/tmp/noclip_nurbs.txt","w");
 	int subj_count=int(subj_polys.size());
@@ -562,25 +542,27 @@ void time_clip() {
 	uint64_t start,stop;
 	
 	start = mach_absolute_time();
-	gm = new GridMesh(gm_llx,gm_lly,gm_urx,gm_ury,gm_nx,gm_ny);
+	gm = new GridMesh();
+	gm->set_ll_ur(gm_llx,gm_lly,gm_urx,gm_ury);
+	gm->init_grid(gm_nx,gm_ny);
 	delete gm;
 	stop = mach_absolute_time();
 	fprintf(time_noclip, "%i %i %llu\n",gm_nx*gm_ny,0,stop-start);
 
 	for (subj_no=0; subj_no<subj_count; subj_no++) {
 		start = mach_absolute_time();
-		gm = new GridMesh(gm_llx,gm_lly,gm_urx,gm_ury,gm_nx,gm_ny);
-		int clip_poly = gm->poly_new(subj_polys[subj_no]);
-		int cpverts = int(subj_polys[subj_no].size()/2);
+		gm = new GridMesh();
+		gm->set_ll_ur(gm_llx,gm_lly,gm_urx,gm_ury);
+		gm->init_grid(gm_nx,gm_ny);
+		std::vector<float>& clipvec=subj_polys[subj_no];
+		int clip_poly = gm->poly_new(clipvec[0],clipvec.size());
+		int cpverts = int(clipvec.size()/2);
 		gm->bool_SUB(clip_poly);
 		delete gm;
 		stop = mach_absolute_time();
 		fprintf(time_subj[subj_no], "%i %i %llu\n",gm_nx*gm_ny,cpverts,stop-start);
 	}
 }
-
-
-/***************************** MAIN *****************************/
 void time_main() {
 	time_start();
 	for (int res=32; res<=400; res+=8) {
@@ -588,6 +570,10 @@ void time_main() {
 		time_clip();
 	}
 }
+#endif
+
+
+/***************************** MAIN *****************************/
 void interactive_main(int argc, char**argv) {
 	glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE|GLUT_RGB);
@@ -617,6 +603,10 @@ void interactive_main(int argc, char**argv) {
     glutMainLoop();
 }
 int main(int argc, char **argv){
+#if defined(GRIDMESH_TIME_TEST)
+	time_main()
+#else
 	interactive_main(argc,argv);
+#endif
     return 0;
 }

@@ -906,7 +906,7 @@ void BLI_polyfill_calc(
         const int coords_sign,
         unsigned int (*r_tris)[3])
 {
-	PolyFill pf; printf(".");
+	PolyFill pf;
 	PolyIndex *indices = BLI_array_alloca(indices, coords_tot);
 
 #ifdef DEBUG_TIME

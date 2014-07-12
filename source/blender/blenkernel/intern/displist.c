@@ -1249,8 +1249,7 @@ void BKE_displist_make_surf(Scene *scene, Object *ob, ListBase *dispbase,
 			else {
 				dl = MEM_callocN(sizeof(DispList), "makeDispListsurf");
 				BLI_addtail(dispbase, dl);
-				int totu = nu->pntsu * resolu, totv = nu->pntsv * resolv;
-				BKE_nurb_make_displist(nu, dl, totu, totv);
+				BKE_nurb_make_displist(nu, dl);
 			}
 		}
 	}

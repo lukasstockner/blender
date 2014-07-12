@@ -45,6 +45,7 @@ struct Scene;
 struct Path;
 struct TextBox;
 struct rctf;
+struct DispList;
 
 typedef struct CurveCache {
 	ListBase disp;
@@ -180,6 +181,6 @@ void BKE_nurb_handles_test(struct Nurb *nu, const bool use_handles);
 /* Does not traverse nu's linked list. Fills dl with a mesh corresponding to
  * the single surface nu, performing trim if necessary.
  */
-void BKE_nurb_make_displist(struct Nurb *nurb, struct DispList *dl, int nu, int nv);
+void BKE_nurb_make_displist(struct Nurb *nurb, struct DispList *dl);
 
 #endif  /* __BKE_CURVE_H__ */
