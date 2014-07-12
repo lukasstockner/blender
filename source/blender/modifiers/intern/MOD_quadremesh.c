@@ -44,6 +44,12 @@
 
 #include "ONL_opennl.h"
 
+typedef struct GradientFlowLine {
+	int total_verts;
+	float(*co)[3];
+
+} GradientFlowLine;
+
 typedef struct LaplacianSystem {
 	bool is_matrix_computed;
 	bool has_solution;
@@ -51,6 +57,7 @@ typedef struct LaplacianSystem {
 	int total_edges;
 	int total_faces;
 	int total_features;
+	int total_gflines;
 	char features_grp_name[64];	/* Vertex Group name */
 	float(*co)[3];				/* Original vertex coordinates */
 	float(*no)[3];				/* Original face normal */
@@ -61,11 +68,24 @@ typedef struct LaplacianSystem {
 	int *constraints;			/* Feature points constraints*/
 	int *ringf_indices;			/* Indices of faces per vertex */
 	int *ringv_indices;			/* Indices of neighbors(vertex) per vertex */
+	GradientFlowLine *gflines;  /* Gradien flow lines of field g1*/
 	unsigned int(*faces)[4];	/* Copy of MFace (tessface) v1-v4 */
 	MeshElemMap *ringf_map;		/* Map of faces per vertex */
 	MeshElemMap *ringv_map;		/* Map of vertex per vertex */
 	NLContext *context;			/* System for solve general implicit rotations */
 } LaplacianSystem;
+
+static GradientFlowLine *newGradientFlowLine(LaplacianSystem *sys)
+{
+	if (sys->total_gflines == 0){
+		sys->gflines = MEM_mallocN(sizeof(GradientFlowLine), "QuadRemeshgflines");
+	}
+	else {
+		sys->gflines = MEM_reallocN(sys->gflines, sizeof(GradientFlowLine)* sys->total_gflines + 1);
+		sys->total_gflines += 1;
+	}
+	return &(sys->gflines[sys->total_gflines - 1]);
+}
 
 static LaplacianSystem *newLaplacianSystem(void)
 {
@@ -119,6 +139,7 @@ static void UNUSED_FUNCTION(deleteLaplacianSystem)(LaplacianSystem *sys)
 	MEM_SAFE_FREE(sys->ringv_indices);
 	MEM_SAFE_FREE(sys->ringf_map);
 	MEM_SAFE_FREE(sys->ringv_map);
+	MEM_SAFE_FREE(sys->gflines);
 	if (sys->context) {
 		nlDeleteContext(sys->context);
 	}
@@ -289,6 +310,83 @@ static void computeGradientFields(LaplacianSystem * sys)
 	}
 }
 
+/** 
+* int ifs; Index of vertx, this vertex is the seed for trace this flow line
+*/
+static void computeGradientFlowLine(LaplacianSystem * sys, int ivs){
+	float uvalue, minU, tempminU, x[3], p[3], q[3], i1[3], i2[3];
+	int i, numf, indexf, actualf;
+	int *fidn;
+	int *vin, has4v;
+	int totalverts = 0;
+	float(*vflowline)[3] = MEM_mallocN(sizeof(float[3]) * sys->total_verts, __func__);  /* over-alloc */
+	
+
+	numf = sys->ringf_map[ivs].count;
+	/* Choose the face with minimun value of U field*/
+	minU = 1000000;
+	fidn = sys->ringf_map[ivs].indices;
+	for (i = 0; i < numf; i++) {
+		indexf = fidn[i];
+		if (sys->U_field[indexf] < minU){
+			minU = sys->U_field[indexf];
+			i = numf + 1;
+		}
+	}
+
+	vin = sys->faces[indexf];
+	has4v = vin[3] ? 4 : 3;
+	zero_v3(x);
+	for (i = 0; i < has4v; i++){
+		add_v3_v3(x, sys->co[vin[i]]);
+	}
+	mul_v3_fl(x, 1.0 / ((float)has4v));
+	copy_v3_v3(vflowline[0], x);
+	totalverts++;
+
+	tempminU = 1000000;
+	actualf = indexf;
+	while (minU < tempminU) {
+		copy_v3_v3(p, vflowline[totalverts - 1]);
+		vin = sys->faces[actualf];
+		has4v = vin[3] ? 4 : 3;
+		if (has4v == 3) {
+			/** 1 - lines are coplanar, i1 is set to intersection*/
+			if (isect_line_line_v3(sys->co[vin[0]], sys->co[vin[1]], p, sys->gf1[actualf], i1, i2) == 1) {
+				copy_v3_v3(vflowline[totalverts], i1);
+				totalverts++;
+			}
+			else if (isect_line_line_v3(sys->co[vin[1]], sys->co[vin[2]], p, sys->gf1[actualf], i1, i2) == 1) {
+				copy_v3_v3(vflowline[totalverts], i1);
+				totalverts++;
+			}
+			else if (isect_line_line_v3(sys->co[vin[2]], sys->co[vin[0]], p, sys->gf1[actualf], i1, i2) == 1) {
+				copy_v3_v3(vflowline[totalverts], i1);
+				totalverts++;
+			}
+		}
+		else{
+			if (isect_line_line_v3(sys->co[vin[0]], sys->co[vin[1]], p, sys->gf1[actualf], i1, i2) == 1) {
+				copy_v3_v3(vflowline[totalverts], i1);
+				totalverts++;
+			}
+			else if (isect_line_line_v3(sys->co[vin[1]], sys->co[vin[2]], p, sys->gf1[actualf], i1, i2) == 1) {
+				copy_v3_v3(vflowline[totalverts], i1);
+				totalverts++;
+			}
+			else if (isect_line_line_v3(sys->co[vin[2]], sys->co[vin[3]], p, sys->gf1[actualf], i1, i2) == 1) {
+				copy_v3_v3(vflowline[totalverts], i1);
+				totalverts++;
+			}
+			else if (isect_line_line_v3(sys->co[vin[3]], sys->co[vin[0]], p, sys->gf1[actualf], i1, i2) == 1) {
+				copy_v3_v3(vflowline[totalverts], i1);
+				totalverts++;
+			}
+		}
+	}
+
+		
+}
 
 static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
 	float(*vertexCos)[3], int numVerts)
@@ -333,6 +431,14 @@ static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, Der
 	memcpy(sys->weights, weights, sizeof(float)* numVerts);
 	MEM_freeN(weights);
 	MEM_freeN(constraints);
+
+	createFaceRingMap(
+		dm->getNumVerts(dm), dm->getTessFaceArray(dm), dm->getNumTessFaces(dm),
+		&sys->ringf_map, &sys->ringf_indices);
+	createVertRingMap(
+		dm->getNumVerts(dm), dm->getEdgeArray(dm), dm->getNumEdges(dm),
+		&sys->ringv_map, &sys->ringv_indices);
+
 	tessface = dm->getTessFaceArray(dm);
 
 	for (i = 0; i < sys->total_faces; i++) {
