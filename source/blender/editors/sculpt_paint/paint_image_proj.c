@@ -4859,7 +4859,7 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 				Image *ima;
 
 				/* get the name of the texture layer type */
-				for (i = 0; i < sizeof(layer_type_items); i++) {
+				for (i = 0; i < ARRAY_SIZE(layer_type_items); i++) {
 					if (type == layer_type_items[i].value) {
 						BLI_strncpy(name, layer_type_items[i].name, TEXNAME_MAX);
 						break;
