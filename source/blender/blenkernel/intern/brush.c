@@ -185,14 +185,9 @@ Brush *BKE_brush_copy(Brush *brush)
 /* not brush itself */
 void BKE_brush_free(Brush *brush)
 {
-	if (brush->mtex.tex)
-		id_us_min(&brush->mtex.tex->id);
-
-	if (brush->mask_mtex.tex)
-		id_us_min(&brush->mask_mtex.tex->id);
-
-	if (brush->paint_curve)
-		id_us_min(&brush->paint_curve->id);
+	id_us_min((ID *)brush->mtex.tex);
+	id_us_min((ID *)brush->mask_mtex.tex);
+	id_us_min((ID *)brush->paint_curve);
 
 	if (brush->icon_imbuf)
 		IMB_freeImBuf(brush->icon_imbuf);
