@@ -851,11 +851,11 @@ static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *ind
 	MTFace **mtface_base;
 	MTFace *stencil_base;
 	int stencil;
-	MFace *f;
+	MFace *mf;
 
 	/* should have been checked for before, reassert */
 	BLI_assert(DM_get_tessface_data_layer(dm, CD_MTFACE));
-	f = dm->getTessFaceArray(dm);
+	mf = dm->getTessFaceArray(dm);
 	mtface_base = MEM_mallocN(totmaterial * sizeof(*mtface_base), "texslots");
 
 	for (i = 0; i < totmaterial; i++) {
@@ -867,8 +867,8 @@ static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *ind
 
 	totface = dm->getNumTessFaces(dm);
 
-	for (i = 0; i < totface; i++, f++) {
-		int mat_i = f->mat_nr;
+	for (i = 0; i < totface; i++, mf++) {
+		int mat_i = mf->mat_nr;
 		start = index[mat_orig_to_new[mat_i]];
 
 		/* v1 v2 v3 */
@@ -880,7 +880,7 @@ static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *ind
 		copy_v2_v2(&varray[start + 10], stencil_base[i].uv[2]);
 		index[mat_orig_to_new[mat_i]] += 12;
 
-		if (f->v4) {
+		if (mf->v4) {
 			/* v3 v4 v1 */
 			copy_v2_v2(&varray[start + 12], mtface_base[mat_i][i].uv[2]);
 			copy_v2_v2(&varray[start + 14], stencil_base[i].uv[2]);

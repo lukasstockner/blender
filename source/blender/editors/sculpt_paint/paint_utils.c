@@ -239,8 +239,8 @@ static void imapaint_tri_weights(float matrix[4][4], GLint view[4],
 	imapaint_project(matrix, v3, pv3);
 
 	/* do inverse view mapping, see gluProject man page */
-	h[0] = (co[0] - view[0]) * 2.0f / view[2] - 1;
-	h[1] = (co[1] - view[1]) * 2.0f / view[3] - 1;
+	h[0] = (co[0] - view[0]) * 2.0f / view[2] - 1.0f;
+	h[1] = (co[1] - view[1]) * 2.0f / view[3] - 1.0f;
 	h[2] = 1.0f;
 
 	/* solve for (w1,w2,w3)/perspdiv in:
@@ -355,19 +355,19 @@ static void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, c
 }
 
 /* returns 0 if not found, otherwise 1 */
-static int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *index, unsigned int totface)
+static int imapaint_pick_face(ViewContext *vc, const int mval[2], unsigned int *r_index, unsigned int totface)
 {
 	if (totface == 0)
 		return 0;
 
 	/* sample only on the exact position */
-	*index = view3d_sample_backbuf(vc, mval[0], mval[1]);
+	*r_index = view3d_sample_backbuf(vc, mval[0], mval[1]);
 
-	if ((*index) == 0 || (*index) > (unsigned int)totface) {
+	if ((*r_index) == 0 || (*r_index) > (unsigned int)totface) {
 		return 0;
 	}
 
-	(*index)--;
+	(*r_index)--;
 
 	return 1;
 }
@@ -455,8 +455,8 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 						imapaint_pick_uv(scene, ob, faceindex, mval, uv);
 						sample_success = true;
 
-						u = (float)fmodf(uv[0], 1.0f);
-						v = (float)fmodf(uv[1], 1.0f);
+						u = fmodf(uv[0], 1.0f);
+						v = fmodf(uv[1], 1.0f);
 
 						if (u < 0.0f) u += 1.0f;
 						if (v < 0.0f) v += 1.0f;
@@ -468,8 +468,9 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 							float rgba_f[4];
 							bilinear_interpolation_color_wrap(ibuf, NULL, rgba_f, u, v);
 							straight_to_premul_v4(rgba_f);
-							if (use_palette)
+							if (use_palette) {
 								linearrgb_to_srgb_v3_v3(color->rgb, rgba_f);
+							}
 							else {
 								linearrgb_to_srgb_v3_v3(rgba_f, rgba_f);
 								BKE_brush_color_set(scene, br, rgba_f);
@@ -478,8 +479,9 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 						else {
 							unsigned char rgba[4];
 							bilinear_interpolation_color_wrap(ibuf, rgba, NULL, u, v);
-							if (use_palette)
+							if (use_palette) {
 								rgb_uchar_to_float(color->rgb, rgba);
+							}
 							else {
 								float rgba_f[3];
 								rgb_uchar_to_float(rgba_f, rgba);
@@ -509,8 +511,9 @@ void paint_sample_color(bContext *C, ARegion *ar, int x, int y, bool texpaint_pr
 	}
 	cp = (unsigned char *)&col;
 	
-	if (use_palette)
+	if (use_palette) {
 		rgb_uchar_to_float(color->rgb, cp);
+	}
 	else {
 		float rgba_f[3];
 		rgb_uchar_to_float(rgba_f, cp);

@@ -996,8 +996,8 @@ typedef struct UnifiedPaintSettings {
 	int draw_anchored;
 	int anchored_size;
 
-	int draw_inverted;
-	int pad3;
+	char draw_inverted;
+	char pad3[7];
 
 	float overlap_factor; /* normalization factor due to accumulated value of curve along spacing.
 	                       * Calculated when brush spacing changes to dampen strength of stroke

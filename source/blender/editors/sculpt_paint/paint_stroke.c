@@ -678,9 +678,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 void paint_stroke_data_free(struct wmOperator *op)
 {
 	BKE_paint_set_overlay_override(0);
-	if (op->customdata)
-		MEM_freeN(op->customdata);
-	op->customdata = NULL;
+	MEM_SAFE_FREE(op->customdata);
 }
 
 static void stroke_done(struct bContext *C, struct wmOperator *op)

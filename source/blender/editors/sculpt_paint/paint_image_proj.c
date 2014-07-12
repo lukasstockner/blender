@@ -517,8 +517,8 @@ static int project_paint_PickFace(const ProjPaintState *ps, const float pt[2], f
 static void uvco_to_wrapped_pxco(const float uv[2], int ibuf_x, int ibuf_y, float *x, float *y)
 {
 	/* use */
-	*x = (float)fmodf(uv[0], 1.0f);
-	*y = (float)fmodf(uv[1], 1.0f);
+	*x = fmodf(uv[0], 1.0f);
+	*y = fmodf(uv[1], 1.0f);
 
 	if (*x < 0.0f) *x += 1.0f;
 	if (*y < 0.0f) *y += 1.0f;
@@ -803,11 +803,11 @@ static int line_isect_x(const float p1[2], const float p2[2], const float x_leve
 static bool cmp_uv(const float vec2a[2], const float vec2b[2])
 {
 	/* if the UV's are not between 0.0 and 1.0 */
-	float xa = (float)fmodf(vec2a[0], 1.0f);
-	float ya = (float)fmodf(vec2a[1], 1.0f);
+	float xa = fmodf(vec2a[0], 1.0f);
+	float ya = fmodf(vec2a[1], 1.0f);
 
-	float xb = (float)fmodf(vec2b[0], 1.0f);
-	float yb = (float)fmodf(vec2b[1], 1.0f);
+	float xb = fmodf(vec2b[0], 1.0f);
+	float yb = fmodf(vec2b[1], 1.0f);
 
 	if (xa < 0.0f) xa += 1.0f;
 	if (ya < 0.0f) ya += 1.0f;

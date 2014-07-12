@@ -731,12 +731,12 @@ static void rna_def_image_paint_capabilities(BlenderRNA *brna)
 	                       "Read-only indications of which brush operations "
 	                       "are supported by the current image paint brush");
 
-#define IMAPAINT_TOOL_CAPABILITY(prop_name_, ui_name_)                          \
-	prop = RNA_def_property(srna, #prop_name_,                          \
-	                        PROP_BOOLEAN, PROP_NONE);                   \
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);                   \
-	RNA_def_property_boolean_funcs(prop, "rna_ImapaintToolCapabilities_"      \
-	                               #prop_name_ "_get", NULL);           \
+#define IMAPAINT_TOOL_CAPABILITY(prop_name_, ui_name_)                       \
+	prop = RNA_def_property(srna, #prop_name_,                               \
+	                        PROP_BOOLEAN, PROP_NONE);                        \
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);                        \
+	RNA_def_property_boolean_funcs(prop, "rna_ImapaintToolCapabilities_"     \
+	                               #prop_name_ "_get", NULL);                \
 	RNA_def_property_ui_text(prop, ui_name_, NULL)
 
 	IMAPAINT_TOOL_CAPABILITY(has_accumulate, "Has Accumulate");
