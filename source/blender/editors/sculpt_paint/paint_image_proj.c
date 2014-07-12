@@ -4798,8 +4798,6 @@ void PAINT_OT_image_from_view(wmOperatorType *ot)
 
 /* Add layer operator */
 
-#define TEXNAME_MAX 30
-
 static EnumPropertyItem layer_type_items[] = {
 	{MAP_COL, "DIFFUSE_COLOR", 0, "Diffuse Color", ""},
 	{MAP_REF, "DIFFUSE_INTENSITY", 0, "Diffuse Intensity", ""},
@@ -4853,23 +4851,20 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 
 			/* successful creation of mtex layer, now create set */
 			if (mtex) {
-				char imagename[FILE_MAX];
-				char name[TEXNAME_MAX];
 				Main *bmain = CTX_data_main(C);
 				Image *ima;
+				const char *name;
 
 				/* get the name of the texture layer type */
-				for (i = 0; i < ARRAY_SIZE(layer_type_items); i++) {
-					if (type == layer_type_items[i].value) {
-						BLI_strncpy(name, layer_type_items[i].name, TEXNAME_MAX);
-						break;
-					}
-				}
+				i = RNA_enum_from_value(layer_type_items, type);
+				BLI_assert(i != -1);
+				name = layer_type_items[i].name;
 
 				mtex->tex = add_texture(bmain, DATA_(name));
 				mtex->mapto = type;
 
 				if (mtex->tex) {
+					char imagename[FILE_MAX];
 					float color[4];
 					bool use_float = type == MAP_NORM;
 
