@@ -510,7 +510,7 @@ void DM_update_materials(DerivedMesh *dm, Object *ob)
 	}
 }
 
-MTFace *DM_active_paint_uvlayer(DerivedMesh *dm, int mat_nr)
+MTFace *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
 {
 	MTFace *tf_base;
 

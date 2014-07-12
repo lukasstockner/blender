@@ -2349,7 +2349,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		/* texture painting, handle the correct uv layer here */
 		if (flag & DM_DRAW_USE_TEXPAINT_UV) {
 			if (mat_nr != mat_nr_cache) {
-				tf_base = DM_active_paint_uvlayer(dm, mat_nr);
+				tf_base = DM_paint_uvlayer_active_get(dm, mat_nr);
 
 				mat_nr_cache = mat_nr;
 			}

@@ -859,7 +859,7 @@ static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *ind
 	mtface_base = MEM_mallocN(totmaterial * sizeof(*mtface_base), "texslots");
 
 	for (i = 0; i < totmaterial; i++) {
-		mtface_base[i] = DM_active_paint_uvlayer(dm, i);
+		mtface_base[i] = DM_paint_uvlayer_active_get(dm, i);
 	}
 
 	stencil = CustomData_get_stencil_layer(&dm->faceData, CD_MTFACE);

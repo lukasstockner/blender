@@ -738,7 +738,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 
 			if (uvflag & DM_DRAW_USE_TEXPAINT_UV) {
 				if (mf->mat_nr != mat_nr_cache) {
-					tf_base = DM_active_paint_uvlayer(dm, mf->mat_nr);
+					tf_base = DM_paint_uvlayer_active_get(dm, mf->mat_nr);
 
 					mat_nr_cache = mf->mat_nr;
 				}

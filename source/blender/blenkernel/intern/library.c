@@ -1024,7 +1024,7 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_palette_free((Palette *)id);
 			break;
 		case ID_PC:
-			BKE_free_paint_curve((PaintCurve *)id);
+			BKE_paint_curve_free((PaintCurve *)id);
 			break;
 	}
 

@@ -107,7 +107,7 @@ void                 BKE_palette_cleanup(struct Palette *palette);
 
 /* paint curves */
 struct PaintCurve *BKE_paint_curve_add(struct Main *bmain, const char *name);
-void BKE_free_paint_curve(struct PaintCurve *pc);
+void BKE_paint_curve_free(struct PaintCurve *pc);
 
 void BKE_paint_init(struct Paint *p, const char col[3]);
 void BKE_paint_free(struct Paint *p);

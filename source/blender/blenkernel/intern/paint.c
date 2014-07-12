@@ -271,7 +271,7 @@ void BKE_paint_brush_set(Paint *p, Brush *br)
 	}
 }
 
-void BKE_free_paint_curve(PaintCurve *pc)
+void BKE_paint_curve_free(PaintCurve *pc)
 {
 	if (pc->points) {
 		MEM_freeN(pc->points);
