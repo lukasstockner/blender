@@ -4889,7 +4889,7 @@ bool proj_paint_add_slot(bContext *C, int type, Material *ma)
 					ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, 32, use_float,
 					                                               IMA_GENTYPE_BLANK, color);
 
-					BKE_refresh_texpaint_slot_cache(ma, false);
+					BKE_texpaint_slot_refresh_cache(ma, false);
 					BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
 					WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, mtex->tex);
 					WM_event_add_notifier(C, NC_IMAGE | NA_ADDED, ima);

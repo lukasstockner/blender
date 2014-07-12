@@ -1306,7 +1306,7 @@ bool object_remove_material_slot(Object *ob)
 	return true;
 }
 
-void BKE_clear_texpaint_slots(struct Material *ma)
+void BKE_texpaint_slots_clear(struct Material *ma)
 {
 
 	if (ma->texpaintslot) {
@@ -1326,7 +1326,7 @@ static bool get_mtex_slot_valid_texpaint(struct MTex *mtex)
 	        mtex->tex->ima);
 }
 
-void BKE_refresh_texpaint_slot_cache(Material *ma, bool use_nodes)
+void BKE_texpaint_slot_refresh_cache(Material *ma, bool use_nodes)
 {
 	MTex **mtex;
 	short count = 0;
@@ -1404,16 +1404,13 @@ void BKE_refresh_texpaint_slot_cache(Material *ma, bool use_nodes)
 	return;
 }
 
-void BKE_refresh_object_texpaint_slots(struct Object *ob, bool use_nodes)
+void BKE_texpaint_slots_refresh_object(struct Object *ob, bool use_nodes)
 {
 	int i;
 
-	if (!ob)
-		return;
-
 	for (i = 1; i < ob->totcol + 1; i++) {
 		Material *ma = give_current_material(ob, i);
-		BKE_refresh_texpaint_slot_cache(ma, use_nodes);
+		BKE_texpaint_slot_refresh_cache(ma, use_nodes);
 	}
 }
 
