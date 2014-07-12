@@ -364,6 +364,7 @@ class VIEW3D_PT_tools_meshedit(View3DPanel, Panel):
 
         draw_repeat_tools(context, layout)
 
+
 class VIEW3D_PT_tools_meshweight(View3DPanel, Panel):
     bl_category = "Tools"
     bl_context = "mesh_edit"
@@ -388,6 +389,7 @@ class VIEW3D_PT_tools_meshweight(View3DPanel, Panel):
     def draw(self, context):
         layout = self.layout
         self.draw_generic(layout)
+
 
 class VIEW3D_PT_tools_add_mesh_edit(View3DPanel, Panel):
     bl_category = "Create"
@@ -1012,7 +1014,7 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
                 col.template_palette(settings, "palette", color=True)
             self.prop_unified_color(col, context, brush, "color", text="")
 
-            col.separator()			
+            col.separator()
             row = col.row(align=True)
             self.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
             self.prop_unified_size(row, context, brush, "use_pressure_size")
@@ -1022,9 +1024,9 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
             # XXX - TODO
-            #row = col.row(align=True)
-            #row.prop(brush, "jitter", slider=True)
-            #row.prop(brush, "use_pressure_jitter", toggle=True, text="")
+            # row = col.row(align=True)
+            # row.prop(brush, "jitter", slider=True)
+            # row.prop(brush, "use_pressure_jitter", toggle=True, text="")
             col.separator()
             col.prop(brush, "vertex_tool", text="Blend")
 
@@ -1066,12 +1068,16 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
 
         if len(ob.material_slots) > 1:
             col.label("Materials")
-            col.template_list("MATERIAL_UL_matslots", "", ob, "material_slots", ob, "active_material_index", rows=2)
+            col.template_list("MATERIAL_UL_matslots", "",
+                              ob, "material_slots",
+                              ob, "active_material_index", rows=2)
 
         mat = ob.active_material
         if mat:
             col.label("Available Paint Slots")
-            col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "paint_active_slot", rows=2)
+            col.template_list("TEXTURE_UL_texpaintslots", "",
+                              mat, "texture_paint_slots",
+                              mat, "paint_active_slot", rows=2)
 
             if not mat.use_nodes:
                 col.operator_menu_enum("paint.add_texture_paint_slot", "type")
@@ -1080,10 +1086,12 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
                 row.prop(settings, "slot_xresolution_default")
                 row.prop(settings, "slot_yresolution_default")
                 col.prop(settings, "slot_color_default")
-                
+
             if brush.image_tool == 'CLONE' and settings.use_clone_layer:
                 col.label("Clone Slot")
-                col.template_list("TEXTURE_UL_texpaintslots", "", mat, "texture_paint_slots", mat, "paint_clone_slot", rows=2)
+                col.template_list("TEXTURE_UL_texpaintslots", "",
+                                  mat, "texture_paint_slots",
+                                  mat, "paint_clone_slot", rows=2)
 
 
 class VIEW3D_PT_tools_brush_overlay(Panel, View3DPaintPanel):
@@ -1547,7 +1555,7 @@ class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
 
         col = layout.column()
         row = col.row()
-        #col.prop(vpaint, "mode", text="")
+        # col.prop(vpaint, "mode", text="")
         row.prop(vpaint, "use_normal")
         col.prop(vpaint, "use_spray")
 

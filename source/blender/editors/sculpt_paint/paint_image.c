@@ -124,12 +124,12 @@ typedef struct UndoImageTile {
 static ImagePaintPartialRedraw imapaintpartial = {0, 0, 0, 0, 0};
 static SpinLock undolock;
 
-void image_undo_init_locks()
+void image_undo_init_locks(void)
 {
 	BLI_spin_init(&undolock);
 }
 
-void image_undo_end_locks()
+void image_undo_end_locks(void)
 {
 	BLI_spin_end(&undolock);
 }

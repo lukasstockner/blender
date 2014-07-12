@@ -37,7 +37,7 @@ class ImagePaintPanel(UnifiedPaintPanel):
 class BrushButtonsPanel(UnifiedPaintPanel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'TOOLS'
- 
+
     @classmethod
     def poll(cls, context):
         sima = context.space_data
@@ -158,7 +158,7 @@ class IMAGE_MT_brush(Menu):
 
         # brush tool
         layout.prop_menu_enum(brush, "image_tool")
-    
+
 
 class IMAGE_MT_image(Menu):
     bl_label = "Image"
@@ -696,6 +696,7 @@ class IMAGE_PT_paint(Panel, BrushButtonsPanel):
         if brush:
             brush_texpaint_common(self, context, layout, brush, settings)
 
+
 class IMAGE_PT_tools_brush_overlay(BrushButtonsPanel, Panel):
     bl_label = "Overlay"
     bl_options = {'DEFAULT_CLOSED'}
@@ -833,7 +834,7 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
             row = col.row(align=True)
             row.prop(brush, "spacing", text="Spacing")
             row.prop(brush, "use_pressure_spacing", toggle=True, text="")
-            
+
         if brush.use_line or brush.use_curve:
             col.separator()
             row = col.row(align=True)
@@ -869,6 +870,7 @@ class IMAGE_PT_paint_stroke(BrushButtonsPanel, Panel):
             col.separator()
 
         col.prop(toolsettings, "input_samples")
+
 
 class IMAGE_PT_paint_curve(BrushButtonsPanel, Panel):
     bl_label = "Paint Curve"
@@ -921,6 +923,7 @@ class IMAGE_PT_tools_brush_appearance(BrushButtonsPanel, Panel):
         sub = col.column()
         sub.active = brush.use_custom_icon
         sub.prop(brush, "icon_filepath", text="")
+
 
 class IMAGE_PT_tools_paint_options(BrushButtonsPanel, Panel):
     bl_label = "Image Paint"

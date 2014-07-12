@@ -98,7 +98,7 @@ def brush_texpaint_common(panel, context, layout, brush, settings):
 
             if settings.palette:
                 col.template_palette(settings, "palette", color=True)
-						
+
             if brush.use_gradient:
                 col.label("Gradient Colors")
                 col.template_color_ramp(brush, "gradient", expand=True)
@@ -139,7 +139,7 @@ def brush_texpaint_common(panel, context, layout, brush, settings):
         col.separator()
         col.prop(brush, "clone_image", text="Image")
         col.prop(brush, "clone_alpha", text="Alpha")
-                
+
     col.separator()
 
     if capabilities.has_radius:
@@ -171,6 +171,7 @@ def brush_texpaint_common(panel, context, layout, brush, settings):
 
     col.separator()
     col.template_ID(settings, "palette", new="palette.new")
+
 
 # Used in both the View3D toolbar and texture properties
 def brush_texture_settings(layout, brush, sculpt):
@@ -238,7 +239,7 @@ def brush_mask_texture_settings(layout, brush):
         layout.operator("brush.stencil_reset_transform").mask = True
 
     col = layout.column()
-    col.prop(brush, "use_pressure_masking", text="");
+    col.prop(brush, "use_pressure_masking", text="")
     col.label(text="Angle:")
     col.active = brush.brush_capabilities.has_texture_angle
     col.prop(mask_tex_slot, "angle", text="")
@@ -247,5 +248,3 @@ def brush_mask_texture_settings(layout, brush):
     split = layout.split()
     split.prop(mask_tex_slot, "offset")
     split.prop(mask_tex_slot, "scale")
-
-
