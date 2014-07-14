@@ -41,14 +41,13 @@
 #include "DNA_lamp_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_cpu.h"
+#include "BLI_system.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
 
-#include "BKE_global.h"
 #include "BKE_node.h"
 
 
@@ -119,8 +118,6 @@ RayObject *RE_rayobject_create(int type, int size, int octree_resolution)
 		
 	if (type == R_RAYSTRUCTURE_OCTREE) //TODO dynamic ocres
 		res = RE_rayobject_octree_create(octree_resolution, size);
-	else if (type == R_RAYSTRUCTURE_BLIBVH)
-		res = RE_rayobject_blibvh_create(size);
 	else if (type == R_RAYSTRUCTURE_VBVH)
 		res = RE_rayobject_vbvh_create(size);
 	else if (type == R_RAYSTRUCTURE_SIMD_SVBVH)
@@ -478,9 +475,9 @@ static void shade_ray_set_derivative(ShadeInput *shi)
 		t10= v3[axis1]-v2[axis1]; t11= v3[axis2]-v2[axis2];
 	}
 	else {
-		float *v1= shi->v1->co;
-		float *v2= shi->v2->co;
-		float *v3= shi->v3->co;
+		const float *v1= shi->v1->co;
+		const float *v2= shi->v2->co;
+		const float *v3= shi->v3->co;
 
 		/* same as above */
 		t00= v3[axis1]-v1[axis1]; t01= v3[axis2]-v1[axis2];
@@ -2329,7 +2326,7 @@ static void ray_shadow_qmc(ShadeInput *shi, LampRen *lar, const float lampco[3],
 static void ray_shadow_jitter(ShadeInput *shi, LampRen *lar, const float lampco[3], float shadfac[4], Isect *isec)
 {
 	/* area soft shadow */
-	float *jitlamp;
+	const float *jitlamp;
 	float fac=0.0f, div=0.0f, vec[3];
 	int a, j= -1, mask;
 	RayHint point_hint;

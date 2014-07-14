@@ -37,13 +37,13 @@
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
-#include "BKE_scene.h"
 #include "BKE_tracking.h"
 
 #include "BLF_api.h"
@@ -51,8 +51,6 @@
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
-
-#include "MEM_guardedalloc.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -183,7 +181,7 @@ static void node_buts_time(uiLayout *layout, bContext *UNUSED(C), PointerRNA *pt
 	}
 #endif
 
-	uiTemplateCurveMapping(layout, ptr, "curve", 's', 0, 0);
+	uiTemplateCurveMapping(layout, ptr, "curve", 's', false, false, false);
 
 	row = uiLayoutRow(layout, true);
 	uiItemR(row, ptr, "frame_start", 0, IFACE_("Sta"), ICON_NONE);
@@ -197,7 +195,7 @@ static void node_buts_colorramp(uiLayout *layout, bContext *UNUSED(C), PointerRN
 
 static void node_buts_curvevec(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
 {
-	uiTemplateCurveMapping(layout, ptr, "mapping", 'v', 0, 0);
+	uiTemplateCurveMapping(layout, ptr, "mapping", 'v', false, false, false);
 }
 
 #define SAMPLE_FLT_ISNONE FLT_MAX
@@ -225,7 +223,7 @@ static void node_buts_curvecol(uiLayout *layout, bContext *UNUSED(C), PointerRNA
 		cumap->flag &= ~CUMA_DRAW_SAMPLE;
 	}
 
-	uiTemplateCurveMapping(layout, ptr, "mapping", 'c', 0, 0);
+	uiTemplateCurveMapping(layout, ptr, "mapping", 'c', false, false, false);
 }
 
 static void node_buts_normal(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -337,7 +335,7 @@ static void node_draw_frame_prepare(const bContext *UNUSED(C), bNodeTree *ntree,
 {
 	const float margin = 1.5f * U.widget_unit;
 	NodeFrame *data = (NodeFrame *)node->storage;
-	int bbinit;
+	bool bbinit;
 	bNode *tnode;
 	rctf rect, noderect;
 	float xmax, ymax;
@@ -873,6 +871,20 @@ static void node_shader_buts_bump(uiLayout *layout, bContext *UNUSED(C), Pointer
 	uiItemR(layout, ptr, "invert", 0, NULL, 0);
 }
 
+static void node_shader_buts_uvmap(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "from_dupli", 0, NULL, 0);
+
+	if (!RNA_boolean_get(ptr, "from_dupli")) {
+		PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
+
+		if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
+			PointerRNA dataptr = RNA_pointer_get(&obptr, "data");
+			uiItemPointerR(layout, ptr, "uv_map", &dataptr, "uv_textures", "", ICON_NONE);
+		}
+	}
+}
+
 static void node_shader_buts_normal_map(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "space", 0, "", 0);
@@ -918,13 +930,18 @@ static void node_shader_buts_glossy(uiLayout *layout, bContext *UNUSED(C), Point
 	uiItemR(layout, ptr, "distribution", 0, "", ICON_NONE);
 }
 
+static void node_shader_buts_anisotropic(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
+{
+	uiItemR(layout, ptr, "distribution", 0, "", ICON_NONE);
+}
+
 static void node_shader_buts_subsurface(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	/* SSS does not work on GPU yet */
 	PointerRNA scene = CTX_data_pointer_get(C, "scene");
 	if (scene.data) {
 		PointerRNA cscene = RNA_pointer_get(&scene, "cycles");
-		if (cscene.data && RNA_enum_get(&cscene, "device") == 1)
+		if (cscene.data && (RNA_enum_get(&cscene, "device") == 1 && U.compute_device_type != 0))
 			uiItemL(layout, IFACE_("SSS not supported on GPU"), ICON_ERROR);
 	}
 
@@ -934,12 +951,12 @@ static void node_shader_buts_subsurface(uiLayout *layout, bContext *C, PointerRN
 
 static void node_shader_buts_volume(uiLayout *layout, bContext *C, PointerRNA *UNUSED(ptr))
 {
-	/* SSS does not work on GPU yet */
+	/* Volume does not work on GPU yet */
 	PointerRNA scene = CTX_data_pointer_get(C, "scene");
 	if (scene.data) {
 		PointerRNA cscene = RNA_pointer_get(&scene, "cycles");
 
-		if (cscene.data && RNA_enum_get(&cscene, "device") == 1)
+		if (cscene.data && (RNA_enum_get(&cscene, "device") == 1 && U.compute_device_type != 0))
 			uiItemL(layout, IFACE_("Volumes not supported on GPU"), ICON_ERROR);
 	}
 }
@@ -1084,6 +1101,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 		case SH_NODE_BSDF_REFRACTION:
 			ntype->draw_buttons = node_shader_buts_glossy;
 			break;
+		case SH_NODE_BSDF_ANISOTROPIC:
+			ntype->draw_buttons = node_shader_buts_anisotropic;
+			break;
 		case SH_NODE_SUBSURFACE_SCATTERING:
 			ntype->draw_buttons = node_shader_buts_subsurface;
 			break;
@@ -1102,6 +1122,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 		case SH_NODE_SCRIPT:
 			ntype->draw_buttons = node_shader_buts_script;
 			ntype->draw_buttons_ex = node_shader_buts_script_ex;
+			break;
+		case SH_NODE_UVMAP:
+			ntype->draw_buttons = node_shader_buts_uvmap;
 			break;
 	}
 }
@@ -1818,7 +1841,7 @@ static void node_composit_buts_huecorrect(uiLayout *layout, bContext *UNUSED(C),
 		cumap->flag &= ~CUMA_DRAW_SAMPLE;
 	}
 
-	uiTemplateCurveMapping(layout, ptr, "mapping", 'h', 0, 0);
+	uiTemplateCurveMapping(layout, ptr, "mapping", 'h', false, false, false);
 }
 
 static void node_composit_buts_ycc(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr)
@@ -2708,7 +2731,7 @@ static void node_template_properties_update(bNodeType *ntype)
 static void node_socket_undefined_draw(bContext *UNUSED(C), uiLayout *layout, PointerRNA *UNUSED(ptr), PointerRNA *UNUSED(node_ptr),
                                        const char *UNUSED(text))
 {
-	uiItemL(layout, "Undefined Socket Type", ICON_ERROR);
+	uiItemL(layout, IFACE_("Undefined Socket Type"), ICON_ERROR);
 }
 
 static void node_socket_undefined_draw_color(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PointerRNA *UNUSED(node_ptr), float *r_color)
@@ -2721,7 +2744,7 @@ static void node_socket_undefined_draw_color(bContext *UNUSED(C), PointerRNA *UN
 
 static void node_socket_undefined_interface_draw(bContext *UNUSED(C), uiLayout *layout, PointerRNA *UNUSED(ptr))
 {
-	uiItemL(layout, "Undefined Socket Type", ICON_ERROR);
+	uiItemL(layout, IFACE_("Undefined Socket Type"), ICON_ERROR);
 }
 
 static void node_socket_undefined_interface_draw_color(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), float *r_color)
@@ -2927,8 +2950,8 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 			uiLayout *row;
 			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
 			row = uiLayoutRow(layout, true);
-			uiItemR(row, ptr, "min_value", 0, "Min", 0);
-			uiItemR(row, ptr, "max_value", 0, "Max", 0);
+			uiItemR(row, ptr, "min_value", 0, IFACE_("Min"), 0);
+			uiItemR(row, ptr, "max_value", 0, IFACE_("Max"), 0);
 			break;
 		}
 		case SOCK_INT:
@@ -2936,8 +2959,8 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 			uiLayout *row;
 			uiItemR(layout, ptr, "default_value", 0, NULL, 0);
 			row = uiLayoutRow(layout, true);
-			uiItemR(row, ptr, "min_value", 0, "Min", 0);
-			uiItemR(row, ptr, "max_value", 0, "Max", 0);
+			uiItemR(row, ptr, "min_value", 0, IFACE_("Min"), 0);
+			uiItemR(row, ptr, "max_value", 0, IFACE_("Max"), 0);
 			break;
 		}
 		case SOCK_BOOLEAN:
@@ -2950,8 +2973,8 @@ static void std_node_socket_interface_draw(bContext *UNUSED(C), uiLayout *layout
 			uiLayout *row;
 			uiItemR(layout, ptr, "default_value", UI_ITEM_R_EXPAND, NULL, 0);
 			row = uiLayoutRow(layout, true);
-			uiItemR(row, ptr, "min_value", 0, "Min", 0);
-			uiItemR(row, ptr, "max_value", 0, "Max", 0);
+			uiItemR(row, ptr, "min_value", 0, IFACE_("Min"), 0);
+			uiItemR(row, ptr, "max_value", 0, IFACE_("Max"), 0);
 			break;
 		}
 		case SOCK_RGBA:
@@ -3085,7 +3108,7 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				IMB_display_buffer_release(cache_handle);
 		}
 		
-		/** @note draw selected info on backdrop */
+		/** \note draw selected info on backdrop */
 		if (snode->edittree) {
 			bNode *node = snode->edittree->nodes.first;
 			rctf *viewer_border = &snode->nodetree->viewer_border;
@@ -3099,20 +3122,17 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			}
 			
 			if ((snode->nodetree->flag & NTREE_VIEWER_BORDER) &&
-			        viewer_border->xmin < viewer_border->xmax &&
-			        viewer_border->ymin < viewer_border->ymax)
+			    viewer_border->xmin < viewer_border->xmax &&
+			    viewer_border->ymin < viewer_border->ymax)
 			{
-				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-				setlinestyle(3);
-				cpack(0x4040FF);
-				
-				glRectf(x + snode->zoom * viewer_border->xmin * ibuf->x,
-				        y + snode->zoom * viewer_border->ymin * ibuf->y,
-				        x + snode->zoom * viewer_border->xmax * ibuf->x,
-				        y + snode->zoom * viewer_border->ymax * ibuf->y);
-				
-				setlinestyle(0);
-				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+				rcti pixel_border;
+				UI_ThemeColor(TH_ACTIVE);
+				BLI_rcti_init(&pixel_border,
+				              x + snode->zoom * viewer_border->xmin * ibuf->x,
+				              x + snode->zoom * viewer_border->xmax * ibuf->x,
+				              y + snode->zoom * viewer_border->ymin * ibuf->y,
+				              y + snode->zoom * viewer_border->ymax * ibuf->y);
+				glaDrawBorderCorners(&pixel_border, 1.0f, 1.0f);
 			}
 		}
 		

@@ -35,9 +35,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_stackdefines.h"
 #include "BLI_bitmap.h"
 #include "BLI_math.h"
-#include "BLI_string.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_mesh.h"
@@ -274,8 +274,8 @@ static DerivedMesh *applyModifier(
 		            face_nors, true);
 	}
 
-	STACK_INIT(new_vert_arr);
-	STACK_INIT(new_edge_arr);
+	STACK_INIT(new_vert_arr, numVerts * 2);
+	STACK_INIT(new_edge_arr, numEdges * 2);
 
 	if (smd->flag & MOD_SOLIDIFY_RIM) {
 		BLI_bitmap *orig_mvert_tag = BLI_BITMAP_NEW(numVerts, __func__);
@@ -326,8 +326,8 @@ static DerivedMesh *applyModifier(
 
 		for (eidx = 0, ed = orig_medge; eidx < numEdges; eidx++, ed++) {
 			if (!ELEM(edge_users[eidx], INVALID_UNUSED, INVALID_PAIR)) {
-				BLI_BITMAP_SET(orig_mvert_tag, ed->v1);
-				BLI_BITMAP_SET(orig_mvert_tag, ed->v2);
+				BLI_BITMAP_ENABLE(orig_mvert_tag, ed->v1);
+				BLI_BITMAP_ENABLE(orig_mvert_tag, ed->v2);
 				STACK_PUSH(new_edge_arr, eidx);
 				newFaces++;
 				newLoops += 4;
@@ -338,7 +338,7 @@ static DerivedMesh *applyModifier(
 #undef INVALID_PAIR
 
 		for (i = 0; i < numVerts; i++) {
-			if (BLI_BITMAP_GET(orig_mvert_tag, i)) {
+			if (BLI_BITMAP_TEST(orig_mvert_tag, i)) {
 				old_vert_arr[i] = STACK_SIZE(new_vert_arr);
 				STACK_PUSH(new_vert_arr, i);
 				newEdges++;
@@ -538,13 +538,13 @@ static DerivedMesh *applyModifier(
 				    LIKELY(((orig_medge[ml[i_curr].e].flag & ME_EDGE_TMP_TAG) == 0) &&
 				           ((orig_medge[ml[i_next].e].flag & ME_EDGE_TMP_TAG) == 0)))
 				{
-					vert_angles[vidx] += shell_angle_to_dist(angle_normalized_v3v3(vert_nors[vidx], face_nors[i])) * angle;
+					vert_angles[vidx] += shell_v3v3_normalized_to_dist(vert_nors[vidx], face_nors[i]) * angle;
 				}
 				else {
 					vert_angles[vidx] += angle;
 				}
 #else
-				vert_angles[vidx] += shell_angle_to_dist(angle_normalized_v3v3(vert_nors[vidx], face_nors[i])) * angle;
+				vert_angles[vidx] += shell_v3v3_normalized_to_dist(vert_nors[vidx], face_nors[i]) * angle;
 #endif
 				/* --- end non-angle-calc section --- */
 
@@ -813,9 +813,6 @@ static DerivedMesh *applyModifier(
 		MEM_freeN(edge_users);
 		MEM_freeN(edge_order);
 	}
-
-	STACK_FREE(new_vert_arr);
-	STACK_FREE(new_edge_arr);
 
 	if (old_vert_arr)
 		MEM_freeN(old_vert_arr);

@@ -43,12 +43,8 @@
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_image.h"
-#include "BKE_global.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_editmesh.h"
-#include "BKE_sequencer.h"
-#include "BKE_node.h"
 
 #include "IMB_imbuf_types.h"
 
@@ -257,6 +253,10 @@ static void image_operatortypes(void)
 
 	WM_operatortype_append(IMAGE_OT_properties);
 	WM_operatortype_append(IMAGE_OT_toolshelf);
+
+	WM_operatortype_append(IMAGE_OT_change_frame);
+
+	WM_operatortype_append(IMAGE_OT_read_renderlayers);
 }
 
 static void image_keymap(struct wmKeyConfig *keyconf)
@@ -268,6 +268,7 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "IMAGE_OT_new", NKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_open", OKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_reload", RKEY, KM_PRESS, KM_ALT, 0);
+	WM_keymap_add_item(keymap, "IMAGE_OT_read_renderlayers", RKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_save", SKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_save_as", F3KEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "IMAGE_OT_properties", NKEY, KM_PRESS, 0, 0);
@@ -311,6 +312,8 @@ static void image_keymap(struct wmKeyConfig *keyconf)
 	RNA_float_set(WM_keymap_add_item(keymap, "IMAGE_OT_view_zoom_ratio", PAD2, KM_PRESS, 0, 0)->ptr, "ratio", 0.5f);
 	RNA_float_set(WM_keymap_add_item(keymap, "IMAGE_OT_view_zoom_ratio", PAD4, KM_PRESS, 0, 0)->ptr, "ratio", 0.25f);
 	RNA_float_set(WM_keymap_add_item(keymap, "IMAGE_OT_view_zoom_ratio", PAD8, KM_PRESS, 0, 0)->ptr, "ratio", 0.125f);
+
+	WM_keymap_add_item(keymap, "IMAGE_OT_change_frame", LEFTMOUSE, KM_PRESS, 0, 0);
 
 	WM_keymap_add_item(keymap, "IMAGE_OT_sample", ACTIONMOUSE, KM_PRESS, 0, 0);
 	RNA_enum_set(WM_keymap_add_item(keymap, "IMAGE_OT_curves_point_set", ACTIONMOUSE, KM_PRESS, KM_CTRL, 0)->ptr, "point", 0);
@@ -529,6 +532,13 @@ static void image_listener(bScreen *sc, ScrArea *sa, wmNotifier *wmn)
 
 			break;
 		}
+		case NC_ID:
+		{
+			if (wmn->action == NA_RENAME) {
+				ED_area_tag_redraw(sa);
+			}
+			break;
+		}
 	}
 }
 
@@ -739,12 +749,12 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 		                    true, false,
 		                    NULL, C);
 
-		ED_mask_draw_frames(mask, ar, CFRA, mask->sfra, mask->efra);
-
 		UI_view2d_view_ortho(v2d);
 		draw_image_cursor(ar, sima->cursor);
 		UI_view2d_view_restore(C);
 	}
+
+	draw_image_cache(C, ar);
 
 	/* scrollers? */
 #if 0

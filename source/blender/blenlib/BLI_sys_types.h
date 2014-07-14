@@ -167,7 +167,7 @@ typedef unsigned long uintptr_t;
 #define _UINTPTR_T_DEFINED
 #endif
 
-#elif defined(__linux__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#elif defined(__linux__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD_kernel__) || defined(__GNU__)
 
 /* Linux-i386, Linux-Alpha, Linux-ppc */
 #include <stdint.h>
@@ -197,9 +197,8 @@ typedef uint64_t u_int64_t;
 
 #endif /* ifdef platform for types */
 
+#include <stddef.h>  /* size_t define */
 
-/* note: use of (int, TRUE / FALSE) is deprecated,
- * use (bool, true / false) instead */
 #ifdef HAVE_STDBOOL_H
 # include <stdbool.h>
 #elif !defined(__bool_true_false_are_defined) && !defined(__BOOL_DEFINED)

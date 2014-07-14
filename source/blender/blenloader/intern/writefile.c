@@ -81,13 +81,12 @@
 
 #include "zlib.h"
 
-#ifndef WIN32
-#  include <unistd.h>
-#else
+#ifdef WIN32
 #  include "winsock2.h"
 #  include <io.h>
-#  include <process.h> // for getpid
 #  include "BLI_winstuff.h"
+#else
+#  include <unistd.h>  /* FreeBSD, for write() and close(). */
 #endif
 
 #include "BLI_utildefines.h"
@@ -146,7 +145,6 @@
 #include "BLI_bitmap.h"
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
-#include "BLI_math.h"
 #include "BLI_pagedbuffer.h"
 #include "BLI_mempool.h"
 
@@ -156,7 +154,6 @@
 #include "BKE_curve.h"
 #include "BKE_constraint.h"
 #include "BKE_global.h" // for G
-#include "BKE_idprop.h"
 #include "BKE_library.h" // for  set_listbasepointers
 #include "BKE_main.h"
 #include "BKE_node.h"
@@ -348,7 +345,7 @@ static int endwrite(WriteData *wd)
 static void writestruct_at_address(WriteData *wd, int filecode, const char *structname, int nr, void *adr, void *data)
 {
 	BHead bh;
-	short *sp;
+	const short *sp;
 
 	if (adr==NULL || data==NULL || nr==0) return;
 
@@ -1243,6 +1240,9 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 		case ACT_STEERING:
 			writestruct(wd, DATA, "bSteeringActuator", 1, act->data);
 			break;
+		case ACT_MOUSE:
+			writestruct(wd, DATA, "bMouseActuator", 1, act->data);
+			break;
 		default:
 			; /* error: don't know how to write this file */
 		}
@@ -1269,7 +1269,7 @@ static void write_constraints(WriteData *wd, ListBase *conlist)
 	bConstraint *con;
 
 	for (con=conlist->first; con; con=con->next) {
-		bConstraintTypeInfo *cti= BKE_constraint_get_typeinfo(con);
+		bConstraintTypeInfo *cti= BKE_constraint_typeinfo_get(con);
 		
 		/* Write the specific data */
 		if (cti && con->data) {
@@ -1341,7 +1341,7 @@ static void write_pose(WriteData *wd, bPose *pose)
 
 	/* write IK param */
 	if (pose->ikparam) {
-		char *structname = (char *)BKE_pose_ikparam_get_name(pose);
+		const char *structname = (char *)BKE_pose_ikparam_get_name(pose);
 		if (structname)
 			writestruct(wd, DATA, structname, 1, pose->ikparam);
 	}
@@ -1843,7 +1843,7 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 			write_mdisps(wd, count, layer->data, layer->flag & CD_FLAG_EXTERNAL);
 		}
 		else if (layer->type == CD_PAINT_MASK) {
-			float *layer_data = layer->data;
+			const float *layer_data = layer->data;
 			writedata(wd, DATA, sizeof(*layer_data) * count, layer_data);
 		}
 		else if (layer->type == CD_GRID_PAINT_MASK) {
@@ -2150,7 +2150,7 @@ static void write_worlds(WriteData *wd, ListBase *idbase)
 				if (wrld->mtex[a]) writestruct(wd, DATA, "MTex", 1, wrld->mtex[a]);
 			}
 
-			/* nodetree is integral part of lamps, no libdata */
+			/* nodetree is integral part of world, no libdata */
 			if (wrld->nodetree) {
 				writestruct(wd, DATA, "bNodeTree", 1, wrld->nodetree);
 				write_nodetree(wd, wrld->nodetree);
@@ -2549,6 +2549,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 			SpaceLink *sl;
 			Panel *pa;
 			uiList *ui_list;
+			uiPreview *ui_preview;
 			PanelCategoryStack *pc_act;
 			ARegion *ar;
 			
@@ -2565,6 +2566,9 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 
 				for (ui_list = ar->ui_lists.first; ui_list; ui_list = ui_list->next)
 					write_uilist(wd, ui_list);
+
+				for (ui_preview = ar->ui_previews.first; ui_preview; ui_preview = ui_preview->next)
+					writestruct(wd, DATA, "uiPreview", 1, ui_preview);
 			}
 			
 			sl= sa->spacedata.first;
@@ -3306,6 +3310,7 @@ static void write_linestyle_geometry_modifiers(WriteData *wd, ListBase *modifier
 static void write_linestyles(WriteData *wd, ListBase *idbase)
 {
 	FreestyleLineStyle *linestyle;
+	int a;
 
 	for (linestyle = idbase->first; linestyle; linestyle = linestyle->id.next) {
 		if (linestyle->id.us>0 || wd->current) {
@@ -3318,6 +3323,13 @@ static void write_linestyles(WriteData *wd, ListBase *idbase)
 			write_linestyle_alpha_modifiers(wd, &linestyle->alpha_modifiers);
 			write_linestyle_thickness_modifiers(wd, &linestyle->thickness_modifiers);
 			write_linestyle_geometry_modifiers(wd, &linestyle->geometry_modifiers);
+			for (a=0; a<MAX_MTEX; a++) {
+				if (linestyle->mtex[a]) writestruct(wd, DATA, "MTex", 1, linestyle->mtex[a]);
+			}
+			if (linestyle->nodetree) {
+				writestruct(wd, DATA, "bNodeTree", 1, linestyle->nodetree);
+				write_nodetree(wd, linestyle->nodetree);
+			}
 		}
 	}
 }
@@ -3525,7 +3537,7 @@ int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportL
 	BLI_snprintf(tempname, sizeof(tempname), "%s@", filepath);
 
 	file = BLI_open(tempname, O_BINARY+O_WRONLY+O_CREAT+O_TRUNC, 0666);
-	if (file < 0) {
+	if (file == -1) {
 		BKE_reportf(reports, RPT_ERROR, "Cannot open file %s for writing: %s", tempname, strerror(errno));
 		return 0;
 	}

@@ -56,9 +56,14 @@ struct ListBase;
  * which is needed for it's evaluation,
  */
 typedef struct EvaluationContext {
-	bool for_render;  /* Set to true if evaluation shall be performed for render purposes,
-	                     keep at false if update shall happen for the viewport. */
+	int mode;               /* evaluation mode */
 } EvaluationContext;
+
+typedef enum eEvaluationMode {
+	DAG_EVAL_VIEWPORT       = 0,    /* evaluate for OpenGL viewport */
+    DAG_EVAL_PREVIEW        = 1,    /* evaluate for render with preview settings */
+    DAG_EVAL_RENDER         = 2,    /* evaluate for render purposes */
+} eEvaluationMode;
 
 /* DagNode->eval_flags */
 enum {
@@ -157,7 +162,7 @@ void DAG_print_dependencies(struct Main *bmain, struct Scene *scene, struct Obje
 /* ************************ DAG querying ********************* */
 
 struct Object *DAG_get_node_object(void *node_v);
-const char *DAG_get_node_name(void *node_v);
+const char *DAG_get_node_name(struct Scene *scene, void *node_v);
 short DAG_get_eval_flags_for_object(struct Scene *scene, void *object);
 bool DAG_is_acyclic(struct Scene *scene);
 

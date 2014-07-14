@@ -1119,7 +1119,7 @@ static BMOpDefine bmo_subdivide_edges_def = {
 /*
  * Subdivide Edge-Ring.
  *
- * Take an edge-ring, and supdivide with interpolation options.
+ * Take an edge-ring, and subdivide with interpolation options.
  */
 static BMOpDefine bmo_subdivide_edgering_def = {
 	"subdivide_edgering",
@@ -1904,4 +1904,4 @@ const BMOpDefine *bmo_opdefines[] = {
 	&bmo_wireframe_def,
 };
 
-const int bmo_opdefines_total = (sizeof(bmo_opdefines) / sizeof(void *));
+const int bmo_opdefines_total = ARRAY_SIZE(bmo_opdefines);

@@ -76,6 +76,8 @@
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 
+#include "PIL_time.h"
+
 #include "smoke_API.h"
 
 extern Material defmaterial; /* from material.c */
@@ -85,7 +87,7 @@ extern Material defmaterial; /* from material.c */
 static void gpu_mcol(unsigned int ucol)
 {
 	/* mcol order is swapped */
-	char *cp= (char *)&ucol;
+	const char *cp= (char *)&ucol;
 	glColor3ub(cp[3], cp[2], cp[1]);
 }
 
@@ -261,7 +263,7 @@ void GPU_set_gpu_mipmapping(int gpu_mipmap)
 
 static void gpu_generate_mipmap(GLenum target)
 {
-	int is_ati = GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY);
+	const bool is_ati = GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY);
 	int target_enabled = 0;
 
 	/* work around bug in ATI driver, need to have GL_TEXTURE_2D enabled
@@ -1040,7 +1042,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 		/* if color correction is needed, we must update the part that needs updating. */
 		if (ibuf->rect_float) {
 			float *buffer = MEM_mallocN(w*h*sizeof(float)*4, "temp_texpaint_float_buf");
-			int is_data = (ima->tpageflag & IMA_GLBIND_IS_DATA);
+			bool is_data = (ima->tpageflag & IMA_GLBIND_IS_DATA) != 0;
 			IMB_partial_rect_from_float(ibuf, buffer, x, y, w, h, is_data);
 
 			if (GPU_check_scaled_image(ibuf, ima, buffer, x, y, w, h)) {
@@ -1311,6 +1313,45 @@ void GPU_free_images_anim(void)
 				GPU_free_image(ima);
 }
 
+
+void GPU_free_images_old(void)
+{
+	Image *ima;
+	static int lasttime = 0;
+	int ctime = (int)PIL_check_seconds_timer();
+
+	/*
+	 * Run garbage collector once for every collecting period of time
+	 * if textimeout is 0, that's the option to NOT run the collector
+	 */
+	if (U.textimeout == 0 || ctime % U.texcollectrate || ctime == lasttime)
+		return;
+
+	/* of course not! */
+	if (G.is_rendering)
+		return;
+
+	lasttime = ctime;
+
+	ima = G.main->image.first;
+	while (ima) {
+		if ((ima->flag & IMA_NOCOLLECT) == 0 && ctime - ima->lastused > U.textimeout) {
+			/* If it's in GL memory, deallocate and set time tag to current time
+			 * This gives textures a "second chance" to be used before dying. */
+			if (ima->bindcode || ima->repbind) {
+				GPU_free_image(ima);
+				ima->lastused = ctime;
+			}
+			/* Otherwise, just kill the buffers */
+			else {
+				BKE_image_free_buffers(ima);
+			}
+		}
+		ima = ima->id.next;
+	}
+}
+
+
 /* OpenGL Materials */
 
 #define FIXEDMAT	8
@@ -1334,6 +1375,7 @@ static struct GPUMaterialState {
 	Object *gob;
 	Scene *gscene;
 	int glay;
+	bool gscenelock;
 	float (*gviewmat)[4];
 	float (*gviewinv)[4];
 
@@ -1342,6 +1384,7 @@ static struct GPUMaterialState {
 	GPUBlendMode *alphablend;
 	GPUBlendMode alphablend_fixed[FIXEDMAT];
 	bool use_alpha_pass, is_alpha_pass;
+	bool use_matcaps;
 
 	int lastmatnr, lastretval;
 	GPUBlendMode lastalphablend;
@@ -1402,13 +1445,18 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	const bool new_shading_nodes = BKE_scene_use_new_shading_nodes(scene);
 	const bool use_matcap = (v3d->flag2 & V3D_SHOW_SOLID_MATCAP) != 0;  /* assumes v3d->defmaterial->preview is set */
 
-	ob = BKE_object_lod_matob_get(ob, scene);
-	
+#ifdef WITH_GAMEENGINE
+	if (rv3d->rflag & RV3D_IS_GAME_ENGINE) {
+		ob = BKE_object_lod_matob_get(ob, scene);
+	}
+#endif
+
 	/* initialize state */
 	memset(&GMS, 0, sizeof(GMS));
 	GMS.lastmatnr = -1;
 	GMS.lastretval = -1;
 	GMS.lastalphablend = GPU_BLEND_SOLID;
+	GMS.use_matcaps = use_matcap;
 
 	GMS.backface_culling = (v3d->flag2 & V3D_BACKFACE_CULLING) != 0;
 
@@ -1416,6 +1464,7 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	GMS.gscene = scene;
 	GMS.totmat = use_matcap ? 1 : ob->totcol + 1;  /* materials start from 1, default material is 0 */
 	GMS.glay= (v3d->localvd)? v3d->localvd->lay: v3d->lay; /* keep lamps visible in local view */
+	GMS.gscenelock = (v3d->scenelock != 0);
 	GMS.gviewmat= rv3d->viewmat;
 	GMS.gviewinv= rv3d->viewinv;
 
@@ -1444,7 +1493,7 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	if (use_matcap) {
 		GMS.gmatbuf[0] = v3d->defmaterial;
 		GPU_material_matcap(scene, v3d->defmaterial);
-		
+
 		/* do material 1 too, for displists! */
 		memcpy(&GMS.matbuf[1], &GMS.matbuf[0], sizeof(GPUMaterialFixed));
 	
@@ -1576,7 +1625,7 @@ int GPU_enable_material(int nr, void *attribs)
 
 			gpumat = GPU_material_from_blender(GMS.gscene, mat);
 			GPU_material_vertex_attributes(gpumat, gattribs);
-			GPU_material_bind(gpumat, GMS.gob->lay, GMS.glay, 1.0, !(GMS.gob->mode & OB_MODE_TEXTURE_PAINT), GMS.gviewmat, GMS.gviewinv);
+			GPU_material_bind(gpumat, GMS.gob->lay, GMS.glay, 1.0, !(GMS.gob->mode & OB_MODE_TEXTURE_PAINT), GMS.gviewmat, GMS.gviewinv, GMS.gscenelock);
 
 			auto_bump_scale = GMS.gob->derivedFinal != NULL ? GMS.gob->derivedFinal->auto_bump_scale : 1.0f;
 			GPU_material_bind_uniforms(gpumat, GMS.gob->obmat, GMS.gob->col, auto_bump_scale);
@@ -1595,6 +1644,9 @@ int GPU_enable_material(int nr, void *attribs)
 				else
 					glDisable(GL_CULL_FACE);
 			}
+
+			if (GMS.use_matcaps)
+				glColor3f(1.0, 1.0, 1.0f);
 		}
 		else {
 			/* or do fixed function opengl material */
@@ -1655,6 +1707,12 @@ void GPU_material_diffuse_get(int nr, float diff[4])
 		copy_v4_v4(diff, GMS.matbuf[nr].diff);
 	}
 }
+
+bool GPU_material_use_matcaps_get(void)
+{
+	return GMS.use_matcaps;
+}
+
 
 void GPU_end_object_materials(void)
 {

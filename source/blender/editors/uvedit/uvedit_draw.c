@@ -33,8 +33,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -44,17 +42,17 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_alloca.h"
+#include "BLI_buffer.h"
+#include "BLI_bitmap.h"
 
 #include "BKE_DerivedMesh.h"
-#include "BKE_mesh.h"
 #include "BKE_editmesh.h"
-
-#include "BLI_buffer.h"
+#include "BKE_scene.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
-#include "ED_util.h"
 #include "ED_image.h"
 #include "ED_mesh.h"
 #include "ED_uvedit.h"
@@ -68,12 +66,13 @@
 /* use editmesh tessface */
 #define USE_EDBM_LOOPTRIS
 
+static void draw_uvs_lineloop_bmface(BMFace *efa, const int cd_loop_uv_offset);
 
 void draw_image_cursor(ARegion *ar, const float cursor[2])
 {
 	float zoom[2], x_fac, y_fac;
 
-	UI_view2d_getscale_inverse(&ar->v2d, &zoom[0], &zoom[1]);
+	UI_view2d_scale_get_inverse(&ar->v2d, &zoom[0], &zoom[1]);
 
 	mul_v2_fl(zoom, 256.0f * UI_DPI_FAC);
 	x_fac = zoom[0];
@@ -134,9 +133,7 @@ static void draw_uvs_shadow(Object *obedit)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
 	BMFace *efa;
-	BMLoop *l;
-	BMIter iter, liter;
-	MLoopUV *luv;
+	BMIter iter;
 
 	const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
 
@@ -144,12 +141,7 @@ static void draw_uvs_shadow(Object *obedit)
 	UI_ThemeColor(TH_UV_SHADOW);
 
 	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-		glBegin(GL_LINE_LOOP);
-		BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-			luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-			glVertex2fv(luv->uv);
-		}
-		glEnd();
+		draw_uvs_lineloop_bmface(efa, cd_loop_uv_offset);
 	}
 }
 
@@ -358,7 +350,105 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 	BLI_buffer_free(&tf_uvorig_buf);
 }
 
-static void draw_uvs_other(Scene *scene, Object *obedit, Image *curimage)
+static void draw_uvs_lineloop_bmface(BMFace *efa, const int cd_loop_uv_offset)
+{
+	BMIter liter;
+	BMLoop *l;
+	MLoopUV *luv;
+
+	glBegin(GL_LINE_LOOP);
+	BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
+		luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
+		glVertex2fv(luv->uv);
+	}
+	glEnd();
+}
+
+static void draw_uvs_lineloop_mpoly(Mesh *me, MPoly *mpoly)
+{
+	MLoopUV *mloopuv;
+	int i;
+
+	glBegin(GL_LINE_LOOP);
+	mloopuv = &me->mloopuv[mpoly->loopstart];
+	for (i = mpoly->totloop; i != 0; i--, mloopuv++) {
+		glVertex2fv(mloopuv->uv);
+	}
+	glEnd();
+}
+
+static void draw_uvs_other_mesh_texface(Object *ob, const Image *curimage)
+{
+	Mesh *me = ob->data;
+	MPoly *mpoly = me->mpoly;
+	MTexPoly *mtpoly = me->mtpoly;
+	int a;
+
+	if (me->mloopuv == NULL) {
+		return;
+	}
+
+	for (a = me->totpoly; a != 0; a--, mpoly++, mtpoly++) {
+		if (mtpoly->tpage != curimage) {
+			continue;
+		}
+
+		draw_uvs_lineloop_mpoly(me, mpoly);
+	}
+}
+static void draw_uvs_other_mesh_new_shading(Object *ob, const Image *curimage)
+{
+	Mesh *me = ob->data;
+	MPoly *mpoly = me->mpoly;
+	int a;
+	BLI_bitmap *mat_test_array;
+	bool ok = false;
+
+	if (me->mloopuv == NULL) {
+		return;
+	}
+
+	if (ob->totcol == 0) {
+		return;
+	}
+
+	mat_test_array = BLI_BITMAP_NEW_ALLOCA(ob->totcol);
+
+	for (a = 0; a < ob->totcol; a++) {
+		Image *image;
+		ED_object_get_active_image(ob, a + 1, &image, NULL, NULL);
+		if (image == curimage) {
+			BLI_BITMAP_ENABLE(mat_test_array, a);
+			ok = true;
+		}
+	}
+
+	if (ok == false) {
+		return;
+	}
+
+	for (a = me->totpoly; a != 0; a--, mpoly++) {
+		const int mat_nr = mpoly->mat_nr;
+		if ((mat_nr >= ob->totcol) ||
+		    (BLI_BITMAP_TEST(mat_test_array, mat_nr)) == 0)
+		{
+			continue;
+		}
+
+		draw_uvs_lineloop_mpoly(me, mpoly);
+	}
+}
+static void draw_uvs_other_mesh(Object *ob, const Image *curimage, const bool new_shading_nodes)
+{
+	if (new_shading_nodes) {
+		draw_uvs_other_mesh_new_shading(ob, curimage);
+	}
+	else {
+		draw_uvs_other_mesh_texface(ob, curimage);
+	}
+}
+
+static void draw_uvs_other(Scene *scene, Object *obedit, const Image *curimage, const bool new_shading_nodes)
 {
 	Base *base;
 
@@ -371,59 +461,23 @@ static void draw_uvs_other(Scene *scene, Object *obedit, Image *curimage)
 		if (!(base->lay & scene->lay)) continue;
 		if (ob->restrictflag & OB_RESTRICT_VIEW) continue;
 
-		if ((ob->type == OB_MESH) && (ob != obedit)) {
-			Mesh *me = ob->data;
-
-			if (me->mtpoly) {
-				MPoly *mpoly = me->mpoly;
-				MTexPoly *mtpoly = me->mtpoly;
-				MLoopUV *mloopuv;
-				int a, b;
-
-				for (a = me->totpoly; a > 0; a--, mtpoly++, mpoly++) {
-					if (mtpoly->tpage == curimage) {
-						glBegin(GL_LINE_LOOP);
-
-						mloopuv = me->mloopuv + mpoly->loopstart;
-						for (b = 0; b < mpoly->totloop; b++, mloopuv++) {
-							glVertex2fv(mloopuv->uv);
-						}
-						glEnd();
-					}
-				}
-			}
+		if ((ob->type == OB_MESH) && (ob != obedit) && ((Mesh *)ob->data)->mloopuv) {
+			draw_uvs_other_mesh(ob, curimage, new_shading_nodes);
 		}
 	}
 }
 
 static void draw_uvs_texpaint(SpaceImage *sima, Scene *scene, Object *ob)
 {
-	Mesh *me = ob->data;
+	const bool new_shading_nodes = BKE_scene_use_new_shading_nodes(scene);
 	Image *curimage = ED_space_image(sima);
 
-	if (sima->flag & SI_DRAW_OTHER)
-		draw_uvs_other(scene, ob, curimage);
+	if (sima->flag & SI_DRAW_OTHER) {
+		draw_uvs_other(scene, ob, curimage, new_shading_nodes);
+	}
 
 	UI_ThemeColor(TH_UV_SHADOW);
-
-	if (me->mtpoly) {
-		MPoly *mpoly = me->mpoly;
-		MTexPoly *tface = me->mtpoly;
-		MLoopUV *mloopuv;
-		int a, b;
-
-		for (a = me->totpoly; a > 0; a--, tface++, mpoly++) {
-			if (tface->tpage == curimage) {
-				glBegin(GL_LINE_LOOP);
-
-				mloopuv = me->mloopuv + mpoly->loopstart;
-				for (b = 0; b < mpoly->totloop; b++, mloopuv++) {
-					glVertex2fv(mloopuv->uv);
-				}
-				glEnd();
-			}
-		}
-	}
+	draw_uvs_other_mesh(ob, curimage, new_shading_nodes);
 }
 
 #ifdef USE_EDBM_LOOPTRIS
@@ -446,6 +500,7 @@ static void draw_uvs_looptri(BMEditMesh *em, unsigned int *r_loop_index, const i
 /* draws uv's in the image space */
 static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 {
+	const bool new_shading_nodes = BKE_scene_use_new_shading_nodes(scene);
 	ToolSettings *ts;
 	Mesh *me = obedit->data;
 	BMEditMesh *em = me->edit_btmesh;
@@ -481,14 +536,27 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	
 	/* draw other uvs */
 	if (sima->flag & SI_DRAW_OTHER) {
-		Image *curimage = (activetf) ? activetf->tpage : ima;
+		Image *curimage;
 
-		draw_uvs_other(scene, obedit, curimage);
+		if (new_shading_nodes) {
+			if (efa_act) {
+				ED_object_get_active_image(obedit, efa_act->mat_nr + 1, &curimage, NULL, NULL);
+			}
+			else {
+				curimage = ima;
+			}
+		}
+		else {
+			curimage = (activetf) ? activetf->tpage : ima;
+		}
+
+		draw_uvs_other(scene, obedit, curimage, new_shading_nodes);
 	}
 
 	/* 1. draw shadow mesh */
 	
 	if (sima->flag & SI_DRAWSHADOW) {
+		DM_update_materials(em->derivedFinal, obedit);
 		/* first try existing derivedmesh */
 		if (!draw_uvs_dm_shadow(em->derivedFinal)) {
 			/* create one if it does not exist */
@@ -639,22 +707,12 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				if (tf) {
 					cpack(0x111111);
 
-					glBegin(GL_LINE_LOOP);
-					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-						glVertex2fv(luv->uv);
-					}
-					glEnd();
+					draw_uvs_lineloop_bmface(efa, cd_loop_uv_offset);
 
 					setlinestyle(2);
 					cpack(0x909090);
 
-					glBegin(GL_LINE_LOOP);
-					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-						glVertex2fv(luv->uv);
-					}
-					glEnd();
+					draw_uvs_lineloop_bmface(efa, cd_loop_uv_offset);
 
 					setlinestyle(0);
 				}
@@ -669,12 +727,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 					continue;
 
-				glBegin(GL_LINE_LOOP);
-				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-					luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-					glVertex2fv(luv->uv);
-				}
-				glEnd();
+				draw_uvs_lineloop_bmface(efa, cd_loop_uv_offset);
 			}
 			break;
 		case SI_UVDT_OUTLINE:
@@ -685,12 +738,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 				if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 					continue;
 
-				glBegin(GL_LINE_LOOP);
-				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-					luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-					glVertex2fv(luv->uv);
-				}
-				glEnd();
+				draw_uvs_lineloop_bmface(efa, cd_loop_uv_offset);
 			}
 			
 			glLineWidth(1);
@@ -748,12 +796,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 					if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 						continue;
 				
-					glBegin(GL_LINE_LOOP);
-					BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-						glVertex2fv(luv->uv);
-					}
-					glEnd();
+					draw_uvs_lineloop_bmface(efa, cd_loop_uv_offset);
 				}
 			}
 			

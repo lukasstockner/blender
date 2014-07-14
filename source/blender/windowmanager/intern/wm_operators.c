@@ -91,7 +91,6 @@
 
 #include "ED_screen.h"
 #include "ED_util.h"
-#include "ED_object.h"
 #include "ED_view3d.h"
 
 #include "RNA_access.h"
@@ -340,7 +339,7 @@ static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
 						}
 					}
 
-					WM_cursor_grab_enable(CTX_wm_window(C), wrap, false, bounds);
+					WM_cursor_grab_enable(win, wrap, false, bounds);
 				}
 			}
 		}
@@ -497,7 +496,7 @@ bool WM_operatortype_remove(const char *idname)
 /* SOME_OT_op -> some.op */
 void WM_operator_py_idname(char *to, const char *from)
 {
-	char *sep = strstr(from, "_OT_");
+	const char *sep = strstr(from, "_OT_");
 	if (sep) {
 		int ofs = (sep - from);
 		
@@ -519,7 +518,7 @@ void WM_operator_py_idname(char *to, const char *from)
 void WM_operator_bl_idname(char *to, const char *from)
 {
 	if (from) {
-		char *sep = strchr(from, '.');
+		const char *sep = strchr(from, '.');
 
 		if (sep) {
 			int ofs = (sep - from);
@@ -1087,7 +1086,6 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *ar, void *arg_op)
 	uiDefBut(block, LABEL, 0, "", 10, 10 - uiSearchBoxHeight(), uiSearchBoxWidth(), uiSearchBoxHeight(), NULL, 0, 0, 0, 0, NULL);
 
 	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
-	uiEndBlock(C, block);
 
 	wm_event_init_from_window(win, &event);
 	event.type = EVT_BUT_OPEN;
@@ -1294,6 +1292,13 @@ void WM_operator_properties_border_to_rcti(struct wmOperator *op, rcti *rect)
 	rect->ymax = RNA_int_get(op->ptr, "ymax");
 }
 
+void WM_operator_properties_border_to_rctf(struct wmOperator *op, rctf *rect)
+{
+	rcti rect_i;
+	WM_operator_properties_border_to_rcti(op, &rect_i);
+	BLI_rctf_rcti_copy(rect, &rect_i);
+}
+
 void WM_operator_properties_gesture_border(wmOperatorType *ot, bool extend)
 {
 	RNA_def_int(ot->srna, "gesture_mode", 0, INT_MIN, INT_MAX, "Gesture Mode", "", INT_MIN, INT_MAX);
@@ -1421,7 +1426,6 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 	}
 	
 	uiPopupBoundsBlock(block, 4, 0, 0);
-	uiEndBlock(C, block);
 
 	return block;
 }
@@ -1456,7 +1460,11 @@ static void dialog_check_cb(bContext *C, void *op_ptr, void *UNUSED(arg))
 	wmOperator *op = op_ptr;
 	if (op->type->check) {
 		if (op->type->check(C, op)) {
-			/* refresh */
+			/* check for popup and re-layout buttons */
+			ARegion *ar_menu = CTX_wm_menu(C);
+			if (ar_menu) {
+				ED_region_tag_refresh_ui(ar_menu);
+			}
 		}
 	}
 }
@@ -1501,7 +1509,6 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *ar, void *userData)
 
 	/* center around the mouse */
 	uiPopupBoundsBlock(block, 4, data->width / -2, data->height / 2);
-	uiEndBlock(C, block);
 
 	return block;
 }
@@ -1524,7 +1531,6 @@ static uiBlock *wm_operator_ui_create(bContext *C, ARegion *ar, void *userData)
 	uiLayoutOperatorButs(C, layout, op, NULL, 'V', 0);
 
 	uiPopupBoundsBlock(block, 4, 0, 0);
-	uiEndBlock(C, block);
 
 	return block;
 }
@@ -1580,6 +1586,14 @@ static int wm_operator_props_popup_ex(bContext *C, wmOperator *op,
 		BKE_reportf(op->reports, RPT_ERROR,
 		            "Operator '%s' does not have register enabled, incorrect invoke function", op->type->idname);
 		return OPERATOR_CANCELLED;
+	}
+
+	if (do_redo) {
+		if ((op->type->flag & OPTYPE_UNDO) == 0) {
+			BKE_reportf(op->reports, RPT_ERROR,
+			            "Operator '%s' does not have undo enabled, incorrect invoke function", op->type->idname);
+			return OPERATOR_CANCELLED;
+		}
 	}
 
 	/* if we don't have global undo, we can't do undo push for automatic redo,
@@ -1756,11 +1770,11 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiBut *but;
 	uiLayout *layout, *split, *col;
 	uiStyle *style = UI_GetStyle();
-	struct RecentFile *recent;
+	const struct RecentFile *recent;
 	int i;
 	MenuType *mt = WM_menutype_find("USERPREF_MT_splash", true);
 	char url[96];
-	char file[FILE_MAX];
+	const char *version_suffix = NULL;
 
 #ifndef WITH_HEADLESS
 	extern char datatoc_splash_png[];
@@ -1815,14 +1829,18 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 
 	/* label for 'a' bugfix releases, or 'Release Candidate 1'...
 	 *  avoids recreating splash for version updates */
-	if (0) {
+	if (STREQ(STRINGIFY(BLENDER_VERSION_CYCLE), "rc")) {
+		version_suffix = "Release Candidate";
+	}
+	else if (STREQ(STRINGIFY(BLENDER_VERSION_CYCLE), "release")) {
+		version_suffix = STRINGIFY(BLENDER_VERSION_CHAR);
+	}
+	if (version_suffix != NULL && version_suffix[0]) {
 		/* placed after the version number in the image,
 		 * placing y is tricky to match baseline */
 		int x = 260 - (2 * UI_DPI_WINDOW_FAC);
 		int y = 242 + (4 * UI_DPI_WINDOW_FAC);
 		int w = 240;
-
-		const char *version_suffix = "Release Candidate";
 
 		/* hack to have text draw 'text_sel' */
 		uiBlockSetEmboss(block, UI_EMBOSSN);
@@ -1874,8 +1892,9 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	              "http://www.blender.org/foundation/donation-payment/");
 	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url",
 	              "http://www.blender.org/about/credits/");
-	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/2.70");
+	BLI_snprintf(url, sizeof(url), "http://wiki.blender.org/index.php/Dev:Ref/Release_Notes/%d.%d",
+	             BLENDER_VERSION / 100, BLENDER_VERSION % 100);
+	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url", url);
 	uiItemStringO(col, IFACE_("Manual"), ICON_URL, "WM_OT_url_open", "url",
 	              "http://wiki.blender.org/index.php/Doc:2.6/Manual");
 	uiItemStringO(col, IFACE_("Blender Website"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org");
@@ -1900,11 +1919,10 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 
 	uiItemL(col, IFACE_("Recent"), ICON_NONE);
 	for (recent = G.recent_files.first, i = 0; (i < 5) && (recent); recent = recent->next, i++) {
-		BLI_split_file_part(recent->filepath, file, sizeof(file));
-		if (BLO_has_bfile_extension(file))
-			uiItemStringO(col, BLI_path_basename(recent->filepath), ICON_FILE_BLEND, "WM_OT_open_mainfile", "filepath", recent->filepath);
-		else
-			uiItemStringO(col, BLI_path_basename(recent->filepath), ICON_FILE_BACKUP, "WM_OT_open_mainfile", "filepath", recent->filepath);
+		const char *filename = BLI_path_basename(recent->filepath);
+		uiItemStringO(col, filename,
+		              BLO_has_bfile_extension(filename) ? ICON_FILE_BLEND : ICON_FILE_BACKUP,
+		              "WM_OT_open_mainfile", "filepath", recent->filepath);
 	}
 
 	uiItemS(col);
@@ -1912,7 +1930,6 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiItemL(col, "", ICON_NONE);
 	
 	uiCenteredBoundsBlock(block, 0);
-	uiEndBlock(C, block);
 	
 	return block;
 }
@@ -1954,7 +1971,6 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *ar, void *UNUSED(arg_
 	uiDefBut(block, LABEL, 0, "", 10, 10 - uiSearchBoxHeight(), uiSearchBoxWidth(), uiSearchBoxHeight(), NULL, 0, 0, 0, 0, NULL);
 	
 	uiPopupBoundsBlock(block, 6, 0, -UI_UNIT_Y); /* move it downwards, mouse over button */
-	uiEndBlock(C, block);
 	
 	wm_event_init_from_window(win, &event);
 	event.type = EVT_BUT_OPEN;
@@ -2146,6 +2162,11 @@ static void WM_OT_read_homefile(wmOperatorType *ot)
 	                                "Path to an alternative start-up file");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
 
+	/* So scripts can use an alternative start-up file without the UI */
+	prop = RNA_def_boolean(ot->srna, "load_ui", true, "Load UI",
+	                       "Load user interface setup from the .blend file");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
 	/* ommit poll to run in background mode */
 }
 
@@ -2188,30 +2209,6 @@ struct FileRuntime {
 	bool is_untrusted;
 };
 
-
-static void open_set_load_ui(wmOperator *op, bool use_prefs)
-{
-	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "load_ui");
-	if (!RNA_property_is_set(op->ptr, prop)) {
-		RNA_property_boolean_set(op->ptr, prop, use_prefs ?
-		                         (U.flag & USER_FILENOUI) == 0 :
-		                         (G.fileflags & G_FILE_NO_UI) == 0);
-	}
-}
-
-static void open_set_use_scripts(wmOperator *op, bool use_prefs)
-{
-	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_scripts");
-	if (!RNA_property_is_set(op->ptr, prop)) {
-		/* use G_SCRIPT_AUTOEXEC rather than the userpref because this means if
-		 * the flag has been disabled from the command line, then opening
-		 * from the menu wont enable this setting. */
-		RNA_property_boolean_set(op->ptr, prop, use_prefs ?
-		                         (U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0 :
-		                         (G.f & G_SCRIPT_AUTOEXEC) != 0);
-	}
-}
-
 static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	const char *openname = G.main->name;
@@ -2231,8 +2228,8 @@ static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, const wmEvent *U
 	}
 
 	RNA_string_set(op->ptr, "filepath", openname);
-	open_set_load_ui(op, true);
-	open_set_use_scripts(op, true);
+	wm_open_init_load_ui(op, true);
+	wm_open_init_use_scripts(op, true);
 	op->customdata = NULL;
 
 	WM_event_add_fileselect(C, op);
@@ -2248,8 +2245,8 @@ static int wm_open_mainfile_exec(bContext *C, wmOperator *op)
 	RNA_string_get(op->ptr, "filepath", filepath);
 
 	/* re-use last loaded setting so we can reload a file without changing */
-	open_set_load_ui(op, false);
-	open_set_use_scripts(op, false);
+	wm_open_init_load_ui(op, false);
+	wm_open_init_use_scripts(op, false);
 
 	if (RNA_boolean_get(op->ptr, "load_ui"))
 		G.fileflags &= ~G_FILE_NO_UI;
@@ -2435,6 +2432,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Main *mainl = NULL;
 	BlendHandle *bh;
+	Library *lib;
 	PropertyRNA *prop;
 	char name[FILE_MAX], dir[FILE_MAX], libname[FILE_MAX], group[BLO_GROUP_MAX];
 	int idcode, totfiles = 0;
@@ -2509,6 +2507,9 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 	/* here appending/linking starts */
 	mainl = BLO_library_append_begin(bmain, &bh, libname);
+	lib = mainl->curlib;
+	BLI_assert(lib);
+
 	if (totfiles == 0) {
 		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
 	}
@@ -2528,9 +2529,8 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 	/* append, rather than linking */
 	if ((flag & FILE_LINK) == 0) {
-		Library *lib = BLI_findstring(&bmain->library, libname, offsetof(Library, filepath));
-		if (lib) BKE_library_make_local(bmain, lib, true);
-		else BLI_assert(!"cant find name of just added library!");
+		BLI_assert(BLI_findindex(&bmain->library, lib) != -1);
+		BKE_library_make_local(bmain, lib, true);
 	}
 
 	/* important we unset, otherwise these object wont
@@ -2572,7 +2572,7 @@ static void WM_OT_link_append(wmOperatorType *ot)
 	/* better not save _any_ settings for this operator */
 	/* properties */
 	prop = RNA_def_boolean(ot->srna, "link", 1, "Link", "Link the objects or datablocks rather than appending");
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 	prop = RNA_def_boolean(ot->srna, "autoselect", 1, "Select", "Select the linked objects");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 	prop = RNA_def_boolean(ot->srna, "active_layer", 1, "Active Layer", "Put the linked objects on the active layer");
@@ -2587,7 +2587,7 @@ void WM_recover_last_session(bContext *C, ReportList *reports)
 {
 	char filepath[FILE_MAX];
 	
-	BLI_make_file_string("/", filepath, BLI_temporary_dir(), BLENDER_QUIT_FILE);
+	BLI_make_file_string("/", filepath, BLI_temp_dir_base(), BLENDER_QUIT_FILE);
 	/* if reports==NULL, it's called directly without operator, we add a quick check here */
 	if (reports || BLI_exists(filepath)) {
 		G.fileflags |= G_FILE_RECOVER;
@@ -3245,6 +3245,9 @@ static void tweak_gesture_modal(bContext *C, const wmEvent *event)
 				wmEvent tevent;
 
 				wm_event_init_from_window(window, &tevent);
+				/* We want to get coord from start of drag, not from point where it becomes a tweak event, see T40549 */
+				tevent.x = rect->xmin + sx;
+				tevent.y = rect->ymin + sy;
 				if (gesture->event_type == LEFTMOUSE)
 					tevent.type = EVT_TWEAK_L;
 				else if (gesture->event_type == RIGHTMOUSE)
@@ -3345,7 +3348,7 @@ static void gesture_lasso_apply(bContext *C, wmOperator *op)
 	PointerRNA itemptr;
 	float loc[2];
 	int i;
-	short *lasso = gesture->customdata;
+	const short *lasso = gesture->customdata;
 	
 	/* operator storage as path. */
 

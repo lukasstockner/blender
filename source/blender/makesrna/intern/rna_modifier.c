@@ -1282,6 +1282,11 @@ static void rna_def_modifier_hook(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Force",  "Relative force of the hook");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+	prop = RNA_def_property(srna, "center", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "cent");
+	RNA_def_property_ui_text(prop, "Hook Center", "");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Object", "Parent Object for hook, also recalculates and clears offset");
 	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
@@ -2458,7 +2463,7 @@ static void rna_def_modifier_simpledeform(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "factor");
 	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
 	RNA_def_property_float_default(prop, DEG2RADF(45.0f));
-	RNA_def_property_ui_range(prop, -10, 10, 1, 3);
+	RNA_def_property_ui_range(prop, -M_PI, M_PI, DEG2RAD(1), 3);
 	RNA_def_property_ui_text(prop, "Angle", "Angle of deformation");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
@@ -3708,7 +3713,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "show_in_editmode", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", eModifierMode_Editmode);
-	RNA_def_property_ui_text(prop, "Edit Mode", "Use modifier while in the Edit mode");
+	RNA_def_property_ui_text(prop, "Edit Mode", "Use modifier in Edit mode");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 	RNA_def_property_ui_icon(prop, ICON_EDITMODE_HLT, 0);
 	

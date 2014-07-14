@@ -144,6 +144,7 @@ set(SRC
 	shader/nodes/node_shader_rgb.c
 	shader/nodes/node_shader_sepcombRGB.c
 	shader/nodes/node_shader_sepcombHSV.c
+	shader/nodes/node_shader_sepcombXYZ.c
 	shader/nodes/node_shader_squeeze.c
 	shader/nodes/node_shader_texture.c
 	shader/nodes/node_shader_valToRgb.c
@@ -200,6 +201,7 @@ set(SRC
 	shader/nodes/node_shader_tex_wave.c
 	shader/nodes/node_shader_volume_scatter.c
 	shader/nodes/node_shader_volume_absorption.c
+	shader/nodes/node_shader_uvmap.c
 	shader/node_shader_tree.c
 	shader/node_shader_util.c
 

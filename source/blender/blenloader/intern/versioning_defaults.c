@@ -26,6 +26,7 @@
  */
 
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
 
 #include "DNA_freestyle_types.h"
 #include "DNA_linestyle_types.h"
@@ -33,6 +34,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_material_types.h"
 
 #include "BKE_main.h"
 
@@ -45,6 +48,8 @@ void BLO_update_defaults_startup_blend(Main *main)
 	Scene *scene;
 	SceneRenderLayer *srl;
 	FreestyleLineStyle *linestyle;
+	Mesh *me;
+	Material *mat;
 
 	for (scene = main->scene.first; scene; scene = scene->id.next) {
 		scene->r.im_format.planes = R_IMF_PLANES_RGBA;
@@ -56,8 +61,12 @@ void BLO_update_defaults_startup_blend(Main *main)
 		}
 	}
 
-	for (linestyle = main->linestyle.first; linestyle; linestyle = linestyle->id.next)
-		linestyle->flag = LS_SAME_OBJECT;
+	for (linestyle = main->linestyle.first; linestyle; linestyle = linestyle->id.next) {
+		linestyle->flag = LS_SAME_OBJECT | LS_NO_SORTING | LS_TEXTURE;
+		linestyle->sort_key = LS_SORT_KEY_DISTANCE_FROM_CAMERA;
+		linestyle->integration_type = LS_INTEGRATION_MEAN;
+		linestyle->texstep = 1.0;
+	}
 
 	{
 		bScreen *screen;
@@ -74,6 +83,15 @@ void BLO_update_defaults_startup_blend(Main *main)
 				}
 			}
 		}
+	}
+
+	for (me = main->mesh.first; me; me = me->id.next) {
+		me->smoothresh = DEG2RADF(180.0f);
+	}
+
+	for (mat = main->mat.first; mat; mat = mat->id.next) {
+		mat->line_col[0] = mat->line_col[1] = mat->line_col[2] = 0.0f;
+		mat->line_col[3] = 1.0f;
 	}
 }
 

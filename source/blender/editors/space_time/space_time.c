@@ -42,7 +42,6 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_screen.h"
 #include "BKE_pointcache.h"
 
@@ -67,20 +66,17 @@
 /* ************************ main time area region *********************** */
 
 static void time_draw_sfra_efra(Scene *scene, View2D *v2d)
-{
-	/* Draw darkened area outside of active timeline frame range used is preview range or scene range.
-	 * Note we use STFRA - 0.5 and PEFRA + 0.5, else visible 'active' area is one frame less than what's expected!
+{	
+	/* draw darkened area outside of active timeline 
+	 * frame range used is preview range or scene range 
 	 */
-	const float psfra = ((float)PSFRA) - 0.5f;
-	const float pefra = ((float)PEFRA) + 0.5f;
-
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
-
-	if (psfra < pefra) {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, psfra, v2d->cur.ymax);
-		glRectf(pefra, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		
+	if (PSFRA < PEFRA) {
+		glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+		glRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
 	else {
 		glRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
@@ -89,8 +85,8 @@ static void time_draw_sfra_efra(Scene *scene, View2D *v2d)
 
 	UI_ThemeColorShade(TH_BACK, -60);
 	/* thin lines where the actual frames are */
-	fdrawline(psfra, v2d->cur.ymin, psfra, v2d->cur.ymax);
-	fdrawline(pefra, v2d->cur.ymin, pefra, v2d->cur.ymax);
+	fdrawline((float)PSFRA, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+	fdrawline((float)PEFRA, v2d->cur.ymin, (float)PEFRA, v2d->cur.ymax);
 }
 
 #define CACHE_DRAW_HEIGHT   3.0f
@@ -339,18 +335,18 @@ static void time_draw_idblock_keyframes(View2D *v2d, ID *id, short onlysel)
 }
 
 /* draw keyframe lines for timeline */
-static void time_draw_keyframes(const bContext *C, SpaceTime *stime, ARegion *ar)
+static void time_draw_keyframes(const bContext *C, ARegion *ar)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
 	View2D *v2d = &ar->v2d;
-	short onlysel = (stime->flag & TIME_ONLYACTSEL);
+	bool onlysel = ((scene->flag & SCE_KEYS_NO_SELONLY) == 0);
 	
 	/* draw scene keyframes first 
 	 *	- don't try to do this when only drawing active/selected data keyframes,
 	 *	  since this can become quite slow
 	 */
-	if (scene && onlysel == 0) {
+	if (onlysel == 0) {
 		/* set draw color */
 		glColor3ub(0xDD, 0xA7, 0x00);
 		time_draw_idblock_keyframes(v2d, (ID *)scene, onlysel);
@@ -519,7 +515,7 @@ static void time_main_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_ortho(v2d);
 	
 	/* keyframes */
-	time_draw_keyframes(C, stime, ar);
+	time_draw_keyframes(C, ar);
 	
 	/* markers */
 	UI_view2d_view_orthoSpecial(ar, v2d, 1);

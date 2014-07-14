@@ -44,6 +44,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
+#include "DNA_linestyle_types.h"
 
 #include "BLI_string.h"
 #include "BLI_math.h"
@@ -54,11 +55,8 @@
 #include "BLF_translation.h"
 
 #include "BKE_animsys.h"
-#include "BKE_action.h"
-#include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
-#include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
@@ -174,6 +172,12 @@ static void ntree_set_typeinfo(bNodeTree *ntree, bNodeTreeType *typeinfo)
 
 static void node_set_typeinfo(const struct bContext *C, bNodeTree *ntree, bNode *node, bNodeType *typeinfo)
 {
+	/* for nodes saved in older versions storage can get lost, make undefined then */
+	if (node->flag & NODE_INIT) {
+		if (typeinfo && typeinfo->storagename[0] && !node->storage)
+			typeinfo = NULL;
+	}
+	
 	if (typeinfo) {
 		node->typeinfo = typeinfo;
 		
@@ -1119,7 +1123,7 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool do_
 		newtree = BKE_libblock_copy(&ntree->id);
 	}
 	else {
-		newtree = BKE_libblock_copy_nolib(&ntree->id);
+		newtree = BKE_libblock_copy_nolib(&ntree->id, true);
 		newtree->id.lib = NULL;	/* same as owning datablock id.lib */
 	}
 
@@ -1773,7 +1777,7 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
 		if (tntree == ntree)
 			break;
 	if (tntree == NULL) {
-		BKE_libblock_free_data(&ntree->id);
+		BKE_libblock_free_data(G.main, &ntree->id);
 	}
 }
 /* same as ntreeFreeTree_ex but always manage users */
@@ -1869,6 +1873,7 @@ bNodeTree *ntreeFromID(ID *id)
 		case ID_WO:  return ((World *)id)->nodetree;
 		case ID_TE:  return ((Tex *)id)->nodetree;
 		case ID_SCE: return ((Scene *)id)->nodetree;
+		case ID_LS:  return ((FreestyleLineStyle *)id)->nodetree;
 		default: return NULL;
 	}
 }
@@ -3490,6 +3495,8 @@ static void registerShaderNodes(void)
 	register_node_type_sh_combrgb();
 	register_node_type_sh_sephsv();
 	register_node_type_sh_combhsv();
+	register_node_type_sh_sepxyz();
+	register_node_type_sh_combxyz();
 	register_node_type_sh_hue_sat();
 
 	register_node_type_sh_attribute();
@@ -3520,6 +3527,7 @@ static void registerShaderNodes(void)
 	register_node_type_sh_subsurface_scattering();
 	register_node_type_sh_mix_shader();
 	register_node_type_sh_add_shader();
+	register_node_type_sh_uvmap();
 
 	register_node_type_sh_output_lamp();
 	register_node_type_sh_output_material();
@@ -3590,9 +3598,9 @@ static void registerTextureNodes(void)
 
 void init_nodesystem(void) 
 {
-	nodetreetypes_hash = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "nodetreetypes_hash gh");
-	nodetypes_hash = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "nodetypes_hash gh");
-	nodesockettypes_hash = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp, "nodesockettypes_hash gh");
+	nodetreetypes_hash = BLI_ghash_str_new("nodetreetypes_hash gh");
+	nodetypes_hash = BLI_ghash_str_new("nodetypes_hash gh");
+	nodesockettypes_hash = BLI_ghash_str_new("nodesockettypes_hash gh");
 
 	register_undefined_types();
 
@@ -3663,6 +3671,7 @@ void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *b
 	ntreeiter->tex = bmain->tex.first;
 	ntreeiter->lamp = bmain->lamp.first;
 	ntreeiter->world = bmain->world.first;
+	ntreeiter->linestyle = bmain->linestyle.first;
 }
 bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
                              bNodeTree **r_nodetree, struct ID **r_id)
@@ -3696,6 +3705,11 @@ bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
 		*r_nodetree =       ntreeiter->world->nodetree;
 		*r_id       = (ID *)ntreeiter->world;
 		ntreeiter->world  = ntreeiter->world->id.next;
+	}
+	else if (ntreeiter->linestyle) {
+		*r_nodetree =       ntreeiter->linestyle->nodetree;
+		*r_id       = (ID *)ntreeiter->linestyle;
+		ntreeiter->linestyle = ntreeiter->linestyle->id.next;
 	}
 	else {
 		return false;

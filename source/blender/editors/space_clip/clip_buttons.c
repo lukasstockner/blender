@@ -42,7 +42,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
-#include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "BLF_translation.h"
@@ -53,7 +52,6 @@
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
 
-#include "ED_clip.h"
 #include "ED_gpencil.h"
 
 #include "UI_interface.h"
@@ -86,8 +84,8 @@ void ED_clip_buttons_register(ARegionType *art)
 	strcpy(pt->idname, "CLIP_PT_gpencil");
 	strcpy(pt->label, N_("Grease Pencil"));
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
-	pt->draw_header = gpencil_panel_standard_header;
-	pt->draw = gpencil_panel_standard;
+	pt->draw_header = ED_gpencil_panel_standard_header;
+	pt->draw = ED_gpencil_panel_standard;
 	pt->flag |= PNL_DEFAULT_CLOSED;
 	pt->poll = clip_grease_pencil_panel_poll;
 	BLI_addtail(&art->paneltypes, pt);
@@ -153,7 +151,7 @@ void uiTemplateTrack(uiLayout *layout, PointerRNA *ptr, const char *propname)
 	PropertyRNA *prop;
 	PointerRNA scopesptr;
 	uiBlock *block;
-	rctf rect;
+	uiLayout *col;
 	MovieClipScopes *scopes;
 
 	if (!ptr->data)
@@ -175,16 +173,21 @@ void uiTemplateTrack(uiLayout *layout, PointerRNA *ptr, const char *propname)
 	scopesptr = RNA_property_pointer_get(ptr, prop);
 	scopes = (MovieClipScopes *)scopesptr.data;
 
-	rect.xmin = 0; rect.xmax = 10.0f * UI_UNIT_X;
-	rect.ymin = 0; rect.ymax = 6.0f * UI_UNIT_Y;
+	if (scopes->track_preview_height < UI_UNIT_Y) {
+		scopes->track_preview_height = UI_UNIT_Y;
+	}
+	else if (scopes->track_preview_height > UI_UNIT_Y * 20) {
+		scopes->track_preview_height = UI_UNIT_Y * 20;
+	}
 
-	block = uiLayoutAbsoluteBlock(layout);
+	col = uiLayoutColumn(layout, true);
+	block = uiLayoutGetBlock(col);
 
-	scopes->track_preview_height =
-		(scopes->track_preview_height <= 20) ? 20 : scopes->track_preview_height;
+	uiDefBut(block, TRACKPREVIEW, 0, "", 0, 0, UI_UNIT_X * 10, scopes->track_preview_height, scopes, 0, 0, 0, 0, "");
 
-	uiDefBut(block, TRACKPREVIEW, 0, "", rect.xmin, rect.ymin, BLI_rctf_size_x(&rect),
-	         scopes->track_preview_height * UI_DPI_FAC, scopes, 0, 0, 0, 0, "");
+	/* Resize grip. */
+	uiDefIconButI(block, GRIP, 0, ICON_GRIP, 0, 0, UI_UNIT_X * 10, (short)(UI_UNIT_Y * 0.8f),
+	              &scopes->track_preview_height, UI_UNIT_Y, UI_UNIT_Y * 20.0f, 0.0f, 0.0f, "");
 }
 
 /********************* Marker Template ************************/

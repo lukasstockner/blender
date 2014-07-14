@@ -116,6 +116,20 @@ ccl_device_inline float3 triangle_refine_subsurface(KernelGlobals *kg, ShaderDat
 #endif
 }
 
+/* normal on triangle  */
+ccl_device_inline float3 triangle_normal(KernelGlobals *kg, int prim)
+{
+	/* load triangle vertices */
+	float3 tri_vindex = float4_to_float3(kernel_tex_fetch(__tri_vindex, prim));
+
+	float3 v0 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.x)));
+	float3 v1 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.y)));
+	float3 v2 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.z)));
+	
+	/* return normal */
+	return normalize(cross(v1 - v0, v2 - v0));
+}
+
 /* point and normal on triangle  */
 ccl_device_inline void triangle_point_normal(KernelGlobals *kg, int prim, float u, float v, float3 *P, float3 *Ng, int *shader)
 {
@@ -130,9 +144,11 @@ ccl_device_inline void triangle_point_normal(KernelGlobals *kg, int prim, float 
 	float t = 1.0f - u - v;
 	*P = (u*v0 + v*v1 + t*v2);
 
-	float4 Nm = kernel_tex_fetch(__tri_normal, prim);
-	*Ng = make_float3(Nm.x, Nm.y, Nm.z);
-	*shader = __float_as_int(Nm.w);
+	/* compute normal */
+	*Ng = normalize(cross(v1 - v0, v2 - v0));
+
+	/* shader`*/
+	*shader = __float_as_int(kernel_tex_fetch(__tri_shader, prim));
 }
 
 /* Triangle vertex locations */
@@ -243,11 +259,20 @@ ccl_device float3 triangle_attribute_float3(KernelGlobals *kg, const ShaderData 
 
 		return sd->u*f0 + sd->v*f1 + (1.0f - sd->u - sd->v)*f2;
 	}
-	else if(elem == ATTR_ELEMENT_CORNER) {
+	else if(elem == ATTR_ELEMENT_CORNER || elem == ATTR_ELEMENT_CORNER_BYTE) {
 		int tri = offset + sd->prim*3;
-		float3 f0 = float4_to_float3(kernel_tex_fetch(__attributes_float3, tri + 0));
-		float3 f1 = float4_to_float3(kernel_tex_fetch(__attributes_float3, tri + 1));
-		float3 f2 = float4_to_float3(kernel_tex_fetch(__attributes_float3, tri + 2));
+		float3 f0, f1, f2;
+
+		if(elem == ATTR_ELEMENT_CORNER) {
+			f0 = float4_to_float3(kernel_tex_fetch(__attributes_float3, tri + 0));
+			f1 = float4_to_float3(kernel_tex_fetch(__attributes_float3, tri + 1));
+			f2 = float4_to_float3(kernel_tex_fetch(__attributes_float3, tri + 2));
+		}
+		else {
+			f0 = color_byte_to_float(kernel_tex_fetch(__attributes_uchar4, tri + 0));
+			f1 = color_byte_to_float(kernel_tex_fetch(__attributes_uchar4, tri + 1));
+			f2 = color_byte_to_float(kernel_tex_fetch(__attributes_uchar4, tri + 2));
+		}
 
 #ifdef __RAY_DIFFERENTIALS__
 		if(dx) *dx = sd->du.dx*f0 + sd->dv.dx*f1 - (sd->du.dx + sd->dv.dx)*f2;
@@ -269,12 +294,11 @@ ccl_device float3 triangle_attribute_float3(KernelGlobals *kg, const ShaderData 
  * Based on Sven Woop's algorithm with precomputed triangle storage */
 
 ccl_device_inline bool triangle_intersect(KernelGlobals *kg, Intersection *isect,
-	float3 P, float3 idir, uint visibility, int object, int triAddr)
+	float3 P, float3 dir, uint visibility, int object, int triAddr)
 {
 	/* compute and check intersection t-value */
 	float4 v00 = kernel_tex_fetch(__tri_woop, triAddr*TRI_NODE_SIZE+0);
 	float4 v11 = kernel_tex_fetch(__tri_woop, triAddr*TRI_NODE_SIZE+1);
-	float3 dir = 1.0f/idir;
 
 	float Oz = v00.w - P.x*v00.x - P.y*v00.y - P.z*v00.z;
 	float invDz = 1.0f/(dir.x*v00.x + dir.y*v00.y + dir.z*v00.z);
@@ -322,12 +346,11 @@ ccl_device_inline bool triangle_intersect(KernelGlobals *kg, Intersection *isect
 
 #ifdef __SUBSURFACE__
 ccl_device_inline void triangle_intersect_subsurface(KernelGlobals *kg, Intersection *isect_array,
-	float3 P, float3 idir, int object, int triAddr, float tmax, uint *num_hits, uint *lcg_state, int max_hits)
+	float3 P, float3 dir, int object, int triAddr, float tmax, uint *num_hits, uint *lcg_state, int max_hits)
 {
 	/* compute and check intersection t-value */
 	float4 v00 = kernel_tex_fetch(__tri_woop, triAddr*TRI_NODE_SIZE+0);
 	float4 v11 = kernel_tex_fetch(__tri_woop, triAddr*TRI_NODE_SIZE+1);
-	float3 dir = 1.0f/idir;
 
 	float Oz = v00.w - P.x*v00.x - P.y*v00.y - P.z*v00.z;
 	float invDz = 1.0f/(dir.x*v00.x + dir.y*v00.y + dir.z*v00.z);

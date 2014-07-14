@@ -32,7 +32,6 @@
 #include <string.h>
 
 #include "DNA_color_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_movieclip_types.h"
 
@@ -444,24 +443,11 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 
 static void draw_scope_end(const rctf *rect, GLint *scissor)
 {
-	float scaler_x1, scaler_x2;
-	
 	/* restore scissortest */
 	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
-	
+
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
-	/* scale widget */
-	scaler_x1 = rect->xmin + BLI_rctf_size_x(rect) / 2 - SCOPE_RESIZE_PAD;
-	scaler_x2 = rect->xmin + BLI_rctf_size_x(rect) / 2 + SCOPE_RESIZE_PAD;
-	
-	glColor4f(0.f, 0.f, 0.f, 0.25f);
-	fdrawline(scaler_x1, rect->ymin - 4, scaler_x2, rect->ymin - 4);
-	fdrawline(scaler_x1, rect->ymin - 7, scaler_x2, rect->ymin - 7);
-	glColor4f(1.f, 1.f, 1.f, 0.25f);
-	fdrawline(scaler_x1, rect->ymin - 5, scaler_x2, rect->ymin - 5);
-	fdrawline(scaler_x1, rect->ymin - 8, scaler_x2, rect->ymin - 8);
-	
+
 	/* outline */
 	glColor4f(0.f, 0.f, 0.f, 0.5f);
 	uiSetRoundBox(UI_CNR_ALL);
@@ -469,7 +455,7 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 }
 
 static void histogram_draw_one(float r, float g, float b, float alpha,
-                               float x, float y, float w, float h, float *data, int res, const bool is_line)
+                               float x, float y, float w, float h, const float *data, int res, const bool is_line)
 {
 	int i;
 	
@@ -539,7 +525,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 	
 	rect.xmin = (float)recti->xmin + 1;
 	rect.xmax = (float)recti->xmax - 1;
-	rect.ymin = (float)recti->ymin + SCOPE_RESIZE_PAD + 2;
+	rect.ymin = (float)recti->ymin + 1;
 	rect.ymax = (float)recti->ymax - 1;
 	
 	w = BLI_rctf_size_x(&rect);
@@ -588,7 +574,7 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol)
 			histogram_draw_one(0.0, 0.0, 1.0, 0.75, rect.xmin, rect.ymin, w, h, hist->data_b, res, is_line);
 	}
 	
-	/* outline, scale gripper */
+	/* outline */
 	draw_scope_end(&rect, scissor);
 }
 
@@ -601,7 +587,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	int i, c;
 	float w, w3, h, alpha, yofs;
 	GLint scissor[4];
-	float colors[3][3] = MAT3_UNITY;
+	float colors[3][3];
 	float colorsycc[3][3] = {{1, 0, 1}, {1, 1, 0}, {0, 1, 1}};
 	float colors_alpha[3][3], colorsycc_alpha[3][3]; /* colors  pre multiplied by alpha for speed up */
 	float min, max;
@@ -610,7 +596,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	
 	rect.xmin = (float)recti->xmin + 1;
 	rect.xmax = (float)recti->xmax - 1;
-	rect.ymin = (float)recti->ymin + SCOPE_RESIZE_PAD + 2;
+	rect.ymin = (float)recti->ymin + 1;
 	rect.ymax = (float)recti->ymax - 1;
 
 	if (scopes->wavefrm_yfac < 0.5f)
@@ -623,20 +609,21 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 	/* log scale for alpha */
 	alpha = scopes->wavefrm_alpha * scopes->wavefrm_alpha;
 	
+	unit_m3(colors);
+
 	for (c = 0; c < 3; c++) {
 		for (i = 0; i < 3; i++) {
 			colors_alpha[c][i] = colors[c][i] * alpha;
 			colorsycc_alpha[c][i] = colorsycc[c][i] * alpha;
 		}
 	}
-			
+
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
 	glColor4f(0.f, 0.f, 0.f, 0.3f);
 	uiSetRoundBox(UI_CNR_ALL);
 	uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin - 1, rect.xmax + 1, rect.ymax + 1, 3.0f);
-	
 
 	/* need scissor test, waveform can draw outside of boundary */
 	glGetIntegerv(GL_VIEWPORT, scissor);
@@ -694,7 +681,7 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 			glScalef(w, h, 0.f);
 			glVertexPointer(2, GL_FLOAT, 0, scopes->waveform_1);
 			glDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
-					
+
 			glDisableClientState(GL_VERTEX_ARRAY);
 			glPopMatrix();
 
@@ -755,21 +742,20 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 				fdrawline(rect.xmin + w + 2 + c * 2, min, rect.xmin + w + 2 + c * 2, max);
 			}
 		}
-		
 	}
 	
-	/* outline, scale gripper */
+	/* outline */
 	draw_scope_end(&rect, scissor);
 }
 
 static float polar_to_x(float center, float diam, float ampli, float angle)
 {
-	return center + diam *ampli * cosf(angle);
+	return center + diam * ampli * cosf(angle);
 }
 
 static float polar_to_y(float center, float diam, float ampli, float angle)
 {
-	return center + diam *ampli * sinf(angle);
+	return center + diam * ampli * sinf(angle);
 }
 
 static void vectorscope_draw_target(float centerx, float centery, float diam, const float colf[3])
@@ -840,7 +826,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	
 	rect.xmin = (float)recti->xmin + 1;
 	rect.xmax = (float)recti->xmax - 1;
-	rect.ymin = (float)recti->ymin + SCOPE_RESIZE_PAD + 2;
+	rect.ymin = (float)recti->ymin + 1;
 	rect.ymax = (float)recti->ymax - 1;
 	
 	w = BLI_rctf_size_x(&rect);
@@ -850,7 +836,7 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 	diam = (w < h) ? w : h;
 	
 	alpha = scopes->vecscope_alpha * scopes->vecscope_alpha * scopes->vecscope_alpha;
-			
+
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
@@ -906,9 +892,9 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 		glPopMatrix();
 	}
 
-	/* outline, scale gripper */
+	/* outline */
 	draw_scope_end(&rect, scissor);
-		
+
 	glDisable(GL_BLEND);
 }
 
@@ -1042,13 +1028,13 @@ static void ui_draw_colorband_handle(
 	if (active)
 		glColor3ub(196, 196, 196);
 	else
-		glColor3ub(128, 128, 128);
+		glColor3ub(96, 96, 96);
 	ui_draw_colorband_handle_tri(x, y1 + height, half_width, half_width, true);
 
 	if (active)
 		glColor3ub(255, 255, 255);
 	else
-		glColor3ub(196, 196, 196);
+		glColor3ub(128, 128, 128);
 	ui_draw_colorband_handle_tri_hlight(x, y1 + height - 1, (half_width - 1), (half_width - 1));
 
 	glColor3ub(0, 0, 0);
@@ -1147,7 +1133,6 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti 
 	/* layer: box outline */
 	glColor4f(0.0, 0.0, 0.0, 1.0);
 	fdrawbox(x1, y1, x1 + sizex, rect->ymax);
-	glEnd();
 	
 	/* layer: box outline */
 	glEnable(GL_BLEND);
@@ -1341,9 +1326,9 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 		float col[3] = {0.0f, 0.0f, 0.0f}; /* dummy arg */
 
 		grid.xmin = rect->xmin + zoomx * (-offsx);
-		grid.xmax = rect->xmax + zoomx * (-offsx);
+		grid.xmax = grid.xmin + zoomx;
 		grid.ymin = rect->ymin + zoomy * (-offsy);
-		grid.ymax = rect->ymax + zoomy * (-offsy);
+		grid.ymax = grid.ymin + zoomy;
 
 		ui_draw_gradient(&grid, col, UI_GRAD_H, 1.0f);
 
@@ -1499,13 +1484,14 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *recti)
 {
 	rctf rect;
-	int ok = 0, width, height;
+	bool ok = false;
+	int width, height;
 	GLint scissor[4];
 	MovieClipScopes *scopes = (MovieClipScopes *)but->poin;
 
 	rect.xmin = (float)recti->xmin + 1;
 	rect.xmax = (float)recti->xmax - 1;
-	rect.ymin = (float)recti->ymin + SCOPE_RESIZE_PAD + 2;
+	rect.ymin = (float)recti->ymin + 1;
 	rect.ymax = (float)recti->ymax - 1;
 
 	width  = BLI_rctf_size_x(&rect) + 1;
@@ -1538,9 +1524,9 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 			IMB_freeImBuf(scopes->track_preview);
 
 		tmpibuf = BKE_tracking_sample_pattern(scopes->frame_width, scopes->frame_height,
-		                                            scopes->track_search, scopes->track,
-		                                            &scopes->undist_marker, true, scopes->use_track_mask,
-		                                            width, height, scopes->track_pos);
+		                                      scopes->track_search, scopes->track,
+		                                      &scopes->undist_marker, true, scopes->use_track_mask,
+		                                      width, height, scopes->track_pos);
 
 		if (tmpibuf) {
 			if (tmpibuf->rect_float)
@@ -1616,7 +1602,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		uiDrawBox(GL_POLYGON, rect.xmin - 1, rect.ymin, rect.xmax + 1, rect.ymax + 1, 3.0f);
 	}
 
-	/* outline, scale gripper */
+	/* outline */
 	draw_scope_end(&rect, scissor);
 
 	glDisable(GL_BLEND);
@@ -1627,14 +1613,14 @@ void ui_draw_but_NODESOCKET(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol
 	static const float size = 5.0f;
 	
 	/* 16 values of sin function */
-	static float si[16] = {
+	const float si[16] = {
 	    0.00000000f, 0.39435585f, 0.72479278f, 0.93775213f,
 	    0.99871650f, 0.89780453f, 0.65137248f, 0.29936312f,
 	    -0.10116832f, -0.48530196f, -0.79077573f, -0.96807711f,
 	    -0.98846832f, -0.84864425f, -0.57126821f, -0.20129852f
 	};
 	/* 16 values of cos function */
-	static float co[16] = {
+	const float co[16] = {
 	    1.00000000f, 0.91895781f, 0.68896691f, 0.34730525f,
 	    -0.05064916f, -0.44039415f, -0.75875812f, -0.95413925f,
 	    -0.99486932f, -0.87434661f, -0.61210598f, -0.25065253f,

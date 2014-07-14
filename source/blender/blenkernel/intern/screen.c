@@ -193,7 +193,10 @@ ARegion *BKE_area_region_copy(SpaceType *st, ARegion *ar)
 	
 	BLI_listbase_clear(&newar->panels);
 	BLI_duplicatelist(&newar->panels, &ar->panels);
-	
+
+	BLI_listbase_clear(&newar->ui_previews);
+	BLI_duplicatelist(&newar->ui_previews, &ar->ui_previews);
+
 	/* copy panel pointers */
 	for (newpa = newar->panels.first; newpa; newpa = newpa->next) {
 		patab = newar->panels.first;
@@ -308,6 +311,7 @@ void BKE_area_region_free(SpaceType *st, ARegion *ar)
 		}
 	}
 	BLI_freelistN(&ar->ui_lists);
+	BLI_freelistN(&ar->ui_previews);
 	BLI_freelistN(&ar->panels_category);
 	BLI_freelistN(&ar->panels_category_active);
 }

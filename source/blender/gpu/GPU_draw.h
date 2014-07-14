@@ -76,6 +76,7 @@ int GPU_enable_material(int nr, void *attribs);
 void GPU_disable_material(void);
 
 void GPU_material_diffuse_get(int nr, float diff[4]);
+bool GPU_material_use_matcaps_get(void);
 
 void GPU_set_material_alpha_blend(int alphablend);
 int GPU_get_material_alpha_blend(void);
@@ -133,6 +134,7 @@ bool GPU_upload_dxt_texture(struct ImBuf *ibuf);
 void GPU_free_image(struct Image *ima);
 void GPU_free_images(void);
 void GPU_free_images_anim(void);
+void GPU_free_images_old(void);
 
 /* smoke drawing functions */
 void GPU_free_smoke(struct SmokeModifierData *smd);

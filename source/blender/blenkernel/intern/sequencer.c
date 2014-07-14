@@ -35,7 +35,6 @@
 #include <math.h>
 
 #include "MEM_guardedalloc.h"
-#include "MEM_CacheLimiterC-Api.h"
 
 #include "DNA_sequence_types.h"
 #include "DNA_movieclip_types.h"
@@ -948,8 +947,9 @@ static void seqbase_unique_name(ListBase *seqbasep, SeqUniqueInfo *sui)
 	Sequence *seq;
 	for (seq = seqbasep->first; seq; seq = seq->next) {
 		if ((sui->seq != seq) && STREQ(sui->name_dest, seq->name + 2)) {
-			/* SEQ_NAME_MAXSTR - 2 for prefix, -1 for \0, -4 for the number */
-			BLI_snprintf(sui->name_dest, sizeof(sui->name_dest), "%.59s.%03d",  sui->name_src, sui->count++);
+			/* SEQ_NAME_MAXSTR -4 for the number, -1 for \0, - 2 for prefix */
+			BLI_snprintf(sui->name_dest, sizeof(sui->name_dest), "%.*s.%03d", SEQ_NAME_MAXSTR - 4 - 1 - 2,
+			             sui->name_src, sui->count++);
 			sui->match = 1; /* be sure to re-scan */
 		}
 	}
@@ -1156,7 +1156,7 @@ StripElem *BKE_sequencer_give_stripelem(Sequence *seq, int cfra)
 	return se;
 }
 
-static int evaluate_seq_frame_gen(Sequence **seq_arr, ListBase *seqbase, int cfra)
+static int evaluate_seq_frame_gen(Sequence **seq_arr, ListBase *seqbase, int cfra, int chanshown)
 {
 	Sequence *seq;
 	Sequence *effect_inputs[MAXSEQ + 1];
@@ -1188,11 +1188,24 @@ static int evaluate_seq_frame_gen(Sequence **seq_arr, ListBase *seqbase, int cfr
 	}
 
 	/* Drop strips which are used for effect inputs, we don't want
-	 *them to blend into render stack in any other way than effect
+	 * them to blend into render stack in any other way than effect
 	 * string rendering.
 	 */
 	for (i = 0; i < num_effect_inputs; i++) {
 		seq = effect_inputs[i];
+		/* It's possible that effetc strip would be placed to the same
+		 * 'machine' as it's inputs. We don't want to clear such strips
+		 * from the stack.
+		 */
+		if (seq_arr[seq->machine] && seq_arr[seq->machine]->type & SEQ_TYPE_EFFECT) {
+			continue;
+		}
+		/* If we're shown a specified channel, then we want to see the stirps
+		 * which belongs to this machine.
+		 */
+		if (chanshown != 0 && chanshown <= seq->machine) {
+			continue;
+		}
 		seq_arr[seq->machine] = NULL;
 	}
 
@@ -1207,7 +1220,7 @@ int BKE_sequencer_evaluate_frame(Scene *scene, int cfra)
 	if (ed == NULL)
 		return 0;
 
-	return evaluate_seq_frame_gen(seq_arr, ed->seqbasep, cfra);
+	return evaluate_seq_frame_gen(seq_arr, ed->seqbasep, cfra, 0);
 }
 
 static bool video_seq_is_rendered(Sequence *seq)
@@ -1225,7 +1238,7 @@ static int get_shown_sequences(ListBase *seqbasep, int cfra, int chanshown, Sequ
 		return 0;
 	}
 
-	if (evaluate_seq_frame_gen(seq_arr, seqbasep, cfra)) {
+	if (evaluate_seq_frame_gen(seq_arr, seqbasep, cfra, chanshown)) {
 		if (b == 0) {
 			b = MAXSEQ;
 		}
@@ -1753,8 +1766,8 @@ static void color_balance_byte_float(StripColorBalance *cb_, unsigned char *rect
 static void color_balance_float_float(StripColorBalance *cb_, float *rect_float, float *mask_rect_float, int width, int height, float mul)
 {
 	float *p = rect_float;
-	float *e = rect_float + width * 4 * height;
-	float *m = mask_rect_float;
+	const float *e = rect_float + width * 4 * height;
+	const float *m = mask_rect_float;
 	StripColorBalance cb = calc_cb(cb_);
 
 	while (p < e) {
@@ -2401,7 +2414,7 @@ static ImBuf *seq_render_mask(const SeqRenderData *context, Mask *mask, float nr
 
 	if (make_float) {
 		/* pixels */
-		float *fp_src;
+		const float *fp_src;
 		float *fp_dst;
 
 		ibuf = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rectfloat);
@@ -2419,7 +2432,7 @@ static ImBuf *seq_render_mask(const SeqRenderData *context, Mask *mask, float nr
 	}
 	else {
 		/* pixels */
-		float *fp_src;
+		const float *fp_src;
 		unsigned char *ub_dst;
 
 		ibuf = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rect);
@@ -2526,7 +2539,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 	}
 
 	/* prevent eternal loop */
-	do_seq = context->scene->r.scemode & R_DOSEQ;
+	do_seq = scene->r.scemode & R_DOSEQ;
 	scene->r.scemode &= ~R_DOSEQ;
 	
 #ifdef DURIAN_CAMERA_SWITCH
@@ -2539,6 +2552,9 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 
 	if ((sequencer_view3d_cb && do_seq_gl && camera) && is_thread_main) {
 		char err_out[256] = "unknown";
+		int width = (scene->r.xsch * scene->r.size) / 100;
+		int height = (scene->r.ysch * scene->r.size) / 100;
+
 		/* for old scened this can be uninitialized,
 		 * should probably be added to do_versions at some point if the functionality stays */
 		if (context->scene->r.seq_prev_type == 0)
@@ -2546,7 +2562,7 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 
 		/* opengl offscreen render */
 		BKE_scene_update_for_newframe(context->eval_ctx, context->bmain, scene, scene->lay);
-		ibuf = sequencer_view3d_cb(scene, camera, context->rectx, context->recty, IB_rect,
+		ibuf = sequencer_view3d_cb(scene, camera, width, height, IB_rect,
 		                           context->scene->r.seq_prev_type,
 		                           (context->scene->r.seq_flag & R_SEQ_SOLID_TEX) != 0,
 		                           true, scene->r.alphamode, err_out);
@@ -2797,8 +2813,7 @@ static ImBuf *seq_render_strip(const SeqRenderData *context, Sequence *seq, floa
 	ibuf = BKE_sequencer_cache_get(context, seq, cfra, SEQ_STRIPELEM_IBUF);
 
 	if (ibuf == NULL) {
-		if (ibuf == NULL)
-			ibuf = copy_from_ibuf_still(context, seq, nr);
+		ibuf = copy_from_ibuf_still(context, seq, nr);
 
 		if (ibuf == NULL) {
 			ibuf = BKE_sequencer_preprocessed_cache_get(context, seq, cfra, SEQ_STRIPELEM_IBUF);
@@ -3012,7 +3027,13 @@ static ImBuf *seq_render_strip_stack(const SeqRenderData *context, ListBase *seq
 				break;
 			case EARLY_DO_EFFECT:
 				if (i == 0) {
-					out = seq_render_strip(context, seq, cfra);
+					ImBuf *ibuf1 = IMB_allocImBuf(context->rectx, context->recty, 32, IB_rect);
+					ImBuf *ibuf2 = seq_render_strip(context, seq, cfra);
+
+					out = seq_render_strip_stack_apply_effect(context, seq, cfra, ibuf1, ibuf2);
+
+					IMB_freeImBuf(ibuf1);
+					IMB_freeImBuf(ibuf2);
 				}
 
 				break;
@@ -3053,13 +3074,12 @@ static ImBuf *seq_render_strip_stack(const SeqRenderData *context, ListBase *seq
 ImBuf *BKE_sequencer_give_ibuf(const SeqRenderData *context, float cfra, int chanshown)
 {
 	Editing *ed = BKE_sequencer_editing_get(context->scene, false);
-	int count;
 	ListBase *seqbasep;
 	
 	if (ed == NULL) return NULL;
 
-	count = BLI_countlist(&ed->metastack);
-	if ((chanshown < 0) && (count > 0)) {
+	if ((chanshown < 0) && !BLI_listbase_is_empty(&ed->metastack)) {
+		int count = BLI_countlist(&ed->metastack);
 		count = max_ii(count + chanshown, 0);
 		seqbasep = ((MetaStack *)BLI_findlink(&ed->metastack, count))->oldbasep;
 	}
@@ -4021,19 +4041,31 @@ int BKE_sequence_swap(Sequence *seq_a, Sequence *seq_b, const char **error_str)
 	return 1;
 }
 
+/* prefix + [" + escaped_name + "] + \0 */
+#define SEQ_RNAPATH_MAXSTR ((30 + 2 + (SEQ_NAME_MAXSTR * 2) + 2) + 1)
+
+static size_t sequencer_rna_path_prefix(char str[SEQ_RNAPATH_MAXSTR], const char *name)
+{
+	char name_esc[SEQ_NAME_MAXSTR * 2];
+
+	BLI_strescape(name_esc, name, sizeof(name_esc));
+	return BLI_snprintf(str, SEQ_RNAPATH_MAXSTR, "sequence_editor.sequences_all[\"%s\"]", name_esc);
+}
+
 /* XXX - hackish function needed for transforming strips! TODO - have some better solution */
 void BKE_sequencer_offset_animdata(Scene *scene, Sequence *seq, int ofs)
 {
-	char str[SEQ_NAME_MAXSTR + 3];
+	char str[SEQ_RNAPATH_MAXSTR];
+	size_t str_len;
 	FCurve *fcu;
 
 	if (scene->adt == NULL || ofs == 0 || scene->adt->action == NULL)
 		return;
 
-	BLI_snprintf(str, sizeof(str), "[\"%s\"]", seq->name + 2);
+	str_len = sequencer_rna_path_prefix(str, seq->name + 2);
 
 	for (fcu = scene->adt->action->curves.first; fcu; fcu = fcu->next) {
-		if (strstr(fcu->rna_path, "sequence_editor.sequences_all[") && strstr(fcu->rna_path, str)) {
+		if (STREQLEN(fcu->rna_path, str, str_len)) {
 			unsigned int i;
 			if (fcu->bezt) {
 				for (i = 0; i < fcu->totvert; i++) {
@@ -4055,7 +4087,8 @@ void BKE_sequencer_offset_animdata(Scene *scene, Sequence *seq, int ofs)
 
 void BKE_sequencer_dupe_animdata(Scene *scene, const char *name_src, const char *name_dst)
 {
-	char str_from[SEQ_NAME_MAXSTR + 3];
+	char str_from[SEQ_RNAPATH_MAXSTR];
+	size_t str_from_len;
 	FCurve *fcu;
 	FCurve *fcu_last;
 	FCurve *fcu_cpy;
@@ -4064,12 +4097,12 @@ void BKE_sequencer_dupe_animdata(Scene *scene, const char *name_src, const char 
 	if (scene->adt == NULL || scene->adt->action == NULL)
 		return;
 
-	BLI_snprintf(str_from, sizeof(str_from), "[\"%s\"]", name_src);
+	str_from_len = sequencer_rna_path_prefix(str_from, name_src);
 
 	fcu_last = scene->adt->action->curves.last;
 
 	for (fcu = scene->adt->action->curves.first; fcu && fcu->prev != fcu_last; fcu = fcu->next) {
-		if (strstr(fcu->rna_path, "sequence_editor.sequences_all[") && strstr(fcu->rna_path, str_from)) {
+		if (STREQLEN(fcu->rna_path, str_from, str_from_len)) {
 			fcu_cpy = copy_fcurve(fcu);
 			BLI_addtail(&lb, fcu_cpy);
 		}
@@ -4085,18 +4118,19 @@ void BKE_sequencer_dupe_animdata(Scene *scene, const char *name_src, const char 
 /* XXX - hackish function needed to remove all fcurves belonging to a sequencer strip */
 static void seq_free_animdata(Scene *scene, Sequence *seq)
 {
-	char str[SEQ_NAME_MAXSTR + 3];
+	char str[SEQ_RNAPATH_MAXSTR];
+	size_t str_len;
 	FCurve *fcu;
 
 	if (scene->adt == NULL || scene->adt->action == NULL)
 		return;
 
-	BLI_snprintf(str, sizeof(str), "[\"%s\"]", seq->name + 2);
+	str_len = sequencer_rna_path_prefix(str, seq->name + 2);
 
 	fcu = scene->adt->action->curves.first;
 
 	while (fcu) {
-		if (strstr(fcu->rna_path, "sequence_editor.sequences_all[") && strstr(fcu->rna_path, str)) {
+		if (STREQLEN(fcu->rna_path, str, str_len)) {
 			FCurve *next_fcu = fcu->next;
 			
 			BLI_remlink(&scene->adt->action->curves, fcu);
@@ -4109,6 +4143,8 @@ static void seq_free_animdata(Scene *scene, Sequence *seq)
 		}
 	}
 }
+
+#undef SEQ_RNAPATH_MAXSTR
 
 Sequence *BKE_sequence_get_by_name(ListBase *seqbase, const char *name, bool recursive)
 {
@@ -4447,7 +4483,7 @@ Sequence *BKE_sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoad
 		int start_frame_back = seq_load->start_frame;
 		seq_load->channel++;
 
-		BKE_sequencer_add_sound_strip(C, seqbasep, seq_load);
+		seq_load->seq_sound = BKE_sequencer_add_sound_strip(C, seqbasep, seq_load);
 
 		seq_load->start_frame = start_frame_back;
 		seq_load->channel--;

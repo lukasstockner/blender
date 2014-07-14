@@ -136,7 +136,7 @@ static void rna_SequenceEditor_sequences_all_begin(CollectionPropertyIterator *i
 
 static void rna_SequenceEditor_sequences_all_next(CollectionPropertyIterator *iter)
 {
-	ListBaseIterator *internal = iter->internal;
+	ListBaseIterator *internal = &iter->internal.listbase;
 	Sequence *seq = (Sequence *)internal->link;
 
 	if (seq->seqbase.first)
@@ -297,6 +297,14 @@ static void rna_Sequence_channel_set(PointerRNA *ptr, int value)
 		BKE_sequence_base_shuffle(seqbase, seq, scene);  /* XXX - BROKEN!, uses context seqbasep */
 	}
 	BKE_sequencer_sort(scene);
+}
+
+static void rna_Sequence_frame_offset_range(PointerRNA *ptr, int *min, int *max,
+                                           int *UNUSED(softmin), int *UNUSED(softmax))
+{
+	Sequence *seq = (Sequence *)ptr->data;
+	*min = ELEM(seq->type, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SOUND_HD) ? 0 : INT_MIN;
+	*max = INT_MAX;
 }
 
 static void rna_Sequence_use_proxy_set(PointerRNA *ptr, int value)
@@ -556,7 +564,7 @@ static char *rna_Sequence_path(PointerRNA *ptr)
 
 static PointerRNA rna_SequenceEditor_meta_stack_get(CollectionPropertyIterator *iter)
 {
-	ListBaseIterator *internal = iter->internal;
+	ListBaseIterator *internal = &iter->internal.listbase;
 	MetaStack *ms = (MetaStack *)internal->link;
 
 	return rna_pointer_inherit_refine(&iter->parent, &RNA_Sequence, ms->parseq);
@@ -1466,12 +1474,14 @@ static void rna_def_sequence(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "startofs");
 //	RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* overlap tests */
 	RNA_def_property_ui_text(prop, "Start Offset", "");
+	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_Sequence_frame_offset_range");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_frame_change_update");
 
 	prop = RNA_def_property(srna, "frame_offset_end", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "endofs");
 //	RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* overlap tests */
 	RNA_def_property_ui_text(prop, "End Offset", "");
+	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_Sequence_frame_offset_range");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_frame_change_update");
 
 	prop = RNA_def_property(srna, "frame_still_start", PROP_INT, PROP_TIME);
@@ -1559,13 +1569,13 @@ static void rna_def_editor(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "sequences", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "seqbase", NULL);
 	RNA_def_property_struct_type(prop, "Sequence");
-	RNA_def_property_ui_text(prop, "Sequences", "");
+	RNA_def_property_ui_text(prop, "Sequences", "Top-level strips only");
 	RNA_api_sequences(brna, prop);
 
 	prop = RNA_def_property(srna, "sequences_all", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "seqbase", NULL);
 	RNA_def_property_struct_type(prop, "Sequence");
-	RNA_def_property_ui_text(prop, "Sequences", "");
+	RNA_def_property_ui_text(prop, "All Sequences", "All strips, recursively including those inside metastrips");
 	RNA_def_property_collection_funcs(prop, "rna_SequenceEditor_sequences_all_begin",
 	                                  "rna_SequenceEditor_sequences_all_next", NULL, NULL, NULL, NULL, NULL, NULL);
 

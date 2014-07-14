@@ -30,24 +30,18 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
 
-#include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_customdata.h"
 #include "BKE_image.h"
-#include "BKE_mesh.h"
 #include "BKE_node.h"
 #include "BKE_screen.h"
 
@@ -57,7 +51,6 @@
 #include "IMB_imbuf_types.h"
 
 #include "ED_gpencil.h"
-#include "ED_image.h"
 #include "ED_screen.h"
 
 #include "RNA_access.h"
@@ -763,7 +756,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 					if (has_alpha) {
 						col = uiLayoutColumn(layout, false);
 						uiItemR(col, &imaptr, "use_alpha", 0, NULL, ICON_NONE);
-						uiItemR(col, &imaptr, "alpha_mode", 0, "Alpha", ICON_NONE);
+						uiItemR(col, &imaptr, "alpha_mode", 0, IFACE_("Alpha"), ICON_NONE);
 					}
 
 					uiItemS(layout);
@@ -839,7 +832,7 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, int color_man
 	const bool is_render_out = (id && GS(id->name) == ID_SCE);
 
 	uiLayout *col, *row, *split, *sub;
-	int show_preview = false;
+	bool show_preview = false;
 
 	col = uiLayoutColumn(layout, false);
 
@@ -954,8 +947,8 @@ void image_buttons_register(ARegionType *art)
 	strcpy(pt->idname, "IMAGE_PT_gpencil");
 	strcpy(pt->label, N_("Grease Pencil"));
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
-	pt->draw_header = gpencil_panel_standard_header;
-	pt->draw = gpencil_panel_standard;
+	pt->draw_header = ED_gpencil_panel_standard_header;
+	pt->draw = ED_gpencil_panel_standard;
 	BLI_strncpy(pt->category, category, BLI_strlen_utf8(category));
 	BLI_addtail(&art->paneltypes, pt);
 }

@@ -42,6 +42,7 @@
 #include "KX_WorldInfo.h"
 #include <vector>
 
+struct TaskScheduler;
 class KX_TimeCategoryLogger;
 
 #define LEFT_EYE  1
@@ -110,7 +111,6 @@ private:
 	double				m_frameTime;//discrete timestamp of the 'game logic frame'
 	double				m_clockTime;//current time
 	double				m_previousClockTime;//previous clock time
-	double				m_previousAnimTime; //the last time animations were updated
 	double				m_remainingTime;
 
 	static int				m_maxLogicFrame;	/* maximum number of consecutive logic frame */
@@ -174,8 +174,10 @@ private:
 	bool					m_showProperties;
 	/** Show background behind text for readability? */
 	bool					m_showBackground;
-
+	/** Show debug properties on the game display*/
 	bool					m_show_debug_properties;
+	/** Automatic add debug properties to the debug list*/
+	bool					m_autoAddDebugProperties;
 
 	/** record physics into keyframes */
 	bool					m_animation_record;
@@ -194,6 +196,9 @@ private:
 
 	/** Settings that doesn't go away with Game Actuator */
 	GlobalSettings m_globalsettings;
+
+	/** Task scheduler for multi-threading */
+	TaskScheduler* m_taskscheduler;
 
 	void					RenderFrame(KX_Scene* scene, KX_Camera* cam);
 	void					PostRenderScene(KX_Scene* scene);
@@ -224,6 +229,8 @@ public:
 	RAS_ICanvas*		    GetCanvas() { return m_canvas; }
 	SCA_IInputDevice*		GetKeyboardDevice() { return m_keyboarddevice; }
 	SCA_IInputDevice*		GetMouseDevice() { return m_mousedevice; }
+
+	TaskScheduler*			GetTaskScheduler() { return m_taskscheduler; }
 
 	/// Dome functions
 	void			InitDome(short res, short mode, short angle, float resbuf, short tilt, struct Text* text); 
@@ -346,6 +353,46 @@ public:
 	static void SetExitKey(short key);
 
 	static short GetExitKey();
+
+	/**
+	 * \Sets the display for frame rate on or off.
+	 */
+	void SetShowFramerate(bool frameRate);
+
+	/**
+	 * \Gets the display for frame rate on or off.
+	 */
+	bool GetShowFramerate();
+
+	/**
+	 * \Sets the display for individual components on or off.
+	 */
+	void SetShowProfile(bool profile);
+
+	/**
+	 * \Gets the display for individual components on or off.
+	 */
+	bool GetShowProfile();
+
+	/**
+	 * \Sets the display of scene object debug properties on or off.
+	 */
+	void SetShowProperties(bool properties);
+
+	/**
+	 * \Gets the display of scene object debug properties on or off.
+	 */
+	bool GetShowProperties();
+
+	/**
+	 * \Sets if the auto adding of scene object debug properties on or off.
+	 */
+	bool GetAutoAddDebugProperties();
+
+	/**
+	 * \Sets the auto adding of scene object debug properties on or off.
+	 */
+	void SetAutoAddDebugProperties(bool add);
 
 	/**
 	 * Activates or deactivates timing information display.

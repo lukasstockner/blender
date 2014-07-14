@@ -68,6 +68,7 @@ public:
 	float3 *data_float3() { return (float3*)data(); }
 	float4 *data_float4() { return (float4*)data(); }
 	float *data_float() { return (float*)data(); }
+	uchar4 *data_uchar4() { return (uchar4*)data(); }
 	Transform *data_transform() { return (Transform*)data(); }
 	VoxelAttribute *data_voxel()  { return ( VoxelAttribute*)data(); }
 
@@ -80,8 +81,10 @@ public:
 
 	void add(const float& f);
 	void add(const float3& f);
+	void add(const uchar4& f);
 	void add(const Transform& f);
 	void add(const VoxelAttribute& f);
+	void add(const char *data);
 
 	static bool same_storage(TypeDesc a, TypeDesc b);
 	static const char *standard_name(AttributeStandard std);

@@ -117,6 +117,8 @@ MINLINE void mul_v3_v3(float r[3], const float a[3]);
 MINLINE void mul_v3_v3v3(float r[3], const float a[3], const float b[3]);
 MINLINE void mul_v4_fl(float r[4], float f);
 MINLINE void mul_v4_v4fl(float r[3], const float a[3], float f);
+MINLINE void mul_v2_v2_cw(float r[2], const float mat[2], const float vec[2]);
+MINLINE void mul_v2_v2_ccw(float r[2], const float mat[2], const float vec[2]);
 MINLINE float mul_project_m4_v3_zfac(float mat[4][4], const float co[3]) ATTR_WARN_UNUSED_RESULT;
 MINLINE float dot_m3_v3_row_x(float M[3][3], const float a[3]) ATTR_WARN_UNUSED_RESULT;
 MINLINE float dot_m3_v3_row_y(float M[3][3], const float a[3]) ATTR_WARN_UNUSED_RESULT;
@@ -249,6 +251,7 @@ float angle_v3v3v3(const float a[3], const float b[3], const float c[3]) ATTR_WA
 float cos_v3v3v3(const float p1[3], const float p2[3], const float p3[3]) ATTR_WARN_UNUSED_RESULT;
 float angle_normalized_v3v3(const float v1[3], const float v2[3]) ATTR_WARN_UNUSED_RESULT;
 float angle_on_axis_v3v3v3_v3(const float v1[3], const float v2[3], const float v3[3], const float axis[3]) ATTR_WARN_UNUSED_RESULT;
+float angle_signed_on_axis_v3v3v3_v3(const float v1[3], const float v2[3], const float v3[3], const float axis[3]) ATTR_WARN_UNUSED_RESULT;
 void angle_tri_v3(float angles[3], const float v1[3], const float v2[3], const float v3[3]);
 void angle_quad_v3(float angles[4], const float v1[3], const float v2[3], const float v3[3], const float v4[3]);
 void angle_poly_v3(float *angles, const float *verts[3], int len);
@@ -259,9 +262,9 @@ void project_v2_v2v2(float c[2], const float v1[2], const float v2[2]);
 void project_v3_v3v3(float r[3], const float p[3], const float n[3]);
 void project_v3_plane(float v[3], const float n[3], const float p[3]);
 void reflect_v3_v3v3(float r[3], const float v[3], const float n[3]);
-void ortho_basis_v3v3_v3(float r1[3], float r2[3], const float a[3]);
+void ortho_basis_v3v3_v3(float r_n1[3], float r_n2[3], const float n[3]);
 void ortho_v3_v3(float p[3], const float v[3]);
-void ortho_v2_v2(float p[3], const float v[3]);
+void ortho_v2_v2(float p[2], const float v[2]);
 void bisect_v3_v3v3v3(float r[3], const float a[3], const float b[3], const float c[3]);
 void rotate_v3_v3v3fl(float v[3], const float p[3], const float axis[3], const float angle);
 void rotate_normalized_v3_v3v3fl(float v[3], const float p[3], const float axis[3], const float angle);
@@ -311,6 +314,7 @@ void msub_vn_vn(float *array_tar, const float *array_src, const float f, const i
 void msub_vn_vnvn(float *array_tar, const float *array_src_a, const float *array_src_b, const float f, const int size);
 void interp_vn_vn(float *array_tar, const float *array_src, const float t, const int size);
 void fill_vn_i(int *array_tar, const int size, const int val);
+void fill_vn_short(short *array_tar, const int size, const short val);
 void fill_vn_ushort(unsigned short *array_tar, const int size, const unsigned short val);
 void fill_vn_fl(float *array_tar, const int size, const float val);
 

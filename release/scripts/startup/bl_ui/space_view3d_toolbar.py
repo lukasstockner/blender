@@ -186,6 +186,7 @@ class VIEW3D_PT_tools_add_object(View3DPanel, Panel):
         layout.operator("object.armature_add", text="Armature", icon='OUTLINER_OB_ARMATURE')
         layout.operator("object.add", text="Lattice", icon='OUTLINER_OB_LATTICE').type = 'LATTICE'
         layout.operator("object.empty_add", text="Empty", icon='OUTLINER_OB_EMPTY').type = 'PLAIN_AXES'
+        layout.operator("object.speaker_add", text="Speaker", icon='OUTLINER_OB_SPEAKER')
         layout.operator("object.camera_add", text="Camera", icon='OUTLINER_OB_CAMERA')
 
     def draw(self, context):
@@ -362,6 +363,30 @@ class VIEW3D_PT_tools_meshedit(View3DPanel, Panel):
 
         draw_repeat_tools(context, layout)
 
+class VIEW3D_PT_tools_meshweight(View3DPanel, Panel):
+    bl_category = "Tools"
+    bl_context = "mesh_edit"
+    bl_label = "Weight Tools"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    # Used for Weight-Paint mode and Edit-Mode
+    @staticmethod
+    def draw_generic(layout):
+        col = layout.column()
+        col.operator("object.vertex_group_normalize_all", text="Normalize All")
+        col.operator("object.vertex_group_normalize", text="Normalize")
+        col.operator("object.vertex_group_mirror", text="Mirror")
+        col.operator("object.vertex_group_invert", text="Invert")
+        col.operator("object.vertex_group_clean", text="Clean")
+        col.operator("object.vertex_group_quantize", text="Quantize")
+        col.operator("object.vertex_group_levels", text="Levels")
+        col.operator("object.vertex_group_blend", text="Blend")
+        col.operator("object.vertex_group_limit_total", text="Limit Total")
+        col.operator("object.vertex_group_fix", text="Fix Deforms")
+
+    def draw(self, context):
+        layout = self.layout
+        self.draw_generic(layout)
 
 class VIEW3D_PT_tools_add_mesh_edit(View3DPanel, Panel):
     bl_category = "Create"
@@ -385,10 +410,20 @@ class VIEW3D_PT_tools_shading(View3DPanel, Panel):
         layout = self.layout
 
         col = layout.column(align=True)
-        col.label(text="Shading:")
+        col.label(text="Faces:")
         row = col.row(align=True)
         row.operator("mesh.faces_shade_smooth", text="Smooth")
         row.operator("mesh.faces_shade_flat", text="Flat")
+        col.label(text="Edges:")
+        row = col.row(align=True)
+        row.operator("mesh.mark_sharp", text="Smooth").clear = True
+        row.operator("mesh.mark_sharp", text="Sharp")
+        col.label(text="Vertices:")
+        row = col.row(align=True)
+        op = row.operator("mesh.mark_sharp", text="Smooth")
+        op.use_verts = True
+        op.clear = True
+        row.operator("mesh.mark_sharp", text="Sharp").use_verts = True
 
         col = layout.column(align=True)
         col.label(text="Normals:")
@@ -603,18 +638,27 @@ class VIEW3D_PT_tools_textedit(View3DPanel, Panel):
 # ********** default tools for editmode_armature ****************
 
 
-class VIEW3D_PT_tools_armatureedit(View3DPanel, Panel):
+class VIEW3D_PT_tools_armatureedit_transform(View3DPanel, Panel):
+    bl_category = "Tools"
     bl_context = "armature_edit"
-    bl_label = "Armature Tools"
+    bl_label = "Transform"
 
     def draw(self, context):
         layout = self.layout
 
         col = layout.column(align=True)
-        col.label(text="Transform:")
         col.operator("transform.translate")
         col.operator("transform.rotate")
         col.operator("transform.resize", text="Scale")
+
+
+class VIEW3D_PT_tools_armatureedit(View3DPanel, Panel):
+    bl_category = "Tools"
+    bl_context = "armature_edit"
+    bl_label = "Armature Tools"
+
+    def draw(self, context):
+        layout = self.layout
 
         col = layout.column(align=True)
         col.label(text="Bones:")
@@ -635,6 +679,7 @@ class VIEW3D_PT_tools_armatureedit(View3DPanel, Panel):
 
 
 class VIEW3D_PT_tools_armatureedit_options(View3DPanel, Panel):
+    bl_category = "Options"
     bl_context = "armature_edit"
     bl_label = "Armature Options"
 
@@ -642,6 +687,7 @@ class VIEW3D_PT_tools_armatureedit_options(View3DPanel, Panel):
         arm = context.active_object.data
 
         self.layout.prop(arm, "use_mirror_x")
+
 
 # ********** default tools for editmode_mball ****************
 
@@ -1079,7 +1125,6 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
 
         settings = self.paint_settings(context)
         brush = settings.brush
-        tex_slot = brush.texture_slot
 
         col = layout.column()
 
@@ -1103,7 +1148,6 @@ class VIEW3D_PT_tools_mask_texture(View3DPanel, Panel):
         layout = self.layout
 
         brush = context.tool_settings.image_paint.brush
-        tex_slot_alpha = brush.mask_texture_slot
 
         col = layout.column()
 
@@ -1253,7 +1297,7 @@ class VIEW3D_PT_sculpt_dyntopo(Panel, View3DPaintPanel):
         col = layout.column()
         col.active = context.sculpt_object.use_dynamic_topology_sculpting
         sub = col.column(align=True)
-        sub.active = brush and brush.sculpt_tool not in ('MASK')
+        sub.active = (brush and brush.sculpt_tool != 'MASK')
         if (sculpt.detail_type_method == 'CONSTANT'):
             row = sub.row(align=True)
             row.operator("sculpt.sample_detail_size", text="", icon='EYEDROPPER')
@@ -1266,7 +1310,7 @@ class VIEW3D_PT_sculpt_dyntopo(Panel, View3DPaintPanel):
         col.prop(sculpt, "use_smooth_shading")
         col.operator("sculpt.optimize")
         if (sculpt.detail_type_method == 'CONSTANT'):
-           col.operator("sculpt.detail_flood_fill")
+            col.operator("sculpt.detail_flood_fill")
         col.separator()
         col.prop(sculpt, "symmetrize_direction")
         col.operator("sculpt.symmetrize")
@@ -1294,14 +1338,6 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         col.label(text="Gravity:")
         col.prop(sculpt, "gravity", slider=True, text="Factor")
         col.prop(sculpt, "gravity_object")
-        col.separator()
-		
-        col = layout.column(align=True)
-        col.label(text="Threads:")
-        col.row(align=True).prop(scene, "omp_threads_mode", expand=True)
-        sub = col.column(align=True)
-        sub.enabled = (scene.omp_threads_mode != 'AUTO')
-        sub.prop(scene, "omp_threads")
         col.separator()
 
         layout.prop(sculpt, "use_threaded", text="Threaded Sculpt")
@@ -1399,20 +1435,11 @@ class VIEW3D_PT_tools_weightpaint(View3DPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
+        VIEW3D_PT_tools_meshweight.draw_generic(layout)
 
         col = layout.column()
-        col.operator("object.vertex_group_normalize_all", text="Normalize All")
-        col.operator("object.vertex_group_normalize", text="Normalize")
-        col.operator("object.vertex_group_mirror", text="Mirror")
-        col.operator("object.vertex_group_invert", text="Invert")
-        col.operator("object.vertex_group_clean", text="Clean")
-        col.operator("object.vertex_group_quantize", text="Quantize")
-        col.operator("object.vertex_group_levels", text="Levels")
-        col.operator("object.vertex_group_blend", text="Blend")
-        col.operator("object.vertex_group_transfer_weight", text="Transfer Weights")
-        col.operator("object.vertex_group_limit_total", text="Limit Total")
-        col.operator("object.vertex_group_fix", text="Fix Deforms")
         col.operator("paint.weight_gradient")
+        col.operator("object.vertex_group_transfer_weight", text="Transfer Weights")
 
 
 class VIEW3D_PT_tools_weightpaint_options(Panel, View3DPaintPanel):
@@ -1481,6 +1508,29 @@ class VIEW3D_PT_tools_vertexpaint(Panel, View3DPaintPanel):
 # ********** default tools for texture-paint ****************
 
 
+class VIEW3D_PT_tools_imagepaint_external(Panel, View3DPaintPanel):
+    bl_category = "Tools"
+    bl_context = "imagepaint"
+    bl_label = "External"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        toolsettings = context.tool_settings
+        ipaint = toolsettings.image_paint
+
+        col = layout.column()
+        row = col.split(align=True, percentage=0.55)
+        row.operator("image.project_edit", text="Quick Edit")
+        row.operator("image.project_apply", text="Apply")
+
+        col.row().prop(ipaint, "screen_grab_size", text="")
+
+        col.operator("paint.project_image", text="Apply Camera Image")
+        col.operator("image.save_dirty", text="Save All Edited")
+
+
 class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
     bl_category = "Options"
     bl_context = "imagepaint"
@@ -1528,18 +1578,6 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel, Panel):
         col.menu("VIEW3D_MT_tools_projectpaint_clone", text=clone_text, translate=False)
 
         layout.prop(ipaint, "seam_bleed")
-
-        col = layout.column()
-        col.label(text="External Editing:")
-
-        row = col.split(align=True, percentage=0.55)
-        row.operator("image.project_edit", text="Quick Edit")
-        row.operator("image.project_apply", text="Apply")
-
-        col.row().prop(ipaint, "screen_grab_size", text="")
-
-        col.operator("paint.project_image", text="Apply Camera Image")
-        col.operator("image.save_dirty", text="Save All Edited")
 
 
 class VIEW3D_PT_imagepaint_options(View3DPaintPanel):

@@ -138,8 +138,10 @@ static void rigidbody_sync_object(Scene *scene, RigidBodyWorld *rbw, Object *ob,
 	 */
 }
 
-/* Create physics sim representation of object given RigidBody settings
- * < rebuild: even if an instance already exists, replace it
+/**
+ * Create physics sim representation of object given RigidBody settings
+ *
+ * \param rebuild Even if an instance already exists, replace it
  */
 static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool rebuild)
 {
@@ -248,8 +250,10 @@ void BKE_rigidbody_objects_build(Scene *scene, struct RigidBodyWorld *rbw, bool 
 }
 
 
-/* Create physics sim representation of constraint given rigid body constraint settings
- * < rebuild: even if an instance already exists, replace it
+/**
+ * Create physics sim representation of constraint given rigid body constraint settings
+ *
+ * \param rebuild Even if an instance already exists, replace it
  */
 static void rigidbody_validate_sim_constraint(RigidBodyWorld *rbw, Object *ob, bool rebuild)
 {
@@ -644,10 +648,7 @@ void BKE_rigidbody_remove_object(Scene *scene, Object *ob)
 				Object *obt = go->ob;
 				if (obt && obt->rigidbody_constraint) {
 					rbc = obt->rigidbody_constraint;
-					if (rbc->ob1 == ob) {
-						BKE_rigidbody_remove_constraint(scene, obt);
-					}
-					if (rbc->ob2 == ob) {
+					if (ELEM(ob, rbc->ob1, rbc->ob2)) {
 						BKE_rigidbody_remove_constraint(scene, obt);
 					}
 				}

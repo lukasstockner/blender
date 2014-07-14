@@ -29,8 +29,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
@@ -47,17 +45,12 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_icons.h"
-#include "BKE_image.h"
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_paint.h"
-#include "BKE_scene.h"
-#include "BKE_texture.h"
-#include "BKE_world.h"
 
 #include "GPU_material.h"
 #include "GPU_buffers.h"
@@ -366,7 +359,7 @@ static void texture_changed(Main *bmain, Tex *tex)
 	Scene *scene;
 	Object *ob;
 	bNode *node;
-	int texture_draw = false;
+	bool texture_draw = false;
 
 	/* icons */
 	BKE_icon_changed(BKE_icon_getid(&tex->id));

@@ -410,8 +410,8 @@ static void ui_item_array(uiLayout *layout, uiBlock *block, const char *name, in
 			uiBlockBeginAlign(block);
 
 			for (a = 0; a < colbuts; a++) {
-				int layer_num  = a + b * colbuts;
-				int layer_flag = 1 << layer_num;
+				const int layer_num  = a + b * colbuts;
+				const unsigned int layer_flag = (1u << layer_num);
 				
 				if (layer_used & layer_flag) {
 					if (layer_active & layer_flag)
@@ -428,8 +428,8 @@ static void ui_item_array(uiLayout *layout, uiBlock *block, const char *name, in
 					uiButSetFunc(but, ui_layer_but_cb, but, SET_INT_IN_POINTER(layer_num));
 			}
 			for (a = 0; a < colbuts; a++) {
-				int layer_num  = a + len / 2 + b * colbuts;
-				int layer_flag = 1 << layer_num;
+				const int layer_num  = a + len / 2 + b * colbuts;
+				const unsigned int layer_flag = (1u << layer_num);
 				
 				if (layer_used & layer_flag) {
 					if (layer_active & layer_flag)
@@ -1624,8 +1624,8 @@ static void ui_item_menutype_func(bContext *C, uiLayout *layout, void *arg_mt)
 		CTX_store_set(C, NULL);
 }
 
-static void ui_item_menu(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *arg, void *argN,
-                         const char *tip, bool force_menu)
+static uiBut *ui_item_menu(uiLayout *layout, const char *name, int icon, uiMenuCreateFunc func, void *arg, void *argN,
+                           const char *tip, bool force_menu)
 {
 	uiBlock *block = layout->root->block;
 	uiBut *but;
@@ -1675,6 +1675,8 @@ static void ui_item_menu(uiLayout *layout, const char *name, int icon, uiMenuCre
 	{
 		uiButSetMenuFromPulldown(but);
 	}
+
+	return but;
 }
 
 void uiItemM(uiLayout *layout, bContext *UNUSED(C), const char *menuname, const char *name, int icon)
@@ -1757,7 +1759,7 @@ void uiItemV(uiLayout *layout, const char *name, int icon, int argval)
 {
 	/* label */
 	uiBlock *block = layout->root->block;
-	float *retvalue = (block->handle) ? &block->handle->retvalue : NULL;
+	int *retvalue = (block->handle) ? &block->handle->retvalue : NULL;
 	int w;
 
 	uiBlockSetCurLayout(block, layout);
@@ -1770,11 +1772,11 @@ void uiItemV(uiLayout *layout, const char *name, int icon, int argval)
 	w = ui_text_icon_width(layout, name, icon, 0);
 
 	if (icon && name[0])
-		uiDefIconTextButF(block, BUT, argval, icon, name, 0, 0, w, UI_UNIT_Y, retvalue, 0.0, 0.0, 0, -1, "");
+		uiDefIconTextButI(block, BUT, argval, icon, name, 0, 0, w, UI_UNIT_Y, retvalue, 0.0, 0.0, 0, -1, "");
 	else if (icon)
-		uiDefIconButF(block, BUT, argval, icon, 0, 0, w, UI_UNIT_Y, retvalue, 0.0, 0.0, 0, -1, "");
+		uiDefIconButI(block, BUT, argval, icon, 0, 0, w, UI_UNIT_Y, retvalue, 0.0, 0.0, 0, -1, "");
 	else
-		uiDefButF(block, BUT, argval, name, 0, 0, w, UI_UNIT_Y, retvalue, 0.0, 0.0, 0, -1, "");
+		uiDefButI(block, BUT, argval, name, 0, 0, w, UI_UNIT_Y, retvalue, 0.0, 0.0, 0, -1, "");
 }
 
 /* separator item */
@@ -1821,8 +1823,7 @@ void uiItemMenuEnumO(uiLayout *layout, bContext *C, const char *opname, const ch
 {
 	wmOperatorType *ot = WM_operatortype_find(opname, 0); /* print error next */
 	MenuItemLevel *lvl;
-	char namestr_buf[UI_MAX_NAME_STR], keybuf[128];
-	char *namestr = namestr_buf;
+	uiBut *but;
 
 	UI_OPERATOR_ERROR_RET(ot, opname, return );
 
@@ -1832,10 +1833,9 @@ void uiItemMenuEnumO(uiLayout *layout, bContext *C, const char *opname, const ch
 		return;
 	}
 
-	if (name)
-		namestr += BLI_strncpy_rlen(namestr, name, sizeof(namestr_buf));
-	else
-		namestr += BLI_strncpy_rlen(namestr, RNA_struct_ui_name(ot->srna), sizeof(namestr_buf));
+	if (name == NULL) {
+		name = RNA_struct_ui_name(ot->srna);
+	}
 
 	if (layout->root->type == UI_LAYOUT_MENU && !icon)
 		icon = ICON_BLANK1;
@@ -1845,17 +1845,20 @@ void uiItemMenuEnumO(uiLayout *layout, bContext *C, const char *opname, const ch
 	BLI_strncpy(lvl->propname, propname, sizeof(lvl->propname));
 	lvl->opcontext = layout->root->opcontext;
 
+	but = ui_item_menu(layout, name, icon, menu_item_enum_opname_menu, NULL, lvl,
+	                   RNA_struct_ui_description(ot->srna), true);
+
 	/* add hotkey here, lower UI code can't detect it */
-	if (layout->root->block->flag & UI_BLOCK_LOOP) {
-		if (ot->prop && ot->invoke &&
-		    WM_key_event_operator_string(C, ot->idname, layout->root->opcontext, NULL, false, keybuf, sizeof(keybuf)))
+	if ((layout->root->block->flag & UI_BLOCK_LOOP) &&
+	    (ot->prop && ot->invoke))
+	{
+		char keybuf[128];
+		if (WM_key_event_operator_string(C, ot->idname, layout->root->opcontext, NULL, false,
+		                                 keybuf, sizeof(keybuf)))
 		{
-			namestr += BLI_snprintf(namestr, sizeof(namestr_buf) - (namestr - namestr_buf), "|%s", keybuf);
+			ui_but_add_shortcut(but, keybuf, false);
 		}
 	}
-
-	ui_item_menu(layout, namestr_buf, icon, menu_item_enum_opname_menu, NULL, lvl, RNA_struct_ui_description(ot->srna),
-	             true);
 }
 
 static void menu_item_enum_rna_menu(bContext *UNUSED(C), uiLayout *layout, void *arg)
@@ -2528,15 +2531,6 @@ uiLayout *uiLayoutListBox(uiLayout *layout, uiList *ui_list, PointerRNA *ptr, Pr
 	but->rnapoin = *actptr;
 	but->rnaprop = actprop;
 
-	/* Resizing data. */
-	/* Note: we can't use usual "num button" value handling, as it only tries rnapoin when it is non-NULL... :/
-	 *       So just setting but->poin, not but->pointype.
-	 */
-	but->poin = (void *)&ui_list->list_grip;
-	but->hardmin = but->softmin = 0.0f;
-	but->hardmax = but->softmax = 1000.0f; /* Should be more than enough! */
-	but->a1 = 0.0f;
-
 	/* only for the undo string */
 	if (but->flag & UI_BUT_UNDO) {
 		but->tip = RNA_property_description(actprop);
@@ -2989,6 +2983,8 @@ void uiBlockLayoutResolve(uiBlock *block, int *x, int *y)
 {
 	uiLayoutRoot *root;
 
+	BLI_assert(block->active);
+
 	if (x) *x = 0;
 	if (y) *y = 0;
 
@@ -3030,7 +3026,7 @@ void uiLayoutContextCopy(uiLayout *layout, bContextStore *context)
 static void ui_intro_button(DynStr *ds, uiButtonItem *bitem)
 {
 	uiBut *but = bitem->but;
-	BLI_dynstr_appendf(ds, "'type':%d, ", but->type); /* see ~ UI_interface.h:200 */
+	BLI_dynstr_appendf(ds, "'type':%d, ", (int)but->type);
 	BLI_dynstr_appendf(ds, "'draw_string':'''%s''', ", but->drawstr);
 	BLI_dynstr_appendf(ds, "'tip':'''%s''', ", but->tip ? but->tip : "");  /* not exactly needed, rna has this */
 

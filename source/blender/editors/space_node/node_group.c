@@ -34,12 +34,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_anim_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_rect.h"
 #include "BLI_math.h"
 
 #include "BLF_translation.h"
@@ -684,7 +681,7 @@ static void node_group_make_insert_selected(const bContext *C, bNodeTree *ntree,
 	ListBase anim_basepaths = {NULL, NULL};
 	float min[2], max[2], center[2];
 	int totselect;
-	int expose_all = false;
+	bool expose_all = false;
 	bNode *input_node, *output_node;
 	
 	/* XXX rough guess, not nice but we don't have access to UI constants here ... */
@@ -831,7 +828,7 @@ static void node_group_make_insert_selected(const bContext *C, bNodeTree *ntree,
 			if (node_group_make_use_node(node, gnode)) {
 				for (sock = node->inputs.first; sock; sock = sock->next) {
 					bNodeSocket *iosock, *input_sock;
-					int skip = false;
+					bool skip = false;
 					for (link = ngroup->links.first; link; link = link->next) {
 						if (link->tosock == sock) {
 							skip = true;
@@ -852,7 +849,7 @@ static void node_group_make_insert_selected(const bContext *C, bNodeTree *ntree,
 				
 				for (sock = node->outputs.first; sock; sock = sock->next) {
 					bNodeSocket *iosock, *output_sock;
-					int skip = false;
+					bool skip = false;
 					for (link = ngroup->links.first; link; link = link->next)
 						if (link->fromsock == sock)
 							skip = true;

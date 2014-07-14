@@ -44,6 +44,8 @@ CCL_NAMESPACE_BEGIN
 #define BB_TABLE_YPOWER			5.0f
 #define BB_TABLE_SPACING		2.0f
 
+#define BECKMANN_TABLE_SIZE		256
+
 #define TEX_NUM_FLOAT_IMAGES	5
 
 #define SHADER_NONE				(~0)
@@ -64,15 +66,17 @@ CCL_NAMESPACE_BEGIN
 #define __SUBSURFACE__
 #define __CMJ__
 #define __VOLUME__
+#define __SHADOW_RECORD_ALL__
 #endif
 
 #ifdef __KERNEL_CUDA__
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
-#if __CUDA_ARCH__ != 300
 #define __BRANCHED_PATH__
-#endif
+
+/* Experimental on GPU */
 //#define __VOLUME__
+//#define __SUBSURFACE__
 #endif
 
 #ifdef __KERNEL_OPENCL__
@@ -90,26 +94,24 @@ CCL_NAMESPACE_BEGIN
 #endif
 
 #ifdef __KERNEL_OPENCL_AMD__
-#define __SVM__
-#define __EMISSION__
-#define __IMAGE_TEXTURES__
-#define __PROCEDURAL_TEXTURES__
-#define __EXTRA_NODES__
-#define __HOLDOUT__
-#define __NORMAL_MAP__
-//#define __BACKGROUND_MIS__
-//#define __LAMP_MIS__
-//#define __AO__
-//#define __ANISOTROPIC__
+#define __CL_USE_NATIVE__
+#define __KERNEL_SHADING__
+//__KERNEL_ADV_SHADING__
+#define __MULTI_CLOSURE__
+#define __TRANSPARENT_SHADOWS__
+#define __PASSES__
+#define __BACKGROUND_MIS__
+#define __LAMP_MIS__
+#define __AO__
+#define __ANISOTROPIC__
 //#define __CAMERA_MOTION__
 //#define __OBJECT_MOTION__
 //#define __HAIR__
-//#define __MULTI_CLOSURE__
-//#define __TRANSPARENT_SHADOWS__
-//#define __PASSES__
+//end __KERNEL_ADV_SHADING__
 #endif
 
 #ifdef __KERNEL_OPENCL_INTEL_CPU__
+#define __CL_USE_NATIVE__
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
 #endif
@@ -152,12 +154,6 @@ CCL_NAMESPACE_BEGIN
 #define __HAIR__
 #endif
 
-/* Sanity check */
-
-#if defined(__KERNEL_OPENCL_NEED_ADVANCED_SHADING__) && !defined(__MULTI_CLOSURE__)
-#error "OpenCL: mismatch between advanced shading flags in device_opencl.cpp and kernel_types.h"
-#endif
-
 /* Random Numbers */
 
 typedef uint RNG;
@@ -166,7 +162,35 @@ typedef uint RNG;
 
 typedef enum ShaderEvalType {
 	SHADER_EVAL_DISPLACE,
-	SHADER_EVAL_BACKGROUND
+	SHADER_EVAL_BACKGROUND,
+	/* bake types */
+	SHADER_EVAL_BAKE, /* no real shade, it's used in the code to
+	                   * differentiate the type of shader eval from the above
+	                   */
+	/* data passes */
+	SHADER_EVAL_NORMAL,
+	SHADER_EVAL_UV,
+	SHADER_EVAL_DIFFUSE_COLOR,
+	SHADER_EVAL_GLOSSY_COLOR,
+	SHADER_EVAL_TRANSMISSION_COLOR,
+	SHADER_EVAL_SUBSURFACE_COLOR,
+	SHADER_EVAL_EMISSION,
+
+	/* light passes */
+	SHADER_EVAL_AO,
+	SHADER_EVAL_COMBINED,
+	SHADER_EVAL_SHADOW,
+	SHADER_EVAL_DIFFUSE_DIRECT,
+	SHADER_EVAL_GLOSSY_DIRECT,
+	SHADER_EVAL_TRANSMISSION_DIRECT,
+	SHADER_EVAL_SUBSURFACE_DIRECT,
+	SHADER_EVAL_DIFFUSE_INDIRECT,
+	SHADER_EVAL_GLOSSY_INDIRECT,
+	SHADER_EVAL_TRANSMISSION_INDIRECT,
+	SHADER_EVAL_SUBSURFACE_INDIRECT,
+
+	/* extra */
+	SHADER_EVAL_ENVIRONMENT,
 } ShaderEvalType;
 
 /* Path Tracing
@@ -182,10 +206,8 @@ enum PathTraceDimension {
 	PRNG_UNUSED_0 = 5,
 	PRNG_UNUSED_1 = 6,	/* for some reason (6, 7) is a bad sobol pattern */
 	PRNG_UNUSED_2 = 7,  /* with a low number of samples (< 64) */
-	PRNG_BASE_NUM = 8,
-#else
-	PRNG_BASE_NUM = 4,
 #endif
+	PRNG_BASE_NUM = 8,
 
 	PRNG_BSDF_U = 0,
 	PRNG_BSDF_V = 1,
@@ -193,7 +215,7 @@ enum PathTraceDimension {
 	PRNG_LIGHT = 3,
 	PRNG_LIGHT_U = 4,
 	PRNG_LIGHT_V = 5,
-	PRNG_LIGHT_F = 6,
+	PRNG_UNUSED_3 = 6,
 	PRNG_TERMINATE = 7,
 
 #ifdef __VOLUME__
@@ -287,7 +309,8 @@ typedef enum PassType {
 	PASS_MIST = 2097152,
 	PASS_SUBSURFACE_DIRECT = 4194304,
 	PASS_SUBSURFACE_INDIRECT = 8388608,
-	PASS_SUBSURFACE_COLOR = 16777216
+	PASS_SUBSURFACE_COLOR = 16777216,
+	PASS_LIGHT = 33554432, /* no real pass, used to force use_light_pass */
 } PassType;
 
 #define PASS_ALL (~0)
@@ -457,6 +480,7 @@ typedef enum AttributeElement {
 	ATTR_ELEMENT_VERTEX,
 	ATTR_ELEMENT_VERTEX_MOTION,
 	ATTR_ELEMENT_CORNER,
+	ATTR_ELEMENT_CORNER_BYTE,
 	ATTR_ELEMENT_CURVE,
 	ATTR_ELEMENT_CURVE_KEY,
 	ATTR_ELEMENT_CURVE_KEY_MOTION,
@@ -492,15 +516,17 @@ typedef enum AttributeStandard {
 
 /* Closure data */
 
+#ifdef __MULTI_CLOSURE__
 #define MAX_CLOSURE 64
+#else
+#define MAX_CLOSURE 1
+#endif
 
 typedef struct ShaderClosure {
 	ClosureType type;
 	float3 weight;
 
-#ifdef __MULTI_CLOSURE__
 	float sample_weight;
-#endif
 
 	float data0;
 	float data1;
@@ -510,10 +536,7 @@ typedef struct ShaderClosure {
 	float3 T;
 #endif
 
-#ifdef __HAIR__
-	float offset;
-#endif
-
+	float data2;
 #ifdef __OSL__
 	void *prim;
 #endif
@@ -553,7 +576,8 @@ enum ShaderDataFlag {
 	SD_AO = 512,			/* have ao closure? */
 	SD_TRANSPARENT = 1024,	/* have transparent closure? */
 
-	SD_CLOSURE_FLAGS = (SD_EMISSION|SD_BSDF|SD_BSDF_HAS_EVAL|SD_BSDF_GLOSSY|SD_BSSRDF|SD_HOLDOUT|SD_ABSORPTION|SD_SCATTER|SD_AO),
+	SD_CLOSURE_FLAGS = (SD_EMISSION|SD_BSDF|SD_BSDF_HAS_EVAL|SD_BSDF_GLOSSY|
+	                    SD_BSSRDF|SD_HOLDOUT|SD_ABSORPTION|SD_SCATTER|SD_AO),
 
 	/* shader flags */
 	SD_USE_MIS = 2048,					/* direct light sample */
@@ -562,13 +586,17 @@ enum ShaderDataFlag {
 	SD_HAS_ONLY_VOLUME = 16384,			/* has only volume shader, no surface */
 	SD_HETEROGENEOUS_VOLUME = 32768,	/* has heterogeneous volume */
 	SD_HAS_BSSRDF_BUMP = 65536,			/* bssrdf normal uses bump */
+	SD_VOLUME_EQUIANGULAR = 131072,		/* use equiangular sampling */
+	SD_VOLUME_MIS = 262144,				/* use multiple importance sampling */
 
-	SD_SHADER_FLAGS = (SD_USE_MIS|SD_HAS_TRANSPARENT_SHADOW|SD_HAS_VOLUME|SD_HAS_ONLY_VOLUME|SD_HETEROGENEOUS_VOLUME|SD_HAS_BSSRDF_BUMP),
+	SD_SHADER_FLAGS = (SD_USE_MIS|SD_HAS_TRANSPARENT_SHADOW|SD_HAS_VOLUME|
+	                   SD_HAS_ONLY_VOLUME|SD_HETEROGENEOUS_VOLUME|
+					   SD_HAS_BSSRDF_BUMP|SD_VOLUME_EQUIANGULAR|SD_VOLUME_MIS),
 
 	/* object flags */
-	SD_HOLDOUT_MASK = 131072,			/* holdout for camera rays */
-	SD_OBJECT_MOTION = 262144,			/* has object motion blur */
-	SD_TRANSFORM_APPLIED = 524288, 		/* vertices have transform applied */
+	SD_HOLDOUT_MASK = 524288,			/* holdout for camera rays */
+	SD_OBJECT_MOTION = 1048576,			/* has object motion blur */
+	SD_TRANSFORM_APPLIED = 2097152, 	/* vertices have transform applied */
 
 	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED)
 };
@@ -610,6 +638,9 @@ typedef struct ShaderData {
 	/* ray bounce depth */
 	int ray_depth;
 
+	/* ray transparent depth */
+	int transparent_depth;
+
 #ifdef __RAY_DIFFERENTIALS__
 	/* differential of P. these are orthogonal to Ng, not N */
 	differential3 dP;
@@ -632,15 +663,10 @@ typedef struct ShaderData {
 	Transform ob_itfm;
 #endif
 
-#ifdef __MULTI_CLOSURE__
 	/* Closure data, we store a fixed array of closures */
 	ShaderClosure closure[MAX_CLOSURE];
 	int num_closure;
 	float randb_closure;
-#else
-	/* Closure data, with a single sampled closure for low memory usage */
-	ShaderClosure closure;
-#endif
 
 	/* ray start position, only set for backgrounds */
 	float3 ray_P;
@@ -665,9 +691,10 @@ typedef struct PathState {
 	int flag;          
 
 	/* random number generator state */
-	int rng_offset;    /* dimension offset */
-	int sample;        /* path sample number */
-	int num_samples;   /* total number of times this path will be sampled */
+	int rng_offset;    		/* dimension offset */
+	int rng_offset_bsdf;  	/* dimension offset for picking bsdf */
+	int sample;        		/* path sample number */
+	int num_samples;		/* total number of times this path will be sampled */
 
 	/* bounce counting */
 	int bounce;
@@ -871,7 +898,6 @@ typedef struct KernelIntegrator {
 	int aa_samples;
 
 	/* volume render */
-	int volume_homogeneous_sampling;
 	int use_volumes;
 	int volume_max_steps;
 	float volume_step_size;
@@ -909,11 +935,11 @@ typedef struct KernelCurves {
 	float maximum_width;
 } KernelCurves;
 
-typedef struct KernelBlackbody {
-	int table_offset;
-	int pad1, pad2, pad3;
-} KernelBlackbody;
-
+typedef struct KernelTables {
+	int blackbody_offset;
+	int beckmann_offset;
+	int pad1, pad2;
+} KernelTables;
 
 typedef struct KernelData {
 	KernelCamera cam;
@@ -922,7 +948,7 @@ typedef struct KernelData {
 	KernelIntegrator integrator;
 	KernelBVH bvh;
 	KernelCurves curve;
-	KernelBlackbody blackbody;
+	KernelTables tables;
 } KernelData;
 
 CCL_NAMESPACE_END

@@ -23,6 +23,7 @@
 
 from freestyle.types import (
     BinaryPredicate1D,
+    IntegrationType,
     Interface0DIterator,
     Nature,
     Noise,
@@ -51,6 +52,8 @@ from freestyle.predicates import (
     ExternalContourUP1D,
     FalseBP1D,
     FalseUP1D,
+    Length2DBP1D,
+    NotBP1D,
     NotUP1D,
     OrUP1D,
     QuantitativeInvisibilityUP1D,
@@ -58,16 +61,19 @@ from freestyle.predicates import (
     TrueUP1D,
     WithinImageBoundaryUP1D,
     pyNatureUP1D,
+    pyZBP1D,
     )
 from freestyle.shaders import (
     BackboneStretcherShader,
     BezierCurveShader,
+    BlenderTextureShader,
     ConstantColorShader,
     GuidingLinesShader,
     PolygonalizationShader,
     SamplingShader,
     SpatialNoiseShader,
     StrokeShader,
+    StrokeTextureStepShader,
     TipRemoverShader,
     pyBluePrintCirclesShader,
     pyBluePrintEllipsesShader,
@@ -76,6 +82,7 @@ from freestyle.shaders import (
 from freestyle.utils import (
     ContextFunctions,
     getCurrentScene,
+    stroke_normal,
     )
 from _freestyle import (
     blendRamp,
@@ -440,7 +447,9 @@ def iter_material_color(stroke, material_attribute):
     it = stroke.stroke_vertices_begin()
     while not it.is_end:
         material = func(Interface0DIterator(it))
-        if material_attribute == 'DIFF':
+        if material_attribute == 'LINE':
+            color = material.line[0:3]
+        elif material_attribute == 'DIFF':
             color = material.diffuse[0:3]
         elif material_attribute == 'SPEC':
             color = material.specular[0:3]
@@ -455,9 +464,20 @@ def iter_material_value(stroke, material_attribute):
     it = stroke.stroke_vertices_begin()
     while not it.is_end:
         material = func(Interface0DIterator(it))
-        if material_attribute == 'DIFF':
+        if material_attribute == 'LINE':
+            r, g, b = material.line[0:3]
+            t = 0.35 * r + 0.45 * g + 0.2 * b
+        elif material_attribute == 'LINE_R':
+            t = material.line[0]
+        elif material_attribute == 'LINE_G':
+            t = material.line[1]
+        elif material_attribute == 'LINE_B':
+            t = material.line[2]
+        elif material_attribute == 'ALPHA':
+            t = material.line[3]
+        elif material_attribute == 'DIFF':
             r, g, b = material.diffuse[0:3]
-            t = 0.35 * r + 0.45 * r + 0.2 * b
+            t = 0.35 * r + 0.45 * g + 0.2 * b
         elif material_attribute == 'DIFF_R':
             t = material.diffuse[0]
         elif material_attribute == 'DIFF_G':
@@ -466,7 +486,7 @@ def iter_material_value(stroke, material_attribute):
             t = material.diffuse[2]
         elif material_attribute == 'SPEC':
             r, g, b = material.specular[0:3]
-            t = 0.35 * r + 0.45 * r + 0.2 * b
+            t = 0.35 * r + 0.45 * g + 0.2 * b
         elif material_attribute == 'SPEC_R':
             t = material.specular[0]
         elif material_attribute == 'SPEC_G':
@@ -475,8 +495,6 @@ def iter_material_value(stroke, material_attribute):
             t = material.specular[2]
         elif material_attribute == 'SPEC_HARDNESS':
             t = material.shininess
-        elif material_attribute == 'ALPHA':
-            t = material.diffuse[3]
         else:
             raise ValueError("unexpected material attribute: " + material_attribute)
         yield it, t
@@ -490,7 +508,7 @@ class ColorMaterialShader(ColorRampModifier):
         self.__use_ramp = use_ramp
 
     def shade(self, stroke):
-        if self.__material_attribute in {'DIFF', 'SPEC'} and not self.__use_ramp:
+        if self.__material_attribute in {'LINE', 'DIFF', 'SPEC'} and not self.__use_ramp:
             for it, b in iter_material_color(stroke, self.__material_attribute):
                 sv = it.object
                 a = sv.attribute.color
@@ -582,13 +600,15 @@ class SinusDisplacementShader(StrokeShader):
         self._wavelength = wavelength
         self._amplitude = amplitude
         self._phase = phase / wavelength * 2 * math.pi
-        self._getNormal = Normal2DF0D()
 
     def shade(self, stroke):
+        # separately iterate over stroke vertices to compute normals
+        buf = []
         for it, distance in iter_distance_along_stroke(stroke):
-            v = it.object
-            n = self._getNormal(Interface0DIterator(it))
-            n = n * self._amplitude * math.cos(distance / self._wavelength * 2 * math.pi + self._phase)
+            buf.append((it.object, distance, stroke_normal(it)))
+        # iterate over the vertices again to displace them
+        for v, distance, normal in buf:
+            n = normal * self._amplitude * math.cos(distance / self._wavelength * 2 * math.pi + self._phase)
             v.point = v.point + n
         stroke.update_length()
 
@@ -639,18 +659,19 @@ class Offset2DShader(StrokeShader):
         self.__start = start
         self.__end = end
         self.__xy = mathutils.Vector((x, y))
-        self.__getNormal = Normal2DF0D()
 
     def shade(self, stroke):
+        # first iterate over stroke vertices to compute normals
+        buf = []
         it = stroke.stroke_vertices_begin()
         while not it.is_end:
-            v = it.object
-            u = v.u
-            a = self.__start + u * (self.__end - self.__start)
-            n = self.__getNormal(Interface0DIterator(it))
+            buf.append((it.object, stroke_normal(it)))
+            it.increment()
+        # again iterate over the vertices to add displacement
+        for v, n in buf:
+            a = self.__start + v.u * (self.__end - self.__start)
             n = n * a
             v.point = v.point + n + self.__xy
-            it.increment()
         stroke.update_length()
 
 
@@ -945,7 +966,8 @@ class DashedLineShader(StrokeShader):
                 if index == len(self._pattern):
                     index = 0
                 visible = not visible
-            it.object.attribute.visible = visible
+            if not visible:
+                it.object.attribute.visible = visible
             it.increment()
 
 
@@ -1111,52 +1133,12 @@ class Seed:
 _seed = Seed()
 
 
-### T.K. 07-Aug-2013 Temporary fix for unexpected line gaps
-
-def iter_three_segments(stroke):
-    n = stroke.stroke_vertices_size()
-    if n >= 4:
-        it1 = stroke.stroke_vertices_begin()
-        it2 = stroke.stroke_vertices_begin()
-        it2.increment()
-        it3 = stroke.stroke_vertices_begin()
-        it3.increment()
-        it3.increment()
-        it4 = stroke.stroke_vertices_begin()
-        it4.increment()
-        it4.increment()
-        it4.increment()
-        while not it4.is_end:
-            yield (it1.object, it2.object, it3.object, it4.object)
-            it1.increment()
-            it2.increment()
-            it3.increment()
-            it4.increment()
-
-
-def is_tvertex(svertex):
-    return type(svertex.viewvertex) is TVertex
-
-
-class StrokeCleaner(StrokeShader):
-    def shade(self, stroke):
-        for sv1, sv2, sv3, sv4 in iter_three_segments(stroke):
-            seg1 = sv2.point - sv1.point
-            seg2 = sv3.point - sv2.point
-            seg3 = sv4.point - sv3.point
-            if not ((is_tvertex(sv2.first_svertex) and is_tvertex(sv2.second_svertex)) or
-                    (is_tvertex(sv3.first_svertex) and is_tvertex(sv3.second_svertex))):
-                continue
-            if seg1.dot(seg2) < 0.0 and seg2.dot(seg3) < 0.0 and seg2.length < 0.01:
-                #print(sv2.first_svertex.viewvertex)
-                #print(sv2.second_svertex.viewvertex)
-                #print(sv3.first_svertex.viewvertex)
-                #print(sv3.second_svertex.viewvertex)
-                p2 = mathutils.Vector(sv2.point)
-                p3 = mathutils.Vector(sv3.point)
-                sv2.point = p3
-                sv3.point = p2
-        stroke.update_length()
+integration_types = {
+    'MEAN': IntegrationType.MEAN,
+    'MIN': IntegrationType.MIN,
+    'MAX': IntegrationType.MAX,
+    'FIRST': IntegrationType.FIRST,
+    'LAST': IntegrationType.LAST}
 
 
 # main function for parameter processing
@@ -1287,11 +1269,18 @@ def process(layer_name, lineset_name):
         length_min = linestyle.length_min if linestyle.use_length_min else None
         length_max = linestyle.length_max if linestyle.use_length_max else None
         Operators.select(LengthThresholdUP1D(length_min, length_max))
+    # sort selected chains
+    if linestyle.use_sorting:
+        integration = integration_types.get(linestyle.integration_type, IntegrationType.MEAN)
+        if linestyle.sort_key == 'DISTANCE_FROM_CAMERA':
+            bpred = pyZBP1D(integration)
+        elif linestyle.sort_key == '2D_LENGTH':
+            bpred = Length2DBP1D()
+        if linestyle.sort_order == 'REVERSE':
+            bpred = NotBP1D(bpred)
+        Operators.sort(bpred)
     # prepare a list of stroke shaders
     shaders_list = []
-    ###
-    shaders_list.append(StrokeCleaner())
-    ###
     for m in linestyle.geometry_modifiers:
         if not m.use:
             continue
@@ -1341,6 +1330,14 @@ def process(layer_name, lineset_name):
         elif m.type == '2D_TRANSFORM':
             shaders_list.append(Transform2DShader(
                 m.pivot, m.scale_x, m.scale_y, m.angle, m.pivot_u, m.pivot_x, m.pivot_y))
+    if linestyle.use_texture:
+        has_tex = False
+        for slot in linestyle.texture_slots:
+            if slot is not None:
+                shaders_list.append(BlenderTextureShader(slot))
+                has_tex = True
+        if has_tex:
+            shaders_list.append(StrokeTextureStepShader(linestyle.texture_spacing))
     color = linestyle.color
     if (not linestyle.use_chaining) or (linestyle.chaining == 'PLAIN' and linestyle.use_same_object):
         thickness_position = linestyle.thickness_position

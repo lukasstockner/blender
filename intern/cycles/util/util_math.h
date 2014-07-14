@@ -163,11 +163,7 @@ ccl_device_inline float clamp(float a, float mn, float mx)
 
 ccl_device_inline int float_to_int(float f)
 {
-#if defined(__KERNEL_SSE2__) && !defined(_MSC_VER)
-	return _mm_cvtt_ss2si(_mm_load_ss(&f));
-#else
 	return (int)f;
-#endif
 }
 
 ccl_device_inline int floor_to_int(float f)
@@ -626,11 +622,7 @@ ccl_device_inline bool is_zero(const float3 a)
 
 ccl_device_inline float reduce_add(const float3 a)
 {
-#ifdef __KERNEL_SSE__
 	return (a.x + a.y + a.z);
-#else
-	return (a.x + a.y + a.z);
-#endif
 }
 
 ccl_device_inline float average(const float3 a)
@@ -1241,7 +1233,7 @@ ccl_device float compatible_powf(float x, float y)
 
 ccl_device float safe_powf(float a, float b)
 {
-	if(a < 0.0f && b != float_to_int(b))
+	if(UNLIKELY(a < 0.0f && b != float_to_int(b)))
 		return 0.0f;
 
 	return compatible_powf(a, b);
@@ -1249,7 +1241,7 @@ ccl_device float safe_powf(float a, float b)
 
 ccl_device float safe_logf(float a, float b)
 {
-	if(a < 0.0f || b < 0.0f)
+	if(UNLIKELY(a < 0.0f || b < 0.0f))
 		return 0.0f;
 
 	return logf(a)/logf(b);
@@ -1309,7 +1301,7 @@ ccl_device bool ray_aligned_disk_intersect(
 	float3 disk_N = normalize_len(ray_P - disk_P, &disk_t);
 	float div = dot(ray_D, disk_N);
 
-	if(div == 0.0f)
+	if(UNLIKELY(div == 0.0f))
 		return false;
 
 	/* compute t to intersection point */
@@ -1339,7 +1331,7 @@ ccl_device bool ray_triangle_intersect(
 	float3 s1 = cross(ray_D, e2);
 
 	const float divisor = dot(s1, e1);
-	if(divisor == 0.0f)
+	if(UNLIKELY(divisor == 0.0f))
 		return false;
 
 	const float invdivisor = 1.0f/divisor;
@@ -1382,7 +1374,7 @@ ccl_device bool ray_triangle_intersect_uv(
 	float3 s1 = cross(ray_D, e2);
 
 	const float divisor = dot(s1, e1);
-	if(divisor == 0.0f)
+	if(UNLIKELY(divisor == 0.0f))
 		return false;
 
 	const float invdivisor = 1.0f/divisor;

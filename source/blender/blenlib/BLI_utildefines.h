@@ -34,6 +34,7 @@
 
 /* avoid many includes for now */
 #include "BLI_sys_types.h"
+#include "BLI_compiler_compat.h"
 
 #ifndef NDEBUG /* for BLI_assert */
 #include <stdio.h>
@@ -146,9 +147,17 @@
 	__tmp = (__typeof(var_b) *)NULL;      \
 	(void)__tmp;                          \
 } (void)0
+
+#define CHECK_TYPE_PAIR_INLINE(var_a, var_b)  ((void)({  \
+	__typeof(var_a) *__tmp;                              \
+	__tmp = (__typeof(var_b) *)NULL;                     \
+	(void)__tmp;                                         \
+}))
+
 #else
 #  define CHECK_TYPE(var, type)
 #  define CHECK_TYPE_PAIR(var_a, var_b)
+#  define CHECK_TYPE_PAIR_INLINE(var_a, var_b) (void)0
 #endif
 
 /* can be used in simple macros */
@@ -211,8 +220,10 @@
 } (void)0
 
 
-#define FTOCHAR(val) (char)(((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : ((255.0f * (val)) + 0.5f)))
-#define FTOUSHORT(val) ((val >= 1.0f - 0.5f / 65535) ? 65535 : (val <= 0.0f) ? 0 : (unsigned short)(val * 65535.0f + 0.5f))
+#define FTOCHAR(val) ((CHECK_TYPE_INLINE(val, float)), \
+		(char)(((val) <= 0.0f) ? 0 : (((val) > (1.0f - 0.5f / 255.0f)) ? 255 : ((255.0f * (val)) + 0.5f))))
+#define FTOUSHORT(val) ((CHECK_TYPE_INLINE(val, float)), \
+		((val >= 1.0f - 0.5f / 65535) ? 65535 : (val <= 0.0f) ? 0 : (unsigned short)(val * 65535.0f + 0.5f)))
 #define USHORTTOUCHAR(val) ((unsigned char)(((val) >= 65535 - 128) ? 255 : ((val) + 128) >> 8))
 #define F3TOCHAR3(v2, v1) {                                                   \
 		(v1)[0] = FTOCHAR((v2[0]));                                           \
@@ -260,9 +271,9 @@
 		*(v1 + 2) = *(v2 + 2) + *(v3 + 2) * (fac);                            \
 } (void)0
 #define VECMADD(v1, v2, v3, v4) {                                             \
-		*(v1) =   *(v2)   + *(v3) * (*(v4));                                     \
-		*(v1 + 1) = *(v2 + 1) + *(v3 + 1) * (*(v4 + 1));                         \
-		*(v1 + 2) = *(v2 + 2) + *(v3 + 2) * (*(v4 + 2));                         \
+		*(v1) =   *(v2)   + *(v3) * (*(v4));                                  \
+		*(v1 + 1) = *(v2 + 1) + *(v3 + 1) * (*(v4 + 1));                      \
+		*(v1 + 2) = *(v2 + 2) + *(v3 + 2) * (*(v4 + 2));                      \
 } (void)0
 #define VECSUBFAC(v1, v2, v3, fac) {                                          \
 		*(v1) =   *(v2)   - *(v3) * (fac);                                    \
@@ -302,11 +313,11 @@
 
 #define IS_EQ(a, b)  ( \
 	CHECK_TYPE_INLINE(a, double), CHECK_TYPE_INLINE(b, double), \
-	((fabs((double)(a) - (b)) >= (double) FLT_EPSILON) ? false : true))
+	((fabs((double)((a) - (b))) >= (double) FLT_EPSILON) ? false : true))
 
 #define IS_EQF(a, b)  ( \
 	CHECK_TYPE_INLINE(a, float), CHECK_TYPE_INLINE(b, float), \
-	((fabsf((float)(a) - (b)) >= (float) FLT_EPSILON) ? false : true))
+	((fabsf((float)((a) - (b))) >= (float) FLT_EPSILON) ? false : true))
 
 #define IS_EQT(a, b, c) ((a > b) ? (((a - b) <= c) ? 1 : 0) : ((((b - a) <= c) ? 1 : 0)))
 #define IN_RANGE(a, b, c) ((b < c) ? ((b < a && a < c) ? 1 : 0) : ((c < a && a < b) ? 1 : 0))
@@ -321,35 +332,13 @@
 #define UNPACK3OP(op, a)  op((a)[0]), op((a)[1]), op((a)[2])
 #define UNPACK4OP(op, a)  op((a)[0]), op((a)[1]), op((a)[2]), op((a)[3])
 
-/* simple stack */
-#define STACK_DECLARE(stack)   unsigned int _##stack##_index
-#define STACK_INIT(stack)      ((void)stack, (void)((_##stack##_index) = 0))
-#define STACK_SIZE(stack)      ((void)stack, (_##stack##_index))
-#define STACK_PUSH(stack, val)  (void)((stack)[(_##stack##_index)++] = val)
-#define STACK_PUSH_RET(stack)  ((void)stack, ((stack)[(_##stack##_index)++]))
-#define STACK_PUSH_RET_PTR(stack)  ((void)stack, &((stack)[(_##stack##_index)++]))
-#define STACK_POP(stack)         ((_##stack##_index) ?  ((stack)[--(_##stack##_index)]) : NULL)
-#define STACK_POP_PTR(stack)     ((_##stack##_index) ? &((stack)[--(_##stack##_index)]) : NULL)
-#define STACK_POP_ELSE(stack, r) ((_##stack##_index) ?  ((stack)[--(_##stack##_index)]) : r)
-#define STACK_FREE(stack)      ((void)stack)
-#ifdef __GNUC__
-#define STACK_SWAP(stack_a, stack_b) { \
-	SWAP(typeof(stack_a), stack_a, stack_b); \
-	SWAP(unsigned int, _##stack_a##_index, _##stack_b##_index); \
-	} (void)0
-#else
-#define STACK_SWAP(stack_a, stack_b) { \
-	SWAP(void *, stack_a, stack_b); \
-	SWAP(unsigned int, _##stack_a##_index, _##stack_b##_index); \
-	} (void)0
-#endif
-
 /* array helpers */
-#define ARRAY_LAST_ITEM(arr_start, arr_dtype, elem_size, tot) \
-	(arr_dtype *)((char *)arr_start + (elem_size * (tot - 1)))
+#define ARRAY_LAST_ITEM(arr_start, arr_dtype, tot) \
+	(arr_dtype *)((char *)arr_start + (sizeof(*((arr_dtype *)NULL)) * (size_t)(tot - 1)))
 
-#define ARRAY_HAS_ITEM(arr_item, arr_start, tot) \
-	((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(tot))
+#define ARRAY_HAS_ITEM(arr_item, arr_start, tot)  ( \
+	CHECK_TYPE_PAIR_INLINE(arr_start, arr_item), \
+	((unsigned int)((arr_item) - (arr_start)) < (unsigned int)(tot)))
 
 #define ARRAY_DELETE(arr, index, tot_delete, tot)  { \
 		BLI_assert(index + tot_delete <= tot);  \
@@ -358,13 +347,37 @@
 		         (((tot) - (index)) - (tot_delete)) * sizeof(*(arr))); \
 	} (void)0
 
+/* assuming a static array */
+#if defined(__GNUC__) && !defined(__cplusplus)
+#  define ARRAY_SIZE(arr)                                                     \
+	((sizeof(struct {int isnt_array : ((void *)&(arr) == &(arr)[0]);}) * 0) + \
+	 (sizeof(arr) / sizeof(*(arr))))
+#else
+#  define ARRAY_SIZE(arr)  (sizeof(arr) / sizeof(*(arr)))
+#endif
+
+/* Like offsetof(typeof(), member), for non-gcc compilers */
+#define OFFSETOF_STRUCT(_struct, _member) \
+	((((char *)&((_struct)->_member)) - ((char *)(_struct))) + sizeof((_struct)->_member))
+
+/* memcpy, skipping the first part of a struct,
+ * ensures 'struct_dst' isn't const and that the offset can be computed at compile time */
+#define MEMCPY_STRUCT_OFS(struct_dst, struct_src, member)  { \
+	void *_not_const = struct_dst; \
+	(void)_not_const; \
+	((void)(struct_dst == struct_src), \
+	 memcpy((char *)(struct_dst)  + OFFSETOF_STRUCT(struct_dst, member), \
+	        (char *)(struct_src)  + OFFSETOF_STRUCT(struct_dst, member), \
+	        sizeof(*(struct_dst)) - OFFSETOF_STRUCT(struct_dst, member))); \
+} (void)0
+
 /* Warning-free macros for storing ints in pointers. Use these _only_
  * for storing an int in a pointer, not a pointer in an int (64bit)! */
 #define SET_INT_IN_POINTER(i)    ((void *)(intptr_t)(i))
-#define GET_INT_FROM_POINTER(i)  ((int)(intptr_t)(i))
+#define GET_INT_FROM_POINTER(i)  ((void)0, ((int)(intptr_t)(i)))
 
 #define SET_UINT_IN_POINTER(i)    ((void *)(uintptr_t)(i))
-#define GET_UINT_FROM_POINTER(i)  ((unsigned int)(uintptr_t)(i))
+#define GET_UINT_FROM_POINTER(i)  ((void)0, ((unsigned int)(uintptr_t)(i)))
 
 
 /* Macro to convert a value to string in the preprocessor
@@ -384,15 +397,8 @@
 #define STRCASEEQLEN(a, b, n) (strncasecmp(a, b, n) == 0)
 
 #define STRPREFIX(a, b) (strncmp((a), (b), strlen(b)) == 0)
-
-
 /* useful for debugging */
 #define AT __FILE__ ":" STRINGIFY(__LINE__)
-
-/* so we can use __func__ everywhere */
-#if defined(_MSC_VER)
-#  define __func__ __FUNCTION__
-#endif
 
 
 /* UNUSED macro, for function argument */
@@ -464,7 +470,7 @@
 #  define BLI_STATIC_ASSERT(a, msg)
 #endif
 
-/* hints for branch pradiction, only use in code that runs a _lot_ where */
+/* hints for branch prediction, only use in code that runs a _lot_ where */
 #ifdef __GNUC__
 #  define LIKELY(x)       __builtin_expect(!!(x), 1)
 #  define UNLIKELY(x)     __builtin_expect(!!(x), 0)

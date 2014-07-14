@@ -659,7 +659,7 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 
 					if (dp->dnaarraylength == 1) {
 						if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
-							fprintf(f, "		values[i] = %s((data->%s & (%d << i)) != 0);\n",
+							fprintf(f, "		values[i] = %s((data->%s & (%du << i)) != 0);\n",
 							        (dp->booleannegative) ? "!" : "", dp->dnaname, dp->booleanbit);
 						}
 						else {
@@ -897,14 +897,14 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 					if (prop->flag & PROP_DYNAMIC) {
 						char *lenfunc = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier),
 						                                        "set_length");
-						fprintf(f, "	int i, arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
-						fprintf(f, "	int len = %s(ptr, arraylen);\n\n", lenfunc);
+						fprintf(f, "	unsigned int i, arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
+						fprintf(f, "	unsigned int len = %s(ptr, arraylen);\n\n", lenfunc);
 						rna_clamp_value_range(f, prop);
 						fprintf(f, "	for (i = 0; i < len; i++) {\n");
 						MEM_freeN(lenfunc);
 					}
 					else {
-						fprintf(f, "	int i;\n\n");
+						fprintf(f, "	unsigned int i;\n\n");
 						rna_clamp_value_range(f, prop);
 						fprintf(f, "	for (i = 0; i < %u; i++) {\n", prop->totarraylength);
 					}
@@ -913,7 +913,7 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 						if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
 							fprintf(f, "		if (%svalues[i]) data->%s |= (%d<<i);\n",
 							        (dp->booleannegative) ? "!" : "", dp->dnaname, dp->booleanbit);
-							fprintf(f, "		else data->%s &= ~(%d << i);\n", dp->dnaname, dp->booleanbit);
+							fprintf(f, "		else data->%s &= ~(%du << i);\n", dp->dnaname, dp->booleanbit);
 						}
 						else {
 							fprintf(f, "		(&data->%s)[i] = %s", dp->dnaname, (dp->booleannegative) ? "!" : "");
@@ -1147,7 +1147,7 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 	fprintf(f, "	if (iter.valid) {\n");
 
 	if (strcmp(nextfunc, "rna_iterator_array_next") == 0) {
-		fprintf(f, "		ArrayIterator *internal = iter.internal;\n");
+		fprintf(f, "		ArrayIterator *internal = &iter.internal.array;\n");
 		fprintf(f, "		if (index < 0 || index >= internal->length) {\n");
 		fprintf(f, "#ifdef __GNUC__\n");
 		fprintf(f, "			printf(\"Array iterator out of range: %%s (index %%d)\\n\", __func__, index);\n");
@@ -1167,7 +1167,7 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 		fprintf(f, "		}\n");
 	}
 	else if (strcmp(nextfunc, "rna_iterator_listbase_next") == 0) {
-		fprintf(f, "		ListBaseIterator *internal = iter.internal;\n");
+		fprintf(f, "		ListBaseIterator *internal = &iter.internal.listbase;\n");
 		fprintf(f, "		if (internal->skip) {\n");
 		fprintf(f, "			while (index-- > 0 && iter.valid) {\n");
 		fprintf(f, "				rna_iterator_listbase_next(&iter);\n");
@@ -1536,7 +1536,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 {
 	PropertyRNA *prop;
-	char *func;
+	const char *func;
 
 	prop = dp->prop;
 
@@ -2156,7 +2156,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 	PropertyType type;
 	const char *funcname, *valstr;
 	const char *ptrstr;
-	const short has_data = (dfunc->cont.properties.first != NULL);
+	const bool has_data = (dfunc->cont.properties.first != NULL);
 	int flag, pout, cptr, first;
 
 	srna = dsrna->srna;

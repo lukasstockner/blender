@@ -167,8 +167,8 @@ CCL_NAMESPACE_END
 #include "svm_math.h"
 #include "svm_mix.h"
 #include "svm_ramp.h"
-#include "svm_sepcomb_rgb.h"
 #include "svm_sepcomb_hsv.h"
+#include "svm_sepcomb_vector.h"
 #include "svm_musgrave.h"
 #include "svm_sky.h"
 #include "svm_tex_coord.h"
@@ -182,10 +182,9 @@ CCL_NAMESPACE_BEGIN
 
 /* Main Interpreter Loop */
 
-ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderType type, float randb, int path_flag)
+ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderType type, int path_flag)
 {
 	float stack[SVM_STACK_SIZE];
-	float closure_weight = 1.0f;
 	int offset = sd->shader & SHADER_MASK;
 
 	while(1) {
@@ -200,7 +199,7 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 				break;
 			}
 			case NODE_CLOSURE_BSDF:
-				svm_node_closure_bsdf(kg, sd, stack, node, randb, path_flag, &offset);
+				svm_node_closure_bsdf(kg, sd, stack, node, path_flag, &offset);
 				break;
 			case NODE_CLOSURE_EMISSION:
 				svm_node_closure_emission(sd, stack, node);
@@ -227,13 +226,15 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 				svm_node_emission_weight(kg, sd, stack, node);
 				break;
 			case NODE_MIX_CLOSURE:
-				svm_node_mix_closure(sd, stack, node, &offset, &randb);
+				svm_node_mix_closure(sd, stack, node);
 				break;
-			case NODE_ADD_CLOSURE:
-				svm_node_add_closure(sd, stack, node.y, node.z, &offset, &randb, &closure_weight);
+			case NODE_JUMP_IF_ZERO:
+				if(stack_load_float(stack, node.z) == 0.0f)
+					offset += node.y;
 				break;
-			case NODE_JUMP:
-				offset = node.y;
+			case NODE_JUMP_IF_ONE:
+				if(stack_load_float(stack, node.z) == 1.0f)
+					offset += node.y;
 				break;
 #ifdef __IMAGE_TEXTURES__
 			case NODE_TEX_IMAGE:
@@ -326,11 +327,11 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 			case NODE_MIX:
 				svm_node_mix(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
-			case NODE_SEPARATE_RGB:
-				svm_node_separate_rgb(sd, stack, node.y, node.z, node.w);
+			case NODE_SEPARATE_VECTOR:
+				svm_node_separate_vector(sd, stack, node.y, node.z, node.w);
 				break;
-			case NODE_COMBINE_RGB:
-				svm_node_combine_rgb(sd, stack, node.y, node.z, node.w);
+			case NODE_COMBINE_VECTOR:
+				svm_node_combine_vector(sd, stack, node.y, node.z, node.w);
 				break;
 			case NODE_SEPARATE_HSV:
 				svm_node_separate_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
@@ -406,12 +407,7 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 				break;
 			case NODE_CLOSURE_SET_NORMAL:
 				svm_node_set_normal(kg, sd, stack, node.y, node.z );
-				break;			
-#endif
-			case NODE_EMISSION_SET_WEIGHT_TOTAL:
-				svm_node_emission_set_weight_total(kg, sd, node.y, node.z, node.w);
 				break;
-#ifdef __EXTRA_NODES__
 			case NODE_RGB_RAMP:
 				svm_node_rgb_ramp(kg, sd, stack, node, &offset);
 				break;
@@ -437,9 +433,6 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 #endif			
 			case NODE_END:
 			default:
-#ifndef __MULTI_CLOSURE__
-				sd->closure.weight *= closure_weight;
-#endif
 				return;
 		}
 	}

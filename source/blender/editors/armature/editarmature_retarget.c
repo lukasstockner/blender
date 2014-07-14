@@ -40,7 +40,6 @@
 #include "BKE_constraint.h"
 #include "BKE_armature.h"
 #include "BKE_context.h"
-#include "BKE_scene.h"
 
 #include "ED_armature.h"
 #include "ED_util.h"
@@ -708,7 +707,7 @@ static void RIG_reconnectControlBones(RigGraph *rg)
 		/* DO SOME MAGIC HERE */
 		for (pchan = rg->ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 			for (con = pchan->constraints.first; con; con = con->next) {
-				bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+				bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 				ListBase targets = {NULL, NULL};
 				bConstraintTarget *ct;
 				
@@ -833,7 +832,7 @@ static void RIG_reconnectControlBones(RigGraph *rg)
 				/* DO SOME MAGIC HERE */
 				for (pchan = rg->ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 					for (con = pchan->constraints.first; con; con = con->next) {
-						bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+						bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 						ListBase targets = {NULL, NULL};
 						bConstraintTarget *ct;
 						
@@ -1684,7 +1683,7 @@ static RetargetMode detectArcRetargetMode(RigArc *iarc)
 	
 	if (nb_edges > 2) {
 		for (edge = iarc->edges.first; edge; edge = edge->next) {
-			if (fabs(edge->angle - avg_angle) > M_PI / 6) {
+			if (fabsf(edge->angle - avg_angle) > (float)(M_PI / 6)) {
 				large_angle = 1;
 			}
 		}
@@ -1795,7 +1794,7 @@ static float costLength(float original_length, float current_length, float lengt
 		return MAX_COST;
 	}
 	else {
-		float length_ratio = fabs((current_length - original_length) / original_length);
+		float length_ratio = fabsf((current_length - original_length) / original_length);
 		return length_weight * length_ratio * length_ratio;
 	}
 }

@@ -49,10 +49,8 @@
 #include "DNA_mesh_types.h"
 
 #include "BKE_ccg.h"
-#include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
-#include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_paint.h"
 #include "BKE_key.h"
@@ -64,7 +62,8 @@
 
 #include "GPU_buffers.h"
 
-#include "ED_sculpt.h"
+#include "ED_paint.h"
+
 #include "bmesh.h"
 #include "paint_intern.h"
 #include "sculpt_intern.h"
@@ -74,7 +73,7 @@
 static void update_cb(PBVHNode *node, void *rebuild)
 {
 	BKE_pbvh_node_mark_update(node);
-	if (*((int *)rebuild))
+	if (*((bool *)rebuild))
 		BKE_pbvh_node_mark_rebuild_draw(node);
 	BKE_pbvh_node_fully_hidden_set(node, 0);
 }
@@ -114,7 +113,7 @@ static int sculpt_undo_restore_coords(bContext *C, DerivedMesh *dm, SculptUndoNo
 			if (kb) {
 				ob->shapenr = BLI_findindex(&key->block, kb) + 1;
 
-				sculpt_update_mesh_elements(scene, sd, ob, 0, false);
+				BKE_sculpt_update_mesh_elements(scene, sd, ob, 0, false);
 				WM_event_add_notifier(C, NC_OBJECT | ND_DATA, ob);
 			}
 			else {
@@ -197,9 +196,9 @@ static int sculpt_undo_restore_hidden(bContext *C, DerivedMesh *dm,
 		
 		for (i = 0; i < unode->totvert; i++) {
 			MVert *v = &mvert[unode->index[i]];
-			int uval = BLI_BITMAP_GET(unode->vert_hidden, i);
+			int uval = BLI_BITMAP_TEST(unode->vert_hidden, i);
 
-			BLI_BITMAP_MODIFY(unode->vert_hidden, i,
+			BLI_BITMAP_SET(unode->vert_hidden, i,
 			                  v->flag & ME_HIDE);
 			if (uval)
 				v->flag |= ME_HIDE;
@@ -280,7 +279,7 @@ static void sculpt_undo_bmesh_restore_generic(bContext *C,
 		unode->applied = true;
 	}
 
-	if (unode->type == SCULPT_UNDO_MASK) {
+	if (ELEM(unode->type, SCULPT_UNDO_MASK, SCULPT_UNDO_MASK)) {
 		int i, totnode;
 		PBVHNode **nodes;
 
@@ -296,10 +295,11 @@ static void sculpt_undo_bmesh_restore_generic(bContext *C,
 		for (i = 0; i < totnode; i++) {
 			BKE_pbvh_node_mark_redraw(nodes[i]);
 		}
+
+		if (nodes)
+			MEM_freeN(nodes);
 	}
 	else {
-		/* A bit lame, but for now just recreate the PBVH. The alternative
-		 * is to store changes to the PBVH in the undo stack. */
 		sculpt_pbvh_clear(ob);
 	}
 }
@@ -316,6 +316,7 @@ static void sculpt_undo_bmesh_enable(Object *ob,
 	/* Create empty BMesh and enable logging */
 	ss->bm = BM_mesh_create(&bm_mesh_allocsize_default);
 	BM_data_layer_add(ss->bm, &ss->bm->vdata, CD_PAINT_MASK);
+	sculpt_dyntopo_node_layers_add(ss);
 	me->flag |= ME_SCULPT_DYNAMIC_TOPOLOGY;
 
 	/* Restore the BMLog using saved entries */
@@ -399,8 +400,8 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 	DerivedMesh *dm;
 	SculptSession *ss = ob->sculpt;
 	SculptUndoNode *unode;
-	int update = false, rebuild = false;
-	int need_mask = false;
+	bool update = false, rebuild = false;
+	bool need_mask = false;
 
 	for (unode = lb->first; unode; unode = unode->next) {
 		if (strcmp(unode->idname, ob->id.name) == 0) {
@@ -413,7 +414,7 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 		}
 	}
 
-	sculpt_update_mesh_elements(scene, sd, ob, 0, need_mask);
+	BKE_sculpt_update_mesh_elements(scene, sd, ob, 0, need_mask);
 
 	/* call _after_ sculpt_update_mesh_elements() which may update 'ob->derivedFinal' */
 	dm = mesh_get_derived_final(scene, ob, 0);
@@ -462,29 +463,29 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 	}
 
 	if (update || rebuild) {
-		int tag_update = 0;
+		bool tag_update = false;
 		/* we update all nodes still, should be more clever, but also
 		 * needs to work correct when exiting/entering sculpt mode and
 		 * the nodes get recreated, though in that case it could do all */
 		BKE_pbvh_search_callback(ss->pbvh, NULL, NULL, update_cb, &rebuild);
 		BKE_pbvh_update(ss->pbvh, PBVH_UpdateBB | PBVH_UpdateOriginalBB | PBVH_UpdateRedraw, NULL);
 
-		if (sculpt_multires_active(scene, ob)) {
+		if (BKE_sculpt_multires_active(scene, ob)) {
 			if (rebuild)
 				multires_mark_as_modified(ob, MULTIRES_HIDDEN_MODIFIED);
 			else
 				multires_mark_as_modified(ob, MULTIRES_COORDS_MODIFIED);
 		}
 
-		tag_update = ((Mesh *)ob->data)->id.us > 1;
+		tag_update |= ((Mesh *)ob->data)->id.us > 1;
 
-		if (ss->modifiers_active) {
+		if (ss->kb || ss->modifiers_active) {
 			Mesh *mesh = ob->data;
 			BKE_mesh_calc_normals_tessface(mesh->mvert, mesh->totvert,
 			                               mesh->mface, mesh->totface, NULL);
 
-			free_sculptsession_deformMats(ss);
-			tag_update |= 1;
+			BKE_free_sculptsession_deformMats(ss);
+			tag_update |= true;
 		}
 
 		if (tag_update) {
@@ -526,9 +527,11 @@ static void sculpt_undo_free(ListBase *lb)
 		}
 		if (unode->mask)
 			MEM_freeN(unode->mask);
+
 		if (unode->bm_entry) {
 			BM_log_entry_drop(unode->bm_entry);
 		}
+
 		if (unode->bm_enter_totvert)
 			CustomData_free(&unode->bm_enter_vdata, unode->bm_enter_totvert);
 		if (unode->bm_enter_totedge)
@@ -538,6 +541,25 @@ static void sculpt_undo_free(ListBase *lb)
 		if (unode->bm_enter_totpoly)
 			CustomData_free(&unode->bm_enter_pdata, unode->bm_enter_totpoly);
 	}
+}
+
+bool sculpt_undo_cleanup(bContext *C, ListBase *lb)
+{
+	Object *ob = CTX_data_active_object(C);
+	SculptUndoNode *unode;
+
+	unode = lb->first;
+
+	if (unode && strcmp(unode->idname, ob->id.name) != 0) {
+		for (unode = lb->first; unode; unode = unode->next) {
+			if (unode->bm_entry)
+				BM_log_cleanup_entry(unode->bm_entry);
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 SculptUndoNode *sculpt_undo_get_node(PBVHNode *node)
@@ -681,7 +703,7 @@ static void sculpt_undo_store_hidden(Object *ob, SculptUndoNode *unode)
 		BKE_pbvh_node_num_verts(pbvh, node, NULL, &allvert);
 		BKE_pbvh_node_get_verts(pbvh, node, &vert_indices, &mvert);
 		for (i = 0; i < allvert; i++) {
-			BLI_BITMAP_MODIFY(unode->vert_hidden, i,
+			BLI_BITMAP_SET(unode->vert_hidden, i,
 			                  mvert[vert_indices[i]].flag & ME_HIDE);
 		}
 	}
@@ -709,7 +731,7 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
 	PBVHVertexIter vd;
 
 	if (!lb->first) {
-		unode = MEM_callocN(sizeof(*unode), AT);
+		unode = MEM_callocN(sizeof(*unode), __func__);
 
 		BLI_strncpy(unode->idname, ob->id.name, sizeof(unode->idname));
 		unode->type = type;
@@ -753,15 +775,30 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
 	if (node) {
 		switch (type) {
 			case SCULPT_UNDO_COORDS:
-			case SCULPT_UNDO_HIDDEN:
 			case SCULPT_UNDO_MASK:
 				/* Before any vertex values get modified, ensure their
 				 * original positions are logged */
 				BKE_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_ALL) {
-					BM_log_vert_before_modified(ss->bm, ss->bm_log, vd.bm_vert);
+					BM_log_vert_before_modified(ss->bm_log, vd.bm_vert, vd.cd_vert_mask_offset);
 				}
 				BKE_pbvh_vertex_iter_end;
 				break;
+
+			case SCULPT_UNDO_HIDDEN:
+			{
+				GSetIterator gs_iter;
+				GSet *faces = BKE_pbvh_bmesh_node_faces(node);
+				BKE_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_ALL) {
+					BM_log_vert_before_modified(ss->bm_log, vd.bm_vert, vd.cd_vert_mask_offset);
+				}
+				BKE_pbvh_vertex_iter_end;
+
+				GSET_ITER (gs_iter, faces) {
+					BMFace *f = BLI_gsetIterator_getKey(&gs_iter);
+					BM_log_face_modified(ss->bm_log, f);
+				}
+				break;
+			}
 
 			case SCULPT_UNDO_DYNTOPO_BEGIN:
 			case SCULPT_UNDO_DYNTOPO_END:
@@ -844,7 +881,7 @@ SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node,
 void sculpt_undo_push_begin(const char *name)
 {
 	ED_undo_paint_push_begin(UNDO_PAINT_MESH, name,
-	                      sculpt_undo_restore, sculpt_undo_free);
+	                         sculpt_undo_restore, sculpt_undo_free);
 }
 
 void sculpt_undo_push_end(void)

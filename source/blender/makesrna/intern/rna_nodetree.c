@@ -129,7 +129,8 @@ EnumPropertyItem node_math_items[] = {
 	{14, "ROUND",        0, "Round",        ""},
 	{15, "LESS_THAN",    0, "Less Than",    ""},
 	{16, "GREATER_THAN", 0, "Greater Than", ""},
-	{17, "MODULO", 		 0, "Modulo", 		""},		
+	{17, "MODULO",       0, "Modulo",       ""},
+	{18, "ABSOLUTE",     0, "Absolute",     ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -656,30 +657,6 @@ static bool rna_NodeTree_check(bNodeTree *ntree, ReportList *reports)
 static void rna_NodeTree_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
-
-	/* when using border, make it so no old data from outside of
-	 * border is hanging around
-	 * ideally shouldn't be in RNA callback, but how to teach
-	 * compo to only clear frame when border usage is actually
-	 * toggling
-	 */
-	if (ntree->flag & NTREE_VIEWER_BORDER) {
-		Image *ima = BKE_image_verify_viewer(IMA_TYPE_COMPOSITE, "Viewer Node");
-		void *lock;
-		ImBuf *ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
-
-		if (ibuf) {
-			if (ibuf->rect)
-				memset(ibuf->rect, 0, 4 * ibuf->x * ibuf->y);
-
-			if (ibuf->rect_float)
-				memset(ibuf->rect_float, 0, 4 * ibuf->x * ibuf->y * sizeof(float));
-
-			ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
-		}
-
-		BKE_image_release_ibuf(ima, ibuf, lock);
-	}
 
 	WM_main_add_notifier(NC_NODE | NA_EDITED, NULL);
 	WM_main_add_notifier(NC_SCENE | ND_NODES, &ntree->id);
@@ -2945,9 +2922,24 @@ static EnumPropertyItem node_ycc_items[] = {
 };
 
 static EnumPropertyItem node_glossy_items[] = {
-	{SHD_GLOSSY_SHARP,    "SHARP",    0, "Sharp",    ""},
-	{SHD_GLOSSY_BECKMANN, "BECKMANN", 0, "Beckmann", ""},
-	{SHD_GLOSSY_GGX,      "GGX",      0, "GGX",      ""},
+	{SHD_GLOSSY_SHARP,             "SHARP",             0, "Sharp",    ""},
+	{SHD_GLOSSY_BECKMANN,          "BECKMANN",          0, "Beckmann", ""},
+	{SHD_GLOSSY_GGX,               "GGX",               0, "GGX",      ""},
+	{SHD_GLOSSY_ASHIKHMIN_SHIRLEY, "ASHIKHMIN_SHIRLEY", 0, "Ashikhmin-Shirley", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
+static EnumPropertyItem node_anisotropic_items[] = {
+	{SHD_GLOSSY_BECKMANN,          "BECKMANN",          0, "Beckmann", ""},
+	{SHD_GLOSSY_GGX,               "GGX",               0, "GGX",      ""},
+	{SHD_GLOSSY_ASHIKHMIN_SHIRLEY, "ASHIKHMIN_SHIRLEY", 0, "Ashikhmin-Shirley", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
+static EnumPropertyItem node_glass_items[] = {
+	{SHD_GLOSSY_SHARP,             "SHARP",             0, "Sharp",    ""},
+	{SHD_GLOSSY_BECKMANN,          "BECKMANN",          0, "Beckmann", ""},
+	{SHD_GLOSSY_GGX,               "GGX",               0, "GGX",      ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -3698,6 +3690,28 @@ static void def_glossy(StructRNA *srna)
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
+static void def_glass(StructRNA *srna)
+{
+	PropertyRNA *prop;
+	
+	prop = RNA_def_property(srna, "distribution", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, node_glass_items);
+	RNA_def_property_ui_text(prop, "Distribution", "");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_anisotropic(StructRNA *srna)
+{
+	PropertyRNA *prop;
+	
+	prop = RNA_def_property(srna, "distribution", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, node_anisotropic_items);
+	RNA_def_property_ui_text(prop, "Distribution", "");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_toon(StructRNA *srna)
 {
 	PropertyRNA *prop;
@@ -3728,6 +3742,24 @@ static void def_hair(StructRNA *srna)
 	RNA_def_property_enum_items(prop, node_hair_items);
 	RNA_def_property_ui_text(prop, "Component", "");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_sh_uvmap(StructRNA *srna)
+{
+	PropertyRNA *prop;
+
+	prop = RNA_def_property(srna, "from_dupli", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "custom1", 1);
+	RNA_def_property_ui_text(prop, "From Dupli", "Use the parent of the dupli object if possible");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	RNA_def_struct_sdna_from(srna, "NodeShaderUVMap", "storage");
+
+	prop = RNA_def_property(srna, "uv_map", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "UV Map", "UV coordinates to be used for mapping");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	RNA_def_struct_sdna_from(srna, "bNode", NULL);
 }
 
 static void def_sh_normal_map(StructRNA *srna)

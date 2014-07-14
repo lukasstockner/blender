@@ -59,7 +59,6 @@
 #include "BKE_lattice.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
 
 #include "BKE_deform.h"
@@ -121,11 +120,11 @@ void BKE_lattice_bitmap_from_flag(Lattice *lt, BLI_bitmap *bitmap, const short f
 	bp = lt->def;
 	for (i = 0; i < tot; i++, bp++) {
 		if ((bp->f1 & flag) && (!respecthide || !bp->hide)) {
-			BLI_BITMAP_SET(bitmap, i);
+			BLI_BITMAP_ENABLE(bitmap, i);
 		}
 		else {
 			if (clear) {
-				BLI_BITMAP_CLEAR(bitmap, i);
+				BLI_BITMAP_DISABLE(bitmap, i);
 			}
 		}
 	}
@@ -314,7 +313,7 @@ void BKE_lattice_make_local(Lattice *lt)
 {
 	Main *bmain = G.main;
 	Object *ob;
-	int is_local = false, is_lib = false;
+	bool is_local = false, is_lib = false;
 
 	/* - only lib users: do nothing
 	 * - only local users: set flag
@@ -368,7 +367,7 @@ LatticeDeformData *init_latt_deform(Object *oblatt, Object *ob)
 	Lattice *lt = oblatt->data;
 	BPoint *bp;
 	DispList *dl = oblatt->curve_cache ? BKE_displist_find(&oblatt->curve_cache->disp, DL_VERTS) : NULL;
-	float *co = dl ? dl->verts : NULL;
+	const float *co = dl ? dl->verts : NULL;
 	float *fp, imat[4][4];
 	float fu, fv, fw;
 	int u, v, w;
@@ -627,16 +626,19 @@ static bool calc_curve_deform(Scene *scene, Object *par, float co[3],
 	short index;
 	const bool is_neg_axis = (axis > 2);
 
-	/* to be sure, mostly after file load */
-	if (ELEM(NULL, par->curve_cache, par->curve_cache->path)) {
+	/* to be sure, mostly after file load, also cyclic dependencies */
 #ifdef CYCLIC_DEPENDENCY_WORKAROUND
+	if (par->curve_cache == NULL) {
 		BKE_displist_make_curveTypes(scene, par, false);
-#endif
-		if (par->curve_cache->path == NULL) {
-			return 0;  // happens on append and cyclic dependencies...
-		}
 	}
-	
+#endif
+
+	if (par->curve_cache->path == NULL) {
+		return 0;  /* happens on append, cyclic dependencies
+		            * and empty curves
+		            */
+	}
+
 	/* options */
 	if (is_neg_axis) {
 		index = axis - 3;
@@ -647,10 +649,17 @@ static bool calc_curve_deform(Scene *scene, Object *par, float co[3],
 	}
 	else {
 		index = axis;
-		if (cu->flag & CU_STRETCH)
+		if (cu->flag & CU_STRETCH) {
 			fac = (co[index] - cd->dmin[index]) / (cd->dmax[index] - cd->dmin[index]);
-		else
-			fac = +(co[index] - cd->dmin[index]) / (par->curve_cache->path->totdist);
+		}
+		else {
+			if (LIKELY(par->curve_cache->path->totdist > FLT_EPSILON)) {
+				fac = +(co[index] - cd->dmin[index]) / (par->curve_cache->path->totdist);
+			}
+			else {
+				fac = 0.0f;
+			}
+		}
 	}
 	
 	if (where_on_path_deform(par, fac, loc, dir, new_quat, &radius)) {  /* returns OK */

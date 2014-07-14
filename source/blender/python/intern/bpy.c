@@ -49,6 +49,7 @@
 #include "bpy_props.h"
 #include "bpy_library.h"
 #include "bpy_operator.h"
+#include "bpy_utils_units.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -144,8 +145,8 @@ static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObjec
 // PyDoc_STRVAR(bpy_user_resource_doc[] = // now in bpy/utils.py
 static PyObject *bpy_user_resource(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
-	char *type;
-	char *subdir = NULL;
+	const char *type;
+	const char *subdir = NULL;
 	int folder_id;
 	static const char *kwlist[] = {"type", "subdir", NULL};
 
@@ -189,7 +190,7 @@ PyDoc_STRVAR(bpy_resource_path_doc,
 );
 static PyObject *bpy_resource_path(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
-	char *type;
+	const char *type;
 	int major = BLENDER_VERSION / 100, minor = BLENDER_VERSION % 100;
 	static const char *kwlist[] = {"type", "major", "minor", NULL};
 	int folder_id;
@@ -334,6 +335,7 @@ void BPy_init_modules(void)
 	/* ops is now a python module that does the conversion from SOME_OT_foo -> some.foo */
 	PyModule_AddObject(mod, "ops", BPY_operator_module());
 	PyModule_AddObject(mod, "app", BPY_app_struct());
+	PyModule_AddObject(mod, "_utils_units", BPY_utils_units());
 
 	/* bpy context */
 	RNA_pointer_create(NULL, &RNA_Context, (void *)BPy_GetContext(), &ctx_ptr);

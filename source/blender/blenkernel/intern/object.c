@@ -52,7 +52,6 @@
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_smoke_types.h"
-#include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
@@ -76,7 +75,6 @@
 #include "BKE_armature.h"
 #include "BKE_action.h"
 #include "BKE_bullet.h"
-#include "BKE_colortools.h"
 #include "BKE_deform.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
@@ -88,7 +86,6 @@
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_group.h"
-#include "BKE_icons.h"
 #include "BKE_key.h"
 #include "BKE_lamp.h"
 #include "BKE_lattice.h"
@@ -98,7 +95,6 @@
 #include "BKE_editmesh.h"
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
-#include "BKE_node.h"
 #include "BKE_nparticle.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
@@ -395,7 +391,7 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 	free_controllers(&ob->controllers);
 	free_actuators(&ob->actuators);
 	
-	BKE_free_constraints(&ob->constraints);
+	BKE_constraints_free(&ob->constraints);
 	
 	free_partdeflect(ob->pd);
 	BKE_rigidbody_free_object(ob);
@@ -405,7 +401,7 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 	if (ob->bsoft) bsbFree(ob->bsoft);
 	if (ob->gpulamp.first) GPU_lamp_free(ob);
 
-	free_sculptsession(ob);
+	BKE_free_sculptsession(ob);
 
 	if (ob->pc_ids.first) BLI_freelistN(&ob->pc_ids);
 
@@ -501,7 +497,7 @@ void BKE_object_unlink(Object *ob)
 			bPoseChannel *pchan;
 			for (pchan = obt->pose->chanbase.first; pchan; pchan = pchan->next) {
 				for (con = pchan->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+					bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					
@@ -532,7 +528,7 @@ void BKE_object_unlink(Object *ob)
 		sca_remove_ob_poin(obt, ob);
 		
 		for (con = obt->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 			bConstraintTarget *ct;
 			
@@ -1007,8 +1003,6 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
 	ob->margin = 0.04f;
 	ob->init_state = 1;
 	ob->state = 1;
-	/* ob->pad3 == Contact Processing Threshold */
-	ob->m_contactProcessingThreshold = 1.0f;
 	ob->obstacleRad = 1.0f;
 	ob->step_height = 0.15f;
 	ob->jump_speed = 10.0f;
@@ -1049,6 +1043,9 @@ Object *BKE_object_add(Main *bmain, Scene *scene, int type)
 
 	return ob;
 }
+
+
+#ifdef WITH_GAMEENGINE
 
 void BKE_object_lod_add(Object *ob)
 {
@@ -1111,21 +1108,19 @@ bool BKE_object_lod_remove(Object *ob, int level)
 	return true;
 }
 
-static LodLevel *lod_level_select(Object *ob, const float cam_loc[3])
+static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
 {
 	LodLevel *current = ob->currentlod;
-	float ob_loc[3], delta[3];
-	float dist_sq;
+	float dist_sq, dist_sq_curr;
 
 	if (!current) return NULL;
 
-	copy_v3_v3(ob_loc, ob->obmat[3]);
-	sub_v3_v3v3(delta, ob_loc, cam_loc);
-	dist_sq = len_squared_v3(delta);
+	dist_sq = len_squared_v3v3(ob->obmat[3], camera_position);
+	dist_sq_curr = current->distance * current->distance;
 
-	if (dist_sq < current->distance * current->distance) {
+	if (dist_sq < dist_sq_curr) {
 		/* check for higher LoD */
-		while (current->prev && dist_sq < (current->distance * current->distance)) {
+		while (current->prev && dist_sq < dist_sq_curr) {
 			current = current->prev;
 		}
 	}
@@ -1145,17 +1140,14 @@ bool BKE_object_lod_is_usable(Object *ob, Scene *scene)
 	return (ob->mode == OB_MODE_OBJECT || !active);
 }
 
-bool BKE_object_lod_update(Object *ob, float camera_position[3])
+void BKE_object_lod_update(Object *ob, const float camera_position[3])
 {
 	LodLevel *cur_level = ob->currentlod;
 	LodLevel *new_level = lod_level_select(ob, camera_position);
 
 	if (new_level != cur_level) {
 		ob->currentlod = new_level;
-		return true;
 	}
-
-	return false;
 }
 
 static Object *lod_ob_get(Object *ob, Scene *scene, int flag)
@@ -1181,6 +1173,9 @@ struct Object *BKE_object_lod_matob_get(Object *ob, Scene *scene)
 {
 	return lod_ob_get(ob, scene, OB_LOD_USE_MAT);
 }
+
+#endif  /* WITH_GAMEENGINE */
+
 
 SoftBody *copy_softbody(SoftBody *sb, bool copy_caches)
 {
@@ -1370,12 +1365,8 @@ static void copy_object_pose(Object *obn, Object *ob)
 		
 		chan->flag &= ~(POSE_LOC | POSE_ROT | POSE_SIZE);
 		
-		if (chan->custom) {
-			id_us_plus(&chan->custom->id);
-		}
-		
 		for (con = chan->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(con);
+			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 			bConstraintTarget *ct;
 			
@@ -1487,9 +1478,9 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 			BKE_pose_rebuild(obn, obn->data);
 	}
 	defgroup_copy_list(&obn->defbase, &ob->defbase);
-	BKE_copy_constraints(&obn->constraints, &ob->constraints, true);
+	BKE_constraints_copy(&obn->constraints, &ob->constraints, true);
 
-	obn->mode = 0;
+	obn->mode = OB_MODE_OBJECT;
 	obn->sculpt = NULL;
 
 	/* increase user numbers */
@@ -2217,7 +2208,7 @@ static void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float pa
 {
 	float tmat[4][4];
 	float vec[3];
-	int ok;
+	bool ok;
 
 	switch (ob->partype & PARTYPE) {
 		case PAROBJECT:
@@ -2323,7 +2314,7 @@ void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
 	
 	if (ob->parent) {
 		Object *par = ob->parent;
-		float slowmat[4][4] = MAT4_UNITY;
+		float slowmat[4][4];
 		
 		/* calculate parent matrix */
 		solve_parenting(scene, ob, par, ob->obmat, slowmat, r_originmat, true);
@@ -2349,7 +2340,7 @@ void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
 	if (ob->constraints.first && !(ob->transflag & OB_NO_CONSTRAINTS)) {
 		bConstraintOb *cob;
 		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
-		BKE_solve_constraints(&ob->constraints, cob, ctime);
+		BKE_constraints_solve(&ob->constraints, cob, ctime);
 		BKE_constraints_clear_evalob(cob);
 	}
 	
@@ -2369,9 +2360,10 @@ void BKE_object_where_is_calc_time(Scene *scene, Object *ob, float ctime)
  * used for bundles orientation in 3d space relative to parented blender camera */
 void BKE_object_where_is_calc_mat4(Scene *scene, Object *ob, float obmat[4][4])
 {
-	float slowmat[4][4] = MAT4_UNITY;
 
 	if (ob->parent) {
+		float slowmat[4][4];
+
 		Object *par = ob->parent;
 		
 		solve_parenting(scene, ob, par, obmat, slowmat, NULL, false);
@@ -2724,7 +2716,7 @@ void BKE_object_foreach_display_point(
 		DispList *dl;
 
 		for (dl = ob->curve_cache->disp.first; dl; dl = dl->next) {
-			float *v3 = dl->verts;
+			const float *v3 = dl->verts;
 			int totvert = dl->nr;
 			int i;
 
@@ -2917,6 +2909,12 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 				{
 					BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
 					uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
+#ifdef WITH_FREESTYLE
+					/* make sure Freestyle edge/face marks appear in DM for render (see T40315) */
+					if (eval_ctx->mode != DAG_EVAL_VIEWPORT) {
+						data_mask |= CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE;
+					}
+#endif
 					if (em) {
 						makeDerivedMesh(scene, ob, em,  data_mask, 0); /* was CD_MASK_BAREMESH */
 					}
@@ -2979,7 +2977,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 				lamp_drivers_update(scene, ob->data, ctime);
 			
 			/* particles */
-			if (ob->particlesystem.first) {
+			if (ob != scene->obedit && ob->particlesystem.first) {
 				ParticleSystem *tpsys, *psys;
 				DerivedMesh *dm;
 				ob->transflag &= ~OB_DUPLIPARTS;
@@ -2993,7 +2991,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 
 					if (psys_check_enabled(ob, psys)) {
 						/* check use of dupli objects here */
-						if (psys->part && (psys->part->draw_as == PART_DRAW_REND || eval_ctx->for_render) &&
+						if (psys->part && (psys->part->draw_as == PART_DRAW_REND || eval_ctx->mode == DAG_EVAL_RENDER) &&
 						    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
 						     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
 						{
@@ -3013,7 +3011,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 						psys = psys->next;
 				}
 
-				if (eval_ctx->for_render && ob->transflag & OB_DUPLIPARTS) {
+				if (eval_ctx->mode == DAG_EVAL_RENDER && ob->transflag & OB_DUPLIPARTS) {
 					/* this is to make sure we get render level duplis in groups:
 					 * the derivedmesh must be created before init_render_mesh,
 					 * since object_duplilist does dupliparticles before that */
@@ -3078,7 +3076,7 @@ void BKE_object_sculpt_modifiers_changed(Object *ob)
 				ss->pbvh = NULL;
 			}
 
-			free_sculptsession_deformMats(ob->sculpt);
+			BKE_free_sculptsession_deformMats(ob->sculpt);
 		}
 		else {
 			PBVHNode **nodes;
@@ -3402,6 +3400,9 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
 	VirtualModifierData virtualModifierData;
 	int flag = 0;
 
+	if (BKE_key_from_object(ob))
+		flag |= eModifierMode_Realtime | eModifierMode_Render;
+
 	/* cloth */
 	for (md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 	     md && (flag != (eModifierMode_Render | eModifierMode_Realtime));
@@ -3448,11 +3449,11 @@ void BKE_object_relink(Object *ob)
 	if (ob->id.lib)
 		return;
 
-	BKE_relink_constraints(&ob->constraints);
+	BKE_constraints_relink(&ob->constraints);
 	if (ob->pose) {
 		bPoseChannel *chan;
 		for (chan = ob->pose->chanbase.first; chan; chan = chan->next) {
-			BKE_relink_constraints(&chan->constraints);
+			BKE_constraints_relink(&chan->constraints);
 		}
 	}
 	modifiers_foreachIDLink(ob, copy_object__forwardModifierLinks, NULL);
@@ -3665,7 +3666,7 @@ KDTree *BKE_object_as_kdtree(Object *ob, int *r_tot)
 			unsigned int i;
 
 			DerivedMesh *dm = ob->derivedDeform ? ob->derivedDeform : ob->derivedFinal;
-			int *index;
+			const int *index;
 
 			if (dm && (index = CustomData_get_layer(&dm->vertData, CD_ORIGINDEX))) {
 				MVert *mvert = dm->getVertArray(dm);

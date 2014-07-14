@@ -43,7 +43,6 @@
 #include "BLI_math.h"
 
 #include "BKE_context.h"
-#include "BKE_text.h" /* only for character utility funcs */
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -554,7 +553,7 @@ static int console_delete_exec(bContext *C, wmOperator *op)
 	int stride;
 
 	const short type = RNA_enum_get(op->ptr, "type");
-	int done = false;
+	bool done = false;
 	
 	if (ci->len == 0) {
 		return OPERATOR_CANCELLED;

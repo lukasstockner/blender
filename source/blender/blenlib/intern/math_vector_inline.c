@@ -432,6 +432,31 @@ MINLINE void mul_v4_v4fl(float r[4], const float a[4], float f)
 	r[3] = a[3] * f;
 }
 
+/**
+ * Avoid doing:
+ *
+ * angle = atan2f(dvec[0], dvec[1]);
+ * angle_to_mat2(mat, angle);
+ *
+ * instead use a vector as a matrix.
+ */
+
+MINLINE void mul_v2_v2_cw(float r[2], const float mat[2], const float vec[2])
+{
+	BLI_assert(r != vec);
+
+	r[0] = mat[0] * vec[0] + (+mat[1]) * vec[1];
+	r[1] = mat[1] * vec[0] + (-mat[0]) * vec[1];
+}
+
+MINLINE void mul_v2_v2_ccw(float r[2], const float mat[2], const float vec[2])
+{
+	BLI_assert(r != vec);
+
+	r[0] = mat[0] * vec[0] + (-mat[1]) * vec[1];
+	r[1] = mat[1] * vec[0] + (+mat[0]) * vec[1];
+}
+
 /* note: could add a matrix inline */
 MINLINE float mul_project_m4_v3_zfac(float mat[4][4], const float co[3])
 {
@@ -858,6 +883,12 @@ MINLINE bool is_one_v3(const float v[3])
 	return (v[0] == 1 && v[1] == 1 && v[2] == 1);
 }
 
+
+/** \name Vector Comparison
+ *
+ * \note use ``value <= limit``, so a limit of zero doesn't fail on an exact match.
+ * \{ */
+
 MINLINE bool equals_v2v2(const float v1[2], const float v2[2])
 {
 	return ((v1[0] == v2[0]) && (v1[1] == v2[1]));
@@ -875,8 +906,8 @@ MINLINE bool equals_v4v4(const float v1[4], const float v2[4])
 
 MINLINE bool compare_v2v2(const float v1[2], const float v2[2], const float limit)
 {
-	if (fabsf(v1[0] - v2[0]) < limit)
-		if (fabsf(v1[1] - v2[1]) < limit)
+	if (fabsf(v1[0] - v2[0]) <= limit)
+		if (fabsf(v1[1] - v2[1]) <= limit)
 			return true;
 
 	return false;
@@ -884,9 +915,9 @@ MINLINE bool compare_v2v2(const float v1[2], const float v2[2], const float limi
 
 MINLINE bool compare_v3v3(const float v1[3], const float v2[3], const float limit)
 {
-	if (fabsf(v1[0] - v2[0]) < limit)
-		if (fabsf(v1[1] - v2[1]) < limit)
-			if (fabsf(v1[2] - v2[2]) < limit)
+	if (fabsf(v1[0] - v2[0]) <= limit)
+		if (fabsf(v1[1] - v2[1]) <= limit)
+			if (fabsf(v1[2] - v2[2]) <= limit)
 				return true;
 
 	return false;
@@ -900,15 +931,26 @@ MINLINE bool compare_len_v3v3(const float v1[3], const float v2[3], const float 
 	y = v1[1] - v2[1];
 	z = v1[2] - v2[2];
 
-	return ((x * x + y * y + z * z) < (limit * limit));
+	return ((x * x + y * y + z * z) <= (limit * limit));
+}
+
+MINLINE bool compare_len_squared_v3v3(const float v1[3], const float v2[3], const float limit_sq)
+{
+	float x, y, z;
+
+	x = v1[0] - v2[0];
+	y = v1[1] - v2[1];
+	z = v1[2] - v2[2];
+
+	return ((x * x + y * y + z * z) <= limit_sq);
 }
 
 MINLINE bool compare_v4v4(const float v1[4], const float v2[4], const float limit)
 {
-	if (fabsf(v1[0] - v2[0]) < limit)
-		if (fabsf(v1[1] - v2[1]) < limit)
-			if (fabsf(v1[2] - v2[2]) < limit)
-				if (fabsf(v1[3] - v2[3]) < limit)
+	if (fabsf(v1[0] - v2[0]) <= limit)
+		if (fabsf(v1[1] - v2[1]) <= limit)
+			if (fabsf(v1[2] - v2[2]) <= limit)
+				if (fabsf(v1[3] - v2[3]) <= limit)
 					return true;
 
 	return false;
@@ -919,5 +961,7 @@ MINLINE float line_point_side_v2(const float l1[2], const float l2[2], const flo
 	return (((l1[0] - pt[0]) * (l2[1] - pt[1])) -
 	        ((l2[0] - pt[0]) * (l1[1] - pt[1])));
 }
+
+/** \} */
 
 #endif /* __MATH_VECTOR_INLINE_C__ */

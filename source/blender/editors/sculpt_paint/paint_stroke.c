@@ -47,6 +47,7 @@
 #include "BKE_paint.h"
 #include "BKE_brush.h"
 #include "BKE_colortools.h"
+#include "BKE_image.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -56,6 +57,8 @@
 
 #include "ED_screen.h"
 #include "ED_view3d.h"
+
+#include "IMB_imbuf_types.h"
 
 #include "paint_intern.h"
 
@@ -98,7 +101,7 @@ typedef struct PaintStroke {
 	bool brush_init;
 	float initial_mouse[2];
 	/* cached_pressure stores initial pressure for size pressure influence mainly */
-	float cached_pressure;
+	float cached_size_pressure;
 	/* last pressure will store last pressure value for use in interpolation for space strokes */
 	float last_pressure;
 
@@ -152,6 +155,24 @@ static float event_tablet_data(const wmEvent *event, int *pen_flip)
 	return pressure;
 }
 
+static bool paint_tool_require_location(Brush *brush, PaintMode mode)
+{
+	switch (mode) {
+		case PAINT_SCULPT:
+			if (ELEM4(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
+			                              SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB))
+			{
+				return false;
+			}
+			else {
+				return true;
+			}
+		default:
+			break;
+	}
+
+	return true;
+}
 
 /* Initialize the stroke cache variants from operator properties */
 static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
@@ -166,22 +187,42 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 	 *      brush coord/pressure/etc.
 	 *      It's more an events design issue, which doesn't split coordinate/pressure/angle
 	 *      changing events. We should avoid this after events system re-design */
-	if (paint_supports_dynamic_size(brush, mode) || !stroke->brush_init) {
+	if (!stroke->brush_init) {
 		copy_v2_v2(stroke->initial_mouse, mouse);
+		copy_v2_v2(ups->last_rake, mouse);
 		copy_v2_v2(ups->tex_mouse, mouse);
 		copy_v2_v2(ups->mask_tex_mouse, mouse);
-		stroke->cached_pressure = pressure;
+		stroke->cached_size_pressure = pressure;
+
+		/* check here if color sampling the main brush should do color conversion. This is done here
+		 * to avoid locking up to get the image buffer during sampling */
+		if (brush->mtex.tex && brush->mtex.tex->type == TEX_IMAGE && brush->mtex.tex->ima) {
+			ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(brush->mtex.tex->ima, &brush->mtex.tex->iuser, NULL);
+			if (tex_ibuf && tex_ibuf->rect_float == NULL) {
+				ups->do_linear_conversion = true;
+				ups->colorspace = tex_ibuf->rect_colorspace;
+			}
+			BKE_image_pool_release_ibuf(brush->mtex.tex->ima, tex_ibuf, NULL);
+		}
+
+		stroke->brush_init = true;
+	}
+
+	if (paint_supports_dynamic_size(brush, mode)) {
+		copy_v2_v2(ups->tex_mouse, mouse);
+		copy_v2_v2(ups->mask_tex_mouse, mouse);
+		stroke->cached_size_pressure = pressure;
 	}
 
 	/* Truly temporary data that isn't stored in properties */
 
 	ups->stroke_active = true;
-	ups->pressure_value = stroke->cached_pressure;
+	ups->size_pressure_value = stroke->cached_size_pressure;
 
 	ups->pixel_radius = BKE_brush_size_get(scene, brush);
 
 	if (BKE_brush_use_size_pressure(scene, brush) && paint_supports_dynamic_size(brush, mode)) {
-		ups->pixel_radius *= stroke->cached_pressure;
+		ups->pixel_radius *= stroke->cached_size_pressure;
 	}
 
 	if (paint_supports_dynamic_tex_coords(brush, mode)) {
@@ -234,6 +275,9 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 				if (stroke->get_location(C, out, halfway)) {
 					hit = true;
 				}
+				else if (!paint_tool_require_location(brush, mode)) {
+					hit = true;
+				}
 			}
 			else {
 				hit = true;
@@ -251,13 +295,8 @@ static void paint_brush_update(bContext *C, Brush *brush, PaintMode mode,
 		ups->draw_anchored = true;
 	}
 	else if (brush->flag & BRUSH_RAKE) {
-		if (!stroke->brush_init)
-			copy_v2_v2(ups->last_rake, mouse);
-		else
-			paint_calculate_rake_rotation(ups, mouse);
+		paint_calculate_rake_rotation(ups, mouse);
 	}
-
-	stroke->brush_init = true;
 }
 
 
@@ -318,8 +357,15 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float
 	}
 
 	/* TODO: can remove the if statement once all modes have this */
-	if (stroke->get_location)
-		stroke->get_location(C, location, mouse_out);
+	if (stroke->get_location) {
+		if (!stroke->get_location(C, location, mouse_out)) {
+			if (paint_tool_require_location(brush, mode)) {
+				if (ar && (paint->flags & PAINT_SHOW_BRUSH))
+					WM_paint_cursor_tag_redraw(window, ar);
+				return;
+			}
+		}
+	}
 	else
 		zero_v3(location);
 
@@ -776,7 +822,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	if (event->type != INBETWEEN_MOUSEMOVE)
 		if (redraw && stroke->redraw)
 			stroke->redraw(C, stroke, false);
-	
+
 	return OPERATOR_RUNNING_MODAL;
 }
 

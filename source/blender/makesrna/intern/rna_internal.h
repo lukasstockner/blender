@@ -203,7 +203,7 @@ void rna_def_motionpath_common(struct StructRNA *srna);
 void rna_def_texmat_common(struct StructRNA *srna, const char *texspace_editable);
 void rna_def_mtex_common(struct BlenderRNA *brna, struct StructRNA *srna, const char *begin, const char *activeget,
                          const char *activeset, const char *activeeditable, const char *structname,
-                         const char *structname_slots, const char *update);
+                         const char *structname_slots, const char *update, const char *update_index);
 void rna_def_render_layer_common(struct StructRNA *srna, int scene);
 
 void rna_def_actionbone_group_common(struct StructRNA *srna, int update_flag, const char *update_cb);
@@ -357,34 +357,11 @@ int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, Point
 
 /* Iterators */
 
-typedef int (*IteratorSkipFunc)(struct CollectionPropertyIterator *iter, void *data);
-
-typedef struct ListBaseIterator {
-	Link *link;
-	int flag;
-	IteratorSkipFunc skip;
-} ListBaseIterator;
-
 void rna_iterator_listbase_begin(struct CollectionPropertyIterator *iter, struct ListBase *lb, IteratorSkipFunc skip);
 void rna_iterator_listbase_next(struct CollectionPropertyIterator *iter);
 void *rna_iterator_listbase_get(struct CollectionPropertyIterator *iter);
 void rna_iterator_listbase_end(struct CollectionPropertyIterator *iter);
 PointerRNA rna_listbase_lookup_int(PointerRNA *ptr, StructRNA *type, struct ListBase *lb, int index);
-
-typedef struct ArrayIterator {
-	char *ptr;
-	char *endptr;  /* past the last valid pointer, only for comparisons, ignores skipped values */
-	void *free_ptr; /* will be freed if set */
-	int itemsize;
-
-	/* array length with no skip functions applied, take care not to compare against index from animsys
-	 * or python indices */
-	int length;
-
-	/* optional skip function, when set the array as viewed by rna can contain only a subset of the members.
-	 * this changes indices so quick array index lookups are not possible when skip function is used. */
-	IteratorSkipFunc skip;
-} ArrayIterator;
 
 void rna_iterator_array_begin(struct CollectionPropertyIterator *iter, void *ptr, int itemsize, int length,
                               bool free_ptr, IteratorSkipFunc skip);

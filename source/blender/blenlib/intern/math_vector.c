@@ -467,6 +467,32 @@ float angle_on_axis_v3v3v3_v3(const float v1[3], const float v2[3], const float 
 	return angle_v3v3(v1_proj, v2_proj);
 }
 
+float angle_signed_on_axis_v3v3v3_v3(const float v1[3], const float v2[3], const float v3[3], const float axis[3])
+{
+	float v1_proj[3], v2_proj[3], tproj[3];
+	float angle;
+
+	sub_v3_v3v3(v1_proj, v1, v2);
+	sub_v3_v3v3(v2_proj, v3, v2);
+
+	/* project the vectors onto the axis */
+	project_v3_v3v3(tproj, v1_proj, axis);
+	sub_v3_v3(v1_proj, tproj);
+
+	project_v3_v3v3(tproj, v2_proj, axis);
+	sub_v3_v3(v2_proj, tproj);
+
+	angle = angle_v3v3(v1_proj, v2_proj);
+
+	/* calculate the sign (reuse 'tproj') */
+	cross_v3_v3v3(tproj, v2_proj, v1_proj);
+	if (dot_v3v3(tproj, axis) < 0.0f) {
+		angle = ((float)(M_PI * 2.0)) - angle;
+	}
+
+	return angle;
+}
+
 void angle_tri_v3(float angles[3], const float v1[3], const float v2[3], const float v3[3])
 {
 	float ed1[3], ed2[3], ed3[3];
@@ -583,25 +609,33 @@ void reflect_v3_v3v3(float out[3], const float vec[3], const float normal[3])
 	out[2] = vec[2] - (dot2 * normal[2]);
 }
 
-void ortho_basis_v3v3_v3(float v1[3], float v2[3], const float v[3])
+/**
+ * Takes a vector and computes 2 orthogonal directions.
+ *
+ * \note if \a n is n unit length, computed values will be too.
+ */
+void ortho_basis_v3v3_v3(float r_n1[3], float r_n2[3], const float n[3])
 {
-	const float f = sqrtf(v[0] * v[0] + v[1] * v[1]);
+	const float eps = FLT_EPSILON;
+	const float f = len_squared_v2(n);
 
-	if (f < 1e-35f) {
-		// degenerate case
-		v1[0] = (v[2] < 0.0f) ? -1.0f : 1.0f;
-		v1[1] = v1[2] = v2[0] = v2[2] = 0.0f;
-		v2[1] = 1.0f;
+	if (f > eps) {
+		const float d = 1.0f / sqrtf(f);
+
+		BLI_assert(finite(d));
+
+		r_n1[0] =  n[1] * d;
+		r_n1[1] = -n[0] * d;
+		r_n1[2] =  0.0f;
+		r_n2[0] = -n[2] * r_n1[1];
+		r_n2[1] =  n[2] * r_n1[0];
+		r_n2[2] =  n[0] * r_n1[1] - n[1] * r_n1[0];
 	}
 	else {
-		const float d = 1.0f / f;
-
-		v1[0] = v[1] * d;
-		v1[1] = -v[0] * d;
-		v1[2] = 0.0f;
-		v2[0] = -v[2] * v1[1];
-		v2[1] = v[2] * v1[0];
-		v2[2] = v[0] * v1[1] - v[1] * v1[0];
+		/* degenerate case */
+		r_n1[0] = (n[2] < 0.0f) ? -1.0f : 1.0f;
+		r_n1[1] = r_n1[2] = r_n2[0] = r_n2[2] = 0.0f;
+		r_n2[1] = 1.0f;
 	}
 }
 
@@ -638,7 +672,7 @@ void ortho_v3_v3(float p[3], const float v[3])
 /**
  * no brainer compared to v3, just have for consistency.
  */
-void ortho_v2_v2(float p[3], const float v[3])
+void ortho_v2_v2(float p[2], const float v[2])
 {
 	BLI_assert(p != v);
 
@@ -978,6 +1012,15 @@ void interp_vn_vn(float *array_tar, const float *array_src, const float t, const
 void fill_vn_i(int *array_tar, const int size, const int val)
 {
 	int *tar = array_tar + (size - 1);
+	int i = size;
+	while (i--) {
+		*(tar--) = val;
+	}
+}
+
+void fill_vn_short(short *array_tar, const int size, const short val)
+{
+	short *tar = array_tar + (size - 1);
 	int i = size;
 	while (i--) {
 		*(tar--) = val;
