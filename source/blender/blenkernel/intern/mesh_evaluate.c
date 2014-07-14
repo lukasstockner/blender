@@ -567,14 +567,16 @@ void BKE_mesh_normals_loop_split(MVert *mverts, const int UNUSED(numVerts), MEdg
 						copy_v3_v3(nor, lnor);
 					}
 				}
+				else {
+					/* We still have to clear the stack! */
+					while (BLI_SMALLSTACK_POP(normal));
+				}
 			}
 
 			ml_prev = ml_curr;
 			ml_prev_index = ml_curr_index;
 		}
 	}
-
-	BLI_SMALLSTACK_FREE(normal);
 
 	MEM_freeN(edge_to_loops);
 	MEM_freeN(loop_to_poly);
