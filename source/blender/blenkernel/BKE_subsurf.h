@@ -103,7 +103,7 @@ typedef struct CCGDerivedMesh {
 
 	struct CCGSubSurf *ss;
 	int freeSS;
-	int drawInteriorEdges, useSubsurfUv;
+	int drawInteriorEdges, useSubsurfUv, useGpuBackend;
 
 	struct {int startVert; struct CCGVert *vert; } *vertMap;
 	struct {int startVert; int startEdge; struct CCGEdge *edge; } *edgeMap;

@@ -1661,7 +1661,7 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 	int useAging;
 
 #ifdef WITH_OPENSUBDIV
-	{
+	if (ccgdm->useGpuBackend) {
 		/* TODO(sergey): We currently only support all edges drawing. */
 		ccgSubSurf_prepareGLMesh(ss);
 		ccgSubSurf_drawGLMesh(ss, false, -1);
@@ -1786,7 +1786,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 	int drawcurrent = 0, matnr = -1, shademodel = -1;
 
 #ifdef WITH_OPENSUBDIV
-	{
+	if (ccgdm->useGpuBackend) {
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator *fi;
 		ccgSubSurf_prepareGLMesh(ss);
@@ -2020,7 +2020,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	int a, i, do_draw, numVerts, matnr, new_matnr, totface;
 
 #ifdef WITH_OPENSUBDIV
-	{
+	if (ccgdm->useGpuBackend) {
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator *fi;
 		ccgSubSurf_prepareGLMesh(ss);
@@ -4013,6 +4013,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	ccgdm->ss = ss;
 	ccgdm->drawInteriorEdges = drawInteriorEdges;
 	ccgdm->useSubsurfUv = useSubsurfUv;
+	ccgdm->useGpuBackend = use_gpu_backend;
 
 	/* CDDM hack. */
 	ccgdm->edgeFlags = MEM_callocN(sizeof(short) * totedge, "edgeFlags");
