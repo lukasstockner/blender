@@ -1348,7 +1348,10 @@ static void paint_2d_fill_add_pixel_float(
 }
 
 /* this function expects linear space color values */
-void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, float mouse_init[2], void *ps)
+void paint_2d_bucket_fill(
+        const bContext *C, const float color[3], Brush *br,
+        const float mouse_init[2],
+        void *ps)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Image *ima = sima->image;
@@ -1356,7 +1359,7 @@ void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, fl
 	ImagePaintState *s = ps;
 
 	ImBuf *ibuf;
-	int i = 0, j = 0;
+	int i, j;
 	unsigned int color_b;
 	float color_f[4];
 	float strength = br ? br->alpha : 1.0f;
@@ -1521,14 +1524,17 @@ void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, fl
 	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
 }
 
-void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], float mouse_final[2], void *ps)
+void paint_2d_gradient_fill(
+        const bContext *C, Brush *br,
+        const float mouse_init[2], const float mouse_final[2],
+        void *ps)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Image *ima = sima->image;
 	ImagePaintState *s = ps;
 
 	ImBuf *ibuf;
-	unsigned short i = 0, j = 0;
+	int i, j;
 	unsigned int color_b;
 	float color_f[4];
 	float image_init[2], image_final[2];
@@ -1566,7 +1572,7 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 	ED_imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
 
 	if (do_float) {
-		for (; i < ibuf->x; i++) {
+		for (i = 0; i < ibuf->x; i++) {
 			for (j = 0; j < ibuf->y; j++) {
 				float f;
 				float p[2] = {i - image_init[0], j - image_init[1]};
@@ -1594,7 +1600,7 @@ void paint_2d_gradient_fill (const bContext *C, Brush *br, float mouse_init[2], 
 		}
 	}
 	else {
-		for (; i < ibuf->x; i++) {
+		for (i = 0; i < ibuf->x; i++) {
 			for (j = 0; j < ibuf->y; j++) {
 				float f;
 				float p[2] = {i - image_init[0], j - image_init[1]};
