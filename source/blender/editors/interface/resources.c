@@ -53,6 +53,7 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_texture.h"
+#include "BKE_library.h"
 
 
 #include "BIF_gl.h"
@@ -2480,12 +2481,10 @@ void init_userdef_factory(void)
 		br->imagepaint_tool = PAINT_TOOL_FILL;
 		br->ob_mode = OB_MODE_TEXTURE_PAINT;
 
-		for (br = G.main->brush.first; br; br = br->id.next) {
-			if (strcmp(br->id.name, "BRMask") == 0) {
-				br->imagepaint_tool = PAINT_TOOL_MASK;
-				br->ob_mode |= OB_MODE_TEXTURE_PAINT;
-				break;
-			}
+		br = (Brush *)BKE_libblock_find_name(ID_BR, "Mask");
+		if (br) {
+			br->imagepaint_tool = PAINT_TOOL_MASK;
+			br->ob_mode |= OB_MODE_TEXTURE_PAINT;
 		}
 	}
 
