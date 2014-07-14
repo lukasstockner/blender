@@ -83,6 +83,7 @@ static void brush_defaults(Brush *brush)
 	brush->plane_trim = 0.5f;
 	brush->clone.alpha = 0.5f;
 	brush->normal_weight = 0.0f;
+	brush->fill_threshold = 0.2f;
 	brush->flag |= BRUSH_ALPHA_PRESSURE;
 
 	/* BRUSH PAINT TOOL SETTINGS */

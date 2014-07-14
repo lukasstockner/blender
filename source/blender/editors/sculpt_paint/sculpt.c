@@ -5015,11 +5015,11 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 			ts->sculpt->paint.flags |= PAINT_SHOW_BRUSH;
 
 			/* Make sure at least dyntopo subdivision is enabled */
-			ts->sculpt->flags |= SCULPT_DYNTOPO_SUBDIVIDE;
+			ts->sculpt->flags |= SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE;
 		}
 
 		if (!ts->sculpt->detail_size) {
-			ts->sculpt->detail_size = 30;
+			ts->sculpt->detail_size = 12;
 		}
 
 		if (ts->sculpt->constant_detail == 0.0f)

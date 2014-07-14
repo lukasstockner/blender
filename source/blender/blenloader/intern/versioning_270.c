@@ -34,6 +34,7 @@
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
+#include "DNA_brush_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
@@ -319,9 +320,15 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 
 	if (!MAIN_VERSION_ATLEAST(main, 271, 2)) {
 		Scene *sce;
+		Brush *br;
+
 		for (sce = main->scene.first; sce; sce = sce->id.next) {
 			sce->toolsettings->imapaint.slot_xresolution_default = 1024;
 			sce->toolsettings->imapaint.slot_yresolution_default = 1024;
+		}
+
+		for (br = main->brush.first; br; br = br->id.next) {
+			br->fill_threshold = 0.2f;
 		}
 	}
 }

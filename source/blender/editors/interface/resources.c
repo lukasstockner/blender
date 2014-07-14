@@ -35,17 +35,20 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_userdef_types.h"
+#include "DNA_mesh_types.h"  /* init_userdef_factory */
+#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
-#include "DNA_mesh_types.h"  /* init_userdef_factory */
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
 
+#include "BKE_brush.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -2468,6 +2471,38 @@ void init_userdef_factory(void)
 		Mesh *me;
 		for (me = G.main->mesh.first; me; me = me->id.next) {
 			me->flag &= ~ME_TWOSIDED;
+		}
+	}
+
+	{
+		Brush *br;
+		br = BKE_brush_add(G.main, "Fill");
+		br->imagepaint_tool = PAINT_TOOL_FILL;
+		br->ob_mode = OB_MODE_TEXTURE_PAINT;
+
+		for (br = G.main->brush.first; br; br = br->id.next) {
+			if (strcmp(br->id.name, "BRMask") == 0) {
+				br->imagepaint_tool = PAINT_TOOL_MASK;
+				br->ob_mode |= OB_MODE_TEXTURE_PAINT;
+				break;
+			}
+		}
+	}
+
+	{
+		Scene *scene;
+
+		for (scene = G.main->scene.first; scene; scene = scene->id.next) {
+			if (scene->toolsettings) {
+				ToolSettings *ts = scene->toolsettings;
+
+				if (ts->sculpt) {
+					Sculpt *sculpt = ts->sculpt;
+					sculpt->paint.symmetry_flags |= PAINT_SYMM_X;
+					sculpt->flags |= SCULPT_DYNTOPO_COLLAPSE;
+					sculpt->detail_size = 12;
+				}
+			}
 		}
 	}
 }
