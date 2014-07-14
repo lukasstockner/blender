@@ -52,6 +52,7 @@ static EnumPropertyItem nparticle_display_type_items[] = {
 
 #include "RNA_access.h"
 
+#if 0
 static StructRNA *rna_NParticleAttributeState_refine(PointerRNA *ptr)
 {
 	NParticleAttributeState *attrstate = ptr->data;
@@ -262,6 +263,7 @@ int rna_NParticleState_attributes_lookup_string(PointerRNA *ptr, const char *key
 	RNA_pointer_create(ptr->id.data, &RNA_NParticleAttributeState, attrstate, r_ptr);
 	return attrstate != NULL;
 }
+#endif
 
 
 #if 0
@@ -459,6 +461,7 @@ static void def_nparticle_attribute_description(StructRNA *srna, int update_flag
 		RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
+#if 0
 /* defines a subtype of NParticleAttribute with a specific collection property for actual data */
 static void def_nparticle_attribute_state_type(BlenderRNA *brna,
                                                const char *state_structname, const char *data_structname,
@@ -608,6 +611,7 @@ static void rna_def_nparticle_attribute_state(BlenderRNA *brna)
 
 #undef DEF_ATTR_TYPE_RNA
 }
+#endif
 
 static void rna_def_nparticle_iterator(BlenderRNA *brna)
 {
@@ -626,6 +630,7 @@ static void rna_def_nparticle_state(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "NParticleState", NULL);
 	RNA_def_struct_ui_text(srna, "Particle State", "Data in a particle system for a specific frame");
 
+#if 0
 	prop = RNA_def_property(srna, "attributes", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_funcs(prop, "rna_NParticleState_attributes_begin", "rna_NParticleState_attributes_next",
 	                                  "rna_NParticleState_attributes_end", "rna_NParticleState_attributes_get",
@@ -633,6 +638,7 @@ static void rna_def_nparticle_state(BlenderRNA *brna)
 	                                  "rna_NParticleState_attributes_lookup_string", NULL);
 	RNA_def_property_ui_text(prop, "Attributes", "Data layers associated to particles");
 	RNA_def_property_struct_type(prop, "NParticleAttributeState");
+#endif
 
 #if 0
 	prop = RNA_def_property(srna, "particles", PROP_COLLECTION, PROP_NONE);
@@ -824,7 +830,9 @@ static void rna_def_nparticle_system(BlenderRNA *brna)
 
 void RNA_def_nparticle(BlenderRNA *brna)
 {
+#if 0
 	rna_def_nparticle_attribute_state(brna);
+#endif
 	rna_def_nparticle_iterator(brna);
 	rna_def_nparticle_state(brna);
 	rna_def_nparticle_attribute(brna);
