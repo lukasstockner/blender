@@ -1306,15 +1306,15 @@ void paint_2d_stroke_done(void *ps)
 }
 
 static void paint_2d_fill_add_pixel_byte(
-        const int i, const int j, ImBuf *ibuf, BLI_Stack *stack, BLI_bitmap *touched,
+        const int x_px, const int y_px, ImBuf *ibuf, BLI_Stack *stack, BLI_bitmap *touched,
         const float color[4], float threshold_sq)
 {
 	int coordinate;
 
-	if (i >= ibuf->x || i < 0 || j >= ibuf->y || j < 0)
+	if (x_px >= ibuf->x || x_px < 0 || y_px >= ibuf->y || y_px < 0)
 		return;
 
-	coordinate = j * ibuf->x + i;
+	coordinate = y_px * ibuf->x + x_px;
 
 	if (!BLI_BITMAP_TEST(touched, coordinate)) {
 		float color_f[4];
@@ -1329,15 +1329,15 @@ static void paint_2d_fill_add_pixel_byte(
 }
 
 static void paint_2d_fill_add_pixel_float(
-        const int i, const int j, ImBuf *ibuf, BLI_Stack *stack, BLI_bitmap *touched,
+        const int x_px, const int y_px, ImBuf *ibuf, BLI_Stack *stack, BLI_bitmap *touched,
         const float color[4], float threshold_sq)
 {
 	int coordinate;
 
-	if (i >= ibuf->x || i < 0 || j >= ibuf->y || j < 0)
+	if (x_px >= ibuf->x || x_px < 0 || y_px >= ibuf->y || y_px < 0)
 		return;
 
-	coordinate = j * ibuf->x + i;
+	coordinate = y_px * ibuf->x + x_px;
 
 	if (!BLI_BITMAP_TEST(touched, coordinate)) {
 		if (compare_len_squared_v3v3(ibuf->rect_float + 4 * coordinate, color, threshold_sq)) {
@@ -1359,7 +1359,7 @@ void paint_2d_bucket_fill(
 	ImagePaintState *s = ps;
 
 	ImBuf *ibuf;
-	int i, j;
+	int x_px, y_px;
 	unsigned int color_b;
 	float color_f[4];
 	float strength = br ? br->alpha : 1.0f;
@@ -1392,18 +1392,18 @@ void paint_2d_bucket_fill(
 		ED_imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
 
 		if (do_float) {
-			for (; i < ibuf->x; i++) {
-				for (j = 0; j < ibuf->y; j++) {
-					blend_color_mix_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
-					                      ibuf->rect_float + 4 * (j * ibuf->x + i), color_f);
+			for (; x_px < ibuf->x; x_px++) {
+				for (y_px = 0; y_px < ibuf->y; y_px++) {
+					blend_color_mix_float(ibuf->rect_float + 4 * (y_px * ibuf->x + x_px),
+					                      ibuf->rect_float + 4 * (y_px * ibuf->x + x_px), color_f);
 				}
 			}
 		}
 		else {
-			for (; i < ibuf->x; i++) {
-				for (j = 0; j < ibuf->y; j++) {
-					blend_color_mix_byte((unsigned char *)(ibuf->rect + j * ibuf->x + i),
-					                     (unsigned char *)(ibuf->rect + j * ibuf->x + i), (unsigned char *)&color_b);
+			for (; x_px < ibuf->x; x_px++) {
+				for (y_px = 0; y_px < ibuf->y; y_px++) {
+					blend_color_mix_byte((unsigned char *)(ibuf->rect + y_px * ibuf->x + x_px),
+					                     (unsigned char *)(ibuf->rect + y_px * ibuf->x + x_px), (unsigned char *)&color_b);
 				}
 			}
 		}
@@ -1422,10 +1422,10 @@ void paint_2d_bucket_fill(
 
 		UI_view2d_region_to_view(s->v2d, mouse_init[0], mouse_init[1], &image_init[0], &image_init[1]);
 
-		i = image_init[0] * ibuf->x;
-		j = image_init[1] * ibuf->y;
+		x_px = image_init[0] * ibuf->x;
+		y_px = image_init[1] * ibuf->y;
 
-		if (i >= ibuf->x || i < 0 || j > ibuf->y || j < 0) {
+		if (x_px >= ibuf->x || x_px < 0 || y_px > ibuf->y || y_px < 0) {
 			BKE_image_release_ibuf(ima, ibuf, NULL);
 			return;
 		}
@@ -1436,7 +1436,7 @@ void paint_2d_bucket_fill(
 		stack = BLI_stack_new(sizeof(int), __func__);
 		touched = BLI_BITMAP_NEW(ibuf->x * ibuf->y, "bucket_fill_bitmap");
 
-		coordinate = (j * ibuf->x + i);
+		coordinate = (y_px * ibuf->x + x_px);
 
 		if (do_float) {
 			copy_v4_v4(pixel_color, ibuf->rect_float + 4 * coordinate);
@@ -1458,26 +1458,26 @@ void paint_2d_bucket_fill(
 				                      color_f, br->blend);
 
 				/* reconstruct the coordinates here */
-				i = coordinate % width;
-				j = coordinate / width;
+				x_px = coordinate % width;
+				y_px = coordinate / width;
 
-				paint_2d_fill_add_pixel_float(i - 1, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_float(i - 1, j, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_float(i - 1, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_float(i, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_float(i, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_float(i + 1, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_float(i + 1, j, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_float(i + 1, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(x_px - 1, y_px - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(x_px - 1, y_px, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(x_px - 1, y_px + 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(x_px, y_px + 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(x_px, y_px - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(x_px + 1, y_px - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(x_px + 1, y_px, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_float(x_px + 1, y_px + 1, ibuf, stack, touched, pixel_color, threshold_sq);
 
-				if (i > maxx)
-					maxx = i;
-				if (i < minx)
-					minx = i;
-				if (j > maxy)
-					maxy = j;
-				if (i > miny)
-					miny = j;
+				if (x_px > maxx)
+					maxx = x_px;
+				if (x_px < minx)
+					minx = x_px;
+				if (y_px > maxy)
+					maxy = y_px;
+				if (x_px > miny)
+					miny = y_px;
 			}
 		}
 		else {
@@ -1489,26 +1489,26 @@ void paint_2d_bucket_fill(
 				                     (unsigned char *)&color_b, br->blend);
 
 				/* reconstruct the coordinates here */
-				i = coordinate % width;
-				j = coordinate / width;
+				x_px = coordinate % width;
+				y_px = coordinate / width;
 
-				paint_2d_fill_add_pixel_byte(i - 1, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_byte(i - 1, j, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_byte(i - 1, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_byte(i, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_byte(i, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_byte(i + 1, j - 1, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_byte(i + 1, j, ibuf, stack, touched, pixel_color, threshold_sq);
-				paint_2d_fill_add_pixel_byte(i + 1, j + 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(x_px - 1, y_px - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(x_px - 1, y_px, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(x_px - 1, y_px + 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(x_px, y_px + 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(x_px, y_px - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(x_px + 1, y_px - 1, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(x_px + 1, y_px, ibuf, stack, touched, pixel_color, threshold_sq);
+				paint_2d_fill_add_pixel_byte(x_px + 1, y_px + 1, ibuf, stack, touched, pixel_color, threshold_sq);
 
-				if (i > maxx)
-					maxx = i;
-				if (i < minx)
-					minx = i;
-				if (j > maxy)
-					maxy = j;
-				if (i > miny)
-					miny = j;
+				if (x_px > maxx)
+					maxx = x_px;
+				if (x_px < minx)
+					minx = x_px;
+				if (y_px > maxy)
+					maxy = y_px;
+				if (x_px > miny)
+					miny = y_px;
 			}
 		}
 
@@ -1534,7 +1534,7 @@ void paint_2d_gradient_fill(
 	ImagePaintState *s = ps;
 
 	ImBuf *ibuf;
-	int i, j;
+	int x_px, y_px;
 	unsigned int color_b;
 	float color_f[4];
 	float image_init[2], image_final[2];
@@ -1572,10 +1572,10 @@ void paint_2d_gradient_fill(
 	ED_imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
 
 	if (do_float) {
-		for (i = 0; i < ibuf->x; i++) {
-			for (j = 0; j < ibuf->y; j++) {
+		for (x_px = 0; x_px < ibuf->x; x_px++) {
+			for (y_px = 0; y_px < ibuf->y; y_px++) {
 				float f;
-				float p[2] = {i - image_init[0], j - image_init[1]};
+				float p[2] = {x_px - image_init[0], y_px - image_init[1]};
 
 				switch (br->gradient_fill_mode) {
 					case BRUSH_GRADIENT_LINEAR:
@@ -1593,17 +1593,17 @@ void paint_2d_gradient_fill(
 				/* convert to premultiplied */
 				mul_v3_fl(color_f, color_f[3]);
 				color_f[3] *= br->alpha;
-				IMB_blend_color_float(ibuf->rect_float + 4 * (j * ibuf->x + i),
-				                      ibuf->rect_float + 4 * (j * ibuf->x + i),
+				IMB_blend_color_float(ibuf->rect_float + 4 * (y_px * ibuf->x + x_px),
+				                      ibuf->rect_float + 4 * (y_px * ibuf->x + x_px),
 				                      color_f, br->blend);
 			}
 		}
 	}
 	else {
-		for (i = 0; i < ibuf->x; i++) {
-			for (j = 0; j < ibuf->y; j++) {
+		for (x_px = 0; x_px < ibuf->x; x_px++) {
+			for (y_px = 0; y_px < ibuf->y; y_px++) {
 				float f;
-				float p[2] = {i - image_init[0], j - image_init[1]};
+				float p[2] = {x_px - image_init[0], y_px - image_init[1]};
 
 				switch (br->gradient_fill_mode) {
 					case BRUSH_GRADIENT_LINEAR:
@@ -1621,8 +1621,8 @@ void paint_2d_gradient_fill(
 				do_colorband(br->gradient, f, color_f);
 				rgba_float_to_uchar((unsigned char *)&color_b, color_f);
 				((unsigned char *)&color_b)[3] *= br->alpha;
-				IMB_blend_color_byte((unsigned char *)(ibuf->rect + j * ibuf->x + i),
-				                     (unsigned char *)(ibuf->rect + j * ibuf->x + i),
+				IMB_blend_color_byte((unsigned char *)(ibuf->rect + y_px * ibuf->x + x_px),
+				                     (unsigned char *)(ibuf->rect + y_px * ibuf->x + x_px),
 				                     (unsigned char *)&color_b, br->blend);
 			}
 		}

@@ -294,7 +294,7 @@ void paint_delete_blur_kernel(BlurKernel *);
 
 /* paint curve defines */
 #define PAINT_CURVE_NUM_SEGMENTS 40
-#define PAINT_CURVE_SELECT_THRESHOLD 6.0f
+#define PAINT_CURVE_SELECT_THRESHOLD 8.0f
 
 
 #endif /* __PAINT_INTERN_H__ */

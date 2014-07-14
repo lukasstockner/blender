@@ -363,7 +363,7 @@ void PAINTCURVE_OT_delete_point(wmOperatorType *ot)
 }
 
 
-static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2],
+static bool paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2],
                                     bool handle, bool toggle, bool extend)
 {
 	wmWindow *window = CTX_wm_window(C);
@@ -373,20 +373,21 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 	PaintCurve *pc;
 	PaintCurvePoint *pcp;
 	int i;
-	char select = 0;
 	const float loc_fl[2] = {UNPACK2(loc)};
 
 	pc = br->paint_curve;
 
 	if (!pc)
-		return;
+		return false;
 
 	paintcurve_undo_begin(C, op, pc);
 
 	pcp = pc->points;
 
 	if (toggle) {
+		char select = 0;
 		bool selected = false;
+
 		for (i = 0; i < pc->tot_points; i++) {
 			if (pcp[i].bez.f1 || pcp[i].bez.f2 || pcp[i].bez.f3) {
 				selected = true;
@@ -397,45 +398,95 @@ static void paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 		if (!selected) {
 			select = SELECT;
 		}
-	}
 
-	if (!extend) {
-		/* first clear selection from all bezier handles */
 		for (i = 0; i < pc->tot_points; i++) {
-			pcp[i].bez.f1 = pcp[i].bez.f2 = pcp[i].bez.f3 = select;
+			pc->points[i].bez.f1 = pc->points[i].bez.f2 = pc->points[i].bez.f3 = select;
 		}
 	}
+	else {
+#define SEL_F1 (1 << 0)
+#define SEL_F2 (1 << 1)
+#define SEL_F3 (1 << 2)
+		int selflag;
+		bool selected = false;
 
-	if (!toggle) {
 		for (i = 0; i < pc->tot_points; i++, pcp++) {
 			/* shift means constrained editing so exclude center handles from collision detection */
 			if (!handle) {
 				if (len_manhattan_v2v2(loc_fl, pcp->bez.vec[1]) < PAINT_CURVE_SELECT_THRESHOLD) {
-					pcp->bez.f2 ^= SELECT;
+					if (extend)
+						pcp->bez.f2 ^= SELECT;
+					else
+						pcp->bez.f2 = SELECT;
 					pc->add_index = i + 1;
+					selflag = SEL_F2;
 					break;
 				}
 			}
 
 			if (len_manhattan_v2v2(loc_fl, pcp->bez.vec[0]) < PAINT_CURVE_SELECT_THRESHOLD) {
-				pcp->bez.f1 ^= SELECT;
+				if (extend)
+					pcp->bez.f1 ^= SELECT;
+				else
+					pcp->bez.f1 = SELECT;
 				pc->add_index = i + 1;
+				selflag = SEL_F1;
 				if (handle)
 					pcp->bez.h1 = HD_ALIGN;
 				break;
 			}
 
 			if (len_manhattan_v2v2(loc_fl, pcp->bez.vec[2]) < PAINT_CURVE_SELECT_THRESHOLD) {
-				pcp->bez.f3 ^= SELECT;
+				if (extend)
+					pcp->bez.f3 ^= SELECT;
+				else
+					pcp->bez.f3 = SELECT;
 				pc->add_index = i + 1;
+				selflag = SEL_F3;
 				if (handle)
 					pcp->bez.h2 = HD_ALIGN;
 				break;
 			}
 		}
+
+		selected =  (i != pc->tot_points);
+
+		/* clear selection for unselected points if not extending and if a point has been selected */
+		if (!extend && selected) {
+			for (i = 0; i < pc->tot_points; i++) {
+				if ((pc->points + i) == pcp) {
+					switch (selflag) {
+						case SEL_F1:
+							pc->points[i].bez.f2 = pc->points[i].bez.f3 = 0;
+							break;
+						case SEL_F2:
+							pc->points[i].bez.f1 = pc->points[i].bez.f3 = 0;
+							break;
+						case SEL_F3:
+							pc->points[i].bez.f1 = pc->points[i].bez.f2 = 0;
+							break;
+						default:
+							/* shouldn't happen */
+							break;
+					}
+				}
+				else {
+					pc->points[i].bez.f1 = pc->points[i].bez.f2 = pc->points[i].bez.f3 = 0;
+				}
+			}
+		}
+
+#undef SEL_F1
+#undef SEL_F2
+#undef SEL_F3
+
+		if (!selected)
+			return false;
 	}
 
 	WM_paint_cursor_tag_redraw(window, ar);
+
+	return true;
 }
 
 
@@ -445,9 +496,13 @@ static int paintcurve_select_point_invoke(bContext *C, wmOperator *op, const wmE
 	bool handle = RNA_boolean_get(op->ptr, "handle");
 	bool toggle = RNA_boolean_get(op->ptr, "toggle");
 	bool extend = RNA_boolean_get(op->ptr, "extend");
-	paintcurve_point_select(C, op, loc, handle, toggle, extend);
-	RNA_int_set_array(op->ptr, "location", loc);
-	return OPERATOR_FINISHED;
+	if (paintcurve_point_select(C, op, loc, handle, toggle, extend)) {
+		RNA_int_set_array(op->ptr, "location", loc);
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 static int paintcurve_select_point_exec(bContext *C, wmOperator *op)
@@ -459,8 +514,8 @@ static int paintcurve_select_point_exec(bContext *C, wmOperator *op)
 		bool toggle = RNA_boolean_get(op->ptr, "toggle");
 		bool extend = RNA_boolean_get(op->ptr, "extend");
 		RNA_int_get_array(op->ptr, "location", loc);
-		paintcurve_point_select(C, op, loc, handle, toggle, extend);
-		return OPERATOR_FINISHED;
+		if (paintcurve_point_select(C, op, loc, handle, toggle, extend))
+			return OPERATOR_FINISHED;
 	}
 
 	return OPERATOR_CANCELLED;

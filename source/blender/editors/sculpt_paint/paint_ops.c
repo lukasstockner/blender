@@ -1016,6 +1016,21 @@ void ED_operatormacros_paint(void)
 	WM_operatortype_macro_define(ot, "PAINTCURVE_OT_add_point");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 	RNA_boolean_set(otmacro->ptr, "release_confirm", true);
+
+	ot = WM_operatortype_append_macro("PAINTCURVE_OT_select_point_slide", "Select Curve Point and Slide",
+	                                  "Select curve point and slide it", OPTYPE_UNDO | OPTYPE_REGISTER);
+	ot->description = "Select a curve point and slide it";
+	WM_operatortype_macro_define(ot, "PAINTCURVE_OT_select");
+	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	RNA_boolean_set(otmacro->ptr, "release_confirm", true);
+
+	ot = WM_operatortype_append_macro("PAINTCURVE_OT_select_handle_slide", "Select Curve Handle and Slide",
+	                                  "Select curve handle and slide it", OPTYPE_UNDO | OPTYPE_REGISTER);
+	ot->description = "Select a curve handle and slide it";
+	otmacro = WM_operatortype_macro_define(ot, "PAINTCURVE_OT_select");
+	RNA_boolean_set(otmacro->ptr, "handle", true);
+	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	RNA_boolean_set(otmacro->ptr, "release_confirm", true);
 }
 
 
@@ -1232,19 +1247,14 @@ static void paint_keymap_curve(wmKeyMap *keymap)
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", SELECTMOUSE, KM_PRESS, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", SELECTMOUSE, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", true);
-	WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", ACTIONMOUSE, KM_PRESS, 0, 0);
-	kmi = WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", ACTIONMOUSE, KM_PRESS, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "handle", true);
-	WM_keymap_add_item(keymap, "PAINTCURVE_OT_delete_point", XKEY, KM_PRESS, 0, 0);
-
+	WM_keymap_add_item(keymap, "PAINTCURVE_OT_select_point_slide", ACTIONMOUSE, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "PAINTCURVE_OT_select_handle_slide", ACTIONMOUSE, KM_PRESS, KM_SHIFT, 0);
 	kmi = WM_keymap_add_item(keymap, "PAINTCURVE_OT_select", AKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "toggle", true);
 
-	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, 0, 0);
-	RNA_boolean_set(kmi->ptr, "release_confirm", true);
+	WM_keymap_add_item(keymap, "PAINTCURVE_OT_delete_point", XKEY, KM_PRESS, 0, 0);
+
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_S, KM_ANY, 0, 0);
-	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_A, KM_ANY, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "release_confirm", true);
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_draw", RETKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_rotate", RKEY, KM_PRESS, 0, 0);
