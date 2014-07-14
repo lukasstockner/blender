@@ -2019,6 +2019,57 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	int a, i, do_draw, numVerts, matnr, new_matnr, totface;
 
+#ifdef WITH_OPENSUBDIV
+	{
+		int i, matnr = -1, shademodel = -1;
+		CCGFaceIterator *fi;
+		ccgSubSurf_prepareGLMesh(ss);
+		do_draw = 0;
+		for (fi = ccgSubSurf_getFaceIterator(ss), i = 0;
+		     !ccgFaceIterator_isStopped(fi);
+		     ccgFaceIterator_next(fi), ++i)
+		{
+			CCGFace *f = ccgFaceIterator_getCurrent(fi);
+			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
+			int origIndex = ccgDM_getFaceMapIndex(ss, f);
+			int new_matnr, new_shademodel;
+
+			if (faceFlags) {
+				new_shademodel = (lnors || (faceFlags[index].flag & ME_SMOOTH))
+					? GL_SMOOTH
+					: GL_FLAT;
+				new_matnr = faceFlags[index].mat_nr;
+			}
+			else {
+				new_shademodel = GL_SMOOTH;
+				new_matnr = 0;
+			}
+
+			if (new_shademodel != shademodel) {
+				glShadeModel(new_shademodel);
+				shademodel = new_shademodel;
+			}
+
+			if (new_matnr != matnr) {
+				do_draw = setMaterial(matnr = new_matnr, &gattribs);
+				matnr = new_matnr;
+			}
+
+			if (!do_draw || (setDrawOptions && (origIndex != ORIGINDEX_NONE) &&
+			                (setDrawOptions(userData, origIndex) == DM_DRAW_OPTION_SKIP)))
+			{
+				continue;
+			}
+
+			ccgSubSurf_drawGLMesh(ss, true, i);
+		}
+		ccgFaceIterator_free(fi);
+
+		/* We're done with drawing if drawing happens using OpenSubdiv. */
+		return;
+	}
+#endif
+
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
 
