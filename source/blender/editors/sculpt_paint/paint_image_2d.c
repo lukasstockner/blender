@@ -42,7 +42,7 @@
 
 #include "BLI_rect.h"
 #include "BLI_math_color_blend.h"
-#include "BLI_gsqueue.h"
+#include "BLI_stack.h"
 #include "BLI_bitmap.h"
 
 #include "BKE_context.h"
@@ -1305,35 +1305,43 @@ void paint_2d_stroke_done(void *ps)
 	MEM_freeN(s);
 }
 
-static void paint_2d_fill_add_pixel_byte(int i, int j, ImBuf *ibuf, GSQueue *stack, BLI_bitmap *touched, float color[4], float threshold)
+static void paint_2d_fill_add_pixel_byte(
+        const int i, const int j, ImBuf *ibuf, BLI_Stack *stack, BLI_bitmap *touched,
+        const float color[4], float threshold_sq)
 {
-	int coordinate = j * ibuf->x + i;
+	int coordinate;
 
 	if (i >= ibuf->x || i < 0 || j >= ibuf->y || j < 0)
 		return;
+
+	coordinate = j * ibuf->x + i;
 
 	if (!BLI_BITMAP_TEST(touched, coordinate)) {
 		float color_f[4];
 		unsigned char *color_b = (unsigned char *)(ibuf->rect + coordinate);
 		rgba_uchar_to_float(color_f, color_b);
 
-		if (compare_len_squared_v3v3(color_f, color, threshold)) {
-			BLI_gsqueue_push(stack, &coordinate);
+		if (compare_len_squared_v3v3(color_f, color, threshold_sq)) {
+			BLI_stack_push(stack, &coordinate);
 		}
 		BLI_BITMAP_SET(touched, coordinate, true);
 	}
 }
 
-static void paint_2d_fill_add_pixel_float(int i, int j, ImBuf *ibuf, GSQueue *stack, BLI_bitmap *touched, const float color[4], float threshold)
+static void paint_2d_fill_add_pixel_float(
+        const int i, const int j, ImBuf *ibuf, BLI_Stack *stack, BLI_bitmap *touched,
+        const float color[4], float threshold_sq)
 {
-	int coordinate = j * ibuf->x + i;
+	int coordinate;
 
 	if (i >= ibuf->x || i < 0 || j >= ibuf->y || j < 0)
 		return;
 
+	coordinate = j * ibuf->x + i;
+
 	if (!BLI_BITMAP_TEST(touched, coordinate)) {
-		if (compare_len_squared_v3v3(ibuf->rect_float + 4 * coordinate, color, threshold)) {
-			BLI_gsqueue_push(stack, &coordinate);
+		if (compare_len_squared_v3v3(ibuf->rect_float + 4 * coordinate, color, threshold_sq)) {
+			BLI_stack_push(stack, &coordinate);
 		}
 		BLI_BITMAP_SET(touched, coordinate, true);
 	}
@@ -1400,7 +1408,7 @@ void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, fl
 	else {
 		/* second case, start sweeping the neighboring pixels, looking for pixels whose
 		 * value is within the brush fill threshold from the fill color */
-		GSQueue *stack;
+		BLI_Stack *stack;
 		BLI_bitmap *touched;
 		int coordinate;
 		int width = ibuf->x;
@@ -1422,7 +1430,7 @@ void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, fl
 		/* change image invalidation method later */
 		ED_imapaint_dirty_region(ima, ibuf, 0, 0, ibuf->x, ibuf->y);
 
-		stack = BLI_gsqueue_new(sizeof(int));
+		stack = BLI_stack_new(sizeof(int), __func__);
 		touched = BLI_BITMAP_NEW(ibuf->x * ibuf->y, "bucket_fill_bitmap");
 
 		coordinate = (j * ibuf->x + i);
@@ -1435,12 +1443,12 @@ void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, fl
 			rgba_uchar_to_float(pixel_color, (unsigned char *)&pixel_color_b);
 		}
 
-		BLI_gsqueue_push(stack, &coordinate);
+		BLI_stack_push(stack, &coordinate);
 		BLI_BITMAP_SET(touched, coordinate, true);
 
 		if (do_float) {
-			while (!BLI_gsqueue_is_empty(stack)) {
-				BLI_gsqueue_pop(stack, &coordinate);
+			while (!BLI_stack_is_empty(stack)) {
+				BLI_stack_pop(stack, &coordinate);
 
 				IMB_blend_color_float(ibuf->rect_float + 4 * (coordinate),
 				                      ibuf->rect_float + 4 * (coordinate),
@@ -1470,8 +1478,8 @@ void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, fl
 			}
 		}
 		else {
-			while (!BLI_gsqueue_is_empty(stack)) {
-				BLI_gsqueue_pop(stack, &coordinate);
+			while (!BLI_stack_is_empty(stack)) {
+				BLI_stack_pop(stack, &coordinate);
 
 				IMB_blend_color_byte((unsigned char *)(ibuf->rect + coordinate),
 				                     (unsigned char *)(ibuf->rect + coordinate),
@@ -1502,7 +1510,7 @@ void paint_2d_bucket_fill(const bContext *C, const float color[3], Brush *br, fl
 		}
 
 		MEM_freeN(touched);
-		BLI_gsqueue_free(stack);
+		BLI_stack_free(stack);
 	}
 
 	imapaint_image_update(sima, ima, ibuf, false);
