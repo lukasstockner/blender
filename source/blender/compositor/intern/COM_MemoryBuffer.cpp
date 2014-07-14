@@ -192,6 +192,7 @@ float MemoryBuffer::getMaximumValue(rcti *rect)
 
 MemoryBuffer::~MemoryBuffer()
 {
+	this->deinit_samplers();
 	if (this->m_buffer) {
 		MEM_freeN(this->m_buffer);
 		this->m_buffer = NULL;

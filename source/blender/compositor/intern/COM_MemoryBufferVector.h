@@ -26,9 +26,15 @@ class MemoryBufferVector;
 #define _COM_MemoryBufferVector_h_
 
 #include "COM_MemoryBuffer.h"
+#include "COM_Sampler.h"
 
 class MemoryBufferVector: public MemoryBuffer
 {
+private:
+	SamplerNearestVector *m_sampler_nearest;
+	SamplerNearestNoCheckVector *m_sampler_nocheck;
+	SamplerBilinearVector *m_sampler_bilinear;
+
 protected:
 	/**
 	 * @brief construct new MemoryBuffer for a chunk
@@ -41,9 +47,12 @@ protected:
 	MemoryBufferVector(MemoryProxy *memoryProxy, rcti *rect);
 	MemoryBufferVector(DataType datatype, rcti *rect);
 
+
 public:
 	void writePixel(int x, int y, const float *color);
 	void addPixel(int x, int y, const float *color);
+	void init_samplers();
+	void deinit_samplers();
 	void read(float *result, int x, int y,
 			  MemoryBufferExtend extend_x = COM_MB_CLIP,
 			  MemoryBufferExtend extend_y = COM_MB_CLIP);

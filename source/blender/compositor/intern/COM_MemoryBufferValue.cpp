@@ -27,15 +27,18 @@
 MemoryBufferValue::MemoryBufferValue(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect):
 	MemoryBuffer(memoryProxy, chunkNumber, rect, NUMBER_OF_CHANNELS)
 {
+	this->init_samplers();
 }
 	
 MemoryBufferValue::MemoryBufferValue(MemoryProxy *memoryProxy, rcti *rect) :
 	MemoryBuffer(memoryProxy, rect, NUMBER_OF_CHANNELS)
 {
+	this->init_samplers();
 }
 
 MemoryBufferValue::MemoryBufferValue(DataType datatype, rcti *rect) :
 	MemoryBuffer(datatype, rect, NUMBER_OF_CHANNELS) {
+	this->init_samplers();
 }
 
 MemoryBuffer *MemoryBufferValue::duplicate()
@@ -72,65 +75,34 @@ inline void MemoryBufferValue::read(float *result, int x, int y,
 									MemoryBufferExtend extend_x,
 									MemoryBufferExtend extend_y)
 {
-	bool clip_x = (extend_x == COM_MB_CLIP && (x < m_rect.xmin || x >= m_rect.xmax));
-	bool clip_y = (extend_y == COM_MB_CLIP && (y < m_rect.ymin || y >= m_rect.ymax));
-	if (clip_x || clip_y) {
-		/* clip result outside rect is zero */
-		zero_v4(result);
-	}
-	else 
-	{
-		wrap_pixel(x, y, extend_x, extend_y);
-		const int offset = (this->m_chunkWidth * y + x) * NUMBER_OF_CHANNELS;
-		result[0] = this->m_buffer[offset];
-	}
+	this->m_sampler_nearest->read(result, x, y, extend_x, extend_y);
 }
+
+void MemoryBufferValue::init_samplers() {
+	this->m_sampler_nearest = new SamplerNearestValue(this);
+	this->m_sampler_nocheck = new SamplerNearestNoCheckValue(this);
+	this->m_sampler_bilinear = new SamplerBilinearValue(this);
+}
+
+void MemoryBufferValue::deinit_samplers() {
+	delete this->m_sampler_nearest;
+	delete this->m_sampler_nocheck;
+	delete this->m_sampler_bilinear;
+}
+
 
 inline void MemoryBufferValue::readNoCheck(float *result, int x, int y,
 										   MemoryBufferExtend extend_x,
 										   MemoryBufferExtend extend_y)
 {
-
-	wrap_pixel(x, y, extend_x, extend_y);
-	const int offset = (this->m_chunkWidth * y + x) * NUMBER_OF_CHANNELS;
-
-	BLI_assert(offset >= 0);
-	BLI_assert(offset < this->determineBufferSize() * NUMBER_OF_CHANNELS);
-	BLI_assert(!(extend_x == COM_MB_CLIP && (x < m_rect.xmin || x >= m_rect.xmax)) &&
-			   !(extend_y == COM_MB_CLIP && (y < m_rect.ymin || y >= m_rect.ymax)));
-
-	result[0] = this->m_buffer[offset];
+	this->m_sampler_nocheck->read(result, x, y, extend_x, extend_y);
 }
 
 inline void MemoryBufferValue::readBilinear(float *result, float x, float y,
 											MemoryBufferExtend extend_x,
 											MemoryBufferExtend extend_y)
 {
-	int x1 = floor(x);
-	int y1 = floor(y);
-	int x2 = x1 + 1;
-	int y2 = y1 + 1;
-	wrap_pixel(x1, y1, extend_x, extend_y);
-	wrap_pixel(x2, y2, extend_x, extend_y);
-
-	float valuex = x - x1;
-	float valuey = y - y1;
-	float mvaluex = 1.0f - valuex;
-	float mvaluey = 1.0f - valuey;
-
-	float value1;
-	float value2;
-	float value3;
-	float value4;
-
-	read(&value1, x1, y1);
-	read(&value2, x1, y2);
-	read(&value3, x2, y1);
-	read(&value4, x2, y2);
-
-	value1 = value1 * mvaluey + value2 * valuey;
-	value3 = value3 * mvaluey + value4 * valuey;
-	result[0] = value1 * mvaluex + value3 * valuex;
+	this->m_sampler_bilinear->read(result, x, y, extend_x, extend_y);
 }
 
 float MemoryBufferValue::getMaximumValue() const

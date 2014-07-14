@@ -27,17 +27,32 @@
 MemoryBufferColor::MemoryBufferColor(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect): 
 	MemoryBuffer(memoryProxy, chunkNumber, rect, NUMBER_OF_CHANNELS)
 {
+	this->init_samplers();
+
 }
 	
 MemoryBufferColor::MemoryBufferColor(MemoryProxy *memoryProxy, rcti *rect) :
 	MemoryBuffer(memoryProxy, rect, NUMBER_OF_CHANNELS)
 {
+	this->init_samplers();
 }
 
 MemoryBufferColor::MemoryBufferColor(DataType datatype, rcti *rect) :
     MemoryBuffer(datatype, rect, NUMBER_OF_CHANNELS) {
+	this->init_samplers();
 }
 
+void MemoryBufferColor::init_samplers() {
+	this->m_sampler_nearest = new SamplerNearestColor(this);
+	this->m_sampler_nocheck = new SamplerNearestNoCheckColor(this);
+	this->m_sampler_bilinear = new SamplerBilinearColor(this);
+}
+
+void MemoryBufferColor::deinit_samplers() {
+	delete this->m_sampler_nearest;
+	delete this->m_sampler_nocheck;
+	delete this->m_sampler_bilinear;
+}
 
 MemoryBuffer *MemoryBufferColor::duplicate()
 {
@@ -69,79 +84,24 @@ void MemoryBufferColor::addPixel(int x, int y, const float *color)
 
 // --- SAMPLERS ---
 inline void MemoryBufferColor::read(float *result, int x, int y,
-	                 MemoryBufferExtend extend_x,
-	                 MemoryBufferExtend extend_y)
+									MemoryBufferExtend extend_x,
+									MemoryBufferExtend extend_y)
 {
-	bool clip_x = (extend_x == COM_MB_CLIP && (x < m_rect.xmin || x >= m_rect.xmax));
-	bool clip_y = (extend_y == COM_MB_CLIP && (y < m_rect.ymin || y >= m_rect.ymax));
-	if (clip_x || clip_y) {
-		/* clip result outside rect is zero */
-		zero_v4(result);
-	}
-	else 
-	{
-		wrap_pixel(x, y, extend_x, extend_y);
-		const int offset = (this->m_chunkWidth * y + x) * NUMBER_OF_CHANNELS;
-		copy_v4_v4(result, &this->m_buffer[offset]);
-	}
+	this->m_sampler_nearest->read(result, x, y, extend_x, extend_y);
 }
 
 inline void MemoryBufferColor::readNoCheck(float *result, int x, int y,
 	                        MemoryBufferExtend extend_x,
 	                        MemoryBufferExtend extend_y)
 {
-
-	wrap_pixel(x, y, extend_x, extend_y);
-	const int offset = (this->m_chunkWidth * y + x) * NUMBER_OF_CHANNELS;
-
-	BLI_assert(offset >= 0);
-	BLI_assert(offset < this->determineBufferSize() * NUMBER_OF_CHANNELS);
-	BLI_assert(!(extend_x == COM_MB_CLIP && (x < m_rect.xmin || x >= m_rect.xmax)) &&
-		   !(extend_y == COM_MB_CLIP && (y < m_rect.ymin || y >= m_rect.ymax)));
-
-	copy_v4_v4(result, &this->m_buffer[offset]);
+	this->m_sampler_nocheck->read(result, x, y, extend_x, extend_y);
 }
 
 inline void MemoryBufferColor::readBilinear(float *result, float x, float y,
 			 MemoryBufferExtend extend_x,
 			 MemoryBufferExtend extend_y)
 {
-	int x1 = floor(x);
-	int y1 = floor(y);
-	int x2 = x1 + 1;
-	int y2 = y1 + 1;
-	wrap_pixel(x1, y1, extend_x, extend_y);
-	wrap_pixel(x2, y2, extend_x, extend_y);
-
-	float valuex = x - x1;
-	float valuey = y - y1;
-	float mvaluex = 1.0f - valuex;
-	float mvaluey = 1.0f - valuey;
-
-	float color1[4];
-	float color2[4];
-	float color3[4];
-	float color4[4];
-
-	read(color1, x1, y1);
-	read(color2, x1, y2);
-	read(color3, x2, y1);
-	read(color4, x2, y2);
-
-	color1[0] = color1[0] * mvaluey + color2[0] * valuey;
-	color1[1] = color1[1] * mvaluey + color2[1] * valuey;
-	color1[2] = color1[2] * mvaluey + color2[2] * valuey;
-	color1[3] = color1[3] * mvaluey + color2[3] * valuey;
-
-	color3[0] = color3[0] * mvaluey + color4[0] * valuey;
-	color3[1] = color3[1] * mvaluey + color4[1] * valuey;
-	color3[2] = color3[2] * mvaluey + color4[2] * valuey;
-	color3[3] = color3[3] * mvaluey + color4[3] * valuey;
-
-	result[0] = color1[0] * mvaluex + color3[0] * valuex;
-	result[1] = color1[1] * mvaluex + color3[1] * valuex;
-	result[2] = color1[2] * mvaluex + color3[2] * valuex;
-	result[3] = color1[3] * mvaluex + color3[3] * valuex;
+	this->m_sampler_bilinear->read(result, x, y, extend_x, extend_y);
 }
 
 // --- EWA Filtering ---

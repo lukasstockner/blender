@@ -80,6 +80,8 @@ set(SRC
 	intern/COM_MemoryBufferVector.h
 	intern/COM_MemoryBufferValue.cpp
 	intern/COM_MemoryBufferValue.h
+	intern/COM_Sampler.cpp
+	intern/COM_Sampler.h
 	intern/COM_WorkScheduler.cpp
 	intern/COM_WorkScheduler.h
 	intern/COM_Tile.cpp

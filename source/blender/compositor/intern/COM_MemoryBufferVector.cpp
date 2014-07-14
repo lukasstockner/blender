@@ -27,15 +27,18 @@
 MemoryBufferVector::MemoryBufferVector(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect): 
 	MemoryBuffer(memoryProxy, chunkNumber, rect, NUMBER_OF_CHANNELS)
 {
+	this->init_samplers();
 }
 	
 MemoryBufferVector::MemoryBufferVector(MemoryProxy *memoryProxy, rcti *rect) :
 	MemoryBuffer(memoryProxy, rect, NUMBER_OF_CHANNELS)
 {
+	this->init_samplers();
 }
 
 MemoryBufferVector::MemoryBufferVector(DataType datatype, rcti *rect) :
 	MemoryBuffer(datatype, rect, NUMBER_OF_CHANNELS) {
+	this->init_samplers();
 }
 
 
@@ -44,6 +47,18 @@ MemoryBuffer *MemoryBufferVector::duplicate()
 	MemoryBufferVector *result = new MemoryBufferVector(this->m_memoryProxy, &this->m_rect);
 	memcpy(result->getBuffer(), this->getBuffer(), this->determineBufferSize() * NUMBER_OF_CHANNELS * sizeof(float));
 	return result;
+}
+
+void MemoryBufferVector::init_samplers() {
+	this->m_sampler_nearest = new SamplerNearestVector(this);
+	this->m_sampler_nocheck = new SamplerNearestNoCheckVector(this);
+	this->m_sampler_bilinear = new SamplerBilinearVector(this);
+}
+
+void MemoryBufferVector::deinit_samplers() {
+	delete this->m_sampler_nearest;
+	delete this->m_sampler_nocheck;
+	delete this->m_sampler_bilinear;
 }
 
 
@@ -73,72 +88,20 @@ inline void MemoryBufferVector::read(float *result, int x, int y,
 									 MemoryBufferExtend extend_x,
 									 MemoryBufferExtend extend_y)
 {
-	bool clip_x = (extend_x == COM_MB_CLIP && (x < m_rect.xmin || x >= m_rect.xmax));
-	bool clip_y = (extend_y == COM_MB_CLIP && (y < m_rect.ymin || y >= m_rect.ymax));
-	if (clip_x || clip_y) {
-		/* clip result outside rect is zero */
-		zero_v4(result);
-	}
-	else 
-	{
-		wrap_pixel(x, y, extend_x, extend_y);
-		const int offset = (this->m_chunkWidth * y + x) * NUMBER_OF_CHANNELS;
-		copy_v4_v4(result, &this->m_buffer[offset]);
-	}
+	this->m_sampler_nearest->read(result, x, y, extend_x, extend_y);
 }
 
 inline void MemoryBufferVector::readNoCheck(float *result, int x, int y,
 											MemoryBufferExtend extend_x,
 											MemoryBufferExtend extend_y)
 {
-
-	wrap_pixel(x, y, extend_x, extend_y);
-	const int offset = (this->m_chunkWidth * y + x) * NUMBER_OF_CHANNELS;
-
-	BLI_assert(offset >= 0);
-	BLI_assert(offset < this->determineBufferSize() * NUMBER_OF_CHANNELS);
-	BLI_assert(!(extend_x == COM_MB_CLIP && (x < m_rect.xmin || x >= m_rect.xmax)) &&
-		   !(extend_y == COM_MB_CLIP && (y < m_rect.ymin || y >= m_rect.ymax)));
-
-	copy_v4_v4(result, &this->m_buffer[offset]);
+	this->m_sampler_nocheck->read(result, x, y, extend_x, extend_y);
 }
 
 inline void MemoryBufferVector::readBilinear(float *result, float x, float y,
 											 MemoryBufferExtend extend_x,
 											 MemoryBufferExtend extend_y)
 {
-	int x1 = floor(x);
-	int y1 = floor(y);
-	int x2 = x1 + 1;
-	int y2 = y1 + 1;
-	wrap_pixel(x1, y1, extend_x, extend_y);
-	wrap_pixel(x2, y2, extend_x, extend_y);
-
-	float valuex = x - x1;
-	float valuey = y - y1;
-	float mvaluex = 1.0f - valuex;
-	float mvaluey = 1.0f - valuey;
-
-	float vector1[NUMBER_OF_CHANNELS];
-	float vector2[NUMBER_OF_CHANNELS];
-	float vector3[NUMBER_OF_CHANNELS];
-	float vector4[NUMBER_OF_CHANNELS];
-
-	read(vector1, x1, y1);
-	read(vector2, x1, y2);
-	read(vector3, x2, y1);
-	read(vector4, x2, y2);
-
-	vector1[0] = vector1[0] * mvaluey + vector2[0] * valuey;
-	vector1[1] = vector1[1] * mvaluey + vector2[1] * valuey;
-	vector1[2] = vector1[2] * mvaluey + vector2[2] * valuey;
-
-	vector3[0] = vector3[0] * mvaluey + vector4[0] * valuey;
-	vector3[1] = vector3[1] * mvaluey + vector4[1] * valuey;
-	vector3[2] = vector3[2] * mvaluey + vector4[2] * valuey;
-
-	result[0] = vector1[0] * mvaluex + vector3[0] * valuex;
-	result[1] = vector1[1] * mvaluex + vector3[1] * valuex;
-	result[2] = vector1[2] * mvaluex + vector3[2] * valuex;
+	this->m_sampler_bilinear->read(result, x, y, extend_x, extend_y);
 }
 

@@ -26,9 +26,15 @@ class MemoryBufferColor;
 #define _COM_MemoryBufferColor_h_
 
 #include "COM_MemoryBuffer.h"
+#include "COM_Sampler.h"
 
 class MemoryBufferColor: MemoryBuffer
 {
+private:
+	SamplerNearestColor *m_sampler_nearest;
+	SamplerNearestNoCheckColor *m_sampler_nocheck;
+	SamplerBilinearColor *m_sampler_bilinear;
+
 protected:
 	/**
 	 * @brief construct new MemoryBuffer for a chunk
@@ -41,7 +47,11 @@ protected:
 	MemoryBufferColor(MemoryProxy *memoryProxy, rcti *rect);
 
     MemoryBufferColor(DataType datatype, rcti *rect);
+
+
 public:
+	void init_samplers();
+	void deinit_samplers();
 	void writePixel(int x, int y, const float *color);
 	void addPixel(int x, int y, const float *color);
 	void read(float *result, int x, int y,

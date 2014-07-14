@@ -119,6 +119,7 @@ protected:
      * @param num_channels Number of channels that must be allocated for every pixel
      */
     MemoryBuffer(DataType datatype, rcti *rect, unsigned int num_channels);
+
 public:
 	/**
 	 * @brief factory method for the constructor, selecting the right subclass
@@ -191,7 +192,9 @@ public:
 		}
 	}
 	
-	virtual void read(float *result, int x, int y, 
+	virtual void init_samplers() {}
+	virtual void deinit_samplers() {}
+	virtual void read(float *result, int x, int y,
 	                 MemoryBufferExtend extend_x = COM_MB_CLIP,
 	                 MemoryBufferExtend extend_y = COM_MB_CLIP) = 0;
 
