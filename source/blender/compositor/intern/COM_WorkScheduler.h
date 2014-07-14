@@ -27,7 +27,6 @@
 extern "C" {
 #  include "BLI_threads.h"
 }
-#include "COM_WorkPackage.h"
 #include "COM_defines.h"
 #include "COM_Device.h"
 

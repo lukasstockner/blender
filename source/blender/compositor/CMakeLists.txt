@@ -82,8 +82,6 @@ set(SRC
 	intern/COM_MemoryBufferValue.h
 	intern/COM_WorkScheduler.cpp
 	intern/COM_WorkScheduler.h
-	intern/COM_WorkPackage.cpp
-	intern/COM_WorkPackage.h
 	intern/COM_Tile.cpp
 	intern/COM_Tile.h
 	intern/COM_ChunkOrder.cpp
