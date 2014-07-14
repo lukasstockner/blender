@@ -50,18 +50,20 @@ class KX_NormalParentRelation : public SG_ParentRelation
 
 public :
 	/**
-	 * Allocate and construct a new KX_NormalParentRelation
-	 * on the heap.
+	 * Allocate and construct a new KX_NormalParentRelation on the heap.
 	 */
 	static KX_NormalParentRelation* New();
 
 	/** 
 	 * Method inherited from KX_ParentRelation
+	 * Update the child's global coordinates based upon the local ones and the parent's global coordinates.
 	 */
 	bool UpdateChildCoordinates(SG_Spatial *child, const SG_Spatial *parent, bool &parentUpdated);
 
 	/** 
 	 * Method inherited from KX_ParentRelation
+	 * This should return a pointer to a new duplicate allocated on the heap.
+	 * Responsibility for deleting the duplicate resides with the caller of this method.
 	 */
 	SG_ParentRelation* NewCopy();
 

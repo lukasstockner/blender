@@ -32,17 +32,18 @@
  *
  * \section SG_ParentRelationSection SG_ParentRelation
  * 
- * This is an abstract interface class to the Scene Graph library. 
+ * This is an abstract interface class to the Scene Graph library.
  * It allows you to specify how child nodes react to parent nodes.
+ *
  * Normally a child will use it's parent's transforms to compute
- * it's own global transforms. How this is performed depends on
- * the type of relation. For example if the parent is a vertex 
- * parent to this child then the child should not inherit any 
+ * its own global transforms. How this is performed depends on
+ * the type of relation. For example if the parent is a vertex
+ * parent to this child then the child should not inherit any                         XXX
  * rotation information from the parent. Or if the parent is a
- * 'slow parent' to this child then the child should react 
+ * 'slow parent' to this child then the child should react
  * slowly to changes in the parent's position. The exact relation
- * is left for you to implement by filling out this interface 
- * with concrete examples. 
+ * is left for you to implement by filling out this interface
+ * with concrete examples.
  * 
  * There is exactly one SG_ParentRelation per SG_Node. Subclasses
  * should not be value types and should be allocated on the heap.
@@ -57,21 +58,15 @@ class SG_Spatial;
 class SG_ParentRelation {
 
 public :
-	/**
-	 * Update the childs local and global coordinates
-	 * based upon the parents global coordinates. 
-	 * You must also handle the case when this node has no
-	 * parent (parent == NULL). Usually you should just 
-	 * copy the local coordinates of the child to the 
-	 * world coordinates.
-	 */ 
-	
-	virtual bool UpdateChildCoordinates(
-		SG_Spatial * child,
-		const SG_Spatial * parent,
-		bool& parentUpdated
-	) = 0;
 
+	/**
+	 * Update the child's local and global coordinates based upon the parents global coordinates.
+	 * You must also handle the case when this node has no parent (parent == NULL).
+	 * Usually you should just copy the local coordinates of the child to the world coordinates.
+	 */
+	virtual bool UpdateChildCoordinates(SG_Spatial * child, const SG_Spatial * parent, bool& parentUpdated) = 0;
+
+	/* XXXX */
 	virtual ~SG_ParentRelation() {}
 
 	/** 
@@ -102,8 +97,7 @@ public :
 protected :
 
 	/** 
-	 * Protected constructors 
-	 * this class is not meant to be instantiated.
+	 * Protected constructors this class is not meant to be instantiated.
 	 */
 	SG_ParentRelation() {}
 
