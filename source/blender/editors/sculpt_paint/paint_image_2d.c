@@ -1317,7 +1317,7 @@ static void paint_2d_fill_add_pixel_byte(int i, int j, ImBuf *ibuf, GSQueue *sta
 		unsigned char *color_b = (unsigned char *)(ibuf->rect + coordinate);
 		rgba_uchar_to_float(color_f, color_b);
 
-		if (compare_len_v3v3_squared(color_f, color, threshold)) {
+		if (compare_len_squared_v3v3(color_f, color, threshold)) {
 			BLI_gsqueue_push(stack, &coordinate);
 		}
 		BLI_BITMAP_SET(touched, coordinate, true);
@@ -1332,7 +1332,7 @@ static void paint_2d_fill_add_pixel_float(int i, int j, ImBuf *ibuf, GSQueue *st
 		return;
 
 	if (!BLI_BITMAP_TEST(touched, coordinate)) {
-		if (compare_len_v3v3_squared(ibuf->rect_float + 4 * coordinate, color, threshold)) {
+		if (compare_len_squared_v3v3(ibuf->rect_float + 4 * coordinate, color, threshold)) {
 			BLI_gsqueue_push(stack, &coordinate);
 		}
 		BLI_BITMAP_SET(touched, coordinate, true);
