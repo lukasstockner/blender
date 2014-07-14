@@ -887,7 +887,6 @@ static void rigidbody_world_build_particle_systems(Scene *UNUSED(scene), RigidBo
 	}
 }
 
-/* Construct Bullet bodies, shapes and constraints from a Blender scene.
 /**
  * Updates and validates world, bodies and shapes.
  *
@@ -911,6 +910,7 @@ static void rigidbody_world_build(Scene *scene, RigidBodyWorld *rbw, int rebuild
 	 * Memory management needs redesign here, this is just a dirty workaround.
 	 */
 	if (rebuild && rbw->constraints) {
+		GroupObject *go;
 		for (go = rbw->constraints->gobject.first; go; go = go->next) {
 			Object *ob = go->ob;
 			if (ob) {

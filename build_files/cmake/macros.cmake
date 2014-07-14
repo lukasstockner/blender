@@ -487,6 +487,7 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		bf_python_ext
 		bf_python_mathutils
 		bf_python_bmesh
+		bf_python_bparticles
 		bf_freestyle
 		bf_ikplugin
 		bf_modifiers
