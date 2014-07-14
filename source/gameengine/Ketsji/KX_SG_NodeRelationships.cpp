@@ -100,25 +100,16 @@ KX_NormalParentRelation::KX_NormalParentRelation()
  */
 
 
-	KX_VertexParentRelation *
-KX_VertexParentRelation::
-New(
-) {
+KX_VertexParentRelation* KX_VertexParentRelation::New()
+{
 	return new KX_VertexParentRelation();
 }
-		
+
 /** 
  * Method inherited from KX_ParentRelation
  */
-
-	bool
-KX_VertexParentRelation::
-UpdateChildCoordinates(
-	SG_Spatial * child,
-	const SG_Spatial * parent,
-	bool& parentUpdated
-) {
-
+bool KX_VertexParentRelation::UpdateChildCoordinates(SG_Spatial *child, const SG_Spatial *parent, bool &parentUpdated)
+{
 	MT_assert(child != NULL);
 
 	if (!parentUpdated && !child->IsModified())
@@ -139,26 +130,21 @@ UpdateChildCoordinates(
 /** 
  * Method inherited from KX_ParentRelation
  */
-
-	SG_ParentRelation *
-KX_VertexParentRelation::
-NewCopy(
-) {
+SG_ParentRelation* KX_VertexParentRelation::NewCopy()
+{
 	return new KX_VertexParentRelation();
-};
+}
 
-KX_VertexParentRelation::
-~KX_VertexParentRelation(
-) {
+KX_VertexParentRelation::~KX_VertexParentRelation()
+{
 	//nothing to do
 }
 
-
-KX_VertexParentRelation::
-KX_VertexParentRelation(
-) {
+KX_VertexParentRelation::KX_VertexParentRelation()
+{
 	//nothing to do
 }
+
 
 
 /**

@@ -86,47 +86,33 @@ class KX_VertexParentRelation : public SG_ParentRelation
 public :
 
 	/**
-	 * Allocate and construct a new KX_VertexParentRelation
-	 * on the heap.
+	 * Allocate and construct a new KX_VertexParentRelation on the heap.
 	 */
-
-	static 
-		KX_VertexParentRelation *
-	New(
-	);
+	static KX_VertexParentRelation* New();
 
 	/** 
 	 * Method inherited from KX_ParentRelation
+	 * Update the child's global coordinates based upon the local ones and the parent's global coordinates.
 	 */
-
-		bool
-	UpdateChildCoordinates(
-		SG_Spatial * child,
-		const SG_Spatial * parent,
-		bool& parentUpdated
-	);
+	bool UpdateChildCoordinates(SG_Spatial *child, const SG_Spatial *parent, bool &parentUpdated);
 
 	/** 
 	 * Method inherited from KX_ParentRelation
+	 * This should return a pointer to a new duplicate allocated on the heap.
+	 * Responsibility for deleting the duplicate resides with the caller of this method.
 	 */
-	
-		SG_ParentRelation *
-	NewCopy(
-	);
+	SG_ParentRelation * NewCopy();
 
-	~KX_VertexParentRelation(
-	);
+	~KX_VertexParentRelation();
 
-		bool
-	IsVertexRelation(
-	) { 
+	bool IsVertexRelation()
+	{
 		return true;
 	}
 
 private :
 
-	KX_VertexParentRelation(
-	);
+	KX_VertexParentRelation();
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
