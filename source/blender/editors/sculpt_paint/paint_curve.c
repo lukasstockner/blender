@@ -50,6 +50,7 @@
 
 #include "paint_intern.h"
 
+#define PAINT_CURVE_SELECT_THRESHOLD 40.0f
 
 int paint_curve_poll(bContext *C)
 {
@@ -159,6 +160,51 @@ static void paintcurve_undo_begin(bContext *C, wmOperator *op, PaintCurve *pc)
 	undo_paint_push_count_alloc(undo_stack_id, sizeof(*uc) + sizeof(*pc->points) * pc->tot_points);
 
 	ED_undo_paint_push_end(undo_stack_id);
+}
+#define SEL_F1 (1 << 0)
+#define SEL_F2 (1 << 1)
+#define SEL_F3 (1 << 2)
+
+/* returns 0, 1, or 2 in point according to handle 1, pivot or handle 2 */
+static PaintCurvePoint *paintcurve_point_get_closest(PaintCurve *pc, const float pos[2], bool ignore_pivot, const float threshold, char *point)
+{
+	PaintCurvePoint *pcp, *closest = NULL;
+	int i;
+	float dist, closest_dist = FLT_MAX;
+
+	for (i = 0, pcp = pc->points; i < pc->tot_points; i++, pcp++) {
+		dist = len_manhattan_v2v2(pos, pcp->bez.vec[0]);
+		if (dist < threshold) {
+			if (dist < closest_dist) {
+				closest = pcp;
+				closest_dist = dist;
+				if (point)
+					*point = SEL_F1;
+			}
+		}
+		if (!ignore_pivot) {
+			dist = len_manhattan_v2v2(pos, pcp->bez.vec[1]);
+			if (dist < threshold) {
+				if (dist < closest_dist) {
+					closest = pcp;
+					closest_dist = dist;
+					if (point)
+						*point = SEL_F2;
+				}
+			}
+		}
+		dist = len_manhattan_v2v2(pos, pcp->bez.vec[2]);
+		if (dist < threshold) {
+			if (dist < closest_dist) {
+				closest = pcp;
+				closest_dist = dist;
+				if (point)
+					*point = SEL_F3;
+			}
+		}
+	}
+
+	return closest;
 }
 
 
@@ -404,55 +450,31 @@ static bool paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 		}
 	}
 	else {
-#define SEL_F1 (1 << 0)
-#define SEL_F2 (1 << 1)
-#define SEL_F3 (1 << 2)
-		int selflag;
-		bool selected = false;
+		PaintCurvePoint *pcp;
+		char selflag;
 
-		for (i = 0; i < pc->tot_points; i++, pcp++) {
-			/* shift means constrained editing so exclude center handles from collision detection */
-			if (!handle) {
-				if (len_manhattan_v2v2(loc_fl, pcp->bez.vec[1]) < PAINT_CURVE_SELECT_THRESHOLD) {
-					if (extend)
-						pcp->bez.f2 ^= SELECT;
-					else
-						pcp->bez.f2 = SELECT;
-					pc->add_index = i + 1;
-					selflag = SEL_F2;
-					break;
-				}
+		pcp = paintcurve_point_get_closest(pc, loc_fl, handle, PAINT_CURVE_SELECT_THRESHOLD, &selflag);
+
+		if (pcp) {
+			pc->add_index = (pcp - pc->points) + 1;
+
+			if (selflag == SEL_F2) {
+				pcp->bez.f2 |= SELECT;
 			}
-
-			if (len_manhattan_v2v2(loc_fl, pcp->bez.vec[0]) < PAINT_CURVE_SELECT_THRESHOLD) {
-				if (extend)
-					pcp->bez.f1 ^= SELECT;
-				else
-					pcp->bez.f1 = SELECT;
-				pc->add_index = i + 1;
-				selflag = SEL_F1;
+			else if (selflag == SEL_F1) {
+				pcp->bez.f1 |= SELECT;
 				if (handle)
 					pcp->bez.h1 = HD_ALIGN;
-				break;
 			}
-
-			if (len_manhattan_v2v2(loc_fl, pcp->bez.vec[2]) < PAINT_CURVE_SELECT_THRESHOLD) {
-				if (extend)
-					pcp->bez.f3 ^= SELECT;
-				else
-					pcp->bez.f3 = SELECT;
-				pc->add_index = i + 1;
-				selflag = SEL_F3;
+			else if (selflag == SEL_F3) {
+				pcp->bez.f3 |= SELECT;
 				if (handle)
 					pcp->bez.h2 = HD_ALIGN;
-				break;
 			}
 		}
 
-		selected =  (i != pc->tot_points);
-
 		/* clear selection for unselected points if not extending and if a point has been selected */
-		if (!extend && selected) {
+		if (!extend && pcp) {
 			for (i = 0; i < pc->tot_points; i++) {
 				if ((pc->points + i) == pcp) {
 					switch (selflag) {
@@ -476,11 +498,7 @@ static bool paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 			}
 		}
 
-#undef SEL_F1
-#undef SEL_F2
-#undef SEL_F3
-
-		if (!selected)
+		if (!pcp)
 			return false;
 	}
 
