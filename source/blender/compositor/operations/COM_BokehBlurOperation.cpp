@@ -63,7 +63,6 @@ void BokehBlurOperation::initExecution()
 	this->m_inputBokehProgram = getInputSocketReader(1);
 	this->m_inputBoundingBoxReader = getInputSocketReader(2);
 
-
 	this->m_bokeh_sampler = ((ReadBufferOperation*)getInputOperation(1))->get_sampler_nearest_color();
 	this->m_boundingbox_sampler = ((ReadBufferOperation*)getInputOperation(2))->get_sampler_nearest_value();
 

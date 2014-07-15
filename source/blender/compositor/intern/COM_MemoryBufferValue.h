@@ -70,7 +70,9 @@ public:
 	SamplerBilinearValue* get_sampler_bilinear() {return this->m_sampler_bilinear;}
 
 	float getMaximumValue() const;
+	float getMaximumValue(rcti *rect);
 	MemoryBuffer *duplicate();
+
 
 	friend class MemoryBuffer;
 	

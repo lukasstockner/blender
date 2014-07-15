@@ -251,7 +251,6 @@ public:
 	
 	float *convertToValueBuffer();
     virtual float getMaximumValue() const;
-	float getMaximumValue(rcti *rect);
 
 	/**
 	 * @brief return the number of channels that form a single pixel.

@@ -28,7 +28,7 @@ class MemoryBufferColor;
 #include "COM_MemoryBuffer.h"
 #include "COM_Sampler.h"
 
-class MemoryBufferColor: MemoryBuffer
+class MemoryBufferColor: public MemoryBuffer
 {
 private:
 	SamplerNearestColor *m_sampler_nearest;

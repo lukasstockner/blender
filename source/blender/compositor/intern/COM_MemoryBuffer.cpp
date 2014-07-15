@@ -170,25 +170,6 @@ float MemoryBuffer::getMaximumValue() const
     return 0.0f;
 }
 
-float MemoryBuffer::getMaximumValue(rcti *rect)
-{
-	rcti rect_clamp;
-
-	/* first clamp the rect by the bounds or we get un-initialized values */
-	BLI_rcti_isect(rect, &this->m_rect, &rect_clamp);
-
-	if (!BLI_rcti_is_empty(&rect_clamp)) {
-		MemoryBuffer *temp = MemoryBuffer::create(COM_DT_VALUE, &rect_clamp);
-		temp->copyContentFrom(this);
-		float result = temp->getMaximumValue();
-		delete temp;
-		return result;
-	}
-	else {
-		BLI_assert(0);
-		return 0.0f;
-	}
-}
 
 MemoryBuffer::~MemoryBuffer()
 {
