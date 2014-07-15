@@ -65,7 +65,7 @@ void BokehBlurOperation::initExecution()
 
 
 	this->m_bokeh_sampler = ((ReadBufferOperation*)getInputOperation(1))->get_sampler_nearest_color();
-	this->m_boundingbox_sampler = ((ReadBufferOperation*)getInputOperation(1))->get_sampler_nearest_value();
+	this->m_boundingbox_sampler = ((ReadBufferOperation*)getInputOperation(2))->get_sampler_nearest_value();
 
 	int width = this->m_inputBokehProgram->getWidth();
 	int height = this->m_inputBokehProgram->getHeight();
