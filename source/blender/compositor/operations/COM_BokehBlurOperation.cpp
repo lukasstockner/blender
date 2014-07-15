@@ -63,6 +63,10 @@ void BokehBlurOperation::initExecution()
 	this->m_inputBokehProgram = getInputSocketReader(1);
 	this->m_inputBoundingBoxReader = getInputSocketReader(2);
 
+
+	this->m_bokeh_sampler = ((ReadBufferOperation*)getInputOperation(1))->get_sampler_nearest_color();
+	this->m_boundingbox_sampler = ((ReadBufferOperation*)getInputOperation(1))->get_sampler_nearest_value();
+
 	int width = this->m_inputBokehProgram->getWidth();
 	int height = this->m_inputBokehProgram->getHeight();
 
@@ -80,7 +84,7 @@ void BokehBlurOperation::executePixel(float output[4], int x, int y, void *data)
 	float tempBoundingBox[4];
 	float bokeh[4];
 
-	this->m_inputBoundingBoxReader->readSampled(tempBoundingBox, x, y, COM_PS_NEAREST);
+	this->m_boundingbox_sampler->read(tempBoundingBox, x, y);
 	if (tempBoundingBox[0] > 0.0f) {
 		float multiplier_accum[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 		MemoryBuffer *inputBuffer = (MemoryBuffer *)data;
@@ -118,7 +122,7 @@ void BokehBlurOperation::executePixel(float output[4], int x, int y, void *data)
 			for (int nx = minx; nx < maxx; nx += step) {
 				float u = this->m_bokehMidX - (nx - x) * m;
 				float v = this->m_bokehMidY - (ny - y) * m;
-				this->m_inputBokehProgram->readSampled(bokeh, u, v, COM_PS_NEAREST);
+				this->m_bokeh_sampler->read(bokeh, u, v);
 				madd_v4_v4v4(color_accum, bokeh, &buffer[bufferindex]);
 				add_v4_v4(multiplier_accum, bokeh);
 				bufferindex += offsetadd;

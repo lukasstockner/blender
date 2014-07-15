@@ -66,6 +66,10 @@ public:
 	                         MemoryBufferExtend extend_x = COM_MB_CLIP,
 	                         MemoryBufferExtend extend_y = COM_MB_CLIP);
 
+	SamplerNearestColor* get_sampler_nearest() {return this->m_sampler_nearest;}
+	SamplerNearestNoCheckColor* get_sampler_nocheck() {return this->m_sampler_nocheck;}
+	SamplerBilinearColor* get_sampler_bilinear() {return this->m_sampler_bilinear;}
+
  	void readEWA(float result[4], const float uv[2], const float derivatives[2][2], PixelSampler sampler);
 
 	MemoryBuffer *duplicate();

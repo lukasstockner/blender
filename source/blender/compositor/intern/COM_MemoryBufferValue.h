@@ -65,6 +65,10 @@ public:
 					 MemoryBufferExtend extend_x = COM_MB_CLIP,
 					 MemoryBufferExtend extend_y = COM_MB_CLIP);
 
+	SamplerNearestValue* get_sampler_nearest() {return this->m_sampler_nearest;}
+	SamplerNearestNoCheckValue* get_sampler_nocheck() {return this->m_sampler_nocheck;}
+	SamplerBilinearValue* get_sampler_bilinear() {return this->m_sampler_bilinear;}
+
 	float getMaximumValue() const;
 	MemoryBuffer *duplicate();
 

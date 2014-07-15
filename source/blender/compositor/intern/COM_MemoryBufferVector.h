@@ -65,6 +65,9 @@ public:
 					  MemoryBufferExtend extend_x = COM_MB_CLIP,
 					  MemoryBufferExtend extend_y = COM_MB_CLIP);
 
+	SamplerNearestVector* get_sampler_nearest() {return this->m_sampler_nearest;}
+	SamplerNearestNoCheckVector* get_sampler_nocheck() {return this->m_sampler_nocheck;}
+	SamplerBilinearVector* get_sampler_bilinear() {return this->m_sampler_bilinear;}
 	MemoryBuffer *duplicate();
 
 	friend class MemoryBuffer;

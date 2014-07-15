@@ -79,7 +79,7 @@ protected:
 		bool clip_y = (extend_y == COM_MB_CLIP && (y < 0 || y >= this->m_height));
 		if (clip_x || clip_y) {
 			/* clip result outside rect is zero */
-			zero_v4(result);
+			result[0] = 0.0f;
 		}
 		else
 		{
@@ -93,13 +93,13 @@ protected:
 		bool clip_y = (extend_y == COM_MB_CLIP && (y < 0 || y >= this->m_height));
 		if (clip_x || clip_y) {
 			/* clip result outside rect is zero */
-			zero_v4(result);
+			zero_v3(result);
 		}
 		else
 		{
 			this->wrap_pixel(x, y, extend_x, extend_y);
 			const int offset = (this->m_width * y + x) * COM_NUM_CHANNELS_VECTOR;
-			result[0] = this->m_buffer[offset];
+			copy_v3_v3(result, &this->m_buffer[offset]);
 		}
 	}
 	inline void read_color(float *result, int x, int y, MemoryBufferExtend extend_x = COM_MB_CLIP, MemoryBufferExtend extend_y = COM_MB_CLIP) {
@@ -113,7 +113,7 @@ protected:
 		{
 			this->wrap_pixel(x, y, extend_x, extend_y);
 			const int offset = (this->m_width * y + x) * COM_NUM_CHANNELS_COLOR;
-			result[0] = this->m_buffer[offset];
+			copy_v4_v4(result, &this->m_buffer[offset]);
 		}
 	}
 

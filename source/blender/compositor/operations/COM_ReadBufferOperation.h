@@ -25,6 +25,9 @@
 
 #include "COM_NodeOperation.h"
 #include "COM_MemoryProxy.h"
+#include "COM_MemoryBufferColor.h"
+#include "COM_MemoryBufferValue.h"
+#include "COM_MemoryBufferVector.h"
 
 class ReadBufferOperation : public NodeOperation {
 private:
@@ -50,6 +53,21 @@ public:
 	MemoryBuffer *getInputMemoryBuffer(MemoryBuffer **memoryBuffers) { return memoryBuffers[this->m_offset]; }
 	void readResolutionFromWriteBuffer();
 	void updateMemoryBuffer();
+
+	/**
+	 * @brief get_sampler_nearest_color
+	 * only supported for when DataType COM_DT_COLOR is used in the constructor
+	 * @return
+	 */
+	SamplerNearestColor* get_sampler_nearest_color() {return ((MemoryBufferColor*)this->m_buffer)->get_sampler_nearest(); }
+	SamplerNearestVector* get_sampler_nearest_vector() {return ((MemoryBufferVector*)this->m_buffer)->get_sampler_nearest(); }
+	SamplerNearestValue* get_sampler_nearest_value() {return ((MemoryBufferValue*)this->m_buffer)->get_sampler_nearest(); }
+	SamplerNearestNoCheckColor* get_sampler_nocheck_color() {return ((MemoryBufferColor*)this->m_buffer)->get_sampler_nocheck(); }
+	SamplerNearestNoCheckVector* get_sampler_nocheck_vector() {return ((MemoryBufferVector*)this->m_buffer)->get_sampler_nocheck(); }
+	SamplerNearestNoCheckValue* get_sampler_nocheck_value() {return ((MemoryBufferValue*)this->m_buffer)->get_sampler_nocheck(); }
+	SamplerBilinearColor* get_sampler_bilinear_color() {return ((MemoryBufferColor*)this->m_buffer)->get_sampler_bilinear(); }
+	SamplerBilinearVector* get_sampler_bilinear_vector() {return ((MemoryBufferVector*)this->m_buffer)->get_sampler_bilinear(); }
+	SamplerBilinearValue* get_sampler_bilinear_value() {return ((MemoryBufferValue*)this->m_buffer)->get_sampler_bilinear(); }
 };
 
 #endif

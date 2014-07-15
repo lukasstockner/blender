@@ -72,7 +72,8 @@ void DilateErodeThresholdOperation::executePixel(float output[4], int x, int y, 
 	const float inset = this->m_inset;
 	float mindist = rd * 2;
 
-	MemoryBuffer *inputBuffer = (MemoryBuffer *)data;
+	MemoryBufferValue *inputBuffer = (MemoryBufferValue *)data;
+	SamplerNearestValue *sampler = inputBuffer->get_sampler_nearest();
 	float *buffer = inputBuffer->getBuffer();
 	rcti *rect = inputBuffer->getRect();
 	const int minx = max(x - this->m_scope, rect->xmin);
@@ -82,18 +83,18 @@ void DilateErodeThresholdOperation::executePixel(float output[4], int x, int y, 
 	const int bufferWidth = BLI_rcti_size_x(rect);
 	int offset;
 
-    inputBuffer->read(inputValue, x, y);
-    if (inputValue[0] > sw) {
+	sampler->read(inputValue, x, y);
+	if (inputValue[0] > sw) {
 		for (int yi = miny; yi < maxy; yi++) {
 			const float dy = yi - y;
-            offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin));
+			offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin));
 			for (int xi = minx; xi < maxx; xi++) {
 				if (buffer[offset] < sw) {
 					const float dx = xi - x;
 					const float dis = dx * dx + dy * dy;
 					mindist = min(mindist, dis);
 				}
-                offset ++;
+				offset ++;
 			}
 		}
 		pixelvalue = -sqrtf(mindist);
@@ -101,15 +102,14 @@ void DilateErodeThresholdOperation::executePixel(float output[4], int x, int y, 
 	else {
 		for (int yi = miny; yi < maxy; yi++) {
 			const float dy = yi - y;
-            offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin));
+			offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin));
 			for (int xi = minx; xi < maxx; xi++) {
 				if (buffer[offset] > sw) {
 					const float dx = xi - x;
 					const float dis = dx * dx + dy * dy;
 					mindist = min(mindist, dis);
 				}
-                offset ++;
-
+				offset ++;
 			}
 		}
 		pixelvalue = sqrtf(mindist);
@@ -206,17 +206,17 @@ void DilateDistanceOperation::executePixel(float output[4], int x, int y, void *
 
 	for (int yi = miny; yi < maxy; yi++) {
 		const float dy = yi - y;
-        offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin));
+		offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin));
 		for (int xi = minx; xi < maxx; xi++) {
 			const float dx = xi - x;
 			const float dis = dx * dx + dy * dy;
 			if (dis <= mindist) {
 				value = max(buffer[offset], value);
 			}
-            offset ++;
+			offset ++;
 		}
 	}
-    output[0] = value;
+	output[0] = value;
 }
 
 void DilateDistanceOperation::deinitExecution()
@@ -280,14 +280,14 @@ void ErodeDistanceOperation::executePixel(float output[4], int x, int y, void *d
 
 	for (int yi = miny; yi < maxy; yi++) {
 		const float dy = yi - y;
-        offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin));
+		offset = ((yi - rect->ymin) * bufferWidth + (minx - rect->xmin));
 		for (int xi = minx; xi < maxx; xi++) {
 			const float dx = xi - x;
 			const float dis = dx * dx + dy * dy;
 			if (dis <= mindist) {
 				value = min(buffer[offset], value);
 			}
-            offset ++;
+			offset ++;
 		}
 	}
 	output[0] = value;
