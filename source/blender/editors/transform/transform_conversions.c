@@ -7048,10 +7048,6 @@ static void PaintCurvePointToTransData(PaintCurvePoint *pcp, TransData *td, Tran
 	if (pcp->bez.f2 == SELECT) {
 		int i;
 		for (i = 0; i < 3; i++) {
-			/* CV coords are scaled by aspects. this is needed for rotations and
-			 * proportional editing to be consistent with the stretched CV coords
-			 * that are displayed. this also means that for display and numinput,
-			 * and when the the CV coords are flushed, these are converted each time */
 			copy_v2_v2(td2d->loc, bezt->vec[i]);
 			td2d->loc[2] = 0.0f;
 			td2d->loc2d = bezt->vec[i];
@@ -7091,7 +7087,7 @@ static void PaintCurvePointToTransData(PaintCurvePoint *pcp, TransData *td, Tran
 
 		td->flag = 0;
 		td->loc = td2d->loc;
-		copy_v3_v3(td->center, bezt->vec[id]);
+		copy_v3_v3(td->center, bezt->vec[1]);
 		copy_v3_v3(td->iloc, td->loc);
 
 		memset(td->axismtx, 0, sizeof(td->axismtx));
