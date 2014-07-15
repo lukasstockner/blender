@@ -541,6 +541,13 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->preview_stitch_active;
 					break;
 
+				case TH_PAINT_CURVE_HANDLE:
+					cp = ts->paint_curve_handle;
+					break;
+				case TH_PAINT_CURVE_PIVOT:
+					cp = ts->paint_curve_pivot;
+					break;
+
 				case TH_UV_OTHERS:
 					cp = ts->uv_others;
 					break;
@@ -875,6 +882,8 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tv3d.title, 0, 0, 0, 255);
 	rgba_char_args_set(btheme->tv3d.freestyle_edge_mark, 0x7f, 0xff, 0x7f, 255);
 	rgba_char_args_set(btheme->tv3d.freestyle_face_mark, 0x7f, 0xff, 0x7f, 51);
+	rgba_char_args_set_fl(btheme->tv3d.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
+	rgba_char_args_set_fl(btheme->tv3d.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
 
 	btheme->tv3d.facedot_size = 4;
 
@@ -2428,6 +2437,16 @@ void init_userdef_do_versions(void)
 		bTheme *btheme;
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_set(btheme->tui.wcol_tooltip.text, 255, 255, 255, 255);
+		}
+	}
+
+	if (U.versionfile < 272|| (U.versionfile == 272 && U.subversionfile < 2)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set_fl(btheme->tv3d.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
+			rgba_char_args_set_fl(btheme->tv3d.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
+			rgba_char_args_set_fl(btheme->tima.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
+			rgba_char_args_set_fl(btheme->tima.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
 		}
 	}
 

@@ -59,6 +59,8 @@
 
 #include "ED_view3d.h"
 
+#include "UI_resources.h"
+
 #include "paint_intern.h"
 /* still needed for sculpt_stroke_get_location, should be
  * removed eventually (TODO) */
@@ -797,9 +799,9 @@ BLI_INLINE void draw_tri_point(float *co, float width, bool selected)
 {
 	float w = width / 2.0f;
 	if (selected)
-		glColor4f(1.0, 1.0, 0.5, 0.5);
+		UI_ThemeColor4(TH_VERTEX_SELECT);
 	else
-		glColor4f(1.0, 0.5, 0.5, 0.5);
+		UI_ThemeColor4(TH_PAINT_CURVE_PIVOT);
 
 	glLineWidth(3.0);
 
@@ -823,9 +825,9 @@ BLI_INLINE void draw_rect_point(float *co, float width, bool selected)
 {
 	float w = width / 2.0f;
 	if (selected)
-		glColor4f(1.0, 1.0, 0.5, 0.5);
+		UI_ThemeColor4(TH_VERTEX_SELECT);
 	else
-		glColor4f(0.5, 1.0, 0.5, 0.5);
+		UI_ThemeColor4(TH_PAINT_CURVE_HANDLE);
 	glLineWidth(3.0);
 
 	glBegin(GL_LINE_LOOP);
@@ -849,14 +851,25 @@ BLI_INLINE void draw_rect_point(float *co, float width, bool selected)
 
 BLI_INLINE void draw_bezier_handle_lines(BezTriple *bez)
 {
+	short line1[] = {0, 1};
+	short line2[] = {1, 2};
+
 	glVertexPointer(2, GL_FLOAT, 3 * sizeof(float), bez->vec);
 	glColor4f(0.0, 0.0, 0.0, 0.5);
 	glLineWidth(3.0);
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
 
-	glColor4f(1.0, 1.0, 1.0, 0.5);
 	glLineWidth(1.0);
-	glDrawArrays(GL_LINE_STRIP, 0, 3);
+	if (bez->f1 || bez->f2)
+		UI_ThemeColor4(TH_VERTEX_SELECT);
+	else
+		glColor4f(1.0, 1.0, 1.0, 0.5);
+	glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, line1);
+	if (bez->f3 || bez->f2)
+		UI_ThemeColor4(TH_VERTEX_SELECT);
+	else
+		glColor4f(1.0, 1.0, 1.0, 0.5);
+	glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, line2);
 }
 
 static void paint_draw_curve_cursor(Brush *brush)
@@ -878,8 +891,8 @@ static void paint_draw_curve_cursor(Brush *brush)
 			/* use color coding to distinguish handles vs curve segments  */
 			draw_bezier_handle_lines(&cp->bez);
 			draw_tri_point(&cp->bez.vec[1][0], 10.0, cp->bez.f2);
-			draw_rect_point(&cp->bez.vec[0][0], 8.0, cp->bez.f1);
-			draw_rect_point(&cp->bez.vec[2][0], 8.0, cp->bez.f3);
+			draw_rect_point(&cp->bez.vec[0][0], 8.0, cp->bez.f1 || cp->bez.f2);
+			draw_rect_point(&cp->bez.vec[2][0], 8.0, cp->bez.f3 || cp->bez.f2);
 
 			for (j = 0; j < 2; j++)
 				BKE_curve_forward_diff_bezier(
@@ -902,8 +915,8 @@ static void paint_draw_curve_cursor(Brush *brush)
 		/* draw last line segment */
 		draw_bezier_handle_lines(&cp->bez);
 		draw_tri_point(&cp->bez.vec[1][0], 10.0, cp->bez.f2);
-		draw_rect_point(&cp->bez.vec[0][0], 8.0, cp->bez.f1);
-		draw_rect_point(&cp->bez.vec[2][0], 8.0, cp->bez.f3);
+		draw_rect_point(&cp->bez.vec[0][0], 8.0, cp->bez.f1 || cp->bez.f2);
+		draw_rect_point(&cp->bez.vec[2][0], 8.0, cp->bez.f3 || cp->bez.f2);
 
 		glLineWidth(1.0);
 
