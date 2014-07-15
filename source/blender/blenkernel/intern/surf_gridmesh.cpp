@@ -126,9 +126,9 @@ void GridMesh::init_grid(int num_x_cells, int num_y_cells) {
 	}
 	coords_len = (1+nx)*(1+ny)+1;
 	v.resize(nx*ny*4*2);
-	ie_grid.resize(nx*ny+1,false);
-	ie_isect_right.resize(nx*ny+1,false);
-	ie_isect_up.resize(nx*ny+1,false);
+	ie_grid.assign(nx*ny+1,true);
+	ie_isect_right.assign(nx*ny+1,false);
+	ie_isect_up.assign(nx*ny+1,false);
 	vert_set_coord(0, -1234, -1234, -1234);
 	for (int j=0; j<ny; j++) {
 		for (int i=0; i<nx; i++) {
@@ -150,6 +150,27 @@ void GridMesh::init_grid(int num_x_cells, int num_y_cells) {
 			v4->next = iv1; v1->prev = iv4; v4->first = iv1; v4->corner = 2;
 			v1->is_pristine = 1;
 		}
+	}
+}
+
+void GridMesh::ie_print_grid(int num) {
+	std::vector<bool> *grid = NULL;
+	if (num==0) {
+		puts("ie_grid:");
+		grid = &ie_grid;
+	} else if (num==1) {
+		puts("ie_isect_right:");
+		grid = &ie_isect_right;
+	} else {
+		puts("ie_isect_up:");
+		grid = &ie_isect_up;
+	}
+	for (int y=ny; y>=0; y--) {
+		for (int x=0; x<=nx; x++) {
+			bool val = grid->operator[](gridpt_for_cell(x, y));
+			printf((val)?"1":"0");
+		}
+		puts("");
 	}
 }
 
@@ -260,18 +281,6 @@ void GridMesh::poly_set_cyclic(int poly, bool cyc) {
 	}
 }
 
-int GridMesh::gridpt_for_cell(int x, int y) {
-	if (x<0||x>=nx+1) return 0;
-	if (y<0||y>=ny+1) return 0;
-	return 1+(y*(nx+1)+x);
-}
-
-int GridMesh::poly_for_cell(int x, int y) {
-	if (x<0||x>=nx) return 0;
-	if (y<0||y>=ny) return 0;
-	return 1+4*(y*nx+x);
-}
-
 int GridMesh::poly_for_cell(float fx, float fy) {
 	int x = floor((fx-llx)*inv_dx);
 	if (x<0||x>=nx) return 0;
@@ -341,7 +350,7 @@ void GridMesh::vert_add_neighbor(int v1, int v2) {
 	}
 }
 
-std::pair<int,int> GridMesh::vert_grid_cell(int vert) {
+std::pair<int,int> GridMesh::cell_for_vert(int vert) {
 	// vert = 1+4*(y*nx+x)
 	int ynx_plus_x = (vert-1)/4;
 	int y = ynx_plus_x/nx;
@@ -682,7 +691,7 @@ void GridMesh::punch_hole(int exterior, int hole) {
 		poly_flip_winding_direction(hole);
 	}
 	int v1=exterior, v2=hole;
-	bool v1v2_intersection_free;
+	bool v1v2_intersection_free = false;
 	while (!v1v2_intersection_free) {
 		double v1xyz[3]; vert_get_coord(v1, v1xyz);
 		double v2xyz[3]; vert_get_coord(v2, v1xyz);
@@ -736,15 +745,34 @@ void GridMesh::insert_vert_poly_gridmesh(int mpoly, int *verts_added, int *edges
 	int edges_intersected_local = 0;
 	while (v[v1].next) {
 		int v2 = v[v1].next;
-		// Step 1: find all intersections of the edge v1,v2
+		/**** Step 1: find all intersections of the edge v1,v2 vs the grid ****/
 		double v2xyz[3]; vert_get_coord(v2, v2xyz);
-		//NURBS_TESS_PRINTF("(%f,%f)---line--(%f,%f)\n",v1x,v1y,v2x,v2y);
 		integer_cells.clear();
 		bottom_edges.clear();
 		left_edges.clear();
 		find_cell_line_intersections(v1xyz[0],v1xyz[1],v2xyz[0],v2xyz[1],
 									 &bottom_edges,&left_edges,&integer_cells);
-		edges_intersected_local += int(bottom_edges.size() + left_edges.size());
+		// Step 2: flip the even/odd#intersections indicators on the respective edges
+		int num_bottom_edge_isects = int(bottom_edges.size());
+		for (int ei_num=0; ei_num<num_bottom_edge_isects; ei_num++) {
+			std::pair<int,int> xy = bottom_edges[ei_num];
+			int ie_isect_idx = gridpt_for_cell(xy.first, xy.second);
+			bool even_odd = ie_isect_right[ie_isect_idx];
+			ie_isect_right[ie_isect_idx] = !even_odd;
+		}
+		int num_left_edge_isects = int(left_edges.size());
+		for (int ei_num=0; ei_num<num_left_edge_isects; ei_num++) {
+			std::pair<int,int> xy = left_edges[ei_num];
+			int ie_isect_idx = gridpt_for_cell(xy.first, xy.second);
+			bool even_odd = ie_isect_up[ie_isect_idx];
+			ie_isect_up[ie_isect_idx] = !even_odd;
+		}
+		edges_intersected_local += num_bottom_edge_isects + num_left_edge_isects;
+		
+		// Step 3: turn "line passed through cell" events from raster algo
+		// into actual intersections by intersecting againt every edge in the cell,
+		// sorting so that even in the case of coincident edges we leave one
+		// polygon before entering the other.
 		std::vector<IntersectingEdge> isect;
 		for (size_t i=0,l=integer_cells.size(); i<l; i++) {
 			std::pair<int,int> j = integer_cells[i];
@@ -762,7 +790,8 @@ void GridMesh::insert_vert_poly_gridmesh(int mpoly, int *verts_added, int *edges
 			}
 		}
 		std::stable_sort(isect.begin(),isect.end(),intersection_edge_order);
-		// Step 2: insert them
+		
+		/**** Step 4: insert verts at the intersections we discovered ****/
 		for (IntersectingEdge ie : isect) {
 			v1 = insert_vert(v1, v2, ie.e2, v[ie.e2].next, ie.x, ie.y);
 		}
@@ -775,6 +804,7 @@ void GridMesh::insert_vert_poly_gridmesh(int mpoly, int *verts_added, int *edges
 }
 
 void GridMesh::label_interior_AND(int poly2, bool invert_poly2, int *bb) {
+	// Step 1: Label cells that are definitely in the exterior of the boolean result.
 	int bb_local[4];
 	if (!bb) {
 		bb = bb_local;
@@ -783,6 +813,38 @@ void GridMesh::label_interior_AND(int poly2, bool invert_poly2, int *bb) {
 	int minx=bb[0], maxx=bb[1], miny=bb[2], maxy=bb[3];
 	if (!invert_poly2)
 		label_exterior_cells(poly2, false, bb);
+	// Step 2: Ensure that the lower left corner is labeled correctly
+	int ll_gridpt = gridpt_for_cell(0, 0);
+	if (ie_grid[ll_gridpt]) { // false => not in interior. true => anything's possible
+		std::pair<float,float> llxy = cell_ll_corner(0,0);
+		ie_grid[1] = point_in_polygon(llxy.first, llxy.second, poly2) ^ invert_poly2;
+	}
+	/* Step 3: propagate the label to all other gridpoints
+	for (int y=0; y<=ny; y++) {
+		bool cur_ie = false;
+		int below_idx=gridpt_for_cell(0, y-1), cur_idx=gridpt_for_cell(0, y);
+		if (y!=0) {
+			cur_ie = ie_grid[cur_idx] = ie_grid[below_idx] ^ ie_isect_up[below_idx];
+		} else {
+			cur_ie = ie_grid[cur_idx];
+		}
+		for (int x=0; x<nx; x++) {
+			cur_ie = cur_ie ^ ie_isect_right[cur_idx];
+			ie_grid[++cur_idx] = cur_ie;
+		}
+	}
+	// Step 4: Use interior/exterior calls on gridpt verts to label all verts
+	for (int y=miny; y<=maxy; y++) {
+		for (int x=minx; x<=maxx; x++) {
+			known_corner_t known_verts = KNOWN_CORNER_ALL;
+			if (!ie_grid[gridpt_for_cell(x,y)])     known_verts += KNOWN_CORNER_LL_EXTERIOR;
+			if (!ie_grid[gridpt_for_cell(x+1,y)])   known_verts += KNOWN_CORNER_LR_EXTERIOR;
+			if (!ie_grid[gridpt_for_cell(x+1,y+1)]) known_verts += KNOWN_CORNER_UR_EXTERIOR;
+			if (!ie_grid[gridpt_for_cell(x,y+1)])   known_verts += KNOWN_CORNER_UL_EXTERIOR;
+			label_interior_cell(poly_for_cell(x, y), poly2, invert_poly2, known_verts);
+		}
+	}*/
+	// Alternative Step 3+4
 	known_corner_t known_verts_x0=0, known_verts_xsweep;
 	for (int y=miny; y<=maxy; y++) {
 		known_verts_x0 = KNOWN_CORNER_NEXTY(known_verts_x0);

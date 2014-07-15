@@ -67,6 +67,7 @@ extern "C" {
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include "surf_gridmesh.h"
+#include <set>
 
 /* globals */
 
@@ -4294,12 +4295,16 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	float (*coords_tmp)[2] = (float(*)[2])MEM_mallocN(sizeof(*coords_tmp)*TESS_MAX_POLY_VERTS,"NURBS_tess_3");
 	int reindex_tmp[TESS_MAX_POLY_VERTS];
 	unsigned (*idx_tmp)[3] = (unsigned(*)[3])MEM_mallocN(sizeof(*idx_tmp)*TESS_MAX_POLY_VERTS,"NURBS_tess_4");
+	std::vector<int> degenerate_polys;
 	for (int j=0; j<totv; j++) {
 		for (int i=0; i<totu; i++) {
 			int cell = gm->poly_for_cell(i, j);
 			GridMeshVert *v = &gm->v[0];
 			for (int poly=cell; poly; poly=v[poly].next_poly) {
-				if (!v[poly].next) continue;
+				if (!v[poly].next) {
+					printf("Degenerate: %i\n",poly);
+					continue;
+				}
 				if (v[poly].is_pristine) {
 					int ll_gp = gm->gridpt_for_cell(i, j);
 					if (ii+6>=idxs_len) {

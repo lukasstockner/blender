@@ -25,7 +25,7 @@ float intersect_check_tol = .001; //Maximum Euclidean dist between intersect pts
 /***************************** DEFAULT SCENE *****************************/
 GridMesh *gm;
 int max_drawn_edges=0; // Number of edges to draw per poly (for figuring out order). 0 disables.
-#define GRIDMESH_GEOM_TEST_5
+#define GRIDMESH_GEOM_TEST_4
 //#define RASTER_VIZ
 
 #if defined(GRIDMESH_GEOM_TEST_1)
@@ -127,7 +127,7 @@ void init_default_scene() {
 	// Import the subject polygons into the linked list datastructure
 	int last = 0;
 	for (std::vector<float> poly_verts : subj_polys) {
-		int np = gm->poly_new(&subj0[0], int(subj0.size()));
+		int np = gm->poly_new(&poly_verts[0], int(poly_verts.size()));
 		if (last)
 			gm->v[last].next_poly = np;
 		else

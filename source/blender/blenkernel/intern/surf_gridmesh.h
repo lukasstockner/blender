@@ -56,11 +56,12 @@ struct IntersectingEdge {
 #define KNOWN_CORNER_LL (1<<0)
 #define KNOWN_CORNER_LL_EXTERIOR (1<<1)
 #define KNOWN_CORNER_UL (1<<2)
-#define KNOWN_CORNER_ULe_EXTERIOR (1<<3)
+#define KNOWN_CORNER_UL_EXTERIOR (1<<3)
 #define KNOWN_CORNER_LR (1<<4)
 #define KNOWN_CORNER_LR_EXTERIOR (1<<5)
 #define KNOWN_CORNER_UR (1<<6)
 #define KNOWN_CORNER_UR_EXTERIOR (1<<7)
+#define KNOWN_CORNER_ALL (KNOWN_CORNER_LL+KNOWN_CORNER_LR+KNOWN_CORNER_UL+KNOWN_CORNER_UR)
 #define KNOWN_CORNER_NEXTX(kc) ((kc)>>4)
 #define KNOWN_CORNER_NEXTY(kc) ((kc)>>2)&0x33
 typedef unsigned char known_corner_t;
@@ -68,7 +69,7 @@ typedef unsigned char known_corner_t;
 struct GridMesh {
 	static float tolerance;
 	
-	// 3D coordinate storage (all trimming functions ignore the 3rd coord)
+	// 3D coordinate storage (all trimming functions ignore the z coord)
 	// coords[0] is defined to be invalid.
 	// manually managed memory to avoid copy during handoff to C code
 	GridMeshCoord *coords;
@@ -77,8 +78,13 @@ struct GridMesh {
 	void coords_import(GridMeshCoord *c, int len); // Transfers ownership to this
 	GridMeshCoord *coords_export(int *len); // Transfers ownership to the caller
 	
-	// Vertex storage. Example: "int prev" in a GridMeshVert refers to v[prev].
-	// v[0] is defined to be invalid and filled with the telltale location (-1234,-1234)
+	// Permit usage of blender's memory management system
+	void* (*mallocN)(size_t sz, const char *name);
+	void* (*reallocN)(void *old, size_t sz, const char *name);
+
+	// Vertex storage. Example: "int prev" in a GridMeshVert refers to
+	// (GridMeshVert*)v[prev]. v[0] is defined to be invalid and filled with
+	// the telltale location (-1234,-1234)
 	std::vector<GridMeshVert> v;
 	
 	// Interior/Exterior calls are cheap at grid points due to information
@@ -90,11 +96,8 @@ struct GridMesh {
 	std::vector<bool> ie_grid;
 	std::vector<bool> ie_isect_right;
 	std::vector<bool> ie_isect_up;
-	
-	// Permit usage of blender's memory management system
-	void* (*mallocN)(size_t sz, const char *name);
-	void* (*reallocN)(void *old, size_t sz, const char *name);
-	
+	void ie_print_grid(int num);
+		
 	double llx, lly, urx, ury; // Coordinates of lower left and upper right grid corners
 	double dx, dy; // Width of a cell in the x, y directions
 	double inv_dx, inv_dy; // 1/(width of a cell), 1/(height of a cell)
@@ -106,6 +109,11 @@ struct GridMesh {
 	void init_grid(int num_x_cells, int num_y_cells);
 	~GridMesh();
 	
+	// Coordinate utilities
+	int gridpt_for_cell(int x, int y) {return (0<=x&&x<=nx&&0<=y&y<=ny)? 1+(y*(nx+1)+x) : 0;}
+	std::pair<int,int> cell_for_vert(int vert);
+	std::pair<float,float> cell_ll_corner(int x, int y) {return std::make_pair(llx+x*dx,lly+y*dy);}
+
 	// Vert manipulation
 	int vert_new();
 	int vert_new(int prev, int next); // Make a new vert in the middle of an existing poly
@@ -115,12 +123,10 @@ struct GridMesh {
 	int vert_id(GridMeshVert *vert) {return vert?int(vert-&v[0]):0;}
 	int vert_neighbor_on_poly(int vert, int poly);
 	void vert_add_neighbor(int vert, int new_neighbor);
-	std::pair<int,int> vert_grid_cell(int vert);
-	int gridpt_for_cell(int x, int y);
 	
 	// Poly manipulation
 	int poly_new(const float* packed_coords, int len);
-	int poly_for_cell(int x, int y);
+	int poly_for_cell(int x, int y) {return (0<=x&&x<nx&&0<=y&y<ny)? 1+4*(y*nx+x) : 0;}
 	int poly_for_cell(float x, float y);
 	int poly_first_vert(int anyvert);
 	int poly_last_vert(int anyvert);
@@ -135,7 +141,6 @@ struct GridMesh {
 	void poly_translate(int poly, double x, double y);
 	double poly_signed_area(int poly); // ccw is positive
 	void poly_flip_winding_direction(int poly);
-	void punch_hole(int exterior, int hole);
 	
 	// Trimming
 	bool point_in_polygon(double x, double y, int poly);
@@ -151,7 +156,10 @@ struct GridMesh {
 									  std::vector<std::pair<int,int> > *bottom_edges,
 									  std::vector<std::pair<int,int> > *left_edges,
 									  std::vector<std::pair<int,int> > *integer_cells);
-	// High level booleans
+	void punch_hole(int exterior, int hole);
+
+	/********************  Booleans ********************/
+	// High level
 	void bool_AND(int poly2); // gridmesh -> gridmesh (intersection) poly2
 	void bool_SUB(int poly2); // gridmesh -> gridmesh (intersection) ~poly2
 	// Low level boolean support algorithms
@@ -168,6 +176,7 @@ struct GridMesh {
 	// Step 3: perform the actual trim
 	void trim_to_odd(int *bb=NULL);
 	void trim_to_odd(int poly); // Trim one grid poly, leaving behind parts w/odd winding# in .next_poly linked list
+
 #if defined(ENABLE_GLUT_DEMO)
 	// Draw
 	void poly_center(int poly, float *cx, float *cy);
