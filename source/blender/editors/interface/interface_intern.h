@@ -186,6 +186,7 @@ struct uiBut {
 	 * (type == LABEL),      Use (a1 == 1.0f) to use a2 as a blending factor (wow, this is imaginative!).
 	 * (type == SCROLL)      Use as scroll size.
 	 * (type == SEARCH_MENU) Use as number or rows.
+	 * (type == COLOR)       Use as indication of color palette
 	 */
 	float a1;
 
@@ -193,6 +194,7 @@ struct uiBut {
 	 * (type == NUM),        Use to store RNA 'precision' value, for dragging and click-step.
 	 * (type == LABEL),      If (a1 == 1.0f) use a2 as a blending factor.
 	 * (type == SEARCH_MENU) Use as number or columns.
+	 * (type == COLOR)       Use as indication of active palette color
 	 */
 	float a2;
 

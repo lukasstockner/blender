@@ -178,6 +178,15 @@ static void PALETTE_OT_new(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+static int palette_poll(bContext *C)
+{
+	Paint *paint = BKE_paint_get_active_from_context(C);
+
+	if (paint && paint->palette != NULL)
+		return true;
+
+	return false;
+}
 
 static int palette_color_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -200,16 +209,6 @@ static int palette_color_add_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
-static int palette_color_add_poll(bContext *C)
-{
-	Paint *paint = BKE_paint_get_active_from_context(C);
-
-	if (paint && paint->palette != NULL)
-		return true;
-
-	return false;
-}
-
 static void PALETTE_OT_color_add(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -219,10 +218,36 @@ static void PALETTE_OT_color_add(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = palette_color_add_exec;
-	ot->poll = palette_color_add_poll;
+	ot->poll = palette_poll;
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+
+
+static int palette_color_delete_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Paint *paint = BKE_paint_get_active_from_context(C);
+	Palette *palette = paint->palette;
+
+	BKE_palette_color_delete(palette);
+
+	return OPERATOR_FINISHED;
+}
+
+static void PALETTE_OT_color_delete(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Delete Palette Color";
+	ot->description = "Remove active color from palette";
+	ot->idname = "PALETTE_OT_color_delete";
+
+	/* api callbacks */
+	ot->exec = palette_color_delete_exec;
+	ot->poll = palette_poll;
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 
 
 static int vertex_color_set_exec(bContext *C, wmOperator *UNUSED(op))
@@ -1039,6 +1064,7 @@ void ED_operatortypes_paint(void)
 	/* palette */
 	WM_operatortype_append(PALETTE_OT_new);
 	WM_operatortype_append(PALETTE_OT_color_add);
+	WM_operatortype_append(PALETTE_OT_color_delete);
 
 	/* paint curve */
 	WM_operatortype_append(PAINTCURVE_OT_new);
@@ -1254,7 +1280,6 @@ static void paint_keymap_curve(wmKeyMap *keymap)
 
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_delete_point", XKEY, KM_PRESS, 0, 0);
 
-	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_S, KM_ANY, 0, 0);
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_draw", RETKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_rotate", RKEY, KM_PRESS, 0, 0);

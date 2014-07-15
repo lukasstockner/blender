@@ -4286,7 +4286,7 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			ui_apply_button(C, but->block, but, data, true);
 			return WM_UI_HANDLER_BREAK;
 		}
-		else if ((int)(but->a1) == UI_COLOR_PALETTE &&
+		else if ((int)(but->a1) == UI_PALETTE_COLOR &&
 		         event->type == DELKEY && event->val == KM_PRESS)
 		{
 			Scene *scene = CTX_data_scene(C);
@@ -4315,36 +4315,45 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 		}
 
 		if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
-			if ((int)(but->a1) == UI_COLOR_PALETTE && !event->ctrl) {
-				float color[3];
-				Scene *scene = CTX_data_scene(C);
-				Paint *paint = BKE_paint_get_active(scene);
-				Brush *brush = BKE_paint_brush(paint);
+			if ((int)(but->a1) == UI_PALETTE_COLOR) {
+				Palette *palette = but->rnapoin.id.data;
+				PaletteColor *color = but->rnapoin.data;
+				palette->active_color = BLI_findindex(&palette->colors, color);
 
-				if (brush->flag & BRUSH_USE_GRADIENT) {
-					float *target = &brush->gradient->data[brush->gradient->cur].r;
+				if( !event->ctrl) {
+					float color[3];
+					Scene *scene = CTX_data_scene(C);
+					Paint *paint = BKE_paint_get_active(scene);
+					Brush *brush = BKE_paint_brush(paint);
 
-					if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
-						ui_block_to_scene_linear_v3(but->block, target);
+					if (brush->flag & BRUSH_USE_GRADIENT) {
+						float *target = &brush->gradient->data[brush->gradient->cur].r;
+
+						if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+							RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
+							ui_block_to_scene_linear_v3(but->block, target);
+						}
+						else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+							RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
+						}
 					}
-					else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
-						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, target);
+					else {
+						if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
+							RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
+							BKE_brush_color_set(scene, brush, color);
+						}
+						else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+							RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
+							ui_block_to_display_space_v3(but->block, color);
+							BKE_brush_color_set(scene, brush, color);
+						}
 					}
+
+					button_activate_state(C, but, BUTTON_STATE_EXIT);
 				}
 				else {
-					if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
-						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
-						BKE_brush_color_set(scene, brush, color);
-					}
-					else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
-						RNA_property_float_get_array(&but->rnapoin, but->rnaprop, color);
-						ui_block_to_display_space_v3(but->block, color);
-						BKE_brush_color_set(scene, brush, color);
-					}
+					button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
 				}
-
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
 			}
 			else {
 				button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);

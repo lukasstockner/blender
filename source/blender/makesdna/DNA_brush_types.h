@@ -154,7 +154,7 @@ typedef struct Palette
 	ListBase deleted;
 
 	int num_of_colours;
-	int pad;
+	int active_color;
 } Palette;
 
 typedef struct PaintCurvePoint

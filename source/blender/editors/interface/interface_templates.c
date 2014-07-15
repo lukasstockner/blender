@@ -2375,7 +2375,7 @@ void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, 
 	PaletteColor *color;
 	uiBlock *block;
 	uiLayout *col;
-	int row_cols = 0;
+	int row_cols = 0, col_id = 0;
 	int cols_per_row = MAX2(uiLayoutGetWidth(layout) / UI_UNIT_X, 1);
 
 	if (!prop) {
@@ -2398,7 +2398,8 @@ void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, 
 
 	col = uiLayoutColumn(layout, true);
 	uiLayoutRow(col, true);
-	uiDefIconButO(block, BUT, "PALETTE_OT_color_add", WM_OP_INVOKE_DEFAULT, ICON_PLUS, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
+	uiDefIconButO(block, BUT, "PALETTE_OT_color_add", WM_OP_INVOKE_DEFAULT, ICON_ZOOMIN, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
+	uiDefIconButO(block, BUT, "PALETTE_OT_color_delete", WM_OP_INVOKE_DEFAULT, ICON_ZOOMOUT, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
 
 	col = uiLayoutColumn(layout, true);
 	uiLayoutRow(col, true);
@@ -2412,10 +2413,11 @@ void uiTemplatePalette(uiLayout *layout, PointerRNA *ptr, const char *propname, 
 		}
 
 		RNA_pointer_create(&palette->id, &RNA_PaletteColor, color, &ptr);
-		uiDefButR(block, COLOR, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, &ptr, "color",
-		          -1, 0.0, 1.0, UI_COLOR_PALETTE, 0.0, "");
+		uiDefButR(block, COLOR, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, &ptr, "color", -1, 0.0, 1.0,
+		          UI_PALETTE_COLOR, (col_id == palette->active_color) ? UI_PALETTE_COLOR_ACTIVE : 0.0, "");
 
 		row_cols++;
+		col_id++;
 	}
 }
 

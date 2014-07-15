@@ -312,11 +312,11 @@ void BKE_paint_curve_set(Brush *br, PaintCurve *pc)
 	}
 }
 
-/* remove colour from palette. Must be certain colour is inside the palette! */
-void BKE_palette_color_remove(Palette *palette, PaletteColor *colour)
+/* remove colour from palette. Must be certain color is inside the palette! */
+void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 {
-	BLI_remlink(&palette->colors, colour);
-	BLI_addhead(&palette->deleted, colour);
+	BLI_remlink(&palette->colors, color);
+	BLI_addhead(&palette->deleted, color);
 }
 
 void BKE_palette_cleanup(Palette *palette)
@@ -346,13 +346,23 @@ PaletteColor *BKE_palette_color_add(Palette *palette)
 {
 	PaletteColor *color = MEM_callocN(sizeof(*color), "Pallete Color");
 	BLI_addtail(&palette->colors, color);
+	palette->active_color = BLI_countlist(&palette->colors) - 1;
 	return color;
 }
 
-struct PaletteColor *BKE_palette_color_get_last(struct Palette *palette)
+void BKE_palette_color_delete(struct Palette *palette)
 {
-	return palette->colors.last;
+	PaletteColor *color = BLI_findlink(&palette->colors, palette->active_color);
+
+	if(color) {
+		if ((color == palette->colors.last) && (palette->colors.last != palette->colors.first))
+			palette->active_color--;
+
+		BLI_remlink(&palette->colors, color);
+		BLI_addhead(&palette->deleted, color);
+	}
 }
+
 
 bool BKE_palette_is_empty(const struct Palette *palette)
 {
