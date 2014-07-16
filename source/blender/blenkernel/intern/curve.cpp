@@ -67,7 +67,7 @@ extern "C" {
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include "surf_gridmesh.h"
-#include <set>
+#include <map>
 
 /* globals */
 
@@ -4255,6 +4255,7 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 
 float subj0[] = {0.512000,0.938000, 0.374000,0.950000, 0.248000,0.908000, 0.170000,0.866000, 0.092000,0.740000, 0.092000,0.602000, 0.092000,0.440000, 0.116000,0.260000, 0.254000,0.110000, 0.476000,0.074000, 0.746000,0.092000, 0.836000,0.206000, 0.848000,0.422000, 0.812000,0.644000, 0.716000,0.686000, 0.614000,0.734000, 0.488000,0.728000, 0.386000,0.710000, 0.260000,0.626000, 0.272000,0.476000, 0.350000,0.338000, 0.482000,0.278000, 0.632000,0.308000, 0.644000,0.404000, 0.638000,0.494000, 0.590000,0.572000, 0.494000,0.584000, 0.422000,0.518000, 0.458000,0.392000, 0.548000,0.398000, 0.506000,0.506000, 0.572000,0.506000, 0.596000,0.386000, 0.566000,0.338000, 0.470000,0.338000, 0.368000,0.434000, 0.374000,0.608000, 0.578000,0.656000, 0.680000,0.644000, 0.740000,0.554000, 0.782000,0.308000, 0.758000,0.224000, 0.548000,0.164000, 0.338000,0.224000, 0.212000,0.374000, 0.170000,0.626000, 0.236000,0.764000, 0.368000,0.824000, 0.524000,0.836000, 1.184000,0.848000}; int subj0_nv=50;
 void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
+	bool remap_coords = true; // Remove trimmed verts (only useful for meshgen)
 	dl->col = nu->mat_nr;
 	dl->charidx = nu->charidx;
 	dl->rt = nu->flag & ~CU_2D;
@@ -4277,17 +4278,27 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	// Trim the uniform grid in 2D UV space
 	GridMesh *gm = new GridMesh();
 	int coords_len = (totu+1)*(totv+1)*2;
-	GridMeshCoord *coords = (GridMeshCoord*)MEM_mallocN(coords_len * sizeof(GridMeshCoord), "NURBS_tess_1");
-	gm->mallocN = MEM_mallocN;
-	gm->reallocN = MEM_reallocN_id;
-	gm->coords_import(coords, coords_len);
+	GridMeshCoord *coords = NULL;
+	if (!remap_coords) {
+		coords = (GridMeshCoord*)MEM_mallocN(coords_len * sizeof(GridMeshCoord), "NURBS_tess_1");
+		gm->mallocN = MEM_mallocN;
+		gm->reallocN = MEM_reallocN_id;
+		gm->coords_import(coords, coords_len);
+	}
 	gm->set_ll_ur(ustart,vstart,uend,vend);
 	gm->init_grid(totu,totv);
 	int s0poly = gm->poly_new(subj0, subj0_nv*2);
 	gm->bool_SUB(s0poly);
 	
 	// Extract the results
-	coords = gm->coords_export(&coords_len);
+	std::map<int,int> *used_idxs;
+	if (!remap_coords) {
+		coords = gm->coords_export(&coords_len);
+		used_idxs = NULL;
+	} else {
+		coords = gm->coords;
+		used_idxs = new std::map<int,int>();
+	}
 	int idxs_len = 4 * 3*sizeof(int)*totu*totv;
 	int *idxs = (int*)MEM_mallocN(sizeof(int)*idxs_len, "NURBS_tess_2.0");
 	int ii=0; // Index index
@@ -4296,13 +4307,13 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	int reindex_tmp[TESS_MAX_POLY_VERTS];
 	unsigned (*idx_tmp)[3] = (unsigned(*)[3])MEM_mallocN(sizeof(*idx_tmp)*TESS_MAX_POLY_VERTS,"NURBS_tess_4");
 	std::vector<int> degenerate_polys;
+	// Loop through every cell and push its triangles onto idxs
 	for (int j=0; j<totv; j++) {
 		for (int i=0; i<totu; i++) {
 			int cell = gm->poly_for_cell(i, j);
 			GridMeshVert *v = &gm->v[0];
 			for (int poly=cell; poly; poly=v[poly].next_poly) {
 				if (!v[poly].next) {
-					printf("Degenerate: %i\n",poly);
 					continue;
 				}
 				if (v[poly].is_pristine) {
@@ -4312,12 +4323,13 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 						idxs_len *= 2;
 						idxs = (int*)MEM_reallocN_id(idxs, sizeof(int)*idxs_len, "NURBS_tess_2.1");
 					}
-					idxs[ii++] = ll_gp;
-					idxs[ii++] = ll_gp+1;
-					idxs[ii++] = ll_gp+(totu+1)+1;
-					idxs[ii++] = ll_gp+(totu+1)+1;
-					idxs[ii++] = ll_gp+(totu+1);
-					idxs[ii++] = ll_gp;
+					int ll=ll_gp, lr=ll_gp+1, ur=ll_gp+(totu+1)+1, ul=ll_gp+(totu+1);
+					idxs[ii++]=ll; idxs[ii++]=lr; idxs[ii++]=ur;
+					idxs[ii++]=ur; idxs[ii++]=ul; idxs[ii++]=ll;
+					if (remap_coords) {
+						(*used_idxs)[ll]=0; (*used_idxs)[lr]=0;
+						(*used_idxs)[ul]=0; (*used_idxs)[ur]=0;
+					}
 				} else {
 					int num_verts=0; int vert=poly;
 					do {
@@ -4344,12 +4356,34 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 						idxs_len = new_idxlen;
 					}
 					for (int z=0; z<num_verts-2; z++) {
-						idxs[ii++] = reindex_tmp[idx_tmp[z][0]];
-						idxs[ii++] = reindex_tmp[idx_tmp[z][1]];
-						idxs[ii++] = reindex_tmp[idx_tmp[z][2]];
+						int i1=reindex_tmp[idx_tmp[z][0]];
+						int i2=reindex_tmp[idx_tmp[z][1]];
+						int i3=reindex_tmp[idx_tmp[z][2]];
+						idxs[ii++]=i1; idxs[ii++]=i2; idxs[ii++]=i3;
+						if (remap_coords) {
+							(*used_idxs)[i1]=0;
+							(*used_idxs)[i2]=0;
+							(*used_idxs)[i3]=0;
+						}
 					}
 				}
 			}
+		}
+	}
+	if (remap_coords) {
+		int num_used_idxs = int(used_idxs->size());
+		coords = (GridMeshCoord*)MEM_mallocN(3*sizeof(float)*num_used_idxs, "NURBS_tess_2.3");
+		coords_len = num_used_idxs;
+		int newidx=0;
+		std::map<int,int>::iterator it=used_idxs->begin(),end=used_idxs->end();
+		for (; it!=end; it++) {
+			int old_idx = it->first;
+			coords[newidx] = gm->coords[old_idx];
+			it->second = newidx++;
+		}
+		// ii, the index index, points to the end of idxs, the index array
+		for (int i=0; i<ii; i++) {
+			idxs[i] = (*used_idxs)[idxs[i]];
 		}
 	}
 	dl->verts = (float*)coords;
@@ -4357,7 +4391,7 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	dl->nors = NULL;
 	dl->type = DL_INDEX3;
 	dl->parts = ii/3;
-	dl->nr = ii;
+	dl->nr = coords_len;
 	
 	// Pushforward through the NURBS map
 	int NknotU=KNOTSU(nu), NknotV=KNOTSV(nu);
@@ -4366,7 +4400,7 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	int startu,endu, startv,endv;
 	int orderu=nu->orderu, orderv=nu->orderv, pntsu=nu->pntsu, pntsv=nu->pntsv;
 	float *knotsu=nu->knotsu, *knotsv=nu->knotsv;
-	int coord=1;
+	int coord=0;
 	float cached_v=0.0/0.0;
 	for (; coord<coords_len; coord++) {
 		float *xyz = (float*)&coords[coord];
