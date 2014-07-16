@@ -65,19 +65,46 @@ layout(line_strip, max_vertices = 8) out;
 
 uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
+uniform int PrimitiveIdBase;
 
 in block {
 	VertexData v;
 } inpt[4];
 
+#define INTERP_FACE_VARYING_2(result, fvarOffset, tessCoord)  \
+	{ \
+		vec2 v[4]; \
+		int primOffset = (gl_PrimitiveID + PrimitiveIdBase) * 4; \
+		for (int i = 0; i < 4; ++i) { \
+			int index = (primOffset + i) * 2 + fvarOffset; \
+			v[i] = vec2(texelFetch(FVarDataBuffer, index).s, \
+			            texelFetch(FVarDataBuffer, index + 1).s); \
+		} \
+		result = mix(mix(v[0], v[1], tessCoord.s), \
+		             mix(v[3], v[2], tessCoord.s), \
+		             tessCoord.t); \
+	}
+
+uniform samplerBuffer FVarDataBuffer;
+
 out vec3 varying_position;
 out vec3 varying_normal;
+out vec2 varying_st;
 
 #ifdef FLAT_SHADING
 void emit(int index, vec3 normal)
 {
 	varying_position = inpt[index].v.position.xyz;
 	varying_normal = normal;
+
+	/* TODO(sergey): Only uniform subdivisions atm. */
+	vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
+	vec2 st = quadst[index];
+
+	vec2 uv;
+	INTERP_FACE_VARYING_2(uv, 0, st);
+	varying_st = uv;
+
 	gl_Position = projectionMatrix * inpt[index].v.position;
 	EmitVertex();
 }
@@ -86,6 +113,15 @@ void emit(int index)
 {
 	varying_position = inpt[index].v.position.xyz;
 	varying_normal = inpt[index].v.normal;
+
+	/* TODO(sergey): Only uniform subdivisions atm. */
+	vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
+	vec2 st = quadst[index];
+
+	vec2 uv;
+	INTERP_FACE_VARYING_2(uv, 0, st);
+	varying_st = uv;
+
 	gl_Position = projectionMatrix * inpt[index].v.position;
 	EmitVertex();
 }
@@ -93,6 +129,8 @@ void emit(int index)
 
 void main()
 {
+	gl_PrimitiveID = gl_PrimitiveIDIn;
+
 #ifdef FLAT_SHADING
 	vec3 A = (inpt[0].v.position - inpt[1].v.position).xyz;
 	vec3 B = (inpt[3].v.position - inpt[1].v.position).xyz;
@@ -155,8 +193,13 @@ uniform vec4 diffuse;
 uniform vec4 specular;
 uniform float shininess;
 
+#ifdef USE_TEXTURE
+uniform sampler2D texture_buffer;
+#endif
+
 in vec3 varying_position;
 in vec3 varying_normal;
+in vec2 varying_st;
 
 void main()
 {
@@ -196,7 +239,11 @@ void main()
 
 	/* Compute diffuse color. */
 	float alpha;
+#ifdef USE_TEXTURE
+	L_diffuse *= texture2D(texture_buffer, varying_st).rgb;
+#else
 	L_diffuse *= diffuse.rgb;
+#endif
 	alpha = diffuse.a;
 
 	/* Sum lighting. */

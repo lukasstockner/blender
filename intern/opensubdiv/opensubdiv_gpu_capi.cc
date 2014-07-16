@@ -50,6 +50,7 @@
 #include "opensubdiv_partitioned.h"
 
 using OpenSubdiv::OsdGLMeshInterface;
+using OpenSubdiv::PartitionedGLMeshInterface;
 
 extern "C" char datatoc_gpu_shader_opensubd_display_glsl[];
 
@@ -233,13 +234,25 @@ GLuint linkProgram(const char *define)
 	}
 
 	GLuint uboIndex = glGetUniformBlockIndex(program, "Lighting");
-	if (uboIndex != GL_INVALID_INDEX)
+	if (uboIndex != GL_INVALID_INDEX) {
 		glUniformBlockBinding(program, uboIndex, 0);
+	}
+
+#if 0  /* Used for textured view */
+	glProgramUniform1i(program,
+	                   glGetUniformLocation(program, "texture_buffer"),
+	                   0);  /* GL_TEXTURE0 */
+#endif
+
+	glProgramUniform1i(program,
+	                   glGetUniformLocation(program, "FVarDataBuffer"),
+	                   4);  /* GL_TEXTURE4 */
 
 	return program;
 }
 
-void bindProgram(int program,
+void bindProgram(PartitionedGLMeshInterface *mesh,
+                 int program,
                  GLuint lighting_ub,
                  Lighting *lightingData)
 {
@@ -304,11 +317,18 @@ void bindProgram(int program,
 		glUniform1f(glGetUniformLocation(program, "shininess"), color[0]);
 	}
 	else {
-		float currentColor[4];
-		glGetFloatv(GL_CURRENT_COLOR, currentColor);
+		float color[4];
+		glGetFloatv(GL_CURRENT_COLOR, color);
 		glUniform4fv(glGetUniformLocation(program, "diffuse"),
 		             1,
-		             currentColor);
+		             color);
+	}
+
+	/* Face-fertex data */
+	if (mesh->GetDrawContext()->GetFvarDataTextureBuffer()) {
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_BUFFER,
+		              mesh->GetDrawContext()->GetFvarDataTextureBuffer());
 	}
 }
 
@@ -350,7 +370,6 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 		need_init = false;
 	}
 #endif
-	using OpenSubdiv::PartitionedGLMeshInterface;
 	using OpenSubdiv::OsdDrawContext;
 	using OpenSubdiv::FarPatchTables;
 
@@ -379,7 +398,8 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 		program = wireframe_program;
 	}
 
-	bindProgram(program,
+	bindProgram(mesh,
+	            program,
 	            lighting_ub,
 	            &lightingData);
 #else
@@ -394,11 +414,22 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 		OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
 
 		if (patchType == OpenSubdiv::FarPatchTables::QUADS) {
+#ifndef OPENSUBDIV_LEGACY_DRAW
+			glUniform1i(glGetUniformLocation(program, "PrimitiveIdBase"),
+			            patch.GetPatchIndex());
+
 			glDrawElements(GL_LINES_ADJACENCY,
 			               patch.GetNumIndices(),
 			               GL_UNSIGNED_INT,
 			               (void *)(patch.GetVertIndex() *
 			                        sizeof(unsigned int)));
+#else
+			glDrawElements(GL_QUADS,
+			               patch.GetNumIndices(),
+			               GL_UNSIGNED_INT,
+			               (void *)(patch.GetVertIndex() *
+			                        sizeof(unsigned int)));
+#endif
 		}
 	}
 
@@ -408,6 +439,7 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 	}
 	glBindVertexArray(0);
 #ifndef OPENSUBDIV_LEGACY_DRAW
+	glActiveTexture(GL_TEXTURE0);
 	/* TODO(sergey): Store previously used program and roll back to it? */
 	glUseProgram(0);
 #endif

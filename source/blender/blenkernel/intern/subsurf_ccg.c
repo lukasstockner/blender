@@ -64,6 +64,8 @@
 #include "BKE_paint.h"
 #include "BKE_scene.h"
 #include "BKE_subsurf.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
 
 #include "PIL_time.h"
 
@@ -2410,6 +2412,31 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	int gridFaces = gridSize - 1;
 
 	(void) compareDrawOptions;
+
+#ifdef WITH_OPENSUBDIV
+	if (ccgdm->useGpuBackend) {
+		int mat_nr;
+		bool drawSmooth;
+		MTFace tmp_tf = {{{0}}};
+
+		if (faceFlags) {
+			drawSmooth = (lnors || (faceFlags[0].flag & ME_SMOOTH));
+			mat_nr = faceFlags[0].mat_nr;
+		}
+		else {
+			drawSmooth = 1;
+			mat_nr = 0;
+		}
+
+		tmp_tf.tpage = G.main->image.first;
+		if (drawParams != NULL)
+			drawParams(&tmp_tf, (mcol != NULL), mat_nr);
+
+		ccgSubSurf_prepareGLMesh(ss);
+		ccgSubSurf_drawGLMesh(ss, true, -1);
+		return;
+	}
+#endif
 
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
