@@ -220,7 +220,8 @@ static struct TextureDrawState {
 	bool use_backface_culling;
 	unsigned char obcol[4];
 	float stencil_col[4];
-} Gtexdraw = {NULL, NULL, false, false, 0, 0, 0, false, {0, 0, 0, 0}, {0.0f, 0.0f, 0.0f, 1.0f}};
+	bool is_texpaint;
+} Gtexdraw = {NULL, NULL, false, false, 0, 0, 0, false, {0, 0, 0, 0}, {0.0f, 0.0f, 0.0f, 1.0f}, false};
 
 static bool set_draw_settings_cached(int clearcache, MTFace *texface, Material *ma, struct TextureDrawState gtexdraw)
 {
@@ -389,11 +390,12 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	Gtexdraw.ob = ob;
 	Gtexdraw.stencil = (imapaint->flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) ? imapaint->stencil : NULL;
 	Gtexdraw.stencil_invert = ((imapaint->flag & IMAGEPAINT_PROJECT_LAYER_STENCIL_INV) != 0);
+	Gtexdraw.is_texpaint = (ob->mode == OB_MODE_TEXTURE_PAINT);
 	copy_v3_v3(Gtexdraw.stencil_col, imapaint->stencil_col);
 	Gtexdraw.is_tex = is_tex;
 
 	/* load the stencil texture here */
-	if ((ob->mode == OB_MODE_TEXTURE_PAINT) && (Gtexdraw.stencil != NULL)) {
+	if (Gtexdraw.is_texpaint && (Gtexdraw.stencil != NULL)) {
 		glActiveTexture(GL_TEXTURE1);
 		if (GPU_verify_image(Gtexdraw.stencil, NULL, false, false, false, false)) {
 			glEnable(GL_TEXTURE_2D);
@@ -520,7 +522,7 @@ static DMDrawOption draw_tface__set_draw(MTFace *tface, const bool UNUSED(has_mc
 
 	if (ma && (ma->game.flag & GEMAT_INVISIBLE)) return 0;
 
-	if (tface)
+	if (tface || Gtexdraw.is_texpaint)
 		set_draw_settings_cached(0, tface, ma, Gtexdraw);
 
 	/* always use color from mcol, as set in update_tface_color_layer */
