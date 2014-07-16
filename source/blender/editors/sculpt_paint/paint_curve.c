@@ -338,7 +338,7 @@ void PAINTCURVE_OT_add_point(wmOperatorType *ot)
 	ot->poll = paint_curve_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_UNDO;
+	ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
 
 	/* properties */
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, SHRT_MAX,
@@ -557,7 +557,7 @@ void PAINTCURVE_OT_select(wmOperatorType *ot)
 	ot->poll = paint_curve_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_UNDO;
+	ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
 
 	/* properties */
 	RNA_def_int_vector(ot->srna, "location", 2, NULL, 0, SHRT_MAX,
@@ -621,7 +621,8 @@ static int paintcurve_slide_invoke(bContext *C, wmOperator *op, const wmEvent *e
 		psd->align = align;
 		op->customdata = psd;
 
-		paintcurve_undo_begin(C, op, pc);
+		if (do_select)
+			paintcurve_undo_begin(C, op, pc);
 
 		/* first, clear all selection from points */
 		for (i = 0; i < pc->tot_points; i++)
