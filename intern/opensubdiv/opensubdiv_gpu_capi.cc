@@ -54,9 +54,119 @@ using OpenSubdiv::OsdGLMeshInterface;
 extern "C" char datatoc_gpu_shader_opensubd_display_glsl[];
 
 #ifndef OPENSUBDIV_LEGACY_DRAW
-static GLuint compileShader(GLenum shaderType,
-                            const char *section,
-                            const char *define)
+
+#define NUM_SOLID_LIGHTS 3
+typedef struct Light {
+	float position[4];
+	float ambient[4];
+	float diffuse[4];
+	float specular[4];
+} Light;
+
+typedef struct Lighting {
+	Light lights[NUM_SOLID_LIGHTS];
+} Lighting;
+
+/* TODO(sergey): This is actually duplicated code from BLI. */
+namespace {
+void copy_m3_m3(float m1[3][3], float m2[3][3])
+{
+	/* destination comes first: */
+	memcpy(&m1[0], &m2[0], 9 * sizeof(float));
+}
+
+void copy_m3_m4(float m1[3][3], float m2[4][4])
+{
+	m1[0][0] = m2[0][0];
+	m1[0][1] = m2[0][1];
+	m1[0][2] = m2[0][2];
+
+	m1[1][0] = m2[1][0];
+	m1[1][1] = m2[1][1];
+	m1[1][2] = m2[1][2];
+
+	m1[2][0] = m2[2][0];
+	m1[2][1] = m2[2][1];
+	m1[2][2] = m2[2][2];
+}
+
+void adjoint_m3_m3(float m1[3][3], float m[3][3])
+{
+	m1[0][0] = m[1][1] * m[2][2] - m[1][2] * m[2][1];
+	m1[0][1] = -m[0][1] * m[2][2] + m[0][2] * m[2][1];
+	m1[0][2] = m[0][1] * m[1][2] - m[0][2] * m[1][1];
+
+	m1[1][0] = -m[1][0] * m[2][2] + m[1][2] * m[2][0];
+	m1[1][1] = m[0][0] * m[2][2] - m[0][2] * m[2][0];
+	m1[1][2] = -m[0][0] * m[1][2] + m[0][2] * m[1][0];
+
+	m1[2][0] = m[1][0] * m[2][1] - m[1][1] * m[2][0];
+	m1[2][1] = -m[0][0] * m[2][1] + m[0][1] * m[2][0];
+	m1[2][2] = m[0][0] * m[1][1] - m[0][1] * m[1][0];
+}
+
+float determinant_m3_array(float m[3][3])
+{
+	return (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+	        m[1][0] * (m[0][1] * m[2][2] - m[0][2] * m[2][1]) +
+	        m[2][0] * (m[0][1] * m[1][2] - m[0][2] * m[1][1]));
+}
+
+bool invert_m3_m3(float m1[3][3], float m2[3][3])
+{
+	float det;
+	int a, b;
+	bool success;
+
+	/* calc adjoint */
+	adjoint_m3_m3(m1, m2);
+
+	/* then determinant old matrix! */
+	det = determinant_m3_array(m2);
+
+	success = (det != 0.0f);
+
+	if (det != 0.0f) {
+		det = 1.0f / det;
+		for (a = 0; a < 3; a++) {
+			for (b = 0; b < 3; b++) {
+				m1[a][b] *= det;
+			}
+		}
+	}
+
+	return success;
+}
+
+bool invert_m3(float m[3][3])
+{
+	float tmp[3][3];
+	bool success;
+
+	success = invert_m3_m3(tmp, m);
+	copy_m3_m3(m, tmp);
+
+	return success;
+}
+
+void transpose_m3(float mat[3][3])
+{
+	float t;
+
+	t = mat[0][1];
+	mat[0][1] = mat[1][0];
+	mat[1][0] = t;
+	t = mat[0][2];
+	mat[0][2] = mat[2][0];
+	mat[2][0] = t;
+	t = mat[1][2];
+	mat[1][2] = mat[2][1];
+	mat[2][1] = t;
+}
+
+GLuint compileShader(GLenum shaderType,
+                     const char *section,
+                     const char *define)
 {
 	const char *sources[3];
 	char sdefine[64];
@@ -85,11 +195,14 @@ static GLuint compileShader(GLenum shaderType,
 	return shader;
 }
 
-static GLuint linkProgram(const char *define)
+GLuint linkProgram(const char *define)
 {
 	GLuint vertexShader = compileShader(GL_VERTEX_SHADER,
 	                                    "VERTEX_SHADER",
 	                                    define);
+	GLuint geometryShader = compileShader(GL_GEOMETRY_SHADER,
+	                                      "GEOMETRY_SHADER",
+	                                      define);
 	GLuint fragmentShader = compileShader(GL_FRAGMENT_SHADER,
 	                                      "FRAGMENT_SHADER",
 	                                      define);
@@ -97,6 +210,7 @@ static GLuint linkProgram(const char *define)
 	GLuint program = glCreateProgram();
 
 	glAttachShader(program, vertexShader);
+	glAttachShader(program, geometryShader);
 	glAttachShader(program, fragmentShader);
 
 	glBindAttribLocation(program, 0, "position");
@@ -105,6 +219,7 @@ static GLuint linkProgram(const char *define)
 	glLinkProgram(program);
 
 	glDeleteShader(vertexShader);
+	glDeleteShader(geometryShader);
 	glDeleteShader(fragmentShader);
 
 	GLint status;
@@ -117,8 +232,87 @@ static GLuint linkProgram(const char *define)
 		exit(1);
 	}
 
+	GLuint uboIndex = glGetUniformBlockIndex(program, "Lighting");
+	if (uboIndex != GL_INVALID_INDEX)
+		glUniformBlockBinding(program, uboIndex, 0);
+
 	return program;
 }
+
+void bindProgram(int program,
+                 GLuint lighting_ub,
+                 Lighting *lightingData)
+{
+	glUseProgram(program);
+
+	/* Matricies */
+	float projection_matrix[16], model_view_matrix[16], normal_matrix[9];
+	glGetFloatv(GL_PROJECTION_MATRIX, projection_matrix);
+	glGetFloatv(GL_MODELVIEW_MATRIX, model_view_matrix);
+
+	glUniformMatrix4fv(glGetUniformLocation(program, "modelViewMatrix"),
+	                   1, false,
+	                   model_view_matrix);
+
+	glUniformMatrix4fv(glGetUniformLocation(program, "projectionMatrix"),
+	                   1, false,
+	                   projection_matrix);
+
+	copy_m3_m4((float (*)[3])normal_matrix, (float (*)[4])model_view_matrix);
+	invert_m3((float (*)[3])normal_matrix);
+	transpose_m3((float (*)[3])normal_matrix);
+	glUniformMatrix3fv(glGetUniformLocation(program, "normalMatrix"),
+	                   1, false,
+	                   normal_matrix);
+
+	/* Ligthing */
+	for (int i = 0; i < NUM_SOLID_LIGHTS; ++i) {
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_POSITION,
+		             lightingData->lights[i].position);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_AMBIENT,
+		             lightingData->lights[i].ambient);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_DIFFUSE,
+		             lightingData->lights[i].diffuse);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_SPECULAR,
+		             lightingData->lights[i].specular);
+	}
+
+	glBindBuffer(GL_UNIFORM_BUFFER, lighting_ub);
+	glBufferSubData(GL_UNIFORM_BUFFER,
+	                0, sizeof(Lighting), lightingData);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lighting_ub);
+
+	/* Color */
+	GLboolean use_lighting;
+	glGetBooleanv(GL_LIGHTING, &use_lighting);
+
+	if (use_lighting) {
+		float color[4];
+		glGetMaterialfv(GL_FRONT, GL_DIFFUSE, color);
+		glUniform4fv(glGetUniformLocation(program, "diffuse"), 1, color);
+
+		glGetMaterialfv(GL_FRONT, GL_SPECULAR, color);
+		glUniform4fv(glGetUniformLocation(program, "specular"), 1, color);
+
+		glGetMaterialfv(GL_FRONT, GL_SHININESS, color);
+		glUniform1f(glGetUniformLocation(program, "shininess"), color[0]);
+	}
+	else {
+		float currentColor[4];
+		glGetFloatv(GL_CURRENT_COLOR, currentColor);
+		glUniform4fv(glGetUniformLocation(program, "diffuse"),
+		             1,
+		             currentColor);
+	}
+}
+
+}  /* namespace */
 #endif
 
 void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
@@ -130,10 +324,29 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 	static GLuint smooth_fill_program;
 	static GLuint wireframe_program;
 	static bool need_init = true;
+
+	static GLuint lighting_ub = 0;
+	static Lighting lightingData = {
+		{{  { 0.5,  0.2f, 1.0f, 0.0f },
+		    { 0.1f, 0.1f, 0.1f, 1.0f },
+		    { 0.7f, 0.7f, 0.7f, 1.0f },
+		    { 0.8f, 0.8f, 0.8f, 1.0f } },
+
+		 { { -0.8f, 0.4f, -1.0f, 0.0f },
+		   {  0.0f, 0.0f,  0.0f, 1.0f },
+		   {  0.5f, 0.5f,  0.5f, 1.0f },
+		   {  0.8f, 0.8f,  0.8f, 1.0f } }}
+	};
 	if (need_init) {
 		flat_fill_program = linkProgram("#define FLAT_SHADING\n");
 		smooth_fill_program = linkProgram("#define SMOOTH_SHADING\n");
 		wireframe_program = linkProgram("#define WIREFRAME\n");
+
+		glGenBuffers(1, &lighting_ub);
+		glBindBuffer(GL_UNIFORM_BUFFER, lighting_ub);
+		glBufferData(GL_UNIFORM_BUFFER,
+		             sizeof(lightingData), NULL, GL_STATIC_DRAW);
+
 		need_init = false;
 	}
 #endif
@@ -150,24 +363,25 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 	            : mesh->GetDrawContext()->patchArrays;
 
 #ifndef OPENSUBDIV_LEGACY_DRAW
+	GLuint program = 0;
 	if (fill_quads) {
 		int model;
 		glGetIntegerv(GL_SHADE_MODEL, &model);
 		if (model == GL_FLAT) {
-			glUseProgram(flat_fill_program);
+			program = flat_fill_program;
 		}
 		else {
-			glUseProgram(smooth_fill_program);
+			program = smooth_fill_program;
 		}
 	}
 	else {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		/* TODO(sergey): For some reason this doesn't work on
-		 * my Intel card and gives random color instead of the
-		 * one set by glColor().
-		 */
-		glUseProgram(wireframe_program);
+		program = wireframe_program;
 	}
+
+	bindProgram(program,
+	            lighting_ub,
+	            &lightingData);
 #else
 	if (!fill_quads) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -180,7 +394,7 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 		OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
 
 		if (patchType == OpenSubdiv::FarPatchTables::QUADS) {
-			glDrawElements(GL_QUADS,
+			glDrawElements(GL_LINES_ADJACENCY,
 			               patch.GetNumIndices(),
 			               GL_UNSIGNED_INT,
 			               (void *)(patch.GetVertIndex() *

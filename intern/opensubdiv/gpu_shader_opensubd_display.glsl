@@ -25,59 +25,145 @@
 
 /* ***** Vertex shader ***** */
 
-#version 130
+#version 150
+#extension GL_EXT_geometry_shader4 : enable
+
+struct VertexData {
+	vec4 position;
+	vec3 normal;
+};
 
 #ifdef VERTEX_SHADER
 
 in vec3 normal;
 in vec3 position;
 
-out vec3 varying_normal;
-out vec3 varying_position;
+uniform mat4 modelViewMatrix;
+uniform mat3 normalMatrix;
+
+out block {
+	VertexData v;
+} outpt;
 
 void main()
 {
-	vec4 co = gl_ModelViewMatrix * vec4(position, 1.0);
-
-	varying_normal = normalize(gl_NormalMatrix * normal);
-	varying_position = co.xyz;
-
-	gl_Position = gl_ProjectionMatrix * co;
-
-#ifdef GPU_NVIDIA
-	/* Setting gl_ClipVertex is necessary to get glClipPlane working on NVIDIA
-	 * graphic cards, while on ATI it can cause a software fallback.
-	 */
-	gl_ClipVertex = gl_ModelViewMatrix * gl_Vertex;
-#endif
-
-#ifdef WIREFRAME
-	gl_FrontColor = gl_Color;
-#endif
+	outpt.v.position = modelViewMatrix * vec4(position, 1.0);
+	outpt.v.normal = normalize(normalMatrix * normal);
 }
 
 #endif  /* VERTEX_SHADER */
+
+/* ***** geometry shader ***** */
+#ifdef GEOMETRY_SHADER
+
+layout(lines_adjacency) in;
+#ifndef WIREFRAME
+layout(triangle_strip, max_vertices = 4) out;
+#else
+layout(line_strip, max_vertices = 8) out;
+#endif
+
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+in block {
+	VertexData v;
+} inpt[4];
+
+out vec3 varying_position;
+out vec3 varying_normal;
+
+#ifdef FLAT_SHADING
+void emit(int index, vec3 normal)
+{
+	varying_position = inpt[index].v.position.xyz;
+	varying_normal = normal;
+	gl_Position = projectionMatrix * inpt[index].v.position;
+	EmitVertex();
+}
+#else
+void emit(int index)
+{
+	varying_position = inpt[index].v.position.xyz;
+	varying_normal = inpt[index].v.normal;
+	gl_Position = projectionMatrix * inpt[index].v.position;
+	EmitVertex();
+}
+#endif
+
+void main()
+{
+#ifdef FLAT_SHADING
+	vec3 A = (inpt[0].v.position - inpt[1].v.position).xyz;
+	vec3 B = (inpt[3].v.position - inpt[1].v.position).xyz;
+	vec3 n0 = normalize(cross(B, A));
+#  ifndef WIREFRAME
+	emit(0, n0);
+	emit(1, n0);
+	emit(3, n0);
+	emit(2, n0);
+#  else
+	emit(0, n0);
+	emit(1, n0);
+	emit(1, n0);
+	emit(2, n0);
+	emit(2, n0);
+	emit(3, n0);
+	emit(3, n0);
+	emit(0, n0);
+#  endif
+#else
+#  ifndef WIREFRAME
+	emit(0);
+	emit(1);
+	emit(3);
+	emit(2);
+#  else
+	emit(0);
+	emit(1);
+	emit(1);
+	emit(2);
+	emit(2);
+	emit(3);
+	emit(3);
+	emit(0);
+#  endif
+#endif
+
+	EndPrimitive();
+}
+
+#endif  /* GEOMETRY_SHADER */
 
 /* ***** Fragment shader ***** */
 #ifdef FRAGMENT_SHADER
 
 #define NUM_SOLID_LIGHTS 3
 
-in vec3 varying_normal;
+struct LightSource {
+	vec4 position;
+	vec4 ambient;
+	vec4 diffuse;
+	vec4 specular;
+};
+
+uniform Lighting {
+	LightSource lightSource[NUM_SOLID_LIGHTS];
+};
+
+uniform vec4 diffuse;
+uniform vec4 specular;
+uniform float shininess;
+
 in vec3 varying_position;
+in vec3 varying_normal;
 
 void main()
 {
 #ifdef WIREFRAME
-	gl_FragColor = gl_Color;
+	gl_FragColor = diffuse;
 #else
-	/* Compute normal. */
-#ifdef SMOOTH_SHADING
 	vec3 N = varying_normal;
-#else
-	vec3 N = normalize(cross(dFdx(varying_position),
-	                         dFdy(varying_position)));
-#endif
 
 	if (!gl_FrontFacing)
 		N = -N;
@@ -88,30 +174,34 @@ void main()
 
 	/* Assume NUM_SOLID_LIGHTS directional lights. */
 	for (int i = 0; i < NUM_SOLID_LIGHTS; i++) {
-		vec3 light_direction = gl_LightSource[i].position.xyz;
+		vec3 light_direction = lightSource[i].position.xyz;
 
 		/* Diffuse light. */
-		vec3 light_diffuse = gl_LightSource[i].diffuse.rgb;
+		vec3 light_diffuse = lightSource[i].diffuse.rgb;
 		float diffuse_bsdf = max(dot(N, light_direction), 0.0);
-		L_diffuse += light_diffuse*diffuse_bsdf;
+		L_diffuse += light_diffuse * diffuse_bsdf;
+
+		vec4 Plight = lightSource[i].position;
+		vec3 l = (Plight.w == 0.0)
+			? normalize(Plight.xyz) : normalize(Plight.xyz - varying_position);
 
 		/* Specular light. */
-		vec3 light_specular = gl_LightSource[i].specular.rgb;
-		vec3 H = gl_LightSource[i].halfVector.xyz;
+		vec3 light_specular = lightSource[i].specular.rgb;
+		vec3 H = normalize(l + vec3(0,0,1));
 
 		float specular_bsdf = pow(max(dot(N, H), 0.0),
-		                          gl_FrontMaterial.shininess);
-		L_specular += light_specular*specular_bsdf;
+		                          shininess);
+		L_specular += light_specular * specular_bsdf;
 	}
 
 	/* Compute diffuse color. */
 	float alpha;
-	L_diffuse *= gl_FrontMaterial.diffuse.rgb;
-	alpha = gl_FrontMaterial.diffuse.a;
+	L_diffuse *= diffuse.rgb;
+	alpha = diffuse.a;
 
 	/* Sum lighting. */
-	vec3 L = gl_FrontLightModelProduct.sceneColor.rgb + L_diffuse;
-	L += L_specular*gl_FrontMaterial.specular.rgb;
+	vec3 L = /*gl_FrontLightModelProduct.sceneColor.rgb +*/ L_diffuse;
+	L += L_specular * specular.rgb;
 
 	/* Write out fragment color. */
 	gl_FragColor = vec4(L, alpha);
