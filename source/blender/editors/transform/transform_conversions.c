@@ -7034,12 +7034,37 @@ void flushTransMasking(TransInfo *t)
 
 typedef struct TransDataPaintCurve {
 	PaintCurvePoint *pcp; /* initial curve point */
-	bool aligned; /* if we transform only one handle of the point that is */
 	char id;
 } TransDataPaintCurve;
 
 
 #define PC_IS_ANY_SEL(pc) (((pc)->bez.f1 | (pc)->bez.f2 | (pc)->bez.f3) & SELECT)
+
+static void PaintCurveConvertHandle(PaintCurvePoint *pcp, int id, TransData2D *td2d, TransDataPaintCurve *tdpc, TransData *td) {
+	BezTriple *bezt = &pcp->bez;
+	copy_v2_v2(td2d->loc, bezt->vec[id]);
+	td2d->loc[2] = 0.0f;
+	td2d->loc2d = bezt->vec[id];
+
+	td->flag = 0;
+	td->loc = td2d->loc;
+	copy_v3_v3(td->center, bezt->vec[1]);
+	copy_v3_v3(td->iloc, td->loc);
+
+	memset(td->axismtx, 0, sizeof(td->axismtx));
+	td->axismtx[2][2] = 1.0f;
+
+	td->ext = NULL;
+	td->val = NULL;
+	td->flag |= TD_SELECTED;
+	td->dist = 0.0;
+
+	unit_m3(td->mtx);
+	unit_m3(td->smtx);
+
+	tdpc->id = id;
+	tdpc->pcp = pcp;
+}
 
 static void PaintCurvePointToTransData(PaintCurvePoint *pcp, TransData *td, TransData2D *td2d, TransDataPaintCurve *tdpc)
 {
@@ -7070,7 +7095,6 @@ static void PaintCurvePointToTransData(PaintCurvePoint *pcp, TransData *td, Tran
 
 			tdpc->id = i;
 			tdpc->pcp = pcp;
-			tdpc->aligned = false;
 
 			td++;
 			td2d++;
@@ -7078,35 +7102,17 @@ static void PaintCurvePointToTransData(PaintCurvePoint *pcp, TransData *td, Tran
 		}
 	}
 	else {
-		int id = (pcp->bez.f3 & SELECT) ? 2 : 0;
-		tdpc->aligned = (((id) ? bezt->h2 : bezt->h1) == HD_ALIGN);
+		if (bezt->f3 & SELECT) {
+			PaintCurveConvertHandle(pcp, 2, td2d, tdpc, td);
+			td2d++;
+			tdpc++;
+			td++;
+		}
 
-		copy_v2_v2(td2d->loc, bezt->vec[id]);
-		td2d->loc[2] = 0.0f;
-		td2d->loc2d = bezt->vec[id];
-
-		td->flag = 0;
-		td->loc = td2d->loc;
-		copy_v3_v3(td->center, bezt->vec[1]);
-		copy_v3_v3(td->iloc, td->loc);
-
-		memset(td->axismtx, 0, sizeof(td->axismtx));
-		td->axismtx[2][2] = 1.0f;
-
-		td->ext = NULL;
-		td->val = NULL;
-		td->flag |= TD_SELECTED;
-		td->dist = 0.0;
-
-		unit_m3(td->mtx);
-		unit_m3(td->smtx);
-
-		tdpc->id = id;
-		tdpc->pcp = pcp;
+		if (bezt->f1 & SELECT) {
+			PaintCurveConvertHandle(pcp, 0, td2d, tdpc, td);
+		}
 	}
-
-	/* reset all handles after transform - weird, to be changed later */
-	pcp->bez.h1 = pcp->bez.h2 = HD_FREE;
 }
 
 static void createTransPaintCurveVerts(bContext *C, TransInfo *t)
@@ -7136,7 +7142,10 @@ static void createTransPaintCurveVerts(bContext *C, TransInfo *t)
 				continue;
 			}
 			else {
-				total++;
+				if (pcp->bez.f1 & SELECT)
+					total++;
+				if (pcp->bez.f3 & SELECT)
+					total++;
 			}
 		}
 	}
@@ -7160,9 +7169,16 @@ static void createTransPaintCurveVerts(bContext *C, TransInfo *t)
 				tdpc += 3;
 			}
 			else {
-				td++;
-				td2d++;
-				tdpc++;
+				if (pcp->bez.f1 & SELECT) {
+					td++;
+					td2d++;
+					tdpc++;
+				}
+				if (pcp->bez.f3 & SELECT) {
+					td++;
+					td2d++;
+					tdpc++;
+				}
 			}
 		}
 	}
@@ -7177,12 +7193,6 @@ void flushTransPaintCurve(TransInfo *t)
 
 	for (i = 0; i < t->total; i++, tdpc++, td2d++) {
 		PaintCurvePoint *pcp = tdpc->pcp;
-		if (tdpc->aligned) {
-			float diff[2];
-			int id_other = ((tdpc->id) ? 0 : 2);
-			sub_v2_v2v2(diff, pcp->bez.vec[1], td2d->loc);
-			add_v2_v2v2(pcp->bez.vec[id_other], pcp->bez.vec[1], diff);
-		}
 		copy_v2_v2(pcp->bez.vec[tdpc->id], td2d->loc);
 	}
 }

@@ -277,7 +277,9 @@ void PAINTCURVE_OT_new(struct wmOperatorType *ot);
 void PAINTCURVE_OT_add_point(struct wmOperatorType *ot);
 void PAINTCURVE_OT_delete_point(struct wmOperatorType *ot);
 void PAINTCURVE_OT_select(struct wmOperatorType *ot);
+void PAINTCURVE_OT_slide(struct wmOperatorType *ot);
 void PAINTCURVE_OT_draw(struct wmOperatorType *ot);
+void PAINTCURVE_OT_cursor(struct wmOperatorType *ot);
 
 /* image painting blur kernel */
 typedef struct {

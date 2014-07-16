@@ -41,6 +41,7 @@
 #include "BLI_string.h"
 
 #include "ED_paint.h"
+#include "ED_view3d.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -48,9 +49,13 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
+#include "UI_view2d.h"
+
 #include "paint_intern.h"
 
 #define PAINT_CURVE_SELECT_THRESHOLD 40.0f
+#define PAINT_CURVE_POINT_SELECT(pcp, i) (*(&pcp->bez.f1 + i) = SELECT)
+
 
 int paint_curve_poll(bContext *C)
 {
@@ -207,6 +212,15 @@ static PaintCurvePoint *paintcurve_point_get_closest(PaintCurve *pc, const float
 	return closest;
 }
 
+static int paintcurve_point_co_index(char sel)
+{
+	char i = 0;
+	while (sel != 1) {
+		sel >>= 1;
+		i++;
+	}
+	return i;
+}
 
 /******************* Operators *********************************/
 
@@ -409,8 +423,7 @@ void PAINTCURVE_OT_delete_point(wmOperatorType *ot)
 }
 
 
-static bool paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2],
-                                    bool handle, bool toggle, bool extend)
+static bool paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2], bool toggle, bool extend)
 {
 	wmWindow *window = CTX_wm_window(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -453,47 +466,39 @@ static bool paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 		PaintCurvePoint *pcp;
 		char selflag;
 
-		pcp = paintcurve_point_get_closest(pc, loc_fl, handle, PAINT_CURVE_SELECT_THRESHOLD, &selflag);
+		pcp = paintcurve_point_get_closest(pc, loc_fl, false, PAINT_CURVE_SELECT_THRESHOLD, &selflag);
 
 		if (pcp) {
 			pc->add_index = (pcp - pc->points) + 1;
 
 			if (selflag == SEL_F2) {
-				pcp->bez.f2 |= SELECT;
+				if (extend)
+					pcp->bez.f2 ^= SELECT;
+				else
+					pcp->bez.f2 |= SELECT;
 			}
 			else if (selflag == SEL_F1) {
-				pcp->bez.f1 |= SELECT;
-				if (handle)
-					pcp->bez.h1 = HD_ALIGN;
+				if (extend)
+					pcp->bez.f1 ^= SELECT;
+				else
+					pcp->bez.f1 |= SELECT;
 			}
 			else if (selflag == SEL_F3) {
-				pcp->bez.f3 |= SELECT;
-				if (handle)
-					pcp->bez.h2 = HD_ALIGN;
+				if (extend)
+					pcp->bez.f3 ^= SELECT;
+				else
+					pcp->bez.f3 |= SELECT;
 			}
 		}
 
 		/* clear selection for unselected points if not extending and if a point has been selected */
 		if (!extend && pcp) {
 			for (i = 0; i < pc->tot_points; i++) {
+				pc->points[i].bez.f1 = pc->points[i].bez.f2 = pc->points[i].bez.f3 = 0;
+
 				if ((pc->points + i) == pcp) {
-					switch (selflag) {
-						case SEL_F1:
-							pc->points[i].bez.f2 = pc->points[i].bez.f3 = 0;
-							break;
-						case SEL_F2:
-							pc->points[i].bez.f1 = pc->points[i].bez.f3 = 0;
-							break;
-						case SEL_F3:
-							pc->points[i].bez.f1 = pc->points[i].bez.f2 = 0;
-							break;
-						default:
-							/* shouldn't happen */
-							break;
-					}
-				}
-				else {
-					pc->points[i].bez.f1 = pc->points[i].bez.f2 = pc->points[i].bez.f3 = 0;
+					char index = paintcurve_point_co_index(selflag);
+					PAINT_CURVE_POINT_SELECT(pcp, index);
 				}
 			}
 		}
@@ -510,11 +515,10 @@ static bool paintcurve_point_select(bContext *C, wmOperator *op, const int loc[2
 
 static int paintcurve_select_point_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	int loc[2] = {event->mval[0], event->mval[1]};
-	bool handle = RNA_boolean_get(op->ptr, "handle");
+	int loc[2] = {UNPACK2(event->mval)};
 	bool toggle = RNA_boolean_get(op->ptr, "toggle");
 	bool extend = RNA_boolean_get(op->ptr, "extend");
-	if (paintcurve_point_select(C, op, loc, handle, toggle, extend)) {
+	if (paintcurve_point_select(C, op, loc, toggle, extend)) {
 		RNA_int_set_array(op->ptr, "location", loc);
 		return OPERATOR_FINISHED;
 	}
@@ -528,11 +532,10 @@ static int paintcurve_select_point_exec(bContext *C, wmOperator *op)
 	int loc[2];
 
 	if (RNA_struct_property_is_set(op->ptr, "location")) {
-		bool handle = RNA_boolean_get(op->ptr, "handle");
 		bool toggle = RNA_boolean_get(op->ptr, "toggle");
 		bool extend = RNA_boolean_get(op->ptr, "extend");
 		RNA_int_get_array(op->ptr, "location", loc);
-		if (paintcurve_point_select(C, op, loc, handle, toggle, extend))
+		if (paintcurve_point_select(C, op, loc, toggle, extend))
 			return OPERATOR_FINISHED;
 	}
 
@@ -563,10 +566,140 @@ void PAINTCURVE_OT_select(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 	prop = RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend selection");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-	prop = RNA_def_boolean(ot->srna, "handle", false, "Handle", "Prefer handle selection");
-	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+typedef struct PointSlideData {
+	PaintCurvePoint *pcp;
+	char select;
+	int initial_loc[2];
+	float point_initial_loc[3][2];
+	int event;
+	bool align;
+} PointSlideData;
+
+static int paintcurve_slide_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	Paint *p = BKE_paint_get_active_from_context(C);
+	const float loc_fl[2] = {UNPACK2(event->mval)};
+	char select;
+	int i;
+	bool do_select = RNA_boolean_get(op->ptr, "select");
+	bool align = RNA_boolean_get(op->ptr, "align");
+	Brush *br = p->brush;
+	PaintCurve *pc = br->paint_curve;
+	PaintCurvePoint *pcp;
+
+	if (!pc)
+		return OPERATOR_PASS_THROUGH;
+
+	if (do_select) {
+	        pcp = paintcurve_point_get_closest(pc, loc_fl, align, PAINT_CURVE_SELECT_THRESHOLD, &select);
+	}
+	else {
+		/* just find first selected point */
+		for (i = 0; i < pc->tot_points; i++) {
+			if (pc->points[i].bez.f1 || pc->points[i].bez.f2 || pc->points[i].bez.f3) {
+				pcp = &pc->points[i];
+				select = SEL_F3;
+				break;
+			}
+		}
+	}
+
+
+	if (pcp) {
+		ARegion *ar = CTX_wm_region(C);
+		wmWindow *window = CTX_wm_window(C);
+		PointSlideData *psd = MEM_mallocN(sizeof(PointSlideData), "PointSlideData");
+		copy_v2_v2_int(psd->initial_loc, event->mval);
+		psd->event = event->type;
+		psd->pcp = pcp;
+		psd->select = paintcurve_point_co_index(select);
+		for (i = 0; i < 3; i++) {
+			copy_v2_v2(psd->point_initial_loc[i], pcp->bez.vec[i]);
+		}
+		psd->align = align;
+		op->customdata = psd;
+
+		paintcurve_undo_begin(C, op, pc);
+
+		/* first, clear all selection from points */
+		for (i = 0; i < pc->tot_points; i++)
+			pc->points[i].bez.f1 = pc->points[i].bez.f3 = pc->points[i].bez.f2 = 0;
+
+		/* only select the active point */
+		PAINT_CURVE_POINT_SELECT(pcp, psd->select);
+		pc->add_index = (pcp - pc->points) + 1;
+
+		WM_event_add_modal_handler(C, op);
+		WM_paint_cursor_tag_redraw(window, ar);
+		return OPERATOR_RUNNING_MODAL;
+	}
+
+	return OPERATOR_PASS_THROUGH;
+}
+
+static int paintcurve_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	PointSlideData *psd = op->customdata;
+
+	if (event->type == psd->event && event->val == KM_RELEASE) {
+		MEM_freeN(psd);
+		return OPERATOR_FINISHED;
+	}
+
+	switch (event->type) {
+		case MOUSEMOVE:
+		{
+			ARegion *ar = CTX_wm_region(C);
+			wmWindow *window = CTX_wm_window(C);
+			float diff[2] = {event->mval[0] - psd->initial_loc[0],
+			                 event->mval[1] - psd->initial_loc[1]};
+			if (psd->select == 1) {
+				int i;
+				for (i = 0; i < 3; i++)
+					add_v2_v2v2(psd->pcp->bez.vec[i], diff, psd->point_initial_loc[i]);
+			}
+			else {
+				add_v2_v2(diff, psd->point_initial_loc[psd->select]);
+				copy_v2_v2(psd->pcp->bez.vec[psd->select], diff);
+
+				if (psd->align) {
+					char opposite = (psd->select == 0) ? 2 : 0;
+					sub_v2_v2v2(diff, psd->pcp->bez.vec[1], psd->pcp->bez.vec[psd->select]);
+					add_v2_v2v2(psd->pcp->bez.vec[opposite], psd->pcp->bez.vec[1], diff);
+				}
+			}
+			WM_paint_cursor_tag_redraw(window, ar);
+			break;
+		}
+		default:
+			break;
+	}
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+
+void PAINTCURVE_OT_slide(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Slide Paint Curve Point";
+	ot->description = "Select and slide paint curve point";
+	ot->idname = "PAINTCURVE_OT_slide";
+
+	/* api callbacks */
+	ot->invoke = paintcurve_slide_invoke;
+	ot->modal = paintcurve_slide_modal;
+	ot->poll = paint_curve_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_UNDO;
+
+	/* properties */
+	RNA_def_boolean(ot->srna, "align", false, "Align Handles", "Aligns opposite point handle during transform");
+	RNA_def_boolean(ot->srna, "select", true, "Select", "Attempt to select a point handle before transform");
+}
 
 static int paintcurve_draw_exec(bContext *C, wmOperator *UNUSED(op))
 {
@@ -591,7 +724,7 @@ static int paintcurve_draw_exec(bContext *C, wmOperator *UNUSED(op))
 			return OPERATOR_PASS_THROUGH;
 	}
 
-	return 	WM_operator_name_call(C, name, WM_OP_INVOKE_DEFAULT, NULL);
+	return WM_operator_name_call(C, name, WM_OP_INVOKE_DEFAULT, NULL);
 }
 
 void PAINTCURVE_OT_draw(wmOperatorType *ot)
@@ -607,4 +740,46 @@ void PAINTCURVE_OT_draw(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_UNDO;
+}
+
+static int paintcurve_cursor_invoke(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
+{
+	PaintMode mode = BKE_paintmode_get_active_from_context(C);
+
+	switch (mode) {
+		case PAINT_TEXTURE_2D:
+		{
+			ARegion *ar = CTX_wm_region(C);
+			SpaceImage *sima = CTX_wm_space_image(C);
+			float location[2];
+
+			if (!sima)
+				return OPERATOR_CANCELLED;
+
+			UI_view2d_region_to_view(&ar->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
+			copy_v2_v2(sima->cursor, location);
+			WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, NULL);
+			break;
+		}
+		default:
+			ED_view3d_cursor3d_update(C, event->mval);
+			break;
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void PAINTCURVE_OT_cursor(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Place Cursor";
+	ot->description = "Place cursor";
+	ot->idname = "PAINTCURVE_OT_cursor";
+
+	/* api callbacks */
+	ot->invoke = paintcurve_cursor_invoke;
+	ot->poll = paint_curve_poll;
+
+	/* flags */
+	ot->flag = 0;
 }
