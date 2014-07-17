@@ -1666,7 +1666,7 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 	if (ccgdm->useGpuBackend) {
 		/* TODO(sergey): We currently only support all edges drawing. */
 		ccgSubSurf_prepareGLMesh(ss);
-		ccgSubSurf_drawGLMesh(ss, false, -1);
+		ccgSubSurf_drawGLMesh(ss, false, -1, -1);
 		return;
 	}
 #endif
@@ -1791,6 +1791,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 	if (ccgdm->useGpuBackend) {
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator *fi;
+		int start_partition = 0, num_partitions = 0;
 		ccgSubSurf_prepareGLMesh(ss);
 
 		for (fi = ccgSubSurf_getFaceIterator(ss), i = 0;
@@ -1812,19 +1813,34 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 				new_matnr = 0;
 			}
 
-			if (new_shademodel != shademodel) {
-				glShadeModel(new_shademodel);
-				shademodel = new_shademodel;
-			}
+			if (new_shademodel != shademodel || new_matnr != matnr) {
+				if (num_partitions) {
+					ccgSubSurf_drawGLMesh(ss, true,
+					                      start_partition, num_partitions);
+				}
 
-			if (new_matnr != matnr) {
-				setMaterial(new_matnr + 1, NULL);
+				start_partition = i;
+				num_partitions = 0;
+
+				/* Update material settings for the next partitions batch. */
+				glShadeModel(new_shademodel);
+				if (new_matnr != matnr) {
+					setMaterial(new_matnr + 1, NULL);
+				}
+
+				/* Cache settings. */
+				shademodel = new_shademodel;
 				matnr = new_matnr;
 			}
 
-			ccgSubSurf_drawGLMesh(ss, true, i);
+			num_partitions++;
 		}
 		ccgFaceIterator_free(fi);
+
+		/* Draw residual tail of the partitions. */
+		if (num_partitions) {
+			ccgSubSurf_drawGLMesh(ss, true, start_partition, num_partitions);
+		}
 
 		/* We're done with drawing if drawing happens using OpenSubdiv. */
 		return;
@@ -2063,7 +2079,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				continue;
 			}
 
-			ccgSubSurf_drawGLMesh(ss, true, i);
+			ccgSubSurf_drawGLMesh(ss, true, i, 1);
 		}
 		ccgFaceIterator_free(fi);
 
@@ -2433,7 +2449,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			drawParams(&tmp_tf, (mcol != NULL), mat_nr);
 
 		ccgSubSurf_prepareGLMesh(ss);
-		ccgSubSurf_drawGLMesh(ss, true, -1);
+		ccgSubSurf_drawGLMesh(ss, true, -1, -1);
 		return;
 	}
 #endif

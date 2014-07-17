@@ -99,7 +99,8 @@ void openSubdiv_osdGLMeshDisplayPrepare(void);
 /* Draw patches which corresponds to a given partition. */
 void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
                                  int fill_quads,
-                                 int partition);
+                                 int start_partition,
+                                 int num_partitions);
 
 /* ** Utility functions ** */
 int openSubdiv_getAvailableControllers(void);

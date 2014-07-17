@@ -49,6 +49,8 @@
 
 #include "opensubdiv_partitioned.h"
 
+using OpenSubdiv::FarPatchTables;
+using OpenSubdiv::OsdDrawContext;
 using OpenSubdiv::OsdGLMeshInterface;
 using OpenSubdiv::PartitionedGLMeshInterface;
 
@@ -390,25 +392,13 @@ void openSubdiv_osdGLMeshDisplayPrepare(void)
 #endif
 }
 
-void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
-                                 int fill_quads,
-                                 int partition)
+static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
+                                bool fill_quads)
 {
-	openSubdiv_osdGLDisplayInit();
-
-	using OpenSubdiv::OsdDrawContext;
-	using OpenSubdiv::FarPatchTables;
-
-	PartitionedGLMeshInterface *mesh =
-		(PartitionedGLMeshInterface *)(gl_mesh->descriptor);
-
-	OsdDrawContext::PatchArrayVector const &patches =
-	        partition >= 0
-	            ? mesh->GetPatchArrays(partition)
-	            : mesh->GetDrawContext()->patchArrays;
+	GLuint program = 0;
 
 #ifndef OPENSUBDIV_LEGACY_DRAW
-	GLuint program = g_smooth_fill_program;
+	program = g_smooth_fill_program;
 	if (fill_quads) {
 		int model;
 		glGetIntegerv(GL_SHADE_MODEL, &model);
@@ -423,39 +413,137 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 
 	bindProgram(mesh, program);
 #else
+	(void) mesh;
 	if (!fill_quads) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	}
 #endif
 
-	for (int i = 0; i < (int)patches.size(); ++i) {
-		OpenSubdiv::OsdDrawContext::PatchArray const &patch = patches[i];
-		OpenSubdiv::OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
-		OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
+	return program;
+}
 
-		if (patchType == OpenSubdiv::FarPatchTables::QUADS) {
-			int mode = GL_QUADS;
+static void perform_drawElements(GLuint program,
+                                 int patch_index,
+                                 int num_elements,
+                                 int start_element)
+{
+	int mode = GL_QUADS;
 #ifndef OPENSUBDIV_LEGACY_DRAW
-			glUniform1i(glGetUniformLocation(program, "PrimitiveIdBase"),
-			            patch.GetPatchIndex());
-			mode = GL_LINES_ADJACENCY;
+	glUniform1i(glGetUniformLocation(program, "PrimitiveIdBase"),
+	            patch_index);
+	mode = GL_LINES_ADJACENCY;
+#else
+	(void) patch_index;
 #endif
-			glDrawElements(mode,
-			               patch.GetNumIndices(),
-			               GL_UNSIGNED_INT,
-			               (void *)(patch.GetVertIndex() *
-			                        sizeof(unsigned int)));
-		}
-	}
+	glDrawElements(mode,
+	               num_elements,
+	               GL_UNSIGNED_INT,
+	               (void *)(start_element * sizeof(unsigned int)));
+}
+
+static void finish_patchDraw(bool fill_quads)
+{
+	/* TODO(sergey): Some of the stuff could be done once after the whole
+	 * mesh is displayed.
+	 */
 
 	/* Restore state. */
 	if (!fill_quads) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 	glBindVertexArray(0);
+
 #ifndef OPENSUBDIV_LEGACY_DRAW
 	glActiveTexture(GL_TEXTURE0);
 	/* TODO(sergey): Store previously used program and roll back to it? */
 	glUseProgram(0);
 #endif
+}
+
+static void draw_partition_patches_range(PartitionedGLMeshInterface *mesh,
+                                         GLuint program,
+                                         int start_partition,
+                                         int num_partitions)
+{
+	/* Glue patches from all partitions in the range together. */
+	int patch_index = -1, start_element = -1, num_elements = 0;
+	for (int partition = start_partition;
+	     partition < start_partition + num_partitions;
+	     ++partition)
+	{
+		OsdDrawContext::PatchArrayVector const &patches =
+		        mesh->GetPatchArrays(partition);
+		for (int i = 0; i < (int)patches.size(); ++i) {
+			OsdDrawContext::PatchArray const &patch = patches[i];
+			OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
+			OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
+			if (patchType == OpenSubdiv::FarPatchTables::QUADS) {
+				if (start_element == -1) {
+					patch_index = patch.GetPatchIndex();
+					start_element = patch.GetVertIndex();
+				}
+
+				assert(patch.GetVertIndex() == start_element + num_elements);
+				num_elements += patch.GetNumIndices();
+			}
+			else {
+				assert(!"Discontinuitied are not supported yet.");
+			}
+		}
+	}
+
+	/* Perform actual draw. */
+	perform_drawElements(program,
+	                     patch_index,
+	                     num_elements,
+	                     start_element);
+}
+
+static void draw_all_patches(PartitionedGLMeshInterface *mesh,
+                             GLuint program)
+{
+	OsdDrawContext::PatchArrayVector const &patches =
+	        mesh->GetDrawContext()->patchArrays;
+
+	for (int i = 0; i < (int)patches.size(); ++i) {
+		OsdDrawContext::PatchArray const &patch = patches[i];
+		OsdDrawContext::PatchDescriptor desc = patch.GetDescriptor();
+		OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
+
+		if (patchType == OpenSubdiv::FarPatchTables::QUADS) {
+			perform_drawElements(program,
+			                     patch.GetPatchIndex(),
+			                     patch.GetNumIndices(),
+			                     patch.GetVertIndex());
+		}
+	}
+
+}
+
+void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
+                                 int fill_quads,
+                                 int start_partition,
+                                 int num_partitions)
+{
+	PartitionedGLMeshInterface *mesh =
+		(PartitionedGLMeshInterface *)(gl_mesh->descriptor);
+
+	/* Make sure all global invariants are initialized. */
+	openSubdiv_osdGLDisplayInit();
+
+	/* Setup GLSL/OpenGL to draw patches in current context. */
+	GLuint program = preapre_patchDraw(mesh, fill_quads != 0);
+
+	if (start_partition != -1) {
+		draw_partition_patches_range(mesh,
+		                             program,
+		                             start_partition,
+		                             num_partitions);
+	}
+	else {
+		draw_all_patches(mesh, program);
+	}
+
+	/* Finish patch drawing by restoring all changes to the OpenGL context. */
+	finish_patchDraw(fill_quads != 0);
 }
