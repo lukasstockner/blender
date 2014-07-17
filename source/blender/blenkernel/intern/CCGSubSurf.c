@@ -2314,9 +2314,14 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 	MEM_freeN(positions);
 }
 
-void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
+bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 {
 	int compute_type;
+
+	/* Happens for meshes without faces. */
+	if (UNLIKELY(ss->osd_evaluator == NULL)) {
+		return false;
+	}
 
 	switch (U.opensubdiv_compute_type) {
 #define CHECK_COMPUTE_TYPE(type) \
@@ -2355,7 +2360,7 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 
 		if (UNLIKELY(ss->osd_mesh == NULL)) {
 			/* Most likely compute device is not available. */
-			return;
+			return false;
 		}
 
 		ccgSubSurf__updateGLMeshCoords(ss);
@@ -2395,6 +2400,8 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 	}
 
 	openSubdiv_osdGLMeshDisplayPrepare();
+
+	return true;
 }
 
 void ccgSubSurf_drawGLMesh(CCGSubSurf *ss, bool fill_quads,

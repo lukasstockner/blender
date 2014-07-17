@@ -1665,8 +1665,9 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
 		/* TODO(sergey): We currently only support all edges drawing. */
-		ccgSubSurf_prepareGLMesh(ss);
-		ccgSubSurf_drawGLMesh(ss, false, -1, -1);
+		if (ccgSubSurf_prepareGLMesh(ss)) {
+			ccgSubSurf_drawGLMesh(ss, false, -1, -1);
+		}
 		return;
 	}
 #endif
@@ -1792,7 +1793,9 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator *fi;
 		int start_partition = 0, num_partitions = 0;
-		ccgSubSurf_prepareGLMesh(ss);
+		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss) == false)) {
+			return;
+		}
 
 		for (fi = ccgSubSurf_getFaceIterator(ss), i = 0;
 		     !ccgFaceIterator_isStopped(fi);
@@ -2041,7 +2044,9 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	if (ccgdm->useGpuBackend) {
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator *fi;
-		ccgSubSurf_prepareGLMesh(ss);
+		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss) == false)) {
+			return;
+		}
 		do_draw = 0;
 		for (fi = ccgSubSurf_getFaceIterator(ss), i = 0;
 		     !ccgFaceIterator_isStopped(fi);
@@ -2448,8 +2453,9 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		if (drawParams != NULL)
 			drawParams(&tmp_tf, (mcol != NULL), mat_nr);
 
-		ccgSubSurf_prepareGLMesh(ss);
-		ccgSubSurf_drawGLMesh(ss, true, -1, -1);
+		if (ccgSubSurf_prepareGLMesh(ss)) {
+			ccgSubSurf_drawGLMesh(ss, true, -1, -1);
+		}
 		return;
 	}
 #endif
