@@ -317,8 +317,8 @@ Nurb *add_nurbs_primitive(bContext *C, Object *obedit, float mat[4][4], int type
 				nu->orderv = 4;
 				nu->flag = CU_SMOOTH;
 				nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * (4 * 4), "addNurbprim6");
-				nu->flagu = 0;
-				nu->flagv = 0;
+				nu->flagu = CU_NURB_ENDPOINT;
+				nu->flagv = CU_NURB_ENDPOINT;
 				bp = nu->bp;
 
 				for (a = 0; a < 4; a++) {

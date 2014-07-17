@@ -349,6 +349,7 @@ enum {
 #define CU_NURB_CYCLIC		1
 #define CU_NURB_ENDPOINT	2
 #define CU_NURB_BEZIER		4
+#define CU_NURB_CUSTOMKNOT	8
 
 #define CU_ACT_NONE		-1
 

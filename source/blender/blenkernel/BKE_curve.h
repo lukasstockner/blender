@@ -53,6 +53,8 @@ typedef struct CurveCache {
 	struct Path *path;
 } CurveCache;
 
+#define NURBS_MAX_ORDER 10
+
 #define KNOTSU(nu)      ( (nu)->orderu + (nu)->pntsu + (((nu)->flagu & CU_NURB_CYCLIC) ? ((nu)->orderu - 1) : 0) )
 #define KNOTSV(nu)      ( (nu)->orderv + (nu)->pntsv + (((nu)->flagv & CU_NURB_CYCLIC) ? ((nu)->orderv - 1) : 0) )
 
