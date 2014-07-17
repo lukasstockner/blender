@@ -555,6 +555,8 @@ int openSubdiv_getAvailableControllers(void)
 
 void openSubdiv_cleanup(void)
 {
+	openSubdiv_osdGLDisplayDeinit();
+
 #define DELETE_DESCRIPTOR(var, class) \
 	if (var != NULL) { \
 		delete (class*) var->descriptor; \

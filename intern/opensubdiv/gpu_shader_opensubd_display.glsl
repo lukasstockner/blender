@@ -31,6 +31,7 @@
 struct VertexData {
 	vec4 position;
 	vec3 normal;
+	vec2 uv;
 };
 
 #ifdef VERTEX_SHADER
@@ -87,23 +88,21 @@ in block {
 
 uniform samplerBuffer FVarDataBuffer;
 
-out vec3 varying_position;
-out vec3 varying_normal;
-out vec2 varying_st;
+out block {
+	VertexData v;
+} outpt;
 
 #ifdef FLAT_SHADING
 void emit(int index, vec3 normal)
 {
-	varying_position = inpt[index].v.position.xyz;
-	varying_normal = normal;
+	outpt.v.position = inpt[index].v.position;
+	outpt.v.normal = normal;
 
 	/* TODO(sergey): Only uniform subdivisions atm. */
 	vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
 	vec2 st = quadst[index];
 
-	vec2 uv;
-	INTERP_FACE_VARYING_2(uv, 0, st);
-	varying_st = uv;
+	INTERP_FACE_VARYING_2(outpt.v.uv, 0, st);
 
 	gl_Position = projectionMatrix * inpt[index].v.position;
 	EmitVertex();
@@ -111,16 +110,14 @@ void emit(int index, vec3 normal)
 #else
 void emit(int index)
 {
-	varying_position = inpt[index].v.position.xyz;
-	varying_normal = inpt[index].v.normal;
+	outpt.v.position = inpt[index].v.position;
+	outpt.v.normal = inpt[index].v.normal;
 
 	/* TODO(sergey): Only uniform subdivisions atm. */
 	vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
 	vec2 st = quadst[index];
 
-	vec2 uv;
-	INTERP_FACE_VARYING_2(uv, 0, st);
-	varying_st = uv;
+	INTERP_FACE_VARYING_2(outpt.v.uv, 0, st);
 
 	gl_Position = projectionMatrix * inpt[index].v.position;
 	EmitVertex();
@@ -197,16 +194,16 @@ uniform float shininess;
 uniform sampler2D texture_buffer;
 #endif
 
-in vec3 varying_position;
-in vec3 varying_normal;
-in vec2 varying_st;
+in block {
+	VertexData v;
+} inpt;
 
 void main()
 {
 #ifdef WIREFRAME
 	gl_FragColor = diffuse;
 #else
-	vec3 N = varying_normal;
+	vec3 N = inpt.v.normal;
 
 	if (!gl_FrontFacing)
 		N = -N;
@@ -226,7 +223,8 @@ void main()
 
 		vec4 Plight = lightSource[i].position;
 		vec3 l = (Plight.w == 0.0)
-			? normalize(Plight.xyz) : normalize(Plight.xyz - varying_position);
+			? normalize(Plight.xyz) : normalize(Plight.xyz -
+			                                    inpt.v.position.xyz);
 
 		/* Specular light. */
 		vec3 light_specular = lightSource[i].specular.rgb;
@@ -240,7 +238,7 @@ void main()
 	/* Compute diffuse color. */
 	float alpha;
 #ifdef USE_TEXTURE
-	L_diffuse *= texture2D(texture_buffer, varying_st).rgb;
+	L_diffuse *= texture2D(texture_buffer, inpt.v.uv).rgb;
 #else
 	L_diffuse *= diffuse.rgb;
 #endif

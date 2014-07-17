@@ -2393,6 +2393,8 @@ void ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 		openSubdiv_osdGLMeshRefine(ss->osd_mesh);
 		openSubdiv_osdGLMeshSynchronize(ss->osd_mesh);
 	}
+
+	openSubdiv_osdGLMeshDisplayPrepare();
 }
 
 void ccgSubSurf_drawGLMesh(CCGSubSurf *ss, bool fill_quads, int material)

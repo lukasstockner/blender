@@ -68,6 +68,20 @@ typedef struct Lighting {
 	Light lights[NUM_SOLID_LIGHTS];
 } Lighting;
 
+typedef struct Transform {
+	float projection_matrix[16];
+	float model_view_matrix[16];
+	float normal_matrix[9];
+} Transform;
+
+static GLuint g_flat_fill_program = 0;
+static GLuint g_smooth_fill_program = 0;
+static GLuint g_wireframe_program = 0;
+
+static GLuint g_lighting_ub = 0;
+static Lighting g_lighting_data;
+static Transform g_transform;
+
 /* TODO(sergey): This is actually duplicated code from BLI. */
 namespace {
 void copy_m3_m3(float m1[3][3], float m2[3][3])
@@ -233,10 +247,9 @@ GLuint linkProgram(const char *define)
 		exit(1);
 	}
 
-	GLuint uboIndex = glGetUniformBlockIndex(program, "Lighting");
-	if (uboIndex != GL_INVALID_INDEX) {
-		glUniformBlockBinding(program, uboIndex, 0);
-	}
+	glUniformBlockBinding(program,
+	                      glGetUniformBlockIndex(program, "Lighting"),
+	                      0);
 
 #if 0  /* Used for textured view */
 	glProgramUniform1i(program,
@@ -252,54 +265,28 @@ GLuint linkProgram(const char *define)
 }
 
 void bindProgram(PartitionedGLMeshInterface *mesh,
-                 int program,
-                 GLuint lighting_ub,
-                 Lighting *lightingData)
+                 int program)
 {
 	glUseProgram(program);
 
 	/* Matricies */
-	float projection_matrix[16], model_view_matrix[16], normal_matrix[9];
-	glGetFloatv(GL_PROJECTION_MATRIX, projection_matrix);
-	glGetFloatv(GL_MODELVIEW_MATRIX, model_view_matrix);
-
 	glUniformMatrix4fv(glGetUniformLocation(program, "modelViewMatrix"),
 	                   1, false,
-	                   model_view_matrix);
-
+	                   g_transform.model_view_matrix);
 	glUniformMatrix4fv(glGetUniformLocation(program, "projectionMatrix"),
 	                   1, false,
-	                   projection_matrix);
-
-	copy_m3_m4((float (*)[3])normal_matrix, (float (*)[4])model_view_matrix);
-	invert_m3((float (*)[3])normal_matrix);
-	transpose_m3((float (*)[3])normal_matrix);
+	                   g_transform.projection_matrix);
 	glUniformMatrix3fv(glGetUniformLocation(program, "normalMatrix"),
 	                   1, false,
-	                   normal_matrix);
+	                   g_transform.normal_matrix);
 
 	/* Ligthing */
-	for (int i = 0; i < NUM_SOLID_LIGHTS; ++i) {
-		glGetLightfv(GL_LIGHT0 + i,
-		             GL_POSITION,
-		             lightingData->lights[i].position);
-		glGetLightfv(GL_LIGHT0 + i,
-		             GL_AMBIENT,
-		             lightingData->lights[i].ambient);
-		glGetLightfv(GL_LIGHT0 + i,
-		             GL_DIFFUSE,
-		             lightingData->lights[i].diffuse);
-		glGetLightfv(GL_LIGHT0 + i,
-		             GL_SPECULAR,
-		             lightingData->lights[i].specular);
-	}
-
-	glBindBuffer(GL_UNIFORM_BUFFER, lighting_ub);
+	glBindBuffer(GL_UNIFORM_BUFFER, g_lighting_ub);
 	glBufferSubData(GL_UNIFORM_BUFFER,
-	                0, sizeof(Lighting), lightingData);
+	                0, sizeof(g_lighting_data), &g_lighting_data);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lighting_ub);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, g_lighting_ub);
 
 	/* Color */
 	GLboolean use_lighting;
@@ -319,9 +306,7 @@ void bindProgram(PartitionedGLMeshInterface *mesh,
 	else {
 		float color[4];
 		glGetFloatv(GL_CURRENT_COLOR, color);
-		glUniform4fv(glGetUniformLocation(program, "diffuse"),
-		             1,
-		             color);
+		glUniform4fv(glGetUniformLocation(program, "diffuse"), 1, color);
 	}
 
 	/* Face-fertex data */
@@ -335,41 +320,82 @@ void bindProgram(PartitionedGLMeshInterface *mesh,
 }  /* namespace */
 #endif
 
-void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
-                                 int fill_quads,
-                                 int material)
+void openSubdiv_osdGLDisplayInit(void)
 {
 #ifndef OPENSUBDIV_LEGACY_DRAW
-	static GLuint flat_fill_program;
-	static GLuint smooth_fill_program;
-	static GLuint wireframe_program;
 	static bool need_init = true;
-
-	static GLuint lighting_ub = 0;
-	static Lighting lightingData = {
-		{{  { 0.5,  0.2f, 1.0f, 0.0f },
-		    { 0.1f, 0.1f, 0.1f, 1.0f },
-		    { 0.7f, 0.7f, 0.7f, 1.0f },
-		    { 0.8f, 0.8f, 0.8f, 1.0f } },
-
-		 { { -0.8f, 0.4f, -1.0f, 0.0f },
-		   {  0.0f, 0.0f,  0.0f, 1.0f },
-		   {  0.5f, 0.5f,  0.5f, 1.0f },
-		   {  0.8f, 0.8f,  0.8f, 1.0f } }}
-	};
 	if (need_init) {
-		flat_fill_program = linkProgram("#define FLAT_SHADING\n");
-		smooth_fill_program = linkProgram("#define SMOOTH_SHADING\n");
-		wireframe_program = linkProgram("#define WIREFRAME\n");
+		g_flat_fill_program = linkProgram("#define FLAT_SHADING\n");
+		g_smooth_fill_program = linkProgram("#define SMOOTH_SHADING\n");
+		g_wireframe_program = linkProgram("#define WIREFRAME\n");
 
-		glGenBuffers(1, &lighting_ub);
-		glBindBuffer(GL_UNIFORM_BUFFER, lighting_ub);
+		/* We start with totally emoty lighting setup. */
+		memset(&g_lighting_data, 0, sizeof(g_lighting_data));
+
+		glGenBuffers(1, &g_lighting_ub);
+		glBindBuffer(GL_UNIFORM_BUFFER, g_lighting_ub);
 		glBufferData(GL_UNIFORM_BUFFER,
-		             sizeof(lightingData), NULL, GL_STATIC_DRAW);
+		             sizeof(g_lighting_data), NULL, GL_STATIC_DRAW);
 
 		need_init = false;
 	}
 #endif
+}
+
+void openSubdiv_osdGLDisplayDeinit(void)
+{
+#ifndef OPENSUBDIV_LEGACY_DRAW
+	if (g_lighting_ub != 0) {
+		glDeleteBuffers(1, &g_lighting_ub);
+	}
+	if (g_flat_fill_program) {
+		glDeleteProgram(g_flat_fill_program);
+	}
+	if (g_smooth_fill_program) {
+		glDeleteProgram(g_flat_fill_program);
+	}
+	if (g_wireframe_program) {
+		glDeleteProgram(g_wireframe_program);
+	}
+#endif
+}
+
+void openSubdiv_osdGLMeshDisplayPrepare(void)
+{
+#ifndef OPENSUBDIV_LEGACY_DRAW
+	/* Update transformation matricies. */
+	glGetFloatv(GL_PROJECTION_MATRIX, g_transform.projection_matrix);
+	glGetFloatv(GL_MODELVIEW_MATRIX, g_transform.model_view_matrix);
+
+	copy_m3_m4((float (*)[3])g_transform.normal_matrix,
+	           (float (*)[4])g_transform.model_view_matrix);
+	invert_m3((float (*)[3])g_transform.normal_matrix);
+	transpose_m3((float (*)[3])g_transform.normal_matrix);
+
+	/* Update OpenGL lights positions, colors etc. */
+	for (int i = 0; i < NUM_SOLID_LIGHTS; ++i) {
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_POSITION,
+		             g_lighting_data.lights[i].position);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_AMBIENT,
+		             g_lighting_data.lights[i].ambient);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_DIFFUSE,
+		             g_lighting_data.lights[i].diffuse);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_SPECULAR,
+		             g_lighting_data.lights[i].specular);
+	}
+#endif
+}
+
+void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
+                                 int fill_quads,
+                                 int partition)
+{
+	openSubdiv_osdGLDisplayInit();
+
 	using OpenSubdiv::OsdDrawContext;
 	using OpenSubdiv::FarPatchTables;
 
@@ -377,31 +403,25 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 		(PartitionedGLMeshInterface *)(gl_mesh->descriptor);
 
 	OsdDrawContext::PatchArrayVector const &patches =
-	        material >= 0
-	            ? mesh->GetPatchArrays(material)
+	        partition >= 0
+	            ? mesh->GetPatchArrays(partition)
 	            : mesh->GetDrawContext()->patchArrays;
 
 #ifndef OPENSUBDIV_LEGACY_DRAW
-	GLuint program = 0;
+	GLuint program = g_smooth_fill_program;
 	if (fill_quads) {
 		int model;
 		glGetIntegerv(GL_SHADE_MODEL, &model);
 		if (model == GL_FLAT) {
-			program = flat_fill_program;
-		}
-		else {
-			program = smooth_fill_program;
+			program = g_flat_fill_program;
 		}
 	}
 	else {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		program = wireframe_program;
+		program = g_wireframe_program;
 	}
 
-	bindProgram(mesh,
-	            program,
-	            lighting_ub,
-	            &lightingData);
+	bindProgram(mesh, program);
 #else
 	if (!fill_quads) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

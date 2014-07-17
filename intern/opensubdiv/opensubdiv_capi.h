@@ -81,13 +81,28 @@ void openSubdiv_osdGLMeshUpdateVertexBuffer(OpenSubdiv_GLMesh *gl_mesh,
                                             int num_verts);
 void openSubdiv_osdGLMeshRefine(OpenSubdiv_GLMesh *gl_mesh);
 void openSubdiv_osdGLMeshSynchronize(OpenSubdiv_GLMesh *gl_mesh);
-void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
-                                 int fill_quads,
-                                 int material);
 void openSubdiv_osdGLMeshBindVertexBuffer(OpenSubdiv_GLMesh *gl_mesh);
 
-int openSubdiv_getAvailableControllers(void);
+/* ** Initialize/Deinitialize global OpenGL drawing buffers/GLSL programs ** */
+void openSubdiv_osdGLDisplayInit(void);
+void openSubdiv_osdGLDisplayDeinit(void);
 
+/* ** Actual drawing ** */
+
+/* Initialize all the invariants which stays the same for every single path,
+ * for example lighting model stays untouched for the whole mesh.
+ *
+ * TODO(sergey): Some of the stuff could be initialized once for all meshes.
+ */
+void openSubdiv_osdGLMeshDisplayPrepare(void);
+
+/* Draw patches which corresponds to a given partition. */
+void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
+                                 int fill_quads,
+                                 int partition);
+
+/* ** Utility functions ** */
+int openSubdiv_getAvailableControllers(void);
 void openSubdiv_cleanup(void);
 
 #ifdef __cplusplus
