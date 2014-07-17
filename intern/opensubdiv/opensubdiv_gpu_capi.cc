@@ -414,22 +414,17 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
 		OpenSubdiv::FarPatchTables::Type patchType = desc.GetType();
 
 		if (patchType == OpenSubdiv::FarPatchTables::QUADS) {
+			int mode = GL_QUADS;
 #ifndef OPENSUBDIV_LEGACY_DRAW
 			glUniform1i(glGetUniformLocation(program, "PrimitiveIdBase"),
 			            patch.GetPatchIndex());
-
-			glDrawElements(GL_LINES_ADJACENCY,
-			               patch.GetNumIndices(),
-			               GL_UNSIGNED_INT,
-			               (void *)(patch.GetVertIndex() *
-			                        sizeof(unsigned int)));
-#else
-			glDrawElements(GL_QUADS,
-			               patch.GetNumIndices(),
-			               GL_UNSIGNED_INT,
-			               (void *)(patch.GetVertIndex() *
-			                        sizeof(unsigned int)));
+			mode = GL_LINES_ADJACENCY;
 #endif
+			glDrawElements(mode,
+			               patch.GetNumIndices(),
+			               GL_UNSIGNED_INT,
+			               (void *)(patch.GetVertIndex() *
+			                        sizeof(unsigned int)));
 		}
 	}
 
