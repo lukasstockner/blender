@@ -80,6 +80,14 @@
 #include "BKE_sound.h"
 #include "BKE_world.h"
 
+#ifdef WITH_OPENSUBDIV
+/* Next 4 includes are for opensubdiv workaround only */
+#  include "DNA_mesh_types.h"
+#  include "BKE_DerivedMesh.h"
+#  include "BKE_modifier.h"
+#  include "CCGSubSurf.h"
+#endif
+
 #include "RE_engine.h"
 
 #include "PIL_time.h"
@@ -1261,6 +1269,11 @@ static void scene_do_rb_simulation_recursive(Scene *scene, float ctime)
  */
 #define MBALL_SINGLETHREAD_HACK
 
+/* Need this because CCFDM holds some OpenGL resources. */
+#ifdef WITH_OPENSUBDIV
+#  define OPENSUBDIV_GL_WORKAROUND
+#endif
+
 typedef struct StatisicsEntry {
 	struct StatisicsEntry *next, *prev;
 	Object *object;
@@ -1471,6 +1484,41 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 	if (!scene_need_update_objects(bmain)) {
 		return;
 	}
+
+	/* CCG DrivedMesh currently hold some OpenGL handles,
+	 * which could only be released from the main thread.
+	 * It'll change in the future likely, but for now we
+	 * free CCGDM from the main thread.
+	 */
+#ifdef OPENSUBDIV_GL_WORKAROUND
+	{
+		Base *base;
+		for (base = scene->base.first; base; base = base->next) {
+			Object *object = base->object;
+			if (object->type == OB_MESH &&
+			    object->recalc & OB_RECALC_DATA)
+			{
+				ModifierData *md;
+				for (md = object->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Subsurf) {
+						SubsurfModifierData *smd = (SubsurfModifierData *) md;
+						if (smd->mCache != NULL) {
+							bool old_simple =
+								ccgSubSurf_getSimpleSubdiv(smd->mCache);
+							bool use_simple =
+								smd->subdivType == ME_SIMPLE_SUBSURF;
+
+							if (old_simple != use_simple) {
+								ccgSubSurf_free(smd->mCache);
+								smd->mCache = NULL;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+#endif
 
 	state.eval_ctx = eval_ctx;
 	state.scene = scene;
