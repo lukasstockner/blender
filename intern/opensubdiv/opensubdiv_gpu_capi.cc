@@ -432,7 +432,7 @@ static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
 				glUniform1i(location, model == GL_FLAT);
 			}
 		}
-		return 0;
+		return program;
 	}
 
 	GLuint program = 0;

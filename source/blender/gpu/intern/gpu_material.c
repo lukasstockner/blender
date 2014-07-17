@@ -1627,6 +1627,7 @@ GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma, bool use_open
 	/* allocate material */
 	mat = GPU_material_construct_begin(ma);
 	mat->scene = scene;
+	mat->is_opensubdiv = use_opensubdiv;
 
 	/* render pipeline option */
 	if (ma->mode & MA_TRANSP)

@@ -2065,11 +2065,11 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				new_shademodel = (lnors || (faceFlags[index].flag & ME_SMOOTH))
 					? GL_SMOOTH
 					: GL_FLAT;
-				new_matnr = faceFlags[index].mat_nr;
+				new_matnr = faceFlags[index].mat_nr + 1;
 			}
 			else {
 				new_shademodel = GL_SMOOTH;
-				new_matnr = 0;
+				new_matnr = 1;
 			}
 
 			if (new_shademodel != shademodel) {

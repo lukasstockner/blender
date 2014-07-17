@@ -1,5 +1,7 @@
-/* uniform int PrimitiveIdBase; */
-const int PrimitiveIdBase = 0;
+uniform int PrimitiveIdBase;
+
+varying vec3 varnormal;
+varying vec3 varposition;
 
 in block {
 	VertexData v;
@@ -32,6 +34,10 @@ void emit_flat(int index, vec3 normal)
 	outpt.v.position = inpt[index].v.position;
 	outpt.v.normal = normal;
 
+	/* Compatibility */
+	varnormal = outpt.v.normal;
+	varposition = outpt.v.position.xyz;
+
 	/* TODO(sergey): Only uniform subdivisions atm. */
 	vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
 	vec2 st = quadst[index];
@@ -46,6 +52,10 @@ void emit_smooth(int index)
 {
 	outpt.v.position = inpt[index].v.position;
 	outpt.v.normal = inpt[index].v.normal;
+
+	/* Compatibility */
+	varnormal = outpt.v.normal;
+	varposition = outpt.v.position.xyz;
 
 	/* TODO(sergey): Only uniform subdivisions atm. */
 	vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));

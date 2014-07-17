@@ -606,14 +606,6 @@ static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *final
 	BLI_dynstr_append(ds, ";\n");
 }
 
-static char *code_generate_geometry(bool use_opensubdiv)
-{
-	if (use_opensubdiv) {
-		return datatoc_gpu_shader_geometry_glsl;
-	}
-	return NULL;
-}
-
 static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const char *UNUSED(name))
 {
 	DynStr *ds = BLI_dynstr_new();
@@ -647,6 +639,14 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const ch
 	//if (G.debug & G_DEBUG) printf("%s\n", code);
 
 	return code;
+}
+
+static char *code_generate_geometry(bool use_opensubdiv)
+{
+	if (use_opensubdiv) {
+		return datatoc_gpu_shader_geometry_glsl;
+	}
+	return NULL;
 }
 
 static char *code_generate_vertex(ListBase *nodes)
