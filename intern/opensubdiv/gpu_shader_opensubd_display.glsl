@@ -26,7 +26,6 @@
 /* ***** Vertex shader ***** */
 
 #version 150
-#extension GL_EXT_geometry_shader4 : enable
 
 struct VertexData {
 	vec4 position;
