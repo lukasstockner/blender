@@ -1410,7 +1410,6 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *geometrycode,
 		glProgramParameteriEXT(shader->object,
 		                       GL_GEOMETRY_VERTICES_OUT_EXT,
 		                       4);
-
 	}
 #endif
 
@@ -1425,6 +1424,15 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *geometrycode,
 		GPU_shader_free(shader);
 		return NULL;
 	}
+
+#ifdef WITH_OPENSUBDIV
+	/* TODO(sergey): Find a better place for this. */
+	{
+		glProgramUniform1i(shader->object,
+		                   glGetUniformLocation(shader->object, "FVarDataBuffer"),
+		                   31);  /* GL_TEXTURE31 */
+	}
+#endif
 
 	return shader;
 }

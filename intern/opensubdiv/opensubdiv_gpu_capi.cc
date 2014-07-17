@@ -291,7 +291,7 @@ GLuint linkProgram(const char *define)
 
 	glProgramUniform1i(program,
 	                   glGetUniformLocation(program, "FVarDataBuffer"),
-	                   4);  /* GL_TEXTURE4 */
+	                   31);  /* GL_TEXTURE31 */
 
 	return program;
 }
@@ -341,11 +341,12 @@ void bindProgram(PartitionedGLMeshInterface *mesh,
 		glUniform4fv(glGetUniformLocation(program, "diffuse"), 1, color);
 	}
 
-	/* Face-fertex data */
+	/* Face-vertex data */
 	if (mesh->GetDrawContext()->GetFvarDataTextureBuffer()) {
-		glActiveTexture(GL_TEXTURE4);
+		glActiveTexture(GL_TEXTURE31);
 		glBindTexture(GL_TEXTURE_BUFFER,
 		              mesh->GetDrawContext()->GetFvarDataTextureBuffer());
+		glActiveTexture(GL_TEXTURE0);
 	}
 }
 
@@ -420,8 +421,8 @@ void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl)
 static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
                                 bool fill_quads)
 {
+	GLint program = 0;
 	if (!g_use_osd_glsl) {
-		GLint program;
 		glGetIntegerv(GL_CURRENT_PROGRAM, &program);
 		if (program) {
 			GLint model;
@@ -431,11 +432,18 @@ static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
 			if (location != -1) {
 				glUniform1i(location, model == GL_FLAT);
 			}
+
+			/* Face-vertex data */
+			if (mesh->GetDrawContext()->GetFvarDataTextureBuffer()) {
+				glActiveTexture(GL_TEXTURE31);
+				glBindTexture(GL_TEXTURE_BUFFER,
+				              mesh->GetDrawContext()->GetFvarDataTextureBuffer());
+				glActiveTexture(GL_TEXTURE0);
+			}
+
 		}
 		return program;
 	}
-
-	GLuint program = 0;
 
 	program = g_smooth_fill_program;
 	if (fill_quads) {
@@ -485,7 +493,6 @@ static void finish_patchDraw(bool fill_quads)
 	glBindVertexArray(0);
 
 	if (g_use_osd_glsl) {
-		glActiveTexture(GL_TEXTURE0);
 		/* TODO(sergey): Store previously used program and roll back to it? */
 		glUseProgram(0);
 	}
