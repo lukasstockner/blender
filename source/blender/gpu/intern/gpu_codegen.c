@@ -58,6 +58,7 @@
 
 extern char datatoc_gpu_shader_material_glsl[];
 extern char datatoc_gpu_shader_vertex_glsl[];
+extern char datatoc_gpu_shader_geometry_glsl[];
 
 
 static char *glsl_material_library = NULL;
@@ -603,6 +604,14 @@ static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *final
 	BLI_dynstr_append(ds, "\n\tgl_FragColor = ");
 	codegen_convert_datatype(ds, finaloutput->type, GPU_VEC4, "tmp", finaloutput->id);
 	BLI_dynstr_append(ds, ";\n");
+}
+
+static char *code_generate_geometry(bool use_opensubdiv)
+{
+	if (use_opensubdiv) {
+		return datatoc_gpu_shader_geometry_glsl;
+	}
+	return NULL;
 }
 
 static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const char *UNUSED(name))
@@ -1386,11 +1395,12 @@ static void gpu_nodes_prune(ListBase *nodes, GPUNodeLink *outlink)
 	}
 }
 
-GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttribs *attribs, int *builtins, const char *name)
+GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttribs *attribs,
+                           int *builtins, const char *name, const bool use_opensubdiv)
 {
 	GPUShader *shader;
 	GPUPass *pass;
-	char *vertexcode, *fragmentcode;
+	char *vertexcode, *geometrycode, *fragmentcode;
 
 	/*if (!FUNCTION_LIB) {
 		GPU_nodes_free(nodes);
@@ -1405,8 +1415,9 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 
 	/* generate code and compile with opengl */
 	fragmentcode = code_generate_fragment(nodes, outlink->output, name);
+	geometrycode = code_generate_geometry(use_opensubdiv);
 	vertexcode = code_generate_vertex(nodes);
-	shader = GPU_shader_create(vertexcode, fragmentcode, glsl_material_library, NULL);
+	shader = GPU_shader_create(vertexcode, geometrycode, fragmentcode, glsl_material_library, NULL);
 
 	/* failed? */
 	if (!shader) {

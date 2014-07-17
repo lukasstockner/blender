@@ -70,6 +70,7 @@
 #include "BKE_object.h"
 #include "BKE_scene.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_subsurf.h"
 
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
@@ -1388,6 +1389,7 @@ static struct GPUMaterialState {
 
 	int lastmatnr, lastretval;
 	GPUBlendMode lastalphablend;
+	bool is_opensubdiv;
 } GMS = {NULL};
 
 /* fixed function material, alpha handed by caller */
@@ -1444,6 +1446,13 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	const bool gamma = BKE_scene_check_color_management_enabled(scene);
 	const bool new_shading_nodes = BKE_scene_use_new_shading_nodes(scene);
 	const bool use_matcap = (v3d->flag2 & V3D_SHOW_SOLID_MATCAP) != 0;  /* assumes v3d->defmaterial->preview is set */
+	bool use_opensubdiv = false;
+
+	/* TODO(sergey): What to do if there's no derived final? */
+	if (ob->derivedFinal != NULL) {
+		CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) ob->derivedFinal;
+		use_opensubdiv = ccgdm->useGpuBackend;
+	}
 
 #ifdef WITH_GAMEENGINE
 	if (rv3d->rflag & RV3D_IS_GAME_ENGINE) {
@@ -1462,6 +1471,7 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 
 	GMS.gob = ob;
 	GMS.gscene = scene;
+	GMS.is_opensubdiv = use_opensubdiv;
 	GMS.totmat = use_matcap ? 1 : ob->totcol + 1;  /* materials start from 1, default material is 0 */
 	GMS.glay= (v3d->localvd)? v3d->localvd->lay: v3d->lay; /* keep lamps visible in local view */
 	GMS.gscenelock = (v3d->scenelock != 0);
@@ -1492,7 +1502,7 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	/* viewport material, setup in space_view3d, defaults to matcap using ma->preview now */
 	if (use_matcap) {
 		GMS.gmatbuf[0] = v3d->defmaterial;
-		GPU_material_matcap(scene, v3d->defmaterial);
+		GPU_material_matcap(scene, v3d->defmaterial, use_opensubdiv);
 
 		/* do material 1 too, for displists! */
 		memcpy(&GMS.matbuf[1], &GMS.matbuf[0], sizeof(GPUMaterialFixed));
@@ -1510,7 +1520,7 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 
 			if (glsl) {
 				GMS.gmatbuf[0]= &defmaterial;
-				GPU_material_from_blender(GMS.gscene, &defmaterial);
+				GPU_material_from_blender(GMS.gscene, &defmaterial, GMS.is_opensubdiv);
 			}
 
 			GMS.alphablend[0]= GPU_BLEND_SOLID;
@@ -1524,7 +1534,7 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 			if (ma==NULL) ma= &defmaterial;
 
 			/* create glsl material if requested */
-			gpumat = (glsl)? GPU_material_from_blender(GMS.gscene, ma): NULL;
+			gpumat = (glsl)? GPU_material_from_blender(GMS.gscene, ma, GMS.is_opensubdiv): NULL;
 
 			if (gpumat) {
 				/* do glsl only if creating it succeed, else fallback */
@@ -1598,7 +1608,7 @@ int GPU_enable_material(int nr, void *attribs)
 	/* unbind glsl material */
 	if (GMS.gboundmat) {
 		if (GMS.is_alpha_pass) glDepthMask(0);
-		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat));
+		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat, GMS.is_opensubdiv));
 		GMS.gboundmat= NULL;
 	}
 
@@ -1623,7 +1633,7 @@ int GPU_enable_material(int nr, void *attribs)
 			Material *mat = GMS.gmatbuf[nr];
 			float auto_bump_scale;
 
-			gpumat = GPU_material_from_blender(GMS.gscene, mat);
+			gpumat = GPU_material_from_blender(GMS.gscene, mat, GMS.is_opensubdiv);
 			GPU_material_vertex_attributes(gpumat, gattribs);
 			GPU_material_bind(gpumat, GMS.gob->lay, GMS.glay, 1.0, !(GMS.gob->mode & OB_MODE_TEXTURE_PAINT), GMS.gviewmat, GMS.gviewinv, GMS.gscenelock);
 
@@ -1686,7 +1696,7 @@ void GPU_disable_material(void)
 			glDisable(GL_CULL_FACE);
 
 		if (GMS.is_alpha_pass) glDepthMask(0);
-		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat));
+		GPU_material_unbind(GPU_material_from_blender(GMS.gscene, GMS.gboundmat, GMS.is_opensubdiv));
 		GMS.gboundmat= NULL;
 	}
 

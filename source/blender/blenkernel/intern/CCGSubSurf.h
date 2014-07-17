@@ -187,7 +187,10 @@ void				ccgFaceIterator_next		(CCGFaceIterator *fi);
 void				ccgFaceIterator_free		(CCGFaceIterator *fi);
 
 #ifdef WITH_OPENSUBDIV
-bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss);
+/* TODO(sergey): fill_quads is actually an invariant and should be part
+ * of the prepare routine.
+ */
+bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl);
 void ccgSubSurf_drawGLMesh(CCGSubSurf *ss, bool fill_quads,
                            int start_partition, int num_partitions);
 void ccgSubSurf_setSkipGrids(CCGSubSurf *ss, bool skip_grids);

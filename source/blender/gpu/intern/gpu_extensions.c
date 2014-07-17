@@ -1162,6 +1162,7 @@ int GPU_offscreen_height(GPUOffScreen *ofs)
 struct GPUShader {
 	GLhandleARB object;		/* handle for full shader */
 	GLhandleARB vertex;		/* handle for vertex shader */
+	GLhandleARB geometry;	/* handle for gometry shader */
 	GLhandleARB fragment;	/* handle for fragment shader */
 	GLhandleARB lib;		/* handle for libment shader */
 	int totattrib;			/* total number of attributes */
@@ -1204,14 +1205,22 @@ static const char *gpu_shader_version(void)
 
 static const char *gpu_shader_standard_extensions(void)
 {
+#ifdef WITH_OPENSUBDIV
+	return "#extension GL_ARB_texture_query_lod: enable\n"
+	       "#extension GL_EXT_geometry_shader4 : enable\n"
+	       "#extension GL_ARB_gpu_shader5 : enable\n"
+	       "#extension GL_ARB_explicit_attrib_location : require\n";
+#else
 	/* need this extensions for high quality bump mapping */
 	if (GPU_bicubic_bump_support())
 		return "#extension GL_ARB_texture_query_lod: enable\n";
 
 	return "";
+#endif
 }
 
-static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH])
+static void gpu_shader_standard_defines(bool use_opensubdiv,
+                                        char defines[MAX_DEFINE_LENGTH])
 {
 	/* some useful defines to detect GPU type */
 	if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
@@ -1226,11 +1235,35 @@ static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH])
 
 	if (GPU_bicubic_bump_support())
 		strcat(defines, "#define BUMP_BICUBIC\n");
+
+#ifdef WITH_OPENSUBDIV
+	/* TODO(sergey): Check whether we actually compiling shader for
+	 * the OpenSubdiv mesh.
+	 */
+	if (use_opensubdiv) {
+		strcat(defines, "#define USE_OPENSUBDIV\n");
+
+		/* TODO(sergey): not strictly speaking a define, but this is
+		 * a global typedef which we don't have better place to define
+		 * in yet.
+		 */
+		strcat(defines, "struct VertexData {\n"
+		                "  vec4 position;\n"
+		                "  vec3 normal;\n"
+		                "  vec2 uv;"
+		                "};\n");
+	}
+#endif
+
 	return;
 }
 
-GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *libcode, const char *defines)
+GPUShader *GPU_shader_create(const char *vertexcode, const char *geometrycode,
+                             const char *fragcode, const char *libcode,
+                             const char *defines)
 {
+	/* TODO(sergey): Use real check here. */
+	bool use_opensubdiv = geometrycode != NULL;
 	GLint status;
 	GLcharARB log[5000];
 	GLsizei length = 0;
@@ -1244,12 +1277,15 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 
 	if (vertexcode)
 		shader->vertex = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
+	if (geometrycode)
+		shader->geometry = glCreateShaderObjectARB(GL_GEOMETRY_SHADER_ARB);
 	if (fragcode)
 		shader->fragment = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
 	shader->object = glCreateProgramObjectARB();
 
 	if (!shader->object ||
 	    (vertexcode && !shader->vertex) ||
+	    (geometrycode && !shader->geometry) ||
 	    (fragcode && !shader->fragment))
 	{
 		fprintf(stderr, "GPUShader, object creation failed.\n");
@@ -1257,7 +1293,7 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		return NULL;
 	}
 
-	gpu_shader_standard_defines(standard_defines);
+	gpu_shader_standard_defines(use_opensubdiv, standard_defines);
 
 	if (vertexcode) {
 		const char *source[5];
@@ -1286,13 +1322,53 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		}
 	}
 
-	if (fragcode) {
-		const char *source[6];
+	if (geometrycode) {
+		const char *source[5];
+		/* custom limit, may be too small, beware */
 		int num_source = 0;
 
 		source[num_source++] = gpu_shader_version();
 		source[num_source++] = gpu_shader_standard_extensions();
 		source[num_source++] = standard_defines;
+
+		if (defines) source[num_source++] = defines;
+		source[num_source++] = geometrycode;
+
+		glAttachObjectARB(shader->object, shader->geometry);
+		glShaderSourceARB(shader->geometry, num_source, source, NULL);
+
+		glCompileShaderARB(shader->geometry);
+		glGetObjectParameterivARB(shader->geometry,
+		                          GL_OBJECT_COMPILE_STATUS_ARB,
+		                          &status);
+
+		if (!status) {
+			glGetInfoLogARB(shader->geometry, sizeof(log), &length, log);
+			shader_print_errors("compile", log, vertexcode);
+
+			GPU_shader_free(shader);
+			return NULL;
+		}
+	}
+
+	if (fragcode) {
+		const char *source[7];
+		int num_source = 0;
+
+		source[num_source++] = gpu_shader_version();
+		source[num_source++] = gpu_shader_standard_extensions();
+		source[num_source++] = standard_defines;
+
+#ifdef WITH_OPENSUBDIV
+		if (use_opensubdiv) {
+			source[num_source++] =
+			        "#ifdef USE_OPENSUBDIV\n"
+			        "in block {\n"
+			        "	VertexData v;\n"
+			        "} inpt;\n"
+			        "#endif\n";
+		}
+#endif
 
 		if (defines) source[num_source++] = defines;
 		if (libcode) source[num_source++] = libcode;
@@ -1316,6 +1392,26 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 #if 0
 	if (lib && lib->lib)
 		glAttachObjectARB(shader->object, lib->lib);
+#endif
+
+#ifdef WITH_OPENSUBDIV
+	if (use_opensubdiv) {
+		glBindAttribLocation(shader->object, 0, "position");
+		glBindAttribLocation(shader->object, 1, "normal");
+
+		glProgramParameteriEXT(shader->object,
+		                       GL_GEOMETRY_INPUT_TYPE_EXT,
+		                       GL_LINES_ADJACENCY_EXT);
+
+		glProgramParameteriEXT(shader->object,
+		                       GL_GEOMETRY_OUTPUT_TYPE_EXT,
+		                       GL_TRIANGLE_STRIP);
+
+		glProgramParameteriEXT(shader->object,
+		                       GL_GEOMETRY_VERTICES_OUT_EXT,
+		                       4);
+
+	}
 #endif
 
 	glLinkProgramARB(shader->object);
@@ -1481,12 +1577,12 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 	switch (shader) {
 		case GPU_SHADER_VSM_STORE:
 			if (!GG.shaders.vsm_store)
-				GG.shaders.vsm_store = GPU_shader_create(datatoc_gpu_shader_vsm_store_vert_glsl, datatoc_gpu_shader_vsm_store_frag_glsl, NULL, NULL);
+				GG.shaders.vsm_store = GPU_shader_create(datatoc_gpu_shader_vsm_store_vert_glsl, NULL, datatoc_gpu_shader_vsm_store_frag_glsl, NULL, NULL);
 			retval = GG.shaders.vsm_store;
 			break;
 		case GPU_SHADER_SEP_GAUSSIAN_BLUR:
 			if (!GG.shaders.sep_gaussian_blur)
-				GG.shaders.sep_gaussian_blur = GPU_shader_create(datatoc_gpu_shader_sep_gaussian_blur_vert_glsl, datatoc_gpu_shader_sep_gaussian_blur_frag_glsl, NULL, NULL);
+				GG.shaders.sep_gaussian_blur = GPU_shader_create(datatoc_gpu_shader_sep_gaussian_blur_vert_glsl, NULL, datatoc_gpu_shader_sep_gaussian_blur_frag_glsl, NULL, NULL);
 			retval = GG.shaders.sep_gaussian_blur;
 			break;
 	}

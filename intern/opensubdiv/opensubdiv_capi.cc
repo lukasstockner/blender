@@ -520,8 +520,19 @@ void openSubdiv_osdGLMeshBindVertexBuffer(OpenSubdiv_GLMesh *gl_mesh)
 	((OsdGLMeshInterface *)gl_mesh->descriptor)->BindVertexBuffer();
 }
 
+int openSubdiv_supportGPUDisplay(void)
+{
+	return GL_EXT_geometry_shader4 &&
+	       GL_ARB_gpu_shader5 &&
+	       glProgramParameteriEXT;
+}
+
 int openSubdiv_getAvailableControllers(void)
 {
+	if (!openSubdiv_supportGPUDisplay()) {
+		return 0;
+	}
+
 	int flags = OPENSUBDIV_CONTROLLER_CPU;
 
 #ifdef OPENSUBDIV_HAS_OPENMP

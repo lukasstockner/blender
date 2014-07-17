@@ -60,6 +60,7 @@ static EnumPropertyItem compute_device_type_items[] = {
 
 #ifdef WITH_OPENSUBDIV
 static EnumPropertyItem opensubdiv_compute_type_items[] = {
+	{USER_OPENSUBDIV_COMPUTE_NONE, "NONE", 0, "None", ""},
 	{USER_OPENSUBDIV_COMPUTE_CPU, "CPU", 0, "CPU", ""},
 	{USER_OPENSUBDIV_COMPUTE_OPENMP, "OPENMP", 0, "OpenMP", ""},
 	{USER_OPENSUBDIV_COMPUTE_OPENCL, "OPENCL", 0, "OpenCL", ""},
@@ -506,6 +507,8 @@ static EnumPropertyItem *rna_userdef_opensubdiv_compute_type_itemf(bContext *UNU
 	EnumPropertyItem *item = NULL;
 	int totitem = 0;
 	int controllers = openSubdiv_getAvailableControllers();
+
+	RNA_enum_items_add_value(&item, &totitem, opensubdiv_compute_type_items, USER_OPENSUBDIV_COMPUTE_NONE);
 
 #define APPEND_COMPUTE(compute) \
 	if (controllers & OPENSUBDIV_CONTROLLER_## compute) { \

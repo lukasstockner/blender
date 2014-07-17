@@ -26,7 +26,7 @@
 #ifndef __OPENSUBDIV_CAPI_H__
 #define __OPENSUBDIV_CAPI_H__
 
-#define OPENSUBDIV_LEGACY_DRAW
+#undef OPENSUBDIV_LEGACY_DRAW
 
 #ifdef __cplusplus
 extern "C" {
@@ -94,7 +94,7 @@ void openSubdiv_osdGLDisplayDeinit(void);
  *
  * TODO(sergey): Some of the stuff could be initialized once for all meshes.
  */
-void openSubdiv_osdGLMeshDisplayPrepare(void);
+void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl);
 
 /* Draw patches which corresponds to a given partition. */
 void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
@@ -103,6 +103,7 @@ void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,
                                  int num_partitions);
 
 /* ** Utility functions ** */
+int openSubdiv_supportGPUDisplay(void);
 int openSubdiv_getAvailableControllers(void);
 void openSubdiv_cleanup(void);
 

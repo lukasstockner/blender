@@ -81,6 +81,8 @@ typedef struct Transform {
 	float normal_matrix[9];
 } Transform;
 
+static bool g_use_osd_glsl = false;
+
 static GLuint g_flat_fill_program = 0;
 static GLuint g_smooth_fill_program = 0;
 static GLuint g_wireframe_program = 0;
@@ -238,11 +240,11 @@ GLuint linkProgram(const char *define)
 	glBindAttribLocation(program, 0, "position");
 	glBindAttribLocation(program, 1, "normal");
 
+#ifdef GLSL_COMPAT_WORKAROUND
 	glProgramParameteriEXT(program,
 	                       GL_GEOMETRY_INPUT_TYPE_EXT,
 	                       GL_LINES_ADJACENCY_EXT);
 
-#ifdef GLSL_COMPAT_WORKAROUND
 	if (strstr(define, "WIREFRAME") == NULL) {
 		glProgramParameteriEXT(program,
 		                       GL_GEOMETRY_OUTPUT_TYPE_EXT,
@@ -392,8 +394,10 @@ void openSubdiv_osdGLDisplayDeinit(void)
 #endif
 }
 
-void openSubdiv_osdGLMeshDisplayPrepare(void)
+void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl)
 {
+	g_use_osd_glsl = use_osd_glsl != 0;
+
 #ifndef OPENSUBDIV_LEGACY_DRAW
 	/* Update transformation matricies. */
 	glGetFloatv(GL_PROJECTION_MATRIX, g_transform.projection_matrix);
@@ -425,6 +429,21 @@ void openSubdiv_osdGLMeshDisplayPrepare(void)
 static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
                                 bool fill_quads)
 {
+	if (!g_use_osd_glsl) {
+		GLint program;
+		glGetIntegerv(GL_CURRENT_PROGRAM, &program);
+		if (program) {
+			GLint model;
+			glGetIntegerv(GL_SHADE_MODEL, &model);
+
+			GLint location = glGetUniformLocation(program, "osd_flat_shading");
+			if (location != -1) {
+				glUniform1i(location, model == GL_FLAT);
+			}
+		}
+		return 0;
+	}
+
 	GLuint program = 0;
 
 #ifndef OPENSUBDIV_LEGACY_DRAW
@@ -459,8 +478,10 @@ static void perform_drawElements(GLuint program,
 {
 	int mode = GL_QUADS;
 #ifndef OPENSUBDIV_LEGACY_DRAW
-	glUniform1i(glGetUniformLocation(program, "PrimitiveIdBase"),
-	            patch_index);
+	if (program) {
+		glUniform1i(glGetUniformLocation(program, "PrimitiveIdBase"),
+		            patch_index);
+	}
 	mode = GL_LINES_ADJACENCY;
 #else
 	(void) patch_index;
@@ -484,9 +505,11 @@ static void finish_patchDraw(bool fill_quads)
 	glBindVertexArray(0);
 
 #ifndef OPENSUBDIV_LEGACY_DRAW
-	glActiveTexture(GL_TEXTURE0);
-	/* TODO(sergey): Store previously used program and roll back to it? */
-	glUseProgram(0);
+	if (g_use_osd_glsl) {
+		glActiveTexture(GL_TEXTURE0);
+		/* TODO(sergey): Store previously used program and roll back to it? */
+		glUseProgram(0);
+	}
 #endif
 }
 
@@ -547,7 +570,6 @@ static void draw_all_patches(PartitionedGLMeshInterface *mesh,
 			                     patch.GetVertIndex());
 		}
 	}
-
 }
 
 void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,

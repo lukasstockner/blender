@@ -60,6 +60,7 @@ set(SRC
 	intern/gpu_codegen.h
 )
 
+data_to_c_simple(shaders/gpu_shader_geometry.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_material.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_vert.glsl SRC)
@@ -83,6 +84,9 @@ if(WITH_IMAGE_DDS)
 	add_definitions(-DWITH_DDS)
 endif()
 
+if(WITH_OPENSUBDIV)
+	add_definitions(-DWITH_OPENSUBDIV)
+endif()
 
 blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}")
 

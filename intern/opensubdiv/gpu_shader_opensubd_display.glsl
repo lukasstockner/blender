@@ -39,7 +39,7 @@ struct VertexData {
 #ifdef VERTEX_SHADER
 
 in vec3 normal;
-in vec3 position;
+in vec4 position;
 
 uniform mat4 modelViewMatrix;
 uniform mat3 normalMatrix;
@@ -50,7 +50,7 @@ out block {
 
 void main()
 {
-	outpt.v.position = modelViewMatrix * vec4(position, 1.0);
+	outpt.v.position = modelViewMatrix * position;
 	outpt.v.normal = normalize(normalMatrix * normal);
 }
 

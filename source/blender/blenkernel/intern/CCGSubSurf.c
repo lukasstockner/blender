@@ -2314,7 +2314,7 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 	MEM_freeN(positions);
 }
 
-bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
+bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 {
 	int compute_type;
 
@@ -2399,7 +2399,7 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss)
 		openSubdiv_osdGLMeshSynchronize(ss->osd_mesh);
 	}
 
-	openSubdiv_osdGLMeshDisplayPrepare();
+	openSubdiv_osdGLMeshDisplayPrepare(use_osd_glsl);
 
 	return true;
 }

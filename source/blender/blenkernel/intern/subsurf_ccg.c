@@ -81,6 +81,10 @@
 
 #include "CCGSubSurf.h"
 
+#ifdef WITH_OPENSUBDIV
+#  include "opensubdiv_capi.h"
+#endif
+
 extern GLubyte stipple_quarttone[128]; /* glutil.c, bad level data */
 
 static ThreadRWMutex loops_cache_rwlock = BLI_RWLOCK_INITIALIZER;
@@ -1665,7 +1669,7 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
 		/* TODO(sergey): We currently only support all edges drawing. */
-		if (ccgSubSurf_prepareGLMesh(ss)) {
+		if (ccgSubSurf_prepareGLMesh(ss, true)) {
 			ccgSubSurf_drawGLMesh(ss, false, -1, -1);
 		}
 		return;
@@ -1793,7 +1797,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator *fi;
 		int start_partition = 0, num_partitions = 0;
-		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss) == false)) {
+		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, true) == false)) {
 			return;
 		}
 
@@ -2044,7 +2048,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	if (ccgdm->useGpuBackend) {
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator *fi;
-		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss) == false)) {
+		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, false) == false)) {
 			return;
 		}
 		do_draw = 0;
@@ -2453,7 +2457,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		if (drawParams != NULL)
 			drawParams(&tmp_tf, (mcol != NULL), mat_nr);
 
-		if (ccgSubSurf_prepareGLMesh(ss)) {
+		if (ccgSubSurf_prepareGLMesh(ss, true)) {
 			ccgSubSurf_drawGLMesh(ss, true, -1, -1);
 		}
 		return;
@@ -4166,7 +4170,9 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 			bool use_gpu_backend = false;
 
 #ifdef WITH_OPENSUBDIV
-			use_gpu_backend = (flags & SUBSURF_USE_GPU_BACKEND) != 0;
+			use_gpu_backend = (flags & SUBSURF_USE_GPU_BACKEND) != 0 &&
+				openSubdiv_supportGPUDisplay() &&
+				U.opensubdiv_compute_type != USER_OPENSUBDIV_COMPUTE_NONE;
 #endif
 
 			if (smd->mCache && (flags & SUBSURF_IS_FINAL_CALC)) {

@@ -175,7 +175,8 @@ struct GPUPass {
 typedef struct GPUPass GPUPass;
 
 GPUPass *GPU_generate_pass(ListBase *nodes, struct GPUNodeLink *outlink,
-	struct GPUVertexAttribs *attribs, int *builtin, const char *name);
+	struct GPUVertexAttribs *attribs, int *builtin, const char *name,
+	const bool use_opensubdiv);
 
 struct GPUShader *GPU_pass_shader(GPUPass *pass);
 
