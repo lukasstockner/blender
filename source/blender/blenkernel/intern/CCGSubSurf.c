@@ -2379,14 +2379,6 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
 		                      sizeof(GLfloat) * 6, (float*)12);
 
-#ifdef OPENSUBDIV_LEGACY_DRAW
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(3, GL_FLOAT, sizeof(GLfloat) * 6, 0);
-
-		glEnableClientState(GL_NORMAL_ARRAY);
-		glNormalPointer(GL_FLOAT, sizeof(GLfloat) * 6, (float*)12);
-#endif
-
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
 		             openSubdiv_getOsdGLMeshPatchIndexBuffer(ss->osd_mesh));
 		glBindBuffer(GL_ARRAY_BUFFER, 0);

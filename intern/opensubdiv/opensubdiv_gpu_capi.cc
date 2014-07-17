@@ -61,8 +61,6 @@ using OpenSubdiv::PartitionedGLMeshInterface;
 
 extern "C" char datatoc_gpu_shader_opensubd_display_glsl[];
 
-#ifndef OPENSUBDIV_LEGACY_DRAW
-
 #define NUM_SOLID_LIGHTS 3
 typedef struct Light {
 	float position[4];
@@ -352,11 +350,9 @@ void bindProgram(PartitionedGLMeshInterface *mesh,
 }
 
 }  /* namespace */
-#endif
 
 void openSubdiv_osdGLDisplayInit(void)
 {
-#ifndef OPENSUBDIV_LEGACY_DRAW
 	static bool need_init = true;
 	if (need_init) {
 		g_flat_fill_program = linkProgram("#define FLAT_SHADING\n");
@@ -373,12 +369,10 @@ void openSubdiv_osdGLDisplayInit(void)
 
 		need_init = false;
 	}
-#endif
 }
 
 void openSubdiv_osdGLDisplayDeinit(void)
 {
-#ifndef OPENSUBDIV_LEGACY_DRAW
 	if (g_lighting_ub != 0) {
 		glDeleteBuffers(1, &g_lighting_ub);
 	}
@@ -391,14 +385,12 @@ void openSubdiv_osdGLDisplayDeinit(void)
 	if (g_wireframe_program) {
 		glDeleteProgram(g_wireframe_program);
 	}
-#endif
 }
 
 void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl)
 {
 	g_use_osd_glsl = use_osd_glsl != 0;
 
-#ifndef OPENSUBDIV_LEGACY_DRAW
 	/* Update transformation matricies. */
 	glGetFloatv(GL_PROJECTION_MATRIX, g_transform.projection_matrix);
 	glGetFloatv(GL_MODELVIEW_MATRIX, g_transform.model_view_matrix);
@@ -423,7 +415,6 @@ void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl)
 		             GL_SPECULAR,
 		             g_lighting_data.lights[i].specular);
 	}
-#endif
 }
 
 static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
@@ -446,7 +437,6 @@ static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
 
 	GLuint program = 0;
 
-#ifndef OPENSUBDIV_LEGACY_DRAW
 	program = g_smooth_fill_program;
 	if (fill_quads) {
 		int model;
@@ -461,12 +451,6 @@ static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
 	}
 
 	bindProgram(mesh, program);
-#else
-	(void) mesh;
-	if (!fill_quads) {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	}
-#endif
 
 	return program;
 }
@@ -477,15 +461,11 @@ static void perform_drawElements(GLuint program,
                                  int start_element)
 {
 	int mode = GL_QUADS;
-#ifndef OPENSUBDIV_LEGACY_DRAW
 	if (program) {
 		glUniform1i(glGetUniformLocation(program, "PrimitiveIdBase"),
 		            patch_index);
 	}
 	mode = GL_LINES_ADJACENCY;
-#else
-	(void) patch_index;
-#endif
 	glDrawElements(mode,
 	               num_elements,
 	               GL_UNSIGNED_INT,
@@ -504,13 +484,11 @@ static void finish_patchDraw(bool fill_quads)
 	}
 	glBindVertexArray(0);
 
-#ifndef OPENSUBDIV_LEGACY_DRAW
 	if (g_use_osd_glsl) {
 		glActiveTexture(GL_TEXTURE0);
 		/* TODO(sergey): Store previously used program and roll back to it? */
 		glUseProgram(0);
 	}
-#endif
 }
 
 static void draw_partition_patches_range(PartitionedGLMeshInterface *mesh,
