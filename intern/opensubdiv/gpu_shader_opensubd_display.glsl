@@ -25,7 +25,10 @@
 
 /* ***** Vertex shader ***** */
 
-#version 150
+#version 130
+#extension GL_EXT_geometry_shader4 : enable
+#extension GL_ARB_gpu_shader5 : enable
+#extension GL_ARB_explicit_attrib_location : require
 
 struct VertexData {
 	vec4 position;
@@ -56,11 +59,13 @@ void main()
 /* ***** geometry shader ***** */
 #ifdef GEOMETRY_SHADER
 
+#ifndef GLSL_COMPAT_WORKAROUND
 layout(lines_adjacency) in;
 #ifndef WIREFRAME
 layout(triangle_strip, max_vertices = 4) out;
 #else
 layout(line_strip, max_vertices = 8) out;
+#endif
 #endif
 
 uniform mat4 modelViewMatrix;

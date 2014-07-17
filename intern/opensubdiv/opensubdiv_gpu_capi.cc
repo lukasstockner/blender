@@ -29,6 +29,11 @@
  *
  */
 
+/* Do some compatibility hacks in order to make
+ * the code working with GPU_material pipeline.
+ */
+#define GLSL_COMPAT_WORKAROUND
+
 #include "opensubdiv_capi.h"
 
 #ifdef _MSC_VER
@@ -187,7 +192,7 @@ GLuint compileShader(GLenum shaderType,
 {
 	const char *sources[3];
 	char sdefine[64];
-	sprintf(sdefine, "#define %s\n", section);
+	sprintf(sdefine, "#define %s\n#define GLSL_COMPAT_WORKAROUND\n", section);
 
 	sources[0] = define;
 	sources[1] = sdefine;
@@ -232,6 +237,31 @@ GLuint linkProgram(const char *define)
 
 	glBindAttribLocation(program, 0, "position");
 	glBindAttribLocation(program, 1, "normal");
+
+	glProgramParameteriEXT(program,
+	                       GL_GEOMETRY_INPUT_TYPE_EXT,
+	                       GL_LINES_ADJACENCY_EXT);
+
+#ifdef GLSL_COMPAT_WORKAROUND
+	if (strstr(define, "WIREFRAME") == NULL) {
+		glProgramParameteriEXT(program,
+		                       GL_GEOMETRY_OUTPUT_TYPE_EXT,
+		                       GL_TRIANGLE_STRIP);
+
+		glProgramParameteriEXT(program,
+		                       GL_GEOMETRY_VERTICES_OUT_EXT,
+		                       4);
+	}
+	else {
+		glProgramParameteriEXT(program,
+		                       GL_GEOMETRY_OUTPUT_TYPE_EXT,
+		                       GL_LINE_STRIP);
+
+		glProgramParameteriEXT(program,
+		                       GL_GEOMETRY_VERTICES_OUT_EXT,
+		                       8);
+	}
+#endif
 
 	glLinkProgram(program);
 
