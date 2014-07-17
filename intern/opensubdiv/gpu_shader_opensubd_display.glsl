@@ -107,6 +107,15 @@ void emit(int index, vec3 normal)
 	gl_Position = projectionMatrix * inpt[index].v.position;
 	EmitVertex();
 }
+
+#  ifdef WIREFRAME
+void emit_edge(int v0, int v1, vec3 normal)
+{
+	emit(v0, normal);
+	emit(v1, normal);
+}
+#  endif
+
 #else
 void emit(int index)
 {
@@ -122,6 +131,15 @@ void emit(int index)
 	gl_Position = projectionMatrix * inpt[index].v.position;
 	EmitVertex();
 }
+
+#  ifdef WIREFRAME
+void emit_edge(int v0, int v1)
+{
+	emit(v0);
+	emit(v1);
+}
+#  endif
+
 #endif
 
 void main()
@@ -131,21 +149,17 @@ void main()
 #ifdef FLAT_SHADING
 	vec3 A = (inpt[0].v.position - inpt[1].v.position).xyz;
 	vec3 B = (inpt[3].v.position - inpt[1].v.position).xyz;
-	vec3 n0 = normalize(cross(B, A));
+	vec3 flat_normal = normalize(cross(B, A));
 #  ifndef WIREFRAME
-	emit(0, n0);
-	emit(1, n0);
-	emit(3, n0);
-	emit(2, n0);
+	emit(0, flat_normal);
+	emit(1, flat_normal);
+	emit(3, flat_normal);
+	emit(2, flat_normal);
 #  else
-	emit(0, n0);
-	emit(1, n0);
-	emit(1, n0);
-	emit(2, n0);
-	emit(2, n0);
-	emit(3, n0);
-	emit(3, n0);
-	emit(0, n0);
+	emit_edge(0, 1, flat_normal);
+	emit_edge(1, 2, flat_normal);
+	emit_edge(2, 3, flat_normal);
+	emit_edge(3, 0, flat_normal);
 #  endif
 #else
 #  ifndef WIREFRAME
@@ -154,14 +168,10 @@ void main()
 	emit(3);
 	emit(2);
 #  else
-	emit(0);
-	emit(1);
-	emit(1);
-	emit(2);
-	emit(2);
-	emit(3);
-	emit(3);
-	emit(0);
+	emit_edge(0, 1);
+	emit_edge(1, 2);
+	emit_edge(2, 3);
+	emit_edge(3, 0);
 #  endif
 #endif
 
