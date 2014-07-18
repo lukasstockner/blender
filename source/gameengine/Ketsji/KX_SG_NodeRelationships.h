@@ -30,13 +30,12 @@
  *  \ingroup ketsji
  *  \section KX_SG_NodeRelationships
  * This file provides common concrete implementations of
- * SG_ParentRelation used by the game engine. These are
- * KX_SlowParentRelation a slow parent relationship.
- * KX_NormalParentRelation a normal parent relationship where
- * orientation and position are inherited from the parent by
+ * SG_ParentRelation used by the game engine. These are:
+ * - KX_NormalParentRelation a normal parent relationship where
+ * orientation, position and scale are inherited from the parent by
  * the child.
- * KX_VertexParentRelation only location information is
- * inherited by the child.
+ * - KX_VertexParentRelation only location information is inherited by the child.
+ * - KX_SlowParentRelation a slow parent relationship.
  */
 
 #ifndef __KX_SG_NODERELATIONSHIPS_H__
@@ -127,72 +126,43 @@ class KX_SlowParentRelation : public SG_ParentRelation
 public :
 
 	/**
-	 * Allocate and construct a new KX_VertexParentRelation
-	 * on the heap.
+	 * Allocate and construct a new KX_SlowParentRelation on the heap.
 	 */
+	static KX_SlowParentRelation* New(MT_Scalar relaxation);
 
-	static 
-		KX_SlowParentRelation *
-	New(
-		MT_Scalar relaxation
-	);
-
-	/** 
+	/**
 	 * Method inherited from KX_ParentRelation
+	 * Update the child's global coordinates based upon the local ones and the parent's global coordinates.
 	 */
+	bool UpdateChildCoordinates(SG_Spatial *child, const SG_Spatial *parent, bool &parentUpdated);
 
-		bool
-	UpdateChildCoordinates(
-		SG_Spatial * child,
-		const SG_Spatial * parent,
-		bool& parentUpdated
-	);
-
-	/** 
+	/**
 	 * Method inherited from KX_ParentRelation
+	 * This should return a pointer to a new duplicate allocated on the heap.
+	 * Responsibility for deleting the duplicate resides with the caller of this method.
 	 */
-	
-		SG_ParentRelation *
-	NewCopy(
-	);
+	SG_ParentRelation* NewCopy();
 
-		MT_Scalar
-	GetTimeOffset(
-	) { return m_relax; }
-	
-		void
-	SetTimeOffset(
-		MT_Scalar relaxation
-	) { m_relax = relaxation; }
+	~KX_SlowParentRelation();
 
-	~KX_SlowParentRelation(
-	);
-	
-		bool
-	IsSlowRelation(
-	) { 
+	bool IsSlowRelation()
+	{
 		return true;
 	}
 
+	MT_Scalar GetTimeOffset() { return m_relax; }
+	void SetTimeOffset(MT_Scalar relaxation) { m_relax = relaxation; }
+
 private :
 
-	KX_SlowParentRelation(
-		MT_Scalar relaxation
-	);
+	KX_SlowParentRelation(MT_Scalar relaxation);
 
-	// the relaxation coefficient.
-
+	/* the relaxation coefficient. */
 	MT_Scalar m_relax;
 
 	/**
 	 * Looks like a hack flag to me.
-	 * We need to compute valid world coordinates the first
-	 * time we update spatial data of the child. This is done
-	 * by just doing a normal parent relation the first time
-	 * UpdateChildCoordinates is called and then doing the
-	 * slow parent relation 
 	 */
-
 	bool m_initialized;
 
 
