@@ -288,10 +288,10 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 
 		DM_ensure_tessface(dm);
 
-		mvert   = (dm) ? dm->getVertArray(dm) : NULL;
-		totvert = (dm) ? dm->getNumVerts(dm) : 0;
-		mface   = (dm) ? dm->getTessFaceArray(dm) : NULL;
-		totface = (dm) ? dm->getNumTessFaces(dm) : 0;
+		mvert   = dm->getVertArray(dm);
+		totvert = dm->getNumVerts(dm);
+		mface   = dm->getTessFaceArray(dm);
+		totface = dm->getNumTessFaces(dm);
 
 		/* sanity checking - potential case when no data will be present */
 		if ((totvert == 0) || (totface == 0)) {
@@ -345,7 +345,7 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 		}
 
 		/* cleanup temp data */
-		if (dm && ob->rigidbody_object->mesh_source == RBO_MESH_BASE) {
+		if (ob->rigidbody_object->mesh_source == RBO_MESH_BASE) {
 			dm->release(dm);
 		}
 	}
@@ -471,7 +471,7 @@ void BKE_rigidbody_calc_volume(Object *ob, float *r_vol)
 	/* if automatically determining dimensions, use the Object's boundbox
 	 *	- assume that all quadrics are standing upright on local z-axis
 	 *	- assume even distribution of mass around the Object's pivot
-	 *	  (i.e. Object pivot is centralised in boundbox)
+	 *	  (i.e. Object pivot is centralized in boundbox)
 	 *	- boundbox gives full width
 	 */
 	// XXX: all dimensions are auto-determined now... later can add stored settings for this
@@ -522,17 +522,17 @@ void BKE_rigidbody_calc_volume(Object *ob, float *r_vol)
 			
 				DM_ensure_tessface(dm);
 			
-				mvert   = (dm) ? dm->getVertArray(dm) : NULL;
-				totvert = (dm) ? dm->getNumVerts(dm) : 0;
-				mface   = (dm) ? dm->getTessFaceArray(dm) : NULL;
-				totface = (dm) ? dm->getNumTessFaces(dm) : 0;
+				mvert   = dm->getVertArray(dm);
+				totvert = dm->getNumVerts(dm);
+				mface   = dm->getTessFaceArray(dm);
+				totface = dm->getNumTessFaces(dm);
 				
 				if (totvert > 0 && totface > 0) {
 					BKE_mesh_calc_volume(mvert, totvert, mface, totface, &volume, NULL);
 				}
 				
 				/* cleanup temp data */
-				if (dm && ob->rigidbody_object->mesh_source == RBO_MESH_BASE) {
+				if (ob->rigidbody_object->mesh_source == RBO_MESH_BASE) {
 					dm->release(dm);
 				}
 			}
@@ -567,7 +567,7 @@ void BKE_rigidbody_calc_center_of_mass(Object *ob, float r_com[3])
 	/* if automatically determining dimensions, use the Object's boundbox
 	 *	- assume that all quadrics are standing upright on local z-axis
 	 *	- assume even distribution of mass around the Object's pivot
-	 *	  (i.e. Object pivot is centralised in boundbox)
+	 *	  (i.e. Object pivot is centralized in boundbox)
 	 *	- boundbox gives full width
 	 */
 	// XXX: all dimensions are auto-determined now... later can add stored settings for this
@@ -605,17 +605,17 @@ void BKE_rigidbody_calc_center_of_mass(Object *ob, float r_com[3])
 			
 				DM_ensure_tessface(dm);
 			
-				mvert   = (dm) ? dm->getVertArray(dm) : NULL;
-				totvert = (dm) ? dm->getNumVerts(dm) : 0;
-				mface   = (dm) ? dm->getTessFaceArray(dm) : NULL;
-				totface = (dm) ? dm->getNumTessFaces(dm) : 0;
+				mvert   = dm->getVertArray(dm);
+				totvert = dm->getNumVerts(dm);
+				mface   = dm->getTessFaceArray(dm);
+				totface = dm->getNumTessFaces(dm);
 				
 				if (totvert > 0 && totface > 0) {
 					BKE_mesh_calc_volume(mvert, totvert, mface, totface, NULL, r_com);
 				}
 				
 				/* cleanup temp data */
-				if (dm && ob->rigidbody_object->mesh_source == RBO_MESH_BASE) {
+				if (ob->rigidbody_object->mesh_source == RBO_MESH_BASE) {
 					dm->release(dm);
 				}
 			}

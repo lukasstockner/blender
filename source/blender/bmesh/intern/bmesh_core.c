@@ -1953,10 +1953,6 @@ BMFace *bmesh_jfke(BMesh *bm, BMFace *f1, BMFace *f2, BMEdge *e)
  */
 bool BM_vert_splice(BMesh *bm, BMVert *v, BMVert *v_target)
 {
-	void *loops_stack[BM_DEFAULT_ITER_STACK_SIZE];
-	BMLoop **loops;
-	int i, loops_tot;
-
 	BMEdge *e;
 
 	/* verts already spliced */
@@ -1964,21 +1960,25 @@ bool BM_vert_splice(BMesh *bm, BMVert *v, BMVert *v_target)
 		return false;
 	}
 
-	/* we can't modify the vert while iterating so first allocate an array of loops */
-	loops = BM_iter_as_arrayN(bm, BM_LOOPS_OF_VERT, v, &loops_tot,
-	                          loops_stack, BM_DEFAULT_ITER_STACK_SIZE);
-
-	if (LIKELY(loops != NULL)) {
-		for (i = 0; i < loops_tot; i++) {
-			loops[i]->v = v_target;
-		}
-		if (loops != (BMLoop **)loops_stack) {
-			MEM_freeN(loops);
-		}
-	}
+	BLI_assert(BM_vert_pair_share_face_check(v, v_target) == false);
 
 	/* move all the edges from v's disk to vtarget's disk */
 	while ((e = v->e)) {
+
+		/* loop  */
+		BMLoop *l_first;
+		if ((l_first = e->l)) {
+			BMLoop *l_iter = l_first;
+			do {
+				if (l_iter->v == v) {
+					l_iter->v = v_target;
+				}
+				/* else if (l_iter->prev->v == v) {...}
+				 * (this case will be handled by a different edge) */
+			} while ((l_iter = l_iter->radial_next) != l_first);
+		}
+
+		/* disk */
 		bmesh_disk_edge_remove(e, v);
 		bmesh_edge_swapverts(e, v, v_target);
 		bmesh_disk_edge_append(e, v_target);
@@ -2032,15 +2032,16 @@ void bmesh_vert_separate(BMesh *bm, BMVert *v, BMVert ***r_vout, int *r_vout_len
 
 		/* Considering only edges and faces incident on vertex v, walk
 		 * the edges & faces and assign an index to each connected set */
+		BLI_smallhash_insert(&visithash, (uintptr_t)e, SET_INT_IN_POINTER(maxindex));
 		do {
-			BLI_smallhash_insert(&visithash, (uintptr_t)e, SET_INT_IN_POINTER(maxindex));
-
 			if (e->l) {
 				BMLoop *l_iter, *l_first;
 				l_iter = l_first = e->l;
 				do {
 					l_new = (l_iter->v == v) ? l_iter->prev : l_iter->next;
+					BLI_assert(BM_vert_in_edge(l_new->e, v));
 					if (!BLI_smallhash_haskey(&visithash, (uintptr_t)l_new->e)) {
+						BLI_smallhash_insert(&visithash, (uintptr_t)l_new->e, SET_INT_IN_POINTER(maxindex));
 						STACK_PUSH(stack, l_new->e);
 					}
 				} while ((l_iter = l_iter->radial_next) != l_first);
