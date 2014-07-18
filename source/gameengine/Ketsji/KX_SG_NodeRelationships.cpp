@@ -50,14 +50,10 @@ bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Spatial *child, const SG
 	if (!parentUpdated && !child->IsModified())
 		return false;
 
-	parentUpdated = true;  //XXX why??
-
 	/* The child has no parent, it is a root object.
 	 * The world and local coordinates should be the same and applied directly. */
 	if (parent==NULL) {
 		child->SetWorldFromLocalTransform();
-		child->ClearModified();
-		return true;
 	}
 	/* The child has a parent. The child's coordinates are defined relative to the parent's.
 	 * The parent's coordinates should be applied to the child's local ones to calculate the real world position. */
@@ -72,9 +68,11 @@ bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Spatial *child, const SG
 		child->SetWorldScale(p_world_scale * local_scale);
 		child->SetWorldOrientation(p_world_orientation * local_orientation);
 		child->SetWorldPosition(p_world_pos + p_world_scale * local_scale * (p_world_orientation * local_orientation * local_pos));
-		child->ClearModified();
-		return true;
 	}
+
+	parentUpdated = true;  //this variable is going to be used to update the children of this child
+	child->ClearModified();
+	return true;
 }
 
 SG_ParentRelation* KX_NormalParentRelation::NewCopy()
@@ -95,41 +93,40 @@ KX_NormalParentRelation::KX_NormalParentRelation()
 
 
 
-/** 
- * Next KX_VertexParentRelation
- */
 
+/**
+ * KX_VertexParentRelation - the child only inherits the position, not the orientation or scale
+ */
 
 KX_VertexParentRelation* KX_VertexParentRelation::New()
 {
 	return new KX_VertexParentRelation();
 }
 
-/** 
- * Method inherited from KX_ParentRelation
- */
 bool KX_VertexParentRelation::UpdateChildCoordinates(SG_Spatial *child, const SG_Spatial *parent, bool &parentUpdated)
 {
 	MT_assert(child != NULL);
 
+	/* If nothing changed in the parent or child, there is nothing to do here */
 	if (!parentUpdated && !child->IsModified())
 		return false;
 
-	child->SetWorldScale(child->GetLocalScale());
-	
-	if (parent)
-		child->SetWorldPosition(child->GetLocalPosition()+parent->GetWorldPosition());
-	else
+	/* The parent (if existing) is a vertex, so only position should be applied
+	 * to the child's local coordinates to calculate the real world position. */
+
+	if (parent==NULL)
 		child->SetWorldPosition(child->GetLocalPosition());
-	
+	else
+		child->SetWorldPosition(child->GetLocalPosition()+parent->GetWorldPosition());
+
+	child->SetWorldScale(child->GetLocalScale());
 	child->SetWorldOrientation(child->GetLocalOrientation());
+
+	parentUpdated = true;  //this variable is going to be used to update the children of this child
 	child->ClearModified();
-	return true; //parent != NULL;
+	return true;
 }
 
-/** 
- * Method inherited from KX_ParentRelation
- */
 SG_ParentRelation* KX_VertexParentRelation::NewCopy()
 {
 	return new KX_VertexParentRelation();

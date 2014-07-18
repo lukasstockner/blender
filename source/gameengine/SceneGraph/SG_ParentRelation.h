@@ -38,8 +38,8 @@
  * Normally a child will use it's parent's transforms to compute
  * its own global transforms. How this is performed depends on
  * the type of relation. For example if the parent is a vertex
- * parent to this child then the child should not inherit any                         XXX
- * rotation information from the parent. Or if the parent is a
+ * parent to this child then the child should only inherit
+ * location information from the parent. Or if the parent is a
  * 'slow parent' to this child then the child should react
  * slowly to changes in the parent's position. The exact relation
  * is left for you to implement by filling out this interface
