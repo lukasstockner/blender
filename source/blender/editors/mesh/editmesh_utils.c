@@ -624,12 +624,12 @@ void EDBM_update_scratch_from_active(Object *ob)
 	KeyBlock *neworigin = BKE_keyblock_from_object(ob);
 
 	k->scratch.origin = neworigin;
-	if (oldorigin->totelem != neworigin->totelem) {
-		if (k->scratch.data) {
-			MEM_freeN(k->scratch.data);
-			k->scratch.data = MEM_mallocN(sizeof(float) * 3 * neworigin->totelem, __func__);
-		}
+	
+	if (k->scratch.data) {
+		MEM_freeN(k->scratch.data);
+		k->scratch.data = MEM_mallocN(sizeof(float)* 3 * neworigin->totelem, __func__);
 	}
+
 	/* neworigin -> scratch */
 	BLI_assert(neworigin->totelem == BKE_editmesh_from_object(ob)->bm->totvert);
 	memcpy(k->scratch.data, neworigin->data, sizeof(float) * 3 * neworigin->totelem);
