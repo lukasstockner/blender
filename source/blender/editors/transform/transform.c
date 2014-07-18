@@ -576,7 +576,8 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 {
 	if (t->spacetype == SPACE_VIEW3D) {
 		if (t->options & CTX_PAINT_CURVE) {
-			ED_area_tag_redraw(t->sa);
+			wmWindow *window = CTX_wm_window(C);
+			WM_paint_cursor_tag_redraw(window, t->ar);
 		}
 		else {
 			/* Do we need more refined tags? */

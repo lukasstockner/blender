@@ -1211,7 +1211,6 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			Paint *p = BKE_paint_get_active_from_context(C);
 			if (p && p->brush && (p->brush->flag & BRUSH_CURVE)) {
 				t->options |= CTX_PAINT_CURVE;
-				t->around = V3D_CENTER;
 			}
 		}
 
@@ -1247,7 +1246,6 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 			Paint *p = &sce->toolsettings->imapaint.paint;
 			if (p->brush && (p->brush->flag & BRUSH_CURVE)) {
 				t->options |= CTX_PAINT_CURVE;
-				t->around = V3D_CENTER;
 			}
 		}
 		/* image not in uv edit, nor in mask mode, can happen for some tools */

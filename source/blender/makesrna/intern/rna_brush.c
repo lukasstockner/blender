@@ -397,6 +397,12 @@ static void rna_Brush_imagepaint_tool_update(Main *bmain, Scene *scene, PointerR
 	rna_Brush_update(bmain, scene, ptr);
 }
 
+static void rna_Brush_stroke_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	WM_main_add_notifier(NC_SCENE | ND_TOOLSETTINGS, scene);
+	rna_Brush_update(bmain, scene, ptr);
+}
+
 static void rna_Brush_icon_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
 	Brush *br = (Brush *)ptr->data;
@@ -872,7 +878,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, sculpt_stroke_method_items);
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_Brush_stroke_itemf");
 	RNA_def_property_ui_text(prop, "Stroke Method", "");
-	RNA_def_property_update(prop, 0, "rna_Brush_update");
+	RNA_def_property_update(prop, 0, "rna_Brush_stroke_update");
 
 	prop = RNA_def_property(srna, "texture_angle_source_random", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
