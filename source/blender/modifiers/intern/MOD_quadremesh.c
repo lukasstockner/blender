@@ -425,6 +425,7 @@ static void computeGradientFields(LaplacianSystem * sys)
 */
 static void computeDirectionVectorOnFace(float dir[3], LaplacianSystem * sys, float origin[3], int indexf)
 {
+
 }
 
 /**
@@ -459,7 +460,7 @@ static int getNeighborFaceWithMinUField(LaplacianSystem * sys, int index, float 
 * int ifs; Index of vertx, this vertex is the seed for trace this flow line
 */
 static void computeGradientFlowLine(LaplacianSystem * sys, int ivs){
-	float uvalue, minU, tempminU, x[3], p[3], q[3], i1[3], i2[3];
+	float minU, tempminU, x[3], p[3], i1[3], i2[3];
 	int i, numf, indexf, actualf, indf;
 	int *fidn;
 	int *vin, has4v;
