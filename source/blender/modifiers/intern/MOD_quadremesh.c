@@ -44,10 +44,16 @@
 
 #include "ONL_opennl.h"
 
-typedef struct GradientFlowLine {
-	int total_verts;
-	float(*co)[3];
 
+#define FLOW_LINE_POINT_TYPE_VERTEX 0 
+#define FLOW_LINE_POINT_TYPE_EDGE 1
+
+typedef struct GradientFlowLine {
+	char *type;				/* The point is over a vertex or a edge, 1:edge, 0:vertex */
+	float(*co)[3];			/* Vertex coordinate */
+	int *index;				/* Pointer to a vertex or a edge */
+	int total_verts;		/* Total number of points in a flow line */
+	int total_allocated;	/* Total number of elements allocated */
 } GradientFlowLine;
 
 typedef struct LaplacianSystem {
@@ -68,23 +74,38 @@ typedef struct LaplacianSystem {
 	int *constraints;			/* Feature points constraints*/
 	int *ringf_indices;			/* Indices of faces per vertex */
 	int *ringv_indices;			/* Indices of neighbors(vertex) per vertex */
-	GradientFlowLine *gflines;  /* Gradien flow lines of field g1*/
 	unsigned int(*faces)[4];	/* Copy of MFace (tessface) v1-v4 */
+	GradientFlowLine *gflines;  /* Gradien flow lines of field g1*/
 	MeshElemMap *ringf_map;		/* Map of faces per vertex */
 	MeshElemMap *ringv_map;		/* Map of vertex per vertex */
 	NLContext *context;			/* System for solve general implicit rotations */
 } LaplacianSystem;
 
-static GradientFlowLine *newGradientFlowLine(LaplacianSystem *sys)
+static GradientFlowLine *initGradientFlowLine(GradientFlowLine *gfl, int expected_size){
+	gfl->type = MEM_mallocN(sizeof(char) * expected_size, __func__);  /* over-alloc */
+	gfl->co = MEM_mallocN(sizeof(float[3]) * expected_size, __func__);  /* over-alloc */
+	gfl->index = MEM_mallocN(sizeof(int)* expected_size, __func__);  /* over-alloc */
+	gfl->total_allocated = expected_size;
+	gfl->total_verts = 0;
+	return gfl;
+}
+
+static void addPointToGradientFlowLine(GradientFlowLine *gfl, char type, float p[3], int index)
 {
-	if (sys->total_gflines == 0){
-		sys->gflines = MEM_mallocN(sizeof(GradientFlowLine), "QuadRemeshgflines");
+	if (index >= 0 && (type == FLOW_LINE_POINT_TYPE_EDGE || type == FLOW_LINE_POINT_TYPE_VERTEX)) {
+
+		if (index >= gfl->total_allocated){
+			gfl->type = MEM_reallocN(gfl->type, sizeof(char) * (gfl->total_allocated + 1));
+			gfl->co = MEM_reallocN(gfl->co, sizeof(float[3]) * (gfl->total_allocated + 1));
+			gfl->index = MEM_reallocN(gfl->index, sizeof(int) * (gfl->total_allocated + 1));
+			gfl->total_allocated++;
+		}
+
+		copy_v3_v3(gfl->co[gfl->total_verts], p);
+		gfl->type[gfl->total_verts] = type;
+		gfl->index[gfl->total_verts] = index;
+		gfl->total_verts++;
 	}
-	else {
-		sys->gflines = MEM_reallocN(sys->gflines, sizeof(GradientFlowLine)* sys->total_gflines + 1);
-		sys->total_gflines += 1;
-	}
-	return &(sys->gflines[sys->total_gflines - 1]);
 }
 
 static LaplacianSystem *newLaplacianSystem(void)
@@ -97,6 +118,7 @@ static LaplacianSystem *newLaplacianSystem(void)
 	sys->total_edges = 0;
 	sys->total_features = 0;
 	sys->total_faces = 0;
+	sys->total_gflines = 0;
 	sys->features_grp_name[0] = '\0';
 
 	return sys;
@@ -139,11 +161,93 @@ static void UNUSED_FUNCTION(deleteLaplacianSystem)(LaplacianSystem *sys)
 	MEM_SAFE_FREE(sys->ringv_indices);
 	MEM_SAFE_FREE(sys->ringf_map);
 	MEM_SAFE_FREE(sys->ringv_map);
+	for (int i = 0; i < sys->total_gflines; i++) {
+		MEM_SAFE_FREE(sys->gflines[i].co);
+		MEM_SAFE_FREE(sys->gflines[i].index);
+		MEM_SAFE_FREE(sys->gflines[i].type);
+	}
 	MEM_SAFE_FREE(sys->gflines);
 	if (sys->context) {
 		nlDeleteContext(sys->context);
 	}
 	MEM_SAFE_FREE(sys);
+}
+
+static void createFaceRingMap(
+	const int mvert_tot, const MFace *mface, const int mface_tot,
+	MeshElemMap **r_map, int **r_indices)
+{
+	int i, j, totalr = 0;
+	int *indices, *index_iter;
+	MeshElemMap *map = MEM_callocN(sizeof(MeshElemMap)* mvert_tot, "DeformRingMap");
+	const MFace *mf;
+
+	for (i = 0, mf = mface; i < mface_tot; i++, mf++) {
+		bool has_4_vert;
+
+		has_4_vert = mf->v4 ? 1 : 0;
+
+		for (j = 0; j < (has_4_vert ? 4 : 3); j++) {
+			const unsigned int v_index = (*(&mf->v1 + j));
+			map[v_index].count++;
+			totalr++;
+		}
+	}
+	indices = MEM_callocN(sizeof(int)* totalr, "DeformRingIndex");
+	index_iter = indices;
+	for (i = 0; i < mvert_tot; i++) {
+		map[i].indices = index_iter;
+		index_iter += map[i].count;
+		map[i].count = 0;
+	}
+	for (i = 0, mf = mface; i < mface_tot; i++, mf++) {
+		bool has_4_vert;
+
+		has_4_vert = mf->v4 ? 1 : 0;
+
+		for (j = 0; j < (has_4_vert ? 4 : 3); j++) {
+			const unsigned int v_index = (*(&mf->v1 + j));
+			map[v_index].indices[map[v_index].count] = i;
+			map[v_index].count++;
+		}
+	}
+	*r_map = map;
+	*r_indices = indices;
+}
+
+static void createVertRingMap(
+	const int mvert_tot, const MEdge *medge, const int medge_tot,
+	MeshElemMap **r_map, int **r_indices)
+{
+	MeshElemMap *map = MEM_callocN(sizeof(MeshElemMap)* mvert_tot, "DeformNeighborsMap");
+	int i, vid[2], totalr = 0;
+	int *indices, *index_iter;
+	const MEdge *me;
+
+	for (i = 0, me = medge; i < medge_tot; i++, me++) {
+		vid[0] = me->v1;
+		vid[1] = me->v2;
+		map[vid[0]].count++;
+		map[vid[1]].count++;
+		totalr += 2;
+	}
+	indices = MEM_callocN(sizeof(int)* totalr, "DeformNeighborsIndex");
+	index_iter = indices;
+	for (i = 0; i < mvert_tot; i++) {
+		map[i].indices = index_iter;
+		index_iter += map[i].count;
+		map[i].count = 0;
+	}
+	for (i = 0, me = medge; i < medge_tot; i++, me++) {
+		vid[0] = me->v1;
+		vid[1] = me->v2;
+		map[vid[0]].indices[map[vid[0]].count] = vid[1];
+		map[vid[0]].count++;
+		map[vid[1]].indices[map[vid[1]].count] = vid[0];
+		map[vid[1]].count++;
+	}
+	*r_map = map;
+	*r_indices = indices;
 }
 
 
@@ -275,7 +379,7 @@ static void computeScalarField(LaplacianSystem *sys)
 }
 
 /** 
- * Compute the gradiente fields
+ * Compute the gradient fields
  * 
  * xi, xj, xk, are the vertices of the face
  * ui, uj, uk, are the values of scalar fields for every vertex of the face
@@ -293,6 +397,7 @@ static void computeGradientFields(LaplacianSystem * sys)
 {
 	int fi, i, j, k;
 	float a[3][3], u[3], inv_a[3][3];
+
 	for (fi = 0; fi < sys->total_faces; fi++) {
 		const unsigned int *vidf = sys->faces[fi];
 		i = vidf[0];
@@ -301,6 +406,9 @@ static void computeGradientFields(LaplacianSystem * sys)
 		sub_v3_v3v3(a[0], sys->co[j], sys->co[i]);
 		sub_v3_v3v3(a[1], sys->co[k], sys->co[j]);
 		copy_v3_v3 (a[2], sys->no[fi]);
+
+		/* Correct way*/
+		transpose_m3(a);
 		u[0] = sys->U_field[j] - sys->U_field[i];
 		u[1] = sys->U_field[k] - sys->U_field[j];
 		u[2] = 0;
@@ -308,6 +416,43 @@ static void computeGradientFields(LaplacianSystem * sys)
 		mul_v3_m3v3(sys->gf1[fi], inv_a, u);
 		cross_v3_v3v3(sys->gf2[fi], sys->no[fi], sys->gf1[fi]);
 	}
+
+
+}
+
+/**
+* Project vector of gradient field on face, 
+*/
+static void computeDirectionVectorOnFace(float dir[3], LaplacianSystem * sys, float origin[3], int indexf)
+{
+}
+
+/**
+* return the index of face with less value of U scalar field
+* return -1 if any value is less.
+*/
+static int getNeighborFaceWithMinUField(LaplacianSystem * sys, int index, float value){
+	int *vin, has4v;
+	int *fidn, numf;
+	int i, j;
+	int indexf = -1;
+	float minvalue = value;
+
+	vin = sys->faces[index];
+	has4v = vin[3] ? 4 : 3;
+	for (i = 0; i < has4v; i++) {
+		numf = sys->ringf_map[vin[i]].count;
+		fidn = sys->ringf_map[vin[i]].indices;
+		for (j = 0; j < numf; j++){
+			if (fidn[j] != index){
+				if (sys->U_field[fidn[j]] < minvalue){
+					minvalue = sys->U_field[fidn[j]];
+					indexf = fidn[j];
+				}
+			}
+		}
+	}
+	return indexf;
 }
 
 /** 
@@ -315,7 +460,7 @@ static void computeGradientFields(LaplacianSystem * sys)
 */
 static void computeGradientFlowLine(LaplacianSystem * sys, int ivs){
 	float uvalue, minU, tempminU, x[3], p[3], q[3], i1[3], i2[3];
-	int i, numf, indexf, actualf;
+	int i, numf, indexf, actualf, indf;
 	int *fidn;
 	int *vin, has4v;
 	int totalverts = 0;
@@ -346,7 +491,13 @@ static void computeGradientFlowLine(LaplacianSystem * sys, int ivs){
 
 	tempminU = 1000000;
 	actualf = indexf;
-	while (minU < tempminU) {
+	indf = indexf;
+	while (indf > 0) {
+
+
+
+		indf = getNeighborFaceWithMinUField(sys, actualf, tempminU);
+		
 		copy_v3_v3(p, vflowline[totalverts - 1]);
 		vin = sys->faces[actualf];
 		has4v = vin[3] ? 4 : 3;
