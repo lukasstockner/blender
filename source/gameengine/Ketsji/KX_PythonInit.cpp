@@ -88,6 +88,7 @@ extern "C" {
 #include "KX_SteeringActuator.h"
 #include "KX_NavMeshObject.h"
 #include "KX_MouseActuator.h"
+#include "KX_TrackToActuator.h"
 
 #include "SCA_IInputDevice.h"
 #include "SCA_PropertySensor.h"
@@ -1389,6 +1390,71 @@ static PyObject *gPyGetVsync(PyObject *)
 	return PyLong_FromLong(gp_Canvas->GetSwapInterval());
 }
 
+static PyObject *gPyShowFramerate(PyObject *, PyObject *args)
+{
+	int visible;
+	if (!PyArg_ParseTuple(args,"i:showFramerate",&visible))
+		return NULL;
+
+	if (visible && gp_KetsjiEngine)
+		gp_KetsjiEngine->SetShowFramerate(true);
+	else
+		gp_KetsjiEngine->SetShowFramerate(false);
+
+	Py_RETURN_NONE;
+}
+
+static PyObject *gPyShowProfile(PyObject *, PyObject *args)
+{
+	int visible;
+	if (!PyArg_ParseTuple(args,"i:showProfile",&visible))
+		return NULL;
+
+	if (visible && gp_KetsjiEngine)
+		gp_KetsjiEngine->SetShowProfile(true);
+	else
+		gp_KetsjiEngine->SetShowProfile(false);
+
+	Py_RETURN_NONE;
+}
+
+static PyObject *gPyShowProperties(PyObject *, PyObject *args)
+{
+	int visible;
+	if (!PyArg_ParseTuple(args,"i:showProperties",&visible))
+		return NULL;
+
+	if (visible && gp_KetsjiEngine)
+		gp_KetsjiEngine->SetShowProperties(true);
+	else
+		gp_KetsjiEngine->SetShowProperties(false);
+
+	Py_RETURN_NONE;
+}
+
+static PyObject *gPyAutoDebugList(PyObject *, PyObject *args)
+{
+	int add;
+	if (!PyArg_ParseTuple(args,"i:autoAddProperties",&add))
+		return NULL;
+
+	if (add && gp_KetsjiEngine)
+		gp_KetsjiEngine->SetAutoAddDebugProperties(true);
+	else
+		gp_KetsjiEngine->SetAutoAddDebugProperties(false);
+
+	Py_RETURN_NONE;
+}
+
+static PyObject *gPyClearDebugList(PyObject *)
+{
+	if (gp_KetsjiScene)
+		gp_KetsjiScene->RemoveAllDebugProperties();
+
+	Py_RETURN_NONE;
+}
+
+
 static struct PyMethodDef rasterizer_methods[] = {
 	{"getWindowWidth",(PyCFunction) gPyGetWindowWidth,
 	 METH_VARARGS, "getWindowWidth doc"},
@@ -1436,6 +1502,11 @@ static struct PyMethodDef rasterizer_methods[] = {
 	{"getMipmapping", (PyCFunction) gPyGetMipmapping, METH_NOARGS, ""},
 	{"setVsync", (PyCFunction) gPySetVsync, METH_VARARGS, ""},
 	{"getVsync", (PyCFunction) gPyGetVsync, METH_NOARGS, ""},
+	{"showFramerate",(PyCFunction) gPyShowFramerate, METH_VARARGS, "show or hide the framerate"},
+	{"showProfile",(PyCFunction) gPyShowProfile, METH_VARARGS, "show or hide the profile"},
+	{"showProperties",(PyCFunction) gPyShowProperties, METH_VARARGS, "show or hide the debug properties"},
+	{"autoDebugList",(PyCFunction) gPyAutoDebugList, METH_VARARGS, "enable or disable auto adding debug properties to the debug  list"},
+	{"clearDebugList",(PyCFunction) gPyClearDebugList, METH_NOARGS, "clears the debug property list"},
 	{ NULL, (PyCFunction) NULL, 0, NULL }
 };
 
@@ -1683,6 +1754,17 @@ PyObject *initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_X, KX_RaySensor::KX_RAY_AXIS_NEG_X);
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Y, KX_RaySensor::KX_RAY_AXIS_NEG_Y);
 	KX_MACRO_addTypesToDict(d, KX_RAY_AXIS_NEG_Z, KX_RaySensor::KX_RAY_AXIS_NEG_Z);
+
+	/* TrackTo Actuator */
+	KX_MACRO_addTypesToDict(d, KX_TRACK_UPAXIS_POS_X, KX_TrackToActuator::KX_TRACK_UPAXIS_POS_X);
+	KX_MACRO_addTypesToDict(d, KX_TRACK_UPAXIS_POS_Y, KX_TrackToActuator::KX_TRACK_UPAXIS_POS_Y);
+	KX_MACRO_addTypesToDict(d, KX_TRACK_UPAXIS_POS_Z, KX_TrackToActuator::KX_TRACK_UPAXIS_POS_Z);
+	KX_MACRO_addTypesToDict(d, KX_TRACK_TRAXIS_POS_X, KX_TrackToActuator::KX_TRACK_TRAXIS_POS_X);
+	KX_MACRO_addTypesToDict(d, KX_TRACK_TRAXIS_POS_Y, KX_TrackToActuator::KX_TRACK_TRAXIS_POS_Y);
+	KX_MACRO_addTypesToDict(d, KX_TRACK_TRAXIS_POS_Z, KX_TrackToActuator::KX_TRACK_TRAXIS_POS_Z);
+	KX_MACRO_addTypesToDict(d, KX_TRACK_TRAXIS_NEG_X, KX_TrackToActuator::KX_TRACK_TRAXIS_NEG_X);
+	KX_MACRO_addTypesToDict(d, KX_TRACK_TRAXIS_NEG_Y, KX_TrackToActuator::KX_TRACK_TRAXIS_NEG_Y);
+	KX_MACRO_addTypesToDict(d, KX_TRACK_TRAXIS_NEG_Z, KX_TrackToActuator::KX_TRACK_TRAXIS_NEG_Z);
 
 	/* Dynamic actuator */
 	KX_MACRO_addTypesToDict(d, KX_DYN_RESTORE_DYNAMICS, KX_SCA_DynamicActuator::KX_DYN_RESTORE_DYNAMICS);

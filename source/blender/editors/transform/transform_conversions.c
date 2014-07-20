@@ -124,8 +124,8 @@
 static void transform_around_single_fallback(TransInfo *t)
 {
 	if ((t->total == 1) &&
-	    (ELEM3(t->around, V3D_CENTER, V3D_CENTROID, V3D_ACTIVE)) &&
-	    (ELEM3(t->mode, TFM_RESIZE, TFM_ROTATION, TFM_TRACKBALL)))
+	    (ELEM(t->around, V3D_CENTER, V3D_CENTROID, V3D_ACTIVE)) &&
+	    (ELEM(t->mode, TFM_RESIZE, TFM_ROTATION, TFM_TRACKBALL)))
 	{
 		t->around = V3D_LOCAL;
 	}
@@ -282,7 +282,7 @@ static void createTransTexspace(TransInfo *t)
 	}
 
 	id = ob->data;
-	if (id == NULL || !ELEM3(GS(id->name), ID_ME, ID_CU, ID_MB)) {
+	if (id == NULL || !ELEM(GS(id->name), ID_ME, ID_CU, ID_MB)) {
 		BKE_report(t->reports, RPT_ERROR, "Unsupported object type for text-space transform");
 		t->total = 0;
 		return;
@@ -584,12 +584,12 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
 		if (constraints_list_needinv(t, &pchan->constraints)) {
 			copy_m3_m4(tmat, pchan->constinv);
 			invert_m3_m3(cmat, tmat);
-			mul_serie_m3(td->mtx, pmat, omat, cmat, NULL, NULL, NULL, NULL, NULL);
-			mul_serie_m3(td->ext->r_mtx, rpmat, omat, cmat, NULL, NULL, NULL, NULL, NULL);
+			mul_serie_m3(td->mtx, pmat, omat, cmat);
+			mul_serie_m3(td->ext->r_mtx, rpmat, omat, cmat);
 		}
 		else {
-			mul_serie_m3(td->mtx, pmat, omat, NULL, NULL, NULL, NULL, NULL, NULL);
-			mul_serie_m3(td->ext->r_mtx, rpmat, omat, NULL, NULL, NULL, NULL, NULL, NULL);
+			mul_serie_m3(td->mtx, pmat, omat);
+			mul_serie_m3(td->ext->r_mtx, rpmat, omat);
 		}
 		invert_m3_m3(td->ext->r_smtx, td->ext->r_mtx);
 	}
@@ -1052,18 +1052,43 @@ static void createTransPose(TransInfo *t, Object *ob)
 	if (ik_on) transform_autoik_update(t, 0);
 }
 
-/* ********************* armature ************** */
+void restoreBones(TransInfo *t)
+{
+	BoneInitData *bid = t->customData;
+	EditBone *ebo;
 
+	while (bid->bone) {
+		ebo = bid->bone;
+		ebo->dist = bid->dist;
+		ebo->rad_tail = bid->rad_tail;
+		ebo->roll = bid->roll;
+		ebo->xwidth = bid->xwidth;
+		ebo->zwidth = bid->zwidth;
+		copy_v3_v3(ebo->head, bid->head);
+		copy_v3_v3(ebo->tail, bid->tail);
+
+		bid++;
+	}
+}
+
+
+/* ********************* armature ************** */
 static void createTransArmatureVerts(TransInfo *t)
 {
-	EditBone *ebo;
+	EditBone *ebo, *eboflip;
 	bArmature *arm = t->obedit->data;
 	ListBase *edbo = arm->edbo;
-	TransData *td;
+	TransData *td, *td_old;
 	float mtx[3][3], smtx[3][3], bonemat[3][3];
+	bool mirror = ((arm->flag & ARM_MIRROR_EDIT) != 0);
+	int total_mirrored = 0, i;
+	int oldtot;
+	BoneInitData *bid;
 	
 	t->total = 0;
 	for (ebo = edbo->first; ebo; ebo = ebo->next) {
+		oldtot = t->total;
+
 		if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
 			if (t->mode == TFM_BONESIZE) {
 				if (ebo->flag & BONE_SELECTED)
@@ -1080,6 +1105,12 @@ static void createTransArmatureVerts(TransInfo *t)
 					t->total++;
 			}
 		}
+
+		if (mirror && (oldtot < t->total)) {
+			eboflip = ED_armature_bone_get_mirrored(arm->edbo, ebo);
+			if (eboflip)
+				total_mirrored++;
+		}
 	}
 
 	if (!t->total) return;
@@ -1091,7 +1122,15 @@ static void createTransArmatureVerts(TransInfo *t)
 
 	td = t->data = MEM_callocN(t->total * sizeof(TransData), "TransEditBone");
 
+	if (mirror) {
+		t->customData = bid = MEM_mallocN((total_mirrored + 1) * sizeof(BoneInitData), "BoneInitData");
+		t->flag |= T_FREE_CUSTOMDATA;
+	}
+
+	i = 0;
+
 	for (ebo = edbo->first; ebo; ebo = ebo->next) {
+		td_old = td;
 		ebo->oldlength = ebo->length;   // length==0.0 on extrude, used for scaling radius of bone points
 
 		if (EBONE_VISIBLE(arm, ebo) && !(ebo->flag & BONE_EDITMODE_LOCKED)) {
@@ -1223,6 +1262,26 @@ static void createTransArmatureVerts(TransInfo *t)
 				}
 			}
 		}
+
+		if (mirror && (td_old != td)) {
+			eboflip = ED_armature_bone_get_mirrored(arm->edbo, ebo);
+			if (eboflip) {
+				bid[i].bone = eboflip;
+				bid[i].dist = eboflip->dist;
+				bid[i].rad_tail = eboflip->rad_tail;
+				bid[i].roll = eboflip->roll;
+				bid[i].xwidth = eboflip->xwidth;
+				bid[i].zwidth = eboflip->zwidth;
+				copy_v3_v3(bid[i].head, eboflip->head);
+				copy_v3_v3(bid[i].tail, eboflip->tail);
+				i++;
+			}
+		}
+	}
+
+	if (mirror) {
+		/* trick to terminate iteration */
+		bid[total_mirrored].bone = NULL;
 	}
 }
 
@@ -2309,8 +2368,7 @@ static void createTransEditVerts(TransInfo *t)
 						quat_to_mat3(qmat, quats[BM_elem_index_get(eve)]);
 
 						if (defmats)
-							mul_serie_m3(mat, mtx, qmat, defmats[a],
-							             NULL, NULL, NULL, NULL, NULL);
+							mul_serie_m3(mat, mtx, qmat, defmats[a]);
 						else
 							mul_m3_m3m3(mat, mtx, qmat);
 					}
@@ -3648,7 +3706,7 @@ static void bezt_to_transdata(TransData *td, TransData2D *td2d, TransDataGraph *
 
 static bool graph_edit_is_translation_mode(TransInfo *t)
 {
-	return ELEM4(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE);
+	return ELEM(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE);
 }
 
 static bool graph_edit_use_local_center(TransInfo *t)
@@ -4708,12 +4766,12 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 			if ((con->flag & CONSTRAINT_DISABLE) == 0 && (con->enforce != 0.0f)) {
 				/* (affirmative) returns for specific constraints here... */
 				/* constraints that require this regardless  */
-				if (ELEM5(con->type,
-				          CONSTRAINT_TYPE_CHILDOF,
-				          CONSTRAINT_TYPE_FOLLOWPATH,
-				          CONSTRAINT_TYPE_CLAMPTO,
-				          CONSTRAINT_TYPE_OBJECTSOLVER,
-				          CONSTRAINT_TYPE_FOLLOWTRACK))
+				if (ELEM(con->type,
+				         CONSTRAINT_TYPE_CHILDOF,
+				         CONSTRAINT_TYPE_FOLLOWPATH,
+				         CONSTRAINT_TYPE_CLAMPTO,
+				         CONSTRAINT_TYPE_OBJECTSOLVER,
+				         CONSTRAINT_TYPE_FOLLOWTRACK))
 				{
 					return true;
 				}

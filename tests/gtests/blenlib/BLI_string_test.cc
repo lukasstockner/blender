@@ -35,7 +35,7 @@ int mk_wcswidth(const wchar_t *pwcs, size_t n)
 /* BLI_str_partition */
 TEST(string, StrPartition)
 {
-	const unsigned int delim[] = {'-', '.', '_', 0x00F1 /* n tilde */, 0x262F /* ying-yang */, '\0'};
+	const char delim[] = {'-', '.', '_', '~', '\\', '\0'};
 	char *sep, *suf;
 	size_t pre_ln;
 
@@ -94,7 +94,7 @@ TEST(string, StrPartition)
 /* BLI_str_rpartition */
 TEST(string, StrRPartition)
 {
-	const unsigned int delim[] = {'-', '.', '_', 0x00F1 /* n tilde */, 0x262F /* ying-yang */, '\0'};
+	const char delim[] = {'-', '.', '_', '~', '\\', '\0'};
 	char *sep, *suf;
 	size_t pre_ln;
 
@@ -266,4 +266,38 @@ TEST(string, StrRPartitionUtf8)
 		EXPECT_EQ(NULL, sep);
 		EXPECT_EQ(NULL, suf);
 	}
+}
+
+/* BLI_str_format_int_grouped */
+TEST(string, StrFormatIntGrouped)
+{
+	char num_str[16];
+	int num;
+
+	BLI_str_format_int_grouped(num_str, num = 0);
+	EXPECT_STREQ("0", num_str);
+
+	BLI_str_format_int_grouped(num_str, num = 1);
+	EXPECT_STREQ("1", num_str);
+
+	BLI_str_format_int_grouped(num_str, num = -1);
+	EXPECT_STREQ("-1", num_str);
+
+	BLI_str_format_int_grouped(num_str, num = -2147483648);
+	EXPECT_STREQ("-2,147,483,648", num_str);
+
+	BLI_str_format_int_grouped(num_str, num = 2147483647);
+	EXPECT_STREQ("2,147,483,647", num_str);
+
+	BLI_str_format_int_grouped(num_str, num = 1000);
+	EXPECT_STREQ("1,000", num_str);
+
+	BLI_str_format_int_grouped(num_str, num = -1000);
+	EXPECT_STREQ("-1,000", num_str);
+
+	BLI_str_format_int_grouped(num_str, num = 999);
+	EXPECT_STREQ("999", num_str);
+
+	BLI_str_format_int_grouped(num_str, num = -999);
+	EXPECT_STREQ("-999", num_str);
 }

@@ -135,32 +135,12 @@ static void paint_draw_smooth_stroke(bContext *C, int x, int y, void *customdata
 	}
 }
 
-/* if this is a tablet event, return tablet pressure and set *pen_flip
- * to 1 if the eraser tool is being used, 0 otherwise */
-static float event_tablet_data(const wmEvent *event, int *pen_flip)
-{
-	int erasor = 0;
-	float pressure = 1;
-
-	if (event->tablet_data) {
-		wmTabletData *wmtab = event->tablet_data;
-
-		erasor = (wmtab->Active == EVT_TABLET_ERASER);
-		pressure = (wmtab->Active != EVT_TABLET_NONE) ? wmtab->Pressure : 1;
-	}
-
-	if (pen_flip)
-		(*pen_flip) = erasor;
-
-	return pressure;
-}
-
 static bool paint_tool_require_location(Brush *brush, PaintMode mode)
 {
 	switch (mode) {
 		case PAINT_SCULPT:
-			if (ELEM4(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
-			                              SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB))
+			if (ELEM(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE,
+			                             SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB))
 			{
 				return false;
 			}
@@ -586,7 +566,7 @@ bool paint_space_stroke_enabled(Brush *br, PaintMode mode)
 
 static bool sculpt_is_grab_tool(Brush *br)
 {
-	return ELEM4(br->sculpt_tool,
+	return ELEM(br->sculpt_tool,
 	             SCULPT_TOOL_GRAB,
 	             SCULPT_TOOL_THUMB,
 	             SCULPT_TOOL_ROTATE,
@@ -633,7 +613,7 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 bool paint_supports_texture(PaintMode mode)
 {
 	/* ommit: PAINT_WEIGHT, PAINT_SCULPT_UV, PAINT_INVALID */
-	return ELEM4(mode, PAINT_SCULPT, PAINT_VERTEX, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D);
+	return ELEM(mode, PAINT_SCULPT, PAINT_VERTEX, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D);
 }
 
 /* return true if the brush size can change during paint (normally used for pressure) */
@@ -735,7 +715,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	float pressure;
 
 	/* see if tablet affects event */
-	pressure = event_tablet_data(event, &stroke->pen_flip);
+	pressure = WM_event_tablet_data(event, &stroke->pen_flip, NULL);
 
 	paint_stroke_add_sample(p, stroke, event->mval[0], event->mval[1], pressure);
 	paint_stroke_sample_average(stroke, &sample_average);

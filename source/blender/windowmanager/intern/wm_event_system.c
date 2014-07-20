@@ -288,7 +288,7 @@ void wm_event_do_notifiers(bContext *C)
 						do_anim = true;
 				}
 			}
-			if (ELEM5(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_SCENE, NC_WM)) {
+			if (ELEM(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_SCENE, NC_WM)) {
 				ED_info_stats_clear(win->screen->scene);
 				WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, NULL);
 			}
@@ -392,7 +392,7 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	ARegion *region = CTX_wm_region(C);
 	ARegion *menu = CTX_wm_menu(C);
 	static bool do_wheel_ui = true;
-	const bool is_wheel = ELEM3(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE, MOUSEPAN);
+	const bool is_wheel = ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE, MOUSEPAN);
 	int retval;
 	
 	/* UI code doesn't handle return values - it just always returns break. 
@@ -1260,11 +1260,17 @@ static int wm_operator_call_internal(bContext *C, wmOperatorType *ot, PointerRNA
 
 
 /* invokes operator in context */
+int WM_operator_name_call_ptr(bContext *C, wmOperatorType *ot, short context, PointerRNA *properties)
+{
+	BLI_assert(ot == WM_operatortype_find(ot->idname, true));
+	return wm_operator_call_internal(C, ot, properties, NULL, context, false);
+}
 int WM_operator_name_call(bContext *C, const char *opstring, short context, PointerRNA *properties)
 {
 	wmOperatorType *ot = WM_operatortype_find(opstring, 0);
-	if (ot)
-		return wm_operator_call_internal(C, ot, properties, NULL, context, false);
+	if (ot) {
+		return WM_operator_name_call_ptr(C, ot, context, properties);
+	}
 
 	return 0;
 }
@@ -2003,7 +2009,7 @@ static int wm_handlers_do(bContext *C, wmEvent *event, ListBase *handlers)
 	if (CTX_wm_window(C) == NULL)
 		return action;
 
-	if (!ELEM3(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE, EVENT_NONE) && !ISTIMER(event->type)) {
+	if (!ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE, EVENT_NONE) && !ISTIMER(event->type)) {
 
 		/* test for CLICK events */
 		if (wm_action_not_handled(action)) {
@@ -2689,7 +2695,7 @@ bool WM_modal_tweak_exit(const wmEvent *event, int tweak_event)
 		else {
 			/* if the initial event wasn't a tweak event then
 			 * ignore USER_RELEASECONFIRM setting: see [#26756] */
-			if (ELEM3(tweak_event, EVT_TWEAK_L, EVT_TWEAK_M, EVT_TWEAK_R) == 0) {
+			if (ELEM(tweak_event, EVT_TWEAK_L, EVT_TWEAK_M, EVT_TWEAK_R) == 0) {
 				return 1;
 			}
 		}
@@ -3399,6 +3405,43 @@ void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
 	axis_angle_to_quat(q, axis, angle);
 }
 
+/** \} */
+
+/* if this is a tablet event, return tablet pressure and set *pen_flip
+ * to 1 if the eraser tool is being used, 0 otherwise */
+float WM_event_tablet_data(const wmEvent *event, int *pen_flip, float tilt[2])
+{
+	int erasor = 0;
+	float pressure = 1;
+
+	if (tilt)
+		zero_v2(tilt);
+
+	if (event->tablet_data) {
+		wmTabletData *wmtab = event->tablet_data;
+
+		erasor = (wmtab->Active == EVT_TABLET_ERASER);
+		if (wmtab->Active != EVT_TABLET_NONE) {
+			pressure = wmtab->Pressure;
+			if (tilt) {
+				tilt[0] = wmtab->Xtilt;
+				tilt[1] = wmtab->Ytilt;
+			}
+		}
+	}
+
+	if (pen_flip)
+		(*pen_flip) = erasor;
+
+	return pressure;
+}
+
+bool WM_event_is_tablet(const struct wmEvent *event)
+{
+	return (event->tablet_data) ? true : false;
+}
+
+
 PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const char *description,
                                          int flag, const char *opname, const char *piename)
 {
@@ -3461,5 +3504,3 @@ struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *na
 	return NULL;
 }
 
-
-/** \} */

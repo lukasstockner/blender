@@ -44,6 +44,7 @@
 
 #include "BKE_context.h"
 #include "BKE_icons.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
@@ -389,7 +390,16 @@ static SpaceLink *view3d_new(const bContext *C)
 static void view3d_free(SpaceLink *sl)
 {
 	View3D *vd = (View3D *) sl;
+	BGpic *bgpic;
 
+	for (bgpic = vd->bgpicbase.first; bgpic; bgpic = bgpic->next) {
+		if (bgpic->source == V3D_BGPIC_IMAGE) {
+			id_us_min((ID *)bgpic->ima);
+		}
+		else if (bgpic->source == V3D_BGPIC_MOVIE) {
+			id_us_min((ID *)bgpic->clip);
+		}
+	}
 	BLI_freelistN(&vd->bgpicbase);
 
 	if (vd->localvd) MEM_freeN(vd->localvd);
@@ -416,6 +426,7 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 {
 	View3D *v3do = (View3D *)sl;
 	View3D *v3dn = MEM_dupallocN(sl);
+	BGpic *bgpic;
 	
 	/* clear or remove stuff from old */
 	
@@ -433,8 +444,16 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 	/* copy or clear inside new stuff */
 
 	v3dn->defmaterial = NULL;
-	
+
 	BLI_duplicatelist(&v3dn->bgpicbase, &v3do->bgpicbase);
+	for (bgpic = v3dn->bgpicbase.first; bgpic; bgpic = bgpic->next) {
+		if (bgpic->source == V3D_BGPIC_IMAGE) {
+			id_us_plus((ID *)bgpic->ima);
+		}
+		else if (bgpic->source == V3D_BGPIC_MOVIE) {
+			id_us_plus((ID *)bgpic->clip);
+		}
+	}
 
 	v3dn->properties_storage = NULL;
 	
@@ -760,7 +779,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 					break;
 				case ND_NLA:
 				case ND_KEYFRAME:
-					if (ELEM3(wmn->action, NA_EDITED, NA_ADDED, NA_REMOVED))
+					if (ELEM(wmn->action, NA_EDITED, NA_ADDED, NA_REMOVED))
 						ED_region_tag_redraw(ar);
 					break;
 				case ND_ANIMCHAN:
@@ -1011,7 +1030,7 @@ static void view3d_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa
 					break;
 				case ND_NLA:
 				case ND_KEYFRAME:
-					if (ELEM3(wmn->action, NA_EDITED, NA_ADDED, NA_REMOVED))
+					if (ELEM(wmn->action, NA_EDITED, NA_ADDED, NA_REMOVED))
 						ED_region_tag_redraw(ar);
 					break;
 			}

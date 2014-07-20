@@ -1080,7 +1080,7 @@ elseif(WIN32)
 		set(ZLIB_INCLUDE_DIR ${LIBDIR}/zlib/include)
 		set(ZLIB_LIBRARY ${LIBDIR}/zlib/lib/libz_st.lib)
 		set(ZLIB_DIR ${LIBDIR}/zlib)
-		find_package(zlib) # we want to find before finding things that depend on it like png
+		#find_package(zlib) # we want to find before finding things that depend on it like png
 
 
 		find_package(png)
@@ -1093,7 +1093,7 @@ elseif(WIN32)
 			set(PNG_LIBPATH ${PNG}/lib) # not cmake defined
 		endif()
 
-		if(MSVC90)
+		if(MSVC)
 			set(JPEG_NAMES ${JPEG_NAMES} libjpeg)
 		endif()
 		find_package(jpeg REQUIRED)
@@ -1225,6 +1225,9 @@ elseif(WIN32)
 			if(WITH_INTERNATIONAL)
 				list(APPEND boost_extra_libs locale)
 			endif(WITH_INTERNATIONAL)
+			set(Boost_USE_STATIC_RUNTIME ON) # prefix lib
+			set(Boost_USE_MULTITHREADED ON) # suffix -mt
+			set(Boost_USE_STATIC_LIBS ON) # suffix -s
 			find_package(Boost COMPONENTS date_time filesystem thread regex system ${boost_extra_libs})
 			IF(NOT Boost_FOUND)
 				message(WARNING "USING HARDCODED boost locations")
@@ -1893,8 +1896,6 @@ elseif(APPLE)
 			set(WITH_OPENMP OFF)
 		else() # vanilla gcc or clang_omp support OpenMP
 			message(STATUS "Using special OpenMP enabled compiler !") # letting find_package(OpenMP) module work for gcc
-			string(SUBSTRING "${CMAKE_C_COMPILER}" 0 5 CLANG_OMP)
-			message(STATUS "Using clang-omp from darwin libs "${CLANG_OMP})
 			if(CMAKE_C_COMPILER_ID MATCHES "Clang") # clang-omp in darwin libs
 				set(OPENMP_FOUND ON)
 				set(OpenMP_C_FLAGS "-fopenmp" CACHE STRING "C compiler flags for OpenMP parallization" FORCE)
@@ -2031,7 +2032,7 @@ blender_include_dirs_sys("${OPENGL_INCLUDE_DIR}")
 
 #-----------------------------------------------------------------------------
 # Configure OpenMP.
-if(WITH_OPENMP AND ( NOT APPLE AND NOT C_COMPILER_ID MATCHES "Clang")) # only vanilla gcc can use this find_module, older pre clang Apple gcc have broken omp anyway !
+if(WITH_OPENMP)
 	find_package(OpenMP)
 	if(OPENMP_FOUND)
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -2159,6 +2160,10 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	endif()
 
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+
+	if(APPLE AND WITH_OPENMP) # we need the Intel omp lib linked here to not fail all tests due presence of -fopenmp !
+		set(CMAKE_REQUIRED_FLAGS "-L${LIBDIR}/openmp/lib -liomp5") # these are only used for the checks
+	endif()
 
 	# strange, clang complains these are not supported, but then yses them.
 	ADD_CHECK_C_COMPILER_FLAG(C_WARNINGS C_WARN_ALL -Wall)
