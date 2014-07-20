@@ -100,6 +100,7 @@
 #include "WM_api.h"
 
 #include "UI_resources.h"
+#include "UI_view2d.h"
 
 #include "transform.h"
 
@@ -1559,6 +1560,13 @@ void calculateCenterCursor(TransInfo *t, float r_center[3])
 		invert_m3_m3(imat, mat);
 		mul_m3_v3(imat, r_center);
 	}
+	else if (t->options & CTX_PAINT_CURVE) {
+		if (ED_view3d_project_float_global(t->ar, cursor, r_center, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK) {
+			r_center[0] = t->ar->winx / 2.0f;
+			r_center[1] = t->ar->winy / 2.0f;
+		}
+		r_center[2] = 0.0f;
+	}
 }
 
 void calculateCenterCursor2D(TransInfo *t, float r_center[2])
@@ -1605,6 +1613,12 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
 
 			r_center[0] = co[0] * aspx;
 			r_center[1] = co[1] * aspy;
+		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			if (t->spacetype == SPACE_IMAGE) {
+				r_center[0] = UI_view2d_view_to_region_x(&t->ar->v2d, cursor[0]);
+				r_center[1] = UI_view2d_view_to_region_y(&t->ar->v2d, cursor[1]);
+			}
 		}
 		else {
 			r_center[0] = cursor[0] * aspx;

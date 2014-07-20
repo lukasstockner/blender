@@ -420,8 +420,7 @@ class IMAGE_HT_header(Header):
             row = layout.row()
             row.template_ID(sima, "mask", new="mask.new")
 
-        if show_uvedit or show_maskedit:
-            layout.prop(sima, "pivot_point", icon_only=True)
+        layout.prop(sima, "pivot_point", icon_only=True)
 
         # uv editing
         if show_uvedit:

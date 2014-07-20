@@ -338,10 +338,7 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 	uiItemR(layout, &v3dptr, "viewport_shade", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
 	if (obedit == NULL && is_paint) {
-		Paint *p = BKE_paint_get_active(scene);
-		Brush *br = BKE_paint_brush(p);
-
-		if ((ob->mode & OB_MODE_WEIGHT_PAINT) || (br && (br->flag & BRUSH_CURVE))) {
+		if (ob->mode & OB_MODE_ALL_PAINT) {
 			/* Only for Weight Paint. makes no sense in other paint modes. */
 			row = uiLayoutRow(layout, true);
 			uiItemR(row, &v3dptr, "pivot_point", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
