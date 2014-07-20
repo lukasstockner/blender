@@ -1271,6 +1271,7 @@ static void paint_keymap_curve(wmKeyMap *keymap)
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_delete_point", XKEY, KM_PRESS, 0, 0);
 
 	WM_keymap_add_item(keymap, "PAINTCURVE_OT_draw", RETKEY, KM_PRESS, 0, 0);
+
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", EVT_TWEAK_S, KM_ANY, 0, 0);
 	RNA_boolean_set(kmi->ptr, "release_confirm", true);
@@ -1284,7 +1285,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	wmKeyMapItem *kmi;
 	int i;
 	
-	keymap = WM_keymap_find(keyconf, "Curve", 0, 0);
+	keymap = WM_keymap_find(keyconf, "Paint Curve", 0, 0);
 	keymap->poll = paint_curve_poll;
 
 	paint_keymap_curve(keymap);

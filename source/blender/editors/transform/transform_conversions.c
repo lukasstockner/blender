@@ -7231,7 +7231,8 @@ void createTransData(bContext *C, TransInfo *t)
 			}
 		}
 		else if (t->options & CTX_PAINT_CURVE) {
-			createTransPaintCurveVerts(C, t);
+			if(!ELEM(t->mode, TFM_SHEAR, TFM_SHRINKFATTEN))
+				createTransPaintCurveVerts(C, t);
 		}
 		else if (t->obedit) {
 			createTransUVs(C, t);
@@ -7365,7 +7366,7 @@ void createTransData(bContext *C, TransInfo *t)
 		}
 	}
 	else if (ob && (ob->mode & OB_MODE_ALL_PAINT)) {
-		if (t->options & CTX_PAINT_CURVE) {
+		if ((t->options & CTX_PAINT_CURVE) && !ELEM(t->mode, TFM_SHEAR, TFM_SHRINKFATTEN)) {
 			t->flag |= T_POINTS | T_2D_EDIT;
 			createTransPaintCurveVerts(C, t);
 		}
