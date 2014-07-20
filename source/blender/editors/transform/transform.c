@@ -190,7 +190,7 @@ static bool transdata_check_local_center(TransInfo *t, short around)
 {
 	return ((around == V3D_LOCAL) && (
 	            (t->flag & (T_OBJECT | T_POSE)) ||
-	            (t->obedit && ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE)) ||
+	            (t->obedit && ELEM(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE)) ||
 	            (t->spacetype == SPACE_IPO) ||
 	            (t->options & (CTX_MOVIECLIP | CTX_MASK)))
 	        );
@@ -646,7 +646,7 @@ static void viewRedrawPost(bContext *C, TransInfo *t)
 		allqueue(REDRAWIMAGE, 0);
 		allqueue(REDRAWVIEW3D, 0);
 	}
-	else if (ELEM3(t->spacetype, SPACE_ACTION, SPACE_NLA, SPACE_IPO)) {
+	else if (ELEM(t->spacetype, SPACE_ACTION, SPACE_NLA, SPACE_IPO)) {
 		allqueue(REDRAWVIEW3D, 0);
 		allqueue(REDRAWACTION, 0);
 		allqueue(REDRAWNLA, 0);
@@ -969,7 +969,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				break;
 			case TFM_MODAL_TRANSLATE:
 				/* only switch when... */
-				if (ELEM5(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
+				if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
 					resetTransModal(t);
 					resetTransRestrictions(t);
 					restoreTransObjects(t);
@@ -1025,7 +1025,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 			case TFM_MODAL_ROTATE:
 				/* only switch when... */
 				if (!(t->options & CTX_TEXTURE) && !(t->options & (CTX_MOVIECLIP | CTX_MASK))) {
-					if (ELEM6(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
+					if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
 						resetTransModal(t);
 						resetTransRestrictions(t);
 						
@@ -1045,7 +1045,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				break;
 			case TFM_MODAL_RESIZE:
 				/* only switch when... */
-				if (ELEM5(t->mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
+				if (ELEM(t->mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
 
 					/* Scale isn't normally very useful after extrude along normals, see T39756 */
 					if ((t->con.mode & CON_APPLY) && (t->con.orientation == V3D_MANIP_NORMAL)) {
@@ -1308,7 +1308,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				break;
 			case GKEY:
 				/* only switch when... */
-				if (ELEM3(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL) ) {
+				if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL)) {
 					resetTransModal(t);
 					resetTransRestrictions(t);
 					restoreTransObjects(t);
@@ -1320,7 +1320,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				break;
 			case SKEY:
 				/* only switch when... */
-				if (ELEM3(t->mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL) ) {
+				if (ELEM(t->mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL)) {
 					resetTransModal(t);
 					resetTransRestrictions(t);
 					restoreTransObjects(t);
@@ -1333,7 +1333,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 			case RKEY:
 				/* only switch when... */
 				if (!(t->options & CTX_TEXTURE)) {
-					if (ELEM4(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION) ) {
+					if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION)) {
 						resetTransModal(t);
 						resetTransRestrictions(t);
 
@@ -2065,7 +2065,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		 * moded are available from manipulator and doing such check could
 		 * lead to keymap conflicts for other modes (see #31584)
 		 */
-		if (ELEM3(mode, TFM_TRANSLATION, TFM_ROTATION, TFM_RESIZE)) {
+		if (ELEM(mode, TFM_TRANSLATION, TFM_ROTATION, TFM_RESIZE)) {
 			wmKeyMapItem *kmi;
 
 			for (kmi = t->keymap->items.first; kmi; kmi = kmi->next) {
@@ -3627,7 +3627,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 		
 		
 		if (td->flag & TD_USEQUAT) {
-			mul_serie_m3(fmat, td->mtx, mat, td->smtx, NULL, NULL, NULL, NULL, NULL);
+			mul_serie_m3(fmat, td->mtx, mat, td->smtx);
 			mat3_to_quat(quat, fmat);   // Actual transform
 			
 			if (td->ext->quat) {
@@ -3697,7 +3697,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 		if ((t->flag & T_V3D_ALIGN) == 0) { /* align mode doesn't rotate objects itself */
 			/* euler or quaternion/axis-angle? */
 			if (td->ext->rotOrder == ROT_MODE_QUAT) {
-				mul_serie_m3(fmat, td->ext->r_mtx, mat, td->ext->r_smtx, NULL, NULL, NULL, NULL, NULL);
+				mul_serie_m3(fmat, td->ext->r_mtx, mat, td->ext->r_smtx);
 				
 				mat3_to_quat(quat, fmat); /* Actual transform */
 				
@@ -3712,7 +3712,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 				
 				axis_angle_to_quat(iquat, td->ext->irotAxis, td->ext->irotAngle);
 				
-				mul_serie_m3(fmat, td->ext->r_mtx, mat, td->ext->r_smtx, NULL, NULL, NULL, NULL, NULL);
+				mul_serie_m3(fmat, td->ext->r_mtx, mat, td->ext->r_smtx);
 				mat3_to_quat(quat, fmat); /* Actual transform */
 				mul_qt_qtqt(tquat, quat, iquat);
 				
@@ -3769,7 +3769,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 			if ((td->ext->rotOrder == ROT_MODE_QUAT) || (td->flag & TD_USEQUAT)) {
 				/* can be called for texture space translate for example, then opt out */
 				if (td->ext->quat) {
-					mul_serie_m3(fmat, td->mtx, mat, td->smtx, NULL, NULL, NULL, NULL, NULL);
+					mul_serie_m3(fmat, td->mtx, mat, td->smtx);
 					mat3_to_quat(quat, fmat);   // Actual transform
 					
 					mul_qt_qtqt(td->ext->quat, quat, td->ext->iquat);
@@ -3783,7 +3783,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 				
 				axis_angle_to_quat(iquat, td->ext->irotAxis, td->ext->irotAngle);
 				
-				mul_serie_m3(fmat, td->mtx, mat, td->smtx, NULL, NULL, NULL, NULL, NULL);
+				mul_serie_m3(fmat, td->mtx, mat, td->smtx);
 				mat3_to_quat(quat, fmat);   // Actual transform
 				mul_qt_qtqt(tquat, quat, iquat);
 				
@@ -7707,7 +7707,7 @@ bool checkUseAxisMatrix(TransInfo *t)
 {
 	/* currently only checks for editmode */
 	if (t->flag & T_EDIT) {
-		if ((t->around == V3D_LOCAL) && (ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE))) {
+		if ((t->around == V3D_LOCAL) && (ELEM(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE))) {
 			/* not all editmode supports axis-matrix */
 			return true;
 		}

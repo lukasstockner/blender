@@ -881,7 +881,7 @@ static void draw_selected_name(Scene *scene, Object *ob, rcti *rect)
 				}
 			}
 		}
-		else if (ELEM3(ob->type, OB_MESH, OB_LATTICE, OB_CURVE)) {
+		else if (ELEM(ob->type, OB_MESH, OB_LATTICE, OB_CURVE)) {
 			Key *key = NULL;
 			KeyBlock *kb = NULL;
 
@@ -1981,6 +1981,7 @@ static void draw_dupli_objects_color(
 	DupliApplyData *apply_data;
 
 	if (base->object->restrictflag & OB_RESTRICT_VIEW) return;
+	if ((base->object->restrictflag & OB_RESTRICT_RENDER) && (v3d->flag2 & V3D_RENDER_OVERRIDE)) return;
 
 	if (dflag & DRAW_CONSTCOLOR) {
 		BLI_assert(color == TH_UNDEFINED);
