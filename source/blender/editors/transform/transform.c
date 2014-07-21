@@ -86,6 +86,9 @@
 
 #include "transform.h"
 
+/* Disabling, since when you type you know what you are doing, and being able to set it to zero is handy. */
+// #define USE_NUM_NO_ZERO
+
 #define MAX_INFO_LEN 256
 
 static void drawTransformApply(const struct bContext *C, ARegion *ar, void *arg);
@@ -190,9 +193,9 @@ static bool transdata_check_local_center(TransInfo *t, short around)
 {
 	return ((around == V3D_LOCAL) && (
 	            (t->flag & (T_OBJECT | T_POSE)) ||
-	            (t->obedit && ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE)) ||
+	            (t->obedit && ELEM(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE)) ||
 	            (t->spacetype == SPACE_IPO) ||
-	            (t->options & (CTX_MOVIECLIP | CTX_MASK)))
+	            (t->options & (CTX_MOVIECLIP | CTX_MASK | CTX_PAINT_CURVE)))
 	        );
 }
 
@@ -263,16 +266,26 @@ static void convertViewVec2D_mask(View2D *v2d, float r_vec[3], int dx, int dy)
 void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
 {
 	if ((t->spacetype == SPACE_VIEW3D) && (t->ar->regiontype == RGN_TYPE_WINDOW)) {
-		const float mval_f[2] = {(float)dx, (float)dy};
-		ED_view3d_win_to_delta(t->ar, mval_f, r_vec, t->zfac);
+		if (t->options & CTX_PAINT_CURVE) {
+			r_vec[0] = dx;
+			r_vec[1] = dy;
+		}
+		else {	const float mval_f[2] = {(float)dx, (float)dy};
+			ED_view3d_win_to_delta(t->ar, mval_f, r_vec, t->zfac);
+		}
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		float aspx, aspy;
 
 		if (t->options & CTX_MASK) {
-
 			convertViewVec2D_mask(t->view, r_vec, dx, dy);
 			ED_space_image_get_aspect(t->sa->spacedata.first, &aspx, &aspy);
+		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			r_vec[0] = dx;
+			r_vec[1] = dy;
+
+			aspx = aspy = 1.0;
 		}
 		else {
 			convertViewVec2D(t->view, r_vec, dx, dy);
@@ -350,6 +363,10 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
 
 			adr[0] = v[0];
 			adr[1] = v[1];
+		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			adr[0] = vec[0];
+			adr[1] = vec[1];
 		}
 		else {
 			float aspx, aspy, v[2];
@@ -452,7 +469,11 @@ void projectFloatViewEx(TransInfo *t, const float vec[3], float adr[2], const eV
 	switch (t->spacetype) {
 		case SPACE_VIEW3D:
 		{
-			if (t->ar->regiontype == RGN_TYPE_WINDOW) {
+			if (t->options & CTX_PAINT_CURVE) {
+				adr[0] = vec[0];
+				adr[1] = vec[1];
+			}
+			else if (t->ar->regiontype == RGN_TYPE_WINDOW) {
 				/* allow points behind the view [#33643] */
 				if (ED_view3d_project_float_global(t->ar, vec, adr, flag) != V3D_PROJ_RET_OK) {
 					/* XXX, 2.64 and prior did this, weak! */
@@ -480,7 +501,7 @@ void projectFloatView(TransInfo *t, const float vec[3], float adr[2])
 
 void applyAspectRatio(TransInfo *t, float vec[2])
 {
-	if ((t->spacetype == SPACE_IMAGE) && (t->mode == TFM_TRANSLATION)) {
+	if ((t->spacetype == SPACE_IMAGE) && (t->mode == TFM_TRANSLATION) && !(t->options & CTX_PAINT_CURVE)) {
 		SpaceImage *sima = t->sa->spacedata.first;
 		float aspx, aspy;
 
@@ -557,17 +578,23 @@ void removeAspectRatio(TransInfo *t, float vec[2])
 static void viewRedrawForce(const bContext *C, TransInfo *t)
 {
 	if (t->spacetype == SPACE_VIEW3D) {
-		/* Do we need more refined tags? */
-		if (t->flag & T_POSE)
-			WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
-		else
-			WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
+		if (t->options & CTX_PAINT_CURVE) {
+			wmWindow *window = CTX_wm_window(C);
+			WM_paint_cursor_tag_redraw(window, t->ar);
+		}
+		else {
+			/* Do we need more refined tags? */
+			if (t->flag & T_POSE)
+				WM_event_add_notifier(C, NC_OBJECT | ND_POSE, NULL);
+			else
+				WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, NULL);
 
-		/* for realtime animation record - send notifiers recognised by animation editors */
-		// XXX: is this notifier a lame duck?
-		if ((t->animtimer) && IS_AUTOKEY_ON(t->scene))
-			WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, NULL);
-		
+			/* for realtime animation record - send notifiers recognised by animation editors */
+			// XXX: is this notifier a lame duck?
+			if ((t->animtimer) && IS_AUTOKEY_ON(t->scene))
+				WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, NULL);
+
+		}
 	}
 	else if (t->spacetype == SPACE_ACTION) {
 		//SpaceAction *saction = (SpaceAction *)t->sa->spacedata.first;
@@ -592,6 +619,10 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 			Mask *mask = CTX_data_edit_mask(C);
 
 			WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			wmWindow *window = CTX_wm_window(C);
+			WM_paint_cursor_tag_redraw(window, t->ar);
 		}
 		else {
 			// XXX how to deal with lock?
@@ -646,7 +677,7 @@ static void viewRedrawPost(bContext *C, TransInfo *t)
 		allqueue(REDRAWIMAGE, 0);
 		allqueue(REDRAWVIEW3D, 0);
 	}
-	else if (ELEM3(t->spacetype, SPACE_ACTION, SPACE_NLA, SPACE_IPO)) {
+	else if (ELEM(t->spacetype, SPACE_ACTION, SPACE_NLA, SPACE_IPO)) {
 		allqueue(REDRAWVIEW3D, 0);
 		allqueue(REDRAWACTION, 0);
 		allqueue(REDRAWNLA, 0);
@@ -969,7 +1000,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				break;
 			case TFM_MODAL_TRANSLATE:
 				/* only switch when... */
-				if (ELEM5(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
+				if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
 					resetTransModal(t);
 					resetTransRestrictions(t);
 					restoreTransObjects(t);
@@ -1025,7 +1056,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 			case TFM_MODAL_ROTATE:
 				/* only switch when... */
 				if (!(t->options & CTX_TEXTURE) && !(t->options & (CTX_MOVIECLIP | CTX_MASK))) {
-					if (ELEM6(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
+					if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
 						resetTransModal(t);
 						resetTransRestrictions(t);
 						
@@ -1045,7 +1076,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				break;
 			case TFM_MODAL_RESIZE:
 				/* only switch when... */
-				if (ELEM5(t->mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
+				if (ELEM(t->mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL, TFM_EDGE_SLIDE, TFM_VERT_SLIDE)) {
 
 					/* Scale isn't normally very useful after extrude along normals, see T39756 */
 					if ((t->con.mode & CON_APPLY) && (t->con.orientation == V3D_MANIP_NORMAL)) {
@@ -1308,7 +1339,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				break;
 			case GKEY:
 				/* only switch when... */
-				if (ELEM3(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL) ) {
+				if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL)) {
 					resetTransModal(t);
 					resetTransRestrictions(t);
 					restoreTransObjects(t);
@@ -1320,7 +1351,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				break;
 			case SKEY:
 				/* only switch when... */
-				if (ELEM3(t->mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL) ) {
+				if (ELEM(t->mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL)) {
 					resetTransModal(t);
 					resetTransRestrictions(t);
 					restoreTransObjects(t);
@@ -1333,7 +1364,7 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 			case RKEY:
 				/* only switch when... */
 				if (!(t->options & CTX_TEXTURE)) {
-					if (ELEM4(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION) ) {
+					if (ELEM(t->mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION)) {
 						resetTransModal(t);
 						resetTransRestrictions(t);
 
@@ -2065,7 +2096,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 		 * moded are available from manipulator and doing such check could
 		 * lead to keymap conflicts for other modes (see #31584)
 		 */
-		if (ELEM3(mode, TFM_TRANSLATION, TFM_ROTATION, TFM_RESIZE)) {
+		if (ELEM(mode, TFM_TRANSLATION, TFM_ROTATION, TFM_RESIZE)) {
 			wmKeyMapItem *kmi;
 
 			for (kmi = t->keymap->items.first; kmi; kmi = kmi->next) {
@@ -3085,9 +3116,11 @@ static void initResize(TransInfo *t)
 	t->num.flag |= NUM_AFFECT_ALL;
 	if (!t->obedit) {
 		t->flag |= T_NO_ZERO;
+#ifdef USE_NUM_NO_ZERO
 		t->num.val_flag[0] |= NUM_NO_ZERO;
 		t->num.val_flag[1] |= NUM_NO_ZERO;
 		t->num.val_flag[2] |= NUM_NO_ZERO;
+#endif
 	}
 	
 	t->idx_max = 2;
@@ -3377,9 +3410,11 @@ static void initSkinResize(TransInfo *t)
 	t->num.flag |= NUM_AFFECT_ALL;
 	if (!t->obedit) {
 		t->flag |= T_NO_ZERO;
+#ifdef USE_NUM_NO_ZERO
 		t->num.val_flag[0] |= NUM_NO_ZERO;
 		t->num.val_flag[1] |= NUM_NO_ZERO;
 		t->num.val_flag[2] |= NUM_NO_ZERO;
+#endif
 	}
 	
 	t->idx_max = 2;
@@ -3592,8 +3627,15 @@ static void initRotation(TransInfo *t)
 	if (t->flag & T_2D_EDIT)
 		t->flag |= T_NO_CONSTRAINT;
 
-	negate_v3_v3(t->axis, t->viewinv[2]);
-	normalize_v3(t->axis);
+	if (t->options & CTX_PAINT_CURVE) {
+		t->axis[0] = 0.0;
+		t->axis[1] = 0.0;
+		t->axis[2] = -1.0;
+	}
+	else {
+		negate_v3_v3(t->axis, t->viewinv[2]);
+		normalize_v3(t->axis);
+	}
 
 	copy_v3_v3(t->axis_orig, t->axis);
 }
@@ -3627,7 +3669,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 		
 		
 		if (td->flag & TD_USEQUAT) {
-			mul_serie_m3(fmat, td->mtx, mat, td->smtx, NULL, NULL, NULL, NULL, NULL);
+			mul_m3_series(fmat, td->smtx, mat, td->mtx);
 			mat3_to_quat(quat, fmat);   // Actual transform
 			
 			if (td->ext->quat) {
@@ -3697,7 +3739,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 		if ((t->flag & T_V3D_ALIGN) == 0) { /* align mode doesn't rotate objects itself */
 			/* euler or quaternion/axis-angle? */
 			if (td->ext->rotOrder == ROT_MODE_QUAT) {
-				mul_serie_m3(fmat, td->ext->r_mtx, mat, td->ext->r_smtx, NULL, NULL, NULL, NULL, NULL);
+				mul_m3_series(fmat, td->ext->r_smtx, mat, td->ext->r_mtx);
 				
 				mat3_to_quat(quat, fmat); /* Actual transform */
 				
@@ -3712,7 +3754,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 				
 				axis_angle_to_quat(iquat, td->ext->irotAxis, td->ext->irotAngle);
 				
-				mul_serie_m3(fmat, td->ext->r_mtx, mat, td->ext->r_smtx, NULL, NULL, NULL, NULL, NULL);
+				mul_m3_series(fmat, td->ext->r_smtx, mat, td->ext->r_mtx);
 				mat3_to_quat(quat, fmat); /* Actual transform */
 				mul_qt_qtqt(tquat, quat, iquat);
 				
@@ -3769,7 +3811,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 			if ((td->ext->rotOrder == ROT_MODE_QUAT) || (td->flag & TD_USEQUAT)) {
 				/* can be called for texture space translate for example, then opt out */
 				if (td->ext->quat) {
-					mul_serie_m3(fmat, td->mtx, mat, td->smtx, NULL, NULL, NULL, NULL, NULL);
+					mul_m3_series(fmat, td->smtx, mat, td->mtx);
 					mat3_to_quat(quat, fmat);   // Actual transform
 					
 					mul_qt_qtqt(td->ext->quat, quat, td->ext->iquat);
@@ -3783,7 +3825,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 				
 				axis_angle_to_quat(iquat, td->ext->irotAxis, td->ext->irotAngle);
 				
-				mul_serie_m3(fmat, td->mtx, mat, td->smtx, NULL, NULL, NULL, NULL, NULL);
+				mul_m3_series(fmat, td->smtx, mat, td->mtx);
 				mat3_to_quat(quat, fmat);   // Actual transform
 				mul_qt_qtqt(tquat, quat, iquat);
 				
@@ -4480,7 +4522,9 @@ static void initCurveShrinkFatten(TransInfo *t)
 	t->num.unit_type[0] = B_UNIT_NONE;
 
 	t->flag |= T_NO_ZERO;
+#ifdef USE_NUM_NO_ZERO
 	t->num.val_flag[0] |= NUM_NO_ZERO;
+#endif
 
 	t->flag |= T_NO_CONSTRAINT;
 }
@@ -4555,7 +4599,9 @@ static void initMaskShrinkFatten(TransInfo *t)
 	t->num.unit_type[0] = B_UNIT_NONE;
 
 	t->flag |= T_NO_ZERO;
+#ifdef USE_NUM_NO_ZERO
 	t->num.val_flag[0] |= NUM_NO_ZERO;
+#endif
 
 	t->flag |= T_NO_CONSTRAINT;
 }
@@ -7703,17 +7749,11 @@ static void applyTimeScale(TransInfo *t, const int UNUSED(mval[2]))
 
 
 /* TODO, move to: transform_queries.c */
-bool checkUseLocalCenter_GraphEdit(TransInfo *t)
-{
-	return ((t->around == V3D_LOCAL) &&
-	        !ELEM4(t->mode, TFM_TRANSLATION, TFM_TIME_TRANSLATE, TFM_TIME_SLIDE, TFM_TIME_DUPLICATE));
-}
-
 bool checkUseAxisMatrix(TransInfo *t)
 {
 	/* currently only checks for editmode */
 	if (t->flag & T_EDIT) {
-		if ((t->around == V3D_LOCAL) && (ELEM4(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE))) {
+		if ((t->around == V3D_LOCAL) && (ELEM(t->obedit->type, OB_MESH, OB_CURVE, OB_MBALL, OB_ARMATURE))) {
 			/* not all editmode supports axis-matrix */
 			return true;
 		}

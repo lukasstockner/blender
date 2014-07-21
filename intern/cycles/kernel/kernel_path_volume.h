@@ -41,9 +41,8 @@ ccl_device void kernel_path_volume_connect_light(KernelGlobals *kg, RNG *rng,
 	light_ray.time = sd->time;
 #endif
 
-	if(!light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, &ls, true))
-		return;
-	else if(ls.pdf == 0.0f)
+	light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
+	if(ls.pdf == 0.0f)
 		return;
 	
 	if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
@@ -103,8 +102,6 @@ ccl_device bool kernel_path_volume_bounce(KernelGlobals *kg, RNG *rng,
 	return true;
 }
 
-#ifdef __KERNEL_CPU__
-
 ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, float3 throughput, PathState *state, PathRadiance *L,
 	float num_samples_adjust, bool sample_all_lights, Ray *ray, const VolumeSegment *segment)
@@ -137,8 +134,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				path_branched_rng_2D(kg, &lamp_rng, state, j, num_samples, PRNG_LIGHT_U, &light_u, &light_v);
 
 				LightSample ls;
-				if(!light_select(kg, i, light_u, light_v, ray->P, &ls, true))
-					continue;
+				light_select(kg, i, light_u, light_v, ray->P, &ls);		
 
 				float3 tp = throughput;
 
@@ -154,8 +150,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 						continue;
 
 					/* todo: split up light_sample so we don't have to call it again with new position */
-					if(!light_select(kg, i, light_u, light_v, sd->P, &ls, true))
-						continue;
+					light_select(kg, i, light_u, light_v, sd->P, &ls);
 				}
 
 				if(ls.pdf == 0.0f)
@@ -192,8 +187,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 					light_t = 0.5f*light_t;
 
 				LightSample ls;
-				if(!light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, &ls, true))
-					continue;
+				light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, &ls);
 
 				float3 tp = throughput;
 
@@ -209,8 +203,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 						continue;
 
 					/* todo: split up light_sample so we don't have to call it again with new position */
-					if(!light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, &ls, true))
-						continue;
+					light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
 				}
 
 				if(ls.pdf == 0.0f)
@@ -235,8 +228,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 		path_state_rng_2D(kg, rng, state, PRNG_LIGHT_U, &light_u, &light_v);
 
 		LightSample ls;
-		if(!light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, &ls, true))
-			return;
+		light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, &ls);
 
 		float3 tp = throughput;
 
@@ -252,8 +244,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				return;
 
 			/* todo: split up light_sample so we don't have to call it again with new position */
-			if(!light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, &ls, true))
-				return;
+			light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
 		}
 
 		if(ls.pdf == 0.0f)
@@ -272,8 +263,6 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 	}
 #endif
 }
-
-#endif
 
 #endif
 

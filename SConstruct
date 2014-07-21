@@ -272,6 +272,7 @@ if 'cudakernels' in B.targets:
     env['WITH_BF_CYCLES'] = True
     env['WITH_BF_CYCLES_CUDA_BINARIES'] = True
     env['WITH_BF_PYTHON'] = False
+    env['WITH_BF_LIBMV'] = False
 
 # Configure paths for automated configuration test programs
 env['CONFIGUREDIR'] = os.path.abspath(os.path.normpath(os.path.join(env['BF_BUILDDIR'], "sconf_temp")))
@@ -595,15 +596,6 @@ if not os.path.isdir ( B.root_build_dir):
 # if not os.path.isdir(B.doc_build_dir) and env['WITH_BF_DOCS']:
 #     os.makedirs ( B.doc_build_dir )
 
-# Put all auto configuration run-time tests here
-
-from FindSharedPtr import FindSharedPtr
-from FindUnorderedMap import FindUnorderedMap
-
-conf = Configure(env)
-FindSharedPtr(conf)
-FindUnorderedMap(conf)
-env = conf.Finish()
 
 ###################################
 # Ensure all data files are valid #
@@ -738,6 +730,8 @@ if B.targets != ['cudakernels']:
     data_to_c_simple("release/datafiles/brushicons/soften.png")
     data_to_c_simple("release/datafiles/brushicons/subtract.png")
     data_to_c_simple("release/datafiles/brushicons/texdraw.png")
+    data_to_c_simple("release/datafiles/brushicons/texfill.png")
+    data_to_c_simple("release/datafiles/brushicons/texmask.png")
     data_to_c_simple("release/datafiles/brushicons/thumb.png")
     data_to_c_simple("release/datafiles/brushicons/twist.png")
     data_to_c_simple("release/datafiles/brushicons/vertexdraw.png")
@@ -785,6 +779,20 @@ env.SConsignFile(B.root_build_dir+'scons-signatures')
 B.init_lib_dict()
 
 ##### END SETUP ##########
+
+if B.targets != ['cudakernels']:
+    # Put all auto configuration run-time tests here
+
+    from FindSharedPtr import FindSharedPtr
+    from FindUnorderedMap import FindUnorderedMap
+
+    conf = Configure(env)
+    conf.env.Append(LINKFLAGS=env['PLATFORM_LINKFLAGS'])
+    FindSharedPtr(conf)
+    FindUnorderedMap(conf)
+    env = conf.Finish()
+
+# End of auto configuration
 
 Export('env')
 

@@ -604,6 +604,9 @@ typedef struct RenderData {
 
 	/* Cycles baking */
 	struct BakeData bake;
+
+	int preview_start_resolution;
+	int pad;
 } RenderData;
 
 /* *************************************************************** */
@@ -808,7 +811,8 @@ typedef struct TimeMarker {
 /* Paint Tool Base */
 typedef struct Paint {
 	struct Brush *brush;
-	
+	struct Palette *palette;
+
 	/* WM Paint cursor */
 	void *paint_cursor;
 	unsigned char paint_cursor_col[4];
@@ -837,9 +841,17 @@ typedef struct ImagePaintSettings {
 	short seam_bleed, normal_angle;
 	short screen_grab_size[2]; /* capture size for re-projection */
 
+	/* new layer default resolution */
+	int slot_xresolution_default;
+	int slot_yresolution_default;
+
 	int pad1;
 
 	void *paintcursor;			/* wm handle */
+	struct Image *stencil;      /* workaround until we support true layer masks */
+	float slot_color_default[4];
+	float stencil_col[3];
+	float pad2;
 } ImagePaintSettings;
 
 /* ------------------------------------------- */
@@ -963,6 +975,11 @@ typedef struct UnifiedPaintSettings {
 	/* unified brush weight, [0, 1] */
 	float weight;
 
+	/* unified brush color */
+	float rgb[3];
+	/* unified brush secondary color */
+	float secondary_rgb[3];
+
 	/* user preferences for sculpt and paint */
 	int flag;
 
@@ -970,7 +987,6 @@ typedef struct UnifiedPaintSettings {
 
 	/* record movement of mouse so that rake can start at an intuitive angle */
 	float last_rake[2];
-	int pad;
 
 	float brush_rotation;
 
@@ -978,7 +994,14 @@ typedef struct UnifiedPaintSettings {
 	 *  all data below are used to communicate with cursor drawing and tex sampling  *
 	 *********************************************************************************/
 	int draw_anchored;
-	int   anchored_size;
+	int anchored_size;
+
+	char draw_inverted;
+	char pad3[7];
+
+	float overlap_factor; /* normalization factor due to accumulated value of curve along spacing.
+	                       * Calculated when brush spacing changes to dampen strength of stroke
+	                       * if space attenuation is used*/
 	float anchored_initial_mouse[2];
 
 	/* check is there an ongoing stroke right now */
@@ -998,15 +1021,16 @@ typedef struct UnifiedPaintSettings {
 	struct ColorSpace *colorspace;
 
 	/* radius of brush, premultiplied with pressure.
-	 * In case of anchored brushes contains that radius */
+	 * In case of anchored brushes contains the anchored radius */
 	float pixel_radius;
-	int pad2;
+	int pad4;
 } UnifiedPaintSettings;
 
 typedef enum {
 	UNIFIED_PAINT_SIZE  = (1 << 0),
 	UNIFIED_PAINT_ALPHA = (1 << 1),
 	UNIFIED_PAINT_WEIGHT = (1 << 5),
+	UNIFIED_PAINT_COLOR = (1 << 6),
 
 	/* only used if unified size is enabled, mirrors the brush flags
 	 * BRUSH_LOCK_SIZE and BRUSH_SIZE_PRESSURE */
@@ -1617,8 +1641,8 @@ typedef enum eVGroupSelect {
 #define SCE_FRAME_DROP			(1<<3)
 
 
-	/* return flag BKE_scene_base_iter_next function */
-#define F_ERROR			-1
+	/* return flag BKE_scene_base_iter_next functions */
+/* #define F_ERROR			-1 */  /* UNUSED */
 #define F_START			0
 #define F_SCENE			1
 #define F_DUPLI			3
@@ -1644,7 +1668,7 @@ enum {
 typedef enum {
 	PAINT_SHOW_BRUSH = (1 << 0),
 	PAINT_FAST_NAVIGATE = (1 << 1),
-	PAINT_SHOW_BRUSH_ON_SURFACE = (1 << 2),
+	PAINT_SHOW_BRUSH_ON_SURFACE = (1 << 2)
 } PaintFlags;
 
 /* Paint.symmetry_flags

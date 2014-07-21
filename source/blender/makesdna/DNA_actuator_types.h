@@ -97,6 +97,8 @@ typedef struct bEditObjectActuator {
 	float mass;
 	short localflag; /* flag for the lin & ang. vel: apply locally   */
 	short dyn_operation;
+	short upflag, trackflag; /* flag for up axis and track axis */
+	int pad;
 } bEditObjectActuator;
 
 typedef struct bSceneActuator {
@@ -395,6 +397,7 @@ typedef struct bActuator {
 #define ACT_PROP_ADD		1
 #define ACT_PROP_COPY		2
 #define ACT_PROP_TOGGLE		3
+#define ACT_PROP_LEVEL		4
 
 /* constraint flag */
 #define ACT_CONST_NONE		0
@@ -438,6 +441,19 @@ typedef struct bActuator {
 
 /* editObjectActuator->flag */
 #define ACT_TRACK_3D			1
+
+/* editObjectActuator->upflag */
+#define ACT_TRACK_UP_X			0
+#define ACT_TRACK_UP_Y			1
+#define ACT_TRACK_UP_Z			2
+
+/* editObjectActuator->trackflag */
+#define ACT_TRACK_TRAXIS_X			0
+#define ACT_TRACK_TRAXIS_Y			1
+#define ACT_TRACK_TRAXIS_Z			2
+#define ACT_TRACK_TRAXIS_NEGX		3
+#define ACT_TRACK_TRAXIS_NEGY		4
+#define ACT_TRACK_TRAXIS_NEGZ		5
 
 /* editObjectActuator->flag for replace mesh actuator */
 #define ACT_EDOB_REPLACE_MESH_NOGFX		2 /* use for replace mesh actuator */
