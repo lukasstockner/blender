@@ -37,8 +37,11 @@
 #include "BKE_subsurf.h"
 
 #include "BKE_subsurf.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
 
 #include "DNA_userdef_types.h"
+#include "DNA_scene_types.h"
 
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_capi.h"
@@ -462,7 +465,7 @@ struct CCGSubSurf {
 #ifdef WITH_OPENSUBDIV
 	struct OpenSubdiv_EvaluatorDescr *osd_evaluator;
 	struct OpenSubdiv_GLMesh *osd_mesh;
-	bool osd_mesh_invalid;
+	bool osd_mesh_invalid, osd_coords_invalid;
 	unsigned int osd_vao;
 	bool skip_grids;
 	short osd_compute;
@@ -926,6 +929,7 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 		ss->osd_evaluator = NULL;
 		ss->osd_mesh = NULL;
 		ss->osd_mesh_invalid = false;
+		ss->osd_coords_invalid = false;
 		ss->osd_vao = 0;
 		ss->skip_grids = false;
 		ss->osd_compute = 0;
@@ -2295,6 +2299,7 @@ static void ccgSubSurf__updateGLMeshCoords(CCGSubSurf *ss)
 
 	positions = MEM_callocN(2 * sizeof(*positions) * num_basis_verts,
 	                        "OpenSubdiv coarse points");
+#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; i++) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2385,10 +2390,11 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 
 		ss->osd_compute = U.opensubdiv_compute_type;
 	}
-	else {
+	else if (ss->osd_coords_invalid) {
 		ccgSubSurf__updateGLMeshCoords(ss);
 		openSubdiv_osdGLMeshRefine(ss->osd_mesh);
 		openSubdiv_osdGLMeshSynchronize(ss->osd_mesh);
+		ss->osd_coords_invalid = false;
 	}
 
 	openSubdiv_osdGLMeshDisplayPrepare(use_osd_glsl);
@@ -2637,12 +2643,15 @@ static void opensubdiv_updateCoarsePositions(CCGSubSurf *ss)
 		/* If all the components are to be initialized, no need to memset the
 		 * new memory block.
 		 */
-		positions = MEM_mallocN(3 * sizeof(float) * num_basis_verts, "OpenSubdiv coarse points");
+		positions = MEM_mallocN(3 * sizeof(float) * num_basis_verts,
+		                        "OpenSubdiv coarse points");
 	}
 	else {
 		/* Calloc in order to have z component initialized to 0 for Uvs */
-		positions = MEM_callocN(3 * sizeof(float) * num_basis_verts, "OpenSubdiv coarse points");
+		positions = MEM_callocN(3 * sizeof(float) * num_basis_verts,
+		                        "OpenSubdiv coarse points");
 	}
+#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; i++) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2674,6 +2683,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		return;
 	}
 
+#pragma omp palallel for
 	for (i = 0; i < ss->vMap->curSize; ++i) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2682,6 +2692,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		}
 	}
 
+#pragma omp palallel for
 	for (i = 0; i < ss->fMap->curSize; ++i) {
 		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
 		for (; f; f = f->next) {
@@ -2698,14 +2709,18 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 			if (UNLIKELY(normalize_v3(face_no) == 0.0f)) {
 				face_no[2] = 1.0f; /* other axis set to 0.0 */
 			}
-			for (S = 0; S < f->numVerts; S++) {
-				CCGVert *v = FACE_getVerts(f)[S];
-				float *no = VERT_getNo(v, 0);
-				add_v3_v3(no, face_no);
+#pragma omp critical
+			{
+				for (S = 0; S < f->numVerts; S++) {
+					CCGVert *v = FACE_getVerts(f)[S];
+					float *no = VERT_getNo(v, 0);
+					add_v3_v3(no, face_no);
+				}
 			}
 		}
 	}
 
+#pragma omp palallel for
 	for (i = 0; i < ss->vMap->curSize; ++i) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2985,6 +3000,8 @@ static void ccgSubSurf__sync(CCGSubSurf *ss)
 	if (ss->fMap->numEntries == 0) {
 		return;
 	}
+
+	ss->osd_coords_invalid = true;
 
 	/* Make sure OSD evaluator is up-to-date. */
 	if (opensubdiv_ensureEvaluator(ss)) {
