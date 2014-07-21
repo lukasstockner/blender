@@ -26,6 +26,7 @@
  */
 #ifndef __BKE_CURVE_H__
 #define __BKE_CURVE_H__
+#include "DNA_listBase.h"
 
 /** \file BKE_curve.h
  *  \ingroup bke
@@ -122,6 +123,8 @@ void BKE_curve_forward_diff_bezier(float q0, float q1, float q2, float q3, float
 void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *tb, struct rctf *r_rect);
 
 /* ** Nurbs ** */
+int BKE_nurbs_nz_basis_range(float u, float *knots, int num_knots, int order);
+void BKE_nurbs_basis_eval(float u, int i, float *U, int num_knots, int order, int nd, float out[][NURBS_MAX_ORDER]);
 
 bool BKE_nurbList_index_get_co(struct ListBase *editnurb, const int index, float r_co[3]);
 
@@ -146,6 +149,7 @@ void BKE_nurb_minmax(struct Nurb *nu, bool use_radius, float min[3], float max[3
 void BKE_nurb_makeFaces(struct Nurb *nu, float *coord_array, int rowstride, int resolu, int resolv);
 void BKE_nurb_makeCurve(struct Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array, int resolu, int stride);
 
+void BKE_nurb_knot_calc(int flags, int pnts, int order, float knots[]);
 void BKE_nurb_knot_calc_u(struct Nurb *nu);
 void BKE_nurb_knot_calc_v(struct Nurb *nu);
 

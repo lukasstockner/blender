@@ -80,6 +80,7 @@ set(SRC
 	intern/context.c
         intern/crazyspace.c
         intern/curve.cpp
+        intern/curve_eval.cpp
 	intern/customdata.c
 	intern/customdata_file.c
 	intern/deform.c

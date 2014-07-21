@@ -146,6 +146,24 @@ void BKE_curve_editNurb_free(Curve *cu)
 	}
 }
 
+void BKE_nurb_knot_calc_u(Nurb *nu)
+{
+	int pnts=nu->pntsu, order=nu->orderu;
+	float *knots = (float*)MEM_mallocN(sizeof(float)*(pnts+2*order), "NURB_knots_u");
+	BKE_nurb_knot_calc(nu->flagu, pnts, order, knots);
+	if (nu->knotsu) MEM_freeN(nu->knotsu);
+	nu->knotsu = knots;
+}
+
+void BKE_nurb_knot_calc_v(Nurb *nu)
+{
+	int pnts=nu->pntsv, order=nu->orderv;
+	float *knots = (float*)MEM_mallocN(sizeof(float)*(pnts+2*order), "NURB_knots_v");
+	BKE_nurb_knot_calc(nu->flagv, pnts, order, knots);
+	if (nu->knotsv) MEM_freeN(nu->knotsv);
+	nu->knotsv = knots;
+}
+
 /* don't free curve itself */
 void BKE_curve_free(Curve *cu)
 {
@@ -872,228 +890,6 @@ void BKE_nurb_bezt_calc_plane(struct Nurb *nu, struct BezTriple *bezt, float r_p
 }
 
 /* ~~~~~~~~~~~~~~~~~~~~Non Uniform Rational B Spline calculations ~~~~~~~~~~~ */
-float nurbs_eps = 1e-5;
-
-/* uv: 1=u 2=v */
-static void makeknots(Nurb *nu, short uv)
-{
-	bool u = uv==1;
-	int flags=0, pnts=0, order=0;
-	if (u) {
-		if (!BKE_nurb_check_valid_u(nu)) return;
-		if (nu->knotsu) MEM_freeN(nu->knotsu);
-		flags = nu->flagu;
-		pnts = nu->pntsu;
-		order = nu->orderu;
-	} else {
-		if (!BKE_nurb_check_valid_v(nu)) return;
-		if (nu->knotsv) MEM_freeN(nu->knotsv);
-		flags = nu->flagv;
-		pnts = nu->pntsv;
-		order = nu->orderv;
-	}
-	printf("p:%i o:%i\n",pnts,order);
-	int num_knots = pnts + order;
-	if (flags & CU_NURB_CYCLIC) num_knots += order-1;
-	float *knots = (float*)MEM_callocN(sizeof(float)*num_knots, "makeknots");
-	if (flags & CU_NURB_BEZIER) {
-		/* Previous versions of blender supported "Bezier" knot vectors. These
-		 * are useless to the user. *All* NURBS surfaces can be transformed into
-		 * Bezier quilts (grids of connected Bezier surfaces). The "Bezier" knot
-		 * vector is only an intermediate mathematical step in this process.
-		 * Bezier quilts may be exposed to the user but there is no point in having
-		 * the option to use Bezier-style knot vectors without Bezier-style controls.
-		 *           |------------------ pnts+order -------------|
-		 *           |--ord--||-ord-1-||-ord-1-||-ord-1-||--ord--|
-		 * Bezier:  { 0 0 0 0   1 1 1    2 2 2    3 3 3   4 4 4 4 }
-		 */
-		int v=0;
-		for (int i=0; i<order; i++)
-			knots[i] = v;
-		for (int i=order,reps=0; i<pnts; i++) {
-			if (reps==0) {
-				v += 1;
-				reps = order-1;
-			}
-			knots[i] = v;
-		}
-		for (int i=pnts; i<pnts+order; i++)
-			knots[i] = v;
-	} else if (flags & CU_NURB_ENDPOINT) {
-		/* "Endpoint" knot vectors ensure that the first and last knots are
-		 * repeated $order times so that the valid NURBS domain actually touches
-		 * the edges of the control polygon. These are the default.
-		 *  |------- pnts+order ------------|
-		 *  |-order-||--pnts-order-||-order-|
-		 * { 0 0 0 0 1 2 3 4 5 6 7 8 9 9 9 9 }
-		 */
-		for (int i=0; i<order; i++)
-			knots[i] = 0;
-		int v=1;
-		for (int i=order; i<pnts; i++)
-			knots[i] = v++;
-		for (int i=pnts; i<pnts+order; i++)
-			knots[i] = v;
-	} else if ((flags&CU_NURB_CYCLIC) || true) {
-		/* Uniform knot vectors are the simplest mathematically but they create
-		 * the annoying problem where the edges of the surface do not reach the
-		 * edges of the control polygon which makes positioning them difficult.
-		 *  |------ pnts+order --------|
-		 *  |-----pnts----||---order---|
-		 * { 0 1 2 3 4 5 6  7 8 9 10 11 }
-		 */
-		/* Cyclic knot vectors are equivalent to uniform knot vectors over
-		 * a control polygon of pnts+(order-1) points for a total of
-		 * pnts+(order-1)+order knots. The additional (order-1) control points
-		 * are repeats of the first (order-1) control points. This guarantees
-		 * that all derivatives match at the join point.
-		 *  |----- (pnts+order-1)+order --------|
-		 *  |-----pnts----||--reps-||---order---|
-		 * { 0 1 2 3 4 5 6  7  8  9  10 11 12 13 }
-		 */
-		for (int i=0; i<num_knots; i++)
-			knots[i]=i;
-	}
-	/*
-	printf("Knots%s: ",u?"u":"v");
-	for (int i=0; i<num_knots; i++)
-		printf((i!=num_knots-1)?"%f, ":"%f\n", knots[i]);
-	 */
-	
-	if (u)
-		nu->knotsu=knots;
-	else
-		nu->knotsv=knots;
-}
-
-void BKE_nurb_knot_calc_u(Nurb *nu)
-{
-	makeknots(nu, 1);
-}
-
-void BKE_nurb_knot_calc_v(Nurb *nu)
-{
-	makeknots(nu, 2);
-}
-
-/* Points on the surface of a NURBS curve are defined as an affine combination
- * (sum of coeffs is 1) of points from the control polygon. HOWEVER, the
- * locality property of NURBS dictates that at most $order consecutive
- * control points are nonzero at a given curve coordinate u (or v, but we assume
- * u WLOG for the purposes of naming the variable). Therefore
- *     C(u) = \sum_{j=0}^n   Njp(u)*Pj
- *          = \sum_{j=i-p}^j Njp(u)*Pj
- *          = N(i-p)p*P(i-p) + N(i-p+1)p*P(i-p+1) + ... + Nip*Pi
- * for u in knot range [u_i, u_{i+1}) given the m+1 knots
- *     U[] = {u0, u1, ..., um}
- * Arguments:
- * uv = 1:u, 2:v
- *  u = the curve parameter, as above (u is actually v if uv==2)
- * returns: i such that basis functions i-p,i-p+1,...,i are possibly nonzero
- */
-static int nurbs_nz_basis_range(Nurb *nu, int uv, float u)
-{
-	int num_knots = (uv==1)? KNOTSU(nu) : KNOTSV(nu);
-	float *knots  = (uv==1)? nu->knotsu : nu->knotsv;
-	int order     = (uv==1)? nu->orderu : nu->orderv;
-	int p = order-1; /* p is the NURBS degree */
-	int n = num_knots-p; /* = number of control points + 1 */
-	
- 	if (u>=knots[n+1])
-		return n;
- 	if (u<=knots[p])
-		return p;
-	int low=p, high=n+1, mid=(low+high)/2;
-	while (u<knots[mid] || u>=knots[mid+1]) {
-		if (u<knots[mid]) high=mid;
-		else              low=mid;
-		mid = (low+high)/2;
-	}
-	return mid; /* called i in nurbs_basis_eval */
-}
-
-/* Computes the p+1=order nonvanishing NURBS basis functions at coordinate u.
- * Arguments:
- * uv = 1:u, 2:v
- *  i = the return value of nurbs_nz_basis_range or -1 to compute automatically
- *  u = the curve parameter, as above (u is actually v if uv==2)
- *  nd= the number of derivatives to calculate (0 = just regular basis funcs)
- * out = an array to put N(i-p),N(i-p+1),...,N(i) and their derivatives into
- *  out[0][0]=N(i-p)        out[0][1]=N(i-p+1)        ...   out[0][p]=N(i)
- *  out[1][0]=N'(i-p)       out[1][1]=N'(i-p+1)       ...   out[1][p]=N'(i)
- *  ...
- *  out[nd-1][0]=N'''(i-p)  out[nd-1][1]=N'''(i-p+1)  ...   out[nd-1][p]=N'''(i)
- *                 ^ let ''' stand for differentiation nd-1 times
- * Adapted from Piegl&Tiller 1995
- */
-static void nurbs_basis_eval(Nurb *nu, int uv, float u, int i, float out[][NURBS_MAX_ORDER], int nd) {
-	if (.99<u && u<1.01) {
-		i=4;
-	}
-	int num_knots = (uv==1)? KNOTSU(nu) : KNOTSV(nu);
-	float *U      = (uv==1)? nu->knotsu : nu->knotsv;
-	int order     = (uv==1)? nu->orderu : nu->orderv;
-	int p = order-1; /* p is the NURBS degree */
-	int n = num_knots-p; /* = number of control points + 1 */
-	if (i==-1) /* index st N(i-p),N(i-p+1),...,N(i) are nonzero */
-		i = nurbs_nz_basis_range(nu, uv, u);
-	double left[NURBS_MAX_ORDER], right[NURBS_MAX_ORDER];
-	double ndu[NURBS_MAX_ORDER][NURBS_MAX_ORDER];
-	double a[2][NURBS_MAX_ORDER];
-	double saved,temp;
-	
-	/* First, compute the 0th derivatives of the basis functions. */
-	ndu[0][0] = 1.0;
-	for (int j=1; j<=p; j++) {
-		left[j] = u-U[i+1-j];
-		right[j] = U[i+j]-u;
-		saved = 0;
-		/* Upper and lower triangles of Piegl&Tiller eval grid */
-		for (int r=0; r<j; r++) {
-			ndu[j][r] = right[r+1]+left[j-r];
-			temp = ndu[r][j-1]/ndu[j][r];
-			ndu[r][j] = saved+right[r+1]*temp;
-			saved = left[j-r]*temp;
-		}
-		ndu[j][j] = saved;
-	}
-	for (int j=0; j<=p; j++)
-		out[0][j] = ndu[j][p];
-	
-	/* Now compute the higher nd derivatives */
-	for (int r=0; r<=p; r++) {
-		int s1=0, s2=1, j1=0, j2=0;
-		a[0][0] = 1.0;
-		for (int k=1; k<=nd && k<=n; k++) {
-			double d = 0.0;
-			int rk=r-k, pk=p-k, j=0;
-			if (r>=k) {
-				a[s2][0] = a[s1][0]/ndu[pk+1][rk];
-				d = a[s2][0]*ndu[rk][pk];
-			}
-			j1 = (rk>=-1)? 1 : -rk;
-			j2 = (r-1<=pk)? k-1 : p-r;
-			for (j=j1; j<=j2; j++) {
-				a[s2][j] = (a[s1][j]-a[s1][j-1])/ndu[pk+1][rk+j];
-				d += a[s2][j]*ndu[rk+j][pk];
-			}
-			if (r<=pk) {
-				a[s2][k] = -a[s1][k-1]/ndu[pk+1][r];
-				d += a[s2][k]*ndu[r][pk];
-			}
-			out[k][r] = d;
-			j=s1; s1=s2; s2=j;
-		}
-	}
-	int r=p;
-	for (int k=1; k<=n; k++) {
-		for (int j=0; j<=p; j++) {
-			out[k][j] *= r;
-		}
-		r *=(p-k);
-	}
-}
-
 /* Fills <basis> with <pnts> weights corresponding to the curve evaluated
  * at point t. <start> is the index of the first nz basis function at t, <end>
  * is the index of the last nz basis function at t.
@@ -1161,178 +957,6 @@ static void basisNurb(float t, short order, int pnts, float *knots, float *basis
 			if (*start == 1000) *start = i;
 		}
 	}
-}
-
-
-void BKE_nurb_makeFaces(Nurb *nu, float *coord_array, int rowstride, int resolu, int resolv)
-/* coord_array  has to be (3 * 4 * resolu * resolv) in size, and zero-ed */
-{
-	BPoint *bp;
-	float *basisu, *basis, *basisv, *sum, *fp, *in;
-	float u, v, ustart, uend, ustep, vstart, vend, vstep, sumdiv;
-	int i, j, iofs, jofs, cycl, len, curu, curv;
-	int istart, iend, jsta, jen, *jstart, *jend, ratcomp;
-
-	int totu = nu->pntsu * resolu, totv = nu->pntsv * resolv;
-
-	if (nu->knotsu == NULL || nu->knotsv == NULL)
-		return;
-	if (nu->orderu > nu->pntsu)
-		return;
-	if (nu->orderv > nu->pntsv)
-		return;
-	if (coord_array == NULL)
-		return;
-
-	/* allocate and initialize */
-	len = totu * totv;
-	if (len == 0)
-		return;
-
-	sum = (float *)MEM_callocN(sizeof(float) * len, "makeNurbfaces1");
-
-	bp = nu->bp;
-	i = nu->pntsu * nu->pntsv;
-	ratcomp = 0;
-	while (i--) {
-		if (bp->vec[3] != 1.0f) {
-			ratcomp = 1;
-			break;
-		}
-		bp++;
-	}
-
-	fp = nu->knotsu;
-	ustart = fp[nu->orderu - 1];
-	if (nu->flagu & CU_NURB_CYCLIC)
-		uend = fp[nu->pntsu + nu->orderu - 1];
-	else
-		uend = fp[nu->pntsu];
-	ustep = (uend - ustart) / ((nu->flagu & CU_NURB_CYCLIC) ? totu : totu - 1);
-
-	basisu = (float *)MEM_mallocN(sizeof(float) * KNOTSU(nu), "makeNurbfaces3");
-
-	fp = nu->knotsv;
-	vstart = fp[nu->orderv - 1];
-
-	if (nu->flagv & CU_NURB_CYCLIC)
-		vend = fp[nu->pntsv + nu->orderv - 1];
-	else
-		vend = fp[nu->pntsv];
-	vstep = (vend - vstart) / ((nu->flagv & CU_NURB_CYCLIC) ? totv : totv - 1);
-
-	len = KNOTSV(nu);
-	basisv = (float *)MEM_mallocN(sizeof(float) * len * totv, "makeNurbfaces3");
-	jstart = (int *)MEM_mallocN(sizeof(float) * totv, "makeNurbfaces4");
-	jend = (int *)MEM_mallocN(sizeof(float) * totv, "makeNurbfaces5");
-
-	/* precalculation of basisv and jstart, jend */
-	if (nu->flagv & CU_NURB_CYCLIC)
-		cycl = nu->orderv - 1;
-	else cycl = 0;
-	v = vstart;
-	basis = basisv;
-	curv = totv;
-	while (curv--) {
-		basisNurb(v, nu->orderv, nu->pntsv + cycl, nu->knotsv, basis, jstart + curv, jend + curv);
-		basis += KNOTSV(nu);
-		v += vstep;
-	}
-
-	if (nu->flagu & CU_NURB_CYCLIC)
-		cycl = nu->orderu - 1;
-	else
-		cycl = 0;
-	in = coord_array;
-	u = ustart;
-	curu = totu;
-	while (curu--) {
-		basisNurb(u, nu->orderu, nu->pntsu + cycl, nu->knotsu, basisu, &istart, &iend);
-
-		basis = basisv;
-		curv = totv;
-		while (curv--) {
-			jsta = jstart[curv];
-			jen = jend[curv];
-
-			/* calculate sum */
-			sumdiv = 0.0;
-			fp = sum;
-
-			for (j = jsta; j <= jen; j++) {
-
-				if (j >= nu->pntsv)
-					jofs = (j - nu->pntsv);
-				else
-					jofs = j;
-				bp = nu->bp + nu->pntsu * jofs + istart - 1;
-
-				for (i = istart; i <= iend; i++, fp++) {
-					if (i >= nu->pntsu) {
-						iofs = i - nu->pntsu;
-						bp = nu->bp + nu->pntsu * jofs + iofs;
-					}
-					else
-						bp++;
-
-					if (ratcomp) {
-						*fp = basisu[i] * basis[j] * bp->vec[3];
-						sumdiv += *fp;
-					}
-					else
-						*fp = basisu[i] * basis[j];
-				}
-			}
-
-			if (ratcomp) {
-				fp = sum;
-				for (j = jsta; j <= jen; j++) {
-					for (i = istart; i <= iend; i++, fp++) {
-						*fp /= sumdiv;
-					}
-				}
-			}
-
-			zero_v3(in);
-
-			/* one! (1.0) real point now */
-			fp = sum;
-			for (j = jsta; j <= jen; j++) {
-
-				if (j >= nu->pntsv)
-					jofs = (j - nu->pntsv);
-				else
-					jofs = j;
-				bp = nu->bp + nu->pntsu * jofs + istart - 1;
-
-				for (i = istart; i <= iend; i++, fp++) {
-					if (i >= nu->pntsu) {
-						iofs = i - nu->pntsu;
-						bp = nu->bp + nu->pntsu * jofs + iofs;
-					}
-					else
-						bp++;
-
-					if (*fp != 0.0f) {
-						madd_v3_v3fl(in, bp->vec, *fp);
-					}
-				}
-			}
-
-			in += 3;
-			basis += KNOTSV(nu);
-		}
-		u += ustep;
-		if (rowstride != 0)
-			in = (float *) (((unsigned char *) in) + (rowstride - 3 * totv * sizeof(*in)));
-	}
-
-	/* free */
-	MEM_freeN(sum);
-	MEM_freeN(basisu);
-	MEM_freeN(basisv);
-	MEM_freeN(jstart);
-	MEM_freeN(jend);
 }
 
 /**
@@ -1576,6 +1200,7 @@ float *BKE_curve_surf_make_orco(Object *ob)
 				}
 			}
 			else {
+				/*
 				int size = (nu->pntsu * resolu) * (nu->pntsv * resolv) * 3 * sizeof(float);
 				float *_tdata = (float*)MEM_mallocN(size, "temp data");
 				float *tdata = _tdata;
@@ -1602,6 +1227,7 @@ float *BKE_curve_surf_make_orco(Object *ob)
 				}
 
 				MEM_freeN(_tdata);
+				*/
 			}
 		}
 		nu = nu->next;
@@ -4497,6 +4123,8 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	
 	// Pushforward through the NURBS map
 	float basisu[2][NURBS_MAX_ORDER], basisv[2][NURBS_MAX_ORDER];
+	memset(basisu, 0xFF, sizeof(basisu));
+	memset(basisv, 0xFF, sizeof(basisv));
 	int iu, iv;
 	int orderu=nu->orderu, orderv=nu->orderv, pntsu=nu->pntsu, pntsv=nu->pntsv;
 	int coord=0;
@@ -4506,8 +4134,8 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 		// Right now xyz = {u,v,0.0}. Apply the NURBS map to transform it to {x,y,z}
 		if (xyz[1]!=cached_v) {
 			/* only N(i-p)p, N(i-p+1)p, ..., Nip are nz*/
-			iv = nurbs_nz_basis_range(nu, 2, xyz[1]);
-			nurbs_basis_eval(nu, 2, xyz[1], iv, basisv, 1);
+			iv = BKE_nurbs_nz_basis_range(xyz[1], nu->knotsv, KNOTSV(nu), orderv);
+			BKE_nurbs_basis_eval(xyz[1], iv, nu->knotsv, KNOTSV(nu), orderv, 1, basisv);
 			if (xyz[0]>0.75) {
 				printf("vcoeff(%f): ",xyz[1]);
 				for (int l=0; l<orderv; l++)
@@ -4515,8 +4143,8 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 			}
 			cached_v = xyz[1];
 		}
-		iu = nurbs_nz_basis_range(nu, 1, xyz[0]);
-		nurbs_basis_eval(nu, 1, xyz[0], iu, basisu, 1);
+		iu = BKE_nurbs_nz_basis_range(xyz[0], nu->knotsu, KNOTSU(nu), orderu);
+		BKE_nurbs_basis_eval(xyz[0], iu, nu->knotsu, KNOTSU(nu), orderu, 1, basisu);
 		if (xyz[0]>0.75) {
 			printf("ucoeff(%f): ",xyz[0]);
 			for (int l=0; l<orderu; l++)
@@ -4525,8 +4153,8 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 		cached_v = xyz[1];
 		float accum[3] = {0,0,0};
 		float hom_denominator = 0;
-		for (int vi=0; vi<NURBS_MAX_ORDER; vi++) {
-			for (int ui=0; ui<NURBS_MAX_ORDER; ui++) {
+		for (int vi=0; vi<orderv; vi++) {
+			for (int ui=0; ui<orderu; ui++) {
 				float Nu=basisu[0][ui], Nv=basisv[0][vi];
 				int ptu = iu-(orderu-1)+ui;
 				int ptv = iv-(orderv-1)+vi;
