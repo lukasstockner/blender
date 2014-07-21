@@ -87,7 +87,10 @@ ccl_device void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
 	if(sd->type & PRIMITIVE_TRIANGLE) {
 		/* static triangle */
 		float3 Ng = triangle_normal(kg, sd->prim);
-		sd->shader =  __float_as_int(kernel_tex_fetch(__tri_shader, sd->prim));
+
+		/* shader */
+		float4 vindex = kernel_tex_fetch(__tri_vindex, sd->prim);
+		sd->shader =  __float_as_int(vindex.w);
 
 		/* vectors */
 		sd->P = triangle_refine(kg, sd, isect, ray);
@@ -166,7 +169,8 @@ ccl_device_inline void shader_setup_from_subsurface(KernelGlobals *kg, ShaderDat
 	/* fetch triangle data */
 	if(sd->type == PRIMITIVE_TRIANGLE) {
 		float3 Ng = triangle_normal(kg, sd->prim);
-		sd->shader =  __float_as_int(kernel_tex_fetch(__tri_shader, sd->prim));
+		float4 vindex = kernel_tex_fetch(__tri_vindex, sd->prim);
+		sd->shader =  __float_as_int(vindex.w);
 
 		/* static triangle */
 		sd->P = triangle_refine_subsurface(kg, sd, isect, ray);
@@ -1026,7 +1030,8 @@ ccl_device bool shader_transparent_shadow(KernelGlobals *kg, Intersection *isect
 #ifdef __HAIR__
 	if(kernel_tex_fetch(__prim_type, isect->prim) & PRIMITIVE_ALL_TRIANGLE) {
 #endif
-		shader = __float_as_int(kernel_tex_fetch(__tri_shader, prim));
+		float4 vindex = kernel_tex_fetch(__tri_vindex, prim);
+		shader =  __float_as_int(vindex.w);
 #ifdef __HAIR__
 	}
 	else {

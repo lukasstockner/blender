@@ -134,11 +134,14 @@ ccl_device_inline float3 triangle_normal(KernelGlobals *kg, int prim)
 ccl_device_inline void triangle_point_normal(KernelGlobals *kg, int prim, float u, float v, float3 *P, float3 *Ng, int *shader)
 {
 	/* load triangle vertices */
-	float3 tri_vindex = float4_to_float3(kernel_tex_fetch(__tri_vindex, prim));
+	float4 tri_vindex = kernel_tex_fetch(__tri_vindex, prim);
 
 	float3 v0 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.x)));
 	float3 v1 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.y)));
 	float3 v2 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.z)));
+
+	/* shader`*/
+	*shader = __float_as_int(tri_vindex.w);
 
 	/* compute point */
 	float t = 1.0f - u - v;
@@ -146,9 +149,6 @@ ccl_device_inline void triangle_point_normal(KernelGlobals *kg, int prim, float 
 
 	/* compute normal */
 	*Ng = normalize(cross(v1 - v0, v2 - v0));
-
-	/* shader`*/
-	*shader = __float_as_int(kernel_tex_fetch(__tri_shader, prim));
 }
 
 /* Triangle vertex locations */

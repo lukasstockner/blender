@@ -377,31 +377,14 @@ void Mesh::add_vertex_normals()
 	}
 }
 
-void Mesh::pack_normals(Scene *scene, float *tri_shader, float4 *vnormal)
+void Mesh::pack_normals(float4 *vnormal)
 {
 	Attribute *attr_vN = attributes.find(ATTR_STD_VERTEX_NORMAL);
 
 	float3 *vN = attr_vN->data_float3();
-	int shader_id = 0;
-	uint last_shader = -1;
-	bool last_smooth = false;
-
-	size_t triangles_size = triangles.size();
-	uint *shader_ptr = (shader.size())? &shader[0]: NULL;
 
 	bool do_transform = transform_applied;
 	Transform ntfm = transform_normal;
-
-	/* save shader */
-	for(size_t i = 0; i < triangles_size; i++) {
-		if(shader_ptr[i] != last_shader || last_smooth != smooth[i]) {
-			last_shader = shader_ptr[i];
-			last_smooth = smooth[i];
-			shader_id = scene->shader_manager->get_shader_id(last_shader, this, last_smooth);
-		}
-
-		tri_shader[i] = __int_as_float(shader_id);
-	}
 
 	size_t verts_size = verts.size();
 
@@ -415,7 +398,7 @@ void Mesh::pack_normals(Scene *scene, float *tri_shader, float4 *vnormal)
 	}
 }
 
-void Mesh::pack_verts(float4 *tri_verts, float4 *tri_vindex, size_t vert_offset)
+void Mesh::pack_verts(Scene *scene, float4 *tri_verts, float4 *tri_vindex, size_t vert_offset)
 {
 	size_t verts_size = verts.size();
 
@@ -430,17 +413,28 @@ void Mesh::pack_verts(float4 *tri_verts, float4 *tri_vindex, size_t vert_offset)
 
 	size_t triangles_size = triangles.size();
 
+	int shader_id = 0;
+	uint last_shader = -1;
+	bool last_smooth = false;
+	uint *shader_ptr = (shader.size())? &shader[0]: NULL;
+
 	if(triangles_size) {
 		Triangle *triangles_ptr = &triangles[0];
 
 		for(size_t i = 0; i < triangles_size; i++) {
 			Triangle t = triangles_ptr[i];
 
+			if(shader_ptr[i] != last_shader || last_smooth != smooth[i]) {
+				last_shader = shader_ptr[i];
+				last_smooth = smooth[i];
+				shader_id = scene->shader_manager->get_shader_id(last_shader, this, last_smooth);
+			}
+
 			tri_vindex[i] = make_float4(
 				__int_as_float(t.v[0] + vert_offset),
 				__int_as_float(t.v[1] + vert_offset),
 				__int_as_float(t.v[2] + vert_offset),
-				0);
+				__int_as_float(shader_id));
 		}
 	}
 }
@@ -935,14 +929,13 @@ void MeshManager::device_update_mesh(Device *device, DeviceScene *dscene, Scene 
 		/* normals */
 		progress.set_status("Updating Mesh", "Computing normals");
 
-		float *tri_shader = dscene->tri_shader.resize(tri_size);
 		float4 *vnormal = dscene->tri_vnormal.resize(vert_size);
 		float4 *tri_verts = dscene->tri_verts.resize(vert_size);
 		float4 *tri_vindex = dscene->tri_vindex.resize(tri_size);
 
 		foreach(Mesh *mesh, scene->meshes) {
-			mesh->pack_normals(scene, &tri_shader[mesh->tri_offset], &vnormal[mesh->vert_offset]);
-			mesh->pack_verts(&tri_verts[mesh->vert_offset], &tri_vindex[mesh->tri_offset], mesh->vert_offset);
+			mesh->pack_normals(&vnormal[mesh->vert_offset]);
+			mesh->pack_verts(scene, &tri_verts[mesh->vert_offset], &tri_vindex[mesh->tri_offset], mesh->vert_offset);
 
 			if(progress.get_cancel()) return;
 		}
@@ -950,7 +943,6 @@ void MeshManager::device_update_mesh(Device *device, DeviceScene *dscene, Scene 
 		/* vertex coordinates */
 		progress.set_status("Updating Mesh", "Copying Mesh to device");
 
-		device->tex_alloc("__tri_shader", dscene->tri_shader);
 		device->tex_alloc("__tri_vnormal", dscene->tri_vnormal);
 		device->tex_alloc("__tri_verts", dscene->tri_verts);
 		device->tex_alloc("__tri_vindex", dscene->tri_vindex);
@@ -1122,7 +1114,6 @@ void MeshManager::device_free(Device *device, DeviceScene *dscene)
 	device->tex_free(dscene->prim_visibility);
 	device->tex_free(dscene->prim_index);
 	device->tex_free(dscene->prim_object);
-	device->tex_free(dscene->tri_shader);
 	device->tex_free(dscene->tri_vnormal);
 	device->tex_free(dscene->tri_vindex);
 	device->tex_free(dscene->tri_verts);
@@ -1140,7 +1131,6 @@ void MeshManager::device_free(Device *device, DeviceScene *dscene)
 	dscene->prim_visibility.clear();
 	dscene->prim_index.clear();
 	dscene->prim_object.clear();
-	dscene->tri_shader.clear();
 	dscene->tri_vnormal.clear();
 	dscene->tri_vindex.clear();
 	dscene->tri_verts.clear();

@@ -232,9 +232,6 @@ ccl_device_inline float3 motion_triangle_refine_subsurface(KernelGlobals *kg, Sh
 /* return 3 triangle vertex normals */
 ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals *kg, ShaderData *sd, const Intersection *isect, const Ray *ray, bool subsurface)
 {
-	/* get shader */
-	sd->shader =  __float_as_int(kernel_tex_fetch(__tri_shader, sd->prim));
-
 	/* get motion info */
 	int numsteps, numverts;
 	object_motion_info(kg, sd->object, &numsteps, &numverts, NULL);
@@ -251,7 +248,11 @@ ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals *kg, ShaderD
 
 	/* fetch vertex coordinates */
 	float3 verts[3], next_verts[3];
-	float3 tri_vindex = float4_to_float3(kernel_tex_fetch(__tri_vindex, sd->prim));
+	float4 vindex = kernel_tex_fetch(__tri_vindex, sd->prim);
+	float3 tri_vindex = float4_to_float3(vindex);
+
+	/* get shader */
+	sd->shader =  __float_as_int(vindex.w);
 
 	motion_triangle_verts_for_step(kg, tri_vindex, offset, numverts, numsteps, step, verts);
 	motion_triangle_verts_for_step(kg, tri_vindex, offset, numverts, numsteps, step+1, next_verts);
