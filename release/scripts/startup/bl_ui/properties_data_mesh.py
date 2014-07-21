@@ -86,7 +86,7 @@ class MESH_UL_shape_keys(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.ShapeKey)
         obj = active_data
-        # key = data
+        key = data
         key_block = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             split = layout.split(0.66, False)
@@ -94,7 +94,7 @@ class MESH_UL_shape_keys(UIList):
             row = split.row(align=True)
             if key_block.mute:
                 row.active = False
-            if not item.relative_key or index > 0:
+            if not item.relative_key or index > 0 and key.use_relative:
                 draw_shape_value(obj, key_block, row)
             else:
                 row.label(text="")
