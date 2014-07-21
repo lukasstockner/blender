@@ -201,7 +201,7 @@ int ED_operator_animview_active(bContext *C)
 {
 	if (ED_operator_areaactive(C)) {
 		SpaceLink *sl = (SpaceLink *)CTX_wm_space_data(C);
-		if (sl && (ELEM5(sl->spacetype, SPACE_SEQ, SPACE_ACTION, SPACE_NLA, SPACE_IPO, SPACE_TIME)))
+		if (sl && (ELEM(sl->spacetype, SPACE_SEQ, SPACE_ACTION, SPACE_NLA, SPACE_IPO, SPACE_TIME)))
 			return true;
 	}
 
@@ -4154,7 +4154,8 @@ void ED_keymap_screen(wmKeyConfig *keyconf)
 	/* dropbox for entire window */
 	lb = WM_dropboxmap_find("Window", 0, 0);
 	WM_dropbox_add(lb, "WM_OT_open_mainfile", open_file_drop_poll, open_file_drop_copy);
-	
+	WM_dropbox_add(lb, "UI_OT_drop_color", UI_drop_color_poll, UI_drop_color_copy);
+
 	keymap_modal_set(keyconf);
 }
 
