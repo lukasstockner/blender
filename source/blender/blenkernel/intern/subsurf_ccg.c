@@ -2444,27 +2444,53 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
-		int mat_nr;
-		bool drawSmooth;
-		MTFace tmp_tf = {{{0}}};
+		MTexPoly *mtexpoly = CustomData_get_layer_n(&ccgdm->dm.polyData,
+		                                            CD_MTEXPOLY,
+		                                            0);
 
-		if (faceFlags) {
-			drawSmooth = (lnors || (faceFlags[0].flag & ME_SMOOTH));
-			mat_nr = faceFlags[0].mat_nr;
+		CCGFaceIterator *fi;
+
+		/* TODO(sergey): Face-by-face for now, in order to optimize
+		 * this we'll need to pass proper compareDrawOptions.
+		 */
+
+		/* If it happens we've got compare callback let us know. */
+		BLI_assert(compareDrawOptions == NULL);
+
+		if (ccgSubSurf_prepareGLMesh(ss, true) == false) {
+			return;
 		}
-		else {
-			drawSmooth = 1;
-			mat_nr = 0;
+
+		for (fi = ccgSubSurf_getFaceIterator(ss), i = 0;
+		     !ccgFaceIterator_isStopped(fi);
+		     ccgFaceIterator_next(fi), ++i)
+		{
+			CCGFace *f = ccgFaceIterator_getCurrent(fi);
+			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
+			MTFace tmp_tf;
+			int mat_nr;
+			bool drawSmooth;
+
+			ME_MTEXFACE_CPY(&tmp_tf, &mtexpoly[index]);
+
+			if (faceFlags) {
+				drawSmooth = (lnors || (faceFlags[0].flag & ME_SMOOTH));
+				mat_nr = faceFlags[0].mat_nr;
+			}
+			else {
+				drawSmooth = 1;
+				mat_nr = 0;
+			}
+
+			glShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
+
+			if (drawParams != NULL)
+				drawParams(&tmp_tf, (mcol != NULL), mat_nr);
+
+			ccgSubSurf_drawGLMesh(ss, true, i, 1);
 		}
+		ccgFaceIterator_free(fi);
 
-		glShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
-
-		if (drawParams != NULL)
-			drawParams(&tmp_tf, (mcol != NULL), mat_nr);
-
-		if (ccgSubSurf_prepareGLMesh(ss, true)) {
-			ccgSubSurf_drawGLMesh(ss, true, -1, -1);
-		}
 		return;
 	}
 #endif
@@ -4096,7 +4122,10 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	}
 	else {
 		DM_from_template(&ccgdm->dm, dm, DM_TYPE_CCGDM,
-		                 0, 0, 0, 0, 0);
+		                 0, 0, 0, 0, dm->getNumPolys(dm));
+		CustomData_copy_data(&dm->polyData,
+		                     &ccgdm->dm.polyData,
+		                     0, 0, dm->getNumPolys(dm));
 	}
 
 	set_default_ccgdm_callbacks(ccgdm);

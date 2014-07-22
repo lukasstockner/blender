@@ -287,11 +287,9 @@ GLuint linkProgram(const char *define)
 	                      glGetUniformBlockIndex(program, "Lighting"),
 	                      0);
 
-#if 0  /* Used for textured view */
 	glProgramUniform1i(program,
 	                   glGetUniformLocation(program, "texture_buffer"),
 	                   0);  /* GL_TEXTURE0 */
-#endif
 
 	glProgramUniform1i(program,
 	                   glGetUniformLocation(program, "FVarDataBuffer"),
@@ -325,12 +323,15 @@ void bindProgram(PartitionedGLMeshInterface *mesh,
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, g_lighting_ub);
 
 	/* Color */
-	GLboolean use_lighting, use_color_material;
+	GLboolean use_lighting, use_color_material, use_texture_2d;
 	glGetBooleanv(GL_LIGHTING, &use_lighting);
 	glGetBooleanv(GL_COLOR_MATERIAL, &use_color_material);
+	glGetBooleanv(GL_TEXTURE_2D, &use_texture_2d);
 
 	glUniform1i(glGetUniformLocation(program, "use_color_material"),
 	            use_color_material);
+	glUniform1i(glGetUniformLocation(program, "use_texture_2d"),
+	            use_texture_2d);
 
 	if (use_lighting) {
 		float color[4];

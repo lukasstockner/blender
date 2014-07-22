@@ -215,6 +215,7 @@ uniform float shininess;
 
 uniform sampler2D texture_buffer;
 uniform bool use_color_material;
+uniform bool use_texture_2d;
 
 in block {
 	VertexData v;
@@ -313,11 +314,12 @@ void main()
 
 	/* Compute diffuse color. */
 	float alpha;
-#ifdef USE_TEXTURE
-	L_diffuse *= texture2D(texture_buffer, inpt.v.uv).rgb;
-#else
-	L_diffuse *= diffuse.rgb;
-#endif
+	if (use_texture_2d) {
+		L_diffuse *= texture2D(texture_buffer, inpt.v.uv).rgb;
+	}
+	else {
+		L_diffuse *= diffuse.rgb;
+	}
 	alpha = diffuse.a;
 
 	/* Sum lighting. */
