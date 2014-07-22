@@ -2459,6 +2459,8 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			mat_nr = 0;
 		}
 
+		glShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
+
 		tmp_tf.tpage = G.main->image.first;
 		if (drawParams != NULL)
 			drawParams(&tmp_tf, (mcol != NULL), mat_nr);

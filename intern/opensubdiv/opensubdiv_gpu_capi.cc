@@ -61,16 +61,26 @@ using OpenSubdiv::PartitionedGLMeshInterface;
 
 extern "C" char datatoc_gpu_shader_opensubd_display_glsl[];
 
-#define NUM_SOLID_LIGHTS 3
+#define MAX_LIGHTS 8
 typedef struct Light {
 	float position[4];
 	float ambient[4];
 	float diffuse[4];
 	float specular[4];
+	float spot_direction[4];
+	float constant_attenuation;
+	float linear_attenuation;
+	float quadratic_attenuation;
+	float spot_cutoff;
+	float spot_exponent;
+	float spot_cos_cutoff;
+	float pad[2];
 } Light;
 
 typedef struct Lighting {
-	Light lights[NUM_SOLID_LIGHTS];
+	Light lights[MAX_LIGHTS];
+	int num_enabled;
+	int pad[3];
 } Lighting;
 
 typedef struct Transform {
@@ -321,8 +331,12 @@ void bindProgram(PartitionedGLMeshInterface *mesh,
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, g_lighting_ub);
 
 	/* Color */
-	GLboolean use_lighting;
+	GLboolean use_lighting, use_color_material;
 	glGetBooleanv(GL_LIGHTING, &use_lighting);
+	glGetBooleanv(GL_COLOR_MATERIAL, &use_color_material);
+
+	glUniform1i(glGetUniformLocation(program, "use_color_material"),
+	            use_color_material);
 
 	if (use_lighting) {
 		float color[4];
@@ -402,7 +416,14 @@ void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl)
 	transpose_m3((float (*)[3])g_transform.normal_matrix);
 
 	/* Update OpenGL lights positions, colors etc. */
-	for (int i = 0; i < NUM_SOLID_LIGHTS; ++i) {
+	g_lighting_data.num_enabled = 0;
+	for (int i = 0; i < MAX_LIGHTS; ++i) {
+		GLboolean enabled;
+		glGetBooleanv(GL_LIGHT0 + i, &enabled);
+		if (enabled) {
+			g_lighting_data.num_enabled++;
+		}
+
 		glGetLightfv(GL_LIGHT0 + i,
 		             GL_POSITION,
 		             g_lighting_data.lights[i].position);
@@ -415,6 +436,26 @@ void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl)
 		glGetLightfv(GL_LIGHT0 + i,
 		             GL_SPECULAR,
 		             g_lighting_data.lights[i].specular);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_SPOT_DIRECTION,
+		             g_lighting_data.lights[i].spot_direction);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_CONSTANT_ATTENUATION,
+		             &g_lighting_data.lights[i].constant_attenuation);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_LINEAR_ATTENUATION,
+		             &g_lighting_data.lights[i].linear_attenuation);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_QUADRATIC_ATTENUATION,
+		             &g_lighting_data.lights[i].quadratic_attenuation);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_SPOT_CUTOFF,
+		             &g_lighting_data.lights[i].spot_cutoff);
+		glGetLightfv(GL_LIGHT0 + i,
+		             GL_SPOT_EXPONENT,
+		             &g_lighting_data.lights[i].spot_exponent);
+		g_lighting_data.lights[i].spot_cos_cutoff =
+			cos(g_lighting_data.lights[i].spot_cutoff);
 	}
 }
 
