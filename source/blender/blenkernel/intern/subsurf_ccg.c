@@ -65,8 +65,6 @@
 #include "BKE_paint.h"
 #include "BKE_scene.h"
 #include "BKE_subsurf.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
 
 #include "PIL_time.h"
 
@@ -2461,7 +2459,6 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 		glShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
 
-		tmp_tf.tpage = G.main->image.first;
 		if (drawParams != NULL)
 			drawParams(&tmp_tf, (mcol != NULL), mat_nr);
 
