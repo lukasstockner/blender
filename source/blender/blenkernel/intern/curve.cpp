@@ -4134,8 +4134,8 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 		// Right now xyz = {u,v,0.0}. Apply the NURBS map to transform it to {x,y,z}
 		if (xyz[1]!=cached_v) {
 			/* only N(i-p)p, N(i-p+1)p, ..., Nip are nz*/
-			iv = BKE_nurbs_nz_basis_range(xyz[1], nu->knotsv, KNOTSV(nu), orderv);
-			BKE_nurbs_basis_eval(xyz[1], iv, nu->knotsv, KNOTSV(nu), orderv, 1, basisv);
+			iv = BKE_bspline_nz_basis_range(xyz[1], nu->knotsv, nu->pntsv, orderv);
+			BKE_bspline_basis_eval(xyz[1], iv, nu->knotsv, nu->pntsv, orderv, 1, basisv);
 			if (xyz[0]>0.75) {
 				printf("vcoeff(%f): ",xyz[1]);
 				for (int l=0; l<orderv; l++)
@@ -4143,8 +4143,8 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 			}
 			cached_v = xyz[1];
 		}
-		iu = BKE_nurbs_nz_basis_range(xyz[0], nu->knotsu, KNOTSU(nu), orderu);
-		BKE_nurbs_basis_eval(xyz[0], iu, nu->knotsu, KNOTSU(nu), orderu, 1, basisu);
+		iu = BKE_bspline_nz_basis_range(xyz[0], nu->knotsu, nu->pntsu, orderu);
+		BKE_bspline_basis_eval(xyz[0], iu, nu->knotsu, nu->pntsu, orderu, 1, basisu);
 		if (xyz[0]>0.75) {
 			printf("ucoeff(%f): ",xyz[0]);
 			for (int l=0; l<orderu; l++)
