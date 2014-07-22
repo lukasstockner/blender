@@ -58,6 +58,7 @@
 #include "BKE_key.h"
 
 #include "BLF_translation.h"
+#include "BLF_api.h"
 
 #include "RNA_define.h"
 #include "RNA_access.h"
@@ -72,6 +73,7 @@
 #include "ED_transform.h"
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
+#include "ED_space_api.h"
 
 #include "RE_render_ext.h"
 
@@ -2059,16 +2061,26 @@ typedef struct bfs_customdata {
 	int		prop_mode;		/* from DNA_scene_types.h, PE falloff interpolator mode */
 	int		prop_type;		/* simple/connected/projected */
 
+	int		prev_prop_type; /* used for */
+
+	float	obmat[3][3];	/* object's worldmat */
+
 	BMEditMesh *em;			/* editmesh */
 	Key *key;
+
+	ARegion *ar;			/* View3D */
+	void	*draw_handler;  /* pointer to info handler */
 } bfs_customdata;
+
+#define BFS_TOTAL_PARAM 6
+/* keyblock, amount, distance, blend mode, prop mode, prop type */
 
 enum {
 	BFS_MODE_INTERP = 0,
 	BFS_MODE_ADD = 1
 };
 
-static void bfs_freedata(bfs_customdata *mem)
+static void edbm_bfs_freedata(bfs_customdata *mem)
 {
 	if (mem->distances)
 		MEM_freeN(mem->distances);
@@ -2085,8 +2097,7 @@ static void bfs_freedata(bfs_customdata *mem)
 	MEM_freeN(mem);
 }
 
-/* BMESH_TODO this should be properly encapsulated in a bmop.  but later.*/
-static int edbm_blend_from_shape_exec(bContext *C, wmOperator *op)
+static int edbm_bfs_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	Mesh *me = obedit->data;
@@ -2163,8 +2174,7 @@ static EnumPropertyItem *shape_itemf(bContext *C, PointerRNA *UNUSED(ptr),  Prop
 	return item;
 }
 
-
-static void edbm_blend_from_shape_ui(bContext *C, wmOperator *op)
+static void edbm_bfs_ui(bContext *C, wmOperator *op)
 {
 	uiLayout *layout = op->layout;
 	PointerRNA ptr;
@@ -2180,7 +2190,209 @@ static void edbm_blend_from_shape_ui(bContext *C, wmOperator *op)
 	uiItemR(layout, &ptr, "add", 0, NULL, ICON_NONE);
 }
 
-static int edbm_blend_from_shape_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static void edbm_bfs_recalc_shapes(bfs_customdata *state)
+{
+	int a;
+	float(*opshapeco)[3] = (float(*)[3]) state->opkb->data;
+	float(*addshapeco)[3] = (float(*)[3]) state->add_shape_co;
+	float(*origshapeco)[3] = (float(*)[3]) state->origcos;
+	float vec[3];
+	BMVert *v;
+	BMIter iter;
+
+	switch (state->blend_mode) {
+	case BFS_MODE_INTERP:
+		BM_ITER_MESH_INDEX(v, &iter, state->em->bm, BM_VERTS_OF_MESH, a) {
+			interp_v3_v3v3(v->co, origshapeco[a], opshapeco[a], state->amount * state->factors[a]);
+		}
+		break;
+
+	case BFS_MODE_ADD:
+		if (!addshapeco) {
+			KeyBlock *base_kb = BLI_findlink(&state->key->block, state->opkb->relative);
+			float(*baseshapeco)[3] = base_kb->data;
+
+			state->add_shape_co
+				= MEM_mallocN(sizeof(float) * 3 * state->em->bm->totvert, "blend from shape add cos");
+
+			addshapeco = (float(*)[3]) state->add_shape_co;
+
+			for (a = 0; a < state->em->bm->totvert; ++a) {
+				sub_v3_v3v3(addshapeco[a], opshapeco[a], baseshapeco[a]);
+			}
+		}
+
+		BM_ITER_MESH_INDEX(v, &iter, state->em->bm, BM_VERTS_OF_MESH, a) {
+			copy_v3_v3(vec, addshapeco[a]);
+			mul_v3_fl(vec, state->amount * state->factors[a]);
+			add_v3_v3v3(v->co, origshapeco[a], vec);
+		}
+		break;
+
+	default:
+		BLI_assert(0);
+	}
+}
+
+static char *edbm_bfs_mode_to_string(int mode)
+{
+	if (mode == BFS_MODE_ADD)
+		return IFACE_("Add");
+	if (mode == BFS_MODE_INTERP)
+		return IFACE_("Interp");
+	return "ERR";
+}
+
+static char *edbm_bfs_pe_mode_to_string(int mode)
+{
+	if (mode == PROP_EDIT_OFF) {
+		return IFACE_("None");
+	}
+	if (mode == PROP_EDIT_ON) {
+		return IFACE_("On");
+	}
+	if (mode == PROP_EDIT_CONNECTED) {
+		return IFACE_("Connected");
+	}
+	if (mode == PROP_EDIT_PROJECTED) {
+		return IFACE_("Projected");
+	}
+	return "ERR";
+}
+
+static char *edbm_bfs_falloff_to_string(int type)
+{
+	switch (type) {
+	case PROP_SHARP:
+		return IFACE_("Sharp");
+
+	case PROP_SMOOTH:
+		return IFACE_("Smooth");
+
+	case PROP_ROOT:
+		return IFACE_("Root");
+
+	case PROP_LIN:
+		return IFACE_("Linear");
+
+	case PROP_SPHERE:
+		return IFACE_("Sphere");
+
+	case PROP_RANDOM:
+		return IFACE_("Random");
+
+	case PROP_CONST:
+		return IFACE_("Constant");
+	default:
+		return "ERR";
+	}
+}
+
+static char *edbm_bfs_get_preposition(int blend_mode)
+{
+	/* We interp TOWARDS and add FROM */
+	switch (blend_mode) {
+		case BFS_MODE_ADD:
+			return IFACE_("Adding from");
+		case BFS_MODE_INTERP:
+			return IFACE_("Interp towards");
+		default:
+			BLI_assert(0);
+	}
+	return NULL;
+}
+
+#include "UI_interface_icons.h"
+
+/* draw info in bottom-right corner */
+static void edbm_bfs_draw_info(bContext *C, ARegion *ar, void *customdata)
+{
+#define BUFFER 1024 /* long keyblock names are a reality :\ */
+	char buf[BUFFER];
+	rcti rect;
+	int y = 0;  
+	int x = 0;
+	int x_namebase, x_valuebase, strl;
+	bfs_customdata *state = customdata;
+	/* we draw a small table: on the left, the parameter names, on the right, the values */
+	/*  _______________________________
+	 *	|Add from:______|OpenJaw_______|           
+	 *	|Proportional:__|None__________|         
+	 *	|_______________|______________|
+	 *	x_namebase x_valuebase rcti.xmax - U.widget_unit */
+
+	ED_region_visible_rect(state->ar, &rect);
+	
+	/* determine x_valuebase: space for ~15 chars or more for keyblock name */
+ 	if ((strl = strlen(state->opkb->name)) > 10) {
+		x_valuebase = ceil(rect.xmax - U.widget_unit - BLF_width_default(state->opkb->name, strl));
+	} 
+	else {
+		x_valuebase = ceil(rect.xmax - U.widget_unit - 15 * BLF_width_default("_", 1));
+	}
+
+	x_namebase = ceil(x_valuebase - 15 * BLF_width_default("_", 1));
+
+	y = rect.ymin + U.widget_unit * BFS_TOTAL_PARAM;
+
+	if (BKE_keyblock_from_object(state->em->ob) == state->opkb) {
+		strcpy(buf, "ROTATE MOUSEWHEEL");
+		BLF_draw_default(x_namebase, y, 0.0f, buf, strlen(buf));
+		return;
+	}
+
+	/* draw argument kb */
+	BLI_snprintf(buf, BUFFER, "%s:", edbm_bfs_get_preposition(state->blend_mode));
+	BLF_draw_default(x_namebase, y, 0.0f, buf, strlen(buf));
+	BLI_snprintf(buf, BUFFER, "%s", state->opkb->name);
+	BLF_draw_default(x_valuebase, y, 0.0f, buf, strlen(buf));
+
+	y -= U.widget_unit;
+	strcpy(buf, IFACE_("Amount:"));
+	BLF_draw_default(x_namebase, y, 0.0f, buf, strlen(buf));
+	BLI_snprintf(buf, BUFFER, "%.3f", state->amount);
+	BLF_draw_default(x_valuebase, y, 0.0f, buf, strlen(buf));
+	
+	if (state->prop_type) {
+		y -= U.widget_unit;
+		strcpy(buf, IFACE_("Distance:"));
+		BLF_draw_default(x_namebase, y, 0.0f, buf, strlen(buf));
+		BLI_snprintf(buf, BUFFER, "%.3f", state->distance);
+		BLF_draw_default(x_valuebase, y, 0.0f, buf, strlen(buf));
+	}
+
+	y -= U.widget_unit;
+	strcpy(buf, IFACE_("Mode:"));
+	BLF_draw_default(x_namebase, y, 0.0f, buf, strlen(buf));
+	BLI_snprintf(buf, BUFFER, "%s", edbm_bfs_mode_to_string(state->blend_mode));
+	BLF_draw_default(x_valuebase, y, 0.0f, buf, strlen(buf));
+
+	y -= U.widget_unit;
+	strcpy(buf, IFACE_("Proportional:"));
+	BLF_draw_default(x_namebase, y, 0.0f, buf, strlen(buf));
+	BLI_snprintf(buf, BUFFER, "%s", edbm_bfs_pe_mode_to_string(state->prop_type));
+	BLF_draw_default(x_valuebase, y, 0.0f, buf, strlen(buf));
+	
+	if (state->prop_type) {
+		y -= U.widget_unit;
+		strcpy(buf, IFACE_("Falloff:"));
+		BLF_draw_default(x_namebase, y, 0.0f, buf, strlen(buf));
+		BLI_snprintf(buf, BUFFER, "%s", edbm_bfs_falloff_to_string(state->prop_mode));
+		BLF_draw_default(x_valuebase, y, 0.0f, buf, strlen(buf));
+	}
+
+
+	strcpy(buf, "Mouse drag up/down: falloff distance. Mouse left/right: amount."
+		"Mousewheel: select keyblock. LMB / RMB: Confirm. ESC: Cancel."
+		"O: Cycle Falloff Types. Shift-O: No PE/On//Connected/Projected.");
+
+	
+	ED_area_headerprint(CTX_wm_area(C), buf);
+#undef BUFFER
+}
+
+
+static int edbm_bfs_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	Mesh *me = obedit->data;
@@ -2192,8 +2404,6 @@ static int edbm_blend_from_shape_invoke(bContext *C, wmOperator *op, const wmEve
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	RegionView3D *rv3d = CTX_wm_region_view3d(C);
 	ScrArea *ar = CTX_wm_area(C);
-	float obmat3[3][3];
-	float proj_vec[3];
 	BMVert *v;
 	BMIter iter;
 	int a;
@@ -2212,20 +2422,25 @@ static int edbm_blend_from_shape_invoke(bContext *C, wmOperator *op, const wmEve
 	op->customdata = MEM_callocN(sizeof(bfs_customdata), "blend from shape modal data");
 	state = op->customdata;
 
-	state->distances = MEM_callocN(sizeof(float)* em->bm->totvert, "blend from shape distances");
+	state->distances = MEM_callocN(sizeof(float) * em->bm->totvert, "blend from shape distances");
 	state->factors = MEM_callocN(sizeof(float) * em->bm->totvert, "blend from shape factors");
 	state->origcos = MEM_callocN(sizeof(float) * em->bm->totvert * 3, "blend from shape origcos");
+
+	state->ar = CTX_wm_region(C);
 
 	state->blend_mode = BFS_MODE_INTERP;
 	state->origx = event->x;
 	state->origy = event->y;
 	state->em = em;
 	state->key = k;
-	state->prop_type = PROP_EDIT_CONNECTED; // ts->proportional; /* simple/cnct/proj */
-	state->prop_mode = ts->prop_mode;				/* falloffs */
-	state->opkb = BKE_keyblock_from_object(obedit); /* TODO */
+	state->prop_type = state->prev_prop_type = ts->proportional; /* simple/cnct/proj */
+	state->prop_mode = ts->prop_mode;							 /* falloffs */
+	state->opkb = BKE_keyblock_from_object(obedit);
 	state->wh = ar->winy;
 	state->ww = ar->winx;
+
+	state->draw_handler = 
+		ED_region_draw_cb_activate(state->ar->type, edbm_bfs_draw_info, state, REGION_DRAW_POST_PIXEL);
 
 	{
 		float(*origshapeco)[3] = (float(*)[3]) state->origcos;
@@ -2237,43 +2452,21 @@ static int edbm_blend_from_shape_invoke(bContext *C, wmOperator *op, const wmEve
 	/* figure out control scales, TODO coefficient to be adjusted */
 	{
 		float bbox_diag[3];
-		copy_m3_m4(obmat3, obedit->obmat);
+		copy_m3_m4(state->obmat, obedit->obmat);
 		/* 0.5 * boundbox diagonal per entire view3d height */
 		zero_v3(bbox_diag);
+
+		/* TODO: figure out why sometimes boundbox is NULL */
 		copy_v3_v3(bbox_diag, obedit->bb->vec[0]);
 		sub_v3_v3(bbox_diag, obedit->bb->vec[6]);
-		mul_m3_v3(obmat3, bbox_diag);
+		mul_m3_v3(state->obmat, bbox_diag);
 		state->yscale = 2.0f * len_v3(bbox_diag) / ar->winy;
 
 		/* 2.0f blending amount per entire view3d width, simple*/
 		state->xscale = 2.0f / ar->winx;
 	}
 
-	if (state->prop_type) {
-		/* figure out distances */
-		switch (state->prop_type) {
-			case PROP_EDIT_ON:
-				BM_prop_dist_calc(state->em->bm, obmat3, NULL, state->distances);
-				break;
-
-			case PROP_EDIT_PROJECTED:
-				normalize_v3_v3(proj_vec, rv3d->viewinv[2]);
-				BM_prop_dist_calc(state->em->bm, obmat3, proj_vec, state->distances);
-				break;
-
-			case PROP_EDIT_CONNECTED:
-				BM_prop_dist_calc_connected(state->em->bm, obmat3, state->distances);
-				break;
-		}
-	}
-	else {
-		/* selected = 1.0 factor */
-		BM_ITER_MESH_INDEX(v, &iter, state->em->bm, BM_VERTS_OF_MESH, a) {
-			state->factors[a] = BM_elem_flag_test(v, BM_ELEM_SELECT) ? 1.0f : 0.0f;
-		}
-	}
-
-	/* shape selector! */
+	/* shape selector! TODO */
 
 	/* register modal handler */
 	WM_event_add_modal_handler(C, op);
@@ -2281,7 +2474,7 @@ static int edbm_blend_from_shape_invoke(bContext *C, wmOperator *op, const wmEve
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static void edbm_blend_from_shape_handle_mousemove(short mx, short my, bfs_customdata *state)
+static void edbm_bfs_handle_mousemove(short mx, short my, bfs_customdata *state)
 {
 #define EXPSWITCHLEVEL state->wh * 0.8f
 #define STEEPNESS state->yscale / 50.0f
@@ -2302,115 +2495,49 @@ static void edbm_blend_from_shape_handle_mousemove(short mx, short my, bfs_custo
 #undef STEEPNESS
 }
 
-static void edbm_blend_from_shape_recalc_factors(bfs_customdata *state) {
+static void edbm_bfs_recalc_factors(bfs_customdata *state) {
 	int a;
+	Object *ob = state->em->ob;
+	RegionView3D *rv3d = (RegionView3D *) state->ar;
+	float proj_vec[3];
+
 	memset(state->factors, 0.0f, sizeof(float) * state->em->bm->totvert);
+
+	if (state->prop_type != state->prev_prop_type) {
+
+		switch (state->prop_type) {
+			BMVert *v;
+			BMIter iter;
+
+			case PROP_EDIT_ON:
+				BM_prop_dist_calc(state->em->bm, state->obmat, NULL, state->distances);
+				break;
+
+			case PROP_EDIT_PROJECTED:
+				normalize_v3_v3(proj_vec, rv3d->viewinv[2]);
+				BM_prop_dist_calc(state->em->bm, state->obmat, proj_vec, state->distances);
+				break;
+
+			case PROP_EDIT_CONNECTED:
+				BM_prop_dist_calc_connected(state->em->bm, state->obmat, state->distances);
+				break;
+			default:
+				/* selected = 1.0 factor */
+				BM_ITER_MESH_INDEX(v, &iter, state->em->bm, BM_VERTS_OF_MESH, a) {
+					state->factors[a] = BM_elem_flag_test(v, BM_ELEM_SELECT) ? 1.0f : 0.0f;
+				}
+				break;
+		}
+
+		state->prev_prop_type = state->prop_type;
+	}
+
 	for (a = 0; a < state->em->bm->totvert; ++a) {
 		state->factors[a] = BM_prop_factor_distance(state->distances[a], state->distance, state->prop_mode);
 	}
 }
 
-static void edbm_blend_from_shape_recalc_shapes(bfs_customdata *state)
-{
-	int a;
-	float (*opshapeco)[3] = (float(*)[3]) state->opkb->data;
-	float (*addshapeco)[3] = (float(*)[3]) state->add_shape_co;
-	float (*origshapeco)[3] = (float(*)[3]) state->origcos;
-	float vec[3];
-	BMVert *v;
-	BMIter iter;
-
-	switch(state->blend_mode) {
-		case BFS_MODE_INTERP:
-			BM_ITER_MESH_INDEX(v, &iter, state->em->bm, BM_VERTS_OF_MESH, a) {
-				interp_v3_v3v3(v->co, origshapeco[a], opshapeco[a], state->amount * state->factors[a]);
-			}
-			break;
-
-		case BFS_MODE_ADD:
-			if (!addshapeco) {
-				KeyBlock *base_kb = BLI_findlink(&state->key->block, state->opkb->relative);
-				float (*baseshapeco)[3] = base_kb->data;
-
-				state->add_shape_co
-					= MEM_mallocN(sizeof(float) * 3 * state->em->bm->totvert, "blend from shape add cos");
-
-				addshapeco = (float(*)[3]) state->add_shape_co;
-
-				for (a = 0; a < state->em->bm->totvert; ++a) {
-					sub_v3_v3v3(addshapeco[a], opshapeco[a], baseshapeco[a]);
-				}
-			}
-
-			BM_ITER_MESH_INDEX(v, &iter, state->em->bm, BM_VERTS_OF_MESH, a) {
-				copy_v3_v3(vec, addshapeco[a]);
-				mul_v3_fl(vec, state->amount * state->factors[a]);
-				add_v3_v3v3(v->co, origshapeco[a], vec);
-			}
-			break;
-
-		default:
-			BLI_assert(0);
-	}
-}
-
-static char *edbm_bfs_mode_to_string(int mode)
-{
-	if (mode == BFS_MODE_ADD)
-		return IFACE_("ADD");
-	if (mode == BFS_MODE_INTERP)
-		return IFACE_("BLEND");
-	return "ERR";
-}
-
-static char *edbm_bfs_falloff_to_string(int type)
-{
-	switch (type) {
-		case PROP_SHARP:
-			return IFACE_("Sharp");
-
-		case PROP_SMOOTH:
-			return IFACE_("Smooth");
-
-		case PROP_ROOT:
-			return IFACE_("Root");
-
-		case PROP_LIN:
-			return IFACE_("Linear");
-
-		case PROP_SPHERE:
-			return IFACE_("Sphere");
-
-		case PROP_RANDOM:
-			return IFACE_("Random");
-
-		case PROP_CONST: /* fall-through */
-			return IFACE_("Constant");
-		default:
-			return "ERR";
-	}
-}
-
-
-/* print some info in header like Knife */
-static void edbm_draw_blend_from_shape_info(bContext *C, bfs_customdata *state)
-{
-#define BUFFER 1024 /* long keyblock names are a reality :\ */
-	char header[BUFFER];
-
-	BLI_snprintf(header, BUFFER, "Mousewheel: From (%s). LMB/RMB: Confirm. Mouse Left-Right: Intensity (%.3f). "
-									"Mouse Up/Down: Falloff Distance (%.3f). MMB: Add/Blend (%s), O: Cycle Falloff Type (%s).",
-										state->opkb->name,
-										state->amount,
-										state->distance,
-										edbm_bfs_mode_to_string(state->blend_mode),
-										edbm_bfs_falloff_to_string(state->prop_mode));
-
-	ED_area_headerprint(CTX_wm_area(C), header);
-#undef BUFFER
-}
-
-static int edbm_blend_from_shape_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static int edbm_bfs_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	int rc = 0;
 	bfs_customdata *state = op->customdata;
@@ -2418,11 +2545,7 @@ static int edbm_blend_from_shape_modal(bContext *C, wmOperator *op, const wmEven
 	switch (event->type) {
 		case MOUSEMOVE:
 			/* up/down = falloff; left/right = intensity */
-			edbm_blend_from_shape_handle_mousemove(event->x, event->y, state);
-			break;
-
-		case DKEY:
-			/* enable/disable overdrag */
+			edbm_bfs_handle_mousemove(event->x, event->y, state);
 			break;
 
 		case OKEY:
@@ -2431,7 +2554,7 @@ static int edbm_blend_from_shape_modal(bContext *C, wmOperator *op, const wmEven
 			if (event->shift) {
 				/* cycle PE */
 				state->prop_type++;
-				if (state->prop_type> PROP_EDIT_PROJECTED)
+				if (state->prop_type > PROP_EDIT_PROJECTED)
 					state->prop_type = 0;
 				break;
 			}
@@ -2447,7 +2570,7 @@ static int edbm_blend_from_shape_modal(bContext *C, wmOperator *op, const wmEven
 				state->blend_mode = BFS_MODE_ADD;
 			else
 				state->blend_mode = BFS_MODE_INTERP;
-			return OPERATOR_PASS_THROUGH;
+			break;
 
 		case LEFTMOUSE:   /* fall-through */
 		case RIGHTMOUSE:
@@ -2498,38 +2621,43 @@ static int edbm_blend_from_shape_modal(bContext *C, wmOperator *op, const wmEven
 			break;
 	}
 
+	/* recalc */
+	edbm_bfs_recalc_factors(state);
+
+	edbm_bfs_recalc_shapes(state);
+
+	/* update editmesh display */
+	EDBM_update_generic(state->em, false, false);
+
+	ED_region_tag_redraw(CTX_wm_region(C));
 
 	if (state->opkb == BKE_keyblock_from_object(state->em->ob)) {
 		ED_area_headerprint(CTX_wm_area(C), "ROTATE MOUSEWHEEL");
 		return OPERATOR_RUNNING_MODAL;
 	}
-	/* update header */
-	edbm_draw_blend_from_shape_info(C, state);
-
-	/* recalc */
-	if (state->prop_type) {
-		edbm_blend_from_shape_recalc_factors(state);
-	}
-
-	edbm_blend_from_shape_recalc_shapes(state);
-
-	/* update editmesh display */
-	EDBM_update_generic(state->em, false, false);
 
 	if (rc) {
+		/* exit */
+
 		if (rc == OPERATOR_CANCELLED) {
 			BMVert *v;
 			BMIter iter;
 			int a;
+
+			/* restore original shape */
 			float(*origshapeco)[3] = (float(*)[3]) state->origcos;
 			BM_ITER_MESH_INDEX(v, &iter, state->em->bm, BM_VERTS_OF_MESH, a) {
 				copy_v3_v3(v->co, origshapeco[a]);
 			}
 		}
 
-		bfs_freedata(op->customdata);
-		ED_area_headerprint(CTX_wm_area(C), NULL); /* disable info in header */
+		/* unregister info draw callback */
+		ED_region_draw_cb_exit(state->ar->type, state->draw_handler);
 
+		edbm_bfs_freedata(op->customdata);
+
+		/* disable info in header */
+		ED_area_headerprint(CTX_wm_area(C), NULL); 
 		return rc;
 	}
 
@@ -2546,10 +2674,10 @@ void MESH_OT_blend_from_shape(wmOperatorType *ot)
 	ot->idname = "MESH_OT_blend_from_shape";
 
 	/* api callbacks */
-	ot->exec = edbm_blend_from_shape_exec;
-	ot->modal = edbm_blend_from_shape_modal;
-	ot->invoke = edbm_blend_from_shape_invoke; //WM_operator_props_popup_confirm;
-	ot->ui = edbm_blend_from_shape_ui;
+	ot->exec = edbm_bfs_exec;
+	ot->modal = edbm_bfs_modal;
+	ot->invoke = edbm_bfs_invoke; //WM_operator_props_popup_confirm;
+	ot->ui = edbm_bfs_ui;
 	ot->poll = ED_operator_editmesh;
 
 	/* flags */

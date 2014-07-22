@@ -194,10 +194,10 @@ static float dist_sq(float a[3], float b[3])
 
 static float dist_transform(float a[3], float b[3], float loc_to_world_mtx[3][3])
 {
-	float v[3];
+	float v[3], v1[3];
 	sub_v3_v3v3(v, a, b);
-	mul_v3_m3v3(v, loc_to_world_mtx, v);
-	return len_v3(v);
+	mul_v3_m3v3(v1, loc_to_world_mtx, v);
+	return len_v3(v1);
 }
 
 
