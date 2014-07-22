@@ -36,6 +36,7 @@
 #include "CCGSubSurf.h"
 #include "BKE_subsurf.h"
 
+#include "BKE_DerivedMesh.h"
 #include "BKE_subsurf.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -469,6 +470,9 @@ struct CCGSubSurf {
 	unsigned int osd_vao;
 	bool skip_grids;
 	short osd_compute;
+
+	bool osd_uvs_invalid;
+	int osd_uv_index;
 #endif
 };
 
@@ -933,6 +937,8 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 		ss->osd_vao = 0;
 		ss->skip_grids = false;
 		ss->osd_compute = 0;
+		ss->osd_uvs_invalid = false;
+		ss->osd_uv_index = -1;
 #endif
 
 		return ss;
@@ -2535,6 +2541,58 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 	                                       scheme) != 0;
 }
 
+void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss, DerivedMesh *dm)
+{
+	/* TODO(sergey): Do we have shorter way to do this? */
+	int active = CustomData_get_active_layer(&dm->loopData,
+	                                         CD_MLOOPUV);
+	MLoopUV *mloopuv = CustomData_get_layer_n(&dm->loopData,
+	                                          CD_MLOOPUV,
+	                                          active);
+	bool mpoly_allocated;
+	MPoly *mpoly = DM_get_poly_array(dm, &mpoly_allocated);
+	int i;
+
+	if (active != ss->osd_uv_index) {
+		ss->osd_uvs_invalid = true;
+	}
+
+	if (mloopuv == NULL || !ss->osd_uvs_invalid) {
+		return;
+	}
+
+	ss->osd_uvs_invalid = false;
+	ss->osd_uv_index = active;
+	if (ss->osd_mesh) {
+		ss->osd_mesh_invalid = true;
+	}
+
+	openSubdiv_evaluatorFVDataClear(ss->osd_evaluator);
+	for (i = 0; i < ss->fMap->curSize; i++) {
+		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
+		for (; face; face = face->next) {
+			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(face));
+			MPoly *mp = &mpoly[index];
+			int S;
+			BLI_assert(face->numVerts == mp->totloop);
+			for (S = 0; S < face->numVerts; ++S) {
+				MLoopUV *loopuv = &mloopuv[mp->loopstart + S];
+				openSubdiv_evaluatorFVDataPush(ss->osd_evaluator,
+				                               loopuv->uv[0]);
+				openSubdiv_evaluatorFVDataPush(ss->osd_evaluator,
+				                               loopuv->uv[1]);
+			}
+		}
+	}
+
+	openSubdiv_evaluatorFVNamePush(ss->osd_evaluator, "u");
+	openSubdiv_evaluatorFVNamePush(ss->osd_evaluator, "v");
+
+	if (mpoly_allocated) {
+		MEM_freeN(mpoly);
+	}
+}
+
 static bool check_topology_changed(CCGSubSurf *ss)
 {
 	int num_vertices,
@@ -2615,6 +2673,8 @@ static bool opensubdiv_ensureEvaluator(CCGSubSurf *ss)
 			if (ss->osd_mesh) {
 				ss->osd_mesh_invalid = true;
 			}
+
+			ss->osd_uvs_invalid = true;
 		}
 	}
 	if (ss->osd_evaluator == NULL) {

@@ -333,27 +333,6 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	topology = (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
 		evaluator_descr);
 
-#if 0
-	if (topology->fvNames.size() == 0) {
-		for (int i = 0; i < 8840; ++i) {
-			topology->fvData.push_back(0.0f);
-			topology->fvData.push_back(0.0f);
-
-			topology->fvData.push_back(1.0f);
-			topology->fvData.push_back(0.0f);
-
-			topology->fvData.push_back(1.0f);
-			topology->fvData.push_back(1.0f);
-
-			topology->fvData.push_back(0.0f);
-			topology->fvData.push_back(1.0f);
-		}
-
-		topology->fvNames.push_back("u");
-		topology->fvNames.push_back("v");
-	}
-#endif
-
 	if (util_mesh.Initialize(*topology,
 	                         NULL,
 	                         get_osd_scheme(scheme)) == false) {

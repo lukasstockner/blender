@@ -2444,9 +2444,12 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
+		/* TODO(sergey): Do we have shorter way to do this? */
+		int active = CustomData_get_active_layer(&ccgdm->dm.polyData,
+		                                         CD_MTEXPOLY);
 		MTexPoly *mtexpoly = CustomData_get_layer_n(&ccgdm->dm.polyData,
 		                                            CD_MTEXPOLY,
-		                                            0);
+		                                            active);
 
 		CCGFaceIterator *fi;
 
@@ -4283,6 +4286,10 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 
 			if (flags & SUBSURF_ALLOC_PAINT_MASK)
 				ccgSubSurf_setNumLayers(ss, 4);
+
+#ifdef WITH_OPENSUBDIV
+			ccgSubSurf_setUVCoordsFromDM(ss, dm);
+#endif
 		}
 	}
 

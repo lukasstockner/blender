@@ -194,6 +194,9 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl);
 void ccgSubSurf_drawGLMesh(CCGSubSurf *ss, bool fill_quads,
                            int start_partition, int num_partitions);
 void ccgSubSurf_setSkipGrids(CCGSubSurf *ss, bool skip_grids);
+
+struct DerivedMesh;
+void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss, struct DerivedMesh *dm);
 #endif
 
 #endif  /* __CCGSUBSURF_H__ */
