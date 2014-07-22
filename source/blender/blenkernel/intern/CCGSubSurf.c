@@ -2387,8 +2387,6 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
 		             openSubdiv_getOsdGLMeshPatchIndexBuffer(ss->osd_mesh));
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		ss->osd_compute = U.opensubdiv_compute_type;
 	}
 	else if (ss->osd_coords_invalid) {
 		ccgSubSurf__updateGLMeshCoords(ss);
@@ -2519,6 +2517,8 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 	OsdScheme scheme = ss->meshIFC.simpleSubdiv
 		? OSD_SCHEME_BILINEAR
 		: OSD_SCHEME_CATMARK;
+
+	ss->osd_compute = U.opensubdiv_compute_type;
 
 	for (i = 0; i < ss->fMap->curSize; i++) {
 		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
