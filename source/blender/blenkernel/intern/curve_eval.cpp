@@ -30,6 +30,7 @@
  */
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 
 #if defined(NURBS_eval_test)
 #include "curve_eval.h"
@@ -241,6 +242,7 @@ void BKE_bspline_basis_eval(float u, int i, float *U, int num_pts, int order, in
 			/* Compute N(i-j+r, j, u) */
 			ndu[j][r] = right[r+1]+left[j-r];
 			temp = ndu[r][j-1]/ndu[j][r];
+			if (!isfinite(temp)) temp=0;
 			ndu[r][j] = saved+right[r+1]*temp;  /* N(i-p+r,j,u) */
 			saved = left[j-r]*temp;
 		}
@@ -260,16 +262,19 @@ void BKE_bspline_basis_eval(float u, int i, float *U, int num_pts, int order, in
 			int rk=r-k, pk=p-k, j=0;
 			if (r>=k) {
 				a[s2][0] = a[s1][0]/ndu[pk+1][rk];
+				if (!isfinite(a[s2][0])) a[s2][0]=0;
 				d = a[s2][0]*ndu[rk][pk];
 			}
 			j1 = (rk>=-1)? 1 : -rk;
 			j2 = (r-1<=pk)? k-1 : p-r;
 			for (j=j1; j<=j2; j++) {
 				a[s2][j] = (a[s1][j]-a[s1][j-1])/ndu[pk+1][rk+j];
+				if (!isfinite(a[s2][j])) a[s2][j]=0;
 				d += a[s2][j]*ndu[rk+j][pk];
 			}
 			if (r<=pk) {
 				a[s2][k] = -a[s1][k-1]/ndu[pk+1][r];
+				if (!isfinite(a[s2][k])) a[s2][k]=0;
 				d += a[s2][k]*ndu[r][pk];
 			}
 			out[k][r] = d;
@@ -297,8 +302,9 @@ void BKE_bspline_basis_eval(float u, int i, float *U, int num_pts, int order, in
  * P,stride: P[0], P[stride], ..., P[(num_pts-1)*stride] are the ctrl points
  * nd: number of derivatives to calculate
  * out: out[0], out[1], ..., out[nd] are the evaluated points/derivatives
+ * premultiply_weights: multiply x,y,z coords by w. If in doubt, pass "false".
  */
-void BKE_bspline_curve_eval(float u, float *U, int num_pts, int order, BPoint *P, int stride, int nd, BPoint *out)
+void BKE_bspline_curve_eval(float u, float *U, int num_pts, int order, BPoint *P, int stride, int nd, BPoint *out, bool premultiply_weights)
 {
 	int p = order-1;
 	if (!(nd<=p)) {
@@ -311,9 +317,16 @@ void BKE_bspline_curve_eval(float u, float *U, int num_pts, int order, BPoint *P
 	BKE_bspline_basis_eval(u, i, U, num_pts, order, nd, basisu);
 	for (int d=0; d<=nd; d++) { /* calculate derivative d */
 		float accum[4] = {0,0,0,0};
-		for (int j=0; j<=p; j++)
-			madd_v4_v4fl(accum, P[(i-p+j)*stride].vec, basisu[d][j]);
-		madd_v4_v4fl(out[d].vec, accum, 1.0);
+		for (int j=0; j<=p; j++) {
+			float N = basisu[d][j];
+			float *pt = P[(i-p+j)*stride].vec;
+			float w = (premultiply_weights)? pt[3] : 1.0;
+			accum[0] += pt[0]*w*N;
+			accum[1] += pt[1]*w*N;
+			accum[2] += pt[2]*w*N;
+			accum[3] += pt[3]*N;
+		}
+		mul_v4_v4fl(out[d].vec, accum, 1.0);
 	}
 }
 
@@ -325,9 +338,10 @@ void BKE_bspline_curve_eval(float u, float *U, int num_pts, int order, BPoint *P
 void BKE_nurbs_curve_eval(float u, float *U, int num_pts, int order, BPoint *P, int stride, int nd, BPoint *out)
 {
 	/* Get Cw, Cw^(1), ..., Cw^(nd). Cw^(i) gives both A^(i)(u) and w^(i)(u). */
-	BKE_bspline_curve_eval(u, U, num_pts, order, P, stride, nd, out);
+	BKE_bspline_curve_eval(u, U, num_pts, order, P, stride, nd, out, true);
 	for (int k=0; k<=nd; k++) {
-		float v[4]; mul_v4_v4fl(v, out[k].vec, 1.0);
+		float *Ak = out[k].vec;
+		float v[4] = {Ak[0], Ak[1], Ak[2], Ak[3]};
 		for (int i=1; i<=k; i++) {
 			int kCi = BKE_nurb_binom_coeff(k, i);
 			float wi = out[i].vec[3];
@@ -347,19 +361,35 @@ void BKE_nurbs_curve_eval(float u, float *U, int num_pts, int order, BPoint *P, 
  * nd: (#calc'd derivatives in u direction + # calc'd derivatives in v direction <= nd)
  * out: S(u,v),   Su(u,v),Sv(u,v),   Suu(u,v),Suv(u,v),Svv(u,v),  ...
  *     out[nuv*(nuv+1)/2 + nv] is the pt with nuv u+v partials, nv v partials
+ * premultiply_weights: multiply x,y,z coords by w. If in doubt, pass "false".
+ * cache: share a BSplineCacheU object to make evaling multiple pts at same u coord efficient
  */
 void BKE_bspline_surf_eval(float u, float v,
 						   int pntsu, int orderu, float *U,
 						   int pntsv, int orderv, float *V,
-						   BPoint *P, int nd, BPoint *out) {
+						   BPoint *P, int nd, BPoint *out, bool premultiply_weights,
+						   BSplineCacheU *ucache) {
 	int pu=orderu-1, pv=orderv-1;
 	if (!(nd<=orderu-1 && nd<=orderv-1)) {
 		fprintf(stderr, "NURBS eval error: surf requested too many derivatives\n");
 		return;
 	}
-	float Nu[NURBS_MAX_ORDER][NURBS_MAX_ORDER];
-	int iu = BKE_bspline_nz_basis_range(u, U, pntsu, orderu);
-	BKE_bspline_basis_eval(u, iu, U, pntsu, orderu, nd, Nu);
+	float Nu_local[NURBS_MAX_ORDER][NURBS_MAX_ORDER];
+	float (*Nu)[NURBS_MAX_ORDER] = Nu_local;
+	int iu = -1;
+	if (ucache) {
+		Nu = ucache->Nu;
+		if (ucache->u==u) { // Cache Hit
+			iu = ucache->iu;
+		} else { // Cache miss
+			ucache->u = u;
+			iu = ucache->iu = BKE_bspline_nz_basis_range(u, U, pntsu, orderu);
+			BKE_bspline_basis_eval(u, iu, U, pntsu, orderu, nd, Nu);
+		}
+	} else { // No cache
+		iu = BKE_bspline_nz_basis_range(u, U, pntsu, orderu);
+		BKE_bspline_basis_eval(u, iu, U, pntsu, orderu, nd, Nu);
+	}
 	float Nv[NURBS_MAX_ORDER][NURBS_MAX_ORDER];
 	int iv = BKE_bspline_nz_basis_range(v, V, pntsv, orderv);
 	BKE_bspline_basis_eval(v, iv, V, pntsv, orderv, nd, Nv);
@@ -367,22 +397,72 @@ void BKE_bspline_surf_eval(float u, float v,
 	float iut=0; for (int i=0; i<orderu; i++) iut+=Nu[0][i];
 	
 	int outidx=0;
-	for (int nuv=0; nuv<=nd; nuv++) {
-		for (int nv=0; nv<=nuv; nv++) {
+	for (int nuv=0; nuv<=nd; nuv++) { // nuv = (# u derivs)+(#v derivs)
+		for (int nv=0; nv<=nuv; nv++) { // nv = #v derivs
 			int nu = nuv-nv;
-			/* nu = # derivs in u direction      nv = # derivs in v direction */
 			float accum[4] = {0,0,0,0};
-			double basis_sum=0;
 			for (int i=iu-pu; i<=iu; i++) {
 				for (int j=iv-pv; j<=iv; j++) {
+					// i,j index into the global (0 to pnts{u,v}-1) basis list
+					// ii,jj index into the nonzero stretch (N_i-p) to N_i for u in [u_i, u_i+1).)
 					int ii=i-(iu-pu), jj=j-(iv-pv);
 					float basis = Nu[nu][ii]*Nv[nv][jj];
 					float *ctrlpt = P[pntsu*j+i].vec;
-					madd_v4_v4fl(accum, ctrlpt, basis);
-					basis_sum += basis;
+					float w = (premultiply_weights)? ctrlpt[3] : 1.0;
+					accum[0] += ctrlpt[0]*basis*w;
+					accum[1] += ctrlpt[1]*basis*w;
+					accum[2] += ctrlpt[2]*basis*w;
+					accum[3] += ctrlpt[3]*basis;
 				}
 			}
 			mul_v4_v4fl(out[outidx].vec, accum, 1.0);
+			outidx++;
+		}
+	}
+}
+
+#define Skl(k,l) out[((k)+(l))*((k)+(l)+1)/2+(l)].vec
+/* Evaluates a NURBS surface and nd of its partial derivatives at (u,v).
+ * (u,v): the point in parameter space being pushed through the map
+ * pntsu,orderu,U: # control points, order, knots in the U direction
+ * pntsv,orderv,V: # control points, order, knots in the V direction
+ * P: points of the control polygon packed in u-major order:
+ *     P[0]~u0v0      P[1]~u1v0        ... P[pntsu-1]~u(pntsu-1)v0
+ *     P[pntsu]~u0v1  P[pntsu+1]~u1v1  ... P[2*pntsu-1]~u(pntsu-1)v1 ...
+ * nd: (#calc'd derivatives in u direction + # calc'd derivatives in v direction <= nd)
+ * out: S(u,v),   Su(u,v),Sv(u,v),   Suu(u,v),Suv(u,v),Svv(u,v),  ...
+ *     out[nuv*(nuv+1)/2 + nv] is the pt with nuv u+v partials, nv v partials
+ */
+void BKE_nurbs_surf_eval(float u, float v,
+						 int pntsu, int orderu, float *U,
+						 int pntsv, int orderv, float *V,
+						 BPoint *P, int nd, BPoint *out, BSplineCacheU *ucache) {
+	// Let S(nu,nv) denote (d/du)^nu (d/dv)^nv S(u,v)->(x,y,z)
+	// Let A(nu,nv) denote (d/du)^nu (d/dv)^nv A(u,v)->(wx,wy,wz)
+	// First, calculate A
+	BKE_bspline_surf_eval(u,v, pntsu,orderu,U, pntsv,orderv,V, P, nd, out, true, ucache);
+	float invw = 1/Skl(0,0)[3];
+	int outidx=0;
+	for (int nuv=0; nuv<=nd; nuv++) { // nuv = (# u derivs)+(#v derivs)
+		for (int nv=0; nv<=nuv; nv++) { // nv = #v derivs
+			int nu = nuv-nv;
+			int k=nu, l=nv; //  k=(# u derivs)    l=(# v derivs)
+			float *Akl = out[outidx].vec;
+			for (int i=1; i<=k; i++) {
+				float coeff = - BKE_nurb_binom_coeff(k, i) * Skl(i,0)[3];
+				madd_v4_v4fl(Akl, Skl(k-i,l), coeff);
+			}
+			for (int j=1; j<=l; j++) {
+				float coeff = - BKE_nurb_binom_coeff(l, j) * Skl(0,j)[3];
+				madd_v4_v4fl(Akl, Skl(k,l-j), coeff);
+			}
+			for (int i=1; i<=k; i++) {
+				for (int j=1; j<=l; j++) {
+					float coeff = -BKE_nurb_binom_coeff(k,i)*BKE_nurb_binom_coeff(l,j)*Skl(i,j)[3];
+					madd_v4_v4fl(Akl, Skl(k-i, l-j), coeff);
+				}
+			}
+			mul_v4_v4fl(Akl, Akl, invw);
 			outidx++;
 		}
 	}

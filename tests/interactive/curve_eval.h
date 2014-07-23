@@ -37,15 +37,27 @@ typedef struct BPoint {
 	float radius, pad;		/* user-set radius per point for beveling etc */
 } BPoint;
 
+/* Caches the value of basis functions evaluated at a given u coordinate
+ * so that a surface patch only has to evaluate once per row. We could do
+ * this with columns, too, but at a much worse space/time tradeoff.
+ */
+typedef struct BSplineCache {
+	float u;
+	int iu;
+	float Nu[NURBS_MAX_ORDER][NURBS_MAX_ORDER];
+} BSplineCacheU;
+
 extern "C" {
 	void BKE_bspline_knot_calc(int flags, int pnts, int order, float knots[]);
 	int BKE_bspline_nz_basis_range(float u, float *knots, int num_pts, int order);
 	void BKE_bspline_basis_eval(float u, int i, float *U, int num_knots, int order, int nd, float out[][NURBS_MAX_ORDER]);
+	void BKE_bspline_curve_eval(float u, float *U, int num_pts, int order, BPoint *P, int stride, int nd, BPoint *out, bool premultiply_weight=false);
 	void BKE_nurbs_curve_eval(float u, float *U, int num_pts, int order, BPoint *P, int stride, int nd, BPoint *out);
 	void BKE_bspline_surf_eval(float u, float v,
 							   int pntsu, int orderu, float *U,
 							   int pntsv, int orderv, float *V,
-							   BPoint *P, int nd, BPoint *out);
+							   BPoint *P, int nd, BPoint *out,
+							   bool premultiply_weights=false, BSplineCacheU *ucache=NULL);
 }
 
 inline void madd_v4_v4fl(float r[4], const float a[4], float f)
