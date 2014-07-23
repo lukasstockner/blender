@@ -66,7 +66,7 @@ public :
 	 */
 	virtual bool UpdateChildCoordinates(SG_Spatial * child, const SG_Spatial * parent, bool& parentUpdated) = 0;
 
-	/* XXXX */
+	/* Destructor */
 	virtual ~SG_ParentRelation() {}
 
 	/** 

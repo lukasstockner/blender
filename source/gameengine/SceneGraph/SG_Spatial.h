@@ -107,14 +107,10 @@ public:
 
 	/**
 	 * Apply a translation relative to the current position.
-	 * if local then the translation is assumed to be in the 
-	 * local coordinates of this object. If not then the translation
-	 * is assumed to be in global coordinates. In this case 
-	 * you must provide a pointer to the parent of this object if it 
-	 * exists otherwise if there is no parent set it to NULL
+	 * If local then the translation is assumed to be in the local coordinates of this object.
+	 * If not then the translation is assumed to be in global coordinates.
 	 */ 
-
-	void RelativeTranslate(const MT_Vector3& trans, const SG_Spatial *parent, bool local);
+	void RelativeTranslate(const MT_Vector3& trans, bool local);
 
 	void SetLocalPosition(const MT_Point3& trans)
 	{

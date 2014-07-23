@@ -171,4 +171,4 @@ private :
 #endif
 };
 
-#endif * __KX_SG_NODERELATIONSHIPS_H__ */
+#endif /* __KX_SG_NODERELATIONSHIPS_H__ */

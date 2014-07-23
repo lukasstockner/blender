@@ -1763,10 +1763,14 @@ static void bl_ConvertBlenderObject_Single(
 
 	MT_Matrix3x3 rotation;
 	float rotmat[3][3];
-	BKE_object_rot_to_mat3(blenderobject, rotmat, false);
+	BKE_object_rot_to_mat3(blenderobject, rotmat, true);
 	rotation.setValue3x3((float*)rotmat);
 
-	MT_Vector3 scale(blenderobject->size);
+	MT_Vector3 scale(
+		blenderobject->size[0]*blenderobject->dscale[0],
+		blenderobject->size[1]*blenderobject->dscale[1],
+		blenderobject->size[2]*blenderobject->dscale[2]
+	);
 
 	gameobj->NodeSetLocalPosition(pos);
 	gameobj->NodeSetLocalOrientation(rotation);

@@ -36,6 +36,7 @@ enum	e_PhysicsEngine
 {
 		NoSelection = -1,
 		UseNone     =  0,
+		/* UseEnji=1, UseSumo, useDynamo and useODE were removed */
 		UseBullet   =  5,
 };
 

@@ -599,7 +599,7 @@ void KX_GameObject::ApplyMovement(const MT_Vector3& dloc,bool local)
 		{
 			m_pPhysicsController->RelativeTranslate(dloc,local);
 		}
-		GetSGNode()->RelativeTranslate(dloc,GetSGNode()->GetSGParent(),local);
+		GetSGNode()->RelativeTranslate(dloc,local);
 	}
 }
 

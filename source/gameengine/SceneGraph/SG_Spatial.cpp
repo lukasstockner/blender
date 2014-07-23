@@ -97,10 +97,8 @@ bool SG_Spatial::UpdateSpatialData(const SG_Spatial *parent, double time, bool& 
 	bool bComputesWorldTransform = false;
 
 	// update spatial controllers
-
 	SGControllerList::iterator cit = GetSGControllerList().begin();
 	SGControllerList::const_iterator c_end = GetSGControllerList().end();
-
 	for (;cit!=c_end;++cit)
 	{
 		if ((*cit)->Update(time))
@@ -110,43 +108,23 @@ bool SG_Spatial::UpdateSpatialData(const SG_Spatial *parent, double time, bool& 
 	// If none of the objects updated our values then we ask the
 	// parent_relation object owned by this class to update
 	// our world coordinates.
-
 	if (!bComputesWorldTransform)
 		bComputesWorldTransform = ComputeWorldTransforms(parent, parentUpdated);
 
 	return bComputesWorldTransform;
 }
 
-/**
- * Position and translation methods
- */
 
-void SG_Spatial::RelativeTranslate(const MT_Vector3& trans, const SG_Spatial *parent, bool local)
+
+void SG_Spatial::RelativeTranslate(const MT_Vector3& trans, bool local)
 {
 	if (local) {
-		m_localPosition += m_localRotation * trans;
-	}
-	else {
-		if (parent) {
-			m_localPosition += trans * parent->GetWorldOrientation();
-		}
-		else {
-			m_localPosition += trans;
-		}
+		m_localPosition += m_localScaling * (m_localRotation * trans);
+	} else {
+		m_localPosition += trans;
 	}
 	SetModified();
 }
-
-
-/**
- * Scaling methods.
- */ 
-
-
-/**
- * Orientation and rotation methods.
- */
-
 
 void SG_Spatial::RelativeRotate(const MT_Matrix3x3& rot, bool local) {
 	m_localRotation = m_localRotation * (
@@ -155,6 +133,7 @@ void SG_Spatial::RelativeRotate(const MT_Matrix3x3& rot, bool local) {
 			(GetWorldOrientation().inverse() * rot * GetWorldOrientation()));
 	SetModified();
 }
+
 
 
 

@@ -170,9 +170,6 @@ void SG_Node::RemoveChild(SG_Node* child)
 
 void SG_Node::UpdateWorldData(double time, bool parentUpdated)
 {
-	//if (!GetSGParent())
-	//	return;
-
 	if (UpdateSpatialData(GetSGParent(),time,parentUpdated))
 		// to update the 
 		ActivateUpdateTransformCallback();
