@@ -36,6 +36,7 @@ set(INC
 	../nodes
 	../nodes/intern
 
+	../../../intern/glew-mx
 	../../../intern/guardedalloc
 	../../../intern/smoke/extern
 )
@@ -49,12 +50,14 @@ set(SRC
 	intern/gpu_codegen.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
+	intern/gpu_init_exit.c
 	intern/gpu_material.c
 	intern/gpu_simple_shader.c
 
 	GPU_buffers.h
 	GPU_draw.h
 	GPU_extensions.h
+	GPU_init_exit.h
 	GPU_material.h
 	GPU_simple_shader.h
 	intern/gpu_codegen.h
@@ -77,7 +80,7 @@ if(WITH_MOD_SMOKE)
 	add_definitions(-DWITH_SMOKE)
 endif()
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_IMAGE_DDS)
 	add_definitions(-DWITH_DDS)

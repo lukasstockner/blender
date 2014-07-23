@@ -1635,7 +1635,7 @@ void BKE_pbvh_raycast_project_ray_root (PBVH *bvh, bool original, float ray_star
 }
 
 
-//#include <GL/glew.h>
+//#include "GPU_glew.h"
 
 typedef struct {
 	DMSetMaterial setMaterial;

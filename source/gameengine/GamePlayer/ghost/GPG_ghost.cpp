@@ -811,14 +811,6 @@ int main(int argc, char** argv)
 	if (scr_saver_mode != SCREEN_SAVER_MODE_CONFIGURATION)
 #endif
 	{
-
-		if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
-			GPU_set_mipmap(0);
-		}
-
-		GPU_set_anisotropic(U.anisotropic_filter);
-		GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
-		
 		// Create the system
 		if (GHOST_ISystem::createSystem() == GHOST_kSuccess) {
 			GHOST_ISystem* system = GHOST_ISystem::getSystem();
@@ -1041,6 +1033,13 @@ int main(int argc, char** argv)
 									else
 										app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
 										                stereoWindow, stereomode, aasamples);
+
+									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
+										GPU_set_mipmap(0);
+									}
+
+									GPU_set_anisotropic(U.anisotropic_filter);
+									GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
 								}
 							}
 						}

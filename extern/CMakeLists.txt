@@ -47,7 +47,14 @@ if(WITH_BINRELOC)
 endif()
 
 if(NOT WITH_SYSTEM_GLEW)
-	add_subdirectory(glew)
+	if((NOT WITH_GLEW_ES) OR (WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI))
+		add_subdirectory(glew)
+	endif()
+
+	if(WITH_GLEW_ES)
+		add_subdirectory(glew-es)
+	endif()
+
 endif()
 
 if(WITH_GAMEENGINE)
@@ -74,10 +81,8 @@ if(WITH_MOD_BOOLEAN)
 	add_subdirectory(carve)
 endif()
 
-if(WITH_GHOST_XDND)
-	if(UNIX AND NOT APPLE)
-		add_subdirectory(xdnd)
-	endif()
+if(WITH_X11 AND WITH_GHOST_XDND)
+	add_subdirectory(xdnd)
 endif()
 
 if(WITH_GTESTS)

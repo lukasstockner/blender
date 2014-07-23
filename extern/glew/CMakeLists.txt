@@ -45,6 +45,6 @@ set(SRC
 	include/GL/wglew.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(extern_glew "${SRC}" "${INC}" "${INC_SYS}")

@@ -1,4 +1,3 @@
-
 ###########################################################################
 # GLUT
 
@@ -14,10 +13,15 @@ if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
 	)
 endif()
 
-if(WITH_SYSTEM_GLEW)
-	set(CYCLES_GLEW_LIBRARY ${GLEW_LIBRARY})
-else()
-	set(CYCLES_GLEW_LIBRARY extern_glew)
+###########################################################################
+# GLEW
+
+if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
+	if(WITH_SYSTEM_GLEW)
+		set(CYCLES_APP_GLEW_LIBRARY ${GLEW_LIBRARY})
+	else()
+		set(CYCLES_APP_GLEW_LIBRARY extern_glew) # Cycles Standalone should not use the experimental glew-es
+	endif()
 endif()
 
 ###########################################################################
@@ -32,4 +36,3 @@ if(WITH_CYCLES_CUDA_BINARIES)
 		set(WITH_CYCLES_CUDA_BINARIES OFF)
 	endif()
 endif()
-
