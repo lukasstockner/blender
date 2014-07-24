@@ -91,7 +91,7 @@ void KX_BlenderCanvas::SetSwapInterval(int interval)
 	wm_window_set_swap_interval(m_win, interval);
 }
 
-bool KX_BlenderCanvas::GetSwapInterval(int& intervalOut)
+bool KX_BlenderCanvas::GetSwapInterval(int &intervalOut)
 {
 	return wm_window_get_swap_interval(m_win, &intervalOut);
 }
