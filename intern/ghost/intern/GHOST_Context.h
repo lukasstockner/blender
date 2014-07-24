@@ -155,9 +155,7 @@ GLenum glew_chk(GLenum error, const char *file, int line, const char *text);
 #endif
 
 
-
 #ifdef _WIN32
-
 bool win32_chk(bool result, const char *file = NULL, int line = 0, const char *text = NULL);
 
 #  ifndef NDEBUG
@@ -165,8 +163,7 @@ bool win32_chk(bool result, const char *file = NULL, int line = 0, const char *t
 #  else
 #    define WIN32_CHK(x) win32_chk(x)
 #  endif
-
-#endif
+#endif  /* _WIN32 */
 
 #define _CASE_CODE_RETURN_STR(code) case code: return #code;
 

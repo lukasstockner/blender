@@ -33,12 +33,10 @@
 #include "GHOST_ContextNone.h"
 
 
-
 GHOST_TSuccess GHOST_ContextNone::swapBuffers()
 {
 	return GHOST_kSuccess;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextNone::activateDrawingContext()
@@ -47,12 +45,10 @@ GHOST_TSuccess GHOST_ContextNone::activateDrawingContext()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextNone::updateDrawingContext()
 {
 	return GHOST_kSuccess;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextNone::initializeDrawingContext()
@@ -61,12 +57,10 @@ GHOST_TSuccess GHOST_ContextNone::initializeDrawingContext()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextNone::releaseNativeHandles()
 {
 	return GHOST_kSuccess;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextNone::setSwapInterval(int interval)
@@ -75,7 +69,6 @@ GHOST_TSuccess GHOST_ContextNone::setSwapInterval(int interval)
 
 	return GHOST_kSuccess;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextNone::getSwapInterval(int &intervalOut)

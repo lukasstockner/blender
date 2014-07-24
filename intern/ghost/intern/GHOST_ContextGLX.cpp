@@ -41,14 +41,11 @@
 #include <cstring>
 
 
-
 GLXEWContext *glxewContext = NULL;
-
 
 
 GLXContext GHOST_ContextGLX::s_sharedContext = None;
 int        GHOST_ContextGLX::s_sharedCount   = 0;
-
 
 
 GHOST_ContextGLX::GHOST_ContextGLX(
@@ -76,7 +73,6 @@ GHOST_ContextGLX::GHOST_ContextGLX(
 	assert(m_window  != 0);
 	assert(m_display != NULL);
 }
-
 
 
 GHOST_ContextGLX::~GHOST_ContextGLX()
@@ -107,14 +103,12 @@ GHOST_ContextGLX::~GHOST_ContextGLX()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextGLX::swapBuffers()
 {
 	::glXSwapBuffers(m_display, m_window);
 
 	return GHOST_kSuccess;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextGLX::activateDrawingContext()
@@ -131,7 +125,6 @@ GHOST_TSuccess GHOST_ContextGLX::activateDrawingContext()
 }
 
 
-
 void GHOST_ContextGLX::initContextGLXEW()
 {
 	glxewContext = new GLXEWContext;
@@ -142,7 +135,6 @@ void GHOST_ContextGLX::initContextGLXEW()
 
 	GLEW_CHK(glxewInit());
 }
-
 
 
 GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
@@ -307,7 +299,6 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextGLX::releaseNativeHandles()
 {
 	m_window = 0;
@@ -327,7 +318,6 @@ GHOST_TSuccess GHOST_ContextGLX::setSwapInterval(int interval)
 		return GHOST_kFailure;
 	}
 }
-
 
 
 GHOST_TSuccess GHOST_ContextGLX::getSwapInterval(int &intervalOut)

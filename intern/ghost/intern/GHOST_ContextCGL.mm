@@ -39,9 +39,7 @@
 #endif
 
 #include <vector>
-
 #include <cassert>
-
 
 
 NSOpenGLContext *GHOST_ContextCGL::s_sharedOpenGLContext = nil;
@@ -73,7 +71,6 @@ GHOST_ContextCGL::GHOST_ContextCGL(
 }
 
 
-
 GHOST_ContextCGL::~GHOST_ContextCGL()
 {
 	if (m_openGLContext != nil) {
@@ -95,7 +92,6 @@ GHOST_ContextCGL::~GHOST_ContextCGL()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextCGL::swapBuffers()
 {
 	if (m_openGLContext != nil) {
@@ -110,7 +106,6 @@ GHOST_TSuccess GHOST_ContextCGL::swapBuffers()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextCGL::setSwapInterval(int interval)
 {
 	if (m_openGLContext != nil) {
@@ -123,7 +118,6 @@ GHOST_TSuccess GHOST_ContextCGL::setSwapInterval(int interval)
 		return GHOST_kFailure;
 	}
 }
-
 
 
 GHOST_TSuccess GHOST_ContextCGL::getSwapInterval(int &intervalOut)
@@ -147,7 +141,6 @@ GHOST_TSuccess GHOST_ContextCGL::getSwapInterval(int &intervalOut)
 }
 
 
-
 GHOST_TSuccess GHOST_ContextCGL::activateDrawingContext()
 {
 	if (m_openGLContext != nil) {
@@ -165,7 +158,6 @@ GHOST_TSuccess GHOST_ContextCGL::activateDrawingContext()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextCGL::updateDrawingContext()
 {
 	if (m_openGLContext != nil) {
@@ -178,7 +170,6 @@ GHOST_TSuccess GHOST_ContextCGL::updateDrawingContext()
 		return GHOST_kFailure;
 	}
 }
-
 
 
 static void makeAttribList(
@@ -244,7 +235,6 @@ static void makeAttribList(
 
 	attribs.push_back((NSOpenGLPixelFormatAttribute) 0);
 }
-
 
 
 GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext()
@@ -349,7 +339,6 @@ error:
 
 	return GHOST_kFailure;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextCGL::releaseNativeHandles()

@@ -41,12 +41,10 @@
 
 WGLEWContext *wglewContext = NULL;
 
-
 HGLRC GHOST_ContextWGL::s_sharedHGLRC = NULL;
 int   GHOST_ContextWGL::s_sharedCount = 0;
 
 bool GHOST_ContextWGL::s_singleContextMode = false;
-
 
 
 /* Intel videocards don't work fine with multiple contexts and
@@ -58,7 +56,6 @@ static bool is_crappy_intel_card()
 {
 	return strstr((const char*)glGetString(GL_VENDOR), "Intel") != NULL;
 }
-
 
 
 GHOST_ContextWGL::GHOST_ContextWGL(
@@ -93,7 +90,6 @@ GHOST_ContextWGL::GHOST_ContextWGL(
 }
 
 
-
 GHOST_ContextWGL::~GHOST_ContextWGL()
 {
 	if (m_hGLRC != NULL) {
@@ -122,12 +118,10 @@ GHOST_ContextWGL::~GHOST_ContextWGL()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextWGL::swapBuffers()
 {
 	return WIN32_CHK(::SwapBuffers(m_hDC)) ? GHOST_kSuccess : GHOST_kFailure;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextWGL::setSwapInterval(int interval)
@@ -137,7 +131,6 @@ GHOST_TSuccess GHOST_ContextWGL::setSwapInterval(int interval)
 	else
 		return GHOST_kFailure;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextWGL::getSwapInterval(int &intervalOut)
@@ -152,7 +145,6 @@ GHOST_TSuccess GHOST_ContextWGL::getSwapInterval(int &intervalOut)
 }
 
 
-
 GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
 {
 	if (WIN32_CHK(::wglMakeCurrent(m_hDC, m_hGLRC))) {
@@ -165,10 +157,9 @@ GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
 }
 
 
-
 /* Ron Fosner's code for weighting pixel formats and forcing software.
- * See http://www.opengl.org/resources/faq/technical/weight.cpp */
-
+ * See http://www.opengl.org/resources/faq/technical/weight.cpp
+ */
 static int weight_pixel_format(PIXELFORMATDESCRIPTOR &pfd)
 {
 	int weight = 0;
@@ -211,7 +202,6 @@ static int weight_pixel_format(PIXELFORMATDESCRIPTOR &pfd)
 
 	return weight;
 }
-
 
 
 /*
@@ -265,7 +255,6 @@ static int choose_pixel_format_legacy(HDC hDC, PIXELFORMATDESCRIPTOR &preferredP
 
 	return iPixelFormat;
 }
-
 
 
 /*
@@ -324,7 +313,6 @@ static HWND clone_window(HWND hWnd, LPVOID lpParam)
 
 	return hwndCloned;
 }
-
 
 
 void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD)
@@ -409,7 +397,6 @@ finalize:
 }
 
 
-
 static void makeAttribList(
         std::vector<int>& out,
         bool stereoVisual,
@@ -476,7 +463,6 @@ static void makeAttribList(
 
 	out.push_back(0);
 }
-
 
 
 int GHOST_ContextWGL::_choose_pixel_format_arb_2(
@@ -548,7 +534,6 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_2(
 }
 
 
-
 int GHOST_ContextWGL::_choose_pixel_format_arb_1(
         bool stereoVisual,
         int numOfAASamples,
@@ -577,7 +562,6 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_1(
 
 	return iPixelFormat;
 }
-
 
 
 int GHOST_ContextWGL::choose_pixel_format_arb(
@@ -621,7 +605,6 @@ int GHOST_ContextWGL::choose_pixel_format_arb(
 
 	return iPixelFormat;
 }
-
 
 
 int GHOST_ContextWGL::choose_pixel_format(
@@ -678,7 +661,6 @@ int GHOST_ContextWGL::choose_pixel_format(
 }
 
 
-
 #ifndef NDEBUG
 static void reportContextString(const char *name, const char *dummy, const char *context)
 {
@@ -688,7 +670,6 @@ static void reportContextString(const char *name, const char *dummy, const char 
 		fprintf(stderr, "Warning! Dummy %s: %s\n", name, dummy);
 }
 #endif
-
 
 
 GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
@@ -867,7 +848,6 @@ error:
 
 	return GHOST_kFailure;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextWGL::releaseNativeHandles()

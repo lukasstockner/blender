@@ -127,7 +127,6 @@ static const char *get_egl_error_message_string(EGLenum error)
 }
 
 
-
 static bool egl_chk(bool result, const char *file = NULL, int line = 0, const char *text = NULL)
 {
 	if (!result) {
@@ -161,7 +160,6 @@ static bool egl_chk(bool result, const char *file = NULL, int line = 0, const ch
 #endif
 
 
-
 static inline bool bindAPI(EGLenum api)
 {
 	if (eglewContext != NULL && EGLEW_VERSION_1_2)
@@ -171,11 +169,9 @@ static inline bool bindAPI(EGLenum api)
 }
 
 
-
 #if defined(WITH_GL_ANGLE)
 HMODULE GHOST_ContextEGL::s_d3dcompiler = NULL;
 #endif
-
 
 
 EGLContext GHOST_ContextEGL::s_gl_sharedContext   = EGL_NO_CONTEXT;
@@ -204,7 +200,6 @@ T &choose_api(EGLenum api, T &a, T &b, T &c)
 			abort();
 	}
 }
-
 
 
 GHOST_ContextEGL::GHOST_ContextEGL(
@@ -240,7 +235,6 @@ GHOST_ContextEGL::GHOST_ContextEGL(
 }
 
 
-
 GHOST_ContextEGL::~GHOST_ContextEGL()
 {
 	if (m_display != EGL_NO_DISPLAY) {
@@ -274,12 +268,10 @@ GHOST_ContextEGL::~GHOST_ContextEGL()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextEGL::swapBuffers()
 {
 	return EGL_CHK(::eglSwapBuffers(m_display, m_surface)) ? GHOST_kSuccess : GHOST_kFailure;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextEGL::setSwapInterval(int interval)
@@ -300,14 +292,12 @@ GHOST_TSuccess GHOST_ContextEGL::setSwapInterval(int interval)
 }
 
 
-
 GHOST_TSuccess GHOST_ContextEGL::getSwapInterval(int &intervalOut)
 {
 	intervalOut = m_swap_interval; // XXX jwilkins: make sure there is no way to query this?
 
 	return GHOST_kSuccess;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
@@ -326,7 +316,6 @@ GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 }
 
 
-
 void GHOST_ContextEGL::initContextEGLEW()
 {
 	eglewContext = new EGLEWContext;
@@ -337,7 +326,6 @@ void GHOST_ContextEGL::initContextEGLEW()
 
 	GLEW_CHK(eglewInit(m_display));
 }
-
 
 
 static std::set<std::string> split(const std::string s, char delim = ' ')
@@ -351,7 +339,6 @@ static std::set<std::string> split(const std::string s, char delim = ' ')
 
 	return elems;
 }
-
 
 
 static const std::string &api_string(EGLenum api)
@@ -634,7 +621,6 @@ error:
 
 	return GHOST_kFailure;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextEGL::releaseNativeHandles()
