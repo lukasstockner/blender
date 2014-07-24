@@ -495,6 +495,7 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		bf_bmesh
 		bf_blenkernel
 		bf_nodes
+		bf_rna
 		bf_gpu
 		bf_blenloader
 		bf_imbuf
@@ -534,7 +535,6 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		extern_openjpeg
 		extern_redcode
 		ge_videotex
-		bf_rna
 		bf_dna
 		bf_blenfont
 		bf_intern_audaspace

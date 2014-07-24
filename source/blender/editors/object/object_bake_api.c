@@ -51,6 +51,7 @@
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
@@ -335,14 +336,14 @@ static bool write_external_bake_pixels(
 
 static bool is_noncolor_pass(ScenePassType pass_type)
 {
-	return ELEM7(pass_type,
-	             SCE_PASS_Z,
-	             SCE_PASS_NORMAL,
-	             SCE_PASS_VECTOR,
-	             SCE_PASS_INDEXOB,
-	             SCE_PASS_UV,
-	             SCE_PASS_RAYHITS,
-	             SCE_PASS_INDEXMA);
+	return ELEM(pass_type,
+	            SCE_PASS_Z,
+	            SCE_PASS_NORMAL,
+	            SCE_PASS_VECTOR,
+	            SCE_PASS_INDEXOB,
+	            SCE_PASS_UV,
+	            SCE_PASS_RAYHITS,
+	            SCE_PASS_INDEXMA);
 }
 
 /* if all is good tag image and return true */
@@ -367,10 +368,22 @@ static bool bake_object_check(Object *ob, ReportList *reports)
 	}
 
 	for (i = 0; i < ob->totcol; i++) {
-		ED_object_get_active_image(ob, i + 1, &image, NULL, NULL);
+		bNodeTree *ntree = NULL;
+		bNode *node = NULL;
+		ED_object_get_active_image(ob, i + 1, &image, NULL, &node, &ntree);
 
 		if (image) {
-			ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
+			ImBuf *ibuf;
+
+			if (node) {
+				if (BKE_node_is_connected_to_output(ntree, node)) {
+					BKE_reportf(reports, RPT_ERROR,
+					            "Circular dependency for image \"%s\" from object \"%s\"",
+					            image->id.name + 2, ob->id.name + 2);
+				}
+			}
+
+			ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
 
 			if (ibuf) {
 				BKE_image_release_ibuf(image, ibuf, lock);
@@ -429,7 +442,7 @@ static bool bake_objects_check(Main *bmain, Object *ob, ListBase *selected_objec
 			if (ob_iter == ob)
 				continue;
 
-			if (ELEM5(ob_iter->type, OB_MESH, OB_FONT, OB_CURVE, OB_SURF, OB_MBALL) == false) {
+			if (ELEM(ob_iter->type, OB_MESH, OB_FONT, OB_CURVE, OB_SURF, OB_MBALL) == false) {
 				BKE_reportf(reports, RPT_ERROR, "Object \"%s\" is not a mesh or can't be converted to a mesh (Curve, Text, Surface or Metaball)", ob_iter->id.name + 2);
 				return false;
 			}
@@ -477,7 +490,7 @@ static void build_image_lookup(Main *bmain, Object *ob, BakeImages *bake_images)
 
 	for (i = 0; i < tot_mat; i++) {
 		Image *image;
-		ED_object_get_active_image(ob, i + 1, &image, NULL, NULL);
+		ED_object_get_active_image(ob, i + 1, &image, NULL, NULL, NULL);
 
 		if ((image->id.flag & LIB_DOIT)) {
 			for (j = 0; j < i; j++) {
