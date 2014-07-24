@@ -30,8 +30,8 @@
  * Declaration of GHOST_Context class.
  */
 
-#ifndef _GHOST_CONTEXT_H_
-#define _GHOST_CONTEXT_H_
+#ifndef __GHOST_CONTEXT_H__
+#define __GHOST_CONTEXT_H__
 
 #include "GHOST_Types.h"
 
@@ -168,10 +168,6 @@ bool win32_chk(bool result, const char *file = NULL, int line = 0, const char *t
 
 #endif
 
-
-
 #define _CASE_CODE_RETURN_STR(code) case code: return #code;
 
-
-
-#endif // _GHOST_CONTEXT_H_
+#endif // __GHOST_CONTEXT_H__

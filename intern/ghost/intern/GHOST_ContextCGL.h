@@ -30,8 +30,8 @@
  * Declaration of GHOST_ContextCGL class.
  */
 
-#ifndef _GHOST_CONTEXTCGL_H_
-#define _GHOST_CONTEXTCGL_H_
+#ifndef __GHOST_CONTEXTCGL_H__
+#define __GHOST_CONTEXTCGL_H__
 
 #include "GHOST_Context.h"
 
@@ -100,7 +100,8 @@ public:
 
 	/**
 	 * Removes references to native handles from this context and then returns
-	 * \return GHOST_kSuccess if it is OK for the parent to release the handles and GHOST_kFailure if releasing the handles will interfere with sharing
+	 * \return GHOST_kSuccess if it is OK for the parent to release the handles and
+	 * GHOST_kFailure if releasing the handles will interfere with sharing
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
@@ -155,6 +156,4 @@ private:
 	static int              s_sharedCount;
 };
 
-
-
-#endif // _GHOST_CONTEXTCGL_H_
+#endif // __GHOST_CONTEXTCGL_H__

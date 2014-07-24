@@ -156,7 +156,10 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 	int glx_major, glx_minor; /* GLX version: major.minor */
 
 	if (!glXQueryVersion(m_display, &glx_major, &glx_minor)) {
-		fprintf(stderr, "%s:%d: X11 glXQueryVersion() failed, verify working openGL system!\n", __FILE__, __LINE__);
+		fprintf(stderr,
+		        "%s:%d: X11 glXQueryVersion() failed, "
+		        "verify working openGL system!\n",
+		        __FILE__, __LINE__);
 
 		/* exit if this is the first window */
 		if (s_sharedContext == NULL) {
@@ -181,7 +184,7 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 
 	/* Find the display with highest samples, starting at level requested */
 	int actualSamples = m_numOfAASamples;
-	for(;;) {
+	for (;;) {
 		attribs.clear();
 
 		if (m_stereoVisual)
@@ -230,18 +233,20 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 		 * but we need a valid visual to continue */
 		if (m_visualInfo != NULL) {
 			if (actualSamples < m_numOfAASamples) {
-				fprintf(
-					stderr,
-					"Warning! Unable to find a multisample pixel format that supports exactly %d samples. Substituting one that uses %d samples.\n",
-					m_numOfAASamples,
-					actualSamples);
+				fprintf(stderr,
+				        "Warning! Unable to find a multisample pixel format that supports exactly %d samples. "
+				        "Substituting one that uses %d samples.\n",
+				        m_numOfAASamples, actualSamples);
 			}
 			break;
 		}
 
 		if (actualSamples == 0) {
 			/* All options exhausted, cannot continue */
-			fprintf(stderr, "%s:%d: X11 glXChooseVisual() failed, verify working openGL system!\n", __FILE__, __LINE__);
+			fprintf(stderr,
+			        "%s:%d: X11 glXChooseVisual() failed, "
+			        "verify working openGL system!\n",
+			        __FILE__, __LINE__);
 
 			if (s_sharedContext == None) {
 				fprintf(stderr, "initial window could not find the GLX extension, exit!\n");

@@ -147,7 +147,9 @@ bool win32_chk(bool result, const char *file, int line, const char *text)
 				break;
 
 			case ERROR_INCOMPATIBLE_DEVICE_CONTEXTS_ARB:
-				msg = "The device contexts specified are not compatible.  This can occur if the device contexts are managed by different drivers or possibly on different graphics adapters.\n";
+				msg = ("The device contexts specified are not compatible. "
+				      "This can occur if the device contexts are managed by "
+				      "different drivers or possibly on different graphics adapters.\n");
 				break;
 
 #ifdef WITH_GLEW_ES
@@ -161,7 +163,8 @@ bool win32_chk(bool result, const char *file, int line, const char *text)
 #endif
 
 			case ERROR_PROFILE_DOES_NOT_MATCH_DEVICE:
-				msg = "The specified profile is intended for a device of a different type than the specified device.\n";
+				msg = ("The specified profile is intended for a device of a "
+				      "different type than the specified device.\n");
 				break;
 
 			default:

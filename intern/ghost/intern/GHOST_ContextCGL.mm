@@ -196,7 +196,9 @@ static void makeAttribList(
 	attribs.push_back(NSOpenGLPFABackingStore);
 	
 	// Force software OpenGL, for debugging
-	if (getenv("BLENDER_SOFTWAREGL")) { // XXX jwilkins: fixed this to work on Intel macs? useful feature for Windows and Linux too?  Maybe a command line flag is better...
+	/* XXX jwilkins: fixed this to work on Intel macs? useful feature for Windows and Linux too?
+	 * Maybe a command line flag is better... */
+	if (getenv("BLENDER_SOFTWAREGL")) {
 		attribs.push_back(NSOpenGLPFARendererID);
 #if defined(__ppc__) || defined(__ppc64__)
 		attribs.push_back(kCGLRendererAppleSWID);
@@ -208,7 +210,8 @@ static void makeAttribList(
 		attribs.push_back(NSOpenGLPFAAccelerated);
 	}
 
-	//attribs.push_back(NSOpenGLPFAAllowOfflineRenderers);   // Removed to allow 10.4 builds, and 2 GPUs rendering is not used anyway
+	/* Removed to allow 10.4 builds, and 2 GPUs rendering is not used anyway */
+	//attribs.push_back(NSOpenGLPFAAllowOfflineRenderers);
 
 	attribs.push_back(NSOpenGLPFADepthSize);
 	attribs.push_back((NSOpenGLPixelFormatAttribute) 32);
@@ -351,7 +354,8 @@ error:
 
 GHOST_TSuccess GHOST_ContextCGL::releaseNativeHandles()
 {
-	GHOST_TSuccess success = m_openGLContext != s_sharedOpenGLContext || s_sharedCount == 1 ? GHOST_kSuccess : GHOST_kFailure;
+	GHOST_TSuccess success = ((m_openGLContext != s_sharedOpenGLContext) ||
+	                          (s_sharedCount == 1 ? GHOST_kSuccess : GHOST_kFailure));
 
 	m_openGLContext = NULL;
 	m_openGLView    = NULL;

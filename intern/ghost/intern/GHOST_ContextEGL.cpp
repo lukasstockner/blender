@@ -45,7 +45,7 @@ EGLEWContext *eglewContext = NULL;
 
 static const char *get_egl_error_enum_string(EGLenum error)
 {
-	switch(error) {
+	switch (error) {
 		_CASE_CODE_RETURN_STR(EGL_SUCCESS)
 		_CASE_CODE_RETURN_STR(EGL_NOT_INITIALIZED)
 		_CASE_CODE_RETURN_STR(EGL_BAD_ACCESS)
@@ -68,7 +68,7 @@ static const char *get_egl_error_enum_string(EGLenum error)
 
 static const char *get_egl_error_message_string(EGLenum error)
 {
-	switch(error) {
+	switch (error) {
 		case EGL_SUCCESS:
 			return "The last function succeeded without error.";
 
@@ -193,7 +193,7 @@ EGLint     GHOST_ContextEGL::s_vg_sharedCount     = 0;
 template <typename T>
 T &choose_api(EGLenum api, T &a, T &b, T &c)
 {
-	switch(api) {
+	switch (api) {
 		case EGL_OPENGL_API:
 			return a;
 		case EGL_OPENGL_ES_API:

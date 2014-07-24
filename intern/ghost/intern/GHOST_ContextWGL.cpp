@@ -516,10 +516,14 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_2(
 		UINT nNumFormats;
 		WIN32_CHK(wglChoosePixelFormatARB(m_hDC, &(iAttributes[0]), NULL, 1, &iPixelFormat, &nNumFormats));
 
-		if (nNumFormats > 0) // total number of formats that match (regardless of size of iPixelFormat array) (see WGL_ARB_pixel_format extension spec)
+		/* total number of formats that match (regardless of size of iPixelFormat array)
+		 * see: WGL_ARB_pixel_format extension spec */
+		if (nNumFormats > 0)
 			break;
 
-		iPixelFormat = 0; // if not reset, then the state of iPixelFormat is undefined after call to wglChoosePixelFormatARB (see WGL_ARB_pixel_format extension spec)
+		/* if not reset, then the state of iPixelFormat is undefined after call to wglChoosePixelFormatARB
+		 * see: WGL_ARB_pixel_format extension spec */
+		iPixelFormat = 0;
 
 		samples--;
 	}
@@ -531,11 +535,10 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_2(
 		wglGetPixelFormatAttribivARB(m_hDC, iPixelFormat, 0, 1, iQuery, &actualSamples);
 
 		if (actualSamples != numOfAASamples) {
-			fprintf(
-				stderr,
-				"Warning! Unable to find a multisample pixel format that supports exactly %d samples. Substituting one that uses %d samples.\n",
-				numOfAASamples,
-				actualSamples);
+			fprintf(stderr,
+			        "Warning! Unable to find a multisample pixel format that supports exactly %d samples. "
+			        "Substituting one that uses %d samples.\n",
+			        numOfAASamples, actualSamples);
 
 			m_numOfAASamples = actualSamples; // set context property to actual value
 		}
@@ -557,16 +560,19 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_1(
 	int iPixelFormat;
 
 	swapMethodOut = WGL_SWAP_COPY_ARB;
-	iPixelFormat  = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
+	iPixelFormat  = _choose_pixel_format_arb_2(
+	        stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
 
 	if (iPixelFormat == 0) {
 		swapMethodOut = WGL_SWAP_UNDEFINED_ARB;
-		iPixelFormat  = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
+		iPixelFormat  = _choose_pixel_format_arb_2(
+		        stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
 	}
 
 	if (iPixelFormat == 0) {
 		swapMethodOut = WGL_SWAP_EXCHANGE_ARB;
-		iPixelFormat  = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
+		iPixelFormat  = _choose_pixel_format_arb_2(
+		        stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
 	}
 
 	return iPixelFormat;
