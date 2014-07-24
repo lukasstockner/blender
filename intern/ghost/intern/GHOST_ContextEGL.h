@@ -27,7 +27,6 @@
 
 /** \file ghost/intern/GHOST_ContextEGL.h
  *  \ingroup GHOST
- * Declaration of GHOST_ContextEGL class.
  */
 
 #ifndef __GHOST_CONTEXTEGL_H__
@@ -40,7 +39,6 @@
 extern "C" EGLEWContext *eglewContext;
 
 
-
 #ifndef GHOST_OPENGL_EGL_CONTEXT_FLAGS
 #define GHOST_OPENGL_EGL_CONTEXT_FLAGS 0
 #endif
@@ -48,7 +46,6 @@ extern "C" EGLEWContext *eglewContext;
 #ifndef GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY
 #define GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY 0
 #endif
-
 
 
 class GHOST_ContextEGL : public GHOST_Context
@@ -156,7 +153,5 @@ private:
 	static HMODULE s_d3dcompiler;
 #endif
 };
-
-
 
 #endif // __GHOST_CONTEXTEGL_H__

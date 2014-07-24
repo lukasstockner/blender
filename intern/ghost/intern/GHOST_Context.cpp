@@ -27,6 +27,7 @@
 
 /** \file ghost/intern/GHOST_Context.cpp
  *  \ingroup GHOST
+ *
  * Definition of GHOST_Context class.
  */
 
@@ -190,7 +191,7 @@ bool win32_chk(bool result, const char *file, int line, const char *text)
 		_ftprintf(
 			stderr,
 			"%s(%d):[%s] -> Win32 Error# (%d): %s",
-			file, 
+			file,
 			line,
 			text,
 			error,

@@ -27,6 +27,7 @@
 
 /** \file ghost/intern/GHOST_ContextNone.cpp
  *  \ingroup GHOST
+ *
  * Definition of GHOST_ContextNone class.
  */
 

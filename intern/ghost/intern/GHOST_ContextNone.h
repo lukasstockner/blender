@@ -27,6 +27,7 @@
 
 /** \file ghost/intern/GHOST_ContextNone.h
  *  \ingroup GHOST
+ *
  * Declaration of GHOST_Context class.
  */
 

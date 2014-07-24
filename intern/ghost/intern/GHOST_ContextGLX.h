@@ -27,7 +27,6 @@
 
 /** \file ghost/intern/GHOST_ContextGLX.h
  *  \ingroup GHOST
- * Declaration of GHOST_ContextGLX class.
  */
 
 #ifndef __GHOST_CONTEXTGLX_H__
@@ -40,7 +39,6 @@
 extern "C" GLXEWContext *glxewContext;
 
 
-
 #ifndef GHOST_OPENGL_GLX_CONTEXT_FLAGS
 #define GHOST_OPENGL_GLX_CONTEXT_FLAGS 0
 #endif
@@ -48,7 +46,6 @@ extern "C" GLXEWContext *glxewContext;
 #ifndef GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY
 #define GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY 0
 #endif
-
 
 
 class GHOST_ContextGLX : public GHOST_Context

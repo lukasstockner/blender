@@ -27,7 +27,6 @@
 
 /** \file ghost/intern/GHOST_ContextCGL.h
  *  \ingroup GHOST
- * Declaration of GHOST_ContextCGL class.
  */
 
 #ifndef __GHOST_CONTEXTCGL_H__
@@ -39,8 +38,6 @@
 //#include <GL/cglew.h>
 //extern "C" CGLEWContext *cglewContext;
 
-
-
 #ifndef GHOST_OPENGL_CGL_CONTEXT_FLAGS
 #define GHOST_OPENGL_CGL_CONTEXT_FLAGS 0
 #endif
@@ -50,11 +47,9 @@
 #endif
 
 
-
 @class NSWindow;
 @class NSOpenGLView;
 @class NSOpenGLContext;
-
 
 
 class GHOST_ContextCGL : public GHOST_Context
@@ -73,7 +68,6 @@ public:
 	        int contextMinorVersion,
 	        int contextFlags,
 	        int contextResetNotificationStrategy);
-
 
 	/**
 	 * Destructor.
@@ -136,9 +130,9 @@ private:
 
 	/** The window containing the OpenGL view */
 	NSWindow *m_window;
-	
+
 	/** The openGL view */
-	NSOpenGLView *m_openGLView; 
+	NSOpenGLView *m_openGLView;
 
 	const int m_contextProfileMask;
 	const int m_contextMajorVersion;
@@ -148,11 +142,11 @@ private:
 
 	/** The opgnGL drawing context */
 	NSOpenGLContext *m_openGLContext;
-	
+
 	//static CGLEWContext *s_cglewContext;
 
 	/** The first created OpenGL context (for sharing display lists) */
-	static NSOpenGLContext *s_sharedOpenGLContext;	
+	static NSOpenGLContext *s_sharedOpenGLContext;
 	static int              s_sharedCount;
 };
 

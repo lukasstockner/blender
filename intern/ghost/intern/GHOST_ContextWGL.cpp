@@ -27,6 +27,7 @@
 
 /** \file ghost/intern/GHOST_ContextWGL.cpp
  *  \ingroup GHOST
+ *
  * Definition of GHOST_ContextWGL class.
  */
 
@@ -54,7 +55,7 @@ bool GHOST_ContextWGL::s_singleContextMode = false;
  * can't be in multiple-devices configuration. */
 static bool is_crappy_intel_card()
 {
-	return strstr((const char*)glGetString(GL_VENDOR), "Intel") != NULL;
+	return strstr((const char *)glGetString(GL_VENDOR), "Intel") != NULL;
 }
 
 

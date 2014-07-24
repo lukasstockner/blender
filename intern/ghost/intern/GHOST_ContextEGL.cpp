@@ -27,6 +27,7 @@
 
 /** \file ghost/intern/GHOST_ContextEGL.cpp
  *  \ingroup GHOST
+ *
  * Definition of GHOST_ContextEGL class.
  */
 

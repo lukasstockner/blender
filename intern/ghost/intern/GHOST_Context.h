@@ -134,7 +134,7 @@ protected:
 	}
 
 	bool m_stereoVisual;
-	
+
 	GHOST_TUns16 m_numOfAASamples;
 
 	static void initClearGL();

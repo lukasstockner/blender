@@ -27,7 +27,6 @@
 
 /** \file ghost/intern/GHOST_ContextWGL.h
  *  \ingroup GHOST
- * Declaration of GHOST_ContextWGL class.
  */
 
 #ifndef __GHOST_CONTEXTWGL_H__
@@ -40,7 +39,6 @@
 extern "C" WGLEWContext *wglewContext;
 
 
-
 #ifndef GHOST_OPENGL_WGL_CONTEXT_FLAGS
 #define GHOST_OPENGL_WGL_CONTEXT_FLAGS 0
 #endif
@@ -48,7 +46,6 @@ extern "C" WGLEWContext *wglewContext;
 #ifndef GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY
 #define GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY 0
 #endif
-
 
 
 class GHOST_ContextWGL : public GHOST_Context
@@ -174,7 +171,5 @@ private:
 
 	static bool s_singleContextMode;
 };
-
-
 
 #endif  // __GHOST_CONTEXTWGL_H__

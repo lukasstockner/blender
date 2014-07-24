@@ -27,6 +27,7 @@
 
 /** \file ghost/intern/GHOST_ContextGLX.cpp
  *  \ingroup GHOST
+ *
  * Definition of GHOST_ContextGLX class.
  */
 
