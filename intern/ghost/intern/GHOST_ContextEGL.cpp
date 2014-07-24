@@ -278,7 +278,7 @@ GHOST_ContextEGL::~GHOST_ContextEGL()
 
 GHOST_TSuccess GHOST_ContextEGL::swapBuffers()
 {
-	return EGL_CHK(eglSwapBuffers(m_display, m_surface)) ? GHOST_kSuccess : GHOST_kFailure;
+	return EGL_CHK(::eglSwapBuffers(m_display, m_surface)) ? GHOST_kSuccess : GHOST_kFailure;
 }
 
 
@@ -605,9 +605,8 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 
 	initContextGLEW();
 
-	glClearColor(0.447, 0.447, 0.447, 0.000);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glClearColor(0.000, 0.000, 0.000, 0.000);
+	initClearGL();
+	::eglSwapBuffers(m_display, m_surface);
 
 	return GHOST_kSuccess;
 

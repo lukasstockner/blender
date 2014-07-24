@@ -334,9 +334,8 @@ GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext()
 
 	initContextGLEW();
 
-	glClearColor(0.447, 0.447, 0.447, 0.000);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glClearColor(0.000, 0.000, 0.000, 0.000);
+	initClearGL();
+	[m_openGLContext flushBuffer];
 
 	[pool drain];
 

@@ -232,3 +232,12 @@ void GHOST_Context::initContextGLEW()
 
 	GLEW_CHK(glewInit());
 }
+
+
+
+void GHOST_Context::initClearGL()
+{
+	glClearColor(0.447, 0.447, 0.447, 0.000);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glClearColor(0.000, 0.000, 0.000, 0.000);
+}

@@ -137,6 +137,8 @@ protected:
 	
 	GHOST_TUns16 m_numOfAASamples;
 
+	static void initClearGL();
+
 private:
 	GLEWContext* m_glewContext;
 

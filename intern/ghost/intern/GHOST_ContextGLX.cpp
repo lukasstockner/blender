@@ -284,9 +284,8 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 		// which means we cannot use glX extensions until after we create a context
 		initContextGLXEW();
 
-		glClearColor(0.447, 0.447, 0.447, 0.000);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glClearColor(0.000, 0.000, 0.000, 0.000);
+		initClearGL();
+		::glXSwapBuffers(m_display, m_window);
 
 		success = GHOST_kSuccess;
 	}

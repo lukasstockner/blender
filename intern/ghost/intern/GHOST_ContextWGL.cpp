@@ -850,9 +850,8 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 
 	initContextGLEW();
 
-	glClearColor(0.447, 0.447, 0.447, 0.000);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glClearColor(0.000, 0.000, 0.000, 0.000);
+	initClearGL();
+	::SwapBuffers(m_hDC);
 
 #ifndef NDEBUG
 	reportContextString("Vendor",   m_dummyVendor,   reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
