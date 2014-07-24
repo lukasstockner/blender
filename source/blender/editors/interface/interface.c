@@ -3811,9 +3811,6 @@ void uiBlockFlipOrder(uiBlock *block)
 		but->rect.ymax = centy - (but->rect.ymax - centy);
 		SWAP(float, but->rect.ymin, but->rect.ymax);
 	}
-	
-	/* also flip order in block itself, for example for arrowkey */
-	BLI_listbase_reverse(&block->buttons);
 }
 
 
@@ -4427,11 +4424,6 @@ void UI_init_userdef(void)
 	/* fix saved themes */
 	init_userdef_do_versions();
 	uiStyleInit();
-}
-
-void UI_init_userdef_factory(void)
-{
-	init_userdef_factory();
 }
 
 void UI_reinit_font(void)

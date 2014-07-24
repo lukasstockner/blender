@@ -154,7 +154,7 @@ def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=Fal
                 if mat:
                     col.label("Clone Slot")
                     col.template_list("TEXTURE_UL_texpaintslots", "",
-                                      mat, "texture_paint_slots",
+                                      mat, "texture_paint_images",
                                       mat, "paint_clone_slot", rows=2)
 
         else:
@@ -170,7 +170,7 @@ def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=Fal
         panel.prop_unified_size(row, context, brush, "size", slider=True, text="Radius")
         panel.prop_unified_size(row, context, brush, "use_pressure_size")
 
-        row = col.row(align=True)
+    row = col.row(align=True)
 
     if capabilities.has_space_attenuation:
         row.prop(brush, "use_space_attenuation", toggle=True, icon_only=True)
