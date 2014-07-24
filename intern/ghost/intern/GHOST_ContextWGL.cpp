@@ -745,7 +745,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		int profileBitCore   = m_contextProfileMask & WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 		int profileBitCompat = m_contextProfileMask & WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
 
-#if WITH_GLEW_ES
+#ifdef WITH_GLEW_ES
 		int profileBitES     = m_contextProfileMask & WGL_CONTEXT_ES_PROFILE_BIT_EXT;
 #endif
 
@@ -755,7 +755,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		if (!WGLEW_ARB_create_context_profile && profileBitCompat)
 			fprintf(stderr, "Warning! OpenGL compatibility profile not available.\n");
 
-#if WITH_GLEW_ES
+#ifdef WITH_GLEW_ES
 		if (!WGLEW_EXT_create_context_es_profile && profileBitES && m_contextMajorVersion == 1)
 			fprintf(stderr, "Warning! OpenGL ES profile not available.\n");
 
@@ -771,7 +771,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		if (WGLEW_ARB_create_context_profile && profileBitCompat)
 			profileMask |= profileBitCompat;
 
-#if WITH_GLEW_ES
+#ifdef WITH_GLEW_ES
 		if (WGLEW_EXT_create_context_es_profile && profileBitES)
 			profileMask |= profileBitES;
 #endif

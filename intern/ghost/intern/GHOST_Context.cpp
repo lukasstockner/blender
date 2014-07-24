@@ -159,7 +159,7 @@ bool win32_chk(bool result, const char* file, int line, const char* text)
 				msg = "The device contexts specified are not compatible.  This can occur if the device contexts are managed by different drivers or possibly on different graphics adapters.\n";
 				break;
 
-#if WITH_GLEW_ES
+#ifdef WITH_GLEW_ES
 			case ERROR_INCOMPATIBLE_AFFINITY_MASKS_NV:
 				msg = "The device context(s) and rendering context have non-matching affinity masks.\n";
 				break;

@@ -434,7 +434,7 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 		wm_init_state.start_x = 0;
 		wm_init_state.start_y = 0;
 
-#if WITH_X11 /* X11 */
+#ifdef WITH_X11 /* X11 */
 		/* X11, start maximized but use default sane size */
 		wm_init_state.size_x = min_ii(wm_init_state.size_x, WM_WIN_INIT_SIZE_X);
 		wm_init_state.size_y = min_ii(wm_init_state.size_y, WM_WIN_INIT_SIZE_Y);

@@ -33,13 +33,13 @@
 #ifndef __GLEW_MX_H__
 #define __GLEW_MX_H__
 
-#if GLEW_MX
+#ifdef GLEW_MX
 #define glewGetContext() _mxContext
 #endif
 
 #include <GL/glew.h>
 
-#if GLEW_MX
+#ifdef GLEW_MX
 
 #ifdef __cplusplus
 extern "C" {
