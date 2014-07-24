@@ -209,7 +209,6 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		    0);                         // pointer to window-creation data
 		free(title_16);
 	}
-
 	if (m_hWnd) {
 		// Register this window as a droptarget. Requires m_hWnd to be valid.
 		// Note that OleInitialize(0) has to be called prior to this. Done in GHOST_SystemWin32.
@@ -243,7 +242,6 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 			}
 
 			::ShowWindow(m_hWnd, nCmdShow);
-
 			// Force an initial paint of the window
 			::UpdateWindow(m_hWnd);
 		}
@@ -329,10 +327,11 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 
 GHOST_WindowWin32::~GHOST_WindowWin32()
 {
-	if (m_Bar) {
+	if (m_Bar)
+	{
 		m_Bar->SetProgressState(m_hWnd, TBPF_NOPROGRESS);
 		m_Bar->Release();
-	}
+	};
 
 	if (m_wintab) {
 		GHOST_WIN32_WTClose fpWTClose = (GHOST_WIN32_WTClose) ::GetProcAddress(m_wintab, "WTClose");
@@ -344,15 +343,14 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 			m_tabletData = NULL;
 		}
 	}
-
 	if (m_customCursor) {
 		DestroyCursor(m_customCursor);
 		m_customCursor = NULL;
 	}
 
-	if (m_hWnd != NULL && m_hDC != NULL && releaseNativeHandles())
+	if (m_hWnd != NULL && m_hDC != NULL && releaseNativeHandles()) {
 		::ReleaseDC(m_hWnd, m_hDC);
-
+	}
 	if (m_hWnd) {
 		if (m_dropTarget) {
 			// Disable DragDrop
@@ -611,35 +609,35 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 #if !defined(WITH_GL_EGL)
 
 #if defined(WITH_GL_PROFILE_CORE)
-		GHOST_Context* context = new GHOST_ContextWGL(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_hWnd,
-			m_hDC,
-			WGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
-			3, 2,
-			GHOST_OPENGL_WGL_CONTEXT_FLAGS,
-			GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
+		GHOST_Context *context = new GHOST_ContextWGL(
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_hWnd,
+		        m_hDC,
+		        WGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
+		        3, 2,
+		        GHOST_OPENGL_WGL_CONTEXT_FLAGS,
+		        GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_ES20)
-		GHOST_Context* context = new GHOST_ContextWGL(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_hWnd,
-			m_hDC,
-			WGL_CONTEXT_ES2_PROFILE_BIT_EXT,
-			2, 0,
-			GHOST_OPENGL_WGL_CONTEXT_FLAGS,
-			GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
+		GHOST_Context *context = new GHOST_ContextWGL(
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_hWnd,
+		        m_hDC,
+		        WGL_CONTEXT_ES2_PROFILE_BIT_EXT,
+		        2, 0,
+		        GHOST_OPENGL_WGL_CONTEXT_FLAGS,
+		        GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_COMPAT)
-		GHOST_Context* context = new GHOST_ContextWGL(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_hWnd,
-			m_hDC,
-			0, // profile bit
-			0, 0,
-			GHOST_OPENGL_WGL_CONTEXT_FLAGS,
-			GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
+		GHOST_Context *context = new GHOST_ContextWGL(
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_hWnd,
+		        m_hDC,
+		        0, // profile bit
+		        0, 0,
+		        GHOST_OPENGL_WGL_CONTEXT_FLAGS,
+		        GHOST_OPENGL_WGL_RESET_NOTIFICATION_STRATEGY);
 #else
 #  error
 #endif
@@ -647,38 +645,38 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 #else
 
 #if defined(WITH_GL_PROFILE_CORE)
-		GHOST_Context* context = new GHOST_ContextEGL(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_hWnd,
-			m_hDC,
-			EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
-			3, 2,
-			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
-			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
-			EGL_OPENGL_API);
+		GHOST_Context *context = new GHOST_ContextEGL(
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_hWnd,
+		        m_hDC,
+		        EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
+		        3, 2,
+		        GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+		        GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
+		        EGL_OPENGL_API);
 #elif defined(WITH_GL_PROFILE_ES20)
-		GHOST_Context* context = new GHOST_ContextEGL(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_hWnd,
-			m_hDC,
-			0, // profile bit
-			2, 0,
-			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
-			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
-			EGL_OPENGL_ES_API);
+		GHOST_Context *context = new GHOST_ContextEGL(
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_hWnd,
+		        m_hDC,
+		        0, // profile bit
+		        2, 0,
+		        GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+		        GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
+		        EGL_OPENGL_ES_API);
 #elif defined(WITH_GL_PROFILE_COMPAT)
-		GHOST_Context* context = new GHOST_ContextEGL(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_hWnd,
-			m_hDC,
-			0, // profile bit
-			0, 0,
-			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
-			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
-			EGL_OPENGL_API);
+		GHOST_Context *context = new GHOST_ContextEGL(
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_hWnd,
+		        m_hDC,
+		        0, // profile bit
+		        0, 0,
+		        GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+		        GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
+		        EGL_OPENGL_API);
 #else
 #  error
 #endif
@@ -692,8 +690,6 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 
 	return NULL;
 }
-
-
 
 void GHOST_WindowWin32::lostMouseCapture()
 {

@@ -1174,7 +1174,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setOrder(GHOST_TWindowOrder order)
 
 #pragma mark Drawing context
 
-GHOST_Context* GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType type)
+GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType type)
 {
 	if (type == GHOST_kDrawingContextTypeOpenGL) {
 #if !defined(WITH_GL_EGL)
