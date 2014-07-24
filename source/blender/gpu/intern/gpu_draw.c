@@ -1880,12 +1880,12 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 	return count;
 }
 
-void GPU_multisample(bool enable)
+static void gpu_multisample(bool enable)
 {
 	if (GLEW_VERSION_1_3 || GLEW_ARB_multisample) {
-#if __linux__
+#ifdef __linux__
 		/* changing multisample enablement from the default (enabled) causes problems on some
-		   systems (NVIDIA/Linux) when the pixel format doesn't have a multisample buffer */
+		 * systems (NVIDIA/Linux) when the pixel format doesn't have a multisample buffer */
 		bool toggle_ok = true;
 
 		if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_UNIX, GPU_DRIVER_ANY)) {
@@ -1983,7 +1983,7 @@ void GPU_state_init(void)
 	glCullFace(GL_BACK);
 	glDisable(GL_CULL_FACE);
 
-	GPU_multisample(false);
+	gpu_multisample(false);
 }
 
 #ifdef DEBUG

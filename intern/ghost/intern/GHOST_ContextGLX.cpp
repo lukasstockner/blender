@@ -63,8 +63,8 @@ GHOST_ContextGLX::GHOST_ContextGLX(
 	int          contextResetNotificationStrategy
 )
 	: GHOST_Context(stereoVisual, numOfAASamples)
-	, m_window (window)
 	, m_display(display)
+	, m_window (window)
 	, m_contextProfileMask              (contextProfileMask)
 	, m_contextMajorVersion             (contextMajorVersion)
 	, m_contextMinorVersion             (contextMinorVersion)

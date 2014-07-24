@@ -50,7 +50,7 @@ void mxSetContext(GLEWContext* ctx)
 	_mxContext = ctx;
 }
 
-GLEWContext* mxCreateContext()
+GLEWContext* mxCreateContext(void)
 {
 	GLEWContext* ctx = malloc(sizeof(GLEWContext));
 
