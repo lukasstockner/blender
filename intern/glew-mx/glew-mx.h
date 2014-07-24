@@ -58,11 +58,10 @@ void mxDestroyContext(GLEWContext* ctx);
 
 #else
 
-#include <stdlib.h>  /* for NULL */
-
-#define mxSetContext(ctx)
-#define mxCreateContext() NULL
-#define mxDestroyContext(ctx)
+/* don't use NULL here (mightn't be defined)*/
+#define mxSetContext(ctx)       ((void)ctx)
+#define mxCreateContext()       ((void *)0)
+#define mxDestroyContext(ctx)   ((void)ctx)
 
 #endif  /* GLEW_MX */
 
