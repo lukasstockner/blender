@@ -165,6 +165,6 @@ bool win32_chk(bool result, const char *file = NULL, int line = 0, const char *t
 #  endif
 #endif  /* _WIN32 */
 
-#define _CASE_CODE_RETURN_STR(code) case code: return #code;
+#define CASE_CODE_RETURN_STR(code) case code: return #code;
 
 #endif // __GHOST_CONTEXT_H__
