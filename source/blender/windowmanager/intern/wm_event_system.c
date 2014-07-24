@@ -111,10 +111,13 @@ void wm_event_free(wmEvent *event)
 	if (event->customdata) {
 		if (event->customdatafree) {
 			/* note: pointer to listbase struct elsewhere */
-			if (event->custom == EVT_DATA_LISTBASE)
-				BLI_freelistN(event->customdata);
-			else
+			if (event->custom == EVT_DATA_DRAGDROP) {
+				ListBase *lb = event->customdata;
+				WM_drag_free_list(lb);
+			}
+			else {
 				MEM_freeN(event->customdata);
+			}
 		}
 	}
 
@@ -1933,17 +1936,17 @@ static int wm_handlers_do_intern(bContext *C, wmEvent *event, ListBase *handlers
 					wmDropBox *drop = handler->dropboxes->first;
 					for (; drop; drop = drop->next) {
 						/* other drop custom types allowed */
-						if (event->custom == EVT_DATA_LISTBASE) {
+						if (event->custom == EVT_DATA_DRAGDROP) {
 							ListBase *lb = (ListBase *)event->customdata;
 							wmDrag *drag;
 							
 							for (drag = lb->first; drag; drag = drag->next) {
 								if (drop->poll(C, drag, event)) {
-									
 									drop->copy(drag, drop);
 									
 									/* free the drags before calling operator */
-									BLI_freelistN(event->customdata);
+									WM_drag_free_list(lb);
+
 									event->customdata = NULL;
 									event->custom = 0;
 									
@@ -2145,10 +2148,12 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 		return;
 	}
 	
-	if (event->type == MOUSEMOVE || ISKEYMODIFIER(event->type))
+	if (event->type == MOUSEMOVE || ISKEYMODIFIER(event->type)) {
 		win->screen->do_draw_drag = true;
+	}
 	else if (event->type == ESCKEY) {
-		BLI_freelistN(&wm->drags);
+		WM_drag_free_list(&wm->drags);
+
 		win->screen->do_draw_drag = true;
 	}
 	else if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
@@ -2160,7 +2165,7 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 				MEM_freeN(event->customdata);
 		}
 		
-		event->custom = EVT_DATA_LISTBASE;
+		event->custom = EVT_DATA_DRAGDROP;
 		event->customdata = &wm->drags;
 		event->customdatafree = 1;
 		

@@ -59,6 +59,7 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_mask_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_effect.h"
@@ -688,6 +689,29 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 				dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Curve Taper");
 			}
 			if (ob->type == OB_FONT) {
+				/* Really rather dirty hack. needs to support font family to work
+				 * reliably on render export.
+				 *
+				 * This totally mimics behavior of regular verts duplication with
+				 * parenting. The only tricky thing here is to get list of objects
+				 * used for the custom "font".
+				 *
+				 * This shouldn't harm so much because this code only runs on DAG
+				 * rebuild and this feature is not that commonly used.
+				 *
+				 *                                                 - sergey -
+				 */
+				if (cu->family[0] != '\n') {
+					ListBase *duplilist;
+					DupliObject *dob;
+					duplilist = object_duplilist(G.main->eval_ctx, scene, ob);
+					for (dob= duplilist->first; dob; dob = dob->next) {
+						node2 = dag_get_node(dag, dob->ob);
+						dag_add_relation(dag, node, node2, DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Object Font");
+					}
+					free_object_duplilist(duplilist);
+				}
+
 				if (cu->textoncurve) {
 					node2 = dag_get_node(dag, cu->textoncurve);
 					/* Text on curve requires path to be evaluated for the target curve. */
@@ -2470,6 +2494,17 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 				for (psys = obt->particlesystem.first; psys; psys = psys->next)
 					if (&psys->part->id == id)
 						BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
+		}
+
+		if (ELEM(idtype, ID_MA, ID_TE)) {
+			const bool new_shading_nodes = BKE_scene_use_new_shading_nodes(sce);
+			for (obt = bmain->object.first; obt; obt = obt->id.next) {
+				if (obt->mode & OB_MODE_TEXTURE_PAINT) {
+					obt->recalc |= OB_RECALC_DATA;
+					BKE_texpaint_slots_refresh_object(obt, new_shading_nodes);
+					lib_id_recalc_data_tag(bmain, &obt->id);
+				}
+			}
 		}
 
 		if (idtype == ID_MC) {
