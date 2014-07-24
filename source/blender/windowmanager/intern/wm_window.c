@@ -340,7 +340,7 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
 }
 
 /* belongs to below */
-static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
+static void wm_window_add_ghostwindow(wmWindowManager *wm, const char *title, wmWindow *win)
 {
 	GHOST_WindowHandle ghostwin;
 	static int multisamples = -1;
@@ -363,7 +363,10 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 	
 	if (ghostwin) {
 		GHOST_RectangleHandle bounds;
-		
+
+		/* the new window has already been made drawable upon creation */
+		wm->windrawable = win;
+
 		/* needed so we can detect the graphics card below */
 		GPU_init();
 		
@@ -460,7 +463,7 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 				wm_init_state.override_flag &= ~WIN_OVERRIDE_WINSTATE;
 			}
 
-			wm_window_add_ghostwindow("Blender", win);
+			wm_window_add_ghostwindow(wm, "Blender", win);
 		}
 		/* happens after fileread */
 		if (win->eventstate == NULL)
@@ -1397,7 +1400,6 @@ void wm_window_raise(wmWindow *win)
 
 void wm_window_swap_buffers(wmWindow *win)
 {
-	
 #ifdef WIN32
 	glDisable(GL_SCISSOR_TEST);
 	GHOST_SwapWindowBuffers(win->ghostwin);
