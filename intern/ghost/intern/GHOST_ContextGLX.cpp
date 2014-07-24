@@ -42,7 +42,7 @@
 
 
 
-GLXEWContext* glxewContext = NULL;
+GLXEWContext *glxewContext = NULL;
 
 
 
@@ -52,27 +52,26 @@ int        GHOST_ContextGLX::s_sharedCount   = 0;
 
 
 GHOST_ContextGLX::GHOST_ContextGLX(
-	bool         stereoVisual,
-	GHOST_TUns16 numOfAASamples,
-	Window       window,
-	Display*     display,
-	int          contextProfileMask,
-	int          contextMajorVersion,
-	int          contextMinorVersion,
-	int          contextFlags,
-	int          contextResetNotificationStrategy
-)
-	: GHOST_Context(stereoVisual, numOfAASamples)
-	, m_display(display)
-	, m_window (window)
-	, m_contextProfileMask              (contextProfileMask)
-	, m_contextMajorVersion             (contextMajorVersion)
-	, m_contextMinorVersion             (contextMinorVersion)
-	, m_contextFlags                    (contextFlags)
-	, m_contextResetNotificationStrategy(contextResetNotificationStrategy)
-	, m_visualInfo  (NULL)
-	, m_context     (None)
-	, m_glxewContext(NULL)
+        bool stereoVisual,
+        GHOST_TUns16 numOfAASamples,
+        Window window,
+        Display *display,
+        int contextProfileMask,
+        int contextMajorVersion,
+        int contextMinorVersion,
+        int contextFlags,
+        int contextResetNotificationStrategy)
+    : GHOST_Context(stereoVisual, numOfAASamples),
+      m_display(display),
+      m_window(window),
+      m_contextProfileMask(contextProfileMask),
+      m_contextMajorVersion(contextMajorVersion),
+      m_contextMinorVersion(contextMinorVersion),
+      m_contextFlags(contextFlags),
+      m_contextResetNotificationStrategy(contextResetNotificationStrategy),
+      m_visualInfo(NULL),
+      m_context(None),
+      m_glxewContext(NULL)
 {
 	assert(m_window  != 0);
 	assert(m_display != NULL);
@@ -326,7 +325,7 @@ GHOST_TSuccess GHOST_ContextGLX::setSwapInterval(int interval)
 
 
 
-GHOST_TSuccess GHOST_ContextGLX::getSwapInterval(int& intervalOut)
+GHOST_TSuccess GHOST_ContextGLX::getSwapInterval(int &intervalOut)
 {
 	if (GLXEW_EXT_swap_control) {
 		unsigned int interval = 0;

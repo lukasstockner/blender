@@ -37,7 +37,7 @@
 
 #define wglewGetContext() wglewContext
 #include <GL/wglew.h>
-extern "C" WGLEWContext* wglewContext;
+extern "C" WGLEWContext *wglewContext;
 
 
 
@@ -58,16 +58,15 @@ public:
 	 * Constructor.
 	 */
 	GHOST_ContextWGL(
-		bool         stereoVisual,
-		GHOST_TUns16 numOfAASamples,
-		HWND         hWnd,
-		HDC          hDC,
-		int          contextProfileMask,
-		int          contextMajorVersion,
-		int          contextMinorVersion,
-		int          contextFlags,
-		int          contextResetNotificationStrategy
-	);
+	        bool stereoVisual,
+	        GHOST_TUns16 numOfAASamples,
+	        HWND hWnd,
+	        HDC hDC,
+	        int contextProfileMask,
+	        int contextMajorVersion,
+	        int contextMinorVersion,
+	        int contextFlags,
+	        int contextResetNotificationStrategy);
 
 	/**
 	 * Destructor.
@@ -110,7 +109,7 @@ public:
 	 * \param intervalOut Variable to store the swap interval if it can be read.
 	 * \return Whether the swap interval can be read.
 	 */
-	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
+	virtual GHOST_TSuccess getSwapInterval(int &intervalOut);
 
 protected:
 	inline void activateWGLEW() const {
@@ -119,36 +118,36 @@ protected:
 
 private:
 	int choose_pixel_format(
-		bool stereoVisual,
-		int  numOfAASamples,
-		bool needAlpha,
-		bool needStencil,
-		bool sRGB);
+	        bool stereoVisual,
+	        int numOfAASamples,
+	        bool needAlpha,
+	        bool needStencil,
+	        bool sRGB);
 
 	int choose_pixel_format_arb(
-		bool stereoVisual,
-		int  numOfAASamples,
-		bool needAlpha,
-		bool needStencil,
-		bool sRGB);
+	        bool stereoVisual,
+	        int numOfAASamples,
+	        bool needAlpha,
+	        bool needStencil,
+	        bool sRGB);
 
 	int _choose_pixel_format_arb_1(
-		bool stereoVisual,
-		int  numOfAASamples,
-		bool needAlpha,
-		bool needStencil,
-		bool sRGB,
-		int& swapMethodOut);
+	        bool stereoVisual,
+	        int numOfAASamples,
+	        bool needAlpha,
+	        bool needStencil,
+	        bool sRGB,
+	        int &swapMethodOut);
 
 	int _choose_pixel_format_arb_2(
-		bool stereoVisual,
-		int  numOfAASamples,
-		bool needAlpha,
-		bool needStencil,
-		bool sRGB,
-		int  swapMethod);
+	        bool stereoVisual,
+	        int numOfAASamples,
+	        bool needAlpha,
+	        bool needStencil,
+	        bool sRGB,
+	        int  swapMethod);
 
-	void initContextWGLEW(PIXELFORMATDESCRIPTOR& preferredPFD);
+	void initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD);
 
 	HDC  m_hDC;
 	HWND m_hWnd;
@@ -161,12 +160,12 @@ private:
 
 	HGLRC m_hGLRC;
 
-	WGLEWContext* m_wglewContext;
+	WGLEWContext *m_wglewContext;
 
 #ifndef NDEBUG
-	const char* m_dummyVendor;
-	const char* m_dummyRenderer;
-	const char* m_dummyVersion;
+	const char *m_dummyVendor;
+	const char *m_dummyRenderer;
+	const char *m_dummyVersion;
 #endif
 
 	static HGLRC s_sharedHGLRC;

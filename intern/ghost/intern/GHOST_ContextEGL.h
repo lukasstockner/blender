@@ -37,7 +37,7 @@
 
 #define eglewGetContext() eglewContext
 #include <GL/eglew.h>
-extern "C" EGLEWContext* eglewContext;
+extern "C" EGLEWContext *eglewContext;
 
 
 
@@ -58,17 +58,16 @@ public:
 	 * Constructor.
 	 */
 	GHOST_ContextEGL(
-		bool                 stereoVisual,
-		GHOST_TUns16         numOfAASamples,
-		EGLNativeWindowType  nativeWindow,
-		EGLNativeDisplayType nativeDisplay,
-		EGLint               contextProfileMask,
-		EGLint               contextMajorVersion,
-		EGLint               contextMinorVersion,
-		EGLint               contextFlags,
-		EGLint               contextResetNotificationStrategy,
-		EGLenum              api
-	);
+	        bool stereoVisual,
+	        GHOST_TUns16 numOfAASamples,
+	        EGLNativeWindowType nativeWindow,
+	        EGLNativeDisplayType nativeDisplay,
+	        EGLint contextProfileMask,
+	        EGLint contextMajorVersion,
+	        EGLint contextMinorVersion,
+	        EGLint contextFlags,
+	        EGLint contextResetNotificationStrategy,
+	        EGLenum api);
 
 	/**
 	 * Destructor.
@@ -111,7 +110,7 @@ public:
 	 * \param intervalOut Variable to store the swap interval if it can be read.
 	 * \return Whether the swap interval can be read.
 	 */
-	GHOST_TSuccess getSwapInterval(int& intervalOut);
+	GHOST_TSuccess getSwapInterval(int &intervalOut);
 
 protected:
 	inline void activateEGLEW() const {
@@ -138,10 +137,10 @@ private:
 
 	EGLint m_swap_interval;
 
-	EGLEWContext* m_eglewContext;
+	EGLEWContext *m_eglewContext;
 
-	EGLContext& m_sharedContext;
-	EGLint&     m_sharedCount;
+	EGLContext &m_sharedContext;
+	EGLint     &m_sharedCount;
 
 	static EGLContext s_gl_sharedContext;
 	static EGLint     s_gl_sharedCount;

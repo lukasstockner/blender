@@ -44,31 +44,29 @@
 
 
 
-NSOpenGLContext *GHOST_ContextCGL::s_sharedOpenGLContext = nil;	
+NSOpenGLContext *GHOST_ContextCGL::s_sharedOpenGLContext = nil;
 int              GHOST_ContextCGL::s_sharedCount         = 0;
 
 
-
 GHOST_ContextCGL::GHOST_ContextCGL(
-	bool          stereoVisual,
-	GHOST_TUns16  numOfAASamples,
-	NSWindow     *window,
-	NSOpenGLView *openGLView,
-	int           contextProfileMask,
-	int           contextMajorVersion,
-	int           contextMinorVersion,
-	int           contextFlags,
-	int           contextResetNotificationStrategy
-)
-	: GHOST_Context(stereoVisual, numOfAASamples)
-	, m_window    (window)
-	, m_openGLView(openGLView)
-	, m_contextProfileMask              (contextProfileMask)
-	, m_contextMajorVersion             (contextMajorVersion)
-	, m_contextMinorVersion             (contextMinorVersion)
-	, m_contextFlags                    (contextFlags)
-	, m_contextResetNotificationStrategy(contextResetNotificationStrategy)
-	, m_openGLContext(nil)
+        bool stereoVisual,
+        GHOST_TUns16  numOfAASamples,
+        NSWindow *window,
+        NSOpenGLView *openGLView,
+        int contextProfileMask,
+        int contextMajorVersion,
+        int contextMinorVersion,
+        int contextFlags,
+        int contextResetNotificationStrategy)
+    : GHOST_Context(stereoVisual, numOfAASamples),
+      m_window(window),
+      m_openGLView(openGLView),
+      m_contextProfileMask(contextProfileMask),
+      m_contextMajorVersion(contextMajorVersion),
+      m_contextMinorVersion(contextMinorVersion),
+      m_contextFlags(contextFlags),
+      m_contextResetNotificationStrategy(contextResetNotificationStrategy),
+      m_openGLContext(nil)
 {
 	assert(window != nil);
 	assert(openGLView != nil);
@@ -128,7 +126,7 @@ GHOST_TSuccess GHOST_ContextCGL::setSwapInterval(int interval)
 
 
 
-GHOST_TSuccess GHOST_ContextCGL::getSwapInterval(int& intervalOut)
+GHOST_TSuccess GHOST_ContextCGL::getSwapInterval(int &intervalOut)
 {
 	if (m_openGLContext != nil) {
 		GLint interval;
@@ -184,11 +182,11 @@ GHOST_TSuccess GHOST_ContextCGL::updateDrawingContext()
 
 
 static void makeAttribList(
-	std::vector<NSOpenGLPixelFormatAttribute>& attribs,
-	bool stereoVisual,
-	int  numOfAASamples,
-	bool needAlpha,
-	bool needStencil)
+        std::vector<NSOpenGLPixelFormatAttribute>& attribs,
+        bool stereoVisual,
+        int numOfAASamples,
+        bool needAlpha,
+        bool needStencil)
 {
 	// Pixel Format Attributes for the windowed NSOpenGLContext
 	attribs.push_back(NSOpenGLPFADoubleBuffer);
@@ -292,11 +290,10 @@ GHOST_TSuccess GHOST_ContextCGL::initializeDrawingContext()
 		[pixelFormat getValues:&actualSamples forAttribute:NSOpenGLPFASamples forVirtualScreen:0];
 
 		if (m_numOfAASamples != (GHOST_TUns16)actualSamples) {
-			fprintf(
-				stderr,
-				"Warning! Unable to find a multisample pixel format that supports exactly %d samples. Substituting one that uses %d samples.\n",
-				m_numOfAASamples,
-				actualSamples);
+			fprintf(stderr,
+			        "Warning! Unable to find a multisample pixel format that supports exactly %d samples. "
+			        "Substituting one that uses %d samples.\n",
+			        m_numOfAASamples, actualSamples);
 
 			m_numOfAASamples = (GHOST_TUns16)actualSamples;
 		}

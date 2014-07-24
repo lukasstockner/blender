@@ -50,9 +50,9 @@ public:
 	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
 	 */
 	GHOST_Context(bool stereoVisual, GHOST_TUns16 numOfAASamples)
-		: m_stereoVisual  (stereoVisual)
-		, m_numOfAASamples(numOfAASamples)
-		, m_glewContext(NULL)
+	    : m_stereoVisual(stereoVisual),
+	      m_numOfAASamples(numOfAASamples),
+	      m_glewContext(NULL)
 	{}
 
 	/**
@@ -140,13 +140,13 @@ protected:
 	static void initClearGL();
 
 private:
-	GLEWContext* m_glewContext;
+	GLEWContext *m_glewContext;
 
 };
 
 
 
-GLenum glew_chk(GLenum error, const char* file, int line, const char* text);
+GLenum glew_chk(GLenum error, const char *file, int line, const char *text);
 
 #ifndef NDEBUG
 #  define GLEW_CHK(x) glew_chk((x), __FILE__, __LINE__, #x)
@@ -158,7 +158,7 @@ GLenum glew_chk(GLenum error, const char* file, int line, const char* text);
 
 #ifdef _WIN32
 
-bool win32_chk(bool result, const char* file = NULL, int line = 0, const char* text = NULL);
+bool win32_chk(bool result, const char *file = NULL, int line = 0, const char *text = NULL);
 
 #  ifndef NDEBUG
 #    define WIN32_CHK(x) win32_chk((x), __FILE__, __LINE__, #x)

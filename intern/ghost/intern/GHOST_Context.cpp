@@ -41,8 +41,7 @@
 #include <cstring>
 
 
-
-static const char* get_glew_error_message_string(GLenum error)
+static const char *get_glew_error_message_string(GLenum error)
 {
 	switch (error) {
 		case GLEW_OK: /* also GLEW_NO_ERROR */
@@ -77,8 +76,7 @@ static const char* get_glew_error_message_string(GLenum error)
 }
 
 
-
-static const char* get_glew_error_enum_string(GLenum error)
+static const char *get_glew_error_enum_string(GLenum error)
 {
 	switch (error) {
 		_CASE_CODE_RETURN_STR(GLEW_OK) /* also GLEW_NO_ERROR */
@@ -97,30 +95,24 @@ static const char* get_glew_error_enum_string(GLenum error)
 }
 
 
-
-GLenum glew_chk(GLenum error, const char* file, int line, const char* text)
+GLenum glew_chk(GLenum error, const char *file, int line, const char *text)
 {
 	if (error != GLEW_OK) {
-		const char* code = get_glew_error_enum_string(error);
-		const char* msg  = get_glew_error_message_string(error);
+		const char *code = get_glew_error_enum_string(error);
+		const char *msg  = get_glew_error_message_string(error);
 
 #ifndef NDEBUG
-		fprintf(
-			stderr,
-			"%s(%d):[%s] -> GLEW Error (0x%04X): %s: %s\n",
-			file,
-			line,
-			text,
-			error,
-			code ? code : "<no symbol>",
-			msg  ? msg  : "<no message>");
+		fprintf(stderr,
+		        "%s(%d):[%s] -> GLEW Error (0x%04X): %s: %s\n",
+		        file, line, text, error,
+		        code ? code : "<no symbol>",
+		        msg  ? msg  : "<no message>");
 #else
-		fprintf(
-			stderr,
-			"GLEW Error (%04X): %s: %s\n",
-			error,
-			code ? code : "<no symbol>",
-			msg  ? msg  : "<no message>");
+		fprintf(stderr,
+		        "GLEW Error (%04X): %s: %s\n",
+		        error,
+		        code ? code : "<no symbol>",
+		        msg  ? msg  : "<no message>");
 #endif
 	}
 
@@ -128,17 +120,16 @@ GLenum glew_chk(GLenum error, const char* file, int line, const char* text)
 }
 
 
-
 #ifdef _WIN32
 
-bool win32_chk(bool result, const char* file, int line, const char* text)
+bool win32_chk(bool result, const char *file, int line, const char *text)
 {
 	if (!result) {
 		LPTSTR formattedMsg = NULL;
 
 		DWORD error = GetLastError();
 
-		const char* msg;
+		const char *msg;
 
 		DWORD count = 0;
 
@@ -221,7 +212,6 @@ bool win32_chk(bool result, const char* file, int line, const char* text)
 #endif // _WIN32
 
 
-
 void GHOST_Context::initContextGLEW()
 {
 	mxDestroyContext(m_glewContext); // no-op if m_glewContext is NULL
@@ -232,7 +222,6 @@ void GHOST_Context::initContextGLEW()
 
 	GLEW_CHK(glewInit());
 }
-
 
 
 void GHOST_Context::initClearGL()

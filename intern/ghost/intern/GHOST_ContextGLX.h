@@ -37,7 +37,7 @@
 
 #define glxewGetContext() glxewContext
 #include <GL/glxew.h>
-extern "C" GLXEWContext* glxewContext;
+extern "C" GLXEWContext *glxewContext;
 
 
 
@@ -58,16 +58,15 @@ public:
 	 * Constructor.
 	 */
 	GHOST_ContextGLX(
-		bool         stereoVisual,
-		GHOST_TUns16 numOfAASamples,
-		Window       window,
-		Display*     display,
-		int          contextProfileMask,
-		int          contextMajorVersion,
-		int          contextMinorVersion,
-		int          contextFlags,
-		int          contextResetNotificationStrategy
-	);
+	        bool stereoVisual,
+	        GHOST_TUns16 numOfAASamples,
+	        Window window,
+	        Display *display,
+	        int contextProfileMask,
+	        int contextMajorVersion,
+	        int contextMinorVersion,
+	        int contextFlags,
+	        int contextResetNotificationStrategy);
 
 	/**
 	 * Destructor.
@@ -110,7 +109,7 @@ public:
 	 * \param intervalOut Variable to store the swap interval if it can be read.
 	 * \return Whether the swap interval can be read.
 	 */
-	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
+	virtual GHOST_TSuccess getSwapInterval(int &intervalOut);
 
 protected:
 	inline void activateGLXEW() const {
@@ -133,7 +132,7 @@ private:
 
 	GLXContext m_context;
 
-	GLXEWContext* m_glxewContext;
+	GLXEWContext *m_glxewContext;
 
 	/** The first created OpenGL context (for sharing display lists) */
 	static GLXContext s_sharedContext;

@@ -37,7 +37,7 @@
 
 //#define cglewGetContext() cglewContext
 //#include <GL/cglew.h>
-//extern "C" CGLEWContext* cglewContext;
+//extern "C" CGLEWContext *cglewContext;
 
 
 
@@ -64,16 +64,15 @@ public:
 	 * Constructor.
 	 */
 	GHOST_ContextCGL(
-		bool          stereoVisual,
-		GHOST_TUns16  numOfAASamples,
-		NSWindow     *window,
-		NSOpenGLView *openGLView,
-		int           contextProfileMask,
-		int           contextMajorVersion,
-		int           contextMinorVersion,
-		int           contextFlags,
-		int           contextResetNotificationStrategy
-	);
+	        bool stereoVisual,
+	        GHOST_TUns16 numOfAASamples,
+	        NSWindow *window,
+	        NSOpenGLView *openGLView,
+	        int contextProfileMask,
+	        int contextMajorVersion,
+	        int contextMinorVersion,
+	        int contextFlags,
+	        int contextResetNotificationStrategy);
 
 
 	/**
@@ -149,7 +148,7 @@ private:
 	/** The opgnGL drawing context */
 	NSOpenGLContext *m_openGLContext;
 	
-	//static CGLEWContext* s_cglewContext;
+	//static CGLEWContext *s_cglewContext;
 
 	/** The first created OpenGL context (for sharing display lists) */
 	static NSOpenGLContext *s_sharedOpenGLContext;	

@@ -40,12 +40,10 @@
 #include <cstdio>
 
 
-
-EGLEWContext* eglewContext = NULL;
-
+EGLEWContext *eglewContext = NULL;
 
 
-static const char* get_egl_error_enum_string(EGLenum error)
+static const char *get_egl_error_enum_string(EGLenum error)
 {
 	switch(error) {
 		_CASE_CODE_RETURN_STR(EGL_SUCCESS)
@@ -68,17 +66,19 @@ static const char* get_egl_error_enum_string(EGLenum error)
 	}
 }
 
-static const char* get_egl_error_message_string(EGLenum error)
+static const char *get_egl_error_message_string(EGLenum error)
 {
 	switch(error) {
 		case EGL_SUCCESS:
 			return "The last function succeeded without error.";
 
 		case EGL_NOT_INITIALIZED:
-			return "EGL is not initialized, or could not be initialized, for the specified EGL display connection.";
+			return ("EGL is not initialized, or could not be initialized, "
+			        "for the specified EGL display connection.");
 
 		case EGL_BAD_ACCESS:
-			return "EGL cannot access a requested resource (for example a context is bound in another thread).";
+			return ("EGL cannot access a requested resource "
+			        "(for example a context is bound in another thread).");
 
 		case EGL_BAD_ALLOC:
 			return "EGL failed to allocate resources for the requested operation.";
@@ -93,16 +93,19 @@ static const char* get_egl_error_message_string(EGLenum error)
 			return "An EGLConfig argument does not name a valid EGL frame buffer configuration.";
 
 		case EGL_BAD_CURRENT_SURFACE:
-			return "The current surface of the calling thread is a window, pixel buffer or pixmap that is no longer valid.";
+			return ("The current surface of the calling thread is a window, "
+			        "pixel buffer or pixmap that is no longer valid.");
 
 		case EGL_BAD_DISPLAY:
 			return "An EGLDisplay argument does not name a valid EGL display connection.";
 
 		case EGL_BAD_SURFACE:
-			return "An EGLSurface argument does not name a valid surface (window, pixel buffer or pixmap) configured for GL rendering.";
+			return ("An EGLSurface argument does not name a valid surface "
+			        "(window, pixel buffer or pixmap) configured for GL rendering.");
 
 		case EGL_BAD_MATCH:
-			return "Arguments are inconsistent (for example, a valid context requires buffers not supplied by a valid surface).";
+			return ("Arguments are inconsistent "
+			        "(for example, a valid context requires buffers not supplied by a valid surface).");
 
 		case EGL_BAD_PARAMETER:
 			return "One or more argument values are invalid.";
@@ -114,7 +117,9 @@ static const char* get_egl_error_message_string(EGLenum error)
 			return "A NativeWindowType argument does not refer to a valid native window.";
 
 		case EGL_CONTEXT_LOST:
-			return "A power management event has occurred. The application must destroy all contexts and reinitialise OpenGL ES state and objects to continue rendering.";
+			return ("A power management event has occurred. "
+			        "The application must destroy all contexts and reinitialise OpenGL ES state "
+			        "and objects to continue rendering.");
 
 		default:
 			return NULL;
@@ -123,31 +128,26 @@ static const char* get_egl_error_message_string(EGLenum error)
 
 
 
-static bool egl_chk(bool result, const char* file = NULL, int line = 0, const char* text = NULL)
+static bool egl_chk(bool result, const char *file = NULL, int line = 0, const char *text = NULL)
 {
 	if (!result) {
 		EGLenum error = eglGetError();
 
-		const char* code = get_egl_error_enum_string(error);
-		const char* msg  = get_egl_error_message_string(error);
+		const char *code = get_egl_error_enum_string(error);
+		const char *msg  = get_egl_error_message_string(error);
 
 #ifndef NDEBUG
-		fprintf(
-			stderr,
-			"%s(%d):[%s] -> EGL Error (0x%04X): %s: %s\n",
-			file,
-			line,
-			text,
-			error,
-			code ? code : "<Unknown>",
-			msg  ? msg  : "<Unknown>");
+		fprintf(stderr,
+		        "%s(%d):[%s] -> EGL Error (0x%04X): %s: %s\n",
+		        file, line, text, error,
+		        code ? code : "<Unknown>",
+		        msg  ? msg  : "<Unknown>");
 #else
-		fprintf(
-			stderr,
-			"EGL Error (0x%04X): %s: %s\n",
-			error,
-			code ? code : "<Unknown>",
-			msg  ? msg  : "<Unknown>");
+		fprintf(stderr,
+		        "EGL Error (0x%04X): %s: %s\n",
+		        error,
+		        code ? code : "<Unknown>",
+		        msg  ? msg  : "<Unknown>");
 #endif
 	}
 
@@ -191,7 +191,7 @@ EGLint     GHOST_ContextEGL::s_vg_sharedCount     = 0;
 #pragma warning(disable : 4715)
 
 template <typename T>
-T& choose_api(EGLenum api, T& a, T& b, T& c)
+T &choose_api(EGLenum api, T &a, T &b, T &c)
 {
 	switch(api) {
 		case EGL_OPENGL_API:
@@ -208,33 +208,32 @@ T& choose_api(EGLenum api, T& a, T& b, T& c)
 
 
 GHOST_ContextEGL::GHOST_ContextEGL(
-	bool                 stereoVisual,
-	GHOST_TUns16         numOfAASamples,
-	EGLNativeWindowType  nativeWindow,
-	EGLNativeDisplayType nativeDisplay,
-	EGLint               contextProfileMask,
-	EGLint               contextMajorVersion,
-	EGLint               contextMinorVersion,
-	EGLint               contextFlags,
-	EGLint               contextResetNotificationStrategy,
-	EGLenum              api
-)
-	: GHOST_Context(stereoVisual, numOfAASamples)
-	, m_nativeWindow (nativeWindow)
-	, m_nativeDisplay(nativeDisplay)
-	, m_contextProfileMask              (contextProfileMask)
-	, m_contextMajorVersion             (contextMajorVersion)
-	, m_contextMinorVersion             (contextMinorVersion)
-	, m_contextFlags                    (contextFlags)
-	, m_contextResetNotificationStrategy(contextResetNotificationStrategy)
-	, m_api(api)
-	, m_swap_interval(1)
-	, m_display(EGL_NO_DISPLAY)
-	, m_surface(EGL_NO_SURFACE)
-	, m_context(EGL_NO_CONTEXT)
-	, m_sharedContext(choose_api(api, s_gl_sharedContext, s_gles_sharedContext, s_vg_sharedContext))
-	, m_sharedCount  (choose_api(api, s_gl_sharedCount,   s_gles_sharedCount,   s_vg_sharedCount))
-	, m_eglewContext(NULL)
+        bool stereoVisual,
+        GHOST_TUns16         numOfAASamples,
+        EGLNativeWindowType  nativeWindow,
+        EGLNativeDisplayType nativeDisplay,
+        EGLint contextProfileMask,
+        EGLint contextMajorVersion,
+        EGLint contextMinorVersion,
+        EGLint contextFlags,
+        EGLint contextResetNotificationStrategy,
+        EGLenum api)
+    : GHOST_Context(stereoVisual, numOfAASamples),
+      m_nativeWindow (nativeWindow),
+      m_nativeDisplay(nativeDisplay),
+      m_contextProfileMask(contextProfileMask),
+      m_contextMajorVersion(contextMajorVersion),
+      m_contextMinorVersion(contextMinorVersion),
+      m_contextFlags(contextFlags),
+      m_contextResetNotificationStrategy(contextResetNotificationStrategy),
+      m_api(api),
+      m_swap_interval(1),
+      m_display(EGL_NO_DISPLAY),
+      m_surface(EGL_NO_SURFACE),
+      m_context(EGL_NO_CONTEXT),
+      m_sharedContext(choose_api(api, s_gl_sharedContext, s_gles_sharedContext, s_vg_sharedContext)),
+      m_sharedCount  (choose_api(api, s_gl_sharedCount,   s_gles_sharedCount,   s_vg_sharedCount)),
+      m_eglewContext(NULL)
 {
 	assert(m_nativeWindow  != NULL);
 	assert(m_nativeDisplay != NULL);
@@ -302,7 +301,7 @@ GHOST_TSuccess GHOST_ContextEGL::setSwapInterval(int interval)
 
 
 
-GHOST_TSuccess GHOST_ContextEGL::getSwapInterval(int& intervalOut)
+GHOST_TSuccess GHOST_ContextEGL::getSwapInterval(int &intervalOut)
 {
 	intervalOut = m_swap_interval; // XXX jwilkins: make sure there is no way to query this?
 
@@ -355,11 +354,11 @@ static std::set<std::string> split(const std::string s, char delim = ' ')
 
 
 
-static const std::string& api_string(EGLenum api)
+static const std::string &api_string(EGLenum api)
 {
-	static const std::string a("OpenGL"   );
+	static const std::string a("OpenGL");
 	static const std::string b("OpenGL ES");
-	static const std::string c("OpenVG"   );
+	static const std::string c("OpenVG");
 
 	return choose_api(api, a, b, c);
 }
@@ -435,7 +434,9 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 			attrib_list.push_back(EGL_OPENGL_ES3_BIT_KHR);
 		}
 		else {
-			fprintf(stderr, "Warning! Unable to request an ES context of version %d.%d\n", m_contextMajorVersion, m_contextMinorVersion);
+			fprintf(stderr,
+			        "Warning! Unable to request an ES context of version %d.%d\n",
+			        m_contextMajorVersion, m_contextMinorVersion);
 		}
 
 		if (!((m_contextMajorVersion == 1) ||
@@ -443,13 +444,9 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 		      (m_contextMajorVersion == 3 && /*EGLEW_VERSION_1_4 &&*/ EGLEW_KHR_create_context) ||
 		      (m_contextMajorVersion == 3 &&   EGLEW_VERSION_1_5)))
 		{
-			fprintf(
-				stderr,
-				"Warning! May not be able to create a version %d.%d ES context with version %d.%d of EGL\n",
-				m_contextMajorVersion,
-				m_contextMinorVersion,
-				egl_major,
-				egl_minor);
+			fprintf(stderr,
+			        "Warning! May not be able to create a version %d.%d ES context with version %d.%d of EGL\n",
+			        m_contextMajorVersion, m_contextMinorVersion, egl_major, egl_minor);
 		}
 	}
 
@@ -502,11 +499,11 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 			goto error;
 
 		if (m_numOfAASamples != actualSamples) {
-			fprintf(
-				stderr,
-				"Warning! Unable to find a multisample pixel format that supports exactly %d samples. Substituting one that uses %d samples.\n",
-				m_numOfAASamples,
-				actualSamples);
+			fprintf(stderr,
+			        "Warning! Unable to find a multisample pixel format that supports exactly %d samples. "
+			        "Substituting one that uses %d samples.\n",
+			        m_numOfAASamples,
+			        actualSamples);
 
 			m_numOfAASamples = (GHOST_TUns16)actualSamples;
 		}
@@ -537,11 +534,17 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 			}
 		}
 		else {
-			if (m_contextMajorVersion != 0 || m_contextMinorVersion != 0)
-				fprintf(stderr, "Warning! Cannot request specific versions of %s contexts.", api_string(m_api));
+			if (m_contextMajorVersion != 0 || m_contextMinorVersion != 0) {
+				fprintf(stderr,
+				        "Warning! Cannot request specific versions of %s contexts.",
+				        api_string(m_api));
+			}
 
-			if (m_contextFlags != 0)
-				fprintf(stderr, "Warning! Flags cannot be set on %s contexts.", api_string(m_api));
+			if (m_contextFlags != 0) {
+				fprintf(stderr,
+				        "Warning! Flags cannot be set on %s contexts.",
+				        api_string(m_api));
+			}
 		}
 
 		if (m_api == EGL_OPENGL_API) {
@@ -552,7 +555,9 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 		}
 		else {
 			if (m_contextProfileMask != 0)
-				fprintf(stderr, "Warning! Cannot select profile for %s contexts.", api_string(m_api));
+				fprintf(stderr,
+				        "Warning! Cannot select profile for %s contexts.",
+				        api_string(m_api));
 		}
 
 		if (m_api == EGL_OPENGL_API || EGLEW_VERSION_1_5) {
@@ -562,8 +567,11 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 			}
 		}
 		else {
-			if (m_contextResetNotificationStrategy != 0)
-				fprintf(stderr, "Warning! EGL %d.%d cannot set the reset notification strategy on %s contexts.", egl_major, egl_minor, api_string(m_api));
+			if (m_contextResetNotificationStrategy != 0) {
+				fprintf(stderr,
+				        "Warning! EGL %d.%d cannot set the reset notification strategy on %s contexts.",
+				        egl_major, egl_minor, api_string(m_api));
+			}
 		}
 	}
 	else {
@@ -574,18 +582,28 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 			}
 		}
 		else {
-			if (m_contextMajorVersion != 0 || m_contextMinorVersion != 0)
-				fprintf(stderr, "Warning! EGL %d.%d is unable to select between versions of %s.", egl_major, egl_minor, api_string(m_api));
+			if (m_contextMajorVersion != 0 || m_contextMinorVersion != 0) {
+				fprintf(stderr,
+				        "Warning! EGL %d.%d is unable to select between versions of %s.",
+				        egl_major, egl_minor, api_string(m_api));
+			}
 		}
 
-		if (m_contextFlags != 0)
-			fprintf(stderr, "Warning! EGL %d.%d is unable to set context flags.", egl_major, egl_minor);
-
-		if (m_contextProfileMask  != 0)
-			fprintf(stderr, "Warning! EGL %d.%d is unable to select between profiles.", egl_major, egl_minor);
-
-		if (m_contextResetNotificationStrategy != 0)
-			fprintf(stderr, "Warning! EGL %d.%d is unable to set the reset notification strategies.", egl_major, egl_minor);
+		if (m_contextFlags != 0) {
+			fprintf(stderr,
+			        "Warning! EGL %d.%d is unable to set context flags.",
+			        egl_major, egl_minor);
+		}
+		if (m_contextProfileMask  != 0) {
+			fprintf(stderr,
+			        "Warning! EGL %d.%d is unable to select between profiles.",
+			        egl_major, egl_minor);
+		}
+		if (m_contextResetNotificationStrategy != 0) {
+			fprintf(stderr,
+			        "Warning! EGL %d.%d is unable to set the reset notification strategies.",
+			        egl_major, egl_minor);
+		}
 	}
 
 	attrib_list.push_back(EGL_NONE);

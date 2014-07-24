@@ -78,7 +78,7 @@ GHOST_TSuccess GHOST_ContextNone::setSwapInterval(int interval)
 
 
 
-GHOST_TSuccess GHOST_ContextNone::getSwapInterval(int& intervalOut)
+GHOST_TSuccess GHOST_ContextNone::getSwapInterval(int &intervalOut)
 {
 	intervalOut = m_swapInterval;
 	return GHOST_kSuccess;
