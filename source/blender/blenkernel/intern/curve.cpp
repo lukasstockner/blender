@@ -150,7 +150,7 @@ void BKE_nurb_knot_calc_u(Nurb *nu)
 {
 	int pnts=nu->pntsu, order=nu->orderu;
 	float *knots = (float*)MEM_mallocN(sizeof(float)*(pnts+2*order), "NURB_knots_u");
-	BKE_nurb_knot_calc(nu->flagu, pnts, order, knots);
+	BKE_bspline_knot_calc(nu->flagu, pnts, order, knots);
 	if (nu->knotsu) MEM_freeN(nu->knotsu);
 	nu->knotsu = knots;
 }
@@ -159,7 +159,7 @@ void BKE_nurb_knot_calc_v(Nurb *nu)
 {
 	int pnts=nu->pntsv, order=nu->orderv;
 	float *knots = (float*)MEM_mallocN(sizeof(float)*(pnts+2*order), "NURB_knots_v");
-	BKE_nurb_knot_calc(nu->flagv, pnts, order, knots);
+	BKE_bspline_knot_calc(nu->flagv, pnts, order, knots);
 	if (nu->knotsv) MEM_freeN(nu->knotsv);
 	nu->knotsv = knots;
 }
@@ -4006,7 +4006,7 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	// Trim the uniform grid in 2D UV space
 	GridMesh *gm = new GridMesh();
 	int coords_len = (totu+1)*(totv+1)*2;
-	GridMeshCoord *coords = NULL;
+	GridMeshCoord *coords=NULL, *nors=NULL;
 	if (!remap_coords) {
 		coords = (GridMeshCoord*)MEM_mallocN(coords_len * sizeof(GridMeshCoord), "NURBS_tess_1");
 		gm->mallocN = MEM_mallocN;
@@ -4101,6 +4101,7 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	if (remap_coords) {
 		int num_used_idxs = int(used_idxs->size());
 		coords = (GridMeshCoord*)MEM_mallocN(3*sizeof(float)*num_used_idxs, "NURBS_tess_2.3");
+		nors = (GridMeshCoord*)MEM_mallocN(3*sizeof(float)*num_used_idxs, "NURBS_tess_2.4");
 		coords_len = num_used_idxs;
 		int newidx=0;
 		std::map<int,int>::iterator it=used_idxs->begin(),end=used_idxs->end();
@@ -4116,56 +4117,26 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	}
 	dl->verts = (float*)coords;
 	dl->index = idxs;
-	dl->nors = NULL;
+	dl->nors = (float*)nors;
 	dl->type = DL_INDEX3;
 	dl->parts = ii/3;
 	dl->nr = coords_len;
+	if (nu->flag&CU_SMOOTH)
+		dl->rt |= CU_SMOOTH;
 	
 	// Pushforward through the NURBS map
-	float basisu[2][NURBS_MAX_ORDER], basisv[2][NURBS_MAX_ORDER];
-	memset(basisu, 0xFF, sizeof(basisu));
-	memset(basisv, 0xFF, sizeof(basisv));
-	int iu, iv;
-	int orderu=nu->orderu, orderv=nu->orderv, pntsu=nu->pntsu, pntsv=nu->pntsv;
-	int coord=0;
-	float cached_v=0.0/0.0;
-	for (; coord<coords_len; coord++) {
+	BSplineCacheU cacheU;
+	cacheU.u = 1.0/0; // First eval should always miss
+	for (int coord=0; coord<coords_len; coord++) {
 		float *xyz = (float*)&coords[coord];
-		// Right now xyz = {u,v,0.0}. Apply the NURBS map to transform it to {x,y,z}
-		if (xyz[1]!=cached_v) {
-			/* only N(i-p)p, N(i-p+1)p, ..., Nip are nz*/
-			iv = BKE_bspline_nz_basis_range(xyz[1], nu->knotsv, nu->pntsv, orderv);
-			BKE_bspline_basis_eval(xyz[1], iv, nu->knotsv, nu->pntsv, orderv, 1, basisv);
-			if (xyz[0]>0.75) {
-				printf("vcoeff(%f): ",xyz[1]);
-				for (int l=0; l<orderv; l++)
-					printf((l!=orderv-1)?"%f, ":"%f\n",basisv[0][l]);
-			}
-			cached_v = xyz[1];
-		}
-		iu = BKE_bspline_nz_basis_range(xyz[0], nu->knotsu, nu->pntsu, orderu);
-		BKE_bspline_basis_eval(xyz[0], iu, nu->knotsu, nu->pntsu, orderu, 1, basisu);
-		if (xyz[0]>0.75) {
-			printf("ucoeff(%f): ",xyz[0]);
-			for (int l=0; l<orderu; l++)
-				printf((l!=orderu-1)?"%f, ":"%f\n",basisu[0][l]);
-		}
-		cached_v = xyz[1];
-		float accum[3] = {0,0,0};
-		float hom_denominator = 0;
-		for (int vi=0; vi<orderv; vi++) {
-			for (int ui=0; ui<orderu; ui++) {
-				float Nu=basisu[0][ui], Nv=basisv[0][vi];
-				int ptu = iu-(orderu-1)+ui;
-				int ptv = iv-(orderv-1)+vi;
-				BPoint& ctrlpt = nu->bp[ptu+pntsu*ptv];
-				float hom_wt = Nu*Nv*ctrlpt.vec[3];
-				hom_denominator += hom_wt;
-				float wcp[3]; mul_v3_v3fl(wcp, ctrlpt.vec, hom_wt);
-				add_v3_v3(accum, wcp);
-			}
-		}
-		mul_v3_v3fl(xyz, accum, 1/hom_denominator);
+		float *norm = (float*)&nors[coord];
+		BPoint out[3]; // { surf_pt, u_partial_deriv, v_partal_deriv }
+		BKE_nurbs_surf_eval(xyz[0], xyz[1],
+							nu->pntsu, nu->orderu, nu->knotsu,
+							nu->pntsv, nu->orderv, nu->knotsv,
+							nu->bp, 1, out, &cacheU);
+		copy_v3_v3(xyz, out[0].vec);
+		cross_v3_v3v3(norm, out[1].vec, out[2].vec);
 	}
 	
 	// Cleanup

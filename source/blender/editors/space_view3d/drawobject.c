@@ -4244,6 +4244,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 				}
 				else
 					glNormal3fv(ndata);
+				if (dl->rt & CU_SMOOTH) glShadeModel(GL_SMOOTH);
 
 				glDrawElements(GL_TRIANGLES, 3 * dl->parts, GL_UNSIGNED_INT, dl->index);
 

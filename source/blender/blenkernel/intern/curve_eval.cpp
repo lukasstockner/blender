@@ -38,6 +38,7 @@
 extern "C" {
 #include "BKE_curve.h"
 #include "DNA_curve_types.h"
+#include "BLI_math.h"
 }
 #endif
 

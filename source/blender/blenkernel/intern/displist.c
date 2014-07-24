@@ -1262,7 +1262,6 @@ void BKE_displist_make_surf(Scene *scene, Object *ob, ListBase *dispbase,
 	uint64_t timer_stop = mach_absolute_time();
 	int t = timer_stop-timer_start;
 	nu = nubase.first;
-	printf("%i %i %i %i\n",len,nu->pntsu*nu->resolu,nu->pntsv*nu->resolv,t);
 	BKE_nurbList_free(&nubase);
 }
 

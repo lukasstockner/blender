@@ -41,7 +41,7 @@ typedef struct BPoint {
  * so that a surface patch only has to evaluate once per row. We could do
  * this with columns, too, but at a much worse space/time tradeoff.
  */
-typedef struct BSplineCache {
+typedef struct BSplineCacheU {
 	float u;
 	int iu;
 	float Nu[NURBS_MAX_ORDER][NURBS_MAX_ORDER];
@@ -58,6 +58,10 @@ extern "C" {
 							   int pntsv, int orderv, float *V,
 							   BPoint *P, int nd, BPoint *out,
 							   bool premultiply_weights=false, BSplineCacheU *ucache=NULL);
+	void BKE_nurbs_surf_eval(float u, float v,
+							 int pntsu, int orderu, float *U,
+							 int pntsv, int orderv, float *V,
+							 BPoint *P, int nd, BPoint *out, BSplineCacheU *ucache=NULL);
 }
 
 inline void madd_v4_v4fl(float r[4], const float a[4], float f)
