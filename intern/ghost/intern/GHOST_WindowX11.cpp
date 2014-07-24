@@ -366,8 +366,6 @@ GHOST_WindowX11(
 	                BLENDER_ICON_48x48x32[0] * BLENDER_ICON_48x48x32[1] + 2);
 	/* done setting the icon */
 
-	setTitle(title);
-
 #ifdef WITH_X11_XINPUT
 	initXInputDevices();
 
@@ -379,6 +377,8 @@ GHOST_WindowX11(
 		m_valid_setup = true;
 		GHOST_PRINT("Created window\n");
 	}
+
+	setTitle(title);
 
 	if (exclusive) {
 		XMapRaised(m_display, m_window);
@@ -479,7 +479,7 @@ bool
 GHOST_WindowX11::
 getValid() const
 {
-	return m_valid_setup;
+	return GHOST_Window::getValid() && m_valid_setup;
 }
 
 void

@@ -583,8 +583,6 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	minSize.height = 240;
 	[m_window setContentMinSize:minSize];
 	
-	setTitle(title);
-	
 	//Creates the OpenGL View inside the window
 	m_openGLView = [[CocoaOpenGLView alloc] initWithFrame:rect];
 	
@@ -608,6 +606,8 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 			m_nativePixelSize = (float)backingBounds.size.width / (float)rect.size.width;
 		}
 	}
+	
+	setTitle(title);
 	
 	m_tablet.Active = GHOST_kTabletModeNone;
 	
