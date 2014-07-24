@@ -172,7 +172,7 @@ else()
 endif()
 
 if(WITH_X11)
-	if(UNIX)
+	if(UNIX AND NOT APPLE)
 		option(WITH_X11_XINPUT    "Enable X11 Xinput (tablet support and unicode input)" ON)
 		option(WITH_X11_XF86VMODE "Enable X11 video mode switching"                      ON)
 	else()
