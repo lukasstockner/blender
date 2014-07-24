@@ -123,14 +123,10 @@ KX_GameObject::KX_GameObject(
 {
 	m_ignore_activity_culling = false;
 	m_pClient_info = new KX_ClientObjectInfo(this, KX_ClientObjectInfo::ACTOR);
-	m_pSGNode = new SG_Node(this,sgReplicationInfo,callbacks);
 
-	// define the relationship between this node and it's parent.
-	
-	KX_NormalParentRelation * parent_relation = 
-		KX_NormalParentRelation::New();
-	m_pSGNode->SetParentRelation(parent_relation);
-};
+	m_pSGNode = new SG_Node(this,sgReplicationInfo,callbacks);
+	m_pSGNode->SetParentRelation(KX_NormalParentRelation::New());
+}
 
 
 

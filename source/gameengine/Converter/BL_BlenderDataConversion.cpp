@@ -161,7 +161,6 @@ extern Material defmaterial;	/* material.c */
 
 #include "SG_Node.h"
 #include "SG_BBox.h"
-#include "SG_Tree.h"
 #include "KX_SG_NodeRelationships.h"
 #include "KX_SG_BoneParentNodeRelationship.h"
 
@@ -1746,15 +1745,22 @@ static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
  * note: all var names match args are passed from the caller */
 static void bl_ConvertBlenderObject_Single(
         KX_BlenderSceneConverter *converter,
-       Object *blenderobject,
+        Object *blenderobject,
         vector<parentChildLink> &vec_parent_child,
         CListValue* logicbrick_conversionlist,
-        CListValue* objectlist, CListValue* inactivelist, CListValue*	sumolist,
+        CListValue* objectlist, CListValue* inactivelist, CListValue* sumolist,
         KX_Scene* kxscene, KX_GameObject* gameobj,
         SCA_LogicManager* logicmgr, SCA_TimeEventManager* timemgr,
         bool isInActiveLayer
         )
 {
+	sumolist->Add(gameobj->AddRef());
+
+	BL_ConvertProperties(blenderobject,gameobj,timemgr,kxscene,isInActiveLayer);
+
+	gameobj->SetName(blenderobject->id.name + 2);
+
+	/* Setting local coordinates according to current local+delta */
 	MT_Point3 pos(
 		blenderobject->loc[0]+blenderobject->dloc[0],
 		blenderobject->loc[1]+blenderobject->dloc[1],
@@ -1775,33 +1781,38 @@ static void bl_ConvertBlenderObject_Single(
 	gameobj->NodeSetLocalPosition(pos);
 	gameobj->NodeSetLocalOrientation(rotation);
 	gameobj->NodeSetLocalScale(scale);
-	gameobj->NodeUpdateGS(0);
 
-	sumolist->Add(gameobj->AddRef());
-
-	BL_ConvertProperties(blenderobject,gameobj,timemgr,kxscene,isInActiveLayer);
-
-	gameobj->SetName(blenderobject->id.name + 2);
-
-	// update children/parent hierarchy
+	/* if the node has a parent, add a parent/child link */
 	if (blenderobject->parent != 0)
 	{
-		// blender has an additional 'parentinverse' offset in each object
-		SG_Callbacks callback(NULL,NULL,NULL,KX_Scene::KX_ScenegraphUpdateFunc,KX_Scene::KX_ScenegraphRescheduleFunc);
-		SG_Node* parentinversenode = new SG_Node(NULL,kxscene,callback);
+		SG_Callbacks callbacks(
+		            NULL, /* replicationfunc, */
+		            NULL, /* destructionfunc,*/
+		            NULL, /* updatefunc, */
+		            KX_Scene::KX_ScenegraphUpdateFunc, /* schedulefunc, */
+		            KX_Scene::KX_ScenegraphRescheduleFunc); /* reschedulefunc */
 
-		// define a normal parent relationship for this node.
-		KX_NormalParentRelation * parent_relation = KX_NormalParentRelation::New();
-		parentinversenode->SetParentRelation(parent_relation);
+		/*
+		 * when an object gets parented, an inverse parenting matrix is kept,
+		 * or the child would pop to the parents position, alignment, etc.
+		 * the GE scene graph makes an intermediate node between the parent
+		 * and child to store this transform.
+		 */
+		SG_Node* parentinversenode = new SG_Node(NULL,kxscene,callbacks);
+		parentinversenode->SetParentRelation(KX_NormalParentRelation::New());
+		parentinversenode->AddChild(gameobj->GetSGNode());
 
+		/* add the link to vec_parent_child that will be processed later, connecting the parent nodes */
 		parentChildLink pclink;
 		pclink.m_blenderchild = blenderobject;
 		pclink.m_gamechildnode = parentinversenode;
 		vec_parent_child.push_back(pclink);
 
+		/* extract location, orientation and scale out of the inverse parent matrix */
 		float* fl = (float*) blenderobject->parentinv;
 		MT_Transform parinvtrans(fl);
 		parentinversenode->SetLocalPosition(parinvtrans.getOrigin());
+
 		// problem here: the parent inverse transform combines scaling and rotation
 		// in the basis but the scenegraph needs separate rotation and scaling.
 		// This is not important for OpenGL (it uses 4x4 matrix) but it is important
@@ -1825,9 +1836,11 @@ static void bl_ConvertBlenderObject_Single(
 		ori.setColumn(2, z);
 		parentinversenode->SetLocalOrientation(ori);
 		parentinversenode->SetLocalScale(parscale);
-
-		parentinversenode->AddChild(gameobj->GetSGNode());
 	}
+
+	/* Note: world coordinates are calculated for all nodes when the scene graph
+	 * is complete, after processing vec_parent_child */
+
 
 	// needed for python scripting
 	logicmgr->RegisterGameObjectName(gameobj->GetName(),gameobj);
@@ -1843,12 +1856,10 @@ static void bl_ConvertBlenderObject_Single(
 
 	logicbrick_conversionlist->Add(gameobj->AddRef());
 
+
 	if (isInActiveLayer)
 	{
 		objectlist->Add(gameobj->AddRef());
-		//tf.Add(gameobj->GetSGNode());
-
-		gameobj->NodeUpdateGS(0);
 		gameobj->AddMeshUser();
 	}
 	else
@@ -1942,24 +1953,25 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	// no occlusion culling by default
 	kxscene->SetDbvtOcclusionRes(0);
 
+
+	/* Objects' Conversion */
+
 	int activeLayerBitInfo = blenderscene->lay;
-	
+
 	// list of all object converted, active and inactive
 	CListValue*	sumolist = new CListValue();
-	
+
 	vector<parentChildLink> vec_parent_child;
-	
+
 	CListValue* objectlist = kxscene->GetObjectList();
 	CListValue* inactivelist = kxscene->GetInactiveList();
 	CListValue* parentlist = kxscene->GetRootParentList();
-	
+
 	SCA_LogicManager* logicmgr = kxscene->GetLogicManager();
 	SCA_TimeEventManager* timemgr = kxscene->GetTimeEventManager();
-	
+
 	CListValue* logicbrick_conversionlist = new CListValue();
-	
-	//SG_TreeFactory tf;
-	
+
 	// Convert actions to actionmap
 	bAction *curAct;
 	for (curAct = (bAction*)maggie->action.first; curAct; curAct=(bAction*)curAct->id.next)
@@ -1968,6 +1980,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	SetDefaultLightMode(blenderscene);
+
 	// Let's support scene set.
 	// Beware of name conflict in linked data, it will not crash but will create confusion
 	// in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
@@ -2086,14 +2099,12 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			}
 		}
 	}
-	
+
 	// create hierarchy information
 	int i;
 	vector<parentChildLink>::iterator pcit;
-	
 	for (pcit = vec_parent_child.begin();!(pcit==vec_parent_child.end());++pcit)
 	{
-	
 		struct Object* blenderchild = pcit->m_blenderchild;
 		struct Object* blenderparent = blenderchild->parent;
 		KX_GameObject* parentobj = converter->FindGameObject(blenderparent);
@@ -2193,7 +2204,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		for (i=0; i<sumolist->GetCount();i++)
 		{
 			KX_GameObject* gameobj = (KX_GameObject*) sumolist->GetValue(i);
-			if (gameobj->GetMeshCount() > 0) 
+			if (gameobj->GetMeshCount() > 0)
 			{
 				MT_Point3 box[2];
 				gameobj->GetSGNode()->BBox().getmm(box, MT_Transform::Identity());
@@ -2207,6 +2218,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		if (occlusion)
 			kxscene->SetDbvtOcclusionRes(blenderscene->gm.occlusionRes);
 	}
+
+
 	if (blenderscene->world)
 		kxscene->GetPhysicsEnvironment()->SetNumTimeSubSteps(blenderscene->gm.physubstep);
 

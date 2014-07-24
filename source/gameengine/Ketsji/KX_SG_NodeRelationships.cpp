@@ -65,9 +65,13 @@ bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Spatial *child, const SG
 		const MT_Point3 & local_pos = child->GetLocalPosition();
 		const MT_Matrix3x3 & local_orientation = child->GetLocalOrientation();
 
-		child->SetWorldScale(p_world_scale * local_scale);
-		child->SetWorldOrientation(p_world_orientation * local_orientation);
-		child->SetWorldPosition(p_world_pos + p_world_scale * local_scale * (p_world_orientation * local_orientation * local_pos));
+		const MT_Vector3 & new_w_scale = p_world_scale * local_scale;
+		const MT_Matrix3x3 & new_w_orientation = p_world_orientation * local_orientation;
+		const MT_Point3 & new_w_pos = p_world_pos + (new_w_scale * (new_w_orientation * local_pos));
+
+		child->SetWorldScale(new_w_scale);
+		child->SetWorldOrientation(new_w_orientation);
+		child->SetWorldPosition(new_w_pos);
 	}
 
 	parentUpdated = true;  //this variable is going to be used to update the children of this child
