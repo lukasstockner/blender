@@ -29,21 +29,15 @@
  *  \ingroup gpu
  */
 
-/* my interface */
-#include "GPU_init_exit.h"
-
-/* intern */
+#include "BLI_sys_types.h"
+#include "GPU_init_exit.h"  /* interface */
+#include "GPU_extensions.h"  /* library */
 #include "intern/gpu_codegen.h"
 
-/* my library */
-#include "GPU_extensions.h"
-
-/*
-
-although the order of initialization and shutdown should not matter
-(except for the extensions), I chose alphabetical and reverse alphabetical order
-
-*/
+/**
+ * although the order of initialization and shutdown should not matter
+ * (except for the extensions), I chose alphabetical and reverse alphabetical order
+ */
 
 static bool initialized = false;
 

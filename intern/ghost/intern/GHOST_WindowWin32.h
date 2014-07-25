@@ -66,13 +66,13 @@ public:
 	 * Constructor.
 	 * Creates a new window and opens it.
 	 * To check if the window was created properly, use the getValid() method.
-	 * \param title              The text shown in the title bar of the window.
-	 * \param left               The coordinate of the left edge of the window.
-	 * \param top                The coordinate of the top edge of the window.
-	 * \param width              The width the window.
-	 * \param height             The height the window.
-	 * \param state              The state the window is initially opened with.
-	 * \param type               The type of drawing context installed in this window.
+	 * \param title		The text shown in the title bar of the window.
+	 * \param left		The coordinate of the left edge of the window.
+	 * \param top		The coordinate of the top edge of the window.
+	 * \param width		The width the window.
+	 * \param height	The height the window.
+	 * \param state		The state the window is initially opened with.
+	 * \param type		The type of drawing context installed in this window.
 	 * \param wantStereoVisual   Stereo visual for quad buffered stereo.
 	 * \param wantNumOfAASamples Number of samples used for AA (zero if no AA)
 	 * \param parentWindowHwnd

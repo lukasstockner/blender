@@ -345,7 +345,7 @@ static void wm_window_add_ghostwindow(wmWindowManager *wm, const char *title, wm
 	GHOST_WindowHandle ghostwin;
 	static int multisamples = -1;
 	int scr_w, scr_h, posy;
-
+	
 	/* force setting multisamples only once, it requires restart - and you cannot 
 	 * mix it, either all windows have it, or none (tested in OSX opengl) */
 	if (multisamples == -1)
@@ -363,7 +363,7 @@ static void wm_window_add_ghostwindow(wmWindowManager *wm, const char *title, wm
 	
 	if (ghostwin) {
 		GHOST_RectangleHandle bounds;
-
+		
 		/* the new window has already been made drawable upon creation */
 		wm->windrawable = win;
 
@@ -428,13 +428,13 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 	if (wm_init_state.size_x == 0) {
 		wm_get_screensize(&wm_init_state.size_x, &wm_init_state.size_y);
 		
-		/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
-		 * we'd need a wm_get_screensize like function that gives offset,
-		 * in practice the window manager will likely move to the correct monitor */
-		wm_init_state.start_x = 0;
-		wm_init_state.start_y = 0;
+	/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
+	 * we'd need a wm_get_screensize like function that gives offset,
+	 * in practice the window manager will likely move to the correct monitor */
+	wm_init_state.start_x = 0;
+	wm_init_state.start_y = 0;
 
-#if WITH_X11 /* X11 */
+#ifdef WITH_X11 /* X11 */
 		/* X11, start maximized but use default sane size */
 		wm_init_state.size_x = min_ii(wm_init_state.size_x, WM_WIN_INIT_SIZE_X);
 		wm_init_state.size_y = min_ii(wm_init_state.size_y, WM_WIN_INIT_SIZE_Y);
@@ -1400,6 +1400,7 @@ void wm_window_raise(wmWindow *win)
 
 void wm_window_swap_buffers(wmWindow *win)
 {
+	
 #ifdef WIN32
 	glDisable(GL_SCISSOR_TEST);
 	GHOST_SwapWindowBuffers(win->ghostwin);
@@ -1414,7 +1415,7 @@ void wm_window_set_swap_interval (wmWindow *win, int interval)
 	GHOST_SetSwapInterval(win->ghostwin, interval);
 }
 
-bool wm_window_get_swap_interval (wmWindow *win, int* intervalOut)
+bool wm_window_get_swap_interval(wmWindow *win, int *intervalOut)
 {
 	return GHOST_GetSwapInterval(win->ghostwin, intervalOut);
 }

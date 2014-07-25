@@ -27,6 +27,7 @@
 
 /** \file ghost/intern/GHOST_ContextNone.h
  *  \ingroup GHOST
+ *
  * Declaration of GHOST_Context class.
  */
 
@@ -35,15 +36,15 @@
 
 #include "GHOST_Context.h"
 
-
-
 class GHOST_ContextNone : public GHOST_Context
 {
 public:
 
-	GHOST_ContextNone(bool stereoVisual, GHOST_TUns16 numOfAASamples)
-		: GHOST_Context(stereoVisual, numOfAASamples)
-		, m_swapInterval(1)
+	GHOST_ContextNone(
+	        bool stereoVisual,
+	        GHOST_TUns16 numOfAASamples)
+	    : GHOST_Context(stereoVisual, numOfAASamples),
+	      m_swapInterval(1)
 	{}
 
 	/**
@@ -87,12 +88,10 @@ public:
 	 * \param intervalOut Gets whatever was set by setSwapInterval
 	 * \return Always succeeds
 	 */
-	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
+	virtual GHOST_TSuccess getSwapInterval(int &intervalOut);
 
 private:
 	int m_swapInterval;
 };
-
-
 
 #endif // __GHOST_CONTEXTNONE_H__

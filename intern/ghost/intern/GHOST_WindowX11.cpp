@@ -157,29 +157,28 @@ static long BLENDER_ICON_48x48x32[] = {
 
 GHOST_WindowX11::
 GHOST_WindowX11(
-    GHOST_SystemX11 *system,
-    Display *display,
-    const STR_String& title,
-    GHOST_TInt32 left,
-    GHOST_TInt32 top,
-    GHOST_TUns32 width,
-    GHOST_TUns32 height,
-    GHOST_TWindowState state,
-    const GHOST_TEmbedderWindowID parentWindow,
-    GHOST_TDrawingContextType type,
-    const bool stereoVisual,
-    const bool exclusive,
-    const GHOST_TUns16 numOfAASamples
-    ) :
-	GHOST_Window(width, height, state, stereoVisual, exclusive, numOfAASamples),
-	m_display(display),
-	m_normal_state(GHOST_kWindowStateNormal),
-	m_system(system),
-	m_valid_setup(false),
-	m_invalid_window(false),
-	m_empty_cursor(None),
-	m_custom_cursor(None),
-	m_visible_cursor(None)
+        GHOST_SystemX11 *system,
+        Display *display,
+        const STR_String &title,
+        GHOST_TInt32 left,
+        GHOST_TInt32 top,
+        GHOST_TUns32 width,
+        GHOST_TUns32 height,
+        GHOST_TWindowState state,
+        const GHOST_TEmbedderWindowID parentWindow,
+        GHOST_TDrawingContextType type,
+        const bool stereoVisual,
+        const bool exclusive,
+        const GHOST_TUns16 numOfAASamples)
+    : GHOST_Window(width, height, state, stereoVisual, exclusive, numOfAASamples),
+      m_display(display),
+      m_normal_state(GHOST_kWindowStateNormal),
+      m_system(system),
+      m_valid_setup(false),
+      m_invalid_window(false),
+      m_empty_cursor(None),
+      m_custom_cursor(None),
+      m_visible_cursor(None)
 {
 	int natom;
 
@@ -195,12 +194,12 @@ GHOST_WindowX11(
 
 	xattributes_valuemask |= CWEventMask;
 	xattributes.event_mask =
-	        ExposureMask       | StructureNotifyMask |
-	        KeyPressMask       | KeyReleaseMask      |
-	        EnterWindowMask    | LeaveWindowMask     |
-	        ButtonPressMask    | ButtonReleaseMask   |
-	        PointerMotionMask  | FocusChangeMask     |
-	        PropertyChangeMask | KeymapStateMask     ;
+	        ExposureMask | StructureNotifyMask |
+	        KeyPressMask | KeyReleaseMask |
+	        EnterWindowMask | LeaveWindowMask |
+	        ButtonPressMask | ButtonReleaseMask |
+	        PointerMotionMask | FocusChangeMask |
+	        PropertyChangeMask | KeymapStateMask;
 
 	if (exclusive) {
 		xattributes_valuemask |= CWOverrideRedirect;
@@ -224,6 +223,7 @@ GHOST_WindowX11(
 		                          );
 	}
 	else {
+
 		Window root_return;
 		int x_return, y_return;
 		unsigned int w_return, h_return, border_w_return, depth_return;
@@ -231,10 +231,11 @@ GHOST_WindowX11(
 		XGetGeometry(m_display, parentWindow, &root_return, &x_return, &y_return,
 		             &w_return, &h_return, &border_w_return, &depth_return);
 
-		left   = 0;
-		top    = 0;
-		width  = w_return;
+		left = 0;
+		top = 0;
+		width = w_return;
 		height = h_return;
+
 
 		m_window = XCreateWindow(m_display,
 		                         parentWindow, /* reparent against embedder */
@@ -251,6 +252,7 @@ GHOST_WindowX11(
 		                         );
 
 		XSelectInput(m_display, parentWindow, SubstructureNotifyMask);
+		
 	}	
 
 #ifdef WITH_XDND
@@ -1090,34 +1092,34 @@ GHOST_Context* GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
 
 #if defined(WITH_GL_PROFILE_CORE)
 		GHOST_Context *context = new GHOST_ContextGLX(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_window,
-			m_display,
-			GLX_CONTEXT_OPENGL_CORE_PROFILE_BIT,
-			3, 2,
-			GHOST_OPENGL_GLX_CONTEXT_FLAGS,
-			GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_window,
+		        m_display,
+		        GLX_CONTEXT_OPENGL_CORE_PROFILE_BIT,
+		        3, 2,
+		        GHOST_OPENGL_GLX_CONTEXT_FLAGS,
+		        GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_ES20)
 		GHOST_Context *context = new GHOST_ContextGLX(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_window,
-			m_display,
-			GLX_CONTEXT_ES2_PROFILE_BIT_EXT,
-			2, 0,
-			GHOST_OPENGL_GLX_CONTEXT_FLAGS,
-			GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_window,
+		        m_display,
+		        GLX_CONTEXT_ES2_PROFILE_BIT_EXT,
+		        2, 0,
+		        GHOST_OPENGL_GLX_CONTEXT_FLAGS,
+		        GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
 #elif defined(WITH_GL_PROFILE_COMPAT)
 		GHOST_Context *context = new GHOST_ContextGLX(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_window,
-			m_display,
-			0, // profile bit
-			0, 0,
-			GHOST_OPENGL_GLX_CONTEXT_FLAGS,
-			GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_window,
+		        m_display,
+		        0, // profile bit
+		        0, 0,
+		        GHOST_OPENGL_GLX_CONTEXT_FLAGS,
+		        GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
 #else
 #  error
 #endif
@@ -1126,37 +1128,37 @@ GHOST_Context* GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
 
 #if defined(WITH_GL_PROFILE_CORE)
 		GHOST_Context *context = new GHOST_ContextEGL(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_window,
-			m_display,
-			EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
-			3, 2,
-			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
-			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
-			EGL_OPENGL_API);
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_window,
+		        m_display,
+		        EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
+		        3, 2,
+		        GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+		        GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
+		        EGL_OPENGL_API);
 #elif defined(WITH_GL_PROFILE_ES20)
 		GHOST_Context *context = new GHOST_ContextEGL(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_window,
-			m_display,
-			0, // profile bit
-			2, 0,
-			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
-			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
-			EGL_OPENGL_ES_API);
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_window,
+		        m_display,
+		        0, // profile bit
+		        2, 0,
+		        GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+		        GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
+		        EGL_OPENGL_ES_API);
 #elif defined(WITH_GL_PROFILE_COMPAT)
 		GHOST_Context *context = new GHOST_ContextEGL(
-			m_wantStereoVisual,
-			m_wantNumOfAASamples,
-			m_window,
-			m_display,
-			0, // profile bit
-			0, 0,
-			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
-			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
-			EGL_OPENGL_API);
+		        m_wantStereoVisual,
+		        m_wantNumOfAASamples,
+		        m_window,
+		        m_display,
+		        0, // profile bit
+		        0, 0,
+		        GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+		        GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
+		        EGL_OPENGL_API);
 #else
 #  error
 #endif
@@ -1170,7 +1172,6 @@ GHOST_Context* GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
 
 	return NULL;
 }
-
 
 
 Cursor

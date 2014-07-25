@@ -30,16 +30,16 @@
  * GLEW Context Management
  */
 
-#ifndef GLEW_MX_H__
-#define GLEW_MX_H__
+#ifndef __GLEW_MX_H__
+#define __GLEW_MX_H__
 
-#if GLEW_MX
+#ifdef GLEW_MX
 #define glewGetContext() _mxContext
 #endif
 
 #include <GL/glew.h>
 
-#if GLEW_MX
+#ifdef GLEW_MX
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,12 +58,11 @@ void mxDestroyContext(GLEWContext* ctx);
 
 #else
 
-#include <stdlib.h> // for NULL
+/* don't use NULL here (mightn't be defined)*/
+#define mxSetContext(ctx)       ((void)ctx)
+#define mxCreateContext()       ((void *)0)
+#define mxDestroyContext(ctx)   ((void)ctx)
 
-#define mxSetContext(ctx)
-#define mxCreateContext() NULL
-#define mxDestroyContext(ctx)
+#endif  /* GLEW_MX */
 
-#endif // GLEW_MX
-
-#endif
+#endif  /* __GLEW_MX_H__ */

@@ -27,10 +27,11 @@
 
 /** \file glew-mx.c
  *  \ingroup glew-mx
+ *
  * GLEW Context Management
  */
 
-#if GLEW_MX
+#ifdef GLEW_MX
 
 #include "glew-mx.h"
 
@@ -38,21 +39,21 @@
 #include <stdlib.h>
 #include <string.h>
 
-GLEWContext* _mxContext = NULL;
+GLEWContext *_mxContext = NULL;
 
-GLEWContext* mxGetContext(void)
+GLEWContext *mxGetContext(void)
 {
 	return _mxContext;
 }
 
-void mxSetContext(GLEWContext* ctx)
+void mxSetContext(GLEWContext *ctx)
 {
 	_mxContext = ctx;
 }
 
-GLEWContext* mxCreateContext()
+GLEWContext *mxCreateContext(void)
 {
-	GLEWContext* ctx = malloc(sizeof(GLEWContext));
+	GLEWContext *ctx = malloc(sizeof(GLEWContext));
 
 	if (ctx != NULL)
 		memset(ctx, 0, sizeof(GLEWContext));
@@ -60,7 +61,7 @@ GLEWContext* mxCreateContext()
 	return ctx;
 }
 
-void mxDestroyContext(GLEWContext* ctx)
+void mxDestroyContext(GLEWContext *ctx)
 {
 	if (_mxContext == ctx)
 		_mxContext = NULL;

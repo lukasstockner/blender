@@ -30,8 +30,8 @@
  * Declaration of GHOST_Context class.
  */
 
-#ifndef _GHOST_CONTEXT_H_
-#define _GHOST_CONTEXT_H_
+#ifndef __GHOST_CONTEXT_H__
+#define __GHOST_CONTEXT_H__
 
 #include "GHOST_Types.h"
 
@@ -50,9 +50,9 @@ public:
 	 * \param numOfAASamples	Number of samples used for AA (zero if no AA)
 	 */
 	GHOST_Context(bool stereoVisual, GHOST_TUns16 numOfAASamples)
-		: m_stereoVisual  (stereoVisual)
-		, m_numOfAASamples(numOfAASamples)
-		, m_glewContext(NULL)
+	    : m_stereoVisual(stereoVisual),
+	      m_numOfAASamples(numOfAASamples),
+	      m_glewContext(NULL)
 	{}
 
 	/**
@@ -134,19 +134,19 @@ protected:
 	}
 
 	bool m_stereoVisual;
-	
+
 	GHOST_TUns16 m_numOfAASamples;
 
 	static void initClearGL();
 
 private:
-	GLEWContext* m_glewContext;
+	GLEWContext *m_glewContext;
 
 };
 
 
 
-GLenum glew_chk(GLenum error, const char* file, int line, const char* text);
+GLenum glew_chk(GLenum error, const char *file, int line, const char *text);
 
 #ifndef NDEBUG
 #  define GLEW_CHK(x) glew_chk((x), __FILE__, __LINE__, #x)
@@ -155,23 +155,16 @@ GLenum glew_chk(GLenum error, const char* file, int line, const char* text);
 #endif
 
 
-
 #ifdef _WIN32
-
-bool win32_chk(bool result, const char* file = NULL, int line = 0, const char* text = NULL);
+bool win32_chk(bool result, const char *file = NULL, int line = 0, const char *text = NULL);
 
 #  ifndef NDEBUG
 #    define WIN32_CHK(x) win32_chk((x), __FILE__, __LINE__, #x)
 #  else
 #    define WIN32_CHK(x) win32_chk(x)
 #  endif
+#endif  /* _WIN32 */
 
-#endif
+#define CASE_CODE_RETURN_STR(code) case code: return #code;
 
-
-
-#define _CASE_CODE_RETURN_STR(code) case code: return #code;
-
-
-
-#endif // _GHOST_CONTEXT_H_
+#endif // __GHOST_CONTEXT_H__

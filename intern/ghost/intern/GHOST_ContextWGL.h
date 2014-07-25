@@ -27,18 +27,16 @@
 
 /** \file ghost/intern/GHOST_ContextWGL.h
  *  \ingroup GHOST
- * Declaration of GHOST_ContextWGL class.
  */
 
-#ifndef _GHOST_CONTEXTWGL_H_
-#define _GHOST_CONTEXTWGL_H_
+#ifndef __GHOST_CONTEXTWGL_H__
+#define __GHOST_CONTEXTWGL_H__
 
 #include "GHOST_Context.h"
 
 #define wglewGetContext() wglewContext
 #include <GL/wglew.h>
-extern "C" WGLEWContext* wglewContext;
-
+extern "C" WGLEWContext *wglewContext;
 
 
 #ifndef GHOST_OPENGL_WGL_CONTEXT_FLAGS
@@ -50,7 +48,6 @@ extern "C" WGLEWContext* wglewContext;
 #endif
 
 
-
 class GHOST_ContextWGL : public GHOST_Context
 {
 public:
@@ -58,16 +55,15 @@ public:
 	 * Constructor.
 	 */
 	GHOST_ContextWGL(
-		bool         stereoVisual,
-		GHOST_TUns16 numOfAASamples,
-		HWND         hWnd,
-		HDC          hDC,
-		int          contextProfileMask,
-		int          contextMajorVersion,
-		int          contextMinorVersion,
-		int          contextFlags,
-		int          contextResetNotificationStrategy
-	);
+	        bool stereoVisual,
+	        GHOST_TUns16 numOfAASamples,
+	        HWND hWnd,
+	        HDC hDC,
+	        int contextProfileMask,
+	        int contextMajorVersion,
+	        int contextMinorVersion,
+	        int contextFlags,
+	        int contextResetNotificationStrategy);
 
 	/**
 	 * Destructor.
@@ -94,7 +90,8 @@ public:
 
 	/**
 	 * Removes references to native handles from this context and then returns
-	 * \return GHOST_kSuccess if it is OK for the parent to release the handles and GHOST_kFailure if releasing the handles will interfere with sharing
+	 * \return GHOST_kSuccess if it is OK for the parent to release the handles and
+	 * GHOST_kFailure if releasing the handles will interfere with sharing
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
@@ -110,7 +107,7 @@ public:
 	 * \param intervalOut Variable to store the swap interval if it can be read.
 	 * \return Whether the swap interval can be read.
 	 */
-	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
+	virtual GHOST_TSuccess getSwapInterval(int &intervalOut);
 
 protected:
 	inline void activateWGLEW() const {
@@ -119,36 +116,36 @@ protected:
 
 private:
 	int choose_pixel_format(
-		bool stereoVisual,
-		int  numOfAASamples,
-		bool needAlpha,
-		bool needStencil,
-		bool sRGB);
+	        bool stereoVisual,
+	        int numOfAASamples,
+	        bool needAlpha,
+	        bool needStencil,
+	        bool sRGB);
 
 	int choose_pixel_format_arb(
-		bool stereoVisual,
-		int  numOfAASamples,
-		bool needAlpha,
-		bool needStencil,
-		bool sRGB);
+	        bool stereoVisual,
+	        int numOfAASamples,
+	        bool needAlpha,
+	        bool needStencil,
+	        bool sRGB);
 
 	int _choose_pixel_format_arb_1(
-		bool stereoVisual,
-		int  numOfAASamples,
-		bool needAlpha,
-		bool needStencil,
-		bool sRGB,
-		int& swapMethodOut);
+	        bool stereoVisual,
+	        int numOfAASamples,
+	        bool needAlpha,
+	        bool needStencil,
+	        bool sRGB,
+	        int &swapMethodOut);
 
 	int _choose_pixel_format_arb_2(
-		bool stereoVisual,
-		int  numOfAASamples,
-		bool needAlpha,
-		bool needStencil,
-		bool sRGB,
-		int  swapMethod);
+	        bool stereoVisual,
+	        int numOfAASamples,
+	        bool needAlpha,
+	        bool needStencil,
+	        bool sRGB,
+	        int  swapMethod);
 
-	void initContextWGLEW(PIXELFORMATDESCRIPTOR& preferredPFD);
+	void initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD);
 
 	HDC  m_hDC;
 	HWND m_hWnd;
@@ -161,12 +158,12 @@ private:
 
 	HGLRC m_hGLRC;
 
-	WGLEWContext* m_wglewContext;
+	WGLEWContext *m_wglewContext;
 
 #ifndef NDEBUG
-	const char* m_dummyVendor;
-	const char* m_dummyRenderer;
-	const char* m_dummyVersion;
+	const char *m_dummyVendor;
+	const char *m_dummyRenderer;
+	const char *m_dummyVersion;
 #endif
 
 	static HGLRC s_sharedHGLRC;
@@ -175,6 +172,4 @@ private:
 	static bool s_singleContextMode;
 };
 
-
-
-#endif // _GHOST_CONTEXTWGL_H_
+#endif  // __GHOST_CONTEXTWGL_H__

@@ -29,8 +29,8 @@
  *  \ingroup gpu
  */
 
-#ifndef _GPU_INIT_EXIT_H_
-#define _GPU_INIT_EXIT_H_
+#ifndef __GPU_INIT_EXIT_H__
+#define __GPU_INIT_EXIT_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,4 +43,4 @@ void GPU_exit(void);
 }
 #endif
 
-#endif /* _GPU_INIT_EXIT_H_ */
+#endif /* __GPU_INIT_EXIT_H__ */

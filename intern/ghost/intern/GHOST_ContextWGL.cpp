@@ -27,6 +27,7 @@
 
 /** \file ghost/intern/GHOST_ContextWGL.cpp
  *  \ingroup GHOST
+ *
  * Definition of GHOST_ContextWGL class.
  */
 
@@ -39,16 +40,12 @@
 #include <vector>
 
 
-
-WGLEWContext* wglewContext = NULL;
-
-
+WGLEWContext *wglewContext = NULL;
 
 HGLRC GHOST_ContextWGL::s_sharedHGLRC = NULL;
 int   GHOST_ContextWGL::s_sharedCount = 0;
 
 bool GHOST_ContextWGL::s_singleContextMode = false;
-
 
 
 /* Intel videocards don't work fine with multiple contexts and
@@ -58,42 +55,40 @@ bool GHOST_ContextWGL::s_singleContextMode = false;
  * can't be in multiple-devices configuration. */
 static bool is_crappy_intel_card()
 {
-	return strstr((const char*)glGetString(GL_VENDOR), "Intel") != NULL;
+	return strstr((const char *)glGetString(GL_VENDOR), "Intel") != NULL;
 }
 
 
-
 GHOST_ContextWGL::GHOST_ContextWGL(
-	bool         stereoVisual,
-	GHOST_TUns16 numOfAASamples,
-	HWND         hWnd,
-	HDC          hDC,
-	int          contextProfileMask,
-	int          contextMajorVersion,
-	int          contextMinorVersion,
-	int          contextFlags,
-	int          contextResetNotificationStrategy
-)
-	: GHOST_Context(stereoVisual, numOfAASamples)
-	, m_hWnd(hWnd)
-	, m_hDC (hDC)
-	, m_contextProfileMask              (contextProfileMask)
-	, m_contextMajorVersion             (contextMajorVersion)
-	, m_contextMinorVersion             (contextMinorVersion)
-	, m_contextFlags                    (contextFlags)
-	, m_contextResetNotificationStrategy(contextResetNotificationStrategy)
-	, m_hGLRC(NULL)
-	, m_wglewContext(NULL)
+        bool stereoVisual,
+        GHOST_TUns16 numOfAASamples,
+        HWND hWnd,
+        HDC hDC,
+        int contextProfileMask,
+        int contextMajorVersion,
+        int contextMinorVersion,
+        int contextFlags,
+        int contextResetNotificationStrategy)
+    : GHOST_Context(stereoVisual, numOfAASamples),
+      m_hWnd(hWnd),
+      m_hDC(hDC),
+      m_contextProfileMask(contextProfileMask),
+      m_contextMajorVersion(contextMajorVersion),
+      m_contextMinorVersion(contextMinorVersion),
+      m_contextFlags(contextFlags),
+      m_contextResetNotificationStrategy(contextResetNotificationStrategy),
+      m_hGLRC(NULL),
+      m_wglewContext(NULL)
 #ifndef NDEBUG
-	, m_dummyVendor  (NULL)
-	, m_dummyRenderer(NULL)
-	, m_dummyVersion (NULL)
+      ,
+      m_dummyVendor(NULL),
+      m_dummyRenderer(NULL),
+      m_dummyVersion(NULL)
 #endif
 {
 	assert(m_hWnd);
 	assert(m_hDC);
 }
-
 
 
 GHOST_ContextWGL::~GHOST_ContextWGL()
@@ -124,12 +119,10 @@ GHOST_ContextWGL::~GHOST_ContextWGL()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextWGL::swapBuffers()
 {
 	return WIN32_CHK(::SwapBuffers(m_hDC)) ? GHOST_kSuccess : GHOST_kFailure;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextWGL::setSwapInterval(int interval)
@@ -141,8 +134,7 @@ GHOST_TSuccess GHOST_ContextWGL::setSwapInterval(int interval)
 }
 
 
-
-GHOST_TSuccess GHOST_ContextWGL::getSwapInterval(int& intervalOut)
+GHOST_TSuccess GHOST_ContextWGL::getSwapInterval(int &intervalOut)
 {
 	if (WGLEW_EXT_swap_control) {
 		intervalOut = ::wglGetSwapIntervalEXT();
@@ -152,7 +144,6 @@ GHOST_TSuccess GHOST_ContextWGL::getSwapInterval(int& intervalOut)
 		return GHOST_kFailure;
 	}
 }
-
 
 
 GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
@@ -167,11 +158,10 @@ GHOST_TSuccess GHOST_ContextWGL::activateDrawingContext()
 }
 
 
-
 /* Ron Fosner's code for weighting pixel formats and forcing software.
- * See http://www.opengl.org/resources/faq/technical/weight.cpp */
-
-static int weight_pixel_format(PIXELFORMATDESCRIPTOR& pfd)
+ * See http://www.opengl.org/resources/faq/technical/weight.cpp
+ */
+static int weight_pixel_format(PIXELFORMATDESCRIPTOR &pfd)
 {
 	int weight = 0;
 
@@ -215,12 +205,11 @@ static int weight_pixel_format(PIXELFORMATDESCRIPTOR& pfd)
 }
 
 
-
 /*
  * A modification of Ron Fosner's replacement for ChoosePixelFormat
  * returns 0 on error, else returns the pixel format number to be used
  */
-static int choose_pixel_format_legacy(HDC hDC, PIXELFORMATDESCRIPTOR& preferredPFD)
+static int choose_pixel_format_legacy(HDC hDC, PIXELFORMATDESCRIPTOR &preferredPFD)
 {
 	int iPixelFormat = 0;
 	int weight = 0;
@@ -269,7 +258,6 @@ static int choose_pixel_format_legacy(HDC hDC, PIXELFORMATDESCRIPTOR& preferredP
 }
 
 
-
 /*
  * Clone a window for the purpose of creating a temporary context to initialize WGL extensions.
  * There is no generic way to clone the lpParam parameter, so the caller is responsible for cloning it themselves.
@@ -308,20 +296,19 @@ static HWND clone_window(HWND hWnd, LPVOID lpParam)
 	HINSTANCE hInstance = (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE);
 	WIN32_CHK(GetLastError() == NO_ERROR);
 
-	HWND hwndCloned =
-		CreateWindowExW(
-			dwExStyle,
-			lpClassName,
-			lpWindowName,
-			dwStyle,
-			rect.left,
-			rect.top,
-			rect.right - rect.left,
-			rect.bottom - rect.top,
-			hWndParent,
-			hMenu,
-			hInstance,
-			lpParam);
+	HWND hwndCloned = CreateWindowExW(
+	        dwExStyle,
+	        lpClassName,
+	        lpWindowName,
+	        dwStyle,
+	        rect.left,
+	        rect.top,
+	        rect.right - rect.left,
+	        rect.bottom - rect.top,
+	        hWndParent,
+	        hMenu,
+	        hInstance,
+	        lpParam);
 
 	WIN32_CHK(hwndCloned != NULL);
 
@@ -329,8 +316,7 @@ static HWND clone_window(HWND hWnd, LPVOID lpParam)
 }
 
 
-
-void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR& preferredPFD)
+void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD)
 {
 	wglewContext = new WGLEWContext;
 	memset(wglewContext, 0, sizeof(WGLEWContext));
@@ -412,15 +398,14 @@ finalize:
 }
 
 
-
 static void makeAttribList(
-	std::vector<int>& out,
-	bool stereoVisual,
-	int  numOfAASamples,
-	int  swapMethod,
-	bool needAlpha,
-	bool needStencil,
-	bool sRGB)
+        std::vector<int>& out,
+        bool stereoVisual,
+        int numOfAASamples,
+        int swapMethod,
+        bool needAlpha,
+        bool needStencil,
+        bool sRGB)
 {
 	out.clear();
 	out.reserve(30);
@@ -481,14 +466,13 @@ static void makeAttribList(
 }
 
 
-
 int GHOST_ContextWGL::_choose_pixel_format_arb_2(
-	bool stereoVisual,
-	int  numOfAASamples,
-	bool needAlpha,
-	bool needStencil,
-	bool sRGB,
-	int  swapMethod)
+        bool stereoVisual,
+        int numOfAASamples,
+        bool needAlpha,
+        bool needStencil,
+        bool sRGB,
+        int swapMethod)
 {
 	std::vector<int> iAttributes;
 
@@ -508,21 +492,25 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_2(
 	// request a format with as many samples as possible, but not more than requested
 	while (samples >= 0) {
 		makeAttribList(
-			iAttributes,
-			stereoVisual,
-			samples,
-			swapMethod,
-			needAlpha,
-			needStencil,
-			sRGB);
+		        iAttributes,
+		        stereoVisual,
+		        samples,
+		        swapMethod,
+		        needAlpha,
+		        needStencil,
+		        sRGB);
 
 		UINT nNumFormats;
 		WIN32_CHK(wglChoosePixelFormatARB(m_hDC, &(iAttributes[0]), NULL, 1, &iPixelFormat, &nNumFormats));
 
-		if (nNumFormats > 0) // total number of formats that match (regardless of size of iPixelFormat array) (see WGL_ARB_pixel_format extension spec)
+		/* total number of formats that match (regardless of size of iPixelFormat array)
+		 * see: WGL_ARB_pixel_format extension spec */
+		if (nNumFormats > 0)
 			break;
 
-		iPixelFormat = 0; // if not reset, then the state of iPixelFormat is undefined after call to wglChoosePixelFormatARB (see WGL_ARB_pixel_format extension spec)
+		/* if not reset, then the state of iPixelFormat is undefined after call to wglChoosePixelFormatARB
+		 * see: WGL_ARB_pixel_format extension spec */
+		iPixelFormat = 0;
 
 		samples--;
 	}
@@ -534,11 +522,10 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_2(
 		wglGetPixelFormatAttribivARB(m_hDC, iPixelFormat, 0, 1, iQuery, &actualSamples);
 
 		if (actualSamples != numOfAASamples) {
-			fprintf(
-				stderr,
-				"Warning! Unable to find a multisample pixel format that supports exactly %d samples. Substituting one that uses %d samples.\n",
-				numOfAASamples,
-				actualSamples);
+			fprintf(stderr,
+			        "Warning! Unable to find a multisample pixel format that supports exactly %d samples. "
+			        "Substituting one that uses %d samples.\n",
+			        numOfAASamples, actualSamples);
 
 			m_numOfAASamples = actualSamples; // set context property to actual value
 		}
@@ -548,38 +535,39 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_2(
 }
 
 
-
 int GHOST_ContextWGL::_choose_pixel_format_arb_1(
-	bool stereoVisual,
-	int  numOfAASamples,
-	bool needAlpha,
-	bool needStencil,
-	bool sRGB,
-	int& swapMethodOut)
+        bool stereoVisual,
+        int numOfAASamples,
+        bool needAlpha,
+        bool needStencil,
+        bool sRGB,
+        int &swapMethodOut)
 {
 	int iPixelFormat;
 
 	swapMethodOut = WGL_SWAP_COPY_ARB;
-	iPixelFormat  = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
+	iPixelFormat  = _choose_pixel_format_arb_2(
+	        stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
 
 	if (iPixelFormat == 0) {
 		swapMethodOut = WGL_SWAP_UNDEFINED_ARB;
-		iPixelFormat  = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
+		iPixelFormat  = _choose_pixel_format_arb_2(
+		        stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
 	}
 
 	if (iPixelFormat == 0) {
 		swapMethodOut = WGL_SWAP_EXCHANGE_ARB;
-		iPixelFormat  = _choose_pixel_format_arb_2(stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
+		iPixelFormat  = _choose_pixel_format_arb_2(
+		        stereoVisual, numOfAASamples, needAlpha, needStencil, sRGB, swapMethodOut);
 	}
 
 	return iPixelFormat;
 }
 
 
-
 int GHOST_ContextWGL::choose_pixel_format_arb(
 	bool stereoVisual,
-	int  numOfAASamples,
+	int numOfAASamples,
 	bool needAlpha,
 	bool needStencil,
 	bool sRGB)
@@ -587,48 +575,45 @@ int GHOST_ContextWGL::choose_pixel_format_arb(
 	int iPixelFormat;
 	int swapMethodOut;
 
-	iPixelFormat =
-		_choose_pixel_format_arb_1(
-			stereoVisual,
-			numOfAASamples,
-			needAlpha,
-			needStencil,
-			sRGB,
-			swapMethodOut);
+	iPixelFormat = _choose_pixel_format_arb_1(
+	        stereoVisual,
+	        numOfAASamples,
+	        needAlpha,
+	        needStencil,
+	        sRGB,
+	        swapMethodOut);
 
 	if (iPixelFormat == 0 && stereoVisual) {
 		fprintf(stderr, "Warning! Unable to find a stereo pixel format.\n");
 
-		iPixelFormat =
-			_choose_pixel_format_arb_1(
-				false,
-				numOfAASamples,
-				needAlpha,
-				needStencil,
-				sRGB,
-				swapMethodOut);
+		iPixelFormat = _choose_pixel_format_arb_1(
+		        false,
+		        numOfAASamples,
+		        needAlpha,
+		        needStencil,
+		        sRGB,
+		        swapMethodOut);
 
 		m_stereoVisual = false;  // set context property to actual value
 	}
 
 	if (swapMethodOut != WGL_SWAP_COPY_ARB) {
-		fprintf(
-			stderr,
-			"Warning! Unable to find a pixel format that supports WGL_SWAP_COPY_ARB. Substituting one that uses %s.\n",
-			swapMethodOut == WGL_SWAP_UNDEFINED_ARB ? "WGL_SWAP_UNDEFINED_ARB" : "WGL_SWAP_EXCHANGE_ARB");
+		fprintf(stderr,
+		        "Warning! Unable to find a pixel format that supports WGL_SWAP_COPY_ARB. "
+		        "Substituting one that uses %s.\n",
+		        swapMethodOut == WGL_SWAP_UNDEFINED_ARB ? "WGL_SWAP_UNDEFINED_ARB" : "WGL_SWAP_EXCHANGE_ARB");
 	}
 
 	return iPixelFormat;
 }
 
 
-
 int GHOST_ContextWGL::choose_pixel_format(
-	bool stereoVisual,
-	int  numOfAASamples,
-	bool needAlpha,
-	bool needStencil,
-	bool sRGB)
+        bool stereoVisual,
+        int  numOfAASamples,
+        bool needAlpha,
+        bool needStencil,
+        bool sRGB)
 {
 	PIXELFORMATDESCRIPTOR preferredPFD = {
 		sizeof(PIXELFORMATDESCRIPTOR),   /* size */
@@ -677,9 +662,8 @@ int GHOST_ContextWGL::choose_pixel_format(
 }
 
 
-
 #ifndef NDEBUG
-static void reportContextString(const char* name, const char* dummy, const char* context)
+static void reportContextString(const char *name, const char *dummy, const char *context)
 {
 	fprintf(stderr, "%s: %s\n", name, context);
 
@@ -687,7 +671,6 @@ static void reportContextString(const char* name, const char* dummy, const char*
 		fprintf(stderr, "Warning! Dummy %s: %s\n", name, dummy);
 }
 #endif
-
 
 
 GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
@@ -745,7 +728,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		int profileBitCore   = m_contextProfileMask & WGL_CONTEXT_CORE_PROFILE_BIT_ARB;
 		int profileBitCompat = m_contextProfileMask & WGL_CONTEXT_COMPATIBILITY_PROFILE_BIT_ARB;
 
-#if WITH_GLEW_ES
+#ifdef WITH_GLEW_ES
 		int profileBitES     = m_contextProfileMask & WGL_CONTEXT_ES_PROFILE_BIT_EXT;
 #endif
 
@@ -755,7 +738,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		if (!WGLEW_ARB_create_context_profile && profileBitCompat)
 			fprintf(stderr, "Warning! OpenGL compatibility profile not available.\n");
 
-#if WITH_GLEW_ES
+#ifdef WITH_GLEW_ES
 		if (!WGLEW_EXT_create_context_es_profile && profileBitES && m_contextMajorVersion == 1)
 			fprintf(stderr, "Warning! OpenGL ES profile not available.\n");
 
@@ -771,7 +754,7 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 		if (WGLEW_ARB_create_context_profile && profileBitCompat)
 			profileMask |= profileBitCompat;
 
-#if WITH_GLEW_ES
+#ifdef WITH_GLEW_ES
 		if (WGLEW_EXT_create_context_es_profile && profileBitES)
 			profileMask |= profileBitES;
 #endif
@@ -866,7 +849,6 @@ error:
 
 	return GHOST_kFailure;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextWGL::releaseNativeHandles()

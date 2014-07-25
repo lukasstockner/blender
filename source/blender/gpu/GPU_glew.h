@@ -29,40 +29,32 @@
  *  \ingroup gpu
  */
 
-#ifndef _GPU_GLEW_H_
-#define _GPU_GLEW_H_
+#ifndef __GPU_GLEW_H__
+#define __GPU_GLEW_H__
 
 #include "glew-mx.h"
 
-
-
 /*
-The following section is for any simple stuff that is missing from GLEW when
-compiled with either the GLEW_ES_ONLY or the GLEW_NO_ES flag.
-
-Should limit this to simple things.
-More complex version shims should be placed elsewhere.
-
-Also, only put in stuff as it is needed.
-*/
-
-
+ * The following section is for any simple stuff that is missing from GLEW when
+ * compiled with either the GLEW_ES_ONLY or the GLEW_NO_ES flag.
+ *
+ * Should limit this to simple things.
+ * More complex version shims should be placed elsewhere.
+ *
+ * Also, only put in stuff as it is needed.
+ */
 
 #if defined(GLEW_ES_ONLY)
-
-
 
 /* ES does not support the GLdouble type. */
 #ifndef GLdouble
 #define GLdouble double
 #endif
 
-
-
 /*
-Need stubs for these version checks if compiling with only ES support.
-Rely on compiler to eliminate unreachable code when version checks become constants.
-*/
+ * Need stubs for these version checks if compiling with only ES support.
+ * Rely on compiler to eliminate unreachable code when version checks become constants.
+ */
 
 #ifndef GLEW_VERSION_1_1
 #define GLEW_VERSION_1_1 0
@@ -159,13 +151,13 @@ Rely on compiler to eliminate unreachable code when version checks become consta
 
 
 /*
-The following symbolic constants are missing from an ES only header,
-so alias them to their (same valued) extension versions which are available in the header.
-
-Be careful that this does not lead to unguarded use of what are extensions in ES!
-
-Some of these may be here simply to patch inconsistencies in the header files.
-*/
+ * The following symbolic constants are missing from an ES only header,
+ * so alias them to their (same valued) extension versions which are available in the header.
+ *
+ * Be careful that this does not lead to unguarded use of what are extensions in ES!
+ *
+ * Some of these may be here simply to patch inconsistencies in the header files.
+ */
 
 // XXX jwilkins: need to check ALL of these to make sure you didn't cover an unguarded use of an extension/version
 
@@ -242,16 +234,14 @@ Some of these may be here simply to patch inconsistencies in the header files.
 #endif
 
 
-
 /* end of defined(GLEW_ES_ONLY) */
 #elif defined(GLEW_NO_ES)
 
 
-
 /*
-Need stubs for these version checks if compiling without any support.
-Rely on compiler to eliminate unreachable code when version checks become constants
-*/
+ * Need stubs for these version checks if compiling without any support.
+ * Rely on compiler to eliminate unreachable code when version checks become constants
+ */
 
 #ifndef GLEW_ES_VERSION_2_0
 #define GLEW_ES_VERSION_2_0 0
@@ -302,16 +292,15 @@ Rely on compiler to eliminate unreachable code when version checks become consta
 #endif
 
 
-
 /*
-The following symbolic constants are missing when there is no ES support,
-so alias them to their (same valued) extension versions which are available in the header.
-
-Desktop GL typically does not have any extensions that originated from ES,
-unlike ES which has many extensions to replace what was taken out.
-
-For that reason these aliases are more likely just patching inconsistencies in the header files.
-*/
+ * The following symbolic constants are missing when there is no ES support,
+ * so alias them to their (same valued) extension versions which are available in the header.
+ *
+ * Desktop GL typically does not have any extensions that originated from ES,
+ * unlike ES which has many extensions to replace what was taken out.
+ *
+ * For that reason these aliases are more likely just patching inconsistencies in the header files.
+ */
 
 #ifndef GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS
 #define GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT
@@ -322,8 +311,6 @@ For that reason these aliases are more likely just patching inconsistencies in t
 #endif
 
 #endif /* defined(GLEW_NO_ES) */
-
-
 
 
 #endif /* _GPU_GLEW_H_ */

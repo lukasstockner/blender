@@ -84,7 +84,7 @@ public:
 
 		bool
 	GetSwapInterval(
-		int& intervalOut
+		int &intervalOut
 	);
 
 		void 

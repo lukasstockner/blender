@@ -94,7 +94,7 @@ public:
 	 * virtual GHOST_TSuccess activateDrawingContext() = 0;
 	 * virtual GHOST_TSuccess invalidate() = 0;
 	 */
-
+	 
 	/**
 	 * Destructor.
 	 * Closes the window and disposes resources allocated.
@@ -387,7 +387,7 @@ protected:
 	float m_nativePixelSize;
 
 private:
-	GHOST_Context* m_context;
+	GHOST_Context *m_context;
 };
 
 

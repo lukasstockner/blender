@@ -27,6 +27,7 @@
 
 /** \file ghost/intern/GHOST_Context.cpp
  *  \ingroup GHOST
+ *
  * Definition of GHOST_Context class.
  */
 
@@ -41,8 +42,7 @@
 #include <cstring>
 
 
-
-static const char* get_glew_error_message_string(GLenum error)
+static const char *get_glew_error_message_string(GLenum error)
 {
 	switch (error) {
 		case GLEW_OK: /* also GLEW_NO_ERROR */
@@ -77,19 +77,18 @@ static const char* get_glew_error_message_string(GLenum error)
 }
 
 
-
-static const char* get_glew_error_enum_string(GLenum error)
+static const char *get_glew_error_enum_string(GLenum error)
 {
 	switch (error) {
-		_CASE_CODE_RETURN_STR(GLEW_OK) /* also GLEW_NO_ERROR */
-		_CASE_CODE_RETURN_STR(GLEW_ERROR_NO_GL_VERSION)
-		_CASE_CODE_RETURN_STR(GLEW_ERROR_GL_VERSION_10_ONLY)
-		_CASE_CODE_RETURN_STR(GLEW_ERROR_GLX_VERSION_11_ONLY)
+		CASE_CODE_RETURN_STR(GLEW_OK) /* also GLEW_NO_ERROR */
+		CASE_CODE_RETURN_STR(GLEW_ERROR_NO_GL_VERSION)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_GL_VERSION_10_ONLY)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_GLX_VERSION_11_ONLY)
 #ifdef WITH_GLEW_ES
-		_CASE_CODE_RETURN_STR(GLEW_ERROR_NOT_GLES_VERSION)
-		_CASE_CODE_RETURN_STR(GLEW_ERROR_GLES_VERSION)
-		_CASE_CODE_RETURN_STR(GLEW_ERROR_NO_EGL_VERSION)
-		_CASE_CODE_RETURN_STR(GLEW_ERROR_EGL_VERSION_10_ONLY)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_NOT_GLES_VERSION)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_GLES_VERSION)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_NO_EGL_VERSION)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_EGL_VERSION_10_ONLY)
 #endif
 		default:
 			return NULL;
@@ -97,30 +96,24 @@ static const char* get_glew_error_enum_string(GLenum error)
 }
 
 
-
-GLenum glew_chk(GLenum error, const char* file, int line, const char* text)
+GLenum glew_chk(GLenum error, const char *file, int line, const char *text)
 {
 	if (error != GLEW_OK) {
-		const char* code = get_glew_error_enum_string(error);
-		const char* msg  = get_glew_error_message_string(error);
+		const char *code = get_glew_error_enum_string(error);
+		const char *msg  = get_glew_error_message_string(error);
 
 #ifndef NDEBUG
-		fprintf(
-			stderr,
-			"%s(%d):[%s] -> GLEW Error (0x%04X): %s: %s\n",
-			file,
-			line,
-			text,
-			error,
-			code ? code : "<no symbol>",
-			msg  ? msg  : "<no message>");
+		fprintf(stderr,
+		        "%s(%d):[%s] -> GLEW Error (0x%04X): %s: %s\n",
+		        file, line, text, error,
+		        code ? code : "<no symbol>",
+		        msg  ? msg  : "<no message>");
 #else
-		fprintf(
-			stderr,
-			"GLEW Error (%04X): %s: %s\n",
-			error,
-			code ? code : "<no symbol>",
-			msg  ? msg  : "<no message>");
+		fprintf(stderr,
+		        "GLEW Error (%04X): %s: %s\n",
+		        error,
+		        code ? code : "<no symbol>",
+		        msg  ? msg  : "<no message>");
 #endif
 	}
 
@@ -128,17 +121,16 @@ GLenum glew_chk(GLenum error, const char* file, int line, const char* text)
 }
 
 
-
 #ifdef _WIN32
 
-bool win32_chk(bool result, const char* file, int line, const char* text)
+bool win32_chk(bool result, const char *file, int line, const char *text)
 {
 	if (!result) {
 		LPTSTR formattedMsg = NULL;
 
 		DWORD error = GetLastError();
 
-		const char* msg;
+		const char *msg;
 
 		DWORD count = 0;
 
@@ -156,10 +148,12 @@ bool win32_chk(bool result, const char* file, int line, const char* text)
 				break;
 
 			case ERROR_INCOMPATIBLE_DEVICE_CONTEXTS_ARB:
-				msg = "The device contexts specified are not compatible.  This can occur if the device contexts are managed by different drivers or possibly on different graphics adapters.\n";
+				msg = ("The device contexts specified are not compatible. "
+				      "This can occur if the device contexts are managed by "
+				      "different drivers or possibly on different graphics adapters.\n");
 				break;
 
-#if WITH_GLEW_ES
+#ifdef WITH_GLEW_ES
 			case ERROR_INCOMPATIBLE_AFFINITY_MASKS_NV:
 				msg = "The device context(s) and rendering context have non-matching affinity masks.\n";
 				break;
@@ -170,7 +164,8 @@ bool win32_chk(bool result, const char* file, int line, const char* text)
 #endif
 
 			case ERROR_PROFILE_DOES_NOT_MATCH_DEVICE:
-				msg = "The specified profile is intended for a device of a different type than the specified device.\n";
+				msg = ("The specified profile is intended for a device of a "
+				      "different type than the specified device.\n");
 				break;
 
 			default:
@@ -196,7 +191,7 @@ bool win32_chk(bool result, const char* file, int line, const char* text)
 		_ftprintf(
 			stderr,
 			"%s(%d):[%s] -> Win32 Error# (%d): %s",
-			file, 
+			file,
 			line,
 			text,
 			error,
@@ -221,7 +216,6 @@ bool win32_chk(bool result, const char* file, int line, const char* text)
 #endif // _WIN32
 
 
-
 void GHOST_Context::initContextGLEW()
 {
 	mxDestroyContext(m_glewContext); // no-op if m_glewContext is NULL
@@ -232,7 +226,6 @@ void GHOST_Context::initContextGLEW()
 
 	GLEW_CHK(glewInit());
 }
-
 
 
 void GHOST_Context::initClearGL()

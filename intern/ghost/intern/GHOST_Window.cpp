@@ -43,19 +43,18 @@
 #include <assert.h>
 
 GHOST_Window::GHOST_Window(
-    GHOST_TUns32 width, GHOST_TUns32 height,
-    GHOST_TWindowState state,
-    const bool wantStereoVisual,
-    const bool exclusive,
-    const GHOST_TUns16 wantNumOfAASamples)
-	:
-	m_drawingContextType(GHOST_kDrawingContextTypeNone),
-	m_cursorVisible(true),
-	m_cursorGrab(GHOST_kGrabDisable),
-	m_cursorShape(GHOST_kStandardCursorDefault),
-	m_wantStereoVisual(wantStereoVisual),
-	m_wantNumOfAASamples(wantNumOfAASamples),
-	m_context(new GHOST_ContextNone(false, 0))
+        GHOST_TUns32 width, GHOST_TUns32 height,
+        GHOST_TWindowState state,
+        const bool wantStereoVisual,
+        const bool exclusive,
+        const GHOST_TUns16 wantNumOfAASamples)
+    : m_drawingContextType(GHOST_kDrawingContextTypeNone),
+      m_cursorVisible(true),
+      m_cursorGrab(GHOST_kGrabDisable),
+      m_cursorShape(GHOST_kStandardCursorDefault),
+      m_wantStereoVisual(wantStereoVisual),
+      m_wantNumOfAASamples(wantNumOfAASamples),
+      m_context(new GHOST_ContextNone(false, 0))
 {
 	m_isUnsavedChanges = false;
 	m_canAcceptDragOperation = false;

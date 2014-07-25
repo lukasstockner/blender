@@ -317,11 +317,11 @@ private:
 	void initXInputDevices();
 #endif
 	
-	Window   m_window;
+	Window m_window;
 	Display *m_display;
 	GHOST_TWindowState m_normal_state;
 
-	/**A pointer to the typed system class. */
+	/** A pointer to the typed system class. */
 	GHOST_SystemX11 *m_system;
 
 	bool m_valid_setup;

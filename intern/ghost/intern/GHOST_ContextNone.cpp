@@ -27,11 +27,11 @@
 
 /** \file ghost/intern/GHOST_ContextNone.cpp
  *  \ingroup GHOST
+ *
  * Definition of GHOST_ContextNone class.
  */
 
 #include "GHOST_ContextNone.h"
-
 
 
 GHOST_TSuccess GHOST_ContextNone::swapBuffers()
@@ -40,12 +40,10 @@ GHOST_TSuccess GHOST_ContextNone::swapBuffers()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextNone::activateDrawingContext()
 {
 	return GHOST_kSuccess;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextNone::updateDrawingContext()
@@ -54,19 +52,16 @@ GHOST_TSuccess GHOST_ContextNone::updateDrawingContext()
 }
 
 
-
 GHOST_TSuccess GHOST_ContextNone::initializeDrawingContext()
 {
 	return GHOST_kSuccess;
 }
 
 
-
 GHOST_TSuccess GHOST_ContextNone::releaseNativeHandles()
 {
 	return GHOST_kSuccess;
 }
-
 
 
 GHOST_TSuccess GHOST_ContextNone::setSwapInterval(int interval)
@@ -77,8 +72,7 @@ GHOST_TSuccess GHOST_ContextNone::setSwapInterval(int interval)
 }
 
 
-
-GHOST_TSuccess GHOST_ContextNone::getSwapInterval(int& intervalOut)
+GHOST_TSuccess GHOST_ContextNone::getSwapInterval(int &intervalOut)
 {
 	intervalOut = m_swapInterval;
 	return GHOST_kSuccess;

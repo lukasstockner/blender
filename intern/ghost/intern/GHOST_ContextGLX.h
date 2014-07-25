@@ -27,18 +27,16 @@
 
 /** \file ghost/intern/GHOST_ContextGLX.h
  *  \ingroup GHOST
- * Declaration of GHOST_ContextGLX class.
  */
 
-#ifndef _GHOST_CONTEXTGLX_H_
-#define _GHOST_CONTEXTGLX_H_
+#ifndef __GHOST_CONTEXTGLX_H__
+#define __GHOST_CONTEXTGLX_H__
 
 #include "GHOST_Context.h"
 
 #define glxewGetContext() glxewContext
 #include <GL/glxew.h>
-extern "C" GLXEWContext* glxewContext;
-
+extern "C" GLXEWContext *glxewContext;
 
 
 #ifndef GHOST_OPENGL_GLX_CONTEXT_FLAGS
@@ -50,7 +48,6 @@ extern "C" GLXEWContext* glxewContext;
 #endif
 
 
-
 class GHOST_ContextGLX : public GHOST_Context
 {
 public:
@@ -58,16 +55,15 @@ public:
 	 * Constructor.
 	 */
 	GHOST_ContextGLX(
-		bool         stereoVisual,
-		GHOST_TUns16 numOfAASamples,
-		Window       window,
-		Display*     display,
-		int          contextProfileMask,
-		int          contextMajorVersion,
-		int          contextMinorVersion,
-		int          contextFlags,
-		int          contextResetNotificationStrategy
-	);
+	        bool stereoVisual,
+	        GHOST_TUns16 numOfAASamples,
+	        Window window,
+	        Display *display,
+	        int contextProfileMask,
+	        int contextMajorVersion,
+	        int contextMinorVersion,
+	        int contextFlags,
+	        int contextResetNotificationStrategy);
 
 	/**
 	 * Destructor.
@@ -94,7 +90,8 @@ public:
 
 	/**
 	 * Removes references to native handles from this context and then returns
-	 * \return GHOST_kSuccess if it is OK for the parent to release the handles and GHOST_kFailure if releasing the handles will interfere with sharing
+	 * \return GHOST_kSuccess if it is OK for the parent to release the handles and
+	 * GHOST_kFailure if releasing the handles will interfere with sharing
 	 */
 	virtual GHOST_TSuccess releaseNativeHandles();
 
@@ -110,7 +107,7 @@ public:
 	 * \param intervalOut Variable to store the swap interval if it can be read.
 	 * \return Whether the swap interval can be read.
 	 */
-	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
+	virtual GHOST_TSuccess getSwapInterval(int &intervalOut);
 
 protected:
 	inline void activateGLXEW() const {
@@ -133,13 +130,11 @@ private:
 
 	GLXContext m_context;
 
-	GLXEWContext* m_glxewContext;
+	GLXEWContext *m_glxewContext;
 
 	/** The first created OpenGL context (for sharing display lists) */
 	static GLXContext s_sharedContext;
 	static int        s_sharedCount;
 };
 
-
-
-#endif // _GHOST_CONTEXTGLX_H_
+#endif // __GHOST_CONTEXTGLX_H__
