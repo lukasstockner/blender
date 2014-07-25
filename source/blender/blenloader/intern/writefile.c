@@ -1700,6 +1700,7 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 				/* direct */
 				kb = key->block.first;
 				while (kb) {
+					kb->compressed = 0;
 					writestruct(wd, DATA, "KeyBlock", 1, kb);
 					if (kb->data) writedata(wd, DATA, kb->totelem * key->elemsize, kb->data);
 					kb = kb->next;
