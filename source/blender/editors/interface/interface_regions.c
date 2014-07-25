@@ -2662,7 +2662,7 @@ static float uiPieTitleWidth(const char *name, int icon)
 		        (UI_UNIT_X * (1.50f + (icon ? 0.25f : 0.0f)));
 }
 
-struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const wmEvent *event, bool force_hold)
+struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const wmEvent *event, bool UNUSED(force_click))
 {
 	uiStyle *style = UI_GetStyleDraw();
 	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
@@ -2674,8 +2674,10 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 	pie->block_radial->puphash = ui_popup_menu_hash(title);
 	pie->block_radial->flag |= UI_BLOCK_RADIAL;
 	pie->block_radial->pie_data.event = event->type;
-	if (force_hold)
-		pie->block_radial->pie_data.flags |= UI_PIE_CLICK_STYLE;
+	/*
+	 *  if (force_click)
+	 *  pie->block_radial->pie_data.flags |= UI_PIE_CLICK_STYLE;
+	*/
 
 	pie->layout = uiBlockLayout(pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
 	pie->mx = event->x;

@@ -8512,7 +8512,7 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 		    !((block->pie_data.flags & UI_PIE_CLICK_STYLE) || U.pie_interaction_type == USER_UI_PIE_CLICK))
 		{
 			menu->menuretval = 0;
-			block->pie_data.flags |= UI_PIE_CANCELLED;
+			block->pie_data.flags |= UI_PIE_FINISHED;
 		}
 
 		return WM_UI_HANDLER_CONTINUE;
@@ -8528,16 +8528,14 @@ static bool ui_pie_menu_supported_apply(uiBut *but) {
 }
 
 
-static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, const wmEvent *event, bool force)
+static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, const wmEvent *event, bool force_close, bool click_style)
 {
 	int retval = WM_UI_HANDLER_BREAK;
-
-	uiBut *but = ui_but_find_activated(menu->region);
 
 	if (but && ui_pie_menu_supported_apply(but)) {
 		if (but->type == MENU) {
 			/* forcing the pie menu to close will not handle menus */
-			if (!force) {
+			if (!force_close) {
 				wmEvent e = *event;
 				e.type = LEFTMOUSE;
 				e.val = KM_PRESS;
@@ -8552,7 +8550,12 @@ static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, const wmEven
 			ui_apply_button(C, but->block, but, but->active, false);
 			button_activate_exit((bContext *)C, but, but->active, false, true);
 
-			menu->menuretval = UI_RETURN_OK;
+			if (!(click_style || force_close)) {
+				but->block->pie_data.flags |= UI_PIE_FINISHED;
+				menu->menuretval = 0;
+			}
+			else
+				menu->menuretval = UI_RETURN_OK;
 		}
 	}
 	else {
@@ -8567,6 +8570,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 {
 	ARegion *ar;
 	uiBlock *block;
+	uiBut *but;
 	int mx, my;
 	double duration;
 	bool is_click_style;
@@ -8636,7 +8640,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 	ui_block_calculate_pie_segment(block, mx, my);
 
-	if (block->pie_data.flags & UI_PIE_CANCELLED) {
+	if (block->pie_data.flags & UI_PIE_FINISHED) {
 		if ((event->type == block->pie_data.event && event->val == KM_RELEASE) ||
 		    event->type == RIGHTMOUSE ||
 		    event->type == ESCKEY)
@@ -8657,7 +8661,9 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 		}
 		else {
 			if (!is_click_style) {
-				retval = ui_pie_menu_apply(C, menu, event, true);
+				uiBut *but = ui_but_find_activated(menu->region);
+
+				retval = ui_pie_menu_apply(C, menu, but, event, true, is_click_style);
 			}
 		}
 	}
@@ -8671,12 +8677,8 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 			case LEFTMOUSE:
 				if (event->val == KM_PRESS) {
-					if (is_click_style) {
-						retval = ui_pie_menu_apply(C, menu, event, false);
-					}
-					else {
-						retval = ui_handle_menu_button(C, event, menu);
-					}
+					uiBut *but = ui_but_find_activated(menu->region);
+					retval = ui_pie_menu_apply(C, menu, but, event, false, is_click_style);
 				}
 				break;
 
@@ -8684,6 +8686,49 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			case RIGHTMOUSE:
 				menu->menuretval = UI_RETURN_CANCEL;
 				break;
+
+			case AKEY:
+			case BKEY:
+			case CKEY:
+			case DKEY:
+			case EKEY:
+			case FKEY:
+			case GKEY:
+			case HKEY:
+			case IKEY:
+			case JKEY:
+			case KKEY:
+			case LKEY:
+			case MKEY:
+			case NKEY:
+			case OKEY:
+			case PKEY:
+			case QKEY:
+			case RKEY:
+			case SKEY:
+			case TKEY:
+			case UKEY:
+			case VKEY:
+			case WKEY:
+			case XKEY:
+			case YKEY:
+			case ZKEY:
+			{
+				if ((event->val  == KM_PRESS || event->val == KM_DBL_CLICK) &&
+				    (event->shift == 0) &&
+				    (event->ctrl  == 0) &&
+				    (event->oskey == 0))
+				{
+					for (but = block->buttons.first; but; but = but->next) {
+						if (but->menu_key == event->type) {
+							button_activate_init((bContext *)C, ar, but, BUTTON_STATE_HIGHLIGHT);
+							retval = ui_pie_menu_apply(C, menu, but, event, false, is_click_style);
+							break;
+						}
+					}
+				}
+				break;
+			}
 
 			default:
 				retval = ui_handle_menu_button(C, event, menu);

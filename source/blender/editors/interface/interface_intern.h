@@ -163,7 +163,7 @@ typedef enum RadialDirection {
 #define UI_PIE_INITIAL_DIRECTION   (1 << 1) /* use initial center of pie menu to calculate direction */
 #define UI_PIE_3_ITEMS             (1 << 2) /* pie menu has only 3 items, careful when centering */
 #define UI_PIE_INVALID_DIR         (1 << 3) /* mouse not far enough from center position  */
-#define UI_PIE_CANCELLED           (1 << 4) /* pie menu cancelled but we still wait for a release event  */
+#define UI_PIE_FINISHED            (1 << 4) /* pie menu finished but we still wait for a release event  */
 #define UI_PIE_CLICK_STYLE         (1 << 5) /* pie menu changed to click style, click to confirm  */
 #define UI_PIE_ANIMATION_FINISHED  (1 << 6) /* pie animation finished, do not calculate any more motio  */
 

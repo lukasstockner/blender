@@ -1264,7 +1264,7 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	int multisample_enabled;
 	
 	/* early exit if cancelled */
-	if (block->flag & UI_BLOCK_RADIAL && block->pie_data.flags & UI_PIE_CANCELLED)
+	if ((block->flag & UI_BLOCK_RADIAL) && (block->pie_data.flags & UI_PIE_FINISHED))
 		return;
 
 	/* get menu region or area region */
