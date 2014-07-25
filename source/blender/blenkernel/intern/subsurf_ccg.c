@@ -2047,10 +2047,12 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	if (ccgdm->useGpuBackend) {
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator *fi;
+		int start_partition = 0, num_partitions = 0;
 		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, false) == false)) {
 			return;
 		}
-		do_draw = 0;
+
+		do_draw = false;
 		for (fi = ccgSubSurf_getFaceIterator(ss), i = 0;
 		     !ccgFaceIterator_isStopped(fi);
 		     ccgFaceIterator_next(fi), ++i)
@@ -2071,25 +2073,52 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				new_matnr = 1;
 			}
 
-			if (new_shademodel != shademodel) {
-				glShadeModel(new_shademodel);
-				shademodel = new_shademodel;
-			}
+			if (new_shademodel != shademodel || new_matnr != matnr) {
+				if (num_partitions) {
+					ccgSubSurf_drawGLMesh(ss, true,
+					                      start_partition, num_partitions);
+				}
 
-			if (new_matnr != matnr) {
-				do_draw = setMaterial(matnr = new_matnr, &gattribs);
+				start_partition = i;
+				num_partitions = 0;
+
+				/* Update material settings for the next partitions batch. */
+				if (new_shademodel != shademodel) {
+					glShadeModel(new_shademodel);
+				}
+
+				if (new_matnr != matnr) {
+					do_draw = setMaterial(new_matnr, &gattribs);
+				}
+
+				/* Cache settings. */
+				shademodel = new_shademodel;
 				matnr = new_matnr;
 			}
 
+			/* TODO(sergey): This isn't actually tested.. */
 			if (!do_draw || (setDrawOptions && (origIndex != ORIGINDEX_NONE) &&
 			                (setDrawOptions(userData, origIndex) == DM_DRAW_OPTION_SKIP)))
 			{
+				if (num_partitions) {
+					ccgSubSurf_drawGLMesh(ss, true,
+					                      start_partition, num_partitions);
+				}
+
+				start_partition = i;
+				num_partitions = 0;
+
 				continue;
 			}
 
-			ccgSubSurf_drawGLMesh(ss, true, i, 1);
+			num_partitions++;
 		}
 		ccgFaceIterator_free(fi);
+
+		/* Draw residual tail of the partitions. */
+		if (num_partitions) {
+			ccgSubSurf_drawGLMesh(ss, true, start_partition, num_partitions);
+		}
 
 		/* We're done with drawing if drawing happens using OpenSubdiv. */
 		return;
