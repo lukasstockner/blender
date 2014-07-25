@@ -40,7 +40,6 @@
 #include <cstdlib> // for NULL
 
 
-
 class GHOST_Context
 {
 public:
@@ -143,7 +142,6 @@ private:
 	GLEWContext *m_glewContext;
 
 };
-
 
 
 GLenum glew_chk(GLenum error, const char *file, int line, const char *text);

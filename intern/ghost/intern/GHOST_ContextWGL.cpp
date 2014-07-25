@@ -48,7 +48,7 @@ int   GHOST_ContextWGL::s_sharedCount = 0;
 bool GHOST_ContextWGL::s_singleContextMode = false;
 
 
-/* Intel videocards don't work fine with multiple contexts and
+/* Intel video-cards don't work fine with multiple contexts and
  * have to share the same context for all windows.
  * But if we just share context for all windows it could work incorrect
  * with multiple videocards configuration. Suppose, that Intel videocards

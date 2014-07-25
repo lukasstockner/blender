@@ -38,7 +38,6 @@
 
 #include <cassert>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 
 
@@ -140,7 +139,7 @@ void GHOST_ContextGLX::initContextGLXEW()
 
 GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 {
-	/* Set up the minimum atrributes that we require and see if
+	/* Set up the minimum attributes that we require and see if
 	 * X can find us a visual matching those requirements. */
 
 	std::vector<int> attribs;
