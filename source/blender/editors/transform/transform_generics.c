@@ -1612,7 +1612,7 @@ void calculateCenterMedian(TransInfo *t, float r_center[3])
 	int i;
 	Object *ob = t->obedit;
 
-	if (ob && ob->type == OB_MESH) {
+	if (ob && ob->type == OB_MESH && t->mode != TFM_BWEIGHT && t->mode != TFM_CREASE) {
 		Mesh *me = ob->data;
 		DerivedMesh *cage = editbmesh_get_derived_cage(t->scene, ob, me->edit_btmesh, t->scene->customdata_mask);
 		int *derived_index_map = NULL;
