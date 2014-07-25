@@ -1438,6 +1438,16 @@ class VIEW3D_PIE_shade(Menu):
             else:
                 pie.operator("OBJECT_OT_shade_smooth")
                 pie.operator("OBJECT_OT_shade_flat")
+
+class VIEW3D_PIE_manipulator(Menu):
+    bl_label = "Manipulator"
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+        pie.prop(context.space_data, "transform_manipulators", expand=True)
+        pie.prop(context.space_data, "show_manipulator")
         
 
 # ********** Brush menu **********

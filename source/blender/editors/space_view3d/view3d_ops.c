@@ -145,6 +145,14 @@ void ED_operatormacros_screen(void)
 		RNA_string_set(ptr, "value_1", "SOLID");
 		RNA_string_set(ptr, "value_2", "WIREFRAME");
 	}
+
+	ptr = WM_operator_pie_macro("VIEW3D_PIE_manipulator_macro", "Manipulator",
+	                            "Manipulator Options for the viewport",
+	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_toggle", "VIEW3D_PIE_manipulator");
+
+	if (ptr) {
+		RNA_string_set(ptr, "data_path", "space_data.show_manipulator");
+	}
 }
 
 
@@ -511,8 +519,7 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", COMMAKEY, KM_PRESS, KM_ALT, 0); /* new in 2.5 */
 	RNA_string_set(kmi->ptr, "data_path", "space_data.use_pivot_point_align");
 
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", SPACEKEY, KM_PRESS, KM_CTRL, 0); /* new in 2.5 */
-	RNA_string_set(kmi->ptr, "data_path", "space_data.show_manipulator");
+	kmi = WM_keymap_add_item(keymap, "VIEW3D_PIE_manipulator_macro", SPACEKEY, KM_PRESS, KM_CTRL, 0); /* new in 2.5 */
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PERIODKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
