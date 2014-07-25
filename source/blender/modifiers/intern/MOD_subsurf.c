@@ -103,7 +103,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	const bool allow_gpu = (flag & MOD_APPLY_ALLOW_GPU) != 0;
 
 	/* TODO(sergey): Investigate whether we still need this. */
-	const bool do_cddm_convert = useRenderParams || !isFinalCalc;
+	const bool do_cddm_convert = useRenderParams;
 
 	if (useRenderParams)
 		subsurf_flags |= SUBSURF_USE_RENDER_PARAMS;

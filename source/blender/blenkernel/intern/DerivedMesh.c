@@ -1547,6 +1547,23 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		}
 	}
 
+	/* TODO(sergey): Workaround to make GPU-side SS playback as fast as possible.
+	 *
+	 * Constructing orcodm on the CPU is hell of a lot slow business, so let's
+	 * skip it for now.
+	 */
+#ifdef WITH_OPENSUBDIV
+	{
+		ModifierData *last_md = ob->modifiers.last;
+		if (allow_gpu && last_md != NULL &&
+		    last_md->type == eModifierType_Subsurf &&
+		    !useRenderParams)
+		{
+			dataMask &= ~CD_MASK_ORCO;
+		}
+	}
+#endif
+
 	datamasks = modifiers_calcDataMasks(scene, ob, md, dataMask, required_mode, previewmd, previewmask);
 	curr = datamasks;
 

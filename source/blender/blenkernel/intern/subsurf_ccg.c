@@ -2474,7 +2474,9 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			int mat_nr;
 			bool drawSmooth;
 
-			ME_MTEXFACE_CPY(&tmp_tf, &mtexpoly[index]);
+			if (mtexpoly != NULL) {
+				ME_MTEXFACE_CPY(&tmp_tf, &mtexpoly[index]);
+			}
 
 			if (faceFlags) {
 				drawSmooth = (lnors || (faceFlags[0].flag & ME_SMOOTH));
@@ -2487,7 +2489,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 			glShadeModel(drawSmooth ? GL_SMOOTH : GL_FLAT);
 
-			if (drawParams != NULL)
+			if (drawParams != NULL && mtexpoly != NULL)
 				drawParams(&tmp_tf, (mcol != NULL), mat_nr);
 
 			ccgSubSurf_drawGLMesh(ss, true, i, 1);
