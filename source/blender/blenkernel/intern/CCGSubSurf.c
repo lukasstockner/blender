@@ -2832,21 +2832,25 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 
 				VertDataCopy(co, P, ss);
 				if (do_normals) {
-					cross_v3_v3v3(no, dPdu, dPdv);
+					cross_v3_v3v3(no, dPdv, dPdu);
 					normalize_v3(no);
 				}
 
 				if (x == gridSize - 1 && y == gridSize - 1) {
 					float *vert_co = VERT_getCo(FACE_getVerts(face)[S], subdivLevels);
-					float *vert_no = VERT_getNo(FACE_getVerts(face)[S], subdivLevels);
 					VertDataCopy(vert_co, co, ss);
 					if (do_normals) {
+						float *vert_no = VERT_getNo(FACE_getVerts(face)[S], subdivLevels);
 						VertDataCopy(vert_no, no, ss);
 					}
 				}
 				if (S == 0 && x == 0 && y == 0) {
 					float *center_co = (float *)FACE_getCenterData(face);
 					VertDataCopy(center_co, co, ss);
+					if (do_normals) {
+						float *center_no = (float *)((byte *)FACE_getCenterData(face) + normalDataOffset);
+						VertDataCopy(center_no, no, ss);
+					}
 				}
 			}
 		}
@@ -2854,6 +2858,10 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 		for (x = 0; x < gridSize; x++) {
 			VertDataCopy(FACE_getIECo(face, subdivLevels, S, x),
 			             FACE_getIFCo(face, subdivLevels, S, x, 0), ss);
+			if (do_normals){
+				VertDataCopy(FACE_getIENo(face, subdivLevels, S, x),
+				             FACE_getIFNo(face, subdivLevels, S, x, 0), ss);
+			}
 		}
 
 		for (k = 0; k < face->numVerts; k++) {
@@ -2892,8 +2900,10 @@ static void opensubdiv_evaluateQuadFaceGrids(CCGSubSurf *ss,
 			 */
 			openSubdiv_evaluateLimit(ss->osd_evaluator, osd_face_index, u, v, P, dPdu, dPdv);
 			VertDataCopy(co, P, ss);
-			cross_v3_v3v3(no, dPdu, dPdv);
-			normalize_v3(no);
+			if (do_normals) {
+				cross_v3_v3v3(no, dPdv, dPdu);
+				normalize_v3(no);
+			}
 		}
 	}
 }
@@ -2958,28 +2968,36 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 
 				VertDataCopy(co, P, ss);
 				if (do_normals) {
-					cross_v3_v3v3(no, dPdu, dPdv);
+					cross_v3_v3v3(no, dPdv, dPdu);
 					normalize_v3(no);
 				}
 
 				/* TODO(sergey): De-dpuplicate with the quad case. */
 				if (x == gridSize - 1 && y == gridSize - 1) {
 					float *vert_co = VERT_getCo(FACE_getVerts(face)[S], subdivLevels);
-					float *vert_no = VERT_getNo(FACE_getVerts(face)[S], subdivLevels);
 					VertDataCopy(vert_co, co, ss);
 					if (do_normals) {
+						float *vert_no = VERT_getNo(FACE_getVerts(face)[S], subdivLevels);
 						VertDataCopy(vert_no, no, ss);
 					}
 				}
 				if (S == 0 && x == 0 && y == 0) {
 					float *center_co = (float *)FACE_getCenterData(face);
 					VertDataCopy(center_co, co, ss);
+					if (do_normals) {
+						float *center_no = (float *)((byte *)FACE_getCenterData(face) + normalDataOffset);
+						VertDataCopy(center_no, no, ss);
+					}
 				}
 			}
 		}
 		for (x = 0; x < gridSize; x++) {
 			VertDataCopy(FACE_getIECo(face, subdivLevels, S, x),
 			             FACE_getIFCo(face, subdivLevels, S, x, 0), ss);
+			if (do_normals) {
+				VertDataCopy(FACE_getIENo(face, subdivLevels, S, x),
+				             FACE_getIFNo(face, subdivLevels, S, x, 0), ss);
+			}
 		}
 	}
 
@@ -3006,25 +3024,39 @@ static void opensubdiv_evaluateNGonFaceGrids(CCGSubSurf *ss,
 
 		for (x = 0; x <= edgeSize / 2; x++) {
 			float *edge_co = EDGE_getCo(edge, subdivLevels, x);
+			float *edge_no = EDGE_getNo(edge, subdivLevels, x);
 			float *face_edge_co;
+			float *face_edge_no;
 			if (flip) {
 				face_edge_co = FACE_getIFCo(face, subdivLevels, S0, gridSize - 1, gridSize - 1 - x);
+				face_edge_no = FACE_getIFNo(face, subdivLevels, S0, gridSize - 1, gridSize - 1 - x);
 			}
 			else {
 				face_edge_co = FACE_getIFCo(face, subdivLevels, S0, gridSize - 1 - x, gridSize - 1);
+				face_edge_no = FACE_getIFNo(face, subdivLevels, S0, gridSize - 1 - x, gridSize - 1);
 			}
 			VertDataCopy(edge_co, face_edge_co, ss);
+			if (do_normals) {
+				VertDataCopy(edge_no, face_edge_no, ss);
+			}
 		}
 		for (x = edgeSize / 2 + 1; x < edgeSize; x++) {
 			float *edge_co = EDGE_getCo(edge, subdivLevels, x);
+			float *edge_no = EDGE_getNo(edge, subdivLevels, x);
 			float *face_edge_co;
+			float *face_edge_no;
 			if (flip) {
 				face_edge_co = FACE_getIFCo(face, subdivLevels, S1, x - edgeSize / 2, gridSize - 1);
+				face_edge_no = FACE_getIFNo(face, subdivLevels, S1, x - edgeSize / 2, gridSize - 1);
 			}
 			else {
 				face_edge_co = FACE_getIFCo(face, subdivLevels, S1, gridSize - 1, x - edgeSize / 2);
+				face_edge_no = FACE_getIFNo(face, subdivLevels, S1, gridSize - 1, x - edgeSize / 2);
 			}
 			VertDataCopy(edge_co, face_edge_co, ss);
+			if (do_normals) {
+				VertDataCopy(edge_no, face_edge_no, ss);
+			}
 		}
 	}
 }
