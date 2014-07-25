@@ -2390,8 +2390,6 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
 		                      sizeof(GLfloat) * 6, (float*)12);
 
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-		             openSubdiv_getOsdGLMeshPatchIndexBuffer(ss->osd_mesh));
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 	else if (ss->osd_coords_invalid) {
@@ -2410,12 +2408,16 @@ void ccgSubSurf_drawGLMesh(CCGSubSurf *ss, bool fill_quads,
                            int start_partition, int num_partitions)
 {
 	if (LIKELY(ss->osd_mesh != NULL)) {
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
+		             openSubdiv_getOsdGLMeshPatchIndexBuffer(ss->osd_mesh));
+
 		openSubdiv_osdGLMeshBindVertexBuffer(ss->osd_mesh);
 		glBindVertexArray(ss->osd_vao);
 		openSubdiv_osdGLMeshDisplay(ss->osd_mesh, fill_quads,
 		                            start_partition, num_partitions);
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 }
 
