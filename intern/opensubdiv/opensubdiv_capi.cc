@@ -319,7 +319,8 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     OpenSubdiv_EvaluatorDescr *evaluator_descr,
     int controller_type,
     int level,
-    int scheme)
+    int scheme,
+    int subdivide_uvs)
 {
 	OpenSubdiv_ComputeController *controller =
 		openSubdiv_getController(controller_type);
@@ -345,7 +346,9 @@ struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
 	get_partition_per_face(*hmesh, &idsOnPtexFaces);
 
 	hmesh->SetFVarInterpolateBoundaryMethod(
-	        OsdHbrMesh::k_InterpolateBoundaryNone);
+	        subdivide_uvs
+	            ? OsdHbrMesh::k_InterpolateBoundaryEdgeAndCorner
+	            : OsdHbrMesh::k_InterpolateBoundaryNone);
 	hmesh->SetFVarPropagateCorners(false);
 
 	OsdMeshBitset bits;

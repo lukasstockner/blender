@@ -67,7 +67,8 @@ OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     OpenSubdiv_EvaluatorDescr *evaluator_descr,
     int controller_type,
     int level,
-    int scheme);
+    int scheme,
+    int subdivide_uvs);
 
 void openSubdiv_deleteOsdGLMesh(OpenSubdiv_GLMesh *gl_mesh);
 unsigned int openSubdiv_getOsdGLMeshPatchIndexBuffer(

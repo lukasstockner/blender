@@ -167,6 +167,7 @@ struct GPUPass {
 	struct GPUOutput *output;
 	struct GPUShader *shader;
 	char *fragmentcode;
+	char *geometrycode;
 	char *vertexcode;
 	const char *libcode;
 };

@@ -641,10 +641,48 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const ch
 	return code;
 }
 
-static char *code_generate_geometry(bool use_opensubdiv)
+static char *code_generate_geometry(ListBase *nodes, bool use_opensubdiv)
 {
 	if (use_opensubdiv) {
-		return datatoc_gpu_shader_geometry_glsl;
+		DynStr *ds = BLI_dynstr_new();
+		GPUNode *node;
+		GPUInput *input;
+		char *code;
+
+		/* Generate varying declarations. */
+		for (node = nodes->first; node; node = node->next) {
+			for (input = node->inputs.first; input; input = input->next) {
+				if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
+					if (input->attribtype == CD_MTFACE) {
+						BLI_dynstr_appendf(ds, "varying %s var%d;\n",
+						                   GPU_DATATYPE_STR[input->type],
+						                   input->attribid);
+					}
+				}
+			}
+		}
+
+		BLI_dynstr_append(ds, datatoc_gpu_shader_geometry_glsl);
+
+		/* Generate varying assignments. */
+		for (node = nodes->first; node; node = node->next) {
+			for (input = node->inputs.first; input; input = input->next) {
+				if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
+					if (input->attribtype == CD_MTFACE) {
+						BLI_dynstr_appendf(ds, "\tvar%d  = outpt.v.uv;\n",
+						                   input->attribid);
+					}
+				}
+			}
+		}
+
+		BLI_dynstr_append(ds, "}\n\n");
+		code = BLI_dynstr_get_cstring(ds);
+		BLI_dynstr_free(ds);
+
+		//if (G.debug & G_DEBUG) printf("%s\n", code);
+
+		return code;
 	}
 	return NULL;
 }
@@ -659,10 +697,17 @@ static char *code_generate_vertex(ListBase *nodes)
 	for (node=nodes->first; node; node=node->next) {
 		for (input=node->inputs.first; input; input=input->next) {
 			if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
+				bool is_mtface = input->attribtype == CD_MTFACE;
+				if (is_mtface) {
+					BLI_dynstr_appendf(ds, "#ifndef USE_OPENSUBDIV\n");
+				}
 				BLI_dynstr_appendf(ds, "attribute %s att%d;\n",
 					GPU_DATATYPE_STR[input->type], input->attribid);
 				BLI_dynstr_appendf(ds, "varying %s var%d;\n",
 					GPU_DATATYPE_STR[input->type], input->attribid);
+				if (is_mtface) {
+					BLI_dynstr_appendf(ds, "#endif\n");
+				}
 			}
 		}
 	}
@@ -677,8 +722,16 @@ static char *code_generate_vertex(ListBase *nodes)
 					BLI_dynstr_appendf(ds, "\tvar%d.xyz = normalize((gl_ModelViewMatrix * vec4(att%d.xyz, 0)).xyz);\n", input->attribid, input->attribid);
 					BLI_dynstr_appendf(ds, "\tvar%d.w = att%d.w;\n", input->attribid, input->attribid);
 				}
-				else
+				else {
+					bool is_mtface = input->attribtype == CD_MTFACE;
+					if (is_mtface) {
+						BLI_dynstr_appendf(ds, "#ifndef USE_OPENSUBDIV\n");
+					}
 					BLI_dynstr_appendf(ds, "\tvar%d = att%d;\n", input->attribid, input->attribid);
+					if (is_mtface) {
+						BLI_dynstr_appendf(ds, "#endif\n");
+					}
+				}
 			}
 			/* unfortunately special handling is needed here because we abuse gl_Color/gl_SecondaryColor flat shading */
 			else if (input->source == GPU_SOURCE_OPENGL_BUILTIN) {
@@ -1415,7 +1468,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 
 	/* generate code and compile with opengl */
 	fragmentcode = code_generate_fragment(nodes, outlink->output, name);
-	geometrycode = code_generate_geometry(use_opensubdiv);
+	geometrycode = code_generate_geometry(nodes, use_opensubdiv);
 	vertexcode = code_generate_vertex(nodes);
 	shader = GPU_shader_create(vertexcode, geometrycode, fragmentcode, glsl_material_library, NULL);
 
@@ -1433,6 +1486,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	pass->output = outlink->output;
 	pass->shader = shader;
 	pass->fragmentcode = fragmentcode;
+	pass->geometrycode = geometrycode;
 	pass->vertexcode = vertexcode;
 	pass->libcode = glsl_material_library;
 
@@ -1449,6 +1503,8 @@ void GPU_pass_free(GPUPass *pass)
 	GPU_inputs_free(&pass->inputs);
 	if (pass->fragmentcode)
 		MEM_freeN(pass->fragmentcode);
+	if (pass->geometrycode)
+		MEM_freeN(pass->geometrycode);
 	if (pass->vertexcode)
 		MEM_freeN(pass->vertexcode);
 	MEM_freeN(pass);

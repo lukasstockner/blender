@@ -29,6 +29,8 @@ out block {
 	VertexData v;
 } outpt;
 
+void set_mtface_vertex_attrs();
+
 void emit_flat(int index, vec3 normal)
 {
 	outpt.v.position = inpt[index].v.position;
@@ -43,6 +45,8 @@ void emit_flat(int index, vec3 normal)
 	vec2 st = quadst[index];
 
 	INTERP_FACE_VARYING_2(outpt.v.uv, 0, st);
+
+	set_mtface_vertex_attrs();
 
 	gl_Position = gl_ProjectionMatrix * inpt[index].v.position;
 	EmitVertex();
@@ -62,6 +66,8 @@ void emit_smooth(int index)
 	vec2 st = quadst[index];
 
 	INTERP_FACE_VARYING_2(outpt.v.uv, 0, st);
+
+	set_mtface_vertex_attrs();
 
 	gl_Position = gl_ProjectionMatrix * inpt[index].v.position;
 	EmitVertex();
@@ -88,3 +94,5 @@ void main()
 	}
 	EndPrimitive();
 }
+
+void set_mtface_vertex_attrs() {

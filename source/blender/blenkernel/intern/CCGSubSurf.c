@@ -473,6 +473,7 @@ struct CCGSubSurf {
 
 	bool osd_uvs_invalid;
 	int osd_uv_index;
+	bool osd_subsurf_uv;
 #endif
 };
 
@@ -939,6 +940,7 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 		ss->osd_compute = 0;
 		ss->osd_uvs_invalid = false;
 		ss->osd_uv_index = -1;
+		ss->osd_subsurf_uv = 0;
 #endif
 
 		return ss;
@@ -2367,7 +2369,8 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 			ss->osd_evaluator,
 			compute_type,
 			ss->subdivLevels,
-			scheme);
+			scheme,
+			ss->osd_subsurf_uv);
 
 		if (UNLIKELY(ss->osd_mesh == NULL)) {
 			/* Most likely compute device is not available. */
@@ -2543,7 +2546,9 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 	                                       scheme) != 0;
 }
 
-void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss, DerivedMesh *dm)
+void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
+                                  DerivedMesh *dm,
+                                  bool subdivide_uvs)
 {
 	/* TODO(sergey): Do we have shorter way to do this? */
 	int active = CustomData_get_active_layer(&dm->loopData,
@@ -2559,12 +2564,17 @@ void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss, DerivedMesh *dm)
 		ss->osd_uvs_invalid = true;
 	}
 
+	if (subdivide_uvs != ss->osd_subsurf_uv) {
+		ss->osd_uvs_invalid = true;
+	}
+
 	if (mloopuv == NULL || !ss->osd_uvs_invalid) {
 		return;
 	}
 
 	ss->osd_uvs_invalid = false;
 	ss->osd_uv_index = active;
+	ss->osd_subsurf_uv = subdivide_uvs;
 	if (ss->osd_mesh) {
 		ss->osd_mesh_invalid = true;
 	}
@@ -3097,6 +3107,7 @@ static void ccgSubSurf__sync(CCGSubSurf *ss)
 
 	ss->osd_coords_invalid = true;
 
+
 	/* Make sure OSD evaluator is up-to-date. */
 	if (opensubdiv_ensureEvaluator(ss)) {
 		if (ss->skip_grids == false) {
@@ -3107,6 +3118,7 @@ static void ccgSubSurf__sync(CCGSubSurf *ss)
 			opensubdiv_evaluateGrids(ss);
 		}
 		else {
+			BLI_assert(ss->meshIFC.numLayers == 3);
 			opensubdiv_updateCoarseNormals(ss);
 		}
 	}

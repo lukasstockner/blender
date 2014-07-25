@@ -4288,7 +4288,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 				ccgSubSurf_setNumLayers(ss, 4);
 
 #ifdef WITH_OPENSUBDIV
-			ccgSubSurf_setUVCoordsFromDM(ss, dm);
+			ccgSubSurf_setUVCoordsFromDM(ss, dm, useSubsurfUv);
 #endif
 		}
 	}
