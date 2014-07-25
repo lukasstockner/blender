@@ -1347,7 +1347,7 @@ void BKE_texpaint_slot_refresh_cache(Material *ma, bool use_nodes)
 			return;
 
 		for (node = ma->nodetree->nodes.first; node; node = node->next) {
-			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE)
+			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE && node->typeinfo->type == SH_NODE_TEX_IMAGE && node->id)
 				count++;
 		}
 
@@ -1362,7 +1362,7 @@ void BKE_texpaint_slot_refresh_cache(Material *ma, bool use_nodes)
 		active_node = nodeGetActiveTexture(ma->nodetree);
 
 		for (node = ma->nodetree->nodes.first; node; node = node->next) {
-			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
+			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE && node->typeinfo->type == SH_NODE_TEX_IMAGE && node->id) {
 				if (active_node == node)
 					ma->paint_active_slot = index;
 				ma->texpaintslot[index++].ima = (Image *)node->id;
@@ -1388,7 +1388,7 @@ void BKE_texpaint_slot_refresh_cache(Material *ma, bool use_nodes)
 		for (mtex = ma->mtex, i = 0; i < MAX_MTEX; i++, mtex++) {
 			if (get_mtex_slot_valid_texpaint(*mtex)) {
 				ma->texpaintslot[index].ima = (*mtex)->tex->ima;
-				BLI_strncpy(ma->texpaintslot[index++].uvname, (*mtex)->uvname, 64);
+				ma->texpaintslot[index++].uvname = (*mtex)->uvname;
 			}
 		}
 	}
