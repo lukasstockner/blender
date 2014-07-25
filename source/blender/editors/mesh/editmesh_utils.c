@@ -506,17 +506,18 @@ static void update_bmesh_shapes(Object *ob)
 		int i, j, index;
 		float (*kbco)[3] = NULL;
 		float *cdco = NULL;
-		int cd_origindex_offset = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
+		int cd_vindex_offset = -1;
 
 		LISTBASE_ITER_FWD_INDEX(key->block, kb, i) {
-			/* find any keyblocks that don't have a corresponding CD_SHAPEKEY */
-			index = CustomData_get_named_layer_index(vdata, CD_SHAPEKEY, kb->name);
-			if (index == -1) {
-				/* this code can hardly ever be ran, but theoretically, if there's a new keyblock somehow... */
-				CustomData_add_layer_named(vdata, CD_SHAPEKEY, CD_ASSIGN, NULL, kb->totelem, kb->name);
-				index = CustomData_get_named_layer_index(vdata, CD_SHAPEKEY, kb->name);
+			index = -1;
+			for (j = 0; j < vdata->totlayer; ++j) {
+				if (kb->uid == vdata->layers[j].uid) {
+					index = j;
+					break;
+				}
 			}
-			vdata->layers[index].uid = kb->uid;
+
+			BLI_assert(index != -1); 
 
 			kbco = kb->data;
 
@@ -530,8 +531,9 @@ static void update_bmesh_shapes(Object *ob)
 		kb = BLI_findlink(&key->block, ob->shapenr - 1);
 		kbco = kb->data;
 		/* fix up the editcos along the CD_SHAPEKEY too */
+		cd_vindex_offset = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
 		BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
-			index = BM_ELEM_CD_GET_INT(v, cd_origindex_offset);
+			index = BM_ELEM_CD_GET_INT(v, cd_vindex_offset);
 			if (index != ORIGINDEX_NONE) {
 				copy_v3_v3(v->co, kbco[index]);
 			}
