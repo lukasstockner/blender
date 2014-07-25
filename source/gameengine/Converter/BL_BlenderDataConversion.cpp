@@ -53,7 +53,7 @@
 
 #include "BL_BlenderDataConversion.h"
 
-#include "MT_Transform.h"
+#include "MT_Matrix3x3.h"
 #include "MT_MinMax.h"
 
 #include "PHY_Pro.h"
@@ -1809,33 +1809,15 @@ static void bl_ConvertBlenderObject_Single(
 		vec_parent_child.push_back(pclink);
 
 		/* extract location, orientation and scale out of the inverse parent matrix */
-		float* fl = (float*) blenderobject->parentinv;
-		MT_Transform parinvtrans(fl);
-		parentinversenode->SetLocalPosition(parinvtrans.getOrigin());
+		float invp_loc[3], invp_rot[3][3], invp_size[3];
+		mat4_to_loc_rot_size(invp_loc, invp_rot, invp_size, blenderobject->parentinv);
 
-		// problem here: the parent inverse transform combines scaling and rotation
-		// in the basis but the scenegraph needs separate rotation and scaling.
-		// This is not important for OpenGL (it uses 4x4 matrix) but it is important
-		// for the physic engine that needs a separate scaling
-		//parentinversenode->SetLocalOrientation(parinvtrans.getBasis());
+		MT_Matrix3x3 invp_rot_mt;
+		invp_rot_mt.setValue3x3((float *) invp_rot);
+		parentinversenode->SetLocalPosition(MT_Point3(invp_loc));
+		parentinversenode->SetLocalOrientation(invp_rot_mt);
+		parentinversenode->SetLocalScale(MT_Vector3(invp_size));
 
-		// Extract the rotation and the scaling from the basis
-		MT_Matrix3x3 ori(parinvtrans.getBasis());
-		MT_Vector3 x(ori.getColumn(0));
-		MT_Vector3 y(ori.getColumn(1));
-		MT_Vector3 z(ori.getColumn(2));
-		MT_Vector3 parscale(x.length(), y.length(), z.length());
-		if (!MT_fuzzyZero(parscale[0]))
-			x /= parscale[0];
-		if (!MT_fuzzyZero(parscale[1]))
-			y /= parscale[1];
-		if (!MT_fuzzyZero(parscale[2]))
-			z /= parscale[2];
-		ori.setColumn(0, x);
-		ori.setColumn(1, y);
-		ori.setColumn(2, z);
-		parentinversenode->SetLocalOrientation(ori);
-		parentinversenode->SetLocalScale(parscale);
 	}
 
 	/* Note: world coordinates are calculated for all nodes when the scene graph
@@ -2100,8 +2082,10 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		}
 	}
 
-	// create hierarchy information
 	int i;
+
+
+	/* Build the scene graph relations */
 	vector<parentChildLink>::iterator pcit;
 	for (pcit = vec_parent_child.begin();!(pcit==vec_parent_child.end());++pcit)
 	{
@@ -2142,33 +2126,28 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			continue;
 		}
 
+		/* override the parent relation type if not normal.
+		 * If the type is not supported, the NormalParentRelation is kept. */
 		switch (blenderchild->partype)
 		{
 			case PARVERT1:
 			{
-				// creat a new vertex parent relationship for this node.
-				KX_VertexParentRelation * vertex_parent_relation = KX_VertexParentRelation::New();
-				pcit->m_gamechildnode->SetParentRelation(vertex_parent_relation);
+				pcit->m_gamechildnode->SetParentRelation(KX_VertexParentRelation::New());
 				break;
 			}
 			case PARSLOW:
 			{
-				// creat a new slow parent relationship for this node.
-				KX_SlowParentRelation * slow_parent_relation = KX_SlowParentRelation::New(blenderchild->sf);
-				pcit->m_gamechildnode->SetParentRelation(slow_parent_relation);
+				pcit->m_gamechildnode->SetParentRelation(KX_SlowParentRelation::New(blenderchild->sf));
 				break;
 			}
 			case PARBONE:
 			{
-				// parent this to a bone
 				Bone *parent_bone = BKE_armature_find_bone_name(BKE_armature_from_object(blenderchild->parent),
 				                                                blenderchild->parsubstr);
 
 				if (parent_bone) {
-					KX_BoneParentRelation *bone_parent_relation = KX_BoneParentRelation::New(parent_bone);
-					pcit->m_gamechildnode->SetParentRelation(bone_parent_relation);
+					pcit->m_gamechildnode->SetParentRelation(KX_BoneParentRelation::New(parent_bone));
 				}
-			
 				break;
 			}
 			case PARSKEL: // skinned - ignore
@@ -2181,19 +2160,19 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 				// unhandled
 				break;
 		}
-	
+
 		parentobj->	GetSGNode()->AddChild(pcit->m_gamechildnode);
 	}
 	vec_parent_child.clear();
 	
-	// find 'root' parents (object that has not parents in SceneGraph)
+	/* Find all 'root' parents (objects that have no parents in SceneGraph) and init the world transforms */
 	for (i=0;i<sumolist->GetCount();++i)
 	{
 		KX_GameObject* gameobj = (KX_GameObject*) sumolist->GetValue(i);
 		if (gameobj->GetSGNode()->GetSGParent() == 0)
 		{
 			parentlist->Add(gameobj->AddRef());
-			gameobj->NodeUpdateGS(0);
+			gameobj->GetSGNode()->UpdateWorldData(0, true);
 		}
 	}
 
