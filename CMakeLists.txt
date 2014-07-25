@@ -653,7 +653,7 @@ if(WITH_X11)
 
 	if(WITH_X11_XF86VMODE)
 		# XXX, why dont cmake make this available?
-		FIND_LIBRARY(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
+		find_library(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
 		mark_as_advanced(X11_Xxf86vmode_LIB)
 		if(X11_Xxf86vmode_LIB)
 			list(APPEND PLATFORM_LINKLIBS ${X11_Xxf86vmode_LIB})
@@ -1410,7 +1410,7 @@ elseif(WIN32)
 
 		if(WITH_MINGW64)
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
-			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -lpthread")
+			list(APPEND PLATFORM_LINKLIBS -lpthread)
 			
 			add_definitions(-DFREE_WINDOWS64 -DMS_WIN64)
 		endif()
@@ -1585,7 +1585,7 @@ elseif(WIN32)
 				LLVMX86Utils LLVMipa
 				LLVMipo LLVMCore)
 			# imagehelp is needed by LLVM 3.1 on MinGW, check lib\Support\Windows\Signals.inc
-			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -limagehlp")
+			list(APPEND PLATFORM_LINKLIBS -limagehlp)
 		endif()
 		
 		if(WITH_OPENCOLORIO)
