@@ -29,7 +29,8 @@
  *  \ingroup glew-mx
  *
  * Support for GLEW Multimple rendering conteXts (MX)
- * 
+ * Maintained by Jason Wilkins
+ *
  * Different rendering contexts may have different entry points 
  * to extension functions of the same name.  So it can cause
  * problems if, for example, a second context uses a pointer to
@@ -38,10 +39,11 @@
  * GLEW has basic support for multiple contexts by enabling GLEW_MX,
  * but it does not provide a full implementation.  This is because
  * there are too many questions about thread safety and memory
- * allocation that are up to the user of the library.
+ * allocation that are up to the user of GLEW.
  *
  * This implementation is very basic.  It is not thread safe and it
- * uses malloc.
+ * uses malloc. For a single context the overhead should be
+ * no more than using GLEW without GLEW_MX enabled.
  */
 
 #ifdef GLEW_MX
