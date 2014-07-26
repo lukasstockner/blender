@@ -266,7 +266,7 @@ protected:
 	 * \param type	The type of rendering context create.
 	 * \return Indication of success.
 	 */
-	virtual GHOST_Context* newDrawingContext(GHOST_TDrawingContextType type);
+	virtual GHOST_Context *newDrawingContext(GHOST_TDrawingContextType type);
 
 	/**
 	 * Invalidates the contents of this window.

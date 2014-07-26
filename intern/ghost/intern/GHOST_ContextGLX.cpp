@@ -163,15 +163,15 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 	}
 
 #ifdef GHOST_OPENGL_ALPHA
-	static const bool needAlpha   = true;
+	const bool needAlpha = true;
 #else
-	static const bool needAlpha   = false;
+	const bool needAlpha = false;
 #endif
 
 #ifdef GHOST_OPENGL_STENCIL
-	static const bool needStencil = true;
+	const bool needStencil = true;
 #else
-	static const bool needStencil = false;
+	const bool needStencil = false;
 #endif
 
 	/* Find the display with highest samples, starting at level requested */

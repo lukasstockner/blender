@@ -1085,7 +1085,7 @@ GHOST_WindowX11::
 
 
 
-GHOST_Context* GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type)
+GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type)
 {
 	if (type == GHOST_kDrawingContextTypeOpenGL) {
 #if !defined(WITH_GL_EGL)

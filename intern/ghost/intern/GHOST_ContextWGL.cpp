@@ -566,11 +566,11 @@ int GHOST_ContextWGL::_choose_pixel_format_arb_1(
 
 
 int GHOST_ContextWGL::choose_pixel_format_arb(
-	bool stereoVisual,
-	int numOfAASamples,
-	bool needAlpha,
-	bool needStencil,
-	bool sRGB)
+        bool stereoVisual,
+        int numOfAASamples,
+        bool needAlpha,
+        bool needStencil,
+        bool sRGB)
 {
 	int iPixelFormat;
 	int swapMethodOut;
@@ -684,15 +684,15 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
 	WIN32_CHK(GetLastError() == NO_ERROR);
 
 #ifdef GHOST_OPENGL_ALPHA
-	static const bool needAlpha   = true;
+	const bool needAlpha = true;
 #else
-	static const bool needAlpha   = false;
+	const bool needAlpha = false;
 #endif
 
 #ifdef GHOST_OPENGL_STENCIL
-	static const bool needStencil = true;
+	const bool needStencil = true;
 #else
-	static const bool needStencil = false;
+	const bool needStencil = false;
 #endif
 
 #ifdef GHOST_OPENGL_SRGB

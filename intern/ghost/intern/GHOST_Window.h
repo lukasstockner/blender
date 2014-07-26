@@ -301,7 +301,7 @@ protected:
 	 * \param type	The type of rendering context installed.
 	 * \return Indication as to whether installation has succeeded.
 	 */
-	virtual GHOST_Context* newDrawingContext(GHOST_TDrawingContextType type) = 0;
+	virtual GHOST_Context *newDrawingContext(GHOST_TDrawingContextType type) = 0;
 
 	/**
 	 * Sets the cursor visibility on the window using
