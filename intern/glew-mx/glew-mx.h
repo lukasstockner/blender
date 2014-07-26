@@ -33,13 +33,13 @@
 #ifndef __GLEW_MX_H__
 #define __GLEW_MX_H__
 
-#ifdef GLEW_MX
+#ifdef WITH_GLEW_MX
 #define glewGetContext() _mxContext
 #endif
 
 #include <GL/glew.h>
 
-#ifdef GLEW_MX
+#ifdef WITH_GLEW_MX
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,6 +63,6 @@ void mxDestroyContext(GLEWContext* ctx);
 #define mxCreateContext()       ((void *)0)
 #define mxDestroyContext(ctx)   ((void)ctx)
 
-#endif  /* GLEW_MX */
+#endif  /* WITH_GLEW_MX */
 
 #endif  /* __GLEW_MX_H__ */

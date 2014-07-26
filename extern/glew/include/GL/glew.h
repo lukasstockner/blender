@@ -13377,22 +13377,22 @@ typedef void (GLAPIENTRY * PFNGLADDSWAPHINTRECTWINPROC) (GLint x, GLint y, GLsiz
 
 /* ------------------------------------------------------------------------- */
 
-#if defined(GLEW_MX) && defined(_WIN32)
+#if defined(WITH_GLEW_MX) && defined(_WIN32)
 #define GLEW_FUN_EXPORT
 #else
 #define GLEW_FUN_EXPORT GLEWAPI
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
-#if defined(GLEW_MX)
+#if defined(WITH_GLEW_MX)
 #define GLEW_VAR_EXPORT
 #else
 #define GLEW_VAR_EXPORT GLEWAPI
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
-#if defined(GLEW_MX) && defined(_WIN32)
+#if defined(WITH_GLEW_MX) && defined(_WIN32)
 struct GLEWContextStruct
 {
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
 GLEW_FUN_EXPORT PFNGLCOPYTEXSUBIMAGE3DPROC __glewCopyTexSubImage3D;
 GLEW_FUN_EXPORT PFNGLDRAWRANGEELEMENTSPROC __glewDrawRangeElements;
@@ -15607,10 +15607,10 @@ GLEW_FUN_EXPORT PFNGLTEXCOORD4FVERTEX4FVSUNPROC __glewTexCoord4fVertex4fvSUN;
 
 GLEW_FUN_EXPORT PFNGLADDSWAPHINTRECTWINPROC __glewAddSwapHintRectWIN;
 
-#if defined(GLEW_MX) && !defined(_WIN32)
+#if defined(WITH_GLEW_MX) && !defined(_WIN32)
 struct GLEWContextStruct
 {
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
 GLEW_VAR_EXPORT GLboolean __GLEW_VERSION_1_1;
 GLEW_VAR_EXPORT GLboolean __GLEW_VERSION_1_2;
@@ -16046,9 +16046,9 @@ GLEW_VAR_EXPORT GLboolean __GLEW_WIN_phong_shading;
 GLEW_VAR_EXPORT GLboolean __GLEW_WIN_specular_fog;
 GLEW_VAR_EXPORT GLboolean __GLEW_WIN_swap_hint;
 
-#ifdef GLEW_MX
+#ifdef WITH_GLEW_MX
 }; /* GLEWContextStruct */
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
 /* ------------------------------------------------------------------------- */
 
@@ -16066,7 +16066,7 @@ GLEW_VAR_EXPORT GLboolean __GLEW_WIN_swap_hint;
 #define GLEW_VERSION_MICRO 4
 
 /* API */
-#ifdef GLEW_MX
+#ifdef WITH_GLEW_MX
 
 typedef struct GLEWContextStruct GLEWContext;
 GLEWAPI GLenum glewContextInit (GLEWContext* ctx);
@@ -16083,7 +16083,7 @@ GLEWAPI GLboolean glewContextIsSupported (const GLEWContext* ctx, const char* na
 #  define GLEW_GET_FUN(x) x
 #endif
 
-#else /* GLEW_MX */
+#else /* WITH_GLEW_MX */
 
 GLEWAPI GLenum glewInit (void);
 GLEWAPI GLboolean glewIsSupported (const char* name);
@@ -16092,7 +16092,7 @@ GLEWAPI GLboolean glewIsSupported (const char* name);
 #define GLEW_GET_VAR(x) (*(const GLboolean*)&x)
 #define GLEW_GET_FUN(x) x
 
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
 GLEWAPI GLboolean glewExperimental;
 GLEWAPI GLboolean glewGetExtension (const char* name);

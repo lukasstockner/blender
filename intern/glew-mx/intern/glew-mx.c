@@ -29,24 +29,24 @@
  *  \ingroup glew-mx
  *
  * Support for GLEW Multimple rendering conteXts (MX)
- * Maintained by Jason Wilkins
+ * Maintained as a Blender Library.
  *
- * Different rendering contexts may have different entry points 
+ * Different rendering contexts may have different entry points
  * to extension functions of the same name.  So it can cause
  * problems if, for example, a second context uses a pointer to
  * say, glActiveTextureARB, that was queried from the first context.
  *
- * GLEW has basic support for multiple contexts by enabling GLEW_MX,
+ * GLEW has basic support for multiple contexts by enabling WITH_GLEW_MX,
  * but it does not provide a full implementation.  This is because
  * there are too many questions about thread safety and memory
  * allocation that are up to the user of GLEW.
  *
- * This implementation is very basic.  It is not thread safe and it
- * uses malloc. For a single context the overhead should be
- * no more than using GLEW without GLEW_MX enabled.
+ * This implementation is very basic and isn't thread safe.
+ * For a single context the overhead should be
+ * no more than using GLEW without WITH_GLEW_MX enabled.
  */
 
-#ifdef GLEW_MX
+#ifdef WITH_GLEW_MX
 
 #include "glew-mx.h"
 
@@ -77,4 +77,4 @@ void mxDestroyContext(GLEWContext *ctx)
 	free(ctx);
 }
 
-#endif
+#endif  /* WITH_GLEW_MX */
