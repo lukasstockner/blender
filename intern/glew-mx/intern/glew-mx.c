@@ -28,14 +28,26 @@
 /** \file glew-mx.c
  *  \ingroup glew-mx
  *
- * GLEW Context Management
+ * Support for GLEW Multimple rendering conteXts (MX)
+ * 
+ * Different rendering contexts may have different entry points 
+ * to extension functions of the same name.  So it can cause
+ * problems if, for example, a second context uses a pointer to
+ * say, glActiveTextureARB, that was queried from the first context.
+ *
+ * GLEW has basic support for multiple contexts by enabling GLEW_MX,
+ * but it does not provide a full implementation.  This is because
+ * there are too many questions about thread safety and memory
+ * allocation that are up to the user of the library.
+ *
+ * This implementation is very basic.  It is not thread safe and it
+ * uses malloc.
  */
 
 #ifdef GLEW_MX
 
 #include "glew-mx.h"
 
-#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
