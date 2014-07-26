@@ -94,8 +94,8 @@ GHOST_WindowSDL::newDrawingContext(GHOST_TDrawingContextType type)
 		        m_sdl_win,
 		        0, // profile bit
 		        0, 0,
-		        GHOST_OPENGL_GLX_CONTEXT_FLAGS,
-		        GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY);
+		        GHOST_OPENGL_SDL_CONTEXT_FLAGS,
+		        GHOST_OPENGL_SDL_RESET_NOTIFICATION_STRATEGY);
 
 		if (context->initializeDrawingContext())
 			return context;

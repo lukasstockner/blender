@@ -40,9 +40,6 @@
 #include <cstring>
 
 
-GLEWContext *glewContext = NULL;
-
-
 SDL_GLContext GHOST_ContextSDL::s_sharedContext = NULL;
 int           GHOST_ContextSDL::s_sharedCount   = 0;
 

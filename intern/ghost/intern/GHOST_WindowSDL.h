@@ -30,7 +30,7 @@
 
 #include "GHOST_Window.h"
 #include "GHOST_SystemSDL.h"
-#include "GHOST_ContextGLX.h"
+
 #include <map>
 
 extern "C" {

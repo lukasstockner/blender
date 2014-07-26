@@ -38,9 +38,6 @@ extern "C" {
 	#include "SDL.h"
 }
 
-//#define glewGetContext() glewGetContext
-#include "glew-mx.h"
-extern "C" GLEWContext *glewContext;
 
 #ifndef GHOST_OPENGL_SDL_CONTEXT_FLAGS
 #define GHOST_OPENGL_SDL_CONTEXT_FLAGS 0
