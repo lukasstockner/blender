@@ -344,11 +344,8 @@ error:
 
 GHOST_TSuccess GHOST_ContextCGL::releaseNativeHandles()
 {
-	GHOST_TSuccess success = ((m_openGLContext != s_sharedOpenGLContext) ||
-	                          (s_sharedCount == 1 ? GHOST_kSuccess : GHOST_kFailure));
-
 	m_openGLContext = NULL;
 	m_openGLView    = NULL;
 
-	return success;
+	return GHOST_kSuccess;
 }
