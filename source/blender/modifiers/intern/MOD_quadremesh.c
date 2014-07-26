@@ -44,14 +44,9 @@
 
 #include "ONL_opennl.h"
 
-
-#define FLOW_LINE_POINT_TYPE_VERTEX 0 
-#define FLOW_LINE_POINT_TYPE_EDGE 1
-
 typedef struct GradientFlowLine {
-	char *type;				/* The point is over a vertex or a edge, 1:edge, 0:vertex */
 	float(*co)[3];			/* Vertex coordinate */
-	int *index;				/* Pointer to a vertex or a edge */
+	int *index;				/* Pointer to a edge */
 	int total_verts;		/* Total number of points in a flow line */
 	int total_allocated;	/* Total number of elements allocated */
 } GradientFlowLine;
@@ -74,15 +69,17 @@ typedef struct LaplacianSystem {
 	int *constraints;			/* Feature points constraints*/
 	int *ringf_indices;			/* Indices of faces per vertex */
 	int *ringv_indices;			/* Indices of neighbors(vertex) per vertex */
+	int *ringe_indices;			/* Indices of edges per vertex */
 	unsigned int(*faces)[4];	/* Copy of MFace (tessface) v1-v4 */
+	unsigned int(*edges)[2];	/* Copy of edges v1-v2 */
 	GradientFlowLine *gflines;  /* Gradien flow lines of field g1*/
 	MeshElemMap *ringf_map;		/* Map of faces per vertex */
 	MeshElemMap *ringv_map;		/* Map of vertex per vertex */
+	MeshElemMap *ringe_map;		/* Map of edges per vertex */
 	NLContext *context;			/* System for solve general implicit rotations */
 } LaplacianSystem;
 
 static GradientFlowLine *initGradientFlowLine(GradientFlowLine *gfl, int expected_size){
-	gfl->type = MEM_mallocN(sizeof(char) * expected_size, __func__);  /* over-alloc */
 	gfl->co = MEM_mallocN(sizeof(float[3]) * expected_size, __func__);  /* over-alloc */
 	gfl->index = MEM_mallocN(sizeof(int)* expected_size, __func__);  /* over-alloc */
 	gfl->total_allocated = expected_size;
@@ -90,19 +87,17 @@ static GradientFlowLine *initGradientFlowLine(GradientFlowLine *gfl, int expecte
 	return gfl;
 }
 
-static void addPointToGradientFlowLine(GradientFlowLine *gfl, char type, float p[3], int index)
+static void addPointToGradientFlowLine(GradientFlowLine *gfl, float p[3], int index)
 {
-	if (index >= 0 && (type == FLOW_LINE_POINT_TYPE_EDGE || type == FLOW_LINE_POINT_TYPE_VERTEX)) {
+	if (index >= 0 ) {
 
 		if (index >= gfl->total_allocated){
-			gfl->type = MEM_reallocN(gfl->type, sizeof(char) * (gfl->total_allocated + 1));
 			gfl->co = MEM_reallocN(gfl->co, sizeof(float[3]) * (gfl->total_allocated + 1));
 			gfl->index = MEM_reallocN(gfl->index, sizeof(int) * (gfl->total_allocated + 1));
 			gfl->total_allocated++;
 		}
 
 		copy_v3_v3(gfl->co[gfl->total_verts], p);
-		gfl->type[gfl->total_verts] = type;
 		gfl->index[gfl->total_verts] = index;
 		gfl->total_verts++;
 	}
@@ -137,6 +132,7 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 	sys->total_features = totalFeatures;
 	BLI_strncpy(sys->features_grp_name, defgrpName, sizeof(sys->features_grp_name));
 	sys->faces = MEM_mallocN(sizeof(int[4]) * totalFaces, "QuadRemeshFaces");
+	sys->edges = MEM_mallocN(sizeof(int[2]) * totalEdges, "QuadRemeshEdges");
 	sys->co = MEM_mallocN(sizeof(float[3]) * totalVerts, "QuadRemeshCoordinates");
 	sys->no = MEM_callocN(sizeof(float[3]) * totalFaces, "QuadRemeshNormals");
 	sys->gf1 = MEM_mallocN(sizeof(float[3]) * totalFaces, "QuadRemeshGradientField1");
@@ -150,6 +146,7 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 static void UNUSED_FUNCTION(deleteLaplacianSystem)(LaplacianSystem *sys)
 {
 	MEM_SAFE_FREE(sys->faces);
+	MEM_SAFE_FREE(sys->edges);
 	MEM_SAFE_FREE(sys->co);
 	MEM_SAFE_FREE(sys->no);
 	MEM_SAFE_FREE(sys->constraints);
@@ -159,12 +156,13 @@ static void UNUSED_FUNCTION(deleteLaplacianSystem)(LaplacianSystem *sys)
 	MEM_SAFE_FREE(sys->gf2);
 	MEM_SAFE_FREE(sys->ringf_indices);
 	MEM_SAFE_FREE(sys->ringv_indices);
+	MEM_SAFE_FREE(sys->ringe_indices);
 	MEM_SAFE_FREE(sys->ringf_map);
 	MEM_SAFE_FREE(sys->ringv_map);
+	MEM_SAFE_FREE(sys->ringe_map);
 	for (int i = 0; i < sys->total_gflines; i++) {
 		MEM_SAFE_FREE(sys->gflines[i].co);
 		MEM_SAFE_FREE(sys->gflines[i].index);
-		MEM_SAFE_FREE(sys->gflines[i].type);
 	}
 	MEM_SAFE_FREE(sys->gflines);
 	if (sys->context) {
@@ -250,6 +248,40 @@ static void createVertRingMap(
 	*r_indices = indices;
 }
 
+static void createEdgeRingMap(
+	const int mvert_tot, const MEdge *medge, const int medge_tot,
+	MeshElemMap **r_map, int **r_indices)
+{
+	MeshElemMap *map = MEM_callocN(sizeof(MeshElemMap)* mvert_tot, "DeformNeighborsMap");
+	int i, vid[2], totalr = 0;
+	int *indices, *index_iter;
+	const MEdge *me;
+
+	for (i = 0, me = medge; i < medge_tot; i++, me++) {
+		vid[0] = me->v1;
+		vid[1] = me->v2;
+		map[vid[0]].count++;
+		map[vid[1]].count++;
+		totalr += 2;
+	}
+	indices = MEM_callocN(sizeof(int)* totalr, "DeformNeighborsIndex");
+	index_iter = indices;
+	for (i = 0; i < mvert_tot; i++) {
+		map[i].indices = index_iter;
+		index_iter += map[i].count;
+		map[i].count = 0;
+	}
+	for (i = 0, me = medge; i < medge_tot; i++, me++) {
+		vid[0] = me->v1;
+		vid[1] = me->v2;
+		map[vid[0]].indices[map[vid[0]].count] = i;
+		map[vid[0]].count++;
+		map[vid[1]].indices[map[vid[1]].count] = i;
+		map[vid[1]].count++;
+	}
+	*r_map = map;
+	*r_indices = indices;
+}
 
 static void initLaplacianMatrix(LaplacianSystem *sys)
 {
@@ -378,6 +410,16 @@ static void computeScalarField(LaplacianSystem *sys)
 #endif
 }
 
+static void print_face(LaplacianSystem *sys, int indexf)
+{
+	int *vin;
+	vin = sys->faces[indexf];
+	print_v3_id(sys->co[vin[0]]);
+	print_v3_id(sys->co[vin[1]]);
+	print_v3_id(sys->co[vin[2]]);
+
+}
+
 /** 
  * Compute the gradient fields
  * 
@@ -416,128 +458,194 @@ static void computeGradientFields(LaplacianSystem * sys)
 		mul_v3_m3v3(sys->gf1[fi], inv_a, u);
 		cross_v3_v3v3(sys->gf2[fi], sys->no[fi], sys->gf1[fi]);
 	}
+}
 
-
+void printff_v3(const char *str, const float v[3])
+{
+	printf("%s: %.7f %.7f %.7f\n", str, v[0], v[1], v[2]);
 }
 
 /**
 * Project vector of gradient field on face, 
 */
-static void computeDirectionVectorOnFace(float dir[3], LaplacianSystem * sys, float origin[3], int indexf)
+static void projectGradientOnFace(float dir[3], LaplacianSystem * sys, float(*gf)[3], int indexf)
 {
-
+	int i;
+	float  g[3], u[3], w[3], val;
+	normalize_v3_v3(g, gf[indexf]);
+	val = dot_v3v3(g, sys->no[indexf]);
+	mul_v3_v3fl(u, sys->no[indexf], val);
+	sub_v3_v3v3(w, g, u);
+	normalize_v3_v3(dir, w);
 }
 
-/**
-* return the index of face with less value of U scalar field
-* return -1 if any value is less.
-*/
-static int getNeighborFaceWithMinUField(LaplacianSystem * sys, int index, float value){
-	int *vin, has4v;
+static void getFacesAdjacentToEdge(int fs[2], LaplacianSystem *sys, int indexe)
+{
+	int i, v1, v2, counter;
 	int *fidn, numf;
-	int i, j;
-	int indexf = -1;
-	float minvalue = value;
+	int *vin;
+	v1 = sys->edges[indexe][0];
+	v2 = sys->edges[indexe][1];
+	numf = sys->ringf_map[v1].count;
+	fidn = sys->ringf_map[v1].indices;
+	counter = 0;
+	fs[0] = -1;
+	fs[1] = -1;
 
-	vin = sys->faces[index];
-	has4v = vin[3] ? 4 : 3;
-	for (i = 0; i < has4v; i++) {
-		numf = sys->ringf_map[vin[i]].count;
-		fidn = sys->ringf_map[vin[i]].indices;
-		for (j = 0; j < numf; j++){
-			if (fidn[j] != index){
-				if (sys->U_field[fidn[j]] < minvalue){
-					minvalue = sys->U_field[fidn[j]];
-					indexf = fidn[j];
-				}
+	for (i = 0; i < numf && counter < 2; i++) {
+		vin = sys->faces[fidn[i]];
+		if (vin[0] == v2 || vin[1] == v2 || vin[2] == v2) {
+			fs[counter++] = fidn[i];
+		}
+	}
+}
+
+static int getEdgeFromVerts(LaplacianSystem *sys, int v1, int v2)
+{
+	int *eidn, nume, i;
+	nume = sys->ringe_map[v1].count;
+	eidn = sys->ringe_map[v1].indices;
+	for (i = 0; i < nume; i++) {
+		if (sys->edges[eidn[i]][0] == v2 || sys->edges[eidn[i]][1] == v2){
+			return eidn[i];
+		}
+	}
+	return -1;
+}
+
+static bool isBetweenLine(float p1[3], float p2[3], float q[3]){
+	if (   (q[0] >= min_ff(p1[0], p2[0]))
+		&& (q[1] >= min_ff(p1[1], p2[1]))
+		&& (q[2] >= min_ff(p1[2], p2[2]))
+		&& (q[0] <= max_ff(p1[0], p2[0]))
+		&& (q[1] <= max_ff(p1[1], p2[1]))
+		&& (q[2] <= max_ff(p1[2], p2[2]))
+		) {
+		return true;
+	}
+	return false;
+}
+
+static int isectLineToEdges(float r[3], LaplacianSystem *sys, float ori[3], int indexf, int indexe)
+{
+	int *vin, ev1, ev2, ev3;
+	float p1[3], p2[3], p3[3], dir[3], q[3], i1[3], i2[3];
+	float l;
+	
+	ev1 = sys->edges[indexe][0];
+	ev2 = sys->edges[indexe][1];
+
+	vin = sys->faces[indexf];
+	projectGradientOnFace(dir, sys, sys->gf1, indexf);
+
+	mul_v3_fl(dir, 100);
+
+	add_v3_v3v3(q, ori, dir);
+
+	if ((vin[0] == ev1 && vin[1] == ev2) || (vin[1] == ev1 && vin[0] == ev2)) {
+		ev3 = vin[2];
+	}
+	else if ((vin[0] == ev1 && vin[2] == ev2) || (vin[2] == ev1 && vin[0] == ev2)) {
+		ev3 = vin[1];
+	}
+	else if ((vin[1] == ev1 && vin[2] == ev2) || (vin[2] == ev1 && vin[1] == ev2)) {
+		ev3 = vin[0];
+	}
+
+	copy_v3_v3(p1, sys->co[ev1]);
+	copy_v3_v3(p2, sys->co[ev2]);
+	copy_v3_v3(p3, sys->co[ev3]);
+
+	if (isect_line_line_v3(p2, p3, ori, q, r, i2) == ISECT_LINE_LINE_EXACT) {
+		return getEdgeFromVerts(sys, ev2, ev3);
+	}
+	else if (isect_line_line_v3(p1, p3, ori, q, r, i2) == ISECT_LINE_LINE_EXACT) {
+		return getEdgeFromVerts(sys, ev1, ev3);
+	}
+	else if (isect_line_line_v3(p2, p3, ori, q, r, i2) == ISECT_LINE_LINE_CROSS) {
+		l = len_v3v3(r, i2);
+		if (l < 0.000001f) {
+			if (isBetweenLine(p2, p3, r)) {
+				return getEdgeFromVerts(sys, ev2, ev3);
+			}
+			else{
+				printf("No between \n");
 			}
 		}
 	}
-	return indexf;
+	else if (isect_line_line_v3(p1, p3, ori, q, r, i2) == ISECT_LINE_LINE_CROSS) {
+		l = len_v3v3(r, i2);
+		if (l < 0.000001f) {
+			if (isBetweenLine(p1, p3, r)) {
+				return getEdgeFromVerts(sys, ev1, ev3);
+			}
+			else {
+				printf("No between \n");
+			}
+
+		}
+	}
+	return -1;
+
+	
 }
 
 /** 
-* int ifs; Index of vertx, this vertex is the seed for trace this flow line
+* int ifs; Index of inde, this edge is the seed for trace this flow line
 */
-static void computeGradientFlowLine(LaplacianSystem * sys, int ivs){
-	float minU, tempminU, x[3], p[3], i1[3], i2[3];
-	int i, numf, indexf, actualf, indf;
-	int *fidn;
-	int *vin, has4v;
-	int totalverts = 0;
-	float(*vflowline)[3] = MEM_mallocN(sizeof(float[3]) * sys->total_verts, __func__);  /* over-alloc */
+static void computeGradientFlowLine(LaplacianSystem * sys, int inde, float dis, float(*vertexCos)[3])
+{
+	int fs[2], indegde, res, oldface, newface;
+	float seed[3], v1[3], v2[3], p1[3], dir[3], r[3];
+	float(*mive)[3] = MEM_mallocN(sizeof(float) * 600, __func__ );
+	int i, total = 0;
+	//GradientFlowLine *gfline = MEM_mallocN(sizeof(GradientFlowLine), __func__);
+
+
+
+	copy_v3_v3(v1, sys->co[sys->edges[inde][0]]);
+	copy_v3_v3(v2, sys->co[sys->edges[inde][1]]);
+	
+	add_v3_v3v3(seed, v1, v2);
+	mul_v3_fl(seed, 0.5f);
+	
+	getFacesAdjacentToEdge(fs, sys, inde);
 	
 
-	numf = sys->ringf_map[ivs].count;
-	/* Choose the face with minimun value of U field*/
-	minU = 1000000;
-	fidn = sys->ringf_map[ivs].indices;
-	for (i = 0; i < numf; i++) {
-		indexf = fidn[i];
-		if (sys->U_field[indexf] < minU){
-			minU = sys->U_field[indexf];
-			i = numf + 1;
-		}
-	}
+	indegde = inde;
+	oldface = fs[0];
+	newface = fs[1];
+	while (indegde >= 0) {
 
-	vin = sys->faces[indexf];
-	has4v = vin[3] ? 4 : 3;
-	zero_v3(x);
-	for (i = 0; i < has4v; i++){
-		add_v3_v3(x, sys->co[vin[i]]);
-	}
-	mul_v3_fl(x, 1.0 / ((float)has4v));
-	copy_v3_v3(vflowline[0], x);
-	totalverts++;
-
-	tempminU = 1000000;
-	actualf = indexf;
-	indf = indexf;
-	while (indf > 0) {
-
-
-
-		indf = getNeighborFaceWithMinUField(sys, actualf, tempminU);
+		indegde = isectLineToEdges(r, sys, seed, newface, indegde);
+		print_v3_id(r);
 		
-		copy_v3_v3(p, vflowline[totalverts - 1]);
-		vin = sys->faces[actualf];
-		has4v = vin[3] ? 4 : 3;
-		if (has4v == 3) {
-			/** 1 - lines are coplanar, i1 is set to intersection*/
-			if (isect_line_line_v3(sys->co[vin[0]], sys->co[vin[1]], p, sys->gf1[actualf], i1, i2) == 1) {
-				copy_v3_v3(vflowline[totalverts], i1);
-				totalverts++;
+		if (indegde >= 0) {
+			copy_v3_v3(mive[total++], r);
+			getFacesAdjacentToEdge(fs, sys, indegde);
+			if (fs[0] == newface){
+				oldface = newface;
+				newface = fs[1];
 			}
-			else if (isect_line_line_v3(sys->co[vin[1]], sys->co[vin[2]], p, sys->gf1[actualf], i1, i2) == 1) {
-				copy_v3_v3(vflowline[totalverts], i1);
-				totalverts++;
-			}
-			else if (isect_line_line_v3(sys->co[vin[2]], sys->co[vin[0]], p, sys->gf1[actualf], i1, i2) == 1) {
-				copy_v3_v3(vflowline[totalverts], i1);
-				totalverts++;
+			else{
+				oldface = newface;
+				newface = fs[0];
 			}
 		}
 		else{
-			if (isect_line_line_v3(sys->co[vin[0]], sys->co[vin[1]], p, sys->gf1[actualf], i1, i2) == 1) {
-				copy_v3_v3(vflowline[totalverts], i1);
-				totalverts++;
-			}
-			else if (isect_line_line_v3(sys->co[vin[1]], sys->co[vin[2]], p, sys->gf1[actualf], i1, i2) == 1) {
-				copy_v3_v3(vflowline[totalverts], i1);
-				totalverts++;
-			}
-			else if (isect_line_line_v3(sys->co[vin[2]], sys->co[vin[3]], p, sys->gf1[actualf], i1, i2) == 1) {
-				copy_v3_v3(vflowline[totalverts], i1);
-				totalverts++;
-			}
-			else if (isect_line_line_v3(sys->co[vin[3]], sys->co[vin[0]], p, sys->gf1[actualf], i1, i2) == 1) {
-				copy_v3_v3(vflowline[totalverts], i1);
-				totalverts++;
-			}
+			print_face(sys, newface);
+			printff_v3("seed: \n", seed);
+			projectGradientOnFace(dir, sys, sys->gf1, newface);
+			printff_v3("dir: \n", dir);
+
 		}
+		copy_v3_v3(seed, r);
 	}
 
-		
+	for (i = 0; i < total; i++) {
+		copy_v3_v3(vertexCos[i], mive[i]);
+	}
+
 }
 
 static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
@@ -555,6 +663,7 @@ static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, Der
 	int *constraints = MEM_mallocN(sizeof(int)* numVerts, __func__);
 	float *weights = MEM_mallocN(sizeof(float)* numVerts, __func__);
 	MFace *tessface;
+	MEdge *arrayedge;
 
 	modifier_get_vgroup(ob, dm, qmd->anchor_grp_name, &dvert, &defgrp_index);
 	BLI_assert(dvert != NULL);
@@ -590,11 +699,19 @@ static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, Der
 	createVertRingMap(
 		dm->getNumVerts(dm), dm->getEdgeArray(dm), dm->getNumEdges(dm),
 		&sys->ringv_map, &sys->ringv_indices);
+	createEdgeRingMap(
+		dm->getNumVerts(dm), dm->getEdgeArray(dm), dm->getNumEdges(dm),
+		&sys->ringe_map, &sys->ringe_indices);
 
 	tessface = dm->getTessFaceArray(dm);
 
 	for (i = 0; i < sys->total_faces; i++) {
 		memcpy(&sys->faces[i], &tessface[i].v1, sizeof(*sys->faces));
+	}
+
+	arrayedge = dm->getEdgeArray(dm);
+	for (i = 0; i < sys->total_edges; i++) {
+		memcpy(&sys->edges[i], &arrayedge[i].v1, sizeof(*sys->edges));
 	}
 	return sys;
 
@@ -636,7 +753,7 @@ static void QuadRemeshModifier_do(
 			defvert_add_index_notest(dv, defgrp_index, y);
 			dv++;
 		}
-
+		computeGradientFlowLine(sys, 100, 0.5, vertexCos);
 	}
 }
 
