@@ -125,10 +125,12 @@ if(WITH_HEADLESS OR WITH_GHOST_SDL)
 			intern/GHOST_DisplayManagerSDL.cpp
 			intern/GHOST_SystemSDL.cpp
 			intern/GHOST_WindowSDL.cpp
+			intern/GHOST_ContextSDL.cpp
 
 			intern/GHOST_DisplayManagerSDL.h
 			intern/GHOST_SystemSDL.h
 			intern/GHOST_WindowSDL.h
+			intern/GHOST_ContextSDL.h
 		)
 		add_definitions(-DWITH_GHOST_SDL)
 	endif()
