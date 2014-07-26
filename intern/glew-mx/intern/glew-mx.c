@@ -49,7 +49,6 @@
 #include "glew-mx.h"
 
 #include <stdlib.h>
-#include <string.h>
 
 GLEWContext *_mxContext = NULL;
 
@@ -65,12 +64,7 @@ void mxSetContext(GLEWContext *ctx)
 
 GLEWContext *mxCreateContext(void)
 {
-	GLEWContext *ctx = malloc(sizeof(GLEWContext));
-
-	if (ctx != NULL)
-		memset(ctx, 0, sizeof(GLEWContext));
-
-	return ctx;
+	return calloc(1, sizeof(GLEWContext));
 }
 
 void mxDestroyContext(GLEWContext *ctx)
