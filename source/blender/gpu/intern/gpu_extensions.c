@@ -48,7 +48,9 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_simple_shader.h"
-#include "gpu_codegen.h"
+
+#include "intern/gpu_codegen.h"
+#include "intern/gpu_extensions_private.h"
 
 #include <stdlib.h>
 #include <stdio.h>

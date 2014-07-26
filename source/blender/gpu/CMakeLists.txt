@@ -63,6 +63,7 @@ set(SRC
 	GPU_simple_shader.h
 	GPU_select.h
 	intern/gpu_codegen.h
+	intern/gpu_extensions_private.h
 )
 
 data_to_c_simple(shaders/gpu_shader_material.glsl SRC)
