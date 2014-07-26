@@ -9,4 +9,4 @@ sources = ['src/glew.c']
 defs = env['BF_GL_DEFINITIONS']
 incs = ['include']
 
-env.BlenderLib ( 'extern_glew', sources, incs, defs, libtype=['extern','player'], priority=[50,230] )
+env.BlenderLib ( 'extern_glew_es', sources, incs, defs, libtype=['extern','player'], priority=[50,230] )
