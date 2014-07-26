@@ -79,8 +79,6 @@ extern "C"
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
 	
-	int GHOST_HACK_getFirstFile(char buf[]);
-	
 // For BLF
 #include "BLF_api.h"
 #include "BLF_translation.h"
@@ -294,12 +292,6 @@ static void get_filename(int argc, char **argv, char *filename)
 		if (BLI_exists(argv[argc-1])) {
 			BLI_strncpy(filename, argv[argc-1], FILE_MAX);
 		}
-		if (::strncmp(argv[argc-1], "-psn_", 5)==0) {
-			static char firstfilebuf[512];
-			if (GHOST_HACK_getFirstFile(firstfilebuf)) {
-				BLI_strncpy(filename, firstfilebuf, FILE_MAX);
-			}
-		}                        
 	}
 	
 	srclen -= ::strlen("MacOS/blenderplayer");
