@@ -158,6 +158,7 @@ typedef struct Nurb {
 	
 	int charidx;
 	
+	float minu, maxu;
 	ListBase outer_trim;
 	ListBase inner_trim;
 } Nurb;

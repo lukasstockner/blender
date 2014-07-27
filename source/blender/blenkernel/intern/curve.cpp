@@ -194,7 +194,7 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
 	copy_v3_fl(cu->size, 1.0f);
 	cu->flag = CU_FRONT | CU_BACK | CU_DEFORM_BOUNDS_OFF | CU_PATH_RADIUS;
 	cu->pathlen = 100;
-	cu->resolu = cu->resolv = (type == OB_SURF) ? 4 : 12;
+	cu->resolu = cu->resolv = (type == OB_SURF) ? 8 : 12;
 	cu->width = 1.0;
 	cu->wordspace = 1.0;
 	cu->spacing = cu->linedist = 1.0;
@@ -542,10 +542,28 @@ void BKE_nurb_free(Nurb *nu)
 	if (nu->knotsv)
 		MEM_freeN(nu->knotsv);
 	nu->knotsv = NULL;
-	/* if (nu->trim.first) freeNurblist(&(nu->trim)); */
+	Nurb *outertrim = (Nurb*)nu->outer_trim.first;
+	while (outertrim) {
+		Nurb *tofree = outertrim;
+		outertrim = outertrim->next;
+		MEM_freeN(tofree);
+	}
+	LinkData *innertrim = (LinkData*)nu->inner_trim.first;
+	while (innertrim) {
+		if (innertrim->data) {
+			Nurb *it_nurb = (Nurb*)innertrim->data;
+			while (it_nurb) {
+				Nurb *tofree = it_nurb;
+				it_nurb = it_nurb->next;
+				MEM_freeN(tofree);
+			}
+		}
+		LinkData *tofree = innertrim;
+		innertrim = innertrim->next;
+		MEM_freeN(tofree);
+	}
 
 	MEM_freeN(nu);
-
 }
 
 
@@ -562,6 +580,10 @@ void BKE_nurbList_free(ListBase *lb)
 		nu = next;
 	}
 	BLI_listbase_clear(lb);
+}
+
+void BKE_nurbList_duplicate(ListBase *lb) {
+	Nurb *nu;
 }
 
 Nurb *BKE_nurb_duplicate(Nurb *nu)
@@ -601,6 +623,7 @@ Nurb *BKE_nurb_duplicate(Nurb *nu)
 			}
 		}
 	}
+	BKE_nurbList_
 	return newnu;
 }
 
@@ -3981,6 +4004,23 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 	r_rect->ymin = r_rect->ymax - tb->h;
 }
 
+void BKE_nurb_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax) {
+	*umin = nu->knotsu[nu->orderu - 1];
+	if (nu->flagu & CU_NURB_CYCLIC)
+		*umax = nu->knotsu[nu->pntsu + nu->orderu - 1];
+	else
+		*umax = nu->knotsu[nu->pntsu];
+	*vmin = nu->knotsv[nu->orderv - 1];
+	if (nu->flagv & CU_NURB_CYCLIC)
+		*vmax = nu->knotsv[nu->pntsv + nu->orderv - 1];
+	else
+		*vmax = nu->knotsv[nu->pntsv];
+	*umin = std::min(nu->knotsu[0], *umin);
+	*umax = std::max(nu->knotsu[nu->pntsu+nu->orderu-1], *umax);
+	*vmin = std::min(nu->knotsv[0], *umin);
+	*vmax = std::max(nu->knotsv[nu->pntsv+nu->orderv-1], *umax);
+}
+
 float subj0[] = {0.512000,0.938000, 0.374000,0.950000, 0.248000,0.908000, 0.170000,0.866000, 0.092000,0.740000, 0.092000,0.602000, 0.092000,0.440000, 0.116000,0.260000, 0.254000,0.110000, 0.476000,0.074000, 0.746000,0.092000, 0.836000,0.206000, 0.848000,0.422000, 0.812000,0.644000, 0.716000,0.686000, 0.614000,0.734000, 0.488000,0.728000, 0.386000,0.710000, 0.260000,0.626000, 0.272000,0.476000, 0.350000,0.338000, 0.482000,0.278000, 0.632000,0.308000, 0.644000,0.404000, 0.638000,0.494000, 0.590000,0.572000, 0.494000,0.584000, 0.422000,0.518000, 0.458000,0.392000, 0.548000,0.398000, 0.506000,0.506000, 0.572000,0.506000, 0.596000,0.386000, 0.566000,0.338000, 0.470000,0.338000, 0.368000,0.434000, 0.374000,0.608000, 0.578000,0.656000, 0.680000,0.644000, 0.740000,0.554000, 0.782000,0.308000, 0.758000,0.224000, 0.548000,0.164000, 0.338000,0.224000, 0.212000,0.374000, 0.170000,0.626000, 0.236000,0.764000, 0.368000,0.824000, 0.524000,0.836000, 1.184000,0.848000}; int subj0_nv=50;
 void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	bool remap_coords = true; // Remove trimmed verts (only useful for meshgen)
@@ -3990,18 +4030,8 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 
 	// Figure out the domain
 	int totu=(nu->pntsu-nu->orderu+1)*nu->resolu, totv=(nu->pntsv-nu->orderv+1)*nu->resolv;
-	float ustart = nu->knotsu[nu->orderu - 1];
-	float uend;
-	if (nu->flagu & CU_NURB_CYCLIC)
-		uend = nu->knotsu[nu->pntsu + nu->orderu - 1];
-	else
-		uend = nu->knotsu[nu->pntsu];
-	float vstart = nu->knotsv[nu->orderv - 1];
-	float vend;
-	if (nu->flagv & CU_NURB_CYCLIC)
-		vend = nu->knotsv[nu->pntsv + nu->orderv - 1];
-	else
-		vend = nu->knotsv[nu->pntsv];
+	float ustart,uend,vstart,vend;
+	BKE_nurb_domain(nu,&ustart,&uend,&vstart,&vend);
 	
 	// Trim the uniform grid in 2D UV space
 	GridMesh *gm = new GridMesh();

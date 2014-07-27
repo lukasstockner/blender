@@ -76,12 +76,15 @@ void BKE_bspline_knot_calc(int flags, int pnts, int order, float knots[])
 	int num_knots = pnts + order;
 	if (flags & CU_NURB_CYCLIC) num_knots += order-1;
 	if (flags & CU_NURB_BEZIER) {
-		/* Previous versions of blender supported "Bezier" knot vectors. These
-		 * are useless to the user. *All* NURBS surfaces can be transformed into
-		 * Bezier quilts (grids of connected Bezier surfaces). The "Bezier" knot
-		 * vector is only an intermediate mathematical step in this process.
-		 * Bezier quilts may be exposed to the user but there is no point in having
-		 * the option to use Bezier-style knot vectors without Bezier-style controls.
+		/* On a NURBS curve, points between knots have infinitely many continuous
+		 * derivatives. Points *at* knots have p-n continuous derivatives, where
+		 * p is the degree of the curve and n is the multiplicity of the knot.
+		 * p-n==-1 corresponds to a discontinuity in the curve itself. By ensuring
+		 * that n==p (each knot has a multiplicity equal to the degree of a curve)
+		 * we ensure that at each knot the curve is
+		 *  1. continuous
+		 *  2. has a (pontentially) discontinuous 1st derivative
+		 * this gives the curve behavior equivalent to that of a Bezier curve.
 		 *           |------------------ pnts+order -------------|
 		 *           |--ord--||-ord-1-||-ord-1-||-ord-1-||--ord--|
 		 * Bezier:  { 0 0 0 0   1 1 1    2 2 2    3 3 3   4 4 4 4 }
@@ -89,13 +92,14 @@ void BKE_bspline_knot_calc(int flags, int pnts, int order, float knots[])
 		int v=0;
 		for (int i=0; i<order; i++)
 			knots[i] = v;
-		for (int i=order,reps=0; i<pnts; i++) {
+		for (int i=order,reps=0; i<pnts; i++,reps--) {
 			if (reps==0) {
 				v += 1;
 				reps = order-1;
 			}
 			knots[i] = v;
 		}
+		v++;
 		for (int i=pnts; i<pnts+order; i++)
 			knots[i] = v;
 	} else if (flags & CU_NURB_ENDPOINT) {
@@ -225,7 +229,7 @@ void BKE_bspline_basis_eval(float u, int i, float *U, int num_pts, int order, in
 		fprintf(stderr, "NURBS tess error: curve argument out of bounds\n");
 		return;
 	}
-	if (!(p<=i && i<=num_knots-p-1 && i<=10)) {
+	if (!(p<=i && i<=num_knots-p-1)) {
 		fprintf(stderr, "NURBS tess error: knot index i out of bounds\n");
 		return;
 	}

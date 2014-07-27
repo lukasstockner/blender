@@ -1304,9 +1304,14 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 			startvert = vertcount;
 			a = dl->nr;
 			data = dl->verts;
+			float *nors = dl->nors;
 			while (a--) {
 				copy_v3_v3(mvert->co, data);
 				data += 3;
+				if (nors) {
+					copy_v3_v3(mvert->no, nors);
+					nors += 3;
+				}
 				vertcount++;
 				mvert++;
 			}

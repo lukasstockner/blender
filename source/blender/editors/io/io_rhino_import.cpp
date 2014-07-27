@@ -87,6 +87,7 @@ static void import_ON_str(char *dest, ON_wString& onstr, size_t n) {
 // #define CU_NURB_ENDPOINT	2
 // #define CU_NURB_BEZIER	4
 static int analyze_knots(float *knots, int num_knots, int order, bool periodic, float tol=.001) {
+	printf("knots{"); for (int i=0; i<num_knots; i++) printf("%f,",knots[i]); printf("}->");
 	float first = knots[1];
 	float last = knots[num_knots-2];
 	
@@ -102,7 +103,7 @@ static int analyze_knots(float *knots, int num_knots, int order, bool periodic, 
 	bool unif_bezier = bezier;
 	if (bezier) {
 		float jump = knots[order]-knots[order-1];
-		for (int i=order; i<num_knots-order; i+=2) {
+		for (int i=order; i<num_knots-order; i+=order-1) {
 			if (abs(knots[i]-knots[i+1])>tol) {
 				bezier = false;
 				unif_bezier = false;
@@ -136,16 +137,18 @@ static int analyze_knots(float *knots, int num_knots, int order, bool periodic, 
 	
 	if (bezier) {
 		BLI_assert(unif_bezier);
+		printf("bez\n");
 		return CU_NURB_BEZIER;
 	}
 	if (unif) {
+		printf("unif/cyc\n");
 		return periodic? CU_NURB_CYCLIC : 0;
 	}
 	if (unif_clamped) {
+		printf("endpt\n");
 		return CU_NURB_ENDPOINT;
 	}
-	BLI_assert(false /* Can't tell curve type from knots */ );
-	return 0;
+	return CU_NURB_CUSTOMKNOT;
 }
 
 static void normalize_knots(float *knots, int num_knots) {
@@ -164,12 +167,13 @@ static void normalize_knots(float *knots, int num_knots) {
 /****************************** Curve Import *********************************/
 static float null_loc[] = {0,0,0};
 static float null_rot[] = {0,0,0};
-static void rhino_import_curve(bContext *C,
+static Nurb* rhino_import_curve(bContext *C,
 							   ON_Curve *curve,
 							   ON_Object *Object,
 							   ON_3dmObjectAttributes *Attributes,
 							   bool newobj=true,
-							   bool cast_lines_to_nurbs=false);
+							   bool cast_lines_to_nurbs=false,
+							   bool dont_add_to_scene=false);
 static void rhino_import_mesh(bContext *C,
 							  ON_Mesh *curve,
 							  ON_Object *Object,
@@ -194,24 +198,58 @@ static void rhino_import_polycurve(bContext *C, ON_PolyCurve *pc, ON_Object *obj
 	int num_curves = curves.Count();
 	for (int i=0; i<num_curves; i++) {
 		ON_Curve *curve = *curves.At(i);
-		rhino_import_curve(C, curve, obj, attrs, false, true);
+		rhino_import_curve(C, curve, obj, attrs, false, true, false);
 	}
 	
 	// Leave NURBS object editmode
 	printf("polycurve done\n");
 }
 
-static void rhino_import_nurbscurve(bContext *C, ON_NurbsCurve *nc, ON_Object *obj, ON_3dmObjectAttributes *attrs, bool newobj) {
+static Nurb *nurb_from_ON_NurbsCurve(ON_NurbsCurve *nc) {
+	Nurb *nu = (Nurb *)MEM_callocN(sizeof(Nurb), "rhino_imported_NURBS_curve");
+	nu->flag = CU_3D;
+	nu->type = CU_NURBS;
+	nu->resolu = 10;
+	nu->resolv = 10;
+	nu->pntsu = nc->CVCount();
+	nu->pntsv = 1;
+	nu->orderu = nc->Order();
+	nu->orderv = 1;
+	BLI_assert(nu->pntsu + nu->orderu - 2 == nc->KnotCount());
+	BPoint *bp = nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * ((nu->pntsu) * 1), "rhino_imported_NURBS_curve_points");
+	nu->knotsu = (float *)MEM_callocN(sizeof(float) * ((nu->pntsu+nu->orderu) * 1), "rhino_imported_NURBS_curve_points");
+	//int on_dim = nc->Dimension();
+	//bool is_rational = nc->IsRational();
+	for (int i=0; i<nu->pntsu; i++) {
+		ON_4dPoint control_vert;
+		nc->GetCV(i, control_vert);
+		bp->vec[0] = control_vert.x/control_vert.w;
+		bp->vec[1] = control_vert.y/control_vert.w;
+		bp->vec[2] = control_vert.z/control_vert.w;
+		bp->vec[3] = control_vert.w;
+		bp++;
+	}
+	int i=1; for (int l=nu->pntsu+nu->orderu-1; i<l; i++) {
+		nu->knotsu[i] = nc->Knot(i-1);
+	}
+	nu->knotsu[0] = nu->knotsu[1];
+	nu->knotsu[i] = nu->knotsu[i-1];
+	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, nc->IsPeriodic());
+	double minu,maxu;
+	nc->GetDomain(&minu, &maxu);
+	nu->minu = minu;
+	nu->maxu = maxu;
+	//normalize_knots(nu->knotsu, nu->pntsu+nu->orderu);
+	return nu;
+}
+
+static Nurb *rhino_import_nurbscurve(bContext *C, ON_NurbsCurve *nc, ON_Object *obj, ON_3dmObjectAttributes *attrs, bool newobj) {
 	char curve_name[MAX_ID_NAME];
-	int layer,i;
+	int layer;
 	Object *obedit;
-	Curve *cu;
+	Curve *cu = NULL;
 	Nurb *nu = NULL;
 	ListBase *editnurb;
-	BPoint *bp;
-	int on_dim;
-	double *on_dat;
-	bool is_rational;
 	
 	obedit = CTX_data_edit_object(C);
 	layer = attrs->m_layer_index;
@@ -233,40 +271,13 @@ static void rhino_import_nurbscurve(bContext *C, ON_NurbsCurve *nc, ON_Object *o
 		cu = (Curve*)obedit->data;
 	}
 	
-	nu = (Nurb *)MEM_callocN(sizeof(Nurb), "rhino_imported_NURBS_curve");
-	nu->flag = CU_3D;
-	nu->type = CU_NURBS;
-	nu->resolu = cu->resolu;
-	nu->resolv = cu->resolv;
-	nu->pntsu = nc->CVCount();
-	nu->pntsv = 1;
-	nu->orderu = nc->Order();
-	nu->orderv = 1;
-	BLI_assert(nu->pntsu + nu->orderu - 2 == nc->KnotCount());
-	bp = nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * ((nu->pntsu) * 1), "rhino_imported_NURBS_curve_points");
-	nu->knotsu = (float *)MEM_callocN(sizeof(float) * ((nu->pntsu+nu->orderu) * 1), "rhino_imported_NURBS_curve_points");
-	on_dim = nc->Dimension();
-	is_rational = nc->IsRational();
-	for (i=0; i<nu->pntsu; i++) {
-		ON_4dPoint control_vert;
-		nc->GetCV(i, control_vert);
-		bp->vec[0] = control_vert.x/control_vert.w;
-		bp->vec[1] = control_vert.y/control_vert.w;
-		bp->vec[2] = control_vert.z/control_vert.w;
-		bp->vec[3] = control_vert.w;
-		bp++;
-	}
-	i=1; for (int l=nu->pntsu+nu->orderu-1; i<l; i++) {
-		nu->knotsu[i] = nc->Knot(i-1);
-	}
-	nu->knotsu[i] = nu->knotsu[i-1];
-	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, nc->IsPeriodic());
-	normalize_knots(nu->knotsu, nu->pntsu+nu->orderu);
+	nu = nurb_from_ON_NurbsCurve(nc);
 	
 	editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
 	ED_object_editmode_exit(C, EM_FREEDATA);
-	printf("nurbscurve done\n");
+	printf("	nurbscurve done\n");
+	return nu;
 }
 
 static void rhino_import_linecurve(bContext *C, ON_LineCurve *lc, ON_Object *obj, ON_3dmObjectAttributes *attrs, bool newobj) {
@@ -376,12 +387,15 @@ static void rhino_import_curveproxy(bContext *C, ON_CurveProxy *cp, ON_Object *o
 	delete pc;
 }
 
-static void rhino_import_curve(bContext *C,
-							   ON_Curve *curve,
-							   ON_Object *Object,
-							   ON_3dmObjectAttributes *Attributes,
-							   bool newobj,
-							   bool cast_lines_to_nurbs) {
+// Returns a Nurb* object iff one was created
+static Nurb* rhino_import_curve(bContext *C,
+								ON_Curve *curve,
+								ON_Object *Object,
+								ON_3dmObjectAttributes *Attributes,
+								bool newobj,
+								bool cast_lines_to_nurbs,
+								bool dont_add_to_scene) {
+	Nurb *ret = NULL;
 	ON_PolyCurve *pc;
 	ON_LineCurve *lc;
 	ON_PolylineCurve *plc;
@@ -396,40 +410,50 @@ static void rhino_import_curve(bContext *C,
 		nc = ON_NurbsCurve::New();
 		ac->GetNurbForm(*nc);
 		nc_needs_destroy = true;
+		ac = NULL;
 	}
 	cos = ON_CurveOnSurface::Cast(curve);
 	if (cos) {
 		nc = ON_NurbsCurve::New();
 		cos->GetNurbForm(*nc);
 		nc_needs_destroy = true;
+		cos = NULL;
 	}
 	pc = ON_PolyCurve::Cast(curve);
 	if (pc && cast_lines_to_nurbs) {
 		nc = ON_NurbsCurve::New();
 		pc->GetNurbForm(*nc);
 		nc_needs_destroy = true;
+		pc = NULL;
 	}
 	lc = ON_LineCurve::Cast(curve);
 	if (lc && cast_lines_to_nurbs) {
 		nc = ON_NurbsCurve::New();
 		lc->GetNurbForm(*nc);
 		nc_needs_destroy = true;
+		lc = NULL;
 	}
 	plc = ON_PolylineCurve::Cast(curve);
 	if (plc && cast_lines_to_nurbs) {
 		nc = ON_NurbsCurve::New();
 		plc->GetNurbForm(*nc);
 		nc_needs_destroy = true;
+		plc = NULL;
 	}
 	cp = ON_CurveProxy::Cast(curve);
 	if (cp && cast_lines_to_nurbs) {
 		nc = ON_NurbsCurve::New();
 		cp->GetNurbForm(*nc);
 		nc_needs_destroy = true;
+		cp = NULL;
 	}
 	if (!nc) nc = ON_NurbsCurve::Cast(curve);
 	if (nc && !pc && !lc && !plc && !cp) {
-		rhino_import_nurbscurve(C, nc, Object, Attributes, newobj);
+		if (dont_add_to_scene) {
+			ret = nurb_from_ON_NurbsCurve(nc);
+		} else {
+			rhino_import_nurbscurve(C, nc, Object, Attributes, newobj);
+		}
 		if (nc_needs_destroy) nc->Destroy();
 	} else {
 		if (pc) rhino_import_polycurve(C, pc, Object, Attributes, newobj);
@@ -437,6 +461,7 @@ static void rhino_import_curve(bContext *C,
 		if (plc) rhino_import_polylinecurve(C, plc, Object, Attributes, newobj);
 		if (cp) rhino_import_curveproxy(C, cp, Object, Attributes, newobj);
 	}
+	return ret;
 }
 
 static void rhino_import_mesh(bContext *C,
@@ -526,14 +551,14 @@ static Curve* rhino_import_nurbs_surf_start(bContext *C,
 	rename_id((ID *)obedit, curve_name);
 	rename_id((ID *)obedit->data, curve_name);
 	Curve *cu = (Curve*)obedit->data;
-	cu->resolu = 5;
-	cu->resolv = 5;
+	cu->resolu = cu->resolv = 10;
+	cu->resolu_ren = cu->resolv_ren = 15;
 	return cu;
 }
 
 static void rhino_import_nurbs_surf_end(bContext *C) {
 	ED_object_editmode_exit(C, EM_FREEDATA);
-	printf("nurbscurve done\n");
+	printf("nurbssurf done\n");
 }
 
 
@@ -547,7 +572,7 @@ static Nurb* rhino_import_nurbs_surf(bContext *C,
 	if (!surf) {
 		surf = ON_NurbsSurface::New();
 		surf_needs_delete = true;
-		int success = surf->GetNurbForm(*surf);
+		int success = raw_surf->GetNurbForm(*surf);
 		if (!success) {
 			delete surf;
 			return NULL;
@@ -588,20 +613,18 @@ static Nurb* rhino_import_nurbs_surf(bContext *C,
 	// Eval code has hardcoded knot range, so we will ignore these for now
 	int i=1; for (int l=nu->pntsu+nu->orderu-1; i<l; i++) {
 		nu->knotsu[i] = surf->Knot(0,i-1);
-		printf("u knot %i:%f\n",i,surf->Knot(0,i-1));
 	}
 	nu->knotsu[i] = nu->knotsu[i-1];
 	i=1; for (int l=nu->pntsv+nu->orderv-1; i<l; i++) {
 		nu->knotsv[i] = surf->Knot(1,i-1);
-		printf("v knot %i:%f\n",i,surf->Knot(1,i-1));
 	}
 	nu->knotsv[i] = nu->knotsv[i-1];
 	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, surf->IsPeriodic(0));
 	normalize_knots(nu->knotsu, nu->pntsu+nu->orderu);
 	nu->flagv = analyze_knots(nu->knotsv, nu->pntsv+nu->orderv, nu->orderv, surf->IsPeriodic(1));
 	normalize_knots(nu->knotsv, nu->pntsv+nu->orderv);
-	//BKE_nurb_knot_calc_u(nu);
-	//BKE_nurb_knot_calc_v(nu);
+	BKE_nurb_knot_calc_u(nu);
+	BKE_nurb_knot_calc_v(nu);
 	
 	ListBase *editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
@@ -641,23 +664,11 @@ static void rhino_import_surface(bContext *C,
 	}
 }
 
-static void rhino_import_brep(bContext *C,
-							  ON_Brep *brep,
-							  ON_Object *obj,
-							  ON_3dmObjectAttributes *attrs) {/*
-	rhino_import_nurbs_surf_start(C, obj, attrs);
-	ON_ObjectArray<ON_BrepFace>& brep_f = brep->m_F;
-	int num_faces = brep_f.Count();
-	bool havent_created_surf = true;
-	for (int facenum=0; facenum<num_faces; facenum++) {
-		ON_BrepFace *face = &brep_f[facenum];
-		ON_Surface *surf = const_cast<ON_Surface*>(face->ProxySurface());
-		rhino_import_brep_face(C, face, Object, &Attributes);
-		if (havent_created_surf) havent_created_surf = false;
-	}
-	rhino_import_nurbs_surf_end(C);
-
-	
+static void rhino_import_brep_face(bContext *C,
+								   ON_BrepFace *face,
+								   ON_Object *parentObj,
+								   ON_3dmObjectAttributes *parentAttrs) {
+	/* Create the Surface */
 	ON_Surface *face_surf = const_cast<ON_Surface*>(face->ProxySurface());
 	ON_NurbsSurface *ns = ON_NurbsSurface::Cast(face_surf);
 	bool should_destroy_ns = false;
@@ -670,8 +681,9 @@ static void rhino_import_brep(bContext *C,
 		}
 		should_destroy_ns = true;
 	}
-	Nurb *nu = rhino_import_nurbs_surf(C, ns, obj, attrs, newobj);
-	
+	Nurb *nu = rhino_import_nurbs_surf(C, ns, parentObj, parentAttrs, false);
+
+	/* Add the trim curves */
 	ON_BrepLoop *outer_loop = face->OuterLoop();
 	int loop_count = face->LoopCount();
 	printf("   outer_loop: 0x%lx\n",long(outer_loop));
@@ -679,13 +691,42 @@ static void rhino_import_brep(bContext *C,
 		ON_BrepLoop *loop = face->Loop(loopnum);
 		int trim_count = loop->TrimCount();
 		printf("   loop: 0x%lx\n",long(loop));
+		struct LinkData *loop_ll_item = (struct LinkData*)MEM_callocN(sizeof(LinkData),"NURBS trim link data");
+		struct ListBase *loop_ll = (struct ListBase*)MEM_callocN(sizeof(ListBase),"NURBS trim link list");
+		loop_ll_item->data = loop_ll;
 		for (int trimnum=0; trimnum<trim_count; trimnum++) {
 			ON_BrepTrim *trim = loop->Trim(trimnum);
-			printf("      trim: 0x%lx %s\n",long(trim),trim->ClassId()->ClassName());
+			ON_Curve *cu = const_cast<ON_Curve*>(trim->ProxyCurve());
+			printf("      trim: 0x%lx %s\n",long(trim),cu->ClassId()->ClassName());
+			Nurb *trim_nurb = rhino_import_curve(C, cu, parentObj, parentAttrs, false, true, true);
+			if (loop==outer_loop) {
+				BLI_addtail(&nu->outer_trim, trim_nurb);
+			} else {
+				BLI_addtail(loop_ll, trim_nurb);
+			}
+		}
+		if (loop!=outer_loop) {
+			BLI_addtail(&nu->inner_trim, loop_ll_item);
 		}
 	}
 	if (should_destroy_ns) delete ns;
-*/}
+}
+
+static void rhino_import_brep(bContext *C,
+							  ON_Brep *brep,
+							  ON_Object *obj,
+							  ON_3dmObjectAttributes *attrs) {
+	rhino_import_nurbs_surf_start(C, obj, attrs);
+	ON_ObjectArray<ON_BrepFace>& brep_f = brep->m_F;
+	int num_faces = brep_f.Count();
+	bool havent_created_surf = true;
+	for (int facenum=0; facenum<num_faces; facenum++) {
+		ON_BrepFace *face = &brep_f[facenum];
+		rhino_import_brep_face(C, face, obj, attrs);
+		if (havent_created_surf) havent_created_surf = false;
+	}
+	rhino_import_nurbs_surf_end(C);
+}
 
 
 
@@ -800,7 +841,7 @@ int rhino_import(bContext *C, wmOperator *op) {
 			
 			if (ON_Curve::Cast(Geometry)) {
 				printf("--- Curve->%s \"%s\" ---\n",Object->ClassId()->ClassName(),obj_name);
-				rhino_import_curve(C, ON_Curve::Cast(Geometry), Object, &Attributes);
+				rhino_import_curve(C, ON_Curve::Cast(Geometry), Object, &Attributes, false);
 				did_decode = true;
 			}
 			
@@ -821,140 +862,12 @@ int rhino_import(bContext *C, wmOperator *op) {
 				ON_Brep *brep = ON_Brep::Cast(Geometry);
 				rhino_import_brep(C, brep, Object, &Attributes);
 				did_decode = true;
-				// For now each surface, create a new one in Nurbana
-				//        for (i= 0; i < ON_Brep::Cast(Geometry) -> m_F.Count(); i++)
-				//          CreateSurface(ON_NurbsSurface::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_S[ON_Brep::Cast(Geometry) -> m_F[i].m_si]), ObjectList, Attributes, Materials, MatCount);
-				//for (i= 0; i < ON_Brep::Cast(Geometry) -> m_F.Count(); i++) {
-				//	// Create Surface
-				//	CreateSurface(ON_NurbsSurface::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_S[ON_Brep::Cast(Geometry) -> m_F[i].m_si]), ObjectList, Attributes, Materials, MatCount);
-				
-				//	// Attach Trims to Surface
-				//	printf("Trims[%i]: %d\n",i,ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T.Count());
-				
-				//	for (n= 0; n < ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T.Count(); n++) {
-				//		switch( ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_type ) {
-				
-				//  case ON_BrepTrim::unknown:
-				//   printf("  trim unknown: %d,%d\n",ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_vi[0],ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_vi[1]);
-				//   break;
-				
-				//  case ON_BrepTrim::boundary:
-				//   printf("  trim boundary: %d,%d\n",ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_vi[0],ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_vi[1]);
-				//   break;
-				
-				//  case ON_BrepTrim::mated:
-				//   printf("  trim mated: %d,%d\n",ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_vi[0],ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_vi[1]);
-				//   break;
-				
-				//  case ON_BrepTrim::seam:
-				//   printf("  trim seam: %d,%d\n",ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_vi[0],ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_vi[1]);
-				//   break;
-				
-				//  case ON_BrepTrim::singular:
-				//   printf("  trim singular: %d,%d\n",ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_vi[0],ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_T[n].m_vi[1]);
-				//   break;
-				
-				//  default:
-				//   break;
-				//		} //eos
-				
-				//		// Attach Trim Curve
-				//		ON_4dPoint		Point;
-				//		Point3d		*Pts;
-				//		double		*H,*KV;
-				
-				//		// Get Parametric Domain of X and Y
-				//		Domain[0]= ON_NurbsSurface::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_S[ON_Brep::Cast(Geometry) -> m_F[i].m_si]) -> Domain(0).m_t[1];
-				//		Domain[1]= ON_NurbsSurface::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_S[ON_Brep::Cast(Geometry) -> m_F[i].m_si]) -> Domain(1).m_t[1];
-				
-				//		if (ON_NurbsCurve::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_C2[ON_Brep::Cast(Geometry) -> m_T[n].m_c2i])) {
-				//			ON_NurbsCurve	*NurbsCurve;
-				
-				//			// NURBS Curve Trim
-				//			NurbsCurve= ON_NurbsCurve::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_C2[ON_Brep::Cast(Geometry) -> m_T[n].m_c2i]);
-				
-				//			// Allocate Memory
-				//			Pts= (Point3d*)malloc(sizeof(Point3d)*NurbsCurve -> CVCount());
-				//			H= (double*)malloc(sizeof(double)*NurbsCurve -> CVCount());
-				//			KV= (double*)malloc(sizeof(double)*(NurbsCurve -> KnotCount()+2));
-				//			//              printf("NURBS: Length: %d, Order: %d\n",ON_NurbsCurve::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_C2[ON_Brep::Cast(Geometry) -> m_T[n].m_c2i]) -> CVCount(),ON_NurbsCurve::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_C2[ON_Brep::Cast(Geometry) -> m_T[n].m_c2i]) -> Order());
-				
-				//			// Populate Point Array
-				//			for (int j= 0; j < NurbsCurve -> CVCount(); j++) {
-				//				NurbsCurve -> GetCV(j,Point);
-				//				Pts[j].x= Point.x/Domain[0];
-				//				Pts[j].y= Point.y/Domain[1];
-				//				Pts[j].z= 0;
-				//				H[j]= Point.w;
-				//			} //eof
-				
-				//			// Knot Vector
-				//			KV[0]= 0;
-				//			for (j= 0; j < NurbsCurve -> KnotCount(); j++)
-				//				KV[j+1]= (NurbsCurve -> Knot(j) - NurbsCurve -> Knot(0))/(NurbsCurve -> Knot(NurbsCurve -> KnotCount()-1)-NurbsCurve -> Knot(0));
-				//			KV[j+1]= (NurbsCurve -> Knot(j-1) - NurbsCurve -> Knot(0))/(NurbsCurve -> Knot(NurbsCurve -> KnotCount()-1)-NurbsCurve -> Knot(0));
-				
-				//			// Populate KnotVector Array
-				//			((Object_NURBS*)ObjectList -> GetObj()) -> AttachCurve(NurbsCurve -> CVCount(),NurbsCurve -> Order());
-				//			((Object_NURBS*)ObjectList -> GetObj()) -> TrimCurve() -> CtlPts(Pts,H);
-				//			((Object_NURBS*)ObjectList -> GetObj()) -> TrimCurve() -> KV(KV);
-				
-				//			// Free Memory
-				//			free(Pts);
-				//			free(H);
-				//			free(KV);
-				//		} else if (ON_PolyCurve::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_C2[ON_Brep::Cast(Geometry) -> m_T[n].m_c2i])) {
-				//			ON_NurbsCurve	NurbsCurve;
-				//			// Poly Curve Trim
-				
-				//			for (int j= 0; j < ON_PolyCurve::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_C2[ON_Brep::Cast(Geometry) -> m_T[n].m_c2i]) -> Count(); j++) {
-				//				ON_PolyCurve::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_C2[ON_Brep::Cast(Geometry) -> m_T[n].m_c2i])  -> SegmentCurve(j) -> GetNurbForm(NurbsCurve,0,0);
-				
-				//				//                printf("Poly: Length: %d, Order: %d\n", NurbsCurve.CVCount(),NurbsCurve.Order());
-				//				// Allocate Memory
-				//				Pts= (Point3d*)malloc(sizeof(Point3d)*NurbsCurve.CVCount());
-				//				H= (double*)malloc(sizeof(double)*NurbsCurve.CVCount());
-				//				KV= (double*)malloc(sizeof(double)*(NurbsCurve.KnotCount()+2));
-				
-				//				for (int z= 0; z < NurbsCurve.CVCount(); z++) {
-				//					NurbsCurve.GetCV(z,Point);
-				//					Pts[z].x= Point.x/Domain[0];
-				//					Pts[z].y= Point.y/Domain[1];
-				//					Pts[z].z= 0;
-				//					H[z]= Point.w;
-				//				} //eof
-				
-				//				// Knot Vector
-				//				KV[0]= 0;
-				//				for (j= 0; j < NurbsCurve.KnotCount(); j++)
-				//					KV[j+1]= (NurbsCurve.Knot(j) - NurbsCurve.Knot(0))/(NurbsCurve.Knot(NurbsCurve.KnotCount()-1)-NurbsCurve.Knot(0));
-				//				KV[j+1]= (NurbsCurve.Knot(j-1) - NurbsCurve.Knot(0))/(NurbsCurve.Knot(NurbsCurve.KnotCount()-1)-NurbsCurve.Knot(0));
-				
-				//				//                for (z= 0; z < NurbsCurve.KnotCount()+2; z++)
-				//				//                  printf("KV[%d]: %f\n",z,KV[z]);
-				//				// Populate KnotVector Array
-				//				((Object_NURBS*)ObjectList -> GetObj()) -> AttachCurve(NurbsCurve.CVCount(),NurbsCurve.Order());
-				//				((Object_NURBS*)ObjectList -> GetObj()) -> TrimCurve() -> CtlPts(Pts,H);
-				//				((Object_NURBS*)ObjectList -> GetObj()) -> TrimCurve() -> KV(KV);
-				
-				//				// Free Memory
-				//				free(Pts);
-				//				free(H);
-				//				free(KV);
-				//			} //eof
-				//		} //fi
-				
-				//		//          printf("    index: %d\n",ON_Brep::Cast(Geometry) -> m_T[n].m_c2i);
-				//		//          printf("span: %d\n",ON_PolyCurve::Cast(ON_Brep::Cast(Geometry) -> m_F[i].Brep() -> m_C2[ON_Brep::Cast(Geometry) -> m_T[n].m_c2i]) -> Count());
-				
-				//	} //eof
-				//} //eof
-			} //fi
+			}
 			
 			if (!did_decode) {
 				printf("--- ?->%s \"%s\" ---\n",Object->ClassId()->ClassName(),obj_name);
 			}
-		} //eow
+		}
 		
 		file.EndRead3dmObjectTable();
 	}
