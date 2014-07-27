@@ -39,7 +39,7 @@
 /*
  * Define glewGetContext and related helper macros.
  */
-#ifdef GLEW_MX
+#ifdef WITH_GLEW_MX
 #  define glewGetContext() ctx
 #  ifdef _WIN32
 #    define GLEW_CONTEXT_ARG_DEF_INIT GLEWContext* ctx
@@ -55,7 +55,7 @@
 #    define GLXEW_CONTEXT_ARG_DEF_LIST GLXEWContext* ctx
 #  endif /* _WIN32 */
 #  define GLEW_CONTEXT_ARG_DEF_LIST GLEWContext* ctx
-#else /* GLEW_MX */
+#else /* WITH_GLEW_MX */
 #  define GLEW_CONTEXT_ARG_DEF_INIT void
 #  define GLEW_CONTEXT_ARG_VAR_INIT
 #  define GLEW_CONTEXT_ARG_DEF_LIST void
@@ -63,7 +63,7 @@
 #  define WGLEW_CONTEXT_ARG_DEF_LIST void
 #  define GLXEW_CONTEXT_ARG_DEF_INIT void
 #  define GLXEW_CONTEXT_ARG_DEF_LIST void
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
 #if defined(__sgi) || defined (__sun) || defined(GLEW_APPLE_GLX)
 #include <dlfcn.h>
@@ -269,7 +269,7 @@ static GLboolean _glewSearchExtension (const char* name, const GLubyte *start, c
   return GL_FALSE;
 }
 
-#if !defined(_WIN32) || !defined(GLEW_MX)
+#if !defined(_WIN32) || !defined(WITH_GLEW_MX)
 
 PFNGLCOPYTEXSUBIMAGE3DPROC __glewCopyTexSubImage3D = NULL;
 PFNGLDRAWRANGEELEMENTSPROC __glewDrawRangeElements = NULL;
@@ -2484,9 +2484,9 @@ PFNGLTEXCOORD4FVERTEX4FVSUNPROC __glewTexCoord4fVertex4fvSUN = NULL;
 
 PFNGLADDSWAPHINTRECTWINPROC __glewAddSwapHintRectWIN = NULL;
 
-#endif /* !WIN32 || !GLEW_MX */
+#endif /* !WIN32 || !WITH_GLEW_MX */
 
-#if !defined(GLEW_MX)
+#if !defined(WITH_GLEW_MX)
 
 GLboolean __GLEW_VERSION_1_1 = GL_FALSE;
 GLboolean __GLEW_VERSION_1_2 = GL_FALSE;
@@ -2922,7 +2922,7 @@ GLboolean __GLEW_WIN_phong_shading = GL_FALSE;
 GLboolean __GLEW_WIN_specular_fog = GL_FALSE;
 GLboolean __GLEW_WIN_swap_hint = GL_FALSE;
 
-#endif /* !GLEW_MX */
+#endif /* !WITH_GLEW_MX */
 
 #ifdef GL_VERSION_1_2
 
@@ -8358,7 +8358,7 @@ GLboolean glewGetExtension (const char* name)
 
 /* ------------------------------------------------------------------------- */
 
-#ifndef GLEW_MX
+#ifndef WITH_GLEW_MX
 static
 #endif
 GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
@@ -9913,7 +9913,7 @@ GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
 
 #if defined(_WIN32)
 
-#if !defined(GLEW_MX)
+#if !defined(WITH_GLEW_MX)
 
 PFNWGLSETSTEREOEMITTERSTATE3DLPROC __wglewSetStereoEmitterState3DL = NULL;
 
@@ -10110,7 +10110,7 @@ GLboolean __WGLEW_NV_video_capture = GL_FALSE;
 GLboolean __WGLEW_NV_video_output = GL_FALSE;
 GLboolean __WGLEW_OML_sync_control = GL_FALSE;
 
-#endif /* !GLEW_MX */
+#endif /* !WITH_GLEW_MX */
 
 #ifdef WGL_3DFX_multisample
 
@@ -11007,7 +11007,7 @@ PFNGLXGETTRANSPARENTINDEXSUNPROC __glewXGetTransparentIndexSUN = NULL;
 PFNGLXGETVIDEORESIZESUNPROC __glewXGetVideoResizeSUN = NULL;
 PFNGLXVIDEORESIZESUNPROC __glewXVideoResizeSUN = NULL;
 
-#if !defined(GLEW_MX)
+#if !defined(WITH_GLEW_MX)
 
 GLboolean __GLXEW_VERSION_1_0 = GL_FALSE;
 GLboolean __GLXEW_VERSION_1_1 = GL_FALSE;
@@ -11070,7 +11070,7 @@ GLboolean __GLXEW_SGI_video_sync = GL_FALSE;
 GLboolean __GLXEW_SUN_get_transparent_index = GL_FALSE;
 GLboolean __GLXEW_SUN_video_resize = GL_FALSE;
 
-#endif /* !GLEW_MX */
+#endif /* !WITH_GLEW_MX */
 
 #ifdef GLX_VERSION_1_2
 
@@ -11950,7 +11950,7 @@ const GLubyte* glewGetString (GLenum name)
 
 GLboolean glewExperimental = GL_FALSE;
 
-#if !defined(GLEW_MX)
+#if !defined(WITH_GLEW_MX)
 
 #if defined(_WIN32)
 extern GLenum wglewContextInit (void);
@@ -11971,8 +11971,8 @@ GLenum glewInit ()
 #endif /* _WIN32 */
 }
 
-#endif /* !GLEW_MX */
-#ifdef GLEW_MX
+#endif /* !WITH_GLEW_MX */
+#ifdef WITH_GLEW_MX
 GLboolean glewContextIsSupported (const GLEWContext* ctx, const char* name)
 #else
 GLboolean glewIsSupported (const char* name)
@@ -15104,7 +15104,7 @@ GLboolean glewIsSupported (const char* name)
 
 #if defined(_WIN32)
 
-#if defined(GLEW_MX)
+#if defined(WITH_GLEW_MX)
 GLboolean wglewContextIsSupported (const WGLEWContext* ctx, const char* name)
 #else
 GLboolean wglewIsSupported (const char* name)
@@ -15481,7 +15481,7 @@ GLboolean wglewIsSupported (const char* name)
 
 #elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX)
 
-#if defined(GLEW_MX)
+#if defined(WITH_GLEW_MX)
 GLboolean glxewContextIsSupported (const GLXEWContext* ctx, const char* name)
 #else
 GLboolean glxewIsSupported (const char* name)

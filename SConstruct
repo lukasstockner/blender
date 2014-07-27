@@ -528,7 +528,7 @@ if env['WITH_BF_GL_EGL']:
 # GLEW
 
 if env['WITH_BF_GLEW_MX']:
-    env['BF_GL_DEFINITIONS'].append('GLEW_MX')
+    env['BF_GL_DEFINITIONS'].append('WITH_GLEW_MX')
 
 if env['WITH_BF_GLEW_ES']:
     env['BF_GLEW_INC'] = '#extern/glew-es/include'

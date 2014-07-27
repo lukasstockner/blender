@@ -3713,22 +3713,22 @@ typedef void (GLAPIENTRY * PFNGLMULTIDRAWELEMENTSSUNPROC) (GLenum mode, GLsizei*
 
 /* ------------------------------------------------------------------------- */
 
-#if defined(GLEW_MX) && defined(_WIN32)
+#if defined(WITH_GLEW_MX) && defined(_WIN32)
 #define GLEW_FUN_EXPORT
 #else
 #define GLEW_FUN_EXPORT GLEWAPI
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
-#if defined(GLEW_MX)
+#if defined(WITH_GLEW_MX)
 #define GLEW_VAR_EXPORT
 #else
 #define GLEW_VAR_EXPORT GLEWAPI
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
-#if defined(GLEW_MX) && defined(_WIN32)
+#if defined(WITH_GLEW_MX) && defined(_WIN32)
 struct GLEWContextStruct
 {
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
 #if GL_ES_VERSION_1_0 // XXX jwilkins: glew doesn't actually seem to be designed to let you use the extension macros
 GLEW_FUN_EXPORT PFNGLACTIVETEXTUREPROC __glewActiveTexture;
@@ -4163,10 +4163,10 @@ GLEW_FUN_EXPORT PFNGLSTARTTILINGQCOMPROC __glewStartTilingQCOM;
 GLEW_FUN_EXPORT PFNGLMULTIDRAWARRAYSSUNPROC __glewMultiDrawArraysSUN;
 GLEW_FUN_EXPORT PFNGLMULTIDRAWELEMENTSSUNPROC __glewMultiDrawElementsSUN;
 
-#if defined(GLEW_MX) && !defined(_WIN32)
+#if defined(WITH_GLEW_MX) && !defined(_WIN32)
 struct GLEWContextStruct
 {
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
 GLEW_VAR_EXPORT GLboolean __GLEW_ES_VERSION_1_0;
 GLEW_VAR_EXPORT GLboolean __GLEW_ES_VERSION_CL_1_1;
@@ -4310,9 +4310,9 @@ GLEW_VAR_EXPORT GLboolean __GLEW_SUN_multi_draw_arrays;
 GLEW_VAR_EXPORT GLboolean __GLEW_VG_KHR_EGL_sync;
 GLEW_VAR_EXPORT GLboolean __GLEW_VIV_shader_binary;
 
-#ifdef GLEW_MX
+#ifdef WITH_GLEW_MX
 }; /* GLEWContextStruct */
-#endif /* GLEW_MX */
+#endif /* WITH_GLEW_MX */
 
 
 #endif /* __glesew_h__ */
