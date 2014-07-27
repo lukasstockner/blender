@@ -34,15 +34,15 @@
 #define __GLEW_MX_H__
 
 #ifdef WITH_GLEW_MX
+/* glew its self expects this */
+#define GLEW_MX 1
+
 #define glewGetContext() _mxContext
 #endif
 
 #include <GL/glew.h>
 
 #ifdef WITH_GLEW_MX
-
-/* glew its self expects this */
-#define GLEW_MX
 
 #ifdef __cplusplus
 extern "C" {
