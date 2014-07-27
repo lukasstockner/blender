@@ -45,12 +45,12 @@
 extern "C" {
 #endif
 
-extern GLEWContext* _mxContext;
+extern GLEWContext *_mxContext;
 
-GLEWContext* mxGetContext(void);
-void mxSetContext(GLEWContext* ctx);
-GLEWContext* mxCreateContext(void);
-void mxDestroyContext(GLEWContext* ctx);
+GLEWContext *mxGetContext(void);
+void mxSetContext(GLEWContext *ctx);
+GLEWContext *mxCreateContext(void);
+void mxDestroyContext(GLEWContext *ctx);
 
 #ifdef __cplusplus
 }
