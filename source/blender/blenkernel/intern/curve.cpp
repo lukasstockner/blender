@@ -63,9 +63,6 @@ extern "C" {
 #include "BKE_material.h"
 }
 
-#include <CoreServices/CoreServices.h>
-#include <mach/mach.h>
-#include <mach/mach_time.h>
 #include "surf_gridmesh.h"
 #include <map>
 
@@ -582,8 +579,8 @@ void BKE_nurbList_free(ListBase *lb)
 	BLI_listbase_clear(lb);
 }
 
-void BKE_nurbList_duplicate(ListBase *lb) {
-	Nurb *nu;
+ListBase *BKE_nurbList_duplicate(ListBase *lb) {
+	ListBase *newbase = (ListBase*)MEM_callocN(sizeof(ListBase),"NURBS duplicate listbase");
 }
 
 Nurb *BKE_nurb_duplicate(Nurb *nu)
@@ -623,7 +620,7 @@ Nurb *BKE_nurb_duplicate(Nurb *nu)
 			}
 		}
 	}
-	BKE_nurbList_
+
 	return newnu;
 }
 
