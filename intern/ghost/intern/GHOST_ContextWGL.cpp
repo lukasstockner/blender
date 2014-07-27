@@ -287,13 +287,13 @@ static HWND clone_window(HWND hWnd, LPVOID lpParam)
 	GetWindowRect(hWnd, &rect);
 	WIN32_CHK(GetLastError() == NO_ERROR);
 
-	HWND hWndParent = (HWND)GetWindowLong(hWnd, GWL_HWNDPARENT);
+	HWND hWndParent = (HWND)GetWindowLongPtr(hWnd, GWLP_HWNDPARENT);
 	WIN32_CHK(GetLastError() == NO_ERROR);
 
 	HMENU hMenu = GetMenu(hWnd);
 	WIN32_CHK(GetLastError() == NO_ERROR);
 
-	HINSTANCE hInstance = (HINSTANCE)GetWindowLong(hWnd, GWL_HINSTANCE);
+	HINSTANCE hInstance = (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE);
 	WIN32_CHK(GetLastError() == NO_ERROR);
 
 	HWND hwndCloned = CreateWindowExW(
