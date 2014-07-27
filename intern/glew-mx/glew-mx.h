@@ -41,6 +41,9 @@
 
 #ifdef WITH_GLEW_MX
 
+/* glew its self expects this */
+#define GLEW_MX
+
 #ifdef __cplusplus
 extern "C" {
 #endif

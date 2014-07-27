@@ -51,7 +51,7 @@
 /*
  * Define glewGetContext and related helper macros.
  */
-#ifdef WITH_GLEW_MX
+#ifdef GLEW_MX
 #  define glewGetContext() ctx
 #  ifdef _WIN32
 #    define GLEW_CONTEXT_ARG_DEF_INIT GLEWContext* ctx
@@ -80,7 +80,7 @@
 #    endif /* GLEW_EGL_ONLY */
 #  endif /* _WIN32 */
 #  define GLEW_CONTEXT_ARG_DEF_LIST GLEWContext* ctx
-#else /* WITH_GLEW_MX */
+#else /* GLEW_MX */
 #  define GLEW_CONTEXT_ARG_DEF_INIT void
 #  define GLEW_CONTEXT_ARG_VAR_INIT
 #  define GLEW_CONTEXT_ARG_DEF_LIST void
@@ -90,7 +90,7 @@
 #  define GLXEW_CONTEXT_ARG_DEF_LIST void
 #  define EGLEW_CONTEXT_ARG_DEF_INIT void
 #  define EGLEW_CONTEXT_ARG_DEF_LIST EGLDisplay display
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
 #if defined(GLEW_INC_EGL)
 
@@ -435,7 +435,7 @@ static GLboolean _glewSearchExtension (const char* name, const GLubyte *start, c
 	return GL_FALSE;
 }
 
-#if !defined(_WIN32) || !defined(WITH_GLEW_MX)
+#if !defined(_WIN32) || !defined(GLEW_MX)
 
 #ifndef GLEW_ES_ONLY 
 
@@ -3675,9 +3675,9 @@ PFNGLORTHOFOESPROC __glewOrthofOES = NULL;
 
 #endif /* GLEW_ES_ONLY */  
 
-#endif /* !WIN32 || !WITH_GLEW_MX */
+#endif /* !WIN32 || !GLEW_MX */
 
-#if !defined(WITH_GLEW_MX)
+#if !defined(GLEW_MX)
 
 #ifndef GLEW_ES_ONLY 
 
@@ -4438,7 +4438,7 @@ GLboolean __GLEW_OES_single_precision = GL_FALSE;
 
 #endif /* GLEW_ES_ONLY */ 
 
-#endif /* !WITH_GLEW_MX */
+#endif /* !GLEW_MX */
 
 #ifdef GL_VERSION_1_1
 
@@ -11722,7 +11722,7 @@ GLboolean glewGetExtension (const char* name)
 
 /* ------------------------------------------------------------------------- */
 
-#ifndef WITH_GLEW_MX
+#ifndef GLEW_MX
 static
 #endif
 GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
@@ -13873,7 +13873,7 @@ GLenum glewContextInit (GLEW_CONTEXT_ARG_DEF_LIST)
 
 #if defined (GLEW_INC_EGL) 
 
-#if !defined(_WIN32) || !defined(WITH_GLEW_MX)
+#if !defined(_WIN32) || !defined(GLEW_MX)
 
 PFNCREATESYNC                  __eglewCreateSync                  = NULL;
 PFNDESTROYSYNC                 __eglewDestroySync                 = NULL;
@@ -13938,9 +13938,9 @@ PFNEGLSIGNALSYNCNVPROC __eglewSignalSyncNV = NULL;
 PFNEGLGETSYSTEMTIMEFREQUENCYNVPROC __eglewGetSystemTimeFrequencyNV = NULL;
 PFNEGLGETSYSTEMTIMENVPROC __eglewGetSystemTimeNV = NULL;
 
-#endif /* !WIN32 || !WITH_GLEW_MX */
+#endif /* !WIN32 || !GLEW_MX */
 
-#if !defined(WITH_GLEW_MX)
+#if !defined(GLEW_MX)
 
 GLboolean __EGLEW_VERSION_1_1 = GL_FALSE;
 GLboolean __EGLEW_VERSION_1_2 = GL_FALSE;
@@ -13994,7 +13994,7 @@ GLboolean __EGLEW_NV_post_sub_buffer = GL_FALSE;
 GLboolean __EGLEW_NV_sync = GL_FALSE;
 GLboolean __EGLEW_NV_system_time = GL_FALSE;
 
-#endif /* !WITH_GLEW_MX */
+#endif /* !GLEW_MX */
 
 #ifdef EGL_VERSION_1_2
 
@@ -14612,7 +14612,7 @@ GLenum eglewContextInit (EGLEW_CONTEXT_ARG_DEF_LIST)
 
 #elif defined(_WIN32)
 
-#if !defined(WITH_GLEW_MX)
+#if !defined(GLEW_MX)
 
 PFNWGLSETSTEREOEMITTERSTATE3DLPROC __wglewSetStereoEmitterState3DL = NULL;
 
@@ -14814,7 +14814,7 @@ GLboolean __WGLEW_NV_video_capture = GL_FALSE;
 GLboolean __WGLEW_NV_video_output = GL_FALSE;
 GLboolean __WGLEW_OML_sync_control = GL_FALSE;
 
-#endif /* !WITH_GLEW_MX */
+#endif /* !GLEW_MX */
 
 #ifdef WGL_3DFX_multisample
 
@@ -15746,7 +15746,7 @@ PFNGLXGETTRANSPARENTINDEXSUNPROC __glewXGetTransparentIndexSUN = NULL;
 PFNGLXGETVIDEORESIZESUNPROC __glewXGetVideoResizeSUN = NULL;
 PFNGLXVIDEORESIZESUNPROC __glewXVideoResizeSUN = NULL;
 
-#if !defined(WITH_GLEW_MX)
+#if !defined(GLEW_MX)
 
 GLboolean __GLXEW_VERSION_1_0 = GL_FALSE;
 GLboolean __GLXEW_VERSION_1_1 = GL_FALSE;
@@ -15814,7 +15814,7 @@ GLboolean __GLXEW_SGI_video_sync = GL_FALSE;
 GLboolean __GLXEW_SUN_get_transparent_index = GL_FALSE;
 GLboolean __GLXEW_SUN_video_resize = GL_FALSE;
 
-#endif /* !WITH_GLEW_MX */
+#endif /* !GLEW_MX */
 
 #ifdef GLX_VERSION_1_2
 
@@ -16733,7 +16733,7 @@ const GLubyte* glewGetString (GLenum name)
 
 GLboolean glewExperimental = GL_FALSE;
 
-#if !defined(WITH_GLEW_MX)
+#if !defined(GLEW_MX)
 
 #if defined(GLEW_USE_LIB_ES) 
 #  if defined (GLEW_INC_EGL)
@@ -16761,8 +16761,8 @@ GLenum glewInit ()
   return r;
 }
 
-#endif /* !WITH_GLEW_MX */
-#ifdef WITH_GLEW_MX
+#endif /* !GLEW_MX */
+#ifdef GLEW_MX
 GLboolean glewContextIsSupported (const GLEWContext* ctx, const char* name)
 #else
 GLboolean glewIsSupported (const char* name)
@@ -21097,7 +21097,7 @@ GLboolean glewIsSupported (const char* name)
 
 #if defined(GLEW_INC_EGL)
 
-#if defined(WITH_GLEW_MX)
+#if defined(GLEW_MX)
 GLboolean eglewContextIsSupported (const EGLEWContext* ctx, const char* name)
 #else
 GLboolean eglewIsSupported (const char* name)
@@ -21488,7 +21488,7 @@ GLboolean eglewIsSupported (const char* name)
 
 #elif defined(_WIN32)
 
-#if defined(WITH_GLEW_MX)
+#if defined(GLEW_MX)
 GLboolean wglewContextIsSupported (const WGLEWContext* ctx, const char* name)
 #else
 GLboolean wglewIsSupported (const char* name)
@@ -21900,7 +21900,7 @@ GLboolean wglewIsSupported (const char* name)
 
 #elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX)
 
-#if defined(WITH_GLEW_MX)
+#if defined(GLEW_MX)
 GLboolean glxewContextIsSupported (const GLXEWContext* ctx, const char* name)
 #else
 GLboolean glxewIsSupported (const char* name)

@@ -1284,22 +1284,22 @@ typedef EGLuint64NV (EGLAPIENTRY * PFNEGLGETSYSTEMTIMENVPROC) (void);
 
 /* ------------------------------------------------------------------------- */
 
-#if defined(WITH_GLEW_MX) && defined(_WIN32)
+#if defined(GLEW_MX) && defined(_WIN32)
  #define EGLEW_FUN_EXPORT 
  #else 
  #define EGLEW_FUN_EXPORT GLEWAPI 
- #endif /* WITH_GLEW_MX */
+ #endif /* GLEW_MX */
 
-#if defined(WITH_GLEW_MX)
+#if defined(GLEW_MX)
  #define EGLEW_VAR_EXPORT
 #else
 #define EGLEW_VAR_EXPORT GLEWAPI 
- #endif /* WITH_GLEW_MX */
+ #endif /* GLEW_MX */
 
-#if defined (WITH_GLEW_MX) && defined(_WIN32)
+#if defined (GLEW_MX) && defined(_WIN32)
 struct EGLEWContextStruct
 {
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
 EGLEW_FUN_EXPORT PFNCREATESYNC                  __eglewCreateSync;
 EGLEW_FUN_EXPORT PFNDESTROYSYNC                 __eglewDestroySync;
@@ -1364,10 +1364,10 @@ EGLEW_FUN_EXPORT PFNEGLSIGNALSYNCNVPROC __eglewSignalSyncNV;
 EGLEW_FUN_EXPORT PFNEGLGETSYSTEMTIMEFREQUENCYNVPROC __eglewGetSystemTimeFrequencyNV;
 EGLEW_FUN_EXPORT PFNEGLGETSYSTEMTIMENVPROC __eglewGetSystemTimeNV;
 
-#if defined(WITH_GLEW_MX) && !defined(_WIN32)
+#if defined(GLEW_MX) && !defined(_WIN32)
 struct EGLEWContextStruct
 {
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
 EGLEW_VAR_EXPORT GLboolean __EGLEW_VERSION_1_1;
 EGLEW_VAR_EXPORT GLboolean __EGLEW_VERSION_1_2;
@@ -1421,13 +1421,13 @@ EGLEW_VAR_EXPORT GLboolean __EGLEW_NV_post_sub_buffer;
 EGLEW_VAR_EXPORT GLboolean __EGLEW_NV_sync;
 EGLEW_VAR_EXPORT GLboolean __EGLEW_NV_system_time;
 
-#ifdef WITH_GLEW_MX
+#ifdef GLEW_MX
 }; /* EGLEWContextStruct */
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
 /* ------------------------------------------------------------------------ */
 
-#ifdef WITH_GLEW_MX
+#ifdef GLEW_MX
 
 typedef struct EGLEWContextStruct EGLEWContext;
 extern GLenum eglewContextInit (EGLDisplay display, EGLEWContext* ctx);
@@ -1443,7 +1443,7 @@ extern GLboolean eglewContextIsSupported (const EGLEWContext* ctx, const char* n
 #  define EGLEW_GET_FUN(x) x
 #endif
 
-#else /* WITH_GLEW_MX */
+#else /* GLEW_MX */
 
 #define EGLEW_GET_VAR(x) (*(const GLboolean*)&x)
 #define EGLEW_GET_FUN(x) x
@@ -1453,7 +1453,7 @@ extern GLenum eglewContextInit(EGLDisplay display); // XXX jwilkins: context han
 
 extern GLboolean eglewIsSupported (const char* name);
 
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
 extern GLboolean eglewGetExtension (const char* name);
 

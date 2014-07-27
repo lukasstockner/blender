@@ -17008,22 +17008,22 @@ typedef void (GLAPIENTRY * PFNGLMULTIDRAWELEMENTSSUNPROC) (GLenum mode, GLsizei*
 
 /* ------------------------------------------------------------------------- */
 
-#if defined(WITH_GLEW_MX) && defined(_WIN32)
+#if defined(GLEW_MX) && defined(_WIN32)
 #define GLEW_FUN_EXPORT
 #else
 #define GLEW_FUN_EXPORT GLEWAPI
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
-#if defined(WITH_GLEW_MX)
+#if defined(GLEW_MX)
 #define GLEW_VAR_EXPORT
 #else
 #define GLEW_VAR_EXPORT GLEWAPI
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
-#if defined(WITH_GLEW_MX) && defined(_WIN32)
+#if defined(GLEW_MX) && defined(_WIN32)
 struct GLEWContextStruct
 {
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
 GLEW_FUN_EXPORT PFNGLACCUMPROC __glewAccum;
 GLEW_FUN_EXPORT PFNGLARETEXTURESRESIDENTPROC __glewAreTexturesResident;
@@ -19825,10 +19825,10 @@ GLEW_FUN_EXPORT PFNGLMULTIDRAWELEMENTSSUNPROC __glewMultiDrawElementsSUN;
 #endif /* !(GLEW_NO_ES) */
 
 
-#if defined(WITH_GLEW_MX) && !defined(_WIN32)
+#if defined(GLEW_MX) && !defined(_WIN32)
 struct GLEWContextStruct
 {
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
 GLEW_VAR_EXPORT GLboolean __GLEW_VERSION_1_1;
 GLEW_VAR_EXPORT GLboolean __GLEW_VERSION_1_2;
@@ -20439,9 +20439,9 @@ GLEW_VAR_EXPORT GLboolean __GLEW_VIV_shader_binary;
 #endif /* !(GLEW_NO_ES) */
 
 
-#ifdef WITH_GLEW_MX
+#ifdef GLEW_MX
 }; /* GLEWContextStruct */
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
 #endif /* GLEW_ES_ONLY */
 
@@ -20465,7 +20465,7 @@ GLEW_VAR_EXPORT GLboolean __GLEW_VIV_shader_binary;
 #define GLEW_VERSION_MICRO 4
 
 /* API */
-#ifdef WITH_GLEW_MX
+#ifdef GLEW_MX
 
 typedef struct GLEWContextStruct GLEWContext;
 GLEWAPI GLenum glewContextInit (GLEWContext* ctx);
@@ -20482,7 +20482,7 @@ GLEWAPI GLboolean glewContextIsSupported (const GLEWContext* ctx, const char* na
 #  define GLEW_GET_FUN(x) x
 #endif
 
-#else /* WITH_GLEW_MX */
+#else /* GLEW_MX */
 
 GLEWAPI GLenum glewInit ();
 GLEWAPI GLboolean glewIsSupported (const char* name);
@@ -20491,7 +20491,7 @@ GLEWAPI GLboolean glewIsSupported (const char* name);
 #define GLEW_GET_VAR(x) (*(const GLboolean*)&x)
 #define GLEW_GET_FUN(x) x
 
-#endif /* WITH_GLEW_MX */
+#endif /* GLEW_MX */
 
 GLEWAPI GLboolean glewExperimental;
 GLEWAPI GLboolean glewGetExtension (const char* name);
