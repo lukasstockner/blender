@@ -1027,6 +1027,11 @@ elseif(WIN32)
 
 	if(MSVC)
 
+		# needed for some MSVC installations
+		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
+		set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SAFESEH:NO")
+		set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
+
 		list(APPEND PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi)
 
 		add_definitions(
@@ -1821,7 +1826,7 @@ elseif(APPLE)
 		)
 
 		set(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib)
-		set(OPENCOLLADA_LIBRARIES "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lUTF -lxml2 -lbuffer -lftoa")
+		set(OPENCOLLADA_LIBRARIES "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lxml2 -lbuffer -lftoa")
 		# pcre is bundled with openCollada
 		#set(PCRE ${LIBDIR}/pcre)
 		#set(PCRE_LIBPATH ${PCRE}/lib)
@@ -1894,7 +1899,7 @@ elseif(APPLE)
 
 	if(WITH_LLVM)
 		set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-		set(LLVM_VERSION "3.1" CACHE STRING	"Version of LLVM to use")
+		set(LLVM_VERSION "3.4" CACHE STRING	"Version of LLVM to use")
 		if(EXISTS "${LLVM_DIRECTORY}/bin/llvm-config")
 			set(LLVM_CONFIG "${LLVM_DIRECTORY}/bin/llvm-config")
 		else()
@@ -1986,6 +1991,8 @@ elseif(APPLE)
 		# Xcode 5 is always using CLANG, which has too low template depth of 128 for libmv
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-depth=1024")
 	endif()
+	# Get rid of eventually clashes, we export some symbols explicite as local
+	set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Xlinker -unexported_symbols_list -Xlinker ${CMAKE_SOURCE_DIR}/source/creator/osx_locals.map")
 endif()
 
 #-----------------------------------------------------------------------------
