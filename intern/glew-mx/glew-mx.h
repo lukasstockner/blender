@@ -58,9 +58,12 @@ void mxDestroyContext(GLEWContext* ctx);
 
 #else
 
+typedef struct GLEWContext GLEWContext;
+
 /* don't use NULL here (mightn't be defined)*/
+#define mxGetContext()          ((GLEWContext *)0)
 #define mxSetContext(ctx)       ((void)ctx)
-#define mxCreateContext()       ((void *)0)
+#define mxCreateContext()       ((GLEWContext *)0)
 #define mxDestroyContext(ctx)   ((void)ctx)
 
 #endif  /* GLEW_MX */
