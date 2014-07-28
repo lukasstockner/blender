@@ -886,18 +886,18 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
-	set(PLATFORM_LINKLIBS "-lutil -lc -lm -lpthread")
+	list(APPEND PLATFORM_LINKLIBS -lutil -lc -lm -lpthread)
 
 	if((NOT WITH_HEADLESS) AND (NOT WITH_GHOST_SDL))
 		find_package(X11 REQUIRED)
 		find_path(X11_XF86keysym_INCLUDE_PATH X11/XF86keysym.h ${X11_INC_SEARCH_PATH})
 		mark_as_advanced(X11_XF86keysym_INCLUDE_PATH)
 
-		set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_X11_LIB}")
+		list(APPEND PLATFORM_LINKLIBS ${X11_X11_LIB})
 
 		if(WITH_X11_XINPUT)
 			if(X11_Xinput_LIB)
-				set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_Xinput_LIB}")
+				list(APPEND PLATFORM_LINKLIBS ${X11_Xinput_LIB})
 			else()
 				set(WITH_X11_XINPUT OFF)
 			endif()
@@ -905,10 +905,10 @@ if(UNIX AND NOT APPLE)
 
 		if(WITH_X11_XF86VMODE)
 			# XXX, why dont cmake make this available?
-			FIND_LIBRARY(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
+			find_library(X11_Xxf86vmode_LIB Xxf86vm   ${X11_LIB_SEARCH_PATH})
 			mark_as_advanced(X11_Xxf86vmode_LIB)
 			if(X11_Xxf86vmode_LIB)
-				set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} ${X11_Xxf86vmode_LIB}")
+				list(APPEND PLATFORM_LINKLIBS ${X11_Xxf86vmode_LIB})
 			else()
 				set(WITH_X11_XF86VMODE OFF)
 			endif()
@@ -970,7 +970,12 @@ elseif(WIN32)
 
 	if(MSVC)
 
-		set(PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi)
+		# needed for some MSVC installations
+		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /SAFESEH:NO")
+		set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SAFESEH:NO")
+		set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
+
+		list(APPEND PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi)
 
 		add_definitions(
 			-D_CRT_NONSTDC_NO_DEPRECATE
@@ -1348,12 +1353,12 @@ elseif(WIN32)
 			endif()
 		endif()
 		
-		set(PLATFORM_LINKLIBS "-lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi")
+		list(APPEND PLATFORM_LINKLIBS -lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi)
 		set(PLATFORM_CFLAGS "-pipe -funsigned-char -fno-strict-aliasing")
 
 		if(WITH_MINGW64)
 			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpermissive")
-			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -lpthread")
+			list(APPEND PLATFORM_LINKLIBS -lpthread)
 			
 			add_definitions(-DFREE_WINDOWS64 -DMS_WIN64)
 		endif()
@@ -1528,7 +1533,7 @@ elseif(WIN32)
 				LLVMX86Utils LLVMipa
 				LLVMipo LLVMCore)
 			# imagehelp is needed by LLVM 3.1 on MinGW, check lib\Support\Windows\Signals.inc
-			set(PLATFORM_LINKLIBS "${PLATFORM_LINKLIBS} -limagehlp")
+			list(APPEND PLATFORM_LINKLIBS -limagehlp)
 		endif()
 		
 		if(WITH_OPENCOLORIO)
@@ -1711,9 +1716,9 @@ elseif(APPLE)
 	)
 	mark_as_advanced(SYSTEMSTUBS_LIBRARY)
 	if(SYSTEMSTUBS_LIBRARY)
-		set(PLATFORM_LINKLIBS stdc++ SystemStubs)
+		list(APPEND PLATFORM_LINKLIBS stdc++ SystemStubs)
 	else()
-		set(PLATFORM_LINKLIBS stdc++)
+		list(APPEND PLATFORM_LINKLIBS stdc++)
 	endif()
 
 	set(PLATFORM_CFLAGS "-pipe -funsigned-char")
@@ -1764,7 +1769,7 @@ elseif(APPLE)
 		)
 
 		set(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib)
-		set(OPENCOLLADA_LIBRARIES "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lUTF -lxml2 -lbuffer -lftoa")
+		set(OPENCOLLADA_LIBRARIES "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lxml2 -lbuffer -lftoa")
 		# pcre is bundled with openCollada
 		#set(PCRE ${LIBDIR}/pcre)
 		#set(PCRE_LIBPATH ${PCRE}/lib)
@@ -1837,7 +1842,7 @@ elseif(APPLE)
 
 	if(WITH_LLVM)
 		set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-		set(LLVM_VERSION "3.1" CACHE STRING	"Version of LLVM to use")
+		set(LLVM_VERSION "3.4" CACHE STRING	"Version of LLVM to use")
 		if(EXISTS "${LLVM_DIRECTORY}/bin/llvm-config")
 			set(LLVM_CONFIG "${LLVM_DIRECTORY}/bin/llvm-config")
 		else()
@@ -1929,6 +1934,8 @@ elseif(APPLE)
 		# Xcode 5 is always using CLANG, which has too low template depth of 128 for libmv
 		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ftemplate-depth=1024")
 	endif()
+	# Get rid of eventually clashes, we export some symbols explicite as local
+	set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Xlinker -unexported_symbols_list -Xlinker ${CMAKE_SOURCE_DIR}/source/creator/osx_locals.map")
 endif()
 
 #-----------------------------------------------------------------------------
