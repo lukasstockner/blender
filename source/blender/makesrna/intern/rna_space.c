@@ -151,8 +151,8 @@ EnumPropertyItem viewport_shade_items_pie[] = {
     {OB_WIRE, "WIREFRAME", ICON_WIRE, "Wireframe", "Display the object as wire edges"},
     {OB_TEXTURE, "TEXTURED", ICON_POTATO, "Texture", "Display the object solid, with a texture"},
     {OB_MATERIAL, "MATERIAL", ICON_MATERIAL_DATA, "Material", "Display objects solid, with GLSL material"},
-	{OB_BOUNDBOX, "BOUNDBOX", ICON_BBOX, "Bounding Box", "Display the object's local bounding boxes only"},
 	{OB_RENDER, "RENDERED", ICON_SMOOTH, "Rendered", "Display render preview"},
+    {OB_BOUNDBOX, "BOUNDBOX", ICON_BBOX, "Bounding Box", "Display the object's local bounding boxes only"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -679,6 +679,7 @@ static EnumPropertyItem *rna_SpaceView3D_viewport_shade_pie_itemf(bContext *UNUS
 	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_SOLID);
 	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_WIRE);
 	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_TEXTURE);
+	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items, OB_MATERIAL);
 
 	if (type && type->view_draw)
 		RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_RENDER);
