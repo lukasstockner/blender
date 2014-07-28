@@ -2059,6 +2059,16 @@ static int wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *e
 	return OPERATOR_CANCELLED;
 }
 
+static int wm_call_pie_menu_exec(bContext *C, wmOperator *op)
+{
+	char idname[BKE_ST_MAXNAME];
+	RNA_string_get(op->ptr, "name", idname);
+
+	uiPieMenuInvoke(C, idname, CTX_wm_window(C)->eventstate, RNA_boolean_get(op->ptr, "force_click"));
+
+	return OPERATOR_CANCELLED;
+}
+
 static void WM_OT_call_pie_menu(wmOperatorType *ot)
 {
 	ot->name = "Call Pie Menu";
@@ -2066,6 +2076,7 @@ static void WM_OT_call_pie_menu(wmOperatorType *ot)
 	ot->description = "Call (draw) a pre-defined pie menu";
 
 	ot->invoke = wm_call_pie_menu_invoke;
+	ot->exec = wm_call_pie_menu_exec;
 	ot->poll = WM_operator_winactive;
 
 	ot->flag = OPTYPE_INTERNAL;
