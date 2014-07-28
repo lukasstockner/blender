@@ -1458,7 +1458,7 @@ class VIEW3D_PIE_pivot(Menu):
 
         pie = layout.menu_pie()
         pie.prop(context.space_data, "pivot_point", expand=True)
-        pie.prop(context.space_data, "use_pivot_point_align")
+        pie.prop(context.space_data, "use_pivot_point_align", text="Center Points")
 
 class VIEW3D_PIE_snap(Menu):
     bl_label = "Snapping"
