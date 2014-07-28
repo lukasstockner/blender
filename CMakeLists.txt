@@ -165,22 +165,12 @@ option(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" 
 
 if(UNIX AND NOT APPLE)
 	set(WITH_X11 ON)
-else()
-	option(WITH_X11_DEVEL_TEST "Use X11 library (for development purposes only)" OFF)
-	mark_as_advanced(WITH_X11_DEVEL_TEST)
-	set(WITH_X11 ${WITH_X11_DEVEL_TEST})
 endif()
 
 if(WITH_X11)
-	if(UNIX AND NOT APPLE)
-		option(WITH_X11_XINPUT    "Enable X11 Xinput (tablet support and unicode input)" ON)
-		option(WITH_X11_XF86VMODE "Enable X11 video mode switching"                      ON)
-	else()
-		set(WITH_X11_XINPUT    OFF)
-		set(WITH_X11_XF86VMODE OFF)
-	endif()
-
-	option(WITH_GHOST_XDND "Enable drag'n'drop support on X11 using XDND protocol" ON)
+	option(WITH_X11_XINPUT    "Enable X11 Xinput (tablet support and unicode input)"  ON)
+	option(WITH_X11_XF86VMODE "Enable X11 video mode switching"                       ON)
+	option(WITH_GHOST_XDND    "Enable drag'n'drop support on X11 using XDND protocol" ON)
 endif()
 
 if(UNIX AND NOT APPLE)
@@ -2092,12 +2082,7 @@ endif()
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
 
-if(APPLE AND WITH_X11)
-	set(OPENGL_gl_LIBRARY  "/usr/X11R6/lib/libGL.dylib")
-	set(OPENGL_glu_LIBRARY "/usr/X11R6/lib/libGLU.dylib")
-else()
-	find_package(OpenGL)
-endif()
+find_package(OpenGL)
 
 if(WITH_GLU)
 	list(APPEND BLENDER_GL_LIBRARIES "${OPENGL_glu_LIBRARY}")
@@ -2215,10 +2200,6 @@ endif()
 
 if(WITH_GLEW_MX)
 	list(APPEND GL_DEFINITIONS -DWITH_GLEW_MX)
-endif()
-
-if(APPLE AND WITH_X11)
-	list(APPEND GL_DEFINITIONS -DGLEW_APPLE_GLX)
 endif()
 
 if(WITH_SYSTEM_GLEW)
