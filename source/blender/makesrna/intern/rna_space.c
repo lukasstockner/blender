@@ -680,9 +680,6 @@ static EnumPropertyItem *rna_SpaceView3D_viewport_shade_pie_itemf(bContext *UNUS
 	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_WIRE);
 	RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_TEXTURE);
 
-	if (BKE_scene_use_new_shading_nodes(scene))
-		RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_MATERIAL);
-
 	if (type && type->view_draw)
 		RNA_enum_items_add_value(&item, &totitem, viewport_shade_items_pie, OB_RENDER);
 

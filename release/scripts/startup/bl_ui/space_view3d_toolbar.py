@@ -1773,37 +1773,6 @@ class VIEW3D_PT_tools_grease_pencil(GreasePencilPanel, Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     bl_category = "Grease Pencil"
-
-class VIEW3D_PIE_tests(Menu):
-    bl_label = "Testing Pie"
-
-    def draw(self, context):
-        layout = self.layout
-
-        toolsettings = context.tool_settings
-        sculpt = toolsettings.sculpt
-        brush = sculpt.brush
-
-        pie = layout.menu_pie()
-        pie.prop(sculpt, "use_symmetry_feather", toggle=True)
-        pie.prop(brush, "strength")
-
-        col = pie.column(align=True)
-        col.label(text="Symmetry")
-
-        row = col.row(align=True)
-        row.prop(sculpt, "use_symmetry_x", text="X", toggle=True)
-        row.prop(sculpt, "use_symmetry_y", text="Y", toggle=True)
-        row.prop(sculpt, "use_symmetry_z", text="Z", toggle=True)
-        col.prop(sculpt, "detail_refine_method", text="")
-        col.prop(sculpt, "detail_type_method", text="")
-
-        if context.sculpt_object.use_dynamic_topology_sculpting:
-            pie.operator("sculpt.dynamic_topology_toggle", icon='X', text="Disable Dyntopo")
-        else:
-            pie.operator("sculpt.dynamic_topology_toggle", icon='SCULPT_DYNTOPO', text="Enable Dyntopo")
-
-
         
     @classmethod
     def poll(cls, context):

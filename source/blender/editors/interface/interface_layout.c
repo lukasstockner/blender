@@ -556,6 +556,7 @@ static void ui_item_enum_expand(uiLayout *layout, uiBlock *block, PointerRNA *pt
 	 */
 
 	uiBut *but;
+	uiLayout *layout_radial = NULL;
 	EnumPropertyItem *item, *item_array;
 	const char *name;
 	int itemw, icon, value;
@@ -569,7 +570,8 @@ static void ui_item_enum_expand(uiLayout *layout, uiBlock *block, PointerRNA *pt
 
 	/* we dont want nested rows, cols in menus */
 	if (radial) {
-		uiBlockSetCurLayout(block, uiLayoutRadial(layout));
+		layout_radial = uiLayoutRadial(layout);
+		uiBlockSetCurLayout(block, layout_radial);
 	}
 	else if (layout->root->type != UI_LAYOUT_MENU) {
 		uiBlockSetCurLayout(block, ui_item_local_sublayout(layout, layout, 1));
@@ -581,7 +583,7 @@ static void ui_item_enum_expand(uiLayout *layout, uiBlock *block, PointerRNA *pt
 	for (item = item_array; item->identifier; item++) {
 		if (!item->identifier[0]) {
 			if (radial)
-				uiItemS(layout);
+				uiItemS(layout_radial);
 			continue;
 		}
 
@@ -2306,16 +2308,11 @@ static void ui_litem_layout_radial(uiLayout *litem)
 				/* enable drawing as pie item if supported by widget */
 				if (ui_item_is_radial_drawable(bitem))
 					bitem->but->dt = UI_EMBOSSR;
-
-				ui_item_size(item, &itemw, &itemh);
-
-				ui_item_position(item, x - itemw / 2, y - itemh / 2, itemw, itemh);
 			}
-			else {
-				ui_item_size(item, &itemw, &itemh);
 
-				ui_item_position(item, x + vec[0] * pie_radius - itemw / 2, y + vec[1] * pie_radius - itemh / 2, itemw, itemh);
-			}
+			ui_item_size(item, &itemw, &itemh);
+
+			ui_item_position(item, x + vec[0] * pie_radius - itemw / 2, y + vec[1] * pie_radius - itemh / 2, itemw, itemh);
 
 			minx = min_ii(minx, x + vec[0] * pie_radius - itemw / 2);
 			maxx = max_ii(maxx, x + vec[0] * pie_radius + itemw / 2);
@@ -2793,7 +2790,7 @@ uiLayout *uiLayoutRadial(uiLayout *layout)
 		}
 	}
 
-	litem = MEM_callocN(sizeof(uiLayout), "uiLayoutRow");
+	litem = MEM_callocN(sizeof(uiLayout), "uiLayoutRadial");
 	litem->item.type = ITEM_LAYOUT_RADIAL;
 	litem->root = layout->root;
 	litem->active = true;
@@ -2801,7 +2798,7 @@ uiLayout *uiLayoutRadial(uiLayout *layout)
 	litem->context = layout->context;
 	litem->redalert = layout->redalert;
 	litem->w = layout->w;
-	BLI_addtail(&layout->items, litem);
+	BLI_addtail(&layout->root->layout->items, litem);
 
 	uiBlockSetCurLayout(layout->root->block, litem);
 

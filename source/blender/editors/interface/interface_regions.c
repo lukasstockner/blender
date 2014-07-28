@@ -1709,6 +1709,7 @@ uiBlock *ui_popup_block_refresh(
 	if (block->flag & UI_BLOCK_RADIAL) {
 		/* find area that spawned this menu, keep it inside */
 		ScrArea *sa = CTX_wm_area(C);
+		uiBut *but;
 		int ar_w = BLI_rcti_size_x(&sa->totrct);
 		int ar_h = BLI_rcti_size_y(&sa->totrct);
 		int x_offset = 0, y_offset = 0;
@@ -1740,6 +1741,13 @@ uiBlock *ui_popup_block_refresh(
 
 			ui_block_translate(block, x_offset, y_offset);
 			block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
+		}
+
+		/* lastly set the buttons at the center of the pie menu, ready for animation */
+		for (but = block->buttons.first; but; but = but->next) {
+			if (but->pie_dir) {
+				BLI_rctf_recenter(&but->rect, block->pie_data.pie_center_spawned[0], block->pie_data.pie_center_spawned[1]);
+			}
 		}
 	}
 	else {
