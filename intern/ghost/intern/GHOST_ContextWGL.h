@@ -34,10 +34,15 @@
 
 #include "GHOST_Context.h"
 
+#ifdef WITH_GLEW_MX
 #define wglewGetContext() wglewContext
-#include <GL/wglew.h>
-extern "C" WGLEWContext *wglewContext;
+#endif
 
+#include <GL/wglew.h>
+
+#ifdef WITH_GLEW_MX 
+extern "C" WGLEWContext *wglewContext;
+#endif
 
 #ifndef GHOST_OPENGL_WGL_CONTEXT_FLAGS
 #define GHOST_OPENGL_WGL_CONTEXT_FLAGS 0
@@ -111,7 +116,9 @@ public:
 
 protected:
 	inline void activateWGLEW() const {
+#ifdef WITH_GLEW_MX 
 		wglewContext = m_wglewContext;
+#endif
 	}
 
 private:
@@ -158,8 +165,10 @@ private:
 
 	HGLRC m_hGLRC;
 
+#ifdef WITH_GLEW_MX 
 	WGLEWContext *m_wglewContext;
-
+#endif
+	
 #ifndef NDEBUG
 	const char *m_dummyVendor;
 	const char *m_dummyRenderer;

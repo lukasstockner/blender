@@ -40,7 +40,9 @@
 #include <vector>
 
 
+#ifdef WITH_GLEW_MX
 WGLEWContext *wglewContext = NULL;
+#endif
 
 HGLRC GHOST_ContextWGL::s_sharedHGLRC = NULL;
 int   GHOST_ContextWGL::s_sharedCount = 0;
@@ -77,8 +79,11 @@ GHOST_ContextWGL::GHOST_ContextWGL(
       m_contextMinorVersion(contextMinorVersion),
       m_contextFlags(contextFlags),
       m_contextResetNotificationStrategy(contextResetNotificationStrategy),
-      m_hGLRC(NULL),
+      m_hGLRC(NULL)
+#ifdef WITH_GLEW_MX
+      ,
       m_wglewContext(NULL)
+#endif
 #ifndef NDEBUG
       ,
       m_dummyVendor(NULL),
@@ -109,7 +114,9 @@ GHOST_ContextWGL::~GHOST_ContextWGL()
 		}
 	}
 
+#ifdef WITH_GLEW_MX
 	delete m_wglewContext;
+#endif
 
 #ifndef NDEBUG
 	delete m_dummyRenderer;
@@ -318,11 +325,13 @@ static HWND clone_window(HWND hWnd, LPVOID lpParam)
 
 void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD)
 {
+#ifdef WITH_GLEW_MX
 	wglewContext = new WGLEWContext;
 	memset(wglewContext, 0, sizeof(WGLEWContext));
 
 	delete m_wglewContext;
 	m_wglewContext = wglewContext;
+#endif
 
 	HWND  dummyHWND  = NULL;
 	HDC   dummyHDC   = NULL;
