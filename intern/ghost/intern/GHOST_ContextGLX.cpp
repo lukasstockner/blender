@@ -41,8 +41,9 @@
 #include <cstring>
 
 
+#ifdef WITH_GLEW_MX
 GLXEWContext *glxewContext = NULL;
-
+#endif
 
 GLXContext GHOST_ContextGLX::s_sharedContext = None;
 int        GHOST_ContextGLX::s_sharedCount   = 0;
@@ -67,8 +68,11 @@ GHOST_ContextGLX::GHOST_ContextGLX(
       m_contextFlags(contextFlags),
       m_contextResetNotificationStrategy(contextResetNotificationStrategy),
       m_visualInfo(NULL),
-      m_context(None),
+      m_context(None)
+#ifdef WITH_GLEW_MX
+      ,
       m_glxewContext(NULL)
+#endif
 {
 	assert(m_window  != 0);
 	assert(m_display != NULL);
@@ -78,8 +82,9 @@ GHOST_ContextGLX::GHOST_ContextGLX(
 GHOST_ContextGLX::~GHOST_ContextGLX()
 {
 	if (m_display != NULL) {
+#ifdef WITH_GLEW_MX
 		activateGLXEW();
-
+#endif
 		if (m_context != None) {
 			if (m_window != 0 && m_context == ::glXGetCurrentContext())
 				::glXMakeCurrent(m_display, m_window, NULL);
@@ -96,7 +101,9 @@ GHOST_ContextGLX::~GHOST_ContextGLX()
 			}
 		}
 
+#ifdef WITH_GLEW_MX
 		delete m_glxewContext;
+#endif
 	}
 
 	XFree(m_visualInfo);
@@ -114,7 +121,9 @@ GHOST_TSuccess GHOST_ContextGLX::swapBuffers()
 GHOST_TSuccess GHOST_ContextGLX::activateDrawingContext()
 {
 	if (m_display) {
+#ifdef WITH_GLEW_MX
 		activateGLXEW();
+#endif
 		activateGLEW();
 
 		return ::glXMakeCurrent(m_display, m_window, m_context) ? GHOST_kSuccess : GHOST_kFailure;
@@ -124,7 +133,7 @@ GHOST_TSuccess GHOST_ContextGLX::activateDrawingContext()
 	}
 }
 
-
+#ifdef WITH_GLEW_MX
 void GHOST_ContextGLX::initContextGLXEW()
 {
 	glxewContext = new GLXEWContext;
@@ -135,7 +144,7 @@ void GHOST_ContextGLX::initContextGLXEW()
 
 	GLEW_CHK(glxewInit());
 }
-
+#endif
 
 GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 {
@@ -276,9 +285,11 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 
 		initContextGLEW();
 
+#ifdef WITH_GLEW_MX
 		// Seems that this has to be called after MakeCurrent,
 		// which means we cannot use glX extensions until after we create a context
 		initContextGLXEW();
+#endif
 
 		initClearGL();
 		::glXSwapBuffers(m_display, m_window);
