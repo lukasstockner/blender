@@ -3243,7 +3243,11 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "pie_operator_timeout", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 0, 1000);
-	RNA_def_property_ui_text(prop, "Operator Timeout", "Supported operators will spawn a pie menu if button is held for this amount of time (in 1/100ths of sec)");
+	RNA_def_property_ui_text(prop, "Sticky Key Timeout", "Sticky operator time after which a pie menu will be spawned if button is held for this amount of time (in 1/100ths of sec)");
+
+	prop = RNA_def_property(srna, "pie_animation_timeout", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 0, 1000);
+	RNA_def_property_ui_text(prop, "Animation Timeout", "Time needed to fully animate the pie to unfolded state (in 1/100ths of sec)");
 
 	prop = RNA_def_property(srna, "pie_menu_radius", PROP_INT, PROP_PIXEL);
 	RNA_def_property_range(prop, 0, 1000);

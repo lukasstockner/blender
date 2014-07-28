@@ -8607,7 +8607,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			/* handle animation */
 			if (!(block->pie_data.flags & UI_PIE_ANIMATION_FINISHED)) {
 				uiBut *but;
-				double final_time = 0.12;
+				double final_time = 0.01 * U.pie_animation_timeout;
 				float fac = duration / final_time;
 
 				if (fac > 1.0f) {
