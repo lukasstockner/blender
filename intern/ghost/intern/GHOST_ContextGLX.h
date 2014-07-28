@@ -34,11 +34,16 @@
 
 #include "GHOST_Context.h"
 
-#include <GL/glxew.h>
 #ifdef WITH_GLEW_MX
-#define glxewGetContext() glxewContext
+#  define glxewGetContext() glxewContext
+#endif
+
+#include <GL/glxew.h>
+
+#ifdef WITH_GLEW_MX
 extern "C" GLXEWContext *glxewContext;
 #endif
+
 
 #ifndef GHOST_OPENGL_GLX_CONTEXT_FLAGS
 #define GHOST_OPENGL_GLX_CONTEXT_FLAGS 0
@@ -111,11 +116,11 @@ public:
 	virtual GHOST_TSuccess getSwapInterval(int &intervalOut);
 
 protected:
-#ifdef WITH_GLEW_MX
 	inline void activateGLXEW() const {
+#ifdef WITH_GLEW_MX
 		glxewContext = m_glxewContext;
-	}
 #endif
+	}
 
 private:
 	void initContextGLXEW();

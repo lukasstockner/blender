@@ -82,9 +82,8 @@ GHOST_ContextGLX::GHOST_ContextGLX(
 GHOST_ContextGLX::~GHOST_ContextGLX()
 {
 	if (m_display != NULL) {
-#ifdef WITH_GLEW_MX
 		activateGLXEW();
-#endif
+
 		if (m_context != None) {
 			if (m_window != 0 && m_context == ::glXGetCurrentContext())
 				::glXMakeCurrent(m_display, m_window, NULL);
@@ -121,9 +120,7 @@ GHOST_TSuccess GHOST_ContextGLX::swapBuffers()
 GHOST_TSuccess GHOST_ContextGLX::activateDrawingContext()
 {
 	if (m_display) {
-#ifdef WITH_GLEW_MX
 		activateGLXEW();
-#endif
 		activateGLEW();
 
 		return ::glXMakeCurrent(m_display, m_window, m_context) ? GHOST_kSuccess : GHOST_kFailure;
@@ -133,18 +130,18 @@ GHOST_TSuccess GHOST_ContextGLX::activateDrawingContext()
 	}
 }
 
-#ifdef WITH_GLEW_MX
 void GHOST_ContextGLX::initContextGLXEW()
 {
+#ifdef WITH_GLEW_MX
 	glxewContext = new GLXEWContext;
 	memset(glxewContext, 0, sizeof(GLXEWContext));
 
 	delete m_glxewContext;
 	m_glxewContext = glxewContext;
+#endif
 
 	GLEW_CHK(glxewInit());
 }
-#endif
 
 GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 {
@@ -285,11 +282,9 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 
 		initContextGLEW();
 
-#ifdef WITH_GLEW_MX
 		// Seems that this has to be called after MakeCurrent,
 		// which means we cannot use glX extensions until after we create a context
 		initContextGLXEW();
-#endif
 
 		initClearGL();
 		::glXSwapBuffers(m_display, m_window);
