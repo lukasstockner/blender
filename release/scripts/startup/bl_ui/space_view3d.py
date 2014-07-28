@@ -1450,6 +1450,28 @@ class VIEW3D_PIE_manipulator(Menu):
         pie.prop(context.space_data, "show_manipulator")
         
 
+class VIEW3D_PIE_pivot(Menu):
+    bl_label = "Pivot"
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+        pie.prop(context.space_data, "pivot_point", expand=True)
+        pie.prop(context.space_data, "use_pivot_point_align")
+
+class VIEW3D_PIE_snap(Menu):
+    bl_label = "Snapping"
+
+    def draw(self, context):
+        layout = self.layout
+
+        toolsettings = context.tool_settings
+        pie = layout.menu_pie()
+        pie.prop(toolsettings, "snap_element", expand=True)
+        pie.prop(toolsettings, "use_snap")
+
+
 # ********** Brush menu **********
 class VIEW3D_MT_brush(Menu):
     bl_label = "Brush"

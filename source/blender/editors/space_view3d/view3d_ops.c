@@ -153,6 +153,24 @@ void ED_operatormacros_screen(void)
 	if (ptr) {
 		RNA_string_set(ptr, "data_path", "space_data.show_manipulator");
 	}
+
+	ptr = WM_operator_pie_macro("VIEW3D_PIE_pivot_macro", "Pivot",
+	                            "Pivot Options for the viewport",
+	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_set_enum", "VIEW3D_PIE_pivot");
+
+	if (ptr) {
+		RNA_string_set(ptr, "data_path", "space_data.pivot_point");
+		RNA_string_set(ptr, "value", "CURSOR");
+	}
+
+	ptr = WM_operator_pie_macro("VIEW3D_PIE_snap_macro", "Snap",
+	                            "Snapping Options for the viewport",
+	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_set_enum", "VIEW3D_PIE_snap");
+
+	if (ptr) {
+		RNA_string_set(ptr, "data_path", "space_data.pivot_point");
+		RNA_string_set(ptr, "value", "BOUNDING_BOX_CENTER");
+	}
 }
 
 
@@ -508,10 +526,6 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "VIEW3D_OT_pastebuffer", VKEY, KM_PRESS, KM_CTRL, 0);
 	
 	/* context ops */
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
-	RNA_string_set(kmi->ptr, "value", "BOUNDING_BOX_CENTER");
-
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, KM_CTRL, 0); /* 2.4x allowed Comma+Shift too, rather not use both */
 	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
 	RNA_string_set(kmi->ptr, "value", "MEDIAN_POINT");
@@ -521,9 +535,8 @@ void view3d_keymap(wmKeyConfig *keyconf)
 
 	kmi = WM_keymap_add_item(keymap, "VIEW3D_PIE_manipulator_macro", SPACEKEY, KM_PRESS, KM_CTRL, 0); /* new in 2.5 */
 
-	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PERIODKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
-	RNA_string_set(kmi->ptr, "value", "CURSOR");
+	kmi = WM_keymap_add_item(keymap, "VIEW3D_PIE_pivot_macro", PERIODKEY, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "VIEW3D_PIE_snap_macro", COMMAKEY, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PERIODKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
