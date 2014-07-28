@@ -1743,10 +1743,14 @@ uiBlock *ui_popup_block_refresh(
 			block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
 		}
 
+		block->pie_data.flags |= UI_PIE_INVALID_DIR;
+
 		/* lastly set the buttons at the center of the pie menu, ready for animation */
-		for (but = block->buttons.first; but; but = but->next) {
-			if (but->pie_dir) {
-				BLI_rctf_recenter(&but->rect, block->pie_data.pie_center_spawned[0], block->pie_data.pie_center_spawned[1]);
+		if (U.pie_animation_timeout > 0) {
+			for (but = block->buttons.first; but; but = but->next) {
+				if (but->pie_dir) {
+					BLI_rctf_recenter(&but->rect, block->pie_data.pie_center_spawned[0], block->pie_data.pie_center_spawned[1]);
+				}
 			}
 		}
 	}
