@@ -41,7 +41,9 @@
 #include <cstdio>
 
 
+#ifdef WITH_GLEW_MX
 EGLEWContext *eglewContext = NULL;
+#endif
 
 
 static const char *get_egl_error_enum_string(EGLenum error)
@@ -163,10 +165,13 @@ static bool egl_chk(bool result, const char *file = NULL, int line = 0, const ch
 
 static inline bool bindAPI(EGLenum api)
 {
-	if (eglewContext != NULL && EGLEW_VERSION_1_2)
-		return EGL_CHK(eglBindAPI(api)) == EGL_TRUE;
-	else
-		return false;
+#ifdef WITH_GLEW_MX
+	if (eglewContext != NULL)
+#endif
+		if (EGLEW_VERSION_1_2)
+			return EGL_CHK(eglBindAPI(api)) == EGL_TRUE;
+		else
+			return false;
 }
 
 
@@ -223,13 +228,15 @@ GHOST_ContextEGL::GHOST_ContextEGL(
       m_contextFlags(contextFlags),
       m_contextResetNotificationStrategy(contextResetNotificationStrategy),
       m_api(api),
-      m_swap_interval(1),
-      m_display(EGL_NO_DISPLAY),
-      m_surface(EGL_NO_SURFACE),
       m_context(EGL_NO_CONTEXT),
+      m_surface(EGL_NO_SURFACE),
+      m_display(EGL_NO_DISPLAY),
+      m_swap_interval(1),
+#ifdef WITH_GLEW_MX
+      m_eglewContext(NULL),
+#endif
       m_sharedContext(choose_api(api, s_gl_sharedContext, s_gles_sharedContext, s_vg_sharedContext)),
-      m_sharedCount  (choose_api(api, s_gl_sharedCount,   s_gles_sharedCount,   s_vg_sharedCount)),
-      m_eglewContext(NULL)
+      m_sharedCount  (choose_api(api, s_gl_sharedCount,   s_gles_sharedCount,   s_vg_sharedCount))
 {
 	assert(m_nativeWindow  != NULL);
 	assert(m_nativeDisplay != NULL);
@@ -264,7 +271,9 @@ GHOST_ContextEGL::~GHOST_ContextEGL()
 
 		EGL_CHK(::eglTerminate(m_display));
 
+#ifdef WITH_GLEW_MX
 		delete m_eglewContext;
+#endif
 	}
 }
 
@@ -319,11 +328,13 @@ GHOST_TSuccess GHOST_ContextEGL::activateDrawingContext()
 
 void GHOST_ContextEGL::initContextEGLEW()
 {
+#ifdef WITH_GLEW_MX
 	eglewContext = new EGLEWContext;
 	memset(eglewContext, 0, sizeof(EGLEWContext));
 
 	delete m_eglewContext;
 	m_eglewContext = eglewContext;
+#endif
 
 	GLEW_CHK(eglewInit(m_display));
 }
@@ -355,6 +366,7 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 {
 	// objects have to be declared here due to the use of goto
 	std::vector<EGLint> attrib_list;
+	EGLint num_config = 0;
 
 	if (m_stereoVisual)
 		fprintf(stderr, "Warning! Stereo OpenGL ES contexts are not supported.\n");
@@ -471,7 +483,6 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 	attrib_list.push_back(EGL_NONE);
 
 	EGLConfig config;
-	EGLint    num_config = 0;
 
 	if (!EGL_CHK(::eglChooseConfig(m_display, &(attrib_list[0]), &config, 1, &num_config)))
 		goto error;
@@ -525,13 +536,13 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 			if (m_contextMajorVersion != 0 || m_contextMinorVersion != 0) {
 				fprintf(stderr,
 				        "Warning! Cannot request specific versions of %s contexts.",
-				        api_string(m_api));
+				        api_string(m_api).c_str());
 			}
 
 			if (m_contextFlags != 0) {
 				fprintf(stderr,
 				        "Warning! Flags cannot be set on %s contexts.",
-				        api_string(m_api));
+				        api_string(m_api).c_str());
 			}
 		}
 
@@ -545,7 +556,7 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 			if (m_contextProfileMask != 0)
 				fprintf(stderr,
 				        "Warning! Cannot select profile for %s contexts.",
-				        api_string(m_api));
+				        api_string(m_api).c_str());
 		}
 
 		if (m_api == EGL_OPENGL_API || EGLEW_VERSION_1_5) {
@@ -558,7 +569,7 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 			if (m_contextResetNotificationStrategy != 0) {
 				fprintf(stderr,
 				        "Warning! EGL %d.%d cannot set the reset notification strategy on %s contexts.",
-				        egl_major, egl_minor, api_string(m_api));
+				        egl_major, egl_minor, api_string(m_api).c_str());
 			}
 		}
 	}
@@ -573,7 +584,7 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 			if (m_contextMajorVersion != 0 || m_contextMinorVersion != 0) {
 				fprintf(stderr,
 				        "Warning! EGL %d.%d is unable to select between versions of %s.",
-				        egl_major, egl_minor, api_string(m_api));
+				        egl_major, egl_minor, api_string(m_api).c_str());
 			}
 		}
 
