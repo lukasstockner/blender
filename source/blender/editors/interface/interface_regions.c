@@ -1740,10 +1740,13 @@ uiBlock *ui_popup_block_refresh(
 			block->pie_data.pie_center_spawned[1] += y_offset;
 
 			ui_block_translate(block, x_offset, y_offset);
-			block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
+			if (U.pie_initial_timeout > 0)
+				block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
+			else
+				ui_block_calculate_pie_segment(block, block->pie_data.pie_center_init[0], block->pie_data.pie_center_init[1]);
 		}
-
-		block->pie_data.flags |= UI_PIE_INVALID_DIR;
+		else
+			block->pie_data.flags |= UI_PIE_INVALID_DIR;
 
 		/* lastly set the buttons at the center of the pie menu, ready for animation */
 		if (U.pie_animation_timeout > 0) {

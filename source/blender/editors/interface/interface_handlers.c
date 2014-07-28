@@ -7984,7 +7984,7 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
 	return retval;
 }
 
-static void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const float my)
+void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const float my)
 {
 	float seg1[2];
 	float seg2[2];
