@@ -208,6 +208,48 @@ ccl_device float lamp_light_pdf(KernelGlobals *kg, const float3 Ng, const float3
 	return t*t/cos_pi;
 }
 
+ccl_device void lamp_light_sample_new_position(KernelGlobals *kg, int lamp,
+								  float randu, float randv, float3 P, LightSample *ls)
+{
+	if(ls->type == LIGHT_POINT || ls->type == LIGHT_SPOT) {
+		float4 data0 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 0);
+		float4 data1 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 1);
+
+		ls->P = make_float3(data0.y, data0.z, data0.w);
+
+		float radius = data1.y;
+
+		if(radius > 0.0f)
+			/* sphere light */
+			ls->P += sphere_light_sample(P, ls->P, radius, randu, randv);
+
+		ls->D = normalize_len(ls->P - P, &ls->t);
+		ls->Ng = -ls->D;
+
+		float invarea = data1.z;
+		ls->pdf = invarea;
+
+		if(ls->type == LIGHT_SPOT) {
+			/* spot light attenuation */
+			float4 data2 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 2);
+			ls->eval_fac = (0.25f*M_1_PI_F)*invarea*kernel_data.integrator.inv_pdf_lights;
+			ls->eval_fac *= spot_light_attenuation(data1, data2, ls);
+		}
+	}
+	else if(ls->type == LIGHT_AREA) {
+			float4 data2 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 2);
+			ls->pdf = data2.x;
+
+			ls->D = normalize_len(ls->P - P, &ls->t);
+	}
+	else {
+		/* Distant Lights */
+		return;
+	}
+
+	ls->pdf *= lamp_light_pdf(kg, ls->Ng, -ls->D, ls->t);
+}
+
 ccl_device void lamp_light_sample(KernelGlobals *kg, int lamp,
 	float randu, float randv, float3 P, LightSample *ls)
 {
@@ -510,6 +552,27 @@ ccl_device int light_distribution_sample(KernelGlobals *kg, float randt)
 	/* clamping should not be needed but float rounding errors seem to
 	 * make this fail on rare occasions */
 	return clamp(first-1, 0, kernel_data.integrator.num_distribution-1);
+}
+
+/* ToDo: Better function name */
+ccl_device void light_sample_new_position(KernelGlobals *kg, float randt, float randu, float randv, float time, float3 P, LightSample *ls)
+{
+	/* sample index */
+	int index = light_distribution_sample(kg, randt);
+
+	/* fetch light data */
+	float4 l = kernel_tex_fetch(__light_distribution, index);
+	int prim = __float_as_int(l.y);
+
+	if(prim >= 0) {
+		/* compute incoming direction, distance and pdf */
+		ls->D = normalize_len(ls->P - P, &ls->t);
+		ls->pdf = triangle_light_pdf(kg, ls->Ng, -ls->D, ls->t);
+	}
+	else {
+		int lamp = -prim-1;
+		lamp_light_sample_new_position(kg, lamp, randu, randv, P, ls);
+	}
 }
 
 /* Generic Light */

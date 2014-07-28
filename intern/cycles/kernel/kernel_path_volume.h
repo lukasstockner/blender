@@ -149,8 +149,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 					if(result != VOLUME_PATH_SCATTERED)
 						continue;
 
-					/* todo: split up light_sample so we don't have to call it again with new position */
-					lamp_light_sample(kg, i, light_u, light_v, sd->P, &ls);
+					lamp_light_sample_new_position(kg, i, light_u, light_v, sd->P, &ls);
 				}
 
 				if(ls.pdf == 0.0f)
@@ -202,8 +201,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 					if(result != VOLUME_PATH_SCATTERED)
 						continue;
 
-					/* todo: split up light_sample so we don't have to call it again with new position */
-					light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
+					light_sample_new_position(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
 				}
 
 				if(ls.pdf == 0.0f)
@@ -243,8 +241,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 			if(result != VOLUME_PATH_SCATTERED)
 				return;
 
-			/* todo: split up light_sample so we don't have to call it again with new position */
-			light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
+			light_sample_new_position(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
 		}
 
 		if(ls.pdf == 0.0f)
