@@ -39,6 +39,7 @@
 
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 
 
 #ifdef WITH_GLEW_MX
@@ -168,14 +169,17 @@ static inline bool bindAPI(EGLenum api)
 #ifdef WITH_GLEW_MX
 	if (eglewContext != NULL)
 #endif
-		if (EGLEW_VERSION_1_2)
-			return EGL_CHK(eglBindAPI(api)) == EGL_TRUE;
-		else
-			return false;
+	{
+		if (EGLEW_VERSION_1_2) {
+			return (EGL_CHK(eglBindAPI(api)) == EGL_TRUE);
+		}
+	}
+
+	return false;
 }
 
 
-#if defined(WITH_GL_ANGLE)
+#ifdef WITH_GL_ANGLE
 HMODULE GHOST_ContextEGL::s_d3dcompiler = NULL;
 #endif
 
@@ -220,8 +224,8 @@ GHOST_ContextEGL::GHOST_ContextEGL(
         EGLint contextResetNotificationStrategy,
         EGLenum api)
     : GHOST_Context(stereoVisual, numOfAASamples),
-      m_nativeWindow (nativeWindow),
       m_nativeDisplay(nativeDisplay),
+      m_nativeWindow (nativeWindow),
       m_contextProfileMask(contextProfileMask),
       m_contextMajorVersion(contextMajorVersion),
       m_contextMinorVersion(contextMinorVersion),
@@ -238,7 +242,7 @@ GHOST_ContextEGL::GHOST_ContextEGL(
       m_sharedContext(choose_api(api, s_gl_sharedContext, s_gles_sharedContext, s_vg_sharedContext)),
       m_sharedCount  (choose_api(api, s_gl_sharedCount,   s_gles_sharedCount,   s_vg_sharedCount))
 {
-	assert(m_nativeWindow  != NULL);
+	assert(m_nativeWindow  != 0);
 	assert(m_nativeDisplay != NULL);
 }
 
@@ -340,19 +344,6 @@ void GHOST_ContextEGL::initContextEGLEW()
 }
 
 
-static std::set<std::string> split(const std::string s, char delim = ' ')
-{
-	std::set<std::string> elems;
-	std::stringstream ss(s);
-	std::string item;
-
-	while (std::getline(ss, item, delim))
-		elems.insert(item);
-
-	return elems;
-}
-
-
 static const std::string &api_string(EGLenum api)
 {
 	static const std::string a("OpenGL");
@@ -373,7 +364,7 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 
 	m_stereoVisual = false; // It doesn't matter what the Window wants.
 
-#if defined(WITH_GL_ANGLE)
+#ifdef WITH_GL_ANGLE
 	// d3dcompiler_XX.dll needs to be loaded before ANGLE will work
 	if (s_d3dcompiler == NULL) {
 		s_d3dcompiler = LoadLibrary(D3DCOMPILER);
@@ -637,7 +628,7 @@ error:
 
 GHOST_TSuccess GHOST_ContextEGL::releaseNativeHandles()
 {
-	m_nativeWindow  = NULL;
+	m_nativeWindow  = 0;
 	m_nativeDisplay = NULL;
 
 	return GHOST_kSuccess;

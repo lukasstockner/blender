@@ -159,7 +159,7 @@ private:
 	static EGLContext s_vg_sharedContext;
 	static EGLint     s_vg_sharedCount;
 
-#if defined(WITH_GL_ANGLE)
+#ifdef WITH_GL_ANGLE
 	static HMODULE s_d3dcompiler;
 #endif
 };

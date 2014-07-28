@@ -2147,6 +2147,8 @@ elseif(WITH_GL_PROFILE_ES20)
 endif()
 
 if(WITH_GL_EGL)
+	list(APPEND GL_DEFINITIONS -DWITH_GL_EGL)
+
 	if(WITH_SYSTEM_GLES)
 		if(NOT OPENGLES_EGL_LIBRARY)
 			message(FATAL_ERROR "Unable to find OpenGL ES libraries.  Install them or disable WITH_SYSTEM_GLES.")
