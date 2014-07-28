@@ -211,8 +211,12 @@ typedef Display *EGLNativeDisplayType;
 typedef Pixmap   EGLNativePixmapType;
 typedef Window   EGLNativeWindowType;
 
-#else
-#error "Platform not recognized"
+#elif defined(__APPLE__)
+
+typedef void *EGLNativeDisplayType;
+typedef void *EGLNativePixmapType;
+typedef void *EGLNativeWindowType;
+
 #endif
 
 /* EGL 1.2 types, renamed for consistency in EGL 1.3 */
