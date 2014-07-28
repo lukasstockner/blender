@@ -1306,33 +1306,14 @@ static void remap_hooks_and_vertex_parents(Object *obedit)
 /* load editNurb in object */
 void load_editNurb(Object *obedit)
 {
-	ListBase *editnurb = object_editcurve_get(obedit);
-
 	if (obedit == NULL) return;
-
-	if (ELEM(obedit->type, OB_CURVE, OB_SURF)) {
-		Curve *cu = obedit->data;
-		Nurb *nu, *newnu;
-		ListBase newnurb = {NULL, NULL}, oldnurb = cu->nurb;
-
-		remap_hooks_and_vertex_parents(obedit);
-
-		for (nu = editnurb->first; nu; nu = nu->next) {
-			newnu = BKE_nurb_duplicate(nu);
-			BLI_addtail(&newnurb, newnu);
-
-			if (nu->type == CU_NURBS) {
-				BKE_nurb_order_clamp_u(nu);
-			}
-		}
-
-		cu->nurb = newnurb;
-
-		calc_shapeKeys(obedit);
-		ED_curve_updateAnimPaths(obedit->data);
-
-		BKE_nurbList_free(&oldnurb);
-	}
+	if (!ELEM(obedit->type, OB_CURVE, OB_SURF)) return;
+	Curve *cu = obedit->data;
+	ListBase *editnurb = object_editcurve_get(obedit);
+	//	for nu in editnurb: if (nu->type == CU_NURBS)  BKE_nurb_order_clamp_u(nu);
+	BKE_nurbList_duplicate(&cu->nurb, editnurb);
+	calc_shapeKeys(obedit);
+	ED_curve_updateAnimPaths(obedit->data);
 }
 
 /* make copy in cu->editnurb */
@@ -1365,7 +1346,7 @@ void make_editNurb(Object *obedit)
 		nu = cu->nurb.first;
 		while (nu) {
 			newnu = BKE_nurb_duplicate(nu);
-			BKE_nurb_test2D(newnu); // after join, or any other creation of curve
+			BKE_nurb_ensure2D(newnu); // after join, or any other creation of curve
 			BLI_addtail(&editnurb->nurbs, newnu);
 			nu = nu->next;
 		}
@@ -1771,7 +1752,7 @@ void ed_editnurb_translate_flag(ListBase *editnurb, short flag, const float vec[
 			}
 		}
 
-		BKE_nurb_test2D(nu);
+		BKE_nurb_ensure2D(nu);
 	}
 }
 
@@ -5182,7 +5163,7 @@ static int addvert_Nurb(bContext *C, short mode, float location[3])
 			BKE_curve_nurb_vert_active_set(cu, nu, newbp);
 		}
 
-		BKE_nurb_test2D(nu);
+		BKE_nurb_ensure2D(nu);
 
 		if (ED_curve_updateAnimPaths(obedit->data))
 			WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);

@@ -691,24 +691,30 @@ static void rhino_import_brep_face(bContext *C,
 		ON_BrepLoop *loop = face->Loop(loopnum);
 		int trim_count = loop->TrimCount();
 		printf("   loop: 0x%lx\n",long(loop));
-		struct LinkData *loop_ll_item = (struct LinkData*)MEM_callocN(sizeof(LinkData),"NURBS trim link data");
-		struct ListBase *loop_ll = (struct ListBase*)MEM_callocN(sizeof(ListBase),"NURBS trim link list");
-		loop_ll_item->data = loop_ll;
+		ListBase *nurb_list;
+		if (loop!=outer_loop) {
+			LinkedNurbList *lnl = (LinkedNurbList*)MEM_callocN(sizeof(LinkedNurbList),"NURBS trim link");
+			BLI_addtail(&nu->inner_trim, lnl);
+			nurb_list = &lnl->nurb_list;
+		} else {
+			nurb_list = &nu->outer_trim;
+		}
 		for (int trimnum=0; trimnum<trim_count; trimnum++) {
 			ON_BrepTrim *trim = loop->Trim(trimnum);
 			ON_Curve *cu = const_cast<ON_Curve*>(trim->ProxyCurve());
 			printf("      trim: 0x%lx %s\n",long(trim),cu->ClassId()->ClassName());
 			Nurb *trim_nurb = rhino_import_curve(C, cu, parentObj, parentAttrs, false, true, true);
-			if (loop==outer_loop) {
-				BLI_addtail(&nu->outer_trim, trim_nurb);
-			} else {
-				BLI_addtail(loop_ll, trim_nurb);
-			}
-		}
-		if (loop!=outer_loop) {
-			BLI_addtail(&nu->inner_trim, loop_ll_item);
+			BLI_addtail(nurb_list, trim_nurb);
 		}
 	}
+	
+	for (LinkedNurbList *lnl = (LinkedNurbList*)nu->inner_trim.first; lnl; lnl=lnl->next) {
+		printf("lnl 0x%lx first:0x%lx last:0x%lx\n",lnl,lnl->nurb_list.first,lnl->nurb_list.last);
+		for (Nurb *ln=(Nurb*)lnl->nurb_list.first; ln; ln=ln->next) {
+			printf("\tln 0x%lx->0x%lx outer_trim:0x%lx inner_trim:0x%lx\n",ln->prev,ln->next,ln->outer_trim.first,ln->inner_trim.first);
+		}
+	}
+
 	if (should_destroy_ns) delete ns;
 }
 

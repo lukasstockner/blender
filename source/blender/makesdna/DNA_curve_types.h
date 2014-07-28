@@ -134,6 +134,11 @@ typedef struct BPoint {
 	float radius, pad;		/* user-set radius per point for beveling etc */
 } BPoint;
 
+typedef struct LinkedNurbList {
+	struct LinkedNurbList *prev, *next;
+	ListBase nurb_list; /* A list of Nurb objects */
+} LinkedNurbList;
+
 /**
  * \note Nurb name is misleading, since it can be used for polygons too,
  * also, it should be NURBS (Nurb isn't the singular of Nurbs).
@@ -159,8 +164,8 @@ typedef struct Nurb {
 	int charidx;
 	
 	float minu, maxu;
-	ListBase outer_trim;
-	ListBase inner_trim;
+	ListBase outer_trim; /* A list of Nurb objects */
+	ListBase inner_trim; /* A list of LinkedNurbList objects */
 } Nurb;
 
 typedef struct CharInfo {

@@ -368,7 +368,7 @@ void BKE_curve_curve_dimension_update(Curve *cu)
 	else {
 		for (; nu; nu = nu->next) {
 			nu->flag |= CU_2D;
-			BKE_nurb_test2D(nu);
+			BKE_nurb_ensure2D(nu);
 
 			/* since the handles are moved they need to be auto-located again */
 			if (nu->type == CU_BEZIER)
@@ -524,7 +524,7 @@ int BKE_nurbList_verts_count_without_handles(ListBase *nurb)
 
 void BKE_nurb_free(Nurb *nu)
 {
-
+	printf("BKE_nurb_free 0x%lx\n",(unsigned long)nu);
 	if (nu == NULL) return;
 
 	if (nu->bezt)
@@ -539,24 +539,14 @@ void BKE_nurb_free(Nurb *nu)
 	if (nu->knotsv)
 		MEM_freeN(nu->knotsv);
 	nu->knotsv = NULL;
-	Nurb *outertrim = (Nurb*)nu->outer_trim.first;
-	while (outertrim) {
-		Nurb *tofree = outertrim;
-		outertrim = outertrim->next;
-		MEM_freeN(tofree);
-	}
-	LinkData *innertrim = (LinkData*)nu->inner_trim.first;
+
+	BKE_nurbList_free(&nu->outer_trim);
+	
+	LinkedNurbList *innertrim = (LinkedNurbList*)nu->inner_trim.first;
 	while (innertrim) {
-		if (innertrim->data) {
-			Nurb *it_nurb = (Nurb*)innertrim->data;
-			while (it_nurb) {
-				Nurb *tofree = it_nurb;
-				it_nurb = it_nurb->next;
-				MEM_freeN(tofree);
-			}
-		}
-		LinkData *tofree = innertrim;
+		LinkedNurbList *tofree = innertrim;
 		innertrim = innertrim->next;
+		BKE_nurbList_free(&tofree->nurb_list);
 		MEM_freeN(tofree);
 	}
 
@@ -577,10 +567,6 @@ void BKE_nurbList_free(ListBase *lb)
 		nu = next;
 	}
 	BLI_listbase_clear(lb);
-}
-
-ListBase *BKE_nurbList_duplicate(ListBase *lb) {
-	ListBase *newbase = (ListBase*)MEM_callocN(sizeof(ListBase),"NURBS duplicate listbase");
 }
 
 Nurb *BKE_nurb_duplicate(Nurb *nu)
@@ -619,6 +605,19 @@ Nurb *BKE_nurb_duplicate(Nurb *nu)
 				memcpy(newnu->knotsv, nu->knotsv, sizeof(float) * len);
 			}
 		}
+	}
+	
+	newnu->inner_trim.first = newnu->inner_trim.last = NULL;
+	newnu->outer_trim.first = newnu->outer_trim.last = NULL;
+	
+	BKE_nurbList_duplicate(&newnu->outer_trim, &nu->outer_trim);
+	
+	LinkedNurbList *lnl = (LinkedNurbList*)nu->inner_trim.first;
+	while (lnl) {
+		LinkedNurbList *lnl_dup = (LinkedNurbList*)MEM_callocN(sizeof(LinkedNurbList),"duplicateNurb6");
+		BKE_nurbList_duplicate(&lnl_dup->nurb_list, &lnl->nurb_list);
+		lnl = lnl->next;
+		BLI_addtail(&newnu->inner_trim, lnl_dup);
 	}
 
 	return newnu;
@@ -659,7 +658,7 @@ void BKE_nurbList_duplicate(ListBase *lb1, ListBase *lb2)
 	}
 }
 
-void BKE_nurb_test2D(Nurb *nu)
+void BKE_nurb_ensure2D(Nurb *nu)
 {
 	BezTriple *bezt;
 	BPoint *bp;

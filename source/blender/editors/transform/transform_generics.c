@@ -737,7 +737,7 @@ static void recalcData_objects(TransInfo *t)
 			else {
 				/* Normal updating */
 				while (nu) {
-					BKE_nurb_test2D(nu);
+					BKE_nurb_ensure2D(nu);
 					BKE_nurb_handles_calc(nu);
 					nu = nu->next;
 				}

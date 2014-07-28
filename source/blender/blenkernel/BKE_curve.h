@@ -47,7 +47,7 @@ struct Path;
 struct TextBox;
 struct rctf;
 struct DispList;
-typedef struct BPoint BPoint;
+struct BPoint;
 
 typedef struct CurveCache {
 	ListBase disp;
@@ -140,17 +140,17 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 void BKE_bspline_knot_calc(int flags, int pnts, int order, float knots[]);
 int BKE_bspline_nz_basis_range(float u, float *knots, int num_pts, int order);
 void BKE_bspline_basis_eval(float u, int i, float *U, int num_knots, int order, int nd, float out[][NURBS_MAX_ORDER]);
-void BKE_bspline_curve_eval(float u, float *U, int num_pts, int order, BPoint *P, int stride, int nd, BPoint *out, bool premultiply_weight DEFAULT_FALSE);
-void BKE_nurbs_curve_eval(float u, float *U, int num_pts, int order, BPoint *P, int stride, int nd, BPoint *out);
+void BKE_bspline_curve_eval(float u, float *U, int num_pts, int order, struct BPoint *P, int stride, int nd, struct BPoint *out, bool premultiply_weight DEFAULT_FALSE);
+void BKE_nurbs_curve_eval(float u, float *U, int num_pts, int order, struct BPoint *P, int stride, int nd, struct BPoint *out);
 void BKE_bspline_surf_eval(float u, float v,
 						   int pntsu, int orderu, float *U,
 						   int pntsv, int orderv, float *V,
-						   BPoint *P, int nd, BPoint *out,
+						   struct BPoint *P, int nd, struct BPoint *out,
 						   bool premultiply_weights DEFAULT_FALSE, BSplineCacheU *ucache DEFAULT_NULL);
 void BKE_nurbs_surf_eval(float u, float v,
 						 int pntsu, int orderu, float *U,
 						 int pntsv, int orderv, float *V,
-						 BPoint *P, int nd, BPoint *out, BSplineCacheU *ucache DEFAULT_NULL);
+						 struct BPoint *P, int nd, struct BPoint *out, BSplineCacheU *ucache DEFAULT_NULL);
 
 
 bool BKE_nurbList_index_get_co(struct ListBase *editnurb, const int index, float r_co[3]);
@@ -170,7 +170,7 @@ void BKE_nurb_free(struct Nurb *nu);
 struct Nurb *BKE_nurb_duplicate(struct Nurb *nu);
 struct Nurb *BKE_nurb_copy(struct Nurb *src, int pntsu, int pntsv);
 
-void BKE_nurb_test2D(struct Nurb *nu);
+void BKE_nurb_ensure2D(struct Nurb *nu);
 void BKE_nurb_minmax(struct Nurb *nu, bool use_radius, float min[3], float max[3]);
 
 void BKE_nurb_makeFaces(struct Nurb *nu, float *coord_array, int rowstride, int resolu, int resolv);
