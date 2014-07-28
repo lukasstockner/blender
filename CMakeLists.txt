@@ -2089,36 +2089,29 @@ if(WITH_GLU)
 	list(APPEND GL_DEFINITIONS -DWITH_GLU)
 endif()
 
-if(NOT WITH_GL_EGL)
+if(WITH_SYSTEM_GLES)
+	find_package_wrapper(OpenGLES)
+endif()
+
+if(WITH_GL_PROFILE_COMPAT OR WITH_GL_PROFILE_CORE)
 	list(APPEND BLENDER_GL_LIBRARIES "${OPENGL_gl_LIBRARY}")
 
-else()
+elseif(WITH_GL_PROFILE_ES20)
 	if(WITH_SYSTEM_GLES)
-		find_package_wrapper(OpenGLES)
-
-		if(OPENGLES_FOUND)
-			list(APPEND BLENDER_GL_LIBRARIES OPENGLES_LIBRARIES)
-		else()
+		if(NOT OPENGLES_LIBRARY)
 			message(FATAL_ERROR "Unable to find OpenGL ES libraries.  Install them or disable WITH_SYSTEM_GLES.")
 		endif()
 
+		list(APPEND BLENDER_GL_LIBRARIES OPENGLES_LIBRARY)
+
 	else()
-		set(OPENGLES_LIBRARY     "" CACHE FILEPATH "OpenGL ES 2.0 library file")
-		set(OPENGLES_EGL_LIBRARY "" CACHE FILEPATH "EGL library file")
+		set(OPENGLES_LIBRARY "" CACHE FILEPATH "OpenGL ES 2.0 library file")
+		mark_as_advanced(OPENGLES_LIBRARY)
 
-		mark_as_advanced(
-			OPENGLES_LIBRARY
-			OPENGLES_EGL_LIBRARY
-		)
+		list(APPEND BLENDER_GL_LIBRARIES "${OPENGLES_LIBRARY}")
 
-		list(APPEND BLENDER_GL_LIBRARIES "${OPENGLES_LIBRARY}" "${OPENGLES_EGL_LIBRARY}")
-
-		if (OPENGLES_LIBRARY STREQUAL "")
+		if (NOT OPENGLES_LIBRARY)
 			message(FATAL_ERROR "To compile WITH_GL_EGL you need to set OPENGLES_LIBRARY to the file path of an OpenGL ES 2.0 library.")
-		endif()
-
-		if (OPENGLES_EGL_LIBRARY STREQUAL "")
-			message(FATAL_ERROR "To compile WITH_GL_EGL you need to set OPENGLES_EGL_LIBRARY to the file path of an EGL library.")
 		endif()
 
 	endif()
@@ -2126,20 +2119,11 @@ else()
 	if(WIN32)
 		# Setup paths to files needed to install and redistribute Windows Blender with OpenGL ES
 
-		set(OPENGLES_DLL     "" CACHE FILEPATH "OpenGL ES 2.0 redistributable DLL file")
-		set(OPENGLES_EGL_DLL "" CACHE FILEPATH "EGL redistributable DLL file")
-
-		mark_as_advanced(
-			OPENGLES_DLL
-			OPENGLES_EGL_DLL
-		)
+		set(OPENGLES_DLL "" CACHE FILEPATH "OpenGL ES 2.0 redistributable DLL file")
+		mark_as_advanced(OPENGLES_DLL)
 
 		if(NOT OPENGLES_DLL)
-			message(FATAL_ERROR "To compile WITH_GL_EGL you need to set OPENGLES_DLL to the file path of an OpenGL ES runtime dynamic link library (DLL).")
-		endif()
-
-		if(NOT OPENGLES_EGL_DLL)
-			message(FATAL_ERROR "To compile WITH_GL_EGL you need to set OPENGLES_EGL_DLL to the file path of an EGL runtime dynamic link library (DLL).")
+			message(FATAL_ERROR "To compile WITH_GL_PROFILE_ES20 you need to set OPENGLES_DLL to the file path of an OpenGL ES 2.0 runtime dynamic link library (DLL).")
 		endif()
 
 		if(WITH_GL_ANGLE)
@@ -2156,6 +2140,40 @@ else()
 				message(FATAL_ERROR "To compile WITH_GL_ANGLE you need to set D3DCOMPILER_DLL to the file path of a copy of the DirectX redistributable DLL file: D3DCompiler_46.dll")
 			endif()
 
+		endif()
+
+	endif()
+
+endif()
+
+if(WITH_GL_EGL)
+	if(WITH_SYSTEM_GLES)
+		if(NOT OPENGLES_EGL_LIBRARY)
+			message(FATAL_ERROR "Unable to find OpenGL ES libraries.  Install them or disable WITH_SYSTEM_GLES.")
+		endif()
+
+		list(APPEND BLENDER_GL_LIBRARIES OPENGLES_EGL_LIBRARY)
+
+	else()
+		set(OPENGLES_EGL_LIBRARY "" CACHE FILEPATH "EGL library file")
+		mark_as_advanced(OPENGLES_EGL_LIBRARY)
+
+		list(APPEND BLENDER_GL_LIBRARIES "${OPENGLES_LIBRARY}" "${OPENGLES_EGL_LIBRARY}")
+
+		if (NOT OPENGLES_EGL_LIBRARY)
+			message(FATAL_ERROR "To compile WITH_GL_EGL you need to set OPENGLES_EGL_LIBRARY to the file path of an EGL library.")
+		endif()
+
+	endif()
+
+	if(WIN32)
+		# Setup paths to files needed to install and redistribute Windows Blender with OpenGL ES
+
+		set(OPENGLES_EGL_DLL "" CACHE FILEPATH "EGL redistributable DLL file")
+		mark_as_advanced(OPENGLES_EGL_DLL)
+
+		if(NOT OPENGLES_EGL_DLL)
+			message(FATAL_ERROR "To compile WITH_GL_EGL you need to set OPENGLES_EGL_DLL to the file path of an EGL runtime dynamic link library (DLL).")
 		endif()
 
 	endif()
