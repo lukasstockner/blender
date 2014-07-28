@@ -86,7 +86,7 @@ ccl_device void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
 #endif
 	if(sd->type & PRIMITIVE_TRIANGLE) {
 		/* static triangle */
-		float3 Ng = triangle_normal(kg, sd->prim);
+		float3 Ng = triangle_normal(kg, sd);
 
 		/* shader */
 		float4 vindex = kernel_tex_fetch(__tri_vindex, sd->prim);
@@ -168,7 +168,7 @@ ccl_device_inline void shader_setup_from_subsurface(KernelGlobals *kg, ShaderDat
 
 	/* fetch triangle data */
 	if(sd->type == PRIMITIVE_TRIANGLE) {
-		float3 Ng = triangle_normal(kg, sd->prim);
+		float3 Ng = triangle_normal(kg, sd);
 		float4 vindex = kernel_tex_fetch(__tri_vindex, sd->prim);
 		sd->shader =  __float_as_int(vindex.w);
 
