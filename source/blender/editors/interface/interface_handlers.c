@@ -8548,7 +8548,7 @@ static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, 
 		}
 		else {
 			ui_apply_button(C, but->block, but, but->active, false);
-			button_activate_exit((bContext *)C, but, but->active, false, false);
+			button_activate_exit((bContext *)C, but, but->active, false, true);
 
 			if (!(click_style || force_close)) {
 				but->block->pie_data.flags |= UI_PIE_FINISHED;

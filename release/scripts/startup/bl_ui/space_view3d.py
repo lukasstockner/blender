@@ -1447,7 +1447,7 @@ class VIEW3D_PIE_manipulator(Menu):
 
         pie = layout.menu_pie()
         pie.prop(context.space_data, "transform_manipulators", expand=True)
-        pie.operator("wm.context_toggle", icon='MANIPUL', text="Toggle").data_path = "space_data.show_manipulator"
+        pie.prop(context.space_data, "show_manipulator")
 
         
 
