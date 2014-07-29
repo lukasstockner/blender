@@ -8609,11 +8609,14 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				uiBut *but;
 				double final_time = 0.01 * U.pie_animation_timeout;
 				float fac = duration / final_time;
+				float pie_radius = U.pie_menu_radius * (U.dpi / 72.0f);
 
 				if (fac > 1.0f) {
 					fac = 1.0f;
 					block->pie_data.flags |= UI_PIE_ANIMATION_FINISHED;
 				}
+
+				pie_radius *= fac;
 
 				for (but = block->buttons.first; but; but = but->next) {
 					if (but->pie_dir) {
@@ -8621,7 +8624,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 						ui_but_pie_visual_dir(but->pie_dir, dir);
 
-						mul_v2_fl(dir, fac * U.pie_menu_radius);
+						mul_v2_fl(dir, pie_radius );
 						add_v2_v2(dir, block->pie_data.pie_center_spawned);
 						BLI_rctf_recenter(&but->rect, dir[0], dir[1]);
 					}
