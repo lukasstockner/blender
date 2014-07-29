@@ -18,9 +18,9 @@
 #endif
 
 struct GridMeshCoord {
-	float x,y,z;
+	float x,y;
 	GridMeshCoord() {}
-	GridMeshCoord(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
+	GridMeshCoord(float x_, float y_, float z_) : x(x_), y(y_) {}
 };
 
 struct GridMeshVert {

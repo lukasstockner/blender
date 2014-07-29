@@ -1677,7 +1677,14 @@ static void rna_def_curve_nurb(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 1, 64, 1, -1);
 	RNA_def_property_ui_text(prop, "Resolution V", "Surface subdivisions per segment");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
-
+	
+	prop = RNA_def_property(srna, "resolution_trim", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "resol_trim");
+	RNA_def_property_range(prop, 1, 1024);
+	RNA_def_property_ui_range(prop, 1, 64, 1, -1);
+	RNA_def_property_ui_text(prop, "Trim Resolution", "Subdivisions per segment of trim curves");
+	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+		
 	prop = RNA_def_property(srna, "use_cyclic_u", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flagu", CU_NURB_CYCLIC);
 	RNA_def_property_ui_text(prop, "Cyclic U", "Make this curve or surface a closed loop in the U direction");

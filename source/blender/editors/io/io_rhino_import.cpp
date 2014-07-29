@@ -28,6 +28,7 @@
 #include <cstdlib>
 #include <vector>
 #include <time.h>
+#include <limits>
 
 extern "C" {
 	#include "DNA_scene_types.h"
@@ -151,17 +152,60 @@ static int analyze_knots(float *knots, int num_knots, int order, bool periodic, 
 	return CU_NURB_CUSTOMKNOT;
 }
 
-static void normalize_knots(float *knots, int num_knots) {
+/* Determines smallest, second smallest knots and scales them to correspond to
+ * 0 and 1 respectively.
+ * uv=='u': operate on u knots
+ * uv=='v': operate on v knots
+ */
+static void normalize_knots(Nurb *nu, char uv) {
 	float tol = .001;
+	float *knots = (uv=='u')? nu->knotsu : nu->knotsv;
+	int num_knots = (uv=='u')? KNOTSU(nu) : KNOTSV(nu);
 	int i=0;
-	for (; i<num_knots; i++) {
-		if (abs(knots[i]-0)>tol) break;
+	float lowest=std::numeric_limits<float>::infinity();
+	float second_lowest=lowest; /* constraint: second_lowest > lowest (NOT >=). */
+	for (int i=0; i<num_knots; i++) {
+		if (knots[i] <= lowest) {
+			lowest = knots[i];
+			continue;
+		}
+		if (knots[i] <= lowest+tol) continue;
+		/* have: knots[i] > lowest+tol */
+		if (knots[i] <= second_lowest) {
+			second_lowest = knots[i];
+			continue;
+		}
+		/* have: knots[i]>lowest && knots[i]>second_lowest => nothing to do */
 	}
-	if (i==num_knots) return;
-	float mult = 1.0 / knots[i];
-	for (; i<num_knots; i++) {
-		knots[i] *= mult;
+	if (lowest==second_lowest) {
+		fprintf(stderr, "Could not normalize knots: lowest = second lowest.\n");
+		return;
 	}
+	if (!isfinite(lowest) || !isfinite(second_lowest)) {
+		fprintf(stderr, "Could not normalize knots: too few?\n");
+		return;
+	}
+	// (new knot) = ((old knot)-(smallest knot)) / ((sec smallest knot)-(smallest knot))
+	double denominator = 1.0 / (second_lowest-lowest);
+	for (; i<num_knots; i++) {
+		knots[i] = (knots[i]-lowest)*denominator;
+	}
+	
+	// Now we rescale the trim curves so that they hold position rel. to knots
+	int uv_idx = (uv=='u')? 0 : 1;
+	for (NurbTrim *nt = (NurbTrim*)nu->trims.first; nt; nt=nt->next) {
+		for (Nurb *trim_nurb = (Nurb*)nt->nurb_list.first; trim_nurb; trim_nurb=trim_nurb->next) {
+			int ptsu = std::max(trim_nurb->pntsu,1);
+			int ptsv = std::max(trim_nurb->pntsv,1);
+			int bp_count = ptsu*ptsv;
+			BPoint *bp = trim_nurb->bp; // Control points
+			for (int bpnum=0; bpnum<bp_count; bpnum++) {
+				double old = bp[bpnum].vec[uv_idx];
+				bp[bpnum].vec[uv_idx] = (old-lowest)*denominator;
+			}
+		}
+	}
+	BKE_nurb_clear_cached_UV_mesh(nu,true);
 }
 
 /****************************** Curve Import *********************************/
@@ -237,9 +281,7 @@ static Nurb *nurb_from_ON_NurbsCurve(ON_NurbsCurve *nc) {
 	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, nc->IsPeriodic());
 	double minu,maxu;
 	nc->GetDomain(&minu, &maxu);
-	nu->minu = minu;
-	nu->maxu = maxu;
-	//normalize_knots(nu->knotsu, nu->pntsu+nu->orderu);
+	normalize_knots(nu, 'u');
 	return nu;
 }
 
@@ -620,9 +662,11 @@ static Nurb* rhino_import_nurbs_surf(bContext *C,
 	}
 	nu->knotsv[i] = nu->knotsv[i-1];
 	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, surf->IsPeriodic(0));
-	normalize_knots(nu->knotsu, nu->pntsu+nu->orderu);
+	normalize_knots(nu, 'u');
 	nu->flagv = analyze_knots(nu->knotsv, nu->pntsv+nu->orderv, nu->orderv, surf->IsPeriodic(1));
-	normalize_knots(nu->knotsv, nu->pntsv+nu->orderv);
+	normalize_knots(nu, 'v');
+	// If trim curves are deformed on import, check for knot agreement between
+	// this point, after executing the next two calls
 	BKE_nurb_knot_calc_u(nu);
 	BKE_nurb_knot_calc_v(nu);
 	
@@ -691,14 +735,9 @@ static void rhino_import_brep_face(bContext *C,
 		ON_BrepLoop *loop = face->Loop(loopnum);
 		int trim_count = loop->TrimCount();
 		printf("   loop: 0x%lx\n",long(loop));
-		ListBase *nurb_list;
-		if (loop!=outer_loop) {
-			LinkedNurbList *lnl = (LinkedNurbList*)MEM_callocN(sizeof(LinkedNurbList),"NURBS trim link");
-			BLI_addtail(&nu->inner_trim, lnl);
-			nurb_list = &lnl->nurb_list;
-		} else {
-			nurb_list = &nu->outer_trim;
-		}
+		NurbTrim *trim = (NurbTrim*)MEM_callocN(sizeof(NurbTrim),"NURBS_imported_trim");
+		trim->type = (loop==outer_loop)? CU_TRIM_EXTERIOR : CU_TRIM_INTERIOR;
+		ListBase *nurb_list = &trim->nurb_list;
 		for (int trimnum=0; trimnum<trim_count; trimnum++) {
 			ON_BrepTrim *trim = loop->Trim(trimnum);
 			ON_Curve *cu = const_cast<ON_Curve*>(trim->ProxyCurve());
@@ -706,13 +745,7 @@ static void rhino_import_brep_face(bContext *C,
 			Nurb *trim_nurb = rhino_import_curve(C, cu, parentObj, parentAttrs, false, true, true);
 			BLI_addtail(nurb_list, trim_nurb);
 		}
-	}
-	
-	for (LinkedNurbList *lnl = (LinkedNurbList*)nu->inner_trim.first; lnl; lnl=lnl->next) {
-		printf("lnl 0x%lx first:0x%lx last:0x%lx\n",lnl,lnl->nurb_list.first,lnl->nurb_list.last);
-		for (Nurb *ln=(Nurb*)lnl->nurb_list.first; ln; ln=ln->next) {
-			printf("\tln 0x%lx->0x%lx outer_trim:0x%lx inner_trim:0x%lx\n",ln->prev,ln->next,ln->outer_trim.first,ln->inner_trim.first);
-		}
+		BLI_addtail(&nu->trims, trim);
 	}
 
 	if (should_destroy_ns) delete ns;

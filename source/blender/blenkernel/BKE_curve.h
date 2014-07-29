@@ -48,6 +48,7 @@ struct TextBox;
 struct rctf;
 struct DispList;
 struct BPoint;
+struct NurbTrim;
 
 typedef struct CurveCache {
 	ListBase disp;
@@ -152,7 +153,6 @@ void BKE_nurbs_surf_eval(float u, float v,
 						 int pntsv, int orderv, float *V,
 						 struct BPoint *P, int nd, struct BPoint *out, BSplineCacheU *ucache DEFAULT_NULL);
 
-
 bool BKE_nurbList_index_get_co(struct ListBase *editnurb, const int index, float r_co[3]);
 
 int BKE_nurbList_verts_count(struct ListBase *nurb);
@@ -166,6 +166,9 @@ void BKE_nurbList_handles_recalculate(struct ListBase *editnurb, const bool calc
 void BKE_nurbList_handles_autocalc(ListBase *editnurb, int flag);
 void BKE_nurbList_flag_set(ListBase *editnurb, short flag);
 
+void BKE_nurbTrim_free(struct NurbTrim *nt);
+struct NurbTrim *BKE_nurbTrim_duplicate(struct NurbTrim *nt);
+
 void BKE_nurb_free(struct Nurb *nu);
 struct Nurb *BKE_nurb_duplicate(struct Nurb *nu);
 struct Nurb *BKE_nurb_copy(struct Nurb *src, int pntsu, int pntsv);
@@ -175,6 +178,9 @@ void BKE_nurb_minmax(struct Nurb *nu, bool use_radius, float min[3], float max[3
 
 void BKE_nurb_makeFaces(struct Nurb *nu, float *coord_array, int rowstride, int resolu, int resolv);
 void BKE_nurb_makeCurve(struct Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array, int resolu, int stride);
+void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu);
+void BKE_nurb_clear_cached_UV_mesh(struct Nurb* nu, bool free_mem);
+void BKE_nurb_make_displist(struct Nurb *nurb, struct DispList *dl);
 
 void BKE_nurb_knot_calc_u(struct Nurb *nu);
 void BKE_nurb_knot_calc_v(struct Nurb *nu);
@@ -209,10 +215,5 @@ void BKE_nurb_handles_calc(struct Nurb *nu);
 void BKE_nurb_handles_autocalc(struct Nurb *nu, int flag);
 void BKE_nurb_bezt_handle_test(struct BezTriple *bezt, const bool use_handle);
 void BKE_nurb_handles_test(struct Nurb *nu, const bool use_handles);
-
-/* Does not traverse nurb's linked list. Fills dl with a mesh corresponding to
- * the single surface nurb, performing trim if necessary.
- */
-void BKE_nurb_make_displist(struct Nurb *nurb, struct DispList *dl);
 
 #endif  /* __BKE_CURVE_H__ */

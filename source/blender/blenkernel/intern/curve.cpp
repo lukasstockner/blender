@@ -539,20 +539,18 @@ void BKE_nurb_free(Nurb *nu)
 	if (nu->knotsv)
 		MEM_freeN(nu->knotsv);
 	nu->knotsv = NULL;
-
-	BKE_nurbList_free(&nu->outer_trim);
 	
-	LinkedNurbList *innertrim = (LinkedNurbList*)nu->inner_trim.first;
-	while (innertrim) {
-		LinkedNurbList *tofree = innertrim;
-		innertrim = innertrim->next;
-		BKE_nurbList_free(&tofree->nurb_list);
-		MEM_freeN(tofree);
+	for (NurbTrim *nt = (NurbTrim*)nu->trims.first; nt; nt=nt->next) {
+		BKE_nurbTrim_free(nt);
 	}
 
 	MEM_freeN(nu);
 }
 
+void BKE_nurbTrim_free(NurbTrim *nt) {
+	BKE_nurbList_free(&nt->nurb_list);
+	MEM_freeN(nt);
+}
 
 void BKE_nurbList_free(ListBase *lb)
 {
@@ -607,18 +605,12 @@ Nurb *BKE_nurb_duplicate(Nurb *nu)
 		}
 	}
 	
-	newnu->inner_trim.first = newnu->inner_trim.last = NULL;
-	newnu->outer_trim.first = newnu->outer_trim.last = NULL;
-	
-	BKE_nurbList_duplicate(&newnu->outer_trim, &nu->outer_trim);
-	
-	LinkedNurbList *lnl = (LinkedNurbList*)nu->inner_trim.first;
-	while (lnl) {
-		LinkedNurbList *lnl_dup = (LinkedNurbList*)MEM_callocN(sizeof(LinkedNurbList),"duplicateNurb6");
-		BKE_nurbList_duplicate(&lnl_dup->nurb_list, &lnl->nurb_list);
-		lnl = lnl->next;
-		BLI_addtail(&newnu->inner_trim, lnl_dup);
+	newnu->trims.first = newnu->trims.last = NULL;
+	for (NurbTrim *nt = (NurbTrim*)nu->trims.first; nt; nt=nt->next) {
+		NurbTrim *dup_nt = BKE_nurbTrim_duplicate(nt);
+		BLI_addtail(&newnu->trims, dup_nt);
 	}
+	BKE_nurb_clear_cached_UV_mesh(newnu,false);
 
 	return newnu;
 }
@@ -639,8 +631,16 @@ Nurb *BKE_nurb_copy(Nurb *src, int pntsu, int pntsv)
 	else {
 		newnu->bp = (BPoint *)MEM_mallocN(pntsu * pntsv * sizeof(BPoint), "copyNurb3");
 	}
+	
+	BKE_nurb_clear_cached_UV_mesh(newnu,false);
 
 	return newnu;
+}
+
+NurbTrim *BKE_nurbTrim_duplicate(NurbTrim *nt) {
+	NurbTrim *ret = (NurbTrim*)MEM_callocN(sizeof(NurbTrim), "duplicateNurbTrim");
+	BKE_nurbList_duplicate(&ret->nurb_list, &nt->nurb_list);
+	return ret;
 }
 
 void BKE_nurbList_duplicate(ListBase *lb1, ListBase *lb2)
@@ -755,6 +755,7 @@ void BKE_nurb_points_add(Nurb *nu, int number)
 	}
 
 	nu->pntsu += number;
+	BKE_nurb_clear_cached_UV_mesh(nu, true);
 }
 
 void BKE_nurb_bezierPoints_add(Nurb *nu, int number)
@@ -769,6 +770,7 @@ void BKE_nurb_bezierPoints_add(Nurb *nu, int number)
 	}
 
 	nu->pntsu += number;
+	BKE_nurb_clear_cached_UV_mesh(nu, true);
 }
 
 
@@ -4018,11 +4020,8 @@ void BKE_nurb_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, flo
 }
 
 float subj0[] = {0.512000,0.938000, 0.374000,0.950000, 0.248000,0.908000, 0.170000,0.866000, 0.092000,0.740000, 0.092000,0.602000, 0.092000,0.440000, 0.116000,0.260000, 0.254000,0.110000, 0.476000,0.074000, 0.746000,0.092000, 0.836000,0.206000, 0.848000,0.422000, 0.812000,0.644000, 0.716000,0.686000, 0.614000,0.734000, 0.488000,0.728000, 0.386000,0.710000, 0.260000,0.626000, 0.272000,0.476000, 0.350000,0.338000, 0.482000,0.278000, 0.632000,0.308000, 0.644000,0.404000, 0.638000,0.494000, 0.590000,0.572000, 0.494000,0.584000, 0.422000,0.518000, 0.458000,0.392000, 0.548000,0.398000, 0.506000,0.506000, 0.572000,0.506000, 0.596000,0.386000, 0.566000,0.338000, 0.470000,0.338000, 0.368000,0.434000, 0.374000,0.608000, 0.578000,0.656000, 0.680000,0.644000, 0.740000,0.554000, 0.782000,0.308000, 0.758000,0.224000, 0.548000,0.164000, 0.338000,0.224000, 0.212000,0.374000, 0.170000,0.626000, 0.236000,0.764000, 0.368000,0.824000, 0.524000,0.836000, 1.184000,0.848000}; int subj0_nv=50;
-void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
+void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 	bool remap_coords = true; // Remove trimmed verts (only useful for meshgen)
-	dl->col = nu->mat_nr;
-	dl->charidx = nu->charidx;
-	dl->rt = nu->flag & ~CU_2D;
 
 	// Figure out the domain
 	int totu=(nu->pntsu-nu->orderu+1)*nu->resolu, totv=(nu->pntsv-nu->orderv+1)*nu->resolv;
@@ -4032,7 +4031,7 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	// Trim the uniform grid in 2D UV space
 	GridMesh *gm = new GridMesh();
 	int coords_len = (totu+1)*(totv+1)*2;
-	GridMeshCoord *coords=NULL, *nors=NULL;
+	GridMeshCoord *coords=NULL;
 	if (!remap_coords) {
 		coords = (GridMeshCoord*)MEM_mallocN(coords_len * sizeof(GridMeshCoord), "NURBS_tess_1");
 		gm->mallocN = MEM_mallocN;
@@ -4127,7 +4126,6 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	if (remap_coords) {
 		int num_used_idxs = int(used_idxs->size());
 		coords = (GridMeshCoord*)MEM_mallocN(3*sizeof(float)*num_used_idxs, "NURBS_tess_2.3");
-		nors = (GridMeshCoord*)MEM_mallocN(3*sizeof(float)*num_used_idxs, "NURBS_tess_2.4");
 		coords_len = num_used_idxs;
 		int newidx=0;
 		std::map<int,int>::iterator it=used_idxs->begin(),end=used_idxs->end();
@@ -4141,34 +4139,59 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 			idxs[i] = (*used_idxs)[idxs[i]];
 		}
 	}
-	dl->verts = (float*)coords;
-	dl->index = idxs;
-	dl->nors = (float*)nors;
-	dl->type = DL_INDEX3;
-	dl->parts = ii/3;
-	dl->nr = coords_len;
-	if (nu->flag&CU_SMOOTH)
-		dl->rt |= CU_SMOOTH;
 	
-	// Pushforward through the NURBS map
-	BSplineCacheU cacheU;
-	cacheU.u = 1.0/0; // First eval should always miss
-	for (int coord=0; coord<coords_len; coord++) {
-		float *xyz = (float*)&coords[coord];
-		float *norm = (float*)&nors[coord];
-		BPoint out[3]; // { surf_pt, u_partial_deriv, v_partal_deriv }
-		BKE_nurbs_surf_eval(xyz[0], xyz[1],
-							nu->pntsu, nu->orderu, nu->knotsu,
-							nu->pntsv, nu->orderv, nu->knotsv,
-							nu->bp, 1, out, &cacheU);
-		copy_v3_v3(xyz, out[0].vec);
-		cross_v3_v3v3(norm, out[1].vec, out[2].vec);
-	}
+	nu->UV_verts_count = coords_len;
+	nu->UV_tri_count = ii/3;
+	if (nu->UV_verts) MEM_freeN(nu->UV_verts);
+	nu->UV_verts = (float*)coords;
+	if (nu->UV_idxs) MEM_freeN(nu->UV_idxs);
+	nu->UV_idxs = idxs;
 	
-	// Cleanup
-	//MEM_freeN(coords);
-	//MEM_freeN(idxs);
 	MEM_freeN(coords_tmp);
 	MEM_freeN(idx_tmp);
 	delete gm;
+}
+
+void BKE_nurb_clear_cached_UV_mesh(struct Nurb* nu, bool free_mem) {
+	nu->UV_verts_count = nu->UV_tri_count = 0;
+	if (free_mem) {
+		MEM_freeN(nu->UV_verts);
+		MEM_freeN(nu->UV_idxs);
+	}
+}
+
+void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
+	if (!nu->UV_verts) BKE_nurb_compute_trimmed_UV_mesh(nu);
+	
+	float (*coords)[3] = (float(*)[3])MEM_mallocN(sizeof(*coords)*nu->UV_verts_count, "NURBS_tess_3dpts_1");
+	float (*nors)[3] = (float(*)[3])MEM_mallocN(sizeof(*nors)*nu->UV_verts_count, "NURBS_tess_3dpts_2");
+	int (*idxs)[3] = (int(*)[3])MEM_mallocN(sizeof(*idxs)*nu->UV_tri_count, "NURBS_tess_3dpts_3");
+	
+	// Push trimmed UV mesh forward through the NURBS map
+	BSplineCacheU cacheU; // Make repeated evals at same u coord efficient
+	cacheU.u = 1.0/0; // First eval should always miss
+	for (int coord=0; coord<nu->UV_verts_count; coord++) {
+		float *uv_in = (float*)&nu->UV_verts[coord];
+		float *xyz_out = (float*)&coords[coord];
+		float *norm_out = (float*)&nors[coord];
+		BPoint out[3]; // { surf_pt, u_partial_deriv, v_partal_deriv }
+		BKE_nurbs_surf_eval(uv_in[0], uv_in[1],
+							nu->pntsu, nu->orderu, nu->knotsu,
+							nu->pntsv, nu->orderv, nu->knotsv,
+							nu->bp, 1, out, &cacheU);
+		copy_v3_v3(xyz_out, out[0].vec);
+		cross_v3_v3v3(norm_out, out[1].vec, out[2].vec);
+	}
+	
+	dl->col = nu->mat_nr;
+	dl->charidx = nu->charidx;
+	dl->rt = nu->flag & ~CU_2D;
+	dl->verts = (float*)coords;
+	dl->index = (int*)idxs;
+	dl->nors = (float*)nors;
+	dl->type = DL_INDEX3;
+	dl->parts = nu->UV_tri_count;
+	dl->nr = nu->UV_verts_count;
+	if (nu->flag&CU_SMOOTH)
+		dl->rt |= CU_SMOOTH;
 }

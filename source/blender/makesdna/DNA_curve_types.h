@@ -134,10 +134,11 @@ typedef struct BPoint {
 	float radius, pad;		/* user-set radius per point for beveling etc */
 } BPoint;
 
-typedef struct LinkedNurbList {
-	struct LinkedNurbList *prev, *next;
-	ListBase nurb_list; /* A list of Nurb objects */
-} LinkedNurbList;
+typedef struct NurbTrim {
+	struct NurbTrim *prev, *next;
+	ListBase nurb_list; /* A list of Nurb objects to trim with */
+	short type; /* NURBS_TRIM_OUTER, NURBS_TRIM_INNER */
+} NurbTrim;
 
 /**
  * \note Nurb name is misleading, since it can be used for polygons too,
@@ -148,8 +149,11 @@ typedef struct Nurb {
 	short type;
 	short mat_nr;		/* index into material list */
 	short hide, flag;
+	
 	int pntsu, pntsv;		/* number of points in the U or V directions */
-	short pad[2];
+	
+	short pad;
+	short resol_trim; /* tessellation res of trim curve (per pt) */
 	short resolu, resolv;	/* tessellation resolution in the U or V directions */
 	short orderu, orderv;
 	short flagu, flagv;
@@ -160,12 +164,15 @@ typedef struct Nurb {
 
 	short tilt_interp;	/* KEY_LINEAR, KEY_CARDINAL, KEY_BSPLINE */
 	short radius_interp;
-	
 	int charidx;
 	
-	float minu, maxu;
-	ListBase outer_trim; /* A list of Nurb objects */
-	ListBase inner_trim; /* A list of LinkedNurbList objects */
+	ListBase trims;
+	
+	unsigned UV_verts_count; /* UV mesh is cached  */
+	unsigned UV_tri_count;
+	float *UV_verts; /* 2*UV_verts_count floats */
+	int *UV_idxs; /* 3*UV_tri_count ints */
+	
 } Nurb;
 
 typedef struct CharInfo {
@@ -334,6 +341,10 @@ enum {
 #define CU_CARDINAL		3
 #define CU_NURBS		4
 #define CU_TYPE			(CU_POLY|CU_BEZIER|CU_BSPLINE|CU_CARDINAL|CU_NURBS)
+
+/* trim curve type */
+#define CU_TRIM_INTERIOR 1
+#define CU_TRIM_EXTERIOR 2
 
 		/* only for adding */
 #define CU_PRIMITIVE	0xF00

@@ -4973,6 +4973,7 @@ static int addvert_Nurb(bContext *C, short mode, float location[3])
 				newbp->f1 |= SELECT;
 
 				newnu = (Nurb *)MEM_mallocN(sizeof(Nurb), "addvert_Nurb newnu");
+				BKE_nurb_clear_cached_UV_mesh(newnu, false);
 				memcpy(newnu, nu, sizeof(Nurb));
 				BLI_addtail(&editnurb->nurbs, newnu);
 				newnu->bp = newbp;
