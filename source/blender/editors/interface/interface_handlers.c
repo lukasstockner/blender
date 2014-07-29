@@ -8731,7 +8731,6 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				{
 					for (but = block->buttons.first; but; but = but->next) {
 						if (but->menu_key == event->type) {
-							button_activate_init((bContext *)C, ar, but, BUTTON_STATE_HIGHLIGHT);
 							retval = ui_pie_menu_apply(C, menu, but, event, false, is_click_style);
 							break;
 						}
