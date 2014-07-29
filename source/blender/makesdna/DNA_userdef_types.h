@@ -853,7 +853,6 @@ typedef enum eImageDrawMethod {
 	IMAGE_DRAW_METHOD_DRAWPIXELS = 3,
 } eImageDrawMethod;
 
-
 #ifdef __cplusplus
 }
 #endif
