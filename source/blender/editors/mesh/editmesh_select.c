@@ -44,7 +44,6 @@
 #include "BKE_report.h"
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
-#include "BKE_mesh.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -939,27 +938,6 @@ static int edbm_select_mode_exec(bContext *C, wmOperator *op)
 	const bool use_extend = RNA_boolean_get(op->ptr, "use_extend");
 	const bool use_expand = RNA_boolean_get(op->ptr, "use_expand");
 
-	if (!is_power_of_2_i(type)) {
-		Scene *scene = CTX_data_scene(C);
-		ToolSettings *ts = scene->toolsettings;
-
-		ts->selectmode = type;
-
-		if (scene->basact) {
-			Object *obact = scene->basact->object;
-			Mesh *me = BKE_mesh_from_object(obact);
-			if (me && me->edit_btmesh && me->edit_btmesh->selectmode != type) {
-				me->edit_btmesh->selectmode = type;
-				EDBM_selectmode_set(me->edit_btmesh);
-				WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obact->data);
-				WM_main_add_notifier(NC_SCENE | ND_TOOLSETTINGS, NULL);
-				return OPERATOR_FINISHED;
-			}
-		}
-
-		return OPERATOR_CANCELLED;
-	}
-
 	if (EDBM_selectmode_toggle(C, type, action, use_extend, use_expand)) {
 		return OPERATOR_FINISHED;
 	}
@@ -985,14 +963,10 @@ void MESH_OT_select_mode(wmOperatorType *ot)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem elem_items[] = {
-		{SCE_SELECT_VERTEX, "VERTEX", ICON_VERTEXSEL, "Vertex", "Vertex selection mode"},
-		{SCE_SELECT_EDGE, "EDGE", ICON_EDGESEL, "Edge", "Edge selection mode"},
-		{SCE_SELECT_FACE, "FACE", ICON_FACESEL, "Face", "Face selection mode"},
-	    {SCE_SELECT_VERTEX | SCE_SELECT_FACE, "VERTEX_FACE", ICON_FACESEL, "Vertex/Face", "Vertex and Face selection mode"},
-	    {SCE_SELECT_VERTEX | SCE_SELECT_EDGE, "VERTEX_EDGE", ICON_VERTEXSEL, "Vertex/Edge", "Vertex and Edge selection mode"},
-	    {SCE_SELECT_FACE | SCE_SELECT_EDGE, "FACE_EDGE", ICON_EDGESEL, "Face/Edge", "Face and Edge selection mode"},
-	    {SCE_SELECT_VERTEX | SCE_SELECT_EDGE | SCE_SELECT_FACE, "ALL", ICON_FACESEL, "All", "All selection modes"},
-		{0, NULL, 0, NULL, NULL}
+		{SCE_SELECT_VERTEX, "VERT", ICON_VERTEXSEL, "Vertices", ""},
+		{SCE_SELECT_EDGE,   "EDGE", ICON_EDGESEL, "Edges", ""},
+		{SCE_SELECT_FACE,   "FACE", ICON_FACESEL, "Faces", ""},
+		{0, NULL, 0, NULL, NULL},
 	};
 
 	static EnumPropertyItem actions_items[] = {

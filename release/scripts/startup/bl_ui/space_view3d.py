@@ -2167,7 +2167,10 @@ class VIEW3D_MT_edit_mesh_select_mode(Menu):
 
         layout.operator_context = 'INVOKE_REGION_WIN'
         pie = layout.menu_pie()
-        pie.operator_enum("mesh.select_mode", "type")
+        pie.operator("mesh.select_mode", text="Vertex", icon='VERTEXSEL').type = 'VERT'
+        pie.operator("mesh.select_mode", text="Edge", icon='EDGESEL').type = 'EDGE'
+        pie.operator("mesh.select_mode", text="Face", icon='FACESEL').type = 'FACE'
+
 
 class VIEW3D_MT_edit_mesh_extrude(Menu):
     bl_label = "Extrude"

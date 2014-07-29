@@ -320,7 +320,7 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "center", true);
 
 	/* numpad view hotkeys*/
-	WM_keymap_add_pie_menu(keymap, "VIEW3D_PIE_view", QKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_pie_menu(keymap, "VIEW3D_PIE_view", QKEY, KM_PRESS, 0, 0, false);
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_viewnumpad", PAD0, KM_PRESS, 0, 0)->ptr, "type", RV3D_VIEW_CAMERA);
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_viewnumpad", PAD1, KM_PRESS, 0, 0)->ptr, "type", RV3D_VIEW_FRONT);
