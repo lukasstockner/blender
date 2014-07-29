@@ -8609,7 +8609,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				uiBut *but;
 				double final_time = 0.01 * U.pie_animation_timeout;
 				float fac = duration / final_time;
-				float pie_radius = U.pie_menu_radius * (U.dpi / 72.0f);
+				float pie_radius = U.pie_menu_radius * UI_DPI_WINDOW_FAC;
 
 				if (fac > 1.0f) {
 					fac = 1.0f;
