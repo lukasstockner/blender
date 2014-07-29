@@ -8663,7 +8663,11 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			ED_region_tag_redraw(ar);
 		}
 		else {
-			if (block->pie_data.flags & UI_PIE_INVALID_DIR) {
+			/* calculate distance from initial poit */
+			float seg[2] = {(float)mx, (float)my};
+			sub_v2_v2(seg, block->pie_data.pie_center_init);
+
+			if (len_squared_v2(seg) < PIE_CLICK_THRESHOLD) {
 				block->pie_data.flags |= UI_PIE_CLICK_STYLE;
 			}
 			else if (!is_click_style) {

@@ -2480,7 +2480,7 @@ void init_userdef_do_versions(void)
 			U.pie_operator_timeout = 20;
 
 		if (U.pie_animation_timeout == 0)
-			U.pie_animation_timeout = 12;
+			U.pie_animation_timeout = 6;
 
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			btheme->tui.wcol_pie_menu = wcol_pie_menu;
