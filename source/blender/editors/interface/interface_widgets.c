@@ -1926,7 +1926,7 @@ static void widget_state_pie_menu_item(uiWidgetType *wt, int state)
 	}
 	/* regular active */
 	else if (state & UI_SELECT) {
-		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
+		copy_v4_v4_char(wt->wcol.outline, wt->wcol.inner_sel);
 		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
 	}
 	else if (state & UI_ACTIVE) {
