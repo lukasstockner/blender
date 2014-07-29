@@ -208,46 +208,39 @@ ccl_device float lamp_light_pdf(KernelGlobals *kg, const float3 Ng, const float3
 	return t*t/cos_pi;
 }
 
-ccl_device void lamp_light_sample_new_position(KernelGlobals *kg, int lamp,
+ccl_device void lamp_light_sample_position(KernelGlobals *kg, int lamp,
 								  float randu, float randv, float3 P, LightSample *ls)
 {
-	if(ls->type == LIGHT_POINT || ls->type == LIGHT_SPOT) {
-		float4 data0 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 0);
-		float4 data1 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 1);
+	float4 data0 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 0);
+	float4 data1 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 1);
 
-		ls->P = make_float3(data0.y, data0.z, data0.w);
+	LightType type = (LightType)__float_as_int(data0.x);
 
-		float radius = data1.y;
-
-		if(radius > 0.0f)
-			/* sphere light */
-			ls->P += sphere_light_sample(P, ls->P, radius, randu, randv);
-
-		ls->D = normalize_len(ls->P - P, &ls->t);
-		ls->Ng = -ls->D;
-
-		float invarea = data1.z;
-		ls->pdf = invarea;
-
-		if(ls->type == LIGHT_SPOT) {
-			/* spot light attenuation */
-			float4 data2 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 2);
-			ls->eval_fac = (0.25f*M_1_PI_F)*invarea*kernel_data.integrator.inv_pdf_lights;
-			ls->eval_fac *= spot_light_attenuation(data1, data2, ls);
-		}
-	}
-	else if(ls->type == LIGHT_AREA) {
-			float4 data2 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 2);
-			ls->pdf = data2.x;
-
-			ls->D = normalize_len(ls->P - P, &ls->t);
+	if(type == LIGHT_DISTANT || type == LIGHT_BACKGROUND) {
+		/* Distant lights, no equi-angular sampling */
+		ls->t = FLT_MAX;
 	}
 	else {
-		/* Distant Lights */
-		return;
-	}
+		/* calculate ls->P for equi-angular sampling */
+		ls->P = make_float3(data0.y, data0.z, data0.w);
 
-	ls->pdf *= lamp_light_pdf(kg, ls->Ng, -ls->D, ls->t);
+		if(type == LIGHT_POINT || type == LIGHT_SPOT) {
+			float radius = data1.y;
+
+			if(radius > 0.0f)
+			/* sphere light */
+				ls->P += sphere_light_sample(P, ls->P, radius, randu, randv);
+		}
+		else {
+			/* area light */
+			float4 data2 = kernel_tex_fetch(__light_data, lamp*LIGHT_SIZE + 2);
+
+			float3 axisu = make_float3(data1.y, data1.z, data1.w);
+			float3 axisv = make_float3(data2.y, data2.z, data2.w);
+
+			ls->P += area_light_sample(axisu, axisv, randu, randv);
+		}
+	}
 }
 
 ccl_device void lamp_light_sample(KernelGlobals *kg, int lamp,
@@ -554,8 +547,7 @@ ccl_device int light_distribution_sample(KernelGlobals *kg, float randt)
 	return clamp(first-1, 0, kernel_data.integrator.num_distribution-1);
 }
 
-/* ToDo: Better function name */
-ccl_device void light_sample_new_position(KernelGlobals *kg, float randt, float randu, float randv, float time, float3 P, LightSample *ls)
+ccl_device void light_sample_position(KernelGlobals *kg, float randt, float randu, float randv, float time, float3 P, LightSample *ls)
 {
 	/* sample index */
 	int index = light_distribution_sample(kg, randt);
@@ -565,13 +557,12 @@ ccl_device void light_sample_new_position(KernelGlobals *kg, float randt, float 
 	int prim = __float_as_int(l.y);
 
 	if(prim >= 0) {
-		/* compute incoming direction, distance and pdf */
-		ls->D = normalize_len(ls->P - P, &ls->t);
-		ls->pdf = triangle_light_pdf(kg, ls->Ng, -ls->D, ls->t);
+		/* compute distance, although this probably never becomes FLT_MAX */
+		ls->t = len(ls->P - P);
 	}
 	else {
 		int lamp = -prim-1;
-		lamp_light_sample_new_position(kg, lamp, randu, randv, P, ls);
+		lamp_light_sample_position(kg, lamp, randu, randv, P, ls);
 	}
 }
 

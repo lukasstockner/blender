@@ -134,7 +134,6 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				path_branched_rng_2D(kg, &lamp_rng, state, j, num_samples, PRNG_LIGHT_U, &light_u, &light_v);
 
 				LightSample ls;
-				lamp_light_sample(kg, i, light_u, light_v, ray->P, &ls);
 
 				float3 tp = throughput;
 
@@ -143,13 +142,18 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 					float rphase = path_branched_rng_1D_for_decision(kg, rng, state, j, num_samples, PRNG_PHASE);
 					float rscatter = path_branched_rng_1D_for_decision(kg, rng, state, j, num_samples, PRNG_SCATTER_DISTANCE);
 
+					lamp_light_sample_position(kg, i, light_u, light_v, ray->P, &ls);
+
 					VolumeIntegrateResult result = kernel_volume_decoupled_scatter(kg,
 						state, ray, sd, &tp, rphase, rscatter, segment, (ls.t != FLT_MAX)? &ls.P: NULL, false);
 
 					if(result != VOLUME_PATH_SCATTERED)
 						continue;
 
-					lamp_light_sample_new_position(kg, i, light_u, light_v, sd->P, &ls);
+					lamp_light_sample(kg, i, light_u, light_v, sd->P, &ls);
+				}
+				else {
+					lamp_light_sample(kg, i, light_u, light_v, ray->P, &ls);
 				}
 
 				if(ls.pdf == 0.0f)
@@ -186,7 +190,6 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 					light_t = 0.5f*light_t;
 
 				LightSample ls;
-				light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, &ls);
 
 				float3 tp = throughput;
 
@@ -195,13 +198,18 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 					float rphase = path_branched_rng_1D_for_decision(kg, rng, state, j, num_samples, PRNG_PHASE);
 					float rscatter = path_branched_rng_1D_for_decision(kg, rng, state, j, num_samples, PRNG_SCATTER_DISTANCE);
 
+					light_sample_position(kg, light_t, light_u, light_v, sd->time, ray->P, &ls);
+
 					VolumeIntegrateResult result = kernel_volume_decoupled_scatter(kg,
 						state, ray, sd, &tp, rphase, rscatter, segment, (ls.t != FLT_MAX)? &ls.P: NULL, false);
 
 					if(result != VOLUME_PATH_SCATTERED)
 						continue;
 
-					light_sample_new_position(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
+					light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
+				}
+				else {
+					light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, &ls);
 				}
 
 				if(ls.pdf == 0.0f)
@@ -235,13 +243,18 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 			float rphase = path_state_rng_1D_for_decision(kg, rng, state, PRNG_PHASE);
 			float rscatter = path_state_rng_1D_for_decision(kg, rng, state, PRNG_SCATTER_DISTANCE);
 
+			light_sample_position(kg, light_t, light_u, light_v, sd->time, ray->P, &ls);
+
 			VolumeIntegrateResult result = kernel_volume_decoupled_scatter(kg,
 				state, ray, sd, &tp, rphase, rscatter, segment, (ls.t != FLT_MAX)? &ls.P: NULL, false);
 
 			if(result != VOLUME_PATH_SCATTERED)
 				return;
 
-			light_sample_new_position(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
+			light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, &ls);
+		}
+		else {
+			light_sample(kg, light_t, light_u, light_v, sd->time, ray->P, &ls);
 		}
 
 		if(ls.pdf == 0.0f)
