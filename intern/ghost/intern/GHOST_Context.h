@@ -141,6 +141,9 @@ protected:
 private:
 	GLEWContext *m_glewContext;
 
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_Context")
+#endif
 };
 
 
