@@ -3158,12 +3158,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
-	static EnumPropertyItem pie_styles[] = {
-		{USER_UI_PIE_CLICK, "CLICK", 0, "Click", "Press to spawn pie menu, click to confirm"},
-	    {USER_UI_PIE_DRAG, "DRAG", 0, "Drag", "Press and hold to spawn pie menu, release to confirm"},
-		{0, NULL, 0, NULL, NULL}
-	};
-
 	PropertyRNA *prop;
 	StructRNA *srna;
 	
@@ -3233,10 +3227,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	                         "Time delay in 1/10 seconds before automatically opening sub level menus");
 
 	/* pie menus */
-	prop = RNA_def_property(srna, "pie_interaction_type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Interaction Type", "Pie menus use a drag/release or click style");
-	RNA_def_property_enum_items(prop, pie_styles);
-
 	prop = RNA_def_property(srna, "pie_initial_timeout", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 0, 1000);
 	RNA_def_property_ui_text(prop, "Recenter Timeout", "Pie menus will use the initial mouse position as center for this amount of time (in 1/100ths of sec)");

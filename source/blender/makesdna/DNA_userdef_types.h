@@ -853,10 +853,6 @@ typedef enum eImageDrawMethod {
 	IMAGE_DRAW_METHOD_DRAWPIXELS = 3,
 } eImageDrawMethod;
 
-typedef enum eUIInteraction {
-	USER_UI_PIE_DRAG = 0,
-	USER_UI_PIE_CLICK = 1
-} eUIInteraction;
 
 #ifdef __cplusplus
 }

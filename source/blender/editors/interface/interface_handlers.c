@@ -8509,7 +8509,7 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 	if (menu->menuretval) {
 		/* pie menus should not close but wait for release instead */
 		if ((block->flag & UI_BLOCK_RADIAL) &&
-		    !((block->pie_data.flags & UI_PIE_CLICK_STYLE) || U.pie_interaction_type == USER_UI_PIE_CLICK))
+		    !(block->pie_data.flags & UI_PIE_CLICK_STYLE))
 		{
 			menu->menuretval = 0;
 			block->pie_data.flags |= UI_PIE_FINISHED;
@@ -8587,7 +8587,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 	ar = menu->region;
 	block = ar->uiblocks.first;
 
-	is_click_style = (U.pie_interaction_type == USER_UI_PIE_CLICK) || (block->pie_data.flags & UI_PIE_CLICK_STYLE);
+	is_click_style = (block->pie_data.flags & UI_PIE_CLICK_STYLE);
 
 	if (menu->scrolltimer == NULL) {
 		menu->scrolltimer =
@@ -8663,7 +8663,10 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			ED_region_tag_redraw(ar);
 		}
 		else {
-			if (!is_click_style) {
+			if (block->pie_data.flags & UI_PIE_INVALID_DIR) {
+				block->pie_data.flags |= UI_PIE_CLICK_STYLE;
+			}
+			else if (!is_click_style) {
 				uiBut *but = ui_but_find_activated(menu->region);
 
 				retval = ui_pie_menu_apply(C, menu, but, event, true, is_click_style);
