@@ -6659,7 +6659,7 @@ static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, c
 
 		for (but = block->buttons.last; but; but = but->prev) {
 			if (ui_is_but_interactive(but, labeledit)) {
-				if (but->dt == UI_EMBOSSR) {
+				if (but->pie_dir != UI_RADIAL_NONE) {
 					if (ui_but_isect_pie_seg(block, but)) {
 						butover = but;
 						break;
@@ -8548,7 +8548,7 @@ static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, 
 		}
 		else {
 			ui_apply_button(C, but->block, but, but->active, false);
-			button_activate_exit((bContext *)C, but, but->active, false, true);
+			button_activate_exit((bContext *)C, but, but->active, false, false);
 
 			if (!(click_style || force_close)) {
 				but->block->pie_data.flags |= UI_PIE_FINISHED;
@@ -8731,6 +8731,12 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				{
 					for (but = block->buttons.first; but; but = but->next) {
 						if (but->menu_key == event->type) {
+							uiBut *active_but = ui_but_find_activated(menu->region);
+
+							if (active_but)
+								button_activate_exit(C, active_but, active_but->active, false, false);
+
+							button_activate_init((bContext *)C, ar, but, BUTTON_ACTIVATE_OVER);
 							retval = ui_pie_menu_apply(C, menu, but, event, false, is_click_style);
 							break;
 						}
