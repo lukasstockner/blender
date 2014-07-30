@@ -82,6 +82,9 @@
 #include "smoke_API.h"
 
 #ifdef WITH_OPENSUBDIV
+#  include "DNA_mesh_types.h"
+#  include "BKE_editmesh.h"
+
 #  include "gpu_codegen.h"
 #endif
 
@@ -1452,11 +1455,25 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 	const bool use_matcap = (v3d->flag2 & V3D_SHOW_SOLID_MATCAP) != 0;  /* assumes v3d->defmaterial->preview is set */
 	bool use_opensubdiv = false;
 
-	/* TODO(sergey): What to do if there's no derived final? */
-	if (ob->derivedFinal != NULL) {
-		CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) ob->derivedFinal;
-		use_opensubdiv = ccgdm->useGpuBackend;
+#ifdef WITH_OPENSUBDIV
+	{
+		DerivedMesh *derivedFinal = NULL;
+		Mesh *me = ob->data;
+		BMEditMesh *em = me->edit_btmesh;
+
+		if (em != NULL) {
+			derivedFinal = em->derivedFinal;
+		}
+		else {
+			derivedFinal = ob->derivedFinal;
+		}
+
+		if (derivedFinal != NULL && derivedFinal->type == DM_TYPE_CCGDM) {
+			CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) derivedFinal;
+			use_opensubdiv = ccgdm->useGpuBackend;
+		}
 	}
+#endif
 
 #ifdef WITH_GAMEENGINE
 	if (rv3d->rflag & RV3D_IS_GAME_ENGINE) {

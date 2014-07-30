@@ -1778,7 +1778,10 @@ static void ccgDM_glNormalFast(float *a, float *b, float *c, float *d)
 }
 
 /* Only used by non-editmesh types */
-static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)[4], bool fast, DMSetMaterial setMaterial)
+static void ccgDM_drawFacesSolid(DerivedMesh *dm,
+                                 float (*partial_redraw_planes)[4],
+                                 bool fast,
+                                 DMSetMaterial setMaterial)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
 	CCGSubSurf *ss = ccgdm->ss;
@@ -2300,6 +2303,13 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 	short (*lnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
 	int a, i, numVerts, matnr, new_matnr, totface;
 
+#ifdef WITH_OPENSUBDIV
+	if (ccgdm->useGpuBackend) {
+		BLI_assert(!"Not currently supported");
+		return;
+	}
+#endif
+
 	CCG_key_top_level(&key, ss);
 	ccgdm_pbvh_update(ccgdm);
 
@@ -2472,6 +2482,9 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	int gridOffset = 0;
 	int mat_nr_cache = -1;
 
+	/* TODO(sergey): Not currently supported, might lead to some wrong
+	 * shading/texturing artifacts due to batching in OpenSubdiv.
+	 */
 	(void) compareDrawOptions;
 
 #ifdef WITH_OPENSUBDIV
@@ -2488,9 +2501,6 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		/* TODO(sergey): Face-by-face for now, in order to optimize
 		 * this we'll need to pass proper compareDrawOptions.
 		 */
-
-		/* If it happens we've got compare callback let us know. */
-		BLI_assert(compareDrawOptions == NULL);
 
 		if (ccgSubSurf_prepareGLMesh(ss, true) == false) {
 			return;
@@ -2807,6 +2817,93 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 	int useColors = flag & DM_DRAW_USE_COLORS;
 	int gridFaces = gridSize - 1, totface;
 
+#ifdef WITH_OPENSUBDIV
+	if (ccgdm->useGpuBackend) {
+		int i, matnr = -1, shademodel = -1;
+		CCGFaceIterator *fi;
+		int start_partition = 0, num_partitions = 0;
+		DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
+
+		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, true) == false)) {
+			return;
+		}
+
+		for (fi = ccgSubSurf_getFaceIterator(ss), i = 0;
+		     !ccgFaceIterator_isStopped(fi);
+		     ccgFaceIterator_next(fi), ++i)
+		{
+			CCGFace *f = ccgFaceIterator_getCurrent(fi);
+			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
+			int origIndex = ccgDM_getFaceMapIndex(ss, f);
+			int new_matnr, new_shademodel;
+
+			if (faceFlags) {
+				new_shademodel = (lnors || (faceFlags[index].flag & ME_SMOOTH))
+					? GL_SMOOTH
+					: GL_FLAT;
+				new_matnr = faceFlags[index].mat_nr + 1;
+			}
+			else {
+				new_shademodel = GL_SMOOTH;
+				new_matnr = 1;
+			}
+
+			if (new_shademodel != shademodel || new_matnr != matnr) {
+				if (num_partitions) {
+					ccgSubSurf_drawGLMesh(ss, true,
+					                      start_partition, num_partitions);
+				}
+
+				start_partition = i;
+				num_partitions = 0;
+
+				/* Update material settings for the next partitions batch. */
+				if (new_shademodel != shademodel) {
+					glShadeModel(new_shademodel);
+				}
+
+				if (new_matnr != matnr) {
+					if (index == ORIGINDEX_NONE) {
+						/* XXX, no faceFlags no material */
+						draw_option = setMaterial(faceFlags ? faceFlags[origIndex].mat_nr + 1 : 1, NULL);
+					}
+					else if (setDrawOptions) {
+						draw_option = setDrawOptions(userData, index);
+					}
+				}
+
+				/* Cache settings. */
+				shademodel = new_shademodel;
+				matnr = new_matnr;
+			}
+
+			/* TODO(sergey): This isn't actually tested.. */
+			if (draw_option == DM_DRAW_OPTION_SKIP) {
+				if (num_partitions) {
+					ccgSubSurf_drawGLMesh(ss, true,
+					                      start_partition, num_partitions);
+				}
+
+				start_partition = i;
+				num_partitions = 0;
+
+				continue;
+			}
+
+			num_partitions++;
+		}
+		ccgFaceIterator_free(fi);
+
+		/* Draw residual tail of the partitions. */
+		if (num_partitions) {
+			ccgSubSurf_drawGLMesh(ss, true, start_partition, num_partitions);
+		}
+
+		/* We're done with drawing if drawing happens using OpenSubdiv. */
+		return;
+	}
+#endif
+
 	CCG_key_top_level(&key, ss);
 
 	/* currently unused -- each original face is handled separately */
@@ -2969,6 +3066,13 @@ static void ccgDM_drawMappedEdges(DerivedMesh *dm,
 	CCGKey key;
 	int i, useAging, edgeSize = ccgSubSurf_getEdgeSize(ss);
 
+#ifdef WITH_OPENSUBDIV
+	if (ccgdm->useGpuBackend) {
+		BLI_assert(!"Not currently supported");
+		return;
+	}
+#endif
+
 	CCG_key_top_level(&key, ss);
 	ccgSubSurf_getUseAgeCounts(ss, &useAging, NULL, NULL, NULL);
 
@@ -3005,6 +3109,13 @@ static void ccgDM_drawMappedEdgesInterp(DerivedMesh *dm,
 	CCGKey key;
 	CCGEdgeIterator *ei;
 	int i, useAging, edgeSize = ccgSubSurf_getEdgeSize(ss);
+
+#ifdef WITH_OPENSUBDIV
+	if (ccgdm->useGpuBackend) {
+		BLI_assert(!"Not currently supported");
+		return;
+	}
+#endif
 
 	CCG_key_top_level(&key, ss);
 	ccgSubSurf_getUseAgeCounts(ss, &useAging, NULL, NULL, NULL);
@@ -4213,14 +4324,34 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 	/* note: editmode calculation can only run once per
 	 * modifier stack evaluation (uses freed cache) [#36299] */
 	if (flags & SUBSURF_FOR_EDIT_MODE) {
+		bool use_gpu_backend = false;
 		int levels = (smd->modifier.scene) ? get_render_subsurf_level(&smd->modifier.scene->r, smd->levels) : smd->levels;
 
+		/* TODO(sergey): Same as emCache below. */
+		if ((flags & SUBSURF_IN_EDIT_MODE) && smd->mCache) {
+			ccgSubSurf_free(smd->mCache);
+			smd->mCache = NULL;
+		}
+
 		smd->emCache = _getSubSurf(smd->emCache, levels, 3, useSimple | useAging | CCG_CALC_NORMALS);
+
+#ifdef WITH_OPENSUBDIV
+		use_gpu_backend = (flags & SUBSURF_USE_GPU_BACKEND) != 0 &&
+			openSubdiv_supportGPUDisplay() &&
+			U.opensubdiv_compute_type != USER_OPENSUBDIV_COMPUTE_NONE;
+
+		ccgSubSurf_setSkipGrids(smd->emCache, use_gpu_backend);
+#endif
+
 		ss_sync_from_derivedmesh(smd->emCache, dm, vertCos, useSimple);
 
 		result = getCCGDerivedMesh(smd->emCache,
 		                           drawInteriorEdges,
-		                           useSubsurfUv, dm, false);
+		                           useSubsurfUv, dm, use_gpu_backend);
+
+#ifdef WITH_OPENSUBDIV
+		ccgSubSurf_setUVCoordsFromDM(smd->emCache, dm, useSubsurfUv);
+#endif
 	}
 	else if (flags & SUBSURF_USE_RENDER_PARAMS) {
 		/* Do not use cache in render mode. */

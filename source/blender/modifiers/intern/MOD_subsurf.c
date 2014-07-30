@@ -138,6 +138,12 @@ static DerivedMesh *applyModifierEM(ModifierData *md, Object *UNUSED(ob),
 	DerivedMesh *result;
 	/* 'orco' using editmode flags would cause cache to be used twice in editbmesh_calc_modifiers */
 	SubsurfFlags ss_flags = (flag & MOD_APPLY_ORCO) ? 0 : (SUBSURF_FOR_EDIT_MODE | SUBSURF_IN_EDIT_MODE);
+	const bool allow_gpu = (flag & MOD_APPLY_ALLOW_GPU) != 0;
+
+	/* TODO(sergey): Not entirely correct, only good for purposes of test. */
+	if (md->next == NULL && allow_gpu) {
+		ss_flags |= SUBSURF_USE_GPU_BACKEND;
+	}
 
 	result = subsurf_make_derived_from_derived(derivedData, smd, NULL, ss_flags);
 

@@ -2029,6 +2029,17 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 	const bool do_loop_normals = (((Mesh *)(ob->data))->flag & ME_AUTOSMOOTH);
 	const float loop_normals_split_angle = ((Mesh *)(ob->data))->smoothresh;
 
+#ifdef WITH_OPENSUBDIV
+	{
+		ModifierData *last_md = ob->modifiers.last;
+		if (last_md != NULL &&
+		    last_md->type == eModifierType_Subsurf)
+		{
+			dataMask &= ~CD_MASK_ORCO;
+		}
+	}
+#endif
+
 	modifiers_clearErrors(ob);
 
 	if (cage_r && cageIndex == -1) {
@@ -2164,9 +2175,9 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 			}
 
 			if (mti->applyModifierEM)
-				ndm = modwrap_applyModifierEM(md, ob, em, dm, MOD_APPLY_USECACHE);
+				ndm = modwrap_applyModifierEM(md, ob, em, dm, MOD_APPLY_USECACHE | MOD_APPLY_ALLOW_GPU);
 			else
-				ndm = modwrap_applyModifier(md, ob, dm, MOD_APPLY_USECACHE);
+				ndm = modwrap_applyModifier(md, ob, dm, MOD_APPLY_USECACHE | MOD_APPLY_ALLOW_GPU);
 			ASSERT_IS_VALID_DM(ndm);
 
 			if (ndm) {
