@@ -1,4 +1,5 @@
 uniform int PrimitiveIdBase;
+uniform int osd_active_uv_offset;
 
 varying vec3 varnormal;
 varying vec3 varposition;
@@ -45,7 +46,7 @@ void emit_flat(int index, vec3 normal)
 	vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
 	vec2 st = quadst[index];
 
-	INTERP_FACE_VARYING_2(outpt.v.uv, 0, st);
+	INTERP_FACE_VARYING_2(outpt.v.uv, osd_active_uv_offset, st);
 
 	set_mtface_vertex_attrs(st);
 
@@ -66,7 +67,7 @@ void emit_smooth(int index)
 	vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
 	vec2 st = quadst[index];
 
-	INTERP_FACE_VARYING_2(outpt.v.uv, 0, st);
+	INTERP_FACE_VARYING_2(outpt.v.uv, osd_active_uv_offset, st);
 
 	set_mtface_vertex_attrs(st);
 

@@ -486,6 +486,12 @@ static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
 				if (location != -1) {
 					glUniform1i(location, mesh->GetFVarCount());
 				}
+
+				location = glGetUniformLocation(program, "osd_active_uv_offset");
+				if (location != -1) {
+					glUniform1i(location,
+					            g_active_uv_index * 2);
+				}
 			}
 
 		}

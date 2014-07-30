@@ -510,8 +510,19 @@ static int codegen_print_uniforms_functions(DynStr *ds, ListBase *nodes)
 				}
 			}
 			else if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
+#ifdef WITH_OPENSUBDIV
+				bool skip_opensubdiv = input->attribtype == CD_TANGENT;
+				if (skip_opensubdiv) {
+					BLI_dynstr_appendf(ds, "#ifndef USE_OPENSUBDIV\n");
+				}
+#endif
 				BLI_dynstr_appendf(ds, "varying %s var%d;\n",
 					GPU_DATATYPE_STR[input->type], input->attribid);
+#ifdef WITH_OPENSUBDIV
+				if (skip_opensubdiv) {
+					BLI_dynstr_appendf(ds, "#endif\n");
+				}
+#endif
 			}
 		}
 	}
@@ -612,6 +623,11 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const ch
 	char *code;
 	int builtins;
 
+#ifdef WITH_OPENSUBDIV
+	GPUNode *node;
+	GPUInput *input;
+#endif
+
 	/*BLI_dynstr_append(ds, FUNCTION_PROTOTYPES);*/
 
 	codegen_set_unique_ids(nodes);
@@ -625,7 +641,34 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const ch
 
 	if (builtins & GPU_VIEW_NORMAL)
 		BLI_dynstr_append(ds, "\tvec3 facingnormal = (gl_FrontFacing)? varnormal: -varnormal;\n");
-		
+
+	/* Calculate tangent space. */
+#ifdef WITH_OPENSUBDIV
+	{
+		bool has_tangent = false;
+		for (node = nodes->first; node; node = node->next) {
+			for (input = node->inputs.first; input; input = input->next) {
+				if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
+					if (input->attribtype == CD_TANGENT) {
+						BLI_dynstr_appendf(ds, "#ifdef USE_OPENSUBDIV\n");
+						BLI_dynstr_appendf(ds, "\t%s var%d;\n",
+						                   GPU_DATATYPE_STR[input->type],
+						                   input->attribid);
+						if (has_tangent == false) {
+							BLI_dynstr_appendf(ds, "\tvec3 Q1 = dFdx(inpt.v.position.xyz);\n");
+							BLI_dynstr_appendf(ds, "\tvec3 Q2 = dFdy(inpt.v.position.xyz);\n");
+							BLI_dynstr_appendf(ds, "\tvec2 st1 = dFdx(inpt.v.uv);\n");
+							BLI_dynstr_appendf(ds, "\tvec2 st2 = dFdy(inpt.v.uv);\n");
+							BLI_dynstr_appendf(ds, "\tvec3 T = normalize(Q1 * st2.t - Q2 * st1.t);\n");
+						}
+						BLI_dynstr_appendf(ds, "\tvar%d = vec4(T, 1.0);\n", input->attribid);
+						BLI_dynstr_appendf(ds, "#endif\n");
+					}
+				}
+			}
+		}
+	}
+#endif
 
 	codegen_declare_tmps(ds, nodes);
 	codegen_call_functions(ds, nodes, output);
@@ -708,8 +751,8 @@ static char *code_generate_vertex(ListBase *nodes)
 		for (input=node->inputs.first; input; input=input->next) {
 			if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
 #ifdef WITH_OPENSUBDIV
-				bool is_mtface = input->attribtype == CD_MTFACE;
-				if (is_mtface) {
+				bool skip_opensubdiv = ELEM(input->attribtype, CD_MTFACE, CD_TANGENT);
+				if (skip_opensubdiv) {
 					BLI_dynstr_appendf(ds, "#ifndef USE_OPENSUBDIV\n");
 				}
 #endif
@@ -718,7 +761,7 @@ static char *code_generate_vertex(ListBase *nodes)
 				BLI_dynstr_appendf(ds, "varying %s var%d;\n",
 					GPU_DATATYPE_STR[input->type], input->attribid);
 #ifdef WITH_OPENSUBDIV
-				if (is_mtface) {
+				if (skip_opensubdiv) {
 					BLI_dynstr_appendf(ds, "#endif\n");
 				}
 #endif
@@ -733,8 +776,14 @@ static char *code_generate_vertex(ListBase *nodes)
 		for (input=node->inputs.first; input; input=input->next)
 			if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
 				if (input->attribtype == CD_TANGENT) { /* silly exception */
+#ifdef WITH_OPENSUBDIV
+					BLI_dynstr_appendf(ds, "#ifndef USE_OPENSUBDIV\n");
+#endif
 					BLI_dynstr_appendf(ds, "\tvar%d.xyz = normalize((gl_ModelViewMatrix * vec4(att%d.xyz, 0)).xyz);\n", input->attribid, input->attribid);
 					BLI_dynstr_appendf(ds, "\tvar%d.w = att%d.w;\n", input->attribid, input->attribid);
+#ifdef WITH_OPENSUBDIV
+					BLI_dynstr_appendf(ds, "#endif\n");
+#endif
 				}
 				else {
 #ifdef WITH_OPENSUBDIV
