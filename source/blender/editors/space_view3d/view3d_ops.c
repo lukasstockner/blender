@@ -146,15 +146,9 @@ void ED_operatormacros_view3d(void)
 		RNA_string_set(ptr, "value_2", "WIREFRAME");
 	}
 
-	ptr = WM_operator_pie_macro("VIEW3D_PIE_view_macro", "View",
-	                            "Set the shading mode for the 3D viewport",
-	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_toggle_enum", "VIEW3D_PIE_view");
-
-	if (ptr) {
-		RNA_string_set(ptr, "data_path", "space_data.viewport_shade");
-		RNA_string_set(ptr, "value_1", "SOLID");
-		RNA_string_set(ptr, "value_2", "RENDERED");
-	}
+	WM_operator_pie_macro("VIEW3D_PIE_view_macro", "View",
+	                      "Set the shading mode for the 3D viewport",
+	                      OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_search_menu", "VIEW3D_PIE_view");
 
 
 	ptr = WM_operator_pie_macro("VIEW3D_PIE_manipulator_macro", "Manipulator",
