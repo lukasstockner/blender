@@ -8560,7 +8560,15 @@ static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, 
 		}
 	}
 	else {
-		menu->menuretval = UI_RETURN_CANCEL;
+		uiBlock *block = menu->region->uiblocks.first;
+
+		if (!(click_style || force_close)) {
+			block->pie_data.flags |= UI_PIE_FINISHED;
+		}
+		else
+			menu->menuretval = UI_RETURN_CANCEL;
+
+		ED_region_tag_redraw(menu->region);
 	}
 
 	return retval;
@@ -8676,12 +8684,12 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 	if (block->pie_data.flags & UI_PIE_FINISHED) {
 		if ((event->type == block->pie_data.event && event->val == KM_RELEASE) ||
-		    event->type == RIGHTMOUSE ||
-		    event->type == ESCKEY)
+		     ((event->type == RIGHTMOUSE || event->type == ESCKEY) && (event->val == KM_PRESS)))
 		{
 			menu->menuretval = UI_RETURN_OK;
 		}
 
+		ED_region_tag_redraw(ar);
 		return WM_UI_HANDLER_BREAK;
 	}
 
@@ -8728,7 +8736,13 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 			case ESCKEY:
 			case RIGHTMOUSE:
-				menu->menuretval = UI_RETURN_CANCEL;
+				if (!is_click_style) {
+					block->pie_data.flags |= UI_PIE_FINISHED;
+					menu->menuretval = 0;
+					ED_region_tag_redraw(ar);
+				}
+				else
+					menu->menuretval = UI_RETURN_CANCEL;
 				break;
 
 			case AKEY:

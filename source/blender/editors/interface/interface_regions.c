@@ -1740,19 +1740,10 @@ uiBlock *ui_popup_block_refresh(
 				block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
 		}
 
-		ar->winrct.xmin = block->rect.xmin - width;
-		ar->winrct.xmax = block->rect.xmax + width;
-		ar->winrct.ymin = block->rect.ymin - width;
-		ar->winrct.ymax = block->rect.ymax + width;
-
-		ui_block_translate(block, -ar->winrct.xmin, -ar->winrct.ymin);
-
-		/* spawned coordinates still in window space, convert to screen */
-		block->pie_data.pie_center_spawned[0] -= ar->winrct.xmin;
-		block->pie_data.pie_center_spawned[1] -= ar->winrct.ymin;
-		block->pie_data.pie_center_init[0] -= ar->winrct.xmin;
-		block->pie_data.pie_center_init[1] -= ar->winrct.ymin;
-
+		ar->winrct.xmin = 0;
+		ar->winrct.xmax = winx;
+		ar->winrct.ymin = 0;
+		ar->winrct.ymax = winy;
 
 		ui_block_calculate_pie_segment(block, block->pie_data.pie_center_init[0], block->pie_data.pie_center_init[1]);
 
