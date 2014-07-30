@@ -524,7 +524,6 @@ int BKE_nurbList_verts_count_without_handles(ListBase *nurb)
 
 void BKE_nurb_free(Nurb *nu)
 {
-	printf("BKE_nurb_free 0x%lx\n",(unsigned long)nu);
 	if (nu == NULL) return;
 
 	if (nu->bezt)
@@ -4056,9 +4055,9 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 	int *idxs = (int*)MEM_mallocN(sizeof(int)*idxs_len, "NURBS_tess_2.0");
 	int ii=0; // Index index
 #define TESS_MAX_POLY_VERTS 32
-	float (*coords_tmp)[2] = (float(*)[2])MEM_mallocN(sizeof(*coords_tmp)*TESS_MAX_POLY_VERTS,"NURBS_tess_3");
+	float coords_tmp[TESS_MAX_POLY_VERTS][2];
 	int reindex_tmp[TESS_MAX_POLY_VERTS];
-	unsigned (*idx_tmp)[3] = (unsigned(*)[3])MEM_mallocN(sizeof(*idx_tmp)*TESS_MAX_POLY_VERTS,"NURBS_tess_4");
+	unsigned idx_tmp[TESS_MAX_POLY_VERTS][3];
 	std::vector<int> degenerate_polys;
 	// Loop through every cell and push its triangles onto idxs
 	for (int j=0; j<totv; j++) {
@@ -4147,8 +4146,6 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 	if (nu->UV_idxs) MEM_freeN(nu->UV_idxs);
 	nu->UV_idxs = idxs;
 	
-	MEM_freeN(coords_tmp);
-	MEM_freeN(idx_tmp);
 	delete gm;
 }
 
@@ -4166,12 +4163,13 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	float (*coords)[3] = (float(*)[3])MEM_mallocN(sizeof(*coords)*nu->UV_verts_count, "NURBS_tess_3dpts_1");
 	float (*nors)[3] = (float(*)[3])MEM_mallocN(sizeof(*nors)*nu->UV_verts_count, "NURBS_tess_3dpts_2");
 	int (*idxs)[3] = (int(*)[3])MEM_mallocN(sizeof(*idxs)*nu->UV_tri_count, "NURBS_tess_3dpts_3");
+	memcpy(idxs, nu->UV_idxs, sizeof(*idxs)*nu->UV_tri_count);
 	
 	// Push trimmed UV mesh forward through the NURBS map
 	BSplineCacheU cacheU; // Make repeated evals at same u coord efficient
 	cacheU.u = 1.0/0; // First eval should always miss
 	for (int coord=0; coord<nu->UV_verts_count; coord++) {
-		float *uv_in = (float*)&nu->UV_verts[coord];
+		float *uv_in = (float*)&nu->UV_verts[2*coord];
 		float *xyz_out = (float*)&coords[coord];
 		float *norm_out = (float*)&nors[coord];
 		BPoint out[3]; // { surf_pt, u_partial_deriv, v_partal_deriv }

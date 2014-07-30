@@ -3387,6 +3387,9 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
 			switch_endian_knots(nu);
 		}
+		nu->UV_tri_count = nu->UV_verts_count = 0;
+		nu->UV_idxs = NULL;
+		nu->UV_verts = NULL;
 	}
 	cu->bb = NULL;
 }
