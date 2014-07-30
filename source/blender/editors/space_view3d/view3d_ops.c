@@ -146,6 +146,17 @@ void ED_operatormacros_screen(void)
 		RNA_string_set(ptr, "value_2", "WIREFRAME");
 	}
 
+	ptr = WM_operator_pie_macro("VIEW3D_PIE_view_macro", "View",
+	                            "Set the shading mode for the 3D viewport",
+	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_toggle_enum", "VIEW3D_PIE_view");
+
+	if (ptr) {
+		RNA_string_set(ptr, "data_path", "space_data.viewport_shade");
+		RNA_string_set(ptr, "value_1", "SOLID");
+		RNA_string_set(ptr, "value_2", "RENDERED");
+	}
+
+
 	ptr = WM_operator_pie_macro("VIEW3D_PIE_manipulator_macro", "Manipulator",
 	                            "Manipulator Options for the viewport",
 	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_toggle", "VIEW3D_PIE_manipulator");
@@ -320,7 +331,7 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "center", true);
 
 	/* numpad view hotkeys*/
-	WM_keymap_add_pie_menu(keymap, "VIEW3D_PIE_view", QKEY, KM_PRESS, 0, 0, false);
+	WM_keymap_add_item(keymap, "VIEW3D_PIE_view_macro", SPACEKEY, KM_PRESS, 0, 0);
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_viewnumpad", PAD0, KM_PRESS, 0, 0)->ptr, "type", RV3D_VIEW_CAMERA);
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_viewnumpad", PAD1, KM_PRESS, 0, 0)->ptr, "type", RV3D_VIEW_FRONT);
