@@ -138,6 +138,7 @@ typedef struct NurbTrim {
 	struct NurbTrim *prev, *next;
 	ListBase nurb_list; /* A list of Nurb objects to trim with */
 	short type; /* NURBS_TRIM_OUTER, NURBS_TRIM_INNER */
+	short pad[3];
 } NurbTrim;
 
 /**
@@ -151,7 +152,7 @@ typedef struct Nurb {
 	short hide, flag;
 	
 	int pntsu, pntsv;		/* number of points in the U or V directions */
-	
+
 	short pad;
 	short resol_trim; /* tessellation res of trim curve (per pt) */
 	short resolu, resolv;	/* tessellation resolution in the U or V directions */
@@ -168,11 +169,10 @@ typedef struct Nurb {
 	
 	ListBase trims;
 	
-	unsigned UV_verts_count; /* UV mesh is cached  */
-	unsigned UV_tri_count;
+	int UV_verts_count; /* UV mesh is cached  */
+	int UV_tri_count;
 	float *UV_verts; /* 2*UV_verts_count floats */
 	int *UV_idxs; /* 3*UV_tri_count ints */
-	
 } Nurb;
 
 typedef struct CharInfo {

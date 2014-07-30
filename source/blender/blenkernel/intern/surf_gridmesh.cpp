@@ -121,7 +121,7 @@ void GridMesh::init_grid(int num_x_cells, int num_y_cells) {
 			GridMeshCoord& c = coords[gridpt_for_cell(i,j)];
 			c.x = llx + i*dx;
 			c.y = lly + j*dy;
-			c.z = 0;
+			//c.z = 0;
 		}
 	}
 	coords_len = (1+nx)*(1+ny)+1;
@@ -203,13 +203,13 @@ int GridMesh::vert_dup(int vert) {
 void GridMesh::vert_set_coord(int vert, double x, double y, double z) {
 	if (v[vert].owns_coords) {
 		GridMeshCoord& xyz = coords[v[vert].coord_idx];
-		xyz.x=x; xyz.y=y; xyz.z=z;
+		xyz.x=x; xyz.y=y; // xyz.z=z;
 		return;
 	}
 	int idx = coords_len;
 	coords_reserve(++coords_len);
 	GridMeshCoord *xyz = &coords[idx];
-	xyz->x=x; xyz->y=y; xyz->z=z;
+	xyz->x=x; xyz->y=y;// xyz->z=z;
 	v[vert].coord_idx = idx;
 	v[vert].owns_coords = 1;
 }
@@ -218,7 +218,7 @@ void GridMesh::vert_get_coord(int vert, double* xyz) {
 	GridMeshCoord *gmc = &coords[v[vert].coord_idx];
 	xyz[0] = gmc->x;
 	xyz[1] = gmc->y;
-	xyz[2] = gmc->z;
+	//xyz[2] = gmc->z;
 }
 
 
