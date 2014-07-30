@@ -8528,7 +8528,7 @@ static bool ui_pie_menu_supported_apply(uiBut *but) {
 }
 
 
-static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, const wmEvent *event, bool force_close, bool click_style)
+static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, bool force_close, bool click_style)
 {
 	int retval = WM_UI_HANDLER_BREAK;
 
@@ -8536,11 +8536,13 @@ static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, 
 		if (but->type == MENU) {
 			/* forcing the pie menu to close will not handle menus */
 			if (!force_close) {
-				wmEvent e = *event;
-				e.type = LEFTMOUSE;
-				e.val = KM_PRESS;
+				uiBut *active_but = ui_but_find_activated(menu->region);
 
-				retval = ui_handle_menu_button(C, &e, menu);
+				if (active_but)
+					button_activate_exit(C, active_but, active_but->active, false, false);
+
+				button_activate_init(C, menu->region, but, BUTTON_ACTIVATE_OPEN);
+				return retval;
 			}
 			else {
 				menu->menuretval = UI_RETURN_CANCEL;
@@ -8565,7 +8567,37 @@ static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, 
 	return retval;
 }
 
-/* two types of pie menus, one with operator + enum, other with regular callbacks */
+static uiBut *ui_pie_dir_activate(uiBlock *block, const wmEvent *event, RadialDirection dir)
+{
+	uiBut *but;
+
+	if ((block->flag & UI_BLOCK_NUMSELECT) && event->val == KM_PRESS) {
+		for (but = block->buttons.first; but; but = but->next) {
+			if (but->pie_dir == dir && !ELEM(but->type, SEPR, SEPRLINE)) {
+				return but;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+static int ui_pie_button_activate(bContext *C, uiBut *but, uiPopupBlockHandle *menu, bool is_click_style)
+{
+	uiBut *active_but;
+
+	if (but == NULL)
+		return WM_UI_HANDLER_BREAK;
+
+	active_but = ui_but_find_activated(menu->region);
+
+	if (active_but)
+		button_activate_exit(C, active_but, active_but->active, false, false);
+
+	button_activate_init(C, menu->region, but, BUTTON_ACTIVATE_OVER);
+	return ui_pie_menu_apply(C, menu, but, false, is_click_style);
+}
+
 static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu)
 {
 	ARegion *ar;
@@ -8673,7 +8705,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			else if (!is_click_style) {
 				uiBut *but = ui_but_find_activated(menu->region);
 
-				retval = ui_pie_menu_apply(C, menu, but, event, true, is_click_style);
+				retval = ui_pie_menu_apply(C, menu, but, true, is_click_style);
 			}
 		}
 	}
@@ -8688,7 +8720,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			case LEFTMOUSE:
 				if (event->val == KM_PRESS) {
 					uiBut *but = ui_but_find_activated(menu->region);
-					retval = ui_pie_menu_apply(C, menu, but, event, false, is_click_style);
+					retval = ui_pie_menu_apply(C, menu, but, false, is_click_style);
 				}
 				break;
 
@@ -8731,19 +8763,45 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				{
 					for (but = block->buttons.first; but; but = but->next) {
 						if (but->menu_key == event->type) {
-							uiBut *active_but = ui_but_find_activated(menu->region);
-
-							if (active_but)
-								button_activate_exit(C, active_but, active_but->active, false, false);
-
-							button_activate_init((bContext *)C, ar, but, BUTTON_ACTIVATE_OVER);
-							retval = ui_pie_menu_apply(C, menu, but, event, false, is_click_style);
-							break;
+							ui_pie_button_activate(C, but, menu, is_click_style);
 						}
 					}
 				}
 				break;
 			}
+
+			case ONEKEY:    case PAD1:
+				but = ui_pie_dir_activate(block, event, UI_RADIAL_N);
+				retval = ui_pie_button_activate(C, but, menu, is_click_style);
+				break;
+			case TWOKEY:    case PAD2:
+				but = ui_pie_dir_activate(block, event, UI_RADIAL_NE);
+				retval = ui_pie_button_activate(C, but, menu, is_click_style);
+				break;
+			case THREEKEY:  case PAD3:
+				but = ui_pie_dir_activate(block, event, UI_RADIAL_E);
+				retval = ui_pie_button_activate(C, but, menu, is_click_style);
+				break;
+			case FOURKEY:   case PAD4:
+				but = ui_pie_dir_activate(block, event, UI_RADIAL_SE);
+				retval = ui_pie_button_activate(C, but, menu, is_click_style);
+				break;
+			case FIVEKEY:   case PAD5:
+				but = ui_pie_dir_activate(block, event, UI_RADIAL_S);
+				retval = ui_pie_button_activate(C, but, menu, is_click_style);
+				break;
+			case SIXKEY:    case PAD6:
+				but = ui_pie_dir_activate(block, event, UI_RADIAL_SW);
+				retval = ui_pie_button_activate(C, but, menu, is_click_style);
+				break;
+			case SEVENKEY:  case PAD7:
+				but = ui_pie_dir_activate(block, event, UI_RADIAL_W);
+				retval = ui_pie_button_activate(C, but, menu, is_click_style);
+				break;
+			case EIGHTKEY:  case PAD8:
+				but = ui_pie_dir_activate(block, event, UI_RADIAL_NW);
+				retval = ui_pie_button_activate(C, but, menu, is_click_style);
+				break;
 
 			default:
 				retval = ui_handle_menu_button(C, event, menu);
