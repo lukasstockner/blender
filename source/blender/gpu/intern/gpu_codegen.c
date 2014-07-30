@@ -643,6 +643,7 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const ch
 
 static char *code_generate_geometry(ListBase *nodes, bool use_opensubdiv)
 {
+#ifdef WITH_OPENSUBDIV
 	if (use_opensubdiv) {
 		DynStr *ds = BLI_dynstr_new();
 		GPUNode *node;
@@ -657,6 +658,8 @@ static char *code_generate_geometry(ListBase *nodes, bool use_opensubdiv)
 						BLI_dynstr_appendf(ds, "varying %s var%d;\n",
 						                   GPU_DATATYPE_STR[input->type],
 						                   input->attribid);
+						BLI_dynstr_appendf(ds, "uniform int fvar%d_offset;\n",
+						                   input->attribid);
 					}
 				}
 			}
@@ -669,7 +672,10 @@ static char *code_generate_geometry(ListBase *nodes, bool use_opensubdiv)
 			for (input = node->inputs.first; input; input = input->next) {
 				if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
 					if (input->attribtype == CD_MTFACE) {
-						BLI_dynstr_appendf(ds, "\tvar%d  = outpt.v.uv;\n",
+						BLI_dynstr_appendf(ds,
+						                   "\tINTERP_FACE_VARYING_2(var%d, "
+						                       "fvar%d_offset, st);\n",
+						                   input->attribid,
 						                   input->attribid);
 					}
 				}
@@ -684,6 +690,10 @@ static char *code_generate_geometry(ListBase *nodes, bool use_opensubdiv)
 
 		return code;
 	}
+#else
+	(void) nodes;
+	(void) use_opensubdiv;
+#endif
 	return NULL;
 }
 
@@ -697,17 +707,21 @@ static char *code_generate_vertex(ListBase *nodes)
 	for (node=nodes->first; node; node=node->next) {
 		for (input=node->inputs.first; input; input=input->next) {
 			if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
+#ifdef WITH_OPENSUBDIV
 				bool is_mtface = input->attribtype == CD_MTFACE;
 				if (is_mtface) {
 					BLI_dynstr_appendf(ds, "#ifndef USE_OPENSUBDIV\n");
 				}
+#endif
 				BLI_dynstr_appendf(ds, "attribute %s att%d;\n",
 					GPU_DATATYPE_STR[input->type], input->attribid);
 				BLI_dynstr_appendf(ds, "varying %s var%d;\n",
 					GPU_DATATYPE_STR[input->type], input->attribid);
+#ifdef WITH_OPENSUBDIV
 				if (is_mtface) {
 					BLI_dynstr_appendf(ds, "#endif\n");
 				}
+#endif
 			}
 		}
 	}
@@ -723,14 +737,18 @@ static char *code_generate_vertex(ListBase *nodes)
 					BLI_dynstr_appendf(ds, "\tvar%d.w = att%d.w;\n", input->attribid, input->attribid);
 				}
 				else {
+#ifdef WITH_OPENSUBDIV
 					bool is_mtface = input->attribtype == CD_MTFACE;
 					if (is_mtface) {
 						BLI_dynstr_appendf(ds, "#ifndef USE_OPENSUBDIV\n");
 					}
+#endif
 					BLI_dynstr_appendf(ds, "\tvar%d = att%d;\n", input->attribid, input->attribid);
+#ifdef WITH_OPENSUBDIV
 					if (is_mtface) {
 						BLI_dynstr_appendf(ds, "#endif\n");
 					}
+#endif
 				}
 			}
 			/* unfortunately special handling is needed here because we abuse gl_Color/gl_SecondaryColor flat shading */
@@ -810,8 +828,28 @@ static void GPU_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 
 			/* attributes don't need to be bound, they already have
 			 * an id that the drawing functions will use */
-			if (input->source == GPU_SOURCE_ATTRIB ||
-			    input->source == GPU_SOURCE_BUILTIN ||
+			if (input->source == GPU_SOURCE_ATTRIB) {
+#ifdef WITH_OPENSUBDIV
+				/* We do need mtface attributes for later, so we can
+				 * update face-varuing variables offset in the texture
+				 * buffer for proper sampling from the shader.
+				 *
+				 * We don't do anything about attribute itself, we
+				 * only use it to learn which uniform name is to be
+				 * updated.
+				 *
+				 * TODO(sergey): We can add ad extra uniform input
+				 * for the offset, which will be purely internal and
+				 * which would avoid having such an exceptions.
+				 */
+				if (input->attribtype != CD_MTFACE) {
+					continue;
+				}
+#else
+				continue;
+#endif
+			}
+			if (input->source == GPU_SOURCE_BUILTIN ||
 			    input->source == GPU_SOURCE_OPENGL_BUILTIN)
 			{
 				continue;
@@ -834,6 +872,14 @@ static void GPU_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 
 			if (extract)
 				input->shaderloc = GPU_shader_get_uniform(shader, input->shadername);
+
+#ifdef WITH_OPENSUBDIV
+			if (input->source == GPU_SOURCE_ATTRIB &&
+			    input->attribtype == CD_MTFACE)
+			{
+				extract = 1;
+			}
+#endif
 
 			/* extract nodes */
 			if (extract) {
@@ -1509,4 +1555,3 @@ void GPU_pass_free(GPUPass *pass)
 		MEM_freeN(pass->vertexcode);
 	MEM_freeN(pass);
 }
-

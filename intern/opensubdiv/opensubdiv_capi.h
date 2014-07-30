@@ -93,7 +93,8 @@ void openSubdiv_osdGLDisplayDeinit(void);
  *
  * TODO(sergey): Some of the stuff could be initialized once for all meshes.
  */
-void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl);
+void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl,
+                                        int active_uv_index);
 
 /* Draw patches which corresponds to a given partition. */
 void openSubdiv_osdGLMeshDisplay(OpenSubdiv_GLMesh *gl_mesh,

@@ -81,6 +81,10 @@
 
 #include "smoke_API.h"
 
+#ifdef WITH_OPENSUBDIV
+#  include "gpu_codegen.h"
+#endif
+
 extern Material defmaterial; /* from material.c */
 
 /* Text Rendering */
@@ -1966,6 +1970,35 @@ void GPU_state_init(void)
 	 * on Linux/NVIDIA. */
 	// glDisable(GL_MULTISAMPLE);
 }
+
+#ifdef WITH_OPENSUBDIV
+/* Update face-varying variables offset which might be
+ * different from mesh to mesh sharing the same material.
+ */
+void GPU_draw_update_fvar_offset(DerivedMesh *dm)
+{
+	int i;
+
+	/* Sanity check to be sure we only do this for OpenSubdiv draw. */
+	BLI_assert(dm->type == DM_TYPE_CCGDM);
+	BLI_assert(GMS.is_opensubdiv);
+
+	for (i = 0; i < GMS.totmat; ++i) {
+		Material *material = GMS.gmatbuf[i];
+		GPUMaterial *gpu_material;
+
+		if (material == NULL) {
+			continue;
+		}
+
+		gpu_material = GPU_material_from_blender(GMS.gscene,
+		                                         material,
+		                                         GMS.is_opensubdiv);
+
+		GPU_material_update_fvar_offset(gpu_material, dm);
+	}
+}
+#endif
 
 #ifdef DEBUG
 /* debugging aid */

@@ -71,6 +71,8 @@ layout(line_strip, max_vertices = 8) out;
 uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
 uniform int PrimitiveIdBase;
+uniform int osd_fvar_count;
+uniform int osd_active_uv_offset;
 
 in block {
 	VertexData v;
@@ -81,7 +83,7 @@ in block {
 		vec2 v[4]; \
 		int primOffset = (gl_PrimitiveID + PrimitiveIdBase) * 4; \
 		for (int i = 0; i < 4; ++i) { \
-			int index = (primOffset + i) * 2 + fvarOffset; \
+			int index = (primOffset + i) * osd_fvar_count + fvarOffset; \
 			v[i] = vec2(texelFetch(FVarDataBuffer, index).s, \
 			            texelFetch(FVarDataBuffer, index + 1).s); \
 		} \
@@ -106,7 +108,7 @@ void emit(int index, vec3 normal)
 	vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
 	vec2 st = quadst[index];
 
-	INTERP_FACE_VARYING_2(outpt.v.uv, 0, st);
+	INTERP_FACE_VARYING_2(outpt.v.uv, osd_active_uv_offset, st);
 
 	gl_Position = projectionMatrix * inpt[index].v.position;
 	EmitVertex();
@@ -130,7 +132,7 @@ void emit(int index)
 	vec2 quadst[4] = vec2[](vec2(0,0), vec2(1,0), vec2(1,1), vec2(0,1));
 	vec2 st = quadst[index];
 
-	INTERP_FACE_VARYING_2(outpt.v.uv, 0, st);
+	INTERP_FACE_VARYING_2(outpt.v.uv, osd_active_uv_offset, st);
 
 	gl_Position = projectionMatrix * inpt[index].v.position;
 	EmitVertex();

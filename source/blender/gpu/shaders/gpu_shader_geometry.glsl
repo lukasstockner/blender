@@ -8,13 +8,14 @@ in block {
 } inpt[4];
 
 uniform bool osd_flat_shading;
+uniform int osd_fvar_count;
 
 #define INTERP_FACE_VARYING_2(result, fvarOffset, tessCoord)  \
 	{ \
 		vec2 v[4]; \
 		int primOffset = (gl_PrimitiveID + PrimitiveIdBase) * 4; \
 		for (int i = 0; i < 4; ++i) { \
-			int index = (primOffset + i) * 2 + fvarOffset; \
+			int index = (primOffset + i) * osd_fvar_count + fvarOffset; \
 			v[i] = vec2(texelFetch(FVarDataBuffer, index).s, \
 			            texelFetch(FVarDataBuffer, index + 1).s); \
 		} \
@@ -29,7 +30,7 @@ out block {
 	VertexData v;
 } outpt;
 
-void set_mtface_vertex_attrs();
+void set_mtface_vertex_attrs(vec2 st);
 
 void emit_flat(int index, vec3 normal)
 {
@@ -46,7 +47,7 @@ void emit_flat(int index, vec3 normal)
 
 	INTERP_FACE_VARYING_2(outpt.v.uv, 0, st);
 
-	set_mtface_vertex_attrs();
+	set_mtface_vertex_attrs(st);
 
 	gl_Position = gl_ProjectionMatrix * inpt[index].v.position;
 	EmitVertex();
@@ -67,7 +68,7 @@ void emit_smooth(int index)
 
 	INTERP_FACE_VARYING_2(outpt.v.uv, 0, st);
 
-	set_mtface_vertex_attrs();
+	set_mtface_vertex_attrs(st);
 
 	gl_Position = gl_ProjectionMatrix * inpt[index].v.position;
 	EmitVertex();
@@ -95,4 +96,4 @@ void main()
 	EndPrimitive();
 }
 
-void set_mtface_vertex_attrs() {
+void set_mtface_vertex_attrs(vec2 st) {

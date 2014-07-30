@@ -472,8 +472,8 @@ struct CCGSubSurf {
 	short osd_compute;
 
 	bool osd_uvs_invalid;
-	int osd_uv_index;
 	bool osd_subsurf_uv;
+	int osd_uv_index;
 #endif
 };
 
@@ -938,9 +938,9 @@ CCGSubSurf *ccgSubSurf_new(CCGMeshIFC *ifc, int subdivLevels, CCGAllocatorIFC *a
 		ss->osd_vao = 0;
 		ss->skip_grids = false;
 		ss->osd_compute = 0;
-		ss->osd_uvs_invalid = false;
-		ss->osd_uv_index = -1;
+		ss->osd_uvs_invalid = true;
 		ss->osd_subsurf_uv = 0;
+		ss->osd_uv_index = -1;
 #endif
 
 		return ss;
@@ -2402,7 +2402,7 @@ bool ccgSubSurf_prepareGLMesh(CCGSubSurf *ss, bool use_osd_glsl)
 		ss->osd_coords_invalid = false;
 	}
 
-	openSubdiv_osdGLMeshDisplayPrepare(use_osd_glsl);
+	openSubdiv_osdGLMeshDisplayPrepare(use_osd_glsl, ss->osd_uv_index);
 
 	return true;
 }
@@ -2550,55 +2550,61 @@ void ccgSubSurf_setUVCoordsFromDM(CCGSubSurf *ss,
                                   DerivedMesh *dm,
                                   bool subdivide_uvs)
 {
-	/* TODO(sergey): Do we have shorter way to do this? */
-	int active = CustomData_get_active_layer(&dm->loopData,
-	                                         CD_MLOOPUV);
-	MLoopUV *mloopuv = CustomData_get_layer_n(&dm->loopData,
-	                                          CD_MLOOPUV,
-	                                          active);
+	CustomData *loop_data = &dm->loopData;
+	int layer, num_layer = CustomData_number_of_layers(loop_data, CD_MLOOPUV);
 	bool mpoly_allocated;
-	MPoly *mpoly = DM_get_poly_array(dm, &mpoly_allocated);
-	int i;
+	MPoly *mpoly;
 
-	if (active != ss->osd_uv_index) {
-		ss->osd_uvs_invalid = true;
-	}
+	ss->osd_uv_index = CustomData_get_active_layer(&dm->loopData,
+	                                               CD_MLOOPUV);
 
 	if (subdivide_uvs != ss->osd_subsurf_uv) {
 		ss->osd_uvs_invalid = true;
 	}
 
-	if (mloopuv == NULL || !ss->osd_uvs_invalid) {
+	if (num_layer == 0 || !ss->osd_uvs_invalid) {
 		return;
 	}
 
 	ss->osd_uvs_invalid = false;
-	ss->osd_uv_index = active;
 	ss->osd_subsurf_uv = subdivide_uvs;
 	if (ss->osd_mesh) {
 		ss->osd_mesh_invalid = true;
 	}
 
+	mpoly = DM_get_poly_array(dm, &mpoly_allocated);
+
 	openSubdiv_evaluatorFVDataClear(ss->osd_evaluator);
-	for (i = 0; i < ss->fMap->curSize; i++) {
-		CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
-		for (; face; face = face->next) {
-			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(face));
-			MPoly *mp = &mpoly[index];
-			int S;
-			BLI_assert(face->numVerts == mp->totloop);
-			for (S = 0; S < face->numVerts; ++S) {
-				MLoopUV *loopuv = &mloopuv[mp->loopstart + S];
-				openSubdiv_evaluatorFVDataPush(ss->osd_evaluator,
-				                               loopuv->uv[0]);
-				openSubdiv_evaluatorFVDataPush(ss->osd_evaluator,
-				                               loopuv->uv[1]);
+
+	for (layer = 0; layer < num_layer; ++layer) {
+		openSubdiv_evaluatorFVNamePush(ss->osd_evaluator, "u");
+		openSubdiv_evaluatorFVNamePush(ss->osd_evaluator, "v");
+	}
+
+	{
+		int i;
+		for (i = 0; i < ss->fMap->curSize; ++i) {
+			CCGFace *face = (CCGFace *) ss->fMap->buckets[i];
+			for (; face; face = face->next) {
+				int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(face));
+				MPoly *mp = &mpoly[index];
+				int S;
+				for (S = 0; S < face->numVerts; ++S) {
+					for (layer = 0; layer < num_layer; ++layer) {
+						MLoopUV *mloopuv = CustomData_get_layer_n(loop_data,
+						                                          CD_MLOOPUV,
+						                                          layer);
+
+						MLoopUV *loopuv = &mloopuv[mp->loopstart + S];
+						openSubdiv_evaluatorFVDataPush(ss->osd_evaluator,
+						                               loopuv->uv[0]);
+						openSubdiv_evaluatorFVDataPush(ss->osd_evaluator,
+						                               loopuv->uv[1]);
+					}
+				}
 			}
 		}
 	}
-
-	openSubdiv_evaluatorFVNamePush(ss->osd_evaluator, "u");
-	openSubdiv_evaluatorFVNamePush(ss->osd_evaluator, "v");
 
 	if (mpoly_allocated) {
 		MEM_freeN(mpoly);

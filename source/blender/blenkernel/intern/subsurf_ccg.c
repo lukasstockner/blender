@@ -2048,6 +2048,9 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator *fi;
 		int start_partition = 0, num_partitions = 0;
+
+		GPU_draw_update_fvar_offset(dm);
+
 		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, false) == false)) {
 			return;
 		}

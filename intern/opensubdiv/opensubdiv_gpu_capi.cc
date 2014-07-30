@@ -84,6 +84,7 @@ typedef struct Transform {
 } Transform;
 
 static bool g_use_osd_glsl = false;
+static bool g_active_uv_index = -1;
 
 static GLuint g_flat_fill_program = 0;
 static GLuint g_smooth_fill_program = 0;
@@ -357,6 +358,12 @@ void bindProgram(PartitionedGLMeshInterface *mesh,
 		              mesh->GetDrawContext()->GetFvarDataTextureBuffer());
 		glActiveTexture(GL_TEXTURE0);
 	}
+
+	glUniform1i(glGetUniformLocation(program, "osd_fvar_count"),
+	            mesh->GetFVarCount());
+
+	glUniform1i(glGetUniformLocation(program, "osd_active_uv_offset"),
+	            g_active_uv_index * 2);
 }
 
 }  /* namespace */
@@ -397,9 +404,11 @@ void openSubdiv_osdGLDisplayDeinit(void)
 	}
 }
 
-void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl)
+void openSubdiv_osdGLMeshDisplayPrepare(int use_osd_glsl,
+                                        int active_uv_index)
 {
 	g_use_osd_glsl = use_osd_glsl != 0;
+	g_active_uv_index = active_uv_index;
 
 	/* Update transformation matricies. */
 	glGetFloatv(GL_PROJECTION_MATRIX, g_transform.projection_matrix);
@@ -475,6 +484,11 @@ static GLuint preapre_patchDraw(PartitionedGLMeshInterface *mesh,
 				glBindTexture(GL_TEXTURE_BUFFER,
 				              mesh->GetDrawContext()->GetFvarDataTextureBuffer());
 				glActiveTexture(GL_TEXTURE0);
+
+				GLint location = glGetUniformLocation(program, "osd_fvar_count");
+				if (location != -1) {
+					glUniform1i(location, mesh->GetFVarCount());
+				}
 			}
 
 		}

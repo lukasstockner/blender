@@ -40,6 +40,7 @@ class PartitionedMeshInterface : public OsdMeshInterface<DRAW_CONTEXT> {
 	typedef typename DrawContext::PatchArrayVector PatchArrayVector;
 
 public:
+	virtual int GetFVarCount() const = 0;
 	virtual int GetNumPartitions() const = 0;
 	virtual PatchArrayVector const &GetPatchArrays(int partition) const = 0;
 };
@@ -57,7 +58,7 @@ public:
 	typedef typename Inherited::ComputeController ComputeController;
 	typedef typename Inherited::ComputeContext ComputeContext;
 	typedef typename Inherited::DrawContext DrawContext;
-    typedef typename Inherited::VertexBufferBinding VertexBufferBinding;
+	typedef typename Inherited::VertexBufferBinding VertexBufferBinding;
 	typedef typename DrawContext::PatchArrayVector PatchArrayVector;
 
 	PartitionedMesh(ComputeController *computeController,
@@ -148,6 +149,16 @@ public:
 		return _partitionedOsdPatchArrays[partition];
 	}
 
+	virtual int GetFVarCount() const {
+		const FarMesh<OsdVertex> *farMesh = this->GetFarMesh();
+		/* TODO(sergey): We assume all the patches have the same
+		 * number of face-varying variables.
+		 *
+		 * TODO(sergey): Check for empty patch tables here.
+		 */
+		return farMesh->GetPatchTables()[0].GetFVarData().GetFVarWidth();
+	}
+
 private:
 	Inherited inherited_impl_;
 	std::vector<PatchArrayVector> _partitionedOsdPatchArrays;
@@ -169,7 +180,7 @@ public:
 	typedef typename Inherited::ComputeController ComputeController;
 	typedef typename Inherited::ComputeContext ComputeContext;
 	typedef typename Inherited::DrawContext DrawContext;
-    typedef typename Inherited::VertexBufferBinding VertexBufferBinding;
+	typedef typename Inherited::VertexBufferBinding VertexBufferBinding;
 	typedef typename DrawContext::PatchArrayVector PatchArrayVector;
 
 	PartitionedMesh(OsdCLComputeController *computeController,
@@ -262,6 +273,16 @@ public:
 
 	virtual PatchArrayVector const &GetPatchArrays(int partition) const {
 		return _partitionedOsdPatchArrays[partition];
+	}
+
+	virtual int GetFVarCount() const {
+		const FarMesh<OsdVertex> *farMesh = this->GetFarMesh();
+		/* TODO(sergey): We assume all the patches have the same
+		 * number of face-varying variables.
+		 *
+		 * TODO(sergey): Check for empty patch tables here.
+		 */
+		return farMesh->GetPatchTables()[0].GetFVarData().GetFVarWidth();
 	}
 
 private:

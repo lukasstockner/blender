@@ -2246,3 +2246,46 @@ void GPU_free_shader_export(GPUShaderExport *shader)
 	MEM_freeN(shader);
 }
 
+#ifdef WITH_OPENSUBDIV
+void GPU_material_update_fvar_offset(GPUMaterial *gpu_material,
+                                     DerivedMesh *dm)
+{
+	GPUPass *pass = gpu_material->pass;
+	GPUShader *shader = pass->shader;
+	ListBase *inputs = &pass->inputs;
+	GPUInput *input;
+
+	if (shader == NULL) {
+		return;
+	}
+
+	GPU_shader_bind(shader);
+
+	for (input = inputs->first;
+	     input != NULL;
+	     input = input->next)
+	{
+		if (input->source == GPU_SOURCE_ATTRIB &&
+		    input->attribtype == CD_MTFACE)
+		{
+			char name[64];
+			/* TODO(sergey): This will work for until names are
+			 * consistent, we'll need to solve this somehow in the future.
+			 */
+			int layer_index = CustomData_get_named_layer(&dm->loopData,
+			                                             CD_MLOOPUV,
+			                                             input->attribname);
+			int location;
+
+			BLI_snprintf(name, sizeof(name),
+			             "fvar%d_offset",
+			             input->attribid);
+			location = GPU_shader_get_uniform(shader, name);
+			/* Multiply by 2 because we're offseting U and V variables. */
+			GPU_shader_uniform_int(shader, location, layer_index * 2);
+		}
+	}
+
+	GPU_shader_unbind();
+}
+#endif
