@@ -1076,6 +1076,36 @@ static bool ui_but_event_property_operator_string(const bContext *C, uiBut *but,
 	return found;
 }
 
+static void ui_pie_direction_string(uiBut *but, char *buf, int size)
+{
+	switch(but->pie_dir) {
+		case UI_RADIAL_N:
+			BLI_strncpy(buf, "1", size);
+			break;
+		case UI_RADIAL_NE:
+			BLI_strncpy(buf, "2", size);
+			break;
+		case UI_RADIAL_E:
+			BLI_strncpy(buf, "3", size);
+			break;
+		case UI_RADIAL_SE:
+			BLI_strncpy(buf, "4", size);
+			break;
+		case UI_RADIAL_S:
+			BLI_strncpy(buf, "5", size);
+			break;
+		case UI_RADIAL_SW:
+			BLI_strncpy(buf, "6", size);
+			break;
+		case UI_RADIAL_W:
+			BLI_strncpy(buf, "7", size);
+			break;
+		case UI_RADIAL_NW:
+			BLI_strncpy(buf, "8", size);
+			break;
+	}
+}
+
 static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 {
 	uiBut *but;
@@ -1085,13 +1115,23 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 	if (block->rect.xmin != block->rect.xmax)
 		return;
 
-	for (but = block->buttons.first; but; but = but->next) {
-
-		if (ui_but_event_operator_string(C, but, buf, sizeof(buf))) {
-			ui_but_add_shortcut(but, buf, false);
+	if (block->flag & UI_BLOCK_RADIAL) {
+		for (but = block->buttons.first; but; but = but->next) {
+			if (but->pie_dir != UI_RADIAL_NONE) {
+				ui_pie_direction_string(but, buf, sizeof(buf));
+				ui_but_add_shortcut(but, buf, false);
+			}
 		}
-		else if (ui_but_event_property_operator_string(C, but, buf, sizeof(buf))) {
-			ui_but_add_shortcut(but, buf, false);
+	}
+	else {
+		for (but = block->buttons.first; but; but = but->next) {
+
+			if (ui_but_event_operator_string(C, but, buf, sizeof(buf))) {
+				ui_but_add_shortcut(but, buf, false);
+			}
+			else if (ui_but_event_property_operator_string(C, but, buf, sizeof(buf))) {
+				ui_but_add_shortcut(but, buf, false);
+			}
 		}
 	}
 }
@@ -1172,7 +1212,7 @@ void uiEndBlock_ex(const bContext *C, uiBlock *block, const int xy[2])
 		ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
 	}
 
-	if ((block->flag & UI_BLOCK_LOOP) && !(block->flag & UI_BLOCK_RADIAL)) {
+	if (block->flag & UI_BLOCK_LOOP) {
 		ui_menu_block_set_keymaps(C, block);
 	}
 	
@@ -3054,7 +3094,7 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	}
 
 	if (block->flag & UI_BLOCK_RADIAL) {
-		but->drawflag |= UI_BUT_ICON_LEFT;
+		but->drawflag |= (UI_BUT_TEXT_LEFT | UI_BUT_ICON_LEFT);
 	}
 	else if ((block->flag & UI_BLOCK_LOOP) ||
 	         ELEM(but->type, MENU, TEX, LABEL, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR, SEARCH_MENU_UNLINK))

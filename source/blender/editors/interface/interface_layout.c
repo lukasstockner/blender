@@ -2303,8 +2303,8 @@ static void ui_litem_layout_radial(uiLayout *litem)
 				bitem->but->pie_dir = dir;
 				/* scale the buttons */
 				bitem->but->rect.ymax *= 1.5;
-				/* add a little bit more here */
-				bitem->but->rect.xmax += UI_UNIT_X;
+				/* add a little bit more here to include number */
+				bitem->but->rect.xmax += 1.5 * UI_UNIT_X;
 				/* enable drawing as pie item if supported by widget */
 				if (ui_item_is_radial_drawable(bitem))
 					bitem->but->dt = UI_EMBOSSR;
