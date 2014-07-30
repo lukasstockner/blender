@@ -2120,7 +2120,7 @@ static int wm_sticky_pie_menu_modal(bContext *C, wmOperator *op, const wmEvent *
 
 	if (event->type == TIMER) {
 		if (data->timer->duration > U.pie_operator_timeout / 100.0f) {
-			int mode = RNA_enum_get(op->ptr, "mode");
+			StickyOperatorMode mode = RNA_enum_get(op->ptr, "mode");
 
 			switch (mode) {
 				case STICKY_PIE_PROPERTY:
@@ -2128,8 +2128,8 @@ static int wm_sticky_pie_menu_modal(bContext *C, wmOperator *op, const wmEvent *
 					char op_name[BKE_ST_MAXNAME];
 					char prop_name[BKE_ST_MAXNAME];
 					char pie_name[BKE_ST_MAXNAME];
-					RNA_string_get(op->ptr, "op_name", op_name);
-					RNA_string_get(op->ptr, "prop_name", prop_name);
+					RNA_string_get(op->ptr, "operator_name", op_name);
+					RNA_string_get(op->ptr, "property_name", prop_name);
 					RNA_string_get(op->ptr, "name", pie_name);
 
 					uiPieOperatorEnumInvoke(C, pie_name, op_name, prop_name, &data->event, false);
@@ -2201,9 +2201,9 @@ static void WM_OT_sticky_pie_menu(wmOperatorType *ot)
 
 	prop = RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
-	prop = RNA_def_string(ot->srna, "op_name", NULL, BKE_ST_MAXNAME, "Operator Name", "Name of the operator for  the pie menu");
+	prop = RNA_def_string(ot->srna, "operator_name", NULL, BKE_ST_MAXNAME, "Operator Name", "Name of the operator for  the pie menu");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
-	prop = RNA_def_string(ot->srna, "prop_name", NULL, BKE_ST_MAXNAME, "Property Name", "Name of the operator property for  the pie menu");
+	prop = RNA_def_string(ot->srna, "property_name", NULL, BKE_ST_MAXNAME, "Property Name", "Name of the operator property for  the pie menu");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
 	prop = RNA_def_string(ot->srna, "data_path", NULL, 0, "Data Path", "Primary path of property that will be spawned as pie menu");
 	RNA_def_property_flag(prop, PROP_HIDDEN);

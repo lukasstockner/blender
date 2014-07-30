@@ -132,7 +132,7 @@ static void VIEW3D_OT_pastebuffer(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-void ED_operatormacros_screen(void)
+void ED_operatormacros_view3d(void)
 {
 	PointerRNA *ptr;
 

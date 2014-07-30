@@ -7,6 +7,7 @@ from bpy.types import Menu
 
 myitems = (('0','Hey Lady!', ''),('1','Spaaaaaaaceeeee!',''),('2','Wanna be awesome in space?',''), ('3','The fact sphere is always useful',''))
 
+
 class TestPieOperator(bpy.types.Operator):
     """Tooltip"""
     bl_idname = "wm.test_pie_operator"
@@ -21,6 +22,7 @@ class TestPieOperator(bpy.types.Operator):
     def execute(self, context):
         print("The sphere core says: " + myitems[int(self.test_type)][1])
         return {'FINISHED'}
+
 
 class VIEW3D_PIE_template(Menu):
     bl_label = "Test Pie"
@@ -40,6 +42,7 @@ def register():
 def unregister():
     bpy.utils.unregister_class(TestPieOperator)
     bpy.utils.unregister_class(VIEW3D_PIE_template)
+
 
 if __name__ == "__main__":
     register()

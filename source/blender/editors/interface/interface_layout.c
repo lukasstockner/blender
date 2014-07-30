@@ -2141,95 +2141,43 @@ static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum)
 	 */
 
 	/* if (itemnum < 5) { */
-		switch (itemnum) {
-			case 1:
-				dir = UI_RADIAL_W;
-				angle = 180.0f;
-				break;
-			case 2:
-				dir = UI_RADIAL_E;
-				angle = 0.0f;
-				break;
-			case 3:
-				dir = UI_RADIAL_S;
-				angle = 270.0f;
-				break;
-			case 4:
-				dir = UI_RADIAL_N;
-				angle = 90.0f;
-				break;
-/*		}
+	switch (itemnum) {
+		case 1:
+			dir = UI_RADIAL_W;
+			angle = 180.0f;
+			break;
+		case 2:
+			dir = UI_RADIAL_E;
+			angle = 0.0f;
+			break;
+		case 3:
+			dir = UI_RADIAL_S;
+			angle = 270.0f;
+			break;
+		case 4:
+			dir = UI_RADIAL_N;
+			angle = 90.0f;
+			break;
+		case 5:
+			dir = UI_RADIAL_NW;
+			angle = 140;
+			break;
+		case 6:
+			dir = UI_RADIAL_NE;
+			angle = 40;
+			break;
+		case 7:
+			dir = UI_RADIAL_SW;
+			angle = 220;
+			break;
+		case 8:
+			dir = UI_RADIAL_SE;
+			angle = 320;
+			break;
+
+		default:
+			break;
 	}
-	else if (totitems < 9) {
-		switch (itemnum) {
-			*/
-			case 5:
-				dir = UI_RADIAL_NW;
-				angle = 140;
-				break;
-			case 6:
-				dir = UI_RADIAL_NE;
-				angle = 40;
-				break;
-			case 7:
-				dir = UI_RADIAL_SW;
-				angle = 220;
-				break;
-			case 8:
-				dir = UI_RADIAL_SE;
-				angle = 320;
-				break;
-
-			default:
-				break;
-		}
-#if 0
-	}
-	else {
-		/* subdivide quadrants progressively, depending on number of items */
-		int anglepad, curquad, numinquad, aligncorrect=0;
-		int quaditems, overflow;
-
-		overflow = totitems % 4;		/* how many items are in the last incomplete loop */
-		curquad = itemnum % 4;	/* the quadrant that the current button is in */
-
-		quaditems = (int)((totitems-4) / 4);	/* how many items in this quadrant between compass points */
-		if ((overflow) && (curquad <= overflow)) quaditems++;
-		numinquad = (int)((itemnum - 1) / 4);	/* the ordered position of the current button in its quadrant */
-
-
-		/* divide up the required angle for this quadrant, and find the angle to offset this item */
-		anglepad = 90 / (quaditems+1);
-		switch(curquad) {
-			case 1:
-				angle = 0;
-				break;
-			case 2:
-				angle = 90;
-				break;
-			case 3:
-				angle = 180;
-				break;
-			case 0:
-				angle = 270;
-				break;
-		}
-		angle += anglepad * numinquad;
-
-
-		/* if the angle is near the horizontal, squish it a bit closer.
-		 * This visually spaces the horizontal menu items better, since even though the
-		 * item centers may be evenly distributed, it doesn't look that way. */
-		if (angle < 90)
-			aligncorrect = angle;
-		else if (angle < 270)
-			aligncorrect = angle - 180;
-		else if (angle <= 360)
-			aligncorrect = angle - 360;
-
-		angle += aligncorrect/17;	/* 17 == magic number, works nicely */
-	}
-#endif
 
 	angle = DEG2RADF(angle);
 

@@ -1439,6 +1439,7 @@ class VIEW3D_PIE_shade(Menu):
                 pie.operator("OBJECT_OT_shade_smooth")
                 pie.operator("OBJECT_OT_shade_flat")
 
+
 class VIEW3D_PIE_manipulator(Menu):
     bl_label = "Manipulator"
 
@@ -1450,7 +1451,6 @@ class VIEW3D_PIE_manipulator(Menu):
         pie.prop(context.space_data, "show_manipulator")
 
         
-
 class VIEW3D_PIE_pivot(Menu):
     bl_label = "Pivot"
 
@@ -1460,6 +1460,7 @@ class VIEW3D_PIE_pivot(Menu):
         pie = layout.menu_pie()
         pie.prop(context.space_data, "pivot_point", expand=True)
         pie.prop(context.space_data, "use_pivot_point_align", text="Center Points")
+
 
 class VIEW3D_PIE_snap(Menu):
     bl_label = "Snapping"

@@ -8527,7 +8527,6 @@ static bool ui_pie_menu_supported_apply(uiBut *but) {
 	return true;
 }
 
-
 static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, bool force_close, bool click_style)
 {
 	int retval = WM_UI_HANDLER_BREAK;
@@ -8799,8 +8798,6 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 	return retval;
 }
-
-
 
 static int ui_handle_menus_recursive(
         bContext *C, const wmEvent *event, uiPopupBlockHandle *menu,
@@ -9091,7 +9088,7 @@ void UI_add_region_handlers(ListBase *handlers)
 	WM_event_add_ui_handler(NULL, handlers, ui_handler_region, ui_handler_remove_region, NULL, false);
 }
 
-void UI_add_popup_handlers(bContext *C, ListBase *handlers, uiPopupBlockHandle *popup, bool accept_dbl_click)
+void UI_add_popup_handlers(bContext *C, ListBase *handlers, uiPopupBlockHandle *popup, const bool accept_dbl_click)
 {
 	WM_event_add_ui_handler(C, handlers, ui_handler_popup, ui_handler_remove_popup, popup, accept_dbl_click);
 }

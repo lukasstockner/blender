@@ -3753,7 +3753,7 @@ static void draw_disk_shaded(float start, float angle, float radius_int, float r
 	glVertex2f(c * radius_int, s * radius_int);
 
 	if (shaded) {
-		fac = (y2 + radius_ext) / (float) (2.0f * radius_ext);
+		fac = (y2 + radius_ext) / (2.0f * radius_ext);
 		round_box_shade_col4_r(r_col, col1, col2, fac);
 
 		glColor4ubv(r_col);
@@ -3768,7 +3768,7 @@ static void draw_disk_shaded(float start, float angle, float radius_int, float r
 		y2 = s * radius_ext;
 
 		if (shaded) {
-			fac = (y1 + radius_ext) / (float) (2.0f * radius_ext);
+			fac = (y1 + radius_ext) / (2.0f * radius_ext);
 			round_box_shade_col4_r(r_col, col1, col2, fac);
 
 			glColor4ubv(r_col);
@@ -3776,7 +3776,7 @@ static void draw_disk_shaded(float start, float angle, float radius_int, float r
 		glVertex2f(c * radius_int, s * radius_int);
 
 		if (shaded) {
-			fac = (y2 + radius_ext) / (float) (2.0f * radius_ext);
+			fac = (y2 + radius_ext) / (2.0f * radius_ext);
 			round_box_shade_col4_r(r_col, col1, col2, fac);
 
 			glColor4ubv(r_col);
@@ -3796,7 +3796,7 @@ void ui_draw_pie_center(uiBlock *block)
 	float *pie_dir = block->pie_data.pie_dir;
 
 	float pie_radius_internal = U.pie_menu_threshold;
-	float pie_radius_external = U.pie_menu_threshold + 7.0;
+	float pie_radius_external = U.pie_menu_threshold + 7.0f;
 
 	int subd = 40;
 

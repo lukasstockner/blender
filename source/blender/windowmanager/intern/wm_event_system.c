@@ -2559,10 +2559,9 @@ void WM_event_remove_keymap_handler(ListBase *handlers, wmKeyMap *keymap)
 	}
 }
 
-wmEventHandler *WM_event_add_ui_handler(
-        const bContext *C, ListBase *handlers,
+wmEventHandler *WM_event_add_ui_handler(const bContext *C, ListBase *handlers,
         wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
-        void *userdata, bool accept_dbl_click)
+        void *userdata, const bool accept_dbl_click)
 {
 	wmEventHandler *handler = MEM_callocN(sizeof(wmEventHandler), "event ui handler");
 	handler->ui_handle = ui_handle;
@@ -3410,8 +3409,6 @@ void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
 	axis_angle_to_quat(q, axis, angle);
 }
 
-/** \} */
-
 /* if this is a tablet event, return tablet pressure and set *pen_flip
  * to 1 if the eraser tool is being used, 0 otherwise */
 float WM_event_tablet_data(const wmEvent *event, int *pen_flip, float tilt[2])
@@ -3478,8 +3475,8 @@ struct PointerRNA *WM_operator_property_pie_macro(const char *idname, const char
 	if (ot) {
 		otmacro = WM_operatortype_macro_define(ot, "WM_OT_sticky_pie_menu");
 		RNA_string_set(otmacro->ptr, "name", piename);
-		RNA_string_set(otmacro->ptr, "op_name", opname);
-		RNA_string_set(otmacro->ptr, "prop_name", propname);
+		RNA_string_set(otmacro->ptr, "operator_name", opname);
+		RNA_string_set(otmacro->ptr, "property_name", propname);
 		RNA_enum_set(otmacro->ptr, "mode", STICKY_PIE_PROPERTY);
 		otmacro = WM_operatortype_macro_define(ot, opname);
 		return otmacro->ptr;
