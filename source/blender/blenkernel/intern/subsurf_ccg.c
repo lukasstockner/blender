@@ -1794,12 +1794,26 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm,
 	int i, totface = ccgSubSurf_getNumFaces(ss);
 	int drawcurrent = 0, matnr = -1, shademodel = -1;
 
+	CCG_key_top_level(&key, ss);
+	ccgdm_pbvh_update(ccgdm);
+
+	if (ccgdm->pbvh && ccgdm->multires.mmd && !fast) {
+		if (dm->numTessFaceData) {
+			BKE_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL,
+			              setMaterial, false);
+			glShadeModel(GL_FLAT);
+		}
+
+		return;
+	}
+
+
 #ifdef WITH_OPENSUBDIV
 	if (ccgdm->useGpuBackend) {
 		int i, matnr = -1, shademodel = -1;
 		CCGFaceIterator *fi;
 		int start_partition = 0, num_partitions = 0;
-		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, true) == false)) {
+		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, setMaterial != NULL) == false)) {
 			return;
 		}
 
@@ -1833,7 +1847,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm,
 
 				/* Update material settings for the next partitions batch. */
 				glShadeModel(new_shademodel);
-				if (new_matnr != matnr) {
+				if (new_matnr != matnr && setMaterial) {
 					setMaterial(new_matnr + 1, NULL);
 				}
 
@@ -1855,19 +1869,6 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm,
 		return;
 	}
 #endif
-
-	CCG_key_top_level(&key, ss);
-	ccgdm_pbvh_update(ccgdm);
-
-	if (ccgdm->pbvh && ccgdm->multires.mmd && !fast) {
-		if (dm->numTessFaceData) {
-			BKE_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL,
-			              setMaterial, false);
-			glShadeModel(GL_FLAT);
-		}
-
-		return;
-	}
 
 	for (i = 0; i < totface; i++) {
 		CCGFace *f = ccgdm->faceMap[i].face;
