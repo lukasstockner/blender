@@ -2119,7 +2119,7 @@ static int wm_sticky_pie_menu_modal(bContext *C, wmOperator *op, const wmEvent *
 	}
 
 	if (event->type == TIMER) {
-		if (data->timer->duration > U.pie_operator_timeout / 100.0f) {
+		if ((float)data->timer->duration > U.pie_operator_timeout / 100.0f) {
 			StickyOperatorMode mode = RNA_enum_get(op->ptr, "mode");
 
 			switch (mode) {

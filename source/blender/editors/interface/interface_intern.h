@@ -169,7 +169,7 @@ extern const char ui_radial_dir_to_num[8];
 #define UI_PIE_CLICK_STYLE         (1 << 5) /* pie menu changed to click style, click to confirm  */
 #define UI_PIE_ANIMATION_FINISHED  (1 << 6) /* pie animation finished, do not calculate any more motio  */
 
-#define PIE_CLICK_THRESHOLD 50.0
+#define PIE_CLICK_THRESHOLD 50.0f
 
 typedef struct uiLinkLine {  /* only for draw/edit */
 	struct uiLinkLine *next, *prev;

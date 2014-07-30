@@ -6412,14 +6412,14 @@ static void ui_but_pie_visual_dir(RadialDirection dir, float vec[2]) {
 			break;
 	}
 
-	angle = angle / 180.0f * M_PI;
-	vec[0] = cos(angle);
-	vec[1] = sin(angle);
+	angle = DEG2RADF(angle);
+	vec[0] = cosf(angle);
+	vec[1] = sinf(angle);
 }
 
 static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but)
 {
-	float angle_range = (block->pie_data.flags & UI_PIE_DEGREES_RANGE_LARGE) ? M_PI_4 : M_PI_4 / 2.0f;
+	const float angle_range = (block->pie_data.flags & UI_PIE_DEGREES_RANGE_LARGE) ? M_PI_4 : M_PI_4 / 2.0;
 	float angle_pie;
 	float vec[2];
 

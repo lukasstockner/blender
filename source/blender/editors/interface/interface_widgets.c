@@ -3810,11 +3810,11 @@ void ui_draw_pie_center(uiBlock *block)
 	if (btheme->tui.wcol_pie_menu.shaded) {
 		char col1[4], col2[4];
 		shadecolors4(col1, col2, btheme->tui.wcol_pie_menu.inner, btheme->tui.wcol_pie_menu.shadetop, btheme->tui.wcol_pie_menu.shadedown);
-		draw_disk_shaded(0.0f, (float)(M_PI * 2.0f), pie_radius_internal, pie_radius_external, subd, col1, col2, true);
+		draw_disk_shaded(0.0f, (float)(M_PI * 2.0), pie_radius_internal, pie_radius_external, subd, col1, col2, true);
 	}
 	else {
 		glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.inner);
-		draw_disk_shaded(0.0f, (float)(M_PI * 2.0f), pie_radius_internal, pie_radius_external, subd, NULL, NULL, false);
+		draw_disk_shaded(0.0f, (float)(M_PI * 2.0), pie_radius_internal, pie_radius_external, subd, NULL, NULL, false);
 	}
 
 	if (!(block->pie_data.flags & UI_PIE_INVALID_DIR)) {

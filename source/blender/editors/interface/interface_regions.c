@@ -1719,12 +1719,12 @@ uiBlock *ui_popup_block_refresh(
 		copy_v2_v2(block->pie_data.pie_center_init, block->pie_data.pie_center_spawned);
 
 		/* only try translation if area is large enough */
-		if (BLI_rctf_size_x(&block->rect) < winx - 2.0 * win_width) {
+		if (BLI_rctf_size_x(&block->rect) < winx - (2.0f * win_width)) {
 			if (block->rect.xmin < win_width )   x_offset += win_width - block->rect.xmin;
 			if (block->rect.xmax > winx - win_width) x_offset += winx - win_width - block->rect.xmax;
 		}
 
-		if (BLI_rctf_size_y(&block->rect) < winy - 2.0 * win_width) {
+		if (BLI_rctf_size_y(&block->rect) < winy - (2.0f * win_width)) {
 			if (block->rect.ymin < win_width )   y_offset += win_width - block->rect.ymin;
 			if (block->rect.ymax > winy - win_width) y_offset += winy - win_width - block->rect.ymax;
 		}
