@@ -1325,7 +1325,7 @@ void RNA_property_enum_items_gettexted_all(bContext *C, PointerRNA *ptr, Propert
 
 	if (eprop->itemf && (C != NULL || (prop->flag & PROP_ENUM_NO_CONTEXT))) {
 		EnumPropertyItem *item;
-		int i, i_fixed;
+		int i;
 		bool free = false;
 
 		if (prop->flag & PROP_ENUM_NO_CONTEXT)
@@ -1336,23 +1336,21 @@ void RNA_property_enum_items_gettexted_all(bContext *C, PointerRNA *ptr, Propert
 		/* any callbacks returning NULL should be fixed */
 		BLI_assert(item != NULL);
 
-		for (i = 0, i_fixed = 0; i < eprop->totitem; i++, i_fixed++) {
-			/* ran out ouf valid entries, NULL out the rest*/
-			if (!item[i_fixed].identifier) {
-				while (i < eprop->totitem) {
-					(*r_item)[i].name = NULL;
-					(*r_item)[i].identifier = "";
-					i++;
-				}
-				break;
-			}
+		for (i = 0; i < eprop->totitem; i++) {
+			bool exists = false;
+			int i_fixed;
 
 			/* items that do not exist on list are returned, but have their names/identifiers NULLed out */
-			while ((strcmp(item[i_fixed].identifier, (*r_item)[i].identifier) != 0) && i < eprop->totitem)
-			{
+			for (i_fixed = 0; item[i_fixed].identifier; i_fixed++) {
+				if (strcmp(item[i_fixed].identifier, (*r_item)[i].identifier) == 0) {
+					exists = true;
+					break;
+				}
+			}
+
+			if (!exists) {
 				(*r_item)[i].name = NULL;
 				(*r_item)[i].identifier = "";
-				i++;
 			}
 		}
 
