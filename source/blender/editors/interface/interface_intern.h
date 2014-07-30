@@ -135,6 +135,8 @@ typedef enum RadialDirection {
 	UI_RADIAL_NW = 8
 } RadialDirection;
 
+extern const char ui_radial_dir_to_pad[8];
+
 /* internal panel drawing defines */
 #define PNL_GRID    (UI_UNIT_Y / 5) /* 4 default */
 #define PNL_HEADER  (UI_UNIT_Y + 4) /* 24 default */
