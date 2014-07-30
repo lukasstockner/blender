@@ -8710,6 +8710,9 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 		}
 	}
 	else {
+		/* direction from numpad */
+		RadialDirection num_dir = UI_RADIAL_NONE;
+
 		switch (event->type) {
 			case MOUSEMOVE:
 				/* mouse move should always refresh the area for pie menus */
@@ -8770,39 +8773,24 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				break;
 			}
 
-			case ONEKEY:    case PAD1:
-				but = ui_pie_dir_activate(block, event, UI_RADIAL_N);
-				retval = ui_pie_button_activate(C, but, menu, is_click_style);
-				break;
-			case TWOKEY:    case PAD2:
-				but = ui_pie_dir_activate(block, event, UI_RADIAL_NE);
-				retval = ui_pie_button_activate(C, but, menu, is_click_style);
-				break;
-			case THREEKEY:  case PAD3:
-				but = ui_pie_dir_activate(block, event, UI_RADIAL_E);
-				retval = ui_pie_button_activate(C, but, menu, is_click_style);
-				break;
-			case FOURKEY:   case PAD4:
-				but = ui_pie_dir_activate(block, event, UI_RADIAL_SE);
-				retval = ui_pie_button_activate(C, but, menu, is_click_style);
-				break;
-			case FIVEKEY:   case PAD5:
-				but = ui_pie_dir_activate(block, event, UI_RADIAL_S);
-				retval = ui_pie_button_activate(C, but, menu, is_click_style);
-				break;
-			case SIXKEY:    case PAD6:
-				but = ui_pie_dir_activate(block, event, UI_RADIAL_SW);
-				retval = ui_pie_button_activate(C, but, menu, is_click_style);
-				break;
-			case SEVENKEY:  case PAD7:
-				but = ui_pie_dir_activate(block, event, UI_RADIAL_W);
-				retval = ui_pie_button_activate(C, but, menu, is_click_style);
-				break;
-			case EIGHTKEY:  case PAD8:
-				but = ui_pie_dir_activate(block, event, UI_RADIAL_NW);
-				retval = ui_pie_button_activate(C, but, menu, is_click_style);
-				break;
+#define CASE_NUM_TO_DIR(n, d) \
+			case (ZEROKEY + n): case (PAD0 + n): \
+				{ if (num_dir == UI_RADIAL_NONE) num_dir = d; } (void)0
 
+			CASE_NUM_TO_DIR(1, UI_RADIAL_SW);
+			CASE_NUM_TO_DIR(2, UI_RADIAL_S);
+			CASE_NUM_TO_DIR(3, UI_RADIAL_SE);
+			CASE_NUM_TO_DIR(4, UI_RADIAL_W);
+			CASE_NUM_TO_DIR(6, UI_RADIAL_E);
+			CASE_NUM_TO_DIR(7, UI_RADIAL_NW);
+			CASE_NUM_TO_DIR(8, UI_RADIAL_N);
+			CASE_NUM_TO_DIR(9, UI_RADIAL_NE);
+			{
+				but = ui_pie_dir_activate(block, event, num_dir);
+				retval = ui_pie_button_activate(C, but, menu, is_click_style);
+				break;
+			}
+#undef CASE_NUM_TO_DIR
 			default:
 				retval = ui_handle_menu_button(C, event, menu);
 				break;
