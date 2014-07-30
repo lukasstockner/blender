@@ -1569,7 +1569,7 @@ static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
 		block->rect.xmin += xofs;
 		block->rect.xmax += xofs;
 	}
-	
+
 	if (block->rect.ymin < width)
 		block->rect.ymin = width;
 	if (block->rect.ymax > winy - MENU_TOP)
@@ -1705,48 +1705,56 @@ uiBlock *ui_popup_block_refresh(
 		saferct->safety = block->safety;
 		BLI_addhead(&block->saferct, saferct);
 	}
-	
+
 	if (block->flag & UI_BLOCK_RADIAL) {
-		/* find area that spawned this menu, keep it inside */
-		ScrArea *sa = CTX_wm_area(C);
 		uiBut *but;
-		int ar_w = BLI_rcti_size_x(&sa->totrct);
-		int ar_h = BLI_rcti_size_y(&sa->totrct);
+		int win_width = UI_SCREEN_MARGIN;
+		int winx, winy;
+
 		int x_offset = 0, y_offset = 0;
 
-		ar->winrct = sa->totrct;
+		winx = WM_window_pixels_x(window);
+		winy = WM_window_pixels_y(window);
+
+		copy_v2_v2(block->pie_data.pie_center_init, block->pie_data.pie_center_spawned);
+
+		/* only try translation if area is large enough */
+		if (BLI_rctf_size_x(&block->rect) < winx - 2.0 * win_width) {
+			if (block->rect.xmin < win_width )   x_offset += win_width - block->rect.xmin;
+			if (block->rect.xmax > winx - win_width) x_offset += winx - win_width - block->rect.xmax;
+		}
+
+		if (BLI_rctf_size_y(&block->rect) < winy - 2.0 * win_width) {
+			if (block->rect.ymin < win_width )   y_offset += win_width - block->rect.ymin;
+			if (block->rect.ymax > winy - win_width) y_offset += winy - win_width - block->rect.ymax;
+		}
+		/* if we are offsetting set up initial data for timeout functionality */
+
+		if ((x_offset != 0) || (y_offset != 0)) {
+			block->pie_data.pie_center_spawned[0] += x_offset;
+			block->pie_data.pie_center_spawned[1] += y_offset;
+
+			ui_block_translate(block, x_offset, y_offset);
+
+			if (U.pie_initial_timeout > 0)
+				block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
+		}
+
+		ar->winrct.xmin = block->rect.xmin - width;
+		ar->winrct.xmax = block->rect.xmax + width;
+		ar->winrct.ymin = block->rect.ymin - width;
+		ar->winrct.ymax = block->rect.ymax + width;
 
 		ui_block_translate(block, -ar->winrct.xmin, -ar->winrct.ymin);
 
 		/* spawned coordinates still in window space, convert to screen */
 		block->pie_data.pie_center_spawned[0] -= ar->winrct.xmin;
 		block->pie_data.pie_center_spawned[1] -= ar->winrct.ymin;
+		block->pie_data.pie_center_init[0] -= ar->winrct.xmin;
+		block->pie_data.pie_center_init[1] -= ar->winrct.ymin;
 
-		copy_v2_v2(block->pie_data.pie_center_init, block->pie_data.pie_center_spawned);
 
-		/* only try translation if area is large enough */
-		if (BLI_rctf_size_x(&block->rect) < ar_w) {
-			if (block->rect.xmin < 0 )   x_offset -= block->rect.xmin;
-			if (block->rect.xmax > ar_w) x_offset += ar_w - block->rect.xmax;
-		}
-
-		if (BLI_rctf_size_y(&block->rect) < ar_h) {
-			if (block->rect.ymin < 0 )   y_offset -= block->rect.ymin;
-			if (block->rect.ymax > ar_h) y_offset += ar_h - block->rect.ymax;
-		}
-		/* if we are offsetting set up initial data for timeout functionality */
-		if ((x_offset != 0) || (y_offset != 0)) {
-			block->pie_data.pie_center_spawned[0] += x_offset;
-			block->pie_data.pie_center_spawned[1] += y_offset;
-
-			ui_block_translate(block, x_offset, y_offset);
-			if (U.pie_initial_timeout > 0)
-				block->pie_data.flags |= UI_PIE_INITIAL_DIRECTION;
-			else
-				ui_block_calculate_pie_segment(block, block->pie_data.pie_center_init[0], block->pie_data.pie_center_init[1]);
-		}
-		else
-			block->pie_data.flags |= UI_PIE_INVALID_DIR;
+		ui_block_calculate_pie_segment(block, block->pie_data.pie_center_init[0], block->pie_data.pie_center_init[1]);
 
 		/* lastly set the buttons at the center of the pie menu, ready for animation */
 		if (U.pie_animation_timeout > 0) {
