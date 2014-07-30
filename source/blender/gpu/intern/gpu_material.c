@@ -2272,10 +2272,18 @@ void GPU_material_update_fvar_offset(GPUMaterial *gpu_material,
 			/* TODO(sergey): This will work for until names are
 			 * consistent, we'll need to solve this somehow in the future.
 			 */
-			int layer_index = CustomData_get_named_layer(&dm->loopData,
-			                                             CD_MLOOPUV,
-			                                             input->attribname);
+			int layer_index;
 			int location;
+
+			if (input->attribname[0] != '\0') {
+				layer_index = CustomData_get_named_layer(&dm->loopData,
+				                                         CD_MLOOPUV,
+				                                         input->attribname);
+			}
+			else {
+				layer_index = CustomData_get_active_layer(&dm->loopData,
+				                                          CD_MLOOPUV);
+			}
 
 			BLI_snprintf(name, sizeof(name),
 			             "fvar%d_offset",

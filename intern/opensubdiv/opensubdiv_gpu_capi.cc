@@ -84,7 +84,7 @@ typedef struct Transform {
 } Transform;
 
 static bool g_use_osd_glsl = false;
-static bool g_active_uv_index = -1;
+static int g_active_uv_index = -1;
 
 static GLuint g_flat_fill_program = 0;
 static GLuint g_smooth_fill_program = 0;
@@ -375,9 +375,6 @@ void openSubdiv_osdGLDisplayInit(void)
 		g_flat_fill_program = linkProgram("#define FLAT_SHADING\n");
 		g_smooth_fill_program = linkProgram("#define SMOOTH_SHADING\n");
 		g_wireframe_program = linkProgram("#define WIREFRAME\n");
-
-		/* We start with totally emoty lighting setup. */
-		memset(&g_lighting_data, 0, sizeof(g_lighting_data));
 
 		glGenBuffers(1, &g_lighting_ub);
 		glBindBuffer(GL_UNIFORM_BUFFER, g_lighting_ub);
