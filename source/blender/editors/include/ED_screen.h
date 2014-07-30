@@ -122,7 +122,6 @@ bScreen	*ED_screen_animation_playing(const struct wmWindowManager *wm);
 
 /* screen keymaps */
 void    ED_operatortypes_screen(void);
-void    ED_operatormacros_view3d(void);
 void    ED_keymap_screen(struct wmKeyConfig *keyconf);
 
 /* operators; context poll callbacks */

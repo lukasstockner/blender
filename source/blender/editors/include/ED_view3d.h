@@ -356,6 +356,8 @@ float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char *
 
 void ED_scene_draw_fps(struct Scene *scene, const struct rcti *rect);
 
+void ED_operatormacros_view3d(void);
+
 /* view matrix properties utilities */
 /* unused */
 #if 0
