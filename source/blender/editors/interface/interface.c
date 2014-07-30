@@ -1080,28 +1080,28 @@ static void ui_pie_direction_string(uiBut *but, char *buf, int size)
 {
 	switch(but->pie_dir) {
 		case UI_RADIAL_N:
-			BLI_strncpy(buf, "1", size);
+			BLI_strncpy(buf, "8", size);
 			break;
 		case UI_RADIAL_NE:
-			BLI_strncpy(buf, "2", size);
+			BLI_strncpy(buf, "9", size);
 			break;
 		case UI_RADIAL_E:
-			BLI_strncpy(buf, "3", size);
-			break;
-		case UI_RADIAL_SE:
-			BLI_strncpy(buf, "4", size);
-			break;
-		case UI_RADIAL_S:
-			BLI_strncpy(buf, "5", size);
-			break;
-		case UI_RADIAL_SW:
 			BLI_strncpy(buf, "6", size);
 			break;
+		case UI_RADIAL_SE:
+			BLI_strncpy(buf, "3", size);
+			break;
+		case UI_RADIAL_S:
+			BLI_strncpy(buf, "2", size);
+			break;
+		case UI_RADIAL_SW:
+			BLI_strncpy(buf, "1", size);
+			break;
 		case UI_RADIAL_W:
-			BLI_strncpy(buf, "7", size);
+			BLI_strncpy(buf, "4", size);
 			break;
 		case UI_RADIAL_NW:
-			BLI_strncpy(buf, "8", size);
+			BLI_strncpy(buf, "7", size);
 			break;
 	}
 }
