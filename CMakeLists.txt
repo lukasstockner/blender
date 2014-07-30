@@ -2083,6 +2083,7 @@ endif()
 # Configure OpenGL.
 
 find_package(OpenGL)
+blender_include_dirs_sys("${OPENGL_INCLUDE_DIR}")
 
 if(WITH_GLU)
 	list(APPEND BLENDER_GL_LIBRARIES "${OPENGL_glu_LIBRARY}")
