@@ -168,6 +168,7 @@ void BKE_nurbList_flag_set(ListBase *editnurb, short flag);
 
 void BKE_nurbTrim_free(struct NurbTrim *nt);
 struct NurbTrim *BKE_nurbTrim_duplicate(struct NurbTrim *nt);
+int BKE_nurbTrim_tess(struct NurbTrim *nt, int resolution, float (**uv)[2]); // Returns: # verts in uv
 
 void BKE_nurb_free(struct Nurb *nu);
 struct Nurb *BKE_nurb_duplicate(struct Nurb *nu);
@@ -175,6 +176,7 @@ struct Nurb *BKE_nurb_copy(struct Nurb *src, int pntsu, int pntsv);
 
 void BKE_nurb_ensure2D(struct Nurb *nu);
 void BKE_nurb_minmax(struct Nurb *nu, bool use_radius, float min[3], float max[3]);
+void BKE_nurb_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax);
 
 void BKE_nurb_makeFaces(struct Nurb *nu, float *coord_array, int rowstride, int resolu, int resolv);
 void BKE_nurb_makeCurve(struct Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array, int resolu, int stride);

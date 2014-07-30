@@ -539,9 +539,14 @@ void BKE_nurb_free(Nurb *nu)
 		MEM_freeN(nu->knotsv);
 	nu->knotsv = NULL;
 	
-	for (NurbTrim *nt = (NurbTrim*)nu->trims.first; nt; nt=nt->next) {
-		BKE_nurbTrim_free(nt);
+	for (NurbTrim *nt = (NurbTrim*)nu->trims.first; nt;) {
+		NurbTrim *nt_to_free = nt;
+		nt = nt->next;
+		BKE_nurbTrim_free(nt_to_free);
 	}
+	
+	if (nu->UV_idxs) MEM_freeN(nu->UV_idxs);
+	if (nu->UV_verts) MEM_freeN(nu->UV_verts);
 
 	MEM_freeN(nu);
 }
@@ -640,6 +645,35 @@ NurbTrim *BKE_nurbTrim_duplicate(NurbTrim *nt) {
 	NurbTrim *ret = (NurbTrim*)MEM_callocN(sizeof(NurbTrim), "duplicateNurbTrim");
 	BKE_nurbList_duplicate(&ret->nurb_list, &nt->nurb_list);
 	return ret;
+}
+
+int BKE_nurbTrim_tess(struct NurbTrim *nt, int resolution, float (**uv_out)[2]) {
+	int tot_tess_pts = 0;
+	for (Nurb* nu = (Nurb*)nt->nurb_list.first; nu; nu=nu->next) {
+		tot_tess_pts += nu->pntsu * resolution + 1;
+	}
+	float (*uv)[2] = (float(*)[2])MEM_mallocN(sizeof(*uv)*tot_tess_pts, "BKE_nurbTrim_tess");
+	*uv_out = uv;
+	for (Nurb* nu = (Nurb*)nt->nurb_list.first; nu; nu=nu->next) {
+		float *U = nu->knotsu;
+		int pntsu = nu->pntsu;
+		BPoint *bp = nu->bp;
+		int orderu = nu->orderu;
+		int tess_pts = nu->pntsu * resolution + 1;
+		float umin, umax;
+		BKE_nurb_domain(nu, &umin, &umax, NULL, NULL);
+		float du = (umax-umin)/(tess_pts-1);
+		for (int i=0; i<=tess_pts; i++) {
+			BPoint pt;
+			float u = (i<tess_pts)? umin+i*du : umax;
+			BKE_nurbs_curve_eval(u, U, pntsu, orderu, bp, 1, 0, &pt);
+			uv[i][0] = pt.vec[0];
+			uv[i][1] = pt.vec[1];
+			printf("uv: %f %f\n",pt.vec[0],pt.vec[1]);
+		}
+		uv += tess_pts;
+	}
+	return tot_tess_pts;
 }
 
 void BKE_nurbList_duplicate(ListBase *lb1, ListBase *lb2)
@@ -4007,15 +4041,17 @@ void BKE_nurb_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, flo
 		*umax = nu->knotsu[nu->pntsu + nu->orderu - 1];
 	else
 		*umax = nu->knotsu[nu->pntsu];
-	*vmin = nu->knotsv[nu->orderv - 1];
-	if (nu->flagv & CU_NURB_CYCLIC)
-		*vmax = nu->knotsv[nu->pntsv + nu->orderv - 1];
-	else
-		*vmax = nu->knotsv[nu->pntsv];
 	*umin = std::min(nu->knotsu[0], *umin);
 	*umax = std::max(nu->knotsu[nu->pntsu+nu->orderu-1], *umax);
-	*vmin = std::min(nu->knotsv[0], *umin);
-	*vmax = std::max(nu->knotsv[nu->pntsv+nu->orderv-1], *umax);
+	if (nu->knotsv) {
+		*vmin = nu->knotsv[nu->orderv - 1];
+		if (nu->flagv & CU_NURB_CYCLIC)
+			*vmax = nu->knotsv[nu->pntsv + nu->orderv - 1];
+		else
+			*vmax = nu->knotsv[nu->pntsv];
+		if (vmin) *vmin = std::min(nu->knotsv[0], *umin);
+		if (vmin) *vmax = std::max(nu->knotsv[nu->pntsv+nu->orderv-1], *umax);
+	}
 }
 
 float subj0[] = {0.512000,0.938000, 0.374000,0.950000, 0.248000,0.908000, 0.170000,0.866000, 0.092000,0.740000, 0.092000,0.602000, 0.092000,0.440000, 0.116000,0.260000, 0.254000,0.110000, 0.476000,0.074000, 0.746000,0.092000, 0.836000,0.206000, 0.848000,0.422000, 0.812000,0.644000, 0.716000,0.686000, 0.614000,0.734000, 0.488000,0.728000, 0.386000,0.710000, 0.260000,0.626000, 0.272000,0.476000, 0.350000,0.338000, 0.482000,0.278000, 0.632000,0.308000, 0.644000,0.404000, 0.638000,0.494000, 0.590000,0.572000, 0.494000,0.584000, 0.422000,0.518000, 0.458000,0.392000, 0.548000,0.398000, 0.506000,0.506000, 0.572000,0.506000, 0.596000,0.386000, 0.566000,0.338000, 0.470000,0.338000, 0.368000,0.434000, 0.374000,0.608000, 0.578000,0.656000, 0.680000,0.644000, 0.740000,0.554000, 0.782000,0.308000, 0.758000,0.224000, 0.548000,0.164000, 0.338000,0.224000, 0.212000,0.374000, 0.170000,0.626000, 0.236000,0.764000, 0.368000,0.824000, 0.524000,0.836000, 1.184000,0.848000}; int subj0_nv=50;
@@ -4039,8 +4075,23 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 	}
 	gm->set_ll_ur(ustart,vstart,uend,vend);
 	gm->init_grid(totu,totv);
-	int s0poly = gm->poly_new(subj0, subj0_nv*2);
-	gm->bool_SUB(s0poly);
+	
+	// Trim
+	if (nu->resol_trim<1) nu->resol_trim = 1;
+	for (NurbTrim *nt=(NurbTrim*)nu->trims.first; nt; nt=nt->next) {
+		float (*trim_uv_pts)[2];
+		int num_trimpts = BKE_nurbTrim_tess(nt, nu->resol_trim, &trim_uv_pts);
+		int trim_poly = gm->poly_new((float*)trim_uv_pts, num_trimpts*2);
+		switch (nt->type) {
+			case CU_TRIM_EXTERIOR:
+				gm->bool_AND(trim_poly);
+				break;
+			case CU_TRIM_INTERIOR:
+			default:
+				gm->bool_SUB(trim_poly);
+		}
+		MEM_freeN(trim_uv_pts);
+	}
 	
 	// Extract the results
 	std::map<int,int> *used_idxs;
@@ -4054,16 +4105,19 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 	int idxs_len = 4 * 3*sizeof(int)*totu*totv;
 	int *idxs = (int*)MEM_mallocN(sizeof(int)*idxs_len, "NURBS_tess_2.0");
 	int ii=0; // Index index
-#define TESS_MAX_POLY_VERTS 32
+#define TESS_MAX_POLY_VERTS 1024
 	float coords_tmp[TESS_MAX_POLY_VERTS][2];
 	int reindex_tmp[TESS_MAX_POLY_VERTS];
 	unsigned idx_tmp[TESS_MAX_POLY_VERTS][3];
 	std::vector<int> degenerate_polys;
-	// Loop through every cell and push its triangles onto idxs
+
+	// Loop through every cell, triangulate its polys, push them onto idxs
 	for (int j=0; j<totv; j++) {
 		for (int i=0; i<totu; i++) {
 			int cell = gm->poly_for_cell(i, j);
 			GridMeshVert *v = &gm->v[0];
+			
+			// 
 			for (int poly=cell; poly; poly=v[poly].next_poly) {
 				if (!v[poly].next) {
 					continue;
@@ -4152,8 +4206,8 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 void BKE_nurb_clear_cached_UV_mesh(struct Nurb* nu, bool free_mem) {
 	nu->UV_verts_count = nu->UV_tri_count = 0;
 	if (free_mem) {
-		MEM_freeN(nu->UV_verts);
-		MEM_freeN(nu->UV_idxs);
+		if (nu->UV_verts) MEM_freeN(nu->UV_verts);
+		if (nu->UV_idxs) MEM_freeN(nu->UV_idxs);
 	}
 }
 
