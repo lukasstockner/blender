@@ -992,22 +992,29 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         row.prop(md, "threshold")
 
     def QUADREMESH(self, layout, ob, md):
-        is_bind = md.is_bind
-
+        is_computeflow = md.is_computeflow
+        is_remesh = md.is_remesh
+		
         row = layout.row()
-        row.active = not is_bind
+        row.active = not is_computeflow
         row.label(text="Features Vertex Group:")
 
         row = layout.row()
-        row.enabled = not is_bind
+        row.enabled = not is_computeflow
         row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
 
         layout.separator()
 
         row = layout.row()
         row.enabled = bool(md.vertex_group)
-        row.operator("object.quadremesh_bind", text="Unbind" if is_bind else "Bind")        
+        row.operator("object.quadremesh_computeflow", text="Recompute Flow" if is_computeflow else "Compute Flow")        
 
+        layout.separator()
+
+        row = layout.row()
+        row.enabled = is_computeflow
+        row.operator("object.quadremesh_remesh", text="Remesh" if is_remesh else "Remesh")        
+		
     @staticmethod
     def vertex_weight_mask(layout, ob, md):
         layout.label(text="Influence/Mask Options:")

@@ -1372,7 +1372,8 @@ typedef struct QuadRemeshModifierData {
 
 /* QuadRemesh modifier flags */
 enum {
-	MOD_QUADREMESH_BIND = 1,
+	MOD_QUADREMESH_COMPUTE_FLOW = (1 << 1),
+	MOD_QUADREMESH_REMESH = (1 << 2)
 };
 
 

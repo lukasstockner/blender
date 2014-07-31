@@ -247,7 +247,8 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_lod_remove);
 
 	WM_operatortype_append(OBJECT_OT_vertex_random);
-	WM_operatortype_append(OBJECT_OT_quadremesh_bind);
+	WM_operatortype_append(OBJECT_OT_quadremesh_computeflow);
+	WM_operatortype_append(OBJECT_OT_quadremesh_remesh);
 }
 
 void ED_operatormacros_object(void)

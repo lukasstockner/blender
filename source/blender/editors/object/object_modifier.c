@@ -2228,50 +2228,95 @@ void OBJECT_OT_laplaciandeform_bind(wmOperatorType *ot)
 }
 
 
-/************************ QuadRemesh bind operator *********************/
+/************************ QuadRemesh compute flow operator *********************/
 
 static int quadremesh_poll(bContext *C)
 {
 	return edit_modifier_poll_generic(C, &RNA_QuadRemeshModifier, 0);
 }
 
-static int quadremesh_bind_exec(bContext *C, wmOperator *op)
+static int quadremesh_computeflow_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_active_context(C);
 	QuadRemeshModifierData *lmd = (QuadRemeshModifierData *)edit_modifier_property_get(op, ob, eModifierType_QuadRemesh);
 
 	if (!lmd)
 		return OPERATOR_CANCELLED;
-	if (lmd->flag & MOD_QUADREMESH_BIND) {
-		lmd->flag &= ~MOD_QUADREMESH_BIND;
+	if (lmd->flag & MOD_QUADREMESH_COMPUTE_FLOW) {
+		lmd->flag &= ~MOD_QUADREMESH_COMPUTE_FLOW;
 	}
 	else {
-		lmd->flag |= MOD_QUADREMESH_BIND;
+		lmd->flag |= MOD_QUADREMESH_COMPUTE_FLOW;
 	}
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 	return OPERATOR_FINISHED;
 }
 
-static int quadremesh_bind_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+static int quadremesh_computeflow_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	if (edit_modifier_invoke_properties(C, op))
-		return quadremesh_bind_exec(C, op);
+		return quadremesh_computeflow_exec(C, op);
 	else
 		return OPERATOR_CANCELLED;
 }
 
-void OBJECT_OT_quadremesh_bind(wmOperatorType *ot)
+void OBJECT_OT_quadremesh_computeflow(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Quad Remesh Bind";
-	ot->description = "Bind mesh to system in Quad Remesh modifier";
-	ot->idname = "OBJECT_OT_quadremesh_bind";
+	ot->name = "Quad Remesh Compute Flow";
+	ot->description = "Compute gradient flow in Quad Remesh modifier";
+	ot->idname = "OBJECT_OT_quadremesh_computeflow";
 
 	/* api callbacks */
 	ot->poll = quadremesh_poll;
-	ot->invoke = quadremesh_bind_invoke;
-	ot->exec = quadremesh_bind_exec;
+	ot->invoke = quadremesh_computeflow_invoke;
+	ot->exec = quadremesh_computeflow_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+	edit_modifier_properties(ot);
+}
+
+/************************ QuadRemesh remesh operator *********************/
+
+static int quadremesh_remesh_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = ED_object_active_context(C);
+	QuadRemeshModifierData *lmd = (QuadRemeshModifierData *)edit_modifier_property_get(op, ob, eModifierType_QuadRemesh);
+
+	if (!lmd)
+		return OPERATOR_CANCELLED;
+	if (lmd->flag & MOD_QUADREMESH_REMESH) {
+		lmd->flag &= ~MOD_QUADREMESH_REMESH;
+	}
+	else {
+		lmd->flag |= MOD_QUADREMESH_REMESH;
+	}
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+	return OPERATOR_FINISHED;
+}
+
+static int quadremesh_remesh_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	if (edit_modifier_invoke_properties(C, op))
+		return quadremesh_remesh_exec(C, op);
+	else
+		return OPERATOR_CANCELLED;
+}
+
+void OBJECT_OT_quadremesh_remesh(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Quad Remesh Remeshing";
+	ot->description = "Compute Remeshing modifier";
+	ot->idname = "OBJECT_OT_quadremesh_remesh";
+
+	/* api callbacks */
+	ot->poll = quadremesh_poll;
+	ot->invoke = quadremesh_remesh_invoke;
+	ot->exec = quadremesh_remesh_exec;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;

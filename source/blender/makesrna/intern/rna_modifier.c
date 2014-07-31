@@ -608,10 +608,16 @@ static int rna_LaplacianDeformModifier_is_bind_get(PointerRNA *ptr)
 	return ((lmd->flag & MOD_LAPLACIANDEFORM_BIND) && (lmd->cache_system != NULL));
 }
 
-static int rna_QuadRemeshModifier_is_bind_get(PointerRNA *ptr)
+static int rna_QuadRemeshModifier_is_computeflow_get(PointerRNA *ptr)
 {
 	QuadRemeshModifierData *qmd = (QuadRemeshModifierData *)ptr->data;
-	return (qmd->flag & MOD_QUADREMESH_BIND);
+	return (qmd->flag & MOD_QUADREMESH_COMPUTE_FLOW);
+}
+
+static int rna_QuadRemeshModifier_is_remesh_get(PointerRNA *ptr)
+{
+	QuadRemeshModifierData *qmd = (QuadRemeshModifierData *)ptr->data;
+	return (qmd->flag & MOD_QUADREMESH_REMESH);
 }
 
 #else
@@ -3673,9 +3679,14 @@ static void rna_def_modifier_quadremesh(BlenderRNA *brna)
 		"Name of Vertex Group which determines feature points");
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_QuadRemeshModifier_anchor_grp_name_set");
 
-	prop = RNA_def_property(srna, "is_bind", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_funcs(prop, "rna_QuadRemeshModifier_is_bind_get", NULL);
-	RNA_def_property_ui_text(prop, "Bound", "Whether geometry has been bound to anchors");
+	prop = RNA_def_property(srna, "is_computeflow", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_QuadRemeshModifier_is_computeflow_get", NULL);
+	RNA_def_property_ui_text(prop, "Compute Flow", "Compute Gradient flow");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_property(srna, "is_remesh", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_QuadRemeshModifier_is_remesh_get", NULL);
+	RNA_def_property_ui_text(prop, "Remesh", "Apply the quatrilateral remeshing");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
