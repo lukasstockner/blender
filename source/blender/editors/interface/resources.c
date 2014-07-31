@@ -2454,7 +2454,7 @@ void init_userdef_do_versions(void)
 		}
 	}
 
-	if (U.versionfile < 272 || (U.versionfile == 272 && U.subversionfile < 1)) {
+	if (U.versionfile < 271 || (U.versionfile == 271 && U.subversionfile < 4)) {
 		bTheme *btheme;
 
 		struct uiWidgetColors wcol_pie_menu = {
@@ -2470,17 +2470,10 @@ void init_userdef_do_versions(void)
 			10, -10
 		};
 
-		if (U.pie_menu_radius == 0)
-			U.pie_menu_radius = 150;
-
-		if (U.pie_menu_threshold == 0)
-			U.pie_menu_threshold = 12;
-
-		if (U.pie_operator_timeout == 0)
-			U.pie_operator_timeout = 20;
-
-		if (U.pie_animation_timeout == 0)
-			U.pie_animation_timeout = 6;
+		U.pie_menu_radius = 150;
+		U.pie_menu_threshold = 12;
+		U.pie_operator_timeout = 20;
+		U.pie_animation_timeout = 6;
 
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			btheme->tui.wcol_pie_menu = wcol_pie_menu;
