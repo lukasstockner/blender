@@ -177,7 +177,6 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 	float t = 0.0f;
 
 	float3 sum = make_float3(0.0f, 0.0f, 0.0f);
-	bool tp_calculated = false;
 
 	for(int i = 0; i < max_steps; i++) {
 		/* advance to new position */
@@ -197,24 +196,20 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 			 * because exp(a)*exp(b) = exp(a+b), also do a quick tp_eps check then. */
 
 			sum += (-sigma_t * (new_t - t));
-			if((i % 8) == 0) { /* ToDo: Other interval? */
-				tp_calculated = true;
+			if((i & 0x07) == 0) { /* ToDo: Other interval? */
 				tp = *throughput * make_float3(expf(sum.x), expf(sum.y), expf(sum.z));
 
 				/* stop if nearly all light blocked */
 				if(tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps)
 					break;
 			}
-			else
-				tp_calculated = false;
 		}
 
 		/* stop if at the end of the volume */
 		t = new_t;
 		if(t == ray->t) {
-			if(!tp_calculated)
-				/* Update throughput in case we have't done it above */
-				tp = *throughput * make_float3(expf(sum.x), expf(sum.y), expf(sum.z));
+			/* Update throughput in case we have't done it above */
+			tp = *throughput * make_float3(expf(sum.x), expf(sum.y), expf(sum.z));
 			break;
 		}
 	}
