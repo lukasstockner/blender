@@ -74,26 +74,15 @@ typedef struct MXContext {
 
 } MXContext;
 
-extern MXContext *_mx_context;
-
-
-MXContext *mxCreateContext(void);
-
-
 #ifdef WITH_GLEW_MX
+extern MXContext *_mx_context;
+#endif
 
+
+MXContext *mxCreateContext     (void);
 MXContext *mxGetCurrentContext (void);
 void       mxMakeCurrentContext(MXContext *ctx);
 void       mxDestroyContext    (MXContext *ctx);
-
-#else
-
-/* don't use NULL here (mightn't be defined)*/
-#define mxGetCurrentContext()     ((MXContext *)0)
-#define mxMakeCurrentContext(ctx) ((void)ctx)
-#define mxDestroyContext(ctx)     ((void)ctx)
-
-#endif  /* WITH_GLEW_MX */
 
 
 GLenum glew_chk(GLenum error, const char *file, int line, const char *text);

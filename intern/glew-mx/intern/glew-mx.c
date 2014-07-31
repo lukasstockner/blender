@@ -88,6 +88,11 @@ GLenum glew_chk(GLenum error, const char *file, int line, const char *text)
 #endif
 
 
+#ifdef WITH_GLEW_MX
+MXContext *_mx_context = NULL;
+#endif
+
+
 MXContext *mxCreateContext(void)
 {
 #if WITH_GLEW_MX
@@ -108,29 +113,34 @@ MXContext *mxCreateContext(void)
 }
 
 
-#ifdef WITH_GLEW_MX
-
-MXContext *_mx_context = NULL;
-
-
 MXContext *mxGetCurrentContext(void)
 {
+#if WITH_GLEW_MX
 	return _mx_context;
+#else
+	return NULL;
+#endif
 }
 
 
 void mxMakeCurrentContext(MXContext *ctx)
 {
+#if WITH_GLEW_MX
 	_mx_context = ctx;
+#else
+	(void)ctx;
+#endif
 }
 
 
 void mxDestroyContext(MXContext *ctx)
 {
+#if WITH_GLEW_MX
 	if (_mx_context == ctx)
 		_mx_context = NULL;
 
 	free(ctx);
+#else
+	(void)ctx;
+#endif
 }
-
-#endif  /* WITH_GLEW_MX */
