@@ -553,6 +553,8 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		extern_wcwidth
 		extern_libmv
 		extern_glog
+
+		bf_intern_glew_mx
 	)
 
 	if(WITH_COMPOSITOR)
