@@ -2054,7 +2054,7 @@ static int wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *e
 	char idname[BKE_ST_MAXNAME];
 	RNA_string_get(op->ptr, "name", idname);
 
-	uiPieMenuInvoke(C, idname, event, RNA_boolean_get(op->ptr, "force_click"));
+	uiPieMenuInvoke(C, idname, event);
 
 	return OPERATOR_CANCELLED;
 }
@@ -2064,7 +2064,7 @@ static int wm_call_pie_menu_exec(bContext *C, wmOperator *op)
 	char idname[BKE_ST_MAXNAME];
 	RNA_string_get(op->ptr, "name", idname);
 
-	uiPieMenuInvoke(C, idname, CTX_wm_window(C)->eventstate, RNA_boolean_get(op->ptr, "force_click"));
+	uiPieMenuInvoke(C, idname, CTX_wm_window(C)->eventstate);
 
 	return OPERATOR_CANCELLED;
 }
@@ -2082,7 +2082,6 @@ static void WM_OT_call_menu_pie(wmOperatorType *ot)
 	ot->flag = OPTYPE_INTERNAL;
 
 	RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
-	RNA_def_boolean(ot->srna, "force_click", false, "Force Click Style", "Pie menu overrides interaction user preference with click interaction");
 }
 
 typedef struct PieTimerData {
@@ -2132,7 +2131,7 @@ static int wm_sticky_pie_menu_modal(bContext *C, wmOperator *op, const wmEvent *
 					RNA_string_get(op->ptr, "property_name", prop_name);
 					RNA_string_get(op->ptr, "name", pie_name);
 
-					uiPieOperatorEnumInvoke(C, pie_name, op_name, prop_name, &data->event, false);
+					uiPieOperatorEnumInvoke(C, pie_name, op_name, prop_name, &data->event);
 					break;
 				}
 
@@ -2141,7 +2140,7 @@ static int wm_sticky_pie_menu_modal(bContext *C, wmOperator *op, const wmEvent *
 					char idname[BKE_ST_MAXNAME];
 					RNA_string_get(op->ptr, "name", idname);
 
-					uiPieMenuInvoke(C, idname, &data->event, false);
+					uiPieMenuInvoke(C, idname, &data->event);
 					break;
 				}
 
@@ -2158,7 +2157,7 @@ static int wm_sticky_pie_menu_modal(bContext *C, wmOperator *op, const wmEvent *
 					if (str[0] == '\0')
 						break;
 
-					uiPieEnumInvoke(C, pie_name, str, &data->event, false);
+					uiPieEnumInvoke(C, pie_name, str, &data->event);
 
 					MEM_freeN(str);
 					break;

@@ -364,12 +364,12 @@ bool uiPupMenuInvoke(struct bContext *C, const char *idname, struct ReportList *
 /* Pie menus */
 typedef struct uiPieMenu uiPieMenu;
 
-void uiPieMenuInvoke(struct bContext *C, const char *idname, const struct wmEvent *event, bool force_click);
+void uiPieMenuInvoke(struct bContext *C, const char *idname, const struct wmEvent *event);
 void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *opname,
-                             const char *propname, const struct wmEvent *event, bool force_click);
-void uiPieEnumInvoke(struct bContext *C, const char *title, const char *path, const struct wmEvent *event, bool force_click);
+                             const char *propname, const struct wmEvent *event);
+void uiPieEnumInvoke(struct bContext *C, const char *title, const char *path, const struct wmEvent *event);
 
-uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const struct wmEvent *event, bool force_hold) ATTR_NONNULL();
+uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const struct wmEvent *event) ATTR_NONNULL();
 void uiPieMenuEnd(struct bContext *C, uiPieMenu *pie);
 struct uiLayout *uiPieMenuLayout(struct uiPieMenu *pie);
 /* Popup Blocks

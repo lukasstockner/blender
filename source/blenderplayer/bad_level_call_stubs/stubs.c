@@ -413,7 +413,7 @@ void ED_view3D_background_image_remove(struct View3D *v3d, struct BGpic *bgpic) 
 void ED_view3D_background_image_clear(struct View3D *v3d) RET_NONE
 void ED_view3d_update_viewmat(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, float viewmat[4][4], float winmat[4][4]) RET_NONE
 float ED_view3d_grid_scale(struct Scene *scene, struct View3D *v3d, const char **grid_unit) RET_ZERO
-void ED_view3d_shade_update(struct Main *bmain, struct View3D *v3d, struct ScrArea *sa) RET_NONE
+void ED_view3d_shade_update(struct Main *bmain, struct Scene *scene, struct View3D *v3d, struct ScrArea *sa) RET_NONE
 void ED_node_shader_default(const struct bContext *C, struct ID *id) RET_NONE
 void ED_screen_animation_timer_update(struct bScreen *screen, int redraws, int refresh) RET_NONE
 struct bScreen *ED_screen_animation_playing(const struct wmWindowManager *wm) RET_NULL
@@ -623,12 +623,12 @@ struct uiPopupMenu *uiPupMenuBegin(struct bContext *C, const char *title, int ic
 void uiPupMenuEnd(struct bContext *C, struct uiPopupMenu *head) RET_NONE
 struct uiLayout *uiPupMenuLayout(struct uiPopupMenu *head) RET_NULL
 struct uiLayout *uiPieMenuLayout(struct uiPieMenu *pie) RET_NULL
-void uiPieMenuInvoke(struct bContext *C, const char *idname, const struct wmEvent *event, bool force_hold) RET_NONE
-struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const struct wmEvent *event, bool force_hold) RET_NULL
+void uiPieMenuInvoke(struct bContext *C, const char *idname, const struct wmEvent *event) RET_NONE
+struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const struct wmEvent *event) RET_NULL
 void uiPieMenuEnd(struct bContext *C, uiPieMenu *pie) RET_NONE
 struct uiLayout *uiLayoutRadial(struct uiLayout *layout) RET_NULL
 void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *opname,
-                             const char *propname, const struct wmEvent *event, bool force_hold) RET_NONE
+                             const char *propname, const struct wmEvent *event) RET_NONE
 
 /* RNA COLLADA dependency */
 int collada_export(struct Scene *sce,
