@@ -2069,10 +2069,10 @@ static int wm_call_pie_menu_exec(bContext *C, wmOperator *op)
 	return OPERATOR_CANCELLED;
 }
 
-static void WM_OT_call_pie_menu(wmOperatorType *ot)
+static void WM_OT_call_menu_pie(wmOperatorType *ot)
 {
 	ot->name = "Call Pie Menu";
-	ot->idname = "WM_OT_call_pie_menu";
+	ot->idname = "WM_OT_call_menu_pie";
 	ot->description = "Call (draw) a pre-defined pie menu";
 
 	ot->invoke = wm_call_pie_menu_invoke;
@@ -2178,7 +2178,7 @@ static int wm_sticky_pie_menu_modal(bContext *C, wmOperator *op, const wmEvent *
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static void WM_OT_sticky_pie_menu(wmOperatorType *ot)
+static void WM_OT_sticky_menu_pie(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
 
@@ -2190,7 +2190,7 @@ static void WM_OT_sticky_pie_menu(wmOperatorType *ot)
 	};
 
 	ot->name = "Sticky Pie Menu";
-	ot->idname = "WM_OT_sticky_pie_menu";
+	ot->idname = "WM_OT_sticky_menu_pie";
 	ot->description = "Call (draw) a pre-defined pie menu or cancel";
 
 	ot->invoke = wm_sticky_pie_menu_invoke;
@@ -4602,8 +4602,8 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_splash);
 	WM_operatortype_append(WM_OT_search_menu);
 	WM_operatortype_append(WM_OT_call_menu);
-	WM_operatortype_append(WM_OT_call_pie_menu);
-	WM_operatortype_append(WM_OT_sticky_pie_menu);
+	WM_operatortype_append(WM_OT_call_menu_pie);
+	WM_operatortype_append(WM_OT_sticky_menu_pie);
 	WM_operatortype_append(WM_OT_radial_control);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);

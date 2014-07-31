@@ -130,7 +130,7 @@ void ED_spacetypes_init(void)
 		if (type->operatortypes)
 			type->operatortypes();
 	}
-	
+
 	/* register internal render callbacks */
 	ED_render_internal_init();
 }

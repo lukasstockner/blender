@@ -466,7 +466,7 @@ wmKeyMapItem *WM_keymap_add_menu(wmKeyMap *keymap, const char *idname, int type,
 
 wmKeyMapItem *WM_keymap_add_pie_menu(wmKeyMap *keymap, const char *idname, int type, int val, int modifier, int keymodifier, bool force_click)
 {
-	wmKeyMapItem *kmi = WM_keymap_add_item(keymap, "WM_OT_call_pie_menu", type, val, modifier, keymodifier);
+	wmKeyMapItem *kmi = WM_keymap_add_item(keymap, "WM_OT_call_menu_pie", type, val, modifier, keymodifier);
 	RNA_string_set(kmi->ptr, "name", idname);
 	RNA_boolean_set(kmi->ptr, "force_click", force_click);
 	return kmi;

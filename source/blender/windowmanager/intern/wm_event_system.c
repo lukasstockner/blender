@@ -400,8 +400,12 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	
 	/* UI code doesn't handle return values - it just always returns break. 
 	 * to make the DBL_CLICK conversion work, we just don't send this to UI, except mouse clicks */
-	if (!(handler->flag & WM_HANDLER_ACCEPT_DBL_CLICK) && event->type != LEFTMOUSE && event->val == KM_DBL_CLICK)
+	if (((handler->flag & WM_HANDLER_ACCEPT_DBL_CLICK) == 0) &&
+	    (event->type != LEFTMOUSE) &&
+	    (event->val == KM_DBL_CLICK))
+	{
 		return WM_HANDLER_CONTINUE;
+	}
 	
 	/* UI is quite aggressive with swallowing events, like scrollwheel */
 	/* I realize this is not extremely nice code... when UI gets keymaps it can be maybe smarter */
@@ -2559,7 +2563,8 @@ void WM_event_remove_keymap_handler(ListBase *handlers, wmKeyMap *keymap)
 	}
 }
 
-wmEventHandler *WM_event_add_ui_handler(const bContext *C, ListBase *handlers,
+wmEventHandler *WM_event_add_ui_handler(
+        const bContext *C, ListBase *handlers,
         wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
         void *userdata, const bool accept_dbl_click)
 {
@@ -3454,7 +3459,7 @@ PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const ch
                                   description, flag);
 
 	if (ot) {
-		otmacro = WM_operatortype_macro_define(ot, "WM_OT_sticky_pie_menu");
+		otmacro = WM_operatortype_macro_define(ot, "WM_OT_sticky_menu_pie");
 		RNA_string_set(otmacro->ptr, "name", piename);
 		otmacro = WM_operatortype_macro_define(ot, opname);
 		return otmacro->ptr;
@@ -3473,7 +3478,7 @@ struct PointerRNA *WM_operator_property_pie_macro(const char *idname, const char
                                   description, flag);
 
 	if (ot) {
-		otmacro = WM_operatortype_macro_define(ot, "WM_OT_sticky_pie_menu");
+		otmacro = WM_operatortype_macro_define(ot, "WM_OT_sticky_menu_pie");
 		RNA_string_set(otmacro->ptr, "name", piename);
 		RNA_string_set(otmacro->ptr, "operator_name", opname);
 		RNA_string_set(otmacro->ptr, "property_name", propname);
@@ -3496,7 +3501,7 @@ struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *na
                                   description, flag);
 
 	if (ot) {
-		otmacro = WM_operatortype_macro_define(ot, "WM_OT_sticky_pie_menu");
+		otmacro = WM_operatortype_macro_define(ot, "WM_OT_sticky_menu_pie");
 		RNA_string_set(otmacro->ptr, "name", piename);
 		RNA_string_set(otmacro->ptr, "data_path", path);
 		RNA_enum_set(otmacro->ptr, "mode", STICKY_PIE_PATH);
