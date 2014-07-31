@@ -16735,10 +16735,8 @@ GLboolean glewExperimental = GL_FALSE;
 
 #if !defined(GLEW_MX)
 
-#if defined(GLEW_USE_LIB_ES) 
-#  if defined (GLEW_INC_EGL)
-extern GLenum eglewContextInit (void);
-#  endif
+#if defined (GLEW_INC_EGL)
+extern GLenum eglewContextInit (EGLDisplay display);
 #elif defined(_WIN32)
 extern GLenum wglewContextInit (void);
 #elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX) /* _UNIX */
@@ -16749,15 +16747,13 @@ GLenum glewInit ()
 {
   GLenum r;
   if ( (r = glewContextInit()) ) return r;
-#if defined(GLEW_USE_LIB_ES)
-#  if defined (GLEW_INC_EGL)
- return eglewContextInit();
-#  endif
+#if defined (GLEW_INC_EGL)
+  return eglewContextInit(eglGetCurrentDisplay());
 #elif defined(_WIN32)
   return wglewContextInit();
 #elif !defined(__APPLE__) || defined(GLEW_APPLE_GLX) /* _UNIX */
   return glxewContextInit();
-#endif /* GLEW_USE_LIB_ES */
+#endif /* GLEW_INC_EGL */
   return r;
 }
 
