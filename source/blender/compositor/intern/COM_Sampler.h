@@ -23,15 +23,12 @@
 class SamplerNearestValue;
 class SamplerNearestNoCheckValue;
 class SamplerLinearValue;
-//class SamplerBilinearValue;
 class SamplerNearestVector;
 class SamplerNearestNoCheckVector;
 class SamplerLinearVector;
-//class SamplerBilinearVector;
 class SamplerNearestColor;
 class SamplerNearestNoCheckColor;
 class SamplerLinearColor;
-//class SamplerBilinearColor;
 
 #ifndef _COM_Sampler_h_
 #define _COM_Sampler_h_
