@@ -195,14 +195,20 @@ static void normalize_knots(Nurb *nu, char uv) {
 	int uv_idx = (uv=='u')? 0 : 1;
 	for (NurbTrim *nt = (NurbTrim*)nu->trims.first; nt; nt=nt->next) {
 		for (Nurb *trim_nurb = (Nurb*)nt->nurb_list.first; trim_nurb; trim_nurb=trim_nurb->next) {
+			float umin=std::numeric_limits<float>::infinity();
+			float umax=-std::numeric_limits<float>::infinity();
 			int ptsu = std::max(trim_nurb->pntsu,1);
 			int ptsv = std::max(trim_nurb->pntsv,1);
 			int bp_count = ptsu*ptsv;
 			BPoint *bp = trim_nurb->bp; // Control points
 			for (int bpnum=0; bpnum<bp_count; bpnum++) {
 				double old = bp[bpnum].vec[uv_idx];
-				bp[bpnum].vec[uv_idx] = (old-lowest)*denominator;
+				double new_uv = (old-lowest)*denominator;
+				bp[bpnum].vec[uv_idx] = new_uv;
+				umin = std::min(umin,(float)new_uv);
+				umax = std::max(umax,(float)new_uv);
 			}
+			printf("[Knot (Trim Boudns) Bounds]: [%f (%f,%f) %f]\n",knots[0],umin,umax,knots[num_knots-1]);
 		}
 	}
 	BKE_nurb_clear_cached_UV_mesh(nu,true);
@@ -603,12 +609,19 @@ static void rhino_import_nurbs_surf_end(bContext *C) {
 	printf("nurbssurf done\n");
 }
 
+static void nurb_normalize_knots(Nurb *nu) {
+	normalize_knots(nu, 'u');
+	normalize_knots(nu, 'v');
+	BKE_nurb_knot_calc_u(nu);
+	BKE_nurb_knot_calc_v(nu);
+}
 
 static Nurb* rhino_import_nurbs_surf(bContext *C,
-									ON_Surface *raw_surf,
-									ON_Object *obj,
-									ON_3dmObjectAttributes *attrs,
-									bool newobj) {
+									 ON_Surface *raw_surf,
+									 ON_Object *obj,
+									 ON_3dmObjectAttributes *attrs,
+									 bool newobj,
+									 bool normalize_knots=true) {
 	ON_NurbsSurface *surf = ON_NurbsSurface::Cast(raw_surf);
 	bool surf_needs_delete = false;
 	if (!surf) {
@@ -662,13 +675,8 @@ static Nurb* rhino_import_nurbs_surf(bContext *C,
 	}
 	nu->knotsv[i] = nu->knotsv[i-1];
 	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, surf->IsPeriodic(0));
-	normalize_knots(nu, 'u');
 	nu->flagv = analyze_knots(nu->knotsv, nu->pntsv+nu->orderv, nu->orderv, surf->IsPeriodic(1));
-	normalize_knots(nu, 'v');
-	// If trim curves are deformed on import, check for knot agreement between
-	// this point, after executing the next two calls
-	BKE_nurb_knot_calc_u(nu);
-	BKE_nurb_knot_calc_v(nu);
+	if (normalize_knots) nurb_normalize_knots(nu);
 	
 	ListBase *editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
@@ -725,7 +733,7 @@ static void rhino_import_brep_face(bContext *C,
 		}
 		should_destroy_ns = true;
 	}
-	Nurb *nu = rhino_import_nurbs_surf(C, ns, parentObj, parentAttrs, false);
+	Nurb *nu = rhino_import_nurbs_surf(C, ns, parentObj, parentAttrs, false, false);
 
 	/* Add the trim curves */
 	ON_BrepLoop *outer_loop = face->OuterLoop();
@@ -747,6 +755,8 @@ static void rhino_import_brep_face(bContext *C,
 		}
 		BLI_addtail(&nu->trims, trim);
 	}
+	
+	nurb_normalize_knots(nu);
 
 	if (should_destroy_ns) delete ns;
 }

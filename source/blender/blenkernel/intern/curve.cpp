@@ -655,21 +655,21 @@ int BKE_nurbTrim_tess(struct NurbTrim *nt, int resolution, float (**uv_out)[2]) 
 	float (*uv)[2] = (float(*)[2])MEM_mallocN(sizeof(*uv)*tot_tess_pts, "BKE_nurbTrim_tess");
 	*uv_out = uv;
 	for (Nurb* nu = (Nurb*)nt->nurb_list.first; nu; nu=nu->next) {
+		int tess_pts = nu->pntsu * resolution + 1;
 		float *U = nu->knotsu;
 		int pntsu = nu->pntsu;
 		BPoint *bp = nu->bp;
 		int orderu = nu->orderu;
-		int tess_pts = nu->pntsu * resolution + 1;
 		float umin, umax;
 		BKE_nurb_domain(nu, &umin, &umax, NULL, NULL);
 		float du = (umax-umin)/(tess_pts-1);
-		for (int i=0; i<=tess_pts; i++) {
+		for (int i=0; i<tess_pts; i++) {
 			BPoint pt;
-			float u = (i<tess_pts)? umin+i*du : umax;
+			float u = (i!=tess_pts-1)? umin+i*du : umax;
 			BKE_nurbs_curve_eval(u, U, pntsu, orderu, bp, 1, 0, &pt);
 			uv[i][0] = pt.vec[0];
 			uv[i][1] = pt.vec[1];
-			printf("uv: %f %f\n",pt.vec[0],pt.vec[1]);
+			printf("uv(%i/%i): %f %f\n",int(uv+i-*uv_out),tot_tess_pts,pt.vec[0],pt.vec[1]);
 		}
 		uv += tess_pts;
 	}
