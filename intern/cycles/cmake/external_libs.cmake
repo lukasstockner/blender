@@ -17,11 +17,7 @@ endif()
 # GLEW
 
 if(WITH_CYCLES_STANDALONE AND WITH_CYCLES_STANDALONE_GUI)
-	if(WITH_SYSTEM_GLEW)
-		set(CYCLES_APP_GLEW_LIBRARY ${GLEW_LIBRARY})
-	else()
-		set(CYCLES_APP_GLEW_LIBRARY extern_glew) # Cycles Standalone should not use the experimental glew-es
-	endif()
+	set(CYCLES_APP_GLEW_LIBRARY ${BLENDER_GLEW_LIBRARIES})
 endif()
 
 ###########################################################################
