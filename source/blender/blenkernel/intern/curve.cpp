@@ -41,6 +41,7 @@ extern "C" {
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_polyfill2d.h"
+#include "BLI_threads.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_material_types.h"
@@ -636,6 +637,11 @@ Nurb *BKE_nurb_copy(Nurb *src, int pntsu, int pntsv)
 		newnu->bp = (BPoint *)MEM_mallocN(pntsu * pntsv * sizeof(BPoint), "copyNurb3");
 	}
 	
+	newnu->trims.first = newnu->trims.last = NULL;
+	for (NurbTrim *nt = (NurbTrim*)src->trims.first; nt; nt=nt->next) {
+		NurbTrim *dup_nt = BKE_nurbTrim_duplicate(nt);
+		BLI_addtail(&newnu->trims, dup_nt);
+	}
 	BKE_nurb_clear_cached_UV_mesh(newnu,false);
 
 	return newnu;
@@ -644,6 +650,7 @@ Nurb *BKE_nurb_copy(Nurb *src, int pntsu, int pntsv)
 NurbTrim *BKE_nurbTrim_duplicate(NurbTrim *nt) {
 	NurbTrim *ret = (NurbTrim*)MEM_callocN(sizeof(NurbTrim), "duplicateNurbTrim");
 	BKE_nurbList_duplicate(&ret->nurb_list, &nt->nurb_list);
+	ret->type = nt->type;
 	return ret;
 }
 
@@ -669,7 +676,6 @@ int BKE_nurbTrim_tess(struct NurbTrim *nt, int resolution, float (**uv_out)[2]) 
 			BKE_nurbs_curve_eval(u, U, pntsu, orderu, bp, 1, 0, &pt);
 			uv[i][0] = pt.vec[0];
 			uv[i][1] = pt.vec[1];
-			printf("uv(%i/%i): %f %f\n",int(uv+i-*uv_out),tot_tess_pts,pt.vec[0],pt.vec[1]);
 		}
 		uv += tess_pts;
 	}
@@ -4078,6 +4084,7 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 	
 	// Trim
 	if (nu->resol_trim<1) nu->resol_trim = 1;
+	//gm->begin_recording();
 	for (NurbTrim *nt=(NurbTrim*)nu->trims.first; nt; nt=nt->next) {
 		float (*trim_uv_pts)[2];
 		int num_trimpts = BKE_nurbTrim_tess(nt, nu->resol_trim, &trim_uv_pts);
@@ -4087,11 +4094,22 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 				gm->bool_AND(trim_poly);
 				break;
 			case CU_TRIM_INTERIOR:
+				gm->bool_SUB(trim_poly);
+				break;
 			default:
+				fprintf(stderr,"WARNING: invalid trim type %i!\n",nt->type);
 				gm->bool_SUB(trim_poly);
 		}
 		MEM_freeN(trim_uv_pts);
 	}
+//	static ThreadMutex *mutex = NULL;
+//	if (!mutex) {
+//		mutex = (ThreadMutex*)MEM_callocN(sizeof(ThreadMutex), "ThreadMutex");
+//		BLI_mutex_init(mutex);
+//	}
+//	BLI_mutex_lock(mutex);
+//	gm->dump_recording();
+//	BLI_mutex_unlock(mutex);
 	
 	// Extract the results
 	std::map<int,int> *used_idxs;

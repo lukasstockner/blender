@@ -63,6 +63,8 @@ GridMesh::GridMesh() {
 	coords_len = coords_reserved_len = 0;
 	mallocN = NULL;
 	reallocN = NULL;
+	recorded_AND = NULL;
+	recorded_SUB = NULL;
 }
 
 GridMesh::~GridMesh() {
@@ -358,6 +360,51 @@ std::pair<int,int> GridMesh::cell_for_vert(int vert) {
 	return std::make_pair(x,y);
 }
 
+void GridMesh::begin_recording() {
+	recorded_AND = new std::vector<int>();
+	recorded_SUB = new std::vector<int>();
+}
+
+void GridMesh::dump_poly(int poly) {
+	printf("{");
+	int vert=poly; do {
+		int next_v = v[vert].next;
+		GridMeshCoord &gmc = coords[v[vert].coord_idx];
+		printf((next_v==poly)?"%f,%f}":"%f,%f, ", gmc.x, gmc.y);
+		vert = next_v;
+	} while (vert!=poly);
+}
+
+void GridMesh::dump_recording() {
+	puts("#if defined(GRIDMESH_GEOM_TEST_6)");
+	if (recorded_AND->size()) {
+		printf("std::vector<float> clip_verts = ");
+		dump_poly(recorded_AND->at(0));
+		printf(";\n");
+	} else {
+		printf("std::vector<float> clip_verts = {.2,.2,  1.8,.2,  1.8,1.8,  .2,1.8};\n");
+	}
+	int num_SUB = (int)recorded_SUB->size();
+	for (int i=0; i<num_SUB; i++) {
+		printf("std::vector<float> subj%i = ",i);
+		dump_poly(recorded_SUB->at(i));
+		printf(";\n");
+	}
+	printf("std::vector<std::vector<float>> subj_polys = {");
+	for (int i=0; i<num_SUB; i++) {
+		printf((i==num_SUB-1)?"subj%i}":"subj%i,",i);
+	}
+	printf(";\n");
+	printf("float gm_llx=%f,gm_lly=%f,gm_urx=%f,gm_ury=%f; // GridMesh params\n",llx,lly,urx,ury);
+	printf("int gm_nx=%i, gm_ny=%i;\n",nx,ny);
+	puts("std::vector<float> inout_pts = {};");
+	puts("bool clip_cyclic = true; // Required for initialization");
+	puts("bool subj_cyclic = true;");
+	puts("#endif");
+	delete recorded_AND;
+	delete recorded_SUB;
+}
+
 void GridMesh::poly_grid_BB(int poly, int *bb) { //int bb[4] = {minx,maxx,miny,maxy}
 	int first = poly_first_vert(poly);
 	int vert = first;
@@ -599,6 +646,7 @@ int GridMesh::insert_vert(int poly1left,
 
 // gridmesh -> gridmesh (intersection) poly2
 void GridMesh::bool_AND(int poly2) {
+	if (recorded_AND) {recorded_AND->push_back(poly2); return;}
 	int bb[4];
 	poly_grid_BB(poly2, bb);
 	int num_v, num_e; insert_vert_poly_gridmesh(poly2, &num_v, &num_e);
@@ -627,6 +675,7 @@ void GridMesh::bool_AND(int poly2) {
 
 // gridmesh -> gridmesh (intersection) ~poly2
 void GridMesh::bool_SUB(int poly2) {
+	if (recorded_SUB) {recorded_SUB->push_back(poly2); return;}
 	int bb[4];
 	poly_grid_BB(poly2, bb);
 	int num_v, num_e; insert_vert_poly_gridmesh(poly2, &num_v, &num_e);

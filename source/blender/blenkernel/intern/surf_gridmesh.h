@@ -113,6 +113,12 @@ struct GridMesh {
 	int gridpt_for_cell(int x, int y) {return (0<=x&&x<=nx&&0<=y&y<=ny)? 1+(y*(nx+1)+x) : 0;}
 	std::pair<int,int> cell_for_vert(int vert);
 	std::pair<float,float> cell_ll_corner(int x, int y) {return std::make_pair(llx+x*dx,lly+y*dy);}
+	
+	// Record & Debug Dump
+	std::vector<int> *recorded_AND, *recorded_SUB;
+	void begin_recording();
+	void dump_recording(); // Dumps the trim setup to stdout for copy/paste into tests/interactive/nurbs_trimtess.cpp
+	void dump_poly(int poly);
 
 	// Vert manipulation
 	int vert_new();
