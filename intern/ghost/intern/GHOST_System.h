@@ -167,6 +167,13 @@ public:
 	 */
 	virtual bool getFullScreen(void);
 
+
+	/**
+	 * Disables the auto-repeat function.
+	 */
+	virtual void disableAutoRepeat(void) {}
+	virtual void enableAutoRepeat(void) {}
+
 	
 	/**
 	 * Native pixel size support (MacBook 'retina').

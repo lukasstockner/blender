@@ -281,6 +281,11 @@ struct PointerRNA *WM_operator_property_pie_macro(const char *idname, const char
 /* call operator or call pie menu from expanded enum path property */
 struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *name, const char *description,
                                               int flag, const char *piename, const char *opname, const char *path);
+
+
+void WM_menu_pie_enable_autorepeat(struct bContext *C);
+void WM_menu_pie_disable_autorepeat(struct bContext *C);
+
 /* MOVE THIS SOMEWHERE ELSE */
 #define	SEL_TOGGLE		0
 #define	SEL_SELECT		1

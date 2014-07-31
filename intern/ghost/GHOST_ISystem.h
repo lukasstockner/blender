@@ -414,6 +414,13 @@ public:
 	 * in the application
 	 */
 	virtual int confirmQuit(GHOST_IWindow *window) const = 0;
+
+	/**
+	 * Disables the auto-repeat function.
+	 */
+	virtual void disableAutoRepeat(void) = 0;
+	virtual void enableAutoRepeat(void) = 0;
+
 protected:
 	/**
 	 * Initialize the system.

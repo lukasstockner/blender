@@ -387,6 +387,12 @@ private:
 	bool
 	generateWindowExposeEvents(
 	    );
+
+	/**
+	 * Disables the auto-repeat function.
+	 */
+	void disableAutoRepeat(void);
+	void enableAutoRepeat(void);
 };
 
 #endif
