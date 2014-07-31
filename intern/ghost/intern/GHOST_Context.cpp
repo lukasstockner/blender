@@ -42,85 +42,6 @@
 #include <cstring>
 
 
-static const char *get_glew_error_message_string(GLenum error)
-{
-	switch (error) {
-		case GLEW_OK: /* also GLEW_NO_ERROR */
-			return "OK";
-
-		case GLEW_ERROR_NO_GL_VERSION:
-			return "Unable to determine GL version.";
-
-		case GLEW_ERROR_GL_VERSION_10_ONLY:
-			return "OpenGL 1.1 or later is required.";
-
-		case GLEW_ERROR_GLX_VERSION_11_ONLY:
-			return "GLX 1.2 or later is required.";
-
-#ifdef WITH_GLEW_ES
-		case GLEW_ERROR_NOT_GLES_VERSION:
-			return "OpenGL ES is required.";
-
-		case GLEW_ERROR_GLES_VERSION:
-			return "A non-ES version of OpenGL is required.";
-
-		case GLEW_ERROR_NO_EGL_VERSION:
-			return "Unabled to determine EGL version.";
-
-		case GLEW_ERROR_EGL_VERSION_10_ONLY:
-			return "EGL 1.1 or later is required.";
-#endif
-
-		default:
-			return NULL;
-	}
-}
-
-
-static const char *get_glew_error_enum_string(GLenum error)
-{
-	switch (error) {
-		CASE_CODE_RETURN_STR(GLEW_OK) /* also GLEW_NO_ERROR */
-		CASE_CODE_RETURN_STR(GLEW_ERROR_NO_GL_VERSION)
-		CASE_CODE_RETURN_STR(GLEW_ERROR_GL_VERSION_10_ONLY)
-		CASE_CODE_RETURN_STR(GLEW_ERROR_GLX_VERSION_11_ONLY)
-#ifdef WITH_GLEW_ES
-		CASE_CODE_RETURN_STR(GLEW_ERROR_NOT_GLES_VERSION)
-		CASE_CODE_RETURN_STR(GLEW_ERROR_GLES_VERSION)
-		CASE_CODE_RETURN_STR(GLEW_ERROR_NO_EGL_VERSION)
-		CASE_CODE_RETURN_STR(GLEW_ERROR_EGL_VERSION_10_ONLY)
-#endif
-		default:
-			return NULL;
-	}
-}
-
-
-GLenum glew_chk(GLenum error, const char *file, int line, const char *text)
-{
-	if (error != GLEW_OK) {
-		const char *code = get_glew_error_enum_string(error);
-		const char *msg  = get_glew_error_message_string(error);
-
-#ifndef NDEBUG
-		fprintf(stderr,
-		        "%s(%d):[%s] -> GLEW Error (0x%04X): %s: %s\n",
-		        file, line, text, error,
-		        code ? code : "<no symbol>",
-		        msg  ? msg  : "<no message>");
-#else
-		fprintf(stderr,
-		        "GLEW Error (%04X): %s: %s\n",
-		        error,
-		        code ? code : "<no symbol>",
-		        msg  ? msg  : "<no message>");
-#endif
-	}
-
-	return error;
-}
-
-
 #ifdef _WIN32
 
 bool win32_chk(bool result, const char *file, int line, const char *text)
@@ -218,13 +139,11 @@ bool win32_chk(bool result, const char *file, int line, const char *text)
 
 void GHOST_Context::initContextGLEW()
 {
-	mxDestroyContext(m_glewContext); // no-op if m_glewContext is NULL
+	mxDestroyContext(m_mxContext); // no-op if m_mxContext is NULL
 
-	mxSetContext(mxCreateContext());
+	mxMakeCurrentContext(mxCreateContext());
 
-	m_glewContext = mxGetContext();
-
-	GLEW_CHK(glewInit());
+	m_mxContext = mxGetCurrentContext();
 }
 
 

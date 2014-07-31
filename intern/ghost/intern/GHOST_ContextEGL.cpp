@@ -47,6 +47,8 @@ EGLEWContext *eglewContext = NULL;
 #endif
 
 
+#define CASE_CODE_RETURN_STR(code) case code: return #code;
+
 static const char *get_egl_error_enum_string(EGLenum error)
 {
 	switch (error) {

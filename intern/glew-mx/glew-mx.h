@@ -27,48 +27,87 @@
 
 /** \file glew-mx.h
  *  \ingroup glew-mx
- * GLEW Context Management
+ *
+ * Support for GLEW Multimple rendering conteXts (MX)
+ * Maintained as a Blender Library.
+ *
+ * Different rendering contexts may have different entry points
+ * to extension functions of the same name.  So it can cause
+ * problems if, for example, a second context uses a pointer to
+ * say, glActiveTextureARB, that was queried from the first context.
+ *
+ * GLEW has basic support for multiple contexts by enabling WITH_GLEW_MX,
+ * but it does not provide a full implementation.  This is because
+ * there are too many questions about thread safety and memory
+ * allocation that are up to the user of GLEW.
+ *
+ * This implementation is very basic and isn't thread safe.
+ * For a single context the overhead should be
+ * no more than using GLEW without WITH_GLEW_MX enabled.
  */
 
 #ifndef __GLEW_MX_H__
 #define __GLEW_MX_H__
 
 #ifdef WITH_GLEW_MX
-/* glew its self expects this */
-#define GLEW_MX 1
-
-#define glewGetContext() _mxContext
+/* glew itself expects this */
+#  define GLEW_MX 1
+#  define glewGetContext() (&(_mx_context->glew_context))
 #endif
 
 #include <GL/glew.h>
 
-#ifdef WITH_GLEW_MX
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern GLEWContext *_mxContext;
+/* MXContext is used instead of GLEWContext directly so that
+   extending what data is held by a context is easier.
+ */
+typedef struct MXContext {
+#ifdef WITH_GLEW_MX
+	GLEWContext glew_context;
+#endif
 
-GLEWContext *mxGetContext(void);
-void mxSetContext(GLEWContext *ctx);
-GLEWContext *mxCreateContext(void);
-void mxDestroyContext(GLEWContext *ctx);
+	int reserved; /* structs need at least one member */
+
+} MXContext;
+
+extern MXContext *_mx_context;
+
+
+MXContext *mxCreateContext(void);
+
+
+#ifdef WITH_GLEW_MX
+
+MXContext *mxGetCurrentContext (void);
+void       mxMakeCurrentContext(MXContext *ctx);
+void       mxDestroyContext    (MXContext *ctx);
+
+#else
+
+/* don't use NULL here (mightn't be defined)*/
+#define mxGetCurrentContext()     ((MXContext *)0)
+#define mxMakeCurrentContext(ctx) ((void)ctx)
+#define mxDestroyContext(ctx)     ((void)ctx)
+
+#endif  /* WITH_GLEW_MX */
+
+
+GLenum glew_chk(GLenum error, const char *file, int line, const char *text);
+
+#ifndef NDEBUG
+#  define GLEW_CHK(x) glew_chk((x), __FILE__, __LINE__, #x)
+#else
+#  define GLEW_CHK(x) glew_chk((x), NULL, 0, NULL)
+#endif
+
 
 #ifdef __cplusplus
 }
 #endif
 
-#else
-
-typedef struct GLEWContext GLEWContext;
-
-/* don't use NULL here (mightn't be defined)*/
-#define mxGetContext()          ((GLEWContext *)0)
-#define mxSetContext(ctx)       ((void)ctx)
-#define mxCreateContext()       ((GLEWContext *)0)
-#define mxDestroyContext(ctx)   ((void)ctx)
-
-#endif  /* WITH_GLEW_MX */
 
 #endif  /* __GLEW_MX_H__ */

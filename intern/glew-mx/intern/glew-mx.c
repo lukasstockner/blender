@@ -27,52 +27,108 @@
 
 /** \file glew-mx.c
  *  \ingroup glew-mx
- *
- * Support for GLEW Multimple rendering conteXts (MX)
- * Maintained as a Blender Library.
- *
- * Different rendering contexts may have different entry points
- * to extension functions of the same name.  So it can cause
- * problems if, for example, a second context uses a pointer to
- * say, glActiveTextureARB, that was queried from the first context.
- *
- * GLEW has basic support for multiple contexts by enabling WITH_GLEW_MX,
- * but it does not provide a full implementation.  This is because
- * there are too many questions about thread safety and memory
- * allocation that are up to the user of GLEW.
- *
- * This implementation is very basic and isn't thread safe.
- * For a single context the overhead should be
- * no more than using GLEW without WITH_GLEW_MX enabled.
  */
-
-#ifdef WITH_GLEW_MX
 
 #include "glew-mx.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 
-GLEWContext *_mxContext = NULL;
 
-GLEWContext *mxGetContext(void)
+#define CASE_CODE_RETURN_STR(code) case code: return #code;
+
+static const char *get_glew_error_enum_string(GLenum error)
 {
-	return _mxContext;
+	switch (error) {
+		CASE_CODE_RETURN_STR(GLEW_OK) /* also GLEW_NO_ERROR */
+		CASE_CODE_RETURN_STR(GLEW_ERROR_NO_GL_VERSION)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_GL_VERSION_10_ONLY)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_GLX_VERSION_11_ONLY)
+#ifdef WITH_GLEW_ES
+		CASE_CODE_RETURN_STR(GLEW_ERROR_NOT_GLES_VERSION)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_GLES_VERSION)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_NO_EGL_VERSION)
+		CASE_CODE_RETURN_STR(GLEW_ERROR_EGL_VERSION_10_ONLY)
+#endif
+		default:
+			return NULL;
+	}
 }
 
-void mxSetContext(GLEWContext *ctx)
+
+GLenum glew_chk(GLenum error, const char *file, int line, const char *text)
 {
-	_mxContext = ctx;
+	if (error != GLEW_OK) {
+		const char *code = get_glew_error_enum_string(error);
+		const char *msg  = glewGetErrorString(error);
+
+#ifndef NDEBUG
+		fprintf(stderr,
+		        "%s(%d):[%s] -> GLEW Error (0x%04X): %s: %s\n",
+		        file, line, text, error,
+		        code ? code : "<no symbol>",
+		        msg  ? msg  : "<no message>");
+#else
+		fprintf(stderr,
+		        "GLEW Error (0x%04X): %s: %s\n",
+		        error,
+		        code ? code : "<no symbol>",
+		        msg  ? msg  : "<no message>");
+#endif
+	}
+
+	return error;
 }
 
-GLEWContext *mxCreateContext(void)
+
+#ifndef NDEBUG
+#  define GLEW_CHK(x) glew_chk((x), __FILE__, __LINE__, #x)
+#else
+#  define GLEW_CHK(x) glew_chk((x), NULL, 0, NULL)
+#endif
+
+
+MXContext *mxCreateContext(void)
 {
-	return calloc(1, sizeof(GLEWContext));
+#if WITH_GLEW_MX
+	MXContext* new_ctx = calloc(1, sizeof(MXContext));
+
+	if (new_ctx != NULL) {
+		MXContext* cur_ctx = _mx_context;
+		_mx_context = new_ctx;
+		GLEW_CHK(glewInit());
+		_mx_context = cur_ctx;
+	}
+
+	return new_ctx;
+#else
+	GLEW_CHK(glewInit());
+	return NULL;
+#endif
 }
 
-void mxDestroyContext(GLEWContext *ctx)
+
+#ifdef WITH_GLEW_MX
+
+MXContext *_mx_context = NULL;
+
+
+MXContext *mxGetCurrentContext(void)
 {
-	if (_mxContext == ctx)
-		_mxContext = NULL;
+	return _mx_context;
+}
+
+
+void mxMakeCurrentContext(MXContext *ctx)
+{
+	_mx_context = ctx;
+}
+
+
+void mxDestroyContext(MXContext *ctx)
+{
+	if (_mx_context == ctx)
+		_mx_context = NULL;
 
 	free(ctx);
 }

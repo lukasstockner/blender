@@ -2223,6 +2223,8 @@ if(WITH_GLEW_MX)
 	list(APPEND GL_DEFINITIONS -DWITH_GLEW_MX)
 endif()
 
+list(APPEND BLENDER_GLEW_LIBRARIES bf_intern_glew_mx)
+
 if(WITH_SYSTEM_GLEW)
 	find_package(GLEW)
 
@@ -2284,10 +2286,6 @@ else()
 
 	endif()
 
-endif()
-
-if(WITH_GLEW_MX)
-	list(APPEND BLENDER_GLEW_LIBRARIES bf_intern_glew_mx)
 endif()
 
 if(NOT WITH_GLU)

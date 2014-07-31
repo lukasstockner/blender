@@ -51,14 +51,14 @@ public:
 	GHOST_Context(bool stereoVisual, GHOST_TUns16 numOfAASamples)
 	    : m_stereoVisual(stereoVisual),
 	      m_numOfAASamples(numOfAASamples),
-	      m_glewContext(NULL)
+	      m_mxContext(NULL)
 	{}
 
 	/**
 	 * Destructor.
 	 */
 	virtual ~GHOST_Context() {
-		mxDestroyContext(m_glewContext);
+		mxDestroyContext(m_mxContext);
 	}
 
 	/**
@@ -129,7 +129,7 @@ protected:
 	void initContextGLEW();
 
 	inline void activateGLEW() const {
-		mxSetContext(m_glewContext);
+		mxMakeCurrentContext(m_mxContext);
 	}
 
 	bool m_stereoVisual;
@@ -139,21 +139,12 @@ protected:
 	static void initClearGL();
 
 private:
-	GLEWContext *m_glewContext;
+	MXContext *m_mxContext;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_Context")
 #endif
 };
-
-
-GLenum glew_chk(GLenum error, const char *file, int line, const char *text);
-
-#ifndef NDEBUG
-#  define GLEW_CHK(x) glew_chk((x), __FILE__, __LINE__, #x)
-#else
-#  define GLEW_CHK(x) x
-#endif
 
 
 #ifdef _WIN32
@@ -166,6 +157,5 @@ bool win32_chk(bool result, const char *file = NULL, int line = 0, const char *t
 #  endif
 #endif  /* _WIN32 */
 
-#define CASE_CODE_RETURN_STR(code) case code: return #code;
 
 #endif // __GHOST_CONTEXT_H__
