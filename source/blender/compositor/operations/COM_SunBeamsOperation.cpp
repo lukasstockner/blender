@@ -113,7 +113,7 @@ struct BufferLineAccumulator {
 
 		num = (int)ceilf(umin) - max_ii((int)floorf(umax), 1);
 
-		float *iter = input->getBuffer() + COM_NUMBER_OF_CHANNELS * (x + input->getWidth() * y);
+		float *iter = input->getBuffer() + COM_NUM_CHANNELS_COLOR * (x + input->getWidth() * y);
 		return iter;
 	}
 
@@ -163,7 +163,7 @@ struct BufferLineAccumulator {
 			/* decrement u */
 			x -= fxx;
 			y -= fyx;
-			buffer -= (fxx + fyx * buffer_width) * COM_NUMBER_OF_CHANNELS;
+			buffer -= (fxx + fyx * buffer_width) * COM_NUM_CHANNELS_COLOR;
 
 			/* decrement v (in steps of dv < 1) */
 			v_local -= dv;
@@ -172,7 +172,7 @@ struct BufferLineAccumulator {
 
 				x -= fxy;
 				y -= fyy;
-				buffer -= (fxy + fyy * buffer_width) * COM_NUMBER_OF_CHANNELS;
+				buffer -= (fxy + fyy * buffer_width) * COM_NUM_CHANNELS_COLOR;
 			}
 		}
 
