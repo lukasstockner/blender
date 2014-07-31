@@ -773,21 +773,6 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 			
 			GHOST_TKey gkey;
 
-			/* first, determine if we have a valid event. Sometimes, X11 fires fake events on key release, see
-			 * for instance http://en.sfml-dev.org/forums/index.php?topic=10156.0 */
-			if (xke->keycode < 256)
-			{
-				char keys[32];
-				XQueryKeymap(m_display, keys);
-				bool down = (keys[xke->keycode / 8] & (1 << (xke->keycode % 8))) != 0;
-
-				if (down && xe->type == KeyRelease)
-					break;
-
-				if (!down && xe->type == KeyPress)
-					break;
-			}
-
 			/* In keyboards like latin ones,
 			 * numbers needs a 'Shift' to be accessed but key_sym
 			 * is unmodified (or anyone swapping the keys with xmodmap).
