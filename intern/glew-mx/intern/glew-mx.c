@@ -60,7 +60,7 @@ GLenum glew_chk(GLenum error, const char *file, int line, const char *text)
 {
 	if (error != GLEW_OK) {
 		const char *code = get_glew_error_enum_string(error);
-		const char *msg  = glewGetErrorString(error);
+		const char *msg  = (const char *)glewGetErrorString(error);
 
 #ifndef NDEBUG
 		fprintf(stderr,
