@@ -7983,7 +7983,7 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
 	return retval;
 }
 
-void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const float my)
+void ui_block_calculate_pie_segment(uiBlock *block, const float event_xy[2])
 {
 	float seg1[2];
 	float seg2[2];
@@ -7996,8 +7996,7 @@ void ui_block_calculate_pie_segment(uiBlock *block, const float mx, const float 
 		copy_v2_v2(seg1, block->pie_data.pie_center_spawned);
 	}
 
-	seg2[0] = mx - seg1[0];
-	seg2[1] = my - seg1[1];
+	sub_v2_v2v2(seg2, event_xy, seg1);
 
 	len = normalize_v2_v2(block->pie_data.pie_dir, seg2);
 
@@ -8611,7 +8610,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 	ARegion *ar;
 	uiBlock *block;
 	uiBut *but;
-	int mx, my;
+	float event_xy[2];
 	double duration;
 	bool is_click_style;
 
@@ -8676,12 +8675,12 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 		}
 	}
 
-	mx = event->x;
-	my = event->y;
+	event_xy[0] = event->x;
+	event_xy[1] = event->y;
 
-	ui_window_to_block(ar, block, &mx, &my);
+	ui_window_to_block_fl(ar, block, &event_xy[0], &event_xy[1]);
 
-	ui_block_calculate_pie_segment(block, mx, my);
+	ui_block_calculate_pie_segment(block, event_xy);
 
 	if (block->pie_data.flags & UI_PIE_FINISHED) {
 		if ((event->type == block->pie_data.event && event->val == KM_RELEASE) ||
@@ -8703,11 +8702,8 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			ED_region_tag_redraw(ar);
 		}
 		else {
-			/* calculate distance from initial poit */
-			float seg[2] = {(float)mx, (float)my};
-			sub_v2_v2(seg, block->pie_data.pie_center_init);
-
-			if (len_squared_v2(seg) < PIE_CLICK_THRESHOLD) {
+			/* distance from initial point */
+			if (len_squared_v2v2(event_xy, block->pie_data.pie_center_init) < PIE_CLICK_THRESHOLD) {
 				block->pie_data.flags |= UI_PIE_CLICK_STYLE;
 			}
 			else if (!is_click_style) {

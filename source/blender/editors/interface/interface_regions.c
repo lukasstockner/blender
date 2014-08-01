@@ -1745,13 +1745,13 @@ uiBlock *ui_popup_block_refresh(
 		ar->winrct.ymin = 0;
 		ar->winrct.ymax = winy;
 
-		ui_block_calculate_pie_segment(block, block->pie_data.pie_center_init[0], block->pie_data.pie_center_init[1]);
+		ui_block_calculate_pie_segment(block, block->pie_data.pie_center_init);
 
 		/* lastly set the buttons at the center of the pie menu, ready for animation */
 		if (U.pie_animation_timeout > 0) {
 			for (but = block->buttons.first; but; but = but->next) {
 				if (but->pie_dir) {
-					BLI_rctf_recenter(&but->rect, block->pie_data.pie_center_spawned[0], block->pie_data.pie_center_spawned[1]);
+					BLI_rctf_recenter(&but->rect, UNPACK2(block->pie_data.pie_center_spawned));
 				}
 			}
 		}
