@@ -56,6 +56,7 @@
 #include "BKE_main.h"
 #include "BKE_editmesh.h"
 #include "BKE_key.h"
+#include "BKE_mesh.h"
 
 #include "BLF_translation.h"
 #include "BLF_api.h"
@@ -2449,24 +2450,21 @@ static int edbm_bfs_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		}
 	}
 
-	/* figure out control scales, TODO coefficient to be adjusted */
+	/* figure out control scales */
 	{
+		BoundBox *bb = BKE_mesh_boundbox_get(obedit);
 		float bbox_diag[3];
 		copy_m3_m4(state->obmat, obedit->obmat);
-		/* 0.5 * boundbox diagonal per entire view3d height */
-		zero_v3(bbox_diag);
-
-		/* TODO: figure out why sometimes boundbox is NULL */
+		zero_v3(bbox_diag);	
 		copy_v3_v3(bbox_diag, obedit->bb->vec[0]);
 		sub_v3_v3(bbox_diag, obedit->bb->vec[6]);
 		mul_m3_v3(state->obmat, bbox_diag);
-		state->yscale = 2.0f * len_v3(bbox_diag) / ar->winy;
 
-		/* 2.0f blending amount per entire view3d width, simple*/
+		state->yscale = 3.0 / 4.0 * len_v3(bbox_diag) / ar->winy;
+
+		/* 2.0f blending amount per entire view3d width, simple */
 		state->xscale = 2.0f / ar->winx;
 	}
-
-	/* shape selector! TODO */
 
 	/* register modal handler */
 	WM_event_add_modal_handler(C, op);
