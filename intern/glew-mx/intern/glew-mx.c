@@ -56,7 +56,7 @@ static const char *get_glew_error_enum_string(GLenum error)
 }
 
 
-GLenum glew_chk(GLenum error, const char *file, int line, const char *text)
+static GLenum glew_chk(GLenum error, const char *file, int line, const char *text)
 {
 	if (error != GLEW_OK) {
 		const char *code = get_glew_error_enum_string(error);
@@ -79,7 +79,6 @@ GLenum glew_chk(GLenum error, const char *file, int line, const char *text)
 
 	return error;
 }
-
 
 #ifndef NDEBUG
 #  define GLEW_CHK(x) glew_chk((x), __FILE__, __LINE__, #x)
