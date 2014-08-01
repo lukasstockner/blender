@@ -3511,31 +3511,3 @@ struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *na
 	return NULL;
 }
 
-
-void WM_menu_pie_enable_autorepeat(struct bContext *C)
-{
-	wmWindowManager *manager = CTX_wm_manager(C);
-
-	manager->active_pie_menus--;
-
-	if (manager->active_pie_menus < 0) {
-		manager->active_pie_menus = 0;
-		printf("Window Manager: Pie Menus cleanup error\n");
-		fflush(stdout);
-	}
-
-	if (manager->active_pie_menus == 0)
-		GHOST_EnableAutoRepeat();
-
-}
-
-void WM_menu_pie_disable_autorepeat(struct bContext *C)
-{
-	wmWindowManager *manager = CTX_wm_manager(C);
-
-	if (manager->active_pie_menus == 0)
-		GHOST_DisableAutoRepeat();
-
-	manager->active_pie_menus++;
-}
-

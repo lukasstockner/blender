@@ -8686,8 +8686,6 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 		if ((event->type == block->pie_data.event && event->val == KM_RELEASE) ||
 		     ((event->type == RIGHTMOUSE || event->type == ESCKEY) && (event->val == KM_PRESS)))
 		{
-			WM_menu_pie_enable_autorepeat(C);
-
 			menu->menuretval = UI_RETURN_OK;
 		}
 
@@ -8710,7 +8708,6 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 			if (len_squared_v2(seg) < PIE_CLICK_THRESHOLD) {
 				block->pie_data.flags |= UI_PIE_CLICK_STYLE;
-				WM_menu_pie_enable_autorepeat(C);
 			}
 			else if (!is_click_style) {
 				uiBut *but = ui_but_find_activated(menu->region);
@@ -8741,11 +8738,11 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			case RIGHTMOUSE:
 				if (!is_click_style) {
 					block->pie_data.flags |= UI_PIE_FINISHED;
+					menu->menuretval = 0;
 					ED_region_tag_redraw(ar);
 				}
-				else {
+				else
 					menu->menuretval = UI_RETURN_CANCEL;
-				}
 				break;
 
 			case AKEY:
@@ -8812,9 +8809,6 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				break;
 		}
 	}
-
-	if (menu->retvalue && !is_click_style)
-		WM_menu_pie_enable_autorepeat(C);
 
 	return retval;
 }

@@ -2682,8 +2682,6 @@ struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon
 	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
 
 	pie->block_radial = uiBeginBlock(C, NULL, __func__, UI_EMBOSS);
-
-	WM_menu_pie_disable_autorepeat(C);
 	/* may be useful later to allow spawning pies
 	 * from old positions */
 	/* pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY; */

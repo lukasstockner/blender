@@ -890,12 +890,6 @@ extern int GHOST_UseNativePixels(void);
 extern float GHOST_GetNativePixelSize(GHOST_WindowHandle windowhandle);
 
 
-/**
- * Turn auto repeat on/off.
- */
-extern void GHOST_DisableAutoRepeat(void);
-extern void GHOST_EnableAutoRepeat(void);
-
 #ifdef __cplusplus
 }
 #endif

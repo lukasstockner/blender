@@ -2064,15 +2064,4 @@ void GHOST_SystemX11::initXInputDevices()
 	}
 }
 
-void GHOST_SystemX11::disableAutoRepeat(void)
-{
-	XAutoRepeatOff(m_display);
-}
-
-void GHOST_SystemX11::enableAutoRepeat(void)
-{
-	XAutoRepeatOn(m_display);
-}
-
-
 #endif /* WITH_X11_XINPUT */

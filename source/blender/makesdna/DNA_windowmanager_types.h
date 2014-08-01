@@ -156,8 +156,7 @@ typedef struct wmWindowManager {
 	struct wmTimer *autosavetimer;    /* timer for auto save */
 
 	char is_interface_locked;		/* indicates whether interface is locked for user interaction */
-	char par[3];
-	int active_pie_menus;           /* counts active pie menus. useful to turn auto-repeat on and off */
+	char par[7];
 } wmWindowManager;
 
 /* wmWindowManager.initialized */

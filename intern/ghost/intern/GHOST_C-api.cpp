@@ -914,14 +914,3 @@ float GHOST_GetNativePixelSize(GHOST_WindowHandle windowhandle)
 	return 1.0f;
 }
 
-extern void GHOST_DisableAutoRepeat(void)
-{
-	GHOST_ISystem *system = GHOST_ISystem::getSystem();
-	system->disableAutoRepeat();
-}
-
-extern void GHOST_EnableAutoRepeat(void)
-{
-	GHOST_ISystem *system = GHOST_ISystem::getSystem();
-	system->enableAutoRepeat();
-}
