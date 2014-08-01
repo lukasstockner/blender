@@ -6589,7 +6589,6 @@ static bool ui_mouse_inside_button(ARegion *ar, uiBut *but, int x, int y)
 {
 	uiBlock *block = but->block;
 	float mx, my;
-
 	if (!ui_mouse_inside_region(ar, x, y))
 		return false;
 
@@ -8516,8 +8515,10 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 		}
 
 		return WM_UI_HANDLER_CONTINUE;
-	} else
+	}
+	else {
 		return WM_UI_HANDLER_BREAK;
+	}
 }
 
 static bool ui_pie_menu_supported_apply(uiBut *but) {
@@ -9106,7 +9107,6 @@ void UI_add_popup_handlers(bContext *C, ListBase *handlers, uiPopupBlockHandle *
 {
 	WM_event_add_ui_handler(C, handlers, ui_handler_popup, ui_handler_remove_popup, popup, accept_dbl_click);
 }
-
 
 void UI_remove_popup_handlers(ListBase *handlers, uiPopupBlockHandle *popup)
 {

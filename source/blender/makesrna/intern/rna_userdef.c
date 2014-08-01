@@ -3157,7 +3157,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 		                             "Direct conversion of frame numbers to seconds"},
 		{0, NULL, 0, NULL, NULL}
 	};
-
+	
 	PropertyRNA *prop;
 	StructRNA *srna;
 	

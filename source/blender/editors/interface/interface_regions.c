@@ -1569,7 +1569,7 @@ static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
 		block->rect.xmin += xofs;
 		block->rect.xmax += xofs;
 	}
-
+	
 	if (block->rect.ymin < width)
 		block->rect.ymin = width;
 	if (block->rect.ymax > winy - MENU_TOP)
@@ -2640,6 +2640,7 @@ uiLayout *uiPupMenuLayout(uiPopupMenu *pup)
 }
 
 /*************************** Pie Menus ***************************************/
+
 static uiBlock *ui_block_func_PIE(bContext *UNUSED(C), uiPopupBlockHandle *handle, void *arg_pie)
 {
 	uiBlock *block;
@@ -2672,8 +2673,8 @@ static uiBlock *ui_block_func_PIE(bContext *UNUSED(C), uiPopupBlockHandle *handl
 
 static float uiPieTitleWidth(const char *name, int icon)
 {
-	return UI_GetStringWidth(name) +
-		        (UI_UNIT_X * (1.50f + (icon ? 0.25f : 0.0f)));
+	return (UI_GetStringWidth(name) +
+	         (UI_UNIT_X * (1.50f + (icon ? 0.25f : 0.0f))));
 }
 
 struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const wmEvent *event)

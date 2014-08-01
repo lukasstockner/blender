@@ -132,7 +132,7 @@ typedef enum RadialDirection {
 	UI_RADIAL_S  = 5,
 	UI_RADIAL_SW = 6,
 	UI_RADIAL_W  = 7,
-	UI_RADIAL_NW = 8
+	UI_RADIAL_NW = 8,
 } RadialDirection;
 
 extern const char ui_radial_dir_to_num[8];
@@ -161,13 +161,15 @@ extern const char ui_radial_dir_to_num[8];
 #define USE_NUMBUTS_LR_ALIGN
 
 /* PieMenuData->flags */
-#define UI_PIE_DEGREES_RANGE_LARGE (1 << 0) /* pie menu item collision is detected at 90 degrees */
-#define UI_PIE_INITIAL_DIRECTION   (1 << 1) /* use initial center of pie menu to calculate direction */
-#define UI_PIE_3_ITEMS             (1 << 2) /* pie menu has only 3 items, careful when centering */
-#define UI_PIE_INVALID_DIR         (1 << 3) /* mouse not far enough from center position  */
-#define UI_PIE_FINISHED            (1 << 4) /* pie menu finished but we still wait for a release event  */
-#define UI_PIE_CLICK_STYLE         (1 << 5) /* pie menu changed to click style, click to confirm  */
-#define UI_PIE_ANIMATION_FINISHED  (1 << 6) /* pie animation finished, do not calculate any more motio  */
+enum {
+	UI_PIE_DEGREES_RANGE_LARGE  = (1 << 0),  /* pie menu item collision is detected at 90 degrees */
+	UI_PIE_INITIAL_DIRECTION    = (1 << 1),  /* use initial center of pie menu to calculate direction */
+	UI_PIE_3_ITEMS              = (1 << 2),  /* pie menu has only 3 items, careful when centering */
+	UI_PIE_INVALID_DIR          = (1 << 3),  /* mouse not far enough from center position  */
+	UI_PIE_FINISHED             = (1 << 4),  /* pie menu finished but we still wait for a release event  */
+	UI_PIE_CLICK_STYLE          = (1 << 5),  /* pie menu changed to click style, click to confirm  */
+	UI_PIE_ANIMATION_FINISHED   = (1 << 6),  /* pie animation finished, do not calculate any more motio  */
+};
 
 #define PIE_CLICK_THRESHOLD 50.0f
 

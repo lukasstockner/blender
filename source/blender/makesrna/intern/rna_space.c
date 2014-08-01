@@ -368,7 +368,6 @@ static void rna_Space_transform_manipulators_update(Main *UNUSED(bmain), Scene *
 		v3d->twflag |= V3D_USE_MANIPULATOR;
 }
 
-
 static PointerRNA rna_CurrentOrientation_get(PointerRNA *ptr)
 {
 	Scene *scene = ((bScreen *)ptr->id.data)->scene;
@@ -677,7 +676,7 @@ static EnumPropertyItem *rna_SpaceView3D_viewport_shade_itemf(bContext *UNUSED(C
 }
 
 static EnumPropertyItem *rna_SpaceView3D_viewport_shade_pie_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                              PropertyRNA *UNUSED(prop), bool *r_free)
+                                                                   PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Scene *scene = ((bScreen *)ptr->id.data)->scene;
 	RenderEngineType *type = RE_engines_find(scene->r.engine);

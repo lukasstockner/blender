@@ -210,7 +210,7 @@ void ED_operatormacros_mesh(void)
 {
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
-
+	
 	ot = WM_operatortype_append_macro("MESH_OT_loopcut_slide", "Loop Cut and Slide", "Cut mesh loop and slide it",
 	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
 	WM_operatortype_macro_define(ot, "MESH_OT_loopcut");

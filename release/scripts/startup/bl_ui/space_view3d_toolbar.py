@@ -1773,10 +1773,6 @@ class VIEW3D_PT_tools_grease_pencil(GreasePencilPanel, Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     bl_category = "Grease Pencil"
-        
-    @classmethod
-    def poll(cls, context):
-        return (context.sculpt_object and context.tool_settings.sculpt)
 
 
 if __name__ == "__main__":  # only for live edit.

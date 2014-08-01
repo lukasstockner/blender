@@ -469,10 +469,10 @@ processEvents(
 	 * ghost events and call base class pushEvent() method. */
 	
 	bool anyProcessed = false;
-
+	
 	do {
 		GHOST_TimerManager *timerMgr = getTimerManager();
-
+		
 		if (waitForEvent && m_dirty_windows.empty() && !XPending(m_display)) {
 			GHOST_TUns64 next = timerMgr->nextFireTime();
 			
@@ -486,11 +486,11 @@ processEvents(
 					SleepTillEvent(m_display, next - getMilliSeconds());
 			}
 		}
-
+		
 		if (timerMgr->fireTimers(getMilliSeconds())) {
 			anyProcessed = true;
 		}
-
+		
 		while (XPending(m_display)) {
 			XEvent xevent;
 			XNextEvent(m_display, &xevent);
@@ -525,14 +525,13 @@ processEvents(
 				continue;
 			}
 #endif
-			/* when using autorepeat, some keypress events can actually come -after- the
+			/* when using autorepeat, some keypress events can actually come *after* the
 			 * last keyrelease. The next code takes care of that */
 			if (xevent.type == KeyRelease) {
 				m_last_release_keycode = xevent.xkey.keycode;
 				m_last_release_time = xevent.xkey.time;
 			}
-
-			if (xevent.type == KeyPress) {
+			else if (xevent.type == KeyPress) {
 				if ((xevent.xkey.keycode == m_last_release_keycode) && ((xevent.xkey.time <= m_last_release_time)))
 					continue;
 			}
@@ -805,7 +804,7 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 
 			gkey = convertXKey(key_sym);
 
-			GHOST_TEventType type = (xke->type == KeyPress) ?
+			GHOST_TEventType type = (xke->type == KeyPress) ? 
 			                        GHOST_kEventKeyDown : GHOST_kEventKeyUp;
 			
 			if (!XLookupString(xke, &ascii, 1, NULL, NULL)) {

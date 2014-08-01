@@ -526,7 +526,7 @@ class WM_OT_context_menu_enum(Operator):
             layout.prop(value_base, prop_string, expand=True)
 
         context.window_manager.popup_menu(draw_func=draw_cb, title=prop.name, icon=prop.icon)
-        
+
         return {'FINISHED'}
 
 

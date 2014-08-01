@@ -1183,9 +1183,7 @@ void uiEndBlock_ex(const bContext *C, uiBlock *block, const int xy[2])
 	if (block->layouts.first) {
 		uiBlockLayoutResolve(block, NULL, NULL);
 	}
-
 	ui_block_do_align(block);
-
 	if ((block->flag & UI_BLOCK_LOOP) && (block->flag & UI_BLOCK_NUMSELECT)) {
 		ui_menu_block_set_keyaccels(block); /* could use a different flag to check */
 	}
@@ -3075,7 +3073,7 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 		but->drawflag |= (UI_BUT_TEXT_LEFT | UI_BUT_ICON_LEFT);
 	}
 	else if ((block->flag & UI_BLOCK_LOOP) ||
-	         ELEM(but->type, MENU, TEX, LABEL, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR, SEARCH_MENU_UNLINK))
+	          ELEM(but->type, MENU, TEX, LABEL, BLOCK, BUTM, SEARCH_MENU, PROGRESSBAR, SEARCH_MENU_UNLINK))
 	{
 		but->drawflag |= (UI_BUT_TEXT_LEFT | UI_BUT_ICON_LEFT);
 	}

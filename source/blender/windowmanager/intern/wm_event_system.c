@@ -271,6 +271,7 @@ void wm_event_do_notifiers(bContext *C)
 						/* free popup handlers only [#35434] */
 						UI_remove_popup_handlers_all(C, &win->modalhandlers);
 
+
 						ED_screen_set(C, note->reference);  // XXX hrms, think this over!
 						if (G.debug & G_DEBUG_EVENTS)
 							printf("%s: screen set %p\n", __func__, note->reference);
@@ -3450,7 +3451,7 @@ bool WM_event_is_tablet(const struct wmEvent *event)
 
 
 PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const char *description,
-                                         int flag, const char *opname, const char *piename)
+                                  int flag, const char *opname, const char *piename)
 {
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
@@ -3469,7 +3470,7 @@ PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const ch
 
 
 struct PointerRNA *WM_operator_property_pie_macro(const char *idname, const char *name, const char *description,
-                                              int flag, const char *piename, const char *opname, const char *propname)
+                                                   int flag, const char *piename, const char *opname, const char *propname)
 {
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
@@ -3492,7 +3493,7 @@ struct PointerRNA *WM_operator_property_pie_macro(const char *idname, const char
 
 /* call operator or call pie menu from expanded enum path property */
 struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *name, const char *description,
-                                              int flag, const char *piename, const char *opname, const char *path)
+                                               int flag, const char *piename, const char *opname, const char *path)
 {
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;

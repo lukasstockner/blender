@@ -272,15 +272,15 @@ bool        WM_operator_last_properties_store(struct wmOperator *op);
 
 /* call operator or call custom pie menu */
 struct PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const char *description,
-                                         int flag, const char *opname, const char *piename);
+                                          int flag, const char *opname, const char *piename);
 
 /* call operator or call pie menu from expanded operator enum property */
 struct PointerRNA *WM_operator_property_pie_macro(const char *idname, const char *name, const char *description,
-                                              int flag, const char *piename, const char *opname, const char *propname);
+                                                   int flag, const char *piename, const char *opname, const char *propname);
 
 /* call operator or call pie menu from expanded enum path property */
 struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *name, const char *description,
-                                              int flag, const char *piename, const char *opname, const char *path);
+                                               int flag, const char *piename, const char *opname, const char *path);
 /* MOVE THIS SOMEWHERE ELSE */
 #define	SEL_TOGGLE		0
 #define	SEL_SELECT		1

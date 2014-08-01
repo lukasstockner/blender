@@ -884,8 +884,8 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 	PointerRNA ptr;
 	PropertyRNA *prop;
 	uiBlock *block = layout->root->block;
-	bool radial = (layout->item.type == ITEM_LAYOUT_RADIAL) ||
-	              ((layout->item.type == ITEM_LAYOUT_ROOT) && (layout->root->type == UI_LAYOUT_PIEMENU));
+	const bool radial = (layout->item.type == ITEM_LAYOUT_RADIAL) ||
+	                      ((layout->item.type == ITEM_LAYOUT_ROOT) && (layout->root->type == UI_LAYOUT_PIEMENU));
 
 	if (!ot || !ot->srna) {
 		ui_item_disabled(layout, opname);
@@ -2112,7 +2112,7 @@ static void ui_litem_layout_column(uiLayout *litem)
 
 /* calculates the angle of a specified button in a radial menu,
  * stores a float vector in unit circle */
-static RadialDirection ui_get_radialbut_vec(float *vec, short itemnum)
+static RadialDirection ui_get_radialbut_vec(float vec[2], short itemnum)
 {
 	float angle = 0.0f;
 	RadialDirection dir = UI_RADIAL_NONE;
