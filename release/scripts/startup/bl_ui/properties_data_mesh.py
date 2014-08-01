@@ -269,10 +269,10 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             col.separator()
 
             sub = col.column(align=True)
-            sub.operator("object.shape_key_move", icon='TRIA_UP', text="").type = 'TOP'
+            sub.operator("object.shape_key_move", icon='TRI_DOUBLE_UP', text="").type = 'TOP'
             sub.operator("object.shape_key_move", icon='TRIA_UP', text="").type = 'UP'
             sub.operator("object.shape_key_move", icon='TRIA_DOWN', text="").type = 'DOWN'
-            sub.operator("object.shape_key_move", icon='TRIA_DOWN', text="").type = 'BOTTOM'
+            sub.operator("object.shape_key_move", icon='TRI_DOUBLE_DOWN', text="").type = 'BOTTOM'
 
             split = layout.split(percentage=0.4)
             row = split.row()
