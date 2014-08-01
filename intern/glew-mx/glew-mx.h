@@ -82,13 +82,11 @@ extern MXContext *_mx_context;
 #include "intern/symbol-binding.h"
 
 
-/* If only compiling for OpenGL 3.2 Core Profile then we should make sure
+/* If compiling only for OpenGL 3.2 Core Profile then we should make sure
  * no legacy API entries or symbolic constants are used.
  */
-#ifndef MX_NO_MANGLE_DEPRECATED
-#  if defined(WITH_GL_PROFILE_CORE) && !defined(WITH_GL_PROFILE_COMPAT) && !defined(WITH_GL_PROFILE_ES20)
-#    include "intern/gl-deprecated.h"
-#  endif
+#if defined(WITH_GL_PROFILE_CORE) && !defined(WITH_GL_PROFILE_COMPAT) && !defined(WITH_GL_PROFILE_ES20)
+#  include "intern/gl-deprecated.h"
 #endif
 
 

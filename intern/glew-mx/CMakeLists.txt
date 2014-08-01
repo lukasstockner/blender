@@ -29,9 +29,11 @@ set(INC
 )
 
 set(SRC
-	glew-mx.h
-
 	intern/glew-mx.c
+
+	glew-mx.h
+	intern/gl-deprecated.h
+	intern/symbol-binding.h
 )
 
 add_definitions(${GL_DEFINITIONS})
