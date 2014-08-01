@@ -28,7 +28,7 @@
 /** \file glew-mx.h
  *  \ingroup glew-mx
  *
- * Support for GLEW Multimple rendering conteXts (MX)
+ * Support for GLEW Multiple rendering conteXts (MX)
  * Maintained as a Blender Library.
  *
  * Different rendering contexts may have different entry points
@@ -76,6 +76,19 @@ typedef struct MXContext {
 
 #ifdef WITH_GLEW_MX
 extern MXContext *_mx_context;
+#endif
+
+
+#include "intern/symbol-binding.h"
+
+
+/* If only compiling for OpenGL 3.2 Core Profile then we should make sure
+ * no legacy API entries or symbolic constants are used.
+ */
+#ifndef MX_NO_MANGLE_DEPRECATED
+#  if defined(WITH_GL_PROFILE_CORE) && !defined(WITH_GL_PROFILE_COMPAT) && !defined(WITH_GL_PROFILE_ES20)
+#    include "intern/gl-deprecated.h"
+#  endif
 #endif
 
 
