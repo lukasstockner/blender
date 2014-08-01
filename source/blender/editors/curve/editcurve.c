@@ -165,6 +165,28 @@ static bool select_bpoint(BPoint *bp, bool selstatus, short flag, bool hidden)
 	return false;
 }
 
+/* Helper to select all points in a UV row or column according to dir */
+static bool nurbs_select_bpoint(Nurb *nu, BPoint *bp, int dir, bool selstatus, short flag, bool hidden) {
+	int pntsu = (nu->pntsu<=1)? 1 : nu->pntsu;
+	int pntsv = (nu->pntsv<=1)? 1 : nu->pntsv;
+	int idx = bp - nu->bp;
+	BLI_assert(0<=idx && idx<pntsu*pntsv);
+	int uidx = idx%pntsu;
+	int vidx = idx/pntsu;
+	/* dir is  0:-v  1:+v  2:-u  3:+u  */
+	if (dir==2 || dir==3) {
+		for (int u=0; u<pntsu; u++) {
+			select_bpoint(&nu->bp[pntsu*vidx+u], selstatus, flag, hidden);
+		}
+	}
+	if (dir==0 || dir==1) {
+		for (int v=0; v<pntsv; v++) {
+			select_bpoint(&nu->bp[pntsu*v+uidx], selstatus, flag, hidden);
+		}
+	}
+	return true;
+}
+
 static bool swap_selection_beztriple(BezTriple *bezt)
 {
 	if (bezt->f2 & SELECT)
@@ -3772,9 +3794,9 @@ void CURVE_OT_subdivide(wmOperatorType *ot)
 
 /******************** find nearest ************************/
 
-static void findnearestNurbvert__doClosest(void *userData, Nurb *nu, BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
+static void findnearestNurbvert__doClosest(ViewContext *vc, void *userData, Nurb *nu, BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
 {
-	struct { BPoint *bp; BezTriple *bezt; Nurb *nurb; float dist; int hpoint, select; float mval_fl[2]; } *data = userData;
+	struct { BPoint *bp; BezTriple *bezt; Nurb *nurb; int *dir; float dist; int hpoint, select; float mval_fl[2]; } *data = userData;
 
 	short flag;
 	float dist_test;
@@ -3800,26 +3822,85 @@ static void findnearestNurbvert__doClosest(void *userData, Nurb *nu, BPoint *bp,
 
 	if (dist_test < data->dist) {
 		data->dist = dist_test;
-
 		data->bp = bp;
 		data->bezt = bezt;
 		data->nurb = nu;
 		data->hpoint = bezt ? beztindex : 0;
+		if (nu->type==CU_NURBS && data->dir) {
+			int pntsu = (nu->pntsu<=1)? 1 : nu->pntsu;
+			int pntsv = (nu->pntsu<=1)? 1 : nu->pntsv;
+			int idx = bp - nu->bp;
+			BLI_assert(0<=idx && idx<pntsu*pntsv);
+			int uidx = idx%pntsu;
+			int vidx = idx/pntsu;
+			float max_cos = -2.0; *data->dir=-1;
+			float compass_pt[2]; /* pos of adjacent bp in {+u,-u,+v,-v} direction */
+			float compass_dir[2]; /* bp ---> bp{+u,-u,+v,-v} */
+			float mouse_dir[2]; /* bp ---> clickpt */
+			sub_v2_v2v2(mouse_dir, data->mval_fl, screen_co);
+			normalize_v2(mouse_dir);
+			*data->dir = -1;
+			BPoint *Upos = (uidx<pntsu-1)? bp+1 : NULL;
+			if (Upos && ED_view3d_project_float_object(vc->ar, Upos->vec, compass_pt, V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK) {
+				sub_v2_v2v2(compass_dir, compass_pt, screen_co);
+				normalize_v2(compass_dir);
+				float cos = dot_v2v2(compass_dir, mouse_dir);
+				/* data->dir for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
+				if (cos>max_cos) {
+					*data->dir = 3;
+					max_cos = cos;
+				}
+			}
+			BPoint *Uneg = (uidx>0)? bp-1 : NULL;
+			if (Uneg && ED_view3d_project_float_object(vc->ar, Uneg->vec, compass_pt, V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK) {
+				sub_v2_v2v2(compass_dir, compass_pt, screen_co);
+				normalize_v2(compass_dir);
+				float cos = dot_v2v2(compass_dir, mouse_dir);
+				/* data->dir for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
+				if (cos>max_cos) {
+					*data->dir = 2;
+					max_cos = cos;
+				}
+			}
+			BPoint *Vpos = (vidx<pntsv-1)? bp+pntsu : NULL;
+			if (Vpos && ED_view3d_project_float_object(vc->ar, Vpos->vec, compass_pt, V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK) {
+				sub_v2_v2v2(compass_dir, compass_pt, screen_co);
+				normalize_v2(compass_dir);
+				float cos = dot_v2v2(compass_dir, mouse_dir);
+				/* data->dir for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
+				if (cos>max_cos) {
+					*data->dir = 1;
+					max_cos = cos;
+				}
+			}
+			BPoint *Vneg = (vidx>0)? bp-pntsu : NULL;
+			if (Vneg && ED_view3d_project_float_object(vc->ar, Vneg->vec, compass_pt, V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK) {
+				sub_v2_v2v2(compass_dir, compass_pt, screen_co);
+				normalize_v2(compass_dir);
+				float cos = dot_v2v2(compass_dir, mouse_dir);
+				/* data->dir for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
+				if (cos>max_cos) {
+					*data->dir = 0;
+					max_cos = cos;
+				}
+			}
+		}
 	}
 }
 
-static short findnearestNurbvert(ViewContext *vc, short sel, const int mval[2], Nurb **nurb, BezTriple **bezt, BPoint **bp)
+static short findnearestNurbvert(ViewContext *vc, short sel, const int mval[2], Nurb **nurb, BezTriple **bezt, BPoint **bp, int *dir)
 {
 	/* (sel == 1): selected gets a disadvantage */
 	/* in nurb and bezt or bp the nearest is written */
 	/* return 0 1 2: handlepunt */
-	struct { BPoint *bp; BezTriple *bezt; Nurb *nurb; float dist; int hpoint, select; float mval_fl[2]; } data = {NULL};
+	struct { BPoint *bp; BezTriple *bezt; Nurb *nurb; int *dir;  float dist; int hpoint, select; float mval_fl[2]; } data = {NULL};
 
 	data.dist = ED_view3d_select_dist_px();
 	data.hpoint = 0;
 	data.select = sel;
 	data.mval_fl[0] = mval[0];
 	data.mval_fl[1] = mval[1];
+	data.dir = dir;
 
 	ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
 	nurbs_foreachScreenVert(vc, findnearestNurbvert__doClosest, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
@@ -4637,7 +4718,7 @@ void CURVE_OT_make_segment(wmOperatorType *ot)
 
 /***************** pick select from 3d view **********************/
 
-bool mouse_nurb(bContext *C, const int mval[2], bool extend, bool deselect, bool toggle)
+bool mouse_nurb(bContext *C, const int mval[2], bool extend, bool deselect, bool toggle, bool alt)
 {
 	Object *obedit = CTX_data_edit_object(C);
 	Curve *cu = obedit->data;
@@ -4655,7 +4736,8 @@ bool mouse_nurb(bContext *C, const int mval[2], bool extend, bool deselect, bool
 	
 	location[0] = mval[0];
 	location[1] = mval[1];
-	hand = findnearestNurbvert(&vc, 1, location, &nu, &bezt, &bp);
+	int dir; /*  for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
+	hand = findnearestNurbvert(&vc, 1, location, &nu, &bezt, &bp, &dir);
 
 	if (bezt || bp) {
 		if (extend) {
@@ -4673,7 +4755,11 @@ bool mouse_nurb(bContext *C, const int mval[2], bool extend, bool deselect, bool
 			}
 			else {
 				BKE_curve_nurb_vert_active_set(cu, nu, bp);
-				select_bpoint(bp, SELECT, SELECT, HIDDEN);
+				if (nu->type==CU_NURBS && alt) { /* Loop select */
+					nurbs_select_bpoint(nu, bp, dir, SELECT, SELECT, HIDDEN);
+				} else { /* Just select bp */
+					select_bpoint(bp, SELECT, SELECT, HIDDEN);
+				}
 			}
 		}
 		else if (deselect) {
@@ -4690,7 +4776,11 @@ bool mouse_nurb(bContext *C, const int mval[2], bool extend, bool deselect, bool
 				}
 			}
 			else {
-				select_bpoint(bp, DESELECT, SELECT, HIDDEN);
+				if (nu->type==CU_NURBS && alt) { /* Loop select */
+					nurbs_select_bpoint(nu, bp, dir, DESELECT, SELECT, HIDDEN);
+				} else { /* Just select bp */
+					select_bpoint(bp, DESELECT, SELECT, HIDDEN);
+				}
 				if (bp == vert) cu->actvert = CU_ACT_NONE;
 			}
 		}
@@ -4715,11 +4805,19 @@ bool mouse_nurb(bContext *C, const int mval[2], bool extend, bool deselect, bool
 			}
 			else {
 				if (bp->f1 & SELECT) {
-					select_bpoint(bp, DESELECT, SELECT, HIDDEN);
+					if (nu->type==CU_NURBS && alt) { /* Loop select */
+						nurbs_select_bpoint(nu, bp, dir, DESELECT, SELECT, HIDDEN);
+					} else { /* Just select bp */
+						select_bpoint(bp, DESELECT, SELECT, HIDDEN);
+					}
 					if (bp == vert) cu->actvert = CU_ACT_NONE;
 				}
 				else {
-					select_bpoint(bp, SELECT, SELECT, HIDDEN);
+					if (nu->type==CU_NURBS && alt) { /* Loop select */
+						nurbs_select_bpoint(nu, bp, dir, SELECT, SELECT, HIDDEN);
+					} else { /* Just select bp */
+						select_bpoint(bp, SELECT, SELECT, HIDDEN);
+					}
 					BKE_curve_nurb_vert_active_set(cu, nu, bp);
 				}
 			}
@@ -4742,7 +4840,11 @@ bool mouse_nurb(bContext *C, const int mval[2], bool extend, bool deselect, bool
 			}
 			else {
 				BKE_curve_nurb_vert_active_set(cu, nu, bp);
-				select_bpoint(bp, SELECT, SELECT, HIDDEN);
+				if (nu->type==CU_NURBS && alt) { /* Loop select */
+					nurbs_select_bpoint(nu, bp, dir, SELECT, SELECT, HIDDEN);
+				} else { /* Just select bp */
+					select_bpoint(bp, SELECT, SELECT, HIDDEN);
+				}
 			}
 		}
 
@@ -5520,7 +5622,8 @@ static int select_linked_pick_invoke(bContext *C, wmOperator *op, const wmEvent 
 	view3d_operator_needs_opengl(C);
 	view3d_set_viewcontext(C, &vc);
 
-	findnearestNurbvert(&vc, 1, event->mval, &nu, &bezt, &bp);
+	int dir;
+	findnearestNurbvert(&vc, 1, event->mval, &nu, &bezt, &bp, &dir);
 
 	if (bezt) {
 		a = nu->pntsu;

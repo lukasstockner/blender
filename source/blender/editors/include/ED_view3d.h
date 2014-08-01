@@ -150,8 +150,8 @@ void mesh_foreachScreenFace(
         void *userData, const eV3DProjTest clip_flag);
 void nurbs_foreachScreenVert(
         struct ViewContext *vc,
-        void (*func)(void *userData, struct Nurb *nu, struct BPoint *bp, struct BezTriple *bezt,
-                     int beztindex, const float screen_co[2]),
+        void (*func)(struct ViewContext *vc, void *userData, struct Nurb *nu, struct BPoint *bp,
+					 struct BezTriple *bezt, int beztindex, const float screen_co[2]),
         void *userData, const eV3DProjTest clip_flag);
 void mball_foreachScreenElem(
         struct ViewContext *vc,

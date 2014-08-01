@@ -418,7 +418,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 		}
 		/* Curve... */
 		else if (totcurvedata == 1) {
-			uiDefButR(block, NUM, 0, IFACE_("Weight:"), 0, yi -= buth + but_margin, 200, buth,
+			uiDefButR(block, NUM, 0, IFACE_("SftBdy Weight:"), 0, yi -= buth + but_margin, 200, buth,
 			          &data_ptr, "weight_softbody", 0, 0.0, 1.0, 1, 3, NULL);
 			uiDefButR(block, NUM, 0, IFACE_("Radius:"), 0, yi -= buth + but_margin, 200, buth,
 			          &data_ptr, "radius", 0, 0.0, 100.0, 1, 3, NULL);
@@ -426,7 +426,7 @@ static void v3d_editvertex_buts(uiLayout *layout, View3D *v3d, Object *ob, float
 			          &data_ptr, "tilt", 0, -tilt_limit, tilt_limit, 1, 3, NULL);
 		}
 		else if (totcurvedata > 1) {
-			uiDefButF(block, NUM, B_OBJECTPANELMEDIAN, IFACE_("Mean Weight:"),
+			uiDefButF(block, NUM, B_OBJECTPANELMEDIAN, IFACE_("Mean SftBdy Weight:"),
 			          0, yi -= buth + but_margin, 200, buth,
 			          &(tfp->ve_median[C_WEIGHT]), 0.0, 1.0, 1, 3, TIP_("Weight used for SoftBody Goal"));
 			uiDefButF(block, NUM, B_OBJECTPANELMEDIAN, IFACE_("Mean Radius:"),

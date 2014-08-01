@@ -315,6 +315,10 @@ bool ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 
 		return ret;
 	}
+	
+	if (obedit && obedit->type == OB_CURVE) {
+		
+	}
 
 	return 0;
 }

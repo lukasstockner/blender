@@ -64,7 +64,7 @@ void    load_editNurb(struct Object *obedit);
 void    make_editNurb(struct Object *obedit);
 void    free_editNurb(struct Object *obedit);
 
-bool    mouse_nurb(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);
+bool    mouse_nurb(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle, bool alt);
 
 struct Nurb *add_nurbs_primitive(struct bContext *C, struct Object *obedit, float mat[4][4], int type, int newob);
 

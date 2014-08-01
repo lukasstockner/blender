@@ -88,7 +88,7 @@ static void import_ON_str(char *dest, ON_wString& onstr, size_t n) {
 // #define CU_NURB_ENDPOINT	2
 // #define CU_NURB_BEZIER	4
 static int analyze_knots(float *knots, int num_knots, int order, bool periodic, float tol=.001) {
-	printf("knots{"); for (int i=0; i<num_knots; i++) printf("%f,",knots[i]); printf("}->");
+	// printf("knots{"); for (int i=0; i<num_knots; i++) printf("%f,",knots[i]); printf("}->");
 	float first = knots[1];
 	float last = knots[num_knots-2];
 	
@@ -208,7 +208,6 @@ static void normalize_knots(Nurb *nu, char uv) {
 				umin = std::min(umin,(float)new_uv);
 				umax = std::max(umax,(float)new_uv);
 			}
-			printf("[Knot (Trim Boudns) Bounds]: [%f (%f,%f) %f]\n",knots[0],umin,umax,knots[num_knots-1]);
 		}
 	}
 	BKE_nurb_clear_cached_UV_mesh(nu,true);
@@ -324,7 +323,6 @@ static Nurb *rhino_import_nurbscurve(bContext *C, ON_NurbsCurve *nc, ON_Object *
 	editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
 	ED_object_editmode_exit(C, EM_FREEDATA);
-	printf("	nurbscurve done\n");
 	return nu;
 }
 
@@ -890,7 +888,7 @@ int rhino_import(bContext *C, wmOperator *op) {
 			
 			if (ON_Curve::Cast(Geometry)) {
 				printf("--- Curve->%s \"%s\" ---\n",Object->ClassId()->ClassName(),obj_name);
-				rhino_import_curve(C, ON_Curve::Cast(Geometry), Object, &Attributes, false);
+				rhino_import_curve(C, ON_Curve::Cast(Geometry), Object, &Attributes, true);
 				did_decode = true;
 			}
 			

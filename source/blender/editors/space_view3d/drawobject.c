@@ -5915,7 +5915,9 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 				case CU_NURBS:
 					if (!sel && index == cu->actnu) {
 						/* we should draw active spline highlight below everything */
-						editnurb_draw_active_nurbs(nu);
+						/* DISABLED: it's painfully ugly *and* unnecessary given the color
+						 * change that already highlights to the selected Nurb. */
+						/* editnurb_draw_active_nurbs(nu); */
 					}
 
 					bp = nu->bp;
@@ -6016,7 +6018,7 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 
 	drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
 
-	if (v3d->zbuf) glDepthFunc(GL_ALWAYS);
+	if (v3d->zbuf) glDepthFunc(GL_LEQUAL);
 	
 	/* first non-selected and active handles */
 	index = 0;
@@ -6081,8 +6083,6 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 			}
 		}
 	}
-
-	if (v3d->zbuf) glDepthFunc(GL_ALWAYS);
 	
 	for (nu = nurb; nu; nu = nu->next) {
 		drawvertsN(nu, 1, hide_handles, vert);

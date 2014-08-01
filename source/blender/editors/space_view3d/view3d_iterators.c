@@ -269,7 +269,7 @@ void mesh_foreachScreenFace(
 
 void nurbs_foreachScreenVert(
         ViewContext *vc,
-        void (*func)(void *userData, Nurb *nu, BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co_b[2]),
+        void (*func)(ViewContext *vc, void *userData, Nurb *nu, BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co_b[2]),
         void *userData, const eV3DProjTest clip_flag)
 {
 	Curve *cu = vc->obedit->data;
@@ -295,24 +295,24 @@ void nurbs_foreachScreenVert(
 						if (ED_view3d_project_float_object(vc->ar, bezt->vec[1], screen_co,
 						                                   V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK)
 						{
-							func(userData, nu, NULL, bezt, 1, screen_co);
+							func(vc, userData, nu, NULL, bezt, 1, screen_co);
 						}
 					}
 					else {
 						if (ED_view3d_project_float_object(vc->ar, bezt->vec[0], screen_co,
 						                                   V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK)
 						{
-							func(userData, nu, NULL, bezt, 0, screen_co);
+							func(vc, userData, nu, NULL, bezt, 0, screen_co);
 						}
 						if (ED_view3d_project_float_object(vc->ar, bezt->vec[1], screen_co,
 						                                   V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK)
 						{
-							func(userData, nu, NULL, bezt, 1, screen_co);
+							func(vc, userData, nu, NULL, bezt, 1, screen_co);
 						}
 						if (ED_view3d_project_float_object(vc->ar, bezt->vec[2], screen_co,
 						                                   V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK)
 						{
-							func(userData, nu, NULL, bezt, 2, screen_co);
+							func(vc, userData, nu, NULL, bezt, 2, screen_co);
 						}
 					}
 				}
@@ -327,7 +327,7 @@ void nurbs_foreachScreenVert(
 					if (ED_view3d_project_float_object(vc->ar, bp->vec, screen_co,
 					                                   V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK)
 					{
-						func(userData, nu, bp, NULL, -1, screen_co);
+						func(vc, userData, nu, bp, NULL, -1, screen_co);
 					}
 				}
 			}

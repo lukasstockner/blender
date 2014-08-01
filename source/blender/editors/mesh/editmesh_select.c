@@ -57,6 +57,7 @@
 #include "ED_mesh.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
+#include "ED_curve.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -1303,14 +1304,23 @@ static bool mouse_mesh_loop(bContext *C, const int mval[2], bool extend, bool de
 
 static int edbm_select_loop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	
+	bool extend = RNA_boolean_get(op->ptr, "extend");
+	bool deselect = RNA_boolean_get(op->ptr, "deselect");
+	bool toggle = RNA_boolean_get(op->ptr, "toggle");
+
+	/* NURBS surfaces have their own loop selection code. */
+	Object *obedit = CTX_data_edit_object(C);
+	if (ELEM(obedit->type, OB_CURVE, OB_SURF))
+	{
+		int location[2];
+		RNA_int_get_array(op->ptr, "location", location);
+		return mouse_nurb(C, location, extend, deselect, toggle, true);
+	}
+	/* end NURBS interception code */
+
+	bool b_ring = RNA_boolean_get(op->ptr, "ring");
 	view3d_operator_needs_opengl(C);
-	
-	if (mouse_mesh_loop(C, event->mval,
-	                    RNA_boolean_get(op->ptr, "extend"),
-	                    RNA_boolean_get(op->ptr, "deselect"),
-	                    RNA_boolean_get(op->ptr, "toggle"),
-	                    RNA_boolean_get(op->ptr, "ring")))
+	if (mouse_mesh_loop(C, event->mval, extend, deselect, toggle, b_ring))
 	{
 		return OPERATOR_FINISHED;
 	}
@@ -1328,7 +1338,7 @@ void MESH_OT_loop_select(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke = edbm_select_loop_invoke;
-	ot->poll = ED_operator_editmesh_region_view3d;
+	ot->poll = ED_operator_editmesh_or_editcurve_region_view3d;
 	
 	/* flags */
 	ot->flag = OPTYPE_UNDO;

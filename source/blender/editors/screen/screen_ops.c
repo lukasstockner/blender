@@ -363,6 +363,16 @@ int ED_operator_editmesh_region_view3d(bContext *C)
 	return 0;
 }
 
+int ED_operator_editmesh_or_editcurve_region_view3d(bContext *C)
+{
+	if (!CTX_wm_region_view3d(C)) return 0;
+	if (ED_operator_editmesh(C)) return 1;
+	if (ED_operator_editcurve(C)) return 1;
+	
+	CTX_wm_operator_poll_msg_set(C, "expected a view3d region & editmesh/editcurve");
+	return 0;
+}
+
 int ED_operator_editarmature(bContext *C)
 {
 	Object *obedit = CTX_data_edit_object(C);
