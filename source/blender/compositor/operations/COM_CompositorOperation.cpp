@@ -190,7 +190,7 @@ void CompositorOperation::executeRegion(Tile* tile)
 		for (x = x1; x < x2 && (!breaked); x++) {
 			int input_x = x + dx, input_y = y + dy;
 
-			this->m_imageInput->readSampled(color, input_x, input_y, COM_PS_NEAREST);
+                this->m_imageInput->readSampled(color, input_x, input_y, COM_PS_NEAREST);
 			if (this->m_useAlphaInput) {
 				this->m_alphaInput->readSampled(&(color[3]), input_x, input_y, COM_PS_NEAREST);
 			}

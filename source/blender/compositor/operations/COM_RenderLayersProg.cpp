@@ -208,9 +208,6 @@ void RenderLayersAlphaProg::executePixelSampled(float output[4], float x, float 
 		float temp[4];
 		doInterpolation(temp, x, y, sampler);
 		output[0] = temp[3];
-		output[1] = 0.0f;
-		output[2] = 0.0f;
-		output[3] = 0.0f;
 	}
 }
 
@@ -225,7 +222,7 @@ RenderLayersColorOperation::RenderLayersColorOperation() : RenderLayersBaseProg(
 
 RenderLayersCyclesOperation::RenderLayersCyclesOperation(int pass) : RenderLayersBaseProg(pass, 3)
 {
-	this->addOutputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 /* ******** Render Layers Depth Operation ******** */
@@ -254,21 +251,21 @@ void RenderLayersDepthProg::executePixelSampled(float output[4], float x, float 
 
 RenderLayersDiffuseOperation::RenderLayersDiffuseOperation() : RenderLayersBaseProg(SCE_PASS_DIFFUSE, 3)
 {
-	this->addOutputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 /* ******** Render Layers Emit Operation ******** */
 
 RenderLayersEmitOperation::RenderLayersEmitOperation() : RenderLayersBaseProg(SCE_PASS_EMIT, 3)
 {
-	this->addOutputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 /* ******** Render Layers Environment Operation ******** */
 
 RenderLayersEnvironmentOperation::RenderLayersEnvironmentOperation() : RenderLayersBaseProg(SCE_PASS_ENVIRONMENT, 3)
 {
-	this->addOutputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 /* ******** Render Layers Image Operation ******** */
@@ -282,7 +279,7 @@ RenderLayersColorProg::RenderLayersColorProg() : RenderLayersBaseProg(SCE_PASS_C
 
 RenderLayersIndirectOperation::RenderLayersIndirectOperation() : RenderLayersBaseProg(SCE_PASS_INDIRECT, 3)
 {
-	this->addOutputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 /* ******** Render Layers Material Index Operation ******** */
@@ -317,28 +314,28 @@ RenderLayersObjectIndexOperation::RenderLayersObjectIndexOperation() : RenderLay
 
 RenderLayersReflectionOperation::RenderLayersReflectionOperation() : RenderLayersBaseProg(SCE_PASS_REFLECT, 3)
 {
-	this->addOutputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 /* ******** Render Layers Refraction Operation ******** */
 
 RenderLayersRefractionOperation::RenderLayersRefractionOperation() : RenderLayersBaseProg(SCE_PASS_REFRACT, 3)
 {
-	this->addOutputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 /* ******** Render Layers Shadow Operation ******** */
 
 RenderLayersShadowOperation::RenderLayersShadowOperation() : RenderLayersBaseProg(SCE_PASS_SHADOW, 3)
 {
-	this->addOutputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 /* ******** Render Layers Specular Operation ******** */
 
 RenderLayersSpecularOperation::RenderLayersSpecularOperation() : RenderLayersBaseProg(SCE_PASS_SPEC, 3)
 {
-	this->addOutputSocket(COM_DT_COLOR);
+    this->addOutputSocket(COM_DT_VECTOR);
 }
 
 /* ******** Render Layers Speed Operation ******** */
