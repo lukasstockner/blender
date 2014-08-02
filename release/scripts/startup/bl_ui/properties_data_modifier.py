@@ -996,11 +996,9 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         is_remesh = md.is_remesh
 		
         row = layout.row()
-        row.active = not is_computeflow
         row.label(text="Features Vertex Group:")
 
         row = layout.row()
-        row.enabled = not is_computeflow
         row.prop_search(md, "vertex_group", ob, "vertex_groups", text="")
 
         layout.separator()
@@ -1012,8 +1010,8 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         layout.separator()
 
         row = layout.row()
-        row.enabled = is_computeflow
-        row.operator("object.quadremesh_remesh", text="Remesh" if is_remesh else "Remesh")        
+        row.enabled = bool(md.vertex_group)
+        row.operator("object.quadremesh_remesh", text="Remesh")        
 		
     @staticmethod
     def vertex_weight_mask(layout, ob, md):

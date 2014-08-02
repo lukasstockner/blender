@@ -53,8 +53,9 @@ typedef struct GradientFlowLine {
 } GradientFlowLine;
 
 typedef struct LaplacianSystem {
-	bool is_matrix_computed;
+	bool command_compute_flow;
 	bool has_solution;
+	bool command_remesh;
 	int total_verts;
 	int total_edges;
 	int total_faces;
@@ -109,7 +110,7 @@ static LaplacianSystem *newLaplacianSystem(void)
 {
 	LaplacianSystem *sys;
 	sys = MEM_callocN(sizeof(LaplacianSystem), "QuadRemeshCache");
-	sys->is_matrix_computed = false;
+	sys->command_compute_flow = false;
 	sys->has_solution = false;
 	sys->total_verts = 0;
 	sys->total_edges = 0;
@@ -126,7 +127,7 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 {
 	LaplacianSystem *sys = newLaplacianSystem();
 
-	sys->is_matrix_computed = false;
+	sys->command_compute_flow = false;
 	sys->has_solution = false;
 	sys->total_verts = totalVerts;
 	sys->total_edges = totalEdges;
@@ -146,7 +147,7 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 	return sys;
 }
 
-static void UNUSED_FUNCTION(deleteLaplacianSystem)(LaplacianSystem *sys)
+static void deleteLaplacianSystem(LaplacianSystem *sys)
 {
 	int i;
 	MEM_SAFE_FREE(sys->faces);
@@ -395,45 +396,43 @@ static void computeScalarField(LaplacianSystem *sys)
 #ifdef OPENNL_THREADING_HACK
 	modifier_opennl_lock();
 #endif
-	if (!sys->is_matrix_computed) {
-		nlNewContext();
-		sys->context = nlGetCurrent();
+	
+	nlNewContext();
+	sys->context = nlGetCurrent();
 
-		nlSolverParameteri(NL_NB_VARIABLES, n);
-		nlSolverParameteri(NL_SYMMETRIC, NL_FALSE);
-		nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
-		nlSolverParameteri(NL_NB_ROWS, n);
-		nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 1);
-		nlBegin(NL_SYSTEM);
-		for (i = 0; i < n; i++) {
-			nlSetVariable(0, i, 0);
-		}
+	nlSolverParameteri(NL_NB_VARIABLES, n);
+	nlSolverParameteri(NL_SYMMETRIC, NL_FALSE);
+	nlSolverParameteri(NL_LEAST_SQUARES, NL_TRUE);
+	nlSolverParameteri(NL_NB_ROWS, n);
+	nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 1);
+	nlBegin(NL_SYSTEM);
+	for (i = 0; i < n; i++) {
+		nlSetVariable(0, i, 0);
+	}
 		
-		nlBegin(NL_MATRIX);
+	nlBegin(NL_MATRIX);
 
-		initLaplacianMatrix(sys);
+	initLaplacianMatrix(sys);
 
-		for (i = 0; i < n; i++) {
-			if (sys->constraints[i] == 1) {
-				nlRightHandSideSet(0, i, sys->weights[i]);
-			}
-			else {
-				nlRightHandSideSet(0, i, 0);
-			}
-		}
-		nlEnd(NL_MATRIX);
-		nlEnd(NL_SYSTEM);
-		if (nlSolveAdvanced(NULL, NL_TRUE)) {
-			sys->has_solution = true;
-
-			for (vid = 0; vid < sys->total_verts; vid++) {
-				sys->U_field[vid] = nlGetVariable(0, vid);
-			}	
+	for (i = 0; i < n; i++) {
+		if (sys->constraints[i] == 1) {
+			nlRightHandSideSet(0, i, sys->weights[i]);
 		}
 		else {
-			sys->has_solution = false;
+			nlRightHandSideSet(0, i, 0);
 		}
-		sys->is_matrix_computed = true;
+	}
+	nlEnd(NL_MATRIX);
+	nlEnd(NL_SYSTEM);
+	if (nlSolveAdvanced(NULL, NL_TRUE)) {
+		sys->has_solution = true;
+
+		for (vid = 0; vid < sys->total_verts; vid++) {
+			sys->U_field[vid] = nlGetVariable(0, vid);
+		}	
+	}
+	else {
+		sys->has_solution = false;
 	}
 #ifdef OPENNL_THREADING_HACK
 	modifier_opennl_unlock();
@@ -902,6 +901,10 @@ static void computeGradientFlowLine(LaplacianSystem * sys, int inde, float dis, 
 
 }
 
+static void computeFlow(LaplacianSystem * sys){
+
+}
+
 static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
 	float(*vertexCos)[3], int numVerts)
 {
@@ -985,57 +988,48 @@ static void QuadRemeshModifier_do(
 	float y;
 	int x;
 
-	
-	if (numVerts == 0) return;
-	//if (strlen(qmd->anchor_grp_name) < 1) return;
-	if (strlen(qmd->anchor_grp_name) < 1) {
-		printf("if (strlen(qmd->anchor_grp_name) < 1) \n");
-		if (!defgroup_find_name(ob, "Quad_Remesh_Weights")) {
-			BKE_defgroup_new(ob, "Quad_Remesh_Weights");
-			modifier_get_vgroup(ob, dm, "Quad_Remesh_Weights", &dvert, &defgrp_index);
-			BLI_assert(dvert != NULL);
-			dv = dvert;
-			for (i = 0; i < numVerts; i++) {
-				defvert_add_index_notest(dv, defgrp_index, 0.5f);
-				dv++;
+	if (qmd->flag & MOD_QUADREMESH_COMPUTE_FLOW) {
+		if (strlen(qmd->anchor_grp_name) >= 1) {
+			if (qmd->cache_system) {
+				sys = qmd->cache_system;
+				deleteLaplacianSystem(sys);
+			}
+			qmd->cache_system = initSystem(qmd, ob, dm, vertexCos, numVerts);
+			sys = qmd->cache_system;
+			computeScalarField(sys);
+			if (sys->has_solution) {
+				computeGradientFields(sys);
+				if (!defgroup_find_name(ob, "QuadRemeshFlow")) {
+					BKE_defgroup_new(ob, "QuadRemeshFlow");
+					modifier_get_vgroup(ob, dm, "QuadRemeshFlow", &dvert, &defgrp_index);
+					BLI_assert(dvert != NULL);
+					dv = dvert;
+					for (i = 0; i < numVerts; i++) {
+						mmin = min_ff(mmin, sys->U_field[i]);
+						mmax = max_ff(mmax, sys->U_field[i]);
+					}
+
+					for (i = 0; i < numVerts; i++) {
+						y = (sys->U_field[i] - mmin) / (mmax - mmin);
+						x = y * 60;
+						y = (x % 2 == 0 ? 0.1 : 0.9);
+						defvert_add_index_notest(dv, defgrp_index, y);
+						dv++;
+					}
+				}
 			}
 		}
-		strcpy(qmd->anchor_grp_name, "Quad_Remesh_Weights");
-	}
-	else {
-		printf("else (strlen(qmd->anchor_grp_name) < 1) \n");
+		printf("QuadRemeshModifier_do 2 \n");
+		qmd->flag &= ~MOD_QUADREMESH_COMPUTE_FLOW;
 	}
 
-	
-	
-	sys = initSystem(qmd, ob, dm, vertexCos, numVerts);
-	printf("initSystem(qmd, ob, dm, vertexCos, numVerts);\n");
-	computeScalarField(sys);
-	printf("computeScalarField(sys);\n");
-	computeGradientFields(sys);
-	printf("computeGradientFields(sys);\n");
-	
-	if (!defgroup_find_name(ob, "QuadRemeshGroup")) {
-		BKE_defgroup_new(ob, "QuadRemeshGroup");
-		modifier_get_vgroup(ob, dm, "QuadRemeshGroup", &dvert, &defgrp_index);
-		BLI_assert(dvert != NULL);
-		dv = dvert;
-		for (i = 0; i < numVerts; i++) {
-			mmin = min_ff(mmin, sys->U_field[i]);
-			mmax = max_ff(mmax, sys->U_field[i]);
+	if (qmd->flag & MOD_QUADREMESH_REMESH && qmd->cache_system) {
+		sys = qmd->cache_system;
+		if (sys->has_solution) {
+			computeFlow(sys);
 		}
-
-		for (i = 0; i < numVerts; i++) {
-			y = (sys->U_field[i] - mmin) / (mmax - mmin);
-			x = y * 60;
-			y = (x % 2 == 0 ? 0.1 : 0.9);
-			defvert_add_index_notest(dv, defgrp_index, y);
-			dv++;
-		}
-		//computeGradientFlowLine(sys, 1, 0.5, vertexCos);
 	}
 
-	
 }
 
 
@@ -1053,12 +1047,15 @@ static void initData(ModifierData *md)
 	QuadRemeshModifierData *lmd = (QuadRemeshModifierData *)md;
 	lmd->anchor_grp_name[0] = '\0';
 	lmd->flag = 0;
+	lmd->cache_system = NULL;
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
-
+	QuadRemeshModifierData *qmd = (QuadRemeshModifierData *)md;
+	QuadRemeshModifierData *tqmd = (QuadRemeshModifierData *)target;
 	modifier_copyData_generic(md, target);
+	tqmd->cache_system = NULL;
 
 }
 
@@ -1101,16 +1098,15 @@ static void deformVertsEM(
 	}
 }
 
-static void freeData(ModifierData *UNUSED(md))
+static void freeData(ModifierData *md)
 {
 #ifdef WITH_OPENNL
-	/*LaplacianSystem *sys = (LaplacianSystem *)lmd->cache_system;
+	QuadRemeshModifierData *qmd = (QuadRemeshModifierData *)md;
+	LaplacianSystem *sys = (LaplacianSystem *)qmd->cache_system;
 	if (sys) {
 		deleteLaplacianSystem(sys);
-	}*/
+	}
 #endif
-	//MEM_SAFE_FREE(lmd->vertexco);
-	//lmd->total_verts = 0;
 }
 
 ModifierTypeInfo modifierType_QuadRemesh = {

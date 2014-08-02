@@ -1367,6 +1367,7 @@ typedef struct QuadRemeshModifierData {
 	ModifierData modifier;
 	char anchor_grp_name[64];  /* MAX_VGROUP_NAME */
 	short flag, pad[3];
+	void *cache_system;  /* runtime only */
 
 } QuadRemeshModifierData;
 

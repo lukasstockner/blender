@@ -2242,12 +2242,13 @@ static int quadremesh_computeflow_exec(bContext *C, wmOperator *op)
 
 	if (!lmd)
 		return OPERATOR_CANCELLED;
-	if (lmd->flag & MOD_QUADREMESH_COMPUTE_FLOW) {
+	lmd->flag |= MOD_QUADREMESH_COMPUTE_FLOW;
+	/*if (lmd->flag & MOD_QUADREMESH_COMPUTE_FLOW) {
 		lmd->flag &= ~MOD_QUADREMESH_COMPUTE_FLOW;
 	}
 	else {
 		lmd->flag |= MOD_QUADREMESH_COMPUTE_FLOW;
-	}
+	}*/
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 	return OPERATOR_FINISHED;
@@ -2287,12 +2288,13 @@ static int quadremesh_remesh_exec(bContext *C, wmOperator *op)
 
 	if (!lmd)
 		return OPERATOR_CANCELLED;
-	if (lmd->flag & MOD_QUADREMESH_REMESH) {
+	lmd->flag |= MOD_QUADREMESH_REMESH;
+	/*if (lmd->flag & MOD_QUADREMESH_REMESH) {
 		lmd->flag &= ~MOD_QUADREMESH_REMESH;
 	}
 	else {
 		lmd->flag |= MOD_QUADREMESH_REMESH;
-	}
+	}*/
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 	return OPERATOR_FINISHED;
