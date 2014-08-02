@@ -1106,7 +1106,7 @@ const char  ui_radial_dir_to_numpad[8] = {8, 9, 6, 3, 2, 1, 4, 7};
 const short ui_radial_dir_to_angle_visual[8] = {90, 40, 0, 320, 270, 220, 180, 140};
 const short ui_radial_dir_to_angle[8] =        {90, 45, 0, 315, 270, 225, 180, 135};
 
-static void ui_pie_direction_string(uiBut *but, char *buf, int size)
+static void ui_but_pie_direction_string(uiBut *but, char *buf, int size)
 {
 	BLI_assert(but->pie_dir < ARRAY_SIZE(ui_radial_dir_to_numpad));
 	BLI_snprintf(buf, size, "%d", ui_radial_dir_to_numpad[but->pie_dir]);
@@ -1124,7 +1124,7 @@ static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
 	if (block->flag & UI_BLOCK_RADIAL) {
 		for (but = block->buttons.first; but; but = but->next) {
 			if (but->pie_dir != UI_RADIAL_NONE) {
-				ui_pie_direction_string(but, buf, sizeof(buf));
+				ui_but_pie_direction_string(but, buf, sizeof(buf));
 				ui_but_add_shortcut(but, buf, false);
 			}
 		}

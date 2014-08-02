@@ -8465,18 +8465,20 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 	}
 }
 
-static bool ui_pie_menu_supported_apply(uiBut *but) {
-	if (but->type == NUMSLI)
+static bool ui_but_pie_menu_supported_apply(uiBut *but)
+{
+	if (but->type == NUMSLI) {
 		return false;
+	}
 
 	return true;
 }
 
-static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, bool force_close, bool click_style)
+static int ui_but_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, bool force_close, bool click_style)
 {
 	int retval = WM_UI_HANDLER_BREAK;
 
-	if (but && ui_pie_menu_supported_apply(but)) {
+	if (but && ui_but_pie_menu_supported_apply(but)) {
 		if (but->type == MENU) {
 			/* forcing the pie menu to close will not handle menus */
 			if (!force_close) {
@@ -8519,7 +8521,7 @@ static int ui_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, 
 	return retval;
 }
 
-static uiBut *ui_pie_dir_activate(uiBlock *block, const wmEvent *event, RadialDirection dir)
+static uiBut *ui_block_pie_dir_activate(uiBlock *block, const wmEvent *event, RadialDirection dir)
 {
 	uiBut *but;
 
@@ -8534,7 +8536,7 @@ static uiBut *ui_pie_dir_activate(uiBlock *block, const wmEvent *event, RadialDi
 	return NULL;
 }
 
-static int ui_pie_button_activate(bContext *C, uiBut *but, uiPopupBlockHandle *menu, bool is_click_style)
+static int ui_but_pie_button_activate(bContext *C, uiBut *but, uiPopupBlockHandle *menu, bool is_click_style)
 {
 	uiBut *active_but;
 
@@ -8547,7 +8549,7 @@ static int ui_pie_button_activate(bContext *C, uiBut *but, uiPopupBlockHandle *m
 		button_activate_exit(C, active_but, active_but->active, false, false);
 
 	button_activate_init(C, menu->region, but, BUTTON_ACTIVATE_OVER);
-	return ui_pie_menu_apply(C, menu, but, false, is_click_style);
+	return ui_but_pie_menu_apply(C, menu, but, false, is_click_style);
 }
 
 static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle *menu)
@@ -8654,7 +8656,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			else if (!is_click_style) {
 				uiBut *but = ui_but_find_activated(menu->region);
 
-				retval = ui_pie_menu_apply(C, menu, but, true, is_click_style);
+				retval = ui_but_pie_menu_apply(C, menu, but, true, is_click_style);
 			}
 		}
 	}
@@ -8672,7 +8674,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			case LEFTMOUSE:
 				if (event->val == KM_PRESS) {
 					uiBut *but = ui_but_find_activated(menu->region);
-					retval = ui_pie_menu_apply(C, menu, but, false, is_click_style);
+					retval = ui_but_pie_menu_apply(C, menu, but, false, is_click_style);
 				}
 				break;
 
@@ -8721,7 +8723,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				{
 					for (but = block->buttons.first; but; but = but->next) {
 						if (but->menu_key == event->type) {
-							ui_pie_button_activate(C, but, menu, is_click_style);
+							ui_but_pie_button_activate(C, but, menu, is_click_style);
 						}
 					}
 				}
@@ -8741,8 +8743,8 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 			CASE_NUM_TO_DIR(8, UI_RADIAL_N);
 			CASE_NUM_TO_DIR(9, UI_RADIAL_NE);
 			{
-				but = ui_pie_dir_activate(block, event, num_dir);
-				retval = ui_pie_button_activate(C, but, menu, is_click_style);
+				but = ui_block_pie_dir_activate(block, event, num_dir);
+				retval = ui_but_pie_button_activate(C, but, menu, is_click_style);
 				break;
 			}
 #undef CASE_NUM_TO_DIR

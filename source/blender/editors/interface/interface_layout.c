@@ -885,7 +885,7 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 	PropertyRNA *prop;
 	uiBlock *block = layout->root->block;
 	const bool radial = (layout->item.type == ITEM_LAYOUT_RADIAL) ||
-	                      ((layout->item.type == ITEM_LAYOUT_ROOT) && (layout->root->type == UI_LAYOUT_PIEMENU));
+	                     ((layout->item.type == ITEM_LAYOUT_ROOT) && (layout->root->type == UI_LAYOUT_PIEMENU));
 
 	if (!ot || !ot->srna) {
 		ui_item_disabled(layout, opname);
@@ -907,17 +907,20 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 		uiLayout *split;
 		uiLayout *target;
 
-		if (radial)
+		if (radial) {
 			target = uiLayoutRadial(layout);
+		}
 		else {
 			split = uiLayoutSplit(layout, 0.0f, false);
 			target = uiLayoutColumn(split, layout->align);
 		}
 
-		if (radial)
+		if (radial) {
 			RNA_property_enum_items_gettexted_all(block->evil_C, &ptr, prop, &item_array, NULL, &free);
-		else
+		}
+		else {
 			RNA_property_enum_items_gettexted(block->evil_C, &ptr, prop, &item_array, NULL, &free);
+		}
 
 		for (item = item_array; item->identifier; item++) {
 			if (item->identifier[0]) {
