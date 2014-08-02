@@ -247,7 +247,7 @@ Key *BKE_key_copy_nolib(Key *key)
 	kbn = keyn->block.first;
 	while (kbn) {
 		
-		if (kbn->data) kbn->data = MEM_dupallocN(kbn->data);
+		if (kb->data) kbn->data = MEM_dupallocN(kb->data);
 		if (kb == key->refkey) keyn->refkey = kbn;
 		if (kb == key->scratch.origin) keyn->scratch.origin = kbn;
 		

@@ -42,6 +42,7 @@ subject to the following restrictions:
 #include "PHY_Pro.h"
 #include "KX_GameObject.h"
 #include "KX_PythonInit.h" // for KX_RasterizerDrawDebugLine
+#include "KX_BlenderSceneConverter.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
 #include "RAS_TexVert.h"
@@ -875,6 +876,14 @@ void	CcdPhysicsEnvironment::ProcessFhSprings(double curTime,float interval)
 			}
 		}
 	}
+}
+
+int			CcdPhysicsEnvironment::GetDebugMode() const
+{
+	if (m_debugDrawer) {
+		return m_debugDrawer->getDebugMode();
+	}
+	return 0;
 }
 
 void		CcdPhysicsEnvironment::SetDebugMode(int debugMode)
@@ -2085,7 +2094,7 @@ void	CcdPhysicsEnvironment::SetConstraintParam(int constraintId,int param,float 
 
 			case 12: case 13: case 14: case 15: case 16: case 17:
 			{
-				//param 13-17 are for motorized springs on each of the degrees of freedom
+				//param 12-17 are for motorized springs on each of the degrees of freedom
 					btGeneric6DofSpringConstraint* genCons = (btGeneric6DofSpringConstraint*)typedConstraint;
 					int springIndex = param-12;
 					if (value0!=0.f)
@@ -3036,9 +3045,17 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 	CcdConstructionInfo ci;
 	class CcdShapeConstructionInfo *shapeInfo = new CcdShapeConstructionInfo();
 
-	KX_GameObject *parent = gameobj->GetParent();
-	if (parent)
+	// get Root Parent of blenderobject
+	Object *blenderparent = blenderobject->parent;
+	while (blenderparent && blenderparent->parent) {
+		blenderparent = blenderparent->parent;
+	}
+
+	KX_GameObject *parent = NULL;
+	if (blenderparent)
 	{
+		KX_BlenderSceneConverter *converter = (KX_BlenderSceneConverter*)KX_GetActiveEngine()->GetSceneConverter();
+		parent = converter->FindGameObject(blenderparent);
 		isbulletdyna = false;
 		isbulletsoftbody = false;
 		shapeprops->m_mass = 0.f;

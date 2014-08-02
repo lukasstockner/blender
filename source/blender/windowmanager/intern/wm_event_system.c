@@ -1261,11 +1261,17 @@ static int wm_operator_call_internal(bContext *C, wmOperatorType *ot, PointerRNA
 
 
 /* invokes operator in context */
+int WM_operator_name_call_ptr(bContext *C, wmOperatorType *ot, short context, PointerRNA *properties)
+{
+	BLI_assert(ot == WM_operatortype_find(ot->idname, true));
+	return wm_operator_call_internal(C, ot, properties, NULL, context, false);
+}
 int WM_operator_name_call(bContext *C, const char *opstring, short context, PointerRNA *properties)
 {
 	wmOperatorType *ot = WM_operatortype_find(opstring, 0);
-	if (ot)
-		return wm_operator_call_internal(C, ot, properties, NULL, context, false);
+	if (ot) {
+		return WM_operator_name_call_ptr(C, ot, context, properties);
+	}
 
 	return 0;
 }
@@ -3397,5 +3403,40 @@ void WM_event_ndof_to_quat(const struct wmNDOFMotionData *ndof, float q[4])
 	angle = WM_event_ndof_to_axis_angle(ndof, axis);
 	axis_angle_to_quat(q, axis, angle);
 }
+
+/* if this is a tablet event, return tablet pressure and set *pen_flip
+ * to 1 if the eraser tool is being used, 0 otherwise */
+float WM_event_tablet_data(const wmEvent *event, int *pen_flip, float tilt[2])
+{
+	int erasor = 0;
+	float pressure = 1;
+
+	if (tilt)
+		zero_v2(tilt);
+
+	if (event->tablet_data) {
+		wmTabletData *wmtab = event->tablet_data;
+
+		erasor = (wmtab->Active == EVT_TABLET_ERASER);
+		if (wmtab->Active != EVT_TABLET_NONE) {
+			pressure = wmtab->Pressure;
+			if (tilt) {
+				tilt[0] = wmtab->Xtilt;
+				tilt[1] = wmtab->Ytilt;
+			}
+		}
+	}
+
+	if (pen_flip)
+		(*pen_flip) = erasor;
+
+	return pressure;
+}
+
+bool WM_event_is_tablet(const struct wmEvent *event)
+{
+	return (event->tablet_data) ? true : false;
+}
+
 
 /** \} */

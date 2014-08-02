@@ -890,7 +890,7 @@ static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob,
 				/* -- convert to rna ? */
 				but = uiDefIconButBitI(block, TOG, eModifierMode_OnCage, 0, ICON_MESH_DATA, 0, 0,
 				                       UI_UNIT_X - 2, UI_UNIT_Y, &md->mode, 0.0, 0.0, 0.0, 0.0,
-				                       TIP_("Apply modifier to editing cage during Edit mode"));
+				                       TIP_("Adjust edit cage to modifier result"));
 				if (index < cageIndex)
 					uiButSetFlag(but, UI_BUT_DISABLED);
 				uiButSetFunc(but, modifiers_setOnCage, ob, md);
@@ -3188,7 +3188,7 @@ static void operator_call_cb(bContext *C, void *UNUSED(arg1), void *arg2)
 	wmOperatorType *ot = arg2;
 	
 	if (ot)
-		WM_operator_name_call(C, ot->idname, WM_OP_INVOKE_DEFAULT, NULL);
+		WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, NULL);
 }
 
 static void operator_search_cb(const bContext *C, void *UNUSED(arg), const char *str, uiSearchItems *items)
