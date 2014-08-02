@@ -438,6 +438,10 @@ if env['OURPLATFORM']=='darwin':
             env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-force_load '+ OSX_OSL_LIBPATH +'/liboslexec.a','-loslquery'])
         env.Append(BF_PROGRAM_LINKFLAGS=['-Xlinker','-force_load','-Xlinker',OSX_OSL_LIBPATH +'/liboslexec.a'])
 
+    if env['WITH_BF_LLVM'] == 0:
+        # Due duplicated generic UTF functions, we pull them either from LLVMSupport or COLLADA
+        env.Append(BF_OPENCOLLADA_LIB=' UTF')
+
     # Trying to get rid of eventually clashes, we export some symbols explicite as local
     env.Append(LINKFLAGS=['-Xlinker','-unexported_symbols_list','-Xlinker','./source/creator/osx_locals.map'])
     
@@ -1140,10 +1144,7 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
         dllsources += ['${BF_PTHREADS_LIBPATH}/${BF_PTHREADS_LIB}.dll']
 
     if env['WITH_BF_SDL']:
-        if env['OURPLATFORM'] == 'win64-vc':
-            pass # we link statically already to SDL on win64
-        else:
-            dllsources.append('${BF_SDL_LIBPATH}/SDL.dll')
+        dllsources.append('${BF_SDL_LIBPATH}/SDL.dll')
 
     if env['WITH_BF_PYTHON']:
         if env['BF_DEBUG']:
