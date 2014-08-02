@@ -342,7 +342,8 @@ void GHOST_ContextEGL::initContextEGLEW()
 	m_eglewContext = eglewContext;
 #endif
 
-	eglewInit(m_display);
+	if (GLEW_CHK(eglewInit(m_display)) != GLEW_OK)
+		fprintf(stderr, "Warning! EGLEW failed to initialize properly.\n");
 }
 
 

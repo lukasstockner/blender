@@ -140,7 +140,8 @@ void GHOST_ContextGLX::initContextGLXEW()
 	m_glxewContext = glxewContext;
 #endif
 
-	glxewInit();
+	if (GLEW_CHK(glxewInit()) != GLEW_OK)
+		fprintf(stderr, "Warning! GLXEW failed to initialize properly.\n");
 }
 
 GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
