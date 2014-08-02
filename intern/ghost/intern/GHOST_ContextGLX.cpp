@@ -140,7 +140,7 @@ void GHOST_ContextGLX::initContextGLXEW()
 	m_glxewContext = glxewContext;
 #endif
 
-	GLEW_CHK(glxewInit());
+	glxewInit();
 }
 
 GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()

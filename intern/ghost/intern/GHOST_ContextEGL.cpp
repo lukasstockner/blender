@@ -342,7 +342,7 @@ void GHOST_ContextEGL::initContextEGLEW()
 	m_eglewContext = eglewContext;
 #endif
 
-	GLEW_CHK(eglewInit(m_display));
+	eglewInit(m_display);
 }
 
 
