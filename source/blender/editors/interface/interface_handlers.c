@@ -8603,7 +8603,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				pie_radius *= fac;
 
 				for (but = block->buttons.first; but; but = but->next) {
-					if (but->pie_dir) {
+					if (but->pie_dir != UI_RADIAL_NONE) {
 						float dir[2];
 
 						ui_but_pie_dir_visual(but->pie_dir, dir);

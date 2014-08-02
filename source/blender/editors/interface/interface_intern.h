@@ -124,15 +124,15 @@ enum {
 
 /* but->pie_dir */
 typedef enum RadialDirection {
-	UI_RADIAL_NONE = 0,
-	UI_RADIAL_N  = 1,
-	UI_RADIAL_NE = 2,
-	UI_RADIAL_E  = 3,
-	UI_RADIAL_SE = 4,
-	UI_RADIAL_S  = 5,
-	UI_RADIAL_SW = 6,
-	UI_RADIAL_W  = 7,
-	UI_RADIAL_NW = 8,
+	UI_RADIAL_NONE  = -1,
+	UI_RADIAL_N     =  0,
+	UI_RADIAL_NE    =  1,
+	UI_RADIAL_E     =  2,
+	UI_RADIAL_SE    =  3,
+	UI_RADIAL_S     =  4,
+	UI_RADIAL_SW    =  5,
+	UI_RADIAL_W     =  6,
+	UI_RADIAL_NW    =  7,
 } RadialDirection;
 
 extern const char  ui_radial_dir_order[8];
@@ -259,7 +259,7 @@ struct uiBut {
 	BIFIconID icon;
 	bool lock;
 	char dt; /* drawtype: UI_EMBOSS, UI_EMBOSSN ... etc, copied from the block */
-	char pie_dir; /* direction in a pie menu, used for collision detection */
+	signed char pie_dir; /* direction in a pie menu, used for collision detection (RadialDirection) */
 	char changed; /* could be made into a single flag */
 	unsigned char unit_type; /* so buttons can support unit systems which are not RNA */
 	short modifier_key;

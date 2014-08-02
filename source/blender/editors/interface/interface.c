@@ -1108,8 +1108,8 @@ const short ui_radial_dir_to_angle[8] =        {90, 45, 0, 315, 270, 225, 180, 1
 
 static void ui_pie_direction_string(uiBut *but, char *buf, int size)
 {
-	BLI_assert((unsigned int)(but->pie_dir - 1) < ARRAY_SIZE(ui_radial_dir_to_numpad));
-	BLI_snprintf(buf, size, "%d", ui_radial_dir_to_numpad[but->pie_dir - 1]);
+	BLI_assert(but->pie_dir < ARRAY_SIZE(ui_radial_dir_to_numpad));
+	BLI_snprintf(buf, size, "%d", ui_radial_dir_to_numpad[but->pie_dir]);
 }
 
 static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
@@ -3071,6 +3071,7 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	but->lock = block->lock;
 	but->lockstr = block->lockstr;
 	but->dt = block->dt;
+	but->pie_dir = UI_RADIAL_NONE;
 
 	but->block = block;  /* pointer back, used for frontbuffer status, and picker */
 

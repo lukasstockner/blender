@@ -1750,7 +1750,7 @@ uiBlock *ui_popup_block_refresh(
 		/* lastly set the buttons at the center of the pie menu, ready for animation */
 		if (U.pie_animation_timeout > 0) {
 			for (but = block->buttons.first; but; but = but->next) {
-				if (but->pie_dir) {
+				if (but->pie_dir != UI_RADIAL_NONE) {
 					BLI_rctf_recenter(&but->rect, UNPACK2(block->pie_data.pie_center_spawned));
 				}
 			}
