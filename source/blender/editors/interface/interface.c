@@ -1076,12 +1076,40 @@ static bool ui_but_event_property_operator_string(const bContext *C, uiBut *but,
 	return found;
 }
 
-const char ui_radial_dir_to_num[8] = {8, 9, 6, 3, 2, 1, 4, 7};
+/* this goes in a seemingly weird pattern:
+ *
+ *     4
+ *  5     6
+ * 1       2
+ *  7     8
+ *     3
+ *
+ * but it's actually quite logical. It's designed to be 'upwards compatible'
+ * for muscle memory so that the menu item locations are fixed and don't move
+ * as new items are added to the menu later on. It also optimises efficiency -
+ * a radial menu is best kept symmetrical, with as large an angle between
+ * items as possible, so that the gestural mouse movements can be fast and inexact.
+
+ * It starts off with two opposite sides for the first two items
+ * then joined by the one below for the third (this way, even with three items,
+ * the menu seems to still be 'in order' reading left to right). Then the fourth is
+ * added to complete the compass directions. From here, it's just a matter of
+ * subdividing the rest of the angles for the last 4 items.
+ *
+ * --Matt 07/2006
+ */
+const char ui_radial_dir_order[8] = {
+    UI_RADIAL_W,  UI_RADIAL_E,  UI_RADIAL_S,  UI_RADIAL_N,
+    UI_RADIAL_NW, UI_RADIAL_NE, UI_RADIAL_SW, UI_RADIAL_SE};
+
+const char  ui_radial_dir_to_numpad[8] = {8, 9, 6, 3, 2, 1, 4, 7};
+const short ui_radial_dir_to_angle_visual[8] = {90, 40, 0, 320, 270, 220, 180, 140};
+const short ui_radial_dir_to_angle[8] =        {90, 45, 0, 315, 270, 225, 180, 135};
 
 static void ui_pie_direction_string(uiBut *but, char *buf, int size)
 {
-	BLI_assert((unsigned int)(but->pie_dir - 1) < ARRAY_SIZE(ui_radial_dir_to_num));
-	BLI_snprintf(buf, size, "%d", ui_radial_dir_to_num[but->pie_dir - 1]);
+	BLI_assert((unsigned int)(but->pie_dir - 1) < ARRAY_SIZE(ui_radial_dir_to_numpad));
+	BLI_snprintf(buf, size, "%d", ui_radial_dir_to_numpad[but->pie_dir - 1]);
 }
 
 static void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)

@@ -6379,89 +6379,34 @@ static bool ui_but_contains_pt(uiBut *but, float mx, float my)
 	return BLI_rctf_isect_pt(&but->rect, mx, my);
 }
 
-static void ui_but_pie_visual_dir(RadialDirection dir, float vec[2]) {
+static void ui_but_pie_dir__internal(RadialDirection dir, float vec[2], const short angles[8])
+{
 	float angle;
 
-	switch (dir) {
-		case UI_RADIAL_W:
-			angle = 180.0f;
-			break;
-		case UI_RADIAL_E:
-			angle = 0.0f;
-			break;
-		case UI_RADIAL_S:
-			angle = 270.0f;
-			break;
-		case UI_RADIAL_N:
-			angle = 90.0f;
-			break;
-		case UI_RADIAL_NW:
-			angle = 140.0f;
-			break;
-		case UI_RADIAL_NE:
-			angle = 40.0f;
-			break;
-		case UI_RADIAL_SW:
-			angle = 220.0f;
-			break;
-		case UI_RADIAL_SE:
-			angle = 320.0f;
-			break;
-		default:
-			angle = 0.0f;
-			break;
-	}
+	BLI_assert(dir != UI_RADIAL_NONE);
 
-	angle = DEG2RADF(angle);
+	angle = DEG2RADF((float)angles[dir]);
 	vec[0] = cosf(angle);
 	vec[1] = sinf(angle);
+}
+void ui_but_pie_dir_visual(RadialDirection dir, float vec[2])
+{
+	ui_but_pie_dir__internal(dir, vec, ui_radial_dir_to_angle_visual);
+}
+void ui_but_pie_dir(RadialDirection dir, float vec[2])
+{
+	ui_but_pie_dir__internal(dir, vec, ui_radial_dir_to_angle);
 }
 
 static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but)
 {
 	const float angle_range = (block->pie_data.flags & UI_PIE_DEGREES_RANGE_LARGE) ? M_PI_4 : M_PI_4 / 2.0;
-	float angle_pie;
 	float vec[2];
 
 	if (block->pie_data.flags & UI_PIE_INVALID_DIR)
 		return false;
 
-	switch (but->pie_dir) {
-		case UI_RADIAL_E:
-			angle_pie = 0.0;
-			break;
-
-		case UI_RADIAL_NE:
-			angle_pie = M_PI_4;
-			break;
-
-		case UI_RADIAL_N:
-			angle_pie = M_PI_2;
-			break;
-
-		case UI_RADIAL_NW:
-			angle_pie = M_PI_2 + M_PI_4;
-			break;
-
-		case UI_RADIAL_W:
-			angle_pie = M_PI;
-			break;
-
-		case UI_RADIAL_SW:
-			angle_pie = M_PI + M_PI_4;
-			break;
-
-		case UI_RADIAL_S:
-			angle_pie = 3 * M_PI_2;
-			break;
-
-		case UI_RADIAL_SE:
-			angle_pie = 3 * M_PI_2 + M_PI_4;
-			break;
-	}
-
-	vec[0] = cosf(angle_pie);
-	vec[1] = sinf(angle_pie);
+	ui_but_pie_dir(but->pie_dir, vec);
 
 	if (saacos(dot_v2v2(vec, block->pie_data.pie_dir)) < angle_range)
 		return true;
@@ -8661,7 +8606,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 					if (but->pie_dir) {
 						float dir[2];
 
-						ui_but_pie_visual_dir(but->pie_dir, dir);
+						ui_but_pie_dir_visual(but->pie_dir, dir);
 
 						mul_v2_fl(dir, pie_radius );
 						add_v2_v2(dir, block->pie_data.pie_center_spawned);

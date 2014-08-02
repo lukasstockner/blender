@@ -135,7 +135,10 @@ typedef enum RadialDirection {
 	UI_RADIAL_NW = 8,
 } RadialDirection;
 
-extern const char ui_radial_dir_to_num[8];
+extern const char  ui_radial_dir_order[8];
+extern const char  ui_radial_dir_to_numpad[8];
+extern const short ui_radial_dir_to_angle_visual[8];
+extern const short ui_radial_dir_to_angle[8];
 
 /* internal panel drawing defines */
 #define PNL_GRID    (UI_UNIT_Y / 5) /* 4 default */
@@ -599,6 +602,8 @@ extern bool ui_button_is_active(struct ARegion *ar) ATTR_WARN_UNUSED_RESULT;
 extern int ui_button_open_menu_direction(uiBut *but);
 extern void ui_button_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, const bool restore);
 extern uiBut *ui_but_find_activated(struct ARegion *ar);
+void ui_but_pie_dir_visual(RadialDirection dir, float vec[2]);
+void ui_but_pie_dir(RadialDirection dir, float vec[2]);
 void ui_block_calculate_pie_segment(struct uiBlock *block, const float event_xy[2]);
 
 

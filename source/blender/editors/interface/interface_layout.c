@@ -2114,75 +2114,11 @@ static void ui_litem_layout_column(uiLayout *litem)
  * stores a float vector in unit circle */
 static RadialDirection ui_get_radialbut_vec(float vec[2], short itemnum)
 {
-	float angle = 0.0f;
-	RadialDirection dir = UI_RADIAL_NONE;
+	RadialDirection dir;
+	BLI_assert(itemnum < 8);
 
-	/* this goes in a seemingly weird pattern:
-	 *
-	 *     4
-	 *  5     6
-	 * 1       2
-	 *  7     8
-	 *     3
-	 *
-	 * but it's actually quite logical. It's designed to be 'upwards compatible'
-	 * for muscle memory so that the menu item locations are fixed and don't move
-	 * as new items are added to the menu later on. It also optimises efficiency -
-	 * a radial menu is best kept symmetrical, with as large an angle between
-	 * items as possible, so that the gestural mouse movements can be fast and inexact.
-
-	 * It starts off with two opposite sides for the first two items
-	 * then joined by the one below for the third (this way, even with three items,
-	 * the menu seems to still be 'in order' reading left to right). Then the fourth is
-	 * added to complete the compass directions. From here, it's just a matter of
-	 * subdividing the rest of the angles for the last 4 items.
-	 *
-	 * --Matt 07/2006
-	 */
-
-	/* if (itemnum < 5) { */
-	switch (itemnum) {
-		case 1:
-			dir = UI_RADIAL_W;
-			angle = 180.0f;
-			break;
-		case 2:
-			dir = UI_RADIAL_E;
-			angle = 0.0f;
-			break;
-		case 3:
-			dir = UI_RADIAL_S;
-			angle = 270.0f;
-			break;
-		case 4:
-			dir = UI_RADIAL_N;
-			angle = 90.0f;
-			break;
-		case 5:
-			dir = UI_RADIAL_NW;
-			angle = 140;
-			break;
-		case 6:
-			dir = UI_RADIAL_NE;
-			angle = 40;
-			break;
-		case 7:
-			dir = UI_RADIAL_SW;
-			angle = 220;
-			break;
-		case 8:
-			dir = UI_RADIAL_SE;
-			angle = 320;
-			break;
-
-		default:
-			break;
-	}
-
-	angle = DEG2RADF(angle);
-
-	vec[0] = cosf(angle);
-	vec[1] = sinf(angle);
+	dir = ui_radial_dir_order[itemnum];
+	ui_but_pie_dir_visual(dir, vec);
 
 	return dir;
 }
@@ -2241,9 +2177,9 @@ static void ui_litem_layout_radial(uiLayout *litem)
 			RadialDirection dir;
 			float vec[2];
 
-			itemnum++;
-
 			dir = ui_get_radialbut_vec(vec, itemnum);
+
+			itemnum++;
 
 			if (item->type == ITEM_BUTTON) {
 				uiButtonItem *bitem = (uiButtonItem *) item;
