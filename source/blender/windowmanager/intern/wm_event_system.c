@@ -3470,7 +3470,7 @@ PointerRNA *WM_operator_pie_macro(const char *idname, const char *name, const ch
 
 
 struct PointerRNA *WM_operator_property_pie_macro(const char *idname, const char *name, const char *description,
-                                                   int flag, const char *piename, const char *opname, const char *propname)
+                                                  int flag, const char *piename, const char *opname, const char *propname)
 {
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
@@ -3493,7 +3493,7 @@ struct PointerRNA *WM_operator_property_pie_macro(const char *idname, const char
 
 /* call operator or call pie menu from expanded enum path property */
 struct PointerRNA *WM_operator_enum_pie_macro(const char *idname, const char *name, const char *description,
-                                               int flag, const char *piename, const char *opname, const char *path)
+                                              int flag, const char *piename, const char *opname, const char *path)
 {
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
