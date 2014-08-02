@@ -58,6 +58,7 @@ set(SRC
 	GPU_buffers.h
 	GPU_draw.h
 	GPU_extensions.h
+	GPU_glew.h
 	GPU_init_exit.h
 	GPU_material.h
 	GPU_simple_shader.h
