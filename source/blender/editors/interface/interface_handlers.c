@@ -8001,7 +8001,7 @@ void ui_block_calculate_pie_segment(uiBlock *block, const float event_xy[2])
 	len = normalize_v2_v2(block->pie_data.pie_dir, seg2);
 
 	/* ten pixels for now, a bit arbitrary */
-	if (len < U.pie_menu_threshold)
+	if (len < U.pie_menu_threshold * U.pixelsize)
 		block->pie_data.flags |= UI_PIE_INVALID_DIR;
 	else
 		block->pie_data.flags &= ~UI_PIE_INVALID_DIR;
@@ -8648,7 +8648,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 				uiBut *but;
 				double final_time = 0.01 * U.pie_animation_timeout;
 				float fac = duration / final_time;
-				float pie_radius = U.pie_menu_radius * UI_DPI_WINDOW_FAC;
+				float pie_radius = U.pie_menu_radius * UI_DPI_FAC;
 
 				if (fac > 1.0f) {
 					fac = 1.0f;
@@ -8703,7 +8703,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 		}
 		else {
 			/* distance from initial point */
-			if (len_squared_v2v2(event_xy, block->pie_data.pie_center_init) < PIE_CLICK_THRESHOLD) {
+			if (len_squared_v2v2(event_xy, block->pie_data.pie_center_init) < PIE_CLICK_THRESHOLD_SQ) {
 				block->pie_data.flags |= UI_PIE_CLICK_STYLE;
 			}
 			else if (!is_click_style) {

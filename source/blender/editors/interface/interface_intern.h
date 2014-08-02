@@ -171,7 +171,7 @@ enum {
 	UI_PIE_ANIMATION_FINISHED   = (1 << 6),  /* pie animation finished, do not calculate any more motio  */
 };
 
-#define PIE_CLICK_THRESHOLD 50.0f
+#define PIE_CLICK_THRESHOLD_SQ 50.0f
 
 typedef struct uiLinkLine {  /* only for draw/edit */
 	struct uiLinkLine *next, *prev;

@@ -3795,8 +3795,8 @@ void ui_draw_pie_center(uiBlock *block)
 
 	float *pie_dir = block->pie_data.pie_dir;
 
-	float pie_radius_internal = U.pie_menu_threshold;
-	float pie_radius_external = U.pie_menu_threshold + 7.0f;
+	float pie_radius_internal = U.pixelsize * U.pie_menu_threshold;
+	float pie_radius_external = U.pixelsize * (U.pie_menu_threshold + 7.0f);
 
 	int subd = 40;
 

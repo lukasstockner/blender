@@ -2218,7 +2218,7 @@ static void ui_litem_layout_radial(uiLayout *litem)
 	 * also the old code at http://developer.blender.org/T5103
 	 */
 
-	int pie_radius = U.pie_menu_radius * UI_DPI_WINDOW_FAC;
+	int pie_radius = U.pie_menu_radius * UI_DPI_FAC;
 
 	x = litem->x;
 	y = litem->y;
