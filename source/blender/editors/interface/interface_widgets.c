@@ -3725,11 +3725,15 @@ void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	}
 }
 
-static void draw_disk_shaded(float start, float angle, float radius_int, float radius_ext, int subd, char col1[4], char col2[4], bool shaded)
+static void draw_disk_shaded(
+        float start, float angle,
+        float radius_int, float radius_ext, int subd,
+        const char col1[4], const char col2[4],
+        bool shaded)
 {
+	const float radius_ext_scale = (0.5f / radius_ext);  /* 1 / (2 * radius_ext) */
 	int i;
 
-	float a;
 	float s, c;
 	float y1, y2;
 	float fac;
@@ -3737,14 +3741,14 @@ static void draw_disk_shaded(float start, float angle, float radius_int, float r
 
 	glBegin(GL_TRIANGLE_STRIP);
 
-	s = sin(start);
-	c = cos(start);
+	s = sinf(start);
+	c = cosf(start);
 
 	y1 = s * radius_int;
 	y2 = s * radius_ext;
 
 	if (shaded) {
-		fac = (y1 + radius_ext) / (float) (2.0f * radius_ext);
+		fac = (y1 + radius_ext) * radius_ext_scale;
 		round_box_shade_col4_r(r_col, col1, col2, fac);
 
 		glColor4ubv(r_col);
@@ -3753,7 +3757,7 @@ static void draw_disk_shaded(float start, float angle, float radius_int, float r
 	glVertex2f(c * radius_int, s * radius_int);
 
 	if (shaded) {
-		fac = (y2 + radius_ext) / (2.0f * radius_ext);
+		fac = (y2 + radius_ext) * radius_ext_scale;
 		round_box_shade_col4_r(r_col, col1, col2, fac);
 
 		glColor4ubv(r_col);
@@ -3761,14 +3765,16 @@ static void draw_disk_shaded(float start, float angle, float radius_int, float r
 	glVertex2f(c * radius_ext, s * radius_ext);
 
 	for (i = 1; i < subd; i++) {
+		float a;
+
 		a = start + ((i) / (float)(subd - 1)) * angle;
-		s = sin(a);
-		c = cos(a);
+		s = sinf(a);
+		c = cosf(a);
 		y1 = s * radius_int;
 		y2 = s * radius_ext;
 
 		if (shaded) {
-			fac = (y1 + radius_ext) / (2.0f * radius_ext);
+			fac = (y1 + radius_ext) * radius_ext_scale;
 			round_box_shade_col4_r(r_col, col1, col2, fac);
 
 			glColor4ubv(r_col);
@@ -3776,7 +3782,7 @@ static void draw_disk_shaded(float start, float angle, float radius_int, float r
 		glVertex2f(c * radius_int, s * radius_int);
 
 		if (shaded) {
-			fac = (y2 + radius_ext) / (2.0f * radius_ext);
+			fac = (y2 + radius_ext) * radius_ext_scale;
 			round_box_shade_col4_r(r_col, col1, col2, fac);
 
 			glColor4ubv(r_col);
