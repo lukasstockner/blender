@@ -629,7 +629,7 @@ void EDBM_update_scratch_from_active(Object *ob)
 	
 	if (k->scratch.data) {
 		MEM_freeN(k->scratch.data);
-		k->scratch.data = MEM_mallocN(sizeof(float)* 3 * neworigin->totelem, __func__);
+		k->scratch.data = MEM_mallocN(sizeof(float) * 3 * neworigin->totelem, __func__);
 	}
 
 	/* neworigin -> scratch */
@@ -806,7 +806,6 @@ static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *obdata)
 	if (um->me.key) {
 		BKE_key_overwrite_data(um->me.key, me->key);
 		BKE_key_init_scratch(ob);
-		EDBM_update_scratch_from_active(ob);
 	}
 	
 	MEM_freeN(em_tmp);

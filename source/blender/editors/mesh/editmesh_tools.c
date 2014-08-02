@@ -40,6 +40,7 @@
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_curve_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_noise.h"
@@ -60,6 +61,7 @@
 
 #include "BLF_translation.h"
 #include "BLF_api.h"
+#include "BIF_gl.h"
 
 #include "RNA_define.h"
 #include "RNA_access.h"
@@ -2054,15 +2056,19 @@ typedef struct bfs_customdata {
 	short	ww, wh;			/* area width and height */
 	float	distance;	    /* PE falloff distance */
 
-	int		origx, origy;	/* mouse coords at previous state */
-	float	xscale, yscale; /* scale between mousemove and changes in mouse pos */
+	int		origx, origy;	/* mouse coords at starting state;state */
+
+	float	xscale;			/* scale between the horiz mouse movement and amount */
+	float	yscale;			/* scale between the vert mouse movement and falloff */
 
 	int		blend_mode;		/* 0 = interp, 1 = add */
 
 	int		prop_mode;		/* from DNA_scene_types.h, PE falloff interpolator mode */
 	int		prop_type;		/* simple/connected/projected */
 
-	int		prev_prop_type; /* used for */
+	int		prev_prop_type; /* used for deciding when to recalc falloff distances */
+
+	int		longest_kb_name_l; /* used for drawing info*/
 
 	float	obmat[3][3];	/* object's worldmat */
 
@@ -2071,6 +2077,7 @@ typedef struct bfs_customdata {
 
 	ARegion *ar;			/* View3D */
 	void	*draw_handler;  /* pointer to info handler */
+	uiBlock *shapesel;
 } bfs_customdata;
 
 #define BFS_TOTAL_PARAM 6
@@ -2303,17 +2310,12 @@ static char *edbm_bfs_get_preposition(int blend_mode)
 	return NULL;
 }
 
-#include "UI_interface_icons.h"
-
-/* draw info in bottom-right corner */
 static void edbm_bfs_draw_info(bContext *C, ARegion *ar, void *customdata)
 {
 #define BUFFER 1024 /* long keyblock names are a reality :\ */
 	char buf[BUFFER];
 	rcti rect;
-	int y = 0;  
-	int x = 0;
-	int x_namebase, x_valuebase, strl;
+	int y, x_namebase, x_valuebase;
 	bfs_customdata *state = customdata;
 	/* we draw a small table: on the left, the parameter names, on the right, the values */
 	/*  _______________________________
@@ -2325,8 +2327,8 @@ static void edbm_bfs_draw_info(bContext *C, ARegion *ar, void *customdata)
 	ED_region_visible_rect(state->ar, &rect);
 	
 	/* determine x_valuebase: space for ~15 chars or more for keyblock name */
- 	if ((strl = strlen(state->opkb->name)) > 10) {
-		x_valuebase = ceil(rect.xmax - U.widget_unit - BLF_width_default(state->opkb->name, strl));
+ 	if (state->longest_kb_name_l > 10) {
+		x_valuebase = ceil(rect.xmax - U.widget_unit - state->longest_kb_name_l * BLF_width_default("_", 1));
 	} 
 	else {
 		x_valuebase = ceil(rect.xmax - U.widget_unit - 15 * BLF_width_default("_", 1));
@@ -2342,13 +2344,37 @@ static void edbm_bfs_draw_info(bContext *C, ARegion *ar, void *customdata)
 		return;
 	}
 
+	if (state->opkb->next) {
+		if (state->opkb->next != BKE_keyblock_from_object(state->em->ob)) {
+			BLI_snprintf(buf, BUFFER, "%s", state->opkb->next->name);
+			BLF_draw_default(x_valuebase, y + U.widget_unit / 1.5f, 0.0f, buf, strlen(buf));
+		}
+		else if (state->opkb->next->next) {
+			BLI_snprintf(buf, BUFFER, "%s", state->opkb->next->next->name);
+			BLF_draw_default(x_valuebase, y + U.widget_unit / 1.5f, 0.0f, buf, strlen(buf));
+		}
+	}
+
 	/* draw argument kb */
 	BLI_snprintf(buf, BUFFER, "%s:", edbm_bfs_get_preposition(state->blend_mode));
 	BLF_draw_default(x_namebase, y, 0.0f, buf, strlen(buf));
 	BLI_snprintf(buf, BUFFER, "%s", state->opkb->name);
 	BLF_draw_default(x_valuebase, y, 0.0f, buf, strlen(buf));
 
-	y -= U.widget_unit;
+	/* if there's a possibility, draw prev and next kb */
+
+	if (state->opkb->prev) {
+		if (state->opkb->prev != BKE_keyblock_from_object(state->em->ob)) {
+			BLI_snprintf(buf, BUFFER, "%s", state->opkb->prev->name);
+			BLF_draw_default(x_valuebase, y - U.widget_unit / 1.5f, 0.0f, buf, strlen(buf));
+		}
+		else if (state->opkb->prev->prev) {
+			BLI_snprintf(buf, BUFFER, "%s", state->opkb->prev->prev->name);
+			BLF_draw_default(x_valuebase, y - U.widget_unit / 1.5f, 0.0f, buf, strlen(buf));
+		}
+	}
+
+	y -= 1.3f * U.widget_unit ;
 	strcpy(buf, IFACE_("Amount:"));
 	BLF_draw_default(x_namebase, y, 0.0f, buf, strlen(buf));
 	BLI_snprintf(buf, BUFFER, "%.3f", state->amount);
@@ -2382,16 +2408,27 @@ static void edbm_bfs_draw_info(bContext *C, ARegion *ar, void *customdata)
 		BLF_draw_default(x_valuebase, y, 0.0f, buf, strlen(buf));
 	}
 
-
 	strcpy(buf, "Mouse drag up/down: falloff distance. Mouse left/right: amount."
 		"Mousewheel: select keyblock. LMB / RMB: Confirm. ESC: Cancel."
-		"O: Cycle Falloff Types. Shift-O: No PE/On//Connected/Projected.");
+		"O: Cycle Falloff Types. Shift-O: No PE/On/Connected/Projected.");
 
-	
 	ED_area_headerprint(CTX_wm_area(C), buf);
 #undef BUFFER
 }
 
+
+static uiBlock *edbm_bfs_create_shapeselector(bContext *C, ARegion *ar, void *arg_op)
+{
+	uiBlock *block;
+	uiLayout *layout;
+
+	block = uiBeginBlock(C, ar, "edbm blend from shape shape falldown", UI_EMBOSS);
+	uiBlockClearFlag(block, UI_BLOCK_LOOP);
+	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN);
+
+	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, 15 * UI_UNIT_X, UI_UNIT_Y, 0, UI_GetStyle());
+
+}
 
 static int edbm_bfs_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -2434,9 +2471,10 @@ static int edbm_bfs_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	state->origy = event->y;
 	state->em = em;
 	state->key = k;
-	state->prop_type = state->prev_prop_type = ts->proportional; /* simple/cnct/proj */
-	state->prop_mode = ts->prop_mode;							 /* falloffs */
-	state->opkb = BKE_keyblock_from_object(obedit);
+	state->prop_type = ts->proportional; /* no/simple/cnct/proj */
+	state->prev_prop_type = -1;
+	state->prop_mode = ts->prop_mode;	 /* falloffs */
+	state->opkb = BKE_key_from_object(obedit)->block.first;
 	state->wh = ar->winy;
 	state->ww = ar->winx;
 
@@ -2466,6 +2504,15 @@ static int edbm_bfs_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		state->xscale = 2.0f / ar->winx;
 	}
 
+	state->longest_kb_name_l = 0;
+
+	LISTBASE_ITER_FWD(state->key->block, kb) {
+		int a;
+		if ((a = strlen(kb->name)) > state->longest_kb_name_l) {
+			state->longest_kb_name_l = a;
+		}
+	}
+
 	/* register modal handler */
 	WM_event_add_modal_handler(C, op);
 
@@ -2474,23 +2521,11 @@ static int edbm_bfs_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 static void edbm_bfs_handle_mousemove(short mx, short my, bfs_customdata *state)
 {
-#define EXPSWITCHLEVEL state->wh * 0.8f
-#define STEEPNESS state->yscale / 50.0f
+	state->distance = my * state->yscale;
 	state->amount = -1.0f + mx * state->xscale;
 
-	if (my < EXPSWITCHLEVEL)
-		state->distance = my * state->yscale;
-	else
-		/* go exponential here */
-		state->distance = EXPSWITCHLEVEL * state->yscale /*         constant part      */
-		/*               exp part             */ + exp((my - EXPSWITCHLEVEL) / ((state->wh - EXPSWITCHLEVEL)) / STEEPNESS) - 1.0f;
-
-	/* TODO: make this follow some nice spline */
-
-	CLAMP(state->amount, -1.0f, 1.0f);
+	CLAMP(state->amount, -1.5f, 1.5f);
 	CLAMP(state->distance, 0.0f, FLT_MAX);
-#undef EXPSWITCHLEVEL
-#undef STEEPNESS
 }
 
 static void edbm_bfs_recalc_factors(bfs_customdata *state) {
@@ -2502,11 +2537,7 @@ static void edbm_bfs_recalc_factors(bfs_customdata *state) {
 	memset(state->factors, 0.0f, sizeof(float) * state->em->bm->totvert);
 
 	if (state->prop_type != state->prev_prop_type) {
-
 		switch (state->prop_type) {
-			BMVert *v;
-			BMIter iter;
-
 			case PROP_EDIT_ON:
 				BM_prop_dist_calc(state->em->bm, state->obmat, NULL, state->distances);
 				break;
@@ -2520,19 +2551,26 @@ static void edbm_bfs_recalc_factors(bfs_customdata *state) {
 				BM_prop_dist_calc_connected(state->em->bm, state->obmat, state->distances);
 				break;
 			default:
-				/* selected = 1.0 factor */
-				BM_ITER_MESH_INDEX(v, &iter, state->em->bm, BM_VERTS_OF_MESH, a) {
-					state->factors[a] = BM_elem_flag_test(v, BM_ELEM_SELECT) ? 1.0f : 0.0f;
-				}
-				break;
+				state->prev_prop_type = state->prop_type;
+				return;
 		}
-
-		state->prev_prop_type = state->prop_type;
 	}
 
-	for (a = 0; a < state->em->bm->totvert; ++a) {
-		state->factors[a] = BM_prop_factor_distance(state->distances[a], state->distance, state->prop_mode);
+	if (state->prop_type) {
+		for (a = 0; a < state->em->bm->totvert; ++a) {
+			state->factors[a] = BM_prop_factor_distance(state->distances[a], state->distance, state->prop_mode);
+		}
+	} 
+	else {
+		BMVert *v;
+		BMIter iter;
+		/* selected = 1.0 factor */
+		BM_ITER_MESH_INDEX(v, &iter, state->em->bm, BM_VERTS_OF_MESH, a) {
+			state->factors[a] = BM_elem_flag_test(v, BM_ELEM_SELECT) ? 1.0f : 0.0f;
+		}
 	}
+
+	state->prev_prop_type = state->prop_type;
 }
 
 static int edbm_bfs_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2552,7 +2590,7 @@ static int edbm_bfs_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			if (event->shift) {
 				/* cycle PE */
 				state->prop_type++;
-				if (state->prop_type > PROP_EDIT_PROJECTED)
+				if (state->prop_type == PROP_EDIT_PROJECTED) /* skip projected for now */
 					state->prop_type = 0;
 				break;
 			}
@@ -2618,13 +2656,11 @@ static int edbm_bfs_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			rc = OPERATOR_CANCELLED;
 			break;
 	}
-
 	/* recalc */
 	edbm_bfs_recalc_factors(state);
 
 	edbm_bfs_recalc_shapes(state);
 
-	/* update editmesh display */
 	EDBM_update_generic(state->em, false, false);
 
 	ED_region_tag_redraw(CTX_wm_region(C));
@@ -2633,7 +2669,6 @@ static int edbm_bfs_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		ED_area_headerprint(CTX_wm_area(C), "ROTATE MOUSEWHEEL");
 		return OPERATOR_RUNNING_MODAL;
 	}
-
 	if (rc) {
 		/* exit */
 
@@ -2674,7 +2709,7 @@ void MESH_OT_blend_from_shape(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = edbm_bfs_exec;
 	ot->modal = edbm_bfs_modal;
-	ot->invoke = edbm_bfs_invoke; //WM_operator_props_popup_confirm;
+	ot->invoke = edbm_bfs_invoke;
 	ot->ui = edbm_bfs_ui;
 	ot->poll = ED_operator_editmesh;
 
@@ -2685,10 +2720,10 @@ void MESH_OT_blend_from_shape(wmOperatorType *ot)
 	prop = RNA_def_enum(ot->srna, "shape", DummyRNA_NULL_items, 0, "Shape", "Shape key to use for blending");
 	RNA_def_enum_funcs(prop, shape_itemf);
 	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
-	RNA_def_float(ot->srna, "blend", 1.0f, -FLT_MAX, FLT_MAX, "Blend", "Blending factor", -2.0f, 2.0f);
 	RNA_def_boolean(ot->srna, "add", 1, "Add", "Add rather than blend between shapes");
 	RNA_def_boolean(ot->srna, "prop_enabled", true, "Connected Vertices", "Blend nearby vertices propotionally");
-	RNA_def_float(ot->srna, "prop_dist", 0.1f, -FLT_MAX, FLT_MAX, "Distance", "Proportional editing falloff distance", 0.0f, 1.0f);
+	RNA_def_float(ot->srna, "prop_dist", 0.1f, -FLT_MAX, FLT_MAX, "Distance", "Proportional editing falloff distance,"
+		" in relation to object's bounding box", 0.0f, 1.0f);
 }
 
 /* ================================== Solidify ===================================== */
@@ -2761,7 +2796,6 @@ static int shape_key_commit_to_another_exec(bContext *C, wmOperator *op)
 
 	Object *obedit = CTX_data_edit_object(C);
 
-	Mesh *_debugme = obedit->data;
 	Key *k = BKE_key_from_object(obedit);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	KeyBlock *act_kb = BKE_keyblock_from_object(obedit);
