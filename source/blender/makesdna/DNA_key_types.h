@@ -42,12 +42,12 @@
 struct AnimData;
 struct Ipo;
 
+# /* These two things tell makesdna to ignore this struct */
 #
-#
-typedef struct KB_ComprMeshDataEnt {
+typedef struct CompressedMeshVertex {
 	int vertex_index;
 	float co[3];
-} KB_ComprMeshDataEnt;
+} CompressedMeshVertex;
 
 typedef struct KeyBlock {
 	struct KeyBlock *next, *prev;
@@ -59,7 +59,7 @@ typedef struct KeyBlock {
 
 	short type;        /* interpolation type (Key->type == KEY_NORMAL) only. */
 	short compressed;  /* for disk write/read; if 1, then they key's data is laid out as an array of
-					    * KB_ComprMeshDataEnt structs (total totelem).
+					    * CompressedMeshVertex structs (total totelem).
 						* Mesh only. Does not do anything useful at runtime */
 
 	short relative;    /* relative == 0 means first key is reference, otherwise the index of Key->blocks */

@@ -3042,7 +3042,7 @@ static void uncompress_kb(Key * key, KeyBlock *kb)
 	float(*kbco)[3];
 
 	KeyBlock *rk = key->refkey;
-	KB_ComprMeshDataEnt *kbcde = (KB_ComprMeshDataEnt *)kb->data;
+	CompressedMeshVertex *verts = (CompressedMeshVertex *)kb->data;
 
 	/* allocate space for uncompressed data */
 	kb->data = MEM_mallocN(sizeof(float) * 3 * rk->totelem, "KeyBlock");
@@ -3053,16 +3053,16 @@ static void uncompress_kb(Key * key, KeyBlock *kb)
 	
 	/* step two: overwrite the saved vertices */
 	for (a = 0; a < kb->totelem; ++a) {
-		index = kbcde[a].vertex_index;
-		copy_v3_v3(kbco[index], kbcde[a].co);
+		index = verts[a].vertex_index;
+		copy_v3_v3(kbco[index], verts[a].co);
 	}
 
 	kb->totelem = rk->totelem;
 
 	/* free compressed data */
-	if (kbcde) {
+	if (verts) {
 		/* compressed data may be NULL when a kb doesn't have any differences from the basis */
-		MEM_freeN(kbcde);
+		MEM_freeN(verts);
 	}
 }
 
@@ -3073,10 +3073,10 @@ static void switch_endian_keyblock(Key *key, KeyBlock *kb)
 	data = kb->data;
 
 	if (kb->compressed) {
-		KB_ComprMeshDataEnt *kbcde = (KB_ComprMeshDataEnt *)data;
+		CompressedMeshVertex *verts = (CompressedMeshVertex *)data;
 		for (a = 0; a < kb->totelem; ++a) {
-			BLI_endian_switch_int32(&kbcde[a].vertex_index);
-			BLI_endian_switch_float_array((float *) &kbcde[a].co, 3);
+			BLI_endian_switch_int32(&verts[a].vertex_index);
+			BLI_endian_switch_float_array((float *) &verts[a].co, 3);
 		}
 	} 
 	else {

@@ -1585,43 +1585,43 @@ static void write_vfonts(WriteData *wd, ListBase *idbase)
 static void compress_kb(KeyBlock *kb, Key *key_owner)
 {
 	/* the idea: we can get a space win by storing only the vertices with changed positions */
-	int a, changed_verts;
+	int a, n_changed_verts;
 	float diff[3];
 	KeyBlock *rk = key_owner->refkey;
 	float (*kbco)[3] = kb->data;
 	float (*rkbco)[3] = rk->data;
 
-	KB_ComprMeshDataEnt *kbcde = MEM_callocN(sizeof(KB_ComprMeshDataEnt) * rk->totelem, __func__);
+	CompressedMeshVertex *verts = MEM_callocN(sizeof(CompressedMeshVertex)* rk->totelem, __func__);
 
 	BLI_assert(kb->data); /* should not happen at any time! */
 
-	changed_verts = 0; /* counts CompMeshDataEntries as well */
+	n_changed_verts = 0; /* counts CompressedMeshVertexes */
 	for (a = 0; a < rk->totelem; ++a) {
 		sub_v3_v3v3(diff, rkbco[a], kbco[a]);
 		if (len_squared_v3(diff) > 0.0001f) {
 			/* this vert's pos has changed from the base */
-			copy_v3_v3(kbcde[changed_verts].co, kbco[a]);
-			kbcde[changed_verts].vertex_index = a;
-			++changed_verts;
+			copy_v3_v3(verts[n_changed_verts].co, kbco[a]);
+			verts[n_changed_verts].vertex_index = a;
+			++n_changed_verts;
 		}
 	}
 
 	/* time to decide if we're going to win space by saving to compressed format */
-	if (changed_verts * sizeof(KB_ComprMeshDataEnt) < rk->totelem * sizeof(float) * 3) {
+	if (n_changed_verts * sizeof(verts) < rk->totelem * sizeof(float)* 3) {
 		/*       size we get with compress      */   /* size we get without compress */
 		kb->compressed = 1;
-		kb->totelem = changed_verts;
+		kb->totelem = n_changed_verts;
 
 		MEM_freeN(kb->data);
-		kb->data = kbcde;
+		kb->data = verts;
 
 		if (G.debug_value == 1) {
 			printf("Compressed Shape Key %s, %.2f times smaller\n", kb->name,
-					(rk->totelem * sizeof(float) * 3.0f) / (changed_verts * sizeof(KB_ComprMeshDataEnt)));
+				(rk->totelem * sizeof(float) * 3.0f) / (n_changed_verts * sizeof(CompressedMeshVertex)));
 		}
 	}
 	else {
-		MEM_freeN(kbcde);
+		MEM_freeN(verts);
 		/* just ensure */
 		kb->compressed = 0;
 	}
@@ -1675,7 +1675,7 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 				while (kb) {
 					writestruct(wd, DATA, "KeyBlock", 1, kb);
 					if (kb->compressed) 
-						writedata(wd, DATA, sizeof(KB_ComprMeshDataEnt) * kb->totelem, kb->data);
+						writedata(wd, DATA, sizeof(CompressedMeshVertex)* kb->totelem, kb->data);
 					else
 						writedata(wd, DATA, kb->totelem * key->elemsize, kb->data);
 					kb = kb->next;
