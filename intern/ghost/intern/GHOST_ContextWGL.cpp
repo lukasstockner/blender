@@ -375,8 +375,13 @@ void GHOST_ContextWGL::initContextWGLEW(PIXELFORMATDESCRIPTOR &preferredPFD)
 	if (!WIN32_CHK(::wglMakeCurrent(dummyHDC, dummyHGLRC)))
 		goto finalize;
 
+#ifdef WITH_GLEW_MX
 	if (GLEW_CHK(wglewInit()) != GLEW_OK)
 		fprintf(stderr, "Warning! WGLEW failed to initialize properly.\n");
+#else
+	if (GLEW_CHK(glewInit()) != GLEW_OK)
+		fprintf(stderr, "Warning! Dummy GLEW/WGLEW failed to initialize properly.\n");
+#endif
 
 	// the following are not technially WGLEW, but they also require a context to work
 

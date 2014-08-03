@@ -140,8 +140,7 @@ void GHOST_ContextGLX::initContextGLXEW()
 	m_glxewContext = glxewContext;
 #endif
 
-	if (GLEW_CHK(glxewInit()) != GLEW_OK)
-		fprintf(stderr, "Warning! GLXEW failed to initialize properly.\n");
+	initContextGLEW();
 }
 
 GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
@@ -280,8 +279,6 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 		s_sharedCount++;
 
 		glXMakeCurrent(m_display, m_window, m_context);
-
-		initContextGLEW();
 
 		// Seems that this has to be called after MakeCurrent,
 		// which means we cannot use glX extensions until after we create a context
