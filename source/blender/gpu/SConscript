@@ -66,6 +66,7 @@ if env['WITH_BF_OPENSUBDIV']:
 # generated data files
 import os
 sources.extend((
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_geometry.glsl.c"),
     os.path.join(env['DATA_SOURCES'], "gpu_shader_simple_frag.glsl.c"),
     os.path.join(env['DATA_SOURCES'], "gpu_shader_simple_vert.glsl.c"),
     os.path.join(env['DATA_SOURCES'], "gpu_shader_material.glsl.c"),

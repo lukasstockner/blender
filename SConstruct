@@ -684,6 +684,7 @@ if B.targets != ['cudakernels']:
     data_to_c_simple("release/datafiles/preview_cycles.blend")
 
     # --- glsl ---
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_geometry.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_simple_frag.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_simple_vert.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_material.glsl")
