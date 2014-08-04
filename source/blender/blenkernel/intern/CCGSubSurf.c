@@ -2761,7 +2761,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		return;
 	}
 
-#pragma omp palallel for
+#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; ++i) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
@@ -2770,7 +2770,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		}
 	}
 
-#pragma omp palallel for
+#pragma omp parallel for
 	for (i = 0; i < ss->fMap->curSize; ++i) {
 		CCGFace *f = (CCGFace *) ss->fMap->buckets[i];
 		for (; f; f = f->next) {
@@ -2798,7 +2798,7 @@ static void opensubdiv_updateCoarseNormals(CCGSubSurf *ss)
 		}
 	}
 
-#pragma omp palallel for
+#pragma omp parallel for
 	for (i = 0; i < ss->vMap->curSize; ++i) {
 		CCGVert *v = (CCGVert *) ss->vMap->buckets[i];
 		for (; v; v = v->next) {
