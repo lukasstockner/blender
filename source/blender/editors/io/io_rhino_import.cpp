@@ -739,6 +739,7 @@ static void rhino_import_brep_face(bContext *C,
 	printf("   outer_loop: 0x%lx\n",long(outer_loop));
 	for (int loopnum=0; loopnum<loop_count; loopnum++) {
 		ON_BrepLoop *loop = face->Loop(loopnum);
+		if (loop==outer_loop && loop_count!=1) continue;
 		int trim_count = loop->TrimCount();
 		printf("   loop: 0x%lx\n",long(loop));
 		NurbTrim *trim = (NurbTrim*)MEM_callocN(sizeof(NurbTrim),"NURBS_imported_trim");

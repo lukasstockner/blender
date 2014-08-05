@@ -101,9 +101,6 @@ int test_index_face(struct MFace *mface, struct CustomData *mfdata, int mfindex,
 struct Mesh *BKE_mesh_from_object(struct Object *ob);
 void BKE_mesh_assign_object(struct Object *ob, struct Mesh *me);
 void BKE_mesh_from_metaball(struct ListBase *lb, struct Mesh *me);
-int  BKE_mesh_nurbs_to_mdata(struct Object *ob, struct MVert **allvert, int *totvert,
-                             struct MEdge **alledge, int *totedge, struct MLoop **allloop, struct MPoly **allpoly,
-                             int *totloop, int *totpoly);
 int BKE_mesh_nurbs_displist_to_mdata(struct Object *ob, struct ListBase *dispbase, struct MVert **allvert, int *_totvert,
                                      struct MEdge **alledge, int *_totedge, struct MLoop **allloop, struct MPoly **allpoly,
                                      struct MLoopUV **alluv, int *_totloop, int *_totpoly);

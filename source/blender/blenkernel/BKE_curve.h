@@ -49,6 +49,7 @@ struct rctf;
 struct DispList;
 struct BPoint;
 struct NurbTrim;
+struct GridMesh;
 
 typedef struct CurveCache {
 	ListBase disp;
@@ -180,9 +181,11 @@ void BKE_nurb_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, flo
 
 void BKE_nurb_makeFaces(struct Nurb *nu, float *coord_array, int rowstride, int resolu, int resolv);
 void BKE_nurb_makeCurve(struct Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array, int resolu, int stride);
+struct GridMesh *BKE_nurb_compute_trimmed_GridMesh(struct Nurb* nu);
 void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu);
 void BKE_nurb_clear_cached_UV_mesh(struct Nurb* nu, bool free_mem);
 void BKE_nurb_make_displist(struct Nurb *nurb, struct DispList *dl);
+void BKE_surf_to_mesh(struct Object *surf);
 
 void BKE_nurb_knot_calc_u(struct Nurb *nu);
 void BKE_nurb_knot_calc_v(struct Nurb *nu);

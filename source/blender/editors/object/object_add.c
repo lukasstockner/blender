@@ -1479,6 +1479,16 @@ static void convert_ensure_curve_cache(Main *bmain, Scene *scene, Object *ob)
 	}
 }
 
+static void trimmed_curve_to_mesh(Main *bmain, Scene *scene, Object *ob) {
+	BKE_surf_to_mesh(ob);
+	if (ob->type == OB_MESH) {
+		BKE_object_free_modifiers(ob);
+		/* Game engine defaults for mesh objects */
+		ob->body_type = OB_BODY_TYPE_STATIC;
+		ob->gameflag = OB_PROP | OB_COLLISION;
+	}
+}
+
 static void curvetomesh(Main *bmain, Scene *scene, Object *ob)
 {
 	convert_ensure_curve_cache(bmain, scene, ob);
@@ -1720,11 +1730,8 @@ static int convert_exec(bContext *C, wmOperator *op)
 				else {
 					newob = ob;
 				}
-
-				curvetomesh(bmain, scene, newob);
-
-				/* meshes doesn't use displist */
-				BKE_object_free_curve_cache(newob);
+	
+				trimmed_curve_to_mesh(bmain, scene, newob);
 			}
 		}
 		else if (ob->type == OB_MBALL && target == OB_MESH) {

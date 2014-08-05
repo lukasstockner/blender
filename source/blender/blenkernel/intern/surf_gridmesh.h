@@ -17,6 +17,19 @@
 #include <GLUT/glut.h>
 #endif
 
+struct GridMesh;
+
+struct GridMeshIterator {
+	GridMesh *gm;
+	int cell,poly,last_cell;
+	int operator*() {return poly;}
+	int operator<(const GridMeshIterator& other) {return this->cell < other.cell;}
+	int operator!=(const GridMeshIterator& other) {return this->cell != other.cell;}
+	void next();
+	bool done() {return !bool(poly);}
+	GridMeshIterator(GridMesh *gm);
+};
+
 struct GridMeshCoord {
 	float x,y;
 	GridMeshCoord() {}
@@ -68,6 +81,9 @@ typedef unsigned char known_corner_t;
 
 struct GridMesh {
 	static float tolerance;
+	
+	// Iterate through polygons
+	GridMeshIterator begin();
 	
 	// 3D coordinate storage (all trimming functions ignore the z coord)
 	// coords[0] is defined to be invalid.

@@ -23,6 +23,46 @@
 
 float GridMesh::tolerance = 1e-5;
 
+/* The public GridMeshIterator::next() function only loops over valid polygons.
+ * this function loops over invalid polygons too and relies on the caller to discard
+ * them.
+ * returns: is the polygon gmi->cell at the end of the call valid?
+ */
+static bool gmi_next(GridMeshIterator *gmi) {
+	GridMesh *gm = gmi->gm;
+	std::vector<GridMeshVert> &v = gm->v;
+	if (gmi->cell==0) return bool(v[gmi->poly].next);
+	GridMeshVert *vert = &v[gmi->poly];
+	// Outer loop: move from cell 1 to cell last_cell (inclusive)
+	// Inner loop: keep moving to next_poly
+	if (vert->next_poly) {
+		gmi->poly = vert->next_poly;
+		return bool(v[gmi->poly].next);
+	} /* have: vert->next_poly == 0 */
+	gmi->cell = gmi->poly = gmi->cell+4;
+	if (gmi->cell > gmi->last_cell) {
+		gmi->cell = gmi->poly = 0;
+		return false;
+	}
+	return bool(v[gmi->poly].next);
+}
+
+GridMeshIterator::GridMeshIterator(GridMesh *gm) {
+	this->gm = gm;
+	this->cell = 1;
+	this->poly = 1;
+	this->last_cell =gm->poly_for_cell(gm->nx-1, gm->ny-1);
+	if (gm->v[this->poly].next) return;
+	while (this->poly && !gmi_next(this));
+}
+
+void GridMeshIterator::next() {
+	while (this->poly && !gmi_next(this));
+}
+
+GridMeshIterator GridMesh::begin() {
+	return GridMeshIterator(this);
+}
 
 // Fast float->int, courtesy of http://stereopsis.com/sree/fpu2006.html
 // 5x faster on x86. It's not in the hot loop anymore so it probably
@@ -1223,6 +1263,7 @@ int line_line_intersection(double ax, double ay, // Line 1, vert 1 A
 						   double *ix, double *iy, // Intersection point
 						   double *alpha1
 ) {
+	double tol = .001;
 	// (ax,ay)--------(bx,by)
 	//   (cx,cy)------------(dx,dy)
 	// Do they intersect? If so, return true and fill alpha{1,2} with the
@@ -1238,6 +1279,7 @@ int line_line_intersection(double ax, double ay, // Line 1, vert 1 A
 	double a21 = by - ay;
 	double a22 = cy - dy;
 	double det = a11*a22-a12*a21; //~=0 iff colinear
+	if (abs(det)<tol) return false; // Almost || means no intersection for our purposesa
 	double idet = 1/det;
 	double b1 = cx-ax;
 	double b2 = cy-ay;

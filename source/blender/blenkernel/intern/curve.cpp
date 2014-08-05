@@ -51,9 +51,12 @@ extern "C" {
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_object_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_curve.h"
+#include "BKE_mesh.h"
 #include "BKE_displist.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
@@ -62,6 +65,7 @@ extern "C" {
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_material.h"
+#include "BKE_customdata.h"
 }
 
 #include "surf_gridmesh.h"
@@ -4060,10 +4064,7 @@ void BKE_nurb_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, flo
 	}
 }
 
-float subj0[] = {0.512000,0.938000, 0.374000,0.950000, 0.248000,0.908000, 0.170000,0.866000, 0.092000,0.740000, 0.092000,0.602000, 0.092000,0.440000, 0.116000,0.260000, 0.254000,0.110000, 0.476000,0.074000, 0.746000,0.092000, 0.836000,0.206000, 0.848000,0.422000, 0.812000,0.644000, 0.716000,0.686000, 0.614000,0.734000, 0.488000,0.728000, 0.386000,0.710000, 0.260000,0.626000, 0.272000,0.476000, 0.350000,0.338000, 0.482000,0.278000, 0.632000,0.308000, 0.644000,0.404000, 0.638000,0.494000, 0.590000,0.572000, 0.494000,0.584000, 0.422000,0.518000, 0.458000,0.392000, 0.548000,0.398000, 0.506000,0.506000, 0.572000,0.506000, 0.596000,0.386000, 0.566000,0.338000, 0.470000,0.338000, 0.368000,0.434000, 0.374000,0.608000, 0.578000,0.656000, 0.680000,0.644000, 0.740000,0.554000, 0.782000,0.308000, 0.758000,0.224000, 0.548000,0.164000, 0.338000,0.224000, 0.212000,0.374000, 0.170000,0.626000, 0.236000,0.764000, 0.368000,0.824000, 0.524000,0.836000, 1.184000,0.848000}; int subj0_nv=50;
-void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
-	bool remap_coords = true; // Remove trimmed verts (only useful for meshgen)
-
+GridMesh *BKE_nurb_compute_trimmed_GridMesh(struct Nurb* nu) {
 	// Figure out the domain
 	int totu=(nu->pntsu-nu->orderu+1)*nu->resolu, totv=(nu->pntsv-nu->orderv+1)*nu->resolv;
 	float ustart,uend,vstart,vend;
@@ -4071,14 +4072,6 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 	
 	// Trim the uniform grid in 2D UV space
 	GridMesh *gm = new GridMesh();
-	int coords_len = (totu+1)*(totv+1)*2;
-	GridMeshCoord *coords=NULL;
-	if (!remap_coords) {
-		coords = (GridMeshCoord*)MEM_mallocN(coords_len * sizeof(GridMeshCoord), "NURBS_tess_1");
-		gm->mallocN = MEM_mallocN;
-		gm->reallocN = MEM_reallocN_id;
-		gm->coords_import(coords, coords_len);
-	}
 	gm->set_ll_ur(ustart,vstart,uend,vend);
 	gm->init_grid(totu,totv);
 	
@@ -4102,28 +4095,30 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 		}
 		MEM_freeN(trim_uv_pts);
 	}
-//	static ThreadMutex *mutex = NULL;
-//	if (!mutex) {
-//		mutex = (ThreadMutex*)MEM_callocN(sizeof(ThreadMutex), "ThreadMutex");
-//		BLI_mutex_init(mutex);
-//	}
-//	BLI_mutex_lock(mutex);
-//	gm->dump_recording();
-//	BLI_mutex_unlock(mutex);
+	//	static ThreadMutex *mutex = NULL;
+	//	if (!mutex) {
+	//		mutex = (ThreadMutex*)MEM_callocN(sizeof(ThreadMutex), "ThreadMutex");
+	//		BLI_mutex_init(mutex);
+	//	}
+	//	BLI_mutex_lock(mutex);
+	//	gm->dump_recording();
+	//	BLI_mutex_unlock(mutex);
+	return gm;
+}
+
+void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
+	GridMesh *gm = BKE_nurb_compute_trimmed_GridMesh(nu);
 	
 	// Extract the results
+	int totu=(nu->pntsu-nu->orderu+1)*nu->resolu, totv=(nu->pntsv-nu->orderv+1)*nu->resolv;
 	std::map<int,int> *used_idxs;
-	if (!remap_coords) {
-		coords = gm->coords_export(&coords_len);
-		used_idxs = NULL;
-	} else {
-		coords = gm->coords;
-		used_idxs = new std::map<int,int>();
-	}
+	GridMeshCoord *coords = gm->coords;
+	int coords_len = (totu+1)*(totv+1)*2;
+	used_idxs = new std::map<int,int>();
 	int idxs_len = 4 * 3*sizeof(int)*totu*totv;
 	int *idxs = (int*)MEM_mallocN(sizeof(int)*idxs_len, "NURBS_tess_2.0");
 	int ii=0; // Index index
-#define TESS_MAX_POLY_VERTS 1024
+#define TESS_MAX_POLY_VERTS 2048
 	float coords_tmp[TESS_MAX_POLY_VERTS][2];
 	int reindex_tmp[TESS_MAX_POLY_VERTS];
 	unsigned idx_tmp[TESS_MAX_POLY_VERTS][3];
@@ -4150,10 +4145,8 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 					int ll=ll_gp, lr=ll_gp+1, ur=ll_gp+(totu+1)+1, ul=ll_gp+(totu+1);
 					idxs[ii++]=ll; idxs[ii++]=lr; idxs[ii++]=ur;
 					idxs[ii++]=ur; idxs[ii++]=ul; idxs[ii++]=ll;
-					if (remap_coords) {
-						(*used_idxs)[ll]=0; (*used_idxs)[lr]=0;
-						(*used_idxs)[ul]=0; (*used_idxs)[ur]=0;
-					}
+					(*used_idxs)[ll]=0; (*used_idxs)[lr]=0;
+					(*used_idxs)[ul]=0; (*used_idxs)[ur]=0;
 				} else {
 					int num_verts=0; int vert=poly;
 					do {
@@ -4184,32 +4177,30 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 						int i2=reindex_tmp[idx_tmp[z][1]];
 						int i3=reindex_tmp[idx_tmp[z][2]];
 						idxs[ii++]=i1; idxs[ii++]=i2; idxs[ii++]=i3;
-						if (remap_coords) {
-							(*used_idxs)[i1]=0;
-							(*used_idxs)[i2]=0;
-							(*used_idxs)[i3]=0;
-						}
+						(*used_idxs)[i1]=0;
+						(*used_idxs)[i2]=0;
+						(*used_idxs)[i3]=0;
 					}
 				}
 			}
 		}
 	}
-	if (remap_coords) {
-		int num_used_idxs = int(used_idxs->size());
-		coords = (GridMeshCoord*)MEM_mallocN(3*sizeof(float)*num_used_idxs, "NURBS_tess_2.3");
-		coords_len = num_used_idxs;
-		int newidx=0;
-		std::map<int,int>::iterator it=used_idxs->begin(),end=used_idxs->end();
-		for (; it!=end; it++) {
-			int old_idx = it->first;
-			coords[newidx] = gm->coords[old_idx];
-			it->second = newidx++;
-		}
-		// ii, the index index, points to the end of idxs, the index array
-		for (int i=0; i<ii; i++) {
-			idxs[i] = (*used_idxs)[idxs[i]];
-		}
+	/* Remap Coords */
+	int num_used_idxs = int(used_idxs->size());
+	coords = (GridMeshCoord*)MEM_mallocN(3*sizeof(float)*num_used_idxs, "NURBS_tess_2.3");
+	coords_len = num_used_idxs;
+	int newidx=0;
+	std::map<int,int>::iterator it=used_idxs->begin(),end=used_idxs->end();
+	for (; it!=end; it++) {
+		int old_idx = it->first;
+		coords[newidx] = gm->coords[old_idx];
+		it->second = newidx++;
 	}
+	// ii, the index index, points to the end of idxs, the index array
+	for (int i=0; i<ii; i++) {
+		idxs[i] = (*used_idxs)[idxs[i]];
+	}
+	/* End remap coords */
 	
 	nu->UV_verts_count = coords_len;
 	nu->UV_tri_count = ii/3;
@@ -4264,4 +4255,214 @@ void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
 	dl->nr = nu->UV_verts_count;
 	if (nu->flag&CU_SMOOTH)
 		dl->rt |= CU_SMOOTH;
+}
+
+/* Helper for BKE_surf_to_mesh */
+struct NurbsMeshInfo {
+	/* Output from Pass 1 */
+	int num_vert, num_edge, num_loop, num_poly;
+	GridMesh *gm;
+	std::map<int,int> remap_vert;
+	std::map<std::pair<int,int>,int> remap_edge;
+	
+	/* Input to Pass 2 */
+	MVert *verts;
+	MEdge *edges;
+	MLoop *loops;
+	MLoopUV *uvs;
+	MPoly *polys;
+};
+
+/* Helper for BKE_surf_to_mesh */
+void nurbs_meshinfo_pass_1(Nurb *nu, NurbsMeshInfo &nmi) {
+	GridMesh *gm = BKE_nurb_compute_trimmed_GridMesh(nu);
+	nmi.gm = gm;
+	std::map<int,int> &remap_vert = nmi.remap_vert;
+	std::map<std::pair<int,int>,int> &remap_edge = nmi.remap_edge;
+	int vertid=0, edgeid=0, loopid=0, polyid=0;
+	for (GridMeshIterator gmi=gm->begin(); !gmi.done(); gmi.next()) {
+		int poly = gmi.poly;
+		int vert=poly; do {
+			int coordidx = gm->v[vert].coord_idx;
+			std::map<int,int>::iterator crd = remap_vert.find(coordidx);
+			if (crd==remap_vert.end()) {
+				remap_vert[coordidx] = vertid++;
+			}
+			int nextvert = gm->v[vert].next;
+			int c1=coordidx, c2=gm->v[nextvert].coord_idx;
+			std::pair<int,int> thisedge = (c1<c2)? std::make_pair(c1,c2) : std::make_pair(c2,c1);
+			std::map<std::pair<int,int>,int>::iterator edg = remap_edge.find(thisedge);
+			if (edg==remap_edge.end()) {
+				remap_edge[thisedge] = edgeid++;
+			}
+			loopid++;
+			vert = nextvert;
+		} while (vert!=poly);
+		polyid++;
+	}
+	nmi.num_vert = vertid;
+	nmi.num_edge = edgeid;
+	nmi.num_loop = loopid;
+	nmi.num_poly = polyid;
+}
+
+/* Helper for BKE_surf_to_mesh */
+void nurbs_meshinfo_pass_2(Nurb *nu, NurbsMeshInfo &nmi) {
+	/* Cache some data we'll need for surface eval */
+	int pntsu=nu->pntsu, orderu=nu->orderu, pntsv=nu->pntsv, orderv=nu->orderv;
+	float *U=nu->knotsu, *V=nu->knotsv;
+	BPoint *bp=nu->bp;
+
+	/* Fill the newly allocated storage */
+	int loopnum=0, polynum=0;
+	for (GridMeshIterator gmi=nmi.gm->begin(); !gmi.done(); gmi.next()) {
+		int poly = gmi.poly;
+		printf("%i: ",poly);
+		int vert=poly;
+		GridMeshVert *gmvert = &nmi.gm->v[vert];
+		int coordidx = gmvert->coord_idx;
+		int remapped_vert_idx = nmi.remap_vert[coordidx];
+		int num_edge_in_poly=0, first_loop_of_poly=loopnum;
+		/* Loop over each edge {vert,nextvert} in gmi.poly */
+		do {
+			num_edge_in_poly++;
+			int nextvert = gmvert->next;
+			GridMeshVert *gmnextvert = &nmi.gm->v[nextvert];
+			int nextcoordidx = gmnextvert->coord_idx;
+			int remapped_nextvert_idx = nmi.remap_vert[nextcoordidx];
+
+			/* Get pointers to the structures at this poly edge */
+			MVert *mesh_v = nmi.verts + remapped_vert_idx;
+			GridMeshCoord *gmcoord = &nmi.gm->coords[coordidx];
+			int c1=coordidx, c2=nextcoordidx;
+			std::pair<int,int> thisedge = (c1<c2)? std::make_pair(c1,c2) : std::make_pair(c2,c1);
+			int remapped_edge_idx = nmi.remap_edge[thisedge];
+			MEdge *mesh_e = nmi.edges + remapped_edge_idx;
+			MLoopUV *mesh_luv = nmi.uvs + (loopnum);
+			MLoop *mesh_l = nmi.loops + (loopnum++);
+
+			/* MVert (location, normal) */
+			BPoint surfpt[3]; // Coord, d/du, d/dv. The latter two are actually vectors.
+			BKE_nurbs_surf_eval(gmcoord->x, gmcoord->y,
+								pntsu,orderu,U, pntsv,orderv,V,
+								bp, 1, surfpt);
+			copy_v3_v3(mesh_v->co, surfpt[0].vec);
+			float norm[3];
+			cross_v3_v3v3(norm, surfpt[1].vec, surfpt[2].vec);
+			normal_float_to_short_v3(mesh_v->no, norm);
+
+			/* MEdge, MLoop, MLoopUV */
+			mesh_e->v1 = remapped_vert_idx;
+			mesh_e->v2 = remapped_nextvert_idx;
+			printf("(%i-%i.%i.%i-%i) ",coordidx,nextcoordidx,remapped_edge_idx,remapped_vert_idx,remapped_nextvert_idx);
+			mesh_l->v = remapped_vert_idx;
+			mesh_l->e = remapped_edge_idx;
+			mesh_luv->uv[0] = gmcoord->x;
+			mesh_luv->uv[1] = gmcoord->y;
+
+			vert = nextvert;
+			gmvert = gmnextvert;
+			remapped_vert_idx = remapped_nextvert_idx;
+			coordidx = gmvert->coord_idx;
+		} while (vert!=poly);
+		printf("\n");
+		MPoly *mesh_p = nmi.polys + (polynum++);
+		mesh_p->loopstart = first_loop_of_poly;
+		mesh_p->totloop = num_edge_in_poly;
+	}
+}
+
+/* Transforms the surface object ob into a mesh representation. */
+void BKE_surf_to_mesh(Object *ob) {
+	BLI_assert(ob->type == OB_SURF);
+	Curve *cu = (Curve*)ob->data;
+	BLI_assert(cu->type == OB_SURF);
+
+	/* Pass 0: Count # of surfaces in the Curve object */
+	int num_nurbs=0;
+	for (Nurb *nu = (Nurb*)cu->nurb.first; nu; nu=nu->next) num_nurbs++;
+	std::vector<NurbsMeshInfo> NMIs(num_nurbs);
+
+	/* Pass 1, for each NURBS surface,
+	 *   a. invokes the GridMesh surface tessellator
+	 *   b. counts the number of verts, edges, loops, and polys outputted by #1
+	 *   c. computes de-duplicated and compacted indices for verts and edges
+	 *   d. stores the output in a NurbsMeshInfo object for subsequent passes
+	 *   e. keeps track of totals because all surfs in the new mesh share vert/edge/etc buffers
+	 */
+	int totvert=0, totedge=0, totloop=0, totpoly=0;
+	Nurb *nu = (Nurb*)cu->nurb.first;
+	for (int i=0; i<num_nurbs; i++) {
+		NurbsMeshInfo &nmi = NMIs[i];
+
+		nurbs_meshinfo_pass_1(nu, nmi);
+		printf("Meshinfo %i %i %i %i\n",nmi.verts,nmi.loops,nmi.edges,nmi.polys);
+
+		totvert += nmi.num_vert;
+		totloop += nmi.num_loop;
+		totedge += nmi.num_edge;
+		totpoly += nmi.num_poly;
+		nu=nu->next;
+	}
+	
+	/* Allocate mesh storage now that we know total counts */
+	MVert *allvert = (MVert*)MEM_callocN(sizeof(MVert)*totvert+4, "NURBS2mesh_verts");	unsigned *cvert = (unsigned*)(allvert+totvert); *cvert=0xDEADBEEF;
+	MEdge *alledge = (MEdge*)MEM_callocN(sizeof(MEdge)*totedge+4, "NURBS2mesh_edges");	unsigned *cedge = (unsigned*)(alledge+totedge); *cedge=0xDEADBEEF;
+	MLoop *allloop = (MLoop*)MEM_callocN(sizeof(MLoop)*totloop+4, "NURBS2mesh_loop");		unsigned *cloop = (unsigned*)(allloop+totloop); *cloop=0xDEADBEEF;
+	MPoly *allpoly = (MPoly*)MEM_callocN(sizeof(MPoly)*totpoly+4, "NURBS2mesh_poly");		unsigned *cpoly = (unsigned*)(allpoly+totpoly); *cpoly=0xDEADBEEF;
+	MLoopUV *alluv = (MLoopUV*)MEM_callocN(sizeof(MLoopUV)*totloop+4, "NURBS2mesh_uv");	unsigned *cuv = (unsigned*)(alluv+totloop);     *cuv=0xDEADBEEF;
+
+	/* Pass 2 fills the newly allocated buffers */
+	nu = (Nurb*)cu->nurb.first;
+	int filled_v=0, filled_e=0, filled_l=0, filled_p=0;
+	for (int i=0; i<num_nurbs; i++) {
+		NurbsMeshInfo &nmi = NMIs[i];
+		nmi.verts = allvert+filled_v;
+		nmi.edges = alledge+filled_e;
+		nmi.loops = allloop+filled_l;
+		nmi.polys = allpoly+filled_p;
+		nmi.uvs = alluv+filled_l;
+	
+		nurbs_meshinfo_pass_2(nu, nmi);
+	
+		filled_v += nmi.num_vert;
+		filled_e += nmi.num_edge;
+		filled_l += nmi.num_loop;
+		filled_p += nmi.num_poly;
+		nu=nu->next;
+	}
+
+	/* Put all the mesh data together in a Mesh object */
+	Mesh *me = BKE_mesh_add(G.main, "Mesh");
+	me->totvert=totvert;
+	me->totedge=totedge;
+	me->totloop=totloop;
+	me->totpoly=totpoly;
+	me->mvert = (MVert*)CustomData_add_layer(&me->vdata, CD_MVERT, CD_ASSIGN, allvert, me->totvert);
+	me->medge = (MEdge*)CustomData_add_layer(&me->edata, CD_MEDGE, CD_ASSIGN, alledge, me->totedge);
+	me->mloop = (MLoop*)CustomData_add_layer(&me->ldata, CD_MLOOP, CD_ASSIGN, allloop, me->totloop);
+	me->mpoly = (MPoly*)CustomData_add_layer(&me->pdata, CD_MPOLY, CD_ASSIGN, allpoly, me->totpoly);
+	me->mtpoly = (MTexPoly*)CustomData_add_layer_named(&me->pdata, CD_MTEXPOLY, CD_DEFAULT, NULL, me->totpoly, "Orco");
+	me->mloopuv = (MLoopUV*)CustomData_add_layer_named(&me->ldata, CD_MLOOPUV, CD_ASSIGN, alluv, me->totloop, "Orco");
+
+	/* Switch out the Curve datablock for a Mesh datablock */
+	BKE_mesh_texspace_calc(me);
+	me->mat = cu->mat; cu->mat = NULL;
+	if (ob->data) {
+		BKE_libblock_free(G.main, ob->data);
+	}
+	ob->data = me;
+	ob->type = OB_MESH;
+	BKE_object_free_curve_cache(ob);
+	/* other users */
+	Object *ob1 = (Object*)G.main->object.first;
+	while (ob1) {
+		if (ob1->data == cu) {
+			ob1->type = OB_MESH;
+			
+			ob1->data = ob->data;
+			id_us_plus((ID *)ob->data);
+		}
+		ob1 = (Object*)ob1->id.next;
+	}
 }
