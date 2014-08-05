@@ -70,7 +70,7 @@ quickdebug = None
 
 ##### BEGIN SETUP #####
 
-B.possible_types = ['core', 'player', 'player2', 'intern', 'extern']
+B.possible_types = ['core', 'player', 'player2', 'intern', 'extern', 'system']
 
 B.binarykind = ['blender' , 'blenderplayer']
 ##################################
@@ -323,7 +323,10 @@ if env['OURPLATFORM']=='darwin':
     print B.bc.OKGREEN + "Available SDK's: \n" + B.bc.ENDC + MACOSX_SDK_CHECK.replace('\t', '')
 
     if env['MACOSX_SDK'] == '': # no set sdk, choosing best one found
-        if 'OS X 10.9' in MACOSX_SDK_CHECK:
+        if 'OS X 10.10' in MACOSX_SDK_CHECK:
+            env['MACOSX_DEPLOYMENT_TARGET'] = '10.6'
+            env['MACOSX_SDK']='/Developer/SDKs/MacOSX10.10.sdk'
+        elif 'OS X 10.9' in MACOSX_SDK_CHECK:
             env['MACOSX_DEPLOYMENT_TARGET'] = '10.6'
             env['MACOSX_SDK']='/Developer/SDKs/MacOSX10.9.sdk'
         elif 'OS X 10.8' in MACOSX_SDK_CHECK:
@@ -812,7 +815,7 @@ SConscript(B.root_build_dir+'/extern/SConscript')
 # libraries to give as objects to linking phase
 mainlist = []
 for tp in B.possible_types:
-    if (not tp == 'player') and (not tp == 'player2'):
+    if (not tp == 'player') and (not tp == 'player2') and (not tp == 'system'):
         mainlist += B.create_blender_liblist(env, tp)
 
 if B.arguments.get('BF_PRIORITYLIST', '0')=='1':
@@ -822,6 +825,11 @@ dobj = B.buildinfo(env, "dynamic") + B.resources
 creob = B.creator(env)
 thestatlibs, thelibincs = B.setup_staticlibs(env)
 thesyslibs = B.setup_syslibs(env)
+
+# Hack to pass OSD libraries to linker before extern_{clew,cuew}
+for x in B.create_blender_liblist(env, 'system'):
+    thesyslibs.append(os.path.basename(x))
+    thelibincs.append(os.path.dirname(x))
 
 if 'blender' in B.targets or not env['WITH_BF_NOBLENDER']:
     env.BlenderProg(B.root_build_dir, "blender", creob + mainlist + thestatlibs + dobj, thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
