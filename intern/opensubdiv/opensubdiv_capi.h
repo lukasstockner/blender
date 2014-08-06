@@ -63,6 +63,14 @@ enum {
 	OPENSUBDIV_SCHEME_LOOP,
 };
 
+void openSubdiv_EvlauatorClearTags(
+    OpenSubdiv_EvaluatorDescr *evaluator_descr);
+
+void openSubdiv_EvaluatorSetEdgeSharpness(
+    OpenSubdiv_EvaluatorDescr *evaluator_descr,
+    int v0, int v1,
+    float sharpness);
+
 OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     OpenSubdiv_EvaluatorDescr *evaluator_descr,
     int controller_type,

@@ -2538,6 +2538,18 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 		}
 	}
 
+	openSubdiv_EvlauatorClearTags(ss->osd_evaluator);
+	for (i = 0; i < ss->eMap->curSize; i++) {
+		CCGEdge *e = (CCGEdge *) ss->eMap->buckets[i];
+		for (; e; e = e->next) {
+			openSubdiv_EvaluatorSetEdgeSharpness(
+			        ss->osd_evaluator,
+			        e->v0->osd_index,
+			        e->v1->osd_index,
+			        e->crease);
+		}
+	}
+
 	/* Do feature adaptive refinement and get ready to update
 	 * coarse points and evaluate.
 	 */

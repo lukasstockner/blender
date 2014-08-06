@@ -315,6 +315,33 @@ static void get_partition_per_face(OsdHbrMesh &hmesh,
 	}
 }
 
+/* TODO(sergey): It might be good to have in evaluator_capi. */
+void openSubdiv_EvlauatorClearTags(
+    OpenSubdiv_EvaluatorDescr *evaluator_descr)
+{
+	OsdUtilSubdivTopology *topology =
+	    (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
+	        evaluator_descr);
+
+	topology->tagData.tags.clear();
+	topology->tagData.intArgs.clear();
+	topology->tagData.floatArgs.clear();
+	topology->tagData.stringArgs.clear();
+}
+
+void openSubdiv_EvaluatorSetEdgeSharpness(
+    OpenSubdiv_EvaluatorDescr *evaluator_descr,
+    int v0, int v1,
+    float sharpness)
+{
+	OsdUtilSubdivTopology *topology =
+	    (OsdUtilSubdivTopology *)openSubdiv_getEvaluatorTopologyDescr(
+	        evaluator_descr);
+	int indices[] = {v0, v1};
+
+	topology->tagData.AddCrease(indices, 2, &sharpness, 1);
+}
+
 struct OpenSubdiv_GLMesh *openSubdiv_createOsdGLMeshFromEvaluator(
     OpenSubdiv_EvaluatorDescr *evaluator_descr,
     int controller_type,
