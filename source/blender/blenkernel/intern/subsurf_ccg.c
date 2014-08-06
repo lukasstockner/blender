@@ -2825,6 +2825,17 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 		int start_partition = 0, num_partitions = 0;
 		DMDrawOption draw_option = DM_DRAW_OPTION_NORMAL;
 
+		/* TODO(sergey): This is for cases when vertex colors or weights
+		 * are visualising. Currently we don't have CD layers for this data
+		 * and here we only make it so there's no garbage displayed.
+		 *
+		 * In the future we'll either need to have CD for this data or pass
+		 * this data as face-varying or vertex-varying data in OSD mesh.
+		 */
+		if (setDrawOptions == NULL) {
+			glColor3f(0.8f, 0.8f, 0.8f);
+		}
+
 		if (UNLIKELY(ccgSubSurf_prepareGLMesh(ss, true) == false)) {
 			return;
 		}
