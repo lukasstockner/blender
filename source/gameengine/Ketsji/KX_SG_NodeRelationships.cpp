@@ -233,9 +233,9 @@ SG_ParentRelation* KX_SlowParentRelation::NewCopy()
 }
 
 KX_SlowParentRelation::KX_SlowParentRelation(MT_Scalar relaxation)
-	:m_relax(relaxation),
-	m_initialized(false)
+	:m_initialized(false)
 {
+	m_relax = fabs(relaxation);
 	m_weight = MT_Scalar(1)/(m_relax + 1);
 }
 
