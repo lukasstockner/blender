@@ -1521,15 +1521,22 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 				for (md = object->modifiers.first; md; md = md->next) {
 					if (md->type == eModifierType_Subsurf) {
 						SubsurfModifierData *smd = (SubsurfModifierData *) md;
-						if (smd->mCache != NULL) {
-							bool old_simple =
-								ccgSubSurf_getSimpleSubdiv(smd->mCache);
-							bool use_simple =
-								smd->subdivType == ME_SIMPLE_SUBSURF;
+						bool use_simple = smd->subdivType == ME_SIMPLE_SUBSURF;
 
-							if (old_simple != use_simple) {
+						if (smd->mCache != NULL) {
+							if (object->mode == OB_MODE_EDIT ||
+							    ccgSubSurf_getSimpleSubdiv(smd->mCache) != use_simple)
+							{
 								ccgSubSurf_free(smd->mCache);
 								smd->mCache = NULL;
+							}
+						}
+						if (smd->emCache != NULL) {
+							if (object->mode != OB_MODE_EDIT ||
+							    ccgSubSurf_getSimpleSubdiv(smd->emCache) != use_simple)
+							{
+								ccgSubSurf_free(smd->emCache);
+								smd->emCache = NULL;
 							}
 						}
 					}
