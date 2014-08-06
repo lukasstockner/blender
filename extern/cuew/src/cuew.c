@@ -50,11 +50,11 @@ typedef void* DynamicLibrary;
 #endif
 
 #define CUDA_LIBRARY_FIND_CHECKED(name) \
-        name = (t##name *)dynamic_library_find(lib, #name);
-
-#define CUDA_LIBRARY_FIND(name) \
         name = (t##name *)dynamic_library_find(lib, #name); \
         assert(name);
+
+#define CUDA_LIBRARY_FIND(name) \
+        name = (t##name *)dynamic_library_find(lib, #name);
 
 static DynamicLibrary lib;
 
@@ -686,7 +686,7 @@ int cuewCompilerVersion(void) {
 
   while (!feof(pipe)) {
     if (fgets(buf, sizeof(buf), pipe) != NULL) {
-      strncat(output, buf, sizeof(output) - strlen(output));
+      strncat(output, buf, sizeof(output) - strlen(output) - 1 );
     }
   }
 

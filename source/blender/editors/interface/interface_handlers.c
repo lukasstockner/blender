@@ -1264,7 +1264,7 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 				valid = true;
 			}
 			else if (but->pointype == UI_BUT_POIN_CHAR) {
-				rgba_uchar_to_float(drag_info->color, (unsigned char *)but->poin);
+				rgb_uchar_to_float(drag_info->color, (unsigned char *)but->poin);
 				valid = true;
 			}
 
@@ -7885,6 +7885,9 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
 		if (event->val == KM_RELEASE) {
 			/* pass, needed so we can exit active menu-items when click-dragging out of them */
 		}
+		else if (!ui_mouse_inside_region(but->active->region, event->x, event->y)) {
+			/* pass, needed to click-exit outside of non-flaoting menus */
+		}
 		else if ((event->type != MOUSEMOVE) && ISMOUSE(event->type)) {
 			if (!ui_mouse_inside_button(but->active->region, but, event->x, event->y)) {
 				but = NULL;
@@ -8301,6 +8304,10 @@ static int ui_handle_menu_event(
 			         (inside && is_floating && inside_title))
 			{
 				if (!but || !ui_mouse_inside_button(ar, but, event->x, event->y)) {
+					if (but) {
+						button_timers_tooltip_remove(C, but);
+					}
+
 					menu->is_grab = true;
 					copy_v2_v2_int(menu->grab_xy_prev, &event->x);
 					retval = WM_UI_HANDLER_BREAK;
