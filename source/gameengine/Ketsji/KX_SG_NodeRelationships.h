@@ -157,8 +157,8 @@ private :
 
 	KX_SlowParentRelation(MT_Scalar relaxation);
 
-	/* the relaxation coefficient. */
-	MT_Scalar m_relax;
+	MT_Scalar m_relax;  /* the relaxation coefficient. the bigger, the slower */
+	MT_Scalar m_weight; /*inverse relax coefficient, computed only once for calculations*/
 
 	/**
 	 * Looks like a hack flag to me.

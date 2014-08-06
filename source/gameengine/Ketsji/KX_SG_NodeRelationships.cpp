@@ -58,20 +58,20 @@ bool KX_NormalParentRelation::UpdateChildCoordinates(SG_Spatial *child, const SG
 	/* The child has a parent. The child's coordinates are defined relative to the parent's.
 	 * The parent's coordinates should be applied to the child's local ones to calculate the real world position. */
 	else {
-		const MT_Vector3 & p_world_scale = parent->GetWorldScaling();
-		const MT_Point3 & p_world_pos = parent->GetWorldPosition();
-		const MT_Matrix3x3 & p_world_orientation = parent->GetWorldOrientation();
-		const MT_Vector3 & local_scale = child->GetLocalScale();
-		const MT_Point3 & local_pos = child->GetLocalPosition();
-		const MT_Matrix3x3 & local_orientation = child->GetLocalOrientation();
+		const MT_Vector3 & parent_world_scale = parent->GetWorldScaling();
+		const MT_Point3 & parent_world_pos = parent->GetWorldPosition();
+		const MT_Matrix3x3 & parent_world_ori = parent->GetWorldOrientation();
+		const MT_Vector3 & child_local_scale = child->GetLocalScale();
+		const MT_Point3 & child_local_pos = child->GetLocalPosition();
+		const MT_Matrix3x3 & child_local_ori = child->GetLocalOrientation();
 
-		const MT_Vector3 & new_w_scale = p_world_scale * local_scale;
-		const MT_Matrix3x3 & new_w_orientation = p_world_orientation * local_orientation;
-		const MT_Point3 & new_w_pos = p_world_pos + (new_w_scale * (new_w_orientation * local_pos));
+		const MT_Vector3 & new_world_scale = parent_world_scale * child_local_scale;
+		const MT_Matrix3x3 & new_world_ori = parent_world_ori * child_local_ori;
+		const MT_Point3 & new_world_pos = parent_world_pos + (new_world_scale * (new_world_ori * child_local_pos));
 
-		child->SetWorldScale(new_w_scale);
-		child->SetWorldOrientation(new_w_orientation);
-		child->SetWorldPosition(new_w_pos);
+		child->SetWorldScale(new_world_scale);
+		child->SetWorldOrientation(new_world_ori);
+		child->SetWorldPosition(new_world_pos);
 	}
 
 	parentUpdated = true;  //this variable is going to be used to update the children of this child
@@ -156,7 +156,7 @@ KX_VertexParentRelation::KX_VertexParentRelation()
 
 KX_SlowParentRelation* KX_SlowParentRelation::New(MT_Scalar relaxation)
 {
-	return new 	KX_SlowParentRelation(relaxation);
+	return new KX_SlowParentRelation(relaxation);
 }
 
 bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Spatial *child, const SG_Spatial *parent, bool &parentUpdated)
@@ -168,54 +168,56 @@ bool KX_SlowParentRelation::UpdateChildCoordinates(SG_Spatial *child, const SG_S
 	if (parent==NULL) {
 		child->SetWorldFromLocalTransform();
 	}
+	/* The child's coordinates get linearly interpolated with the parent's */
 	else {
-		const MT_Vector3 & parent_w_scale = parent->GetWorldScaling();
-		const MT_Point3 & parent_w_pos = parent->GetWorldPosition();
-		const MT_Matrix3x3 & parent_w_orientation = parent->GetWorldOrientation();
+		const MT_Vector3 & parent_world_scale = parent->GetWorldScaling();
+		const MT_Point3 & parent_world_pos = parent->GetWorldPosition();
+		const MT_Matrix3x3 & parent_world_ori = parent->GetWorldOrientation();
+		const MT_Vector3 & child_local_scale = child->GetLocalScale();
+		const MT_Point3 & child_local_pos = child->GetLocalPosition();
+		const MT_Matrix3x3 & child_local_ori = child->GetLocalOrientation();
 
-		const MT_Vector3 & child_l_scale = child->GetLocalScale();
-		const MT_Point3 & child_l_pos = child->GetLocalPosition();
-		const MT_Matrix3x3 & child_l_orientation = child->GetLocalOrientation();
+		/* Compute the normal world coordinates, where the child would be if it was a normal parent relation */
+		const MT_Vector3 & normal_world_scale = parent_world_scale * child_local_scale;
+		const MT_Matrix3x3 & normal_world_ori = parent_world_ori * child_local_ori;
+		const MT_Point3 & normal_world_pos = parent_world_pos + (normal_world_scale * (normal_world_ori * child_local_pos));
 
-		// first compute the normal child world coordinates.
-		MT_Vector3 child_n_scale = parent_w_scale * child_l_scale;
-		MT_Point3 child_n_pos = parent_w_pos + parent_w_scale * (parent_w_orientation * child_l_pos);
-		MT_Matrix3x3 child_n_orientation = parent_w_orientation * child_l_orientation;
-
-		MT_Vector3 child_w_scale;
-		MT_Point3 child_w_pos;
-		MT_Matrix3x3 child_w_orientation;
+		MT_Vector3 new_world_scale;
+		MT_Point3 new_world_pos;
+		MT_Matrix3x3 new_world_ori;
 
 		if (m_initialized) {
-			// get the current world positions
-			child_w_scale = child->GetWorldScaling();
-			child_w_pos = child->GetWorldPosition();
-			child_w_orientation = child->GetWorldOrientation();
 
-			// now 'interpolate' the normal coordinates with the last 
-			// world coordinates to get the new world coordinates.
+			/* Get the current world positions */
+			const MT_Vector3 & current_world_scale = child->GetWorldScaling();
+			const MT_Matrix3x3 & current_world_ori = child->GetWorldOrientation();
+			const MT_Point3 & current_world_pos = child->GetWorldPosition();
 
-			MT_Scalar weight = MT_Scalar(1)/(m_relax + 1);
-			child_w_scale = (m_relax * child_w_scale + child_n_scale) * weight;
-			child_w_pos = (m_relax * child_w_pos + child_n_pos) * weight;
-			// for rotation we must go through quaternion
-			MT_Quaternion child_w_quat = child_w_orientation.getRotation().slerp(child_n_orientation.getRotation(), weight);
-			child_w_orientation.setRotation(child_w_quat);
+			/* Interpolate between the current world coordinates and the normal ones according to the weight.
+			 * a bigger relax parameter, is a smaller weight,
+			 * meaning that the child follows its normal position in smaller steps*/
+			/* XXX - this design has problems as it does not consider elapsed time between last update */
+			new_world_ori.setRotation(current_world_ori.getRotation().slerp(normal_world_ori.getRotation(), m_weight));
+			new_world_pos = current_world_pos + ( (normal_world_pos - current_world_pos) * m_weight);
+			new_world_scale = current_world_scale + ( (normal_world_scale - current_world_scale) * m_weight);
+
 			//FIXME: update physics controller.
+
 		} else {
 			/**
 			 * We need to compute valid world coordinates the first
 			 * time we update spatial data of the child. This is done
 			 * by just doing a normal parent relation the first time.
 			 */
-			child_w_scale = child_n_scale;
-			child_w_pos = child_n_pos;
-			child_w_orientation = child_n_orientation;
+			new_world_scale = normal_world_scale;
+			new_world_ori = normal_world_ori;
+			new_world_pos = normal_world_pos;
 			m_initialized = true;
 		}
-		child->SetWorldScale(child_w_scale);
-		child->SetWorldPosition(child_w_pos);
-		child->SetWorldOrientation(child_w_orientation);
+
+		child->SetWorldScale(new_world_scale);
+		child->SetWorldOrientation(new_world_ori);
+		child->SetWorldPosition(new_world_pos);
 	}
 
 	parentUpdated = true;  //this variable is going to be used to update the children of this child
@@ -234,7 +236,7 @@ KX_SlowParentRelation::KX_SlowParentRelation(MT_Scalar relaxation)
 	:m_relax(relaxation),
 	m_initialized(false)
 {
-	//nothing to do
+	m_weight = MT_Scalar(1)/(m_relax + 1);
 }
 
 KX_SlowParentRelation::~KX_SlowParentRelation()
