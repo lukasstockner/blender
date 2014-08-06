@@ -57,6 +57,10 @@ data_to_c_simple(gpu_shader_opensubd_display.glsl SRC)
 
 add_definitions(-DGLEW_STATIC)
 
+if(WIN32)
+	add_definitions(-DNOMINMAX)
+endif()
+
 if(OPENSUBDIV_HAS_CUDA)
 	list(APPEND INC
 		../../extern/cuew/include

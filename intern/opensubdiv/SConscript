@@ -33,6 +33,9 @@ sources = env.Glob('*.cc')
 
 defs = [ 'GLEW_STATIC' ]
 
+if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc', 'win64-mingw'):
+    defs += [ 'NOMINMAX' ]
+
 incs = '. ../guardedalloc #extern/clew/include/'
 incs += ' ' + env['BF_OPENSUBDIV_INC']
 incs += ' #/extern/glew/include'
