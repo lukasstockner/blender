@@ -2287,20 +2287,10 @@ static void solve_parenting(Scene *scene, Object *ob, Object *par, float obmat[4
 
 static bool where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat[4][4])
 {
-	float *fp1, *fp2;
-	float fac1, fac2;
-	int a;
-
-	/* include framerate */
-	fac1 = (1.0f / (1.0f + fabsf(ob->sf)) );
+	float fac1 = (1.0f / (1.0f + fabsf(ob->sf)) );
 	if (fac1 >= 1.0f) return 0;
-	fac2 = 1.0f - fac1;
 
-	fp1 = obmat[0];
-	fp2 = slowmat[0];
-	for (a = 0; a < 16; a++, fp1++, fp2++) {
-		fp1[0] = fac1 * fp1[0] + fac2 * fp2[0];
-	}
+	blend_m4_m4m4(obmat, slowmat, obmat, fac1);
 
 	return 1;
 }
