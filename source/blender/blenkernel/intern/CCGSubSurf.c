@@ -2538,11 +2538,11 @@ static bool opensubdiv_initEvaluator(CCGSubSurf *ss)
 		}
 	}
 
-	openSubdiv_EvlauatorClearTags(ss->osd_evaluator);
+	openSubdiv_evlauatorClearTags(ss->osd_evaluator);
 	for (i = 0; i < ss->eMap->curSize; i++) {
 		CCGEdge *e = (CCGEdge *) ss->eMap->buckets[i];
 		for (; e; e = e->next) {
-			openSubdiv_EvaluatorSetEdgeSharpness(
+			openSubdiv_evaluatorSetEdgeSharpness(
 			        ss->osd_evaluator,
 			        e->v0->osd_index,
 			        e->v1->osd_index,
@@ -2631,6 +2631,8 @@ static bool check_topology_changed(CCGSubSurf *ss)
 	    num_nverts;
 	int *indices, *nverts;
 	int i, index, osd_face_index;
+	const float *float_args =
+	        openSubdiv_evaluatorGetFloatTagArgs(ss->osd_evaluator);
 
 	/* If compute type changes, need to re-create GL Mesh.
 	 * For now let's do evaluator as well, will optimize
@@ -2676,6 +2678,19 @@ static bool check_topology_changed(CCGSubSurf *ss)
 				if (FACE_getVerts(face)[S]->osd_index != indices[index++]) {
 					return true;
 				}
+			}
+		}
+	}
+
+	/* For now we consider crease changes as a topology changes. */
+	/* TODO(sergey): Currently optimized for creases only, if more
+	 * tags are added this will break.
+	 */
+	for (i = 0, index = 0; i < ss->eMap->curSize; i++) {
+		CCGEdge *e = (CCGEdge *) ss->eMap->buckets[i];
+		for (; e; e = e->next, index++) {
+			if (e->crease != float_args[index]) {
+				return true;
 			}
 		}
 	}
