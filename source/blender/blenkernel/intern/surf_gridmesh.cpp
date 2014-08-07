@@ -1263,7 +1263,8 @@ int line_line_intersection(double ax, double ay, // Line 1, vert 1 A
 						   double *ix, double *iy, // Intersection point
 						   double *alpha1
 ) {
-	double tol = .001;
+	double shallow_ang_tol = 1e-6; // sin^2th < ang_tol   =>  return false
+	double endpt_frac_tol = 1e-6;  // alpha1 or alpha2 < endpt_frac_tol  => ret 0
 	// (ax,ay)--------(bx,by)
 	//   (cx,cy)------------(dx,dy)
 	// Do they intersect? If so, return true and fill alpha{1,2} with the
@@ -1278,13 +1279,19 @@ int line_line_intersection(double ax, double ay, // Line 1, vert 1 A
 	double a12 = cx - dx;
 	double a21 = by - ay;
 	double a22 = cy - dy;
+	double ABsq = a11*a11+a21*a21;
+	double CDsq = a12*a12+a22*a22;
 	double det = a11*a22-a12*a21; //~=0 iff colinear
-	if (abs(det)<tol) return false; // Almost || means no intersection for our purposesa
+	if (fabs(det*det)<shallow_ang_tol*ABsq*CDsq) return false; // Almost || means no intersection for our purposesa
 	double idet = 1/det;
 	double b1 = cx-ax;
 	double b2 = cy-ay;
 	double x1 = (+b1*a22 -b2*a12)*idet; // alpha1
 	double x2 = (-b1*a21 +b2*a11)*idet; // alpha2
+	if (   x1<endpt_frac_tol || x1>(1-endpt_frac_tol)
+		|| x2<endpt_frac_tol || x2>(1-endpt_frac_tol)) {
+		return false;
+	}
 	*ix = (1.0-x1)*ax + x1*bx;
 	*iy = (1.0-x1)*ay + x1*by;
 	*alpha1 = x1;

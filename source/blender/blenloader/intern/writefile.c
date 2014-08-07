@@ -1648,10 +1648,35 @@ static void write_mballs(WriteData *wd, ListBase *idbase)
 	}
 }
 
+static void write_nurblist(WriteData *wd, ListBase *nurblist)
+{
+	Nurb *nu;
+	NurbTrim *nt;
+	for (nu=nurblist->first; nu; nu=nu->next) {
+		writestruct(wd, DATA, "Nurb", 1, nu);
+	}
+	for (nu=nurblist->first; nu; nu=nu->next) {
+		if (nu->type == CU_BEZIER)
+			writestruct(wd, DATA, "BezTriple", nu->pntsu, nu->bezt);
+		else {
+			writestruct(wd, DATA, "BPoint", nu->pntsu*nu->pntsv, nu->bp);
+			if (nu->knotsu) writedata(wd, DATA, KNOTSU(nu)*sizeof(float), nu->knotsu);
+			if (nu->knotsv) writedata(wd, DATA, KNOTSV(nu)*sizeof(float), nu->knotsv);
+			if (nu->flag & CU_TRIMMED) {
+				for (nt=nu->trims.first; nt; nt=nt->next) {
+					writestruct(wd, DATA, "NurbTrim", 1, nt);
+				}
+				for (nt=nu->trims.first; nt; nt=nt->next) {
+					write_nurblist(wd, &nt->nurb_list);
+				}
+			}
+		}
+	}
+}
+
 static void write_curves(WriteData *wd, ListBase *idbase)
 {
 	Curve *cu;
-	Nurb *nu;
 
 	cu= idbase->first;
 	while (cu) {
@@ -1670,23 +1695,7 @@ static void write_curves(WriteData *wd, ListBase *idbase)
 				writestruct(wd, DATA, "TextBox", cu->totbox, cu->tb);
 			}
 			else {
-				/* is also the order of reading */
-				nu= cu->nurb.first;
-				while (nu) {
-					writestruct(wd, DATA, "Nurb", 1, nu);
-					nu= nu->next;
-				}
-				nu= cu->nurb.first;
-				while (nu) {
-					if (nu->type == CU_BEZIER)
-						writestruct(wd, DATA, "BezTriple", nu->pntsu, nu->bezt);
-					else {
-						writestruct(wd, DATA, "BPoint", nu->pntsu*nu->pntsv, nu->bp);
-						if (nu->knotsu) writedata(wd, DATA, KNOTSU(nu)*sizeof(float), nu->knotsu);
-						if (nu->knotsv) writedata(wd, DATA, KNOTSV(nu)*sizeof(float), nu->knotsv);
-					}
-					nu= nu->next;
-				}
+				write_nurblist(wd, &cu->nurb);
 			}
 		}
 		cu= cu->id.next;

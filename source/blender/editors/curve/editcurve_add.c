@@ -321,8 +321,8 @@ Nurb *add_nurbs_primitive(bContext *C, Object *obedit, float mat[4][4], int type
 				nu->flagv = CU_NURB_ENDPOINT;
 				bp = nu->bp;
 
-				for (a = 0; a < 4; a++) {
-					for (b = 0; b < 4; b++) {
+				for (b = 0; b < 4; b++) {
+					for (a = 0; a < 4; a++) {
 						bp->f1 = SELECT;
 						fac = (float)a - 1.5f;
 						bp->vec[0] += fac * grid;

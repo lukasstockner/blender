@@ -4246,7 +4246,9 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 					glNormal3fv(ndata);
 				if (dl->rt & CU_SMOOTH) glShadeModel(GL_SMOOTH);
 
+				glDepthRange(.0001,1.0);
 				glDrawElements(GL_TRIANGLES, 3 * dl->parts, GL_UNSIGNED_INT, dl->index);
+				glDepthRange(0,1.0);
 
 				if (index3_nors_incr)
 					glDisableClientState(GL_NORMAL_ARRAY);
@@ -5843,6 +5845,7 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 
 	UI_ThemeColor(TH_ACTIVE_SPLINE);
 	glLineWidth(2);
+	glDepthRange(.0001,1.0);
 
 	glBegin(GL_LINES);
 	bp = nu->bp;
@@ -5878,6 +5881,7 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 	glEnd();
 
 	glColor3ub(0, 0, 0);
+	glDepthRange(0,1.0);
 	glLineWidth(1);
 }
 
@@ -5955,6 +5959,7 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 					}
 					if (nu->pntsv > 1) {    /* surface */
 
+						glDepthRange(.0005,1.0);
 						ofs = nu->pntsu;
 						for (b = 0; b < nu->pntsu; b++) {
 							bp1 = nu->bp + b;
@@ -5989,6 +5994,7 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 							}
 						}
 
+						glDepthRange(0,1.0);
 					}
 					break;
 			}

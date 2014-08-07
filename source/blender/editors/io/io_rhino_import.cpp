@@ -88,7 +88,7 @@ static void import_ON_str(char *dest, ON_wString& onstr, size_t n) {
 // #define CU_NURB_ENDPOINT	2
 // #define CU_NURB_BEZIER	4
 static int analyze_knots(float *knots, int num_knots, int order, bool periodic, float tol=.001) {
-	// printf("knots{"); for (int i=0; i<num_knots; i++) printf("%f,",knots[i]); printf("}->");
+	printf("knots{"); for (int i=0; i<num_knots; i++) printf("%f,",knots[i]); printf("}->");
 	float first = knots[1];
 	float last = knots[num_knots-2];
 	
@@ -137,7 +137,6 @@ static int analyze_knots(float *knots, int num_knots, int order, bool periodic, 
 	}
 	
 	if (bezier) {
-		BLI_assert(unif_bezier);
 		printf("bez\n");
 		return CU_NURB_BEZIER;
 	}
@@ -256,7 +255,7 @@ static void rhino_import_polycurve(bContext *C, ON_PolyCurve *pc, ON_Object *obj
 
 static Nurb *nurb_from_ON_NurbsCurve(ON_NurbsCurve *nc) {
 	Nurb *nu = (Nurb *)MEM_callocN(sizeof(Nurb), "rhino_imported_NURBS_curve");
-	nu->flag = CU_3D;
+	nu->flag = CU_3D + CU_TRIMMED;
 	nu->type = CU_NURBS;
 	nu->resolu = 10;
 	nu->resolv = 10;
@@ -286,7 +285,9 @@ static Nurb *nurb_from_ON_NurbsCurve(ON_NurbsCurve *nc) {
 	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, nc->IsPeriodic());
 	double minu,maxu;
 	nc->GetDomain(&minu, &maxu);
+	printf("nurb_from_ON_NurbsCurve1 0x%lx: knotsu=0x%lx knotsv=0x%lx\n",nu,nu->knotsu,nu->knotsv);
 	normalize_knots(nu, 'u');
+	printf("nurb_from_ON_NurbsCurve0 0x%lx: knotsu=0x%lx knotsv=0x%lx\n",nu,nu->knotsu,nu->knotsv);
 	return nu;
 }
 
@@ -634,7 +635,7 @@ static Nurb* rhino_import_nurbs_surf(bContext *C,
 	Object *obedit = CTX_data_edit_object(C);
 	Curve *cu = (Curve*)obedit->data;
 	Nurb *nu = (Nurb *)MEM_callocN(sizeof(Nurb), "rhino_imported_NURBS_surf");
-	nu->flag = CU_3D;
+	nu->flag = CU_3D + CU_TRIMMED;
 	nu->type = CU_NURBS;
 	nu->resolu = cu->resolu;
 	nu->resolv = cu->resolv;
@@ -678,6 +679,7 @@ static Nurb* rhino_import_nurbs_surf(bContext *C,
 	
 	ListBase *editnurb = object_editcurve_get(obedit);
 	BLI_addtail(editnurb, nu);
+	printf("BLI_addtail(editnurb, 0x%lx)\n",(long)nu);
 	if (surf_needs_delete) delete surf;
 	return nu;
 }
@@ -752,6 +754,7 @@ static void rhino_import_brep_face(bContext *C,
 			Nurb *trim_nurb = rhino_import_curve(C, cu, parentObj, parentAttrs, false, true, true);
 			BLI_addtail(nurb_list, trim_nurb);
 		}
+		printf("BLI_addtail(&nu->trims, 0x%lx);\n",trim);
 		BLI_addtail(&nu->trims, trim);
 	}
 	

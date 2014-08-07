@@ -333,6 +333,7 @@ enum {
 /* flag (nurb) */
 #define CU_SMOOTH		1
 #define CU_2D			8 /* moved from type since 2.4x */
+#define CU_TRIMMED      16
 
 /* type (nurb) */
 #define CU_POLY			0

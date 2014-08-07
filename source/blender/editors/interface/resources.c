@@ -881,10 +881,10 @@ void ui_theme_init_default(void)
 
 	rgba_char_args_set(btheme->tv3d.cframe, 0x60, 0xc0,  0x40, 255);
 
-	rgba_char_args_set(btheme->tv3d.nurb_uline, 0x90, 0x90, 0x00, 255);
-	rgba_char_args_set(btheme->tv3d.nurb_vline, 0x80, 0x30, 0x60, 255);
-	rgba_char_args_set(btheme->tv3d.nurb_sel_uline, 0xf0, 0xff, 0x40, 255);
-	rgba_char_args_set(btheme->tv3d.nurb_sel_vline, 0xf0, 0x90, 0xa0, 255);
+	rgba_char_args_set(btheme->tv3d.nurb_uline, 0x90, 0x00, 0x00, 255);
+	rgba_char_args_set(btheme->tv3d.nurb_vline, 0x00, 0x90, 0x60, 255);
+	rgba_char_args_set(btheme->tv3d.nurb_sel_uline, 0xe0, 0x00, 0x00, 255);
+	rgba_char_args_set(btheme->tv3d.nurb_sel_vline, 0x00, 0xcc, 0x00, 255);
 
 	ui_theme_space_init_handles_color(&btheme->tv3d);
 

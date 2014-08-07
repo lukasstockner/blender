@@ -3339,9 +3339,39 @@ static void switch_endian_knots(Nurb *nu)
 	}
 }
 
-static void direct_link_curve(FileData *fd, Curve *cu)
+static void direct_link_nurblist(FileData *fd, ListBase *nurblist)
 {
 	Nurb *nu;
+	NurbTrim *nt;
+	link_list(fd, nurblist);
+	for (nu=nurblist->first; nu; nu=nu->next) {
+		nu->bezt = newdataadr(fd, nu->bezt);
+		nu->bp = newdataadr(fd, nu->bp);
+		nu->knotsu = newdataadr(fd, nu->knotsu);
+		nu->knotsv = newdataadr(fd, nu->knotsv);
+		nu->charidx= nu->mat_nr;
+
+		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
+			switch_endian_knots(nu);
+		}
+
+		/* Clear cached UV-space tessellation of trimmed surface */
+		nu->UV_tri_count = nu->UV_verts_count = 0;
+		nu->UV_idxs = NULL;
+		nu->UV_verts = NULL;
+
+		/* Recurse to load trim curves */
+		if (nu->flag & CU_TRIMMED) {
+			link_list(fd, &nu->trims);
+			for (nt=nu->trims.first; nt; nt=nt->next) {
+				direct_link_nurblist(fd, &nt->nurb_list);
+			}
+		}
+	}
+}
+
+static void direct_link_curve(FileData *fd, Curve *cu)
+{
 	TextBox *tb;
 	
 	cu->adt= newdataadr(fd, cu->adt);
@@ -3353,10 +3383,7 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 	cu->strinfo= newdataadr(fd, cu->strinfo);
 	cu->tb = newdataadr(fd, cu->tb);
 
-	if (cu->vfont == NULL) {
-		link_list(fd, &(cu->nurb));
-	}
-	else {
+	if (cu->vfont != NULL) {
 		cu->nurb.first=cu->nurb.last= NULL;
 		
 		tb = MEM_callocN(MAXTEXTBOX*sizeof(TextBox), "TextBoxread");
@@ -3377,22 +3404,10 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 	cu->editnurb = NULL;
 	cu->editfont = NULL;
 	
-	for (nu = cu->nurb.first; nu; nu = nu->next) {
-		nu->bezt = newdataadr(fd, nu->bezt);
-		nu->bp = newdataadr(fd, nu->bp);
-		nu->knotsu = newdataadr(fd, nu->knotsu);
-		nu->knotsv = newdataadr(fd, nu->knotsv);
-		if (cu->vfont == NULL) nu->charidx= nu->mat_nr;
-		
-		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
-			switch_endian_knots(nu);
-		}
-		
-		/* Clear cached UV-space tessellation of trimmed surface */
-		nu->UV_tri_count = nu->UV_verts_count = 0;
-		nu->UV_idxs = NULL;
-		nu->UV_verts = NULL;
+	if (cu->vfont == NULL) {
+		direct_link_nurblist(fd, &cu->nurb);
 	}
+
 	cu->bb = NULL;
 }
 

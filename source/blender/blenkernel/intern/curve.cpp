@@ -617,10 +617,12 @@ Nurb *BKE_nurb_duplicate(Nurb *nu)
 	newnu->trims.first = newnu->trims.last = NULL;
 	for (NurbTrim *nt = (NurbTrim*)nu->trims.first; nt; nt=nt->next) {
 		NurbTrim *dup_nt = BKE_nurbTrim_duplicate(nt);
+		printf("\tTrim: 0x%lx->0x%lx\n",nt,dup_nt);
 		BLI_addtail(&newnu->trims, dup_nt);
 	}
 	BKE_nurb_clear_cached_UV_mesh(newnu,false);
 
+	printf("Duplicated nurb 0x%lx->0x%lx\n",nu,newnu);
 	return newnu;
 }
 
@@ -4066,9 +4068,18 @@ void BKE_nurb_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, flo
 
 GridMesh *BKE_nurb_compute_trimmed_GridMesh(struct Nurb* nu) {
 	// Figure out the domain
-	int totu=(nu->pntsu-nu->orderu+1)*nu->resolu, totv=(nu->pntsv-nu->orderv+1)*nu->resolv;
 	float ustart,uend,vstart,vend;
 	BKE_nurb_domain(nu,&ustart,&uend,&vstart,&vend);
+	int totu_knot = round(uend-ustart)*nu->resolu;
+	int totv_knot = round(vend-vstart)*nu->resolv;
+	int totu_geom = (nu->pntsu-1)*nu->resolu;
+	int totv_geom = (nu->pntsv-1)*nu->resolv;
+	int totu=totu_knot, totv=totv_knot;
+	if (totu<2 || totv<2 || totu_knot>totu_geom || totv_knot>totv_geom) {
+		printf("Nonsensical NURBS tessellation level. Using geometric fallback.\n");
+		totu = totu_geom;
+		totv = totv_geom;
+	}
 	
 	// Trim the uniform grid in 2D UV space
 	GridMesh *gm = new GridMesh();
@@ -4077,7 +4088,7 @@ GridMesh *BKE_nurb_compute_trimmed_GridMesh(struct Nurb* nu) {
 	
 	// Trim
 	if (nu->resol_trim<1) nu->resol_trim = 1;
-	//gm->begin_recording();
+//	gm->begin_recording();
 	for (NurbTrim *nt=(NurbTrim*)nu->trims.first; nt; nt=nt->next) {
 		float (*trim_uv_pts)[2];
 		int num_trimpts = BKE_nurbTrim_tess(nt, nu->resol_trim, &trim_uv_pts);
@@ -4095,14 +4106,14 @@ GridMesh *BKE_nurb_compute_trimmed_GridMesh(struct Nurb* nu) {
 		}
 		MEM_freeN(trim_uv_pts);
 	}
-	//	static ThreadMutex *mutex = NULL;
-	//	if (!mutex) {
-	//		mutex = (ThreadMutex*)MEM_callocN(sizeof(ThreadMutex), "ThreadMutex");
-	//		BLI_mutex_init(mutex);
-	//	}
-	//	BLI_mutex_lock(mutex);
-	//	gm->dump_recording();
-	//	BLI_mutex_unlock(mutex);
+//	static ThreadMutex *mutex = NULL;
+//	if (!mutex) {
+//		mutex = (ThreadMutex*)MEM_callocN(sizeof(ThreadMutex), "ThreadMutex");
+//		BLI_mutex_init(mutex);
+//	}
+//	BLI_mutex_lock(mutex);
+//	gm->dump_recording();
+//	BLI_mutex_unlock(mutex);
 	return gm;
 }
 
@@ -4130,7 +4141,6 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 			int cell = gm->poly_for_cell(i, j);
 			GridMeshVert *v = &gm->v[0];
 			
-			// 
 			for (int poly=cell; poly; poly=v[poly].next_poly) {
 				if (!v[poly].next) {
 					continue;
@@ -4317,7 +4327,6 @@ void nurbs_meshinfo_pass_2(Nurb *nu, NurbsMeshInfo &nmi) {
 	int loopnum=0, polynum=0;
 	for (GridMeshIterator gmi=nmi.gm->begin(); !gmi.done(); gmi.next()) {
 		int poly = gmi.poly;
-		printf("%i: ",poly);
 		int vert=poly;
 		GridMeshVert *gmvert = &nmi.gm->v[vert];
 		int coordidx = gmvert->coord_idx;
@@ -4349,12 +4358,12 @@ void nurbs_meshinfo_pass_2(Nurb *nu, NurbsMeshInfo &nmi) {
 			copy_v3_v3(mesh_v->co, surfpt[0].vec);
 			float norm[3];
 			cross_v3_v3v3(norm, surfpt[1].vec, surfpt[2].vec);
+			normalize_v3(norm);
 			normal_float_to_short_v3(mesh_v->no, norm);
 
 			/* MEdge, MLoop, MLoopUV */
 			mesh_e->v1 = remapped_vert_idx;
 			mesh_e->v2 = remapped_nextvert_idx;
-			printf("(%i-%i.%i.%i-%i) ",coordidx,nextcoordidx,remapped_edge_idx,remapped_vert_idx,remapped_nextvert_idx);
 			mesh_l->v = remapped_vert_idx;
 			mesh_l->e = remapped_edge_idx;
 			mesh_luv->uv[0] = gmcoord->x;
@@ -4365,7 +4374,6 @@ void nurbs_meshinfo_pass_2(Nurb *nu, NurbsMeshInfo &nmi) {
 			remapped_vert_idx = remapped_nextvert_idx;
 			coordidx = gmvert->coord_idx;
 		} while (vert!=poly);
-		printf("\n");
 		MPoly *mesh_p = nmi.polys + (polynum++);
 		mesh_p->loopstart = first_loop_of_poly;
 		mesh_p->totloop = num_edge_in_poly;
@@ -4396,7 +4404,6 @@ void BKE_surf_to_mesh(Object *ob) {
 		NurbsMeshInfo &nmi = NMIs[i];
 
 		nurbs_meshinfo_pass_1(nu, nmi);
-		printf("Meshinfo %i %i %i %i\n",nmi.verts,nmi.loops,nmi.edges,nmi.polys);
 
 		totvert += nmi.num_vert;
 		totloop += nmi.num_loop;
@@ -4406,11 +4413,11 @@ void BKE_surf_to_mesh(Object *ob) {
 	}
 	
 	/* Allocate mesh storage now that we know total counts */
-	MVert *allvert = (MVert*)MEM_callocN(sizeof(MVert)*totvert+4, "NURBS2mesh_verts");	unsigned *cvert = (unsigned*)(allvert+totvert); *cvert=0xDEADBEEF;
-	MEdge *alledge = (MEdge*)MEM_callocN(sizeof(MEdge)*totedge+4, "NURBS2mesh_edges");	unsigned *cedge = (unsigned*)(alledge+totedge); *cedge=0xDEADBEEF;
-	MLoop *allloop = (MLoop*)MEM_callocN(sizeof(MLoop)*totloop+4, "NURBS2mesh_loop");		unsigned *cloop = (unsigned*)(allloop+totloop); *cloop=0xDEADBEEF;
-	MPoly *allpoly = (MPoly*)MEM_callocN(sizeof(MPoly)*totpoly+4, "NURBS2mesh_poly");		unsigned *cpoly = (unsigned*)(allpoly+totpoly); *cpoly=0xDEADBEEF;
-	MLoopUV *alluv = (MLoopUV*)MEM_callocN(sizeof(MLoopUV)*totloop+4, "NURBS2mesh_uv");	unsigned *cuv = (unsigned*)(alluv+totloop);     *cuv=0xDEADBEEF;
+	MVert *allvert = (MVert*)MEM_callocN(sizeof(MVert)*totvert+4, "NURBS2mesh_verts");
+	MEdge *alledge = (MEdge*)MEM_callocN(sizeof(MEdge)*totedge+4, "NURBS2mesh_edges");
+	MLoop *allloop = (MLoop*)MEM_callocN(sizeof(MLoop)*totloop+4, "NURBS2mesh_loop");
+	MPoly *allpoly = (MPoly*)MEM_callocN(sizeof(MPoly)*totpoly+4, "NURBS2mesh_poly");
+	MLoopUV *alluv = (MLoopUV*)MEM_callocN(sizeof(MLoopUV)*totloop+4, "NURBS2mesh_uv");
 
 	/* Pass 2 fills the newly allocated buffers */
 	nu = (Nurb*)cu->nurb.first;
