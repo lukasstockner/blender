@@ -2472,7 +2472,6 @@ void init_userdef_do_versions(void)
 
 		U.pie_menu_radius = 150;
 		U.pie_menu_threshold = 12;
-		U.pie_operator_timeout = 20;
 		U.pie_animation_timeout = 6;
 
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {

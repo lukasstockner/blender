@@ -3231,10 +3231,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0, 1000);
 	RNA_def_property_ui_text(prop, "Recenter Timeout", "Pie menus will use the initial mouse position as center for this amount of time (in 1/100ths of sec)");
 
-	prop = RNA_def_property(srna, "pie_operator_timeout", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 0, 1000);
-	RNA_def_property_ui_text(prop, "Sticky Key Timeout", "Sticky operator time after which a pie menu will be spawned if button is held for this amount of time (in 1/100ths of sec)");
-
 	prop = RNA_def_property(srna, "pie_animation_timeout", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 0, 1000);
 	RNA_def_property_ui_text(prop, "Animation Timeout", "Time needed to fully animate the pie to unfolded state (in 1/100ths of sec)");

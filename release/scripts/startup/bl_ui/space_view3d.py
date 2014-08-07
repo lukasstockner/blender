@@ -1411,70 +1411,6 @@ class VIEW3D_MT_object_game(Menu):
         layout.operator("object.game_property_clear")
 
 
-class VIEW3D_PIE_view(Menu):
-    bl_label = "View"
-
-    def draw(self, context):
-        layout = self.layout
-
-        pie = layout.menu_pie()
-        pie.operator_enum("VIEW3D_OT_viewnumpad", "type")
-        pie.operator("VIEW3D_OT_view_persportho", text="Persp/Ortho", icon='RESTRICT_VIEW_OFF')
-
-
-class VIEW3D_PIE_shade(Menu):
-    bl_label = "Shade"
-
-    def draw(self, context):
-        layout = self.layout
-
-        pie = layout.menu_pie()
-        pie.prop(context.space_data, "viewport_shade_pie", expand=True)
-
-        if context.active_object:
-            if(context.mode == 'EDIT_MESH'):
-                pie.operator("MESH_OT_faces_shade_smooth")
-                pie.operator("MESH_OT_faces_shade_flat")
-            else:
-                pie.operator("OBJECT_OT_shade_smooth")
-                pie.operator("OBJECT_OT_shade_flat")
-
-
-class VIEW3D_PIE_manipulator(Menu):
-    bl_label = "Manipulator"
-
-    def draw(self, context):
-        layout = self.layout
-
-        pie = layout.menu_pie()
-        pie.prop(context.space_data, "transform_manipulators", expand=True)
-        pie.prop(context.space_data, "show_manipulator")
-
-        
-class VIEW3D_PIE_pivot(Menu):
-    bl_label = "Pivot"
-
-    def draw(self, context):
-        layout = self.layout
-
-        pie = layout.menu_pie()
-        pie.prop(context.space_data, "pivot_point", expand=True)
-        if context.active_object.mode == 'OBJECT':
-            pie.prop(context.space_data, "use_pivot_point_align", text="Center Points")
-
-
-class VIEW3D_PIE_snap(Menu):
-    bl_label = "Snapping"
-
-    def draw(self, context):
-        layout = self.layout
-
-        toolsettings = context.tool_settings
-        pie = layout.menu_pie()
-        pie.prop(toolsettings, "snap_element", expand=True)
-        pie.prop(toolsettings, "use_snap")
-
-
 # ********** Brush menu **********
 class VIEW3D_MT_brush(Menu):
     bl_label = "Brush"
@@ -2212,55 +2148,6 @@ class VIEW3D_MT_edit_mesh_extrude(Menu):
 
         for menu_id in self.extrude_options(context):
             self._extrude_funcs[menu_id](layout)
-
-
-class VIEW3D_MT_edit_mesh_extrude_pie(Menu):
-    bl_label = "Extrude"
-
-    _extrude_funcs = {
-        'VERT': lambda layout:
-            layout.operator("mesh.extrude_vertices_move", text="Vertices Only"),
-        'EDGE': lambda layout:
-            layout.operator("mesh.extrude_edges_move", text="Edges Only"),
-        'FACE': lambda layout:
-            layout.operator("mesh.extrude_faces_move", text="Individual Faces"),
-        'REGION': lambda layout:
-            layout.operator("view3d.edit_mesh_extrude_move_normal", text="Region"),
-        'REGION_VERT_NORMAL': lambda layout:
-            layout.operator("view3d.edit_mesh_extrude_move_shrink_fatten", text="Region (Vertex Normals)"),
-        'NULL': lambda layout:
-            layout.separator(),
-    }
-
-    @staticmethod
-    def extrude_options(context):
-        mesh = context.object.data
-        select_mode = context.tool_settings.mesh_select_mode
-
-        menu = []
-        if mesh.total_face_sel:
-            menu += ['REGION', 'REGION_VERT_NORMAL', 'FACE']
-        else:
-            menu += ['NULL', 'NULL', 'NULL']
-        if mesh.total_edge_sel and (select_mode[0] or select_mode[1]):
-            menu += ['EDGE']
-        else:
-            menu += ['NULL']
-        if mesh.total_vert_sel and select_mode[0]:
-            menu += ['VERT']
-        else:
-            menu += ['NULL']
-
-        # should never get here
-        return menu
-
-    def draw(self, context):
-        layout = self.layout
-        layout.operator_context = 'INVOKE_REGION_WIN'
-        pie = layout.menu_pie()
-
-        for menu_id in self.extrude_options(context):
-            self._extrude_funcs[menu_id](pie)
 
 
 class VIEW3D_MT_edit_mesh_vertices(Menu):

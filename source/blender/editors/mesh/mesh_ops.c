@@ -282,11 +282,6 @@ void ED_operatormacros_mesh(void)
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 	RNA_enum_set(otmacro->ptr, "proportional", 0);
 	RNA_boolean_set(otmacro->ptr, "mirror", false);
-
-	WM_operator_pie_macro("VIEW3D_OT_edit_mesh_extrude_sticky", "Extrude Sticky",
-	                      "Extrude the mesh surface",
-	                      OPTYPE_UNDO | OPTYPE_REGISTER, "VIEW3D_OT_edit_mesh_extrude_move_normal",  /* python operator */
-	                      "VIEW3D_MT_edit_mesh_extrude_pie");
 }
 
 /* note mesh keymap also for other space? */
@@ -364,8 +359,8 @@ void ED_keymap_mesh(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "MESH_OT_normals_make_consistent", NKEY, KM_PRESS, KM_SHIFT | KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "inside", true);
 	
+	WM_keymap_add_item(keymap, "VIEW3D_OT_edit_mesh_extrude_move_normal", EKEY, KM_PRESS, 0, 0); /* python operator */
 	WM_keymap_add_menu(keymap, "VIEW3D_MT_edit_mesh_extrude", EKEY, KM_PRESS, KM_ALT, 0);
-	WM_keymap_add_item(keymap, "VIEW3D_OT_edit_mesh_extrude_sticky", EKEY, KM_PRESS, 0, 0);
 	
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_edge_crease", EKEY, KM_PRESS, KM_SHIFT, 0);
 	

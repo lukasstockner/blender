@@ -87,12 +87,5 @@ void wm_open_init_use_scripts(wmOperator *op, bool use_prefs);
 extern int circle_select_size;
 #endif
 
-/* for sticky pie operator */
-typedef enum StickyOperatorMode {
-	STICKY_PIE_MENU     = 0,
-	STICKY_PIE_PROPERTY = 1,
-	STICKY_PIE_PATH     = 2
-} StickyOperatorMode;
-
 #endif /* __WM_H__ */
 

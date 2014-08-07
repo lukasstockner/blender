@@ -132,54 +132,8 @@ static void VIEW3D_OT_pastebuffer(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-void ED_operatormacros_view3d(void)
-{
-	PointerRNA *ptr;
-
-	ptr = WM_operator_pie_macro("VIEW3D_PIE_shade_macro", "Shade Mode",
-	                            "Set the shading mode for the 3D viewport",
-	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_toggle_enum", "VIEW3D_PIE_shade");
-
-	if (ptr) {
-		RNA_string_set(ptr, "data_path", "space_data.viewport_shade");
-		RNA_string_set(ptr, "value_1", "SOLID");
-		RNA_string_set(ptr, "value_2", "WIREFRAME");
-	}
-
-	WM_operator_pie_macro("VIEW3D_PIE_view_macro", "View",
-	                      "Set the shading mode for the 3D viewport",
-	                      OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_search_menu", "VIEW3D_PIE_view");
-
-
-	ptr = WM_operator_pie_macro("VIEW3D_PIE_manipulator_macro", "Manipulator",
-	                            "Manipulator Options for the viewport",
-	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_toggle", "VIEW3D_PIE_manipulator");
-
-	if (ptr) {
-		RNA_string_set(ptr, "data_path", "space_data.show_manipulator");
-	}
-
-	ptr = WM_operator_pie_macro("VIEW3D_PIE_pivot_macro", "Pivot",
-	                            "Pivot Options for the viewport",
-	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_set_enum", "VIEW3D_PIE_pivot");
-
-	if (ptr) {
-		RNA_string_set(ptr, "data_path", "space_data.pivot_point");
-		RNA_string_set(ptr, "value", "CURSOR");
-	}
-
-	ptr = WM_operator_pie_macro("VIEW3D_PIE_snap_macro", "Snap",
-	                            "Snapping Options for the viewport",
-	                            OPTYPE_UNDO | OPTYPE_REGISTER, "WM_OT_context_set_enum", "VIEW3D_PIE_snap");
-
-	if (ptr) {
-		RNA_string_set(ptr, "data_path", "space_data.pivot_point");
-		RNA_string_set(ptr, "value", "BOUNDING_BOX_CENTER");
-	}
-}
-
-
 /* ************************** registration **********************************/
+
 void view3d_operatortypes(void)
 {
 	WM_operatortype_append(VIEW3D_OT_rotate);
@@ -325,8 +279,6 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "center", true);
 
 	/* numpad view hotkeys*/
-	WM_keymap_add_item(keymap, "VIEW3D_PIE_view_macro", SPACEKEY, KM_PRESS, 0, 0);
-
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_viewnumpad", PAD0, KM_PRESS, 0, 0)->ptr, "type", RV3D_VIEW_CAMERA);
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_viewnumpad", PAD1, KM_PRESS, 0, 0)->ptr, "type", RV3D_VIEW_FRONT);
 	RNA_enum_set(WM_keymap_add_item(keymap, "VIEW3D_OT_view_orbit", PAD2, KM_PRESS, 0, 0)->ptr, "type", V3D_VIEW_STEPDOWN);
@@ -429,7 +381,11 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	RNA_int_set(WM_keymap_add_item(keymap, "VIEW3D_OT_layers", ZEROKEY, KM_PRESS, KM_ANY, 0)->ptr, "nr", 10);
 	
 	/* drawtype */
-	kmi = WM_keymap_add_item(keymap, "VIEW3D_PIE_shade_macro", ZKEY, KM_PRESS, 0, 0);
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle_enum", ZKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.viewport_shade");
+	RNA_string_set(kmi->ptr, "value_1", "SOLID");
+	RNA_string_set(kmi->ptr, "value_2", "WIREFRAME");
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle_enum", ZKEY, KM_PRESS, KM_ALT, 0);
 	RNA_string_set(kmi->ptr, "data_path", "space_data.viewport_shade");
@@ -531,6 +487,10 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "VIEW3D_OT_pastebuffer", VKEY, KM_PRESS, KM_CTRL, 0);
 	
 	/* context ops */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "BOUNDING_BOX_CENTER");
+
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, KM_CTRL, 0); /* 2.4x allowed Comma+Shift too, rather not use both */
 	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
 	RNA_string_set(kmi->ptr, "value", "MEDIAN_POINT");
@@ -538,10 +498,12 @@ void view3d_keymap(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", COMMAKEY, KM_PRESS, KM_ALT, 0); /* new in 2.5 */
 	RNA_string_set(kmi->ptr, "data_path", "space_data.use_pivot_point_align");
 
-	kmi = WM_keymap_add_item(keymap, "VIEW3D_PIE_manipulator_macro", SPACEKEY, KM_PRESS, KM_CTRL, 0); /* new in 2.5 */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", SPACEKEY, KM_PRESS, KM_CTRL, 0); /* new in 2.5 */
+	RNA_string_set(kmi->ptr, "data_path", "space_data.show_manipulator");
 
-	kmi = WM_keymap_add_item(keymap, "VIEW3D_PIE_pivot_macro", PERIODKEY, KM_PRESS, 0, 0);
-	kmi = WM_keymap_add_item(keymap, "VIEW3D_PIE_snap_macro", COMMAKEY, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PERIODKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");
+	RNA_string_set(kmi->ptr, "value", "CURSOR");
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PERIODKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_string_set(kmi->ptr, "data_path", "space_data.pivot_point");

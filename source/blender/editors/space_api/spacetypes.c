@@ -154,7 +154,6 @@ void ED_spacemacros_init(void)
 	ED_operatormacros_curve();
 	ED_operatormacros_mask();
 	ED_operatormacros_sequencer();
-	ED_operatormacros_view3d();
 	ED_operatormacros_paint();
 
 	/* register dropboxes (can use macros) */
