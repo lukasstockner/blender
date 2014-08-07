@@ -8524,8 +8524,9 @@ static int ui_but_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *b
 			if (!force_close) {
 				uiBut *active_but = ui_but_find_activated(menu->region);
 
-				if (active_but)
+				if (active_but) {
 					button_activate_exit(C, active_but, active_but->active, false, false);
+				}
 
 				button_activate_init(C, menu->region, but, BUTTON_ACTIVATE_OPEN);
 				return retval;
@@ -8542,8 +8543,9 @@ static int ui_but_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *b
 				but->block->pie_data.flags |= UI_PIE_FINISHED;
 				menu->menuretval = 0;
 			}
-			else
+			else {
 				menu->menuretval = UI_RETURN_OK;
+			}
 		}
 	}
 	else {
@@ -8552,8 +8554,9 @@ static int ui_but_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *b
 		if (!(click_style || force_close)) {
 			block->pie_data.flags |= UI_PIE_FINISHED;
 		}
-		else
+		else {
 			menu->menuretval = UI_RETURN_CANCEL;
+		}
 
 		ED_region_tag_redraw(menu->region);
 	}
