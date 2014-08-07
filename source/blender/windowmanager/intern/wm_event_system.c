@@ -2584,8 +2584,9 @@ wmEventHandler *WM_event_add_ui_handler(
 		handler->ui_menu    = NULL;
 	}
 
-	if (accept_dbl_click)
+	if (accept_dbl_click) {
 		handler->flag |= WM_HANDLER_ACCEPT_DBL_CLICK;
+	}
 	
 	BLI_addhead(handlers, handler);
 	

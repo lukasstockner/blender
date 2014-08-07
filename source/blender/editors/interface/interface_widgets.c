@@ -1911,7 +1911,7 @@ static void widget_state_pulldown(uiWidgetType *wt, int state)
 static void widget_state_pie_menu_item(uiWidgetType *wt, int state)
 {
 	wt->wcol = *(wt->wcol_theme);
-	
+
 	/* active and disabled (not so common) */
 	if ((state & UI_BUT_DISABLED) && (state & UI_ACTIVE)) {
 		widget_state_blend(wt->wcol.text, wt->wcol.text_sel, 0.5f);

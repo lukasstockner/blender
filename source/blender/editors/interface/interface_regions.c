@@ -2814,8 +2814,10 @@ void uiPieEnumInvoke(struct bContext *C, const char *title, const char *path,
 	}
 
 	/* invalid property, only accept enums */
-	if (RNA_property_type(r_prop) != PROP_ENUM)
+	if (RNA_property_type(r_prop) != PROP_ENUM) {
+		BLI_assert(0);
 		return;
+	}
 
 	pie = uiPieMenuBegin(C, IFACE_(title), ICON_NONE, event);
 	layout = uiPieMenuLayout(pie);
