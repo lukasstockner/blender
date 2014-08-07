@@ -3,9 +3,14 @@ from bpy.props import *
 from bpy.types import Operator
 from bpy.types import Menu
 
-#expand an operator's macro in a pie menu
+# expand an operator's macro in a pie menu
 
-myitems = (('0','Hey Lady!', ''),('1','Spaaaaaaaceeeee!',''),('2','Wanna be awesome in space?',''), ('3','The fact sphere is always useful',''))
+my_items = (
+    ('ONE', "Im First!", ""),
+    ('SPACE', "Space!", ""),
+    ('AWESOME', "Wanna be awesome in space?", ""),
+    ('SPHERE', "The fact sphere is always useful", ""),
+    )
 
 
 class TestPieOperator(bpy.types.Operator):
@@ -13,14 +18,18 @@ class TestPieOperator(bpy.types.Operator):
     bl_idname = "wm.test_pie_operator"
     bl_label = "Simple Pie Sticky Operator"
 
-    test_type = EnumProperty(name='test_type', items = myitems, default='3')
+    test_type = EnumProperty(
+            name='test_type',
+            items=my_items,
+            default='AWESOME',
+            )
 
     @classmethod
     def poll(cls, context):
         return True
 
     def execute(self, context):
-        print("The sphere core says: " + myitems[int(self.test_type)][1])
+        print("The sphere core says:", self.test_type)
         return {'FINISHED'}
 
 
@@ -37,7 +46,7 @@ class VIEW3D_PIE_template(Menu):
 def register():
     bpy.utils.register_class(TestPieOperator)
     bpy.utils.register_class(VIEW3D_PIE_template)
- 
+
 
 def unregister():
     bpy.utils.unregister_class(TestPieOperator)
@@ -46,7 +55,6 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-    
-    bpy.ops.wm.call_pie_menu(name="VIEW3D_PIE_template")
 
+    bpy.ops.wm.call_menu_pie(name="VIEW3D_PIE_template")
 
