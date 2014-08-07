@@ -1,55 +1,27 @@
 import bpy
 from bpy.props import *
-from bpy.types import Operator
 from bpy.types import Menu
 
-# expand an operator's macro in a pie menu
-
-my_items = (
-    ('ONE', "Im First!", ""),
-    ('SPACE', "Space!", ""),
-    ('AWESOME', "Wanna be awesome in space?", ""),
-    ('SPHERE', "The fact sphere is always useful", ""),
-    )
-
-
-class TestPieOperator(bpy.types.Operator):
-    """Tooltip"""
-    bl_idname = "wm.test_pie_operator"
-    bl_label = "Simple Pie Sticky Operator"
-
-    test_type = EnumProperty(
-            name='test_type',
-            items=my_items,
-            default='AWESOME',
-            )
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def execute(self, context):
-        print("The sphere core says:", self.test_type)
-        return {'FINISHED'}
-
+#spawn an edit mode selection pie (run while object is in edit mode to get a valid output)
 
 class VIEW3D_PIE_template(Menu):
-    bl_label = "Test Pie"
+    #label is displayed at the center of the pie menu.
+    bl_label = "Select Mode"
 
     def draw(self, context):
         layout = self.layout
 
         pie = layout.menu_pie()
-        pie.operator_enum("WM_OT_test_pie_operator", "test_type")
+        #operator_enum will just spread all available options
+        #for the type enum of the operator on the pie
+        pie.operator_enum("mesh.select_mode", "type")
 
 
 def register():
-    bpy.utils.register_class(TestPieOperator)
     bpy.utils.register_class(VIEW3D_PIE_template)
 
 
 def unregister():
-    bpy.utils.unregister_class(TestPieOperator)
     bpy.utils.unregister_class(VIEW3D_PIE_template)
 
 
