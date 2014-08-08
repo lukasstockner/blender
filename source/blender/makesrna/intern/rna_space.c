@@ -146,6 +146,7 @@ EnumPropertyItem viewport_shade_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+
 EnumPropertyItem clip_editor_mode_items[] = {
 	{SC_MODE_TRACKING, "TRACKING", ICON_ANIM_DATA, "Tracking", "Show tracking and solving tools"},
 	{SC_MODE_MASKEDIT, "MASK", ICON_MOD_MASK, "Mask", "Show mask editing tools"},

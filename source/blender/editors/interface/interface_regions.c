@@ -2696,7 +2696,7 @@ static float uiPieTitleWidth(const char *name, int icon)
 	         (UI_UNIT_X * (1.50f + (icon ? 0.25f : 0.0f))));
 }
 
-struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const wmEvent *event)
+uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const wmEvent *event)
 {
 	uiStyle *style = UI_GetStyleDraw();
 	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
@@ -2746,7 +2746,6 @@ void uiPieMenuEnd(bContext *C, uiPieMenu *pie)
 	MEM_freeN(pie);
 }
 
-
 uiLayout *uiPieMenuLayout(uiPieMenu *pie)
 {
 	return pie->layout;
@@ -2781,7 +2780,6 @@ void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *even
 
 	uiPieMenuEnd(C, pie);
 }
-
 
 void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *opname,
                              const char *propname, const wmEvent *event)

@@ -2214,8 +2214,6 @@ static void ui_litem_layout_radial(uiLayout *litem)
 	litem->h = maxy - miny;
 }
 
-
-
 /* root layout */
 static void ui_litem_estimate_root(uiLayout *UNUSED(litem))
 {
@@ -2234,7 +2232,7 @@ static void ui_litem_layout_root_radial(uiLayout *litem)
 
 		ui_item_size(item, &itemw, &itemh);
 
-		ui_item_position(item, x - itemw / 2, y + 2.0 * UI_UNIT_Y, itemw, itemh);
+		ui_item_position(item, x - itemw / 2, y + 2 * UI_UNIT_Y, itemw, itemh);
 	}
 }
 

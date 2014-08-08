@@ -369,7 +369,7 @@ void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *
                              const char *propname, const struct wmEvent *event);
 void uiPieEnumInvoke(struct bContext *C, const char *title, const char *path, const struct wmEvent *event);
 
-uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const struct wmEvent *event) ATTR_NONNULL();
+struct uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const struct wmEvent *event) ATTR_NONNULL();
 void uiPieMenuEnd(struct bContext *C, uiPieMenu *pie);
 struct uiLayout *uiPieMenuLayout(struct uiPieMenu *pie);
 /* Popup Blocks

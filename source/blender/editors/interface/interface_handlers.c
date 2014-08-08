@@ -1239,8 +1239,7 @@ static bool ui_but_start_drag(bContext *C, uiBut *but, uiHandleButtonData *data,
 			WM_event_add_ui_handler(C, &data->window->modalhandlers,
 			                        ui_handler_region_drag_toggle,
 			                        ui_handler_region_drag_toggle_remove,
-			                        drag_info,
-			                        false);
+			                        drag_info, false);
 
 			CTX_wm_region_set(C, ar_prev);
 		}
@@ -6389,10 +6388,12 @@ static void ui_but_pie_dir__internal(RadialDirection dir, float vec[2], const sh
 	vec[0] = cosf(angle);
 	vec[1] = sinf(angle);
 }
+
 void ui_but_pie_dir_visual(RadialDirection dir, float vec[2])
 {
 	ui_but_pie_dir__internal(dir, vec, ui_radial_dir_to_angle_visual);
 }
+
 void ui_but_pie_dir(RadialDirection dir, float vec[2])
 {
 	ui_but_pie_dir__internal(dir, vec, ui_radial_dir_to_angle);
@@ -8507,11 +8508,7 @@ static int ui_handle_menu_return_submenu(bContext *C, const wmEvent *event, uiPo
 
 static bool ui_but_pie_menu_supported_apply(uiBut *but)
 {
-	if (but->type == NUMSLI) {
-		return false;
-	}
-
-	return true;
+	return (but->type != NUMSLI);
 }
 
 static int ui_but_pie_menu_apply(bContext *C, uiPopupBlockHandle *menu, uiBut *but, bool force_close, bool click_style)
@@ -8674,7 +8671,7 @@ static int ui_handler_pie(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
 	if (block->pie_data.flags & UI_PIE_FINISHED) {
 		if ((event->type == block->pie_data.event && event->val == KM_RELEASE) ||
-		     ((event->type == RIGHTMOUSE || event->type == ESCKEY) && (event->val == KM_PRESS)))
+		    ((event->type == RIGHTMOUSE || event->type == ESCKEY) && (event->val == KM_PRESS)))
 		{
 			menu->menuretval = UI_RETURN_OK;
 		}
