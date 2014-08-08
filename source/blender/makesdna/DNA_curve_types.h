@@ -153,7 +153,7 @@ typedef struct Nurb {
 	
 	int pntsu, pntsv;		/* number of points in the U or V directions */
 
-	short pad;
+	short flag2; /* CU_SELECTED2, CU_...2 */
 	short resol_trim; /* tessellation res of trim curve (per pt) */
 	short resolu, resolv;	/* tessellation resolution in the U or V directions */
 	short orderu, orderv;
@@ -308,6 +308,9 @@ typedef struct Curve {
 #define CU_DEFORM_FILL	8192 /* fill 2d curve after deformation */
 #define CU_FILL_CAPS	16384 /* fill bevel caps */
 #define CU_MAP_TAPER	32768 /* map taper object to bevelled area */
+
+/* flag2 */
+#define CU_SELECTED2    1
 
 /* twist mode */
 #define CU_TWIST_Z_UP			0

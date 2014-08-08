@@ -39,16 +39,21 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_curve_types.h"
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_alloca.h"
 #include "BLI_buffer.h"
 #include "BLI_bitmap.h"
+#include "BLI_rect.h"
+
+#include "BLF_api.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_editmesh.h"
 #include "BKE_scene.h"
+#include "BKE_curve.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -909,25 +914,197 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	glPointSize(1.0);
 }
 
-void draw_uvedit_main(SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedit, Object *obact)
+void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedit, Object *obact)
+{
+	Nurb *nu, *trimnu;
+	NurbTrim *nt;
+	Curve *cu;
+	rctf cur;
+	rcti mask;
+	int i,j;
+	float x_view, y_view; /* XY in view (local, normalized) coord systems */
+	int x_region, y_region; /* XY in window coord systems */
+	int xmax_region, ymax_region, resoltrim;
+	double regionx2viewx, regiony2viewy;
+	float widget_unit, trash, fonth, fontw;
+	float umin,vmin,umax,vmax;
+	char lbl[128];
+	unsigned char col1[4], col2[4];
+	float (*trim_uv_pnts)[2];
+
+	BLI_assert(obedit && obedit->type == OB_SURF);
+	cur = ar->v2d.cur;
+	mask = ar->v2d.mask;
+	cu = (Curve*)obedit->data;
+	umin=INFINITY; vmin=INFINITY; umax=-INFINITY; vmax=-INFINITY;
+	/* Figure out the union bounding box in UV space for all knots */
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		if (nu->knotsu[0]<umin) umin = nu->knotsu[0];
+		if (nu->knotsv[0]<vmin) vmin = nu->knotsv[0];
+		if (nu->knotsu[KNOTSU(nu)-1]>umax) umax = nu->knotsu[KNOTSU(nu)-1];
+		if (nu->knotsv[KNOTSV(nu)-1]>vmax) vmax = nu->knotsv[KNOTSV(nu)-1];
+	}
+	printf("\n");
+	umin = floor(umin);
+	vmin = floor(vmin);
+	umax = ceil(umax);
+	vmax = ceil(vmax);
+	UI_view2d_view_to_region(&ar->v2d, umax, vmax, &xmax_region, &ymax_region);
+
+	/******* (Normalized Coordinates) draw background grid *********/
+	UI_ThemeColorShade(TH_BACK, 30);
+	glRectf(umin, vmin, umax, vmax);
+	glBegin(GL_LINES);
+	UI_ThemeColor(TH_GRID);
+	regionx2viewx = (cur.xmax-cur.xmin)/(mask.xmax-mask.xmin);
+	regiony2viewy = (cur.ymax-cur.ymin)/(mask.ymax-mask.ymin);
+	widget_unit = U.widget_unit * regiony2viewy;
+	for (i=umin; i<=umax; i++) {
+		glVertex2f(i, vmin-widget_unit);
+		glVertex2f(i, vmax+widget_unit);
+	}
+	widget_unit = U.widget_unit * regionx2viewx;
+	for (i=vmin; i<=vmax; i++) {
+		glVertex2f(umin-widget_unit, i);
+		glVertex2f(umax+widget_unit, i);
+	}
+	glEnd();
+
+	/******* (Pixel Coordinates) draw coordinate numbers *********/
+	UI_view2d_view_restore(C);
+	UI_ThemeColor(TH_TITLE);
+	printf("v2d.cur %f %f\n",ar->v2d.cur.xmin,ar->v2d.cur.xmax);
+	printf("mask %i %i\n",ar->v2d.mask.xmin,ar->v2d.mask.xmax);
+	fonth = BLF_height_default("1",1);
+	for (i=umin; i<=umax; i++) {
+		x_view=i; y_view=vmin-widget_unit;
+		UI_view2d_view_to_region(&ar->v2d, x_view, y_view, &x_region, &y_region);
+		snprintf(lbl, sizeof(lbl), "%i", (int)i);
+		if (y_region < mask.ymin) y_region = mask.ymin;
+		if (y_region > ymax_region-fonth-4) y_region = ymax_region-fonth-4;
+		BLF_draw_default_ascii(x_region+4, y_region+4, 0.0f, lbl, strlen(lbl));
+	}
+	for (i=vmin; i<=vmax; i++) {
+		x_view=umin-widget_unit; y_view=i;
+		UI_view2d_view_to_region(&ar->v2d, x_view, y_view, &x_region, &y_region);
+		snprintf(lbl, sizeof(lbl), "%i", (int)i);
+		fontw = BLF_width_default(lbl, strlen(lbl));
+		if (x_region < mask.xmin) x_region = mask.xmin;
+		if (x_region > xmax_region-fontw-4) x_region = xmax_region-fontw-4;
+		BLF_draw_default_ascii(x_region+4, y_region-fonth-4, 0.0f, lbl, strlen(lbl));
+	}
+
+	/******* (Normalized Coordinates) draw semitransparent domain background *********/
+	UI_view2d_view_ortho(&ar->v2d);
+	UI_GetThemeColor4ubv(TH_FACE, col1);
+	UI_GetThemeColor4ubv(TH_FACE_SELECT, col2);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	glColor4ubv(col1);
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		BKE_nurb_domain(nu, &umin, &umax, &vmin, &vmax);
+		glRectf(umin,vmin,umax,vmax);
+	}
+	glDisable(GL_BLEND);
+		
+	/******* (Normalized Coordinates) draw knot grid *********/
+	glLineWidth(1);
+	glBegin(GL_LINES);
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		vmin = nu->knotsv[0];
+		vmax = nu->knotsv[KNOTSV(nu)-1];
+		umin = nu->knotsu[0];
+		umax = nu->knotsu[KNOTSU(nu)-1];
+		UI_ThemeColor(TH_NURB_ULINE);
+		j = KNOTSU(nu);
+		for (i=0; i<j; i++) {
+			glVertex2f(nu->knotsu[i], vmin);
+			glVertex2f(nu->knotsu[i], vmax);
+		}
+		UI_ThemeColor(TH_NURB_VLINE);
+		j = KNOTSV(nu);
+		for (i=0; i<j; i++) {
+			glVertex2f(umin, nu->knotsv[i]);
+			glVertex2f(umax, nu->knotsv[i]);
+		}
+	}
+	glEnd();
+	glLineWidth(1);
+		
+	/******* (Normalized Coordinates) draw trim curves *********/
+	glBegin(GL_LINE_STRIP);
+	UI_ThemeColor(TH_WIRE);
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		resoltrim = nu->resol_trim;
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			j = BKE_nurbTrim_tess(nt, resoltrim, &trim_uv_pnts);
+			for (i=0; i<j; i++) {
+				glVertex2f(trim_uv_pnts[i][0], trim_uv_pnts[i][1]);
+			}
+		}
+	}
+	glEnd();
+
+	/******* (Normalized Coordinates) draw trim control polygon *********/
+	glBegin(GL_LINE_STRIP);
+	UI_ThemeColor(TH_WIRE_EDIT);
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		resoltrim = nu->resol_trim;
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				j = trimnu->pntsu;
+				for (i=0; i<j; i++) {
+					glVertex2f(trimnu->bp[i].vec[0], trimnu->bp[i].vec[1]);
+				}
+			}
+		}
+	}
+	glEnd();
+
+	/******* (Normalized Coordinates) draw handles for control polygon *********/
+	glPointSize(3);
+	glBegin(GL_POINTS);
+	UI_ThemeColor(TH_WIRE_EDIT);
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		resoltrim = nu->resol_trim;
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				j = trimnu->pntsu;
+				for (i=0; i<j; i++) {
+					glVertex2f(trimnu->bp[i].vec[0], trimnu->bp[i].vec[1]);
+				}
+			}
+		}
+	}
+	glEnd();
+	glPointSize(1);
+
+}
+
+void draw_uvedit_main(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedit, Object *obact)
 {
 	ToolSettings *toolsettings = scene->toolsettings;
 	int show_uvedit, show_uvshadow, show_texpaint_uvshadow;
 
-	show_texpaint_uvshadow = (obact && obact->type == OB_MESH && obact->mode == OB_MODE_TEXTURE_PAINT);
-	show_uvedit = ED_space_image_show_uvedit(sima, obedit);
-	show_uvshadow = ED_space_image_show_uvshadow(sima, obedit);
-
-	if (show_uvedit || show_uvshadow || show_texpaint_uvshadow) {
-		if (show_uvshadow)
-			draw_uvs_shadow(obedit);
-		else if (show_uvedit)
-			draw_uvs(sima, scene, obedit);
-		else
-			draw_uvs_texpaint(sima, scene, obact);
-
-		if (show_uvedit && !(toolsettings->use_uv_sculpt))
-			draw_image_cursor(ar, sima->cursor);
+	if (obact && obact->type == OB_MESH) {
+		show_texpaint_uvshadow = (obact && obact->type == OB_MESH && obact->mode == OB_MODE_TEXTURE_PAINT);
+		show_uvedit = ED_space_image_show_uvedit(sima, obedit);
+		show_uvshadow = ED_space_image_show_uvshadow(sima, obedit);
+		
+		if (show_uvedit || show_uvshadow || show_texpaint_uvshadow) {
+			if (show_uvshadow)
+				draw_uvs_shadow(obedit);
+			else if (show_uvedit)
+				draw_uvs(sima, scene, obedit);
+			else
+				draw_uvs_texpaint(sima, scene, obact);
+			
+			if (show_uvedit && !(toolsettings->use_uv_sculpt))
+				draw_image_cursor(ar, sima->cursor);
+		}
+	} else if (obedit && obedit->type == OB_SURF) {
+		draw_nurbuv(C, sima, ar, scene, obedit, obact);
+		draw_image_cursor(ar, sima->cursor);
 	}
 }
 

@@ -798,10 +798,11 @@ void draw_image_main(const bContext *C, ARegion *ar)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Scene *scene = CTX_data_scene(C);
+	Object *obact = CTX_data_active_object(C);
 	Image *ima;
 	ImBuf *ibuf;
 	float zoomx, zoomy;
-	bool show_viewer, show_render, show_paint;
+	bool show_viewer, show_render, show_paint, show_nurb;
 	void *lock;
 
 	/* XXX can we do this in refresh? */
@@ -831,6 +832,7 @@ void draw_image_main(const bContext *C, ARegion *ar)
 	show_viewer = (ima && ima->source == IMA_SRC_VIEWER) != 0;
 	show_render = (show_viewer && ima->type == IMA_TYPE_R_RESULT) != 0;
 	show_paint = (ima && (sima->mode == SI_MODE_PAINT) && (show_viewer == false) && (show_render == false));
+	show_nurb = (obact && obact->type == OB_SURF);
 
 	if (show_viewer) {
 		/* use locked draw for drawing viewer image buffer since the compositor
@@ -844,14 +846,16 @@ void draw_image_main(const bContext *C, ARegion *ar)
 	ibuf = ED_space_image_acquire_buffer(sima, &lock);
 
 	/* draw the image or grid */
-	if (ibuf == NULL)
-		ED_region_grid_draw(ar, zoomx, zoomy);
-	else if (sima->flag & SI_DRAW_TILE)
+	if (ibuf == NULL) {
+		/* NURBS surfaces need to draw their own grid corresponding to their own UV coords. */
+		if (!show_nurb) ED_region_grid_draw(ar, zoomx, zoomy);
+	} else if (sima->flag & SI_DRAW_TILE) {
 		draw_image_buffer_repeated(C, sima, ar, scene, ima, ibuf, zoomx, zoomy);
-	else if (ima && (ima->tpageflag & IMA_TILES))
+	} else if (ima && (ima->tpageflag & IMA_TILES)) {
 		draw_image_buffer_tiled(sima, ar, scene, ima, ibuf, 0.0f, 0.0, zoomx, zoomy);
-	else
+	} else {
 		draw_image_buffer(C, sima, ar, scene, ibuf, 0.0f, 0.0f, zoomx, zoomy);
+	}
 
 	/* paint helpers */
 	if (show_paint)

@@ -682,7 +682,7 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 	/* we set view2d from own zoom and offset each time */
 	image_main_area_set_view2d(sima, ar);
 
-	/* we draw image in pixelspace */
+	/* draw grid background, image in pixelspace */
 	draw_image_main(C, ar);
 
 	/* and uvs in 0.0-1.0 space */
@@ -690,7 +690,8 @@ static void image_main_area_draw(const bContext *C, ARegion *ar)
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
 
-	draw_uvedit_main(sima, ar, scene, obedit, obact);
+	/* draw UV mesh */
+	draw_uvedit_main(C, sima, ar, scene, obedit, obact);
 
 	/* check for mask (delay draw) */
 	if (ED_space_image_show_uvedit(sima, obedit)) {

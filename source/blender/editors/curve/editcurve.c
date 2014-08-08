@@ -1395,6 +1395,7 @@ void ED_curve_deselect_all(EditNurb *editnurb)
 	int a;
 
 	for (nu = editnurb->nurbs.first; nu; nu = nu->next) {
+		nu->flag2 &= ~CU_SELECTED2;
 		if (nu->bezt) {
 			BezTriple *bezt;
 			for (bezt = nu->bezt, a = 0; a < nu->pntsu; a++, bezt++) {
@@ -1417,6 +1418,7 @@ void ED_curve_select_all(EditNurb *editnurb)
 	Nurb *nu;
 	int a;
 	for (nu = editnurb->nurbs.first; nu; nu = nu->next) {
+		nu->flag2 |= CU_SELECTED2;
 		if (nu->bezt) {
 			BezTriple *bezt;
 			for (bezt = nu->bezt, a = 0; a < nu->pntsu; a++, bezt++) {
@@ -1465,6 +1467,23 @@ void ED_curve_select_swap(EditNurb *editnurb, bool hide_handles)
 			while (a--) {
 				swap_selection_bpoint(bp);
 				bp++;
+			}
+		}
+	}
+}
+
+void ED_curve_propagate_selected_pts_to_flag2(EditNurb *editnurb) {
+	Nurb *nu;
+	int numpts, i;
+
+	for (nu=editnurb->nurbs.first; nu; nu=nu->next) {
+		if (nu->type != CU_NURBS) continue;
+		numpts = nu->pntsu * nu->pntsv;
+		nu->flag2 &= ~CU_SELECTED2;
+		for (i=0; i<numpts; i++) {
+			if (nu->bp[i].f1 & SELECT) {
+				nu->flag2 |= CU_SELECTED2;
+				break;
 			}
 		}
 	}

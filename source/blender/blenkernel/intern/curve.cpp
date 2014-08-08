@@ -617,12 +617,10 @@ Nurb *BKE_nurb_duplicate(Nurb *nu)
 	newnu->trims.first = newnu->trims.last = NULL;
 	for (NurbTrim *nt = (NurbTrim*)nu->trims.first; nt; nt=nt->next) {
 		NurbTrim *dup_nt = BKE_nurbTrim_duplicate(nt);
-		printf("\tTrim: 0x%lx->0x%lx\n",nt,dup_nt);
 		BLI_addtail(&newnu->trims, dup_nt);
 	}
 	BKE_nurb_clear_cached_UV_mesh(newnu,false);
 
-	printf("Duplicated nurb 0x%lx->0x%lx\n",nu,newnu);
 	return newnu;
 }
 
