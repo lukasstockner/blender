@@ -66,6 +66,8 @@
 #include "UI_interface.h"
 #include "UI_view2d.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "uvedit_intern.h"
 
 /* use editmesh tessface */
@@ -945,17 +947,15 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 		if (nu->knotsv[KNOTSV(nu)-1]>vmax) vmax = nu->knotsv[KNOTSV(nu)-1];
 	}
 	printf("\n");
-	umin = floor(umin);
-	vmin = floor(vmin);
-	umax = ceil(umax);
-	vmax = ceil(vmax);
+	umin = floor(umin)-1;
+	vmin = floor(vmin)-1;
+	umax = ceil(umax)+1;
+	vmax = ceil(vmax)+1;
 	UI_view2d_view_to_region(&ar->v2d, umax, vmax, &xmax_region, &ymax_region);
 
 	/******* (Normalized Coordinates) draw background grid *********/
-	UI_ThemeColorShade(TH_BACK, 30);
-	glRectf(umin, vmin, umax, vmax);
 	glBegin(GL_LINES);
-	UI_ThemeColor(TH_GRID);
+	UI_ThemeColorShade(TH_GRID, 10);
 	regionx2viewx = (cur.xmax-cur.xmin)/(mask.xmax-mask.xmin);
 	regiony2viewy = (cur.ymax-cur.ymin)/(mask.ymax-mask.ymin);
 	widget_unit = U.widget_unit * regiony2viewy;
@@ -973,8 +973,7 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	/******* (Pixel Coordinates) draw coordinate numbers *********/
 	UI_view2d_view_restore(C);
 	UI_ThemeColor(TH_TITLE);
-	printf("v2d.cur %f %f\n",ar->v2d.cur.xmin,ar->v2d.cur.xmax);
-	printf("mask %i %i\n",ar->v2d.mask.xmin,ar->v2d.mask.xmax);
+	/* UI_ThemeColor(TH_GRID); probably more correct but too hard to see */
 	fonth = BLF_height_default("1",1);
 	for (i=umin; i<=umax; i++) {
 		x_view=i; y_view=vmin-widget_unit;
@@ -1008,28 +1007,30 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	glDisable(GL_BLEND);
 		
 	/******* (Normalized Coordinates) draw knot grid *********/
-	glLineWidth(1);
-	glBegin(GL_LINES);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
-		vmin = nu->knotsv[0];
-		vmax = nu->knotsv[KNOTSV(nu)-1];
-		umin = nu->knotsu[0];
-		umax = nu->knotsu[KNOTSU(nu)-1];
-		UI_ThemeColor(TH_NURB_ULINE);
-		j = KNOTSU(nu);
-		for (i=0; i<j; i++) {
+		NurbEditKnot *ek = BKE_nurbs_editKnot_get(nu);
+		vmin = ek->breaksv[0];
+		vmax = ek->breaksv[ek->num_breaksv-1];
+		umin = ek->breaksu[0];
+		umax = ek->breaksu[ek->num_breaksu-1];
+		UI_ThemeColor(TH_NURB_VLINE);
+		for (i=0; i<ek->num_breaksu; i++)  {
+			glLineWidth(ek->multiplicityu[i]);
+			glBegin(GL_LINE);
 			glVertex2f(nu->knotsu[i], vmin);
 			glVertex2f(nu->knotsu[i], vmax);
+			glEnd();
 		}
-		UI_ThemeColor(TH_NURB_VLINE);
+		UI_ThemeColor(TH_NURB_ULINE);
 		j = KNOTSV(nu);
 		for (i=0; i<j; i++) {
+			glLineWidth(ek->multiplicityv[i]);
+			glBegin(GL_LINE);
 			glVertex2f(umin, nu->knotsv[i]);
 			glVertex2f(umax, nu->knotsv[i]);
+			glEnd();
 		}
 	}
-	glEnd();
-	glLineWidth(1);
 		
 	/******* (Normalized Coordinates) draw trim curves *********/
 	glBegin(GL_LINE_STRIP);
@@ -1041,6 +1042,7 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 			for (i=0; i<j; i++) {
 				glVertex2f(trim_uv_pnts[i][0], trim_uv_pnts[i][1]);
 			}
+			MEM_freeN(trim_uv_pnts);
 		}
 	}
 	glEnd();
@@ -1076,6 +1078,8 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 			}
 		}
 	}
+	
+	
 	glEnd();
 	glPointSize(1);
 

@@ -34,6 +34,7 @@ extern "C" {
 	#include "DNA_scene_types.h"
 	#include "BLF_translation.h"
 	#include "BLI_listbase.h"
+	#include "BLI_math.h"
 	#include "BKE_context.h"
 	#include "BKE_global.h"
 	#include "BKE_main.h"
@@ -602,6 +603,12 @@ static Curve* rhino_import_nurbs_surf_start(bContext *C,
 }
 
 static void rhino_import_nurbs_surf_end(bContext *C) {
+	Curve *cu = (Curve*)CTX_data_edit_object(C)->data;
+	float cent[3];
+	BKE_curve_center_median(cu, cent);
+	copy_v3_v3(cu->loc, cent);
+	mul_v3_fl(cent, -1);
+	BKE_curve_translate(cu, cent, false);
 	ED_object_editmode_exit(C, EM_FREEDATA);
 	printf("nurbssurf done\n");
 }

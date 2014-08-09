@@ -3355,10 +3355,11 @@ static void direct_link_nurblist(FileData *fd, ListBase *nurblist)
 			switch_endian_knots(nu);
 		}
 
-		/* Clear cached UV-space tessellation of trimmed surface */
+		/* Clear cached UV-space tessellation of trimmed surface & other runtime fields */
 		nu->UV_tri_count = nu->UV_verts_count = 0;
 		nu->UV_idxs = NULL;
 		nu->UV_verts = NULL;
+		nu->editknot = NULL;
 
 		/* Recurse to load trim curves */
 		if (nu->flag & CU_TRIMMED) {

@@ -464,6 +464,111 @@ void BKE_curve_texspace_get(Curve *cu, float r_loc[3], float r_rot[3], float r_s
 	if (r_size) copy_v3_v3(r_size, cu->size);
 }
 
+struct NurbEditKnot* BKE_nurbs_editKnot_get(struct Nurb *nu) {
+	if (nu->editknot) return nu->editknot;
+	int capu=KNOTSU(nu), capv=KNOTSV(nu);
+	NurbEditKnot* ek = nu->editknot = (NurbEditKnot*)MEM_mallocN(sizeof(NurbEditKnot),"NURBS_editknot");
+	int bytes_per_knot = sizeof(float) + sizeof(int) + sizeof(int);
+	uint8_t *ubuf = (uint8_t*)MEM_mallocN(capu*bytes_per_knot, "NURBS_editknot_u");
+	uint8_t *vbuf = (uint8_t*)MEM_mallocN(capv*bytes_per_knot, "NURBS_editknot_v");
+	ek->breaksu = (float*)ubuf;
+	ek->multiplicityu = (int*)(ubuf + capu*sizeof(float));
+	ek->flagu = (int*)(ubuf + capu*sizeof(float) + capu*sizeof(int));
+	ek->breaksv = (float*)vbuf;
+	ek->multiplicityv = (int*)(vbuf + capv*sizeof(float));
+	ek->flagv = (int*)(vbuf + capv*sizeof(float) + capv*sizeof(int));
+	return ek;
+}
+
+void BKE_nurbs_editKnot_propagate_ek2nurb(struct Nurb *nu) {
+	NurbEditKnot *ek = nu->editknot;
+	if (!ek) return;
+	int ek_knotu=0, ek_knotv=0;
+
+	for (int i=0; i<ek->num_breaksu; i++) ek_knotu += ek->multiplicityu[i];
+	if (KNOTSU(nu)<ek_knotu || !nu->knotsu) {
+		if (nu->knotsu) MEM_freeN(nu->knotsu);
+		nu->knotsu = (float*)MEM_mallocN(sizeof(float)*ek_knotu,"NURBS_edk_prop_u");
+	}
+	for (int i=0,flatidx=0; i<ek->num_breaksu; i++) {
+		int mult = ek->multiplicityu[i];
+		float breakpt = ek->breaksu[i];
+		for (int j=0; j<mult; j++)
+			nu->knotsu[flatidx++] = breakpt;
+	}
+
+	for (int i=0; i<ek->num_breaksv; i++) ek_knotv += ek->multiplicityv[i];
+	if (KNOTSV(nu)<ek_knotv || !nu->knotsv) {
+		if (nu->knotsv) MEM_freeN(nu->knotsv);
+		nu->knotsv = (float*)MEM_mallocN(sizeof(float)*ek_knotv,"NURBS_edk_prop_v");
+	}
+	for (int i=0,flatidx=0; i<ek->num_breaksv; i++) {
+		int mult = ek->multiplicityv[i];
+		float breakpt = ek->breaksv[i];
+		for (int j=0; j<mult; j++)
+			nu->knotsv[flatidx++] = breakpt;
+	}
+}
+
+void BKE_nurbs_editKnot_propagate_nurb2ek(struct Nurb *nu) {
+	NurbEditKnot* ek = nu->editknot;
+	if (!ek) ek = nu->editknot = (NurbEditKnot*)MEM_callocN(sizeof(*ek),"NURBS_editknot_prop");
+	float *old_breaksu=ek->breaksu, *old_breaksv=ek->breaksv;
+	int *old_flagu=ek->flagu, *old_flagv=ek->flagv;
+	int old_idx=0, old_num_breaksu=ek->num_breaksu, old_num_breaksv=ek->num_breaksv;
+	int bytes_per_knot = sizeof(float) + sizeof(int) + sizeof(int);
+
+	int capu = ek->capu = KNOTSU(nu);
+	uint8_t *ubuf = (uint8_t*)MEM_callocN(capu*bytes_per_knot, "NURBS_editknot_u");
+	ek->breaksu = (float*)ubuf;
+	ek->multiplicityu = (int*)(ubuf + capu*sizeof(float));
+	ek->flagu = (int*)(ubuf + capu*sizeof(float) + capu*sizeof(int));
+	float last_knot=INFINITY; old_idx=0;
+	for (int i=0,breakidx=-1; i<KNOTSU(nu); i++) {
+		float knot = nu->knotsu[i];
+		if (knot!=last_knot) {
+			breakidx += 1;
+			last_knot = knot;
+		}
+		while (old_breaksu[old_idx]<knot && old_idx<old_num_breaksu) old_idx++;
+		if (old_breaksu[old_idx]==knot)
+			ek->flagu[breakidx] = old_flagu[old_idx];
+		ek->breaksu[breakidx] = knot;
+		ek->multiplicityu[breakidx] += 1;
+	}
+
+	int capv = ek->capv = KNOTSV(nu);
+	uint8_t *vbuf = (uint8_t*)MEM_callocN(capv*bytes_per_knot, "NURBS_editknot_v");
+	ek->breaksv = (float*)vbuf;
+	ek->multiplicityv = (int*)(vbuf + capv*sizeof(float));
+	ek->flagv = (int*)(vbuf + capv*sizeof(float) + capv*sizeof(int));
+	last_knot=INFINITY; old_idx=0;
+	for (int i=0,breakidx=-1; i<KNOTSV(nu); i++) {
+		float knot = nu->knotsv[i];
+		if (knot!=last_knot) {
+			breakidx += 1;
+			last_knot = knot;
+		}
+		while (old_breaksv[old_idx]<knot && old_idx<old_num_breaksv) old_idx++;
+		if (old_breaksv[old_idx]==knot)
+			ek->flagv[breakidx] = old_flagv[old_idx];
+		ek->breaksv[breakidx] = knot;
+		ek->multiplicityv[breakidx] += 1;
+	}
+
+	if (old_breaksu) MEM_freeN(old_breaksu);
+	if (old_breaksv) MEM_freeN(old_breaksv);
+}
+
+void BKE_nurbs_editKnot_destroy(struct Nurb *nu) {
+	NurbEditKnot* ek = nu->editknot;
+	if (!ek) return;
+	if (ek->breaksu) MEM_freeN(ek->breaksu);
+	if (ek->breaksv) MEM_freeN(ek->breaksv);
+	MEM_freeN(nu->editknot);
+	nu->editknot = NULL;
+}
+
 bool BKE_nurbList_index_get_co(ListBase *nurb, const int index, float r_co[3])
 {
 	Nurb *nu;
@@ -3899,6 +4004,7 @@ bool BKE_curve_minmax(Curve *cu, bool use_radius, float min[3], float max[3])
 	return (BLI_listbase_is_empty(nurb_lb) == false);
 }
 
+/* Fills cent with the median of the control points. Does not alter cu. */
 bool BKE_curve_center_median(Curve *cu, float cent[3])
 {
 	ListBase *nurb_lb = BKE_curve_nurbs_get(cu);
@@ -3937,6 +4043,7 @@ bool BKE_curve_center_median(Curve *cu, float cent[3])
 	return (total != 0);
 }
 
+/* Fills cent with the center of the AABB. Does not alter cu. */
 bool BKE_curve_center_bounds(Curve *cu, float cent[3])
 {
 	float min[3], max[3];

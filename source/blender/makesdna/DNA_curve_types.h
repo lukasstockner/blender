@@ -141,6 +141,14 @@ typedef struct NurbTrim {
 	short pad[3];
 } NurbTrim;
 
+typedef struct NurbEditKnot {
+	int capu, capv; /* length of breaks{u,v}, multiplicity{u,v}, and flag{u,v} arrays */
+	int num_breaksu, num_breaksv; /* the set of breakpoints is the set of unique knots */
+	float *breaksu, *breaksv;
+	int *multiplicityu, *multiplicityv;
+	int *flagu, *flagv; /* per-break flags: SELECT */
+} NurbEditKnot;
+
 /**
  * \note Nurb name is misleading, since it can be used for polygons too,
  * also, it should be NURBS (Nurb isn't the singular of Nurbs).
@@ -173,6 +181,8 @@ typedef struct Nurb {
 	int UV_tri_count;
 	float *UV_verts; /* 2*UV_verts_count floats */
 	int *UV_idxs; /* 3*UV_tri_count ints */
+
+	NurbEditKnot *editknot;
 } Nurb;
 
 typedef struct CharInfo {

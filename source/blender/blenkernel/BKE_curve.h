@@ -49,6 +49,7 @@ struct rctf;
 struct DispList;
 struct BPoint;
 struct NurbTrim;
+struct NurbEditKnot;
 struct GridMesh;
 
 typedef struct CurveCache {
@@ -153,6 +154,11 @@ void BKE_nurbs_surf_eval(float u, float v,
 						 int pntsu, int orderu, float *U,
 						 int pntsv, int orderv, float *V,
 						 struct BPoint *P, int nd, struct BPoint *out, BSplineCacheU *ucache DEFAULT_NULL);
+
+struct NurbEditKnot* BKE_nurbs_editKnot_get(struct Nurb *nu); /* Creates editknot if necessary */
+void BKE_nurbs_editKnot_propagate_ek2nurb(struct Nurb *nu);
+void BKE_nurbs_editKnot_propagate_nurb2ek(struct Nurb *nu);
+void BKE_nurbs_editKnot_destroy(struct Nurb *nu);
 
 bool BKE_nurbList_index_get_co(struct ListBase *editnurb, const int index, float r_co[3]);
 
