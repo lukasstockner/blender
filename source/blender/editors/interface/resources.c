@@ -36,11 +36,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_curve_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
-#include "DNA_mesh_types.h"  /* init_userdef_factory */
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -50,7 +49,6 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_texture.h"
-
 
 #include "BIF_gl.h"
 
@@ -537,6 +535,13 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->preview_stitch_active;
 					break;
 
+				case TH_PAINT_CURVE_HANDLE:
+					cp = ts->paint_curve_handle;
+					break;
+				case TH_PAINT_CURVE_PIVOT:
+					cp = ts->paint_curve_pivot;
+					break;
+
 				case TH_UV_OTHERS:
 					cp = ts->uv_others;
 					break;
@@ -774,6 +779,8 @@ static void ui_theme_space_init_handles_color(ThemeSpace *theme_space)
 	rgba_char_args_set(theme_space->handle_sel_auto, 0xf0, 0xff, 0x40, 255);
 	rgba_char_args_set(theme_space->handle_sel_vect, 0x40, 0xc0, 0x30, 255);
 	rgba_char_args_set(theme_space->handle_sel_align, 0xf0, 0x90, 0xa0, 255);
+	rgba_char_args_set(theme_space->handle_vertex, 0x00, 0x00, 0x00, 0xff);
+	rgba_char_args_set(theme_space->handle_vertex_select, 0xff, 0xff, 0, 0xff);
 	rgba_char_args_set(theme_space->act_spline, 0xdb, 0x25, 0x12, 255);
 }
 
@@ -871,6 +878,8 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tv3d.title, 0, 0, 0, 255);
 	rgba_char_args_set(btheme->tv3d.freestyle_edge_mark, 0x7f, 0xff, 0x7f, 255);
 	rgba_char_args_set(btheme->tv3d.freestyle_face_mark, 0x7f, 0xff, 0x7f, 51);
+	rgba_char_args_set_fl(btheme->tv3d.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
+	rgba_char_args_set_fl(btheme->tv3d.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
 
 	btheme->tv3d.facedot_size = 4;
 
@@ -1129,8 +1138,6 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tclip.path_after, 0x00, 0x00, 0xff, 255);
 	rgba_char_args_set(btheme->tclip.grid, 0x5e, 0x5e, 0x5e, 255);
 	rgba_char_args_set(btheme->tclip.cframe, 0x60, 0xc0, 0x40, 255);
-	rgba_char_args_set(btheme->tclip.handle_vertex, 0x00, 0x00, 0x00, 0xff);
-	rgba_char_args_set(btheme->tclip.handle_vertex_select, 0xff, 0xff, 0, 0xff);
 	rgba_char_args_set(btheme->tclip.list, 0x66, 0x66, 0x66, 0xff);
 	rgba_char_args_set(btheme->tclip.strip, 0x0c, 0x0a, 0x0a, 0x80);
 	rgba_char_args_set(btheme->tclip.strip_select, 0xff, 0x8c, 0x00, 0xff);
@@ -2427,6 +2434,16 @@ void init_userdef_do_versions(void)
 		}
 	}
 
+	if (U.versionfile < 272 || (U.versionfile == 272 && U.subversionfile < 2)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			rgba_char_args_set_fl(btheme->tv3d.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
+			rgba_char_args_set_fl(btheme->tv3d.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
+			rgba_char_args_set_fl(btheme->tima.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
+			rgba_char_args_set_fl(btheme->tima.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
+		}
+	}
+
 	{
 		bTheme *btheme;
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
@@ -2448,26 +2465,4 @@ void init_userdef_do_versions(void)
 	/* this timer uses U */
 // XXX	reset_autosave();
 
-}
-
-/**
- * Override values in in-memory startup.blend, avoids resaving for small changes.
- */
-void init_userdef_factory(void)
-{
-	/* defaults from T37518 */
-
-	U.uiflag |= USER_ZBUF_CURSOR;
-	U.uiflag |= USER_QUIT_PROMPT;
-	U.uiflag |= USER_CONTINUOUS_MOUSE;
-
-	U.versions = 1;
-	U.savetime = 2;
-
-	{
-		Mesh *me;
-		for (me = G.main->mesh.first; me; me = me->id.next) {
-			me->flag &= ~ME_TWOSIDED;
-		}
-	}
 }

@@ -494,9 +494,9 @@ static int shape_key_move_poll(bContext *C)
 	Object *ob = ED_object_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 	Key *key = BKE_key_from_object(ob);
-	return (ob && !ob->id.lib && data && !data->lib && ob->mode != OB_MODE_EDIT && key && key->totkey);
-}
 
+	return (ob && !ob->id.lib && data && !data->lib && ob->mode != OB_MODE_EDIT && key && key->totkey > 1);
+}
 
 static EnumPropertyItem slot_move[] = {
 	{ -2, "TOP", 0, "Top of the list", "" },
@@ -510,23 +510,24 @@ static int shape_key_move_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 
-	int type = RNA_enum_get(op->ptr, "type");
-	int act_index = ob->shapenr - 1;
-	int new_index = act_index;
 	Key *key = BKE_key_from_object(ob);
 	KeyBlock *kb = BKE_keyblock_from_object(ob);
+	const int type = RNA_enum_get(op->ptr, "type");
+	const int totkey = key->totkey;
+	const int act_index = ob->shapenr - 1;
+	int new_index;
 
-	if (type >= -1 && type <= 1) {
-		new_index = act_index + type;
-	}
-	else if (type == 2) {
-		new_index = key->totkey - 1;
+	if (type == 2) {
+		new_index = totkey - 1;
 	}
 	else if (type == -2) {
 		if (act_index == 1 || act_index == 0)
 			new_index = 0; /* replace the ref key only if we're at the top already */
 		else
 			new_index = 1;
+	}
+	else {
+		new_index = (totkey + act_index + type) % totkey;
 	}
 
 	BKE_keyblock_move(ob, kb, new_index);

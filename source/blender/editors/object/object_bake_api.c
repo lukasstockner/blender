@@ -51,6 +51,7 @@
 #include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
@@ -177,7 +178,7 @@ static bool write_internal_bake_pixels(
 	void *lock;
 	bool is_float;
 	char *mask_buffer = NULL;
-	const int num_pixels = width * height;
+	const size_t num_pixels = (size_t)width * (size_t)height;
 
 	ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
 
@@ -310,7 +311,7 @@ static bool write_external_bake_pixels(
 	/* margins */
 	if (margin > 0) {
 		char *mask_buffer = NULL;
-		const int num_pixels = width * height;
+		const size_t num_pixels = (size_t)width * (size_t)height;
 
 		mask_buffer = MEM_callocN(sizeof(char) * num_pixels, "Bake Mask");
 		RE_bake_mask_fill(pixel_array, num_pixels, mask_buffer);
@@ -335,14 +336,14 @@ static bool write_external_bake_pixels(
 
 static bool is_noncolor_pass(ScenePassType pass_type)
 {
-	return ELEM7(pass_type,
-	             SCE_PASS_Z,
-	             SCE_PASS_NORMAL,
-	             SCE_PASS_VECTOR,
-	             SCE_PASS_INDEXOB,
-	             SCE_PASS_UV,
-	             SCE_PASS_RAYHITS,
-	             SCE_PASS_INDEXMA);
+	return ELEM(pass_type,
+	            SCE_PASS_Z,
+	            SCE_PASS_NORMAL,
+	            SCE_PASS_VECTOR,
+	            SCE_PASS_INDEXOB,
+	            SCE_PASS_UV,
+	            SCE_PASS_RAYHITS,
+	            SCE_PASS_INDEXMA);
 }
 
 /* if all is good tag image and return true */
@@ -367,10 +368,22 @@ static bool bake_object_check(Object *ob, ReportList *reports)
 	}
 
 	for (i = 0; i < ob->totcol; i++) {
-		ED_object_get_active_image(ob, i + 1, &image, NULL, NULL);
+		bNodeTree *ntree = NULL;
+		bNode *node = NULL;
+		ED_object_get_active_image(ob, i + 1, &image, NULL, &node, &ntree);
 
 		if (image) {
-			ImBuf *ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
+			ImBuf *ibuf;
+
+			if (node) {
+				if (BKE_node_is_connected_to_output(ntree, node)) {
+					BKE_reportf(reports, RPT_ERROR,
+					            "Circular dependency for image \"%s\" from object \"%s\"",
+					            image->id.name + 2, ob->id.name + 2);
+				}
+			}
+
+			ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
 
 			if (ibuf) {
 				BKE_image_release_ibuf(image, ibuf, lock);
@@ -429,7 +442,7 @@ static bool bake_objects_check(Main *bmain, Object *ob, ListBase *selected_objec
 			if (ob_iter == ob)
 				continue;
 
-			if (ELEM5(ob_iter->type, OB_MESH, OB_FONT, OB_CURVE, OB_SURF, OB_MBALL) == false) {
+			if (ELEM(ob_iter->type, OB_MESH, OB_FONT, OB_CURVE, OB_SURF, OB_MBALL) == false) {
 				BKE_reportf(reports, RPT_ERROR, "Object \"%s\" is not a mesh or can't be converted to a mesh (Curve, Text, Surface or Metaball)", ob_iter->id.name + 2);
 				return false;
 			}
@@ -477,7 +490,7 @@ static void build_image_lookup(Main *bmain, Object *ob, BakeImages *bake_images)
 
 	for (i = 0; i < tot_mat; i++) {
 		Image *image;
-		ED_object_get_active_image(ob, i + 1, &image, NULL, NULL);
+		ED_object_get_active_image(ob, i + 1, &image, NULL, NULL, NULL);
 
 		if ((image->id.flag & LIB_DOIT)) {
 			for (j = 0; j < i; j++) {
@@ -501,10 +514,10 @@ static void build_image_lookup(Main *bmain, Object *ob, BakeImages *bake_images)
 /*
  * returns the total number of pixels
  */
-static int initialize_internal_images(BakeImages *bake_images, ReportList *reports)
+static size_t initialize_internal_images(BakeImages *bake_images, ReportList *reports)
 {
 	int i;
-	int tot_size = 0;
+	size_t tot_size = 0;
 
 	for (i = 0; i < bake_images->size; i++) {
 		ImBuf *ibuf;
@@ -518,7 +531,7 @@ static int initialize_internal_images(BakeImages *bake_images, ReportList *repor
 			bk_image->height = ibuf->y;
 			bk_image->offset = tot_size;
 
-			tot_size += ibuf->x * ibuf->y;
+			tot_size += (size_t)ibuf->x * (size_t)ibuf->y;
 		}
 		else {
 			BKE_image_release_ibuf(bk_image->image, ibuf, lock);
@@ -563,7 +576,7 @@ static int bake(
 
 	BakeImages bake_images = {NULL};
 
-	int num_pixels;
+	size_t num_pixels;
 	int tot_materials;
 	int i;
 
@@ -620,7 +633,7 @@ static int bake(
 	else {
 		/* when saving extenally always use the size specified in the UI */
 
-		num_pixels = width * height * bake_images.size;
+		num_pixels = (size_t)width * (size_t)height * bake_images.size;
 
 		for (i = 0; i < bake_images.size; i++) {
 			bake_images.data[i].width = width;
@@ -1067,7 +1080,6 @@ static int bake_exec(bContext *C, wmOperator *op)
 
 	/* setup new render */
 	RE_test_break_cb(re, NULL, bake_break);
-	RE_progress_cb(re, NULL, bake_progress_update);
 
 	if (!bake_objects_check(bkr.main, bkr.ob, &bkr.selected_objects, bkr.reports, bkr.is_selected_to_active))
 		return OPERATOR_CANCELLED;

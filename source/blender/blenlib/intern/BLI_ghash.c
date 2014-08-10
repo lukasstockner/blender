@@ -570,12 +570,12 @@ void BLI_ghashIterator_init(GHashIterator *ghi, GHash *gh)
 	ghi->curEntry = NULL;
 	ghi->curBucket = UINT_MAX;  /* wraps to zero */
 	if (gh->nentries) {
-		while (!ghi->curEntry) {
+		do {
 			ghi->curBucket++;
 			if (UNLIKELY(ghi->curBucket == ghi->gh->nbuckets))
 				break;
 			ghi->curEntry = ghi->gh->buckets[ghi->curBucket];
-		}
+		} while (!ghi->curEntry);
 	}
 }
 
@@ -702,6 +702,11 @@ unsigned int BLI_ghashutil_uinthash_v4(const unsigned int key[4])
 	hash *= 37;
 	hash += key[3];
 	return hash;
+}
+
+int BLI_ghashutil_uinthash_v4_cmp(const void *a, const void *b)
+{
+	return memcmp(a, b, sizeof(unsigned int[4]));
 }
 
 unsigned int BLI_ghashutil_uinthash(unsigned int key)

@@ -307,12 +307,12 @@ static void view3d_boxview_clip(ScrArea *sa)
 	}
 
 	for (val = 0; val < 8; val++) {
-		if (ELEM4(val, 0, 3, 4, 7))
+		if (ELEM(val, 0, 3, 4, 7))
 			bb->vec[val][0] = -x1 - ofs[0];
 		else
 			bb->vec[val][0] =  x1 - ofs[0];
 
-		if (ELEM4(val, 0, 1, 4, 5))
+		if (ELEM(val, 0, 1, 4, 5))
 			bb->vec[val][1] = -y1 - ofs[1];
 		else
 			bb->vec[val][1] =  y1 - ofs[1];
@@ -465,11 +465,13 @@ void ED_view3d_quadview_update(ScrArea *sa, ARegion *ar, bool do_clip)
 	 * properties are always being edited, weak */
 	viewlock = rv3d->viewlock;
 
-	if ((viewlock & RV3D_LOCKED) == 0)
+	if ((viewlock & RV3D_LOCKED) == 0) {
+		do_clip = (viewlock & RV3D_BOXCLIP) != 0;
 		viewlock = 0;
-	else if ((viewlock & RV3D_BOXVIEW) == 0) {
-		viewlock &= ~RV3D_BOXCLIP;
+	}
+	else if ((viewlock & RV3D_BOXVIEW) == 0 && (viewlock & RV3D_BOXCLIP) != 0) {
 		do_clip = true;
+		viewlock &= ~RV3D_BOXCLIP;
 	}
 
 	for (; ar; ar = ar->prev) {
@@ -3243,6 +3245,8 @@ static int render_border_exec(bContext *C, wmOperator *op)
 
 void VIEW3D_OT_render_border(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "Set Render Border";
 	ot->description = "Set the boundaries of the border render and enable border render";
@@ -3262,7 +3266,8 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
 	/* rna */
 	WM_operator_properties_border(ot);
 
-	RNA_def_boolean(ot->srna, "camera_only", 0, "Camera Only", "Set render border for camera view and final render only");
+	prop = RNA_def_boolean(ot->srna, "camera_only", 0, "Camera Only", "Set render border for camera view and final render only");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /* ********************* Clear render border operator ****************** */
@@ -4435,7 +4440,7 @@ void ED_view3d_cursor3d_position(bContext *C, float fp[3], const int mval[2])
 	}
 }
 
-static void view3d_cursor3d_update(bContext *C, const int *mval)
+void ED_view3d_cursor3d_update(bContext *C, const int mval[2])
 {
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = CTX_wm_view3d(C);
@@ -4451,7 +4456,7 @@ static void view3d_cursor3d_update(bContext *C, const int *mval)
 
 static int view3d_cursor3d_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	view3d_cursor3d_update(C, event->mval);
+	ED_view3d_cursor3d_update(C, event->mval);
 	op->customdata = SET_INT_IN_POINTER(event->type);
 	WM_event_add_modal_handler(C, op);
 
@@ -4468,7 +4473,7 @@ static int view3d_cursor3d_modal(bContext *C, wmOperator *op, const wmEvent *eve
 
 	switch (event->type) {
 		case MOUSEMOVE:
-			view3d_cursor3d_update(C, event->mval);
+			ED_view3d_cursor3d_update(C, event->mval);
 			break;
 		case LEFTMOUSE:
 			return OPERATOR_FINISHED;

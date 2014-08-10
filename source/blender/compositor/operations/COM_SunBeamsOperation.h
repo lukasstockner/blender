@@ -1,5 +1,5 @@
 /*
- * Copyright 2011, Blender Foundation.
+ * Copyright 2014, Blender Foundation.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -15,23 +15,34 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor: 
- *		Jeroen Bakker 
- *		Monique Dewanchand
+ * Contributor:
+ *		Lukas Toenne
  */
 
-#ifndef OCL_OPENCL_H
-#define OCL_OPENCL_H
+#ifndef _COM_SunBeamsOperation_h
+#define _COM_SunBeamsOperation_h
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "COM_NodeOperation.h"
 
-#include "intern/clew.h"
-int OCL_init(void);
+class SunBeamsOperation : public NodeOperation {
+public:
+	SunBeamsOperation();
 
-#ifdef __cplusplus
-}
-#endif
+	void executePixel(float output[4], int x, int y, void *data);
+
+	void initExecution();
+
+	void *initializeTileData(rcti *rect);
+
+	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
+
+	void setData(const NodeSunBeams &data) { m_data = data; }
+
+private:
+	NodeSunBeams m_data;
+
+	float m_source_px[2];
+	float m_ray_length_px;
+};
 
 #endif

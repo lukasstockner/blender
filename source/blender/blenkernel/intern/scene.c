@@ -39,6 +39,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
 #include "DNA_linestyle_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_rigidbody_types.h"
@@ -46,6 +47,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
+#include "DNA_view3d_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -62,6 +65,7 @@
 #include "BKE_action.h"
 #include "BKE_colortools.h"
 #include "BKE_depsgraph.h"
+#include "BKE_editmesh.h"
 #include "BKE_fcurve.h"
 #include "BKE_freestyle.h"
 #include "BKE_global.h"
@@ -85,6 +89,8 @@
 #include "PIL_time.h"
 
 #include "IMB_colormanagement.h"
+
+#include "bmesh.h"
 
 //XXX #include "BIF_previewrender.h"
 //XXX #include "BIF_editseq.h"
@@ -510,6 +516,8 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.border.ymin = 0.0f;
 	sce->r.border.xmax = 1.0f;
 	sce->r.border.ymax = 1.0f;
+
+	sce->r.preview_start_resolution = 64;
 	
 	sce->toolsettings = MEM_callocN(sizeof(struct ToolSettings), "Tool Settings Struct");
 	sce->toolsettings->doublimit = 0.001;
@@ -719,14 +727,14 @@ void BKE_scene_set_background(Main *bmain, Scene *scene)
 /* called from creator.c */
 Scene *BKE_scene_set_name(Main *bmain, const char *name)
 {
-	Scene *sce = (Scene *)BKE_libblock_find_name(ID_SCE, name);
+	Scene *sce = (Scene *)BKE_libblock_find_name_ex(bmain, ID_SCE, name);
 	if (sce) {
 		BKE_scene_set_background(bmain, sce);
-		printf("Scene switch: '%s' in file: '%s'\n", name, G.main->name);
+		printf("Scene switch: '%s' in file: '%s'\n", name, bmain->name);
 		return sce;
 	}
 
-	printf("Can't find scene: '%s' in file: '%s'\n", name, G.main->name);
+	printf("Can't find scene: '%s' in file: '%s'\n", name, bmain->name);
 	return NULL;
 }
 
@@ -804,9 +812,7 @@ void BKE_scene_unlink(Main *bmain, Scene *sce, Scene *newsce)
 	BKE_libblock_free(bmain, sce);
 }
 
-/* used by metaballs
- * doesn't return the original duplicated object, only dupli's
- */
+/* Used by metaballs, return *all* objects (including duplis) existing in the scene (including scene's sets) */
 int BKE_scene_base_iter_next(EvaluationContext *eval_ctx, SceneBaseIter *iter,
                              Scene **scene, int val, Base **base, Object **ob)
 {
@@ -817,11 +823,12 @@ int BKE_scene_base_iter_next(EvaluationContext *eval_ctx, SceneBaseIter *iter,
 		iter->phase = F_START;
 		iter->dupob = NULL;
 		iter->duplilist = NULL;
+		iter->dupli_refob = NULL;
 	}
 	else {
 		/* run_again is set when a duplilist has been ended */
 		while (run_again) {
-			run_again = 0;
+			run_again = false;
 
 			/* the first base */
 			if (iter->phase == F_START) {
@@ -879,34 +886,46 @@ int BKE_scene_base_iter_next(EvaluationContext *eval_ctx, SceneBaseIter *iter,
 							
 							iter->dupob = iter->duplilist->first;
 
-							if (!iter->dupob)
+							if (!iter->dupob) {
 								free_object_duplilist(iter->duplilist);
+								iter->duplilist = NULL;
+							}
+							iter->dupli_refob = NULL;
 						}
 					}
 				}
 				/* handle dupli's */
 				if (iter->dupob) {
-					
-					copy_m4_m4(iter->omat, iter->dupob->ob->obmat);
-					copy_m4_m4(iter->dupob->ob->obmat, iter->dupob->mat);
-					
 					(*base)->flag |= OB_FROMDUPLI;
 					*ob = iter->dupob->ob;
 					iter->phase = F_DUPLI;
-					
+
+					if (iter->dupli_refob != *ob) {
+						if (iter->dupli_refob) {
+							/* Restore previous object's real matrix. */
+							copy_m4_m4(iter->dupli_refob->obmat, iter->omat);
+						}
+						/* Backup new object's real matrix. */
+						iter->dupli_refob = *ob;
+						copy_m4_m4(iter->omat, iter->dupli_refob->obmat);
+					}
+					copy_m4_m4((*ob)->obmat, iter->dupob->mat);
+
 					iter->dupob = iter->dupob->next;
 				}
 				else if (iter->phase == F_DUPLI) {
 					iter->phase = F_SCENE;
 					(*base)->flag &= ~OB_FROMDUPLI;
 					
-					for (iter->dupob = iter->duplilist->first; iter->dupob; iter->dupob = iter->dupob->next) {
-						copy_m4_m4(iter->dupob->ob->obmat, iter->omat);
+					if (iter->dupli_refob) {
+						/* Restore last object's real matrix. */
+						copy_m4_m4(iter->dupli_refob->obmat, iter->omat);
+						iter->dupli_refob = NULL;
 					}
 					
 					free_object_duplilist(iter->duplilist);
 					iter->duplilist = NULL;
-					run_again = 1;
+					run_again = true;
 				}
 			}
 		}
@@ -1541,6 +1560,53 @@ static void scene_update_tagged_recursive(EvaluationContext *eval_ctx, Main *bma
 	
 }
 
+static bool check_rendered_viewport_visible(Main *bmain)
+{
+	wmWindowManager *wm = bmain->wm.first;
+	wmWindow *window;
+	for (window = wm->windows.first; window != NULL; window = window->next) {
+		bScreen *screen = window->screen;
+		ScrArea *area;
+		for (area = screen->areabase.first; area != NULL; area = area->next) {
+			View3D *v3d = area->spacedata.first;
+			if (area->spacetype != SPACE_VIEW3D) {
+				continue;
+			}
+			if (v3d->drawtype == OB_RENDER) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+static void prepare_mesh_for_viewport_render(Main *bmain, Scene *scene)
+{
+	/* This is needed to prepare mesh to be used by the render
+	 * engine from the viewport rendering. We do loading here
+	 * so all the objects which shares the same mesh datablock
+	 * are nicely tagged for update and updated.
+	 *
+	 * This makes it so viewport render engine doesn't need to
+	 * call loading of the edit data for the mesh objects.
+	 */
+
+	Object *obedit = scene->obedit;
+	if (obedit) {
+		Mesh *mesh = obedit->data;
+		/* TODO(sergey): Check object recalc flags as well? */
+		if ((obedit->type == OB_MESH) &&
+		    (mesh->id.flag & (LIB_ID_RECALC | LIB_ID_RECALC_DATA)))
+		{
+			if (check_rendered_viewport_visible(bmain)) {
+				BMesh *bm = mesh->edit_btmesh->bm;
+				BM_mesh_bm_to_me(bm, mesh, false);
+				DAG_id_tag_update(&mesh->id, 0);
+			}
+		}
+	}
+}
+
 void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *scene)
 {
 	Scene *sce_iter;
@@ -1551,6 +1617,9 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	/* (re-)build dependency graph if needed */
 	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set)
 		DAG_scene_relations_update(bmain, sce_iter);
+
+	/* flush editing data if needed */
+	prepare_mesh_for_viewport_render(bmain, scene);
 
 	/* flush recalc flags to dependencies */
 	DAG_ids_flush_tagged(bmain);

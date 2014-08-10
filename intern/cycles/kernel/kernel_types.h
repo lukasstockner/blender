@@ -524,14 +524,14 @@ typedef struct ShaderClosure {
 	ClosureType type;
 	float3 weight;
 
-	float sample_weight;
-
 	float data0;
 	float data1;
 	float data2;
 
 	float3 N;
 	float3 T;
+	
+	float sample_weight;
 
 #ifdef __OSL__
 	void *prim;
@@ -592,7 +592,7 @@ enum ShaderDataFlag {
 	/* object flags */
 	SD_HOLDOUT_MASK = 524288,			/* holdout for camera rays */
 	SD_OBJECT_MOTION = 1048576,			/* has object motion blur */
-	SD_TRANSFORM_APPLIED = 2097152, 	/* vertices have transform applied */
+	SD_TRANSFORM_APPLIED = 2097152,		/* vertices have transform applied */
 
 	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED)
 };

@@ -76,17 +76,6 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef _WIN32
 
-#ifndef __KERNEL_GPU__
-
-#if defined(_MSC_VER) && (_MSC_VER < 1800)
-#  define copysignf(x, y) ((float)_copysign(x, y))
-#  define hypotf(x, y) _hypotf(x, y)
-#  define isnan(x) _isnan(x)
-#  define isfinite(x) _finite(x)
-#endif
-
-#endif
-
 #ifndef __KERNEL_OPENCL__
 
 ccl_device_inline float fmaxf(float a, float b)
@@ -1423,6 +1412,23 @@ ccl_device bool ray_quad_intersect(
 		return true;
 	
 	return false;
+}
+
+/* projections */
+ccl_device bool map_to_sphere(float *r_u, float *r_v,
+                              const float x, const float y, const float z)
+{
+	float len = sqrtf(x * x + y * y + z * z);
+	if (len > 0.0f) {
+		if (x == 0.0f && y == 0.0f) *r_u = 0.0f;  /* othwise domain error */
+		else *r_u = (1.0f - atan2f(x, y) / (float)M_PI) / 2.0f;
+		*r_v = 1.0f - safe_acosf(z / len) / (float)M_PI;
+		return true;
+	}
+	else {
+		*r_v = *r_u = 0.0f; /* to avoid un-initialized variables */
+		return false;
+	}
 }
 
 CCL_NAMESPACE_END
