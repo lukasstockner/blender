@@ -298,7 +298,7 @@ void BKE_editmesh_color_ensure(BMEditMesh *em, const char htype)
  static int hashface_topo(BMFace *f, int oldhash)
 {
 	/* skip header & flags & face normals and material */
-	int a = f->len + (int)f->l_first;
+	int a = f->len + GET_INT_FROM_POINTER(f->l_first);
 	return hashfunc(&a, sizeof(int), oldhash);
 }
 

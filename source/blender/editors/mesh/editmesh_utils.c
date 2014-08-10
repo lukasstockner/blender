@@ -622,7 +622,7 @@ void EDBM_commit_scratch_to_active(Object *ob, Scene *s)
 void EDBM_update_scratch_from_active(Object *ob)
 {
 	Key *k = BKE_key_from_object(ob);
-	KeyBlock *oldorigin = k->scratch.origin;
+	/* KeyBlock *oldorigin = k->scratch.origin; */ /* UNUSED */
 	KeyBlock *neworigin = BKE_keyblock_from_object(ob);
 
 	k->scratch.origin = neworigin;
@@ -783,7 +783,7 @@ static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *obdata)
 	UndoMesh *um = umv;
 	BMesh *bm;
 	Mesh *me = obdata;
-	Key *k = me->key;
+	/* Key *k = me->key; */ /* UNUSED */
 
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(&um->me);
 

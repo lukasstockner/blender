@@ -2242,7 +2242,7 @@ static void edbm_bfs_recalc_shapes(bfs_customdata *state)
 	}
 }
 
-static char *edbm_bfs_mode_to_string(int mode)
+static const char *edbm_bfs_mode_to_string(int mode)
 {
 	if (mode == BFS_MODE_ADD)
 		return IFACE_("Add");
@@ -2251,7 +2251,7 @@ static char *edbm_bfs_mode_to_string(int mode)
 	return "ERR";
 }
 
-static char *edbm_bfs_pe_mode_to_string(int mode)
+static const char *edbm_bfs_pe_mode_to_string(int mode)
 {
 	if (mode == PROP_EDIT_OFF) {
 		return IFACE_("None");
@@ -2268,7 +2268,7 @@ static char *edbm_bfs_pe_mode_to_string(int mode)
 	return "ERR";
 }
 
-static char *edbm_bfs_falloff_to_string(int type)
+static const char *edbm_bfs_falloff_to_string(int type)
 {
 	switch (type) {
 	case PROP_SHARP:
@@ -2296,7 +2296,7 @@ static char *edbm_bfs_falloff_to_string(int type)
 	}
 }
 
-static char *edbm_bfs_get_preposition(int blend_mode)
+static const char *edbm_bfs_get_preposition(int blend_mode)
 {
 	/* We interp TOWARDS and add FROM */
 	switch (blend_mode) {
@@ -2310,7 +2310,7 @@ static char *edbm_bfs_get_preposition(int blend_mode)
 	return NULL;
 }
 
-static void edbm_bfs_draw_info(bContext *C, ARegion *ar, void *customdata)
+static void edbm_bfs_draw_info(const bContext *C, ARegion *UNUSED(ar), void *customdata)
 {
 #define BUFFER 1024 /* long keyblock names are a reality :\ */
 	char buf[BUFFER];
@@ -2440,10 +2440,10 @@ static int edbm_bfs_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	Key *k = me->key;
 	KeyBlock *kb = NULL;
 	BMEditMesh *em = me->edit_btmesh;
-	Scene *s = CTX_data_scene(C);
+	/* Scene *scene = CTX_data_scene(C); */ /* UNUSED */
 	bfs_customdata *state;
 	ToolSettings *ts = CTX_data_tool_settings(C);
-	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	/* RegionView3D *rv3d = CTX_wm_region_view3d(C); */ /* UNUSED */
 	ScrArea *ar = CTX_wm_area(C);
 	BMVert *v;
 	BMIter iter;
@@ -2481,8 +2481,8 @@ static int edbm_bfs_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	state->wh = ar->winy;
 	state->ww = ar->winx;
 
-	state->draw_handler = 
-		ED_region_draw_cb_activate(state->ar->type, edbm_bfs_draw_info, state, REGION_DRAW_POST_PIXEL);
+	state->draw_handler = ED_region_draw_cb_activate(state->ar->type, edbm_bfs_draw_info, state,
+	                                                 REGION_DRAW_POST_PIXEL);
 
 	{
 		float(*origshapeco)[3] = (float(*)[3]) state->origcos;
@@ -2497,8 +2497,8 @@ static int edbm_bfs_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		float bbox_diag[3];
 		copy_m3_m4(state->obmat, obedit->obmat);
 		zero_v3(bbox_diag);	
-		copy_v3_v3(bbox_diag, obedit->bb->vec[0]);
-		sub_v3_v3(bbox_diag, obedit->bb->vec[6]);
+		copy_v3_v3(bbox_diag, bb->vec[0]);
+		sub_v3_v3(bbox_diag, bb->vec[6]);
 		mul_m3_v3(state->obmat, bbox_diag);
 
 		state->yscale = 3.0 / 4.0 * len_v3(bbox_diag) / ar->winy;
@@ -2533,7 +2533,7 @@ static void edbm_bfs_handle_mousemove(short mx, short my, bfs_customdata *state)
 
 static void edbm_bfs_recalc_factors(bfs_customdata *state) {
 	int a;
-	Object *ob = state->em->ob;
+	/* Object *ob = state->em->ob; */ /* UNUSED */
 	RegionView3D *rv3d = (RegionView3D *) state->ar;
 	float proj_vec[3];
 
@@ -2620,7 +2620,7 @@ static int edbm_bfs_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		KeyBlock *kb;
 		case WHEELDOWNMOUSE:
 			/* switch to next shape */
-			if (kb = state->opkb->next) {
+			if ((kb = state->opkb->next)) {
 				if (kb == BKE_keyblock_from_object(state->em->ob)) {
 					/* skip active kb */
 					if (kb->next)
@@ -2638,7 +2638,7 @@ static int edbm_bfs_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 		case WHEELUPMOUSE:
 			/* switch to prev shape */
-			if (kb = state->opkb->prev) {
+			if ((kb = state->opkb->prev)) {
 				if (kb == BKE_keyblock_from_object(state->em->ob)) {
 					/* skip active kb */
 					if (kb->prev)
@@ -2803,13 +2803,12 @@ static int shape_key_commit_to_another_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	KeyBlock *act_kb = BKE_keyblock_from_object(obedit);
 	int tgt_shape_idx = RNA_enum_get(op->ptr, "shape");
-	int totkey = BLI_countlist(&k->block);
 	KeyBlock *tgt_kb = BLI_findlink(&k->block, tgt_shape_idx);
 
 	if (tgt_shape_idx == obedit->shapenr - 1)
 		return OPERATOR_FINISHED;
 
-	BLI_assert(totkey > 1);
+	BLI_assert(BLI_countlist(&k->block) > 1);
 
 	/* forbid if some of the sizes are different */
 	if (act_kb->totelem != tgt_kb->totelem || tgt_kb->totelem != em->bm->totvert || act_kb->totelem != em->bm->totvert) {
