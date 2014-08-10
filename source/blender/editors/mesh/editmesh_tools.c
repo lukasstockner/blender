@@ -2417,6 +2417,7 @@ static void edbm_bfs_draw_info(bContext *C, ARegion *ar, void *customdata)
 }
 
 
+#if 0  /* Unused */
 static uiBlock *edbm_bfs_create_shapeselector(bContext *C, ARegion *ar, void *arg_op)
 {
 	uiBlock *block;
@@ -2428,7 +2429,9 @@ static uiBlock *edbm_bfs_create_shapeselector(bContext *C, ARegion *ar, void *ar
 
 	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, 15 * UI_UNIT_X, UI_UNIT_Y, 0, UI_GetStyle());
 
+	return block;
 }
+#endif
 
 static int edbm_bfs_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
