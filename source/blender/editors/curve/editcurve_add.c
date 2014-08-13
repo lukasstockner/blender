@@ -136,6 +136,7 @@ Nurb *add_nurbs_primitive(bContext *C, Object *obedit, float mat[4][4], int type
 		nu->type = cutype;
 		nu->resolu = cu->resolu;
 		nu->resolv = cu->resolv;
+		nu->editknot = NULL;
 	}
 
 	switch (stype) {

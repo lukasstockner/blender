@@ -264,6 +264,7 @@ static Nurb *nurb_from_ON_NurbsCurve(ON_NurbsCurve *nc) {
 	nu->pntsv = 1;
 	nu->orderu = nc->Order();
 	nu->orderv = 1;
+	nu->editknot = NULL;
 	BLI_assert(nu->pntsu + nu->orderu - 2 == nc->KnotCount());
 	BPoint *bp = nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * ((nu->pntsu) * 1), "rhino_imported_NURBS_curve_points");
 	nu->knotsu = (float *)MEM_callocN(sizeof(float) * ((nu->pntsu+nu->orderu) * 1), "rhino_imported_NURBS_curve_points");
@@ -648,6 +649,7 @@ static Nurb* rhino_import_nurbs_surf(bContext *C,
 	nu->pntsv = surf->CVCount(1);
 	nu->orderu = surf->Order(0);
 	nu->orderv = surf->Order(1);
+	nu->editknot = NULL;
 	if (surf->IsPeriodic(0))
 		nu->flagu |= CU_NURB_CYCLIC;
 	if (surf->IsPeriodic(1))

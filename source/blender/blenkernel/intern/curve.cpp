@@ -466,18 +466,8 @@ void BKE_curve_texspace_get(Curve *cu, float r_loc[3], float r_rot[3], float r_s
 
 struct NurbEditKnot* BKE_nurbs_editKnot_get(struct Nurb *nu) {
 	if (nu->editknot) return nu->editknot;
-	int capu=KNOTSU(nu), capv=KNOTSV(nu);
-	NurbEditKnot* ek = nu->editknot = (NurbEditKnot*)MEM_mallocN(sizeof(NurbEditKnot),"NURBS_editknot");
-	int bytes_per_knot = sizeof(float) + sizeof(int) + sizeof(int);
-	uint8_t *ubuf = (uint8_t*)MEM_mallocN(capu*bytes_per_knot, "NURBS_editknot_u");
-	uint8_t *vbuf = (uint8_t*)MEM_mallocN(capv*bytes_per_knot, "NURBS_editknot_v");
-	ek->breaksu = (float*)ubuf;
-	ek->multiplicityu = (int*)(ubuf + capu*sizeof(float));
-	ek->flagu = (int*)(ubuf + capu*sizeof(float) + capu*sizeof(int));
-	ek->breaksv = (float*)vbuf;
-	ek->multiplicityv = (int*)(vbuf + capv*sizeof(float));
-	ek->flagv = (int*)(vbuf + capv*sizeof(float) + capv*sizeof(int));
-	return ek;
+	BKE_nurbs_editKnot_propagate_nurb2ek(nu);
+	return nu->editknot;
 }
 
 void BKE_nurbs_editKnot_propagate_ek2nurb(struct Nurb *nu) {
@@ -486,10 +476,7 @@ void BKE_nurbs_editKnot_propagate_ek2nurb(struct Nurb *nu) {
 	int ek_knotu=0, ek_knotv=0;
 
 	for (int i=0; i<ek->num_breaksu; i++) ek_knotu += ek->multiplicityu[i];
-	if (KNOTSU(nu)<ek_knotu || !nu->knotsu) {
-		if (nu->knotsu) MEM_freeN(nu->knotsu);
-		nu->knotsu = (float*)MEM_mallocN(sizeof(float)*ek_knotu,"NURBS_edk_prop_u");
-	}
+	BLI_assert(KNOTSU(nu)==ek_knotu);
 	for (int i=0,flatidx=0; i<ek->num_breaksu; i++) {
 		int mult = ek->multiplicityu[i];
 		float breakpt = ek->breaksu[i];
@@ -498,10 +485,7 @@ void BKE_nurbs_editKnot_propagate_ek2nurb(struct Nurb *nu) {
 	}
 
 	for (int i=0; i<ek->num_breaksv; i++) ek_knotv += ek->multiplicityv[i];
-	if (KNOTSV(nu)<ek_knotv || !nu->knotsv) {
-		if (nu->knotsv) MEM_freeN(nu->knotsv);
-		nu->knotsv = (float*)MEM_mallocN(sizeof(float)*ek_knotv,"NURBS_edk_prop_v");
-	}
+	BLI_assert(KNOTSV(nu)==ek_knotv);
 	for (int i=0,flatidx=0; i<ek->num_breaksv; i++) {
 		int mult = ek->multiplicityv[i];
 		float breakpt = ek->breaksv[i];
@@ -510,12 +494,18 @@ void BKE_nurbs_editKnot_propagate_ek2nurb(struct Nurb *nu) {
 	}
 }
 
+/* Maintains flags for knots at a given location across knot update */
 void BKE_nurbs_editKnot_propagate_nurb2ek(struct Nurb *nu) {
-	NurbEditKnot* ek = nu->editknot;
-	if (!ek) ek = nu->editknot = (NurbEditKnot*)MEM_callocN(sizeof(*ek),"NURBS_editknot_prop");
-	float *old_breaksu=ek->breaksu, *old_breaksv=ek->breaksv;
-	int *old_flagu=ek->flagu, *old_flagv=ek->flagv;
-	int old_idx=0, old_num_breaksu=ek->num_breaksu, old_num_breaksv=ek->num_breaksv;
+	NurbEditKnot *ek = nu->editknot;
+	NurbEditKnot old_ek;
+	bool update_ek;
+	if (ek) {
+		old_ek = *ek;
+		update_ek = true;
+	} else {
+		ek = nu->editknot = (NurbEditKnot*)MEM_callocN(sizeof(*ek),"NURBS_editknot_prop");
+		update_ek = false;
+	}
 	int bytes_per_knot = sizeof(float) + sizeof(int) + sizeof(int);
 
 	int capu = ek->capu = KNOTSU(nu);
@@ -523,41 +513,64 @@ void BKE_nurbs_editKnot_propagate_nurb2ek(struct Nurb *nu) {
 	ek->breaksu = (float*)ubuf;
 	ek->multiplicityu = (int*)(ubuf + capu*sizeof(float));
 	ek->flagu = (int*)(ubuf + capu*sizeof(float) + capu*sizeof(int));
-	float last_knot=INFINITY; old_idx=0;
-	for (int i=0,breakidx=-1; i<KNOTSU(nu); i++) {
+	float last_knot=INFINITY;
+	int old_idx=0, breakidx=-1;
+	for (int i=0; i<KNOTSU(nu); i++) {
 		float knot = nu->knotsu[i];
 		if (knot!=last_knot) {
 			breakidx += 1;
 			last_knot = knot;
 		}
-		while (old_breaksu[old_idx]<knot && old_idx<old_num_breaksu) old_idx++;
-		if (old_breaksu[old_idx]==knot)
-			ek->flagu[breakidx] = old_flagu[old_idx];
+		if (update_ek) { /* try to propagate SELECT etc from old ek to new ek */
+			while (old_ek.breaksu[old_idx]<knot && old_idx<old_ek.num_breaksu)
+				old_idx++;
+			if (old_ek.breaksu[old_idx]==knot)
+				ek->flagu[breakidx] = old_ek.flagu[old_idx];
+		}
 		ek->breaksu[breakidx] = knot;
 		ek->multiplicityu[breakidx] += 1;
 	}
+	ek->num_breaksu = breakidx+1;
 
 	int capv = ek->capv = KNOTSV(nu);
 	uint8_t *vbuf = (uint8_t*)MEM_callocN(capv*bytes_per_knot, "NURBS_editknot_v");
 	ek->breaksv = (float*)vbuf;
 	ek->multiplicityv = (int*)(vbuf + capv*sizeof(float));
 	ek->flagv = (int*)(vbuf + capv*sizeof(float) + capv*sizeof(int));
-	last_knot=INFINITY; old_idx=0;
-	for (int i=0,breakidx=-1; i<KNOTSV(nu); i++) {
+	last_knot=INFINITY;
+	old_idx=0; breakidx=-1;
+	for (int i=0; i<KNOTSV(nu); i++) {
 		float knot = nu->knotsv[i];
 		if (knot!=last_knot) {
 			breakidx += 1;
 			last_knot = knot;
 		}
-		while (old_breaksv[old_idx]<knot && old_idx<old_num_breaksv) old_idx++;
-		if (old_breaksv[old_idx]==knot)
-			ek->flagv[breakidx] = old_flagv[old_idx];
+		if (update_ek) { /* try to propagate SELECT etc from old ek to new ek */
+			while (old_ek.breaksv[old_idx]<knot && old_idx<old_ek.num_breaksv)
+				old_idx++;
+			if (old_ek.breaksv[old_idx]==knot)
+				ek->flagv[breakidx] = old_ek.flagv[old_idx];
+		}
 		ek->breaksv[breakidx] = knot;
 		ek->multiplicityv[breakidx] += 1;
 	}
+	ek->num_breaksv = breakidx+1;
 
-	if (old_breaksu) MEM_freeN(old_breaksu);
-	if (old_breaksv) MEM_freeN(old_breaksv);
+	if (update_ek) {
+		MEM_freeN(old_ek.breaksu);
+		MEM_freeN(old_ek.breaksv);
+	}
+	
+//	printf("U: Propagated {");
+//	for (int i=0; i<KNOTSU(nu); i++) printf("%3.1f ",nu->knotsu[i]);
+//	printf("} -> {");
+//	for (int i=0; i<ek->num_breaksu; i++) printf("%3.1fx%i ",ek->breaksu[i],ek->multiplicityu[i]);
+//	printf("}\n");
+//	printf("V: Propagated {");
+//	for (int i=0; i<KNOTSV(nu); i++) printf("%3.1f ",nu->knotsv[i]);
+//	printf("} -> {");
+//	for (int i=0; i<ek->num_breaksv; i++) printf("%3.1fx%i ",ek->breaksv[i],ek->multiplicityv[i]);
+//	printf("}\n");
 }
 
 void BKE_nurbs_editKnot_destroy(struct Nurb *nu) {
@@ -657,6 +670,7 @@ void BKE_nurb_free(Nurb *nu)
 	
 	if (nu->UV_idxs) MEM_freeN(nu->UV_idxs);
 	if (nu->UV_verts) MEM_freeN(nu->UV_verts);
+	if (nu->editknot) BKE_nurbs_editKnot_destroy(nu);
 
 	MEM_freeN(nu);
 }
@@ -725,6 +739,7 @@ Nurb *BKE_nurb_duplicate(Nurb *nu)
 		BLI_addtail(&newnu->trims, dup_nt);
 	}
 	BKE_nurb_clear_cached_UV_mesh(newnu,false);
+	newnu->editknot = NULL;
 
 	return newnu;
 }
@@ -752,6 +767,7 @@ Nurb *BKE_nurb_copy(Nurb *src, int pntsu, int pntsv)
 		BLI_addtail(&newnu->trims, dup_nt);
 	}
 	BKE_nurb_clear_cached_UV_mesh(newnu,false);
+	newnu->editknot = NULL;
 
 	return newnu;
 }
@@ -777,7 +793,7 @@ int BKE_nurbTrim_tess(struct NurbTrim *nt, int resolution, float (**uv_out)[2]) 
 		BPoint *bp = nu->bp;
 		int orderu = nu->orderu;
 		float umin, umax;
-		BKE_nurb_domain(nu, &umin, &umax, NULL, NULL);
+		BKE_nurbs_domain(nu, &umin, &umax, NULL, NULL);
 		float du = (umax-umin)/(tess_pts-1);
 		for (int i=0; i<tess_pts; i++) {
 			BPoint pt;
@@ -4152,7 +4168,14 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 	r_rect->ymin = r_rect->ymax - tb->h;
 }
 
-void BKE_nurb_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax) {
+void BKE_nurbs_uvbounds(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax) {
+	*umin = nu->knotsu[0];
+	*umax = nu->knotsu[KNOTSU(nu)-1];
+	*vmin = nu->knotsv[0];
+	*vmax = nu->knotsv[KNOTSV(nu)-1];
+}
+
+void BKE_nurbs_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax) {
 	*umin = nu->knotsu[nu->orderu - 1];
 	if (nu->flagu & CU_NURB_CYCLIC)
 		*umax = nu->knotsu[nu->pntsu + nu->orderu - 1];
@@ -4174,7 +4197,7 @@ void BKE_nurb_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, flo
 GridMesh *BKE_nurb_compute_trimmed_GridMesh(struct Nurb* nu) {
 	// Figure out the domain
 	float ustart,uend,vstart,vend;
-	BKE_nurb_domain(nu,&ustart,&uend,&vstart,&vend);
+	BKE_nurbs_domain(nu,&ustart,&uend,&vstart,&vend);
 	int totu_knot = round(uend-ustart)*nu->resolu;
 	int totv_knot = round(vend-vstart)*nu->resolv;
 	int totu_geom = (nu->pntsu-1)*nu->resolu;

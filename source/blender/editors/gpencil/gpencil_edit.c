@@ -892,6 +892,7 @@ static void gp_stroke_to_path(bContext *C, bGPDlayer *gpl, bGPDstroke *gps, Curv
 		nu->resolu = cu->resolu;
 		nu->resolv = cu->resolv;
 		nu->knotsu = NULL;
+		nu->editknot = NULL;
 
 		nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * nu->pntsu, "bpoints");
 
@@ -1100,6 +1101,7 @@ static void gp_stroke_to_bezier(bContext *C, bGPDlayer *gpl, bGPDstroke *gps, Cu
 		nu->resolv = 12;
 		nu->type = CU_BEZIER;
 		nu->bezt = (BezTriple *)MEM_callocN(sizeof(BezTriple) * nu->pntsu, "bezts");
+		nu->editknot = NULL;
 
 		stitch = false; /* Security! */
 	}

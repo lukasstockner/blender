@@ -1472,6 +1472,11 @@ void ED_curve_select_swap(EditNurb *editnurb, bool hide_handles)
 	}
 }
 
+/* Each Nurb object keeps track of the selected points on its control polygon.
+ * This information is also used to decide which nurbs to show in the UV editor.
+ * A Nurb is shown iff it has one or more of its BPoints selected.
+ * The CU_SELECTED2 flag of nu->flag2 is where this data is stored.
+ */
 void ED_curve_propagate_selected_pts_to_flag2(EditNurb *editnurb) {
 	Nurb *nu;
 	int numpts, i;
@@ -5063,9 +5068,11 @@ static int addvert_Nurb(bContext *C, short mode, float location[3])
 					newnu->type = CU_BEZIER;
 					newnu->resolu = cu->resolu;
 					newnu->flag |= CU_SMOOTH;
+					newnu->editknot = NULL;
 				}
 				else {
 					memcpy(newnu, nu, sizeof(Nurb));
+					newnu->editknot = NULL;
 				}
 
 				BLI_addtail(&editnurb->nurbs, newnu);
@@ -5100,6 +5107,7 @@ static int addvert_Nurb(bContext *C, short mode, float location[3])
 				newnu->bp = newbp;
 				newnu->orderu = 2;
 				newnu->pntsu = 1;
+				newnu->editknot = NULL;
 
 				mul_v3_m4v3(newbp->vec, imat, location);
 				newbp->vec[3] = 1.0;
@@ -5169,6 +5177,7 @@ static int addvert_Nurb(bContext *C, short mode, float location[3])
 			BLI_addtail(&editnurb->nurbs, newnu);
 			newnu->bezt = newbezt;
 			newnu->pntsu = 1;
+			newnu->editknot = NULL;
 
 			nu = newnu;
 			bezt = newbezt;
@@ -5246,6 +5255,7 @@ static int addvert_Nurb(bContext *C, short mode, float location[3])
 			newnu->orderu = 2;
 			newnu->pntsu = 1;
 			newnu->knotsu = newnu->knotsv = NULL;
+			newnu->editknot = NULL;
 
 			nu = newnu;
 			bp = newbp;

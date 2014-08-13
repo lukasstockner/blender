@@ -927,9 +927,12 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	float x_view, y_view; /* XY in view (local, normalized) coord systems */
 	int x_region, y_region; /* XY in window coord systems */
 	int xmax_region, ymax_region, resoltrim;
+	int bot_tweak, top_tweak, left_tweak, right_tweak, line_width;
+	GLint quad_in[4][2];
 	double regionx2viewx, regiony2viewy;
 	float widget_unit, trash, fonth, fontw;
-	float umin,vmin,umax,vmax;
+	int umin,vmin,umax,vmax;
+	float uminf,vminf,umaxf,vmaxf;
 	char lbl[128];
 	unsigned char col1[4], col2[4];
 	float (*trim_uv_pnts)[2];
@@ -1001,38 +1004,50 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	glEnable(GL_BLEND);
 	glColor4ubv(col1);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
-		BKE_nurb_domain(nu, &umin, &umax, &vmin, &vmax);
-		glRectf(umin,vmin,umax,vmax);
+		BKE_nurbs_domain(nu, &uminf, &umaxf, &vminf, &vmaxf);
+		glRectf(uminf,vminf,umaxf,vmaxf);
 	}
 	glDisable(GL_BLEND);
 		
-	/******* (Normalized Coordinates) draw knot grid *********/
+	/******* (Pixel Coordinates) draw knot grid *********/
+	UI_view2d_view_restore(C);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	glBegin(GL_QUADS);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		NurbEditKnot *ek = BKE_nurbs_editKnot_get(nu);
-		vmin = ek->breaksv[0];
-		vmax = ek->breaksv[ek->num_breaksv-1];
-		umin = ek->breaksu[0];
-		umax = ek->breaksu[ek->num_breaksu-1];
-		UI_ThemeColor(TH_NURB_VLINE);
+		UI_view2d_view_to_region(&ar->v2d, ek->breaksu[0], ek->breaksv[0], &umin, &vmin);
+		UI_view2d_view_to_region(&ar->v2d, ek->breaksu[ek->num_breaksu-1], ek->breaksv[ek->num_breaksv-1], &umax, &vmax);
 		for (i=0; i<ek->num_breaksu; i++)  {
-			glLineWidth(ek->multiplicityu[i]);
-			glBegin(GL_LINE);
-			glVertex2f(nu->knotsu[i], vmin);
-			glVertex2f(nu->knotsu[i], vmax);
-			glEnd();
+			line_width = ek->multiplicityu[i];
+			UI_ThemeColor((ek->flagu[i]&SELECT)? TH_NURB_SEL_VLINE : TH_NURB_VLINE);
+			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[i], 0, &x_region, &y_region);
+			glVertex2i(x_region,            vmin);
+			glVertex2i(x_region+line_width, vmin);
+			glVertex2i(x_region+line_width, vmax);
+			glVertex2i(x_region,            vmax);
 		}
-		UI_ThemeColor(TH_NURB_ULINE);
-		j = KNOTSV(nu);
-		for (i=0; i<j; i++) {
-			glLineWidth(ek->multiplicityv[i]);
-			glBegin(GL_LINE);
-			glVertex2f(umin, nu->knotsv[i]);
-			glVertex2f(umax, nu->knotsv[i]);
-			glEnd();
+		for (i=0; i<ek->num_breaksv; i++) {
+			line_width = ek->multiplicityv[i];
+			UI_ThemeColor((ek->flagv[i]&SELECT)? TH_NURB_SEL_ULINE : TH_NURB_ULINE);
+			UI_view2d_view_to_region(&ar->v2d, 0, ek->breaksv[i], &x_region, &y_region);
+			if (i==0 || i==ek->num_breaksv-1) {
+				glVertex2i(umin,                                      y_region);
+				glVertex2i(umax+ek->multiplicityu[ek->num_breaksu-1], y_region);
+				glVertex2i(umax+ek->multiplicityu[ek->num_breaksu-1], y_region+line_width);
+				glVertex2i(umin,                                      y_region+line_width);
+			} else {
+				glVertex2i(umin+ek->multiplicityu[0], y_region);
+				glVertex2i(umax,                      y_region);
+				glVertex2i(umax,                      y_region+line_width);
+				glVertex2i(umin,                      y_region+line_width);
+			}
 		}
 	}
+	glEnd();
+	glLineWidth(1);
 		
 	/******* (Normalized Coordinates) draw trim curves *********/
+	UI_view2d_view_ortho(&ar->v2d);
 	glBegin(GL_LINE_STRIP);
 	UI_ThemeColor(TH_WIRE);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
@@ -1047,6 +1062,8 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	}
 	glEnd();
 
+	if (glGetError()!=GL_NO_ERROR)
+		printf("ERR! %i\n",glGetError());
 	/******* (Normalized Coordinates) draw trim control polygon *********/
 	glBegin(GL_LINE_STRIP);
 	UI_ThemeColor(TH_WIRE_EDIT);
@@ -1063,6 +1080,8 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	}
 	glEnd();
 
+	if (glGetError()!=GL_NO_ERROR)
+		printf("ERR! %i\n",glGetError());
 	/******* (Normalized Coordinates) draw handles for control polygon *********/
 	glPointSize(3);
 	glBegin(GL_POINTS);
@@ -1082,13 +1101,15 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	
 	glEnd();
 	glPointSize(1);
+	if (glGetError()!=GL_NO_ERROR)
+		printf("ERR! %i\n",glGetError());
 
 }
 
 void draw_uvedit_main(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedit, Object *obact)
 {
 	ToolSettings *toolsettings = scene->toolsettings;
-	int show_uvedit, show_uvshadow, show_texpaint_uvshadow;
+	int show_uvedit, show_uvshadow, show_texpaint_uvshadow, show_nurbuv;
 
 	if (obact && obact->type == OB_MESH) {
 		show_texpaint_uvshadow = (obact && obact->type == OB_MESH && obact->mode == OB_MODE_TEXTURE_PAINT);
@@ -1107,8 +1128,12 @@ void draw_uvedit_main(const struct bContext *C, SpaceImage *sima, ARegion *ar, S
 				draw_image_cursor(ar, sima->cursor);
 		}
 	} else if (obedit && obedit->type == OB_SURF) {
-		draw_nurbuv(C, sima, ar, scene, obedit, obact);
-		draw_image_cursor(ar, sima->cursor);
+		show_nurbuv = ED_space_image_show_nurbsuv(sima, obedit);
+		if (show_nurbuv) {
+			sima->flag |= SI_COORDFLOATS; /* always display NURBS uv coords, not px coords */
+			draw_nurbuv(C, sima, ar, scene, obedit, obact);
+			draw_image_cursor(ar, sima->cursor);
+		}
 	}
 }
 

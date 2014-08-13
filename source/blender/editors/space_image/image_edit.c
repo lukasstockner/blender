@@ -302,6 +302,17 @@ bool ED_space_image_show_paint(SpaceImage *sima)
 	return (sima->mode == SI_MODE_PAINT);
 }
 
+bool ED_space_image_show_nurbsuv(SpaceImage *sima, Object *obedit)
+{
+	if (sima && (ED_space_image_show_render(sima) || ED_space_image_show_paint(sima)))
+		return 0;
+
+	if (obedit && obedit->type == OB_SURF)
+		return 1;
+
+	return 0;
+}
+
 bool ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 {
 	if (sima && (ED_space_image_show_render(sima) || ED_space_image_show_paint(sima)))
@@ -314,10 +325,6 @@ bool ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 		ret = EDBM_mtexpoly_check(em);
 
 		return ret;
-	}
-	
-	if (obedit && obedit->type == OB_CURVE) {
-		
 	}
 
 	return 0;

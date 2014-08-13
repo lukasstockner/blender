@@ -1652,6 +1652,7 @@ void BKE_mesh_to_curve_nurblist(DerivedMesh *dm, ListBase *nurblist, const int e
 				nu->orderu = 4;
 				nu->flagu = CU_NURB_ENDPOINT | (closed ? CU_NURB_CYCLIC : 0);  /* endpoint */
 				nu->resolu = 12;
+				nu->editknot = NULL;
 
 				nu->bp = (BPoint *)MEM_callocN(sizeof(BPoint) * totpoly, "bpoints");
 

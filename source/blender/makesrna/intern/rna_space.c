@@ -674,6 +674,13 @@ static int rna_SpaceImageEditor_show_paint_get(PointerRNA *ptr)
 	return ED_space_image_show_paint(sima);
 }
 
+static int rna_SpaceImageEditor_show_nurbsuv_get(PointerRNA *ptr)
+{
+	SpaceImage *sima = (SpaceImage *)(ptr->data);
+	bScreen *sc = (bScreen *)ptr->id.data;
+	return ED_space_image_show_nurbsuv(sima, sc->scene->obedit);
+}
+
 static int rna_SpaceImageEditor_show_uvedit_get(PointerRNA *ptr)
 {
 	SpaceImage *sima = (SpaceImage *)(ptr->data);
@@ -2438,7 +2445,12 @@ static void rna_def_space_image(BlenderRNA *brna)
 	RNA_def_property_boolean_funcs(prop, "rna_SpaceImageEditor_show_uvedit_get", NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Show UV Editor", "Show UV editing related properties");
-
+	
+	prop = RNA_def_property(srna, "show_nurbsuv", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_SpaceImageEditor_show_nurbsuv_get", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Show NURBS UV Editor", "Show UV editing related properties for NURBS surfaces");
+	
 	prop = RNA_def_property(srna, "show_maskedit", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_funcs(prop, "rna_SpaceImageEditor_show_maskedit_get", NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

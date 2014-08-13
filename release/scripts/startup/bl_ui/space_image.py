@@ -584,7 +584,7 @@ class IMAGE_PT_view_properties(Panel):
     @classmethod
     def poll(cls, context):
         sima = context.space_data
-        return (sima and (sima.image or sima.show_uvedit))
+        return (sima and (sima.image or sima.show_uvedit or sima.show_nurbsuv))
 
     def draw(self, context):
         layout = self.layout
@@ -593,6 +593,7 @@ class IMAGE_PT_view_properties(Panel):
         ima = sima.image
         show_uvedit = sima.show_uvedit
         show_maskedit = sima.show_maskedit
+        show_nurbsuv = sima.show_nurbsuv
         uvedit = sima.uv_editor
 
         split = layout.split()
@@ -611,7 +612,7 @@ class IMAGE_PT_view_properties(Panel):
             col.label(text="Coordinates:")
             col.prop(uvedit, "show_normalized_coords", text="Normalized")
 
-        if show_uvedit or show_maskedit:
+        if show_uvedit or show_maskedit or show_nurbsuv:
             col = layout.column()
             col.label("Cursor Location:")
             col.row().prop(sima, "cursor_location", text="")

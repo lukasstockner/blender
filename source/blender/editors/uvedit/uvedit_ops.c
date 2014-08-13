@@ -45,6 +45,7 @@
 #include "DNA_image_types.h"
 #include "DNA_space_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_curve_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_alloca.h"
@@ -65,6 +66,7 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_editmesh.h"
+#include "BKE_curve.h"
 
 #include "ED_image.h"
 #include "ED_mesh.h"
@@ -113,7 +115,13 @@ static int ED_operator_uvedit_can_uv_sculpt(struct bContext *C)
 	ToolSettings *toolsettings = CTX_data_tool_settings(C);
 	Object *obedit = CTX_data_edit_object(C);
 
-	return ED_space_image_show_uvedit(sima, obedit) && !(toolsettings->use_uv_sculpt);
+	if (ED_space_image_show_nurbsuv(sima,obedit))
+		return 1;
+
+	if (ED_space_image_show_uvedit(sima, obedit) && !(toolsettings->use_uv_sculpt))
+		return 1;
+
+	return 0;
 }
 
 static int UNUSED_FUNCTION(ED_operator_uvmap_mesh) (bContext *C)
@@ -2254,14 +2262,116 @@ static int uv_mouse_select(bContext *C, const float co[2], bool extend, bool loo
 	return OPERATOR_PASS_THROUGH | OPERATOR_FINISHED;
 }
 
+/* Minimum square distance between co (mouse click coords)
+ * and the line defined by points (u,vmin),(u,vmax). */
+static double dist2_ubreak(const float co[2], double u, double vmin, double vmax) {
+	if (co[1]<vmin) return (co[0]-u)*(co[0]-u) + (co[1]-vmin)*(co[1]-vmin);
+	if (co[1]>vmax) return (co[0]-u)*(co[0]-u) + (co[1]-vmax)*(co[1]-vmax);
+	return (co[0]-u)*(co[0]-u);
+}
+
+/* Minimum square distance between co (mouse click coords)
+ * and the line defined by points (u,vmin),(u,vmax). */
+static double dist2_vbreak(const float co[2], double v, double umin, double umax) {
+	if (co[0]<umin) return (co[0]-umin)*(co[0]-umin) + (co[1]-v)*(co[1]-v);
+	if (co[0]>umax) return (co[0]-umax)*(co[0]-umax) + (co[1]-v)*(co[1]-v);
+	return (co[1]-v)*(co[1]-v);
+}
+
+static double dist2_pt_lineseg(const float co[2], double a1, double a2, double b1, double b2) {
+	/* Let d be the closest point to co on the line running through a,b.
+	 * x is such that d=x*a+(1-x)*b */
+	double x,x1,x2;
+	x = (co[0]+co[1]-b1-b2)*(a1-b1)/((a1-b1)*(a1-b1)+(a2-b2)*(a2-b2));
+	if (x<0) x=0;
+	if (x>1) x=1;
+	x1 = x*a1 + (1-x)*b1;
+	x2 = x*a2 + (1-x)*b2;
+	return (co[0]-x1)*(co[0]-x1) + (co[1]-x2)*(co[1]-x2);
+}
+
+static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend, bool loop) {
+	struct Object *editobj;
+	Curve *cu;
+	Nurb *nu;
+	NurbEditKnot* ek;
+	NurbTrim *nt;
+	/* Smallest difference between co[0] and a {u,v} breakpoint / trim */
+	double u=INFINITY,v=INFINITY,trim=INFINITY;
+	Nurb *nearest_u, *nearest_v;
+	NurbTrim *nearest_trim;
+	/* The index of said nearest breakpoint or trim*/
+	int u_bkp=-1,v_bkp=-1,i;
+	int num_trim_verts;
+	float (*trim_verts)[2];
+	float umin,umax,vmin,vmax;
+	double dist;
+
+	editobj = CTX_data_edit_object(C);
+	BLI_assert(editobj->type==OB_SURF);
+	cu = (Curve*)editobj->data;
+	BLI_assert(cu->editnurb);
+	nearest_trim = NULL;
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		/* if (!(nu->flag2 & ~CU_SELECTED2)) continue; */
+		ek = BKE_nurbs_editKnot_get(nu);
+		BKE_nurbs_uvbounds(nu, &umin, &umax, &vmin, &vmax);
+		/* Figure out nearest u break to click co */
+		for (i=0; i<ek->num_breaksu; i++) {
+			dist = dist2_ubreak(co, ek->breaksu[i], vmin, vmax);
+			if (dist<u) {
+				u=dist;
+				nearest_u=nu;
+				u_bkp=i;
+			}
+		}
+		/* Figure out nearest v break to click co */
+		for (i=0; i<ek->num_breaksv; i++) {
+			dist = dist2_vbreak(co, ek->breaksv[i], umin, umax);
+			if (dist<v) {
+				v=dist;
+				nearest_v=nu;
+				v_bkp=i;
+			}
+		}
+		/* Figure out nearest trim control polygon to click co */
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			num_trim_verts = BKE_nurbTrim_tess(nt, nu->resol_trim, &trim_verts);
+			for (i=0; i<num_trim_verts-1; i++) {
+				dist = dist2_pt_lineseg(co, trim_verts[i][0], trim_verts[i][1], trim_verts[i+1][0], trim_verts[i+1][1]);
+				if (dist<trim) {
+					trim = dist;
+					nearest_trim = nt;
+				}
+			}
+		}
+	}
+	if (u<=v && u<=trim && u<INFINITY) {
+		nearest_u->editknot->flagu[u_bkp] ^= SELECT;
+		printf("Nu:0x%lx Ek:0x%lx flagu[%i]<-%i\n",nearest_u,nearest_u->editknot,u_bkp,nearest_u->editknot->flagu[u_bkp]);
+	} else if (v<=u && v<= trim && v<INFINITY) {
+		nearest_v->editknot->flagu[v_bkp] ^= SELECT;
+	} else if (trim<=u && trim<=v && trim<INFINITY) {
+		
+	}
+	printf("u:%f v:%f tr:%f\n",u,v,trim);
+	return OPERATOR_FINISHED;
+}
+
 static int uv_select_exec(bContext *C, wmOperator *op)
 {
 	float co[2];
 	bool extend, loop;
-
+	Object *obedit;
+	
+	obedit = CTX_data_edit_object(C);
 	RNA_float_get_array(op->ptr, "location", co);
 	extend = RNA_boolean_get(op->ptr, "extend");
 	loop = false;
+
+	if (obedit && obedit->type==OB_SURF) {
+		return nurbsuv_mouse_select(C, co, extend, loop);
+	}
 
 	return uv_mouse_select(C, co, extend, loop);
 }
@@ -3826,7 +3936,10 @@ static void UV_OT_reveal(wmOperatorType *ot)
 
 static int uv_set_2d_cursor_poll(bContext *C)
 {
-	return ED_operator_uvedit_space_image(C) ||
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Object *obedit = CTX_data_edit_object(C);
+	return (sima && ED_space_image_show_uvedit(sima, obedit)) ||
+	       (sima && ED_space_image_show_nurbsuv(sima, obedit)) ||
 	       ED_space_image_maskedit_poll(C);
 }
 

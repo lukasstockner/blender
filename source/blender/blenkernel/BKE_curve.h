@@ -183,7 +183,8 @@ struct Nurb *BKE_nurb_copy(struct Nurb *src, int pntsu, int pntsv);
 
 void BKE_nurb_ensure2D(struct Nurb *nu);
 void BKE_nurb_minmax(struct Nurb *nu, bool use_radius, float min[3], float max[3]);
-void BKE_nurb_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax);
+void BKE_nurbs_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax);
+void BKE_nurbs_uvbounds(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax);
 
 void BKE_nurb_makeFaces(struct Nurb *nu, float *coord_array, int rowstride, int resolu, int resolv);
 void BKE_nurb_makeCurve(struct Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array, int resolu, int stride);
