@@ -55,7 +55,7 @@ void ED_curve_transform(struct Curve *cu, float mat[4][4]);
 void ED_curve_deselect_all(struct EditNurb *editnurb);
 void ED_curve_select_all(struct EditNurb *editnurb);
 void ED_curve_select_swap(struct EditNurb *editnurb, bool hide_handles);
-void ED_curve_propagate_selected_pts_to_flag2(struct EditNurb *editnurb);
+void ED_curve_propagate_selected_pts_to_flag2(struct Curve *cu);
 
 void    undo_push_curve(struct bContext *C, const char *name);
 ListBase *object_editcurve_get(struct Object *ob);

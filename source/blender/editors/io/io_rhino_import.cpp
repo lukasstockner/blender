@@ -606,15 +606,16 @@ static Curve* rhino_import_nurbs_surf_start(bContext *C,
 static void rhino_import_nurbs_surf_end(bContext *C) {
 	Curve *cu = (Curve*)CTX_data_edit_object(C)->data;
 	float cent[3];
-	BKE_curve_center_median(cu, cent);
-	copy_v3_v3(cu->loc, cent);
-	mul_v3_fl(cent, -1);
-	BKE_curve_translate(cu, cent, false);
+//	BKE_curve_center_median(cu, cent);
+//	copy_v3_v3(cu->loc, cent);
+//	mul_v3_fl(cent, -1);
+//	BKE_curve_translate(cu, cent, false);
 	ED_object_editmode_exit(C, EM_FREEDATA);
 	printf("nurbssurf done\n");
 }
 
 static void nurb_normalize_knots(Nurb *nu) {
+	printf("\tnormalizing knots\n");
 	normalize_knots(nu, 'u');
 	normalize_knots(nu, 'v');
 	BKE_nurb_knot_calc_u(nu);
@@ -675,10 +676,12 @@ static Nurb* rhino_import_nurbs_surf(bContext *C,
 	int i=1; for (int l=nu->pntsu+nu->orderu-1; i<l; i++) {
 		nu->knotsu[i] = surf->Knot(0,i-1);
 	}
+	nu->knotsu[0] =nu->knotsu[1];
 	nu->knotsu[i] = nu->knotsu[i-1];
 	i=1; for (int l=nu->pntsv+nu->orderv-1; i<l; i++) {
 		nu->knotsv[i] = surf->Knot(1,i-1);
 	}
+	nu->knotsv[0] = nu->knotsv[1];
 	nu->knotsv[i] = nu->knotsv[i-1];
 	nu->flagu = analyze_knots(nu->knotsu, nu->pntsu+nu->orderu, nu->orderu, surf->IsPeriodic(0));
 	nu->flagv = analyze_knots(nu->knotsv, nu->pntsv+nu->orderv, nu->orderv, surf->IsPeriodic(1));
@@ -705,13 +708,13 @@ static void rhino_import_surface(bContext *C,
 	bool did_handle = false;
 	if (ns) {
 		rhino_import_nurbs_surf_start(C, obj, attrs);
-		rhino_import_nurbs_surf(C, ns, obj, attrs, newobj);
+		rhino_import_nurbs_surf(C, ns, obj, attrs, newobj, false);
 		rhino_import_nurbs_surf_end(C);
 		did_handle = true;
 	}
 	if (!did_handle && surf->HasNurbForm()) {
 		rhino_import_nurbs_surf_start(C, obj, attrs);
-		rhino_import_nurbs_surf(C, surf, obj, attrs, newobj);
+		rhino_import_nurbs_surf(C, surf, obj, attrs, newobj, false);
 		rhino_import_nurbs_surf_end(C);
 		did_handle = true;
 	}
@@ -764,7 +767,7 @@ static void rhino_import_brep_face(bContext *C,
 		BLI_addtail(&nu->trims, trim);
 	}
 	
-	nurb_normalize_knots(nu);
+	//nurb_normalize_knots(nu);
 
 	if (should_destroy_ns) delete ns;
 }

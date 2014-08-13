@@ -2429,7 +2429,7 @@ static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend) {
 	BLI_assert(cu->editnurb);
 	nearest_trim = NULL;
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
-		ED_curve_propagate_selected_pts_to_flag2(cu->editnurb);
+		ED_curve_propagate_selected_pts_to_flag2(cu);
 		/* if (!(nu->flag2 & ~CU_SELECTED2)) continue;*/
 		ek = BKE_nurbs_editKnot_get(nu);
 		BKE_nurbs_uvbounds(nu, &umin, &umax, &vmin, &vmax);

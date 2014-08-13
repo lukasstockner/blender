@@ -61,6 +61,7 @@
 #include "ED_image.h"
 #include "ED_mesh.h"
 #include "ED_uvedit.h"
+#include "ED_curve.h"
 
 #include "UI_resources.h"
 #include "UI_interface.h"
@@ -927,21 +928,22 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	float x_view, y_view; /* XY in view (local, normalized) coord systems */
 	int x_region, y_region; /* XY in window coord systems */
 	int xmax_region, ymax_region, resoltrim;
-	int bot_tweak, top_tweak, left_tweak, right_tweak, line_width;
-	GLint quad_in[4][2];
+	int line_width;
 	double regionx2viewx, regiony2viewy;
-	float widget_unit, trash, fonth, fontw;
+	float widget_unit, fonth, fontw;
 	int umin,vmin,umax,vmax;
 	float uminf,vminf,umaxf,vmaxf;
 	char lbl[128];
 	unsigned char col1[4], col2[4];
 	float (*trim_uv_pnts)[2];
+	int grid_x_spacing, grid_y_spacing;
 
 	BLI_assert(obedit && obedit->type == OB_SURF);
 	cur = ar->v2d.cur;
 	mask = ar->v2d.mask;
 	cu = (Curve*)obedit->data;
 	umin=INFINITY; vmin=INFINITY; umax=-INFINITY; vmax=-INFINITY;
+	ED_curve_propagate_selected_pts_to_flag2(cu);
 	/* Figure out the union bounding box in UV space for all knots */
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (nu->knotsu[0]<umin) umin = nu->knotsu[0];
@@ -949,7 +951,6 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 		if (nu->knotsu[KNOTSU(nu)-1]>umax) umax = nu->knotsu[KNOTSU(nu)-1];
 		if (nu->knotsv[KNOTSV(nu)-1]>vmax) vmax = nu->knotsv[KNOTSV(nu)-1];
 	}
-	printf("\n");
 	umin = floor(umin)-1;
 	vmin = floor(vmin)-1;
 	umax = ceil(umax)+1;
@@ -978,22 +979,33 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	UI_ThemeColor(TH_TITLE);
 	/* UI_ThemeColor(TH_GRID); probably more correct but too hard to see */
 	fonth = BLF_height_default("1",1);
-	for (i=umin; i<=umax; i++) {
-		x_view=i; y_view=vmin-widget_unit;
-		UI_view2d_view_to_region(&ar->v2d, x_view, y_view, &x_region, &y_region);
-		snprintf(lbl, sizeof(lbl), "%i", (int)i);
-		if (y_region < mask.ymin) y_region = mask.ymin;
-		if (y_region > ymax_region-fonth-4) y_region = ymax_region-fonth-4;
-		BLF_draw_default_ascii(x_region+4, y_region+4, 0.0f, lbl, strlen(lbl));
+	snprintf(lbl, sizeof(lbl), "%i", umin);
+	fontw = BLF_width_default(lbl, strlen(lbl));
+	snprintf(lbl, sizeof(lbl), "%i", umax);
+	i = BLF_width_default(lbl, strlen(lbl));
+	fontw = (i>fontw) ? i : fontw;
+	grid_x_spacing = 1.0 * BLI_rcti_size_x(&ar->v2d.mask) / BLI_rctf_size_x(&ar->v2d.cur);
+	grid_y_spacing = 1.0 * BLI_rcti_size_y(&ar->v2d.mask) / BLI_rctf_size_y(&ar->v2d.cur);
+	if (grid_x_spacing>fontw) {
+		for (i=umin; i<=umax; i++) {
+			x_view=i; y_view=vmin-widget_unit;
+			UI_view2d_view_to_region(&ar->v2d, x_view, y_view, &x_region, &y_region);
+			snprintf(lbl, sizeof(lbl), "%i", (int)i);
+			if (y_region < mask.ymin) y_region = mask.ymin;
+			if (y_region > ymax_region-fonth-4) y_region = ymax_region-fonth-4;
+			BLF_draw_default_ascii(x_region+4, y_region+4, 0.0f, lbl, strlen(lbl));
+		}
 	}
-	for (i=vmin; i<=vmax; i++) {
-		x_view=umin-widget_unit; y_view=i;
-		UI_view2d_view_to_region(&ar->v2d, x_view, y_view, &x_region, &y_region);
-		snprintf(lbl, sizeof(lbl), "%i", (int)i);
-		fontw = BLF_width_default(lbl, strlen(lbl));
-		if (x_region < mask.xmin) x_region = mask.xmin;
-		if (x_region > xmax_region-fontw-4) x_region = xmax_region-fontw-4;
-		BLF_draw_default_ascii(x_region+4, y_region-fonth-4, 0.0f, lbl, strlen(lbl));
+	if (grid_y_spacing>fonth) {
+		for (i=vmin; i<=vmax; i++) {
+			x_view=umin-widget_unit; y_view=i;
+			UI_view2d_view_to_region(&ar->v2d, x_view, y_view, &x_region, &y_region);
+			snprintf(lbl, sizeof(lbl), "%i", (int)i);
+			fontw = BLF_width_default(lbl, strlen(lbl));
+			if (x_region < mask.xmin) x_region = mask.xmin;
+			if (x_region > xmax_region-fontw-4) x_region = xmax_region-fontw-4;
+			BLF_draw_default_ascii(x_region+4, y_region-fonth-4, 0.0f, lbl, strlen(lbl));
+		}
 	}
 
 	/******* (Normalized Coordinates) draw semitransparent domain background *********/
@@ -1004,6 +1016,7 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	glEnable(GL_BLEND);
 	glColor4ubv(col1);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		if (!(nu->flag2&CU_SELECTED2)) continue;
 		BKE_nurbs_domain(nu, &uminf, &umaxf, &vminf, &vmaxf);
 		glRectf(uminf,vminf,umaxf,vmaxf);
 	}
@@ -1014,6 +1027,7 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glBegin(GL_QUADS);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		if (!(nu->flag2&CU_SELECTED2)) continue;
 		NurbEditKnot *ek = BKE_nurbs_editKnot_get(nu);
 		UI_view2d_view_to_region(&ar->v2d, ek->breaksu[0], ek->breaksv[0], &umin, &vmin);
 		UI_view2d_view_to_region(&ar->v2d, ek->breaksu[ek->num_breaksu-1], ek->breaksv[ek->num_breaksv-1], &umax, &vmax);
@@ -1051,6 +1065,7 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	glBegin(GL_LINE_STRIP);
 	UI_ThemeColor(TH_WIRE);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		if (!(nu->flag2&CU_SELECTED2)) continue;
 		resoltrim = nu->resol_trim;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
 			j = BKE_nurbTrim_tess(nt, resoltrim, &trim_uv_pnts);
@@ -1062,12 +1077,11 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	}
 	glEnd();
 
-	if (glGetError()!=GL_NO_ERROR)
-		printf("ERR! %i\n",glGetError());
 	/******* (Normalized Coordinates) draw trim control polygon *********/
 	glBegin(GL_LINE_STRIP);
 	UI_ThemeColor(TH_WIRE_EDIT);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		if (!(nu->flag2&CU_SELECTED2)) continue;
 		resoltrim = nu->resol_trim;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
 			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
@@ -1080,13 +1094,12 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	}
 	glEnd();
 
-	if (glGetError()!=GL_NO_ERROR)
-		printf("ERR! %i\n",glGetError());
 	/******* (Normalized Coordinates) draw handles for control polygon *********/
 	glPointSize(3);
 	glBegin(GL_POINTS);
 	UI_ThemeColor(TH_WIRE_EDIT);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		if (!(nu->flag2&CU_SELECTED2)) continue;
 		resoltrim = nu->resol_trim;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
 			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
@@ -1101,9 +1114,6 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	
 	glEnd();
 	glPointSize(1);
-	if (glGetError()!=GL_NO_ERROR)
-		printf("ERR! %i\n",glGetError());
-
 }
 
 void draw_uvedit_main(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedit, Object *obact)

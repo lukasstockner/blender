@@ -4176,22 +4176,31 @@ void BKE_nurbs_uvbounds(struct Nurb *nu, float *umin, float *umax, float *vmin, 
 }
 
 void BKE_nurbs_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax) {
-	*umin = nu->knotsu[nu->orderu - 1];
-	if (nu->flagu & CU_NURB_CYCLIC)
-		*umax = nu->knotsu[nu->pntsu + nu->orderu - 1];
-	else
-		*umax = nu->knotsu[nu->pntsu];
-	*umin = std::min(nu->knotsu[0], *umin);
-	*umax = std::max(nu->knotsu[nu->pntsu+nu->orderu-1], *umax);
+	int pu = nu->orderu-1; /* p{u,v} is the degree of the curve in the {u,v} direction */
+	int pv = nu->orderv-1;
+	*umin = nu->knotsu[pu];
+	*umax = nu->knotsu[KNOTSU(nu)-pu-1];
 	if (nu->knotsv) {
-		*vmin = nu->knotsv[nu->orderv - 1];
-		if (nu->flagv & CU_NURB_CYCLIC)
-			*vmax = nu->knotsv[nu->pntsv + nu->orderv - 1];
-		else
-			*vmax = nu->knotsv[nu->pntsv];
-		if (vmin) *vmin = std::min(nu->knotsv[0], *umin);
-		if (vmin) *vmax = std::max(nu->knotsv[nu->pntsv+nu->orderv-1], *umax);
+		*vmin = nu->knotsv[pv];
+		*vmax = nu->knotsv[KNOTSV(nu)-pv-1];
 	}
+}
+
+void BKE_nurbs_printknots(struct Nurb *nu) {
+	int i,numknot;
+	float umin, umax, vmin, vmax;
+	printf("knotsu = {");
+	for (i=0,numknot=KNOTSU(nu); i<numknot; i++) {
+		printf((i==numknot-1)?"%3f}\n":"%3f, ",nu->knotsu[i]);
+	}
+	printf("knotsv = {");
+	for (i=0,numknot=KNOTSV(nu); i<numknot; i++) {
+		printf((i==numknot-1)?"%3f}\n":"%3f, ",nu->knotsv[i]);
+	}
+	BKE_nurbs_domain(nu, &umin, &umax, &vmin, &vmax);
+	printf("domain = [%3f,%3f]x[%3f,%3f]\n",umin,umax,vmin,vmax);
+	BKE_nurbs_uvbounds(nu, &umin, &umax, &vmin, &vmax);
+	printf("uvbounds = [%3f,%3f]x[%3f,%3f]\n",umin,umax,vmin,vmax);
 }
 
 GridMesh *BKE_nurb_compute_trimmed_GridMesh(struct Nurb* nu) {

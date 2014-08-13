@@ -1477,8 +1477,9 @@ void ED_curve_select_swap(EditNurb *editnurb, bool hide_handles)
  * A Nurb is shown iff it has one or more of its BPoints selected.
  * The CU_SELECTED2 flag of nu->flag2 is where this data is stored.
  */
-void ED_curve_propagate_selected_pts_to_flag2(EditNurb *editnurb) {
+void ED_curve_propagate_selected_pts_to_flag2(Curve *cu) {
 	Nurb *nu;
+	EditNurb *editnurb = cu->editnurb;
 	int numpts, i;
 
 	for (nu=editnurb->nurbs.first; nu; nu=nu->next) {
