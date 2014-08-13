@@ -75,6 +75,7 @@
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
+#include "ED_curve.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -89,6 +90,10 @@
 static void uv_select_all_perform(Scene *scene, Image *ima, BMEditMesh *em, int action);
 static void uv_select_flush_from_tag_face(SpaceImage *sima, Scene *scene, Object *obedit, const bool select);
 static void uv_select_flush_from_tag_loop(SpaceImage *sima, Scene *scene, Object *obedit, const bool select);
+static void nurbsuv_toggle_selected(bContext *C);
+static void nurbsuv_set_selected_all(bContext *C, bool selected);
+static void nurbsuv_invert_selection(bContext *C);
+static void nurbsuv_selection_perform_action(bContext *C, int action);
 
 /************************* state testing ************************/
 
@@ -1951,14 +1956,21 @@ static int uv_select_all_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
+	Curve *cu;
 	Image *ima = CTX_data_edit_image(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-
+	BMEditMesh *em;
 	int action = RNA_enum_get(op->ptr, "action");
 
-	uv_select_all_perform(scene, ima, em, action);
+	if (obedit && obedit->type == OB_MESH) {
+		em = BKE_editmesh_from_object(obedit);
+		uv_select_all_perform(scene, ima, em, action);
+		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+	}
 
-	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+	if (obedit && obedit->type == OB_SURF) {
+		nurbsuv_selection_perform_action(C, action);
+		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, NULL);
+	}
 
 	return OPERATOR_FINISHED;
 }
@@ -2290,7 +2302,110 @@ static double dist2_pt_lineseg(const float co[2], double a1, double a2, double b
 	return (co[0]-x1)*(co[0]-x1) + (co[1]-x2)*(co[1]-x2);
 }
 
-static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend, bool loop) {
+static void nurbsuv_set_selected_all(bContext *C, bool selected) {
+	struct Object *editobj;
+	Curve *cu;
+	Nurb *nu;
+	NurbEditKnot *ek;
+	int i;
+
+	editobj = CTX_data_edit_object(C);
+	BLI_assert(editobj->type==OB_SURF);
+	cu = (Curve*)editobj->data;
+	BLI_assert(cu->editnurb);
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		ek = BKE_nurbs_editKnot_get(nu);
+		for (i=0; i<ek->num_breaksu; i++) {
+			if (selected) ek->flagu[i] |= SELECT;
+			else          ek->flagu[i] &= ~SELECT;
+		}
+		for (i=0; i<ek->num_breaksv; i++) {
+			if (selected) ek->flagv[i] |= SELECT;
+			else          ek->flagv[i] &= ~SELECT;
+		}
+	}
+}
+
+static void nurbsuv_invert_selection(bContext *C) {
+	struct Object *editobj;
+	Curve *cu;
+	Nurb *nu;
+	NurbEditKnot *ek;
+	int i;
+	
+	editobj = CTX_data_edit_object(C);
+	BLI_assert(editobj->type==OB_SURF);
+	cu = (Curve*)editobj->data;
+	BLI_assert(cu->editnurb);
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		ek = BKE_nurbs_editKnot_get(nu);
+		for (i=0; i<ek->num_breaksu; i++) {
+			if (ek->flagu[i]&SELECT)
+				ek->flagu[i] &= ~SELECT;
+			else
+				ek->flagu[i] |= SELECT;
+		}
+		for (i=0; i<ek->num_breaksv; i++) {
+			if (ek->flagv[i]&SELECT)
+				ek->flagv[i] &= ~SELECT;
+			else
+				ek->flagv[i] |= SELECT;
+		}
+	}
+}
+
+static int nurbsuv_num_selected(bContext *C) {
+	struct Object *editobj;
+	Curve *cu;
+	Nurb *nu;
+	NurbEditKnot *ek;
+	int i, num_pts;
+	
+	editobj = CTX_data_edit_object(C);
+	BLI_assert(editobj->type==OB_SURF);
+	cu = (Curve*)editobj->data;
+	BLI_assert(cu->editnurb);
+	num_pts = 0;
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		ek = BKE_nurbs_editKnot_get(nu);
+		for (i=0; i<ek->num_breaksu; i++) {
+			if (ek->flagu[i]&SELECT) num_pts++;
+		}
+		for (i=0; i<ek->num_breaksv; i++) {
+			if (ek->flagv[i]&SELECT) num_pts++;
+		}
+	}
+	return num_pts;
+}
+
+static void nurbsuv_selection_perform_action(bContext *C, int action) {
+	switch (action) {
+		case SEL_TOGGLE:
+			nurbsuv_toggle_selected(C);
+			break;
+		case SEL_SELECT:
+			nurbsuv_set_selected_all(C, true);
+			break;
+		case SEL_DESELECT:
+			nurbsuv_set_selected_all(C, false);
+			break;
+		case SEL_INVERT:
+			nurbsuv_invert_selection(C);
+			break;
+	}
+}
+
+static void nurbsuv_toggle_selected(bContext *C) {
+	if (nurbsuv_num_selected(C)) {
+		nurbsuv_set_selected_all(C, false);
+	} else {
+		nurbsuv_set_selected_all(C, true);
+	}
+}
+
+static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend) {
+	ARegion *ar = CTX_wm_region(C);
+	View2D *v2d = &ar->v2d;
 	struct Object *editobj;
 	Curve *cu;
 	Nurb *nu;
@@ -2306,6 +2421,7 @@ static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend, boo
 	float (*trim_verts)[2];
 	float umin,umax,vmin,vmax;
 	double dist;
+	float max_miss_dist;
 
 	editobj = CTX_data_edit_object(C);
 	BLI_assert(editobj->type==OB_SURF);
@@ -2313,7 +2429,8 @@ static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend, boo
 	BLI_assert(cu->editnurb);
 	nearest_trim = NULL;
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
-		/* if (!(nu->flag2 & ~CU_SELECTED2)) continue; */
+		ED_curve_propagate_selected_pts_to_flag2(cu->editnurb);
+		/* if (!(nu->flag2 & ~CU_SELECTED2)) continue;*/
 		ek = BKE_nurbs_editKnot_get(nu);
 		BKE_nurbs_uvbounds(nu, &umin, &umax, &vmin, &vmax);
 		/* Figure out nearest u break to click co */
@@ -2346,15 +2463,20 @@ static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend, boo
 			}
 		}
 	}
-	if (u<=v && u<=trim && u<INFINITY) {
+
+	if (!extend) nurbsuv_set_selected_all(C, false);
+	/* The mouse click should count as a selection if it misses by <10px */
+	max_miss_dist = 10.0 / BLI_rcti_size_x(&v2d->mask) * BLI_rctf_size_x(&v2d->cur);
+	if (u<=v && u<=trim && u<max_miss_dist) {
 		nearest_u->editknot->flagu[u_bkp] ^= SELECT;
-		printf("Nu:0x%lx Ek:0x%lx flagu[%i]<-%i\n",nearest_u,nearest_u->editknot,u_bkp,nearest_u->editknot->flagu[u_bkp]);
-	} else if (v<=u && v<= trim && v<INFINITY) {
-		nearest_v->editknot->flagu[v_bkp] ^= SELECT;
-	} else if (trim<=u && trim<=v && trim<INFINITY) {
+	}
+	if (v<=u && v<= trim && v<max_miss_dist) {
+		nearest_v->editknot->flagv[v_bkp] ^= SELECT;
+	}
+	if (trim<=u && trim<=v && trim<max_miss_dist) {
 		
 	}
-	printf("u:%f v:%f tr:%f\n",u,v,trim);
+	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, NULL);
 	return OPERATOR_FINISHED;
 }
 
@@ -2370,7 +2492,7 @@ static int uv_select_exec(bContext *C, wmOperator *op)
 	loop = false;
 
 	if (obedit && obedit->type==OB_SURF) {
-		return nurbsuv_mouse_select(C, co, extend, loop);
+		return nurbsuv_mouse_select(C, co, extend);
 	}
 
 	return uv_mouse_select(C, co, extend, loop);
