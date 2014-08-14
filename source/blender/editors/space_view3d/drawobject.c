@@ -5838,53 +5838,6 @@ static void editnurb_draw_active_poly(Nurb *nu)
 	glLineWidth(1);
 }
 
-static void editnurb_draw_active_nurbs(Nurb *nu)
-{
-	BPoint *bp, *bp1;
-	int a, b, ofs;
-
-	UI_ThemeColor(TH_ACTIVE_SPLINE);
-	glLineWidth(2);
-	glDepthRange(.0001,1.0);
-
-	glBegin(GL_LINES);
-	bp = nu->bp;
-	for (b = 0; b < nu->pntsv; b++) {
-		bp1 = bp;
-		bp++;
-
-		for (a = nu->pntsu - 1; a > 0; a--, bp++) {
-			if (bp->hide == 0 && bp1->hide == 0) {
-				glVertex3fv(bp->vec);
-				glVertex3fv(bp1->vec);
-			}
-			bp1 = bp;
-		}
-	}
-
-	if (nu->pntsv > 1) {    /* surface */
-
-		ofs = nu->pntsu;
-		for (b = 0; b < nu->pntsu; b++) {
-			bp1 = nu->bp + b;
-			bp = bp1 + ofs;
-			for (a = nu->pntsv - 1; a > 0; a--, bp += ofs) {
-				if (bp->hide == 0 && bp1->hide == 0) {
-					glVertex3fv(bp->vec);
-					glVertex3fv(bp1->vec);
-				}
-				bp1 = bp;
-			}
-		}
-	}
-
-	glEnd();
-
-	glColor3ub(0, 0, 0);
-	glDepthRange(0,1.0);
-	glLineWidth(1);
-}
-
 static void draw_editnurb(Object *ob, Nurb *nurb, int sel, int alpha_offset)
 {
 	Nurb *nu;
