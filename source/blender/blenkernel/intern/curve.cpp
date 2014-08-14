@@ -484,13 +484,15 @@ void BKE_nurbs_editKnot_propagate_ek2nurb(struct Nurb *nu) {
 			nu->knotsu[flatidx++] = breakpt;
 	}
 
-	for (int i=0; i<ek->num_breaksv; i++) ek_knotv += ek->multiplicityv[i];
-	BLI_assert(KNOTSV(nu)==ek_knotv);
-	for (int i=0,flatidx=0; i<ek->num_breaksv; i++) {
-		int mult = ek->multiplicityv[i];
-		float breakpt = ek->breaksv[i];
-		for (int j=0; j<mult; j++)
-			nu->knotsv[flatidx++] = breakpt;
+	if (ek->num_breaksv) {
+		for (int i=0; i<ek->num_breaksv; i++) ek_knotv += ek->multiplicityv[i];
+		BLI_assert(KNOTSV(nu)==ek_knotv);
+		for (int i=0,flatidx=0; i<ek->num_breaksv; i++) {
+			int mult = ek->multiplicityv[i];
+			float breakpt = ek->breaksv[i];
+			for (int j=0; j<mult; j++)
+				nu->knotsv[flatidx++] = breakpt;
+		}
 	}
 }
 
@@ -532,29 +534,36 @@ void BKE_nurbs_editKnot_propagate_nurb2ek(struct Nurb *nu) {
 	}
 	ek->num_breaksu = breakidx+1;
 
-	int capv = ek->capv = KNOTSV(nu);
-	uint8_t *vbuf = (uint8_t*)MEM_callocN(capv*bytes_per_knot, "NURBS_editknot_v");
-	ek->breaksv = (float*)vbuf;
-	ek->multiplicityv = (int*)(vbuf + capv*sizeof(float));
-	ek->flagv = (int*)(vbuf + capv*sizeof(float) + capv*sizeof(int));
-	last_knot=INFINITY;
-	old_idx=0; breakidx=-1;
-	for (int i=0; i<KNOTSV(nu); i++) {
-		float knot = nu->knotsv[i];
-		if (knot!=last_knot) {
-			breakidx += 1;
-			last_knot = knot;
+	if (nu->pntsv==1) {
+		ek->num_breaksv = 0; /* This is a curve. There are no breakpoints in v direction. */
+		ek->breaksv = NULL;
+		ek->flagv = NULL;
+		ek->multiplicityv = NULL;
+	} else {
+		int capv = ek->capv = KNOTSV(nu);
+		uint8_t *vbuf = (uint8_t*)MEM_callocN(capv*bytes_per_knot, "NURBS_editknot_v");
+		ek->breaksv = (float*)vbuf;
+		ek->multiplicityv = (int*)(vbuf + capv*sizeof(float));
+		ek->flagv = (int*)(vbuf + capv*sizeof(float) + capv*sizeof(int));
+		last_knot=INFINITY;
+		old_idx=0; breakidx=-1;
+		for (int i=0; i<KNOTSV(nu); i++) {
+			float knot = nu->knotsv[i];
+			if (knot!=last_knot) {
+				breakidx += 1;
+				last_knot = knot;
+			}
+			if (update_ek) { /* try to propagate SELECT etc from old ek to new ek */
+				while (old_ek.breaksv[old_idx]<knot && old_idx<old_ek.num_breaksv)
+					old_idx++;
+				if (old_ek.breaksv[old_idx]==knot)
+					ek->flagv[breakidx] = old_ek.flagv[old_idx];
+			}
+			ek->breaksv[breakidx] = knot;
+			ek->multiplicityv[breakidx] += 1;
 		}
-		if (update_ek) { /* try to propagate SELECT etc from old ek to new ek */
-			while (old_ek.breaksv[old_idx]<knot && old_idx<old_ek.num_breaksv)
-				old_idx++;
-			if (old_ek.breaksv[old_idx]==knot)
-				ek->flagv[breakidx] = old_ek.flagv[old_idx];
-		}
-		ek->breaksv[breakidx] = knot;
-		ek->multiplicityv[breakidx] += 1;
+		ek->num_breaksv = breakidx+1;
 	}
-	ek->num_breaksv = breakidx+1;
 
 	if (update_ek) {
 		MEM_freeN(old_ek.breaksu);
@@ -4171,8 +4180,12 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 void BKE_nurbs_uvbounds(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax) {
 	*umin = nu->knotsu[0];
 	*umax = nu->knotsu[KNOTSU(nu)-1];
-	*vmin = nu->knotsv[0];
-	*vmax = nu->knotsv[KNOTSV(nu)-1];
+	if (nu->pntsv==1) { /* Curve, does not have v breakpoints */
+		*vmin = *vmax = 0;
+	} else { /* Surface, has full set of v breakpoints */
+		*vmin = nu->knotsv[0];
+		*vmax = nu->knotsv[KNOTSV(nu)-1];
+	}
 }
 
 void BKE_nurbs_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, float *vmax) {
@@ -4180,9 +4193,12 @@ void BKE_nurbs_domain(struct Nurb *nu, float *umin, float *umax, float *vmin, fl
 	int pv = nu->orderv-1;
 	*umin = nu->knotsu[pu];
 	*umax = nu->knotsu[KNOTSU(nu)-pu-1];
-	if (nu->knotsv) {
-		*vmin = nu->knotsv[pv];
-		*vmax = nu->knotsv[KNOTSV(nu)-pv-1];
+	if (nu->knotsv && nu->pntsv>1) {
+		if (vmin) *vmin = nu->knotsv[pv];
+		if (vmax) *vmax = nu->knotsv[KNOTSV(nu)-pv-1];
+	} else {
+		if (vmin) *vmin = 0;
+		if (vmax) *vmax = 0;
 	}
 }
 
@@ -4258,9 +4274,10 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 	GridMesh *gm = BKE_nurb_compute_trimmed_GridMesh(nu);
 	
 	// Extract the results
-	int totu=(nu->pntsu-nu->orderu+1)*nu->resolu, totv=(nu->pntsv-nu->orderv+1)*nu->resolv;
+	int totu=gm->nx, totv=gm->ny;
 	std::map<int,int> *used_idxs;
 	GridMeshCoord *coords = gm->coords;
+	float *final_coords;
 	int coords_len = (totu+1)*(totv+1)*2;
 	used_idxs = new std::map<int,int>();
 	int idxs_len = 4 * 3*sizeof(int)*totu*totv;
@@ -4334,14 +4351,16 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 	}
 	/* Remap Coords */
 	int num_used_idxs = int(used_idxs->size());
-	coords = (GridMeshCoord*)MEM_mallocN(3*sizeof(float)*num_used_idxs, "NURBS_tess_2.3");
+	final_coords = (float*)MEM_mallocN(2*sizeof(float)*num_used_idxs, "NURBS_tess_2.3");
 	coords_len = num_used_idxs;
 	int newidx=0;
 	std::map<int,int>::iterator it=used_idxs->begin(),end=used_idxs->end();
 	for (; it!=end; it++) {
 		int old_idx = it->first;
-		coords[newidx] = gm->coords[old_idx];
-		it->second = newidx++;
+		final_coords[2*newidx+0] = gm->coords[old_idx].x;
+		final_coords[2*newidx+1] = gm->coords[old_idx].y;
+		it->second = newidx;
+		newidx += 1;
 	}
 	// ii, the index index, points to the end of idxs, the index array
 	for (int i=0; i<ii; i++) {
@@ -4352,7 +4371,7 @@ void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu) {
 	nu->UV_verts_count = coords_len;
 	nu->UV_tri_count = ii/3;
 	if (nu->UV_verts) MEM_freeN(nu->UV_verts);
-	nu->UV_verts = (float*)coords;
+	nu->UV_verts = final_coords;
 	if (nu->UV_idxs) MEM_freeN(nu->UV_idxs);
 	nu->UV_idxs = idxs;
 	
@@ -4365,6 +4384,8 @@ void BKE_nurb_clear_cached_UV_mesh(struct Nurb* nu, bool free_mem) {
 		if (nu->UV_verts) MEM_freeN(nu->UV_verts);
 		if (nu->UV_idxs) MEM_freeN(nu->UV_idxs);
 	}
+	nu->UV_verts = NULL;
+	nu->UV_idxs = NULL;
 }
 
 void BKE_nurb_make_displist(struct Nurb *nu, struct DispList *dl) {
@@ -4413,6 +4434,7 @@ struct NurbsMeshInfo {
 	std::map<std::pair<int,int>,int> remap_edge;
 	
 	/* Input to Pass 2 */
+	int base_loopid;
 	MVert *verts;
 	MEdge *edges;
 	MLoop *loops;
@@ -4512,8 +4534,9 @@ void nurbs_meshinfo_pass_2(Nurb *nu, NurbsMeshInfo &nmi) {
 			coordidx = gmvert->coord_idx;
 		} while (vert!=poly);
 		MPoly *mesh_p = nmi.polys + (polynum++);
-		mesh_p->loopstart = first_loop_of_poly;
+		mesh_p->loopstart = nmi.base_loopid + first_loop_of_poly;
 		mesh_p->totloop = num_edge_in_poly;
+		if (nu->flag&ME_SMOOTH) mesh_p->flag |= ME_SMOOTH;
 	}
 }
 
@@ -4559,6 +4582,7 @@ void BKE_surf_to_mesh(Object *ob) {
 	/* Pass 2 fills the newly allocated buffers */
 	nu = (Nurb*)cu->nurb.first;
 	int filled_v=0, filled_e=0, filled_l=0, filled_p=0;
+	int base_loopid=0;
 	for (int i=0; i<num_nurbs; i++) {
 		NurbsMeshInfo &nmi = NMIs[i];
 		nmi.verts = allvert+filled_v;
@@ -4566,6 +4590,7 @@ void BKE_surf_to_mesh(Object *ob) {
 		nmi.loops = allloop+filled_l;
 		nmi.polys = allpoly+filled_p;
 		nmi.uvs = alluv+filled_l;
+		nmi.base_loopid = base_loopid;
 	
 		nurbs_meshinfo_pass_2(nu, nmi);
 	
@@ -4573,6 +4598,7 @@ void BKE_surf_to_mesh(Object *ob) {
 		filled_e += nmi.num_edge;
 		filled_l += nmi.num_loop;
 		filled_p += nmi.num_poly;
+		base_loopid += nmi.num_loop;
 		nu=nu->next;
 	}
 

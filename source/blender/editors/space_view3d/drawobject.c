@@ -5744,7 +5744,7 @@ static void drawhandlesN_active(Nurb *nu)
 	glLineWidth(1);
 }
 
-static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, const void *vert)
+static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, const void *vert, int alpha_offset)
 {
 	BezTriple *bezt;
 	BPoint *bp;
@@ -5756,7 +5756,7 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, const 
 	if (sel) color = TH_VERTEX_SELECT;
 	else color = TH_VERTEX;
 
-	UI_ThemeColor(color);
+	UI_ThemeColorShadeAlpha(color, 0, alpha_offset);
 
 	size = UI_GetThemeValuef(TH_VERTEX_SIZE);
 	glPointSize(size);
@@ -5770,7 +5770,7 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, const 
 		while (a--) {
 			if (bezt->hide == 0) {
 				if (sel == 1 && bezt == vert) {
-					UI_ThemeColor(TH_ACTIVE_VERT);
+					UI_ThemeColorShadeAlpha(TH_ACTIVE_VERT, 0, alpha_offset);
 					bglVertex3fv(bezt->vec[1]);
 
 					if (!hide_handles) {
@@ -5778,7 +5778,7 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, const 
 						if (bezt->f3 & SELECT) bglVertex3fv(bezt->vec[2]);
 					}
 
-					UI_ThemeColor(color);
+					UI_ThemeColorShadeAlpha(color, 0, alpha_offset);
 				}
 				else if (hide_handles) {
 					if ((bezt->f2 & SELECT) == sel) bglVertex3fv(bezt->vec[1]);
@@ -5798,9 +5798,9 @@ static void drawvertsN(Nurb *nu, const char sel, const bool hide_handles, const 
 		while (a--) {
 			if (bp->hide == 0) {
 				if (bp == vert) {
-					UI_ThemeColor(TH_ACTIVE_VERT);
+					UI_ThemeColorShadeAlpha(TH_ACTIVE_VERT, 0, alpha_offset);
 					bglVertex3fv(bp->vec);
-					UI_ThemeColor(color);
+					UI_ThemeColorShadeAlpha(color, 0, alpha_offset);
 				}
 				else {
 					if ((bp->f1 & SELECT) == sel) bglVertex3fv(bp->vec);
@@ -5885,7 +5885,7 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 	glLineWidth(1);
 }
 
-static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
+static void draw_editnurb(Object *ob, Nurb *nurb, int sel, int alpha_offset)
 {
 	Nurb *nu;
 	BPoint *bp, *bp1;
@@ -5903,7 +5903,7 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 						editnurb_draw_active_poly(nu);
 					}
 
-					UI_ThemeColor(TH_NURB_ULINE);
+					UI_ThemeColorShadeAlpha(TH_NURB_ULINE, 0, alpha_offset);
 					bp = nu->bp;
 					for (b = 0; b < nu->pntsv; b++) {
 						if (nu->flagu & 1) glBegin(GL_LINE_LOOP);
@@ -5932,7 +5932,7 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 							if (bp->hide == 0 && bp1->hide == 0) {
 								if (sel) {
 									if ((bp->f1 & SELECT) && (bp1->f1 & SELECT)) {
-										UI_ThemeColor(TH_NURB_SEL_ULINE);
+										UI_ThemeColorShadeAlpha(TH_NURB_SEL_ULINE, 0, alpha_offset);
 
 										glBegin(GL_LINE_STRIP);
 										glVertex3fv(bp->vec);
@@ -5945,7 +5945,7 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 										/* pass */
 									}
 									else {
-										UI_ThemeColor(TH_NURB_ULINE);
+										UI_ThemeColorShadeAlpha(TH_NURB_ULINE, 0, alpha_offset);
 
 										glBegin(GL_LINE_STRIP);
 										glVertex3fv(bp->vec);
@@ -5968,7 +5968,7 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 								if (bp->hide == 0 && bp1->hide == 0) {
 									if (sel) {
 										if ((bp->f1 & SELECT) && (bp1->f1 & SELECT)) {
-											UI_ThemeColor(TH_NURB_SEL_VLINE);
+											UI_ThemeColorShadeAlpha(TH_NURB_SEL_VLINE, 0, alpha_offset);
 
 											glBegin(GL_LINE_STRIP);
 											glVertex3fv(bp->vec);
@@ -5981,7 +5981,7 @@ static void draw_editnurb(Object *ob, Nurb *nurb, int sel)
 											/* pass */
 										}
 										else {
-											UI_ThemeColor(TH_NURB_VLINE);
+											UI_ThemeColorShadeAlpha(TH_NURB_VLINE, 0, alpha_offset);
 
 											glBegin(GL_LINE_STRIP);
 											glVertex3fv(bp->vec);
@@ -6015,7 +6015,7 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	BevList *bl;
 	const void *vert = BKE_curve_vert_active_get(cu);
 	const bool hide_handles = (cu->drawflag & CU_HIDE_HANDLES) != 0;
-	int index;
+	int index,pass,alpha_offset;
 	unsigned char wire_col[3];
 
 	/* DispList */
@@ -6024,28 +6024,43 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 
 	drawDispList(scene, v3d, rv3d, base, dt, dflag, ob_wire_col);
 
-	if (v3d->zbuf) glDepthFunc(GL_LEQUAL);
-	
-	/* first non-selected and active handles */
-	index = 0;
-	for (nu = nurb; nu; nu = nu->next) {
-		if (nu->type == CU_BEZIER) {
-			if (index == cu->actnu && !hide_handles)
-				drawhandlesN_active(nu);
-			drawhandlesN(nu, 0, hide_handles);
+	/* Pass 0: renders partially transparent control polygon without Z test
+	 * Pass 1: renders opaque control polygon with z test */
+	for (pass=1; pass<=1; pass++) {
+		if (pass==0) {
+			if (v3d->zbuf) glDepthFunc(GL_ALWAYS);
+			glDepthMask(GL_FALSE);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			alpha_offset = -230;
+		} else {
+			glDepthMask(GL_TRUE);
+			glDisable(GL_BLEND);
+			glBlendFunc(GL_ONE, GL_ZERO);
+			if (v3d->zbuf) glDepthFunc(GL_LEQUAL);
+			alpha_offset = 0;
 		}
-		index++;
+
+
+		/* first non-selected and active handles */
+		index = 0;
+		for (nu = nurb; nu; nu = nu->next) {
+			if (nu->type == CU_BEZIER) {
+				if (index == cu->actnu && !hide_handles)
+					drawhandlesN_active(nu);
+				drawhandlesN(nu, 0, hide_handles);
+			}
+			index++;
+		}
+		draw_editnurb(ob, nurb, 0, alpha_offset);
+		draw_editnurb(ob, nurb, 1, alpha_offset);
+		/* selected handles */
+		for (nu = nurb; nu; nu = nu->next) {
+			if (nu->type == CU_BEZIER && (cu->drawflag & CU_HIDE_HANDLES) == 0)
+				drawhandlesN(nu, 1, hide_handles);
+			drawvertsN(nu, 0, hide_handles, NULL, alpha_offset);
+		}
 	}
-	draw_editnurb(ob, nurb, 0);
-	draw_editnurb(ob, nurb, 1);
-	/* selected handles */
-	for (nu = nurb; nu; nu = nu->next) {
-		if (nu->type == CU_BEZIER && (cu->drawflag & CU_HIDE_HANDLES) == 0)
-			drawhandlesN(nu, 1, hide_handles);
-		drawvertsN(nu, 0, hide_handles, NULL);
-	}
-	
-	if (v3d->zbuf) glDepthFunc(GL_LEQUAL);
 
 	/* direction vectors for 3d curve paths
 	 * when at its lowest, don't render normals */
@@ -6091,7 +6106,7 @@ static void drawnurb(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	}
 	
 	for (nu = nurb; nu; nu = nu->next) {
-		drawvertsN(nu, 1, hide_handles, vert);
+		drawvertsN(nu, 1, hide_handles, vert, 0);
 	}
 	
 	if (v3d->zbuf) glDepthFunc(GL_LEQUAL);

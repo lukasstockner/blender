@@ -947,9 +947,13 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	/* Figure out the union bounding box in UV space for all knots */
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (nu->knotsu[0]<umin) umin = nu->knotsu[0];
-		if (nu->knotsv[0]<vmin) vmin = nu->knotsv[0];
 		if (nu->knotsu[KNOTSU(nu)-1]>umax) umax = nu->knotsu[KNOTSU(nu)-1];
-		if (nu->knotsv[KNOTSV(nu)-1]>vmax) vmax = nu->knotsv[KNOTSV(nu)-1];
+		if (nu->pntsv>1) {
+			if (nu->knotsv[0]<vmin) vmin = nu->knotsv[0];
+			if (nu->knotsv[KNOTSV(nu)-1]>vmax) vmax = nu->knotsv[KNOTSV(nu)-1];
+		} else {
+			vmin=0; vmax=1; /* We give curves unit width in the v direction */
+		}
 	}
 	umin = floor(umin)-1;
 	vmin = floor(vmin)-1;
@@ -1018,10 +1022,28 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (!(nu->flag2&CU_SELECTED2)) continue;
 		BKE_nurbs_domain(nu, &uminf, &umaxf, &vminf, &vmaxf);
+		if (nu->pntsv==1) {
+			vminf = -0.5;
+			vmaxf = 0.5;
+		}
 		glRectf(uminf,vminf,umaxf,vmaxf);
 	}
 	glDisable(GL_BLEND);
-		
+
+	/******* (Normalized Coordinates) draw UV tessellation mesh *********/
+	UI_ThemeColorShade(TH_BACK, 0);
+	glEnableClientState(GL_VERTEX_ARRAY);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		if (!(nu->flag2&CU_SELECTED2)) continue;
+		if (nu->pntsv==1) continue;
+		if (!nu->UV_verts) BKE_nurb_compute_trimmed_UV_mesh(nu);
+		glVertexPointer(2, GL_FLOAT, 0, nu->UV_verts);
+		glDrawElements(GL_TRIANGLES, 3*nu->UV_tri_count, GL_UNSIGNED_INT, nu->UV_idxs);
+	}
+	glDisableClientState(GL_VERTEX_ARRAY);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
 	/******* (Pixel Coordinates) draw knot grid *********/
 	UI_view2d_view_restore(C);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -1029,8 +1051,13 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (!(nu->flag2&CU_SELECTED2)) continue;
 		NurbEditKnot *ek = BKE_nurbs_editKnot_get(nu);
-		UI_view2d_view_to_region(&ar->v2d, ek->breaksu[0], ek->breaksv[0], &umin, &vmin);
-		UI_view2d_view_to_region(&ar->v2d, ek->breaksu[ek->num_breaksu-1], ek->breaksv[ek->num_breaksv-1], &umax, &vmax);
+		if (ek->breaksv) { /* This is a surf, have u and v breaks */
+			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[0], ek->breaksv[0], &umin, &vmin);
+			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[ek->num_breaksu-1], ek->breaksv[ek->num_breaksv-1], &umax, &vmax);
+		} else { /* This is a curve, no v breaks */
+			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[0], -0.5, &umin, &vmin);
+			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[ek->num_breaksu-1], 0.5, &umax, &vmax);
+		}
 		for (i=0; i<ek->num_breaksu; i++)  {
 			line_width = ek->multiplicityu[i];
 			UI_ThemeColor((ek->flagu[i]&SELECT)? TH_NURB_SEL_VLINE : TH_NURB_VLINE);
@@ -1040,6 +1067,7 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 			glVertex2i(x_region+line_width, vmax);
 			glVertex2i(x_region,            vmax);
 		}
+		if (nu->pntsv==1) continue;
 		for (i=0; i<ek->num_breaksv; i++) {
 			line_width = ek->multiplicityv[i];
 			UI_ThemeColor((ek->flagv[i]&SELECT)? TH_NURB_SEL_ULINE : TH_NURB_ULINE);
