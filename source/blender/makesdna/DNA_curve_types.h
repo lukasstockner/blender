@@ -138,7 +138,8 @@ typedef struct NurbTrim {
 	struct NurbTrim *prev, *next;
 	ListBase nurb_list; /* A list of Nurb objects to trim with */
 	short type; /* NURBS_TRIM_OUTER, NURBS_TRIM_INNER */
-	short pad[3];
+	short flag; /* SELECTED */
+	short pad[2];
 } NurbTrim;
 
 typedef struct NurbEditKnot {

@@ -443,11 +443,27 @@ int ED_operator_uvedit(bContext *C)
 	return ED_space_image_show_uvedit(sima, obedit) || ED_space_image_show_nurbsuv(sima, obedit);
 }
 
+int ED_operator_uvedit_or_nurbsuv(bContext *C)
+{
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Object *obedit = CTX_data_edit_object(C);
+	return ED_space_image_show_uvedit(sima, obedit) || ED_space_image_show_nurbsuv(sima, obedit);
+}
+
 int ED_operator_uvedit_space_image(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Object *obedit = CTX_data_edit_object(C);
 	return sima && ED_space_image_show_uvedit(sima, obedit);
+}
+
+int ED_operator_uvedit_or_nurbsuv_space_image(bContext *C)
+{
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Object *obedit = CTX_data_edit_object(C);
+	bool uvedit = ED_space_image_show_uvedit(sima, obedit);
+	bool nurbsuv = ED_space_image_show_nurbsuv(sima, obedit);
+	return sima && (uvedit || nurbsuv);
 }
 
 int ED_operator_uvmap(bContext *C)

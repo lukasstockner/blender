@@ -1985,7 +1985,7 @@ static void UV_OT_select_all(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec = uv_select_all_exec;
-	ot->poll = ED_operator_uvedit;
+	ot->poll = ED_operator_uvedit_or_nurbsuv;
 
 	WM_operator_properties_select_all(ot);
 }
@@ -2461,6 +2461,7 @@ static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend) {
 					nearest_trim = nt;
 				}
 			}
+			MEM_freeN(trim_verts);
 		}
 	}
 
@@ -2520,7 +2521,7 @@ static void UV_OT_select(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = uv_select_exec;
 	ot->invoke = uv_select_invoke;
-	ot->poll = ED_operator_uvedit; /* requires space image */;
+	ot->poll = ED_operator_uvedit_or_nurbsuv; /* requires space image */;
 
 	/* properties */
 	RNA_def_boolean(ot->srna, "extend", 0,
@@ -2624,9 +2625,48 @@ static int uv_select_linked_internal(bContext *C, wmOperator *op, const wmEvent 
 	return OPERATOR_FINISHED;
 }
 
+static int nurbsuv_select_linked(bContext *C, wmOperator *op) {
+	Object *obedit = CTX_data_edit_object(C);
+	Curve *cu;
+	Nurb *nu;
+	NurbEditKnot *ek;
+	NurbTrim *nt;
+	int u,v;
+	int nurbuv_is_selected;
+	BLI_assert(obedit->type == OB_SURF);
+	cu = (Curve*)obedit->data;
+	/* For Nurb *nu in the editobject
+	 *    if any component of nu (U breakpoint, V breakpoint, trim) is selected
+	 *         select all components of nu */
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		nurbuv_is_selected = 0;
+		ek = BKE_nurbs_editKnot_get(nu);
+		for (u=0; u<ek->num_breaksu && !nurbuv_is_selected; u++) {
+			if (ek->flagu[u]&SELECT) nurbuv_is_selected = 1;
+		}
+		for (v=0; v<ek->num_breaksv && !nurbuv_is_selected; v++) {
+			if (ek->flagv[v]&SELECT) nurbuv_is_selected = 1;
+		}
+		for (nt=nu->trims.first; nt && !nurbuv_is_selected; nt=nt->next) {
+			if (nt->flag&SELECT) nurbuv_is_selected = 1;
+		}
+		if (nurbuv_is_selected) {
+			for (u=0; u<ek->num_breaksu; u++) ek->flagu[u] |= SELECT;
+			for (v=0; v<ek->num_breaksv; v++) ek->flagv[v] |= SELECT;
+			for (nt=nu->trims.first; nt && !nurbuv_is_selected; nt=nt->next) nt->flag |= SELECT;
+		}
+	}
+	return OPERATOR_FINISHED;
+}
+
 static int uv_select_linked_exec(bContext *C, wmOperator *op)
 {
-	return uv_select_linked_internal(C, op, NULL, 0);
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Object *obedit = CTX_data_edit_object(C);
+	if (ED_space_image_show_nurbsuv(sima, obedit))
+		return nurbsuv_select_linked(C, op);
+	else
+		return uv_select_linked_internal(C, op, NULL, 0);
 }
 
 static void UV_OT_select_linked(wmOperatorType *ot)
@@ -2639,7 +2679,7 @@ static void UV_OT_select_linked(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec = uv_select_linked_exec;
-	ot->poll = ED_operator_uvedit;    /* requires space image */
+	ot->poll = ED_operator_uvedit_or_nurbsuv;    /* requires space image */
 
 	/* properties */
 	RNA_def_boolean(ot->srna, "extend", 0,
@@ -3125,7 +3165,7 @@ static void UV_OT_select_border(wmOperatorType *ot)
 	ot->invoke = WM_border_select_invoke;
 	ot->exec = uv_border_select_exec;
 	ot->modal = WM_border_select_modal;
-	ot->poll = ED_operator_uvedit_space_image; /* requires space image */;
+	ot->poll = ED_operator_uvedit_or_nurbsuv_space_image; /* requires space image */;
 	ot->cancel = WM_border_select_cancel;
 	
 	/* flags */
