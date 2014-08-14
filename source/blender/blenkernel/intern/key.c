@@ -36,9 +36,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
 
@@ -2145,7 +2145,7 @@ void BKE_key_editdata_to_scratch(Object *ob, bool indeces_in_sync)
 	Key *k = BKE_key_from_object(ob);
 	ScratchKeyBlock *skb = &k->scratch;
 
-	BLI_assert(ELEM3(ob->type, OB_MESH, OB_LATTICE, OB_CURVE));
+	BLI_assert(ELEM(ob->type, OB_MESH, OB_LATTICE, OB_CURVE));
 	BLI_assert(ob->mode == OB_MODE_EDIT);
 
 	if (ob->type == OB_MESH) {
@@ -2189,7 +2189,7 @@ void BKE_key_editdata_from_scratch(Object *ob)
 {
 	ScratchKeyBlock *skb = &BKE_key_from_object(ob)->scratch;
 
-	BLI_assert(ELEM3(ob->type, OB_MESH, OB_LATTICE, OB_CURVE));
+	BLI_assert(ELEM(ob->type, OB_MESH, OB_LATTICE, OB_CURVE));
 	BLI_assert(ob->mode == OB_MODE_EDIT);
 
 	if (ob->type == OB_MESH) {
