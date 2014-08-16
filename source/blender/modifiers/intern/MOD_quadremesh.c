@@ -495,6 +495,60 @@ static void computeScalarField(LaplacianSystem *sys)
 #endif
 }
 
+/*
+* Return 1 if the intersections exist
+* Return -1 if the intersections does not exist
+*/
+static int computeIsectLineWithEdge(float r[3], float p1[3], float p2[3], float ori[3], float dir[3])
+{
+	float v[3], i1[3], i2[3];
+	int i;
+	//isect_line_line_v3
+
+	add_v3_v3v3(v, ori, dir);
+	i = isect_line_line_v3(p1, p2, ori, v, i1, i2);
+	if (i == 0) {
+		sub_v3_v3v3(i1, p1, ori);
+		normalize_v3(i1);
+		if (equals_v3v3(i1, dir)) {
+			copy_v3_v3(r, p1);
+		}
+		else {
+			copy_v3_v3(r, p2);
+		}
+	}
+	else {
+		sub_v3_v3v3(v, i1, ori);
+		normalize_v3(v);
+		if (equals_v3v3(v, dir)) {
+			copy_v3_v3(r, i1);
+		}
+		else {
+			return -1;
+		}
+	}
+	return 1;
+}
+
+/*
+* Return 1 if the intersections exist
+* Return -1 if the intersections does not exist
+*/
+static int computeIsectLineWithTriangle(float r[3], float p1[3], float p2[3], float p3[3], float ori[3], float dir[3])
+{
+	if (computeIsectLineWithEdge(r, p1, p2, ori, dir) == 1) {
+		return 1;
+	}
+	else if (computeIsectLineWithEdge(r, p2, p3, ori, dir) == 1) {
+		return 1;
+	}
+	else if (computeIsectLineWithEdge(r, p3, p1, ori, dir) == 1) {
+		return 1;
+	}
+	return -1;
+
+}
+
 /**
 * Compute the gradient fields
 *
@@ -539,6 +593,7 @@ static void computeGradientFields(LaplacianSystem * sys)
 		mul_v3_v3fl(u, sys->no[fi], val);
 		sub_v3_v3v3(w, g, u);
 		normalize_v3_v3(sys->gf1[fi], w);
+		
 
 		cross_v3_v3v3(g, sys->no[fi], sys->gf1[fi]);
 		normalize_v3_v3(sys->gf2[fi], g);
