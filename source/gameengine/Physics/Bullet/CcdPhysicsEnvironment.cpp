@@ -3039,6 +3039,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 	bool isbulletdyna = (blenderobject->gameflag & OB_DYNAMIC) != 0;;
 	bool isbulletsensor = (blenderobject->gameflag & OB_SENSOR) != 0;
 	bool isbulletchar = (blenderobject->gameflag & OB_CHARACTER) != 0;
+	bool isbulletvehicle = (blenderobject->gameflag & OB_VEHICLE) != 0;
 	bool isbulletsoftbody = (blenderobject->gameflag & OB_SOFT_BODY) != 0;
 	bool isbulletrigidbody = (blenderobject->gameflag & OB_RIGID_BODY) != 0;
 	bool useGimpact = false;
@@ -3065,7 +3066,7 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 	{
 		ci.m_collisionFlags |= btCollisionObject::CF_STATIC_OBJECT;
 	}
-	if ((blenderobject->gameflag & (OB_GHOST | OB_SENSOR | OB_CHARACTER)) != 0)
+	if ((blenderobject->gameflag & (OB_GHOST | OB_SENSOR | OB_CHARACTER | OB_VEHICLE)) != 0)
 	{
 		ci.m_collisionFlags |= btCollisionObject::CF_NO_CONTACT_RESPONSE;
 	}
@@ -3189,6 +3190,8 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 			bounds = OB_BOUND_TRIANGLE_MESH;
 		else if (blenderobject->gameflag & OB_CHARACTER)
 			bounds = OB_BOUND_SPHERE;
+		else if (blenderobject->gameflag & OB_VEHICLE)
+			bounds = OB_BOUND_BOX;
 	}
 	else
 	{
@@ -3455,19 +3458,20 @@ void CcdPhysicsEnvironment::ConvertObject(KX_GameObject *gameobj, RAS_MeshObject
 
 	ci.m_collisionFilterGroup =
 		(isbulletsensor) ? short(CcdConstructionInfo::SensorFilter) :
-		(isbulletdyna) ? short(CcdConstructionInfo::DefaultFilter) :
-		(isbulletchar) ? short(CcdConstructionInfo::CharacterFilter) :
-		short(CcdConstructionInfo::StaticFilter);
+			(isbulletdyna) ? short(CcdConstructionInfo::DefaultFilter) :
+				(isbulletchar || isbulletvehicle) ? short(CcdConstructionInfo::CharacterFilter) :
+					short(CcdConstructionInfo::StaticFilter);
 	ci.m_collisionFilterMask =
 		(isbulletsensor) ? short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter) :
-		(isbulletdyna) ? short(CcdConstructionInfo::AllFilter) :
-		(isbulletchar) ? short(CcdConstructionInfo::AllFilter) :
-		short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::StaticFilter);
+			(isbulletdyna) ? short(CcdConstructionInfo::AllFilter) :
+				(isbulletchar || isbulletvehicle) ? short(CcdConstructionInfo::AllFilter) :
+					short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::StaticFilter);
 	ci.m_bRigid = isbulletdyna && isbulletrigidbody;
 	ci.m_bSoft = isbulletsoftbody;
 	ci.m_bDyna = isbulletdyna;
 	ci.m_bSensor = isbulletsensor;
 	ci.m_bCharacter = isbulletchar;
+	ci.m_bVehicle = isbulletvehicle;
 	ci.m_bGimpact = useGimpact;
 	MT_Vector3 scaling = gameobj->NodeGetWorldScaling();
 	ci.m_scaling.setValue(scaling[0], scaling[1], scaling[2]);

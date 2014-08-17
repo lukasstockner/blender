@@ -56,7 +56,7 @@ class PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
             layout.prop(game, "jump_speed")
             layout.prop(game, "fall_speed")
 
-        elif physics_type in {'DYNAMIC', 'RIGID_BODY'}:
+        elif physics_type in {'DYNAMIC', 'RIGID_BODY', 'VEHICLE'}:
             split = layout.split()
 
             col = split.column()
@@ -209,7 +209,7 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
     def poll(cls, context):
         game = context.object.game
         rd = context.scene.render
-        return (game.physics_type in {'DYNAMIC', 'RIGID_BODY', 'SENSOR', 'SOFT_BODY', 'STATIC', 'CHARACTER'}) and (rd.engine in cls.COMPAT_ENGINES)
+        return (game.physics_type in {'DYNAMIC', 'RIGID_BODY', 'SENSOR', 'SOFT_BODY', 'STATIC', 'CHARACTER', 'VEHICLE'}) and (rd.engine in cls.COMPAT_ENGINES)
 
     def draw_header(self, context):
         game = context.active_object.game
@@ -227,7 +227,7 @@ class PHYSICS_PT_game_collision_bounds(PhysicsButtonsPanel, Panel):
         row = layout.row()
         row.prop(game, "collision_margin", text="Margin", slider=True)
         sub = row.row()
-        sub.active = game.physics_type  not in {'SOFT_BODY', 'CHARACTER'}
+        sub.active = game.physics_type  not in {'SOFT_BODY', 'CHARACTER', 'VEHICLE'}
         sub.prop(game, "use_collision_compound", text="Compound")
 
 class PHYSICS_PT_game_obstacles(PhysicsButtonsPanel, Panel):

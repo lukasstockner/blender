@@ -559,6 +559,8 @@ enum {
 	OB_CHARACTER             = 1 << 22,
 
 	OB_RECORD_ANIMATION      = 1 << 23,
+
+	OB_VEHICLE               = 1 << 24,
 };
 
 /* ob->gameflag2 */
@@ -585,6 +587,7 @@ enum {
 	OB_BODY_TYPE_SENSOR         = 6,
 	OB_BODY_TYPE_NAVMESH        = 7,
 	OB_BODY_TYPE_CHARACTER      = 8,
+	OB_BODY_TYPE_VEHICLE        = 9,
 };
 
 /* ob->depsflag */

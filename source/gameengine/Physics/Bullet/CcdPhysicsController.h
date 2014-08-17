@@ -272,6 +272,7 @@ struct CcdConstructionInfo
 		m_bSoft(false),
 		m_bSensor(false),
 		m_bCharacter(false),
+		m_bVehicle(false),
 		m_bGimpact(false),
 		m_collisionFilterGroup(DefaultFilter),
 		m_collisionFilterMask(AllFilter),
@@ -299,8 +300,8 @@ struct CcdConstructionInfo
 	btVector3	m_linearFactor;
 	btVector3	m_angularFactor;
 	btScalar	m_mass;
-	btScalar	m_clamp_vel_min;  
-	btScalar	m_clamp_vel_max;  
+	btScalar	m_clamp_vel_min;
+	btScalar	m_clamp_vel_max;
 	btScalar	m_restitution;
 	btScalar	m_friction;
 	btScalar	m_linearDamping;
@@ -356,6 +357,7 @@ struct CcdConstructionInfo
 	bool		m_bSoft;
 	bool		m_bSensor;
 	bool		m_bCharacter;
+	bool		m_bVehicle;
 	bool		m_bGimpact;			// use Gimpact for mesh body
 
 	///optional use of collision group/mask:
