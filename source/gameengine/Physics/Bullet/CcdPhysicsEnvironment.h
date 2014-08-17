@@ -39,9 +39,6 @@ class btCollisionDispatcher;
 class btDispatcher;
 //#include "btBroadphaseInterface.h"
 
-//switch on/off new vehicle support
-#define NEW_BULLET_VEHICLE_SUPPORT 1
-
 #include "BulletDynamics/ConstraintSolver/btContactSolverInfo.h"
 
 class WrapperVehicle;

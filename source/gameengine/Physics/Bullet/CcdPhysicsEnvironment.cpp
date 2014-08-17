@@ -58,14 +58,13 @@ extern "C" {
 
 #define CCD_CONSTRAINT_DISABLE_LINKED_COLLISION 0x80
 
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
+/* Vehicle Controller */
 #include "BulletDynamics/Vehicle/btRaycastVehicle.h"
 #include "BulletDynamics/Vehicle/btVehicleRaycaster.h"
 #include "BulletDynamics/Vehicle/btWheelInfo.h"
 #include "PHY_IVehicle.h"
-static btRaycastVehicle::btVehicleTuning	gTuning;
+static btRaycastVehicle::btVehicleTuning gTuning;
 
-#endif //NEW_BULLET_VEHICLE_SUPPORT
 #include "LinearMath/btAabbUtil2.h"
 #include "MT_Matrix4x4.h"
 #include "MT_Vector3.h"
@@ -97,220 +96,200 @@ void DrawRasterizerLine(const float* from,const float* to,int color);
 #endif //_MSC_VER
 #endif //WIN32
 
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
 class WrapperVehicle : public PHY_IVehicle
 {
-
-	btRaycastVehicle*	m_vehicle;
-	PHY_IPhysicsController*	m_chassis;
+	btRaycastVehicle *m_vehicle;
+	PHY_IPhysicsController *m_chassis;
 
 public:
 
 	WrapperVehicle(btRaycastVehicle* vehicle,PHY_IPhysicsController* chassis)
 		:m_vehicle(vehicle),
 		m_chassis(chassis)
-	{
-	}
+	{}
 
 	~WrapperVehicle()
 	{
 		delete m_vehicle;
 	}
 
-	btRaycastVehicle*	GetVehicle()
+	btRaycastVehicle* GetVehicle()
 	{
 		return m_vehicle;
 	}
 
-	PHY_IPhysicsController*	GetChassis()
+	PHY_IPhysicsController* GetChassis()
 	{
 		return m_chassis;
 	}
 
-	virtual void	AddWheel(
-		PHY_IMotionState*	motionState,
-		MT_Vector3	connectionPoint,
-		MT_Vector3	downDirection,
-		MT_Vector3	axleDirection,
-		float	suspensionRestLength,
+	virtual void AddWheel(
+		PHY_IMotionState *motionState,
+		MT_Vector3 connectionPoint,
+		MT_Vector3 downDirection,
+		MT_Vector3 axleDirection,
+		float suspensionRestLength,
 		float wheelRadius,
 		bool hasSteering
-		)
+	)
 	{
 		btVector3 connectionPointCS0(connectionPoint[0],connectionPoint[1],connectionPoint[2]);
 		btVector3 wheelDirectionCS0(downDirection[0],downDirection[1],downDirection[2]);
 		btVector3 wheelAxle(axleDirection[0],axleDirection[1],axleDirection[2]);
 
-
-		btWheelInfo& info = m_vehicle->addWheel(connectionPointCS0,wheelDirectionCS0,wheelAxle,
-			suspensionRestLength,wheelRadius,gTuning,hasSteering);
+		btWheelInfo& info = m_vehicle->addWheel(	connectionPointCS0,
+													wheelDirectionCS0,
+													wheelAxle,
+													suspensionRestLength,
+													wheelRadius,
+													gTuning,
+													hasSteering
+												);
 		info.m_clientInfo = motionState;
-
 	}
 
-	void	SyncWheels()
+	void SyncWheels()
 	{
 		int numWheels = GetNumWheels();
 		int i;
-		for (i=0;i<numWheels;i++)
-		{
-			btWheelInfo& info = m_vehicle->getWheelInfo(i);
-			PHY_IMotionState* motionState = (PHY_IMotionState*)info.m_clientInfo;
-	//		m_vehicle->updateWheelTransformsWS(info,false);
+		for (i=0;i<numWheels;i++) {
 			m_vehicle->updateWheelTransform(i,false);
+
 			btTransform trans = m_vehicle->getWheelInfo(i).m_worldTransform;
 			btQuaternion orn = trans.getRotation();
 			const btVector3& pos = trans.getOrigin();
+			PHY_IMotionState* motionState = (PHY_IMotionState*)m_vehicle->getWheelInfo(i).m_clientInfo;
 			motionState->SetWorldOrientation(orn.x(),orn.y(),orn.z(),orn[3]);
 			motionState->SetWorldPosition(pos.x(),pos.y(),pos.z());
-
 		}
 	}
 
-	virtual	int		GetNumWheels() const
+	virtual int GetNumWheels() const
 	{
 		return m_vehicle->getNumWheels();
 	}
 
-	virtual void	GetWheelPosition(int wheelIndex,float& posX,float& posY,float& posZ) const
+	virtual void GetWheelPosition(int wheelIndex, float &posX, float &posY, float &posZ) const
 	{
-		btTransform	trans = m_vehicle->getWheelTransformWS(wheelIndex);
-		posX = trans.getOrigin().x();
-		posY = trans.getOrigin().y();
-		posZ = trans.getOrigin().z();
-	}
-	virtual void	GetWheelOrientationQuaternion(int wheelIndex,float& quatX,float& quatY,float& quatZ,float& quatW) const
-	{
-		btTransform	trans = m_vehicle->getWheelTransformWS(wheelIndex);
-		btQuaternion quat = trans.getRotation();
-		btMatrix3x3 orn2(quat);
-
-		quatX = trans.getRotation().x();
-		quatY = trans.getRotation().y();
-		quatZ = trans.getRotation().z();
-		quatW = trans.getRotation()[3];
-
-
-		//printf("test");
-
-
+		if ((wheelIndex>=0) && (wheelIndex<m_vehicle->getNumWheels())) {
+			btTransform trans = m_vehicle->getWheelTransformWS(wheelIndex);
+			posX = trans.getOrigin().x();
+			posY = trans.getOrigin().y();
+			posZ = trans.getOrigin().z();
+		}
 	}
 
-	virtual float	GetWheelRotation(int wheelIndex) const
+	virtual void GetWheelOrientationQuaternion(int wheelIndex, float &quatX, float &quatY, float &quatZ, float &quatW) const
+	{
+		if ((wheelIndex>=0) && (wheelIndex<m_vehicle->getNumWheels())) {
+			btTransform trans = m_vehicle->getWheelTransformWS(wheelIndex);
+			btQuaternion quat = trans.getRotation();
+
+			quatX = quat.x();
+			quatY = quat.y();
+			quatZ = quat.z();
+			quatW = quat[3];
+		}
+	}
+
+	virtual float GetWheelRotation(int wheelIndex) const
 	{
 		float rotation = 0.f;
 
-		if ((wheelIndex>=0) && (wheelIndex< m_vehicle->getNumWheels()))
-		{
+		if ((wheelIndex>=0) && (wheelIndex<m_vehicle->getNumWheels())) {
 			btWheelInfo& info = m_vehicle->getWheelInfo(wheelIndex);
 			rotation = info.m_rotation;
 		}
 		return rotation;
-
 	}
 
-
-
-	virtual int	GetUserConstraintId() const
+	virtual int GetUserConstraintId() const
 	{
 		return m_vehicle->getUserConstraintId();
 	}
 
-	virtual int	GetUserConstraintType() const
+	virtual int GetUserConstraintType() const
 	{
 		return m_vehicle->getUserConstraintType();
 	}
 
-	virtual	void	SetSteeringValue(float steering,int wheelIndex)
+	virtual void SetSteeringValue(float steering, int wheelIndex)
 	{
 		m_vehicle->setSteeringValue(steering,wheelIndex);
 	}
 
-	virtual	void	ApplyEngineForce(float force,int wheelIndex)
+	virtual void ApplyEngineForce(float force, int wheelIndex)
 	{
 		m_vehicle->applyEngineForce(force,wheelIndex);
 	}
 
-	virtual	void	ApplyBraking(float braking,int wheelIndex)
+	virtual void ApplyBraking(float braking, int wheelIndex)
 	{
-		if ((wheelIndex>=0) && (wheelIndex< m_vehicle->getNumWheels()))
-		{
+		if ((wheelIndex>=0) && (wheelIndex<m_vehicle->getNumWheels())) {
 			btWheelInfo& info = m_vehicle->getWheelInfo(wheelIndex);
 			info.m_brake = braking;
 		}
 	}
 
-	virtual	void	SetWheelFriction(float friction,int wheelIndex)
+	virtual void SetWheelFriction(float friction, int wheelIndex)
 	{
-		if ((wheelIndex>=0) && (wheelIndex< m_vehicle->getNumWheels()))
-		{
+		if ((wheelIndex>=0) && (wheelIndex<m_vehicle->getNumWheels())) {
 			btWheelInfo& info = m_vehicle->getWheelInfo(wheelIndex);
 			info.m_frictionSlip = friction;
 		}
-
 	}
 
-	virtual	void	SetSuspensionStiffness(float suspensionStiffness,int wheelIndex)
+	virtual void SetSuspensionStiffness(float suspensionStiffness, int wheelIndex)
 	{
-		if ((wheelIndex>=0) && (wheelIndex< m_vehicle->getNumWheels()))
-		{
+		if ((wheelIndex>=0) && (wheelIndex<m_vehicle->getNumWheels())) {
 			btWheelInfo& info = m_vehicle->getWheelInfo(wheelIndex);
 			info.m_suspensionStiffness = suspensionStiffness;
-
 		}
 	}
 
-	virtual	void	SetSuspensionDamping(float suspensionDamping,int wheelIndex)
+	virtual void SetSuspensionDamping(float suspensionDamping, int wheelIndex)
 	{
-		if ((wheelIndex>=0) && (wheelIndex< m_vehicle->getNumWheels()))
-		{
+		if ((wheelIndex>=0) && (wheelIndex<m_vehicle->getNumWheels())) {
 			btWheelInfo& info = m_vehicle->getWheelInfo(wheelIndex);
 			info.m_wheelsDampingRelaxation = suspensionDamping;
 		}
 	}
 
-	virtual	void	SetSuspensionCompression(float suspensionCompression,int wheelIndex)
+	virtual void SetSuspensionCompression(float suspensionCompression,int wheelIndex)
 	{
-		if ((wheelIndex>=0) && (wheelIndex< m_vehicle->getNumWheels()))
-		{
+		if ((wheelIndex>=0) && (wheelIndex<m_vehicle->getNumWheels())) {
 			btWheelInfo& info = m_vehicle->getWheelInfo(wheelIndex);
 			info.m_wheelsDampingCompression = suspensionCompression;
 		}
 	}
 
-
-
-	virtual	void	SetRollInfluence(float rollInfluence,int wheelIndex)
+	virtual void SetRollInfluence(float rollInfluence, int wheelIndex)
 	{
-		if ((wheelIndex>=0) && (wheelIndex< m_vehicle->getNumWheels()))
-		{
+		if ((wheelIndex>=0) && (wheelIndex<m_vehicle->getNumWheels())) {
 			btWheelInfo& info = m_vehicle->getWheelInfo(wheelIndex);
 			info.m_rollInfluence = rollInfluence;
 		}
 	}
 
-	virtual void	SetCoordinateSystem(int rightIndex,int upIndex,int forwardIndex)
+	virtual void SetCoordinateSystem(int rightIndex, int upIndex, int forwardIndex)
 	{
 		m_vehicle->setCoordinateSystem(rightIndex,upIndex,forwardIndex);
 	}
 
-
-
 };
+
 
 class BlenderVehicleRaycaster: public btDefaultVehicleRaycaster
 {
-	btDynamicsWorld*	m_dynamicsWorld;
+	btDynamicsWorld *m_dynamicsWorld;
+
 public:
-	BlenderVehicleRaycaster(btDynamicsWorld* world)
+	BlenderVehicleRaycaster(btDynamicsWorld *world)
 		:btDefaultVehicleRaycaster(world), m_dynamicsWorld(world)
-	{
-	}
+	{}
 
-	virtual void* castRay(const btVector3& from,const btVector3& to, btVehicleRaycasterResult& result)
+	virtual void* castRay(const btVector3 &from,const btVector3 &to, btVehicleRaycasterResult &result)
 	{
-	//	RayResultCallback& resultCallback;
-
 		btCollisionWorld::ClosestRayResultCallback rayCallback(from,to);
 
 		// We override btDefaultVehicleRaycaster so we can set this flag, otherwise our
@@ -319,12 +298,9 @@ public:
 
 		m_dynamicsWorld->rayTest(from, to, rayCallback);
 
-		if (rayCallback.hasHit())
-		{
-
+		if (rayCallback.hasHit()) {
 			const btRigidBody* body = btRigidBody::upcast(rayCallback.m_collisionObject);
-			if (body && body->hasContactResponse())
-			{
+			if (body && body->hasContactResponse()) {
 				result.m_hitPointInWorld = rayCallback.m_hitPointWorld;
 				result.m_hitNormalInWorld = rayCallback.m_hitNormalWorld;
 				result.m_hitNormalInWorld.normalize();
@@ -335,7 +311,7 @@ public:
 		return 0;
 	}
 };
-#endif //NEW_BULLET_VEHICLE_SUPPORT
+
 
 class CcdOverlapFilterCallBack : public btOverlapFilterCallback
 {
