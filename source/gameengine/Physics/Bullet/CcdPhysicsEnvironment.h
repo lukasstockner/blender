@@ -173,16 +173,8 @@ protected:
 
 		virtual void	CallbackTriggers();
 
+		virtual PHY_IVehicle* GetVehicleConstraint(int constraintId);
 
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
-		//complex constraint for vehicles
-		virtual PHY_IVehicle*	GetVehicleConstraint(int constraintId);
-#else
-		virtual class PHY_IVehicle*	GetVehicleConstraint(int constraintId)
-		{
-			return 0;
-		}
-#endif  /* NEW_BULLET_VEHICLE_SUPPORT */
 		// Character physics wrapper
 		virtual PHY_ICharacter*	GetCharacterController(class KX_GameObject* ob);
 

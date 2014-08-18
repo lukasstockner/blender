@@ -1312,9 +1312,14 @@ void WM_operator_properties_gesture_border(wmOperatorType *ot, bool extend)
 
 void WM_operator_properties_mouse_select(wmOperatorType *ot)
 {
-	RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend selection instead of deselecting everything first");
-	RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Remove from selection");
-	RNA_def_boolean(ot->srna, "toggle", 0, "Toggle Selection", "Toggle the selection");
+	PropertyRNA *prop;
+	
+	prop = RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend selection instead of deselecting everything first");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "deselect", 0, "Deselect", "Remove from selection");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "toggle", 0, "Toggle Selection", "Toggle the selection");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 void WM_operator_properties_gesture_straightline(wmOperatorType *ot, int cursor)
@@ -2049,6 +2054,41 @@ static void WM_OT_call_menu(wmOperatorType *ot)
 	RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the menu");
 }
 
+static int wm_call_pie_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	char idname[BKE_ST_MAXNAME];
+	RNA_string_get(op->ptr, "name", idname);
+
+	uiPieMenuInvoke(C, idname, event);
+
+	return OPERATOR_CANCELLED;
+}
+
+static int wm_call_pie_menu_exec(bContext *C, wmOperator *op)
+{
+	char idname[BKE_ST_MAXNAME];
+	RNA_string_get(op->ptr, "name", idname);
+
+	uiPieMenuInvoke(C, idname, CTX_wm_window(C)->eventstate);
+
+	return OPERATOR_CANCELLED;
+}
+
+static void WM_OT_call_menu_pie(wmOperatorType *ot)
+{
+	ot->name = "Call Pie Menu";
+	ot->idname = "WM_OT_call_menu_pie";
+	ot->description = "Call (draw) a pre-defined pie menu";
+
+	ot->invoke = wm_call_pie_menu_invoke;
+	ot->exec = wm_call_pie_menu_exec;
+	ot->poll = WM_operator_winactive;
+
+	ot->flag = OPTYPE_INTERNAL;
+
+	RNA_def_string(ot->srna, "name", NULL, BKE_ST_MAXNAME, "Name", "Name of the pie menu");
+}
+
 /* ************ window / screen operator definitions ************** */
 
 /* this poll functions is needed in place of WM_operator_winactive
@@ -2336,8 +2376,8 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 	WM_operator_properties_filesel(ot, FOLDERFILE | BLENDERFILE, FILE_BLENDER, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 
-	RNA_def_boolean(ot->srna, "load_ui", 1, "Load UI", "Load user interface setup in the .blend file");
-	RNA_def_boolean(ot->srna, "use_scripts", 1, "Trusted Source",
+	RNA_def_boolean(ot->srna, "load_ui", true, "Load UI", "Load user interface setup in the .blend file");
+	RNA_def_boolean(ot->srna, "use_scripts", true, "Trusted Source",
 	                "Allow .blend file to execute scripts automatically, default available from system preferences");
 }
 
@@ -2348,7 +2388,14 @@ static int wm_revert_mainfile_exec(bContext *C, wmOperator *op)
 {
 	bool success;
 
-	success = wm_file_read_opwrap(C, G.main->name, op->reports, true);
+	wm_open_init_use_scripts(op, false);
+
+	if (RNA_boolean_get(op->ptr, "use_scripts"))
+		G.f |= G_SCRIPT_AUTOEXEC;
+	else
+		G.f &= ~G_SCRIPT_AUTOEXEC;
+
+	success = wm_file_read_opwrap(C, G.main->name, op->reports, !(G.f & G_SCRIPT_AUTOEXEC));
 
 	if (success) {
 		return OPERATOR_FINISHED;
@@ -2369,6 +2416,9 @@ static void WM_OT_revert_mainfile(wmOperatorType *ot)
 	ot->idname = "WM_OT_revert_mainfile";
 	ot->description = "Reload the saved file";
 	ot->invoke = WM_operator_confirm;
+
+	RNA_def_boolean(ot->srna, "use_scripts", true, "Trusted Source",
+	                "Allow .blend file to execute scripts automatically, default available from system preferences");
 
 	ot->exec = wm_revert_mainfile_exec;
 	ot->poll = wm_revert_mainfile_poll;
@@ -3642,6 +3692,8 @@ typedef struct {
 	StructRNA *image_id_srna;
 	float initial_value, current_value, min_value, max_value;
 	int initial_mouse[2];
+	int slow_mouse[2];
+	bool slow_mode;
 	unsigned int gltex;
 	ListBase orig_paintcursors;
 	bool use_secondary_tex;
@@ -4094,24 +4146,48 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 {
 	RadialControl *rc = op->customdata;
 	float new_value, dist, zoom[2];
-	float delta[2], snap, ret = OPERATOR_RUNNING_MODAL;
-
+	float delta[2], ret = OPERATOR_RUNNING_MODAL;
+	bool snap;
 	/* TODO: fix hardcoded events */
 
-	snap = event->ctrl;
+	snap = event->ctrl != 0;
 
 	switch (event->type) {
 		case MOUSEMOVE:
-			delta[0] = rc->initial_mouse[0] - event->x;
-			delta[1] = rc->initial_mouse[1] - event->y;
+			if (rc->slow_mode) {
+				delta[0] = rc->initial_mouse[0] - rc->slow_mouse[0];
+				delta[1] = rc->initial_mouse[1] - rc->slow_mouse[1];
+				
+				if (rc->zoom_prop) {
+					RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
+					delta[0] /= zoom[0];
+					delta[1] /= zoom[1];
+				}
+	
+				dist = len_v2(delta);
+				
+				delta[0] = event->x - rc->slow_mouse[0];
+				delta[1] = event->y - rc->slow_mouse[1];
 
-			if (rc->zoom_prop) {
-				RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
-				delta[0] /= zoom[0];
-				delta[1] /= zoom[1];
+				if (rc->zoom_prop) {
+					delta[0] /= zoom[0];
+					delta[1] /= zoom[1];
+				}
+	
+				dist = dist + 0.1f * (delta[0] + delta[1]);								
+			} 
+			else {
+				delta[0] = rc->initial_mouse[0] - event->x;
+				delta[1] = rc->initial_mouse[1] - event->y;
+
+				if (rc->zoom_prop) {
+					RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
+					delta[0] /= zoom[0];
+					delta[1] /= zoom[1];
+				}
+	
+				dist = len_v2(delta);				
 			}
-
-			dist = len_v2(delta);
 
 			/* calculate new value and apply snapping  */
 			switch (rc->subtype) {
@@ -4153,6 +4229,18 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 			RNA_property_update(C, &rc->ptr, rc->prop);
 			ret = OPERATOR_FINISHED;
 			break;
+			
+		case LEFTSHIFTKEY:
+		case RIGHTSHIFTKEY:
+			if (event->val == KM_PRESS) {
+				rc->slow_mouse[0] = event->x;
+				rc->slow_mouse[1] = event->y;
+				rc->slow_mode = true;
+			}
+			if (event->val == KM_RELEASE) {
+				rc->slow_mode = false;
+			}
+			break;
 	}
 
 	ED_region_tag_redraw(CTX_wm_region(C));
@@ -4165,8 +4253,6 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 
 static void WM_OT_radial_control(wmOperatorType *ot)
 {
-	PropertyRNA *prop;
-
 	ot->name = "Radial Control";
 	ot->idname = "WM_OT_radial_control";
 	ot->description = "Set some size property (like e.g. brush size) with mouse wheel";
@@ -4178,32 +4264,23 @@ static void WM_OT_radial_control(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
 	/* all paths relative to the context */
-	prop = RNA_def_string(ot->srna, "data_path_primary", NULL, 0, "Primary Data Path", "Primary path of property to be set by the radial control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "data_path_primary", NULL, 0, "Primary Data Path", "Primary path of property to be set by the radial control");
 
-	prop = RNA_def_string(ot->srna, "data_path_secondary", NULL, 0, "Secondary Data Path", "Secondary path of property to be set by the radial control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "data_path_secondary", NULL, 0, "Secondary Data Path", "Secondary path of property to be set by the radial control");
 
-	prop = RNA_def_string(ot->srna, "use_secondary", NULL, 0, "Use Secondary", "Path of property to select between the primary and secondary data paths");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "use_secondary", NULL, 0, "Use Secondary", "Path of property to select between the primary and secondary data paths");
 
-	prop = RNA_def_string(ot->srna, "rotation_path", NULL, 0, "Rotation Path", "Path of property used to rotate the texture display");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "rotation_path", NULL, 0, "Rotation Path", "Path of property used to rotate the texture display");
 
-	prop = RNA_def_string(ot->srna, "color_path", NULL, 0, "Color Path", "Path of property used to set the color of the control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "color_path", NULL, 0, "Color Path", "Path of property used to set the color of the control");
 
-	prop = RNA_def_string(ot->srna, "fill_color_path", NULL, 0, "Fill Color Path", "Path of property used to set the fill color of the control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "fill_color_path", NULL, 0, "Fill Color Path", "Path of property used to set the fill color of the control");
 
-	prop = RNA_def_string(ot->srna, "zoom_path", NULL, 0, "Zoom Path", "Path of property used to set the zoom level for the control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "zoom_path", NULL, 0, "Zoom Path", "Path of property used to set the zoom level for the control");
 
-	prop = RNA_def_string(ot->srna, "image_id", NULL, 0, "Image ID", "Path of ID that is used to generate an image for the control");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_string(ot->srna, "image_id", NULL, 0, "Image ID", "Path of ID that is used to generate an image for the control");
 
-	prop = RNA_def_boolean(ot->srna, "secondary_tex", 0, "Secondary Texture", "Tweak brush secondary/mask texture");
-	RNA_def_property_flag(prop, PROP_HIDDEN);
+	RNA_def_boolean(ot->srna, "secondary_tex", 0, "Secondary Texture", "Tweak brush secondary/mask texture");
 }
 
 /* ************************** timer for testing ***************** */
@@ -4438,6 +4515,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_splash);
 	WM_operatortype_append(WM_OT_search_menu);
 	WM_operatortype_append(WM_OT_call_menu);
+	WM_operatortype_append(WM_OT_call_menu_pie);
 	WM_operatortype_append(WM_OT_radial_control);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);

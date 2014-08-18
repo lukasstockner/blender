@@ -125,7 +125,7 @@ else:
     B.quickie=[]
 
 toolset = B.arguments.get('BF_TOOLSET', None)
-vcver = B.arguments.get('MSVS_VERSION', '9.0')
+vcver = B.arguments.get('MSVS_VERSION', '12.0')
 
 if toolset:
     print "Using " + toolset
@@ -433,6 +433,7 @@ if env['OURPLATFORM']=='darwin':
             print B.bc.OKGREEN + "Disabled OpenMP, not supported by compiler"
 
     if env['WITH_BF_CYCLES_OSL'] == 1:
+        env['WITH_BF_LLVM'] = 1
         OSX_OSL_LIBPATH = Dir(env.subst(env['BF_OSL_LIBPATH'])).abspath
         # we need 2 variants of passing the oslexec with the force_load option, string and list type atm
         if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.8' or env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.4':
@@ -440,6 +441,8 @@ if env['OURPLATFORM']=='darwin':
         else:
             env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-force_load '+ OSX_OSL_LIBPATH +'/liboslexec.a','-loslquery'])
         env.Append(BF_PROGRAM_LINKFLAGS=['-Xlinker','-force_load','-Xlinker',OSX_OSL_LIBPATH +'/liboslexec.a'])
+    else:
+        env['WITH_BF_LLVM'] = 0
 
     if env['WITH_BF_LLVM'] == 0:
         # Due duplicated generic UTF functions, we pull them either from LLVMSupport or COLLADA
@@ -832,7 +835,17 @@ for x in B.create_blender_liblist(env, 'system'):
     thelibincs.append(os.path.dirname(x))
 
 if 'blender' in B.targets or not env['WITH_BF_NOBLENDER']:
-    env.BlenderProg(B.root_build_dir, "blender", creob + mainlist + thestatlibs + dobj, thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
+    blender_progname = "blender"
+    if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
+        blender_progname = "blender-app"
+
+        lenv = env.Clone()
+        lenv.Append(LINKFLAGS = env['PLATFORM_LINKFLAGS'])
+        targetpath = B.root_build_dir + '/blender'
+        launcher_obj = [env.Object(B.root_build_dir + 'source/creator/creator/creator_launch_win', ['#source/creator/creator_launch_win.c'])]
+        env.BlenderProg(B.root_build_dir, 'blender', [launcher_obj] + B.resources, [], [], 'blender')
+
+    env.BlenderProg(B.root_build_dir, blender_progname, creob + mainlist + thestatlibs + dobj, thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
 if env['WITH_BF_PLAYER']:
     playerlist = B.create_blender_liblist(env, 'player')
     playerlist += B.create_blender_liblist(env, 'player2')
@@ -881,6 +894,10 @@ if env['OURPLATFORM']!='darwin':
     for targetdir,srcfile in zip(datafilestargetlist, datafileslist):
         td, tf = os.path.split(targetdir)
         dotblenderinstall.append(env.Install(dir=td, source=srcfile))
+
+    if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
+        scriptinstall.append(env.InstallAs(env['BF_INSTALLDIR'] + '/blender-app.exe.manifest',
+                                           'source/icons/blender.exe.manifest'))
 
     if env['WITH_BF_PYTHON']:
         #-- local/VERSION/scripts

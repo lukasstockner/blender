@@ -55,6 +55,7 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
+#include "RNA_enum_types.h"
 
 #include "WM_api.h"
 
@@ -1249,12 +1250,9 @@ void RNA_property_enum_items(bContext *C, PointerRNA *ptr, PropertyRNA *prop, En
 	}
 }
 
-void RNA_property_enum_items_gettexted(bContext *C, PointerRNA *ptr, PropertyRNA *prop,
-                                       EnumPropertyItem **r_item, int *r_totitem, bool *r_free)
-{
-	RNA_property_enum_items(C, ptr, prop, r_item, r_totitem, r_free);
-
 #ifdef WITH_INTERNATIONAL
+static void property_enum_translate(PropertyRNA *prop, EnumPropertyItem **r_item, int *r_totitem, bool *r_free)
+{
 	if (!(prop->flag & PROP_ENUM_NO_TRANSLATE)) {
 		int i;
 
@@ -1300,9 +1298,71 @@ void RNA_property_enum_items_gettexted(bContext *C, PointerRNA *ptr, PropertyRNA
 
 		*r_item = nitem;
 	}
+}
+#endif
+
+void RNA_property_enum_items_gettexted(bContext *C, PointerRNA *ptr, PropertyRNA *prop,
+                                       EnumPropertyItem **r_item, int *r_totitem, bool *r_free)
+{
+	RNA_property_enum_items(C, ptr, prop, r_item, r_totitem, r_free);
+
+#ifdef WITH_INTERNATIONAL
+	property_enum_translate(prop, r_item, r_totitem, r_free);
 #endif
 }
 
+void RNA_property_enum_items_gettexted_all(bContext *C, PointerRNA *ptr, PropertyRNA *prop,
+                                       EnumPropertyItem **r_item, int *r_totitem, bool *r_free)
+{
+	EnumPropertyRNA *eprop = (EnumPropertyRNA *)rna_ensure_property(prop);
+	int mem_size = sizeof(EnumPropertyItem) * (eprop->totitem + 1);
+	/* first return all items */
+	*r_free = true;
+	*r_item = MEM_mallocN(mem_size, "enum_gettext_all");
+	 memcpy(*r_item, eprop->item, mem_size);
+
+	if (r_totitem)
+		*r_totitem = eprop->totitem;
+
+	if (eprop->itemf && (C != NULL || (prop->flag & PROP_ENUM_NO_CONTEXT))) {
+		EnumPropertyItem *item;
+		int i;
+		bool free = false;
+
+		if (prop->flag & PROP_ENUM_NO_CONTEXT)
+			item = eprop->itemf(NULL, ptr, prop, &free);
+		else
+			item = eprop->itemf(C, ptr, prop, &free);
+
+		/* any callbacks returning NULL should be fixed */
+		BLI_assert(item != NULL);
+
+		for (i = 0; i < eprop->totitem; i++) {
+			bool exists = false;
+			int i_fixed;
+
+			/* items that do not exist on list are returned, but have their names/identifiers NULLed out */
+			for (i_fixed = 0; item[i_fixed].identifier; i_fixed++) {
+				if (STREQ(item[i_fixed].identifier, (*r_item)[i].identifier)) {
+					exists = true;
+					break;
+				}
+			}
+
+			if (!exists) {
+				(*r_item)[i].name = NULL;
+				(*r_item)[i].identifier = "";
+			}
+		}
+
+		if (free)
+			MEM_freeN(item);
+	}
+
+#ifdef WITH_INTERNATIONAL
+	property_enum_translate(prop, r_item, r_totitem, r_free);
+#endif
+}
 
 bool RNA_property_enum_value(bContext *C, PointerRNA *ptr, PropertyRNA *prop, const char *identifier, int *r_value)
 {
@@ -6405,18 +6465,29 @@ bool RNA_property_reset(PointerRNA *ptr, PropertyRNA *prop, int index)
 			return false;
 	}
 }
-	
+
 bool RNA_property_copy(PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, int index)
 {
 	int len, fromlen;
+	PropertyRNA *fromprop = prop;
+
+	if (prop->magic != RNA_MAGIC) {
+		/* In case of IDProperty, we have to find the *real* idprop of ptr,
+		 * since prop in this case is just a fake wrapper around actual IDProp data, and not a 'real' PropertyRNA. */
+		prop = (PropertyRNA *)rna_idproperty_find(ptr, ((IDProperty *)fromprop)->name);
+		/* Even though currently we now prop will always be the 'fromprop', this might not be the case in the future. */
+		if (prop == fromprop) {
+			fromprop = (PropertyRNA *)rna_idproperty_find(fromptr, ((IDProperty *)prop)->name);
+		}
+	}
 
 	/* get the length of the array to work with */
 	len = RNA_property_array_length(ptr, prop);
-	fromlen = RNA_property_array_length(fromptr, prop);
+	fromlen = RNA_property_array_length(fromptr, fromprop);
 
 	if (len != fromlen)
 		return false;
-	
+
 	/* get and set the default values as appropriate for the various types */
 	switch (RNA_property_type(prop)) {
 		case PROP_BOOLEAN:
@@ -6424,18 +6495,18 @@ bool RNA_property_copy(PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, 
 				if (index == -1) {
 					int *tmparray = MEM_callocN(sizeof(int) * len, "copy - boolean");
 					
-					RNA_property_boolean_get_array(fromptr, prop, tmparray);
+					RNA_property_boolean_get_array(fromptr, fromprop, tmparray);
 					RNA_property_boolean_set_array(ptr, prop, tmparray);
 					
 					MEM_freeN(tmparray);
 				}
 				else {
-					int value = RNA_property_boolean_get_index(fromptr, prop, index);
+					int value = RNA_property_boolean_get_index(fromptr, fromprop, index);
 					RNA_property_boolean_set_index(ptr, prop, index, value);
 				}
 			}
 			else {
-				int value = RNA_property_boolean_get(fromptr, prop);
+				int value = RNA_property_boolean_get(fromptr, fromprop);
 				RNA_property_boolean_set(ptr, prop, value);
 			}
 			return true;
@@ -6444,18 +6515,18 @@ bool RNA_property_copy(PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, 
 				if (index == -1) {
 					int *tmparray = MEM_callocN(sizeof(int) * len, "copy - int");
 					
-					RNA_property_int_get_array(fromptr, prop, tmparray);
+					RNA_property_int_get_array(fromptr, fromprop, tmparray);
 					RNA_property_int_set_array(ptr, prop, tmparray);
 					
 					MEM_freeN(tmparray);
 				}
 				else {
-					int value = RNA_property_int_get_index(fromptr, prop, index);
+					int value = RNA_property_int_get_index(fromptr, fromprop, index);
 					RNA_property_int_set_index(ptr, prop, index, value);
 				}
 			}
 			else {
-				int value = RNA_property_int_get(fromptr, prop);
+				int value = RNA_property_int_get(fromptr, fromprop);
 				RNA_property_int_set(ptr, prop, value);
 			}
 			return true;
@@ -6464,36 +6535,36 @@ bool RNA_property_copy(PointerRNA *ptr, PointerRNA *fromptr, PropertyRNA *prop, 
 				if (index == -1) {
 					float *tmparray = MEM_callocN(sizeof(float) * len, "copy - float");
 					
-					RNA_property_float_get_array(fromptr, prop, tmparray);
+					RNA_property_float_get_array(fromptr, fromprop, tmparray);
 					RNA_property_float_set_array(ptr, prop, tmparray);
 					
 					MEM_freeN(tmparray);
 				}
 				else {
-					float value = RNA_property_float_get_index(fromptr, prop, index);
+					float value = RNA_property_float_get_index(fromptr, fromprop, index);
 					RNA_property_float_set_index(ptr, prop, index, value);
 				}
 			}
 			else {
-				float value = RNA_property_float_get(fromptr, prop);
+				float value = RNA_property_float_get(fromptr, fromprop);
 				RNA_property_float_set(ptr, prop, value);
 			}
 			return true;
 		case PROP_ENUM:
 		{
-			int value = RNA_property_enum_get(fromptr, prop);
+			int value = RNA_property_enum_get(fromptr, fromprop);
 			RNA_property_enum_set(ptr, prop, value);
 			return true;
 		}
 		case PROP_POINTER:
 		{
-			PointerRNA value = RNA_property_pointer_get(fromptr, prop);
+			PointerRNA value = RNA_property_pointer_get(fromptr, fromprop);
 			RNA_property_pointer_set(ptr, prop, value);
 			return true;
 		}
 		case PROP_STRING:
 		{
-			char *value = RNA_property_string_get_alloc(fromptr, prop, NULL, 0, NULL);
+			char *value = RNA_property_string_get_alloc(fromptr, fromprop, NULL, 0, NULL);
 			RNA_property_string_set(ptr, prop, value);
 			MEM_freeN(value);
 			return true;
