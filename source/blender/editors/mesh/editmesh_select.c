@@ -1307,6 +1307,7 @@ static int edbm_select_loop_invoke(bContext *C, wmOperator *op, const wmEvent *e
 	bool extend = RNA_boolean_get(op->ptr, "extend");
 	bool deselect = RNA_boolean_get(op->ptr, "deselect");
 	bool toggle = RNA_boolean_get(op->ptr, "toggle");
+	bool b_ring = RNA_boolean_get(op->ptr, "ring");
 
 	/* NURBS surfaces have their own loop selection code. */
 	Object *obedit = CTX_data_edit_object(C);
@@ -1318,7 +1319,6 @@ static int edbm_select_loop_invoke(bContext *C, wmOperator *op, const wmEvent *e
 	}
 	/* end NURBS interception code */
 
-	bool b_ring = RNA_boolean_get(op->ptr, "ring");
 	view3d_operator_needs_opengl(C);
 	if (mouse_mesh_loop(C, event->mval, extend, deselect, toggle, b_ring))
 	{

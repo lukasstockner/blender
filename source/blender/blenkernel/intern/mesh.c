@@ -1177,10 +1177,11 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 	MLoopUV *mloopuv = NULL;
 	MEdge *medge;
 	const float *data;
-	int a, b, ofs, vertcount, startvert, totvert = 0, totedge = 0, totloop = 0, totvlak = 0;
-	int p1, p2, p3, p4, *index;
+	int i, a, b, ofs, vertcount, startvert, totvert = 0, totedge = 0, totloop = 0, totvlak = 0;
+	int p1, p2, p3, p4, *index, smooth;
 	const bool conv_polys = ((CU_DO_2DFILL(cu) == false) ||  /* 2d polys are filled with DL_INDEX3 displists */
 	                         (ob->type == OB_SURF));  /* surf polys are never filled */
+	float *nors;
 
 	/* count */
 	dl = dispbase->first;
@@ -1231,7 +1232,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 
 	dl = dispbase->first;
 	while (dl) {
-		int smooth = dl->rt & CU_SMOOTH ? 1 : 0;
+		smooth = dl->rt & CU_SMOOTH ? 1 : 0;
 
 		if (dl->type == DL_SEGM) {
 			startvert = vertcount;
@@ -1284,7 +1285,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 			startvert = vertcount;
 			a = dl->nr;
 			data = dl->verts;
-			float *nors = dl->nors;
+			nors = dl->nors;
 			while (a--) {
 				copy_v3_v3(mvert->co, data);
 				data += 3;
@@ -1307,8 +1308,6 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 				mpoly->mat_nr = dl->col;
 
 				if (mloopuv) {
-					int i;
-
 					for (i = 0; i < 3; i++, mloopuv++) {
 						mloopuv->uv[0] = (mloop[i].v - startvert) / (float)(dl->nr - 1);
 						mloopuv->uv[1] = 0.0f;

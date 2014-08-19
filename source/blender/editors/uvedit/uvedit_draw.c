@@ -937,6 +937,7 @@ static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 	unsigned char col1[4], col2[4];
 	float (*trim_uv_pnts)[2];
 	int grid_x_spacing, grid_y_spacing;
+	NurbEditKnot *ek;
 
 	cu = (Curve*)obedit->data;
 	BLI_assert(obedit && obedit->type == OB_SURF);
@@ -1051,7 +1052,7 @@ static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 	glBegin(GL_QUADS);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (!(nu->flag2&CU_SELECTED2)) continue;
-		NurbEditKnot *ek = BKE_nurbs_editKnot_get(nu);
+		ek = BKE_nurbs_editKnot_get(nu);
 		if (ek->breaksv) { /* This is a surf, have u and v breaks */
 			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[0].loc, ek->breaksv[0].loc, &umin, &vmin);
 			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[ek->num_breaksu-1].loc, ek->breaksv[ek->num_breaksv-1].loc, &umax, &vmax);

@@ -170,9 +170,9 @@ static bool nurbs_select_bpoint(Nurb *nu, BPoint *bp, int dir, bool selstatus, s
 	int pntsu = (nu->pntsu<=1)? 1 : nu->pntsu;
 	int pntsv = (nu->pntsv<=1)? 1 : nu->pntsv;
 	int idx = bp - nu->bp;
-	BLI_assert(0<=idx && idx<pntsu*pntsv);
 	int uidx = idx%pntsu;
 	int vidx = idx/pntsu;
+	BLI_assert(0<=idx && idx<pntsu*pntsv);
 	/* dir is  0:-v  1:+v  2:-u  3:+u  */
 	if (dir==2 || dir==3) {
 		for (int u=0; u<pntsu; u++) {
@@ -3825,9 +3825,11 @@ void CURVE_OT_subdivide(wmOperatorType *ot)
 static void findnearestNurbvert__doClosest(ViewContext *vc, void *userData, Nurb *nu, BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
 {
 	struct { BPoint *bp; BezTriple *bezt; Nurb *nurb; int *dir; float dist; int hpoint, select; float mval_fl[2]; } *data = userData;
-
+	int pntsu, pntsv, idx, uidx, vidx;
+	float cos, max_cos, compass_pt[2], compass_dir[2], mouse_dir[2];
 	short flag;
 	float dist_test;
+	BPoint *Upos, *Uneg, *Vpos, *Vneg;
 
 	if (bp) {
 		flag = bp->f1;
@@ -3855,57 +3857,57 @@ static void findnearestNurbvert__doClosest(ViewContext *vc, void *userData, Nurb
 		data->nurb = nu;
 		data->hpoint = bezt ? beztindex : 0;
 		if (nu->type==CU_NURBS && data->dir) {
-			int pntsu = (nu->pntsu<=1)? 1 : nu->pntsu;
-			int pntsv = (nu->pntsu<=1)? 1 : nu->pntsv;
-			int idx = bp - nu->bp;
+			pntsu = (nu->pntsu<=1)? 1 : nu->pntsu;
+			pntsv = (nu->pntsu<=1)? 1 : nu->pntsv;
+			idx = bp - nu->bp;
 			BLI_assert(0<=idx && idx<pntsu*pntsv);
-			int uidx = idx%pntsu;
-			int vidx = idx/pntsu;
-			float max_cos = -2.0; *data->dir=-1;
-			float compass_pt[2]; /* pos of adjacent bp in {+u,-u,+v,-v} direction */
-			float compass_dir[2]; /* bp ---> bp{+u,-u,+v,-v} */
-			float mouse_dir[2]; /* bp ---> clickpt */
+			uidx = idx%pntsu;
+			vidx = idx/pntsu;
+			max_cos = -2.0; *data->dir=-1;
+			compass_pt[2]; /* pos of adjacent bp in {+u,-u,+v,-v} direction */
+			compass_dir[2]; /* bp ---> bp{+u,-u,+v,-v} */
+			mouse_dir[2]; /* bp ---> clickpt */
 			sub_v2_v2v2(mouse_dir, data->mval_fl, screen_co);
 			normalize_v2(mouse_dir);
 			*data->dir = -1;
-			BPoint *Upos = (uidx<pntsu-1)? bp+1 : NULL;
+			Upos = (uidx<pntsu-1)? bp+1 : NULL;
 			if (Upos && ED_view3d_project_float_object(vc->ar, Upos->vec, compass_pt, V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK) {
 				sub_v2_v2v2(compass_dir, compass_pt, screen_co);
 				normalize_v2(compass_dir);
-				float cos = dot_v2v2(compass_dir, mouse_dir);
+				cos = dot_v2v2(compass_dir, mouse_dir);
 				/* data->dir for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
 				if (cos>max_cos) {
 					*data->dir = 3;
 					max_cos = cos;
 				}
 			}
-			BPoint *Uneg = (uidx>0)? bp-1 : NULL;
+			Uneg = (uidx>0)? bp-1 : NULL;
 			if (Uneg && ED_view3d_project_float_object(vc->ar, Uneg->vec, compass_pt, V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK) {
 				sub_v2_v2v2(compass_dir, compass_pt, screen_co);
 				normalize_v2(compass_dir);
-				float cos = dot_v2v2(compass_dir, mouse_dir);
+				cos = dot_v2v2(compass_dir, mouse_dir);
 				/* data->dir for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
 				if (cos>max_cos) {
 					*data->dir = 2;
 					max_cos = cos;
 				}
 			}
-			BPoint *Vpos = (vidx<pntsv-1)? bp+pntsu : NULL;
+			Vpos = (vidx<pntsv-1)? bp+pntsu : NULL;
 			if (Vpos && ED_view3d_project_float_object(vc->ar, Vpos->vec, compass_pt, V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK) {
 				sub_v2_v2v2(compass_dir, compass_pt, screen_co);
 				normalize_v2(compass_dir);
-				float cos = dot_v2v2(compass_dir, mouse_dir);
+				cos = dot_v2v2(compass_dir, mouse_dir);
 				/* data->dir for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
 				if (cos>max_cos) {
 					*data->dir = 1;
 					max_cos = cos;
 				}
 			}
-			BPoint *Vneg = (vidx>0)? bp-pntsu : NULL;
+			Vneg = (vidx>0)? bp-pntsu : NULL;
 			if (Vneg && ED_view3d_project_float_object(vc->ar, Vneg->vec, compass_pt, V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN) == V3D_PROJ_RET_OK) {
 				sub_v2_v2v2(compass_dir, compass_pt, screen_co);
 				normalize_v2(compass_dir);
-				float cos = dot_v2v2(compass_dir, mouse_dir);
+				cos = dot_v2v2(compass_dir, mouse_dir);
 				/* data->dir for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
 				if (cos>max_cos) {
 					*data->dir = 0;
@@ -4757,6 +4759,7 @@ bool mouse_nurb(bContext *C, const int mval[2], bool extend, bool deselect, bool
 	BPoint *bp = NULL;
 	const void *vert = BKE_curve_vert_active_get(cu);
 	int location[2];
+	int dir; /*  for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
 	short hand;
 	
 	view3d_operator_needs_opengl(C);
@@ -4764,7 +4767,6 @@ bool mouse_nurb(bContext *C, const int mval[2], bool extend, bool deselect, bool
 	
 	location[0] = mval[0];
 	location[1] = mval[1];
-	int dir; /*  for directional select (alt+click)  0:-v  1:+v  2:-u  3:+u  */
 	hand = findnearestNurbvert(&vc, 1, location, &nu, &bezt, &bp, &dir);
 
 	if (bezt || bp) {
@@ -5650,12 +5652,12 @@ static int select_linked_pick_invoke(bContext *C, wmOperator *op, const wmEvent 
 	BezTriple *bezt;
 	BPoint *bp;
 	int a;
+	int dir;
 	const bool select = !RNA_boolean_get(op->ptr, "deselect");
 
 	view3d_operator_needs_opengl(C);
 	view3d_set_viewcontext(C, &vc);
 
-	int dir;
 	findnearestNurbvert(&vc, 1, event->mval, &nu, &bezt, &bp, &dir);
 
 	if (bezt) {
