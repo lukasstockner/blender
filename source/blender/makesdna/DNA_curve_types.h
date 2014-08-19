@@ -136,18 +136,37 @@ typedef struct BPoint {
 
 typedef struct NurbTrim {
 	struct NurbTrim *prev, *next;
-	ListBase nurb_list; /* A list of Nurb objects to trim with */
-	short type; /* NURBS_TRIM_OUTER, NURBS_TRIM_INNER */
+	ListBase nurb_list; /* A list of Nurb objects that define the trim when concatenated (implicit lines connect discontinuous endpoints) */
+	short type; /* CU_TRIM_EXTERIOR (AND), CU_TRIM_INTERIOR (SUB), CU_TRIM_ISLAND (ADD) */
 	short flag; /* SELECTED */
 	short pad[2];
 } NurbTrim;
 
+/* A breakpoint is a unique knot with multiplicitly stored explicitly rather
+ * than implicitly. This structure should only ever serve as part of a NurbEditKnot.
+ * It is transient and should never be written to files.
+ */
+typedef struct NurbBreakpt {
+	float pad0; /* So the v translation operator can have a ptr to a float[2] */
+	float loc;
+	float pad1; /* So the u translation operator can have a ptr to a float[2] */
+	short multiplicity; /* Number of times loc is to be repeated in knotsu/knotsv */
+	short flag; /* per-break flags: SELECT */
+} NurbBreakpt;
+
+/* In situations where knots are to be edited, the knot arrays (Nurb->knots{u,v})
+ * are converted into a NurbEditKnot object which conceptually represents them
+ * as an array of breakpoints. After editing, the knots are transferred
+ * back into Nurb->knots{u,v} and the NurbEditKnot is freed.
+ * NurbEditKnot and NurbBreakpt objects should never be written to files. They are
+ * strictly runtime transient structures.
+ */
 typedef struct NurbEditKnot {
 	int capu, capv; /* length of breaks{u,v}, multiplicity{u,v}, and flag{u,v} arrays */
 	int num_breaksu, num_breaksv; /* the set of breakpoints is the set of unique knots */
-	float *breaksu, *breaksv;
+	NurbBreakpt *breaksu, *breaksv;
 	int *multiplicityu, *multiplicityv;
-	int *flagu, *flagv; /* per-break flags: SELECT */
+	int *flagu, *flagv;
 } NurbEditKnot;
 
 /**
@@ -207,8 +226,8 @@ typedef struct EditNurb {
 
 	/* shape key being edited */
 	int shapenr;
-
-	char pad[4];
+	char flag; /* EDITNURB_HAS_DRAWN_UV */
+	char pad[3];
 } EditNurb;
 
 typedef struct Curve {
@@ -293,6 +312,8 @@ typedef struct Curve {
 
 } Curve;
 
+#define EDITNURB_HAS_DRAWN_UV 1
+
 /* **************** CURVE ********************* */
 
 /* texflag */
@@ -358,8 +379,9 @@ enum {
 #define CU_TYPE			(CU_POLY|CU_BEZIER|CU_BSPLINE|CU_CARDINAL|CU_NURBS)
 
 /* trim curve type */
-#define CU_TRIM_INTERIOR 1
-#define CU_TRIM_EXTERIOR 2
+#define CU_TRIM_INTERIOR 1 /* boolean SUB */
+#define CU_TRIM_EXTERIOR 2 /* boolean AND */
+#define CU_TRIM_ISLAND   3 /* boolean ADD */
 
 		/* only for adding */
 #define CU_PRIMITIVE	0xF00

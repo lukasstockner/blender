@@ -2559,13 +2559,12 @@ static void UVsToTransData(SpaceImage *sima, TransData *td, TransData2D *td2d, f
 	td2d->loc[2] = 0.0f;
 	td2d->loc2d = uv;
 
-	td->flag = 0;
 	td->loc = td2d->loc;
 	copy_v3_v3(td->center, td->loc);
 	copy_v3_v3(td->iloc, td->loc);
 
-	memset(td->axismtx, 0, sizeof(td->axismtx));
 	td->axismtx[2][2] = 1.0f;
+	
 
 	td->ext = NULL; td->val = NULL;
 
@@ -2580,6 +2579,105 @@ static void UVsToTransData(SpaceImage *sima, TransData *td, TransData2D *td2d, f
 	unit_m3(td->smtx);
 }
 
+static void createTransUVsNURBS(bContext *C, TransInfo *t)
+{
+	TransData *td;
+	TransData2D *td2d;
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Curve *cu = (Curve*)CTX_data_edit_object(C)->data;
+	Nurb *nu, *trimnu;
+	NurbTrim *nt;
+	NurbEditKnot *ek;
+	BPoint *pt;
+	int count=0,num_bp,i;
+	float aspx, aspy;
+
+	/* First see how many trim control points + knots we will be dragging (count) */
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		ek = nu->editknot;
+		for (i=0; i<ek->num_breaksu; i++)
+			if (ek->breaksu[i].flag&SELECT) count++;
+		for (i=0; i<ek->num_breaksv; i++)
+			if (ek->breaksv[i].flag&SELECT) count++;
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				num_bp = trimnu->pntsu * trimnu->pntsv;
+				for (i=0; i<num_bp; i++)
+					if (trimnu->bp[i].f1 & SELECT) count++;
+			}
+		}
+	}
+
+	/* Alloc the buffers for describing that many dragged knots + ctrl points */
+	t->total = count;
+	t->data = MEM_callocN(t->total * sizeof(TransData), "TransObData(UV Editing)");
+	t->data2d = MEM_callocN(t->total * sizeof(TransData2D), "TransObData2D(UV Editing)");
+	if (sima->flag & SI_CLIP_UV) t->flag |= T_CLIP_UV;
+
+	/* Fill the buffers with descriptions of the dragged knots + ctrl points */
+	ED_space_image_get_uv_aspect(sima, &aspx, &aspy);
+	count = 0;
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		ek = nu->editknot;
+		for (i=0; i<ek->num_breaksu; i++) {
+			if (!(ek->breaksu[i].flag&SELECT)) continue;
+			td = &t->data[count];
+			td2d = &t->data2d[count];
+			td2d->loc[0] = ek->breaksu[i].loc;
+			td2d->loc[1] = 0;
+			td2d->loc[2] = 0;
+			td2d->loc2d = &ek->breaksu[i].loc;
+			td->flag = TD_SELECTED;
+			td->loc = td2d->loc;
+			copy_v3_v3(td->center, td->loc);
+			copy_v3_v3(td->iloc, td->loc);
+			unit_m3(td->mtx);
+			unit_m3(td->smtx);
+			count += 1;
+		}
+		for (i=0; i<ek->num_breaksv; i++) {
+			if (!(ek->breaksv[i].flag&SELECT)) continue;
+			td = &t->data[count];
+			td2d = &t->data2d[count];
+			td2d->loc[0] = 0;
+			td2d->loc[1] = ek->breaksv[i].loc;
+			td2d->loc[2] = 0;
+			td2d->loc2d = &ek->breaksv[i].pad0;
+			td->flag = TD_SELECTED;
+			td->loc = td2d->loc;
+			copy_v3_v3(td->center, td->loc);
+			copy_v3_v3(td->iloc, td->loc);
+			unit_m3(td->mtx);
+			unit_m3(td->smtx);
+			count += 1;
+		}
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				num_bp = trimnu->pntsu * trimnu->pntsv;
+				for (i=0; i<num_bp; i++) {
+					pt = &trimnu->bp[i];
+					if (pt->f1 & SELECT) {
+						td = &t->data[count];
+						td2d = &t->data2d[count];
+						td2d->loc[0] = pt->vec[0];
+						td2d->loc[1] = pt->vec[1];
+						td2d->loc[2] = 0;
+						td2d->loc2d = pt->vec;
+						td->flag = TD_SELECTED;
+						td->loc = td2d->loc;
+						copy_v3_v3(td->center, td->loc);
+						copy_v3_v3(td->iloc, td->loc);
+						unit_m3(td->mtx);
+						unit_m3(td->smtx);
+						count += 1;
+					}
+				}
+			}
+		}
+	}
+	BLI_assert(t->total==count);
+}
+
 static void createTransUVs(bContext *C, TransInfo *t)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
@@ -2590,7 +2688,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
 	TransData2D *td2d = NULL;
 	MTexPoly *tf;
 	MLoopUV *luv;
-	BMEditMesh *em = BKE_editmesh_from_object(t->obedit);
+	BMEditMesh *em;
 	BMFace *efa;
 	BMLoop *l;
 	BMIter iter, liter;
@@ -2599,10 +2697,18 @@ static void createTransUVs(bContext *C, TransInfo *t)
 	int count = 0, countsel = 0, count_rejected = 0;
 	const bool propmode = (t->flag & T_PROP_EDIT) != 0;
 	const bool propconnected = (t->flag & T_PROP_CONNECTED) != 0;
+	int cd_loop_uv_offset;
 
-	const int cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
+	if (ED_space_image_show_nurbsuv(sima, t->obedit)) {
+		createTransUVsNURBS(C,t);
+		return;
+	}
 
 	if (!ED_space_image_show_uvedit(sima, t->obedit)) return;
+
+	/* begin OB_MESH specific init */
+	em = BKE_editmesh_from_object(t->obedit);
+	cd_loop_uv_offset = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 
 	/* count */
 	if (propconnected) {

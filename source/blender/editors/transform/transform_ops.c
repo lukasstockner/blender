@@ -28,6 +28,7 @@
 
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_curve_types.h"
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -37,6 +38,8 @@
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_report.h"
+#include "BKE_curve.h"
+#include "BKE_depsgraph.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -323,9 +326,20 @@ static void transformops_loopsel_hack(bContext *C, wmOperator *op)
 }
 #endif  /* USE_LOOPSLIDE_HACK */
 
+static void nurbs_uv_transform_exit(Object *obedit) {
+	Curve *cu = obedit->data;
+	Nurb *nu;
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		BKE_nurbs_editKnot_propagate_ek2nurb(nu);
+		BKE_nurbs_cached_UV_mesh_clear(nu, true);
+	}
+	DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
+}
+
 
 static void transformops_exit(bContext *C, wmOperator *op)
 {
+	Object *obedit = CTX_data_edit_object(C);
 #ifdef USE_LOOPSLIDE_HACK
 	transformops_loopsel_hack(C, op);
 #endif
@@ -334,6 +348,8 @@ static void transformops_exit(bContext *C, wmOperator *op)
 	MEM_freeN(op->customdata);
 	op->customdata = NULL;
 	G.moving = 0;
+
+	if (obedit && obedit->type==OB_SURF) nurbs_uv_transform_exit(obedit);
 }
 
 static int transformops_data(bContext *C, wmOperator *op, const wmEvent *event)

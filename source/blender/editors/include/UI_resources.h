@@ -280,6 +280,13 @@ enum {
 	TH_INFO_DEBUG,
 	TH_INFO_DEBUG_TEXT,
 	TH_VIEW_OVERLAY,
+
+	TH_NURB_TRIM_AND,
+	TH_NURB_TRIM_SUB,
+	TH_NURB_TRIM_ADD,
+	TH_NURB_SEL_TRIM_AND,
+	TH_NURB_SEL_TRIM_SUB,
+	TH_NURB_SEL_TRIM_ADD
 };
 /* XXX WARNING: previous is saved in file, so do not change order! */
 

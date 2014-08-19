@@ -94,6 +94,7 @@ static void nurbsuv_toggle_selected(bContext *C);
 static void nurbsuv_set_selected_all(bContext *C, bool selected);
 static void nurbsuv_invert_selection(bContext *C);
 static void nurbsuv_selection_perform_action(bContext *C, int action);
+static void propagate_ctrlpt_sel_to_trim_sel(Nurb *nu);
 
 /************************* state testing ************************/
 
@@ -2305,9 +2306,10 @@ static double dist2_pt_lineseg(const float co[2], double a1, double a2, double b
 static void nurbsuv_set_selected_all(bContext *C, bool selected) {
 	struct Object *editobj;
 	Curve *cu;
-	Nurb *nu;
+	Nurb *nu, *trimnu;
 	NurbEditKnot *ek;
-	int i;
+	NurbTrim *nt;
+	int i,numbp;
 
 	editobj = CTX_data_edit_object(C);
 	BLI_assert(editobj->type==OB_SURF);
@@ -2316,12 +2318,23 @@ static void nurbsuv_set_selected_all(bContext *C, bool selected) {
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		ek = BKE_nurbs_editKnot_get(nu);
 		for (i=0; i<ek->num_breaksu; i++) {
-			if (selected) ek->flagu[i] |= SELECT;
-			else          ek->flagu[i] &= ~SELECT;
+			if (selected) ek->breaksu[i].flag |= SELECT;
+			else          ek->breaksu[i].flag &= ~SELECT;
 		}
 		for (i=0; i<ek->num_breaksv; i++) {
-			if (selected) ek->flagv[i] |= SELECT;
-			else          ek->flagv[i] &= ~SELECT;
+			if (selected) ek->breaksv[i].flag |= SELECT;
+			else          ek->breaksv[i].flag &= ~SELECT;
+		}
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			if (selected) nt->flag |= SELECT;
+			else          nt->flag &= ~SELECT;
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				numbp = trimnu->pntsu*trimnu->pntsv;
+				for (i=0; i<numbp; i++) {
+					if (selected) trimnu->bp[i].f1 |= SELECT;
+					else          trimnu->bp[i].f1 &= ~SELECT;
+				}
+			}
 		}
 	}
 }
@@ -2329,32 +2342,48 @@ static void nurbsuv_set_selected_all(bContext *C, bool selected) {
 static void nurbsuv_invert_selection(bContext *C) {
 	struct Object *editobj;
 	Curve *cu;
-	Nurb *nu;
+	Nurb *nu, *trimnu;
 	NurbEditKnot *ek;
-	int i;
+	NurbTrim *nt;
+	int i,numbp;
 	
 	editobj = CTX_data_edit_object(C);
 	BLI_assert(editobj->type==OB_SURF);
 	cu = (Curve*)editobj->data;
 	BLI_assert(cu->editnurb);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		/* Invert knot selection: probably less useful. Base on active subobj?
 		ek = BKE_nurbs_editKnot_get(nu);
 		for (i=0; i<ek->num_breaksu; i++) {
-			if (ek->flagu[i]&SELECT)
-				ek->flagu[i] &= ~SELECT;
+			if (ek->breaksu[i].flag &  SELECT)
+				ek->breaksu[i].flag &= ~SELECT;
 			else
-				ek->flagu[i] |= SELECT;
+				ek->breaksu[i].flag |= SELECT;
 		}
 		for (i=0; i<ek->num_breaksv; i++) {
-			if (ek->flagv[i]&SELECT)
-				ek->flagv[i] &= ~SELECT;
+			if (ek->breaksv[i].flag&SELECT)
+				ek->breaksv[i].flag &= ~SELECT;
 			else
-				ek->flagv[i] |= SELECT;
+				ek->breaksv[i].flag |= SELECT;
+		}*/
+		/* For now, invert the selection in evry selected trim curve */
+		propagate_ctrlpt_sel_to_trim_sel(nu);
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			if (!(nt->flag&SELECT)) continue;
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				numbp = trimnu->pntsu*trimnu->pntsv;
+				for (i=0; i<numbp; i++) {
+					if (trimnu->bp[i].f1&SELECT)
+						trimnu->bp[i].f1 &= ~SELECT;
+					else
+						trimnu->bp[i].f1 |= SELECT;
+				}
+			}
 		}
 	}
 }
 
-static int nurbsuv_num_selected(bContext *C) {
+static int nurbsuv_num_selected_knots(bContext *C) {
 	struct Object *editobj;
 	Curve *cu;
 	Nurb *nu;
@@ -2369,13 +2398,54 @@ static int nurbsuv_num_selected(bContext *C) {
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		ek = BKE_nurbs_editKnot_get(nu);
 		for (i=0; i<ek->num_breaksu; i++) {
-			if (ek->flagu[i]&SELECT) num_pts++;
+			if (ek->breaksu[i].flag & SELECT) num_pts++;
 		}
 		for (i=0; i<ek->num_breaksv; i++) {
-			if (ek->flagv[i]&SELECT) num_pts++;
+			if (ek->breaksv[i].flag&SELECT) num_pts++;
 		}
 	}
 	return num_pts;
+}
+
+static void propagate_ctrlpt_sel_to_trim_sel(Nurb *nu) {
+	NurbTrim *nt;
+	Nurb *trimnu;
+	int num_bp,i;
+	for (nt=nu->trims.first; nt; nt=nt->next) {
+		nt->flag &= ~SELECT;
+		for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+			num_bp = trimnu->pntsu * trimnu->pntsv;
+			for (i=0; i<num_bp; i++) {
+				if (trimnu->bp[i].f1&SELECT) {
+					nt->flag |= SELECT;
+					break;
+				}
+			}
+			if (nt->flag&SELECT) break;
+		}
+	}
+}
+
+static int nurbsuv_num_selected_trims(bContext *C) {
+	struct Object *editobj;
+	Curve *cu;
+	Nurb *nu;
+	NurbTrim *nt;
+	int num_trims;
+	
+	editobj = CTX_data_edit_object(C);
+	BLI_assert(editobj->type==OB_SURF);
+	cu = (Curve*)editobj->data;
+	BLI_assert(cu->editnurb);
+	num_trims = 0;
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		propagate_ctrlpt_sel_to_trim_sel(nu);
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			if (nt->flag&SELECT) num_trims++;
+		}
+	}
+
+	return num_trims;
 }
 
 static void nurbsuv_selection_perform_action(bContext *C, int action) {
@@ -2396,7 +2466,7 @@ static void nurbsuv_selection_perform_action(bContext *C, int action) {
 }
 
 static void nurbsuv_toggle_selected(bContext *C) {
-	if (nurbsuv_num_selected(C)) {
+	if (nurbsuv_num_selected_knots(C) || nurbsuv_num_selected_trims(C)) {
 		nurbsuv_set_selected_all(C, false);
 	} else {
 		nurbsuv_set_selected_all(C, true);
@@ -2412,22 +2482,19 @@ static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend) {
 	NurbEditKnot* ek;
 	NurbTrim *nt;
 	/* Smallest difference between co[0] and a {u,v} breakpoint / trim */
-	double u=INFINITY,v=INFINITY,trim=INFINITY;
-	Nurb *nearest_u, *nearest_v;
-	NurbTrim *nearest_trim;
+	double u=INFINITY,v=INFINITY,trimcp=INFINITY,trim=INFINITY;
+	Nurb *nearest_u, *nearest_v, *nearest_trimcp_nu, *nearest_trim_nu, *trimnu;
+	NurbTrim *nearest_trimcp_nt=NULL, *nearest_trim_nt=NULL;
+	int nearest_trim_cp,cp,num_bp;  /* A trim ctrlpt is defined by: nearest_trim_nt > nearest_trim_nu > nearest_trim_cp */
 	/* The index of said nearest breakpoint or trim*/
-	int u_bkp=-1,v_bkp=-1,i;
-	int num_trim_verts;
-	float (*trim_verts)[2];
-	float umin,umax,vmin,vmax;
+	int u_bkp=-1,v_bkp=-1,i,num_trim_verts;
+	float umin,umax,vmin,vmax,max_miss_dist,(*trim_verts)[2];
 	double dist;
-	float max_miss_dist;
 
 	editobj = CTX_data_edit_object(C);
 	BLI_assert(editobj->type==OB_SURF);
 	cu = (Curve*)editobj->data;
 	BLI_assert(cu->editnurb);
-	nearest_trim = NULL;
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		ED_curve_propagate_selected_pts_to_flag2(cu);
 		/* if (!(nu->flag2 & ~CU_SELECTED2)) continue;*/
@@ -2435,7 +2502,7 @@ static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend) {
 		BKE_nurbs_uvbounds(nu, &umin, &umax, &vmin, &vmax);
 		/* Figure out nearest u break to click co */
 		for (i=0; i<ek->num_breaksu; i++) {
-			dist = dist2_ubreak(co, ek->breaksu[i], vmin, vmax);
+			dist = dist2_ubreak(co, ek->breaksu[i].loc, vmin, vmax);
 			if (dist<u) {
 				u=dist;
 				nearest_u=nu;
@@ -2444,38 +2511,53 @@ static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend) {
 		}
 		/* Figure out nearest v break to click co */
 		for (i=0; i<ek->num_breaksv; i++) {
-			dist = dist2_vbreak(co, ek->breaksv[i], umin, umax);
+			dist = dist2_vbreak(co, ek->breaksv[i].loc, umin, umax);
 			if (dist<v) {
 				v=dist;
 				nearest_v=nu;
 				v_bkp=i;
 			}
 		}
-		/* Figure out nearest trim control polygon to click co */
+		/* Figure out nearest trim to click co */
 		for (nt=nu->trims.first; nt; nt=nt->next) {
 			num_trim_verts = BKE_nurbTrim_tess(nt, nu->resol_trim, &trim_verts);
 			for (i=0; i<num_trim_verts-1; i++) {
 				dist = dist2_pt_lineseg(co, trim_verts[i][0], trim_verts[i][1], trim_verts[i+1][0], trim_verts[i+1][1]);
 				if (dist<trim) {
 					trim = dist;
-					nearest_trim = nt;
+					nearest_trim_nt = nt;
 				}
 			}
 			MEM_freeN(trim_verts);
+		}
+		/* Figure out nearest trim control point to click co */
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				num_bp = trimnu->pntsu * trimnu->pntsv;
+				for (cp=0; cp<num_bp; cp++) {
+					dist = len_squared_v2v2(co, trimnu->bp[cp].vec);
+					if (dist<trimcp) {
+						trimcp = dist;
+						nearest_trimcp_nt = nt;
+						nearest_trimcp_nu = trimnu;
+						nearest_trim_cp = cp;
+					}
+				}
+			}
 		}
 	}
 
 	if (!extend) nurbsuv_set_selected_all(C, false);
 	/* The mouse click should count as a selection if it misses by <10px */
 	max_miss_dist = 10.0 / BLI_rcti_size_x(&v2d->mask) * BLI_rctf_size_x(&v2d->cur);
-	if (u<=v && u<=trim && u<max_miss_dist) {
-		nearest_u->editknot->flagu[u_bkp] ^= SELECT;
-	}
-	if (v<=u && v<= trim && v<max_miss_dist) {
-		nearest_v->editknot->flagv[v_bkp] ^= SELECT;
-	}
-	if (trim<=u && trim<=v && trim<max_miss_dist) {
-		
+	if (trimcp<max_miss_dist) {
+		nearest_trimcp_nu->bp[nearest_trim_cp].f1 ^= SELECT;
+	} else if (trim<=u && trim<=v && trim<max_miss_dist) {
+		nearest_trim_nt->flag ^= SELECT;
+	} else if (u<=v && u<=trim && u<max_miss_dist) {
+		nearest_u->editknot->breaksu[u_bkp].flag ^= SELECT;
+	} else if (v<=u && v<= trim && v<max_miss_dist) {
+		nearest_v->editknot->breaksv[v_bkp].flag ^= SELECT;
 	}
 	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, NULL);
 	return OPERATOR_FINISHED;
@@ -2628,34 +2710,63 @@ static int uv_select_linked_internal(bContext *C, wmOperator *op, const wmEvent 
 static int nurbsuv_select_linked(bContext *C, wmOperator *op) {
 	Object *obedit = CTX_data_edit_object(C);
 	Curve *cu;
-	Nurb *nu;
+	Nurb *nu, *trimnu;
 	NurbEditKnot *ek;
 	NurbTrim *nt;
-	int u,v;
-	int nurbuv_is_selected;
+	int i,u,v,numbp;
+	int sel_knots, sel_trimpts;
 	BLI_assert(obedit->type == OB_SURF);
 	cu = (Curve*)obedit->data;
 	/* For Nurb *nu in the editobject
 	 *    if any component of nu (U breakpoint, V breakpoint, trim) is selected
 	 *         select all components of nu */
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
-		nurbuv_is_selected = 0;
+		sel_knots = 0;
+		sel_trimpts = 0;
 		ek = BKE_nurbs_editKnot_get(nu);
-		for (u=0; u<ek->num_breaksu && !nurbuv_is_selected; u++) {
-			if (ek->flagu[u]&SELECT) nurbuv_is_selected = 1;
+		for (u=0; u<ek->num_breaksu && !sel_knots; u++) {
+			if (ek->breaksu[u].flag & SELECT) sel_knots = 1;
 		}
-		for (v=0; v<ek->num_breaksv && !nurbuv_is_selected; v++) {
-			if (ek->flagv[v]&SELECT) nurbuv_is_selected = 1;
+		for (v=0; v<ek->num_breaksv && !sel_knots; v++) {
+			if (ek->breaksv[v].flag&SELECT) sel_knots = 1;
 		}
-		for (nt=nu->trims.first; nt && !nurbuv_is_selected; nt=nt->next) {
-			if (nt->flag&SELECT) nurbuv_is_selected = 1;
+		for (nt=nu->trims.first; nt && !sel_knots; nt=nt->next) {
+			nt->flag &= ~SELECT;
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				numbp = trimnu->pntsu*trimnu->pntsv;
+				for (i=0; i<numbp; i++) {
+					if (trimnu->bp[i].f1&SELECT) {
+						sel_trimpts = 1;
+						nt->flag |= SELECT;
+						break;
+					}
+				}
+				if (nt->flag&SELECT) break;
+			}
 		}
-		if (nurbuv_is_selected) {
-			for (u=0; u<ek->num_breaksu; u++) ek->flagu[u] |= SELECT;
-			for (v=0; v<ek->num_breaksv; v++) ek->flagv[v] |= SELECT;
-			for (nt=nu->trims.first; nt && !nurbuv_is_selected; nt=nt->next) nt->flag |= SELECT;
+		if (sel_knots) {
+			for (u=0; u<ek->num_breaksu; u++) ek->breaksu[u].flag |= SELECT;
+			for (v=0; v<ek->num_breaksv; v++) ek->breaksv[v].flag |= SELECT;
+			for (nt=nu->trims.first; nt; nt=nt->next) {
+				nt->flag |= SELECT;
+				for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+					numbp = trimnu->pntsu*trimnu->pntsv;
+					for (i=0; i<numbp; i++) trimnu->bp[i].f1 |= SELECT;
+				}
+			}
+		} else if (sel_trimpts) {
+			for (nt=nu->trims.first; nt; nt=nt->next) {
+				if (!(nt->flag&SELECT)) continue;
+				for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+					numbp = trimnu->pntsu*trimnu->pntsv;
+					for (i=0; i<numbp; i++) {
+						trimnu->bp[i].f1 |= SELECT;
+					}
+				}
+			}
 		}
 	}
+	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 	return OPERATOR_FINISHED;
 }
 
@@ -3053,6 +3164,81 @@ static void uv_select_flush_from_tag_loop(SpaceImage *sima, Scene *scene, Object
 
 /* ******************** border select operator **************** */
 
+static bool uline_touches_rctf(float umin, float umax, float v, rctf *rect)
+{
+	if (v<rect->ymin || v>rect->ymax) return false;
+	if (umax < rect->xmin) return false;
+	if (umin > rect->xmax) return false;
+	return true;
+}
+
+static bool vline_touches_rctf(float u, float vmin, float vmax, rctf *rect)
+{
+	if (u<rect->xmin || u>rect->xmax) return false;
+	if (vmax < rect->ymin) return false;
+	if (vmin > rect->ymax) return false;
+	return true;
+}
+
+static bool point_in_rctf(float *pt, rctf *rect) {
+	if (pt[0]<rect->xmin || pt[0]>rect->xmax) return false;
+	if (pt[1]<rect->ymin || pt[1]>rect->ymax) return false;
+	return true;
+}
+
+static int uv_border_select_exec_nurbs(bContext *C, wmOperator *op)
+{
+	ARegion *ar = CTX_wm_region(C);
+	Object *obedit = CTX_data_edit_object(C);
+	Curve *cu = (Curve*)obedit->data;
+	Nurb *nu, *trimnu;
+	NurbEditKnot *ek;
+	NurbTrim *nt;
+	rctf selrect;
+	int selection_changed=0;
+	float umin,umax,vmin,vmax;
+	bool select = (RNA_int_get(op->ptr, "gesture_mode") == GESTURE_MODAL_SELECT);
+	bool extend = RNA_boolean_get(op->ptr, "extend");
+	int i,num_bp;
+
+	WM_operator_properties_border_to_rctf(op, &selrect);
+	UI_view2d_region_to_view_rctf(&ar->v2d, &selrect, &selrect);
+
+	if (!extend) nurbsuv_set_selected_all(C, false);
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		ek = nu->editknot;
+		BKE_nurbs_uvbounds(nu, &umin, &umax, &vmin, &vmax);
+		if (ek->breaksu) for (i=0; i<ek->num_breaksu; i++) {
+			if (vline_touches_rctf(ek->breaksu[i].loc, vmin, vmax, &selrect)) {
+				if (select) ek->breaksu[i].flag |= SELECT;
+				else        ek->breaksu[i].flag &= ~SELECT;
+				selection_changed = 1;
+			}
+		}
+		if (ek->breaksv) for (i=0; i<ek->num_breaksv; i++) {
+			if (uline_touches_rctf(umin, umax, ek->breaksv[i].loc, &selrect)) {
+				if (select) ek->breaksv[i].flag |= SELECT;
+				else        ek->breaksv[i].flag &= ~SELECT;
+				selection_changed = 1;
+			}
+		}
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				num_bp = trimnu->pntsu * trimnu->pntsv;
+				for (i=0; i<num_bp; i++) {
+					if (point_in_rctf(trimnu->bp[i].vec, &selrect)) {
+						if (select) trimnu->bp[i].f1 |= SELECT;
+						else        trimnu->bp[i].f1 &= ~SELECT;
+						selection_changed = 1;
+					}
+				}
+			}
+		}
+	}
+	
+	return (selection_changed)? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+}
+
 static int uv_border_select_exec(bContext *C, wmOperator *op)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
@@ -3061,7 +3247,7 @@ static int uv_border_select_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	Image *ima = CTX_data_edit_image(C);
 	ARegion *ar = CTX_wm_region(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	BMEditMesh *em;
 	BMFace *efa;
 	BMLoop *l;
 	BMIter iter, liter;
@@ -3069,12 +3255,21 @@ static int uv_border_select_exec(bContext *C, wmOperator *op)
 	MLoopUV *luv;
 	rctf rectf;
 	bool changed, pinned, select, extend;
-	const bool use_face_center = (ts->uv_flag & UV_SYNC_SELECTION) ?
-	                            (ts->selectmode == SCE_SELECT_FACE) :
-	                            (ts->uv_selectmode == UV_SELECT_FACE);
+	bool use_face_center;
+	int cd_loop_uv_offset;
+	int cd_poly_tex_offset;
 
-	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
-	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);
+	if (obedit->type == OB_SURF) {
+		return uv_border_select_exec_nurbs(C, op);
+	}
+
+	/* now that we know obedit is an OB_MESH not an OB_SURF, load mesh information */
+	em = BKE_editmesh_from_object(obedit);
+	use_face_center = (ts->uv_flag & UV_SYNC_SELECTION) ?
+	                     (ts->selectmode == SCE_SELECT_FACE) :
+	                     (ts->uv_selectmode == UV_SELECT_FACE);
+	cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
+	cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);;
 
 	/* get rectangle from operator */
 	WM_operator_properties_border_to_rctf(op, &rectf);
@@ -3188,6 +3383,26 @@ static int uv_inside_circle(const float uv[2], const float offset[2], const floa
 	return ((x * x + y * y) < 1.0f);
 }
 
+static int uline_inside_circle(float umin, float umax, float v, const float offset[2], const float ellipse[2])
+{
+	float leftend[2]={umin,v}, rightend[2]={umax,v}, y;
+	
+	if (offset[0]<umin) return uv_inside_circle(leftend, offset, ellipse);
+	if (offset[0]>umax) return uv_inside_circle(rightend, offset, ellipse);
+	y = (v - offset[1]) * ellipse[1];
+	return y*y<1.0f;
+}
+
+static int vline_inside_circle(float u, float vmin, float vmax, const float offset[2], const float ellipse[2])
+{
+	float botend[2]={u,vmin}, topend[2]={u,vmax}, x;
+	
+	if (offset[1]<vmin) return uv_inside_circle(botend, offset, ellipse);
+	if (offset[0]>vmax) return uv_inside_circle(topend, offset, ellipse);
+	x = (u - offset[0]) * ellipse[0];
+	return x*x<1.0f;
+}
+
 static bool uv_select_inside_ellipse(BMEditMesh *em, Scene *scene, const bool select,
                                      const float offset[2], const float ellipse[2], BMLoop *l, MLoopUV *luv,
                                      const int cd_loop_uv_offset)
@@ -3201,13 +3416,58 @@ static bool uv_select_inside_ellipse(BMEditMesh *em, Scene *scene, const bool se
 	}
 }
 
+static int uv_circle_select_exec_nurbs(bContext *C, wmOperator *op, Object *obedit, float offset[2], float ellipse[2])
+{
+	int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
+	bool select = (gesture_mode == GESTURE_MODAL_SELECT);
+	Nurb *nu, *trimnu;
+	NurbTrim *nt;
+	NurbEditKnot *ek;
+	Curve *cu = (Curve*)obedit->data;
+	float umin, umax, vmin, vmax;
+	int i, num_bp, selection_changed=0;
+
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		ek = nu->editknot;
+		BKE_nurbs_uvbounds(nu, &umin, &umax, &vmin, &vmax);
+		if (ek->breaksu) for (i=0; i<ek->num_breaksu; i++) {
+			if (vline_inside_circle(ek->breaksu[i].loc, vmin, vmax, offset, ellipse)) {
+				if (select) ek->breaksu[i].flag |= SELECT;
+				else        ek->breaksu[i].flag &= ~SELECT;
+				selection_changed = 1;
+			}
+		}
+		if (ek->breaksv) for (i=0; i<ek->num_breaksv; i++) {
+			if (uline_inside_circle(umin, umax, ek->breaksv[i].loc, offset, ellipse)) {
+				if (select) ek->breaksv[i].flag |= SELECT;
+				else        ek->breaksv[i].flag &= ~SELECT;
+				selection_changed = 1;
+			}
+		}
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				num_bp = trimnu->pntsu * trimnu->pntsv;
+				for (i=0; i<num_bp; i++) {
+					if (uv_inside_circle(trimnu->bp[i].vec, offset, ellipse)) {
+						if (select) trimnu->bp[i].f1 |= SELECT;
+						else        trimnu->bp[i].f1 &= ~SELECT;
+						selection_changed = 1;
+					}
+				}
+			}
+		}
+	}
+	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, NULL);
+	return OPERATOR_FINISHED; /* Ignored by modal loop */
+}
+
 static int uv_circle_select_exec(bContext *C, wmOperator *op)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *ts = scene->toolsettings;
 	Object *obedit = CTX_data_edit_object(C);
-	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	BMEditMesh *em;
 	ARegion *ar = CTX_wm_region(C);
 	BMFace *efa;
 	BMLoop *l;
@@ -3216,13 +3476,10 @@ static int uv_circle_select_exec(bContext *C, wmOperator *op)
 	int x, y, radius, width, height;
 	float zoomx, zoomy, offset[2], ellipse[2];
 	int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
-	const bool select = (gesture_mode == GESTURE_MODAL_SELECT);
+	bool select = (gesture_mode == GESTURE_MODAL_SELECT);
 	bool changed = false;
-	const bool use_face_center = (ts->uv_flag & UV_SYNC_SELECTION) ?
-	                             (ts->selectmode == SCE_SELECT_FACE) :
-	                             (ts->uv_selectmode == UV_SELECT_FACE);
-
-	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
+	bool use_face_center;
+	int cd_loop_uv_offset;
 
 	/* get operator properties */
 	x = RNA_int_get(op->ptr, "x");
@@ -3238,6 +3495,17 @@ static int uv_circle_select_exec(bContext *C, wmOperator *op)
 	ellipse[1] = height * zoomy / radius;
 
 	UI_view2d_region_to_view(&ar->v2d, x, y, &offset[0], &offset[1]);
+
+	/* jump off into the NURBS handler if warranted */
+	if (obedit->type == OB_SURF) return uv_circle_select_exec_nurbs(C, op, obedit, offset, ellipse);
+
+	/* obedit isn't NURBS; proceed with OB_MESH handling */
+	em = BKE_editmesh_from_object(obedit);
+	use_face_center = (ts->uv_flag & UV_SYNC_SELECTION) ?
+	                     (ts->selectmode == SCE_SELECT_FACE) :
+	                     (ts->uv_selectmode == UV_SELECT_FACE);
+	cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
+
 	
 	/* do selection */
 	if (use_face_center) {
@@ -3289,7 +3557,7 @@ static void UV_OT_circle_select(wmOperatorType *ot)
 	ot->invoke = WM_gesture_circle_invoke;
 	ot->modal = WM_gesture_circle_modal;
 	ot->exec = uv_circle_select_exec;
-	ot->poll = ED_operator_uvedit_space_image; /* requires space image */;
+	ot->poll = ED_operator_uvedit_or_nurbsuv_space_image; /* requires space image */;
 	ot->cancel = WM_gesture_circle_cancel;
 	
 	/* flags */

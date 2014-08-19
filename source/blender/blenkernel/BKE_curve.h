@@ -191,7 +191,7 @@ void BKE_nurb_makeFaces(struct Nurb *nu, float *coord_array, int rowstride, int 
 void BKE_nurb_makeCurve(struct Nurb *nu, float *coord_array, float *tilt_array, float *radius_array, float *weight_array, int resolu, int stride);
 struct GridMesh *BKE_nurb_compute_trimmed_GridMesh(struct Nurb* nu);
 void BKE_nurb_compute_trimmed_UV_mesh(struct Nurb* nu);
-void BKE_nurb_clear_cached_UV_mesh(struct Nurb* nu, bool free_mem);
+void BKE_nurbs_cached_UV_mesh_clear(struct Nurb* nu, bool free_mem);
 void BKE_nurb_make_displist(struct Nurb *nurb, struct DispList *dl);
 void BKE_surf_to_mesh(struct Object *surf);
 

@@ -45,6 +45,7 @@
 #include "DNA_node_types.h"
 #include "DNA_packedFile_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_curve_types.h"
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
@@ -57,6 +58,7 @@
 #include "BKE_report.h"
 #include "BKE_screen.h"
 #include "BKE_sound.h"
+#include "BKE_curve.h"
 
 #include "GPU_draw.h"
 
@@ -77,6 +79,7 @@
 #include "ED_space_api.h"
 #include "ED_uvedit.h"
 #include "ED_util.h"
+#include "ED_curve.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -636,6 +639,39 @@ void IMAGE_OT_view_ndof(wmOperatorType *ot)
 
 /********************** view all operator *********************/
 
+int nurbsuv_view_all_exec(const bContext *C, const ARegion *ar) {
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Object *obedit = CTX_data_edit_object(C);
+	Curve *cu = (Curve*)obedit->data;
+	Nurb *nu;
+	float umin=INFINITY, umax=-INFINITY, vmin=INFINITY, vmax=-INFINITY;
+	float umin2,umax2,vmin2,vmax2;
+	int width, height;
+	
+	BLI_assert(obedit && obedit->type == OB_SURF);
+	ED_curve_propagate_selected_pts_to_flag2(cu);
+	/* Figure out the union bounding box in UV space for all knots */
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		BKE_nurbs_uvbounds(nu, &umin2, &umax2, &vmin2, &vmax2);
+		umin = fminf(umin,umin2);
+		vmin = fminf(vmin,vmin2);
+		umax = fmaxf(umax,umax2);
+		vmax = fmaxf(vmax,vmax2);
+	}
+	umin = floor(umin)-2;
+	vmin = floor(vmin)-2;
+	umax = ceil(umax)+2;
+	vmax = ceil(vmax)+2;
+
+	ED_space_image_get_size(sima, &width, &height);
+	sima->zoom = BLI_rcti_size_x(&ar->v2d.mask)*1.0/((umax-umin)*width);
+	sima->xof = -width/2 + (umax+umin)*width/2;
+	sima->yof = -height/2 + (vmax+vmin)*height/2;
+
+	ED_region_tag_redraw(CTX_wm_region(C));
+	return OPERATOR_FINISHED;
+}
+
 /* Updates the fields of the View2D member of the SpaceImage struct.
  * Default behavior is to reset the position of the image and set the zoom to 1
  * If the image will not fit within the window rectangle, the zoom is adjusted */
@@ -643,14 +679,16 @@ void IMAGE_OT_view_ndof(wmOperatorType *ot)
 static int image_view_all_exec(bContext *C, wmOperator *op)
 {
 	SpaceImage *sima;
-	ARegion *ar;
+	ARegion *ar = CTX_wm_region(C);
+	Object *obedit = CTX_data_edit_object(C);
 	float aspx, aspy, zoomx, zoomy, w, h;
 	int width, height;
 	const bool fit_view = RNA_boolean_get(op->ptr, "fit_view");
 
+	if (obedit->type == OB_SURF) return nurbsuv_view_all_exec(C,ar);
+
 	/* retrieve state */
 	sima = CTX_wm_space_image(C);
-	ar = CTX_wm_region(C);
 
 	ED_space_image_get_size(sima, &width, &height);
 	ED_space_image_get_aspect(sima, &aspx, &aspy);

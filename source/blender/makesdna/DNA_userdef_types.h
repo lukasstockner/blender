@@ -253,6 +253,8 @@ typedef struct ThemeSpace {
 	
 	char nurb_uline[4], nurb_vline[4];
 	char act_spline[4], nurb_sel_uline[4], nurb_sel_vline[4], lastsel_point[4];
+	char nurb_trim_and[4], nurb_trim_sub[4], nurb_trim_add[4];
+	char nurb_sel_trim_and[4], nurb_sel_trim_sub[4], nurb_sel_trim_add[4];
 	
 	char handle_free[4], handle_auto[4], handle_vect[4], handle_align[4], handle_auto_clamped[4];
 	char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4], handle_sel_auto_clamped[4];

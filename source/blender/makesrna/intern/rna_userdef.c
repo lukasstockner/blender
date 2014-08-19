@@ -1326,6 +1326,42 @@ static void rna_def_userdef_theme_spaces_curves(StructRNA *srna, bool incl_nurbs
 		RNA_def_property_array(prop, 3);
 		RNA_def_property_ui_text(prop, "Active spline", "");
 		RNA_def_property_update(prop, 0, "rna_userdef_update");
+		
+		prop = RNA_def_property(srna, "nurb_trim_and", PROP_FLOAT, PROP_COLOR_GAMMA);
+		RNA_def_property_float_sdna(prop, NULL, "nurb_trim_and");
+		RNA_def_property_array(prop, 3);
+		RNA_def_property_ui_text(prop, "NURBS trim curves that combine with subject surfaces using boolean AND", "");
+		RNA_def_property_update(prop, 0, "rna_userdef_update");
+		
+		prop = RNA_def_property(srna, "nurb_trim_sub", PROP_FLOAT, PROP_COLOR_GAMMA);
+		RNA_def_property_float_sdna(prop, NULL, "nurb_trim_sub");
+		RNA_def_property_array(prop, 3);
+		RNA_def_property_ui_text(prop, "NURBS trim curves that combine with subject surfaces using boolean SUBtraction", "");
+		RNA_def_property_update(prop, 0, "rna_userdef_update");
+		
+		prop = RNA_def_property(srna, "nurb_trim_add", PROP_FLOAT, PROP_COLOR_GAMMA);
+		RNA_def_property_float_sdna(prop, NULL, "nurb_trim_add");
+		RNA_def_property_array(prop, 3);
+		RNA_def_property_ui_text(prop, "NURBS trim curves that combine with subject surfaces using boolean ADDition", "");
+		RNA_def_property_update(prop, 0, "rna_userdef_update");
+		
+		prop = RNA_def_property(srna, "nurb_sel_trim_and", PROP_FLOAT, PROP_COLOR_GAMMA);
+		RNA_def_property_float_sdna(prop, NULL, "nurb_sel_trim_and");
+		RNA_def_property_array(prop, 3);
+		RNA_def_property_ui_text(prop, "Selected NURBS trim curves that combine with subject surfaces using boolean AND", "");
+		RNA_def_property_update(prop, 0, "rna_userdef_update");
+		
+		prop = RNA_def_property(srna, "nurb_sel_trim_sub", PROP_FLOAT, PROP_COLOR_GAMMA);
+		RNA_def_property_float_sdna(prop, NULL, "nurb_sel_trim_sub");
+		RNA_def_property_array(prop, 3);
+		RNA_def_property_ui_text(prop, "Selected NURBS trim curves that combine with subject surfaces using boolean SUBtraction", "");
+		RNA_def_property_update(prop, 0, "rna_userdef_update");
+		
+		prop = RNA_def_property(srna, "nurb_sel_trim_add", PROP_FLOAT, PROP_COLOR_GAMMA);
+		RNA_def_property_float_sdna(prop, NULL, "nurb_sel_trim_add");
+		RNA_def_property_array(prop, 3);
+		RNA_def_property_ui_text(prop, "Selected NURBS trim curves that combine with subject surfaces using boolean ADDition", "");
+		RNA_def_property_update(prop, 0, "rna_userdef_update");
 	}
 
 	prop = RNA_def_property(srna, "handle_free", PROP_FLOAT, PROP_COLOR_GAMMA);

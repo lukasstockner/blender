@@ -45,6 +45,8 @@ struct BMFace;
 struct BMLoop;
 struct BMEdge;
 struct BMVert;
+struct ARegion;
+struct bContext;
 
 /* visibility and selection */
 bool uvedit_face_visible_nolocal(struct Scene *scene, struct BMFace *efa);

@@ -210,7 +210,7 @@ static void normalize_knots(Nurb *nu, char uv) {
 			}
 		}
 	}
-	BKE_nurb_clear_cached_UV_mesh(nu,true);
+	BKE_nurbs_cached_UV_mesh_clear(nu,true);
 }
 
 /****************************** Curve Import *********************************/

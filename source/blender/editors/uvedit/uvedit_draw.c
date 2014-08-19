@@ -917,7 +917,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	glPointSize(1.0);
 }
 
-void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedit, Object *obact)
+static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 {
 	Nurb *nu, *trimnu;
 	NurbTrim *nt;
@@ -938,12 +938,13 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	float (*trim_uv_pnts)[2];
 	int grid_x_spacing, grid_y_spacing;
 
+	cu = (Curve*)obedit->data;
 	BLI_assert(obedit && obedit->type == OB_SURF);
 	cur = ar->v2d.cur;
 	mask = ar->v2d.mask;
-	cu = (Curve*)obedit->data;
 	umin=INFINITY; vmin=INFINITY; umax=-INFINITY; vmax=-INFINITY;
 	ED_curve_propagate_selected_pts_to_flag2(cu);
+
 	/* Figure out the union bounding box in UV space for all knots */
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (nu->knotsu[0]<umin) umin = nu->knotsu[0];
@@ -1052,16 +1053,16 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 		if (!(nu->flag2&CU_SELECTED2)) continue;
 		NurbEditKnot *ek = BKE_nurbs_editKnot_get(nu);
 		if (ek->breaksv) { /* This is a surf, have u and v breaks */
-			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[0], ek->breaksv[0], &umin, &vmin);
-			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[ek->num_breaksu-1], ek->breaksv[ek->num_breaksv-1], &umax, &vmax);
+			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[0].loc, ek->breaksv[0].loc, &umin, &vmin);
+			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[ek->num_breaksu-1].loc, ek->breaksv[ek->num_breaksv-1].loc, &umax, &vmax);
 		} else { /* This is a curve, no v breaks */
-			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[0], -0.5, &umin, &vmin);
-			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[ek->num_breaksu-1], 0.5, &umax, &vmax);
+			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[0].loc, -0.5, &umin, &vmin);
+			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[ek->num_breaksu-1].loc, 0.5, &umax, &vmax);
 		}
 		for (i=0; i<ek->num_breaksu; i++)  {
-			line_width = ek->multiplicityu[i];
-			UI_ThemeColor((ek->flagu[i]&SELECT)? TH_NURB_SEL_VLINE : TH_NURB_VLINE);
-			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[i], 0, &x_region, &y_region);
+			line_width = ek->breaksu[i].multiplicity;
+			UI_ThemeColor((ek->breaksu[i].flag & SELECT)? TH_NURB_SEL_VLINE : TH_NURB_VLINE);
+			UI_view2d_view_to_region(&ar->v2d, ek->breaksu[i].loc, 0, &x_region, &y_region);
 			glVertex2i(x_region,            vmin);
 			glVertex2i(x_region+line_width, vmin);
 			glVertex2i(x_region+line_width, vmax);
@@ -1069,33 +1070,67 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 		}
 		if (nu->pntsv==1) continue;
 		for (i=0; i<ek->num_breaksv; i++) {
-			line_width = ek->multiplicityv[i];
-			UI_ThemeColor((ek->flagv[i]&SELECT)? TH_NURB_SEL_ULINE : TH_NURB_ULINE);
-			UI_view2d_view_to_region(&ar->v2d, 0, ek->breaksv[i], &x_region, &y_region);
+			line_width = ek->breaksv[i].multiplicity;
+			UI_ThemeColor((ek->breaksv[i].flag & SELECT)? TH_NURB_SEL_ULINE : TH_NURB_ULINE);
+			UI_view2d_view_to_region(&ar->v2d, 0, ek->breaksv[i].loc, &x_region, &y_region);
 			if (i==0 || i==ek->num_breaksv-1) {
-				glVertex2i(umin,                                      y_region);
-				glVertex2i(umax+ek->multiplicityu[ek->num_breaksu-1], y_region);
-				glVertex2i(umax+ek->multiplicityu[ek->num_breaksu-1], y_region+line_width);
-				glVertex2i(umin,                                      y_region+line_width);
+				glVertex2i(umin,                                             y_region);
+				glVertex2i(umax+ek->breaksu[ek->num_breaksu-1].multiplicity, y_region);
+				glVertex2i(umax+ek->breaksu[ek->num_breaksu-1].multiplicity, y_region+line_width);
+				glVertex2i(umin,                                             y_region+line_width);
 			} else {
-				glVertex2i(umin+ek->multiplicityu[0], y_region);
-				glVertex2i(umax,                      y_region);
-				glVertex2i(umax,                      y_region+line_width);
-				glVertex2i(umin,                      y_region+line_width);
+				glVertex2i(umin+ek->breaksu[0].multiplicity, y_region);
+				glVertex2i(umax,                             y_region);
+				glVertex2i(umax,                             y_region+line_width);
+				glVertex2i(umin,                             y_region+line_width);
 			}
 		}
 	}
 	glEnd();
 	glLineWidth(1);
-		
-	/******* (Normalized Coordinates) draw trim curves *********/
+
+	/******* (Normalized Coordinates) draw trim control polygon *********/
 	UI_view2d_view_ortho(&ar->v2d);
+	glShadeModel(GL_SMOOTH);
 	glBegin(GL_LINE_STRIP);
 	UI_ThemeColor(TH_WIRE);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (!(nu->flag2&CU_SELECTED2)) continue;
 		resoltrim = nu->resol_trim;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
+			/* if (!(nt->flag & SELECT)) continue; */
+			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				j = trimnu->pntsu;
+				for (i=0; i<j; i++) {
+					UI_ThemeColor((trimnu->bp[i].f1&SELECT)? TH_VERTEX_SELECT : TH_VERTEX);
+					glVertex2f(trimnu->bp[i].vec[0], trimnu->bp[i].vec[1]);
+				}
+				UI_ThemeColor((trimnu->bp[0].f1&SELECT)? TH_VERTEX_SELECT : TH_VERTEX);
+				glVertex2f(trimnu->bp[0].vec[0], trimnu->bp[0].vec[1]);
+			}
+		}
+	}
+	glEnd();
+	glShadeModel(GL_FLAT);
+
+	/******* (Normalized Coordinates) draw trim curves *********/
+	glBegin(GL_LINE_STRIP);
+	UI_ThemeColor(TH_WIRE);
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		if (!(nu->flag2&CU_SELECTED2)) continue;
+		resoltrim = nu->resol_trim;
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			switch (nt->type) {
+				case CU_TRIM_INTERIOR:
+					UI_ThemeColor((nt->flag&SELECT)? TH_NURB_SEL_TRIM_SUB : TH_NURB_TRIM_SUB);
+					break;
+				case CU_TRIM_EXTERIOR:
+					UI_ThemeColor((nt->flag&SELECT)? TH_NURB_SEL_TRIM_AND : TH_NURB_TRIM_AND);
+					break;
+				case CU_TRIM_ISLAND:
+					UI_ThemeColor((nt->flag&SELECT)? TH_NURB_SEL_TRIM_ADD : TH_NURB_TRIM_ADD);
+					break;
+			}
 			j = BKE_nurbTrim_tess(nt, resoltrim, &trim_uv_pnts);
 			for (i=0; i<j; i++) {
 				glVertex2f(trim_uv_pnts[i][0], trim_uv_pnts[i][1]);
@@ -1105,34 +1140,18 @@ void draw_nurbuv(const struct bContext *C, SpaceImage *sima, ARegion *ar, Scene 
 	}
 	glEnd();
 
-	/******* (Normalized Coordinates) draw trim control polygon *********/
-	glBegin(GL_LINE_STRIP);
-	UI_ThemeColor(TH_WIRE_EDIT);
-	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
-		if (!(nu->flag2&CU_SELECTED2)) continue;
-		resoltrim = nu->resol_trim;
-		for (nt=nu->trims.first; nt; nt=nt->next) {
-			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
-				j = trimnu->pntsu;
-				for (i=0; i<j; i++) {
-					glVertex2f(trimnu->bp[i].vec[0], trimnu->bp[i].vec[1]);
-				}
-			}
-		}
-	}
-	glEnd();
-
 	/******* (Normalized Coordinates) draw handles for control polygon *********/
 	glPointSize(3);
 	glBegin(GL_POINTS);
-	UI_ThemeColor(TH_WIRE_EDIT);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (!(nu->flag2&CU_SELECTED2)) continue;
 		resoltrim = nu->resol_trim;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
+			/* if (!(nt->flag & SELECT)) continue; */
 			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
 				j = trimnu->pntsu;
 				for (i=0; i<j; i++) {
+					UI_ThemeColor((trimnu->bp[i].f1&SELECT)? TH_VERTEX_SELECT : TH_VERTEX);
 					glVertex2f(trimnu->bp[i].vec[0], trimnu->bp[i].vec[1]);
 				}
 			}
@@ -1169,7 +1188,7 @@ void draw_uvedit_main(const struct bContext *C, SpaceImage *sima, ARegion *ar, S
 		show_nurbuv = ED_space_image_show_nurbsuv(sima, obedit);
 		if (show_nurbuv) {
 			sima->flag |= SI_COORDFLOATS; /* always display NURBS uv coords, not px coords */
-			draw_nurbuv(C, sima, ar, scene, obedit, obact);
+			draw_nurbuv(C, ar, obact);
 			draw_image_cursor(ar, sima->cursor);
 		}
 	}

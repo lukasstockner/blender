@@ -1328,11 +1328,14 @@ static void remap_hooks_and_vertex_parents(Object *obedit)
 /* load editNurb in object */
 void load_editNurb(Object *obedit)
 {
-	if (obedit == NULL) return;
-	if (!ELEM(obedit->type, OB_CURVE, OB_SURF)) return;
 	Curve *cu = obedit->data;
 	ListBase *editnurb = object_editcurve_get(obedit);
-	//	for nu in editnurb: if (nu->type == CU_NURBS)  BKE_nurb_order_clamp_u(nu);
+	Nurb *nu;
+	if (obedit == NULL) return;
+	if (!ELEM(obedit->type, OB_CURVE, OB_SURF)) return;
+	for (nu=(Nurb*)editnurb->first; nu; nu=nu->next) {
+		BKE_nurbs_editKnot_propagate_ek2nurb(nu);
+	}
 	BKE_nurbList_duplicate(&cu->nurb, editnurb);
 	calc_shapeKeys(obedit);
 	ED_curve_updateAnimPaths(obedit->data);
@@ -5102,7 +5105,7 @@ static int addvert_Nurb(bContext *C, short mode, float location[3])
 				newbp->f1 |= SELECT;
 
 				newnu = (Nurb *)MEM_mallocN(sizeof(Nurb), "addvert_Nurb newnu");
-				BKE_nurb_clear_cached_UV_mesh(newnu, false);
+				BKE_nurbs_cached_UV_mesh_clear(newnu, false);
 				memcpy(newnu, nu, sizeof(Nurb));
 				BLI_addtail(&editnurb->nurbs, newnu);
 				newnu->bp = newbp;

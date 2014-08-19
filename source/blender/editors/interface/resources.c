@@ -377,6 +377,18 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->nurb_sel_uline; break;
 				case TH_NURB_SEL_VLINE:
 					cp = ts->nurb_sel_vline; break;
+				case TH_NURB_TRIM_AND:
+					cp = ts->nurb_trim_and; break;
+				case TH_NURB_TRIM_SUB:
+					cp = ts->nurb_trim_sub; break;
+				case TH_NURB_TRIM_ADD:
+					cp = ts->nurb_trim_add; break;
+				case TH_NURB_SEL_TRIM_AND:
+					cp = ts->nurb_sel_trim_and; break;
+				case TH_NURB_SEL_TRIM_SUB:
+					cp = ts->nurb_sel_trim_sub; break;
+				case TH_NURB_SEL_TRIM_ADD:
+					cp = ts->nurb_sel_trim_add; break;
 				case TH_ACTIVE_SPLINE:
 					cp = ts->act_spline; break;
 				case TH_ACTIVE_VERT:
@@ -885,6 +897,12 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tv3d.nurb_vline, 0x00, 0x90, 0x60, 255);
 	rgba_char_args_set(btheme->tv3d.nurb_sel_uline, 0xe0, 0x00, 0x00, 255);
 	rgba_char_args_set(btheme->tv3d.nurb_sel_vline, 0x00, 0xcc, 0x00, 255);
+	rgba_char_args_set(btheme->tv3d.nurb_trim_and, 0x00, 0x99, 0xFF, 255); /* dark blue*/
+	rgba_char_args_set(btheme->tv3d.nurb_trim_sub, 0x91, 0x19, 0x91, 255); /* dark purple */
+	rgba_char_args_set(btheme->tv3d.nurb_trim_add, 0x00, 0xB2, 0x6B, 255); /* dark green */
+	rgba_char_args_set(btheme->tv3d.nurb_sel_trim_and, 0x00, 0xFF, 0xFF, 255); /* cyan*/
+	rgba_char_args_set(btheme->tv3d.nurb_sel_trim_sub, 0xFF, 0x00, 0xFF, 255); /* magenta */
+	rgba_char_args_set(btheme->tv3d.nurb_sel_trim_add, 0x66, 0xFF, 0x33, 255); /* green */
 
 	ui_theme_space_init_handles_color(&btheme->tv3d);
 

@@ -59,6 +59,7 @@ void draw_image_sample_line(struct SpaceImage *sima);
 
 /* image_ops.c */
 int space_image_main_area_poll(struct bContext *C);
+int nurbsuv_view_all_exec(const struct bContext *C, const struct ARegion *ar);
 
 void IMAGE_OT_view_all(struct wmOperatorType *ot);
 void IMAGE_OT_view_pan(struct wmOperatorType *ot);

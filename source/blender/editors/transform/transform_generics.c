@@ -662,6 +662,9 @@ static void recalcData_image(TransInfo *t)
 		
 		DAG_id_tag_update(t->obedit->data, 0);
 	}
+	else if (t->obedit && t->obedit->type == OB_SURF) {
+		flushTransUVs(t);
+	}
 }
 
 /* helper for recalcData() - for Movie Clip transforms */
