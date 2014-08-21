@@ -12,6 +12,7 @@
 #include <set>
 #include <algorithm>
 #include <limits>
+#include <stdio.h>
 #include "surf_gridmesh.h"
 
 //#define NURBS_TESS_DEBUG
@@ -786,19 +787,19 @@ void GridMesh::punch_hole(int exterior, int hole) {
 		double v2xyz[3]; vert_get_coord(v2, v1xyz);
 		v1v2_intersection_free = true;
 		std::vector<IntersectingEdge> isect_ext = edge_poly_intersections(v1xyz[0],v1xyz[1],v2xyz[0],v2xyz[1], exterior);
-		for (IntersectingEdge& ie : isect_ext) {
-			if (ie.alpha1>tolerance && ie.alpha1<(1-tolerance)) {
+		for (std::vector<IntersectingEdge>::iterator ie=isect_ext.begin(); ie!=isect_ext.end(); ie++) {
+			if (ie->alpha1>tolerance && ie->alpha1<(1-tolerance)) {
 				v1v2_intersection_free = false;
-				v1 = ie.e2;
+				v1 = ie->e2;
 				break;
 			}
 		}
 		if (!v1v2_intersection_free) continue;
 		std::vector<IntersectingEdge> isect_hole = edge_poly_intersections(v1xyz[0],v1xyz[1],v2xyz[0],v2xyz[1], hole);
-		for (IntersectingEdge& ie : isect_hole) {
-			if (ie.alpha1>tolerance && ie.alpha1<(1-tolerance)) {
+		for (std::vector<IntersectingEdge>::iterator ie=isect_hole.begin(); ie!=isect_hole.end(); ie++) {
+			if (ie->alpha1>tolerance && ie->alpha1<(1-tolerance)) {
 				v1v2_intersection_free = false;
-				v2 = ie.e2;
+				v2 = ie->e2;
 				break;
 			}
 		}
@@ -870,9 +871,9 @@ void GridMesh::insert_vert_poly_gridmesh(int mpoly, int *verts_added, int *edges
 			for (int cell_poly=cell_polys; cell_poly; cell_poly=v[cell_poly].next_poly) {
 				if (!cell_poly || !v[cell_poly].next) continue;
 				std::vector<IntersectingEdge> isect_tmp = edge_poly_intersections(v1, cell_poly);
-				for (IntersectingEdge& e : isect_tmp) {
+				for (std::vector<IntersectingEdge>::iterator e=isect_tmp.begin(); e!=isect_tmp.end(); e++) {
 					//NURBS_TESS_PRINTF("(%i,%i)",j.first,j.second);
-					e.cellidx = int(i);
+					e->cellidx = int(i);
 				}
 				//NURBS_TESS_PRINTF("\n");
 				isect.insert(isect.end(),isect_tmp.begin(),isect_tmp.end());
@@ -881,8 +882,8 @@ void GridMesh::insert_vert_poly_gridmesh(int mpoly, int *verts_added, int *edges
 		std::stable_sort(isect.begin(),isect.end(),intersection_edge_order);
 		
 		/**** Step 4: insert verts at the intersections we discovered ****/
-		for (IntersectingEdge ie : isect) {
-			v1 = insert_vert(v1, v2, ie.e2, v[ie.e2].next, ie.x, ie.y);
+		for (std::vector<IntersectingEdge>::iterator ie=isect.begin(); ie!=isect.end(); ie++) {
+			v1 = insert_vert(v1, v2, ie->e2, v[ie->e2].next, ie->x, ie->y);
 		}
 		verts_added_local += isect.size();
 		v1=v2; v1xyz[0]=v2xyz[0]; v1xyz[1]=v2xyz[1];
@@ -1124,7 +1125,10 @@ void GridMesh::trim_to_odd(int poly0) {
 			if (trace_sz) {
 				int first = trace[0];
 				NURBS_TESS_PRINTF("   0poly %i.%i: ",poly,this_trace_poly);
-				for (int i : trace) {NURBS_TESS_PRINTF(",%i",i);}; NURBS_TESS_PRINTF("\n");
+				for (std::vector<int>::iterator i=trace.begin(); i!=trace.end(); i++) {
+					NURBS_TESS_PRINTF(",%i",i);
+				}
+				NURBS_TESS_PRINTF("\n");
 				// Link all but the endpoints, skipping doubles
 				for (int i=1,l=int(trace.size()); i<l; i++) {
 					int left=trace[i-1], right=trace[i];

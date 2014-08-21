@@ -32,6 +32,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>  /* for INT_MAX */
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -943,7 +944,7 @@ static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 	BLI_assert(obedit && obedit->type == OB_SURF);
 	cur = ar->v2d.cur;
 	mask = ar->v2d.mask;
-	umin=INFINITY; vmin=INFINITY; umax=-INFINITY; vmax=-INFINITY;
+	umin=INT_MAX; vmin=INT_MAX; umax=-INT_MAX; vmax=-INT_MAX;
 	ED_curve_propagate_selected_pts_to_flag2(cu);
 
 	/* Figure out the union bounding box in UV space for all knots */

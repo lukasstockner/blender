@@ -28,12 +28,11 @@ set(INC
 	../../makesrna
 	../../windowmanager
 	../../collada
-	../../../../extern/opennurbs
 	../../../../intern/guardedalloc
 )
 
 set(INC_SYS
-
+	../../../../extern/opennurbs
 )
 
 set(SRC

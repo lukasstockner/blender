@@ -172,15 +172,16 @@ static bool nurbs_select_bpoint(Nurb *nu, BPoint *bp, int dir, bool selstatus, s
 	int idx = bp - nu->bp;
 	int uidx = idx%pntsu;
 	int vidx = idx/pntsu;
+	int u,v;
 	BLI_assert(0<=idx && idx<pntsu*pntsv);
 	/* dir is  0:-v  1:+v  2:-u  3:+u  */
 	if (dir==2 || dir==3) {
-		for (int u=0; u<pntsu; u++) {
+		for (u=0; u<pntsu; u++) {
 			select_bpoint(&nu->bp[pntsu*vidx+u], selstatus, flag, hidden);
 		}
 	}
 	if (dir==0 || dir==1) {
-		for (int v=0; v<pntsv; v++) {
+		for (v=0; v<pntsv; v++) {
 			select_bpoint(&nu->bp[pntsu*v+uidx], selstatus, flag, hidden);
 		}
 	}
@@ -3826,7 +3827,10 @@ static void findnearestNurbvert__doClosest(ViewContext *vc, void *userData, Nurb
 {
 	struct { BPoint *bp; BezTriple *bezt; Nurb *nurb; int *dir; float dist; int hpoint, select; float mval_fl[2]; } *data = userData;
 	int pntsu, pntsv, idx, uidx, vidx;
-	float cos, max_cos, compass_pt[2], compass_dir[2], mouse_dir[2];
+	float cos, max_cos;
+	float compass_pt[2]; /* pos of adjacent bp in {+u,-u,+v,-v} direction */
+	float compass_dir[2]; /* bp ---> bp{+u,-u,+v,-v} */
+	float mouse_dir[2]; /* bp ---> clickpt */
 	short flag;
 	float dist_test;
 	BPoint *Upos, *Uneg, *Vpos, *Vneg;
@@ -3863,10 +3867,8 @@ static void findnearestNurbvert__doClosest(ViewContext *vc, void *userData, Nurb
 			BLI_assert(0<=idx && idx<pntsu*pntsv);
 			uidx = idx%pntsu;
 			vidx = idx/pntsu;
-			max_cos = -2.0; *data->dir=-1;
-			compass_pt[2]; /* pos of adjacent bp in {+u,-u,+v,-v} direction */
-			compass_dir[2]; /* bp ---> bp{+u,-u,+v,-v} */
-			mouse_dir[2]; /* bp ---> clickpt */
+			max_cos = -2.0;
+			*data->dir=-1;
 			sub_v2_v2v2(mouse_dir, data->mval_fl, screen_co);
 			normalize_v2(mouse_dir);
 			*data->dir = -1;

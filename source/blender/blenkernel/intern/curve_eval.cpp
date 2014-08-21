@@ -43,7 +43,7 @@ extern "C" {
 #endif
 
 int BKE_nurb_binom_coeffs[NURBS_MAX_ORDER][NURBS_MAX_ORDER+1];
-int BKE_nurb_binom_coeff(int k, int i) {
+static int BKE_nurb_binom_coeff(int k, int i) {
 	static int inited=0;
 	if (!inited) {
 		inited=1;

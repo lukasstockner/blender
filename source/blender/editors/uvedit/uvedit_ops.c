@@ -2707,7 +2707,7 @@ static int uv_select_linked_internal(bContext *C, wmOperator *op, const wmEvent 
 	return OPERATOR_FINISHED;
 }
 
-static int nurbsuv_select_linked(bContext *C, wmOperator *op) {
+static int nurbsuv_select_linked(bContext *C, wmOperator *UNUSED(op)) {
 	Object *obedit = CTX_data_edit_object(C);
 	Curve *cu;
 	Nurb *nu, *trimnu;

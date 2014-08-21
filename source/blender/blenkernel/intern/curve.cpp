@@ -4444,7 +4444,7 @@ struct NurbsMeshInfo {
 };
 
 /* Helper for BKE_surf_to_mesh */
-void nurbs_meshinfo_pass_1(Nurb *nu, NurbsMeshInfo &nmi) {
+static void nurbs_meshinfo_pass_1(Nurb *nu, NurbsMeshInfo &nmi) {
 	GridMesh *gm = BKE_nurb_compute_trimmed_GridMesh(nu);
 	nmi.gm = gm;
 	std::map<int,int> &remap_vert = nmi.remap_vert;
@@ -4477,7 +4477,7 @@ void nurbs_meshinfo_pass_1(Nurb *nu, NurbsMeshInfo &nmi) {
 }
 
 /* Helper for BKE_surf_to_mesh */
-void nurbs_meshinfo_pass_2(Nurb *nu, NurbsMeshInfo &nmi) {
+static void nurbs_meshinfo_pass_2(Nurb *nu, NurbsMeshInfo &nmi) {
 	/* Cache some data we'll need for surface eval */
 	int pntsu=nu->pntsu, orderu=nu->orderu, pntsv=nu->pntsv, orderv=nu->orderv;
 	float *U=nu->knotsu, *V=nu->knotsv;

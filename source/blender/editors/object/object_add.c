@@ -1479,7 +1479,7 @@ static void convert_ensure_curve_cache(Main *bmain, Scene *scene, Object *ob)
 	}
 }
 
-static void trimmed_curve_to_mesh(Main *bmain, Scene *scene, Object *ob) {
+static void trimmed_curve_to_mesh(Main *UNUSED(bmain), Scene *UNUSED(scene), Object *ob) {
 	BKE_surf_to_mesh(ob);
 	if (ob->type == OB_MESH) {
 		BKE_object_free_modifiers(ob);

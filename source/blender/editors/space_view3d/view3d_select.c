@@ -533,7 +533,7 @@ static void do_lasso_select_mesh(ViewContext *vc, const int mcords[][2], short m
 	EDBM_selectmode_flush(vc->em);
 }
 
-static void do_lasso_select_curve__doSelect(struct ViewContext* vc, void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
+static void do_lasso_select_curve__doSelect(struct ViewContext* UNUSED(vc), void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
 {
 	LassoSelectUserData *data = userData;
 	Object *obedit = data->vc->obedit;
@@ -1706,7 +1706,7 @@ static int do_paintvert_box_select(ViewContext *vc, rcti *rect, bool select, boo
 	return OPERATOR_FINISHED;
 }
 
-static void do_nurbs_box_select__doSelect(struct ViewContext* vc, void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
+static void do_nurbs_box_select__doSelect(struct ViewContext* UNUSED(vc), void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
 {
 	BoxSelectUserData *data = userData;
 	Object *obedit = data->vc->obedit;
@@ -2480,7 +2480,7 @@ static void paint_vertsel_circle_select(ViewContext *vc, const bool select, cons
 }
 
 
-static void nurbscurve_circle_doSelect(struct ViewContext* vc, void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
+static void nurbscurve_circle_doSelect(struct ViewContext* UNUSED(vc), void *userData, Nurb *UNUSED(nu), BPoint *bp, BezTriple *bezt, int beztindex, const float screen_co[2])
 {
 	CircleSelectUserData *data = userData;
 	Object *obedit = data->vc->obedit;

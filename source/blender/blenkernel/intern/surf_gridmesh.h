@@ -9,7 +9,7 @@
 #ifndef __PolyTest__GridMesh__
 #define __PolyTest__GridMesh__
 
-#define ENABLE_GLUT_DEMO
+#undef ENABLE_GLUT_DEMO
 
 #include <iostream>
 #include <vector>
@@ -126,7 +126,7 @@ struct GridMesh {
 	~GridMesh();
 	
 	// Coordinate utilities
-	int gridpt_for_cell(int x, int y) {return (0<=x&&x<=nx&&0<=y&y<=ny)? 1+(y*(nx+1)+x) : 0;}
+	int gridpt_for_cell(int x, int y) {return (0<=x&&x<=nx&&0<=y&&y<=ny)? 1+(y*(nx+1)+x) : 0;}
 	std::pair<int,int> cell_for_vert(int vert);
 	std::pair<float,float> cell_ll_corner(int x, int y) {return std::make_pair(llx+x*dx,lly+y*dy);}
 	
@@ -148,7 +148,7 @@ struct GridMesh {
 	
 	// Poly manipulation
 	int poly_new(const float* packed_coords, int len);
-	int poly_for_cell(int x, int y) {return (0<=x&&x<nx&&0<=y&y<ny)? 1+4*(y*nx+x) : 0;}
+	int poly_for_cell(int x, int y) {return (0<=x&&x<nx&&0<=y&&y<ny)? 1+4*(y*nx+x) : 0;}
 	int poly_for_cell(float x, float y);
 	int poly_first_vert(int anyvert);
 	int poly_last_vert(int anyvert);
