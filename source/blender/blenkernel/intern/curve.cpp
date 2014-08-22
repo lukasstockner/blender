@@ -789,18 +789,18 @@ NurbTrim *BKE_nurbTrim_duplicate(NurbTrim *nt) {
 	return ret;
 }
 
-int BKE_nurbTrim_tess(struct NurbTrim *nt, int resolution, float (**uv_out)[2]) {
+int BKE_nurbTrim_tess(struct NurbTrim *nt, float (**uv_out)[2]) {
 	int tot_tess_pts = 0;
 	for (Nurb* nu = (Nurb*)nt->nurb_list.first; nu; nu=nu->next) {
-		int tess_pts = nu->pntsu * resolution + 1;
-		if (nu->flagu&CU_NURB_ENDPOINT) tess_pts = (nu->pntsu+2-nu->orderu)*resolution;
+		int tess_pts = nu->pntsu * nu->resolu + 1;
+		if (nu->flagu&CU_NURB_ENDPOINT) tess_pts = (nu->pntsu+2-nu->orderu)*nu->resolu;
 		tot_tess_pts += tess_pts;
 	}
 	float (*uv)[2] = (float(*)[2])MEM_mallocN(sizeof(*uv)*tot_tess_pts, "BKE_nurbTrim_tess");
 	*uv_out = uv;
 	for (Nurb* nu = (Nurb*)nt->nurb_list.first; nu; nu=nu->next) {
-		int tess_pts = nu->pntsu * resolution + 1;
-		if (nu->flagu&CU_NURB_ENDPOINT) tess_pts = (nu->pntsu+2-nu->orderu)*resolution;
+		int tess_pts = nu->pntsu * nu->resolu + 1;
+		if (nu->flagu&CU_NURB_ENDPOINT) tess_pts = (nu->pntsu+2-nu->orderu)*nu->resolu;
 		float *U = nu->knotsu;
 		int pntsu = nu->pntsu;
 		BPoint *bp = nu->bp;
@@ -4248,11 +4248,10 @@ GridMesh *BKE_nurb_compute_trimmed_GridMesh(struct Nurb* nu) {
 	gm->init_grid(totu,totv);
 	
 	// Trim
-	if (nu->resol_trim<1) nu->resol_trim = 1;
 //	gm->begin_recording();
 	for (NurbTrim *nt=(NurbTrim*)nu->trims.first; nt; nt=nt->next) {
 		float (*trim_uv_pts)[2];
-		int num_trimpts = BKE_nurbTrim_tess(nt, nu->resol_trim, &trim_uv_pts);
+		int num_trimpts = BKE_nurbTrim_tess(nt, &trim_uv_pts);
 		int trim_poly = gm->poly_new((float*)trim_uv_pts, num_trimpts*2);
 		switch (nt->type) {
 			case CU_TRIM_AND:

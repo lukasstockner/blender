@@ -1096,7 +1096,6 @@ static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 	glShadeModel(GL_SMOOTH);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (!(nu->flag2&CU_SELECTED2)) continue;
-		resoltrim = nu->resol_trim;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
 			glBegin(GL_LINE_STRIP);
 			UI_ThemeColor(TH_WIRE);
@@ -1118,7 +1117,6 @@ static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 	/******* (Normalized Coordinates) draw trim curves *********/
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (!(nu->flag2&CU_SELECTED2)) continue;
-		resoltrim = nu->resol_trim;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
 			glBegin(GL_LINE_STRIP);
 			UI_ThemeColor(TH_WIRE);
@@ -1133,7 +1131,7 @@ static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 					UI_ThemeColor((nt->flag&SELECT)? TH_NURB_SEL_TRIM_ADD : TH_NURB_TRIM_ADD);
 					break;
 			}
-			j = BKE_nurbTrim_tess(nt, resoltrim, &trim_uv_pnts);
+			j = BKE_nurbTrim_tess(nt, &trim_uv_pnts);
 			for (i=0; i<j; i++) {
 				glVertex2f(trim_uv_pnts[i][0], trim_uv_pnts[i][1]);
 			}
@@ -1148,7 +1146,6 @@ static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 	glBegin(GL_POINTS);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (!(nu->flag2&CU_SELECTED2)) continue;
-		resoltrim = nu->resol_trim;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
 			/* if (!(nt->flag & SELECT)) continue; */
 			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {

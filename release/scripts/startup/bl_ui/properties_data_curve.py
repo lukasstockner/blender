@@ -296,7 +296,6 @@ class DATA_PT_active_spline(CurveButtonsPanelActive, Panel):
                 col.prop(act_spline, "radius_interpolation", text="Radius")
 
             layout.prop(act_spline, "use_smooth")
-            layout.prop(act_spline, "resolution_trim")
 
 
 class DATA_PT_font(CurveButtonsPanelText, Panel):

@@ -823,6 +823,62 @@ static PointerRNA rna_nurbs_active_trim_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, NULL, NULL);
 }
 
+static PointerRNA rna_nurbs_active_trim_nurb_get(PointerRNA *ptr)
+{
+	Nurb *nu = (Nurb *)ptr->data, *trimnu;
+	NurbTrim *nt;
+	int num_bp,i;
+	
+	for (nt=nu->trims.first; nt; nt=nt->next) {
+		if (nt->flag&SELECT) {
+			/* This is the active trim! Now search for first selected point to
+			 * see what the active trim nurb is.
+			 */
+			for (trimnu=(Nurb*)nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				num_bp = trimnu->pntsu * trimnu->pntsv;
+				for (i=0; i<num_bp; i++) {
+					if (trimnu->bp[i].f1&SELECT) {
+						return rna_pointer_inherit_refine(ptr, &RNA_Spline, trimnu);
+					}
+				}
+			}
+			/* Otherwise, default to the first trim nurb. */
+			return rna_pointer_inherit_refine(ptr, &RNA_Spline, nt->nurb_list.first);
+		}
+	}
+	
+	return rna_pointer_inherit_refine(ptr, NULL, NULL);
+}
+
+static PointerRNA rna_curve_active_trim_nurb_get(PointerRNA *ptr)
+{
+	Curve *cu = (Curve*)ptr->data;
+	Nurb *nu, *trimnu;
+	NurbTrim *nt;
+	int num_bp,i;
+	for (nu=(Nurb*)cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			if (nt->flag&SELECT) {
+				/* This is the active trim! Now search for first selected point to
+				 * see what the active trim nurb is.
+				 */
+				for (trimnu=(Nurb*)nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+					num_bp = trimnu->pntsu * trimnu->pntsv;
+					for (i=0; i<num_bp; i++) {
+						if (trimnu->bp[i].f1&SELECT) {
+							return rna_pointer_inherit_refine(ptr, &RNA_Spline, trimnu);
+						}
+					}
+				}
+				/* Otherwise, default to the first trim nurb. */
+				return rna_pointer_inherit_refine(ptr, &RNA_Spline, nt->nurb_list.first);
+			}
+		}
+	}
+	
+	return rna_pointer_inherit_refine(ptr, NULL, NULL);
+}
+
 static PointerRNA rna_curve_active_breakpt_get(PointerRNA *ptr)
 {
 	Curve *cu = (Curve *)ptr->data;
@@ -1719,6 +1775,12 @@ static void rna_def_curve(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Active Trim", "Trim to be edited in the property editor");
 
+	prop = RNA_def_property(srna, "active_trim_nurb", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Spline");
+	RNA_def_property_pointer_funcs(prop, "rna_curve_active_trim_nurb_get", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Active Trim Nurb", "The first active 2D NURBS curve of the active trim. A trim NURBS curve is active if its parent trim is selected or if any of its control points are selected");
+
 	RNA_api_curve(srna);
 }
 
@@ -1752,7 +1814,7 @@ static void rna_def_curve_nurb_trim(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "selected", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SELECT);
 	RNA_def_property_ui_text(prop, "Selected", "Has this trim been selected?");
-	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+	RNA_def_property_update(prop, NC_GEOM | ND_DATA, NULL);
 }
 
 static void rna_def_curve_nurb_breakpt(BlenderRNA *brna)
@@ -1767,18 +1829,18 @@ static void rna_def_curve_nurb_breakpt(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "selected", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SELECT);
 	RNA_def_property_ui_text(prop, "Selected", "Has this breakpoint been selected?");
-	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+	RNA_def_property_update(prop, NC_GEOM | ND_DATA, NULL);
 
 	prop = RNA_def_property(srna, "multiplicity", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* editing this needs knot recalc*/
 	RNA_def_property_int_sdna(prop, NULL, "multiplicity");
 	RNA_def_property_ui_text(prop, "Multiplicity", "Number of times the knot %loc% is repeated in the knot array.");
-	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+	RNA_def_property_update(prop, NC_GEOM | ND_DATA, NULL);
 
 	prop = RNA_def_property(srna, "loc", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "loc");
 	RNA_def_property_ui_text(prop, "KnotLocation", "The floating-point value of this knot in the knot array.");
-	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+	RNA_def_property_update(prop, NC_GEOM | ND_DATA, NULL);
 }
 
 static void rna_def_curve_nurb_editknot(BlenderRNA *brna) {
@@ -1900,14 +1962,7 @@ static void rna_def_curve_nurb(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 1, 64, 1, -1);
 	RNA_def_property_ui_text(prop, "Resolution V", "Surface subdivisions per segment");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
-	
-	prop = RNA_def_property(srna, "resolution_trim", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "resol_trim");
-	RNA_def_property_range(prop, 1, 1024);
-	RNA_def_property_ui_range(prop, 1, 64, 1, -1);
-	RNA_def_property_ui_text(prop, "Trim Resolution", "Subdivisions per segment of trim curves");
-	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
-		
+
 	prop = RNA_def_property(srna, "use_cyclic_u", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flagu", CU_NURB_CYCLIC);
 	RNA_def_property_ui_text(prop, "Cyclic U", "Make this curve or surface a closed loop in the U direction");
@@ -1996,6 +2051,12 @@ static void rna_def_curve_nurb(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, "rna_nurbs_active_trim_get", NULL, NULL, NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Active Trim", "Trim to be edited in the property editor");
+
+	prop = RNA_def_property(srna, "active_trim_nurb", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Spline");
+	RNA_def_property_pointer_funcs(prop, "rna_nurbs_active_trim_nurb_get", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Active Trim Nurb", "The first active 2D NURBS curve of the active trim. A trim NURBS curve is active if its parent trim is selected or if any of its control points are selected");
 
 	prop = RNA_def_property(srna, "trims", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_funcs(prop, "rna_NurbTrim_list_begin", "rna_iterator_listbase_next", "rna_iterator_listbase_end", "rna_iterator_listbase_get", NULL, NULL, NULL, NULL);

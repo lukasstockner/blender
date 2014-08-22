@@ -2591,6 +2591,7 @@ static void createTransUVsNURBS(bContext *C, TransInfo *t)
 	BPoint *pt;
 	int count=0,num_bp,i;
 	float aspx, aspy;
+	bool trim_selected;
 
 	/* First see how many trim control points + knots we will be dragging (count) */
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
@@ -2600,10 +2601,11 @@ static void createTransUVsNURBS(bContext *C, TransInfo *t)
 		for (i=0; i<ek->num_breaksv; i++)
 			if (ek->breaksv[i].flag&SELECT) count++;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
+			trim_selected = nt->flag & SELECT;
 			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
 				num_bp = trimnu->pntsu * trimnu->pntsv;
 				for (i=0; i<num_bp; i++)
-					if (trimnu->bp[i].f1 & SELECT) count++;
+					if (trimnu->bp[i].f1&SELECT || trim_selected) count++;
 			}
 		}
 	}
@@ -2652,11 +2654,12 @@ static void createTransUVsNURBS(bContext *C, TransInfo *t)
 			count += 1;
 		}
 		for (nt=nu->trims.first; nt; nt=nt->next) {
+			trim_selected = nt->flag & SELECT;
 			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
 				num_bp = trimnu->pntsu * trimnu->pntsv;
 				for (i=0; i<num_bp; i++) {
 					pt = &trimnu->bp[i];
-					if (pt->f1 & SELECT) {
+					if (pt->f1&SELECT || trim_selected) {
 						td = &t->data[count];
 						td2d = &t->data2d[count];
 						td2d->loc[0] = pt->vec[0];

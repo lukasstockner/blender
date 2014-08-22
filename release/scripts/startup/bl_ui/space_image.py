@@ -143,9 +143,15 @@ class IMAGE_MT_trim(Menu):
     bl_label = "Trim"
     def draw(self, context):
         layout = self.layout
+        layout.operator("uv.nurbsuv_delete_trim", text="Delete Trim")
+        layout.menu("IMAGE_MT_add")
+
+class IMAGE_MT_add(Menu):
+    bl_label = "Add"
+    def draw(self, context):
+        layout = self.layout
         layout.operator("uv.nurbsuv_add_square", text="Square Trim", icon='MESH_PLANE')
         layout.operator("uv.nurbsuv_add_circle", text="Circular Trim", icon='SURFACE_NCIRCLE')
-        layout.operator("uv.nurbsuv_delete_trim", text="Delete Trim")
 
 class IMAGE_MT_image(Menu):
     bl_label = "Image"
@@ -585,6 +591,34 @@ class IMAGE_PT_game_properties(Panel):
         col.separator()
         col.prop(ima, "mapping", expand=True)
 
+class IMAGE_PT_view_nurbs(Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+    bl_label = 'NURBS:'
+
+    @classmethod
+    def poll(cls, context):
+        return context.space_data.show_nurbsuv
+
+    def draw(self, context):
+        layout = self.layout
+        split = layout.split()
+        col = split.column()
+        cu = context.edit_object.data
+        active_breakpt = cu.active_breakpt
+        active_trim = cu.active_trim
+        active_trim_nurb = cu.active_trim_nurb
+        if active_breakpt:
+            col.label(text="Active Breakpoint:")
+            col.prop(active_breakpt, "loc", text="Location")
+            col.prop(active_breakpt, "multiplicity", text="Multiplicity")
+        if active_trim:
+            col.label(text="Active Trim:")
+            sub = col.column()
+            sub.row().prop(active_trim, "type", expand=True)
+        if active_trim_nurb:
+            col.label(text="Active Trim Geometry:")
+            col.prop(active_trim_nurb, "resolution_u", text="Resolution:")
 
 class IMAGE_PT_view_properties(Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -626,17 +660,6 @@ class IMAGE_PT_view_properties(Panel):
             col = layout.column()
             col.label("Cursor Location:")
             col.row().prop(sima, "cursor_location", text="")
-
-        if show_nurbsuv:
-            col.separator()
-            if context.edit_object.data.active_breakpt:
-                col.label(text="Active Breakpoint:")
-                col.prop(context.edit_object.data.active_breakpt, "loc", text="Location")
-                col.prop(context.edit_object.data.active_breakpt, "multiplicity", text="Multiplicity")
-            if context.edit_object.data.active_trim:
-                col.label(text="Active Trim:")
-                sub = col.column()
-                sub.row().prop(context.edit_object.data.active_trim, "type", expand=True)
 
         if show_uvedit:
             col.separator()

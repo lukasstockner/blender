@@ -2518,7 +2518,7 @@ static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend) {
 		}
 		/* Figure out nearest trim to click co */
 		for (nt=nu->trims.first; nt; nt=nt->next) {
-			num_trim_verts = BKE_nurbTrim_tess(nt, nu->resol_trim, &trim_verts);
+			num_trim_verts = BKE_nurbTrim_tess(nt, &trim_verts);
 			for (i=0; i<num_trim_verts-1; i++) {
 				dist = dist2_pt_lineseg(co, trim_verts[i][0], trim_verts[i][1], trim_verts[i+1][0], trim_verts[i+1][1]);
 				if (dist<trim) {
@@ -2608,6 +2608,60 @@ static void UV_OT_select(wmOperatorType *ot)
 	                "Extend", "Extend selection rather than clearing the existing selection");
 	RNA_def_float_vector(ot->srna, "location", 2, NULL, -FLT_MAX, FLT_MAX,
 	                     "Location", "Mouse location in normalized coordinates, 0.0 to 1.0 is within the image bounds", -100.0f, 100.0f);
+}
+
+static int nurbs_trim_duplicate(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *obedit = CTX_data_edit_object(C);
+	Curve *cu = (Curve*)obedit->data;
+	Nurb *nu, *trimnu;
+	NurbTrim *nt, *dup_nt, *first_dup_nt;
+	int i,num_bp;
+	
+	BLI_assert(obedit->type == OB_SURF);
+	for (nu=(Nurb*)cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		first_dup_nt = NULL;
+		for (nt=(NurbTrim*)nu->trims.first; nt && nt!=first_dup_nt; nt=nt->next) {
+			/* First, propagate vertex selections to trim curve selections */
+			for (trimnu=(Nurb*)nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				num_bp = trimnu->pntsu * trimnu->pntsv;
+				for (i=0; i<num_bp; i++) {
+					if (trimnu->bp[i].f1&SELECT) {
+						nt->flag |= SELECT;
+						break;
+					}
+				}
+				if (nt->flag&SELECT) break;
+			}
+			/* If this trim curve is selected, duplicate it */
+			if (nt->flag&SELECT) {
+				dup_nt = BKE_nurbTrim_duplicate(nt);
+				if (!first_dup_nt) first_dup_nt = dup_nt;
+				BLI_addtail(&nu->trims, dup_nt);
+				dup_nt->flag |= SELECT;
+			}
+			/* Clear the selection on the original, leaving dup to be dragged alone */
+			nt->flag &= ~SELECT;
+			for (trimnu=(Nurb*)nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
+				num_bp = trimnu->pntsu * trimnu->pntsv;
+				for (i=0; i<num_bp; i++) trimnu->bp[i].f1 &= ~SELECT;
+			}
+		}
+	}
+	return OPERATOR_FINISHED;
+}
+
+static void UV_OT_nurbs_trim_duplicate(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Duplicate Trims";
+	ot->description = "Duplicate selected NURBS trim curves";
+	ot->idname = "UV_OT_nurbs_trim_duplicate";
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	/* api callbacks */
+	ot->exec = nurbs_trim_duplicate;
+	ot->poll = ED_operator_nurbsuv; /* requires space image */;
 }
 
 /* ******************** loop select operator **************** */
@@ -4121,6 +4175,10 @@ static int nurbsuv_add_square(bContext *C, wmOperator *UNUSED(op))
 	BLI_addtail(&nu->trims, new_nt);
 	BKE_nurbs_cached_UV_mesh_clear(nu, true);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, cu);
+	DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
+
+	nurbsuv_set_selected_all(C, false);
+	new_nt->flag |= SELECT;
 	return OPERATOR_FINISHED;
 }
 
@@ -4180,6 +4238,10 @@ static int nurbsuv_add_circle(bContext *C, wmOperator *UNUSED(op))
 	BLI_addtail(&nu->trims, new_nt);
 	BKE_nurbs_cached_UV_mesh_clear(nu, true);
 	WM_event_add_notifier(C, NC_GEOM | ND_DATA, cu);
+	DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
+	
+	nurbsuv_set_selected_all(C, false);
+	new_nt->flag |= SELECT;
 	return OPERATOR_FINISHED;
 }
 
@@ -4848,9 +4910,6 @@ void ED_operatortypes_uvedit(void)
 	WM_operatortype_append(UV_OT_select_linked_pick);
 	WM_operatortype_append(UV_OT_select_split);
 	WM_operatortype_append(UV_OT_select_pinned);
-	WM_operatortype_append(UV_OT_nurbsuv_add_square);
-	WM_operatortype_append(UV_OT_nurbsuv_add_circle);
-	WM_operatortype_append(UV_OT_nurbsuv_delete_trim);
 	WM_operatortype_append(UV_OT_select_border);
 	WM_operatortype_append(UV_OT_select_lasso);
 	WM_operatortype_append(UV_OT_circle_select);
@@ -4885,6 +4944,24 @@ void ED_operatortypes_uvedit(void)
 
 	WM_operatortype_append(UV_OT_cursor_set);
 	WM_operatortype_append(UV_OT_tile_set);
+
+	WM_operatortype_append(UV_OT_nurbsuv_add_square);
+	WM_operatortype_append(UV_OT_nurbsuv_add_circle);
+	WM_operatortype_append(UV_OT_nurbsuv_delete_trim);
+	WM_operatortype_append(UV_OT_nurbs_trim_duplicate);
+}
+
+void ED_operatormacros_uvedit(void) {
+	wmOperatorType *ot;
+	wmOperatorTypeMacro *otmacro;
+	
+	ot = WM_operatortype_append_macro("UV_OT_nurbs_trim_duplicate_move", "Duplicate Trims",
+	                                  "Duplicate selected trims and move them", OPTYPE_UNDO | OPTYPE_REGISTER);
+	if (ot) {
+		WM_operatortype_macro_define(ot, "UV_OT_nurbs_trim_duplicate");
+		otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+		RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
+	}
 }
 
 void ED_keymap_uvedit(wmKeyConfig *keyconf)
@@ -4971,9 +5048,9 @@ void ED_keymap_uvedit(wmKeyConfig *keyconf)
 	WM_keymap_add_menu(keymap, "IMAGE_MT_uvs_select_mode", TABKEY, KM_PRESS, KM_CTRL, 0);
 
 	/* NURBS UV Editor */
-	WM_keymap_add_menu(keymap, "UV_OT_nurbsuv_add_square", AKEY, KM_PRESS, KM_SHIFT, 0);
-	WM_keymap_add_menu(keymap, "UV_OT_nurbsuv_add_circle", AKEY, KM_PRESS, KM_SHIFT, 0);
-	WM_keymap_add_menu(keymap, "UV_OT_nurbsuv_delete_trim", XKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_menu(keymap, "IMAGE_MT_add", AKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_item(keymap, "UV_OT_nurbsuv_delete_trim", XKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "UV_OT_nurbs_trim_duplicate_move", DKEY, KM_PRESS, KM_SHIFT, 0);
 
 	ED_keymap_proportional_cycle(keyconf, keymap);
 	ED_keymap_proportional_editmode(keyconf, keymap, false);

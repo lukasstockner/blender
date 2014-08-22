@@ -181,7 +181,7 @@ typedef struct Nurb {
 	int pntsu, pntsv;		/* number of points in the U or V directions */
 
 	short flag2; /* CU_SELECTED2, CU_...2 */
-	short resol_trim; /* tessellation res of trim curve (per pt) */
+	short resol_trim; /* deprecated: tessellation res of trim curve (per pt) */
 	short resolu, resolv;	/* tessellation resolution in the U or V directions */
 	short orderu, orderv;
 	short flagu, flagv;
