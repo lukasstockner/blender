@@ -4128,12 +4128,25 @@ static int nurbsuv_add_circle(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *obedit = CTX_data_edit_object(C);
 	SpaceImage *sima = CTX_wm_space_image(C);
+	ARegion *ar = CTX_wm_region(C);
 	Curve *cu;
 	Nurb *nu, *new_trimnu;
 	NurbTrim *new_nt;
 	BPoint *bp;
-	float ls = 0.1; /* length of a side */
-	float lr[2]={ls,0.0}, ur[2]={ls,ls}, ul[2]={0.0,ls};
+	float ls = BLI_rctf_size_x(&ar->v2d.cur)/10; /* length of a side */
+	float sqrt2o4 = sqrt(2)/4;
+	float pts[9][4] = {
+		{0.5, 0.0, 0.0, 1.0},
+		{1.0, 0.0, 0.0, sqrt2o4}, /* LR */
+		{1.0, 0.5, 0.0, 1.0},
+		{1.0, 1.0, 0.0, sqrt2o4}, /* UR */
+		{0.5, 1.0, 0.0, 1.0},
+		{0.0, 1.0, 0.0, sqrt2o4}, /* UL */
+		{0.0, 0.5, 0.0, 1.0},
+		{0.0, 0.0, 0.0, sqrt2o4}, /* LL */
+		{0.5, 0.0, 0.0, 1.0}
+	};
+	int i;
 	
 	if (obedit->type != OB_SURF) return OPERATOR_CANCELLED;
 	if (!sima) return OPERATOR_CANCELLED;
@@ -4141,19 +4154,21 @@ static int nurbsuv_add_circle(bContext *C, wmOperator *UNUSED(op))
 	nu = BKE_curve_nurb_active_get(cu);
 	
 	new_trimnu = (Nurb*)MEM_callocN(sizeof(Nurb),"nurbsuv_add_circle.Nurb");
-	new_trimnu->flag = CU_2D | CU_NURB_ENDPOINT;
+	new_trimnu->flag = CU_2D;
+	new_trimnu->flagu = CU_NURB_ENDPOINT;
 	new_trimnu->type = CU_NURBS;
-	new_trimnu->resolu = 1;
+	new_trimnu->resolu = 3;
 	new_trimnu->resolv = 1;
-	new_trimnu->pntsu = 4;
+	new_trimnu->pntsu = 9;
 	new_trimnu->pntsv = 1;
-	new_trimnu->orderu = 2;
+	new_trimnu->orderu = 4;
 	new_trimnu->orderv = 1;
 	bp = (BPoint*)MEM_callocN(sizeof(BPoint)*new_trimnu->pntsu,"nurbsuv_add_cicrcle.BPoint");
-	copy_v2_v2(bp[0].vec, sima->cursor);
-	add_v2_v2v2(bp[1].vec, sima->cursor, lr);
-	add_v2_v2v2(bp[2].vec, sima->cursor, ur);
-	add_v2_v2v2(bp[3].vec, sima->cursor, ul);
+	for (i=0; i<9; i++) {
+		add_v2_v2(bp[i].vec, sima->cursor);
+		madd_v3_v3fl(bp[i].vec, pts[i], ls);
+		bp[i].vec[3] = pts[i][3];
+	}
 	new_trimnu->bp = bp;
 	BKE_nurb_knot_calc_u(new_trimnu);
 
@@ -4164,6 +4179,7 @@ static int nurbsuv_add_circle(bContext *C, wmOperator *UNUSED(op))
 	
 	BLI_addtail(&nu->trims, new_nt);
 	BKE_nurbs_cached_UV_mesh_clear(nu, true);
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, cu);
 	return OPERATOR_FINISHED;
 }
 
@@ -4196,6 +4212,8 @@ static int nurbsuv_delete_trim(bContext *C, wmOperator *UNUSED(op))
 	}
 
 	BKE_nurbs_cached_UV_mesh_clear(nu, true);
+	DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, cu);
 	return OPERATOR_FINISHED;
 }
 
