@@ -60,6 +60,7 @@ typedef struct GradientFlowMesh {
 	GradientFlowEdge *medge;	/* array of edges */
 } GradientFlowMesh;
 
+/*GradientFlowSysten, one gfsys for every gradient field*/
 typedef struct GradientFlowSystem {
 	GradientFlowMesh *mesh;			/* Mesh pointer*/
 	GFList **ringf_list;			/* Array list of of GradientFlowEdge per original face*/
@@ -132,6 +133,18 @@ static int addEdgeGFSystem(GradientFlowSystem *gfsys, int index_v1, int index_v2
 static int findFeaturesOnMesh(int * lverts, LaplacianSystem *sys);
 static void addSeedToQueue(struct Heap *aheap, float value, GradientFlowVert *vert);
 static GradientFlowVert *getTopSeedFromQueue(struct Heap *aheap);
+
+static bool isOnSegmentLine(float p1[3], float p2[3], float q[3]);
+static bool intersecionLineSegmentWithVector(float r[3], float p1[3], float p2[3], float ori[3], float dir[3]);
+static int getEdgeFromVerts(LaplacianSystem *sys, int v1, int v2);
+static int getOtherFaceAdjacentToEdge(LaplacianSystem *sys, int oldface, int inde);
+static void projectVectorOnFace(float r[3], float no[3], float dir[3]);
+static int getDifferentVertexFaceEdge(LaplacianSystem *sys, int oldface, int inde);
+static int nearGFEdgeInGFMesh(LaplacianSystem *sys, GradientFlowSystem *gfsys, float ori[3], float dir[3], int indexface, float maxradius);
+static int nextPointFlowLine(float r[3], LaplacianSystem *sys, float q[3], int oldface, int inde);
+static int nextPointFlowLineInverse(float r[3], LaplacianSystem *sys, float q[3], int oldface, int inde);
+
+static void computeGFLine(LaplacianSystem *sys, GradientFlowSystem *gfsys, GradientFlowVert *gfvert_seed);
 
 #endif /*openNl*/
 #endif /*__MOD_QUADREMESH_GEOM_H__*/
