@@ -3365,6 +3365,7 @@ static void direct_link_nurblist(FileData *fd, ListBase *nurblist)
 		if (nu->flag & CU_TRIMMED) {
 			link_list(fd, &nu->trims);
 			for (nt=nu->trims.first; nt; nt=nt->next) {
+				nt->parent_nurb = nu;
 				direct_link_nurblist(fd, &nt->nurb_list);
 			}
 		}

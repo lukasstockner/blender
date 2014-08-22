@@ -172,6 +172,7 @@ int     ED_operator_editfont(struct bContext *C);
 int     ED_operator_editlattice(struct bContext *C);
 int     ED_operator_editmball(struct bContext *C);
 int     ED_operator_uvedit(struct bContext *C);
+int     ED_operator_nurbsuv(struct bContext *C);
 int     ED_operator_uvedit_or_nurbsuv(struct bContext *C);
 int     ED_operator_uvedit_space_image(struct bContext *C);
 int     ED_operator_uvedit_or_nurbsuv_space_image(struct bContext *C);

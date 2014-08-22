@@ -135,11 +135,12 @@ typedef struct BPoint {
 } BPoint;
 
 typedef struct NurbTrim {
-	struct NurbTrim *prev, *next;
+	struct NurbTrim *next, *prev;
 	ListBase nurb_list; /* A list of Nurb objects that define the trim when concatenated (implicit lines connect discontinuous endpoints) */
-	short type; /* CU_TRIM_EXTERIOR (AND), CU_TRIM_INTERIOR (SUB), CU_TRIM_ISLAND (ADD) */
+	short type; /* CU_TRIM_AND (AND), CU_TRIM_SUB (SUB), CU_TRIM_ADD (ADD) */
 	short flag; /* SELECTED */
 	short pad[2];
+	void *parent_nurb; /* DNA doesn't like forward declarations? */
 } NurbTrim;
 
 /* A breakpoint is a unique knot with multiplicitly stored explicitly rather
@@ -165,8 +166,6 @@ typedef struct NurbEditKnot {
 	int capu, capv; /* length of breaks{u,v}, multiplicity{u,v}, and flag{u,v} arrays */
 	int num_breaksu, num_breaksv; /* the set of breakpoints is the set of unique knots */
 	NurbBreakpt *breaksu, *breaksv;
-	int *multiplicityu, *multiplicityv;
-	int *flagu, *flagv;
 } NurbEditKnot;
 
 /**
@@ -379,9 +378,9 @@ enum {
 #define CU_TYPE			(CU_POLY|CU_BEZIER|CU_BSPLINE|CU_CARDINAL|CU_NURBS)
 
 /* trim curve type */
-#define CU_TRIM_INTERIOR 1 /* boolean SUB */
-#define CU_TRIM_EXTERIOR 2 /* boolean AND */
-#define CU_TRIM_ISLAND   3 /* boolean ADD */
+#define CU_TRIM_SUB 1 /* boolean SUB */
+#define CU_TRIM_AND 2 /* boolean AND */
+#define CU_TRIM_ADD   3 /* boolean ADD */
 
 		/* only for adding */
 #define CU_PRIMITIVE	0xF00

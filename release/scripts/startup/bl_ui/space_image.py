@@ -139,6 +139,13 @@ class IMAGE_MT_select(Menu):
 
         layout.operator("uv.select_split")
 
+class IMAGE_MT_trim(Menu):
+    bl_label = "Trim"
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("uv.nurbsuv_add_square", text="Square Trim", icon='MESH_PLANE')
+        layout.operator("uv.nurbsuv_add_circle", text="Circular Trim", icon='SURFACE_NCIRCLE')
+        layout.operator("uv.nurbsuv_delete_trim", text="Delete Trim")
 
 class IMAGE_MT_image(Menu):
     bl_label = "Image"
@@ -460,11 +467,14 @@ class MASK_MT_editor_menus(Menu):
 
         show_uvedit = sima.show_uvedit
         show_maskedit = sima.show_maskedit
+        show_nurbsuv = sima.show_nurbsuv
 
         layout.menu("IMAGE_MT_view")
 
         if show_uvedit:
             layout.menu("IMAGE_MT_select")
+        if show_nurbsuv:
+            layout.menu("IMAGE_MT_trim")
         if show_maskedit:
             layout.menu("MASK_MT_select")
 
@@ -616,6 +626,17 @@ class IMAGE_PT_view_properties(Panel):
             col = layout.column()
             col.label("Cursor Location:")
             col.row().prop(sima, "cursor_location", text="")
+
+        if show_nurbsuv:
+            col.separator()
+            if context.edit_object.data.active_breakpt:
+                col.label(text="Active Breakpoint:")
+                col.prop(context.edit_object.data.active_breakpt, "loc", text="Location")
+                col.prop(context.edit_object.data.active_breakpt, "multiplicity", text="Multiplicity")
+            if context.edit_object.data.active_trim:
+                col.label(text="Active Trim:")
+                sub = col.column()
+                sub.row().prop(context.edit_object.data.active_trim, "type", expand=True)
 
         if show_uvedit:
             col.separator()

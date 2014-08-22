@@ -1094,12 +1094,12 @@ static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 	/******* (Normalized Coordinates) draw trim control polygon *********/
 	UI_view2d_view_ortho(&ar->v2d);
 	glShadeModel(GL_SMOOTH);
-	glBegin(GL_LINE_STRIP);
-	UI_ThemeColor(TH_WIRE);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (!(nu->flag2&CU_SELECTED2)) continue;
 		resoltrim = nu->resol_trim;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
+			glBegin(GL_LINE_STRIP);
+			UI_ThemeColor(TH_WIRE);
 			/* if (!(nt->flag & SELECT)) continue; */
 			for (trimnu=nt->nurb_list.first; trimnu; trimnu=trimnu->next) {
 				j = trimnu->pntsu;
@@ -1110,26 +1110,26 @@ static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 				UI_ThemeColor((trimnu->bp[0].f1&SELECT)? TH_VERTEX_SELECT : TH_VERTEX);
 				glVertex2f(trimnu->bp[0].vec[0], trimnu->bp[0].vec[1]);
 			}
+			glEnd();
 		}
 	}
-	glEnd();
 	glShadeModel(GL_FLAT);
 
 	/******* (Normalized Coordinates) draw trim curves *********/
-	glBegin(GL_LINE_STRIP);
-	UI_ThemeColor(TH_WIRE);
 	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
 		if (!(nu->flag2&CU_SELECTED2)) continue;
 		resoltrim = nu->resol_trim;
 		for (nt=nu->trims.first; nt; nt=nt->next) {
+			glBegin(GL_LINE_STRIP);
+			UI_ThemeColor(TH_WIRE);
 			switch (nt->type) {
-				case CU_TRIM_INTERIOR:
+				case CU_TRIM_SUB:
 					UI_ThemeColor((nt->flag&SELECT)? TH_NURB_SEL_TRIM_SUB : TH_NURB_TRIM_SUB);
 					break;
-				case CU_TRIM_EXTERIOR:
+				case CU_TRIM_AND:
 					UI_ThemeColor((nt->flag&SELECT)? TH_NURB_SEL_TRIM_AND : TH_NURB_TRIM_AND);
 					break;
-				case CU_TRIM_ISLAND:
+				case CU_TRIM_ADD:
 					UI_ThemeColor((nt->flag&SELECT)? TH_NURB_SEL_TRIM_ADD : TH_NURB_TRIM_ADD);
 					break;
 			}
@@ -1137,10 +1137,11 @@ static void draw_nurbuv(const struct bContext *C, ARegion *ar, Object *obedit)
 			for (i=0; i<j; i++) {
 				glVertex2f(trim_uv_pnts[i][0], trim_uv_pnts[i][1]);
 			}
+			glVertex2f(trim_uv_pnts[0][0], trim_uv_pnts[0][1]);
 			MEM_freeN(trim_uv_pnts);
+			glEnd();
 		}
 	}
-	glEnd();
 
 	/******* (Normalized Coordinates) draw handles for control polygon *********/
 	glPointSize(3);

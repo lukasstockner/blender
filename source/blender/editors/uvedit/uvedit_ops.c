@@ -1957,7 +1957,6 @@ static int uv_select_all_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
-	Curve *cu;
 	Image *ima = CTX_data_edit_image(C);
 	BMEditMesh *em;
 	int action = RNA_enum_get(op->ptr, "action");
@@ -2343,7 +2342,6 @@ static void nurbsuv_invert_selection(bContext *C) {
 	struct Object *editobj;
 	Curve *cu;
 	Nurb *nu, *trimnu;
-	NurbEditKnot *ek;
 	NurbTrim *nt;
 	int i,numbp;
 	
@@ -2483,7 +2481,7 @@ static int nurbsuv_mouse_select(bContext *C, const float co[2], bool extend) {
 	NurbTrim *nt;
 	/* Smallest difference between co[0] and a {u,v} breakpoint / trim */
 	double u=INFINITY,v=INFINITY,trimcp=INFINITY,trim=INFINITY;
-	Nurb *nearest_u, *nearest_v, *nearest_trimcp_nu, *nearest_trim_nu, *trimnu;
+	Nurb *nearest_u, *nearest_v, *nearest_trimcp_nu, *trimnu;
 	NurbTrim *nearest_trimcp_nt=NULL, *nearest_trim_nt=NULL;
 	int nearest_trim_cp,cp,num_bp;  /* A trim ctrlpt is defined by: nearest_trim_nt > nearest_trim_nu > nearest_trim_cp */
 	/* The index of said nearest breakpoint or trim*/
@@ -4080,6 +4078,127 @@ static int uv_select_pinned_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
+static int nurbsuv_add_square(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *obedit = CTX_data_edit_object(C);
+	SpaceImage *sima = CTX_wm_space_image(C);
+	ARegion *ar = CTX_wm_region(C);
+	Curve *cu;
+	Nurb *nu, *new_trimnu;
+	NurbTrim *new_nt;
+	BPoint *bp;
+	float ls = BLI_rctf_size_x(&ar->v2d.cur)/10; /* length of a side */
+	float ll[4]={0,0,0,1}, lr[4]={ls,0,0,1}, ur[4]={ls,ls,0,1}, ul[4]={0,ls,0,1};
+	
+	if (obedit->type != OB_SURF) return OPERATOR_CANCELLED;
+	if (!sima) return OPERATOR_CANCELLED;
+	cu = (Curve*)obedit->data;
+	nu = BKE_curve_nurb_active_get(cu);
+	
+	new_trimnu = (Nurb*)MEM_callocN(sizeof(Nurb),"nurbsuv_add_square.Nurb");
+	new_trimnu->flag = CU_2D;
+	new_trimnu->flagu = CU_NURB_ENDPOINT;
+	new_trimnu->type = CU_NURBS;
+	new_trimnu->resolu = 1;
+	new_trimnu->resolv = 1;
+	new_trimnu->pntsu = 4;
+	new_trimnu->pntsv = 1;
+	new_trimnu->orderu = 2;
+	new_trimnu->orderv = 1;
+	bp = (BPoint*)MEM_callocN(sizeof(BPoint)*new_trimnu->pntsu,"nurbsuv_add_square.BPoint");
+	add_v4_v4v4(bp[0].vec, sima->cursor, ll);
+	add_v4_v4v4(bp[1].vec, sima->cursor, lr);
+	add_v4_v4v4(bp[2].vec, sima->cursor, ur);
+	add_v4_v4v4(bp[3].vec, sima->cursor, ul);
+	new_trimnu->bp = bp;
+	BKE_nurb_knot_calc_u(new_trimnu);
+	
+	new_nt = (NurbTrim*)MEM_callocN(sizeof(NurbTrim),"nurbsuv_add_square.NurbTrim");
+	new_nt->type = CU_TRIM_SUB;
+	new_nt->parent_nurb = new_trimnu;
+	BLI_addtail(&new_nt->nurb_list, new_trimnu);
+	
+	BLI_addtail(&nu->trims, new_nt);
+	BKE_nurbs_cached_UV_mesh_clear(nu, true);
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, cu);
+	return OPERATOR_FINISHED;
+}
+
+static int nurbsuv_add_circle(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *obedit = CTX_data_edit_object(C);
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Curve *cu;
+	Nurb *nu, *new_trimnu;
+	NurbTrim *new_nt;
+	BPoint *bp;
+	float ls = 0.1; /* length of a side */
+	float lr[2]={ls,0.0}, ur[2]={ls,ls}, ul[2]={0.0,ls};
+	
+	if (obedit->type != OB_SURF) return OPERATOR_CANCELLED;
+	if (!sima) return OPERATOR_CANCELLED;
+	cu = (Curve*)obedit->data;
+	nu = BKE_curve_nurb_active_get(cu);
+	
+	new_trimnu = (Nurb*)MEM_callocN(sizeof(Nurb),"nurbsuv_add_circle.Nurb");
+	new_trimnu->flag = CU_2D | CU_NURB_ENDPOINT;
+	new_trimnu->type = CU_NURBS;
+	new_trimnu->resolu = 1;
+	new_trimnu->resolv = 1;
+	new_trimnu->pntsu = 4;
+	new_trimnu->pntsv = 1;
+	new_trimnu->orderu = 2;
+	new_trimnu->orderv = 1;
+	bp = (BPoint*)MEM_callocN(sizeof(BPoint)*new_trimnu->pntsu,"nurbsuv_add_cicrcle.BPoint");
+	copy_v2_v2(bp[0].vec, sima->cursor);
+	add_v2_v2v2(bp[1].vec, sima->cursor, lr);
+	add_v2_v2v2(bp[2].vec, sima->cursor, ur);
+	add_v2_v2v2(bp[3].vec, sima->cursor, ul);
+	new_trimnu->bp = bp;
+	BKE_nurb_knot_calc_u(new_trimnu);
+
+	new_nt = (NurbTrim*)MEM_callocN(sizeof(NurbTrim),"nurbsuv_add_circle.NurbTrim");
+	new_nt->type = CU_TRIM_SUB;
+	new_nt->parent_nurb = new_trimnu;
+	BLI_addtail(&new_nt->nurb_list, new_trimnu);
+	
+	BLI_addtail(&nu->trims, new_nt);
+	BKE_nurbs_cached_UV_mesh_clear(nu, true);
+	return OPERATOR_FINISHED;
+}
+
+static int nurbsuv_delete_trim(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *obedit = CTX_data_edit_object(C);
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Curve *cu;
+	Nurb *nu;
+	NurbTrim *nt;
+	bool finished = false;
+	
+	if (obedit->type != OB_SURF) return OPERATOR_CANCELLED;
+	if (!sima) return OPERATOR_CANCELLED;
+	cu = (Curve*)obedit->data;
+	nu = BKE_curve_nurb_active_get(cu);
+
+	while (nu->trims.first && !finished) {
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			if (nt->flag & SELECT) {
+				BLI_remlink_safe(&nu->trims, nt);
+				BKE_nurbTrim_free(nt);
+				break;
+			}
+			if (!nt->next) {
+				finished = true;
+				break;
+			}
+		}
+	}
+
+	BKE_nurbs_cached_UV_mesh_clear(nu, true);
+	return OPERATOR_FINISHED;
+}
+
 static void UV_OT_select_pinned(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -4091,6 +4210,45 @@ static void UV_OT_select_pinned(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = uv_select_pinned_exec;
 	ot->poll = ED_operator_uvedit;
+}
+
+static void UV_OT_nurbsuv_add_square(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Square";
+	ot->description = "Add a square (degree 2, i.e. polyline) NURBS 'curve' to the trims of the active NURBS surface";
+	ot->idname = "UV_OT_nurbsuv_add_square";
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	/* api callbacks */
+	ot->exec = nurbsuv_add_square;
+	ot->poll = ED_operator_nurbsuv;
+}
+
+static void UV_OT_nurbsuv_add_circle(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Circle";
+	ot->description = "Add a circular NURBS 'curve' to the trims of the active NURBS surface";
+	ot->idname = "UV_OT_nurbsuv_add_circle";
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	/* api callbacks */
+	ot->exec = nurbsuv_add_circle;
+	ot->poll = ED_operator_nurbsuv;
+}
+
+static void UV_OT_nurbsuv_delete_trim(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Delete Trim";
+	ot->description = "Deletes all selected trim curves from the active NURBS surface";
+	ot->idname = "UV_OT_nurbsuv_delete_trim";
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	/* api callbacks */
+	ot->exec = nurbsuv_delete_trim;
+	ot->poll = ED_operator_nurbsuv;
 }
 
 /********************** hide operator *********************/
@@ -4672,6 +4830,9 @@ void ED_operatortypes_uvedit(void)
 	WM_operatortype_append(UV_OT_select_linked_pick);
 	WM_operatortype_append(UV_OT_select_split);
 	WM_operatortype_append(UV_OT_select_pinned);
+	WM_operatortype_append(UV_OT_nurbsuv_add_square);
+	WM_operatortype_append(UV_OT_nurbsuv_add_circle);
+	WM_operatortype_append(UV_OT_nurbsuv_delete_trim);
 	WM_operatortype_append(UV_OT_select_border);
 	WM_operatortype_append(UV_OT_select_lasso);
 	WM_operatortype_append(UV_OT_circle_select);
@@ -4790,6 +4951,11 @@ void ED_keymap_uvedit(wmKeyConfig *keyconf)
 	/* menus */
 	WM_keymap_add_menu(keymap, "IMAGE_MT_uvs_snap", SKEY, KM_PRESS, KM_SHIFT, 0);
 	WM_keymap_add_menu(keymap, "IMAGE_MT_uvs_select_mode", TABKEY, KM_PRESS, KM_CTRL, 0);
+
+	/* NURBS UV Editor */
+	WM_keymap_add_menu(keymap, "UV_OT_nurbsuv_add_square", AKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_menu(keymap, "UV_OT_nurbsuv_add_circle", AKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_menu(keymap, "UV_OT_nurbsuv_delete_trim", XKEY, KM_PRESS, 0, 0);
 
 	ED_keymap_proportional_cycle(keyconf, keymap);
 	ED_keymap_proportional_editmode(keyconf, keymap, false);

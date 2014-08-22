@@ -48,6 +48,7 @@
 
 #include "BKE_curve.h"
 #include "ED_curve.h"
+#include "ED_types.h"
 
 #ifndef RNA_RUNTIME
 static EnumPropertyItem beztriple_handle_type_items[] = {
@@ -748,6 +749,133 @@ static int rna_Curve_is_editmode_get(PointerRNA *ptr)
 	else {
 		return (cu->editnurb != NULL);
 	}
+}
+
+static void rna_NurbTrim_nurb_list_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	NurbTrim *nt = (NurbTrim*)ptr->id.data;
+	rna_iterator_listbase_begin(iter, &nt->nurb_list, NULL);
+}
+
+static void rna_NurbTrim_type_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+{
+	Object *editobj = scene->obedit;
+	NurbTrim *nt = (NurbTrim *)ptr->data;
+	BLI_assert(editobj->type == OB_SURF);
+	DAG_id_tag_update(&editobj->id, OB_RECALC_DATA);
+	BKE_nurbs_cached_UV_mesh_clear(nt->parent_nurb, true);
+}
+
+static void rna_NurbTrim_list_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Nurb *nu = (Nurb*)ptr->data;
+	rna_iterator_listbase_begin(iter, &nu->trims, NULL);
+}
+
+static void rna_editknot_breaksu_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	NurbEditKnot *ek = (NurbEditKnot*)ptr->data;
+	rna_iterator_array_begin(iter, (void *)ek->breaksu, sizeof(NurbBreakpt),
+	                         ek->num_breaksu, 0, NULL);
+}
+
+static void rna_editknot_breaksv_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	NurbEditKnot *ek = (NurbEditKnot*)ptr->data;
+	rna_iterator_array_begin(iter, (void *)ek->breaksv, sizeof(NurbBreakpt),
+	                         ek->num_breaksv, 0, NULL);
+}
+
+static PointerRNA rna_nurbs_active_breakpt_get(PointerRNA *ptr)
+{
+	Nurb *nu = (Nurb *)ptr->data;
+	NurbEditKnot *ek = nu->editknot;
+	int i;
+	
+	if (!ek) {
+		return rna_pointer_inherit_refine(ptr, NULL, NULL);
+	}
+
+	for (i=0; i<ek->num_breaksu; i++) {
+		if (ek->breaksu[i].flag&SELECT) {
+			return rna_pointer_inherit_refine(ptr, &RNA_NurbBreakpt, &ek->breaksu[i]);
+		}
+	}
+	for (i=0; i<ek->num_breaksv; i++) {
+		if (ek->breaksv[i].flag&SELECT) {
+			return rna_pointer_inherit_refine(ptr, &RNA_NurbBreakpt, &ek->breaksv[i]);
+		}
+	}
+
+	return rna_pointer_inherit_refine(ptr, NULL, NULL);
+}
+
+static PointerRNA rna_nurbs_active_trim_get(PointerRNA *ptr)
+{
+	Nurb *nu = (Nurb *)ptr->data;
+	NurbTrim *nt;
+
+	for (nt=nu->trims.first; nt; nt=nt->next) {
+		if (nt->flag&SELECT)
+			return rna_pointer_inherit_refine(ptr, &RNA_NurbTrim, nt);
+	}
+
+	return rna_pointer_inherit_refine(ptr, NULL, NULL);
+}
+
+static PointerRNA rna_curve_active_breakpt_get(PointerRNA *ptr)
+{
+	Curve *cu = (Curve *)ptr->data;
+	Nurb *nu;
+	NurbEditKnot *ek;
+	int i;
+
+	if (!cu->editnurb || !cu->editnurb->nurbs.first) {
+		return rna_pointer_inherit_refine(ptr, NULL, NULL);
+	}
+
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		ek = nu->editknot;
+		if (!ek) continue;
+		for (i=0; i<ek->num_breaksu; i++) {
+			if (ek->breaksu[i].flag&SELECT) {
+				return rna_pointer_inherit_refine(ptr, &RNA_NurbBreakpt, &ek->breaksu[i]);
+			}
+		}
+		for (i=0; i<ek->num_breaksv; i++) {
+			if (ek->breaksv[i].flag&SELECT) {
+				return rna_pointer_inherit_refine(ptr, &RNA_NurbBreakpt, &ek->breaksv[i]);
+			}
+		}
+	}
+	
+	return rna_pointer_inherit_refine(ptr, NULL, NULL);
+}
+
+static PointerRNA rna_curve_active_trim_get(PointerRNA *ptr)
+{
+	Curve *cu = (Curve *)ptr->data;
+	Nurb *nu;
+	NurbTrim *nt;
+
+	if (!cu->editnurb || !cu->editnurb->nurbs.first) {
+		return rna_pointer_inherit_refine(ptr, NULL, NULL);
+	}
+	
+	for (nu=cu->editnurb->nurbs.first; nu; nu=nu->next) {
+		for (nt=nu->trims.first; nt; nt=nt->next) {
+			if (nt->flag&SELECT)
+				return rna_pointer_inherit_refine(ptr, &RNA_NurbTrim, nt);
+		}
+	}
+	
+	return rna_pointer_inherit_refine(ptr, NULL, NULL);
+}
+
+static void rna_Trim_update_data(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	NurbTrim *nt = (NurbTrim*) ptr->data;
+	BKE_nurbTrim_update_data(nt);
 }
 
 #else
@@ -1579,7 +1707,103 @@ static void rna_def_curve(BlenderRNA *brna)
 
 	rna_def_animdata_common(srna);
 
+	prop = RNA_def_property(srna, "active_breakpt", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "NurbBreakpt");
+	RNA_def_property_pointer_funcs(prop, "rna_curve_active_breakpt_get", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Active Breakpoint", "Breakpoint to be edited in the property editor");
+
+	prop = RNA_def_property(srna, "active_trim", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "NurbTrim");
+	RNA_def_property_pointer_funcs(prop, "rna_curve_active_trim_get", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Active Trim", "Trim to be edited in the property editor");
+
 	RNA_api_curve(srna);
+}
+
+static EnumPropertyItem nurbsuv_trim_types[] = {
+	{CU_TRIM_SUB, "SUB", 0, "Subtract", "Punch a hole. Interior of trim curve (closed with a line if necessary) subtracts from NURBS surface."},
+	{CU_TRIM_AND, "AND", 0, "Mask", "Define the outline of the NURBS surface. Interior of trim curve (closed with line if necessary) is boolean ANDed with the NURBS surface."},
+	/*	{CU_TRIM_ADD, "ADD", 0, "Island", "Create an island. Add visible NURBS surface back in a region where it was previously SUBed or ANDed away."},*/
+	{0, NULL, 0, NULL, NULL}
+};
+
+static void rna_def_curve_nurb_trim(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "NurbTrim", NULL);
+	RNA_def_struct_sdna(srna, "NurbTrim");
+	RNA_def_struct_ui_text(srna, "NurbTrim", "2D NURBS curve that defines a region in the UV parameter space of a parent 3D NURBS curve to be trimmed, outlined, or added.");
+
+	prop = RNA_def_property(srna, "nurb_list", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_funcs(prop, "rna_NurbTrim_nurb_list_begin", "rna_iterator_listbase_next", "rna_iterator_listbase_end", "rna_iterator_listbase_get", NULL, NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "Spline");
+	RNA_def_property_ui_text(prop, "TrimCurves", "Collection of 2D NURBS curves that define the trim boundary when connected end-to-end with line segments.");
+
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type");
+	RNA_def_property_enum_items(prop, nurbsuv_trim_types);
+	RNA_def_property_ui_text(prop, "Type", "The boolean operation with which the interior of this trim is to be combined with the UV-space tessellation of the surface.");
+	RNA_def_property_update(prop, NC_GEOM | ND_DATA, "rna_NurbTrim_type_update");
+
+	prop = RNA_def_property(srna, "selected", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SELECT);
+	RNA_def_property_ui_text(prop, "Selected", "Has this trim been selected?");
+	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+}
+
+static void rna_def_curve_nurb_breakpt(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	
+	srna = RNA_def_struct(brna, "NurbBreakpt", NULL);
+	RNA_def_struct_sdna(srna, "NurbBreakpt");
+	RNA_def_struct_ui_text(srna, "NurbBreakpt", "Breakpoints are unique knots which encode repetition in the 'multiplicity' attribute.");
+
+	prop = RNA_def_property(srna, "selected", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SELECT);
+	RNA_def_property_ui_text(prop, "Selected", "Has this breakpoint been selected?");
+	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+
+	prop = RNA_def_property(srna, "multiplicity", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* editing this needs knot recalc*/
+	RNA_def_property_int_sdna(prop, NULL, "multiplicity");
+	RNA_def_property_ui_text(prop, "Multiplicity", "Number of times the knot %loc% is repeated in the knot array.");
+	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+
+	prop = RNA_def_property(srna, "loc", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "loc");
+	RNA_def_property_ui_text(prop, "KnotLocation", "The floating-point value of this knot in the knot array.");
+	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, NULL);
+}
+
+static void rna_def_curve_nurb_editknot(BlenderRNA *brna) {
+	StructRNA *srna;
+	PropertyRNA *prop;
+	srna = RNA_def_struct(brna, "NurbEditKnot", NULL);
+	RNA_def_struct_sdna(srna, "NurbEditKnot");
+	RNA_def_struct_ui_text(srna, "NurbEditKnot",
+	                       "Representation of a NURBS surface's knots that uses breakpoints (unique knot values) and multiplicities rather than repeated knots.");
+
+	prop = RNA_def_property(srna, "breaksu", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "breaksu", NULL);
+	RNA_def_property_struct_type(prop, "NurbBreakpt");
+	RNA_def_property_collection_funcs(prop, "rna_editknot_breaksu_begin", "rna_iterator_array_next",
+	                                  "rna_iterator_array_end", "rna_iterator_array_get", NULL,
+	                                  NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "BreakpointsU", "Collection of breakpoints (unique knots) in the U direction.");
+	
+	prop = RNA_def_property(srna, "breaksv", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "breaksv", NULL);
+	RNA_def_property_struct_type(prop, "NurbBreakpt");
+	RNA_def_property_collection_funcs(prop, "rna_editknot_breaksv_begin", "rna_iterator_array_next",
+	                                  "rna_iterator_array_end", "rna_iterator_array_get", NULL,
+	                                  NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "BreakpointsV", "Collection of breakpoints (unique knots) in the U direction.");
 }
 
 static void rna_def_curve_nurb(BlenderRNA *brna)
@@ -1615,7 +1839,6 @@ static void rna_def_curve_nurb(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Bezier Points", "Collection of points for Bezier curves only");
 	rna_def_curve_spline_bezpoints(brna, prop);
 
-	
 	prop = RNA_def_property(srna, "tilt_interpolation", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "tilt_interp");
 	RNA_def_property_enum_items(prop, spline_interpolation_items);
@@ -1750,6 +1973,34 @@ static void rna_def_curve_nurb(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
 	RNA_def_struct_path_func(srna, "rna_Curve_spline_path");
+
+	rna_def_curve_nurb_breakpt(brna);
+	rna_def_curve_nurb_editknot(brna);
+	rna_def_curve_nurb_trim(brna);
+	
+	prop = RNA_def_property(srna, "editknot", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "NurbEditKnot");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "EditKnot",
+	                         "Representation of knots as (unique value, multiplicity) used during knot editing");
+	RNA_def_property_update(prop, NC_IMAGE | ND_DRAW, NULL);
+
+	prop = RNA_def_property(srna, "active_breakpt", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "NurbBreakpt");
+	RNA_def_property_pointer_funcs(prop, "rna_nurbs_active_breakpt_get", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Active Breakpoint", "Breakpoint to be edited in the property editor");
+	
+	prop = RNA_def_property(srna, "active_trim", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "NurbTrim");
+	RNA_def_property_pointer_funcs(prop, "rna_nurbs_active_trim_get", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Active Trim", "Trim to be edited in the property editor");
+
+	prop = RNA_def_property(srna, "trims", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_funcs(prop, "rna_NurbTrim_list_begin", "rna_iterator_listbase_next", "rna_iterator_listbase_end", "rna_iterator_listbase_get", NULL, NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "NurbTrim");
+	RNA_def_property_ui_text(prop, "TrimCurves", "Collection of trims (regions to boolean AND/OR/etc with the visible UV region of a NURBS curve).");
 }
 
 void RNA_def_curve(BlenderRNA *brna)

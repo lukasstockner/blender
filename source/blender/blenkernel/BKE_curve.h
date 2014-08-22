@@ -176,6 +176,7 @@ void BKE_nurbList_flag_set(ListBase *editnurb, short flag);
 void BKE_nurbTrim_free(struct NurbTrim *nt);
 struct NurbTrim *BKE_nurbTrim_duplicate(struct NurbTrim *nt);
 int BKE_nurbTrim_tess(struct NurbTrim *nt, int resolution, float (**uv)[2]); // Returns: # verts in uv
+void BKE_nurbTrim_update_data(struct NurbTrim *nt);
 
 void BKE_nurb_free(struct Nurb *nu);
 struct Nurb *BKE_nurb_duplicate(struct Nurb *nu);

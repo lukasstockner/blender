@@ -541,8 +541,6 @@ void BKE_nurbs_editKnot_propagate_nurb2ek(struct Nurb *nu) {
 	if (nu->pntsv==1) {
 		ek->num_breaksv = 0; /* This is a curve. There are no breakpoints in v direction. */
 		ek->breaksv = NULL;
-		ek->flagv = NULL;
-		ek->multiplicityv = NULL;
 	} else {
 		int capv = ek->capv = KNOTSV(nu);
 		ek->breaksv = (NurbBreakpt*)MEM_callocN(capv*sizeof(NurbBreakpt), "NURBS_editknot_v");
@@ -746,6 +744,7 @@ Nurb *BKE_nurb_duplicate(Nurb *nu)
 	newnu->trims.first = newnu->trims.last = NULL;
 	for (NurbTrim *nt = (NurbTrim*)nu->trims.first; nt; nt=nt->next) {
 		NurbTrim *dup_nt = BKE_nurbTrim_duplicate(nt);
+		dup_nt->parent_nurb = newnu;
 		BLI_addtail(&newnu->trims, dup_nt);
 	}
 	BKE_nurbs_cached_UV_mesh_clear(newnu,false);
@@ -786,18 +785,22 @@ NurbTrim *BKE_nurbTrim_duplicate(NurbTrim *nt) {
 	NurbTrim *ret = (NurbTrim*)MEM_callocN(sizeof(NurbTrim), "duplicateNurbTrim");
 	BKE_nurbList_duplicate(&ret->nurb_list, &nt->nurb_list);
 	ret->type = nt->type;
+	ret->parent_nurb = nt->parent_nurb;
 	return ret;
 }
 
 int BKE_nurbTrim_tess(struct NurbTrim *nt, int resolution, float (**uv_out)[2]) {
 	int tot_tess_pts = 0;
 	for (Nurb* nu = (Nurb*)nt->nurb_list.first; nu; nu=nu->next) {
-		tot_tess_pts += nu->pntsu * resolution + 1;
+		int tess_pts = nu->pntsu * resolution + 1;
+		if (nu->flagu&CU_NURB_ENDPOINT) tess_pts = (nu->pntsu+2-nu->orderu)*resolution;
+		tot_tess_pts += tess_pts;
 	}
 	float (*uv)[2] = (float(*)[2])MEM_mallocN(sizeof(*uv)*tot_tess_pts, "BKE_nurbTrim_tess");
 	*uv_out = uv;
 	for (Nurb* nu = (Nurb*)nt->nurb_list.first; nu; nu=nu->next) {
 		int tess_pts = nu->pntsu * resolution + 1;
+		if (nu->flagu&CU_NURB_ENDPOINT) tess_pts = (nu->pntsu+2-nu->orderu)*resolution;
 		float *U = nu->knotsu;
 		int pntsu = nu->pntsu;
 		BPoint *bp = nu->bp;
@@ -815,6 +818,10 @@ int BKE_nurbTrim_tess(struct NurbTrim *nt, int resolution, float (**uv_out)[2]) 
 		uv += tess_pts;
 	}
 	return tot_tess_pts;
+}
+
+void BKE_nurbTrim_update_data(struct NurbTrim *nt) {
+	BKE_nurbs_cached_UV_mesh_clear((Nurb*)nt->parent_nurb, true);
 }
 
 void BKE_nurbList_duplicate(ListBase *lb1, ListBase *lb2)
@@ -4248,10 +4255,10 @@ GridMesh *BKE_nurb_compute_trimmed_GridMesh(struct Nurb* nu) {
 		int num_trimpts = BKE_nurbTrim_tess(nt, nu->resol_trim, &trim_uv_pts);
 		int trim_poly = gm->poly_new((float*)trim_uv_pts, num_trimpts*2);
 		switch (nt->type) {
-			case CU_TRIM_EXTERIOR:
+			case CU_TRIM_AND:
 				gm->bool_AND(trim_poly);
 				break;
-			case CU_TRIM_INTERIOR:
+			case CU_TRIM_SUB:
 				gm->bool_SUB(trim_poly);
 				break;
 			default:

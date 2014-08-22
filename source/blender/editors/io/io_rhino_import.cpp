@@ -755,7 +755,8 @@ static void rhino_import_brep_face(bContext *C,
 		int trim_count = loop->TrimCount();
 		printf("   loop: 0x%lx\n",long(loop));
 		NurbTrim *trim = (NurbTrim*)MEM_callocN(sizeof(NurbTrim),"NURBS_imported_trim");
-		trim->type = (loop==outer_loop)? CU_TRIM_EXTERIOR : CU_TRIM_INTERIOR;
+		trim->type = (loop==outer_loop)? CU_TRIM_AND : CU_TRIM_SUB;
+		trim->parent_nurb = nu;
 		ListBase *nurb_list = &trim->nurb_list;
 		for (int trimnum=0; trimnum<trim_count; trimnum++) {
 			ON_BrepTrim *trim = loop->Trim(trimnum);

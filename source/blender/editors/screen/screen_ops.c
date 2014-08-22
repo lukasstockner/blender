@@ -440,7 +440,14 @@ int ED_operator_uvedit(bContext *C)
 {
 	SpaceImage *sima = CTX_wm_space_image(C);
 	Object *obedit = CTX_data_edit_object(C);
-	return ED_space_image_show_uvedit(sima, obedit) || ED_space_image_show_nurbsuv(sima, obedit);
+	return ED_space_image_show_uvedit(sima, obedit);
+}
+
+int ED_operator_nurbsuv(bContext *C)
+{
+	SpaceImage *sima = CTX_wm_space_image(C);
+	Object *obedit = CTX_data_edit_object(C);
+	return ED_space_image_show_nurbsuv(sima, obedit);
 }
 
 int ED_operator_uvedit_or_nurbsuv(bContext *C)
