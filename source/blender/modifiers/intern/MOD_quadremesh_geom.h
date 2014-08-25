@@ -69,6 +69,7 @@ typedef struct GradientFlowSystem {
 	int totalf;
 	int totale;
 	float *hfunction;
+	float(*gfield)[3];				/* Gradient Field g1 */
 } GradientFlowSystem;
 
 typedef struct LaplacianSystem {
@@ -105,46 +106,60 @@ typedef struct LaplacianSystem {
 	NLContext *context;				/* System for solve general implicit rotations */
 } LaplacianSystem;
 
-static GFList *newGFList(int value);
-static void deleteGFList(GFList *l);
-static void addNodeGFList(GFList *l, int value);
-static int getSizeGFList(GFList *l);
+GFList *newGFList(int value);
+void deleteGFList(GFList *l);
+void addNodeGFList(GFList *l, int value);
+int getSizeGFList(GFList *l);
 
 /*
 * alpha is degree of anisotropic curvature sensitivity
 * h is the desired distance
+* return ve[0] number of vertices
+* return ve[1] number of edges
 */
-static void estimateNumberGFVerticesEdges(int ve[2], LaplacianSystem *sys, float h);
+void estimateNumberGFVerticesEdges(int ve[2], LaplacianSystem *sys, float h);
 
-static GradientFlowMesh *newGradientFlowMesh(int totalvert, int totaledge);
-static void deleteGradientFlowMesh(GradientFlowMesh * gfmesh);
-static int addGFVertGFMesh(GradientFlowMesh *gfmesh, GradientFlowVert gfvert);
-static int addVertGFMesh(GradientFlowMesh *gfmesh, float co[3], int index_edge);
-static int addGFEdgeGFMesh(GradientFlowMesh *gfmesh, GradientFlowEdge gfedge);
-static int addEdgeGFMesh(GradientFlowMesh *gfmesh, int index_v1, int index_v2, int index_face);
+GradientFlowMesh *newGradientFlowMesh(int totalvert, int totaledge);
+void deleteGradientFlowMesh(GradientFlowMesh * gfmesh);
+int addGFVertGFMesh(GradientFlowMesh *gfmesh, GradientFlowVert gfvert);
+int addVertGFMesh(GradientFlowMesh *gfmesh, float co[3], int index_edge);
+int addGFEdgeGFMesh(GradientFlowMesh *gfmesh, GradientFlowEdge gfedge);
+int addEdgeGFMesh(GradientFlowMesh *gfmesh, int index_v1, int index_v2, int index_face);
 
-static GradientFlowSystem *newGradientFlowSystem(LaplacianSystem *sys, float *mhfunction);
-static void deleteGradientFlowSystem(GradientFlowSystem *gfsys);
-static int addGFVertGFSystem(GradientFlowSystem *gfsys, GradientFlowVert gfvert);
-static int addVertGFSystem(GradientFlowSystem *gfsys, float co[3], int index_edge);
-static int addGFEdgeGFSystem(GradientFlowSystem *gfsys, GradientFlowEdge gfedge);
-static int addEdgeGFSystem(GradientFlowSystem *gfsys, int index_v1, int index_v2, int index_face);
+GradientFlowSystem *newGradientFlowSystem(LaplacianSystem *sys, float *mhfunction, float(*mgfield)[3]);
+void deleteGradientFlowSystem(GradientFlowSystem *gfsys);
+int addGFVertGFSystem(GradientFlowSystem *gfsys, GradientFlowVert gfvert);
+int addVertGFSystem(GradientFlowSystem *gfsys, float co[3], int index_edge);
+int addGFEdgeGFSystem(GradientFlowSystem *gfsys, GradientFlowEdge gfedge);
+int addEdgeGFSystem(GradientFlowSystem *gfsys, int index_v1, int index_v2, int index_face);
+int addEdgeTwoFacesGFSystem(GradientFlowSystem *gfsys, int index_v1, int index_v2, int index_face1, int index_face2);
 
-static int findFeaturesOnMesh(int * lverts, LaplacianSystem *sys);
-static void addSeedToQueue(struct Heap *aheap, float value, GradientFlowVert *vert);
-static GradientFlowVert *getTopSeedFromQueue(struct Heap *aheap);
+int *findFeaturesOnMesh(int size[2], LaplacianSystem *sys);
+void addSeedToQueue(struct Heap *aheap, float value, GradientFlowVert *vert);
+GradientFlowVert *getTopSeedFromQueue(struct Heap *aheap);
 
-static bool isOnSegmentLine(float p1[3], float p2[3], float q[3]);
-static bool intersecionLineSegmentWithVector(float r[3], float p1[3], float p2[3], float ori[3], float dir[3]);
-static int getEdgeFromVerts(LaplacianSystem *sys, int v1, int v2);
-static int getOtherFaceAdjacentToEdge(LaplacianSystem *sys, int oldface, int inde);
-static void projectVectorOnFace(float r[3], float no[3], float dir[3]);
-static int getDifferentVertexFaceEdge(LaplacianSystem *sys, int oldface, int inde);
-static int nearGFEdgeInGFMesh(LaplacianSystem *sys, GradientFlowSystem *gfsys, float ori[3], float dir[3], int indexface, float maxradius);
-static int nextPointFlowLine(float r[3], LaplacianSystem *sys, float q[3], int oldface, int inde);
-static int nextPointFlowLineInverse(float r[3], LaplacianSystem *sys, float q[3], int oldface, int inde);
+bool isOnSegmentLine(float p1[3], float p2[3], float q[3]);
+bool intersecionLineSegmentWithVector(float r[3], float p1[3], float p2[3], float ori[3], float dir[3]);
+int getEdgeFromVerts(LaplacianSystem *sys, int v1, int v2);
+int getOtherFaceAdjacentToEdge(LaplacianSystem *sys, int oldface, int inde);
+void projectVectorOnFace(float r[3], float no[3], float dir[3]);
+int getDifferentVertexFaceEdge(LaplacianSystem *sys, int oldface, int inde);
+#define GRA_DIR_ON_NONE 0
+#define GRA_DIR_ON_FACE 1
+#define GRA_DIR_ON_EDGE 2
+void computeGradientDirectionOnVert(int rind[2], float r[3], LaplacianSystem *sys, GradientFlowSystem *gfsys, int indexvert);
+void computeGradientDirectionOnEdgeInverse(int rind[2], float r[3], LaplacianSystem *sys, GradientFlowSystem *gfsys, int indexedge);
+int nearGFEdgeInGFMesh(LaplacianSystem *sys, GradientFlowSystem *gfsys, float ori[3], float dir[3], int indexface, float maxradius);
+int nearGFEdgeInGFMeshFromEdge(LaplacianSystem *sys, GradientFlowSystem *gfsys, float ori[3], float dir[3], int indexedge, float maxradius);
+int nextPointFlowLine(float r[3], LaplacianSystem *sys, float q[3], int oldface, int inde);
+int nextPointFlowLineInverse(float r[3], LaplacianSystem *sys, float q[3], int oldface, int inde);
+float getSamplingDistanceFunctionOnFace(LaplacianSystem *sys, GradientFlowSystem *gfsys, int indexface);
+float getMaxSamplingDistanceFunctionOnFace(LaplacianSystem *sys, GradientFlowSystem *gfsys, int indexface);
+void computeGFLine(LaplacianSystem *sys, GradientFlowSystem *gfsys, GradientFlowVert *gfvert_seed);
 
-static void computeGFLine(LaplacianSystem *sys, GradientFlowSystem *gfsys, GradientFlowVert *gfvert_seed);
+int computeNewSeed(float r[3], LaplacianSystem *sys, GradientFlowSystem *gfsys, int indexf, float ori[3], float dir[3], float mh);
+
+void computeFlowLines(LaplacianSystem *sys);
 
 #endif /*openNl*/
 #endif /*__MOD_QUADREMESH_GEOM_H__*/
