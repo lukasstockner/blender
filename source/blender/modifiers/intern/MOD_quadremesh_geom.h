@@ -30,6 +30,7 @@
 #define __MOD_QUADREMESH_GEOM_H__
 
 #define MOD_QUADREMESH_ALLOC_BLOCK 256
+#define MOD_QUADREMESH_MIN_LEN 0.000001f
 
 #ifdef WITH_OPENNL
 
@@ -104,6 +105,7 @@ typedef struct LaplacianSystem {
 	MeshElemMap *ringv_map;			/* Map of vertex per vertex */
 	MeshElemMap *ringe_map;			/* Map of edges per vertex */
 	NLContext *context;				/* System for solve general implicit rotations */
+	GradientFlowSystem *gfsys;
 } LaplacianSystem;
 
 GFList *newGFList(int value);

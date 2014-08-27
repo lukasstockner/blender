@@ -85,6 +85,7 @@ static LaplacianSystem *initLaplacianSystem(int totalVerts, int totalEdges, int 
 	sys->U_field = MEM_mallocN(sizeof(float)* (totalVerts), "QuadRemeshUField");
 	sys->h1 = MEM_mallocN(sizeof(float)* (totalVerts), "QuadRemeshH1");
 	sys->h2 = MEM_mallocN(sizeof(float)* (totalVerts), "QuadRemeshH2");
+	sys->gfsys = NULL;
 	return sys;
 }
 
@@ -365,13 +366,16 @@ static void computeScalarField(LaplacianSystem *sys)
 {
 	int vid, i, n;
 	n = sys->total_verts;
+	printf("computeScalarField 0 \n");
 
 #ifdef OPENNL_THREADING_HACK
 	modifier_opennl_lock();
 #endif
-	
+	printf("computeScalarField 1 \n");
 	nlNewContext();
 	sys->context = nlGetCurrent();
+
+	printf("computeScalarField 2 \n");
 
 	nlSolverParameteri(NL_NB_VARIABLES, n);
 	nlSolverParameteri(NL_SYMMETRIC, NL_FALSE);
@@ -379,13 +383,15 @@ static void computeScalarField(LaplacianSystem *sys)
 	nlSolverParameteri(NL_NB_ROWS, n);
 	nlSolverParameteri(NL_NB_RIGHT_HAND_SIDES, 1);
 	nlBegin(NL_SYSTEM);
+	printf("computeScalarField 3 \n");
 	for (i = 0; i < n; i++) {
 		nlSetVariable(0, i, 0);
 	}
 		
 	nlBegin(NL_MATRIX);
-
+	printf("computeScalarField 4 \n");
 	initLaplacianMatrix(sys);
+	printf("computeScalarField 5 \n");
 
 	for (i = 0; i < n; i++) {
 		if (sys->constraints[i] == 1) {
@@ -397,7 +403,9 @@ static void computeScalarField(LaplacianSystem *sys)
 	}
 	nlEnd(NL_MATRIX);
 	nlEnd(NL_SYSTEM);
+	printf("computeScalarField 6 \n");
 	if (nlSolveAdvanced(NULL, NL_TRUE)) {
+		printf("computeScalarField 7 \n");
 		sys->has_solution = true;
 
 		for (vid = 0; vid < sys->total_verts; vid++) {
@@ -510,8 +518,11 @@ static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, Der
 	MFace *tessface;
 	MEdge *arrayedge;
 
+	printf("initSystem 0\n");
 	modifier_get_vgroup(ob, dm, qmd->anchor_grp_name, &dvert, &defgrp_index);
+	printf("initSystem 1\n");
 	BLI_assert(dvert != NULL);
+	printf("initSystem 2\n");
 	dv = dvert;
 	j = 0;
 	for (i = 0; i < numVerts; i++) {
@@ -527,17 +538,18 @@ static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, Der
 			constraints[i] = 0;
 		}
 	}
-
+	printf("initSystem 3\n");
 	total_features = j;
 	DM_ensure_tessface(dm);
 	sys = initLaplacianSystem(numVerts, dm->getNumEdges(dm), dm->getNumTessFaces(dm), total_features, qmd->anchor_grp_name);
+	printf("initSystem 4\n");
 
 	memcpy(sys->co, vertexCos, sizeof(float[3]) * numVerts);
 	memcpy(sys->constraints, constraints, sizeof(int)* numVerts);
 	memcpy(sys->weights, weights, sizeof(float)* numVerts);
 	MEM_freeN(weights);
 	MEM_freeN(constraints);
-
+	printf("initSystem 5\n");
 	createFaceRingMap(
 		dm->getNumVerts(dm), dm->getTessFaceArray(dm), dm->getNumTessFaces(dm),
 		&sys->ringf_map, &sys->ringf_indices);
@@ -561,26 +573,30 @@ static LaplacianSystem * initSystem(QuadRemeshModifierData *qmd, Object *ob, Der
 	createFacesByEdge(sys);
 
 	computeSampleDistanceFunctions(sys, 2.0, 10.0f);
+	printf("initSystem 6\n");
 
 	return sys;
 
 }
 
-static void QuadRemeshModifier_do(
+static GradientFlowSystem *QuadRemeshModifier_do(
 	QuadRemeshModifierData *qmd, Object *ob, DerivedMesh *dm,
 	float(*vertexCos)[3], int numVerts)
 {
 	int i;
 	LaplacianSystem *sys = NULL;
+	
 	int defgrp_index;
 	MDeformVert *dvert = NULL;
 	MDeformVert *dv = NULL;
 	float mmin = 1000, mmax = 0;
 	float y;
 	int x;
+	GradientFlowSystem *gfsys = NULL;
 
 	if (qmd->flag & MOD_QUADREMESH_COMPUTE_FLOW) {
 		if (strlen(qmd->anchor_grp_name) >= 1) {
+			printf("QuadRemeshModifier_do 0.1 \n");
 			if (qmd->cache_system) {
 				sys = qmd->cache_system;
 				deleteLaplacianSystem(sys);
@@ -590,7 +606,9 @@ static void QuadRemeshModifier_do(
 			computeScalarField(sys);
 			if (sys->has_solution) {
 				computeGradientFields(sys);
+				printf("QuadRemeshModifier_do 0 \n");
 				if (!defgroup_find_name(ob, "QuadRemeshFlow")) {
+					printf("QuadRemeshModifier_do 1 \n");
 					BKE_defgroup_new(ob, "QuadRemeshFlow");
 					modifier_get_vgroup(ob, dm, "QuadRemeshFlow", &dvert, &defgrp_index);
 					BLI_assert(dvert != NULL);
@@ -617,11 +635,24 @@ static void QuadRemeshModifier_do(
 	if (qmd->flag & MOD_QUADREMESH_REMESH && qmd->cache_system) {
 		sys = qmd->cache_system;
 		if (sys->has_solution) {
+			sys->h = 2.0f;
 			computeFlowLines(sys);
+			gfsys = sys->gfsys;
 		}
 		qmd->flag &= ~MOD_QUADREMESH_REMESH;
 	}
 
+	if (qmd->cache_system) {
+		sys = qmd->cache_system;
+		if (sys->has_solution) {
+			if (sys->gfsys) {
+				gfsys = sys->gfsys;
+			}
+		}
+	}
+
+
+	return gfsys;
 }
 
 
@@ -672,22 +703,61 @@ static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
 {
 	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
 
-	QuadRemeshModifier_do((QuadRemeshModifierData *)md, ob, dm, vertexCos, numVerts);
+	QuadRemeshModifier_do((QuadRemeshModifierData *)md, ob, dm, vertexCos, numVerts, NULL);
 	if (dm != derivedData) {
 		dm->release(dm);
 	}
 }
 
-static void deformVertsEM(
-        ModifierData *md, Object *ob, struct BMEditMesh *editData,
-        DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
+static DerivedMesh *applyModifier(ModifierData *md,
+	Object *ob,
+	DerivedMesh *dm,
+	ModifierApplyFlag UNUSED(flag))
 {
-	DerivedMesh *dm = get_dm(ob, editData, derivedData, NULL, false, false);
-	QuadRemeshModifier_do((QuadRemeshModifierData *)md, ob, dm,
-	                           vertexCos, numVerts);
-	if (dm != derivedData) {
-		dm->release(dm);
+	//DerivedMesh *dm2 = get_dm(ob, NULL, dm, NULL, false, false);
+	//QuadRemeshModifier_do((QuadRemeshModifierData *)md, ob, dm, (void *)dm->getVertArray(dm), dm->getNumVerts(dm));
+
+	float (*myco)[3];	
+	MVert *arrayvect;
+	MEdge *arrayedge;
+	int i;
+	float(*vertexCos)[3];
+	GradientFlowSystem *gfsys = NULL;
+	DerivedMesh *result;
+	
+	vertexCos = MEM_mallocN(sizeof(float[3]) * dm->getNumVerts(dm), __func__);
+	
+	arrayvect = dm->getVertArray(dm);
+	for (i = 0; i < dm->getNumVerts(dm); i++) {
+		copy_v3_v3(vertexCos[i], arrayvect[i].co);
 	}
+	if (!gfsys) {
+		gfsys = QuadRemeshModifier_do((QuadRemeshModifierData *)md, ob, dm, vertexCos, dm->getNumVerts(dm), gfsys);
+	}
+	MEM_SAFE_FREE(vertexCos);
+	
+	if (gfsys) {
+		result = CDDM_new(gfsys->mesh->totvert, gfsys->mesh->totedge, 0, gfsys->mesh->totedge, 0);
+		arrayvect = result->getVertArray(result);
+		for (i = 0; i < gfsys->mesh->totvert; i++) {
+			copy_v3_v3(arrayvect[i].co, gfsys->mesh->mvert[i].co);
+		}
+		arrayedge = result->getEdgeArray(result);
+		for (i = 0; i < gfsys->mesh->totedge; i++) {
+			arrayedge[i].v1 = gfsys->mesh->medge[i].v1;
+			arrayedge[i].v2 = gfsys->mesh->medge[i].v2;
+		}
+		dm = result;
+	}
+	else{
+		result = dm;
+	}
+	
+
+	
+	//CDDM_calc_edges_tessface(result);
+
+	return result;
 }
 
 static void freeData(ModifierData *md)
@@ -705,14 +775,16 @@ ModifierTypeInfo modifierType_QuadRemesh = {
 	/* name */              "QuadRemesh",
 	/* structName */        "QuadRemeshModifierData",
 	/* structSize */        sizeof(QuadRemeshModifierData),
-	/* type */              eModifierTypeType_OnlyDeform,
-	/* flags */             eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
+	/* type */              eModifierTypeType_Nonconstructive,
+	/* flags */             eModifierTypeFlag_AcceptsMesh |
+							eModifierTypeFlag_AcceptsCVs |
+							eModifierTypeFlag_SupportsEditmode,
 	/* copyData */          copyData,
-	/* deformVerts */       deformVerts,
+	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
-	/* deformVertsEM */     deformVertsEM,
+	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
-	/* applyModifier */     NULL,
+	/* applyModifier */     applyModifier,
 	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
