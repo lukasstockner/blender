@@ -29,6 +29,8 @@ set(LIBRARIES
 	${JPEG_LIBRARIES}
 	${ZLIB_LIBRARIES}
 	${TIFF_LIBRARY}
+	extern_clew
+	extern_cuew
 )
 
 add_definitions(${GL_DEFINITIONS})

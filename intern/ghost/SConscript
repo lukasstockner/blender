@@ -36,16 +36,17 @@ sources = env.Glob('intern/*.cpp')
 sources2 = env.Glob('intern/GHOST_NDOFManager3Dconnexion.c')
 if window_system == 'darwin':
     sources += env.Glob('intern/*.mm')
+    #remove, will be readded below if needed.
+    sources.remove('intern' + os.sep + 'GHOST_ContextCGL.mm')
 
 if not env['WITH_BF_GL_EGL']:
     sources.remove('intern' + os.sep + 'GHOST_ContextEGL.cpp')
 
 # seems cleaner to remove these now then add back the one that is needed
-sources.remove('intern' + os.sep + 'GHOST_ContextCGL.mm')
 sources.remove('intern' + os.sep + 'GHOST_ContextGLX.cpp')
 sources.remove('intern' + os.sep + 'GHOST_ContextWGL.cpp')
 
-pf = ['GHOST_DisplayManager', 'GHOST_System', 'GHOST_SystemPaths', 'GHOST_Window', 'GHOST_DropTarget', 'GHOST_NDOFManager']
+pf = ['GHOST_DisplayManager', 'GHOST_System', 'GHOST_SystemPaths', 'GHOST_Window', 'GHOST_DropTarget', 'GHOST_NDOFManager', 'GHOST_Context']
 
 defs = env['BF_GL_DEFINITIONS']
 
@@ -75,6 +76,10 @@ elif window_system in ('linux', 'openbsd3', 'sunos5', 'freebsd7', 'freebsd8', 'f
     for f in pf:
         try:
             sources.remove('intern' + os.sep + f + 'Win32.cpp')
+        except ValueError:
+            pass
+
+        try:
             sources.remove('intern' + os.sep + f + 'SDL.cpp')
         except ValueError:
             pass
@@ -108,6 +113,10 @@ elif window_system in ('win32-vc', 'win32-mingw', 'cygwin', 'linuxcross', 'win64
     for f in pf:
         try:
             sources.remove('intern' + os.sep + f + 'X11.cpp')
+        except ValueError:
+            pass
+
+        try:
             sources.remove('intern' + os.sep + f + 'SDL.cpp')
         except ValueError:
             pass
@@ -121,7 +130,14 @@ elif window_system == 'darwin':
     for f in pf:
         try:
             sources.remove('intern' + os.sep + f + 'Win32.cpp')
+        except ValueError:
+            pass
+
+        try:
             sources.remove('intern' + os.sep + f + 'X11.cpp')
+        except ValueError:
+            pass
+        try:
             sources.remove('intern' + os.sep + f + 'SDL.cpp')
         except ValueError:
             pass
