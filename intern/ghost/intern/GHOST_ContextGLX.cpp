@@ -215,7 +215,7 @@ GHOST_TSuccess GHOST_ContextGLX::initializeDrawingContext()
 		}
 
 		/* GLX >= 1.4 required for multi-sample */
-		if (actualSamples > 0 && (glx_major >= 1) && (glx_minor >= 4)) {
+		if (actualSamples > 0 && ((glx_major > 1) || (glx_major == 1 && glx_minor >= 4))) {
 			attribs.push_back(GLX_SAMPLE_BUFFERS);
 			attribs.push_back(1);
 
