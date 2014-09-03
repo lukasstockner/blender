@@ -61,6 +61,21 @@ ccl_device_inline void stack_store_float3(float *stack, uint a, float3 f)
 	stack[a+2] = f.z;
 }
 
+ccl_device_inline float2 stack_load_float2(float *stack, uint a)
+{
+	kernel_assert(a+1 < SVM_STACK_SIZE);
+
+	return make_float2(stack[a+0], stack[a+1]);
+}
+
+ccl_device_inline void stack_store_float2(float *stack, uint a, float2 f)
+{
+	kernel_assert(a+1 < SVM_STACK_SIZE);
+
+	stack[a+0] = f.x;
+	stack[a+1] = f.y;
+}
+
 ccl_device_inline float stack_load_float(float *stack, uint a)
 {
 	kernel_assert(a < SVM_STACK_SIZE);
@@ -424,7 +439,7 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 				break;
 			case NODE_NORMAL_MAP:
 				svm_node_normal_map(kg, sd, stack, node);
-				break;	
+				break;
 			case NODE_END:
 			default:
 				return;
@@ -434,5 +449,60 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 
 CCL_NAMESPACE_END
 
-#endif /* __SVM_H__ */
+#ifdef __CAMERA_RAY_NODES__
+#  include "camera_nodes/svm_camera_distortion.h"
+#  include "camera_nodes/svm_camera_path_attribute.h"
+#  include "camera_nodes/svm_camera_ray_output.h"
+#  include "camera_nodes/svm_camera_sample_perspective.h"
 
+CCL_NAMESPACE_BEGIN
+
+ccl_device_noinline void svm_eval_camera_nodes(KernelGlobals *kg,
+                                               CameraData *cd,
+                                               ShaderType type)
+{
+	float stack[SVM_STACK_SIZE];
+	int offset = cd->shader & SHADER_MASK;
+
+	kernel_assert(type == SHADER_TYPE_CAMERA_RAY);
+
+	while(1) {
+		uint4 node = read_node(kg, &offset);
+
+		switch(node.x) {
+			case NODE_SHADER_JUMP: {
+				if(type == SHADER_TYPE_CAMERA_RAY) offset = node.y;
+				else return;
+				break;
+			}
+			case NODE_CAMERA_PATH_ATTRIBUTE:
+				svm_camera_node_path_attribute(kg, cd, stack, node.y, node.z);
+				break;
+			case NODE_CAMERA_SAMPLE_PERSPECTIVE:
+				svm_camera_node_sample_perspective(kg, cd, stack, node);
+				break;
+			case NODE_CAMERA_RAY_OUTPUT:
+				svm_camera_node_ray_output(kg, cd, stack, node);
+				break;
+			case NODE_CAMERA_POLYNOMIAL_DISTORTION:
+				svm_node_camera_polynomial_distortion(kg, cd, node,
+				                                      stack, &offset);
+				break;
+			case NODE_VALUE_F:
+				svm_node_value_f(kg, NULL, stack, node.y, node.z);
+				break;
+			case NODE_VALUE_V:
+				svm_node_value_v(kg, NULL, stack, node.y, &offset);
+				break;
+			case NODE_END:
+			default:
+				return;
+		}
+	}
+}
+
+CCL_NAMESPACE_END
+
+#endif
+
+#endif /* __SVM_H__ */

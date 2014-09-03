@@ -26,6 +26,8 @@
 
 CCL_NAMESPACE_BEGIN
 
+class Camera;
+class CameraNodesGraph;
 class Device;
 class DeviceScene;
 class ImageManager;
@@ -54,6 +56,7 @@ class SVMCompiler {
 public:
 	SVMCompiler(ShaderManager *shader_manager, ImageManager *image_manager);
 	void compile(Shader *shader, vector<int4>& svm_nodes, int index);
+	void compile(Camera *camera, vector<int4>& svm_nodes, int index);
 
 	void stack_assign(ShaderOutput *output);
 	void stack_assign(ShaderInput *input);
@@ -141,6 +144,7 @@ protected:
 
 	/* compile */
 	void compile_type(Shader *shader, ShaderGraph *graph, ShaderType type);
+	void compile_type(Camera *camera, CameraNodesGraph *graph);
 
 	vector<int4> svm_nodes;
 	ShaderType current_type;

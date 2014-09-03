@@ -21,6 +21,7 @@ set(INC_SYS
 
 set(SRC
 	blender_camera.cpp
+	blender_camera_nodes.cpp
 	blender_mesh.cpp
 	blender_object.cpp
 	blender_particles.cpp

@@ -31,7 +31,6 @@ bl_info = {
 import bpy
 
 from . import engine
-from . import version_update
 
 
 class CyclesRender(bpy.types.RenderEngine):
@@ -90,28 +89,34 @@ class CyclesRender(bpy.types.RenderEngine):
 
 
 def register():
+    from . import camera_nodes
     from . import ui
     from . import properties
     from . import presets
+    from . import version_update
 
     engine.init()
 
     properties.register()
     ui.register()
     presets.register()
+    camera_nodes.register()
     bpy.utils.register_module(__name__)
 
     bpy.app.handlers.version_update.append(version_update.do_versions)
 
 
 def unregister():
+    from . import camera_nodes
     from . import ui
     from . import properties
     from . import presets
+    from . import version_update
 
     bpy.app.handlers.version_update.remove(version_update.do_versions)
 
     ui.unregister()
     properties.unregister()
     presets.unregister()
+    camera_nodes.unregister()
     bpy.utils.unregister_module(__name__)

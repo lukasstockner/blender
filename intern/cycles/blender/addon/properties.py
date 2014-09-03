@@ -21,7 +21,8 @@ from bpy.props import (BoolProperty,
                        EnumProperty,
                        FloatProperty,
                        IntProperty,
-                       PointerProperty)
+                       PointerProperty,
+                       StringProperty)
 
 # enums
 
@@ -577,6 +578,9 @@ class CyclesCameraSettings(bpy.types.PropertyGroup):
                 min=0.01, soft_max=15.0, max=100.0,
                 default=10.5,
                 )
+        cls.nodes = StringProperty(
+                name="nodes",
+                description="Camera ray nodes")
 
     @classmethod
     def unregister(cls):

@@ -16,6 +16,8 @@
 
 CCL_NAMESPACE_BEGIN
 
+ccl_device_noinline void svm_eval_camera_nodes(KernelGlobals *kg, CameraData *cd, ShaderType type);
+
 /* Perspective Camera */
 
 ccl_device float2 camera_sample_aperture(KernelGlobals *kg, float u, float v)
@@ -237,6 +239,20 @@ ccl_device void camera_sample(KernelGlobals *kg, int x, int y, float filter_u, f
 		ray->time = TIME_INVALID;
 	else
 		ray->time = time;
+#endif
+
+#ifdef __CAMERA_RAY_NODES__
+	/* TODO(sergey): Add proper check for nodes tree here. */
+	if(kernel_data.cam.shader != 0) {
+		CameraData cd;
+		cd.raster = make_float2(raster_x, raster_y);
+		cd.lens = make_float2(lens_u, lens_v);
+		cd.shader = kernel_data.cam.shader;
+		cd.ray = *ray;
+		svm_eval_camera_nodes(kg, &cd, SHADER_TYPE_CAMERA_RAY);
+		*ray = cd.ray;
+		return;
+	}
 #endif
 
 	/* sample */

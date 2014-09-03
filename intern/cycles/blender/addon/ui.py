@@ -472,6 +472,24 @@ class CyclesCamera_PT_dof(CyclesButtonsPanel, Panel):
         sub.prop(ccam, "aperture_ratio", text="Ratio")
 
 
+class CyclesCamera_PT_ray_nodes(CyclesButtonsPanel, Panel):
+    bl_label = "Ray Nodes"
+    bl_context = "data"
+
+    @classmethod
+    def poll(cls, context):
+        return context.camera and CyclesButtonsPanel.poll(context)
+
+    def draw(self, context):
+        layout = self.layout
+
+        cam = context.camera
+        ccam = cam.cycles
+
+        col = layout.column()
+        col.prop_search(ccam, "nodes", bpy.data, "node_groups", text="")
+
+
 class Cycles_PT_context_material(CyclesButtonsPanel, Panel):
     bl_label = ""
     bl_context = "material"

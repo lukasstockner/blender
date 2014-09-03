@@ -57,7 +57,9 @@ public:
 	void sync_render_layers(BL::SpaceView3D b_v3d, const char *layer);
 	void sync_integrator();
 	void sync_camera(BL::RenderSettings b_render, BL::Object b_override, int width, int height);
+	void sync_camera_nodes(BL::Object b_ob);
 	void sync_view(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int width, int height);
+	void sync_view_nodes(BL::RegionView3D b_rv3d);
 	int get_layer_samples() { return render_layer.samples; }
 	int get_layer_bound_samples() { return render_layer.bound_samples; }
 

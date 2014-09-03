@@ -283,6 +283,8 @@ static void blender_camera_sync(Camera *cam, BlenderCamera *bcam, int width, int
 {
 	/* copy camera to compare later */
 	Camera prevcam = *cam;
+	prevcam.graph = NULL;
+
 	float aspectratio, sensor_size;
 
 	/* viewplane */
@@ -318,6 +320,9 @@ static void blender_camera_sync(Camera *cam, BlenderCamera *bcam, int width, int
 			cam->sensorheight = sensor_size;
 		}
 	}
+	else {
+		cam->sensorwidth = sensor_size;
+	}
 
 	/* clipping distances */
 	cam->nearclip = bcam->nearclip;
@@ -325,6 +330,7 @@ static void blender_camera_sync(Camera *cam, BlenderCamera *bcam, int width, int
 
 	/* type */
 	cam->type = bcam->type;
+	cam->focal_length = bcam->lens;
 
 	/* panorama */
 	cam->panorama_type = bcam->panorama_type;
@@ -390,6 +396,7 @@ void BlenderSync::sync_camera(BL::RenderSettings b_render, BL::Object b_override
 	/* sync */
 	Camera *cam = scene->camera;
 	blender_camera_sync(cam, &bcam, width, height);
+	sync_camera_nodes(b_ob);
 	scene->camera->use_camera_in_volume = experimental;
 }
 
@@ -555,6 +562,7 @@ void BlenderSync::sync_view(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int 
 	blender_camera_border(&bcam, b_scene.render(), b_scene, b_v3d, b_rv3d, width, height);
 
 	blender_camera_sync(scene->camera, &bcam, width, height);
+	sync_view_nodes(b_rv3d);
 	scene->camera->use_camera_in_volume = experimental;
 }
 

@@ -20,6 +20,7 @@ set(SRC
 	blackbody.cpp
 	buffers.cpp
 	camera.cpp
+	camera_nodes.cpp
 	film.cpp
 	graph.cpp
 	image.cpp
@@ -49,6 +50,7 @@ set(SRC_HEADERS
 	blackbody.h
 	buffers.h
 	camera.h
+	camera_nodes.h
 	film.h
 	graph.h
 	image.h

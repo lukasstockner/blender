@@ -69,6 +69,7 @@ CCL_NAMESPACE_BEGIN
 #define __VOLUME_DECOUPLED__
 #define __VOLUME_SCATTER__
 #define __SHADOW_RECORD_ALL__
+#define __CAMERA_RAY_NODES__
 #endif
 
 #ifdef __KERNEL_CUDA__
@@ -785,7 +786,10 @@ typedef struct KernelCamera {
 	float inv_aperture_ratio;
 
 	int is_inside_volume;
-	int pad2;
+	int shader;
+
+	float focal_length;
+	float pad[3];
 
 	/* more matrices */
 	Transform screentoworld;
@@ -971,6 +975,13 @@ typedef struct KernelData {
 	KernelCurves curve;
 	KernelTables tables;
 } KernelData;
+
+typedef struct CameraData {
+	float2 raster;
+	float2 lens;
+	Ray ray;
+	int shader;
+} CameraData;
 
 CCL_NAMESPACE_END
 

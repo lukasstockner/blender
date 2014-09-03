@@ -37,6 +37,7 @@ class ShaderGraph;
 class SVMCompiler;
 class OSLCompiler;
 class OutputNode;
+class RayOutputNode;
 
 /* Socket Type
  *
@@ -264,6 +265,13 @@ protected:
 	void refine_bump_nodes();
 	void default_inputs(bool do_osl);
 	void transform_multi_closure(ShaderNode *node, ShaderOutput *weight_out, bool volume);
+};
+
+/* Graph of camera ray nodes. */
+class CameraNodesGraph : public ShaderGraph {
+public:
+	CameraNodesGraph();
+	RayOutputNode *output();
 };
 
 CCL_NAMESPACE_END

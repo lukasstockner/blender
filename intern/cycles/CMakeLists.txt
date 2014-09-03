@@ -146,6 +146,13 @@ if(WITH_CYCLES_LOGGING)
 	endif()
 endif()
 
+if(WITH_LIBMV)
+	add_definitions(-DWITH_CYCLES_DISTORTION)
+	include_directories(
+		../../extern/libmv
+	)
+endif()
+
 include_directories(
 	SYSTEM
 	${BOOST_INCLUDE_DIR}

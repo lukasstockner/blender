@@ -17,6 +17,7 @@
 #include "attribute.h"
 #include "graph.h"
 #include "nodes.h"
+#include "camera_nodes.h"
 #include "shader.h"
 
 #include "util_algorithm.h"
@@ -875,6 +876,28 @@ void ShaderGraph::dump_graph(const char *filename)
 
 	fprintf(fd, "}\n");
 	fclose(fd);
+}
+
+/* CameraNodesGraph */
+
+CameraNodesGraph::CameraNodesGraph()
+{
+	finalized = false;
+	num_node_ids = 0;
+
+	/* TODO(sergey): Ideally we just don't want parent constructor
+	 * to be called from this class.
+	 */
+	foreach(ShaderNode *node, nodes)
+		delete node;
+	nodes.clear();
+
+	add(new RayOutputNode());
+}
+
+RayOutputNode *CameraNodesGraph::output()
+{
+	return (RayOutputNode*)nodes.front();
 }
 
 CCL_NAMESPACE_END

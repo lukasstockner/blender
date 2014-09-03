@@ -102,7 +102,13 @@ typedef enum NodeType {
 	NODE_TANGENT,
 	NODE_NORMAL_MAP,
 	NODE_HAIR_INFO,
-	NODE_UVMAP
+	NODE_UVMAP,
+
+	/* Camera ray nodes. */
+	NODE_CAMERA_PATH_ATTRIBUTE,
+	NODE_CAMERA_SAMPLE_PERSPECTIVE,
+	NODE_CAMERA_RAY_OUTPUT,
+	NODE_CAMERA_POLYNOMIAL_DISTORTION,
 } NodeType;
 
 typedef enum NodeAttributeType {
@@ -337,7 +343,8 @@ typedef enum NodeNormalMapSpace {
 typedef enum ShaderType {
 	SHADER_TYPE_SURFACE,
 	SHADER_TYPE_VOLUME,
-	SHADER_TYPE_DISPLACEMENT
+	SHADER_TYPE_DISPLACEMENT,
+	SHADER_TYPE_CAMERA_RAY,
 } ShaderType;
 
 /* Closure */
@@ -399,6 +406,12 @@ typedef enum ClosureType {
 
 	NBUILTIN_CLOSURES
 } ClosureType;
+
+typedef enum NodePathAttribute {
+	NODE_CAMERA_PATH_ATTRIBUTE_RASTER,
+	NODE_CAMERA_PATH_ATTRIBUTE_LENS,
+	NODE_CAMERA_PATH_ATTRIBUTE_TIME,
+} NodePathAttribute;
 
 /* watch this, being lazy with memory usage */
 #define CLOSURE_IS_BSDF(type) (type <= CLOSURE_BSDF_TRANSPARENT_ID)

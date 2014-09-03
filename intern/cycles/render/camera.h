@@ -28,6 +28,7 @@ CCL_NAMESPACE_BEGIN
 class Device;
 class DeviceScene;
 class Scene;
+class CameraNodesGraph;
 
 /* Camera
  *
@@ -48,6 +49,7 @@ public:
 	/* type */
 	CameraType type;
 	float fov;
+	float focal_length;
 
 	/* panorama */
 	PanoramaType panorama_type;
@@ -109,6 +111,9 @@ public:
 	 */
 	bool use_camera_in_volume;
 
+	/* Camera ray nodes. */
+	CameraNodesGraph *graph;
+
 	/* functions */
 	Camera();
 	~Camera();
@@ -126,6 +131,8 @@ public:
 
 	BoundBox viewplane_bounds_get();
 	float3 transform_raster_to_world(float raster_x, float raster_y);
+
+	void set_graph(CameraNodesGraph *graph);
 };
 
 CCL_NAMESPACE_END

@@ -15,7 +15,9 @@
  */
 
 #include "camera.h"
+#include "graph.h"
 #include "mesh.h"
+#include "nodes.h"
 #include "object.h"
 #include "scene.h"
 
@@ -103,10 +105,13 @@ Camera::Camera()
 	need_update = true;
 	need_device_update = true;
 	previous_need_motion = -1;
+
+	graph = NULL;
 }
 
 Camera::~Camera()
 {
+	delete graph;
 }
 
 void Camera::compute_auto_viewplane()
@@ -297,6 +302,9 @@ void Camera::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kcam->nearclip = nearclip;
 	kcam->cliplength = (farclip == FLT_MAX)? FLT_MAX: farclip - nearclip;
 
+	/* focal length */
+	kcam->focal_length = focal_length;
+
 	need_device_update = false;
 	previous_need_motion = need_motion;
 
@@ -333,6 +341,14 @@ void Camera::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 			}
 		}
 	}
+
+	/* TODO(sergey): Make sure shaders are fully synced at this point. */
+	if(graph != NULL) {
+		kcam->shader = scene->shader_manager->get_shader_id(scene->shaders.size());
+	}
+	else {
+		kcam->shader = 0;
+	}
 }
 
 void Camera::device_free(Device *device, DeviceScene *dscene)
@@ -349,6 +365,7 @@ bool Camera::modified(const Camera& cam)
 		(focaldistance == cam.focaldistance) &&
 		(type == cam.type) &&
 		(fov == cam.fov) &&
+		(focal_length == cam.focal_length) &&
 		(nearclip == cam.nearclip) &&
 		(farclip == cam.farclip) &&
 		(sensorwidth == cam.sensorwidth) &&
@@ -427,5 +444,14 @@ BoundBox Camera::viewplane_bounds_get()
 	return bounds;
 }
 
-CCL_NAMESPACE_END
+void Camera::set_graph(CameraNodesGraph *graph_)
+{
+	if(graph_) {
+		graph_->remove_unneeded_nodes();
+	}
 
+	delete graph;
+	graph = graph_;
+}
+
+CCL_NAMESPACE_END

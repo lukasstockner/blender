@@ -20,6 +20,7 @@
 #include "util_color.h"
 #include "util_math.h"
 #include "util_transform.h"
+#include "util_distort.h"
 
 #endif /* __KERNEL_MATH_H__ */
 

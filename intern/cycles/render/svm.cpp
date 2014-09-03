@@ -14,11 +14,13 @@
  * limitations under the License
  */
 
+#include "camera.h"
 #include "device.h"
 #include "graph.h"
 #include "light.h"
 #include "mesh.h"
 #include "nodes.h"
+#include "camera_nodes.h"
 #include "scene.h"
 #include "shader.h"
 #include "svm.h"
@@ -62,7 +64,12 @@ void SVMShaderManager::device_update(Device *device, DeviceScene *dscene, Scene 
 		svm_nodes.push_back(make_int4(NODE_SHADER_JUMP, 0, 0, 0));
 		svm_nodes.push_back(make_int4(NODE_SHADER_JUMP, 0, 0, 0));
 	}
-	
+
+	if(scene->camera->graph != NULL) {
+		svm_nodes.push_back(make_int4(NODE_SHADER_JUMP, 0, 0, 0));
+		svm_nodes.push_back(make_int4(NODE_SHADER_JUMP, 0, 0, 0));
+	}
+
 	for(i = 0; i < scene->shaders.size(); i++) {
 		Shader *shader = scene->shaders[i];
 
@@ -76,6 +83,12 @@ void SVMShaderManager::device_update(Device *device, DeviceScene *dscene, Scene 
 		SVMCompiler compiler(scene->shader_manager, scene->image_manager);
 		compiler.background = ((int)i == scene->default_background);
 		compiler.compile(shader, svm_nodes, i);
+	}
+
+	if(scene->camera->graph != NULL) {
+		SVMCompiler compiler(scene->shader_manager, scene->image_manager);
+		compiler.background = false;
+		compiler.compile(scene->camera, svm_nodes, scene->shaders.size());
 	}
 
 	dscene->svm_nodes.copy((uint4*)&svm_nodes[0], svm_nodes.size());
@@ -688,6 +701,36 @@ void SVMCompiler::compile_type(Shader *shader, ShaderGraph *graph, ShaderType ty
 	add_node(NODE_END, 0, 0, 0);
 }
 
+void SVMCompiler::compile_type(Camera *camera,
+                               CameraNodesGraph *graph)
+{
+	current_type = SHADER_TYPE_CAMERA_RAY;
+	current_graph = graph;
+
+	/* Clear all compiler state. */
+	memset(&active_stack, 0, sizeof(active_stack));
+	svm_nodes.clear();
+
+	foreach(ShaderNode *node_iter, graph->nodes) {
+		foreach(ShaderInput *input, node_iter->inputs)
+			input->stack_offset = SVM_STACK_INVALID;
+		foreach(ShaderOutput *output, node_iter->outputs)
+			output->stack_offset = SVM_STACK_INVALID;
+	}
+
+	RayOutputNode *node = graph->output();
+	set<ShaderNode*> done, closure_done;
+	generate_multi_closure(node, node, done, closure_done);
+
+	/* If compile failed, generate empty shader. */
+	if(compile_failed) {
+		svm_nodes.clear();
+		compile_failed = false;
+	}
+
+	add_node(NODE_END, 0, 0, 0);
+}
+
 void SVMCompiler::compile(Shader *shader, vector<int4>& global_svm_nodes, int index)
 {
 	/* copy graph for shader with bump mapping */
@@ -737,6 +780,23 @@ void SVMCompiler::compile(Shader *shader, vector<int4>& global_svm_nodes, int in
 	global_svm_nodes[index*2 + 0].w = global_svm_nodes.size();
 	global_svm_nodes[index*2 + 1].w = global_svm_nodes.size();
 	global_svm_nodes.insert(global_svm_nodes.end(), svm_nodes.begin(), svm_nodes.end());
+}
+
+void SVMCompiler::compile(Camera *camera,
+                          vector<int4>& global_svm_nodes,
+                          int index)
+{
+	/* Finalize the graph. */
+	/* TODO(sergey): Finalization is currently working for shader nodes only. */
+	/* camera->graph->finalize(false, false); */
+
+	/* Generate camera nodes to SVM nodes. */
+	compile_type(camera, camera->graph);
+	global_svm_nodes[index*2 + 0].y = global_svm_nodes.size();
+	global_svm_nodes[index*2 + 1].y = global_svm_nodes.size();
+	global_svm_nodes.insert(global_svm_nodes.end(),
+	                        svm_nodes.begin(),
+	                        svm_nodes.end());
 }
 
 CCL_NAMESPACE_END
