@@ -939,21 +939,10 @@ BLI_INLINE void gpuDrawElements(GLenum mode)
 }
 
 
-
-
-void gpu_draw_elements_gl(void);
-
-
-
 BLI_INLINE void gpuRepeatElements(void)
 {
 	gpu_draw_elements_gl();
 }
-
-
-
-void gpu_draw_range_elements_gl(void);
-
 
 
 BLI_INLINE void gpuDrawRangeElements(GLenum mode)

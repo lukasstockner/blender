@@ -528,7 +528,8 @@ static void bmesh_find_doubles_common(BMesh *bm, BMOperator *op,
 	int i, j, keepvert = 0;
 
 	const float dist  = BMO_slot_float_get(op->slots_in, "dist");
-	const float dist3 = dist * 3.0f;
+	const float dist_sq = dist * dist;
+	const float dist3 = (M_SQRT3 + 0.00005f) * dist;   /* Just above sqrt(3) */
 
 	/* Test whether keep_verts arg exists and is non-empty */
 	if (BMO_slot_exists(op->slots_in, "keep_verts")) {
@@ -576,7 +577,7 @@ static void bmesh_find_doubles_common(BMesh *bm, BMOperator *op,
 					continue;
 			}
 
-			if (compare_len_v3v3(v_check->co, v_other->co, dist)) {
+			if (compare_len_squared_v3v3(v_check->co, v_other->co, dist_sq)) {
 
 				/* If one vert is marked as keep, make sure it will be the target */
 				if (BMO_elem_flag_test(bm, v_other, VERT_KEEP)) {

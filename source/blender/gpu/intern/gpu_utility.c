@@ -57,7 +57,7 @@ const char* gpuErrorString(GLenum err)
 		case GL_OUT_OF_MEMORY:
 			return "Out of Memory";
 
-#if GL_ARB_imagining
+#ifdef GL_ARB_imagining
 		case GL_TABLE_TOO_LARGE:
 			return "Table Too Large";
 #endif
@@ -102,7 +102,7 @@ const char* gpuErrorSymbol(GLenum err)
 		case GL_OUT_OF_MEMORY:
 			return "GL_OUT_OF_MEMORY";
 
-#if GL_ARB_imagining
+#ifdef GL_ARB_imagining
 		case GL_TABLE_TOO_LARGE:
 			return "GL_TABLE_TOO_LARGE";
 #endif

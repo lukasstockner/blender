@@ -397,7 +397,8 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 			/* skip hidden part of line */
 			if (skip) {
 				skip--;
-				fstart = fpos; mstart = mend;
+				fstart = fpos = end;
+				mstart = mend;
 				mend = txt_utf8_forward_columns(str + mend, max, &padding) - str;
 				end = (wrap += max - padding);
 				continue;
@@ -1459,7 +1460,7 @@ void text_scroll_to_cursor(SpaceText *st, ScrArea *sa)
 	ARegion *ar = NULL;
 	int i, x, winx = 0;
 
-	if (ELEM3(NULL, st, st->text, st->text->curl)) return;
+	if (ELEM(NULL, st, st->text, st->text->curl)) return;
 
 	text = st->text;
 

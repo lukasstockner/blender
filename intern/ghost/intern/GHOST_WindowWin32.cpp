@@ -55,6 +55,51 @@
 const wchar_t *GHOST_WindowWin32::s_windowClassName = L"GHOST_WindowClass";
 const int GHOST_WindowWin32::s_maxTitleLength = 128;
 
+<<<<<<< HEAD
+=======
+static int WeightPixelFormat(PIXELFORMATDESCRIPTOR &pfd);
+static int EnumPixelFormats(HDC hdc);
+
+/*
+ * Color and depth bit values are not to be trusted.
+ * For instance, on TNT2:
+ * When the screen color depth is set to 16 bit, we get 5 color bits
+ * and 16 depth bits.
+ * When the screen color depth is set to 32 bit, we get 8 color bits
+ * and 24 depth bits.
+ * Just to be safe, we request high quality settings.
+ */
+static PIXELFORMATDESCRIPTOR sPreferredFormat = {
+	sizeof(PIXELFORMATDESCRIPTOR),  /* size */
+	1,                              /* version */
+	PFD_SUPPORT_OPENGL |
+	PFD_DRAW_TO_WINDOW |
+	PFD_SWAP_COPY |                 /* support swap copy */
+	PFD_DOUBLEBUFFER,               /* support double-buffering */
+	PFD_TYPE_RGBA,                  /* color type */
+	32,                             /* prefered color depth */
+	0, 0, 0, 0, 0, 0,               /* color bits (ignored) */
+	0,                              /* no alpha buffer */
+	0,                              /* alpha bits (ignored) */
+	0,                              /* no accumulation buffer */
+	0, 0, 0, 0,                     /* accum bits (ignored) */
+	32,                             /* depth buffer */
+	0,                              /* no stencil buffer */
+	0,                              /* no auxiliary buffers */
+	PFD_MAIN_PLANE,                 /* main layer */
+	0,                              /* reserved */
+	0, 0, 0                         /* no layer, visible, damage masks */
+};
+
+/* Intel videocards don't work fine with multiple contexts and
+ * have to share the same context for all windows.
+ * But if we just share context for all windows it could work incorrect
+ * with multiple videocards configuration. Suppose, that Intel videocards
+ * can't be in multiple-devices configuration. */
+static int is_crappy_intel_card(void)
+{
+	static short is_crappy = -1;
+>>>>>>> master
 
 
 
@@ -64,6 +109,7 @@ extern "C" {
 }
 
 GHOST_WindowWin32::GHOST_WindowWin32(
+<<<<<<< HEAD
     GHOST_SystemWin32 *system,
     const STR_String& title,
     GHOST_TInt32 left,
@@ -90,6 +136,48 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 	m_maxPressure(0),
 	m_normal_state(GHOST_kWindowStateNormal),
 	m_parentWindowHwnd(parentwindowhwnd)
+=======
+        GHOST_SystemWin32 *system,
+        const STR_String &title,
+        GHOST_TInt32 left,
+        GHOST_TInt32 top,
+        GHOST_TUns32 width,
+        GHOST_TUns32 height,
+        GHOST_TWindowState state,
+        GHOST_TDrawingContextType type,
+        const bool stereoVisual,
+        const GHOST_TUns16 numOfAASamples,
+        GHOST_TEmbedderWindowID parentwindowhwnd,
+        GHOST_TSuccess msEnabled,
+        int msPixelFormat)
+    : GHOST_Window(width, height, state, GHOST_kDrawingContextTypeNone,
+                   stereoVisual, false, numOfAASamples),
+      m_inLiveResize(false),
+      m_system(system),
+      m_hDC(0),
+      m_hGlRc(0),
+      m_hasMouseCaptured(false),
+      m_hasGrabMouse(false),
+      m_nPressedButtons(0),
+      m_customCursor(0),
+      m_wintab(NULL),
+      m_tabletData(NULL),
+      m_tablet(0),
+      m_maxPressure(0),
+      m_multisample(numOfAASamples),
+      m_multisampleEnabled(msEnabled),
+      m_msPixelFormat(msPixelFormat),
+      //For recreation
+      m_title(title),
+      m_left(left),
+      m_top(top),
+      m_width(width),
+      m_height(height),
+      m_normal_state(GHOST_kWindowStateNormal),
+      m_stereo(stereoVisual),
+      m_nextWindow(NULL),
+      m_parentWindowHwnd(parentwindowhwnd)
+>>>>>>> master
 {
 	OSVERSIONINFOEX versionInfo;
 	bool hasMinVersionForTaskbar = false;
@@ -101,13 +189,17 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 	if (!GetVersionEx((OSVERSIONINFO *)&versionInfo)) {
 		versionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
 		if (GetVersionEx((OSVERSIONINFO *)&versionInfo)) {
-			if ((versionInfo.dwMajorVersion == 6 && versionInfo.dwMinorVersion >= 1) || versionInfo.dwMajorVersion >= 7) {
+			if ((versionInfo.dwMajorVersion == 6 && versionInfo.dwMinorVersion >= 1) ||
+			    (versionInfo.dwMajorVersion >= 7))
+			{
 				hasMinVersionForTaskbar = true;
 			}
 		}
 	}
 	else {
-		if ((versionInfo.dwMajorVersion == 6 && versionInfo.dwMinorVersion >= 1) || versionInfo.dwMajorVersion >= 7) {
+		if ((versionInfo.dwMajorVersion == 6 && versionInfo.dwMinorVersion >= 1) ||
+		    (versionInfo.dwMajorVersion >= 7))
+		{
 			hasMinVersionForTaskbar = true;
 		}
 	}
@@ -117,7 +209,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		MONITORINFO monitor;
 		GHOST_TUns32 tw, th; 
 
-#if !defined(_MSC_VER) || _MSC_VER < 1700
+#ifndef _MSC_VER
 		int cxsizeframe = GetSystemMetrics(SM_CXSIZEFRAME);
 		int cysizeframe = GetSystemMetrics(SM_CYSIZEFRAME);
 #else
@@ -147,8 +239,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		th = monitor.rcWork.bottom - monitor.rcWork.top;
 		tw = monitor.rcWork.right - monitor.rcWork.left;
 
-		if (tw < width)
-		{
+		if (tw < width) {
 			width = tw;
 			left = monitor.rcWork.left;
 		}
@@ -157,8 +248,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		else if (left < monitor.rcWork.left)
 			left = monitor.rcWork.left;
 
-		if (th < height)
-		{
+		if (th < height) {
 			height = th;
 			top = monitor.rcWork.top;
 		}
@@ -168,8 +258,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 			top = monitor.rcWork.top;
 
 		int wintype = WS_OVERLAPPEDWINDOW;
-		if (m_parentWindowHwnd != 0)
-		{
+		if (m_parentWindowHwnd != 0) {
 			wintype = WS_CHILD;
 			GetWindowRect((HWND)m_parentWindowHwnd, &rect);
 			left = 0;
@@ -242,6 +331,10 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 					break;
 			}
 
+<<<<<<< HEAD
+=======
+		if (success) {
+>>>>>>> master
 			::ShowWindow(m_hWnd, nCmdShow);
 
 			// Force an initial paint of the window
@@ -273,7 +366,8 @@ GHOST_WindowWin32::GHOST_WindowWin32(
 		if (fpWTInfo && fpWTInfo(0, 0, NULL)) {
 			// Now init the tablet
 			LOGCONTEXT lc;
-			AXIS TabletX, TabletY, Pressure, Orientation[3]; /* The maximum tablet size, pressure and orientation (tilt) */
+			/* The maximum tablet size, pressure and orientation (tilt) */
+			AXIS TabletX, TabletY, Pressure, Orientation[3];
 
 			// Open a Wintab context
 
@@ -350,8 +444,20 @@ GHOST_WindowWin32::~GHOST_WindowWin32()
 		m_customCursor = NULL;
 	}
 
+<<<<<<< HEAD
 	if (m_hWnd != NULL && m_hDC != NULL && releaseNativeHandles())
 		::ReleaseDC(m_hWnd, m_hDC);
+=======
+	::wglMakeCurrent(NULL, NULL);
+	m_multisampleEnabled = GHOST_kFailure;
+	m_multisample = 0;
+	setDrawingContextType(GHOST_kDrawingContextTypeNone);
+
+	if (m_hDC && m_hDC != s_firstHDC) {
+		::ReleaseDC(m_hWnd, m_hDC);
+		m_hDC = 0;
+	}
+>>>>>>> master
 
 	if (m_hWnd) {
 		if (m_dropTarget) {
@@ -376,7 +482,7 @@ HWND GHOST_WindowWin32::getHWND() const
 	return m_hWnd;
 }
 
-void GHOST_WindowWin32::setTitle(const STR_String& title)
+void GHOST_WindowWin32::setTitle(const STR_String &title)
 {
 	wchar_t *title_16 = alloc_utf16_from_8((char *)(const char *)title, 0);
 	::SetWindowTextW(m_hWnd, (wchar_t *)title_16);
@@ -384,7 +490,7 @@ void GHOST_WindowWin32::setTitle(const STR_String& title)
 }
 
 
-void GHOST_WindowWin32::getTitle(STR_String& title) const
+void GHOST_WindowWin32::getTitle(STR_String &title) const
 {
 	char buf[s_maxTitleLength]; /*CHANGE + never used yet*/
 	::GetWindowText(m_hWnd, buf, s_maxTitleLength);
@@ -393,7 +499,7 @@ void GHOST_WindowWin32::getTitle(STR_String& title) const
 }
 
 
-void GHOST_WindowWin32::getWindowBounds(GHOST_Rect& bounds) const
+void GHOST_WindowWin32::getWindowBounds(GHOST_Rect &bounds) const
 {
 	RECT rect;
 	::GetWindowRect(m_hWnd, &rect);
@@ -404,7 +510,7 @@ void GHOST_WindowWin32::getWindowBounds(GHOST_Rect& bounds) const
 }
 
 
-void GHOST_WindowWin32::getClientBounds(GHOST_Rect& bounds) const
+void GHOST_WindowWin32::getClientBounds(GHOST_Rect &bounds) const
 {
 	RECT rect;
 	POINT coord;
@@ -495,6 +601,7 @@ GHOST_TWindowState GHOST_WindowWin32::getState() const
 		state = GHOST_kWindowStateEmbedded;
 		return state;
 	}
+
 	if (::IsIconic(m_hWnd)) {
 		state = GHOST_kWindowStateMinimized;
 	}
@@ -512,18 +619,22 @@ GHOST_TWindowState GHOST_WindowWin32::getState() const
 }
 
 
-void GHOST_WindowWin32::screenToClient(GHOST_TInt32 inX, GHOST_TInt32 inY, GHOST_TInt32& outX, GHOST_TInt32& outY) const
+void GHOST_WindowWin32::screenToClient(
+        GHOST_TInt32 inX, GHOST_TInt32 inY,
+        GHOST_TInt32 &outX, GHOST_TInt32 &outY) const
 {
-	POINT point = { inX, inY };
+	POINT point = {inX, inY};
 	::ScreenToClient(m_hWnd, &point);
 	outX = point.x;
 	outY = point.y;
 }
 
 
-void GHOST_WindowWin32::clientToScreen(GHOST_TInt32 inX, GHOST_TInt32 inY, GHOST_TInt32& outX, GHOST_TInt32& outY) const
+void GHOST_WindowWin32::clientToScreen(
+        GHOST_TInt32 inX, GHOST_TInt32 inY,
+        GHOST_TInt32 &outX, GHOST_TInt32 &outY) const
 {
-	POINT point = { inX, inY };
+	POINT point = {inX, inY};
 	::ClientToScreen(m_hWnd, &point);
 	outX = point.x;
 	outY = point.y;
@@ -539,13 +650,14 @@ GHOST_TSuccess GHOST_WindowWin32::setState(GHOST_TWindowState state)
 
 	if (state == GHOST_kWindowStateNormal)
 		state = m_normal_state;
+
 	switch (state) {
 		case GHOST_kWindowStateMinimized:
 			wp.showCmd = SW_SHOWMINIMIZED;
 			break;
 		case GHOST_kWindowStateMaximized:
 			wp.showCmd = SW_SHOWMAXIMIZED;
-			SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
+			::SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
 			break;
 		case GHOST_kWindowStateFullScreen:
 			if (curstate != state && curstate != GHOST_kWindowStateMinimized)
@@ -553,18 +665,20 @@ GHOST_TSuccess GHOST_WindowWin32::setState(GHOST_TWindowState state)
 			wp.showCmd = SW_SHOWMAXIMIZED;
 			wp.ptMaxPosition.x = 0;
 			wp.ptMaxPosition.y = 0;
-			SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_POPUP | WS_MAXIMIZE);
+			::SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_POPUP | WS_MAXIMIZE);
 			break;
 		case GHOST_kWindowStateEmbedded:
-			SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_CHILD);
+			::SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_CHILD);
 			break;
 		case GHOST_kWindowStateNormal:
 		default:
 			wp.showCmd = SW_SHOWNORMAL;
-			SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
+			::SetWindowLongPtr(m_hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
 			break;
 	}
-	SetWindowPos(m_hWnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED); /*Clears window cache for SetWindowLongPtr */
+	/* Clears window cache for SetWindowLongPtr */
+	::SetWindowPos(m_hWnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
 	return ::SetWindowPlacement(m_hWnd, &wp) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
 }
 
@@ -581,9 +695,11 @@ GHOST_TSuccess GHOST_WindowWin32::setOrder(GHOST_TWindowOrder order)
 		hWndInsertAfter = HWND_TOP;
 		hWndToRaise = NULL;
 	}
+
 	if (::SetWindowPos(m_hWnd, hWndInsertAfter, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE) == FALSE) {
 		return GHOST_kFailure;
 	}
+
 	if (hWndToRaise && ::SetWindowPos(hWndToRaise, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE) == FALSE) {
 		return GHOST_kFailure;
 	}
@@ -683,6 +799,7 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 #error
 #endif
 
+<<<<<<< HEAD
 #else
 #error
 #endif
@@ -690,6 +807,11 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 			return context;
 		else
 			delete context;
+=======
+	if (!wglChoosePixelFormatARB) {
+		m_multisampleEnabled = GHOST_kFailure;
+		return GHOST_kFailure;
+>>>>>>> master
 	}
 
 	return NULL;
@@ -700,8 +822,13 @@ GHOST_Context* GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
 void GHOST_WindowWin32::lostMouseCapture()
 {
 	if (m_hasMouseCaptured) {
+<<<<<<< HEAD
 		m_hasGrabMouse     = false;
 		m_nPressedButtons  = 0;
+=======
+		m_hasGrabMouse = false;
+		m_nPressedButtons = 0;
+>>>>>>> master
 		m_hasMouseCaptured = false;
 	}
 }
@@ -709,21 +836,18 @@ void GHOST_WindowWin32::lostMouseCapture()
 void GHOST_WindowWin32::registerMouseClickEvent(int press)
 {
 
-	switch (press)
-	{
+	switch (press) {
 		case 0: m_nPressedButtons++;    break;
 		case 1: if (m_nPressedButtons) m_nPressedButtons--; break;
 		case 2: m_hasGrabMouse = true;    break;
 		case 3: m_hasGrabMouse = false;   break;
 	}
 
-	if (!m_nPressedButtons && !m_hasGrabMouse && m_hasMouseCaptured)
-	{
+	if (!m_nPressedButtons && !m_hasGrabMouse && m_hasMouseCaptured) {
 		::ReleaseCapture();
 		m_hasMouseCaptured = false;
 	}
-	else if ((m_nPressedButtons || m_hasGrabMouse) && !m_hasMouseCaptured)
-	{
+	else if ((m_nPressedButtons || m_hasGrabMouse) && !m_hasMouseCaptured) {
 		::SetCapture(m_hWnd);
 		m_hasMouseCaptured = true;
 
@@ -975,17 +1099,19 @@ static GHOST_TUns16 uns16ReverseBits(GHOST_TUns16 shrt)
 	return shrt;
 }
 #endif
-GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(GHOST_TUns8 bitmap[16][2],
-                                                             GHOST_TUns8 mask[16][2],
-                                                             int hotX, int hotY)
+GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(
+        GHOST_TUns8 bitmap[16][2],
+        GHOST_TUns8 mask[16][2],
+        int hotX, int hotY)
 {
 	return setWindowCustomCursorShape((GHOST_TUns8 *)bitmap, (GHOST_TUns8 *)mask,
 	                                  16, 16, hotX, hotY, 0, 1);
 }
 
-GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(GHOST_TUns8 *bitmap,
-                                                             GHOST_TUns8 *mask, int sizeX, int sizeY, int hotX, int hotY,
-                                                             int fg_color, int bg_color)
+GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(
+        GHOST_TUns8 *bitmap,
+        GHOST_TUns8 *mask, int sizeX, int sizeY, int hotX, int hotY,
+        int fg_color, int bg_color)
 {
 	GHOST_TUns32 andData[32];
 	GHOST_TUns32 xorData[32];
@@ -1046,3 +1172,96 @@ GHOST_TSuccess GHOST_WindowWin32::endProgressBar()
 	return GHOST_kFailure;
 }
 
+<<<<<<< HEAD
+=======
+/* Ron Fosner's code for weighting pixel formats and forcing software.
+ * See http://www.opengl.org/resources/faq/technical/weight.cpp */
+
+static int WeightPixelFormat(PIXELFORMATDESCRIPTOR &pfd)
+{
+	int weight = 0;
+
+	/* assume desktop color depth is 32 bits per pixel */
+
+	/* cull unusable pixel formats */
+	/* if no formats can be found, can we determine why it was rejected? */
+	if (!(pfd.dwFlags & PFD_SUPPORT_OPENGL) ||
+	    !(pfd.dwFlags & PFD_DRAW_TO_WINDOW) ||
+	    !(pfd.dwFlags & PFD_DOUBLEBUFFER) || /* Blender _needs_ this */
+	    (pfd.cDepthBits <= 8) ||
+	    !(pfd.iPixelType == PFD_TYPE_RGBA))
+	{
+		return 0;
+	}
+
+	weight = 1;  /* it's usable */
+
+	/* the bigger the depth buffer the better */
+	/* give no weight to a 16-bit depth buffer, because those are crap */
+	weight += pfd.cDepthBits - 16;
+
+	weight += pfd.cColorBits - 8;
+
+#ifdef GHOST_OPENGL_ALPHA
+	if (pfd.cAlphaBits > 0)
+		weight ++;
+#endif
+
+	/* want swap copy capability -- it matters a lot */
+	if (pfd.dwFlags & PFD_SWAP_COPY) weight += 16;
+
+	/* but if it's a generic (not accelerated) view, it's really bad */
+	if (pfd.dwFlags & PFD_GENERIC_FORMAT) weight /= 10;
+
+	return weight;
+}
+
+/* A modification of Ron Fosner's replacement for ChoosePixelFormat */
+/* returns 0 on error, else returns the pixel format number to be used */
+static int EnumPixelFormats(HDC hdc)
+{
+	int iPixelFormat;
+	int i, n, w, weight = 0;
+	PIXELFORMATDESCRIPTOR pfd;
+
+	/* we need a device context to do anything */
+	if (!hdc) return 0;
+
+	iPixelFormat = 1; /* careful! PFD numbers are 1 based, not zero based */
+
+	/* obtain detailed information about
+	 * the device context's first pixel format */
+	n = 1 + ::DescribePixelFormat(hdc, iPixelFormat,
+	                              sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+
+	/* choose a pixel format using the useless Windows function in case
+	 * we come up empty handed */
+	iPixelFormat = ::ChoosePixelFormat(hdc, &sPreferredFormat);
+
+	if (!iPixelFormat) return 0;  /* couldn't find one to use */
+
+	for (i = 1; i <= n; i++) { /* not the idiom, but it's right */
+		::DescribePixelFormat(hdc, i, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+		w = WeightPixelFormat(pfd);
+		// be strict on stereo
+		if (!((sPreferredFormat.dwFlags ^ pfd.dwFlags) & PFD_STEREO)) {
+			if (w > weight) {
+				weight = w;
+				iPixelFormat = i;
+			}
+		}
+	}
+	if (weight == 0) {
+		// we could find the correct stereo setting, just find any suitable format
+		for (i = 1; i <= n; i++) { /* not the idiom, but it's right */
+			::DescribePixelFormat(hdc, i, sizeof(PIXELFORMATDESCRIPTOR), &pfd);
+			w = WeightPixelFormat(pfd);
+			if (w > weight) {
+				weight = w;
+				iPixelFormat = i;
+			}
+		}
+	}
+	return iPixelFormat;
+}
+>>>>>>> master

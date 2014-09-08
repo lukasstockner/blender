@@ -572,6 +572,13 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 
 			image->animated = b_image_node.image_user().use_auto_refresh();
 			image->use_alpha = b_image.use_alpha();
+
+			/* TODO(sergey): Does not work properly when we change builtin type. */
+			if (b_image.is_updated()) {
+				scene->image_manager->tag_reload_image(image->filename,
+				                                       image->builtin_data,
+				                                       (InterpolationType)b_image_node.interpolation());
+			}
 		}
 		image->color_space = ImageTextureNode::color_space_enum[(int)b_image_node.color_space()];
 		image->projection = ImageTextureNode::projection_enum[(int)b_image_node.projection()];
@@ -602,6 +609,13 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 			}
 
 			env->use_alpha = b_image.use_alpha();
+
+			/* TODO(sergey): Does not work properly when we change builtin type. */
+			if (b_image.is_updated()) {
+				scene->image_manager->tag_reload_image(env->filename,
+				                                       env->builtin_data,
+				                                       INTERPOLATION_LINEAR);
+			}
 		}
 		env->color_space = EnvironmentTextureNode::color_space_enum[(int)b_env_node.color_space()];
 		env->projection = EnvironmentTextureNode::projection_enum[(int)b_env_node.projection()];
@@ -1057,6 +1071,7 @@ void BlenderSync::sync_world(bool update_all)
 			visibility |= get_boolean(cvisibility, "diffuse")? PATH_RAY_DIFFUSE: 0;
 			visibility |= get_boolean(cvisibility, "glossy")? PATH_RAY_GLOSSY: 0;
 			visibility |= get_boolean(cvisibility, "transmission")? PATH_RAY_TRANSMIT: 0;
+			visibility |= get_boolean(cvisibility, "scatter")? PATH_RAY_VOLUME_SCATTER: 0;
 
 			background->visibility = visibility;
 		}

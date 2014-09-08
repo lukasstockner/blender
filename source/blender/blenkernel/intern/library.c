@@ -104,6 +104,7 @@
 #include "BKE_mask.h"
 #include "BKE_node.h"
 #include "BKE_object.h"
+#include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_packedFile.h"
 #include "BKE_speaker.h"
@@ -382,7 +383,7 @@ bool id_copy(ID *id, ID **newid, bool test)
 			if (!test) *newid = (ID *)BKE_mask_copy((Mask *)id);
 			return true;
 		case ID_LS:
-			if (!test) *newid = (ID *)BKE_copy_linestyle((FreestyleLineStyle *)id);
+			if (!test) *newid = (ID *)BKE_linestyle_copy((FreestyleLineStyle *)id);
 			return true;
 	}
 	
@@ -515,6 +516,10 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->mask);
 		case ID_LS:
 			return &(mainlib->linestyle);
+		case ID_PAL:
+			return &(mainlib->palettes);
+		case ID_PC:
+			return &(mainlib->paintcurves);
 	}
 	return NULL;
 }
@@ -596,6 +601,8 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->text);
 	lb[a++] = &(main->sound);
 	lb[a++] = &(main->group);
+	lb[a++] = &(main->palettes);
+	lb[a++] = &(main->paintcurves);
 	lb[a++] = &(main->brush);
 	lb[a++] = &(main->script);
 	lb[a++] = &(main->particle);
@@ -730,6 +737,12 @@ static ID *alloc_libblock_notest(short type)
 			break;
 		case ID_LS:
 			id = MEM_callocN(sizeof(FreestyleLineStyle), "Freestyle Line Style");
+			break;
+		case ID_PAL:
+			id = MEM_callocN(sizeof(Palette), "Palette");
+			break;
+		case ID_PC:
+			id = MEM_callocN(sizeof(PaintCurve), "Paint Curve");
 			break;
 	}
 	return id;
@@ -1005,7 +1018,13 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			BKE_mask_free(bmain, (Mask *)id);
 			break;
 		case ID_LS:
-			BKE_free_linestyle((FreestyleLineStyle *)id);
+			BKE_linestyle_free((FreestyleLineStyle *)id);
+			break;
+		case ID_PAL:
+			BKE_palette_free((Palette *)id);
+			break;
+		case ID_PC:
+			BKE_paint_curve_free((PaintCurve *)id);
 			break;
 	}
 
@@ -1131,14 +1150,17 @@ void BKE_main_unlock(struct Main *bmain)
 }
 
 /* ***************** ID ************************ */
-
-
-ID *BKE_libblock_find_name(const short type, const char *name)      /* type: "OB" or "MA" etc */
+ID *BKE_libblock_find_name_ex(struct Main *bmain, const short type, const char *name)
 {
-	ListBase *lb = which_libbase(G.main, type);
+	ListBase *lb = which_libbase(bmain, type);
 	BLI_assert(lb != NULL);
 	return BLI_findstring(lb, name, offsetof(ID, name) + 2);
 }
+ID *BKE_libblock_find_name(const short type, const char *name)
+{
+	return BKE_libblock_find_name_ex(G.main, type, name);
+}
+
 
 void id_sort_by_name(ListBase *lb, ID *id)
 {

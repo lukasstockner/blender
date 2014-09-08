@@ -79,7 +79,7 @@ static GLenum ms_current_mode;
 
 
 /* Check if we have a good matrix */
-#if WITH_GPU_SAFETY
+#ifdef WITH_GPU_SAFETY
 
 static void checkmat(GLfloat *m)
 {

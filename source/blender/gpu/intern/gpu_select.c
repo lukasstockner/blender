@@ -15,177 +15,237 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
+ * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
  *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Jason Wilkins.
+ * Contributor(s): Antony Riakiotakis, Jason Wilkins.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file source/blender/gpu/intern/gpu_select.c
+/** \file blender/gpu/intern/gpu_select.c
  *  \ingroup gpu
+ *
+ * Interface for accessing gpu-related methods for selection. The semantics will be
+ * similar to glRenderMode(GL_SELECT) since the goal is to maintain compatibility.
  */
 
 #if WITH_GL_PROFILE_COMPAT
 #define GPU_MANGLE_DEPRECATED 0 /* Allow use of deprecated OpenGL functions in this file */
 #endif
 
-/* my interface */
-#include "intern/gpu_select_intern.h"
+#include "GPU_select.h"
+#include "GPU_extensions.h"
 
-/* my library */
-#include "GPU_safety.h"
-
-/* internal */
-#include "intern/gpu_matrix_intern.h"
-#include "intern/gpu_aspect_intern.h"
-
-/* external */
 #include "BLI_utildefines.h"
 
+#include "MEM_guardedalloc.h"
 
+#include "DNA_userdef_types.h"
 
-static bool IS_SELECT_MODE = false;
+#include <GL/glew.h>
 
+/* Ad hoc number of queries to allocate to skip doing many glGenQueries */
+#define ALLOC_QUERIES 200
 
+typedef struct GPUQueryState {
+	/* To ignore selection id calls when not initialized */
+	bool select_is_active;
+	/* Tracks whether a query has been issued so that gpu_load_id can end the previous one */
+	bool query_issued;
+	/* array holding the OpenGL query identifiers */
+	unsigned int *queries;
+	/* array holding the id corresponding to each query */
+	unsigned int *id;
+	/* number of queries in *queries and *id */
+	unsigned int num_of_queries;
+	/* index to the next query to start */
+	unsigned int active_query;
+	/* flag to cache user preference for occlusion based selection */
+	bool use_gpu_select;
+	/* cache on initialization */
+	unsigned int *buffer;
+	unsigned int bufsize;
+	/* mode of operation */
+	char mode;
+	unsigned int index;
+	int oldhits;
+} GPUQueryState;
 
-void gpu_select_init(void)
+static GPUQueryState g_query_state = {0};
+
+void GPU_select_begin(unsigned int *buffer, unsigned int bufsize, rctf *input, char mode, int oldhits)
 {
-	IS_SELECT_MODE = false;
+	g_query_state.select_is_active = true;
+	g_query_state.query_issued = false;
+	g_query_state.active_query = 0;
+	g_query_state.use_gpu_select = GPU_select_query_check_active();
+	g_query_state.num_of_queries = 0;
+	g_query_state.bufsize = bufsize;
+	g_query_state.buffer = buffer;
+	g_query_state.mode = mode;
+	g_query_state.index = 0;
+	g_query_state.oldhits = oldhits;
+
+	if (!g_query_state.use_gpu_select) {
+		glSelectBuffer( bufsize, (GLuint *)buffer);
+		glRenderMode(GL_SELECT);
+		glInitNames();
+		glPushName(-1);
+	}
+	else {
+		float viewport[4];
+
+		g_query_state.num_of_queries = ALLOC_QUERIES;
+
+		g_query_state.queries = MEM_mallocN(g_query_state.num_of_queries * sizeof(*g_query_state.queries) , "gpu selection queries");
+		g_query_state.id = MEM_mallocN(g_query_state.num_of_queries * sizeof(*g_query_state.id) , "gpu selection ids");
+		glGenQueriesARB(g_query_state.num_of_queries, g_query_state.queries);
+
+		glPushAttrib(GL_DEPTH_BUFFER_BIT | GL_VIEWPORT_BIT);
+		/* disable writing to the framebuffer */
+		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+		/* In order to save some fill rate we minimize the viewport using rect.
+		 * We need to get the region of the scissor so that our geometry doesn't
+		 * get rejected before the depth test. Should probably cull rect against
+		 * scissor for viewport but this is a rare case I think */
+		glGetFloatv(GL_SCISSOR_BOX, viewport);
+		if (!input || input->xmin == input->xmax) {
+			glViewport(viewport[0], viewport[1], 24, 24);
+		}
+		else {
+			glViewport(viewport[0], viewport[1], (int)(input->xmax - input->xmin), (int)(input->ymax - input->ymin));
+		}
+
+		/* occlusion queries operates on fragments that pass tests and since we are interested on all
+		 * objects in the view frustum independently of their order, we need to disable the depth test */
+		if (mode == GPU_SELECT_ALL) {
+			glDisable(GL_DEPTH_TEST);
+			glDepthMask(GL_FALSE);
+		}
+		else if (mode == GPU_SELECT_NEAREST_FIRST_PASS) {
+			glClear(GL_DEPTH_BUFFER_BIT);
+			glEnable(GL_DEPTH_TEST);
+			glDepthMask(GL_TRUE);
+			glDepthFunc(GL_LEQUAL);
+		}
+		else if (mode == GPU_SELECT_NEAREST_SECOND_PASS) {
+			glEnable(GL_DEPTH_TEST);
+			glDepthMask(GL_TRUE);
+			glDepthFunc(GL_EQUAL);
+		}
+	}
 }
 
-
-
-void gpu_select_exit(void)
+bool GPU_select_load_id(unsigned int id)
 {
-}
+	/* if no selection mode active, ignore */
+	if(!g_query_state.select_is_active)
+		return true;
 
+	if (!g_query_state.use_gpu_select) {
+		glLoadName(id);
+	}
+	else {
+		if (g_query_state.query_issued) {
+			glEndQueryARB(GL_SAMPLES_PASSED_ARB);
+		}
+		/* if required, allocate extra queries */
+		if (g_query_state.active_query == g_query_state.num_of_queries) {
+			g_query_state.num_of_queries += ALLOC_QUERIES;
+			g_query_state.queries = MEM_reallocN(g_query_state.queries, g_query_state.num_of_queries * sizeof(*g_query_state.queries));
+			g_query_state.id = MEM_reallocN(g_query_state.id, g_query_state.num_of_queries * sizeof(*g_query_state.id));
+			glGenQueriesARB(ALLOC_QUERIES, &g_query_state.queries[g_query_state.active_query]);
+		}
 
+		glBeginQueryARB(GL_SAMPLES_PASSED_ARB, g_query_state.queries[g_query_state.active_query]);
+		g_query_state.id[g_query_state.active_query] = id;
+		g_query_state.active_query++;
+		g_query_state.query_issued = true;
 
-bool gpu_default_select_begin(const void* UNUSED(object), void* UNUSED(param))
-{
-#if defined(WITH_GPU_PROFILE_COMPAT)
-	return true; /* nothing to do, allow this pass to start */
-#else
-	return false; /* not implemented, so cancel this pass before it starts if possible */
-#endif
-}
-
-
-
-bool gpu_default_select_end(const void* UNUSED(object), void* UNUSED(param))
-{
-	return true; /* only one pass, 'true' means 'done' */
-}
-
-
-
-bool gpu_default_select_commit(const void* UNUSED(object))
-{
-#if defined(WITH_GPU_PROFILE_COMPAT)
-	gpu_set_common(NULL);
-	gpu_glUseProgram(0);
-	gpu_commit_matrix();
+		if (g_query_state.mode == GPU_SELECT_NEAREST_SECOND_PASS) {
+			if (g_query_state.buffer[g_query_state.index * 4 + 3] == id) {
+				g_query_state.index++;
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+	}
 
 	return true;
-#else
-	return false; /* cancel drawing, since select mode isn't implemented */
-#endif
 }
 
-
-
-bool gpu_is_select_mode(void)
+unsigned int GPU_select_end(void)
 {
-	return IS_SELECT_MODE;
-}
-
-
-
-void GPU_select_buffer(GLsizei size, GLuint* buffer)
-{
-	GPU_ASSERT(!IS_SELECT_MODE);
-
-	if (!IS_SELECT_MODE) {
-#if defined(WITH_GL_PROFILE_COMPAT)
-		glSelectBuffer(size, buffer);
-#endif
-	}
-}
-
-
-
-void GPU_select_begin(void)
-{
-	GPU_ASSERT(!gpu_aspect_active());
-	GPU_ASSERT(!IS_SELECT_MODE);
-
-	IS_SELECT_MODE = true;
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-	glRenderMode(GL_SELECT);
-#endif
-}
-
-
-
-GLsizei GPU_select_end(void)
-{
-	GPU_ASSERT(!gpu_aspect_active());
-	GPU_ASSERT(IS_SELECT_MODE);
-
-	IS_SELECT_MODE = false;
-
-#if defined(WITH_GL_PROFILE_COMPAT)
-	return glRenderMode(GL_RENDER);
-#else
-	return 0;
-#endif
-}
-
-
-
-void GPU_select_clear(void)
-{
-	if (IS_SELECT_MODE) {
-#if defined(WITH_GL_PROFILE_COMPAT)
-		glInitNames();
-#endif
-	}
-}
-
-
-
-void GPU_select_pop(void)
-{
-	if (IS_SELECT_MODE) {
-#if defined(WITH_GL_PROFILE_COMPAT)
+	unsigned int hits = 0;
+	if (!g_query_state.use_gpu_select) {
 		glPopName();
-#endif
+		hits = glRenderMode(GL_RENDER);
 	}
+	else {
+		int i;
+
+		if (g_query_state.query_issued) {
+			glEndQueryARB(GL_SAMPLES_PASSED_ARB);
+		}
+
+		for (i = 0; i < g_query_state.active_query; i++) {
+			unsigned int result;
+			glGetQueryObjectuivARB(g_query_state.queries[i], GL_QUERY_RESULT_ARB, &result);
+			if (result > 0) {
+				if (g_query_state.mode != GPU_SELECT_NEAREST_SECOND_PASS) {
+					if(hits < g_query_state.bufsize) {
+						g_query_state.buffer[hits * 4] = 1;
+						g_query_state.buffer[hits * 4 + 1] = 0xFFFF;
+						g_query_state.buffer[hits * 4 + 2] = 0xFFFF;
+						g_query_state.buffer[hits * 4 + 3] = g_query_state.id[i];
+
+						hits++;
+					}
+					else {
+						hits = -1;
+						break;
+					}
+				}
+				else {
+					int j;
+					/* search in buffer and make selected object first */
+					for (j = 0; j < g_query_state.oldhits; j++) {
+						if (g_query_state.buffer[j * 4 + 3] == g_query_state.id[i]) {
+							g_query_state.buffer[j * 4 + 1] = 0;
+							g_query_state.buffer[j * 4 + 2] = 0;
+						}
+					}
+					break;
+				}
+			}
+		}
+
+		glDeleteQueriesARB(g_query_state.num_of_queries, g_query_state.queries);
+		MEM_freeN(g_query_state.queries);
+		MEM_freeN(g_query_state.id);
+		glPopAttrib();
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	}
+
+	g_query_state.select_is_active = false;
+
+	return hits;
 }
 
 
-
-void GPU_select_push(GLuint name)
+bool GPU_select_query_check_support(void)
 {
-	if (IS_SELECT_MODE) {
-#if defined(WITH_GL_PROFILE_COMPAT)
-		glPushName(name);
-#endif
-	}
+	return GLEW_ARB_occlusion_query;
 }
 
 
-
-void GPU_select_load(GLuint name)
+bool GPU_select_query_check_active(void)
 {
-	if (IS_SELECT_MODE) {
-#if defined(WITH_GL_PROFILE_COMPAT)
-		glLoadName(name);
-#endif
-	}
+	return GLEW_ARB_occlusion_query &&
+	       ((U.gpu_select_method == USER_SELECT_USE_OCCLUSION_QUERY) ||
+	        ((U.gpu_select_method == USER_SELECT_AUTO) && GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)));
 }

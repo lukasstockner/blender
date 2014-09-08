@@ -502,7 +502,7 @@ static GLboolean end_begin(void)
 	GPU_IMMEDIATE->hasOverflowed = GL_TRUE;
 #endif
 
-	if (!ELEM6(
+	if (!ELEM(
 			GPU_IMMEDIATE->mode,
 			GL_NOOP,
 			GL_LINE_LOOP,

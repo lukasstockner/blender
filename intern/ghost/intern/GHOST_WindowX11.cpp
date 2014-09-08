@@ -61,7 +61,7 @@
 #include <algorithm>
 #include <string>
 
-/* For obscure full screen mode stuuf
+/* For obscure full screen mode stuff
  * lifted verbatim from blut. */
 
 typedef struct {

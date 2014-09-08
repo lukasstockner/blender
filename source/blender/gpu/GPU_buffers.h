@@ -38,11 +38,11 @@
 extern "C" {
 #endif
 
-#ifdef _DEBUG
-/*#define DEBUG_VBO(X) printf(X)*/
-#define DEBUG_VBO(X)
+#ifdef DEBUG
+/*  #define DEBUG_VBO(X) printf(X)*/
+#  define DEBUG_VBO(X)
 #else
-#define DEBUG_VBO(X)
+#  define DEBUG_VBO(X)
 #endif
 
 struct BMesh;
@@ -138,6 +138,7 @@ void GPU_drawobject_free(struct DerivedMesh *dm);
 void GPU_vertex_setup(struct DerivedMesh *dm);
 void GPU_normal_setup(struct DerivedMesh *dm);
 void GPU_uv_setup(struct DerivedMesh *dm);
+void GPU_texpaint_uv_setup(struct DerivedMesh *dm);
 /* colType is the cddata MCol type to use! */
 void GPU_color_setup(struct DerivedMesh *dm, int colType);
 void GPU_edge_setup(struct DerivedMesh *dm); /* does not mix with other data */

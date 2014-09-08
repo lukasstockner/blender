@@ -567,14 +567,16 @@ void BKE_mesh_normals_loop_split(MVert *mverts, const int UNUSED(numVerts), MEdg
 						copy_v3_v3(nor, lnor);
 					}
 				}
+				else {
+					/* We still have to clear the stack! */
+					while (BLI_SMALLSTACK_POP(normal));
+				}
 			}
 
 			ml_prev = ml_curr;
 			ml_prev_index = ml_curr_index;
 		}
 	}
-
-	BLI_SMALLSTACK_FREE(normal);
 
 	MEM_freeN(edge_to_loops);
 	MEM_freeN(loop_to_poly);
@@ -729,7 +731,7 @@ void BKE_mesh_loop_tangents(Mesh *mesh, const char *uvmap, float (*r_looptangent
 	}
 
 	BKE_mesh_loop_tangents_ex(mesh->mvert, mesh->totvert, mesh->mloop, r_looptangents,
-                              loopnors, loopuvs, mesh->totloop, mesh->mpoly, mesh->totpoly, reports);
+	                          loopnors, loopuvs, mesh->totloop, mesh->mpoly, mesh->totpoly, reports);
 }
 
 /** \} */
@@ -1092,6 +1094,125 @@ bool BKE_mesh_center_centroid(Mesh *me, float cent[3])
 	return (me->totpoly != 0);
 }
 /** \} */
+
+
+/* -------------------------------------------------------------------- */
+
+/** \name Mesh Volume Calculation
+ * \{ */
+
+static bool mesh_calc_center_centroid_ex(MVert *mverts, int UNUSED(numVerts),
+                                         MFace *mfaces, int numFaces,
+                                         float center[3])
+{
+	float totweight;
+	int f;
+	
+	zero_v3(center);
+	
+	if (numFaces == 0)
+		return false;
+	
+	totweight = 0.0f;
+	for (f = 0; f < numFaces; ++f) {
+		MFace *face = &mfaces[f];
+		MVert *v1 = &mverts[face->v1];
+		MVert *v2 = &mverts[face->v2];
+		MVert *v3 = &mverts[face->v3];
+		MVert *v4 = &mverts[face->v4];
+		float area;
+		
+		area = area_tri_v3(v1->co, v2->co, v3->co);
+		madd_v3_v3fl(center, v1->co, area);
+		madd_v3_v3fl(center, v2->co, area);
+		madd_v3_v3fl(center, v3->co, area);
+		totweight += area;
+		
+		if (face->v4) {
+			area = area_tri_v3(v3->co, v4->co, v1->co);
+			madd_v3_v3fl(center, v3->co, area);
+			madd_v3_v3fl(center, v4->co, area);
+			madd_v3_v3fl(center, v1->co, area);
+			totweight += area;
+		}
+	}
+	if (totweight == 0.0f)
+		return false;
+	
+	mul_v3_fl(center, 1.0f / (3.0f * totweight));
+	
+	return true;
+}
+
+void BKE_mesh_calc_volume(MVert *mverts, int numVerts,
+                          MFace *mfaces, int numFaces,
+                          float *r_vol, float *r_com)
+{
+	float center[3];
+	float totvol;
+	int f;
+	
+	if (r_vol) *r_vol = 0.0f;
+	if (r_com) zero_v3(r_com);
+	
+	if (numFaces == 0)
+		return;
+	
+	if (!mesh_calc_center_centroid_ex(mverts, numVerts, mfaces, numFaces, center))
+		return;
+	
+	totvol = 0.0f;
+	for (f = 0; f < numFaces; ++f) {
+		MFace *face = &mfaces[f];
+		MVert *v1 = &mverts[face->v1];
+		MVert *v2 = &mverts[face->v2];
+		MVert *v3 = &mverts[face->v3];
+		MVert *v4 = &mverts[face->v4];
+		float vol;
+		
+		vol = volume_tetrahedron_signed_v3(center, v1->co, v2->co, v3->co);
+		if (r_vol) {
+			totvol += vol;
+		}
+		if (r_com) {
+			/* averaging factor 1/4 is applied in the end */
+			madd_v3_v3fl(r_com, center, vol); // XXX could extract this
+			madd_v3_v3fl(r_com, v1->co, vol);
+			madd_v3_v3fl(r_com, v2->co, vol);
+			madd_v3_v3fl(r_com, v3->co, vol);
+		}
+		
+		if (face->v4) {
+			vol = volume_tetrahedron_signed_v3(center, v3->co, v4->co, v1->co);
+			
+			if (r_vol) {
+				totvol += vol;
+			}
+			if (r_com) {
+				/* averaging factor 1/4 is applied in the end */
+				madd_v3_v3fl(r_com, center, vol); // XXX could extract this
+				madd_v3_v3fl(r_com, v3->co, vol);
+				madd_v3_v3fl(r_com, v4->co, vol);
+				madd_v3_v3fl(r_com, v1->co, vol);
+			}
+		}
+	}
+	
+	/* Note: Depending on arbitrary centroid position,
+	 * totvol can become negative even for a valid mesh.
+	 * The true value is always the positive value.
+	 */
+	if (r_vol) {
+		*r_vol = fabsf(totvol);
+	}
+	if (r_com) {
+		/* Note: Factor 1/4 is applied once for all vertices here.
+		 * This also automatically negates the vector if totvol is negative.
+		 */
+		if (totvol != 0.0f)
+			mul_v3_fl(r_com, 0.25f / totvol);
+	}
+}
 
 
 /* -------------------------------------------------------------------- */
@@ -2110,11 +2231,10 @@ void BKE_mesh_calc_relative_deform(
 
 			float tvec[3];
 
-			barycentric_transform(
-			            tvec, vert_cos_dst[v_curr],
-			            vert_cos_org[v_prev], vert_cos_org[v_curr], vert_cos_org[v_next],
-			            vert_cos_src[v_prev], vert_cos_src[v_curr], vert_cos_src[v_next]
-			            );
+			transform_point_by_tri_v3(
+			        tvec, vert_cos_dst[v_curr],
+			        vert_cos_org[v_prev], vert_cos_org[v_curr], vert_cos_org[v_next],
+			        vert_cos_src[v_prev], vert_cos_src[v_curr], vert_cos_src[v_next]);
 
 			add_v3_v3(vert_cos_new[v_curr], tvec);
 			vert_accum[v_curr] += 1;

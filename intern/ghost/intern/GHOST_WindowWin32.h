@@ -138,7 +138,7 @@ public:
 	/**
 	 * Returns the client rectangle dimensions.
 	 * The left and top members of the rectangle are always zero.
-	 * \param bounds The bounding rectangle of the cleient area of the window.
+	 * \param bounds The bounding rectangle of the client area of the window.
 	 */
 	virtual void getClientBounds(GHOST_Rect& bounds) const;
 
@@ -318,7 +318,7 @@ private:
 	/** Flag for if window has captured the mouse */
 	bool m_hasMouseCaptured;
 	/** Flag if an operator grabs the mouse with WM_cursor_grab_enable/ungrab() 
-	 * Multiple grabs must be realesed with a single ungrab*/
+	 * Multiple grabs must be released with a single ungrab */
 	bool m_hasGrabMouse;
 	/** Count of number of pressed buttons */
 	int m_nPressedButtons;

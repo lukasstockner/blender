@@ -48,7 +48,7 @@ extern "C" {
 extern GLEWContext* _glewContext;
 
 void glewSetContext(GLEWContext* ctx);
-GLEWContext* glewCreateContext();
+GLEWContext* glewCreateContext(void);
 void glewDestroyContext(GLEWContext* ctx);
 
 #ifdef __cplusplus

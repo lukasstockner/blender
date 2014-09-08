@@ -140,7 +140,7 @@ set(SRC
 	GPU_primitives.h
 	GPU_raster.h
 	GPU_safety.h
-    GPU_select.h
+	GPU_select.h
 	GPU_sprite.h
 	GPU_state_latch.h
 	GPU_utility.h

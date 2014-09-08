@@ -1,6 +1,3 @@
-#ifndef _GPU_SELECT_H_
-#define _GPU_SELECT_H_
-
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -18,12 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
+ * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
  *
- * The Original Code is: all of this file.
- *
- * Contributor(s): Jason Wilkins.
+ * Contributor(s): Antony Riakiotakis.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -32,30 +27,37 @@
  *  \ingroup gpu
  */
 
+#ifndef __GPU_SELECT__
+#define __GPU_SELECT__
+
 #include "GPU_glew.h"
+#include "DNA_vec_types.h"  /* rcft */
+#include "BLI_sys_types.h"
 
+/* flags for mode of operation */
+enum {
+	GPU_SELECT_ALL                      = 1,
+	GPU_SELECT_NEAREST_FIRST_PASS       = 2,
+	GPU_SELECT_NEAREST_SECOND_PASS      = 3,
+};
 
+/* initialize and provide buffer for results */
+void GPU_select_begin(unsigned int *buffer, unsigned int bufsize, rctf *input, char mode, int oldhits);
 
-#ifdef __cplusplus
-extern "C" {
+/* loads a new selection id and ends previous query, if any. In second pass of selection it also returns
+ * if id has been hit on the first pass already. Thus we can skip drawing un-hit objects IMPORTANT: We rely on the order of object rendering on passes to be
+ * the same for this to work */
+bool GPU_select_load_id(unsigned int id);
+
+/* cleanup and flush selection results to buffer. Return number of hits and hits in buffer.
+ * if dopass is true, we will do a second pass with occlusion queries to get the closest hit */
+unsigned int GPU_select_end(void);
+
+/* does the GPU support occlusion queries? */
+bool GPU_select_query_check_support(void);
+
+/* is occlusion query supported and user activated? */
+bool GPU_select_query_check_active(void);
+
 #endif
 
-
-
-void    GPU_select_buffer(GLsizei size, GLuint* buffer); /* replaces glSelectBuffer(size, buffer) */
-
-void    GPU_select_begin (void);                         /* replaces glRenderMode(GL_SELECT)      */
-GLsizei GPU_select_end   (void);                         /* replaces glRenderMode(GL_RENDER)      */
-
-void    GPU_select_clear (void);                         /* replaces glInitNames()                */
-void    GPU_select_pop   (void);                         /* replaces glPopName()                  */
-void    GPU_select_push  (GLuint name);                  /* replaces glPushName(name)             */
-void    GPU_select_load  (GLuint name);                  /* replaces glLoadName(name)             */
-
-
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _GPU_SELECT_H_ */
