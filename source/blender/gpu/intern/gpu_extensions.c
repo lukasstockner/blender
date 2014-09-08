@@ -952,10 +952,10 @@ struct GPUFrameBuffer {
 
 GPUFrameBuffer *GPU_framebuffer_create(void)
 {
+	GPUFrameBuffer *fb;
+
 	if (GG.extdisabled || !GG.framebuffersupport)
 		return NULL;
-
-	GPUFrameBuffer *fb;
 
 	fb = (GPUFrameBuffer*)MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
 	gpu_glGenFramebuffers(1, &fb->object);

@@ -35,7 +35,7 @@
 
 
 #ifndef GPU_SAFETY
-#if (!defined(NDEBUG) && WITH_GPU_SAFETY)
+#if !defined(NDEBUG) && defined(WITH_GPU_SAFETY)
 #define GPU_SAFETY 1
 #else
 #define GPU_SAFETY 0

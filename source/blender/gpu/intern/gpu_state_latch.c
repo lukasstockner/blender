@@ -35,7 +35,7 @@
 #include "intern/gpu_state_latch_intern.h"
 
 /* my library */
-#include "GPU_profile.h"
+#include "gpu_profile.h"
 #include "GPU_safety.h"
 
 /* internal */

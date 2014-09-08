@@ -31,12 +31,14 @@
  */
 
 #include "GHOST_ContextGLX.h"
+#include "GHOST_SystemX11.h"
 
 #include <vector>
 
 #include <cassert>
 #include <cstdlib>
-
+#include <cstdio>
+#include <cstring>
 
 
 GLXEWContext* glxewContext = NULL;
