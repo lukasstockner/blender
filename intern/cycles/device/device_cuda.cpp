@@ -25,7 +25,6 @@
 
 #include "cuew.h"
 #include "util_debug.h"
-#include "util_foreach.h"
 #include "util_map.h"
 #include "util_opengl.h"
 #include "util_path.h"
@@ -198,14 +197,18 @@ public:
 		return true;
 	}
 
-	string compile_kernel()
+	string compile_kernel(bool experimental)
 	{
 		/* compute cubin name */
 		int major, minor;
 		cuDeviceComputeCapability(&major, &minor, cuDevId);
 
 		/* attempt to use kernel provided with blender */
-		string cubin = path_get(string_printf("lib/kernel_sm_%d%d.cubin", major, minor));
+		string cubin;
+		if(experimental)
+			cubin = path_get(string_printf("lib/kernel_experimental_sm_%d%d.cubin", major, minor));
+		else
+			cubin = path_get(string_printf("lib/kernel_sm_%d%d.cubin", major, minor));
 		if(path_exists(cubin))
 			return cubin;
 
@@ -213,7 +216,10 @@ public:
 		string kernel_path = path_get("kernel");
 		string md5 = path_files_md5_hash(kernel_path);
 
-		cubin = string_printf("cycles_kernel_sm%d%d_%s.cubin", major, minor, md5.c_str());
+		if(experimental)
+			cubin = string_printf("cycles_kernel_experimental_sm%d%d_%s.cubin", major, minor, md5.c_str());
+		else
+			cubin = string_printf("cycles_kernel_sm%d%d_%s.cubin", major, minor, md5.c_str());
 		cubin = path_user_get(path_join("cache", cubin));
 
 		/* if exists already, use it */
@@ -244,12 +250,12 @@ public:
 			cuda_error_message("CUDA nvcc compiler version could not be parsed.");
 			return "";
 		}
-		if(cuda_version < 50) {
-			printf("Unsupported CUDA version %d.%d detected, you need CUDA 6.0.\n", cuda_version/10, cuda_version%10);
+		if(cuda_version < 60) {
+			printf("Unsupported CUDA version %d.%d detected, you need CUDA 6.5.\n", cuda_version/10, cuda_version%10);
 			return "";
 		}
-		else if(cuda_version != 60)
-			printf("CUDA version %d.%d detected, build may succeed but only CUDA 6.0 is officially supported.\n", cuda_version/10, cuda_version%10);
+		else if(cuda_version != 65)
+			printf("CUDA version %d.%d detected, build may succeed but only CUDA 6.5 is officially supported.\n", cuda_version/10, cuda_version%10);
 
 		/* compile */
 		string kernel = path_join(kernel_path, "kernel.cu");
@@ -264,6 +270,9 @@ public:
 		string command = string_printf("\"%s\" -arch=sm_%d%d -m%d --cubin \"%s\" "
 			"-o \"%s\" --ptxas-options=\"-v\" -I\"%s\" -DNVCC -D__KERNEL_CUDA_VERSION__=%d",
 			nvcc, major, minor, machine, kernel.c_str(), cubin.c_str(), include.c_str(), cuda_version);
+		
+		if(experimental)
+			command += " -D__KERNEL_CUDA_EXPERIMENTAL__";
 
 		printf("%s\n", command.c_str());
 
@@ -294,7 +303,7 @@ public:
 			return false;
 
 		/* get kernel */
-		string cubin = compile_kernel();
+		string cubin = compile_kernel(experimental);
 
 		if(cubin == "")
 			return false;
@@ -325,6 +334,7 @@ public:
 		size_t size = mem.memory_size();
 		cuda_assert(cuMemAlloc(&device_pointer, size));
 		mem.device_pointer = (device_ptr)device_pointer;
+		mem.device_size = size;
 		stats.mem_alloc(size);
 		cuda_pop_context();
 	}
@@ -372,7 +382,8 @@ public:
 
 			mem.device_pointer = 0;
 
-			stats.mem_free(mem.memory_size());
+			stats.mem_free(mem.device_size);
+			mem.device_size = 0;
 		}
 	}
 
@@ -464,6 +475,7 @@ public:
 				cuda_assert(cuTexRefSetFlags(texref, CU_TRSF_NORMALIZED_COORDINATES));
 
 				mem.device_pointer = (device_ptr)handle;
+				mem.device_size = size;
 
 				stats.mem_alloc(size);
 			}
@@ -531,7 +543,8 @@ public:
 				tex_interp_map.erase(tex_interp_map.find(mem.device_pointer));
 				mem.device_pointer = 0;
 
-				stats.mem_free(mem.memory_size());
+				stats.mem_free(mem.device_size);
+				mem.device_size = 0;
 			}
 			else {
 				tex_interp_map.erase(tex_interp_map.find(mem.device_pointer));
@@ -677,6 +690,7 @@ public:
 		const int shader_chunk_size = 65536;
 		const int start = task.shader_x;
 		const int end = task.shader_x + task.shader_w;
+		int offset = task.offset;
 
 		bool canceled = false;
 		for(int sample = 0; sample < task.num_samples && !canceled; sample++) {
@@ -689,6 +703,7 @@ public:
 								 &task.shader_eval_type,
 								 &shader_x,
 								 &shader_w,
+								 &offset,
 								 &sample};
 
 				/* launch kernel */
@@ -779,7 +794,8 @@ public:
 				mem.device_pointer = pmem.cuTexId;
 				pixel_mem_map[mem.device_pointer] = pmem;
 
-				stats.mem_alloc(mem.memory_size());
+				mem.device_size = mem.memory_size();
+				stats.mem_alloc(mem.device_size);
 
 				return;
 			}
@@ -836,7 +852,8 @@ public:
 				pixel_mem_map.erase(pixel_mem_map.find(mem.device_pointer));
 				mem.device_pointer = 0;
 
-				stats.mem_free(mem.memory_size());
+				stats.mem_free(mem.device_size);
+				mem.device_size = 0;
 
 				return;
 			}
@@ -967,10 +984,7 @@ public:
 
 	int get_split_task_count(DeviceTask& task)
 	{
-		if (task.type == DeviceTask::SHADER)
-			return task.get_subtask_count(TaskScheduler::num_threads(), 1024 * 1024);
-		else
-			return 1;
+		return 1;
 	}
 
 	void task_add(DeviceTask& task)
@@ -982,15 +996,6 @@ public:
 			cuda_push_context();
 			cuda_assert(cuCtxSynchronize());
 			cuda_pop_context();
-		}
-		else if(task.type == DeviceTask::SHADER) {
-			/* split task into smaller ones */
-			list<DeviceTask> tasks;
-
-			task.split(tasks, TaskScheduler::num_threads(), 1024 * 1024);
-
-			foreach(DeviceTask& task, tasks)
-				task_pool.push(new CUDADeviceTask(this, task));
 		}
 		else {
 			task_pool.push(new CUDADeviceTask(this, task));

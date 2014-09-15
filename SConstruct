@@ -125,7 +125,7 @@ else:
     B.quickie=[]
 
 toolset = B.arguments.get('BF_TOOLSET', None)
-vcver = B.arguments.get('MSVS_VERSION', '9.0')
+vcver = B.arguments.get('MSVS_VERSION', '12.0')
 
 if toolset:
     print "Using " + toolset
@@ -209,6 +209,11 @@ opts.Update(env)
 if sys.platform=='win32':
     if B.bitness==64:
         env.Append(CPPFLAGS=['-DWIN64']) # -DWIN32 needed too, as it's used all over to target Windows generally
+
+if env['BF_DEBUG']:
+    env.Append(CPPDEFINES=['_DEBUG', 'DEBUG'])
+else:
+    env.Append(CPPDEFINES=['NDEBUG'])
 
 if not env['BF_FANCY']:
     B.bc.disable()
@@ -433,6 +438,7 @@ if env['OURPLATFORM']=='darwin':
             print B.bc.OKGREEN + "Disabled OpenMP, not supported by compiler"
 
     if env['WITH_BF_CYCLES_OSL'] == 1:
+        env['WITH_BF_LLVM'] = 1
         OSX_OSL_LIBPATH = Dir(env.subst(env['BF_OSL_LIBPATH'])).abspath
         # we need 2 variants of passing the oslexec with the force_load option, string and list type atm
         if env['C_COMPILER_ID'] == 'gcc' and env['CCVERSION'] >= '4.8' or env['C_COMPILER_ID'] == 'clang' and env['CCVERSION'] >= '3.4':
@@ -440,6 +446,8 @@ if env['OURPLATFORM']=='darwin':
         else:
             env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-force_load '+ OSX_OSL_LIBPATH +'/liboslexec.a','-loslquery'])
         env.Append(BF_PROGRAM_LINKFLAGS=['-Xlinker','-force_load','-Xlinker',OSX_OSL_LIBPATH +'/liboslexec.a'])
+    else:
+        env['WITH_BF_LLVM'] = 0
 
     if env['WITH_BF_LLVM'] == 0:
         # Due duplicated generic UTF functions, we pull them either from LLVMSupport or COLLADA
@@ -619,31 +627,36 @@ def data_to_c(FILE_FROM, FILE_TO, VAR_NAME):
         FILE_FROM = FILE_FROM.replace("/", "\\")
         FILE_TO   = FILE_TO.replace("/", "\\")
 
-    # first check if we need to bother.
-    if os.path.exists(FILE_TO):
-        if os.path.getmtime(FILE_FROM) < os.path.getmtime(FILE_TO):
-            return
+    try:
+        # first check if we need to bother.
+        if os.path.exists(FILE_TO):
+            if os.path.getmtime(FILE_FROM) < os.path.getmtime(FILE_TO):
+                return
 
-    print(B.bc.HEADER + "Generating: " + B.bc.ENDC + "%r" % os.path.basename(FILE_TO))
-    fpin = open(FILE_FROM, "rb")
-    fpin.seek(0, os.SEEK_END)
-    size = fpin.tell()
-    fpin.seek(0)
+        print(B.bc.HEADER + "Generating: " + B.bc.ENDC + "%r" % os.path.basename(FILE_TO))
+        fpin = open(FILE_FROM, "rb")
+        fpin.seek(0, os.SEEK_END)
+        size = fpin.tell()
+        fpin.seek(0)
 
-    fpout = open(FILE_TO, "w")
-    fpout.write("int  %s_size = %d;\n" % (VAR_NAME, size))
-    fpout.write("char %s[] = {\n" % VAR_NAME)
+        fpout = open(FILE_TO, "w")
+        fpout.write("int  %s_size = %d;\n" % (VAR_NAME, size))
+        fpout.write("char %s[] = {\n" % VAR_NAME)
 
-    while size > 0:
-        size -= 1
-        if size % 32 == 31:
-            fpout.write("\n")
+        while size > 0:
+            size -= 1
+            if size % 32 == 31:
+                fpout.write("\n")
 
-        fpout.write("%3d," % ord(fpin.read(1)))
-    fpout.write("\n  0};\n\n")
+            fpout.write("%3d," % ord(fpin.read(1)))
+        fpout.write("\n  0};\n\n")
 
-    fpin.close()
-    fpout.close()
+        fpin.close()
+        fpout.close()
+    except KeyboardInterrupt:
+        if os.path.exists(FILE_TO):
+            os.remove(FILE_TO)
+        raise KeyboardInterrupt
 
 def data_to_c_simple(FILE_FROM):
 	filename_only = os.path.basename(FILE_FROM)
@@ -668,7 +681,12 @@ def data_to_c_simple_icon(PATH_FROM):
     FILE_TO_PNG = os.path.join(env['DATA_SOURCES'], filename_only + ".png")
     FILE_TO = FILE_TO_PNG + ".c"
     argv = [PATH_FROM, FILE_TO_PNG]
-    datatoc_icon.main_ex(argv)
+    try:
+        datatoc_icon.main_ex(argv)
+    except KeyboardInterrupt:
+        if os.path.exists(FILE_TO_PNG):
+            os.remove(FILE_TO_PNG)
+        raise KeyboardInterrupt
 
     # then the png to a c file
     data_to_c_simple(FILE_TO_PNG)
@@ -826,13 +844,18 @@ creob = B.creator(env)
 thestatlibs, thelibincs = B.setup_staticlibs(env)
 thesyslibs = B.setup_syslibs(env)
 
-# Hack to pass OSD libraries to linker before extern_{clew,cuew}
-for x in B.create_blender_liblist(env, 'system'):
-    thesyslibs.append(os.path.basename(x))
-    thelibincs.append(os.path.dirname(x))
-
 if 'blender' in B.targets or not env['WITH_BF_NOBLENDER']:
-    env.BlenderProg(B.root_build_dir, "blender", creob + mainlist + thestatlibs + dobj, thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
+    blender_progname = "blender"
+    if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
+        blender_progname = "blender-app"
+
+        lenv = env.Clone()
+        lenv.Append(LINKFLAGS = env['PLATFORM_LINKFLAGS'])
+        targetpath = B.root_build_dir + '/blender'
+        launcher_obj = [env.Object(B.root_build_dir + 'source/creator/creator/creator_launch_win', ['#source/creator/creator_launch_win.c'])]
+        env.BlenderProg(B.root_build_dir, 'blender', [launcher_obj] + B.resources, ['bf_utfconv'] + thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
+
+    env.BlenderProg(B.root_build_dir, blender_progname, creob + mainlist + thestatlibs + dobj, thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
 if env['WITH_BF_PLAYER']:
     playerlist = B.create_blender_liblist(env, 'player')
     playerlist += B.create_blender_liblist(env, 'player2')
@@ -881,6 +904,10 @@ if env['OURPLATFORM']!='darwin':
     for targetdir,srcfile in zip(datafilestargetlist, datafileslist):
         td, tf = os.path.split(targetdir)
         dotblenderinstall.append(env.Install(dir=td, source=srcfile))
+
+    if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
+        scriptinstall.append(env.InstallAs(env['BF_INSTALLDIR'] + '/blender-app.exe.manifest',
+                                           'source/icons/blender.exe.manifest'))
 
     if env['WITH_BF_PYTHON']:
         #-- local/VERSION/scripts
@@ -967,8 +994,9 @@ if env['OURPLATFORM']!='darwin':
             dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'lib')
             for arch in env['BF_CYCLES_CUDA_BINARIES_ARCH']:
                 kernel_build_dir = os.path.join(B.root_build_dir, 'intern/cycles/kernel')
-                cubin_file = os.path.join(kernel_build_dir, "kernel_%s.cubin" % arch)
-                cubininstall.append(env.Install(dir=dir,source=cubin_file))
+                for suffix in ('', '_experimental'):
+                    cubin_file = os.path.join(kernel_build_dir, "kernel%s_%s.cubin" % (suffix, arch))
+                    cubininstall.append(env.Install(dir=dir,source=cubin_file))
 
         # osl shaders
         if env['WITH_BF_CYCLES_OSL']:
@@ -1114,8 +1142,10 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
     if env['WITH_BF_PYTHON']:
         if env['BF_DEBUG']:
             dllsources.append('${BF_PYTHON_LIBPATH}/${BF_PYTHON_DLL}_d.dll')
+            dllsources.append('${BF_PYTHON_LIBPATH}/sqlite3_d.dll')
         else:
             dllsources.append('${BF_PYTHON_LIBPATH}/${BF_PYTHON_DLL}.dll')
+            dllsources.append('${BF_PYTHON_LIBPATH}/sqlite3.dll')
 
     if env['WITH_BF_ICONV']:
         if env['OURPLATFORM'] == 'win64-vc':
