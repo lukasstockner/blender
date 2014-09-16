@@ -209,6 +209,13 @@ class SEQUENCER_MT_select(Menu):
 
         layout.operator("sequencer.select_active_side", text="Strips to the Left").side = 'LEFT'
         layout.operator("sequencer.select_active_side", text="Strips to the Right").side = 'RIGHT'
+        op = layout.operator("sequencer.select", text="All strips to the Left")
+        op.left_right = 'LEFT'
+        op.linked_time = True
+        op = layout.operator("sequencer.select", text="All strips to the Right")
+        op.left_right = 'RIGHT'
+        op.linked_time = True
+        
         layout.separator()
         layout.operator("sequencer.select_handles", text="Surrounding Handles").side = 'BOTH'
         layout.operator("sequencer.select_handles", text="Left Handle").side = 'LEFT'
@@ -600,7 +607,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
         col = layout.column(align=True)
         if strip.type == 'SPEED':
             col.prop(strip, "multiply_speed")
-        elif strip.type in {'CROSS', 'GAMMA_CROSS', 'WIPE'}:
+        elif strip.type in {'CROSS', 'GAMMA_CROSS', 'WIPE', 'ALPHA_OVER','ALPHA_UNDER','OVER_DROP'}:
             col.prop(strip, "use_default_fade", "Default fade")
             if not strip.use_default_fade:
                 col.prop(strip, "effect_fader", text="Effect fader")
@@ -709,9 +716,10 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
         strip = act_strip(context)
         sound = strip.sound
 
-        layout.template_ID(strip, "sound", open="sound.open")
+        # TODO: add support to handle SOUND datablock in sequencer soundstrips... For now, hide this useless thing!
+        # layout.template_ID(strip, "sound", open="sound.open")
 
-        layout.separator()
+        # layout.separator()
         layout.prop(strip, "filepath", text="")
 
         if sound is not None:

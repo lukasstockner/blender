@@ -1967,7 +1967,7 @@ static int ui_text_position_from_hidden(uiBut *but, int pos)
 
 static int ui_text_position_to_hidden(uiBut *but, int pos)
 {
-	const char *butstr = butstr = (but->editstr) ? but->editstr : but->drawstr;
+	const char *butstr = (but->editstr) ? but->editstr : but->drawstr;
 	return BLI_strnlen_utf8(butstr, pos);
 }
 
@@ -2491,6 +2491,9 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 				    (ui_searchbox_find_index(data->searchbox, but->editstr) == -1))
 				{
 					data->cancel = true;
+
+					/* ensure menu (popup) too is closed! */
+					data->escapecancel = true;
 				}
 			}
 
@@ -4333,6 +4336,9 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 				Palette *palette = but->rnapoin.id.data;
 				PaletteColor *color = but->rnapoin.data;
 				palette->active_color = BLI_findindex(&palette->colors, color);
+				
+				/* enforce redraw, sometimes state here can already be exit */
+				ED_region_tag_redraw(data->region);
 
 				if (!event->ctrl) {
 					float color[3];
