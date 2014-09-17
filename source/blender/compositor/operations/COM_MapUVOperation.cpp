@@ -53,7 +53,7 @@ void MapUVOperation::executePixelSampled(float output[4], float x, float y, Pixe
 	}
 
 	/* EWA filtering */
-	this->m_inputColorProgram->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_BILINEAR);
+	this->m_inputColorProgram->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_BICUBIC);
 	
 	/* UV to alpha threshold */
 	const float threshold = this->m_alpha * 0.05f;
@@ -77,17 +77,17 @@ bool MapUVOperation::read_uv(float x, float y, float &r_u, float &r_v, float &r_
 	float width = m_inputUVProgram->getWidth();
 	float height = m_inputUVProgram->getHeight();
 	if (x < 0.0f || x >= width || y < 0.0f || y >= height) {
-        r_u = 0.0f;
+		r_u = 0.0f;
 		r_v = 0.0f;
 		r_alpha = 0.0f;
 		return false;
 	}
 	else {
-        float vector[3];
-        m_inputUVProgram->readSampled(vector, x, y, COM_PS_BILINEAR);
-        r_u = vector[0] * m_inputColorProgram->getWidth();
-        r_v = vector[1] * m_inputColorProgram->getHeight();
-        r_alpha = vector[2];
+		float vector[3];
+		m_inputUVProgram->readSampled(vector, x, y, COM_PS_BILINEAR);
+		r_u = vector[0] * m_inputColorProgram->getWidth();
+		r_v = vector[1] * m_inputColorProgram->getHeight();
+		r_alpha = vector[2];
 		return true;
 	}
 }

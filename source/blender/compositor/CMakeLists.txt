@@ -74,14 +74,6 @@ set(SRC
 	intern/COM_MemoryProxy.h
 	intern/COM_MemoryBuffer.cpp
 	intern/COM_MemoryBuffer.h
-	intern/COM_MemoryBufferColor.cpp
-	intern/COM_MemoryBufferColor.h
-	intern/COM_MemoryBufferVector.cpp
-	intern/COM_MemoryBufferVector.h
-	intern/COM_MemoryBufferValue.cpp
-	intern/COM_MemoryBufferValue.h
-	intern/COM_Sampler.cpp
-	intern/COM_Sampler.h
 	intern/COM_WorkScheduler.cpp
 	intern/COM_WorkScheduler.h
 	intern/COM_Tile.cpp

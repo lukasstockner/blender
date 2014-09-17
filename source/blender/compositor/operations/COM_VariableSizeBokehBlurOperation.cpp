@@ -64,18 +64,18 @@ void VariableSizeBokehBlurOperation::initExecution()
 }
 struct VariableSizeBokehBlurTileData
 {
-	MemoryBufferColor *color;
-	MemoryBufferColor *bokeh;
-	MemoryBufferValue *size;
+	MemoryBuffer *color;
+	MemoryBuffer *bokeh;
+	MemoryBuffer *size;
 	int maxBlurScalar;
 };
 
 void *VariableSizeBokehBlurOperation::initializeTileData(rcti *rect)
 {
 	VariableSizeBokehBlurTileData *data = new VariableSizeBokehBlurTileData();
-	data->color = (MemoryBufferColor *)this->m_inputProgram->initializeTileData(rect);
-	data->bokeh = (MemoryBufferColor *)this->m_inputBokehProgram->initializeTileData(rect);
-	data->size = (MemoryBufferValue *)this->m_inputSizeProgram->initializeTileData(rect);
+	data->color = (MemoryBuffer*)this->m_inputProgram->initializeTileData(rect);
+	data->bokeh = (MemoryBuffer*)this->m_inputBokehProgram->initializeTileData(rect);
+	data->size = (MemoryBuffer*)this->m_inputSizeProgram->initializeTileData(rect);
 
 
 	rcti rect2;
@@ -98,11 +98,9 @@ void VariableSizeBokehBlurOperation::deinitializeTileData(rcti *rect, void *data
 void VariableSizeBokehBlurOperation::executePixel(float output[4], int x, int y, void *data)
 {
 	VariableSizeBokehBlurTileData *tileData = (VariableSizeBokehBlurTileData *)data;
-	MemoryBufferColor *inputProgramBuffer = tileData->color;
-	MemoryBufferColor *inputBokehBuffer = tileData->bokeh;
-	MemoryBufferValue *inputSizeBuffer = tileData->size;
-	SamplerNearestNoCheckColor *bokeh_sampler = inputBokehBuffer->get_sampler_nocheck();
-	SamplerNearestNoCheckValue *size_sampler = inputSizeBuffer->get_sampler_nocheck();
+	MemoryBuffer *inputProgramBuffer = tileData->color;
+	MemoryBuffer *inputBokehBuffer = tileData->bokeh;
+	MemoryBuffer *inputSizeBuffer = tileData->size;
 	float *inputSizeFloatBuffer = inputSizeBuffer->getBuffer();
 	float *inputProgramFloatBuffer = inputProgramBuffer->getBuffer();
 	float readColor[4];
@@ -132,7 +130,7 @@ void VariableSizeBokehBlurOperation::executePixel(float output[4], int x, int y,
 	int maxy = min(y + maxBlurScalar, (int)m_height);
 #endif
 	{
-		size_sampler->read(tempSize, x, y);
+		inputSizeBuffer->read(tempSize, x, y);
 		inputProgramBuffer->readNoCheck(readColor, x, y);
 
 		copy_v4_v4(color_accum, readColor);
@@ -158,7 +156,7 @@ void VariableSizeBokehBlurOperation::executePixel(float output[4], int x, int y,
 								float uv[2] = {
 									(float)(COM_BLUR_BOKEH_PIXELS / 2) + (dx / size) * (float)((COM_BLUR_BOKEH_PIXELS / 2) - 1),
 									(float)(COM_BLUR_BOKEH_PIXELS / 2) + (dy / size) * (float)((COM_BLUR_BOKEH_PIXELS / 2) - 1)};
-								bokeh_sampler->read(bokeh, uv[0], uv[1]);
+								inputBokehBuffer->read(bokeh, uv[0], uv[1]);
 								madd_v4_v4v4(color_accum, bokeh, &inputProgramFloatBuffer[offsetColorNxNy]);
 								add_v4_v4(multiplier_accum, bokeh);
 							}

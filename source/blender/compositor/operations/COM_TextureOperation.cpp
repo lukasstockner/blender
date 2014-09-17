@@ -133,7 +133,7 @@ MemoryBuffer *TextureBaseOperation::createMemoryBuffer(rcti *rect2)
 	rect.ymin = 0;
 	rect.xmax = width;
 	rect.ymax = height;
-    MemoryBuffer *result = MemoryBuffer::create(datatype, &rect);
+    MemoryBuffer *result = new MemoryBuffer(datatype, &rect);
 
 	float *data = result->getBuffer();
 

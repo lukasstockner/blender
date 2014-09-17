@@ -61,90 +61,77 @@ class MemoryProxy;
 class MemoryBuffer {
 private:
 	/**
-	 * brief refers to the chunknumber within the executiongroup where related to the MemoryProxy
-	 * @see memoryProxy
+	 * @brief proxy of the memory (same for all chunks in the same buffer)
 	 */
-	unsigned int m_chunkNumber;
-	
+	MemoryProxy *m_memoryProxy;
 	
 	/**
-	 * @brief state of the buffer
+	 * @brief the type of buffer COM_DT_VALUE, COM_DT_VECTOR, COM_DT_COLOR
 	 */
-	MemoryBufferState m_state;
-
-	/**
-	 * @brief the number of channels that form a single pixel in this buffer
-	 */
-	unsigned int m_num_channels;
+	DataType m_datatype;
 	
-
-protected:
-	/**
-	 * @brief width of the chunk
-	 */
-	unsigned int m_chunkWidth;
-
+	
 	/**
 	 * @brief region of this buffer inside relative to the MemoryProxy
 	 */
 	rcti m_rect;
 	
 	/**
-	 * @brief proxy of the memory (same for all chunks in the same buffer)
+	 * brief refers to the chunknumber within the executiongroup where related to the MemoryProxy
+	 * @see memoryProxy
 	 */
-	MemoryProxy *m_memoryProxy;
-
+	unsigned int m_chunkNumber;
+	
+	/**
+	 * @brief width of the chunk
+	 */
+	unsigned int m_chunkWidth;
+	
+	/**
+	 * @brief state of the buffer
+	 */
+	MemoryBufferState m_state;
+	
 	/**
 	 * @brief the actual float buffer/data
 	 */
 	float *m_buffer;
 
 	/**
-	 * @brief construct new MemoryBuffer for a chunk
-	 *
-	 * @param num_channels Number of channels that must be allocated for every pixel
+	 * @brief the number of channels of a single value in the buffer.
+	 * For value buffers this is 1, vector 3 and color 4
 	 */
-	MemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect, unsigned int num_channels);
-	
-	/**
-	 * @brief construct new temporarily MemoryBuffer for an area
-	 *
-	 * @param num_channels Number of channels that must be allocated for every pixel
-	 */
-	MemoryBuffer(MemoryProxy *memoryProxy, rcti *rect, unsigned int num_channels);
+	unsigned int m_num_channels;
 
-    /**
-     * @brief construct new temporarily MemoryBuffer for an area
-     *
-     * @param num_channels Number of channels that must be allocated for every pixel
-     */
-    MemoryBuffer(DataType datatype, rcti *rect, unsigned int num_channels);
+	int m_width;
+	int m_height;
 
 public:
 	/**
-	 * @brief factory method for the constructor, selecting the right subclass
+	 * @brief construct new MemoryBuffer for a chunk
 	 */
-	static MemoryBuffer* create(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect);
-
+	MemoryBuffer(MemoryProxy *memoryProxy, unsigned int chunkNumber, rcti *rect);
+	
 	/**
-	 * @brief factory method for the constructor, selecting the right subclass, creating a temporarily buffer
+	 * @brief construct new temporarily MemoryBuffer for an area
 	 */
-	static MemoryBuffer* create(MemoryProxy *memoryProxy, rcti *rect);
-
-    /**
-     * @brief factory method for the constructor, selecting the right subclass, creating a temporarily buffer
-     */
-    static MemoryBuffer* create(DataType datatype, rcti *rect);
-
-    /**
+	MemoryBuffer(MemoryProxy *memoryProxy, rcti *rect);
+	/**
+	 * @brief construct new temporarily MemoryBuffer for an area
+	 */
+	MemoryBuffer(DataType datatype, rcti *rect);
+	
+	/**
 	 * @brief destructor
 	 */
-	virtual ~MemoryBuffer();
+	~MemoryBuffer();
 	
 	/**
 	 * @brief read the ChunkNumber of this MemoryBuffer
 	 */
 	unsigned int getChunkNumber() { return this->m_chunkNumber; }
+
+	unsigned int get_num_channels() { return this->m_num_channels; }
 	
 	/**
 	 * @brief get the data of this MemoryBuffer
@@ -162,8 +149,8 @@ public:
 	
 	inline void wrap_pixel(int &x, int &y, MemoryBufferExtend extend_x, MemoryBufferExtend extend_y)
 	{
-		int w = m_rect.xmax - m_rect.xmin;
-		int h = m_rect.ymax - m_rect.ymin;
+		int w = this->m_width;
+		int h = this->m_height;
 		x = x - m_rect.xmin;
 		y = y - m_rect.ymin;
 		
@@ -191,27 +178,106 @@ public:
 				break;
 		}
 	}
-	
-	virtual void init_samplers() {}
-	virtual void deinit_samplers() {}
-	virtual void read(float *result, int x, int y,
+	inline void wrap_pixel(float &x, float &y, MemoryBufferExtend extend_x, MemoryBufferExtend extend_y)
+	{
+		float w = (float)this->m_width;
+		float h = (float)this->m_height;
+		x = x - m_rect.xmin;
+		y = y - m_rect.ymin;
+
+		switch (extend_x) {
+			case COM_MB_CLIP:
+				break;
+			case COM_MB_EXTEND:
+				if (x < 0) x = 0.0f;
+				if (x >= w) x = w;
+				break;
+			case COM_MB_REPEAT:
+				x = fmodf(x, w);
+				break;
+		}
+
+		switch (extend_y) {
+			case COM_MB_CLIP:
+				break;
+			case COM_MB_EXTEND:
+				if (y < 0) y = 0.0f;
+				if (y >= h) y = h;
+				break;
+			case COM_MB_REPEAT:
+				y = fmodf(y, h);
+				break;
+		}
+	}
+
+	inline void read(float *result, int x, int y,
 	                 MemoryBufferExtend extend_x = COM_MB_CLIP,
-	                 MemoryBufferExtend extend_y = COM_MB_CLIP) = 0;
+	                 MemoryBufferExtend extend_y = COM_MB_CLIP)
+	{
+		bool clip_x = (extend_x == COM_MB_CLIP && (x < m_rect.xmin || x >= m_rect.xmax));
+		bool clip_y = (extend_y == COM_MB_CLIP && (y < m_rect.ymin || y >= m_rect.ymax));
+		if (clip_x || clip_y) {
+			/* clip result outside rect is zero */
+			for (int i = 0 ; i < this->m_num_channels ; i++, result++) {
+				*result = 0.0f;
+			}
+		}
+		else {
+			int u = x;
+			int v = y;
+			this->wrap_pixel(u, v, extend_x, extend_y);
+			const int offset = (this->m_chunkWidth * y + x) * this->m_num_channels;
+			float* buffer = &this->m_buffer[offset];
+			memcpy(result, buffer, sizeof(float)*this->m_num_channels);
+		}
+	}
 
-
-	virtual void readNoCheck(float *result, int x, int y,
+	inline void readNoCheck(float *result, int x, int y,
 	                        MemoryBufferExtend extend_x = COM_MB_CLIP,
-	                        MemoryBufferExtend extend_y = COM_MB_CLIP) = 0;
+	                        MemoryBufferExtend extend_y = COM_MB_CLIP)
+	{
+		int u = x;
+		int v = y;
 
-		
-	virtual void writePixel(int x, int y, const float *color) = 0;
-	virtual void addPixel(int x, int y, const float *color) = 0;
-	virtual void readBilinear(float *result, float x, float y,
+		this->wrap_pixel(u, v, extend_x, extend_y);
+		const int offset = (this->m_chunkWidth * v + u) * this->m_num_channels;
+
+		BLI_assert(offset >= 0);
+		BLI_assert(offset < this->determineBufferSize() * this->m_num_channels);
+		BLI_assert(!(extend_x == COM_MB_CLIP && (u < m_rect.xmin || u >= m_rect.xmax)) &&
+		           !(extend_y == COM_MB_CLIP && (v < m_rect.ymin || v >= m_rect.ymax)));
+
+#if 0
+		/* always true */
+		BLI_assert((int)(MEM_allocN_len(this->m_buffer) / sizeof(*this->m_buffer)) ==
+		           (int)(this->determineBufferSize() * COM_NUMBER_OF_CHANNELS));
+#endif
+		float* buffer = &this->m_buffer[offset];
+		memcpy(result, buffer, sizeof(float)*this->m_num_channels);
+	}
+	
+	void writePixel(int x, int y, const float color[4]);
+	void addPixel(int x, int y, const float color[4]);
+	inline void readBilinear(float *result, float x, float y,
 	                         MemoryBufferExtend extend_x = COM_MB_CLIP,
-	                         MemoryBufferExtend extend_y = COM_MB_CLIP) = 0;
+	                         MemoryBufferExtend extend_y = COM_MB_CLIP)
+	{
+		float u = x;
+		float v = y;
+		this->wrap_pixel(u, v, extend_x, extend_y);
+		BLI_bilinear_interpolation_fl(this->m_buffer, result, this->m_width, this->m_height, this->m_num_channels, u, v);
+	}
+	inline void readBicubic(float *result, float x, float y,
+	                         MemoryBufferExtend extend_x = COM_MB_CLIP,
+	                         MemoryBufferExtend extend_y = COM_MB_CLIP)
+	{
+		float u = x;
+		float v = y;
+		this->wrap_pixel(u, v, extend_x, extend_y);
+		BLI_bicubic_interpolation_fl(this->m_buffer, result, this->m_width, this->m_height, this->m_num_channels, u, v);
+	}
 
-
-	virtual void readEWA(float result[4], const float uv[2], const float derivatives[2][2], PixelSampler sampler) {}
+	void readEWA(float *result, const float uv[2], const float derivatives[2][2], PixelSampler sampler);
 	
 	/**
 	 * @brief is this MemoryBuffer a temporarily buffer (based on an area, not on a chunk)
@@ -247,22 +313,13 @@ public:
 	 */
 	void clear();
 	
-	virtual MemoryBuffer *duplicate() = 0;
+	MemoryBuffer *duplicate();
 	
 	float *convertToValueBuffer();
-    virtual float getMaximumValue() const;
-
-	/**
-	 * @brief return the number of channels that form a single pixel.
-	 *
-	 * Value = 1
-	 * Vector= 3
-	 * Color = 4
-	 */
-	const int get_num_channels() const;
-
-protected:
-    unsigned int determineBufferSize() const;
+	float getMaximumValue();
+	float getMaximumValue(rcti *rect);
+private:
+	unsigned int determineBufferSize();
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("COM:MemoryBuffer")

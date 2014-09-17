@@ -259,7 +259,7 @@ static void convolve(float *dst, MemoryBuffer *in1, MemoryBuffer *in2)
 	float *kernelBuffer = in2->getBuffer();
 	float *imageBuffer = in1->getBuffer();
 
-    MemoryBuffer *rdst = MemoryBuffer::create(COM_DT_COLOR, in1->getRect());
+    MemoryBuffer *rdst = new MemoryBuffer(COM_DT_COLOR, in1->getRect());
 	memset(rdst->getBuffer(), 0, rdst->getWidth() * rdst->getHeight() * COM_NUM_CHANNELS_COLOR * sizeof(float));
 
 	// convolution result width & height
@@ -381,7 +381,7 @@ void GlareFogGlowOperation::generateGlare(float *data, MemoryBuffer *inputTile, 
 	// make the convolution kernel
 	rcti kernelRect;
 	BLI_rcti_init(&kernelRect, 0, sz, 0, sz);
-    ckrn = MemoryBuffer::create(COM_DT_COLOR, &kernelRect);
+    ckrn = new MemoryBuffer(COM_DT_COLOR, &kernelRect);
 
 	scale = 0.25f * sqrtf((float)(sz * sz));
 

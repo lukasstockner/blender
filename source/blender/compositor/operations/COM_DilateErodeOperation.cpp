@@ -72,8 +72,7 @@ void DilateErodeThresholdOperation::executePixel(float output[4], int x, int y, 
 	const float inset = this->m_inset;
 	float mindist = rd * 2;
 
-	MemoryBufferValue *inputBuffer = (MemoryBufferValue *)data;
-	SamplerNearestValue *sampler = inputBuffer->get_sampler_nearest();
+	MemoryBuffer *inputBuffer = (MemoryBuffer*)data;
 	float *buffer = inputBuffer->getBuffer();
 	rcti *rect = inputBuffer->getRect();
 	const int minx = max(x - this->m_scope, rect->xmin);
@@ -83,7 +82,7 @@ void DilateErodeThresholdOperation::executePixel(float output[4], int x, int y, 
 	const int bufferWidth = BLI_rcti_size_x(rect);
 	int offset;
 
-	sampler->read(inputValue, x, y);
+	inputBuffer->read(inputValue, x, y);
 	if (inputValue[0] > sw) {
 		for (int yi = miny; yi < maxy; yi++) {
 			const float dy = yi - y;

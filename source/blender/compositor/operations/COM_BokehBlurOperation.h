@@ -25,15 +25,12 @@
 
 #include "COM_NodeOperation.h"
 #include "COM_QualityStepHelper.h"
-#include "COM_Sampler.h"
 
 class BokehBlurOperation : public NodeOperation, public QualityStepHelper {
 private:
 	SocketReader *m_inputProgram;
 	SocketReader *m_inputBokehProgram;
 	SocketReader *m_inputBoundingBoxReader;
-	SamplerNearestColor *m_bokeh_sampler;
-	SamplerNearestValue *m_boundingbox_sampler;
 
 	void updateSize();
 	float m_size;
