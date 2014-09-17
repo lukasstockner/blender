@@ -147,7 +147,7 @@ void ScreenLensDistortionOperation::accumulate(MemoryBuffer *buffer,
 		
 		float xy[2];
 		distort_uv(uv, t, xy);
-		buffer->readBilinear(color, xy[0], xy[1]);
+		buffer->readBicubic(color, xy[0], xy[1]);
 		
 		sum[a] += (1.0f - tz) * color[a], sum[b] += tz * color[b];
 		++count[a];

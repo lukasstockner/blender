@@ -106,7 +106,7 @@ void PlaneDistortWarpImageOperation::executePixelSampled(float output[4], float 
 
 	pixelTransform(xy, uv, deriv);
 
-	m_pixelReader->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_BILINEAR);
+	m_pixelReader->readFiltered(output, uv[0], uv[1], deriv[0], deriv[1], COM_PS_BICUBIC);
 }
 
 void PlaneDistortWarpImageOperation::pixelTransform(const float xy[2], float r_uv[2], float r_deriv[2][2])
