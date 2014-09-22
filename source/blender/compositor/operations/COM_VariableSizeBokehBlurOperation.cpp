@@ -33,9 +33,6 @@ VariableSizeBokehBlurOperation::VariableSizeBokehBlurOperation() : NodeOperation
 	this->addInputSocket(COM_DT_COLOR);
 	this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE); // do not resize the bokeh image.
 	this->addInputSocket(COM_DT_VALUE); // radius
-#ifdef COM_DEFOCUS_SEARCH
-	this->addInputSocket(COM_DT_COLOR, COM_SC_NO_RESIZE); // inverse search radius optimization structure.
-#endif
 	this->addOutputSocket(COM_DT_COLOR);
 	this->setComplex(true);
 	this->setOpenCL(true);
@@ -46,9 +43,6 @@ VariableSizeBokehBlurOperation::VariableSizeBokehBlurOperation() : NodeOperation
 	this->m_maxBlur = 32.0f;
 	this->m_threshold = 1.0f;
 	this->m_do_size_scale = false;
-#ifdef COM_DEFOCUS_SEARCH
-	this->m_inputSearchProgram = NULL;
-#endif
 }
 
 
@@ -57,9 +51,6 @@ void VariableSizeBokehBlurOperation::initExecution()
 	this->m_inputProgram = getInputSocketReader(0);
 	this->m_inputBokehProgram = getInputSocketReader(1);
 	this->m_inputSizeProgram = getInputSocketReader(2);
-#ifdef COM_DEFOCUS_SEARCH
-	this->m_inputSearchProgram = getInputSocketReader(3);
-#endif
 	QualityStepHelper::initExecution(COM_QH_INCREASE);
 }
 struct VariableSizeBokehBlurTileData
@@ -116,19 +107,10 @@ void VariableSizeBokehBlurOperation::executePixel(float output[4], int x, int y,
 	BLI_assert(inputBokehBuffer->getWidth()  == COM_BLUR_BOKEH_PIXELS);
 	BLI_assert(inputBokehBuffer->getHeight() == COM_BLUR_BOKEH_PIXELS);
 
-#ifdef COM_DEFOCUS_SEARCH
-	float search[4];
-	this->m_inputSearchProgram->read(search, x / InverseSearchRadiusOperation::DIVIDER, y / InverseSearchRadiusOperation::DIVIDER, NULL);
-	int minx = search[0];
-	int miny = search[1];
-	int maxx = search[2];
-	int maxy = search[3];
-#else
 	int minx = max(x - maxBlurScalar, 0);
 	int miny = max(y - maxBlurScalar, 0);
 	int maxx = min(x + maxBlurScalar, (int)m_width);
 	int maxy = min(y + maxBlurScalar, (int)m_height);
-#endif
 	{
 		inputSizeBuffer->read(tempSize, x, y);
 		inputProgramBuffer->readNoCheck(readColor, x, y);
@@ -223,9 +205,6 @@ void VariableSizeBokehBlurOperation::deinitExecution()
 	this->m_inputProgram = NULL;
 	this->m_inputBokehProgram = NULL;
 	this->m_inputSizeProgram = NULL;
-#ifdef COM_DEFOCUS_SEARCH
-	this->m_inputSearchProgram = NULL;
-#endif
 }
 
 bool VariableSizeBokehBlurOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
@@ -255,17 +234,6 @@ bool VariableSizeBokehBlurOperation::determineDependingAreaOfInterest(rcti *inpu
 	if (operation->determineDependingAreaOfInterest(&bokehInput, readOperation, output) ) {
 		return true;
 	}
-#ifdef COM_DEFOCUS_SEARCH
-	rcti searchInput;
-	searchInput.xmax = (input->xmax / InverseSearchRadiusOperation::DIVIDER) + 1;
-	searchInput.xmin = (input->xmin / InverseSearchRadiusOperation::DIVIDER) - 1;
-	searchInput.ymax = (input->ymax / InverseSearchRadiusOperation::DIVIDER) + 1;
-	searchInput.ymin = (input->ymin / InverseSearchRadiusOperation::DIVIDER) - 1;
-	operation = getInputOperation(3);
-	if (operation->determineDependingAreaOfInterest(&searchInput, readOperation, output) ) {
-		return true;
-	}
-#endif
 	operation = getInputOperation(0);
 	if (operation->determineDependingAreaOfInterest(&newInput, readOperation, output) ) {
 		return true;
@@ -273,108 +241,3 @@ bool VariableSizeBokehBlurOperation::determineDependingAreaOfInterest(rcti *inpu
 	return false;
 }
 
-#ifdef COM_DEFOCUS_SEARCH
-// InverseSearchRadiusOperation
-InverseSearchRadiusOperation::InverseSearchRadiusOperation() : NodeOperation() 
-{
-	this->addInputSocket(COM_DT_VALUE, COM_SC_NO_RESIZE); // radius
-	this->addOutputSocket(COM_DT_COLOR);
-	this->setComplex(true);
-	this->m_inputRadius = NULL;
-}
-
-void InverseSearchRadiusOperation::initExecution() 
-{
-	this->m_inputRadius = this->getInputSocketReader(0);
-}
-
-voi *InverseSearchRadiusOperation::initializeTileData(rcti *rect)
-{
-	MemoryBuffer * data = MemoryBuffer::(NULL, rect);
-	float *buffer = data->getBuffer();
-	int x, y;
-	int width = this->m_inputRadius->getWidth();
-	int height = this->m_inputRadius->getHeight();
-	float temp[4];
-	int offset = 0;
-	for (y = rect->ymin; y < rect->ymax ; y++) {
-		for (x = rect->xmin; x < rect->xmax ; x++) {
-			int rx = x * DIVIDER;
-			int ry = y * DIVIDER;
-			buffer[offset] = MAX2(rx - m_maxBlur, 0);
-			buffer[offset + 1] = MAX2(ry - m_maxBlur, 0);
-			buffer[offset + 2] = MIN2(rx + DIVIDER + m_maxBlur, width);
-			buffer[offset + 3] = MIN2(ry + DIVIDER + m_maxBlur, height);
-			offset += 4;
-		}
-	}
-//	for (x = rect->xmin; x < rect->xmax ; x++) {
-//		for (y = rect->ymin; y < rect->ymax ; y++) {
-//			int rx = x * DIVIDER;
-//			int ry = y * DIVIDER;
-//			float radius = 0.0f;
-//			float maxx = x;
-//			float maxy = y;
-	
-//			for (int x2 = 0 ; x2 < DIVIDER ; x2 ++) {
-//				for (int y2 = 0 ; y2 < DIVIDER ; y2 ++) {
-//					this->m_inputRadius->read(temp, rx+x2, ry+y2, COM_PS_NEAREST);
-//					if (radius < temp[0]) {
-//						radius = temp[0];
-//						maxx = x2;
-//						maxy = y2;
-//					}
-//				}
-//			}
-//			int impactRadius = ceil(radius / DIVIDER);
-//			for (int x2 = x - impactRadius ; x2 < x + impactRadius ; x2 ++) {
-//				for (int y2 = y - impactRadius ; y2 < y + impactRadius ; y2 ++) {
-//					data->read(temp, x2, y2);
-//					temp[0] = MIN2(temp[0], maxx);
-//					temp[1] = MIN2(temp[1], maxy);
-//					temp[2] = MAX2(temp[2], maxx);
-//					temp[3] = MAX2(temp[3], maxy);
-//					data->writePixel(x2, y2, temp);
-//				}
-//			}
-//		}
-//	}
-	return data;
-}
-
-void InverseSearchRadiusOperation::executePixelChunk(float output[4], int x, int y, void *data)
-{
-	MemoryBuffer *buffer = (MemoryBuffer *)data;
-	buffer->readNoCheck(color, x, y);
-}
-
-void InverseSearchRadiusOperation::deinitializeTileData(rcti *rect, void *data) 
-{
-	if (data) {
-		MemoryBuffer *mb = (MemoryBuffer *)data;
-		delete mb;
-	}
-}
-
-void InverseSearchRadiusOperation::deinitExecution() 
-{
-	this->m_inputRadius = NULL;
-}
-
-void InverseSearchRadiusOperation::determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2])
-{
-	NodeOperation::determineResolution(resolution, preferredResolution);
-	resolution[0] = resolution[0] / DIVIDER;
-	resolution[1] = resolution[1] / DIVIDER;
-}
-
-bool InverseSearchRadiusOperation::determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output)
-{
-	rcti newRect;
-	newRect.ymin = input->ymin * DIVIDER - m_maxBlur;
-	newRect.ymax = input->ymax * DIVIDER + m_maxBlur;
-	newRect.xmin = input->xmin * DIVIDER - m_maxBlur;
-	newRect.xmax = input->xmax * DIVIDER + m_maxBlur;
-	return NodeOperation::determineDependingAreaOfInterest(&newRect, readOperation, output);
-}
-#endif

@@ -104,23 +104,6 @@ void MemoryBuffer::clear()
 	memset(this->m_buffer, 0, this->determineBufferSize() * this->m_num_channels * sizeof(float));
 }
 
-float *MemoryBuffer::convertToValueBuffer()
-{
-	const unsigned int size = this->determineBufferSize();
-	unsigned int i;
-
-	float *result = (float *)MEM_mallocN(sizeof(float) * size, __func__);
-
-	const float *fp_src = this->m_buffer;
-	float       *fp_dst = result;
-
-	for (i = 0; i < size; i++, fp_dst++, fp_src += this->m_num_channels) {
-		*fp_dst = *fp_src;
-	}
-
-	return result;
-}
-
 float MemoryBuffer::getMaximumValue()
 {
 	float result = this->m_buffer[0];
@@ -232,13 +215,10 @@ static void read_ewa_pixel_sampled(void *userdata, int x, int y, float result[4]
 			                           (float)y + data->vfac);
 			break;
 		case COM_PS_BICUBIC:
-			/* TOOD(sergey): no readBicubic method yet */
+		default:
 			data->buffer->readBicubic(result,
 			                           (float)x + data->ufac,
 			                           (float)y + data->vfac);
-			break;
-		default:
-			zero_v4(result);
 			break;
 	}
 }

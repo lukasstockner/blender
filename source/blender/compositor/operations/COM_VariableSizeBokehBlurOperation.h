@@ -25,7 +25,6 @@
 #include "COM_NodeOperation.h"
 #include "COM_QualityStepHelper.h"
 
-//#define COM_DEFOCUS_SEARCH
 
 class VariableSizeBokehBlurOperation : public NodeOperation, public QualityStepHelper {
 private:
@@ -35,9 +34,6 @@ private:
 	SocketReader *m_inputProgram;
 	SocketReader *m_inputBokehProgram;
 	SocketReader *m_inputSizeProgram;
-#ifdef COM_DEFOCUS_SEARCH
-	SocketReader *m_inputSearchProgram;
-#endif
 
 public:
 	VariableSizeBokehBlurOperation();
@@ -72,37 +68,4 @@ public:
 	void executeOpenCL(OpenCLDevice *device, MemoryBuffer *outputMemoryBuffer, cl_mem clOutputBuffer, MemoryBuffer **inputMemoryBuffers, list<cl_mem> *clMemToCleanUp, list<cl_kernel> *clKernelsToCleanUp);
 };
 
-#ifdef COM_DEFOCUS_SEARCH
-class InverseSearchRadiusOperation : public NodeOperation {
-private:
-	int m_maxBlur;
-	SocketReader *m_inputRadius;
-public:
-	static const int DIVIDER = 4;
-	
-	InverseSearchRadiusOperation();
-
-	/**
-	 * the inner loop of this program
-	 */
-	void executePixelChunk(float output[4], int x, int y, void *data);
-	
-	/**
-	 * Initialize the execution
-	 */
-	void initExecution();
-	void *initializeTileData(rcti *rect);
-	void deinitializeTileData(rcti *rect, void *data);
-	
-	/**
-	 * Deinitialize the execution
-	 */
-	void deinitExecution();
-	
-	bool determineDependingAreaOfInterest(rcti *input, ReadBufferOperation *readOperation, rcti *output);
-	void determineResolution(unsigned int resolution[2], unsigned int preferredResolution[2]);
-	
-	void setMaxBlur(int maxRadius) { this->m_maxBlur = maxRadius; }
-};
-#endif
 #endif

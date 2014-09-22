@@ -315,7 +315,6 @@ public:
 	
 	MemoryBuffer *duplicate();
 	
-	float *convertToValueBuffer();
 	float getMaximumValue();
 	float getMaximumValue(rcti *rect);
 private:

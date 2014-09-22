@@ -103,14 +103,6 @@ void DefocusNode::convertToOperations(NodeConverter &converter, const Compositor
 	bokeh->deleteDataOnFinish();
 	converter.addOperation(bokeh);
 	
-#ifdef COM_DEFOCUS_SEARCH
-	InverseSearchRadiusOperation *search = new InverseSearchRadiusOperation();
-	search->setMaxBlur(data->maxblur);
-	converter.addOperation(search);
-	
-	converter.addLink(radiusOperation->getOutputSocket(0), search->getInputSocket(0));
-#endif
-	
 	VariableSizeBokehBlurOperation *operation = new VariableSizeBokehBlurOperation();
 	if (data->preview)
 		operation->setQuality(COM_QUALITY_LOW);
@@ -122,9 +114,6 @@ void DefocusNode::convertToOperations(NodeConverter &converter, const Compositor
 	
 	converter.addLink(bokeh->getOutputSocket(), operation->getInputSocket(1));
 	converter.addLink(radiusOperation->getOutputSocket(), operation->getInputSocket(2));
-#ifdef COM_DEFOCUS_SEARCH
-	converter.addLink(search->getOutputSocket(), operation->getInputSocket(3));
-#endif
 	
 	if (data->gamco) {
 		GammaCorrectOperation *correct = new GammaCorrectOperation();
