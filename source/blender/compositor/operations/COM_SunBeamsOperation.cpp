@@ -140,7 +140,7 @@ struct BufferLineAccumulator {
 		float falloff_factor;
 
 		if ((int)pt_ofs[0] == 0 && (int)pt_ofs[1] == 0) {
-			copy_v4_v4(output, input->getBuffer() + COM_NUMBER_OF_CHANNELS * ((int)source[0] + input->getWidth() * (int)source[1]));
+			copy_v4_v4(output, input->getBuffer() + COM_NUM_CHANNELS_COLOR * ((int)source[0] + input->getWidth() * (int)source[1]));
 			return;
 		}
 
