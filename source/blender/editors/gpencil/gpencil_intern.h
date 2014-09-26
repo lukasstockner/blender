@@ -52,6 +52,10 @@ typedef enum eGPencil_PaintModes {
 	GP_PAINTMODE_DRAW_POLY
 } eGPencil_PaintModes;
 
+/* stroke editing ----- */
+
+void GPENCIL_OT_select_all(struct wmOperatorType *ot);
+
 /* buttons editing --- */
 
 void GPENCIL_OT_data_add(struct wmOperatorType *ot);

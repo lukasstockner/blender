@@ -53,23 +53,31 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	wmKeyMap *keymap = WM_keymap_find(keyconf, "Grease Pencil", 0, 0);
 	wmKeyMapItem *kmi;
 	
-	/* Draw */
-
+	/* Draw  --------------------------------------- */
 	/* draw */
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", LEFTMOUSE, KM_PRESS, 0, DKEY);
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW);
-
+	
 	/* draw - straight lines */
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", LEFTMOUSE, KM_PRESS, KM_CTRL, DKEY);
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW_STRAIGHT);
-
+	
 	/* draw - poly lines */
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", RIGHTMOUSE, KM_PRESS, KM_CTRL, DKEY);
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW_POLY);
-
+	
 	/* erase */
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", RIGHTMOUSE, KM_PRESS, 0, DKEY);
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_ERASER);
+	
+	/* Selection ------------------------------------- */
+	/* select all */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_all", AKEY, KM_PRESS, 0, DKEY);
+	RNA_enum_set(kmi->ptr, "action", SEL_TOGGLE);
+	
+	// XXX?
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_all", IKEY, KM_PRESS, KM_CTRL, DKEY);
+	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
 }
 
 /* ****************************************** */
@@ -79,6 +87,10 @@ void ED_operatortypes_gpencil(void)
 	/* Drawing ----------------------- */
 	
 	WM_operatortype_append(GPENCIL_OT_draw);
+	
+	/* Editing (Strokes) ------------ */
+	
+	WM_operatortype_append(GPENCIL_OT_select_all);
 	
 	/* Editing (Buttons) ------------ */
 	
