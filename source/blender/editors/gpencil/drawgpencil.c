@@ -200,7 +200,7 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 }
 
 /* draw a given stroke in 3d (i.e. in 3d-space), using simple ogl lines */
-static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness, short debug)
+static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness, short debug, short sflag)
 {
 	bGPDspoint *pt;
 	float curpressure = points[0].pressure;
@@ -233,7 +233,8 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 	glEnd();
 	
 	/* draw debug points of curve on top? */
-	if (debug) {
+	/* XXX: for now, we represent "selected" strokes in the same way as debug, which isn't used anymore */
+	if ((debug) || (sflag & GP_STROKE_SELECT)) {
 		glBegin(GL_POINTS);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++)
 			glVertex3fv(&pt->x);
@@ -442,7 +443,8 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 	}
 	
 	/* draw debug points of curve on top? (original stroke points) */
-	if (debug) {
+	/* XXX: for now, we represent "selected" strokes in the same way as debug, which isn't used anymore */
+	if ((debug) || (sflag & GP_STROKE_SELECT)) {
 		bGPDspoint *pt;
 		int i;
 		
@@ -519,7 +521,7 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 				gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
 			}
 			else {
-				gp_draw_stroke_3d(gps->points, gps->totpoints, lthick, debug);
+				gp_draw_stroke_3d(gps->points, gps->totpoints, lthick, debug, gps->flag);
 			}
 			
 			if (no_xray) {

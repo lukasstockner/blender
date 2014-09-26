@@ -67,6 +67,8 @@ typedef struct bGPDstroke {
 #define GP_STROKE_2DSPACE		(1<<1)
 	/* stroke is in 2d-space (but with special 'image' scaling) */
 #define GP_STROKE_2DIMAGE		(1<<2)
+	/* stroke is selected */
+#define GP_STROKE_SELECT		(1<<3)
 	/* only for use with stroke-buffer (while drawing eraser) */
 #define GP_STROKE_ERASER		(1<<15)
 

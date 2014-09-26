@@ -336,11 +336,17 @@ static void rna_def_gpencil_stroke(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "GPencilStrokePoint");
 	RNA_def_property_ui_text(prop, "Stroke Points", "Stroke data points");
 	rna_def_gpencil_stroke_points_api(brna, prop);
-
+	
+	/* Settings */
 	prop = RNA_def_property(srna, "draw_mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
 	RNA_def_property_enum_items(prop, stroke_draw_mode_items);
 	RNA_def_property_ui_text(prop, "Draw Mode", "");
+	RNA_def_property_update(prop, 0, "rna_GPencil_update");
+	
+	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_STROKE_SELECT);
+	RNA_def_property_ui_text(prop, "Select", "Stroke is selected for viewport editing");
 	RNA_def_property_update(prop, 0, "rna_GPencil_update");
 }
 
