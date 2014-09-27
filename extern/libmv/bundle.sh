@@ -159,7 +159,7 @@ if(WITH_LIBMV)
 
 	list(APPEND INC_SYS
 		../Eigen3
-		\${PNG_INCLUDE_DIR}
+		\${PNG_INCLUDE_DIRS}
 		\${ZLIB_INCLUDE_DIRS}
 	)
 
