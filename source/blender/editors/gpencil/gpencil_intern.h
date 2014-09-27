@@ -47,6 +47,8 @@ struct wmOperatorType;
 /* ***************************************************** */
 /* Internal API */
 
+/* Stroke Coordinates API ------------------------------ */
+
 /** 
  * Check whether a given stroke segment is inside a circular brush 
  *
@@ -70,6 +72,29 @@ bool gp_stroke_inside_circle(const int mval[2], const int UNUSED(mvalo[2]),
 /* gpencil_paint.c */
 void gp_point_to_xy(struct ARegion *ar, struct View2D *v2d, struct rctf *subrect, struct bGPDstroke *gps, struct bGPDspoint *pt,
                     int *r_x, int *r_y);
+					
+/* Stroke Loopers -------------------------------------- */
+
+/* Loop over all visible and selectable strokes 
+ * - gpd: (bGPdata *) Grease Pencil datablock in use
+ * - gps: (bGPDstroke *) identifier for the stroke found
+ */
+#define GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps) \
+	{                                                                   \
+		bGPDlayer *gpl;                                                 \
+		for (gpl = (gpd)->layers.first; gpl; gpl = gpl->next) {         \
+			if (!(gpl->flag & GP_LAYER_HIDE) && (gpl->actframe)) {      \
+				bGPDframe *gpf = gpl->actframe;                         \
+				bGPDstroke *gps;                                        \
+				for (gps = gpf->strokes.first; gps; gps = gps->next) {	
+					
+					/* ... code for operating on this stroke ... */
+				
+#define GP_STROKES_ITER_END \
+				}                                                       \
+			}                                                           \
+		}                                                               \
+	} (void)0
 
 /* ***************************************************** */
 /* Operator Defines */

@@ -94,53 +94,40 @@ static int gpencil_select_poll(bContext *C)
 static int gpencil_select_all_exec(bContext *C, wmOperator *op)
 {
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
-	bGPDlayer *gpl;
 	int action = RNA_enum_get(op->ptr, "action");
 	
 	/* for "toggle", test for existing selected strokes */
 	if (action == SEL_TOGGLE) {
 		action = SEL_SELECT;
 		
-		for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-			if (!(gpl->flag & GP_LAYER_HIDE) && (gpl->actframe)) {
-				bGPDframe *gpf = gpl->actframe;
-				bGPDstroke *gps;
+		GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
+		{
+			if (gps->flag & GP_STROKE_SELECT) {
+				action = SEL_DESELECT;
 				
-				for (gps = gpf->strokes.first; gps; gps = gps->next) {
-					if (gps->flag & GP_STROKE_SELECT) {
-						action = SEL_DESELECT;
-						break;
-					}
-				}
-			}
-			
-			if (action != SEL_SELECT)
+				gpl = NULL; /* XXX: hack to stop iterating further, since we've found our target... */
 				break;
+			}
 		}
+		GP_STROKES_ITER_END;
 	}
 	
 	/* select or deselect all strokes */
-	// xxx: refactor this into a proper looper
-	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-		if (!(gpl->flag & GP_LAYER_HIDE) && (gpl->actframe)) {
-			bGPDframe *gpf = gpl->actframe;
-			bGPDstroke *gps;
-			
-			for (gps = gpf->strokes.first; gps; gps = gps->next) {
-				switch (action) {
-					case SEL_SELECT:	
-						gps->flag |= GP_STROKE_SELECT;
-						break;
-					case SEL_DESELECT:
-						gps->flag &= ~GP_STROKE_SELECT;
-						break;
-					case SEL_INVERT:
-						gps->flag ^= GP_STROKE_SELECT;
-						break;
-				}
-			}
+	GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
+	{
+		switch (action) {
+			case SEL_SELECT:	
+				gps->flag |= GP_STROKE_SELECT;
+				break;
+			case SEL_DESELECT:
+				gps->flag &= ~GP_STROKE_SELECT;
+				break;
+			case SEL_INVERT:
+				gps->flag ^= GP_STROKE_SELECT;
+				break;
 		}
 	}
+	GP_STROKES_ITER_END;
 	
 	/* updates */
 	WM_event_add_notifier(C, NC_GPENCIL | NA_SELECTED, NULL);
@@ -243,7 +230,6 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	
 	Scene *scene = CTX_data_scene(C);
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
-	bGPDlayer *gpl;
 	
 	const int mx = RNA_int_get(op->ptr, "x");
 	const int my = RNA_int_get(op->ptr, "y");
@@ -290,18 +276,12 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	
 	
 	/* find visible strokes, and select if hit */
-	// XXX: replace this looper with a proper method
-	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-		if (!(gpl->flag & GP_LAYER_HIDE) && (gpl->actframe)) {
-			bGPDframe *gpf = gpl->actframe;
-			bGPDstroke *gps;
-			
-			for (gps = gpf->strokes.first; gps; gps = gps->next) {
-				changed |= gp_stroke_do_circle_sel(gps, ar, &ar->v2d, subrect, 
-				                                   mx, my, radius, select, &rect);
-			}
-		}
+	GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
+	{
+		changed |= gp_stroke_do_circle_sel(gps, ar, &ar->v2d, subrect, 
+										   mx, my, radius, select, &rect);
 	}
+	GP_STROKES_ITER_END;
 	
 	/* updates */
 	//if (changed)
