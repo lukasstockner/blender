@@ -33,12 +33,46 @@
 
 /* internal exports only */
 
+struct bGPdata;
+struct bGPDstroke;
+struct bGPDspoint;
+
+struct ARegion;
+struct View2D;
+struct rctf;
+struct wmOperatorType;
+
+
+
+/* ***************************************************** */
+/* Internal API */
+
+/** 
+ * Check whether a given stroke segment is inside a circular brush 
+ *
+ * \param mval     The current screen-space coordinates (midpoint) of the brush
+ * \param mvalo    The previous screen-space coordinates (midpoint) of the brush (NOT CURRENTLY USED)
+ * \param rad      The radius of the brush
+ *
+ * \param x0, y0   The screen-space x and y coordinates of the start of the stroke segment
+ * \param x1, y1   The screen-space x and y coordinates of the end of the stroke segment
+ */
+bool gp_stroke_inside_circle(const int mval[2], const int UNUSED(mvalo[2]),
+                             int rad, int x0, int y0, int x1, int y1);
+
+/**
+ * Convert a Grease Pencil coordinate (i.e. can be 2D or 3D) to screenspace (2D)
+ *
+ * \param subrect   For the camera view in the 3D Viewport
+ * \param[out] r_x  The screen-space x-coordinate of the point
+ * \param[out] r_y  The screen-space y-coordinate of the point
+ */
+/* gpencil_paint.c */
+void gp_point_to_xy(struct ARegion *ar, struct View2D *v2d, struct rctf *subrect, struct bGPDstroke *gps, struct bGPDspoint *pt,
+                    int *r_x, int *r_y);
 
 /* ***************************************************** */
 /* Operator Defines */
-
-struct bGPdata;
-struct wmOperatorType;
 
 /* drawing ---------- */
 
@@ -55,6 +89,7 @@ typedef enum eGPencil_PaintModes {
 /* stroke editing ----- */
 
 void GPENCIL_OT_select_all(struct wmOperatorType *ot);
+void GPENCIL_OT_select_circle(struct wmOperatorType *ot);
 
 /* buttons editing --- */
 

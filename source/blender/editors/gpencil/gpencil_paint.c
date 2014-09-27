@@ -875,8 +875,8 @@ static bool gp_stroke_eraser_is_occluded(tGPsdata *p,
 }
 
 /* eraser tool - check if part of stroke occurs within last segment drawn by eraser */
-static short gp_stroke_eraser_strokeinside(const int mval[2], const int UNUSED(mvalo[2]),
-                                           int rad, int x0, int y0, int x1, int y1)
+bool gp_stroke_inside_circle(const int mval[2], const int UNUSED(mvalo[2]),
+                             int rad, int x0, int y0, int x1, int y1)
 {
 	/* simple within-radius check for now */
 	const float mval_fl[2]     = {mval[0], mval[1]};
@@ -891,8 +891,8 @@ static short gp_stroke_eraser_strokeinside(const int mval[2], const int UNUSED(m
 	return false;
 } 
 
-static void gp_point_to_xy(ARegion *ar, View2D *v2d, rctf *subrect, bGPDstroke *gps, bGPDspoint *pt,
-                           int *r_x, int *r_y)
+void gp_point_to_xy(ARegion *ar, View2D *v2d, rctf *subrect, bGPDstroke *gps, bGPDspoint *pt,
+                    int *r_x, int *r_y)
 {
 	int xyval[2];
 
@@ -971,7 +971,7 @@ static void gp_stroke_eraser_dostroke(tGPsdata *p,
 				 * eraser region  (either within stroke painted, or on its lines)
 				 *  - this assumes that linewidth is irrelevant
 				 */
-				if (gp_stroke_eraser_strokeinside(mval, mvalo, rad, x0, y0, x1, y1)) {
+				if (gp_stroke_inside_circle(mval, mvalo, rad, x0, y0, x1, y1)) {
 					if ((gp_stroke_eraser_is_occluded(p, pt1, x0, y0) == false) ||
 					    (gp_stroke_eraser_is_occluded(p, pt2, x1, y1) == false))
 					{

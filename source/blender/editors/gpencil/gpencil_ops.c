@@ -75,9 +75,12 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_all", AKEY, KM_PRESS, 0, DKEY);
 	RNA_enum_set(kmi->ptr, "action", SEL_TOGGLE);
 	
-	// XXX?
+	// XXX? This is quite awkward to use...
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_all", IKEY, KM_PRESS, KM_CTRL, DKEY);
 	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
+	
+	/* circle select */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_select_circle", CKEY, KM_PRESS, 0, DKEY);
 }
 
 /* ****************************************** */
@@ -91,6 +94,7 @@ void ED_operatortypes_gpencil(void)
 	/* Editing (Strokes) ------------ */
 	
 	WM_operatortype_append(GPENCIL_OT_select_all);
+	WM_operatortype_append(GPENCIL_OT_select_circle);
 	
 	/* Editing (Buttons) ------------ */
 	
