@@ -305,7 +305,7 @@ AutoTrackContext *BKE_autotrack_context_new(MovieClip *clip,
 
 	/* Create per-track tracking options. */
 	context->options =
-		MEM_mallocN(sizeof(AutoTrackOptions) * context->num_tracks,
+		MEM_callocN(sizeof(AutoTrackOptions) * context->num_tracks,
 		            "auto track options");
 	i = track_index = 0;
 	for (track = tracksbase->first;

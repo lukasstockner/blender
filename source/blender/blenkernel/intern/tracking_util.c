@@ -689,13 +689,22 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
 		int width = region->max[0] - region->min[0],
 		    height = region->max[1] - region->min[1];
 
+		/* If the requested region goes outside of the actual frame we still
+		 * return the requested region size, but only fill it's partially with
+		 * the data we can.
+		 */
+		int clamped_origin_x = max_ii((int)region->min[0], 0),
+			clamped_origin_y = max_ii((int)region->min[1], 0);
+		int clamped_width = min_ii(width, orig_ibuf->x - region->min[0] - 1),
+			clamped_height = min_ii(height, orig_ibuf->y - region->min[1] - 1);
+
 		final_ibuf = IMB_allocImBuf(width, height, 32, IB_rectfloat);
 
 		if (orig_ibuf->rect_float != NULL) {
 			IMB_rectcpy(final_ibuf, orig_ibuf,
 			            0, 0,
 			            region->min[0], region->min[1],
-			            width, height);
+			            clamped_width, clamped_height);
 		}
 		else {
 			int y;
@@ -703,11 +712,11 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
 			 * here. Probably Libmv is better to work in the linear space,
 			 * but keep sRGB space here for compatibility for now.
 			 */
-			for (y = 0; y < height; ++y) {
+			for (y = 0; y < clamped_height; ++y) {
 				int x;
-				for (x = 0; x < width; ++x) {
-					int src_x = x + region->min[0],
-					    src_y = y + region->min[1];
+				for (x = 0; x < clamped_width; ++x) {
+					int src_x = x + clamped_origin_x,
+					    src_y = y + clamped_origin_y;
 					int dst_index = (y * width + x) * 4,
 						src_index = (src_y * orig_ibuf->x + src_x) * 4;
 					rgba_uchar_to_float(final_ibuf->rect_float + dst_index,
