@@ -974,6 +974,9 @@ void recalcData(TransInfo *t)
 	else if (t->options & CTX_PAINT_CURVE) {
 		flushTransPaintCurve(t);
 	}
+	else if (t->options & CTX_GPENCIL_STROKES) {
+		/* pass? */
+	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		recalcData_image(t);
 	}
