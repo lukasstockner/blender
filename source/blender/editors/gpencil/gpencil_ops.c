@@ -42,6 +42,7 @@
 #include "RNA_access.h"
 
 #include "ED_gpencil.h"
+#include "ED_transform.h"
 
 #include "gpencil_intern.h"
 
@@ -83,7 +84,17 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "GPENCIL_OT_select_circle", CKEY, KM_PRESS, 0, DKEY);
 	
 	/* Editing ----------------------------------------- */
+	// XXX: need to use move + copy here...
 	WM_keymap_add_item(keymap, "GPENCIL_OT_strokes_copy", EKEY, KM_PRESS, 0, DKEY);
+	
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, DKEY);
+	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
+	
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_rotate", RKEY, KM_PRESS, 0, DKEY);
+	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
+	
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_resize", SKEY, KM_PRESS, 0, DKEY);
+	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 }
 
 /* ****************************************** */

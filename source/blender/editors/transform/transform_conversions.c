@@ -107,6 +107,7 @@
 #include "ED_uvedit.h"
 #include "ED_clip.h"
 #include "ED_mask.h"
+#include "ED_gpencil.h"
 
 #include "WM_api.h"  /* for WM_event_add_notifier to deal with stabilization nodes */
 #include "WM_types.h"
@@ -7198,6 +7199,110 @@ void flushTransPaintCurve(TransInfo *t)
 }
 
 
+static void createTransGPencil(bContext *C, TransInfo *t)
+{
+	Object *ob = CTX_data_active_object(C);
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDlayer *gpl;
+	TransData *td = NULL;
+	float mtx[3][3], smtx[3][3];
+	
+	/* == Grease Pencil Strokes to Transform Data ==
+	 * Grease Pencil stroke points can be a mixture of 2D (screen-space),
+	 * or 3D coordinates. However, they're always saved as 3D points.
+	 * For now, we just do these without creating TransData2D for the 2D
+	 * strokes. This may cause issues in future though.
+	 */
+	t->total = 0;
+	
+	if (gpd == NULL)
+		return;
+	
+	/* First Pass: Count the number of datapoints required for the strokes, 
+	 * (and additional info about the configuration - e.g. 2D/3D?)
+	 */
+	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+		/* only editable and visible layers are considered */
+		if ((gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) == 0 &&
+		    (gpl->actframe != NULL))
+		{
+			bGPDframe *gpf = gpl->actframe;
+			bGPDstroke *gps;
+			
+			/* only selected strokes are considered */
+			for (gps = gpf->strokes.first; gps; gps = gps->next) {
+				if (gps->flag & GP_STROKE_SELECT) {
+					t->total += gps->totpoints;
+					
+					// TODO: 2D vs 3D?
+				}
+			}
+		}
+	}
+	
+	/* Stop trying if nothing selected */
+	if (t->total == 0) {
+		return;
+	}
+	
+	/* Allocate memory for data */
+	t->data = MEM_callocN(t->total * sizeof(TransData), "TransData(GPencil)");
+	td = t->data;
+	
+	unit_m3(smtx);
+	unit_m3(mtx);
+	
+	/* Second Pass: Build transdata array */
+	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+		/* only editable and visible layers are considered */
+		if ((gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) == 0 &&
+		    (gpl->actframe != NULL))
+		{
+			bGPDframe *gpf = gpl->actframe;
+			bGPDstroke *gps;
+			
+			/* only selected strokes are considered */
+			for (gps = gpf->strokes.first; gps; gps = gps->next) {
+				if ((gps->flag & GP_STROKE_SELECT) && (gps->totpoints)) {
+					bGPDspoint *pt;
+					int i;
+					
+					const float ninv = 1.0f / gps->totpoints;
+					float center[3] = {0.0f};
+					
+					/* compute midpoint of stroke */
+					for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+						madd_v3_v3v3fl(center, center, &pt->x, ninv);
+					}
+					
+					/* add all points... */
+					for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++, td++) {
+						copy_v3_v3(td->iloc, &pt->x);
+						copy_v3_v3(td->center, center); // XXX: what about  t->around == local?
+						
+						td->loc = &pt->x;
+						td->flag = TD_SELECTED;
+						
+						/* configure 2D points so that they don't play up... */
+						if (gps->flag & (GP_STROKE_2DSPACE | GP_STROKE_2DIMAGE)) {
+							td->protectflag = OB_LOCK_LOCZ | OB_LOCK_ROTZ | OB_LOCK_SCALEZ;
+							// XXX: matrices may need to be different?
+						}
+						
+						copy_m3_m3(td->smtx, smtx);
+						copy_m3_m3(td->mtx, mtx);
+						unit_m3(td->axismtx); // XXX?
+						
+						if (ob && (ob->gpd == gpd))
+							td->ob = ob;
+					}
+				}
+			}
+		}
+	}
+}
+
+
 void createTransData(bContext *C, TransInfo *t)
 {
 	Scene *scene = t->scene;
@@ -7217,6 +7322,10 @@ void createTransData(bContext *C, TransInfo *t)
 			set_prop_dist(t, 1);
 			sort_trans_data_dist(t);
 		}
+	}
+	else if (t->options & CTX_GPENCIL_STROKES) {
+		t->flag |= T_POINTS; // XXX...
+		createTransGPencil(C, t);
 	}
 	else if (t->spacetype == SPACE_IMAGE) {
 		t->flag |= T_POINTS | T_2D_EDIT;
