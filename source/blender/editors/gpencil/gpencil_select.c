@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2014, Blender Foundation, Joshua Leung
+ * The Original Code is Copyright (C) 2014, Blender Foundation
  * This is a new part of Blender
  *
  * Contributor(s): Joshua Leung
@@ -39,18 +39,16 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_anim_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_gpencil_types.h"
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
-#include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_library.h"
@@ -58,7 +56,6 @@
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_tracking.h"
 
 #include "UI_interface.h"
 
@@ -244,6 +241,7 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	
 	bool changed = false;
 	
+	
 	/* for 3D View, init depth buffer stuff used for 3D projections... */
 	if (sa == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "No active area");
@@ -274,7 +272,6 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	rect.ymax = my + radius;
 	
 	
-	
 	/* find visible strokes, and select if hit */
 	GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
 	{
@@ -284,8 +281,10 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	GP_STROKES_ITER_END;
 	
 	/* updates */
-	//if (changed)
-	WM_event_add_notifier(C, NC_GPENCIL | NA_SELECTED, NULL);
+	if (changed) {
+		WM_event_add_notifier(C, NC_GPENCIL | NA_SELECTED, NULL);
+	}
+	
 	return OPERATOR_FINISHED;
 }
 
