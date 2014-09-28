@@ -93,6 +93,11 @@ static int gpencil_select_all_exec(bContext *C, wmOperator *op)
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	int action = RNA_enum_get(op->ptr, "action");
 	
+	if (gpd == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
+		return OPERATOR_CANCELLED;
+	}
+	
 	/* for "toggle", test for existing selected strokes */
 	if (action == SEL_TOGGLE) {
 		action = SEL_SELECT;
@@ -241,13 +246,17 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	
 	bool changed = false;
 	
-	
-	/* for 3D View, init depth buffer stuff used for 3D projections... */
+	/* sanity checks */
+	if (gpd == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
+		return OPERATOR_CANCELLED;
+	}
 	if (sa == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "No active area");
 		return OPERATOR_CANCELLED;
 	}
 	
+	/* for 3D View, init depth buffer stuff used for 3D projections... */
 	if (sa->spacetype == SPACE_VIEW3D) {
 		wmWindow *win = CTX_wm_window(C);
 		View3D *v3d = (View3D *)CTX_wm_space_data(C);

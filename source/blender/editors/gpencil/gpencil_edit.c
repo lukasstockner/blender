@@ -346,10 +346,15 @@ static int gp_strokes_copy_poll(bContext *C)
 	return (gpl && gpl->actframe);
 }
 
-static int gp_strokes_copy_exec(bContext *C, wmOperator *UNUSED(op))
+static int gp_strokes_copy_exec(bContext *C, wmOperator *op)
 {
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	bGPDlayer *gpl;
+	
+	if (gpd == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
+		return OPERATOR_CANCELLED;
+	}
 	
 	/* for each visible (and editable) layer's selected strokes,
 	 * copy the strokes into a temporary buffer, then append
@@ -367,9 +372,12 @@ static int gp_strokes_copy_exec(bContext *C, wmOperator *UNUSED(op))
 			for (gps = gpf->strokes.first; gps; gps = gps->next) {
 				if (gps->flag & GP_STROKE_SELECT) {
 					/* make copy of stroke */
-					bGPDstroke *gpsd = MEM_dupallocN(gps);
+					bGPDstroke *gpsd;
+					
+					gpsd = MEM_dupallocN(gps);
 					gpsd->points = MEM_dupallocN(gps->points);
 					
+					gpsd->next = gpsd->prev = NULL;
 					BLI_addtail(&new_strokes, gpsd);
 					
 					/* deselect original stroke, or else the originals get moved too 
