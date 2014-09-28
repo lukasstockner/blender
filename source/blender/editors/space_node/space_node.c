@@ -515,6 +515,11 @@ static void node_area_listener(bScreen *sc, ScrArea *sa, wmNotifier *wmn)
 				ED_area_tag_refresh(sa);
 			}
 			break;
+		case NC_GPENCIL:
+			if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
+				ED_area_tag_refresh(sa);
+			}
+			break;
 	}
 }
 
