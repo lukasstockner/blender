@@ -5850,6 +5850,9 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
 	}
+	else if (t->options & CTX_GPENCIL_STROKES) {
+		/* pass */
+	}
 	else if (t->options & CTX_PAINT_CURVE) {
 		/* pass */
 	}
@@ -7201,7 +7204,6 @@ void flushTransPaintCurve(TransInfo *t)
 
 static void createTransGPencil(bContext *C, TransInfo *t)
 {
-	Object *ob = CTX_data_active_object(C);
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	bGPDlayer *gpl;
 	TransData *td = NULL;
@@ -7292,9 +7294,6 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 						copy_m3_m3(td->smtx, smtx);
 						copy_m3_m3(td->mtx, mtx);
 						unit_m3(td->axismtx); // XXX?
-						
-						if (ob && (ob->gpd == gpd))
-							td->ob = ob;
 					}
 				}
 			}
