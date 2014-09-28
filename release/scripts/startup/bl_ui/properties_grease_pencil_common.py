@@ -31,6 +31,7 @@ class GreasePencilPanel():
 
         col = layout.column(align=True)
 
+        col.label(text="Draw:")
         row = col.row(align=True)
         row.operator("gpencil.draw", text="Draw").mode = 'DRAW'
         row.operator("gpencil.draw", text="Line").mode = 'DRAW_STRAIGHT'
@@ -42,7 +43,27 @@ class GreasePencilPanel():
         row = col.row(align=True)
         row.prop(context.tool_settings, "use_grease_pencil_sessions")
 
+        col.separator()
+		
+        col.label(text="Select Strokes:")
+        subcol = col.column(align=True)
+        subcol.operator("gpencil.select_all", text="Select All")
+        subcol.operator("gpencil.select_circle")
+
+        col.separator()
+
+        col.label(text="Edit Strokes:")
+        col.operator("gpencil.strokes_duplicate", text="Duplicate")
+
+        col.separator()
+
+        subcol = col.column(align=True)
+        subcol.operator("transform.translate").gpencil_strokes = True   # icon='MAN_TRANS'
+        subcol.operator("transform.rotate").gpencil_strokes = True      # icon='MAN_ROT'
+        subcol.operator("transform.resize").gpencil_strokes = True      # icon='MAN_SCALE'
+
         if context.space_data.type == 'VIEW_3D':
+            col.separator()
             col.separator()
 
             col.label(text="Measure:")
