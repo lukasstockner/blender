@@ -84,8 +84,7 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "GPENCIL_OT_select_circle", CKEY, KM_PRESS, 0, DKEY);
 	
 	/* Editing ----------------------------------------- */
-	// XXX: need to use move + copy here...
-	WM_keymap_add_item(keymap, "GPENCIL_OT_strokes_copy", EKEY, KM_PRESS, 0, DKEY);
+	WM_keymap_add_item(keymap, "GPENCIL_OT_strokes_duplicate", EKEY, KM_PRESS, 0, DKEY);
 	
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, DKEY);
 	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
@@ -124,6 +123,19 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_convert);
 	
 	/* Editing (Time) --------------- */
+}
+
+void ED_operatormacros_gpencil(void)
+{
+	wmOperatorType *ot;
+	wmOperatorTypeMacro *otmacro;
+
+	ot = WM_operatortype_append_macro("GPENCIL_OT_strokes_duplicate", "Duplicate Strokes",
+	                                  "Make copies of the selected Grease Pencil strokes and move them",
+	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
+	WM_operatortype_macro_define(ot, "GPENCIL_OT_strokes_copy");
+	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	RNA_enum_set(otmacro->ptr, "gpencil_strokes", true);
 }
 
 /* ****************************************** */

@@ -72,7 +72,9 @@ struct bGPdata  *ED_gpencil_data_get_active_v3d(struct Scene *scene, struct View
 /* ----------- Grease Pencil Operators ----------------- */
 
 void ED_keymap_gpencil(struct wmKeyConfig *keyconf);
+
 void ED_operatortypes_gpencil(void);
+void ED_operatormacros_gpencil(void);
 
 /* ------------ Grease-Pencil Drawing API ------------------ */
 /* drawgpencil.c */
