@@ -46,6 +46,8 @@ struct BlenderCamera {
 
 	float2 pixelaspect;
 
+	float aperture_ratio;
+
 	PanoramaType panorama_type;
 	float fisheye_fov;
 	float fisheye_lens;
@@ -167,6 +169,7 @@ static void blender_camera_from_object(BlenderCamera *bcam, BL::Object b_ob, boo
 		bcam->apertureblades = RNA_int_get(&ccamera, "aperture_blades");
 		bcam->aperturerotation = RNA_float_get(&ccamera, "aperture_rotation");
 		bcam->focaldistance = blender_camera_focal_distance(b_ob, b_camera);
+		bcam->aperture_ratio = RNA_float_get(&ccamera, "aperture_ratio");
 
 		bcam->shift.x = b_camera.shift_x();
 		bcam->shift.y = b_camera.shift_y();
@@ -328,6 +331,9 @@ static void blender_camera_sync(Camera *cam, BlenderCamera *bcam, int width, int
 	cam->fisheye_fov = bcam->fisheye_fov;
 	cam->fisheye_lens = bcam->fisheye_lens;
 
+	/* anamorphic lens bokeh */
+	cam->aperture_ratio = bcam->aperture_ratio;
+
 	/* perspective */
 	cam->fov = 2.0f * atanf((0.5f * sensor_size) / bcam->lens / aspectratio);
 	cam->focaldistance = bcam->focaldistance;
@@ -384,6 +390,7 @@ void BlenderSync::sync_camera(BL::RenderSettings b_render, BL::Object b_override
 	/* sync */
 	Camera *cam = scene->camera;
 	blender_camera_sync(cam, &bcam, width, height);
+	scene->camera->use_camera_in_volume = experimental;
 }
 
 void BlenderSync::sync_camera_motion(BL::Object b_ob, float motion_time)
@@ -548,6 +555,7 @@ void BlenderSync::sync_view(BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, int 
 	blender_camera_border(&bcam, b_scene.render(), b_scene, b_v3d, b_rv3d, width, height);
 
 	blender_camera_sync(scene->camera, &bcam, width, height);
+	scene->camera->use_camera_in_volume = experimental;
 }
 
 BufferParams BlenderSync::get_buffer_params(BL::RenderSettings b_render, BL::Scene b_scene, BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, Camera *cam, int width, int height)

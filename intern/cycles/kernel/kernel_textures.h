@@ -36,7 +36,7 @@ KERNEL_TEX(float4, texture_float4, __objects)
 KERNEL_TEX(float4, texture_float4, __objects_vector)
 
 /* triangles */
-KERNEL_TEX(float, texture_float, __tri_shader)
+KERNEL_TEX(uint, texture_uint, __tri_shader)
 KERNEL_TEX(float4, texture_float4, __tri_vnormal)
 KERNEL_TEX(float4, texture_float4, __tri_vindex)
 KERNEL_TEX(float4, texture_float4, __tri_verts)
@@ -173,10 +173,9 @@ KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_095)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_096)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_097)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_098)
-KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_099)
 
 /* Kepler and above */
-#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 300)
+KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_099)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_100)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_101)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_102)
@@ -228,7 +227,6 @@ KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_147)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_148)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_149)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_150)
-#endif
 
 /* packed image (opencl) */
 KERNEL_TEX(uchar4, texture_uchar4, __tex_image_packed)

@@ -61,6 +61,7 @@ struct wmEvent;
 struct wmTimer;
 struct ARegion;
 struct ReportList;
+struct EditBone;
 
 /* transinfo->redraw */
 typedef enum {
@@ -129,15 +130,15 @@ typedef struct TransDataExtension {
 	// float drotAxis[3];	 /* Initial object drotAxis, TODO: not yet implemented */
 	float dquat[4];		 /* Initial object dquat */
 	float dscale[3];     /* Initial object dscale */
-	float *rot;          /* Rotation of the data to transform (Faculative)                                 */
+	float *rot;          /* Rotation of the data to transform                                              */
 	float  irot[3];      /* Initial rotation                                                               */
-	float *quat;         /* Rotation quaternion of the data to transform (Faculative)                      */
+	float *quat;         /* Rotation quaternion of the data to transform                                   */
 	float  iquat[4];	 /* Initial rotation quaternion                                                    */
-	float *rotAngle;	 /* Rotation angle of the data to transform (Faculative)                           */
+	float *rotAngle;	 /* Rotation angle of the data to transform                                        */
 	float  irotAngle;	 /* Initial rotation angle                                                         */
-	float *rotAxis;		 /* Rotation axis of the data to transform (Faculative)                            */
+	float *rotAxis;		 /* Rotation axis of the data to transform                                         */
 	float  irotAxis[4];	 /* Initial rotation axis                                                          */
-	float *size;         /* Size of the data to transform (Faculative)                                     */
+	float *size;         /* Size of the data to transform                                                  */
 	float  isize[3];	 /* Initial size                                                                   */
 	float  obmat[4][4];	 /* Object matrix */
 	float  l_smtx[3][3]; /* use instead of td->smtx, It is the same but without the 'bone->bone_mat', see TD_PBONE_LOCAL_MTX_C */
@@ -250,6 +251,17 @@ typedef struct VertSlideData {
 
 	int curr_sv_index;
 } VertSlideData;
+
+typedef struct BoneInitData {
+	struct EditBone *bone;
+	float tail[3];
+	float rad_tail;
+	float roll;
+	float head[3];
+	float dist;
+	float xwidth;
+	float zwidth;
+} BoneInitData;
 
 typedef struct TransData {
 	float  dist;         /* Distance needed to affect element (for Proportionnal Editing)                  */
@@ -520,6 +532,8 @@ void flushTransNodes(TransInfo *t);
 void flushTransSeq(TransInfo *t);
 void flushTransTracking(TransInfo *t);
 void flushTransMasking(TransInfo *t);
+void flushTransPaintCurve(TransInfo *t);
+void restoreBones(TransInfo *t);
 
 /*********************** exported from transform_manipulator.c ********** */
 bool gimbal_axis(struct Object *ob, float gmat[3][3]); /* return 0 when no gimbal for selection */
@@ -680,7 +694,6 @@ void freeVertSlideVerts(TransInfo *t);
 
 
 /* TODO. transform_queries.c */
-bool checkUseLocalCenter_GraphEdit(TransInfo *t);
 bool checkUseAxisMatrix(TransInfo *t);
 
 #endif

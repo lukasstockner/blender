@@ -362,7 +362,7 @@ ccl_device_inline float3 microfacet_sample_stretched(
  * E. Heitz, Research Report 2014
  *
  * Anisotropy is only supported for reflection currently, but adding it for
- * tranmission is just a matter of copying code from reflection if needed. */
+ * transmission is just a matter of copying code from reflection if needed. */
 
 ccl_device int bsdf_microfacet_ggx_setup(ShaderClosure *sc)
 {
@@ -387,7 +387,7 @@ ccl_device int bsdf_microfacet_ggx_aniso_setup(ShaderClosure *sc)
 ccl_device int bsdf_microfacet_ggx_refraction_setup(ShaderClosure *sc)
 {
 	sc->data0 = clamp(sc->data0, 0.0f, 1.0f); /* alpha_x */
-	sc->data1 = sc->data1; /* alpha_y */
+	sc->data1 = sc->data0; /* alpha_y */
 
 	sc->type = CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
 
@@ -512,6 +512,10 @@ ccl_device float3 bsdf_microfacet_ggx_eval_transmit(const ShaderClosure *sc, con
 	float3 Ht = normalize(ht);
 	float cosHO = dot(Ht, I);
 	float cosHI = dot(Ht, omega_in);
+
+	/* those situations makes chi+ terms in eq. 33, 34 be zero */
+	if(dot(Ht, N) <= 0.0f || cosHO * cosNO <= 0.0f || cosHI * cosNI <= 0.0f)
+		return make_float3(0.0f, 0.0f, 0.0f);
 
 	float D, G1o, G1i;
 
@@ -734,7 +738,7 @@ ccl_device int bsdf_microfacet_beckmann_aniso_setup(ShaderClosure *sc)
 ccl_device int bsdf_microfacet_beckmann_refraction_setup(ShaderClosure *sc)
 {
 	sc->data0 = clamp(sc->data0, 0.0f, 1.0f); /* alpha_x */
-	sc->data1 = sc->data1; /* alpha_y */
+	sc->data1 = sc->data0; /* alpha_y */
 
 	sc->type = CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID;
 	return SD_BSDF|SD_BSDF_HAS_EVAL|SD_BSDF_GLOSSY;
@@ -862,7 +866,11 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(const ShaderClosure *sc
 	float cosHO = dot(Ht, I);
 	float cosHI = dot(Ht, omega_in);
 
-	/* eq. 33: first we calculate D(m) with m=Ht: */
+	/* those situations makes chi+ terms in eq. 25, 27 be zero */
+	if(dot(Ht, N) <= 0.0f || cosHO * cosNO <= 0.0f || cosHI * cosNI <= 0.0f)
+		return make_float3(0.0f, 0.0f, 0.0f);
+
+	/* eq. 25: first we calculate D(m) with m=Ht: */
 	float alpha2 = alpha_x * alpha_y;
 	float cosThetaM = min(dot(N, Ht), 1.0f);
 	float cosThetaM2 = cosThetaM * cosThetaM;

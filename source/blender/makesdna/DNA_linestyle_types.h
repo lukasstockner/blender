@@ -199,6 +199,10 @@ typedef struct LineStyleThicknessModifier_DistanceFromObject {
 #define LS_MODIFIER_MATERIAL_SPEC_B      8
 #define LS_MODIFIER_MATERIAL_SPEC_HARD   9
 #define LS_MODIFIER_MATERIAL_ALPHA      10
+#define LS_MODIFIER_MATERIAL_LINE       11
+#define LS_MODIFIER_MATERIAL_LINE_R     12
+#define LS_MODIFIER_MATERIAL_LINE_G     13
+#define LS_MODIFIER_MATERIAL_LINE_B     14
 
 typedef struct LineStyleColorModifier_Material {
 	struct LineStyleModifier modifier;
@@ -428,7 +432,7 @@ typedef struct FreestyleLineStyle {
 	unsigned short split_dash2, split_gap2;
 	unsigned short split_dash3, split_gap3;
 	int sort_key, integration_type;
- 	float texstep;
+	float texstep;
 	short texact, pr_texture;
 	short use_nodes, pad;
 	unsigned short dash1, gap1, dash2, gap2, dash3, gap3;

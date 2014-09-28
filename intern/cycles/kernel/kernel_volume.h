@@ -176,6 +176,8 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 	/* compute extinction at the start */
 	float t = 0.0f;
 
+	float3 sum = make_float3(0.0f, 0.0f, 0.0f);
+
 	for(int i = 0; i < max_steps; i++) {
 		/* advance to new position */
 		float new_t = min(ray->t, (i+1) * step);
@@ -190,20 +192,26 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 
 		/* compute attenuation over segment */
 		if(volume_shader_extinction_sample(kg, sd, state, new_P, &sigma_t)) {
-			/* todo: we could avoid computing expf() for each step by summing,
-			 * because exp(a)*exp(b) = exp(a+b), but we still want a quick
-			 * tp_eps check too */
-			tp *= volume_color_transmittance(sigma_t, new_t - t);
+			/* Compute expf() only for every Nth step, to save some calculations
+			 * because exp(a)*exp(b) = exp(a+b), also do a quick tp_eps check then. */
 
-			/* stop if nearly all light blocked */
-			if(tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps)
-				break;
+			sum += (-sigma_t * (new_t - t));
+			if((i & 0x07) == 0) { /* ToDo: Other interval? */
+				tp = *throughput * make_float3(expf(sum.x), expf(sum.y), expf(sum.z));
+
+				/* stop if nearly all light is blocked */
+				if(tp.x < tp_eps && tp.y < tp_eps && tp.z < tp_eps)
+					break;
+			}
 		}
 
 		/* stop if at the end of the volume */
 		t = new_t;
-		if(t == ray->t)
+		if(t == ray->t) {
+			/* Update throughput in case we haven't done it above */
+			tp = *throughput * make_float3(expf(sum.x), expf(sum.y), expf(sum.z));
 			break;
+		}
 	}
 
 	*throughput = tp;
@@ -326,6 +334,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(KernelGloba
 	float t = ray->t;
 	float3 new_tp;
 
+#ifdef __VOLUME_SCATTER__
 	/* randomly scatter, and if we do t is shortened */
 	if(closure_flag & SD_SCATTER) {
 		/* extinction coefficient */
@@ -379,7 +388,9 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(KernelGloba
 			new_tp = *throughput * transmittance / pdf;
 		}
 	}
-	else if(closure_flag & SD_ABSORPTION) {
+	else 
+#endif
+	if(closure_flag & SD_ABSORPTION) {
 		/* absorption only, no sampling needed */
 		float3 transmittance = volume_color_transmittance(coeff.sigma_a, t);
 		new_tp = *throughput * transmittance;
@@ -456,6 +467,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 			bool scatter = false;
 
 			/* distance sampling */
+#ifdef __VOLUME_SCATTER__
 			if((closure_flag & SD_SCATTER) || (has_scatter && (closure_flag & SD_ABSORPTION))) {
 				has_scatter = true;
 
@@ -491,7 +503,9 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
 					xi = 1.0f - (1.0f - xi)/sample_transmittance;
 				}
 			}
-			else if(closure_flag & SD_ABSORPTION) {
+			else 
+#endif
+			if(closure_flag & SD_ABSORPTION) {
 				/* absorption only, no sampling needed */
 				float3 sigma_a = coeff.sigma_a;
 
@@ -546,13 +560,12 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
  * between the endpoints. distance sampling is used to decide if we will
  * scatter or not. */
 ccl_device_noinline VolumeIntegrateResult kernel_volume_integrate(KernelGlobals *kg,
-	PathState *state, ShaderData *sd, Ray *ray, PathRadiance *L, float3 *throughput, RNG *rng)
+	PathState *state, ShaderData *sd, Ray *ray, PathRadiance *L, float3 *throughput, RNG *rng, bool heterogeneous)
 {
 	/* workaround to fix correlation bug in T38710, can find better solution
 	 * in random number generator later, for now this is done here to not impact
 	 * performance of rendering without volumes */
 	RNG tmp_rng = cmj_hash(*rng, state->rng_offset);
-	bool heterogeneous = volume_stack_is_heterogeneous(kg, state->volume_stack);
 
 	shader_setup_from_volume(kg, sd, ray, state->bounce, state->transparent_bounce);
 
@@ -582,11 +595,7 @@ typedef struct VolumeStep {
 } VolumeStep;
 
 typedef struct VolumeSegment {
-#ifdef __KERNEL_CPU__
 	VolumeStep *steps;			/* recorded steps */
-#else
-	VolumeStep steps[1];		/* recorded steps */
-#endif
 	int numsteps;				/* number of steps */
 	int closure_flag;			/* accumulated closure flags from all steps */
 
@@ -601,7 +610,7 @@ typedef struct VolumeSegment {
  * it would be nice if we could only record up to the point that we need to scatter,
  * but the entire segment is needed to do always scattering, rather than probalistically
  * hitting or missing the volume. if we don't know the transmittance at the end of the
- * volume we can't generate stratitied distance samples up to that transmittance */
+ * volume we can't generate stratified distance samples up to that transmittance */
 ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *state,
 	Ray *ray, ShaderData *sd, VolumeSegment *segment, bool heterogeneous)
 {
@@ -633,11 +642,8 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 
 	segment->closure_flag = 0;
 	segment->numsteps = 0;
-#ifdef __KERNEL_CPU__
+
 	segment->steps = (VolumeStep*)malloc(sizeof(VolumeStep)*max_steps);
-#else
-	kernel_assert(max_steps == 1);
-#endif
 
 	VolumeStep *step = segment->steps;
 
@@ -723,9 +729,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 
 ccl_device void kernel_volume_decoupled_free(KernelGlobals *kg, VolumeSegment *segment)
 {
-#ifdef __KERNEL_CPU__
 	free(segment->steps);
-#endif
 }
 
 /* scattering for homogeneous and heterogeneous volumes, using decoupled ray
@@ -733,16 +737,15 @@ ccl_device void kernel_volume_decoupled_free(KernelGlobals *kg, VolumeSegment *s
  * scattering, they always scatter if there is any non-zero scattering
  * coefficient.
  *
- * these also do not do emission or modify throughput. */
+ * these also do not do emission or modify throughput. 
+ * 
+ * function is expected to return VOLUME_PATH_SCATTERED when probalistic_scatter is false */
 ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(
 	KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd,
 	float3 *throughput, float rphase, float rscatter,
 	const VolumeSegment *segment, const float3 *light_P, bool probalistic_scatter)
 {
-	int closure_flag = segment->closure_flag;
-
-	if(!(closure_flag & SD_SCATTER))
-		return VOLUME_PATH_MISSED;
+	kernel_assert(segment->closure_flag & SD_SCATTER);
 
 	/* pick random color channel, we use the Veach one-sample
 	 * model with balance heuristic for the channels */
@@ -854,15 +857,33 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(
 		float3 step_pdf_distance = make_float3(1.0f, 1.0f, 1.0f);
 
 		if(segment->numsteps > 1) {
-			/* todo: optimize using binary search */
 			float3 prev_cdf_distance = make_float3(0.0f, 0.0f, 0.0f);
 
-			for(int i = 0; i < segment->numsteps-1; i++, step++) {
-				if(sample_t < step->t)
-					break;
+			int numsteps = segment->numsteps;
+			int high = numsteps - 1;
+			int low = 0;
+			int mid;
 
-				prev_t = step->t;
-				prev_cdf_distance = step->cdf_distance;
+			while(low < high) {
+				mid = (low + high) >> 1;
+
+				if(sample_t < step[mid].t)
+					high = mid;
+				else if(sample_t >= step[mid + 1].t)
+					low = mid + 1;
+				else {
+					/* found our interval in step[mid] .. step[mid+1] */
+					prev_t = step[mid].t;
+					prev_cdf_distance = step[mid].cdf_distance;
+					step += mid+1;
+					break;
+				}
+			}
+
+			if(low >= numsteps - 1) {
+				prev_t = step[numsteps - 1].t;
+				prev_cdf_distance = step[numsteps-1].cdf_distance;
+				step += numsteps - 1;
 			}
 
 			/* pdf for picking step with distance sampling */
@@ -933,16 +954,97 @@ ccl_device bool kernel_volume_use_decoupled(KernelGlobals *kg, bool heterogeneou
  * This is an array of object/shared ID's that the current segment of the path
  * is inside of. */
 
-ccl_device void kernel_volume_stack_init(KernelGlobals *kg, VolumeStack *stack)
+ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
+                                         Ray *ray,
+                                         VolumeStack *stack)
 {
-	/* todo: this assumes camera is always in air, need to detect when it isn't */
-	if(kernel_data.background.volume_shader == SHADER_NONE) {
-		stack[0].shader = SHADER_NONE;
+	/* NULL ray happens in the baker, does it need proper initializetion of
+	 * camera in volume?
+	 */
+	if(!kernel_data.cam.is_inside_volume || ray == NULL) {
+		/* Camera is guaranteed to be in the air, only take background volume
+		 * into account in this case.
+		 */
+		if(kernel_data.background.volume_shader != SHADER_NONE) {
+			stack[0].shader = kernel_data.background.volume_shader;
+			stack[0].object = PRIM_NONE;
+			stack[1].shader = SHADER_NONE;
+		}
+		else {
+			stack[0].shader = SHADER_NONE;
+		}
+		return;
 	}
-	else {
+
+	const float3 Pend = ray->P + ray->D*ray->t;
+	Ray volume_ray = *ray;
+	int stack_index = 0, enclosed_index = 0;
+	int enclosed_volumes[VOLUME_STACK_SIZE];
+
+	while(stack_index < VOLUME_STACK_SIZE - 1 &&
+	      enclosed_index < VOLUME_STACK_SIZE - 1)
+	{
+		Intersection isect;
+		if(!scene_intersect(kg, &volume_ray, PATH_RAY_ALL_VISIBILITY,
+		                    &isect, NULL, 0.0f, 0.0f))
+		{
+			break;
+		}
+
+		ShaderData sd;
+		shader_setup_from_ray(kg, &sd, &isect, &volume_ray, 0, 0);
+		if(sd.flag & SD_HAS_VOLUME) {
+			if(sd.flag & SD_BACKFACING) {
+				/* If ray exited the volume and never entered to that volume
+				 * it means that camera is inside such a volume.
+				 */
+				bool is_enclosed = false;
+				for(int i = 0; i < enclosed_index; ++i) {
+					if(enclosed_volumes[i] == sd.object) {
+						is_enclosed = true;
+						break;
+					}
+				}
+				if(is_enclosed == false) {
+					stack[stack_index].object = sd.object;
+					stack[stack_index].shader = sd.shader;
+					++stack_index;
+				}
+			}
+			else {
+				/* If ray from camera enters the volume, this volume shouldn't
+				 * be added to the stak on exit.
+				 */
+				enclosed_volumes[enclosed_index++] = sd.object;
+			}
+		}
+
+		/* Move ray forward. */
+		volume_ray.P = ray_offset(sd.P, -sd.Ng);
+		if(volume_ray.t != FLT_MAX) {
+			volume_ray.D = normalize_len(Pend - volume_ray.P, &volume_ray.t);
+			/* TODO(sergey): Find a faster way detecting that ray_offset moved
+			 * us pass through the end point.
+			 */
+			if(dot(ray->D, volume_ray.D) < 0.0f) {
+				break;
+			}
+		}
+	}
+	/* stack_index of 0 means quick checks outside of the kernel gave false
+	 * positive, nothing to worry about, just we've wasted quite a few of
+	 * ticks just to come into conclusion that camera is in the air.
+	 *
+	 * In this case we're doing the same above -- check whether background has
+	 * volume.
+	 */
+	if(stack_index == 0 && kernel_data.background.volume_shader == SHADER_NONE) {
 		stack[0].shader = kernel_data.background.volume_shader;
 		stack[0].object = PRIM_NONE;
 		stack[1].shader = SHADER_NONE;
+	}
+	else {
+		stack[stack_index].shader = SHADER_NONE;
 	}
 }
 
@@ -992,4 +1094,3 @@ ccl_device void kernel_volume_stack_enter_exit(KernelGlobals *kg, ShaderData *sd
 }
 
 CCL_NAMESPACE_END
-

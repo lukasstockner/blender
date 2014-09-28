@@ -76,6 +76,9 @@ def get_hash():
     except OSError:
         build_hash = None
         print("WARNING: could not use git to retrieve current Blender repository hash...")
+    except subprocess.CalledProcessError as e:
+        build_hash = None
+        print("WARNING: git errored while retrieving current Blender repository hash (%d)..." % e.returncode)
     if build_hash == '' or build_hash == None:
         build_hash = 'UNKNOWN'
 
@@ -682,9 +685,6 @@ def buildslave(target=None, source=None, env=None):
         platform = 'mingw64'
     else:
         platform = env['OURPLATFORM'].split('-')[0]
-
-    if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '9.0':
-        platform = platform + '-vc9'
 
     if platform == 'linux':
         import platform

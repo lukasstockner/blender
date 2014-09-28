@@ -45,6 +45,11 @@ static float beckmann_table_slope_max()
 	return 6.0;
 }
 
+/* Paper used: Importance Sampling Microfacet-Based BSDFs with the
+ * Distribution of Visible Normals. Supplemental Material 2/2.
+ *
+ * http://hal.inria.fr/docs/01/00/66/20/ANNEX/supplemental2.pdf
+ */
 static void beckmann_table_rows(float *table, int row_from, int row_to)
 {
 	/* allocate temporary data */
@@ -89,7 +94,7 @@ static void beckmann_table_rows(float *table, int row_from, int row_to)
 		int index_slope_x = 0;
 
 		for(int index_U = 0; index_U < BECKMANN_TABLE_SIZE; ++index_U) {
-			const float U = 0.0000001f + 0.9999998f * index_U / (float)(BECKMANN_TABLE_SIZE - 1);
+			const double U = 0.0000001 + 0.9999998 * index_U / (double)(BECKMANN_TABLE_SIZE - 1);
 
 			/* inverse CDF_P22_omega_i, solve Eq.(11) */
 			while(CDF_P22_omega_i[index_slope_x] <= U)
@@ -320,7 +325,6 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 	uint i = 0;
 	bool has_converter_blackbody = false;
 	bool has_volumes = false;
-	bool has_transparent_shadows = false;
 
 	foreach(Shader *shader, scene->shaders) {
 		uint flag = 0;
@@ -363,10 +367,6 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 
 		shader_flag[i++] = flag;
 		shader_flag[i++] = shader->pass_id;
-		
-		/* Check if we need transparent shadows */
-		if(flag & SD_HAS_TRANSPARENT_SHADOW)
-			has_transparent_shadows = true;
 	}
 
 	device->tex_alloc("__shader_flag", dscene->shader_flag);
@@ -397,7 +397,6 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 	/* integrator */
 	KernelIntegrator *kintegrator = &dscene->data.integrator;
 	kintegrator->use_volumes = has_volumes;
-	kintegrator->transparent_shadows = has_transparent_shadows;
 }
 
 void ShaderManager::device_free_common(Device *device, DeviceScene *dscene, Scene *scene)

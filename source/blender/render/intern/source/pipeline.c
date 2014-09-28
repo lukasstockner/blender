@@ -61,6 +61,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
@@ -386,7 +387,7 @@ Render *RE_NewRender(const char *name)
 		BLI_strncpy(re->name, name, RE_MAXNAME);
 		BLI_rw_mutex_init(&re->resultmutex);
 		re->eval_ctx = MEM_callocN(sizeof(EvaluationContext), "re->eval_ctx");
-		re->eval_ctx->for_render = true;
+		re->eval_ctx->mode = DAG_EVAL_RENDER;
 	}
 	
 	RE_InitRenderCB(re);
@@ -660,6 +661,11 @@ void RE_InitState(Render *re, Render *source, RenderData *rd,
 		re->result->recty = re->recty;
 	}
 	
+	if (re->r.scemode & R_VIEWPORT_PREVIEW)
+		re->eval_ctx->mode = DAG_EVAL_PREVIEW;
+	else
+		re->eval_ctx->mode = DAG_EVAL_RENDER;
+	
 	/* ensure renderdatabase can use part settings correct */
 	RE_parts_clamp(re);
 
@@ -722,10 +728,27 @@ static void render_result_rescale(Render *re)
 void RE_ChangeResolution(Render *re, int winx, int winy, rcti *disprect)
 {
 	re_init_resolution(re, NULL, winx, winy, disprect);
+	RE_parts_clamp(re);
 
-	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-	render_result_rescale(re);
-	BLI_rw_mutex_unlock(&re->resultmutex);
+	if (re->result) {
+		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+		render_result_rescale(re);
+		BLI_rw_mutex_unlock(&re->resultmutex);
+	}
+}
+
+/* TODO(sergey): This is a bit hackish, used to temporary disable freestyle when
+ * doing viewport render. Needs some better integration of BI viewport rendering
+ * into the pipeline.
+ */
+void RE_ChangeModeFlag(Render *re, int flag, bool clear)
+{
+	if (clear) {
+		re->r.mode &= ~flag;
+	}
+	else {
+		re->r.mode |= flag;
+	}
 }
 
 /* update some variables that can be animated, and otherwise wouldn't be due to
@@ -990,8 +1013,8 @@ static bool find_next_pano_slice(Render *re, int *slice, int *minx, rctf *viewpl
 		
 		/* rotate database according to part coordinates */
 		project_renderdata(re, projectverto, 1, -R.panodxp * phi, 1);
-		R.panosi = sin(R.panodxp * phi);
-		R.panoco = cos(R.panodxp * phi);
+		R.panosi = sinf(R.panodxp * phi);
+		R.panoco = cosf(R.panodxp * phi);
 	}
 	
 	(*slice)++;
@@ -1615,6 +1638,10 @@ static void do_render_fields_blur_3d(Render *re)
 		if (re->r.mode & R_BORDER) {
 			if ((re->r.mode & R_CROP) == 0) {
 				RenderResult *rres;
+
+				/* backup */
+				const rcti orig_disprect = re->disprect;
+				const int  orig_rectx = re->rectx, orig_recty = re->recty;
 				
 				BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 
@@ -1637,6 +1664,11 @@ static void do_render_fields_blur_3d(Render *re)
 		
 				re->display_init(re->dih, re->result);
 				re->display_update(re->duh, re->result, NULL);
+
+				/* restore the disprect from border */
+				re->disprect = orig_disprect;
+				re->rectx = orig_rectx;
+				re->recty = orig_recty;
 			}
 			else {
 				/* set offset (again) for use in compositor, disprect was manipulated. */
@@ -1705,7 +1737,7 @@ static int composite_needs_render(Scene *sce, int this_scene)
 	if ((sce->r.scemode & R_DOCOMP) == 0) return 1;
 	
 	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == CMP_NODE_R_LAYERS)
+		if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0)
 			if (this_scene == 0 || node->id == NULL || node->id == &sce->id)
 				return 1;
 	}
@@ -1822,11 +1854,13 @@ static void tag_scenes_for_render(Render *re)
 	}
 	
 #ifdef WITH_FREESTYLE
-	for (sce = re->freestyle_bmain.scene.first; sce; sce = sce->id.next) {
-		sce->id.flag &= ~LIB_DOIT;
+	if (re->freestyle_bmain) {
+		for (sce = re->freestyle_bmain->scene.first; sce; sce = sce->id.next) {
+			sce->id.flag &= ~LIB_DOIT;
 #ifdef DEPSGRAPH_WORKAROUND_HACK
-		tag_dependend_objects_for_render(sce, renderlay);
+			tag_dependend_objects_for_render(sce, renderlay);
 #endif
+		}
 	}
 #endif
 
@@ -1842,7 +1876,7 @@ static void tag_scenes_for_render(Render *re)
 	/* check for render-layers nodes using other scenes, we tag them LIB_DOIT */
 	for (node = re->scene->nodetree->nodes.first; node; node = node->next) {
 		node->flag &= ~NODE_TEST;
-		if (node->type == CMP_NODE_R_LAYERS) {
+		if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
 			if (node->id) {
 				if (!MAIN_VERSION_ATLEAST(re->main, 265, 5)) {
 					if (rlayer_node_uses_alpha(re->scene->nodetree, node)) {
@@ -1891,7 +1925,7 @@ static void ntree_render_scenes(Render *re)
 	/* now foreach render-result node tagged we do a full render */
 	/* results are stored in a way compisitor will find it */
 	for (node = re->scene->nodetree->nodes.first; node; node = node->next) {
-		if (node->type == CMP_NODE_R_LAYERS) {
+		if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
 			if (node->id && node->id != (ID *)re->scene) {
 				if (node->flag & NODE_TEST) {
 					Scene *scene = (Scene *)node->id;
@@ -1925,8 +1959,12 @@ static void add_freestyle(Render *re, int render)
 {
 	SceneRenderLayer *srl, *actsrl;
 	LinkData *link;
+	Render *r;
+	const bool do_link = (re->r.mode & R_MBLUR) == 0 || re->i.curblur == re->r.mblur_samples;
 
 	actsrl = BLI_findlink(&re->r.layers, re->r.actlay);
+
+	re->freestyle_bmain = BKE_main_new();
 
 	/* We use the same window manager for freestyle bmain as
 	 * real bmain uses. This is needed because freestyle's
@@ -1935,19 +1973,21 @@ static void add_freestyle(Render *re, int render)
 	 * and that function requires proper window manager
 	 * to present (sergey)
 	 */
-	re->freestyle_bmain.wm = re->main->wm;
+	re->freestyle_bmain->wm = re->main->wm;
 
 	FRS_init_stroke_rendering(re);
 
-	for (srl= (SceneRenderLayer *)re->r.layers.first; srl; srl= srl->next) {
-
-		link = (LinkData *)MEM_callocN(sizeof(LinkData), "LinkData to Freestyle render");
-		BLI_addtail(&re->freestyle_renders, link);
-
+	for (srl = (SceneRenderLayer *)re->r.layers.first; srl; srl = srl->next) {
+		if (do_link) {
+			link = (LinkData *)MEM_callocN(sizeof(LinkData), "LinkData to Freestyle render");
+			BLI_addtail(&re->freestyle_renders, link);
+		}
 		if ((re->r.scemode & R_SINGLE_LAYER) && srl != actsrl)
 			continue;
 		if (FRS_is_freestyle_enabled(srl)) {
-			link->data = (void *)FRS_do_stroke_rendering(re, srl, render);
+			r = FRS_do_stroke_rendering(re, srl, render);
+			if (do_link)
+				link->data = (void *)r;
 		}
 	}
 
@@ -2000,10 +2040,20 @@ static void free_all_freestyle_renders(void)
 			if (freestyle_render) {
 				freestyle_scene = freestyle_render->scene;
 				RE_FreeRender(freestyle_render);
-				BKE_scene_unlink(&re1->freestyle_bmain, freestyle_scene, NULL);
+				BKE_scene_unlink(re1->freestyle_bmain, freestyle_scene, NULL);
 			}
 		}
 		BLI_freelistN(&re1->freestyle_renders);
+
+		if (re1->freestyle_bmain) {
+			/* detach the window manager from freestyle bmain (see comments
+			 * in add_freestyle() for more detail)
+			 */
+			re1->freestyle_bmain->wm.first = re1->freestyle_bmain->wm.last = NULL;
+
+			BKE_main_free(re1->freestyle_bmain);
+			re1->freestyle_bmain = NULL;
+		}
 	}
 }
 #endif
@@ -2154,12 +2204,14 @@ void RE_MergeFullSample(Render *re, Main *bmain, Scene *sce, bNodeTree *ntree)
 		scene->id.flag |= LIB_DOIT;
 	
 #ifdef WITH_FREESTYLE
-	for (scene = re->freestyle_bmain.scene.first; scene; scene = scene->id.next)
-		scene->id.flag &= ~LIB_DOIT;
+	if (re->freestyle_bmain) {
+		for (scene = re->freestyle_bmain->scene.first; scene; scene = scene->id.next)
+			scene->id.flag &= ~LIB_DOIT;
+	}
 #endif
 
 	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->type == CMP_NODE_R_LAYERS) {
+		if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
 			Scene *nodescene = (Scene *)node->id;
 			
 			if (nodescene == NULL) nodescene = sce;
@@ -2454,7 +2506,7 @@ static bool check_valid_compositing_camera(Scene *scene, Object *camera_override
 		bNode *node = scene->nodetree->nodes.first;
 
 		while (node) {
-			if (node->type == CMP_NODE_R_LAYERS) {
+			if (node->type == CMP_NODE_R_LAYERS && (node->flag & NODE_MUTED) == 0) {
 				Scene *sce = node->id ? (Scene *)node->id : scene;
 
 				if (!sce->camera && !BKE_scene_camera_find(sce)) {
@@ -2602,13 +2654,22 @@ bool RE_is_rendering_allowed(Scene *scene, Object *camera_override, ReportList *
 		}
 
 #ifdef WITH_FREESTYLE
-		if ((scene->r.mode & R_EDGE_FRS) && (!BKE_scene_use_new_shading_nodes(scene))) {
+		if (scene->r.mode & R_EDGE_FRS) {
 			BKE_report(reports, RPT_ERROR, "Panoramic camera not supported in Freestyle");
 			return 0;
 		}
 #endif
 	}
-	
+
+#ifdef WITH_FREESTYLE
+	if (scene->r.mode & R_EDGE_FRS) {
+		if (scene->r.mode & R_FIELDS) {
+			BKE_report(reports, RPT_ERROR, "Fields not supported in Freestyle");
+			return false;
+		}
+	}
+#endif
+
 	/* layer flag tests */
 	if (!render_scene_has_layers_to_render(scene)) {
 		BKE_report(reports, RPT_ERROR, "All render layers are disabled");
@@ -2683,6 +2744,7 @@ static int render_initialize_from_main(Render *re, RenderData *rd, Main *bmain, 
 	re->scene_color_manage = BKE_scene_check_color_management_enabled(scene);
 	re->camera_override = camera_override;
 	re->lay = lay_override ? lay_override : scene->lay;
+	re->layer_override = lay_override;
 	re->i.localview = (re->lay & 0xFF000000) != 0;
 	
 	/* not too nice, but it survives anim-border render */
@@ -2735,6 +2797,8 @@ void RE_SetReports(Render *re, ReportList *reports)
 void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *srl, Object *camera_override,
                      unsigned int lay_override, int frame, const bool write_still)
 {
+	BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_INIT);
+
 	/* ugly global still... is to prevent preview events and signal subsurfs etc to make full resol */
 	G.is_rendering = true;
 	
@@ -2780,6 +2844,16 @@ void RE_RenderFreestyleStrokes(Render *re, Main *bmain, Scene *scene, int render
 			do_render_fields_blur_3d(re);
 	}
 	re->result_ok = 1;
+}
+
+void RE_RenderFreestyleExternal(Render *re)
+{
+	if (!re->test_break(re->tbh)) {
+		RE_Database_FromScene(re, re->main, re->scene, re->lay, 1);
+		RE_Database_Preprocess(re);
+		add_freestyle(re, 1);
+		RE_Database_Free(re);
+	}
 }
 #endif
 
@@ -2899,6 +2973,8 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 	int cfrao = scene->r.cfra;
 	int nfra, totrendered = 0, totskipped = 0;
 	
+	BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_INIT);
+
 	/* do not fully call for each frame, it initializes & pops output window */
 	if (!render_initialize_from_main(re, &rd, bmain, scene, NULL, camera_override, lay_override, 0, 1))
 		return;

@@ -54,6 +54,9 @@ public:
 	float fisheye_fov;
 	float fisheye_lens;
 
+	/* anamorphic lens bokeh */
+	float aperture_ratio;
+
 	/* sensor */
 	float sensorwidth;
 	float sensorheight;
@@ -99,6 +102,13 @@ public:
 	bool need_device_update;
 	int previous_need_motion;
 
+	/* Camera in volume. */
+	/* TODO(sergey): Get rid of this argument once
+	 * cameras in volume considered fast enough for
+	  * the regular kernel.
+	 */
+	bool use_camera_in_volume;
+
 	/* functions */
 	Camera();
 	~Camera();
@@ -113,6 +123,9 @@ public:
 	bool modified(const Camera& cam);
 	bool motion_modified(const Camera& cam);
 	void tag_update();
+
+	BoundBox viewplane_bounds_get();
+	float3 transform_raster_to_world(float raster_x, float raster_y);
 };
 
 CCL_NAMESPACE_END

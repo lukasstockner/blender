@@ -150,7 +150,7 @@ static void rna_ConstraintActuator_type_set(struct PointerRNA *ptr, int value)
 		switch (ca->type) {
 			case ACT_CONST_TYPE_ORI:
 				/* negative axis not supported in the orientation mode */
-				if (ELEM3(ca->mode, ACT_CONST_DIRNX, ACT_CONST_DIRNY, ACT_CONST_DIRNZ))
+				if (ELEM(ca->mode, ACT_CONST_DIRNX, ACT_CONST_DIRNY, ACT_CONST_DIRNZ))
 					ca->mode = ACT_CONST_NONE;
 				break;
 
@@ -1090,6 +1090,7 @@ static void rna_def_property_actuator(BlenderRNA *brna)
 		{ACT_PROP_ADD, "ADD", 0, "Add", ""},
 		{ACT_PROP_COPY, "COPY", 0, "Copy", ""},
 		{ACT_PROP_TOGGLE, "TOGGLE", 0, "Toggle", "For bool/int/float/timer properties only"},
+		{ACT_PROP_LEVEL, "LEVEL", 0, "Level", "For bool/int/float/timer properties only"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1369,6 +1370,23 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem prop_track_axis_items[] = {
+		{ACT_TRACK_TRAXIS_X, "TRACKAXISX", 0, "X axis", ""},
+		{ACT_TRACK_TRAXIS_Y, "TRACKAXISY", 0, "Y axis", ""},
+		{ACT_TRACK_TRAXIS_Z, "TRACKAXISZ", 0, "Z axis", ""},
+		{ACT_TRACK_TRAXIS_NEGX, "TRACKAXISNEGX", 0, "-X axis", ""},
+		{ACT_TRACK_TRAXIS_NEGY, "TRACKAXISNEGY", 0, "-Y axis", ""},
+		{ACT_TRACK_TRAXIS_NEGZ, "TRACKAXISNEGZ", 0, "-Z axis", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem prop_up_axis_items[] = {
+		{ACT_TRACK_UP_X, "UPAXISX", 0, "X axis", ""},
+		{ACT_TRACK_UP_Y, "UPAXISY", 0, "Y axis", ""},
+		{ACT_TRACK_UP_Z, "UPAXISZ", 0, "Z axis", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "EditObjectActuator", "Actuator");
 	RNA_def_struct_ui_text(srna, "Edit Object Actuator", "Actuator used to edit objects");
 	RNA_def_struct_sdna_from(srna, "bEditObjectActuator", "data");
@@ -1383,6 +1401,18 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "dyn_operation");
 	RNA_def_property_enum_items(prop, prop_dyn_items);
 	RNA_def_property_ui_text(prop, "Dynamic Operation", "");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "up_axis", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "upflag");
+	RNA_def_property_enum_items(prop, prop_up_axis_items);
+	RNA_def_property_ui_text(prop, "Up Axis", "The axis that points upward");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop = RNA_def_property(srna, "track_axis", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "trackflag");
+	RNA_def_property_enum_items(prop, prop_track_axis_items);
+	RNA_def_property_ui_text(prop, "Track Axis", "The axis that points to the target object");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
@@ -2089,12 +2119,14 @@ static void rna_def_mouse_actuator(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "reset_x", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_MOUSE_RESET_X);
-	RNA_def_property_ui_text(prop, "Reset", "Reset the cursor's X position to the center of the screen space after calculating");
+	RNA_def_property_ui_text(prop, "Reset",
+	                         "Reset the cursor's X position to the center of the screen space after calculating");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "reset_y", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_MOUSE_RESET_Y);
-	RNA_def_property_ui_text(prop, "Reset", "Reset the cursor's Y position to the center of the screen space after calculating");
+	RNA_def_property_ui_text(prop, "Reset",
+	                         "Reset the cursor's Y position to the center of the screen space after calculating");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "local_x", PROP_BOOLEAN, PROP_NONE);
@@ -2110,61 +2142,61 @@ static void rna_def_mouse_actuator(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "threshold_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "threshold[0]");
 	RNA_def_property_ui_range(prop, 0, 0.5, 1, 3);
-	RNA_def_property_ui_text(prop, "Threshold", "The amount of X motion before mouse movement will register");
+	RNA_def_property_ui_text(prop, "Threshold", "Amount of X motion before mouse movement will register");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "threshold_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "threshold[1]");
 	RNA_def_property_ui_range(prop, 0, 0.5, 1, 3);
-	RNA_def_property_ui_text(prop, "Threshold", "The amount of Y motion before mouse movement will register");
+	RNA_def_property_ui_text(prop, "Threshold", "Amount of Y motion before mouse movement will register");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "object_axis_x", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "object_axis[0]");
 	RNA_def_property_enum_items(prop, prop_object_axis_items);
-	RNA_def_property_ui_text(prop, "Obj Axis", "Local object axis mouse movement in the X direction will apply to");
+	RNA_def_property_ui_text(prop, "Object Axis", "Local object axis mouse movement in the X direction will apply to");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "object_axis_y", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "object_axis[1]");
 	RNA_def_property_enum_items(prop, prop_object_axis_items);
-	RNA_def_property_ui_text(prop, "Obj Axis", "The object axis mouse movement in the Y direction will apply to");
+	RNA_def_property_ui_text(prop, "Object Axis", "Local object axis mouse movement in the Y direction will apply to");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "sensitivity_x", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "sensitivity[0]");
 	RNA_def_property_ui_range(prop, -100.0, 100.0, 0.2, 3);
-	RNA_def_property_ui_text(prop, "Sensitivity", "Set the sensitivity of the X axis");
+	RNA_def_property_ui_text(prop, "Sensitivity", "Sensitivity of the X axis");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "sensitivity_y", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "sensitivity[1]");
 	RNA_def_property_ui_range(prop, -100.0, 100.0, 0.2, 3);
-	RNA_def_property_ui_text(prop, "Sensitivity", "Set the sensitivity of the Y axis");
+	RNA_def_property_ui_text(prop, "Sensitivity", "Sensitivity of the Y axis");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "min_x", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "limit_x[0]");
 	RNA_def_property_ui_range(prop, DEG2RADF(-3600.0f), 0.0, 9, 3);
-	RNA_def_property_ui_text(prop, "min", "The maximum negative rotation allowed by x mouse movement (0 for infinite)");
+	RNA_def_property_ui_text(prop, "Min", "Maximum negative rotation allowed by X mouse movement (0 for infinite)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "max_x", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "limit_x[1]");
 	RNA_def_property_ui_range(prop, 0.0, DEG2RADF(3600.0f), 9, 3);
-	RNA_def_property_ui_text(prop, "max", "The maximum positive rotation allowed by x mouse movement (0 for infinite)");
+	RNA_def_property_ui_text(prop, "Max", "Maximum positive rotation allowed by X mouse movement (0 for infinite)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "min_y", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "limit_y[0]");
 	RNA_def_property_ui_range(prop, DEG2RADF(-3600.0f), 0.0, 9, 3);
-	RNA_def_property_ui_text(prop, "min", "The maximum negative rotation allowed by y mouse movement (0 for infinite)");
+	RNA_def_property_ui_text(prop, "Min", "Maximum negative rotation allowed by Y mouse movement (0 for infinite)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop = RNA_def_property(srna, "max_y", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "limit_y[1]");
 	RNA_def_property_ui_range(prop, 0.0, DEG2RADF(3600.0f), 9, 3);
-	RNA_def_property_ui_text(prop, "max", "The maximum positive rotation allowed by y mouse movement (0 for infinite)");
+	RNA_def_property_ui_text(prop, "Max", "Maximum positive rotation allowed by Y mouse movement (0 for infinite)");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 

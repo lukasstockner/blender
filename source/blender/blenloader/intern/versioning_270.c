@@ -34,6 +34,8 @@
 /* allow readfile to use deprecated functionality */
 #define DNA_DEPRECATED_ALLOW
 
+#include "DNA_brush_types.h"
+#include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
@@ -41,7 +43,9 @@
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_linestyle_types.h"
+#include "DNA_actuator_types.h"
 
 #include "DNA_genfile.h"
 
@@ -295,6 +299,80 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			for (scene = main->scene.first; scene; scene = scene->id.next) {
 				int num_layers = BLI_countlist(&scene->r.layers);
 				scene->r.actlay = min_ff(scene->r.actlay, num_layers - 1);
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 271, 1)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Material", "float", "line_col[4]")) {
+			Material *mat;
+
+			for (mat = main->mat.first; mat; mat = mat->id.next) {
+				mat->line_col[0] = mat->line_col[1] = mat->line_col[2] = 0.0f;
+				mat->line_col[3] = mat->alpha;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "int", "preview_start_resolution")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->r.preview_start_resolution = 64;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 271, 2)) {
+		/* init up & track axis property of trackto actuators */
+		Object *ob;
+
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			bActuator *act;
+			for (act = ob->actuators.first; act; act = act->next) {
+				if (act->type == ACT_EDIT_OBJECT) {
+					bEditObjectActuator *eoact = act->data;
+					eoact->trackflag = ob->trackflag;
+					/* if trackflag is pointing +-Z axis then upflag should point Y axis.
+					 * Rest of trackflag cases, upflag should be point z axis */
+					if ((ob->trackflag == OB_POSZ) || (ob->trackflag == OB_NEGZ)) {
+						eoact->upflag = 1;
+					}
+					else {
+						eoact->upflag = 2;
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 271, 3)) {
+		Brush *br;
+
+		for (br = main->brush.first; br; br = br->id.next) {
+			br->fill_threshold = 0.2f;
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 271, 6)) {
+		Object *ob;
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			ModifierData *md;
+
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_ParticleSystem) {
+					ParticleSystemModifierData *pmd = (ParticleSystemModifierData *)md;
+					if (pmd->psys && pmd->psys->clmd) {
+						pmd->psys->clmd->sim_parms->vel_damping = 1.0f;
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 272, 0)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "int", "preview_start_resolution")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->r.preview_start_resolution = 64;
 			}
 		}
 	}

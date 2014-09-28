@@ -648,7 +648,7 @@ int BLI_str_rstrip_float_zero(char *str, const char pad)
  * \param str_array_len The length of the array, or -1 for a NULL-terminated array.
  * \return The index of str in str_array or -1.
  */
-int BLI_str_index_in_array_n(const char *str, const char **str_array, const int str_array_len)
+int BLI_str_index_in_array_n(const char *__restrict str, const char **__restrict str_array, const int str_array_len)
 {
 	int index;
 	const char **str_iter = str_array;
@@ -668,7 +668,7 @@ int BLI_str_index_in_array_n(const char *str, const char **str_array, const int 
  * \param str_array Array of strings, (must be NULL-terminated).
  * \return The index of str in str_array or -1.
  */
-int BLI_str_index_in_array(const char *str, const char **str_array)
+int BLI_str_index_in_array(const char *__restrict str, const char **__restrict str_array)
 {
 	int index;
 	const char **str_iter = str_array;
@@ -681,3 +681,98 @@ int BLI_str_index_in_array(const char *str, const char **str_array)
 	return -1;
 }
 
+/**
+ * Find the first char matching one of the chars in \a delim, from left.
+ *
+ * \param str The string to search within.
+ * \param delim The set of delimiters to search for, as unicode values.
+ * \param sep Return value, set to the first delimiter found (or NULL if none found).
+ * \param suf Return value, set to next char after the first delimiter found (or NULL if none found).
+ * \return The length of the prefix (i.e. *sep - str).
+ */
+size_t BLI_str_partition(const char *str, const char delim[], char **sep, char **suf)
+{
+	return BLI_str_partition_ex(str, delim, sep, suf, false);
+}
+
+/**
+ * Find the first char matching one of the chars in \a delim, from right.
+ *
+ * \param str The string to search within.
+ * \param delim The set of delimiters to search for, as unicode values.
+ * \param sep Return value, set to the first delimiter found (or NULL if none found).
+ * \param suf Return value, set to next char after the first delimiter found (or NULL if none found).
+ * \return The length of the prefix (i.e. *sep - str).
+ */
+size_t BLI_str_rpartition(const char *str, const char delim[], char **sep, char **suf)
+{
+	return BLI_str_partition_ex(str, delim, sep, suf, true);
+}
+
+/**
+ * Find the first char matching one of the chars in \a delim, either from left or right.
+ *
+ * \param str The string to search within.
+ * \param delim The set of delimiters to search for, as unicode values.
+ * \param sep Return value, set to the first delimiter found (or NULL if none found).
+ * \param suf Return value, set to next char after the first delimiter found (or NULL if none found).
+ * \param from_right If %true, search from the right of \a str, else, search from its left.
+ * \return The length of the prefix (i.e. *sep - str).
+ */
+size_t BLI_str_partition_ex(const char *str, const char delim[], char **sep, char **suf, const bool from_right)
+{
+	const char *d;
+	char *(*func)(const char *str, int c) = from_right ? strrchr : strchr;
+
+	*sep = *suf = NULL;
+
+	for (d = delim; *d != '\0'; ++d) {
+		char *tmp = func(str, *d);
+
+		if (tmp && (from_right ? (*sep < tmp) : (!*sep || *sep > tmp))) {
+			*sep = tmp;
+		}
+	}
+
+	if (*sep) {
+		*suf = *sep + 1;
+		return (size_t)(*sep - str);
+	}
+
+	return strlen(str);
+}
+
+/**
+ * Format ints with decimal grouping.
+ * 1000 -> 1,000
+ *
+ * \param dst  The resulting string
+ * \param num  Number to format
+ * \return The length of \a dst
+ */
+size_t BLI_str_format_int_grouped(char dst[16], int num)
+{
+	char src[16];
+	char *p_src = src;
+	char *p_dst = dst;
+
+	const char separator = ',';
+	int num_len, commas;
+
+	num_len = sprintf(src, "%d", num);
+
+	if (*p_src == '-') {
+		*p_dst++ = *p_src++;
+		num_len--;
+	}
+
+	for (commas = 2 - num_len % 3; *p_src; commas = (commas + 1) % 3) {
+		*p_dst++ = *p_src++;
+		if (commas == 1) {
+			*p_dst++ = separator;
+		}
+	}
+	*--p_dst = '\0';
+
+	return (size_t)(p_dst - dst);
+}

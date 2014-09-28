@@ -58,6 +58,8 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#define MAX_DEFINE_LENGTH 72
+
 /* Extensions support */
 
 /* extensions used:
@@ -875,6 +877,9 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
 	GG.currentfb = fb->object;
 
+	/* Clean glError buffer. */
+	while (glGetError() != GL_NO_ERROR) {}
+
 	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, 
 		tex->target, tex->bindcode, 0);
 
@@ -1165,51 +1170,72 @@ struct GPUShader {
 	int totattrib;			/* total number of attributes */
 };
 
-static void shader_print_errors(const char *task, char *log, const char *code)
+static void shader_print_errors(const char *task, char *log, const char **code, int totcode)
 {
-	const char *c, *pos, *end = code + strlen(code);
-	int line = 1;
+	int i;
 
 	fprintf(stderr, "GPUShader: %s error:\n", task);
 
-	if (G.debug & G_DEBUG) {
-		c = code;
-		while ((c < end) && (pos = strchr(c, '\n'))) {
-			fprintf(stderr, "%2d  ", line);
-			fwrite(c, (pos+1)-c, 1, stderr);
-			c = pos+1;
-			line++;
+	for (i = 0; i < totcode; i++) {
+		const char *c, *pos, *end = code[i] + strlen(code[i]);
+		int line = 1;
+				
+		if (G.debug & G_DEBUG) {
+			fprintf(stderr, "===== shader string %d ====\n", i + 1);
+
+			c = code[i];
+			while ((c < end) && (pos = strchr(c, '\n'))) {
+				fprintf(stderr, "%2d  ", line);
+				fwrite(c, (pos+1)-c, 1, stderr);
+				c = pos+1;
+				line++;
+			}
+			
+			fprintf(stderr, "%s", c);
 		}
-
-		fprintf(stderr, "%s", c);
 	}
-
+	
 	fprintf(stderr, "%s\n", log);
 }
+
+static const char *gpu_shader_version(void)
+{
+	/* turn on glsl 1.30 for bicubic bump mapping and ATI clipping support */
+	if (GLEW_VERSION_3_0 &&
+	    (GPU_bicubic_bump_support() || GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)))
+	{
+		return "#version 130\n";
+	}
+
+	return "";
+}
+
 
 static const char *gpu_shader_standard_extensions(void)
 {
 	/* need this extensions for high quality bump mapping */
-	if (GPU_bicubic_bump_support()) {
-		return "#version 130\n"
-		       "#extension GL_ARB_texture_query_lod: enable\n"
-		       "#define BUMP_BICUBIC\n";
-	}
+	if (GPU_bicubic_bump_support())
+		return "#extension GL_ARB_texture_query_lod: enable\n";
 
 	return "";
 }
 
-static const char *gpu_shader_standard_defines(void)
+static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH])
 {
 	/* some useful defines to detect GPU type */
-	if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY))
-		return "#define GPU_ATI\n";
+	if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+		strcat(defines, "#define GPU_ATI\n");
+		if (GLEW_VERSION_3_0)
+			strcat(defines, "#define CLIP_WORKAROUND\n");
+	}
 	else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY))
-		return "#define GPU_NVIDIA\n";
+		strcat(defines, "#define GPU_NVIDIA\n");
 	else if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY))
-		return "#define GPU_INTEL\n";
-	
-	return "";
+		strcat(defines, "#define GPU_INTEL\n");
+
+	if (GPU_bicubic_bump_support())
+		strcat(defines, "#define BUMP_BICUBIC\n");
+	return;
 }
 
 GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *libcode, const char *defines)
@@ -1218,6 +1244,7 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	GLcharARB log[5000];
 	GLsizei length = 0;
 	GPUShader *shader;
+	char standard_defines[MAX_DEFINE_LENGTH] = "";
 
 	if (!GLEW_ARB_vertex_shader || !GLEW_ARB_fragment_shader)
 		return NULL;
@@ -1239,12 +1266,16 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		return NULL;
 	}
 
+	gpu_shader_standard_defines(standard_defines);
+
 	if (vertexcode) {
-		const char *source[4];
+		const char *source[5];
+		/* custom limit, may be too small, beware */
 		int num_source = 0;
 
+		source[num_source++] = gpu_shader_version();
 		source[num_source++] = gpu_shader_standard_extensions();
-		source[num_source++] = gpu_shader_standard_defines();
+		source[num_source++] = standard_defines;
 
 		if (defines) source[num_source++] = defines;
 		if (vertexcode) source[num_source++] = vertexcode;
@@ -1257,7 +1288,7 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 
 		if (!status) {
 			glGetInfoLogARB(shader->vertex, sizeof(log), &length, log);
-			shader_print_errors("compile", log, vertexcode);
+			shader_print_errors("compile", log, source, num_source);
 
 			GPU_shader_free(shader);
 			return NULL;
@@ -1265,11 +1296,12 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	}
 
 	if (fragcode) {
-		const char *source[5];
+		const char *source[6];
 		int num_source = 0;
 
+		source[num_source++] = gpu_shader_version();
 		source[num_source++] = gpu_shader_standard_extensions();
-		source[num_source++] = gpu_shader_standard_defines();
+		source[num_source++] = standard_defines;
 
 		if (defines) source[num_source++] = defines;
 		if (libcode) source[num_source++] = libcode;
@@ -1283,7 +1315,7 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 
 		if (!status) {
 			glGetInfoLogARB(shader->fragment, sizeof(log), &length, log);
-			shader_print_errors("compile", log, fragcode);
+			shader_print_errors("compile", log, source, num_source);
 
 			GPU_shader_free(shader);
 			return NULL;
@@ -1299,9 +1331,9 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 	glGetObjectParameterivARB(shader->object, GL_OBJECT_LINK_STATUS_ARB, &status);
 	if (!status) {
 		glGetInfoLogARB(shader->object, sizeof(log), &length, log);
-		if (fragcode) shader_print_errors("linking", log, fragcode);
-		else if (vertexcode) shader_print_errors("linking", log, vertexcode);
-		else if (libcode) shader_print_errors("linking", log, libcode);
+		if (fragcode) shader_print_errors("linking", log, &fragcode, 1);
+		else if (vertexcode) shader_print_errors("linking", log, &vertexcode, 1);
+		else if (libcode) shader_print_errors("linking", log, &libcode, 1);
 
 		GPU_shader_free(shader);
 		return NULL;

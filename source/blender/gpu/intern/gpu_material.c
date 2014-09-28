@@ -417,6 +417,11 @@ bool GPU_material_do_color_management(GPUMaterial *mat)
 	return !((mat->scene->gm.flag & GAME_GLSL_NO_COLOR_MANAGEMENT));
 }
 
+bool GPU_material_use_new_shading_nodes(GPUMaterial *mat)
+{
+	return BKE_scene_use_new_shading_nodes(mat->scene);
+}
+
 static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNodeLink **lv, GPUNodeLink **dist)
 {
 	GPUNodeLink *visifac, *inpr;
@@ -938,6 +943,12 @@ static void texture_rgb_blend(GPUMaterial *mat, GPUNodeLink *tex, GPUNodeLink *o
 		break;
 	case MTEX_BLEND_COLOR:
 		GPU_link(mat, "mtex_rgb_color", out, tex, fact, facg, in);
+		break;
+	case MTEX_SOFT_LIGHT:
+		GPU_link(mat, "mtex_rgb_soft", out, tex, fact, facg, in);
+		break;
+	case MTEX_LIN_LIGHT:
+		GPU_link(mat, "mtex_rgb_linear", out, tex, fact, facg, in);
 		break;
 	default:
 		GPU_link(mat, "set_rgb_zero", &in);

@@ -180,10 +180,12 @@ void BlenderSync::sync_integrator()
 	integrator->volume_max_steps = get_int(cscene, "volume_max_steps");
 	integrator->volume_step_size = get_float(cscene, "volume_step_size");
 
-	integrator->no_caustics = get_boolean(cscene, "no_caustics");
+	integrator->caustics_reflective = get_boolean(cscene, "caustics_reflective");
+	integrator->caustics_refractive = get_boolean(cscene, "caustics_refractive");
 	integrator->filter_glossy = get_float(cscene, "blur_glossy");
 
 	integrator->seed = get_int(cscene, "seed");
+	integrator->sampling_pattern = (SamplingPattern)RNA_enum_get(&cscene, "sampling_pattern");
 
 	integrator->layer_flag = render_layer.layer;
 
@@ -231,10 +233,6 @@ void BlenderSync::sync_integrator()
 		integrator->subsurface_samples = subsurface_samples;
 		integrator->volume_samples = volume_samples;
 	}
-	
-
-	if(experimental)
-		integrator->sampling_pattern = (SamplingPattern)RNA_enum_get(&cscene, "sampling_pattern");
 
 	if(integrator->modified(previntegrator))
 		integrator->tag_update(scene);
@@ -316,6 +314,8 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D b_v3d, const char *layer)
 	BL::RenderSettings::layers_iterator b_rlay;
 	int use_layer_samples = RNA_enum_get(&cscene, "use_layer_samples");
 	bool first_layer = true;
+	uint layer_override = get_layer(b_engine.layer_override());
+	uint scene_layers = layer_override ? layer_override : get_layer(b_scene.layers());
 
 	for(r.layers.begin(b_rlay); b_rlay != r.layers.end(); ++b_rlay) {
 		if((!layer && first_layer) || (layer && b_rlay->name() == layer)) {
@@ -324,7 +324,7 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D b_v3d, const char *layer)
 			render_layer.holdout_layer = get_layer(b_rlay->layers_zmask());
 			render_layer.exclude_layer = get_layer(b_rlay->layers_exclude());
 
-			render_layer.scene_layer = get_layer(b_scene.layers()) & ~render_layer.exclude_layer;
+			render_layer.scene_layer = scene_layers & ~render_layer.exclude_layer;
 			render_layer.scene_layer |= render_layer.exclude_layer & render_layer.holdout_layer;
 
 			render_layer.layer = get_layer(b_rlay->layers());

@@ -31,6 +31,8 @@
 #include "../application/AppView.h"
 #include "../application/Controller.h"
 
+#include "BlenderStrokeRenderer.h"
+
 using namespace std;
 using namespace Freestyle;
 
@@ -41,6 +43,7 @@ extern "C" {
 #include "DNA_camera_types.h"
 #include "DNA_freestyle_types.h"
 #include "DNA_group_types.h"
+#include "DNA_material_types.h"
 #include "DNA_text_types.h"
 
 #include "BKE_freestyle.h"
@@ -577,7 +580,7 @@ void FRS_init_stroke_rendering(Render *re)
 
 Render *FRS_do_stroke_rendering(Render *re, SceneRenderLayer *srl, int render)
 {
-	Main bmain = {0};
+	Main *freestyle_bmain = re->freestyle_bmain;
 	Render *freestyle_render = NULL;
 	Text *text, *next_text;
 
@@ -599,7 +602,7 @@ Render *FRS_do_stroke_rendering(Render *re, SceneRenderLayer *srl, int render)
 	//   - add style modules
 	//   - set parameters
 	//   - compute view map
-	prepare(&bmain, re, srl);
+	prepare(freestyle_bmain, re, srl);
 
 	if (re->test_break(re->tbh)) {
 		controller->CloseFile();
@@ -628,11 +631,11 @@ Render *FRS_do_stroke_rendering(Render *re, SceneRenderLayer *srl, int render)
 	}
 
 	// Free temp main (currently only text blocks are stored there)
-	for (text = (Text *) bmain.text.first; text; text = next_text) {
+	for (text = (Text *)freestyle_bmain->text.first; text; text = next_text) {
 		next_text = (Text *) text->id.next;
 
-		BKE_text_unlink(&bmain, text);
-		BKE_libblock_free(&bmain, text);
+		BKE_text_unlink(freestyle_bmain, text);
+		BKE_libblock_free(freestyle_bmain, text);
 	}
 
 	return freestyle_render;
@@ -728,6 +731,16 @@ void FRS_move_active_lineset_down(FreestyleConfig *config)
 		BLI_remlink(&config->linesets, lineset);
 		BLI_insertlinkafter(&config->linesets, lineset->next, lineset);
 	}
+}
+
+// Testing
+
+Material *FRS_create_stroke_material(Main *bmain, struct FreestyleLineStyle *linestyle)
+{
+	bNodeTree *nt = (linestyle->use_nodes) ? linestyle->nodetree : NULL;
+	Material *ma = BlenderStrokeRenderer::GetStrokeShader(bmain, nt, true);
+	ma->id.us = 0;
+	return ma;
 }
 
 } // extern "C"
