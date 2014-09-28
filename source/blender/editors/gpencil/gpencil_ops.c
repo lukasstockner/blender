@@ -81,6 +81,9 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	
 	/* circle select */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_select_circle", CKEY, KM_PRESS, 0, DKEY);
+	
+	/* Editing ----------------------------------------- */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_strokes_copy", EKEY, KM_PRESS, 0, DKEY);
 }
 
 /* ****************************************** */
@@ -95,6 +98,8 @@ void ED_operatortypes_gpencil(void)
 	
 	WM_operatortype_append(GPENCIL_OT_select_all);
 	WM_operatortype_append(GPENCIL_OT_select_circle);
+	
+	WM_operatortype_append(GPENCIL_OT_strokes_copy);
 	
 	/* Editing (Buttons) ------------ */
 	

@@ -116,6 +116,8 @@ typedef enum eGPencil_PaintModes {
 void GPENCIL_OT_select_all(struct wmOperatorType *ot);
 void GPENCIL_OT_select_circle(struct wmOperatorType *ot);
 
+void GPENCIL_OT_strokes_copy(struct wmOperatorType *ot);
+
 /* buttons editing --- */
 
 void GPENCIL_OT_data_add(struct wmOperatorType *ot);

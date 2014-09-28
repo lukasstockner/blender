@@ -334,6 +334,78 @@ void GPENCIL_OT_layer_add(wmOperatorType *ot)
 	ot->poll = gp_add_poll;
 }
 
+/* ******************* Copy Selected Strokes *********************** */
+
+static int gp_strokes_copy_poll(bContext *C)
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
+
+	/* only if there's an active layer with an active frame */
+	/* TODO: we probably require some selected strokes too? */
+	return (gpl && gpl->actframe);
+}
+
+static int gp_strokes_copy_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDlayer *gpl;
+	
+	/* for each visible (and editable) layer's selected strokes,
+	 * copy the strokes into a temporary buffer, then append
+	 * once all done
+	 */
+	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+		if ((gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) == 0 &&
+		    (gpl->actframe != NULL))
+		{
+			ListBase new_strokes = {NULL, NULL};
+			bGPDframe *gpf = gpl->actframe;
+			bGPDstroke *gps;
+			
+			/* make copies of selected strokes, and deselect these once we're done */
+			for (gps = gpf->strokes.first; gps; gps = gps->next) {
+				if (gps->flag & GP_STROKE_SELECT) {
+					/* make copy of stroke */
+					bGPDstroke *gpsd = MEM_dupallocN(gps);
+					gpsd->points = MEM_dupallocN(gps->points);
+					
+					BLI_addtail(&new_strokes, gpsd);
+					
+					/* deselect original stroke, or else the originals get moved too 
+					 * (when using the copy + move macro)
+					 */
+					gps->flag &= ~GP_STROKE_SELECT;
+				}
+			}
+			
+			/* add all new strokes in temp buffer to the frame (preventing double-copies) */
+			BLI_movelisttolist(&gpf->strokes, &new_strokes);
+			BLI_assert(new_strokes.first == NULL);
+		}
+	}
+	
+	/* updates */
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+	
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_strokes_copy(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Copy Strokes";
+	ot->idname = "GPENCIL_OT_strokes_copy";
+	ot->description = "Duplicate the selected Grease Pencil strokes";
+	
+	/* callbacks */
+	ot->exec = gp_strokes_copy_exec;
+	ot->poll = gp_strokes_copy_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* ******************* Delete Active Frame ************************ */
 
 static int gp_actframe_delete_poll(bContext *C)
