@@ -106,9 +106,7 @@ static int gpencil_select_all_exec(bContext *C, wmOperator *op)
 		{
 			if (gps->flag & GP_STROKE_SELECT) {
 				action = SEL_DESELECT;
-				
-				gpl = NULL; /* XXX: hack to stop iterating further, since we've found our target... */
-				break;
+				break; // XXX: this only gets out of the inner loop...
 			}
 		}
 		GP_STROKES_ITER_END;
