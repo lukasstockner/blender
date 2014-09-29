@@ -42,7 +42,14 @@ typedef struct bGPDspoint {
 	float x, y, z;			/* co-ordinates of point (usually 2d, but can be 3d as well) */
 	float pressure;			/* pressure of input device (from 0 to 1) at this point */
 	float time;				/* seconds since start of stroke */
+	int flag;				/* additional options (NOTE: can shrink this field down later if needed) */
 } bGPDspoint;
+
+/* bGPDspoint->flag */
+typedef enum eGPDspoint_Flag {
+	/* stroke point is selected (for editing) */
+	GP_SPOINT_SELECT	= (1 << 0)
+} eGPSPoint_Flag;
 
 /* Grease-Pencil Annotations - 'Stroke'
  * 	-> A stroke represents a (simplified version) of the curve
