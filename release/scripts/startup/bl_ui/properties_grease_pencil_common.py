@@ -54,6 +54,7 @@ class GreasePencilPanel():
 
         col.label(text="Edit Strokes:")
         col.operator("gpencil.strokes_duplicate", text="Duplicate")
+        col.operator("transform.mirror", text="Mirror").gpencil_strokes = True
 
         col.separator()
 

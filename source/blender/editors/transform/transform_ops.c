@@ -825,7 +825,7 @@ static void TRANSFORM_OT_mirror(struct wmOperatorType *ot)
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_screenactive;
 
-	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL);
+	Transform_Properties(ot, P_CONSTRAINT | P_PROPORTIONAL | P_GPENCIL_EDIT);
 }
 
 static void TRANSFORM_OT_edge_slide(struct wmOperatorType *ot)

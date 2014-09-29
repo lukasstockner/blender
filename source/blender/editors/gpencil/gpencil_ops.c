@@ -94,6 +94,9 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_resize", SKEY, KM_PRESS, 0, DKEY);
 	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
+	
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_mirror", MKEY, KM_PRESS, 0, DKEY);
+	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 }
 
 /* ****************************************** */
