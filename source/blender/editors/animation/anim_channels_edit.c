@@ -136,6 +136,13 @@ void ANIM_set_active_channel(bAnimContext *ac, void *data, eAnimCont_Types datat
 				}
 				break;
 			}
+			case ANIMTYPE_GPLAYER:
+			{
+				bGPDlayer *gpl = (bGPDlayer *)ale->data;
+				
+				ACHANNEL_SET_FLAG(gpl, ACHANNEL_SETFLAG_CLEAR, GP_LAYER_ACTIVE);
+				break;
+			}
 		}
 	}
 	
@@ -184,8 +191,14 @@ void ANIM_set_active_channel(bAnimContext *ac, void *data, eAnimCont_Types datat
 				break;
 			}
 			
-			/* unhandled currently, but may be interesting */
 			case ANIMTYPE_GPLAYER:
+			{
+				bGPDlayer *gpl = (bGPDlayer *)channel_data;
+				gpl->flag |= GP_LAYER_ACTIVE;
+				break;
+			}
+			
+			/* unhandled currently, but may be interesting */
 			case ANIMTYPE_MASKLAYER:
 			case ANIMTYPE_SHAPEKEY:
 			case ANIMTYPE_NLAACTION:
@@ -2897,7 +2910,13 @@ static int mouse_anim_channels(bContext *C, bAnimContext *ac, int channel_index,
 				gpl->flag |= GP_LAYER_SELECT;
 			}
 			
-			notifierFlags |= (ND_ANIMCHAN | NA_EDITED);
+			/* change active layer, if this is selected (since we must always have an active layer) */
+			if (gpl->flag & GP_LAYER_SELECT) {
+				ANIM_set_active_channel(ac, ac->data, ac->datatype, filter, gpl, ANIMTYPE_GPLAYER);
+			}
+			
+			WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL); /* Grease Pencil updates */
+			notifierFlags |= (ND_ANIMCHAN | NA_EDITED); /* Animation Ediotrs updates */
 			break;
 		}
 		case ANIMTYPE_MASKDATABLOCK:
