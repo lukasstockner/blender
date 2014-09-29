@@ -61,17 +61,18 @@ typedef struct bGPDstroke {
 } bGPDstroke;
 
 /* bGPDstroke->flag */
+typedef enum eGPDstroke_Flag {
 	/* stroke is in 3d-space */
-#define GP_STROKE_3DSPACE		(1<<0)
+	GP_STROKE_3DSPACE		= (1 << 0),
 	/* stroke is in 2d-space */
-#define GP_STROKE_2DSPACE		(1<<1)
+	GP_STROKE_2DSPACE		= (1 << 1),
 	/* stroke is in 2d-space (but with special 'image' scaling) */
-#define GP_STROKE_2DIMAGE		(1<<2)
+	GP_STROKE_2DIMAGE		= (1 << 2),
 	/* stroke is selected */
-#define GP_STROKE_SELECT		(1<<3)
+	GP_STROKE_SELECT		= (1 << 3),
 	/* only for use with stroke-buffer (while drawing eraser) */
-#define GP_STROKE_ERASER		(1<<15)
-
+	GP_STROKE_ERASER		= (1 << 15)
+} eGPDstroke_Flag;
 
 /* Grease-Pencil Annotations - 'Frame'
  *	-> Acts as storage for the 'image' formed by strokes
@@ -85,12 +86,13 @@ typedef struct bGPDframe {
 	int flag;			/* temp settings */
 } bGPDframe;
 
-/* bGPDframe->flag */	
+/* bGPDframe->flag */
+typedef enum eGPDframe_Flag {
 	/* frame is being painted on */
-#define GP_FRAME_PAINT		(1<<0)
+	GP_FRAME_PAINT		= (1 << 0),
 	/* for editing in Action Editor */
-#define GP_FRAME_SELECT		(1<<1)
-
+	GP_FRAME_SELECT		= (1 << 1)
+} eGPDframe_Flag;
 
 /* Grease-Pencil Annotations - 'Layer' */
 typedef struct bGPDlayer {
@@ -110,23 +112,24 @@ typedef struct bGPDlayer {
 } bGPDlayer;
 
 /* bGPDlayer->flag */
+typedef enum eGPDlayer_Flag {
 	/* don't display layer */
-#define GP_LAYER_HIDE		(1<<0)
+	GP_LAYER_HIDE			= (1 << 0),
 	/* protected from further editing */
-#define GP_LAYER_LOCKED		(1<<1)	
+	GP_LAYER_LOCKED			= (1 << 1),
 	/* layer is 'active' layer being edited */
-#define GP_LAYER_ACTIVE		(1<<2)
+	GP_LAYER_ACTIVE			= (1 << 2),
 	/* draw points of stroke for debugging purposes */
-#define GP_LAYER_DRAWDEBUG 	(1<<3)
+	GP_LAYER_DRAWDEBUG 		= (1 << 3),
 	/* do onionskinning */
-#define GP_LAYER_ONIONSKIN	(1<<4)
+	GP_LAYER_ONIONSKIN		= (1 << 4),
 	/* for editing in Action Editor */
-#define GP_LAYER_SELECT		(1<<5)
+	GP_LAYER_SELECT			= (1 << 5),
 	/* current frame for layer can't be changed */
-#define GP_LAYER_FRAMELOCK	(1<<6)
+	GP_LAYER_FRAMELOCK		= (1 << 6),
 	/* don't render xray (which is default) */
-#define GP_LAYER_NO_XRAY	(1<<7)
-
+	GP_LAYER_NO_XRAY		= (1 << 7)
+} eGPDlayer_Flag;
 
 /* Grease-Pencil Annotations - 'DataBlock' */
 typedef struct bGPdata {
