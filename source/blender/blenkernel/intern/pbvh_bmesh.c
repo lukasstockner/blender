@@ -716,7 +716,7 @@ static void pbvh_bmesh_delete_vert_face(PBVH *bvh, BMVert *v, BMFace *f_del, GSe
 	BM_face_kill(bvh->bm, f_del);
 	
 	/* Check if any of the face's edges are now unused by any
- * face, if so delete them */
+	 * face, if so delete them */
 	for (j = 0; j < 3; j++) {
 		if (BM_edge_is_wire(e_tri[j]))
 			BM_edge_kill(bvh->bm, e_tri[j]);
@@ -765,8 +765,8 @@ static void close_vert_queue_create(EdgeQueueContext *eq_ctx,
 
 		/* Check leaf nodes marked for topology update */
 		if ((node->flag & PBVH_Leaf) &&
-			(node->flag & PBVH_UpdateTopology) &&
-			!(node->flag & PBVH_FullyHidden))
+		    (node->flag & PBVH_UpdateTopology) &&
+		    !(node->flag & PBVH_FullyHidden))
 		{
 			GSetIterator gs_iter;
 
@@ -1231,15 +1231,15 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 			continue;
 		}
 
-		/*
-		 * Note, maybe this should be done after deletion of the vertices?
+		/* Note, maybe this should be done after deletion of the vertices? */
+#if 0
 		if (total_edge_verts2 > total_edge_verts1) {
 			pbvh_bridge_loops(bvh, &edge_verts_v1, &edge_verts_v2, total_edge_verts1, total_edge_verts2, deleted_verts);
 		}
 		else {
 			pbvh_bridge_loops(bvh, &edge_verts_v2, &edge_verts_v1, total_edge_verts2, total_edge_verts1, deleted_verts);
 		}
-		*/
+#endif
 		
 
 		/* Remove the faces */

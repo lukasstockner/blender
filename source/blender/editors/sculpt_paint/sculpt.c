@@ -3004,7 +3004,7 @@ static void sculpt_topology_update(Sculpt *sd, Object *ob, Brush *brush)
 		{
 			mode |= PBVH_Collapse;
 		}
-		
+
 		if (sd->flags & SCULPT_DYNTOPO_GENUS_CHANGE) {
 			mode |= PBVH_TopologyGenus;
 		}
