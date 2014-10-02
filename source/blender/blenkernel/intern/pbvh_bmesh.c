@@ -1179,6 +1179,28 @@ bool pbvh_bmesh_node_raycast(PBVHNode *node, const float ray_start[3],
 	return hit;
 }
 
+/* radial walk the vert edges */
+static bool bm_vert_ordered_fan_walk(BMVert *v, BLI_Buffer *buf)
+{
+	BMLoop *l_iter, *l_first;
+	BMEdge *e_prev;
+	BLI_assert(buf->count == 0);
+
+	l_iter = l_first = BM_vert_find_first_loop(v);
+	e_prev = l_first->prev->e;
+	if (l_iter == NULL)
+		return false;
+
+	do {
+		/* boundary, we're not interested! */
+		if (UNLIKELY(l_iter == NULL)) {
+			return false;
+		}
+		BLI_buffer_append(buf, BMVert *, BM_edge_other_vert(e_prev, v));
+	} while (((l_iter = BM_vert_step_fan_loop(l_iter, &e_prev)) != l_first));
+	return true;
+}
+
 static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
                                 PBVH *bvh)
 {
@@ -1190,13 +1212,8 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 
 	while (!BLI_heap_is_empty(eq_ctx->q->heap)) {
 		BMLoop *l;
-		BMEdge *e;
-		BMIter bm_iter;
 		BMVert **pair = BLI_heap_popmin(eq_ctx->q->heap);
 		BMVert *v1, *v2;
-
-		int total_edge_verts1 = 0;
-		int total_edge_verts2 = 0;
 
 		v1 = pair[0];
 		v2 = pair[1];
@@ -1212,39 +1229,32 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 		 * would then be impossible */
 		if (BLI_gset_haskey(deleted_verts, v1) ||
 		    BLI_gset_haskey(deleted_verts, v2) ||
-		    BM_edge_exists(v1, v2) ||
-		    BM_vert_is_boundary(v1) ||
-		    BM_vert_is_boundary(v2))
+		    BM_edge_exists(v1, v2))
+		    /* no need to check 'BM_vert_is_boundary', walking edges below will do. */
 		{
 			continue;
 		}
 
-		/* store the edge vertices in a list */
-		BM_ITER_ELEM (e, &bm_iter, v1, BM_EDGES_OF_VERT) {
-			BLI_buffer_append(&edge_verts_v1, BMVert *, BM_edge_other_vert(e, v1));
-			total_edge_verts1++;
-		}
-
-		BM_ITER_ELEM (e, &bm_iter, v2, BM_EDGES_OF_VERT) {
-			BLI_buffer_append(&edge_verts_v2, BMVert *, BM_edge_other_vert(e, v2));
-			total_edge_verts2++;
-		}
+		if (!bm_vert_ordered_fan_walk(v1, &edge_verts_v1))
+			continue;
+		if (!bm_vert_ordered_fan_walk(v2, &edge_verts_v2))
+			continue;
 
 		/* this should NOT happen, but have a guard here to prevent crashing for now */
-		if (total_edge_verts1 < 3 || total_edge_verts2 < 3) {
+		if (edge_verts_v1.count < 3 || edge_verts_v2.count < 3) {
 			continue;
 		}
 
 		/* Note, maybe this should be done after deletion of the vertices? */
 #if 0
-		if (total_edge_verts2 > total_edge_verts1) {
-			pbvh_bridge_loops(bvh, &edge_verts_v1, &edge_verts_v2, total_edge_verts1, total_edge_verts2, deleted_verts);
+		if (edge_verts_v2.count > edge_verts_v1.count) {
+			pbvh_bridge_loops(bvh, &edge_verts_v1, &edge_verts_v2, deleted_verts);
 		}
 		else {
-			pbvh_bridge_loops(bvh, &edge_verts_v2, &edge_verts_v1, total_edge_verts2, total_edge_verts1, deleted_verts);
+			pbvh_bridge_loops(bvh, &edge_verts_v2, &edge_verts_v1, deleted_verts);
 		}
 #endif
-		
+
 
 		/* Remove the faces (would use 'BM_FACES_OF_VERT' except we can't look on data we remove) */
 		while ((l = BM_vert_find_first_loop(v1))) {
