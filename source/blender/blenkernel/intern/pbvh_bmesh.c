@@ -1189,7 +1189,7 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 	GSet *deleted_verts = BLI_gset_ptr_new_ex("deleted_verts", BLI_heap_size(eq_ctx->q->heap));
 
 	while (!BLI_heap_is_empty(eq_ctx->q->heap)) {
-		BMFace *f;
+		BMLoop *l;
 		BMEdge *e;
 		BMIter bm_iter;
 		BMVert **pair = BLI_heap_popmin(eq_ctx->q->heap);
@@ -1210,8 +1210,12 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 		 * It is possible if an adjacent vertex pair is joined that
 		 * the two vertices already share an edge. Joining the edge rings
 		 * would then be impossible */
-		if (BLI_gset_haskey(deleted_verts, v1) || BLI_gset_haskey(deleted_verts, v2) ||
-		   BM_edge_exists(v1, v2) || BM_vert_is_boundary(v1) || BM_vert_is_boundary(v2)) {
+		if (BLI_gset_haskey(deleted_verts, v1) ||
+		    BLI_gset_haskey(deleted_verts, v2) ||
+		    BM_edge_exists(v1, v2) ||
+		    BM_vert_is_boundary(v1) ||
+		    BM_vert_is_boundary(v2))
+		{
 			continue;
 		}
 
@@ -1242,13 +1246,12 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 #endif
 		
 
-		/* Remove the faces */
-		BM_ITER_ELEM (f, &bm_iter, v1, BM_FACES_OF_VERT) {
-			pbvh_bmesh_delete_vert_face(bvh, v1, f, deleted_verts, eq_ctx);
+		/* Remove the faces (would use 'BM_FACES_OF_VERT' except we can't look on data we remove) */
+		while ((l = BM_vert_find_first_loop(v1))) {
+			pbvh_bmesh_delete_vert_face(bvh, v1, l->f, deleted_verts, eq_ctx);
 		}
-
-		BM_ITER_ELEM (f, &bm_iter, v2, BM_FACES_OF_VERT) {
-			pbvh_bmesh_delete_vert_face(bvh, v2, f, deleted_verts, eq_ctx);
+		while ((l = BM_vert_find_first_loop(v2))) {
+			pbvh_bmesh_delete_vert_face(bvh, v2, l->f, deleted_verts, eq_ctx);
 		}
 
 		if (BM_ELEM_CD_GET_INT(v1, eq_ctx->cd_vert_node_offset) != DYNTOPO_NODE_NONE)
