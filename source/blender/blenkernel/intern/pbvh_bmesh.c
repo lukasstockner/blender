@@ -29,6 +29,7 @@
 #include "BLI_ghash.h"
 #include "BLI_heap.h"
 #include "BLI_math.h"
+#include "BLI_listbase.h"
 
 #include "BKE_ccg.h"
 #include "BKE_DerivedMesh.h"
@@ -684,6 +685,154 @@ static void short_edge_queue_create(EdgeQueueContext *eq_ctx,
 	}
 }
 
+static void pbvh_bmesh_delete_vert_face(PBVH *bvh, BMVert *v, BMFace *f_del, GSet *deleted_verts, EdgeQueueContext *eq_ctx)
+{
+	BMLoop *l_iter;
+	BMVert *v_tri[3];
+	BMEdge *e_tri[3];
+	int j;
+	
+	/* Get vertices and edges of face */
+	BLI_assert(f_del->len == 3);
+	l_iter = BM_FACE_FIRST_LOOP(f_del);
+	v_tri[0] = l_iter->v; e_tri[0] = l_iter->e; l_iter = l_iter->next;
+	v_tri[1] = l_iter->v; e_tri[1] = l_iter->e; l_iter = l_iter->next;
+	v_tri[2] = l_iter->v; e_tri[2] = l_iter->e;
+	
+	/* Check if any of the face's vertices are now unused, if so
+	 * remove them from the PBVH */
+	for (j = 0; j < 3; j++) {
+		if (v_tri[j] != v && BM_vert_face_count(v_tri[j]) == 1) {
+			BLI_gset_insert(deleted_verts, v_tri[j]);
+			pbvh_bmesh_vert_remove(bvh, v_tri[j], eq_ctx->cd_vert_node_offset, eq_ctx->cd_face_node_offset);
+		}
+		else {
+			v_tri[j] = NULL;
+		}
+	}
+	
+	/* Remove the face */
+	pbvh_bmesh_face_remove(bvh, f_del, eq_ctx->cd_vert_node_offset, eq_ctx->cd_face_node_offset);
+	BM_face_kill(bvh->bm, f_del);
+	
+	/* Check if any of the face's edges are now unused by any
+ * face, if so delete them */
+	for (j = 0; j < 3; j++) {
+		if (BM_edge_is_wire(e_tri[j]))
+			BM_edge_kill(bvh->bm, e_tri[j]);
+	}
+	
+	/* Delete unused vertices */
+	for (j = 0; j < 3; j++) {
+		if (v_tri[j]) {
+			BM_log_vert_removed(bvh->bm_log, v_tri[j], eq_ctx->cd_vert_mask_offset);
+			BM_vert_kill(bvh->bm, v_tri[j]);
+		}
+	}
+}
+
+
+/* Create a priority queue containing vertex pairs not connected by an
+ * edge, but close enough as defined by PBVH.bm_min_edge_len.
+ *
+ * Only nodes marked for topology update are checked, and in those
+ * nodes only edges used by a face intersecting the (center, radius)
+ * sphere are checked.
+ *
+ * The highest priority (lowest number) is given to the pair of vertices with
+ * the shortest distance.
+ */
+static void close_vert_queue_create(EdgeQueueContext *eq_ctx,
+                                    PBVH *bvh, const float center[3],
+                                    float radius)
+{
+	int n;
+	Heap *distheap = BLI_heap_new();
+	BMVert *vprev, *vcur;
+	int num_close_verts;
+	/* list of verts for faster traversing */
+	ListBase vlist = {0};
+	LinkData *curnode;
+	LinkData *prevnode;
+
+	eq_ctx->q->heap = BLI_heap_new();
+	eq_ctx->q->center = center;
+	eq_ctx->q->radius_squared = radius * radius;
+	eq_ctx->q->limit_len_squared = bvh->bm_min_edge_len * bvh->bm_min_edge_len;
+
+	for (n = 0; n < bvh->totnode; n++) {
+		PBVHNode *node = &bvh->nodes[n];
+
+		/* Check leaf nodes marked for topology update */
+		if ((node->flag & PBVH_Leaf) &&
+			(node->flag & PBVH_UpdateTopology) &&
+			!(node->flag & PBVH_FullyHidden))
+		{
+			GSetIterator gs_iter;
+
+			/* Insert vertices in a distance heap */
+			GSET_ITER (gs_iter, node->bm_unique_verts) {
+				BMVert *v = BLI_gsetIterator_getKey(&gs_iter);
+				float dist_to_center_sq = len_squared_v3v3(eq_ctx->q->center, v->co);
+
+				if (dist_to_center_sq <= eq_ctx->q->radius_squared && check_mask(eq_ctx, v) && !BM_vert_is_boundary(v))
+					BLI_heap_insert(distheap, dist_to_center_sq, v);
+			}
+		}
+	}
+
+	num_close_verts = BLI_heap_size(distheap);
+
+	for (n = 0; n < num_close_verts; n++) {
+		LinkData *d = MEM_callocN(sizeof(*d), "Node");
+		d->data = BLI_heap_popmin(distheap);
+		BLI_addtail(&vlist, d);
+	}
+
+	BLI_heap_free(distheap, NULL);
+
+	curnode = vlist.first;
+
+	/* iterate the list and make pairs of vertices that are closer than the squared limit distance
+	 * and not on part of the same face. The logic here is borrowed from our remove doubles operator */
+	while (curnode) {
+		vprev = (BMVert *)curnode->data;
+
+		prevnode = curnode;
+		curnode = curnode->next;
+
+		while (curnode) {
+			vcur = (BMVert *)curnode->data;
+
+			/* vertices belonging to the same face are not eligible for merging */
+			if (!BM_edge_exists(vprev, vcur)) {
+				float dist_sq = len_squared_v3v3(vcur->co, vprev->co);
+
+				if (dist_sq < eq_ctx->q->limit_len_squared)
+				{
+					BMVert **pair = BLI_mempool_alloc(eq_ctx->pool);
+					pair[0] = vprev;
+					pair[1] = vcur;
+					BLI_heap_insert(eq_ctx->q->heap, dist_sq, pair);
+				}
+
+				/* the two vertices in the pair are obliterated as part of the genus topology change, get a new
+				 * vertex for processing. If the test does not pass then a new vertex must be used as
+				 * previous because it is guaranteed that next vertices will not pass the test */
+				BLI_remlink(&vlist, curnode);
+				MEM_freeN(curnode);
+				curnode = prevnode->next;
+				break;
+			}
+
+			curnode = curnode->next;
+		}
+	}
+
+	BLI_freelistN(&vlist);
+}
+
+
 /*************************** Topology update **************************/
 
 static void bm_edges_from_tri(BMesh *bm, BMVert *v_tri[3], BMEdge *e_tri[3])
@@ -915,48 +1064,7 @@ static void pbvh_bmesh_collapse_edge(PBVH *bvh, BMEdge *e,
 	/* Delete the tagged faces */
 	for (i = 0; i < deleted_faces->count; i++) {
 		BMFace *f_del = BLI_buffer_at(deleted_faces, BMFace *, i);
-		BMLoop *l_iter;
-		BMVert *v_tri[3];
-		BMEdge *e_tri[3];
-		int j;
-
-		/* Get vertices and edges of face */
-		BLI_assert(f_del->len == 3);
-		l_iter = BM_FACE_FIRST_LOOP(f_del);
-		v_tri[0] = l_iter->v; e_tri[0] = l_iter->e; l_iter = l_iter->next;
-		v_tri[1] = l_iter->v; e_tri[1] = l_iter->e; l_iter = l_iter->next;
-		v_tri[2] = l_iter->v; e_tri[2] = l_iter->e;
-
-		/* Check if any of the face's vertices are now unused, if so
-		 * remove them from the PBVH */
-		for (j = 0; j < 3; j++) {
-			if (v_tri[j] != v_del && BM_vert_face_count(v_tri[j]) == 1) {
-				BLI_gset_insert(deleted_verts, v_tri[j]);
-				pbvh_bmesh_vert_remove(bvh, v_tri[j], eq_ctx->cd_vert_node_offset, eq_ctx->cd_face_node_offset);
-			}
-			else {
-				v_tri[j] = NULL;
-			}
-		}
-
-		/* Remove the face */
-		pbvh_bmesh_face_remove(bvh, f_del, eq_ctx->cd_vert_node_offset, eq_ctx->cd_face_node_offset);
-		BM_face_kill(bvh->bm, f_del);
-
-		/* Check if any of the face's edges are now unused by any
-		 * face, if so delete them */
-		for (j = 0; j < 3; j++) {
-			if (BM_edge_is_wire(e_tri[j]))
-				BM_edge_kill(bvh->bm, e_tri[j]);
-		}
-
-		/* Delete unused vertices */
-		for (j = 0; j < 3; j++) {
-			if (v_tri[j]) {
-				BM_log_vert_removed(bvh->bm_log, v_tri[j], eq_ctx->cd_vert_mask_offset);
-				BM_vert_kill(bvh->bm, v_tri[j]);
-			}
-		}
+		pbvh_bmesh_delete_vert_face(bvh, v_del, f_del, deleted_verts, eq_ctx);
 	}
 
 	/* Move v_conn to the midpoint of v_conn and v_del (if v_conn still exists, it
@@ -1070,6 +1178,97 @@ bool pbvh_bmesh_node_raycast(PBVHNode *node, const float ray_start[3],
 
 	return hit;
 }
+
+static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
+                                PBVH *bvh)
+{
+	int counter = 0;
+	BLI_buffer_declare_static(BMVert *, edge_verts_v1, BLI_BUFFER_NOP, 32);
+	BLI_buffer_declare_static(BMVert *, edge_verts_v2, BLI_BUFFER_NOP, 32);
+
+	GSet *deleted_verts = BLI_gset_ptr_new_ex("deleted_verts", BLI_heap_size(eq_ctx->q->heap));
+
+	while (!BLI_heap_is_empty(eq_ctx->q->heap)) {
+		BMFace *f;
+		BMEdge *e;
+		BMIter bm_iter;
+		BMVert **pair = BLI_heap_popmin(eq_ctx->q->heap);
+		BMVert *v1, *v2;
+
+		int total_edge_verts1 = 0;
+		int total_edge_verts2 = 0;
+
+		v1 = pair[0];
+		v2 = pair[1];
+
+		edge_verts_v1.count = 0;
+		edge_verts_v2.count = 0;
+
+		counter++;
+
+		/* check if an edge exists with those two vertices already.
+		 * It is possible if an adjacent vertex pair is joined that
+		 * the two vertices already share an edge. Joining the edge rings
+		 * would then be impossible */
+		if (BLI_gset_haskey(deleted_verts, v1) || BLI_gset_haskey(deleted_verts, v2) ||
+		   BM_edge_exists(v1, v2) || BM_vert_is_boundary(v1) || BM_vert_is_boundary(v2)) {
+			continue;
+		}
+
+		/* store the edge vertices in a list */
+		BM_ITER_ELEM (e, &bm_iter, v1, BM_EDGES_OF_VERT) {
+			BLI_buffer_append(&edge_verts_v1, BMVert *, BM_edge_other_vert(e, v1));
+			total_edge_verts1++;
+		}
+
+		BM_ITER_ELEM (e, &bm_iter, v2, BM_EDGES_OF_VERT) {
+			BLI_buffer_append(&edge_verts_v2, BMVert *, BM_edge_other_vert(e, v2));
+			total_edge_verts2++;
+		}
+
+		/* this should NOT happen, but have a guard here to prevent crashing for now */
+		if (total_edge_verts1 < 3 || total_edge_verts2 < 3) {
+			continue;
+		}
+
+		/*
+		 * Note, maybe this should be done after deletion of the vertices?
+		if (total_edge_verts2 > total_edge_verts1) {
+			pbvh_bridge_loops(bvh, &edge_verts_v1, &edge_verts_v2, total_edge_verts1, total_edge_verts2, deleted_verts);
+		}
+		else {
+			pbvh_bridge_loops(bvh, &edge_verts_v2, &edge_verts_v1, total_edge_verts2, total_edge_verts1, deleted_verts);
+		}
+		*/
+		
+
+		/* Remove the faces */
+		BM_ITER_ELEM (f, &bm_iter, v1, BM_FACES_OF_VERT) {
+			pbvh_bmesh_delete_vert_face(bvh, v1, f, deleted_verts, eq_ctx);
+		}
+
+		BM_ITER_ELEM (f, &bm_iter, v2, BM_FACES_OF_VERT) {
+			pbvh_bmesh_delete_vert_face(bvh, v2, f, deleted_verts, eq_ctx);
+		}
+
+		if (BM_ELEM_CD_GET_INT(v1, eq_ctx->cd_vert_node_offset) != DYNTOPO_NODE_NONE)
+			pbvh_bmesh_vert_remove(bvh, v1, eq_ctx->cd_vert_node_offset, eq_ctx->cd_face_node_offset);
+		if (BM_ELEM_CD_GET_INT(v2, eq_ctx->cd_vert_node_offset) != DYNTOPO_NODE_NONE)
+			pbvh_bmesh_vert_remove(bvh, v2, eq_ctx->cd_vert_node_offset, eq_ctx->cd_face_node_offset);
+
+		BM_log_vert_removed(bvh->bm_log, v1, eq_ctx->cd_vert_mask_offset);
+		BM_vert_kill(bvh->bm, v1);
+		BLI_gset_insert(deleted_verts, v1);
+		BM_log_vert_removed(bvh->bm_log, v2, eq_ctx->cd_vert_mask_offset);
+		BM_vert_kill(bvh->bm, v2);
+		BLI_gset_insert(deleted_verts, v2);
+	}
+	BLI_buffer_free(&edge_verts_v1);
+	BLI_buffer_free(&edge_verts_v2);
+
+	BLI_gset_free(deleted_verts, NULL);
+}
+
 
 bool BKE_pbvh_bmesh_node_raycast_detail(
         PBVHNode *node,
@@ -1214,7 +1413,7 @@ bool BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
                                    const float center[3], float radius)
 {
 	/* 2 is enough for edge faces - manifold edge */
-	BLI_buffer_declare_static(BMFace *, edge_loops, BLI_BUFFER_NOP, 2);
+	BLI_buffer_declare_static(BMLoop *, edge_loops, BLI_BUFFER_NOP, 2);
 	BLI_buffer_declare_static(BMFace *, deleted_faces, BLI_BUFFER_NOP, 32);
 	const int cd_vert_mask_offset = CustomData_get_offset(&bvh->bm->vdata, CD_PAINT_MASK);
 	const int cd_vert_node_offset = bvh->cd_vert_node_offset;
@@ -1232,6 +1431,18 @@ bool BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
 		modified |= !BLI_heap_is_empty(q.heap);
 		pbvh_bmesh_collapse_short_edges(&eq_ctx, bvh, &edge_loops,
 		                                &deleted_faces);
+		BLI_heap_free(q.heap, NULL);
+		BLI_mempool_destroy(queue_pool);
+	}
+
+	if (mode & PBVH_TopologyGenus) {
+		EdgeQueue q;
+		BLI_mempool *queue_pool = BLI_mempool_create(sizeof(BMVert) * 2,
+		                                             128, 128, 0);
+		EdgeQueueContext eq_ctx = {&q, queue_pool, bvh->bm, cd_vert_mask_offset, cd_vert_node_offset, cd_face_node_offset};
+
+		close_vert_queue_create(&eq_ctx, bvh, center, radius);
+		pbvh_bmesh_collapse_close_verts(&eq_ctx, bvh);
 		BLI_heap_free(q.heap, NULL);
 		BLI_mempool_destroy(queue_pool);
 	}

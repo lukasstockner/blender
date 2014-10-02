@@ -461,6 +461,8 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 		 "Collapse Edges", "Collapse short edges to remove mesh detail where possible"},
 		{SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE, "SUBDIVIDE_COLLAPSE", 0,
 		 "Subdivide Collapse", "Both subdivide long edges and collapse short edges to refine mesh detail"},
+		{SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE | SCULPT_DYNTOPO_GENUS_CHANGE, "TOPOLOGY_CHANGE", 0,
+		 "Full Topology Change", "Subdivide long edges and collapse short edges and create holes and connections to refine mesh detail"},
 		{0, NULL, 0, NULL, NULL}
 	};
 

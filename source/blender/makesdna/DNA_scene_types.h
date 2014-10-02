@@ -1707,7 +1707,10 @@ typedef enum SculptFlags {
 	SCULPT_DYNTOPO_COLLAPSE = (1 << 11),
 
 	/* If set, dynamic-topology detail size will be constant in object space */
-	SCULPT_DYNTOPO_DETAIL_CONSTANT = (1 << 13)
+	SCULPT_DYNTOPO_DETAIL_CONSTANT = (1 << 13),
+	
+	/* If set, dynamic-topology brushes will connect surfaces that come close together */
+	SCULPT_DYNTOPO_GENUS_CHANGE = (1 << 14)
 } SculptFlags;
 
 typedef enum ImagePaintMode {

@@ -3004,6 +3004,10 @@ static void sculpt_topology_update(Sculpt *sd, Object *ob, Brush *brush)
 		{
 			mode |= PBVH_Collapse;
 		}
+		
+		if (sd->flags & SCULPT_DYNTOPO_GENUS_CHANGE) {
+			mode |= PBVH_TopologyGenus;
+		}
 
 		for (n = 0; n < totnode; n++) {
 			sculpt_undo_push_node(ob, nodes[n],

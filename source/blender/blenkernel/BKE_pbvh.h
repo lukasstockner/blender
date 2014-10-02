@@ -140,9 +140,11 @@ struct BMesh *BKE_pbvh_get_bmesh(PBVH *pbvh);
 void BKE_pbvh_bmesh_detail_size_set(PBVH *pbvh, float detail_size);
 
 typedef enum {
-	PBVH_Subdivide = 1,
-	PBVH_Collapse = 2,
+	PBVH_Subdivide = (1 << 0),
+	PBVH_Collapse = (1 << 1),
+	PBVH_TopologyGenus = (1 << 2)
 } PBVHTopologyUpdateMode;
+
 bool BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
                                    const float center[3], float radius);
 
