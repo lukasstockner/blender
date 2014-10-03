@@ -1032,7 +1032,7 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 	if(!need_update)
 		return;
 
-	/* update normals */
+	/* update normals and flags */
 	foreach(Mesh *mesh, scene->meshes) {
 		mesh->has_volume = false;
 		foreach(uint shader, mesh->used_shaders) {
@@ -1109,6 +1109,8 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 	bool motion_blur = false;
 #endif
 
+	/* update obejcts */
+	vector<Object *> volume_objects;
 	foreach(Object *object, scene->objects)
 		object->compute_bounds(motion_blur);
 
