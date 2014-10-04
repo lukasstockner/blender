@@ -1437,6 +1437,14 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 		if (!bm_vert_ordered_fan_walk(v2, &edge_verts_v2) || (edge_verts_v2.count < 3))
 			continue;
 
+		/* Remove the faces (would use 'BM_FACES_OF_VERT' except we can't look on data we remove) */
+		while ((l = BM_vert_find_first_loop(v1))) {
+			pbvh_bmesh_delete_vert_face(bvh, v1, l->f, deleted_verts, eq_ctx);
+		}
+		while ((l = BM_vert_find_first_loop(v2))) {
+			pbvh_bmesh_delete_vert_face(bvh, v2, l->f, deleted_verts, eq_ctx);
+		}
+
 		/* Note, maybe this should be done after deletion of the vertices? */
 		if (edge_verts_v2.count < edge_verts_v1.count) {
 			pbvh_bridge_loops(
@@ -1449,14 +1457,6 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 			        bvh,
 			        edge_verts_v2.data, edge_verts_v2.count,
 			        edge_verts_v1.data, edge_verts_v1.count);
-		}
-
-		/* Remove the faces (would use 'BM_FACES_OF_VERT' except we can't look on data we remove) */
-		while ((l = BM_vert_find_first_loop(v1))) {
-			pbvh_bmesh_delete_vert_face(bvh, v1, l->f, deleted_verts, eq_ctx);
-		}
-		while ((l = BM_vert_find_first_loop(v2))) {
-			pbvh_bmesh_delete_vert_face(bvh, v2, l->f, deleted_verts, eq_ctx);
 		}
 
 		if (BM_ELEM_CD_GET_INT(v1, eq_ctx->cd_vert_node_offset) != DYNTOPO_NODE_NONE)
