@@ -1258,7 +1258,9 @@ static void pbvh_bridge_loops(
         BMFace *f_adj)
 {
 	/* all edges will have a face, since we didnt remove the center fan yet */
-	const int ni = BM_ELEM_CD_GET_INT(f_adj, bvh->cd_face_node_offset);
+	PBVHNode *n = pbvh_bmesh_node_lookup(bvh, f_adj, bvh->cd_face_node_offset);
+	const int ni = n - bvh->nodes;
+
 	float (*eloop_a_dirs)[2] = BLI_array_alloca(eloop_a_dirs, eloop_a_len);
 	float (*eloop_b_dirs)[2] = BLI_array_alloca(eloop_b_dirs, eloop_b_len);
 	float eloop_a_cent[3], eloop_a_normal[3];
@@ -1355,10 +1357,24 @@ static void pbvh_bridge_loops(
 		BLI_assert(a_step_base <= eloop_a_len);
 		BLI_assert(b_step_base <= eloop_b_len);
 
-		if (!BM_face_exists(v_tri, 3, NULL)) {
+		/* possible loops share verts */
+		if (!ELEM(v_tri[0], v_tri[1], v_tri[2]) &&
+		    !BM_face_exists(v_tri, 3, NULL))
+		{
+			int i;
+			BLI_assert(!ELEM(v_tri[1], v_tri[2], v_tri[0]) &&
+			           !ELEM(v_tri[2], v_tri[0], v_tri[1]));
 			bm_edges_from_tri(bvh->bm, v_tri, e_tri);
 			f_new = pbvh_bmesh_face_create(bvh, ni, v_tri, e_tri, f_adj, bvh->cd_face_node_offset);
 			(void)f_new;
+
+			for (i = 0; i < 3; i++) {
+				if (!BLI_gset_haskey(n->bm_unique_verts, v_tri[i]) &&
+				    !BLI_gset_haskey(n->bm_other_verts,  v_tri[i]))
+				{
+					BLI_gset_insert(n->bm_other_verts, v_tri[i]);
+				}
+			}
 		}
 	} while ((a_step_base != eloop_a_len) ||
 	         (b_step_base != eloop_b_len));
