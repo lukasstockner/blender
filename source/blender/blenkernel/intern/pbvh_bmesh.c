@@ -734,6 +734,34 @@ static void pbvh_bmesh_delete_vert_face(PBVH *bvh, BMVert *v, BMFace *f_del, GSe
 }
 
 
+/**
+ * Same as #pbvh_bmesh_delete_vert_face but keeps verts
+ */
+static void pbvh_bmesh_delete_edge_face(PBVH *bvh, BMFace *f_del, EdgeQueueContext *eq_ctx)
+{
+	BMLoop *l_iter;
+	BMEdge *e_tri[3];
+	int j;
+
+	/* Get vertices and edges of face */
+	BLI_assert(f_del->len == 3);
+	l_iter = BM_FACE_FIRST_LOOP(f_del);
+	e_tri[0] = l_iter->e; l_iter = l_iter->next;
+	e_tri[1] = l_iter->e; l_iter = l_iter->next;
+	e_tri[2] = l_iter->e;
+
+	/* Remove the face */
+	pbvh_bmesh_face_remove(bvh, f_del, eq_ctx->cd_vert_node_offset, eq_ctx->cd_face_node_offset);
+	BM_face_kill(bvh->bm, f_del);
+
+	/* Check if any of the face's edges are now unused by any
+	 * face, if so delete them */
+	for (j = 0; j < 3; j++) {
+		if (BM_edge_is_wire(e_tri[j]))
+			BM_edge_kill(bvh->bm, e_tri[j]);
+	}
+}
+
 /* Create a priority queue containing vertex pairs not connected by an
  * edge, but close enough as defined by PBVH.bm_min_edge_len.
  *
@@ -1181,6 +1209,10 @@ bool pbvh_bmesh_node_raycast(PBVHNode *node, const float ray_start[3],
 	return hit;
 }
 
+/* remove sides of the bridge when there are adjacent holes,
+ * so 2 holes form a larger hole (typically what you want) */
+#define USE_BRIDGE_MERGE_HOLES
+
 /* radial walk the vert edges */
 static bool bm_vert_ordered_fan_walk(BMVert *v, BLI_Buffer *buf)
 {
@@ -1189,19 +1221,80 @@ static bool bm_vert_ordered_fan_walk(BMVert *v, BLI_Buffer *buf)
 	BLI_assert(buf->count == 0);
 
 	l_iter = l_first = BM_vert_find_first_loop(v);
-	e_prev = l_first->prev->e;
 	if (l_iter == NULL)
 		return false;
 
+	e_prev = l_first->prev->e;
 	do {
+		BMVert *v_other;
 		/* boundary, we're not interested! */
 		if (UNLIKELY(l_iter == NULL)) {
 			return false;
 		}
-		BLI_buffer_append(buf, BMVert *, BM_edge_other_vert(e_prev, v));
+		v_other = BM_edge_other_vert(e_prev, v);
+		BLI_buffer_append(buf, BMVert *, v_other);
+
+#ifdef USE_BRIDGE_MERGE_HOLES
+		/* ensure all connected faces have tags disabled */
+		{
+			BMLoop *l_first_radial = l_iter->next->radial_next;
+			BMLoop *l_iter_radial = l_first_radial->radial_next;
+			if (l_first_radial != l_iter_radial) {
+				do {
+					BM_elem_flag_disable(l_iter_radial->prev->v, BM_ELEM_TAG);
+				} while ((l_iter_radial = l_iter_radial->radial_next) != l_first_radial);
+			}
+			BM_elem_flag_disable(v_other, BM_ELEM_TAG);
+		}
+#endif
+
 	} while (((l_iter = BM_vert_step_fan_loop(l_iter, &e_prev)) != l_first));
 	return true;
 }
+
+#ifdef USE_BRIDGE_MERGE_HOLES
+static void pbvh_bmesh_delete_edge_face_tagged_radial(
+        PBVH *bvh, BMLoop *l_rim, EdgeQueueContext *eq_ctx)
+{
+	/* will only be a single face in most cases (manifold edge)
+	 * but l_rim is attached to the central vertex, so don't touch it */
+	BMLoop *l_iter = l_rim->radial_next;
+	BMLoop *l_next;
+	if (l_rim != l_iter) {
+		do {
+			/* vert on the triangle, not attached to this current edge-loop
+			 * if its tagged we know both bridge-loops share this face and it should be removed */
+			BMVert *v_other = l_iter->prev->v;
+			l_next = l_iter->radial_next;
+
+			if (BM_elem_flag_test(v_other, BM_ELEM_TAG)) {
+				BLI_assert(!BM_vert_in_face(l_iter->f, l_rim->prev->v));
+				pbvh_bmesh_delete_edge_face(bvh, l_iter->f, eq_ctx);
+				printf("Removing border\n");
+			}
+		} while ((l_iter = l_next) != l_rim);
+	}
+}
+
+static void bm_earray_tag(
+        BMElemF **earr, int earr_num,
+        bool tag)
+{
+	int i;
+
+	if (tag) {
+		for (i = 0; i < earr_num; i++) {
+			BM_elem_flag_enable(earr[i], BM_ELEM_TAG);
+		}
+	}
+	else {
+		for (i = 0; i < earr_num; i++) {
+			BM_elem_flag_disable(earr[i], BM_ELEM_TAG);
+		}
+	}
+}
+
+#endif  /* USE_BRIDGE_MERGE_HOLES */
 
 static void bm_varray_center(
         const BMVert **varr, const int varr_num,
@@ -1437,12 +1530,29 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 		if (!bm_vert_ordered_fan_walk(v2, &edge_verts_v2) || (edge_verts_v2.count < 3))
 			continue;
 
+#ifdef USE_BRIDGE_MERGE_HOLES
+		bm_earray_tag(edge_verts_v1.data, edge_verts_v1.count, true);
+		bm_earray_tag(edge_verts_v2.data, edge_verts_v2.count, true);
+
+		/* ensure we don't remove radial faces here */
+		BM_elem_flag_disable(v1, BM_ELEM_TAG);
+		BM_elem_flag_disable(v2, BM_ELEM_TAG);
+#endif
+
 		/* Remove the faces (would use 'BM_FACES_OF_VERT' except we can't look on data we remove) */
 		while ((l = BM_vert_find_first_loop(v1))) {
-			pbvh_bmesh_delete_vert_face(bvh, v1, l->f, deleted_verts, eq_ctx);
+#ifdef USE_BRIDGE_MERGE_HOLES
+			pbvh_bmesh_delete_edge_face_tagged_radial(bvh, l->next, eq_ctx);
+#endif
+			BLI_assert(BM_ELEM_CD_GET_INT(l->f, eq_ctx->cd_face_node_offset) != DYNTOPO_NODE_NONE);
+			pbvh_bmesh_delete_edge_face(bvh, l->f, eq_ctx);
 		}
 		while ((l = BM_vert_find_first_loop(v2))) {
-			pbvh_bmesh_delete_vert_face(bvh, v2, l->f, deleted_verts, eq_ctx);
+#ifdef USE_BRIDGE_MERGE_HOLES
+			pbvh_bmesh_delete_edge_face_tagged_radial(bvh, l->next, eq_ctx);
+#endif
+			BLI_assert(BM_ELEM_CD_GET_INT(l->f, eq_ctx->cd_face_node_offset) != DYNTOPO_NODE_NONE);
+			pbvh_bmesh_delete_edge_face(bvh, l->f, eq_ctx);
 		}
 
 		/* Note, maybe this should be done after deletion of the vertices? */
