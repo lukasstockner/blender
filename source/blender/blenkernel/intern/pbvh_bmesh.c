@@ -25,6 +25,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_alloca.h"
+#include "BLI_array.h"
 #include "BLI_buffer.h"
 #include "BLI_ghash.h"
 #include "BLI_heap.h"
@@ -1201,6 +1203,167 @@ static bool bm_vert_ordered_fan_walk(BMVert *v, BLI_Buffer *buf)
 	return true;
 }
 
+static void bm_varray_center(
+        const BMVert **varr, const int varr_num,
+        float r_center[3])
+{
+	int i;
+
+	zero_v3(r_center);
+	for (i = 0; i < varr_num; i++) {
+		add_v3_v3(r_center, varr[i]->co);
+	}
+	mul_v3_fl(r_center, 1.0f / (float)varr_num);
+}
+
+static void bm_varray_normal(
+        const BMVert **varr, int varr_num,
+        float r_normal[3])
+{
+	const BMVert *v_prev = varr[varr_num - 1];
+	const BMVert *v_curr = varr[0];
+	int i;
+
+	zero_v3(r_normal);
+
+	/* Newell's Method */
+	for (i = 0; i < varr_num; v_prev = v_curr, v_curr = varr[++i]) {
+		add_newell_cross_v3_v3v3(r_normal, v_prev->co, v_curr->co);
+	}
+
+	normalize_v3(r_normal);
+}
+
+static void bm_varray_dirs_2d(
+        const BMVert **varr, int varr_num,
+        float axis_mat[3][3], const float center[3],
+        float (*r_dirs)[2])
+{
+	float center_2d[2];
+	int i;
+
+	mul_v2_m3v3(center_2d, axis_mat, center);
+
+	for (i = 0; i < varr_num; i++) {
+		mul_v2_m3v3(r_dirs[i], axis_mat, varr[i]->co);
+		sub_v2_v2(r_dirs[i], center_2d);
+		normalize_v2(r_dirs[i]);
+	}
+}
+
+static void pbvh_bridge_loops(
+        PBVH *bvh,
+        BMVert **eloop_a, int eloop_a_len,
+        BMVert **eloop_b, int eloop_b_len,
+        BMFace *f_adj)
+{
+	/* all edges will have a face, since we didnt remove the center fan yet */
+	const int ni = BM_ELEM_CD_GET_INT(f_adj, bvh->cd_face_node_offset);
+	float (*eloop_a_dirs)[2] = BLI_array_alloca(eloop_a_dirs, eloop_a_len);
+	float (*eloop_b_dirs)[2] = BLI_array_alloca(eloop_b_dirs, eloop_b_len);
+	float eloop_a_cent[3], eloop_a_normal[3];
+	float eloop_b_cent[3], eloop_b_normal[3];
+	float axis[3];
+	float axis_mat[3][3];
+	int a_offset = 0;
+	int b_offset = 0;
+	int a_step_base;
+	int b_step_base;
+
+	BLI_assert(eloop_a_len >= eloop_b_len);
+
+	bm_varray_center((const BMVert **)eloop_a, eloop_a_len, eloop_a_cent);
+	bm_varray_center((const BMVert **)eloop_b, eloop_b_len, eloop_b_cent);
+
+	bm_varray_normal((const BMVert **)eloop_a, eloop_a_len, eloop_a_normal);
+	bm_varray_normal((const BMVert **)eloop_b, eloop_b_len, eloop_b_normal);
+
+	if (dot_v3v3(eloop_a_normal, eloop_b_normal) < 0.0f) {
+		BLI_array_reverse(eloop_b, eloop_b_len);
+		negate_v3(eloop_b_normal);
+	}
+
+	add_v3_v3v3(axis, eloop_a_normal, eloop_b_normal);
+	normalize_v3(axis);
+
+	axis_dominant_v3_to_m3(axis_mat, axis);
+
+	bm_varray_dirs_2d((const BMVert **)eloop_a, eloop_a_len, axis_mat, eloop_a_cent, eloop_a_dirs);
+	bm_varray_dirs_2d((const BMVert **)eloop_b, eloop_b_len, axis_mat, eloop_b_cent, eloop_b_dirs);
+
+	/* find closest angle on the smaller loop */
+	{
+		float t_best;
+		int i;
+
+		a_offset = 0;
+
+		t_best = -1.0f;
+		for (i = 0; i < eloop_b_len; i++) {
+			float t = dot_v2v2(eloop_a_dirs[a_offset], eloop_b_dirs[i]);
+			if (t > t_best) {
+				t_best = t;
+				b_offset = i;
+			}
+		}
+	}
+
+	a_step_base = 0;
+	b_step_base = 0;
+
+	do {
+		BMFace *f_new;
+		BMVert *v_tri[3];
+		BMEdge *e_tri[3];
+		/* Step (false == a, true == b) */
+		bool step_side;
+
+		const int a_curr = ((a_step_base + a_offset)) % eloop_a_len;
+		const int b_curr = ((b_step_base + b_offset)) % eloop_b_len;
+		const int a_next = ((a_step_base + a_offset) + 1) % eloop_a_len;
+		const int b_next = ((b_step_base + b_offset) + 1) % eloop_b_len;
+
+		if ((a_step_base != eloop_a_len) && (b_step_base == eloop_b_len)) {
+			step_side = false;
+		}
+		else if ((a_step_base == eloop_a_len) && (b_step_base != eloop_b_len)) {
+			step_side = true;
+		}
+		else {
+			if (dot_v2v2(eloop_a_dirs[a_curr], eloop_b_dirs[b_next]) <
+			    dot_v2v2(eloop_a_dirs[a_next], eloop_b_dirs[b_curr]))
+			{
+				step_side = false;
+			}
+			else {
+				step_side = true;
+			}
+		}
+
+		if (step_side == false) {
+			v_tri[0] = eloop_b[b_curr];
+			v_tri[1] = eloop_a[a_curr];
+			v_tri[2] = eloop_a[a_next];
+			a_step_base += 1;
+		}
+		else {
+			v_tri[0] = eloop_a[a_curr];
+			v_tri[2] = eloop_b[b_curr];
+			v_tri[1] = eloop_b[b_next];
+			b_step_base += 1;
+		}
+		BLI_assert(a_step_base <= eloop_a_len);
+		BLI_assert(b_step_base <= eloop_b_len);
+
+		if (!BM_face_exists(v_tri, 3, NULL)) {
+			bm_edges_from_tri(bvh->bm, v_tri, e_tri);
+			f_new = pbvh_bmesh_face_create(bvh, ni, v_tri, e_tri, f_adj, bvh->cd_face_node_offset);
+			(void)f_new;
+		}
+	} while ((a_step_base != eloop_a_len) ||
+	         (b_step_base != eloop_b_len));
+}
+
 static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
                                 PBVH *bvh)
 {
@@ -1235,26 +1398,28 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 			continue;
 		}
 
-		if (!bm_vert_ordered_fan_walk(v1, &edge_verts_v1))
+		/* Regarding the check for '< 3' verts, this should NOT happen,
+		 * but have a guard here to prevent crashing for now */
+		if (!bm_vert_ordered_fan_walk(v1, &edge_verts_v1) || (edge_verts_v1.count < 3))
 			continue;
-		if (!bm_vert_ordered_fan_walk(v2, &edge_verts_v2))
+		if (!bm_vert_ordered_fan_walk(v2, &edge_verts_v2) || (edge_verts_v2.count < 3))
 			continue;
-
-		/* this should NOT happen, but have a guard here to prevent crashing for now */
-		if (edge_verts_v1.count < 3 || edge_verts_v2.count < 3) {
-			continue;
-		}
 
 		/* Note, maybe this should be done after deletion of the vertices? */
-#if 0
-		if (edge_verts_v2.count > edge_verts_v1.count) {
-			pbvh_bridge_loops(bvh, &edge_verts_v1, &edge_verts_v2, deleted_verts);
+		if (edge_verts_v2.count < edge_verts_v1.count) {
+			pbvh_bridge_loops(
+			        bvh,
+			        edge_verts_v1.data, edge_verts_v1.count,
+			        edge_verts_v2.data, edge_verts_v2.count,
+			        BM_vert_find_first_loop(v1)->f);
 		}
 		else {
-			pbvh_bridge_loops(bvh, &edge_verts_v2, &edge_verts_v1, deleted_verts);
+			pbvh_bridge_loops(
+			        bvh,
+			        edge_verts_v2.data, edge_verts_v2.count,
+			        edge_verts_v1.data, edge_verts_v1.count,
+			        BM_vert_find_first_loop(v2)->f);
 		}
-#endif
-
 
 		/* Remove the faces (would use 'BM_FACES_OF_VERT' except we can't look on data we remove) */
 		while ((l = BM_vert_find_first_loop(v1))) {
