@@ -24,6 +24,7 @@ set(SRC_HEADERS
 	kernel_compat_cpu.h
 	kernel_compat_cuda.h
 	kernel_compat_opencl.h
+	kernel_debug.h
 	kernel_differential.h
 	kernel_emission.h
 	kernel_film.h
@@ -61,7 +62,6 @@ set(SRC_CLOSURE_HEADERS
 	closure/bsdf_transparent.h
 	closure/bsdf_util.h
 	closure/bsdf_ashikhmin_shirley.h
-	closure/bsdf_westin.h
 	closure/bsdf_hair.h
 	closure/bssrdf.h
 	closure/emissive.h
@@ -116,6 +116,7 @@ set(SRC_GEOM_HEADERS
 	geom/geom_bvh_shadow.h
 	geom/geom_bvh_subsurface.h
 	geom/geom_bvh_traversal.h
+	geom/geom_bvh_volume.h
 	geom/geom_curve.h
 	geom/geom_motion_curve.h
 	geom/geom_motion_triangle.h
