@@ -1254,13 +1254,8 @@ static void bm_varray_dirs_2d(
 static void pbvh_bridge_loops(
         PBVH *bvh,
         BMVert **eloop_a, int eloop_a_len,
-        BMVert **eloop_b, int eloop_b_len,
-        BMFace *f_adj)
+        BMVert **eloop_b, int eloop_b_len)
 {
-	/* all edges will have a face, since we didnt remove the center fan yet */
-	PBVHNode *n = pbvh_bmesh_node_lookup(bvh, f_adj, bvh->cd_face_node_offset);
-	const int ni = n - bvh->nodes;
-
 	float (*eloop_a_dirs)[2] = BLI_array_alloca(eloop_a_dirs, eloop_a_len);
 	float (*eloop_b_dirs)[2] = BLI_array_alloca(eloop_b_dirs, eloop_b_len);
 	float eloop_a_cent[3], eloop_a_normal[3];
@@ -1316,7 +1311,7 @@ static void pbvh_bridge_loops(
 	do {
 		BMFace *f_new;
 		BMVert *v_tri[3];
-		BMEdge *e_tri[3];
+
 		/* Step (false == a, true == b) */
 		bool step_side;
 
@@ -1361,19 +1356,40 @@ static void pbvh_bridge_loops(
 		if (!ELEM(v_tri[0], v_tri[1], v_tri[2]) &&
 		    !BM_face_exists(v_tri, 3, NULL))
 		{
+			BMEdge *e_tri[3];
 			int i;
 			BLI_assert(!ELEM(v_tri[1], v_tri[2], v_tri[0]) &&
 			           !ELEM(v_tri[2], v_tri[0], v_tri[1]));
-			bm_edges_from_tri(bvh->bm, v_tri, e_tri);
-			f_new = pbvh_bmesh_face_create(bvh, ni, v_tri, e_tri, f_adj, bvh->cd_face_node_offset);
-			(void)f_new;
 
-			for (i = 0; i < 3; i++) {
-				if (!BLI_gset_haskey(n->bm_unique_verts, v_tri[i]) &&
-				    !BLI_gset_haskey(n->bm_other_verts,  v_tri[i]))
-				{
-					BLI_gset_insert(n->bm_other_verts, v_tri[i]);
+			bm_edges_from_tri(bvh->bm, v_tri, e_tri);
+
+			/* (v_tri[1] -> v_tri[2]), needs to have a face else we ignore */
+			if (e_tri[1]->l) {
+				BMLoop *l_rim = e_tri[1]->l;
+				BMFace *f_rim = l_rim->f;
+				PBVHNode *n = pbvh_bmesh_node_lookup(bvh, f_rim, bvh->cd_face_node_offset);
+				const int ni = n - bvh->nodes;
+
+				/* winding should be correct in most cases (when verts face away from eachother at least)...
+				 * Even so, better base it off adjacent face to keep normals contiguous. */
+				if (l_rim->v == v_tri[1]) {
+					SWAP(BMVert *, v_tri[1], v_tri[2]);
+					SWAP(BMEdge *, e_tri[0], e_tri[2]);
 				}
+
+				f_new = pbvh_bmesh_face_create(bvh, ni, v_tri, e_tri, f_rim, bvh->cd_face_node_offset);
+				(void)f_new;
+
+				for (i = 0; i < 3; i++) {
+					if (!BLI_gset_haskey(n->bm_unique_verts, v_tri[i]) &&
+						!BLI_gset_haskey(n->bm_other_verts,  v_tri[i]))
+					{
+						BLI_gset_insert(n->bm_other_verts, v_tri[i]);
+					}
+				}
+			}
+			else {
+				printf("Ignoring boundary\n");
 			}
 		}
 	} while ((a_step_base != eloop_a_len) ||
@@ -1426,15 +1442,13 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 			pbvh_bridge_loops(
 			        bvh,
 			        edge_verts_v1.data, edge_verts_v1.count,
-			        edge_verts_v2.data, edge_verts_v2.count,
-			        BM_vert_find_first_loop(v1)->f);
+			        edge_verts_v2.data, edge_verts_v2.count);
 		}
 		else {
 			pbvh_bridge_loops(
 			        bvh,
 			        edge_verts_v2.data, edge_verts_v2.count,
-			        edge_verts_v1.data, edge_verts_v1.count,
-			        BM_vert_find_first_loop(v2)->f);
+			        edge_verts_v1.data, edge_verts_v1.count);
 		}
 
 		/* Remove the faces (would use 'BM_FACES_OF_VERT' except we can't look on data we remove) */
