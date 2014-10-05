@@ -569,6 +569,25 @@ static void long_edge_queue_edge_add(EdgeQueueContext *eq_ctx,
 		edge_queue_insert(eq_ctx, e, -len_sq);
 }
 
+#if 0
+static float bm_edge_calc_sharpness(BMEdge *e)
+{
+	if (BM_edge_is_manifold(e)) {
+		float axis[3], ang;
+		sub_v3_v3v3(axis, e->v1->co, e->v2->co);
+		ang = angle_on_axis_v3v3v3_v3(
+		        e->l->prev->v->co,
+		        e->v1->co,
+		        e->l->radial_next->prev->v->co,
+		        axis);
+		return ang / M_PI;
+	}
+	else {
+		return 1.0f;
+	}
+}
+#endif
+
 static void short_edge_queue_edge_add(EdgeQueueContext *eq_ctx,
                                       BMEdge *e)
 {
@@ -1211,7 +1230,12 @@ bool pbvh_bmesh_node_raycast(PBVHNode *node, const float ray_start[3],
 
 /* remove sides of the bridge when there are adjacent holes,
  * so 2 holes form a larger hole (typically what you want) */
-#define USE_BRIDGE_MERGE_HOLES
+// #define USE_BRIDGE_MERGE_HOLES
+
+/* disallow bridges sharing vertices */
+// #define USE_BRIDGE_STRICT
+
+#define USE_BRIDGE_CLEAN
 
 /* radial walk the vert edges */
 static bool bm_vert_ordered_fan_walk(BMVert *v, BLI_Buffer *buf)
@@ -1275,7 +1299,9 @@ static void pbvh_bmesh_delete_edge_face_tagged_radial(
 		} while ((l_iter = l_next) != l_rim);
 	}
 }
+#endif  /* USE_BRIDGE_MERGE_HOLES */
 
+#if defined(USE_BRIDGE_MERGE_HOLES) || defined(USE_BRIDGE_STRICT)
 static void bm_earray_tag(
         BMElemF **earr, int earr_num,
         bool tag)
@@ -1293,8 +1319,22 @@ static void bm_earray_tag(
 		}
 	}
 }
+#endif
 
-#endif  /* USE_BRIDGE_MERGE_HOLES */
+#ifdef USE_BRIDGE_STRICT
+static bool bm_earray_tag_check_any(
+        BMElemF **earr, int earr_num)
+{
+	int i;
+
+	for (i = 0; i < earr_num; i++) {
+		if (BM_elem_flag_test(earr[i], BM_ELEM_TAG)) {
+			return true;
+		}
+	}
+	return false;
+}
+#endif
 
 static void bm_varray_center(
         const BMVert **varr, const int varr_num,
@@ -1495,7 +1535,9 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 	int counter = 0;
 	BLI_buffer_declare_static(BMVert *, edge_verts_v1, BLI_BUFFER_NOP, 32);
 	BLI_buffer_declare_static(BMVert *, edge_verts_v2, BLI_BUFFER_NOP, 32);
-
+#ifdef USE_BRIDGE_CLEAN
+	BLI_buffer_declare_static(BMFace *, face_clean, BLI_BUFFER_NOP, 32);
+#endif
 	GSet *deleted_verts = BLI_gset_ptr_new_ex("deleted_verts", BLI_heap_size(eq_ctx->q->heap));
 
 	while (!BLI_heap_is_empty(eq_ctx->q->heap)) {
@@ -1529,6 +1571,15 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 			continue;
 		if (!bm_vert_ordered_fan_walk(v2, &edge_verts_v2) || (edge_verts_v2.count < 3))
 			continue;
+
+#ifdef USE_BRIDGE_STRICT
+		bm_earray_tag(edge_verts_v1.data, edge_verts_v1.count, false);
+		bm_earray_tag(edge_verts_v2.data, edge_verts_v2.count, true);
+		if (bm_earray_tag_check_any(edge_verts_v1.data, edge_verts_v1.count)) {
+			printf("Bridges share verts!\n");
+			continue;
+		}
+#endif
 
 #ifdef USE_BRIDGE_MERGE_HOLES
 		bm_earray_tag(edge_verts_v1.data, edge_verts_v1.count, true);
@@ -1580,9 +1631,54 @@ static void pbvh_bmesh_collapse_close_verts(EdgeQueueContext *eq_ctx,
 		BM_log_vert_removed(bvh->bm_log, v2, eq_ctx->cd_vert_mask_offset);
 		BM_vert_kill(bvh->bm, v2);
 		BLI_gset_insert(deleted_verts, v2);
+
+
+#ifdef USE_BRIDGE_CLEAN
+		{
+			BLI_Buffer *bufs[2] = {&edge_verts_v1, &edge_verts_v2};
+			int i, j;
+
+
+			for (j = 0; j < 2; j++) {
+				BMVert **varr = BLI_buffer_array(bufs[j], BMVert *);
+				for (i = 0; i < bufs[j]->count; i++) {
+					BMVert *v = varr[i];
+
+					if (!BLI_gset_haskey(deleted_verts, v)) {
+						BMIter bm_iter;
+						BMLoop *l;
+
+						face_clean.count = 0;
+						BM_ITER_ELEM (l, &bm_iter, v, BM_LOOPS_OF_VERT) {
+							if ((BM_edge_is_boundary(l->prev->e) ||
+							     BM_edge_is_boundary(l->e) ||
+							     BM_edge_is_boundary(l->next->e)))
+							{
+								BLI_buffer_append(&face_clean, BMFace *, l->f);
+							}
+						}
+
+						if (face_clean.count != 0) {
+							BMFace **farr = BLI_buffer_array(&face_clean, BMFace *);
+							int k;
+							for (k = 0; k < face_clean.count; k++) {
+								pbvh_bmesh_delete_vert_face(bvh, NULL, farr[k], deleted_verts, eq_ctx);
+								printf("Cleaning bad face!\n");
+							}
+						}
+					}
+				}
+			}
+		}
+#endif
+
 	}
 	BLI_buffer_free(&edge_verts_v1);
 	BLI_buffer_free(&edge_verts_v2);
+
+#ifdef USE_BRIDGE_CLEAN
+	BLI_buffer_free(&face_clean);
+#endif
 
 	BLI_gset_free(deleted_verts, NULL);
 }
