@@ -862,7 +862,15 @@ static void close_vert_queue_create(EdgeQueueContext *eq_ctx,
 					BMVert **pair = BLI_mempool_alloc(eq_ctx->pool);
 					pair[0] = vprev;
 					pair[1] = vcur;
+
+#if 1
+					BLI_heap_insert(eq_ctx->q->heap,
+					                min_ff(len_squared_v3v3(eq_ctx->q->center, vcur->co),
+					                       len_squared_v3v3(eq_ctx->q->center, vprev->co)),
+					                pair);
+#else
 					BLI_heap_insert(eq_ctx->q->heap, dist_sq, pair);
+#endif
 				}
 
 				/* the two vertices in the pair are obliterated as part of the genus topology change, get a new
