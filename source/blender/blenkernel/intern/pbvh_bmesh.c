@@ -44,6 +44,9 @@
 
 #include <assert.h>
 
+/* removes skinny areas after making holes (is rather ugly without this) */
+#define USE_HOLE_VOLUME_CLEAN
+
 /****************************** Building ******************************/
 
 /* Update node data after splitting */
@@ -569,25 +572,6 @@ static void long_edge_queue_edge_add(EdgeQueueContext *eq_ctx,
 		edge_queue_insert(eq_ctx, e, -len_sq);
 }
 
-#if 0
-static float bm_edge_calc_sharpness(BMEdge *e)
-{
-	if (BM_edge_is_manifold(e)) {
-		float axis[3], ang;
-		sub_v3_v3v3(axis, e->v1->co, e->v2->co);
-		ang = angle_on_axis_v3v3v3_v3(
-		        e->l->prev->v->co,
-		        e->v1->co,
-		        e->l->radial_next->prev->v->co,
-		        axis);
-		return ang / M_PI;
-	}
-	else {
-		return 1.0f;
-	}
-}
-#endif
-
 static void short_edge_queue_edge_add(EdgeQueueContext *eq_ctx,
                                       BMEdge *e)
 {
@@ -610,6 +594,80 @@ static void long_edge_queue_face_add(EdgeQueueContext *eq_ctx,
 		} while ((l_iter = l_iter->next) != l_first);
 	}
 }
+
+#ifdef USE_HOLE_VOLUME_CLEAN
+
+#define SHARP_THRESHOLD 0.5f
+
+/**
+ * 1.0 == sharp, 0.0 == flat
+ */
+static float bm_edge_calc_sharpness(BMEdge *e)
+{
+	if (BM_edge_is_manifold(e)) {
+		float axis[3], ang;
+		sub_v3_v3v3(axis, e->v1->co, e->v2->co);
+		ang = angle_on_axis_v3v3v3_v3(
+		        e->l->prev->v->co,
+		        e->v1->co,
+		        e->l->radial_next->prev->v->co,
+		        axis);
+		return 1.0f - (ang / M_PI);
+	}
+	else {
+		return 1.0f;
+	}
+}
+
+/**
+ * volume weighted by sharpness
+ */
+static float bm_edge_calc_volume_weighted(BMEdge *e)
+{
+	BMLoop *l_a, *l_b;
+
+	if (BM_edge_loop_pair(e, &l_a, &l_b)) {
+		BMVert *v1_alt = l_a->prev->v;
+		BMVert *v2_alt = l_b->prev->v;
+		float sharp;
+
+		sharp = bm_edge_calc_sharpness(e);
+
+		if (sharp > SHARP_THRESHOLD) {
+			/* remap from the threshold back to 0-1 */
+			sharp = (sharp - SHARP_THRESHOLD) / (1.0 - SHARP_THRESHOLD);
+			return volume_tetrahedron_v3(e->v1->co, e->v2->co, v1_alt->co, v2_alt->co) / (FLT_EPSILON + (sharp));
+		}
+	}
+
+	return FLT_MAX;
+}
+
+static void tetrahedron_edge_queue_edge_add(EdgeQueueContext *eq_ctx,
+                                            BMEdge *e)
+{
+	const float volume = bm_edge_calc_volume_weighted(e);
+	if (volume != FLT_MAX) {
+		edge_queue_insert(eq_ctx, e, volume);
+	}
+}
+
+static void tetrahedron_edge_queue_face_add(EdgeQueueContext *eq_ctx,
+                                      BMFace *f)
+{
+	if (edge_queue_tri_in_sphere(eq_ctx->q, f)) {
+		BMLoop *l_iter;
+		BMLoop *l_first;
+
+		/* Check each edge of the face */
+		l_iter = l_first = BM_FACE_FIRST_LOOP(f);
+		do {
+			tetrahedron_edge_queue_edge_add(eq_ctx, l_iter->e);
+		} while ((l_iter = l_iter->next) != l_first);
+	}
+}
+
+#endif  /* USE_HOLE_VOLUME_CLEAN */
 
 static void short_edge_queue_face_add(EdgeQueueContext *eq_ctx,
                                       BMFace *f)
@@ -705,6 +763,40 @@ static void short_edge_queue_create(EdgeQueueContext *eq_ctx,
 		}
 	}
 }
+
+#ifdef USE_HOLE_VOLUME_CLEAN
+static void tetrahedron_edge_queue_create(
+        EdgeQueueContext *eq_ctx,
+        PBVH *bvh, const float center[3],
+        float radius)
+{
+	int n;
+
+	eq_ctx->q->heap = BLI_heap_new();
+	eq_ctx->q->center = center;
+	eq_ctx->q->radius_squared = radius * radius;
+	eq_ctx->q->limit_len_squared = bvh->bm_min_edge_len * bvh->bm_min_edge_len;
+
+	for (n = 0; n < bvh->totnode; n++) {
+		PBVHNode *node = &bvh->nodes[n];
+
+		/* Check leaf nodes marked for topology update */
+		if ((node->flag & PBVH_Leaf) &&
+		    (node->flag & PBVH_UpdateTopology) &&
+		    !(node->flag & PBVH_FullyHidden))
+		{
+			GSetIterator gs_iter;
+
+			/* Check each face */
+			GSET_ITER (gs_iter, node->bm_faces) {
+				BMFace *f = BLI_gsetIterator_getKey(&gs_iter);
+
+				tetrahedron_edge_queue_face_add(eq_ctx, f);
+			}
+		}
+	}
+}
+#endif  /* USE_HOLE_VOLUME_CLEAN */
 
 static void pbvh_bmesh_delete_vert_face(PBVH *bvh, BMVert *v, BMFace *f_del, GSet *deleted_verts, EdgeQueueContext *eq_ctx)
 {
@@ -863,7 +955,7 @@ static void close_vert_queue_create(EdgeQueueContext *eq_ctx,
 					pair[0] = vprev;
 					pair[1] = vcur;
 
-#if 1
+#if 0
 					BLI_heap_insert(eq_ctx->q->heap,
 					                min_ff(len_squared_v3v3(eq_ctx->q->center, vcur->co),
 					                       len_squared_v3v3(eq_ctx->q->center, vprev->co)),
@@ -1194,6 +1286,96 @@ static bool pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
 	return any_collapsed;
 }
 
+#ifdef USE_HOLE_VOLUME_CLEAN
+
+static float len_to_tetrahedron_volume(float f)
+{
+	return (f * f * f) / 6.0f;
+}
+
+static bool pbvh_bmesh_collapse_small_tetrahedrons(
+        EdgeQueueContext *eq_ctx,
+        PBVH *bvh,
+        BLI_Buffer *edge_loops,
+        BLI_Buffer *deleted_faces)
+{
+	/* length as a tetrahedron volume, x1.5x to remove more... gives a bit nicer results */
+	float min_volume = len_to_tetrahedron_volume(bvh->bm_min_edge_len) * 1.5f;
+	GSet *deleted_verts;
+	bool any_collapsed = false;
+
+	deleted_verts = BLI_gset_ptr_new("deleted_verts");
+
+	while (!BLI_heap_is_empty(eq_ctx->q->heap)) {
+		BMLoop *l_a, *l_b;
+		BMVert **pair = BLI_heap_popmin(eq_ctx->q->heap);
+		BMVert *v1 = pair[0], *v2 = pair[1];
+		BMEdge *e;
+
+		/* values on either side of the edge */
+		BMLoop *l_adj;
+		BMVert *v1_alt;
+		BMVert *v2_alt;
+		BMEdge *e_alt;
+
+		BLI_mempool_free(eq_ctx->pool, pair);
+		pair = NULL;
+
+		/* Check the verts still exist */
+		if (BLI_gset_haskey(deleted_verts, v1) ||
+		    BLI_gset_haskey(deleted_verts, v2))
+		{
+			continue;
+		}
+
+		/* Check that the edge still exists */
+		if (!(e = BM_edge_exists(v1, v2))) {
+			continue;
+		}
+
+		if (!BM_edge_loop_pair(e, &l_a, &l_b)) {
+			continue;
+		}
+
+		v1_alt = l_a->prev->v;
+		v2_alt = l_b->prev->v;
+
+		if (bm_edge_calc_volume_weighted(e) > min_volume) {
+			continue;
+		}
+
+		/* Check that the edge's vertices are still in the PBVH. It's
+		 * possible that an edge collapse has deleted adjacent faces
+		 * and the node has been split, thus leaving wire edges and
+		 * associated vertices. */
+		if ((BM_ELEM_CD_GET_INT(e->v1, eq_ctx->cd_vert_node_offset) == DYNTOPO_NODE_NONE) ||
+		    (BM_ELEM_CD_GET_INT(e->v2, eq_ctx->cd_vert_node_offset) == DYNTOPO_NODE_NONE))
+		{
+			continue;
+		}
+
+		any_collapsed = true;
+
+		/* Remove all faces adjacent to the edge, we _KNOW_ there are 2! */
+		while ((l_adj = e->l)) {
+			BMFace *f_adj = l_adj->f;
+			pbvh_bmesh_face_remove(bvh, f_adj, eq_ctx->cd_vert_node_offset, eq_ctx->cd_face_node_offset);
+			BM_face_kill(bvh->bm, f_adj);
+		}
+
+		e_alt = BM_edge_create(bvh->bm, v1_alt, v2_alt, NULL, BM_CREATE_NO_DOUBLE);
+
+		pbvh_bmesh_collapse_edge(bvh, e_alt, v1_alt, v2_alt,
+		                         deleted_verts, edge_loops,
+		                         deleted_faces, eq_ctx);
+	}
+
+	BLI_gset_free(deleted_verts, NULL);
+
+	return any_collapsed;
+}
+#endif  /* USE_HOLE_VOLUME_CLEAN */
+
 /************************* Called from pbvh.c *************************/
 
 bool pbvh_bmesh_node_raycast(PBVHNode *node, const float ray_start[3],
@@ -1241,7 +1423,7 @@ bool pbvh_bmesh_node_raycast(PBVHNode *node, const float ray_start[3],
 // #define USE_BRIDGE_MERGE_HOLES
 
 /* disallow bridges sharing vertices */
-// #define USE_BRIDGE_STRICT
+#define USE_BRIDGE_STRICT
 
 #define USE_BRIDGE_CLEAN
 
@@ -1868,6 +2050,21 @@ bool BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
 		BLI_heap_free(q.heap, NULL);
 		BLI_mempool_destroy(queue_pool);
 	}
+
+	/* remove low volume areas (test!) */
+#ifdef USE_HOLE_VOLUME_CLEAN
+	if (mode & PBVH_TopologyGenus) {
+		EdgeQueue q;
+		BLI_mempool *queue_pool = BLI_mempool_create(sizeof(BMEdge *),
+		                                             128, 128, 0);
+		EdgeQueueContext eq_ctx = {&q, queue_pool, bvh->bm, cd_vert_mask_offset, cd_vert_node_offset, cd_face_node_offset};
+
+		tetrahedron_edge_queue_create(&eq_ctx, bvh, center, radius);
+		pbvh_bmesh_collapse_small_tetrahedrons(&eq_ctx, bvh, &edge_loops, &deleted_faces);
+		BLI_heap_free(q.heap, NULL);
+		BLI_mempool_destroy(queue_pool);
+	}
+#endif
 
 	if (mode & PBVH_Subdivide) {
 		EdgeQueue q;
