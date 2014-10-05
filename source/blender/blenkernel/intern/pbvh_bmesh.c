@@ -2041,7 +2041,7 @@ bool BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
 
 	if (mode & PBVH_TopologyGenus) {
 		EdgeQueue q;
-		BLI_mempool *queue_pool = BLI_mempool_create(sizeof(BMVert *[2]) * 2,
+		BLI_mempool *queue_pool = BLI_mempool_create(sizeof(BMVert *[2]),
 		                                             128, 128, 0);
 		EdgeQueueContext eq_ctx = {&q, queue_pool, bvh->bm, cd_vert_mask_offset, cd_vert_node_offset, cd_face_node_offset};
 
