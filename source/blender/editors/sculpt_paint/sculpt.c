@@ -1717,6 +1717,10 @@ static void do_draw_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 
 static void do_crease_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 {
+	/* helps painting pinch from front/back
+	 * at the same time (nice for holes) */
+#define USE_FLIP_HACK
+
 	SculptSession *ss = ob->sculpt;
 	const Scene *scene = ss->cache->vc->scene;
 	Brush *brush = BKE_paint_brush(&sd->paint);
@@ -1762,14 +1766,66 @@ static void do_crease_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 				float val1[3];
 				float val2[3];
 
+#ifdef USE_FLIP_HACK
+				float no[3];
+				float dot;
+				bool flip_override = false;
+
+take_two:
+				if (flip_override == false) {
+					if (vd.fno) copy_v3_v3(no, vd.fno);
+					else normal_short_to_float_v3(no, vd.no);
+					dot = dot_v3v3(no, ss->cache->view_normal);
+				}
+				else {
+					dot = 1.0f;
+				}
+#endif
+
 				/* first we pinch */
 				sub_v3_v3v3(val1, test.location, vd.co);
 				mul_v3_fl(val1, fade * flippedbstrength);
 
 				/* then we draw */
+#ifdef USE_FLIP_HACK
+				mul_v3_v3fl(val2, offset, fade * (dot < 0.0 ? -1 : 1));
+#else
 				mul_v3_v3fl(val2, offset, fade);
+#endif
 
 				add_v3_v3v3(proxy[vd.i], val1, val2);
+
+#ifdef USE_FLIP_HACK
+				/* check if a vert facing away was moved past the brush center
+				 * (towards us) - this case is problematic - PUT IT BACK */
+				if (dot < 0) {
+					float dir_curr[3];
+					float dir_prev[3];
+					float dot_prev;
+					float dot_curr;
+
+					sub_v3_v3v3(dir_prev, vd.co, test.location);
+					sub_v3_v3v3(dir_curr, proxy[vd.i], test.location);
+					normalize_v3(dir_curr);
+
+					dot_prev = dot_v3v3(dir_prev, ss->cache->view_normal);
+					dot_curr = dot_v3v3(dir_curr, ss->cache->view_normal);
+
+					/* are we behind the brush center and are we moving further back?
+					 * in that case, restore previous position */
+					if ((dot_curr < 0.0f) &&
+					    (dot_curr < dot_prev))
+					{
+#if 0
+						copy_v3_v3(proxy[vd.i], proxy_back);
+#else
+						/* works nicer to execute without flipping override */
+						flip_override = true;
+						goto take_two;
+#endif
+					}
+				}
+#endif
 
 				if (vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
