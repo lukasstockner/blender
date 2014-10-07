@@ -1862,6 +1862,7 @@ static void direct_link_palette(FileData *fd, Palette *palette)
 {
 	/* palette itself has been read */
 	link_list(fd, &palette->colors);
+	BLI_listbase_clear(&palette->deleted);
 }
 
 static void lib_link_paint_curve(FileData *UNUSED(fd), Main *main)
@@ -6237,7 +6238,6 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 
 				rv3d->depths = NULL;
 				rv3d->gpuoffscreen = NULL;
-				rv3d->ri = NULL;
 				rv3d->render_engine = NULL;
 				rv3d->sms = NULL;
 				rv3d->smooth_timer = NULL;
@@ -8995,10 +8995,10 @@ static ID *append_named_part_ex(const bContext *C, Main *mainl, FileData *fd, co
 			
 			ob = (Object *)id;
 			
-			/* link at active layer (view3d->lay if in context, else scene->lay */
+			/* link at active layer (view3d if available in context, else scene one */
 			if ((flag & FILE_ACTIVELAY)) {
 				View3D *v3d = CTX_wm_view3d(C);
-				ob->lay = v3d ? v3d->layact : scene->lay;
+				ob->lay = BKE_screen_view3d_layer_active(v3d, scene);
 			}
 			
 			ob->mode = OB_MODE_OBJECT;

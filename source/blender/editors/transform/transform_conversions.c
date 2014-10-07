@@ -1711,7 +1711,9 @@ static void createTransLatticeVerts(TransInfo *t)
 				if (bp->f1 & SELECT) {
 					td->flag = TD_SELECTED;
 				}
-				else td->flag = 0;
+				else {
+					td->flag = 0;
+				}
 				copy_m3_m3(td->smtx, smtx);
 				copy_m3_m3(td->mtx, mtx);
 
@@ -3068,10 +3070,10 @@ static void createTransNlaData(bContext *C, TransInfo *t)
 
 /* ********************* ACTION EDITOR ****************** */
 
-static int gpf_cmp_frame(void *thunk, void *a, void *b)
+static int gpf_cmp_frame(void *thunk, const void *a, const void *b)
 {
-	bGPDframe *frame_a = a;
-	bGPDframe *frame_b = b;
+	const bGPDframe *frame_a = a;
+	const bGPDframe *frame_b = b;
 
 	if (frame_a->framenum < frame_b->framenum) return -1;
 	if (frame_a->framenum > frame_b->framenum) return  1;
@@ -3085,10 +3087,10 @@ static int gpf_cmp_frame(void *thunk, void *a, void *b)
 	return 0;
 }
 
-static int masklay_shape_cmp_frame(void *thunk, void *a, void *b)
+static int masklay_shape_cmp_frame(void *thunk, const void *a, const void *b)
 {
-	MaskLayerShape *frame_a = a;
-	MaskLayerShape *frame_b = b;
+	const MaskLayerShape *frame_a = a;
+	const MaskLayerShape *frame_b = b;
 
 	if (frame_a->frame < frame_b->frame) return -1;
 	if (frame_a->frame > frame_b->frame) return  1;

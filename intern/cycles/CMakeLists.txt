@@ -128,6 +128,30 @@ add_definitions(
 	-DWITH_MULTI
 )
 
+# Logging capabilities using GLog library.
+if(WITH_CYCLES_LOGGING)
+	add_definitions(-DWITH_CYCLES_LOGGING)
+	add_definitions(-DGOOGLE_GLOG_DLL_DECL=)
+	if(WIN32)
+		include_directories(
+			SYSTEM
+			../../extern/libmv/third_party/glog/src/windows
+			../../extern/libmv/third_party/gflags
+		)
+	else()
+		include_directories(
+			SYSTEM
+			../../extern/libmv/third_party/glog/src
+			../../extern/libmv/third_party/gflags
+		)
+	endif()
+endif()
+
+# Debugging capabilities (debug passes etc).
+if(WITH_CYCLES_DEBUG)
+	add_definitions(-DWITH_CYCLES_DEBUG)
+endif()
+
 include_directories(
 	SYSTEM
 	${BOOST_INCLUDE_DIR}
