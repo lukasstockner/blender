@@ -1121,15 +1121,16 @@ static bool pbvh_bmesh_subdivide_long_edges(EdgeQueueContext *eq_ctx, PBVH *bvh,
 	return any_subdivided;
 }
 
-static void pbvh_bmesh_collapse_edge(PBVH *bvh, BMEdge *e,
-                                     BMVert *v1, BMVert *v2,
-                                     GSet *deleted_verts,
-                                     BLI_Buffer *edge_loops,
-                                     BLI_Buffer *deleted_faces,
-                                     EdgeQueueContext *eq_ctx)
+static void pbvh_bmesh_collapse_edge(
+        PBVH *bvh, BMEdge *e,
+        BMVert *v1, BMVert *v2,
+        GSet *deleted_verts,
+        BLI_Buffer *deleted_faces,
+        EdgeQueueContext *eq_ctx)
 {
 	BMIter bm_iter;
 	BMFace *f;
+	BMLoop *l_adj;
 	BMVert *v_del, *v_conn;
 	int i;
 	float mask_v1 = BM_ELEM_CD_GET_FLOAT(v1, eq_ctx->cd_vert_mask_offset);
@@ -1144,15 +1145,11 @@ static void pbvh_bmesh_collapse_edge(PBVH *bvh, BMEdge *e,
 		v_conn = v1;
 	}
 
-	/* Get all faces adjacent to the edge */
-	pbvh_bmesh_edge_loops(edge_loops, e);
-
 	/* Remove the merge vertex from the PBVH */
 	pbvh_bmesh_vert_remove(bvh, v_del, eq_ctx->cd_vert_node_offset, eq_ctx->cd_face_node_offset);
 
 	/* Remove all faces adjacent to the edge */
-	for (i = 0; i < edge_loops->count; i++) {
-		BMLoop *l_adj = BLI_buffer_at(edge_loops, BMLoop *, i);
+	while ((l_adj = e->l)) {
 		BMFace *f_adj = l_adj->f;
 
 		pbvh_bmesh_face_remove(bvh, f_adj, eq_ctx->cd_vert_node_offset, eq_ctx->cd_face_node_offset);
@@ -1230,10 +1227,10 @@ static void pbvh_bmesh_collapse_edge(PBVH *bvh, BMEdge *e,
 	BM_vert_kill(bvh->bm, v_del);
 }
 
-static bool pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
-                                            PBVH *bvh,
-                                            BLI_Buffer *edge_loops,
-                                            BLI_Buffer *deleted_faces)
+static bool pbvh_bmesh_collapse_short_edges(
+        EdgeQueueContext *eq_ctx,
+        PBVH *bvh,
+        BLI_Buffer *deleted_faces)
 {
 	float min_len_squared = bvh->bm_min_edge_len * bvh->bm_min_edge_len;
 	GSet *deleted_verts;
@@ -1277,7 +1274,7 @@ static bool pbvh_bmesh_collapse_short_edges(EdgeQueueContext *eq_ctx,
 		any_collapsed = true;
 
 		pbvh_bmesh_collapse_edge(bvh, e, v1, v2,
-		                         deleted_verts, edge_loops,
+		                         deleted_verts,
 		                         deleted_faces, eq_ctx);
 	}
 
@@ -1296,7 +1293,6 @@ static float len_to_tetrahedron_volume(float f)
 static bool pbvh_bmesh_collapse_small_tetrahedrons(
         EdgeQueueContext *eq_ctx,
         PBVH *bvh,
-        BLI_Buffer *edge_loops,
         BLI_Buffer *deleted_faces)
 {
 	/* length as a tetrahedron volume, x1.5x to remove more... gives a bit nicer results */
@@ -1366,7 +1362,7 @@ static bool pbvh_bmesh_collapse_small_tetrahedrons(
 		e_alt = BM_edge_create(bvh->bm, v1_alt, v2_alt, NULL, BM_CREATE_NO_DOUBLE);
 
 		pbvh_bmesh_collapse_edge(bvh, e_alt, v1_alt, v2_alt,
-		                         deleted_verts, edge_loops,
+		                         deleted_verts,
 		                         deleted_faces, eq_ctx);
 	}
 
@@ -2033,7 +2029,7 @@ bool BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
 
 		short_edge_queue_create(&eq_ctx, bvh, center, radius);
 		modified |= !BLI_heap_is_empty(q.heap);
-		pbvh_bmesh_collapse_short_edges(&eq_ctx, bvh, &edge_loops,
+		pbvh_bmesh_collapse_short_edges(&eq_ctx, bvh,
 		                                &deleted_faces);
 		BLI_heap_free(q.heap, NULL);
 		BLI_mempool_destroy(queue_pool);
@@ -2060,7 +2056,7 @@ bool BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
 		EdgeQueueContext eq_ctx = {&q, queue_pool, bvh->bm, cd_vert_mask_offset, cd_vert_node_offset, cd_face_node_offset};
 
 		tetrahedron_edge_queue_create(&eq_ctx, bvh, center, radius);
-		pbvh_bmesh_collapse_small_tetrahedrons(&eq_ctx, bvh, &edge_loops, &deleted_faces);
+		pbvh_bmesh_collapse_small_tetrahedrons(&eq_ctx, bvh, &deleted_faces);
 		BLI_heap_free(q.heap, NULL);
 		BLI_mempool_destroy(queue_pool);
 	}
