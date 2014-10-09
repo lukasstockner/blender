@@ -53,6 +53,7 @@ class GreasePencilPanel():
         col.separator()
 
         col.label(text="Edit Strokes:")
+        # TODO: transform operators need to have a proper poll operator put on them for use here
         col.operator("gpencil.strokes_duplicate", text="Duplicate")
         col.operator("transform.mirror", text="Mirror").gpencil_strokes = True
 
@@ -61,7 +62,7 @@ class GreasePencilPanel():
         subcol = col.column(align=True)
         subcol.operator("transform.translate").gpencil_strokes = True   # icon='MAN_TRANS'
         subcol.operator("transform.rotate").gpencil_strokes = True      # icon='MAN_ROT'
-        subcol.operator("transform.resize").gpencil_strokes = True      # icon='MAN_SCALE'
+        subcol.operator("transform.resize", text="Scale").gpencil_strokes = True      # icon='MAN_SCALE'
 
         if context.space_data.type == 'VIEW_3D':
             col.separator()
