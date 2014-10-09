@@ -58,6 +58,8 @@
 #include "ED_gpencil.h"
 #include "ED_view3d.h"
 
+#include "UI_resources.h"
+
 #include "gpencil_intern.h"
 
 /* ************************************************** */
@@ -234,7 +236,7 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 	
 	/* draw debug points of curve on top? */
 	/* XXX: for now, we represent "selected" strokes in the same way as debug, which isn't used anymore */
-	if ((debug) || (sflag & GP_STROKE_SELECT)) {
+	if (debug) {
 		glBegin(GL_POINTS);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++)
 			glVertex3fv(&pt->x);
@@ -443,8 +445,7 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 	}
 	
 	/* draw debug points of curve on top? (original stroke points) */
-	/* XXX: for now, we represent "selected" strokes in the same way as debug, which isn't used anymore */
-	if ((debug) || (sflag & GP_STROKE_SELECT)) {
+	if (debug) {
 		bGPDspoint *pt;
 		int i;
 		
@@ -565,6 +566,103 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 	}
 }
 
+/* Draw selected verts for strokes being edited */
+static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx, int winy, short dflag, const float tcolor[3])
+{
+	bGPDstroke *gps;
+	
+	for (gps = gpf->strokes.first; gps; gps = gps->next) {
+		bGPDspoint *pt;
+		float vsize, bsize;
+		int i;
+		
+		/* check if stroke can be drawn */
+		if (gp_can_draw_stroke(gps, dflag) == false)
+			continue;
+		
+		/* Optimisation: only draw points for selected strokes
+		 * We assume that selected points can only occur in
+		 * strokes that are selected too.
+		 */
+		if ((gps->flag & GP_STROKE_SELECT) == 0)
+			continue;
+			
+		/* Get size of verts:
+		 * - The unselected state needs to be larger than the selected state to provide a buffer
+		 *   around the verts to distinguish between selected an unselected states
+		 * - We use the theme setting for size of the selected verts, but when this is set too large,
+		 *   there are no sizes up to draw the border
+		 */
+		vsize = UI_GetThemeValuef(TH_VERTEX_SIZE);
+		if ((int)vsize == 10) {
+			/* NOTE: 10 is the maximum size of points in OpenGL */
+			vsize = 8.0f;
+			bsize = 10.0f;
+		}
+		else {
+			bsize = vsize + 1;
+		}
+		
+		/* First Pass: Draw all the verts (i.e. these become the unselected state) */
+		//UI_ThemeColor(TH_VERTEX);
+		glColor3fv(tcolor); /* for now, we assume that the base color of the points is not too close to the real color */
+		glPointSize(bsize);
+		
+		glBegin(GL_POINTS);
+		for (i = 0, pt = gps->points; i < gps->totpoints && pt; i++, pt++) {
+			if (gps->flag & GP_STROKE_3DSPACE) {
+				glVertex3fv(&pt->x);
+			}
+			else if (gps->flag & GP_STROKE_2DSPACE) {
+				glVertex2fv(&pt->x);
+			}
+			else if (gps->flag & GP_STROKE_2DIMAGE) {
+				const float x = (float)((pt->x * winx) + offsx);
+				const float y = (float)((pt->y * winy) + offsy);
+				
+				glVertex2f(x, y);
+			}
+			else {
+				const float x = (float)(pt->x / 100 * winx) + offsx;
+				const float y = (float)(pt->y / 100 * winy) + offsy;
+				
+				glVertex2f(x, y);
+			}
+		}
+		glEnd();
+		
+		
+		/* Second Pass: Draw only verts which are selected */
+		UI_ThemeColor(TH_VERTEX_SELECT);
+		glPointSize(vsize);
+		
+		glBegin(GL_POINTS);
+		for (i = 0, pt = gps->points; i < gps->totpoints && pt; i++, pt++) {
+			if (pt->flag & GP_SPOINT_SELECT) {
+				if (gps->flag & GP_STROKE_3DSPACE) {
+					glVertex3fv(&pt->x);
+				}
+				else if (gps->flag & GP_STROKE_2DSPACE) {
+					glVertex2fv(&pt->x);
+				}
+				else if (gps->flag & GP_STROKE_2DIMAGE) {
+					const float x = (float)((pt->x * winx) + offsx);
+					const float y = (float)((pt->y * winy) + offsy);
+					
+					glVertex2f(x, y);
+				}
+				else {
+					const float x = (float)(pt->x / 100 * winx) + offsx;
+					const float y = (float)(pt->y / 100 * winy) + offsy;
+					
+					glVertex2f(x, y);
+				}
+			}
+		}
+		glEnd();
+	}
+}
+
 /* ----- General Drawing ------ */
 
 /* draw grease-pencil datablock */
@@ -667,6 +765,15 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		/* draw the strokes already in active frame */
 		tcolor[3] = color[3];
 		gp_draw_strokes(gpf, offsx, offsy, winx, winy, dflag, debug, lthick, tcolor);
+		
+		/* Draw verts of selected strokes 
+		 * 	- locked layers can't be edited, so there's no point showing these verts
+		 *    as they will have no bearings on what gets edited
+		 */
+		/* XXX: perhaps we don't want to show these when users are drawing... */
+		if ((gpl->flag & GP_LAYER_LOCKED) == 0) {
+			gp_draw_strokes_edit(gpf, offsx, offsy, winx, winy, dflag, tcolor);
+		}
 		
 		/* Check if may need to draw the active stroke cache, only if this layer is the active layer
 		 * that is being edited. (Stroke buffer is currently stored in gp-data)
