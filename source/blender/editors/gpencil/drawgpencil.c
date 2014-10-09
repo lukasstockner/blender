@@ -470,7 +470,38 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 	}
 }
 
-/* ----- General Drawing ------ */
+/* ----- Strokes Drawing ------ */
+
+/* Helper for doing all the checks on whether a stroke can be drawn */
+static bool gp_can_draw_stroke(const bGPDstroke *gps, const int dflag)
+{
+	/* skip stroke if it isn't in the right display space for this drawing context */
+	/* 1) 3D Strokes */
+	if ((dflag & GP_DRAWDATA_ONLY3D) && !(gps->flag & GP_STROKE_3DSPACE))
+		return false;
+	if (!(dflag & GP_DRAWDATA_ONLY3D) && (gps->flag & GP_STROKE_3DSPACE))
+		return false;
+		
+	/* 2) Screen Space 2D Strokes */
+	if ((dflag & GP_DRAWDATA_ONLYV2D) && !(gps->flag & GP_STROKE_2DSPACE))
+		return false;
+	if (!(dflag & GP_DRAWDATA_ONLYV2D) && (gps->flag & GP_STROKE_2DSPACE))
+		return false;
+		
+	/* 3) Image Space (2D) */
+	if ((dflag & GP_DRAWDATA_ONLYI2D) && !(gps->flag & GP_STROKE_2DIMAGE))
+		return false;
+	if (!(dflag & GP_DRAWDATA_ONLYI2D) && (gps->flag & GP_STROKE_2DIMAGE))
+		return false;
+		
+		
+	/* skip stroke if it doesn't have any valid data */
+	if ((gps->points == NULL) || (gps->totpoints < 1))
+		return false;
+		
+	/* stroke can be drawn */
+	return true;
+}
 
 /* draw a set of strokes */
 static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int winy, int dflag,
@@ -482,20 +513,8 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 	glColor4fv(color);
 	
 	for (gps = gpf->strokes.first; gps; gps = gps->next) {
-		/* check if stroke can be drawn - checks here generally fall into pairs */
-		if ((dflag & GP_DRAWDATA_ONLY3D) && !(gps->flag & GP_STROKE_3DSPACE))
-			continue;
-		if (!(dflag & GP_DRAWDATA_ONLY3D) && (gps->flag & GP_STROKE_3DSPACE))
-			continue;
-		if ((dflag & GP_DRAWDATA_ONLYV2D) && !(gps->flag & GP_STROKE_2DSPACE))
-			continue;
-		if (!(dflag & GP_DRAWDATA_ONLYV2D) && (gps->flag & GP_STROKE_2DSPACE))
-			continue;
-		if ((dflag & GP_DRAWDATA_ONLYI2D) && !(gps->flag & GP_STROKE_2DIMAGE))
-			continue;
-		if (!(dflag & GP_DRAWDATA_ONLYI2D) && (gps->flag & GP_STROKE_2DIMAGE))
-			continue;
-		if ((gps->points == NULL) || (gps->totpoints < 1))
+		/* check if stroke can be drawn */
+		if (gp_can_draw_stroke(gps, dflag) == false)
 			continue;
 		
 		/* check which stroke-drawer to use */
@@ -545,6 +564,8 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 		}
 	}
 }
+
+/* ----- General Drawing ------ */
 
 /* draw grease-pencil datablock */
 static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy, int cfra, int dflag)
