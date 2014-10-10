@@ -362,5 +362,216 @@ void GPENCIL_OT_select_circle(wmOperatorType *ot)
 }
 
 /* ********************************************** */
+/* Mouse Click to Select */
+
+static int gpencil_select_exec(bContext *C, wmOperator *op)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+	View2D *v2d = &ar->v2d;
+	
+	Scene *scene = CTX_data_scene(C);
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	
+	/* "radius" is simply a threshold (screen space) to make it easier to test with a tolerance */
+	const float radius = 0.35f * U.widget_unit;
+	const int radius_squared = (int)(radius * radius);
+	
+	rctf *subrect = NULL;       /* for using the camera rect within the 3d view */
+	rctf subrect_data = {0.0f};
+	
+	bool extend = RNA_boolean_get(op->ptr, "extend");
+	bool deselect = RNA_boolean_get(op->ptr, "deselect");
+	bool toggle = RNA_boolean_get(op->ptr, "toggle");
+	bool whole = RNA_boolean_get(op->ptr, "entire_strokes");
+	
+	int location[2] = {0};
+	int mx, my;
+	
+	bGPDstroke *hit_stroke = NULL;
+	bGPDspoint *hit_point = NULL;
+	
+	/* sanity checks */
+	if (gpd == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
+		return OPERATOR_CANCELLED;
+	}
+	if (sa == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No active area");
+		return OPERATOR_CANCELLED;
+	}
+	
+	/* for 3D View, init depth buffer stuff used for 3D projections... */
+	if (sa->spacetype == SPACE_VIEW3D) {
+		wmWindow *win = CTX_wm_window(C);
+		View3D *v3d = (View3D *)CTX_wm_space_data(C);
+		RegionView3D *rv3d = ar->regiondata;
+		
+		/* init 3d depth buffers */
+		view3d_operator_needs_opengl(C);
+		view3d_region_operator_needs_opengl(win, ar);
+		ED_view3d_autodist_init(scene, ar, v3d, 0);
+		
+		/* for camera view set the subrect */
+		if (rv3d->persp == RV3D_CAMOB) {
+			ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &subrect_data, true); /* no shift */
+			subrect = &subrect_data;
+		}
+	}
+	
+	/* get mouse location */
+	RNA_int_get_array(op->ptr, "location", location);
+	
+	mx = location[0];
+	my = location[1];
+	
+	/* First Pass: Find stroke point which gets hit */
+	/* XXX: maybe we should go from the top of the stack down instead... */
+	GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
+	{
+		bGPDspoint *pt;
+		int i;
+		int hit_index = -1;
+		
+		/* firstly, check for hit-point */
+		for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+			int x0, y0;
+			
+			gp_point_to_xy(ar, v2d, subrect, gps, pt, &x0, &y0);
+		
+			/* do boundbox check first */
+			if (!ELEM(V2D_IS_CLIPPED, x0, x0)) {
+				/* only check if point is inside */
+				if (((x0 - mx) * (x0 - mx) + (y0 - my) * (y0 - my)) <= radius_squared) {				
+					hit_stroke = gps;
+					hit_point  = pt;
+					break;
+				}
+			}
+		}
+		
+		/* skip to next stroke if nothing found */
+		if (hit_index == -1) 
+			continue;
+	}
+	GP_STROKES_ITER_END;
+	
+	/* Abort if nothing hit... */
+	if (ELEM(NULL, hit_stroke, hit_point)) {
+		return OPERATOR_CANCELLED;
+	}
+	
+	/* adjust selection behaviour - for toggle option */
+	if (toggle) {
+		deselect = (hit_point->flag & GP_SPOINT_SELECT) != 0;
+	}
+	
+	/* If not extending selection, deselect everything else */
+	if (extend == false) {
+		GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
+		{			
+			/* deselect stroke and its points if selected */
+			if (gps->flag & GP_STROKE_SELECT) {
+				bGPDspoint *pt;
+				int i;
+			
+				/* deselect points */
+				for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+					pt->flag &= ~GP_SPOINT_SELECT;
+				}
+				
+				/* deselect stroke itself too */
+				gps->flag &= ~GP_STROKE_SELECT;
+			}
+		}
+		GP_STROKES_ITER_END;
+	}
+	
+	/* Perform selection operations... */
+	if (whole) {
+		bGPDspoint *pt;
+		int i;
+		
+		/* entire stroke's points */
+		for (i = 0, pt = hit_stroke->points; i < hit_stroke->totpoints; i++, pt++) {
+			if (deselect == false)
+				pt->flag |= GP_SPOINT_SELECT;
+			else
+				pt->flag &= ~GP_SPOINT_SELECT;
+		}
+		
+		/* stroke too... */
+		if (deselect == false)
+			hit_stroke->flag |= GP_STROKE_SELECT;
+		else
+			hit_stroke->flag &= ~GP_STROKE_SELECT;
+	}
+	else {
+		/* just the point (and the stroke) */
+		if (deselect == false) {
+			/* we're adding selection, so selection must be true */
+			hit_point->flag  |= GP_SPOINT_SELECT;
+			hit_stroke->flag |= GP_STROKE_SELECT;
+		}
+		else {
+			bGPDspoint *pt;
+			int i;
+			
+			/* deselect point */
+			hit_point->flag &= ~GP_SPOINT_SELECT;
+			
+			/* ensure that stroke is selected correctly */
+			hit_stroke->flag &= ~GP_STROKE_SELECT;
+			
+			for (i = 0, pt = hit_stroke->points; i < hit_stroke->totpoints; i++, pt++) {
+				if (pt->flag & GP_SPOINT_SELECT) {
+					hit_stroke->flag |= GP_STROKE_SELECT;
+					break;
+				}
+			}
+		}
+	}
+	
+	/* updates */
+	if (hit_point != NULL) {
+		WM_event_add_notifier(C, NC_GPENCIL | NA_SELECTED, NULL);
+	}
+	
+	return OPERATOR_FINISHED;
+}
+
+static int gpencil_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	RNA_int_set_array(op->ptr, "location", event->mval);
+	return gpencil_select_exec(C, op);
+}
+
+void GPENCIL_OT_select(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+	
+	/* identifiers */
+	ot->name = "Select";
+	ot->description = "Select Grease Pencil strokes and/or stroke points";
+	ot->idname = "GPENCIL_OT_select";
+	
+	/* callbacks */
+	ot->invoke = gpencil_select_invoke;
+	ot->exec = gpencil_select_exec;
+	ot->poll = gpencil_select_poll;
+	
+	/* flag */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	/* properties */
+	WM_operator_properties_mouse_select(ot);
+	
+	RNA_def_boolean(ot->srna, "entire_strokes", false, "Entire Strokes", "Select entire strokes instead of just the nearest stroke vertex");
+	
+	prop = RNA_def_int_vector(ot->srna, "location", 2, NULL, INT_MIN, INT_MAX, "Location", "Mouse location", INT_MIN, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+}
+
+/* ********************************************** */
 
  

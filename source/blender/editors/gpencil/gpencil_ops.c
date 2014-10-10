@@ -68,7 +68,7 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW_POLY);
 	
 	/* erase */
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", RIGHTMOUSE, KM_PRESS, 0, DKEY);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", XKEY, KM_PRESS, 0, DKEY);
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_ERASER);
 	
 	/* Selection ------------------------------------- */
@@ -82,6 +82,17 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	
 	/* circle select */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_select_circle", CKEY, KM_PRESS, 0, DKEY);
+	
+	/* normal select */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_select", RIGHTMOUSE, KM_PRESS, 0, DKEY);
+	
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select", RIGHTMOUSE, KM_PRESS, KM_SHIFT, DKEY);
+	RNA_boolean_set(kmi->ptr, "extend", true);
+	
+	/* whole stroke select */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select", WKEY, KM_PRESS, 0, DKEY);
+	RNA_boolean_set(kmi->ptr, "entire_strokes", true);
+	
 	
 	/* Editing ----------------------------------------- */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_strokes_duplicate", EKEY, KM_PRESS, 0, DKEY);
@@ -109,6 +120,7 @@ void ED_operatortypes_gpencil(void)
 	
 	/* Editing (Strokes) ------------ */
 	
+	WM_operatortype_append(GPENCIL_OT_select);
 	WM_operatortype_append(GPENCIL_OT_select_all);
 	WM_operatortype_append(GPENCIL_OT_select_circle);
 	
