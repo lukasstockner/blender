@@ -604,8 +604,14 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 		}
 		
 		/* First Pass: Draw all the verts (i.e. these become the unselected state) */
-		//UI_ThemeColor(TH_VERTEX);
-		glColor3fv(tcolor); /* for now, we assume that the base color of the points is not too close to the real color */
+		if (tcolor != NULL) {
+			/* for now, we assume that the base color of the points is not too close to the real color */
+			glColor3fv(tcolor);
+		}
+		else {
+			/* this doesn't work well with the default theme and black strokes... */
+			UI_ThemeColor(TH_VERTEX);
+		}
 		glPointSize(bsize);
 		
 		glBegin(GL_POINTS);
@@ -772,7 +778,8 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		 */
 		/* XXX: perhaps we don't want to show these when users are drawing... */
 		if ((gpl->flag & GP_LAYER_LOCKED) == 0) {
-			gp_draw_strokes_edit(gpf, offsx, offsy, winx, winy, dflag, tcolor);
+			gp_draw_strokes_edit(gpf, offsx, offsy, winx, winy, dflag, 
+			                     (gpl->color[3] < 0.95f) ? tcolor : NULL);
 		}
 		
 		/* Check if may need to draw the active stroke cache, only if this layer is the active layer
