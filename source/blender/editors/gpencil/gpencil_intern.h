@@ -83,7 +83,9 @@ void gp_point_to_xy(struct ARegion *ar, struct View2D *v2d, struct rctf *subrect
 	{                                                                   \
 		bGPDlayer *gpl;                                                 \
 		for (gpl = (gpd)->layers.first; gpl; gpl = gpl->next) {         \
-			if (!(gpl->flag & GP_LAYER_HIDE) && (gpl->actframe)) {      \
+			if (!(gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) &&     \
+			    (gpl->actframe))                                        \
+			{                                                           \
 				bGPDframe *gpf = gpl->actframe;                         \
 				bGPDstroke *gps;                                        \
 				for (gps = gpf->strokes.first; gps; gps = gps->next) {	
