@@ -60,7 +60,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 
 static bool isDisabled(ModifierData *UNUSED(md), int UNUSED(useRenderParams))
 {
-	return 0;
+	return false;
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -73,6 +73,11 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 
 	return dataMask;
 
+}
+
+static bool dependsOnNormals(ModifierData *UNUSED(md))
+{
+	return true;
 }
 
 static DerivedMesh *WireframeModifier_do( WireframeModifierData *wmd, Object *ob, DerivedMesh *dm)
@@ -136,7 +141,7 @@ ModifierTypeInfo modifierType_Wireframe = {
 	/* updateDepgraph */    NULL,
 	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
-	/* dependsOnNormals */	NULL,
+	/* dependsOnNormals */  dependsOnNormals,
 	/* foreachObjectLink */ NULL,
 	/* foreachIDLink */     NULL,
 	/* foreachTexLink */    NULL,

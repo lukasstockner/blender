@@ -41,7 +41,6 @@ set(INC
 
 set(INC_SYS
 	${ZLIB_INCLUDE_DIRS}
-	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -132,6 +131,10 @@ endif()
 
 if(WITH_MOD_OCEANSIM)
 	add_definitions(-DWITH_OCEANSIM)
+endif()
+
+if(WITH_BULLET)
+	add_definitions(-DWITH_BULLET)
 endif()
 
 if(WITH_INTERNATIONAL)

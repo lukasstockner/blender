@@ -657,7 +657,7 @@ bool BM_edgeloop_calc_normal_aligned(BMesh *UNUSED(bm), BMEdgeLoopStore *el_stor
 void BM_edgeloop_flip(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
 {
 	negate_v3(el_store->no);
-	BLI_reverselist(&el_store->verts);
+	BLI_listbase_reverse(&el_store->verts);
 }
 
 void BM_edgeloop_expand(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store, int el_store_len)
@@ -682,12 +682,12 @@ void BM_edgeloop_expand(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store, int el_sto
 			LinkData *node_curr_init = node_curr;
 			LinkData *node_curr_copy;
 			int i = 0;
-			LISTBASE_CIRCULAR_FORWARD_BEGIN (&el_store->verts, node_curr, node_curr_init) {
+			BLI_LISTBASE_CIRCULAR_FORWARD_BEGIN (&el_store->verts, node_curr, node_curr_init) {
 				if (i++ < step) {
 					break;
 				}
 			}
-			LISTBASE_CIRCULAR_FORWARD_END (&el_store->verts, node_curr, node_curr_init);
+			BLI_LISTBASE_CIRCULAR_FORWARD_END (&el_store->verts, node_curr, node_curr_init);
 
 			node_curr_copy = MEM_dupallocN(node_curr);
 			BLI_insertlinkafter(&el_store->verts, node_curr, node_curr_copy);

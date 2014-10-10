@@ -132,6 +132,7 @@ void Mesh::clear()
 	transform_applied = false;
 	transform_negative_scaled = false;
 	transform_normal = transform_identity();
+	geometry_synced = false;
 }
 
 int Mesh::split_vertex(int vertex)
@@ -377,12 +378,12 @@ void Mesh::add_vertex_normals()
 	}
 }
 
-void Mesh::pack_normals(Scene *scene, float *tri_shader, float4 *vnormal)
+void Mesh::pack_normals(Scene *scene, uint *tri_shader, float4 *vnormal)
 {
 	Attribute *attr_vN = attributes.find(ATTR_STD_VERTEX_NORMAL);
 
 	float3 *vN = attr_vN->data_float3();
-	int shader_id = 0;
+	uint shader_id = 0;
 	uint last_shader = -1;
 	bool last_smooth = false;
 
@@ -400,7 +401,7 @@ void Mesh::pack_normals(Scene *scene, float *tri_shader, float4 *vnormal)
 			shader_id = scene->shader_manager->get_shader_id(last_shader, this, last_smooth);
 		}
 
-		tri_shader[i] = __int_as_float(shader_id);
+		tri_shader[i] = shader_id;
 	}
 
 	size_t verts_size = verts.size();
@@ -766,7 +767,7 @@ static void update_attribute_element_offset(Mesh *mesh, vector<float>& attr_floa
 			VoxelAttribute *voxel_data = mattr->data_voxel();
 			offset = voxel_data->slot;
 		}
-		if(mattr->element == ATTR_ELEMENT_CORNER_BYTE) {
+		else if(mattr->element == ATTR_ELEMENT_CORNER_BYTE) {
 			uchar4 *data = mattr->data_uchar4();
 			offset = attr_uchar4.size();
 
@@ -935,7 +936,7 @@ void MeshManager::device_update_mesh(Device *device, DeviceScene *dscene, Scene 
 		/* normals */
 		progress.set_status("Updating Mesh", "Computing normals");
 
-		float *tri_shader = dscene->tri_shader.resize(tri_size);
+		uint *tri_shader = dscene->tri_shader.resize(tri_size);
 		float4 *vnormal = dscene->tri_vnormal.resize(vert_size);
 		float4 *tri_verts = dscene->tri_verts.resize(vert_size);
 		float4 *tri_vindex = dscene->tri_vindex.resize(tri_size);
@@ -1031,11 +1032,16 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 	if(!need_update)
 		return;
 
-	/* update normals */
+	/* update normals and flags */
 	foreach(Mesh *mesh, scene->meshes) {
-		foreach(uint shader, mesh->used_shaders)
+		mesh->has_volume = false;
+		foreach(uint shader, mesh->used_shaders) {
 			if(scene->shaders[shader]->need_update_attributes)
 				mesh->need_update = true;
+			if(scene->shaders[shader]->has_volume) {
+				mesh->has_volume = true;
+			}
+		}
 
 		if(mesh->need_update) {
 			mesh->add_face_normals();
@@ -1103,6 +1109,8 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 	bool motion_blur = false;
 #endif
 
+	/* update obejcts */
+	vector<Object *> volume_objects;
 	foreach(Object *object, scene->objects)
 		object->compute_bounds(motion_blur);
 
@@ -1131,6 +1139,7 @@ void MeshManager::device_free(Device *device, DeviceScene *dscene)
 	device->tex_free(dscene->attributes_map);
 	device->tex_free(dscene->attributes_float);
 	device->tex_free(dscene->attributes_float3);
+	device->tex_free(dscene->attributes_uchar4);
 
 	dscene->bvh_nodes.clear();
 	dscene->object_node.clear();
@@ -1148,6 +1157,7 @@ void MeshManager::device_free(Device *device, DeviceScene *dscene)
 	dscene->attributes_map.clear();
 	dscene->attributes_float.clear();
 	dscene->attributes_float3.clear();
+	dscene->attributes_uchar4.clear();
 
 #ifdef WITH_OSL
 	OSLGlobals *og = (OSLGlobals*)device->osl_memory();

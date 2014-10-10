@@ -30,13 +30,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#if defined(_WIN32) && defined(DEBUG) && !defined(__MINGW32__) && !defined(__CYGWIN__)
-/* This does not seem necessary or present on MSVC 8, but may be needed in earlier versions? */
-#  if _MSC_VER < 1400
-#    include <stdint.h>
-#  endif
-#endif
-
 #include <stdlib.h>
 
 #include <libavformat/avformat.h>
@@ -423,6 +416,11 @@ static AVFrame *generate_video_frame(uint8_t *pixels, ReportList *reports)
 		          current_frame->data, current_frame->linesize);
 		delete_picture(rgb_frame);
 	}
+
+	current_frame->format = PIX_FMT_BGR32;
+	current_frame->width = width;
+	current_frame->height = height;
+
 	return current_frame;
 }
 
@@ -703,7 +701,7 @@ static AVStream *alloc_audio_stream(RenderData *rd, int codec_id, AVFormatContex
 		 * you have various implementations around. float samples in particular are not always supported.
 		 */
 		const enum AVSampleFormat *p = codec->sample_fmts;
-		for (; *p!=-1; p++) {
+		for (; *p != -1; p++) {
 			if (*p == st->codec->sample_fmt)
 				break;
 		}

@@ -117,8 +117,8 @@ int BIF_snappingSupported(Object *obedit)
 {
 	int status = 0;
 	
-	if (obedit == NULL || ELEM5(obedit->type, OB_MESH, OB_ARMATURE, OB_CURVE, OB_LATTICE, OB_MBALL)) /* only support object mesh, armature, curves */
-	{
+	/* only support object mesh, armature, curves */
+	if (obedit == NULL || ELEM(obedit->type, OB_MESH, OB_ARMATURE, OB_CURVE, OB_LATTICE, OB_MBALL)) {
 		status = 1;
 	}
 	
@@ -337,6 +337,46 @@ void applyProject(TransInfo *t)
 					mul_m3_v3(td->smtx, tvec);
 
 					add_v3_v3(td->loc, tvec);
+
+					if (t->tsnap.align && (t->flag & T_OBJECT)) {
+						/* handle alignment as well */
+						const float *original_normal;
+						float axis[3];
+						float mat[3][3];
+						float angle;
+						float totmat[3][3], smat[3][3];
+						float eul[3], fmat[3][3], quat[4];
+						float obmat[3][3];
+
+						/* In pose mode, we want to align normals with Y axis of bones... */
+						original_normal = td->axismtx[2];
+
+						cross_v3_v3v3(axis, original_normal, no);
+						angle = saacos(dot_v3v3(original_normal, no));
+
+						axis_angle_to_quat(quat, axis, angle);
+
+						quat_to_mat3(mat, quat);
+
+						mul_m3_m3m3(totmat, mat, td->mtx);
+						mul_m3_m3m3(smat, td->smtx, totmat);
+
+						/* calculate the total rotatation in eulers */
+						add_v3_v3v3(eul, td->ext->irot, td->ext->drot); /* we have to correct for delta rot */
+						eulO_to_mat3(obmat, eul, td->ext->rotOrder);
+						/* mat = transform, obmat = object rotation */
+						mul_m3_m3m3(fmat, smat, obmat);
+
+						mat3_to_compatible_eulO(eul, td->ext->rot, td->ext->rotOrder, fmat);
+
+						/* correct back for delta rot */
+						sub_v3_v3v3(eul, eul, td->ext->drot);
+
+						/* and apply */
+						copy_v3_v3(td->ext->rot, eul);
+
+						/* TODO support constraints for rotation too? see ElementRotation */
+					}
 				}
 			}
 			
@@ -505,9 +545,8 @@ static void initSnappingMode(TransInfo *t)
 
 		/* Edit mode */
 		if (t->tsnap.applySnap != NULL && // A snapping function actually exist
-		    (obedit != NULL && ELEM5(obedit->type, OB_MESH, OB_ARMATURE, OB_CURVE, OB_LATTICE, OB_MBALL)) ) // Temporary limited to edit mode meshes, armature, curves, mballs
+		    (obedit != NULL && ELEM(obedit->type, OB_MESH, OB_ARMATURE, OB_CURVE, OB_LATTICE, OB_MBALL)) ) // Temporary limited to edit mode meshes, armature, curves, mballs
 		{
-			BoundBox *bb_init;
 			/* Exclude editmesh if using proportional edit */
 			if ((obedit->type == OB_MESH) && (t->flag & T_PROP_EDIT)) {
 				t->tsnap.modeSelect = SNAP_NOT_OBEDIT;
@@ -515,12 +554,6 @@ static void initSnappingMode(TransInfo *t)
 			else {
 				t->tsnap.modeSelect = t->tsnap.snap_self ? SNAP_ALL : SNAP_NOT_OBEDIT;
 			}
-
-			/* store the original bounding box -
-			 * we could slightly increase the size in screen space but leaving as TODO */
-			bb_init = BKE_object_boundbox_get(obedit);
-			if (bb_init)
-				t->tsnap.BB_init = *bb_init;
 		}
 		/* Particles edit mode*/
 		else if (t->tsnap.applySnap != NULL && // A snapping function actually exist
@@ -595,7 +628,7 @@ void initSnapping(TransInfo *t, wmOperator *op)
 	}
 	/* use scene defaults only when transform is modal */
 	else if (t->flag & T_MODAL) {
-		if (ELEM3(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE, SPACE_NODE)) {
+		if (ELEM(t->spacetype, SPACE_VIEW3D, SPACE_IMAGE, SPACE_NODE)) {
 			if (ts->snap_flag & SCE_SNAP) {
 				t->modifiers |= MOD_SNAP;
 			}
@@ -665,7 +698,8 @@ static void setSnappingCallback(TransInfo *t)
 
 void addSnapPoint(TransInfo *t)
 {
-	if (t->tsnap.status & POINT_INIT) {
+	/* Currently only 3D viewport works for snapping points. */
+	if (t->tsnap.status & POINT_INIT && t->spacetype == SPACE_VIEW3D) {
 		TransSnapPoint *p = MEM_callocN(sizeof(TransSnapPoint), "SnapPoint");
 
 		t->tsnap.selectedPoint = p;
@@ -838,9 +872,9 @@ static float RotationBetween(TransInfo *t, const float p1[3], const float p2[3])
 		cross_v3_v3v3(tmp, start, end);
 		
 		if (dot_v3v3(tmp, axis) < 0.0f)
-			angle = -acos(dot_v3v3(start, end));
+			angle = -acosf(dot_v3v3(start, end));
 		else
-			angle = acos(dot_v3v3(start, end));
+			angle = acosf(dot_v3v3(start, end));
 	}
 	else {
 		float mtx[3][3];
@@ -850,7 +884,7 @@ static float RotationBetween(TransInfo *t, const float p1[3], const float p2[3])
 		mul_m3_v3(mtx, end);
 		mul_m3_v3(mtx, start);
 		
-		angle = atan2(start[1], start[0]) - atan2(end[1], end[0]);
+		angle = atan2f(start[1], start[0]) - atan2f(end[1], end[0]);
 	}
 	
 	if (angle > (float)M_PI) {
@@ -1496,9 +1530,11 @@ static bool snapCurve(short snap_mode, ARegion *ar, Object *ob, Curve *cu, float
 
 static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMesh *dm, BMEditMesh *em, float obmat[4][4],
                             const float ray_start[3], const float ray_normal[3], const float ray_origin[3],
-                            const float mval[2], float r_loc[3], float r_no[3], float *r_dist_px, float *r_depth, BoundBox *bb_init)
+                            const float mval[2], float r_loc[3], float r_no[3], float *r_dist_px, float *r_depth, bool do_bb)
 {
 	bool retval = false;
+	const bool do_ray_start_correction = (snap_mode == SCE_SNAP_MODE_FACE && ar &&
+	                                      !((RegionView3D *)ar->regiondata)->is_persp);
 	int totvert = dm->getNumVerts(dm);
 
 	if (totvert > 0) {
@@ -1519,10 +1555,33 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 		/* local scale in normal direction */
 		local_scale = normalize_v3(ray_normal_local);
 
-		if (!bb_init)
-			bb_init = BKE_object_boundbox_get(ob);
-		if (!BKE_boundbox_ray_hit_check(bb_init, ray_start_local, ray_normal_local, &len_diff)) {
-			return retval;
+		if (do_bb) {
+			BoundBox *bb = BKE_object_boundbox_get(ob);
+			if (!BKE_boundbox_ray_hit_check(bb, ray_start_local, ray_normal_local, &len_diff)) {
+				return retval;
+			}
+		}
+		else if (do_ray_start_correction) {
+			/* We *need* a reasonably valid len_diff in this case.
+			 * Use BHVTree to find the closest face from ray_start_local.
+			 */
+			BVHTreeFromMesh treeData;
+			BVHTreeNearest nearest;
+			len_diff = 0.0f;  /* In case BVHTree would fail for some reason... */
+
+			treeData.em_evil = em;
+			bvhtree_from_mesh_faces(&treeData, dm, 0.0f, 2, 6);
+			if (treeData.tree != NULL) {
+				nearest.index = -1;
+				nearest.dist_sq = FLT_MAX;
+				/* Compute and store result. */
+				BLI_bvhtree_find_nearest(treeData.tree, ray_start_local, &nearest,
+				                         treeData.nearest_callback, &treeData);
+				if (nearest.index != -1) {
+					len_diff = sqrtf(nearest.dist_sq);
+				}
+			}
+			free_bvhtree_from_mesh(&treeData);
 		}
 
 		switch (snap_mode) {
@@ -1535,7 +1594,7 @@ static bool snapDerivedMesh(short snap_mode, ARegion *ar, Object *ob, DerivedMes
 				 * been *inside* boundbox, leading to snap failures (see T38409).
 				 * Note also ar might be null (see T38435), in this case we assume ray_start is ok!
 				 */
-				if (ar && !((RegionView3D *)ar->regiondata)->is_persp) {
+				if (do_ray_start_correction) {
 					float ray_org_local[3];
 
 					copy_v3_v3(ray_org_local, ray_origin);
@@ -1813,27 +1872,26 @@ static bool snapCamera(short snap_mode, ARegion *ar, Scene *scene, Object *objec
 static bool snapObject(Scene *scene, short snap_mode, ARegion *ar, Object *ob, float obmat[4][4], bool use_obedit,
                        Object **r_ob, float r_obmat[4][4],
                        const float ray_start[3], const float ray_normal[3], const float ray_origin[3],
-                       const float mval[2], float r_loc[3], float r_no[3], float *r_dist_px, float *r_depth, BoundBox *bb_init)
+                       const float mval[2], float r_loc[3], float r_no[3], float *r_dist_px, float *r_depth)
 {
 	bool retval = false;
 	
 	if (ob->type == OB_MESH) {
 		BMEditMesh *em;
 		DerivedMesh *dm;
-		BoundBox *bb;
+		bool do_bb = true;
 		
 		if (use_obedit) {
 			em = BKE_editmesh_from_object(ob);
 			dm = editbmesh_get_derived_cage(scene, ob, em, CD_MASK_BAREMESH);
-			bb = bb_init;
+			do_bb = false;
 		}
 		else {
 			em = NULL;
 			dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
-			bb = NULL;
 		}
 		
-		retval = snapDerivedMesh(snap_mode, ar, ob, dm, em, obmat, ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_depth, bb);
+		retval = snapDerivedMesh(snap_mode, ar, ob, dm, em, obmat, ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_depth, do_bb);
 
 		dm->release(dm);
 	}
@@ -1864,7 +1922,7 @@ static bool snapObjectsRay(Scene *scene, short snap_mode, Base *base_act, View3D
                            Object **r_ob, float r_obmat[4][4],
                            const float ray_start[3], const float ray_normal[3], const float ray_origin[3],
                            float *r_ray_dist,
-                           const float mval[2], float *r_dist_px, float r_loc[3], float r_no[3], SnapMode mode, BoundBox *bb_init)
+                           const float mval[2], float *r_dist_px, float r_loc[3], float r_no[3], SnapMode mode)
 {
 	Base *base;
 	bool retval = false;
@@ -1874,7 +1932,7 @@ static bool snapObjectsRay(Scene *scene, short snap_mode, Base *base_act, View3D
 
 		retval |= snapObject(scene, snap_mode, ar, ob, ob->obmat, true,
 		                     r_ob, r_obmat,
-		                     ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_ray_dist, bb_init);
+		                     ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_ray_dist);
 	}
 
 	/* Need an exception for particle edit because the base is flagged with BA_HAS_RECALC_DATA
@@ -1887,7 +1945,7 @@ static bool snapObjectsRay(Scene *scene, short snap_mode, Base *base_act, View3D
 		Object *ob = base->object;
 		retval |= snapObject(scene, snap_mode, ar, ob, ob->obmat, false,
 		                     r_ob, r_obmat,
-		                     ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_ray_dist, NULL);
+		                     ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_ray_dist);
 	}
 
 	for (base = FIRSTBASE; base != NULL; base = base->next) {
@@ -1906,7 +1964,7 @@ static bool snapObjectsRay(Scene *scene, short snap_mode, Base *base_act, View3D
 				for (dupli_ob = lb->first; dupli_ob; dupli_ob = dupli_ob->next) {
 					retval |= snapObject(scene, snap_mode, ar, dupli_ob->ob, dupli_ob->mat, false,
 					                     r_ob, r_obmat,
-					                     ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_ray_dist, NULL);
+					                     ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_ray_dist);
 				}
 				
 				free_object_duplilist(lb);
@@ -1914,7 +1972,7 @@ static bool snapObjectsRay(Scene *scene, short snap_mode, Base *base_act, View3D
 			
 			retval |= snapObject(scene, snap_mode, ar, ob, ob->obmat, false,
 			                     r_ob, r_obmat,
-			                     ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_ray_dist, NULL);
+			                     ray_start, ray_normal, ray_origin, mval, r_loc, r_no, r_dist_px, r_ray_dist);
 		}
 	}
 	
@@ -1922,7 +1980,7 @@ static bool snapObjectsRay(Scene *scene, short snap_mode, Base *base_act, View3D
 }
 static bool snapObjects(Scene *scene, short snap_mode, Base *base_act, View3D *v3d, ARegion *ar, Object *obedit,
                         const float mval[2], float *r_dist_px,
-                        float r_loc[3], float r_no[3], float *r_ray_dist, SnapMode mode, BoundBox *bb_init)
+                        float r_loc[3], float r_no[3], float *r_ray_dist, SnapMode mode)
 {
 	float ray_start[3], ray_normal[3], ray_orgigin[3];
 
@@ -1933,17 +1991,17 @@ static bool snapObjects(Scene *scene, short snap_mode, Base *base_act, View3D *v
 	return snapObjectsRay(scene, snap_mode, base_act, v3d, ar, obedit,
 	                      NULL, NULL,
 	                      ray_start, ray_normal, ray_orgigin, r_ray_dist,
-	                      mval, r_dist_px, r_loc, r_no, mode, bb_init);
+	                      mval, r_dist_px, r_loc, r_no, mode);
 }
 
 bool snapObjectsTransform(TransInfo *t, const float mval[2], float *r_dist_px, float r_loc[3], float r_no[3], SnapMode mode)
 {
 	float ray_dist = TRANSFORM_DIST_MAX_RAY;
 	return snapObjects(t->scene, t->scene->toolsettings->snap_mode, t->scene->basact, t->view, t->ar, t->obedit,
-	                   mval, r_dist_px, r_loc, r_no, &ray_dist, mode, &t->tsnap.BB_init);
+	                   mval, r_dist_px, r_loc, r_no, &ray_dist, mode);
 }
 
-bool snapObjectsContext(bContext *C, const float mval[2], float *r_dist_px, float r_loc[3], float r_no[3], SnapMode mode, BoundBox *bb_init)
+bool snapObjectsContext(bContext *C, const float mval[2], float *r_dist_px, float r_loc[3], float r_no[3], SnapMode mode)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
@@ -1953,35 +2011,35 @@ bool snapObjectsContext(bContext *C, const float mval[2], float *r_dist_px, floa
 	float ray_dist = TRANSFORM_DIST_MAX_RAY;
 
 	return snapObjects(scene, scene->toolsettings->snap_mode, scene->basact, v3d, ar, obedit,
-	                   mval, r_dist_px, r_loc, r_no, &ray_dist, mode, bb_init);
+	                   mval, r_dist_px, r_loc, r_no, &ray_dist, mode);
 }
 
 bool snapObjectsEx(Scene *scene, Base *base_act, View3D *v3d, ARegion *ar, Object *obedit, short snap_mode,
                    const float mval[2], float *r_dist_px,
-                   float r_loc[3], float r_no[3], float *r_ray_dist, SnapMode mode, struct BoundBox *bb_init)
+                   float r_loc[3], float r_no[3], float *r_ray_dist, SnapMode mode)
 {
 	return snapObjects(scene, snap_mode, base_act, v3d, ar, obedit,
 	                   mval, r_dist_px,
-	                   r_loc, r_no, r_ray_dist, mode, bb_init);
+	                   r_loc, r_no, r_ray_dist, mode);
 }
 bool snapObjectsRayEx(Scene *scene, Base *base_act, View3D *v3d, ARegion *ar, Object *obedit, short snap_mode,
                       Object **r_ob, float r_obmat[4][4],
                       const float ray_start[3], const float ray_normal[3], float *r_ray_dist,
-                      const float mval[2], float *r_dist_px, float r_loc[3], float r_no[3], SnapMode mode, struct BoundBox *bb_init)
+                      const float mval[2], float *r_dist_px, float r_loc[3], float r_no[3], SnapMode mode)
 {
 	return snapObjectsRay(scene, snap_mode, base_act, v3d, ar, obedit,
 	                      r_ob, r_obmat,
 	                      ray_start, ray_normal, ray_start, r_ray_dist,
-	                      mval, r_dist_px, r_loc, r_no, mode, bb_init);
+	                      mval, r_dist_px, r_loc, r_no, mode);
 }
 
 /******************** PEELING *********************************/
 
 
-static int cmpPeel(void *arg1, void *arg2)
+static int cmpPeel(const void *arg1, const void *arg2)
 {
-	DepthPeel *p1 = arg1;
-	DepthPeel *p2 = arg2;
+	const DepthPeel *p1 = arg1;
+	const DepthPeel *p2 = arg2;
 	int val = 0;
 	
 	if (p1->depth < p2->depth) {
@@ -2338,7 +2396,7 @@ bool snapNodesContext(bContext *C, const int mval[2], float *r_dist_px, float r_
 
 /*================================================================*/
 
-static void applyGridIncrement(TransInfo *t, float *val, int max_index, float fac[3], GearsType action);
+static void applyGridIncrement(TransInfo *t, float *val, int max_index, const float fac[3], GearsType action);
 
 
 void snapGridIncrementAction(TransInfo *t, float *val, GearsType action)
@@ -2371,7 +2429,7 @@ void snapGridIncrement(TransInfo *t, float *val)
 }
 
 
-static void applyGridIncrement(TransInfo *t, float *val, int max_index, float fac[3], GearsType action)
+static void applyGridIncrement(TransInfo *t, float *val, int max_index, const float fac[3], GearsType action)
 {
 	int i;
 	float asp[3] = {1.0f, 1.0f, 1.0f}; // TODO: Remove hard coded limit here (3)
@@ -2390,12 +2448,15 @@ static void applyGridIncrement(TransInfo *t, float *val, int max_index, float fa
 		if (t->options & CTX_MASK) {
 			ED_space_image_get_aspect(t->sa->spacedata.first, asp, asp + 1);
 		}
+		else if (t->options & CTX_PAINT_CURVE) {
+			asp[0] = asp[1] = 1.0;
+		}
 		else {
 			ED_space_image_get_uv_aspect(t->sa->spacedata.first, asp, asp + 1);
 		}
 	}
 
 	for (i = 0; i <= max_index; i++) {
-		val[i] = fac[action] * asp[i] * (float)floor(val[i] / (fac[action] * asp[i]) + 0.5f);
+		val[i] = fac[action] * asp[i] * floorf(val[i] / (fac[action] * asp[i]) + 0.5f);
 	}
 }

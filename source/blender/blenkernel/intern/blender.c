@@ -82,6 +82,7 @@
 #include "DEG_depsgraph.h"
 
 #include "RE_pipeline.h"
+#include "RE_render_ext.h"
 
 #include "BLF_api.h"
 
@@ -123,6 +124,7 @@ void free_blender(void)
 	DEG_free_node_types();
 
 	BKE_brush_system_exit();
+	RE_exit_texture_rng();	
 
 	BLI_callback_global_finalize();
 
@@ -174,7 +176,7 @@ static void clear_global(void)
 static bool clean_paths_visit_cb(void *UNUSED(userdata), char *path_dst, const char *path_src)
 {
 	strcpy(path_dst, path_src);
-	BLI_clean(path_dst);
+	BLI_path_native_slash(path_dst);
 	return !STREQ(path_dst, path_src);
 }
 
@@ -186,7 +188,7 @@ static void clean_paths(Main *main)
 	BKE_bpath_traverse_main(main, clean_paths_visit_cb, BKE_BPATH_TRAVERSE_SKIP_MULTIFILE, NULL);
 
 	for (scene = main->scene.first; scene; scene = scene->id.next) {
-		BLI_clean(scene->r.pic);
+		BLI_path_native_slash(scene->r.pic);
 	}
 }
 
@@ -201,29 +203,38 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	bScreen *curscreen = NULL;
 	Scene *curscene = NULL;
 	int recover;
-	char mode;
+	enum {
+		LOAD_UI = 1,
+		LOAD_UI_OFF,
+		LOAD_UNDO,
+	} mode;
 
-	/* 'u' = undo save, 'n' = no UI load */
-	if (BLI_listbase_is_empty(&bfd->main->screen)) mode = 'u';
-	else if (G.fileflags & G_FILE_NO_UI) mode = 'n';
-	else mode = 0;
+	if (BLI_listbase_is_empty(&bfd->main->screen)) {
+		mode = LOAD_UNDO;
+	}
+	else if (G.fileflags & G_FILE_NO_UI) {
+		mode = LOAD_UI_OFF;
+	}
+	else {
+		mode = LOAD_UI;
+	}
 
 	recover = (G.fileflags & G_FILE_RECOVER);
 
 	/* Free all render results, without this stale data gets displayed after loading files */
-	if (mode != 'u') {
+	if (mode != LOAD_UNDO) {
 		RE_FreeAllRenderResults();
 	}
 
 	/* Only make filepaths compatible when loading for real (not undo) */
-	if (mode != 'u') {
+	if (mode != LOAD_UNDO) {
 		clean_paths(bfd->main);
 	}
 
 	/* XXX here the complex windowmanager matching */
 	
 	/* no load screens? */
-	if (mode) {
+	if (mode != LOAD_UI) {
 		/* comes from readfile.c */
 		SWAP(ListBase, G.main->wm, bfd->main->wm);
 		SWAP(ListBase, G.main->screen, bfd->main->screen);
@@ -267,7 +278,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	}
 	
 	/* case G_FILE_NO_UI or no screens in file */
-	if (mode) {
+	if (mode != LOAD_UI) {
 		/* leave entire context further unaltered? */
 		CTX_data_scene_set(C, curscene);
 	}
@@ -281,6 +292,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 		CTX_wm_area_set(C, NULL);
 		CTX_wm_region_set(C, NULL);
 		CTX_wm_menu_set(C, NULL);
+		curscene = bfd->curscene;
 	}
 	
 	/* this can happen when active scene was lib-linked, and doesn't exist anymore */
@@ -293,6 +305,9 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 		CTX_wm_screen(C)->scene = CTX_data_scene(C);
 		curscene = CTX_data_scene(C);
 	}
+
+	BLI_assert(curscene == CTX_data_scene(C));
+
 
 	/* special cases, override loaded flags: */
 	if (G.f != bfd->globalf) {
@@ -336,7 +351,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	
 	/* baseflags, groups, make depsgraph, etc */
 	/* first handle case if other windows have different scenes visible */
-	if (mode == 0) {
+	if (mode == LOAD_UI) {
 		wmWindowManager *wm = G.main->wm.first;
 		
 		if (wm) {
@@ -344,14 +359,14 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 			
 			for (win = wm->windows.first; win; win = win->next) {
 				if (win->screen && win->screen->scene) /* zealous check... */
-					if (win->screen->scene != CTX_data_scene(C))
+					if (win->screen->scene != curscene)
 						BKE_scene_set_background(G.main, win->screen->scene);
 			}
 		}
 	}
-	BKE_scene_set_background(G.main, CTX_data_scene(C));
+	BKE_scene_set_background(G.main, curscene);
 
-	if (mode != 'u') {
+	if (mode != LOAD_UNDO) {
 		IMB_colormanagement_check_file_config(G.main);
 	}
 
@@ -470,7 +485,9 @@ int BKE_read_file(bContext *C, const char *filepath, ReportList *reports)
 	return (bfd ? retval : BKE_READ_FILE_FAIL);
 }
 
-int BKE_read_file_from_memory(bContext *C, const void *filebuf, int filelength, ReportList *reports, int update_defaults)
+bool BKE_read_file_from_memory(
+        bContext *C, const void *filebuf, int filelength,
+        ReportList *reports, bool update_defaults)
 {
 	BlendFileData *bfd;
 
@@ -487,7 +504,9 @@ int BKE_read_file_from_memory(bContext *C, const void *filebuf, int filelength, 
 }
 
 /* memfile is the undo buffer */
-int BKE_read_file_from_memfile(bContext *C, MemFile *memfile, ReportList *reports)
+bool BKE_read_file_from_memfile(
+        bContext *C, MemFile *memfile,
+        ReportList *reports)
 {
 	BlendFileData *bfd;
 
@@ -672,7 +691,7 @@ void BKE_write_undo(bContext *C, const char *name)
 		counter = counter % U.undosteps;
 	
 		BLI_snprintf(numstr, sizeof(numstr), "%d.blend", counter);
-		BLI_make_file_string("/", filepath, BLI_temporary_dir(), numstr);
+		BLI_make_file_string("/", filepath, BLI_temp_dir_session(), numstr);
 	
 		/* success = */ /* UNUSED */ BLO_write_file(CTX_data_main(C), filepath, fileflags, NULL, NULL);
 		

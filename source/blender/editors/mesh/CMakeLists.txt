@@ -32,6 +32,7 @@ set(INC
 	../../render/extern/include
 	../../windowmanager
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -45,6 +46,7 @@ set(SRC
 	editmesh_bisect.c
 	editmesh_extrude.c
 	editmesh_inset.c
+	editmesh_intersect.c
 	editmesh_knife.c
 	editmesh_knife_project.c
 	editmesh_loopcut.c
@@ -84,5 +86,7 @@ endif()
 if(WITH_BULLET)
 	add_definitions(-DWITH_BULLET)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_editor_mesh "${SRC}" "${INC}" "${INC_SYS}")

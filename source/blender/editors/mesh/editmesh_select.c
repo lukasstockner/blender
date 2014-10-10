@@ -66,6 +66,8 @@
 
 #include "UI_resources.h"
 
+#include "bmesh_tools.h"
+
 #include "mesh_intern.h"  /* own include */
 
 /* use bmesh operator flags for a few operators */
@@ -926,6 +928,96 @@ void MESH_OT_select_similar(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "compare", prop_similar_compare_types, SIM_CMP_EQ, "Compare", "");
 
 	RNA_def_float(ot->srna, "threshold", 0.0, 0.0, 1.0, "Threshold", "", 0.0, 1.0);
+}
+
+
+/* -------------------------------------------------------------------- */
+/* Select Similar Regions */
+
+static int edbm_select_similar_region_exec(bContext *C, wmOperator *op)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	BMEditMesh *em = BKE_editmesh_from_object(obedit);
+	BMesh *bm = em->bm;
+	bool changed = false;
+
+	/* group vars */
+	int *groups_array;
+	int (*group_index)[2];
+	int group_tot;
+	int i;
+
+	if (bm->totfacesel < 2) {
+		BKE_report(op->reports, RPT_ERROR, "No face regions selected");
+		return OPERATOR_CANCELLED;
+	}
+
+	groups_array = MEM_mallocN(sizeof(*groups_array) * bm->totfacesel, __func__);
+	group_tot = BM_mesh_calc_face_groups(bm, groups_array, &group_index,
+	                                     NULL, NULL,
+	                                     BM_ELEM_SELECT, BM_VERT);
+
+	BM_mesh_elem_table_ensure(bm, BM_FACE);
+
+	for (i = 0; i < group_tot; i++) {
+		ListBase faces_regions;
+		int tot;
+
+		const int fg_sta = group_index[i][0];
+		const int fg_len = group_index[i][1];
+		int j;
+		BMFace **fg = MEM_mallocN(sizeof(*fg) * fg_len, __func__);
+
+
+		for (j = 0; j < fg_len; j++) {
+			fg[j] = BM_face_at_index(bm, groups_array[fg_sta + j]);
+		}
+
+		tot = BM_mesh_region_match(bm, fg, fg_len, &faces_regions);
+
+		MEM_freeN(fg);
+
+		if (tot) {
+			LinkData *link;
+			while ((link = BLI_pophead(&faces_regions))) {
+				BMFace *f, **faces = link->data;
+				unsigned int i = 0;
+				while ((f = faces[i++])) {
+					BM_face_select_set(bm, f, true);
+				}
+				MEM_freeN(faces);
+				MEM_freeN(link);
+
+				changed = true;
+			}
+		}
+	}
+
+	MEM_freeN(groups_array);
+
+	if (changed) {
+		WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit);
+	}
+	else {
+		BKE_report(op->reports, RPT_WARNING, "No matching face regions found");
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void MESH_OT_select_similar_region(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Similar Regions";
+	ot->idname = "MESH_OT_select_similar_region";
+	ot->description = "Select similar face regions to the current selection";
+
+	/* api callbacks */
+	ot->exec = edbm_select_similar_region_exec;
+	ot->poll = ED_operator_editmesh;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 
@@ -2807,6 +2899,13 @@ static int edbm_select_non_manifold_exec(bContext *C, wmOperator *op)
 	BMEdge *e;
 	BMIter iter;
 
+	const bool use_wire = RNA_boolean_get(op->ptr, "use_wire");
+	const bool use_boundary = RNA_boolean_get(op->ptr, "use_boundary");
+	const bool use_multi_face = RNA_boolean_get(op->ptr, "use_multi_face");
+	const bool use_non_contiguous = RNA_boolean_get(op->ptr, "use_non_contiguous");
+	const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
+
+
 	if (!RNA_boolean_get(op->ptr, "extend"))
 		EDBM_flag_disable_all(em, BM_ELEM_SELECT);
 
@@ -2819,15 +2918,30 @@ static int edbm_select_non_manifold_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
-		if (!BM_elem_flag_test(v, BM_ELEM_HIDDEN) && !BM_vert_is_manifold(v)) {
-			BM_vert_select_set(em->bm, v, true);
+	if (use_verts) {
+		BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
+			if (!BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
+				if (!BM_vert_is_manifold(v)) {
+					BM_vert_select_set(em->bm, v, true);
+				}
+			}
 		}
 	}
 	
-	BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
-		if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN) && !BM_edge_is_manifold(e)) {
-			BM_edge_select_set(em->bm, e, true);
+	if (use_wire || use_boundary || use_multi_face || use_non_contiguous) {
+		BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+			if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
+				if ((use_wire && BM_edge_is_wire(e)) ||
+				    (use_boundary && BM_edge_is_boundary(e)) ||
+				    (use_non_contiguous && (BM_edge_is_manifold(e) && !BM_edge_is_contiguous(e))) ||
+				    (use_multi_face && (BM_edge_face_count(e) > 2)))
+				{
+					/* check we never select perfect edge (in test above) */
+					BLI_assert(!(BM_edge_is_manifold(e) && BM_edge_is_contiguous(e)));
+
+					BM_edge_select_set(em->bm, e, true);
+				}
+			}
 		}
 	}
 
@@ -2854,6 +2968,18 @@ void MESH_OT_select_non_manifold(wmOperatorType *ot)
 
 	/* props */
 	RNA_def_boolean(ot->srna, "extend", true, "Extend", "Extend the selection");
+	/* edges */
+	RNA_def_boolean(ot->srna, "use_wire", true, "Wire",
+	                "Wire edges");
+	RNA_def_boolean(ot->srna, "use_boundary", true, "Boundaries",
+	                "Boundary edges");
+	RNA_def_boolean(ot->srna, "use_multi_face", true,
+	                "Multiple Faces", "Edges shared by 3+ faces");
+	RNA_def_boolean(ot->srna, "use_non_contiguous", true, "Non Contiguous",
+	                "Edges between faces pointing in alternate directions");
+	/* verts */
+	RNA_def_boolean(ot->srna, "use_verts", true, "Vertices",
+	                "Vertices connecting multiple face regions");
 }
 
 static int edbm_select_random_exec(bContext *C, wmOperator *op)

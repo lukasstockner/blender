@@ -713,7 +713,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	}
 	
 	/* geometry collision */
-	if (ELEM3(ob->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
+	if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
 		// add geometry collider relations
 	}
 }

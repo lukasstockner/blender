@@ -63,7 +63,7 @@ extern "C" {
 /* Low-Level Graph Traversal */
 
 /* Prepare for graph traversal, by tagging nodes, etc. */
-void DEG_graph_traverse_begin(Depsgraph *graph)
+static void DEG_graph_traverse_begin(Depsgraph *graph)
 {
 	/* go over all nodes, initialising the valence counts */
 	// XXX: this will end up being O(|V|), which is bad when we're just updating a few nodes... 
@@ -71,14 +71,14 @@ void DEG_graph_traverse_begin(Depsgraph *graph)
 
 /* Perform a traversal of graph from given starting node (in execution order) */
 // TODO: additional flags for controlling the process?
-void DEG_graph_traverse_from_node(Depsgraph *graph, OperationDepsNode *start_node,
+static void DEG_graph_traverse_from_node(Depsgraph *graph, OperationDepsNode *start_node,
                                   DEG_FilterPredicate filter, void *filter_data,
                                   DEG_NodeOperation op, void *operation_data)
 {
 	DepsgraphQueue *q;
 	
 	/* sanity checks */
-	if (ELEM3(NULL, graph, start_node, op))
+	if (ELEM(NULL, graph, start_node, op))
 		return;
 	
 	/* add node as starting node to be evaluated, with value of 0 */

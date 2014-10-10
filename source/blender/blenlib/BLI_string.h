@@ -64,6 +64,8 @@ char *BLI_sprintfN(const char *__restrict format, ...) ATTR_WARN_UNUSED_RESULT A
 
 size_t BLI_strescape(char *__restrict dst, const char *__restrict src, const size_t maxncpy) ATTR_NONNULL();
 
+size_t BLI_str_format_int_grouped(char dst[16], int num) ATTR_NONNULL();
+
 int BLI_strcaseeq(const char *a, const char *b) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 char *BLI_strcasestr(const char *s, const char *find) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 int BLI_strcasecmp(const char *s1, const char *s2) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
@@ -78,6 +80,10 @@ int BLI_str_rstrip_float_zero(char *str, const char pad) ATTR_NONNULL();
 
 int BLI_str_index_in_array_n(const char *__restrict str, const char **__restrict str_array, const int str_array_len) ATTR_NONNULL();
 int BLI_str_index_in_array(const char *__restrict str, const char **__restrict str_array) ATTR_NONNULL();
+
+size_t BLI_str_partition(const char *str, const char delim[], char **sep, char **suf) ATTR_NONNULL();
+size_t BLI_str_rpartition(const char *str, const char delim[], char **sep, char **suf) ATTR_NONNULL();
+size_t BLI_str_partition_ex(const char *str, const char delim[], char **sep, char **suf, const bool from_right) ATTR_NONNULL();
 
 #ifdef __cplusplus
 }

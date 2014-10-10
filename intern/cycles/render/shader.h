@@ -17,6 +17,10 @@
 #ifndef __SHADER_H__
 #define __SHADER_H__
 
+#ifdef WITH_OSL
+#  include <OSL/oslexec.h>
+#endif
+
 #include "attribute.h"
 #include "kernel_types.h"
 
@@ -24,10 +28,6 @@
 #include "util_param.h"
 #include "util_string.h"
 #include "util_types.h"
-
-#ifdef WITH_OSL
-#include <OSL/oslexec.h>
-#endif
 
 CCL_NAMESPACE_BEGIN
 
@@ -149,6 +149,7 @@ protected:
 	AttributeIDMap unique_attribute_id;
 
 	size_t blackbody_table_offset;
+	size_t beckmann_table_offset;
 };
 
 CCL_NAMESPACE_END

@@ -116,7 +116,10 @@ endif()
 if(WITH_CYCLES_OSL)
 	add_definitions(-DWITH_OSL)
 	add_definitions(-DOSL_STATIC_LIBRARY)
-	include_directories(${OSL_INCLUDES})
+	include_directories(
+		SYSTEM
+		${OSL_INCLUDES}
+	)
 endif()
 
 add_definitions(
@@ -124,6 +127,30 @@ add_definitions(
 	-DWITH_CUDA
 	-DWITH_MULTI
 )
+
+# Logging capabilities using GLog library.
+if(WITH_CYCLES_LOGGING)
+	add_definitions(-DWITH_CYCLES_LOGGING)
+	add_definitions(-DGOOGLE_GLOG_DLL_DECL=)
+	if(WIN32)
+		include_directories(
+			SYSTEM
+			../../extern/libmv/third_party/glog/src/windows
+			../../extern/libmv/third_party/gflags
+		)
+	else()
+		include_directories(
+			SYSTEM
+			../../extern/libmv/third_party/glog/src
+			../../extern/libmv/third_party/gflags
+		)
+	endif()
+endif()
+
+# Debugging capabilities (debug passes etc).
+if(WITH_CYCLES_DEBUG)
+	add_definitions(-DWITH_CYCLES_DEBUG)
+endif()
 
 include_directories(
 	SYSTEM
@@ -138,7 +165,9 @@ include_directories(
 # Warnings
 if(CMAKE_COMPILER_IS_GNUCXX)
 	ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_cxxflag_float_conversion "-Werror=float-conversion")
+	ADD_CHECK_CXX_COMPILER_FLAG(CMAKE_CXX_FLAGS _has_cxxflag_double_promotion "-Werror=double-promotion")
 	unset(_has_cxxflag_float_conversion)
+	unset(_has_cxxflag_double_promotion)
 endif()
 
 

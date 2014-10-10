@@ -26,6 +26,7 @@
 
 #include <stdlib.h>
 #include "BLI_utildefines.h"
+#include "BLI_compiler_attrs.h"
 #include "PIL_time.h"
 
 extern "C" {

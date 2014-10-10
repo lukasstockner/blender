@@ -378,7 +378,7 @@ ScrArea *area_split(bScreen *sc, ScrArea *sa, char dir, float fac, int merge)
 	if (split == 0) return NULL;
 	
 	/* note regarding (fac > 0.5f) checks below.
-	 * notmally it shouldn't matter which is used since the copy should match the original
+	 * normally it shouldn't matter which is used since the copy should match the original
 	 * however with viewport rendering and python console this isn't the case. - campbell */
 
 	if (dir == 'h') {
@@ -1009,7 +1009,7 @@ static void scrarea_draw_shape_light(ScrArea *sa, char UNUSED(dir))
 	glDisable(GL_BLEND);
 }
 
-static void drawscredge_area_draw(int sizex, int sizey, short x1, short y1, short x2, short y2, short a) 
+static void drawscredge_area_draw(int sizex, int sizey, int x1, int y1, int x2, int y2, int a)
 {
 	/* right border area */
 	if (x2 < sizex - 1)

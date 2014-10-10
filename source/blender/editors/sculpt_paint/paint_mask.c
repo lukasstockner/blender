@@ -67,6 +67,13 @@
 
 #include <stdlib.h>
 
+static EnumPropertyItem mode_items[] = {
+	{PAINT_MASK_FLOOD_VALUE, "VALUE", 0, "Value", "Set mask to the level specified by the 'value' property"},
+    {PAINT_MASK_FLOOD_VALUE_INVERSE, "VALUE_INVERSE", 0, "Value Inverted", "Set mask to the level specified by the inverted 'value' property"},
+	{PAINT_MASK_INVERT, "INVERT", 0, "Invert", "Invert the mask"},
+	{0}};
+
+
 static void mask_flood_fill_set_elem(float *elem,
                                      PaintMaskFloodMode mode,
                                      float value)
@@ -74,6 +81,9 @@ static void mask_flood_fill_set_elem(float *elem,
 	switch (mode) {
 		case PAINT_MASK_FLOOD_VALUE:
 			(*elem) = value;
+			break;
+		case PAINT_MASK_FLOOD_VALUE_INVERSE:
+			(*elem) = 1.0f - value;
 			break;
 		case PAINT_MASK_INVERT:
 			(*elem) = 1.0f - (*elem);
@@ -105,7 +115,7 @@ static int mask_flood_fill_exec(bContext *C, wmOperator *op)
 
 	sculpt_undo_push_begin("Mask flood fill");
 
-#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+#pragma omp parallel for schedule(guided) if ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_OMP_LIMIT)
 	for (i = 0; i < totnode; i++) {
 		PBVHVertexIter vi;
 
@@ -137,11 +147,6 @@ static int mask_flood_fill_exec(bContext *C, wmOperator *op)
 
 void PAINT_OT_mask_flood_fill(struct wmOperatorType *ot)
 {
-	static EnumPropertyItem mode_items[] = {
-		{PAINT_MASK_FLOOD_VALUE, "VALUE", 0, "Value", "Set mask to the level specified by the 'value' property"},
-		{PAINT_MASK_INVERT, "INVERT", 0, "Invert", "Invert the mask"},
-		{0}};
-
 	/* identifiers */
 	ot->name = "Mask Flood Fill";
 	ot->idname = "PAINT_OT_mask_flood_fill";
@@ -184,7 +189,7 @@ static void flip_plane(float out[4], const float in[4], const char symm)
 	out[3] = in[3];
 }
 
-int do_sculpt_mask_box_select(struct bContext *C, ViewContext *vc, rcti *rect, bool select, bool UNUSED(extend))
+int ED_sculpt_mask_box_select(struct bContext *C, ViewContext *vc, const rcti *rect, bool select, bool UNUSED(extend))
 {
 	Sculpt *sd = vc->scene->toolsettings->sculpt;
 	BoundBox bb;
@@ -231,7 +236,7 @@ int do_sculpt_mask_box_select(struct bContext *C, ViewContext *vc, rcti *rect, b
 
 			BKE_pbvh_search_gather(pbvh, BKE_pbvh_node_planes_contain_AABB, clip_planes_final, &nodes, &totnode);
 
-#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+#pragma omp parallel for schedule(guided) if ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_OMP_LIMIT)
 			for (i = 0; i < totnode; i++) {
 				PBVHVertexIter vi;
 				bool any_masked = false;
@@ -272,7 +277,7 @@ int do_sculpt_mask_box_select(struct bContext *C, ViewContext *vc, rcti *rect, b
 typedef struct LassoMaskData {
 	struct ViewContext *vc;
 	float projviewobjmat[4][4];
-	bool *px;
+	BLI_bitmap *px;
 	int width;
 	rcti rect; /* bounding box for scanfilling */
 	int symmpass;
@@ -302,19 +307,19 @@ static bool is_effected_lasso(LassoMaskData *data, float co[3])
 	scr_co_s[0] -= data->rect.xmin;
 	scr_co_s[1] -= data->rect.ymin;
 
-	return data->px[scr_co_s[1] * data->width + scr_co_s[0]];
+	return BLI_BITMAP_TEST_BOOL(data->px, scr_co_s[1] * data->width + scr_co_s[0]);
 }
 
 static void mask_lasso_px_cb(int x, int y, void *user_data)
 {
 	struct LassoMaskData *data = user_data;
-	data->px[(y * data->width) + x] = true;
+	BLI_BITMAP_ENABLE(data->px, (y * data->width) + x);
 }
 
 static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
 {
 	int mcords_tot;
-	int (*mcords)[2] = (int (*)[2])WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
+	const int (*mcords)[2] = WM_gesture_lasso_path_to_array(C, op, &mcords_tot);
 
 	if (mcords) {
 		float clip_planes[4][4], clip_planes_final[4][4];
@@ -330,9 +335,8 @@ static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
 		PBVHNode **nodes;
 		int totnode, i, symmpass;
 		bool multires;
-		PaintMaskFloodMode mode = PAINT_MASK_FLOOD_VALUE;
-		bool select = true; /* TODO: see how to implement deselection */
-		float value = select ? 1.0 : 0.0;
+		PaintMaskFloodMode mode = RNA_enum_get(op->ptr, "mode");
+		float value = RNA_float_get(op->ptr, "value");
 
 		/* Calculations of individual vertices are done in 2D screen space to diminish the amount of
 		 * calculations done. Bounding box PBVH collision is not computed against enclosing rectangle
@@ -345,13 +349,13 @@ static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
 		ob = vc.obact;
 		ED_view3d_ob_project_mat_get(vc.rv3d, ob, data.projviewobjmat);
 
-		BLI_lasso_boundbox(&data.rect, (const int (*)[2])mcords, mcords_tot);
+		BLI_lasso_boundbox(&data.rect, mcords, mcords_tot);
 		data.width = data.rect.xmax - data.rect.xmin;
-		data.px = MEM_callocN(sizeof(*data.px) * data.width * (data.rect.ymax - data.rect.ymin), "lasso_mask_pixel_buffer");
+		data.px = BLI_BITMAP_NEW(data.width * (data.rect.ymax - data.rect.ymin), __func__);
 
 		fill_poly_v2i_n(
 		       data.rect.xmin, data.rect.ymin, data.rect.xmax, data.rect.ymax,
-		       (const int (*)[2])mcords, mcords_tot,
+		       mcords, mcords_tot,
 		       mask_lasso_px_cb, &data);
 
 		ED_view3d_clipping_calc(&bb, clip_planes, &mats, &data.rect);
@@ -381,7 +385,7 @@ static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
 				/* gather nodes inside lasso's enclosing rectangle (should greatly help with bigger meshes) */
 				BKE_pbvh_search_gather(pbvh, BKE_pbvh_node_planes_contain_AABB, clip_planes_final, &nodes, &totnode);
 
-#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+#pragma omp parallel for schedule(guided) if ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_OMP_LIMIT)
 				for (i = 0; i < totnode; i++) {
 					PBVHVertexIter vi;
 					bool any_masked = false;
@@ -442,4 +446,8 @@ void PAINT_OT_mask_lasso_gesture(wmOperatorType *ot)
 
 	prop = RNA_def_property(ot->srna, "path", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_runtime(prop, &RNA_OperatorMousePath);
+
+	RNA_def_enum(ot->srna, "mode", mode_items, PAINT_MASK_FLOOD_VALUE, "Mode", NULL);
+	RNA_def_float(ot->srna, "value", 1.0, 0, 1.0, "Value",
+	              "Mask level to use when mode is 'Value'; zero means no masking and one is fully masked", 0, 1);
 }

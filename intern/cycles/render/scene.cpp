@@ -141,7 +141,7 @@ void Scene::device_update(Device *device_, Progress& progress)
 	 * the different managers, using data computed by previous managers.
 	 *
 	 * - Image manager uploads images used by shaders.
-	 * - Camera may be used for adapative subdivison.
+	 * - Camera may be used for adaptive subdivision.
 	 * - Displacement shader must have all shader data available.
 	 * - Light manager needs lookup tables and final mesh data to compute emission CDF.
 	 * - Film needs light manager to run for use_light_visibility
@@ -165,13 +165,18 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel()) return;
 
-	progress.set_status("Updating Camera");
-	camera->device_update(device, &dscene, this);
+	progress.set_status("Updating Objects");
+	object_manager->device_update(device, &dscene, this, progress);
 
 	if(progress.get_cancel()) return;
 
-	progress.set_status("Updating Objects");
-	object_manager->device_update(device, &dscene, this, progress);
+	progress.set_status("Updating Meshes");
+	mesh_manager->device_update(device, &dscene, this, progress);
+
+	if(progress.get_cancel()) return;
+
+	progress.set_status("Updating Objects Flags");
+	object_manager->device_update_flags(device, &dscene, this, progress);
 
 	if(progress.get_cancel()) return;
 
@@ -185,8 +190,9 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel()) return;
 
-	progress.set_status("Updating Meshes");
-	mesh_manager->device_update(device, &dscene, this, progress);
+	/* TODO(sergey): Make sure camera is not needed above. */
+	progress.set_status("Updating Camera");
+	camera->device_update(device, &dscene, this);
 
 	if(progress.get_cancel()) return;
 

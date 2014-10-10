@@ -60,6 +60,7 @@
 #include "RE_bake.h"
 
 #include "initrender.h"
+#include "renderpipeline.h"
 #include "render_types.h"
 #include "render_result.h"
 
@@ -424,7 +425,7 @@ bool RE_bake_has_engine(Render *re)
 
 bool RE_bake_engine(
         Render *re, Object *object, const BakePixel pixel_array[],
-        const int num_pixels, const int depth,
+        const size_t num_pixels, const int depth,
         const ScenePassType pass_type, float result[])
 {
 	RenderEngineType *type = RE_engines_find(re->r.engine);
@@ -453,8 +454,8 @@ bool RE_bake_engine(
 	engine->resolution_y = re->winy;
 
 	RE_parts_init(re, false);
-	engine->tile_x = re->partx;
-	engine->tile_y = re->party;
+	engine->tile_x = re->r.tilex;
+	engine->tile_y = re->r.tiley;
 
 	/* update is only called so we create the engine.session */
 	if (type->update)
@@ -574,7 +575,8 @@ int RE_engine_render(Render *re, int do_all)
 			lay &= non_excluded_lay;
 		}
 
-		BKE_scene_update_for_newframe(re->eval_ctx, re->main, re->scene, lay);
+		BKE_scene_update_for_newframe_ex(re->eval_ctx, re->main, re->scene, lay, true);
+		render_update_anim_renderdata(re, &re->scene->r);
 	}
 
 	/* create render result */
@@ -622,6 +624,7 @@ int RE_engine_render(Render *re, int do_all)
 	if (re->r.scemode & R_BUTS_PREVIEW)
 		engine->flag |= RE_ENGINE_PREVIEW;
 	engine->camera_override = re->camera_override;
+	engine->layer_override = re->layer_override;
 
 	engine->resolution_x = re->winx;
 	engine->resolution_y = re->winy;
@@ -662,11 +665,22 @@ int RE_engine_render(Render *re, int do_all)
 		BLI_rw_mutex_unlock(&re->resultmutex);
 	}
 
+	if (re->r.scemode & R_EXR_CACHE_FILE) {
+		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+		render_result_exr_file_cache_write(re);
+		BLI_rw_mutex_unlock(&re->resultmutex);
+	}
+
 	RE_parts_free(re);
 
 	if (BKE_reports_contain(re->reports, RPT_ERROR))
 		G.is_break = true;
 	
+#ifdef WITH_FREESTYLE
+	if (re->r.mode & R_EDGE_FRS)
+		RE_RenderFreestyleExternal(re);
+#endif
+
 	return 1;
 }
 

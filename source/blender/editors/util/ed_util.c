@@ -61,7 +61,7 @@
 #include "ED_image.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
-#include "ED_sculpt.h"
+#include "ED_paint.h"
 #include "ED_space_api.h"
 #include "ED_util.h"
 
@@ -86,7 +86,7 @@ void ED_editors_init(bContext *C)
 
 	/* This is called during initialization, so we don't want to store any reports */
 	ReportList *reports = CTX_wm_reports(C);
-	int reports_flag_prev = reports->flag &= ~RPT_STORE;
+	int reports_flag_prev = reports->flag & ~RPT_STORE;
 
 	SWAP(int, reports->flag, reports_flag_prev);
 
@@ -153,29 +153,39 @@ void ED_editors_exit(bContext *C)
 
 /* flush any temp data from object editing to DNA before writing files,
  * rendering, copying, etc. */
-void ED_editors_flush_edits(const bContext *C, bool for_render)
+bool ED_editors_flush_edits(const bContext *C, bool for_render)
 {
-	Object *obact = CTX_data_active_object(C);
-	Object *obedit = CTX_data_edit_object(C);
+	bool has_edited = false;
+	Object *ob;
+	Main *bmain = CTX_data_main(C);
 
-	/* get editmode results */
-	if (obedit)
-		ED_object_editmode_load(obedit);
+	/* loop through all data to find edit mode or object mode, because during
+	 * exiting we might not have a context for edit object and multiple sculpt
+	 * objects can exist at the same time */
+	for (ob = bmain->object.first; ob; ob = ob->id.next) {
+		if (ob->mode & OB_MODE_SCULPT) {
+			/* flush multires changes (for sculpt) */
+			multires_force_update(ob);
+			has_edited = true;
 
-	if (obact && (obact->mode & OB_MODE_SCULPT)) {
-		/* flush multires changes (for sculpt) */
-		multires_force_update(obact);
-
-		if (for_render) {
-			/* flush changes from dynamic topology sculpt */
-			BKE_sculptsession_bm_to_me_for_render(obact);
-		}
-		else {
-			/* Set reorder=false so that saving the file doesn't reorder
+			if (for_render) {
+				/* flush changes from dynamic topology sculpt */
+				BKE_sculptsession_bm_to_me_for_render(ob);
+			}
+			else {
+				/* Set reorder=false so that saving the file doesn't reorder
 			 * the BMesh's elements */
-			BKE_sculptsession_bm_to_me(obact, false);
+				BKE_sculptsession_bm_to_me(ob, false);
+			}
+		}
+		else if (ob->mode & OB_MODE_EDIT) {
+			/* get editmode results */
+			has_edited = true;
+			ED_object_editmode_load(ob);
 		}
 	}
+
+	return has_edited;
 }
 
 /* ***** XXX: functions are using old blender names, cleanup later ***** */

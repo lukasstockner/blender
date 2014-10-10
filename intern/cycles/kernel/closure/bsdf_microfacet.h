@@ -35,139 +35,73 @@
 
 CCL_NAMESPACE_BEGIN
 
-/* Approximate erf and erfinv implementations
+/* Approximate erf and erfinv implementations.
+ * Implementation comes straight from Wikipedia:
  *
- * Adapted from code (C) Copyright John Maddock 2006.
- * Use, modification and distribution are subject to the
- * Boost Software License, Version 1.0. (See accompanying file
- * LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt) */
+ * http://en.wikipedia.org/wiki/Error_function
+ *
+ * Some constants are baked into the code.
+ */
 
-ccl_device float approx_erff_impl(float z)
+ccl_device_inline float approx_erff_do(float x)
 {
-	float result;
-
-	if(z < 0.5f) {
-		if(z < 1e-10f) {
-			if(z == 0) {
-				result = 0;
-			}
-			else {
-				float c = 0.0033791670f;
-				result = z * 1.125f + z * c;
-			}
-		}
-		else {
-			float Y = 1.044948577f;
-
-			float zz = z * z;
-			float num = (((-0.007727583f * zz) + -0.050999073f)*zz + -0.338165134f)*zz + 0.083430589f;
-			float denom = (((0.000370900f * zz) + 0.008585719f)*zz + 0.087522260f)*zz + 0.455004033f;
-			result = z * (Y + num / denom);
-		}
+	/* Such a clamp doesn't give much distortion to the output value
+	 * and gives quite a few of the speedup.
+	 */
+	if(x > 3.0f) {
+		return 1.0f;
 	}
-	else if(z < 2.5f) {
-		if(z < 1.5f) {
-			float Y = 0.4059357643f;
-			float fz = z - 0.5f;
-
-			float num = (((0.088890036f * fz) + 0.191003695f)*fz + 0.178114665f)*fz + -0.098090592f;
-			float denom = (((0.123850974f * fz) + 0.578052804f)*fz + 1.426280048f)*fz + 1.847590709f;
-
-			result = Y + num / denom;
-			result *= expf(-z * z) / z;
-		}
-		else  {
-			float Y = 0.506728172f;
-			float fz = z - 1.5f;
-			float num = (((0.017567943f * fz) + 0.043948189f)*fz + 0.038654037f)*fz + -0.024350047f;
-			float denom = (((0.325732924f * fz) + 0.982403709f)*fz + 1.539914949f)*fz + 1;
-
-			result = Y + num / denom;
-			result *= expf(-z * z) / z;
-		}
-
-		result = 1 - result;
-	}
-	else {
-		result = 1;
-	}
-
-	return result;
+	float t = 1.0f / (1.0f + 0.47047f*x);
+	return  (1.0f -
+	         t*(0.3480242f + t*(-0.0958798f + t*0.7478556f)) * expf(-x*x));
 }
 
-ccl_device float approx_erff(float z)
+ccl_device_inline float approx_erff(float x)
 {
-	float s = 1.0f;
-
-	if(z < 0.0f) {
-		s = -1.0f;
-		z = -z;
-	}
-
-	return s * approx_erff_impl(z);
-}
-
-ccl_device float approx_erfinvf_impl(float p, float q)
-{
-	float result = 0;
-
-	if(p <= 0.5f) {
-		float Y = 0.089131474f;
-		float g = p * (p + 10);
-		float num = (((-0.012692614f * p) + 0.033480662f)*p + -0.008368748f)*p + -0.000508781f;
-		float denom = (((1.562215583f * p) + -1.565745582f)*p + -0.970005043f)*p + 1.0f;
-		float r = num / denom;
-		result = g * Y + g * r;
-	}
-	else if(q >= 0.25f) {
-		float Y = 2.249481201f;
-		float g = sqrtf(-2 * logf(q));
-		float xs = q - 0.25f;
-		float num = (((17.644729840f * xs) + 8.370503283f)*xs + 0.105264680f)*xs + -0.202433508f;
-		float denom = (((-28.660818049f * xs) + 3.971343795f)*xs + 6.242641248f)*xs + 1.0f;
-		float r = num / denom;
-		result = g / (Y + r);
+	if(x >= 0.0f) {
+		return approx_erff_do(x);
 	}
 	else {
-		float x = sqrtf(-logf(q));
-
-		if(x < 3) {
-			float Y = 0.807220458f;
-			float xs = x - 1.125f;
-			float num = (((0.387079738f * xs) + 0.117030156f)*xs + -0.163794047f)*xs + -0.131102781f;
-			float denom = (((4.778465929f * xs) + 5.381683457f)*xs + 3.466254072f)*xs + 1.0f;
-			float R = num / denom;
-			result = Y * x + R * x;
-		}
-		else {
-			float Y = 0.939955711f;
-			float xs = x - 3;
-			float num = (((0.009508047f * xs) + 0.018557330f)*xs + -0.002224265f)*xs + -0.035035378f;
-			float denom = (((0.220091105f * xs) + 0.762059164f)*xs + 1.365334981f)*xs + 1.0f;
-			float R = num / denom;
-			result = Y * x + R * x;
-		}
+		return -approx_erff_do(-x);
 	}
-
-	return result;
 }
 
-ccl_device float approx_erfinvf(float z)
+ccl_device_inline float approx_erfinvf_do(float x)
 {
-	float p, q, s;
-
-	if(z < 0) {
-	  p = -z;
-	  q = 1 - p;
-	  s = -1;
+	if(x <= 0.7f) {
+		const float x2 = x * x;
+		const float a1 =  0.886226899f;
+		const float a2 = -1.645349621f;
+		const float a3 =  0.914624893f;
+		const float a4 = -0.140543331f;
+		const float b1 = -2.118377725f;
+		const float b2 =  1.442710462f;
+		const float b3 = -0.329097515f;
+		const float b4 =  0.012229801f;
+		return x * (((a4 * x2 + a3) * x2 + a2) * x2 + a1) /
+		          ((((b4 * x2 + b3) * x2 + b2) * x2 + b1) * x2 + 1.0f);
 	}
 	else {
-	  p = z;
-	  q = 1 - z;
-	  s = 1;
+		const float c1 = -1.970840454f;
+		const float c2 = -1.624906493f;
+		const float c3 =  3.429567803f;
+		const float c4 =  1.641345311f;
+		const float d1 =  3.543889200f;
+		const float d2 =  1.637067800f;
+		const float z = sqrtf(-logf((1.0f - x) * 0.5f));
+		return (((c4 * z + c3) * z + c2) * z + c1) /
+		        ((d2 * z + d1) * z + 1.0f);
 	}
+}
 
-	return s * approx_erfinvf_impl(p, q);
+ccl_device_inline float approx_erfinvf(float x)
+{
+	if(x >= 0.0f) {
+		return approx_erfinvf_do(x);
+	}
+	else {
+		return -approx_erfinvf_do(-x);
+	}
 }
 
 /* Beckmann and GGX microfacet importance sampling from:
@@ -176,8 +110,8 @@ ccl_device float approx_erfinvf(float z)
  * E. Heitz and E. d'Eon, EGSR 2014 */
 
 ccl_device_inline void microfacet_beckmann_sample_slopes(
+	KernelGlobals *kg,
 	const float cos_theta_i, const float sin_theta_i,
-	const float alpha_x, const float alpha_y,
 	float randu, float randv, float *slope_x, float *slope_y,
 	float *G1i)
 {
@@ -200,9 +134,11 @@ ccl_device_inline void microfacet_beckmann_sample_slopes(
 	const float SQRT_PI_INV = 0.56418958354f;
 	const float Lambda = 0.5f*(erf_a - 1.0f) + (0.5f*SQRT_PI_INV)*(exp_a2*inv_a);
 	const float G1 = 1.0f/(1.0f + Lambda); /* masking */
-	const float C = 1.0f - G1 * erf_a;
 
 	*G1i = G1;
+
+#if 0
+	const float C = 1.0f - G1 * erf_a;
 
 	/* sample slope X */
 	if(randu < C) {
@@ -238,11 +174,20 @@ ccl_device_inline void microfacet_beckmann_sample_slopes(
 
 	/* sample slope Y */
 	*slope_y = approx_erfinvf(2.0f*randv - 1.0f);
+#else
+	/* use precomputed table, because it better preserves stratification
+	 * of the random number pattern */
+	int beckmann_table_offset = kernel_data.tables.beckmann_offset;
+
+	*slope_x = lookup_table_read_2D(kg, randu, cos_theta_i,
+		beckmann_table_offset, BECKMANN_TABLE_SIZE, BECKMANN_TABLE_SIZE);
+	*slope_y = approx_erfinvf(2.0f*randv - 1.0f);
+#endif
+
 }
 
 ccl_device_inline void microfacet_ggx_sample_slopes(
 	const float cos_theta_i, const float sin_theta_i,
-	const float alpha_x, const float alpha_y,
 	float randu, float randv, float *slope_x, float *slope_y,
 	float *G1i)
 {
@@ -290,7 +235,8 @@ ccl_device_inline void microfacet_ggx_sample_slopes(
 	*slope_y = S * z * safe_sqrtf(1.0f + (*slope_x)*(*slope_x));
 }
 
-ccl_device_inline float3 microfacet_sample_stretched(const float3 omega_i,
+ccl_device_inline float3 microfacet_sample_stretched(
+	KernelGlobals *kg, const float3 omega_i,
 	const float alpha_x, const float alpha_y,
 	const float randu, const float randv,
 	bool beckmann, float *G1i)
@@ -317,12 +263,14 @@ ccl_device_inline float3 microfacet_sample_stretched(const float3 omega_i,
 	/* 2. sample P22_{omega_i}(x_slope, y_slope, 1, 1) */
 	float slope_x, slope_y;
 
-	if(beckmann)
-		microfacet_beckmann_sample_slopes(costheta_, sintheta_,
-			alpha_x, alpha_y, randu, randv, &slope_x, &slope_y, G1i);
-	else
+	if(beckmann) {
+		microfacet_beckmann_sample_slopes(kg, costheta_, sintheta_,
+			randu, randv, &slope_x, &slope_y, G1i);
+	}
+	else {
 		microfacet_ggx_sample_slopes(costheta_, sintheta_,
-			alpha_x, alpha_y, randu, randv, &slope_x, &slope_y, G1i);
+			randu, randv, &slope_x, &slope_y, G1i);
+	}
 
 	/* 3. rotate */
 	float tmp = cosphi_*slope_x - sinphi_*slope_y;
@@ -348,7 +296,7 @@ ccl_device_inline float3 microfacet_sample_stretched(const float3 omega_i,
  * E. Heitz, Research Report 2014
  *
  * Anisotropy is only supported for reflection currently, but adding it for
- * tranmission is just a matter of copying code from reflection if needed. */
+ * transmission is just a matter of copying code from reflection if needed. */
 
 ccl_device int bsdf_microfacet_ggx_setup(ShaderClosure *sc)
 {
@@ -373,7 +321,7 @@ ccl_device int bsdf_microfacet_ggx_aniso_setup(ShaderClosure *sc)
 ccl_device int bsdf_microfacet_ggx_refraction_setup(ShaderClosure *sc)
 {
 	sc->data0 = clamp(sc->data0, 0.0f, 1.0f); /* alpha_x */
-	sc->data1 = sc->data1; /* alpha_y */
+	sc->data1 = sc->data0; /* alpha_y */
 
 	sc->type = CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID;
 
@@ -499,6 +447,10 @@ ccl_device float3 bsdf_microfacet_ggx_eval_transmit(const ShaderClosure *sc, con
 	float cosHO = dot(Ht, I);
 	float cosHI = dot(Ht, omega_in);
 
+	/* those situations makes chi+ terms in eq. 33, 34 be zero */
+	if(dot(Ht, N) <= 0.0f || cosHO * cosNO <= 0.0f || cosHI * cosNI <= 0.0f)
+		return make_float3(0.0f, 0.0f, 0.0f);
+
 	float D, G1o, G1i;
 
 	/* eq. 33: first we calculate D(m) with m=Ht: */
@@ -530,7 +482,7 @@ ccl_device float3 bsdf_microfacet_ggx_eval_transmit(const ShaderClosure *sc, con
 	return make_float3(out, out, out);
 }
 
-ccl_device int bsdf_microfacet_ggx_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals *kg, const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float alpha_x = sc->data0;
 	float alpha_y = sc->data1;
@@ -552,7 +504,7 @@ ccl_device int bsdf_microfacet_ggx_sample(const ShaderClosure *sc, float3 Ng, fl
 		float3 local_m;
 		float G1o;
 
-		local_m = microfacet_sample_stretched(local_I, alpha_x, alpha_y,
+		local_m = microfacet_sample_stretched(kg, local_I, alpha_x, alpha_y,
 			randu, randv, false, &G1o);
 
 		float3 m = X*local_m.x + Y*local_m.y + Z*local_m.z;
@@ -720,7 +672,7 @@ ccl_device int bsdf_microfacet_beckmann_aniso_setup(ShaderClosure *sc)
 ccl_device int bsdf_microfacet_beckmann_refraction_setup(ShaderClosure *sc)
 {
 	sc->data0 = clamp(sc->data0, 0.0f, 1.0f); /* alpha_x */
-	sc->data1 = sc->data1; /* alpha_y */
+	sc->data1 = sc->data0; /* alpha_y */
 
 	sc->type = CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID;
 	return SD_BSDF|SD_BSDF_HAS_EVAL|SD_BSDF_GLOSSY;
@@ -848,7 +800,11 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(const ShaderClosure *sc
 	float cosHO = dot(Ht, I);
 	float cosHI = dot(Ht, omega_in);
 
-	/* eq. 33: first we calculate D(m) with m=Ht: */
+	/* those situations makes chi+ terms in eq. 25, 27 be zero */
+	if(dot(Ht, N) <= 0.0f || cosHO * cosNO <= 0.0f || cosHI * cosNI <= 0.0f)
+		return make_float3(0.0f, 0.0f, 0.0f);
+
+	/* eq. 25: first we calculate D(m) with m=Ht: */
 	float alpha2 = alpha_x * alpha_y;
 	float cosThetaM = min(dot(N, Ht), 1.0f);
 	float cosThetaM2 = cosThetaM * cosThetaM;
@@ -878,7 +834,7 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(const ShaderClosure *sc
 	return make_float3(out, out, out);
 }
 
-ccl_device int bsdf_microfacet_beckmann_sample(const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float alpha_x = sc->data0;
 	float alpha_y = sc->data1;
@@ -900,7 +856,7 @@ ccl_device int bsdf_microfacet_beckmann_sample(const ShaderClosure *sc, float3 N
 		float3 local_m;
 		float G1o;
 
-		local_m = microfacet_sample_stretched(local_I, alpha_x, alpha_x,
+		local_m = microfacet_sample_stretched(kg, local_I, alpha_x, alpha_x,
 			randu, randv, true, &G1o);
 
 		float3 m = X*local_m.x + Y*local_m.y + Z*local_m.z;

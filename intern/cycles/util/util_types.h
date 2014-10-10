@@ -33,14 +33,17 @@
 
 #ifndef __KERNEL_GPU__
 
-#define ccl_device static inline
+#  ifdef NDEBUG
+#    define ccl_device static inline
+#  else
+#    define ccl_device static
+#  endif
 #define ccl_device_noinline static
 #define ccl_global
 #define ccl_constant
 #define __KERNEL_WITH_SSE_ALIGN__
 
 #if defined(_WIN32) && !defined(FREE_WINDOWS)
-
 #define ccl_device_inline static __forceinline
 #define ccl_align(...) __declspec(align(__VA_ARGS__))
 #ifdef __KERNEL_64_BIT__
@@ -50,7 +53,11 @@
 #define ccl_try_align(...) /* not support for function arguments (error C2719) */
 #endif
 #define ccl_may_alias
-#define ccl_always_inline __forceinline
+#  ifdef NDEBUG
+#    define ccl_always_inline __forceinline
+#  else
+#    define ccl_always_inline
+#  endif
 #define ccl_maybe_unused
 
 #else
@@ -472,16 +479,16 @@ enum InterpolationType {
 /* Causes warning:
  * incompatible types when assigning to type 'Foo' from type 'Bar'
  * ... the compiler optimizes away the temp var */
-#ifdef __GNUC__
+#if defined(__GNUC__)
 #define CHECK_TYPE(var, type)  {  \
-	__typeof(var) *__tmp;         \
+	decltype(var) *__tmp;         \
 	__tmp = (type *)NULL;         \
 	(void)__tmp;                  \
 } (void)0
 
 #define CHECK_TYPE_PAIR(var_a, var_b)  {  \
-	__typeof(var_a) *__tmp;               \
-	__tmp = (__typeof(var_b) *)NULL;      \
+	decltype(var_a) *__tmp;               \
+	__tmp = (typeof(var_b) *)NULL;        \
 	(void)__tmp;                          \
 } (void)0
 #else

@@ -33,8 +33,6 @@
 
 /* Part of the code copied from elbeem fluid library, copyright by Nils Thuerey */
 
-#include <GL/glew.h>
-
 #include "MEM_guardedalloc.h"
 
 #include <float.h>
@@ -83,6 +81,8 @@
 #include "BKE_texture.h"
 
 #include "RE_shader_ext.h"
+
+#include "GPU_glew.h"
 
 /* UNUSED so far, may be enabled later */
 /* #define USE_SMOKE_COLLISION_DM */
@@ -205,7 +205,7 @@ void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[
 	/* smoke_turbulence_init uses non-threadsafe functions from fftw3 lib (like fftw_plan & co). */
 	BLI_lock_thread(LOCK_FFTW);
 
-	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BLI_temporary_dir(), use_fire, use_colors);
+	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BLI_temp_dir_session(), use_fire, use_colors);
 
 	BLI_unlock_thread(LOCK_FFTW);
 

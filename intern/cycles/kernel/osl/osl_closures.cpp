@@ -41,6 +41,8 @@
 #include "util_param.h"
 
 #include "kernel_types.h"
+#include "kernel_compat_cpu.h"
+#include "kernel_globals.h"
 #include "kernel_montecarlo.h"
 
 #include "closure/bsdf_util.h"
@@ -52,7 +54,6 @@
 #include "closure/bsdf_refraction.h"
 #include "closure/bsdf_transparent.h"
 #include "closure/bsdf_ashikhmin_shirley.h"
-#include "closure/bsdf_westin.h"
 #include "closure/bsdf_toon.h"
 #include "closure/bsdf_hair.h"
 #include "closure/volume.h"
@@ -85,16 +86,6 @@ BSDF_CLOSURE_CLASS_BEGIN(Refraction, refraction, refraction, LABEL_SINGULAR)
 	CLOSURE_FLOAT_PARAM(RefractionClosure, sc.data0),
 BSDF_CLOSURE_CLASS_END(Refraction, refraction)
 
-BSDF_CLOSURE_CLASS_BEGIN(WestinBackscatter, westin_backscatter, westin_backscatter, LABEL_GLOSSY)
-	CLOSURE_FLOAT3_PARAM(WestinBackscatterClosure, sc.N),
-	CLOSURE_FLOAT_PARAM(WestinBackscatterClosure, sc.data0),
-BSDF_CLOSURE_CLASS_END(WestinBackscatter, westin_backscatter)
-
-BSDF_CLOSURE_CLASS_BEGIN(WestinSheen, westin_sheen, westin_sheen, LABEL_DIFFUSE)
-	CLOSURE_FLOAT3_PARAM(WestinSheenClosure, sc.N),
-	CLOSURE_FLOAT_PARAM(WestinSheenClosure, sc.data0),
-BSDF_CLOSURE_CLASS_END(WestinSheen, westin_sheen)
-
 BSDF_CLOSURE_CLASS_BEGIN(Transparent, transparent, transparent, LABEL_SINGULAR)
 BSDF_CLOSURE_CLASS_END(Transparent, transparent)
 
@@ -103,7 +94,7 @@ BSDF_CLOSURE_CLASS_BEGIN(AshikhminVelvet, ashikhmin_velvet, ashikhmin_velvet, LA
 	CLOSURE_FLOAT_PARAM(AshikhminVelvetClosure, sc.data0),
 BSDF_CLOSURE_CLASS_END(AshikhminVelvet, ashikhmin_velvet)
 
-BSDF_CLOSURE_CLASS_BEGIN(AshikhminShirley, ashikhmin_shirley_aniso, ashikhmin_shirley, LABEL_GLOSSY)
+BSDF_CLOSURE_CLASS_BEGIN(AshikhminShirley, ashikhmin_shirley_aniso, ashikhmin_shirley, LABEL_GLOSSY|LABEL_REFLECT)
 	CLOSURE_FLOAT3_PARAM(AshikhminShirleyClosure, sc.N),
 	CLOSURE_FLOAT3_PARAM(AshikhminShirleyClosure, sc.T),
 	CLOSURE_FLOAT_PARAM(AshikhminShirleyClosure, sc.data0),
@@ -122,40 +113,40 @@ BSDF_CLOSURE_CLASS_BEGIN(GlossyToon, glossy_toon, glossy_toon, LABEL_GLOSSY)
 	CLOSURE_FLOAT_PARAM(GlossyToonClosure, sc.data1),
 BSDF_CLOSURE_CLASS_END(GlossyToon, glossy_toon)
 
-BSDF_CLOSURE_CLASS_BEGIN(MicrofacetGGX, microfacet_ggx, microfacet_ggx, LABEL_GLOSSY)
+BSDF_CLOSURE_CLASS_BEGIN(MicrofacetGGX, microfacet_ggx, microfacet_ggx, LABEL_GLOSSY|LABEL_REFLECT)
 	CLOSURE_FLOAT3_PARAM(MicrofacetGGXClosure, sc.N),
 	CLOSURE_FLOAT_PARAM(MicrofacetGGXClosure, sc.data0),
 BSDF_CLOSURE_CLASS_END(MicrofacetGGX, microfacet_ggx)
 
-BSDF_CLOSURE_CLASS_BEGIN(MicrofacetGGXAniso, microfacet_ggx_aniso, microfacet_ggx, LABEL_GLOSSY)
+BSDF_CLOSURE_CLASS_BEGIN(MicrofacetGGXAniso, microfacet_ggx_aniso, microfacet_ggx, LABEL_GLOSSY|LABEL_REFLECT)
 	CLOSURE_FLOAT3_PARAM(MicrofacetGGXAnisoClosure, sc.N),
 	CLOSURE_FLOAT3_PARAM(MicrofacetGGXAnisoClosure, sc.T),
 	CLOSURE_FLOAT_PARAM(MicrofacetGGXAnisoClosure, sc.data0),
 	CLOSURE_FLOAT_PARAM(MicrofacetGGXAnisoClosure, sc.data1),
 BSDF_CLOSURE_CLASS_END(MicrofacetGGXAniso, microfacet_ggx_aniso)
 
-BSDF_CLOSURE_CLASS_BEGIN(MicrofacetBeckmann, microfacet_beckmann, microfacet_beckmann, LABEL_GLOSSY)
+BSDF_CLOSURE_CLASS_BEGIN(MicrofacetBeckmann, microfacet_beckmann, microfacet_beckmann, LABEL_GLOSSY|LABEL_REFLECT)
 	CLOSURE_FLOAT3_PARAM(MicrofacetBeckmannClosure, sc.N),
 	CLOSURE_FLOAT_PARAM(MicrofacetBeckmannClosure, sc.data0),
 BSDF_CLOSURE_CLASS_END(MicrofacetBeckmann, microfacet_beckmann)
 
-BSDF_CLOSURE_CLASS_BEGIN(MicrofacetBeckmannAniso, microfacet_beckmann_aniso, microfacet_beckmann, LABEL_GLOSSY)
+BSDF_CLOSURE_CLASS_BEGIN(MicrofacetBeckmannAniso, microfacet_beckmann_aniso, microfacet_beckmann, LABEL_GLOSSY|LABEL_REFLECT)
 	CLOSURE_FLOAT3_PARAM(MicrofacetBeckmannAnisoClosure, sc.N),
 	CLOSURE_FLOAT3_PARAM(MicrofacetBeckmannAnisoClosure, sc.T),
 	CLOSURE_FLOAT_PARAM(MicrofacetBeckmannAnisoClosure, sc.data0),
 	CLOSURE_FLOAT_PARAM(MicrofacetBeckmannAnisoClosure, sc.data1),
 BSDF_CLOSURE_CLASS_END(MicrofacetBeckmannAniso, microfacet_beckmann_aniso)
 
-BSDF_CLOSURE_CLASS_BEGIN(MicrofacetGGXRefraction, microfacet_ggx_refraction, microfacet_ggx, LABEL_GLOSSY)
+BSDF_CLOSURE_CLASS_BEGIN(MicrofacetGGXRefraction, microfacet_ggx_refraction, microfacet_ggx, LABEL_GLOSSY|LABEL_TRANSMIT)
 	CLOSURE_FLOAT3_PARAM(MicrofacetGGXRefractionClosure, sc.N),
 	CLOSURE_FLOAT_PARAM(MicrofacetGGXRefractionClosure, sc.data0),
-	CLOSURE_FLOAT_PARAM(MicrofacetGGXRefractionClosure, sc.data1),
+	CLOSURE_FLOAT_PARAM(MicrofacetGGXRefractionClosure, sc.data2),
 BSDF_CLOSURE_CLASS_END(MicrofacetGGXRefraction, microfacet_ggx_refraction)
 
-BSDF_CLOSURE_CLASS_BEGIN(MicrofacetBeckmannRefraction, microfacet_beckmann_refraction, microfacet_beckmann, LABEL_GLOSSY)
+BSDF_CLOSURE_CLASS_BEGIN(MicrofacetBeckmannRefraction, microfacet_beckmann_refraction, microfacet_beckmann, LABEL_GLOSSY|LABEL_TRANSMIT)
 	CLOSURE_FLOAT3_PARAM(MicrofacetBeckmannRefractionClosure, sc.N),
 	CLOSURE_FLOAT_PARAM(MicrofacetBeckmannRefractionClosure, sc.data0),
-	CLOSURE_FLOAT_PARAM(MicrofacetBeckmannRefractionClosure, sc.data1),
+	CLOSURE_FLOAT_PARAM(MicrofacetBeckmannRefractionClosure, sc.data2),
 BSDF_CLOSURE_CLASS_END(MicrofacetBeckmannRefraction, microfacet_beckmann_refraction)
 
 BSDF_CLOSURE_CLASS_BEGIN(HairReflection, hair_reflection, hair_reflection, LABEL_GLOSSY)
@@ -242,12 +233,6 @@ void OSLShader::register_closures(OSLShadingSystem *ss_)
 		bsdf_diffuse_toon_params(), bsdf_diffuse_toon_prepare);
 	register_closure(ss, "glossy_toon", id++,
 		bsdf_glossy_toon_params(), bsdf_glossy_toon_prepare);
-	register_closure(ss, "specular_toon", id++,
-		bsdf_glossy_toon_params(), bsdf_glossy_toon_prepare);
-	register_closure(ss, "westin_backscatter", id++,
-		bsdf_westin_backscatter_params(), bsdf_westin_backscatter_prepare);
-	register_closure(ss, "westin_sheen", id++,
-		bsdf_westin_sheen_params(), bsdf_westin_sheen_prepare);
 
 	register_closure(ss, "emission", id++,
 		closure_emission_params(), closure_emission_prepare);
@@ -265,10 +250,6 @@ void OSLShader::register_closures(OSLShadingSystem *ss_)
 		closure_bssrdf_cubic_params(), closure_bssrdf_cubic_prepare);
 	register_closure(ss, "bssrdf_gaussian", id++,
 		closure_bssrdf_gaussian_params(), closure_bssrdf_gaussian_prepare);
-	register_closure(ss, "bssrdf_cubic", id++,
-		closure_bssrdf_cubic_extended_params(), closure_bssrdf_cubic_prepare);
-	register_closure(ss, "bssrdf_gaussian", id++,
-		closure_bssrdf_gaussian_extended_params(), closure_bssrdf_gaussian_prepare);
 
 	register_closure(ss, "hair_reflection", id++,
 		bsdf_hair_reflection_params(), bsdf_hair_reflection_prepare);

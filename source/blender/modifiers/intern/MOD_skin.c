@@ -218,6 +218,7 @@ static bool skin_frame_find_contained_faces(const Frame *frame,
 /* Returns true if hull is successfully built, false otherwise */
 static bool build_hull(SkinOutput *so, Frame **frames, int totframe)
 {
+#ifdef WITH_BULLET
 	BMesh *bm = so->bm;
 	BMOperator op;
 	BMIter iter;
@@ -326,6 +327,11 @@ static bool build_hull(SkinOutput *so, Frame **frames, int totframe)
 	BM_mesh_delete_hflag_tagged(bm, BM_ELEM_TAG, BM_EDGE | BM_FACE);
 
 	return true;
+#else
+	(void)so, (void)frames, (void)totframe;
+	(void)skin_frame_find_contained_faces;
+	return false;
+#endif
 }
 
 /* Returns the average frame side length (frames are rectangular, so
@@ -732,7 +738,7 @@ static EMat *build_edge_mats(const MVertSkin *vs,
 		}
 	}
 
-	while (!BLI_stack_empty(stack)) {
+	while (!BLI_stack_is_empty(stack)) {
 		build_emats_stack(stack, visited_e, emat, emap, medge, vs, mvert);
 	}
 
@@ -1705,6 +1711,11 @@ static BMesh *build_skin(SkinNode *skin_nodes,
 	so.bm = BM_mesh_create(&bm_mesh_allocsize_default);
 	so.mat_nr = 0;
 	
+	/* BMESH_TODO: bumping up the stack level (see MOD_array.c) */
+	BM_mesh_elem_toolflags_ensure(so.bm);
+	BMO_push(so.bm, NULL);
+	bmesh_edit_begin(so.bm, 0);
+
 	if (input_dvert)
 		BM_data_layer_add(so.bm, &so.bm->vdata, CD_MDEFORMVERT);
 
@@ -1752,13 +1763,12 @@ static BMesh *build_skin(SkinNode *skin_nodes,
 
 static void skin_set_orig_indices(DerivedMesh *dm)
 {
-	int *orig, totpoly, i;
+	int *orig, totpoly;
 
 	totpoly = dm->getNumPolys(dm);
 	orig = CustomData_add_layer(&dm->polyData, CD_ORIGINDEX,
 	                            CD_CALLOC, NULL, totpoly);
-	for (i = 0; i < totpoly; i++)
-		orig[i] = ORIGINDEX_NONE;
+	fill_vn_i(orig, totpoly, ORIGINDEX_NONE);
 }
 
 /*
