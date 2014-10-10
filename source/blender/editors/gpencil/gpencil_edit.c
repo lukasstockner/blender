@@ -346,6 +346,65 @@ static int gp_strokes_copy_poll(bContext *C)
 	return (gpl && gpl->actframe);
 }
 
+/* Make copies of selected point segments in a selected stroke */
+static void gp_strokes_copy_points(const bGPDstroke *gps, ListBase *new_strokes)
+{
+	bGPDspoint *pt;
+	int i;
+	
+	int start_idx = -1;
+	
+	
+	/* Step through the original stroke's points:
+	 * - We accumulate selected points (from start_idx to current index)
+	 *   and then convert that to a new stroke
+	 */
+	for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+		/* searching for start, are waiting for end? */
+		if (start_idx == -1) {
+			/* is this the first selected point for a new island? */
+			if (pt->flag & GP_SPOINT_SELECT) {
+				start_idx = i;
+			}
+		}
+		else {
+			size_t len = 0;
+			
+			/* is this the end of current island yet? 
+			 * 1) Point i-1 was the last one that was selected
+			 * 2) Point i is the last in the array
+			 */
+			if ((pt->flag & GP_SPOINT_SELECT) == 0) {
+				len = i - start_idx;
+			}
+			else if (i == gps->totpoints - 1) {
+				len = i - start_idx + 1;
+			}
+			//printf("copying from %d to %d = %d\n", start_idx, i, len);
+			
+			/* make copies of the relevant data */
+			if (len) {
+				bGPDstroke *gpsd;
+				
+				/* make a stupid copy first of the entire stroke (to get the flags too) */
+				gpsd = MEM_dupallocN(gps);
+				
+				/* now, make a new points array, and copy of the relevant parts */
+				gpsd->points = MEM_callocN(sizeof(bGPDspoint) * len, "gps stroke points copy");
+				memcpy(gpsd->points, gps->points + start_idx, sizeof(bGPDspoint) * len);
+				gpsd->totpoints = len;
+				
+				/* add to temp buffer */
+				gpsd->next = gpsd->prev = NULL;
+				BLI_addtail(new_strokes, gpsd);
+				
+				/* cleanup + reset for next */
+				start_idx = -1;
+			}
+		}
+	}
+}
+
 static int gp_strokes_copy_exec(bContext *C, wmOperator *op)
 {
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
@@ -371,14 +430,22 @@ static int gp_strokes_copy_exec(bContext *C, wmOperator *op)
 			/* make copies of selected strokes, and deselect these once we're done */
 			for (gps = gpf->strokes.first; gps; gps = gps->next) {
 				if (gps->flag & GP_STROKE_SELECT) {
-					/* make copy of stroke */
-					bGPDstroke *gpsd;
-					
-					gpsd = MEM_dupallocN(gps);
-					gpsd->points = MEM_dupallocN(gps->points);
-					
-					gpsd->next = gpsd->prev = NULL;
-					BLI_addtail(&new_strokes, gpsd);
+					if (gps->totpoints == 1) {
+						/* Special Case: If there's just a single point in this stroke... */
+						bGPDstroke *gpsd;
+						
+						/* make direct copies of the stroke and its points */
+						gpsd = MEM_dupallocN(gps);
+						gpsd->points = MEM_dupallocN(gps->points);
+						
+						/* add to temp buffer */
+						gpsd->next = gpsd->prev = NULL;
+						BLI_addtail(&new_strokes, gpsd);
+					}
+					else {
+						/* delegate to a helper, as there's too much to fit in here (for copying subsets)... */
+						gp_strokes_copy_points(gps, &new_strokes);
+					}
 					
 					/* deselect original stroke, or else the originals get moved too 
 					 * (when using the copy + move macro)
