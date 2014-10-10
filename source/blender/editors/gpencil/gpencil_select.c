@@ -115,17 +115,33 @@ static int gpencil_select_all_exec(bContext *C, wmOperator *op)
 	/* select or deselect all strokes */
 	GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
 	{
-		switch (action) {
-			case SEL_SELECT:	
-				gps->flag |= GP_STROKE_SELECT;
-				break;
-			case SEL_DESELECT:
-				gps->flag &= ~GP_STROKE_SELECT;
-				break;
-			case SEL_INVERT:
-				gps->flag ^= GP_STROKE_SELECT;
-				break;
+		bGPDspoint *pt;
+		int i;
+		bool selected = false;
+		
+		/* Change selection status of all points, then make the stroke match */
+		for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+			switch (action) {
+				case SEL_SELECT:
+					pt->flag |= GP_SPOINT_SELECT;
+					break;
+				case SEL_DESELECT:
+					pt->flag &= ~GP_SPOINT_SELECT;
+					break;
+				case SEL_INVERT:
+					pt->flag ^= GP_SPOINT_SELECT;
+					break;
+			}
+			
+			if (pt->flag & GP_SPOINT_SELECT)
+				selected = true;
 		}
+		
+		/* Change status of stroke */
+		if (selected)
+			gps->flag |= GP_STROKE_SELECT;
+		else
+			gps->flag &= ~GP_STROKE_SELECT;
 	}
 	GP_STROKES_ITER_END;
 	
@@ -164,6 +180,7 @@ static bool gp_stroke_do_circle_sel(bGPDstroke *gps, ARegion *ar, View2D *v2d, r
 	bGPDspoint *pt1, *pt2;
 	int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
 	int i;
+	bool changed = false;
 	
 	if (gps->totpoints == 1) {
 		gp_point_to_xy(ar, v2d, subrect, gps, gps->points, &x0, &y0);
@@ -173,17 +190,21 @@ static bool gp_stroke_do_circle_sel(bGPDstroke *gps, ARegion *ar, View2D *v2d, r
 			/* only check if point is inside */
 			if (((x0 - mx) * (x0 - mx) + (y0 - my) * (y0 - my)) <= radius * radius) {
 				/* change selection */
-				if (select)
+				if (select) {
+					gps->points->flag |= GP_SPOINT_SELECT;
 					gps->flag |= GP_STROKE_SELECT;
-				else
+				}
+				else {
+					gps->points->flag &= ~GP_SPOINT_SELECT;
 					gps->flag &= ~GP_STROKE_SELECT;
+				}
 				
 				return true;
 			}
 		}
 	}
 	else {
-		/* loop over the points in the stroke, checking for intersections 
+		/* Loop over the points in the stroke, checking for intersections 
 		 *  - an intersection means that we touched the stroke
 		 */
 		for (i = 0; (i + 1) < gps->totpoints; i++) {
@@ -194,7 +215,7 @@ static bool gp_stroke_do_circle_sel(bGPDstroke *gps, ARegion *ar, View2D *v2d, r
 			gp_point_to_xy(ar, v2d, subrect, gps, pt1, &x0, &y0);
 			gp_point_to_xy(ar, v2d, subrect, gps, pt2, &x1, &y1);
 			
-			/* check that point segment of the boundbox of the eraser stroke */
+			/* check that point segment of the boundbox of the selection stroke */
 			if (((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(rect, x0, y0)) ||
 			    ((!ELEM(V2D_IS_CLIPPED, x1, y1)) && BLI_rcti_isect_pt(rect, x1, y1)))
 			{
@@ -206,20 +227,40 @@ static bool gp_stroke_do_circle_sel(bGPDstroke *gps, ARegion *ar, View2D *v2d, r
 				 *  - this assumes that linewidth is irrelevant
 				 */
 				if (gp_stroke_inside_circle(mval, mvalo, radius, x0, y0, x1, y1)) {
-					/* change selection */
-					if (select)
-						gps->flag |= GP_STROKE_SELECT;
-					else
-						gps->flag &= ~GP_STROKE_SELECT;
+					/* change selection of stroke, and then of both points 
+					 * (as the last point otherwise wouldn't get selected
+					 *  as we only do n-1 loops through) 
+					 */
+					if (select) {
+						pt1->flag |= GP_SPOINT_SELECT;
+						pt2->flag |= GP_SPOINT_SELECT;
 						
-					/* we only need to change the selection once... when we detect a hit! */
-					return true;
+						changed = true;
+					}
+					else {
+						pt1->flag &= ~GP_SPOINT_SELECT;
+						pt2->flag &= ~GP_SPOINT_SELECT;
+						
+						changed = true;
+					}
 				}
+			}
+		}
+		
+		/* Do a second pass to sync up the stroke selection with the points selection 
+		 * - We only need a single selected vert to have a selected stroke
+		 */
+		gps->flag &= ~GP_STROKE_SELECT;
+		
+		for (i = 0, pt1 = gps->points; i < gps->totpoints; i++, pt1++) {
+			if (pt1->flag & GP_SPOINT_SELECT) {
+				gps->flag |= GP_STROKE_SELECT;
+				break;
 			}
 		}
 	}
 	
-	return false;
+	return changed;
 }
 
 
