@@ -7231,12 +7231,17 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 			bGPDframe *gpf = gpl->actframe;
 			bGPDstroke *gps;
 			
-			/* only selected strokes are considered */
+			/* only selected stroke points are considered */
 			for (gps = gpf->strokes.first; gps; gps = gps->next) {
 				if (gps->flag & GP_STROKE_SELECT) {
-					t->total += gps->totpoints;
+					bGPDspoint *pt;
+					int i;
 					
 					// TODO: 2D vs 3D?
+					for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+						if (pt->flag & GP_SPOINT_SELECT)
+							t->total++;
+					}
 				}
 			}
 		}
@@ -7277,23 +7282,27 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 						madd_v3_v3v3fl(center, center, &pt->x, ninv);
 					}
 					
-					/* add all points... */
-					for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++, td++) {
-						copy_v3_v3(td->iloc, &pt->x);
-						copy_v3_v3(td->center, center); // XXX: what about  t->around == local?
-						
-						td->loc = &pt->x;
-						td->flag = TD_SELECTED;
-						
-						/* configure 2D points so that they don't play up... */
-						if (gps->flag & (GP_STROKE_2DSPACE | GP_STROKE_2DIMAGE)) {
-							td->protectflag = OB_LOCK_LOCZ | OB_LOCK_ROTZ | OB_LOCK_SCALEZ;
-							// XXX: matrices may need to be different?
+					/* add all selected points... */
+					for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+						if (pt->flag & GP_SPOINT_SELECT) {
+							copy_v3_v3(td->iloc, &pt->x);
+							copy_v3_v3(td->center, center); // XXX: what about  t->around == local?
+							
+							td->loc = &pt->x;
+							td->flag = TD_SELECTED;
+							
+							/* configure 2D points so that they don't play up... */
+							if (gps->flag & (GP_STROKE_2DSPACE | GP_STROKE_2DIMAGE)) {
+								td->protectflag = OB_LOCK_LOCZ | OB_LOCK_ROTZ | OB_LOCK_SCALEZ;
+								// XXX: matrices may need to be different?
+							}
+							
+							copy_m3_m3(td->smtx, smtx);
+							copy_m3_m3(td->mtx, mtx);
+							unit_m3(td->axismtx); // XXX?
+							
+							td++;
 						}
-						
-						copy_m3_m3(td->smtx, smtx);
-						copy_m3_m3(td->mtx, mtx);
-						unit_m3(td->axismtx); // XXX?
 					}
 				}
 			}
