@@ -64,11 +64,11 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW_STRAIGHT);
 	
 	/* draw - poly lines */
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", RIGHTMOUSE, KM_PRESS, KM_CTRL, DKEY);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", LEFTMOUSE, KM_PRESS, KM_ALT, DKEY);
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW_POLY);
 	
 	/* erase */
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", XKEY, KM_PRESS, 0, DKEY);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", RIGHTMOUSE, KM_PRESS, KM_CTRL, DKEY);
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_ERASER);
 	
 	/* Selection ------------------------------------- */
