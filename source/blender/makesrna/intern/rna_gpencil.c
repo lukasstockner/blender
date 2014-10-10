@@ -245,6 +245,27 @@ static void rna_GPencil_stroke_remove(bGPDframe *frame, ReportList *reports, Poi
 	WM_main_add_notifier(NC_GPENCIL | NA_EDITED, NULL);
 }
 
+static void rna_GPencil_stroke_select_set(PointerRNA *ptr, const int value)
+{
+	bGPDstroke *gps = ptr->data;
+	bGPDspoint *pt;
+	int i;
+	
+	/* set new value */
+	if (value)
+		gps->flag |= GP_STROKE_SELECT;
+	else
+		gps->flag &= ~GP_STROKE_SELECT;
+		
+	/* ensure that the stroke's points are selected in the same way */
+	for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+		if (value)
+			pt->flag |= GP_SPOINT_SELECT;
+		else
+			pt->flag &= ~GP_SPOINT_SELECT;
+	}
+}
+
 static bGPDframe *rna_GPencil_frame_new(bGPDlayer *layer, ReportList *reports, int frame_number)
 {
 	bGPDframe *frame;
@@ -419,6 +440,7 @@ static void rna_def_gpencil_stroke(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_STROKE_SELECT);
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_GPencil_stroke_select_set");
 	RNA_def_property_ui_text(prop, "Select", "Stroke is selected for viewport editing");
 	RNA_def_property_update(prop, 0, "rna_GPencil_update");
 }
