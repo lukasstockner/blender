@@ -115,6 +115,73 @@ static void rna_GPencilLayer_info_set(PointerRNA *ptr, const char *value)
 	BLI_uniquename(&gpd->layers, gpl, DATA_("GP_Layer"), '.', offsetof(bGPDlayer, info), sizeof(gpl->info));
 }
 
+
+static bGPDstroke *rna_GPencil_stroke_point_find_stroke(const bGPdata *gpd, const bGPDspoint *pt, bGPDlayer **r_gpl, bGPDframe **r_gpf)
+{
+	bGPDlayer *gpl;
+	bGPDstroke *gps;
+	
+	/* sanity checks */
+	if (ELEM(NULL, gpd, pt)) {
+		return NULL;
+	}
+	
+	if (r_gpl) *r_gpl = NULL;
+	if (r_gpf) *r_gpf = NULL;
+	
+	/* there's no faster alternative than just looping over everything... */
+	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
+		if (gpl->actframe) {
+			for (gps = gpl->actframe->strokes.first; gps; gps = gps->next) {
+				if ((pt >= gps->points) && (pt < &gps->points[gps->totpoints])) {
+					/* found it */
+					if (r_gpl) *r_gpl = gpl;
+					if (r_gpf) *r_gpf = gpl->actframe;
+					
+					return gps;
+				}
+			}
+		}
+	}
+	
+	/* didn't find it */
+	return NULL;
+}
+
+static void rna_GPencil_stroke_point_select_set(PointerRNA *ptr, const int value)
+{
+	bGPdata *gpd = ptr->id.data;
+	bGPDspoint *pt = ptr->data;
+	bGPDstroke *gps = NULL;
+	
+	/* Ensure that corresponding stroke is set 
+	 * - Since we don't have direct access, we're going to have to search
+	 * - We don't apply selection value unless we can find the corresponding
+	 *   stroke, so that they don't get out of sync
+	 */
+	gps = rna_GPencil_stroke_point_find_stroke(gpd, pt, NULL, NULL);
+	if (gps) {
+		bGPDspoint *spt;
+		int i;
+		
+		/* Set the new selection state for the point */
+		if (value)
+			pt->flag |= GP_SPOINT_SELECT;
+		else
+			pt->flag &= ~GP_SPOINT_SELECT;
+		
+		/* Check if the stroke should be selected or not... */
+		gps->flag &= ~GP_STROKE_SELECT;
+		
+		for (i = 0, spt = gps->points; i < gps->totpoints; i++, spt++) {
+			if (spt->flag & GP_SPOINT_SELECT) {
+				gps->flag |= GP_STROKE_SELECT;
+				break;
+			}
+		}
+	}
+}
+
 static void rna_GPencil_stroke_point_add(bGPDstroke *stroke, int count)
 {
 	if (count > 0) {
@@ -292,6 +359,7 @@ static void rna_def_gpencil_stroke_point(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_SPOINT_SELECT);
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_GPencil_stroke_point_select_set");
 	RNA_def_property_ui_text(prop, "Select", "Point is selected for viewport editing");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 }

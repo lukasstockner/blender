@@ -168,6 +168,7 @@ void GPENCIL_OT_select_all(wmOperatorType *ot)
 }
 
 /* ********************************************** */
+/* Circle Select Operator */
 
 /* Helper to check if a given stroke is within the area */
 /* NOTE: Code here is adapted (i.e. copied directly) from gpencil_paint.c::gp_stroke_eraser_dostroke()
