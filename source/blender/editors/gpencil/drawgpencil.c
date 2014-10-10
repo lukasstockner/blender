@@ -588,19 +588,17 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 			continue;
 			
 		/* Get size of verts:
-		 * - The unselected state needs to be larger than the selected state to provide a buffer
-		 *   around the verts to distinguish between selected an unselected states
-		 * - We use the theme setting for size of the selected verts, but when this is set too large,
-		 *   there are no sizes up to draw the border
+		 * - The selected state needs to be larger than the unselected state so that
+		 *   they stand out more.
+		 * - We use the theme setting for size of the unselected verts
 		 */
-		vsize = UI_GetThemeValuef(TH_VERTEX_SIZE);
-		if ((int)vsize == 10) {
-			/* NOTE: 10 is the maximum size of points in OpenGL */
-			vsize = 8.0f;
-			bsize = 10.0f;
+		bsize = UI_GetThemeValuef(TH_VERTEX_SIZE);
+		if ((int)bsize > 8) {
+			vsize = 10.0f;
+			bsize = 8.0f;
 		}
 		else {
-			bsize = vsize + 1;
+			vsize = bsize + 2;
 		}
 		
 		/* First Pass: Draw all the verts (i.e. these become the unselected state) */
