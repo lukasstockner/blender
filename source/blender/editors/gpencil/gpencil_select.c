@@ -248,17 +248,8 @@ static bool gp_stroke_do_circle_sel(bGPDstroke *gps, ARegion *ar, View2D *v2d, r
 			}
 		}
 		
-		/* Do a second pass to sync up the stroke selection with the points selection 
-		 * - We only need a single selected vert to have a selected stroke
-		 */
-		gps->flag &= ~GP_STROKE_SELECT;
-		
-		for (i = 0, pt1 = gps->points; i < gps->totpoints; i++, pt1++) {
-			if (pt1->flag & GP_SPOINT_SELECT) {
-				gps->flag |= GP_STROKE_SELECT;
-				break;
-			}
-		}
+		/* Ensure that stroke selection is in sync with its points */
+		gpencil_stroke_sync_selection(gps);
 	}
 	
 	return changed;
@@ -514,21 +505,11 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 			hit_stroke->flag |= GP_STROKE_SELECT;
 		}
 		else {
-			bGPDspoint *pt;
-			int i;
-			
 			/* deselect point */
 			hit_point->flag &= ~GP_SPOINT_SELECT;
 			
 			/* ensure that stroke is selected correctly */
-			hit_stroke->flag &= ~GP_STROKE_SELECT;
-			
-			for (i = 0, pt = hit_stroke->points; i < hit_stroke->totpoints; i++, pt++) {
-				if (pt->flag & GP_SPOINT_SELECT) {
-					hit_stroke->flag |= GP_STROKE_SELECT;
-					break;
-				}
-			}
+			gpencil_stroke_sync_selection(hit_stroke);
 		}
 	}
 	

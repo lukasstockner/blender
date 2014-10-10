@@ -161,9 +161,6 @@ static void rna_GPencil_stroke_point_select_set(PointerRNA *ptr, const int value
 	 */
 	gps = rna_GPencil_stroke_point_find_stroke(gpd, pt, NULL, NULL);
 	if (gps) {
-		bGPDspoint *spt;
-		int i;
-		
 		/* Set the new selection state for the point */
 		if (value)
 			pt->flag |= GP_SPOINT_SELECT;
@@ -171,14 +168,7 @@ static void rna_GPencil_stroke_point_select_set(PointerRNA *ptr, const int value
 			pt->flag &= ~GP_SPOINT_SELECT;
 		
 		/* Check if the stroke should be selected or not... */
-		gps->flag &= ~GP_STROKE_SELECT;
-		
-		for (i = 0, spt = gps->points; i < gps->totpoints; i++, spt++) {
-			if (spt->flag & GP_SPOINT_SELECT) {
-				gps->flag |= GP_STROKE_SELECT;
-				break;
-			}
-		}
+		gpencil_stroke_sync_selection(gps);
 	}
 }
 

@@ -300,6 +300,31 @@ bGPdata *gpencil_data_duplicate(bGPdata *src)
 	return dst;
 }
 
+/* -------- GP-Stroke API --------- */
+
+/* ensure selection status of stroke is in sync with its points */
+void gpencil_stroke_sync_selection(bGPDstroke *gps)
+{
+	bGPDspoint *pt;
+	int i;
+	
+	/* error checking */
+	if (gps == NULL)
+		return;
+	
+	/* we'll stop when we find the first selected point,
+	 * so initially, we must deselect
+	 */
+	gps->flag &= ~GP_STROKE_SELECT;
+	
+	for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+		if (pt->flag & GP_SPOINT_SELECT) {
+			gps->flag |= GP_STROKE_SELECT;
+			break;
+		}
+	}
+}
+
 /* -------- GP-Frame API ---------- */
 
 /* delete the last stroke of the given frame */
