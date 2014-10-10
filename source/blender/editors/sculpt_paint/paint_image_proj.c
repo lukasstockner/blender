@@ -74,6 +74,7 @@
 #include "BKE_material.h"
 #include "BKE_mesh.h"
 #include "BKE_mesh_mapping.h"
+#include "BKE_node.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -82,6 +83,9 @@
 #include "UI_view2d.h"
 #include "UI_interface.h"
 
+#include "ED_image.h"
+#include "ED_mesh.h"
+#include "ED_node.h"
 #include "ED_paint.h"
 #include "ED_screen.h"
 #include "ED_uvedit.h"
@@ -97,6 +101,7 @@
 #include "RNA_enum_types.h"
 
 #include "GPU_draw.h"
+#include "GPU_buffers.h"
 
 #include "IMB_colormanagement.h"
 
@@ -220,6 +225,8 @@ typedef struct ProjPaintState {
 	MTFace         *dm_mtface_stencil;
 
 	Image *stencil_ima;
+	Image *canvas_ima;
+	Image *clone_ima;
 	float stencil_value;
 
 	/* projection painting only */
@@ -256,6 +263,7 @@ typedef struct ProjPaintState {
 	bool  do_layer_stencil;
 	bool  do_layer_stencil_inv;
 	bool  do_stencil_brush;
+	bool  do_material_slots;
 
 	bool  do_occlude;               /* Use raytraced occlusion? - ortherwise will paint right through to the back*/
 	bool  do_backfacecull;          /* ignore faces with normals pointing away, skips a lot of raycasts if your normals are correctly flipped */
@@ -356,7 +364,7 @@ static TexPaintSlot *project_paint_face_paint_slot(const ProjPaintState *ps, int
 {
 	MFace *mf = ps->dm_mface + face_index;
 	Material *ma = ps->dm->mat[mf->mat_nr];
-	return ma->texpaintslot + ma->paint_active_slot;
+	return ma ? ma->texpaintslot + ma->paint_active_slot : NULL;
 }
 
 static Image *project_paint_face_paint_image(const ProjPaintState *ps, int face_index)
@@ -367,17 +375,24 @@ static Image *project_paint_face_paint_image(const ProjPaintState *ps, int face_
 	else {
 		MFace *mf = ps->dm_mface + face_index;
 		Material *ma = ps->dm->mat[mf->mat_nr];
-		TexPaintSlot *slot = ma->texpaintslot + ma->paint_active_slot;
-		return slot ? slot->ima : NULL;
+		TexPaintSlot *slot = ma ? ma->texpaintslot + ma->paint_active_slot : NULL;
+		return slot ? slot->ima : ps->canvas_ima;
 	}
 }
-
 
 static TexPaintSlot *project_paint_face_clone_slot(const ProjPaintState *ps, int face_index)
 {
 	MFace *mf = ps->dm_mface + face_index;
 	Material *ma = ps->dm->mat[mf->mat_nr];
-	return &ma->texpaintslot[ma->paint_clone_slot];
+	return ma ? ma->texpaintslot + ma->paint_clone_slot : NULL;
+}
+
+static Image *project_paint_face_clone_image(const ProjPaintState *ps, int face_index)
+{
+	MFace *mf = ps->dm_mface + face_index;
+	Material *ma = ps->dm->mat[mf->mat_nr];
+	TexPaintSlot *slot = ma ? ma->texpaintslot + ma->paint_clone_slot : NULL;
+	return slot ? slot->ima : ps->clone_ima;
 }
 
 /* fast projection bucket array lookup, use the safe version for bound checking  */
@@ -942,7 +957,9 @@ static bool check_seam(const ProjPaintState *ps,
 
 				/* set up the other face */
 				*other_face = face_index;
-				*orig_fidx = (i1_fidx < i2_fidx) ? i1_fidx : i2_fidx;
+				
+				/* we check if difference is 1 here, else we might have a case of edge 2-0 or 3-0 for quads */
+				*orig_fidx = (i1_fidx < i2_fidx && (i2_fidx - i1_fidx == 1)) ? i1_fidx : i2_fidx;
 
 				/* initialize face winding if needed */
 				if ((ps->faceWindingFlags[face_index] & PROJ_FACE_WINDING_INIT) == 0)
@@ -1466,7 +1483,7 @@ static ProjPixel *project_paint_uvpixel_init(
 	if (ps->tool == PAINT_TOOL_CLONE) {
 		if (ps->dm_mtface_clone) {
 			ImBuf *ibuf_other;
-			Image *other_tpage = project_paint_face_clone_slot(ps, face_index)->ima;
+			Image *other_tpage = project_paint_face_clone_image(ps, face_index);
 			const MTFace *tf_other = ps->dm_mtface_clone[face_index];
 
 			if (other_tpage && (ibuf_other = BKE_image_acquire_ibuf(other_tpage, NULL, NULL))) {
@@ -2908,7 +2925,7 @@ static void project_paint_begin(ProjPaintState *ps)
 	MTFace *tf_base;
 
 	MTFace **tf_clone;
-	MTFace *tf_clone_base;
+	MTFace *tf_clone_base = NULL;
 
 	int a, i; /* generic looping vars */
 	int image_index = -1, face_index;
@@ -2954,7 +2971,7 @@ static void project_paint_begin(ProjPaintState *ps)
 		ps->dm_release = true;
 	}
 
-	if (!CustomData_has_layer(&ps->dm->faceData, CD_MTFACE) ) {
+	if (!CustomData_has_layer(&ps->dm->faceData, CD_MTFACE)) {
 
 		if (ps->dm_release)
 			ps->dm->release(ps->dm);
@@ -3004,6 +3021,19 @@ static void project_paint_begin(ProjPaintState *ps)
 
 		if (ps->do_stencil_brush)
 			tf_base = ps->dm_mtface_stencil;
+	}
+	
+	if (ps->do_layer_clone) {
+		int layer_num = CustomData_get_clone_layer(&((Mesh *)ps->ob->data)->pdata, CD_MTEXPOLY);
+
+		if (layer_num != -1)
+			tf_clone_base = CustomData_get_layer_n(&ps->dm->faceData, CD_MTFACE, layer_num);
+
+		if (tf_clone_base == NULL) {
+			/* get active instead */
+			tf_clone_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
+		}
+		
 	}
 
 	/* when using subsurf or multires, mface arrays are thrown away, we need to keep a copy */
@@ -3291,6 +3321,7 @@ static void project_paint_begin(ProjPaintState *ps)
 			/* all faces should have a valid slot, reassert here */
 			if (slot == NULL) {
 				tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
+				tpage = ps->canvas_ima;
 			}
 			else {
 				if (slot != slot_last) {
@@ -3302,32 +3333,43 @@ static void project_paint_begin(ProjPaintState *ps)
 				/* don't allow using the same inage for painting and stencilling */
 				if (slot->ima == ps->stencil_ima)
 					continue;
+				
+				tpage = slot->ima;
 			}
+		}
+		else {
+			tpage = ps->stencil_ima;
 		}
 
 		*tf = tf_base + face_index;
 
 		if (ps->do_layer_clone) {
-			slot_clone = project_paint_face_clone_slot(ps, face_index);
-			/* all faces should have a valid slot, reassert here */
-			if (ELEM(slot_clone, NULL, slot))
-				continue;
-
-			tf_clone = ps->dm_mtface_clone + face_index;
-
-			if (slot_clone != slot_last_clone) {
-				if (!slot->uvname || !(tf_clone_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot_clone->uvname)))
-					tf_clone_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
-				slot_last_clone = slot_clone;
+			if (ps->do_material_slots) {
+				slot_clone = project_paint_face_clone_slot(ps, face_index);
+				/* all faces should have a valid slot, reassert here */
+				if (ELEM(slot_clone, NULL, slot))
+					continue;
 			}
-
+			else if (ps->clone_ima == ps->canvas_ima)
+				continue;
+			
+			tf_clone = ps->dm_mtface_clone + face_index;
+			
+			if (ps->do_material_slots) {
+				if (slot_clone != slot_last_clone) {
+					if (!slot->uvname || !(tf_clone_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot_clone->uvname)))
+						tf_clone_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
+					slot_last_clone = slot_clone;
+				}
+			}
+			
 			*tf_clone = tf_clone_base + face_index;
 		}
 
 		/* tfbase here should be non-null! */
 		BLI_assert (tf_base != NULL);
 
-		if (is_face_sel && ((slot && (tpage = slot->ima)) || (tpage = project_paint_face_paint_image(ps, face_index)))) {
+		if (is_face_sel && tpage) {
 			const float *v1coSS, *v2coSS, *v3coSS, *v4coSS = NULL;
 
 			v1coSS = ps->screenCoords[mf->v1];
@@ -3752,7 +3794,7 @@ static void do_projectpaint_smear_f(ProjPaintState *ps, ProjPixel *projPixel, fl
 static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, float mask,
                                      MemArena *softenArena, LinkNode **softenPixels)
 {
-	float accum_tot = 0.0;
+	float accum_tot = 0.0f;
 	int xk, yk;
 	BlurKernel *kernel = ps->blurkernel;
 	float *rgba = projPixel->newColor.f;
@@ -3763,7 +3805,7 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 	for (yk = 0; yk < kernel->side; yk++) {
 		for (xk = 0; xk < kernel->side; xk++) {
 			float rgba_tmp[4];
-			float co_ofs[2] = {xk - kernel->pixel_len, yk - kernel->pixel_len};
+			float co_ofs[2] = {2.0f * xk - 1.0f, 2.0f * yk - 1.0f};
 
 			add_v2_v2(co_ofs, projPixel->projCoSS);
 
@@ -3792,7 +3834,7 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 
 				/* add to enhance edges */
 				blend_color_add_float(rgba, projPixel->pixel.f_pt, rgba);
-				projPixel->pixel.f_pt[3] = alpha;
+				rgba[3] = alpha;
 			}
 			else
 				return;
@@ -3819,7 +3861,7 @@ static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, flo
 	for (yk = 0; yk < kernel->side; yk++) {
 		for (xk = 0; xk < kernel->side; xk++) {
 			float rgba_tmp[4];
-			float co_ofs[2] = {xk - kernel->pixel_len, yk - kernel->pixel_len};
+			float co_ofs[2] = {2.0f * xk - 1.0f, 2.0f * yk - 1.0f};
 
 			add_v2_v2(co_ofs, projPixel->projCoSS);
 
@@ -4037,7 +4079,7 @@ static void *do_projectpaint_thread(void *ph_v)
 						sub_v2_v2v2(tangent, pos, lastpos);
 						line_len = len_squared_v2(tangent);
 						line_len_sq_inv = 1.0f / line_len;
-						line_len = sqrt(line_len);
+						line_len = sqrtf(line_len);
 
 						switch (brush->gradient_fill_mode) {
 							case BRUSH_GRADIENT_LINEAR:
@@ -4083,6 +4125,11 @@ static void *do_projectpaint_thread(void *ph_v)
 							IMB_blend_color_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
 							                     projPixel->newColor.ch, ps->blend);
 						}
+					}
+					
+					if (lock_alpha) {
+						if (is_floatbuf) projPixel->pixel.f_pt[3] = projPixel->origColor.f_pt[3];
+						else projPixel->pixel.ch_pt[3] = projPixel->origColor.ch_pt[3];
 					}
 
 					last_partial_redraw_cell = last_projIma->partRedrawRect + projPixel->bb_cell_index;
@@ -4377,7 +4424,7 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
 }
 
 
-void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], const float pos[2], float pressure, float distance, float size)
+void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], const float pos[2], const bool eraser, float pressure, float distance, float size)
 {
 	ProjPaintState *ps = pps;
 	Brush *brush = ps->brush;
@@ -4385,7 +4432,10 @@ void paint_proj_stroke(const bContext *C, void *pps, const float prev_pos[2], co
 	int a;
 
 	ps->brush_size = size;
-
+	ps->blend = brush->blend;
+	if (eraser)
+		ps->blend = IMB_BLEND_ERASE_ALPHA;
+	
 	/* clone gets special treatment here to avoid going through image initialization */
 	if (ps->tool == PAINT_TOOL_CLONE && ps->mode == BRUSH_STROKE_INVERT) {
 		View3D *v3d = ps->v3d;
@@ -4450,7 +4500,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 			ps->mode = ((ps->mode == BRUSH_STROKE_INVERT) ^ ((brush->flag & BRUSH_DIR_IN) != 0) ?
 			            BRUSH_STROKE_INVERT : BRUSH_STROKE_NORMAL);
 
-			ps->blurkernel = paint_new_blur_kernel(brush);
+			ps->blurkernel = paint_new_blur_kernel(brush, true);
 		}
 
 		/* disable for 3d mapping also because painting on mirrored mesh can create "stripes" */
@@ -4477,17 +4527,29 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	ps->scene = scene;
 	ps->ob = ob; /* allow override of active object */
 
+	ps->do_material_slots = (settings->imapaint.mode == IMAGEPAINT_MODE_MATERIAL);
 	ps->stencil_ima = settings->imapaint.stencil;
+	ps->canvas_ima = (!ps->do_material_slots) ? 
+	                 settings->imapaint.canvas : NULL;
+	ps->clone_ima = (!ps->do_material_slots) ? 
+	                settings->imapaint.clone : NULL;
+
 	/* setup projection painting data */
-	ps->do_backfacecull = (settings->imapaint.flag & IMAGEPAINT_PROJECT_BACKFACE) ? 0 : 1;
-	ps->do_occlude = (settings->imapaint.flag & IMAGEPAINT_PROJECT_XRAY) ? 0 : 1;
-	ps->do_mask_normal = (settings->imapaint.flag & IMAGEPAINT_PROJECT_FLAT) ? 0 : 1;
+	if (ps->tool != PAINT_TOOL_FILL) {
+		ps->do_backfacecull = (settings->imapaint.flag & IMAGEPAINT_PROJECT_BACKFACE) ? 0 : 1;
+		ps->do_occlude = (settings->imapaint.flag & IMAGEPAINT_PROJECT_XRAY) ? 0 : 1;
+		ps->do_mask_normal = (settings->imapaint.flag & IMAGEPAINT_PROJECT_FLAT) ? 0 : 1;
+	}
+	else {
+		ps->do_backfacecull = ps->do_occlude = ps->do_mask_normal = 0;
+	}
 	ps->do_new_shading_nodes = BKE_scene_use_new_shading_nodes(scene); /* only cache the value */
 
 	if (ps->tool == PAINT_TOOL_CLONE)
 		ps->do_layer_clone = (settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_CLONE) ? 1 : 0;
 
-	ps->do_stencil_brush = ps->brush->imagepaint_tool == PAINT_TOOL_MASK;
+
+	ps->do_stencil_brush = (ps->brush && ps->brush->imagepaint_tool == PAINT_TOOL_MASK);
 	/* deactivate stenciling for the stencil brush :) */
 	ps->do_layer_stencil = ((settings->imapaint.flag & IMAGEPAINT_PROJECT_LAYER_STENCIL) &&
 	                        !(ps->do_stencil_brush) && ps->stencil_ima);
@@ -4605,15 +4667,20 @@ static int texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 	IDProperty *idgroup;
 	IDProperty *view_data = NULL;
 	Object *ob = OBACT;
+	bool uvs, mat, tex;
 
-	paint_proj_mesh_data_ensure(C, ob, op);
-
-	project_state_init(C, ob, &ps, BRUSH_STROKE_NORMAL);
-
-	if (ps.ob == NULL || ps.ob->type != OB_MESH) {
+	if (ob == NULL || ob->type != OB_MESH) {
 		BKE_report(op->reports, RPT_ERROR, "No active mesh object");
 		return OPERATOR_CANCELLED;
 	}
+
+	if (!BKE_paint_proj_mesh_data_check(scene, ob, &uvs, &mat, &tex, NULL)) {
+		BKE_paint_data_warning(op->reports, uvs, mat, tex, true);
+		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
+		return OPERATOR_CANCELLED;		
+	}
+
+	project_state_init(C, ob, &ps, BRUSH_STROKE_NORMAL);
 
 	if (image == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Image could not be found");
@@ -4799,6 +4866,114 @@ void PAINT_OT_image_from_view(wmOperatorType *ot)
 	RNA_def_string_file_name(ot->srna, "filepath", NULL, FILE_MAX, "File Path", "Name of the file");
 }
 
+/*********************************************
+ * Data generation for projective texturing  *
+ * *******************************************/
+
+void BKE_paint_data_warning(struct ReportList *reports, bool uvs, bool mat, bool tex, bool stencil)
+{
+	BKE_reportf(reports, RPT_WARNING, "Missing%s%s%s%s detected!", 
+	           !uvs ? " UVs," : "",
+	           !mat ? " Materials," : "",
+	           !tex ? " Textures," : "",
+	           !stencil ? " Stencil," : ""
+	           );
+}
+
+/* Make sure that active object has a material, and assign UVs and image layers if they do not exist */
+bool BKE_paint_proj_mesh_data_check(Scene *scene, Object *ob, bool *uvs, bool *mat, bool *tex, bool *stencil)
+{
+	Mesh *me;
+	int layernum;
+	ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
+	Brush *br = BKE_paint_brush(&imapaint->paint);
+	bool hasmat = true;
+	bool hastex = true;
+	bool hasstencil = true;
+	bool hasuvs = true;
+
+	imapaint->missing_data = 0;
+	
+	BLI_assert(ob->type == OB_MESH);
+
+	if (imapaint->mode == IMAGEPAINT_MODE_MATERIAL) {
+		/* no material, add one */
+		if (ob->totcol == 0) {
+			hasmat = false;
+			hastex = false;
+		}
+		else {
+			/* there may be material slots but they may be empty, check */
+			int i;
+			hasmat = false;
+			hastex = false;
+			
+			for (i = 1; i < ob->totcol + 1; i++) {
+				Material *ma = give_current_material(ob, i);
+				
+				if (ma) {
+					hasmat = true;
+					if (!ma->texpaintslot) {
+						/* refresh here just in case */
+						BKE_texpaint_slot_refresh_cache(scene, ma);				
+						
+						/* if still no slots, we have to add */
+						if (ma->texpaintslot) {							
+							hastex = true;
+							break;						
+						}
+					}
+					else {
+						hastex = true;
+						break;						
+					}
+				}
+			}
+		}
+	}
+	else if (imapaint->mode == IMAGEPAINT_MODE_IMAGE) {
+		if (imapaint->canvas == NULL) {
+			hastex = false;
+		}		
+	}
+	
+	me = BKE_mesh_from_object(ob);
+	layernum = CustomData_number_of_layers(&me->pdata, CD_MTEXPOLY);
+
+	if (layernum == 0) {
+		hasuvs = false;
+	}
+
+	/* Make sure we have a stencil to paint on! */
+	if (br && br->imagepaint_tool == PAINT_TOOL_MASK) {
+		imapaint->flag |= IMAGEPAINT_PROJECT_LAYER_STENCIL;
+
+		if (imapaint->stencil == NULL) {
+			hasstencil = false;
+		}
+	}
+
+	if (!hasuvs) imapaint->missing_data |= IMAGEPAINT_MISSING_UVS;
+	if (!hasmat) imapaint->missing_data |= IMAGEPAINT_MISSING_MATERIAL;
+	if (!hastex) imapaint->missing_data |= IMAGEPAINT_MISSING_TEX;
+	if (!hasstencil) imapaint->missing_data |= IMAGEPAINT_MISSING_STENCIL;
+	
+	if (uvs) {
+		*uvs = hasuvs;
+	}
+	if (mat) {
+		*mat = hasmat;
+	}
+	if (tex) {
+		*tex = hastex;
+	}
+	if (stencil) {
+		*stencil = hasstencil;
+	}
+	
+	return hasuvs && hasmat && hastex && hasstencil;
+}
+
 /* Add layer operator */
 
 static EnumPropertyItem layer_type_items[] = {
@@ -4819,85 +4994,123 @@ static EnumPropertyItem layer_type_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-bool proj_paint_add_slot(bContext *C, Material *ma, wmOperator *op)
+static Image *proj_paint_image_create(wmOperator *op, Main *bmain)
+{
+	Image *ima;
+	float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+	char imagename[MAX_ID_NAME - 2] = "Material Diffuse Color";
+	int width = 1024;
+	int height = 1024;
+	bool use_float = false;
+	short gen_type = IMA_GENTYPE_BLANK;
+	bool alpha = false;
+
+	if (op) {
+		width = RNA_int_get(op->ptr, "width");
+		height = RNA_int_get(op->ptr, "height");
+		use_float = RNA_boolean_get(op->ptr, "float");
+		gen_type = RNA_enum_get(op->ptr, "generated_type");
+		RNA_float_get_array(op->ptr, "color", color);
+		alpha = RNA_boolean_get(op->ptr, "alpha");
+		RNA_string_get(op->ptr, "name", imagename);
+	}
+	ima = BKE_image_add_generated(bmain, width, height, imagename, alpha ? 32 : 24, use_float,
+	                                               gen_type, color);
+	
+	return ima;
+}
+
+static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	Scene *scene = CTX_data_scene(C);
-	bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
+	Material *ma;
+	bool is_bi = BKE_scene_uses_blender_internal(scene);
+	Image *ima = NULL;
 
 	if (!ob)
 		return false;
 
-	if (!ma)
-		ma = give_current_material(ob, ob->actcol);
+	ma = give_current_material(ob, ob->actcol);
 
 	if (ma) {
+		Main *bmain = CTX_data_main(C);
 
-		if (use_nodes) {
-			/* not supported for now */
+		if (!is_bi && BKE_scene_use_new_shading_nodes(scene)) {
+			bNode *imanode;
+			bNodeTree *ntree = ma->nodetree;
+
+			if (!ntree) {
+				ED_node_shader_default(C, &ma->id);
+				ntree = ma->nodetree;
+			}
+			
+			ma->use_nodes = true;
+						
+			/* try to add an image node */
+			imanode = nodeAddStaticNode(C, ntree, SH_NODE_TEX_IMAGE);
+			
+			ima = proj_paint_image_create(op, bmain);
+			imanode->id = &ima->id;
+			
+			nodeSetActive(ntree, imanode);
+					
+			ntreeUpdateTree(CTX_data_main(C), ntree);
 		}
 		else {
 			MTex *mtex = add_mtex_id(&ma->id, -1);
 
 			/* successful creation of mtex layer, now create set */
 			if (mtex) {
-				Main *bmain = CTX_data_main(C);
-				Image *ima;
 				int type = MAP_COL;
+				int type_id = 0;
 
-				if (op)
+				if (op) {
+					int i;
 					type = RNA_enum_get(op->ptr, "type");
 
-				mtex->tex = add_texture(bmain, DATA_(layer_type_items[type].name));
+					for (i = 0; i < ARRAY_SIZE(layer_type_items); i++) {
+						if (layer_type_items[i].value == type) {
+							type_id = i;
+							break;
+						}
+					}
+				}
+
+				mtex->tex = add_texture(bmain, DATA_(layer_type_items[type_id].name));
 				mtex->mapto = type;
 
 				if (mtex->tex) {
-					float color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
-					char imagename[MAX_ID_NAME - 2] = "Material Diffuse Color";
-					int width = 1024;
-					int height = 1024;
-					bool use_float = false;
-					short gen_type = IMA_GENTYPE_BLANK;
-					bool alpha = false;
-
-					if (op) {
-						width = RNA_int_get(op->ptr, "width");
-						height = RNA_int_get(op->ptr, "height");
-						use_float = RNA_boolean_get(op->ptr, "float");
-						gen_type = RNA_enum_get(op->ptr, "generated_type");
-						RNA_float_get_array(op->ptr, "color", color);
-						alpha = RNA_boolean_get(op->ptr, "alpha");
-						RNA_string_get(op->ptr, "name", imagename);
-					}
-
-					if (!use_float) {
-						/* crappy workaround because we only upload straight color to OpenGL and that makes
-						 * painting result on viewport too opaque */
-						color[3] = 1.0;
-					}
-
-					ima = mtex->tex->ima = BKE_image_add_generated(bmain, width, height, imagename, alpha ? 32 : 24, use_float,
-					                                               gen_type, color);
-
-					BKE_texpaint_slot_refresh_cache(ma, false);
-					BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
-					WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, mtex->tex);
-					WM_event_add_notifier(C, NC_IMAGE | NA_ADDED, ima);
-					ED_area_tag_redraw(CTX_wm_area(C));
+					ima = mtex->tex->ima = proj_paint_image_create(op, bmain);
 				}
 
 				WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));
-				return true;
 			}
+			WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, mtex->tex);				
+		}
+		
+		if (ima) {
+			BKE_texpaint_slot_refresh_cache(scene, ma);
+			BKE_image_signal(ima, NULL, IMA_SIGNAL_USER_NEW_IMAGE);
+			WM_event_add_notifier(C, NC_IMAGE | NA_ADDED, ima);
+			DAG_id_tag_update(&ma->id, 0);
+			ED_area_tag_redraw(CTX_wm_area(C));
+			
+			return true;
 		}
 	}
-
+	
 	return false;
 }
 
 static int texture_paint_add_texture_paint_slot_exec(bContext *C, wmOperator *op)
 {
-	return proj_paint_add_slot(C, NULL, op);
+	if (proj_paint_add_slot(C, op)) {
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 
@@ -4908,6 +5121,12 @@ static int texture_paint_add_texture_paint_slot_invoke(bContext *C, wmOperator *
 	Material *ma = give_current_material(ob, ob->actcol);
 	int type = RNA_enum_get(op->ptr, "type");
 
+	if (!ma) {
+		ma = BKE_material_add(CTX_data_main(C), "Material");
+		/* no material found, just assign to first slot */
+		assign_material(ob, ma, ob->actcol, BKE_MAT_ASSIGN_USERPREF);		
+	}
+	
 	type = RNA_enum_from_value(layer_type_items, type);
 
 	/* get the name of the texture layer type */
@@ -4956,4 +5175,52 @@ void PAINT_OT_add_texture_paint_slot(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "generated_type", image_generated_type_items, IMA_GENTYPE_BLANK,
 	             "Generated Type", "Fill the image with a grid for UV map testing");
 	RNA_def_boolean(ot->srna, "float", 0, "32 bit Float", "Create image with 32 bit floating point bit depth");
+}
+
+static int texture_paint_delete_texture_paint_slot_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = CTX_data_active_object(C);
+	Scene *scene = CTX_data_scene(C);
+	Material *ma;
+	bool is_bi = BKE_scene_uses_blender_internal(scene);
+	TexPaintSlot *slot;
+	
+	/* not supported for node-based engines */
+	if (!ob || !is_bi)
+		return OPERATOR_CANCELLED;
+	
+	ma = give_current_material(ob, ob->actcol);
+	
+	if (!ma->texpaintslot || ma->use_nodes)
+		return OPERATOR_CANCELLED;
+	
+	slot = ma->texpaintslot + ma->paint_active_slot;
+	
+	if (ma->mtex[slot->index]->tex)
+		id_us_min(&ma->mtex[slot->index]->tex->id);
+	MEM_freeN(ma->mtex[slot->index]);
+	ma->mtex[slot->index] = NULL;
+	
+	BKE_texpaint_slot_refresh_cache(scene, ma);
+	DAG_id_tag_update(&ma->id, 0);
+	WM_event_add_notifier(C, NC_MATERIAL, CTX_data_scene(C));
+	/* we need a notifier for data change since we change the displayed modifier uvs */
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);			
+	return OPERATOR_FINISHED;
+}
+
+
+void PAINT_OT_delete_texture_paint_slot(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Delete Texture Paint Slot";
+	ot->description = "Delete selected texture paint slot";
+	ot->idname = "PAINT_OT_delete_texture_paint_slot";
+
+	/* api callbacks */
+	ot->exec = texture_paint_delete_texture_paint_slot_exec;
+	ot->poll = ED_operator_region_view3d_active;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

@@ -102,7 +102,11 @@ static string opencl_kernel_build_options(const string& platform, const string *
 
 	if(opencl_kernel_use_debug())
 		build_options += "-D__KERNEL_OPENCL_DEBUG__ ";
-	
+
+#ifdef WITH_CYCLES_DEBUG
+	build_options += "-D__KERNEL_DEBUG__ ";
+#endif
+
 	return build_options;
 }
 
@@ -794,6 +798,7 @@ public:
 		opencl_assert_err(ciErr, "clCreateBuffer");
 
 		stats.mem_alloc(size);
+		mem.device_size = size;
 	}
 
 	void mem_copy_to(device_memory& mem)
@@ -825,7 +830,8 @@ public:
 			opencl_assert(clReleaseMemObject(CL_MEM_PTR(mem.device_pointer)));
 			mem.device_pointer = 0;
 
-			stats.mem_free(mem.memory_size());
+			stats.mem_free(mem.device_size);
+			mem.device_size = 0;
 		}
 	}
 
@@ -1004,6 +1010,7 @@ public:
 		cl_int d_shader_eval_type = task.shader_eval_type;
 		cl_int d_shader_x = task.shader_x;
 		cl_int d_shader_w = task.shader_w;
+		cl_int d_offset = task.offset;
 
 		/* sample arguments */
 		cl_uint narg = 0;
@@ -1033,6 +1040,7 @@ public:
 			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_shader_eval_type), (void*)&d_shader_eval_type));
 			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_shader_x), (void*)&d_shader_x));
 			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_shader_w), (void*)&d_shader_w));
+			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_offset), (void*)&d_offset));
 			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_sample), (void*)&d_sample));
 
 			enqueue_kernel(kernel, task.shader_w, 1);

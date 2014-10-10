@@ -31,7 +31,7 @@
  * Convert material node-trees to GLSL.
  */
 
-#include "GL/glew.h"
+#include "GPU_glew.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -242,12 +242,12 @@ GPUFunction *GPU_lookup_function(const char *name)
 	return (GPUFunction*)BLI_ghash_lookup(FUNCTION_HASH, (void *)name);
 }
 
-void GPU_codegen_init(void)
+void gpu_codegen_init(void)
 {
 	GPU_code_generate_glsl_lib();
 }
 
-void GPU_codegen_exit(void)
+void gpu_codegen_exit(void)
 {
 	extern Material defmaterial;    // render module abuse...
 
@@ -1410,6 +1410,10 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 
 	/* failed? */
 	if (!shader) {
+		if (fragmentcode)
+			MEM_freeN(fragmentcode);
+		if (vertexcode)
+			MEM_freeN(vertexcode);
 		memset(attribs, 0, sizeof(*attribs));
 		memset(builtins, 0, sizeof(*builtins));
 		GPU_nodes_free(nodes);

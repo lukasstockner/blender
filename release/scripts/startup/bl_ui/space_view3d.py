@@ -604,8 +604,25 @@ class VIEW3D_MT_select_particle(Menu):
 
         layout.separator()
 
+        layout.operator("particle.select_random")
+
+        layout.separator()
+
         layout.operator("particle.select_roots", text="Roots")
         layout.operator("particle.select_tips", text="Tips")
+
+
+class VIEW3D_MT_edit_mesh_select_similar(Menu):
+    bl_label = "Select Similar"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator_enum("mesh.select_similar", "type")
+
+        layout.separator()
+
+        layout.operator("mesh.select_similar_region", text="Face Regions")
 
 
 class VIEW3D_MT_select_edit_mesh(Menu):
@@ -647,7 +664,7 @@ class VIEW3D_MT_select_edit_mesh(Menu):
         layout.separator()
 
         # other ...
-        layout.operator_menu_enum("mesh.select_similar", "type", text="Similar")
+        layout.menu("VIEW3D_MT_edit_mesh_select_similar")
         layout.operator("mesh.select_ungrouped", text="Ungrouped Verts")
 
         layout.separator()
@@ -1424,6 +1441,8 @@ class VIEW3D_MT_brush(Menu):
         ups = context.tool_settings.unified_paint_settings
         layout.prop(ups, "use_unified_size", text="Unified Size")
         layout.prop(ups, "use_unified_strength", text="Unified Strength")
+        if context.image_paint_object or context.vertex_paint_object:
+            layout.prop(ups, "use_unified_color", text="Unified Color")
         layout.separator()
 
         # brush paint modes
@@ -1454,7 +1473,7 @@ class VIEW3D_MT_brush(Menu):
             layout.separator()
 
             if sculpt_tool != 'GRAB':
-                layout.prop_menu_enum(brush, "sculpt_stroke_method")
+                layout.prop_menu_enum(brush, "stroke_method")
 
                 if sculpt_tool in {'DRAW', 'PINCH', 'INFLATE', 'LAYER', 'CLAY'}:
                     layout.prop_menu_enum(brush, "direction")
@@ -1707,6 +1726,10 @@ class VIEW3D_MT_particle_specials(Menu):
             layout.separator()
             layout.operator("particle.select_roots")
             layout.operator("particle.select_tips")
+
+            layout.separator()
+
+            layout.operator("particle.select_random")
 
             layout.separator()
 
@@ -2198,7 +2221,6 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
         layout = self.layout
 
         with_freestyle = bpy.app.build_options.freestyle
-        scene = context.scene
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -2223,7 +2245,7 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
 
         layout.separator()
 
-        if with_freestyle and not scene.render.use_shading_nodes:
+        if with_freestyle:
             layout.operator("mesh.mark_freestyle_edge").clear = False
             layout.operator("mesh.mark_freestyle_edge", text="Clear Freestyle Edge").clear = True
             layout.separator()
@@ -2254,7 +2276,6 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout = self.layout
 
         with_freestyle = bpy.app.build_options.freestyle
-        scene = context.scene
 
         layout.operator_context = 'INVOKE_REGION_WIN'
 
@@ -2266,11 +2287,12 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.inset")
         layout.operator("mesh.bevel").vertex_only = False
         layout.operator("mesh.solidify")
+        layout.operator("mesh.intersect")
         layout.operator("mesh.wireframe")
 
         layout.separator()
 
-        if with_freestyle and not scene.render.use_shading_nodes:
+        if with_freestyle:
             layout.operator("mesh.mark_freestyle_face").clear = False
             layout.operator("mesh.mark_freestyle_face", text="Clear Freestyle Face").clear = True
             layout.separator()
@@ -2934,7 +2956,7 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
             col.prop(mesh, "show_edge_seams", text="Seams")
         col.prop(mesh, "show_edge_sharp", text="Sharp", text_ctxt=i18n_contexts.plural)
         col.prop(mesh, "show_edge_bevel_weight", text="Bevel")
-        if with_freestyle and not scene.render.use_shading_nodes:
+        if with_freestyle:
             col.prop(mesh, "show_freestyle_edge_marks", text="Edge Marks")
             col.prop(mesh, "show_freestyle_face_marks", text="Face Marks")
 
@@ -2945,12 +2967,12 @@ class VIEW3D_PT_view3d_meshdisplay(Panel):
         row = col.row(align=True)
 
         row.prop(mesh, "show_normal_vertex", text="", icon='VERTEXSEL')
-        row.prop(mesh, "show_normal_loop", text="", icon='VERTEXSEL')
+        row.prop(mesh, "show_normal_loop", text="", icon='LOOPSEL')
         row.prop(mesh, "show_normal_face", text="", icon='FACESEL')
 
         sub = row.row(align=True)
         sub.active = mesh.show_normal_vertex or mesh.show_normal_face or mesh.show_normal_loop
-        sub.prop(context.scene.tool_settings, "normal_size", text="Size")
+        sub.prop(scene.tool_settings, "normal_size", text="Size")
 
         col.separator()
         split = layout.split()

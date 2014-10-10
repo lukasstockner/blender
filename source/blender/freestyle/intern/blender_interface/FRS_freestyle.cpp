@@ -31,6 +31,8 @@
 #include "../application/AppView.h"
 #include "../application/Controller.h"
 
+#include "BlenderStrokeRenderer.h"
+
 using namespace std;
 using namespace Freestyle;
 
@@ -41,6 +43,7 @@ extern "C" {
 #include "DNA_camera_types.h"
 #include "DNA_freestyle_types.h"
 #include "DNA_group_types.h"
+#include "DNA_material_types.h"
 #include "DNA_text_types.h"
 
 #include "BKE_freestyle.h"
@@ -471,6 +474,9 @@ static void prepare(Main *bmain, Render *re, SceneRenderLayer *srl)
 		cout << "  Z = " << (z ? "enabled" : "disabled") << endl;
 	}
 
+	if (controller->hitViewMapCache())
+		return;
+
 	// compute view map
 	re->i.infostr = "Freestyle: View map creation";
 	re->stats_draw(re->sdh, &re->i);
@@ -586,6 +592,7 @@ Render *FRS_do_stroke_rendering(Render *re, SceneRenderLayer *srl, int render)
 
 	RenderMonitor monitor(re);
 	controller->setRenderMonitor(&monitor);
+	controller->setViewMapCache((srl->freestyleConfig.flags & FREESTYLE_VIEW_MAP_CACHE) ? true : false);
 
 	if (G.debug & G_DEBUG_FREESTYLE) {
 		cout << endl;
@@ -642,6 +649,17 @@ void FRS_finish_stroke_rendering(Render *re)
 {
 	// clear canvas
 	controller->Clear();
+}
+
+void FRS_free_view_map_cache(void)
+{
+	// free cache
+	controller->DeleteViewMap(true);
+#if 0
+	if (G.debug & G_DEBUG_FREESTYLE) {
+		printf("View map cache freed\n");
+	}
+#endif
 }
 
 //=======================================================
@@ -728,6 +746,16 @@ void FRS_move_active_lineset_down(FreestyleConfig *config)
 		BLI_remlink(&config->linesets, lineset);
 		BLI_insertlinkafter(&config->linesets, lineset->next, lineset);
 	}
+}
+
+// Testing
+
+Material *FRS_create_stroke_material(Main *bmain, struct FreestyleLineStyle *linestyle)
+{
+	bNodeTree *nt = (linestyle->use_nodes) ? linestyle->nodetree : NULL;
+	Material *ma = BlenderStrokeRenderer::GetStrokeShader(bmain, nt, true);
+	ma->id.us = 0;
+	return ma;
 }
 
 } // extern "C"

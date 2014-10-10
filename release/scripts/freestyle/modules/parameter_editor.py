@@ -62,7 +62,10 @@ from freestyle.predicates import (
     TrueBP1D,
     TrueUP1D,
     WithinImageBoundaryUP1D,
+    pyNFirstUP1D,
     pyNatureUP1D,
+    pyProjectedXBP1D,
+    pyProjectedYBP1D,
     pyZBP1D,
     )
 from freestyle.shaders import (
@@ -814,17 +817,14 @@ class FaceMarkOneUP1D(UnaryPredicate1D):
 
 class MaterialBoundaryUP0D(UnaryPredicate0D):
     def __call__(self, it):
-        if (it.is_begin or it.is_end):
+        # can't use only it.is_end here, see commit rBeb8964fb7f19
+        if it.is_begin or it.at_last or it.is_end:
             return False
-        else:
-            it.decrement()
-            prev = it.object
-            svert = next(it)
-            succ = next(it)
-
-        fe = svert.get_fedge(prev)
+        it.decrement()
+        prev, v, succ = next(it), next(it), next(it)
+        fe = v.get_fedge(prev)
         idx1 = fe.material_index if fe.is_smooth else fe.material_index_left
-        fe = svert.get_fedge(succ)
+        fe = v.get_fedge(succ)
         idx2 = fe.material_index if fe.is_smooth else fe.material_index_left
         return idx1 != idx2
 
@@ -1009,11 +1009,6 @@ def process(layer_name, lineset_name):
             Operators.sequential_split(SplitPatternStartingUP0D(controller),
                                        SplitPatternStoppingUP0D(controller),
                                        sampling)
-    # select chains
-    if linestyle.use_length_min or linestyle.use_length_max:
-        length_min = linestyle.length_min if linestyle.use_length_min else None
-        length_max = linestyle.length_max if linestyle.use_length_max else None
-        Operators.select(LengthThresholdUP1D(length_min, length_max))
     # sort selected chains
     if linestyle.use_sorting:
         integration = integration_types.get(linestyle.integration_type, IntegrationType.MEAN)
@@ -1021,9 +1016,20 @@ def process(layer_name, lineset_name):
             bpred = pyZBP1D(integration)
         elif linestyle.sort_key == '2D_LENGTH':
             bpred = Length2DBP1D()
+        elif linestyle.sort_key == 'PROJECTED_X':
+            bpred = pyProjectedXBP1D(integration)
+        elif linestyle.sort_key == 'PROJECTED_Y':
+            bpred = pyProjectedYBP1D(integration)
         if linestyle.sort_order == 'REVERSE':
             bpred = NotBP1D(bpred)
         Operators.sort(bpred)
+    # select chains
+    if linestyle.use_length_min or linestyle.use_length_max:
+        length_min = linestyle.length_min if linestyle.use_length_min else None
+        length_max = linestyle.length_max if linestyle.use_length_max else None
+        Operators.select(LengthThresholdUP1D(length_min, length_max))
+    if linestyle.use_chain_count:
+        Operators.select(pyNFirstUP1D(linestyle.chain_count))
     # prepare a list of stroke shaders
     shaders_list = []
     for m in linestyle.geometry_modifiers:
@@ -1075,7 +1081,7 @@ def process(layer_name, lineset_name):
         elif m.type == '2D_TRANSFORM':
             shaders_list.append(Transform2DShader(
                 m.pivot, m.scale_x, m.scale_y, m.angle, m.pivot_u, m.pivot_x, m.pivot_y))
-            
+    # -- Base color, alpha and thickness -- #
     if (not linestyle.use_chaining) or (linestyle.chaining == 'PLAIN' and linestyle.use_same_object):
         thickness_position = linestyle.thickness_position
     else:
@@ -1084,11 +1090,10 @@ def process(layer_name, lineset_name):
         if bpy.app.debug_freestyle:
             print("Warning: Thickness position options are applied when chaining is disabled\n"
                   "         or the Plain chaining is used with the Same Object option enabled.")
-
     shaders_list.append(ConstantColorShader(*(linestyle.color), alpha=linestyle.alpha))
     shaders_list.append(BaseThicknessShader(linestyle.thickness, thickness_position,
                                             linestyle.thickness_ratio))
-    # -- Modifiers and textures -- #
+    # -- Modifiers -- #
     for m in linestyle.color_modifiers:
         if not m.use:
             continue
@@ -1153,11 +1158,20 @@ def process(layer_name, lineset_name):
                 thickness_position, linestyle.thickness_ratio,
                 m.blend, m.influence,
                 m.orientation, m.thickness_min, m.thickness_max))
-    if linestyle.use_texture:
-        textures = tuple(BlenderTextureShader(slot) for slot in linestyle.texture_slots if slot is not None)
-        if textures:
-            shaders_list.extend(textures)
-            shaders_list.append(StrokeTextureStepShader(linestyle.texture_spacing))
+    # -- Textures -- #
+    has_tex = False
+    if scene.render.use_shading_nodes:
+        if linestyle.use_nodes and linestyle.node_tree:
+            shaders_list.append(BlenderTextureShader(linestyle.node_tree))
+            has_tex = True
+    else:
+        if linestyle.use_texture:
+            textures = tuple(BlenderTextureShader(slot) for slot in linestyle.texture_slots if slot is not None)
+            if textures:
+                shaders_list.extend(textures)
+                has_tex = True
+    if has_tex:
+        shaders_list.append(StrokeTextureStepShader(linestyle.texture_spacing))
     # -- Stroke caps -- #
     if linestyle.caps == 'ROUND':
         shaders_list.append(RoundCapShader())

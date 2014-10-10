@@ -1862,6 +1862,7 @@ static void direct_link_palette(FileData *fd, Palette *palette)
 {
 	/* palette itself has been read */
 	link_list(fd, &palette->colors);
+	BLI_listbase_clear(&palette->deleted);
 }
 
 static void lib_link_paint_curve(FileData *UNUSED(fd), Main *main)
@@ -5200,6 +5201,14 @@ static void lib_link_scene(FileData *fd, Main *main)
 				sce->toolsettings->imapaint.stencil =
 				        newlibadr_us(fd, sce->id.lib, sce->toolsettings->imapaint.stencil);
 
+			if (sce->toolsettings->imapaint.clone)
+				sce->toolsettings->imapaint.clone =
+				        newlibadr_us(fd, sce->id.lib, sce->toolsettings->imapaint.clone);
+
+			if (sce->toolsettings->imapaint.canvas)
+				sce->toolsettings->imapaint.canvas =
+				        newlibadr_us(fd, sce->id.lib, sce->toolsettings->imapaint.canvas);
+			
 			sce->toolsettings->skgen_template = newlibadr(fd, sce->id.lib, sce->toolsettings->skgen_template);
 			
 			for (base = sce->base.first; base; base = next) {
@@ -5404,6 +5413,8 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		
 		sce->toolsettings->imapaint.paintcursor = NULL;
 		sce->toolsettings->particle.paintcursor = NULL;
+		sce->toolsettings->particle.scene = NULL;
+		sce->toolsettings->particle.object = NULL;
 
 		/* in rare cases this is needed, see [#33806] */
 		if (sce->toolsettings->vpaint) {
@@ -5882,9 +5893,9 @@ static void lib_link_screen(FileData *fd, Main *main)
 
 /* how to handle user count on pointer restore */
 typedef enum ePointerUserMode {
-	USER_IGNORE,	/* ignore user count */
-	USER_ONE,		/* ensure at least one user (fake also counts) */
-	USER_REAL		/* ensure at least one real user (fake user ignored) */
+	USER_IGNORE = 0,  /* ignore user count */
+	USER_ONE    = 1,  /* ensure at least one user (fake also counts) */
+	USER_REAL   = 2,  /* ensure at least one real user (fake user ignored) */
 } ePointerUserMode;
 
 static bool restore_pointer(ID *id, ID *newid, ePointerUserMode user)
@@ -5909,9 +5920,9 @@ static bool restore_pointer(ID *id, ID *newid, ePointerUserMode user)
  * Only for undo files, or to restore a screen after reading without UI...
  *
  * user
- * - 0: no usercount change
- * - 1: ensure a user
- * - 2: ensure a real user (even if a fake one is set)
+ * - USER_IGNORE: no usercount change
+ * - USER_ONE: ensure a user
+ * - USER_REAL: ensure a real user (even if a fake one is set)
  */
 static void *restore_pointer_by_name(Main *mainp, ID *id, ePointerUserMode user)
 {
@@ -6008,8 +6019,12 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					v3d->ob_centre = restore_pointer_by_name(newmain, (ID *)v3d->ob_centre, USER_ONE);
 					
 					for (bgpic= v3d->bgpicbase.first; bgpic; bgpic= bgpic->next) {
-						bgpic->ima = restore_pointer_by_name(newmain, (ID *)bgpic->ima, USER_ONE);
-						bgpic->clip = restore_pointer_by_name(newmain, (ID *)bgpic->clip, USER_ONE);
+						if ((bgpic->ima = restore_pointer_by_name(newmain, (ID *)bgpic->ima, USER_IGNORE))) {
+							id_us_plus((ID *)bgpic->ima);
+						}
+						if ((bgpic->clip = restore_pointer_by_name(newmain, (ID *)bgpic->clip, USER_IGNORE))) {
+							id_us_plus((ID *)bgpic->clip);
+						}
 					}
 					if (v3d->localvd) {
 						/*Base *base;*/
@@ -6271,7 +6286,6 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 
 				rv3d->depths = NULL;
 				rv3d->gpuoffscreen = NULL;
-				rv3d->ri = NULL;
 				rv3d->render_engine = NULL;
 				rv3d->sms = NULL;
 				rv3d->smooth_timer = NULL;
@@ -6383,6 +6397,9 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 		else if (sa->spacetype == SPACE_VIEW3D)
 			blo_do_versions_view3d_split_250(sa->spacedata.first, &sa->regionbase);
 		
+		/* incase we set above */
+		sa->butspacetype = sa->spacetype;
+
 		for (sl = sa->spacedata.first; sl; sl = sl->next) {
 			link_list(fd, &(sl->regionbase));
 
@@ -7588,8 +7605,9 @@ static void lib_link_all(FileData *fd, Main *main)
 	/* No load UI for undo memfiles */
 	if (fd->memfile == NULL) {
 		lib_link_windowmanager(fd, main);
-		lib_link_screen(fd, main);
 	}
+	/* DO NOT skip screens here, 3Dview may contains pointers to other ID data (like bgpic)! See T41411. */
+	lib_link_screen(fd, main);
 	lib_link_scene(fd, main);
 	lib_link_object(fd, main);
 	lib_link_curve(fd, main);
@@ -9025,10 +9043,10 @@ static ID *append_named_part_ex(const bContext *C, Main *mainl, FileData *fd, co
 			
 			ob = (Object *)id;
 			
-			/* link at active layer (view3d->lay if in context, else scene->lay */
+			/* link at active layer (view3d if available in context, else scene one */
 			if ((flag & FILE_ACTIVELAY)) {
 				View3D *v3d = CTX_wm_view3d(C);
-				ob->lay = v3d ? v3d->layact : scene->lay;
+				ob->lay = BKE_screen_view3d_layer_active(v3d, scene);
 			}
 			
 			ob->mode = OB_MODE_OBJECT;

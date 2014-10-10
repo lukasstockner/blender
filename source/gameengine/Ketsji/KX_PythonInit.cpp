@@ -30,7 +30,7 @@
  *  \ingroup ketsji
  */
 
-#include "GL/glew.h"
+#include "glew-mx.h"
 
 #ifdef _MSC_VER
 #  pragma warning (disable:4786)
@@ -257,7 +257,7 @@ static PyObject *gPyExpandPath(PyObject *, PyObject *args)
 
 	BLI_strncpy(expanded, filename, FILE_MAX);
 	BLI_path_abs(expanded, gp_GamePythonPath);
-	return PyUnicode_DecodeFSDefault(expanded);
+	return PyC_UnicodeFromByte(expanded);
 }
 
 static char gPyStartGame_doc[] =
@@ -546,7 +546,7 @@ static PyObject *gPyGetBlendFileList(PyObject *, PyObject *args)
 	
 	while ((dirp = readdir(dp)) != NULL) {
 		if (BLI_testextensie(dirp->d_name, ".blend")) {
-			value= PyUnicode_DecodeFSDefault(dirp->d_name);
+			value = PyC_UnicodeFromByte(dirp->d_name);
 			PyList_Append(list, value);
 			Py_DECREF(value);
 		}
@@ -1396,7 +1396,9 @@ static PyObject *gPySetVsync(PyObject *, PyObject *args)
 
 static PyObject *gPyGetVsync(PyObject *)
 {
-	return PyLong_FromLong(gp_Canvas->GetSwapInterval());
+	int interval = 0;
+	gp_Canvas->GetSwapInterval(interval);
+	return PyLong_FromLong(interval);
 }
 
 static PyObject *gPyShowFramerate(PyObject *, PyObject *args)
@@ -1974,7 +1976,7 @@ static void initPySysObjects__append(PyObject *sys_path, const char *filename)
 	BLI_split_dir_part(filename, expanded, sizeof(expanded)); /* get the dir part of filename only */
 	BLI_path_abs(expanded, gp_GamePythonPath); /* filename from lib->filename is (always?) absolute, so this may not be needed but it wont hurt */
 	BLI_cleanup_file(gp_GamePythonPath, expanded); /* Don't use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
-	item= PyUnicode_DecodeFSDefault(expanded);
+	item = PyC_UnicodeFromByte(expanded);
 	
 //	printf("SysPath - '%s', '%s', '%s'\n", expanded, filename, gp_GamePythonPath);
 	

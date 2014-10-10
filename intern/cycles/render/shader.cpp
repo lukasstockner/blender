@@ -83,7 +83,7 @@ static void beckmann_table_rows(float *table, int row_from, int row_to)
 			}
 
 			/* CDF of P22_{omega_i}(x_slope, 1, 1), Eq. (10) */
-			CDF_P22_omega_i[index_slope_x] = CDF_P22_omega_i[index_slope_x - 1] + P22_omega_i;
+			CDF_P22_omega_i[index_slope_x] = CDF_P22_omega_i[index_slope_x - 1] + (double)P22_omega_i;
 		}
 
 		/* renormalize CDF_P22_omega_i */
@@ -106,8 +106,8 @@ static void beckmann_table_rows(float *table, int row_from, int row_to)
 
 			/* store value */
 			table[index_U + index_theta*BECKMANN_TABLE_SIZE] = (float)(
-				interp * slope_x[index_slope_x - 1]
-				+ (1.0f-interp) * slope_x[index_slope_x]);
+				interp * slope_x[index_slope_x - 1] +
+				    (1.0 - interp) * slope_x[index_slope_x]);
 		}
 	}
 }
@@ -325,7 +325,6 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 	uint i = 0;
 	bool has_converter_blackbody = false;
 	bool has_volumes = false;
-	bool has_transparent_shadows = false;
 
 	foreach(Shader *shader, scene->shaders) {
 		uint flag = 0;
@@ -368,10 +367,6 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 
 		shader_flag[i++] = flag;
 		shader_flag[i++] = shader->pass_id;
-		
-		/* Check if we need transparent shadows */
-		if(flag & SD_HAS_TRANSPARENT_SHADOW)
-			has_transparent_shadows = true;
 	}
 
 	device->tex_alloc("__shader_flag", dscene->shader_flag);
@@ -402,7 +397,6 @@ void ShaderManager::device_update_common(Device *device, DeviceScene *dscene, Sc
 	/* integrator */
 	KernelIntegrator *kintegrator = &dscene->data.integrator;
 	kintegrator->use_volumes = has_volumes;
-	kintegrator->transparent_shadows = has_transparent_shadows;
 }
 
 void ShaderManager::device_free_common(Device *device, DeviceScene *dscene, Scene *scene)

@@ -23,10 +23,7 @@
 #include "../closure/bsdf_reflection.h"
 #include "../closure/bsdf_refraction.h"
 #include "../closure/bsdf_transparent.h"
-#ifdef __ANISOTROPIC__
 #include "../closure/bsdf_ashikhmin_shirley.h"
-#endif
-#include "../closure/bsdf_westin.h"
 #include "../closure/bsdf_toon.h"
 #include "../closure/bsdf_hair.h"
 #ifdef __SUBSURFACE__
@@ -94,13 +91,11 @@ ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const Shader
 			label = bsdf_microfacet_beckmann_sample(kg, sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
-#ifdef __ANISOTROPIC__
 		case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID:
 		case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID:
 			label = bsdf_ashikhmin_shirley_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
-#endif
 		case CLOSURE_BSDF_ASHIKHMIN_VELVET_ID:
 			label = bsdf_ashikhmin_velvet_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
@@ -111,14 +106,6 @@ ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const Shader
 			break;
 		case CLOSURE_BSDF_GLOSSY_TOON_ID:
 			label = bsdf_glossy_toon_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
-				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
-			break;
-		case CLOSURE_BSDF_WESTIN_BACKSCATTER_ID:
-			label = bsdf_westin_backscatter_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
-				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
-			break;
-		case CLOSURE_BSDF_WESTIN_SHEEN_ID:
-			label = bsdf_westin_sheen_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_HAIR_REFLECTION_ID:
@@ -190,12 +177,10 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const Shade
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID:
 				eval = bsdf_microfacet_beckmann_eval_reflect(sc, sd->I, omega_in, pdf);
 				break;
-#ifdef __ANISOTROPIC__
 			case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID:
 			case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID:
 				eval = bsdf_ashikhmin_shirley_eval_reflect(sc, sd->I, omega_in, pdf);
 				break;
-#endif
 			case CLOSURE_BSDF_ASHIKHMIN_VELVET_ID:
 				eval = bsdf_ashikhmin_velvet_eval_reflect(sc, sd->I, omega_in, pdf);
 				break;
@@ -204,12 +189,6 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const Shade
 				break;
 			case CLOSURE_BSDF_GLOSSY_TOON_ID:
 				eval = bsdf_glossy_toon_eval_reflect(sc, sd->I, omega_in, pdf);
-				break;
-			case CLOSURE_BSDF_WESTIN_BACKSCATTER_ID:
-				eval = bsdf_westin_backscatter_eval_reflect(sc, sd->I, omega_in, pdf);
-				break;
-			case CLOSURE_BSDF_WESTIN_SHEEN_ID:
-				eval = bsdf_westin_sheen_eval_reflect(sc, sd->I, omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_HAIR_REFLECTION_ID:
 				eval = bsdf_hair_reflection_eval_reflect(sc, sd->I, omega_in, pdf);
@@ -260,12 +239,10 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const Shade
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID:
 				eval = bsdf_microfacet_beckmann_eval_transmit(sc, sd->I, omega_in, pdf);
 				break;
-#ifdef __ANISOTROPIC__
 			case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID:
 			case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID:
 				eval = bsdf_ashikhmin_shirley_eval_transmit(sc, sd->I, omega_in, pdf);
 				break;
-#endif
 			case CLOSURE_BSDF_ASHIKHMIN_VELVET_ID:
 				eval = bsdf_ashikhmin_velvet_eval_transmit(sc, sd->I, omega_in, pdf);
 				break;
@@ -274,12 +251,6 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const Shade
 				break;
 			case CLOSURE_BSDF_GLOSSY_TOON_ID:
 				eval = bsdf_glossy_toon_eval_transmit(sc, sd->I, omega_in, pdf);
-				break;
-			case CLOSURE_BSDF_WESTIN_BACKSCATTER_ID:
-				eval = bsdf_westin_backscatter_eval_transmit(sc, sd->I, omega_in, pdf);
-				break;
-			case CLOSURE_BSDF_WESTIN_SHEEN_ID:
-				eval = bsdf_westin_sheen_eval_transmit(sc, sd->I, omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_HAIR_REFLECTION_ID:
 				eval = bsdf_hair_reflection_eval_transmit(sc, sd->I, omega_in, pdf);
@@ -348,12 +319,10 @@ ccl_device void bsdf_blur(KernelGlobals *kg, ShaderClosure *sc, float roughness)
 		case CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID:
 			bsdf_microfacet_beckmann_blur(sc, roughness);
 			break;
-#ifdef __ANISOTROPIC__
 		case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID:
 		case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID:
 			bsdf_ashikhmin_shirley_blur(sc, roughness);
 			break;
-#endif
 		case CLOSURE_BSDF_ASHIKHMIN_VELVET_ID:
 			bsdf_ashikhmin_velvet_blur(sc, roughness);
 			break;
@@ -362,12 +331,6 @@ ccl_device void bsdf_blur(KernelGlobals *kg, ShaderClosure *sc, float roughness)
 			break;
 		case CLOSURE_BSDF_GLOSSY_TOON_ID:
 			bsdf_glossy_toon_blur(sc, roughness);
-			break;
-		case CLOSURE_BSDF_WESTIN_BACKSCATTER_ID:
-			bsdf_westin_backscatter_blur(sc, roughness);
-			break;
-		case CLOSURE_BSDF_WESTIN_SHEEN_ID:
-			bsdf_westin_sheen_blur(sc, roughness);
 			break;
 		case CLOSURE_BSDF_HAIR_REFLECTION_ID:
 		case CLOSURE_BSDF_HAIR_TRANSMISSION_ID:

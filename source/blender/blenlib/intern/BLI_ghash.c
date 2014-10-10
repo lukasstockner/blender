@@ -155,7 +155,7 @@ BLI_INLINE Entry *ghash_lookup_entry_ex(GHash *gh, const void *key,
 	Entry *e;
 
 	for (e = gh->buckets[hash]; e; e = e->next) {
-		if (UNLIKELY(gh->cmpfp(key, e->key) == 0)) {
+		if (UNLIKELY(gh->cmpfp(key, e->key) == false)) {
 			return e;
 		}
 	}
@@ -251,7 +251,7 @@ static Entry *ghash_remove_ex(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GH
 	Entry *e_prev = NULL;
 
 	for (e = gh->buckets[hash]; e; e = e->next) {
-		if (UNLIKELY(gh->cmpfp(key, e->key) == 0)) {
+		if (UNLIKELY(gh->cmpfp(key, e->key) == false)) {
 			Entry *e_next = e->next;
 
 			if (keyfreefp) keyfreefp(e->key);
@@ -399,7 +399,7 @@ void *BLI_ghash_lookup_default(GHash *gh, const void *key, void *val_default)
  * \param key  The key to lookup.
  * \returns the pointer to value for \a key or NULL.
  *
- * \note This has 2 main benifits over #BLI_ghash_lookup.
+ * \note This has 2 main benefits over #BLI_ghash_lookup.
  * - A NULL return always means that \a key isn't in \a gh.
  * - The value can be modified in-place without further function calls (faster).
  */
@@ -683,12 +683,9 @@ unsigned int BLI_ghashutil_ptrhash(const void *key)
 	return (unsigned int)y;
 }
 #endif
-int BLI_ghashutil_ptrcmp(const void *a, const void *b)
+bool BLI_ghashutil_ptrcmp(const void *a, const void *b)
 {
-	if (a == b)
-		return 0;
-	else
-		return (a < b) ? -1 : 1;
+	return (a != b);
 }
 
 unsigned int BLI_ghashutil_uinthash_v4(const unsigned int key[4])
@@ -704,9 +701,9 @@ unsigned int BLI_ghashutil_uinthash_v4(const unsigned int key[4])
 	return hash;
 }
 
-int BLI_ghashutil_uinthash_v4_cmp(const void *a, const void *b)
+bool BLI_ghashutil_uinthash_v4_cmp(const void *a, const void *b)
 {
-	return memcmp(a, b, sizeof(unsigned int[4]));
+	return (memcmp(a, b, sizeof(unsigned int[4])) != 0);
 }
 
 unsigned int BLI_ghashutil_uinthash(unsigned int key)
@@ -735,12 +732,9 @@ unsigned int BLI_ghashutil_inthash_p(const void *ptr)
 	return (unsigned int)(key & 0xffffffff);
 }
 
-int BLI_ghashutil_intcmp(const void *a, const void *b)
+bool BLI_ghashutil_intcmp(const void *a, const void *b)
 {
-	if (a == b)
-		return 0;
-	else
-		return (a < b) ? -1 : 1;
+	return (a != b);
 }
 
 /**
@@ -774,9 +768,9 @@ unsigned int BLI_ghashutil_strhash_p(const void *ptr)
 
 	return h;
 }
-int BLI_ghashutil_strcmp(const void *a, const void *b)
+bool BLI_ghashutil_strcmp(const void *a, const void *b)
 {
-	return strcmp(a, b);
+	return (strcmp(a, b) != 0);
 }
 
 GHashPair *BLI_ghashutil_pairalloc(const void *first, const void *second)
@@ -794,15 +788,13 @@ unsigned int BLI_ghashutil_pairhash(const void *ptr)
 	return hash ^ BLI_ghashutil_ptrhash(pair->second);
 }
 
-int BLI_ghashutil_paircmp(const void *a, const void *b)
+bool BLI_ghashutil_paircmp(const void *a, const void *b)
 {
 	const GHashPair *A = a;
 	const GHashPair *B = b;
 
-	int cmp = BLI_ghashutil_ptrcmp(A->first, B->first);
-	if (cmp == 0)
-		return BLI_ghashutil_ptrcmp(A->second, B->second);
-	return cmp;
+	return (BLI_ghashutil_ptrcmp(A->first, B->first) ||
+	        BLI_ghashutil_ptrcmp(A->second, B->second));
 }
 
 void BLI_ghashutil_pairfree(void *ptr)
@@ -972,6 +964,17 @@ void BLI_gset_free(GSet *gs, GSetKeyFreeFP keyfreefp)
 {
 	BLI_ghash_free((GHash *)gs, keyfreefp, NULL);
 }
+
+void BLI_gset_flag_set(GSet *gs, unsigned int flag)
+{
+	((GHash *)gs)->flag |= flag;
+}
+
+void BLI_gset_flag_clear(GSet *gs, unsigned int flag)
+{
+	((GHash *)gs)->flag &= ~flag;
+}
+
 /** \} */
 
 
@@ -1010,6 +1013,8 @@ GSet *BLI_gset_pair_new(const char *info)
 /**
  * Measure how well the hash function performs
  * (1.0 is approx as good as random distribution).
+ *
+ * Smaller is better!
  */
 double BLI_ghash_calc_quality(GHash *gh)
 {

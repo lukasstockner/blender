@@ -217,6 +217,13 @@ class USERPREF_PT_interface(Panel):
         sub.prop(view, "open_sublevel_delay", text="Sub Level")
 
         col.separator()
+        col.label(text="Pie Menus:")
+        sub = col.column(align=True)
+        sub.prop(view, "pie_animation_timeout")
+        sub.prop(view, "pie_initial_timeout")
+        sub.prop(view, "pie_menu_radius")
+        sub.prop(view, "pie_menu_threshold")
+        col.separator()
         col.separator()
         col.separator()
 
@@ -376,6 +383,11 @@ class USERPREF_PT_system(Panel):
         col = colsplit.column()
         col.label(text="General:")
         col.prop(system, "dpi")
+        col.label("Virtual Pixel Mode:")
+        col.prop(system, "virtual_pixel_mode", text="")
+
+        col.separator()
+
         col.prop(system, "frame_server_port")
         col.prop(system, "scrollback", text="Console Scrollback")
 
@@ -417,7 +429,6 @@ class USERPREF_PT_system(Panel):
         col.prop(system, "use_gpu_mipmap")
         col.prop(system, "use_16bit_textures")
 
-        
         if system.is_occlusion_query_supported():
             col.separator()
             col.label(text="Selection")
@@ -680,6 +691,9 @@ class USERPREF_PT_theme(Panel):
 
             col.label(text="Menu:")
             self._theme_widget_style(col, ui.wcol_menu)
+
+            col.label(text="Pie Menu:")
+            self._theme_widget_style(col, ui.wcol_pie_menu)
 
             col.label(text="Pulldown:")
             self._theme_widget_style(col, ui.wcol_pulldown)

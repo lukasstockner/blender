@@ -37,6 +37,7 @@
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_dial.h"
 #include "BLI_utildefines.h"
 #include "BLI_ghash.h"
 #include "BLI_threads.h"
@@ -191,8 +192,8 @@ typedef struct StrokeCache {
 	float true_location[3];
 	float location[3];
 
-	float pen_flip;
-	float invert;
+	bool pen_flip;
+	bool invert;
 	float pressure;
 	float mouse[2];
 	float bstrength;
@@ -238,12 +239,8 @@ typedef struct StrokeCache {
 	float anchored_location[3];
 
 	float vertex_rotation; /* amount to rotate the vertices when using rotate brush */
-	float previous_vertex_rotation; /* previous rotation, used to detect if we rotate more than
-	                                 * PI radians */
-	short num_vertex_turns; /* records number of full 2*PI turns */
-	float initial_mouse_dir[2]; /* used to calculate initial angle */
-	bool init_dir_set; /* detect if we have initialized the initial mouse direction */
-
+	Dial *dial;
+	
 	char saved_active_brush_name[MAX_ID_NAME];
 	char saved_mask_brush_tool;
 	int saved_smooth_size; /* smooth tool copies the size of the current tool */
@@ -271,8 +268,8 @@ typedef struct {
 
 	/* Original coordinate, normal, and mask */
 	const float *co;
-	float mask;
 	const short *no;
+	float mask;
 } SculptOrigVertData;
 
 
@@ -553,7 +550,7 @@ static bool sculpt_brush_test(SculptBrushTest *test, const float co[3])
 		if (sculpt_brush_test_clipping(test, co)) {
 			return 0;
 		}
-		test->dist = sqrt(distsq);
+		test->dist = sqrtf(distsq);
 		return 1;
 	}
 	else {
@@ -812,10 +809,10 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather, Unifi
 			return alpha * pressure * feather;
 
 		case SCULPT_TOOL_SNAKE_HOOK:
-			return feather;
+			return root_alpha * feather;
 
 		case SCULPT_TOOL_GRAB:
-			return feather;
+			return root_alpha * feather;
 
 		case SCULPT_TOOL_ROTATE:
 			return alpha * pressure * feather;
@@ -2556,7 +2553,7 @@ static void do_flatten_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totno
 				sub_v3_v3v3(val, intr, vd.co);
 
 				if (plane_trim(ss->cache, brush, val)) {
-					const float fade = bstrength * tex_strength(ss, brush, vd.co, sqrt(test.dist),
+					const float fade = bstrength * tex_strength(ss, brush, vd.co, sqrtf(test.dist),
 					                                            vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f);
 
 					mul_v3_v3fl(proxy[vd.i], val, fade);
@@ -2629,7 +2626,7 @@ static void do_clay_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 					sub_v3_v3v3(val, intr, vd.co);
 
 					if (plane_trim(ss->cache, brush, val)) {
-						const float fade = bstrength * tex_strength(ss, brush, vd.co, sqrt(test.dist),
+						const float fade = bstrength * tex_strength(ss, brush, vd.co, sqrtf(test.dist),
 						                                            vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f);
 
 						mul_v3_v3fl(proxy[vd.i], val, fade);
@@ -2795,7 +2792,7 @@ static void do_fill_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 
 					if (plane_trim(ss->cache, brush, val)) {
 						const float fade = bstrength * tex_strength(ss, brush, vd.co,
-						                                            sqrt(test.dist),
+						                                            sqrtf(test.dist),
 						                                            vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f);
 
 						mul_v3_v3fl(proxy[vd.i], val, fade);
@@ -2859,7 +2856,7 @@ static void do_scrape_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 
 					if (plane_trim(ss->cache, brush, val)) {
 						const float fade = bstrength * tex_strength(ss, brush, vd.co,
-						                                            sqrt(test.dist),
+						                                            sqrtf(test.dist),
 						                                            vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f);
 
 						mul_v3_v3fl(proxy[vd.i], val, fade);
@@ -2902,7 +2899,7 @@ static void do_gravity(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode, fl
 
 		BKE_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if (sculpt_brush_test_sq(&test, vd.co)) {
-				const float fade = tex_strength(ss, brush, vd.co, sqrt(test.dist), vd.no,
+				const float fade = tex_strength(ss, brush, vd.co, sqrtf(test.dist), vd.no,
 				                                vd.fno, vd.mask ? *vd.mask : 0.0f);
 
 				mul_v3_v3fl(proxy[vd.i], offset, fade);
@@ -3527,6 +3524,8 @@ static void sculpt_cache_free(StrokeCache *cache)
 {
 	if (cache->face_norms)
 		MEM_freeN(cache->face_norms);
+	if (cache->dial)
+		MEM_freeN(cache->dial);
 	MEM_freeN(cache);
 }
 
@@ -3806,11 +3805,12 @@ static void sculpt_update_cache_invariants(bContext *C, Sculpt *sd, SculptSessio
 
 	cache->first_time = 1;
 
-	cache->vertex_rotation = 0;
-	cache->num_vertex_turns = 0;
-	cache->previous_vertex_rotation = 0;
-	cache->init_dir_set = false;
-
+#define PIXEL_INPUT_THRESHHOLD 5
+	if (brush->sculpt_tool == SCULPT_TOOL_ROTATE)
+		cache->dial = BLI_dial_initialize(cache->initial_mouse, PIXEL_INPUT_THRESHHOLD);
+		
+#undef PIXEL_INPUT_THRESHHOLD
+	
 	sculpt_omp_start(sd, ss);
 }
 
@@ -3964,48 +3964,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, Object *ob,
 	sculpt_update_brush_delta(ups, ob, brush);
 
 	if (brush->sculpt_tool == SCULPT_TOOL_ROTATE) {
-#define PIXEL_INPUT_THRESHHOLD 5
-
-		const float dx = cache->mouse[0] - cache->initial_mouse[0];
-		const float dy = cache->mouse[1] - cache->initial_mouse[1];
-
-		/* only update when we have enough precision, by having the mouse adequately away from center
-		 * may be better to convert to radial representation but square works for small values too*/
-		if (fabsf(dx) > PIXEL_INPUT_THRESHHOLD && fabsf(dy) > PIXEL_INPUT_THRESHHOLD) {
-			float mouse_angle;
-			float dir[2] = {dx, dy};
-			float cosval, sinval;
-			normalize_v2(dir);
-
-			if (!cache->init_dir_set) {
-				copy_v2_v2(cache->initial_mouse_dir, dir);
-				cache->init_dir_set = true;
-			}
-
-			/* calculate mouse angle between initial and final mouse position */
-			cosval = dot_v2v2(dir, cache->initial_mouse_dir);
-			sinval = cross_v2v2(dir, cache->initial_mouse_dir);
-
-			/* clamp to avoid nans in acos */
-			CLAMP(cosval, -1.0f, 1.0f);
-			mouse_angle = (sinval > 0) ? acosf(cosval) : -acosf(cosval);
-
-			/* change of sign, we passed the 180 degree threshold. This means we need to add a turn.
-			 * to distinguish between transition from 0 to -1 and -PI to +PI, use comparison with PI/2 */
-			if ((mouse_angle * cache->previous_vertex_rotation < 0.0f) &&
-			    (fabsf(cache->previous_vertex_rotation) > (float)M_PI_2))
-			{
-				if (cache->previous_vertex_rotation < 0)
-					cache->num_vertex_turns--;
-				else
-					cache->num_vertex_turns++;
-			}
-			cache->previous_vertex_rotation = mouse_angle;
-
-			cache->vertex_rotation = -(mouse_angle + 2.0f * (float)M_PI * cache->num_vertex_turns) * cache->bstrength;
-
-#undef PIXEL_INPUT_THRESHHOLD
-		}
+		cache->vertex_rotation = -BLI_dial_angle(cache->dial, cache->mouse) * cache->bstrength;
 
 		ups->draw_anchored = true;
 		copy_v2_v2(ups->anchored_initial_mouse, cache->initial_mouse);
@@ -4047,14 +4006,14 @@ static void sculpt_stroke_modifiers_check(const bContext *C, Object *ob)
 typedef struct {
 	SculptSession *ss;
 	const float *ray_start, *ray_normal;
-	int hit;
+	bool hit;
 	float dist;
-	int original;
+	bool original;
 } SculptRaycastData;
 
 typedef struct {
 	const float *ray_start, *ray_normal;
-	int hit;
+	bool hit;
 	float dist;
 	float detail;
 } SculptDetailRaycastData;
@@ -4186,7 +4145,7 @@ static void sculpt_brush_init_tex(const Scene *scene, Sculpt *sd, SculptSession 
 	sculpt_update_tex(scene, sd, ss);
 }
 
-static int sculpt_brush_stroke_init(bContext *C, wmOperator *op)
+static bool sculpt_brush_stroke_init(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
@@ -4520,13 +4479,6 @@ static void sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
 
 static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 {
-	static EnumPropertyItem stroke_mode_items[] = {
-		{BRUSH_STROKE_NORMAL, "NORMAL", 0, "Normal", "Apply brush normally"},
-		{BRUSH_STROKE_INVERT, "INVERT", 0, "Invert", "Invert action of brush for duration of stroke"},
-		{BRUSH_STROKE_SMOOTH, "SMOOTH", 0, "Smooth", "Switch brush to smooth mode for duration of stroke"},
-		{0}
-	};
-
 	/* identifiers */
 	ot->name = "Sculpt";
 	ot->idname = "SCULPT_OT_brush_stroke";
@@ -4544,15 +4496,11 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 
 	/* properties */
 
-	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
-
-	RNA_def_enum(ot->srna, "mode", stroke_mode_items, BRUSH_STROKE_NORMAL, 
-	             "Sculpt Stroke Mode",
-	             "Action taken when a sculpt stroke is made");
+	paint_stroke_operator_properties(ot);
 
 	RNA_def_boolean(ot->srna, "ignore_background_click", 0,
 	                "Ignore Background Click",
-	                "Clicks on the background do not start the stroke");
+	                "Clicks on the background do not start the stroke");	
 }
 
 /**** Reset the copy of the mesh that is being sculpted on (currently just for the layer brush) ****/

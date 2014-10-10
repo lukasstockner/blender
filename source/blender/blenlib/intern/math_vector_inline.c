@@ -466,7 +466,7 @@ MINLINE float mul_project_m4_v3_zfac(float mat[4][4], const float co[3])
 }
 
 /**
- * Has the effect of mul_m3_v3(), on a single axis.
+ * Has the effect of #mul_m3_v3(), on a single axis.
  */
 MINLINE float dot_m3_v3_row_x(float M[3][3], const float a[3])
 {
@@ -482,7 +482,8 @@ MINLINE float dot_m3_v3_row_z(float M[3][3], const float a[3])
 }
 
 /**
- * Almost like mul_m4_v3(), misses adding translation.
+ * Has the effect of #mul_mat3_m4_v3(), on a single axis.
+ * (no adding translation)
  */
 MINLINE float dot_m4_v3_row_x(float M[4][4], const float a[3])
 {
@@ -956,6 +957,18 @@ MINLINE bool compare_v4v4(const float v1[4], const float v2[4], const float limi
 	return false;
 }
 
+/**
+ * <pre>
+ *        + l1
+ *        |
+ * neg <- | -> pos
+ *        |
+ *        + l2
+ * </pre>
+ *
+ * \return Positive value when 'pt' is left-of-line
+ * (looking from 'l1' -> 'l2').
+ */
 MINLINE float line_point_side_v2(const float l1[2], const float l2[2], const float pt[2])
 {
 	return (((l1[0] - pt[0]) * (l2[1] - pt[1])) -

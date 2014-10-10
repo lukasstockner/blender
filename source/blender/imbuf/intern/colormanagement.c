@@ -252,22 +252,13 @@ static unsigned int colormanage_hashhash(const void *key_v)
 	return rval;
 }
 
-static int colormanage_hashcmp(const void *av, const void *bv)
+static bool colormanage_hashcmp(const void *av, const void *bv)
 {
 	const ColormanageCacheKey *a = (ColormanageCacheKey *) av;
 	const ColormanageCacheKey *b = (ColormanageCacheKey *) bv;
 
-	if (a->view < b->view)
-		return -1;
-	else if (a->view > b->view)
-		return 1;
-
-	if (a->display < b->display)
-		return -1;
-	else if (a->display > b->display)
-		return 1;
-
-	return 0;
+	return ((a->view != b->view) ||
+	        (a->display != b->display));
 }
 
 static struct MovieCache *colormanage_moviecache_ensure(ImBuf *ibuf)
@@ -3044,7 +3035,7 @@ static void update_glsl_display_processor(const ColorManagedViewSettings *view_s
 		global_glsl_state.exposure = view_settings->exposure;
 		global_glsl_state.gamma = view_settings->gamma;
 
-		/* We're using curve mapping's address as a acache ID,
+		/* We're using curve mapping's address as a cache ID,
 		 * so we need to make sure re-allocation gives new address here.
 		 * We do this by allocating new curve mapping before freeing ol one.
 		 */

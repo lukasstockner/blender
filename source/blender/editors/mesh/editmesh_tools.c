@@ -888,12 +888,18 @@ static int edbm_vert_connect_exec(bContext *C, wmOperator *op)
 	int len;
 
 	if (is_pair) {
-		if (!EDBM_op_init(em, &bmop, op, "connect_vert_pair verts=%hv", BM_ELEM_SELECT)) {
+		if (!EDBM_op_init(em, &bmop, op,
+		                  "connect_vert_pair verts=%hv verts_exclude=%hv faces_exclude=%hf",
+		                  BM_ELEM_SELECT, BM_ELEM_HIDDEN, BM_ELEM_HIDDEN))
+		{
 			return OPERATOR_CANCELLED;
 		}
 	}
 	else {
-		if (!EDBM_op_init(em, &bmop, op, "connect_verts verts=%hv check_degenerate=%b", BM_ELEM_SELECT, true)) {
+		if (!EDBM_op_init(em, &bmop, op,
+		                  "connect_verts verts=%hv faces_exclude=%hf check_degenerate=%b",
+		                  BM_ELEM_SELECT, BM_ELEM_HIDDEN, true))
+		{
 			return OPERATOR_CANCELLED;
 		}
 	}
@@ -1026,28 +1032,23 @@ static int edbm_duplicate_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(ob);
 	BMesh *bm = em->bm;
 	BMOperator bmop;
-	ListBase bm_selected_store = {NULL, NULL};
 
-	/* de-select all would clear otherwise */
-	SWAP(ListBase, bm->selected, bm_selected_store);
-
-	EDBM_op_init(em, &bmop, op, "duplicate geom=%hvef", BM_ELEM_SELECT);
+	EDBM_op_init(
+	        em, &bmop, op,
+	        "duplicate geom=%hvef use_select_history=%b",
+	        BM_ELEM_SELECT, true);
 
 	BMO_op_exec(bm, &bmop);
+
+	/* de-select all would clear otherwise */
+	BM_SELECT_HISTORY_BACKUP(bm);
+
 	EDBM_flag_disable_all(em, BM_ELEM_SELECT);
 
 	BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "geom.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
 
 	/* rebuild editselection */
-	bm->selected = bm_selected_store;
-
-	if (bm->selected.first) {
-		BMOpSlot *slot_vert_map_out = BMO_slot_get(bmop.slots_out, "vert_map.out");
-		BMOpSlot *slot_edge_map_out = BMO_slot_get(bmop.slots_out, "edge_map.out");
-		BMOpSlot *slot_face_map_out = BMO_slot_get(bmop.slots_out, "face_map.out");
-
-		BMO_mesh_selected_remap(bm, slot_vert_map_out, slot_edge_map_out, slot_face_map_out);
-	}
+	BM_SELECT_HISTORY_RESTORE(bm);
 
 	if (!EDBM_op_finish(em, &bmop, op, true)) {
 		return OPERATOR_CANCELLED;
@@ -1294,7 +1295,8 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 	bool mirrx = false, mirry = false, mirrz = false;
 	int i, repeat;
 	float clip_dist = 0.0f;
-	bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+	const float fac = RNA_float_get(op->ptr, "factor");
+	const bool use_topology = (me->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
 	const bool xaxis = RNA_boolean_get(op->ptr, "xaxis");
 	const bool yaxis = RNA_boolean_get(op->ptr, "yaxis");
@@ -1331,9 +1333,9 @@ static int edbm_do_smooth_vertex_exec(bContext *C, wmOperator *op)
 
 	for (i = 0; i < repeat; i++) {
 		if (!EDBM_op_callf(em, op,
-		                   "smooth_vert verts=%hv mirror_clip_x=%b mirror_clip_y=%b mirror_clip_z=%b clip_dist=%f "
-		                   "use_axis_x=%b use_axis_y=%b use_axis_z=%b",
-		                   BM_ELEM_SELECT, mirrx, mirry, mirrz, clip_dist, xaxis, yaxis, zaxis))
+		                   "smooth_vert verts=%hv factor=%f mirror_clip_x=%b mirror_clip_y=%b mirror_clip_z=%b "
+		                   "clip_dist=%f use_axis_x=%b use_axis_y=%b use_axis_z=%b",
+		                   BM_ELEM_SELECT, fac, mirrx, mirry, mirrz, clip_dist, xaxis, yaxis, zaxis))
 		{
 			return OPERATOR_CANCELLED;
 		}
@@ -1364,7 +1366,8 @@ void MESH_OT_vertices_smooth(wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_int(ot->srna, "repeat", 1, 1, 1000, "Number of times to smooth the mesh", "", 1, 100);
+	RNA_def_float(ot->srna, "factor", 0.5f, -10.0f, 10.0f, "Smoothing", "Smoothing factor", 0.0f, 1.0f);
+	RNA_def_int(ot->srna, "repeat", 1, 1, 1000, "Repeat", "Number of times to smooth the mesh", 1, 100);
 	RNA_def_boolean(ot->srna, "xaxis", 1, "X-Axis", "Smooth along the X axis");
 	RNA_def_boolean(ot->srna, "yaxis", 1, "Y-Axis", "Smooth along the Y axis");
 	RNA_def_boolean(ot->srna, "zaxis", 1, "Z-Axis", "Smooth along the Z axis");
