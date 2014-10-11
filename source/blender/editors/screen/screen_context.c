@@ -26,7 +26,7 @@
  *  \ingroup edscr
  */
 
-
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -398,10 +398,14 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		}
 	}
 	else if (CTX_data_equals(member, "gpencil_data")) {
+		/* FIXME: for some reason, CTX_data_active_object(C) returns NULL when called from these situations
+		 * (as outlined above - see Campbell's #ifdefs). That causes the get active function to fail when 
+		 * called from context. For that reason, we end up using an alternative where we pass everything in!
+		 */
 		bGPdata *gpd = ED_gpencil_data_get_active(C);
 		
 		if (gpd) {
-			CTX_data_pointer_set(result, NULL, &RNA_GreasePencil, gpd);
+			CTX_data_id_pointer_set(result, &gpd->id);
 			return 1;
 		}
 	}
