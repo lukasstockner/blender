@@ -44,7 +44,7 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void colorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
+static void colorfn(float *UNUSED(out), TexParams *p, bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
 {
 	float scale[3], new_co[3], new_dxt[3], new_dyt[3];
 	TexParams np = *p;
@@ -53,7 +53,7 @@ static void colorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **
 	np.dxt = new_dxt;
 	np.dyt = new_dyt;
 	
-	tex_input_vec(scale, in[1], p, thread);
+	tex_input_vec(scale, in[1]);
 
 	mul_v3_v3v3(new_co, p->co, scale);
 	if (p->osatex) {
@@ -61,7 +61,8 @@ static void colorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **
 		mul_v3_v3v3(new_dyt, p->dyt, scale);
 	}
 	
-	tex_input_rgba(out, in[0], &np, thread);
+	//tex_input_rgba(out, in[0], &np, thread);
+	BLI_assert(!"Need proper solution");
 }
 static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out) 
 {

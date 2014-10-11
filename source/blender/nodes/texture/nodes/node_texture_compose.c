@@ -45,11 +45,11 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void colorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
+static void colorfn(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
 {
 	int i;
 	for (i = 0; i < 4; i++)
-		out[i] = tex_input_value(in[i], p, thread);
+		out[i] = tex_input_value(in[i]);
 }
 
 static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)

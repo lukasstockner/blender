@@ -46,10 +46,10 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void valuefn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void valuefn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **in, short UNUSED(thread))
 {
-	float in0 = tex_input_value(in[0], p, thread);
-	float in1 = tex_input_value(in[1], p, thread);
+	float in0 = tex_input_value(in[0]);
+	float in1 = tex_input_value(in[1]);
 
 	switch (node->custom1) {
 

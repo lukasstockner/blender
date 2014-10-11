@@ -70,15 +70,15 @@ static void do_hue_sat_fac(bNode *UNUSED(node), float *out, float hue, float sat
 	}
 }
 
-static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void colorfn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **in, short UNUSED(thread))
 {	
-	float hue = tex_input_value(in[0], p, thread);
-	float sat = tex_input_value(in[1], p, thread);
-	float val = tex_input_value(in[2], p, thread);
-	float fac = tex_input_value(in[3], p, thread);
+	float hue = tex_input_value(in[0]);
+	float sat = tex_input_value(in[1]);
+	float val = tex_input_value(in[2]);
+	float fac = tex_input_value(in[3]);
 	
 	float col[4];
-	tex_input_rgba(col, in[4], p, thread);
+	tex_input_rgba(col, in[4]);
 	
 	hue += 0.5f; /* [-0.5, 0.5] -> [0, 1] */
 	

@@ -63,22 +63,52 @@ void tex_node_type_base(struct bNodeType *ntype, int type, const char *name, sho
 	ntype->update_internal_links = node_update_internal_links_default;
 }
 
-static void tex_input(float *out, int sz, bNodeStack *in, TexParams *params, short thread)
+/* TODO(sergey): De-duplicate with the shader nodes. */
+static void tex_input(float *in, int type_in, bNodeStack *ns)
 {
-	(void) in;
-	(void) params;
-	(void) thread;
-	memset(out, 0, sz * sizeof(float));
+	const float *from = ns->vec;
+
+	if (type_in == SOCK_FLOAT) {
+		if (ns->sockettype == SOCK_FLOAT)
+			*in = *from;
+		else
+			*in = (from[0] + from[1] + from[2]) / 3.0f;
+	}
+	else if (type_in == SOCK_VECTOR) {
+		if (ns->sockettype == SOCK_FLOAT) {
+			in[0] = from[0];
+			in[1] = from[0];
+			in[2] = from[0];
+		}
+		else {
+			copy_v3_v3(in, from);
+		}
+	}
+	else { /* type_in==SOCK_RGBA */
+		if (ns->sockettype == SOCK_RGBA) {
+			copy_v4_v4(in, from);
+		}
+		else if (ns->sockettype == SOCK_FLOAT) {
+			in[0] = from[0];
+			in[1] = from[0];
+			in[2] = from[0];
+			in[3] = 1.0f;
+		}
+		else {
+			copy_v3_v3(in, from);
+			in[3] = 1.0f;
+		}
+	}
 }
 
-void tex_input_vec(float *out, bNodeStack *in, TexParams *params, short thread)
+void tex_input_vec(float *out, bNodeStack *in)
 {
-	tex_input(out, 3, in, params, thread);
+	tex_input(out, SOCK_FLOAT, in);
 }
 
-void tex_input_rgba(float *out, bNodeStack *in, TexParams *params, short thread)
+void tex_input_rgba(float *out, bNodeStack *in)
 {
-	tex_input(out, 4, in, params, thread);
+	tex_input(out, SOCK_RGBA, in);
 	
 	if (in->hasoutput && in->sockettype == SOCK_FLOAT) {
 		out[1] = out[2] = out[0];
@@ -93,10 +123,10 @@ void tex_input_rgba(float *out, bNodeStack *in, TexParams *params, short thread)
 	}
 }
 
-float tex_input_value(bNodeStack *in, TexParams *params, short thread)
+float tex_input_value(bNodeStack *in)
 {
 	float out[4];
-	tex_input_vec(out, in, params, thread);
+	tex_input_vec(out, in);
 	return out[0];
 }
 

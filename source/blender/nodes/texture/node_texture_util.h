@@ -112,9 +112,9 @@ typedef void(*TexFn) (float *out, TexParams *params, bNode *node, bNodeStack **i
 int tex_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
 void tex_node_type_base(struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
 
-void tex_input_rgba(float *out, bNodeStack *in, TexParams *params, short thread);
-void tex_input_vec(float *out, bNodeStack *in, TexParams *params, short thread);
-float tex_input_value(bNodeStack *in, TexParams *params, short thread);
+void tex_input_rgba(float *out, bNodeStack *in);
+void tex_input_vec(float *out, bNodeStack *in);
+float tex_input_value(bNodeStack *in);
 
 void tex_output(bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack *out, TexFn texfn, TexCallData *data);
 void tex_do_preview(bNodePreview *preview, const float coord[2], const float col[4], bool do_manage);

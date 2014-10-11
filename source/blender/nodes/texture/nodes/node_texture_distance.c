@@ -46,12 +46,12 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void valuefn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
+static void valuefn(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
 {
 	float co1[3], co2[3];
 
-	tex_input_vec(co1, in[0], p, thread);
-	tex_input_vec(co2, in[1], p, thread);
+	tex_input_vec(co1, in[0]);
+	tex_input_vec(co2, in[1]);
 
 	*out = len_v3v3(co2, co1);
 }

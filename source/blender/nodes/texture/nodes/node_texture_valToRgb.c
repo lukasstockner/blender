@@ -43,10 +43,10 @@ static bNodeSocketTemplate valtorgb_out[] = {
 	{	-1, 0, ""	}
 };
 
-static void valtorgb_colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void valtorgb_colorfn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **in, short UNUSED(thread))
 {
 	if (node->storage) {
-		float fac = tex_input_value(in[0], p, thread);
+		float fac = tex_input_value(in[0]);
 
 		do_colorband(node->storage, fac, out);
 	}
@@ -87,10 +87,10 @@ static bNodeSocketTemplate rgbtobw_out[] = {
 };
 
 
-static void rgbtobw_valuefn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
+static void rgbtobw_valuefn(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
 {
 	float cin[4];
-	tex_input_rgba(cin, in[0], p, thread);
+	tex_input_rgba(cin, in[0]);
 	*out = rgb_to_bw(cin);
 }
 

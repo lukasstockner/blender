@@ -44,11 +44,11 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void colorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
+static void colorfn(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
 {
 	float col[4];
 	
-	tex_input_rgba(col, in[0], p, thread);
+	tex_input_rgba(col, in[0]);
 
 	col[0] = 1.0f - col[0];
 	col[1] = 1.0f - col[1];

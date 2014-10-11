@@ -92,10 +92,10 @@ static bNodeSocketTemplate rgb_outputs[] = {
 	{	-1, 0, ""}
 };
 
-static void rgb_colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void rgb_colorfn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **in, short UNUSED(thread))
 {
 	float cin[4];
-	tex_input_rgba(cin, in[0], p, thread);
+	tex_input_rgba(cin, in[0]);
 	
 	curvemapping_evaluateRGBF(node->storage, out, cin);
 	out[3] = cin[3];

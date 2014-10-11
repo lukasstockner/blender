@@ -45,13 +45,13 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void colorfn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **in, short UNUSED(thread))
 {
-	float fac  = tex_input_value(in[0], p, thread);
+	float fac  = tex_input_value(in[0]);
 	float col1[4], col2[4];
 	
-	tex_input_rgba(col1, in[1], p, thread);
-	tex_input_rgba(col2, in[2], p, thread);
+	tex_input_rgba(col1, in[1]);
+	tex_input_rgba(col2, in[2]);
 
 	/* use alpha */
 	if (node->custom2 & 1)

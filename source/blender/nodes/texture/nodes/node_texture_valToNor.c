@@ -46,6 +46,7 @@ static bNodeSocketTemplate outputs[] = {
 
 static void normalfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
 {
+#if 0
 	float new_co[3];
 	const float *co = p->co;
 
@@ -74,6 +75,13 @@ static void normalfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack *
 	out[0] = val - nor[0];
 	out[1] = val - nor[1];
 	out[2] = val - nor[2];
+#else
+	(void) out;
+	(void) p;
+	(void) in;
+	(void) thread;
+	BLI_assert(!"Need a proper port");
+#endif
 }
 static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out) 
 {

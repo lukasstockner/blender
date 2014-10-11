@@ -51,25 +51,22 @@ static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *exe
 		params_from_cdata(&params, cdata);
 
 		if (in[1] && in[1]->hasinput && !in[0]->hasinput)
-			tex_input_rgba(&target->tr, in[1], &params, cdata->thread);
+			tex_input_rgba(&target->tr, in[1]);
 		else
-			tex_input_rgba(&target->tr, in[0], &params, cdata->thread);
+			tex_input_rgba(&target->tr, in[0]);
 		tex_do_preview(execdata->preview, params.co, &target->tr, cdata->do_manage);
 	}
 	else {
 		/* 0 means don't care, so just use first */
 		if (cdata->which_output == node->custom1 || (cdata->which_output == 0 && node->custom1 == 1)) {
-			TexParams params;
-			params_from_cdata(&params, cdata);
-			
-			tex_input_rgba(&target->tr, in[0], &params, cdata->thread);
+			tex_input_rgba(&target->tr, in[0]);
 		
 			target->tin = (target->tr + target->tg + target->tb) / 3.0f;
 			target->talpha = true;
 		
 			if (target->nor) {
 				if (in[1] && in[1]->hasinput)
-					tex_input_vec(target->nor, in[1], &params, cdata->thread);
+					tex_input_vec(target->nor, in[1]);
 				else
 					target->nor = NULL;
 			}

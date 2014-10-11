@@ -293,8 +293,6 @@ int ntreeTexExecTree(
 	                                   &ntree->id);
 	BLI_assert(exec != NULL);
 
-	return 0;
-
 	data.co = co;
 	data.dxt = dxt;
 	data.dyt = dyt;

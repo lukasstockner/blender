@@ -69,12 +69,12 @@ static void rotate(float new_co[3], float a, float ax[3], const float co[3])
 	new_co[2] = para[2] + perp[2] + cp[2];
 }
 
-static void colorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **in, short thread)
+static void colorfn(float *UNUSED(out), TexParams *p, bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
 {
 	float new_co[3], new_dxt[3], new_dyt[3], a, ax[3];
 	
-	a = tex_input_value(in[1], p, thread);
-	tex_input_vec(ax, in[2], p, thread);
+	a = tex_input_value(in[1]);
+	tex_input_vec(ax, in[2]);
 
 	rotate(new_co, a, ax, p->co);
 	if (p->osatex) {
@@ -87,7 +87,8 @@ static void colorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **
 		np.co = new_co;
 		np.dxt = new_dxt;
 		np.dyt = new_dyt;
-		tex_input_rgba(out, in[0], &np, thread);
+		//tex_input_rgba(out, in[0], &np, thread);
+		BLI_assert(!"Needs proper solution");
 	}
 }
 static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out) 

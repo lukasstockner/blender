@@ -49,8 +49,12 @@ static void colorfn(float *out, TexParams *p, bNode *UNUSED(node), bNodeStack **
 	float new_co[3];
 	np.co = new_co;
 	
-	tex_input_vec(new_co, in[1], p, thread);
-	tex_input_rgba(out, in[0], &np, thread);
+	(void) out;
+	(void) in;
+	(void) thread;
+	tex_input_vec(new_co, in[1]);
+	//tex_input_rgba(out, in[0], &np, thread);
+	BLI_assert(!"Needs proper solution");
 }
 
 static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
