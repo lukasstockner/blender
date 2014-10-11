@@ -209,8 +209,10 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 
 		pool = BKE_image_pool_new();
 
-		if (mtex->tex && mtex->tex->nodetree)
-			ntreeTexBeginExecTree(mtex->tex->nodetree);  /* has internal flag to detect it only does it once */
+		if (mtex->tex && mtex->tex->nodetree) {
+			BLI_assert(!"Port over to the new system");
+			//ntreeTexBeginExecTree(mtex->tex->nodetree);  /* has internal flag to detect it only does it once */
+		}
 
 #pragma omp parallel for schedule(static)
 		for (j = 0; j < size; j++) {

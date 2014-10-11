@@ -4136,8 +4136,10 @@ static void sculpt_brush_init_tex(const Scene *scene, Sculpt *sd, SculptSession 
 	MTex *mtex = &brush->mtex;
 
 	/* init mtex nodes */
-	if (mtex->tex && mtex->tex->nodetree)
-		ntreeTexBeginExecTree(mtex->tex->nodetree);  /* has internal flag to detect it only does it once */
+	if (mtex->tex && mtex->tex->nodetree) {
+		//ntreeTexBeginExecTree(mtex->tex->nodetree);  /* has internal flag to detect it only does it once */
+		BLI_assert(!"Port over to the new system");
+	}
 
 	/* TODO: Shouldn't really have to do this at the start of every
 	 * stroke, but sculpt would need some sort of notification when

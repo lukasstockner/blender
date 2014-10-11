@@ -699,12 +699,16 @@ void paint_brush_init_tex(Brush *brush)
 {
 	/* init mtex nodes */
 	if (brush) {
+#if 0
 		MTex *mtex = &brush->mtex;
 		if (mtex->tex && mtex->tex->nodetree)
 			ntreeTexBeginExecTree(mtex->tex->nodetree);  /* has internal flag to detect it only does it once */
 		mtex = &brush->mask_mtex;
 		if (mtex->tex && mtex->tex->nodetree)
 			ntreeTexBeginExecTree(mtex->tex->nodetree);
+#else
+		BLI_assert(!"Port over to the new system");
+#endif
 	}
 }
 

@@ -125,7 +125,16 @@ static void init_render_texture(Render *re, Tex *tex)
 	}
 	
 	if (tex->nodetree && tex->use_nodes) {
-		ntreeTexBeginExecTree(tex->nodetree); /* has internal flag to detect it only does it once */
+		struct bNodeTreeExec *exec_data;
+		BLI_assert(re != NULL);
+		exec_data = BKE_node_tree_exec_pool_get(re->tree_exec_pool,
+		                                        &tex->nodetree->id);
+		if (exec_data == NULL) {
+			exec_data = ntreeTexBeginExecTree(tex->nodetree); /* has internal flag to detect it only does it once */
+			BKE_node_tree_exec_pool_put(re->tree_exec_pool,
+			                            &tex->nodetree->id,
+			                            exec_data);
+		}
 	}
 }
 
@@ -142,11 +151,15 @@ void init_render_textures(Render *re)
 	}
 }
 
-static void end_render_texture(Tex *tex)
+static void end_render_texture(Render *re, Tex *tex)
 {
 	if (tex && tex->use_nodes && tex->nodetree) {
-		/* ntreeTexEndExecTree(tex->nodetree->execdata); */
-		BLI_assert(!"Need to port thing over");
+		struct bNodeTreeExec *exec_data =
+		        BKE_node_tree_exec_pool_pop(re->tree_exec_pool,
+		                                    &tex->nodetree->id);
+		if (exec_data != NULL) {
+			ntreeTexEndExecTree(exec_data);
+		}
 	}
 }
 
@@ -155,7 +168,7 @@ void end_render_textures(Render *re)
 	Tex *tex;
 	for (tex= re->main->tex.first; tex; tex= tex->id.next)
 		if (tex->id.us)
-			end_render_texture(tex);
+			end_render_texture(re, tex);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1116,7 +1129,7 @@ static int multitex(Tex *tex, float texvec[3], float dxt[3], float dyt[3], int o
 	texres->talpha = false;  /* is set when image texture returns alpha (considered premul) */
 	
 	if (tex->use_nodes && tex->nodetree) {
-		retval = ntreeTexExecTree(tex->nodetree, texres, texvec, dxt, dyt, osatex, thread,
+		retval = ntreeTexExecTree(R.tree_exec_pool, tex->nodetree, texres, texvec, dxt, dyt, osatex, thread,
 		                          tex, which_output, R.r.cfra, (R.r.scemode & R_TEXNODE_PREVIEW) != 0, NULL, NULL);
 	}
 	else {
@@ -1312,7 +1325,7 @@ static int multitex_mtex(ShadeInput *shi, MTex *mtex, float texvec[3], float dxt
 	if (tex->use_nodes && tex->nodetree) {
 		/* stupid exception here .. but we have to pass shi and mtex to
 		 * textures nodes for 2d mapping and color management for images */
-		return ntreeTexExecTree(tex->nodetree, texres, texvec, dxt, dyt, shi->osatex, shi->thread,
+		return ntreeTexExecTree(R.tree_exec_pool, tex->nodetree, texres, texvec, dxt, dyt, shi->osatex, shi->thread,
 		                        tex, mtex->which_output, R.r.cfra, (R.r.scemode & R_TEXNODE_PREVIEW) != 0, shi, mtex);
 	}
 	else {

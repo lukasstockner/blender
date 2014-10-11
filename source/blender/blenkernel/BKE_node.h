@@ -1000,9 +1000,10 @@ struct TexResult;
 int  ntreeTexTagAnimated(struct bNodeTree *ntree);
 void ntreeTexCheckCyclics(struct bNodeTree *ntree);
 
-struct bNodeTreeExec *ntreeTexBeginExecTree(struct bNodeTree *ntree);
+struct bNodeTreeExec *ntreeTexBeginExecTree(struct bNodeTree *ntree) ATTR_WARN_UNUSED_RESULT;
 void ntreeTexEndExecTree(struct bNodeTreeExec *exec);
-int ntreeTexExecTree(struct bNodeTree *ntree, struct TexResult *target,
+int ntreeTexExecTree(bNodeTreeExecPool *pool,
+                     struct bNodeTree *ntree, struct TexResult *target,
                      float coord[3], float dxt[3], float dyt[3], int osatex, const short thread,
                      struct Tex *tex, short which_output, int cfra, int preview, struct ShadeInput *shi, struct MTex *mtex);
 

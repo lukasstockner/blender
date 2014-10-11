@@ -269,7 +269,8 @@ void ntreeTexEndExecTree(bNodeTreeExec *exec)
 }
 
 int ntreeTexExecTree(
-        bNodeTree *UNUSED(nodes),
+        bNodeTreeExecPool *exec_tree_pool,
+        bNodeTree *ntree,
         TexResult *texres,
         float co[3],
         float dxt[3], float dyt[3],
@@ -286,7 +287,11 @@ int ntreeTexExecTree(
 	float *nor = texres->nor;
 	int retval = TEX_INT;
 	bNodeThreadStack *nts = NULL;
-	bNodeTreeExec *exec = NULL;
+	bNodeTreeExec *exec;
+
+	exec = BKE_node_tree_exec_pool_get(exec_tree_pool,
+	                                   &ntree->id);
+	BLI_assert(exec != NULL);
 
 	return 0;
 
