@@ -19,6 +19,10 @@
 # <pep8 compliant>
 
 
+import bpy
+from bpy.types import Menu
+
+
 class GreasePencilPanel():
     # subclass must set
     # bl_space_type = 'IMAGE_EDITOR'
@@ -73,3 +77,49 @@ class GreasePencilPanel():
 
             col.label(text="Measure:")
             col.operator("view3d.ruler")
+
+
+###############################
+
+
+class GPENCIL_PIE_tool_palette(Menu):
+    """A pie menu for quick access to Grease Pencil tools"""
+    bl_label = "Grease Pencil Tools"
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+
+        # W - Drawing Settings
+        col = pie.column()
+        col.operator("gpencil.draw", text="Draw", icon='GREASEPENCIL').mode = 'DRAW'
+        col.operator("gpencil.draw", text="Straight Lines", icon='LINE_DATA').mode = 'DRAW_STRAIGHT'
+        col.operator("gpencil.draw", text="Poly", icon='MESH_DATA').mode = 'DRAW_POLY'
+
+        # E - Eraser
+        # XXX: needs a dedicated icon...
+        pie.operator("gpencil.draw", text="Eraser", icon='FORCE_CURVE').mode = 'ERASER'
+
+        # Editing tools
+        if context.editable_gpencil_strokes:
+            # S - Select
+            col = pie.column()
+            col.operator("gpencil.select_all", text="Select All", icon='PARTICLE_POINT')
+            col.operator("gpencil.select_circle", text="Circle Select", icon='META_EMPTY')
+            #col.operator("gpencil.select", text="Stroke Under Mouse").entire_strokes = True
+
+            # N - Move
+            pie.operator("transform.translate", icon='MAN_TRANS').gpencil_strokes = True
+
+            # NW - Rotate
+            pie.operator("transform.rotate", icon='MAN_ROT').gpencil_strokes = True
+
+            # NE - Scale
+            pie.operator("transform.resize", text="Scale", icon='MAN_SCALE').gpencil_strokes = True
+
+            # SW - Copy
+            pie.operator("gpencil.strokes_duplicate", text="Copy...", icon='PARTICLE_PATH')
+
+            # SE - Mirror?  (Best would be to do Settings here...)
+            pie.operator("transform.mirror", text="Mirror", icon='MOD_MIRROR').gpencil_strokes = True

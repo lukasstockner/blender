@@ -108,6 +108,11 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_mirror", MKEY, KM_PRESS, 0, DKEY);
 	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
+	
+	
+	/* Pie Menu */
+	/* XXX: This is currently still experimental! */
+	WM_keymap_add_menu_pie(keymap, "GPENCIL_PIE_tool_palette", DKEY, KM_DBL_CLICK, 0, 0);
 }
 
 /* ****************************************** */
