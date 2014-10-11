@@ -102,18 +102,18 @@ static int gpencil_select_all_exec(bContext *C, wmOperator *op)
 	if (action == SEL_TOGGLE) {
 		action = SEL_SELECT;
 		
-		GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
+		CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
 		{
 			if (gps->flag & GP_STROKE_SELECT) {
 				action = SEL_DESELECT;
 				break; // XXX: this only gets out of the inner loop...
 			}
 		}
-		GP_STROKES_ITER_END;
+		CTX_DATA_END;
 	}
 	
 	/* select or deselect all strokes */
-	GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
 	{
 		bGPDspoint *pt;
 		int i;
@@ -143,7 +143,7 @@ static int gpencil_select_all_exec(bContext *C, wmOperator *op)
 		else
 			gps->flag &= ~GP_STROKE_SELECT;
 	}
-	GP_STROKES_ITER_END;
+	CTX_DATA_END;
 	
 	/* updates */
 	WM_event_add_notifier(C, NC_GPENCIL | NA_SELECTED, NULL);
@@ -313,12 +313,12 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	
 	
 	/* find visible strokes, and select if hit */
-	GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
 	{
 		changed |= gp_stroke_do_circle_sel(gps, ar, &ar->v2d, subrect, 
 										   mx, my, radius, select, &rect);
 	}
-	GP_STROKES_ITER_END;
+	CTX_DATA_END;
 	
 	/* updates */
 	if (changed) {
@@ -418,7 +418,7 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 	
 	/* First Pass: Find stroke point which gets hit */
 	/* XXX: maybe we should go from the top of the stack down instead... */
-	GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
 	{
 		bGPDspoint *pt;
 		int i;
@@ -445,7 +445,7 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 		if (hit_index == -1) 
 			continue;
 	}
-	GP_STROKES_ITER_END;
+	CTX_DATA_END;
 	
 	/* Abort if nothing hit... */
 	if (ELEM(NULL, hit_stroke, hit_point)) {
@@ -459,7 +459,7 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 	
 	/* If not extending selection, deselect everything else */
 	if (extend == false) {
-		GP_VISIBLE_STROKES_ITER_BEGIN(gpd, gps)
+		CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
 		{			
 			/* deselect stroke and its points if selected */
 			if (gps->flag & GP_STROKE_SELECT) {
@@ -475,7 +475,7 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 				gps->flag &= ~GP_STROKE_SELECT;
 			}
 		}
-		GP_STROKES_ITER_END;
+		CTX_DATA_END;
 	}
 	
 	/* Perform selection operations... */
