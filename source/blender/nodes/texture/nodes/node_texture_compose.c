@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -30,7 +30,7 @@
  */
 
 
-#include "node_texture_util.h"      
+#include "node_texture_util.h"
 #include "NOD_texture.h"
 
 static bNodeSocketTemplate inputs[] = {
@@ -45,25 +45,26 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void colorfn(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
+static void exec(void *UNUSED(data),
+                 int UNUSED(thread),
+                 bNode *UNUSED(node),
+                 bNodeExecData *UNUSED(execdata),
+                 bNodeStack **in,
+                 bNodeStack **out)
 {
 	int i;
-	for (i = 0; i < 4; i++)
-		out[i] = tex_input_value(in[i]);
-}
-
-static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &colorfn, data);
+	for (i = 0; i < 4; i++) {
+		out[0]->vec[i] = tex_input_value(in[i]);
+	}
 }
 
 void register_node_type_tex_compose(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_COMPOSE, "Combine RGBA", NODE_CLASS_OP_COLOR, 0);
 	node_type_socket_templates(&ntype, inputs, outputs);
 	node_type_exec(&ntype, NULL, NULL, exec);
-	
+
 	nodeRegisterType(&ntype);
 }

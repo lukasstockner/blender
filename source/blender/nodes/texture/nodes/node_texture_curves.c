@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -92,18 +92,17 @@ static bNodeSocketTemplate rgb_outputs[] = {
 	{	-1, 0, ""}
 };
 
-static void rgb_colorfn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **in, short UNUSED(thread))
+static void rgb_exec(void *UNUSED(data),
+                     int UNUSED(thread),
+                     bNode *node,
+                     bNodeExecData *UNUSED(execdata),
+                     bNodeStack **in,
+                     bNodeStack **out)
 {
 	float cin[4];
 	tex_input_rgba(cin, in[0]);
-	
-	curvemapping_evaluateRGBF(node->storage, out, cin);
-	out[3] = cin[3];
-}
-
-static void rgb_exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &rgb_colorfn, data);
+	curvemapping_evaluateRGBF(node->storage, out[0]->vec, cin);
+	out[0]->vec[3] = cin[3];
 }
 
 static void rgb_init(bNodeTree *UNUSED(ntree), bNode *node)
@@ -114,13 +113,13 @@ static void rgb_init(bNodeTree *UNUSED(ntree), bNode *node)
 void register_node_type_tex_curve_rgb(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_CURVE_RGB, "RGB Curves", NODE_CLASS_OP_COLOR, 0);
 	node_type_socket_templates(&ntype, rgb_inputs, rgb_outputs);
 	node_type_size_preset(&ntype, NODE_SIZE_LARGE);
 	node_type_init(&ntype, rgb_init);
 	node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
 	node_type_exec(&ntype, node_initexec_curves, NULL, rgb_exec);
-	
+
 	nodeRegisterType(&ntype);
 }

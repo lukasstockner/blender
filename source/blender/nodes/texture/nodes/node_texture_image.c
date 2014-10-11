@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -46,14 +46,12 @@ static void exec(void *data,
                  bNodeStack **out)
 {
 	TexCallData *cdata = (TexCallData *)data;
-	TexParams p;
 	float x, y;
 	Image *ima = (Image *)node->id;
 	ImageUser *iuser = (ImageUser *)node->storage;
 
-	params_from_cdata(&p, cdata);
-	x = p.co[0];
-	y = p.co[1];
+	x = cdata->co[0];
+	y = cdata->co[1];
 
 	if (ima) {
 		ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, NULL);
@@ -92,7 +90,7 @@ static void exec(void *data,
 		}
 	}
 
-	tex_do_preview(execdata->preview, p.co, out[0]->vec, cdata->do_manage);
+	tex_do_preview(execdata->preview, cdata->co, out[0]->vec, cdata->do_manage);
 }
 
 static void init(bNodeTree *UNUSED(ntree), bNode *node)
@@ -107,12 +105,12 @@ static void init(bNodeTree *UNUSED(ntree), bNode *node)
 void register_node_type_tex_image(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_IMAGE, "Image", NODE_CLASS_INPUT, NODE_PREVIEW);
 	node_type_socket_templates(&ntype, NULL, outputs);
 	node_type_init(&ntype, init);
 	node_type_storage(&ntype, "ImageUser", node_free_standard_storage, node_copy_standard_storage);
 	node_type_exec(&ntype, NULL, NULL, exec);
-	
+
 	nodeRegisterType(&ntype);
 }

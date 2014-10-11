@@ -47,12 +47,9 @@ static void exec(void *data, int UNUSED(thread), bNode *UNUSED(node), bNodeExecD
 	TexCallData *cdata = (TexCallData *)data;
 
 	if (cdata->do_preview) {
-		TexParams params;
 		float col[4];
-		params_from_cdata(&params, cdata);
-
 		tex_input_rgba(col, in[0]);
-		tex_do_preview(execdata->preview, params.previewco, col, cdata->do_manage);
+		tex_do_preview(execdata->preview, cdata->co, col, cdata->do_manage);
 	}
 }
 

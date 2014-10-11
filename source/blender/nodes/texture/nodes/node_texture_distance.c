@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -46,29 +46,31 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void valuefn(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
+static void exec(void *UNUSED(data),
+                 int UNUSED(thread),
+                 bNode *UNUSED(node),
+                 bNodeExecData *UNUSED(execdata),
+                 bNodeStack **in,
+                 bNodeStack **out)
 {
 	float co1[3], co2[3];
-
 	tex_input_vec(co1, in[0]);
 	tex_input_vec(co2, in[1]);
-
-	*out = len_v3v3(co2, co1);
-}
-
-static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &valuefn, data);
+	zero_v4(out[0]->vec);
+	/* TODO(sergey): This appears to be darker than 2.72 somehow.
+	 * Could be because testing with OCIO disabled tho.
+	 */
+	out[0]->vec[0] = len_v3v3(co2, co1);
 }
 
 void register_node_type_tex_distance(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_DISTANCE, "Distance", NODE_CLASS_CONVERTOR, 0);
 	node_type_socket_templates(&ntype, inputs, outputs);
 	node_type_storage(&ntype, "", NULL, NULL);
 	node_type_exec(&ntype, NULL, NULL, exec);
-	
+
 	nodeRegisterType(&ntype);
 }

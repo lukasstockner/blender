@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -70,36 +70,35 @@ static void do_hue_sat_fac(bNode *UNUSED(node), float *out, float hue, float sat
 	}
 }
 
-static void colorfn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **in, short UNUSED(thread))
-{	
+static void exec(void *UNUSED(data),
+                 int UNUSED(thread),
+                 bNode *node,
+                 bNodeExecData *UNUSED(execdata),
+                 bNodeStack **in,
+                 bNodeStack **out)
+{
 	float hue = tex_input_value(in[0]);
 	float sat = tex_input_value(in[1]);
 	float val = tex_input_value(in[2]);
 	float fac = tex_input_value(in[3]);
-	
+
 	float col[4];
 	tex_input_rgba(col, in[4]);
-	
-	hue += 0.5f; /* [-0.5, 0.5] -> [0, 1] */
-	
-	do_hue_sat_fac(node, out, hue, sat, val, col, fac);
-	
-	out[3] = col[3];
-}
 
-static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &colorfn, data);
+	hue += 0.5f; /* [-0.5, 0.5] -> [0, 1] */
+
+	do_hue_sat_fac(node, out[0]->vec, hue, sat, val, col, fac);
+	out[0]->vec[3] = col[3];
 }
 
 void register_node_type_tex_hue_sat(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_HUE_SAT, "Hue Saturation Value", NODE_CLASS_OP_COLOR, 0);
 	node_type_socket_templates(&ntype, inputs, outputs);
 	node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
 	node_type_exec(&ntype, NULL, NULL, exec);
-	
+
 	nodeRegisterType(&ntype);
 }

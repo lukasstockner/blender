@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -44,23 +44,22 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void colorfn(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
+static void exec(void *UNUSED(data),
+                 int UNUSED(thread),
+                 bNode *UNUSED(node),
+                 bNodeExecData *UNUSED(execdata),
+                 bNodeStack **in,
+                 bNodeStack **out)
 {
 	float col[4];
-	
+
 	tex_input_rgba(col, in[0]);
 
 	col[0] = 1.0f - col[0];
 	col[1] = 1.0f - col[1];
 	col[2] = 1.0f - col[2];
-	
-	copy_v3_v3(out, col);
-	out[3] = col[3];
-}
 
-static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &colorfn, data);
+	copy_v4_v4(out[0]->vec, col);
 }
 
 void register_node_type_tex_invert(void)

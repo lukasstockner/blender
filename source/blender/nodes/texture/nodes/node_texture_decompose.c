@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -30,7 +30,7 @@
  */
 
 
-#include "node_texture_util.h"        
+#include "node_texture_util.h"
 #include "NOD_texture.h"
 #include <math.h>
 
@@ -46,45 +46,28 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void valuefn_r(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
+static void exec(void *UNUSED(data),
+                 int UNUSED(thread),
+                 bNode *UNUSED(node),
+                 bNodeExecData *UNUSED(execdata),
+                 bNodeStack **in,
+                 bNodeStack **out)
 {
-	tex_input_rgba(out, in[0]);
-	*out = out[0];
-}
-
-static void valuefn_g(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
-{
-	tex_input_rgba(out, in[0]);
-	*out = out[1];
-}
-
-static void valuefn_b(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
-{
-	tex_input_rgba(out, in[0]);
-	*out = out[2];
-}
-
-static void valuefn_a(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
-{
-	tex_input_rgba(out, in[0]);
-	*out = out[3];
-}
-
-static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &valuefn_r, data);
-	tex_output(node, execdata, in, out[1], &valuefn_g, data);
-	tex_output(node, execdata, in, out[2], &valuefn_b, data);
-	tex_output(node, execdata, in, out[3], &valuefn_a, data);
+	float color[4];
+	tex_input_rgba(color, in[0]);
+	out[0]->vec[0] = color[0];
+	out[1]->vec[0] = color[1];
+	out[2]->vec[0] = color[2];
+	out[3]->vec[0] = color[3];
 }
 
 void register_node_type_tex_decompose(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_DECOMPOSE, "Separate RGBA", NODE_CLASS_OP_COLOR, 0);
 	node_type_socket_templates(&ntype, inputs, outputs);
 	node_type_exec(&ntype, NULL, NULL, exec);
-	
+
 	nodeRegisterType(&ntype);
 }

@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -53,15 +53,12 @@ static void exec(void *data,
                  bNodeStack **out)
 {
 	TexCallData *cdata = (TexCallData *)data;
-	TexParams p;
 	float x, y, z, sz;
 	int xi, yi, zi;
 
-	params_from_cdata(&p, cdata);
-
-	x  = p.co[0];
-	y  = p.co[1];
-	z  = p.co[2];
+	x  = cdata->co[0];
+	y  = cdata->co[1];
+	z  = cdata->co[2];
 	sz = tex_input_value(in[2]);
 
 	/* 0.00001  because of unit sized stuff */
@@ -76,16 +73,16 @@ static void exec(void *data,
 		tex_input_rgba(out[0]->vec, in[1]);
 	}
 
-	tex_do_preview(execdata->preview, p.co, out[0]->vec, cdata->do_manage);
+	tex_do_preview(execdata->preview, cdata->co, out[0]->vec, cdata->do_manage);
 }
 
 void register_node_type_tex_checker(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_CHECKER, "Checker", NODE_CLASS_PATTERN, NODE_PREVIEW);
 	node_type_socket_templates(&ntype, inputs, outputs);
 	node_type_exec(&ntype, NULL, NULL, exec);
-	
+
 	nodeRegisterType(&ntype);
 }
