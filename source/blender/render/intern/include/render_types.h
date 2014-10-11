@@ -66,6 +66,7 @@ struct RenderEngine;
 struct ReportList;
 struct Main;
 struct ImagePool;
+struct bNodeTreeExecPool;
 
 #define TABLEINITSIZE 1024
 
@@ -275,6 +276,7 @@ struct Render
 
 	struct ImagePool *pool;
 	struct EvaluationContext *eval_ctx;
+	struct bNodeTreeExecPool *tree_exec_pool;
 };
 
 /* ------------------------------------------------------------------------- */

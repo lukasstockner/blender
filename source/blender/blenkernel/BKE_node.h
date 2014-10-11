@@ -84,6 +84,7 @@ struct ColorManagedViewSettings;
 struct ColorManagedDisplaySettings;
 struct bNodeInstanceHash;
 
+typedef struct bNodeTreeExecPool bNodeTreeExecPool;
 
 /* ************** NODE TYPE DEFINITIONS ***** */
 
@@ -773,7 +774,7 @@ struct ShadeResult;
 
 struct bNodeTreeExec *ntreeShaderBeginExecTree(struct bNodeTree *ntree);
 void            ntreeShaderEndExecTree(struct bNodeTreeExec *exec);
-bool            ntreeShaderExecTree(struct bNodeTree *ntree, struct ShadeInput *shi, struct ShadeResult *shr);
+bool            ntreeShaderExecTree(bNodeTreeExecPool *exec_tree_pool, struct bNodeTree *ntree, struct ShadeInput *shi, struct ShadeResult *shr);
 void            ntreeShaderGetTexcoMode(struct bNodeTree *ntree, int osa, short *texco, int *mode);
 
 /* switch material render loop */
@@ -1005,6 +1006,16 @@ int ntreeTexExecTree(struct bNodeTree *ntree, struct TexResult *target,
                      float coord[3], float dxt[3], float dyt[3], int osatex, const short thread,
                      struct Tex *tex, short which_output, int cfra, int preview, struct ShadeInput *shi, struct MTex *mtex);
 
+
+bNodeTreeExecPool *BKE_node_tree_exec_pool_new(void);
+void BKE_node_tree_exec_pool_free(bNodeTreeExecPool *pool);
+void BKE_node_tree_exec_pool_put(bNodeTreeExecPool *pool,
+                                 struct ID *id,
+                                 void *data);
+void *BKE_node_tree_exec_pool_get(bNodeTreeExecPool *pool,
+                                  struct ID *id);
+void *BKE_node_tree_exec_pool_pop(bNodeTreeExecPool *pool,
+                                  struct ID *id);
 
 /*************************************************/
 

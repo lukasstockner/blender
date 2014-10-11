@@ -279,7 +279,10 @@ void ntreeShaderEndExecTree(bNodeTreeExec *exec)
 }
 
 /* only for Blender internal */
-bool ntreeShaderExecTree(bNodeTree *UNUSED(ntree), ShadeInput *shi, ShadeResult *shr)
+bool ntreeShaderExecTree(bNodeTreeExecPool *exec_tree_pool,
+                         bNodeTree *ntree,
+                         ShadeInput *shi,
+                         ShadeResult *shr)
 {
 	ShaderCallData scd;
 	/**
@@ -291,8 +294,9 @@ bool ntreeShaderExecTree(bNodeTree *UNUSED(ntree), ShadeInput *shi, ShadeResult 
 	bNodeTreeExec *exec = NULL;
 	int compat;
 
-	BLI_assert(!"Port the damn thing over");
-	return false;
+	exec = BKE_node_tree_exec_pool_get(exec_tree_pool,
+	                                   &ntree->id);
+	BLI_assert(exec != NULL);
 
 	/* convert caller data to struct */
 	scd.shi = shi;

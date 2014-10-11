@@ -178,7 +178,7 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int UNUSED(qua
 			shade_samples_do_AO(ssamp);
 		
 		if (shi->mat->nodetree && shi->mat->use_nodes) {
-			ntreeShaderExecTree(shi->mat->nodetree, shi, &shr);
+			ntreeShaderExecTree(R.tree_exec_pool, shi->mat->nodetree, shi, &shr);
 			shi->mat = vlr->mat;  /* shi->mat is being set in nodetree */
 		}
 		else

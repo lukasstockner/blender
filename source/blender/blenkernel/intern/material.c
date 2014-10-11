@@ -1058,12 +1058,15 @@ static void init_render_nodetree(bNodeTree *ntree, Material *basemat, int r_mode
 	}
 }
 
-void init_render_material(Material *mat, int r_mode, float *amb)
+void init_render_material(Material *mat,
+                          bNodeTreeExecPool *exec_tree_pool,
+                          int r_mode, float *amb)
 {
 	
 	do_init_render_material(mat, r_mode, amb);
-	
+
 	if (mat->nodetree && mat->use_nodes) {
+		struct bNodeTreeExec *exec_data;
 		/* mode_l will take the pipeline options from the main material, and the or-ed
 		 * result of non-pipeline options from the nodes. shadeless is an exception,
 		 * mode_l will have it set when all node materials are shadeless. */
@@ -1075,11 +1078,14 @@ void init_render_material(Material *mat, int r_mode, float *amb)
 
 		init_render_nodetree(mat->nodetree, mat, r_mode, amb);
 
-		/*
-		if (!mat->nodetree->execdata)
-			mat->nodetree->execdata = ntreeShaderBeginExecTree(mat->nodetree);
-		*/
-		BLI_assert(!"Need to port this thing");
+		exec_data = BKE_node_tree_exec_pool_get(exec_tree_pool,
+		                                        &mat->nodetree->id);
+		if (exec_data == NULL) {
+			exec_data = ntreeShaderBeginExecTree(mat->nodetree);
+			BKE_node_tree_exec_pool_put(exec_tree_pool,
+			                            &mat->nodetree->id,
+			                            exec_data);
+		}
 	}
 	else {
 		mat->mode_l = mat->mode;
@@ -1090,7 +1096,9 @@ void init_render_material(Material *mat, int r_mode, float *amb)
 	}
 }
 
-void init_render_materials(Main *bmain, int r_mode, float *amb)
+void init_render_materials(Main *bmain,
+                           bNodeTreeExecPool *exec_tree_pool,
+                           int r_mode, float *amb)
 {
 	Material *ma;
 	
@@ -1109,27 +1117,32 @@ void init_render_materials(Main *bmain, int r_mode, float *amb)
 		/* is_used flag comes back in convertblender.c */
 		ma->flag &= ~MA_IS_USED;
 		if (ma->id.us) 
-			init_render_material(ma, r_mode, amb);
+			init_render_material(ma, exec_tree_pool, r_mode, amb);
 	}
 	
-	init_render_material(&defmaterial, r_mode, amb);
+	init_render_material(&defmaterial, exec_tree_pool, r_mode, amb);
 }
 
 /* only needed for nodes now */
-void end_render_material(Material *mat)
+void end_render_material(bNodeTreeExecPool *exec_tree_pool,
+                         Material *mat)
 {
 	if (mat && mat->nodetree && mat->use_nodes) {
-		/* ntreeShaderEndExecTree(mat->nodetree->execdata); */
-		BLI_assert(!"Port to the copper!");
+		struct bNodeTreeExec *exec_data;
+		exec_data = BKE_node_tree_exec_pool_pop(exec_tree_pool,
+		                                        &mat->nodetree->id);
+		if (exec_data != NULL) {
+			ntreeShaderEndExecTree(exec_data);
+		}
 	}
 }
 
-void end_render_materials(Main *bmain)
+void end_render_materials(Main *bmain, bNodeTreeExecPool *exec_tree_pool)
 {
 	Material *ma;
 	for (ma = bmain->mat.first; ma; ma = ma->id.next)
 		if (ma->id.us) 
-			end_render_material(ma);
+			end_render_material(exec_tree_pool, ma);
 }
 
 static bool material_in_nodetree(bNodeTree *ntree, Material *mat)

@@ -4743,7 +4743,7 @@ void RE_Database_Free(Render *re)
 	free_mesh_orco_hash(re);
 
 	if (re->main) {
-		end_render_materials(re->main);
+		end_render_materials(re->main, re->tree_exec_pool);
 		end_render_textures(re);
 		free_pointdensities(re);
 	}
@@ -5112,6 +5112,7 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 {
 	Scene *sce;
 	Object *camera;
+	bNodeTreeExecPool *tree_exec_pool;
 	float mat[4][4];
 	float amb[3];
 
@@ -5178,9 +5179,10 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 	}
 	
 	/* still bad... doing all */
+	tree_exec_pool = RE_tree_exec_pool_get(re);
 	init_render_textures(re);
 	copy_v3_v3(amb, &re->wrld.ambr);
-	init_render_materials(re->main, re->r.mode, amb);
+	init_render_materials(re->main, tree_exec_pool, re->r.mode, amb);
 	set_node_shader_lamp_loop(shade_material_loop);
 
 	/* MAKE RENDER DATA */
@@ -5831,6 +5833,7 @@ void RE_Database_FromScene_Vectors(Render *re, Main *bmain, Scene *sce, unsigned
 void RE_Database_Baking(Render *re, Main *bmain, Scene *scene, unsigned int lay, const int type, Object *actob)
 {
 	Object *camera;
+	bNodeTreeExecPool *tree_exec_pool;
 	float mat[4][4];
 	float amb[3];
 	const short onlyselected= !ELEM(type, RE_BAKE_LIGHT, RE_BAKE_ALL, RE_BAKE_SHADOW, RE_BAKE_AO, RE_BAKE_VERTEX_COLORS);
@@ -5912,7 +5915,8 @@ void RE_Database_Baking(Render *re, Main *bmain, Scene *scene, unsigned int lay,
 	init_render_textures(re);
 	
 	copy_v3_v3(amb, &re->wrld.ambr);
-	init_render_materials(re->main, re->r.mode, amb);
+	tree_exec_pool = RE_tree_exec_pool_get(re);
+	init_render_materials(re->main, tree_exec_pool, re->r.mode, amb);
 	
 	set_node_shader_lamp_loop(shade_material_loop);
 	

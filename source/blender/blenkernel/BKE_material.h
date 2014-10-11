@@ -36,6 +36,7 @@
 extern "C" {
 #endif
 
+struct bNodeTreeExecPool;
 struct Main;
 struct Material;
 struct ID;
@@ -96,10 +97,16 @@ struct Material *BKE_material_pop_id(struct ID *id, int index, bool update_data)
 void BKE_material_clear_id(struct ID *id, bool update_data);
 /* rendering */
 
-void init_render_material(struct Material *, int, float *);
-void init_render_materials(struct Main *, int, float *);
-void end_render_material(struct Material *);
-void end_render_materials(struct Main *);
+void init_render_material(struct Material *mat,
+                          struct bNodeTreeExecPool *exec_tree_pool,
+                          int render_mode, float *amb);
+void init_render_materials(struct Main *bmain,
+                           struct bNodeTreeExecPool *exec_tree_pool,
+                           int render_mode, float *amb);
+void end_render_material(struct bNodeTreeExecPool *exec_tree_pool,
+                         struct Material *mat);
+void end_render_materials(struct Main *bmain,
+                          struct bNodeTreeExecPool *exec_tree_pool);
 
 bool material_in_material(struct Material *parmat, struct Material *mat);
 

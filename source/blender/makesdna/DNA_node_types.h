@@ -372,15 +372,6 @@ typedef struct bNodeTree {
 	bNodeInstanceKey active_viewer_key;
 	int pad;
 	
-	/* execution data */
-	/* XXX It would be preferable to completely move this data out of the underlying node tree,
-	 * so node tree execution could finally run independent of the tree itself. This would allow node trees
-	 * to be merely linked by other data (materials, textures, etc.), as ID data is supposed to.
-	 * Execution data is generated from the tree once at execution start and can then be used
-	 * as long as necessary, even while the tree is being modified.
-	 */
-	//struct bNodeTreeExec *execdata;
-	
 	/* callbacks */
 	void (*progress)(void *, float progress);
 	void (*stats_draw)(void *, char *str);

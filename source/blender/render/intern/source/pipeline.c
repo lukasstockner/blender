@@ -388,6 +388,7 @@ Render *RE_NewRender(const char *name)
 		BLI_rw_mutex_init(&re->resultmutex);
 		re->eval_ctx = MEM_callocN(sizeof(EvaluationContext), "re->eval_ctx");
 		re->eval_ctx->mode = DAG_EVAL_RENDER;
+		re->tree_exec_pool = BKE_node_tree_exec_pool_new();
 	}
 	
 	RE_InitRenderCB(re);
@@ -436,7 +437,9 @@ void RE_FreeRender(Render *re)
 	
 	render_result_free(re->result);
 	render_result_free(re->pushedresult);
-	
+
+	BKE_node_tree_exec_pool_free(re->tree_exec_pool);
+
 	BLI_remlink(&RenderGlobal.renderlist, re);
 	MEM_freeN(re->eval_ctx);
 	MEM_freeN(re);
@@ -3317,5 +3320,10 @@ bool RE_WriteEnvmapResult(struct ReportList *reports, Scene *scene, EnvMap *env,
 		BKE_report(reports, RPT_ERROR, "Error writing environment map");
 		return false;
 	}
+}
+
+struct bNodeTreeExecPool *RE_tree_exec_pool_get(Render *re)
+{
+	return re->tree_exec_pool;
 }
 

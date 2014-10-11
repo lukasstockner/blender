@@ -265,7 +265,11 @@ static Scene *preview_get_scene(Main *pr_main)
 
 /* call this with a pointer to initialize preview scene */
 /* call this with NULL to restore assigned ID pointers in preview scene */
-static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPreview *sp)
+static Scene *preview_prepare_scene(Render *re,
+                                    Scene *scene,
+                                    ID *id,
+                                    int id_type,
+                                    ShaderPreview *sp)
 {
 	Scene *sce;
 	Base *base;
@@ -327,8 +331,11 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 				BLI_addtail(&pr_main->mat, mat);
 				
 				if (!BKE_scene_use_new_shading_nodes(scene)) {
-					init_render_material(mat, 0, NULL);     /* call that retrieves mode_l */
-					end_render_material(mat);
+					bNodeTreeExecPool *tree_exec_pool;
+					tree_exec_pool = RE_tree_exec_pool_get(re);
+					init_render_material(mat, tree_exec_pool, 0, NULL);     /* call that retrieves mode_l */
+					/* TODO(sergey): Wait, that's kind of stupid.  */
+					end_render_material(tree_exec_pool, mat);
 					
 					/* un-useful option */
 					if (sp->pr_method == PR_ICON_RENDER)
@@ -703,19 +710,19 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 		sce->r.ysch = sp->sizey;
 		sce->r.size = 100;
 	}
-	
-	/* get the stuff from the builtin preview dbase */
-	sce = preview_prepare_scene(sp->scene, id, idtype, sp);
-	if (sce == NULL) return;
-	
+
 	if (!split || first) sprintf(name, "Preview %p", sp->owner);
 	else sprintf(name, "SecondPreview %p", sp->owner);
 	re = RE_GetRender(name);
-	
+
 	/* full refreshed render from first tile */
 	if (re == NULL)
 		re = RE_NewRender(name);
-		
+
+	/* get the stuff from the builtin preview dbase */
+	sce = preview_prepare_scene(re, sp->scene, id, idtype, sp);
+	if (sce == NULL) return;
+
 	/* sce->r gets copied in RE_InitState! */
 	sce->r.scemode &= ~(R_MATNODE_PREVIEW | R_TEXNODE_PREVIEW);
 	sce->r.scemode &= ~R_NO_IMAGE_LOAD;
@@ -760,7 +767,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 	}
 
 	/* unassign the pointers, reset vars */
-	preview_prepare_scene(sp->scene, NULL, GS(id->name), sp);
+	preview_prepare_scene(re, sp->scene, NULL, GS(id->name), sp);
 	
 	/* XXX bad exception, end-exec is not being called in render, because it uses local main */
 //	if (idtype == ID_TE) {

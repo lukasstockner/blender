@@ -542,7 +542,7 @@ void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 	else if (is->mode==RE_RAY_SHADOW_TRA) {
 		/* temp hack to prevent recursion */
 		if (shi->nodes==0 && shi->mat->nodetree && shi->mat->use_nodes) {
-			ntreeShaderExecTree(shi->mat->nodetree, shi, shr);
+			ntreeShaderExecTree(R.tree_exec_pool, shi->mat->nodetree, shi, shr);
 			shi->mat= vlr->mat;		/* shi->mat is being set in nodetree */
 		}
 		else
@@ -550,7 +550,7 @@ void shade_ray(Isect *is, ShadeInput *shi, ShadeResult *shr)
 	}
 	else {
 		if (shi->mat->nodetree && shi->mat->use_nodes) {
-			ntreeShaderExecTree(shi->mat->nodetree, shi, shr);
+			ntreeShaderExecTree(R.tree_exec_pool, shi->mat->nodetree, shi, shr);
 			shi->mat= vlr->mat;		/* shi->mat is being set in nodetree */
 		}
 		else {

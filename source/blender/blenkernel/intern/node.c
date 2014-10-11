@@ -46,11 +46,12 @@
 #include "DNA_world_types.h"
 #include "DNA_linestyle_types.h"
 
+#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 #include "BLI_string.h"
 #include "BLI_math.h"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
-#include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
 
@@ -3689,4 +3690,48 @@ bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
 	}
 
 	return true;
+}
+
+/* Node execution. */
+
+typedef struct bNodeTreeExecPool {
+	GHash *hash;
+} bNodeTreeExecPool;
+
+struct bNodeTreeExecPool *BKE_node_tree_exec_pool_new(void)
+{
+	bNodeTreeExecPool *pool;
+	pool =  MEM_callocN(sizeof(bNodeTreeExecPool), __func__);
+	pool->hash = BLI_ghash_ptr_new(__func__);
+	return pool;
+}
+
+void BKE_node_tree_exec_pool_free(bNodeTreeExecPool *pool)
+{
+	/* Only destroys pool, all exec data is expected to be freed already. */
+	BLI_assert(pool != NULL);
+	BLI_ghash_free(pool->hash, NULL, NULL);
+	MEM_freeN(pool);
+}
+
+void BKE_node_tree_exec_pool_put(bNodeTreeExecPool *pool,
+                                 struct ID *id,
+                                 void *data)
+{
+	BLI_assert(pool != NULL);
+	BLI_ghash_insert(pool->hash, id, data);
+}
+
+void *BKE_node_tree_exec_pool_get(bNodeTreeExecPool *pool,
+                                  struct ID *id)
+{
+	BLI_assert(pool != NULL);
+	return BLI_ghash_lookup(pool->hash, id);
+}
+
+void *BKE_node_tree_exec_pool_pop(bNodeTreeExecPool *pool,
+                                  struct ID *id)
+{
+	BLI_assert(pool != NULL);
+	return BLI_ghash_popkey(pool->hash, id, NULL);
 }

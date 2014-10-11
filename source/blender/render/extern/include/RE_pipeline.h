@@ -304,5 +304,8 @@ bool RE_is_rendering_allowed(struct Scene *scene, struct Object *camera_override
 
 bool RE_allow_render_generic_object(struct Object *ob);
 
+struct bNodeTreeExecPool;
+struct bNodeTreeExecPool *RE_tree_exec_pool_get(struct Render *re);
+
 #endif /* __RE_PIPELINE_H__ */
 

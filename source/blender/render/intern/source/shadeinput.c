@@ -158,7 +158,7 @@ void shade_input_do_shade(ShadeInput *shi, ShadeResult *shr)
 #endif
 	
 	if (shi->mat->nodetree && shi->mat->use_nodes)
-		compat = ntreeShaderExecTree(shi->mat->nodetree, shi, shr);
+		compat = ntreeShaderExecTree(R.tree_exec_pool, shi->mat->nodetree, shi, shr);
 	
 	/* also run this when node shaders fail, due to incompatible shader nodes */
 	if (compat == false) {

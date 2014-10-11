@@ -201,7 +201,7 @@ static void occ_shade(ShadeSample *ssamp, ObjectInstanceRen *obi, VlakRen *vlr, 
 	shade_input_set_shade_texco(shi);
 
 	if (shi->mat->nodetree && shi->mat->use_nodes) {
-		ntreeShaderExecTree(shi->mat->nodetree, shi, shr);
+		ntreeShaderExecTree(R.tree_exec_pool, shi->mat->nodetree, shi, shr);
 		shi->mat = vlr->mat;  /* shi->mat is being set in nodetree */
 	}
 	else {

@@ -77,20 +77,20 @@ typedef struct bNodeThreadStack {
 
 int node_exec_socket_use_stack(struct bNodeSocket *sock);
 
-struct bNodeStack *node_get_socket_stack(struct bNodeStack *stack, struct bNodeSocket *sock);
+struct bNodeStack *node_get_socket_stack(struct bNodeStack *stack, struct bNodeSocket *sock) ATTR_WARN_UNUSED_RESULT;
 void node_get_stack(struct bNode *node, struct bNodeStack *stack, struct bNodeStack **in, struct bNodeStack **out);
 
-struct bNodeTreeExec *ntree_exec_begin(struct bNodeExecContext *context, struct bNodeTree *ntree, bNodeInstanceKey parent_key);
+struct bNodeTreeExec *ntree_exec_begin(struct bNodeExecContext *context, struct bNodeTree *ntree, bNodeInstanceKey parent_key) ATTR_WARN_UNUSED_RESULT;
 void ntree_exec_end(struct bNodeTreeExec *exec);
 
-struct bNodeThreadStack *ntreeGetThreadStack(struct bNodeTreeExec *exec, int thread);
+struct bNodeThreadStack *ntreeGetThreadStack(struct bNodeTreeExec *exec, int thread) ATTR_WARN_UNUSED_RESULT;
 void ntreeReleaseThreadStack(struct bNodeThreadStack *nts);
 bool ntreeExecThreadNodes(struct bNodeTreeExec *exec, struct bNodeThreadStack *nts, void *callerdata, int thread);
 
-struct bNodeTreeExec *ntreeShaderBeginExecTree_internal(struct bNodeExecContext *context, struct bNodeTree *ntree, bNodeInstanceKey parent_key);
+struct bNodeTreeExec *ntreeShaderBeginExecTree_internal(struct bNodeExecContext *context, struct bNodeTree *ntree, bNodeInstanceKey parent_key) ATTR_WARN_UNUSED_RESULT;
 void ntreeShaderEndExecTree_internal(struct bNodeTreeExec *exec);
 
-struct bNodeTreeExec *ntreeTexBeginExecTree_internal(struct bNodeExecContext *context, struct bNodeTree *ntree, bNodeInstanceKey parent_key);
+struct bNodeTreeExec *ntreeTexBeginExecTree_internal(struct bNodeExecContext *context, struct bNodeTree *ntree, bNodeInstanceKey parent_key) ATTR_WARN_UNUSED_RESULT;
 void ntreeTexEndExecTree_internal(struct bNodeTreeExec *exec);
 
 #endif
