@@ -41,25 +41,28 @@ class GreasePencilPanel():
         row.operator("gpencil.draw", text="Erase").mode = 'ERASER'
 
         row = col.row(align=True)
-        row.prop(context.tool_settings, "use_grease_pencil_sessions")
+        row.prop(context.tool_settings, "use_grease_pencil_sessions", text="Continuous Drawing")
 
         col.separator()
 		
         col.label(text="Select Strokes:")
         subcol = col.column(align=True)
+        subcol.active = bool(context.editable_gpencil_strokes)
         subcol.operator("gpencil.select_all", text="Select All")
         subcol.operator("gpencil.select_circle")
 
         col.separator()
 
         col.label(text="Edit Strokes:")
-        # TODO: transform operators need to have a proper poll operator put on them for use here
-        col.operator("gpencil.strokes_duplicate", text="Duplicate")
-        col.operator("transform.mirror", text="Mirror").gpencil_strokes = True
+        subcol = col.column(align=True)
+        subcol.active = bool(context.editable_gpencil_strokes)
+        subcol.operator("gpencil.strokes_duplicate", text="Duplicate")
+        subcol.operator("transform.mirror", text="Mirror").gpencil_strokes = True
 
         col.separator()
 
         subcol = col.column(align=True)
+        subcol.active = bool(context.editable_gpencil_strokes)
         subcol.operator("transform.translate").gpencil_strokes = True   # icon='MAN_TRANS'
         subcol.operator("transform.rotate").gpencil_strokes = True      # icon='MAN_ROT'
         subcol.operator("transform.resize", text="Scale").gpencil_strokes = True      # icon='MAN_SCALE'
