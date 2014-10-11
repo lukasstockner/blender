@@ -44,7 +44,7 @@ class GreasePencilPanel():
         row.prop(context.tool_settings, "use_grease_pencil_sessions", text="Continuous Drawing")
 
         col.separator()
-		
+
         col.label(text="Select Strokes:")
         subcol = col.column(align=True)
         subcol.active = bool(context.editable_gpencil_strokes)

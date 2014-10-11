@@ -77,6 +77,7 @@ const char *screen_context_dir[] = {
 int ed_screen_context(const bContext *C, const char *member, bContextDataResult *result)
 {
 	bScreen *sc = CTX_wm_screen(C);
+	ScrArea *sa = CTX_wm_area(C);
 	Scene *scene = sc->scene;
 	Base *base;
 	unsigned int lay = scene->lay;
@@ -402,7 +403,7 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		 * (as outlined above - see Campbell's #ifdefs). That causes the get active function to fail when 
 		 * called from context. For that reason, we end up using an alternative where we pass everything in!
 		 */
-		bGPdata *gpd = ED_gpencil_data_get_active(C);
+		bGPdata *gpd = ED_gpencil_data_get_active_direct((ID *)sc, scene, sa, obact);
 		
 		if (gpd) {
 			CTX_data_id_pointer_set(result, &gpd->id);
@@ -410,10 +411,12 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		}
 	}
 	else if (CTX_data_equals(member, "active_gpencil_layer")) {
-		bGPdata *gpd = ED_gpencil_data_get_active(C);
+		/* XXX: see comment for gpencil_data case... */
+		bGPdata *gpd = ED_gpencil_data_get_active_direct((ID *)sc, scene, sa, obact);
 		
 		if (gpd) {
 			bGPDlayer *gpl = gpencil_layer_getactive(gpd);
+			
 			if (gpl) {
 				CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl);
 				return 1;
@@ -421,10 +424,12 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		}
 	}
 	else if (CTX_data_equals(member, "active_gpencil_frame")) {
-		bGPdata *gpd = ED_gpencil_data_get_active(C);
+		/* XXX: see comment for gpencil_data case... */
+		bGPdata *gpd = ED_gpencil_data_get_active_direct((ID *)sc, scene, sa, obact);
 		
 		if (gpd) {
 			bGPDlayer *gpl = gpencil_layer_getactive(gpd);
+			
 			if (gpl) {
 				CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl->actframe);
 				return 1;
@@ -432,9 +437,12 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		}
 	}
 	else if (CTX_data_equals(member, "visible_gpencil_layers")) {
-		bGPdata *gpd = ED_gpencil_data_get_active(C);
+		/* XXX: see comment for gpencil_data case... */
+		bGPdata *gpd = ED_gpencil_data_get_active_direct((ID *)sc, scene, sa, obact);
+		
 		if (gpd) {
 			bGPDlayer *gpl;
+			
 			for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 				if ((gpl->flag & GP_LAYER_HIDE) == 0) {
 					CTX_data_list_add(result, &gpd->id, &RNA_GPencilLayer, gpl);
@@ -445,9 +453,12 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		}
 	}
 	else if (CTX_data_equals(member, "editable_gpencil_layers")) {
-		bGPdata *gpd = ED_gpencil_data_get_active(C);
+		/* XXX: see comment for gpencil_data case... */
+		bGPdata *gpd = ED_gpencil_data_get_active_direct((ID *)sc, scene, sa, obact);
+		
 		if (gpd) {
 			bGPDlayer *gpl;
+			
 			for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 				if ((gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) == 0) {
 					CTX_data_list_add(result, &gpd->id, &RNA_GPencilLayer, gpl);
@@ -458,9 +469,12 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		}
 	}
 	else if (CTX_data_equals(member, "editable_gpencil_strokes")) {
-		bGPdata *gpd = ED_gpencil_data_get_active(C);
+		/* XXX: see comment for gpencil_data case... */
+		bGPdata *gpd = ED_gpencil_data_get_active_direct((ID *)sc, scene, sa, obact);
+		
 		if (gpd) {
 			bGPDlayer *gpl;
+			
 			for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 				if ((gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) == 0 && (gpl->actframe)) {
 					bGPDframe *gpf = gpl->actframe;
