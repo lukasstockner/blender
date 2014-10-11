@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -41,29 +41,31 @@ static bNodeSocketTemplate inputs[] = {
 };
 
 /* applies to render pipeline */
-static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **UNUSED(out))
+static void exec(void *data,
+                 int UNUSED(thread),
+                 bNode *node,
+                 bNodeExecData *execdata,
+                 bNodeStack **in,
+                 bNodeStack **UNUSED(out))
 {
 	TexCallData *cdata = (TexCallData *)data;
 	TexResult *target = cdata->target;
-	
-	if (cdata->do_preview) {
-		TexParams params;
-		params_from_cdata(&params, cdata);
 
+	if (cdata->do_preview) {
 		if (in[1] && in[1]->hasinput && !in[0]->hasinput)
 			tex_input_rgba(&target->tr, in[1]);
 		else
 			tex_input_rgba(&target->tr, in[0]);
-		tex_do_preview(execdata->preview, params.co, &target->tr, cdata->do_manage);
+		tex_do_preview(execdata->preview, cdata->co, &target->tr, cdata->do_manage);
 	}
 	else {
 		/* 0 means don't care, so just use first */
 		if (cdata->which_output == node->custom1 || (cdata->which_output == 0 && node->custom1 == 1)) {
 			tex_input_rgba(&target->tr, in[0]);
-		
+
 			target->tin = (target->tr + target->tg + target->tb) / 3.0f;
 			target->talpha = true;
-		
+
 			if (target->nor) {
 				if (in[1] && in[1]->hasinput)
 					tex_input_vec(target->nor, in[1]);
@@ -82,7 +84,7 @@ static void unique_name(bNode *node)
 	int suffix;
 	bNode *i;
 	const char *name = tno->name;
-	
+
 	new_name[0] = '\0';
 	i = node;
 	while (i->prev) i = i->prev;
@@ -111,7 +113,7 @@ static void unique_name(bNode *node)
 		}
 		sprintf(new_name + new_len - 4, ".%03d", ++suffix);
 	}
-	
+
 	if (new_name[0] != '\0') {
 		BLI_strncpy(tno->name, new_name, sizeof(tno->name));
 	}
@@ -121,19 +123,21 @@ static void assign_index(struct bNode *node)
 {
 	bNode *tnode;
 	int index = 1;
-	
+
 	tnode = node;
 	while (tnode->prev)
 		tnode = tnode->prev;
-	
+
 check_index:
-	for (; tnode; tnode = tnode->next)
-		if (tnode->type == TEX_NODE_OUTPUT && tnode != node)
+	for (; tnode; tnode = tnode->next) {
+		if (tnode->type == TEX_NODE_OUTPUT && tnode != node) {
 			if (tnode->custom1 == index) {
 				index++;
 				goto check_index;
 			}
-			
+		}
+	}
+
 	node->custom1 = index;
 }
 
@@ -141,7 +145,7 @@ static void init(bNodeTree *UNUSED(ntree), bNode *node)
 {
 	TexNodeOutput *tno = MEM_callocN(sizeof(TexNodeOutput), "TEX_output");
 	node->storage = tno;
-	
+
 	strcpy(tno->name, "Default");
 	unique_name(node);
 	assign_index(node);
@@ -157,16 +161,16 @@ static void copy(bNodeTree *dest_ntree, bNode *dest_node, bNode *src_node)
 void register_node_type_tex_output(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_OUTPUT, "Output", NODE_CLASS_OUTPUT, NODE_PREVIEW);
 	node_type_socket_templates(&ntype, inputs, NULL);
 	node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
 	node_type_init(&ntype, init);
 	node_type_storage(&ntype, "TexNodeOutput", node_free_standard_storage, copy);
 	node_type_exec(&ntype, NULL, NULL, exec);
-	
+
 	/* Do not allow muting output. */
 	node_type_internal_links(&ntype, NULL);
-	
+
 	nodeRegisterType(&ntype);
 }

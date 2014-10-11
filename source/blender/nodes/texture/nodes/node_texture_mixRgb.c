@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -45,37 +45,37 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void colorfn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **in, short UNUSED(thread))
+static void exec(void *UNUSED(data),
+                 int UNUSED(thread),
+                 bNode *node,
+                 bNodeExecData *UNUSED(execdata),
+                 bNodeStack **in,
+                 bNodeStack **out)
 {
 	float fac  = tex_input_value(in[0]);
 	float col1[4], col2[4];
-	
+
 	tex_input_rgba(col1, in[1]);
 	tex_input_rgba(col2, in[2]);
 
 	/* use alpha */
 	if (node->custom2 & 1)
 		fac *= col2[3];
-	
-	CLAMP(fac, 0.0f, 1.0f);
-	
-	copy_v4_v4(out, col1);
-	ramp_blend(node->custom1, out, fac, col2);
-}
 
-static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &colorfn, data);
+	CLAMP(fac, 0.0f, 1.0f);
+
+	copy_v4_v4(out[0]->vec, col1);
+	ramp_blend(node->custom1, out[0]->vec, fac, col2);
 }
 
 void register_node_type_tex_mix_rgb(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_MIX_RGB, "Mix", NODE_CLASS_OP_COLOR, 0);
 	node_type_socket_templates(&ntype, inputs, outputs);
 	node_type_label(&ntype, node_blend_label);
 	node_type_exec(&ntype, NULL, NULL, exec);
-	
+
 	nodeRegisterType(&ntype);
 }

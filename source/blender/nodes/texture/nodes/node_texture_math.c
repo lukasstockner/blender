@@ -46,7 +46,12 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void valuefn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **in, short UNUSED(thread))
+static void exec(void *UNUSED(data),
+                 int UNUSED(thread),
+                 bNode *node,
+                 bNodeExecData *UNUSED(execdata),
+                 bNodeStack **in,
+                 bNodeStack **out)
 {
 	float in0 = tex_input_value(in[0]);
 	float in1 = tex_input_value(in[1]);
@@ -54,73 +59,73 @@ static void valuefn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **
 	switch (node->custom1) {
 
 		case 0: /* Add */
-			*out = in0 + in1;
+			out[0]->vec[0] = in0 + in1;
 			break;
 		case 1: /* Subtract */
-			*out = in0 - in1;
+			out[0]->vec[0] = in0 - in1;
 			break;
 		case 2: /* Multiply */
-			*out = in0 * in1;
+			out[0]->vec[0] = in0 * in1;
 			break;
 		case 3: /* Divide */
 		{
 			if (in1 == 0) /* We don't want to divide by zero. */
-				*out = 0.0;
+				out[0]->vec[0] = 0.0f;
 			else
-				*out = in0 / in1;
+				out[0]->vec[0] = in0 / in1;
 			break;
 		}
 		case 4: /* Sine */
 		{
-			*out = sinf(in0);
+			out[0]->vec[0] = sinf(in0);
 			break;
 		}
 		case 5: /* Cosine */
 		{
-			*out = cosf(in0);
+			out[0]->vec[0] = cosf(in0);
 			break;
 		}
 		case 6: /* Tangent */
 		{
-			*out = tanf(in0);
+			out[0]->vec[0] = tanf(in0);
 			break;
 		}
 		case 7: /* Arc-Sine */
 		{
 			/* Can't do the impossible... */
-			if (in0 <= 1 && in0 >= -1)
-				*out = asinf(in0);
+			if (in0 <= 1.0f && in0 >= -1.0f)
+				out[0]->vec[0] = asinf(in0);
 			else
-				*out = 0.0;
+				out[0]->vec[0] = 0.0f;
 			break;
 		}
 		case 8: /* Arc-Cosine */
 		{
 			/* Can't do the impossible... */
-			if (in0 <= 1 && in0 >= -1)
-				*out = acosf(in0);
+			if (in0 <= 1.0f && in0 >= -1.0f)
+				out[0]->vec[0]= acosf(in0);
 			else
-				*out = 0.0;
+				out[0]->vec[0] = 0.0;
 			break;
 		}
 		case 9: /* Arc-Tangent */
 		{
-			*out = atan(in0);
+			out[0]->vec[0] = atan(in0);
 			break;
 		}
 		case 10: /* Power */
 		{
 			/* Only raise negative numbers by full integers */
-			if (in0 >= 0) {
-				out[0] = pow(in0, in1);
+			if (in0 >= 0.0f) {
+				out[0]->vec[0] = pow(in0, in1);
 			}
 			else {
-				float y_mod_1 = fmod(in1, 1);
+				float y_mod_1 = fmod(in1, 1.0f);
 				if (y_mod_1 > 0.999f || y_mod_1 < 0.001f) {
-					*out = pow(in0, floor(in1 + 0.5f));
+					out[0]->vec[0] = powf(in0, floor(in1 + 0.5f));
 				}
 				else {
-					*out = 0.0;
+					out[0]->vec[0] = 0.0f;
 				}
 			}
 			break;
@@ -128,64 +133,64 @@ static void valuefn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **
 		case 11: /* Logarithm */
 		{
 			/* Don't want any imaginary numbers... */
-			if (in0 > 0  && in1 > 0)
-				*out = log(in0) / log(in1);
+			if (in0 > 0.0f  && in1 > 0.0f)
+				out[0]->vec[0] = log(in0) / log(in1);
 			else
-				*out = 0.0;
+				out[0]->vec[0] = 0.0;
 			break;
 		}
 		case 12: /* Minimum */
 		{
 			if (in0 < in1)
-				*out = in0;
+				out[0]->vec[0] = in0;
 			else
-				*out = in1;
+				out[0]->vec[0] = in1;
 			break;
 		}
 		case 13: /* Maximum */
 		{
 			if (in0 > in1)
-				*out = in0;
+				out[0]->vec[0] = in0;
 			else
-				*out = in1;
+				out[0]->vec[0] = in1;
 			break;
 		}
 		case 14: /* Round */
 		{
-			*out = (in0 < 0) ? (int)(in0 - 0.5f) : (int)(in0 + 0.5f);
+			out[0]->vec[0] = (in0 < 0.0f) ? (int)(in0 - 0.5f) : (int)(in0 + 0.5f);
 			break;
 		}
 
 		case 15: /* Less Than */
 		{
 			if (in0 < in1)
-				*out = 1.0f;
+				out[0]->vec[0] = 1.0f;
 			else
-				*out = 0.0f;
+				out[0]->vec[0] = 0.0f;
 			break;
 		}
 
 		case 16: /* Greater Than */
 		{
 			if (in0 > in1)
-				*out = 1.0f;
+				out[0]->vec[0] = 1.0f;
 			else
-				*out = 0.0f;
+				out[0]->vec[0] = 0.0f;
 			break;
 		}
 
 		case 17: /* Modulo */
 		{
 			if (in1 == 0.0f)
-				*out = 0.0f;
+				out[0]->vec[0] = 0.0f;
 			else
-				*out = fmod(in0, in1);
+				out[0]->vec[0] = fmod(in0, in1);
 			break;
 		}
 
 		case 18: /* Absolute */
 		{
-			*out = fabsf(in0);
+			out[0]->vec[0] = fabsf(in0);
 			break;
 		}
 
@@ -195,11 +200,6 @@ static void valuefn(float *out, TexParams *UNUSED(p), bNode *node, bNodeStack **
 			break;
 		}
 	}
-}
-
-static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &valuefn, data);
 }
 
 void register_node_type_tex_math(void)
