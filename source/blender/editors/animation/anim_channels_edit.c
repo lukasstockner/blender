@@ -856,6 +856,13 @@ static void rearrange_animchannel_add_to_islands(ListBase *islands, ListBase *sr
 			is_sel = SEL_NLT(nlt);
 			break;
 		}
+		case ANIMTYPE_GPLAYER:
+		{
+			bGPDlayer *gpl = (bGPDlayer *)channel;
+			
+			is_sel = SEL_GPL(gpl);
+			break;
+		}
 		default:
 			printf("rearrange_animchannel_add_to_islands(): don't know how to handle channels of type %d\n", type);
 			return;
@@ -1180,6 +1187,47 @@ static void rearrange_action_channels(bAnimContext *ac, bAction *act, eRearrange
 
 /* ------------------- */
 
+static void rearrange_gpencil_channels(bAnimContext *ac, eRearrangeAnimChan_Mode mode)
+{
+	ListBase anim_data = {NULL, NULL};
+	bAnimListElem *ale;
+	int filter;
+	
+	/* get rearranging function */
+	AnimChanRearrangeFp rearrange_func = rearrange_get_mode_func(mode);
+	
+	if (rearrange_func == NULL)
+		return;
+	
+	/* get Grease Pencil datablocks */
+	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_ANIMDATA);
+	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+	
+	for (ale = anim_data.first; ale; ale = ale->next) {
+		ListBase anim_data_visible = {NULL, NULL};
+		bGPdata *gpd = ale->data;
+		
+		/* only consider layers if this datablock is open */
+		BLI_assert(ale->type == ANIMTYPE_GPDATABLOCK);
+		if ((gpd->flag & GP_DATA_EXPAND) == 0)
+			continue;
+		
+		/* Filter visible data. */
+		rearrange_animchannels_filter_visible(&anim_data_visible, ac, ANIMTYPE_GPLAYER);
+		
+		/* rearrange datablock's layers */
+		rearrange_animchannel_islands(&gpd->layers, rearrange_func, mode, ANIMTYPE_GPLAYER, &anim_data_visible);
+		
+		/* free visible layers data */
+		BLI_freelistN(&anim_data_visible);
+	}
+	
+	/* free GPD channel data */
+	ANIM_animdata_freelist(&anim_data);
+}
+
+/* ------------------- */
+
 static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
@@ -1195,7 +1243,7 @@ static int animchannels_rearrange_exec(bContext *C, wmOperator *op)
 	/* method to move channels depends on the editor */
 	if (ac.datatype == ANIMCONT_GPENCIL) {
 		/* Grease Pencil channels */
-		printf("Grease Pencil not supported for moving yet\n");
+		rearrange_gpencil_channels(&ac, mode);
 	}
 	else if (ac.datatype == ANIMCONT_MASK) {
 		/* Grease Pencil channels */

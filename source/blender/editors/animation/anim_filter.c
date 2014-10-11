@@ -1413,26 +1413,36 @@ static size_t animdata_filter_gpencil(ListBase *anim_data, void *UNUSED(data), i
 		/* only show if gpd is used by something... */
 		if (ID_REAL_USERS(gpd) < 1)
 			continue;
-			
-		/* add gpencil animation channels */
-		BEGIN_ANIMFILTER_SUBCHANNELS(EXPANDED_GPD(gpd))
-		{
-			tmp_items += animdata_filter_gpencil_data(&tmp_data, gpd, filter_mode);
-		}
-		END_ANIMFILTER_SUBCHANNELS;
 		
-		/* did we find anything? */
-		if (tmp_items) {
-			/* include data-expand widget first */
-			if (filter_mode & ANIMFILTER_LIST_CHANNELS) {
-				/* add gpd as channel too (if for drawing, and it has layers) */
-				ANIMCHANNEL_NEW_CHANNEL(gpd, ANIMTYPE_GPDATABLOCK, NULL);
+		/* When asked from "AnimData" blocks (i.e. the top-level containers for normal animation),
+		 * for convenience, this will return GP Datablocks instead. This may cause issues down
+		 * the track, but for now, this will do...
+		 */
+		if (filter_mode & ANIMFILTER_ANIMDATA) {
+			/* just add GPD as a channel - this will add everything needed */
+			ANIMCHANNEL_NEW_CHANNEL(gpd, ANIMTYPE_GPDATABLOCK, NULL);
+		}
+		else {
+			/* add gpencil animation channels */
+			BEGIN_ANIMFILTER_SUBCHANNELS(EXPANDED_GPD(gpd))
+			{
+				tmp_items += animdata_filter_gpencil_data(&tmp_data, gpd, filter_mode);
 			}
+			END_ANIMFILTER_SUBCHANNELS;
 			
-			/* now add the list of collected channels */
-			BLI_movelisttolist(anim_data, &tmp_data);
-			BLI_assert(BLI_listbase_is_empty(&tmp_data));
-			items += tmp_items;
+			/* did we find anything? */
+			if (tmp_items) {
+				/* include data-expand widget first */
+				if (filter_mode & ANIMFILTER_LIST_CHANNELS) {
+					/* add gpd as channel too (if for drawing, and it has layers) */
+					ANIMCHANNEL_NEW_CHANNEL(gpd, ANIMTYPE_GPDATABLOCK, NULL);
+				}
+				
+				/* now add the list of collected channels */
+				BLI_movelisttolist(anim_data, &tmp_data);
+				BLI_assert(BLI_listbase_is_empty(&tmp_data));
+				items += tmp_items;
+			}
 		}
 	}
 	
