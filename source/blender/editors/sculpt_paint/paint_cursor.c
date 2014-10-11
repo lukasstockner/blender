@@ -305,8 +305,10 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
 			}
 		}
 
-		if (mtex->tex && mtex->tex->nodetree)
-			ntreeTexEndExecTree(mtex->tex->nodetree->execdata);
+		if (mtex->tex && mtex->tex->nodetree) {
+			/* ntreeTexEndExecTree(mtex->tex->nodetree->execdata); */
+			BLI_assert(!"Need to port this over");
+		}
 
 		if (pool)
 			BKE_image_pool_free(pool);

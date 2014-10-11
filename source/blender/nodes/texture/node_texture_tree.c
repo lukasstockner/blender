@@ -137,10 +137,6 @@ static void foreach_nodeclass(Scene *UNUSED(scene), void *calldata, bNodeClassCa
 	func(calldata, NODE_CLASS_LAYOUT, N_("Layout"));
 }
 
-/* XXX muting disabled in previews because of threading issues with the main execution
- * it works here, but disabled for consistency
- */
-#if 1
 static void localize(bNodeTree *localtree, bNodeTree *UNUSED(ntree))
 {
 	bNode *node, *node_next;
@@ -155,11 +151,6 @@ static void localize(bNodeTree *localtree, bNodeTree *UNUSED(ntree))
 		}
 	}
 }
-#else
-static void localize(bNodeTree *UNUSED(localtree), bNodeTree *UNUSED(ntree))
-{
-}
-#endif
 
 static void local_sync(bNodeTree *localtree, bNodeTree *ntree)
 {
@@ -180,6 +171,7 @@ static void update(bNodeTree *ntree)
 		BKE_node_preview_remove_unused(ntree);
 	}
 }
+
 
 bNodeTreeType *ntreeType_Texture;
 
@@ -246,38 +238,8 @@ bNodeTreeExec *ntreeTexBeginExecTree_internal(bNodeExecContext *context, bNodeTr
 bNodeTreeExec *ntreeTexBeginExecTree(bNodeTree *ntree)
 {
 	bNodeExecContext context;
-	bNodeTreeExec *exec;
-	
-	/* XXX hack: prevent exec data from being generated twice.
-	 * this should be handled by the renderer!
-	 */
-	if (ntree->execdata)
-		return ntree->execdata;
-	
 	context.previews = ntree->previews;
-	
-	exec = ntreeTexBeginExecTree_internal(&context, ntree, NODE_INSTANCE_KEY_BASE);
-	
-	/* XXX this should not be necessary, but is still used for cmp/sha/tex nodes,
-	 * which only store the ntree pointer. Should be fixed at some point!
-	 */
-	ntree->execdata = exec;
-	
-	return exec;
-}
-
-/* free texture delegates */
-static void tex_free_delegates(bNodeTreeExec *exec)
-{
-	bNodeThreadStack *nts;
-	bNodeStack *ns;
-	int th, a;
-	
-	for (th = 0; th < BLENDER_MAX_THREADS; th++)
-		for (nts = exec->threadstack[th].first; nts; nts = nts->next)
-			for (ns = nts->stack, a = 0; a < exec->stacksize; a++, ns++)
-				if (ns->data && !ns->is_copy)
-					MEM_freeN(ns->data);
+	return ntreeTexBeginExecTree_internal(&context, ntree, NODE_INSTANCE_KEY_BASE);
 }
 
 void ntreeTexEndExecTree_internal(bNodeTreeExec *exec)
@@ -286,8 +248,6 @@ void ntreeTexEndExecTree_internal(bNodeTreeExec *exec)
 	int a;
 	
 	if (exec->threadstack) {
-		tex_free_delegates(exec);
-		
 		for (a = 0; a < BLENDER_MAX_THREADS; a++) {
 			for (nts = exec->threadstack[a].first; nts; nts = nts->next)
 				if (nts->stack) MEM_freeN(nts->stack);
@@ -303,18 +263,13 @@ void ntreeTexEndExecTree_internal(bNodeTreeExec *exec)
 
 void ntreeTexEndExecTree(bNodeTreeExec *exec)
 {
-	if (exec) {
-		/* exec may get freed, so assign ntree */
-		bNodeTree *ntree = exec->nodetree;
+	if (exec != NULL) {
 		ntreeTexEndExecTree_internal(exec);
-		
-		/* XXX clear nodetree backpointer to exec data, same problem as noted in ntreeBeginExecTree */
-		ntree->execdata = NULL;
 	}
 }
 
 int ntreeTexExecTree(
-        bNodeTree *nodes,
+        bNodeTree *UNUSED(nodes),
         TexResult *texres,
         float co[3],
         float dxt[3], float dyt[3],
@@ -331,7 +286,9 @@ int ntreeTexExecTree(
 	float *nor = texres->nor;
 	int retval = TEX_INT;
 	bNodeThreadStack *nts = NULL;
-	bNodeTreeExec *exec = nodes->execdata;
+	bNodeTreeExec *exec = NULL;
+
+	return 0;
 
 	data.co = co;
 	data.dxt = dxt;
@@ -345,17 +302,7 @@ int ntreeTexExecTree(
 	data.cfra = cfra;
 	data.mtex = mtex;
 	data.shi = shi;
-	
-	/* ensure execdata is only initialized once */
-	if (!exec) {
-		BLI_lock_thread(LOCK_NODES);
-		if (!nodes->execdata)
-			ntreeTexBeginExecTree(nodes);
-		BLI_unlock_thread(LOCK_NODES);
 
-		exec = nodes->execdata;
-	}
-	
 	nts = ntreeGetThreadStack(exec, thread);
 	ntreeExecThreadNodes(exec, nts, &data, thread);
 	ntreeReleaseThreadStack(nts);

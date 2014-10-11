@@ -379,7 +379,7 @@ typedef struct bNodeTree {
 	 * Execution data is generated from the tree once at execution start and can then be used
 	 * as long as necessary, even while the tree is being modified.
 	 */
-	struct bNodeTreeExec *execdata;
+	//struct bNodeTreeExec *execdata;
 	
 	/* callbacks */
 	void (*progress)(void *, float progress);

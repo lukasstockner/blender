@@ -1074,9 +1074,12 @@ void init_render_material(Material *mat, int r_mode, float *amb)
 		ntreeShaderGetTexcoMode(mat->nodetree, r_mode, &mat->texco, &mat->mode_l);
 
 		init_render_nodetree(mat->nodetree, mat, r_mode, amb);
-		
+
+		/*
 		if (!mat->nodetree->execdata)
 			mat->nodetree->execdata = ntreeShaderBeginExecTree(mat->nodetree);
+		*/
+		BLI_assert(!"Need to port this thing");
 	}
 	else {
 		mat->mode_l = mat->mode;
@@ -1116,8 +1119,8 @@ void init_render_materials(Main *bmain, int r_mode, float *amb)
 void end_render_material(Material *mat)
 {
 	if (mat && mat->nodetree && mat->use_nodes) {
-		if (mat->nodetree->execdata)
-			ntreeShaderEndExecTree(mat->nodetree->execdata);
+		/* ntreeShaderEndExecTree(mat->nodetree->execdata); */
+		BLI_assert(!"Port to the copper!");
 	}
 }
 

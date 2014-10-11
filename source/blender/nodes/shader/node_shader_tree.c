@@ -248,24 +248,8 @@ bNodeTreeExec *ntreeShaderBeginExecTree_internal(bNodeExecContext *context, bNod
 bNodeTreeExec *ntreeShaderBeginExecTree(bNodeTree *ntree)
 {
 	bNodeExecContext context;
-	bNodeTreeExec *exec;
-	
-	/* XXX hack: prevent exec data from being generated twice.
-	 * this should be handled by the renderer!
-	 */
-	if (ntree->execdata)
-		return ntree->execdata;
-	
 	context.previews = ntree->previews;
-	
-	exec = ntreeShaderBeginExecTree_internal(&context, ntree, NODE_INSTANCE_KEY_BASE);
-	
-	/* XXX this should not be necessary, but is still used for cmp/sha/tex nodes,
-	 * which only store the ntree pointer. Should be fixed at some point!
-	 */
-	ntree->execdata = exec;
-	
-	return exec;
+	return ntreeShaderBeginExecTree_internal(&context, ntree, NODE_INSTANCE_KEY_BASE);
 }
 
 void ntreeShaderEndExecTree_internal(bNodeTreeExec *exec)
@@ -289,18 +273,13 @@ void ntreeShaderEndExecTree_internal(bNodeTreeExec *exec)
 
 void ntreeShaderEndExecTree(bNodeTreeExec *exec)
 {
-	if (exec) {
-		/* exec may get freed, so assign ntree */
-		bNodeTree *ntree = exec->nodetree;
+	if (exec != NULL) {
 		ntreeShaderEndExecTree_internal(exec);
-		
-		/* XXX clear nodetree backpointer to exec data, same problem as noted in ntreeBeginExecTree */
-		ntree->execdata = NULL;
 	}
 }
 
 /* only for Blender internal */
-bool ntreeShaderExecTree(bNodeTree *ntree, ShadeInput *shi, ShadeResult *shr)
+bool ntreeShaderExecTree(bNodeTree *UNUSED(ntree), ShadeInput *shi, ShadeResult *shr)
 {
 	ShaderCallData scd;
 	/**
@@ -309,25 +288,18 @@ bool ntreeShaderExecTree(bNodeTree *ntree, ShadeInput *shi, ShadeResult *shr)
 	 */
 	Material *mat = shi->mat;
 	bNodeThreadStack *nts = NULL;
-	bNodeTreeExec *exec = ntree->execdata;
+	bNodeTreeExec *exec = NULL;
 	int compat;
-	
+
+	BLI_assert(!"Port the damn thing over");
+	return false;
+
 	/* convert caller data to struct */
 	scd.shi = shi;
 	scd.shr = shr;
 	
 	/* each material node has own local shaderesult, with optional copying */
 	memset(shr, 0, sizeof(ShadeResult));
-	
-	/* ensure execdata is only initialized once */
-	if (!exec) {
-		BLI_lock_thread(LOCK_NODES);
-		if (!ntree->execdata)
-			ntree->execdata = ntreeShaderBeginExecTree(ntree);
-		BLI_unlock_thread(LOCK_NODES);
-
-		exec = ntree->execdata;
-	}
 	
 	nts = ntreeGetThreadStack(exec, shi->thread);
 	compat = ntreeExecThreadNodes(exec, nts, &scd, shi->thread);

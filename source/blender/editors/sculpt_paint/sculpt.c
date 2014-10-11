@@ -4339,8 +4339,10 @@ static void sculpt_brush_exit_tex(Sculpt *sd)
 	Brush *brush = BKE_paint_brush(&sd->paint);
 	MTex *mtex = &brush->mtex;
 
-	if (mtex->tex && mtex->tex->nodetree)
-		ntreeTexEndExecTree(mtex->tex->nodetree->execdata);
+	if (mtex->tex && mtex->tex->nodetree) {
+		/* ntreeTexEndExecTree(mtex->tex->nodetree->execdata); */
+		BLI_assert(!"Need to port the damn thing");
+	}
 }
 
 static void sculpt_stroke_done(const bContext *C, struct PaintStroke *UNUSED(stroke))

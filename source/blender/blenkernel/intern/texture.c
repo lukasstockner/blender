@@ -836,10 +836,7 @@ Tex *BKE_texture_copy(Tex *tex)
 	if (texn->ot) texn->ot = BKE_copy_oceantex(texn->ot);
 	if (tex->preview) texn->preview = BKE_previewimg_copy(tex->preview);
 
-	if (tex->nodetree) {
-		if (tex->nodetree->execdata) {
-			ntreeTexEndExecTree(tex->nodetree->execdata);
-		}
+	if (tex->nodetree != NULL) {
 		texn->nodetree = ntreeCopyTree(tex->nodetree);
 	}
 	

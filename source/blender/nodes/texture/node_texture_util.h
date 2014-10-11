@@ -109,16 +109,6 @@ typedef struct TexParams {
 
 typedef void(*TexFn) (float *out, TexParams *params, bNode *node, bNodeStack **in, short thread);
 
-typedef struct TexDelegate {
-	TexCallData *cdata;
-	TexFn fn;
-	bNode *node;
-	bNodePreview *preview;
-	bNodeStack *in[MAX_SOCKET];
-	int type;
-} TexDelegate;
-
-
 int tex_node_poll_default(struct bNodeType *ntype, struct bNodeTree *ntree);
 void tex_node_type_base(struct bNodeType *ntype, int type, const char *name, short nclass, short flag);
 

@@ -144,8 +144,10 @@ void init_render_textures(Render *re)
 
 static void end_render_texture(Tex *tex)
 {
-	if (tex && tex->use_nodes && tex->nodetree && tex->nodetree->execdata)
-		ntreeTexEndExecTree(tex->nodetree->execdata);
+	if (tex && tex->use_nodes && tex->nodetree) {
+		/* ntreeTexEndExecTree(tex->nodetree->execdata); */
+		BLI_assert(!"Need to port thing over");
+	}
 }
 
 void end_render_textures(Render *re)

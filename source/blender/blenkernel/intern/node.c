@@ -1129,9 +1129,6 @@ static bNodeTree *ntreeCopyTree_internal(bNodeTree *ntree, Main *bmain, bool do_
 
 	id_us_plus((ID *)newtree->gpd);
 
-	/* in case a running nodetree is copied */
-	newtree->execdata = NULL;
-	
 	BLI_listbase_clear(&newtree->nodes);
 	BLI_listbase_clear(&newtree->links);
 	
@@ -1625,13 +1622,7 @@ static void node_free_node_ex(bNodeTree *ntree, bNode *node, bool remove_animdat
 
 		if (ntree->typeinfo->free_node_cache)
 			ntree->typeinfo->free_node_cache(ntree, node);
-		
-		/* texture node has bad habit of keeping exec data around */
-		if (ntree->type == NTREE_TEXTURE && ntree->execdata) {
-			ntreeTexEndExecTree(ntree->execdata);
-			ntree->execdata = NULL;
-		}
-		
+
 		if (node->typeinfo->freefunc)
 			node->typeinfo->freefunc(node);
 	}
@@ -1705,24 +1696,7 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
 	bNodeSocket *sock, *nextsock;
 	
 	if (ntree == NULL) return;
-	
-	/* XXX hack! node trees should not store execution graphs at all.
-	 * This should be removed when old tree types no longer require it.
-	 * Currently the execution data for texture nodes remains in the tree
-	 * after execution, until the node tree is updated or freed.
-	 */
-	if (ntree->execdata) {
-		switch (ntree->type) {
-			case NTREE_SHADER:
-				ntreeShaderEndExecTree(ntree->execdata);
-				break;
-			case NTREE_TEXTURE:
-				ntreeTexEndExecTree(ntree->execdata);
-				ntree->execdata = NULL;
-				break;
-		}
-	}
-	
+
 	/* XXX not nice, but needed to free localized node groups properly */
 	free_localized_node_groups(ntree);
 	

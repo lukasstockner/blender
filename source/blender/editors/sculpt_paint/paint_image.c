@@ -712,11 +712,15 @@ void paint_brush_exit_tex(Brush *brush)
 {
 	if (brush) {
 		MTex *mtex = &brush->mtex;
-		if (mtex->tex && mtex->tex->nodetree)
-			ntreeTexEndExecTree(mtex->tex->nodetree->execdata);
+		if (mtex->tex && mtex->tex->nodetree) {
+			/* ntreeTexEndExecTree(mtex->tex->nodetree->execdata); */
+			BLI_assert(!"Need to port thing over");
+		}
 		mtex = &brush->mask_mtex;
-		if (mtex->tex && mtex->tex->nodetree)
-			ntreeTexEndExecTree(mtex->tex->nodetree->execdata);
+		if (mtex->tex && mtex->tex->nodetree) {
+			/* ntreeTexEndExecTree(mtex->tex->nodetree->execdata); */
+			BLI_assert(!"Need to port thing over");
+		}
 	}
 }
 

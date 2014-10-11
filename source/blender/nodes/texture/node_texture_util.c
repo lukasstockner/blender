@@ -63,27 +63,12 @@ void tex_node_type_base(struct bNodeType *ntype, int type, const char *name, sho
 	ntype->update_internal_links = node_update_internal_links_default;
 }
 
-
-static void tex_call_delegate(TexDelegate *dg, float *out, TexParams *params, short thread)
-{
-	if (dg->node->need_exec) {
-		dg->fn(out, params, dg->node, dg->in, thread);
-
-		if (dg->cdata->do_preview)
-			tex_do_preview(dg->preview, params->previewco, out, dg->cdata->do_manage);
-	}
-}
-
 static void tex_input(float *out, int sz, bNodeStack *in, TexParams *params, short thread)
 {
-	TexDelegate *dg = in->data;
-	if (dg) {
-		tex_call_delegate(dg, in->vec, params, thread);
-	
-		if (in->hasoutput && in->sockettype == SOCK_FLOAT)
-			in->vec[1] = in->vec[2] = in->vec[0];
-	}
-	memcpy(out, in->vec, sz * sizeof(float));
+	(void) in;
+	(void) params;
+	(void) thread;
+	memset(out, 0, sz * sizeof(float));
 }
 
 void tex_input_vec(float *out, bNodeStack *in, TexParams *params, short thread)
@@ -139,27 +124,12 @@ void tex_do_preview(bNodePreview *preview, const float coord[2], const float col
 
 void tex_output(bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack *out, TexFn texfn, TexCallData *cdata)
 {
-	TexDelegate *dg;
-	
-	if (node->flag & NODE_MUTED) {
-		/* do not add a delegate if the node is muted */
-		return;
-	}
-	else {
-		if (!out->data)
-			/* Freed in tex_end_exec (node.c) */
-			dg = out->data = MEM_mallocN(sizeof(TexDelegate), "tex delegate");
-		else
-			dg = out->data;
-	}
-
-
-	dg->cdata = cdata;
-	dg->fn = texfn;
-	dg->node = node;
-	dg->preview = execdata->preview;
-	memcpy(dg->in, in, MAX_SOCKET * sizeof(bNodeStack *));
-	dg->type = out->sockettype;
+	(void) node;
+	(void) execdata;
+	(void) in;
+	(void) out;
+	(void) texfn;
+	(void) cdata;
 }
 
 void ntreeTexCheckCyclics(struct bNodeTree *ntree)
