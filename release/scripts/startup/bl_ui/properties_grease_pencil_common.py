@@ -79,7 +79,7 @@ class GreasePencilDrawingToolsPanel():
 class GreasePencilStrokeEditPanel():
     # subclass must set
     # bl_space_type = 'IMAGE_EDITOR'
-    bl_label = "Stroke Tools"
+    bl_label = "Edit Strokes"
     bl_category = "Grease Pencil"
     bl_region_type = 'TOOLS'
 
