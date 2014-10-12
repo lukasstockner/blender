@@ -100,13 +100,30 @@ bGPdata **ED_gpencil_data_get_pointers_direct(ID *screen_id, Scene *scene, ScrAr
 		switch (sa->spacetype) {
 			case SPACE_VIEW3D: /* 3D-View */
 			{
-				/* TODO: we can include other data-types such as bones later if need be... */
-
-				/* just in case no active/selected object */
-				if (ob && (ob->flag & SELECT)) {
-					/* for now, as long as there's an object, default to using that in 3D-View */
+				/* default to using scene's data, unless it doesn't exist (and object's does instead) */
+				/* XXX: this will require a toggle switch later to be more predictable */
+				bool scene_ok = (scene != NULL);
+				bool ob_ok    = ((ob) && (ob->flag & SELECT) && (ob->gpd));
+				
+				if (ob_ok || !scene_ok) {
+					/* Object Case (not good for users):
+					 * - For existing files with object-level already, 
+					 *   or where user has explicitly assigned to object,
+					 *   we can use the object as the host...
+					 *
+					 * - If there is no scene data provided (rare/impossible)
+					 *   we will also be forced to use the object
+					 */
 					if (ptr) RNA_id_pointer_create((ID *)ob, ptr);
 					return &ob->gpd;
+				}
+				else {
+					/* Scene Case (default):
+					 * This is the new (as of 2014-Oct-13, for 2.73) default setting
+					 * which should work better for most users.
+					 */
+					if (ptr) RNA_id_pointer_create((ID *)scene, ptr);
+					return &scene->gpd;
 				}
 				break;
 			}
