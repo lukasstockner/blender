@@ -266,22 +266,24 @@ class GreasePencilDataPanel():
             subcol.prop(gpl, "color", text="")
             subcol.prop(gpl, "alpha", slider=True)
 
-            col.prop(gpl, "line_width", slider=True)
-
             #if debug:
             #   col.prop(gpl, "show_points")
 
             # Column 2 - Options (& Current Frame)
             col = split.column(align=True)
-            # Onion skinning
-            col.prop(gpl, "use_onion_skinning")
-            col.prop(gpl, "ghost_range_max", text="Frames")
 
+            col.prop(gpl, "line_width", slider=True)
             col.prop(gpl, "show_x_ray")
 
+            # Full-Row - Frame Locking
             if gpl.active_frame:
                 lock_status = "Locked" if gpl.lock_frame else "Unlocked"
                 lock_label = "Frame: %d (%s)" % (gpl.active_frame.frame_number, lock_status)
             else:
                 lock_label = "Lock Frame"
             layout.prop(gpl, "lock_frame", text=lock_label, icon='UNLOCKED')
+
+            # Onion skinning
+            col = layout.column(align=True)
+            col.prop(gpl, "use_onion_skinning")
+            col.prop(gpl, "ghost_range_max", text="Frames")
