@@ -69,8 +69,9 @@ const char *screen_context_dir[] = {
 	"sculpt_object", "vertex_paint_object", "weight_paint_object",
 	"image_paint_object", "particle_edit_object",
 	"sequences", "selected_sequences", "selected_editable_sequences", /* sequencer */
-	"gpencil_data", "active_gpencil_layer", "active_gpencil_frame", /* grease pencil data */
+	"gpencil_data", "gpencil_data_owner", /* grease pencil data */
 	"visible_gpencil_layers", "editable_gpencil_layers", "editable_gpencil_strokes",
+	"active_gpencil_layer", "active_gpencil_frame",
 	"active_operator",
 	NULL};
 
@@ -407,6 +408,21 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
 		
 		if (gpd) {
 			CTX_data_id_pointer_set(result, &gpd->id);
+			return 1;
+		}
+	}
+	else if (CTX_data_equals(member, "gpencil_data_owner")) {
+		/* pointer to which data/datablock owns the reference to the Grease Pencil data being used (as gpencil_data)
+		 * XXX: see comment for gpencil_data case... 
+		 */
+		bGPdata **gpd_ptr = NULL;
+		PointerRNA ptr;
+		
+		/* get pointer to Grease Pencil Data */
+		gpd_ptr = ED_gpencil_data_get_pointers_direct((ID *)sc, scene, sa, obact, &ptr);
+		
+		if (gpd_ptr) {
+			CTX_data_pointer_set(result, ptr.id.data, ptr.type, ptr.data);
 			return 1;
 		}
 	}
