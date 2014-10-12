@@ -227,10 +227,13 @@ class GreasePencilDataPanel():
         else:
             self.draw_layers(context, layout, gpd)
 
-            layout.separator()
-            layout.separator()
+            # only sequencer doesn't have a toolbar to show this in,
+            # so only show this for the sequencer...
+            if context.space_data.type == 'SEQUENCE_EDITOR':
+                layout.separator()
+                layout.separator()
 
-            gpencil_stroke_placement_settings(context, layout, gpd)
+                gpencil_stroke_placement_settings(context, layout, gpd)
 
 
     def draw_layers(self, context, layout, gpd):
