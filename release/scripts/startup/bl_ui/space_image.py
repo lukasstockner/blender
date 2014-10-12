@@ -27,7 +27,8 @@ from bl_ui.properties_paint_common import (
         )
 from bl_ui.properties_grease_pencil_common import (
         GreasePencilDrawingToolsPanel,
-        GreasePencilStrokeEditPanel
+        GreasePencilStrokeEditPanel,
+        GreasePencilDataPanel
         )
 from bpy.app.translations import pgettext_iface as iface_
 
@@ -1144,6 +1145,13 @@ class IMAGE_PT_scope_sample(Panel):
         sub.active = not sima.scopes.use_full_resolution
         sub.prop(sima.scopes, "accuracy")
 
+
+# Grease Pencil properties
+class IMAGE_PT_grease_pencil(GreasePencilDataPanel, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+
+    # NOTE: this is just a wrapper around the generic GP Panel
 
 # Grease Pencil drawing tools
 class IMAGE_PT_tools_grease_pencil_draw(GreasePencilDrawingToolsPanel, Panel):

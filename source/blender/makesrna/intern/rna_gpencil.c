@@ -44,6 +44,8 @@
 
 #ifdef RNA_RUNTIME
 
+#include "BLI_math.h"
+
 #include "WM_api.h"
 
 #include "BKE_gpencil.h"
@@ -66,7 +68,6 @@ static int rna_GPencilLayer_active_frame_editable(PointerRNA *ptr)
 
 static PointerRNA rna_GPencil_active_layer_get(PointerRNA *ptr)
 {
-
 	bGPdata *gpd = ptr->id.data;
 
 	if (GS(gpd->id.name) == ID_GD) { /* why would this ever be not GD */
@@ -102,6 +103,33 @@ static void rna_GPencil_active_layer_set(PointerRNA *ptr, PointerRNA value)
 			}
 		}
 	}
+}
+
+static int rna_GPencil_active_layer_index_get(PointerRNA *ptr)
+{
+	bGPdata *gpd = (bGPdata *)ptr->id.data;
+	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
+	
+	return BLI_findindex(&gpd->layers, gpl);
+}
+
+static void rna_GPencil_active_layer_index_set(PointerRNA *ptr, int value)
+{
+	bGPdata *gpd   = (bGPdata *)ptr->id.data;
+	bGPDlayer *gpl = BLI_findlink(&gpd->layers, value);
+
+	gpencil_layer_setactive(gpd, gpl);
+}
+
+static void rna_GPencil_active_layer_index_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+{
+	bGPdata *gpd = (bGPdata *)ptr->id.data;
+
+	*min = 0;
+	*max = max_ii(0, BLI_countlist(&gpd->layers) - 1);
+
+	*softmin = *min;
+	*softmax = *max;
 }
 
 static void rna_GPencilLayer_info_set(PointerRNA *ptr, const char *value)
@@ -615,6 +643,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "lock_frame", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_LAYER_FRAMELOCK);
+	RNA_def_property_ui_icon(prop, ICON_UNLOCKED, 1);
 	RNA_def_property_ui_text(prop, "Frame Locked", "Lock current frame displayed by layer");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
 
@@ -683,6 +712,14 @@ static void rna_def_gpencil_layers_api(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_pointer_funcs(prop, "rna_GPencil_active_layer_get", "rna_GPencil_active_layer_set", NULL, NULL);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Active Layer", "Active grease pencil layer");
+	
+	prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
+	
+	RNA_def_property_int_funcs(prop,
+	                           "rna_GPencil_active_layer_index_get", 
+	                           "rna_GPencil_active_layer_index_set", 
+	                           "rna_GPencil_active_layer_index_range");
+	RNA_def_property_ui_text(prop, "Active Layer Index", "Index of active grease pencil layer");
 }
 
 static void rna_def_gpencil_data(BlenderRNA *brna)

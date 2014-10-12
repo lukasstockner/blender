@@ -21,7 +21,8 @@ import bpy
 from bpy.types import Header, Menu, Panel
 from bl_ui.properties_grease_pencil_common import (
         GreasePencilDrawingToolsPanel,
-        GreasePencilStrokeEditPanel
+        GreasePencilStrokeEditPanel,
+        GreasePencilDataPanel,
         )
 
 
@@ -440,6 +441,19 @@ class NODE_UL_interface_sockets(bpy.types.UIList):
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.template_node_socket(color)
+
+
+# Grease Pencil properties
+class NODE_PT_grease_pencil(GreasePencilDataPanel, Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+
+    # NOTE: this is just a wrapper around the generic GP Panel
+
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+        return snode is not None and snode.node_tree is not None
 
 # Tool Shelf ------------------
 

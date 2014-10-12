@@ -23,7 +23,8 @@ from bpy.types import Panel, Header, Menu, UIList
 from bpy.app.translations import pgettext_iface as iface_
 from bl_ui.properties_grease_pencil_common import (
         GreasePencilDrawingToolsPanel,
-        GreasePencilStrokeEditPanel
+        GreasePencilStrokeEditPanel,
+        GreasePencilDataPanel
         )
 
 
@@ -1053,16 +1054,6 @@ class CLIP_PT_tools_mask(MASK_PT_tools, Panel):
 # --- end mask ---
 
 
-# Grease Pencil drawing tools
-class CLIP_PT_tools_grease_pencil_draw(GreasePencilDrawingToolsPanel, Panel):
-    bl_space_type = 'CLIP_EDITOR'
-
-
-# Grease Pencil stroke editing tools
-class CLIP_PT_tools_grease_pencil_edit(GreasePencilStrokeEditPanel, Panel):
-    bl_space_type = 'CLIP_EDITOR'
-
-
 class CLIP_PT_footage(CLIP_PT_clip_view_panel, Panel):
     bl_space_type = 'CLIP_EDITOR'
     bl_region_type = 'UI'
@@ -1115,6 +1106,26 @@ class CLIP_PT_tools_scenesetup(Panel):
 
         layout.operator("clip.set_viewport_background")
         layout.operator("clip.setup_tracking_scene")
+
+
+# Grease Pencil properties
+class CLIP_PT_grease_pencil(GreasePencilDataPanel, CLIP_PT_clip_view_panel, Panel):
+    bl_space_type = 'CLIP_EDITOR'
+    bl_region_type = 'UI'
+    bl_options = {'DEFAULT_CLOSED'}
+
+    # NOTE: this is just a wrapper around the generic GP Panel
+    # But, this should only be visible in "clip" view
+
+
+# Grease Pencil drawing tools
+class CLIP_PT_tools_grease_pencil_draw(GreasePencilDrawingToolsPanel, Panel):
+    bl_space_type = 'CLIP_EDITOR'
+
+
+# Grease Pencil stroke editing tools
+class CLIP_PT_tools_grease_pencil_edit(GreasePencilStrokeEditPanel, Panel):
+    bl_space_type = 'CLIP_EDITOR'
 
 
 class CLIP_MT_view(Menu):

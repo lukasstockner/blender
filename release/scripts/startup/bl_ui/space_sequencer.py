@@ -19,6 +19,7 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
+from bl_ui.properties_grease_pencil_common import GreasePencilDataPanel
 from bpy.app.translations import pgettext_iface as iface_
 
 
@@ -1008,6 +1009,14 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
                     col = box.column()
                     col.prop(mod, "bright")
                     col.prop(mod, "contrast")
+
+
+class SEQUENCER_PT_grease_pencil(GreasePencilDataPanel, SequencerButtonsPanel_Output, Panel):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'UI'
+
+    # NOTE: this is just a wrapper around the generic GP Panel
+    # But, it should only show up when there are images in the preview region
 
 
 if __name__ == "__main__":  # only for live edit.
