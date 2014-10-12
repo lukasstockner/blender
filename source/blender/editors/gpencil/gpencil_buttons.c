@@ -150,8 +150,7 @@ static void gp_drawui_layer(uiLayout *layout, bGPdata *gpd, bGPDlayer *gpl, cons
 	uiButSetFunc(but, gp_ui_activelayer_cb, gpd, gpl);
 	
 	/* locked */
-	icon = (gpl->flag & GP_LAYER_LOCKED) ? ICON_LOCKED : ICON_UNLOCKED;
-	uiItemR(sub, &ptr, "lock", 0, "", icon);
+	uiItemR(sub, &ptr, "lock", 0, "", ICON_NONE);
 	
 	/* when layer is locked or hidden, only draw header */
 	if (gpl->flag & (GP_LAYER_LOCKED | GP_LAYER_HIDE)) {
@@ -159,7 +158,7 @@ static void gp_drawui_layer(uiLayout *layout, bGPdata *gpd, bGPDlayer *gpl, cons
 		
 		/* visibility button (only if hidden but not locked!) */
 		if ((gpl->flag & GP_LAYER_HIDE) && !(gpl->flag & GP_LAYER_LOCKED))
-			uiItemR(sub, &ptr, "hide", 0, "", ICON_RESTRICT_VIEW_ON);
+			uiItemR(sub, &ptr, "hide", 0, "", ICON_NONE);
 		
 		/* name */
 		if (gpl->flag & GP_LAYER_HIDE)
@@ -184,7 +183,7 @@ static void gp_drawui_layer(uiLayout *layout, bGPdata *gpd, bGPDlayer *gpl, cons
 	else {
 		/* draw rest of header -------------------------------- */
 		/* visibility button */
-		uiItemR(sub, &ptr, "hide", 0, "", ICON_RESTRICT_VIEW_OFF);
+		uiItemR(sub, &ptr, "hide", 0, "", ICON_NONE);
 		
 		/* frame locking */
 		/* TODO: this needs its own icons... */
