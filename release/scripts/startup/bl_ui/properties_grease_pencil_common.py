@@ -23,11 +23,13 @@ import bpy
 from bpy.types import Menu
 
 
-class GreasePencilPanel():
+class GreasePencilDrawingToolsPanel():
     # subclass must set
     # bl_space_type = 'IMAGE_EDITOR'
     # bl_region_type = 'TOOLS'
     bl_label = "Grease Pencil"
+    bl_category = "Grease Pencil"
+    bl_region_type = 'TOOLS'
 
     @staticmethod
     def draw(self, context):
@@ -66,13 +68,28 @@ class GreasePencilPanel():
                 row.active = gpd.draw_mode in ('SURFACE', 'STROKE')
                 row.prop(gpd, "use_stroke_endpoints")
 
+        if context.space_data.type == 'VIEW_3D':
+            col.separator()
+            col.separator()
 
-        # TODO: use a separate panel for these?
-        layout.separator()
+            col.label(text="Measure:")
+            col.operator("view3d.ruler")
+
+
+class GreasePencilStrokeEditPanel():
+    # subclass must set
+    # bl_space_type = 'IMAGE_EDITOR'
+    bl_label = "Stroke Tools"
+    bl_category = "Grease Pencil"
+    bl_region_type = 'TOOLS'
+
+    @staticmethod
+    def draw(self, context):
+        layout = self.layout
 
         col = layout.column(align=True)
 
-        col.label(text="Select Strokes:")
+        col.label(text="Select:")
         subcol = col.column(align=True)
         subcol.active = bool(context.editable_gpencil_strokes)
         subcol.operator("gpencil.select_all", text="Select All")
@@ -80,7 +97,7 @@ class GreasePencilPanel():
 
         col.separator()
 
-        col.label(text="Edit Strokes:")
+        col.label(text="Edit:")
         subcol = col.column(align=True)
         subcol.active = bool(context.editable_gpencil_strokes)
         subcol.operator("gpencil.strokes_duplicate", text="Duplicate")
@@ -93,13 +110,6 @@ class GreasePencilPanel():
         subcol.operator("transform.translate").gpencil_strokes = True   # icon='MAN_TRANS'
         subcol.operator("transform.rotate").gpencil_strokes = True      # icon='MAN_ROT'
         subcol.operator("transform.resize", text="Scale").gpencil_strokes = True      # icon='MAN_SCALE'
-
-        if context.space_data.type == 'VIEW_3D':
-            col.separator()
-            col.separator()
-
-            col.label(text="Measure:")
-            col.operator("view3d.ruler")
 
 
 ###############################

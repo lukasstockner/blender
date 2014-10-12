@@ -21,7 +21,10 @@
 import bpy
 from bpy.types import Panel, Header, Menu, UIList
 from bpy.app.translations import pgettext_iface as iface_
-from bl_ui.properties_grease_pencil_common import GreasePencilPanel
+from bl_ui.properties_grease_pencil_common import (
+        GreasePencilDrawingToolsPanel,
+        GreasePencilStrokeEditPanel
+        )
 
 
 class CLIP_UL_tracking_objects(UIList):
@@ -1050,10 +1053,14 @@ class CLIP_PT_tools_mask(MASK_PT_tools, Panel):
 # --- end mask ---
 
 
-class CLIP_PT_tools_grease_pencil(GreasePencilPanel, Panel):
+# Grease Pencil drawing tools
+class CLIP_PT_tools_grease_pencil_draw(GreasePencilDrawingToolsPanel, Panel):
     bl_space_type = 'CLIP_EDITOR'
-    bl_region_type = 'TOOLS'
-    bl_category = "Grease Pencil"
+
+
+# Grease Pencil stroke editing tools
+class CLIP_PT_tools_grease_pencil_edit(GreasePencilStrokeEditPanel, Panel):
+    bl_space_type = 'CLIP_EDITOR'
 
 
 class CLIP_PT_footage(CLIP_PT_clip_view_panel, Panel):

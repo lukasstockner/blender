@@ -19,6 +19,10 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
+from bl_ui.properties_grease_pencil_common import (
+        GreasePencilDrawingToolsPanel,
+        GreasePencilStrokeEditPanel
+        )
 
 
 class NODE_HT_header(Header):
@@ -437,6 +441,19 @@ class NODE_UL_interface_sockets(bpy.types.UIList):
             layout.alignment = 'CENTER'
             layout.template_node_socket(color)
 
+# Tool Shelf ------------------
+
+
+# Grease Pencil drawing tools
+class NODE_PT_tools_grease_pencil_draw(GreasePencilDrawingToolsPanel, Panel):
+    bl_space_type = 'NODE_EDITOR'
+
+
+# Grease Pencil stroke editing tools
+class NODE_PT_tools_grease_pencil_edit(GreasePencilStrokeEditPanel, Panel):
+    bl_space_type = 'NODE_EDITOR'
+
+# -----------------------------
 
 def node_draw_tree_view(layout, context):
     pass
