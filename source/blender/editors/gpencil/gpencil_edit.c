@@ -347,11 +347,68 @@ void GPENCIL_OT_layer_add(wmOperatorType *ot)
 	ot->name = "Add New Layer";
 	ot->idname = "GPENCIL_OT_layer_add";
 	ot->description = "Add new Grease Pencil layer for the active Grease Pencil datablock";
+	
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-
+	
 	/* callbacks */
 	ot->exec = gp_layer_add_exec;
 	ot->poll = gp_add_poll;
+}
+
+/* ******************* Remove Active Layer ************************* */
+
+static int gp_layer_remove_poll(bContext *C)
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
+	
+	return (gpl != NULL);
+}
+
+static int gp_layer_remove_exec(bContext *C, wmOperator *op)
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
+	
+	/* sanity checks */
+	if (ELEM(NULL, gpd, gpl))
+		return OPERATOR_CANCELLED;
+	
+	if (gpl->flag & GP_LAYER_LOCKED) {
+		BKE_report(op->reports, RPT_ERROR, "Cannot delete locked layers");
+		return OPERATOR_CANCELLED;
+	}	
+	
+	/* make the layer before this the new active layer 
+	 * - use the one after if this is the first
+	 * - if this is the only layer, this naturally becomes NULL
+	 */
+	if (gpl->prev)
+		gpencil_layer_setactive(gpd, gpl->prev);
+	else
+		gpencil_layer_setactive(gpd, gpl->next);
+		
+	/* delete the layer now... */
+	gpencil_layer_delete(gpd, gpl);
+	
+	/* notifiers */
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+	
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_layer_remove(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Remove Layer";
+	ot->idname = "GPENCIL_OT_layer_remove";
+	ot->description = "Remove active Grease Pencil layer";
+	
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	/* callbacks */
+	ot->exec = gp_layer_remove_exec;
+	ot->poll = gp_layer_remove_poll;
 }
 
 /* ******************* Copy Selected Strokes *********************** */
