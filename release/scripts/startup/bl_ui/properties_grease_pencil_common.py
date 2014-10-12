@@ -47,7 +47,30 @@ class GreasePencilPanel():
         row = col.row(align=True)
         row.prop(context.tool_settings, "use_grease_pencil_sessions", text="Continuous Drawing")
 
-        col.separator()
+        gpd = context.gpencil_data
+        if gpd:
+            col.separator()
+
+            col.label(text="Stroke Placement:")
+
+            row = col.row(align=True)
+            row.prop_enum(gpd, "draw_mode", 'VIEW')
+            row.prop_enum(gpd, "draw_mode", 'CURSOR')
+
+            if context.space_data.type == 'VIEW_3D':
+                row = col.row(align=True)
+                row.prop_enum(gpd, "draw_mode", 'SURFACE')
+                row.prop_enum(gpd, "draw_mode", 'STROKE')
+
+                row = col.row(align=False)
+                row.active = gpd.draw_mode in ('SURFACE', 'STROKE')
+                row.prop(gpd, "use_stroke_endpoints")
+
+
+        # TODO: use a separate panel for these?
+        layout.separator()
+
+        col = layout.column(align=True)
 
         col.label(text="Select Strokes:")
         subcol = col.column(align=True)
