@@ -138,6 +138,7 @@ void ED_operatortypes_gpencil(void)
 	
 	WM_operatortype_append(GPENCIL_OT_layer_add);
 	WM_operatortype_append(GPENCIL_OT_layer_remove);
+	WM_operatortype_append(GPENCIL_OT_layer_move);
 	
 	WM_operatortype_append(GPENCIL_OT_active_frame_delete);
 	

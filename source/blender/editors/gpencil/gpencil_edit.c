@@ -231,6 +231,15 @@ static int gp_add_poll(bContext *C)
 	return ED_gpencil_data_get_pointers(C, NULL) != NULL;
 }
 
+/* poll callback for checking if there is an active layer */
+static int gp_active_layer_poll(bContext *C)
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
+	
+	return (gpl != NULL);
+}
+
 /* ******************* Add New Data ************************ */
 
 /* add new datablock - wrapper around API */
@@ -357,14 +366,6 @@ void GPENCIL_OT_layer_add(wmOperatorType *ot)
 
 /* ******************* Remove Active Layer ************************* */
 
-static int gp_layer_remove_poll(bContext *C)
-{
-	bGPdata *gpd = ED_gpencil_data_get_active(C);
-	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
-	
-	return (gpl != NULL);
-}
-
 static int gp_layer_remove_exec(bContext *C, wmOperator *op)
 {
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
@@ -408,7 +409,66 @@ void GPENCIL_OT_layer_remove(wmOperatorType *ot)
 	
 	/* callbacks */
 	ot->exec = gp_layer_remove_exec;
-	ot->poll = gp_layer_remove_poll;
+	ot->poll = gp_active_layer_poll;
+}
+
+/* ******************* Move Layer Up/Down ************************** */
+
+enum {
+	GP_LAYER_MOVE_UP   = -1,
+	GP_LAYER_MOVE_DOWN = 1
+};
+
+static int gp_layer_move_exec(bContext *C, wmOperator *op)
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
+	
+	int direction = RNA_enum_get(op->ptr, "type");
+	
+	/* sanity checks */
+	if (ELEM(NULL, gpd, gpl))
+		return OPERATOR_CANCELLED;
+		
+	/* up or down? */
+	if (direction == GP_LAYER_MOVE_UP) {
+		/* up */
+		BLI_remlink(&gpd->layers, gpl);
+		BLI_insertlinkbefore(&gpd->layers, gpl->prev, gpl);
+	}
+	else {
+		/* down */
+		BLI_remlink(&gpd->layers, gpl);
+		BLI_insertlinkafter(&gpd->layers, gpl->next, gpl);
+	}
+	
+	/* notifiers */
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+	
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_layer_move(wmOperatorType *ot)
+{
+	static EnumPropertyItem slot_move[] = {
+		{GP_LAYER_MOVE_UP, "UP", 0, "Up", ""},
+		{GP_LAYER_MOVE_DOWN, "DOWN", 0, "Down", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	/* identifiers */
+	ot->name = "Move Grease Pencil Layer";
+	ot->idname = "GPENCIL_OT_layer_move";
+	ot->description = "Move the active Grease Pencil layer up/down in the list";
+
+	/* api callbacks */
+	ot->exec = gp_layer_move_exec;
+	ot->poll = gp_active_layer_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	ot->prop = RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
 }
 
 /* ******************* Copy Selected Strokes *********************** */
