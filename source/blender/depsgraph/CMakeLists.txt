@@ -76,13 +76,11 @@ set(SRC
 	util/depsgraph_util_hash.h
 	util/depsgraph_util_id.h
 	util/depsgraph_util_map.h
-	util/depsgraph_util_priority_queue.h
 	util/depsgraph_util_rna.h
 	util/depsgraph_util_set.h
 	util/depsgraph_util_string.h
 	util/depsgraph_util_task.h
 	util/depsgraph_util_task.cpp
-	util/depsgraph_util_thread.h
 	util/depsgraph_util_type_traits.h
 )
 

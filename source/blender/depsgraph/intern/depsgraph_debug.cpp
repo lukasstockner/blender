@@ -740,12 +740,11 @@ void DepsgraphDebug::eval_step(eEvaluationContextType context_type, const char *
 #endif
 }
 
-void DepsgraphDebug::task_started(const DepsgraphTask &task)
+void DepsgraphDebug::task_started(const OperationDepsNode *node)
 {
 	if (stats) {
 		BLI_mutex_lock(&stats_mutex);
 		
-		OperationDepsNode *node = task.node;
 		ComponentDepsNode *comp = node->owner;
 		ID *id = comp->owner->id;
 		
@@ -763,12 +762,11 @@ void DepsgraphDebug::task_started(const DepsgraphTask &task)
 	}
 }
 
-void DepsgraphDebug::task_completed(const DepsgraphTask &task, double time)
+void DepsgraphDebug::task_completed(const OperationDepsNode *node, double time)
 {
 	if (stats) {
 		BLI_mutex_lock(&stats_mutex);
 		
-		OperationDepsNode *node = task.node;
 		ComponentDepsNode *comp = node->owner;
 		ID *id = comp->owner->id;
 		

@@ -35,6 +35,7 @@
 extern "C" {
 #include "BLI_blenlib.h"
 #include "BLI_string.h"
+#include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
@@ -95,7 +96,6 @@ static SpinLock threaded_update_lock;
 /* Initialise threading lock - called during application startup */
 void DEG_threaded_init(void)
 {
-	DepsgraphTaskScheduler::init();
 	BLI_spin_init(&threaded_update_lock);
 }
 
@@ -104,7 +104,6 @@ void DEG_threaded_exit(void)
 {
 	DepsgraphDebug::stats_free();
 	
-	DepsgraphTaskScheduler::exit();
 	BLI_spin_end(&threaded_update_lock);
 }
 
@@ -154,21 +153,21 @@ static void calculate_eval_priority(OperationDepsNode *node)
 		node->eval_priority = 0.0f;
 }
 
-static void schedule_graph(DepsgraphTaskPool &pool, Depsgraph *graph, eEvaluationContextType context_type)
+static void schedule_graph(TaskPool *pool, Depsgraph *graph, eEvaluationContextType context_type)
 {
 	BLI_spin_lock(&threaded_update_lock);
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
 		OperationDepsNode *node = *it;
 		
 		if ((node->flag & DEPSOP_FLAG_NEEDS_UPDATE) && node->num_links_pending == 0) {
-			pool.push(graph, node, context_type);
+			BLI_task_pool_push(pool, DEG_task_run_func, node, false, TASK_PRIORITY_LOW);
 			node->scheduled = true;
 		}
 	}
 	BLI_spin_unlock(&threaded_update_lock);
 }
 
-void deg_schedule_children(DepsgraphTaskPool &pool, Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node)
+void deg_schedule_children(TaskPool *pool, Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node)
 {
 	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
 		DepsRelation *rel = *it;
@@ -184,8 +183,9 @@ void deg_schedule_children(DepsgraphTaskPool &pool, Depsgraph *graph, eEvaluatio
 				child->scheduled = true;
 				BLI_spin_unlock(&threaded_update_lock);
 				
-				if (need_schedule)
-					pool.push(graph, child, context_type);
+				if (need_schedule) {
+					BLI_task_pool_push(pool, DEG_task_run_func, child, false, TASK_PRIORITY_LOW);
+				}
 			}
 		}
 	}
@@ -202,7 +202,12 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 	// TODO: this needs both main and scene access...
 	
 	/* XXX could use a separate pool for each eval context */
-	static DepsgraphTaskPool task_pool = DepsgraphTaskPool();
+	DepsgraphEvalState state;
+	state.graph = graph;
+	state.context_type = context_type;
+
+	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
+	TaskPool *task_pool = BLI_task_pool_create(task_scheduler, &state);
 	
 	/* recursively push updates out to all nodes dependent on this, 
 	 * until all affected are tagged and/or scheduled up for eval
@@ -226,7 +231,8 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 	
 	schedule_graph(task_pool, graph, context_type);
 	
-	task_pool.wait();
+	BLI_task_pool_work_and_wait(task_pool);
+	BLI_task_pool_free(task_pool);
 	
 	DepsgraphDebug::eval_end(context_type);
 	

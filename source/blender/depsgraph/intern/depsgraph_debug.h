@@ -35,21 +35,21 @@
 
 extern "C" {
 #include "DNA_userdef_types.h"
+#include "BLI_threads.h"
 }
 
 #include "DEG_depsgraph_debug.h"
 #include "DEG_depsgraph.h"
 
 #include "depsgraph_util_string.h"
-#include "depsgraph_util_thread.h"
 
 struct DepsgraphStats;
 struct DepsgraphStatsID;
 struct DepsgraphStatsComponent;
 struct DepsgraphSettings;
+struct OperationDepsNode;
 
 struct Depsgraph;
-struct DepsgraphTask;
 
 struct DepsgraphDebug {
 	static DepsgraphStats *stats;
@@ -64,8 +64,8 @@ struct DepsgraphDebug {
 	static void eval_end(eEvaluationContextType context_type);
 	static void eval_step(eEvaluationContextType context_type, const char *message);
 	
-	static void task_started(const DepsgraphTask &task);
-	static void task_completed(const DepsgraphTask &task, double time);
+	static void task_started(const OperationDepsNode *node);
+	static void task_completed(const OperationDepsNode *node, double time);
 	
 	static DepsgraphStatsID *get_id_stats(ID *id, bool create);
 	static DepsgraphStatsComponent *get_component_stats(DepsgraphStatsID *id_stats, const string &name, bool create);
