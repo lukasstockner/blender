@@ -42,7 +42,7 @@ void BKE_rigidbody_rebuild_sim(Scene *scene); // BKE_rigidbody_rebuild_sim
 void BKE_rigidbody_eval_simulation(Scene *scene); // BKE_rigidbody_do_simulation
 void BKE_rigidbody_object_sync_transforms(Scene *scene, Object *ob); // BKE_rigidbody_sync_transforms
 
-void BKE_object_eval_local_transform(Object *ob, int a, int b, int c);
+void BKE_object_eval_local_transform(Scene *scene, Object *ob, int a, int b, int c);
 void BKE_object_eval_parent(Object *ob);
 void BKE_object_eval_modifier(Object *ob, ModifierData *md);
 

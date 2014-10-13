@@ -44,6 +44,7 @@ extern "C" {
 #include "BKE_action.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
+#include "BKE_object.h"
 
 #include "DEG_depsgraph.h"
 
@@ -80,7 +81,10 @@ void BKE_rigidbody_rebuild_sim(Scene *scene) {}
 void BKE_rigidbody_eval_simulation(Scene *scene) {}
 void BKE_rigidbody_object_sync_transforms(Scene *scene, Object *ob) {}
 
-void BKE_object_eval_local_transform(Object *ob, int a, int b, int c) { printf("BKE_object_eval_local_transform on %s (%d, %d, %d)\n", ob->id.name, a, b, c); }
+void BKE_object_eval_local_transform(Scene *scene, Object *ob, int a, int b, int c) {
+	printf("BKE_object_eval_local_transform on %s (%d, %d, %d)\n", ob->id.name, a, b, c);
+	BKE_object_where_is_calc_ex(scene, NULL, ob, NULL);
+}
 void BKE_object_eval_parent(Object *ob) {}
 void BKE_object_eval_modifier(Object *ob, ModifierData *md) {}
 

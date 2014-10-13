@@ -215,7 +215,7 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 {
 	/* standard components */
-	build_object_transform(ob);
+	build_object_transform(scene, ob);
 	
 	/* AnimData */
 	build_animdata(ob);
@@ -271,11 +271,11 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 	}
 }
 
-void DepsgraphNodeBuilder::build_object_transform(Object *ob)
+void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
 {
 	/* init operation */
 	add_operation_node(ob, DEPSNODE_TYPE_TRANSFORM,
-	                   DEPSOP_TYPE_INIT, bind_operation(BKE_object_eval_local_transform, ob, 3, 6, 12),
+	                   DEPSOP_TYPE_INIT, bind_operation(BKE_object_eval_local_transform, scene, ob, 3, 6, 12),
 	                   deg_op_name_object_local_transform);
 }
 
