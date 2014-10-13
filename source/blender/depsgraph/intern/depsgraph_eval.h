@@ -137,6 +137,6 @@ typedef struct DEG_PoseContext {
 struct Depsgraph;
 struct OperationDepsNode;
 struct Taskpool;
-void deg_schedule_children(TaskPool *pool, Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node);
+void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx, Depsgraph *graph, OperationDepsNode *node);
 
 #endif // __DEPSGRAPH_EVAL_TYPES_H__

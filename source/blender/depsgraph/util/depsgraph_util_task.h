@@ -27,16 +27,15 @@
 #ifndef __DEPSGRAPH_UTIL_TASK_H__
 #define __DEPSGRAPH_UTIL_TASK_H__
 
-#include "DEG_depsgraph.h" /* XXX for eEvaluationContextType ... could be moved perhaps */
 #include "depsnode_operation.h"
 
 class Depsgraph;
-class OperationDepsNode;
+struct EvaluationContext;
 struct TaskPool;
 
 struct DepsgraphEvalState {
+	EvaluationContext *eval_ctx;
 	Depsgraph *graph;
-	eEvaluationContextType context_type;
 };
 
 void DEG_task_run_func(TaskPool *pool, void *taskdata, int threadid);

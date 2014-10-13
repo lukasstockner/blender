@@ -153,7 +153,7 @@ static void calculate_eval_priority(OperationDepsNode *node)
 		node->eval_priority = 0.0f;
 }
 
-static void schedule_graph(TaskPool *pool, Depsgraph *graph, eEvaluationContextType context_type)
+static void schedule_graph(TaskPool *pool, EvaluationContext *eval_ctx, Depsgraph *graph)
 {
 	BLI_spin_lock(&threaded_update_lock);
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
@@ -167,7 +167,7 @@ static void schedule_graph(TaskPool *pool, Depsgraph *graph, eEvaluationContextT
 	BLI_spin_unlock(&threaded_update_lock);
 }
 
-void deg_schedule_children(TaskPool *pool, Depsgraph *graph, eEvaluationContextType context_type, OperationDepsNode *node)
+void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx, Depsgraph *graph, OperationDepsNode *node)
 {
 	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
 		DepsRelation *rel = *it;
@@ -196,15 +196,15 @@ void deg_schedule_children(TaskPool *pool, Depsgraph *graph, eEvaluationContextT
  * ! This is usually done as part of main loop, but may also be 
  *   called from frame-change update
  */
-void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_type)
+void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx, Depsgraph *graph)
 {
 	/* generate base evaluation context, upon which all the others are derived... */
 	// TODO: this needs both main and scene access...
 	
 	/* XXX could use a separate pool for each eval context */
 	DepsgraphEvalState state;
+	state.eval_ctx = eval_ctx;
 	state.graph = graph;
-	state.context_type = context_type;
 
 	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
 	TaskPool *task_pool = BLI_task_pool_create(task_scheduler, &state);
@@ -227,21 +227,23 @@ void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_ty
 		calculate_eval_priority(node);
 	}
 	
-	DepsgraphDebug::eval_begin(context_type);
+	DepsgraphDebug::eval_begin(eval_ctx);
 	
-	schedule_graph(task_pool, graph, context_type);
+	schedule_graph(task_pool, eval_ctx, graph);
 	
 	BLI_task_pool_work_and_wait(task_pool);
 	BLI_task_pool_free(task_pool);
 	
-	DepsgraphDebug::eval_end(context_type);
+	DepsgraphDebug::eval_end(eval_ctx);
 	
 	/* clear any uncleared tags - just in case */
 	DEG_graph_clear_tags(graph);
 }
 
 /* Frame-change happened for root scene that graph belongs to */
-void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType context_type, double ctime)
+void DEG_evaluate_on_framechange(EvaluationContext *eval_ctx,
+                                 Depsgraph *graph,
+                                 double ctime)
 {
 	/* update time on primary timesource */
 	TimeSourceDepsNode *tsrc = graph->find_time_source();
@@ -252,7 +254,7 @@ void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType contex
 #endif
 	
 	/* perform recalculation updates */
-	DEG_evaluate_on_refresh(graph, context_type);
+	DEG_evaluate_on_refresh(eval_ctx, graph);
 }
 
 /* *************************************************** */

@@ -61,7 +61,7 @@ void DEG_task_run_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 	DepsgraphEvalState *state = (DepsgraphEvalState *)BLI_task_pool_userdata(pool);
 	OperationDepsNode *node = (OperationDepsNode *)taskdata;
 	if (node->is_noop()) {
-		deg_schedule_children(pool, state->graph, state->context_type, node);
+		deg_schedule_children(pool, state->eval_ctx, state->graph, node);
 		return;
 	}
 
@@ -94,5 +94,5 @@ void DEG_task_run_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 	double end_time = PIL_check_seconds_timer();
 	DepsgraphDebug::task_completed(node, end_time - start_time);
 
-	deg_schedule_children(pool, state->graph, state->context_type, node);
+	deg_schedule_children(pool, state->eval_ctx, state->graph, node);
 }

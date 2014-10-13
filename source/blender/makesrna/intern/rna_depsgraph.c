@@ -36,10 +36,11 @@
 
 #include "DEG_depsgraph.h"
 
+#include "BKE_depsgraph.h"
+
 #ifdef RNA_RUNTIME
 
 #include "DEG_depsgraph_debug.h"
-
 
 static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
 {
@@ -78,6 +79,7 @@ static void rna_Depsgraph_debug_simulate_cb(DepsgraphEvalDebugInfo *info, const 
 
 static void rna_Depsgraph_debug_simulate(Depsgraph *graph, const char *filename, int context_type)
 {
+	EvaluationContext eval_ctx;
 	DepsgraphEvalDebugInfo debug_info;
 	debug_info.filename = filename;
 	debug_info.step = 0;
@@ -87,7 +89,9 @@ static void rna_Depsgraph_debug_simulate(Depsgraph *graph, const char *filename,
 	                    (DEG_DebugEvalCb)rna_Depsgraph_debug_simulate_cb);
 	
 	DEG_graph_flush_updates(graph);
-	DEG_evaluate_on_refresh(graph, (eEvaluationContextType)context_type);
+
+	eval_ctx.mode = context_type;
+	DEG_evaluate_on_refresh(&eval_ctx, graph);
 	
 	DEG_debug_eval_end();
 }
@@ -101,9 +105,9 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	PropertyRNA *parm;
 	
 	static EnumPropertyItem context_type_items[] = {
-		{DEG_EVALUATION_CONTEXT_VIEWPORT, "VIEWPORT", 0, "Viewport", "Viewport Display"},
-		{DEG_EVALUATION_CONTEXT_RENDER, "RENDER", 0, "Render", "Render Engine DB Conversion"},
-		{DEG_EVALUATION_CONTEXT_BAKE, "BAKE", 0, "Bake", "Background baking operation"},
+		{DAG_EVAL_VIEWPORT, "VIEWPORT", 0, "Viewport", "Viewport Display"},
+		{DAG_EVAL_RENDER, "RENDER", 0, "Render", "Render Engine DB Conversion"},
+		{DAG_EVAL_PREVIEW, "PREVIEW", 0, "Preview", "Preview rendering"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	
@@ -119,7 +123,7 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "File in which to store graphviz debug output");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm = RNA_def_enum(func, "context_type", context_type_items, DEG_EVALUATION_CONTEXT_VIEWPORT, "Context Type", "");
+	parm = RNA_def_enum(func, "context_type", context_type_items, DAG_EVAL_VIEWPORT, "Context Type", "");
 }
 
 void RNA_def_depsgraph(BlenderRNA *brna)

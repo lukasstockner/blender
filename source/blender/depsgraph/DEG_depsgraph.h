@@ -55,6 +55,7 @@ typedef struct Depsgraph Depsgraph;
 
 /* ------------------------------------------------ */
 
+struct EvaluationContext;
 struct Main;
 struct Scene;
 
@@ -123,36 +124,21 @@ void DEG_graph_clear_tags(Depsgraph *graph);
 /* ************************************************ */
 /* Evaluation Engine API */
 
-/* Role of evaluation context
- * Describes what each context is to be used for evaluating
- */
-typedef enum eEvaluationContextType {
-	/* All Contexts - Not a proper role, but is used when passing args to functions */
-	DEG_ALL_EVALUATION_CONTEXTS     = -1,
-	
-	/* Viewport Display */
-	DEG_EVALUATION_CONTEXT_VIEWPORT = 0,
-	/* Render Engine DB Conversion */
-	DEG_EVALUATION_CONTEXT_RENDER   = 1,
-	/* Background baking operation */
-	DEG_EVALUATION_CONTEXT_BAKE     = 2,
-	
-	/* Maximum number of support evaluation contexts (Always as last) */
-	DEG_MAX_EVALUATION_CONTEXTS
-} eEvaluationContextType;
-
 /* ----------------------------------------------- */
 
 /* Frame changed recalculation entrypoint 
  * < context_type: context to perform evaluation for
  * < ctime: (frame) new frame to evaluate values on
  */
-void DEG_evaluate_on_framechange(Depsgraph *graph, eEvaluationContextType context_type, double ctime);
+void DEG_evaluate_on_framechange(struct EvaluationContext *eval_ctx,
+                                 Depsgraph *graph,
+                                 double ctime);
 
 /* Data changed recalculation entrypoint 
  * < context_type: context to perform evaluation for
  */
-void DEG_evaluate_on_refresh(Depsgraph *graph, eEvaluationContextType context_type);
+void DEG_evaluate_on_refresh(struct EvaluationContext *eval_ctx,
+                             Depsgraph *graph);
 
 /* ----------------------------------------------- */
 

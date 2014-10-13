@@ -1697,7 +1697,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	else {
 		/* new depsgraph */
 		BLI_assert(scene->depsgraph);
-		DEG_evaluate_on_refresh(scene->depsgraph, eval_ctx->mode == DAG_EVAL_RENDER ? DEG_EVALUATION_CONTEXT_RENDER : DEG_EVALUATION_CONTEXT_VIEWPORT);
+		DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph);
 	}
 }
 
@@ -1792,7 +1792,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 		float ctime = BKE_scene_frame_get(sce);
 		/* new depsgraph */
 		BLI_assert(sce->depsgraph);
-		DEG_evaluate_on_framechange(sce->depsgraph, eval_ctx->mode == DAG_EVAL_RENDER ? DEG_EVALUATION_CONTEXT_RENDER : DEG_EVALUATION_CONTEXT_VIEWPORT, ctime);
+		DEG_evaluate_on_framechange(eval_ctx, sce->depsgraph, ctime);
 	}
 }
 

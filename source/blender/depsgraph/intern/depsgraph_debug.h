@@ -47,6 +47,7 @@ struct DepsgraphStats;
 struct DepsgraphStatsID;
 struct DepsgraphStatsComponent;
 struct DepsgraphSettings;
+struct EvaluationContext;
 struct OperationDepsNode;
 
 struct Depsgraph;
@@ -60,9 +61,9 @@ struct DepsgraphDebug {
 	static void verify_stats(DepsgraphSettings *settings);
 	static void reset_stats();
 	
-	static void eval_begin(eEvaluationContextType context_type);
-	static void eval_end(eEvaluationContextType context_type);
-	static void eval_step(eEvaluationContextType context_type, const char *message);
+	static void eval_begin(const EvaluationContext *eval_ctx);
+	static void eval_end(const EvaluationContext *eval_ctx);
+	static void eval_step(const EvaluationContext *eval_ctx, const char *message);
 	
 	static void task_started(const OperationDepsNode *node);
 	static void task_completed(const OperationDepsNode *node, double time);
