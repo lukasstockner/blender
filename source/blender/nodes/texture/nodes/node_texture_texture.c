@@ -46,62 +46,64 @@ static bNodeSocketTemplate outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void colorfn(float *out, TexParams *p, bNode *node, bNodeStack **in, short thread)
+static void exec(void *data,
+                 int thread,
+                 bNode *node,
+                 bNodeExecData *execdata,
+                 bNodeStack **in,
+                 bNodeStack **out)
 {
 	Tex *nodetex = (Tex *)node->id;
-	static float red[] = {1, 0, 0, 1};
-	static float white[] = {1, 1, 1, 1};
+	TexCallData *cdata = (TexCallData *)data;
+	static float red[] = {1.0f, 0.0f, 0.0f, 1.0f};
+	static float white[] = {1.0f, 1.0f, 1.0f, 1.0f};
 	float co[3], dxt[3], dyt[3];
-	
-	copy_v3_v3(co, p->co);
-	if (p->osatex) {
-		copy_v3_v3(dxt, p->dxt);
-		copy_v3_v3(dyt, p->dyt);
+
+	copy_v3_v3(co, cdata->co);
+	if (cdata->osatex) {
+		copy_v3_v3(dxt, cdata->dxt);
+		copy_v3_v3(dyt, cdata->dyt);
 	}
 	else {
 		zero_v3(dxt);
 		zero_v3(dyt);
 	}
-	
+
 	if (node->custom2 || node->need_exec == 0) {
 		/* this node refers to its own texture tree! */
-		copy_v4_v4(out, (fabsf(co[0] - co[1]) < 0.01f) ? white : red);
+		copy_v4_v4(out[0]->vec, (fabsf(co[0] - co[1]) < 0.01f) ? white : red);
 	}
 	else if (nodetex) {
 		TexResult texres;
 		int textype;
 		float nor[] = {0, 0, 0};
 		float col1[4], col2[4];
-		
+
 		tex_input_rgba(col1, in[0]);
 		tex_input_rgba(col2, in[1]);
-		
+
 		texres.nor = nor;
-		textype = multitex_nodes(nodetex, co, dxt, dyt, p->osatex,
-		                         &texres, thread, 0, p->shi, p->mtex, NULL);
-		
+		textype = multitex_nodes(nodetex, co, dxt, dyt, cdata->osatex,
+		                         &texres, thread, 0, cdata->shi, cdata->mtex, NULL);
+
 		if (textype & TEX_RGB) {
-			copy_v4_v4(out, &texres.tr);
+			copy_v4_v4(out[0]->vec, &texres.tr);
 		}
 		else {
-			copy_v4_v4(out, col1);
-			ramp_blend(MA_RAMP_BLEND, out, texres.tin, col2);
+			copy_v4_v4(out[0]->vec, col1);
+			ramp_blend(MA_RAMP_BLEND, out[0]->vec, texres.tin, col2);
 		}
 	}
-}
-
-static void exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &colorfn, data);
+	tex_do_preview(execdata->preview, cdata->co, out[0]->vec, cdata->do_manage);
 }
 
 void register_node_type_tex_texture(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_TEXTURE, "Texture", NODE_CLASS_INPUT, NODE_PREVIEW);
 	node_type_socket_templates(&ntype, inputs, outputs);
 	node_type_exec(&ntype, NULL, NULL, exec);
-	
+
 	nodeRegisterType(&ntype);
 }

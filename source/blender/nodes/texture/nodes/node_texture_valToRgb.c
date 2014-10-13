@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -86,26 +86,25 @@ static bNodeSocketTemplate rgbtobw_out[] = {
 	{	-1, 0, ""	}
 };
 
-
-static void rgbtobw_valuefn(float *out, TexParams *UNUSED(p), bNode *UNUSED(node), bNodeStack **in, short UNUSED(thread))
+static void rgbtobw_exec(void *UNUSED(data),
+                         int UNUSED(thread),
+                         bNode *UNUSED(node),
+                         bNodeExecData *UNUSED(execdata),
+                         bNodeStack **in,
+                         bNodeStack **out)
 {
 	float cin[4];
 	tex_input_rgba(cin, in[0]);
-	*out = rgb_to_bw(cin);
-}
-
-static void rgbtobw_exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &rgbtobw_valuefn, data);
+	out[0]->vec[0] = rgb_to_bw(cin);
 }
 
 void register_node_type_tex_rgbtobw(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_RGBTOBW, "RGB to BW", NODE_CLASS_CONVERTOR, 0);
 	node_type_socket_templates(&ntype, rgbtobw_in, rgbtobw_out);
 	node_type_exec(&ntype, NULL, NULL, rgbtobw_exec);
-	
+
 	nodeRegisterType(&ntype);
 }

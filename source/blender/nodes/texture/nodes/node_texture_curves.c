@@ -41,22 +41,23 @@ static bNodeSocketTemplate time_outputs[] = {
 	{ -1, 0, "" }
 };
 
-static void time_colorfn(float *out, TexParams *p, bNode *node, bNodeStack **UNUSED(in), short UNUSED(thread))
+static void time_exec(void *data,
+                      int UNUSED(thread),
+                      bNode *node,
+                      bNodeExecData *UNUSED(execdata),
+                      bNodeStack **UNUSED(in),
+                      bNodeStack **out)
 {
+	TexCallData *cdata = (TexCallData *)data;
 	/* stack order output: fac */
 	float fac = 0.0f;
-	
+
 	if (node->custom1 < node->custom2)
-		fac = (p->cfra - node->custom1) / (float)(node->custom2 - node->custom1);
-	
+		fac = (cdata->cfra - node->custom1) / (float)(node->custom2 - node->custom1);
+
 	curvemapping_initialize(node->storage);
 	fac = curvemapping_evaluateF(node->storage, 0, fac);
-	out[0] = CLAMPIS(fac, 0.0f, 1.0f);
-}
-
-static void time_exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out)
-{
-	tex_output(node, execdata, in, out[0], &time_colorfn, data);
+	out[0]->vec[0] = CLAMPIS(fac, 0.0f, 1.0f);
 }
 
 
@@ -70,14 +71,14 @@ static void time_init(bNodeTree *UNUSED(ntree), bNode *node)
 void register_node_type_tex_curve_time(void)
 {
 	static bNodeType ntype;
-	
+
 	tex_node_type_base(&ntype, TEX_NODE_CURVE_TIME, "Time", NODE_CLASS_INPUT, 0);
 	node_type_socket_templates(&ntype, NULL, time_outputs);
 	node_type_size_preset(&ntype, NODE_SIZE_LARGE);
 	node_type_init(&ntype, time_init);
 	node_type_storage(&ntype, "CurveMapping", node_free_curves, node_copy_curves);
 	node_type_exec(&ntype, node_initexec_curves, NULL, time_exec);
-	
+
 	nodeRegisterType(&ntype);
 }
 
