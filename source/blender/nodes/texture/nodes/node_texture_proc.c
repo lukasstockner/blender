@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -35,7 +35,7 @@
 
 #include "RE_shader_ext.h"
 
-/* 
+/*
  * In this file: wrappers to use procedural textures as nodes
  */
 
@@ -57,23 +57,29 @@ static bNodeSocketTemplate outputs_color_only[] = {
 	{ SOCK_RGBA, 1, "Color 2", 1.0f, 1.0f, 1.0f, 1.0f }
 
 /* Calls multitex and copies the result to the outputs. Called by xxx_exec, which handles inputs. */
-static void do_proc(float *result, TexParams *p, const float col1[4], const float col2[4], char is_normal, Tex *tex, const short thread)
+static void do_proc(float *result,
+                    TexCallData *cdata,
+                    const float col1[4],
+                    const float col2[4],
+                    bool is_normal,
+                    Tex *tex,
+                    const short thread)
 {
 	TexResult texres;
 	int textype;
-	
+
 	if (is_normal) {
 		texres.nor = result;
 	}
 	else
 		texres.nor = NULL;
-	
-	textype = multitex_nodes(tex, p->co, p->dxt, p->dyt, p->osatex,
-	                         &texres, thread, 0, p->shi, p->mtex, NULL);
-	
+
+	textype = multitex_nodes(tex, cdata->co, cdata->dxt, cdata->dyt, cdata->osatex,
+	                         &texres, thread, 0, cdata->shi, cdata->mtex, NULL);
+
 	if (is_normal)
 		return;
-	
+
 	if (textype & TEX_RGB) {
 		copy_v4_v4(result, &texres.tr);
 	}
@@ -83,57 +89,42 @@ static void do_proc(float *result, TexParams *p, const float col1[4], const floa
 	}
 }
 
-typedef void (*MapFn) (Tex *tex, bNodeStack **in, TexParams *p, const short thread);
+typedef void (*MapFn) (Tex *tex, bNodeStack **in);
 
-static void texfn(
-	float *result, 
-	TexParams *p,
-	bNode *node, 
-	bNodeStack **in,
-	char is_normal, 
-	MapFn map_inputs,
-	short thread)
+static void texfn(float *result,
+                  TexCallData *cdata,
+                  bNode *node,
+                  bNodeStack **in,
+                  bool is_normal,
+                  MapFn map_inputs,
+                  short thread)
 {
 	Tex tex = *((Tex *)(node->storage));
 	float col1[4], col2[4];
 	tex_input_rgba(col1, in[0]);
 	tex_input_rgba(col2, in[1]);
-	
-	map_inputs(&tex, in, p, thread);
-	
-	do_proc(result, p, col1, col2, is_normal, &tex, thread);
-}
 
-static int count_outputs(bNode *node)
-{
-	bNodeSocket *sock;
-	int num = 0;
-	for (sock = node->outputs.first; sock; sock = sock->next) {
-		num++;
-	}
-	return num;
+	map_inputs(&tex, in);
+
+	do_proc(result, cdata, col1, col2, is_normal, &tex, thread);
 }
 
 /* Boilerplate generators */
 
 #define ProcNoInputs(name) \
-		static void name##_map_inputs(Tex *UNUSED(tex), bNodeStack **UNUSED(in), TexParams *UNUSED(p), short UNUSED(thread)) \
+		static void name##_map_inputs(Tex *UNUSED(tex), bNodeStack **UNUSED(in)) \
 		{}
 
 #define ProcDef(name) \
-	static void name##_colorfn(float *result, TexParams *p, bNode *node, bNodeStack **in, short thread)  \
+	static void name##_exec(void *data, int thread, bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out) \
 	{                                                                                                    \
-		texfn(result, p, node, in, 0, &name##_map_inputs, thread);                                       \
-	}                                                                                                    \
-	static void name##_normalfn(float *result, TexParams *p, bNode *node, bNodeStack **in, short thread) \
-	{                                                                                                    \
-		texfn(result, p, node, in, 1, &name##_map_inputs, thread);                                       \
-	}                                                                                                    \
-	static void name##_exec(void *data, int UNUSED(thread), bNode *node, bNodeExecData *execdata, bNodeStack **in, bNodeStack **out) \
-	{                                                                                                    \
-		int outs = count_outputs(node);                                                                  \
-		if (outs >= 1) tex_output(node, execdata, in, out[0], &name##_colorfn, data);                    \
-		if (outs >= 2) tex_output(node, execdata, in, out[1], &name##_normalfn, data);                   \
+		int outs = BLI_countlist(&node->outputs);                                                        \
+		TexCallData *cdata = (TexCallData *)data;                                                        \
+		if (outs >= 1) {                                                                                 \
+			texfn(out[0]->vec, cdata, node, in, false, &name##_map_inputs, thread);                      \
+			tex_do_preview(execdata->preview, cdata->co, out[0]->vec, cdata->do_manage);                 \
+		}                                                                                                \
+		if (outs >= 2) texfn(out[1]->vec, cdata, node, in, true, &name##_map_inputs, thread);            \
 	}
 
 
@@ -144,19 +135,19 @@ static bNodeSocketTemplate voronoi_inputs[] = {
 	{ SOCK_FLOAT, 1, N_("W2"), 0.0f, 0.0f, 0.0f, 0.0f,   -2.0f, 2.0f, PROP_NONE },
 	{ SOCK_FLOAT, 1, N_("W3"), 0.0f, 0.0f, 0.0f, 0.0f,   -2.0f, 2.0f, PROP_NONE },
 	{ SOCK_FLOAT, 1, N_("W4"), 0.0f, 0.0f, 0.0f, 0.0f,   -2.0f, 2.0f, PROP_NONE },
-	
+
 	{ SOCK_FLOAT, 1, N_("iScale"), 1.0f, 0.0f, 0.0f, 0.0f,    0.01f,  10.0f, PROP_UNSIGNED },
 	{ SOCK_FLOAT, 1, N_("Size"),   0.25f, 0.0f, 0.0f, 0.0f,   0.0001f, 4.0f, PROP_UNSIGNED },
-	
+
 	{ -1, 0, "" }
 };
-static void voronoi_map_inputs(Tex *tex, bNodeStack **in, TexParams *UNUSED(p), short UNUSED(thread))
+static void voronoi_map_inputs(Tex *tex, bNodeStack **in)
 {
 	tex->vn_w1 = tex_input_value(in[I + 0]);
 	tex->vn_w2 = tex_input_value(in[I + 1]);
 	tex->vn_w3 = tex_input_value(in[I + 2]);
 	tex->vn_w4 = tex_input_value(in[I + 3]);
-	
+
 	tex->ns_outscale = tex_input_value(in[I + 4]);
 	tex->noisesize   = tex_input_value(in[I + 5]);
 }
@@ -176,7 +167,7 @@ static bNodeSocketTemplate magic_inputs[] = {
 	{ SOCK_FLOAT, 1, N_("Turbulence"), 5.0f, 0.0f, 0.0f, 0.0f,   0.0f, 200.0f, PROP_UNSIGNED },
 	{ -1, 0, "" }
 };
-static void magic_map_inputs(Tex *tex, bNodeStack **in, TexParams *UNUSED(p), short UNUSED(thread))
+static void magic_map_inputs(Tex *tex, bNodeStack **in)
 {
 	tex->turbul = tex_input_value(in[I + 0]);
 }
@@ -189,7 +180,7 @@ static bNodeSocketTemplate marble_inputs[] = {
 	{ SOCK_FLOAT, 1, N_("Turbulence"), 5.0f,  0.0f, 0.0f, 0.0f,   0.0f, 200.0f, PROP_UNSIGNED },
 	{ -1, 0, "" }
 };
-static void marble_map_inputs(Tex *tex, bNodeStack **in, TexParams *UNUSED(p), short UNUSED(thread))
+static void marble_map_inputs(Tex *tex, bNodeStack **in)
 {
 	tex->noisesize = tex_input_value(in[I + 0]);
 	tex->turbul    = tex_input_value(in[I + 1]);
@@ -202,7 +193,7 @@ static bNodeSocketTemplate clouds_inputs[] = {
 	{ SOCK_FLOAT, 1, N_("Size"),       0.25f, 0.0f, 0.0f, 0.0f,   0.0001f, 2.0f, PROP_UNSIGNED },
 	{ -1, 0, "" }
 };
-static void clouds_map_inputs(Tex *tex, bNodeStack **in, TexParams *UNUSED(p), short UNUSED(thread))
+static void clouds_map_inputs(Tex *tex, bNodeStack **in)
 {
 	tex->noisesize = tex_input_value(in[I + 0]);
 }
@@ -215,7 +206,7 @@ static bNodeSocketTemplate distnoise_inputs[] = {
 	{ SOCK_FLOAT, 1, N_("Distortion"), 1.00f, 0.0f, 0.0f, 0.0f,   0.0000f, 10.0f, PROP_UNSIGNED },
 	{ -1, 0, "" }
 };
-static void distnoise_map_inputs(Tex *tex, bNodeStack **in, TexParams *UNUSED(p), short UNUSED(thread))
+static void distnoise_map_inputs(Tex *tex, bNodeStack **in)
 {
 	tex->noisesize   = tex_input_value(in[I + 0]);
 	tex->dist_amount = tex_input_value(in[I + 1]);
@@ -229,7 +220,7 @@ static bNodeSocketTemplate wood_inputs[] = {
 	{ SOCK_FLOAT, 1, N_("Turbulence"), 5.0f,  0.0f, 0.0f, 0.0f,   0.0f, 200.0f, PROP_UNSIGNED },
 	{ -1, 0, "" }
 };
-static void wood_map_inputs(Tex *tex, bNodeStack **in, TexParams *UNUSED(p), short UNUSED(thread))
+static void wood_map_inputs(Tex *tex, bNodeStack **in)
 {
 	tex->noisesize = tex_input_value(in[I + 0]);
 	tex->turbul    = tex_input_value(in[I + 1]);
@@ -242,12 +233,12 @@ static bNodeSocketTemplate musgrave_inputs[] = {
 	{ SOCK_FLOAT, 1, N_("H"),          1.0f, 0.0f, 0.0f, 0.0f,   0.0001f, 2.0f, PROP_UNSIGNED },
 	{ SOCK_FLOAT, 1, N_("Lacunarity"), 2.0f, 0.0f, 0.0f, 0.0f,   0.0f,    6.0f, PROP_UNSIGNED },
 	{ SOCK_FLOAT, 1, N_("Octaves"),    2.0f, 0.0f, 0.0f, 0.0f,   0.0f,    8.0f, PROP_UNSIGNED },
-	
+
 	{ SOCK_FLOAT, 1, N_("iScale"),     1.0f,  0.0f, 0.0f, 0.0f,  0.0f,   10.0f, PROP_UNSIGNED },
 	{ SOCK_FLOAT, 1, N_("Size"),       0.25f, 0.0f, 0.0f, 0.0f,  0.0001f, 2.0f, PROP_UNSIGNED },
 	{ -1, 0, "" }
 };
-static void musgrave_map_inputs(Tex *tex, bNodeStack **in, TexParams *UNUSED(p), short UNUSED(thread))
+static void musgrave_map_inputs(Tex *tex, bNodeStack **in)
 {
 	tex->mg_H          = tex_input_value(in[I + 0]);
 	tex->mg_lacunarity = tex_input_value(in[I + 1]);
@@ -272,7 +263,7 @@ static bNodeSocketTemplate stucci_inputs[] = {
 	{ SOCK_FLOAT, 1, N_("Turbulence"), 5.0f,  0.0f, 0.0f, 0.0f,   0.0f, 200.0f, PROP_UNSIGNED },
 	{ -1, 0, "" }
 };
-static void stucci_map_inputs(Tex *tex, bNodeStack **in, TexParams *UNUSED(p), short UNUSED(thread))
+static void stucci_map_inputs(Tex *tex, bNodeStack **in)
 {
 	tex->noisesize = tex_input_value(in[I + 0]);
 	tex->turbul    = tex_input_value(in[I + 1]);
@@ -285,13 +276,12 @@ static void init(bNodeTree *UNUSED(ntree), bNode *node)
 {
 	Tex *tex = MEM_callocN(sizeof(Tex), "Tex");
 	node->storage = tex;
-	
+
 	default_tex(tex);
 	tex->type = node->type - TEX_NODE_PROC;
-	
+
 	if (tex->type == TEX_WOOD)
 		tex->stype = TEX_BANDNOISE;
-	
 }
 
 /* Node type definitions */
@@ -309,10 +299,10 @@ void register_node_type_tex_proc_##name(void) \
 	\
 	nodeRegisterType(&ntype); \
 }
-	
+
 #define C outputs_color_only
 #define CV outputs_both
-	
+
 TexDef(TEX_VORONOI,   CV, voronoi,   "Voronoi"  )
 TexDef(TEX_BLEND,     C,  blend,     "Blend"    )
 TexDef(TEX_MAGIC,     C,  magic,     "Magic"    )
