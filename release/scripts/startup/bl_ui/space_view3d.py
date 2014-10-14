@@ -605,6 +605,10 @@ class VIEW3D_MT_select_particle(Menu):
 
         layout.separator()
 
+        layout.operator("particle.select_random")
+
+        layout.separator()
+
         layout.operator("particle.select_roots", text="Roots")
         layout.operator("particle.select_tips", text="Tips")
 
@@ -1723,6 +1727,10 @@ class VIEW3D_MT_particle_specials(Menu):
             layout.separator()
             layout.operator("particle.select_roots")
             layout.operator("particle.select_tips")
+
+            layout.separator()
+
+            layout.operator("particle.select_random")
 
             layout.separator()
 
